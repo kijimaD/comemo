@@ -61,7 +61,7 @@ Date:   Tue Apr 1 13:31:38 2014 -0400
     R=khr
     CC=golang-codereviews
     https://golang.org/cl/81940043
-
+---
  src/cmd/5g/ggen.c      |   4 +-
  src/cmd/5g/peep.c      |   3 +-
  src/cmd/5g/prog.c      |   1 +
@@ -92,3 +92,2182 @@ Date:   Tue Apr 1 13:31:38 2014 -0400
  test/live.go           | 118 +++++++++
  test/reorder2.go       | 169 ++++++++++++
  29 files changed, 1056 insertions(+), 310 deletions(-)
+
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index b8dfa7851c..c81de1fd87 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -89,7 +89,7 @@ void
+ markautoused(Prog* p)
+ {
+ 	for (; p; p = p->link) {
+-		if (p->as == ATYPE || p->as == AVARDEF)
++		if (p->as == ATYPE || p->as == AVARDEF || p->as == AVARKILL)
+ 			continue;
+ 
+ 		if (p->from.node)
+@@ -111,7 +111,7 @@ fixautoused(Prog* p)
+ 			*lp = p->link;
+ 			continue;
+ 		}
+-		if (p->as == AVARDEF && p->to.node && !p->to.node->used) {
++		if ((p->as == AVARDEF || p->as == AVARKILL) && p->to.node && !p->to.node->used) {
+ 			// Cannot remove VARDEF instruction, because - unlike TYPE handled above -
+ 			// VARDEFs are interspersed with other code, and a jump might be using the
+ 			// VARDEF as a target. Replace with a no-op instead. A later pass will remove
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index 0fd7da7994..493c828ddb 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -287,7 +287,7 @@ subprop(Flow *r0)
+ 		if(uniqs(r) == nil)
+ 			break;
+ 		p = r->prog;
+-		if(p->as == AVARDEF)
++		if(p->as == AVARDEF || p->as == AVARKILL)
+ 			continue;
+ 		proginfo(&info, p);
+ 		if(info.flags & Call)
+@@ -1167,6 +1167,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 	case APCDATA:
+ 	case AFUNCDATA:
+ 	case AVARDEF:
++	case AVARKILL:
+ 		return 0;
+ 	}
+ }
+diff --git a/src/cmd/5g/prog.c b/src/cmd/5g/prog.c
+index ffef5a5b2a..86ab1dc48a 100644
+--- a/src/cmd/5g/prog.c
++++ b/src/cmd/5g/prog.c
+@@ -30,6 +30,7 @@ static ProgInfo progtable[ALAST] = {
+ 	[AUSEFIELD]=	{OK},
+ 	[ACHECKNIL]=	{LeftRead},
+ 	[AVARDEF]=	{Pseudo | RightWrite},
++	[AVARKILL]=	{Pseudo | RightWrite},
+ 
+ 	// NOP is an internal no-op that also stands
+ 	// for USED and SET annotations, not the Intel opcode.
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index b15a8c14ac..47c2bedd7b 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -213,7 +213,7 @@ regopt(Prog *firstp)
+ 
+ 	for(r = firstr; r != R; r = (Reg*)r->f.link) {
+ 		p = r->f.prog;
+-		if(p->as == AVARDEF)
++		if(p->as == AVARDEF || p->as == AVARKILL)
+ 			continue;
+ 		proginfo(&info, p);
+ 
+diff --git a/src/cmd/5l/5.out.h b/src/cmd/5l/5.out.h
+index adeb29a05b..4e71818f91 100644
+--- a/src/cmd/5l/5.out.h
++++ b/src/cmd/5l/5.out.h
+@@ -199,6 +199,7 @@ enum	as
+ 	APCDATA,
+ 	ACHECKNIL,
+ 	AVARDEF,
++	AVARKILL,
+ 
+ 	AMRC, // MRC/MCR
+ 
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 155b719f47..f6047ca00d 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -83,7 +83,7 @@ void
+ markautoused(Prog* p)
+ {
+ 	for (; p; p = p->link) {
+-		if (p->as == ATYPE || p->as == AVARDEF)
++		if (p->as == ATYPE || p->as == AVARDEF || p->as == AVARKILL)
+ 			continue;
+ 
+ 		if (p->from.node)
+@@ -105,7 +105,7 @@ fixautoused(Prog *p)
+ 			*lp = p->link;
+ 			continue;
+ 		}
+-		if (p->as == AVARDEF && p->to.node && !p->to.node->used) {
++		if ((p->as == AVARDEF || p->as == AVARKILL) && p->to.node && !p->to.node->used) {
+ 			// Cannot remove VARDEF instruction, because - unlike TYPE handled above -
+ 			// VARDEFs are interspersed with other code, and a jump might be using the
+ 			// VARDEF as a target. Replace with a no-op instead. A later pass will remove
+diff --git a/src/cmd/6g/peep.c b/src/cmd/6g/peep.c
+index 99ce3a7049..0f27204434 100644
+--- a/src/cmd/6g/peep.c
++++ b/src/cmd/6g/peep.c
+@@ -573,7 +573,7 @@ subprop(Flow *r0)
+ 			break;
+ 		}
+ 		p = r->prog;
+-		if(p->as == AVARDEF)
++		if(p->as == AVARDEF || p->as == AVARKILL)
+ 			continue;
+ 		proginfo(&info, p);
+ 		if(info.flags & Call) {
+@@ -790,7 +790,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 		return 0;
+ 	}
+ 
+-	if(p->as == AVARDEF)
++	if(p->as == AVARDEF || p->as == AVARKILL)
+ 		return 0;
+ 	proginfo(&info, p);
+ 
+diff --git a/src/cmd/6g/prog.c b/src/cmd/6g/prog.c
+index 8fe759d79a..bda0918565 100644
+--- a/src/cmd/6g/prog.c
++++ b/src/cmd/6g/prog.c
+@@ -42,6 +42,7 @@ static ProgInfo progtable[ALAST] = {
+ 	[AUSEFIELD]=	{OK},
+ 	[ACHECKNIL]=	{LeftRead},
+ 	[AVARDEF]=	{Pseudo | RightWrite},
++	[AVARKILL]=	{Pseudo | RightWrite},
+ 
+ 	// NOP is an internal no-op that also stands
+ 	// for USED and SET annotations, not the Intel opcode.
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index 6fb10e6c95..3e5b1c5865 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -199,7 +199,7 @@ regopt(Prog *firstp)
+ 
+ 	for(r = firstr; r != R; r = (Reg*)r->f.link) {
+ 		p = r->f.prog;
+-		if(p->as == AVARDEF)
++		if(p->as == AVARDEF || p->as == AVARKILL)
+ 			continue;
+ 		proginfo(&info, p);
+ 
+diff --git a/src/cmd/6l/6.out.h b/src/cmd/6l/6.out.h
+index f84fef7220..66bc802a96 100644
+--- a/src/cmd/6l/6.out.h
++++ b/src/cmd/6l/6.out.h
+@@ -763,6 +763,7 @@ enum	as
+ 	APCDATA,
+ 	ACHECKNIL,
+ 	AVARDEF,
++	AVARKILL,
+ 	
+ 	ALAST
+ };
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index eddba9bac4..a4cc12f3ef 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -82,7 +82,7 @@ void
+ markautoused(Prog* p)
+ {
+ 	for (; p; p = p->link) {
+-		if (p->as == ATYPE || p->as == AVARDEF)
++		if (p->as == ATYPE || p->as == AVARDEF || p->as == AVARKILL)
+ 			continue;
+ 
+ 		if (p->from.node)
+@@ -104,7 +104,7 @@ fixautoused(Prog* p)
+ 			*lp = p->link;
+ 			continue;
+ 		}
+-		if (p->as == AVARDEF && p->to.node && !p->to.node->used) {
++		if ((p->as == AVARDEF || p->as == AVARKILL) && p->to.node && !p->to.node->used) {
+ 			// Cannot remove VARDEF instruction, because - unlike TYPE handled above -
+ 			// VARDEFs are interspersed with other code, and a jump might be using the
+ 			// VARDEF as a target. Replace with a no-op instead. A later pass will remove
+diff --git a/src/cmd/8g/peep.c b/src/cmd/8g/peep.c
+index 32a3278b4d..a4e516dd34 100644
+--- a/src/cmd/8g/peep.c
++++ b/src/cmd/8g/peep.c
+@@ -387,7 +387,7 @@ subprop(Flow *r0)
+ 		if(uniqs(r) == nil)
+ 			break;
+ 		p = r->prog;
+-		if(p->as == AVARDEF)
++		if(p->as == AVARDEF || p->as == AVARKILL)
+ 			continue;
+ 		proginfo(&info, p);
+ 		if(info.flags & Call)
+@@ -586,7 +586,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 		return 0;
+ 	}
+ 
+-	if(p->as == AVARDEF)
++	if(p->as == AVARDEF || p->as == AVARKILL)
+ 		return 0;
+ 	proginfo(&info, p);
+ 
+diff --git a/src/cmd/8g/prog.c b/src/cmd/8g/prog.c
+index a39c37f8e1..d7a40d29f3 100644
+--- a/src/cmd/8g/prog.c
++++ b/src/cmd/8g/prog.c
+@@ -42,6 +42,7 @@ static ProgInfo progtable[ALAST] = {
+ 	[AUSEFIELD]=	{OK},
+ 	[ACHECKNIL]=	{LeftRead},
+ 	[AVARDEF]=	{Pseudo | RightWrite},
++	[AVARKILL]=	{Pseudo | RightWrite},
+ 
+ 	// NOP is an internal no-op that also stands
+ 	// for USED and SET annotations, not the Intel opcode.
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index af3e834c94..e8e712495c 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -169,7 +169,7 @@ regopt(Prog *firstp)
+ 
+ 	for(r = firstr; r != R; r = (Reg*)r->f.link) {
+ 		p = r->f.prog;
+-		if(p->as == AVARDEF)
++		if(p->as == AVARDEF || p->as == AVARKILL)
+ 			continue;
+ 		proginfo(&info, p);
+ 
+diff --git a/src/cmd/8l/8.out.h b/src/cmd/8l/8.out.h
+index d2598660ad..d3708d5d85 100644
+--- a/src/cmd/8l/8.out.h
++++ b/src/cmd/8l/8.out.h
+@@ -580,6 +580,7 @@ enum	as
+ 	APCDATA,
+ 	ACHECKNIL,
+ 	AVARDEF,
++	AVARKILL,
+ 	
+ 	ALAST
+ };
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index a6a40be05c..b7cc621792 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -495,6 +495,11 @@ gen(Node *n)
+ 	
+ 	case OCHECKNIL:
+ 		cgen_checknil(n->left);
++		break;
++	
++	case OVARKILL:
++		gvarkill(n->left);
++		break;
+ 	}
+ 
+ ret:
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 34268d2602..6e2cae7320 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -581,6 +581,7 @@ enum
+ 	OCLOSUREVAR, // variable reference at beginning of closure function
+ 	OCFUNC,	// reference to c function pointer (not go func value)
+ 	OCHECKNIL, // emit code to ensure pointer/interface not nil
++	OVARKILL, // variable is dead
+ 
+ 	// arch-specific registers
+ 	OREGISTER,	// a register, such as AX.
+@@ -1502,6 +1503,7 @@ void	gdatastring(Node*, Strlit*);
+ void	ggloblnod(Node *nam);
+ void	ggloblsym(Sym *s, int32 width, int dupok, int rodata);
+ void	gvardef(Node*);
++void	gvarkill(Node*);
+ Prog*	gjmp(Prog*);
+ void	gused(Node*);
+ void	movelarge(NodeList*);
+diff --git a/src/cmd/gc/order.c b/src/cmd/gc/order.c
+index d54355725c..bdf94a4469 100644
+--- a/src/cmd/gc/order.c
++++ b/src/cmd/gc/order.c
+@@ -5,79 +5,349 @@
+ // Rewrite tree to use separate statements to enforce
+ // order of evaluation.  Makes walk easier, because it
+ // can (after this runs) reorder at will within an expression.
++//
++// Rewrite x op= y into x = x op y.
++//
++// Introduce temporaries as needed by runtime routines.
++// For example, the map runtime routines take the map key
++// by reference, so make sure all map keys are addressable
++// by copying them to temporaries as needed.
++// The same is true for channel operations.
++//
++// Arrange that map index expressions only appear in direct
++// assignments x = m[k] or m[k] = x, never in larger expressions.
++//
++// Arrange that receive expressions only appear in direct assignments
++// x = <-c or as standalone statements <-c, never in larger expressions.
++
++// TODO(rsc): Temporaries are not cleaned in for, if, select, and swtch
++// statements. The cleaning needs to be introduced aggressively, so
++// that for example a temporary introduced during evaluation of an
++// if condition is killed in both the 'if' and 'else' bodies, not delayed
++// until after the entire if statement has completed.
++
++// TODO(rsc): Goto and multilevel break/continue can jump over
++// inserted VARKILL annotations. Work out a way to handle these.
++// The current implementation is safe, in that it will execute correctly.
++// But it won't reuse temporaries as aggressively as it might, and
++// it can result in unnecessary zeroing of those variables in the function
++// prologue.
+ 
+ #include	<u.h>
+ #include	<libc.h>
+ #include	"go.h"
+ 
+-static void	orderstmt(Node*, NodeList**);
+-static void	orderstmtlist(NodeList*, NodeList**);
++// Order holds state during the ordering process.
++typedef struct Order Order;
++struct Order
++{
++	NodeList *out; // list of generated statements
++	NodeList *temp; // head of stack of temporary variables
++	NodeList *free; // free list of NodeList* structs (for use in temp)
++};
++
++static void	orderstmt(Node*, Order*);
++static void	orderstmtlist(NodeList*, Order*);
+ static void	orderblock(NodeList **l);
+-static void	orderexpr(Node**, NodeList**);
+-static void	orderexprlist(NodeList*, NodeList**);
++static void	orderexpr(Node**, Order*);
++static void orderexprinplace(Node**, Order*);
++static void	orderexprlist(NodeList*, Order*);
++static void	orderexprlistinplace(NodeList*, Order*);
+ 
++// Order rewrites fn->nbody to apply the ordering constraints
++// described in the comment at the top of the file.
+ void
+ order(Node *fn)
+ {
+ 	orderblock(&fn->nbody);
+ }
+ 
++// Ordertemp allocates a new temporary with the given type,
++// pushes it onto the temp stack, and returns it.
++// If clear is true, ordertemp emits code to zero the temporary.
++static Node*
++ordertemp(Type *t, Order *order, int clear)
++{
++	Node *var, *a;
++	NodeList *l;
++
++	var = temp(t);
++	if(clear) {
++		a = nod(OAS, var, N);
++		typecheck(&a, Etop);
++		order->out = list(order->out, a);
++	}
++	if((l = order->free) == nil)
++		l = mal(sizeof *l);
++	order->free = l->next;
++	l->next = order->temp;
++	l->n = var;
++	order->temp = l;
++	return var;
++}
++
++// Ordercopyexpr behaves like ordertemp but also emits
++// code to initialize the temporary to the value n.
++//
++// The clear argument is provided for use when the evaluation
++// of tmp = n turns into a function call that is passed a pointer
++// to the temporary as the output space. If the call blocks before
++// tmp has been written, the garbage collector will still treat the
++// temporary as live, so we must zero it before entering that call.
++// Today, this only happens for channel receive operations.
++// (The other candidate would be map access, but map access
++// returns a pointer to the result data instead of taking a pointer
++// to be filled in.)
++static Node*
++ordercopyexpr(Node *n, Type *t, Order *order, int clear)
++{
++	Node *a, *var;
++
++	var = ordertemp(t, order, clear);
++	a = nod(OAS, var, n);
++	typecheck(&a, Etop);
++	order->out = list(order->out, a);
++	return var;
++}
++
++// Ordercheapexpr returns a cheap version of n.
++// The definition of cheap is that n is a variable or constant.
++// If not, ordercheapexpr allocates a new tmp, emits tmp = n,
++// and then returns tmp.
++static Node*
++ordercheapexpr(Node *n, Order *order)
++{
++	switch(n->op) {
++	case ONAME:
++	case OLITERAL:
++		return n;
++	}
++	return ordercopyexpr(n, n->type, order, 0);
++}
++
++// Ordersafeexpr returns a safe version of n.
++// The definition of safe is that n can appear multiple times
++// without violating the semantics of the original program,
++// and that assigning to the safe version has the same effect
++// as assigning to the original n.
++//
++// The intended use is to apply to x when rewriting x += y into x = x + y.
++static Node*
++ordersafeexpr(Node *n, Order *order)
++{
++	Node *l, *r, *a;
++	
++	switch(n->op) {
++	default:
++		fatal("ordersafeexpr %O", n->op);
++
++	case ONAME:
++	case OLITERAL:
++		return n;
++
++	case ODOT:
++		l = ordersafeexpr(n->left, order);
++		if(l == n->left)
++			return n;
++		a = nod(OXXX, N, N);
++		*a = *n;
++		a->orig = a;
++		a->left = l;
++		typecheck(&a, Erv);
++		return a;
++
++	case ODOTPTR:
++	case OIND:
++		l = ordercheapexpr(n->left, order);
++		if(l == n->left)
++			return n;
++		a = nod(OXXX, N, N);
++		*a = *n;
++		a->orig = a;
++		a->left = l;
++		typecheck(&a, Erv);
++		return a;
++		
++	case OINDEX:
++	case OINDEXMAP:
++		if(isfixedarray(n->left->type))
++			l = ordersafeexpr(n->left, order);
++		else
++			l = ordercheapexpr(n->left, order);
++		r = ordercheapexpr(n->right, order);
++		if(l == n->left && r == n->right)
++			return n;
++		a = nod(OXXX, N, N);
++		*a = *n;
++		a->orig = a;
++		a->left = l;
++		a->right = r;
++		typecheck(&a, Erv);
++		return a;
++	}
++}		
++
++// Istemp reports whether n is a temporary variable.
++static int
++istemp(Node *n)
++{
++	if(n->op != ONAME)
++		return 0;
++	return strncmp(n->sym->name, "autotmp_", 8) == 0;
++}
++
++// Isaddrokay reports whether it is okay to pass n's address to runtime routines.
++// Taking the address of a variable makes the liveness and optimization analyses
++// lose track of where the variable's lifetime ends. To avoid hurting the analyses
++// of ordinary stack variables, those are not 'isaddrokay'. Temporaries are okay,
++// because we emit explicit VARKILL instructions marking the end of those
++// temporaries' lifetimes.
++static int
++isaddrokay(Node *n)
++{
++	return islvalue(n) && (n->op != ONAME || n->class == PEXTERN || istemp(n));
++}
++
++// Orderaddrtemp ensures that *np is okay to pass by address to runtime routines.
++// If the original argument *np is not okay, orderaddrtemp creates a tmp, emits
++// tmp = *np, and then sets *np to the tmp variable.
++static void
++orderaddrtemp(Node **np, Order *order)
++{
++	Node *n;
++	
++	n = *np;
++	if(isaddrokay(n))
++		return;
++	*np = ordercopyexpr(n, n->type, order, 0);
++}
++
++// Marktemp returns the top of the temporary variable stack.
++static NodeList*
++marktemp(Order *order)
++{
++	return order->temp;
++}
++
++// Poptemp pops temporaries off the stack until reaching the mark,
++// which must have been returned by marktemp.
++static void
++poptemp(NodeList *mark, Order *order)
++{
++	NodeList *l;
++
++	while((l = order->temp) != mark) {
++		order->temp = l->next;
++		l->next = order->free;
++		order->free = l;
++	}
++}
++
++// Cleantempnopop emits VARKILL instructions for each temporary
++// above the mark on the temporary stack, but it does not pop them
++// from the stack.
++static void
++cleantempnopop(NodeList *mark, Order *order)
++{
++	NodeList *l;
++	Node *kill;
++
++	for(l=order->temp; l != mark; l=l->next) {
++		kill = nod(OVARKILL, l->n, N);
++		typecheck(&kill, Etop);
++		order->out = list(order->out, kill);
++	}
++}
++
++// Cleantemp emits VARKILL instructions for each temporary above the
++// mark on the temporary stack and removes them from the stack.
++static void
++cleantemp(NodeList *top, Order *order)
++{
++	cleantempnopop(top, order);
++	poptemp(top, order);
++}
++
++// Orderstmtlist orders each of the statements in the list.
+ static void
+-orderstmtlist(NodeList *l, NodeList **out)
++orderstmtlist(NodeList *l, Order *order)
+ {
+ 	for(; l; l=l->next)
+-		orderstmt(l->n, out);
++		orderstmt(l->n, order);
+ }
+ 
+-// Order the block of statements *l onto a new list,
+-// and then replace *l with that list.
++// Orderblock orders the block of statements *l onto a new list,
++// and then replaces *l with that list.
+ static void
+ orderblock(NodeList **l)
+ {
+-	NodeList *out;
++	Order order;
+ 	
+-	out = nil;
+-	orderstmtlist(*l, &out);
+-	*l = out;
++	memset(&order, 0, sizeof order);
++	orderstmtlist(*l, &order);
++	*l = order.out;
+ }
+ 
+-// Order the side effects in *np and leave them as
+-// the init list of the final *np.
++// Orderexprinplace orders the side effects in *np and
++// leaves them as the init list of the final *np.
+ static void
+-orderexprinplace(Node **np)
++orderexprinplace(Node **np, Order *TODO)
+ {
+ 	Node *n;
+-	NodeList *out;
++	Order order;
+ 	
++	// TODO(rsc): Decide how much of the passed-in order to use.
++	// For example, should the temporaries created during the
++	// ordering of expr be added onto the caller's order temp list
++	// for freeing? Probably.
++	USED(TODO);
++
+ 	n = *np;
+-	out = nil;
+-	orderexpr(&n, &out);
+-	addinit(&n, out);
++	memset(&order, 0, sizeof order);
++	orderexpr(&n, &order);
++	addinit(&n, order.out);
+ 	*np = n;
+ }
+ 
+-// Like orderblock, but applied to a single statement.
++// Orderexprtolist orders the side effects in *np and
++// appends them to *out.
++static void
++orderexprtolist(Node **np, NodeList **out)
++{
++	Node *n;
++	Order order;
++	
++	n = *np;
++	memset(&order, 0, sizeof order);
++	orderexpr(&n, &order);
++	*out = concat(*out, order.out);
++	*np = n;
++}
++
++// Orderstmtinplace orders the side effects of the single statement *np
++// and replaces it with the resulting statement list.
+ static void
+ orderstmtinplace(Node **np)
+ {
+ 	Node *n;
+-	NodeList *out;
++	Order order;
+ 
+ 	n = *np;
+-	out = nil;
+-	orderstmt(n, &out);
+-	*np = liststmt(out);
++	memset(&order, 0, sizeof order);
++	orderstmt(n, &order);
++	*np = liststmt(order.out);
+ }
+ 
+-// Move n's init list to *out.
++// Orderinit moves n's init list to order->out.
+ static void
+-orderinit(Node *n, NodeList **out)
++orderinit(Node *n, Order *order)
+ {
+-	orderstmtlist(n->ninit, out);
++	orderstmtlist(n->ninit, order);
+ 	n->ninit = nil;
+ }
+ 
+-// Is the list l actually just f() for a multi-value function?
++// Ismulticall reports whether the list l is f() for a multi-value function.
++// Such an f() could appear as the lone argument to a multi-arg function.
+ static int
+ ismulticall(NodeList *l)
+ {
+@@ -102,10 +372,10 @@ ismulticall(NodeList *l)
+ 	return n->left->type->outtuple > 1;
+ }
+ 
+-// n is a multi-value function call.  Add t1, t2, .. = n to out
+-// and return the list t1, t2, ...
++// Copyret emits t1, t2, ... = n, where n is a function call,
++// and then returns the list t1, t2, ....
+ static NodeList*
+-copyret(Node *n, NodeList **out)
++copyret(Node *n, Order *order)
+ {
+ 	Type *t;
+ 	Node *tmp, *as;
+@@ -127,86 +397,216 @@ copyret(Node *n, NodeList **out)
+ 	as->list = l1;
+ 	as->rlist = list1(n);
+ 	typecheck(&as, Etop);
+-	orderstmt(as, out);
++	orderstmt(as, order);
+ 
+ 	return l2;
+ }
+ 
++// Ordercallargs orders the list of call arguments *l.
+ static void
+-ordercallargs(NodeList **l, NodeList **out)
++ordercallargs(NodeList **l, Order *order)
+ {
+ 	if(ismulticall(*l)) {
+ 		// return f() where f() is multiple values.
+-		*l = copyret((*l)->n, out);
++		*l = copyret((*l)->n, order);
+ 	} else {
+-		orderexprlist(*l, out);
++		orderexprlist(*l, order);
+ 	}
+ }
+ 
++// Ordercall orders the call expression n.
++// n->op is  OCALLMETH/OCALLFUNC/OCALLINTER.
+ static void
+-ordercall(Node *n, NodeList **out)
++ordercall(Node *n, Order *order)
+ {
+-	orderexpr(&n->left, out);
+-	ordercallargs(&n->list, out);
++	orderexpr(&n->left, order);
++	ordercallargs(&n->list, order);
+ }
+ 
++// Ordermapassign appends n to order->out, introducing temporaries
++// to make sure that all map assignments have the form m[k] = x,
++// where x is adressable.
++// (Orderexpr has already been called on n, so we know k is addressable.)
++//
++// If n is m[k] = x where x is not addressable, the rewrite is:
++//	tmp = x
++//	m[k] = tmp
++//
++// If n is the multiple assignment form ..., m[k], ... = ..., the rewrite is
++//	t1 = m
++//	t2 = k
++//	...., t3, ... = x
++//	t1[t2] = t3
++//
++// The temporaries t1, t2 are needed in case the ... being assigned
++// contain m or k. They are usually unnecessary, but in the unnecessary
++// cases they are also typically registerizable, so not much harm done.
++// And this only applies to the multiple-assignment form.
++// We could do a more precise analysis if needed, like in walk.c.
+ static void
+-orderstmt(Node *n, NodeList **out)
++ordermapassign(Node *n, Order *order)
+ {
+-	int lno;
++	Node *m, *a;
+ 	NodeList *l;
+-	Node *r;
++	NodeList *post;
++
++	switch(n->op) {
++	default:
++		fatal("ordermapassign %O", n->op);
++
++	case OAS:
++		order->out = list(order->out, n);
++		if(n->left->op == OINDEXMAP && !isaddrokay(n->right)) {
++			m = n->left;
++			n->left = ordertemp(m->type, order, 0);
++			a = nod(OAS, m, n->left);
++			typecheck(&a, Etop);
++			order->out = list(order->out, a);
++		}
++		break;
++
++	case OAS2:
++	case OAS2DOTTYPE:
++	case OAS2MAPR:
++	case OAS2FUNC:
++		post = nil;
++		for(l=n->list; l != nil; l=l->next) {
++			if(l->n->op == OINDEXMAP) {
++				m = l->n;
++				if(!istemp(m->left))
++					m->left = ordercopyexpr(m->left, m->left->type, order, 0);
++				if(!istemp(m->right))
++					m->right = ordercopyexpr(m->left, m->left->type, order, 0);
++				l->n = ordertemp(m->type, order, 0);
++				a = nod(OAS, m, l->n);
++				typecheck(&a, Etop);
++				post = list(post, a);
++			}
++		}
++		order->out = list(order->out, n);
++		order->out = concat(order->out, post);
++		break;
++	}
++}
++
++// Orderstmt orders the statement n, appending to order->out.
++// Temporaries created during the statement are cleaned
++// up using VARKILL instructions as possible.
++static void
++orderstmt(Node *n, Order *order)
++{
++	int lno;
++	NodeList *l, *t, *t1;
++	Node *r, *tmp1, *tmp2, **np;
++	Type *ch;
+ 
+ 	if(n == N)
+ 		return;
+ 
+ 	lno = setlineno(n);
+ 
+-	orderinit(n, out);
++	orderinit(n, order);
+ 
+ 	switch(n->op) {
+ 	default:
+ 		fatal("orderstmt %O", n->op);
+ 
++	case OAS:
+ 	case OAS2:
+ 	case OAS2DOTTYPE:
+-	case OAS2MAPR:
+-	case OAS:
+-	case OASOP:
+ 	case OCLOSE:
+ 	case OCOPY:
+-	case ODELETE:
+ 	case OPANIC:
+ 	case OPRINT:
+ 	case OPRINTN:
+ 	case ORECOVER:
+ 	case ORECV:
+-	case OSEND:
+-		orderexpr(&n->left, out);
+-		orderexpr(&n->right, out);
+-		orderexprlist(n->list, out);
+-		orderexprlist(n->rlist, out);
+-		*out = list(*out, n);
++		t = marktemp(order);
++		orderexpr(&n->left, order);
++		orderexpr(&n->right, order);
++		orderexprlist(n->list, order);
++		orderexprlist(n->rlist, order);
++		switch(n->op) {
++		case OAS:
++		case OAS2:
++		case OAS2DOTTYPE:
++			ordermapassign(n, order);
++			break;
++		default:
++			order->out = list(order->out, n);
++			break;
++		}
++		cleantemp(t, order);
+ 		break;
+-	
++
++	case OASOP:
++		// Special: rewrite l op= r into l = l op r.
++		// This simplies quite a few operations;
++		// most important is that it lets us separate
++		// out map read from map write when l is
++		// a map index expression.
++		t = marktemp(order);
++		orderexpr(&n->left, order);
++		orderexpr(&n->right, order);
++		n->left = ordersafeexpr(n->left, order);
++		tmp1 = treecopy(n->left);
++		if(tmp1->op == OINDEXMAP)
++			tmp1->etype = 0; // now an rvalue not an lvalue
++		tmp1 = ordercopyexpr(tmp1, n->left->type, order, 0);
++		n->right = nod(n->etype, tmp1, n->right);
++		typecheck(&n->right, Erv);
++		n->etype = 0;
++		n->op = OAS;
++		ordermapassign(n, order);
++		cleantemp(t, order);
++		break;
++
++	case OAS2MAPR:
++		// Special: make sure key is addressable,
++		// and make sure OINDEXMAP is not copied out.
++		t = marktemp(order);
++		orderexprlist(n->list, order);
++		orderexpr(&n->rlist->n->left, order);
++		orderexpr(&n->rlist->n->right, order);
++		orderaddrtemp(&n->rlist->n->right, order);
++		ordermapassign(n, order);
++		cleantemp(t, order);
++		break;
++
+ 	case OAS2FUNC:
+ 		// Special: avoid copy of func call n->rlist->n.
+-		orderexprlist(n->list, out);
+-		ordercall(n->rlist->n, out);
+-		*out = list(*out, n);
++		t = marktemp(order);
++		orderexprlist(n->list, order);
++		ordercall(n->rlist->n, order);
++		ordermapassign(n, order);
++		cleantemp(t, order);
+ 		break;
+ 
+ 	case OAS2RECV:
+ 		// Special: avoid copy of receive.
+-		orderexprlist(n->list, out);
+-		orderexpr(&n->rlist->n->left, out);  // arg to recv
+-		*out = list(*out, n);
++		// Use temporary variables to hold result,
++		// so that chanrecv can take address of temporary.
++		t = marktemp(order);
++		orderexprlist(n->list, order);
++		orderexpr(&n->rlist->n->left, order);  // arg to recv
++		ch = n->rlist->n->left->type;
++		tmp1 = ordertemp(ch->type, order, haspointers(ch->type));
++		tmp2 = ordertemp(types[TBOOL], order, 0);
++		order->out = list(order->out, n);
++		r = nod(OAS, n->list->n, tmp1);
++		typecheck(&r, Etop);
++		ordermapassign(r, order);
++		r = nod(OAS, n->list->next->n, tmp2);
++		typecheck(&r, Etop);
++		ordermapassign(r, order);
++		n->list = list(list1(tmp1), tmp2);
++		cleantemp(t, order);
+ 		break;
+ 
+ 	case OBLOCK:
+ 	case OEMPTY:
+ 		// Special: does not save n onto out.
+-		orderstmtlist(n->list, out);
++		orderstmtlist(n->list, order);
+ 		break;
+ 
+ 	case OBREAK:
+@@ -215,107 +615,158 @@ orderstmt(Node *n, NodeList **out)
+ 	case ODCLCONST:
+ 	case ODCLTYPE:
+ 	case OFALL:
+-	case_OFALL:
++	case OXFALL:
+ 	case OGOTO:
+ 	case OLABEL:
+ 	case ORETJMP:
+ 		// Special: n->left is not an expression; save as is.
+-		*out = list(*out, n);
++		order->out = list(order->out, n);
+ 		break;
+ 
+ 	case OCALLFUNC:
+ 	case OCALLINTER:
+ 	case OCALLMETH:
+ 		// Special: handle call arguments.
+-		ordercall(n, out);
+-		*out = list(*out, n);
++		t = marktemp(order);
++		ordercall(n, order);
++		order->out = list(order->out, n);
++		cleantemp(t, order);
+ 		break;
+ 
+ 	case ODEFER:
+ 	case OPROC:
+ 		// Special: order arguments to inner call but not call itself.
+-		ordercall(n->left, out);
+-		*out = list(*out, n);
++		t = marktemp(order);
++		switch(n->left->op) {
++		case ODELETE:
++			// Delete will take the address of the key.
++			// Copy key into new temp and do not clean it
++			// (it persists beyond the statement).
++			orderexprlist(n->left->list, order);
++			t1 = marktemp(order);
++			np = &n->left->list->next->n; // map key
++			*np = ordercopyexpr(*np, (*np)->type, order, 0);
++			poptemp(t1, order);
++			break;
++		default:
++			ordercall(n->left, order);
++			break;
++		}
++		order->out = list(order->out, n);
++		cleantemp(t, order);
++		break;
++
++	case ODELETE:
++		t = marktemp(order);
++		orderexpr(&n->list->n, order);
++		orderexpr(&n->list->next->n, order);
++		orderaddrtemp(&n->list->next->n, order); // map key
++		order->out = list(order->out, n);
++		cleantemp(t, order);
+ 		break;
+ 
+ 	case OFOR:
+-		orderexprinplace(&n->ntest);
++		// TODO(rsc): Clean temporaries.
++		orderexprinplace(&n->ntest, order);
+ 		orderstmtinplace(&n->nincr);
+ 		orderblock(&n->nbody);
+-		*out = list(*out, n);
++		order->out = list(order->out, n);
+ 		break;
+ 		
+ 	case OIF:
+-		orderexprinplace(&n->ntest);
++		// TODO(rsc): Clean temporaries.
++		orderexprinplace(&n->ntest, order);
+ 		orderblock(&n->nbody);
+ 		orderblock(&n->nelse);
+-		*out = list(*out, n);
++		order->out = list(order->out, n);
+ 		break;
+ 
+ 	case ORANGE:
+-		orderexpr(&n->right, out);
++		// TODO(rsc): Clean temporaries.
++		orderexpr(&n->right, order);
+ 		for(l=n->list; l; l=l->next)
+-			orderexprinplace(&l->n);
++			orderexprinplace(&l->n, order);
+ 		orderblock(&n->nbody);
+-		*out = list(*out, n);
++		order->out = list(order->out, n);
+ 		break;
+ 
+ 	case ORETURN:
+-		ordercallargs(&n->list, out);
+-		*out = list(*out, n);
++		ordercallargs(&n->list, order);
++		order->out = list(order->out, n);
+ 		break;
+ 	
+ 	case OSELECT:
++		// TODO(rsc): Clean temporaries.
+ 		for(l=n->list; l; l=l->next) {
+ 			if(l->n->op != OXCASE)
+ 				fatal("order select case %O", l->n->op);
+ 			r = l->n->left;
+-			if(r == nil)
+-				continue;
+-			switch(r->op) {
+-			case OSELRECV:
+-			case OSELRECV2:
+-				orderexprinplace(&r->left);
+-				orderexprinplace(&r->ntest);
+-				orderexpr(&r->right->left, &l->n->ninit);
+-				break;
+-			case OSEND:
+-				orderexpr(&r->left, &l->n->ninit);
+-				orderexpr(&r->right, &l->n->ninit);
+-				break;
++			if(r != nil) {
++				switch(r->op) {
++				case OSELRECV:
++				case OSELRECV2:
++					orderexprinplace(&r->left, order);
++					orderexprinplace(&r->ntest, order);
++					orderexprtolist(&r->right->left, &l->n->ninit);
++					break;
++				case OSEND:
++					orderexprtolist(&r->left, &l->n->ninit);
++					orderexprtolist(&r->right, &l->n->ninit);
++					break;
++				}
+ 			}
++			orderblock(&l->n->nbody);
+ 		}
+-		*out = list(*out, n);
++		order->out = list(order->out, n);
++		break;
++
++	case OSEND:
++		// Special: value being sent is passed as a pointer; make it addressable.
++		t = marktemp(order);
++		orderexpr(&n->left, order);
++		orderexpr(&n->right, order);
++		orderaddrtemp(&n->right, order);
++		order->out = list(order->out, n);
++		cleantemp(t, order);
+ 		break;
+ 
+ 	case OSWITCH:
+-		orderexpr(&n->ntest, out);
++		// TODO(rsc): Clean temporaries.
++		orderexpr(&n->ntest, order);
+ 		for(l=n->list; l; l=l->next) {
+ 			if(l->n->op != OXCASE)
+ 				fatal("order switch case %O", l->n->op);
+-			orderexpr(&l->n->left, &l->n->ninit);
++			orderexprlistinplace(l->n->list, order);
++			orderblock(&l->n->nbody);
+ 		}
+-		*out = list(*out, n);
++		order->out = list(order->out, n);
+ 		break;
+-
+-	case OXFALL:
+-		yyerror("fallthrough statement out of place");
+-		n->op = OFALL;
+-		goto case_OFALL;
+ 	}
+ 	
+ 	lineno = lno;
+ }
+ 
++// Orderexprlist orders the expression list l into order.
+ static void
+-orderexprlist(NodeList *l, NodeList **out)
++orderexprlist(NodeList *l, Order *order)
+ {
+ 	for(; l; l=l->next)
+-		orderexpr(&l->n, out);
++		orderexpr(&l->n, order);
+ }
+ 
++// Orderexprlist orders the expression list l but saves
++// the side effects on the individual expression ninit lists.
+ static void
+-orderexpr(Node **np, NodeList **out)
++orderexprlistinplace(NodeList *l, Order *order)
++{
++	for(; l; l=l->next)
++		orderexprinplace(&l->n, order);
++}
++
++// Orderexpr orders a single expression, appending side
++// effects to order->out as needed.
++static void
++orderexpr(Node **np, Order *order)
+ {
+ 	Node *n;
+ 	int lno;
+@@ -325,20 +776,32 @@ orderexpr(Node **np, NodeList **out)
+ 		return;
+ 
+ 	lno = setlineno(n);
+-	orderinit(n, out);
++	orderinit(n, order);
+ 
+ 	switch(n->op) {
+ 	default:
+-		orderexpr(&n->left, out);
+-		orderexpr(&n->right, out);
+-		orderexprlist(n->list, out);
+-		orderexprlist(n->rlist, out);
++		orderexpr(&n->left, order);
++		orderexpr(&n->right, order);
++		orderexprlist(n->list, order);
++		orderexprlist(n->rlist, order);
++		break;
++	
++	case OINDEXMAP:
++		// key must be addressable
++		orderexpr(&n->left, order);
++		orderexpr(&n->right, order);
++		orderaddrtemp(&n->right, order);
++		if(n->etype == 0) {
++			// use of value (not being assigned);
++			// make copy in temporary.
++			n = ordercopyexpr(n, n->type, order, 0);
++		}
+ 		break;
+ 	
+ 	case OANDAND:
+ 	case OOROR:
+-		orderexpr(&n->left, out);
+-		orderexprinplace(&n->right);
++		orderexpr(&n->left, order);
++		orderexprinplace(&n->right, order);
+ 		break;
+ 	
+ 	case OCALLFUNC:
+@@ -346,12 +809,12 @@ orderexpr(Node **np, NodeList **out)
+ 	case OCALLINTER:
+ 	case OAPPEND:
+ 	case OCOMPLEX:
+-		ordercall(n, out);
+-		n = copyexpr(n, n->type, out);
++		ordercall(n, order);
++		n = ordercopyexpr(n, n->type, order, 0);
+ 		break;
+ 
+ 	case ORECV:
+-		n = copyexpr(n, n->type, out);
++		n = ordercopyexpr(n, n->type, order, 1);
+ 		break;
+ 	}
+ 	
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index 8c7b3947e4..0d19017768 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -79,10 +79,16 @@ makefuncdatasym(char *namefmt, int64 funcdatakind)
+ // wants to work on individual variables, which might be multi-word
+ // aggregates. It might make sense at some point to look into letting
+ // the liveness analysis work on single-word values as well, although
+-// there are complications around interface values, which cannot be
+-// treated as individual words.
+-void
+-gvardef(Node *n)
++// there are complications around interface values, slices, and strings,
++// all of which cannot be treated as individual words.
++//
++// VARKILL is the opposite of VARDEF: it marks a value as no longer needed,
++// even if its address has been taken. That is, a VARKILL annotation asserts
++// that its argument is certainly dead, for use when the liveness analysis
++// would not otherwise be able to deduce that fact.
++
++static void
++gvardefx(Node *n, int as)
+ {
+ 	if(n == N)
+ 		fatal("gvardef nil");
+@@ -94,20 +100,32 @@ gvardef(Node *n)
+ 	case PAUTO:
+ 	case PPARAM:
+ 	case PPARAMOUT:
+-		gins(AVARDEF, N, n);
++		gins(as, N, n);
+ 	}
+ }
+ 
++void
++gvardef(Node *n)
++{
++	gvardefx(n, AVARDEF);
++}
++
++void
++gvarkill(Node *n)
++{
++	gvardefx(n, AVARKILL);
++}
++
+ static void
+ removevardef(Prog *firstp)
+ {
+ 	Prog *p;
+ 
+ 	for(p = firstp; p != P; p = p->link) {
+-		while(p->link != P && p->link->as == AVARDEF)
++		while(p->link != P && (p->link->as == AVARDEF || p->link->as == AVARKILL))
+ 			p->link = p->link->link;
+ 		if(p->to.type == D_BRANCH)
+-			while(p->to.u.branch != P && p->to.u.branch->as == AVARDEF)
++			while(p->to.u.branch != P && (p->to.u.branch->as == AVARDEF || p->to.u.branch->as == AVARKILL))
+ 				p->to.u.branch = p->to.u.branch->link;
+ 	}
+ }
+diff --git a/src/cmd/gc/plive.c b/src/cmd/gc/plive.c
+index fb2b2fdaf6..8423b833de 100644
+--- a/src/cmd/gc/plive.c
++++ b/src/cmd/gc/plive.c
+@@ -743,8 +743,9 @@ Next:
+ 				if(pos == -1)
+ 					goto Next1;
+ 				if(to->node->addrtaken) {
+-					bvset(avarinit, pos);
+-					if(prog->as == AVARDEF)
++					if(prog->as != AVARKILL)
++						bvset(avarinit, pos);
++					if(prog->as == AVARDEF || prog->as == AVARKILL)
+ 						bvset(varkill, pos);
+ 				} else {
+ 					if(info.flags & (RightRead | RightAddr))
+@@ -1310,7 +1311,7 @@ livenessprologue(Liveness *lv)
+ {
+ 	BasicBlock *bb;
+ 	Bvec *uevar, *varkill, *avarinit;
+-	Prog *prog;
++	Prog *p;
+ 	int32 i;
+ 	int32 nvars;
+ 
+@@ -1322,14 +1323,25 @@ livenessprologue(Liveness *lv)
+ 		bb = *(BasicBlock**)arrayget(lv->cfg, i);
+ 		// Walk the block instructions backward and update the block
+ 		// effects with the each prog effects.
+-		for(prog = bb->last; prog != nil; prog = prog->opt) {
+-			progeffects(prog, lv->vars, uevar, varkill, avarinit);
++		for(p = bb->last; p != nil; p = p->opt) {
++			progeffects(p, lv->vars, uevar, varkill, avarinit);
+ 			if(debuglive >= 3)
+-				printeffects(prog, uevar, varkill, avarinit);
++				printeffects(p, uevar, varkill, avarinit);
+ 			bvor(lv->varkill[i], lv->varkill[i], varkill);
+ 			bvandnot(lv->uevar[i], lv->uevar[i], varkill);
+ 			bvor(lv->uevar[i], lv->uevar[i], uevar);			
++		}
++		// Walk the block instructions forward to update avarinit bits.
++		// avarinit describes the effect at the end of the block, not the beginning.
++		bvresetall(varkill);
++		for(p = bb->first;; p = p->link) {
++			progeffects(p, lv->vars, uevar, varkill, avarinit);
++			if(debuglive >= 3)
++				printeffects(p, uevar, varkill, avarinit);
++			bvandnot(lv->avarinit[i], lv->avarinit[i], varkill);
+ 			bvor(lv->avarinit[i], lv->avarinit[i], avarinit);
++			if(p == bb->last)
++				break;
+ 		}
+ 	}
+ 	free(uevar);
+@@ -1385,6 +1397,8 @@ livenesssolve(Liveness *lv)
+ 					bvand(all, all, lv->avarinitall[pred->rpo]);
+ 				}
+ 			}
++			bvandnot(any, any, lv->varkill[rpo]);
++			bvandnot(all, all, lv->varkill[rpo]);
+ 			bvor(any, any, lv->avarinit[rpo]);
+ 			bvor(all, all, lv->avarinit[rpo]);
+ 			if(bvcmp(any, lv->avarinitany[rpo])) {
+@@ -1511,6 +1525,8 @@ livenessepilogue(Liveness *lv)
+ 		// Seed the maps with information about the addrtaken variables.
+ 		for(p = bb->first;; p = p->link) {
+ 			progeffects(p, lv->vars, uevar, varkill, avarinit);
++			bvandnot(any, any, varkill);
++			bvandnot(all, all, varkill);
+ 			bvor(any, any, avarinit);
+ 			bvor(all, all, avarinit);
+ 
+@@ -1572,7 +1588,7 @@ livenessepilogue(Liveness *lv)
+ 				break;
+ 		}
+ 		
+-		if(debuglive >= 1 && strcmp(curfn->nname->sym->name, "init") != 0) {
++		if(debuglive >= 1 && strcmp(curfn->nname->sym->name, "init") != 0 && curfn->nname->sym->name[0] != '.') {
+ 			nmsg = arraylength(lv->livepointers);
+ 			startmsg = nmsg;
+ 			msg = xmalloc(nmsg*sizeof msg[0]);
+diff --git a/src/cmd/gc/popt.c b/src/cmd/gc/popt.c
+index f5067bd0e1..d724637677 100644
+--- a/src/cmd/gc/popt.c
++++ b/src/cmd/gc/popt.c
+@@ -531,10 +531,11 @@ startcmp(const void *va, const void *vb)
+ static int
+ canmerge(Node *n)
+ {
+-	return n->class == PAUTO && !n->addrtaken && strncmp(n->sym->name, "autotmp", 7) == 0;
++	return n->class == PAUTO && strncmp(n->sym->name, "autotmp", 7) == 0;
+ }
+ 
+ static void mergewalk(TempVar*, TempFlow*, uint32);
++static void varkillwalk(TempVar*, TempFlow*, uint32);
+ 
+ void
+ mergetemp(Prog *firstp)
+@@ -555,7 +556,7 @@ mergetemp(Prog *firstp)
+ 	g = flowstart(firstp, sizeof(TempFlow));
+ 	if(g == nil)
+ 		return;
+-
++	
+ 	// Build list of all mergeable variables.
+ 	nvar = 0;
+ 	for(l = curfn->dcl; l != nil; l = l->next)
+@@ -651,6 +652,11 @@ mergetemp(Prog *firstp)
+ 		gen++;
+ 		for(r = v->use; r != nil; r = r->uselink)
+ 			mergewalk(v, r, gen);
++		if(v->addr) {
++			gen++;
++			for(r = v->use; r != nil; r = r->uselink)
++				varkillwalk(v, r, gen);
++		}
+ 	}
+ 
+ 	// Sort variables by start.
+@@ -670,7 +676,7 @@ mergetemp(Prog *firstp)
+ 	nfree = nvar;
+ 	for(i=0; i<nvar; i++) {
+ 		v = bystart[i];
+-		if(v->addr || v->removed)
++		if(v->removed)
+ 			continue;
+ 
+ 		// Expire no longer in use.
+@@ -683,7 +689,12 @@ mergetemp(Prog *firstp)
+ 		t = v->node->type;
+ 		for(j=nfree; j<nvar; j++) {
+ 			v1 = inuse[j];
+-			if(eqtype(t, v1->node->type)) {
++			// Require the types to match but also require the addrtaken bits to match.
++			// If a variable's address is taken, that disables registerization for the individual
++			// words of the variable (for example, the base,len,cap of a slice).
++			// We don't want to merge a non-addressed var with an addressed one and
++			// inhibit registerization of the former.
++			if(eqtype(t, v1->node->type) && v->node->addrtaken == v1->node->addrtaken) {
+ 				inuse[j] = inuse[nfree++];
+ 				if(v1->merge)
+ 					v->merge = v1->merge;
+@@ -776,6 +787,29 @@ mergewalk(TempVar *v, TempFlow *r0, uint32 gen)
+ 			mergewalk(v, r2, gen);
+ }
+ 
++static void
++varkillwalk(TempVar *v, TempFlow *r0, uint32 gen)
++{
++	Prog *p;
++	TempFlow *r1, *r;
++	
++	for(r1 = r0; r1 != nil; r1 = (TempFlow*)r1->f.s1) {
++		if(r1->f.active == gen)
++			break;
++		r1->f.active = gen;
++		p = r1->f.prog;
++		if(v->end < p->pc)
++			v->end = p->pc;
++		if(v->start > p->pc)
++			v->start = p->pc;
++		if(p->as == ARET || (p->as == AVARKILL && p->to.node == v->node))
++			break;
++	}
++	
++	for(r = r0; r != r1; r = (TempFlow*)r->f.s1)
++		varkillwalk(v, (TempFlow*)r->f.s2, gen);
++}
++
+ // Eliminate redundant nil pointer checks.
+ //
+ // The code generation pass emits a CHECKNIL for every possibly nil pointer.
+diff --git a/src/cmd/gc/racewalk.c b/src/cmd/gc/racewalk.c
+index d6a5b3cce3..2319d7f642 100644
+--- a/src/cmd/gc/racewalk.c
++++ b/src/cmd/gc/racewalk.c
+@@ -166,6 +166,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 		goto ret;
+ 
+ 	case OCFUNC:
++	case OVARKILL:
+ 		// can't matter
+ 		goto ret;
+ 
+diff --git a/src/cmd/gc/range.c b/src/cmd/gc/range.c
+index 33a45fe5cf..ba5bd9709d 100644
+--- a/src/cmd/gc/range.c
++++ b/src/cmd/gc/range.c
+@@ -164,8 +164,7 @@ walkrange(Node *n)
+ 		}
+ 
+ 		n->ntest = nod(OLT, hv1, hn);
+-		n->nincr = nod(OASOP, hv1, nodintconst(1));
+-		n->nincr->etype = OADD;
++		n->nincr = nod(OAS, hv1, nod(OADD, hv1, nodintconst(1)));
+ 		if(v2 == N)
+ 			body = list1(nod(OAS, v1, hv1));
+ 		else {
+diff --git a/src/cmd/gc/select.c b/src/cmd/gc/select.c
+index 48066c2e7f..e9b9f78588 100644
+--- a/src/cmd/gc/select.c
++++ b/src/cmd/gc/select.c
+@@ -110,7 +110,9 @@ walkselect(Node *sel)
+ 	}
+ 
+ 	// optimization: one-case select: single op.
+-	if(i == 1) {
++	// TODO(rsc): Reenable optimization once order.c can handle it.
++	// golang.org/issue/7672.
++	if(0 && i == 1) {
+ 		cas = sel->list->n;
+ 		setlineno(cas);
+ 		l = cas->ninit;
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index c4128a61bc..bfb8eb8e66 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -838,7 +838,7 @@ maplit(int ctxt, Node *n, Node *var, NodeList **init)
+ 	int nerr;
+ 	int64 b;
+ 	Type *t, *tk, *tv, *t1;
+-	Node *vstat, *index, *value;
++	Node *vstat, *index, *value, *key, *val;
+ 	Sym *syma, *symb;
+ 
+ USED(ctxt);
+@@ -952,8 +952,7 @@ ctxt = 0;
+ 
+ 		a->ninit = list1(nod(OAS, index, nodintconst(0)));
+ 		a->ntest = nod(OLT, index, nodintconst(t->bound));
+-		a->nincr = nod(OASOP, index, nodintconst(1));
+-		a->nincr->etype = OADD;
++		a->nincr = nod(OAS, index, nod(OADD, index, nodintconst(1)));
+ 
+ 		typecheck(&a, Etop);
+ 		walkstmt(&a);
+@@ -961,6 +960,8 @@ ctxt = 0;
+ 	}
+ 
+ 	// put in dynamic entries one-at-a-time
++	key = nil;
++	val = nil;
+ 	for(l=n->list; l; l=l->next) {
+ 		r = l->n;
+ 
+@@ -971,15 +972,37 @@ ctxt = 0;
+ 
+ 		if(isliteral(index) && isliteral(value))
+ 			continue;
++			
++		// build list of var[c] = expr.
++		// use temporary so that mapassign1 can have addressable key, val.
++		if(key == nil) {
++			key = temp(var->type->down);
++			val = temp(var->type->type);
++		}
++		a = nod(OAS, key, r->left);
++		typecheck(&a, Etop);
++		walkstmt(&a);
++		*init = list(*init, a);
++		a = nod(OAS, val, r->right);
++		typecheck(&a, Etop);
++		walkstmt(&a);
++		*init = list(*init, a);
+ 
+-		// build list of var[c] = expr
+-		a = nod(OINDEX, var, r->left);
+-		a = nod(OAS, a, r->right);
++		a = nod(OAS, nod(OINDEX, var, key), val);
+ 		typecheck(&a, Etop);
+-		walkexpr(&a, init);
++		walkstmt(&a);
++		*init = list(*init, a);
++
+ 		if(nerr != nerrors)
+ 			break;
+-
++	}
++	
++	if(key != nil) {
++		a = nod(OVARKILL, key, N);
++		typecheck(&a, Etop);
++		*init = list(*init, a);
++		a = nod(OVARKILL, var, N);
++		typecheck(&a, Etop);
+ 		*init = list(*init, a);
+ 	}
+ }
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 5a025a15b6..b4b5d9eeb2 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -950,7 +950,7 @@ reswitch:
+ 		r = n->right;
+ 		if(r->type == T)
+ 			goto error;
+-		r = assignconv(r, l->type->type, "send");
++		n->right = assignconv(r, l->type->type, "send");
+ 		// TODO: more aggressive
+ 		n->etype = 0;
+ 		n->type = T;
+@@ -1655,6 +1655,7 @@ reswitch:
+ 	case OGOTO:
+ 	case OLABEL:
+ 	case OXFALL:
++	case OVARKILL:
+ 		ok |= Etop;
+ 		goto ret;
+ 
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 4416c87b08..c9cff289ba 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -202,6 +202,7 @@ walkstmt(Node **np)
+ 	case ODCLCONST:
+ 	case ODCLTYPE:
+ 	case OCHECKNIL:
++	case OVARKILL:
+ 		break;
+ 
+ 	case OBLOCK:
+@@ -361,8 +362,8 @@ void
+ walkexpr(Node **np, NodeList **init)
+ {
+ 	Node *r, *l, *var, *a;
+-	Node *map, *key, *keyvar;
+-	NodeList *ll, *lr, *lpost;
++	Node *map, *key;
++	NodeList *ll, *lr;
+ 	Type *t;
+ 	int et, old_safemode;
+ 	int64 v;
+@@ -476,7 +477,6 @@ walkexpr(Node **np, NodeList **init)
+ 	case ORSH:
+ 		walkexpr(&n->left, init);
+ 		walkexpr(&n->right, init);
+-	shiftwalked:
+ 		t = n->left->type;
+ 		n->bounded = bounded(n->right, 8*t->width);
+ 		if(debug['m'] && n->etype && !isconst(n->right, CTINT))
+@@ -602,13 +602,32 @@ walkexpr(Node **np, NodeList **init)
+ 	case OAS:
+ 		*init = concat(*init, n->ninit);
+ 		n->ninit = nil;
++
+ 		walkexpr(&n->left, init);
+ 		n->left = safeexpr(n->left, init);
+ 
+ 		if(oaslit(n, init))
+ 			goto ret;
+ 
+-		walkexpr(&n->right, init);
++		if(n->right == N)
++			goto ret;
++
++		switch(n->right->op) {
++		default:
++			walkexpr(&n->right, init);
++			break;
++		
++		case ORECV:
++			// x = <-c; n->left is x, n->right->left is c.
++			// orderstmt made sure x is addressable.
++			walkexpr(&n->right->left, init);
++			n1 = nod(OADDR, n->left, N);
++			r = n->right->left; // the channel
++			n = mkcall1(chanfn("chanrecv1", 2, r->type), T, init, typename(r->type), r, n1);
++			walkexpr(&n, init);
++			goto ret;
++		}
++
+ 		if(n->left != N && n->right != N) {
+ 			r = convas(nod(OAS, n->left, n->right), init);
+ 			r->dodata = n->dodata;
+@@ -618,7 +637,6 @@ walkexpr(Node **np, NodeList **init)
+ 		goto ret;
+ 
+ 	case OAS2:
+-	as2:
+ 		*init = concat(*init, n->ninit);
+ 		n->ninit = nil;
+ 		walkexprlistsafe(n->list, init);
+@@ -637,52 +655,26 @@ walkexpr(Node **np, NodeList **init)
+ 		walkexpr(&r, init);
+ 		l = n->list->n;
+ 
+-		// all the really hard stuff - explicit function calls and so on -
+-		// is gone, but map assignments remain.
+-		// if there are map assignments here, assign via
+-		// temporaries, because ascompatet assumes
+-		// the targets can be addressed without function calls
+-		// and map index has an implicit one.
+-		lpost = nil;
+-		if(l->op == OINDEXMAP) {
+-			var = temp(l->type);
+-			n->list->n = var;
+-			a = nod(OAS, l, var);
+-			typecheck(&a, Etop);
+-			lpost = list(lpost, a);
+-		}
+ 		l = n->list->next->n;
+-		if(l->op == OINDEXMAP) {
+-			var = temp(l->type);
+-			n->list->next->n = var;
+-			a = nod(OAS, l, var);
+-			typecheck(&a, Etop);
+-			lpost = list(lpost, a);
+-		}
+ 		ll = ascompatet(n->op, n->list, &r->type, 0, init);
+-		walkexprlist(lpost, init);
+-		n = liststmt(concat(concat(list1(r), ll), lpost));
++		n = liststmt(concat(list1(r), ll));
+ 		goto ret;
+ 
+ 	case OAS2RECV:
++		// x, y = <-c
++		// orderstmt made sure x is addressable.
+ 		*init = concat(*init, n->ninit);
+ 		n->ninit = nil;
+ 		r = n->rlist->n;
+ 		walkexprlistsafe(n->list, init);
+ 		walkexpr(&r->left, init);
+-		var = temp(r->left->type->type);
+-		if(haspointers(var->type)) {
+-			// clear for garbage collector - var is live during chanrecv2 call.
+-			a = nod(OAS, var, N);
+-			typecheck(&a, Etop);
+-			*init = concat(*init, list1(a));
+-		}
+-		n1 = nod(OADDR, var, N);
++		n1 = nod(OADDR, n->list->n, N);
++		n1->etype = 1; // addr does not escape
+ 		fn = chanfn("chanrecv2", 2, r->left->type);
+ 		r = mkcall1(fn, types[TBOOL], init, typename(r->left->type), r->left, n1);
+-		n->op = OAS2;
+-		n->rlist = concat(list1(var), list1(r));
+-		goto as2;
++		n = nod(OAS, n->list->next->n, r);
++		typecheck(&n, Etop);
++		goto ret;
+ 
+ 	case OAS2MAPR:
+ 		// a,b = m[i];
+@@ -714,15 +706,8 @@ walkexpr(Node **np, NodeList **init)
+ 			key = r->right;
+ 		} else {
+ 			// standard version takes key by reference
+-			if(islvalue(r->right)) {
+-				key = nod(OADDR, r->right, N);
+-			} else {
+-				keyvar = temp(t->down);
+-				n1 = nod(OAS, keyvar, r->right);
+-				typecheck(&n1, Etop);
+-				*init = list(*init, n1);
+-				key = nod(OADDR, keyvar, N);
+-			}
++			// orderexpr made sure key is addressable.
++			key = nod(OADDR, r->right, N);
+ 			p = "mapaccess2";
+ 		}
+ 
+@@ -741,7 +726,6 @@ walkexpr(Node **np, NodeList **init)
+ 		n->list->n = var;
+ 		walkexpr(&n, init);
+ 		*init = list(*init, n);
+-		
+ 		n = nod(OAS, a, nod(OIND, var, N));
+ 		typecheck(&n, Etop);
+ 		walkexpr(&n, init);
+@@ -758,15 +742,8 @@ walkexpr(Node **np, NodeList **init)
+ 		key = n->list->next->n;
+ 		walkexpr(&map, init);
+ 		walkexpr(&key, init);
+-		if(islvalue(key)) {
+-			key = nod(OADDR, key, N);
+-		} else {
+-			keyvar = temp(key->type);
+-			n1 = nod(OAS, keyvar, key);
+-			typecheck(&n1, Etop);
+-			*init = list(*init, n1);
+-			key = nod(OADDR, keyvar, N);
+-		}
++		// orderstmt made sure key is addressable.
++		key = nod(OADDR, key, N);
+ 		t = map->type;
+ 		n = mkcall1(mapfndel("mapdelete", t), T, init, typename(t), map, key);
+ 		goto ret;
+@@ -981,51 +958,6 @@ walkexpr(Node **np, NodeList **init)
+ 		walkexpr(&n->left, init);
+ 		goto ret;
+ 
+-	case OASOP:
+-		if(n->etype == OANDNOT) {
+-			n->etype = OAND;
+-			n->right = nod(OCOM, n->right, N);
+-			typecheck(&n->right, Erv);
+-		}
+-		n->left = safeexpr(n->left, init);
+-		walkexpr(&n->left, init);
+-		l = n->left;
+-		walkexpr(&n->right, init);
+-
+-		/*
+-		 * on 32-bit arch, rewrite 64-bit ops into l = l op r.
+-		 * on 386, rewrite float ops into l = l op r.
+-		 * everywhere, rewrite map ops into l = l op r.
+-		 * everywhere, rewrite string += into l = l op r.
+-		 * everywhere, rewrite integer/complex /= into l = l op r.
+-		 * TODO(rsc): Maybe this rewrite should be done always?
+-		 */
+-		et = n->left->type->etype;
+-		if((widthptr == 4 && (et == TUINT64 || et == TINT64)) ||
+-		   (thechar == '8' && isfloat[et]) ||
+-		   l->op == OINDEXMAP ||
+-		   et == TSTRING ||
+-		   (!isfloat[et] && n->etype == ODIV) ||
+-		   n->etype == OMOD) {
+-			l = safeexpr(n->left, init);
+-			a = l;
+-			if(a->op == OINDEXMAP) {
+-				// map index has "lhs" bit set in a->etype.
+-				// make a copy so we can clear it on the rhs.
+-				a = nod(OXXX, N, N);
+-				*a = *l;
+-				a->etype = 0;
+-			}
+-			r = nod(OAS, l, nod(n->etype, a, n->right));
+-			typecheck(&r, Etop);
+-			walkexpr(&r, init);
+-			n = r;
+-			goto ret;
+-		}
+-		if(n->etype == OLSH || n->etype == ORSH)
+-			goto shiftwalked;
+-		goto ret;
+-
+ 	case OANDNOT:
+ 		walkexpr(&n->left, init);
+ 		n->op = OAND;
+@@ -1159,16 +1091,9 @@ walkexpr(Node **np, NodeList **init)
+ 			// fast versions take key by value
+ 			key = n->right;
+ 		} else {
+-			// standard version takes key by reference
+-			if(islvalue(n->right)) {
+-				key = nod(OADDR, n->right, N);
+-			} else {
+-				keyvar = temp(t->down);
+-				n1 = nod(OAS, keyvar, n->right);
+-				typecheck(&n1, Etop);
+-				*init = list(*init, n1);
+-				key = nod(OADDR, keyvar, N);
+-			}
++			// standard version takes key by reference.
++			// orderexpr made sure key is addressable.
++			key = nod(OADDR, n->right, N);
+ 			p = "mapaccess1";
+ 		}
+ 		n = mkcall1(mapfn(p, t), ptrto(t->type), init, typename(t), n->left, key);
+@@ -1181,20 +1106,7 @@ walkexpr(Node **np, NodeList **init)
+ 		goto ret;
+ 
+ 	case ORECV:
+-		walkexpr(&n->left, init);
+-		var = temp(n->left->type->type);
+-		if(haspointers(var->type)) {
+-			// clear for garbage collector - var is live during chanrecv1 call.
+-			a = nod(OAS, var, N);
+-			typecheck(&a, Etop);
+-			*init = concat(*init, list1(a));
+-		}
+-		n1 = nod(OADDR, var, N);
+-		n = mkcall1(chanfn("chanrecv1", 2, n->left->type), T, init, typename(n->left->type), n->left, n1);
+-		walkexpr(&n, init);
+-		*init = list(*init, n);
+-		n = var;
+-		goto ret;
++		fatal("walkexpr ORECV"); // should see inside OAS only
+ 
+ 	case OSLICE:
+ 		if(n->right != N && n->right->left == N && n->right->right == N) { // noop
+@@ -1462,15 +1374,7 @@ walkexpr(Node **np, NodeList **init)
+ 		n1 = n->right;
+ 		n1 = assignconv(n1, n->left->type->type, "chan send");
+ 		walkexpr(&n1, init);
+-		if(islvalue(n1)) {
+-			n1 = nod(OADDR, n1, N);
+-		} else {
+-			var = temp(n1->type);
+-			n1 = nod(OAS, var, n1);
+-			typecheck(&n1, Etop);
+-			*init = list(*init, n1);
+-			n1 = nod(OADDR, var, N);
+-		}
++		n1 = nod(OADDR, n1, N);
+ 		n = mkcall1(chanfn("chansend1", 2, n->left->type), T, init, typename(n->left->type), n->left, n1);
+ 		goto ret;
+ 
+@@ -2008,8 +1912,7 @@ static Node*
+ convas(Node *n, NodeList **init)
+ {
+ 	Type *lt, *rt;
+-	Node *map, *key, *keyvar, *val, *valvar;
+-	Node *n1;
++	Node *map, *key, *val;
+ 
+ 	if(n->op != OAS)
+ 		fatal("convas: not OAS %O", n->op);
+@@ -2036,24 +1939,9 @@ convas(Node *n, NodeList **init)
+ 		walkexpr(&map, init);
+ 		walkexpr(&key, init);
+ 		walkexpr(&val, init);
+-		if(islvalue(key)) {
+-			key = nod(OADDR, key, N);
+-		} else {
+-			keyvar = temp(key->type);
+-			n1 = nod(OAS, keyvar, key);
+-			typecheck(&n1, Etop);
+-			*init = list(*init, n1);
+-			key = nod(OADDR, keyvar, N);
+-		}
+-		if(islvalue(val)) {
+-			val = nod(OADDR, val, N);
+-		} else {
+-			valvar = temp(val->type);
+-			n1 = nod(OAS, valvar, val);
+-			typecheck(&n1, Etop);
+-			*init = list(*init, n1);
+-			val = nod(OADDR, valvar, N);
+-		}
++		// orderexpr made sure key and val are addressable.
++		key = nod(OADDR, key, N);
++		val = nod(OADDR, val, N);
+ 		n = mkcall1(mapfn("mapassign1", map->type), T, init,
+ 			typename(map->type), map, key, val);
+ 		goto out;
+diff --git a/test/live.go b/test/live.go
+index f0d7c90451..5a03bf0312 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -212,3 +212,121 @@ func f15() {
+ }
+ 
+ func g15() string
++
++// Checking that various temporaries do not persist or cause
++// ambiguously live values that must be zeroed.
++// The exact temporary names are inconsequential but we are
++// trying to check that there is only one at any given site,
++// and also that none show up in "ambiguously live" messages.
++
++var m map[string]int
++
++func f16() {
++	if b {
++		delete(m, "hi") // ERROR "live at call to mapdelete: autotmp_[0-9]+$"
++	}
++	delete(m, "hi") // ERROR "live at call to mapdelete: autotmp_[0-9]+$"
++	delete(m, "hi") // ERROR "live at call to mapdelete: autotmp_[0-9]+$"
++}
++
++var m2s map[string]*byte
++var m2 map[[2]string]*byte
++var x2 [2]string
++var bp *byte
++
++func f17a() {
++	// value temporary only
++	if b {
++		m2[x2] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+$"
++	}
++	m2[x2] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+$"
++	m2[x2] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+$"
++}
++
++func f17b() {
++	// key temporary only
++	if b {
++		m2s["x"] = bp // ERROR "live at call to mapassign1: autotmp_[0-9]+$"
++	}
++	m2s["x"] = bp // ERROR "live at call to mapassign1: autotmp_[0-9]+$"
++	m2s["x"] = bp // ERROR "live at call to mapassign1: autotmp_[0-9]+$"
++}
++
++func f17c() {
++	// key and value temporaries
++	if b {
++		m2s["x"] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+ autotmp_[0-9]+$"
++	}
++	m2s["x"] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+ autotmp_[0-9]+$"
++	m2s["x"] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+ autotmp_[0-9]+$"
++}
++
++func g18() [2]string
++
++func f18() {
++	// key temporary for mapaccess.
++	// temporary introduced by orderexpr.
++	var z *byte
++	if b {
++		z = m2[g18()] // ERROR "live at call to mapaccess1: autotmp_[0-9]+$"
++	}
++	z = m2[g18()] // ERROR "live at call to mapaccess1: autotmp_[0-9]+$"
++	z = m2[g18()] // ERROR "live at call to mapaccess1: autotmp_[0-9]+$"
++	print(z)
++}
++
++var ch chan *byte
++
++func f19() {
++	// dest temporary for channel receive.
++	var z *byte
++	
++	if b {
++		z = <-ch // ERROR "live at call to chanrecv1: autotmp_[0-9]+$"
++	}
++	z = <-ch // ERROR "live at call to chanrecv1: autotmp_[0-9]+$"
++	z = <-ch // ERROR "live at call to chanrecv1: autotmp_[0-9]+$"
++	print(z)
++}
++
++func f20() {
++	// src temporary for channel send
++	if b {
++		ch <- nil // ERROR "live at call to chansend1: autotmp_[0-9]+$"
++	}
++	ch <- nil // ERROR "live at call to chansend1: autotmp_[0-9]+$"
++	ch <- nil // ERROR "live at call to chansend1: autotmp_[0-9]+$"
++}
++
++func f21() {
++	// key temporary for mapaccess using array literal key.
++	var z *byte
++	if b {
++		z = m2[[2]string{"x", "y"}] // ERROR "live at call to mapaccess1: autotmp_[0-9]+$"
++	}
++	z = m2[[2]string{"x", "y"}] // ERROR "live at call to mapaccess1: autotmp_[0-9]+$"
++	z = m2[[2]string{"x", "y"}] // ERROR "live at call to mapaccess1: autotmp_[0-9]+$"
++	print(z)
++}
++
++func f23() {
++	// key temporary for two-result map access using array literal key.
++	var z *byte
++	var ok bool
++	if b {
++		z, ok = m2[[2]string{"x", "y"}] // ERROR "live at call to mapaccess2: autotmp_[0-9]+$"
++	}
++	z, ok = m2[[2]string{"x", "y"}] // ERROR "live at call to mapaccess2: autotmp_[0-9]+$"
++	z, ok = m2[[2]string{"x", "y"}] // ERROR "live at call to mapaccess2: autotmp_[0-9]+$"
++	print(z, ok)
++}
++
++func f24() {
++	// key temporary for map access using array literal key.
++	// value temporary too.
++	if b {
++		m2[[2]string{"x", "y"}] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+ autotmp_[0-9]+$"
++	}
++	m2[[2]string{"x", "y"}] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+ autotmp_[0-9]+$"
++	m2[[2]string{"x", "y"}] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+ autotmp_[0-9]+$"
++}
+diff --git a/test/reorder2.go b/test/reorder2.go
+index d91f1d8953..e56be2bc80 100644
+--- a/test/reorder2.go
++++ b/test/reorder2.go
+@@ -167,6 +167,175 @@ func main() {
+ 		err++
+ 	}
+ 	log = ""
++	
++	x := 0
++	switch x {
++	case 0:
++		if a("1")("2")("3"); log != "a(1)a(2)a(3)" {
++			println("in switch, expecting a(1)a(2)a(3) , got ", log)
++			err++
++		}
++		log = ""
++	
++		if t.a("1").a(t.b("2")); log != "a(1)b(2)a(2)" {
++			println("in switch, expecting a(1)b(2)a(2), got ", log)
++			err++
++		}
++		log = ""
++		if a("3")(b("4"))(b("5")); log != "a(3)b(4)a(4)b(5)a(5)" {
++			println("in switch, expecting a(3)b(4)a(4)b(5)a(5), got ", log)
++			err++
++		}
++		log = ""
++		var i I = T1(0)
++		if i.a("6").a(i.b("7")).a(i.b("8")).a(i.b("9")); log != "a(6)b(7)a(7)b(8)a(8)b(9)a(9)" {
++			println("in switch, expecting a(6)ba(7)ba(8)ba(9), got", log)
++			err++
++		}
++		log = ""
++	}
++	
++	c := make(chan int, 1)
++	c <- 1
++	select {
++	case c <- 0:
++	case c <- 1:
++	case <-c:
++		if a("1")("2")("3"); log != "a(1)a(2)a(3)" {
++			println("in select1, expecting a(1)a(2)a(3) , got ", log)
++			err++
++		}
++		log = ""
++	
++		if t.a("1").a(t.b("2")); log != "a(1)b(2)a(2)" {
++			println("in select1, expecting a(1)b(2)a(2), got ", log)
++			err++
++		}
++		log = ""
++		if a("3")(b("4"))(b("5")); log != "a(3)b(4)a(4)b(5)a(5)" {
++			println("in select1, expecting a(3)b(4)a(4)b(5)a(5), got ", log)
++			err++
++		}
++		log = ""
++		var i I = T1(0)
++		if i.a("6").a(i.b("7")).a(i.b("8")).a(i.b("9")); log != "a(6)b(7)a(7)b(8)a(8)b(9)a(9)" {
++			println("in select1, expecting a(6)ba(7)ba(8)ba(9), got", log)
++			err++
++		}
++		log = ""
++	}
++
++	c <- 1
++	select {
++	case <-c:
++		if a("1")("2")("3"); log != "a(1)a(2)a(3)" {
++			println("in select2, expecting a(1)a(2)a(3) , got ", log)
++			err++
++		}
++		log = ""
++	
++		if t.a("1").a(t.b("2")); log != "a(1)b(2)a(2)" {
++			println("in select2, expecting a(1)b(2)a(2), got ", log)
++			err++
++		}
++		log = ""
++		if a("3")(b("4"))(b("5")); log != "a(3)b(4)a(4)b(5)a(5)" {
++			println("in select2, expecting a(3)b(4)a(4)b(5)a(5), got ", log)
++			err++
++		}
++		log = ""
++		var i I = T1(0)
++		if i.a("6").a(i.b("7")).a(i.b("8")).a(i.b("9")); log != "a(6)b(7)a(7)b(8)a(8)b(9)a(9)" {
++			println("in select2, expecting a(6)ba(7)ba(8)ba(9), got", log)
++			err++
++		}
++		log = ""
++	}
++
++	c <- 1
++	select {
++	default:
++	case c<-1:
++	case <-c:
++		if a("1")("2")("3"); log != "a(1)a(2)a(3)" {
++			println("in select3, expecting a(1)a(2)a(3) , got ", log)
++			err++
++		}
++		log = ""
++	
++		if t.a("1").a(t.b("2")); log != "a(1)b(2)a(2)" {
++			println("in select3, expecting a(1)b(2)a(2), got ", log)
++			err++
++		}
++		log = ""
++		if a("3")(b("4"))(b("5")); log != "a(3)b(4)a(4)b(5)a(5)" {
++			println("in select3, expecting a(3)b(4)a(4)b(5)a(5), got ", log)
++			err++
++		}
++		log = ""
++		var i I = T1(0)
++		if i.a("6").a(i.b("7")).a(i.b("8")).a(i.b("9")); log != "a(6)b(7)a(7)b(8)a(8)b(9)a(9)" {
++			println("in select3, expecting a(6)ba(7)ba(8)ba(9), got", log)
++			err++
++		}
++		log = ""
++	}
++
++	c <- 1
++	select {
++	default:
++	case <-c:
++		if a("1")("2")("3"); log != "a(1)a(2)a(3)" {
++			println("in select4, expecting a(1)a(2)a(3) , got ", log)
++			err++
++		}
++		log = ""
++	
++		if t.a("1").a(t.b("2")); log != "a(1)b(2)a(2)" {
++			println("in select4, expecting a(1)b(2)a(2), got ", log)
++			err++
++		}
++		log = ""
++		if a("3")(b("4"))(b("5")); log != "a(3)b(4)a(4)b(5)a(5)" {
++			println("in select4, expecting a(3)b(4)a(4)b(5)a(5), got ", log)
++			err++
++		}
++		log = ""
++		var i I = T1(0)
++		if i.a("6").a(i.b("7")).a(i.b("8")).a(i.b("9")); log != "a(6)b(7)a(7)b(8)a(8)b(9)a(9)" {
++			println("in select4, expecting a(6)ba(7)ba(8)ba(9), got", log)
++			err++
++		}
++		log = ""
++	}
++
++	select {
++	case <-c:
++	case <-c:
++	default:
++		if a("1")("2")("3"); log != "a(1)a(2)a(3)" {
++			println("in select5, expecting a(1)a(2)a(3) , got ", log)
++			err++
++		}
++		log = ""
++	
++		if t.a("1").a(t.b("2")); log != "a(1)b(2)a(2)" {
++			println("in select5, expecting a(1)b(2)a(2), got ", log)
++			err++
++		}
++		log = ""
++		if a("3")(b("4"))(b("5")); log != "a(3)b(4)a(4)b(5)a(5)" {
++			println("in select5, expecting a(3)b(4)a(4)b(5)a(5), got ", log)
++			err++
++		}
++		log = ""
++		var i I = T1(0)
++		if i.a("6").a(i.b("7")).a(i.b("8")).a(i.b("9")); log != "a(6)b(7)a(7)b(8)a(8)b(9)a(9)" {
++			println("in select5, expecting a(6)ba(7)ba(8)ba(9), got", log)
++			err++
++		}
++		log = ""
++	}
+ 
+ 	if err > 0 {
+ 		panic("fail")

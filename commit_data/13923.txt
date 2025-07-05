@@ -11,9 +11,67 @@ Date:   Mon Sep 24 12:24:45 2012 -0400
     R=rsc, rminnich, npe
     CC=golang-dev
     https://golang.org/cl/6543049
-
+---
  src/cmd/dist/buildruntime.c        | 6 ++++++
  src/pkg/runtime/defs_plan9_amd64.h | 1 -
  src/pkg/runtime/rt0_plan9_amd64.s  | 2 --
  src/pkg/runtime/sys_plan9_amd64.s  | 5 ++---
  4 files changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/dist/buildruntime.c b/src/cmd/dist/buildruntime.c
+index d3ab197461..f22174e792 100644
+--- a/src/cmd/dist/buildruntime.c
++++ b/src/cmd/dist/buildruntime.c
+@@ -145,6 +145,12 @@ static struct {
+ 		"#define	g(r) 0(r)\n"
+ 		"#define	m(r) 8(r)\n"
+ 	},
++	{"amd64", "plan9",
++		"#define	get_tls(r)\n"
++		"#define	g(r) 0(GS)\n"
++		"#define	m(r) 8(GS)\n"
++		"#define	procid(r) 16(GS)\n"
++	},
+ 	{"amd64", "",
+ 		"// The offsets 0 and 8 are known to:\n"
+ 		"//	../../cmd/6l/pass.c:/D_GS\n"
+diff --git a/src/pkg/runtime/defs_plan9_amd64.h b/src/pkg/runtime/defs_plan9_amd64.h
+index 8c324ea584..d5d19f8be3 100644
+--- a/src/pkg/runtime/defs_plan9_amd64.h
++++ b/src/pkg/runtime/defs_plan9_amd64.h
+@@ -1,3 +1,2 @@
+ // nothing to see here
+-#define tos_pid 64
+ #define PAGESIZE 0x200000ULL
+diff --git a/src/pkg/runtime/rt0_plan9_amd64.s b/src/pkg/runtime/rt0_plan9_amd64.s
+index 499413a831..2b1fa2ae1d 100644
+--- a/src/pkg/runtime/rt0_plan9_amd64.s
++++ b/src/pkg/runtime/rt0_plan9_amd64.s
+@@ -3,11 +3,9 @@
+ // license that can be found in the LICENSE file.
+ 
+ TEXT _rt0_amd64_plan9(SB),7, $0
+-	MOVQ	AX, _tos(SB)
+ 	MOVQ	$_rt0_amd64(SB), AX
+ 	MOVQ	SP, DI
+ 	JMP	AX
+ 
+ DATA runtime·isplan9(SB)/4, $1
+ GLOBL runtime·isplan9(SB), $4
+-GLOBL _tos(SB), $8
+diff --git a/src/pkg/runtime/sys_plan9_amd64.s b/src/pkg/runtime/sys_plan9_amd64.s
+index cc343d170a..f376620924 100644
+--- a/src/pkg/runtime/sys_plan9_amd64.s
++++ b/src/pkg/runtime/sys_plan9_amd64.s
+@@ -105,9 +105,8 @@ TEXT runtime·rfork(SB),7,$0
+ 	MOVQ	DX, g(AX)
+ 	MOVQ	BX, m(AX)
+ 
+-	// Initialize AX from _tos->pid
+-	MOVQ	_tos(SB), AX
+-	MOVQ	tos_pid(AX), AX
++	// Initialize AX from pid in TLS.
++	MOVQ	procid(AX), AX
+ 	MOVQ	AX, m_procid(BX)	// save pid as m->procid
+ 	
+ 	CALL	runtime·stackcheck(SB)	// smashes AX, CX

@@ -7,6 +7,21 @@ Date:   Mon Oct 15 13:54:31 2012 +0400
     R=0xe2.0x9a.0x9b, minux.ma, iant, dave
     CC=golang-dev
     https://golang.org/cl/6654052
-
+---
  src/pkg/runtime/malloc.goc | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 92bc4aa234..9b74b1040e 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -693,7 +693,8 @@ runtime·new(Type *typ, uint8 *ret)
+ {
+ 	uint32 flag;
+ 
+-	m->racepc = runtime·getcallerpc(&typ);
++	if(raceenabled)
++		m->racepc = runtime·getcallerpc(&typ);
+ 	flag = typ->kind&KindNoPointers ? FlagNoPointers : 0;
+ 	ret = runtime·mallocgc(typ->size, flag, 1, 1);
+ 

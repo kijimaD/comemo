@@ -12,6 +12,22 @@ Date:   Mon Jul 29 20:24:22 2019 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/inl_test.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl_test.go b/src/cmd/compile/internal/gc/inl_test.go
+index a04869c5a3..a0f56e776b 100644
+--- a/src/cmd/compile/internal/gc/inl_test.go
++++ b/src/cmd/compile/internal/gc/inl_test.go
+@@ -31,10 +31,6 @@ func TestIntendedInlining(t *testing.T) {
+ 	// might not actually be inlined anywhere.
+ 	want := map[string][]string{
+ 		"runtime": {
+-			// TODO(mvdan): enable these once mid-stack
+-			// inlining is available
+-			// "adjustctxt",
+-
+ 			"add",
+ 			"acquirem",
+ 			"add1",

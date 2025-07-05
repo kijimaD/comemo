@@ -15,8 +15,187 @@ Date:   Sat Oct 8 10:06:53 2011 -0400
     R=bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/5151048
-
+---
  src/pkg/crypto/tls/common.go           | 66 ++++++++++++++++++++++++++++++++++
  src/pkg/crypto/tls/conn_test.go        | 54 ++++++++++++++++++++++++++++
  src/pkg/crypto/tls/handshake_server.go |  7 +++-
  3 files changed, 126 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/tls/common.go b/src/pkg/crypto/tls/common.go
+index 8fb1a88484..8b4dafbc00 100644
+--- a/src/pkg/crypto/tls/common.go
++++ b/src/pkg/crypto/tls/common.go
+@@ -10,6 +10,7 @@ import (
+ 	"crypto/x509"
+ 	"io"
+ 	"io/ioutil"
++	"strings"
+ 	"sync"
+ 	"time"
+ )
+@@ -101,6 +102,10 @@ type ConnectionState struct {
+ 	NegotiatedProtocol         string
+ 	NegotiatedProtocolIsMutual bool
+ 
++	// ServerName contains the server name indicated by the client, if any.
++	// (Only valid for server connections.)
++	ServerName string
++
+ 	// the certificate chain that was presented by the other side
+ 	PeerCertificates []*x509.Certificate
+ 	// the verified certificate chains built from PeerCertificates.
+@@ -124,6 +129,14 @@ type Config struct {
+ 	// Server configurations must include at least one certificate.
+ 	Certificates []Certificate
+ 
++	// NameToCertificate maps from a certificate name to an element of
++	// Certificates. Note that a certificate name can be of the form
++	// '*.example.com' and so doesn't have to be a domain name as such.
++	// See Config.BuildNameToCertificate
++	// The nil value causes the first element of Certificates to be used
++	// for all connections.
++	NameToCertificate map[string]*Certificate
++
+ 	// RootCAs defines the set of root certificate authorities
+ 	// that clients use when verifying server certificates.
+ 	// If RootCAs is nil, TLS uses the host's root CA set.
+@@ -179,6 +192,59 @@ func (c *Config) cipherSuites() []uint16 {
+ 	return s
+ }
+ 
++// getCertificateForName returns the best certificate for the given name,
++// defaulting to the first element of c.Certificates if there are no good
++// options.
++func (c *Config) getCertificateForName(name string) *Certificate {
++	if len(c.Certificates) == 1 || c.NameToCertificate == nil {
++		// There's only one choice, so no point doing any work.
++		return &c.Certificates[0]
++	}
++
++	name = strings.ToLower(name)
++	for len(name) > 0 && name[len(name)-1] == '.' {
++		name = name[:len(name)-1]
++	}
++
++	if cert, ok := c.NameToCertificate[name]; ok {
++		return cert
++	}
++
++	// try replacing labels in the name with wildcards until we get a
++	// match.
++	labels := strings.Split(name, ".")
++	for i := range labels {
++		labels[i] = "*"
++		candidate := strings.Join(labels, ".")
++		if cert, ok := c.NameToCertificate[candidate]; ok {
++			return cert
++		}
++	}
++
++	// If nothing matches, return the first certificate.
++	return &c.Certificates[0]
++}
++
++// BuildNameToCertificate parses c.Certificates and builds c.NameToCertificate
++// from the CommonName and SubjectAlternateName fields of each of the leaf
++// certificates.
++func (c *Config) BuildNameToCertificate() {
++	c.NameToCertificate = make(map[string]*Certificate)
++	for i := range c.Certificates {
++		cert := &c.Certificates[i]
++		x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
++		if err != nil {
++			continue
++		}
++		if len(x509Cert.Subject.CommonName) > 0 {
++			c.NameToCertificate[x509Cert.Subject.CommonName] = cert
++		}
++		for _, san := range x509Cert.DNSNames {
++			c.NameToCertificate[san] = cert
++		}
++	}
++}
++
+ // A Certificate is a chain of one or more certificates, leaf first.
+ type Certificate struct {
+ 	Certificate [][]byte
+diff --git a/src/pkg/crypto/tls/conn_test.go b/src/pkg/crypto/tls/conn_test.go
+index f44a50bedd..5c555147ca 100644
+--- a/src/pkg/crypto/tls/conn_test.go
++++ b/src/pkg/crypto/tls/conn_test.go
+@@ -50,3 +50,57 @@ func TestRemovePadding(t *testing.T) {
+ 		}
+ 	}
+ }
++
++var certExampleCom = `308201403081eda003020102020101300b06092a864886f70d010105301e311c301a060355040a131354657374696e67204365727469666963617465301e170d3131313030313138353835325a170d3132303933303138353835325a301e311c301a060355040a131354657374696e67204365727469666963617465305a300b06092a864886f70d010101034b003048024100bced6e32368599eeddf18796bfd03958a154f87e5b084f96e85136a56b886733592f493f0fc68b0d6b3551781cb95e13c5de458b28d6fb60d20a9129313261410203010001a31a301830160603551d11040f300d820b6578616d706c652e636f6d300b06092a864886f70d0101050341001a0b419d2c74474c6450654e5f10b32bf426ffdf55cad1c52602e7a9151513a3424c70f5960dcd682db0c33769cc1daa3fcdd3db10809d2392ed4a1bf50ced18`
++
++var certWildcardExampleCom = `308201423081efa003020102020101300b06092a864886f70d010105301e311c301a060355040a131354657374696e67204365727469666963617465301e170d3131313030313139303034365a170d3132303933303139303034365a301e311c301a060355040a131354657374696e67204365727469666963617465305a300b06092a864886f70d010101034b003048024100bced6e32368599eeddf18796bfd03958a154f87e5b084f96e85136a56b886733592f493f0fc68b0d6b3551781cb95e13c5de458b28d6fb60d20a9129313261410203010001a31c301a30180603551d110411300f820d2a2e6578616d706c652e636f6d300b06092a864886f70d0101050341001676f0c9e7c33c1b656ed5a6476c4e2ee9ec8e62df7407accb1875272b2edd0a22096cb2c22598d11604104d604f810eb4b5987ca6bb319c7e6ce48725c54059`
++
++var certFooExampleCom = `308201443081f1a003020102020101300b06092a864886f70d010105301e311c301a060355040a131354657374696e67204365727469666963617465301e170d3131313030313139303131345a170d3132303933303139303131345a301e311c301a060355040a131354657374696e67204365727469666963617465305a300b06092a864886f70d010101034b003048024100bced6e32368599eeddf18796bfd03958a154f87e5b084f96e85136a56b886733592f493f0fc68b0d6b3551781cb95e13c5de458b28d6fb60d20a9129313261410203010001a31e301c301a0603551d1104133011820f666f6f2e6578616d706c652e636f6d300b06092a864886f70d010105034100646a2a51f2aa2477add854b462cf5207ba16d3213ffb5d3d0eed473fbf09935019192d1d5b8ca6a2407b424cf04d97c4cd9197c83ecf81f0eab9464a1109d09f`
++
++var certDoubleWildcardExampleCom = `308201443081f1a003020102020101300b06092a864886f70d010105301e311c301a060355040a131354657374696e67204365727469666963617465301e170d3131313030313139303134315a170d3132303933303139303134315a301e311c301a060355040a131354657374696e67204365727469666963617465305a300b06092a864886f70d010101034b003048024100bced6e32368599eeddf18796bfd03958a154f87e5b084f96e85136a56b886733592f493f0fc68b0d6b3551781cb95e13c5de458b28d6fb60d20a9129313261410203010001a31e301c301a0603551d1104133011820f2a2e2a2e6578616d706c652e636f6d300b06092a864886f70d0101050341001c3de267975f56ef57771c6218ef95ecc65102e57bd1defe6f7efea90d9b26cf40de5bd7ad75e46201c7f2a92aaa3e907451e9409f65e28ddb6db80d726290f6`
++
++func TestCertificateSelection(t *testing.T) {
++	config := Config{
++		Certificates: []Certificate{
++			{
++				Certificate: [][]byte{fromHex(certExampleCom)},
++			},
++			{
++				Certificate: [][]byte{fromHex(certWildcardExampleCom)},
++			},
++			{
++				Certificate: [][]byte{fromHex(certFooExampleCom)},
++			},
++			{
++				Certificate: [][]byte{fromHex(certDoubleWildcardExampleCom)},
++			},
++		},
++	}
++
++	config.BuildNameToCertificate()
++
++	pointerToIndex := func(c *Certificate) int {
++		for i := range config.Certificates {
++			if c == &config.Certificates[i] {
++				return i
++			}
++		}
++		return -1
++	}
++
++	if n := pointerToIndex(config.getCertificateForName("example.com")); n != 0 {
++		t.Errorf("example.com returned certificate %d, not 0", n)
++	}
++	if n := pointerToIndex(config.getCertificateForName("bar.example.com")); n != 1 {
++		t.Errorf("bar.example.com returned certificate %d, not 1", n)
++	}
++	if n := pointerToIndex(config.getCertificateForName("foo.example.com")); n != 2 {
++		t.Errorf("foo.example.com returned certificate %d, not 2", n)
++	}
++	if n := pointerToIndex(config.getCertificateForName("foo.bar.example.com")); n != 3 {
++		t.Errorf("foo.bar.example.com returned certificate %d, not 3", n)
++	}
++	if n := pointerToIndex(config.getCertificateForName("foo.bar.baz.example.com")); n != 0 {
++		t.Errorf("foo.bar.baz.example.com returned certificate %d, not 0", n)
++	}
++}
+diff --git a/src/pkg/crypto/tls/handshake_server.go b/src/pkg/crypto/tls/handshake_server.go
+index f083a873d9..ed9a2e6a51 100644
+--- a/src/pkg/crypto/tls/handshake_server.go
++++ b/src/pkg/crypto/tls/handshake_server.go
+@@ -115,7 +115,12 @@ FindCipherSuite:
+ 	}
+ 
+ 	certMsg := new(certificateMsg)
+-	certMsg.certificates = config.Certificates[0].Certificate
++	if len(clientHello.serverName) > 0 {
++		c.serverName = clientHello.serverName
++		certMsg.certificates = config.getCertificateForName(clientHello.serverName).Certificate
++	} else {
++		certMsg.certificates = config.Certificates[0].Certificate
++	}
+ 	finishedHash.Write(certMsg.marshal())
+ 	c.writeRecord(recordTypeHandshake, certMsg.marshal())
+ 

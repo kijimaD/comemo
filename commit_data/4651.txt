@@ -7,6 +7,20 @@ Date:   Fri Jan 22 14:26:15 2010 +1100
     R=rsc, r, gri
     CC=golang-dev
     https://golang.org/cl/186255
-
+---
  src/cmd/godoc/godoc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 7a8a8d864c..627c4027d7 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -1157,7 +1157,7 @@ type SearchResult struct {
+ }
+ 
+ func search(c *http.Conn, r *http.Request) {
+-	query := r.FormValue("q")
++	query := strings.TrimSpace(r.FormValue("q"))
+ 	var result SearchResult
+ 
+ 	if index, timestamp := searchIndex.get(); index != nil {

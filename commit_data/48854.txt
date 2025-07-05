@@ -23,6 +23,27 @@ Date:   Mon Jun 21 11:11:20 2021 -0500
     Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Bryan C. Mills <bcmills@google.com>
-
+---
  src/database/sql/sql_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index 7d1cb9b85a..f771dee4a9 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -2841,7 +2841,6 @@ func TestTxStmtDeadlock(t *testing.T) {
+ 	ctx, cancel := context.WithCancel(context.Background())
+ 	defer cancel()
+ 	tx, err := db.BeginTx(ctx, nil)
+-	cancel()
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -2850,6 +2849,7 @@ func TestTxStmtDeadlock(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
++	cancel()
+ 	// Run number of stmt queries to reproduce deadlock from context cancel
+ 	for i := 0; i < 1e3; i++ {
+ 		// Encounter any close related errors (e.g. ErrTxDone, stmt is closed)

@@ -7,7 +7,48 @@ Date:   Wed Oct 15 17:09:42 2008 -0700
     R=ken
     OCL=17241
     CL=17241
-
+---
  src/cmd/gc/go.h | 2 ++
  src/cmd/gc/go.y | 4 ++++
  2 files changed, 6 insertions(+)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index eb8806779e..92dc1260c9 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -468,6 +468,8 @@ EXTERN	int32	thunk;
+ 
+ EXTERN	int	exporting;
+ 
++EXTERN	int	func;
++
+ /*
+  *	y.tab.c
+  */
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index f08421b5d4..d36b74621c 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -754,6 +754,8 @@ uexpr:
+ 	}
+ |	'&' uexpr
+ 	{
++		if($2->op == OCONV && !func)
++			yyerror("& of composite literal at top level");
+ 		$$ = nod(OADDR, $2, N);
+ 	}
+ |	'+' uexpr
+@@ -1179,11 +1181,13 @@ xfndcl:
+ 	{
+ 		maxarg = 0;
+ 		stksize = 0;
++		func++;
+ 	} fndcl fnbody
+ 	{
+ 		$$ = $3;
+ 		$$->nbody = $4;
+ 		funcbody($$);
++		func--;
+ 	}
+ 
+ fndcl:

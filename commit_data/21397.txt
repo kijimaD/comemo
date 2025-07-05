@@ -9,6 +9,20 @@ Date:   Thu Jan 1 00:00:00 2015 +1100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  doc/contribute.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index a50dd85c42..efd5040097 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -652,7 +652,7 @@ This rigmarole needs to be done only for your first submission.
+ <p>Code that you contribute should use the standard copyright header:</p>
+ 
+ <pre>
+-// Copyright 2014 The Go Authors. All rights reserved.
++// Copyright 2015 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ </pre>

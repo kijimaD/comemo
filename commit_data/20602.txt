@@ -12,6 +12,21 @@ Date:   Tue Sep 23 14:26:20 2014 -0700
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/150860046
-
+---
  src/os/path.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/os/path.go b/src/os/path.go
+index 6cc69403b6..b1a90b3e52 100644
+--- a/src/os/path.go
++++ b/src/os/path.go
+@@ -86,6 +86,9 @@ func RemoveAll(path string) error {
+ 	// Directory.
+ 	fd, err := Open(path)
+ 	if err != nil {
++		if IsNotExist(err) {
++			return nil
++		}
+ 		return err
+ 	}
+ 

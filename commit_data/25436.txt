@@ -18,7 +18,7 @@ Date:   Thu Oct 29 15:13:58 2015 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/math/abs.go         |  7 ++++---
  src/math/abs_386.s      | 12 ------------
  src/math/abs_amd64.s    | 14 --------------
@@ -27,3 +27,127 @@ Date:   Thu Oct 29 15:13:58 2015 +0000
  src/math/abs_arm64.s    | 11 -----------
  src/math/abs_ppc64x.s   | 14 --------------
  7 files changed, 4 insertions(+), 72 deletions(-)
+
+diff --git a/src/math/abs.go b/src/math/abs.go
+index bc41a6d6b5..e35e4da792 100644
+--- a/src/math/abs.go
++++ b/src/math/abs.go
+@@ -9,9 +9,10 @@ package math
+ // Special cases are:
+ //	Abs(±Inf) = +Inf
+ //	Abs(NaN) = NaN
+-func Abs(x float64) float64
+-
+-func abs(x float64) float64 {
++func Abs(x float64) float64 {
++	// TODO: once golang.org/issue/13905 is fixed, change this to:
++	// return Float64frombits(Float64bits(x) &^ (1 << 63))
++	// But for now, this generates better code and can also be inlined:
+ 	switch {
+ 	case x < 0:
+ 		return -x
+diff --git a/src/math/abs_386.s b/src/math/abs_386.s
+deleted file mode 100644
+index f30a439c26..0000000000
+--- a/src/math/abs_386.s
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// func Abs(x float64) float64
+-TEXT ·Abs(SB),NOSPLIT,$0
+-	FMOVD   x+0(FP), F0  // F0=x
+-	FABS                 // F0=|x|
+-	FMOVDP  F0, ret+8(FP)
+-	RET
+diff --git a/src/math/abs_amd64.s b/src/math/abs_amd64.s
+deleted file mode 100644
+index 0424eb5fad..0000000000
+--- a/src/math/abs_amd64.s
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// func Abs(x float64) float64
+-TEXT ·Abs(SB),NOSPLIT,$0
+-	MOVQ   $(1<<63), BX
+-	MOVQ   BX, X0 // movsd $(-0.0), x0
+-	MOVSD  x+0(FP), X1
+-	ANDNPD X1, X0
+-	MOVSD  X0, ret+8(FP)
+-	RET
+diff --git a/src/math/abs_amd64p32.s b/src/math/abs_amd64p32.s
+deleted file mode 100644
+index 08c8c6b336..0000000000
+--- a/src/math/abs_amd64p32.s
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "abs_amd64.s"
+diff --git a/src/math/abs_arm.s b/src/math/abs_arm.s
+deleted file mode 100644
+index bfa77eb491..0000000000
+--- a/src/math/abs_arm.s
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Abs(SB),NOSPLIT,$0
+-	MOVW	x_lo+0(FP), R0
+-	MOVW	x_hi+4(FP), R1
+-	AND 	$((1<<31)-1), R1
+-	MOVW	R0, ret_lo+8(FP)
+-	MOVW	R1, ret_hi+12(FP)
+-	RET
+diff --git a/src/math/abs_arm64.s b/src/math/abs_arm64.s
+deleted file mode 100644
+index d8f9382d39..0000000000
+--- a/src/math/abs_arm64.s
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Abs(SB),NOSPLIT,$0-16
+-	FMOVD	x+0(FP), F3
+-	FABSD	F3, F3
+-	FMOVD	F3, ret+8(FP)
+-	RET
+diff --git a/src/math/abs_ppc64x.s b/src/math/abs_ppc64x.s
+deleted file mode 100644
+index 06effb4e8e..0000000000
+--- a/src/math/abs_ppc64x.s
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ppc64 ppc64le
+-
+-#include "textflag.h"
+-
+-TEXT ·Abs(SB),NOSPLIT,$0-16
+-	MOVD	x+0(FP), R3
+-	MOVD 	$((1<<63)-1), R4
+-	AND	R4, R3
+-	MOVD	R3, ret+8(FP)
+-	RET

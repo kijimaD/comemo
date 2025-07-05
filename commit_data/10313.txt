@@ -9,6 +9,20 @@ Date:   Wed Nov 9 13:46:54 2011 -0500
     R=r, r
     CC=golang-dev
     https://golang.org/cl/5376041
-
+---
  src/pkg/regexp/regexp.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index b906076f9e..59f3be39d2 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -1,7 +1,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package regexp implements a simple regular expression library.
++// Package regexp implements regular expression search.
+ //
+ // The syntax of the regular expressions accepted is the same
+ // general syntax used by Perl, Python, and other languages.

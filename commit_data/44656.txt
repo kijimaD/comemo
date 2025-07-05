@@ -15,7 +15,63 @@ Date:   Mon Aug 17 21:59:07 2020 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/cmd/compile/internal/types/type.go      |  3 ++-
  src/cmd/compile/internal/types/type_test.go | 28 ++++++++++++++++++++++++++++
  2 files changed, 30 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 3b7b31c5d6..91b54b43d4 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -131,6 +131,7 @@ type Type struct {
+ 	// TPTR: Ptr
+ 	// TARRAY: *Array
+ 	// TSLICE: Slice
++	// TSSA: string
+ 	Extra interface{}
+ 
+ 	// Width is the width of this Type in bytes.
+@@ -1026,7 +1027,7 @@ func (t *Type) cmp(x *Type) Cmp {
+ 
+ 	case TSSA:
+ 		tname := t.Extra.(string)
+-		xname := t.Extra.(string)
++		xname := x.Extra.(string)
+ 		// desire fast sorting, not pretty sorting.
+ 		if len(tname) == len(xname) {
+ 			if tname == xname {
+diff --git a/src/cmd/compile/internal/types/type_test.go b/src/cmd/compile/internal/types/type_test.go
+new file mode 100644
+index 0000000000..fe3f380b21
+--- /dev/null
++++ b/src/cmd/compile/internal/types/type_test.go
+@@ -0,0 +1,28 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package types_test
++
++import (
++	"cmd/compile/internal/types"
++	"testing"
++)
++
++func TestSSACompare(t *testing.T) {
++	a := []*types.Type{
++		types.TypeInvalid,
++		types.TypeMem,
++		types.TypeFlags,
++		types.TypeVoid,
++		types.TypeInt128,
++	}
++	for _, x := range a {
++		for _, y := range a {
++			c := x.Compare(y)
++			if x == y && c != types.CMPeq || x != y && c == types.CMPeq {
++				t.Errorf("%s compare %s == %d\n", x.Extra, y.Extra, c)
++			}
++		}
++	}
++}

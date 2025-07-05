@@ -18,10 +18,308 @@ Date:   Fri Apr 5 16:43:08 2019 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/fmt.go       |   3 -
  src/cmd/compile/internal/gc/op_string.go | 164 ++++++++++++++++++++++++++++++-
  src/cmd/compile/internal/gc/ssa.go       |   7 +-
  src/cmd/compile/internal/gc/syntax.go    |   4 +-
  src/cmd/compile/internal/gc/walk.go      |  35 ++-----
  5 files changed, 174 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 67b521feed..72b1e35b6a 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -1579,9 +1579,6 @@ func (n *Node) nodedump(s fmt.State, flag FmtFlag, mode fmtMode) {
+ 	default:
+ 		mode.Fprintf(s, "%v%j", n.Op, n)
+ 
+-	case OINDREGSP:
+-		mode.Fprintf(s, "%v-SP%j", n.Op, n)
+-
+ 	case OLITERAL:
+ 		mode.Fprintf(s, "%v-%v%j", n.Op, n.Val(), n)
+ 
+diff --git a/src/cmd/compile/internal/gc/op_string.go b/src/cmd/compile/internal/gc/op_string.go
+index af55df68a3..d8910e7d06 100644
+--- a/src/cmd/compile/internal/gc/op_string.go
++++ b/src/cmd/compile/internal/gc/op_string.go
+@@ -4,9 +4,169 @@ package gc
+ 
+ import "strconv"
+ 
+-const _Op_name = "XXXNAMENONAMETYPEPACKLITERALADDSUBORXORADDSTRADDRANDANDAPPENDBYTES2STRBYTES2STRTMPRUNES2STRSTR2BYTESSTR2BYTESTMPSTR2RUNESASAS2AS2FUNCAS2RECVAS2MAPRAS2DOTTYPEASOPCALLCALLFUNCCALLMETHCALLINTERCALLPARTCAPCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVNOPCOPYDCLDCLFUNCDCLFIELDDCLCONSTDCLTYPEDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTDEREFINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMULDIVMODLSHRSHANDANDNOTNEWNEWOBJNOTBITNOTPLUSNEGORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRSLICEHEADERRECOVERRECVRUNESTRSELRECVSELRECV2IOTAREALIMAGCOMPLEXALIGNOFOFFSETOFSIZEOFBLOCKBREAKCASEXCASECONTINUEDEFEREMPTYFALLFORFORUNTILGOTOIFLABELGORANGERETURNSELECTSWITCHTYPESWTCHANTMAPTSTRUCTTINTERTFUNCTARRAYDDDDDDARGINLCALLEFACEITABIDATASPTRCLOSUREVARCFUNCCHECKNILVARDEFVARKILLVARLIVEINDREGSPINLMARKRETJMPGETGEND"
++func _() {
++	// An "invalid array index" compiler error signifies that the constant values have changed.
++	// Re-run the stringer command to generate them again.
++	var x [1]struct{}
++	_ = x[OXXX-0]
++	_ = x[ONAME-1]
++	_ = x[ONONAME-2]
++	_ = x[OTYPE-3]
++	_ = x[OPACK-4]
++	_ = x[OLITERAL-5]
++	_ = x[OADD-6]
++	_ = x[OSUB-7]
++	_ = x[OOR-8]
++	_ = x[OXOR-9]
++	_ = x[OADDSTR-10]
++	_ = x[OADDR-11]
++	_ = x[OANDAND-12]
++	_ = x[OAPPEND-13]
++	_ = x[OBYTES2STR-14]
++	_ = x[OBYTES2STRTMP-15]
++	_ = x[ORUNES2STR-16]
++	_ = x[OSTR2BYTES-17]
++	_ = x[OSTR2BYTESTMP-18]
++	_ = x[OSTR2RUNES-19]
++	_ = x[OAS-20]
++	_ = x[OAS2-21]
++	_ = x[OAS2FUNC-22]
++	_ = x[OAS2RECV-23]
++	_ = x[OAS2MAPR-24]
++	_ = x[OAS2DOTTYPE-25]
++	_ = x[OASOP-26]
++	_ = x[OCALL-27]
++	_ = x[OCALLFUNC-28]
++	_ = x[OCALLMETH-29]
++	_ = x[OCALLINTER-30]
++	_ = x[OCALLPART-31]
++	_ = x[OCAP-32]
++	_ = x[OCLOSE-33]
++	_ = x[OCLOSURE-34]
++	_ = x[OCOMPLIT-35]
++	_ = x[OMAPLIT-36]
++	_ = x[OSTRUCTLIT-37]
++	_ = x[OARRAYLIT-38]
++	_ = x[OSLICELIT-39]
++	_ = x[OPTRLIT-40]
++	_ = x[OCONV-41]
++	_ = x[OCONVIFACE-42]
++	_ = x[OCONVNOP-43]
++	_ = x[OCOPY-44]
++	_ = x[ODCL-45]
++	_ = x[ODCLFUNC-46]
++	_ = x[ODCLFIELD-47]
++	_ = x[ODCLCONST-48]
++	_ = x[ODCLTYPE-49]
++	_ = x[ODELETE-50]
++	_ = x[ODOT-51]
++	_ = x[ODOTPTR-52]
++	_ = x[ODOTMETH-53]
++	_ = x[ODOTINTER-54]
++	_ = x[OXDOT-55]
++	_ = x[ODOTTYPE-56]
++	_ = x[ODOTTYPE2-57]
++	_ = x[OEQ-58]
++	_ = x[ONE-59]
++	_ = x[OLT-60]
++	_ = x[OLE-61]
++	_ = x[OGE-62]
++	_ = x[OGT-63]
++	_ = x[ODEREF-64]
++	_ = x[OINDEX-65]
++	_ = x[OINDEXMAP-66]
++	_ = x[OKEY-67]
++	_ = x[OSTRUCTKEY-68]
++	_ = x[OLEN-69]
++	_ = x[OMAKE-70]
++	_ = x[OMAKECHAN-71]
++	_ = x[OMAKEMAP-72]
++	_ = x[OMAKESLICE-73]
++	_ = x[OMUL-74]
++	_ = x[ODIV-75]
++	_ = x[OMOD-76]
++	_ = x[OLSH-77]
++	_ = x[ORSH-78]
++	_ = x[OAND-79]
++	_ = x[OANDNOT-80]
++	_ = x[ONEW-81]
++	_ = x[ONEWOBJ-82]
++	_ = x[ONOT-83]
++	_ = x[OBITNOT-84]
++	_ = x[OPLUS-85]
++	_ = x[ONEG-86]
++	_ = x[OOROR-87]
++	_ = x[OPANIC-88]
++	_ = x[OPRINT-89]
++	_ = x[OPRINTN-90]
++	_ = x[OPAREN-91]
++	_ = x[OSEND-92]
++	_ = x[OSLICE-93]
++	_ = x[OSLICEARR-94]
++	_ = x[OSLICESTR-95]
++	_ = x[OSLICE3-96]
++	_ = x[OSLICE3ARR-97]
++	_ = x[OSLICEHEADER-98]
++	_ = x[ORECOVER-99]
++	_ = x[ORECV-100]
++	_ = x[ORUNESTR-101]
++	_ = x[OSELRECV-102]
++	_ = x[OSELRECV2-103]
++	_ = x[OIOTA-104]
++	_ = x[OREAL-105]
++	_ = x[OIMAG-106]
++	_ = x[OCOMPLEX-107]
++	_ = x[OALIGNOF-108]
++	_ = x[OOFFSETOF-109]
++	_ = x[OSIZEOF-110]
++	_ = x[OBLOCK-111]
++	_ = x[OBREAK-112]
++	_ = x[OCASE-113]
++	_ = x[OXCASE-114]
++	_ = x[OCONTINUE-115]
++	_ = x[ODEFER-116]
++	_ = x[OEMPTY-117]
++	_ = x[OFALL-118]
++	_ = x[OFOR-119]
++	_ = x[OFORUNTIL-120]
++	_ = x[OGOTO-121]
++	_ = x[OIF-122]
++	_ = x[OLABEL-123]
++	_ = x[OGO-124]
++	_ = x[ORANGE-125]
++	_ = x[ORETURN-126]
++	_ = x[OSELECT-127]
++	_ = x[OSWITCH-128]
++	_ = x[OTYPESW-129]
++	_ = x[OTCHAN-130]
++	_ = x[OTMAP-131]
++	_ = x[OTSTRUCT-132]
++	_ = x[OTINTER-133]
++	_ = x[OTFUNC-134]
++	_ = x[OTARRAY-135]
++	_ = x[ODDD-136]
++	_ = x[ODDDARG-137]
++	_ = x[OINLCALL-138]
++	_ = x[OEFACE-139]
++	_ = x[OITAB-140]
++	_ = x[OIDATA-141]
++	_ = x[OSPTR-142]
++	_ = x[OCLOSUREVAR-143]
++	_ = x[OCFUNC-144]
++	_ = x[OCHECKNIL-145]
++	_ = x[OVARDEF-146]
++	_ = x[OVARKILL-147]
++	_ = x[OVARLIVE-148]
++	_ = x[ORESULT-149]
++	_ = x[OINLMARK-150]
++	_ = x[ORETJMP-151]
++	_ = x[OGETG-152]
++	_ = x[OEND-153]
++}
++
++const _Op_name = "XXXNAMENONAMETYPEPACKLITERALADDSUBORXORADDSTRADDRANDANDAPPENDBYTES2STRBYTES2STRTMPRUNES2STRSTR2BYTESSTR2BYTESTMPSTR2RUNESASAS2AS2FUNCAS2RECVAS2MAPRAS2DOTTYPEASOPCALLCALLFUNCCALLMETHCALLINTERCALLPARTCAPCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVNOPCOPYDCLDCLFUNCDCLFIELDDCLCONSTDCLTYPEDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTDEREFINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMULDIVMODLSHRSHANDANDNOTNEWNEWOBJNOTBITNOTPLUSNEGORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRSLICEHEADERRECOVERRECVRUNESTRSELRECVSELRECV2IOTAREALIMAGCOMPLEXALIGNOFOFFSETOFSIZEOFBLOCKBREAKCASEXCASECONTINUEDEFEREMPTYFALLFORFORUNTILGOTOIFLABELGORANGERETURNSELECTSWITCHTYPESWTCHANTMAPTSTRUCTTINTERTFUNCTARRAYDDDDDDARGINLCALLEFACEITABIDATASPTRCLOSUREVARCFUNCCHECKNILVARDEFVARKILLVARLIVERESULTINLMARKRETJMPGETGEND"
+ 
+-var _Op_index = [...]uint16{0, 3, 7, 13, 17, 21, 28, 31, 34, 36, 39, 45, 49, 55, 61, 70, 82, 91, 100, 112, 121, 123, 126, 133, 140, 147, 157, 161, 165, 173, 181, 190, 198, 201, 206, 213, 220, 226, 235, 243, 251, 257, 261, 270, 277, 281, 284, 291, 299, 307, 314, 320, 323, 329, 336, 344, 348, 355, 363, 365, 367, 369, 371, 373, 375, 380, 385, 393, 396, 405, 408, 412, 420, 427, 436, 439, 442, 445, 448, 451, 454, 460, 463, 469, 472, 478, 482, 485, 489, 494, 499, 505, 510, 514, 519, 527, 535, 541, 550, 561, 568, 572, 579, 586, 594, 598, 602, 606, 613, 620, 628, 634, 639, 644, 648, 653, 661, 666, 671, 675, 678, 686, 690, 692, 697, 699, 704, 710, 716, 722, 728, 733, 737, 744, 750, 755, 761, 764, 770, 777, 782, 786, 791, 795, 805, 810, 818, 824, 831, 838, 846, 853, 859, 863, 866}
++var _Op_index = [...]uint16{0, 3, 7, 13, 17, 21, 28, 31, 34, 36, 39, 45, 49, 55, 61, 70, 82, 91, 100, 112, 121, 123, 126, 133, 140, 147, 157, 161, 165, 173, 181, 190, 198, 201, 206, 213, 220, 226, 235, 243, 251, 257, 261, 270, 277, 281, 284, 291, 299, 307, 314, 320, 323, 329, 336, 344, 348, 355, 363, 365, 367, 369, 371, 373, 375, 380, 385, 393, 396, 405, 408, 412, 420, 427, 436, 439, 442, 445, 448, 451, 454, 460, 463, 469, 472, 478, 482, 485, 489, 494, 499, 505, 510, 514, 519, 527, 535, 541, 550, 561, 568, 572, 579, 586, 594, 598, 602, 606, 613, 620, 628, 634, 639, 644, 648, 653, 661, 666, 671, 675, 678, 686, 690, 692, 697, 699, 704, 710, 716, 722, 728, 733, 737, 744, 750, 755, 761, 764, 770, 777, 782, 786, 791, 795, 805, 810, 818, 824, 831, 838, 844, 851, 857, 861, 864}
+ 
+ func (i Op) String() string {
+ 	if i >= Op(len(_Op_index)-1) {
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index dd056afcca..6c06362385 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2276,7 +2276,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 	case OADDR:
+ 		return s.addr(n.Left, n.Bounded())
+ 
+-	case OINDREGSP:
++	case ORESULT:
+ 		addr := s.constOffPtrSP(types.NewPtr(n.Type), n.Xoffset)
+ 		return s.load(n.Type, addr)
+ 
+@@ -3929,9 +3929,8 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
+ 			s.Fatalf("variable address class %v not implemented", n.Class())
+ 			return nil
+ 		}
+-	case OINDREGSP:
+-		// indirect off REGSP
+-		// used for storing/loading arguments/returns to/from callees
++	case ORESULT:
++		// load return from callee
+ 		return s.constOffPtrSP(t, n.Xoffset)
+ 	case OINDEX:
+ 		if n.Left.Type.IsSlice() {
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 278633489e..12bc9c3ae6 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -43,7 +43,7 @@ type Node struct {
+ 
+ 	// Various. Usually an offset into a struct. For example:
+ 	// - ONAME nodes that refer to local variables use it to identify their stack frame position.
+-	// - ODOT, ODOTPTR, and OINDREGSP use it to indicate offset relative to their base address.
++	// - ODOT, ODOTPTR, and ORESULT use it to indicate offset relative to their base address.
+ 	// - OSTRUCTKEY uses it to store the named field's offset.
+ 	// - Named OLITERALs use it to store their ambient iota value.
+ 	// - OINLMARK stores an index into the inlTree data structure.
+@@ -751,7 +751,7 @@ const (
+ 	OVARDEF     // variable is about to be fully initialized
+ 	OVARKILL    // variable is dead
+ 	OVARLIVE    // variable is alive
+-	OINDREGSP   // offset plus indirect of REGSP, such as 8(SP).
++	ORESULT     // result of a function call; Xoffset is stack offset
+ 	OINLMARK    // start of an inlined body, with file/line of caller. Xoffset is an index into the inline tree.
+ 
+ 	// arch-specific opcodes
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 3533a3e230..be4f9ab5c0 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -481,7 +481,7 @@ opswitch:
+ 		Dump("walk", n)
+ 		Fatalf("walkexpr: switch 1 unknown op %+S", n)
+ 
+-	case ONONAME, OINDREGSP, OEMPTY, OGETG, ONEWOBJ:
++	case ONONAME, OEMPTY, OGETG, ONEWOBJ:
+ 
+ 	case OTYPE, ONAME, OLITERAL:
+ 		// TODO(mdempsky): Just return n; see discussion on CL 38655.
+@@ -1674,7 +1674,12 @@ func ascompatet(nl Nodes, nr *types.Type) []*Node {
+ 			l = tmp
+ 		}
+ 
+-		a := nod(OAS, l, nodarg(r))
++		res := nod(ORESULT, nil, nil)
++		res.Xoffset = Ctxt.FixedFrameSize() + r.Offset
++		res.Type = r.Type
++		res.SetTypecheck(1)
++
++		a := nod(OAS, l, res)
+ 		a = convas(a, &nn)
+ 		updateHasCall(a)
+ 		if a.HasCall() {
+@@ -1687,32 +1692,6 @@ func ascompatet(nl Nodes, nr *types.Type) []*Node {
+ 	return append(nn.Slice(), mm.Slice()...)
+ }
+ 
+-// nodarg returns a Node for the function argument f.
+-// f is a *types.Field within a struct *types.Type.
+-//
+-// The node is for use by a caller invoking the given
+-// function, preparing the arguments before the call
+-// or retrieving the results after the call.
+-// In this case, the node will correspond to an outgoing argument
+-// slot like 8(SP).
+-func nodarg(f *types.Field) *Node {
+-	// Build fake name for individual variable.
+-	n := newname(lookup("__"))
+-	n.Type = f.Type
+-	if f.Offset == BADWIDTH {
+-		Fatalf("nodarg: offset not computed for %v", f)
+-	}
+-	n.Xoffset = f.Offset
+-	n.Orig = asNode(f.Nname)
+-
+-	// preparing arguments for call
+-	n.Op = OINDREGSP
+-	n.Xoffset += Ctxt.FixedFrameSize()
+-	n.SetTypecheck(1)
+-	n.SetAddrtaken(true) // keep optimizers at bay
+-	return n
+-}
+-
+ // package all the arguments that match a ... T parameter into a []T.
+ func mkdotargslice(typ *types.Type, args []*Node, init *Nodes, ddd *Node) *Node {
+ 	esc := uint16(EscUnknown)

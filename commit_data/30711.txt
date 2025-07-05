@@ -12,7 +12,166 @@ Date:   Tue Nov 22 16:09:28 2016 -0500
     Change-Id: I7aee439171496932637b8ae3188700911f569b16
     Reviewed-on: https://go-review.googlesource.com/33454
     Reviewed-by: Peter Weinberger <pjw@google.com>
-
+---
  src/internal/pprof/profile/legacy_profile.go | 66 +++++++++++++++++-----------
  src/internal/pprof/profile/profile_test.go   | 55 +++++++++++++++++++++++
  2 files changed, 95 insertions(+), 26 deletions(-)
+
+diff --git a/src/internal/pprof/profile/legacy_profile.go b/src/internal/pprof/profile/legacy_profile.go
+index d3041d3b00..d69f8deee7 100644
+--- a/src/internal/pprof/profile/legacy_profile.go
++++ b/src/internal/pprof/profile/legacy_profile.go
+@@ -686,10 +686,19 @@ func scaleHeapSample(count, size, rate int64) (int64, int64) {
+ // the runtime might write a serialized Profile directly making this unnecessary.)
+ func parseContention(b []byte) (*Profile, error) {
+ 	r := bytes.NewBuffer(b)
+-	l, err := r.ReadString('\n')
+-	if err != nil {
+-		return nil, errUnrecognized
++	var l string
++	var err error
++	for {
++		// Skip past comments and empty lines seeking a real header.
++		l, err = r.ReadString('\n')
++		if err != nil {
++			return nil, err
++		}
++		if !isSpaceOrComment(l) {
++			break
++		}
+ 	}
++
+ 	if strings.HasPrefix(l, "--- contentionz ") {
+ 		return parseCppContention(r)
+ 	} else if strings.HasPrefix(l, "--- mutex:") {
+@@ -729,6 +738,9 @@ func parseCppContention(r *bytes.Buffer) (*Profile, error) {
+ 				break
+ 			}
+ 		}
++		if isSpaceOrComment(l) {
++			continue
++		}
+ 
+ 		if l = strings.TrimSpace(l); l == "" {
+ 			continue
+@@ -773,32 +785,34 @@ func parseCppContention(r *bytes.Buffer) (*Profile, error) {
+ 
+ 	locs := make(map[uint64]*Location)
+ 	for {
+-		if l = strings.TrimSpace(l); strings.HasPrefix(l, "---") {
+-			break
+-		}
+-		value, addrs, err := parseContentionSample(l, p.Period, cpuHz)
+-		if err != nil {
+-			return nil, err
+-		}
+-		var sloc []*Location
+-		for _, addr := range addrs {
+-			// Addresses from stack traces point to the next instruction after
+-			// each call. Adjust by -1 to land somewhere on the actual call.
+-			addr--
+-			loc := locs[addr]
+-			if locs[addr] == nil {
+-				loc = &Location{
+-					Address: addr,
++		if !isSpaceOrComment(l) {
++			if l = strings.TrimSpace(l); strings.HasPrefix(l, "---") {
++				break
++			}
++			value, addrs, err := parseContentionSample(l, p.Period, cpuHz)
++			if err != nil {
++				return nil, err
++			}
++			var sloc []*Location
++			for _, addr := range addrs {
++				// Addresses from stack traces point to the next instruction after
++				// each call. Adjust by -1 to land somewhere on the actual call.
++				addr--
++				loc := locs[addr]
++				if locs[addr] == nil {
++					loc = &Location{
++						Address: addr,
++					}
++					p.Location = append(p.Location, loc)
++					locs[addr] = loc
+ 				}
+-				p.Location = append(p.Location, loc)
+-				locs[addr] = loc
++				sloc = append(sloc, loc)
+ 			}
+-			sloc = append(sloc, loc)
++			p.Sample = append(p.Sample, &Sample{
++				Value:    value,
++				Location: sloc,
++			})
+ 		}
+-		p.Sample = append(p.Sample, &Sample{
+-			Value:    value,
+-			Location: sloc,
+-		})
+ 
+ 		if l, err = r.ReadString('\n'); err != nil {
+ 			if err != io.EOF {
+diff --git a/src/internal/pprof/profile/profile_test.go b/src/internal/pprof/profile/profile_test.go
+index 09b11a456f..e1963f3351 100644
+--- a/src/internal/pprof/profile/profile_test.go
++++ b/src/internal/pprof/profile/profile_test.go
+@@ -22,3 +22,58 @@ func TestEmptyProfile(t *testing.T) {
+ 		t.Errorf("Profile should be empty, got %#v", p)
+ 	}
+ }
++
++func TestParseContention(t *testing.T) {
++	tests := []struct {
++		name    string
++		in      string
++		wantErr bool
++	}{
++		{
++			name: "valid",
++			in: `--- mutex:
++cycles/second=3491920901
++sampling period=1
++43227965305 1659640 @ 0x45e851 0x45f764 0x4a2be1 0x44ea31
++34035731690 15760 @ 0x45e851 0x45f764 0x4a2b17 0x44ea31
++`,
++		},
++		{
++			name: "valid with comment",
++			in: `--- mutex:
++cycles/second=3491920901
++sampling period=1
++43227965305 1659640 @ 0x45e851 0x45f764 0x4a2be1 0x44ea31
++#	0x45e850	sync.(*Mutex).Unlock+0x80	/go/src/sync/mutex.go:126
++#	0x45f763	sync.(*RWMutex).Unlock+0x83	/go/src/sync/rwmutex.go:125
++#	0x4a2be0	main.main.func3+0x70		/go/src/internal/pprof/profile/a_binary.go:58
++
++34035731690 15760 @ 0x45e851 0x45f764 0x4a2b17 0x44ea31
++#	0x45e850	sync.(*Mutex).Unlock+0x80	/go/src/sync/mutex.go:126
++#	0x45f763	sync.(*RWMutex).Unlock+0x83	/go/src/sync/rwmutex.go:125
++#	0x4a2b16	main.main.func2+0xd6		/go/src/internal/pprof/profile/a_binary.go:48
++`,
++		},
++		{
++			name:    "empty",
++			in:      `--- mutex:`,
++			wantErr: true,
++		},
++		{
++			name: "invalid header",
++			in: `--- channel:
++43227965305 1659640 @ 0x45e851 0x45f764 0x4a2be1 0x44ea31`,
++			wantErr: true,
++		},
++	}
++	for _, tc := range tests {
++		_, err := parseContention([]byte(tc.in))
++		if tc.wantErr && err == nil {
++			t.Errorf("parseContention(%q) succeeded unexpectedly", tc.name)
++		}
++		if !tc.wantErr && err != nil {
++			t.Errorf("parseContention(%q) failed unexpectedly: %v", tc.name, err)
++		}
++	}
++
++}

@@ -11,7 +11,38 @@ Date:   Thu Jun 26 09:45:11 2014 -0700
     R=golang-codereviews, adonovan
     CC=golang-codereviews
     https://golang.org/cl/110160043
-
+---
  src/pkg/go/parser/parser.go     | 4 ++--
  src/pkg/go/parser/short_test.go | 3 +++
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 00dd532b23..d16ba4cef3 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -2310,9 +2310,9 @@ func (p *parser) parseReceiver(scope *ast.Scope) *ast.FieldList {
+ 		return par
+ 	}
+ 
+-	// recv type must be of the form ["*"] identifier
++	// recv type must be of the form ["*"] identifier, possibly using parentheses
+ 	recv := par.List[0]
+-	base := deref(recv.Type)
++	base := unparen(deref(unparen(recv.Type)))
+ 	if _, isIdent := base.(*ast.Ident); !isIdent {
+ 		if _, isBad := base.(*ast.BadExpr); !isBad {
+ 			// only report error if it's a new one
+diff --git a/src/pkg/go/parser/short_test.go b/src/pkg/go/parser/short_test.go
+index b794060998..9b8ac44717 100644
+--- a/src/pkg/go/parser/short_test.go
++++ b/src/pkg/go/parser/short_test.go
+@@ -35,6 +35,9 @@ var valids = []string{
+ 	`package p; func f() { for _ = range "foo" + "bar" {} };`,
+ 	`package p; func f() { var s []int; g(s[:], s[i:], s[:j], s[i:j], s[i:j:k], s[:j:k]) };`,
+ 	`package p; var ( _ = (struct {*T}).m; _ = (interface {T}).m )`,
++	`package p; func ((T),) m() {}`,
++	`package p; func ((*T),) m() {}`,
++	`package p; func (*(T),) m() {}`,
+ }
+ 
+ func TestValid(t *testing.T) {

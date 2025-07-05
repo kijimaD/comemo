@@ -9,7 +9,37 @@ Date:   Mon Nov 12 10:38:02 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/cmd/compile/internal/gc/lang_test.go | 5 +++++
  src/cmd/compile/internal/gc/main.go      | 2 +-
  2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/lang_test.go b/src/cmd/compile/internal/gc/lang_test.go
+index b225f03a1d..72e7f07a21 100644
+--- a/src/cmd/compile/internal/gc/lang_test.go
++++ b/src/cmd/compile/internal/gc/lang_test.go
+@@ -41,6 +41,11 @@ func TestInvalidLang(t *testing.T) {
+ 		t.Error("compilation with -lang=go9.99 succeeded unexpectedly")
+ 	}
+ 
++	// This test will have to be adjusted if we ever reach 1.99 or 2.0.
++	if testLang(t, "go1.99", src, outfile) == nil {
++		t.Error("compilation with -lang=go1.99 succeeded unexpectedly")
++	}
++
+ 	if testLang(t, "go1.8", src, outfile) == nil {
+ 		t.Error("compilation with -lang=go1.8 succeeded unexpectedly")
+ 	}
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index e5d42bfd7d..44c540492b 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -1444,7 +1444,7 @@ func checkLang() {
+ 		if err != nil {
+ 			log.Fatalf("internal error parsing default lang %q: %v", def, err)
+ 		}
+-		if langWant.major > defVers.major || (langWant.major == defVers.major && langWant.major > defVers.minor) {
++		if langWant.major > defVers.major || (langWant.major == defVers.major && langWant.minor > defVers.minor) {
+ 			log.Fatalf("invalid value %q for -lang: max known version is %q", flag_lang, def)
+ 		}
+ 	}

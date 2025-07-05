@@ -10,6 +10,23 @@ Date:   Sat Jan 13 15:28:42 2018 +0000
     Reviewed-on: https://go-review.googlesource.com/87675
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/cache/default.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/go/internal/cache/default.go b/src/cmd/go/internal/cache/default.go
+index 8a5c12c5f5..8285f787d4 100644
+--- a/src/cmd/go/internal/cache/default.go
++++ b/src/cmd/go/internal/cache/default.go
+@@ -68,6 +68,11 @@ func DefaultDir() string {
+ 	switch runtime.GOOS {
+ 	case "windows":
+ 		dir = os.Getenv("LocalAppData")
++		if dir == "" {
++			// Fall back to %AppData%, the old name of
++			// %LocalAppData% on Windows XP.
++			dir = os.Getenv("AppData")
++		}
+ 		if dir == "" {
+ 			return "off"
+ 		}

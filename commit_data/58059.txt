@@ -20,6 +20,17 @@ Date:   Fri Sep 22 13:53:22 2023 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  SECURITY.md | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/SECURITY.md b/SECURITY.md
+index ab608f3af5..e1718f0b01 100644
+--- a/SECURITY.md
++++ b/SECURITY.md
+@@ -10,4 +10,4 @@ part of that page.
+ 
+ ## Reporting a Vulnerability
+ 
+-See https://go.dev/security for how to report a vulnerability.
++See https://go.dev/security/policy for how to report a vulnerability.

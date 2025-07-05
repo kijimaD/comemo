@@ -11,7 +11,36 @@ Date:   Thu Mar 2 11:13:06 2017 -0800
     Change-Id: I2f9b0485db0a680bd82f3b93a350b048db3f7701
     Reviewed-on: https://go-review.googlesource.com/37694
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/package.go  | 2 +-
  src/go/types/resolver.go | 4 +---
  2 files changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/go/types/package.go b/src/go/types/package.go
+index a588ee73dc..9828909dfa 100644
+--- a/src/go/types/package.go
++++ b/src/go/types/package.go
+@@ -52,7 +52,7 @@ func (pkg *Package) Complete() bool { return pkg.complete }
+ func (pkg *Package) MarkComplete() { pkg.complete = true }
+ 
+ // Imports returns the list of packages directly imported by
+-// pkg; the list is in source order. Package unsafe is excluded.
++// pkg; the list is in source order.
+ //
+ // If pkg was loaded from export data, Imports includes packages that
+ // provide package-level objects referenced by pkg. This may be more or
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index 939f70a9ca..9b6e767758 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -215,9 +215,7 @@ func (check *Checker) collectObjects() {
+ 						// for clients; it is not needed for type-checking)
+ 						if !pkgImports[imp] {
+ 							pkgImports[imp] = true
+-							if imp != Unsafe {
+-								pkg.imports = append(pkg.imports, imp)
+-							}
++							pkg.imports = append(pkg.imports, imp)
+ 						}
+ 
+ 						// local name overrides imported package name

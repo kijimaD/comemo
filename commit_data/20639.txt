@@ -8,6 +8,11 @@ Date:   Thu Sep 25 14:10:56 2014 -0700
     R=golang-codereviews, 0intro
     CC=golang-codereviews
     https://golang.org/cl/150960043
-
+---
  doc/gopher/biplane.jpg | Bin 0 -> 203420 bytes
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/doc/gopher/biplane.jpg b/doc/gopher/biplane.jpg
+new file mode 100644
+index 0000000000..d5e666f963
+Binary files /dev/null and b/doc/gopher/biplane.jpg differ

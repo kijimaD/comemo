@@ -33,7 +33,136 @@ Date:   Wed Feb 28 13:45:06 2018 -0800
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/json/decode.go      | 24 ++++++++++++++++++-
  src/encoding/json/decode_test.go | 50 ++++++++++++++++++++++++++++++++++++----
  2 files changed, 69 insertions(+), 5 deletions(-)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index f08b0a1c58..dca328062f 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -448,10 +448,25 @@ func (d *decodeState) valueQuoted() interface{} {
+ // if it encounters an Unmarshaler, indirect stops and returns that.
+ // if decodingNull is true, indirect stops at the last pointer so it can be set to nil.
+ func (d *decodeState) indirect(v reflect.Value, decodingNull bool) (Unmarshaler, encoding.TextUnmarshaler, reflect.Value) {
++	// Issue #24153 indicates that it is generally not a guaranteed property
++	// that you may round-trip a reflect.Value by calling Value.Addr().Elem()
++	// and expect the value to still be settable for values derived from
++	// unexported embedded struct fields.
++	//
++	// The logic below effectively does this when it first addresses the value
++	// (to satisfy possible pointer methods) and continues to dereference
++	// subsequent pointers as necessary.
++	//
++	// After the first round-trip, we set v back to the original value to
++	// preserve the original RW flags contained in reflect.Value.
++	v0 := v
++	haveAddr := false
++
+ 	// If v is a named type and is addressable,
+ 	// start with its address, so that if the type has pointer methods,
+ 	// we find them.
+ 	if v.Kind() != reflect.Ptr && v.Type().Name() != "" && v.CanAddr() {
++		haveAddr = true
+ 		v = v.Addr()
+ 	}
+ 	for {
+@@ -460,6 +475,7 @@ func (d *decodeState) indirect(v reflect.Value, decodingNull bool) (Unmarshaler,
+ 		if v.Kind() == reflect.Interface && !v.IsNil() {
+ 			e := v.Elem()
+ 			if e.Kind() == reflect.Ptr && !e.IsNil() && (!decodingNull || e.Elem().Kind() == reflect.Ptr) {
++				haveAddr = false
+ 				v = e
+ 				continue
+ 			}
+@@ -485,7 +501,13 @@ func (d *decodeState) indirect(v reflect.Value, decodingNull bool) (Unmarshaler,
+ 				}
+ 			}
+ 		}
+-		v = v.Elem()
++
++		if haveAddr {
++			v = v0 // restore original value after round-trip Value.Addr().Elem()
++			haveAddr = false
++		} else {
++			v = v.Elem()
++		}
+ 	}
+ 	return nil, nil, v
+ }
+diff --git a/src/encoding/json/decode_test.go b/src/encoding/json/decode_test.go
+index 90fdf93dbd..259c8e7cd5 100644
+--- a/src/encoding/json/decode_test.go
++++ b/src/encoding/json/decode_test.go
+@@ -2089,10 +2089,14 @@ func TestInvalidStringOption(t *testing.T) {
+ 	}
+ }
+ 
+-// Test unmarshal behavior with regards to embedded pointers to unexported structs.
+-// If unallocated, this returns an error because unmarshal cannot set the field.
+-// Issue 21357.
+-func TestUnmarshalEmbeddedPointerUnexported(t *testing.T) {
++// Test unmarshal behavior with regards to embedded unexported structs.
++//
++// (Issue 21357) If the embedded struct is a pointer and is unallocated,
++// this returns an error because unmarshal cannot set the field.
++//
++// (Issue 24152) If the embedded struct is given an explicit name,
++// ensure that the normal unmarshal logic does not panic in reflect.
++func TestUnmarshalEmbeddedUnexported(t *testing.T) {
+ 	type (
+ 		embed1 struct{ Q int }
+ 		embed2 struct{ Q int }
+@@ -2119,6 +2123,18 @@ func TestUnmarshalEmbeddedPointerUnexported(t *testing.T) {
+ 			*embed3
+ 			R int
+ 		}
++		S6 struct {
++			embed1 `json:"embed1"`
++		}
++		S7 struct {
++			embed1 `json:"embed1"`
++			embed2
++		}
++		S8 struct {
++			embed1 `json:"embed1"`
++			embed2 `json:"embed2"`
++			Q      int
++		}
+ 	)
+ 
+ 	tests := []struct {
+@@ -2154,6 +2170,32 @@ func TestUnmarshalEmbeddedPointerUnexported(t *testing.T) {
+ 		ptr: new(S5),
+ 		out: &S5{R: 2},
+ 		err: fmt.Errorf("json: cannot set embedded pointer to unexported struct: json.embed3"),
++	}, {
++		// Issue 24152, ensure decodeState.indirect does not panic.
++		in:  `{"embed1": {"Q": 1}}`,
++		ptr: new(S6),
++		out: &S6{embed1{1}},
++	}, {
++		// Issue 24153, check that we can still set forwarded fields even in
++		// the presence of a name conflict.
++		//
++		// This relies on obscure behavior of reflect where it is possible
++		// to set a forwarded exported field on an unexported embedded struct
++		// even though there is a name conflict, even when it would have been
++		// impossible to do so according to Go visibility rules.
++		// Go forbids this because it is ambiguous whether S7.Q refers to
++		// S7.embed1.Q or S7.embed2.Q. Since embed1 and embed2 are unexported,
++		// it should be impossible for an external package to set either Q.
++		//
++		// It is probably okay for a future reflect change to break this.
++		in:  `{"embed1": {"Q": 1}, "Q": 2}`,
++		ptr: new(S7),
++		out: &S7{embed1{1}, embed2{2}},
++	}, {
++		// Issue 24153, similar to the S7 case.
++		in:  `{"embed1": {"Q": 1}, "embed2": {"Q": 2}, "Q": 3}`,
++		ptr: new(S8),
++		out: &S8{embed1{1}, embed2{2}, 3},
+ 	}}
+ 
+ 	for i, tt := range tests {

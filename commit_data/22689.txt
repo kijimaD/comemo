@@ -8,7 +8,7 @@ Date:   Thu Apr 2 14:47:03 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/8426
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/internal/gc/big/accuracy_string.go   |   7 +-
  src/cmd/internal/gc/big/float.go             | 425 +++++++++++++--------------
  src/cmd/internal/gc/big/float_test.go        | 220 +++++++-------
@@ -19,3 +19,1648 @@ Date:   Thu Apr 2 14:47:03 2015 -0700
  src/cmd/internal/gc/big/int.go               |   4 +
  src/cmd/internal/gc/big/int_test.go          |  41 ++-
  9 files changed, 397 insertions(+), 425 deletions(-)
+
+diff --git a/src/cmd/internal/gc/big/accuracy_string.go b/src/cmd/internal/gc/big/accuracy_string.go
+index 647a1fb6d3..24ef7f1077 100644
+--- a/src/cmd/internal/gc/big/accuracy_string.go
++++ b/src/cmd/internal/gc/big/accuracy_string.go
+@@ -4,13 +4,14 @@ package big
+ 
+ import "fmt"
+ 
+-const _Accuracy_name = "ExactBelowAboveUndef"
++const _Accuracy_name = "BelowExactAbove"
+ 
+-var _Accuracy_index = [...]uint8{0, 5, 10, 15, 20}
++var _Accuracy_index = [...]uint8{0, 5, 10, 15}
+ 
+ func (i Accuracy) String() string {
++	i -= -1
+ 	if i < 0 || i+1 >= Accuracy(len(_Accuracy_index)) {
+-		return fmt.Sprintf("Accuracy(%d)", i)
++		return fmt.Sprintf("Accuracy(%d)", i+-1)
+ 	}
+ 	return _Accuracy_name[_Accuracy_index[i]:_Accuracy_index[i+1]]
+ }
+diff --git a/src/cmd/internal/gc/big/float.go b/src/cmd/internal/gc/big/float.go
+index 629510a18e..ed55e8e513 100644
+--- a/src/cmd/internal/gc/big/float.go
++++ b/src/cmd/internal/gc/big/float.go
+@@ -23,10 +23,9 @@ const debugFloat = true // enable for debugging
+ //   sign × mantissa × 2**exponent
+ //
+ // with 0.5 <= mantissa < 1.0, and MinExp <= exponent <= MaxExp.
+-// A Float may also be zero (+0, -0), infinite (+Inf, -Inf) or
+-// not-a-number (NaN). Except for NaNs, all Floats are ordered,
+-// and the ordering of two Floats x and y is defined by x.Cmp(y).
+-// NaNs are always different from any other Float value.
++// A Float may also be zero (+0, -0) or infinite (+Inf, -Inf).
++// All Floats are ordered, and the ordering of two Floats x and y
++// is defined by x.Cmp(y).
+ //
+ // Each Float value also has a precision, rounding mode, and accuracy.
+ // The precision is the maximum number of mantissa bits available to
+@@ -34,10 +33,10 @@ const debugFloat = true // enable for debugging
+ // be rounded to fit into the mantissa bits, and accuracy describes the
+ // rounding error with respect to the exact result.
+ //
+-// All operations, including setters, that specify a *Float variable for
+-// the result (usually via the receiver with the exception of MantExp),
+-// round the numeric result according to the precision and rounding mode
+-// of the result variable, unless specified otherwise.
++// Unless specified otherwise, all operations (including setters) that
++// specify a *Float variable for the result (usually via the receiver
++// with the exception of MantExp), round the numeric result according
++// to the precision and rounding mode of the result variable.
+ //
+ // If the provided result precision is 0 (see below), it is set to the
+ // precision of the argument with the largest precision value before any
+@@ -48,9 +47,10 @@ const debugFloat = true // enable for debugging
+ //
+ // By setting the desired precision to 24 or 53 and using matching rounding
+ // mode (typically ToNearestEven), Float operations produce the same results
+-// as the corresponding float32 or float64 IEEE-754 arithmetic. Exponent
+-// underflow and overflow lead to a 0 or an Infinity for different values
+-// than IEEE-754 because Float exponents have a much larger range.
++// as the corresponding float32 or float64 IEEE-754 arithmetic for operands
++// that correspond to normal (i.e., not denormal) float32 or float64 numbers.
++// Exponent underflow and overflow lead to a 0 or an Infinity for different
++// values than IEEE-754 because Float exponents have a much larger range.
+ //
+ // The zero (uninitialized) value for a Float is ready to use and represents
+ // the number +0.0 exactly, with precision 0 and rounding mode ToNearestEven.
+@@ -65,9 +65,19 @@ type Float struct {
+ 	exp  int32
+ }
+ 
++// Float operations that would lead to a NaN under IEEE-754 rules cause
++// a run-time panic of ErrNaN type.
++type ErrNaN struct {
++	msg string
++}
++
+ // NewFloat allocates and returns a new Float set to x,
+ // with precision 53 and rounding mode ToNearestEven.
++// NewFloat panics with ErrNaN if x is a NaN.
+ func NewFloat(x float64) *Float {
++	if math.IsNaN(x) {
++		panic(ErrNaN{"NewFloat(NaN)"})
++	}
+ 	return new(Float).SetFloat64(x)
+ }
+ 
+@@ -87,15 +97,13 @@ const (
+ // x.mant[0] has trailing zero bits. The msb of the mantissa corresponds
+ // to the value 0.5; the exponent x.exp shifts the binary point as needed.
+ //
+-// A zero or non-finite Float x ignores x.mant and x.exp. A NaN x ignores
+-// the sign x.neg.
++// A zero or non-finite Float x ignores x.mant and x.exp.
+ //
+ // x                 form      neg      mant         exp
+ // ----------------------------------------------------------
+ // ±0                zero      sign     -            -
+ // 0 < |x| < +Inf    finite    sign     mantissa     exponent
+ // ±Inf              inf       sign     -            -
+-// NaN               nan       -        -            -
+ 
+ // A form value describes the internal representation.
+ type form byte
+@@ -105,7 +113,6 @@ const (
+ 	zero form = iota
+ 	finite
+ 	inf
+-	nan
+ )
+ 
+ // RoundingMode determines how a Float value is rounded to the
+@@ -127,16 +134,13 @@ const (
+ 
+ // Accuracy describes the rounding error produced by the most recent
+ // operation that generated a Float value, relative to the exact value.
+-// The accuracy is Undef for operations on and resulting in NaNs since
+-// they are neither Below nor Above any other value.
+-type Accuracy byte
++type Accuracy int8
+ 
+ // Constants describing the Accuracy of a Float.
+ const (
++	Below Accuracy = -1
+ 	Exact Accuracy = 0
+-	Below Accuracy = 1 << 0
+-	Above Accuracy = 1 << 1
+-	Undef Accuracy = Below | Above
++	Above Accuracy = +1
+ )
+ 
+ //go:generate stringer -type=Accuracy
+@@ -144,8 +148,8 @@ const (
+ // SetPrec sets z's precision to prec and returns the (possibly) rounded
+ // value of z. Rounding occurs according to z's rounding mode if the mantissa
+ // cannot be represented in prec bits without loss of precision.
+-// SetPrec(0) maps all finite values to ±0; infinite and NaN values remain
+-// unchanged. If prec > MaxPrec, it is set to MaxPrec.
++// SetPrec(0) maps all finite values to ±0; infinite values remain unchanged.
++// If prec > MaxPrec, it is set to MaxPrec.
+ func (z *Float) SetPrec(prec uint) *Float {
+ 	z.acc = Exact // optimistically assume no rounding is needed
+ 
+@@ -189,14 +193,14 @@ func (z *Float) SetMode(mode RoundingMode) *Float {
+ }
+ 
+ // Prec returns the mantissa precision of x in bits.
+-// The result may be 0 for |x| == 0, |x| == Inf, or NaN.
++// The result may be 0 for |x| == 0 and |x| == Inf.
+ func (x *Float) Prec() uint {
+ 	return uint(x.prec)
+ }
+ 
+ // MinPrec returns the minimum precision required to represent x exactly
+ // (i.e., the smallest prec before x.SetPrec(prec) would start rounding x).
+-// The result is 0 if x is 0 or not finite.
++// The result is 0 for |x| == 0 and |x| == Inf.
+ func (x *Float) MinPrec() uint {
+ 	if x.form != finite {
+ 		return 0
+@@ -217,14 +221,14 @@ func (x *Float) Acc() Accuracy {
+ // Sign returns:
+ //
+ //	-1 if x <   0
+-//	 0 if x is ±0 or NaN
++//	 0 if x is ±0
+ //	+1 if x >   0
+ //
+ func (x *Float) Sign() int {
+ 	if debugFloat {
+ 		x.validate()
+ 	}
+-	if x.form == zero || x.form == nan {
++	if x.form == zero {
+ 		return 0
+ 	}
+ 	if x.neg {
+@@ -245,7 +249,6 @@ func (x *Float) Sign() int {
+ //
+ //	(  ±0).MantExp(mant) = 0, with mant set to   ±0
+ //	(±Inf).MantExp(mant) = 0, with mant set to ±Inf
+-//	( NaN).MantExp(mant) = 0, with mant set to  NaN
+ //
+ // x and mant may be the same in which case x is set to its
+ // mantissa value.
+@@ -297,7 +300,6 @@ func (z *Float) setExpAndRound(exp int64, sbit uint) {
+ //
+ //	z.SetMantExp(  ±0, exp) =   ±0
+ //	z.SetMantExp(±Inf, exp) = ±Inf
+-//	z.SetMantExp( NaN, exp) =  NaN
+ //
+ // z and mant may be the same in which case z's exponent
+ // is set to exp.
+@@ -314,21 +316,9 @@ func (z *Float) SetMantExp(mant *Float, exp int) *Float {
+ 	return z
+ }
+ 
+-// IsNeg reports whether x is negative.
+-// A NaN value is not negative.
+-func (x *Float) IsNeg() bool {
+-	return x.neg && x.form != nan
+-}
+-
+-// IsZero reports whether x is +0 or -0.
+-func (x *Float) IsZero() bool {
+-	return x.form == zero
+-}
+-
+-// IsFinite reports whether -Inf < x < Inf.
+-// A NaN value is not finite.
+-func (x *Float) IsFinite() bool {
+-	return x.form <= finite
++// Signbit returns true if x is negative or negative zero.
++func (x *Float) Signbit() bool {
++	return x.neg
+ }
+ 
+ // IsInf reports whether x is +Inf or -Inf.
+@@ -336,13 +326,8 @@ func (x *Float) IsInf() bool {
+ 	return x.form == inf
+ }
+ 
+-// IsNaN reports whether x is a NaN value.
+-func (x *Float) IsNaN() bool {
+-	return x.form == nan
+-}
+-
+ // IsInt reports whether x is an integer.
+-// ±Inf and NaN values are not integers.
++// ±Inf values are not integers.
+ func (x *Float) IsInt() bool {
+ 	if debugFloat {
+ 		x.validate()
+@@ -526,7 +511,7 @@ func (z *Float) round(sbit uint) {
+ 
+ 	// update accuracy
+ 	if z.acc != Exact && z.neg {
+-		z.acc ^= Below | Above
++		z.acc = -z.acc
+ 	}
+ 
+ 	if debugFloat {
+@@ -598,13 +583,13 @@ func (z *Float) SetInt64(x int64) *Float {
+ 
+ // SetFloat64 sets z to the (possibly rounded) value of x and returns z.
+ // If z's precision is 0, it is changed to 53 (and rounding will have
+-// no effect).
++// no effect). SetFloat64 panics with ErrNaN if x is a NaN.
+ func (z *Float) SetFloat64(x float64) *Float {
+ 	if z.prec == 0 {
+ 		z.prec = 53
+ 	}
+ 	if math.IsNaN(x) {
+-		return z.SetNaN()
++		panic(ErrNaN{"Float.SetFloat64(NaN)"})
+ 	}
+ 	z.acc = Exact
+ 	z.neg = math.Signbit(x) // handle -0, -Inf correctly
+@@ -684,21 +669,14 @@ func (z *Float) SetRat(x *Rat) *Float {
+ 	return z.Quo(&a, &b)
+ }
+ 
+-// SetInf sets z to the infinite Float +Inf for sign >= 0,
+-// or -Inf for sign < 0, and returns z. The precision of
+-// z is unchanged and the result is always Exact.
+-func (z *Float) SetInf(sign int) *Float {
++// SetInf sets z to the infinite Float -Inf if signbit is
++// set, or +Inf if signbit is not set, and returns z. The
++// precision of z is unchanged and the result is always
++// Exact.
++func (z *Float) SetInf(signbit bool) *Float {
+ 	z.acc = Exact
+ 	z.form = inf
+-	z.neg = sign < 0
+-	return z
+-}
+-
+-// SetNaN sets z to a NaN value, and returns z.
+-// The precision of z is unchanged and the result accuracy is always Undef.
+-func (z *Float) SetNaN() *Float {
+-	z.acc = Undef
+-	z.form = nan
++	z.neg = signbit
+ 	return z
+ }
+ 
+@@ -774,8 +752,8 @@ func high64(x nat) uint64 {
+ // Uint64 returns the unsigned integer resulting from truncating x
+ // towards zero. If 0 <= x <= math.MaxUint64, the result is Exact
+ // if x is an integer and Below otherwise.
+-// The result is (0, Above) for x < 0, (math.MaxUint64, Below)
+-// for x > math.MaxUint64, and (0, Undef) for NaNs.
++// The result is (0, Above) for x < 0, and (math.MaxUint64, Below)
++// for x > math.MaxUint64.
+ func (x *Float) Uint64() (uint64, Accuracy) {
+ 	if debugFloat {
+ 		x.validate()
+@@ -811,9 +789,6 @@ func (x *Float) Uint64() (uint64, Accuracy) {
+ 			return 0, Above
+ 		}
+ 		return math.MaxUint64, Below
+-
+-	case nan:
+-		return 0, Undef
+ 	}
+ 
+ 	panic("unreachable")
+@@ -823,7 +798,7 @@ func (x *Float) Uint64() (uint64, Accuracy) {
+ // If math.MinInt64 <= x <= math.MaxInt64, the result is Exact if x is
+ // an integer, and Above (x < 0) or Below (x > 0) otherwise.
+ // The result is (math.MinInt64, Above) for x < math.MinInt64,
+-// (math.MaxInt64, Below) for x > math.MaxInt64, and (0, Undef) for NaNs.
++// and (math.MaxInt64, Below) for x > math.MaxInt64.
+ func (x *Float) Int64() (int64, Accuracy) {
+ 	if debugFloat {
+ 		x.validate()
+@@ -869,9 +844,6 @@ func (x *Float) Int64() (int64, Accuracy) {
+ 			return math.MinInt64, Above
+ 		}
+ 		return math.MaxInt64, Below
+-
+-	case nan:
+-		return 0, Undef
+ 	}
+ 
+ 	panic("unreachable")
+@@ -885,7 +857,6 @@ func (x *Float) Int64() (int64, Accuracy) {
+ // is (0, Below) or (-0, Above), respectively, depending on the sign of x.
+ // If x is too large to be represented by a float32 (|x| > math.MaxFloat32),
+ // the result is (+Inf, Above) or (-Inf, Below), depending on the sign of x.
+-// The result is (NaN, Undef) for NaNs.
+ func (x *Float) Float32() (float32, Accuracy) {
+ 	if debugFloat {
+ 		x.validate()
+@@ -976,9 +947,6 @@ func (x *Float) Float32() (float32, Accuracy) {
+ 			return float32(math.Inf(-1)), Exact
+ 		}
+ 		return float32(math.Inf(+1)), Exact
+-
+-	case nan:
+-		return float32(math.NaN()), Undef
+ 	}
+ 
+ 	panic("unreachable")
+@@ -989,7 +957,6 @@ func (x *Float) Float32() (float32, Accuracy) {
+ // is (0, Below) or (-0, Above), respectively, depending on the sign of x.
+ // If x is too large to be represented by a float64 (|x| > math.MaxFloat64),
+ // the result is (+Inf, Above) or (-Inf, Below), depending on the sign of x.
+-// The result is (NaN, Undef) for NaNs.
+ func (x *Float) Float64() (float64, Accuracy) {
+ 	if debugFloat {
+ 		x.validate()
+@@ -1080,16 +1047,13 @@ func (x *Float) Float64() (float64, Accuracy) {
+ 			return math.Inf(-1), Exact
+ 		}
+ 		return math.Inf(+1), Exact
+-
+-	case nan:
+-		return math.NaN(), Undef
+ 	}
+ 
+ 	panic("unreachable")
+ }
+ 
+ // Int returns the result of truncating x towards zero;
+-// or nil if x is an infinity or NaN.
++// or nil if x is an infinity.
+ // The result is Exact if x.IsInt(); otherwise it is Below
+ // for x > 0, and Above for x < 0.
+ // If a non-nil *Int argument z is provided, Int stores
+@@ -1140,17 +1104,14 @@ func (x *Float) Int(z *Int) (*Int, Accuracy) {
+ 
+ 	case inf:
+ 		return nil, makeAcc(x.neg)
+-
+-	case nan:
+-		return nil, Undef
+ 	}
+ 
+ 	panic("unreachable")
+ }
+ 
+ // Rat returns the rational number corresponding to x;
+-// or nil if x is an infinity or NaN.
+-// The result is Exact is x is not an Inf or NaN.
++// or nil if x is an infinity.
++// The result is Exact is x is not an Inf.
+ // If a non-nil *Rat argument z is provided, Rat stores
+ // the result in z instead of allocating a new Rat.
+ func (x *Float) Rat(z *Rat) (*Rat, Accuracy) {
+@@ -1190,9 +1151,6 @@ func (x *Float) Rat(z *Rat) (*Rat, Accuracy) {
+ 
+ 	case inf:
+ 		return nil, makeAcc(x.neg)
+-
+-	case nan:
+-		return nil, Undef
+ 	}
+ 
+ 	panic("unreachable")
+@@ -1379,19 +1337,19 @@ func (z *Float) uquo(x, y *Float) {
+ 	z.setExpAndRound(e-fnorm(z.mant), sbit)
+ }
+ 
+-// ucmp returns Below, Exact, or Above, depending
+-// on whether |x| < |y|, |x| == |y|, or |x| > |y|.
++// ucmp returns -1, 0, or +1, depending on whether
++// |x| < |y|, |x| == |y|, or |x| > |y|.
+ // x and y must have a non-empty mantissa and valid exponent.
+-func (x *Float) ucmp(y *Float) Accuracy {
++func (x *Float) ucmp(y *Float) int {
+ 	if debugFloat {
+ 		validateBinaryOperands(x, y)
+ 	}
+ 
+ 	switch {
+ 	case x.exp < y.exp:
+-		return Below
++		return -1
+ 	case x.exp > y.exp:
+-		return Above
++		return +1
+ 	}
+ 	// x.exp == y.exp
+ 
+@@ -1410,13 +1368,13 @@ func (x *Float) ucmp(y *Float) Accuracy {
+ 		}
+ 		switch {
+ 		case xm < ym:
+-			return Below
++			return -1
+ 		case xm > ym:
+-			return Above
++			return +1
+ 		}
+ 	}
+ 
+-	return Exact
++	return 0
+ }
+ 
+ // Handling of sign bit as defined by IEEE 754-2008, section 6.3:
+@@ -1442,8 +1400,9 @@ func (x *Float) ucmp(y *Float) Accuracy {
+ // it is changed to the larger of x's or y's precision before the operation.
+ // Rounding is performed according to z's precision and rounding mode; and
+ // z's accuracy reports the result error relative to the exact (not rounded)
+-// result.
+-// BUG(gri) Float.Add returns NaN if an operand is Inf.
++// result. Add panics with ErrNaN if x and y are infinities with opposite
++// signs. The value of z is undefined in that case.
++//
+ // BUG(gri) When rounding ToNegativeInf, the sign of Float values rounded to 0 is incorrect.
+ func (z *Float) Add(x, y *Float) *Float {
+ 	if debugFloat {
+@@ -1455,46 +1414,59 @@ func (z *Float) Add(x, y *Float) *Float {
+ 		z.prec = umax32(x.prec, y.prec)
+ 	}
+ 
+-	// special cases
+-	if x.form != finite || y.form != finite {
+-		if x.form > finite || y.form > finite {
+-			// TODO(gri) handle Inf separately
+-			return z.SetNaN()
+-		}
+-		if x.form == zero {
+-			z.Set(y)
+-			if z.form == zero {
+-				z.neg = x.neg && y.neg // -0 + -0 == -0
++	if x.form == finite && y.form == finite {
++		// x + y (commom case)
++		z.neg = x.neg
++		if x.neg == y.neg {
++			// x + y == x + y
++			// (-x) + (-y) == -(x + y)
++			z.uadd(x, y)
++		} else {
++			// x + (-y) == x - y == -(y - x)
++			// (-x) + y == y - x == -(x - y)
++			if x.ucmp(y) > 0 {
++				z.usub(x, y)
++			} else {
++				z.neg = !z.neg
++				z.usub(y, x)
+ 			}
+-			return z
+ 		}
+-		// y == ±0
+-		return z.Set(x)
++		return z
+ 	}
+ 
+-	// x, y != 0
+-	z.neg = x.neg
+-	if x.neg == y.neg {
+-		// x + y == x + y
+-		// (-x) + (-y) == -(x + y)
+-		z.uadd(x, y)
+-	} else {
+-		// x + (-y) == x - y == -(y - x)
+-		// (-x) + y == y - x == -(x - y)
+-		if x.ucmp(y) == Above {
+-			z.usub(x, y)
+-		} else {
+-			z.neg = !z.neg
+-			z.usub(y, x)
+-		}
++	if x.form == inf && y.form == inf && x.neg != y.neg {
++		// +Inf + -Inf
++		// -Inf + +Inf
++		// value of z is undefined but make sure it's valid
++		z.acc = Exact
++		z.form = zero
++		z.neg = false
++		panic(ErrNaN{"addition of infinities with opposite signs"})
+ 	}
+ 
+-	return z
++	if x.form == zero && y.form == zero {
++		// ±0 + ±0
++		z.acc = Exact
++		z.form = zero
++		z.neg = x.neg && y.neg // -0 + -0 == -0
++		return z
++	}
++
++	if x.form == inf || y.form == zero {
++		// ±Inf + y
++		// x + ±0
++		return z.Set(x)
++	}
++
++	// ±0 + y
++	// x + ±Inf
++	return z.Set(y)
+ }
+ 
+ // Sub sets z to the rounded difference x-y and returns z.
+ // Precision, rounding, and accuracy reporting are as for Add.
+-// BUG(gri) Float.Sub returns NaN if an operand is Inf.
++// Sub panics with ErrNaN if x and y are infinities with equal
++// signs. The value of z is undefined in that case.
+ func (z *Float) Sub(x, y *Float) *Float {
+ 	if debugFloat {
+ 		x.validate()
+@@ -1505,46 +1477,59 @@ func (z *Float) Sub(x, y *Float) *Float {
+ 		z.prec = umax32(x.prec, y.prec)
+ 	}
+ 
+-	// special cases
+-	if x.form != finite || y.form != finite {
+-		if x.form > finite || y.form > finite {
+-			// TODO(gri) handle Inf separately
+-			return z.SetNaN()
+-		}
+-		if x.form == zero {
+-			z.Neg(y)
+-			if z.form == zero {
+-				z.neg = x.neg && !y.neg // -0 - 0 == -0
++	if x.form == finite && y.form == finite {
++		// x - y (common case)
++		z.neg = x.neg
++		if x.neg != y.neg {
++			// x - (-y) == x + y
++			// (-x) - y == -(x + y)
++			z.uadd(x, y)
++		} else {
++			// x - y == x - y == -(y - x)
++			// (-x) - (-y) == y - x == -(x - y)
++			if x.ucmp(y) > 0 {
++				z.usub(x, y)
++			} else {
++				z.neg = !z.neg
++				z.usub(y, x)
+ 			}
+-			return z
+ 		}
+-		// y == ±0
+-		return z.Set(x)
++		return z
+ 	}
+ 
+-	// x, y != 0
+-	z.neg = x.neg
+-	if x.neg != y.neg {
+-		// x - (-y) == x + y
+-		// (-x) - y == -(x + y)
+-		z.uadd(x, y)
+-	} else {
+-		// x - y == x - y == -(y - x)
+-		// (-x) - (-y) == y - x == -(x - y)
+-		if x.ucmp(y) == Above {
+-			z.usub(x, y)
+-		} else {
+-			z.neg = !z.neg
+-			z.usub(y, x)
+-		}
++	if x.form == inf && y.form == inf && x.neg == y.neg {
++		// +Inf - +Inf
++		// -Inf - -Inf
++		// value of z is undefined but make sure it's valid
++		z.acc = Exact
++		z.form = zero
++		z.neg = false
++		panic(ErrNaN{"subtraction of infinities with equal signs"})
+ 	}
+ 
+-	return z
++	if x.form == zero && y.form == zero {
++		// ±0 - ±0
++		z.acc = Exact
++		z.form = zero
++		z.neg = x.neg && !y.neg // -0 - +0 == -0
++		return z
++	}
++
++	if x.form == inf || y.form == zero {
++		// ±Inf - y
++		// x - ±0
++		return z.Set(x)
++	}
++
++	// ±0 - y
++	// x - ±Inf
++	return z.Neg(y)
+ }
+ 
+ // Mul sets z to the rounded product x*y and returns z.
+ // Precision, rounding, and accuracy reporting are as for Add.
+-// BUG(gri) Float.Mul returns NaN if an operand is Inf.
++// Mul panics with ErrNaN if one operand is zero and the other
++// operand an infinity. The value of z is undefined in that case.
+ func (z *Float) Mul(x, y *Float) *Float {
+ 	if debugFloat {
+ 		x.validate()
+@@ -1557,27 +1542,39 @@ func (z *Float) Mul(x, y *Float) *Float {
+ 
+ 	z.neg = x.neg != y.neg
+ 
+-	// special cases
+-	if x.form != finite || y.form != finite {
+-		if x.form > finite || y.form > finite {
+-			// TODO(gri) handle Inf separately
+-			return z.SetNaN()
+-		}
+-		// x == ±0 || y == ±0
+-		z.acc = Exact
+-		z.form = zero
++	if x.form == finite && y.form == finite {
++		// x * y (common case)
++		z.umul(x, y)
+ 		return z
+ 	}
+ 
+-	// x, y != 0
+-	z.umul(x, y)
++	z.acc = Exact
++	if x.form == zero && y.form == inf || x.form == inf && y.form == zero {
++		// ±0 * ±Inf
++		// ±Inf * ±0
++		// value of z is undefined but make sure it's valid
++		z.form = zero
++		z.neg = false
++		panic(ErrNaN{"multiplication of zero with infinity"})
++	}
+ 
++	if x.form == inf || y.form == inf {
++		// ±Inf * y
++		// x * ±Inf
++		z.form = inf
++		return z
++	}
++
++	// ±0 * y
++	// x * ±0
++	z.form = zero
+ 	return z
+ }
+ 
+ // Quo sets z to the rounded quotient x/y and returns z.
+ // Precision, rounding, and accuracy reporting are as for Add.
+-// BUG(gri) Float.Quo returns NaN if an operand is Inf.
++// Quo panics with ErrNaN if both operands are zero or infinities.
++// The value of z is undefined in that case.
+ func (z *Float) Quo(x, y *Float) *Float {
+ 	if debugFloat {
+ 		x.validate()
+@@ -1590,83 +1587,68 @@ func (z *Float) Quo(x, y *Float) *Float {
+ 
+ 	z.neg = x.neg != y.neg
+ 
+-	// special cases
+-	z.acc = Exact
+-	if x.form != finite || y.form != finite {
+-		if x.form > finite || y.form > finite {
+-			// TODO(gri) handle Inf separately
+-			return z.SetNaN()
+-		}
+-		// x == ±0 || y == ±0
+-		if x.form == zero {
+-			if y.form == zero {
+-				return z.SetNaN()
+-			}
+-			z.form = zero
+-			return z
+-		}
+-		// y == ±0
+-		z.form = inf
++	if x.form == finite && y.form == finite {
++		// x / y (common case)
++		z.uquo(x, y)
+ 		return z
+ 	}
+ 
+-	// x, y != 0
+-	z.uquo(x, y)
++	z.acc = Exact
++	if x.form == zero && y.form == zero || x.form == inf && y.form == inf {
++		// ±0 / ±0
++		// ±Inf / ±Inf
++		// value of z is undefined but make sure it's valid
++		z.form = zero
++		z.neg = false
++		panic(ErrNaN{"division of zero by zero or infinity by infinity"})
++	}
+ 
+-	return z
+-}
++	if x.form == zero || y.form == inf {
++		// ±0 / y
++		// x / ±Inf
++		z.form = zero
++		return z
++	}
+ 
+-type cmpResult struct {
+-	acc Accuracy
++	// x / ±0
++	// ±Inf / y
++	z.form = inf
++	return z
+ }
+ 
+ // Cmp compares x and y and returns:
+ //
+-//   Below if x <  y
+-//   Exact if x == y (incl. -0 == 0, -Inf == -Inf, and +Inf == +Inf)
+-//   Above if x >  y
+-//   Undef if any of x, y is NaN
++//   -1 if x <  y
++//    0 if x == y (incl. -0 == 0, -Inf == -Inf, and +Inf == +Inf)
++//   +1 if x >  y
+ //
+-func (x *Float) Cmp(y *Float) cmpResult {
++func (x *Float) Cmp(y *Float) int {
+ 	if debugFloat {
+ 		x.validate()
+ 		y.validate()
+ 	}
+ 
+-	if x.form == nan || y.form == nan {
+-		return cmpResult{Undef}
+-	}
+-
+ 	mx := x.ord()
+ 	my := y.ord()
+ 	switch {
+ 	case mx < my:
+-		return cmpResult{Below}
++		return -1
+ 	case mx > my:
+-		return cmpResult{Above}
++		return +1
+ 	}
+ 	// mx == my
+ 
+ 	// only if |mx| == 1 we have to compare the mantissae
+ 	switch mx {
+ 	case -1:
+-		return cmpResult{y.ucmp(x)}
++		return y.ucmp(x)
+ 	case +1:
+-		return cmpResult{x.ucmp(y)}
++		return x.ucmp(y)
+ 	}
+ 
+-	return cmpResult{Exact}
++	return 0
+ }
+ 
+-// The following accessors simplify testing of Cmp results.
+-func (res cmpResult) Acc() Accuracy { return res.acc }
+-func (res cmpResult) Eql() bool     { return res.acc == Exact }
+-func (res cmpResult) Neq() bool     { return res.acc != Exact }
+-func (res cmpResult) Lss() bool     { return res.acc == Below }
+-func (res cmpResult) Leq() bool     { return res.acc&Above == 0 }
+-func (res cmpResult) Gtr() bool     { return res.acc == Above }
+-func (res cmpResult) Geq() bool     { return res.acc&Below == 0 }
+-
+ // ord classifies x and returns:
+ //
+ //	-2 if -Inf == x
+@@ -1675,7 +1657,6 @@ func (res cmpResult) Geq() bool     { return res.acc&Below == 0 }
+ //	+1 if 0 < x < +Inf
+ //	+2 if x == +Inf
+ //
+-// x must not be NaN.
+ func (x *Float) ord() int {
+ 	var m int
+ 	switch x.form {
+@@ -1685,8 +1666,6 @@ func (x *Float) ord() int {
+ 		return 0
+ 	case inf:
+ 		m = 2
+-	default:
+-		panic("unreachable")
+ 	}
+ 	if x.neg {
+ 		m = -m
+diff --git a/src/cmd/internal/gc/big/float_test.go b/src/cmd/internal/gc/big/float_test.go
+index 9d101531de..2a48ec4465 100644
+--- a/src/cmd/internal/gc/big/float_test.go
++++ b/src/cmd/internal/gc/big/float_test.go
+@@ -69,7 +69,7 @@ func TestFloatZeroValue(t *testing.T) {
+ 		{1, 2, 0, 0, '*', (*Float).Mul},
+ 		{2, 0, 1, 0, '*', (*Float).Mul},
+ 
+-		{0, 0, 0, 0, '/', (*Float).Quo}, // = Nan
++		// {0, 0, 0, 0, '/', (*Float).Quo}, // panics
+ 		{0, 2, 1, 2, '/', (*Float).Quo},
+ 		{1, 2, 0, 0, '/', (*Float).Quo}, // = +Inf
+ 		{2, 0, 1, 0, '/', (*Float).Quo},
+@@ -77,7 +77,7 @@ func TestFloatZeroValue(t *testing.T) {
+ 		z := make(test.z)
+ 		test.op(z, make(test.x), make(test.y))
+ 		got := 0
+-		if z.IsFinite() {
++		if !z.IsInf() {
+ 			got = int(z.int64())
+ 		}
+ 		if got != test.want {
+@@ -97,11 +97,9 @@ func makeFloat(s string) *Float {
+ 	case "-0":
+ 		return x.Neg(&x)
+ 	case "Inf", "+Inf":
+-		return x.SetInf(+1)
++		return x.SetInf(false)
+ 	case "-Inf":
+-		return x.SetInf(-1)
+-	case "NaN", "-NaN":
+-		return x.SetNaN()
++		return x.SetInf(true)
+ 	}
+ 
+ 	x.SetPrec(1000)
+@@ -123,7 +121,6 @@ func TestFloatSetPrec(t *testing.T) {
+ 		{"-0", 0, "-0", Exact},
+ 		{"-Inf", 0, "-Inf", Exact},
+ 		{"+Inf", 0, "+Inf", Exact},
+-		{"NaN", 0, "NaN", Exact},
+ 		{"123", 0, "0", Below},
+ 		{"-123", 0, "-0", Above},
+ 
+@@ -132,7 +129,6 @@ func TestFloatSetPrec(t *testing.T) {
+ 		{"-0", MaxPrec, "-0", Exact},
+ 		{"-Inf", MaxPrec, "-Inf", Exact},
+ 		{"+Inf", MaxPrec, "+Inf", Exact},
+-		{"NaN", MaxPrec, "NaN", Exact},
+ 
+ 		// just a few regular cases - general rounding is tested elsewhere
+ 		{"1.5", 1, "2", Above},
+@@ -164,7 +160,6 @@ func TestFloatMinPrec(t *testing.T) {
+ 		{"-0", 0},
+ 		{"+Inf", 0},
+ 		{"-Inf", 0},
+-		{"NaN", 0},
+ 		{"1", 1},
+ 		{"2", 1},
+ 		{"3", 2},
+@@ -191,7 +186,6 @@ func TestFloatSign(t *testing.T) {
+ 		{"+0", 0},
+ 		{"+1", +1},
+ 		{"+Inf", +1},
+-		{"NaN", 0},
+ 	} {
+ 		x := makeFloat(test.x)
+ 		s := x.Sign()
+@@ -201,13 +195,9 @@ func TestFloatSign(t *testing.T) {
+ 	}
+ }
+ 
+-// feq(x, y) is like x.Cmp(y) == 0 but it also considers the sign of 0 (0 != -0).
+-// Caution: Two NaN's are equal with this function!
+-func feq(x, y *Float) bool {
+-	if x.IsNaN() || y.IsNaN() {
+-		return x.IsNaN() && y.IsNaN()
+-	}
+-	return x.Cmp(y).Eql() && x.IsNeg() == y.IsNeg()
++// alike(x, y) is like x.Cmp(y) == 0 but also considers the sign of 0 (0 != -0).
++func alike(x, y *Float) bool {
++	return x.Cmp(y) == 0 && x.Signbit() == y.Signbit()
+ }
+ 
+ func TestFloatMantExp(t *testing.T) {
+@@ -222,7 +212,6 @@ func TestFloatMantExp(t *testing.T) {
+ 		{"Inf", "+Inf", 0},
+ 		{"+Inf", "+Inf", 0},
+ 		{"-Inf", "-Inf", 0},
+-		{"NaN", "NaN", 0},
+ 		{"1.5", "0.75", 1},
+ 		{"1.024e3", "0.5", 11},
+ 		{"-0.125", "-0.5", -2},
+@@ -231,7 +220,7 @@ func TestFloatMantExp(t *testing.T) {
+ 		mant := makeFloat(test.mant)
+ 		m := new(Float)
+ 		e := x.MantExp(m)
+-		if !feq(m, mant) || e != test.exp {
++		if !alike(m, mant) || e != test.exp {
+ 			t.Errorf("%s.MantExp() = %s, %d; want %s, %d", test.x, m.Format('g', 10), e, test.mant, test.exp)
+ 		}
+ 	}
+@@ -242,7 +231,7 @@ func TestFloatMantExpAliasing(t *testing.T) {
+ 	if e := x.MantExp(x); e != 10 {
+ 		t.Fatalf("Float.MantExp aliasing error: got %d; want 10", e)
+ 	}
+-	if want := makeFloat("0.5"); !feq(x, want) {
++	if want := makeFloat("0.5"); !alike(x, want) {
+ 		t.Fatalf("Float.MantExp aliasing error: got %s; want %s", x.Format('g', 10), want.Format('g', 10))
+ 	}
+ }
+@@ -274,12 +263,12 @@ func TestFloatSetMantExp(t *testing.T) {
+ 		want := makeFloat(test.z)
+ 		var z Float
+ 		z.SetMantExp(frac, test.exp)
+-		if !feq(&z, want) {
++		if !alike(&z, want) {
+ 			t.Errorf("SetMantExp(%s, %d) = %s; want %s", test.frac, test.exp, z.Format('g', 10), test.z)
+ 		}
+ 		// test inverse property
+ 		mant := new(Float)
+-		if z.SetMantExp(mant, want.MantExp(mant)).Cmp(want).Neq() {
++		if z.SetMantExp(mant, want.MantExp(mant)).Cmp(want) != 0 {
+ 			t.Errorf("Inverse property not satisfied: got %s; want %s", z.Format('g', 10), test.z)
+ 		}
+ 	}
+@@ -287,33 +276,27 @@ func TestFloatSetMantExp(t *testing.T) {
+ 
+ func TestFloatPredicates(t *testing.T) {
+ 	for _, test := range []struct {
+-		x                           string
+-		neg, zero, finite, inf, nan bool
++		x            string
++		sign         int
++		signbit, inf bool
+ 	}{
+-		{x: "-Inf", neg: true, inf: true},
+-		{x: "-1", neg: true, finite: true},
+-		{x: "-0", neg: true, zero: true, finite: true},
+-		{x: "0", zero: true, finite: true},
+-		{x: "1", finite: true},
+-		{x: "+Inf", inf: true},
+-		{x: "NaN", nan: true},
++		{x: "-Inf", sign: -1, signbit: true, inf: true},
++		{x: "-1", sign: -1, signbit: true},
++		{x: "-0", signbit: true},
++		{x: "0"},
++		{x: "1", sign: 1},
++		{x: "+Inf", sign: 1, inf: true},
+ 	} {
+ 		x := makeFloat(test.x)
+-		if got := x.IsNeg(); got != test.neg {
+-			t.Errorf("(%s).IsNeg() = %v; want %v", test.x, got, test.neg)
+-		}
+-		if got := x.IsZero(); got != test.zero {
+-			t.Errorf("(%s).IsZero() = %v; want %v", test.x, got, test.zero)
++		if got := x.Signbit(); got != test.signbit {
++			t.Errorf("(%s).Signbit() = %v; want %v", test.x, got, test.signbit)
+ 		}
+-		if got := x.IsFinite(); got != test.finite {
+-			t.Errorf("(%s).IsFinite() = %v; want %v", test.x, got, test.finite)
++		if got := x.Sign(); got != test.sign {
++			t.Errorf("(%s).Sign() = %d; want %d", test.x, got, test.sign)
+ 		}
+ 		if got := x.IsInf(); got != test.inf {
+ 			t.Errorf("(%s).IsInf() = %v; want %v", test.x, got, test.inf)
+ 		}
+-		if got := x.IsNaN(); got != test.nan {
+-			t.Errorf("(%s).IsNaN() = %v; want %v", test.x, got, test.nan)
+-		}
+ 	}
+ }
+ 
+@@ -333,7 +316,6 @@ func TestFloatIsInt(t *testing.T) {
+ 		"Inf",
+ 		"+Inf",
+ 		"-Inf",
+-		"NaN",
+ 	} {
+ 		s := strings.TrimSuffix(test, " int")
+ 		want := s != test
+@@ -413,7 +395,7 @@ func testFloatRound(t *testing.T, x, r int64, prec uint, mode RoundingMode) {
+ 	// should be the same as rounding by SetInt64 after setting the
+ 	// precision)
+ 	g := new(Float).SetMode(mode).SetPrec(prec).SetInt64(x)
+-	if !feq(g, f) {
++	if !alike(g, f) {
+ 		t.Errorf("round %s (%d bits, %s) not symmetric: got %s and %s; want %s",
+ 			toBinary(x), prec, mode,
+ 			toBinary(g.int64()),
+@@ -426,7 +408,7 @@ func testFloatRound(t *testing.T, x, r int64, prec uint, mode RoundingMode) {
+ 	// h and f should be the same
+ 	// (repeated rounding should be idempotent)
+ 	h := new(Float).SetMode(mode).SetPrec(prec).Set(f)
+-	if !feq(h, f) {
++	if !alike(h, f) {
+ 		t.Errorf("round %s (%d bits, %s) not idempotent: got %s and %s; want %s",
+ 			toBinary(x), prec, mode,
+ 			toBinary(h.int64()),
+@@ -647,13 +629,6 @@ func TestFloatSetFloat64(t *testing.T) {
+ 		}
+ 	}
+ 
+-	// test NaN
+-	var f Float
+-	f.SetFloat64(math.NaN())
+-	if got, acc := f.Float64(); !math.IsNaN(got) || acc != Undef {
+-		t.Errorf("got %g (%s, %s); want %g (undef)", got, f.Format('p', 0), acc, math.NaN())
+-	}
+-
+ 	// test basic rounding behavior (exhaustive rounding testing is done elsewhere)
+ 	const x uint64 = 0x8765432143218 // 53 bits needed
+ 	for prec := uint(1); prec <= 52; prec++ {
+@@ -664,6 +639,17 @@ func TestFloatSetFloat64(t *testing.T) {
+ 			t.Errorf("got %g (%s); want %g", got, f.Format('p', 0), want)
+ 		}
+ 	}
++
++	// test NaN
++	defer func() {
++		if p, ok := recover().(ErrNaN); !ok {
++			t.Errorf("got %v; want ErrNaN panic", p)
++		}
++	}()
++	var f Float
++	f.SetFloat64(math.NaN())
++	// should not reach here
++	t.Errorf("got %s; want ErrNaN panic", f.Format('p', 0))
+ }
+ 
+ func TestFloatSetInt(t *testing.T) {
+@@ -747,20 +733,18 @@ func TestFloatSetRat(t *testing.T) {
+ func TestFloatSetInf(t *testing.T) {
+ 	var f Float
+ 	for _, test := range []struct {
+-		sign int
+-		prec uint
+-		want string
++		signbit bool
++		prec    uint
++		want    string
+ 	}{
+-		{0, 0, "+Inf"},
+-		{100, 0, "+Inf"},
+-		{-1, 0, "-Inf"},
+-		{0, 10, "+Inf"},
+-		{100, 20, "+Inf"},
+-		{-1, 30, "-Inf"},
++		{false, 0, "+Inf"},
++		{true, 0, "-Inf"},
++		{false, 10, "+Inf"},
++		{true, 30, "-Inf"},
+ 	} {
+-		x := f.SetPrec(test.prec).SetInf(test.sign)
++		x := f.SetPrec(test.prec).SetInf(test.signbit)
+ 		if got := x.String(); got != test.want || x.Prec() != test.prec {
+-			t.Errorf("SetInf(%d) = %s (prec = %d); want %s (prec = %d)", test.sign, got, x.Prec(), test.want, test.prec)
++			t.Errorf("SetInf(%v) = %s (prec = %d); want %s (prec = %d)", test.signbit, got, x.Prec(), test.want, test.prec)
+ 		}
+ 	}
+ }
+@@ -786,7 +770,6 @@ func TestFloatUint64(t *testing.T) {
+ 		{"18446744073709551616", math.MaxUint64, Below},
+ 		{"1e10000", math.MaxUint64, Below},
+ 		{"+Inf", math.MaxUint64, Below},
+-		{"NaN", 0, Undef},
+ 	} {
+ 		x := makeFloat(test.x)
+ 		out, acc := x.Uint64()
+@@ -827,7 +810,6 @@ func TestFloatInt64(t *testing.T) {
+ 		{"9223372036854775808", math.MaxInt64, Below},
+ 		{"1e10000", math.MaxInt64, Below},
+ 		{"+Inf", math.MaxInt64, Below},
+-		{"NaN", 0, Undef},
+ 	} {
+ 		x := makeFloat(test.x)
+ 		out, acc := x.Int64()
+@@ -891,12 +873,6 @@ func TestFloatFloat32(t *testing.T) {
+ 			t.Errorf("idempotency test: got %g (%s); want %g (Exact)", out2, acc2, out)
+ 		}
+ 	}
+-
+-	// test NaN
+-	x := makeFloat("NaN")
+-	if out, acc := x.Float32(); out == out || acc != Undef {
+-		t.Errorf("NaN: got %g (%s); want NaN (Undef)", out, acc)
+-	}
+ }
+ 
+ func TestFloatFloat64(t *testing.T) {
+@@ -963,12 +939,6 @@ func TestFloatFloat64(t *testing.T) {
+ 			t.Errorf("idempotency test: got %g (%s); want %g (Exact)", out2, acc2, out)
+ 		}
+ 	}
+-
+-	// test NaN
+-	x := makeFloat("NaN")
+-	if out, acc := x.Float64(); out == out || acc != Undef {
+-		t.Errorf("NaN: got %g (%s); want NaN (Undef)", out, acc)
+-	}
+ }
+ 
+ func TestFloatInt(t *testing.T) {
+@@ -983,7 +953,6 @@ func TestFloatInt(t *testing.T) {
+ 		{"Inf", "nil", Below},
+ 		{"+Inf", "nil", Below},
+ 		{"-Inf", "nil", Above},
+-		{"NaN", "nil", Undef},
+ 		{"1", "1", Exact},
+ 		{"-1", "-1", Exact},
+ 		{"1.23", "1", Below},
+@@ -1028,7 +997,6 @@ func TestFloatRat(t *testing.T) {
+ 		{"Inf", "nil", Below},
+ 		{"+Inf", "nil", Below},
+ 		{"-Inf", "nil", Above},
+-		{"NaN", "nil", Undef},
+ 		{"1", "1/1", Exact},
+ 		{"-1", "-1/1", Exact},
+ 		{"1.25", "5/4", Exact},
+@@ -1056,7 +1024,7 @@ func TestFloatRat(t *testing.T) {
+ 		// inverse conversion
+ 		if res != nil {
+ 			got := new(Float).SetPrec(64).SetRat(res)
+-			if got.Cmp(x).Neq() {
++			if got.Cmp(x) != 0 {
+ 				t.Errorf("%s: got %s; want %s", test.x, got, x)
+ 			}
+ 		}
+@@ -1081,17 +1049,16 @@ func TestFloatAbs(t *testing.T) {
+ 		"1e-1000",
+ 		"1e1000",
+ 		"Inf",
+-		"NaN",
+ 	} {
+ 		p := makeFloat(test)
+ 		a := new(Float).Abs(p)
+-		if !feq(a, p) {
++		if !alike(a, p) {
+ 			t.Errorf("%s: got %s; want %s", test, a.Format('g', 10), test)
+ 		}
+ 
+ 		n := makeFloat("-" + test)
+ 		a.Abs(n)
+-		if !feq(a, p) {
++		if !alike(a, p) {
+ 			t.Errorf("-%s: got %s; want %s", test, a.Format('g', 10), test)
+ 		}
+ 	}
+@@ -1106,16 +1073,15 @@ func TestFloatNeg(t *testing.T) {
+ 		"1e-1000",
+ 		"1e1000",
+ 		"Inf",
+-		"NaN",
+ 	} {
+ 		p1 := makeFloat(test)
+ 		n1 := makeFloat("-" + test)
+ 		n2 := new(Float).Neg(p1)
+ 		p2 := new(Float).Neg(n2)
+-		if !feq(n2, n1) {
++		if !alike(n2, n1) {
+ 			t.Errorf("%s: got %s; want %s", test, n2.Format('g', 10), n1.Format('g', 10))
+ 		}
+-		if !feq(p2, p1) {
++		if !alike(p2, p1) {
+ 			t.Errorf("%s: got %s; want %s", test, p2.Format('g', 10), p1.Format('g', 10))
+ 		}
+ 	}
+@@ -1133,7 +1099,7 @@ func TestFloatInc(t *testing.T) {
+ 		for i := 0; i < n; i++ {
+ 			x.Add(&x, &one)
+ 		}
+-		if x.Cmp(new(Float).SetInt64(n)).Neq() {
++		if x.Cmp(new(Float).SetInt64(n)) != 0 {
+ 			t.Errorf("prec = %d: got %s; want %d", prec, &x, n)
+ 		}
+ 	}
+@@ -1174,14 +1140,14 @@ func TestFloatAdd(t *testing.T) {
+ 					got := new(Float).SetPrec(prec).SetMode(mode)
+ 					got.Add(x, y)
+ 					want := zbits.round(prec, mode)
+-					if got.Cmp(want).Neq() {
++					if got.Cmp(want) != 0 {
+ 						t.Errorf("i = %d, prec = %d, %s:\n\t     %s %v\n\t+    %s %v\n\t=    %s\n\twant %s",
+ 							i, prec, mode, x, xbits, y, ybits, got, want)
+ 					}
+ 
+ 					got.Sub(z, x)
+ 					want = ybits.round(prec, mode)
+-					if got.Cmp(want).Neq() {
++					if got.Cmp(want) != 0 {
+ 						t.Errorf("i = %d, prec = %d, %s:\n\t     %s %v\n\t-    %s %v\n\t=    %s\n\twant %s",
+ 							i, prec, mode, z, zbits, x, xbits, got, want)
+ 					}
+@@ -1276,17 +1242,17 @@ func TestFloatMul(t *testing.T) {
+ 					got := new(Float).SetPrec(prec).SetMode(mode)
+ 					got.Mul(x, y)
+ 					want := zbits.round(prec, mode)
+-					if got.Cmp(want).Neq() {
++					if got.Cmp(want) != 0 {
+ 						t.Errorf("i = %d, prec = %d, %s:\n\t     %s %v\n\t*    %s %v\n\t=    %s\n\twant %s",
+ 							i, prec, mode, x, xbits, y, ybits, got, want)
+ 					}
+ 
+-					if x.IsZero() {
++					if x.Sign() == 0 {
+ 						continue // ignore div-0 case (not invertable)
+ 					}
+ 					got.Quo(z, x)
+ 					want = ybits.round(prec, mode)
+-					if got.Cmp(want).Neq() {
++					if got.Cmp(want) != 0 {
+ 						t.Errorf("i = %d, prec = %d, %s:\n\t     %s %v\n\t/    %s %v\n\t=    %s\n\twant %s",
+ 							i, prec, mode, z, zbits, x, xbits, got, want)
+ 					}
+@@ -1369,7 +1335,7 @@ func TestIssue6866(t *testing.T) {
+ 		p.Mul(p, psix)
+ 		z2.Sub(two, p)
+ 
+-		if z1.Cmp(z2).Neq() {
++		if z1.Cmp(z2) != 0 {
+ 			t.Fatalf("prec %d: got z1 = %s != z2 = %s; want z1 == z2\n", prec, z1, z2)
+ 		}
+ 		if z1.Sign() != 0 {
+@@ -1420,7 +1386,7 @@ func TestFloatQuo(t *testing.T) {
+ 				prec := uint(preci + d)
+ 				got := new(Float).SetPrec(prec).SetMode(mode).Quo(x, y)
+ 				want := bits.round(prec, mode)
+-				if got.Cmp(want).Neq() {
++				if got.Cmp(want) != 0 {
+ 					t.Errorf("i = %d, prec = %d, %s:\n\t     %s\n\t/    %s\n\t=    %s\n\twant %s",
+ 						i, prec, mode, x, y, got, want)
+ 				}
+@@ -1472,10 +1438,10 @@ func TestFloatQuoSmoke(t *testing.T) {
+ 
+ // TestFloatArithmeticSpecialValues tests that Float operations produce the
+ // correct results for combinations of zero (±0), finite (±1 and ±2.71828),
+-// and non-finite (±Inf, NaN) operands.
++// and infinite (±Inf) operands.
+ func TestFloatArithmeticSpecialValues(t *testing.T) {
+ 	zero := 0.0
+-	args := []float64{math.Inf(-1), -2.71828, -1, -zero, zero, 1, 2.71828, math.Inf(1), math.NaN()}
++	args := []float64{math.Inf(-1), -2.71828, -1, -zero, zero, 1, 2.71828, math.Inf(1)}
+ 	xx := new(Float)
+ 	yy := new(Float)
+ 	got := new(Float)
+@@ -1486,41 +1452,59 @@ func TestFloatArithmeticSpecialValues(t *testing.T) {
+ 			// check conversion is correct
+ 			// (no need to do this for y, since we see exactly the
+ 			// same values there)
+-			if got, acc := xx.Float64(); !math.IsNaN(x) && (got != x || acc != Exact) {
++			if got, acc := xx.Float64(); got != x || acc != Exact {
+ 				t.Errorf("Float(%g) == %g (%s)", x, got, acc)
+ 			}
+ 			for _, y := range args {
+ 				yy.SetFloat64(y)
+-				var op string
+-				var z float64
++				var (
++					op string
++					z  float64
++					f  func(z, x, y *Float) *Float
++				)
+ 				switch i {
+ 				case 0:
+ 					op = "+"
+ 					z = x + y
+-					got.Add(xx, yy)
++					f = (*Float).Add
+ 				case 1:
+ 					op = "-"
+ 					z = x - y
+-					got.Sub(xx, yy)
++					f = (*Float).Sub
+ 				case 2:
+ 					op = "*"
+ 					z = x * y
+-					got.Mul(xx, yy)
++					f = (*Float).Mul
+ 				case 3:
+ 					op = "/"
+ 					z = x / y
+-					got.Quo(xx, yy)
++					f = (*Float).Quo
+ 				default:
+ 					panic("unreachable")
+ 				}
+-				// At the moment an Inf operand always leads to a NaN result (known bug).
+-				// TODO(gri) remove this once the bug is fixed.
+-				if math.IsInf(x, 0) || math.IsInf(y, 0) {
+-					want.SetNaN()
+-				} else {
+-					want.SetFloat64(z)
++				var errnan bool // set if execution of f panicked with ErrNaN
++				// protect execution of f
++				func() {
++					defer func() {
++						if p := recover(); p != nil {
++							_ = p.(ErrNaN) // re-panic if not ErrNaN
++							errnan = true
++						}
++					}()
++					f(got, xx, yy)
++				}()
++				if math.IsNaN(z) {
++					if !errnan {
++						t.Errorf("%5g %s %5g = %5s; want ErrNaN panic", x, op, y, got)
++					}
++					continue
++				}
++				if errnan {
++					t.Errorf("%5g %s %5g panicked with ErrNan; want %5s", x, op, y, want)
++					continue
+ 				}
+-				if !feq(got, want) {
++				want.SetFloat64(z)
++				if !alike(got, want) {
+ 					t.Errorf("%5g %s %5g = %5s; want %5s", x, op, y, got, want)
+ 				}
+ 			}
+@@ -1645,11 +1629,11 @@ func TestFloatArithmeticRounding(t *testing.T) {
+ }
+ 
+ // TestFloatCmpSpecialValues tests that Cmp produces the correct results for
+-// combinations of zero (±0), finite (±1 and ±2.71828), and non-finite (±Inf,
+-// NaN) operands.
++// combinations of zero (±0), finite (±1 and ±2.71828), and infinite (±Inf)
++// operands.
+ func TestFloatCmpSpecialValues(t *testing.T) {
+ 	zero := 0.0
+-	args := []float64{math.Inf(-1), -2.71828, -1, -zero, zero, 1, 2.71828, math.Inf(1), math.NaN()}
++	args := []float64{math.Inf(-1), -2.71828, -1, -zero, zero, 1, 2.71828, math.Inf(1)}
+ 	xx := new(Float)
+ 	yy := new(Float)
+ 	for i := 0; i < 4; i++ {
+@@ -1658,20 +1642,18 @@ func TestFloatCmpSpecialValues(t *testing.T) {
+ 			// check conversion is correct
+ 			// (no need to do this for y, since we see exactly the
+ 			// same values there)
+-			if got, acc := xx.Float64(); !math.IsNaN(x) && (got != x || acc != Exact) {
++			if got, acc := xx.Float64(); got != x || acc != Exact {
+ 				t.Errorf("Float(%g) == %g (%s)", x, got, acc)
+ 			}
+ 			for _, y := range args {
+ 				yy.SetFloat64(y)
+-				got := xx.Cmp(yy).Acc()
+-				want := Undef
++				got := xx.Cmp(yy)
++				want := 0
+ 				switch {
+ 				case x < y:
+-					want = Below
+-				case x == y:
+-					want = Exact
++					want = -1
+ 				case x > y:
+-					want = Above
++					want = +1
+ 				}
+ 				if got != want {
+ 					t.Errorf("(%g).Cmp(%g) = %s; want %s", x, y, got, want)
+diff --git a/src/cmd/internal/gc/big/floatconv.go b/src/cmd/internal/gc/big/floatconv.go
+index 8905718d29..7dc9a2800c 100644
+--- a/src/cmd/internal/gc/big/floatconv.go
++++ b/src/cmd/internal/gc/big/floatconv.go
+@@ -73,10 +73,8 @@ func (z *Float) Scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
+ 		prec = 64
+ 	}
+ 
+-	// NaNs ignore sign, mantissa, and exponent so we can set
+-	// them below while having a valid value for z in case of
+-	// errors.
+-	z.SetNaN()
++	// A reasonable value in case of an error.
++	z.form = zero
+ 
+ 	// sign
+ 	z.neg, err = scanSign(r)
+@@ -260,11 +258,6 @@ func (x *Float) Append(buf []byte, format byte, prec int) []byte {
+ 		return append(buf, "Inf"...)
+ 	}
+ 
+-	// NaN
+-	if x.IsNaN() {
+-		return append(buf, "NaN"...)
+-	}
+-
+ 	// easy formats
+ 	switch format {
+ 	case 'b':
+diff --git a/src/cmd/internal/gc/big/floatconv_test.go b/src/cmd/internal/gc/big/floatconv_test.go
+index 17c8b14786..e7920d0c07 100644
+--- a/src/cmd/internal/gc/big/floatconv_test.go
++++ b/src/cmd/internal/gc/big/floatconv_test.go
+@@ -102,7 +102,7 @@ func TestFloatSetFloat64String(t *testing.T) {
+ 		}
+ 		f, _ := x.Float64()
+ 		want := new(Float).SetFloat64(test.x)
+-		if x.Cmp(want).Neq() {
++		if x.Cmp(want) != 0 {
+ 			t.Errorf("%s: got %s (%v); want %v", test.s, &x, f, test.x)
+ 		}
+ 	}
+diff --git a/src/cmd/internal/gc/big/floatexample_test.go b/src/cmd/internal/gc/big/floatexample_test.go
+index 5e4a9cbe89..7db10238bc 100644
+--- a/src/cmd/internal/gc/big/floatexample_test.go
++++ b/src/cmd/internal/gc/big/floatexample_test.go
+@@ -50,88 +50,62 @@ func Example_Shift() {
+ func ExampleFloat_Cmp() {
+ 	inf := math.Inf(1)
+ 	zero := 0.0
+-	nan := math.NaN()
+ 
+-	operands := []float64{-inf, -1.2, -zero, 0, +1.2, +inf, nan}
++	operands := []float64{-inf, -1.2, -zero, 0, +1.2, +inf}
+ 
+-	fmt.Println("   x     y   cmp   eql  neq  lss  leq  gtr  geq")
+-	fmt.Println("-----------------------------------------------")
++	fmt.Println("   x     y  cmp")
++	fmt.Println("---------------")
+ 	for _, x64 := range operands {
+ 		x := big.NewFloat(x64)
+ 		for _, y64 := range operands {
+ 			y := big.NewFloat(y64)
+-			t := x.Cmp(y)
+-			fmt.Printf(
+-				"%4s  %4s  %5s   %c    %c    %c    %c    %c    %c\n",
+-				x, y, t.Acc(),
+-				mark(t.Eql()), mark(t.Neq()), mark(t.Lss()), mark(t.Leq()), mark(t.Gtr()), mark(t.Geq()))
++			fmt.Printf("%4s  %4s  %3d\n", x, y, x.Cmp(y))
+ 		}
+ 		fmt.Println()
+ 	}
+ 
+ 	// Output:
+-	//    x     y   cmp   eql  neq  lss  leq  gtr  geq
+-	// -----------------------------------------------
+-	// -Inf  -Inf  Exact   ●    ○    ○    ●    ○    ●
+-	// -Inf  -1.2  Below   ○    ●    ●    ●    ○    ○
+-	// -Inf    -0  Below   ○    ●    ●    ●    ○    ○
+-	// -Inf     0  Below   ○    ●    ●    ●    ○    ○
+-	// -Inf   1.2  Below   ○    ●    ●    ●    ○    ○
+-	// -Inf  +Inf  Below   ○    ●    ●    ●    ○    ○
+-	// -Inf   NaN  Undef   ○    ●    ○    ○    ○    ○
++	//    x     y  cmp
++	// ---------------
++	// -Inf  -Inf    0
++	// -Inf  -1.2   -1
++	// -Inf    -0   -1
++	// -Inf     0   -1
++	// -Inf   1.2   -1
++	// -Inf  +Inf   -1
+ 	//
+-	// -1.2  -Inf  Above   ○    ●    ○    ○    ●    ●
+-	// -1.2  -1.2  Exact   ●    ○    ○    ●    ○    ●
+-	// -1.2    -0  Below   ○    ●    ●    ●    ○    ○
+-	// -1.2     0  Below   ○    ●    ●    ●    ○    ○
+-	// -1.2   1.2  Below   ○    ●    ●    ●    ○    ○
+-	// -1.2  +Inf  Below   ○    ●    ●    ●    ○    ○
+-	// -1.2   NaN  Undef   ○    ●    ○    ○    ○    ○
++	// -1.2  -Inf    1
++	// -1.2  -1.2    0
++	// -1.2    -0   -1
++	// -1.2     0   -1
++	// -1.2   1.2   -1
++	// -1.2  +Inf   -1
+ 	//
+-	//   -0  -Inf  Above   ○    ●    ○    ○    ●    ●
+-	//   -0  -1.2  Above   ○    ●    ○    ○    ●    ●
+-	//   -0    -0  Exact   ●    ○    ○    ●    ○    ●
+-	//   -0     0  Exact   ●    ○    ○    ●    ○    ●
+-	//   -0   1.2  Below   ○    ●    ●    ●    ○    ○
+-	//   -0  +Inf  Below   ○    ●    ●    ●    ○    ○
+-	//   -0   NaN  Undef   ○    ●    ○    ○    ○    ○
++	//   -0  -Inf    1
++	//   -0  -1.2    1
++	//   -0    -0    0
++	//   -0     0    0
++	//   -0   1.2   -1
++	//   -0  +Inf   -1
+ 	//
+-	//    0  -Inf  Above   ○    ●    ○    ○    ●    ●
+-	//    0  -1.2  Above   ○    ●    ○    ○    ●    ●
+-	//    0    -0  Exact   ●    ○    ○    ●    ○    ●
+-	//    0     0  Exact   ●    ○    ○    ●    ○    ●
+-	//    0   1.2  Below   ○    ●    ●    ●    ○    ○
+-	//    0  +Inf  Below   ○    ●    ●    ●    ○    ○
+-	//    0   NaN  Undef   ○    ●    ○    ○    ○    ○
++	//    0  -Inf    1
++	//    0  -1.2    1
++	//    0    -0    0
++	//    0     0    0
++	//    0   1.2   -1
++	//    0  +Inf   -1
+ 	//
+-	//  1.2  -Inf  Above   ○    ●    ○    ○    ●    ●
+-	//  1.2  -1.2  Above   ○    ●    ○    ○    ●    ●
+-	//  1.2    -0  Above   ○    ●    ○    ○    ●    ●
+-	//  1.2     0  Above   ○    ●    ○    ○    ●    ●
+-	//  1.2   1.2  Exact   ●    ○    ○    ●    ○    ●
+-	//  1.2  +Inf  Below   ○    ●    ●    ●    ○    ○
+-	//  1.2   NaN  Undef   ○    ●    ○    ○    ○    ○
++	//  1.2  -Inf    1
++	//  1.2  -1.2    1
++	//  1.2    -0    1
++	//  1.2     0    1
++	//  1.2   1.2    0
++	//  1.2  +Inf   -1
+ 	//
+-	// +Inf  -Inf  Above   ○    ●    ○    ○    ●    ●
+-	// +Inf  -1.2  Above   ○    ●    ○    ○    ●    ●
+-	// +Inf    -0  Above   ○    ●    ○    ○    ●    ●
+-	// +Inf     0  Above   ○    ●    ○    ○    ●    ●
+-	// +Inf   1.2  Above   ○    ●    ○    ○    ●    ●
+-	// +Inf  +Inf  Exact   ●    ○    ○    ●    ○    ●
+-	// +Inf   NaN  Undef   ○    ●    ○    ○    ○    ○
+-	//
+-	//  NaN  -Inf  Undef   ○    ●    ○    ○    ○    ○
+-	//  NaN  -1.2  Undef   ○    ●    ○    ○    ○    ○
+-	//  NaN    -0  Undef   ○    ●    ○    ○    ○    ○
+-	//  NaN     0  Undef   ○    ●    ○    ○    ○    ○
+-	//  NaN   1.2  Undef   ○    ●    ○    ○    ○    ○
+-	//  NaN  +Inf  Undef   ○    ●    ○    ○    ○    ○
+-	//  NaN   NaN  Undef   ○    ●    ○    ○    ○    ○
+-}
+-
+-func mark(p bool) rune {
+-	if p {
+-		return '●'
+-	}
+-	return '○'
++	// +Inf  -Inf    1
++	// +Inf  -1.2    1
++	// +Inf    -0    1
++	// +Inf     0    1
++	// +Inf   1.2    1
++	// +Inf  +Inf    0
+ }
+diff --git a/src/cmd/internal/gc/big/ftoa.go b/src/cmd/internal/gc/big/ftoa.go
+index 5502eda69b..0a9edfd7b2 100644
+--- a/src/cmd/internal/gc/big/ftoa.go
++++ b/src/cmd/internal/gc/big/ftoa.go
+@@ -19,7 +19,7 @@ import "strconv"
+ 
+ // bigFtoa formats a float for the %e, %E, %f, %g, and %G formats.
+ func (f *Float) bigFtoa(buf []byte, fmt byte, prec int) []byte {
+-	if debugFloat && !f.IsFinite() {
++	if debugFloat && f.IsInf() {
+ 		panic("non-finite float")
+ 	}
+ 
+diff --git a/src/cmd/internal/gc/big/int.go b/src/cmd/internal/gc/big/int.go
+index 0695d78973..3410ec4729 100644
+--- a/src/cmd/internal/gc/big/int.go
++++ b/src/cmd/internal/gc/big/int.go
+@@ -184,6 +184,10 @@ func (z *Int) MulRange(a, b int64) *Int {
+ 
+ // Binomial sets z to the binomial coefficient of (n, k) and returns z.
+ func (z *Int) Binomial(n, k int64) *Int {
++	// reduce the number of multiplications by reducing k
++	if n/2 < k && k <= n {
++		k = n - k // Binomial(n, k) == Binomial(n, n-k)
++	}
+ 	var a, b Int
+ 	a.MulRange(n-k+1, n)
+ 	b.MulRange(1, k)
+diff --git a/src/cmd/internal/gc/big/int_test.go b/src/cmd/internal/gc/big/int_test.go
+index dff8057cf9..a972a7249b 100644
+--- a/src/cmd/internal/gc/big/int_test.go
++++ b/src/cmd/internal/gc/big/int_test.go
+@@ -219,6 +219,45 @@ func TestMulRangeZ(t *testing.T) {
+ 	}
+ }
+ 
++func TestBinomial(t *testing.T) {
++	var z Int
++	for _, test := range []struct {
++		n, k int64
++		want string
++	}{
++		{0, 0, "1"},
++		{0, 1, "0"},
++		{1, 0, "1"},
++		{1, 1, "1"},
++		{1, 10, "0"},
++		{4, 0, "1"},
++		{4, 1, "4"},
++		{4, 2, "6"},
++		{4, 3, "4"},
++		{4, 4, "1"},
++		{10, 1, "10"},
++		{10, 9, "10"},
++		{10, 5, "252"},
++		{11, 5, "462"},
++		{11, 6, "462"},
++		{100, 10, "17310309456440"},
++		{100, 90, "17310309456440"},
++		{1000, 10, "263409560461970212832400"},
++		{1000, 990, "263409560461970212832400"},
++	} {
++		if got := z.Binomial(test.n, test.k).String(); got != test.want {
++			t.Errorf("Binomial(%d, %d) = %s; want %s", test.n, test.k, got, test.want)
++		}
++	}
++}
++
++func BenchmarkBinomial(b *testing.B) {
++	var z Int
++	for i := b.N - 1; i >= 0; i-- {
++		z.Binomial(1000, 990)
++	}
++}
++
+ // Examples from the Go Language Spec, section "Arithmetic operators"
+ var divisionSignsTests = []struct {
+ 	x, y int64
+@@ -353,7 +392,7 @@ func checkBytes(b []byte) bool {
+ }
+ 
+ func TestBytes(t *testing.T) {
+-	if err := quick.Check(checkSetBytes, nil); err != nil {
++	if err := quick.Check(checkBytes, nil); err != nil {
+ 		t.Error(err)
+ 	}
+ }

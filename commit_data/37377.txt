@@ -7,6 +7,20 @@ Date:   Fri Jul 20 10:41:25 2018 +0200
     Change-Id: I659bc5b61dade9438b122e6994da022946f5e1d3
     Reviewed-on: https://go-review.googlesource.com/125255
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.11.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.11.html b/doc/go1.11.html
+index 213ec30083..0100c32707 100644
+--- a/doc/go1.11.html
++++ b/doc/go1.11.html
+@@ -550,7 +550,7 @@ for k := range m {
+   <dd>
+ 
+     <p><!-- CL 108996 -->
+-      <a href="/pkg/math/bin/#Int.ModInverse"><code>ModInverse</code></a> now returns nil when g and n are not relatively prime. The result was previously undefined.
++      <a href="/pkg/math/big/#Int.ModInverse"><code>ModInverse</code></a> now returns nil when g and n are not relatively prime. The result was previously undefined.
+     </p>
+ 
+ </dl><!-- math/big -->

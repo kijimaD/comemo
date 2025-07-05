@@ -27,6 +27,19 @@ Date:   Fri May 10 22:38:56 2019 +0700
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/envcmd/env.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index 00f10977bb..b3d12dd681 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -66,6 +66,7 @@ func MkEnv() []cfg.EnvVar {
+ 
+ 	envFile, _ := cfg.EnvFile()
+ 	env := []cfg.EnvVar{
++		{Name: "GO111MODULE", Value: cfg.Getenv("GO111MODULE")},
+ 		{Name: "GOARCH", Value: cfg.Goarch},
+ 		{Name: "GOBIN", Value: cfg.GOBIN},
+ 		{Name: "GOCACHE", Value: cache.DefaultDir()},

@@ -7,6 +7,21 @@ Date:   Thu Dec 13 15:35:38 2012 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6934049
-
+---
  doc/style.css | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/doc/style.css b/doc/style.css
+index a93aa2827c..f4fcf3eae8 100644
+--- a/doc/style.css
++++ b/doc/style.css
+@@ -354,6 +354,9 @@ div#learn .toys select {
+ 	border: 1px solid #375EAB;
+ 	margin: 0;
+ }
++div#learn .output .exit {
++	display: none;
++}
+ 
+ div#blog,
+ div#video {

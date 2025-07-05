@@ -16,6 +16,29 @@ Date:   Mon Jun 12 16:38:24 2023 -0400
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/dist/build.go | 11 ++++++++++-
  1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 8eb6daa3a5..11f897af4c 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1496,7 +1496,16 @@ func cmdbootstrap() {
+ 	// Now prime the build cache with the rest of the standard library for
+ 	// testing, and so that the user can run 'go install std cmd' to quickly
+ 	// iterate on local changes without waiting for a full rebuild.
+-	os.Setenv("GOCACHE", oldgocache)
++	if _, err := os.Stat(pathf("%s/VERSION", goroot)); err == nil {
++		// If we have a VERSION file, then we use the Go version
++		// instead of build IDs as a cache key, and there is no guarantee
++		// that code hasn't changed since the last time we ran a build
++		// with this exact VERSION file (especially if someone is working
++		// on a release branch). We must not fall back to the shared build cache
++		// in this case. Leave $GOCACHE alone.
++	} else {
++		os.Setenv("GOCACHE", oldgocache)
++	}
+ 
+ 	if goos == oldgoos && goarch == oldgoarch {
+ 		// Common case - not setting up for cross-compilation.

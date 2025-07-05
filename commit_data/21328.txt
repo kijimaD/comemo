@@ -10,7 +10,49 @@ Date:   Mon Dec 22 13:40:28 2014 -0800
     Reviewed-on: https://go-review.googlesource.com/2040
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/go/build/build.go      |  6 +++++-
  src/go/build/build_test.go | 11 ++++++++++-
  2 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 12c20e58d8..9fb4b52e14 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -688,7 +688,11 @@ Found:
+ 			p.Name = pkg
+ 			firstFile = name
+ 		} else if pkg != p.Name {
+-			return p, &MultiplePackageError{p.Dir, []string{firstFile, name}, []string{p.Name, pkg}}
++			return p, &MultiplePackageError{
++				Dir:      p.Dir,
++				Packages: []string{p.Name, pkg},
++				Files:    []string{firstFile, name},
++			}
+ 		}
+ 		if pf.Doc != nil && p.Doc == "" {
+ 			p.Doc = doc.Synopsis(pf.Doc.Text())
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index a40def0fa0..abdad0c1f9 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -94,9 +94,18 @@ func TestEmptyFolderImport(t *testing.T) {
+ 
+ func TestMultiplePackageImport(t *testing.T) {
+ 	_, err := Import(".", "testdata/multi", 0)
+-	if _, ok := err.(*MultiplePackageError); !ok {
++	mpe, ok := err.(*MultiplePackageError)
++	if !ok {
+ 		t.Fatal(`Import("testdata/multi") did not return MultiplePackageError.`)
+ 	}
++	want := &MultiplePackageError{
++		Dir:      "testdata/multi",
++		Packages: []string{"main", "test_package"},
++		Files:    []string{"file.go", "file_appengine.go"},
++	}
++	if !reflect.DeepEqual(mpe, want) {
++		t.Errorf("got %#v; want %#v", mpe, want)
++	}
+ }
+ 
+ func TestLocalDirectory(t *testing.T) {

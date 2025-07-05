@@ -7,6 +7,24 @@ Date:   Fri Oct 29 08:48:16 2010 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2768042
-
+---
  src/pkg/container/list/list.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/pkg/container/list/list.go b/src/pkg/container/list/list.go
+index 578864dbe6..ddc8611819 100644
+--- a/src/pkg/container/list/list.go
++++ b/src/pkg/container/list/list.go
+@@ -3,6 +3,12 @@
+ // license that can be found in the LICENSE file.
+ 
+ // The list package implements a doubly linked list.
++//
++// To iterate over a list (where l is a *List):
++//	for e := l.Front(); e != nil; e = e.Next() {
++//		// do something with e.Value
++//	}
++//
+ package list
+ 
+ // Element is an element in the linked list.

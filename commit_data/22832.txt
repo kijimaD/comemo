@@ -19,7 +19,61 @@ Date:   Thu Apr 9 10:08:29 2015 +0300
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/gc/inl.go      | 10 ++++++++++
  src/cmd/internal/gc/racewalk.go | 13 +++++--------
  2 files changed, 15 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/internal/gc/inl.go b/src/cmd/internal/gc/inl.go
+index 7ba94b5031..8850a8b383 100644
+--- a/src/cmd/internal/gc/inl.go
++++ b/src/cmd/internal/gc/inl.go
+@@ -124,6 +124,16 @@ func caninl(fn *Node) {
+ 		}
+ 	}
+ 
++	// Runtime package must not be race instrumented.
++	// Racewalk skips runtime package. However, some runtime code can be
++	// inlined into other packages and instrumented there. To avoid this,
++	// we disable inlining of runtime functions in race mode.
++	// The example that we observed is inlining of LockOSThread,
++	// which lead to false race reports on m contents.
++	if flag_race != 0 && myimportpath == "runtime" {
++		return
++	}
++
+ 	const maxBudget = 80
+ 	budget := maxBudget // allowed hairyness
+ 	if ishairylist(fn.Nbody, &budget) || budget < 0 {
+diff --git a/src/cmd/internal/gc/racewalk.go b/src/cmd/internal/gc/racewalk.go
+index ec55501714..1efd6393c1 100644
+--- a/src/cmd/internal/gc/racewalk.go
++++ b/src/cmd/internal/gc/racewalk.go
+@@ -391,7 +391,10 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
+ 		// impossible nodes: only appear in backend.
+ 	case ORROTC, OEXTEND:
+ 		Yyerror("racewalk: %v cannot exist now", Oconv(int(n.Op), 0))
++		goto ret
+ 
++	case OGETG:
++		Yyerror("racewalk: OGETG can happen only in runtime which we don't instrument")
+ 		goto ret
+ 
+ 		// just do generic traversal
+@@ -424,14 +427,8 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
+ 		OTYPE,
+ 		ONONAME,
+ 		OLITERAL,
+-		OSLICESTR,
+-		// g is goroutine local so cannot race. Although we don't instrument
+-		// the runtime package, through inlining the call to runtime.getg can
+-		// appear in non runtime packages, for example, after inlining
+-		// runtime.LockOSThread.
+-		OGETG,
+-		// always preceded by bounds checking, avoid double instrumentation.
+-		OTYPESW: // ignored by code generation, do not instrument.
++		OSLICESTR, // always preceded by bounds checking, avoid double instrumentation.
++		OTYPESW:   // ignored by code generation, do not instrument.
+ 		goto ret
+ 	}
+ 

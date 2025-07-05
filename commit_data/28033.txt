@@ -29,7 +29,108 @@ Date:   Wed Mar 2 14:52:08 2016 -0500
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/mgcmark.go | 28 ++++++++++++----------------
  src/runtime/mstkbar.go |  7 +++----
  2 files changed, 15 insertions(+), 20 deletions(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 8384190407..bad7c7e92b 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -602,9 +602,6 @@ func gcFlushBgCredit(scanWork int64) {
+ //go:nowritebarrier
+ func scanstack(gp *g) {
+ 	if gp.gcscanvalid {
+-		if gcphase == _GCmarktermination {
+-			gcRemoveStackBarriers(gp)
+-		}
+ 		return
+ 	}
+ 
+@@ -647,6 +644,7 @@ func scanstack(gp *g) {
+ 	} else {
+ 		sp = gp.sched.sp
+ 	}
++	gcLockStackBarriers(gp) // Not necessary during mark term, but harmless.
+ 	switch gcphase {
+ 	case _GCmark:
+ 		// Install stack barriers during stack scan.
+@@ -657,16 +655,18 @@ func scanstack(gp *g) {
+ 			nextBarrier = ^uintptr(0)
+ 		}
+ 
+-		if gp.stkbarPos != 0 || len(gp.stkbar) != 0 {
+-			// If this happens, it's probably because we
+-			// scanned a stack twice in the same phase.
+-			print("stkbarPos=", gp.stkbarPos, " len(stkbar)=", len(gp.stkbar), " goid=", gp.goid, " gcphase=", gcphase, "\n")
+-			throw("g already has stack barriers")
+-		}
+-
+-		gcLockStackBarriers(gp)
++		// Remove any existing stack barriers before we
++		// install new ones.
++		gcRemoveStackBarriers(gp)
+ 
+ 	case _GCmarktermination:
++		if !work.markrootDone {
++			// This is a STW GC. There may be stale stack
++			// barriers from an earlier cycle since we
++			// never passed through mark phase.
++			gcRemoveStackBarriers(gp)
++		}
++
+ 		if int(gp.stkbarPos) == len(gp.stkbar) {
+ 			// gp hit all of the stack barriers (or there
+ 			// were none). Re-scan the whole stack.
+@@ -683,8 +683,6 @@ func scanstack(gp *g) {
+ 			}
+ 		}
+ 
+-		gcRemoveStackBarriers(gp)
+-
+ 	default:
+ 		throw("scanstack in wrong phase")
+ 	}
+@@ -722,9 +720,7 @@ func scanstack(gp *g) {
+ 	if gcphase == _GCmarktermination {
+ 		gcw.dispose()
+ 	}
+-	if gcphase == _GCmark {
+-		gcUnlockStackBarriers(gp)
+-	}
++	gcUnlockStackBarriers(gp)
+ 	gp.gcscanvalid = true
+ }
+ 
+diff --git a/src/runtime/mstkbar.go b/src/runtime/mstkbar.go
+index 016625ae92..f320c351d0 100644
+--- a/src/runtime/mstkbar.go
++++ b/src/runtime/mstkbar.go
+@@ -214,14 +214,15 @@ func gcInstallStackBarrier(gp *g, frame *stkframe) bool {
+ }
+ 
+ // gcRemoveStackBarriers removes all stack barriers installed in gp's stack.
++//
++// gp's stack barriers must be locked.
++//
+ //go:nowritebarrier
+ func gcRemoveStackBarriers(gp *g) {
+ 	if debugStackBarrier && gp.stkbarPos != 0 {
+ 		print("hit ", gp.stkbarPos, " stack barriers, goid=", gp.goid, "\n")
+ 	}
+ 
+-	gcLockStackBarriers(gp)
+-
+ 	// Remove stack barriers that we didn't hit.
+ 	for _, stkbar := range gp.stkbar[gp.stkbarPos:] {
+ 		gcRemoveStackBarrier(gp, stkbar)
+@@ -231,8 +232,6 @@ func gcRemoveStackBarriers(gp *g) {
+ 	// adjust them.
+ 	gp.stkbarPos = 0
+ 	gp.stkbar = gp.stkbar[:0]
+-
+-	gcUnlockStackBarriers(gp)
+ }
+ 
+ // gcRemoveStackBarrier removes a single stack barrier. It is the

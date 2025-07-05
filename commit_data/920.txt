@@ -8,6 +8,19 @@ Date:   Mon Oct 20 17:37:48 2008 -0700
     DELTA=1  (0 added, 1 deleted, 0 changed)
     OCL=17514
     CL=17514
-
+---
  usr/gri/pretty/test.sh | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/usr/gri/pretty/test.sh b/usr/gri/pretty/test.sh
+index af5431755e..f35bb87ed1 100755
+--- a/usr/gri/pretty/test.sh
++++ b/usr/gri/pretty/test.sh
+@@ -40,7 +40,6 @@ applydot() {
+ apply() {
+ 	for F in \
+ 		$GOROOT/usr/gri/pretty/*.go \
+-		$GOROOT/usr/gri/gosrc/*.go \
+ 		$GOROOT/test/*.go \
+ 		$GOROOT/src/pkg/*.go \
+ 		$GOROOT/src/lib/*.go \

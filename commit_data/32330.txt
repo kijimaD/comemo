@@ -71,8 +71,89 @@ Date:   Mon Apr 17 13:52:01 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/internal/obj/line_test.go |  3 ++-
  src/cmd/internal/obj/link.go      |  8 ++------
  src/cmd/internal/obj/sym.go       | 19 ++++++++++++++-----
  3 files changed, 18 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/internal/obj/line_test.go b/src/cmd/internal/obj/line_test.go
+index 956302f8f1..329f245464 100644
+--- a/src/cmd/internal/obj/line_test.go
++++ b/src/cmd/internal/obj/line_test.go
+@@ -12,7 +12,8 @@ import (
+ 
+ func TestLinkgetlineFromPos(t *testing.T) {
+ 	ctxt := new(Link)
+-	ctxt.hash = make(map[SymVer]*LSym)
++	ctxt.hash = make(map[string]*LSym)
++	ctxt.vhash = make(map[string]*LSym)
+ 
+ 	afile := src.NewFileBase("a.go", "a.go")
+ 	bfile := src.NewFileBase("b.go", "/foo/bar/b.go")
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 840df52256..dafb9359ae 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -480,7 +480,8 @@ type Link struct {
+ 	Flag_optimize bool
+ 	Bso           *bufio.Writer
+ 	Pathname      string
+-	hash          map[SymVer]*LSym
++	hash          map[string]*LSym // name -> sym mapping for version == 0
++	vhash         map[string]*LSym // name -> sym mapping for version == 1
+ 	PosTable      src.PosTable
+ 	InlTree       InlTree // global inlining tree used by gc/inl.go
+ 	Imports       []string
+@@ -522,11 +523,6 @@ func (ctxt *Link) FixedFrameSize() int64 {
+ 	}
+ }
+ 
+-type SymVer struct {
+-	Name    string
+-	Version int // TODO: make int16 to match LSym.Version?
+-}
+-
+ // LinkArch is the definition of a single architecture.
+ type LinkArch struct {
+ 	*sys.Arch
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 2514160769..83f5a18801 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -40,7 +40,8 @@ import (
+ 
+ func Linknew(arch *LinkArch) *Link {
+ 	ctxt := new(Link)
+-	ctxt.hash = make(map[SymVer]*LSym)
++	ctxt.hash = make(map[string]*LSym)
++	ctxt.vhash = make(map[string]*LSym)
+ 	ctxt.Arch = arch
+ 	ctxt.Pathname = objabi.WorkingDir()
+ 
+@@ -63,13 +64,21 @@ func (ctxt *Link) Lookup(name string, v int) *LSym {
+ // LookupInit looks up the symbol with name name and version v.
+ // If it does not exist, it creates it and passes it to initfn for one-time initialization.
+ func (ctxt *Link) LookupInit(name string, v int, init func(s *LSym)) *LSym {
+-	s := ctxt.hash[SymVer{name, v}]
+-	if s != nil {
++	var m map[string]*LSym
++	switch v {
++	case 0:
++		m = ctxt.hash
++	case 1:
++		m = ctxt.vhash
++	default:
++		ctxt.Diag("LookupInit: bad version %d", v)
++	}
++	if s := m[name]; s != nil {
+ 		return s
+ 	}
+ 
+-	s = &LSym{Name: name, Version: int16(v)}
+-	ctxt.hash[SymVer{name, v}] = s
++	s := &LSym{Name: name, Version: int16(v)}
++	m[name] = s
+ 	if init != nil {
+ 		init(s)
+ 	}

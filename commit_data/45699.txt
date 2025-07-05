@@ -26,6 +26,51 @@ Date:   Sat Nov 7 08:00:15 2020 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/x509/cert_pool.go | 20 ++++++++++++++++----
  1 file changed, 16 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/x509/cert_pool.go b/src/crypto/x509/cert_pool.go
+index 2cfaeb2d9e..c23ccf1b39 100644
+--- a/src/crypto/x509/cert_pool.go
++++ b/src/crypto/x509/cert_pool.go
+@@ -10,6 +10,7 @@ import (
+ 	"encoding/pem"
+ 	"errors"
+ 	"runtime"
++	"sync"
+ )
+ 
+ type sum224 [sha256.Size224]byte
+@@ -224,16 +225,27 @@ func (s *CertPool) AppendCertsFromPEM(pemCerts []byte) (ok bool) {
+ 			continue
+ 		}
+ 
+-		cert, err := ParseCertificate(block.Bytes)
++		certBytes := block.Bytes
++		cert, err := ParseCertificate(certBytes)
+ 		if err != nil {
+ 			continue
+ 		}
+-
+-		s.AddCert(cert)
++		var lazyCert struct {
++			sync.Once
++			v *Certificate
++		}
++		s.addCertFunc(sha256.Sum224(cert.Raw), string(cert.RawSubject), func() (*Certificate, error) {
++			lazyCert.Do(func() {
++				// This can't fail, as the same bytes already parsed above.
++				lazyCert.v, _ = ParseCertificate(certBytes)
++				certBytes = nil
++			})
++			return lazyCert.v, nil
++		})
+ 		ok = true
+ 	}
+ 
+-	return
++	return ok
+ }
+ 
+ // Subjects returns a list of the DER-encoded subjects of

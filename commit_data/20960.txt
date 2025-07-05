@@ -7,6 +7,20 @@ Date:   Wed Oct 29 21:02:58 2014 -0400
     TBR=adg
     CC=golang-codereviews
     https://golang.org/cl/167890043
-
+---
  src/cmd/objdump/objdump_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index 0a2d2565a7..ffaaa5b437 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -143,7 +143,7 @@ var x86Need = []string{
+ var armNeed = []string{
+ 	"fmthello.go:6",
+ 	"TEXT main.main(SB)",
+-	"B.LS main.main(SB)",
++	//"B.LS main.main(SB)", // TODO(rsc): restore; golang.org/issue/9021
+ 	"BL fmt.Println(SB)",
+ 	"RET",
+ }

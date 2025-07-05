@@ -8,6 +8,21 @@ Date:   Fri Mar 18 16:41:51 2016 +0100
     Reviewed-on: https://go-review.googlesource.com/20856
     Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/proc_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index 7064b0edd8..fd12945be0 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -428,6 +428,9 @@ func TestPingPongHog(t *testing.T) {
+ }
+ 
+ func BenchmarkPingPongHog(b *testing.B) {
++	if b.N == 0 {
++		return
++	}
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+ 
+ 	// Create a CPU hog

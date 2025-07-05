@@ -37,7 +37,7 @@ Date:   Fri Oct 23 12:12:34 2020 -0500
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.com>
     Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/cmd/compile/internal/ppc64/ssa.go        |  18 ++
  src/cmd/compile/internal/ssa/gen/PPC64.rules |  25 ++
  src/cmd/compile/internal/ssa/gen/PPC64Ops.go |   5 +
@@ -48,3 +48,1145 @@ Date:   Fri Oct 23 12:12:34 2020 -0500
  test/codegen/rotate.go                       |  45 ++++
  test/codegen/shift.go                        |  94 +++++--
  9 files changed, 900 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 79f18bfebb..3888aa6527 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -649,6 +649,24 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 
++		// Auxint holds encoded rotate + mask
++	case ssa.OpPPC64RLWINM, ssa.OpPPC64RLWMI:
++		rot, _, _, mask := ssa.DecodePPC64RotateMask(v.AuxInt)
++		p := s.Prog(v.Op.Asm())
++		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
++		p.Reg = v.Args[0].Reg()
++		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: int64(rot)}
++		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: int64(mask)})
++
++		// Auxint holds mask
++	case ssa.OpPPC64RLWNM:
++		_, _, _, mask := ssa.DecodePPC64RotateMask(v.AuxInt)
++		p := s.Prog(v.Op.Asm())
++		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
++		p.Reg = v.Args[0].Reg()
++		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[1].Reg()}
++		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: int64(mask)})
++
+ 	case ssa.OpPPC64MADDLD:
+ 		r := v.Reg()
+ 		r1 := v.Args[0].Reg()
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 6175b42b89..558b09c9f2 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -150,6 +150,31 @@
+ (ROTLW  x (MOVDconst [c])) => (ROTLWconst  x [c&31])
+ (ROTL   x (MOVDconst [c])) => (ROTLconst   x [c&63])
+ 
++// Combine rotate and mask operations
++(ANDconst [m] (ROTLWconst [r] x)) && isPPC64WordRotateMask(m) => (RLWINM [encodePPC64RotateMask(r,m,32)] x)
++(AND (MOVDconst [m]) (ROTLWconst [r] x)) && isPPC64WordRotateMask(m) => (RLWINM [encodePPC64RotateMask(r,m,32)] x)
++(ANDconst [m] (ROTLW x r)) && isPPC64WordRotateMask(m) => (RLWNM [encodePPC64RotateMask(0,m,32)] x r)
++(AND (MOVDconst [m]) (ROTLW x r)) && isPPC64WordRotateMask(m) => (RLWNM [encodePPC64RotateMask(0,m,32)] x r)
++
++// Note, any rotated word bitmask is still a valid word bitmask.
++(ROTLWconst [r] (AND (MOVDconst [m]) x)) && isPPC64WordRotateMask(m) => (RLWINM [encodePPC64RotateMask(r,rotateLeft32(m,r),32)] x)
++(ROTLWconst [r] (ANDconst [m] x)) && isPPC64WordRotateMask(m) => (RLWINM [encodePPC64RotateMask(r,rotateLeft32(m,r),32)] x)
++
++(ANDconst [m] (SRWconst x [s])) && mergePPC64RShiftMask(m,s,32) == 0 => (MOVDconst [0])
++(ANDconst [m] (SRWconst x [s])) && mergePPC64AndSrwi(m,s) != 0 => (RLWINM [mergePPC64AndSrwi(m,s)] x)
++(AND (MOVDconst [m]) (SRWconst x [s])) && mergePPC64RShiftMask(m,s,32) == 0 => (MOVDconst [0])
++(AND (MOVDconst [m]) (SRWconst x [s])) && mergePPC64AndSrwi(m,s) != 0 => (RLWINM [mergePPC64AndSrwi(m,s)] x)
++
++(SRWconst (ANDconst [m] x) [s]) && mergePPC64RShiftMask(m>>uint(s),s,32) == 0 => (MOVDconst [0])
++(SRWconst (ANDconst [m] x) [s]) && mergePPC64AndSrwi(m>>uint(s),s) != 0 => (RLWINM [mergePPC64AndSrwi(m>>uint(s),s)] x)
++(SRWconst (AND (MOVDconst [m]) x) [s]) && mergePPC64RShiftMask(m>>uint(s),s,32) == 0 => (MOVDconst [0])
++(SRWconst (AND (MOVDconst [m]) x) [s]) && mergePPC64AndSrwi(m>>uint(s),s) != 0 => (RLWINM [mergePPC64AndSrwi(m>>uint(s),s)] x)
++
++// Merge shift right + shift left and clear left (e.g for a table lookup)
++(CLRLSLDI [c] (SRWconst [s] x)) && mergePPC64ClrlsldiSrw(int64(c),s) != 0 => (RLWINM [mergePPC64ClrlsldiSrw(int64(c),s)] x)
++(SLDconst [l] (SRWconst [r] x)) && mergePPC64SldiSrw(l,r) != 0 => (RLWINM [mergePPC64SldiSrw(l,r)] x)
++// The following reduction shows up frequently too. e.g b[(x>>14)&0xFF]
++(CLRLSLDI [c] i:(RLWINM [s] x)) && mergePPC64ClrlsldiRlwinm(c,s) != 0 => (RLWINM [mergePPC64ClrlsldiRlwinm(c,s)] x)
+ 
+ // large constant shifts
+ (Lsh64x64  _ (MOVDconst [c])) && uint64(c) >= 64 => (MOVDconst [0])
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index f4a53262f0..f7198b90c3 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -137,6 +137,7 @@ func init() {
+ 		gp01        = regInfo{inputs: nil, outputs: []regMask{gp}}
+ 		gp11        = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}}
+ 		gp21        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp}}
++		gp21a0      = regInfo{inputs: []regMask{gp, gp | sp | sb}, outputs: []regMask{gp}}
+ 		gp31        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp}}
+ 		gp22        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp, gp}}
+ 		gp32        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp, gp}}
+@@ -227,6 +228,10 @@ func init() {
+ 		{name: "ROTLWconst", argLength: 1, reg: gp11, asm: "ROTLW", aux: "Int64"}, // uint32(arg0) rotate left by auxInt bits
+ 		{name: "EXTSWSLconst", argLength: 1, reg: gp11, asm: "EXTSWSLI", aux: "Int64"},
+ 
++		{name: "RLWINM", argLength: 1, reg: gp11, asm: "RLWNM", aux: "Int64"},                      // Rotate and mask by immediate "rlwinm". encodePPC64RotateMask describes aux
++		{name: "RLWNM", argLength: 2, reg: gp21, asm: "RLWNM", aux: "Int64"},                       // Rotate and mask by "rlwnm". encodePPC64RotateMask describes aux
++		{name: "RLWMI", argLength: 2, reg: gp21a0, asm: "RLWMI", aux: "Int64", resultInArg0: true}, // "rlwimi" similar aux encoding as above
++
+ 		{name: "CNTLZD", argLength: 1, reg: gp11, asm: "CNTLZD", clobberFlags: true}, // count leading zeros
+ 		{name: "CNTLZW", argLength: 1, reg: gp11, asm: "CNTLZW", clobberFlags: true}, // count leading zeros (32 bit)
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 779c19f72d..bb1cbc0baa 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1871,6 +1871,9 @@ const (
+ 	OpPPC64ROTLconst
+ 	OpPPC64ROTLWconst
+ 	OpPPC64EXTSWSLconst
++	OpPPC64RLWINM
++	OpPPC64RLWNM
++	OpPPC64RLWMI
+ 	OpPPC64CNTLZD
+ 	OpPPC64CNTLZW
+ 	OpPPC64CNTTZD
+@@ -24971,6 +24974,51 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:    "RLWINM",
++		auxType: auxInt64,
++		argLen:  1,
++		asm:     ppc64.ARLWNM,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:    "RLWNM",
++		auxType: auxInt64,
++		argLen:  2,
++		asm:     ppc64.ARLWNM,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:         "RLWMI",
++		auxType:      auxInt64,
++		argLen:       2,
++		resultInArg0: true,
++		asm:          ppc64.ARLWMI,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
+ 	{
+ 		name:         "CNTLZD",
+ 		argLen:       1,
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index e5f858a339..9b3c83d1cf 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1381,6 +1381,71 @@ func GetPPC64Shiftme(auxint int64) int64 {
+ 	return int64(int8(auxint))
+ }
+ 
++// Test if this value can encoded as a mask for a rlwinm like
++// operation.  Masks can also extend from the msb and wrap to
++// the lsb too.  That is, the valid masks are 32 bit strings
++// of the form: 0..01..10..0 or 1..10..01..1 or 1...1
++func isPPC64WordRotateMask(v64 int64) bool {
++	// Isolate rightmost 1 (if none 0) and add.
++	v := uint32(v64)
++	vp := (v & -v) + v
++	// Likewise, for the wrapping case.
++	vn := ^v
++	vpn := (vn & -vn) + vn
++	return (v&vp == 0 || vn&vpn == 0) && v != 0
++}
++
++// Compress mask and and shift into single value of the form
++// me | mb<<8 | rotate<<16 | nbits<<24 where me and mb can
++// be used to regenerate the input mask.
++func encodePPC64RotateMask(rotate, mask, nbits int64) int64 {
++	var mb, me, mbn, men int
++
++	// Determine boundaries and then decode them
++	if mask == 0 || ^mask == 0 || rotate >= nbits {
++		panic("Invalid PPC64 rotate mask")
++	} else if nbits == 32 {
++		mb = bits.LeadingZeros32(uint32(mask))
++		me = 32 - bits.TrailingZeros32(uint32(mask))
++		mbn = bits.LeadingZeros32(^uint32(mask))
++		men = 32 - bits.TrailingZeros32(^uint32(mask))
++	} else {
++		mb = bits.LeadingZeros64(uint64(mask))
++		me = 64 - bits.TrailingZeros64(uint64(mask))
++		mbn = bits.LeadingZeros64(^uint64(mask))
++		men = 64 - bits.TrailingZeros64(^uint64(mask))
++	}
++	// Check for a wrapping mask (e.g bits at 0 and 63)
++	if mb == 0 && me == int(nbits) {
++		// swap the inverted values
++		mb, me = men, mbn
++	}
++
++	return int64(me) | int64(mb<<8) | int64(rotate<<16) | int64(nbits<<24)
++}
++
++// The inverse operation of encodePPC64RotateMask.  The values returned as
++// mb and me satisfy the POWER ISA definition of MASK(x,y) where MASK(mb,me) = mask.
++func DecodePPC64RotateMask(sauxint int64) (rotate, mb, me int64, mask uint64) {
++	auxint := uint64(sauxint)
++	rotate = int64((auxint >> 16) & 0xFF)
++	mb = int64((auxint >> 8) & 0xFF)
++	me = int64((auxint >> 0) & 0xFF)
++	nbits := int64((auxint >> 24) & 0xFF)
++	mask = ((1 << uint(nbits-mb)) - 1) ^ ((1 << uint(nbits-me)) - 1)
++	if mb > me {
++		mask = ^mask
++	}
++	if nbits == 32 {
++		mask = uint64(uint32(mask))
++	}
++
++	// Fixup ME to match ISA definition.  The second argument to MASK(..,me)
++	// is inclusive.
++	me = (me - 1) & (nbits - 1)
++	return
++}
++
+ // This verifies that the mask occupies the
+ // rightmost bits.
+ func isPPC64ValidShiftMask(v int64) bool {
+@@ -1394,6 +1459,78 @@ func getPPC64ShiftMaskLength(v int64) int64 {
+ 	return int64(bits.Len64(uint64(v)))
+ }
+ 
++// Decompose a shift right into an equivalent rotate/mask,
++// and return mask & m.
++func mergePPC64RShiftMask(m, s, nbits int64) int64 {
++	smask := uint64((1<<uint(nbits))-1) >> uint(s)
++	return m & int64(smask)
++}
++
++// Combine (ANDconst [m] (SRWconst [s])) into (RLWINM [y]) or return 0
++func mergePPC64AndSrwi(m, s int64) int64 {
++	mask := mergePPC64RShiftMask(m, s, 32)
++	if !isPPC64WordRotateMask(mask) {
++		return 0
++	}
++	return encodePPC64RotateMask(32-s, mask, 32)
++}
++
++// Test if a shift right feeding into a CLRLSLDI can be merged into RLWINM.
++// Return the encoded RLWINM constant, or 0 if they cannot be merged.
++func mergePPC64ClrlsldiSrw(sld, srw int64) int64 {
++	mask_1 := uint64(0xFFFFFFFF >> uint(srw))
++	// for CLRLSLDI, it's more convient to think of it as a mask left bits then rotate left.
++	mask_2 := uint64(0xFFFFFFFFFFFFFFFF) >> uint(GetPPC64Shiftmb(int64(sld)))
++
++	// Rewrite mask to apply after the final left shift.
++	mask_3 := (mask_1 & mask_2) << uint(GetPPC64Shiftsh(sld))
++
++	r_1 := 32 - srw
++	r_2 := GetPPC64Shiftsh(sld)
++	r_3 := (r_1 + r_2) & 31 // This can wrap.
++
++	if uint64(uint32(mask_3)) != mask_3 || mask_3 == 0 {
++		return 0
++	}
++	return encodePPC64RotateMask(int64(r_3), int64(mask_3), 32)
++}
++
++// Test if a RLWINM feeding into a CLRLSLDI can be merged into RLWINM.  Return
++// the encoded RLWINM constant, or 0 if they cannot be merged.
++func mergePPC64ClrlsldiRlwinm(sld int32, rlw int64) int64 {
++	r_1, _, _, mask_1 := DecodePPC64RotateMask(rlw)
++	// for CLRLSLDI, it's more convient to think of it as a mask left bits then rotate left.
++	mask_2 := uint64(0xFFFFFFFFFFFFFFFF) >> uint(GetPPC64Shiftmb(int64(sld)))
++
++	// combine the masks, and adjust for the final left shift.
++	mask_3 := (mask_1 & mask_2) << uint(GetPPC64Shiftsh(int64(sld)))
++	r_2 := GetPPC64Shiftsh(int64(sld))
++	r_3 := (r_1 + r_2) & 31 // This can wrap.
++
++	// Verify the result is still a valid bitmask of <= 32 bits.
++	if !isPPC64WordRotateMask(int64(mask_3)) || uint64(uint32(mask_3)) != mask_3 {
++		return 0
++	}
++	return encodePPC64RotateMask(r_3, int64(mask_3), 32)
++}
++
++// Compute the encoded RLWINM constant from combining (SLDconst [sld] (SRWconst [srw] x)),
++// or return 0 if they cannot be combined.
++func mergePPC64SldiSrw(sld, srw int64) int64 {
++	if sld > srw || srw >= 32 {
++		return 0
++	}
++	mask_r := uint32(0xFFFFFFFF) >> uint(srw)
++	mask_l := uint32(0xFFFFFFFF) >> uint(sld)
++	mask := (mask_r & mask_l) << uint(sld)
++	return encodePPC64RotateMask((32-srw+sld)&31, int64(mask), 32)
++}
++
++// Convenience function to rotate a 32 bit constant value by another constant.
++func rotateLeft32(v, rotate int64) int64 {
++	return int64(bits.RotateLeft32(uint32(v), int(rotate)))
++}
++
+ // encodes the lsb and width for arm(64) bitfield ops into the expected auxInt format.
+ func armBFAuxInt(lsb, width int64) arm64BitField {
+ 	if lsb < 0 || lsb > 63 {
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 84938fe27a..e5a23e8625 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -444,6 +444,8 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpPPC64ANDN(v)
+ 	case OpPPC64ANDconst:
+ 		return rewriteValuePPC64_OpPPC64ANDconst(v)
++	case OpPPC64CLRLSLDI:
++		return rewriteValuePPC64_OpPPC64CLRLSLDI(v)
+ 	case OpPPC64CMP:
+ 		return rewriteValuePPC64_OpPPC64CMP(v)
+ 	case OpPPC64CMPU:
+@@ -598,6 +600,8 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpPPC64ROTL(v)
+ 	case OpPPC64ROTLW:
+ 		return rewriteValuePPC64_OpPPC64ROTLW(v)
++	case OpPPC64ROTLWconst:
++		return rewriteValuePPC64_OpPPC64ROTLWconst(v)
+ 	case OpPPC64SLD:
+ 		return rewriteValuePPC64_OpPPC64SLD(v)
+ 	case OpPPC64SLDconst:
+@@ -614,6 +618,8 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpPPC64SRD(v)
+ 	case OpPPC64SRW:
+ 		return rewriteValuePPC64_OpPPC64SRW(v)
++	case OpPPC64SRWconst:
++		return rewriteValuePPC64_OpPPC64SRWconst(v)
+ 	case OpPPC64SUB:
+ 		return rewriteValuePPC64_OpPPC64SUB(v)
+ 	case OpPPC64SUBFCconst:
+@@ -4212,6 +4218,100 @@ func rewriteValuePPC64_OpPPC64ADDconst(v *Value) bool {
+ func rewriteValuePPC64_OpPPC64AND(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
++	// match: (AND (MOVDconst [m]) (ROTLWconst [r] x))
++	// cond: isPPC64WordRotateMask(m)
++	// result: (RLWINM [encodePPC64RotateMask(r,m,32)] x)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			if v_0.Op != OpPPC64MOVDconst {
++				continue
++			}
++			m := auxIntToInt64(v_0.AuxInt)
++			if v_1.Op != OpPPC64ROTLWconst {
++				continue
++			}
++			r := auxIntToInt64(v_1.AuxInt)
++			x := v_1.Args[0]
++			if !(isPPC64WordRotateMask(m)) {
++				continue
++			}
++			v.reset(OpPPC64RLWINM)
++			v.AuxInt = int64ToAuxInt(encodePPC64RotateMask(r, m, 32))
++			v.AddArg(x)
++			return true
++		}
++		break
++	}
++	// match: (AND (MOVDconst [m]) (ROTLW x r))
++	// cond: isPPC64WordRotateMask(m)
++	// result: (RLWNM [encodePPC64RotateMask(0,m,32)] x r)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			if v_0.Op != OpPPC64MOVDconst {
++				continue
++			}
++			m := auxIntToInt64(v_0.AuxInt)
++			if v_1.Op != OpPPC64ROTLW {
++				continue
++			}
++			r := v_1.Args[1]
++			x := v_1.Args[0]
++			if !(isPPC64WordRotateMask(m)) {
++				continue
++			}
++			v.reset(OpPPC64RLWNM)
++			v.AuxInt = int64ToAuxInt(encodePPC64RotateMask(0, m, 32))
++			v.AddArg2(x, r)
++			return true
++		}
++		break
++	}
++	// match: (AND (MOVDconst [m]) (SRWconst x [s]))
++	// cond: mergePPC64RShiftMask(m,s,32) == 0
++	// result: (MOVDconst [0])
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			if v_0.Op != OpPPC64MOVDconst {
++				continue
++			}
++			m := auxIntToInt64(v_0.AuxInt)
++			if v_1.Op != OpPPC64SRWconst {
++				continue
++			}
++			s := auxIntToInt64(v_1.AuxInt)
++			if !(mergePPC64RShiftMask(m, s, 32) == 0) {
++				continue
++			}
++			v.reset(OpPPC64MOVDconst)
++			v.AuxInt = int64ToAuxInt(0)
++			return true
++		}
++		break
++	}
++	// match: (AND (MOVDconst [m]) (SRWconst x [s]))
++	// cond: mergePPC64AndSrwi(m,s) != 0
++	// result: (RLWINM [mergePPC64AndSrwi(m,s)] x)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			if v_0.Op != OpPPC64MOVDconst {
++				continue
++			}
++			m := auxIntToInt64(v_0.AuxInt)
++			if v_1.Op != OpPPC64SRWconst {
++				continue
++			}
++			s := auxIntToInt64(v_1.AuxInt)
++			x := v_1.Args[0]
++			if !(mergePPC64AndSrwi(m, s) != 0) {
++				continue
++			}
++			v.reset(OpPPC64RLWINM)
++			v.AuxInt = int64ToAuxInt(mergePPC64AndSrwi(m, s))
++			v.AddArg(x)
++			return true
++		}
++		break
++	}
+ 	// match: (AND x (NOR y y))
+ 	// result: (ANDN x y)
+ 	for {
+@@ -4347,6 +4447,76 @@ func rewriteValuePPC64_OpPPC64ANDN(v *Value) bool {
+ }
+ func rewriteValuePPC64_OpPPC64ANDconst(v *Value) bool {
+ 	v_0 := v.Args[0]
++	// match: (ANDconst [m] (ROTLWconst [r] x))
++	// cond: isPPC64WordRotateMask(m)
++	// result: (RLWINM [encodePPC64RotateMask(r,m,32)] x)
++	for {
++		m := auxIntToInt64(v.AuxInt)
++		if v_0.Op != OpPPC64ROTLWconst {
++			break
++		}
++		r := auxIntToInt64(v_0.AuxInt)
++		x := v_0.Args[0]
++		if !(isPPC64WordRotateMask(m)) {
++			break
++		}
++		v.reset(OpPPC64RLWINM)
++		v.AuxInt = int64ToAuxInt(encodePPC64RotateMask(r, m, 32))
++		v.AddArg(x)
++		return true
++	}
++	// match: (ANDconst [m] (ROTLW x r))
++	// cond: isPPC64WordRotateMask(m)
++	// result: (RLWNM [encodePPC64RotateMask(0,m,32)] x r)
++	for {
++		m := auxIntToInt64(v.AuxInt)
++		if v_0.Op != OpPPC64ROTLW {
++			break
++		}
++		r := v_0.Args[1]
++		x := v_0.Args[0]
++		if !(isPPC64WordRotateMask(m)) {
++			break
++		}
++		v.reset(OpPPC64RLWNM)
++		v.AuxInt = int64ToAuxInt(encodePPC64RotateMask(0, m, 32))
++		v.AddArg2(x, r)
++		return true
++	}
++	// match: (ANDconst [m] (SRWconst x [s]))
++	// cond: mergePPC64RShiftMask(m,s,32) == 0
++	// result: (MOVDconst [0])
++	for {
++		m := auxIntToInt64(v.AuxInt)
++		if v_0.Op != OpPPC64SRWconst {
++			break
++		}
++		s := auxIntToInt64(v_0.AuxInt)
++		if !(mergePPC64RShiftMask(m, s, 32) == 0) {
++			break
++		}
++		v.reset(OpPPC64MOVDconst)
++		v.AuxInt = int64ToAuxInt(0)
++		return true
++	}
++	// match: (ANDconst [m] (SRWconst x [s]))
++	// cond: mergePPC64AndSrwi(m,s) != 0
++	// result: (RLWINM [mergePPC64AndSrwi(m,s)] x)
++	for {
++		m := auxIntToInt64(v.AuxInt)
++		if v_0.Op != OpPPC64SRWconst {
++			break
++		}
++		s := auxIntToInt64(v_0.AuxInt)
++		x := v_0.Args[0]
++		if !(mergePPC64AndSrwi(m, s) != 0) {
++			break
++		}
++		v.reset(OpPPC64RLWINM)
++		v.AuxInt = int64ToAuxInt(mergePPC64AndSrwi(m, s))
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (ANDconst [c] (ANDconst [d] x))
+ 	// result: (ANDconst [c&d] x)
+ 	for {
+@@ -4511,6 +4681,47 @@ func rewriteValuePPC64_OpPPC64ANDconst(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuePPC64_OpPPC64CLRLSLDI(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (CLRLSLDI [c] (SRWconst [s] x))
++	// cond: mergePPC64ClrlsldiSrw(int64(c),s) != 0
++	// result: (RLWINM [mergePPC64ClrlsldiSrw(int64(c),s)] x)
++	for {
++		c := auxIntToInt32(v.AuxInt)
++		if v_0.Op != OpPPC64SRWconst {
++			break
++		}
++		s := auxIntToInt64(v_0.AuxInt)
++		x := v_0.Args[0]
++		if !(mergePPC64ClrlsldiSrw(int64(c), s) != 0) {
++			break
++		}
++		v.reset(OpPPC64RLWINM)
++		v.AuxInt = int64ToAuxInt(mergePPC64ClrlsldiSrw(int64(c), s))
++		v.AddArg(x)
++		return true
++	}
++	// match: (CLRLSLDI [c] i:(RLWINM [s] x))
++	// cond: mergePPC64ClrlsldiRlwinm(c,s) != 0
++	// result: (RLWINM [mergePPC64ClrlsldiRlwinm(c,s)] x)
++	for {
++		c := auxIntToInt32(v.AuxInt)
++		i := v_0
++		if i.Op != OpPPC64RLWINM {
++			break
++		}
++		s := auxIntToInt64(i.AuxInt)
++		x := i.Args[0]
++		if !(mergePPC64ClrlsldiRlwinm(c, s) != 0) {
++			break
++		}
++		v.reset(OpPPC64RLWINM)
++		v.AuxInt = int64ToAuxInt(mergePPC64ClrlsldiRlwinm(c, s))
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValuePPC64_OpPPC64CMP(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+@@ -12850,6 +13061,55 @@ func rewriteValuePPC64_OpPPC64ROTLW(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuePPC64_OpPPC64ROTLWconst(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (ROTLWconst [r] (AND (MOVDconst [m]) x))
++	// cond: isPPC64WordRotateMask(m)
++	// result: (RLWINM [encodePPC64RotateMask(r,rotateLeft32(m,r),32)] x)
++	for {
++		r := auxIntToInt64(v.AuxInt)
++		if v_0.Op != OpPPC64AND {
++			break
++		}
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			if v_0_0.Op != OpPPC64MOVDconst {
++				continue
++			}
++			m := auxIntToInt64(v_0_0.AuxInt)
++			x := v_0_1
++			if !(isPPC64WordRotateMask(m)) {
++				continue
++			}
++			v.reset(OpPPC64RLWINM)
++			v.AuxInt = int64ToAuxInt(encodePPC64RotateMask(r, rotateLeft32(m, r), 32))
++			v.AddArg(x)
++			return true
++		}
++		break
++	}
++	// match: (ROTLWconst [r] (ANDconst [m] x))
++	// cond: isPPC64WordRotateMask(m)
++	// result: (RLWINM [encodePPC64RotateMask(r,rotateLeft32(m,r),32)] x)
++	for {
++		r := auxIntToInt64(v.AuxInt)
++		if v_0.Op != OpPPC64ANDconst {
++			break
++		}
++		m := auxIntToInt64(v_0.AuxInt)
++		x := v_0.Args[0]
++		if !(isPPC64WordRotateMask(m)) {
++			break
++		}
++		v.reset(OpPPC64RLWINM)
++		v.AuxInt = int64ToAuxInt(encodePPC64RotateMask(r, rotateLeft32(m, r), 32))
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValuePPC64_OpPPC64SLD(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+@@ -12870,6 +13130,24 @@ func rewriteValuePPC64_OpPPC64SLD(v *Value) bool {
+ }
+ func rewriteValuePPC64_OpPPC64SLDconst(v *Value) bool {
+ 	v_0 := v.Args[0]
++	// match: (SLDconst [l] (SRWconst [r] x))
++	// cond: mergePPC64SldiSrw(l,r) != 0
++	// result: (RLWINM [mergePPC64SldiSrw(l,r)] x)
++	for {
++		l := auxIntToInt64(v.AuxInt)
++		if v_0.Op != OpPPC64SRWconst {
++			break
++		}
++		r := auxIntToInt64(v_0.AuxInt)
++		x := v_0.Args[0]
++		if !(mergePPC64SldiSrw(l, r) != 0) {
++			break
++		}
++		v.reset(OpPPC64RLWINM)
++		v.AuxInt = int64ToAuxInt(mergePPC64SldiSrw(l, r))
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (SLDconst [c] z:(MOVBZreg x))
+ 	// cond: c < 8 && z.Uses == 1
+ 	// result: (CLRLSLDI [newPPC64ShiftAuxInt(c,56,63,64)] x)
+@@ -13186,6 +13464,96 @@ func rewriteValuePPC64_OpPPC64SRW(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuePPC64_OpPPC64SRWconst(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (SRWconst (ANDconst [m] x) [s])
++	// cond: mergePPC64RShiftMask(m>>uint(s),s,32) == 0
++	// result: (MOVDconst [0])
++	for {
++		s := auxIntToInt64(v.AuxInt)
++		if v_0.Op != OpPPC64ANDconst {
++			break
++		}
++		m := auxIntToInt64(v_0.AuxInt)
++		if !(mergePPC64RShiftMask(m>>uint(s), s, 32) == 0) {
++			break
++		}
++		v.reset(OpPPC64MOVDconst)
++		v.AuxInt = int64ToAuxInt(0)
++		return true
++	}
++	// match: (SRWconst (ANDconst [m] x) [s])
++	// cond: mergePPC64AndSrwi(m>>uint(s),s) != 0
++	// result: (RLWINM [mergePPC64AndSrwi(m>>uint(s),s)] x)
++	for {
++		s := auxIntToInt64(v.AuxInt)
++		if v_0.Op != OpPPC64ANDconst {
++			break
++		}
++		m := auxIntToInt64(v_0.AuxInt)
++		x := v_0.Args[0]
++		if !(mergePPC64AndSrwi(m>>uint(s), s) != 0) {
++			break
++		}
++		v.reset(OpPPC64RLWINM)
++		v.AuxInt = int64ToAuxInt(mergePPC64AndSrwi(m>>uint(s), s))
++		v.AddArg(x)
++		return true
++	}
++	// match: (SRWconst (AND (MOVDconst [m]) x) [s])
++	// cond: mergePPC64RShiftMask(m>>uint(s),s,32) == 0
++	// result: (MOVDconst [0])
++	for {
++		s := auxIntToInt64(v.AuxInt)
++		if v_0.Op != OpPPC64AND {
++			break
++		}
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			if v_0_0.Op != OpPPC64MOVDconst {
++				continue
++			}
++			m := auxIntToInt64(v_0_0.AuxInt)
++			if !(mergePPC64RShiftMask(m>>uint(s), s, 32) == 0) {
++				continue
++			}
++			v.reset(OpPPC64MOVDconst)
++			v.AuxInt = int64ToAuxInt(0)
++			return true
++		}
++		break
++	}
++	// match: (SRWconst (AND (MOVDconst [m]) x) [s])
++	// cond: mergePPC64AndSrwi(m>>uint(s),s) != 0
++	// result: (RLWINM [mergePPC64AndSrwi(m>>uint(s),s)] x)
++	for {
++		s := auxIntToInt64(v.AuxInt)
++		if v_0.Op != OpPPC64AND {
++			break
++		}
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			if v_0_0.Op != OpPPC64MOVDconst {
++				continue
++			}
++			m := auxIntToInt64(v_0_0.AuxInt)
++			x := v_0_1
++			if !(mergePPC64AndSrwi(m>>uint(s), s) != 0) {
++				continue
++			}
++			v.reset(OpPPC64RLWINM)
++			v.AuxInt = int64ToAuxInt(mergePPC64AndSrwi(m>>uint(s), s))
++			v.AddArg(x)
++			return true
++		}
++		break
++	}
++	return false
++}
+ func rewriteValuePPC64_OpPPC64SUB(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+diff --git a/src/cmd/compile/internal/ssa/rewrite_test.go b/src/cmd/compile/internal/ssa/rewrite_test.go
+index 1a15d8c940..6fe429e85a 100644
+--- a/src/cmd/compile/internal/ssa/rewrite_test.go
++++ b/src/cmd/compile/internal/ssa/rewrite_test.go
+@@ -36,3 +36,184 @@ func TestSubFlags(t *testing.T) {
+ 		t.Errorf("subFlags32(0,1).ult() returned false")
+ 	}
+ }
++
++func TestIsPPC64WordRotateMask(t *testing.T) {
++	tests := []struct {
++		input    int64
++		expected bool
++	}{
++		{0x00000001, true},
++		{0x80000001, true},
++		{0x80010001, false},
++		{0xFFFFFFFA, false},
++		{0xF0F0F0F0, false},
++		{0xFFFFFFFD, true},
++		{0x80000000, true},
++		{0x00000000, false},
++		{0xFFFFFFFF, true},
++		{0x0000FFFF, true},
++		{0xFF0000FF, true},
++		{0x00FFFF00, true},
++	}
++
++	for _, v := range tests {
++		if v.expected != isPPC64WordRotateMask(v.input) {
++			t.Errorf("isPPC64WordRotateMask(0x%x) failed", v.input)
++		}
++	}
++}
++
++func TestEncodeDecodePPC64WordRotateMask(t *testing.T) {
++	tests := []struct {
++		rotate int64
++		mask   uint64
++		nbits,
++		mb,
++		me,
++		encoded int64
++	}{
++		{1, 0x00000001, 32, 31, 31, 0x20011f20},
++		{2, 0x80000001, 32, 31, 0, 0x20021f01},
++		{3, 0xFFFFFFFD, 32, 31, 29, 0x20031f1e},
++		{4, 0x80000000, 32, 0, 0, 0x20040001},
++		{5, 0xFFFFFFFF, 32, 0, 31, 0x20050020},
++		{6, 0x0000FFFF, 32, 16, 31, 0x20061020},
++		{7, 0xFF0000FF, 32, 24, 7, 0x20071808},
++		{8, 0x00FFFF00, 32, 8, 23, 0x20080818},
++
++		{9, 0x0000000000FFFF00, 64, 40, 55, 0x40092838},
++		{10, 0xFFFF000000000000, 64, 0, 15, 0x400A0010},
++		{10, 0xFFFF000000000001, 64, 63, 15, 0x400A3f10},
++	}
++
++	for i, v := range tests {
++		result := encodePPC64RotateMask(v.rotate, int64(v.mask), v.nbits)
++		if result != v.encoded {
++			t.Errorf("encodePPC64RotateMask(%d,0x%x,%d) = 0x%x, expected 0x%x", v.rotate, v.mask, v.nbits, result, v.encoded)
++		}
++		rotate, mb, me, mask := DecodePPC64RotateMask(result)
++		if rotate != v.rotate || mb != v.mb || me != v.me || mask != v.mask {
++			t.Errorf("DecodePPC64Failure(Test %d) got (%d, %d, %d, %x) expected (%d, %d, %d, %x)", i, rotate, mb, me, mask, v.rotate, v.mb, v.me, v.mask)
++		}
++	}
++}
++
++func TestMergePPC64ClrlsldiSrw(t *testing.T) {
++	tests := []struct {
++		clrlsldi int32
++		srw      int64
++		valid    bool
++		rotate   int64
++		mask     uint64
++	}{
++		// ((x>>4)&0xFF)<<4
++		{newPPC64ShiftAuxInt(4, 56, 63, 64), 4, true, 0, 0xFF0},
++		// ((x>>4)&0xFFFF)<<4
++		{newPPC64ShiftAuxInt(4, 48, 63, 64), 4, true, 0, 0xFFFF0},
++		// ((x>>4)&0xFFFF)<<17
++		{newPPC64ShiftAuxInt(17, 48, 63, 64), 4, false, 0, 0},
++		// ((x>>4)&0xFFFF)<<16
++		{newPPC64ShiftAuxInt(16, 48, 63, 64), 4, true, 12, 0xFFFF0000},
++		// ((x>>32)&0xFFFF)<<17
++		{newPPC64ShiftAuxInt(17, 48, 63, 64), 32, false, 0, 0},
++	}
++	for i, v := range tests {
++		result := mergePPC64ClrlsldiSrw(int64(v.clrlsldi), v.srw)
++		if v.valid && result == 0 {
++			t.Errorf("mergePPC64ClrlsldiSrw(Test %d) did not merge", i)
++		} else if !v.valid && result != 0 {
++			t.Errorf("mergePPC64ClrlsldiSrw(Test %d) should return 0", i)
++		} else if r, _, _, m := DecodePPC64RotateMask(result); v.rotate != r || v.mask != m {
++			t.Errorf("mergePPC64ClrlsldiSrw(Test %d) got (%d,0x%x) expected (%d,0x%x)", i, r, m, v.rotate, v.mask)
++		}
++	}
++}
++
++func TestMergePPC64ClrlsldiRlwinm(t *testing.T) {
++	tests := []struct {
++		clrlsldi int32
++		rlwinm   int64
++		valid    bool
++		rotate   int64
++		mask     uint64
++	}{
++		// ((x<<4)&0xFF00)<<4
++		{newPPC64ShiftAuxInt(4, 56, 63, 64), encodePPC64RotateMask(4, 0xFF00, 32), false, 0, 0},
++		// ((x>>4)&0xFF)<<4
++		{newPPC64ShiftAuxInt(4, 56, 63, 64), encodePPC64RotateMask(28, 0x0FFFFFFF, 32), true, 0, 0xFF0},
++		// ((x>>4)&0xFFFF)<<4
++		{newPPC64ShiftAuxInt(4, 48, 63, 64), encodePPC64RotateMask(28, 0xFFFF, 32), true, 0, 0xFFFF0},
++		// ((x>>4)&0xFFFF)<<17
++		{newPPC64ShiftAuxInt(17, 48, 63, 64), encodePPC64RotateMask(28, 0xFFFF, 32), false, 0, 0},
++		// ((x>>4)&0xFFFF)<<16
++		{newPPC64ShiftAuxInt(16, 48, 63, 64), encodePPC64RotateMask(28, 0xFFFF, 32), true, 12, 0xFFFF0000},
++		// ((x>>4)&0xF000FFFF)<<16
++		{newPPC64ShiftAuxInt(16, 48, 63, 64), encodePPC64RotateMask(28, 0xF000FFFF, 32), true, 12, 0xFFFF0000},
++	}
++	for i, v := range tests {
++		result := mergePPC64ClrlsldiRlwinm(v.clrlsldi, v.rlwinm)
++		if v.valid && result == 0 {
++			t.Errorf("mergePPC64ClrlsldiRlwinm(Test %d) did not merge", i)
++		} else if !v.valid && result != 0 {
++			t.Errorf("mergePPC64ClrlsldiRlwinm(Test %d) should return 0", i)
++		} else if r, _, _, m := DecodePPC64RotateMask(result); v.rotate != r || v.mask != m {
++			t.Errorf("mergePPC64ClrlsldiRlwinm(Test %d) got (%d,0x%x) expected (%d,0x%x)", i, r, m, v.rotate, v.mask)
++		}
++	}
++}
++
++func TestMergePPC64SldiSrw(t *testing.T) {
++	tests := []struct {
++		sld    int64
++		srw    int64
++		valid  bool
++		rotate int64
++		mask   uint64
++	}{
++		{4, 4, true, 0, 0xFFFFFFF0},
++		{4, 8, true, 28, 0x0FFFFFF0},
++		{0, 0, true, 0, 0xFFFFFFFF},
++		{8, 4, false, 0, 0},
++		{0, 32, false, 0, 0},
++		{0, 31, true, 1, 0x1},
++		{31, 31, true, 0, 0x80000000},
++		{32, 32, false, 0, 0},
++	}
++	for i, v := range tests {
++		result := mergePPC64SldiSrw(v.sld, v.srw)
++		if v.valid && result == 0 {
++			t.Errorf("mergePPC64SldiSrw(Test %d) did not merge", i)
++		} else if !v.valid && result != 0 {
++			t.Errorf("mergePPC64SldiSrw(Test %d) should return 0", i)
++		} else if r, _, _, m := DecodePPC64RotateMask(result); v.rotate != r || v.mask != m {
++			t.Errorf("mergePPC64SldiSrw(Test %d) got (%d,0x%x) expected (%d,0x%x)", i, r, m, v.rotate, v.mask)
++		}
++	}
++}
++
++func TestMergePPC64AndSrwi(t *testing.T) {
++	tests := []struct {
++		and    int64
++		srw    int64
++		valid  bool
++		rotate int64
++		mask   uint64
++	}{
++		{0x000000FF, 8, true, 24, 0xFF},
++		{0xF00000FF, 8, true, 24, 0xFF},
++		{0x0F0000FF, 4, false, 0, 0},
++		{0x00000000, 4, false, 0, 0},
++		{0xF0000000, 4, false, 0, 0},
++		{0xF0000000, 32, false, 0, 0},
++	}
++	for i, v := range tests {
++		result := mergePPC64AndSrwi(v.and, v.srw)
++		if v.valid && result == 0 {
++			t.Errorf("mergePPC64AndSrwi(Test %d) did not merge", i)
++		} else if !v.valid && result != 0 {
++			t.Errorf("mergePPC64AndSrwi(Test %d) should return 0", i)
++		} else if r, _, _, m := DecodePPC64RotateMask(result); v.rotate != r || v.mask != m {
++			t.Errorf("mergePPC64AndSrwi(Test %d) got (%d,0x%x) expected (%d,0x%x)", i, r, m, v.rotate, v.mask)
++		}
++	}
++}
+diff --git a/test/codegen/rotate.go b/test/codegen/rotate.go
+index ce24b57877..0c8b030970 100644
+--- a/test/codegen/rotate.go
++++ b/test/codegen/rotate.go
+@@ -6,6 +6,8 @@
+ 
+ package codegen
+ 
++import "math/bits"
++
+ // ------------------- //
+ //    const rotates    //
+ // ------------------- //
+@@ -166,3 +168,46 @@ func f32(x uint32) uint32 {
+ 	// amd64:"ROLL\t[$]7"
+ 	return rot32nc(x, 7)
+ }
++
++// --------------------------------------- //
++//    Combined Rotate + Masking operations //
++// --------------------------------------- //
++
++func checkMaskedRotate32(a []uint32, r int) {
++	i := 0
++
++	// ppc64le: "RLWNM\t[$]16, R[0-9]+, [$]16711680, R[0-9]+"
++	// ppc64: "RLWNM\t[$]16, R[0-9]+, [$]16711680, R[0-9]+"
++	a[i] = bits.RotateLeft32(a[i], 16) & 0xFF0000
++	i++
++	// ppc64le: "RLWNM\t[$]16, R[0-9]+, [$]16711680, R[0-9]+"
++	// ppc64: "RLWNM\t[$]16, R[0-9]+, [$]16711680, R[0-9]+"
++	a[i] = bits.RotateLeft32(a[i]&0xFF, 16)
++	i++
++	// ppc64le: "RLWNM\t[$]4, R[0-9]+, [$]4080, R[0-9]+"
++	// ppc64: "RLWNM\t[$]4, R[0-9]+, [$]4080, R[0-9]+"
++	a[i] = bits.RotateLeft32(a[i], 4) & 0xFF0
++	i++
++	// ppc64le: "RLWNM\t[$]16, R[0-9]+, [$]255, R[0-9]+"
++	// ppc64: "RLWNM\t[$]16, R[0-9]+, [$]255, R[0-9]+"
++	a[i] = bits.RotateLeft32(a[i]&0xFF0000, 16)
++	i++
++
++	// ppc64le: "RLWNM\tR[0-9]+, R[0-9]+, [$]16711680, R[0-9]+"
++	// ppc64: "RLWNM\tR[0-9]+, R[0-9]+, [$]16711680, R[0-9]+"
++	a[i] = bits.RotateLeft32(a[i], r) & 0xFF0000
++	i++
++	// ppc64le: "RLWNM\tR[0-9]+, R[0-9]+, [$]65280, R[0-9]+"
++	// ppc64: "RLWNM\tR[0-9]+, R[0-9]+, [$]65280, R[0-9]+"
++	a[i] = bits.RotateLeft32(a[3], r) & 0xFF00
++	i++
++
++	// ppc64le: "RLWNM\tR[0-9]+, R[0-9]+, [$]4293922815, R[0-9]+"
++	// ppc64: "RLWNM\tR[0-9]+, R[0-9]+, [$]4293922815, R[0-9]+"
++	a[i] = bits.RotateLeft32(a[3], r) & 0xFFF00FFF
++	i++
++	// ppc64le: "RLWNM\t[$]4, R[0-9]+, [$]4293922815, R[0-9]+"
++	// ppc64: "RLWNM\t[$]4, R[0-9]+, [$]4293922815, R[0-9]+"
++	a[i] = bits.RotateLeft32(a[3], 4) & 0xFFF00FFF
++	i++
++}
+diff --git a/test/codegen/shift.go b/test/codegen/shift.go
+index bbfc85ffbb..a45f27c9cf 100644
+--- a/test/codegen/shift.go
++++ b/test/codegen/shift.go
+@@ -156,29 +156,29 @@ func checkUnneededTrunc(tab *[100000]uint32, d uint64, v uint32, h uint16, b byt
+ 	// ppc64:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
+ 	f := tab[byte(v)^b]
+ 	// ppc64le:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
+-        // ppc64:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
++	// ppc64:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
+ 	f += tab[byte(v)&b]
+ 	// ppc64le:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
+-        // ppc64:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
++	// ppc64:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
+ 	f += tab[byte(v)|b]
+ 	// ppc64le:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
+-        // ppc64:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
++	// ppc64:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
+ 	f += tab[uint16(v)&h]
+ 	// ppc64le:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
+-        // ppc64:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
++	// ppc64:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
+ 	f += tab[uint16(v)^h]
+ 	// ppc64le:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
+-        // ppc64:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
++	// ppc64:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
+ 	f += tab[uint16(v)|h]
+ 	// ppc64le:-".*AND",-"RLDICR",".*CLRLSLDI"
+ 	// ppc64:-".*AND",-"RLDICR",".*CLRLSLDI"
+ 	f += tab[v&0xff]
+ 	// ppc64le:-".*AND",".*CLRLSLWI"
+-        // ppc64:-".*AND",".*CLRLSLWI"
+-        f += 2*uint32(uint16(d))
++	// ppc64:-".*AND",".*CLRLSLWI"
++	f += 2 * uint32(uint16(d))
+ 	// ppc64le:-".*AND",-"RLDICR",".*CLRLSLDI"
+ 	// ppc64:-".*AND",-"RLDICR",".*CLRLSLDI"
+-	g := 2*uint64(uint32(d))
++	g := 2 * uint64(uint32(d))
+ 	return f, g
+ }
+ 
+@@ -186,10 +186,10 @@ func checkCombinedShifts(v8 uint8, v16 uint16, v32 uint32, x32 int32, v64 uint64
+ 
+ 	// ppc64le:-"AND","CLRLSLWI"
+ 	// ppc64:-"AND","CLRLSLWI"
+-	f := (v8 &0xF) << 2
++	f := (v8 & 0xF) << 2
+ 	// ppc64le:"CLRLSLWI"
+ 	// ppc64:"CLRLSLWI"
+-	f += byte(v16)<<3
++	f += byte(v16) << 3
+ 	// ppc64le:-"AND","CLRLSLWI"
+ 	// ppc64:-"AND","CLRLSLWI"
+ 	g := (v16 & 0xFF) << 3
+@@ -207,29 +207,81 @@ func checkCombinedShifts(v8 uint8, v16 uint16, v32 uint32, x32 int32, v64 uint64
+ 	i += (v64 & 0xFFFF00) << 10
+ 	// ppc64le/power9:-"SLD","EXTSWSLI"
+ 	// ppc64/power9:-"SLD","EXTSWSLI"
+-	j := int64(x32+32)*8
++	j := int64(x32+32) * 8
+ 	return f, g, h, i, j
+ }
+ 
+ func checkWidenAfterShift(v int64, u uint64) (int64, uint64) {
+ 
+ 	// ppc64le:-".*MOVW"
+-	f := int32(v>>32)
++	f := int32(v >> 32)
+ 	// ppc64le:".*MOVW"
+-	f += int32(v>>31)
++	f += int32(v >> 31)
+ 	// ppc64le:-".*MOVH"
+-	g := int16(v>>48)
++	g := int16(v >> 48)
+ 	// ppc64le:".*MOVH"
+-	g += int16(v>>30)
++	g += int16(v >> 30)
+ 	// ppc64le:-".*MOVH"
+-	g += int16(f>>16)
++	g += int16(f >> 16)
+ 	// ppc64le:-".*MOVB"
+-	h := int8(v>>56)
++	h := int8(v >> 56)
+ 	// ppc64le:".*MOVB"
+-	h += int8(v>>28)
++	h += int8(v >> 28)
+ 	// ppc64le:-".*MOVB"
+-	h += int8(f>>24)
++	h += int8(f >> 24)
+ 	// ppc64le:".*MOVB"
+-	h += int8(f>>16)
+-	return int64(h),uint64(g)
++	h += int8(f >> 16)
++	return int64(h), uint64(g)
++}
++
++func checkShiftAndMask32(v []uint32) {
++	i := 0
++
++	// ppc64le: "RLWNM\t[$]24, R[0-9]+, [$]1044480, R[0-9]+"
++	// ppc64: "RLWNM\t[$]24, R[0-9]+, [$]1044480, R[0-9]+"
++	v[i] = (v[i] & 0xFF00000) >> 8
++	i++
++	// ppc64le: "RLWNM\t[$]26, R[0-9]+, [$]1020, R[0-9]+"
++	// ppc64: "RLWNM\t[$]26, R[0-9]+, [$]1020, R[0-9]+"
++	v[i] = (v[i] & 0xFF00) >> 6
++	i++
++	// ppc64le: "MOVW\tR0"
++	// ppc64: "MOVW\tR0"
++	v[i] = (v[i] & 0xFF) >> 8
++	i++
++	// ppc64le: "MOVW\tR0"
++	// ppc64: "MOVW\tR0"
++	v[i] = (v[i] & 0xF000000) >> 28
++	i++
++	// ppc64le: "RLWNM\t[$]26, R[0-9]+, [$]255, R[0-9]+"
++	// ppc64: "RLWNM\t[$]26, R[0-9]+, [$]255, R[0-9]+"
++	v[i] = (v[i] >> 6) & 0xFF
++	i++
++	// ppc64le: "RLWNM\t[$]26, R[0-9]+, [$]1044480, R[0-9]+"
++	// ppc64: "RLWNM\t[$]26, R[0-9]+, [$]1044480, R[0-9]+"
++	v[i] = (v[i] >> 6) & 0xFF000
++	i++
++	// ppc64le: "MOVW\tR0"
++	// ppc64: "MOVW\tR0"
++	v[i] = (v[i] >> 20) & 0xFF000
++	i++
++	// ppc64le: "MOVW\tR0"
++	// ppc64: "MOVW\tR0"
++	v[i] = (v[i] >> 24) & 0xFF00
++	i++
++}
++
++func checkMergedShifts32(a [256]uint32, b [256]uint64, u uint32, v uint32) {
++	//ppc64le: -"CLRLSLDI", "RLWNM\t[$]10, R[0-9]+, [$]1020, R[0-9]+"
++	//ppc64: -"CLRLSLDI", "RLWNM\t[$]10, R[0-9]+, [$]1020, R[0-9]+"
++	a[0] = a[uint8(v>>24)]
++	//ppc64le: -"CLRLSLDI", "RLWNM\t[$]11, R[0-9]+, [$]2040, R[0-9]+"
++	//ppc64: -"CLRLSLDI", "RLWNM\t[$]11, R[0-9]+, [$]2040, R[0-9]+"
++	b[0] = b[uint8(v>>24)]
++	//ppc64le: -"CLRLSLDI", "RLWNM\t[$]15, R[0-9]+, [$]2040, R[0-9]+"
++	//ppc64: -"CLRLSLDI", "RLWNM\t[$]15, R[0-9]+, [$]2040, R[0-9]+"
++	b[1] = b[(v>>20)&0xFF]
++	//ppc64le: -"SLD", "RLWNM\t[$]10, R[0-9]+, [$]1016, R[0-9]+"
++	//ppc64: -"SLD", "RLWNM\t[$]10, R[0-9]+, [$]1016, R[0-9]+"
++	b[2] = b[v>>25]
+ }

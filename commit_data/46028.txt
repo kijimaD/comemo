@@ -18,7 +18,39 @@ Date:   Thu Dec 3 12:02:00 2020 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  test/fixedbugs/bug487.go    | 4 ++--
  test/fixedbugs/issue6977.go | 8 ++++----
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/test/fixedbugs/bug487.go b/test/fixedbugs/bug487.go
+index ab61a19a94..e60af6c8e2 100644
+--- a/test/fixedbugs/bug487.go
++++ b/test/fixedbugs/bug487.go
+@@ -14,8 +14,8 @@ func G() (int, int, int) {
+ }
+ 
+ func F() {
+-	a, b := G()	// ERROR "assignment mismatch"
+-	a, b = G()	// ERROR "assignment mismatch"
++	a, b := G()	// ERROR "mismatch"
++	a, b = G()	// ERROR "mismatch"
+ 	_, _ = a, b
+ }
+ 
+diff --git a/test/fixedbugs/issue6977.go b/test/fixedbugs/issue6977.go
+index 0f657eec41..4525e406b8 100644
+--- a/test/fixedbugs/issue6977.go
++++ b/test/fixedbugs/issue6977.go
+@@ -34,7 +34,7 @@ type U3 interface { M; m() }
+ type U4 interface { M; M; M }
+ type U5 interface { U1; U2; U3; U4 }
+ 
+-type U6 interface { m(); m() } // ERROR "duplicate method m"
+-type U7 interface { M32; m() } // ERROR "duplicate method m"
+-type U8 interface { m(); M32 } // ERROR "duplicate method m"
+-type U9 interface { M32; M64 } // ERROR "duplicate method m"
++type U6 interface { m(); m() } // ERROR "duplicate method .*m"
++type U7 interface { M32; m() } // ERROR "duplicate method .*m"
++type U8 interface { m(); M32 } // ERROR "duplicate method .*m"
++type U9 interface { M32; M64 } // ERROR "duplicate method .*m"

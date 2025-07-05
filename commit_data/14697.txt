@@ -15,7 +15,38 @@ Date:   Thu Dec 20 12:23:27 2012 -0500
     R=golang-dev, iant, remyoudompheng
     CC=golang-dev
     https://golang.org/cl/6943074
-
+---
  src/pkg/math/all_test.go | 7 +++++++
  src/pkg/math/log10.go    | 3 ++-
  2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/math/all_test.go b/src/pkg/math/all_test.go
+index cdea8035f9..0d8b10f67f 100644
+--- a/src/pkg/math/all_test.go
++++ b/src/pkg/math/all_test.go
+@@ -2281,6 +2281,13 @@ func TestLog2(t *testing.T) {
+ 			t.Errorf("Log2(%g) = %g, want %g", vflogSC[i], f, logSC[i])
+ 		}
+ 	}
++	for i := -1074; i <= 1023; i++ {
++		f := Ldexp(1, i)
++		l := Log2(f)
++		if l != float64(i) {
++			t.Errorf("Log2(2**%d) = %g, want %d", i, l, i)
++		}
++	}
+ }
+ 
+ func TestModf(t *testing.T) {
+diff --git a/src/pkg/math/log10.go b/src/pkg/math/log10.go
+index 67c163a490..95cfbf47ce 100644
+--- a/src/pkg/math/log10.go
++++ b/src/pkg/math/log10.go
+@@ -17,5 +17,6 @@ func log10(x float64) float64 {
+ func Log2(x float64) float64
+ 
+ func log2(x float64) float64 {
+-	return Log(x) * (1 / Ln2)
++	frac, exp := Frexp(x)
++	return Log(frac)*(1/Ln2) + float64(exp)
+ }

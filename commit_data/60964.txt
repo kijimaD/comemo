@@ -12,6 +12,34 @@ Date:   Thu Sep 12 15:46:41 2024 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Tim King <taking@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/text/template/template.go | 9 +++------
  1 file changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/src/text/template/template.go b/src/text/template/template.go
+index 86fd3f122a..78067af2ad 100644
+--- a/src/text/template/template.go
++++ b/src/text/template/template.go
+@@ -5,6 +5,7 @@
+ package template
+ 
+ import (
++	"maps"
+ 	"reflect"
+ 	"sync"
+ 	"text/template/parse"
+@@ -102,12 +103,8 @@ func (t *Template) Clone() (*Template, error) {
+ 	}
+ 	t.muFuncs.RLock()
+ 	defer t.muFuncs.RUnlock()
+-	for k, v := range t.parseFuncs {
+-		nt.parseFuncs[k] = v
+-	}
+-	for k, v := range t.execFuncs {
+-		nt.execFuncs[k] = v
+-	}
++	maps.Copy(nt.parseFuncs, t.parseFuncs)
++	maps.Copy(nt.execFuncs, t.execFuncs)
+ 	return nt, nil
+ }
+ 

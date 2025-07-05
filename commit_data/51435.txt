@@ -20,9 +20,145 @@ Date:   Thu Jan 27 10:28:46 2022 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/381434
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/instantiate.go     | 32 ++++++++++++-------
  .../internal/types2/testdata/check/issues.go2      |  2 +-
  src/go/types/instantiate.go                        | 37 ++++++++++++++--------
  src/go/types/testdata/check/issues.go2             |  2 +-
  4 files changed, 46 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index e520d0ffa3..02ab13ec59 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -173,7 +173,13 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
+ 
+ 	Ti, _ := Tu.(*Interface)
+ 	if Ti == nil {
+-		return errorf("%s is not an interface", T)
++		var cause string
++		if isInterfacePtr(Tu) {
++			cause = sprintf(qf, false, "type %s is pointer to interface, not interface", T)
++		} else {
++			cause = sprintf(qf, false, "%s is not an interface", T)
++		}
++		return errorf("%s does not implement %s (%s)", V, T, cause)
+ 	}
+ 
+ 	// Every type satisfies the empty interface.
+@@ -197,19 +203,21 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
+ 
+ 	// V must implement T's methods, if any.
+ 	if Ti.NumMethods() > 0 {
+-		if m, wrong := check.missingMethod(V, Ti, true); m != nil {
+-			// TODO(gri) needs to print updated name to avoid major confusion in error message!
+-			//           (print warning for now)
+-			// Old warning:
+-			// check.softErrorf(pos, "%s does not implement %s (warning: name not updated) = %s (missing method %s)", V, T, Ti, m)
++		if m, wrong := check.missingMethod(V, Ti, true); m != nil /* !Implements(V, Ti) */ {
++			if check != nil && check.conf.CompilerErrorMessages {
++				return errorf("%s does not implement %s %s", V, T, check.missingMethodReason(V, T, m, wrong))
++			}
++			var cause string
+ 			if wrong != nil {
+-				// TODO(gri) This can still report uninstantiated types which makes the error message
+-				//           more difficult to read then necessary.
+-				return errorf("%s does not implement %s: wrong method signature\n\tgot  %s\n\twant %s",
+-					V, T, wrong, m,
+-				)
++				if Identical(m.typ, wrong.typ) {
++					cause = fmt.Sprintf("missing method %s (%s has pointer receiver)", m.name, m.name)
++				} else {
++					cause = fmt.Sprintf("wrong type for method %s (have %s, want %s)", m.Name(), wrong.typ, m.typ)
++				}
++			} else {
++				cause = "missing method " + m.Name()
+ 			}
+-			return errorf("%s does not implement %s (missing method %s)", V, T, m.name)
++			return errorf("%s does not implement %s: %s", V, T, cause)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/check/issues.go2 b/src/cmd/compile/internal/types2/testdata/check/issues.go2
+index 0b80939653..3463c42572 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/issues.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/issues.go2
+@@ -47,7 +47,7 @@ func (T) m1()
+ func (*T) m2()
+ 
+ func _() {
+-	f2[T /* ERROR wrong method signature */ ]()
++	f2[T /* ERROR m2 has pointer receiver */ ]()
+ 	f2[*T]()
+ }
+ 
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index dc1c2029bc..7dea8a5e1d 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -173,7 +173,17 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
+ 
+ 	Ti, _ := Tu.(*Interface)
+ 	if Ti == nil {
+-		return errorf("%s is not an interface", T)
++		var fset *token.FileSet
++		if check != nil {
++			fset = check.fset
++		}
++		var cause string
++		if isInterfacePtr(Tu) {
++			cause = sprintf(fset, qf, false, "type %s is pointer to interface, not interface", T)
++		} else {
++			cause = sprintf(fset, qf, false, "%s is not an interface", T)
++		}
++		return errorf("%s does not implement %s (%s)", V, T, cause)
+ 	}
+ 
+ 	// Every type satisfies the empty interface.
+@@ -197,20 +207,21 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
+ 
+ 	// V must implement T's methods, if any.
+ 	if Ti.NumMethods() > 0 {
+-		if m, wrong := check.missingMethod(V, Ti, true); m != nil {
+-			// TODO(gri) needs to print updated name to avoid major confusion in error message!
+-			//           (print warning for now)
+-			// Old warning:
+-			// check.softErrorf(pos, "%s does not implement %s (warning: name not updated) = %s (missing method %s)", V, T, Ti, m)
++		if m, wrong := check.missingMethod(V, Ti, true); m != nil /* !Implements(V, Ti) */ {
++			if check != nil && compilerErrorMessages {
++				return errorf("%s does not implement %s %s", V, T, check.missingMethodReason(V, T, m, wrong))
++			}
++			var cause string
+ 			if wrong != nil {
+-				// TODO(gri) This can still report uninstantiated types which makes the error message
+-				//           more difficult to read then necessary.
+-				// TODO(rFindley) should this use parentheses rather than ':' for qualification?
+-				return errorf("%s does not implement %s: wrong method signature\n\tgot  %s\n\twant %s",
+-					V, T, wrong, m,
+-				)
++				if Identical(m.typ, wrong.typ) {
++					cause = fmt.Sprintf("missing method %s (%s has pointer receiver)", m.name, m.name)
++				} else {
++					cause = fmt.Sprintf("wrong type for method %s (have %s, want %s)", m.Name(), wrong.typ, m.typ)
++				}
++			} else {
++				cause = "missing method " + m.Name()
+ 			}
+-			return errorf("%s does not implement %s (missing method %s)", V, T, m.name)
++			return errorf("%s does not implement %s: %s", V, T, cause)
+ 		}
+ 	}
+ 
+diff --git a/src/go/types/testdata/check/issues.go2 b/src/go/types/testdata/check/issues.go2
+index a11bcaac4b..c164825eb7 100644
+--- a/src/go/types/testdata/check/issues.go2
++++ b/src/go/types/testdata/check/issues.go2
+@@ -47,7 +47,7 @@ func (T) m1()
+ func (*T) m2()
+ 
+ func _() {
+-	f2[T /* ERROR wrong method signature */ ]()
++	f2[T /* ERROR m2 has pointer receiver */ ]()
+ 	f2[*T]()
+ }
+ 

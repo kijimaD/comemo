@@ -15,7 +15,7 @@ Date:   Wed Aug 16 07:05:34 2017 +0000
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/arch/arm.go             |  9 ++++++
  src/cmd/asm/internal/asm/asm.go              | 41 ++++++++++++++++++++--------
  src/cmd/asm/internal/asm/testdata/arm.s      |  6 ++++
@@ -24,3 +24,205 @@ Date:   Wed Aug 16 07:05:34 2017 +0000
  src/cmd/internal/obj/arm/anames.go           |  2 ++
  src/cmd/internal/obj/arm/asm5.go             | 29 ++++++++++++++++++++
  7 files changed, 85 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arm.go b/src/cmd/asm/internal/arch/arm.go
+index 40443d5eca..4ee494a74c 100644
+--- a/src/cmd/asm/internal/arch/arm.go
++++ b/src/cmd/asm/internal/arch/arm.go
+@@ -122,6 +122,15 @@ func IsARMMRC(op obj.As) bool {
+ 	return false
+ }
+ 
++// IsARMBFX reports whether the op is arm.BFX or arm.BFXU
++func IsARMBFX(op obj.As) bool {
++	switch op {
++	case arm.ABFX, arm.ABFXU:
++		return true
++	}
++	return false
++}
++
+ // IsARMFloatCmp reports whether the op is a floating comparison instruction.
+ func IsARMFloatCmp(op obj.As) bool {
+ 	switch op {
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index df23856c47..7e9e59daf4 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -564,6 +564,13 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 				prog.To = a[2]
+ 				break
+ 			}
++			if arch.IsARMBFX(op) {
++				// a[0] and a[1] must be constants, a[2] must be a register
++				prog.From = a[0]
++				prog.From3 = newAddr(a[1])
++				prog.To = a[2]
++				break
++			}
+ 			// Otherwise the 2nd operand (a[1]) must be a register.
+ 			prog.From = a[0]
+ 			prog.Reg = p.getRegister(prog, op, &a[1])
+@@ -635,18 +642,28 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 			return
+ 		}
+ 	case 4:
+-		if p.arch.Family == sys.ARM && arch.IsARMMULA(op) {
+-			// All must be registers.
+-			p.getRegister(prog, op, &a[0])
+-			r1 := p.getRegister(prog, op, &a[1])
+-			r2 := p.getRegister(prog, op, &a[2])
+-			p.getRegister(prog, op, &a[3])
+-			prog.From = a[0]
+-			prog.To = a[3]
+-			prog.To.Type = obj.TYPE_REGREG2
+-			prog.To.Offset = int64(r2)
+-			prog.Reg = r1
+-			break
++		if p.arch.Family == sys.ARM {
++			if arch.IsARMBFX(op) {
++				// a[0] and a[1] must be constants, a[2] and a[3] must be registers
++				prog.From = a[0]
++				prog.From3 = newAddr(a[1])
++				prog.Reg = p.getRegister(prog, op, &a[2])
++				prog.To = a[3]
++				break
++			}
++			if arch.IsARMMULA(op) {
++				// All must be registers.
++				p.getRegister(prog, op, &a[0])
++				r1 := p.getRegister(prog, op, &a[1])
++				r2 := p.getRegister(prog, op, &a[2])
++				p.getRegister(prog, op, &a[3])
++				prog.From = a[0]
++				prog.To = a[3]
++				prog.To.Type = obj.TYPE_REGREG2
++				prog.To.Offset = int64(r2)
++				prog.Reg = r1
++				break
++			}
+ 		}
+ 		if p.arch.Family == sys.AMD64 {
+ 			// 4 operand instruction have form  ymm1, ymm2, ymm3/m256, imm8
+diff --git a/src/cmd/asm/internal/asm/testdata/arm.s b/src/cmd/asm/internal/asm/testdata/arm.s
+index cd1d11f518..662ab180d7 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm.s
++++ b/src/cmd/asm/internal/asm/testdata/arm.s
+@@ -1007,6 +1007,12 @@ jmp_label_3:
+ 	SWI	$65535         // ffff00ef
+ 	SWI	               // 000000ef
+ 
++// BFX/BFXU
++	BFX	$16, $8, R1, R2 // BFX $16, R1, $8, R2   // 5124afe7
++	BFX	$29, $2, R8                              // 5881bce7
++	BFXU	$16, $8, R1, R2 // BFXU $16, R1, $8, R2  // 5124efe7
++	BFXU	$29, $2, R8                              // 5881fce7
++
+ // synthetic arithmatic
+ 	ADD	$0xffffffaa, R2, R3 // ADD $4294967210, R2, R3   // 55b0e0e30b3082e0
+ 	ADD	$0xffffff55, R5     // ADD $4294967125, R5       // aab0e0e30b5085e0
+diff --git a/src/cmd/asm/internal/asm/testdata/armerror.s b/src/cmd/asm/internal/asm/testdata/armerror.s
+index 2959a2f47b..a0bb13ed8b 100644
+--- a/src/cmd/asm/internal/asm/testdata/armerror.s
++++ b/src/cmd/asm/internal/asm/testdata/armerror.s
+@@ -124,5 +124,12 @@ TEXT errors(SB),$0
+ 	MOVFW	CPSR, R2           // ERROR "illegal combination"
+ 	MOVDW	R1, CPSR           // ERROR "illegal combination"
+ 	MOVFW	R1, CPSR           // ERROR "illegal combination"
++	BFX	$12, $41, R2, R3   // ERROR "wrong width or LSB"
++	BFX	$12, $-2, R2       // ERROR "wrong width or LSB"
++	BFXU	$40, $4, R2, R3    // ERROR "wrong width or LSB"
++	BFXU	$-40, $4, R2       // ERROR "wrong width or LSB"
++	BFX	$-2, $4, R2, R3    // ERROR "wrong width or LSB"
++	BFXU	$4, R2, R5, R2     // ERROR "missing or wrong LSB"
++	BFXU	$4, R2, R5         // ERROR "missing or wrong LSB"
+ 
+ 	END
+diff --git a/src/cmd/internal/obj/arm/a.out.go b/src/cmd/internal/obj/arm/a.out.go
+index 6ea7d4be3b..462cbca433 100644
+--- a/src/cmd/internal/obj/arm/a.out.go
++++ b/src/cmd/internal/obj/arm/a.out.go
+@@ -294,6 +294,9 @@ const (
+ 	AREVSH
+ 	ARBIT
+ 
++	ABFX
++	ABFXU
++
+ 	AMULWT
+ 	AMULWB
+ 	AMULBB
+diff --git a/src/cmd/internal/obj/arm/anames.go b/src/cmd/internal/obj/arm/anames.go
+index 63cc5da393..edb2c5a21e 100644
+--- a/src/cmd/internal/obj/arm/anames.go
++++ b/src/cmd/internal/obj/arm/anames.go
+@@ -107,6 +107,8 @@ var Anames = []string{
+ 	"REV16",
+ 	"REVSH",
+ 	"RBIT",
++	"BFX",
++	"BFXU",
+ 	"MULWT",
+ 	"MULWB",
+ 	"MULBB",
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 6188414f93..3be9825698 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -180,6 +180,8 @@ var optab = []Optab{
+ 	{ADIVHW, C_REG, C_REG, C_REG, 105, 4, 0, 0, 0},
+ 	{ADIVHW, C_REG, C_NONE, C_REG, 105, 4, 0, 0, 0},
+ 	{AMULL, C_REG, C_REG, C_REGREG, 17, 4, 0, 0, 0},
++	{ABFX, C_LCON, C_REG, C_REG, 18, 4, 0, 0, 0},  // width in From, LSB in From3
++	{ABFX, C_LCON, C_NONE, C_REG, 18, 4, 0, 0, 0}, // width in From, LSB in From3
+ 	{AMOVW, C_REG, C_NONE, C_SAUTO, 20, 4, REGSP, 0, 0},
+ 	{AMOVW, C_REG, C_NONE, C_SOREG, 20, 4, 0, 0, 0},
+ 	{AMOVB, C_REG, C_NONE, C_SAUTO, 20, 4, REGSP, 0, 0},
+@@ -1691,6 +1693,9 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AMMULA, r0)
+ 			opset(AMMULS, r0)
+ 
++		case ABFX:
++			opset(ABFXU, r0)
++
+ 		case ACLZ:
+ 			opset(AREV, r0)
+ 			opset(AREV16, r0)
+@@ -2038,6 +2043,24 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		r := int(p.Reg)
+ 		o1 |= (uint32(rf)&15)<<8 | (uint32(r)&15)<<0 | (uint32(rt)&15)<<16 | (uint32(rt2)&15)<<12
+ 
++	case 18: /* BFX/BFXU */
++		o1 = c.oprrr(p, p.As, int(p.Scond))
++		rt := int(p.To.Reg)
++		r := int(p.Reg)
++		if r == 0 {
++			r = rt
++		}
++		if p.From3 == nil || p.From3.Type != obj.TYPE_CONST {
++			c.ctxt.Diag("%v: missing or wrong LSB", p)
++			break
++		}
++		lsb := p.From3.Offset
++		width := p.From.Offset
++		if lsb < 0 || lsb > 31 || width <= 0 || (lsb+width) > 31 {
++			c.ctxt.Diag("%v: wrong width or LSB", p)
++		}
++		o1 |= (uint32(r)&15)<<0 | (uint32(rt)&15)<<12 | uint32(lsb)<<7 | uint32(width-1)<<16
++
+ 	case 20: /* mov/movb/movbu R,O(R) */
+ 		c.aclass(&p.To)
+ 
+@@ -2911,6 +2934,12 @@ func (c *ctxt5) oprrr(p *obj.Prog, a obj.As, sc int) uint32 {
+ 	case -ACMP: // cmp imm
+ 		return o | 0x3<<24 | 0x5<<20
+ 
++	case ABFX:
++		return o | 0x3d<<21 | 0x5<<4
++
++	case ABFXU:
++		return o | 0x3f<<21 | 0x5<<4
++
+ 		// CLZ doesn't support .nil
+ 	case ACLZ:
+ 		return o&(0xf<<28) | 0x16f<<16 | 0xf1<<4

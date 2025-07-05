@@ -9,6 +9,27 @@ Date:   Tue Mar 31 22:35:55 2009 -0700
     DELTA=4  (2 added, 2 deleted, 0 changed)
     OCL=26978
     CL=26978
-
+---
  src/cmd/gotest/gotest | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index 0ec17322d1..0c025e3b34 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -50,13 +50,13 @@ files=$(echo $gofiles | sed 's/\.go//g')
+ # to build any test-only dependencies.
+ sed -n 's/^\/\/ gotest: //p' $gofiles | sh
+ 
++set -e
++
+ for i in $gofiles
+ do
+ 	$GC $i
+ done
+ 
+-set -e
+-
+ # They all compile; now generate the code to call them.
+ trap "rm -f _testmain.go _testmain.6" 0 1 2 3 14 15
+ {

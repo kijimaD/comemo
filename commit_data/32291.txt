@@ -14,6 +14,26 @@ Date:   Tue Apr 18 11:01:02 2017 -0400
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/symtab_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/symtab_test.go b/src/runtime/symtab_test.go
+index b15a2e9a85..57642a49fb 100644
+--- a/src/runtime/symtab_test.go
++++ b/src/runtime/symtab_test.go
+@@ -26,10 +26,14 @@ func TestCaller(t *testing.T) {
+ 	}
+ }
+ 
++// These are marked noinline so that we can use FuncForPC
++// in testCallerBar.
++//go:noinline
+ func testCallerFoo(t *testing.T) {
+ 	testCallerBar(t)
+ }
+ 
++//go:noinline
+ func testCallerBar(t *testing.T) {
+ 	for i := 0; i < 2; i++ {
+ 		pc, file, line, ok := runtime.Caller(i)

@@ -7,6 +7,20 @@ Date:   Sat Jan 9 07:32:26 2010 +1100
     R=gri, iant
     CC=golang-dev
     https://golang.org/cl/183160
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 1ca5fe7c1e..b5096322a5 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -696,7 +696,7 @@ underlying array.
+ </p>
+ <p>
+ A slice, once initialized, is always associated with an underlying
+-array that holds its elements.  A slice therfore shares storage
++array that holds its elements.  A slice therefore shares storage
+ with its array and with other slices of the same array; by contrast,
+ distinct arrays always represent distinct storage.
+ </p>

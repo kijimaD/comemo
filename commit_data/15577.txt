@@ -12,7 +12,36 @@ Date:   Mon Mar 4 08:13:39 2013 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7453049
-
+---
  src/pkg/net/http/cgi/host_test.go      | 3 ---
  src/pkg/net/http/cgi/testdata/test.cgi | 3 ++-
  2 files changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/net/http/cgi/host_test.go b/src/pkg/net/http/cgi/host_test.go
+index 2359fd9c27..8c16e6897f 100644
+--- a/src/pkg/net/http/cgi/host_test.go
++++ b/src/pkg/net/http/cgi/host_test.go
+@@ -301,9 +301,6 @@ func TestCopyError(t *testing.T) {
+ 	if runtime.GOOS == "windows" {
+ 		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+-	if runtime.GOOS == "darwin" {
+-		t.Skipf("issue 4958 - skipping test on darwin")
+-	}
+ 	h := &Handler{
+ 		Path: "testdata/test.cgi",
+ 		Root: "/test.cgi",
+diff --git a/src/pkg/net/http/cgi/testdata/test.cgi b/src/pkg/net/http/cgi/testdata/test.cgi
+index 1b25bc2999..3214df6f00 100755
+--- a/src/pkg/net/http/cgi/testdata/test.cgi
++++ b/src/pkg/net/http/cgi/testdata/test.cgi
+@@ -24,7 +24,8 @@ print "X-Test-Header: X-Test-Value\r\n";
+ print "\r\n";
+ 
+ if ($params->{"bigresponse"}) {
+-    for (1..1024) {
++    # 17 MB, for OS X: golang.org/issue/4958
++    for (1..(17 * 1024)) {
+         print "A" x 1024, "\r\n";
+     }
+     exit 0;

@@ -38,7 +38,74 @@ Date:   Sat Sep 26 14:00:57 2015 -0400
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/mgc.go      |  7 +++++--
  src/runtime/mgcsweep.go | 24 ++++++++++++++++--------
  2 files changed, 21 insertions(+), 10 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index efb8a32dfa..b95289aaa6 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -937,7 +937,10 @@ func gc(mode gcMode) {
+ 
+ 	pauseStart = now
+ 	systemstack(stopTheWorldWithSema)
+-	systemstack(finishsweep_m) // finish sweep before we start concurrent scan.
++	// Finish sweep before we start concurrent scan.
++	systemstack(func() {
++		finishsweep_m(true)
++	})
+ 	// clearpools before we start the GC. If we wait they memory will not be
+ 	// reclaimed until the next GC cycle.
+ 	clearpools()
+@@ -1127,7 +1130,7 @@ func gc(mode gcMode) {
+ 			// Reset these so that all stacks will be rescanned.
+ 			gcResetGState()
+ 			gcResetMarkState()
+-			finishsweep_m()
++			finishsweep_m(true)
+ 
+ 			// Still in STW but gcphase is _GCoff, reset to _GCmarktermination
+ 			// At this point all objects will be found during the gcMark which
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index d9eb58fdf7..9468af941a 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -24,20 +24,28 @@ type sweepdata struct {
+ }
+ 
+ //go:nowritebarrier
+-func finishsweep_m() {
+-	// The world is stopped so we should be able to complete the sweeps
+-	// quickly.
++func finishsweep_m(stw bool) {
++	// Sweeping must be complete before marking commences, so
++	// sweep any unswept spans. If this is a concurrent GC, there
++	// shouldn't be any spans left to sweep, so this should finish
++	// instantly. If GC was forced before the concurrent sweep
++	// finished, there may be spans to sweep.
+ 	for sweepone() != ^uintptr(0) {
+ 		sweep.npausesweep++
+ 	}
+ 
+ 	// There may be some other spans being swept concurrently that
+ 	// we need to wait for. If finishsweep_m is done with the world stopped
+-	// this code is not required.
+-	sg := mheap_.sweepgen
+-	for _, s := range work.spans {
+-		if s.sweepgen != sg && s.state == _MSpanInUse {
+-			mSpan_EnsureSwept(s)
++	// this is not required because the STW must have waited for sweeps.
++	//
++	// TODO(austin): As of this writing, we always pass true for stw.
++	// Consider removing this code.
++	if !stw {
++		sg := mheap_.sweepgen
++		for _, s := range work.spans {
++			if s.sweepgen != sg && s.state == _MSpanInUse {
++				mSpan_EnsureSwept(s)
++			}
+ 		}
+ 	}
+ }

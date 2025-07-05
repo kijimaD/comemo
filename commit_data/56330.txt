@@ -21,8 +21,170 @@ Date:   Fri Apr 28 15:52:16 2023 -0400
     Auto-Submit: Michael Pratt <mpratt@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/inline/inl.go  |  4 ++--
  src/cmd/compile/internal/ir/func.go     | 25 ++++++++++++++++++++-----
  src/cmd/compile/internal/pgo/irgraph.go | 26 +++++++++++++-------------
  3 files changed, 35 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 1a65e16f51..df12f9a625 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -163,7 +163,7 @@ func pgoInlineEpilogue(p *pgo.Profile, decls []ir.Node) {
+ 	if base.Debug.PGOInline >= 2 {
+ 		ir.VisitFuncsBottomUp(decls, func(list []*ir.Func, recursive bool) {
+ 			for _, f := range list {
+-				name := ir.PkgFuncName(f)
++				name := ir.LinkFuncName(f)
+ 				if n, ok := p.WeightedCG.IRNodes[name]; ok {
+ 					p.RedirectEdges(n, inlinedCallSites)
+ 				}
+@@ -352,7 +352,7 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
+ 	// Update the budget for profile-guided inlining.
+ 	budget := int32(inlineMaxBudget)
+ 	if profile != nil {
+-		if n, ok := profile.WeightedCG.IRNodes[ir.PkgFuncName(fn)]; ok {
++		if n, ok := profile.WeightedCG.IRNodes[ir.LinkFuncName(fn)]; ok {
+ 			if _, ok := candHotCalleeMap[n]; ok {
+ 				budget = int32(inlineHotMaxBudget)
+ 				if base.Debug.PGOInline > 0 {
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 2886185f0a..b36b1fa494 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -8,6 +8,7 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
++	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ 	"fmt"
+ )
+@@ -263,7 +264,7 @@ func (f *Func) SetWBPos(pos src.XPos) {
+ 	}
+ }
+ 
+-// FuncName returns the name (without the package) of the function n.
++// FuncName returns the name (without the package) of the function f.
+ func FuncName(f *Func) string {
+ 	if f == nil || f.Nname == nil {
+ 		return "<nil>"
+@@ -271,10 +272,12 @@ func FuncName(f *Func) string {
+ 	return f.Sym().Name
+ }
+ 
+-// PkgFuncName returns the name of the function referenced by n, with package prepended.
+-// This differs from the compiler's internal convention where local functions lack a package
+-// because the ultimate consumer of this is a human looking at an IDE; package is only empty
+-// if the compilation package is actually the empty string.
++// PkgFuncName returns the name of the function referenced by f, with package
++// prepended.
++//
++// This differs from the compiler's internal convention where local functions
++// lack a package. This is primarily useful when the ultimate consumer of this
++// is a human looking at message.
+ func PkgFuncName(f *Func) string {
+ 	if f == nil || f.Nname == nil {
+ 		return "<nil>"
+@@ -285,6 +288,18 @@ func PkgFuncName(f *Func) string {
+ 	return pkg.Path + "." + s.Name
+ }
+ 
++// LinkFuncName returns the name of the function f, as it will appear in the
++// symbol table of the final linked binary.
++func LinkFuncName(f *Func) string {
++	if f == nil || f.Nname == nil {
++		return "<nil>"
++	}
++	s := f.Sym()
++	pkg := s.Pkg
++
++	return objabi.PathToPrefix(pkg.Path) + "." + s.Name
++}
++
+ // IsEqOrHashFunc reports whether f is type eq/hash function.
+ func IsEqOrHashFunc(f *Func) bool {
+ 	if f == nil || f.Nname == nil {
+diff --git a/src/cmd/compile/internal/pgo/irgraph.go b/src/cmd/compile/internal/pgo/irgraph.go
+index ff0995eaea..72ffc8ce78 100644
+--- a/src/cmd/compile/internal/pgo/irgraph.go
++++ b/src/cmd/compile/internal/pgo/irgraph.go
+@@ -270,7 +270,7 @@ func (p *Profile) VisitIR(fn *ir.Func) {
+ 	if g.InEdges == nil {
+ 		g.InEdges = make(map[*IRNode][]*IREdge)
+ 	}
+-	name := ir.PkgFuncName(fn)
++	name := ir.LinkFuncName(fn)
+ 	node := new(IRNode)
+ 	node.AST = fn
+ 	if g.IRNodes[name] == nil {
+@@ -308,7 +308,7 @@ func (p *Profile) addIREdge(caller *IRNode, callername string, call ir.Node, cal
+ 	// Create an IRNode for the callee.
+ 	calleenode := new(IRNode)
+ 	calleenode.AST = callee
+-	calleename := ir.PkgFuncName(callee)
++	calleename := ir.LinkFuncName(callee)
+ 
+ 	// Create key for NodeMapKey.
+ 	nodeinfo := NodeMapKey{
+@@ -395,7 +395,7 @@ func (p *Profile) PrintWeightedCallGraphDOT(edgeThreshold float64) {
+ 	funcs := make(map[string]struct{})
+ 	ir.VisitFuncsBottomUp(typecheck.Target.Decls, func(list []*ir.Func, recursive bool) {
+ 		for _, f := range list {
+-			name := ir.PkgFuncName(f)
++			name := ir.LinkFuncName(f)
+ 			funcs[name] = struct{}{}
+ 		}
+ 	})
+@@ -405,15 +405,15 @@ func (p *Profile) PrintWeightedCallGraphDOT(edgeThreshold float64) {
+ 	for name := range funcs {
+ 		if n, ok := p.WeightedCG.IRNodes[name]; ok {
+ 			for _, e := range p.WeightedCG.OutEdges[n] {
+-				if _, ok := nodes[ir.PkgFuncName(e.Src.AST)]; !ok {
+-					nodes[ir.PkgFuncName(e.Src.AST)] = e.Src.AST
++				if _, ok := nodes[ir.LinkFuncName(e.Src.AST)]; !ok {
++					nodes[ir.LinkFuncName(e.Src.AST)] = e.Src.AST
+ 				}
+-				if _, ok := nodes[ir.PkgFuncName(e.Dst.AST)]; !ok {
+-					nodes[ir.PkgFuncName(e.Dst.AST)] = e.Dst.AST
++				if _, ok := nodes[ir.LinkFuncName(e.Dst.AST)]; !ok {
++					nodes[ir.LinkFuncName(e.Dst.AST)] = e.Dst.AST
+ 				}
+ 			}
+-			if _, ok := nodes[ir.PkgFuncName(n.AST)]; !ok {
+-				nodes[ir.PkgFuncName(n.AST)] = n.AST
++			if _, ok := nodes[ir.LinkFuncName(n.AST)]; !ok {
++				nodes[ir.LinkFuncName(n.AST)] = n.AST
+ 			}
+ 		}
+ 	}
+@@ -424,16 +424,16 @@ func (p *Profile) PrintWeightedCallGraphDOT(edgeThreshold float64) {
+ 			nodeweight := WeightInPercentage(n.Flat, p.TotalNodeWeight)
+ 			color := "black"
+ 			if ast.Inl != nil {
+-				fmt.Printf("\"%v\" [color=%v,label=\"%v,freq=%.2f,inl_cost=%d\"];\n", ir.PkgFuncName(ast), color, ir.PkgFuncName(ast), nodeweight, ast.Inl.Cost)
++				fmt.Printf("\"%v\" [color=%v,label=\"%v,freq=%.2f,inl_cost=%d\"];\n", ir.LinkFuncName(ast), color, ir.LinkFuncName(ast), nodeweight, ast.Inl.Cost)
+ 			} else {
+-				fmt.Printf("\"%v\" [color=%v, label=\"%v,freq=%.2f\"];\n", ir.PkgFuncName(ast), color, ir.PkgFuncName(ast), nodeweight)
++				fmt.Printf("\"%v\" [color=%v, label=\"%v,freq=%.2f\"];\n", ir.LinkFuncName(ast), color, ir.LinkFuncName(ast), nodeweight)
+ 			}
+ 		}
+ 	}
+ 	// Print edges.
+ 	ir.VisitFuncsBottomUp(typecheck.Target.Decls, func(list []*ir.Func, recursive bool) {
+ 		for _, f := range list {
+-			name := ir.PkgFuncName(f)
++			name := ir.LinkFuncName(f)
+ 			if n, ok := p.WeightedCG.IRNodes[name]; ok {
+ 				for _, e := range p.WeightedCG.OutEdges[n] {
+ 					edgepercent := WeightInPercentage(e.Weight, p.TotalEdgeWeight)
+@@ -443,7 +443,7 @@ func (p *Profile) PrintWeightedCallGraphDOT(edgeThreshold float64) {
+ 						fmt.Printf("edge [color=black, style=solid];\n")
+ 					}
+ 
+-					fmt.Printf("\"%v\" -> \"%v\" [label=\"%.2f\"];\n", ir.PkgFuncName(n.AST), ir.PkgFuncName(e.Dst.AST), edgepercent)
++					fmt.Printf("\"%v\" -> \"%v\" [label=\"%.2f\"];\n", ir.LinkFuncName(n.AST), ir.LinkFuncName(e.Dst.AST), edgepercent)
+ 				}
+ 			}
+ 		}

@@ -12,6 +12,20 @@ Date:   Thu Mar 19 21:31:23 2020 +0000
     GitHub-Pull-Request: golang/go#37918
     Reviewed-on: https://go-review.googlesource.com/c/go/+/223897
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/tls/common.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index ef95e9bf9c..9121148ee8 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -549,7 +549,7 @@ type Config struct {
+ 	// server's certificate chain and host name.
+ 	// If InsecureSkipVerify is true, TLS accepts any certificate
+ 	// presented by the server and any host name in that certificate.
+-	// In this mode, TLS is susceptible to man-in-the-middle attacks.
++	// In this mode, TLS is susceptible to machine-in-the-middle attacks.
+ 	// This should be used only for testing.
+ 	InsecureSkipVerify bool
+ 

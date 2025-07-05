@@ -12,6 +12,29 @@ Date:   Thu May 27 10:11:42 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/link_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index 8805ff1f02..4d6bc76aca 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -698,7 +698,7 @@ func TestTrampolineCgo(t *testing.T) {
+ 	if err != nil {
+ 		t.Errorf("executable failed to run: %v\n%s", err, out)
+ 	}
+-	if string(out) != "hello\n" {
++	if string(out) != "hello\n" && string(out) != "hello\r\n" {
+ 		t.Errorf("unexpected output:\n%s", out)
+ 	}
+ 
+@@ -717,7 +717,7 @@ func TestTrampolineCgo(t *testing.T) {
+ 	if err != nil {
+ 		t.Errorf("executable failed to run: %v\n%s", err, out)
+ 	}
+-	if string(out) != "hello\n" {
++	if string(out) != "hello\n" && string(out) != "hello\r\n" {
+ 		t.Errorf("unexpected output:\n%s", out)
+ 	}
+ }

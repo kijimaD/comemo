@@ -28,7 +28,72 @@ Date:   Tue Nov 6 15:14:56 2018 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/vet/testdata/print.go | 26 ++++++++++++++++++++++++++
  src/cmd/vet/types.go          | 18 +++++++++++++-----
  2 files changed, 39 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/vet/testdata/print.go b/src/cmd/vet/testdata/print.go
+index 88163b59d9..b2289bc2ac 100644
+--- a/src/cmd/vet/testdata/print.go
++++ b/src/cmd/vet/testdata/print.go
+@@ -645,3 +645,29 @@ func dbg(format string, args ...interface{}) {
+ 	}
+ 	fmt.Printf(format, args...)
+ }
++
++func PointersToCompoundTypes() {
++	stringSlice := []string{"a", "b"}
++	fmt.Printf("%s", &stringSlice) // not an error
++
++	intSlice := []int{3, 4}
++	fmt.Printf("%s", &intSlice) // ERROR "Printf format %s has arg &intSlice of wrong type \*\[\]int"
++
++	stringArray := [2]string{"a", "b"}
++	fmt.Printf("%s", &stringArray) // not an error
++
++	intArray := [2]int{3, 4}
++	fmt.Printf("%s", &intArray) // ERROR "Printf format %s has arg &intArray of wrong type \*\[2\]int"
++
++	stringStruct := struct{ F string }{"foo"}
++	fmt.Printf("%s", &stringStruct) // not an error
++
++	intStruct := struct{ F int }{3}
++	fmt.Printf("%s", &intStruct) // ERROR "Printf format %s has arg &intStruct of wrong type \*struct{F int}"
++
++	stringMap := map[string]string{"foo": "bar"}
++	fmt.Printf("%s", &stringMap) // not an error
++
++	intMap := map[int]int{3: 4}
++	fmt.Printf("%s", &intMap) // ERROR "Printf format %s has arg &intMap of wrong type \*map\[int\]int"
++}
+diff --git a/src/cmd/vet/types.go b/src/cmd/vet/types.go
+index 3ff4b5966d..78823aed97 100644
+--- a/src/cmd/vet/types.go
++++ b/src/cmd/vet/types.go
+@@ -217,12 +217,20 @@ func (f *File) matchArgTypeInternal(t printfArgType, typ types.Type, arg ast.Exp
+ 		if t == argPointer {
+ 			return true
+ 		}
+-		// If it's pointer to struct, that's equivalent in our analysis to whether we can print the struct.
+-		if str, ok := typ.Elem().Underlying().(*types.Struct); ok {
+-			return f.matchStructArgType(t, str, arg, inProgress)
++		under := typ.Elem().Underlying()
++		switch under.(type) {
++		case *types.Struct: // see below
++		case *types.Array: // see below
++		case *types.Slice: // see below
++		case *types.Map: // see below
++		default:
++			// Check whether the rest can print pointers.
++			return t&argPointer != 0
+ 		}
+-		// Check whether the rest can print pointers.
+-		return t&argPointer != 0
++		// If it's a pointer to a struct, array, slice, or map, that's
++		// equivalent in our analysis to whether we can print the type
++		// being pointed to.
++		return f.matchArgTypeInternal(t, under, arg, inProgress)
+ 
+ 	case *types.Struct:
+ 		return f.matchStructArgType(t, typ, arg, inProgress)

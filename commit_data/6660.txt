@@ -7,7 +7,141 @@ Date:   Thu Oct 28 21:23:24 2010 -0700
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/2799041
-
+---
  src/pkg/ebnf/ebnf.go   | 16 ++++++++++------
  src/pkg/ebnf/parser.go | 34 +++++++++++-----------------------
  2 files changed, 21 insertions(+), 29 deletions(-)
+
+diff --git a/src/pkg/ebnf/ebnf.go b/src/pkg/ebnf/ebnf.go
+index 898a481735..8333f58309 100644
+--- a/src/pkg/ebnf/ebnf.go
++++ b/src/pkg/ebnf/ebnf.go
+@@ -23,7 +23,6 @@
+ package ebnf
+ 
+ import (
+-	"container/vector"
+ 	"go/scanner"
+ 	"go/token"
+ 	"os"
+@@ -123,7 +122,7 @@ func isLexical(name string) bool {
+ 
+ type verifier struct {
+ 	scanner.ErrorVector
+-	worklist vector.Vector
++	worklist []*Production
+ 	reached  Grammar // set of productions reached from (and including) the root production
+ 	grammar  Grammar
+ }
+@@ -132,7 +131,7 @@ type verifier struct {
+ func (v *verifier) push(prod *Production) {
+ 	name := prod.Name.String
+ 	if _, found := v.reached[name]; !found {
+-		v.worklist.Push(prod)
++		v.worklist = append(v.worklist, prod)
+ 		v.reached[name] = prod
+ 	}
+ }
+@@ -205,14 +204,19 @@ func (v *verifier) verify(grammar Grammar, start string) {
+ 
+ 	// initialize verifier
+ 	v.ErrorVector.Reset()
+-	v.worklist.Resize(0, 0)
++	v.worklist = v.worklist[0:0]
+ 	v.reached = make(Grammar)
+ 	v.grammar = grammar
+ 
+ 	// work through the worklist
+ 	v.push(root)
+-	for v.worklist.Len() > 0 {
+-		prod := v.worklist.Pop().(*Production)
++	for {
++		n := len(v.worklist) - 1
++		if n < 0 {
++			break
++		}
++		prod := v.worklist[n]
++		v.worklist = v.worklist[0:n]
+ 		v.verifyExpr(prod.Expr, isLexical(prod.Name.String))
+ 	}
+ 
+diff --git a/src/pkg/ebnf/parser.go b/src/pkg/ebnf/parser.go
+index 6495878794..32edbacafe 100644
+--- a/src/pkg/ebnf/parser.go
++++ b/src/pkg/ebnf/parser.go
+@@ -5,7 +5,6 @@
+ package ebnf
+ 
+ import (
+-	"container/vector"
+ 	"go/scanner"
+ 	"go/token"
+ 	"os"
+@@ -116,36 +115,30 @@ func (p *parser) parseTerm() (x Expression) {
+ 
+ 
+ func (p *parser) parseSequence() Expression {
+-	var list vector.Vector
++	var list Sequence
+ 
+ 	for x := p.parseTerm(); x != nil; x = p.parseTerm() {
+-		list.Push(x)
++		list = append(list, x)
+ 	}
+ 
+ 	// no need for a sequence if list.Len() < 2
+-	switch list.Len() {
++	switch len(list) {
+ 	case 0:
+ 		return nil
+ 	case 1:
+-		return list.At(0).(Expression)
++		return list[0]
+ 	}
+ 
+-	// convert list into a sequence
+-	seq := make(Sequence, list.Len())
+-	for i := 0; i < list.Len(); i++ {
+-		seq[i] = list.At(i).(Expression)
+-	}
+-	return seq
++	return list
+ }
+ 
+ 
+ func (p *parser) parseExpression() Expression {
+-	var list vector.Vector
++	var list Alternative
+ 
+ 	for {
+-		x := p.parseSequence()
+-		if x != nil {
+-			list.Push(x)
++		if x := p.parseSequence(); x != nil {
++			list = append(list, x)
+ 		}
+ 		if p.tok != token.OR {
+ 			break
+@@ -154,19 +147,14 @@ func (p *parser) parseExpression() Expression {
+ 	}
+ 
+ 	// no need for an Alternative node if list.Len() < 2
+-	switch list.Len() {
++	switch len(list) {
+ 	case 0:
+ 		return nil
+ 	case 1:
+-		return list.At(0).(Expression)
++		return list[0]
+ 	}
+ 
+-	// convert list into an Alternative node
+-	alt := make(Alternative, list.Len())
+-	for i := 0; i < list.Len(); i++ {
+-		alt[i] = list.At(i).(Expression)
+-	}
+-	return alt
++	return list
+ }
+ 
+ 

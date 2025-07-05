@@ -7,7 +7,7 @@ Date:   Mon Feb 27 11:25:43 2012 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5701050
-
+---
  doc/{codelab => articles}/wiki/Makefile               | 0
  doc/{codelab => articles}/wiki/edit.html              | 0
  doc/{codelab => articles}/wiki/final-noclosure.go     | 0
@@ -34,3 +34,187 @@ Date:   Mon Feb 27 11:25:43 2012 +1100
  doc/install-source.html                               | 4 ++--
  doc/install.html                                      | 4 ++--
  25 files changed, 17 insertions(+), 11 deletions(-)
+
+diff --git a/doc/codelab/wiki/Makefile b/doc/articles/wiki/Makefile
+similarity index 100%
+rename from doc/codelab/wiki/Makefile
+rename to doc/articles/wiki/Makefile
+diff --git a/doc/codelab/wiki/edit.html b/doc/articles/wiki/edit.html
+similarity index 100%
+rename from doc/codelab/wiki/edit.html
+rename to doc/articles/wiki/edit.html
+diff --git a/doc/codelab/wiki/final-noclosure.go b/doc/articles/wiki/final-noclosure.go
+similarity index 100%
+rename from doc/codelab/wiki/final-noclosure.go
+rename to doc/articles/wiki/final-noclosure.go
+diff --git a/doc/codelab/wiki/final-noerror.go b/doc/articles/wiki/final-noerror.go
+similarity index 100%
+rename from doc/codelab/wiki/final-noerror.go
+rename to doc/articles/wiki/final-noerror.go
+diff --git a/doc/codelab/wiki/final-parsetemplate.go b/doc/articles/wiki/final-parsetemplate.go
+similarity index 100%
+rename from doc/codelab/wiki/final-parsetemplate.go
+rename to doc/articles/wiki/final-parsetemplate.go
+diff --git a/doc/codelab/wiki/final-template.go b/doc/articles/wiki/final-template.go
+similarity index 100%
+rename from doc/codelab/wiki/final-template.go
+rename to doc/articles/wiki/final-template.go
+diff --git a/doc/codelab/wiki/final.go b/doc/articles/wiki/final.go
+similarity index 100%
+rename from doc/codelab/wiki/final.go
+rename to doc/articles/wiki/final.go
+diff --git a/doc/codelab/wiki/get.go b/doc/articles/wiki/get.go
+similarity index 100%
+rename from doc/codelab/wiki/get.go
+rename to doc/articles/wiki/get.go
+diff --git a/doc/codelab/wiki/htmlify.go b/doc/articles/wiki/htmlify.go
+similarity index 100%
+rename from doc/codelab/wiki/htmlify.go
+rename to doc/articles/wiki/htmlify.go
+diff --git a/doc/codelab/wiki/http-sample.go b/doc/articles/wiki/http-sample.go
+similarity index 100%
+rename from doc/codelab/wiki/http-sample.go
+rename to doc/articles/wiki/http-sample.go
+diff --git a/doc/codelab/wiki/index.html b/doc/articles/wiki/index.html
+similarity index 99%
+rename from doc/codelab/wiki/index.html
+rename to doc/articles/wiki/index.html
+index efb647298b..e0e41cd609 100644
+--- a/doc/codelab/wiki/index.html
++++ b/doc/articles/wiki/index.html
+@@ -1,8 +1,11 @@
+-<!-- Codelab: Writing Web Applications -->
++<!--{
++	"Title": "Writing Web Applications"
++}-->
++
+ <h2>Introduction</h2>
+ 
+ <p>
+-Covered in this codelab:
++Covered in this tutorial:
+ </p>
+ <ul>
+ <li>Creating a data structure with load and save methods</li>
+@@ -33,7 +36,7 @@ Install Go (see the <a href="/doc/install.html">Installation Instructions</a>).
+ </p>
+ 
+ <p>
+-Make a new directory for this codelab and cd to it:
++Make a new directory for this tutorial and cd to it:
+ </p>
+ 
+ <pre>
+diff --git a/doc/codelab/wiki/notemplate.go b/doc/articles/wiki/notemplate.go
+similarity index 100%
+rename from doc/codelab/wiki/notemplate.go
+rename to doc/articles/wiki/notemplate.go
+diff --git a/doc/codelab/wiki/part1-noerror.go b/doc/articles/wiki/part1-noerror.go
+similarity index 100%
+rename from doc/codelab/wiki/part1-noerror.go
+rename to doc/articles/wiki/part1-noerror.go
+diff --git a/doc/codelab/wiki/part1.go b/doc/articles/wiki/part1.go
+similarity index 100%
+rename from doc/codelab/wiki/part1.go
+rename to doc/articles/wiki/part1.go
+diff --git a/doc/codelab/wiki/part2.go b/doc/articles/wiki/part2.go
+similarity index 100%
+rename from doc/codelab/wiki/part2.go
+rename to doc/articles/wiki/part2.go
+diff --git a/doc/codelab/wiki/srcextract.go b/doc/articles/wiki/srcextract.go
+similarity index 100%
+rename from doc/codelab/wiki/srcextract.go
+rename to doc/articles/wiki/srcextract.go
+diff --git a/doc/codelab/wiki/test.sh b/doc/articles/wiki/test.sh
+similarity index 100%
+rename from doc/codelab/wiki/test.sh
+rename to doc/articles/wiki/test.sh
+diff --git a/doc/codelab/wiki/test_Test.txt.good b/doc/articles/wiki/test_Test.txt.good
+similarity index 100%
+rename from doc/codelab/wiki/test_Test.txt.good
+rename to doc/articles/wiki/test_Test.txt.good
+diff --git a/doc/codelab/wiki/test_edit.good b/doc/articles/wiki/test_edit.good
+similarity index 100%
+rename from doc/codelab/wiki/test_edit.good
+rename to doc/articles/wiki/test_edit.good
+diff --git a/doc/codelab/wiki/test_view.good b/doc/articles/wiki/test_view.good
+similarity index 100%
+rename from doc/codelab/wiki/test_view.good
+rename to doc/articles/wiki/test_view.good
+diff --git a/doc/codelab/wiki/view.html b/doc/articles/wiki/view.html
+similarity index 100%
+rename from doc/codelab/wiki/view.html
+rename to doc/articles/wiki/view.html
+diff --git a/doc/codelab/wiki/wiki.html b/doc/articles/wiki/wiki.html
+similarity index 99%
+rename from doc/codelab/wiki/wiki.html
+rename to doc/articles/wiki/wiki.html
+index 8a22f3db2b..284d6d701f 100644
+--- a/doc/codelab/wiki/wiki.html
++++ b/doc/articles/wiki/wiki.html
+@@ -1,8 +1,11 @@
+-<!-- Codelab: Writing Web Applications -->
++<!--{
++	"Title": "Writing Web Applications"
++}-->
++
+ <h2>Introduction</h2>
+ 
+ <p>
+-Covered in this codelab:
++Covered in this tutorial:
+ </p>
+ <ul>
+ <li>Creating a data structure with load and save methods</li>
+@@ -33,7 +36,7 @@ Install Go (see the <a href="/doc/install.html">Installation Instructions</a>).
+ </p>
+ 
+ <p>
+-Make a new directory for this codelab and cd to it:
++Make a new directory for this tutorial and cd to it:
+ </p>
+ 
+ <pre>
+diff --git a/doc/docs.html b/doc/docs.html
+index dbe74ad503..5dacee6634 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -65,7 +65,7 @@ Answers to common questions about Go.
+ <h3>Other introductory articles</h3>
+ 
+ <ul>
+-<li><a href="codelab/wiki/">Writing Web Applications</a> - 
++<li><a href="/doc/articles/wiki/">Writing Web Applications</a> - 
+ 	building a simple web application.</li>
+ <li><a href="go_for_cpp_programmers.html">Go for C++ Programmers</a></li>
+ </ul>
+diff --git a/doc/install-source.html b/doc/install-source.html
+index e3d0627333..5b138d5796 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -235,8 +235,8 @@ read <a href="/doc/code.html">How to Write Go Code</a>.
+ </p>
+ 
+ <p>
+-Build a web application by following the <a href="/doc/codelab/wiki/">Wiki
+-Codelab</a>.
++Build a web application by following the <a href="/doc/articles/wiki/">Wiki
++Tutorial</a>.
+ </p>
+ 
+ <p>
+diff --git a/doc/install.html b/doc/install.html
+index 2bd36782b9..e99b60dc09 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -153,8 +153,8 @@ read <a href="/doc/code.html">How to Write Go Code</a>.
+ </p>
+ 
+ <p>
+-Build a web application by following the <a href="/doc/codelab/wiki/">Wiki
+-Codelab</a>.
++Build a web application by following the <a href="/doc/articles/wiki/">Wiki
++Tutorial</a>.
+ </p>
+ 
+ <p>

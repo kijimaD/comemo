@@ -16,6 +16,37 @@ Date:   Tue May 21 14:54:54 2019 -0400
     Change-Id: I5ee7ca276b753a48abc3aedfb78b8af68b448dd4
     Reviewed-on: https://go-review.googlesource.com/c/go/+/178537
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/x509/root_cgo_darwin.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/x509/root_cgo_darwin.go b/src/crypto/x509/root_cgo_darwin.go
+index e6332072d6..1c20f26acb 100644
+--- a/src/crypto/x509/root_cgo_darwin.go
++++ b/src/crypto/x509/root_cgo_darwin.go
+@@ -16,7 +16,7 @@ package x509
+ #include <CoreFoundation/CoreFoundation.h>
+ #include <Security/Security.h>
+ 
+-static bool isSSLPolicy(SecPolicyRef policyRef) {
++static Boolean isSSLPolicy(SecPolicyRef policyRef) {
+ 	if (!policyRef) {
+ 		return false;
+ 	}
+@@ -24,13 +24,13 @@ static bool isSSLPolicy(SecPolicyRef policyRef) {
+ 	if (properties == NULL) {
+ 		return false;
+ 	}
++	Boolean isSSL = false;
+ 	CFTypeRef value = NULL;
+ 	if (CFDictionaryGetValueIfPresent(properties, kSecPolicyOid, (const void **)&value)) {
+-		CFRelease(properties);
+-		return CFEqual(value, kSecPolicyAppleSSL);
++		isSSL = CFEqual(value, kSecPolicyAppleSSL);
+ 	}
+ 	CFRelease(properties);
+-	return false;
++	return isSSL;
+ }
+ 
+ // sslTrustSettingsResult obtains the final kSecTrustSettingsResult value

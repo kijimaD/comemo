@@ -17,9 +17,84 @@ Date:   Thu Jul 25 12:40:02 2019 -0700
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/esc.go  | 13 +------------
  src/cmd/compile/internal/gc/fmt.go  |  4 ++--
  src/cmd/compile/internal/gc/main.go |  3 +--
  src/cmd/compile/internal/gc/subr.go |  2 +-
  4 files changed, 5 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index c42f25e104..feb2d9b5dc 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -41,19 +41,8 @@ import (
+ // not escape, then new(T) can be rewritten into a stack allocation.
+ // The same is true of slice literals.
+ 
+-// If newescape is true, then escape.go drives escape analysis instead
+-// of esc.go.
+-var newescape bool
+-
+ func escapes(all []*Node) {
+-	visitBottomUp(all, escapeImpl())
+-}
+-
+-func escapeImpl() func([]*Node, bool) {
+-	if newescape {
+-		return escapeFuncs
+-	}
+-	return escAnalyze
++	visitBottomUp(all, escapeFuncs)
+ }
+ 
+ const (
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 72b1e35b6a..782e4cb840 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -457,8 +457,8 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
+ 		fmt.Fprintf(s, " esc(%d)", n.Esc)
+ 	}
+ 
+-	if e, ok := n.Opt().(*NodeEscState); ok && e.Loopdepth != 0 {
+-		fmt.Fprintf(s, " ld(%d)", e.Loopdepth)
++	if e, ok := n.Opt().(*EscLocation); ok && e.loopDepth != 0 {
++		fmt.Fprintf(s, " ld(%d)", e.loopDepth)
+ 	}
+ 
+ 	if c == 0 && n.Typecheck() != 0 {
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 2a1fd8e4fa..db1f9d20e4 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -263,7 +263,6 @@ func Main(archInit func(*Arch)) {
+ 	flag.StringVar(&blockprofile, "blockprofile", "", "write block profile to `file`")
+ 	flag.StringVar(&mutexprofile, "mutexprofile", "", "write mutex profile to `file`")
+ 	flag.StringVar(&benchfile, "bench", "", "append benchmark times to `file`")
+-	flag.BoolVar(&newescape, "newescape", true, "enable new escape analysis")
+ 	flag.BoolVar(&smallFrames, "smallframes", false, "reduce the size limit for stack allocated objects")
+ 	flag.BoolVar(&Ctxt.UseBASEntries, "dwarfbasentries", Ctxt.UseBASEntries, "use base address selection entries in DWARF")
+ 	objabi.Flagparse(usage)
+@@ -271,7 +270,7 @@ func Main(archInit func(*Arch)) {
+ 	// Record flags that affect the build result. (And don't
+ 	// record flags that don't, since that would cause spurious
+ 	// changes in the binary.)
+-	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "newescape", "dwarfbasentries", "smallframes")
++	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "dwarfbasentries", "smallframes")
+ 
+ 	if smallFrames {
+ 		maxStackVarSize = 128 * 1024
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 42f47bb8c1..dca9772ead 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1579,7 +1579,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
+ 	if rcvr.IsPtr() && rcvr.Elem() == method.Type.Recv().Type && rcvr.Elem().Sym != nil {
+ 		inlcalls(fn)
+ 	}
+-	escapeImpl()([]*Node{fn}, false)
++	escapeFuncs([]*Node{fn}, false)
+ 
+ 	Curfn = nil
+ 	funccompile(fn)

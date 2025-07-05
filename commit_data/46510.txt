@@ -19,9 +19,232 @@ Date:   Tue Jan 5 20:52:00 2021 +0100
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  api/go1.16.txt               |  9 -----
  doc/go1.16.html              |  8 -----
  src/crypto/x509/x509.go      | 84 --------------------------------------------
  src/crypto/x509/x509_test.go | 56 +++++++++++++----------------
  4 files changed, 25 insertions(+), 132 deletions(-)
+
+diff --git a/api/go1.16.txt b/api/go1.16.txt
+index 16d9cb891b..baac5379f8 100644
+--- a/api/go1.16.txt
++++ b/api/go1.16.txt
+@@ -1,15 +1,6 @@
+ pkg archive/zip, method (*ReadCloser) Open(string) (fs.File, error)
+ pkg archive/zip, method (*Reader) Open(string) (fs.File, error)
+ pkg crypto/x509, method (SystemRootsError) Unwrap() error
+-pkg crypto/x509, type CertificateRequest struct, BasicConstraintsValid bool
+-pkg crypto/x509, type CertificateRequest struct, ExtKeyUsage []ExtKeyUsage
+-pkg crypto/x509, type CertificateRequest struct, IsCA bool
+-pkg crypto/x509, type CertificateRequest struct, KeyUsage KeyUsage
+-pkg crypto/x509, type CertificateRequest struct, MaxPathLen int
+-pkg crypto/x509, type CertificateRequest struct, MaxPathLenZero bool
+-pkg crypto/x509, type CertificateRequest struct, PolicyIdentifiers []asn1.ObjectIdentifier
+-pkg crypto/x509, type CertificateRequest struct, SubjectKeyId []uint8
+-pkg crypto/x509, type CertificateRequest struct, UnknownExtKeyUsage []asn1.ObjectIdentifier
+ pkg debug/elf, const DT_ADDRRNGHI = 1879047935
+ pkg debug/elf, const DT_ADDRRNGHI DynTag
+ pkg debug/elf, const DT_ADDRRNGLO = 1879047680
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index 0c2921fe6b..f0dbee7b89 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -590,14 +590,6 @@ func TestFoo(t *testing.T) {
+       a malformed certificate.
+     </p>
+ 
+-    <p><!-- CL 233163 -->
+-      A number of additional fields have been added to the
+-      <a href="/pkg/crypto/x509/#CertificateRequest"><code>CertificateRequest</code></a> type.
+-      These fields are now parsed in <a href="/pkg/crypto/x509/#ParseCertificateRequest">
+-      <code>ParseCertificateRequest</code></a> and marshalled in
+-      <a href="/pkg/crypto/x509/#CreateCertificateRequest"><code>CreateCertificateRequest</code></a>.
+-    </p>
+-
+     <p><!-- CL 257939 -->
+       DSA signature verification is no longer supported. Note that DSA signature
+       generation was never supported.
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 60dfac741b..42d8158d63 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -2006,40 +2006,6 @@ func buildCSRExtensions(template *CertificateRequest) ([]pkix.Extension, error)
+ 		ret = append(ret, ext)
+ 	}
+ 
+-	if (len(template.ExtKeyUsage) > 0 || len(template.UnknownExtKeyUsage) > 0) &&
+-		!oidInExtensions(oidExtensionExtendedKeyUsage, template.ExtraExtensions) {
+-		ext, err := marshalExtKeyUsage(template.ExtKeyUsage, template.UnknownExtKeyUsage)
+-		if err != nil {
+-			return nil, err
+-		}
+-		ret = append(ret, ext)
+-	}
+-
+-	if template.BasicConstraintsValid && !oidInExtensions(oidExtensionBasicConstraints, template.ExtraExtensions) {
+-		ext, err := marshalBasicConstraints(template.IsCA, template.MaxPathLen, template.MaxPathLenZero)
+-		if err != nil {
+-			return nil, err
+-		}
+-		ret = append(ret, ext)
+-	}
+-
+-	if len(template.SubjectKeyId) > 0 && !oidInExtensions(oidExtensionSubjectKeyId, template.ExtraExtensions) {
+-		skidBytes, err := asn1.Marshal(template.SubjectKeyId)
+-		if err != nil {
+-			return nil, err
+-		}
+-		ret = append(ret, pkix.Extension{Id: oidExtensionSubjectKeyId, Value: skidBytes})
+-	}
+-
+-	if len(template.PolicyIdentifiers) > 0 &&
+-		!oidInExtensions(oidExtensionCertificatePolicies, template.ExtraExtensions) {
+-		ext, err := marshalCertificatePolicies(template.PolicyIdentifiers)
+-		if err != nil {
+-			return nil, err
+-		}
+-		ret = append(ret, ext)
+-	}
+-
+ 	return append(ret, template.ExtraExtensions...), nil
+ }
+ 
+@@ -2438,37 +2404,6 @@ type CertificateRequest struct {
+ 	EmailAddresses []string
+ 	IPAddresses    []net.IP
+ 	URIs           []*url.URL
+-
+-	ExtKeyUsage        []ExtKeyUsage           // Sequence of extended key usages.
+-	UnknownExtKeyUsage []asn1.ObjectIdentifier // Encountered extended key usages unknown to this package.
+-
+-	// BasicConstraintsValid indicates whether IsCA, MaxPathLen,
+-	// and MaxPathLenZero are valid.
+-	BasicConstraintsValid bool
+-	IsCA                  bool
+-
+-	// MaxPathLen and MaxPathLenZero indicate the presence and
+-	// value of the BasicConstraints' "pathLenConstraint".
+-	//
+-	// When parsing a certificate, a positive non-zero MaxPathLen
+-	// means that the field was specified, -1 means it was unset,
+-	// and MaxPathLenZero being true mean that the field was
+-	// explicitly set to zero. The case of MaxPathLen==0 with MaxPathLenZero==false
+-	// should be treated equivalent to -1 (unset).
+-	//
+-	// When generating a certificate, an unset pathLenConstraint
+-	// can be requested with either MaxPathLen == -1 or using the
+-	// zero value for both MaxPathLen and MaxPathLenZero.
+-	MaxPathLen int
+-	// MaxPathLenZero indicates that BasicConstraintsValid==true
+-	// and MaxPathLen==0 should be interpreted as an actual
+-	// maximum path length of zero. Otherwise, that combination is
+-	// interpreted as MaxPathLen not being set.
+-	MaxPathLenZero bool
+-
+-	SubjectKeyId []byte
+-
+-	PolicyIdentifiers []asn1.ObjectIdentifier
+ }
+ 
+ // These structures reflect the ASN.1 structure of X.509 certificate
+@@ -2801,25 +2736,6 @@ func parseCertificateRequest(in *certificateRequest) (*CertificateRequest, error
+ 			}
+ 		case extension.Id.Equal(oidExtensionKeyUsage):
+ 			out.KeyUsage, err = parseKeyUsageExtension(extension.Value)
+-		case extension.Id.Equal(oidExtensionExtendedKeyUsage):
+-			out.ExtKeyUsage, out.UnknownExtKeyUsage, err = parseExtKeyUsageExtension(extension.Value)
+-			if err != nil {
+-				return nil, err
+-			}
+-		case extension.Id.Equal(oidExtensionBasicConstraints):
+-			out.IsCA, out.MaxPathLen, err = parseBasicConstraintsExtension(extension.Value)
+-			if err != nil {
+-				return nil, err
+-			}
+-			out.BasicConstraintsValid = true
+-			out.MaxPathLenZero = out.MaxPathLen == 0
+-		case extension.Id.Equal(oidExtensionSubjectKeyId):
+-			out.SubjectKeyId, err = parseSubjectKeyIdExtension(extension.Value)
+-			if err != nil {
+-				return nil, err
+-			}
+-		case extension.Id.Equal(oidExtensionCertificatePolicies):
+-			out.PolicyIdentifiers, err = parseCertificatePoliciesExtension(extension.Value)
+ 			if err != nil {
+ 				return nil, err
+ 			}
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index 65d105db34..d5c7ec466b 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -2964,44 +2964,38 @@ func certPoolEqual(a, b *CertPool) bool {
+ }
+ 
+ func TestCertificateRequestRoundtripFields(t *testing.T) {
++	urlA, err := url.Parse("https://example.com/_")
++	if err != nil {
++		t.Fatal(err)
++	}
++	urlB, err := url.Parse("https://example.org/_")
++	if err != nil {
++		t.Fatal(err)
++	}
+ 	in := &CertificateRequest{
+-		KeyUsage:              KeyUsageCertSign,
+-		ExtKeyUsage:           []ExtKeyUsage{ExtKeyUsageAny},
+-		UnknownExtKeyUsage:    []asn1.ObjectIdentifier{{1, 2, 3}},
+-		BasicConstraintsValid: true,
+-		IsCA:                  true,
+-		MaxPathLen:            0,
+-		MaxPathLenZero:        true,
+-		SubjectKeyId:          []byte{1, 2, 3},
+-		PolicyIdentifiers:     []asn1.ObjectIdentifier{{1, 2, 3}},
++		DNSNames:       []string{"example.com", "example.org"},
++		EmailAddresses: []string{"a@example.com", "b@example.com"},
++		IPAddresses:    []net.IP{net.IPv4(192, 0, 2, 0), net.IPv6loopback},
++		URIs:           []*url.URL{urlA, urlB},
++		KeyUsage:       KeyUsageCertSign,
+ 	}
+ 	out := marshalAndParseCSR(t, in)
+ 
+-	if in.KeyUsage != out.KeyUsage {
+-		t.Fatalf("Unexpected KeyUsage: got %v, want %v", out.KeyUsage, in.KeyUsage)
+-	}
+-	if !reflect.DeepEqual(in.ExtKeyUsage, out.ExtKeyUsage) {
+-		t.Fatalf("Unexpected ExtKeyUsage: got %v, want %v", out.ExtKeyUsage, in.ExtKeyUsage)
+-	}
+-	if !reflect.DeepEqual(in.UnknownExtKeyUsage, out.UnknownExtKeyUsage) {
+-		t.Fatalf("Unexpected UnknownExtKeyUsage: got %v, want %v", out.UnknownExtKeyUsage, in.UnknownExtKeyUsage)
++	if !reflect.DeepEqual(in.DNSNames, out.DNSNames) {
++		t.Fatalf("Unexpected DNSNames: got %v, want %v", out.DNSNames, in.DNSNames)
+ 	}
+-	if in.BasicConstraintsValid != out.BasicConstraintsValid {
+-		t.Fatalf("Unexpected BasicConstraintsValid: got %v, want %v", out.BasicConstraintsValid, in.BasicConstraintsValid)
++	if !reflect.DeepEqual(in.EmailAddresses, out.EmailAddresses) {
++		t.Fatalf("Unexpected EmailAddresses: got %v, want %v", out.EmailAddresses, in.EmailAddresses)
+ 	}
+-	if in.IsCA != out.IsCA {
+-		t.Fatalf("Unexpected IsCA: got %v, want %v", out.IsCA, in.IsCA)
++	if len(in.IPAddresses) != len(out.IPAddresses) ||
++		!in.IPAddresses[0].Equal(out.IPAddresses[0]) ||
++		!in.IPAddresses[1].Equal(out.IPAddresses[1]) {
++		t.Fatalf("Unexpected IPAddresses: got %v, want %v", out.IPAddresses, in.IPAddresses)
+ 	}
+-	if in.MaxPathLen != out.MaxPathLen {
+-		t.Fatalf("Unexpected MaxPathLen: got %v, want %v", out.MaxPathLen, in.MaxPathLen)
++	if !reflect.DeepEqual(in.URIs, out.URIs) {
++		t.Fatalf("Unexpected URIs: got %v, want %v", out.URIs, in.URIs)
+ 	}
+-	if in.MaxPathLenZero != out.MaxPathLenZero {
+-		t.Fatalf("Unexpected MaxPathLenZero: got %v, want %v", out.MaxPathLenZero, in.MaxPathLenZero)
+-	}
+-	if !reflect.DeepEqual(in.SubjectKeyId, out.SubjectKeyId) {
+-		t.Fatalf("Unexpected SubjectKeyId: got %v, want %v", out.SubjectKeyId, in.SubjectKeyId)
+-	}
+-	if !reflect.DeepEqual(in.PolicyIdentifiers, out.PolicyIdentifiers) {
+-		t.Fatalf("Unexpected PolicyIdentifiers: got %v, want %v", out.PolicyIdentifiers, in.PolicyIdentifiers)
++	if in.KeyUsage != out.KeyUsage {
++		t.Fatalf("Unexpected KeyUsage: got %v, want %v", out.KeyUsage, in.KeyUsage)
+ 	}
+ }

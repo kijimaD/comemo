@@ -16,7 +16,74 @@ Date:   Fri Jan 8 14:57:26 2016 -0500
     Reviewed-on: https://go-review.googlesource.com/18458
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/extern.go |  8 ++++----
  src/runtime/mgc.go    | 16 +++-------------
  2 files changed, 7 insertions(+), 17 deletions(-)
+
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index f52c66cf87..2c98482e26 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -66,7 +66,7 @@ It is a comma-separated list of name=val pairs setting these named variables:
+ 	length of the pause. Setting gctrace=2 emits the same summary but also
+ 	repeats each collection. The format of this line is subject to change.
+ 	Currently, it is:
+-		gc # @#s #%: #+...+# ms clock, #+...+# ms cpu, #->#-># MB, # MB goal, # P
++		gc # @#s #%: #+#+# ms clock, #+#/#/#+# ms cpu, #->#-># MB, # MB goal, # P
+ 	where the fields are as follows:
+ 		gc #        the GC number, incremented at each GC
+ 		@#s         time in seconds since program start
+@@ -75,9 +75,9 @@ It is a comma-separated list of name=val pairs setting these named variables:
+ 		#->#-># MB  heap size at GC start, at GC end, and live heap
+ 		# MB goal   goal heap size
+ 		# P         number of processors used
+-	The phases are stop-the-world (STW) sweep termination, scan,
+-	synchronize Ps, mark, and STW mark termination. The CPU times
+-	for mark are broken down in to assist time (GC performed in
++	The phases are stop-the-world (STW) sweep termination, concurrent
++	mark and scan, and STW mark termination. The CPU times
++	for mark/scan are broken down in to assist time (GC performed in
+ 	line with allocation), background GC time, and idle GC time.
+ 	If the line ends with "(forced)", this GC was forced by a
+ 	runtime.GC() call and all phases are STW.
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 01b72eea54..c09f70423d 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1263,23 +1263,13 @@ func gcMarkTermination() {
+ 	if debug.gctrace > 0 {
+ 		util := int(memstats.gc_cpu_fraction * 100)
+ 
+-		// Install WB phase is no longer used.
+-		tInstallWB := work.tMark
+-		installWBCpu := int64(0)
+-
+-		// Scan phase is no longer used.
+-		tScan := tInstallWB
+-		scanCpu := int64(0)
+-
+-		// TODO: Clean up the gctrace format.
+-
+ 		var sbuf [24]byte
+ 		printlock()
+ 		print("gc ", memstats.numgc,
+ 			" @", string(itoaDiv(sbuf[:], uint64(work.tSweepTerm-runtimeInitTime)/1e6, 3)), "s ",
+ 			util, "%: ")
+ 		prev := work.tSweepTerm
+-		for i, ns := range []int64{tScan, tInstallWB, work.tMark, work.tMarkTerm, work.tEnd} {
++		for i, ns := range []int64{work.tMark, work.tMarkTerm, work.tEnd} {
+ 			if i != 0 {
+ 				print("+")
+ 			}
+@@ -1287,8 +1277,8 @@ func gcMarkTermination() {
+ 			prev = ns
+ 		}
+ 		print(" ms clock, ")
+-		for i, ns := range []int64{sweepTermCpu, scanCpu, installWBCpu, gcController.assistTime, gcController.dedicatedMarkTime + gcController.fractionalMarkTime, gcController.idleMarkTime, markTermCpu} {
+-			if i == 4 || i == 5 {
++		for i, ns := range []int64{sweepTermCpu, gcController.assistTime, gcController.dedicatedMarkTime + gcController.fractionalMarkTime, gcController.idleMarkTime, markTermCpu} {
++			if i == 2 || i == 3 {
+ 				// Separate mark time components with /.
+ 				print("/")
+ 			} else if i != 0 {

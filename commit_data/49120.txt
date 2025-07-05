@@ -10,6 +10,20 @@ Date:   Wed Jul 7 19:41:02 2021 -0400
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/testdata/script/modfile_flag.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/modfile_flag.txt b/src/cmd/go/testdata/script/modfile_flag.txt
+index 0ad0880817..5852c31189 100644
+--- a/src/cmd/go/testdata/script/modfile_flag.txt
++++ b/src/cmd/go/testdata/script/modfile_flag.txt
+@@ -73,7 +73,7 @@ cmp go.mod go.mod.orig
+ cmp go.sum go.sum.orig
+ 
+ 
+-# If the altnernate mod file does not have a ".mod" suffix, an error
++# If the alternate mod file does not have a ".mod" suffix, an error
+ # should be reported.
+ cp go.alt.mod goaltmod
+ ! go mod tidy -modfile=goaltmod

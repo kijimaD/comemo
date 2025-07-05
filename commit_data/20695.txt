@@ -16,7 +16,97 @@ Date:   Tue Sep 30 12:09:34 2014 -0700
     R=golang-codereviews, r
     CC=adg, golang-codereviews
     https://golang.org/cl/144650044
-
+---
  src/net/http/httputil/dump.go      | 12 ++++++++++--
  src/net/http/httputil/dump_test.go | 30 +++++++++++++++++++++++++++++-
  2 files changed, 39 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/httputil/dump.go b/src/net/http/httputil/dump.go
+index 2a7a413d01..ac8f103f9b 100644
+--- a/src/net/http/httputil/dump.go
++++ b/src/net/http/httputil/dump.go
+@@ -95,19 +95,27 @@ func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
+ 	// with a dummy response.
+ 	var buf bytes.Buffer // records the output
+ 	pr, pw := io.Pipe()
++	defer pr.Close()
++	defer pw.Close()
+ 	dr := &delegateReader{c: make(chan io.Reader)}
+ 	// Wait for the request before replying with a dummy response:
+ 	go func() {
+-		http.ReadRequest(bufio.NewReader(pr))
++		req, err := http.ReadRequest(bufio.NewReader(pr))
++		if err == nil {
++			// Ensure all the body is read; otherwise
++			// we'll get a partial dump.
++			io.Copy(ioutil.Discard, req.Body)
++			req.Body.Close()
++		}
+ 		dr.c <- strings.NewReader("HTTP/1.1 204 No Content\r\n\r\n")
+ 	}()
+ 
+ 	t := &http.Transport{
++		DisableKeepAlives: true,
+ 		Dial: func(net, addr string) (net.Conn, error) {
+ 			return &dumpConn{io.MultiWriter(&buf, pw), dr}, nil
+ 		},
+ 	}
+-	defer t.CloseIdleConnections()
+ 
+ 	_, err := t.RoundTrip(reqSend)
+ 
+diff --git a/src/net/http/httputil/dump_test.go b/src/net/http/httputil/dump_test.go
+index e1ffb3935a..024ee5a86f 100644
+--- a/src/net/http/httputil/dump_test.go
++++ b/src/net/http/httputil/dump_test.go
+@@ -111,6 +111,30 @@ var dumpTests = []dumpTest{
+ 
+ 		NoBody: true,
+ 	},
++
++	// Request with Body > 8196 (default buffer size)
++	{
++		Req: http.Request{
++			Method: "POST",
++			URL: &url.URL{
++				Scheme: "http",
++				Host:   "post.tld",
++				Path:   "/",
++			},
++			ContentLength: 8193,
++			ProtoMajor:    1,
++			ProtoMinor:    1,
++		},
++
++		Body: bytes.Repeat([]byte("a"), 8193),
++
++		WantDumpOut: "POST / HTTP/1.1\r\n" +
++			"Host: post.tld\r\n" +
++			"User-Agent: Go 1.1 package http\r\n" +
++			"Content-Length: 8193\r\n" +
++			"Accept-Encoding: gzip\r\n\r\n" +
++			strings.Repeat("a", 8193),
++	},
+ }
+ 
+ func TestDumpRequest(t *testing.T) {
+@@ -125,6 +149,8 @@ func TestDumpRequest(t *testing.T) {
+ 				tt.Req.Body = ioutil.NopCloser(bytes.NewReader(b))
+ 			case func() io.ReadCloser:
+ 				tt.Req.Body = b()
++			default:
++				t.Fatalf("Test %d: unsupported Body of %T", i, tt.Body)
+ 			}
+ 		}
+ 		setBody()
+@@ -159,7 +185,9 @@ func TestDumpRequest(t *testing.T) {
+ 		}
+ 	}
+ 	if dg := runtime.NumGoroutine() - numg0; dg > 4 {
+-		t.Errorf("Unexpectedly large number of new goroutines: %d new", dg)
++		buf := make([]byte, 4096)
++		buf = buf[:runtime.Stack(buf, true)]
++		t.Errorf("Unexpectedly large number of new goroutines: %d new: %s", dg, buf)
+ 	}
+ }
+ 

@@ -10,6 +10,20 @@ Date:   Mon Apr 27 16:18:35 2015 -0400
     Change-Id: I78feb4fd3e1d3c983ae3419085048831c04de3da
     Reviewed-on: https://go-review.googlesource.com/9401
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/race/testdata/io_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/race/testdata/io_test.go b/src/runtime/race/testdata/io_test.go
+index 9eb3552dc7..1b3ee3822b 100644
+--- a/src/runtime/race/testdata/io_test.go
++++ b/src/runtime/race/testdata/io_test.go
+@@ -49,7 +49,7 @@ func TestNoRaceIOHttp(t *testing.T) {
+ 			fmt.Fprintf(w, "test")
+ 			x = 42
+ 		})
+-		err := http.ListenAndServe(":23651", nil)
++		err := http.ListenAndServe("127.0.0.1:23651", nil)
+ 		if err != nil {
+ 			t.Fatalf("http.ListenAndServe: %v", err)
+ 		}

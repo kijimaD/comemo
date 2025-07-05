@@ -10,7 +10,66 @@ Date:   Fri Dec 10 14:25:55 2021 -0500
     Run-TryBot: Katie Hockman <katie@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/alldocs.go            | 18 +++++++++++++-----
  src/cmd/go/internal/test/test.go | 18 +++++++++++++-----
  2 files changed, 26 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index f9a2b59c05..6703792054 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -2861,11 +2861,19 @@
+ // 	    section of the testing package documentation for details.
+ //
+ // 	-fuzztime t
+-// 	    Run enough iterations of the fuzz test to take t, specified as a
+-// 	    time.Duration (for example, -fuzztime 1h30s). The default is to run
+-// 	    forever.
+-// 	    The special syntax Nx means to run the fuzz test N times
+-// 	    (for example, -fuzztime 100x).
++// 	    Run enough iterations of the fuzz target during fuzzing to take t,
++// 	    specified as a time.Duration (for example, -fuzztime 1h30s).
++// 		The default is to run forever.
++// 	    The special syntax Nx means to run the fuzz target N times
++// 	    (for example, -fuzztime 1000x).
++//
++// 	-fuzzminimizetime t
++// 	    Run enough iterations of the fuzz target during each minimization
++// 	    attempt to take t, as specified as a time.Duration (for example,
++// 	    -fuzzminimizetime 30s).
++// 		The default is 60s.
++// 	    The special syntax Nx means to run the fuzz target N times
++// 	    (for example, -fuzzminimizetime 100x).
+ //
+ // 	-json
+ // 	    Log verbose output and test results in JSON. This presents the
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 7ea9d4f1f1..50e6d5201b 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -257,11 +257,19 @@ control the execution of any test:
+ 	    section of the testing package documentation for details.
+ 
+ 	-fuzztime t
+-	    Run enough iterations of the fuzz test to take t, specified as a
+-	    time.Duration (for example, -fuzztime 1h30s). The default is to run
+-	    forever.
+-	    The special syntax Nx means to run the fuzz test N times
+-	    (for example, -fuzztime 100x).
++	    Run enough iterations of the fuzz target during fuzzing to take t,
++	    specified as a time.Duration (for example, -fuzztime 1h30s).
++		The default is to run forever.
++	    The special syntax Nx means to run the fuzz target N times
++	    (for example, -fuzztime 1000x).
++
++	-fuzzminimizetime t
++	    Run enough iterations of the fuzz target during each minimization
++	    attempt to take t, as specified as a time.Duration (for example,
++	    -fuzzminimizetime 30s).
++		The default is 60s.
++	    The special syntax Nx means to run the fuzz target N times
++	    (for example, -fuzzminimizetime 100x).
+ 
+ 	-json
+ 	    Log verbose output and test results in JSON. This presents the

@@ -12,7 +12,7 @@ Date:   Mon Sep 18 11:07:03 2023 +0200
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/syscall/syscall_darwin.go           |  9 ---------
  src/syscall/syscall_dragonfly.go        |  1 -
  src/syscall/syscall_freebsd.go          |  1 -
@@ -51,3 +51,754 @@ Date:   Mon Sep 18 11:07:03 2023 +0200
  src/syscall/zsyscall_openbsd_mips64.go  | 11 -----------
  src/syscall/zsyscall_openbsd_ppc64.go   | 11 -----------
  37 files changed, 343 deletions(-)
+
+diff --git a/src/syscall/syscall_darwin.go b/src/syscall/syscall_darwin.go
+index a9639e3913..670934cce1 100644
+--- a/src/syscall/syscall_darwin.go
++++ b/src/syscall/syscall_darwin.go
+@@ -247,15 +247,6 @@ func readlen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 	return
+ }
+ 
+-func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+-	r0, _, e1 := syscall(abi.FuncPCABI0(libc_write_trampoline), uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
+ 	// Simulate Getdirentries using fdopendir/readdir_r/closedir.
+ 	// We store the number of entries to skip in the seek
+diff --git a/src/syscall/syscall_dragonfly.go b/src/syscall/syscall_dragonfly.go
+index 6cb506b300..30936c7389 100644
+--- a/src/syscall/syscall_dragonfly.go
++++ b/src/syscall/syscall_dragonfly.go
+@@ -257,7 +257,6 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ //sys   mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, err error)
+ //sys   munmap(addr uintptr, length uintptr) (err error)
+ //sys	readlen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_READ
+-//sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
+ //sys	accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int, err error)
+ //sys	utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+ //sys	getcwd(buf []byte) (n int, err error) = SYS___GETCWD
+diff --git a/src/syscall/syscall_freebsd.go b/src/syscall/syscall_freebsd.go
+index a0faa817ea..584522d288 100644
+--- a/src/syscall/syscall_freebsd.go
++++ b/src/syscall/syscall_freebsd.go
+@@ -250,7 +250,6 @@ func Mknod(path string, mode uint32, dev uint64) (err error) {
+ //sys   mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, err error)
+ //sys   munmap(addr uintptr, length uintptr) (err error)
+ //sys	readlen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_READ
+-//sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
+ //sys	accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int, err error)
+ //sys	utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+ //sys	getcwd(buf []byte) (n int, err error) = SYS___GETCWD
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index e012c1b943..aa0cf111fe 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -1246,7 +1246,6 @@ func Setuid(uid int) (err error) {
+ //sys	write(fd int, p []byte) (n int, err error)
+ //sys	exitThread(code int) (err error) = SYS_EXIT
+ //sys	readlen(fd int, p *byte, np int) (n int, err error) = SYS_READ
+-//sys	writelen(fd int, p *byte, np int) (n int, err error) = SYS_WRITE
+ 
+ // mmap varies by architecture; see syscall_linux_*.go.
+ //sys	munmap(addr uintptr, length uintptr) (err error)
+diff --git a/src/syscall/syscall_netbsd.go b/src/syscall/syscall_netbsd.go
+index 333dd3ade6..5a239f8cd3 100644
+--- a/src/syscall/syscall_netbsd.go
++++ b/src/syscall/syscall_netbsd.go
+@@ -239,7 +239,6 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
+ //sys	mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, err error)
+ //sys	munmap(addr uintptr, length uintptr) (err error)
+ //sys	readlen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_READ
+-//sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
+ //sys	utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error)
+ //sys	getcwd(buf []byte) (n int, err error) = SYS___GETCWD
+ //sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS___SYSCTL
+diff --git a/src/syscall/syscall_openbsd1.go b/src/syscall/syscall_openbsd1.go
+index bddeda637a..6c24243b45 100644
+--- a/src/syscall/syscall_openbsd1.go
++++ b/src/syscall/syscall_openbsd1.go
+@@ -7,7 +7,6 @@
+ package syscall
+ 
+ //sys	readlen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_READ
+-//sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
+ //sys	Seek(fd int, offset int64, whence int) (newoffset int64, err error) = SYS_LSEEK
+ //sys	getcwd(buf []byte) (n int, err error) = SYS___GETCWD
+ //sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS___SYSCTL
+diff --git a/src/syscall/syscall_openbsd_libc.go b/src/syscall/syscall_openbsd_libc.go
+index 516d02975c..4dbc9034e3 100644
+--- a/src/syscall/syscall_openbsd_libc.go
++++ b/src/syscall/syscall_openbsd_libc.go
+@@ -58,7 +58,6 @@ func syscall9X(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr,
+ }
+ 
+ //sys	readlen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_read
+-//sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_write
+ //sys	Seek(fd int, offset int64, whence int) (newoffset int64, err error) = SYS_lseek
+ //sys	getcwd(buf []byte) (n int, err error)
+ //sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error)
+diff --git a/src/syscall/syscall_solaris.go b/src/syscall/syscall_solaris.go
+index 523a2a8429..243794940e 100644
+--- a/src/syscall/syscall_solaris.go
++++ b/src/syscall/syscall_solaris.go
+@@ -527,15 +527,6 @@ func readlen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 	return
+ }
+ 
+-func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+-	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_write)), 3, uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf), 0, 0, 0)
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = e1
+-	}
+-	return
+-}
+-
+ var mapper = &mmapper{
+ 	active: make(map[*byte][]byte),
+ 	mmap:   mmap,
+diff --git a/src/syscall/zsyscall_dragonfly_amd64.go b/src/syscall/zsyscall_dragonfly_amd64.go
+index a591682b7d..26ddc18990 100644
+--- a/src/syscall/zsyscall_dragonfly_amd64.go
++++ b/src/syscall/zsyscall_dragonfly_amd64.go
+@@ -1284,17 +1284,6 @@ func readlen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+-	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int, err error) {
+ 	r0, _, e1 := Syscall6(SYS_ACCEPT4, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(flags), 0, 0)
+ 	nfd = int(r0)
+diff --git a/src/syscall/zsyscall_freebsd_386.go b/src/syscall/zsyscall_freebsd_386.go
+index e729adcc68..f56341457f 100644
+--- a/src/syscall/zsyscall_freebsd_386.go
++++ b/src/syscall/zsyscall_freebsd_386.go
+@@ -1255,17 +1255,6 @@ func readlen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+-	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int, err error) {
+ 	r0, _, e1 := Syscall6(SYS_ACCEPT4, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(flags), 0, 0)
+ 	nfd = int(r0)
+diff --git a/src/syscall/zsyscall_freebsd_amd64.go b/src/syscall/zsyscall_freebsd_amd64.go
+index df0b817b22..b776121b97 100644
+--- a/src/syscall/zsyscall_freebsd_amd64.go
++++ b/src/syscall/zsyscall_freebsd_amd64.go
+@@ -1255,17 +1255,6 @@ func readlen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+-	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int, err error) {
+ 	r0, _, e1 := Syscall6(SYS_ACCEPT4, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(flags), 0, 0)
+ 	nfd = int(r0)
+diff --git a/src/syscall/zsyscall_freebsd_arm.go b/src/syscall/zsyscall_freebsd_arm.go
+index abd4bf1639..b8e0aab67c 100644
+--- a/src/syscall/zsyscall_freebsd_arm.go
++++ b/src/syscall/zsyscall_freebsd_arm.go
+@@ -1255,17 +1255,6 @@ func readlen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+-	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int, err error) {
+ 	r0, _, e1 := Syscall6(SYS_ACCEPT4, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(flags), 0, 0)
+ 	nfd = int(r0)
+diff --git a/src/syscall/zsyscall_freebsd_arm64.go b/src/syscall/zsyscall_freebsd_arm64.go
+index b86cfb5d85..9d94c5038c 100644
+--- a/src/syscall/zsyscall_freebsd_arm64.go
++++ b/src/syscall/zsyscall_freebsd_arm64.go
+@@ -1255,17 +1255,6 @@ func readlen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+-	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int, err error) {
+ 	r0, _, e1 := Syscall6(SYS_ACCEPT4, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(flags), 0, 0)
+ 	nfd = int(r0)
+diff --git a/src/syscall/zsyscall_freebsd_riscv64.go b/src/syscall/zsyscall_freebsd_riscv64.go
+index ad195e8cae..f73c4cd810 100644
+--- a/src/syscall/zsyscall_freebsd_riscv64.go
++++ b/src/syscall/zsyscall_freebsd_riscv64.go
+@@ -1255,17 +1255,6 @@ func readlen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+-	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func accept4(fd int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (nfd int, err error) {
+ 	r0, _, e1 := Syscall6(SYS_ACCEPT4, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), uintptr(flags), 0, 0)
+ 	nfd = int(r0)
+diff --git a/src/syscall/zsyscall_linux_386.go b/src/syscall/zsyscall_linux_386.go
+index 8e0de44abf..51f2066558 100644
+--- a/src/syscall/zsyscall_linux_386.go
++++ b/src/syscall/zsyscall_linux_386.go
+@@ -977,17 +977,6 @@ func readlen(fd int, p *byte, np int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func writelen(fd int, p *byte, np int) (n int, err error) {
+-	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(p)), uintptr(np))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func munmap(addr uintptr, length uintptr) (err error) {
+ 	_, _, e1 := Syscall(SYS_MUNMAP, uintptr(addr), uintptr(length), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_amd64.go b/src/syscall/zsyscall_linux_amd64.go
+index c3ee372fec..be00d5857a 100644
+--- a/src/syscall/zsyscall_linux_amd64.go
++++ b/src/syscall/zsyscall_linux_amd64.go
+@@ -977,17 +977,6 @@ func readlen(fd int, p *byte, np int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func writelen(fd int, p *byte, np int) (n int, err error) {
+-	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(p)), uintptr(np))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func munmap(addr uintptr, length uintptr) (err error) {
+ 	_, _, e1 := Syscall(SYS_MUNMAP, uintptr(addr), uintptr(length), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_arm.go b/src/syscall/zsyscall_linux_arm.go
+index a72355f96f..245a44a4d8 100644
+--- a/src/syscall/zsyscall_linux_arm.go
++++ b/src/syscall/zsyscall_linux_arm.go
+@@ -977,17 +977,6 @@ func readlen(fd int, p *byte, np int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func writelen(fd int, p *byte, np int) (n int, err error) {
+-	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(p)), uintptr(np))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func munmap(addr uintptr, length uintptr) (err error) {
+ 	_, _, e1 := Syscall(SYS_MUNMAP, uintptr(addr), uintptr(length), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_arm64.go b/src/syscall/zsyscall_linux_arm64.go
+index b7c7a38626..fa0d8fd110 100644
+--- a/src/syscall/zsyscall_linux_arm64.go
++++ b/src/syscall/zsyscall_linux_arm64.go
+@@ -977,17 +977,6 @@ func readlen(fd int, p *byte, np int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func writelen(fd int, p *byte, np int) (n int, err error) {
+-	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(p)), uintptr(np))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func munmap(addr uintptr, length uintptr) (err error) {
+ 	_, _, e1 := Syscall(SYS_MUNMAP, uintptr(addr), uintptr(length), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_loong64.go b/src/syscall/zsyscall_linux_loong64.go
+index 51ebfc0eb9..74ec8f50c5 100644
+--- a/src/syscall/zsyscall_linux_loong64.go
++++ b/src/syscall/zsyscall_linux_loong64.go
+@@ -977,17 +977,6 @@ func readlen(fd int, p *byte, np int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func writelen(fd int, p *byte, np int) (n int, err error) {
+-	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(p)), uintptr(np))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func munmap(addr uintptr, length uintptr) (err error) {
+ 	_, _, e1 := Syscall(SYS_MUNMAP, uintptr(addr), uintptr(length), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_mips.go b/src/syscall/zsyscall_linux_mips.go
+index af75dc724a..2f4ecb3dac 100644
+--- a/src/syscall/zsyscall_linux_mips.go
++++ b/src/syscall/zsyscall_linux_mips.go
+@@ -977,17 +977,6 @@ func readlen(fd int, p *byte, np int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func writelen(fd int, p *byte, np int) (n int, err error) {
+-	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(p)), uintptr(np))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func munmap(addr uintptr, length uintptr) (err error) {
+ 	_, _, e1 := Syscall(SYS_MUNMAP, uintptr(addr), uintptr(length), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_mips64.go b/src/syscall/zsyscall_linux_mips64.go
+index c66730009b..e99d85aab2 100644
+--- a/src/syscall/zsyscall_linux_mips64.go
++++ b/src/syscall/zsyscall_linux_mips64.go
+@@ -977,17 +977,6 @@ func readlen(fd int, p *byte, np int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func writelen(fd int, p *byte, np int) (n int, err error) {
+-	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(p)), uintptr(np))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func munmap(addr uintptr, length uintptr) (err error) {
+ 	_, _, e1 := Syscall(SYS_MUNMAP, uintptr(addr), uintptr(length), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_mips64le.go b/src/syscall/zsyscall_linux_mips64le.go
+index 407bea751e..a856ee370b 100644
+--- a/src/syscall/zsyscall_linux_mips64le.go
++++ b/src/syscall/zsyscall_linux_mips64le.go
+@@ -977,17 +977,6 @@ func readlen(fd int, p *byte, np int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func writelen(fd int, p *byte, np int) (n int, err error) {
+-	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(p)), uintptr(np))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func munmap(addr uintptr, length uintptr) (err error) {
+ 	_, _, e1 := Syscall(SYS_MUNMAP, uintptr(addr), uintptr(length), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_mipsle.go b/src/syscall/zsyscall_linux_mipsle.go
+index 7c5ea99668..ab9b1c86ff 100644
+--- a/src/syscall/zsyscall_linux_mipsle.go
++++ b/src/syscall/zsyscall_linux_mipsle.go
+@@ -977,17 +977,6 @@ func readlen(fd int, p *byte, np int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func writelen(fd int, p *byte, np int) (n int, err error) {
+-	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(p)), uintptr(np))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func munmap(addr uintptr, length uintptr) (err error) {
+ 	_, _, e1 := Syscall(SYS_MUNMAP, uintptr(addr), uintptr(length), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_ppc64.go b/src/syscall/zsyscall_linux_ppc64.go
+index 1e82f4b45c..c22a14f939 100644
+--- a/src/syscall/zsyscall_linux_ppc64.go
++++ b/src/syscall/zsyscall_linux_ppc64.go
+@@ -977,17 +977,6 @@ func readlen(fd int, p *byte, np int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func writelen(fd int, p *byte, np int) (n int, err error) {
+-	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(p)), uintptr(np))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func munmap(addr uintptr, length uintptr) (err error) {
+ 	_, _, e1 := Syscall(SYS_MUNMAP, uintptr(addr), uintptr(length), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_ppc64le.go b/src/syscall/zsyscall_linux_ppc64le.go
+index ddc1c8130e..381b2a5501 100644
+--- a/src/syscall/zsyscall_linux_ppc64le.go
++++ b/src/syscall/zsyscall_linux_ppc64le.go
+@@ -977,17 +977,6 @@ func readlen(fd int, p *byte, np int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func writelen(fd int, p *byte, np int) (n int, err error) {
+-	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(p)), uintptr(np))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func munmap(addr uintptr, length uintptr) (err error) {
+ 	_, _, e1 := Syscall(SYS_MUNMAP, uintptr(addr), uintptr(length), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_riscv64.go b/src/syscall/zsyscall_linux_riscv64.go
+index c59cad035c..b3254c8217 100644
+--- a/src/syscall/zsyscall_linux_riscv64.go
++++ b/src/syscall/zsyscall_linux_riscv64.go
+@@ -977,17 +977,6 @@ func readlen(fd int, p *byte, np int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func writelen(fd int, p *byte, np int) (n int, err error) {
+-	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(p)), uintptr(np))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func munmap(addr uintptr, length uintptr) (err error) {
+ 	_, _, e1 := Syscall(SYS_MUNMAP, uintptr(addr), uintptr(length), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_s390x.go b/src/syscall/zsyscall_linux_s390x.go
+index 29be487f52..2223808cbd 100644
+--- a/src/syscall/zsyscall_linux_s390x.go
++++ b/src/syscall/zsyscall_linux_s390x.go
+@@ -977,17 +977,6 @@ func readlen(fd int, p *byte, np int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func writelen(fd int, p *byte, np int) (n int, err error) {
+-	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(p)), uintptr(np))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func munmap(addr uintptr, length uintptr) (err error) {
+ 	_, _, e1 := Syscall(SYS_MUNMAP, uintptr(addr), uintptr(length), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_netbsd_386.go b/src/syscall/zsyscall_netbsd_386.go
+index e401d02d02..7dd57d65e9 100644
+--- a/src/syscall/zsyscall_netbsd_386.go
++++ b/src/syscall/zsyscall_netbsd_386.go
+@@ -1218,17 +1218,6 @@ func readlen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+-	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_netbsd_amd64.go b/src/syscall/zsyscall_netbsd_amd64.go
+index a4f217b948..562861f02b 100644
+--- a/src/syscall/zsyscall_netbsd_amd64.go
++++ b/src/syscall/zsyscall_netbsd_amd64.go
+@@ -1218,17 +1218,6 @@ func readlen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+-	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_netbsd_arm.go b/src/syscall/zsyscall_netbsd_arm.go
+index 1f55614f64..f07348f821 100644
+--- a/src/syscall/zsyscall_netbsd_arm.go
++++ b/src/syscall/zsyscall_netbsd_arm.go
+@@ -1218,17 +1218,6 @@ func readlen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+-	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_netbsd_arm64.go b/src/syscall/zsyscall_netbsd_arm64.go
+index be33fcd412..9c479e75f3 100644
+--- a/src/syscall/zsyscall_netbsd_arm64.go
++++ b/src/syscall/zsyscall_netbsd_arm64.go
+@@ -1218,17 +1218,6 @@ func readlen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+-	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_openbsd_386.go b/src/syscall/zsyscall_openbsd_386.go
+index b3a4b73124..40daa69d8b 100644
+--- a/src/syscall/zsyscall_openbsd_386.go
++++ b/src/syscall/zsyscall_openbsd_386.go
+@@ -1705,17 +1705,6 @@ func readlen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+-	r0, _, e1 := syscall(abi.FuncPCABI0(libc_write_trampoline), uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
+ 	r0, r1, e1 := syscall6X(abi.FuncPCABI0(libc_lseek_trampoline), uintptr(fd), uintptr(offset), uintptr(offset>>32), uintptr(whence), 0, 0)
+ 	newoffset = int64(int64(r1)<<32 | int64(r0))
+diff --git a/src/syscall/zsyscall_openbsd_amd64.go b/src/syscall/zsyscall_openbsd_amd64.go
+index 15cd8cce27..f1ac6b547a 100644
+--- a/src/syscall/zsyscall_openbsd_amd64.go
++++ b/src/syscall/zsyscall_openbsd_amd64.go
+@@ -1705,17 +1705,6 @@ func readlen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+-	r0, _, e1 := syscall(abi.FuncPCABI0(libc_write_trampoline), uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
+ 	r0, _, e1 := syscallX(abi.FuncPCABI0(libc_lseek_trampoline), uintptr(fd), uintptr(offset), uintptr(whence))
+ 	newoffset = int64(r0)
+diff --git a/src/syscall/zsyscall_openbsd_arm.go b/src/syscall/zsyscall_openbsd_arm.go
+index 90b493f1ec..5d6d9d38ec 100644
+--- a/src/syscall/zsyscall_openbsd_arm.go
++++ b/src/syscall/zsyscall_openbsd_arm.go
+@@ -1705,17 +1705,6 @@ func readlen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+-	r0, _, e1 := syscall(abi.FuncPCABI0(libc_write_trampoline), uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
+ 	r0, r1, e1 := syscall6X(abi.FuncPCABI0(libc_lseek_trampoline), uintptr(fd), 0, uintptr(offset), uintptr(offset>>32), uintptr(whence), 0)
+ 	newoffset = int64(int64(r1)<<32 | int64(r0))
+diff --git a/src/syscall/zsyscall_openbsd_arm64.go b/src/syscall/zsyscall_openbsd_arm64.go
+index 6615336043..9f8815adfd 100644
+--- a/src/syscall/zsyscall_openbsd_arm64.go
++++ b/src/syscall/zsyscall_openbsd_arm64.go
+@@ -1705,17 +1705,6 @@ func readlen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+-	r0, _, e1 := syscall(abi.FuncPCABI0(libc_write_trampoline), uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
+ 	r0, _, e1 := syscallX(abi.FuncPCABI0(libc_lseek_trampoline), uintptr(fd), uintptr(offset), uintptr(whence))
+ 	newoffset = int64(r0)
+diff --git a/src/syscall/zsyscall_openbsd_mips64.go b/src/syscall/zsyscall_openbsd_mips64.go
+index 2a91c36831..1fbb2d1394 100644
+--- a/src/syscall/zsyscall_openbsd_mips64.go
++++ b/src/syscall/zsyscall_openbsd_mips64.go
+@@ -1242,17 +1242,6 @@ func readlen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+-	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_openbsd_ppc64.go b/src/syscall/zsyscall_openbsd_ppc64.go
+index 6bbe0f4f4f..cd99f159d7 100644
+--- a/src/syscall/zsyscall_openbsd_ppc64.go
++++ b/src/syscall/zsyscall_openbsd_ppc64.go
+@@ -1705,17 +1705,6 @@ func readlen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+-	r0, _, e1 := syscall(abi.FuncPCABI0(libc_write_trampoline), uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
+ 	r0, _, e1 := syscallX(abi.FuncPCABI0(libc_lseek_trampoline), uintptr(fd), uintptr(offset), uintptr(whence))
+ 	newoffset = int64(r0)

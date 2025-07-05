@@ -12,7 +12,7 @@ Date:   Thu Aug 6 21:59:13 2020 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/metrics.go             |  9 +++++++++
  src/runtime/metrics/description.go |  5 +++++
  src/runtime/metrics/doc.go         |  3 +++
@@ -20,3 +20,166 @@ Date:   Thu Aug 6 21:59:13 2020 +0000
  src/runtime/mgc.go                 |  3 +++
  src/runtime/mstats.go              | 12 ++++++++++++
  6 files changed, 54 insertions(+)
+
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index 2be38ccaaa..0e391472b2 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -102,6 +102,15 @@ func initMetrics() {
+ 				out.scalar = in.heapStats.numObjects
+ 			},
+ 		},
++		"/gc/pauses:seconds": {
++			compute: func(_ *statAggregate, out *metricValue) {
++				hist := out.float64HistOrInit(timeHistBuckets)
++				hist.counts[len(hist.counts)-1] = atomic.Load64(&memstats.gcPauseDist.overflow)
++				for i := range hist.buckets {
++					hist.counts[i] = atomic.Load64(&memstats.gcPauseDist.counts[i])
++				}
++			},
++		},
+ 		"/memory/classes/heap/free:bytes": {
+ 			deps: makeStatDepSet(heapStatsDep),
+ 			compute: func(in *statAggregate, out *metricValue) {
+diff --git a/src/runtime/metrics/description.go b/src/runtime/metrics/description.go
+index e43904fc7d..47959e467c 100644
+--- a/src/runtime/metrics/description.go
++++ b/src/runtime/metrics/description.go
+@@ -88,6 +88,11 @@ var allDesc = []Description{
+ 		Description: "Number of objects, live or unswept, occupying heap memory.",
+ 		Kind:        KindUint64,
+ 	},
++	{
++		Name:        "/gc/pauses:seconds",
++		Description: "Distribution individual GC-related stop-the-world pause latencies.",
++		Kind:        KindFloat64Histogram,
++	},
+ 	{
+ 		Name:        "/memory/classes/heap/free:bytes",
+ 		Description: "Memory that is available for allocation, and may be returned to the underlying system.",
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index 5045a5b4c1..1e12ade5a1 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -65,6 +65,9 @@ Supported metrics
+ 	/gc/heap/objects:objects
+ 		Number of objects, live or unswept, occupying heap memory.
+ 
++	/gc/pauses:seconds
++		Distribution individual GC-related stop-the-world pause latencies.
++
+ 	/memory/classes/heap/free:bytes
+ 		Memory that is available for allocation, and may be returned
+ 		to the underlying system.
+diff --git a/src/runtime/metrics_test.go b/src/runtime/metrics_test.go
+index 1a30810544..7b3132bc30 100644
+--- a/src/runtime/metrics_test.go
++++ b/src/runtime/metrics_test.go
+@@ -90,6 +90,11 @@ func TestReadMetricsConsistency(t *testing.T) {
+ 	// things (e.g. allocating) so what we read can't reasonably compared
+ 	// to runtime values.
+ 
++	// Run a few GC cycles to get some of the stats to be non-zero.
++	runtime.GC()
++	runtime.GC()
++	runtime.GC()
++
+ 	// Read all the supported metrics through the metrics package.
+ 	descs, samples := prepareAllMetricsSamples()
+ 	metrics.Read(samples)
+@@ -102,6 +107,10 @@ func TestReadMetricsConsistency(t *testing.T) {
+ 		alloc, free *metrics.Float64Histogram
+ 		total       uint64
+ 	}
++	var gc struct {
++		numGC  uint64
++		pauses uint64
++	}
+ 	for i := range samples {
+ 		kind := samples[i].Value.Kind()
+ 		if want := descs[samples[i].Name].Kind; kind != want {
+@@ -128,6 +137,14 @@ func TestReadMetricsConsistency(t *testing.T) {
+ 			objects.alloc = samples[i].Value.Float64Histogram()
+ 		case "/gc/heap/frees-by-size:objects":
+ 			objects.free = samples[i].Value.Float64Histogram()
++		case "/gc/cycles:gc-cycles":
++			gc.numGC = samples[i].Value.Uint64()
++		case "/gc/pauses:seconds":
++			h := samples[i].Value.Float64Histogram()
++			gc.pauses = 0
++			for i := range h.Counts {
++				gc.pauses += h.Counts[i]
++			}
+ 		}
+ 	}
+ 	if totalVirtual.got != totalVirtual.want {
+@@ -159,6 +176,11 @@ func TestReadMetricsConsistency(t *testing.T) {
+ 			}
+ 		}
+ 	}
++	// The current GC has at least 2 pauses per GC.
++	// Check to see if that value makes sense.
++	if gc.pauses < gc.numGC*2 {
++		t.Errorf("fewer pauses than expected: got %d, want at least %d", gc.pauses, gc.numGC*2)
++	}
+ }
+ 
+ func BenchmarkReadMetricsLatency(b *testing.B) {
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 540c376f1c..b0ab0ae6bb 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1418,6 +1418,7 @@ func gcStart(trigger gcTrigger) {
+ 		now = startTheWorldWithSema(trace.enabled)
+ 		work.pauseNS += now - work.pauseStart
+ 		work.tMark = now
++		memstats.gcPauseDist.record(now - work.pauseStart)
+ 	})
+ 
+ 	// Release the world sema before Gosched() in STW mode
+@@ -1565,6 +1566,7 @@ top:
+ 		systemstack(func() {
+ 			now := startTheWorldWithSema(true)
+ 			work.pauseNS += now - work.pauseStart
++			memstats.gcPauseDist.record(now - work.pauseStart)
+ 		})
+ 		semrelease(&worldsema)
+ 		goto top
+@@ -1677,6 +1679,7 @@ func gcMarkTermination(nextTriggerRatio float64) {
+ 	unixNow := sec*1e9 + int64(nsec)
+ 	work.pauseNS += now - work.pauseStart
+ 	work.tEnd = now
++	memstats.gcPauseDist.record(now - work.pauseStart)
+ 	atomic.Store64(&memstats.last_gc_unix, uint64(unixNow)) // must be Unix time to make sense to user
+ 	atomic.Store64(&memstats.last_gc_nanotime, uint64(now)) // monotonic time for us
+ 	memstats.pause_ns[memstats.numgc%uint32(len(memstats.pause_ns))] = uint64(work.pauseNS)
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 07f466ec49..e0a417d213 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -157,6 +157,14 @@ type mstats struct {
+ 
+ 	// heapStats is a set of statistics
+ 	heapStats consistentHeapStats
++
++	_ uint32 // ensure gcPauseDist is aligned
++
++	// gcPauseDist represents the distribution of all GC-related
++	// application pauses in the runtime.
++	//
++	// Each individual pause is counted separately, unlike pause_ns.
++	gcPauseDist timeHistogram
+ }
+ 
+ var memstats mstats
+@@ -443,6 +451,10 @@ func init() {
+ 		println(offset)
+ 		throw("memstats.heapStats not aligned to 8 bytes")
+ 	}
++	if offset := unsafe.Offsetof(memstats.gcPauseDist); offset%8 != 0 {
++		println(offset)
++		throw("memstats.gcPauseDist not aligned to 8 bytes")
++	}
+ 	// Ensure the size of heapStatsDelta causes adjacent fields/slots (e.g.
+ 	// [3]heapStatsDelta) to be 8-byte aligned.
+ 	if size := unsafe.Sizeof(heapStatsDelta{}); size%8 != 0 {

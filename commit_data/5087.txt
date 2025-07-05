@@ -7,6 +7,32 @@ Date:   Sat Mar 20 10:22:09 2010 +1100
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/626042
-
+---
  src/pkg/http/server.go | 11 +++++++----
  1 file changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index f0b608ddeb..39b498a7ac 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -328,13 +328,16 @@ func (f HandlerFunc) ServeHTTP(c *Conn, req *Request) {
+ 
+ // Helper handlers
+ 
+-// NotFound replies to the request with an HTTP 404 not found error.
+-func NotFound(c *Conn, req *Request) {
++// Error replies to the request with the specified error message and HTTP code.
++func Error(c *Conn, error string, code int) {
+ 	c.SetHeader("Content-Type", "text/plain; charset=utf-8")
+-	c.WriteHeader(StatusNotFound)
+-	io.WriteString(c, "404 page not found\n")
++	c.WriteHeader(code)
++	fmt.Fprintln(c, error)
+ }
+ 
++// NotFound replies to the request with an HTTP 404 not found error.
++func NotFound(c *Conn, req *Request) { Error(c, "404 page not found", StatusNotFound) }
++
+ // NotFoundHandler returns a simple request handler
+ // that replies to each request with a ``404 page not found'' reply.
+ func NotFoundHandler() Handler { return HandlerFunc(NotFound) }

@@ -10,6 +10,21 @@ Date:   Thu Dec 17 12:38:29 2009 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/180059
-
+---
  src/cmd/cgo/gcc.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 07bfa8ab65..aeca50eece 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -693,6 +693,9 @@ func (c *typeConv) Struct(dt *dwarf.StructType) (expr *ast.StructType, csyntax s
+ 	}
+ 
+ 	for _, f := range dt.Field {
++		if f.BitSize > 0 && f.BitSize != f.ByteSize*8 {
++			continue
++		}
+ 		if f.ByteOffset > off {
+ 			fld = c.pad(fld, f.ByteOffset-off)
+ 			off = f.ByteOffset

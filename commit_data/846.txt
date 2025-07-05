@@ -8,6 +8,19 @@ Date:   Fri Oct 10 16:18:01 2008 -0700
     R=r
     OCL=16936
     CL=16936
-
+---
  test/bugs/bug107.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/bugs/bug107.go b/test/bugs/bug107.go
+index d08c440459..80fa966479 100644
+--- a/test/bugs/bug107.go
++++ b/test/bugs/bug107.go
+@@ -9,6 +9,6 @@ import os "os"
+ func f() (os int) {
+      // In the next line "os" should refer to the result variable, not
+      // to the package.
+-     v := os.Open("", 0, 0)	// ERROR "undefined"
++     v := os.Open("", 0, 0);	// ERROR "undefined"
+      return 0
+ }

@@ -11,6 +11,23 @@ Date:   Wed Nov 2 16:33:33 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testsanitizers/test.bash | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/misc/cgo/testsanitizers/test.bash b/misc/cgo/testsanitizers/test.bash
+index d1d2dc6ae2..abbfb27d4b 100755
+--- a/misc/cgo/testsanitizers/test.bash
++++ b/misc/cgo/testsanitizers/test.bash
+@@ -15,6 +15,11 @@ if test -x "$(type -p clang)"; then
+ fi
+ export CC
+ 
++if [ "$(sysctl -n vm.overcommit_memory)" = 2 ]; then
++  echo "skipping msan/tsan tests: vm.overcommit_memory=2" >&2
++  exit 0
++fi
++
+ msan=yes
+ 
+ TMPDIR=${TMPDIR:-/tmp}

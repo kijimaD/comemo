@@ -22,7 +22,7 @@ Date:   Thu Oct 21 06:56:20 2010 +0200
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2638041
-
+---
  src/cmd/5g/Makefile              |  3 ++-
  src/cmd/5g/cgen.c                | 18 ++++++++++--------
  src/cmd/5g/gsubr.c               |  5 +++++
@@ -34,3 +34,248 @@ Date:   Thu Oct 21 06:56:20 2010 +0200
  src/pkg/strconv/ftoa.go          |  4 ++++
  src/pkg/strconv/internal_test.go |  8 ++++++++
  10 files changed, 49 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/5g/Makefile b/src/cmd/5g/Makefile
+index 762b7c5275..f1fabe6a49 100644
+--- a/src/cmd/5g/Makefile
++++ b/src/cmd/5g/Makefile
+@@ -21,7 +21,8 @@ OFILES=\
+ 	ggen.$O\
+ 	gsubr.$O\
+ 	cgen.$O\
+-	cgen64.$O
++	cgen64.$O\
++	cplx.$O\
+ 
+ LIB=\
+ 	../gc/gc.a\
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 9185aa5acd..3d96000c8a 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -28,12 +28,6 @@ cgen(Node *n, Node *res)
+ 	if(res == N || res->type == T)
+ 		fatal("cgen: res nil");
+ 
+-	// TODO compile complex
+-	if(n != N && n->type != T && iscomplex[n->type->etype])
+-		return;
+-	if(res != N && res->type != T && iscomplex[res->type->etype])
+-		return;
+-
+ 	while(n->op == OCONVNOP)
+ 		n = n->left;
+ 
+@@ -53,6 +47,7 @@ cgen(Node *n, Node *res)
+ 		goto ret;
+ 	}
+ 
++
+ 	// update addressability for string, slice
+ 	// can't do in walk because n->left->addable
+ 	// changes if n->left is an escaping local variable.
+@@ -69,7 +64,9 @@ cgen(Node *n, Node *res)
+ 
+ 	// if both are addressable, move
+ 	if(n->addable && res->addable) {
+-		if (is64(n->type) || is64(res->type) || n->op == OREGISTER || res->op == OREGISTER) {
++		if(is64(n->type) || is64(res->type) ||
++		   n->op == OREGISTER || res->op == OREGISTER ||
++		   iscomplex[n->type->etype] || iscomplex[res->type->etype]) {
+ 			gmove(n, res);
+ 		} else {
+ 			regalloc(&n1, n->type, N);
+@@ -99,8 +96,13 @@ cgen(Node *n, Node *res)
+ 		return;
+ 	}
+ 
++	if(complexop(n, res)) {
++		complexgen(n, res);
++		return;
++	}
++
+ 	// if n is sudoaddable generate addr and move
+-	if (!is64(n->type) && !is64(res->type)) {
++	if (!is64(n->type) && !is64(res->type) && !iscomplex[n->type->etype] && !iscomplex[res->type->etype]) {
+ 		a = optoas(OAS, n->type);
+ 		if(sudoaddable(a, n, &addr, &w)) {
+ 			if (res->op != OREGISTER) {
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index b96e30cea7..3b68ac1bc2 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -539,6 +539,11 @@ gmove(Node *f, Node *t)
+ 	tt = simsimtype(t->type);
+ 	cvt = t->type;
+ 
++	if(iscomplex[ft] || iscomplex[tt]) {
++		complexmove(f, t);
++		return;
++	}
++
+ 	// cannot have two memory operands;
+ 	// except 64-bit, which always copies via registers anyway.
+ 	if(!is64(f->type) && !is64(t->type) && ismem(f) && ismem(t))
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index b0fd991749..810ad4da64 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -175,7 +175,7 @@ cgen(Node *n, Node *res)
+ 	case OREAL:
+ 	case OIMAG:
+ 	case OCMPLX:
+-		// TODO compile complex
++		fatal("unexpected complex");
+ 		return;
+ 
+ 	// these call bgen to get a bool value
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index ea806c9107..461a39950b 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -387,13 +387,13 @@ codeblk(int32 addr, int32 size)
+ 			break;
+ 
+ 		if(addr < sym->value) {
+-			Bprint(&bso, "%-20s %.8llux|", "_", addr);
++			Bprint(&bso, "%-20s %.8llux|", "_", (vlong)addr);
+ 			for(; addr < sym->value; addr++)
+ 				Bprint(&bso, " %.2ux", 0);
+ 			Bprint(&bso, "\n");
+ 		}
+ 		p = sym->text;
+-		Bprint(&bso, "%.6llux\t%-20s | %P\n", addr, sym->name, p);
++		Bprint(&bso, "%.6llux\t%-20s | %P\n", (vlong)addr, sym->name, p);
+ 		for(p = p->link; p != P; p = p->link) {
+ 			if(p->link != P)
+ 				epc = p->link->pc;
+@@ -408,7 +408,7 @@ codeblk(int32 addr, int32 size)
+ 	}
+ 
+ 	if(addr < eaddr) {
+-		Bprint(&bso, "%-20s %.8llux|", "_", addr);
++		Bprint(&bso, "%-20s %.8llux|", "_", (vlong)addr);
+ 		for(; addr < eaddr; addr++)
+ 			Bprint(&bso, " %.2ux", 0);
+ 	}
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 81cd1f80b8..151dec9d5d 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -204,22 +204,14 @@ endif
+ ifeq ($(GOARCH),arm)
+ # Tests that fail, probably 5g bugs.
+ # Disable so that dashboard all.bash can catch regressions.
+-NOTEST+=cmath  # floating point
+-NOTEST+=crypto/block  # weird bit error
+-NOTEST+=encoding/binary  # floating point?
+-NOTEST+=exp/datafmt  # crash
+-NOTEST+=exp/eval  # crash
+-NOTEST+=flag  # floating point
+-NOTEST+=fmt  # floating point
+-NOTEST+=go/printer  # crash
+-NOTEST+=gob  # floating point
+-NOTEST+=image/png  # bit errors
+-NOTEST+=json  # floating point
+-NOTEST+=math  # floating point
+-NOTEST+=os/signal  # crash
+-NOTEST+=strconv  # floating point
+-NOTEST+=syslog  # unix syslog
+-NOTEST+=xml  # floating point
++NOTEST+=cmath        # software floating point (lack of) accuracy
++NOTEST+=math         # software floating point (lack of) accuracy
++NOTEST+=strconv      # software floating point (lack of) accuracy
++
++NOTEST+=fmt          # spurious uint overflow
++NOTEST+=gob          # something involving complex
++NOTEST+=json         # spurious uint overflow
++NOTEST+=os/signal    # crash
+ endif
+ 
+ TEST=\
+diff --git a/src/pkg/runtime/arm/softfloat.c b/src/pkg/runtime/arm/softfloat.c
+index 096cc6da68..396072fc9f 100644
+--- a/src/pkg/runtime/arm/softfloat.c
++++ b/src/pkg/runtime/arm/softfloat.c
+@@ -169,7 +169,7 @@ s2d(uint32 s)
+ 		return DNINF;
+ 	if ((s & ~(1ul << 31)) == FNAN)
+ 		return DNAN;
+-	return (uint64)(s & 0x80000000) << 63 |	// sign
++	return (uint64)(s & 0x80000000) << 32 |	// sign
+ 		(uint64)((s >> 23 &0xff) + (DOUBLE_EXPBIAS - SINGLE_EXPBIAS)) << 52  |	// exponent
+ 		(uint64)(s & 0x7fffff) << 29;	// mantissa
+ }
+@@ -211,7 +211,10 @@ dataprocess(uint32* pc)
+ 	if (unary) {
+ 		switch (opcode) {
+ 		case 0: // mvf
+-			m->freg[dest] = frhs(rhs);
++			fd = frhs(rhs);
++			if(prec == 0)
++				fd = s2d(d2s(fd));
++			m->freg[dest] = fd;
+ 			goto ret;
+ 		default:
+ 			goto undef;
+diff --git a/src/pkg/strconv/atof.go b/src/pkg/strconv/atof.go
+index 262a8b53c7..1e548012b4 100644
+--- a/src/pkg/strconv/atof.go
++++ b/src/pkg/strconv/atof.go
+@@ -15,9 +15,11 @@ package strconv
+ import (
+ 	"math"
+ 	"os"
++	"runtime"
+ )
+ 
+-var optimize = true // can change for testing
++// TODO(rsc): remove "arm" check
++var optimize = runtime.GOARCH != "arm" // can change for testing
+ 
+ // TODO(rsc): Better truncation handling.
+ func stringToDecimal(s string) (neg bool, d *decimal, trunc bool, ok bool) {
+diff --git a/src/pkg/strconv/ftoa.go b/src/pkg/strconv/ftoa.go
+index 3659243c79..2e0c0438b8 100644
+--- a/src/pkg/strconv/ftoa.go
++++ b/src/pkg/strconv/ftoa.go
+@@ -11,6 +11,7 @@
+ package strconv
+ 
+ import "math"
++import "runtime"
+ 
+ // TODO: move elsewhere?
+ type floatInfo struct {
+@@ -23,6 +24,9 @@ var float32info = floatInfo{23, 8, -127}
+ var float64info = floatInfo{52, 11, -1023}
+ 
+ func floatsize() int {
++	if runtime.GOARCH == "arm" { // TODO(rsc): remove
++		return 32
++	}
+ 	// Figure out whether float is float32 or float64.
+ 	// 1e-35 is representable in both, but 1e-70
+ 	// is too small for a float32.
+diff --git a/src/pkg/strconv/internal_test.go b/src/pkg/strconv/internal_test.go
+index 9a7f4f0867..142fbe1a89 100644
+--- a/src/pkg/strconv/internal_test.go
++++ b/src/pkg/strconv/internal_test.go
+@@ -6,9 +6,17 @@
+ 
+ package strconv
+ 
++import "runtime"
++
+ func NewDecimal(i uint64) *decimal { return newDecimal(i) }
+ 
+ func SetOptimize(b bool) bool {
++	if runtime.GOARCH == "arm" {
++		// optimize is always false on arm,
++		// because the software floating point
++		// has such terrible multiplication.
++		return false
++	}
+ 	old := optimize
+ 	optimize = b
+ 	return old

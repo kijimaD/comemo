@@ -11,6 +11,22 @@ Date:   Sat Oct 14 01:28:00 2023 +0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/index/suffixarray/suffixarray.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/index/suffixarray/suffixarray.go b/src/index/suffixarray/suffixarray.go
+index 7fca0fd7ba..5c222a1217 100644
+--- a/src/index/suffixarray/suffixarray.go
++++ b/src/index/suffixarray/suffixarray.go
+@@ -70,8 +70,8 @@ func (a *ints) slice(i, j int) ints {
+ 	return ints{nil, a.int64[i:j]}
+ }
+ 
+-// New creates a new Index for data.
+-// Index creation time is O(N) for N = len(data).
++// New creates a new [Index] for data.
++// [Index] creation time is O(N) for N = len(data).
+ func New(data []byte) *Index {
+ 	ix := &Index{data: data}
+ 	if len(data) <= maxData32 {

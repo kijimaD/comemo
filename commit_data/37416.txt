@@ -12,7 +12,40 @@ Date:   Tue Jul 24 20:02:26 2018 -0400
     Change-Id: I44701f29f89fc67086f96307afbdb4659bb63873
     Reviewed-on: https://go-review.googlesource.com/125935
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go             | 5 +++++
  src/cmd/go/internal/modcmd/mod.go | 5 +++++
  2 files changed, 10 insertions(+)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index ef1a202e29..f7dcb10992 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -859,6 +859,11 @@
+ // Mod performs module maintenance operations as specified by the
+ // following flags, which may be combined.
+ //
++// Note that support for modules is built into all the go commands,
++// not just 'go mod'. For example, day-to-day adding, removing, upgrading,
++// and downgrading of dependencies should be done using 'go get'.
++// See 'go help modules' for an overview of module functionality.
++//
+ // The -v flag enables additional output about operations performed.
+ //
+ // The first group of operations provide low-level editing operations
+diff --git a/src/cmd/go/internal/modcmd/mod.go b/src/cmd/go/internal/modcmd/mod.go
+index f3eef6f8e7..e1ebb3bce6 100644
+--- a/src/cmd/go/internal/modcmd/mod.go
++++ b/src/cmd/go/internal/modcmd/mod.go
+@@ -28,6 +28,11 @@ var CmdMod = &base.Command{
+ Mod performs module maintenance operations as specified by the
+ following flags, which may be combined.
+ 
++Note that support for modules is built into all the go commands,
++not just 'go mod'. For example, day-to-day adding, removing, upgrading,
++and downgrading of dependencies should be done using 'go get'.
++See 'go help modules' for an overview of module functionality.
++
+ The -v flag enables additional output about operations performed.
+ 
+ The first group of operations provide low-level editing operations

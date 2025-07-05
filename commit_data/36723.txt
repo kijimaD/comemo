@@ -27,7 +27,7 @@ Date:   Fri Jan 26 12:14:27 2018 +0100
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/objabi/util.go     |  2 +
  src/internal/cpu/cpu.go             | 78 ++++++++++++++++++++++++++++++++++--
  src/internal/cpu/cpu_386.go         |  7 ++++
@@ -44,3 +44,591 @@ Date:   Fri Jan 26 12:14:27 2018 +0100
  src/internal/cpu/export_test.go     | 10 +++++
  src/runtime/proc.go                 | 46 ++++++++++++++++++---
  15 files changed, 358 insertions(+), 58 deletions(-)
+
+diff --git a/src/cmd/internal/objabi/util.go b/src/cmd/internal/objabi/util.go
+index 0553231dee..a47e2f93a1 100644
+--- a/src/cmd/internal/objabi/util.go
++++ b/src/cmd/internal/objabi/util.go
+@@ -105,6 +105,7 @@ var (
+ 	Fieldtrack_enabled       int
+ 	Preemptibleloops_enabled int
+ 	Clobberdead_enabled      int
++	DebugCPU_enabled         int
+ )
+ 
+ // Toolchain experiments.
+@@ -119,6 +120,7 @@ var exper = []struct {
+ 	{"framepointer", &framepointer_enabled},
+ 	{"preemptibleloops", &Preemptibleloops_enabled},
+ 	{"clobberdead", &Clobberdead_enabled},
++	{"debugcpu", &DebugCPU_enabled},
+ }
+ 
+ var defaultExpstring = Expstring()
+diff --git a/src/internal/cpu/cpu.go b/src/internal/cpu/cpu.go
+index 4000530059..eae9a6c7e3 100644
+--- a/src/internal/cpu/cpu.go
++++ b/src/internal/cpu/cpu.go
+@@ -6,6 +6,10 @@
+ // used by the Go standard library.
+ package cpu
+ 
++// debugOptions is set to true by the runtime if go was compiled with GOEXPERIMENT=debugcpu
++// and GOOS is Linux or Darwin. This variable is linknamed in runtime/proc.go.
++var debugOptions bool
++
+ var X86 x86
+ 
+ // The booleans in x86 contain the correspondingly named cpuid feature bit.
+@@ -37,9 +41,9 @@ var PPC64 ppc64
+ 
+ // For ppc64x, it is safe to check only for ISA level starting on ISA v3.00,
+ // since there are no optional categories. There are some exceptions that also
+-// require kernel support to work (darn, scv), so there are capability bits for
++// require kernel support to work (darn, scv), so there are feature bits for
+ // those as well. The minimum processor requirement is POWER8 (ISA 2.07), so we
+-// maintain some of the old capability checks for optional categories for
++// maintain some of the old feature checks for optional categories for
+ // safety.
+ // The struct is padded to avoid false sharing.
+ type ppc64 struct {
+@@ -101,7 +105,73 @@ type s390x struct {
+ 
+ // initialize examines the processor and sets the relevant variables above.
+ // This is called by the runtime package early in program initialization,
+-// before normal init functions are run.
+-func initialize() {
++// before normal init functions are run. env is set by runtime on Linux and Darwin
++// if go was compiled with GOEXPERIMENT=debugcpu.
++func initialize(env string) {
+ 	doinit()
++	processOptions(env)
++}
++
++// options contains the cpu debug options that can be used in GODEBUGCPU.
++// Options are arch dependent and are added by the arch specific doinit functions.
++// Features that are mandatory for the specific GOARCH should not be added to options
++// (e.g. SSE2 on amd64).
++var options []option
++
++// Option names should be lower case. e.g. avx instead of AVX.
++type option struct {
++	Name    string
++	Feature *bool
++}
++
++// processOptions disables CPU feature values based on the parsed env string.
++// The env string is expected to be of the form feature1=0,feature2=0...
++// where feature names is one of the architecture specifc list stored in the
++// cpu packages options variable. If env contains all=0 then all capabilities
++// referenced through the options variable are disabled. Other feature
++// names and values other than 0 are silently ignored.
++func processOptions(env string) {
++field:
++	for env != "" {
++		field := ""
++		i := indexByte(env, ',')
++		if i < 0 {
++			field, env = env, ""
++		} else {
++			field, env = env[:i], env[i+1:]
++		}
++		i = indexByte(field, '=')
++		if i < 0 {
++			continue
++		}
++		key, value := field[:i], field[i+1:]
++
++		// Only allow turning off CPU features by specifying '0'.
++		if value == "0" {
++			if key == "all" {
++				for _, v := range options {
++					*v.Feature = false
++				}
++				return
++			} else {
++				for _, v := range options {
++					if v.Name == key {
++						*v.Feature = false
++						continue field
++					}
++				}
++			}
++		}
++	}
++}
++
++// indexByte returns the index of the first instance of c in s,
++// or -1 if c is not present in s.
++func indexByte(s string, c byte) int {
++	for i := 0; i < len(s); i++ {
++		if s[i] == c {
++			return i
++		}
++	}
++	return -1
+ }
+diff --git a/src/internal/cpu/cpu_386.go b/src/internal/cpu/cpu_386.go
+new file mode 100644
+index 0000000000..561c81f808
+--- /dev/null
++++ b/src/internal/cpu/cpu_386.go
+@@ -0,0 +1,7 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cpu
++
++const GOARCH = "386"
+diff --git a/src/internal/cpu/cpu_amd64.go b/src/internal/cpu/cpu_amd64.go
+new file mode 100644
+index 0000000000..9b0015362d
+--- /dev/null
++++ b/src/internal/cpu/cpu_amd64.go
+@@ -0,0 +1,7 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cpu
++
++const GOARCH = "amd64"
+diff --git a/src/internal/cpu/cpu_amd64p32.go b/src/internal/cpu/cpu_amd64p32.go
+new file mode 100644
+index 0000000000..177b14e317
+--- /dev/null
++++ b/src/internal/cpu/cpu_amd64p32.go
+@@ -0,0 +1,7 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cpu
++
++const GOARCH = "amd64p32"
+diff --git a/src/internal/cpu/cpu_arm64.go b/src/internal/cpu/cpu_arm64.go
+index 78f90f4a7d..487ccf8e42 100644
+--- a/src/internal/cpu/cpu_arm64.go
++++ b/src/internal/cpu/cpu_arm64.go
+@@ -41,6 +41,35 @@ const (
+ )
+ 
+ func doinit() {
++	options = []option{
++		{"evtstrm", &ARM64.HasEVTSTRM},
++		{"aes", &ARM64.HasAES},
++		{"pmull", &ARM64.HasPMULL},
++		{"sha1", &ARM64.HasSHA1},
++		{"sha2", &ARM64.HasSHA2},
++		{"crc32", &ARM64.HasCRC32},
++		{"atomics", &ARM64.HasATOMICS},
++		{"fphp", &ARM64.HasFPHP},
++		{"asimdhp", &ARM64.HasASIMDHP},
++		{"cpuid", &ARM64.HasCPUID},
++		{"asimdrdm", &ARM64.HasASIMDRDM},
++		{"jscvt", &ARM64.HasJSCVT},
++		{"fcma", &ARM64.HasFCMA},
++		{"lrcpc", &ARM64.HasLRCPC},
++		{"dcpop", &ARM64.HasDCPOP},
++		{"sha3", &ARM64.HasSHA3},
++		{"sm3", &ARM64.HasSM3},
++		{"sm4", &ARM64.HasSM4},
++		{"asimddp", &ARM64.HasASIMDDP},
++		{"sha512", &ARM64.HasSHA512},
++		{"sve", &ARM64.HasSVE},
++		{"asimdfhm", &ARM64.HasASIMDFHM},
++
++		// These capabilities should always be enabled on arm64:
++		//  {"fp", &ARM64.HasFP},
++		//  {"asimd", &ARM64.HasASIMD},
++	}
++
+ 	// HWCAP feature bits
+ 	ARM64.HasFP = isSet(hwcap, hwcap_FP)
+ 	ARM64.HasASIMD = isSet(hwcap, hwcap_ASIMD)
+diff --git a/src/internal/cpu/cpu_arm64_test.go b/src/internal/cpu/cpu_arm64_test.go
+new file mode 100644
+index 0000000000..f4c419a23f
+--- /dev/null
++++ b/src/internal/cpu/cpu_arm64_test.go
+@@ -0,0 +1,26 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cpu_test
++
++import (
++	. "internal/cpu"
++	"runtime"
++	"testing"
++)
++
++func TestARM64minimalFeatures(t *testing.T) {
++	switch runtime.GOOS {
++	case "linux", "android":
++	default:
++		t.Skipf("%s/arm64 is not supported", runtime.GOOS)
++	}
++
++	if !ARM64.HasASIMD {
++		t.Fatalf("HasASIMD expected true, got false")
++	}
++	if !ARM64.HasFP {
++		t.Fatalf("HasFP expected true, got false")
++	}
++}
+diff --git a/src/internal/cpu/cpu_no_init.go b/src/internal/cpu/cpu_no_init.go
+index 50f6232947..010cbcdb5e 100644
+--- a/src/internal/cpu/cpu_no_init.go
++++ b/src/internal/cpu/cpu_no_init.go
+@@ -6,6 +6,8 @@
+ // +build !amd64
+ // +build !amd64p32
+ // +build !arm64
++// +build !ppc64
++// +build !ppc64le
+ 
+ package cpu
+ 
+diff --git a/src/internal/cpu/cpu_ppc64x.go b/src/internal/cpu/cpu_ppc64x.go
+index 52aa374d54..995cf02081 100644
+--- a/src/internal/cpu/cpu_ppc64x.go
++++ b/src/internal/cpu/cpu_ppc64x.go
+@@ -32,7 +32,21 @@ const (
+ 	_PPC_FEATURE2_SCV            = 0x00100000
+ )
+ 
+-func init() {
++func doinit() {
++	options = []option{
++		{"htm", &PPC64.HasHTM},
++		{"htmnosc", &PPC64.HasHTMNOSC},
++		{"darn", &PPC64.HasDARN},
++		{"scv", &PPC64.HasSCV},
++
++		// These capabilities should always be enabled on ppc64 and ppc64le:
++		//  {"vmx", &PPC64.HasVMX},
++		//  {"dfp", &PPC64.HasDFP},
++		//  {"vsx", &PPC64.HasVSX},
++		//  {"isel", &PPC64.HasISEL},
++		//  {"vcrypto", &PPC64.HasVCRYPTO},
++	}
++
+ 	// HWCAP feature bits
+ 	PPC64.HasVMX = isSet(hwcap, _PPC_FEATURE_HAS_ALTIVEC)
+ 	PPC64.HasDFP = isSet(hwcap, _PPC_FEATURE_HAS_DFP)
+diff --git a/src/internal/cpu/cpu_ppc64x_test.go b/src/internal/cpu/cpu_ppc64x_test.go
+new file mode 100644
+index 0000000000..b33acbfbdc
+--- /dev/null
++++ b/src/internal/cpu/cpu_ppc64x_test.go
+@@ -0,0 +1,34 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ppc64 ppc64le
++
++package cpu_test
++
++import (
++	. "internal/cpu"
++	"runtime"
++	"testing"
++)
++
++func TestPPC64minimalFeatures(t *testing.T) {
++	if !PPC64.IsPOWER8 {
++		t.Fatalf("IsPOWER8 expected true, got false")
++	}
++	if !PPC64.HasVMX {
++		t.Fatalf("HasVMX expected true, got false")
++	}
++	if !PPC64.HasDFP {
++		t.Fatalf("HasDFP expected true, got false")
++	}
++	if !PPC64.HasVSX {
++		t.Fatalf("HasVSX expected true, got false")
++	}
++	if !PPC64.HasISEL {
++		t.Fatalf("HasISEL expected true, got false")
++	}
++	if !PPC64.HasVCRYPTO {
++		t.Fatalf("HasVCRYPTO expected true, got false")
++	}
++}
+diff --git a/src/internal/cpu/cpu_test.go b/src/internal/cpu/cpu_test.go
+index 35d041bccb..d4115a1b87 100644
+--- a/src/internal/cpu/cpu_test.go
++++ b/src/internal/cpu/cpu_test.go
+@@ -5,66 +5,52 @@
+ package cpu_test
+ 
+ import (
+-	"internal/cpu"
+-	"runtime"
++	. "internal/cpu"
++	"internal/testenv"
++	"os"
++	"os/exec"
++	"strings"
+ 	"testing"
+ )
+ 
+-func TestAMD64minimalFeatures(t *testing.T) {
+-	if runtime.GOARCH == "amd64" {
+-		if !cpu.X86.HasSSE2 {
+-			t.Fatalf("HasSSE2 expected true, got false")
+-		}
++func MustHaveDebugOptionsEnabled(t *testing.T) {
++	if !DebugOptions {
++		t.Skipf("skipping test: cpu feature options not enabled")
+ 	}
+ }
+ 
+-func TestAVX2hasAVX(t *testing.T) {
+-	if runtime.GOARCH == "amd64" {
+-		if cpu.X86.HasAVX2 && !cpu.X86.HasAVX {
+-			t.Fatalf("HasAVX expected true, got false")
+-		}
+-	}
+-}
++func runDebugOptionsTest(t *testing.T, test string, options string) {
++	MustHaveDebugOptionsEnabled(t)
+ 
+-func TestPPC64minimalFeatures(t *testing.T) {
+-	if runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" {
+-		if !cpu.PPC64.IsPOWER8 {
+-			t.Fatalf("IsPOWER8 expected true, got false")
+-		}
+-		if !cpu.PPC64.HasVMX {
+-			t.Fatalf("HasVMX expected true, got false")
+-		}
+-		if !cpu.PPC64.HasDFP {
+-			t.Fatalf("HasDFP expected true, got false")
+-		}
+-		if !cpu.PPC64.HasVSX {
+-			t.Fatalf("HasVSX expected true, got false")
+-		}
+-		if !cpu.PPC64.HasISEL {
+-			t.Fatalf("HasISEL expected true, got false")
+-		}
+-		if !cpu.PPC64.HasVCRYPTO {
+-			t.Fatalf("HasVCRYPTO expected true, got false")
+-		}
++	testenv.MustHaveExec(t)
++
++	env := "GODEBUGCPU=" + options
++
++	cmd := exec.Command(os.Args[0], "-test.run="+test)
++	cmd.Env = append(cmd.Env, env)
++
++	output, err := cmd.CombinedOutput()
++	got := strings.TrimSpace(string(output))
++	want := "PASS"
++	if err != nil || got != want {
++		t.Fatalf("%s with %s: want %s, got %v", test, env, want, got)
+ 	}
+ }
+ 
+-func TestARM64minimalFeatures(t *testing.T) {
++func TestDisableAllCapabilities(t *testing.T) {
++	runDebugOptionsTest(t, "TestAllCapabilitiesDisabled", "all=0")
++}
+ 
+-	if runtime.GOARCH != "arm64" {
+-		return
+-	}
++func TestAllCapabilitiesDisabled(t *testing.T) {
++	MustHaveDebugOptionsEnabled(t)
+ 
+-	switch runtime.GOOS {
+-	case "linux", "android":
+-	default:
+-		t.Skipf("%s/arm64 is not supported", runtime.GOOS)
++	if os.Getenv("GODEBUGCPU") != "all=0" {
++		t.Skipf("skipping test: GODEBUGCPU=all=0 not set")
+ 	}
+ 
+-	if !cpu.ARM64.HasASIMD {
+-		t.Fatalf("HasASIMD expected true, got false")
+-	}
+-	if !cpu.ARM64.HasFP {
+-		t.Fatalf("HasFP expected true, got false")
++	for _, o := range Options {
++		if got := *o.Feature; got != false {
++			t.Errorf("%v: expected false, got %v", o.Name, got)
++		}
+ 	}
+ }
+diff --git a/src/internal/cpu/cpu_x86.go b/src/internal/cpu/cpu_x86.go
+index 17be6eed26..7d9d3aaf76 100644
+--- a/src/internal/cpu/cpu_x86.go
++++ b/src/internal/cpu/cpu_x86.go
+@@ -39,6 +39,31 @@ const (
+ )
+ 
+ func doinit() {
++	options = []option{
++		{"adx", &X86.HasADX},
++		{"aes", &X86.HasAES},
++		{"avx", &X86.HasAVX},
++		{"avx2", &X86.HasAVX2},
++		{"bmi1", &X86.HasBMI1},
++		{"bmi2", &X86.HasBMI2},
++		{"erms", &X86.HasERMS},
++		{"fma", &X86.HasFMA},
++		{"pclmulqdq", &X86.HasPCLMULQDQ},
++		{"popcnt", &X86.HasPOPCNT},
++		{"sse3", &X86.HasSSE3},
++		{"sse41", &X86.HasSSE41},
++		{"sse42", &X86.HasSSE42},
++		{"ssse3", &X86.HasSSSE3},
++
++		// sse2 set as last element so it can easily be removed again. See code below.
++		{"sse2", &X86.HasSSE2},
++	}
++
++	// Remove sse2 from options on amd64(p32) because SSE2 is a mandatory feature for these GOARCHs.
++	if GOARCH == "amd64" || GOARCH == "amd64p32" {
++		options = options[:len(options)-1]
++	}
++
+ 	maxID, _, _, _ := cpuid(0, 0)
+ 
+ 	if maxID < 1 {
+diff --git a/src/internal/cpu/cpu_x86_test.go b/src/internal/cpu/cpu_x86_test.go
+new file mode 100644
+index 0000000000..d03306c907
+--- /dev/null
++++ b/src/internal/cpu/cpu_x86_test.go
+@@ -0,0 +1,47 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build 386 amd64 amd64p32
++
++package cpu_test
++
++import (
++	. "internal/cpu"
++	"os"
++	"runtime"
++	"testing"
++)
++
++func TestAMD64minimalFeatures(t *testing.T) {
++	if runtime.GOARCH != "amd64" {
++		return
++	}
++
++	if !X86.HasSSE2 {
++		t.Fatalf("HasSSE2 expected true, got false")
++	}
++}
++
++func TestX86ifAVX2hasAVX(t *testing.T) {
++	if X86.HasAVX2 && !X86.HasAVX {
++		t.Fatalf("HasAVX expected true when HasAVX2 is true, got false")
++	}
++}
++
++func TestDisableSSE2(t *testing.T) {
++	runDebugOptionsTest(t, "TestSSE2DebugOption", "sse2=0")
++}
++
++func TestSSE2DebugOption(t *testing.T) {
++	MustHaveDebugOptionsEnabled(t)
++
++	if os.Getenv("GODEBUGCPU") != "sse2=0" {
++		t.Skipf("skipping test: GODEBUGCPU=sse2=0 not set")
++	}
++
++	want := runtime.GOARCH != "386" // SSE2 can only be disabled on 386.
++	if got := X86.HasSSE2; got != want {
++		t.Errorf("X86.HasSSE2 on %s expected %v, got %v", runtime.GOARCH, want, got)
++	}
++}
+diff --git a/src/internal/cpu/export_test.go b/src/internal/cpu/export_test.go
+new file mode 100644
+index 0000000000..4e53c5a084
+--- /dev/null
++++ b/src/internal/cpu/export_test.go
+@@ -0,0 +1,10 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cpu
++
++var (
++	Options      = options
++	DebugOptions = debugOptions
++)
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index e22432f8ed..ba76f7c3e7 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -473,7 +473,41 @@ const (
+ )
+ 
+ //go:linkname internal_cpu_initialize internal/cpu.initialize
+-func internal_cpu_initialize()
++func internal_cpu_initialize(env string)
++
++//go:linkname internal_cpu_debugOptions internal/cpu.debugOptions
++var internal_cpu_debugOptions bool
++
++// cpuinit extracts the environment variable GODEBUGCPU from the enviroment on
++// Linux and Darwin if the GOEXPERIMENT debugcpu was set and calls internal/cpu.initialize.
++func cpuinit() {
++	const prefix = "GODEBUGCPU="
++	var env string
++
++	if haveexperiment("debugcpu") && (GOOS == "linux" || GOOS == "darwin") {
++		internal_cpu_debugOptions = true
++
++		// Similar to goenv_unix but extracts the environment value for
++		// GODEBUGCPU directly.
++		// TODO(moehrmann): remove when general goenvs() can be called before cpuinit()
++		n := int32(0)
++		for argv_index(argv, argc+1+n) != nil {
++			n++
++		}
++
++		for i := int32(0); i < n; i++ {
++			p := argv_index(argv, argc+1+i)
++			s := *(*string)(unsafe.Pointer(&stringStruct{unsafe.Pointer(p), findnull(p)}))
++
++			if hasprefix(s, prefix) {
++				env = gostring(p)[len(prefix):]
++				break
++			}
++		}
++	}
++
++	internal_cpu_initialize(env)
++}
+ 
+ // The bootstrap sequence is:
+ //
+@@ -498,11 +532,11 @@ func schedinit() {
+ 	stackinit()
+ 	mallocinit()
+ 	mcommoninit(_g_.m)
+-	internal_cpu_initialize() // must run before alginit
+-	alginit()                 // maps must not be used before this call
+-	modulesinit()             // provides activeModules
+-	typelinksinit()           // uses maps, activeModules
+-	itabsinit()               // uses activeModules
++	cpuinit()       // must run before alginit
++	alginit()       // maps must not be used before this call
++	modulesinit()   // provides activeModules
++	typelinksinit() // uses maps, activeModules
++	itabsinit()     // uses activeModules
+ 
+ 	msigsave(_g_.m)
+ 	initSigmask = _g_.m.sigmask

@@ -9,7 +9,40 @@ Date:   Mon Dec 14 13:24:27 2015 -0500
     Change-Id: I74b941164610921a03814733fea08631f18b6178
     Reviewed-on: https://go-review.googlesource.com/17815
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/racewalk.go      |  2 +-
  src/runtime/race/testdata/issue13264_test.go | 13 +++++++++++++
  2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 35e06b9e7e..ec94042562 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -151,7 +151,7 @@ func instrumentnode(np **Node, init **NodeList, wr int, skip int) {
+ 		for l := n.List; l != nil; l = l.Next {
+ 			switch l.N.Op {
+ 			case OCALLFUNC, OCALLMETH, OCALLINTER:
+-				instrumentnode(&l.N, &out, 0, 0)
++				instrumentnode(&l.N, &l.N.Ninit, 0, 0)
+ 				out = list(out, l.N)
+ 				// Scan past OAS nodes copying results off stack.
+ 				// Those must not be instrumented, because the
+diff --git a/src/runtime/race/testdata/issue13264_test.go b/src/runtime/race/testdata/issue13264_test.go
+new file mode 100644
+index 0000000000..d42290de50
+--- /dev/null
++++ b/src/runtime/race/testdata/issue13264_test.go
+@@ -0,0 +1,13 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package race_test
++
++// golang.org/issue/13264
++// The test is that this compiles at all.
++
++func issue13264() {
++	for ; ; []map[int]int{}[0][0] = 0 {
++	}
++}

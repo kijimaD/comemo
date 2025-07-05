@@ -13,6 +13,19 @@ Date:   Wed Oct 6 12:24:59 2021 -0700
     Trust: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/cmd/compile/internal/test/inl_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/test/inl_test.go b/src/cmd/compile/internal/test/inl_test.go
+index 5fa6411ae4..b10d37a17c 100644
+--- a/src/cmd/compile/internal/test/inl_test.go
++++ b/src/cmd/compile/internal/test/inl_test.go
+@@ -46,6 +46,7 @@ func TestIntendedInlining(t *testing.T) {
+ 			"fastlog2",
+ 			"fastrand",
+ 			"float64bits",
++			"funcspdelta",
+ 			"getArgInfoFast",
+ 			"getm",
+ 			"getMCache",

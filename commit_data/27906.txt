@@ -9,7 +9,84 @@ Date:   Tue Apr 19 14:18:59 2016 -0700
     Change-Id: I9ece80f26b83be129671c961120c157da2ac0079
     Reviewed-on: https://go-review.googlesource.com/22270
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/stmt.go            | 10 ++++++++++
  src/go/types/testdata/stmt0.src | 17 +++++++++++++----
  2 files changed, 23 insertions(+), 4 deletions(-)
+
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index c6691851fb..e301f71159 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -83,9 +83,19 @@ func (check *Checker) simpleStmt(s ast.Stmt) {
+ 	}
+ }
+ 
++func trimTrailingEmptyStmts(list []ast.Stmt) []ast.Stmt {
++	for i := len(list); i > 0; i-- {
++		if _, ok := list[i-1].(*ast.EmptyStmt); !ok {
++			return list[:i]
++		}
++	}
++	return nil
++}
++
+ func (check *Checker) stmtList(ctxt stmtContext, list []ast.Stmt) {
+ 	ok := ctxt&fallthroughOk != 0
+ 	inner := ctxt &^ fallthroughOk
++	list = trimTrailingEmptyStmts(list) // trailing empty statements are "invisible" to fallthrough analysis
+ 	for i, s := range list {
+ 		inner := inner
+ 		if ok && i+1 == len(list) {
+diff --git a/src/go/types/testdata/stmt0.src b/src/go/types/testdata/stmt0.src
+index e0d714dfb6..ac32ed7ba9 100644
+--- a/src/go/types/testdata/stmt0.src
++++ b/src/go/types/testdata/stmt0.src
+@@ -531,16 +531,18 @@ func switches1() {
+ 	case 1:
+ 		fallthrough
+ 	case 2:
+-	default:
+-		fallthrough
++		fallthrough; ; ; // trailing empty statements are ok
+ 	case 3:
++	default:
++		fallthrough; ;
++	case 4:
+ 		fallthrough /* ERROR "fallthrough statement out of place" */
+ 	}
+ 
+ 	var y interface{}
+ 	switch y.(type) {
+ 	case int:
+-		fallthrough /* ERROR "fallthrough statement out of place" */
++		fallthrough /* ERROR "fallthrough statement out of place" */ ; ; ;
+ 	default:
+ 	}
+ 
+@@ -554,7 +556,7 @@ func switches1() {
+ 	switch x {
+ 	case 0:
+ 		goto L1
+-		L1: fallthrough
++		L1: fallthrough; ;
+ 	case 1:
+ 		goto L2
+ 		goto L3
+@@ -576,9 +578,16 @@ func switches1() {
+ 
+ 	switch x {
+ 	case 0:
++		fallthrough; ;
++	case 1:
+ 		{
+ 			fallthrough /* ERROR "fallthrough statement out of place" */
+ 		}
++	case 2:
++		fallthrough
++	case 3:
++		fallthrough /* ERROR "fallthrough statement out of place" */
++		{ /* empty block is not an empty statement */ }; ;
+ 	default:
+ 	}
+ }

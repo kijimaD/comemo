@@ -9,7 +9,129 @@ Date:   Wed Sep 11 21:20:15 2013 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13651044
-
+---
  src/pkg/bytes/bytes_test.go  | 50 ++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/bytes/reader_test.go | 35 +++++++++++++++++++++++++++++++
  2 files changed, 85 insertions(+)
+
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index 29134ac0be..ab5da4fbf0 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -143,6 +143,7 @@ var indexTests = []BinOpTest{
+ 	{"", "a", -1},
+ 	{"", "foo", -1},
+ 	{"fo", "foo", -1},
++	{"foo", "baz", -1},
+ 	{"foo", "foo", 0},
+ 	{"oofofoofooo", "f", 2},
+ 	{"oofofoofooo", "foo", 4},
+@@ -1082,6 +1083,24 @@ func TestTitle(t *testing.T) {
+ 	}
+ }
+ 
++var ToTitleTests = []TitleTest{
++	{"", ""},
++	{"a", "A"},
++	{" aaa aaa aaa ", " AAA AAA AAA "},
++	{" Aaa Aaa Aaa ", " AAA AAA AAA "},
++	{"123a456", "123A456"},
++	{"double-blind", "DOUBLE-BLIND"},
++	{"ÿøû", "ŸØÛ"},
++}
++
++func TestToTitle(t *testing.T) {
++	for _, tt := range ToTitleTests {
++		if s := string(ToTitle([]byte(tt.in))); s != tt.out {
++			t.Errorf("ToTitle(%q) = %q, want %q", tt.in, s, tt.out)
++		}
++	}
++}
++
+ var EqualFoldTests = []struct {
+ 	s, t string
+ 	out  bool
+@@ -1110,6 +1129,37 @@ func TestEqualFold(t *testing.T) {
+ 	}
+ }
+ 
++func TestBufferGrowNegative(t *testing.T) {
++	defer func() {
++		if err := recover(); err == nil {
++			t.Fatal("Grow(-1) should have paniced")
++		}
++	}()
++	var b Buffer
++	b.Grow(-1)
++}
++
++func TestBufferTruncateNegative(t *testing.T) {
++	defer func() {
++		if err := recover(); err == nil {
++			t.Fatal("Truncate(-1) should have paniced")
++		}
++	}()
++	var b Buffer
++	b.Truncate(-1)
++}
++
++func TestBufferTruncateOutOfRange(t *testing.T) {
++	defer func() {
++		if err := recover(); err == nil {
++			t.Fatal("Truncate(20) should have paniced")
++		}
++	}()
++	var b Buffer
++	b.Write(make([]byte, 10))
++	b.Truncate(20)
++}
++
+ var makeFieldsInput = func() []byte {
+ 	x := make([]byte, 1<<20)
+ 	// Input is ~10% space, ~10% 2-byte UTF-8, rest ASCII non-space.
+diff --git a/src/pkg/bytes/reader_test.go b/src/pkg/bytes/reader_test.go
+index f0a3e26c4a..19f014da03 100644
+--- a/src/pkg/bytes/reader_test.go
++++ b/src/pkg/bytes/reader_test.go
+@@ -113,6 +113,41 @@ func TestReaderWriteTo(t *testing.T) {
+ 	}
+ }
+ 
++func TestReaderLen(t *testing.T) {
++	const data = "hello world"
++	r := NewReader([]byte(data))
++	if got, want := r.Len(), 11; got != want {
++		t.Errorf("r.Len(): got %d, want %d", got, want)
++	}
++	if n, err := r.Read(make([]byte, 10)); err != nil || n != 10 {
++		t.Errorf("Read failed: read %d %v", n, err)
++	}
++	if got, want := r.Len(), 1; got != want {
++		t.Errorf("r.Len(): got %d, want %d", got, want)
++	}
++	if n, err := r.Read(make([]byte, 1)); err != nil || n != 1 {
++		t.Errorf("Read failed: read %d %v", n, err)
++	}
++	if got, want := r.Len(), 0; got != want {
++		t.Errorf("r.Len(): got %d, want %d", got, want)
++	}
++}
++
++func TestReaderDoubleUnreadRune(t *testing.T) {
++	buf := NewBuffer([]byte("groucho"))
++	if _, _, err := buf.ReadRune(); err != nil {
++		// should not happen
++		t.Fatal(err)
++	}
++	if err := buf.UnreadByte(); err != nil {
++		// should not happen
++		t.Fatal(err)
++	}
++	if err := buf.UnreadByte(); err == nil {
++		t.Fatal("UnreadByte: expected error, got nil")
++	}
++}
++
+ // verify that copying from an empty reader always has the same results,
+ // regardless of the presence of a WriteTo method.
+ func TestReaderCopyNothing(t *testing.T) {

@@ -13,7 +13,40 @@ Date:   Fri Sep 13 12:44:45 2013 +1000
     R=golang-dev, dsymonds, rsc
     CC=golang-dev
     https://golang.org/cl/13689043
-
+---
  src/pkg/text/template/parse/lex.go      | 4 ----
  src/pkg/text/template/parse/lex_test.go | 5 ++++-
  2 files changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/text/template/parse/lex.go b/src/pkg/text/template/parse/lex.go
+index 690497d645..1674aaf9cd 100644
+--- a/src/pkg/text/template/parse/lex.go
++++ b/src/pkg/text/template/parse/lex.go
+@@ -217,10 +217,6 @@ func lexText(l *lexer) stateFn {
+ 			}
+ 			return lexLeftDelim
+ 		}
+-		// Check for right after left in case they're the same.
+-		if strings.HasPrefix(l.input[l.pos:], l.rightDelim) {
+-			return l.errorf("unmatched right delimiter")
+-		}
+ 		if l.next() == eof {
+ 			break
+ 		}
+diff --git a/src/pkg/text/template/parse/lex_test.go b/src/pkg/text/template/parse/lex_test.go
+index e72e07f269..d251ccffb6 100644
+--- a/src/pkg/text/template/parse/lex_test.go
++++ b/src/pkg/text/template/parse/lex_test.go
+@@ -340,8 +340,11 @@ var lexTests = []lexTest{
+ 		{itemText, 0, "hello-"},
+ 		{itemError, 0, `comment ends before closing delimiter`},
+ 	}},
++	// This one is an error that we can't catch because it breaks templates with
++	// minimized JavaScript. Should have fixed it before Go 1.1.
+ 	{"unmatched right delimiter", "hello-{.}}-world", []item{
+-		{itemError, 0, `unmatched right delimiter`},
++		{itemText, 0, "hello-{.}}-world"},
++		tEOF,
+ 	}},
+ }
+ 

@@ -12,6 +12,39 @@ Date:   Wed Apr 7 21:56:59 2021 +0200
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/os/exec/lp_windows_test.go | 14 ++------------
  1 file changed, 2 insertions(+), 12 deletions(-)
+
+diff --git a/src/os/exec/lp_windows_test.go b/src/os/exec/lp_windows_test.go
+index 56cb54f800..f834ffede0 100644
+--- a/src/os/exec/lp_windows_test.go
++++ b/src/os/exec/lp_windows_test.go
+@@ -306,12 +306,7 @@ var lookPathTests = []lookPathTest{
+ }
+ 
+ func TestLookPath(t *testing.T) {
+-	tmp, err := os.MkdirTemp("", "TestLookPath")
+-	if err != nil {
+-		t.Fatal("TempDir failed: ", err)
+-	}
+-	defer os.RemoveAll(tmp)
+-
++	tmp := t.TempDir()
+ 	printpathExe := buildPrintPathExe(t, tmp)
+ 
+ 	// Run all tests.
+@@ -508,12 +503,7 @@ var commandTests = []commandTest{
+ }
+ 
+ func TestCommand(t *testing.T) {
+-	tmp, err := os.MkdirTemp("", "TestCommand")
+-	if err != nil {
+-		t.Fatal("TempDir failed: ", err)
+-	}
+-	defer os.RemoveAll(tmp)
+-
++	tmp := t.TempDir()
+ 	printpathExe := buildPrintPathExe(t, tmp)
+ 
+ 	// Run all tests.

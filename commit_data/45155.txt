@@ -21,7 +21,7 @@ Date:   Fri Aug 14 12:27:26 2020 -0400
     Trust: Hyang-Ah Hana Kim <hyangah@gmail.com>
     Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/go.mod                                     |   2 +-
  src/cmd/go.sum                                     |   4 +-
  src/cmd/pprof/pprof.go                             |   5 +-
@@ -44,3 +44,2763 @@ Date:   Fri Aug 14 12:27:26 2020 -0400
  .../github.com/google/pprof/profile/profile.go     |  10 +-
  src/cmd/vendor/modules.txt                         |   2 +-
  21 files changed, 1300 insertions(+), 525 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 59d6152e2a..56941b0541 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -3,7 +3,7 @@ module cmd
+ go 1.16
+ 
+ require (
+-	github.com/google/pprof v0.0.0-20200229191704-1ebb73c60ed3
++	github.com/google/pprof v0.0.0-20200708004538-1a94d8640e99
+ 	github.com/ianlancetaylor/demangle v0.0.0-20200414190113-039b1ae3a340 // indirect
+ 	golang.org/x/arch v0.0.0-20200826200359-b19915210f00
+ 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 1b6d680d62..2b505c4354 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -1,8 +1,8 @@
+ github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWRnGsAI=
+ github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e/go.mod h1:nSuG5e5PlCu98SY8svDHJxuZscDgtXS6KTTbou5AhLI=
+ github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1/go.mod h1:Q3SI9o4m/ZMnBNeIyt5eFwwo7qiLfzFZmjNmxjkiQlU=
+-github.com/google/pprof v0.0.0-20200229191704-1ebb73c60ed3 h1:SRgJV+IoxM5MKyFdlSUeNy6/ycRUF2yBAKdAQswoHUk=
+-github.com/google/pprof v0.0.0-20200229191704-1ebb73c60ed3/go.mod h1:ZgVRPoUq/hfqzAqh7sHMqb3I9Rq5C59dIz2SbBwJ4eM=
++github.com/google/pprof v0.0.0-20200708004538-1a94d8640e99 h1:Ak8CrdlwwXwAZxzS66vgPt4U8yUZX7JwLvVR58FN5jM=
++github.com/google/pprof v0.0.0-20200708004538-1a94d8640e99/go.mod h1:ZgVRPoUq/hfqzAqh7sHMqb3I9Rq5C59dIz2SbBwJ4eM=
+ github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
+ github.com/ianlancetaylor/demangle v0.0.0-20200414190113-039b1ae3a340 h1:S1+yTUaFPXuDZnPDbO+TrDFIjPzQraYH8/CwSlu9Fac=
+ github.com/ianlancetaylor/demangle v0.0.0-20200414190113-039b1ae3a340/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
+diff --git a/src/cmd/pprof/pprof.go b/src/cmd/pprof/pprof.go
+index 903f9cc1db..c1ddbe372f 100644
+--- a/src/cmd/pprof/pprof.go
++++ b/src/cmd/pprof/pprof.go
+@@ -171,7 +171,10 @@ func (*objTool) Demangle(names []string) (map[string]string, error) {
+ 	return make(map[string]string), nil
+ }
+ 
+-func (t *objTool) Disasm(file string, start, end uint64) ([]driver.Inst, error) {
++func (t *objTool) Disasm(file string, start, end uint64, intelSyntax bool) ([]driver.Inst, error) {
++	if intelSyntax {
++		return nil, fmt.Errorf("printing assembly in Intel syntax is not supported")
++	}
+ 	d, err := t.cachedDisasm(file)
+ 	if err != nil {
+ 		return nil, err
+diff --git a/src/cmd/vendor/github.com/google/pprof/driver/driver.go b/src/cmd/vendor/github.com/google/pprof/driver/driver.go
+index 9bcbc8295a..e65bc2f417 100644
+--- a/src/cmd/vendor/github.com/google/pprof/driver/driver.go
++++ b/src/cmd/vendor/github.com/google/pprof/driver/driver.go
+@@ -142,7 +142,7 @@ type ObjTool interface {
+ 
+ 	// Disasm disassembles the named object file, starting at
+ 	// the start address and stopping at (before) the end address.
+-	Disasm(file string, start, end uint64) ([]Inst, error)
++	Disasm(file string, start, end uint64, intelSyntax bool) ([]Inst, error)
+ }
+ 
+ // An Inst is a single instruction in an assembly listing.
+@@ -269,8 +269,8 @@ func (f *internalObjFile) Symbols(r *regexp.Regexp, addr uint64) ([]*plugin.Sym,
+ 	return pluginSyms, nil
+ }
+ 
+-func (o *internalObjTool) Disasm(file string, start, end uint64) ([]plugin.Inst, error) {
+-	insts, err := o.ObjTool.Disasm(file, start, end)
++func (o *internalObjTool) Disasm(file string, start, end uint64, intelSyntax bool) ([]plugin.Inst, error) {
++	insts, err := o.ObjTool.Disasm(file, start, end, intelSyntax)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils.go b/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils.go
+index 967726d1fa..4b67cc4ab0 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils.go
+@@ -19,6 +19,7 @@ import (
+ 	"debug/elf"
+ 	"debug/macho"
+ 	"encoding/binary"
++	"errors"
+ 	"fmt"
+ 	"io"
+ 	"os"
+@@ -26,6 +27,7 @@ import (
+ 	"path/filepath"
+ 	"regexp"
+ 	"runtime"
++	"strconv"
+ 	"strings"
+ 	"sync"
+ 
+@@ -39,6 +41,8 @@ type Binutils struct {
+ 	rep *binrep
+ }
+ 
++var objdumpLLVMVerRE = regexp.MustCompile(`LLVM version (?:(\d*)\.(\d*)\.(\d*)|.*(trunk).*)`)
++
+ // binrep is an immutable representation for Binutils.  It is atomically
+ // replaced on every mutation to provide thread-safe access.
+ type binrep struct {
+@@ -51,6 +55,7 @@ type binrep struct {
+ 	nmFound             bool
+ 	objdump             string
+ 	objdumpFound        bool
++	isLLVMObjdump       bool
+ 
+ 	// if fast, perform symbolization using nm (symbol names only),
+ 	// instead of file-line detail from the slower addr2line.
+@@ -132,15 +137,103 @@ func initTools(b *binrep, config string) {
+ 	}
+ 
+ 	defaultPath := paths[""]
+-	b.llvmSymbolizer, b.llvmSymbolizerFound = findExe("llvm-symbolizer", append(paths["llvm-symbolizer"], defaultPath...))
+-	b.addr2line, b.addr2lineFound = findExe("addr2line", append(paths["addr2line"], defaultPath...))
+-	if !b.addr2lineFound {
+-		// On MacOS, brew installs addr2line under gaddr2line name, so search for
+-		// that if the tool is not found by its default name.
+-		b.addr2line, b.addr2lineFound = findExe("gaddr2line", append(paths["addr2line"], defaultPath...))
++	b.llvmSymbolizer, b.llvmSymbolizerFound = chooseExe([]string{"llvm-symbolizer"}, []string{}, append(paths["llvm-symbolizer"], defaultPath...))
++	b.addr2line, b.addr2lineFound = chooseExe([]string{"addr2line"}, []string{"gaddr2line"}, append(paths["addr2line"], defaultPath...))
++	// The "-n" option is supported by LLVM since 2011. The output of llvm-nm
++	// and GNU nm with "-n" option is interchangeable for our purposes, so we do
++	// not need to differrentiate them.
++	b.nm, b.nmFound = chooseExe([]string{"llvm-nm", "nm"}, []string{"gnm"}, append(paths["nm"], defaultPath...))
++	b.objdump, b.objdumpFound, b.isLLVMObjdump = findObjdump(append(paths["objdump"], defaultPath...))
++}
++
++// findObjdump finds and returns path to preferred objdump binary.
++// Order of preference is: llvm-objdump, objdump.
++// On MacOS only, also looks for gobjdump with least preference.
++// Accepts a list of paths and returns:
++// a string with path to the preferred objdump binary if found,
++// or an empty string if not found;
++// a boolean if any acceptable objdump was found;
++// a boolean indicating if it is an LLVM objdump.
++func findObjdump(paths []string) (string, bool, bool) {
++	objdumpNames := []string{"llvm-objdump", "objdump"}
++	if runtime.GOOS == "darwin" {
++		objdumpNames = append(objdumpNames, "gobjdump")
++	}
++
++	for _, objdumpName := range objdumpNames {
++		if objdump, objdumpFound := findExe(objdumpName, paths); objdumpFound {
++			cmdOut, err := exec.Command(objdump, "--version").Output()
++			if err != nil {
++				continue
++			}
++			if isLLVMObjdump(string(cmdOut)) {
++				return objdump, true, true
++			}
++			if isBuObjdump(string(cmdOut)) {
++				return objdump, true, false
++			}
++		}
+ 	}
+-	b.nm, b.nmFound = findExe("nm", append(paths["nm"], defaultPath...))
+-	b.objdump, b.objdumpFound = findExe("objdump", append(paths["objdump"], defaultPath...))
++	return "", false, false
++}
++
++// chooseExe finds and returns path to preferred binary. names is a list of
++// names to search on both Linux and OSX. osxNames is a list of names specific
++// to OSX. names always has a higher priority than osxNames. The order of
++// the name within each list decides its priority (e.g. the first name has a
++// higher priority than the second name in the list).
++//
++// It returns a string with path to the binary and a boolean indicating if any
++// acceptable binary was found.
++func chooseExe(names, osxNames []string, paths []string) (string, bool) {
++	if runtime.GOOS == "darwin" {
++		names = append(names, osxNames...)
++	}
++	for _, name := range names {
++		if binary, found := findExe(name, paths); found {
++			return binary, true
++		}
++	}
++	return "", false
++}
++
++// isLLVMObjdump accepts a string with path to an objdump binary,
++// and returns a boolean indicating if the given binary is an LLVM
++// objdump binary of an acceptable version.
++func isLLVMObjdump(output string) bool {
++	fields := objdumpLLVMVerRE.FindStringSubmatch(output)
++	if len(fields) != 5 {
++		return false
++	}
++	if fields[4] == "trunk" {
++		return true
++	}
++	verMajor, err := strconv.Atoi(fields[1])
++	if err != nil {
++		return false
++	}
++	verPatch, err := strconv.Atoi(fields[3])
++	if err != nil {
++		return false
++	}
++	if runtime.GOOS == "linux" && verMajor >= 8 {
++		// Ensure LLVM objdump is at least version 8.0 on Linux.
++		// Some flags, like --demangle, and double dashes for options are
++		// not supported by previous versions.
++		return true
++	}
++	if runtime.GOOS == "darwin" {
++		// Ensure LLVM objdump is at least version 10.0.1 on MacOS.
++		return verMajor > 10 || (verMajor == 10 && verPatch >= 1)
++	}
++	return false
++}
++
++// isBuObjdump accepts a string with path to an objdump binary,
++// and returns a boolean indicating if the given binary is a GNU
++// binutils objdump binary. No version check is performed.
++func isBuObjdump(output string) bool {
++	return strings.Contains(output, "GNU objdump")
+ }
+ 
+ // findExe looks for an executable command on a set of paths.
+@@ -157,12 +250,25 @@ func findExe(cmd string, paths []string) (string, bool) {
+ 
+ // Disasm returns the assembly instructions for the specified address range
+ // of a binary.
+-func (bu *Binutils) Disasm(file string, start, end uint64) ([]plugin.Inst, error) {
++func (bu *Binutils) Disasm(file string, start, end uint64, intelSyntax bool) ([]plugin.Inst, error) {
+ 	b := bu.get()
+-	cmd := exec.Command(b.objdump, "-d", "-C", "--no-show-raw-insn", "-l",
+-		fmt.Sprintf("--start-address=%#x", start),
+-		fmt.Sprintf("--stop-address=%#x", end),
+-		file)
++	if !b.objdumpFound {
++		return nil, errors.New("cannot disasm: no objdump tool available")
++	}
++	args := []string{"--disassemble-all", "--demangle", "--no-show-raw-insn",
++		"--line-numbers", fmt.Sprintf("--start-address=%#x", start),
++		fmt.Sprintf("--stop-address=%#x", end)}
++
++	if intelSyntax {
++		if b.isLLVMObjdump {
++			args = append(args, "--x86-asm-syntax=intel")
++		} else {
++			args = append(args, "-M", "intel")
++		}
++	}
++
++	args = append(args, file)
++	cmd := exec.Command(b.objdump, args...)
+ 	out, err := cmd.Output()
+ 	if err != nil {
+ 		return nil, fmt.Errorf("%v: %v", cmd.Args, err)
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/disasm.go b/src/cmd/vendor/github.com/google/pprof/internal/binutils/disasm.go
+index 28c89aa163..d0be614bdc 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/binutils/disasm.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/binutils/disasm.go
+@@ -25,10 +25,11 @@ import (
+ )
+ 
+ var (
+-	nmOutputRE            = regexp.MustCompile(`^\s*([[:xdigit:]]+)\s+(.)\s+(.*)`)
+-	objdumpAsmOutputRE    = regexp.MustCompile(`^\s*([[:xdigit:]]+):\s+(.*)`)
+-	objdumpOutputFileLine = regexp.MustCompile(`^(.*):([0-9]+)`)
+-	objdumpOutputFunction = regexp.MustCompile(`^(\S.*)\(\):`)
++	nmOutputRE                = regexp.MustCompile(`^\s*([[:xdigit:]]+)\s+(.)\s+(.*)`)
++	objdumpAsmOutputRE        = regexp.MustCompile(`^\s*([[:xdigit:]]+):\s+(.*)`)
++	objdumpOutputFileLine     = regexp.MustCompile(`^;?\s?(.*):([0-9]+)`)
++	objdumpOutputFunction     = regexp.MustCompile(`^;?\s?(\S.*)\(\):`)
++	objdumpOutputFunctionLLVM = regexp.MustCompile(`^([[:xdigit:]]+)?\s?(.*):`)
+ )
+ 
+ func findSymbols(syms []byte, file string, r *regexp.Regexp, address uint64) ([]*plugin.Sym, error) {
+@@ -143,6 +144,11 @@ func disassemble(asm []byte) ([]plugin.Inst, error) {
+ 		if fields := objdumpOutputFunction.FindStringSubmatch(input); len(fields) == 2 {
+ 			function = fields[1]
+ 			continue
++		} else {
++			if fields := objdumpOutputFunctionLLVM.FindStringSubmatch(input); len(fields) == 3 {
++				function = fields[2]
++				continue
++			}
+ 		}
+ 		// Reset on unrecognized lines.
+ 		function, file, line = "", "", 0
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/cli.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/cli.go
+index 9fc1eea1f0..492400c5f3 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/cli.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/cli.go
+@@ -69,8 +69,9 @@ func parseFlags(o *plugin.Options) (*source, []string, error) {
+ 	flagHTTP := flag.String("http", "", "Present interactive web UI at the specified http host:port")
+ 	flagNoBrowser := flag.Bool("no_browser", false, "Skip opening a browswer for the interactive web UI")
+ 
+-	// Flags used during command processing
+-	installedFlags := installFlags(flag)
++	// Flags that set configuration properties.
++	cfg := currentConfig()
++	configFlagSetter := installConfigFlags(flag, &cfg)
+ 
+ 	flagCommands := make(map[string]*bool)
+ 	flagParamCommands := make(map[string]*string)
+@@ -107,8 +108,8 @@ func parseFlags(o *plugin.Options) (*source, []string, error) {
+ 		}
+ 	}
+ 
+-	// Report conflicting options
+-	if err := updateFlags(installedFlags); err != nil {
++	// Apply any specified flags to cfg.
++	if err := configFlagSetter(); err != nil {
+ 		return nil, nil, err
+ 	}
+ 
+@@ -124,7 +125,7 @@ func parseFlags(o *plugin.Options) (*source, []string, error) {
+ 		return nil, nil, errors.New("-no_browser only makes sense with -http")
+ 	}
+ 
+-	si := pprofVariables["sample_index"].value
++	si := cfg.SampleIndex
+ 	si = sampleIndex(flagTotalDelay, si, "delay", "-total_delay", o.UI)
+ 	si = sampleIndex(flagMeanDelay, si, "delay", "-mean_delay", o.UI)
+ 	si = sampleIndex(flagContentions, si, "contentions", "-contentions", o.UI)
+@@ -132,10 +133,10 @@ func parseFlags(o *plugin.Options) (*source, []string, error) {
+ 	si = sampleIndex(flagInUseObjects, si, "inuse_objects", "-inuse_objects", o.UI)
+ 	si = sampleIndex(flagAllocSpace, si, "alloc_space", "-alloc_space", o.UI)
+ 	si = sampleIndex(flagAllocObjects, si, "alloc_objects", "-alloc_objects", o.UI)
+-	pprofVariables.set("sample_index", si)
++	cfg.SampleIndex = si
+ 
+ 	if *flagMeanDelay {
+-		pprofVariables.set("mean", "true")
++		cfg.Mean = true
+ 	}
+ 
+ 	source := &source{
+@@ -154,7 +155,7 @@ func parseFlags(o *plugin.Options) (*source, []string, error) {
+ 		return nil, nil, err
+ 	}
+ 
+-	normalize := pprofVariables["normalize"].boolValue()
++	normalize := cfg.Normalize
+ 	if normalize && len(source.Base) == 0 {
+ 		return nil, nil, errors.New("must have base profile to normalize by")
+ 	}
+@@ -163,6 +164,8 @@ func parseFlags(o *plugin.Options) (*source, []string, error) {
+ 	if bu, ok := o.Obj.(*binutils.Binutils); ok {
+ 		bu.SetTools(*flagTools)
+ 	}
++
++	setCurrentConfig(cfg)
+ 	return source, cmd, nil
+ }
+ 
+@@ -194,66 +197,72 @@ func dropEmpty(list []*string) []string {
+ 	return l
+ }
+ 
+-// installFlags creates command line flags for pprof variables.
+-func installFlags(flag plugin.FlagSet) flagsInstalled {
+-	f := flagsInstalled{
+-		ints:    make(map[string]*int),
+-		bools:   make(map[string]*bool),
+-		floats:  make(map[string]*float64),
+-		strings: make(map[string]*string),
+-	}
+-	for n, v := range pprofVariables {
+-		switch v.kind {
+-		case boolKind:
+-			if v.group != "" {
+-				// Set all radio variables to false to identify conflicts.
+-				f.bools[n] = flag.Bool(n, false, v.help)
++// installConfigFlags creates command line flags for configuration
++// fields and returns a function which can be called after flags have
++// been parsed to copy any flags specified on the command line to
++// *cfg.
++func installConfigFlags(flag plugin.FlagSet, cfg *config) func() error {
++	// List of functions for setting the different parts of a config.
++	var setters []func()
++	var err error // Holds any errors encountered while running setters.
++
++	for _, field := range configFields {
++		n := field.name
++		help := configHelp[n]
++		var setter func()
++		switch ptr := cfg.fieldPtr(field).(type) {
++		case *bool:
++			f := flag.Bool(n, *ptr, help)
++			setter = func() { *ptr = *f }
++		case *int:
++			f := flag.Int(n, *ptr, help)
++			setter = func() { *ptr = *f }
++		case *float64:
++			f := flag.Float64(n, *ptr, help)
++			setter = func() { *ptr = *f }
++		case *string:
++			if len(field.choices) == 0 {
++				f := flag.String(n, *ptr, help)
++				setter = func() { *ptr = *f }
+ 			} else {
+-				f.bools[n] = flag.Bool(n, v.boolValue(), v.help)
++				// Make a separate flag per possible choice.
++				// Set all flags to initially false so we can
++				// identify conflicts.
++				bools := make(map[string]*bool)
++				for _, choice := range field.choices {
++					bools[choice] = flag.Bool(choice, false, configHelp[choice])
++				}
++				setter = func() {
++					var set []string
++					for k, v := range bools {
++						if *v {
++							set = append(set, k)
++						}
++					}
++					switch len(set) {
++					case 0:
++						// Leave as default value.
++					case 1:
++						*ptr = set[0]
++					default:
++						err = fmt.Errorf("conflicting options set: %v", set)
++					}
++				}
+ 			}
+-		case intKind:
+-			f.ints[n] = flag.Int(n, v.intValue(), v.help)
+-		case floatKind:
+-			f.floats[n] = flag.Float64(n, v.floatValue(), v.help)
+-		case stringKind:
+-			f.strings[n] = flag.String(n, v.value, v.help)
+ 		}
++		setters = append(setters, setter)
+ 	}
+-	return f
+-}
+ 
+-// updateFlags updates the pprof variables according to the flags
+-// parsed in the command line.
+-func updateFlags(f flagsInstalled) error {
+-	vars := pprofVariables
+-	groups := map[string]string{}
+-	for n, v := range f.bools {
+-		vars.set(n, fmt.Sprint(*v))
+-		if *v {
+-			g := vars[n].group
+-			if g != "" && groups[g] != "" {
+-				return fmt.Errorf("conflicting options %q and %q set", n, groups[g])
++	return func() error {
++		// Apply the setter for every flag.
++		for _, setter := range setters {
++			setter()
++			if err != nil {
++				return err
+ 			}
+-			groups[g] = n
+ 		}
++		return nil
+ 	}
+-	for n, v := range f.ints {
+-		vars.set(n, fmt.Sprint(*v))
+-	}
+-	for n, v := range f.floats {
+-		vars.set(n, fmt.Sprint(*v))
+-	}
+-	for n, v := range f.strings {
+-		vars.set(n, *v)
+-	}
+-	return nil
+-}
+-
+-type flagsInstalled struct {
+-	ints    map[string]*int
+-	bools   map[string]*bool
+-	floats  map[string]*float64
+-	strings map[string]*string
+ }
+ 
+ // isBuildID determines if the profile may contain a build ID, by
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/commands.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/commands.go
+index f52471490a..4397e253e0 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/commands.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/commands.go
+@@ -22,7 +22,6 @@ import (
+ 	"os/exec"
+ 	"runtime"
+ 	"sort"
+-	"strconv"
+ 	"strings"
+ 	"time"
+ 
+@@ -70,9 +69,7 @@ func AddCommand(cmd string, format int, post PostProcessor, desc, usage string)
+ // SetVariableDefault sets the default value for a pprof
+ // variable. This enables extensions to set their own defaults.
+ func SetVariableDefault(variable, value string) {
+-	if v := pprofVariables[variable]; v != nil {
+-		v.value = value
+-	}
++	configure(variable, value)
+ }
+ 
+ // PostProcessor is a function that applies post-processing to the report output
+@@ -124,130 +121,132 @@ var pprofCommands = commands{
+ 	"weblist": {report.WebList, nil, invokeVisualizer("html", browsers()), true, "Display annotated source in a web browser", listHelp("weblist", false)},
+ }
+ 
+-// pprofVariables are the configuration parameters that affect the
+-// reported generated by pprof.
+-var pprofVariables = variables{
++// configHelp contains help text per configuration parameter.
++var configHelp = map[string]string{
+ 	// Filename for file-based output formats, stdout by default.
+-	"output": &variable{stringKind, "", "", helpText("Output filename for file-based outputs")},
++	"output": helpText("Output filename for file-based outputs"),
+ 
+ 	// Comparisons.
+-	"drop_negative": &variable{boolKind, "f", "", helpText(
++	"drop_negative": helpText(
+ 		"Ignore negative differences",
+-		"Do not show any locations with values <0.")},
++		"Do not show any locations with values <0."),
+ 
+ 	// Graph handling options.
+-	"call_tree": &variable{boolKind, "f", "", helpText(
++	"call_tree": helpText(
+ 		"Create a context-sensitive call tree",
+-		"Treat locations reached through different paths as separate.")},
++		"Treat locations reached through different paths as separate."),
+ 
+ 	// Display options.
+-	"relative_percentages": &variable{boolKind, "f", "", helpText(
++	"relative_percentages": helpText(
+ 		"Show percentages relative to focused subgraph",
+ 		"If unset, percentages are relative to full graph before focusing",
+-		"to facilitate comparison with original graph.")},
+-	"unit": &variable{stringKind, "minimum", "", helpText(
++		"to facilitate comparison with original graph."),
++	"unit": helpText(
+ 		"Measurement units to display",
+ 		"Scale the sample values to this unit.",
+ 		"For time-based profiles, use seconds, milliseconds, nanoseconds, etc.",
+ 		"For memory profiles, use megabytes, kilobytes, bytes, etc.",
+-		"Using auto will scale each value independently to the most natural unit.")},
+-	"compact_labels": &variable{boolKind, "f", "", "Show minimal headers"},
+-	"source_path":    &variable{stringKind, "", "", "Search path for source files"},
+-	"trim_path":      &variable{stringKind, "", "", "Path to trim from source paths before search"},
++		"Using auto will scale each value independently to the most natural unit."),
++	"compact_labels": "Show minimal headers",
++	"source_path":    "Search path for source files",
++	"trim_path":      "Path to trim from source paths before search",
++	"intel_syntax": helpText(
++		"Show assembly in Intel syntax",
++		"Only applicable to commands `disasm` and `weblist`"),
+ 
+ 	// Filtering options
+-	"nodecount": &variable{intKind, "-1", "", helpText(
++	"nodecount": helpText(
+ 		"Max number of nodes to show",
+ 		"Uses heuristics to limit the number of locations to be displayed.",
+-		"On graphs, dotted edges represent paths through nodes that have been removed.")},
+-	"nodefraction": &variable{floatKind, "0.005", "", "Hide nodes below <f>*total"},
+-	"edgefraction": &variable{floatKind, "0.001", "", "Hide edges below <f>*total"},
+-	"trim": &variable{boolKind, "t", "", helpText(
++		"On graphs, dotted edges represent paths through nodes that have been removed."),
++	"nodefraction": "Hide nodes below <f>*total",
++	"edgefraction": "Hide edges below <f>*total",
++	"trim": helpText(
+ 		"Honor nodefraction/edgefraction/nodecount defaults",
+-		"Set to false to get the full profile, without any trimming.")},
+-	"focus": &variable{stringKind, "", "", helpText(
++		"Set to false to get the full profile, without any trimming."),
++	"focus": helpText(
+ 		"Restricts to samples going through a node matching regexp",
+ 		"Discard samples that do not include a node matching this regexp.",
+-		"Matching includes the function name, filename or object name.")},
+-	"ignore": &variable{stringKind, "", "", helpText(
++		"Matching includes the function name, filename or object name."),
++	"ignore": helpText(
+ 		"Skips paths going through any nodes matching regexp",
+ 		"If set, discard samples that include a node matching this regexp.",
+-		"Matching includes the function name, filename or object name.")},
+-	"prune_from": &variable{stringKind, "", "", helpText(
++		"Matching includes the function name, filename or object name."),
++	"prune_from": helpText(
+ 		"Drops any functions below the matched frame.",
+ 		"If set, any frames matching the specified regexp and any frames",
+-		"below it will be dropped from each sample.")},
+-	"hide": &variable{stringKind, "", "", helpText(
++		"below it will be dropped from each sample."),
++	"hide": helpText(
+ 		"Skips nodes matching regexp",
+ 		"Discard nodes that match this location.",
+ 		"Other nodes from samples that include this location will be shown.",
+-		"Matching includes the function name, filename or object name.")},
+-	"show": &variable{stringKind, "", "", helpText(
++		"Matching includes the function name, filename or object name."),
++	"show": helpText(
+ 		"Only show nodes matching regexp",
+ 		"If set, only show nodes that match this location.",
+-		"Matching includes the function name, filename or object name.")},
+-	"show_from": &variable{stringKind, "", "", helpText(
++		"Matching includes the function name, filename or object name."),
++	"show_from": helpText(
+ 		"Drops functions above the highest matched frame.",
+ 		"If set, all frames above the highest match are dropped from every sample.",
+-		"Matching includes the function name, filename or object name.")},
+-	"tagfocus": &variable{stringKind, "", "", helpText(
++		"Matching includes the function name, filename or object name."),
++	"tagfocus": helpText(
+ 		"Restricts to samples with tags in range or matched by regexp",
+ 		"Use name=value syntax to limit the matching to a specific tag.",
+ 		"Numeric tag filter examples: 1kb, 1kb:10kb, memory=32mb:",
+-		"String tag filter examples: foo, foo.*bar, mytag=foo.*bar")},
+-	"tagignore": &variable{stringKind, "", "", helpText(
++		"String tag filter examples: foo, foo.*bar, mytag=foo.*bar"),
++	"tagignore": helpText(
+ 		"Discard samples with tags in range or matched by regexp",
+ 		"Use name=value syntax to limit the matching to a specific tag.",
+ 		"Numeric tag filter examples: 1kb, 1kb:10kb, memory=32mb:",
+-		"String tag filter examples: foo, foo.*bar, mytag=foo.*bar")},
+-	"tagshow": &variable{stringKind, "", "", helpText(
++		"String tag filter examples: foo, foo.*bar, mytag=foo.*bar"),
++	"tagshow": helpText(
+ 		"Only consider tags matching this regexp",
+-		"Discard tags that do not match this regexp")},
+-	"taghide": &variable{stringKind, "", "", helpText(
++		"Discard tags that do not match this regexp"),
++	"taghide": helpText(
+ 		"Skip tags matching this regexp",
+-		"Discard tags that match this regexp")},
++		"Discard tags that match this regexp"),
+ 	// Heap profile options
+-	"divide_by": &variable{floatKind, "1", "", helpText(
++	"divide_by": helpText(
+ 		"Ratio to divide all samples before visualization",
+-		"Divide all samples values by a constant, eg the number of processors or jobs.")},
+-	"mean": &variable{boolKind, "f", "", helpText(
++		"Divide all samples values by a constant, eg the number of processors or jobs."),
++	"mean": helpText(
+ 		"Average sample value over first value (count)",
+ 		"For memory profiles, report average memory per allocation.",
+-		"For time-based profiles, report average time per event.")},
+-	"sample_index": &variable{stringKind, "", "", helpText(
++		"For time-based profiles, report average time per event."),
++	"sample_index": helpText(
+ 		"Sample value to report (0-based index or name)",
+ 		"Profiles contain multiple values per sample.",
+-		"Use sample_index=i to select the ith value (starting at 0).")},
+-	"normalize": &variable{boolKind, "f", "", helpText(
+-		"Scales profile based on the base profile.")},
++		"Use sample_index=i to select the ith value (starting at 0)."),
++	"normalize": helpText(
++		"Scales profile based on the base profile."),
+ 
+ 	// Data sorting criteria
+-	"flat": &variable{boolKind, "t", "cumulative", helpText("Sort entries based on own weight")},
+-	"cum":  &variable{boolKind, "f", "cumulative", helpText("Sort entries based on cumulative weight")},
++	"flat": helpText("Sort entries based on own weight"),
++	"cum":  helpText("Sort entries based on cumulative weight"),
+ 
+ 	// Output granularity
+-	"functions": &variable{boolKind, "t", "granularity", helpText(
++	"functions": helpText(
+ 		"Aggregate at the function level.",
+-		"Ignores the filename where the function was defined.")},
+-	"filefunctions": &variable{boolKind, "t", "granularity", helpText(
++		"Ignores the filename where the function was defined."),
++	"filefunctions": helpText(
+ 		"Aggregate at the function level.",
+-		"Takes into account the filename where the function was defined.")},
+-	"files": &variable{boolKind, "f", "granularity", "Aggregate at the file level."},
+-	"lines": &variable{boolKind, "f", "granularity", "Aggregate at the source code line level."},
+-	"addresses": &variable{boolKind, "f", "granularity", helpText(
++		"Takes into account the filename where the function was defined."),
++	"files": "Aggregate at the file level.",
++	"lines": "Aggregate at the source code line level.",
++	"addresses": helpText(
+ 		"Aggregate at the address level.",
+-		"Includes functions' addresses in the output.")},
+-	"noinlines": &variable{boolKind, "f", "", helpText(
++		"Includes functions' addresses in the output."),
++	"noinlines": helpText(
+ 		"Ignore inlines.",
+-		"Attributes inlined functions to their first out-of-line caller.")},
++		"Attributes inlined functions to their first out-of-line caller."),
+ }
+ 
+ func helpText(s ...string) string {
+ 	return strings.Join(s, "\n") + "\n"
+ }
+ 
+-// usage returns a string describing the pprof commands and variables.
+-// if commandLine is set, the output reflect cli usage.
++// usage returns a string describing the pprof commands and configuration
++// options.  if commandLine is set, the output reflect cli usage.
+ func usage(commandLine bool) string {
+ 	var prefix string
+ 	if commandLine {
+@@ -269,40 +268,33 @@ func usage(commandLine bool) string {
+ 	} else {
+ 		help = "  Commands:\n"
+ 		commands = append(commands, fmtHelp("o/options", "List options and their current values"))
+-		commands = append(commands, fmtHelp("quit/exit/^D", "Exit pprof"))
++		commands = append(commands, fmtHelp("q/quit/exit/^D", "Exit pprof"))
+ 	}
+ 
+ 	help = help + strings.Join(commands, "\n") + "\n\n" +
+ 		"  Options:\n"
+ 
+-	// Print help for variables after sorting them.
+-	// Collect radio variables by their group name to print them together.
+-	radioOptions := make(map[string][]string)
++	// Print help for configuration options after sorting them.
++	// Collect choices for multi-choice options print them together.
+ 	var variables []string
+-	for name, vr := range pprofVariables {
+-		if vr.group != "" {
+-			radioOptions[vr.group] = append(radioOptions[vr.group], name)
++	var radioStrings []string
++	for _, f := range configFields {
++		if len(f.choices) == 0 {
++			variables = append(variables, fmtHelp(prefix+f.name, configHelp[f.name]))
+ 			continue
+ 		}
+-		variables = append(variables, fmtHelp(prefix+name, vr.help))
+-	}
+-	sort.Strings(variables)
+-
+-	help = help + strings.Join(variables, "\n") + "\n\n" +
+-		"  Option groups (only set one per group):\n"
+-
+-	var radioStrings []string
+-	for radio, ops := range radioOptions {
+-		sort.Strings(ops)
+-		s := []string{fmtHelp(radio, "")}
+-		for _, op := range ops {
+-			s = append(s, "  "+fmtHelp(prefix+op, pprofVariables[op].help))
++		// Format help for for this group.
++		s := []string{fmtHelp(f.name, "")}
++		for _, choice := range f.choices {
++			s = append(s, "  "+fmtHelp(prefix+choice, configHelp[choice]))
+ 		}
+-
+ 		radioStrings = append(radioStrings, strings.Join(s, "\n"))
+ 	}
++	sort.Strings(variables)
+ 	sort.Strings(radioStrings)
+-	return help + strings.Join(radioStrings, "\n")
++	return help + strings.Join(variables, "\n") + "\n\n" +
++		"  Option groups (only set one per group):\n" +
++		strings.Join(radioStrings, "\n")
+ }
+ 
+ func reportHelp(c string, cum, redirect bool) string {
+@@ -445,105 +437,8 @@ func invokeVisualizer(suffix string, visualizers []string) PostProcessor {
+ 	}
+ }
+ 
+-// variables describe the configuration parameters recognized by pprof.
+-type variables map[string]*variable
+-
+-// variable is a single configuration parameter.
+-type variable struct {
+-	kind  int    // How to interpret the value, must be one of the enums below.
+-	value string // Effective value. Only values appropriate for the Kind should be set.
+-	group string // boolKind variables with the same Group != "" cannot be set simultaneously.
+-	help  string // Text describing the variable, in multiple lines separated by newline.
+-}
+-
+-const (
+-	// variable.kind must be one of these variables.
+-	boolKind = iota
+-	intKind
+-	floatKind
+-	stringKind
+-)
+-
+-// set updates the value of a variable, checking that the value is
+-// suitable for the variable Kind.
+-func (vars variables) set(name, value string) error {
+-	v := vars[name]
+-	if v == nil {
+-		return fmt.Errorf("no variable %s", name)
+-	}
+-	var err error
+-	switch v.kind {
+-	case boolKind:
+-		var b bool
+-		if b, err = stringToBool(value); err == nil {
+-			if v.group != "" && !b {
+-				err = fmt.Errorf("%q can only be set to true", name)
+-			}
+-		}
+-	case intKind:
+-		_, err = strconv.Atoi(value)
+-	case floatKind:
+-		_, err = strconv.ParseFloat(value, 64)
+-	case stringKind:
+-		// Remove quotes, particularly useful for empty values.
+-		if len(value) > 1 && strings.HasPrefix(value, `"`) && strings.HasSuffix(value, `"`) {
+-			value = value[1 : len(value)-1]
+-		}
+-	}
+-	if err != nil {
+-		return err
+-	}
+-	vars[name].value = value
+-	if group := vars[name].group; group != "" {
+-		for vname, vvar := range vars {
+-			if vvar.group == group && vname != name {
+-				vvar.value = "f"
+-			}
+-		}
+-	}
+-	return err
+-}
+-
+-// boolValue returns the value of a boolean variable.
+-func (v *variable) boolValue() bool {
+-	b, err := stringToBool(v.value)
+-	if err != nil {
+-		panic("unexpected value " + v.value + " for bool ")
+-	}
+-	return b
+-}
+-
+-// intValue returns the value of an intKind variable.
+-func (v *variable) intValue() int {
+-	i, err := strconv.Atoi(v.value)
+-	if err != nil {
+-		panic("unexpected value " + v.value + " for int ")
+-	}
+-	return i
+-}
+-
+-// floatValue returns the value of a Float variable.
+-func (v *variable) floatValue() float64 {
+-	f, err := strconv.ParseFloat(v.value, 64)
+-	if err != nil {
+-		panic("unexpected value " + v.value + " for float ")
+-	}
+-	return f
+-}
+-
+-// stringValue returns a canonical representation for a variable.
+-func (v *variable) stringValue() string {
+-	switch v.kind {
+-	case boolKind:
+-		return fmt.Sprint(v.boolValue())
+-	case intKind:
+-		return fmt.Sprint(v.intValue())
+-	case floatKind:
+-		return fmt.Sprint(v.floatValue())
+-	}
+-	return v.value
+-}
+-
++// stringToBool is a custom parser for bools. We avoid using strconv.ParseBool
++// to remain compatible with old pprof behavior (e.g., treating "" as true).
+ func stringToBool(s string) (bool, error) {
+ 	switch strings.ToLower(s) {
+ 	case "true", "t", "yes", "y", "1", "":
+@@ -554,13 +449,3 @@ func stringToBool(s string) (bool, error) {
+ 		return false, fmt.Errorf(`illegal value "%s" for bool variable`, s)
+ 	}
+ }
+-
+-// makeCopy returns a duplicate of a set of shell variables.
+-func (vars variables) makeCopy() variables {
+-	varscopy := make(variables, len(vars))
+-	for n, v := range vars {
+-		vcopy := *v
+-		varscopy[n] = &vcopy
+-	}
+-	return varscopy
+-}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/config.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/config.go
+new file mode 100644
+index 0000000000..b3f82f22c9
+--- /dev/null
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/config.go
+@@ -0,0 +1,367 @@
++package driver
++
++import (
++	"fmt"
++	"net/url"
++	"reflect"
++	"strconv"
++	"strings"
++	"sync"
++)
++
++// config holds settings for a single named config.
++// The JSON tag name for a field is used both for JSON encoding and as
++// a named variable.
++type config struct {
++	// Filename for file-based output formats, stdout by default.
++	Output string `json:"-"`
++
++	// Display options.
++	CallTree            bool    `json:"call_tree,omitempty"`
++	RelativePercentages bool    `json:"relative_percentages,omitempty"`
++	Unit                string  `json:"unit,omitempty"`
++	CompactLabels       bool    `json:"compact_labels,omitempty"`
++	SourcePath          string  `json:"-"`
++	TrimPath            string  `json:"-"`
++	IntelSyntax         bool    `json:"intel_syntax,omitempty"`
++	Mean                bool    `json:"mean,omitempty"`
++	SampleIndex         string  `json:"-"`
++	DivideBy            float64 `json:"-"`
++	Normalize           bool    `json:"normalize,omitempty"`
++	Sort                string  `json:"sort,omitempty"`
++
++	// Filtering options
++	DropNegative bool    `json:"drop_negative,omitempty"`
++	NodeCount    int     `json:"nodecount,omitempty"`
++	NodeFraction float64 `json:"nodefraction,omitempty"`
++	EdgeFraction float64 `json:"edgefraction,omitempty"`
++	Trim         bool    `json:"trim,omitempty"`
++	Focus        string  `json:"focus,omitempty"`
++	Ignore       string  `json:"ignore,omitempty"`
++	PruneFrom    string  `json:"prune_from,omitempty"`
++	Hide         string  `json:"hide,omitempty"`
++	Show         string  `json:"show,omitempty"`
++	ShowFrom     string  `json:"show_from,omitempty"`
++	TagFocus     string  `json:"tagfocus,omitempty"`
++	TagIgnore    string  `json:"tagignore,omitempty"`
++	TagShow      string  `json:"tagshow,omitempty"`
++	TagHide      string  `json:"taghide,omitempty"`
++	NoInlines    bool    `json:"noinlines,omitempty"`
++
++	// Output granularity
++	Granularity string `json:"granularity,omitempty"`
++}
++
++// defaultConfig returns the default configuration values; it is unaffected by
++// flags and interactive assignments.
++func defaultConfig() config {
++	return config{
++		Unit:         "minimum",
++		NodeCount:    -1,
++		NodeFraction: 0.005,
++		EdgeFraction: 0.001,
++		Trim:         true,
++		DivideBy:     1.0,
++		Sort:         "flat",
++		Granularity:  "functions",
++	}
++}
++
++// currentConfig holds the current configuration values; it is affected by
++// flags and interactive assignments.
++var currentCfg = defaultConfig()
++var currentMu sync.Mutex
++
++func currentConfig() config {
++	currentMu.Lock()
++	defer currentMu.Unlock()
++	return currentCfg
++}
++
++func setCurrentConfig(cfg config) {
++	currentMu.Lock()
++	defer currentMu.Unlock()
++	currentCfg = cfg
++}
++
++// configField contains metadata for a single configuration field.
++type configField struct {
++	name         string              // JSON field name/key in variables
++	urlparam     string              // URL parameter name
++	saved        bool                // Is field saved in settings?
++	field        reflect.StructField // Field in config
++	choices      []string            // Name Of variables in group
++	defaultValue string              // Default value for this field.
++}
++
++var (
++	configFields []configField // Precomputed metadata per config field
++
++	// configFieldMap holds an entry for every config field as well as an
++	// entry for every valid choice for a multi-choice field.
++	configFieldMap map[string]configField
++)
++
++func init() {
++	// Config names for fields that are not saved in settings and therefore
++	// do not have a JSON name.
++	notSaved := map[string]string{
++		// Not saved in settings, but present in URLs.
++		"SampleIndex": "sample_index",
++
++		// Following fields are also not placed in URLs.
++		"Output":     "output",
++		"SourcePath": "source_path",
++		"TrimPath":   "trim_path",
++		"DivideBy":   "divide_by",
++	}
++
++	// choices holds the list of allowed values for config fields that can
++	// take on one of a bounded set of values.
++	choices := map[string][]string{
++		"sort":        {"cum", "flat"},
++		"granularity": {"functions", "filefunctions", "files", "lines", "addresses"},
++	}
++
++	// urlparam holds the mapping from a config field name to the URL
++	// parameter used to hold that config field. If no entry is present for
++	// a name, the corresponding field is not saved in URLs.
++	urlparam := map[string]string{
++		"drop_negative":        "dropneg",
++		"call_tree":            "calltree",
++		"relative_percentages": "rel",
++		"unit":                 "unit",
++		"compact_labels":       "compact",
++		"intel_syntax":         "intel",
++		"nodecount":            "n",
++		"nodefraction":         "nf",
++		"edgefraction":         "ef",
++		"trim":                 "trim",
++		"focus":                "f",
++		"ignore":               "i",
++		"prune_from":           "prunefrom",
++		"hide":                 "h",
++		"show":                 "s",
++		"show_from":            "sf",
++		"tagfocus":             "tf",
++		"tagignore":            "ti",
++		"tagshow":              "ts",
++		"taghide":              "th",
++		"mean":                 "mean",
++		"sample_index":         "si",
++		"normalize":            "norm",
++		"sort":                 "sort",
++		"granularity":          "g",
++		"noinlines":            "noinlines",
++	}
++
++	def := defaultConfig()
++	configFieldMap = map[string]configField{}
++	t := reflect.TypeOf(config{})
++	for i, n := 0, t.NumField(); i < n; i++ {
++		field := t.Field(i)
++		js := strings.Split(field.Tag.Get("json"), ",")
++		if len(js) == 0 {
++			continue
++		}
++		// Get the configuration name for this field.
++		name := js[0]
++		if name == "-" {
++			name = notSaved[field.Name]
++			if name == "" {
++				// Not a configurable field.
++				continue
++			}
++		}
++		f := configField{
++			name:     name,
++			urlparam: urlparam[name],
++			saved:    (name == js[0]),
++			field:    field,
++			choices:  choices[name],
++		}
++		f.defaultValue = def.get(f)
++		configFields = append(configFields, f)
++		configFieldMap[f.name] = f
++		for _, choice := range f.choices {
++			configFieldMap[choice] = f
++		}
++	}
++}
++
++// fieldPtr returns a pointer to the field identified by f in *cfg.
++func (cfg *config) fieldPtr(f configField) interface{} {
++	// reflect.ValueOf: converts to reflect.Value
++	// Elem: dereferences cfg to make *cfg
++	// FieldByIndex: fetches the field
++	// Addr: takes address of field
++	// Interface: converts back from reflect.Value to a regular value
++	return reflect.ValueOf(cfg).Elem().FieldByIndex(f.field.Index).Addr().Interface()
++}
++
++// get returns the value of field f in cfg.
++func (cfg *config) get(f configField) string {
++	switch ptr := cfg.fieldPtr(f).(type) {
++	case *string:
++		return *ptr
++	case *int:
++		return fmt.Sprint(*ptr)
++	case *float64:
++		return fmt.Sprint(*ptr)
++	case *bool:
++		return fmt.Sprint(*ptr)
++	}
++	panic(fmt.Sprintf("unsupported config field type %v", f.field.Type))
++}
++
++// set sets the value of field f in cfg to value.
++func (cfg *config) set(f configField, value string) error {
++	switch ptr := cfg.fieldPtr(f).(type) {
++	case *string:
++		if len(f.choices) > 0 {
++			// Verify that value is one of the allowed choices.
++			for _, choice := range f.choices {
++				if choice == value {
++					*ptr = value
++					return nil
++				}
++			}
++			return fmt.Errorf("invalid %q value %q", f.name, value)
++		}
++		*ptr = value
++	case *int:
++		v, err := strconv.Atoi(value)
++		if err != nil {
++			return err
++		}
++		*ptr = v
++	case *float64:
++		v, err := strconv.ParseFloat(value, 64)
++		if err != nil {
++			return err
++		}
++		*ptr = v
++	case *bool:
++		v, err := stringToBool(value)
++		if err != nil {
++			return err
++		}
++		*ptr = v
++	default:
++		panic(fmt.Sprintf("unsupported config field type %v", f.field.Type))
++	}
++	return nil
++}
++
++// isConfigurable returns true if name is either the name of a config field, or
++// a valid value for a multi-choice config field.
++func isConfigurable(name string) bool {
++	_, ok := configFieldMap[name]
++	return ok
++}
++
++// isBoolConfig returns true if name is either name of a boolean config field,
++// or a valid value for a multi-choice config field.
++func isBoolConfig(name string) bool {
++	f, ok := configFieldMap[name]
++	if !ok {
++		return false
++	}
++	if name != f.name {
++		return true // name must be one possible value for the field
++	}
++	var cfg config
++	_, ok = cfg.fieldPtr(f).(*bool)
++	return ok
++}
++
++// completeConfig returns the list of configurable names starting with prefix.
++func completeConfig(prefix string) []string {
++	var result []string
++	for v := range configFieldMap {
++		if strings.HasPrefix(v, prefix) {
++			result = append(result, v)
++		}
++	}
++	return result
++}
++
++// configure stores the name=value mapping into the current config, correctly
++// handling the case when name identifies a particular choice in a field.
++func configure(name, value string) error {
++	currentMu.Lock()
++	defer currentMu.Unlock()
++	f, ok := configFieldMap[name]
++	if !ok {
++		return fmt.Errorf("unknown config field %q", name)
++	}
++	if f.name == name {
++		return currentCfg.set(f, value)
++	}
++	// name must be one of the choices. If value is true, set field-value
++	// to name.
++	if v, err := strconv.ParseBool(value); v && err == nil {
++		return currentCfg.set(f, name)
++	}
++	return fmt.Errorf("unknown config field %q", name)
++}
++
++// resetTransient sets all transient fields in *cfg to their currently
++// configured values.
++func (cfg *config) resetTransient() {
++	current := currentConfig()
++	cfg.Output = current.Output
++	cfg.SourcePath = current.SourcePath
++	cfg.TrimPath = current.TrimPath
++	cfg.DivideBy = current.DivideBy
++	cfg.SampleIndex = current.SampleIndex
++}
++
++// applyURL updates *cfg based on params.
++func (cfg *config) applyURL(params url.Values) error {
++	for _, f := range configFields {
++		var value string
++		if f.urlparam != "" {
++			value = params.Get(f.urlparam)
++		}
++		if value == "" {
++			continue
++		}
++		if err := cfg.set(f, value); err != nil {
++			return fmt.Errorf("error setting config field %s: %v", f.name, err)
++		}
++	}
++	return nil
++}
++
++// makeURL returns a URL based on initialURL that contains the config contents
++// as parameters.  The second result is true iff a parameter value was changed.
++func (cfg *config) makeURL(initialURL url.URL) (url.URL, bool) {
++	q := initialURL.Query()
++	changed := false
++	for _, f := range configFields {
++		if f.urlparam == "" || !f.saved {
++			continue
++		}
++		v := cfg.get(f)
++		if v == f.defaultValue {
++			v = "" // URL for of default value is the empty string.
++		} else if f.field.Type.Kind() == reflect.Bool {
++			// Shorten bool values to "f" or "t"
++			v = v[:1]
++		}
++		if q.Get(f.urlparam) == v {
++			continue
++		}
++		changed = true
++		if v == "" {
++			q.Del(f.urlparam)
++		} else {
++			q.Set(f.urlparam, v)
++		}
++	}
++	if changed {
++		initialURL.RawQuery = q.Encode()
++	}
++	return initialURL, changed
++}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go
+index 1be749aa32..878f2e1ead 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go
+@@ -50,7 +50,7 @@ func PProf(eo *plugin.Options) error {
+ 	}
+ 
+ 	if cmd != nil {
+-		return generateReport(p, cmd, pprofVariables, o)
++		return generateReport(p, cmd, currentConfig(), o)
+ 	}
+ 
+ 	if src.HTTPHostport != "" {
+@@ -59,7 +59,7 @@ func PProf(eo *plugin.Options) error {
+ 	return interactive(p, o)
+ }
+ 
+-func generateRawReport(p *profile.Profile, cmd []string, vars variables, o *plugin.Options) (*command, *report.Report, error) {
++func generateRawReport(p *profile.Profile, cmd []string, cfg config, o *plugin.Options) (*command, *report.Report, error) {
+ 	p = p.Copy() // Prevent modification to the incoming profile.
+ 
+ 	// Identify units of numeric tags in profile.
+@@ -71,16 +71,16 @@ func generateRawReport(p *profile.Profile, cmd []string, vars variables, o *plug
+ 		panic("unexpected nil command")
+ 	}
+ 
+-	vars = applyCommandOverrides(cmd[0], c.format, vars)
++	cfg = applyCommandOverrides(cmd[0], c.format, cfg)
+ 
+ 	// Delay focus after configuring report to get percentages on all samples.
+-	relative := vars["relative_percentages"].boolValue()
++	relative := cfg.RelativePercentages
+ 	if relative {
+-		if err := applyFocus(p, numLabelUnits, vars, o.UI); err != nil {
++		if err := applyFocus(p, numLabelUnits, cfg, o.UI); err != nil {
+ 			return nil, nil, err
+ 		}
+ 	}
+-	ropt, err := reportOptions(p, numLabelUnits, vars)
++	ropt, err := reportOptions(p, numLabelUnits, cfg)
+ 	if err != nil {
+ 		return nil, nil, err
+ 	}
+@@ -95,19 +95,19 @@ func generateRawReport(p *profile.Profile, cmd []string, vars variables, o *plug
+ 
+ 	rpt := report.New(p, ropt)
+ 	if !relative {
+-		if err := applyFocus(p, numLabelUnits, vars, o.UI); err != nil {
++		if err := applyFocus(p, numLabelUnits, cfg, o.UI); err != nil {
+ 			return nil, nil, err
+ 		}
+ 	}
+-	if err := aggregate(p, vars); err != nil {
++	if err := aggregate(p, cfg); err != nil {
+ 		return nil, nil, err
+ 	}
+ 
+ 	return c, rpt, nil
+ }
+ 
+-func generateReport(p *profile.Profile, cmd []string, vars variables, o *plugin.Options) error {
+-	c, rpt, err := generateRawReport(p, cmd, vars, o)
++func generateReport(p *profile.Profile, cmd []string, cfg config, o *plugin.Options) error {
++	c, rpt, err := generateRawReport(p, cmd, cfg, o)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -129,7 +129,7 @@ func generateReport(p *profile.Profile, cmd []string, vars variables, o *plugin.
+ 	}
+ 
+ 	// If no output is specified, use default visualizer.
+-	output := vars["output"].value
++	output := cfg.Output
+ 	if output == "" {
+ 		if c.visualizer != nil {
+ 			return c.visualizer(src, os.Stdout, o.UI)
+@@ -151,7 +151,7 @@ func generateReport(p *profile.Profile, cmd []string, vars variables, o *plugin.
+ 	return out.Close()
+ }
+ 
+-func applyCommandOverrides(cmd string, outputFormat int, v variables) variables {
++func applyCommandOverrides(cmd string, outputFormat int, cfg config) config {
+ 	// Some report types override the trim flag to false below. This is to make
+ 	// sure the default heuristics of excluding insignificant nodes and edges
+ 	// from the call graph do not apply. One example where it is important is
+@@ -160,55 +160,55 @@ func applyCommandOverrides(cmd string, outputFormat int, v variables) variables
+ 	// data is selected. So, with trimming enabled, the report could end up
+ 	// showing no data if the specified function is "uninteresting" as far as the
+ 	// trimming is concerned.
+-	trim := v["trim"].boolValue()
++	trim := cfg.Trim
+ 
+ 	switch cmd {
+ 	case "disasm", "weblist":
+ 		trim = false
+-		v.set("addresses", "t")
++		cfg.Granularity = "addresses"
+ 		// Force the 'noinlines' mode so that source locations for a given address
+ 		// collapse and there is only one for the given address. Without this
+ 		// cumulative metrics would be double-counted when annotating the assembly.
+ 		// This is because the merge is done by address and in case of an inlined
+ 		// stack each of the inlined entries is a separate callgraph node.
+-		v.set("noinlines", "t")
++		cfg.NoInlines = true
+ 	case "peek":
+ 		trim = false
+ 	case "list":
+ 		trim = false
+-		v.set("lines", "t")
++		cfg.Granularity = "lines"
+ 		// Do not force 'noinlines' to be false so that specifying
+ 		// "-list foo -noinlines" is supported and works as expected.
+ 	case "text", "top", "topproto":
+-		if v["nodecount"].intValue() == -1 {
+-			v.set("nodecount", "0")
++		if cfg.NodeCount == -1 {
++			cfg.NodeCount = 0
+ 		}
+ 	default:
+-		if v["nodecount"].intValue() == -1 {
+-			v.set("nodecount", "80")
++		if cfg.NodeCount == -1 {
++			cfg.NodeCount = 80
+ 		}
+ 	}
+ 
+ 	switch outputFormat {
+ 	case report.Proto, report.Raw, report.Callgrind:
+ 		trim = false
+-		v.set("addresses", "t")
+-		v.set("noinlines", "f")
++		cfg.Granularity = "addresses"
++		cfg.NoInlines = false
+ 	}
+ 
+ 	if !trim {
+-		v.set("nodecount", "0")
+-		v.set("nodefraction", "0")
+-		v.set("edgefraction", "0")
++		cfg.NodeCount = 0
++		cfg.NodeFraction = 0
++		cfg.EdgeFraction = 0
+ 	}
+-	return v
++	return cfg
+ }
+ 
+-func aggregate(prof *profile.Profile, v variables) error {
++func aggregate(prof *profile.Profile, cfg config) error {
+ 	var function, filename, linenumber, address bool
+-	inlines := !v["noinlines"].boolValue()
+-	switch {
+-	case v["addresses"].boolValue():
++	inlines := !cfg.NoInlines
++	switch cfg.Granularity {
++	case "addresses":
+ 		if inlines {
+ 			return nil
+ 		}
+@@ -216,15 +216,15 @@ func aggregate(prof *profile.Profile, v variables) error {
+ 		filename = true
+ 		linenumber = true
+ 		address = true
+-	case v["lines"].boolValue():
++	case "lines":
+ 		function = true
+ 		filename = true
+ 		linenumber = true
+-	case v["files"].boolValue():
++	case "files":
+ 		filename = true
+-	case v["functions"].boolValue():
++	case "functions":
+ 		function = true
+-	case v["filefunctions"].boolValue():
++	case "filefunctions":
+ 		function = true
+ 		filename = true
+ 	default:
+@@ -233,8 +233,8 @@ func aggregate(prof *profile.Profile, v variables) error {
+ 	return prof.Aggregate(inlines, function, filename, linenumber, address)
+ }
+ 
+-func reportOptions(p *profile.Profile, numLabelUnits map[string]string, vars variables) (*report.Options, error) {
+-	si, mean := vars["sample_index"].value, vars["mean"].boolValue()
++func reportOptions(p *profile.Profile, numLabelUnits map[string]string, cfg config) (*report.Options, error) {
++	si, mean := cfg.SampleIndex, cfg.Mean
+ 	value, meanDiv, sample, err := sampleFormat(p, si, mean)
+ 	if err != nil {
+ 		return nil, err
+@@ -245,29 +245,37 @@ func reportOptions(p *profile.Profile, numLabelUnits map[string]string, vars var
+ 		stype = "mean_" + stype
+ 	}
+ 
+-	if vars["divide_by"].floatValue() == 0 {
++	if cfg.DivideBy == 0 {
+ 		return nil, fmt.Errorf("zero divisor specified")
+ 	}
+ 
+ 	var filters []string
+-	for _, k := range []string{"focus", "ignore", "hide", "show", "show_from", "tagfocus", "tagignore", "tagshow", "taghide"} {
+-		v := vars[k].value
++	addFilter := func(k string, v string) {
+ 		if v != "" {
+ 			filters = append(filters, k+"="+v)
+ 		}
+ 	}
++	addFilter("focus", cfg.Focus)
++	addFilter("ignore", cfg.Ignore)
++	addFilter("hide", cfg.Hide)
++	addFilter("show", cfg.Show)
++	addFilter("show_from", cfg.ShowFrom)
++	addFilter("tagfocus", cfg.TagFocus)
++	addFilter("tagignore", cfg.TagIgnore)
++	addFilter("tagshow", cfg.TagShow)
++	addFilter("taghide", cfg.TagHide)
+ 
+ 	ropt := &report.Options{
+-		CumSort:      vars["cum"].boolValue(),
+-		CallTree:     vars["call_tree"].boolValue(),
+-		DropNegative: vars["drop_negative"].boolValue(),
++		CumSort:      cfg.Sort == "cum",
++		CallTree:     cfg.CallTree,
++		DropNegative: cfg.DropNegative,
+ 
+-		CompactLabels: vars["compact_labels"].boolValue(),
+-		Ratio:         1 / vars["divide_by"].floatValue(),
++		CompactLabels: cfg.CompactLabels,
++		Ratio:         1 / cfg.DivideBy,
+ 
+-		NodeCount:    vars["nodecount"].intValue(),
+-		NodeFraction: vars["nodefraction"].floatValue(),
+-		EdgeFraction: vars["edgefraction"].floatValue(),
++		NodeCount:    cfg.NodeCount,
++		NodeFraction: cfg.NodeFraction,
++		EdgeFraction: cfg.EdgeFraction,
+ 
+ 		ActiveFilters: filters,
+ 		NumLabelUnits: numLabelUnits,
+@@ -277,10 +285,12 @@ func reportOptions(p *profile.Profile, numLabelUnits map[string]string, vars var
+ 		SampleType:        stype,
+ 		SampleUnit:        sample.Unit,
+ 
+-		OutputUnit: vars["unit"].value,
++		OutputUnit: cfg.Unit,
+ 
+-		SourcePath: vars["source_path"].stringValue(),
+-		TrimPath:   vars["trim_path"].stringValue(),
++		SourcePath: cfg.SourcePath,
++		TrimPath:   cfg.TrimPath,
++
++		IntelSyntax: cfg.IntelSyntax,
+ 	}
+ 
+ 	if len(p.Mapping) > 0 && p.Mapping[0].File != "" {
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/driver_focus.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/driver_focus.go
+index af7b8d478a..048ba17cb0 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/driver_focus.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/driver_focus.go
+@@ -28,15 +28,15 @@ import (
+ var tagFilterRangeRx = regexp.MustCompile("([+-]?[[:digit:]]+)([[:alpha:]]+)?")
+ 
+ // applyFocus filters samples based on the focus/ignore options
+-func applyFocus(prof *profile.Profile, numLabelUnits map[string]string, v variables, ui plugin.UI) error {
+-	focus, err := compileRegexOption("focus", v["focus"].value, nil)
+-	ignore, err := compileRegexOption("ignore", v["ignore"].value, err)
+-	hide, err := compileRegexOption("hide", v["hide"].value, err)
+-	show, err := compileRegexOption("show", v["show"].value, err)
+-	showfrom, err := compileRegexOption("show_from", v["show_from"].value, err)
+-	tagfocus, err := compileTagFilter("tagfocus", v["tagfocus"].value, numLabelUnits, ui, err)
+-	tagignore, err := compileTagFilter("tagignore", v["tagignore"].value, numLabelUnits, ui, err)
+-	prunefrom, err := compileRegexOption("prune_from", v["prune_from"].value, err)
++func applyFocus(prof *profile.Profile, numLabelUnits map[string]string, cfg config, ui plugin.UI) error {
++	focus, err := compileRegexOption("focus", cfg.Focus, nil)
++	ignore, err := compileRegexOption("ignore", cfg.Ignore, err)
++	hide, err := compileRegexOption("hide", cfg.Hide, err)
++	show, err := compileRegexOption("show", cfg.Show, err)
++	showfrom, err := compileRegexOption("show_from", cfg.ShowFrom, err)
++	tagfocus, err := compileTagFilter("tagfocus", cfg.TagFocus, numLabelUnits, ui, err)
++	tagignore, err := compileTagFilter("tagignore", cfg.TagIgnore, numLabelUnits, ui, err)
++	prunefrom, err := compileRegexOption("prune_from", cfg.PruneFrom, err)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -54,8 +54,8 @@ func applyFocus(prof *profile.Profile, numLabelUnits map[string]string, v variab
+ 	warnNoMatches(tagfocus == nil || tfm, "TagFocus", ui)
+ 	warnNoMatches(tagignore == nil || tim, "TagIgnore", ui)
+ 
+-	tagshow, err := compileRegexOption("tagshow", v["tagshow"].value, err)
+-	taghide, err := compileRegexOption("taghide", v["taghide"].value, err)
++	tagshow, err := compileRegexOption("tagshow", cfg.TagShow, err)
++	taghide, err := compileRegexOption("taghide", cfg.TagHide, err)
+ 	tns, tnh := prof.FilterTagsByName(tagshow, taghide)
+ 	warnNoMatches(tagshow == nil || tns, "TagShow", ui)
+ 	warnNoMatches(tagignore == nil || tnh, "TagHide", ui)
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/flamegraph.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/flamegraph.go
+index 13613cff86..fbeb765dbc 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/flamegraph.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/flamegraph.go
+@@ -38,7 +38,10 @@ type treeNode struct {
+ func (ui *webInterface) flamegraph(w http.ResponseWriter, req *http.Request) {
+ 	// Force the call tree so that the graph is a tree.
+ 	// Also do not trim the tree so that the flame graph contains all functions.
+-	rpt, errList := ui.makeReport(w, req, []string{"svg"}, "call_tree", "true", "trim", "false")
++	rpt, errList := ui.makeReport(w, req, []string{"svg"}, func(cfg *config) {
++		cfg.CallTree = true
++		cfg.Trim = false
++	})
+ 	if rpt == nil {
+ 		return // error already reported
+ 	}
+@@ -96,7 +99,7 @@ func (ui *webInterface) flamegraph(w http.ResponseWriter, req *http.Request) {
+ 		return
+ 	}
+ 
+-	ui.render(w, "flamegraph", rpt, errList, config.Labels, webArgs{
++	ui.render(w, req, "flamegraph", rpt, errList, config.Labels, webArgs{
+ 		FlameGraph: template.JS(b),
+ 		Nodes:      nodeArr,
+ 	})
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/interactive.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/interactive.go
+index 3a458b0b77..777fb90bfb 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/interactive.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/interactive.go
+@@ -34,17 +34,14 @@ var tailDigitsRE = regexp.MustCompile("[0-9]+$")
+ func interactive(p *profile.Profile, o *plugin.Options) error {
+ 	// Enter command processing loop.
+ 	o.UI.SetAutoComplete(newCompleter(functionNames(p)))
+-	pprofVariables.set("compact_labels", "true")
+-	pprofVariables["sample_index"].help += fmt.Sprintf("Or use sample_index=name, with name in %v.\n", sampleTypes(p))
++	configure("compact_labels", "true")
++	configHelp["sample_index"] += fmt.Sprintf("Or use sample_index=name, with name in %v.\n", sampleTypes(p))
+ 
+ 	// Do not wait for the visualizer to complete, to allow multiple
+ 	// graphs to be visualized simultaneously.
+ 	interactiveMode = true
+ 	shortcuts := profileShortcuts(p)
+ 
+-	// Get all groups in pprofVariables to allow for clearer error messages.
+-	groups := groupOptions(pprofVariables)
+-
+ 	greetings(p, o.UI)
+ 	for {
+ 		input, err := o.UI.ReadLine("(pprof) ")
+@@ -69,7 +66,12 @@ func interactive(p *profile.Profile, o *plugin.Options) error {
+ 					}
+ 					value = strings.TrimSpace(value)
+ 				}
+-				if v := pprofVariables[name]; v != nil {
++				if isConfigurable(name) {
++					// All non-bool options require inputs
++					if len(s) == 1 && !isBoolConfig(name) {
++						o.UI.PrintErr(fmt.Errorf("please specify a value, e.g. %s=<val>", name))
++						continue
++					}
+ 					if name == "sample_index" {
+ 						// Error check sample_index=xxx to ensure xxx is a valid sample type.
+ 						index, err := p.SampleIndexByName(value)
+@@ -77,22 +79,16 @@ func interactive(p *profile.Profile, o *plugin.Options) error {
+ 							o.UI.PrintErr(err)
+ 							continue
+ 						}
++						if index < 0 || index >= len(p.SampleType) {
++							o.UI.PrintErr(fmt.Errorf("invalid sample_index %q", value))
++							continue
++						}
+ 						value = p.SampleType[index].Type
+ 					}
+-					if err := pprofVariables.set(name, value); err != nil {
+-						o.UI.PrintErr(err)
+-					}
+-					continue
+-				}
+-				// Allow group=variable syntax by converting into variable="".
+-				if v := pprofVariables[value]; v != nil && v.group == name {
+-					if err := pprofVariables.set(value, ""); err != nil {
++					if err := configure(name, value); err != nil {
+ 						o.UI.PrintErr(err)
+ 					}
+ 					continue
+-				} else if okValues := groups[name]; okValues != nil {
+-					o.UI.PrintErr(fmt.Errorf("unrecognized value for %s: %q. Use one of %s", name, value, strings.Join(okValues, ", ")))
+-					continue
+ 				}
+ 			}
+ 
+@@ -105,16 +101,16 @@ func interactive(p *profile.Profile, o *plugin.Options) error {
+ 			case "o", "options":
+ 				printCurrentOptions(p, o.UI)
+ 				continue
+-			case "exit", "quit":
++			case "exit", "quit", "q":
+ 				return nil
+ 			case "help":
+ 				commandHelp(strings.Join(tokens[1:], " "), o.UI)
+ 				continue
+ 			}
+ 
+-			args, vars, err := parseCommandLine(tokens)
++			args, cfg, err := parseCommandLine(tokens)
+ 			if err == nil {
+-				err = generateReportWrapper(p, args, vars, o)
++				err = generateReportWrapper(p, args, cfg, o)
+ 			}
+ 
+ 			if err != nil {
+@@ -124,30 +120,13 @@ func interactive(p *profile.Profile, o *plugin.Options) error {
+ 	}
+ }
+ 
+-// groupOptions returns a map containing all non-empty groups
+-// mapped to an array of the option names in that group in
+-// sorted order.
+-func groupOptions(vars variables) map[string][]string {
+-	groups := make(map[string][]string)
+-	for name, option := range vars {
+-		group := option.group
+-		if group != "" {
+-			groups[group] = append(groups[group], name)
+-		}
+-	}
+-	for _, names := range groups {
+-		sort.Strings(names)
+-	}
+-	return groups
+-}
+-
+ var generateReportWrapper = generateReport // For testing purposes.
+ 
+ // greetings prints a brief welcome and some overall profile
+ // information before accepting interactive commands.
+ func greetings(p *profile.Profile, ui plugin.UI) {
+ 	numLabelUnits := identifyNumLabelUnits(p, ui)
+-	ropt, err := reportOptions(p, numLabelUnits, pprofVariables)
++	ropt, err := reportOptions(p, numLabelUnits, currentConfig())
+ 	if err == nil {
+ 		rpt := report.New(p, ropt)
+ 		ui.Print(strings.Join(report.ProfileLabels(rpt), "\n"))
+@@ -200,27 +179,16 @@ func sampleTypes(p *profile.Profile) []string {
+ 
+ func printCurrentOptions(p *profile.Profile, ui plugin.UI) {
+ 	var args []string
+-	type groupInfo struct {
+-		set    string
+-		values []string
+-	}
+-	groups := make(map[string]*groupInfo)
+-	for n, o := range pprofVariables {
+-		v := o.stringValue()
++	current := currentConfig()
++	for _, f := range configFields {
++		n := f.name
++		v := current.get(f)
+ 		comment := ""
+-		if g := o.group; g != "" {
+-			gi, ok := groups[g]
+-			if !ok {
+-				gi = &groupInfo{}
+-				groups[g] = gi
+-			}
+-			if o.boolValue() {
+-				gi.set = n
+-			}
+-			gi.values = append(gi.values, n)
+-			continue
+-		}
+ 		switch {
++		case len(f.choices) > 0:
++			values := append([]string{}, f.choices...)
++			sort.Strings(values)
++			comment = "[" + strings.Join(values, " | ") + "]"
+ 		case n == "sample_index":
+ 			st := sampleTypes(p)
+ 			if v == "" {
+@@ -242,18 +210,13 @@ func printCurrentOptions(p *profile.Profile, ui plugin.UI) {
+ 		}
+ 		args = append(args, fmt.Sprintf("  %-25s = %-20s %s", n, v, comment))
+ 	}
+-	for g, vars := range groups {
+-		sort.Strings(vars.values)
+-		comment := commentStart + " [" + strings.Join(vars.values, " | ") + "]"
+-		args = append(args, fmt.Sprintf("  %-25s = %-20s %s", g, vars.set, comment))
+-	}
+ 	sort.Strings(args)
+ 	ui.Print(strings.Join(args, "\n"))
+ }
+ 
+ // parseCommandLine parses a command and returns the pprof command to
+-// execute and a set of variables for the report.
+-func parseCommandLine(input []string) ([]string, variables, error) {
++// execute and the configuration to use for the report.
++func parseCommandLine(input []string) ([]string, config, error) {
+ 	cmd, args := input[:1], input[1:]
+ 	name := cmd[0]
+ 
+@@ -267,25 +230,32 @@ func parseCommandLine(input []string) ([]string, variables, error) {
+ 		}
+ 	}
+ 	if c == nil {
+-		return nil, nil, fmt.Errorf("unrecognized command: %q", name)
++		if _, ok := configHelp[name]; ok {
++			value := "<val>"
++			if len(args) > 0 {
++				value = args[0]
++			}
++			return nil, config{}, fmt.Errorf("did you mean: %s=%s", name, value)
++		}
++		return nil, config{}, fmt.Errorf("unrecognized command: %q", name)
+ 	}
+ 
+ 	if c.hasParam {
+ 		if len(args) == 0 {
+-			return nil, nil, fmt.Errorf("command %s requires an argument", name)
++			return nil, config{}, fmt.Errorf("command %s requires an argument", name)
+ 		}
+ 		cmd = append(cmd, args[0])
+ 		args = args[1:]
+ 	}
+ 
+-	// Copy the variables as options set in the command line are not persistent.
+-	vcopy := pprofVariables.makeCopy()
++	// Copy config since options set in the command line should not persist.
++	vcopy := currentConfig()
+ 
+ 	var focus, ignore string
+ 	for i := 0; i < len(args); i++ {
+ 		t := args[i]
+-		if _, err := strconv.ParseInt(t, 10, 32); err == nil {
+-			vcopy.set("nodecount", t)
++		if n, err := strconv.ParseInt(t, 10, 32); err == nil {
++			vcopy.NodeCount = int(n)
+ 			continue
+ 		}
+ 		switch t[0] {
+@@ -294,14 +264,14 @@ func parseCommandLine(input []string) ([]string, variables, error) {
+ 			if outputFile == "" {
+ 				i++
+ 				if i >= len(args) {
+-					return nil, nil, fmt.Errorf("unexpected end of line after >")
++					return nil, config{}, fmt.Errorf("unexpected end of line after >")
+ 				}
+ 				outputFile = args[i]
+ 			}
+-			vcopy.set("output", outputFile)
++			vcopy.Output = outputFile
+ 		case '-':
+ 			if t == "--cum" || t == "-cum" {
+-				vcopy.set("cum", "t")
++				vcopy.Sort = "cum"
+ 				continue
+ 			}
+ 			ignore = catRegex(ignore, t[1:])
+@@ -311,30 +281,27 @@ func parseCommandLine(input []string) ([]string, variables, error) {
+ 	}
+ 
+ 	if name == "tags" {
+-		updateFocusIgnore(vcopy, "tag", focus, ignore)
++		if focus != "" {
++			vcopy.TagFocus = focus
++		}
++		if ignore != "" {
++			vcopy.TagIgnore = ignore
++		}
+ 	} else {
+-		updateFocusIgnore(vcopy, "", focus, ignore)
++		if focus != "" {
++			vcopy.Focus = focus
++		}
++		if ignore != "" {
++			vcopy.Ignore = ignore
++		}
+ 	}
+-
+-	if vcopy["nodecount"].intValue() == -1 && (name == "text" || name == "top") {
+-		vcopy.set("nodecount", "10")
++	if vcopy.NodeCount == -1 && (name == "text" || name == "top") {
++		vcopy.NodeCount = 10
+ 	}
+ 
+ 	return cmd, vcopy, nil
+ }
+ 
+-func updateFocusIgnore(v variables, prefix, f, i string) {
+-	if f != "" {
+-		focus := prefix + "focus"
+-		v.set(focus, catRegex(v[focus].value, f))
+-	}
+-
+-	if i != "" {
+-		ignore := prefix + "ignore"
+-		v.set(ignore, catRegex(v[ignore].value, i))
+-	}
+-}
+-
+ func catRegex(a, b string) string {
+ 	if a != "" && b != "" {
+ 		return a + "|" + b
+@@ -362,8 +329,8 @@ func commandHelp(args string, ui plugin.UI) {
+ 		return
+ 	}
+ 
+-	if v := pprofVariables[args]; v != nil {
+-		ui.Print(v.help + "\n")
++	if help, ok := configHelp[args]; ok {
++		ui.Print(help + "\n")
+ 		return
+ 	}
+ 
+@@ -373,18 +340,17 @@ func commandHelp(args string, ui plugin.UI) {
+ // newCompleter creates an autocompletion function for a set of commands.
+ func newCompleter(fns []string) func(string) string {
+ 	return func(line string) string {
+-		v := pprofVariables
+ 		switch tokens := strings.Fields(line); len(tokens) {
+ 		case 0:
+ 			// Nothing to complete
+ 		case 1:
+ 			// Single token -- complete command name
+-			if match := matchVariableOrCommand(v, tokens[0]); match != "" {
++			if match := matchVariableOrCommand(tokens[0]); match != "" {
+ 				return match
+ 			}
+ 		case 2:
+ 			if tokens[0] == "help" {
+-				if match := matchVariableOrCommand(v, tokens[1]); match != "" {
++				if match := matchVariableOrCommand(tokens[1]); match != "" {
+ 					return tokens[0] + " " + match
+ 				}
+ 				return line
+@@ -408,26 +374,19 @@ func newCompleter(fns []string) func(string) string {
+ }
+ 
+ // matchVariableOrCommand attempts to match a string token to the prefix of a Command.
+-func matchVariableOrCommand(v variables, token string) string {
++func matchVariableOrCommand(token string) string {
+ 	token = strings.ToLower(token)
+-	found := ""
++	var matches []string
+ 	for cmd := range pprofCommands {
+ 		if strings.HasPrefix(cmd, token) {
+-			if found != "" {
+-				return ""
+-			}
+-			found = cmd
++			matches = append(matches, cmd)
+ 		}
+ 	}
+-	for variable := range v {
+-		if strings.HasPrefix(variable, token) {
+-			if found != "" {
+-				return ""
+-			}
+-			found = variable
+-		}
++	matches = append(matches, completeConfig(token)...)
++	if len(matches) == 1 {
++		return matches[0]
+ 	}
+-	return found
++	return ""
+ }
+ 
+ // functionCompleter replaces provided substring with a function
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/settings.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/settings.go
+new file mode 100644
+index 0000000000..f72314b185
+--- /dev/null
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/settings.go
+@@ -0,0 +1,157 @@
++package driver
++
++import (
++	"encoding/json"
++	"fmt"
++	"io/ioutil"
++	"net/url"
++	"os"
++	"path/filepath"
++)
++
++// settings holds pprof settings.
++type settings struct {
++	// Configs holds a list of named UI configurations.
++	Configs []namedConfig `json:"configs"`
++}
++
++// namedConfig associates a name with a config.
++type namedConfig struct {
++	Name string `json:"name"`
++	config
++}
++
++// settingsFileName returns the name of the file where settings should be saved.
++func settingsFileName() (string, error) {
++	// Return "pprof/settings.json" under os.UserConfigDir().
++	dir, err := os.UserConfigDir()
++	if err != nil {
++		return "", err
++	}
++	return filepath.Join(dir, "pprof", "settings.json"), nil
++}
++
++// readSettings reads settings from fname.
++func readSettings(fname string) (*settings, error) {
++	data, err := ioutil.ReadFile(fname)
++	if err != nil {
++		if os.IsNotExist(err) {
++			return &settings{}, nil
++		}
++		return nil, fmt.Errorf("could not read settings: %w", err)
++	}
++	settings := &settings{}
++	if err := json.Unmarshal(data, settings); err != nil {
++		return nil, fmt.Errorf("could not parse settings: %w", err)
++	}
++	for i := range settings.Configs {
++		settings.Configs[i].resetTransient()
++	}
++	return settings, nil
++}
++
++// writeSettings saves settings to fname.
++func writeSettings(fname string, settings *settings) error {
++	data, err := json.MarshalIndent(settings, "", "  ")
++	if err != nil {
++		return fmt.Errorf("could not encode settings: %w", err)
++	}
++
++	// create the settings directory if it does not exist
++	// XDG specifies permissions 0700 when creating settings dirs:
++	// https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
++	if err := os.MkdirAll(filepath.Dir(fname), 0700); err != nil {
++		return fmt.Errorf("failed to create settings directory: %w", err)
++	}
++
++	if err := ioutil.WriteFile(fname, data, 0644); err != nil {
++		return fmt.Errorf("failed to write settings: %w", err)
++	}
++	return nil
++}
++
++// configMenuEntry holds information for a single config menu entry.
++type configMenuEntry struct {
++	Name       string
++	URL        string
++	Current    bool // Is this the currently selected config?
++	UserConfig bool // Is this a user-provided config?
++}
++
++// configMenu returns a list of items to add to a menu in the web UI.
++func configMenu(fname string, url url.URL) []configMenuEntry {
++	// Start with system configs.
++	configs := []namedConfig{{Name: "Default", config: defaultConfig()}}
++	if settings, err := readSettings(fname); err == nil {
++		// Add user configs.
++		configs = append(configs, settings.Configs...)
++	}
++
++	// Convert to menu entries.
++	result := make([]configMenuEntry, len(configs))
++	lastMatch := -1
++	for i, cfg := range configs {
++		dst, changed := cfg.config.makeURL(url)
++		if !changed {
++			lastMatch = i
++		}
++		result[i] = configMenuEntry{
++			Name:       cfg.Name,
++			URL:        dst.String(),
++			UserConfig: (i != 0),
++		}
++	}
++	// Mark the last matching config as currennt
++	if lastMatch >= 0 {
++		result[lastMatch].Current = true
++	}
++	return result
++}
++
++// editSettings edits settings by applying fn to them.
++func editSettings(fname string, fn func(s *settings) error) error {
++	settings, err := readSettings(fname)
++	if err != nil {
++		return err
++	}
++	if err := fn(settings); err != nil {
++		return err
++	}
++	return writeSettings(fname, settings)
++}
++
++// setConfig saves the config specified in request to fname.
++func setConfig(fname string, request url.URL) error {
++	q := request.Query()
++	name := q.Get("config")
++	if name == "" {
++		return fmt.Errorf("invalid config name")
++	}
++	cfg := currentConfig()
++	if err := cfg.applyURL(q); err != nil {
++		return err
++	}
++	return editSettings(fname, func(s *settings) error {
++		for i, c := range s.Configs {
++			if c.Name == name {
++				s.Configs[i].config = cfg
++				return nil
++			}
++		}
++		s.Configs = append(s.Configs, namedConfig{Name: name, config: cfg})
++		return nil
++	})
++}
++
++// removeConfig removes config from fname.
++func removeConfig(fname, config string) error {
++	return editSettings(fname, func(s *settings) error {
++		for i, c := range s.Configs {
++			if c.Name == config {
++				s.Configs = append(s.Configs[:i], s.Configs[i+1:]...)
++				return nil
++			}
++		}
++		return fmt.Errorf("config %s not found", config)
++	})
++}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go
+index 89b8882a6b..4f7610c7e5 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/webhtml.go
+@@ -166,6 +166,73 @@ a {
+   color: gray;
+   pointer-events: none;
+ }
++.menu-check-mark {
++  position: absolute;
++  left: 2px;
++}
++.menu-delete-btn {
++  position: absolute;
++  right: 2px;
++}
++
++{{/* Used to disable events when a modal dialog is displayed */}}
++#dialog-overlay {
++  display: none;
++  position: fixed;
++  left: 0px;
++  top: 0px;
++  width: 100%;
++  height: 100%;
++  background-color: rgba(1,1,1,0.1);
++}
++
++.dialog {
++  {{/* Displayed centered horizontally near the top */}}
++  display: none;
++  position: fixed;
++  margin: 0px;
++  top: 60px;
++  left: 50%;
++  transform: translateX(-50%);
++
++  z-index: 3;
++  font-size: 125%;
++  background-color: #ffffff;
++  box-shadow: 0 1px 5px rgba(0,0,0,.3);
++}
++.dialog-header {
++  font-size: 120%;
++  border-bottom: 1px solid #CCCCCC;
++  width: 100%;
++  text-align: center;
++  background: #EEEEEE;
++  user-select: none;
++}
++.dialog-footer {
++  border-top: 1px solid #CCCCCC;
++  width: 100%;
++  text-align: right;
++  padding: 10px;
++}
++.dialog-error {
++  margin: 10px;
++  color: red;
++}
++.dialog input {
++  margin: 10px;
++  font-size: inherit;
++}
++.dialog button {
++  margin-left: 10px;
++  font-size: inherit;
++}
++#save-dialog, #delete-dialog {
++  width: 50%;
++  max-width: 20em;
++}
++#delete-prompt {
++  padding: 10px;
++}
+ 
+ #content {
+   overflow-y: scroll;
+@@ -200,6 +267,8 @@ table thead {
+   font-family: 'Roboto Medium', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
+ }
+ table tr th {
++  position: sticky;
++  top: 0;
+   background-color: #ddd;
+   text-align: right;
+   padding: .3em .5em;
+@@ -282,6 +351,24 @@ table tr td {
+     </div>
+   </div>
+ 
++  <div id="config" class="menu-item">
++    <div class="menu-name">
++      Config
++      <i class="downArrow"></i>
++    </div>
++    <div class="submenu">
++      <a title="{{.Help.save_config}}" id="save-config">Save as ...</a>
++      <hr>
++      {{range .Configs}}
++        <a href="{{.URL}}">
++          {{if .Current}}<span class="menu-check-mark">✓</span>{{end}}
++          {{.Name}}
++          {{if .UserConfig}}<span class="menu-delete-btn" data-config={{.Name}}>🗙</span>{{end}}
++        </a>
++      {{end}}
++    </div>
++  </div>
++
+   <div>
+     <input id="search" type="text" placeholder="Search regexp" autocomplete="off" autocapitalize="none" size=40>
+   </div>
+@@ -294,6 +381,31 @@ table tr td {
+   </div>
+ </div>
+ 
++<div id="dialog-overlay"></div>
++
++<div class="dialog" id="save-dialog">
++  <div class="dialog-header">Save options as</div>
++  <datalist id="config-list">
++    {{range .Configs}}{{if .UserConfig}}<option value="{{.Name}}" />{{end}}{{end}}
++  </datalist>
++  <input id="save-name" type="text" list="config-list" placeholder="New config" />
++  <div class="dialog-footer">
++    <span class="dialog-error" id="save-error"></span>
++    <button id="save-cancel">Cancel</button>
++    <button id="save-confirm">Save</button>
++  </div>
++</div>
++
++<div class="dialog" id="delete-dialog">
++  <div class="dialog-header" id="delete-dialog-title">Delete config</div>
++  <div id="delete-prompt"></div>
++  <div class="dialog-footer">
++    <span class="dialog-error" id="delete-error"></span>
++    <button id="delete-cancel">Cancel</button>
++    <button id="delete-confirm">Delete</button>
++  </div>
++</div>
++
+ <div id="errors">{{range .Errors}}<div>{{.}}</div>{{end}}</div>
+ {{end}}
+ 
+@@ -583,6 +695,131 @@ function initMenus() {
+   }, { passive: true, capture: true });
+ }
+ 
++function sendURL(method, url, done) {
++  fetch(url.toString(), {method: method})
++      .then((response) => { done(response.ok); })
++      .catch((error) => { done(false); });
++}
++
++// Initialize handlers for saving/loading configurations.
++function initConfigManager() {
++  'use strict';
++
++  // Initialize various elements.
++  function elem(id) {
++    const result = document.getElementById(id);
++    if (!result) console.warn('element ' + id + ' not found');
++    return result;
++  }
++  const overlay = elem('dialog-overlay');
++  const saveDialog = elem('save-dialog');
++  const saveInput = elem('save-name');
++  const saveError = elem('save-error');
++  const delDialog = elem('delete-dialog');
++  const delPrompt = elem('delete-prompt');
++  const delError = elem('delete-error');
++
++  let currentDialog = null;
++  let currentDeleteTarget = null;
++
++  function showDialog(dialog) {
++    if (currentDialog != null) {
++      overlay.style.display = 'none';
++      currentDialog.style.display = 'none';
++    }
++    currentDialog = dialog;
++    if (dialog != null) {
++      overlay.style.display = 'block';
++      dialog.style.display = 'block';
++    }
++  }
++
++  function cancelDialog(e) {
++    showDialog(null);
++  }
++
++  // Show dialog for saving the current config.
++  function showSaveDialog(e) {
++    saveError.innerText = '';
++    showDialog(saveDialog);
++    saveInput.focus();
++  }
++
++  // Commit save config.
++  function commitSave(e) {
++    const name = saveInput.value;
++    const url = new URL(document.URL);
++    // Set path relative to existing path.
++    url.pathname = new URL('./saveconfig', document.URL).pathname;
++    url.searchParams.set('config', name);
++    saveError.innerText = '';
++    sendURL('POST', url, (ok) => {
++      if (!ok) {
++        saveError.innerText = 'Save failed';
++      } else {
++        showDialog(null);
++        location.reload();  // Reload to show updated config menu
++      }
++    });
++  }
++
++  function handleSaveInputKey(e) {
++    if (e.key === 'Enter') commitSave(e);
++  }
++
++  function deleteConfig(e, elem) {
++    e.preventDefault();
++    const config = elem.dataset.config;
++    delPrompt.innerText = 'Delete ' + config + '?';
++    currentDeleteTarget = elem;
++    showDialog(delDialog);
++  }
++
++  function commitDelete(e, elem) {
++    if (!currentDeleteTarget) return;
++    const config = currentDeleteTarget.dataset.config;
++    const url = new URL('./deleteconfig', document.URL);
++    url.searchParams.set('config', config);
++    delError.innerText = '';
++    sendURL('DELETE', url, (ok) => {
++      if (!ok) {
++        delError.innerText = 'Delete failed';
++        return;
++      }
++      showDialog(null);
++      // Remove menu entry for this config.
++      if (currentDeleteTarget && currentDeleteTarget.parentElement) {
++        currentDeleteTarget.parentElement.remove();
++      }
++    });
++  }
++
++  // Bind event on elem to fn.
++  function bind(event, elem, fn) {
++    if (elem == null) return;
++    elem.addEventListener(event, fn);
++    if (event == 'click') {
++      // Also enable via touch.
++      elem.addEventListener('touchstart', fn);
++    }
++  }
++
++  bind('click', elem('save-config'), showSaveDialog);
++  bind('click', elem('save-cancel'), cancelDialog);
++  bind('click', elem('save-confirm'), commitSave);
++  bind('keydown', saveInput, handleSaveInputKey);
++
++  bind('click', elem('delete-cancel'), cancelDialog);
++  bind('click', elem('delete-confirm'), commitDelete);
++
++  // Activate deletion button for all config entries in menu.
++  for (const del of Array.from(document.getElementsByClassName('menu-delete-btn'))) {
++    bind('click', del, (e) => {
++      deleteConfig(e, del);
++    });
++  }
++}
++
+ function viewer(baseUrl, nodes) {
+   'use strict';
+ 
+@@ -875,6 +1112,7 @@ function viewer(baseUrl, nodes) {
+   }
+ 
+   addAction('details', handleDetails);
++  initConfigManager();
+ 
+   search.addEventListener('input', handleSearch);
+   search.addEventListener('keydown', handleKey);
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go
+index 4006085538..52dc68809c 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/webui.go
+@@ -35,22 +35,28 @@ import (
+ 
+ // webInterface holds the state needed for serving a browser based interface.
+ type webInterface struct {
+-	prof      *profile.Profile
+-	options   *plugin.Options
+-	help      map[string]string
+-	templates *template.Template
++	prof         *profile.Profile
++	options      *plugin.Options
++	help         map[string]string
++	templates    *template.Template
++	settingsFile string
+ }
+ 
+-func makeWebInterface(p *profile.Profile, opt *plugin.Options) *webInterface {
++func makeWebInterface(p *profile.Profile, opt *plugin.Options) (*webInterface, error) {
++	settingsFile, err := settingsFileName()
++	if err != nil {
++		return nil, err
++	}
+ 	templates := template.New("templategroup")
+ 	addTemplates(templates)
+ 	report.AddSourceTemplates(templates)
+ 	return &webInterface{
+-		prof:      p,
+-		options:   opt,
+-		help:      make(map[string]string),
+-		templates: templates,
+-	}
++		prof:         p,
++		options:      opt,
++		help:         make(map[string]string),
++		templates:    templates,
++		settingsFile: settingsFile,
++	}, nil
+ }
+ 
+ // maxEntries is the maximum number of entries to print for text interfaces.
+@@ -80,6 +86,7 @@ type webArgs struct {
+ 	TextBody    string
+ 	Top         []report.TextItem
+ 	FlameGraph  template.JS
++	Configs     []configMenuEntry
+ }
+ 
+ func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, disableBrowser bool) error {
+@@ -88,16 +95,20 @@ func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, d
+ 		return err
+ 	}
+ 	interactiveMode = true
+-	ui := makeWebInterface(p, o)
++	ui, err := makeWebInterface(p, o)
++	if err != nil {
++		return err
++	}
+ 	for n, c := range pprofCommands {
+ 		ui.help[n] = c.description
+ 	}
+-	for n, v := range pprofVariables {
+-		ui.help[n] = v.help
++	for n, help := range configHelp {
++		ui.help[n] = help
+ 	}
+ 	ui.help["details"] = "Show information about the profile and this view"
+ 	ui.help["graph"] = "Display profile as a directed graph"
+ 	ui.help["reset"] = "Show the entire profile"
++	ui.help["save_config"] = "Save current settings"
+ 
+ 	server := o.HTTPServer
+ 	if server == nil {
+@@ -108,12 +119,14 @@ func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, d
+ 		Host:     host,
+ 		Port:     port,
+ 		Handlers: map[string]http.Handler{
+-			"/":           http.HandlerFunc(ui.dot),
+-			"/top":        http.HandlerFunc(ui.top),
+-			"/disasm":     http.HandlerFunc(ui.disasm),
+-			"/source":     http.HandlerFunc(ui.source),
+-			"/peek":       http.HandlerFunc(ui.peek),
+-			"/flamegraph": http.HandlerFunc(ui.flamegraph),
++			"/":             http.HandlerFunc(ui.dot),
++			"/top":          http.HandlerFunc(ui.top),
++			"/disasm":       http.HandlerFunc(ui.disasm),
++			"/source":       http.HandlerFunc(ui.source),
++			"/peek":         http.HandlerFunc(ui.peek),
++			"/flamegraph":   http.HandlerFunc(ui.flamegraph),
++			"/saveconfig":   http.HandlerFunc(ui.saveConfig),
++			"/deleteconfig": http.HandlerFunc(ui.deleteConfig),
+ 		},
+ 	}
+ 
+@@ -206,21 +219,9 @@ func isLocalhost(host string) bool {
+ 
+ func openBrowser(url string, o *plugin.Options) {
+ 	// Construct URL.
+-	u, _ := gourl.Parse(url)
+-	q := u.Query()
+-	for _, p := range []struct{ param, key string }{
+-		{"f", "focus"},
+-		{"s", "show"},
+-		{"sf", "show_from"},
+-		{"i", "ignore"},
+-		{"h", "hide"},
+-		{"si", "sample_index"},
+-	} {
+-		if v := pprofVariables[p.key].value; v != "" {
+-			q.Set(p.param, v)
+-		}
+-	}
+-	u.RawQuery = q.Encode()
++	baseURL, _ := gourl.Parse(url)
++	current := currentConfig()
++	u, _ := current.makeURL(*baseURL)
+ 
+ 	// Give server a little time to get ready.
+ 	time.Sleep(time.Millisecond * 500)
+@@ -240,28 +241,23 @@ func openBrowser(url string, o *plugin.Options) {
+ 	o.UI.PrintErr(u.String())
+ }
+ 
+-func varsFromURL(u *gourl.URL) variables {
+-	vars := pprofVariables.makeCopy()
+-	vars["focus"].value = u.Query().Get("f")
+-	vars["show"].value = u.Query().Get("s")
+-	vars["show_from"].value = u.Query().Get("sf")
+-	vars["ignore"].value = u.Query().Get("i")
+-	vars["hide"].value = u.Query().Get("h")
+-	vars["sample_index"].value = u.Query().Get("si")
+-	return vars
+-}
+-
+ // makeReport generates a report for the specified command.
++// If configEditor is not null, it is used to edit the config used for the report.
+ func (ui *webInterface) makeReport(w http.ResponseWriter, req *http.Request,
+-	cmd []string, vars ...string) (*report.Report, []string) {
+-	v := varsFromURL(req.URL)
+-	for i := 0; i+1 < len(vars); i += 2 {
+-		v[vars[i]].value = vars[i+1]
++	cmd []string, configEditor func(*config)) (*report.Report, []string) {
++	cfg := currentConfig()
++	if err := cfg.applyURL(req.URL.Query()); err != nil {
++		http.Error(w, err.Error(), http.StatusBadRequest)
++		ui.options.UI.PrintErr(err)
++		return nil, nil
++	}
++	if configEditor != nil {
++		configEditor(&cfg)
+ 	}
+ 	catcher := &errorCatcher{UI: ui.options.UI}
+ 	options := *ui.options
+ 	options.UI = catcher
+-	_, rpt, err := generateRawReport(ui.prof, cmd, v, &options)
++	_, rpt, err := generateRawReport(ui.prof, cmd, cfg, &options)
+ 	if err != nil {
+ 		http.Error(w, err.Error(), http.StatusBadRequest)
+ 		ui.options.UI.PrintErr(err)
+@@ -271,7 +267,7 @@ func (ui *webInterface) makeReport(w http.ResponseWriter, req *http.Request,
+ }
+ 
+ // render generates html using the named template based on the contents of data.
+-func (ui *webInterface) render(w http.ResponseWriter, tmpl string,
++func (ui *webInterface) render(w http.ResponseWriter, req *http.Request, tmpl string,
+ 	rpt *report.Report, errList, legend []string, data webArgs) {
+ 	file := getFromLegend(legend, "File: ", "unknown")
+ 	profile := getFromLegend(legend, "Type: ", "unknown")
+@@ -281,6 +277,8 @@ func (ui *webInterface) render(w http.ResponseWriter, tmpl string,
+ 	data.SampleTypes = sampleTypes(ui.prof)
+ 	data.Legend = legend
+ 	data.Help = ui.help
++	data.Configs = configMenu(ui.settingsFile, *req.URL)
++
+ 	html := &bytes.Buffer{}
+ 	if err := ui.templates.ExecuteTemplate(html, tmpl, data); err != nil {
+ 		http.Error(w, "internal template error", http.StatusInternalServerError)
+@@ -293,7 +291,7 @@ func (ui *webInterface) render(w http.ResponseWriter, tmpl string,
+ 
+ // dot generates a web page containing an svg diagram.
+ func (ui *webInterface) dot(w http.ResponseWriter, req *http.Request) {
+-	rpt, errList := ui.makeReport(w, req, []string{"svg"})
++	rpt, errList := ui.makeReport(w, req, []string{"svg"}, nil)
+ 	if rpt == nil {
+ 		return // error already reported
+ 	}
+@@ -320,7 +318,7 @@ func (ui *webInterface) dot(w http.ResponseWriter, req *http.Request) {
+ 		nodes = append(nodes, n.Info.Name)
+ 	}
+ 
+-	ui.render(w, "graph", rpt, errList, legend, webArgs{
++	ui.render(w, req, "graph", rpt, errList, legend, webArgs{
+ 		HTMLBody: template.HTML(string(svg)),
+ 		Nodes:    nodes,
+ 	})
+@@ -345,7 +343,9 @@ func dotToSvg(dot []byte) ([]byte, error) {
+ }
+ 
+ func (ui *webInterface) top(w http.ResponseWriter, req *http.Request) {
+-	rpt, errList := ui.makeReport(w, req, []string{"top"}, "nodecount", "500")
++	rpt, errList := ui.makeReport(w, req, []string{"top"}, func(cfg *config) {
++		cfg.NodeCount = 500
++	})
+ 	if rpt == nil {
+ 		return // error already reported
+ 	}
+@@ -355,7 +355,7 @@ func (ui *webInterface) top(w http.ResponseWriter, req *http.Request) {
+ 		nodes = append(nodes, item.Name)
+ 	}
+ 
+-	ui.render(w, "top", rpt, errList, legend, webArgs{
++	ui.render(w, req, "top", rpt, errList, legend, webArgs{
+ 		Top:   top,
+ 		Nodes: nodes,
+ 	})
+@@ -364,7 +364,7 @@ func (ui *webInterface) top(w http.ResponseWriter, req *http.Request) {
+ // disasm generates a web page containing disassembly.
+ func (ui *webInterface) disasm(w http.ResponseWriter, req *http.Request) {
+ 	args := []string{"disasm", req.URL.Query().Get("f")}
+-	rpt, errList := ui.makeReport(w, req, args)
++	rpt, errList := ui.makeReport(w, req, args, nil)
+ 	if rpt == nil {
+ 		return // error already reported
+ 	}
+@@ -377,7 +377,7 @@ func (ui *webInterface) disasm(w http.ResponseWriter, req *http.Request) {
+ 	}
+ 
+ 	legend := report.ProfileLabels(rpt)
+-	ui.render(w, "plaintext", rpt, errList, legend, webArgs{
++	ui.render(w, req, "plaintext", rpt, errList, legend, webArgs{
+ 		TextBody: out.String(),
+ 	})
+ 
+@@ -387,7 +387,7 @@ func (ui *webInterface) disasm(w http.ResponseWriter, req *http.Request) {
+ // data.
+ func (ui *webInterface) source(w http.ResponseWriter, req *http.Request) {
+ 	args := []string{"weblist", req.URL.Query().Get("f")}
+-	rpt, errList := ui.makeReport(w, req, args)
++	rpt, errList := ui.makeReport(w, req, args, nil)
+ 	if rpt == nil {
+ 		return // error already reported
+ 	}
+@@ -401,7 +401,7 @@ func (ui *webInterface) source(w http.ResponseWriter, req *http.Request) {
+ 	}
+ 
+ 	legend := report.ProfileLabels(rpt)
+-	ui.render(w, "sourcelisting", rpt, errList, legend, webArgs{
++	ui.render(w, req, "sourcelisting", rpt, errList, legend, webArgs{
+ 		HTMLBody: template.HTML(body.String()),
+ 	})
+ }
+@@ -409,7 +409,9 @@ func (ui *webInterface) source(w http.ResponseWriter, req *http.Request) {
+ // peek generates a web page listing callers/callers.
+ func (ui *webInterface) peek(w http.ResponseWriter, req *http.Request) {
+ 	args := []string{"peek", req.URL.Query().Get("f")}
+-	rpt, errList := ui.makeReport(w, req, args, "lines", "t")
++	rpt, errList := ui.makeReport(w, req, args, func(cfg *config) {
++		cfg.Granularity = "lines"
++	})
+ 	if rpt == nil {
+ 		return // error already reported
+ 	}
+@@ -422,11 +424,30 @@ func (ui *webInterface) peek(w http.ResponseWriter, req *http.Request) {
+ 	}
+ 
+ 	legend := report.ProfileLabels(rpt)
+-	ui.render(w, "plaintext", rpt, errList, legend, webArgs{
++	ui.render(w, req, "plaintext", rpt, errList, legend, webArgs{
+ 		TextBody: out.String(),
+ 	})
+ }
+ 
++// saveConfig saves URL configuration.
++func (ui *webInterface) saveConfig(w http.ResponseWriter, req *http.Request) {
++	if err := setConfig(ui.settingsFile, *req.URL); err != nil {
++		http.Error(w, err.Error(), http.StatusBadRequest)
++		ui.options.UI.PrintErr(err)
++		return
++	}
++}
++
++// deleteConfig deletes a configuration.
++func (ui *webInterface) deleteConfig(w http.ResponseWriter, req *http.Request) {
++	name := req.URL.Query().Get("config")
++	if err := removeConfig(ui.settingsFile, name); err != nil {
++		http.Error(w, err.Error(), http.StatusBadRequest)
++		ui.options.UI.PrintErr(err)
++		return
++	}
++}
++
+ // getFromLegend returns the suffix of an entry in legend that starts
+ // with param.  It returns def if no such entry is found.
+ func getFromLegend(legend []string, param, def string) string {
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/plugin/plugin.go b/src/cmd/vendor/github.com/google/pprof/internal/plugin/plugin.go
+index 4c1db2331f..3a8d0af730 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/plugin/plugin.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/plugin/plugin.go
+@@ -114,7 +114,7 @@ type ObjTool interface {
+ 
+ 	// Disasm disassembles the named object file, starting at
+ 	// the start address and stopping at (before) the end address.
+-	Disasm(file string, start, end uint64) ([]Inst, error)
++	Disasm(file string, start, end uint64, intelSyntax bool) ([]Inst, error)
+ }
+ 
+ // An Inst is a single instruction in an assembly listing.
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/report/report.go b/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
+index 56083d8abf..a345208910 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
+@@ -79,6 +79,8 @@ type Options struct {
+ 	Symbol     *regexp.Regexp // Symbols to include on disassembly report.
+ 	SourcePath string         // Search path for source files.
+ 	TrimPath   string         // Paths to trim from source file paths.
++
++	IntelSyntax bool // Whether or not to print assembly in Intel syntax.
+ }
+ 
+ // Generate generates a report as directed by the Report.
+@@ -438,7 +440,7 @@ func PrintAssembly(w io.Writer, rpt *Report, obj plugin.ObjTool, maxFuncs int) e
+ 		flatSum, cumSum := sns.Sum()
+ 
+ 		// Get the function assembly.
+-		insts, err := obj.Disasm(s.sym.File, s.sym.Start, s.sym.End)
++		insts, err := obj.Disasm(s.sym.File, s.sym.Start, s.sym.End, o.IntelSyntax)
+ 		if err != nil {
+ 			return err
+ 		}
+@@ -1201,6 +1203,13 @@ func reportLabels(rpt *Report, g *graph.Graph, origCount, droppedNodes, droppedE
+ 				nodeCount, origCount))
+ 		}
+ 	}
++
++	// Help new users understand the graph.
++	// A new line is intentionally added here to better show this message.
++	if fullHeaders {
++		label = append(label, "\\lSee https://git.io/JfYMW for how to read the graph")
++	}
++
+ 	return label
+ }
+ 
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/report/source.go b/src/cmd/vendor/github.com/google/pprof/internal/report/source.go
+index ab8b64cbab..b480535439 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/report/source.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/report/source.go
+@@ -205,7 +205,7 @@ func PrintWebList(w io.Writer, rpt *Report, obj plugin.ObjTool, maxFiles int) er
+ 		ff := fileFunction{n.Info.File, n.Info.Name}
+ 		fns := fileNodes[ff]
+ 
+-		asm := assemblyPerSourceLine(symbols, fns, ff.fileName, obj)
++		asm := assemblyPerSourceLine(symbols, fns, ff.fileName, obj, o.IntelSyntax)
+ 		start, end := sourceCoordinates(asm)
+ 
+ 		fnodes, path, err := getSourceFromFile(ff.fileName, reader, fns, start, end)
+@@ -239,7 +239,7 @@ func sourceCoordinates(asm map[int][]assemblyInstruction) (start, end int) {
+ // assemblyPerSourceLine disassembles the binary containing a symbol
+ // and classifies the assembly instructions according to its
+ // corresponding source line, annotating them with a set of samples.
+-func assemblyPerSourceLine(objSyms []*objSymbol, rs graph.Nodes, src string, obj plugin.ObjTool) map[int][]assemblyInstruction {
++func assemblyPerSourceLine(objSyms []*objSymbol, rs graph.Nodes, src string, obj plugin.ObjTool, intelSyntax bool) map[int][]assemblyInstruction {
+ 	assembly := make(map[int][]assemblyInstruction)
+ 	// Identify symbol to use for this collection of samples.
+ 	o := findMatchingSymbol(objSyms, rs)
+@@ -248,7 +248,7 @@ func assemblyPerSourceLine(objSyms []*objSymbol, rs graph.Nodes, src string, obj
+ 	}
+ 
+ 	// Extract assembly for matched symbol
+-	insts, err := obj.Disasm(o.sym.File, o.sym.Start, o.sym.End)
++	insts, err := obj.Disasm(o.sym.File, o.sym.Start, o.sym.End, intelSyntax)
+ 	if err != nil {
+ 		return assembly
+ 	}
+diff --git a/src/cmd/vendor/github.com/google/pprof/profile/profile.go b/src/cmd/vendor/github.com/google/pprof/profile/profile.go
+index c950d8dc7f..d94d8b3d1c 100644
+--- a/src/cmd/vendor/github.com/google/pprof/profile/profile.go
++++ b/src/cmd/vendor/github.com/google/pprof/profile/profile.go
+@@ -398,10 +398,12 @@ func (p *Profile) CheckValid() error {
+ 			}
+ 		}
+ 		for _, ln := range l.Line {
+-			if f := ln.Function; f != nil {
+-				if f.ID == 0 || functions[f.ID] != f {
+-					return fmt.Errorf("inconsistent function %p: %d", f, f.ID)
+-				}
++			f := ln.Function
++			if f == nil {
++				return fmt.Errorf("location id: %d has a line with nil function", l.ID)
++			}
++			if f.ID == 0 || functions[f.ID] != f {
++				return fmt.Errorf("inconsistent function %p: %d", f, f.ID)
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 21326f7521..e2078b1a7f 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -1,4 +1,4 @@
+-# github.com/google/pprof v0.0.0-20200229191704-1ebb73c60ed3
++# github.com/google/pprof v0.0.0-20200708004538-1a94d8640e99
+ ## explicit
+ github.com/google/pprof/driver
+ github.com/google/pprof/internal/binutils

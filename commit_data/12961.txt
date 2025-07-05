@@ -11,7 +11,7 @@ Date:   Wed Apr 25 13:19:00 2012 +0200
     R=r, r
     CC=golang-dev
     https://golang.org/cl/5999053
-
+---
  src/pkg/exp/locale/collate/build/table.go | 109 ++++++++++++
  src/pkg/exp/locale/collate/collate.go     | 157 +++++++++++++++++
  src/pkg/exp/locale/collate/export.go      |  31 ++++
@@ -19,3 +19,799 @@ Date:   Wed Apr 25 13:19:00 2012 +0200
  src/pkg/exp/locale/collate/table.go       | 135 +++++++++++++++
  src/pkg/exp/locale/collate/table_test.go  | 278 ++++++++++++++++++++++++++++++
  6 files changed, 759 insertions(+)
+
+diff --git a/src/pkg/exp/locale/collate/build/table.go b/src/pkg/exp/locale/collate/build/table.go
+new file mode 100644
+index 0000000000..058aa67a71
+--- /dev/null
++++ b/src/pkg/exp/locale/collate/build/table.go
+@@ -0,0 +1,109 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package build
++
++import (
++	"fmt"
++	"io"
++	"reflect"
++)
++
++// table is an intermediate structure that roughly resembles the table in collate.
++// It implements the non-exported interface collate.tableInitializer
++type table struct {
++	index trie // main trie
++
++	// expansion info
++	expandElem []uint32
++
++	// contraction info
++	contractTries  contractTrieSet
++	contractElem   []uint32
++	maxContractLen int
++}
++
++func (t *table) TrieIndex() []uint16 {
++	return t.index.index
++}
++
++func (t *table) TrieValues() []uint32 {
++	return t.index.values
++}
++
++func (t *table) ExpandElems() []uint32 {
++	return t.expandElem
++}
++
++func (t *table) ContractTries() []struct{ l, h, n, i uint8 } {
++	return t.contractTries
++}
++
++func (t *table) ContractElems() []uint32 {
++	return t.contractElem
++}
++
++func (t *table) MaxContractLen() int {
++	return t.maxContractLen
++}
++
++// print writes the table as Go compilable code to w. It prefixes the
++// variable names with name. It returns the number of bytes written
++// and the size of the resulting table.
++func (t *table) print(w io.Writer, name string) (n, size int, err error) {
++	update := func(nn, sz int, e error) {
++		n += nn
++		if err == nil {
++			err = e
++		}
++		size += sz
++	}
++	p := func(f string, a ...interface{}) {
++		nn, e := fmt.Fprintf(w, f, a...)
++		update(nn, 0, e)
++	}
++	// Write main table.
++	size += int(reflect.TypeOf(*t).Size())
++	p("var %sTable = table{\n", name)
++	update(t.index.printStruct(w, name))
++	p(",\n")
++	p("%sExpandElem[:],\n", name)
++	update(t.contractTries.printStruct(w, name))
++	p(",\n")
++	p("%sContractElem[:],\n", name)
++	p("}\n\n")
++
++	// Write arrays needed for the structure.
++	update(printColElems(w, t.expandElem, name+"ExpandElem"))
++	update(printColElems(w, t.contractElem, name+"ContractElem"))
++	update(t.index.printArrays(w, name))
++	update(t.contractTries.printArray(w, name))
++
++	p("// Total size of %sTable is %d bytes\n", name, size)
++	return
++}
++
++func printColElems(w io.Writer, a []uint32, name string) (n, sz int, err error) {
++	p := func(f string, a ...interface{}) {
++		nn, e := fmt.Fprintf(w, f, a...)
++		n += nn
++		if err == nil {
++			err = e
++		}
++	}
++	sz = len(a) * int(reflect.TypeOf(uint32(0)).Size())
++	p("// %s: %d entries, %d bytes\n", name, len(a), sz)
++	p("var %s = [%d]uint32 {", name, len(a))
++	for i, c := range a {
++		switch {
++		case i%64 == 0:
++			p("\n\t// Block %d, offset 0x%x\n", i/64, i)
++		case (i%64)%6 == 0:
++			p("\n\t")
++		}
++		p("0x%.8X, ", c)
++	}
++	p("\n}\n\n")
++	return
++}
+diff --git a/src/pkg/exp/locale/collate/collate.go b/src/pkg/exp/locale/collate/collate.go
+new file mode 100644
+index 0000000000..8e15923020
+--- /dev/null
++++ b/src/pkg/exp/locale/collate/collate.go
+@@ -0,0 +1,157 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package collate contains types for comparing and sorting Unicode strings
++// according to a given collation order.  Package locale provides a high-level
++// interface to collation. Users should typically use that package instead.
++package collate
++
++import (
++	"exp/norm"
++)
++
++// Level identifies the collation comparison level.
++// The primary level corresponds to the basic sorting of text.
++// The secondary level corresponds to accents and related linguistic elements.
++// The tertiary level corresponds to casing and related concepts.
++// The quaternary level is derived from the other levels by the
++// various algorithms for handling variable elements.
++type Level int
++
++const (
++	Primary Level = iota
++	Secondary
++	Tertiary
++	Quaternary
++	Identity
++)
++
++// AlternateHandling identifies the various ways in which variables are handled.
++// A rune with a primary weight lower than the variable top is considered a
++// variable. 
++// See http://www.unicode.org/reports/tr10/#Variable_Weighting for details.
++type AlternateHandling int
++
++const (
++	// AltShifted sets variables to be ignorable for levels one through three and
++	// adds a fourth level based on the values of the ignored levels.
++	AltShifted AlternateHandling = iota
++
++	// AltNonIgnorable turns off special handling of variables.
++	AltNonIgnorable
++
++	// AltBlanked sets variables and all subsequent primary ignorables to be
++	// ignorable at all levels. This is identical to removing all variables
++	// and subsequent primary ignorables from the input.
++	AltBlanked
++
++	// AltShiftTrimmed is a slight variant of AltShifted that is used to
++	// emulate POSIX.
++	AltShiftTrimmed
++)
++
++// Collator provides functionality for comparing strings for a given
++// collation order.
++type Collator struct {
++	// See SetVariableTop.
++	variableTop uint32
++
++	// Strength sets the maximum level to use in comparison.
++	Strength Level
++
++	// Alternate specifies an alternative handling of variables.
++	Alternate AlternateHandling
++
++	// Backwards specifies the order of sorting at the secondary level.
++	// This option exists predominantly to support reverse sorting of accents in French.
++	Backwards bool
++
++	// With HiraganaQuaternary enabled, Hiragana codepoints will get lower values
++	// than all the other non-variable code points. Strength must be greater or
++	// equal to Quaternary for this to take effect.
++	HiraganaQuaternary bool
++
++	// If CaseLevel is true, a level consisting only of case characteristics will
++	// be inserted in front of the tertiary level.  To ignore accents but take
++	// cases into account, set Strength to Primary and CaseLevel to true.
++	CaseLevel bool
++
++	// If Numeric is true, any sequence of decimal digits (category is Nd) is sorted
++	// at a primary level with its numeric value.  For example, "A-21" < "A-123".
++	Numeric bool
++
++	f norm.Form
++
++	t *table
++}
++
++// SetVariableTop sets all runes with primary strength less than the primary
++// strength of r to be variable and thus affected by alternate handling.
++func (c *Collator) SetVariableTop(r rune) {
++	// TODO: implement
++}
++
++var (
++	Root = Collator{}
++)
++
++// Buffer holds reusable buffers that can be used during collation.
++// Reusing a Buffer for the various calls that accept it may avoid
++// unnecessary memory allocations.
++type Buffer struct {
++	// TODO: try various parameters and techniques, such as using
++	// a chan of buffers for a pool.
++	ba  [4096]byte
++	wa  [512]weights
++	key []byte
++	ce  []weights
++}
++
++func (b *Buffer) init() {
++	if b.ce == nil {
++		b.ce = b.wa[:0]
++		b.key = b.ba[:0]
++	} else {
++		b.ce = b.ce[:0]
++	}
++}
++
++// ResetKeys clears the buffer used for generated keys. Calling ResetKeys
++// invalidates keys previously obtained from Key or KeyFromString.
++func (b *Buffer) ResetKeys() {
++	b.ce = b.ce[:0]
++	b.key = b.key[:0]
++}
++
++// Compare returns an integer comparing the two byte slices.
++// The result will be 0 if a==b, -1 if a < b, and +1 if a > b.
++func (c *Collator) Compare(buf *Buffer, a, b []byte) int {
++	// TODO: implement
++	return 0
++}
++
++// CompareString returns an integer comparing the two strings.
++// The result will be 0 if a==b, -1 if a < b, and +1 if a > b.
++func (c *Collator) CompareString(buf *Buffer, a, b string) int {
++	// TODO: implement
++	return 0
++}
++
++// Key returns the collation key for str.
++// Passing the buffer buf may avoid memory allocations.
++// The returned slice will point to an allocation in Buffer and will retain
++// valid until the next call to buf.ResetKeys().
++func (c *Collator) Key(buf *Buffer, str []byte) []byte {
++	// TODO: implement
++	return nil
++}
++
++// KeyFromString returns the collation key for str.
++// Passing the buffer buf may avoid memory allocations.
++// The returned slice will point to an allocation in Buffer and will retain
++// valid until the next call to buf.ResetKeys().
++func (c *Collator) KeyFromString(buf *Buffer, str string) []byte {
++	// TODO: implement
++	return nil
++}
+diff --git a/src/pkg/exp/locale/collate/export.go b/src/pkg/exp/locale/collate/export.go
+new file mode 100644
+index 0000000000..914f0d8d85
+--- /dev/null
++++ b/src/pkg/exp/locale/collate/export.go
+@@ -0,0 +1,31 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package collate
++
++// Init is used by type Builder in exp/locale/collate/build/
++// to create Collator instances.  It is for internal use only.
++func Init(data interface{}) *Collator {
++	init, ok := data.(tableInitializer)
++	if !ok {
++		return nil
++	}
++	t := &table{}
++	t.index.index = init.TrieIndex()
++	t.index.values = init.TrieValues()
++	t.expandElem = init.ExpandElems()
++	t.contractTries = init.ContractTries()
++	t.contractElem = init.ContractElems()
++	t.maxContractLen = init.MaxContractLen()
++	return &Collator{t: t}
++}
++
++type tableInitializer interface {
++	TrieIndex() []uint16
++	TrieValues() []uint32
++	ExpandElems() []uint32
++	ContractTries() []struct{ l, h, n, i uint8 }
++	ContractElems() []uint32
++	MaxContractLen() int
++}
+diff --git a/src/pkg/exp/locale/collate/export_test.go b/src/pkg/exp/locale/collate/export_test.go
+new file mode 100644
+index 0000000000..edc647a4c4
+--- /dev/null
++++ b/src/pkg/exp/locale/collate/export_test.go
+@@ -0,0 +1,49 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package collate
++
++// Export for testing.
++
++import "fmt"
++
++type Weights struct {
++	Primary, Secondary, Tertiary int
++}
++
++func W(ce ...int) Weights {
++	w := Weights{ce[0], defaultSecondary, defaultTertiary}
++	if len(ce) > 1 {
++		w.Secondary = ce[1]
++	}
++	if len(ce) > 2 {
++		w.Tertiary = ce[2]
++	}
++	return w
++}
++func (w Weights) String() string {
++	return fmt.Sprintf("[%d.%d.%d]", w.Primary, w.Secondary, w.Tertiary)
++}
++
++type Table struct {
++	t *table
++	w []weights
++}
++
++func GetTable(c *Collator) *Table {
++	return &Table{c.t, nil}
++}
++
++func convertWeights(ws []weights) []Weights {
++	out := make([]Weights, len(ws))
++	for i, w := range ws {
++		out[i] = Weights{int(w.primary), int(w.secondary), int(w.tertiary)}
++	}
++	return out
++}
++
++func (t *Table) AppendNext(s []byte) ([]Weights, int) {
++	w, n := t.t.appendNext(nil, s)
++	return convertWeights(w), n
++}
+diff --git a/src/pkg/exp/locale/collate/table.go b/src/pkg/exp/locale/collate/table.go
+new file mode 100644
+index 0000000000..b662b72897
+--- /dev/null
++++ b/src/pkg/exp/locale/collate/table.go
+@@ -0,0 +1,135 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package collate
++
++import (
++	"exp/norm"
++	"unicode/utf8"
++)
++
++// table holds all collation data for a given collation ordering.
++type table struct {
++	index trie // main trie
++
++	// expansion info
++	expandElem []uint32
++
++	// contraction info
++	contractTries  contractTrieSet
++	contractElem   []uint32
++	maxContractLen int
++}
++
++// appendNext appends the weights corresponding to the next rune or 
++// contraction in s.  If a contraction is matched to a discontinuous
++// sequence of runes, the weights for the interstitial runes are 
++// appended as well.  It returns a new slice that includes the appended
++// weights and the number of bytes consumed from s.
++func (t *table) appendNext(w []weights, s []byte) ([]weights, int) {
++	v, sz := t.index.lookup(s)
++	ce := colElem(v)
++	tp := ce.ctype()
++	if tp == ceNormal {
++		w = append(w, getWeights(ce, s))
++	} else if tp == ceExpansionIndex {
++		w = t.appendExpansion(w, ce)
++	} else if tp == ceContractionIndex {
++		n := 0
++		w, n = t.matchContraction(w, ce, s[sz:])
++		sz += n
++	} else if tp == ceDecompose {
++		// Decompose using NFCK and replace tertiary weights.
++		t1, t2 := splitDecompose(ce)
++		i := len(w)
++		nfkd := norm.NFKD.Properties(s).Decomposition()
++		for p := 0; len(nfkd) > 0; nfkd = nfkd[p:] {
++			w, p = t.appendNext(w, nfkd)
++		}
++		w[i].tertiary = t1
++		if i++; i < len(w) {
++			w[i].tertiary = t2
++			for i++; i < len(w); i++ {
++				w[i].tertiary = maxTertiary
++			}
++		}
++	}
++	return w, sz
++}
++
++func getWeights(ce colElem, s []byte) weights {
++	if ce == 0 { // implicit
++		r, _ := utf8.DecodeRune(s)
++		return weights{
++			primary:   uint32(implicitPrimary(r)),
++			secondary: defaultSecondary,
++			tertiary:  defaultTertiary,
++		}
++	}
++	return splitCE(ce)
++}
++
++func (t *table) appendExpansion(w []weights, ce colElem) []weights {
++	i := splitExpandIndex(ce)
++	n := int(t.expandElem[i])
++	i++
++	for _, ce := range t.expandElem[i : i+n] {
++		w = append(w, splitCE(colElem(ce)))
++	}
++	return w
++}
++
++func (t *table) matchContraction(w []weights, ce colElem, suffix []byte) ([]weights, int) {
++	index, n, offset := splitContractIndex(ce)
++
++	scan := t.contractTries.scanner(index, n, suffix)
++	buf := [norm.MaxSegmentSize]byte{}
++	bufp := 0
++	p := scan.scan(0)
++
++	if !scan.done && p < len(suffix) && suffix[p] >= utf8.RuneSelf {
++		// By now we should have filtered most cases.
++		p0 := p
++		bufn := 0
++		rune := norm.NFC.Properties(suffix[p:])
++		p += rune.Size()
++		if prevCC := rune.TrailCCC(); prevCC != 0 {
++			// A gap may only occur in the last normalization segment.
++			// This also ensures that len(scan.s) < norm.MaxSegmentSize.
++			if end := norm.NFC.FirstBoundary(suffix[p:]); end != -1 {
++				scan.s = suffix[:p+end]
++			}
++			for p < len(suffix) && !scan.done && suffix[p] >= utf8.RuneSelf {
++				rune = norm.NFC.Properties(suffix[p:])
++				if ccc := rune.LeadCCC(); ccc == 0 || prevCC >= ccc {
++					break
++				}
++				prevCC = rune.TrailCCC()
++				if pp := scan.scan(p); pp != p {
++					// Copy the interstitial runes for later processing.
++					bufn += copy(buf[bufn:], suffix[p0:p])
++					if scan.pindex == pp {
++						bufp = bufn
++					}
++					p, p0 = pp, pp
++				} else {
++					p += rune.Size()
++				}
++			}
++		}
++	}
++	// Append weights for the matched contraction, which may be an expansion.
++	i, n := scan.result()
++	ce = colElem(t.contractElem[i+offset])
++	if ce.ctype() == ceNormal {
++		w = append(w, splitCE(ce))
++	} else {
++		w = t.appendExpansion(w, ce)
++	}
++	// Append weights for the runes in the segment not part of the contraction.
++	for b, p := buf[:bufp], 0; len(b) > 0; b = b[p:] {
++		w, p = t.appendNext(w, b)
++	}
++	return w, n
++}
+diff --git a/src/pkg/exp/locale/collate/table_test.go b/src/pkg/exp/locale/collate/table_test.go
+new file mode 100644
+index 0000000000..fc3a47f01b
+--- /dev/null
++++ b/src/pkg/exp/locale/collate/table_test.go
+@@ -0,0 +1,278 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package collate_test
++
++import (
++	"exp/locale/collate"
++	"exp/locale/collate/build"
++	"exp/norm"
++	"testing"
++)
++
++type Weights struct {
++	collate.Weights
++}
++
++type input struct {
++	str string
++	ces [][]int
++}
++
++type check struct {
++	in  string
++	n   int
++	out []Weights
++}
++
++type tableTest struct {
++	in  []input
++	chk []check
++}
++
++func w(ce ...int) Weights {
++	return Weights{collate.W(ce...)}
++}
++
++var defaults = w(0)
++
++func pt(p, t int) []int {
++	return []int{p, defaults.Secondary, t}
++}
++
++func makeTable(in []input) (*collate.Collator, error) {
++	b := build.NewBuilder()
++	for _, r := range in {
++		b.Add([]rune(r.str), r.ces)
++	}
++	return b.Build("")
++}
++
++// modSeq holds a seqeunce of modifiers in increasing order of CCC long enough
++// to cause a segment overflow if not handled correctly. The last rune in this
++// list has a CCC of 214.
++var modSeq = []rune{
++	0x05B1, 0x05B2, 0x05B3, 0x05B4, 0x05B5, 0x05B6, 0x05B7, 0x05B8, 0x05B9, 0x05BB,
++	0x05BC, 0x05BD, 0x05BF, 0x05C1, 0x05C2, 0xFB1E, 0x064B, 0x064C, 0x064D, 0x064E,
++	0x064F, 0x0650, 0x0651, 0x0652, 0x0670, 0x0711, 0x0C55, 0x0C56, 0x0E38, 0x0E48,
++	0x0EB8, 0x0EC8, 0x0F71, 0x0F72, 0x0F74, 0x0321, 0x1DCE,
++}
++
++var mods []input
++var modW = func() []Weights {
++	ws := []Weights{}
++	for _, r := range modSeq {
++		rune := norm.NFC.PropertiesString(string(r))
++		ws = append(ws, w(0, int(rune.CCC())))
++		mods = append(mods, input{string(r), [][]int{{0, int(rune.CCC())}}})
++	}
++	return ws
++}()
++
++var appendNextTests = []tableTest{
++	{ // test getWeights
++		[]input{
++			{"a", [][]int{{100}}},
++			{"b", [][]int{{105}}},
++			{"c", [][]int{{110}}},
++			{"ß", [][]int{{120}}},
++		},
++		[]check{
++			{"a", 1, []Weights{w(100)}},
++			{"b", 1, []Weights{w(105)}},
++			{"c", 1, []Weights{w(110)}},
++			{"d", 1, []Weights{w(0x4FBA4)}},
++			{"ab", 1, []Weights{w(100)}},
++			{"bc", 1, []Weights{w(105)}},
++			{"dd", 1, []Weights{w(0x4FBA4)}},
++			{"ß", 2, []Weights{w(120)}},
++		},
++	},
++	{ // test expansion
++		[]input{
++			{"u", [][]int{{100}}},
++			{"U", [][]int{{100}, {0, 25}}},
++			{"w", [][]int{{100}, {100}}},
++			{"W", [][]int{{100}, {0, 25}, {100}, {0, 25}}},
++		},
++		[]check{
++			{"u", 1, []Weights{w(100)}},
++			{"U", 1, []Weights{w(100), w(0, 25)}},
++			{"w", 1, []Weights{w(100), w(100)}},
++			{"W", 1, []Weights{w(100), w(0, 25), w(100), w(0, 25)}},
++		},
++	},
++	{ // test decompose
++		[]input{
++			{"D", [][]int{pt(104, 8)}},
++			{"z", [][]int{pt(130, 8)}},
++			{"\u030C", [][]int{{0, 40}}},                               // Caron
++			{"\u01C5", [][]int{pt(104, 9), pt(130, 4), {0, 40, 0x1F}}}, // ǅ = D+z+caron
++		},
++		[]check{
++			{"\u01C5", 2, []Weights{w(pt(104, 9)...), w(pt(130, 4)...), w(0, 40, 0x1F)}},
++		},
++	},
++	{ // test basic contraction
++		[]input{
++			{"a", [][]int{{100}}},
++			{"ab", [][]int{{101}}},
++			{"aab", [][]int{{101}, {101}}},
++			{"abc", [][]int{{102}}},
++			{"b", [][]int{{200}}},
++			{"c", [][]int{{300}}},
++			{"d", [][]int{{400}}},
++		},
++		[]check{
++			{"a", 1, []Weights{w(100)}},
++			{"aa", 1, []Weights{w(100)}},
++			{"aac", 1, []Weights{w(100)}},
++			{"ab", 2, []Weights{w(101)}},
++			{"abb", 2, []Weights{w(101)}},
++			{"aab", 3, []Weights{w(101), w(101)}},
++			{"aaba", 3, []Weights{w(101), w(101)}},
++			{"abc", 3, []Weights{w(102)}},
++			{"abcd", 3, []Weights{w(102)}},
++			{"d", 1, []Weights{w(400)}},
++		},
++	},
++	{ // test discontinuous contraction
++		append(mods, []input{
++			// modifiers; secondary weight equals ccc
++			{"\u0316", [][]int{{0, 220}}},
++			{"\u0317", [][]int{{0, 220}, {0, 220}}},
++			{"\u302D", [][]int{{0, 222}}},
++			{"\u302E", [][]int{{0, 224}}}, // used as starter
++			{"\u302F", [][]int{{0, 224}}}, // used as starter
++			{"\u18A9", [][]int{{0, 228}}},
++			{"\u0300", [][]int{{0, 230}}},
++			{"\u0301", [][]int{{0, 230}}},
++			{"\u0315", [][]int{{0, 232}}},
++			{"\u031A", [][]int{{0, 232}}},
++			{"\u035C", [][]int{{0, 233}}},
++			{"\u035F", [][]int{{0, 233}}},
++			{"\u035D", [][]int{{0, 234}}},
++			{"\u035E", [][]int{{0, 234}}},
++			{"\u0345", [][]int{{0, 240}}},
++
++			// starters
++			{"a", [][]int{{100}}},
++			{"b", [][]int{{200}}},
++			{"c", [][]int{{300}}},
++			{"\u03B1", [][]int{{900}}},
++
++			// contractions
++			{"a\u0300", [][]int{{101}}},
++			{"a\u0301", [][]int{{102}}},
++			{"a\u035E", [][]int{{110}}},
++			{"a\u035Eb\u035E", [][]int{{115}}},
++			{"ac\u035Eaca\u035E", [][]int{{116}}},
++			{"a\u035Db\u035D", [][]int{{117}}},
++			{"a\u0301\u035Db", [][]int{{120}}},
++			{"a\u0301\u035F", [][]int{{121}}},
++			{"a\u0301\u035Fb", [][]int{{122}}},
++			{"\u03B1\u0345", [][]int{{901}, {902}}},
++			{"\u302E\u18A9", [][]int{{0, 131}, {0, 132}}},
++			{"\u302F\u18A9", [][]int{{0, 130}}},
++		}...),
++		[]check{
++			{"ab", 1, []Weights{w(100)}},                              // closing segment
++			{"a\u0316\u0300b", 5, []Weights{w(101), w(0, 220)}},       // closing segment
++			{"a\u0316\u0300", 5, []Weights{w(101), w(0, 220)}},        // no closing segment
++			{"a\u0316\u0300\u035Cb", 5, []Weights{w(101), w(0, 220)}}, // completes before segment end
++			{"a\u0316\u0300\u035C", 5, []Weights{w(101), w(0, 220)}},  // completes before segment end
++
++			{"a\u0316\u0301b", 5, []Weights{w(102), w(0, 220)}},       // closing segment
++			{"a\u0316\u0301", 5, []Weights{w(102), w(0, 220)}},        // no closing segment
++			{"a\u0316\u0301\u035Cb", 5, []Weights{w(102), w(0, 220)}}, // completes before segment end
++			{"a\u0316\u0301\u035C", 5, []Weights{w(102), w(0, 220)}},  // completes before segment end
++
++			// match blocked by modifier with same ccc
++			{"a\u0301\u0315\u031A\u035Fb", 3, []Weights{w(102)}},
++
++			// multiple gaps
++			{"a\u0301\u035Db", 6, []Weights{w(120)}},
++			{"a\u0301\u035F", 5, []Weights{w(121)}},
++			{"a\u0301\u035Fb", 6, []Weights{w(122)}},
++			{"a\u0316\u0301\u035F", 7, []Weights{w(121), w(0, 220)}},
++			{"a\u0301\u0315\u035Fb", 7, []Weights{w(121), w(0, 232)}},
++			{"a\u0316\u0301\u0315\u035Db", 5, []Weights{w(102), w(0, 220)}},
++			{"a\u0316\u0301\u0315\u035F", 9, []Weights{w(121), w(0, 220), w(0, 232)}},
++			{"a\u0316\u0301\u0315\u035Fb", 9, []Weights{w(121), w(0, 220), w(0, 232)}},
++			{"a\u0316\u0301\u0315\u035F\u035D", 9, []Weights{w(121), w(0, 220), w(0, 232)}},
++			{"a\u0316\u0301\u0315\u035F\u035Db", 9, []Weights{w(121), w(0, 220), w(0, 232)}},
++
++			// handling of segment overflow
++			{ // just fits within segment
++				"a" + string(modSeq[:30]) + "\u0301",
++				3 + len(string(modSeq[:30])),
++				append([]Weights{w(102)}, modW[:30]...),
++			},
++			{"a" + string(modSeq[:31]) + "\u0301", 1, []Weights{w(100)}}, // overflow
++			{"a" + string(modSeq) + "\u0301", 1, []Weights{w(100)}},
++			{ // just fits within segment with two interstitial runes
++				"a" + string(modSeq[:28]) + "\u0301\u0315\u035F",
++				7 + len(string(modSeq[:28])),
++				append(append([]Weights{w(121)}, modW[:28]...), w(0, 232)),
++			},
++			{ // second half does not fit within segment
++				"a" + string(modSeq[:29]) + "\u0301\u0315\u035F",
++				3 + len(string(modSeq[:29])),
++				append([]Weights{w(102)}, modW[:29]...),
++			},
++
++			// discontinuity can only occur in last normalization segment
++			{"a\u035Eb\u035E", 6, []Weights{w(115)}},
++			{"a\u0316\u035Eb\u035E", 5, []Weights{w(110), w(0, 220)}},
++			{"a\u035Db\u035D", 6, []Weights{w(117)}},
++			{"a\u0316\u035Db\u035D", 1, []Weights{w(100)}},
++			{"a\u035Eb\u0316\u035E", 8, []Weights{w(115), w(0, 220)}},
++			{"a\u035Db\u0316\u035D", 8, []Weights{w(117), w(0, 220)}},
++			{"ac\u035Eaca\u035E", 9, []Weights{w(116)}},
++			{"a\u0316c\u035Eaca\u035E", 1, []Weights{w(100)}},
++			{"ac\u035Eac\u0316a\u035E", 1, []Weights{w(100)}},
++
++			// expanding contraction
++			{"\u03B1\u0345", 4, []Weights{w(901), w(902)}},
++
++			// Theoretical possibilities
++			// contraction within a gap
++			{"a\u302F\u18A9\u0301", 9, []Weights{w(102), w(0, 130)}},
++			// expansion within a gap
++			{"a\u0317\u0301", 5, []Weights{w(102), w(0, 220), w(0, 220)}},
++			{"a\u302E\u18A9\u0301", 9, []Weights{w(102), w(0, 131), w(0, 132)}},
++			{
++				"a\u0317\u302E\u18A9\u0301",
++				11,
++				[]Weights{w(102), w(0, 220), w(0, 220), w(0, 131), w(0, 132)},
++			},
++		},
++	},
++}
++
++func TestAppendNext(t *testing.T) {
++	for i, tt := range appendNextTests {
++		c, err := makeTable(tt.in)
++		if err != nil {
++			t.Errorf("%d: error creating table: %v", i, err)
++			continue
++		}
++		ct := collate.GetTable(c)
++		for j, chk := range tt.chk {
++			ws, n := ct.AppendNext([]byte(chk.in))
++			if n != chk.n {
++				t.Errorf("%d:%d: bytes consumed was %d; want %d", i, j, n, chk.n)
++			}
++			if len(ws) != len(chk.out) {
++				t.Errorf("%d:%d: len(ws) was %d; want %d (%v vs %v)\n%X", i, j, len(ws), len(chk.out), ws, chk.out, chk.in)
++				continue
++			}
++			for k, w := range ws {
++				if w != chk.out[k].Weights {
++					t.Errorf("%d:%d: Weights %d was %v; want %v", i, j, k, w, chk.out[k])
++				}
++			}
++		}
++	}
++}

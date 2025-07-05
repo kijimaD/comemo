@@ -7,6 +7,20 @@ Date:   Thu Nov 3 17:35:11 2011 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5305087
-
+---
  src/pkg/runtime/windows/amd64/callback.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/windows/amd64/callback.c b/src/pkg/runtime/windows/amd64/callback.c
+index d53822e2be..f6fde4fb88 100644
+--- a/src/pkg/runtime/windows/amd64/callback.c
++++ b/src/pkg/runtime/windows/amd64/callback.c
+@@ -98,7 +98,7 @@ runtime·compilecallback(Eface fn, bool /*cleanstack*/)
+ 
+ 	// JMP AX
+ 	*p++ = 0xFF;
+-	*p++ = 0xE0;
++	*p = 0xE0;
+ 
+ 	return &c->asmbody;
+ }

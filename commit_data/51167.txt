@@ -15,7 +15,74 @@ Date:   Sat Dec 11 16:17:46 2021 -0800
     Reviewed-by: Matt Layher <mdlayher@gmail.com>
     Trust: Matt Layher <mdlayher@gmail.com>
     Trust: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/netip/netip.go      | 21 ++++++++++++++++++---
  src/net/netip/netip_test.go |  6 ++++++
  2 files changed, 24 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/netip/netip.go b/src/net/netip/netip.go
+index 01f6fe5efa..dc5faff40f 100644
+--- a/src/net/netip/netip.go
++++ b/src/net/netip/netip.go
+@@ -769,7 +769,11 @@ func (ip Addr) String() string {
+ 	default:
+ 		if ip.Is4In6() {
+ 			// TODO(bradfitz): this could alloc less.
+-			return "::ffff:" + ip.Unmap().String()
++			if z := ip.Zone(); z != "" {
++				return "::ffff:" + ip.Unmap().String() + "%" + z
++			} else {
++				return "::ffff:" + ip.Unmap().String()
++			}
+ 		}
+ 		return ip.string6()
+ 	}
+@@ -787,7 +791,12 @@ func (ip Addr) AppendTo(b []byte) []byte {
+ 	default:
+ 		if ip.Is4In6() {
+ 			b = append(b, "::ffff:"...)
+-			return ip.Unmap().appendTo4(b)
++			b = ip.Unmap().appendTo4(b)
++			if z := ip.Zone(); z != "" {
++				b = append(b, '%')
++				b = append(b, z...)
++			}
++			return b
+ 		}
+ 		return ip.appendTo6(b)
+ 	}
+@@ -947,10 +956,16 @@ func (ip Addr) MarshalText() ([]byte, error) {
+ 		b := make([]byte, 0, max)
+ 		if ip.Is4In6() {
+ 			b = append(b, "::ffff:"...)
+-			return ip.Unmap().appendTo4(b), nil
++			b = ip.Unmap().appendTo4(b)
++			if z := ip.Zone(); z != "" {
++				b = append(b, '%')
++				b = append(b, z...)
++			}
++			return b, nil
+ 		}
+ 		return ip.appendTo6(b), nil
+ 	}
++
+ }
+ 
+ // UnmarshalText implements the encoding.TextUnmarshaler interface.
+diff --git a/src/net/netip/netip_test.go b/src/net/netip/netip_test.go
+index a6327f0dea..2105545139 100644
+--- a/src/net/netip/netip_test.go
++++ b/src/net/netip/netip_test.go
+@@ -114,6 +114,12 @@ func TestParseAddr(t *testing.T) {
+ 			ip:  MkAddr(Mk128(0x0001000200000000, 0x0000ffffc0a88cff), intern.Get("eth1")),
+ 			str: "1:2::ffff:c0a8:8cff%eth1",
+ 		},
++		// 4-in-6 with zone
++		{
++			in:  "::ffff:192.168.140.255%eth1",
++			ip:  MkAddr(Mk128(0, 0x0000ffffc0a88cff), intern.Get("eth1")),
++			str: "::ffff:192.168.140.255%eth1",
++		},
+ 		// IPv6 with capital letters.
+ 		{
+ 			in:  "FD9E:1A04:F01D::1",

@@ -17,7 +17,7 @@ Date:   Thu Sep 29 15:43:10 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/arm/ggen.go    |  4 +---
  src/cmd/compile/internal/arm64/ggen.go  |  4 +---
  src/cmd/compile/internal/gc/gsubr.go    | 14 +-------------
@@ -25,3 +25,115 @@ Date:   Thu Sep 29 15:43:10 2016 -0700
  src/cmd/compile/internal/mips64/ggen.go |  4 +---
  src/cmd/compile/internal/ppc64/ggen.go  |  4 +---
  6 files changed, 5 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm/ggen.go b/src/cmd/compile/internal/arm/ggen.go
+index 07278d15bd..6dce0a4e80 100644
+--- a/src/cmd/compile/internal/arm/ggen.go
++++ b/src/cmd/compile/internal/arm/ggen.go
+@@ -74,9 +74,7 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, r0 *uint32) *obj.Pr
+ 		p = gc.Appendpp(p, arm.AADD, obj.TYPE_CONST, 0, 4+frame+lo, obj.TYPE_REG, arm.REG_R1, 0)
+ 		p.Reg = arm.REGSP
+ 		p = gc.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
+-		f := gc.Sysfunc("duffzero")
+-		gc.Naddr(&p.To, f)
+-		gc.Afunclit(&p.To, f)
++		gc.Naddr(&p.To, gc.Sysfunc("duffzero"))
+ 		p.To.Offset = 4 * (128 - cnt/int64(gc.Widthptr))
+ 	} else {
+ 		p = gc.Appendpp(p, arm.AADD, obj.TYPE_CONST, 0, 4+frame+lo, obj.TYPE_REG, arm.REG_R1, 0)
+diff --git a/src/cmd/compile/internal/arm64/ggen.go b/src/cmd/compile/internal/arm64/ggen.go
+index 05ba855440..16813b642a 100644
+--- a/src/cmd/compile/internal/arm64/ggen.go
++++ b/src/cmd/compile/internal/arm64/ggen.go
+@@ -81,9 +81,7 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
+ 		p = gc.Appendpp(p, arm64.AADD, obj.TYPE_CONST, 0, 8+frame+lo-8, obj.TYPE_REG, arm64.REGRT1, 0)
+ 		p.Reg = arm64.REGRT1
+ 		p = gc.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
+-		f := gc.Sysfunc("duffzero")
+-		gc.Naddr(&p.To, f)
+-		gc.Afunclit(&p.To, f)
++		gc.Naddr(&p.To, gc.Sysfunc("duffzero"))
+ 		p.To.Offset = 4 * (128 - cnt/int64(gc.Widthptr))
+ 	} else {
+ 		p = gc.Appendpp(p, arm64.AMOVD, obj.TYPE_CONST, 0, 8+frame+lo-8, obj.TYPE_REG, arm64.REGTMP, 0)
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index cd9c7e974e..10e94754be 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -52,13 +52,6 @@ func Prog(as obj.As) *obj.Prog {
+ 	return p
+ }
+ 
+-func Afunclit(a *obj.Addr, n *Node) {
+-	if a.Type == obj.TYPE_ADDR && a.Name == obj.NAME_EXTERN {
+-		a.Type = obj.TYPE_MEM
+-		a.Sym = Linksym(n.Sym)
+-	}
+-}
+-
+ func Clearp(p *obj.Prog) {
+ 	obj.Nopout(p)
+ 	p.As = obj.AEND
+@@ -210,7 +203,7 @@ func Naddr(a *obj.Addr, n *Node) {
+ 		default:
+ 			Fatalf("naddr: ONAME class %v %d\n", n.Sym, n.Class)
+ 
+-		case PEXTERN:
++		case PEXTERN, PFUNC:
+ 			a.Name = obj.NAME_EXTERN
+ 
+ 		case PAUTO:
+@@ -218,11 +211,6 @@ func Naddr(a *obj.Addr, n *Node) {
+ 
+ 		case PPARAM, PPARAMOUT:
+ 			a.Name = obj.NAME_PARAM
+-
+-		case PFUNC:
+-			a.Name = obj.NAME_EXTERN
+-			a.Type = obj.TYPE_ADDR
+-			s = funcsym(s)
+ 		}
+ 
+ 		a.Sym = Linksym(s)
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index a43ec32176..c7530ab7f2 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -383,7 +383,6 @@ func compile(fn *Node) {
+ 		nam = nil
+ 	}
+ 	ptxt := Gins(obj.ATEXT, nam, &nod1)
+-	Afunclit(&ptxt.From, Curfn.Func.Nname)
+ 	ptxt.From3 = new(obj.Addr)
+ 	if fn.Func.Dupok {
+ 		ptxt.From3.Offset |= obj.DUPOK
+diff --git a/src/cmd/compile/internal/mips64/ggen.go b/src/cmd/compile/internal/mips64/ggen.go
+index d1b5a118dc..06f3474885 100644
+--- a/src/cmd/compile/internal/mips64/ggen.go
++++ b/src/cmd/compile/internal/mips64/ggen.go
+@@ -74,9 +74,7 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
+ 		p = gc.Appendpp(p, mips.AADDV, obj.TYPE_CONST, 0, 8+frame+lo-8, obj.TYPE_REG, mips.REGRT1, 0)
+ 		p.Reg = mips.REGSP
+ 		p = gc.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
+-		f := gc.Sysfunc("duffzero")
+-		gc.Naddr(&p.To, f)
+-		gc.Afunclit(&p.To, f)
++		gc.Naddr(&p.To, gc.Sysfunc("duffzero"))
+ 		p.To.Offset = 8 * (128 - cnt/int64(gc.Widthptr))
+ 	} else {
+ 		//	ADDV	$(8+frame+lo-8), SP, r1
+diff --git a/src/cmd/compile/internal/ppc64/ggen.go b/src/cmd/compile/internal/ppc64/ggen.go
+index 9e51c28735..b3ce968567 100644
+--- a/src/cmd/compile/internal/ppc64/ggen.go
++++ b/src/cmd/compile/internal/ppc64/ggen.go
+@@ -71,9 +71,7 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
+ 		p = gc.Appendpp(p, ppc64.AADD, obj.TYPE_CONST, 0, gc.Ctxt.FixedFrameSize()+frame+lo-8, obj.TYPE_REG, ppc64.REGRT1, 0)
+ 		p.Reg = ppc64.REGSP
+ 		p = gc.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
+-		f := gc.Sysfunc("duffzero")
+-		gc.Naddr(&p.To, f)
+-		gc.Afunclit(&p.To, f)
++		gc.Naddr(&p.To, gc.Sysfunc("duffzero"))
+ 		p.To.Offset = 4 * (128 - cnt/int64(gc.Widthptr))
+ 	} else {
+ 		p = gc.Appendpp(p, ppc64.AMOVD, obj.TYPE_CONST, 0, gc.Ctxt.FixedFrameSize()+frame+lo-8, obj.TYPE_REG, ppc64.REGTMP, 0)

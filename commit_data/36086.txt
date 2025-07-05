@@ -61,6 +61,24 @@ Date:   Tue Apr 3 13:46:36 2018 +0200
     Reviewed-on: https://go-review.googlesource.com/104415
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/schedule.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index 8109908475..ff8bac8409 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -301,7 +301,11 @@ func storeOrder(values []*Value, sset *sparseSet, storeNumber []int32) []*Value
+ 	f := values[0].Block.Func
+ 
+ 	// find all stores
+-	var stores []*Value // members of values that are store values
++
++	// Members of values that are store values.
++	// A constant bound allows this to be stack-allocated. 64 is
++	// enough to cover almost every storeOrder call.
++	stores := make([]*Value, 0, 64)
+ 	hasNilCheck := false
+ 	sset.clear() // sset is the set of stores that are used in other values
+ 	for _, v := range values {

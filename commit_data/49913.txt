@@ -19,7 +19,59 @@ Date:   Mon Sep 20 16:41:06 2021 -0700
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/cmd/go/internal/cfg/cfg.go               |  3 ---
  src/cmd/go/testdata/script/test_fuzz_tag.txt | 31 ----------------------------
  2 files changed, 34 deletions(-)
+
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index dd0e8cbbd6..b9632ea3c9 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -61,9 +61,6 @@ var (
+ func defaultContext() build.Context {
+ 	ctxt := build.Default
+ 
+-	// TODO(#47037): remove this tag before merging to master.
+-	ctxt.BuildTags = []string{"gofuzzbeta"}
+-
+ 	ctxt.JoinPath = filepath.Join // back door to say "do not use go command"
+ 
+ 	ctxt.GOROOT = findGOROOT()
+diff --git a/src/cmd/go/testdata/script/test_fuzz_tag.txt b/src/cmd/go/testdata/script/test_fuzz_tag.txt
+deleted file mode 100644
+index 07ed5d6d61..0000000000
+--- a/src/cmd/go/testdata/script/test_fuzz_tag.txt
++++ /dev/null
+@@ -1,31 +0,0 @@
+-# Check that the gofuzzbeta tag is enabled by default and can be disabled.
+-# TODO(jayconrod,katiehockman): before merging to master, restore the old
+-# default and delete this test.
+-
+-[short] skip
+-
+-go test -list=.
+-stdout Test
+-stdout Fuzz
+-
+-go test -tags=
+-
+--- go.mod --
+-module fuzz
+-
+-go 1.17
+--- fuzz_test.go --
+-// +build gofuzzbeta
+-
+-package fuzz
+-
+-import "testing"
+-
+-func Fuzz(f *testing.F) {
+-	f.Add([]byte(nil))
+-	f.Fuzz(func(*testing.T, []byte) {})
+-}
+-
+-func Test(*testing.T) {}
+--- empty_test.go --
+-package fuzz

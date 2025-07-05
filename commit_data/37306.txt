@@ -11,6 +11,27 @@ Date:   Tue Jul 17 22:59:35 2018 +0000
     GitHub-Pull-Request: golang/go#26427
     Reviewed-on: https://go-review.googlesource.com/124555
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/exec_linux_test.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/syscall/exec_linux_test.go b/src/syscall/exec_linux_test.go
+index 17df8f445e..f551e87736 100644
+--- a/src/syscall/exec_linux_test.go
++++ b/src/syscall/exec_linux_test.go
+@@ -84,6 +84,15 @@ func checkUserNS(t *testing.T) {
+ 			t.Skip("kernel doesn't support user namespaces")
+ 		}
+ 	}
++
++	// On Centos 7.5+, user namespaces are disabled if user.max_user_namespaces = 0
++	if _, err := os.Stat("/proc/sys/user/max_user_namespaces"); err == nil {
++		buf, errRead := ioutil.ReadFile("/proc/sys/user/max_user_namespaces")
++		if errRead == nil && buf[0] == '0' {
++			t.Skip("kernel doesn't support user namespaces")
++		}
++	}
++
+ 	// When running under the Go continuous build, skip tests for
+ 	// now when under Kubernetes. (where things are root but not quite)
+ 	// Both of these are our own environment variables.

@@ -15,8 +15,78 @@ Date:   Sat Apr 27 11:02:31 2019 +1000
     Change-Id: I7b1633013d563f7c06c1f12a9be75122106834f9
     Reviewed-on: https://go-review.googlesource.com/c/go/+/174123
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/cmd/go/internal/renameio/error.go         | 12 ++++++++++++
  src/cmd/go/internal/renameio/error_windows.go | 23 +++++++++++++++++++++++
  src/cmd/go/internal/renameio/renameio.go      |  4 +---
  3 files changed, 36 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/renameio/error.go b/src/cmd/go/internal/renameio/error.go
+new file mode 100644
+index 0000000000..14943e3e6e
+--- /dev/null
++++ b/src/cmd/go/internal/renameio/error.go
+@@ -0,0 +1,12 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !windows
++
++package renameio
++
++// isAccessDeniedError always returns false on non-windows.
++func isAccessDeniedError(err error) bool {
++	return false
++}
+diff --git a/src/cmd/go/internal/renameio/error_windows.go b/src/cmd/go/internal/renameio/error_windows.go
+new file mode 100644
+index 0000000000..30d0879e7f
+--- /dev/null
++++ b/src/cmd/go/internal/renameio/error_windows.go
+@@ -0,0 +1,23 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package renameio
++
++import (
++	"os"
++	"syscall"
++)
++
++// isAccessDeniedError returns true if err was caused by ERROR_ACCESS_DENIED.
++func isAccessDeniedError(err error) bool {
++	linkerr, ok := err.(*os.LinkError)
++	if !ok {
++		return false
++	}
++	errno, ok := linkerr.Err.(syscall.Errno)
++	if !ok {
++		return false
++	}
++	return errno == syscall.ERROR_ACCESS_DENIED
++}
+diff --git a/src/cmd/go/internal/renameio/renameio.go b/src/cmd/go/internal/renameio/renameio.go
+index 3f3f1708fa..0bd40a544a 100644
+--- a/src/cmd/go/internal/renameio/renameio.go
++++ b/src/cmd/go/internal/renameio/renameio.go
+@@ -11,8 +11,6 @@ import (
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+-	"runtime"
+-	"strings"
+ 	"time"
+ )
+ 
+@@ -66,7 +64,7 @@ func WriteToFile(filename string, data io.Reader) (err error) {
+ 	var start time.Time
+ 	for {
+ 		err := os.Rename(f.Name(), filename)
+-		if err == nil || runtime.GOOS != "windows" || !strings.HasSuffix(err.Error(), "Access is denied.") {
++		if err == nil || !isAccessDeniedError(err) {
+ 			return err
+ 		}
+ 

@@ -21,6 +21,20 @@ Date:   Fri Nov 22 15:24:54 2024 -0800
     Reviewed-by: Jayanth Krishnamurthy <jayanth.krishnamurthy@ibm.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/internal/sys/arch.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/sys/arch.go b/src/cmd/internal/sys/arch.go
+index 2e35284137..ee7089b544 100644
+--- a/src/cmd/internal/sys/arch.go
++++ b/src/cmd/internal/sys/arch.go
+@@ -208,7 +208,7 @@ var ArchPPC64 = &Arch{
+ 	RegSize:       8,
+ 	MinLC:         4,
+ 	Alignment:     1,
+-	CanMergeLoads: false,
++	CanMergeLoads: true,
+ 	HasLR:         true,
+ 	// PIC code on ppc64le requires 32 bytes of stack, and it's
+ 	// easier to just use that much stack always.

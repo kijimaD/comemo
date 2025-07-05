@@ -11,10 +11,73 @@ Date:   Wed Jan 13 21:02:12 2016 -0500
     Change-Id: I1b38cca0125689bc08e4e1bdd0d0c140b1ea079a
     Reviewed-on: https://go-review.googlesource.com/18641
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/arm/peep.go    | 1 +
  src/cmd/compile/internal/arm64/peep.go  | 1 +
  src/cmd/compile/internal/mips64/peep.go | 1 +
  src/cmd/compile/internal/ppc64/peep.go  | 1 +
  src/cmd/internal/obj/util.go            | 2 +-
  5 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/arm/peep.go b/src/cmd/compile/internal/arm/peep.go
+index d7a9c5f67d..bc49ebcd02 100644
+--- a/src/cmd/compile/internal/arm/peep.go
++++ b/src/cmd/compile/internal/arm/peep.go
+@@ -1366,6 +1366,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
+ 		obj.AFUNCDATA,
+ 		obj.AVARDEF,
+ 		obj.AVARKILL,
++		obj.AVARLIVE,
+ 		obj.AUSEFIELD:
+ 		return 0
+ 	}
+diff --git a/src/cmd/compile/internal/arm64/peep.go b/src/cmd/compile/internal/arm64/peep.go
+index b61ac6e790..daa626f17b 100644
+--- a/src/cmd/compile/internal/arm64/peep.go
++++ b/src/cmd/compile/internal/arm64/peep.go
+@@ -711,6 +711,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
+ 		obj.AFUNCDATA,
+ 		obj.AVARDEF,
+ 		obj.AVARKILL,
++		obj.AVARLIVE,
+ 		obj.AUSEFIELD:
+ 		return 0
+ 	}
+diff --git a/src/cmd/compile/internal/mips64/peep.go b/src/cmd/compile/internal/mips64/peep.go
+index 3d82c81a6f..f97be60a2a 100644
+--- a/src/cmd/compile/internal/mips64/peep.go
++++ b/src/cmd/compile/internal/mips64/peep.go
+@@ -688,6 +688,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
+ 		obj.AFUNCDATA,
+ 		obj.AVARDEF,
+ 		obj.AVARKILL,
++		obj.AVARLIVE,
+ 		obj.AUSEFIELD:
+ 		return 0
+ 	}
+diff --git a/src/cmd/compile/internal/ppc64/peep.go b/src/cmd/compile/internal/ppc64/peep.go
+index fadaa4a971..1ff3109a49 100644
+--- a/src/cmd/compile/internal/ppc64/peep.go
++++ b/src/cmd/compile/internal/ppc64/peep.go
+@@ -953,6 +953,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
+ 		obj.AFUNCDATA,
+ 		obj.AVARDEF,
+ 		obj.AVARKILL,
++		obj.AVARLIVE,
+ 		obj.AUSEFIELD:
+ 		return 0
+ 	}
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 1a974297ff..51101c5ce0 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -639,8 +639,8 @@ var Anames = []string{
+ 	"UNDEF",
+ 	"USEFIELD",
+ 	"VARDEF",
+-	"VARLIVE",
+ 	"VARKILL",
++	"VARLIVE",
+ }
+ 
+ func Bool2int(b bool) int {

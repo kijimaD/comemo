@@ -11,6 +11,22 @@ Date:   Tue Mar 15 09:14:22 2016 -0400
     Change-Id: Ie5997934b93c7663d7b8432244fad47bb5d3ffbe
     Reviewed-on: https://go-review.googlesource.com/20714
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 5526aec8f9..e663907e26 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1870,7 +1870,9 @@ func TestShadowingLogic(t *testing.T) {
+ 	}
+ 	// The output will have makeImportValid applies, but we only
+ 	// bother to deal with characters we might reasonably see.
+-	pwdForwardSlash = strings.Replace(pwdForwardSlash, ":", "_", -1)
++	for _, r := range " :" {
++		pwdForwardSlash = strings.Replace(pwdForwardSlash, string(r), "_", -1)
++	}
+ 	want := "(_" + pwdForwardSlash + "/testdata/shadow/root1/src/math) (" + filepath.Join(runtime.GOROOT(), "src", "math") + ")"
+ 	if strings.TrimSpace(tg.getStdout()) != want {
+ 		t.Error("shadowed math is not shadowed; looking for", want)

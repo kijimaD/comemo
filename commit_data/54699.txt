@@ -12,6 +12,15 @@ Date:   Wed Nov 9 17:06:02 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  api/next/54299.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/api/next/54299.txt b/api/next/54299.txt
+index 19bac0cf17..49dd68fbb3 100644
+--- a/api/next/54299.txt
++++ b/api/next/54299.txt
+@@ -1 +1 @@
+-pkg net/http, type Transport struct, OnProxyConnectResponse func(context.Context, *url.URL, *Request, *Response) error #54299
+\ No newline at end of file
++pkg net/http, type Transport struct, OnProxyConnectResponse func(context.Context, *url.URL, *Request, *Response) error #54299

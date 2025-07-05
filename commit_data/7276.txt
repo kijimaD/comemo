@@ -7,6 +7,22 @@ Date:   Sat Jan 29 22:57:19 2011 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4073043
-
+---
  src/pkg/runtime/cgo/Makefile | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/runtime/cgo/Makefile b/src/pkg/runtime/cgo/Makefile
+index a2ce902d68..768fe80ace 100644
+--- a/src/pkg/runtime/cgo/Makefile
++++ b/src/pkg/runtime/cgo/Makefile
+@@ -10,6 +10,10 @@ ifeq ($(GOARCH),arm)
+ ENABLED:=0
+ endif
+ 
++ifeq ($(DISABLE_CGO),1)
++ENABLED:=0
++endif
++
+ TARG=runtime/cgo
+ 
+ GOFILES=\

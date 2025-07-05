@@ -21,7 +21,7 @@ Date:   Thu Apr 3 19:05:17 2014 -0400
     R=iant
     CC=bradfitz, golang-codereviews, khr, r
     https://golang.org/cl/83740044
-
+---
  src/cmd/gc/builtin.c        |  1 +
  src/cmd/gc/go.h             |  1 +
  src/cmd/gc/order.c          | 24 +++++++++++++++++++++---
@@ -30,3 +30,173 @@ Date:   Thu Apr 3 19:05:17 2014 -0400
  src/pkg/runtime/map_test.go | 37 +++++++++++++++++++++++++++++++++++++
  src/pkg/runtime/string.goc  | 19 +++++++++++++++++++
  7 files changed, 85 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c b/src/cmd/gc/builtin.c
+index 1f4aed5baa..5ca5aeb770 100644
+--- a/src/cmd/gc/builtin.c
++++ b/src/cmd/gc/builtin.c
+@@ -33,6 +33,7 @@ char *runtimeimport =
+ 	"func @\"\".eqstring (? string, ? string) (? bool)\n"
+ 	"func @\"\".intstring (? int64) (? string)\n"
+ 	"func @\"\".slicebytetostring (? []byte) (? string)\n"
++	"func @\"\".slicebytetostringtmp (? []byte) (? string)\n"
+ 	"func @\"\".slicerunetostring (? []rune) (? string)\n"
+ 	"func @\"\".stringtoslicebyte (? string) (? []byte)\n"
+ 	"func @\"\".stringtoslicerune (? string) (? []rune)\n"
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 01dfe7fed7..125ae9cf44 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -450,6 +450,7 @@ enum
+ 	OANDAND,	// b0 && b1
+ 	OAPPEND,	// append
+ 	OARRAYBYTESTR,	// string(bytes)
++	OARRAYBYTESTRTMP, // string(bytes) ephemeral
+ 	OARRAYRUNESTR,	// string(runes)
+ 	OSTRARRAYBYTE,	// []byte(s)
+ 	OSTRARRAYRUNE,	// []rune(s)
+diff --git a/src/cmd/gc/order.c b/src/cmd/gc/order.c
+index 5fec73854d..29eb242b10 100644
+--- a/src/cmd/gc/order.c
++++ b/src/cmd/gc/order.c
+@@ -565,9 +565,13 @@ orderstmt(Node *n, Order *order)
+ 		// and make sure OINDEXMAP is not copied out.
+ 		t = marktemp(order);
+ 		orderexprlist(n->list, order);
+-		orderexpr(&n->rlist->n->left, order);
+-		orderexpr(&n->rlist->n->right, order);
+-		orderaddrtemp(&n->rlist->n->right, order);
++		r = n->rlist->n;
++		orderexpr(&r->left, order);
++		orderexpr(&r->right, order);
++		// See case OINDEXMAP below.
++		if(r->right->op == OARRAYBYTESTR)
++			r->right->op = OARRAYBYTESTRTMP;
++		orderaddrtemp(&r->right, order);
+ 		ordermapassign(n, order);
+ 		cleantemp(t, order);
+ 		break;
+@@ -935,6 +939,20 @@ orderexpr(Node **np, Order *order)
+ 		// key must be addressable
+ 		orderexpr(&n->left, order);
+ 		orderexpr(&n->right, order);
++
++		// For x = m[string(k)] where k is []byte, the allocation of
++		// backing bytes for the string can be avoided by reusing
++		// the []byte backing array. This is a special case that it
++		// would be nice to handle more generally, but because
++		// there are no []byte-keyed maps, this specific case comes
++		// up in important cases in practice. See issue 3512.
++		// Nothing can change the []byte we are not copying before
++		// the map index, because the map access is going to
++		// be forced to happen immediately following this
++		// conversion (by the ordercopyexpr a few lines below).
++		if(n->etype == 0 && n->right->op == OARRAYBYTESTR)
++			n->right->op = OARRAYBYTESTRTMP;
++
+ 		orderaddrtemp(&n->right, order);
+ 		if(n->etype == 0) {
+ 			// use of value (not being assigned);
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 9ea4a79fd3..fb5c2a150e 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -47,6 +47,7 @@ func cmpstring(string, string) int
+ func eqstring(string, string) bool
+ func intstring(int64) string
+ func slicebytetostring([]byte) string
++func slicebytetostringtmp([]byte) string
+ func slicerunetostring([]rune) string
+ func stringtoslicebyte(string) []byte
+ func stringtoslicerune(string) []rune
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 1ffe8937f8..3bb48fdbbf 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1316,6 +1316,11 @@ walkexpr(Node **np, NodeList **init)
+ 		n = mkcall("slicebytetostring", n->type, init, n->left);
+ 		goto ret;
+ 
++	case OARRAYBYTESTRTMP:
++		// slicebytetostringtmp([]byte) string;
++		n = mkcall("slicebytetostringtmp", n->type, init, n->left);
++		goto ret;
++
+ 	case OARRAYRUNESTR:
+ 		// slicerunetostring([]rune) string;
+ 		n = mkcall("slicerunetostring", n->type, init, n->left);
+diff --git a/src/pkg/runtime/map_test.go b/src/pkg/runtime/map_test.go
+index 9c703ba362..e4e8383493 100644
+--- a/src/pkg/runtime/map_test.go
++++ b/src/pkg/runtime/map_test.go
+@@ -438,3 +438,40 @@ func TestMapIterOrder(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestMapStringBytesLookup(t *testing.T) {
++	// Use large string keys to avoid small-allocation coalescing,
++	// which can cause AllocsPerRun to report lower counts than it should.
++	m := map[string]int{
++		"1000000000000000000000000000000000000000000000000": 1,
++		"2000000000000000000000000000000000000000000000000": 2,
++	}
++	buf := []byte("1000000000000000000000000000000000000000000000000")
++	if x := m[string(buf)]; x != 1 {
++		t.Errorf(`m[string([]byte("1"))] = %d, want 1`, x)
++	}
++	buf[0] = '2'
++	if x := m[string(buf)]; x != 2 {
++		t.Errorf(`m[string([]byte("2"))] = %d, want 2`, x)
++	}
++
++	var x int
++	n := testing.AllocsPerRun(100, func() {
++		x += m[string(buf)]
++	})
++	if n != 0 {
++		t.Errorf("AllocsPerRun for m[string(buf)] = %v, want 0", n)
++	}
++
++	x = 0
++	n = testing.AllocsPerRun(100, func() {
++		y, ok := m[string(buf)]
++		if !ok {
++			panic("!ok")
++		}
++		x += y
++	})
++	if n != 0 {
++		t.Errorf("AllocsPerRun for x,ok = m[string(buf)] = %v, want 0", n)
++	}
++}
+diff --git a/src/pkg/runtime/string.goc b/src/pkg/runtime/string.goc
+index 89b9130c08..97a69d07b1 100644
+--- a/src/pkg/runtime/string.goc
++++ b/src/pkg/runtime/string.goc
+@@ -294,6 +294,25 @@ func slicebytetostring(b Slice) (s String) {
+ 	runtime·memmove(s.str, b.array, s.len);
+ }
+ 
++func slicebytetostringtmp(b Slice) (s String) {
++	void *pc;
++
++	if(raceenabled) {
++		pc = runtime·getcallerpc(&b);
++		runtime·racereadrangepc(b.array, b.len, pc, runtime·slicebytetostringtmp);
++	}
++	
++	// Return a "string" referring to the actual []byte bytes.
++	// This is only for use by internal compiler optimizations
++	// that know that the string form will be discarded before
++	// the calling goroutine could possibly modify the original
++	// slice or synchronize with another goroutine.
++	// Today, the only such case is a m[string(k)] lookup where
++	// m is a string-keyed map and k is a []byte.
++	s.str = b.array;
++	s.len = b.len;
++}
++
+ func stringtoslicebyte(s String) (b Slice) {
+ 	uintptr cap;
+ 

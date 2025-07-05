@@ -11,6 +11,29 @@ Date:   Fri Oct 19 18:09:42 2018 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/xcoff/file.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/xcoff/file.go b/src/cmd/internal/xcoff/file.go
+index 86a85c388c..0923b9fcf3 100644
+--- a/src/cmd/internal/xcoff/file.go
++++ b/src/cmd/internal/xcoff/file.go
+@@ -355,7 +355,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 
+ 		// Read csect auxiliary entry (by convention, it is the last).
+ 		if !needAuxFcn {
+-			if _, err := sr.Seek(int64(numaux-1)*SYMESZ, io.SeekCurrent); err != nil {
++			if _, err := sr.Seek(int64(numaux-1)*SYMESZ, os.SEEK_CUR); err != nil {
+ 				return nil, err
+ 			}
+ 		}
+@@ -382,7 +382,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 		f.Symbols = append(f.Symbols, sym)
+ 	skip:
+ 		i += numaux // Skip auxiliary entries
+-		if _, err := sr.Seek(int64(numaux)*SYMESZ, io.SeekCurrent); err != nil {
++		if _, err := sr.Seek(int64(numaux)*SYMESZ, os.SEEK_CUR); err != nil {
+ 			return nil, err
+ 		}
+ 	}

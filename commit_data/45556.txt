@@ -90,8 +90,254 @@ Date:   Fri Oct 23 12:11:35 2020 +1100
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Robert Griesemer <gri@golang.org>
     Trust: Nigel Tao <nigeltao@golang.org>
-
+---
  src/strconv/atof.go      |  45 ++++-----------
  src/strconv/atof_test.go |   6 ++
  src/strconv/extfloat.go  | 143 -----------------------------------------------
  3 files changed, 18 insertions(+), 176 deletions(-)
+
+diff --git a/src/strconv/atof.go b/src/strconv/atof.go
+index e61eeab1c3..c0385170cb 100644
+--- a/src/strconv/atof.go
++++ b/src/strconv/atof.go
+@@ -576,24 +576,14 @@ func atof32(s string) (f float32, n int, err error) {
+ 		return float32(f), n, err
+ 	}
+ 
+-	if optimize {
+-		// Try pure floating-point arithmetic conversion.
+-		if !trunc {
+-			if f, ok := atof32exact(mantissa, exp, neg); ok {
+-				return f, n, nil
+-			} else if f, ok = eiselLemire32(mantissa, exp, neg); ok {
+-				return f, n, nil
+-			}
++	if optimize && !trunc {
++		// Try pure floating-point arithmetic conversion, and if that fails,
++		// the Eisel-Lemire algorithm.
++		if f, ok := atof32exact(mantissa, exp, neg); ok {
++			return f, n, nil
+ 		}
+-		// Try another fast path.
+-		ext := new(extFloat)
+-		if ok := ext.AssignDecimal(mantissa, exp, neg, trunc, &float32info); ok {
+-			b, ovf := ext.floatBits(&float32info)
+-			f = math.Float32frombits(uint32(b))
+-			if ovf {
+-				err = rangeError(fnParseFloat, s)
+-			}
+-			return f, n, err
++		if f, ok := eiselLemire32(mantissa, exp, neg); ok {
++			return f, n, nil
+ 		}
+ 	}
+ 
+@@ -625,25 +615,14 @@ func atof64(s string) (f float64, n int, err error) {
+ 		return f, n, err
+ 	}
+ 
+-	if optimize {
++	if optimize && !trunc {
+ 		// Try pure floating-point arithmetic conversion, and if that fails,
+ 		// the Eisel-Lemire algorithm.
+-		if !trunc {
+-			if f, ok := atof64exact(mantissa, exp, neg); ok {
+-				return f, n, nil
+-			} else if f, ok = eiselLemire64(mantissa, exp, neg); ok {
+-				return f, n, nil
+-			}
++		if f, ok := atof64exact(mantissa, exp, neg); ok {
++			return f, n, nil
+ 		}
+-		// Try another fast path.
+-		ext := new(extFloat)
+-		if ok := ext.AssignDecimal(mantissa, exp, neg, trunc, &float64info); ok {
+-			b, ovf := ext.floatBits(&float64info)
+-			f = math.Float64frombits(b)
+-			if ovf {
+-				err = rangeError(fnParseFloat, s)
+-			}
+-			return f, n, err
++		if f, ok := eiselLemire64(mantissa, exp, neg); ok {
++			return f, n, nil
+ 		}
+ 	}
+ 
+diff --git a/src/strconv/atof_test.go b/src/strconv/atof_test.go
+index 41dc69b30a..25ec1a9a51 100644
+--- a/src/strconv/atof_test.go
++++ b/src/strconv/atof_test.go
+@@ -303,6 +303,12 @@ var atoftests = []atofTest{
+ 	{"1.00000000000000033306690738754696212708950042724609375", "1.0000000000000004", nil},
+ 	{"0x1.00000000000018p0", "1.0000000000000004", nil},
+ 
++	// Halfway between 1090544144181609278303144771584 and 1090544144181609419040633126912
++	// (15497564393479157p+46, should round to even 15497564393479156p+46, issue 36657)
++	{"1090544144181609348671888949248", "1.0905441441816093e+30", nil},
++	// slightly above, rounds up
++	{"1090544144181609348835077142190", "1.0905441441816094e+30", nil},
++
+ 	// Underscores.
+ 	{"1_23.50_0_0e+1_2", "1.235e+14", nil},
+ 	{"-_123.5e+12", "0", ErrSyntax},
+diff --git a/src/strconv/extfloat.go b/src/strconv/extfloat.go
+index 793a34d83f..e7bfe511fb 100644
+--- a/src/strconv/extfloat.go
++++ b/src/strconv/extfloat.go
+@@ -126,53 +126,6 @@ var powersOfTen = [...]extFloat{
+ 	{0xaf87023b9bf0ee6b, 1066, false},  // 10^340
+ }
+ 
+-// floatBits returns the bits of the float64 that best approximates
+-// the extFloat passed as receiver. Overflow is set to true if
+-// the resulting float64 is ±Inf.
+-func (f *extFloat) floatBits(flt *floatInfo) (bits uint64, overflow bool) {
+-	f.Normalize()
+-
+-	exp := f.exp + 63
+-
+-	// Exponent too small.
+-	if exp < flt.bias+1 {
+-		n := flt.bias + 1 - exp
+-		f.mant >>= uint(n)
+-		exp += n
+-	}
+-
+-	// Extract 1+flt.mantbits bits from the 64-bit mantissa.
+-	mant := f.mant >> (63 - flt.mantbits)
+-	if f.mant&(1<<(62-flt.mantbits)) != 0 {
+-		// Round up.
+-		mant += 1
+-	}
+-
+-	// Rounding might have added a bit; shift down.
+-	if mant == 2<<flt.mantbits {
+-		mant >>= 1
+-		exp++
+-	}
+-
+-	// Infinities.
+-	if exp-flt.bias >= 1<<flt.expbits-1 {
+-		// ±Inf
+-		mant = 0
+-		exp = 1<<flt.expbits - 1 + flt.bias
+-		overflow = true
+-	} else if mant&(1<<flt.mantbits) == 0 {
+-		// Denormalized?
+-		exp = flt.bias
+-	}
+-	// Assemble bits.
+-	bits = mant & (uint64(1)<<flt.mantbits - 1)
+-	bits |= uint64((exp-flt.bias)&(1<<flt.expbits-1)) << flt.mantbits
+-	if f.neg {
+-		bits |= 1 << (flt.mantbits + flt.expbits)
+-	}
+-	return
+-}
+-
+ // AssignComputeBounds sets f to the floating point value
+ // defined by mant, exp and precision given by flt. It returns
+ // lower, upper such that any number in the closed interval
+@@ -225,102 +178,6 @@ var uint64pow10 = [...]uint64{
+ 	1e10, 1e11, 1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18, 1e19,
+ }
+ 
+-// AssignDecimal sets f to an approximate value mantissa*10^exp. It
+-// reports whether the value represented by f is guaranteed to be the
+-// best approximation of d after being rounded to a float64 or
+-// float32 depending on flt.
+-func (f *extFloat) AssignDecimal(mantissa uint64, exp10 int, neg bool, trunc bool, flt *floatInfo) (ok bool) {
+-	const uint64digits = 19
+-
+-	// Errors (in the "numerical approximation" sense, not the "Go's error
+-	// type" sense) in this function are measured as multiples of 1/8 of a ULP,
+-	// so that "1/2 of a ULP" can be represented in integer arithmetic.
+-	//
+-	// The C++ double-conversion library also uses this 8x scaling factor:
+-	// https://github.com/google/double-conversion/blob/f4cb2384/double-conversion/strtod.cc#L291
+-	// but this Go implementation has a bug, where it forgets to scale other
+-	// calculations (further below in this function) by the same number. The
+-	// C++ implementation does not forget:
+-	// https://github.com/google/double-conversion/blob/f4cb2384/double-conversion/strtod.cc#L366
+-	//
+-	// Scaling the "errors" in the "is mant_extra in the range (halfway ±
+-	// errors)" check, but not scaling the other values, means that we return
+-	// ok=false (and fall back to a slower atof code path) more often than we
+-	// could. This affects performance but not correctness.
+-	//
+-	// Longer term, we could fix the forgot-to-scale bug (and look carefully
+-	// for correctness regressions; https://codereview.appspot.com/5494068
+-	// landed in 2011), or replace this atof algorithm with a faster one (e.g.
+-	// Ryu). Shorter term, this comment will suffice.
+-	const errorscale = 8
+-
+-	errors := 0 // An upper bound for error, computed in ULP/errorscale.
+-	if trunc {
+-		// the decimal number was truncated.
+-		errors += errorscale / 2
+-	}
+-
+-	f.mant = mantissa
+-	f.exp = 0
+-	f.neg = neg
+-
+-	// Multiply by powers of ten.
+-	i := (exp10 - firstPowerOfTen) / stepPowerOfTen
+-	if exp10 < firstPowerOfTen || i >= len(powersOfTen) {
+-		return false
+-	}
+-	adjExp := (exp10 - firstPowerOfTen) % stepPowerOfTen
+-
+-	// We multiply by exp%step
+-	if adjExp < uint64digits && mantissa < uint64pow10[uint64digits-adjExp] {
+-		// We can multiply the mantissa exactly.
+-		f.mant *= uint64pow10[adjExp]
+-		f.Normalize()
+-	} else {
+-		f.Normalize()
+-		f.Multiply(smallPowersOfTen[adjExp])
+-		errors += errorscale / 2
+-	}
+-
+-	// We multiply by 10 to the exp - exp%step.
+-	f.Multiply(powersOfTen[i])
+-	if errors > 0 {
+-		errors += 1
+-	}
+-	errors += errorscale / 2
+-
+-	// Normalize
+-	shift := f.Normalize()
+-	errors <<= shift
+-
+-	// Now f is a good approximation of the decimal.
+-	// Check whether the error is too large: that is, if the mantissa
+-	// is perturbated by the error, the resulting float64 will change.
+-	// The 64 bits mantissa is 1 + 52 bits for float64 + 11 extra bits.
+-	//
+-	// In many cases the approximation will be good enough.
+-	denormalExp := flt.bias - 63
+-	var extrabits uint
+-	if f.exp <= denormalExp {
+-		// f.mant * 2^f.exp is smaller than 2^(flt.bias+1).
+-		extrabits = 63 - flt.mantbits + 1 + uint(denormalExp-f.exp)
+-	} else {
+-		extrabits = 63 - flt.mantbits
+-	}
+-
+-	halfway := uint64(1) << (extrabits - 1)
+-	mant_extra := f.mant & (1<<extrabits - 1)
+-
+-	// Do a signed comparison here! If the error estimate could make
+-	// the mantissa round differently for the conversion to double,
+-	// then we can't give a definite answer.
+-	if int64(halfway)-int64(errors) < int64(mant_extra) &&
+-		int64(mant_extra) < int64(halfway)+int64(errors) {
+-		return false
+-	}
+-	return true
+-}
+-
+ // Frexp10 is an analogue of math.Frexp for decimal powers. It scales
+ // f by an approximate power of ten 10^-exp, and returns exp10, so
+ // that f*10^exp10 has the same value as the old f, up to an ulp,

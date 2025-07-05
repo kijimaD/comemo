@@ -16,6 +16,47 @@ Date:   Thu Feb 10 20:10:33 2022 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/385034
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go_spec.html | 15 ++++++++++++++-
  1 file changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 49533b067d..061f933ae8 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -4514,6 +4514,12 @@ Each list is processed in a separate phase:
+ </li>
+ </ol>
+ 
++<p>
++While unification is successful, processing of each list continues until all list elements
++are considered, even if all type arguments are inferred before the last list element has
++been processed.
++</p>
++
+ <p>
+ Example:
+ </p>
+@@ -4527,6 +4533,13 @@ min(1.0, 2.0)  // T is float64, inferred from default type for 1.0 and matches d
+ min(1.0, 2)    // illegal: default type float64 (for 1.0) doesn't match default type int (for 2)
+ </pre>
+ 
++<p>
++In the example <code>min(1.0, 2)</code>, processing the function argument <code>1.0</code>
++yields the substitution map entry <code>T</code> &RightArrow; <code>float64</code>. Because
++processing continues until all untyped arguments are considered, an error is reported. This
++ensures that type inference does not depend on the order of the untyped arguments.
++</p>
++
+ <h4 id="Constraint_type_inference">Constraint type inference</h3>
+ 
+ <!--
+@@ -7268,7 +7281,7 @@ n3 := copy(b, "Hello, World!")  // n3 == 5, b == []byte("Hello")
+ <p>
+ The built-in function <code>delete</code> removes the element with key
+ <code>k</code> from a <a href="#Map_types">map</a> <code>m</code>. The
+-type of <code>k</code> must be <a href="#Assignability">assignable</a>
++value <code>k</code> must be <a href="#Assignability">assignable</a>
+ to the key type of <code>m</code>.
+ </p>
+ 

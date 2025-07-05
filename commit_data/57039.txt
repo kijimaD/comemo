@@ -10,6 +10,20 @@ Date:   Mon Jun 12 15:09:21 2023 +0200
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Chressie Himpel <chressie@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  doc/go1.21.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.21.html b/doc/go1.21.html
+index 3c1d63467b..3edbc33f36 100644
+--- a/doc/go1.21.html
++++ b/doc/go1.21.html
+@@ -128,7 +128,7 @@ Do not send CLs removing the interior tags from such phrases.
+   </li>
+   <li><!-- https://go.dev/issue/59750 -->
+     Type inference is now precise when matching corresponding types in assignments:
+-    component types (such as the the elements of slices, or the parameter types in function signatures)
++    component types (such as the elements of slices, or the parameter types in function signatures)
+     must be identical (given suitable type arguments) to match, otherwise inference fails.
+     This change produces more accurate error messages:
+     where in the past type inference may have succeeded incorrectly and lead to an invalid assignment,

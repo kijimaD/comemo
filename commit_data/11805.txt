@@ -9,7 +9,7 @@ Date:   Sat Feb 11 00:50:56 2012 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5652067
-
+---
  src/cmd/gc/const.c    |  2 +-
  src/cmd/gc/go.h       |  2 +-
  src/cmd/gc/go.y       |  2 +-
@@ -20,3 +20,355 @@ Date:   Sat Feb 11 00:50:56 2012 -0500
  src/cmd/go/build.go   |  7 +++++++
  test/const2.go        |  4 ++++
  9 files changed, 55 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 01c4f15b3f..550e7e4943 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -589,7 +589,7 @@ evconst(Node *n)
+ 
+ 	case TUP(OADD, CTINT):
+ 	case TUP(OADD, CTRUNE):
+-		mpaddfixfix(v.u.xval, rv.u.xval);
++		mpaddfixfix(v.u.xval, rv.u.xval, 0);
+ 		break;
+ 	case TUP(OSUB, CTINT):
+ 	case TUP(OSUB, CTRUNE):
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 0fde506577..cd23b2f086 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1049,7 +1049,7 @@ void	mpsubfltflt(Mpflt *a, Mpflt *b);
+ /*
+  *	mparith2.c
+  */
+-void	mpaddfixfix(Mpint *a, Mpint *b);
++void	mpaddfixfix(Mpint *a, Mpint *b, int);
+ void	mpandfixfix(Mpint *a, Mpint *b);
+ void	mpandnotfixfix(Mpint *a, Mpint *b);
+ void	mpdivfract(Mpint *a, Mpint *b);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index ccbb90f47b..ffd9b73737 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -2027,7 +2027,7 @@ hidden_constant:
+ 	{
+ 		if($2->val.ctype == CTRUNE && $4->val.ctype == CTINT) {
+ 			$$ = $2;
+-			mpaddfixfix($2->val.u.xval, $4->val.u.xval);
++			mpaddfixfix($2->val.u.xval, $4->val.u.xval, 0);
+ 			break;
+ 		}
+ 		$$ = nodcplxlit($2->val, $4->val);
+diff --git a/src/cmd/gc/mparith1.c b/src/cmd/gc/mparith1.c
+index 2b7307e1a4..33fa90e2e0 100644
+--- a/src/cmd/gc/mparith1.c
++++ b/src/cmd/gc/mparith1.c
+@@ -72,7 +72,7 @@ void
+ mpsubfixfix(Mpint *a, Mpint *b)
+ {
+ 	mpnegfix(a);
+-	mpaddfixfix(a, b);
++	mpaddfixfix(a, b, 0);
+ 	mpnegfix(a);
+ }
+ 
+@@ -90,7 +90,7 @@ mpaddcfix(Mpint *a, vlong c)
+ 	Mpint b;
+ 
+ 	mpmovecfix(&b, c);
+-	mpaddfixfix(a, &b);
++	mpaddfixfix(a, &b, 0);
+ }
+ 
+ void
+@@ -302,7 +302,7 @@ mpatoflt(Mpflt *a, char *as)
+ 				if(c >= '0' && c <= '9') {
+ 					ex = ex*10 + (c-'0');
+ 					if(ex > 1e8) {
+-						yyerror("exponent out of range");
++						yyerror("constant exponent out of range: %s", as);
+ 						errorexit();
+ 					}
+ 					continue;
+@@ -343,7 +343,7 @@ out:
+ 	return;
+ 
+ bad:
+-	yyerror("set ovf in mpatof");
++	yyerror("constant too large: %s", as);
+ 	mpmovecflt(a, 0.0);
+ }
+ 
+@@ -431,7 +431,7 @@ out:
+ 	return;
+ 
+ bad:
+-	yyerror("set ovf in mpatov: %s", as);
++	yyerror("constant too large: %s", as);
+ 	mpmovecfix(a, 0);
+ }
+ 
+diff --git a/src/cmd/gc/mparith2.c b/src/cmd/gc/mparith2.c
+index 71cc29c99a..c802e4468a 100644
+--- a/src/cmd/gc/mparith2.c
++++ b/src/cmd/gc/mparith2.c
+@@ -121,7 +121,8 @@ mpcmp(Mpint *a, Mpint *b)
+ 	int i;
+ 
+ 	if(a->ovf || b->ovf) {
+-		yyerror("ovf in cmp");
++		if(nsavederrors+nerrors == 0)
++			yyerror("ovf in cmp");
+ 		return 0;
+ 	}
+ 
+@@ -190,13 +191,14 @@ mpshiftfix(Mpint *a, int s)
+ /// implements fix arihmetic
+ 
+ void
+-mpaddfixfix(Mpint *a, Mpint *b)
++mpaddfixfix(Mpint *a, Mpint *b, int quiet)
+ {
+ 	int i, c;
+ 	long x, *a1, *b1;
+ 
+ 	if(a->ovf || b->ovf) {
+-		yyerror("ovf in mpaddxx");
++		if(nsavederrors+nerrors == 0)
++			yyerror("ovf in mpaddxx");
+ 		a->ovf = 1;
+ 		return;
+ 	}
+@@ -218,8 +220,8 @@ mpaddfixfix(Mpint *a, Mpint *b)
+ 		*a1++ = x;
+ 	}
+ 	a->ovf = c;
+-	if(a->ovf)
+-		yyerror("set ovf in mpaddxx");
++	if(a->ovf && !quiet)
++		yyerror("constant addition overflow");
+ 
+ 	return;
+ 
+@@ -266,7 +268,8 @@ mpmulfixfix(Mpint *a, Mpint *b)
+ 	Mpint s, q;
+ 
+ 	if(a->ovf || b->ovf) {
+-		yyerror("ovf in mpmulfixfix");
++		if(nsavederrors+nerrors == 0)
++			yyerror("ovf in mpmulfixfix");
+ 		a->ovf = 1;
+ 		return;
+ 	}
+@@ -290,7 +293,7 @@ mpmulfixfix(Mpint *a, Mpint *b)
+ 		x = *a1++;
+ 		for(j=0; j<Mpscale; j++) {
+ 			if(x & 1)
+-				mpaddfixfix(&q, &s);
++				mpaddfixfix(&q, &s, 1);
+ 			mplsh(&s);
+ 			x >>= 1;
+ 		}
+@@ -299,7 +302,7 @@ mpmulfixfix(Mpint *a, Mpint *b)
+ 	q.neg = a->neg ^ b->neg;
+ 	mpmovefixfix(a, &q);
+ 	if(a->ovf)
+-		yyerror("set ovf in mpmulfixfix");
++		yyerror("constant multiplication overflow");
+ }
+ 
+ void
+@@ -311,7 +314,8 @@ mpmulfract(Mpint *a, Mpint *b)
+ 	Mpint s, q;
+ 
+ 	if(a->ovf || b->ovf) {
+-		yyerror("ovf in mpmulflt");
++		if(nsavederrors+nerrors == 0)
++			yyerror("ovf in mpmulflt");
+ 		a->ovf = 1;
+ 		return;
+ 	}
+@@ -334,7 +338,7 @@ mpmulfract(Mpint *a, Mpint *b)
+ 		for(j=0; j<Mpscale; j++) {
+ 			x <<= 1;
+ 			if(x & Mpbase)
+-				mpaddfixfix(&q, &s);
++				mpaddfixfix(&q, &s, 1);
+ 			mprsh(&s);
+ 		}
+ 	}
+@@ -342,7 +346,7 @@ mpmulfract(Mpint *a, Mpint *b)
+ 	q.neg = a->neg ^ b->neg;
+ 	mpmovefixfix(a, &q);
+ 	if(a->ovf)
+-		yyerror("set ovf in mpmulflt");
++		yyerror("constant multiplication overflow");
+ }
+ 
+ void
+@@ -353,7 +357,8 @@ mporfixfix(Mpint *a, Mpint *b)
+ 
+ 	x = 0;
+ 	if(a->ovf || b->ovf) {
+-		yyerror("ovf in mporfixfix");
++		if(nsavederrors+nerrors == 0)
++			yyerror("ovf in mporfixfix");
+ 		mpmovecfix(a, 0);
+ 		a->ovf = 1;
+ 		return;
+@@ -388,7 +393,8 @@ mpandfixfix(Mpint *a, Mpint *b)
+ 
+ 	x = 0;
+ 	if(a->ovf || b->ovf) {
+-		yyerror("ovf in mpandfixfix");
++		if(nsavederrors+nerrors == 0)
++			yyerror("ovf in mpandfixfix");
+ 		mpmovecfix(a, 0);
+ 		a->ovf = 1;
+ 		return;
+@@ -423,7 +429,8 @@ mpandnotfixfix(Mpint *a, Mpint *b)
+ 
+ 	x = 0;
+ 	if(a->ovf || b->ovf) {
+-		yyerror("ovf in mpandnotfixfix");
++		if(nsavederrors+nerrors == 0)
++			yyerror("ovf in mpandnotfixfix");
+ 		mpmovecfix(a, 0);
+ 		a->ovf = 1;
+ 		return;
+@@ -458,7 +465,8 @@ mpxorfixfix(Mpint *a, Mpint *b)
+ 
+ 	x = 0;
+ 	if(a->ovf || b->ovf) {
+-		yyerror("ovf in mporfixfix");
++		if(nsavederrors+nerrors == 0)
++			yyerror("ovf in mporfixfix");
+ 		mpmovecfix(a, 0);
+ 		a->ovf = 1;
+ 		return;
+@@ -491,7 +499,8 @@ mplshfixfix(Mpint *a, Mpint *b)
+ 	vlong s;
+ 
+ 	if(a->ovf || b->ovf) {
+-		yyerror("ovf in mporfixfix");
++		if(nsavederrors+nerrors == 0)
++			yyerror("ovf in mporfixfix");
+ 		mpmovecfix(a, 0);
+ 		a->ovf = 1;
+ 		return;
+@@ -512,7 +521,8 @@ mprshfixfix(Mpint *a, Mpint *b)
+ 	vlong s;
+ 
+ 	if(a->ovf || b->ovf) {
+-		yyerror("ovf in mprshfixfix");
++		if(nsavederrors+nerrors == 0)
++			yyerror("ovf in mprshfixfix");
+ 		mpmovecfix(a, 0);
+ 		a->ovf = 1;
+ 		return;
+@@ -542,7 +552,8 @@ mpgetfix(Mpint *a)
+ 	vlong v;
+ 
+ 	if(a->ovf) {
+-		yyerror("constant overflow");
++		if(nsavederrors+nerrors == 0)
++			yyerror("constant overflow");
+ 		return 0;
+ 	}
+ 
+@@ -605,7 +616,7 @@ mpdivmodfixfix(Mpint *q, Mpint *r, Mpint *n, Mpint *d)
+ 		r->ovf = 1;
+ 		n->neg = ns;
+ 		d->neg = ds;
+-		yyerror("set ovf in mpdivmodfixfix");
++		yyerror("constant division overflow");
+ 		return;
+ 	}
+ 
+diff --git a/src/cmd/gc/mparith3.c b/src/cmd/gc/mparith3.c
+index 0c6c5a03b9..f8344c9b4e 100644
+--- a/src/cmd/gc/mparith3.c
++++ b/src/cmd/gc/mparith3.c
+@@ -89,17 +89,17 @@ mpaddfltflt(Mpflt *a, Mpflt *b)
+ 		// a is larger, shift b right
+ 		mpmovefltflt(&c, b);
+ 		mpshiftfix(&c.val, -s);
+-		mpaddfixfix(&a->val, &c.val);
++		mpaddfixfix(&a->val, &c.val, 0);
+ 		goto out;
+ 	}
+ 	if(s < 0) {
+ 		// b is larger, shift a right
+ 		mpshiftfix(&a->val, s);
+ 		a->exp -= s;
+-		mpaddfixfix(&a->val, &b->val);
++		mpaddfixfix(&a->val, &b->val, 0);
+ 		goto out;
+ 	}
+-	mpaddfixfix(&a->val, &b->val);
++	mpaddfixfix(&a->val, &b->val, 0);
+ 
+ out:
+ 	mpnorm(a);
+@@ -153,7 +153,7 @@ mpdivfltflt(Mpflt *a, Mpflt *b)
+ 		a->exp = 0;
+ 		a->val.neg = 0;
+ 		a->val.ovf = 1;
+-		yyerror("mpdivfltflt divide by zero");
++		yyerror("constant division by zero");
+ 		return;
+ 	}
+ 
+@@ -185,7 +185,7 @@ mpgetflt(Mpflt *a)
+ 	uvlong v, vm;
+ 	double f;
+ 
+-	if(a->val.ovf)
++	if(a->val.ovf && nsavederrors+nerrors == 0)
+ 		yyerror("mpgetflt ovf");
+ 
+ 	s = sigfig(a);
+diff --git a/src/cmd/gc/y.tab.c b/src/cmd/gc/y.tab.c
+index d2aaa05046..2772575087 100644
+--- a/src/cmd/gc/y.tab.c
++++ b/src/cmd/gc/y.tab.c
+@@ -5188,7 +5188,7 @@ yyreduce:
+     {
+ 		if((yyvsp[(2) - (5)].node)->val.ctype == CTRUNE && (yyvsp[(4) - (5)].node)->val.ctype == CTINT) {
+ 			(yyval.node) = (yyvsp[(2) - (5)].node);
+-			mpaddfixfix((yyvsp[(2) - (5)].node)->val.u.xval, (yyvsp[(4) - (5)].node)->val.u.xval);
++			mpaddfixfix((yyvsp[(2) - (5)].node)->val.u.xval, (yyvsp[(4) - (5)].node)->val.u.xval, 0);
+ 			break;
+ 		}
+ 		(yyval.node) = nodcplxlit((yyvsp[(2) - (5)].node)->val, (yyvsp[(4) - (5)].node)->val);
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 0956a35eae..da046eedbc 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -671,6 +671,13 @@ func (b *builder) install(a *action) error {
+ 		}
+ 	}
+ 
++	// remove object dir to keep the amount of
++	// garbage down in a large build.  On an operating system
++	// with aggressive buffering, cleaning incrementally like
++	// this keeps the intermediate objects from hitting the disk.
++	defer os.RemoveAll(a1.objdir)
++	defer os.Remove(a1.target)
++
+ 	return b.copyFile(a.target, a1.target, perm)
+ }
+ 
+diff --git a/test/const2.go b/test/const2.go
+index bea1b99125..b0837354ab 100644
+--- a/test/const2.go
++++ b/test/const2.go
+@@ -10,3 +10,7 @@ const (
+ 	A int = 1
+ 	B byte;	// ERROR "type without expr|expected .=."
+ )
++
++const LargeA = 1000000000000000000
++const LargeB = LargeA * LargeA * LargeA
++const LargeC = LargeB * LargeB * LargeB  // ERROR "constant multiplication overflow"

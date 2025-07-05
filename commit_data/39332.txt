@@ -16,7 +16,7 @@ Date:   Mon Feb 25 22:09:46 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Elias Naur <mail@eliasnaur.com>
-
+---
  misc/cgo/life/life_test.go             | 1 +
  misc/cgo/stdio/stdio_test.go           | 1 +
  misc/cgo/test/pkg_test.go              | 8 ++++++++
@@ -25,3 +25,109 @@ Date:   Mon Feb 25 22:09:46 2019 -0500
  misc/cgo/testplugin/plugin_test.go     | 2 ++
  misc/cgo/testshared/shared_test.go     | 1 +
  7 files changed, 15 insertions(+)
+
+diff --git a/misc/cgo/life/life_test.go b/misc/cgo/life/life_test.go
+index 3b17adae74..0f024c9d1d 100644
+--- a/misc/cgo/life/life_test.go
++++ b/misc/cgo/life/life_test.go
+@@ -37,6 +37,7 @@ func testMain(m *testing.M) int {
+ 	if err := os.Chdir(modRoot); err != nil {
+ 		log.Panic(err)
+ 	}
++	os.Setenv("PWD", modRoot)
+ 	if err := ioutil.WriteFile("go.mod", []byte("module cgolife\n"), 0666); err != nil {
+ 		log.Panic(err)
+ 	}
+diff --git a/misc/cgo/stdio/stdio_test.go b/misc/cgo/stdio/stdio_test.go
+index cb32da8444..85ab6ae3e5 100644
+--- a/misc/cgo/stdio/stdio_test.go
++++ b/misc/cgo/stdio/stdio_test.go
+@@ -37,6 +37,7 @@ func testMain(m *testing.M) int {
+ 	if err := os.Chdir(modRoot); err != nil {
+ 		log.Panic(err)
+ 	}
++	os.Setenv("PWD", modRoot)
+ 	if err := ioutil.WriteFile("go.mod", []byte("module cgostdio\n"), 0666); err != nil {
+ 		log.Panic(err)
+ 	}
+diff --git a/misc/cgo/test/pkg_test.go b/misc/cgo/test/pkg_test.go
+index 9c8a61e871..6857609a10 100644
+--- a/misc/cgo/test/pkg_test.go
++++ b/misc/cgo/test/pkg_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
++	"runtime"
+ 	"strings"
+ 	"testing"
+ )
+@@ -26,6 +27,13 @@ import (
+ // this shim and move the tests currently located in testdata back into the
+ // parent directory.
+ func TestCrossPackageTests(t *testing.T) {
++	if runtime.GOOS == "darwin" {
++		switch runtime.GOARCH {
++		case "arm", "arm64":
++			t.Skip("Can't exec cmd/go subprocess on iOS.")
++		}
++	}
++
+ 	GOPATH, err := ioutil.TempDir("", "cgotest")
+ 	if err != nil {
+ 		t.Fatal(err)
+diff --git a/misc/cgo/testcarchive/carchive_test.go b/misc/cgo/testcarchive/carchive_test.go
+index d6b35fb9ec..611a770245 100644
+--- a/misc/cgo/testcarchive/carchive_test.go
++++ b/misc/cgo/testcarchive/carchive_test.go
+@@ -60,6 +60,7 @@ func testMain(m *testing.M) int {
+ 	if err := os.Chdir(modRoot); err != nil {
+ 		log.Panic(err)
+ 	}
++	os.Setenv("PWD", modRoot)
+ 	if err := ioutil.WriteFile("go.mod", []byte("module testcarchive\n"), 0666); err != nil {
+ 		log.Panic(err)
+ 	}
+diff --git a/misc/cgo/testcshared/cshared_test.go b/misc/cgo/testcshared/cshared_test.go
+index 163cea2136..833650e5e6 100644
+--- a/misc/cgo/testcshared/cshared_test.go
++++ b/misc/cgo/testcshared/cshared_test.go
+@@ -132,6 +132,7 @@ func testMain(m *testing.M) int {
+ 	if err := os.Chdir(modRoot); err != nil {
+ 		log.Panic(err)
+ 	}
++	os.Setenv("PWD", modRoot)
+ 	if err := ioutil.WriteFile("go.mod", []byte("module testcshared\n"), 0666); err != nil {
+ 		log.Panic(err)
+ 	}
+diff --git a/misc/cgo/testplugin/plugin_test.go b/misc/cgo/testplugin/plugin_test.go
+index 8bea9e5356..2c110494d0 100644
+--- a/misc/cgo/testplugin/plugin_test.go
++++ b/misc/cgo/testplugin/plugin_test.go
+@@ -51,12 +51,14 @@ func TestMain(m *testing.M) {
+ 	if err := os.Chdir(altRoot); err != nil {
+ 		log.Panic(err)
+ 	}
++	os.Setenv("PWD", altRoot)
+ 	goCmd(nil, "build", "-buildmode=plugin", "-o", filepath.Join(modRoot, "plugin-mismatch.so"), "./plugin-mismatch")
+ 
+ 	os.Setenv("GOPATH", GOPATH)
+ 	if err := os.Chdir(modRoot); err != nil {
+ 		log.Panic(err)
+ 	}
++	os.Setenv("PWD", modRoot)
+ 
+ 	os.Setenv("LD_LIBRARY_PATH", modRoot)
+ 
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index 9a8c398976..ac1a1c7f1a 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -126,6 +126,7 @@ func testMain(m *testing.M) (int, error) {
+ 		fmt.Printf("+ cd %s\n", modRoot)
+ 	}
+ 	os.Chdir(modRoot)
++	os.Setenv("PWD", modRoot)
+ 	if err := ioutil.WriteFile("go.mod", []byte("module testshared\n"), 0666); err != nil {
+ 		return 0, err
+ 	}

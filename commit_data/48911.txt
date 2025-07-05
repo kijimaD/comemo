@@ -14,6 +14,20 @@ Date:   Fri Jun 25 01:49:26 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/noder/writer.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index cc44a80a42..8765f85362 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1281,7 +1281,7 @@ func (w *writer) captureVars(expr *syntax.FuncLit) (closureVars []posObj, locals
+ 		localsIdx: make(map[types2.Object]int),
+ 	}
+ 
+-	syntax.Walk(expr, &v)
++	syntax.Walk(expr.Body, &v)
+ 
+ 	return v.closureVars, v.localsIdx
+ }

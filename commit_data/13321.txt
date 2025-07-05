@@ -7,7 +7,62 @@ Date:   Fri Jun 8 13:55:15 2012 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6303053
-
+---
  src/pkg/exp/html/parse.go      | 11 +++++++++++
  src/pkg/exp/html/parse_test.go | 13 +++++++++++++
  2 files changed, 24 insertions(+)
+
+diff --git a/src/pkg/exp/html/parse.go b/src/pkg/exp/html/parse.go
+index 918a212dea..6f09745a10 100644
+--- a/src/pkg/exp/html/parse.go
++++ b/src/pkg/exp/html/parse.go
+@@ -5,7 +5,9 @@
+ package html
+ 
+ import (
++	"errors"
+ 	a "exp/html/atom"
++	"fmt"
+ 	"io"
+ 	"strings"
+ )
+@@ -2013,6 +2015,15 @@ func ParseFragment(r io.Reader, context *Node) ([]*Node, error) {
+ 	}
+ 
+ 	if context != nil {
++		if context.Type != ElementNode {
++			return nil, errors.New("html: ParseFragment of non-element Node")
++		}
++		// The next check isn't just context.DataAtom.String() == context.Data because
++		// it is valid to pass an element whose tag isn't a known atom. For example,
++		// DataAtom == 0 and Data = "tagfromthefuture" is perfectly consistent.
++		if context.DataAtom != a.Lookup([]byte(context.Data)) {
++			return nil, fmt.Errorf("html: inconsistent Node: DataAtom=%q, Data=%q", context.DataAtom, context.Data)
++		}
+ 		switch context.DataAtom {
+ 		case a.Iframe, a.Noembed, a.Noframes, a.Noscript, a.Plaintext, a.Script, a.Style, a.Title, a.Textarea, a.Xmp:
+ 			p.tokenizer.rawTag = context.DataAtom.String()
+diff --git a/src/pkg/exp/html/parse_test.go b/src/pkg/exp/html/parse_test.go
+index 234191ef14..18389b27d6 100644
+--- a/src/pkg/exp/html/parse_test.go
++++ b/src/pkg/exp/html/parse_test.go
+@@ -391,6 +391,19 @@ var renderTestBlacklist = map[string]bool{
+ 	`<table><plaintext><td>`: true,
+ }
+ 
++func TestNodeConsistency(t *testing.T) {
++	// inconsistentNode is a Node whose DataAtom and Data do not agree.
++	inconsistentNode := &Node{
++		Type:     ElementNode,
++		DataAtom: atom.Frameset,
++		Data:     "table",
++	}
++	_, err := ParseFragment(strings.NewReader("<p>hello</p>"), inconsistentNode)
++	if err == nil {
++		t.Errorf("got nil error, want non-nil")
++	}
++}
++
+ func BenchmarkParser(b *testing.B) {
+ 	buf, err := ioutil.ReadFile("testdata/go1.html")
+ 	if err != nil {

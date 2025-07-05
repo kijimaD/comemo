@@ -12,6 +12,19 @@ Date:   Tue Jan 7 16:25:34 2020 -0500
     Run-TryBot: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/test_main_twice.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/test_main_twice.txt b/src/cmd/go/testdata/script/test_main_twice.txt
+index bc48140694..1e68dabec0 100644
+--- a/src/cmd/go/testdata/script/test_main_twice.txt
++++ b/src/cmd/go/testdata/script/test_main_twice.txt
+@@ -1,6 +1,6 @@
+ [short] skip
+ 
+-env GOCACHE=$TMPDIR
++env GOCACHE=$WORK/tmp
+ go test -v multimain
+ stdout -count=2 notwithstanding # check tests ran twice
+ 

@@ -16,6 +16,27 @@ Date:   Sun Apr 30 11:38:00 2023 +0200
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/cgo/handle.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/cgo/handle.go b/src/runtime/cgo/handle.go
+index d711900d79..061dfb0e2e 100644
+--- a/src/runtime/cgo/handle.go
++++ b/src/runtime/cgo/handle.go
+@@ -106,7 +106,7 @@ type Handle uintptr
+ // The intended use is to pass the returned handle to C code, which
+ // passes it back to Go, which calls Value.
+ func NewHandle(v any) Handle {
+-	h := atomic.AddUintptr(&handleIdx, 1)
++	h := handleIdx.Add(1)
+ 	if h == 0 {
+ 		panic("runtime/cgo: ran out of handle space")
+ 	}
+@@ -140,5 +140,5 @@ func (h Handle) Delete() {
+ 
+ var (
+ 	handles   = sync.Map{} // map[Handle]interface{}
+-	handleIdx uintptr      // atomic
++	handleIdx atomic.Uintptr
+ )

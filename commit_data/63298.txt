@@ -51,7 +51,91 @@ Date:   Tue Jun 10 16:42:59 2025 +0000
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/mprof.go            | 15 +++++++++++----
  src/runtime/pprof/pprof_test.go | 39 +++++++++++++++++++++++++++++++++++++++
  2 files changed, 50 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index a033e28479..b2ff257f65 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -1431,10 +1431,6 @@ func tryRecordGoroutineProfile(gp1 *g, pcbuf []uintptr, yield func()) {
+ 		// so here we check _Gdead first.
+ 		return
+ 	}
+-	if isSystemGoroutine(gp1, false) {
+-		// System goroutines should not appear in the profile.
+-		return
+-	}
+ 
+ 	for {
+ 		prev := gp1.goroutineProfiled.Load()
+@@ -1472,6 +1468,17 @@ func tryRecordGoroutineProfile(gp1 *g, pcbuf []uintptr, yield func()) {
+ // stack), or from the scheduler in preparation to execute gp1 (running on the
+ // system stack).
+ func doRecordGoroutineProfile(gp1 *g, pcbuf []uintptr) {
++	if isSystemGoroutine(gp1, false) {
++		// System goroutines should not appear in the profile.
++		// Check this here and not in tryRecordGoroutineProfile because isSystemGoroutine
++		// may change on a goroutine while it is executing, so while the scheduler might
++		// see a system goroutine, goroutineProfileWithLabelsConcurrent might not, and
++		// this inconsistency could cause invariants to be violated, such as trying to
++		// record the stack of a running goroutine below. In short, we still want system
++		// goroutines to participate in the same state machine on gp1.goroutineProfiled as
++		// everything else, we just don't record the stack in the profile.
++		return
++	}
+ 	if readgstatus(gp1) == _Grunning {
+ 		print("doRecordGoroutineProfile gp1=", gp1.goid, "\n")
+ 		throw("cannot read stack of running goroutine")
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index f2ee39dd49..5f83f37b50 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -1808,6 +1808,45 @@ func TestGoroutineProfileCoro(t *testing.T) {
+ 	goroutineProf.WriteTo(io.Discard, 1)
+ }
+ 
++// This test tries to provoke a situation wherein the finalizer goroutine is
++// erroneously inspected by the goroutine profiler in such a way that could
++// cause a crash. See go.dev/issue/74090.
++func TestGoroutineProfileIssue74090(t *testing.T) {
++	testenv.MustHaveParallelism(t)
++
++	goroutineProf := Lookup("goroutine")
++
++	// T is a pointer type so it won't be allocated by the tiny
++	// allocator, which can lead to its finalizer not being called
++	// during this test.
++	type T *byte
++	for range 10 {
++		// We use finalizers for this test because finalizers transition between
++		// system and user goroutine on each call, since there's substantially
++		// more work to do to set up a finalizer call. Cleanups, on the other hand,
++		// transition once for a whole batch, and so are less likely to trigger
++		// the failure. Under stress testing conditions this test fails approximately
++		// 5 times every 1000 executions on a 64 core machine without the appropriate
++		// fix, which is not ideal but if this test crashes at all, it's a clear
++		// signal that something is broken.
++		var objs []*T
++		for range 10000 {
++			obj := new(T)
++			runtime.SetFinalizer(obj, func(_ interface{}) {})
++			objs = append(objs, obj)
++		}
++		objs = nil
++
++		// Queue up all the finalizers.
++		runtime.GC()
++
++		// Try to run a goroutine profile concurrently with finalizer execution
++		// to trigger the bug.
++		var w strings.Builder
++		goroutineProf.WriteTo(&w, 1)
++	}
++}
++
+ func BenchmarkGoroutine(b *testing.B) {
+ 	withIdle := func(n int, fn func(b *testing.B)) func(b *testing.B) {
+ 		return func(b *testing.B) {

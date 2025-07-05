@@ -8,6 +8,19 @@ Date:   Tue Oct 13 15:55:44 2009 -0700
     DELTA=1  (0 added, 1 deleted, 0 changed)
     OCL=35685
     CL=35687
-
+---
  src/pkg/sort/sort.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/sort/sort.go b/src/pkg/sort/sort.go
+index 0aac7d3237..1e9832b408 100644
+--- a/src/pkg/sort/sort.go
++++ b/src/pkg/sort/sort.go
+@@ -14,7 +14,6 @@ type Interface interface {
+ 	Len() int;
+ 	// Less returns whether the element with index i is should sort
+ 	// before the element with index j.
+-	// TODO(r): should this method be renamed Before?
+ 	Less(i, j int) bool;
+ 	// Swap swaps the elements with indexes i and j.
+ 	Swap(i, j int);

@@ -32,6 +32,32 @@ Date:   Tue Dec 19 15:43:30 2017 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/json/encode.go | 10 ++++++++--
  1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 46aa78a70b..99407e0f7a 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -155,12 +155,18 @@ import (
+ // an infinite recursion.
+ //
+ func Marshal(v interface{}) ([]byte, error) {
+-	e := &encodeState{}
++	e := newEncodeState()
++
+ 	err := e.marshal(v, encOpts{escapeHTML: true})
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return e.Bytes(), nil
++	buf := append([]byte(nil), e.Bytes()...)
++
++	e.Reset()
++	encodeStatePool.Put(e)
++
++	return buf, nil
+ }
+ 
+ // MarshalIndent is like Marshal but applies Indent to format the output.

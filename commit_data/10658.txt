@@ -7,9 +7,197 @@ Date:   Thu Dec 8 10:31:06 2011 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5450100
-
+---
  misc/dashboard/builder/exec.go    |  2 +-
  misc/dashboard/builder/http.go    | 26 +++++++++------
  misc/dashboard/builder/main.go    | 70 +++++++++++++++++++++++++++++++++++----
  misc/dashboard/builder/package.go |  2 +-
  4 files changed, 82 insertions(+), 18 deletions(-)
+
+diff --git a/misc/dashboard/builder/exec.go b/misc/dashboard/builder/exec.go
+index 408db34651..7f21abaa27 100644
+--- a/misc/dashboard/builder/exec.go
++++ b/misc/dashboard/builder/exec.go
+@@ -60,7 +60,7 @@ func runLog(envv []string, logfile, dir string, argv ...string) (string, int, er
+ 			return b.String(), ws.ExitStatus(), nil
+ 		}
+ 	}
+-	return b.String(), 0, nil
++	return b.String(), 0, err
+ }
+ 
+ // useBash prefixes a list of args with 'bash' if the first argument
+diff --git a/misc/dashboard/builder/http.go b/misc/dashboard/builder/http.go
+index 0f26059948..e06734533a 100644
+--- a/misc/dashboard/builder/http.go
++++ b/misc/dashboard/builder/http.go
+@@ -83,9 +83,12 @@ func dash(meth, cmd string, args url.Values, req, resp interface{}) error {
+ }
+ 
+ // todo returns the next hash to build.
+-func (b *Builder) todo() (rev string, err error) {
+-	// TODO(adg): handle packages
+-	args := url.Values{"builder": {b.name}}
++func (b *Builder) todo(pkg, goHash string) (rev string, err error) {
++	args := url.Values{
++		"builder":     {b.name},
++		"packagePath": {pkg},
++		"goHash":      {goHash},
++	}
+ 	var resp string
+ 	if err = dash("GET", "todo", args, nil, &resp); err != nil {
+ 		return
+@@ -97,13 +100,16 @@ func (b *Builder) todo() (rev string, err error) {
+ }
+ 
+ // recordResult sends build results to the dashboard
+-func (b *Builder) recordResult(buildLog string, hash string) error {
+-	// TODO(adg): handle packages
+-	return dash("POST", "result", url.Values{"key": {b.key}}, obj{
+-		"Builder": b.name,
+-		"Hash":    hash,
+-		"Log":     buildLog,
+-	}, nil)
++func (b *Builder) recordResult(ok bool, pkg, hash, goHash, buildLog string) error {
++	req := obj{
++		"Builder":     b.name,
++		"PackagePath": pkg,
++		"Hash":        hash,
++		"GoHash":      goHash,
++		"OK":          ok,
++		"Log":         buildLog,
++	}
++	return dash("POST", "result", url.Values{"key": {b.key}}, req, nil)
+ }
+ 
+ // packages fetches a list of package paths from the dashboard
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index aaeedcfb60..faae5528a3 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -237,7 +237,7 @@ func (b *Builder) build() bool {
+ 			log.Println(b.name, "build:", err)
+ 		}
+ 	}()
+-	hash, err := b.todo()
++	hash, err := b.todo("", "")
+ 	if err != nil {
+ 		log.Println(err)
+ 		return false
+@@ -285,8 +285,7 @@ func (b *Builder) buildHash(hash string) (err error) {
+ 	}
+ 
+ 	// update to specified revision
+-	err = run(nil, path.Join(workpath, "go"),
+-		"hg", "update", hash)
++	err = run(nil, path.Join(workpath, "go"), "hg", "update", hash)
+ 	if err != nil {
+ 		return
+ 	}
+@@ -305,19 +304,22 @@ func (b *Builder) buildHash(hash string) (err error) {
+ 		if status != 0 {
+ 			return errors.New("go build failed")
+ 		}
+-		return b.buildPackages(workpath, hash)
++		return b.buildExternalPackages(workpath, hash)
+ 	}
+ 
+ 	if status != 0 {
+ 		// record failure
+-		return b.recordResult(buildLog, hash)
++		return b.recordResult(false, "", hash, "", buildLog)
+ 	}
+ 
+ 	// record success
+-	if err = b.recordResult("", hash); err != nil {
++	if err = b.recordResult(true, "", hash, "", ""); err != nil {
+ 		return fmt.Errorf("recordResult: %s", err)
+ 	}
+ 
++	// build goinstallable packages
++	b.buildPackages(filepath.Join(workpath, "go"), hash)
++
+ 	// finish here if codeUsername and codePassword aren't set
+ 	if b.codeUsername == "" || b.codePassword == "" || !*buildRelease {
+ 		return
+@@ -344,11 +346,67 @@ func (b *Builder) buildHash(hash string) (err error) {
+ 			"-w", b.codePassword,
+ 			"-l", fmt.Sprintf("%s,%s", b.goos, b.goarch),
+ 			fn)
++		if err != nil {
++			return fmt.Errorf("%s: %s", codePyScript, err)
++		}
+ 	}
+ 
+ 	return
+ }
+ 
++func (b *Builder) buildPackages(goRoot, goHash string) {
++	for _, pkg := range dashboardPackages() {
++		// get the latest todo for this package
++		hash, err := b.todo(pkg, goHash)
++		if err != nil {
++			log.Printf("buildPackages %s: %v", pkg, err)
++			continue
++		}
++		if hash == "" {
++			continue
++		}
++
++		// goinstall the package
++		if *verbose {
++			log.Printf("buildPackages %s: installing %q", pkg, hash)
++		}
++		buildLog, err := b.goinstall(goRoot, pkg, hash)
++		ok := buildLog == ""
++		if err != nil {
++			ok = false
++			log.Printf("buildPackages %s: %v", pkg, err)
++		}
++
++		// record the result
++		err = b.recordResult(ok, pkg, hash, goHash, buildLog)
++		if err != nil {
++			log.Printf("buildPackages %s: %v", pkg, err)
++		}
++	}
++}
++
++func (b *Builder) goinstall(goRoot, pkg, hash string) (string, error) {
++	bin := filepath.Join(goRoot, "bin/goinstall")
++	env := append(b.envv(), "GOROOT="+goRoot)
++
++	// fetch package and dependencies
++	log, status, err := runLog(env, "", goRoot, bin,
++		"-dashboard=false", "-install=false", pkg)
++	if err != nil || status != 0 {
++		return log, err
++	}
++
++	// hg update to the specified hash
++	pkgPath := filepath.Join(goRoot, "src/pkg", pkg)
++	if err := run(nil, pkgPath, "hg", "update", hash); err != nil {
++		return "", err
++	}
++
++	// build the package
++	log, _, err = runLog(env, "", goRoot, bin, "-dashboard=false", pkg)
++	return log, err
++}
++
+ // envv returns an environment for build/bench execution
+ func (b *Builder) envv() []string {
+ 	if runtime.GOOS == "windows" {
+diff --git a/misc/dashboard/builder/package.go b/misc/dashboard/builder/package.go
+index c7708472c2..d3754a33b7 100644
+--- a/misc/dashboard/builder/package.go
++++ b/misc/dashboard/builder/package.go
+@@ -18,7 +18,7 @@ import (
+ 
+ const MaxCommentLength = 500 // App Engine won't store more in a StringProperty.
+ 
+-func (b *Builder) buildPackages(workpath string, hash string) error {
++func (b *Builder) buildExternalPackages(workpath string, hash string) error {
+ 	logdir := filepath.Join(*buildroot, "log")
+ 	if err := os.Mkdir(logdir, 0755); err != nil {
+ 		return err

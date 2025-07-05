@@ -15,9 +15,92 @@ Date:   Wed Jul 21 11:36:01 2010 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/1741053
-
+---
  src/pkg/crypto/tls/common.go             |  3 +++
  src/pkg/crypto/tls/conn.go               | 11 +++++++++++
  src/pkg/crypto/tls/handshake_client.go   |  3 +++
  src/pkg/crypto/tls/handshake_messages.go |  3 ++-
  4 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/tls/common.go b/src/pkg/crypto/tls/common.go
+index 7c6940aa32..717ae0a815 100644
+--- a/src/pkg/crypto/tls/common.go
++++ b/src/pkg/crypto/tls/common.go
+@@ -85,6 +85,9 @@ type Config struct {
+ 	// NextProtos is a list of supported, application level protocols.
+ 	// Currently only server-side handling is supported.
+ 	NextProtos []string
++	// ServerName is included in the client's handshake to support virtual
++	// hosting.
++	ServerName string
+ }
+ 
+ type Certificate struct {
+diff --git a/src/pkg/crypto/tls/conn.go b/src/pkg/crypto/tls/conn.go
+index aa224e49d2..7f5d97d4be 100644
+--- a/src/pkg/crypto/tls/conn.go
++++ b/src/pkg/crypto/tls/conn.go
+@@ -5,6 +5,7 @@ package tls
+ import (
+ 	"bytes"
+ 	"crypto/subtle"
++	"crypto/x509"
+ 	"hash"
+ 	"io"
+ 	"net"
+@@ -27,6 +28,7 @@ type Conn struct {
+ 	handshakeComplete bool
+ 	cipherSuite       uint16
+ 	ocspResponse      []byte // stapled OCSP response
++	peerCertificates  []*x509.Certificate
+ 
+ 	clientProtocol string
+ 
+@@ -651,3 +653,12 @@ func (c *Conn) OCSPResponse() []byte {
+ 
+ 	return c.ocspResponse
+ }
++
++// PeerCertificates returns the certificate chain that was presented by the
++// other side.
++func (c *Conn) PeerCertificates() []*x509.Certificate {
++	c.handshakeMutex.Lock()
++	defer c.handshakeMutex.Unlock()
++
++	return c.peerCertificates
++}
+diff --git a/src/pkg/crypto/tls/handshake_client.go b/src/pkg/crypto/tls/handshake_client.go
+index b3b597327f..324c02f701 100644
+--- a/src/pkg/crypto/tls/handshake_client.go
++++ b/src/pkg/crypto/tls/handshake_client.go
+@@ -28,6 +28,7 @@ func (c *Conn) clientHandshake() os.Error {
+ 		compressionMethods: []uint8{compressionNone},
+ 		random:             make([]byte, 32),
+ 		ocspStapling:       true,
++		serverName:         c.config.ServerName,
+ 	}
+ 
+ 	t := uint32(c.config.Time())
+@@ -107,6 +108,8 @@ func (c *Conn) clientHandshake() os.Error {
+ 		return c.sendAlert(alertUnsupportedCertificate)
+ 	}
+ 
++	c.peerCertificates = certs
++
+ 	if serverHello.certStatus {
+ 		msg, err = c.readHandshake()
+ 		if err != nil {
+diff --git a/src/pkg/crypto/tls/handshake_messages.go b/src/pkg/crypto/tls/handshake_messages.go
+index 13c05fe574..6d4e5c7094 100644
+--- a/src/pkg/crypto/tls/handshake_messages.go
++++ b/src/pkg/crypto/tls/handshake_messages.go
+@@ -100,7 +100,8 @@ func (m *clientHelloMsg) marshal() []byte {
+ 		//     ServerName server_name_list<1..2^16-1>
+ 		// } ServerNameList;
+ 
+-		z[1] = 1
++		z[0] = byte((len(m.serverName) + 3) >> 8)
++		z[1] = byte(len(m.serverName) + 3)
+ 		z[3] = byte(len(m.serverName) >> 8)
+ 		z[4] = byte(len(m.serverName))
+ 		copy(z[5:], []byte(m.serverName))

@@ -14,6 +14,22 @@ Date:   Mon Nov 25 19:23:44 2019 +0100
     Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/mod_cache_rw.txt | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/mod_cache_rw.txt b/src/cmd/go/testdata/script/mod_cache_rw.txt
+index b4a3a456e8..a5410764bc 100644
+--- a/src/cmd/go/testdata/script/mod_cache_rw.txt
++++ b/src/cmd/go/testdata/script/mod_cache_rw.txt
+@@ -19,8 +19,8 @@ cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/extraneous_file.go
+ # should be able to remove the module cache if the '-rf' flags are set.
+ [!windows] [exec:rm] exec rm -rf $GOPATH/pkg/mod
+ [!windows] [!exec:rm] go clean -modcache
+-[windows] [exec:rmdir] exec rmdir /s /q $GOPATH\pkg\mod
+-[windows] [!exec:rmdir] go clean -modcache
++[windows] [exec:cmd.exe] exec cmd.exe /c rmdir /s /q $GOPATH\pkg\mod
++[windows] [!exec:cmd.exe] go clean -modcache
+ ! exists $GOPATH/pkg/mod
+ 
+ # The directories in the module cache should by default be unwritable,

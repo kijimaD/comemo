@@ -11,6 +11,22 @@ Date:   Tue Feb 27 17:23:14 2018 +0000
     Change-Id: I87bc018651ab4fe02560a6d24c08a1d7ccd8ba37
     Reviewed-on: https://go-review.googlesource.com/97416
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/lookup_test.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index d0fc8c345d..f9f79e6285 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -320,9 +320,7 @@ func TestLookupGoogleHost(t *testing.T) {
+ }
+ 
+ func TestLookupLongTXT(t *testing.T) {
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping on plan9; see https://golang.org/issue/22857")
+-	}
++	testenv.SkipFlaky(t, 22857)
+ 	if testenv.Builder() == "" {
+ 		testenv.MustHaveExternalNetwork(t)
+ 	}

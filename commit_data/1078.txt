@@ -10,10 +10,131 @@ Date:   Thu Nov 6 14:50:58 2008 -0800
     R=ken
     OCL=18711
     CL=18711
-
+---
  src/cmd/6g/gen.c   | 6 +++---
  src/cmd/6g/gsubr.c | 2 +-
  src/cmd/gc/dcl.c   | 4 ++--
  src/cmd/gc/subr.c  | 6 +++---
  src/cmd/gc/walk.c  | 3 +++
  5 files changed, 12 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 633c325ddf..1b4c7e6645 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -28,7 +28,7 @@ if(newproc == N) {
+ 	newproc->sym = pkglookup("newproc", "sys");
+ 	newproc->class = PEXTERN;
+ 	newproc->addable = 1;
+-	newproc->ullman = 0;
++	newproc->ullman = 1;
+ }
+ 
+ if(throwindex == N) {
+@@ -36,7 +36,7 @@ if(throwindex == N) {
+ 	throwindex->sym = pkglookup("throwindex", "sys");
+ 	throwindex->class = PEXTERN;
+ 	throwindex->addable = 1;
+-	throwindex->ullman = 0;
++	throwindex->ullman = 1;
+ }
+ 
+ if(throwreturn == N) {
+@@ -44,7 +44,7 @@ if(throwreturn == N) {
+ 	throwreturn->sym = pkglookup("throwreturn", "sys");
+ 	throwreturn->class = PEXTERN;
+ 	throwreturn->addable = 1;
+-	throwreturn->ullman = 0;
++	throwreturn->ullman = 1;
+ }
+ 
+ 	if(fn->nbody == N)
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 3114eab27d..7ca619cc20 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -1640,7 +1640,7 @@ tempname(Node *n, Type *t)
+ 	n->etype = t->etype;
+ 	n->class = PAUTO;
+ 	n->addable = 1;
+-	n->ullman = 0;
++	n->ullman = 1;
+ 
+ 	dowidth(t);
+ 	w = t->width;
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 3fb7710195..effb957858 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -865,7 +865,7 @@ newname(Sym *s)
+ 	n->sym = s;
+ 	n->type = T;
+ 	n->addable = 1;
+-	n->ullman = 0;
++	n->ullman = 1;
+ 	return n;
+ }
+ 
+@@ -886,7 +886,7 @@ oldname(Sym *s)
+ 		n->sym = s;
+ 		n->type = T;
+ 		n->addable = 1;
+-		n->ullman = 0;
++		n->ullman = 1;
+ 	}
+ 	return n;
+ }
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index ddf0560c38..2e81078857 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2048,7 +2048,7 @@ ullmancalc(Node *n)
+ 	switch(n->op) {
+ 	case OLITERAL:
+ 	case ONAME:
+-		ul = 0;
++		ul = 1;
+ 		goto out;
+ 	case OCALL:
+ 	case OCALLMETH:
+@@ -2056,10 +2056,10 @@ ullmancalc(Node *n)
+ 		ul = UINF;
+ 		goto out;
+ 	}
+-	ul = 0;
++	ul = 1;
+ 	if(n->left != N)
+ 		ul = n->left->ullman;
+-	ur = 0;
++	ur = 1;
+ 	if(n->right != N)
+ 		ur = n->right->ullman;
+ 	if(ul == ur)
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 42eb037e74..13ad69a65a 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -3053,6 +3053,7 @@ loop1:
+ 		fatal("reorder1 OLIST");
+ 
+ 	t++;
++	ullmancalc(l);
+ 	if(l->ullman >= UINF)
+ 		c++;
+ 	l = listnext(&save);
+@@ -3072,6 +3073,7 @@ loop2:
+ 		r = list(f, r);
+ 		return r;
+ 	}
++	ullmancalc(l);
+ 	if(l->ullman < UINF) {
+ 		r = list(l, r);
+ 		goto more;
+@@ -3123,6 +3125,7 @@ loop1:
+ 	if(l->op == OLIST)
+ 		fatal("reorder2 OLIST");
+ 
++	ullmancalc(l);
+ 	if(l->ullman >= UINF)
+ 		c++;
+ 	l = listnext(&save);

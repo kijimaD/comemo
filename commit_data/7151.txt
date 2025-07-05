@@ -7,7 +7,32 @@ Date:   Wed Jan 19 10:07:44 2011 -0500
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/3982045
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 03bc7f43d9..2ee738e348 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -31,6 +31,7 @@ Chris Jones <chris@cjones.org> <chris.jones.yar@gmail.com>
+ Chris Lennert <calennert@gmail.com>
+ Christian Himpel <chressie@googlemail.com>
+ Christopher Wedgwood <cw@f00f.org>
++Clement Skau <clementskau@gmail.com>
+ Conrad Meyer <cemeyer@cs.washington.edu>
+ Corey Thomasson <cthom.lists@gmail.com>
+ Dan Sinclair <dan.sinclair@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 77874acd84..f19118ad82 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -63,6 +63,7 @@ Chris Jones <chris@cjones.org> <chris.jones.yar@gmail.com>
+ Chris Lennert <calennert@gmail.com>
+ Christian Himpel <chressie@googlemail.com> <chressie@gmail.com>
+ Christopher Wedgwood <cw@f00f.org>
++Clement Skau <clementskau@gmail.com>
+ Conrad Meyer <cemeyer@cs.washington.edu>
+ Corey Thomasson <cthom.lists@gmail.com>
+ Dan Sinclair <dan.sinclair@gmail.com>

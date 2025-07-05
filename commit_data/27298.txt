@@ -9,8 +9,71 @@ Date:   Sun Mar 20 09:44:18 2016 +0200
     Change-Id: Id64ca7995de8dd84c9e7ce1985730927cf4bfd66
     Reviewed-on: https://go-review.googlesource.com/20912
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/internal/goobj/read.go      | 2 --
  src/cmd/internal/obj/objfile.go     | 4 ----
  src/cmd/link/internal/ld/objfile.go | 4 ----
  3 files changed, 10 deletions(-)
+
+diff --git a/src/cmd/internal/goobj/read.go b/src/cmd/internal/goobj/read.go
+index 1481d3cdd7..a693725e9a 100644
+--- a/src/cmd/internal/goobj/read.go
++++ b/src/cmd/internal/goobj/read.go
+@@ -635,9 +635,7 @@ func (r *objReader) parseObject(prefix []byte) error {
+ 			rel.Size = r.readInt()
+ 			rel.Type = r.readInt()
+ 			rel.Add = r.readInt()
+-			r.readInt() // Xadd - ignored
+ 			rel.Sym = r.readSymID()
+-			r.readSymID() // Xsym - ignored
+ 		}
+ 
+ 		if s.Kind == STEXT {
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index ee49517b68..43b4be1b9f 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -70,9 +70,7 @@
+ //	- siz [int]
+ //	- type [int]
+ //	- add [int]
+-//	- xadd [int]
+ //	- sym [symref index]
+-//	- xsym [symref index]
+ //
+ // Each local has the encoding:
+ //
+@@ -492,9 +490,7 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
+ 		wrint(b, int64(r.Siz))
+ 		wrint(b, int64(r.Type))
+ 		wrint(b, r.Add)
+-		wrint(b, 0) // Xadd, ignored
+ 		wrsym(b, r.Sym)
+-		wrsym(b, nil) // Xsym, ignored
+ 	}
+ 
+ 	if s.Type == STEXT {
+diff --git a/src/cmd/link/internal/ld/objfile.go b/src/cmd/link/internal/ld/objfile.go
+index c98080f57f..ef773b87ba 100644
+--- a/src/cmd/link/internal/ld/objfile.go
++++ b/src/cmd/link/internal/ld/objfile.go
+@@ -72,9 +72,7 @@ package ld
+ //	- siz [int]
+ //	- type [int]
+ //	- add [int]
+-//	- xadd [int]
+ //	- sym [symref index]
+-//	- xsym [symref index]
+ //
+ // Each local has the encoding:
+ //
+@@ -250,9 +248,7 @@ overwrite:
+ 			r.Siz = rduint8(f)
+ 			r.Type = rdint32(f)
+ 			r.Add = rdint64(f)
+-			rdint64(f) // Xadd, ignored
+ 			r.Sym = rdsym(ctxt, f, pkg)
+-			rdsym(ctxt, f, pkg) // Xsym, ignored
+ 		}
+ 	}
+ 

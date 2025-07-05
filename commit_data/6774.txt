@@ -7,7 +7,41 @@ Date:   Thu Nov 18 12:34:47 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3207041
-
+---
  src/Make.pkg             | 3 +--
  src/pkg/runtime/Makefile | 4 +---
  2 files changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+index 62fb68d4b3..f9711671ac 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -132,8 +132,7 @@ _cgo_export.o: _cgo_export.c _cgo_export.h
+ # added _cgo_defun.$O to $OFILES, and added the installed copy of
+ # package_x.so (built from x.cgo2.c) to $(INSTALLFILES).
+ 
+-RUNTIME_CFLAGS_amd64=-D_64BIT
+-RUNTIME_CFLAGS=-I"$(GOROOT)/src/pkg/runtime" $(RUNTIME_CFLAGS_$(GOARCH))
++RUNTIME_CFLAGS=-I"$(GOROOT)/src/pkg/runtime"
+ 
+ # Have to run gcc with the right size argument on hybrid 32/64 machines.
+ _CGO_CFLAGS_386=-m32
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 58e0e76b51..a208458ed7 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -12,13 +12,11 @@ SIZE_amd64=64
+ SIZE_arm=32
+ SIZE=$(SIZE_$(GOARCH))
+ 
+-# Setup CFLAGS.  Add -D_64BIT on 64-bit platforms (sorry).
+-CFLAGS_64=-D_64BIT
+ # TODO(kaib): fix register allocation to honor extern register so we
+ # can enable optimizations again.
+ CFLAGS_arm=-N
+ CFLAGS_windows=-D__WINDOWS__
+-CFLAGS=-I$(GOOS) -I$(GOARCH) -I$(GOOS)/$(GOARCH) -wF $(CFLAGS_$(SIZE)) $(CFLAGS_$(GOARCH)) $(CFLAGS_$(GOOS))
++CFLAGS=-I$(GOOS) -I$(GOARCH) -I$(GOOS)/$(GOARCH) -wF $(CFLAGS_$(GOARCH)) $(CFLAGS_$(GOOS))
+ 
+ GOFILES=\
+ 	debug.go\

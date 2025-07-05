@@ -10,6 +10,20 @@ Date:   Fri Nov 9 18:13:52 2018 +0000
     Reviewed-on: https://go-review.googlesource.com/c/148818
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/bufio/bufio_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/bufio/bufio_test.go b/src/bufio/bufio_test.go
+index c829d2b064..34d70312f7 100644
+--- a/src/bufio/bufio_test.go
++++ b/src/bufio/bufio_test.go
+@@ -550,7 +550,7 @@ func TestWriter(t *testing.T) {
+ 				t.Errorf("%s: %d bytes written", context, len(written))
+ 			}
+ 			for l := 0; l < len(written); l++ {
+-				if written[i] != data[i] {
++				if written[l] != data[l] {
+ 					t.Errorf("wrong bytes written")
+ 					t.Errorf("want=%q", data[0:len(written)])
+ 					t.Errorf("have=%q", written)

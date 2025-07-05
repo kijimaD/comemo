@@ -9,6 +9,20 @@ Date:   Tue Feb 16 17:48:43 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/210042
-
+---
  doc/install.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/install.html b/doc/install.html
+index 6321ce726e..7d00678758 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -186,7 +186,7 @@ $ sudo easy_install mercurial
+ </pre>
+ 
+ <p>works on most systems.
+-(On Ubuntu, you might try <code>apt-get install python-setuptools python-dev</code> first.)
++(On Ubuntu/Debian, you might try <code>apt-get install python-setuptools python-dev build-essential gcc</code> first.)
+ If that fails, visit the <a href="http://mercurial.selenic.com/wiki/Download">Mercurial Download</a> page.</p>
+ 
+ <p>Make sure the <code>$GOROOT</code> directory does not exist or is empty.

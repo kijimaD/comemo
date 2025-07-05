@@ -15,6 +15,19 @@ Date:   Sat Dec 12 17:43:52 2020 +0000
     Trust: Jay Conrod <jayconrod@google.com>
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 3cd3454d5a..3ce32388d0 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -216,6 +216,7 @@ func TestMain(m *testing.M) {
+ 	}
+ 	// Don't let these environment variables confuse the test.
+ 	os.Setenv("GOENV", "off")
++	os.Unsetenv("GOFLAGS")
+ 	os.Unsetenv("GOBIN")
+ 	os.Unsetenv("GOPATH")
+ 	os.Unsetenv("GIT_ALLOW_PROTOCOL")

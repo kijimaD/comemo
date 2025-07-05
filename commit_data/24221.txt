@@ -9,6 +9,20 @@ Date:   Thu Jul 16 14:30:15 2015 +1000
     Change-Id: I3b78b1048318a4b80747fde8cab919282fc444a8
     Reviewed-on: https://go-review.googlesource.com/12285
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/flag/flag.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/flag/flag.go b/src/flag/flag.go
+index cf6af4e946..3abc80e9c6 100644
+--- a/src/flag/flag.go
++++ b/src/flag/flag.go
+@@ -235,6 +235,8 @@ func (d *durationValue) String() string { return (*time.Duration)(d).String() }
+ // If a Value has an IsBoolFlag() bool method returning true,
+ // the command-line parser makes -name equivalent to -name=true
+ // rather than using the next command-line argument.
++//
++// Set is called once, in command line order, for each flag present.
+ type Value interface {
+ 	String() string
+ 	Set(string) error

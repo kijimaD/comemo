@@ -7,7 +7,7 @@ Date:   Mon Mar 11 00:51:42 2013 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/7626045
-
+---
  src/cmd/6l/asm.c          |  61 ++++++++++++
  src/cmd/6l/obj.c          |   5 +-
  src/cmd/8l/asm.c          |  91 +++++++++++++++---
@@ -20,3 +20,683 @@ Date:   Mon Mar 11 00:51:42 2013 -0400
  src/pkg/runtime/asm_386.s |   3 +-
  src/run.bash              |   4 +
  11 files changed, 341 insertions(+), 105 deletions(-)
+
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index e1d114642a..de6ea3a63c 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -316,6 +316,63 @@ elfreloc1(Reloc *r, vlong sectoff)
+ 	return 0;
+ }
+ 
++int
++machoreloc1(Reloc *r, vlong sectoff)
++{
++	uint32 v;
++	Sym *rs;
++	
++	rs = r->xsym;
++
++	if(rs->type == SHOSTOBJ) {
++		if(rs->dynid < 0) {
++			diag("reloc %d to non-macho symbol %s type=%d", r->type, rs->name, rs->type);
++			return -1;
++		}
++		v = rs->dynid;			
++		v |= 1<<27; // external relocation
++	} else {
++		v = rs->sect->extnum;
++		if(v == 0) {
++			diag("reloc %d to symbol %s in non-macho section %s type=%d", r->type, rs->name, rs->sect->name, rs->type);
++			return -1;
++		}
++	}
++
++	switch(r->type) {
++	default:
++		return -1;
++	case D_ADDR:
++		v |= MACHO_X86_64_RELOC_UNSIGNED<<28;
++		break;
++	case D_PCREL:
++		v |= 1<<24; // pc-relative bit
++		v |= MACHO_X86_64_RELOC_BRANCH<<28;
++		break;
++	}
++	
++	switch(r->siz) {
++	default:
++		return -1;
++	case 1:
++		v |= 0<<25;
++		break;
++	case 2:
++		v |= 1<<25;
++		break;
++	case 4:
++		v |= 2<<25;
++		break;
++	case 8:
++		v |= 3<<25;
++		break;
++	}
++
++	LPUT(sectoff);
++	LPUT(v);
++	return 0;
++}
++
+ int
+ archreloc(Reloc *r, Sym *s, vlong *val)
+ {
+@@ -677,6 +734,10 @@ asmb(void)
+ 
+ 			dwarfemitdebugsections();
+ 			break;
++		case Hdarwin:
++			if(isobj)
++				machoemitreloc();
++			break;
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 3a1f862eda..6ea88de273 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -141,8 +141,11 @@ main(int argc, char *argv[])
+ 		switch(HEADTYPE) {
+ 		default:
+ 			sysfatal("cannot use -hostobj with -H %s", headstr(HEADTYPE));
+-		case Hlinux:
++		case Hdarwin:
+ 		case Hfreebsd:
++		case Hlinux:
++		case Hnetbsd:
++		case Hopenbsd:
+ 			break;
+ 		}
+ 	}
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 9bd04ff1aa..402360d704 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -299,6 +299,78 @@ elfreloc1(Reloc *r, vlong sectoff)
+ 	return 0;
+ }
+ 
++int
++machoreloc1(Reloc *r, vlong sectoff)
++{
++	uint32 v;
++	Sym *rs;
++	
++	rs = r->xsym;
++
++	if(rs->type == SHOSTOBJ) {
++		if(rs->dynid < 0) {
++			diag("reloc %d to non-macho symbol %s type=%d", r->type, rs->name, rs->type);
++			return -1;
++		}
++		v = rs->dynid;			
++		v |= 1<<27; // external relocation
++	} else {
++		v = rs->sect->extnum;
++		if(v == 0) {
++			diag("reloc %d to symbol %s in non-macho section %s type=%d", r->type, rs->name, rs->sect->name, rs->type);
++			return -1;
++		}
++	}
++
++	switch(r->type) {
++	default:
++		return -1;
++	case D_ADDR:
++		v |= MACHO_GENERIC_RELOC_VANILLA<<28;
++		break;
++	case D_PCREL:
++		v |= 1<<24; // pc-relative bit
++		v |= MACHO_GENERIC_RELOC_VANILLA<<28;
++		break;
++	}
++	
++	switch(r->siz) {
++	default:
++		return -1;
++	case 1:
++		v |= 0<<25;
++		break;
++	case 2:
++		v |= 1<<25;
++		break;
++	case 4:
++		v |= 2<<25;
++		break;
++	case 8:
++		v |= 3<<25;
++		break;
++	}
++
++	LPUT(sectoff);
++	LPUT(v);
++	return 0;
++}
++
++int
++archreloc(Reloc *r, Sym *s, vlong *val)
++{
++	USED(s);
++	switch(r->type) {
++	case D_CONST:
++		*val = r->add;
++		return 0;
++	case D_GOTOFF:
++		*val = symaddr(r->sym) + r->add - symaddr(lookup(".got", 0));
++		return 0;
++	}
++	return -1;
++}
++
+ void
+ elfsetupplt(void)
+ {
+@@ -327,21 +399,6 @@ elfsetupplt(void)
+ 	}
+ }
+ 
+-int
+-archreloc(Reloc *r, Sym *s, vlong *val)
+-{
+-	USED(s);
+-	switch(r->type) {
+-	case D_CONST:
+-		*val = r->add;
+-		return 0;
+-	case D_GOTOFF:
+-		*val = symaddr(r->sym) + r->add - symaddr(lookup(".got", 0));
+-		return 0;
+-	}
+-	return -1;
+-}
+-
+ static void
+ addpltsym(Sym *s)
+ {
+@@ -636,6 +693,10 @@ asmb(void)
+ 				Bprint(&bso, "%5.2f dwarf\n", cputime());
+ 			dwarfemitdebugsections();
+ 			break;
++		case Hdarwin:
++			if(isobj)
++				machoemitreloc();
++			break;
+ 		}
+ 	}
+ 	if(debug['v'])
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index f926652a6e..ad453064cc 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -147,8 +147,11 @@ main(int argc, char *argv[])
+ 		switch(HEADTYPE) {
+ 		default:
+ 			sysfatal("cannot use -hostobj with -H %s", headstr(HEADTYPE));
++		case Hdarwin:
++		case Hfreebsd:
+ 		case Hlinux:
+ 		case Hnetbsd:
++		case Hopenbsd:
+ 			break;
+ 		}
+ 	}
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index ca6c5300bd..fdf4d043d5 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -192,12 +192,20 @@ relocsym(Sym *s)
+ 					r->xadd += symaddr(rs) - symaddr(rs->outer);
+ 					rs = rs->outer;
+ 				}
++				if(rs->type != SHOSTOBJ && rs->sect == nil)
++					diag("missing section for %s", rs->name);
+ 				r->xsym = rs;
+ 
+-				if(thechar == '6')
+-					o = 0;
+-				else
+-					o = r->xadd;
++				o = r->xadd;
++				if(iself) {
++					if(thechar == '6')
++						o = 0;
++				} else if(HEADTYPE == Hdarwin) {
++					if(rs->type != SHOSTOBJ)
++						o += symaddr(rs);
++				} else {
++					diag("unhandled pcrel relocation for %s", headtype);
++				}
+ 				break;
+ 			}
+ 			o = symaddr(r->sym) + r->add;
+@@ -214,13 +222,22 @@ relocsym(Sym *s)
+ 					r->xadd += symaddr(rs) - symaddr(rs->outer);
+ 					rs = rs->outer;
+ 				}
++				r->xadd -= r->siz; // relative to address after the relocated chunk
++				if(rs->type != SHOSTOBJ && rs->sect == nil)
++					diag("missing section for %s", rs->name);
+ 				r->xsym = rs;
+-				r->xadd -= r->siz;
+ 
+-				if(thechar == '6')
+-					o = 0;
+-				else
+-					o = r->xadd;
++				o = r->xadd;
++				if(iself) {
++					if(thechar == '6')
++						o = 0;
++				} else if(HEADTYPE == Hdarwin) {
++					if(rs->type != SHOSTOBJ)
++						o += symaddr(rs) - rs->sect->vaddr;
++					o -= r->off; // WTF?
++				} else {
++					diag("unhandled pcrel relocation for %s", headtype);
++				}
+ 				break;
+ 			}
+ 			o = 0;
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index 66eddd5d8d..27307819fc 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -486,11 +486,8 @@ loadcgo(char *file, char *pkg, char *p, int n)
+ 		}
+ 
+ 		if(strcmp(f[0], "cgo_export_static") == 0 || strcmp(f[0], "cgo_export_dynamic") == 0) {
+-			// TODO: Make Mach-O code happier. Right now it sees the dynimpname and
+-			// includes CgoExportStatic symbols in the dynamic table, and then dyld
+-			// cannot find them when we run the binary. Disabling Windows too
+-			// because it probably has the same issue.
+-			if(strcmp(f[0], "cgo_export_static") == 0 && (HEADTYPE == Hdarwin || HEADTYPE == Hwindows))
++			// TODO: Remove once we know Windows is okay.
++			if(strcmp(f[0], "cgo_export_static") == 0 && HEADTYPE == Hwindows)
+ 				continue;
+ 
+ 			if(nf < 2 || nf > 3)
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 82a7df341a..b895e5088e 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -614,6 +614,8 @@ hostlink(void)
+ 	}
+ 	if(!debug['s'])
+ 		argv[argc++] = "-ggdb"; 
++	if(HEADTYPE == Hdarwin)
++		argv[argc++] = "-Wl,-no_pie,-pagezero_size,4000000";
+ 	argv[argc++] = "-o";
+ 	argv[argc++] = outfile;
+ 	
+diff --git a/src/cmd/ld/macho.c b/src/cmd/ld/macho.c
+index b85b7d6d8b..0053e10951 100644
+--- a/src/cmd/ld/macho.c
++++ b/src/cmd/ld/macho.c
+@@ -150,7 +150,10 @@ machowrite(void)
+ 		LPUT(0xfeedface);
+ 	LPUT(hdr.cpu);
+ 	LPUT(hdr.subcpu);
+-	LPUT(2);	/* file type - mach executable */
++	if(isobj)
++		LPUT(1);	/* file type - mach object */
++	else
++		LPUT(2);	/* file type - mach executable */
+ 	LPUT(nload+nseg+ndebug);
+ 	LPUT(loadsize);
+ 	LPUT(1);	/* flags - no undefines */
+@@ -245,22 +248,24 @@ domacho(void)
+ 	s->type = SMACHOSYMTAB;
+ 	s->reachable = 1;
+ 	
+-	s = lookup(".plt", 0);	// will be __symbol_stub
+-	s->type = SMACHOPLT;
+-	s->reachable = 1;
++	if(!isobj) {
++		s = lookup(".plt", 0);	// will be __symbol_stub
++		s->type = SMACHOPLT;
++		s->reachable = 1;
+ 	
+-	s = lookup(".got", 0);	// will be __nl_symbol_ptr
+-	s->type = SMACHOGOT;
+-	s->reachable = 1;
+-	s->align = 4;
++		s = lookup(".got", 0);	// will be __nl_symbol_ptr
++		s->type = SMACHOGOT;
++		s->reachable = 1;
++		s->align = 4;
+ 	
+-	s = lookup(".linkedit.plt", 0);	// indirect table for .plt
+-	s->type = SMACHOINDIRECTPLT;
+-	s->reachable = 1;
++		s = lookup(".linkedit.plt", 0);	// indirect table for .plt
++		s->type = SMACHOINDIRECTPLT;
++		s->reachable = 1;
+ 	
+-	s = lookup(".linkedit.got", 0);	// indirect table for .got
+-	s->type = SMACHOINDIRECTGOT;
+-	s->reachable = 1;
++		s = lookup(".linkedit.got", 0);	// indirect table for .got
++		s->type = SMACHOINDIRECTGOT;
++		s->reachable = 1;
++	}
+ }
+ 
+ void
+@@ -295,7 +300,11 @@ machoshbits(MachoSeg *mseg, Section *sect, char *segname)
+ 			*p = '_';
+ 
+ 	msect = newMachoSect(mseg, estrdup(buf), segname);
+-	
++	if(sect->rellen > 0) {
++		msect->reloc = sect->reloff;
++		msect->nreloc = sect->rellen / 8;
++	}
++
+ 	while(1<<msect->align < sect->align)
+ 		msect->align++;
+ 	msect->addr = sect->vaddr;
+@@ -356,54 +365,70 @@ asmbmacho(void)
+ 		mh->subcpu = MACHO_SUBCPU_X86;
+ 		break;
+ 	}
++	
++	ms = nil;
++	if(isobj) {
++		/* segment for entire file */
++		ms = newMachoSeg("", 40);
++		ms->fileoffset = segtext.fileoff;
++		ms->filesize = segdata.fileoff + segdata.filelen - segtext.fileoff;
++	}
+ 
+ 	/* segment for zero page */
+-	ms = newMachoSeg("__PAGEZERO", 0);
+-	ms->vsize = va;
++	if(!isobj) {
++		ms = newMachoSeg("__PAGEZERO", 0);
++		ms->vsize = va;
++	}
+ 
+ 	/* text */
+ 	v = rnd(HEADR+segtext.len, INITRND);
+-	ms = newMachoSeg("__TEXT", 20);
+-	ms->vaddr = va;
+-	ms->vsize = v;
+-	ms->fileoffset = 0;
+-	ms->filesize = v;
+-	ms->prot1 = 7;
+-	ms->prot2 = 5;
+-	
++	if(!isobj) {
++		ms = newMachoSeg("__TEXT", 20);
++		ms->vaddr = va;
++		ms->vsize = v;
++		ms->fileoffset = 0;
++		ms->filesize = v;
++		ms->prot1 = 7;
++		ms->prot2 = 5;
++	}
++
+ 	for(sect=segtext.sect; sect!=nil; sect=sect->next)
+ 		machoshbits(ms, sect, "__TEXT");
+ 
+ 	/* data */
+-	w = segdata.len;
+-	ms = newMachoSeg("__DATA", 20);
+-	ms->vaddr = va+v;
+-	ms->vsize = w;
+-	ms->fileoffset = v;
+-	ms->filesize = segdata.filelen;
+-	ms->prot1 = 3;
+-	ms->prot2 = 3;
+-	
++	if(!isobj) {
++		w = segdata.len;
++		ms = newMachoSeg("__DATA", 20);
++		ms->vaddr = va+v;
++		ms->vsize = w;
++		ms->fileoffset = v;
++		ms->filesize = segdata.filelen;
++		ms->prot1 = 3;
++		ms->prot2 = 3;
++	}
++
+ 	for(sect=segdata.sect; sect!=nil; sect=sect->next)
+ 		machoshbits(ms, sect, "__DATA");
+ 
+-	switch(thechar) {
+-	default:
+-		diag("unknown macho architecture");
+-		errorexit();
+-	case '6':
+-		ml = newMachoLoad(5, 42+2);	/* unix thread */
+-		ml->data[0] = 4;	/* thread type */
+-		ml->data[1] = 42;	/* word count */
+-		ml->data[2+32] = entryvalue();	/* start pc */
+-		ml->data[2+32+1] = entryvalue()>>16>>16;	// hide >>32 for 8l
+-		break;
+-	case '8':
+-		ml = newMachoLoad(5, 16+2);	/* unix thread */
+-		ml->data[0] = 1;	/* thread type */
+-		ml->data[1] = 16;	/* word count */
+-		ml->data[2+10] = entryvalue();	/* start pc */
+-		break;
++	if(!isobj) {
++		switch(thechar) {
++		default:
++			diag("unknown macho architecture");
++			errorexit();
++		case '6':
++			ml = newMachoLoad(5, 42+2);	/* unix thread */
++			ml->data[0] = 4;	/* thread type */
++			ml->data[1] = 42;	/* word count */
++			ml->data[2+32] = entryvalue();	/* start pc */
++			ml->data[2+32+1] = entryvalue()>>16>>16;	// hide >>32 for 8l
++			break;
++		case '8':
++			ml = newMachoLoad(5, 16+2);	/* unix thread */
++			ml->data[0] = 1;	/* thread type */
++			ml->data[1] = 16;	/* word count */
++			ml->data[2+10] = entryvalue();	/* start pc */
++			break;
++		}
+ 	}
+ 	
+ 	if(!debug['d']) {
+@@ -415,13 +440,15 @@ asmbmacho(void)
+ 		s3 = lookup(".linkedit.got", 0);
+ 		s4 = lookup(".machosymstr", 0);
+ 
+-		ms = newMachoSeg("__LINKEDIT", 0);
+-		ms->vaddr = va+v+rnd(segdata.len, INITRND);
+-		ms->vsize = s1->size + s2->size + s3->size + s4->size;
+-		ms->fileoffset = linkoff;
+-		ms->filesize = ms->vsize;
+-		ms->prot1 = 7;
+-		ms->prot2 = 3;
++		if(!isobj) {
++			ms = newMachoSeg("__LINKEDIT", 0);
++			ms->vaddr = va+v+rnd(segdata.len, INITRND);
++			ms->vsize = s1->size + s2->size + s3->size + s4->size;
++			ms->fileoffset = linkoff;
++			ms->filesize = ms->vsize;
++			ms->prot1 = 7;
++			ms->prot2 = 3;
++		}
+ 
+ 		ml = newMachoLoad(2, 4);	/* LC_SYMTAB */
+ 		ml->data[0] = linkoff;	/* symoff */
+@@ -431,21 +458,24 @@ asmbmacho(void)
+ 
+ 		machodysymtab();
+ 
+-		ml = newMachoLoad(14, 6);	/* LC_LOAD_DYLINKER */
+-		ml->data[0] = 12;	/* offset to string */
+-		strcpy((char*)&ml->data[1], "/usr/lib/dyld");
+-
+-		for(i=0; i<ndylib; i++) {
+-			ml = newMachoLoad(12, 4+(strlen(dylib[i])+1+7)/8*2);	/* LC_LOAD_DYLIB */
+-			ml->data[0] = 24;	/* offset of string from beginning of load */
+-			ml->data[1] = 0;	/* time stamp */
+-			ml->data[2] = 0;	/* version */
+-			ml->data[3] = 0;	/* compatibility version */
+-			strcpy((char*)&ml->data[4], dylib[i]);
++		if(!isobj) {
++			ml = newMachoLoad(14, 6);	/* LC_LOAD_DYLINKER */
++			ml->data[0] = 12;	/* offset to string */
++			strcpy((char*)&ml->data[1], "/usr/lib/dyld");
++	
++			for(i=0; i<ndylib; i++) {
++				ml = newMachoLoad(12, 4+(strlen(dylib[i])+1+7)/8*2);	/* LC_LOAD_DYLIB */
++				ml->data[0] = 24;	/* offset of string from beginning of load */
++				ml->data[1] = 0;	/* time stamp */
++				ml->data[2] = 0;	/* version */
++				ml->data[3] = 0;	/* compatibility version */
++				strcpy((char*)&ml->data[4], dylib[i]);
++			}
+ 		}
+ 	}
+ 
+-	if(!debug['s'])
++	// TODO: dwarf headers go in ms too
++	if(!debug['s'] && !isobj)
+ 		dwarfaddmachoheaders();
+ 
+ 	a = machowrite();
+@@ -515,7 +545,8 @@ machogenasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+ 
+ 	genasmsym(put);
+ 	for(s=allsym; s; s=s->allsym)
+-		if(s->type == SDYNIMPORT)
++		if(s->type == SDYNIMPORT || s->type == SHOSTOBJ)
++		if(s->reachable)
+ 			put(s, nil, 'D', 0, 0, 0, nil);
+ }
+ 			
+@@ -552,13 +583,16 @@ machosymtab(void)
+ 		adduint32(symtab, symstr->size);
+ 		adduint8(symstr, '_');
+ 		addstring(symstr, s->extname);
+-		if(s->type == SDYNIMPORT) {
++		if(s->type == SDYNIMPORT || s->type == SHOSTOBJ) {
+ 			adduint8(symtab, 0x01); // type N_EXT, external symbol
+ 			adduint8(symtab, 0); // no section
+ 			adduint16(symtab, 0); // desc
+ 			adduintxx(symtab, 0, PtrSize); // no value
+ 		} else {
+-			adduint8(symtab, 0x0f);
++			if(s->cgoexport)
++				adduint8(symtab, 0x0f);
++			else
++				adduint8(symtab, 0x0e);
+ 			o = s;
+ 			while(o->outer != nil)
+ 				o = o->outer;
+@@ -663,3 +697,56 @@ domacholink(void)
+ 	return rnd(size, INITRND);
+ }
+ 
++
++void
++machorelocsect(Section *sect, Sym *first)
++{
++	Sym *sym;
++	int32 eaddr;
++	Reloc *r;
++
++	// If main section has no bits, nothing to relocate.
++	if(sect->vaddr >= sect->seg->vaddr + sect->seg->filelen)
++		return;
++	
++	sect->reloff = cpos();
++	for(sym = first; sym != nil; sym = sym->next) {
++		if(!sym->reachable)
++			continue;
++		if(sym->value >= sect->vaddr)
++			break;
++	}
++	
++	eaddr = sect->vaddr + sect->len;
++	for(; sym != nil; sym = sym->next) {
++		if(!sym->reachable)
++			continue;
++		if(sym->value >= eaddr)
++			break;
++		cursym = sym;
++		
++		for(r = sym->r; r < sym->r+sym->nr; r++) {
++			if(r->done)
++				continue;
++			if(machoreloc1(r, sym->value+r->off - sect->vaddr) < 0)
++				diag("unsupported obj reloc %d/%d to %s", r->type, r->siz, r->sym->name);
++		}
++	}
++		
++	sect->rellen = cpos() - sect->reloff;
++}
++
++void
++machoemitreloc(void)
++{
++	Section *sect;
++
++	while(cpos()&7)
++		cput(0);
++
++	machorelocsect(segtext.sect, textp);
++	for(sect=segtext.sect->next; sect!=nil; sect=sect->next)
++		machorelocsect(sect, datap);	
++	for(sect=segdata.sect; sect!=nil; sect=sect->next)
++		machorelocsect(sect, datap);	
++}
+diff --git a/src/cmd/ld/macho.h b/src/cmd/ld/macho.h
+index 59900c9402..d759f4b0f8 100644
+--- a/src/cmd/ld/macho.h
++++ b/src/cmd/ld/macho.h
+@@ -52,6 +52,8 @@ MachoLoad*	newMachoLoad(uint32, uint32);
+ int	machowrite(void);
+ void	machoinit(void);
+ void	machosymorder(void);
++void	machoemitreloc(void);
++int	machoreloc1(Reloc*, vlong);
+ 
+ /*
+  * Total amount of space to reserve at the start of the file
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 375274e0b3..15f1ce804f 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -26,9 +26,8 @@ TEXT _rt0_386(SB),7,$0
+ 	MOVL	_cgo_init(SB), AX
+ 	TESTL	AX, AX
+ 	JZ	needtls
+-	PUSHL	BP
++	MOVL	BP, 0(SP)
+ 	CALL	AX
+-	POPL	BP
+ 	// skip runtime·ldt0setup(SB) and tls test after _cgo_init for non-windows
+ 	CMPL runtime·iswindows(SB), $0
+ 	JEQ ok
+diff --git a/src/run.bash b/src/run.bash
+index a026b459ce..cabe745b6b 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -77,6 +77,10 @@ go run $GOROOT/test/run.go - .
+ [ "$GOHOSTOS" == openbsd ] || # issue 4878
+ (xcd ../misc/cgo/test
+ go test
++case "$GOHOSTOS-$GOARCH" in
++darwin-386 | darwin-amd64 | linux-386 | linux-amd64)
++	go test -ldflags '-w -hostobj'
++esac
+ ) || exit $?
+ 
+ [ "$CGO_ENABLED" != 1 ] ||

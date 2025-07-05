@@ -15,8 +15,80 @@ Date:   Mon May 19 14:11:51 2025 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/674176
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  api/next/73088.txt                         |  7 +++++++
  doc/next/6-stdlib/99-minor/go/ast/73088.md |  4 ++++
  src/go/ast/filter.go                       | 14 ++++++++++++++
  3 files changed, 25 insertions(+)
+
+diff --git a/api/next/73088.txt b/api/next/73088.txt
+new file mode 100644
+index 0000000000..2d15b83816
+--- /dev/null
++++ b/api/next/73088.txt
+@@ -0,0 +1,7 @@
++pkg go/ast, const FilterFuncDuplicates //deprecated #73088
++pkg go/ast, const FilterImportDuplicates //deprecated #73088
++pkg go/ast, const FilterUnassociatedComments //deprecated #73088
++pkg go/ast, func FilterPackage //deprecated #73088
++pkg go/ast, func MergePackageFiles //deprecated #73088
++pkg go/ast, func PackageExports //deprecated #73088
++pkg go/ast, type MergeMode //deprecated #73088
+diff --git a/doc/next/6-stdlib/99-minor/go/ast/73088.md b/doc/next/6-stdlib/99-minor/go/ast/73088.md
+new file mode 100644
+index 0000000000..e7035a7047
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/go/ast/73088.md
+@@ -0,0 +1,4 @@
++The [ast.FilterPackage], [ast.PackageExports], and
++[ast.MergePackageFiles] functions, and the [MergeMode] type and its
++constants, are all deprecated, as they are for use only with the
++long-deprecated [ast.Object] and [ast.Package] machinery.
+diff --git a/src/go/ast/filter.go b/src/go/ast/filter.go
+index 89682846df..7a0a402037 100644
+--- a/src/go/ast/filter.go
++++ b/src/go/ast/filter.go
+@@ -34,6 +34,9 @@ func FileExports(src *File) bool {
+ //
+ // PackageExports reports whether there are exported declarations;
+ // it returns false otherwise.
++//
++// Deprecated: use the type checker [go/types] instead of [Package];
++// see [Object]. Alternatively, use [FileExports].
+ func PackageExports(pkg *Package) bool {
+ 	return filterPackage(pkg, exportFilter, true)
+ }
+@@ -276,6 +279,9 @@ func filterFile(src *File, f Filter, export bool) bool {
+ //
+ // FilterPackage reports whether there are any top-level declarations
+ // left after filtering.
++//
++// Deprecated: use the type checker [go/types] instead of [Package];
++// see [Object]. Alternatively, use [FilterFile].
+ func FilterPackage(pkg *Package, f Filter) bool {
+ 	return filterPackage(pkg, f, false)
+ }
+@@ -294,8 +300,13 @@ func filterPackage(pkg *Package, f Filter, export bool) bool {
+ // Merging of package files
+ 
+ // The MergeMode flags control the behavior of [MergePackageFiles].
++//
++// Deprecated: use the type checker [go/types] instead of [Package];
++// see [Object].
+ type MergeMode uint
+ 
++// Deprecated: use the type checker [go/types] instead of [Package];
++// see [Object].
+ const (
+ 	// If set, duplicate function declarations are excluded.
+ 	FilterFuncDuplicates MergeMode = 1 << iota
+@@ -332,6 +343,9 @@ var separator = &Comment{token.NoPos, "//"}
+ 
+ // MergePackageFiles creates a file AST by merging the ASTs of the
+ // files belonging to a package. The mode flags control merging behavior.
++//
++// Deprecated: this function is poorly specified and has unfixable
++// bugs; also [Package] is deprecated.
+ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
+ 	// Count the number of package docs, comments and declarations across
+ 	// all package files. Also, compute sorted list of filenames, so that

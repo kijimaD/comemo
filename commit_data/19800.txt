@@ -15,8 +15,74 @@ Date:   Tue Jul 22 12:10:18 2014 +0400
     R=golang-codereviews, rlh, rsc
     CC=golang-codereviews, iant, khr
     https://golang.org/cl/117000043
-
+---
  src/cmd/ld/ldelf.c   | 4 ++--
  src/cmd/ld/ldmacho.c | 4 ++--
  src/cmd/ld/ldpe.c    | 6 +++---
  3 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/ld/ldelf.c b/src/cmd/ld/ldelf.c
+index 1d7c4c13ea..38e4147556 100644
+--- a/src/cmd/ld/ldelf.c
++++ b/src/cmd/ld/ldelf.c
+@@ -539,7 +539,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			s->type = SRODATA;
+ 			break;
+ 		case ElfSectFlagAlloc + ElfSectFlagWrite:
+-			s->type = SDATA;
++			s->type = SNOPTRDATA;
+ 			break;
+ 		case ElfSectFlagAlloc + ElfSectFlagExec:
+ 			s->type = STEXT;
+@@ -572,7 +572,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			if(s->size < sym.size)
+ 				s->size = sym.size;
+ 			if(s->type == 0 || s->type == SXREF)
+-				s->type = SBSS;
++				s->type = SNOPTRBSS;
+ 			continue;
+ 		}
+ 		if(sym.shndx >= obj->nsect || sym.shndx == 0)
+diff --git a/src/cmd/ld/ldmacho.c b/src/cmd/ld/ldmacho.c
+index 413dedabd6..71cfa63dec 100644
+--- a/src/cmd/ld/ldmacho.c
++++ b/src/cmd/ld/ldmacho.c
+@@ -589,10 +589,10 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 				s->type = SRODATA;
+ 		} else {
+ 			if (strcmp(sect->name, "__bss") == 0) {
+-				s->type = SBSS;
++				s->type = SNOPTRBSS;
+ 				s->np = 0;
+ 			} else
+-				s->type = SDATA;
++				s->type = SNOPTRDATA;
+ 		}
+ 		sect->sym = s;
+ 	}
+diff --git a/src/cmd/ld/ldpe.c b/src/cmd/ld/ldpe.c
+index f6eda900de..1b05916148 100644
+--- a/src/cmd/ld/ldpe.c
++++ b/src/cmd/ld/ldpe.c
+@@ -230,10 +230,10 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 				s->type = SRODATA;
+ 				break;
+ 			case IMAGE_SCN_CNT_UNINITIALIZED_DATA|IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE: //.bss
+-				s->type = SBSS;
++				s->type = SNOPTRBSS;
+ 				break;
+ 			case IMAGE_SCN_CNT_INITIALIZED_DATA|IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE: //.data
+-				s->type = SDATA;
++				s->type = SNOPTRDATA;
+ 				break;
+ 			case IMAGE_SCN_CNT_CODE|IMAGE_SCN_MEM_EXECUTE|IMAGE_SCN_MEM_READ: //.text
+ 				s->type = STEXT;
+@@ -338,7 +338,7 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			if(s->type == SDYNIMPORT)
+ 				s->plt = -2; // flag for dynimport in PE object files.
+ 			if (s->type == SXREF && sym->value > 0) {// global data
+-				s->type = SDATA; 
++				s->type = SNOPTRDATA;
+ 				s->size = sym->value;
+ 			}
+ 			continue;

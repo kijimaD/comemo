@@ -18,6 +18,26 @@ Date:   Wed Sep 20 23:20:28 2017 -0700
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/archive/tar/sparse_unix.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/archive/tar/sparse_unix.go b/src/archive/tar/sparse_unix.go
+index 76b4c6cc2b..4bc3482858 100644
+--- a/src/archive/tar/sparse_unix.go
++++ b/src/archive/tar/sparse_unix.go
+@@ -23,8 +23,12 @@ func sparseDetectUnix(f *os.File) (sph sparseHoles, err error) {
+ 	const seekHole = 4 // SEEK_HOLE from unistd.h
+ 
+ 	// Check for seekData/seekHole support.
+-	if _, err := f.Seek(0, seekHole); errno(err) == syscall.EINVAL {
+-		return nil, nil // Either old kernel or FS does not support this
++	// Different OS and FS may differ in the exact errno that is returned when
++	// there is no support. Rather than special-casing every possible errno
++	// representing "not supported", just assume that a non-nil error means
++	// that seekData/seekHole is not supported.
++	if _, err := f.Seek(0, seekHole); err != nil {
++		return nil, nil
+ 	}
+ 
+ 	// Populate the SparseHoles.

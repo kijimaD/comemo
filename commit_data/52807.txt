@@ -21,8 +21,400 @@ Date:   Thu Jun 2 21:26:49 2022 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/mgclimit.go | 55 +++++++++++++++++++++++++++-------------------
  src/runtime/mgcpacer.go | 15 ++++++++-----
  src/runtime/proc.go     | 58 +++++++++++++++++++++++++++++--------------------
  3 files changed, 77 insertions(+), 51 deletions(-)
+
+diff --git a/src/runtime/mgclimit.go b/src/runtime/mgclimit.go
+index fc4fefaa2c..d94e471643 100644
+--- a/src/runtime/mgclimit.go
++++ b/src/runtime/mgclimit.go
+@@ -63,6 +63,9 @@ type gcCPULimiterState struct {
+ 	// idleMarkTimePool is the accumulated idle mark time since the last update.
+ 	idleMarkTimePool atomic.Int64
+ 
++	// idleTimePool is the accumulated time Ps spent on the idle list since the last update.
++	idleTimePool atomic.Int64
++
+ 	// lastUpdate is the nanotime timestamp of the last time update was called.
+ 	//
+ 	// Updated under lock, but may be read concurrently.
+@@ -149,10 +152,10 @@ func (l *gcCPULimiterState) addAssistTime(t int64) {
+ 	l.assistTimePool.Add(t)
+ }
+ 
+-// addIdleMarkTime notifies the limiter of additional idle mark worker time. It will be
++// addIdleTime notifies the limiter of additional time a P spent on the idle list. It will be
+ // subtracted from the total CPU time in the next update.
+-func (l *gcCPULimiterState) addIdleMarkTime(t int64) {
+-	l.idleMarkTimePool.Add(t)
++func (l *gcCPULimiterState) addIdleTime(t int64) {
++	l.idleTimePool.Add(t)
+ }
+ 
+ // update updates the bucket given runtime-specific information. now is the
+@@ -189,10 +192,10 @@ func (l *gcCPULimiterState) updateLocked(now int64) {
+ 		l.assistTimePool.Add(-assistTime)
+ 	}
+ 
+-	// Drain the pool of idle mark time.
+-	idleMarkTime := l.idleMarkTimePool.Load()
+-	if idleMarkTime != 0 {
+-		l.idleMarkTimePool.Add(-idleMarkTime)
++	// Drain the pool of idle time.
++	idleTime := l.idleTimePool.Load()
++	if idleTime != 0 {
++		l.idleTimePool.Add(-idleTime)
+ 	}
+ 
+ 	if !l.test {
+@@ -208,7 +211,9 @@ func (l *gcCPULimiterState) updateLocked(now int64) {
+ 			typ, duration := pp.limiterEvent.consume(now)
+ 			switch typ {
+ 			case limiterEventIdleMarkWork:
+-				idleMarkTime += duration
++				fallthrough
++			case limiterEventIdle:
++				idleTime += duration
+ 			case limiterEventMarkAssist:
+ 				fallthrough
+ 			case limiterEventScavengeAssist:
+@@ -228,25 +233,28 @@ func (l *gcCPULimiterState) updateLocked(now int64) {
+ 		windowGCTime += int64(float64(windowTotalTime) * gcBackgroundUtilization)
+ 	}
+ 
+-	// Subtract out idle mark time from the total time. Do this after computing
++	// Subtract out all idle time from the total time. Do this after computing
+ 	// GC time, because the background utilization is dependent on the *real*
+ 	// total time, not the total time after idle time is subtracted.
+ 	//
+-	// Idle mark workers soak up time that the application spends idle. Any
+-	// additional idle time can skew GC CPU utilization, because the GC might
+-	// be executing continuously and thrashing, but the CPU utilization with
+-	// respect to GOMAXPROCS will be quite low, so the limiter will otherwise
+-	// never kick in. By subtracting idle mark time, we're removing time that
++	// Idle time is counted as any time that a P is on the P idle list plus idle mark
++	// time. Idle mark workers soak up time that the application spends idle.
++	//
++	// On a heavily undersubscribed system, any additional idle time can skew GC CPU
++	// utilization, because the GC might be executing continuously and thrashing,
++	// yet the CPU utilization with respect to GOMAXPROCS will be quite low, so
++	// the limiter fails to turn on. By subtracting idle time, we're removing time that
+ 	// we know the application was idle giving a more accurate picture of whether
+ 	// the GC is thrashing.
+ 	//
+-	// TODO(mknyszek): Figure out if it's necessary to also track non-GC idle time.
+-	//
+-	// There is a corner case here where if the idle mark workers are disabled, such
+-	// as when the periodic GC is executing, then we definitely won't be accounting
+-	// for this correctly. However, if the periodic GC is running, the limiter is likely
+-	// totally irrelevant because GC CPU utilization is extremely low anyway.
+-	windowTotalTime -= idleMarkTime
++	// Note that this can cause the limiter to turn on even if it's not needed. For
++	// instance, on a system with 32 Ps but only 1 running goroutine, each GC will have
++	// 8 dedicated GC workers. Assuming the GC cycle is half mark phase and half sweep
++	// phase, then the GC CPU utilization over that cycle, with idle time removed, will
++	// be 8/(8+2) = 80%. Even though the limiter turns on, though, assist should be
++	// unnecessary, as the GC has way more CPU time to outpace the 1 goroutine that's
++	// running.
++	windowTotalTime -= idleTime
+ 
+ 	l.accumulate(windowTotalTime-windowGCTime, windowGCTime)
+ }
+@@ -344,6 +352,7 @@ const (
+ 	limiterEventIdleMarkWork                           // Refers to an idle mark worker (see gcMarkWorkerMode).
+ 	limiterEventMarkAssist                             // Refers to mark assist (see gcAssistAlloc).
+ 	limiterEventScavengeAssist                         // Refers to a scavenge assist (see allocSpan).
++	limiterEventIdle                                   // Refers to time a P spent on the idle list.
+ 
+ 	limiterEventBits = 3
+ )
+@@ -462,7 +471,9 @@ func (e *limiterEvent) stop(typ limiterEventType, now int64) {
+ 	// Account for the event.
+ 	switch typ {
+ 	case limiterEventIdleMarkWork:
+-		gcCPULimiter.addIdleMarkTime(duration)
++		fallthrough
++	case limiterEventIdle:
++		gcCPULimiter.addIdleTime(duration)
+ 	case limiterEventMarkAssist:
+ 		fallthrough
+ 	case limiterEventScavengeAssist:
+diff --git a/src/runtime/mgcpacer.go b/src/runtime/mgcpacer.go
+index 87ad4b0a15..ac3446db36 100644
+--- a/src/runtime/mgcpacer.go
++++ b/src/runtime/mgcpacer.go
+@@ -789,7 +789,7 @@ func (c *gcControllerState) enlistWorker() {
+ 
+ // findRunnableGCWorker returns a background mark worker for _p_ if it
+ // should be run. This must only be called when gcBlackenEnabled != 0.
+-func (c *gcControllerState) findRunnableGCWorker(_p_ *p, now int64) *g {
++func (c *gcControllerState) findRunnableGCWorker(_p_ *p, now int64) (*g, int64) {
+ 	if gcBlackenEnabled == 0 {
+ 		throw("gcControllerState.findRunnable: blackening not enabled")
+ 	}
+@@ -798,6 +798,9 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p, now int64) *g {
+ 	// hasn't had an update in a while. This check is necessary in
+ 	// case the limiter is on but hasn't been checked in a while and
+ 	// so may have left sufficient headroom to turn off again.
++	if now == 0 {
++		now = nanotime()
++	}
+ 	if gcCPULimiter.needUpdate(now) {
+ 		gcCPULimiter.update(now)
+ 	}
+@@ -807,7 +810,7 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p, now int64) *g {
+ 		// the end of the mark phase when there are still
+ 		// assists tapering off. Don't bother running a worker
+ 		// now because it'll just return immediately.
+-		return nil
++		return nil, now
+ 	}
+ 
+ 	// Grab a worker before we commit to running below.
+@@ -824,7 +827,7 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p, now int64) *g {
+ 		// it will always do so with queued global work. Thus, that P
+ 		// will be immediately eligible to re-run the worker G it was
+ 		// just using, ensuring work can complete.
+-		return nil
++		return nil, now
+ 	}
+ 
+ 	decIfPositive := func(ptr *int64) bool {
+@@ -847,7 +850,7 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p, now int64) *g {
+ 	} else if c.fractionalUtilizationGoal == 0 {
+ 		// No need for fractional workers.
+ 		gcBgMarkWorkerPool.push(&node.node)
+-		return nil
++		return nil, now
+ 	} else {
+ 		// Is this P behind on the fractional utilization
+ 		// goal?
+@@ -857,7 +860,7 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p, now int64) *g {
+ 		if delta > 0 && float64(_p_.gcFractionalMarkTime)/float64(delta) > c.fractionalUtilizationGoal {
+ 			// Nope. No need to run a fractional worker.
+ 			gcBgMarkWorkerPool.push(&node.node)
+-			return nil
++			return nil, now
+ 		}
+ 		// Run a fractional worker.
+ 		_p_.gcMarkWorkerMode = gcMarkWorkerFractionalMode
+@@ -869,7 +872,7 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p, now int64) *g {
+ 	if trace.enabled {
+ 		traceGoUnpark(gp, 0)
+ 	}
+-	return gp
++	return gp, now
+ }
+ 
+ // resetLive sets up the controller state for the next mark phase after the end
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 7ac6279c40..dc2957b939 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1205,8 +1205,9 @@ func stopTheWorldWithSema() {
+ 		}
+ 	}
+ 	// stop idle P's
++	now := nanotime()
+ 	for {
+-		p := pidleget()
++		p, _ := pidleget(now)
+ 		if p == nil {
+ 			break
+ 		}
+@@ -2277,7 +2278,7 @@ func startm(_p_ *p, spinning bool) {
+ 	mp := acquirem()
+ 	lock(&sched.lock)
+ 	if _p_ == nil {
+-		_p_ = pidleget()
++		_p_, _ = pidleget(0)
+ 		if _p_ == nil {
+ 			unlock(&sched.lock)
+ 			if spinning {
+@@ -2400,7 +2401,7 @@ func handoffp(_p_ *p) {
+ 	// The scheduler lock cannot be held when calling wakeNetPoller below
+ 	// because wakeNetPoller may call wakep which may call startm.
+ 	when := nobarrierWakeTime(_p_)
+-	pidleput(_p_)
++	pidleput(_p_, 0)
+ 	unlock(&sched.lock)
+ 
+ 	if when != 0 {
+@@ -2584,7 +2585,7 @@ top:
+ 
+ 	// Try to schedule a GC worker.
+ 	if gcBlackenEnabled != 0 {
+-		gp = gcController.findRunnableGCWorker(_p_, now)
++		gp, now = gcController.findRunnableGCWorker(_p_, now)
+ 		if gp != nil {
+ 			return gp, false, true
+ 		}
+@@ -2733,7 +2734,7 @@ top:
+ 	if releasep() != _p_ {
+ 		throw("findrunnable: wrong p")
+ 	}
+-	pidleput(_p_)
++	now = pidleput(_p_, now)
+ 	unlock(&sched.lock)
+ 
+ 	// Delicate dance: thread transitions from spinning to non-spinning
+@@ -2812,11 +2813,10 @@ top:
+ 		if _g_.m.spinning {
+ 			throw("findrunnable: netpoll with spinning")
+ 		}
++		// Refresh now.
++		now = nanotime()
+ 		delay := int64(-1)
+ 		if pollUntil != 0 {
+-			if now == 0 {
+-				now = nanotime()
+-			}
+ 			delay = pollUntil - now
+ 			if delay < 0 {
+ 				delay = 0
+@@ -2828,7 +2828,7 @@ top:
+ 		}
+ 		list := netpoll(delay) // block until new work is available
+ 		atomic.Store64(&sched.pollUntil, 0)
+-		atomic.Store64(&sched.lastpoll, uint64(nanotime()))
++		atomic.Store64(&sched.lastpoll, uint64(now))
+ 		if faketime != 0 && list.empty() {
+ 			// Using fake time and nothing is ready; stop M.
+ 			// When all M's stop, checkdead will call timejump.
+@@ -2836,7 +2836,7 @@ top:
+ 			goto top
+ 		}
+ 		lock(&sched.lock)
+-		_p_ = pidleget()
++		_p_, _ = pidleget(now)
+ 		unlock(&sched.lock)
+ 		if _p_ == nil {
+ 			injectglist(&list)
+@@ -2972,7 +2972,7 @@ func checkRunqsNoP(allpSnapshot []*p, idlepMaskSnapshot pMask) *p {
+ 	for id, p2 := range allpSnapshot {
+ 		if !idlepMaskSnapshot.read(uint32(id)) && !runqempty(p2) {
+ 			lock(&sched.lock)
+-			pp := pidleget()
++			pp, _ := pidleget(0)
+ 			unlock(&sched.lock)
+ 			if pp != nil {
+ 				return pp
+@@ -3038,7 +3038,7 @@ func checkIdleGCNoP() (*p, *g) {
+ 	// the assumption in gcControllerState.findRunnableGCWorker that an
+ 	// empty gcBgMarkWorkerPool is only possible if gcMarkDone is running.
+ 	lock(&sched.lock)
+-	pp := pidleget()
++	pp, now := pidleget(0)
+ 	if pp == nil {
+ 		unlock(&sched.lock)
+ 		return nil, nil
+@@ -3046,14 +3046,14 @@ func checkIdleGCNoP() (*p, *g) {
+ 
+ 	// Now that we own a P, gcBlackenEnabled can't change (as it requires STW).
+ 	if gcBlackenEnabled == 0 || !gcController.addIdleMarkWorker() {
+-		pidleput(pp)
++		pidleput(pp, now)
+ 		unlock(&sched.lock)
+ 		return nil, nil
+ 	}
+ 
+ 	node := (*gcBgMarkWorkerNode)(gcBgMarkWorkerPool.pop())
+ 	if node == nil {
+-		pidleput(pp)
++		pidleput(pp, now)
+ 		unlock(&sched.lock)
+ 		gcController.removeIdleMarkWorker()
+ 		return nil, nil
+@@ -3910,7 +3910,7 @@ func exitsyscallfast_reacquired() {
+ 
+ func exitsyscallfast_pidle() bool {
+ 	lock(&sched.lock)
+-	_p_ := pidleget()
++	_p_, _ := pidleget(0)
+ 	if _p_ != nil && atomic.Load(&sched.sysmonwait) != 0 {
+ 		atomic.Store(&sched.sysmonwait, 0)
+ 		notewakeup(&sched.sysmonnote)
+@@ -3935,7 +3935,7 @@ func exitsyscall0(gp *g) {
+ 	lock(&sched.lock)
+ 	var _p_ *p
+ 	if schedEnabled(gp) {
+-		_p_ = pidleget()
++		_p_, _ = pidleget(0)
+ 	}
+ 	var locked bool
+ 	if _p_ == nil {
+@@ -4910,7 +4910,7 @@ func procresize(nprocs int32) *p {
+ 		}
+ 		p.status = _Pidle
+ 		if runqempty(p) {
+-			pidleput(p)
++			pidleput(p, now)
+ 		} else {
+ 			p.m.set(mget())
+ 			p.link.set(runnablePs)
+@@ -5679,7 +5679,8 @@ func updateTimerPMask(pp *p) {
+ 	unlock(&pp.timersLock)
+ }
+ 
+-// pidleput puts p to on the _Pidle list.
++// pidleput puts p on the _Pidle list. now must be a relatively recent call
++// to nanotime or zero. Returns now or the current time if now was zero.
+ //
+ // This releases ownership of p. Once sched.lock is released it is no longer
+ // safe to use p.
+@@ -5689,17 +5690,24 @@ func updateTimerPMask(pp *p) {
+ // May run during STW, so write barriers are not allowed.
+ //
+ //go:nowritebarrierrec
+-func pidleput(_p_ *p) {
++func pidleput(_p_ *p, now int64) int64 {
+ 	assertLockHeld(&sched.lock)
+ 
+ 	if !runqempty(_p_) {
+ 		throw("pidleput: P has non-empty run queue")
+ 	}
++	if now == 0 {
++		now = nanotime()
++	}
+ 	updateTimerPMask(_p_) // clear if there are no timers.
+ 	idlepMask.set(_p_.id)
+ 	_p_.link = sched.pidle
+ 	sched.pidle.set(_p_)
+-	atomic.Xadd(&sched.npidle, 1) // TODO: fast atomic
++	atomic.Xadd(&sched.npidle, 1)
++	if !_p_.limiterEvent.start(limiterEventIdle, now) {
++		throw("must be able to track idle limiter event")
++	}
++	return now
+ }
+ 
+ // pidleget tries to get a p from the _Pidle list, acquiring ownership.
+@@ -5709,18 +5717,22 @@ func pidleput(_p_ *p) {
+ // May run during STW, so write barriers are not allowed.
+ //
+ //go:nowritebarrierrec
+-func pidleget() *p {
++func pidleget(now int64) (*p, int64) {
+ 	assertLockHeld(&sched.lock)
+ 
+ 	_p_ := sched.pidle.ptr()
+ 	if _p_ != nil {
+ 		// Timer may get added at any time now.
++		if now == 0 {
++			now = nanotime()
++		}
+ 		timerpMask.set(_p_.id)
+ 		idlepMask.clear(_p_.id)
+ 		sched.pidle = _p_.link
+-		atomic.Xadd(&sched.npidle, -1) // TODO: fast atomic
++		atomic.Xadd(&sched.npidle, -1)
++		_p_.limiterEvent.stop(limiterEventIdle, now)
+ 	}
+-	return _p_
++	return _p_, now
+ }
+ 
+ // runqempty reports whether _p_ has no Gs on its local run queue.

@@ -12,7 +12,113 @@ Date:   Tue Mar 11 22:55:15 2014 -0700
     R=adg
     CC=golang-codereviews
     https://golang.org/cl/68960049
-
+---
  src/pkg/net/http/cgi/host.go            | 15 +++++++++++++++
  src/pkg/net/http/cgi/matryoshka_test.go | 31 +++++++++++++++++++++++++++++++
  2 files changed, 46 insertions(+)
+
+diff --git a/src/pkg/net/http/cgi/host.go b/src/pkg/net/http/cgi/host.go
+index 7802014526..ec95a972c1 100644
+--- a/src/pkg/net/http/cgi/host.go
++++ b/src/pkg/net/http/cgi/host.go
+@@ -223,6 +223,8 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 	linebody := bufio.NewReaderSize(stdoutRead, 1024)
+ 	headers := make(http.Header)
+ 	statusCode := 0
++	headerLines := 0
++	sawBlankLine := false
+ 	for {
+ 		line, isPrefix, err := linebody.ReadLine()
+ 		if isPrefix {
+@@ -239,8 +241,10 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 			return
+ 		}
+ 		if len(line) == 0 {
++			sawBlankLine = true
+ 			break
+ 		}
++		headerLines++
+ 		parts := strings.SplitN(string(line), ":", 2)
+ 		if len(parts) < 2 {
+ 			h.printf("cgi: bogus header line: %s", string(line))
+@@ -266,6 +270,11 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 			headers.Add(header, val)
+ 		}
+ 	}
++	if headerLines == 0 || !sawBlankLine {
++		rw.WriteHeader(http.StatusInternalServerError)
++		h.printf("cgi: no headers")
++		return
++	}
+ 
+ 	if loc := headers.Get("Location"); loc != "" {
+ 		if strings.HasPrefix(loc, "/") && h.PathLocationHandler != nil {
+@@ -277,6 +286,12 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 		}
+ 	}
+ 
++	if statusCode == 0 && headers.Get("Content-Type") == "" {
++		rw.WriteHeader(http.StatusInternalServerError)
++		h.printf("cgi: missing required Content-Type in headers")
++		return
++	}
++
+ 	if statusCode == 0 {
+ 		statusCode = http.StatusOK
+ 	}
+diff --git a/src/pkg/net/http/cgi/matryoshka_test.go b/src/pkg/net/http/cgi/matryoshka_test.go
+index 89146b6829..94f64671c1 100644
+--- a/src/pkg/net/http/cgi/matryoshka_test.go
++++ b/src/pkg/net/http/cgi/matryoshka_test.go
+@@ -128,6 +128,7 @@ func TestKillChildAfterCopyError(t *testing.T) {
+ }
+ 
+ // Test that a child handler writing only headers works.
++// golang.org/issue/7196
+ func TestChildOnlyHeaders(t *testing.T) {
+ 	h := &Handler{
+ 		Path: os.Args[0],
+@@ -143,6 +144,26 @@ func TestChildOnlyHeaders(t *testing.T) {
+ 	}
+ }
+ 
++// golang.org/issue/7198
++func Test500WithNoHeaders(t *testing.T)     { want500Test(t, "/immediate-disconnect") }
++func Test500WithNoContentType(t *testing.T) { want500Test(t, "/no-content-type") }
++func Test500WithEmptyHeaders(t *testing.T)  { want500Test(t, "/empty-headers") }
++
++func want500Test(t *testing.T, path string) {
++	h := &Handler{
++		Path: os.Args[0],
++		Root: "/test.go",
++		Args: []string{"-test.run=TestBeChildCGIProcess"},
++	}
++	expectedMap := map[string]string{
++		"_body": "",
++	}
++	replay := runCgiTest(t, h, "GET "+path+" HTTP/1.0\nHost: example.com\n\n", expectedMap)
++	if replay.Code != 500 {
++		t.Errorf("Got code %d; want 500", replay.Code)
++	}
++}
++
+ type neverEnding byte
+ 
+ func (b neverEnding) Read(p []byte) (n int, err error) {
+@@ -158,6 +179,16 @@ func TestBeChildCGIProcess(t *testing.T) {
+ 		// Not in a CGI environment; skipping test.
+ 		return
+ 	}
++	switch os.Getenv("REQUEST_URI") {
++	case "/immediate-disconnect":
++		os.Exit(0)
++	case "/no-content-type":
++		fmt.Printf("Content-Length: 6\n\nHello\n")
++		os.Exit(0)
++	case "/empty-headers":
++		fmt.Printf("\nHello")
++		os.Exit(0)
++	}
+ 	Serve(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+ 		rw.Header().Set("X-Test-Header", "X-Test-Value")
+ 		req.ParseForm()

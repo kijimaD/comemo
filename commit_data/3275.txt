@@ -8,7 +8,76 @@ Date:   Tue Sep 15 13:33:16 2009 -0700
     DELTA=56  (56 added, 0 deleted, 0 changed)
     OCL=34652
     CL=34652
-
+---
  src/pkg/go/printer/testdata/declarations.go     | 28 +++++++++++++++++++++++++
  src/pkg/go/printer/testdata/declarations.golden | 28 +++++++++++++++++++++++++
  2 files changed, 56 insertions(+)
+
+diff --git a/src/pkg/go/printer/testdata/declarations.go b/src/pkg/go/printer/testdata/declarations.go
+new file mode 100644
+index 0000000000..309caf3b61
+--- /dev/null
++++ b/src/pkg/go/printer/testdata/declarations.go
+@@ -0,0 +1,28 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package imports
++
++import "io"
++
++import (
++	a "io"
++)
++
++import a "io"
++
++import (
++	"io";
++	"io";
++	"io";
++)
++
++import (
++	"io";
++	aLongRename "io";
++	b "io";
++	c "i" "o";
++)
++
++// TODO(gri) add more test cases
+diff --git a/src/pkg/go/printer/testdata/declarations.golden b/src/pkg/go/printer/testdata/declarations.golden
+new file mode 100644
+index 0000000000..21c3c2b930
+--- /dev/null
++++ b/src/pkg/go/printer/testdata/declarations.golden
+@@ -0,0 +1,28 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package imports
++
++import "io"
++
++import (
++	a "io";
++)
++
++import a "io"
++
++import (
++	"io";
++	"io";
++	"io";
++)
++
++import (
++				"io";
++	aLongRename	"io";
++	b			"io";
++	c			"i" "o";
++)
++
++// TODO(gri) add more test cases

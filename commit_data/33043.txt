@@ -9,6 +9,23 @@ Date:   Wed Jun 28 10:50:31 2017 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/vet/all/main.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/vet/all/main.go b/src/cmd/vet/all/main.go
+index 64b3a0157a..b4df4cc720 100644
+--- a/src/cmd/vet/all/main.go
++++ b/src/cmd/vet/all/main.go
+@@ -238,9 +238,9 @@ NextLine:
+ 		default:
+ 			if !parseFailed {
+ 				parseFailed = true
+-				fmt.Fprintln(os.Stderr, "failed to parse vet output:")
++				fmt.Fprintf(os.Stderr, "failed to parse %s vet output:\n", p)
+ 			}
+-			fmt.Println(os.Stderr, line)
++			fmt.Fprintln(os.Stderr, line)
+ 		}
+ 		msg = strings.TrimSpace(msg)
+ 

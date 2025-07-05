@@ -7,6 +7,20 @@ Date:   Fri Mar 16 14:27:11 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5841044
-
+---
  doc/effective_go.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 3203a31dfa..984533706c 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -2357,7 +2357,7 @@ go list.Sort()  // run list.Sort in parallel; don't wait for it.
+ <p>
+ A function literal can be handy in a goroutine invocation.
+ <pre>
+-func Announce(message string, delay int64) {
++func Announce(message string, delay time.Duration) {
+     go func() {
+         time.Sleep(delay)
+         fmt.Println(message)

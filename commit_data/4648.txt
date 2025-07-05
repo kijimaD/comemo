@@ -12,7 +12,7 @@ Date:   Tue Jan 19 21:34:44 2010 -0800
     R=ken2, r
     CC=golang-dev
     https://golang.org/cl/190076
-
+---
  src/cmd/5g/gobj.c         |   9 +--
  src/cmd/5l/noop.c         |  10 +--
  src/cmd/5l/obj.c          |   2 +-
@@ -33,3 +33,778 @@ Date:   Tue Jan 19 21:34:44 2010 -0800
  src/cmd/gotest/gotest     |   6 +-
  src/cmd/ld/go.c           |  28 ++++----
  19 files changed, 228 insertions(+), 192 deletions(-)
+
+diff --git a/src/cmd/5g/gobj.c b/src/cmd/5g/gobj.c
+index bc29ba28bf..33cd123a4c 100644
+--- a/src/cmd/5g/gobj.c
++++ b/src/cmd/5g/gobj.c
+@@ -33,18 +33,11 @@
+ void
+ zname(Biobuf *b, Sym *s, int t)
+ {
+-	char *n;
+-
+ 	Bputc(b, ANAME);	/* as */
+ 	Bputc(b, t);		/* type */
+ 	Bputc(b, s->sym);	/* sym */
+ 
+-	for(n=s->package; *n; n++)
+-		Bputc(b, *n);
+-	Bputdot(b);
+-	for(n=s->name; *n; n++)
+-		Bputc(b, *n);
+-	Bputc(b, 0);
++	Bputname(b, s);
+ }
+ 
+ void
+diff --git a/src/cmd/5l/noop.c b/src/cmd/5l/noop.c
+index f67deb821f..bcc48e1117 100644
+--- a/src/cmd/5l/noop.c
++++ b/src/cmd/5l/noop.c
+@@ -128,7 +128,7 @@ noops(void)
+ 	Bflush(&bso);
+ 
+ 	pmorestack = P;
+-	symmorestack = lookup("runtime·morestack", 0);
++	symmorestack = lookup("runtime.morestack", 0);
+ 
+ 	if(symmorestack->type == STEXT)
+ 	for(p = firstp; p != P; p = p->link) {
+@@ -361,7 +361,7 @@ noops(void)
+ 				// MOVW.LO		$autosize, R1
+ 				// MOVW.LO		$args, R2
+ 				// MOVW.LO		R14, R3
+-				// BL.LO			runtime·morestack(SB) // modifies LR
++				// BL.LO			runtime.morestack(SB) // modifies LR
+ 				// MOVW.W		R14,$-autosize(SP)
+ 
+ 				// TODO(kaib): add more trampolines
+@@ -412,7 +412,7 @@ noops(void)
+ 				p->to.type = D_REG;
+ 				p->to.reg = 3;
+ 
+-				// BL.LO		runtime·morestack(SB) // modifies LR
++				// BL.LO		runtime.morestack(SB) // modifies LR
+ 				p = appendp(p);
+ 				p->as = ABL;
+ 				p->scond = C_SCOND_LO;
+@@ -433,7 +433,7 @@ noops(void)
+ 				// MOVW		$autosize, R1
+ 				// MOVW		$args, R2
+ 				// MOVW		R14, R3
+-				// BL			runtime·morestack(SB) // modifies LR
++				// BL			runtime.morestack(SB) // modifies LR
+ 				// MOVW.W		R14,$-autosize(SP)
+ 
+ 				// MOVW		$autosize, R1
+@@ -461,7 +461,7 @@ noops(void)
+ 				p->to.type = D_REG;
+ 				p->to.reg = 3;
+ 
+-				// BL		runtime·morestack(SB) // modifies LR
++				// BL		runtime.morestack(SB) // modifies LR
+ 				p = appendp(p);
+ 				p->as = ABL;
+  				p->to.type = D_BRANCH;
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 8fd39c2919..c1fdc7731b 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -74,7 +74,7 @@ isobjfile(char *f)
+ static char*
+ linkername[] =
+ {
+-	"runtime·softfloat",
++	"runtime.softfloat",
+ };
+ 
+ void
+diff --git a/src/cmd/6g/gobj.c b/src/cmd/6g/gobj.c
+index 337cbb9566..ead0def1bc 100644
+--- a/src/cmd/6g/gobj.c
++++ b/src/cmd/6g/gobj.c
+@@ -33,19 +33,12 @@
+ void
+ zname(Biobuf *b, Sym *s, int t)
+ {
+-	char *n;
+-
+ 	Bputc(b, ANAME);	/* as */
+ 	Bputc(b, ANAME>>8);	/* as */
+ 	Bputc(b, t);		/* type */
+ 	Bputc(b, s->sym);	/* sym */
+ 
+-	for(n=s->package; *n; n++)
+-		Bputc(b, *n);
+-	Bputdot(b);
+-	for(n=s->name; *n; n++)
+-		Bputc(b, *n);
+-	Bputc(b, 0);
++	Bputname(b, s);
+ }
+ 
+ void
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index 4a7f66af31..44dcb07100 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -513,17 +513,17 @@ brloop(Prog *p)
+ static char*
+ morename[] =
+ {
+-	"runtime·morestack00",
+-	"runtime·morestack10",
+-	"runtime·morestack01",
+-	"runtime·morestack11",
+-
+-	"runtime·morestack8",
+-	"runtime·morestack16",
+-	"runtime·morestack24",
+-	"runtime·morestack32",
+-	"runtime·morestack40",
+-	"runtime·morestack48",
++	"runtime.morestack00",
++	"runtime.morestack10",
++	"runtime.morestack01",
++	"runtime.morestack11",
++
++	"runtime.morestack8",
++	"runtime.morestack16",
++	"runtime.morestack24",
++	"runtime.morestack32",
++	"runtime.morestack40",
++	"runtime.morestack48",
+ };
+ Prog*	pmorestack[nelem(morename)];
+ Sym*	symmorestack[nelem(morename)];
+diff --git a/src/cmd/8g/gobj.c b/src/cmd/8g/gobj.c
+index 2a96d96fe2..698ebeeb6d 100644
+--- a/src/cmd/8g/gobj.c
++++ b/src/cmd/8g/gobj.c
+@@ -33,19 +33,12 @@
+ void
+ zname(Biobuf *b, Sym *s, int t)
+ {
+-	char *n;
+-
+ 	Bputc(b, ANAME);	/* as */
+ 	Bputc(b, ANAME>>8);	/* as */
+ 	Bputc(b, t);		/* type */
+ 	Bputc(b, s->sym);	/* sym */
+ 
+-	for(n=s->package; *n; n++)
+-		Bputc(b, *n);
+-	Bputdot(b);
+-	for(n=s->name; *n; n++)
+-		Bputc(b, *n);
+-	Bputc(b, 0);
++	Bputname(b, s);
+ }
+ 
+ void
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index 6cf2f5d9a8..9c42c3ded8 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -498,7 +498,7 @@ dostkoff(void)
+ 	Sym *symmorestack;
+ 
+ 	pmorestack = P;
+-	symmorestack = lookup("runtime·morestack", 0);
++	symmorestack = lookup("runtime.morestack", 0);
+ 
+ 	if(symmorestack->type == STEXT)
+ 	for(p = firstp; p != P; p = p->link) {
+@@ -511,7 +511,7 @@ dostkoff(void)
+ 		}
+ 	}
+ 	if(pmorestack == P)
+-		diag("runtime·morestack not defined");
++		diag("runtime.morestack not defined");
+ 
+ 	curframe = 0;
+ 	curbecome = 0;
+diff --git a/src/cmd/cc/lex.c b/src/cmd/cc/lex.c
+index e357d07c47..5a56518520 100644
+--- a/src/cmd/cc/lex.c
++++ b/src/cmd/cc/lex.c
+@@ -403,6 +403,17 @@ lookup(void)
+ 	uint32 h;
+ 	char *p;
+ 	int c, n;
++	char *r, *w;
++
++	// turn · into .
++	for(r=w=symb; *r; r++) {
++		if((uchar)*r == 0xc2 && (uchar)*(r+1) == 0xb7) {
++			*w++ = '.';
++			r++;
++		}else
++			*w++ = *r;
++	}
++	*w = '\0';
+ 
+ 	h = 0;
+ 	for(p=symb; *p;) {
+diff --git a/src/cmd/cc/lexbody b/src/cmd/cc/lexbody
+index ba5eda8242..c3b2d45294 100644
+--- a/src/cmd/cc/lexbody
++++ b/src/cmd/cc/lexbody
+@@ -221,6 +221,17 @@ lookup(void)
+ 	int32 h;
+ 	char *p;
+ 	int c, l;
++	char *r, *w;
++
++	// turn · into .
++	for(r=w=symb; *r; r++) {
++		if((uchar)*r == 0xc2 && (uchar)*(r+1) == 0xb7) {
++			*w++ = '.';
++			r++;
++		}else
++			*w++ = *r;
++	}
++	*w = '\0';
+ 
+ 	h = 0;
+ 	for(p=symb; c = *p; p++)
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index 4324c890fa..d2aec4e2af 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -1,92 +1,92 @@
+ char *runtimeimport =
+ 	"package runtime\n"
+-	"func runtime.mal (? int32) (? *any)\n"
+-	"func runtime.throwindex ()\n"
+-	"func runtime.throwreturn ()\n"
+-	"func runtime.throwinit ()\n"
+-	"func runtime.panicl ()\n"
+-	"func runtime.printbool (? bool)\n"
+-	"func runtime.printfloat (? float64)\n"
+-	"func runtime.printint (? int64)\n"
+-	"func runtime.printuint (? uint64)\n"
+-	"func runtime.printstring (? string)\n"
+-	"func runtime.printpointer (? any)\n"
+-	"func runtime.printiface (? any)\n"
+-	"func runtime.printeface (? any)\n"
+-	"func runtime.printslice (? any)\n"
+-	"func runtime.printnl ()\n"
+-	"func runtime.printsp ()\n"
+-	"func runtime.catstring (? string, ? string) (? string)\n"
+-	"func runtime.cmpstring (? string, ? string) (? int)\n"
+-	"func runtime.slicestring (? string, ? int, ? int) (? string)\n"
+-	"func runtime.slicestring1 (? string, ? int) (? string)\n"
+-	"func runtime.indexstring (? string, ? int) (? uint8)\n"
+-	"func runtime.intstring (? int64) (? string)\n"
+-	"func runtime.slicebytetostring (? []uint8) (? string)\n"
+-	"func runtime.sliceinttostring (? []int) (? string)\n"
+-	"func runtime.stringiter (? string, ? int) (? int)\n"
+-	"func runtime.stringiter2 (? string, ? int) (retk int, retv int)\n"
+-	"func runtime.slicecopy (to any, fr any, wid uint32) (? int)\n"
+-	"func runtime.ifaceI2E (iface any) (ret any)\n"
+-	"func runtime.ifaceE2I (typ *uint8, iface any) (ret any)\n"
+-	"func runtime.ifaceT2E (typ *uint8, elem any) (ret any)\n"
+-	"func runtime.ifaceE2T (typ *uint8, elem any) (ret any)\n"
+-	"func runtime.ifaceE2I2 (typ *uint8, iface any) (ret any, ok bool)\n"
+-	"func runtime.ifaceE2T2 (typ *uint8, elem any) (ret any, ok bool)\n"
+-	"func runtime.ifaceT2I (typ1 *uint8, typ2 *uint8, elem any) (ret any)\n"
+-	"func runtime.ifaceI2T (typ *uint8, iface any) (ret any)\n"
+-	"func runtime.ifaceI2T2 (typ *uint8, iface any) (ret any, ok bool)\n"
+-	"func runtime.ifaceI2I (typ *uint8, iface any) (ret any)\n"
+-	"func runtime.ifaceI2Ix (typ *uint8, iface any) (ret any)\n"
+-	"func runtime.ifaceI2I2 (typ *uint8, iface any) (ret any, ok bool)\n"
+-	"func runtime.ifaceeq (i1 any, i2 any) (ret bool)\n"
+-	"func runtime.efaceeq (i1 any, i2 any) (ret bool)\n"
+-	"func runtime.ifacethash (i1 any) (ret uint32)\n"
+-	"func runtime.efacethash (i1 any) (ret uint32)\n"
+-	"func runtime.makemap (key *uint8, val *uint8, hint int) (hmap map[any] any)\n"
+-	"func runtime.mapaccess1 (hmap map[any] any, key any) (val any)\n"
+-	"func runtime.mapaccess2 (hmap map[any] any, key any) (val any, pres bool)\n"
+-	"func runtime.mapassign1 (hmap map[any] any, key any, val any)\n"
+-	"func runtime.mapassign2 (hmap map[any] any, key any, val any, pres bool)\n"
+-	"func runtime.mapiterinit (hmap map[any] any, hiter *any)\n"
+-	"func runtime.mapiternext (hiter *any)\n"
+-	"func runtime.mapiter1 (hiter *any) (key any)\n"
+-	"func runtime.mapiter2 (hiter *any) (key any, val any)\n"
+-	"func runtime.makechan (elem *uint8, hint int) (hchan chan any)\n"
+-	"func runtime.chanrecv1 (hchan <-chan any) (elem any)\n"
+-	"func runtime.chanrecv2 (hchan <-chan any) (elem any, pres bool)\n"
+-	"func runtime.chansend1 (hchan chan<- any, elem any)\n"
+-	"func runtime.chansend2 (hchan chan<- any, elem any) (pres bool)\n"
+-	"func runtime.closechan (hchan any)\n"
+-	"func runtime.closedchan (hchan any) (? bool)\n"
+-	"func runtime.newselect (size int) (sel *uint8)\n"
+-	"func runtime.selectsend (sel *uint8, hchan chan<- any, elem any) (selected bool)\n"
+-	"func runtime.selectrecv (sel *uint8, hchan <-chan any, elem *any) (selected bool)\n"
+-	"func runtime.selectdefault (sel *uint8) (selected bool)\n"
+-	"func runtime.selectgo (sel *uint8)\n"
+-	"func runtime.makeslice (typ *uint8, nel int, cap int) (ary []any)\n"
+-	"func runtime.sliceslice1 (old []any, lb int, width int) (ary []any)\n"
+-	"func runtime.sliceslice (old []any, lb int, hb int, width int) (ary []any)\n"
+-	"func runtime.slicearray (old *any, nel int, lb int, hb int, width int) (ary []any)\n"
+-	"func runtime.closure ()\n"
+-	"func runtime.int64div (? int64, ? int64) (? int64)\n"
+-	"func runtime.uint64div (? uint64, ? uint64) (? uint64)\n"
+-	"func runtime.int64mod (? int64, ? int64) (? int64)\n"
+-	"func runtime.uint64mod (? uint64, ? uint64) (? uint64)\n"
+-	"func runtime.float64toint64 (? float64) (? int64)\n"
+-	"func runtime.int64tofloat64 (? int64) (? float64)\n"
++	"func \"runtime\".mal (? int32) (? *any)\n"
++	"func \"runtime\".throwindex ()\n"
++	"func \"runtime\".throwreturn ()\n"
++	"func \"runtime\".throwinit ()\n"
++	"func \"runtime\".panicl ()\n"
++	"func \"runtime\".printbool (? bool)\n"
++	"func \"runtime\".printfloat (? float64)\n"
++	"func \"runtime\".printint (? int64)\n"
++	"func \"runtime\".printuint (? uint64)\n"
++	"func \"runtime\".printstring (? string)\n"
++	"func \"runtime\".printpointer (? any)\n"
++	"func \"runtime\".printiface (? any)\n"
++	"func \"runtime\".printeface (? any)\n"
++	"func \"runtime\".printslice (? any)\n"
++	"func \"runtime\".printnl ()\n"
++	"func \"runtime\".printsp ()\n"
++	"func \"runtime\".catstring (? string, ? string) (? string)\n"
++	"func \"runtime\".cmpstring (? string, ? string) (? int)\n"
++	"func \"runtime\".slicestring (? string, ? int, ? int) (? string)\n"
++	"func \"runtime\".slicestring1 (? string, ? int) (? string)\n"
++	"func \"runtime\".indexstring (? string, ? int) (? uint8)\n"
++	"func \"runtime\".intstring (? int64) (? string)\n"
++	"func \"runtime\".slicebytetostring (? []uint8) (? string)\n"
++	"func \"runtime\".sliceinttostring (? []int) (? string)\n"
++	"func \"runtime\".stringiter (? string, ? int) (? int)\n"
++	"func \"runtime\".stringiter2 (? string, ? int) (retk int, retv int)\n"
++	"func \"runtime\".slicecopy (to any, fr any, wid uint32) (? int)\n"
++	"func \"runtime\".ifaceI2E (iface any) (ret any)\n"
++	"func \"runtime\".ifaceE2I (typ *uint8, iface any) (ret any)\n"
++	"func \"runtime\".ifaceT2E (typ *uint8, elem any) (ret any)\n"
++	"func \"runtime\".ifaceE2T (typ *uint8, elem any) (ret any)\n"
++	"func \"runtime\".ifaceE2I2 (typ *uint8, iface any) (ret any, ok bool)\n"
++	"func \"runtime\".ifaceE2T2 (typ *uint8, elem any) (ret any, ok bool)\n"
++	"func \"runtime\".ifaceT2I (typ1 *uint8, typ2 *uint8, elem any) (ret any)\n"
++	"func \"runtime\".ifaceI2T (typ *uint8, iface any) (ret any)\n"
++	"func \"runtime\".ifaceI2T2 (typ *uint8, iface any) (ret any, ok bool)\n"
++	"func \"runtime\".ifaceI2I (typ *uint8, iface any) (ret any)\n"
++	"func \"runtime\".ifaceI2Ix (typ *uint8, iface any) (ret any)\n"
++	"func \"runtime\".ifaceI2I2 (typ *uint8, iface any) (ret any, ok bool)\n"
++	"func \"runtime\".ifaceeq (i1 any, i2 any) (ret bool)\n"
++	"func \"runtime\".efaceeq (i1 any, i2 any) (ret bool)\n"
++	"func \"runtime\".ifacethash (i1 any) (ret uint32)\n"
++	"func \"runtime\".efacethash (i1 any) (ret uint32)\n"
++	"func \"runtime\".makemap (key *uint8, val *uint8, hint int) (hmap map[any] any)\n"
++	"func \"runtime\".mapaccess1 (hmap map[any] any, key any) (val any)\n"
++	"func \"runtime\".mapaccess2 (hmap map[any] any, key any) (val any, pres bool)\n"
++	"func \"runtime\".mapassign1 (hmap map[any] any, key any, val any)\n"
++	"func \"runtime\".mapassign2 (hmap map[any] any, key any, val any, pres bool)\n"
++	"func \"runtime\".mapiterinit (hmap map[any] any, hiter *any)\n"
++	"func \"runtime\".mapiternext (hiter *any)\n"
++	"func \"runtime\".mapiter1 (hiter *any) (key any)\n"
++	"func \"runtime\".mapiter2 (hiter *any) (key any, val any)\n"
++	"func \"runtime\".makechan (elem *uint8, hint int) (hchan chan any)\n"
++	"func \"runtime\".chanrecv1 (hchan <-chan any) (elem any)\n"
++	"func \"runtime\".chanrecv2 (hchan <-chan any) (elem any, pres bool)\n"
++	"func \"runtime\".chansend1 (hchan chan<- any, elem any)\n"
++	"func \"runtime\".chansend2 (hchan chan<- any, elem any) (pres bool)\n"
++	"func \"runtime\".closechan (hchan any)\n"
++	"func \"runtime\".closedchan (hchan any) (? bool)\n"
++	"func \"runtime\".newselect (size int) (sel *uint8)\n"
++	"func \"runtime\".selectsend (sel *uint8, hchan chan<- any, elem any) (selected bool)\n"
++	"func \"runtime\".selectrecv (sel *uint8, hchan <-chan any, elem *any) (selected bool)\n"
++	"func \"runtime\".selectdefault (sel *uint8) (selected bool)\n"
++	"func \"runtime\".selectgo (sel *uint8)\n"
++	"func \"runtime\".makeslice (typ *uint8, nel int, cap int) (ary []any)\n"
++	"func \"runtime\".sliceslice1 (old []any, lb int, width int) (ary []any)\n"
++	"func \"runtime\".sliceslice (old []any, lb int, hb int, width int) (ary []any)\n"
++	"func \"runtime\".slicearray (old *any, nel int, lb int, hb int, width int) (ary []any)\n"
++	"func \"runtime\".closure ()\n"
++	"func \"runtime\".int64div (? int64, ? int64) (? int64)\n"
++	"func \"runtime\".uint64div (? uint64, ? uint64) (? uint64)\n"
++	"func \"runtime\".int64mod (? int64, ? int64) (? int64)\n"
++	"func \"runtime\".uint64mod (? uint64, ? uint64) (? uint64)\n"
++	"func \"runtime\".float64toint64 (? float64) (? int64)\n"
++	"func \"runtime\".int64tofloat64 (? int64) (? float64)\n"
+ 	"\n"
+ 	"$$\n";
+ char *unsafeimport =
+ 	"package unsafe\n"
+-	"type unsafe.Pointer *any\n"
+-	"func unsafe.Offsetof (? any) (? int)\n"
+-	"func unsafe.Sizeof (? any) (? int)\n"
+-	"func unsafe.Alignof (? any) (? int)\n"
+-	"func unsafe.Typeof (i interface { }) (typ interface { })\n"
+-	"func unsafe.Reflect (i interface { }) (typ interface { }, addr unsafe.Pointer)\n"
+-	"func unsafe.Unreflect (typ interface { }, addr unsafe.Pointer) (ret interface { })\n"
+-	"func unsafe.New (typ interface { }) (? unsafe.Pointer)\n"
+-	"func unsafe.NewArray (typ interface { }, n int) (? unsafe.Pointer)\n"
++	"type \"unsafe\".Pointer *any\n"
++	"func \"unsafe\".Offsetof (? any) (? int)\n"
++	"func \"unsafe\".Sizeof (? any) (? int)\n"
++	"func \"unsafe\".Alignof (? any) (? int)\n"
++	"func \"unsafe\".Typeof (i interface { }) (typ interface { })\n"
++	"func \"unsafe\".Reflect (i interface { }) (typ interface { }, addr \"unsafe\".Pointer)\n"
++	"func \"unsafe\".Unreflect (typ interface { }, addr \"unsafe\".Pointer) (ret interface { })\n"
++	"func \"unsafe\".New (typ interface { }) (? \"unsafe\".Pointer)\n"
++	"func \"unsafe\".NewArray (typ interface { }, n int) (? \"unsafe\".Pointer)\n"
+ 	"\n"
+ 	"$$\n";
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index e8ca1f1f72..24c28b1f18 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -27,6 +27,7 @@ static	Sym*	dclstack;
+ void
+ dcopy(Sym *a, Sym *b)
+ {
++	a->packagename = b->packagename;
+ 	a->package = b->package;
+ 	a->name = b->name;
+ 	a->def = b->def;
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index de27091cd5..ad013ed667 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -226,6 +226,7 @@ dumpexport(void)
+ 
+ 	lno = lineno;
+ 
++	packagequotes = 1;
+ 	Bprint(bout, "   import\n");
+ 	Bprint(bout, "\n$$  // exports\n");
+ 
+@@ -244,6 +245,7 @@ dumpexport(void)
+ 	}
+ 
+ 	Bprint(bout, "\n$$\n");
++	packagequotes = 0;
+ 
+ 	lineno = lno;
+ }
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 0f5e13355a..fea438fd13 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -291,7 +291,8 @@ struct	Sym
+ 	Sym*	link;
+ 
+ 	// saved and restored by dcopy
+-	char*	package;	// package name
++	char*	packagename;	// package name
++	char*	package;	// import path
+ 	char*	name;		// variable name
+ 	Node*	def;		// definition: ONAME OTYPE OPACK or OLITERAL
+ 	int32	block;		// blocknumber to catch redeclaration
+@@ -712,6 +713,7 @@ EXTERN	int	noargnames;
+ 
+ EXTERN	int	funcdepth;
+ EXTERN	int	typecheckok;
++EXTERN	int	packagequotes;
+ 
+ /*
+  *	y.tab.c
+@@ -913,6 +915,8 @@ void	umagic(Magic*);
+ void	redeclare(Sym*, char*);
+ Sym*	ngotype(Node*);
+ 
++char*	toimportpath(Strlit*);
++
+ /*
+  *	dcl.c
+  */
+@@ -1144,7 +1148,7 @@ Plist*	newplist(void);
+ /*
+  *	obj.c
+  */
+-void	Bputdot(Biobuf *b);
++void	Bputname(Biobuf*, Sym*);
+ void	dumpglobls(void);
+ void	dumpobj(void);
+ void	ieeedtod(uint64 *ieee, double native);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 35e7742d96..93adf1c1af 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -142,7 +142,10 @@ package:
+  */
+ loadsys:
+ 	{
+-		cannedimports("runtime.builtin", runtimeimport);
++		if(debug['A'])
++			cannedimports("runtime.builtin", "package runtime\n\n$$\n\n");
++		else
++			cannedimports("runtime.builtin", runtimeimport);
+ 	}
+ 	import_package
+ 	import_there
+@@ -1546,8 +1549,17 @@ oliteral:
+  * an output package
+  */
+ hidden_import:
+-	LPACKAGE sym ';'
+-	/* variables */
++	LIMPORT sym LLITERAL
++	{
++		// Informational: record package name
++		// associated with import path, for use in
++		// human-readable messages.
++
++		Sym *s;
++
++		s = pkglookup("", toimportpath($3.u.sval));
++		s->packagename = $2->name;
++	}
+ |	LVAR hidden_pkg_importsym hidden_type ';'
+ 	{
+ 		importvar($2, $3, PEXTERN);
+@@ -1753,9 +1765,9 @@ hidden_constant:
+ 	}
+ 
+ hidden_importsym:
+-	sym '.' sym
++	LLITERAL '.' sym
+ 	{
+-		$$ = pkglookup($3->name, $1->name);
++		$$ = pkglookup($3->name, toimportpath($1.u.sval));
+ 	}
+ 
+ hidden_pkg_importsym:
+diff --git a/src/cmd/gc/mkbuiltin1.c b/src/cmd/gc/mkbuiltin1.c
+index 80bccf4896..aa28e295be 100644
+--- a/src/cmd/gc/mkbuiltin1.c
++++ b/src/cmd/gc/mkbuiltin1.c
+@@ -10,6 +10,8 @@
+ #include <ctype.h>
+ #include <errno.h>
+ 
++void esc(char*);
++
+ int
+ main(int argc, char **argv)
+ {
+@@ -61,12 +63,13 @@ begin:
+ 		printf("\t\"");
+ 		while(q = strstr(p, "PACKAGE")) {
+ 			*q = 0;
+-			printf("%s", p);	// up to the substitution
++			esc(p);	// up to the substitution
+ 			printf("%s", name);	// the sub name
+ 			p = q+7;		// continue with rest
+ 		}
+ 
+-		printf("%s\\n\"\n", p);
++		esc(p);
++		printf("\\n\"\n", p);
+ 	}
+ 	fprintf(stderr, "did not find end of imports\n");
+ 	exit(1);
+@@ -75,3 +78,13 @@ end:
+ 	printf("\t\"$$\\n\";\n");
+ 	return 0;
+ }
++
++void
++esc(char *p)
++{
++	for(; *p; p++) {
++		if(*p == '\\' || *p == '\"')
++			printf("\\");
++		putchar(*p);
++	}
++}
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index 5b6bb1bf38..e2343021b1 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -61,11 +61,13 @@ dumpglobls(void)
+ }
+ 
+ void
+-Bputdot(Biobuf *b)
++Bputname(Biobuf *b, Sym *s)
+ {
+-	// put out middle dot ·
+-	Bputc(b, 0xc2);
+-	Bputc(b, 0xb7);
++// PGNS: Uncomment next line.
++//	if(strcmp(s->package, package) != 0)
++		Bwrite(b, s->package, strlen(s->package));
++	Bputc(b, '.');
++	Bwrite(b, s->name, strlen(s->name)+1);
+ }
+ 
+ void
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index f7abc0357e..411000b0c4 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -254,34 +254,9 @@ stringhash(char *p)
+ }
+ 
+ Sym*
+-lookup(char *p)
++lookup(char *name)
+ {
+-	Sym *s;
+-	uint32 h;
+-	int c;
+-
+-	h = stringhash(p) % NHASH;
+-	c = p[0];
+-
+-	for(s = hash[h]; s != S; s = s->link) {
+-		if(s->name[0] != c)
+-			continue;
+-		if(strcmp(s->name, p) == 0)
+-			if(s->package && strcmp(s->package, package) == 0)
+-				return s;
+-	}
+-
+-	s = mal(sizeof(*s));
+-	s->name = mal(strlen(p)+1);
+-	s->package = package;
+-	s->lexical = LNAME;
+-
+-	strcpy(s->name, p);
+-
+-	s->link = hash[h];
+-	hash[h] = s;
+-
+-	return s;
++	return pkglookup(name, package);
+ }
+ 
+ Sym*
+@@ -306,8 +281,14 @@ pkglookup(char *name, char *pkg)
+ 	strcpy(s->name, name);
+ 
+ 	// botch - should probably try to reuse the pkg string
+-	s->package = mal(strlen(pkg)+1);
+-	strcpy(s->package, pkg);
++	if(pkg == package)
++		s->package = package;
++	else {
++		s->package = mal(strlen(pkg)+1);
++		strcpy(s->package, pkg);
++	}
++
++	s->packagename = s->package;
+ 
+ 	s->link = hash[h];
+ 	hash[h] = s;
+@@ -1013,15 +994,22 @@ Sconv(Fmt *fp)
+ 	pkg = "<nil>";
+ 	nam = pkg;
+ 
+-	if(s->package != nil)
+-		pkg = s->package;
++	if(s->packagename != nil)
++		pkg = s->packagename;
++	else
++		abort();
+ 	if(s->name != nil)
+ 		nam = s->name;
+ 
+-	if(!(fp->flags & FmtShort))
+-	if(strcmp(pkg, package) != 0 || (fp->flags & FmtLong)) {
+-		fmtprint(fp, "%s.%s", pkg, nam);
+-		return 0;
++	if(!(fp->flags & FmtShort)) {
++		if((fp->flags & FmtLong) && packagequotes) {
++			fmtprint(fp, "\"%s\".%s", s->package, nam);
++			return 0;
++		}
++		if((fp->flags & FmtLong) || strcmp(s->package, package) != 0) {
++			fmtprint(fp, "%s.%s", pkg, nam);
++			return 0;
++		}
+ 	}
+ 	fmtstrcpy(fp, nam);
+ 	return 0;
+@@ -3390,3 +3378,16 @@ ngotype(Node *n)
+ 		return typename(n->type)->left->sym;
+ 	return S;
+ }
++
++char*
++toimportpath(Strlit *s)
++{
++	char *p;
++
++//PGNS: Do better once these are import paths
++// rather than package names in disguise.
++	p = mal(s->len+1);
++	memmove(p, s->s, s->len);
++	p[s->len] = '\0';
++	return p;
++}
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index b2e4330945..cb0a2cdd9a 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -8,7 +8,7 @@
+ # tests.
+ # If files are named on the command line, use them instead of test*.go.
+ 
+-# Makes egrep,grep work better with · if we put them
++# Makes egrep,grep work better in general if we put them
+ # in ordinary C mode instead of what the current language is.
+ unset LANG
+ export LC_ALL=C
+@@ -115,14 +115,14 @@ importpath=$("$GOBIN"/gomake -s importpath)
+ 	# the grep -v eliminates methods and other special names
+ 	# that have multiple dots.
+ 	pattern='Test([^a-z].*)?'
+-	tests=$("$GOBIN"/6nm -s _test/$importpath.a $xofile | egrep ' T .*·'$pattern'$' | grep -v '·.*[.·]' | sed 's/.* //; s/·/./')
++	tests=$("$GOBIN"/6nm -s _test/$importpath.a $xofile | egrep ' T .*\.'$pattern'$' | sed 's/.* //; /\..*\./d')
+ 	if [ "x$tests" = x ]; then
+ 		echo 'gotest: error: no tests matching '$pattern in _test/$importpath.a $xofile 1>&2
+ 		exit 2
+ 	fi
+ 	# benchmarks are named BenchmarkFoo.
+ 	pattern='Benchmark([^a-z].*)?'
+-	benchmarks=$("$GOBIN"/6nm -s _test/$importpath.a $xofile | egrep ' T .*·'$pattern'$' | grep -v '·.*[.·]' | sed 's/.* //; s/·/./')
++	benchmarks=$("$GOBIN"/6nm -s _test/$importpath.a $xofile | egrep ' T .*\.'$pattern'$' | sed 's/.* //; /\..*\./d')
+ 
+ 	# package spec
+ 	echo 'package main'
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index 9a9346c1f2..8f9d198bc2 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -454,20 +454,20 @@ sweeplist(Prog **first, Prog **last)
+ static char*
+ morename[] =
+ {
+-	"runtime·morestack",
+-	"runtime·morestackx",
+-
+-	"runtime·morestack00",
+-	"runtime·morestack10",
+-	"runtime·morestack01",
+-	"runtime·morestack11",
+-
+-	"runtime·morestack8",
+-	"runtime·morestack16",
+-	"runtime·morestack24",
+-	"runtime·morestack32",
+-	"runtime·morestack40",
+-	"runtime·morestack48",
++	"runtime.morestack",
++	"runtime.morestackx",
++
++	"runtime.morestack00",
++	"runtime.morestack10",
++	"runtime.morestack01",
++	"runtime.morestack11",
++
++	"runtime.morestack8",
++	"runtime.morestack16",
++	"runtime.morestack24",
++	"runtime.morestack32",
++	"runtime.morestack40",
++	"runtime.morestack48",
+ };
+ 
+ void

@@ -7,7 +7,7 @@ Date:   Thu Dec 17 16:08:42 2009 -0800
     
     R=rsc
     https://golang.org/cl/174052
-
+---
  src/cmd/5l/Makefile             |  1 +
  src/cmd/5l/l.h                  |  1 +
  src/cmd/5l/obj.c                | 13 +++++++-
@@ -19,3 +19,300 @@ Date:   Thu Dec 17 16:08:42 2009 -0800
  src/pkg/runtime/arm/softfloat.c | 53 +++++++++++++++++++++++++++++++
  src/pkg/runtime/arm/vlop.s      | 17 ++++++++++
  10 files changed, 160 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/5l/Makefile b/src/cmd/5l/Makefile
+index be866b87a4..aa175d14c6 100644
+--- a/src/cmd/5l/Makefile
++++ b/src/cmd/5l/Makefile
+@@ -17,6 +17,7 @@ OFILES=\
+ 	optab.$O\
+ 	pass.$O\
+ 	thumb.$O\
++	softfloat.$O\
+ 	span.$O\
+ 	go.$O\
+ 
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index 05a20bad36..ba2de0a0f2 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -451,6 +451,7 @@ void	putsymb(char*, int, int32, int);
+ int32	regoff(Adr*);
+ int	relinv(int);
+ int32	rnd(int32, int32);
++void	softfloat(void);
+ void	span(void);
+ void	strnput(char*, int);
+ void	undef(void);
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 805d39544e..8fd39c2919 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -71,6 +71,12 @@ isobjfile(char *f)
+ 	return v;
+ }
+ 
++static char*
++linkername[] =
++{
++	"runtime·softfloat",
++};
++
+ void
+ usage(void)
+ {
+@@ -81,7 +87,7 @@ usage(void)
+ void
+ main(int argc, char *argv[])
+ {
+-	int c;
++	int c, i;
+ 
+ 	Binit(&bso, 1, OWRITE);
+ 	cout = -1;
+@@ -257,6 +263,10 @@ main(int argc, char *argv[])
+ 	if(!debug['l'])
+ 		loadlib();
+ 
++	// mark some functions that are only referenced after linker code editing
++	// TODO(kaib): this doesn't work, the prog can't be found in runtime
++	for(i=0; i<nelem(linkername); i++)
++		mark(lookup(linkername[i], 0));
+ 	deadcode();
+ 
+ 	firstp = firstp->link;
+@@ -294,6 +304,7 @@ main(int argc, char *argv[])
+ 	follow();
+ 	if(firstp == P)
+ 		goto out;
++	softfloat();
+ 	noops();
+ 	span();
+ 	asmb();
+diff --git a/src/cmd/5l/softfloat.c b/src/cmd/5l/softfloat.c
+new file mode 100644
+index 0000000000..f5a146feb0
+--- /dev/null
++++ b/src/cmd/5l/softfloat.c
+@@ -0,0 +1,70 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#define	EXTERN
++#include	"l.h"
++
++void
++softfloat()
++{
++	Prog *p, *prev, *psfloat;
++	Sym *symsfloat;
++	int wasfloat;
++	
++	symsfloat = lookup("_sfloat", 0);
++	psfloat = P;
++	if(symsfloat->type == STEXT)
++	for(p = firstp; p != P; p = p->link) {
++		if(p->as == ATEXT) {
++			if(p->from.sym == symsfloat) {
++				psfloat = p;
++				break;
++			}
++		}
++	}
++
++	wasfloat = 0;
++	p = firstp;
++	prev = P;
++	for(p = firstp; p != P; p = p->link) {
++		switch(p->as) {
++		case AMOVWD:
++		case AMOVWF:
++		case AMOVDW:
++		case AMOVFW:
++		case AMOVFD:
++		case AMOVDF:
++		case AMOVF:
++		case AMOVD:
++		case ACMPF:
++		case ACMPD:
++		case AADDF:
++		case AADDD:
++		case ASUBF:
++		case ASUBD:
++		case AMULF:
++		case AMULD:
++		case ADIVF:
++		case ADIVD:
++			if (psfloat == P)
++				diag("floats used with _sfloat not defined");
++			if (!wasfloat) {
++				if (prev == P)
++					diag("float instruction without predecessor TEXT");
++				// BL		_sfloat(SB)
++				prev = appendp(prev);
++				prev->as = ABL;
++ 				prev->to.type = D_BRANCH;
++				prev->to.sym = symsfloat;
++				prev->cond = psfloat;
++				
++				wasfloat = 1;
++			}
++			break;
++		default:
++			wasfloat = 0;
++		}
++		prev = p;
++	}
++}
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index 8f0e66d330..9a9346c1f2 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -364,7 +364,6 @@ err:
+ 	nerrors++;
+ }
+ 
+-static void mark(Sym*);
+ static int markdepth;
+ 
+ static void
+@@ -408,7 +407,7 @@ marktext(Prog *p)
+ 	markdepth--;
+ }
+ 
+-static void
++void
+ mark(Sym *s)
+ {
+ 	if(s == S || s->reachable)
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 0ae4106b8a..4a300ac4e9 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -77,6 +77,8 @@ void	usage(void);
+ void	ldobj1(Biobuf *f, int64 len, char *pn);
+ void	ldobj(Biobuf*, int64, char*);
+ void	ldpkg(Biobuf*, int64, char*);
++void	mark(Sym *s);
++
+ 
+ int	pathchar(void);
+ void*	mal(uint32);
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index bd6cd908bd..a85c441904 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -34,6 +34,7 @@ GOARM?=6
+ OFILES_arm=\
+ 	cas$(GOARM).$O\
+ 	memset.$O\
++	softfloat.$O\
+ 	vlop.$O\
+ 	vlrt.$O\
+ 
+diff --git a/src/pkg/runtime/arm/asm.s b/src/pkg/runtime/arm/asm.s
+index d65a119021..8c18fc85eb 100644
+--- a/src/pkg/runtime/arm/asm.s
++++ b/src/pkg/runtime/arm/asm.s
+@@ -73,7 +73,7 @@ TEXT mainstart(SB),7,$4
+ 	MOVW	R0, (R1)	// fail hard
+ 	RET
+ 
+-// TODO(kaib): remove these once linker works properly
++// TODO(kaib): remove these once i actually understand how the linker removes symbols
+ // pull in dummy dependencies
+ TEXT _dep_dummy(SB),7,$0
+ 	BL	_div(SB)
+@@ -81,6 +81,7 @@ TEXT _dep_dummy(SB),7,$0
+ 	BL	_mod(SB)
+ 	BL	_modu(SB)
+ 	BL	_modu(SB)
++	BL	_sfloat(SB)
+ 
+ TEXT	breakpoint(SB),7,$0
+ 	BL	abort(SB)
+diff --git a/src/pkg/runtime/arm/softfloat.c b/src/pkg/runtime/arm/softfloat.c
+new file mode 100644
+index 0000000000..a71b251138
+--- /dev/null
++++ b/src/pkg/runtime/arm/softfloat.c
+@@ -0,0 +1,53 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++
++// returns number of bytes that the fp instruction is occupying
++static uint32
++isfltinstr(uint32 *pc)
++{
++	uint32 i;
++	uint32 c;
++	
++	i = *pc;
++	c = i >> 25 & 7;
++	
++	switch(c) {
++	case 6: // 110
++//printf(" %p coproc multi: %x\n", pc, i);
++		return 4;
++	case 7: // 111
++		if (i>>24 & 1) return 0; // ignore swi
++//printf(" %p coproc %x\n", pc, i);
++		return 4;
++	}
++
++	// lookahead for virtual instructions that span multiple arm instructions
++	c = ((*pc & 0x0f000000) >> 16) |
++		((*(pc + 1)  & 0x0f000000) >> 20) |
++		((*(pc + 2) & 0x0f000000) >> 24);
++	if(c == 0x50d) {
++//printf(" %p coproc const %x\n", pc, i);
++		return 12;
++	}
++
++//printf(" %p %x\n", pc, i);
++	return 0;
++}
++
++#pragma textflag 7
++uint32*
++_sfloat2(uint32 *lr, uint32 r0)
++{
++	uint32 skip;
++	
++//printf("softfloat: pre %p\n", lr);
++	while(skip = isfltinstr(lr))
++		lr += skip;
++//printf(" post: %p\n", lr);
++	return lr;
++}
++
++
+diff --git a/src/pkg/runtime/arm/vlop.s b/src/pkg/runtime/arm/vlop.s
+index 2c1d583fdb..b32204b176 100644
+--- a/src/pkg/runtime/arm/vlop.s
++++ b/src/pkg/runtime/arm/vlop.s
+@@ -165,3 +165,20 @@ TEXT	_modu(SB), 7, $16
+ out:
+ 	BL	rest<>(SB)
+ 	B	out
++
++// trampoline for _sfloat2. passes LR as arg0 and
++// saves registers R0-R11 on the stack for mutation
++// by _sfloat2
++TEXT	_sfloat(SB), 7, $52 // 4 arg + 12*4 saved regs
++	MOVW	R14, 4(R13)
++	MOVW	R0, 8(R13)
++	MOVW	$12(R13), R0
++	MOVM.IA.W	[R1-R11], (R0)
++	BL	_sfloat2(SB)
++	MOVW	R0, 0(R13)
++	MOVW	$12(R13), R0
++	MOVM.IA.W	(R0), [R1-R11]
++	MOVW	8(R13), R0
++	RET
++			
++

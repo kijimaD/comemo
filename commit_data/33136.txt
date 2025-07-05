@@ -9,6 +9,29 @@ Date:   Sat Jul 15 13:40:22 2017 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/regexp/example_test.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/regexp/example_test.go b/src/regexp/example_test.go
+index 8661d6d389..2ac92d4382 100644
+--- a/src/regexp/example_test.go
++++ b/src/regexp/example_test.go
+@@ -109,6 +109,17 @@ func ExampleRegexp_FindAllStringSubmatchIndex() {
+ 	// []
+ }
+ 
++func ExampleRegexp_MatchString() {
++	re := regexp.MustCompile("(gopher){2}")
++	fmt.Println(re.MatchString("gopher"))
++	fmt.Println(re.MatchString("gophergopher"))
++	fmt.Println(re.MatchString("gophergophergopher"))
++	// Output:
++	// false
++	// true
++	// true
++}
++
+ func ExampleRegexp_ReplaceAllLiteralString() {
+ 	re := regexp.MustCompile("a(x*)b")
+ 	fmt.Println(re.ReplaceAllLiteralString("-ab-axxb-", "T"))

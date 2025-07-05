@@ -13,7 +13,46 @@ Date:   Tue Jun 22 20:19:57 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/os/user/lookup_plan9.go | 1 +
  src/os/user/user_test.go    | 8 --------
  2 files changed, 1 insertion(+), 8 deletions(-)
+
+diff --git a/src/os/user/lookup_plan9.go b/src/os/user/lookup_plan9.go
+index 33ae3a6adf..51caf55935 100644
+--- a/src/os/user/lookup_plan9.go
++++ b/src/os/user/lookup_plan9.go
+@@ -18,6 +18,7 @@ const (
+ )
+ 
+ func init() {
++	userImplemented = false
+ 	groupImplemented = false
+ }
+ 
+diff --git a/src/os/user/user_test.go b/src/os/user/user_test.go
+index 49920317be..1112c78c00 100644
+--- a/src/os/user/user_test.go
++++ b/src/os/user/user_test.go
+@@ -56,10 +56,6 @@ func compare(t *testing.T, want, got *User) {
+ func TestLookup(t *testing.T) {
+ 	checkUser(t)
+ 
+-	if runtime.GOOS == "plan9" {
+-		t.Skipf("Lookup not implemented on %q", runtime.GOOS)
+-	}
+-
+ 	want, err := Current()
+ 	if err != nil {
+ 		t.Fatalf("Current: %v", err)
+@@ -77,10 +73,6 @@ func TestLookup(t *testing.T) {
+ func TestLookupId(t *testing.T) {
+ 	checkUser(t)
+ 
+-	if runtime.GOOS == "plan9" {
+-		t.Skipf("LookupId not implemented on %q", runtime.GOOS)
+-	}
+-
+ 	want, err := Current()
+ 	if err != nil {
+ 		t.Fatalf("Current: %v", err)

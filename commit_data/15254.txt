@@ -11,6 +11,23 @@ Date:   Thu Feb 14 21:11:47 2013 +0100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7310079
-
+---
  src/cmd/gc/dcl.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 20b0ab904f..b2fefb18c8 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -171,9 +171,9 @@ redeclare(Sym *s, char *where)
+ 			line1 = s->lastlineno;
+ 		}
+ 
+-		yyerrorl(line1, "%S redeclared %s (%#N)\n"
++		yyerrorl(line1, "%S redeclared %s\n"
+ 			"\tprevious declaration at %L",
+-			s, where, s->def, line2);
++			s, where, line2);
+ 	}
+ }
+ 

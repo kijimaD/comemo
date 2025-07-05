@@ -17,9 +17,95 @@ Date:   Tue Jan 29 17:22:36 2019 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/http.go    | 13 +++++++++----
  src/net/http/request.go |  2 +-
  src/net/url/url.go      | 15 ++++++++++-----
  src/net/url/url_test.go |  6 ++++++
  4 files changed, 26 insertions(+), 10 deletions(-)
+
+diff --git a/src/net/http/http.go b/src/net/http/http.go
+index 5c03c16c87..e5d59e1412 100644
+--- a/src/net/http/http.go
++++ b/src/net/http/http.go
+@@ -59,10 +59,15 @@ func isASCII(s string) bool {
+ 	return true
+ }
+ 
+-// isCTL reports whether r is an ASCII control character, including
+-// the Extended ASCII control characters included in Unicode.
+-func isCTL(r rune) bool {
+-	return r < ' ' || 0x7f <= r && r <= 0x9f
++// stringContainsCTLByte reports whether s contains any ASCII control character.
++func stringContainsCTLByte(s string) bool {
++	for i := 0; i < len(s); i++ {
++		b := s[i]
++		if b < ' ' || b == 0x7f {
++			return true
++		}
++	}
++	return false
+ }
+ 
+ func hexEscapeNonASCII(s string) string {
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 01ba1dc1fb..dcad2b6fab 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -550,7 +550,7 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
+ 			ruri = r.URL.Opaque
+ 		}
+ 	}
+-	if strings.IndexFunc(ruri, isCTL) != -1 {
++	if stringContainsCTLByte(ruri) {
+ 		return errors.New("net/http: can't write control character in Request.URL")
+ 	}
+ 	// TODO: validate r.Method too? At least it's less likely to
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 77078ade1b..64274a0a36 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -513,7 +513,7 @@ func parse(rawurl string, viaRequest bool) (*URL, error) {
+ 	var rest string
+ 	var err error
+ 
+-	if strings.IndexFunc(rawurl, isCTL) != -1 {
++	if stringContainsCTLByte(rawurl) {
+ 		return nil, errors.New("net/url: invalid control character in URL")
+ 	}
+ 
+@@ -1139,8 +1139,13 @@ func validUserinfo(s string) bool {
+ 	return true
+ }
+ 
+-// isCTL reports whether r is an ASCII control character, including
+-// the Extended ASCII control characters included in Unicode.
+-func isCTL(r rune) bool {
+-	return r < ' ' || 0x7f <= r && r <= 0x9f
++// stringContainsCTLByte reports whether s contains any ASCII control character.
++func stringContainsCTLByte(s string) bool {
++	for i := 0; i < len(s); i++ {
++		b := s[i]
++		if b < ' ' || b == 0x7f {
++			return true
++		}
++	}
++	return false
+ }
+diff --git a/src/net/url/url_test.go b/src/net/url/url_test.go
+index 43d77f090c..c5fc90d515 100644
+--- a/src/net/url/url_test.go
++++ b/src/net/url/url_test.go
+@@ -1757,6 +1757,12 @@ func TestRejectControlCharacters(t *testing.T) {
+ 			t.Errorf("Parse(%q) error = %q; want substring %q", s, got, wantSub)
+ 		}
+ 	}
++
++	// But don't reject non-ASCII CTLs, at least for now:
++	if _, err := Parse("http://foo.com/ctl\x80"); err != nil {
++		t.Errorf("error parsing URL with non-ASCII control byte: %v", err)
++	}
++
+ }
+ 
+ var escapeBenchmarks = []struct {

@@ -12,10 +12,136 @@ Date:   Thu Apr 14 12:32:28 2016 -0400
     Change-Id: Ib69549a1d37e2d07a351cf0f44007bcd24f0d20d
     Reviewed-on: https://go-review.googlesource.com/22062
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/os_linux.go         |  9 ++++++++-
  src/runtime/os_linux_386.go     |  7 -------
  src/runtime/os_linux_arm.go     |  9 ++++-----
  src/runtime/os_linux_arm64.go   | 14 ++++----------
  src/runtime/vdso_linux_amd64.go |  4 ----
  5 files changed, 16 insertions(+), 27 deletions(-)
+
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index eeb30c7dd9..4645f1c33d 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -177,7 +177,8 @@ var failallocatestack = []byte("runtime: failed to allocate stack for the new OS
+ var failthreadcreate = []byte("runtime: failed to create new OS thread\n")
+ 
+ const (
+-	_AT_NULL = 0 // End of vector
++	_AT_NULL   = 0  // End of vector
++	_AT_RANDOM = 25 // introduced in 2.6.29
+ )
+ 
+ func sysargs(argc int32, argv **byte) {
+@@ -195,6 +196,12 @@ func sysargs(argc int32, argv **byte) {
+ 	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
+ 	for i := 0; auxv[i] != _AT_NULL; i += 2 {
+ 		tag, val := auxv[i], auxv[i+1]
++		switch tag {
++		case _AT_RANDOM:
++			// The kernel provides a pointer to 16-bytes
++			// worth of random data.
++			startupRandomData = (*[16]byte)(unsafe.Pointer(val))[:]
++		}
+ 		archauxv(tag, val)
+ 	}
+ }
+diff --git a/src/runtime/os_linux_386.go b/src/runtime/os_linux_386.go
+index 2383d962b2..cf031afe45 100644
+--- a/src/runtime/os_linux_386.go
++++ b/src/runtime/os_linux_386.go
+@@ -4,16 +4,9 @@
+ 
+ package runtime
+ 
+-import "unsafe"
+-
+ const (
+-	_AT_RANDOM  = 25
+ 	_AT_SYSINFO = 32
+ )
+ 
+ func archauxv(tag, val uintptr) {
+-	switch tag {
+-	case _AT_RANDOM:
+-		startupRandomData = (*[16]byte)(unsafe.Pointer(val))[:]
+-	}
+ }
+diff --git a/src/runtime/os_linux_arm.go b/src/runtime/os_linux_arm.go
+index a61be916b6..8e2765a413 100644
+--- a/src/runtime/os_linux_arm.go
++++ b/src/runtime/os_linux_arm.go
+@@ -9,7 +9,6 @@ import "unsafe"
+ const (
+ 	_AT_PLATFORM = 15 //  introduced in at least 2.6.11
+ 	_AT_HWCAP    = 16 // introduced in at least 2.6.11
+-	_AT_RANDOM   = 25 // introduced in 2.6.29
+ 
+ 	_HWCAP_VFP   = 1 << 6  // introduced in at least 2.6.11
+ 	_HWCAP_VFPv3 = 1 << 13 // introduced in 2.6.30
+@@ -34,10 +33,10 @@ func checkgoarm() {
+ 
+ func archauxv(tag, val uintptr) {
+ 	switch tag {
+-	case _AT_RANDOM: // kernel provides a pointer to 16-bytes worth of random data
+-		startupRandomData = (*[16]byte)(unsafe.Pointer(val))[:]
+-		// the pointer provided may not be word aligned, so we must treat it
+-		// as a byte array.
++	case _AT_RANDOM:
++		// sysargs filled in startupRandomData, but that
++		// pointer may not be word aligned, so we must treat
++		// it as a byte array.
+ 		randomNumber = uint32(startupRandomData[4]) | uint32(startupRandomData[5])<<8 |
+ 			uint32(startupRandomData[6])<<16 | uint32(startupRandomData[7])<<24
+ 
+diff --git a/src/runtime/os_linux_arm64.go b/src/runtime/os_linux_arm64.go
+index aa9d4d9885..43262aea14 100644
+--- a/src/runtime/os_linux_arm64.go
++++ b/src/runtime/os_linux_arm64.go
+@@ -4,20 +4,14 @@
+ 
+ package runtime
+ 
+-import "unsafe"
+-
+-const (
+-	_AT_RANDOM = 25 // introduced in 2.6.29
+-)
+-
+ var randomNumber uint32
+ 
+ func archauxv(tag, val uintptr) {
+ 	switch tag {
+-	case _AT_RANDOM: // kernel provides a pointer to 16-bytes worth of random data
+-		startupRandomData = (*[16]byte)(unsafe.Pointer(val))[:]
+-		// the pointer provided may not be word aligned, so we must treat it
+-		// as a byte array.
++	case _AT_RANDOM:
++		// sysargs filled in startupRandomData, but that
++		// pointer may not be word aligned, so we must treat
++		// it as a byte array.
+ 		randomNumber = uint32(startupRandomData[4]) | uint32(startupRandomData[5])<<8 |
+ 			uint32(startupRandomData[6])<<16 | uint32(startupRandomData[7])<<24
+ 	}
+diff --git a/src/runtime/vdso_linux_amd64.go b/src/runtime/vdso_linux_amd64.go
+index 1aae9b6570..8a970dfbe6 100644
+--- a/src/runtime/vdso_linux_amd64.go
++++ b/src/runtime/vdso_linux_amd64.go
+@@ -18,7 +18,6 @@ import "unsafe"
+ // http://refspecs.linuxfoundation.org/LSB_3.2.0/LSB-Core-generic/LSB-Core-generic/symversion.html
+ 
+ const (
+-	_AT_RANDOM       = 25
+ 	_AT_SYSINFO_EHDR = 33
+ 
+ 	_PT_LOAD    = 1 /* Loadable program segment */
+@@ -303,8 +302,5 @@ func archauxv(tag, val uintptr) {
+ 		info1 := (*vdso_info)(noescape(unsafe.Pointer(&info)))
+ 		vdso_init_from_sysinfo_ehdr(info1, (*elf64Ehdr)(unsafe.Pointer(val)))
+ 		vdso_parse_symbols(info1, vdso_find_version(info1, &linux26))
+-
+-	case _AT_RANDOM:
+-		startupRandomData = (*[16]byte)(unsafe.Pointer(val))[:]
+ 	}
+ }

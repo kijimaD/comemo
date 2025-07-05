@@ -12,6 +12,21 @@ Date:   Wed May 17 16:12:42 2023 -0400
     Reviewed-by: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
-
+---
  src/log/slog/doc.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/log/slog/doc.go b/src/log/slog/doc.go
+index 3b242591fc..8237b4e3d5 100644
+--- a/src/log/slog/doc.go
++++ b/src/log/slog/doc.go
+@@ -312,5 +312,9 @@ Now computeExpensiveValue will only be called when the line is enabled.
+ The built-in handlers acquire a lock before calling [io.Writer.Write]
+ to ensure that each record is written in one piece. User-defined
+ handlers are responsible for their own locking.
++
++# Writing a handler
++
++For a guide to writing a custom handler, see https://golang.org/s/slog-handler-guide.
+ */
+ package slog

@@ -9,6 +9,19 @@ Date:   Thu Jan 14 12:14:05 2016 -0800
     Change-Id: If2cad5473a749460909519ac20aca19dea8a2e7a
     Reviewed-on: https://go-review.googlesource.com/18671
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/runtime/signal_darwin_arm64.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/signal_darwin_arm64.go b/src/runtime/signal_darwin_arm64.go
+index 8be0f4f9dc..82f4a82bb3 100644
+--- a/src/runtime/signal_darwin_arm64.go
++++ b/src/runtime/signal_darwin_arm64.go
+@@ -55,6 +55,7 @@ func (c *sigctxt) set_sp(x uint64)  { c.regs().sp = x }
+ func (c *sigctxt) set_lr(x uint64)  { c.regs().lr = x }
+ func (c *sigctxt) set_r28(x uint64) { c.regs().x[28] = x }
+ 
++func (c *sigctxt) set_sigcode(x uint64) { c.info.si_code = int32(x) }
+ func (c *sigctxt) set_sigaddr(x uint64) {
+ 	c.info.si_addr = (*byte)(unsafe.Pointer(uintptr(x)))
+ }

@@ -11,6 +11,19 @@ Date:   Tue Oct 8 13:17:02 2019 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/fmtmap_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/fmtmap_test.go b/src/cmd/compile/fmtmap_test.go
+index 8764c8c822..7c44ec11ed 100644
+--- a/src/cmd/compile/fmtmap_test.go
++++ b/src/cmd/compile/fmtmap_test.go
+@@ -160,6 +160,7 @@ var knownFormats = map[string]string{
+ 	"int64 %v":                                        "",
+ 	"int64 %x":                                        "",
+ 	"int8 %d":                                         "",
++	"int8 %v":                                         "",
+ 	"int8 %x":                                         "",
+ 	"interface{} %#v":                                 "",
+ 	"interface{} %T":                                  "",

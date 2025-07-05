@@ -17,6 +17,26 @@ Date:   Tue Feb 4 19:41:48 2020 -0500
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/lookup_test.go | 7 ++-----
  1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 1663b78ef0..2bc5592d5a 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -1179,12 +1179,9 @@ func TestWithUnexpiredValuesPreserved(t *testing.T) {
+ 	}
+ }
+ 
+-// Issue 31586: don't crash on null byte in name
++// Issue 31597: don't panic on null byte in name
+ func TestLookupNullByte(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+ 	testenv.SkipFlakyNet(t)
+-	_, err := LookupHost("foo\x00bar") // used to crash on Windows
+-	if err == nil {
+-		t.Errorf("unexpected success")
+-	}
++	LookupHost("foo\x00bar") // check that it doesn't panic; it used to on Windows
+ }

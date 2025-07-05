@@ -12,6 +12,24 @@ Date:   Fri Feb 28 03:26:26 2014 +1100
     R=golang-codereviews, minux.ma
     CC=golang-codereviews
     https://golang.org/cl/69380043
-
+---
  src/pkg/runtime/runtime_test.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/pkg/runtime/runtime_test.go b/src/pkg/runtime/runtime_test.go
+index 83489480da..9aca68e1a1 100644
+--- a/src/pkg/runtime/runtime_test.go
++++ b/src/pkg/runtime/runtime_test.go
+@@ -135,6 +135,12 @@ func TestStopCPUProfilingWithProfilerOff(t *testing.T) {
+ }
+ 
+ func TestSetPanicOnFault(t *testing.T) {
++	// This currently results in a fault in the signal trampoline on
++	// dragonfly/386 - see issue 7421.
++	if GOOS == "dragonfly" && GOARCH == "386" {
++		t.Skip("skipping test on dragonfly/386")
++	}
++
+ 	old := debug.SetPanicOnFault(true)
+ 	defer debug.SetPanicOnFault(old)
+ 

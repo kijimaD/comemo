@@ -11,6 +11,20 @@ Date:   Tue Feb 11 20:47:55 2025 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/648755
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/dist/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index ba273d7923..005e1da86a 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -762,7 +762,7 @@ func (t *tester) registerTests() {
+ 			})
+ 		t.registerTest("GODEBUG=gccheckmark=1 runtime",
+ 			&goTest{
+-				variant: "runtime:gcstoptheworld2",
++				variant: "runtime:gccheckmark",
+ 				timeout: 300 * time.Second,
+ 				short:   true,
+ 				env:     []string{"GODEBUG=gccheckmark=1"},

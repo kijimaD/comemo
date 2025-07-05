@@ -40,6 +40,118 @@ Date:   Thu Jan 23 14:33:26 2020 -0800
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/cmd/compile/internal/ssa/gen/rulegen.go | 76 ++++++++++++++++++++++++-----
  1 file changed, 64 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 2530a61c76..4f404af8e7 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -1287,23 +1287,31 @@ func parseValue(val string, arch arch, loc string) (op opData, oparch, typ, auxi
+ 	}
+ 
+ 	// Sanity check aux, auxint.
+-	if auxint != "" {
+-		switch op.aux {
+-		case "Bool", "Int8", "Int16", "Int32", "Int64", "Int128", "Float32", "Float64", "SymOff", "SymValAndOff", "TypSize":
+-		default:
+-			log.Fatalf("%s: op %s %s can't have auxint", loc, op.name, op.aux)
+-		}
++	if auxint != "" && !opHasAuxInt(op) {
++		log.Fatalf("%s: op %s %s can't have auxint", loc, op.name, op.aux)
+ 	}
+-	if aux != "" {
+-		switch op.aux {
+-		case "String", "Sym", "SymOff", "SymValAndOff", "Typ", "TypSize", "CCop", "ArchSpecific":
+-		default:
+-			log.Fatalf("%s: op %s %s can't have aux", loc, op.name, op.aux)
+-		}
++	if aux != "" && !opHasAux(op) {
++		log.Fatalf("%s: op %s %s can't have aux", loc, op.name, op.aux)
+ 	}
+ 	return
+ }
+ 
++func opHasAuxInt(op opData) bool {
++	switch op.aux {
++	case "Bool", "Int8", "Int16", "Int32", "Int64", "Int128", "Float32", "Float64", "SymOff", "SymValAndOff", "TypSize":
++		return true
++	}
++	return false
++}
++
++func opHasAux(op opData) bool {
++	switch op.aux {
++	case "String", "Sym", "SymOff", "SymValAndOff", "Typ", "TypSize", "CCop", "ArchSpecific":
++		return true
++	}
++	return false
++}
++
+ // splitNameExpr splits s-expr arg, possibly prefixed by "name:",
+ // into name and the unprefixed expression.
+ // For example, "x:(Foo)" yields "x", "(Foo)",
+@@ -1533,11 +1541,20 @@ func normalizeMatch(m string, arch arch) string {
+ 
+ func parseEllipsisRules(rules []Rule, arch arch) (newop string, ok bool) {
+ 	if len(rules) != 1 {
++		for _, r := range rules {
++			if strings.Contains(r.rule, "...") {
++				log.Fatalf("%s: found ellipsis in rule, but there are other rules with the same op", r.loc)
++			}
++		}
+ 		return "", false
+ 	}
+ 	rule := rules[0]
+ 	match, cond, result := rule.parse()
+ 	if cond != "" || !isEllipsisValue(match) || !isEllipsisValue(result) {
++		if strings.Contains(rule.rule, "...") {
++			log.Fatalf("%s: found ellipsis in non-ellipsis rule", rule.loc)
++		}
++		checkEllipsisRuleCandidate(rule, arch)
+ 		return "", false
+ 	}
+ 	op, oparch, _, _, _, _ := parseValue(result, arch, rule.loc)
+@@ -1556,6 +1573,41 @@ func isEllipsisValue(s string) bool {
+ 	return true
+ }
+ 
++func checkEllipsisRuleCandidate(rule Rule, arch arch) {
++	match, cond, result := rule.parse()
++	if cond != "" {
++		return
++	}
++	op, _, _, auxint, aux, args := parseValue(match, arch, rule.loc)
++	var auxint2, aux2 string
++	var args2 []string
++	var usingCopy string
++	if result[0] != '(' {
++		// Check for (Foo x) -> x, which can be converted to (Foo ...) -> (Copy ...).
++		args2 = []string{result}
++		usingCopy = " using Copy"
++	} else {
++		_, _, _, auxint2, aux2, args2 = parseValue(result, arch, rule.loc)
++	}
++	// Check that all restrictions in match are reproduced exactly in result.
++	if aux != aux2 || auxint != auxint2 || len(args) != len(args2) {
++		return
++	}
++	for i := range args {
++		if args[i] != args2[i] {
++			return
++		}
++	}
++	switch {
++	case opHasAux(op) && aux == "" && aux2 == "":
++		fmt.Printf("%s: rule silently zeros aux, either copy aux or explicitly zero\n", rule.loc)
++	case opHasAuxInt(op) && auxint == "" && auxint2 == "":
++		fmt.Printf("%s: rule silently zeros auxint, either copy auxint or explicitly zero\n", rule.loc)
++	default:
++		fmt.Printf("%s: possible ellipsis rule candidate%s: %q\n", rule.loc, usingCopy, rule.rule)
++	}
++}
++
+ func opByName(arch arch, name string) opData {
+ 	name = name[2:]
+ 	for _, x := range genericOps {

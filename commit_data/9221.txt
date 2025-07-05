@@ -11,7 +11,7 @@ Date:   Wed Jul 27 16:47:45 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4826046
-
+---
  src/cmd/5g/cgen.c        |  7 +++----
  src/cmd/5g/galign.c      |  1 +
  src/cmd/6g/cgen.c        |  8 +++-----
@@ -24,3 +24,293 @@ Date:   Wed Jul 27 16:47:45 2011 -0400
  test/fixedbugs/bug273.go | 12 ++----------
  test/fixedbugs/bug352.go | 19 +++++++++++++++++++
  11 files changed, 52 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 76e2707fa9..6e2fbe20ff 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -595,9 +595,6 @@ agen(Node *n, Node *res)
+ 		// i is in &n1 (if not constant)
+ 		// w is width
+ 
+-		if(w == 0)
+-			fatal("index is zero width");
+-
+ 		// constant index
+ 		if(isconst(nr, CTINT)) {
+ 			if(isconst(nl, CTSTR))
+@@ -683,7 +680,9 @@ agen(Node *n, Node *res)
+ 			gmove(&n1, &n3);
+ 		}
+ 
+-		if(w == 1 || w == 2 || w == 4 || w == 8) {
++		if(w == 0) {
++			// nothing to do
++		} else if(w == 1 || w == 2 || w == 4 || w == 8) {
+ 			memset(&n4, 0, sizeof n4);
+ 			n4.op = OADDR;
+ 			n4.left = &n2;
+diff --git a/src/cmd/5g/galign.c b/src/cmd/5g/galign.c
+index 0fece9a08f..12766102f1 100644
+--- a/src/cmd/5g/galign.c
++++ b/src/cmd/5g/galign.c
+@@ -7,6 +7,7 @@
+ int	thechar	= '5';
+ char*	thestring	= "arm";
+ 
++vlong MAXWIDTH = (1LL<<32) - 1;
+ 
+ /*
+  * go declares several platform-specific type aliases:
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index fca4b64dd1..24f88a416e 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -510,9 +510,6 @@ agen(Node *n, Node *res)
+ 			regfree(&n4);
+ 		}
+ 
+-		if(w == 0)
+-			fatal("index is zero width");
+-
+ 		// constant index
+ 		if(isconst(nr, CTINT)) {
+ 			if(isconst(nl, CTSTR))
+@@ -600,7 +597,9 @@ agen(Node *n, Node *res)
+ 			gmove(&n1, &n3);
+ 		}
+ 
+-		if(w == 1 || w == 2 || w == 4 || w == 8) {
++		if(w == 0) {
++			// nothing to do
++		} else if(w == 1 || w == 2 || w == 4 || w == 8) {
+ 			p1 = gins(ALEAQ, &n2, &n3);
+ 			p1->from.scale = w;
+ 			p1->from.index = p1->from.type;
+@@ -608,7 +607,6 @@ agen(Node *n, Node *res)
+ 		} else {
+ 			ginscon(optoas(OMUL, t), w, &n2);
+ 			gins(optoas(OADD, types[tptr]), &n2, &n3);
+-			gmove(&n3, res);
+ 		}
+ 
+ 	indexdone:
+diff --git a/src/cmd/6g/galign.c b/src/cmd/6g/galign.c
+index 97bfb58e88..e366362b30 100644
+--- a/src/cmd/6g/galign.c
++++ b/src/cmd/6g/galign.c
+@@ -7,6 +7,7 @@
+ int	thechar	= '6';
+ char*	thestring	= "amd64";
+ 
++vlong MAXWIDTH = 1LL<<50;
+ 
+ /*
+  * go declares several platform-specific type aliases:
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 1614a2d775..b316e6e345 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -562,9 +562,6 @@ agen(Node *n, Node *res)
+ 			regfree(&n4);
+ 		}
+ 
+-		if(w == 0)
+-			fatal("index is zero width");
+-
+ 		// constant index
+ 		if(isconst(nr, CTINT)) {
+ 			if(isconst(nl, CTSTR))
+@@ -639,7 +636,9 @@ agen(Node *n, Node *res)
+ 			gmove(&n1, &n3);
+ 		}
+ 
+-		if(w == 1 || w == 2 || w == 4 || w == 8) {
++		if(w == 0) {
++			// nothing to do
++		} else if(w == 1 || w == 2 || w == 4 || w == 8) {
+ 			p1 = gins(ALEAL, &n2, &n3);
+ 			p1->from.scale = w;
+ 			p1->from.index = p1->from.type;
+@@ -648,7 +647,6 @@ agen(Node *n, Node *res)
+ 			nodconst(&n1, types[TUINT32], w);
+ 			gins(optoas(OMUL, types[TUINT32]), &n1, &n2);
+ 			gins(optoas(OADD, types[tptr]), &n2, &n3);
+-			gmove(&n3, res);
+ 		}
+ 
+ 	indexdone:
+diff --git a/src/cmd/8g/galign.c b/src/cmd/8g/galign.c
+index 48edfdf3cc..7734603c4b 100644
+--- a/src/cmd/8g/galign.c
++++ b/src/cmd/8g/galign.c
+@@ -7,6 +7,7 @@
+ int	thechar	= '8';
+ char*	thestring	= "386";
+ 
++vlong MAXWIDTH = (1LL<<32) - 1;
+ 
+ /*
+  * go declares several platform-specific type aliases:
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index 6bb93ef179..14c1c4a8d2 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -30,14 +30,18 @@ offmod(Type *t)
+ 	o = 0;
+ 	for(f=t->type; f!=T; f=f->down) {
+ 		if(f->etype != TFIELD)
+-			fatal("widstruct: not TFIELD: %lT", f);
++			fatal("offmod: not TFIELD: %lT", f);
+ 		f->width = o;
+ 		o += widthptr;
++		if(o >= MAXWIDTH) {
++			yyerror("interface too large");
++			o = widthptr;
++		}
+ 	}
+ }
+ 
+-static uint32
+-widstruct(Type *t, uint32 o, int flag)
++static vlong
++widstruct(Type *errtype, Type *t, vlong o, int flag)
+ {
+ 	Type *f;
+ 	int32 w, maxalign;
+@@ -69,6 +73,10 @@ widstruct(Type *t, uint32 o, int flag)
+ 				f->nname->xoffset = o;
+ 		}
+ 		o += w;
++		if(o >= MAXWIDTH) {
++			yyerror("type %lT too large", errtype);
++			o = 8;  // small but nonzero
++		}
+ 	}
+ 	// final width is rounded
+ 	if(flag)
+@@ -226,10 +234,7 @@ dowidth(Type *t)
+ 
+ 			dowidth(t->type);
+ 			if(t->type->width != 0) {
+-				if(tptr == TPTR32)
+-					cap = ((uint32)-1) / t->type->width;
+-				else
+-					cap = ((uint64)-1) / t->type->width;
++				cap = (MAXWIDTH-1) / t->type->width;
+ 				if(t->bound > cap)
+ 					yyerror("type %lT larger than address space", t);
+ 			}
+@@ -250,7 +255,7 @@ dowidth(Type *t)
+ 	case TSTRUCT:
+ 		if(t->funarg)
+ 			fatal("dowidth fn struct %T", t);
+-		w = widstruct(t, 0, 1);
++		w = widstruct(t, t, 0, 1);
+ 		break;
+ 
+ 	case TFUNC:
+@@ -268,9 +273,9 @@ dowidth(Type *t)
+ 		// function is 3 cated structures;
+ 		// compute their widths as side-effect.
+ 		t1 = t->type;
+-		w = widstruct(*getthis(t1), 0, 0);
+-		w = widstruct(*getinarg(t1), w, widthptr);
+-		w = widstruct(*getoutarg(t1), w, widthptr);
++		w = widstruct(t->type, *getthis(t1), 0, 0);
++		w = widstruct(t->type, *getinarg(t1), w, widthptr);
++		w = widstruct(t->type, *getoutarg(t1), w, widthptr);
+ 		t1->argwid = w;
+ 		if(w%widthptr)
+ 			warn("bad type %T %d\n", t1, w);
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index dfc5887a5c..604a1261b8 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -43,9 +43,10 @@ enum
+ 	AMEMWORD,
+ 
+ 	BADWIDTH	= -1000000000,
+-	MAXWIDTH	= 1<<30
+ };
+ 
++extern vlong	MAXWIDTH;
++
+ /*
+  * note this is the representation
+  * of the compilers string literals,
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+index 9146c177f2..70534279b5 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.c
+@@ -20,7 +20,7 @@ runtime·makeslice(SliceType *t, int64 len, int64 cap, Slice ret)
+ {
+ 	if(len < 0 || (int32)len != len)
+ 		runtime·panicstring("makeslice: len out of range");
+-	if(cap < len || (int32)cap != cap || cap > ((uintptr)-1) / t->elem->size)
++	if(cap < len || (int32)cap != cap || t->elem->size > 0 && cap > ((uintptr)-1) / t->elem->size)
+ 		runtime·panicstring("makeslice: cap out of range");
+ 
+ 	makeslice1(t, len, cap, &ret);
+diff --git a/test/fixedbugs/bug273.go b/test/fixedbugs/bug273.go
+index 816f69e8f1..dd5aaa7b8a 100644
+--- a/test/fixedbugs/bug273.go
++++ b/test/fixedbugs/bug273.go
+@@ -47,15 +47,6 @@ func bigcap() {
+ 	g1 = make([]int, 10, big)
+ }
+ 
+-const (
+-	addrBits = 8*uint(unsafe.Sizeof((*byte)(nil)))
+-	sh = addrBits/2 - 2
+-)
+-var g2 [][1<<sh][1<<sh]byte
+-func overflow() {
+-	g2 = make([][1<<sh][1<<sh]byte, 64)
+-}
+-
+ var g3 map[int]int
+ func badmapcap() {
+ 	g3 = make(map[int]int, minus1)
+@@ -74,6 +65,8 @@ func bigchancap() {
+ 	g4 = make(chan int, big)
+ }
+ 
++const addrBits = unsafe.Sizeof((*byte)(nil))
++
+ var g5 chan [1<<15]byte
+ func overflowchan() {
+ 	if addrBits == 32 {
+@@ -92,7 +85,6 @@ func main() {
+ 	shouldfail(badcap, "badcap")
+ 	shouldfail(badcap1, "badcap1")
+ 	shouldfail(bigcap, "bigcap")
+-	shouldfail(overflow, "overflow")
+ 	shouldfail(badmapcap, "badmapcap")
+ 	shouldfail(bigmapcap, "bigmapcap")
+ 	shouldfail(badchancap, "badchancap")
+diff --git a/test/fixedbugs/bug352.go b/test/fixedbugs/bug352.go
+new file mode 100644
+index 0000000000..62fd006c42
+--- /dev/null
++++ b/test/fixedbugs/bug352.go
+@@ -0,0 +1,19 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug352
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var x [10][0]byte
++var y = make([]struct{}, 10)
++
++func main() {
++	if &x[1] != &x[2] {
++		println("BUG: bug352 [0]byte")
++	}
++	if &y[1] != &y[2] {
++		println("BUG: bug352 struct{}")
++	}
++}

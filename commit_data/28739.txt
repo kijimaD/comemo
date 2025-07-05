@@ -11,6 +11,20 @@ Date:   Fri Jul 8 07:56:52 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/mfinal.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 1a744e4a51..14ebec81bf 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -450,7 +450,7 @@ func findObject(v unsafe.Pointer) (s *mspan, x unsafe.Pointer, n uintptr) {
+ // 	type File struct { d int }
+ // 	d, err := syscall.Open("/file/path", syscall.O_RDONLY, 0)
+ // 	// ... do something if err != nil ...
+-// 	p := &FILE{d}
++// 	p := &File{d}
+ // 	runtime.SetFinalizer(p, func(p *File) { syscall.Close(p.d) })
+ // 	var buf [10]byte
+ // 	n, err := syscall.Read(p.d, buf[:])

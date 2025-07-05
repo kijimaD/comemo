@@ -19,6 +19,28 @@ Date:   Thu Dec 21 09:31:39 2017 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Caleb Spare <cespare@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/database/sql/sql.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 9f4fa14534..8f5588ed26 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -2055,14 +2055,14 @@ func (tx *Tx) StmtContext(ctx context.Context, stmt *Stmt) *Stmt {
+ 		stmt.mu.Unlock()
+ 
+ 		if si == nil {
++			var ds *driverStmt
+ 			withLock(dc, func() {
+-				var ds *driverStmt
+ 				ds, err = stmt.prepareOnConnLocked(ctx, dc)
+-				si = ds.si
+ 			})
+ 			if err != nil {
+ 				return &Stmt{stickyErr: err}
+ 			}
++			si = ds.si
+ 		}
+ 		parentStmt = stmt
+ 	}

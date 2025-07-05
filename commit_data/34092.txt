@@ -13,7 +13,7 @@ Date:   Mon Oct 2 16:23:25 2017 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  misc/cgo/test/issue21809.go                  | 46 ++++++++++++++--------------
  misc/cgo/testcshared/src/p/p.go              |  1 +
  misc/cgo/testshared/src/division/division.go |  2 +-
@@ -23,3 +23,301 @@ Date:   Mon Oct 2 16:23:25 2017 -0700
  src/go/printer/testdata/expressions.input    | 29 ++++++++++++++++++
  src/go/printer/testdata/expressions.raw      | 39 ++++++++++++++++++++---
  8 files changed, 149 insertions(+), 46 deletions(-)
+
+diff --git a/misc/cgo/test/issue21809.go b/misc/cgo/test/issue21809.go
+index fd01dd71c3..a3a6b88897 100644
+--- a/misc/cgo/test/issue21809.go
++++ b/misc/cgo/test/issue21809.go
+@@ -17,29 +17,29 @@ import "C"
+ import "testing"
+ 
+ func test21809(t *testing.T) {
+-    longVar := C.long(3)
+-    typedefVar := C.MySigned_t(4)
+-    typedefTypedefVar := C.MySigned2_t(5)
++	longVar := C.long(3)
++	typedefVar := C.MySigned_t(4)
++	typedefTypedefVar := C.MySigned2_t(5)
+ 
+-    // all three should be considered identical to `long`
+-    if ret := C.takes_long(longVar); ret != 9 {
+-        t.Errorf("got %v but expected %v", ret, 9)
+-    }
+-    if ret := C.takes_long(typedefVar); ret != 16 {
+-        t.Errorf("got %v but expected %v", ret, 16)
+-    }
+-    if ret := C.takes_long(typedefTypedefVar); ret != 25 {
+-        t.Errorf("got %v but expected %v", ret, 25)
+-    }
++	// all three should be considered identical to `long`
++	if ret := C.takes_long(longVar); ret != 9 {
++		t.Errorf("got %v but expected %v", ret, 9)
++	}
++	if ret := C.takes_long(typedefVar); ret != 16 {
++		t.Errorf("got %v but expected %v", ret, 16)
++	}
++	if ret := C.takes_long(typedefTypedefVar); ret != 25 {
++		t.Errorf("got %v but expected %v", ret, 25)
++	}
+ 
+-    // They should also be identical to the typedef'd type
+-    if ret := C.takes_typedef(longVar); ret != 9 {
+-        t.Errorf("got %v but expected %v", ret, 9)
+-    }
+-    if ret := C.takes_typedef(typedefVar); ret != 16 {
+-        t.Errorf("got %v but expected %v", ret, 16)
+-    }
+-    if ret := C.takes_typedef(typedefTypedefVar); ret != 25 {
+-        t.Errorf("got %v but expected %v", ret, 25)
+-    }
++	// They should also be identical to the typedef'd type
++	if ret := C.takes_typedef(longVar); ret != 9 {
++		t.Errorf("got %v but expected %v", ret, 9)
++	}
++	if ret := C.takes_typedef(typedefVar); ret != 16 {
++		t.Errorf("got %v but expected %v", ret, 16)
++	}
++	if ret := C.takes_typedef(typedefTypedefVar); ret != 25 {
++		t.Errorf("got %v but expected %v", ret, 25)
++	}
+ }
+diff --git a/misc/cgo/testcshared/src/p/p.go b/misc/cgo/testcshared/src/p/p.go
+index fb4b5ca8d1..0f02cf3ce6 100644
+--- a/misc/cgo/testcshared/src/p/p.go
++++ b/misc/cgo/testcshared/src/p/p.go
+@@ -8,5 +8,6 @@ import "C"
+ 
+ //export FromPkg
+ func FromPkg() int32 { return 1024 }
++
+ //export Divu
+ func Divu(a, b uint32) uint32 { return a / b }
+diff --git a/misc/cgo/testshared/src/division/division.go b/misc/cgo/testshared/src/division/division.go
+index a0b11a55e2..bb5fc98460 100644
+--- a/misc/cgo/testshared/src/division/division.go
++++ b/misc/cgo/testshared/src/division/division.go
+@@ -14,4 +14,4 @@ func main() {
+ 	if a != 8 {
+ 		panic("FAIL")
+ 	}
+-}
+\ No newline at end of file
++}
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 08ce8c44ed..b97e68f60c 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -574,7 +574,7 @@ Outer:
+ 		if !ok {
+ 			// First entry for this hash.
+ 			nn = append(nn, c.node)
+-			seen[c.hash] = nn[len(nn)-1 : len(nn):len(nn)]
++			seen[c.hash] = nn[len(nn)-1 : len(nn) : len(nn)]
+ 			continue
+ 		}
+ 		for _, n := range prev {
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index 4eaadeb448..e9b110fe79 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -774,20 +774,35 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
+ 		if x.Max != nil {
+ 			indices = append(indices, x.Max)
+ 		}
+-		for i, y := range indices {
++		// determine if we need extra blanks around ':'
++		var needsBlanks bool
++		if depth <= 1 {
++			var indexCount int
++			var hasBinaries bool
++			for _, x := range indices {
++				if x != nil {
++					indexCount++
++					if isBinary(x) {
++						hasBinaries = true
++					}
++				}
++			}
++			if indexCount > 1 && hasBinaries {
++				needsBlanks = true
++			}
++		}
++		for i, x := range indices {
+ 			if i > 0 {
+-				// blanks around ":" if both sides exist and either side is a binary expression
+-				// TODO(gri) once we have committed a variant of a[i:j:k] we may want to fine-
+-				//           tune the formatting here
+-				x := indices[i-1]
+-				if depth <= 1 && x != nil && y != nil && (isBinary(x) || isBinary(y)) {
+-					p.print(blank, token.COLON, blank)
+-				} else {
+-					p.print(token.COLON)
++				if indices[i-1] != nil && needsBlanks {
++					p.print(blank)
++				}
++				p.print(token.COLON)
++				if x != nil && needsBlanks {
++					p.print(blank)
+ 				}
+ 			}
+-			if y != nil {
+-				p.expr0(y, depth+1)
++			if x != nil {
++				p.expr0(x, depth+1)
+ 			}
+ 		}
+ 		p.print(x.Rbrack, token.RBRACK)
+diff --git a/src/go/printer/testdata/expressions.golden b/src/go/printer/testdata/expressions.golden
+index cab991fd88..4c08a423db 100644
+--- a/src/go/printer/testdata/expressions.golden
++++ b/src/go/printer/testdata/expressions.golden
+@@ -122,18 +122,47 @@ func _() {
+ // slice expressions with cap
+ func _() {
+ 	_ = x[a:b:c]
+-	_ = x[a:b : c+d]
++	_ = x[a : b : c+d]
+ 	_ = x[a : b+d : c]
+ 	_ = x[a : b+d : c+d]
+-	_ = x[a+d : b:c]
++	_ = x[a+d : b : c]
+ 	_ = x[a+d : b : c+d]
+ 	_ = x[a+d : b+d : c]
+ 	_ = x[a+d : b+d : c+d]
+ 
+ 	_ = x[:b:c]
+-	_ = x[:b : c+d]
+-	_ = x[:b+d : c]
+-	_ = x[:b+d : c+d]
++	_ = x[: b : c+d]
++	_ = x[: b+d : c]
++	_ = x[: b+d : c+d]
++}
++
++func issue22111() {
++	_ = x[:]
++
++	_ = x[:b]
++	_ = x[:b+1]
++
++	_ = x[a:]
++	_ = x[a+1:]
++
++	_ = x[a:b]
++	_ = x[a+1 : b]
++	_ = x[a : b+1]
++	_ = x[a+1 : b+1]
++
++	_ = x[:b:c]
++	_ = x[: b+1 : c]
++	_ = x[: b : c+1]
++	_ = x[: b+1 : c+1]
++
++	_ = x[a:b:c]
++	_ = x[a+1 : b : c]
++	_ = x[a : b+1 : c]
++	_ = x[a+1 : b+1 : c]
++	_ = x[a : b : c+1]
++	_ = x[a+1 : b : c+1]
++	_ = x[a : b+1 : c+1]
++	_ = x[a+1 : b+1 : c+1]
+ }
+ 
+ func _() {
+diff --git a/src/go/printer/testdata/expressions.input b/src/go/printer/testdata/expressions.input
+index 7c88042dc1..b3b8c2bdc6 100644
+--- a/src/go/printer/testdata/expressions.input
++++ b/src/go/printer/testdata/expressions.input
+@@ -138,6 +138,35 @@ func _() {
+ 	_ = x[:b+d:c+d]
+ }
+ 
++func issue22111() {
++	_ = x[:]
++
++	_ = x[:b]
++	_ = x[:b+1]
++
++	_ = x[a:]
++	_ = x[a+1:]
++
++	_ = x[a:b]
++	_ = x[a+1:b]
++	_ = x[a:b+1]
++	_ = x[a+1:b+1]
++
++	_ = x[:b:c]
++	_ = x[:b+1:c]
++	_ = x[:b:c+1]
++	_ = x[:b+1:c+1]
++
++	_ = x[a:b:c]
++	_ = x[a+1:b:c]
++	_ = x[a:b+1:c]
++	_ = x[a+1:b+1:c]
++	_ = x[a:b:c+1]
++	_ = x[a+1:b:c+1]
++	_ = x[a:b+1:c+1]
++	_ = x[a+1:b+1:c+1]
++}
++
+ func _() {
+ 	_ = a+b
+ 	_ = a+b+c
+diff --git a/src/go/printer/testdata/expressions.raw b/src/go/printer/testdata/expressions.raw
+index d9060621ce..f121115e9d 100644
+--- a/src/go/printer/testdata/expressions.raw
++++ b/src/go/printer/testdata/expressions.raw
+@@ -122,18 +122,47 @@ func _() {
+ // slice expressions with cap
+ func _() {
+ 	_ = x[a:b:c]
+-	_ = x[a:b : c+d]
++	_ = x[a : b : c+d]
+ 	_ = x[a : b+d : c]
+ 	_ = x[a : b+d : c+d]
+-	_ = x[a+d : b:c]
++	_ = x[a+d : b : c]
+ 	_ = x[a+d : b : c+d]
+ 	_ = x[a+d : b+d : c]
+ 	_ = x[a+d : b+d : c+d]
+ 
+ 	_ = x[:b:c]
+-	_ = x[:b : c+d]
+-	_ = x[:b+d : c]
+-	_ = x[:b+d : c+d]
++	_ = x[: b : c+d]
++	_ = x[: b+d : c]
++	_ = x[: b+d : c+d]
++}
++
++func issue22111() {
++	_ = x[:]
++
++	_ = x[:b]
++	_ = x[:b+1]
++
++	_ = x[a:]
++	_ = x[a+1:]
++
++	_ = x[a:b]
++	_ = x[a+1 : b]
++	_ = x[a : b+1]
++	_ = x[a+1 : b+1]
++
++	_ = x[:b:c]
++	_ = x[: b+1 : c]
++	_ = x[: b : c+1]
++	_ = x[: b+1 : c+1]
++
++	_ = x[a:b:c]
++	_ = x[a+1 : b : c]
++	_ = x[a : b+1 : c]
++	_ = x[a+1 : b+1 : c]
++	_ = x[a : b : c+1]
++	_ = x[a+1 : b : c+1]
++	_ = x[a : b+1 : c+1]
++	_ = x[a+1 : b+1 : c+1]
+ }
+ 
+ func _() {

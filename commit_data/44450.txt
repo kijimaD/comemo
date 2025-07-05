@@ -9,6 +9,46 @@ Date:   Tue Jun 30 13:23:32 2020 -0400
     Change-Id: I23abfeabc6be704aad9da2649bbbe7c8e237dfab
     Reviewed-on: https://go-review.googlesource.com/c/go/+/240546
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  doc/go1.15.html | 21 +++++++++++++++++++++
  1 file changed, 21 insertions(+)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index 45ffec4b34..991314c3a5 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -666,6 +666,17 @@ Do not send CLs removing the interior tags from such phrases.
+   </dd>
+ </dl><!-- go/printer -->
+ 
++<dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
++  <dd>
++    <p><!-- CL 226097 -->
++      The package now uses Unicode escapes (<code>\uNNNN</code>) in all
++      JavaScript and JSON contexts. This fixes escaping errors in
++      <code>application/ld+json</code> and <code>application/json</code>
++      contexts.
++    </p>
++  </dd>
++</dl><!-- html/template -->
++
+ <dl id="io/ioutil"><dt><a href="/pkg/io/ioutil/">io/ioutil</a></dt>
+   <dd>
+     <p><!-- CL 212597 -->
+@@ -950,6 +961,16 @@ Do not send CLs removing the interior tags from such phrases.
+   </dd>
+ </dl><!-- testing -->
+ 
++<dl id="text/template"><dt><a href="/pkg/text/template/">text/template</a></dt>
++  <dd>
++    <p><!-- CL 226097 -->
++      <a href="/pkg/text/template/#JSEscape"><code>JSEscape</code></a> now
++      consistently uses Unicode escapes (<code>\u00XX</code>), which are
++      compatible with JSON.
++    </p>
++  </dd>
++</dl><!-- text/template -->
++
+ <dl id="time"><dt><a href="/pkg/time/">time</a></dt>
+   <dd>
+     <p><!-- CL 220424, CL 217362, golang.org/issue/33184 -->

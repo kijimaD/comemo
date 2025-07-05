@@ -18,9 +18,191 @@ Date:   Thu Dec 20 20:21:45 2018 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/proc_test.go                        | 21 +++++----
  src/runtime/testdata/testprog/lockosthread.go   |  4 ++
  src/runtime/testdata/testprog/syscalls.go       | 47 +-------------------
  src/runtime/testdata/testprog/syscalls_linux.go | 59 +++++++++++++++++++++++++
  4 files changed, 78 insertions(+), 53 deletions(-)
+
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index e6947d5849..1715324aa0 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -885,23 +885,28 @@ func TestLockOSThreadNesting(t *testing.T) {
+ 
+ func TestLockOSThreadExit(t *testing.T) {
+ 	testLockOSThreadExit(t, "testprog")
+-
+-	want := "OK\n"
+-	output := runTestProg(t, "testprog", "LockOSThreadAvoidsStatePropagation", "GOMAXPROCS=1")
+-	if output != want {
+-		t.Errorf("want %s, got %s\n", want, output)
+-	}
+ }
+ 
+ func testLockOSThreadExit(t *testing.T, prog string) {
+ 	output := runTestProg(t, prog, "LockOSThreadMain", "GOMAXPROCS=1")
+ 	want := "OK\n"
+ 	if output != want {
+-		t.Errorf("want %s, got %s\n", want, output)
++		t.Errorf("want %q, got %q", want, output)
+ 	}
+ 
+ 	output = runTestProg(t, prog, "LockOSThreadAlt")
+ 	if output != want {
+-		t.Errorf("want %s, got %s\n", want, output)
++		t.Errorf("want %q, got %q", want, output)
++	}
++}
++
++func TestLockOSThreadAvoidsStatePropagation(t *testing.T) {
++	want := "OK\n"
++	skip := "unshare not permitted\n"
++	output := runTestProg(t, "testprog", "LockOSThreadAvoidsStatePropagation", "GOMAXPROCS=1")
++	if output == skip {
++		t.Skip("unshare syscall not permitted on this system")
++	} else if output != want {
++		t.Errorf("want %q, got %q", want, output)
+ 	}
+ }
+diff --git a/src/runtime/testdata/testprog/lockosthread.go b/src/runtime/testdata/testprog/lockosthread.go
+index 5119cf8131..fd3123e647 100644
+--- a/src/runtime/testdata/testprog/lockosthread.go
++++ b/src/runtime/testdata/testprog/lockosthread.go
+@@ -144,6 +144,10 @@ func LockOSThreadAvoidsStatePropagation() {
+ 		// the rest of the process on this thread.
+ 		// On systems other than Linux, this is a no-op.
+ 		if err := unshareFs(); err != nil {
++			if err == errNotPermitted {
++				println("unshare not permitted")
++				os.Exit(0)
++			}
+ 			println("failed to unshare fs:", err.Error())
+ 			os.Exit(1)
+ 		}
+diff --git a/src/runtime/testdata/testprog/syscalls.go b/src/runtime/testdata/testprog/syscalls.go
+index 08284fc561..098d5cadf8 100644
+--- a/src/runtime/testdata/testprog/syscalls.go
++++ b/src/runtime/testdata/testprog/syscalls.go
+@@ -2,53 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux
+-
+ package main
+ 
+ import (
+-	"bytes"
+-	"fmt"
+-	"io/ioutil"
+-	"os"
+-	"syscall"
++	"errors"
+ )
+ 
+-func gettid() int {
+-	return syscall.Gettid()
+-}
+-
+-func tidExists(tid int) (exists, supported bool) {
+-	stat, err := ioutil.ReadFile(fmt.Sprintf("/proc/self/task/%d/stat", tid))
+-	if os.IsNotExist(err) {
+-		return false, true
+-	}
+-	// Check if it's a zombie thread.
+-	state := bytes.Fields(stat)[2]
+-	return !(len(state) == 1 && state[0] == 'Z'), true
+-}
+-
+-func getcwd() (string, error) {
+-	if !syscall.ImplementsGetwd {
+-		return "", nil
+-	}
+-	// Use the syscall to get the current working directory.
+-	// This is imperative for checking for OS thread state
+-	// after an unshare since os.Getwd might just check the
+-	// environment, or use some other mechanism.
+-	var buf [4096]byte
+-	n, err := syscall.Getcwd(buf[:])
+-	if err != nil {
+-		return "", err
+-	}
+-	// Subtract one for null terminator.
+-	return string(buf[:n-1]), nil
+-}
+-
+-func unshareFs() error {
+-	return syscall.Unshare(syscall.CLONE_FS)
+-}
+-
+-func chdir(path string) error {
+-	return syscall.Chdir(path)
+-}
++var errNotPermitted = errors.New("operation not permitted")
+diff --git a/src/runtime/testdata/testprog/syscalls_linux.go b/src/runtime/testdata/testprog/syscalls_linux.go
+new file mode 100644
+index 0000000000..b8ac087626
+--- /dev/null
++++ b/src/runtime/testdata/testprog/syscalls_linux.go
+@@ -0,0 +1,59 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"bytes"
++	"fmt"
++	"io/ioutil"
++	"os"
++	"syscall"
++)
++
++func gettid() int {
++	return syscall.Gettid()
++}
++
++func tidExists(tid int) (exists, supported bool) {
++	stat, err := ioutil.ReadFile(fmt.Sprintf("/proc/self/task/%d/stat", tid))
++	if os.IsNotExist(err) {
++		return false, true
++	}
++	// Check if it's a zombie thread.
++	state := bytes.Fields(stat)[2]
++	return !(len(state) == 1 && state[0] == 'Z'), true
++}
++
++func getcwd() (string, error) {
++	if !syscall.ImplementsGetwd {
++		return "", nil
++	}
++	// Use the syscall to get the current working directory.
++	// This is imperative for checking for OS thread state
++	// after an unshare since os.Getwd might just check the
++	// environment, or use some other mechanism.
++	var buf [4096]byte
++	n, err := syscall.Getcwd(buf[:])
++	if err != nil {
++		return "", err
++	}
++	// Subtract one for null terminator.
++	return string(buf[:n-1]), nil
++}
++
++func unshareFs() error {
++	err := syscall.Unshare(syscall.CLONE_FS)
++	if err != nil {
++		errno, ok := err.(syscall.Errno)
++		if ok && errno == syscall.EPERM {
++			return errNotPermitted
++		}
++	}
++	return err
++}
++
++func chdir(path string) error {
++	return syscall.Chdir(path)
++}

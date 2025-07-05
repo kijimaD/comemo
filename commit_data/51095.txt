@@ -10,6 +10,34 @@ Date:   Fri Dec 3 10:04:49 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/369094
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  doc/go1.18.html | 15 ++++-----------
  1 file changed, 4 insertions(+), 11 deletions(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index ea686933e0..5b0520e9d6 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -406,18 +406,11 @@ Do not send CLs removing the interior tags from such phrases.
+   </dd>
+ </dl>
+ 
+-<dl id="go/ast"><dt><a href="/pkg/go/ast/">go/ast</a></dt>
++<dl id="go/constant"><dt><a href="/pkg/go/constant/">go/constant</a></dt>
+   <dd>
+-    <p>
+-      TODO: Mention new generics APIs.
+-    </p>
+-  </dd>
+-</dl>
+-
+-<dl id="go/types"><dt><a href="/pkg/go/types/">go/types</a></dt>
+-  <dd>
+-    <p>
+-      TODO: Mention new generics APIs.
++    <p><!-- https://golang.org/issue/46211, CL 320491 -->
++      The new <a href="/pkg/go/constant/#Kind.String"><code>Kind.String</code></a>
++      method returns a human-readable name for the receiver kind.
+     </p>
+   </dd>
+ </dl>

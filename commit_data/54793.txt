@@ -13,7 +13,7 @@ Date:   Tue Nov 15 10:14:16 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/internal/obj/arm64/asm_arm64_test.go |  9 ++++-----
  src/cmd/internal/obj/objfile_test.go         |  5 ++---
  src/cmd/internal/obj/ppc64/asm_test.go       |  9 ++++-----
@@ -21,3 +21,247 @@ Date:   Tue Nov 15 10:14:16 2022 -0500
  src/cmd/internal/obj/x86/obj6_test.go        |  3 +--
  src/cmd/internal/obj/x86/pcrelative_test.go  |  5 ++---
  6 files changed, 19 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm64/asm_arm64_test.go b/src/cmd/internal/obj/arm64/asm_arm64_test.go
+index b1db336a33..c52717dc19 100644
+--- a/src/cmd/internal/obj/arm64/asm_arm64_test.go
++++ b/src/cmd/internal/obj/arm64/asm_arm64_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"fmt"
+ 	"internal/testenv"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"regexp"
+ 	"testing"
+@@ -45,7 +44,7 @@ func TestLarge(t *testing.T) {
+ 	pattern := `0x0080\s00128\s\(.*\)\tMOVD\t\$3,\sR3`
+ 
+ 	// assemble generated file
+-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-S", "-o", filepath.Join(dir, "test.o"), tmpfile)
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-S", "-o", filepath.Join(dir, "test.o"), tmpfile)
+ 	cmd.Env = append(os.Environ(), "GOOS=linux")
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+@@ -60,7 +59,7 @@ func TestLarge(t *testing.T) {
+ 	}
+ 
+ 	// build generated file
+-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
++	cmd = testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
+ 	cmd.Env = append(os.Environ(), "GOOS=linux")
+ 	out, err = cmd.CombinedOutput()
+ 	if err != nil {
+@@ -94,7 +93,7 @@ func TestNoRet(t *testing.T) {
+ 	if err := os.WriteFile(tmpfile, []byte("TEXT ·stub(SB),$0-0\nNOP\n"), 0644); err != nil {
+ 		t.Fatal(err)
+ 	}
+-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
+ 	cmd.Env = append(os.Environ(), "GOOS=linux")
+ 	if out, err := cmd.CombinedOutput(); err != nil {
+ 		t.Errorf("%v\n%s", err, out)
+@@ -132,7 +131,7 @@ func TestPCALIGN(t *testing.T) {
+ 		if err := os.WriteFile(tmpfile, test.code, 0644); err != nil {
+ 			t.Fatal(err)
+ 		}
+-		cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-S", "-o", tmpout, tmpfile)
++		cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-S", "-o", tmpout, tmpfile)
+ 		cmd.Env = append(os.Environ(), "GOOS=linux")
+ 		out, err := cmd.CombinedOutput()
+ 		if err != nil {
+diff --git a/src/cmd/internal/obj/objfile_test.go b/src/cmd/internal/obj/objfile_test.go
+index 79204c1858..9e99056803 100644
+--- a/src/cmd/internal/obj/objfile_test.go
++++ b/src/cmd/internal/obj/objfile_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"internal/testenv"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"testing"
+ 	"unsafe"
+@@ -111,7 +110,7 @@ func TestSymbolTooLarge(t *testing.T) { // Issue 42054
+ 		t.Fatalf("failed to write source file: %v\n", err)
+ 	}
+ 	obj := filepath.Join(tmpdir, "p.o")
+-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=p", "-o", obj, src)
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "compile", "-p=p", "-o", obj, src)
+ 	out, err := cmd.CombinedOutput()
+ 	if err == nil {
+ 		t.Fatalf("did not fail\noutput: %s", out)
+@@ -137,7 +136,7 @@ func TestNoRefName(t *testing.T) {
+ 
+ 	// Build the fmt package with norefname. Not rebuilding all packages to save time.
+ 	// Also testing that norefname and non-norefname packages can link together.
+-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=fmt=-d=norefname", "-o", exe, src)
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-gcflags=fmt=-d=norefname", "-o", exe, src)
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("build failed: %v, output:\n%s", err, out)
+diff --git a/src/cmd/internal/obj/ppc64/asm_test.go b/src/cmd/internal/obj/ppc64/asm_test.go
+index ff18a5e461..89fc9ba0ef 100644
+--- a/src/cmd/internal/obj/ppc64/asm_test.go
++++ b/src/cmd/internal/obj/ppc64/asm_test.go
+@@ -10,7 +10,6 @@ import (
+ 	"internal/testenv"
+ 	"math"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"regexp"
+ 	"strings"
+@@ -192,7 +191,7 @@ func TestPfxAlign(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatalf("can't write output: %v\n", err)
+ 		}
+-		cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-S", "-o", filepath.Join(dir, "test.o"), tmpfile)
++		cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-S", "-o", filepath.Join(dir, "test.o"), tmpfile)
+ 		cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH=ppc64le")
+ 		out, err := cmd.CombinedOutput()
+ 		if err != nil {
+@@ -288,7 +287,7 @@ func TestLarge(t *testing.T) {
+ 
+ 		// Test on all supported ppc64 platforms
+ 		for _, platenv := range platformEnvs {
+-			cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-S", "-o", filepath.Join(dir, "test.o"), tmpfile)
++			cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-S", "-o", filepath.Join(dir, "test.o"), tmpfile)
+ 			cmd.Env = append(os.Environ(), platenv...)
+ 			out, err := cmd.CombinedOutput()
+ 			if err != nil {
+@@ -351,7 +350,7 @@ func TestPCalign(t *testing.T) {
+ 	}
+ 
+ 	// build generated file without errors and assemble it
+-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), "-S", tmpfile)
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), "-S", tmpfile)
+ 	cmd.Env = append(os.Environ(), "GOARCH=ppc64le", "GOOS=linux")
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+@@ -391,7 +390,7 @@ func TestPCalign(t *testing.T) {
+ 	}
+ 
+ 	// build test with errors and check for messages
+-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "xi.o"), "-S", tmpfile)
++	cmd = testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "xi.o"), "-S", tmpfile)
+ 	cmd.Env = append(os.Environ(), "GOARCH=ppc64le", "GOOS=linux")
+ 	out, err = cmd.CombinedOutput()
+ 	if !strings.Contains(string(out), "Unexpected alignment") {
+diff --git a/src/cmd/internal/obj/riscv/asm_test.go b/src/cmd/internal/obj/riscv/asm_test.go
+index c798e98873..c22428cdc5 100644
+--- a/src/cmd/internal/obj/riscv/asm_test.go
++++ b/src/cmd/internal/obj/riscv/asm_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"fmt"
+ 	"internal/testenv"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
+ 	"testing"
+@@ -39,7 +38,7 @@ func TestLargeBranch(t *testing.T) {
+ 	}
+ 
+ 	// Assemble generated file.
+-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
+ 	cmd.Env = append(os.Environ(), "GOARCH=riscv64", "GOOS=linux")
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+@@ -96,7 +95,7 @@ func y()
+ 	}
+ 
+ 	// Build generated files.
+-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-linkmode=internal")
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-linkmode=internal")
+ 	cmd.Dir = dir
+ 	cmd.Env = append(os.Environ(), "GOARCH=riscv64", "GOOS=linux")
+ 	out, err := cmd.CombinedOutput()
+@@ -105,7 +104,7 @@ func y()
+ 	}
+ 
+ 	if runtime.GOARCH == "riscv64" && testenv.HasCGO() {
+-		cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-linkmode=external")
++		cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-linkmode=external")
+ 		cmd.Dir = dir
+ 		cmd.Env = append(os.Environ(), "GOARCH=riscv64", "GOOS=linux")
+ 		out, err := cmd.CombinedOutput()
+@@ -138,7 +137,7 @@ func TestNoRet(t *testing.T) {
+ 	if err := os.WriteFile(tmpfile, []byte("TEXT ·stub(SB),$0-0\nNOP\n"), 0644); err != nil {
+ 		t.Fatal(err)
+ 	}
+-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
+ 	cmd.Env = append(os.Environ(), "GOARCH=riscv64", "GOOS=linux")
+ 	if out, err := cmd.CombinedOutput(); err != nil {
+ 		t.Errorf("%v\n%s", err, out)
+@@ -192,7 +191,7 @@ TEXT _stub(SB),$0-0
+ 	if err := os.WriteFile(tmpfile, []byte(asm), 0644); err != nil {
+ 		t.Fatal(err)
+ 	}
+-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
+ 	cmd.Env = append(os.Environ(), "GOARCH=riscv64", "GOOS=linux")
+ 	if out, err := cmd.CombinedOutput(); err != nil {
+ 		t.Errorf("%v\n%s", err, out)
+@@ -206,7 +205,7 @@ func TestBranch(t *testing.T) {
+ 
+ 	testenv.MustHaveGoBuild(t)
+ 
+-	cmd := exec.Command(testenv.GoToolPath(t), "test")
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "test")
+ 	cmd.Dir = "testdata/testbranch"
+ 	if out, err := testenv.CleanCmdEnv(cmd).CombinedOutput(); err != nil {
+ 		t.Errorf("Branch test failed: %v\n%s", err, out)
+diff --git a/src/cmd/internal/obj/x86/obj6_test.go b/src/cmd/internal/obj/x86/obj6_test.go
+index 354454fe24..d1246be77b 100644
+--- a/src/cmd/internal/obj/x86/obj6_test.go
++++ b/src/cmd/internal/obj/x86/obj6_test.go
+@@ -10,7 +10,6 @@ import (
+ 	"fmt"
+ 	"internal/testenv"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"regexp"
+ 	"strconv"
+@@ -98,7 +97,7 @@ func asmOutput(t *testing.T, s string) []byte {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	cmd := exec.Command(
++	cmd := testenv.Command(t,
+ 		testenv.GoToolPath(t), "tool", "asm", "-S", "-dynlink",
+ 		"-o", filepath.Join(tmpdir, "output.6"), tmpfile.Name())
+ 
+diff --git a/src/cmd/internal/obj/x86/pcrelative_test.go b/src/cmd/internal/obj/x86/pcrelative_test.go
+index a600006634..3827100123 100644
+--- a/src/cmd/internal/obj/x86/pcrelative_test.go
++++ b/src/cmd/internal/obj/x86/pcrelative_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"fmt"
+ 	"internal/testenv"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"testing"
+ )
+@@ -60,7 +59,7 @@ func objdumpOutput(t *testing.T, mname, source string) []byte {
+ 		t.Fatal(err)
+ 	}
+ 
+-	cmd := exec.Command(
++	cmd := testenv.Command(t,
+ 		testenv.GoToolPath(t), "build", "-o",
+ 		filepath.Join(tmpdir, "output"))
+ 
+@@ -72,7 +71,7 @@ func objdumpOutput(t *testing.T, mname, source string) []byte {
+ 	if err != nil {
+ 		t.Fatalf("error %s output %s", err, out)
+ 	}
+-	cmd2 := exec.Command(
++	cmd2 := testenv.Command(t,
+ 		testenv.GoToolPath(t), "tool", "objdump", "-s", "testASM",
+ 		filepath.Join(tmpdir, "output"))
+ 	cmd2.Env = cmd.Env

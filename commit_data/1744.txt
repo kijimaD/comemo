@@ -7,8 +7,99 @@ Date:   Wed Mar 4 17:38:37 2009 -0800
     R=ken
     OCL=25720
     CL=25720
-
+---
  src/cmd/gc/go.h   |  1 +
  src/cmd/gc/go.y   | 16 ++++------------
  src/cmd/gc/subr.c | 19 +++++++++++++++++++
  3 files changed, 24 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 8445a9158e..76e440db4b 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -657,6 +657,7 @@ int	isslice(Type*);
+ int	isinter(Type*);
+ int	isnilinter(Type*);
+ int	isddd(Type*);
++Type*	maptype(Type*, Type*);
+ Type*	dclmethod(Type*);
+ Type*	methtype(Type*);
+ int	methconv(Type*);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 20c981d6c3..fb905292d3 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1019,9 +1019,7 @@ convtype:
+ |	LMAP '[' type ']' type
+ 	{
+ 		// map literal
+-		$$ = typ(TMAP);
+-		$$->down = $3;
+-		$$->type = $5;
++		$$ = maptype($3, $5);
+ 	}
+ |	structtype
+ |	'(' type ')'
+@@ -1126,9 +1124,7 @@ Aothertype:
+ 	}
+ |	LMAP '[' type ']' Atype
+ 	{
+-		$$ = typ(TMAP);
+-		$$->down = $3;
+-		$$->type = $5;
++		$$ = maptype($3, $5);
+ 	}
+ |	'*' Atype
+ 	{
+@@ -1160,9 +1156,7 @@ Bothertype:
+ 	}
+ |	LMAP '[' type ']' Btype
+ 	{
+-		$$ = typ(TMAP);
+-		$$->down = $3;
+-		$$->type = $5;
++		$$ = maptype($3, $5);
+ 	}
+ |	'*' Btype
+ 	{
+@@ -1806,9 +1800,7 @@ hidden_type1:
+ 	}
+ |	LMAP '[' hidden_type ']' hidden_type
+ 	{
+-		$$ = typ(TMAP);
+-		$$->down = $3;
+-		$$->type = $5;
++		$$ = maptype($3, $5);
+ 	}
+ |	LSTRUCT '{' ohidden_structdcl_list '}'
+ 	{
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 7d5890c6bb..bb2c31ebdb 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -305,6 +305,25 @@ algtype(Type *t)
+ 	return a;
+ }
+ 
++Type*
++maptype(Type *key, Type *val)
++{
++	Type *t;
++
++	if(key != nil && key->etype != TANY && algtype(key) == ANOEQ)
++		yyerror("invalid map key type %T", key);
++	t = typ(TMAP);
++	t->down = key;
++	t->type = val;
++	return t;
++}
++
++int
++iskeytype(Type *t)
++{
++	return algtype(t) != ANOEQ;
++}
++
+ Node*
+ list(Node *a, Node *b)
+ {

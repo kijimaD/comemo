@@ -14,9 +14,108 @@ Date:   Thu Jan 26 17:21:51 2023 -0800
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/infer.go | 15 +++++++++++++++
  src/cmd/compile/internal/types2/unify.go | 15 ---------------
  src/go/types/infer.go                    | 15 +++++++++++++++
  src/go/types/unify.go                    | 15 ---------------
  4 files changed, 30 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 24a71367c5..55ee916fdb 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -775,3 +775,18 @@ func (w *cycleFinder) varList(list []*Var) {
+ 		w.typ(v.typ)
+ 	}
+ }
++
++// If tpar is a type parameter in list, tparamIndex returns the type parameter index.
++// Otherwise, the result is < 0. tpar must not be nil.
++func tparamIndex(list []*TypeParam, tpar *TypeParam) int {
++	// Once a type parameter is bound its index is >= 0. However, there are some
++	// code paths (namely tracing and type hashing) by which it is possible to
++	// arrive here with a type parameter that has not been bound, hence the check
++	// for 0 <= i below.
++	// TODO(rfindley): investigate a better approach for guarding against using
++	// unbound type parameters.
++	if i := tpar.index; 0 <= i && i < len(list) && list[i] == tpar {
++		return i
++	}
++	return -1
++}
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index bca7231bbb..836db5b76b 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -156,21 +156,6 @@ func (u *unifier) index(typ Type) int {
+ 	return -1
+ }
+ 
+-// If tpar is a type parameter in list, tparamIndex returns the type parameter index.
+-// Otherwise, the result is < 0. tpar must not be nil.
+-func tparamIndex(list []*TypeParam, tpar *TypeParam) int {
+-	// Once a type parameter is bound its index is >= 0. However, there are some
+-	// code paths (namely tracing and type hashing) by which it is possible to
+-	// arrive here with a type parameter that has not been bound, hence the check
+-	// for 0 <= i below.
+-	// TODO(rfindley): investigate a better approach for guarding against using
+-	// unbound type parameters.
+-	if i := tpar.index; 0 <= i && i < len(list) && list[i] == tpar {
+-		return i
+-	}
+-	return -1
+-}
+-
+ // setIndex sets the type slot index for the i'th type parameter
+ // (and all its joined parameters) to tj. The type parameter
+ // must have a (possibly nil) type slot associated with it.
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 7b921c3b94..2e6fc7f16f 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -777,3 +777,18 @@ func (w *cycleFinder) varList(list []*Var) {
+ 		w.typ(v.typ)
+ 	}
+ }
++
++// If tpar is a type parameter in list, tparamIndex returns the type parameter index.
++// Otherwise, the result is < 0. tpar must not be nil.
++func tparamIndex(list []*TypeParam, tpar *TypeParam) int {
++	// Once a type parameter is bound its index is >= 0. However, there are some
++	// code paths (namely tracing and type hashing) by which it is possible to
++	// arrive here with a type parameter that has not been bound, hence the check
++	// for 0 <= i below.
++	// TODO(rfindley): investigate a better approach for guarding against using
++	// unbound type parameters.
++	if i := tpar.index; 0 <= i && i < len(list) && list[i] == tpar {
++		return i
++	}
++	return -1
++}
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index a83757f2a4..d281420268 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -158,21 +158,6 @@ func (u *unifier) index(typ Type) int {
+ 	return -1
+ }
+ 
+-// If tpar is a type parameter in list, tparamIndex returns the type parameter index.
+-// Otherwise, the result is < 0. tpar must not be nil.
+-func tparamIndex(list []*TypeParam, tpar *TypeParam) int {
+-	// Once a type parameter is bound its index is >= 0. However, there are some
+-	// code paths (namely tracing and type hashing) by which it is possible to
+-	// arrive here with a type parameter that has not been bound, hence the check
+-	// for 0 <= i below.
+-	// TODO(rfindley): investigate a better approach for guarding against using
+-	// unbound type parameters.
+-	if i := tpar.index; 0 <= i && i < len(list) && list[i] == tpar {
+-		return i
+-	}
+-	return -1
+-}
+-
+ // setIndex sets the type slot index for the i'th type parameter
+ // (and all its joined parameters) to tj. The type parameter
+ // must have a (possibly nil) type slot associated with it.

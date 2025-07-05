@@ -12,8 +12,64 @@ Date:   Thu Mar 27 20:23:16 2014 +0000
     R=golang-codereviews, bradfitz, iant
     CC=golang-codereviews
     https://golang.org/cl/76450043
-
+---
  misc/cgo/errors/err3.go   | 18 ++++++++++++++++++
  misc/cgo/errors/test.bash |  1 +
  src/cmd/cgo/gcc.go        |  7 +++++--
  3 files changed, 24 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/errors/err3.go b/misc/cgo/errors/err3.go
+new file mode 100644
+index 0000000000..3680a4a4c1
+--- /dev/null
++++ b/misc/cgo/errors/err3.go
+@@ -0,0 +1,18 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++/*
++typedef struct foo foo_t;
++typedef struct bar bar_t;
++
++foo_t *foop;
++*/
++import "C"
++
++func main() {
++	x := (*C.bar_t)(nil)
++	C.foop = x // ERROR HERE
++}
+diff --git a/misc/cgo/errors/test.bash b/misc/cgo/errors/test.bash
+index 697ae2fed2..f0f60c8445 100755
+--- a/misc/cgo/errors/test.bash
++++ b/misc/cgo/errors/test.bash
+@@ -26,6 +26,7 @@ check() {
+ 
+ check err1.go
+ check err2.go
++check err3.go
+ 
+ rm -rf errs _obj
+ exit 0
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 3e1837ebf9..b8b783051d 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1327,9 +1327,12 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 		// be correct, so calling dtype.Size again will produce the correct value.
+ 		t.Size = dtype.Size()
+ 		if t.Size < 0 {
+-			// Unsized types are [0]byte
++			// Unsized types are [0]byte, unless they're typedefs of other types.
++			// if so, use the name of the typedef for the go name.
+ 			t.Size = 0
+-			t.Go = c.Opaque(0)
++			if _, ok := dtype.(*dwarf.TypedefType); !ok {
++				t.Go = c.Opaque(0)
++			}
+ 			if t.C.Empty() {
+ 				t.C.Set("void")
+ 			}

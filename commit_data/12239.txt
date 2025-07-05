@@ -9,9 +9,120 @@ Date:   Mon Feb 27 13:56:43 2012 -0800
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5697062
-
+---
  src/pkg/go/printer/nodes.go                    |  7 ++++++-
  src/pkg/go/printer/testdata/expressions.golden | 22 ++++++++++++++++++++++
  src/pkg/go/printer/testdata/expressions.input  | 22 ++++++++++++++++++++++
  src/pkg/go/printer/testdata/expressions.raw    | 22 ++++++++++++++++++++++
  4 files changed, 72 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index cd5e075c16..2205f633f1 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -804,9 +804,14 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, multiLine *bool) {
+ 		}
+ 		p.expr1(x.Fun, token.HighestPrec, depth, multiLine)
+ 		p.print(x.Lparen, token.LPAREN)
+-		p.exprList(x.Lparen, x.Args, depth, commaSep|commaTerm, multiLine, x.Rparen)
+ 		if x.Ellipsis.IsValid() {
++			p.exprList(x.Lparen, x.Args, depth, commaSep, multiLine, x.Ellipsis)
+ 			p.print(x.Ellipsis, token.ELLIPSIS)
++			if x.Rparen.IsValid() && p.lineFor(x.Ellipsis) < p.lineFor(x.Rparen) {
++				p.print(token.COMMA, formfeed)
++			}
++		} else {
++			p.exprList(x.Lparen, x.Args, depth, commaSep|commaTerm, multiLine, x.Rparen)
+ 		}
+ 		p.print(x.Rparen, token.RPAREN)
+ 
+diff --git a/src/pkg/go/printer/testdata/expressions.golden b/src/pkg/go/printer/testdata/expressions.golden
+index 95fdd95ffb..45fa4d97a4 100644
+--- a/src/pkg/go/printer/testdata/expressions.golden
++++ b/src/pkg/go/printer/testdata/expressions.golden
+@@ -625,3 +625,25 @@ func f() {
+ 		log.Fatal(err)
+ 	}
+ }
++
++// Handle multi-line argument lists ending in ... correctly.
++// Was issue 3130.
++func _() {
++	_ = append(s, a...)
++	_ = append(
++		s, a...)
++	_ = append(s,
++		a...)
++	_ = append(
++		s,
++		a...)
++	_ = append(s, a...,
++	)
++	_ = append(s,
++		a...,
++	)
++	_ = append(
++		s,
++		a...,
++	)
++}
+diff --git a/src/pkg/go/printer/testdata/expressions.input b/src/pkg/go/printer/testdata/expressions.input
+index d113149835..f545c66057 100644
+--- a/src/pkg/go/printer/testdata/expressions.input
++++ b/src/pkg/go/printer/testdata/expressions.input
+@@ -654,3 +654,25 @@ func f() {
+ 	    log.Fatal(err)
+ 	}
+ }
++
++// Handle multi-line argument lists ending in ... correctly.
++// Was issue 3130.
++func _() {
++	_ = append(s, a...)
++	_ = append(
++		s, a...)
++	_ = append(s,
++		a...)
++	_ = append(
++		s,
++		a...)
++	_ = append(s, a...,
++	)
++	_ = append(s,
++		a...,
++	)
++	_ = append(
++		s,
++		a...,
++	)
++}
+diff --git a/src/pkg/go/printer/testdata/expressions.raw b/src/pkg/go/printer/testdata/expressions.raw
+index 3442ba9b95..87a4b00836 100644
+--- a/src/pkg/go/printer/testdata/expressions.raw
++++ b/src/pkg/go/printer/testdata/expressions.raw
+@@ -625,3 +625,25 @@ func f() {
+ 		log.Fatal(err)
+ 	}
+ }
++
++// Handle multi-line argument lists ending in ... correctly.
++// Was issue 3130.
++func _() {
++	_ = append(s, a...)
++	_ = append(
++		s, a...)
++	_ = append(s,
++		a...)
++	_ = append(
++		s,
++		a...)
++	_ = append(s, a...,
++	)
++	_ = append(s,
++		a...,
++	)
++	_ = append(
++		s,
++		a...,
++	)
++}

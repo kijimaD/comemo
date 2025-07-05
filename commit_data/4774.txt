@@ -7,7 +7,7 @@ Date:   Wed Feb 3 16:31:34 2010 -0800
     R=r, cw
     CC=golang-dev
     https://golang.org/cl/198085
-
+---
  src/pkg/Makefile                         |   2 -
  src/pkg/container/vector/numbers_test.go |  38 ++++-----
  src/pkg/fmt/fmt_test.go                  |  18 ++---
@@ -29,3 +29,1319 @@ Date:   Wed Feb 3 16:31:34 2010 -0800
  test/mallocrep.go                        |  47 +++++------
  test/mallocrep1.go                       |  92 +++++++++++-----------
  20 files changed, 554 insertions(+), 243 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 034a66bb6e..f057769ec4 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -86,7 +86,6 @@ DIRS=\
+ 	io/ioutil\
+ 	json\
+ 	log\
+-	malloc\
+ 	math\
+ 	net\
+ 	once\
+@@ -128,7 +127,6 @@ NOTEST=\
+ 	hash\
+ 	image\
+ 	image/jpeg\
+-	malloc\
+ 	rand\
+ 	runtime\
+ 	syscall\
+diff --git a/src/pkg/container/vector/numbers_test.go b/src/pkg/container/vector/numbers_test.go
+index 9a7e2780e6..a44242f67b 100644
+--- a/src/pkg/container/vector/numbers_test.go
++++ b/src/pkg/container/vector/numbers_test.go
+@@ -6,7 +6,7 @@ package vector
+ 
+ import (
+ 	"fmt"
+-	"malloc"
++	"runtime"
+ 	"strings"
+ 	"testing"
+ )
+@@ -35,16 +35,16 @@ func s(n uint64) string {
+ func TestVectorNums(t *testing.T) {
+ 	var v Vector
+ 	c := int(0)
+-	malloc.GC()
+-	m0 := *malloc.GetStats()
++	runtime.GC()
++	m0 := runtime.MemStats
+ 	v.Resize(memTestN, memTestN)
+ 	for i := 0; i < memTestN; i++ {
+ 		v.Set(i, c)
+ 	}
+-	malloc.GC()
+-	m := *malloc.GetStats()
++	runtime.GC()
++	m := runtime.MemStats
+ 	v.Resize(0, 0)
+-	malloc.GC()
++	runtime.GC()
+ 	n := m.Alloc - m0.Alloc
+ 	t.Logf("%T.Push(%#v), n = %s: Alloc/n = %.2f\n", v, c, s(memTestN), float(n)/memTestN)
+ }
+@@ -53,16 +53,16 @@ func TestVectorNums(t *testing.T) {
+ func TestIntVectorNums(t *testing.T) {
+ 	var v IntVector
+ 	c := int(0)
+-	malloc.GC()
+-	m0 := *malloc.GetStats()
++	runtime.GC()
++	m0 := runtime.MemStats
+ 	v.Resize(memTestN, memTestN)
+ 	for i := 0; i < memTestN; i++ {
+ 		v.Set(i, c)
+ 	}
+-	malloc.GC()
+-	m := *malloc.GetStats()
++	runtime.GC()
++	m := runtime.MemStats
+ 	v.Resize(0, 0)
+-	malloc.GC()
++	runtime.GC()
+ 	n := m.Alloc - m0.Alloc
+ 	t.Logf("%T.Push(%#v), n = %s: Alloc/n = %.2f\n", v, c, s(memTestN), float(n)/memTestN)
+ }
+@@ -71,16 +71,16 @@ func TestIntVectorNums(t *testing.T) {
+ func TestStringVectorNums(t *testing.T) {
+ 	var v StringVector
+ 	c := ""
+-	malloc.GC()
+-	m0 := *malloc.GetStats()
++	runtime.GC()
++	m0 := runtime.MemStats
+ 	v.Resize(memTestN, memTestN)
+ 	for i := 0; i < memTestN; i++ {
+ 		v.Set(i, c)
+ 	}
+-	malloc.GC()
+-	m := *malloc.GetStats()
++	runtime.GC()
++	m := runtime.MemStats
+ 	v.Resize(0, 0)
+-	malloc.GC()
++	runtime.GC()
+ 	n := m.Alloc - m0.Alloc
+ 	t.Logf("%T.Push(%#v), n = %s: Alloc/n = %.2f\n", v, c, s(memTestN), float(n)/memTestN)
+ }
+@@ -90,7 +90,7 @@ func BenchmarkVectorNums(b *testing.B) {
+ 	c := int(0)
+ 	var v Vector
+ 	b.StopTimer()
+-	malloc.GC()
++	runtime.GC()
+ 	b.StartTimer()
+ 	for i := 0; i < b.N; i++ {
+ 		v.Push(c)
+@@ -102,7 +102,7 @@ func BenchmarkIntVectorNums(b *testing.B) {
+ 	c := int(0)
+ 	var v IntVector
+ 	b.StopTimer()
+-	malloc.GC()
++	runtime.GC()
+ 	b.StartTimer()
+ 	for i := 0; i < b.N; i++ {
+ 		v.Push(c)
+@@ -114,7 +114,7 @@ func BenchmarkStringVectorNums(b *testing.B) {
+ 	c := ""
+ 	var v StringVector
+ 	b.StopTimer()
+-	malloc.GC()
++	runtime.GC()
+ 	b.StartTimer()
+ 	for i := 0; i < b.N; i++ {
+ 		v.Push(c)
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index c89a6acaca..ecceeb09ce 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -7,8 +7,8 @@ package fmt_test
+ import (
+ 	. "fmt"
+ 	"io"
+-	"malloc" // for the malloc count test only
+ 	"math"
++	"runtime" // for the malloc count test only
+ 	"strings"
+ 	"testing"
+ )
+@@ -281,29 +281,29 @@ func BenchmarkSprintfIntInt(b *testing.B) {
+ }
+ 
+ func TestCountMallocs(t *testing.T) {
+-	mallocs := 0 - malloc.GetStats().Mallocs
++	mallocs := 0 - runtime.MemStats.Mallocs
+ 	for i := 0; i < 100; i++ {
+ 		Sprintf("")
+ 	}
+-	mallocs += malloc.GetStats().Mallocs
++	mallocs += runtime.MemStats.Mallocs
+ 	Printf("mallocs per Sprintf(\"\"): %d\n", mallocs/100)
+-	mallocs = 0 - malloc.GetStats().Mallocs
++	mallocs = 0 - runtime.MemStats.Mallocs
+ 	for i := 0; i < 100; i++ {
+ 		Sprintf("xxx")
+ 	}
+-	mallocs += malloc.GetStats().Mallocs
++	mallocs += runtime.MemStats.Mallocs
+ 	Printf("mallocs per Sprintf(\"xxx\"): %d\n", mallocs/100)
+-	mallocs = 0 - malloc.GetStats().Mallocs
++	mallocs = 0 - runtime.MemStats.Mallocs
+ 	for i := 0; i < 100; i++ {
+ 		Sprintf("%x", i)
+ 	}
+-	mallocs += malloc.GetStats().Mallocs
++	mallocs += runtime.MemStats.Mallocs
+ 	Printf("mallocs per Sprintf(\"%%x\"): %d\n", mallocs/100)
+-	mallocs = 0 - malloc.GetStats().Mallocs
++	mallocs = 0 - runtime.MemStats.Mallocs
+ 	for i := 0; i < 100; i++ {
+ 		Sprintf("%x %x", i, i)
+ 	}
+-	mallocs += malloc.GetStats().Mallocs
++	mallocs += runtime.MemStats.Mallocs
+ 	Printf("mallocs per Sprintf(\"%%x %%x\"): %d\n", mallocs/100)
+ }
+ 
+diff --git a/src/pkg/malloc/Makefile b/src/pkg/malloc/Makefile
+deleted file mode 100644
+index d7c39c0cfa..0000000000
+--- a/src/pkg/malloc/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.$(GOARCH)
+-
+-TARG=malloc
+-GOFILES=\
+-	malloc.go\
+-
+-include ../../Make.pkg
+diff --git a/src/pkg/malloc/malloc.go b/src/pkg/malloc/malloc.go
+deleted file mode 100644
+index c66b6237dd..0000000000
+--- a/src/pkg/malloc/malloc.go
++++ /dev/null
+@@ -1,29 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Go declarations for malloc.
+-// The actual functions are written in C
+-// and part of the runtime library.
+-
+-// The malloc package exposes statistics and other low-level details about
+-// the run-time memory allocator and collector.  It is intended for debugging
+-// purposes only; other uses are discouraged.
+-package malloc
+-
+-type Stats struct {
+-	Alloc      uint64
+-	Sys        uint64
+-	Stacks     uint64
+-	InusePages uint64
+-	NextGC     uint64
+-	Lookups    uint64
+-	Mallocs    uint64
+-	EnableGC   bool
+-}
+-
+-func Alloc(uintptr) *byte
+-func Free(*byte)
+-func GetStats() *Stats
+-func Lookup(*byte) (*byte, uintptr)
+-func GC()
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index d65fea5435..b6e4eed708 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -55,6 +55,7 @@ OFILES=\
+ 	mcentral.$O\
+ 	mem.$O\
+ 	memmove.$O\
++	mfinal.$O\
+ 	mfixalloc.$O\
+ 	mgc0.$O\
+ 	mheap.$O\
+diff --git a/src/pkg/runtime/cgo2c.c b/src/pkg/runtime/cgo2c.c
+index 3b452b78b3..a4489213f6 100644
+--- a/src/pkg/runtime/cgo2c.c
++++ b/src/pkg/runtime/cgo2c.c
+@@ -46,6 +46,7 @@ enum {
+ 	Uintptr,
+ 	String,
+ 	Slice,
++	Eface,
+ };
+ 
+ static struct {
+@@ -62,6 +63,7 @@ static struct {
+ 	"uintptr",	4,
+ 	"String",	8,
+ 	"Slice",	12,
++	"Eface",	8,
+ 
+ 	/* fixed size */
+ 	"float32",	4,
+@@ -711,6 +713,7 @@ main(int argc, char **argv)
+ 			type_table[Uintptr].size = 8;
+ 			type_table[String].size = 16;
+ 			type_table[Slice].size = 8+4+4;
++			type_table[Eface].size = 8+8;
+ 			structround = 8;
+ 		}
+ 	}
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index 85b165922b..53b86b764d 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -70,3 +70,71 @@ func Signame(sig int32) string
+ // Siginit enables receipt of signals via Sigrecv.  It should typically
+ // be called during initialization.
+ func Siginit()
++
++// MemStats holds statistics about the memory system.
++// The statistics are only approximate, as they are not interlocked on update.
++var MemStats struct {
++	Alloc      uint64
++	Sys        uint64
++	Stacks     uint64
++	InusePages uint64
++	NextGC     uint64
++	Lookups    uint64
++	Mallocs    uint64
++	EnableGC   bool
++}
++
++// Alloc allocates a block of the given size.
++// FOR TESTING AND DEBUGGING ONLY.
++func Alloc(uintptr) *byte
++
++// Free frees the block starting at the given pointer.
++// FOR TESTING AND DEBUGGING ONLY.
++func Free(*byte)
++
++// Lookup returns the base and size of the block containing the given pointer.
++// FOR TESTING AND DEBUGGING ONLY.
++func Lookup(*byte) (*byte, uintptr)
++
++// GC runs a garbage collection.
++func GC()
++
++// SetFinalizer sets the finalizer associated with x to f.
++// When the garbage collector finds an unreachable block
++// with an associated finalizer, it clears the association and creates
++// a new goroutine running f(x).  Creating the new goroutine makes
++// x reachable again, but now without an associated finalizer.
++// Assuming that SetFinalizer is not called again, the next time
++// the garbage collector sees that x is unreachable, it will free x.
++//
++// SetFinalizer(x, nil) clears any finalizer associated with f.
++//
++// The argument x must be a pointer to an object allocated by
++// calling new or by taking the address of a composite literal.
++// The argument f must be a function that takes a single argument
++// of x's type and returns no arguments.  If either of these is not
++// true, SetFinalizer aborts the program.
++//
++// Finalizers are run in dependency order: if A points at B, both have
++// finalizers, and they are otherwise unreachable, only the finalizer
++// for A runs; once A is freed, the finalizer for B can run.
++// If a cyclic structure includes a block with a finalizer, that
++// cycle is not guaranteed to be garbage collected and the finalizer
++// is not guaranteed to run, because there is no ordering that
++// respects the dependencies.
++//
++// The finalizer for x is scheduled to run at some arbitrary time after
++// x becomes unreachable.
++// There is no guarantee that finalizers will run before a program exits,
++// so typically they are useful only for releasing non-memory resources
++// associated with an object during a long-running program.
++// For example, an os.File object could use a finalizer to close the
++// associated operating system file descriptor when a program discards
++// an os.File without calling Close, but it would be a mistake
++// to depend on a finalizer to flush an in-memory I/O buffer such as a
++// bufio.Writer, because the buffer would not be flushed at program exit.
++//
++// TODO(rsc): make os.File use SetFinalizer
++// TODO(rsc): allow f to have (ignored) return values
++//
++func SetFinalizer(x, f interface{})
+diff --git a/src/pkg/runtime/malloc.cgo b/src/pkg/runtime/malloc.cgo
+index 6acbac2eb0..d7e3e4151d 100644
+--- a/src/pkg/runtime/malloc.cgo
++++ b/src/pkg/runtime/malloc.cgo
+@@ -6,10 +6,11 @@
+ //
+ // TODO(rsc): double-check stats.
+ 
+-package malloc
++package runtime
+ #include "runtime.h"
+ #include "malloc.h"
+ #include "defs.h"
++#include "type.h"
+ 
+ MHeap mheap;
+ MStats mstats;
+@@ -96,8 +97,10 @@ free(void *v)
+ 		throw("malloc/free - deadlock");
+ 	m->mallocing = 1;
+ 
+-	if(!mlookup(v, nil, nil, &ref))
++	if(!mlookup(v, nil, nil, &ref)) {
++		printf("free %p: not an allocated block\n", v);
+ 		throw("free mlookup");
++	}
+ 	*ref = RefFree;
+ 
+ 	// Find size class for v.
+@@ -274,10 +277,41 @@ func Lookup(p *byte) (base *byte, size uintptr) {
+ 	mlookup(p, &base, &size, nil);
+ }
+ 
+-func GetStats() (s *MStats) {
+-	s = &mstats;
+-}
+-
+ func GC() {
+ 	gc(1);
+ }
++
++func SetFinalizer(obj Eface, finalizer Eface) {
++	byte *base;
++	uintptr size;
++	FuncType *ft;
++	
++	if(obj.type == nil) {
++		printf("runtime.SetFinalizer: first argument is nil interface\n");
++	throw:
++		throw("runtime.SetFinalizer");
++	}
++	if(obj.type->kind != KindPtr) {
++		printf("runtime.SetFinalizer: first argument is %S, not pointer\n", *obj.type->string);
++		goto throw;
++	}
++	if(!mlookup(obj.data, &base, &size, nil) || obj.data != base) {
++		printf("runtime.SetFinalizer: pointer not at beginning of allocated block\n");
++		goto throw;
++	}
++	if(finalizer.type != nil) {
++		if(finalizer.type->kind != KindFunc) {
++		badfunc:
++			printf("runtime.SetFinalizer: second argument is %S, not func(%S)\n", *finalizer.type->string, *obj.type->string);
++			goto throw;
++		}
++		ft = (FuncType*)finalizer.type;
++		if(ft->dotdotdot || ft->out.len != 0 || ft->in.len != 1 || *(Type**)ft->in.array != obj.type)
++			goto badfunc;
++		if(getfinalizer(obj.data, 0)) {
++			printf("runtime.SetFinalizer: finalizer already set");
++			goto throw;
++		}
++	}
++	addfinalizer(obj.data, finalizer.data);
++}
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index e07faf39f1..133ed02329 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -168,6 +168,8 @@ struct MStats
+ 	uint64	nmalloc;	// unprotected (approximate)
+ 	bool	enablegc;
+ };
++
++#define mstats ·MemStats	/* name shared with Go */
+ extern MStats mstats;
+ 
+ 
+@@ -307,6 +309,9 @@ void*	SysAlloc(uintptr);
+ void	SysUnused(void*, uintptr);
+ void	SysFree(void*, uintptr);
+ 
++void	addfinalizer(void*, void*);
++void*	getfinalizer(void*, bool);
++
+ enum
+ {
+ 	RefcountOverhead = 4,	// one uint32 per object
+@@ -315,5 +320,6 @@ enum
+ 	RefStack,		// stack segment - don't free and don't scan for pointers
+ 	RefNone,		// no references
+ 	RefSome,		// some references
++	RefFinalize,	// ready to be finalized
+ 	RefNoPointers = 0x80000000U,	// flag - no pointers here     
+ };
+diff --git a/src/pkg/runtime/mfinal.c b/src/pkg/runtime/mfinal.c
+new file mode 100644
+index 0000000000..083a530684
+--- /dev/null
++++ b/src/pkg/runtime/mfinal.c
+@@ -0,0 +1,127 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++#include "malloc.h"
++
++// Finalizer hash table.  Direct hash, linear scan, at most 3/4 full.
++// Table size is power of 3 so that hash can be key % max.
++// Key[i] == (void*)-1 denotes free but formerly occupied entry
++// (doesn't stop the linear scan).
++// Key and val are separate tables because the garbage collector
++// must be instructed to ignore the pointers in key but follow the
++// pointers in val.
++typedef struct Fintab Fintab;
++struct Fintab
++{
++	void **key;
++	void **val;
++	int32 nkey;	// number of non-nil entries in key
++	int32 ndead;	// number of dead (-1) entries in key
++	int32 max;	// size of key, val allocations
++};
++
++static void
++addfintab(Fintab *t, void *k, void *v)
++{
++	int32 i, j;
++	
++	i = (uintptr)k % (uintptr)t->max;
++	for(j=0; j<t->max; j++) {
++		if(t->key[i] == nil) {
++			t->nkey++;
++			goto ret;
++		}
++		if(t->key[i] == (void*)-1) {
++			t->ndead--;
++			goto ret;
++		}
++		if(++i == t->max)
++			i = 0;
++	}
++
++	// cannot happen - table is known to be non-full
++	throw("finalizer table inconsistent");
++
++ret:
++	t->key[i] = k;
++	t->val[i] = v;
++}
++
++static void*
++lookfintab(Fintab *t, void *k, bool del)
++{
++	int32 i, j;
++	void *v;
++	
++	if(t->max == 0)
++		return nil;
++	i = (uintptr)k % (uintptr)t->max;
++	for(j=0; j<t->max; j++) {
++		if(t->key[i] == nil)
++			return nil;
++		if(t->key[i] == k) {
++			v = t->val[i];
++			if(del) {
++				t->key[i] = (void*)-1;
++				t->val[i] = nil;
++				t->ndead++;
++			}
++			return v;
++		}
++		if(++i == t->max)
++			i = 0;
++	}
++
++	// cannot happen - table is known to be non-full
++	throw("finalizer table inconsistent");
++	return nil;
++}
++
++static Fintab fintab;
++
++// add finalizer; caller is responsible for making sure not already in table
++void
++addfinalizer(void *p, void *f)
++{
++	Fintab newtab;
++	int32 i;
++
++	if(fintab.nkey >= fintab.max/2+fintab.max/4) {
++		// keep table at most 3/4 full:
++		// allocate new table and rehash.
++		
++		runtime_memclr((byte*)&newtab, sizeof newtab);
++		newtab.max = fintab.max;
++		if(newtab.max == 0)
++			newtab.max = 3*3*3;
++		else if(fintab.ndead < fintab.nkey/2) {
++			// grow table if not many dead values.
++			// otherwise just rehash into table of same size.
++			newtab.max *= 3;
++		}
++		
++		newtab.key = mallocgc(newtab.max*sizeof newtab.key[0], RefNoPointers, 0);
++		newtab.val = mallocgc(newtab.max*sizeof newtab.val[0], 0, 0);
++		
++		for(i=0; i<fintab.max; i++) {
++			void *k;
++			
++			k = fintab.key[i];
++			if(k != nil && k != (void*)-1)
++				addfintab(&newtab, k, fintab.val[i]);
++		}
++		free(fintab.key);
++		free(fintab.val);
++		fintab = newtab;
++	}
++	
++	addfintab(&fintab, p, f);		
++}
++
++void*
++getfinalizer(void *p, bool del)
++{
++	return lookfintab(&fintab, p, del);
++}
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 2a050d3788..d8a943e2a2 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -23,6 +23,12 @@ extern byte data[];
+ extern byte etext[];
+ extern byte end[];
+ 
++static void *finq[128];	// finalizer queue - two elements per entry
++static void **pfinq = finq;
++static void **efinq = finq+nelem(finq);
++
++static void sweepblock(byte*, int64, uint32*, int32);
++
+ enum {
+ 	PtrSize = sizeof(void*)
+ };
+@@ -37,7 +43,7 @@ scanblock(int32 depth, byte *b, int64 n)
+ 	void **vp;
+ 	int64 i;
+ 
+-	if(Debug)
++	if(Debug > 1)
+ 		printf("%d scanblock %p %D\n", depth, b, n);
+ 	off = (uint32)(uintptr)b & (PtrSize-1);
+ 	if(off) {
+@@ -54,12 +60,18 @@ scanblock(int32 depth, byte *b, int64 n)
+ 		if(mlookup(obj, &obj, &size, &ref)) {
+ 			if(*ref == RefFree || *ref == RefStack)
+ 				continue;
+-			if(*ref == (RefNone|RefNoPointers)) {
++
++			// If marked for finalization already, some other finalization-ready
++			// object has a pointer: turn off finalization until that object is gone.
++			// This means that cyclic finalizer loops never get collected,
++			// so don't do that.
++
++			if(*ref == (RefNone|RefNoPointers) || *ref == (RefFinalize|RefNoPointers)) {
+ 				*ref = RefSome|RefNoPointers;
+ 				continue;
+ 			}
+-			if(*ref == RefNone) {
+-				if(Debug)
++			if(*ref == RefNone || *ref == RefFinalize) {
++				if(Debug > 1)
+ 					printf("%d found at %p: ", depth, &vp[i]);
+ 				*ref = RefSome;
+ 				scanblock(depth+1, obj, size);
+@@ -78,6 +90,8 @@ scanstack(G *gp)
+ 		sp = (byte*)&gp;
+ 	else
+ 		sp = gp->sched.sp;
++	if(Debug > 1)
++		printf("scanstack %d %p\n", gp->goid, sp);
+ 	stk = (Stktop*)gp->stackbase;
+ 	while(stk) {
+ 		scanblock(0, sp, (byte*)stk - sp);
+@@ -120,7 +134,7 @@ mark(void)
+ }
+ 
+ static void
+-sweepspan(MSpan *s)
++sweepspan(MSpan *s, int32 pass)
+ {
+ 	int32 i, n, npages, size;
+ 	byte *p;
+@@ -131,24 +145,7 @@ sweepspan(MSpan *s)
+ 	p = (byte*)(s->start << PageShift);
+ 	if(s->sizeclass == 0) {
+ 		// Large block.
+-		switch(s->gcref0) {
+-		default:
+-			throw("bad 'ref count'");
+-		case RefFree:
+-		case RefStack:
+-			break;
+-		case RefNone:
+-		case RefNone|RefNoPointers:
+-			if(Debug)
+-				printf("free %D at %p\n", (uint64)s->npages<<PageShift, p);
+-			free(p);
+-			break;
+-		case RefSome:
+-		case RefSome|RefNoPointers:
+-//printf("gc-mem 1 %D\n", (uint64)s->npages<<PageShift);
+-			s->gcref0 = RefNone;	// set up for next mark phase
+-			break;
+-		}
++		sweepblock(p, (uint64)s->npages<<PageShift, &s->gcref0, pass);
+ 		return;
+ 	}
+ 
+@@ -157,26 +154,57 @@ sweepspan(MSpan *s)
+ 	size = class_to_size[s->sizeclass];
+ 	npages = class_to_allocnpages[s->sizeclass];
+ 	n = (npages << PageShift) / (size + RefcountOverhead);
+-	for(i=0; i<n; i++) {
+-		switch(s->gcref[i]) {
+-		default:
+-			throw("bad 'ref count'");
+-		case RefFree:
+-		case RefStack:
+-			break;
+-		case RefNone:
+-		case RefNone|RefNoPointers:
+-			if(Debug)
+-				printf("free %d at %p\n", size, p+i*size);
+-			free(p + i*size);
+-			break;
+-		case RefSome:
+-		case RefSome|RefNoPointers:
+-			s->gcref[i] = RefNone;	// set up for next mark phase
+-			break;
++	for(i=0; i<n; i++)
++		sweepblock(p+i*size, size, &s->gcref[i], pass);
++}
++
++static void
++sweepblock(byte *p, int64 n, uint32 *gcrefp, int32 pass)
++{
++	uint32 gcref;
++
++	gcref = *gcrefp;
++	switch(gcref) {
++	default:
++		throw("bad 'ref count'");
++	case RefFree:
++	case RefStack:
++		break;
++	case RefNone:
++	case RefNone|RefNoPointers:
++		if(pass == 0 && getfinalizer(p, 0)) {
++			// Tentatively mark as finalizable.
++			// Make sure anything it points at will not be collected.
++			if(Debug > 0)
++				printf("maybe finalize %p+%D\n", p, n);
++			*gcrefp = RefFinalize | (gcref&RefNoPointers);
++			scanblock(100, p, n);
++		} else if(pass == 1) {
++			if(Debug > 0)
++				printf("free %p+%D\n", p, n);
++			free(p);
++		}
++		break;
++	case RefFinalize:
++	case RefFinalize|RefNoPointers:
++		if(pass != 1)
++			throw("sweepspan pass 0 RefFinalize");
++		if(pfinq < efinq) {
++			if(Debug > 0)
++				printf("finalize %p+%D\n", p, n);
++			*pfinq++ = getfinalizer(p, 1);
++			*pfinq++ = p;
+ 		}
++		// Reset for next mark+sweep.
++		*gcrefp = RefNone | (gcref&RefNoPointers);
++		break;
++	case RefSome:
++	case RefSome|RefNoPointers:
++		// Reset for next mark+sweep.
++		if(pass == 1)
++			*gcrefp = RefNone | (gcref&RefNoPointers);
++		break;
+ 	}
+-//printf("gc-mem %d %d\n", s->ref, size);
+ }
+ 
+ static void
+@@ -184,9 +212,13 @@ sweep(void)
+ {
+ 	MSpan *s;
+ 
+-	// Sweep all the spans.
++	// Sweep all the spans marking blocks to be finalized.
+ 	for(s = mheap.allspans; s != nil; s = s->allnext)
+-		sweepspan(s);
++		sweepspan(s, 0);
++		
++	// Sweep again queueing finalizers and freeing the others.
++	for(s = mheap.allspans; s != nil; s = s->allnext)
++		sweepspan(s, 1);
+ }
+ 
+ // Semaphore, not Lock, so that the goroutine
+@@ -209,6 +241,7 @@ void
+ gc(int32 force)
+ {
+ 	byte *p;
++	void **fp;
+ 
+ 	// The gc is turned off (via enablegc) until
+ 	// the bootstrap has completed.
+@@ -245,6 +278,17 @@ gc(int32 force)
+ 		mstats.next_gc = mstats.inuse_pages+mstats.inuse_pages*gcpercent/100;
+ 	}
+ 	m->gcing = 0;
++	
++	// kick off goroutines to run queued finalizers
++	m->locks++;	// disable gc during the mallocs in newproc
++	for(fp=finq; fp<pfinq; fp+=2) {
++		·newproc(sizeof(void*), fp[0], fp[1]);
++		fp[0] = nil;
++		fp[1] = nil;
++	}
++	pfinq = finq;
++	m->locks--;
++
+ 	semrelease(&gcsema);
+ 	starttheworld();
+ }
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 03b54fc264..2182ef3191 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -390,6 +390,7 @@ void	goexit(void);
+ void	runcgo(void (*fn)(void*), void*);
+ void	·entersyscall(void);
+ void	·exitsyscall(void);
++void	·newproc(int32, byte*, byte*);
+ void	siginit(void);
+ bool	sigsend(int32 sig);
+ 
+diff --git a/src/pkg/runtime/type.h b/src/pkg/runtime/type.h
+index 36a3b6acf4..69036f112d 100644
+--- a/src/pkg/runtime/type.h
++++ b/src/pkg/runtime/type.h
+@@ -14,6 +14,7 @@ typedef struct IMethod IMethod;
+ typedef struct MapType MapType;
+ typedef struct ChanType ChanType;
+ typedef struct SliceType SliceType;
++typedef struct FuncType FuncType;
+ 
+ struct CommonType
+ {
+@@ -115,3 +116,11 @@ struct SliceType
+ 	Type;
+ 	Type *elem;
+ };
++
++struct FuncType
++{
++	Type;
++	bool dotdotdot;
++	Slice in;
++	Slice out;
++};
+diff --git a/test/gc.go b/test/gc.go
+index 0b1dd63741..864d05c395 100644
+--- a/test/gc.go
++++ b/test/gc.go
+@@ -6,21 +6,19 @@
+ 
+ package main
+ 
+-import "malloc"
++import "runtime"
+ 
+ func mk2() {
+-	b := new([10000]byte);
+-	_ = b;
+-//	println(b, "stored at", &b);
++	b := new([10000]byte)
++	_ = b
++	//	println(b, "stored at", &b);
+ }
+ 
+-func mk1() {
+-	mk2();
+-}
++func mk1() { mk2() }
+ 
+ func main() {
+ 	for i := 0; i < 10; i++ {
+-		mk1();
+-		malloc.GC();
++		mk1()
++		runtime.GC()
+ 	}
+ }
+diff --git a/test/malloc1.go b/test/malloc1.go
+index 62329fe57f..146976467b 100644
+--- a/test/malloc1.go
++++ b/test/malloc1.go
+@@ -9,17 +9,16 @@
+ package main
+ 
+ import (
+-	"flag";
+-	"fmt";
+-	"malloc";
++	"flag"
++	"fmt"
++	"runtime"
+ )
+ 
+-var chatty = flag.Bool("v", false, "chatty");
++var chatty = flag.Bool("v", false, "chatty")
+ 
+ func main() {
+-	malloc.Free(malloc.Alloc(1));
++	runtime.Free(runtime.Alloc(1))
+ 	if *chatty {
+-		fmt.Printf("%+v %v\n", *malloc.GetStats(), uint64(0));
++		fmt.Printf("%+v %v\n", runtime.MemStats, uint64(0))
+ 	}
+ }
+-
+diff --git a/test/mallocfin.go b/test/mallocfin.go
+new file mode 100644
+index 0000000000..4c832583e0
+--- /dev/null
++++ b/test/mallocfin.go
+@@ -0,0 +1,58 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// trivial finalizer test
++
++package main
++
++import "runtime"
++
++const N = 250
++
++type A struct {
++	b *B
++	n int
++}
++
++type B struct {
++	n int
++}
++
++var i int
++var nfinal int
++var final [N]int
++
++func finalA(a *A) {
++	if final[a.n] != 0 {
++		panicln("finalA", a.n, final[a.n])
++	}
++	final[a.n] = 1
++}
++
++func finalB(b *B) {
++	if final[b.n] != 1 {
++		panicln("finalB", b.n, final[b.n])
++	}
++	final[b.n] = 2
++	nfinal++
++}
++
++func main() {
++	runtime.GOMAXPROCS(4)
++	for i = 0; i < N; i++ {
++		b := &B{i}
++		a := &A{b, i}
++		runtime.SetFinalizer(b, finalB)
++		runtime.SetFinalizer(a, finalA)
++	}
++	for i := 0; i < N; i++ {
++		runtime.GC()
++		runtime.Gosched()
++	}
++	if nfinal < N*9/10 {
++		panic("not enough finalizing:", nfinal, "/", N)
++	}
++}
+diff --git a/test/mallocrand.go b/test/mallocrand.go
+index c0184699ff..8129926da5 100644
+--- a/test/mallocrand.go
++++ b/test/mallocrand.go
+@@ -9,24 +9,25 @@
+ package main
+ 
+ import (
+-	"flag";
+-	"malloc";
+-	"rand";
+-	"unsafe";
++	"flag"
++	"rand"
++	"runtime"
++	"unsafe"
+ )
+ 
+-var chatty = flag.Bool("v", false, "chatty");
++var chatty = flag.Bool("v", false, "chatty")
++
++var footprint uint64
++var allocated uint64
+ 
+-var footprint uint64;
+-var allocated uint64;
+ func bigger() {
+-	if f := malloc.GetStats().Sys; footprint < f {
+-		footprint = f;
++	if f := runtime.MemStats.Sys; footprint < f {
++		footprint = f
+ 		if *chatty {
+-			println("Footprint", footprint, " for ", allocated);
++			println("Footprint", footprint, " for ", allocated)
+ 		}
+ 		if footprint > 1e9 {
+-			panicln("too big");
++			panicln("too big")
+ 		}
+ 	}
+ }
+@@ -36,50 +37,53 @@ func bigger() {
+ // little reason to ask for more memory from the OS.
+ func prime() {
+ 	for i := 0; i < 16; i++ {
+-		b := malloc.Alloc(1<<uint(i));
+-		malloc.Free(b);
++		b := runtime.Alloc(1 << uint(i))
++		runtime.Free(b)
+ 	}
+ 	for i := uintptr(0); i < 256; i++ {
+-		b := malloc.Alloc(i<<12);
+-		malloc.Free(b);
++		b := runtime.Alloc(i << 12)
++		runtime.Free(b)
+ 	}
+ }
+ 
+ func memset(b *byte, c byte, n uintptr) {
+-	np := uintptr(n);
++	np := uintptr(n)
+ 	for i := uintptr(0); i < np; i++ {
+-		*(*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(b))+i)) = c;
++		*(*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(b)) + i)) = c
+ 	}
+ }
+ 
+ func main() {
+-	flag.Parse();
+-//	prime();
+-	var blocks [1] struct { base *byte; siz uintptr; };
++	flag.Parse()
++	//	prime();
++	var blocks [1]struct {
++		base *byte
++		siz  uintptr
++	}
+ 	for i := 0; i < 1<<10; i++ {
+ 		if i%(1<<10) == 0 && *chatty {
+-			println(i);
++			println(i)
+ 		}
+-		b := rand.Int() % len(blocks);
++		b := rand.Int() % len(blocks)
+ 		if blocks[b].base != nil {
+-		//	println("Free", blocks[b].siz, blocks[b].base);
+-			malloc.Free(blocks[b].base);
+-			blocks[b].base = nil;
+-			allocated -= uint64(blocks[b].siz);
++			//	println("Free", blocks[b].siz, blocks[b].base);
++			runtime.Free(blocks[b].base)
++			blocks[b].base = nil
++			allocated -= uint64(blocks[b].siz)
+ 			continue
+ 		}
+-		siz := uintptr(rand.Int() >> (11 + rand.Uint32() % 20));
+-		base := malloc.Alloc(siz);
+-	//	ptr := uintptr(syscall.BytePtr(base))+uintptr(siz/2);
+-	//	obj, size, ref, ok := allocator.find(ptr);
+-	//	if obj != base || *ref != 0 || !ok {
+-	//		panicln("find", siz, obj, ref, ok);
+-	//	}
+-		blocks[b].base = base;
+-		blocks[b].siz = siz;
+-		allocated += uint64(siz);
+-	//	println("Alloc", siz, base);
+-		memset(base, 0xbb, siz);
+-		bigger();
++		siz := uintptr(rand.Int() >> (11 + rand.Uint32()%20))
++		base := runtime.Alloc(siz)
++		//	ptr := uintptr(syscall.BytePtr(base))+uintptr(siz/2);
++		//	obj, size, ref, ok := allocator.find(ptr);
++		//	if obj != base || *ref != 0 || !ok {
++		//		panicln("find", siz, obj, ref, ok);
++		//	}
++		blocks[b].base = base
++		blocks[b].siz = siz
++		allocated += uint64(siz)
++		//	println("Alloc", siz, base);
++		memset(base, 0xbb, siz)
++		bigger()
+ 	}
+ }
+diff --git a/test/mallocrep.go b/test/mallocrep.go
+index 5367787e9a..5e1314ef58 100644
+--- a/test/mallocrep.go
++++ b/test/mallocrep.go
+@@ -9,52 +9,53 @@
+ package main
+ 
+ import (
+-	"flag";
+-	"malloc"
++	"flag"
++	"runtime"
+ )
+ 
+-var chatty = flag.Bool("v", false, "chatty");
++var chatty = flag.Bool("v", false, "chatty")
++
++var oldsys uint64
+ 
+-var oldsys uint64;
+ func bigger() {
+-	if st := malloc.GetStats(); oldsys < st.Sys {
+-		oldsys = st.Sys;
++	if st := runtime.MemStats; oldsys < st.Sys {
++		oldsys = st.Sys
+ 		if *chatty {
+-			println(st.Sys, " system bytes for ", st.Alloc, " Go bytes");
++			println(st.Sys, " system bytes for ", st.Alloc, " Go bytes")
+ 		}
+ 		if st.Sys > 1e9 {
+-			panicln("too big");
++			panicln("too big")
+ 		}
+ 	}
+ }
+ 
+ func main() {
+-	flag.Parse();
+-	malloc.GetStats().Alloc = 0;	// ignore stacks
++	flag.Parse()
++	runtime.MemStats.Alloc = 0 // ignore stacks
+ 	for i := 0; i < 1<<7; i++ {
+-		for j := 1; j <= 1<<22; j<<=1 {
++		for j := 1; j <= 1<<22; j <<= 1 {
+ 			if i == 0 && *chatty {
+-				println("First alloc:", j);
++				println("First alloc:", j)
+ 			}
+-			if a := malloc.GetStats().Alloc; a != 0 {
+-				panicln("no allocations but stats report", a, "bytes allocated");
++			if a := runtime.MemStats.Alloc; a != 0 {
++				panicln("no allocations but stats report", a, "bytes allocated")
+ 			}
+-			b := malloc.Alloc(uintptr(j));
+-			during := malloc.GetStats().Alloc;
+-			malloc.Free(b);
+-			if a := malloc.GetStats().Alloc; a != 0 {
+-				panic("allocated ", j, ": wrong stats: during=", during, " after=", a, " (want 0)");
++			b := runtime.Alloc(uintptr(j))
++			during := runtime.MemStats.Alloc
++			runtime.Free(b)
++			if a := runtime.MemStats.Alloc; a != 0 {
++				panic("allocated ", j, ": wrong stats: during=", during, " after=", a, " (want 0)")
+ 			}
+-			bigger();
++			bigger()
+ 		}
+ 		if i%(1<<10) == 0 && *chatty {
+-			println(i);
++			println(i)
+ 		}
+ 		if i == 0 {
+ 			if *chatty {
+-				println("Primed", i);
++				println("Primed", i)
+ 			}
+-		//	malloc.frozen = true;
++			//	runtime.frozen = true;
+ 		}
+ 	}
+ }
+diff --git a/test/mallocrep1.go b/test/mallocrep1.go
+index 7552e99b46..d7c937f11e 100644
+--- a/test/mallocrep1.go
++++ b/test/mallocrep1.go
+@@ -9,18 +9,18 @@
+ package main
+ 
+ import (
+-	"flag";
+-	"fmt";
+-	"malloc";
++	"flag"
++	"fmt"
++	"runtime"
+ 	"strconv"
+ )
+ 
+-var chatty = flag.Bool("v", false, "chatty");
+-var reverse = flag.Bool("r", false, "reverse");
+-var longtest = flag.Bool("l", false, "long test");
++var chatty = flag.Bool("v", false, "chatty")
++var reverse = flag.Bool("r", false, "reverse")
++var longtest = flag.Bool("l", false, "long test")
+ 
+-var b []*byte;
+-var stats = malloc.GetStats();
++var b []*byte
++var stats = &runtime.MemStats
+ 
+ func OkAmount(size, n uintptr) bool {
+ 	if n < size {
+@@ -40,86 +40,86 @@ func OkAmount(size, n uintptr) bool {
+ 
+ func AllocAndFree(size, count int) {
+ 	if *chatty {
+-		fmt.Printf("size=%d count=%d ...\n", size, count);
++		fmt.Printf("size=%d count=%d ...\n", size, count)
+ 	}
+-	n1 := stats.Alloc;
++	n1 := stats.Alloc
+ 	for i := 0; i < count; i++ {
+-		b[i] = malloc.Alloc(uintptr(size));
+-		base, n := malloc.Lookup(b[i]);
++		b[i] = runtime.Alloc(uintptr(size))
++		base, n := runtime.Lookup(b[i])
+ 		if base != b[i] || !OkAmount(uintptr(size), n) {
+-			panicln("lookup failed: got", base, n, "for", b[i]);
++			panicln("lookup failed: got", base, n, "for", b[i])
+ 		}
+-		if malloc.GetStats().Sys > 1e9 {
+-			panicln("too much memory allocated");
++		if runtime.MemStats.Sys > 1e9 {
++			panicln("too much memory allocated")
+ 		}
+ 	}
+-	n2 := stats.Alloc;
++	n2 := stats.Alloc
+ 	if *chatty {
+-		fmt.Printf("size=%d count=%d stats=%+v\n", size, count, *stats);
++		fmt.Printf("size=%d count=%d stats=%+v\n", size, count, *stats)
+ 	}
+-	n3 := stats.Alloc;
++	n3 := stats.Alloc
+ 	for j := 0; j < count; j++ {
+-		i := j;
++		i := j
+ 		if *reverse {
+-			i = count - 1 - j;
++			i = count - 1 - j
+ 		}
+-		alloc := uintptr(stats.Alloc);
+-		base, n := malloc.Lookup(b[i]);
++		alloc := uintptr(stats.Alloc)
++		base, n := runtime.Lookup(b[i])
+ 		if base != b[i] || !OkAmount(uintptr(size), n) {
+-			panicln("lookup failed: got", base, n, "for", b[i]);
++			panicln("lookup failed: got", base, n, "for", b[i])
+ 		}
+-		malloc.Free(b[i]);
+-		if stats.Alloc != uint64(alloc - n) {
+-			panicln("free alloc got", stats.Alloc, "expected", alloc - n, "after free of", n);
++		runtime.Free(b[i])
++		if stats.Alloc != uint64(alloc-n) {
++			panicln("free alloc got", stats.Alloc, "expected", alloc-n, "after free of", n)
+ 		}
+-		if malloc.GetStats().Sys > 1e9 {
+-			panicln("too much memory allocated");
++		if runtime.MemStats.Sys > 1e9 {
++			panicln("too much memory allocated")
+ 		}
+ 	}
+-	n4 := stats.Alloc;
++	n4 := stats.Alloc
+ 
+ 	if *chatty {
+-		fmt.Printf("size=%d count=%d stats=%+v\n", size, count, *stats);
++		fmt.Printf("size=%d count=%d stats=%+v\n", size, count, *stats)
+ 	}
+ 	if n2-n1 != n3-n4 {
+-		panicln("wrong alloc count: ", n2-n1, n3-n4);
++		panicln("wrong alloc count: ", n2-n1, n3-n4)
+ 	}
+ }
+ 
+ func atoi(s string) int {
+-	i, _ := strconv.Atoi(s);
++	i, _ := strconv.Atoi(s)
+ 	return i
+ }
+ 
+ func main() {
+-	flag.Parse();
+-	b = make([]*byte, 10000);
++	flag.Parse()
++	b = make([]*byte, 10000)
+ 	if flag.NArg() > 0 {
+-		AllocAndFree(atoi(flag.Arg(0)), atoi(flag.Arg(1)));
+-		return;
++		AllocAndFree(atoi(flag.Arg(0)), atoi(flag.Arg(1)))
++		return
+ 	}
+-	maxb := 1<<22;
++	maxb := 1 << 22
+ 	if !*longtest {
+-		maxb = 1<<19;
++		maxb = 1 << 19
+ 	}
+-	for j := 1; j <= maxb; j<<=1 {
+-		n := len(b);
+-		max := uintptr(1<<28);
++	for j := 1; j <= maxb; j <<= 1 {
++		n := len(b)
++		max := uintptr(1 << 28)
+ 		if !*longtest {
+-			max = uintptr(maxb);
++			max = uintptr(maxb)
+ 		}
+ 		if uintptr(j)*uintptr(n) > max {
+-			n = int(max / uintptr(j));
++			n = int(max / uintptr(j))
+ 		}
+ 		if n < 10 {
+-			n = 10;
++			n = 10
+ 		}
+ 		for m := 1; m <= n; {
+-			AllocAndFree(j, m);
++			AllocAndFree(j, m)
+ 			if m == n {
+ 				break
+ 			}
+-			m = 5*m/4;
++			m = 5 * m / 4
+ 			if m < 4 {
+ 				m++
+ 			}

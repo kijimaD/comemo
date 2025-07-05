@@ -19,7 +19,159 @@ Date:   Tue Mar 7 16:31:13 2023 +0000
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Damien Neil <dneil@google.com>
-
+---
  src/archive/zip/reader.go      | 46 ++++++++++++++++++++--------------
  src/archive/zip/reader_test.go | 56 ++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 83 insertions(+), 19 deletions(-)
+
+diff --git a/src/archive/zip/reader.go b/src/archive/zip/reader.go
+index 94934c3860..ae296e6fa7 100644
+--- a/src/archive/zip/reader.go
++++ b/src/archive/zip/reader.go
+@@ -66,6 +66,14 @@ type File struct {
+ }
+ 
+ // OpenReader will open the Zip file specified by name and return a ReadCloser.
++//
++// If any file inside the archive uses a non-local name
++// (as defined by [filepath.IsLocal]) or a name containing backslashes
++// and the GODEBUG environment variable contains `zipinsecurepath=0`,
++// OpenReader returns the reader with an ErrInsecurePath error.
++// A future version of Go may introduce this behavior by default.
++// Programs that want to accept non-local names can ignore
++// the ErrInsecurePath error and use the returned reader.
+ func OpenReader(name string) (*ReadCloser, error) {
+ 	f, err := os.Open(name)
+ 	if err != nil {
+@@ -77,12 +85,12 @@ func OpenReader(name string) (*ReadCloser, error) {
+ 		return nil, err
+ 	}
+ 	r := new(ReadCloser)
+-	if err := r.init(f, fi.Size()); err != nil {
++	if err = r.init(f, fi.Size()); err != nil && err != ErrInsecurePath {
+ 		f.Close()
+ 		return nil, err
+ 	}
+ 	r.f = f
+-	return r, nil
++	return r, err
+ }
+ 
+ // NewReader returns a new Reader reading from r, which is assumed to
+@@ -100,25 +108,11 @@ func NewReader(r io.ReaderAt, size int64) (*Reader, error) {
+ 		return nil, errors.New("zip: size cannot be negative")
+ 	}
+ 	zr := new(Reader)
+-	if err := zr.init(r, size); err != nil {
++	var err error
++	if err = zr.init(r, size); err != nil && err != ErrInsecurePath {
+ 		return nil, err
+ 	}
+-	for _, f := range zr.File {
+-		if f.Name == "" {
+-			// Zip permits an empty file name field.
+-			continue
+-		}
+-		// The zip specification states that names must use forward slashes,
+-		// so consider any backslashes in the name insecure.
+-		if !filepath.IsLocal(f.Name) || strings.Contains(f.Name, `\`) {
+-			if zipinsecurepath.Value() != "0" {
+-				continue
+-			}
+-			zipinsecurepath.IncNonDefault()
+-			return zr, ErrInsecurePath
+-		}
+-	}
+-	return zr, nil
++	return zr, err
+ }
+ 
+ func (r *Reader) init(rdr io.ReaderAt, size int64) error {
+@@ -165,6 +159,20 @@ func (r *Reader) init(rdr io.ReaderAt, size int64) error {
+ 		// the wrong number of directory entries.
+ 		return err
+ 	}
++	if zipinsecurepath.Value() == "0" {
++		for _, f := range r.File {
++			if f.Name == "" {
++				// Zip permits an empty file name field.
++				continue
++			}
++			// The zip specification states that names must use forward slashes,
++			// so consider any backslashes in the name insecure.
++			if !filepath.IsLocal(f.Name) || strings.Contains(f.Name, `\`) {
++				zipinsecurepath.IncNonDefault()
++				return ErrInsecurePath
++			}
++		}
++	}
+ 	return nil
+ }
+ 
+diff --git a/src/archive/zip/reader_test.go b/src/archive/zip/reader_test.go
+index 70ad260cc5..f793e01e2b 100644
+--- a/src/archive/zip/reader_test.go
++++ b/src/archive/zip/reader_test.go
+@@ -1352,6 +1352,62 @@ func TestCVE202127919(t *testing.T) {
+ 	}
+ }
+ 
++func TestOpenReaderInsecurePath(t *testing.T) {
++	t.Setenv("GODEBUG", "zipinsecurepath=0")
++	// Archive containing only the file "../test.txt"
++	data := []byte{
++		0x50, 0x4b, 0x03, 0x04, 0x14, 0x00, 0x08, 0x00,
++		0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++		0x00, 0x00, 0x0b, 0x00, 0x00, 0x00, 0x2e, 0x2e,
++		0x2f, 0x74, 0x65, 0x73, 0x74, 0x2e, 0x74, 0x78,
++		0x74, 0x0a, 0xc9, 0xc8, 0x2c, 0x56, 0xc8, 0x2c,
++		0x56, 0x48, 0x54, 0x28, 0x49, 0x2d, 0x2e, 0x51,
++		0x28, 0x49, 0xad, 0x28, 0x51, 0x48, 0xcb, 0xcc,
++		0x49, 0xd5, 0xe3, 0x02, 0x04, 0x00, 0x00, 0xff,
++		0xff, 0x50, 0x4b, 0x07, 0x08, 0xc0, 0xd7, 0xed,
++		0xc3, 0x20, 0x00, 0x00, 0x00, 0x1a, 0x00, 0x00,
++		0x00, 0x50, 0x4b, 0x01, 0x02, 0x14, 0x00, 0x14,
++		0x00, 0x08, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00,
++		0x00, 0xc0, 0xd7, 0xed, 0xc3, 0x20, 0x00, 0x00,
++		0x00, 0x1a, 0x00, 0x00, 0x00, 0x0b, 0x00, 0x00,
++		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x2e,
++		0x2e, 0x2f, 0x74, 0x65, 0x73, 0x74, 0x2e, 0x74,
++		0x78, 0x74, 0x50, 0x4b, 0x05, 0x06, 0x00, 0x00,
++		0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x39, 0x00,
++		0x00, 0x00, 0x59, 0x00, 0x00, 0x00, 0x00, 0x00,
++	}
++
++	// Read in the archive with the OpenReader interface
++	name := filepath.Join(t.TempDir(), "test.zip")
++	err := os.WriteFile(name, data, 0644)
++	if err != nil {
++		t.Fatalf("Unable to write out the bugos zip entry")
++	}
++	r, err := OpenReader(name)
++	if r != nil {
++		defer r.Close()
++	}
++
++	if err != ErrInsecurePath {
++		t.Fatalf("Error reading the archive, we expected ErrInsecurePath but got: %v", err)
++	}
++	_, err = r.Open("test.txt")
++	if err != nil {
++		t.Errorf("Error reading file: %v", err)
++	}
++	if len(r.File) != 1 {
++		t.Fatalf("No entries in the file list")
++	}
++	if r.File[0].Name != "../test.txt" {
++		t.Errorf("Unexpected entry name: %s", r.File[0].Name)
++	}
++	if _, err := r.File[0].Open(); err != nil {
++		t.Errorf("Error opening file: %v", err)
++	}
++}
++
+ func TestCVE202133196(t *testing.T) {
+ 	// Archive that indicates it has 1 << 128 -1 files,
+ 	// this would previously cause a panic due to attempting

@@ -30,10 +30,143 @@ Date:   Mon Jan 7 12:24:01 2019 -0800
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/pprof/proto.go         | 15 ++++++++++++---
  src/runtime/pprof/proto_test.go    |  4 ++--
  src/runtime/pprof/protomem_test.go |  6 +++++-
  src/runtime/symtab.go              |  7 +++++++
  src/runtime/traceback.go           |  8 +++++---
  5 files changed, 31 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/pprof/proto.go b/src/runtime/pprof/proto.go
+index 7621fe2134..7864dd79ad 100644
+--- a/src/runtime/pprof/proto.go
++++ b/src/runtime/pprof/proto.go
+@@ -208,7 +208,7 @@ func (b *profileBuilder) pbMapping(tag int, id, base, limit, offset uint64, file
+ }
+ 
+ // locForPC returns the location ID for addr.
+-// addr must a PC which is part of a call or the PC of an inline marker. This returns the location of the call.
++// addr must a return PC or 1 + the PC of an inline marker. This returns the location of the corresponding call.
+ // It may emit to b.pb, so there must be no message encoding in progress.
+ func (b *profileBuilder) locForPC(addr uintptr) uint64 {
+ 	id := uint64(b.locs[addr])
+@@ -236,7 +236,7 @@ func (b *profileBuilder) locForPC(addr uintptr) uint64 {
+ 	if frame.PC == 0 {
+ 		// If we failed to resolve the frame, at least make up
+ 		// a reasonable call PC. This mostly happens in tests.
+-		frame.PC = addr
++		frame.PC = addr - 1
+ 	}
+ 
+ 	// We can't write out functions while in the middle of the
+@@ -403,7 +403,16 @@ func (b *profileBuilder) build() {
+ 		}
+ 
+ 		locs = locs[:0]
+-		for _, addr := range e.stk {
++		for i, addr := range e.stk {
++			// Addresses from stack traces point to the
++			// next instruction after each call, except
++			// for the leaf, which points to where the
++			// signal occurred. locForPC expects return
++			// PCs, so increment the leaf address to look
++			// like a return PC.
++			if i == 0 {
++				addr++
++			}
+ 			l := b.locForPC(addr)
+ 			if l == 0 { // runtime.goexit
+ 				continue
+diff --git a/src/runtime/pprof/proto_test.go b/src/runtime/pprof/proto_test.go
+index 9b2de5f644..4452d51231 100644
+--- a/src/runtime/pprof/proto_test.go
++++ b/src/runtime/pprof/proto_test.go
+@@ -133,11 +133,11 @@ func TestConvertCPUProfile(t *testing.T) {
+ 	samples := []*profile.Sample{
+ 		{Value: []int64{20, 20 * 2000 * 1000}, Location: []*profile.Location{
+ 			{ID: 1, Mapping: map1, Address: addr1},
+-			{ID: 2, Mapping: map1, Address: addr1 + 2},
++			{ID: 2, Mapping: map1, Address: addr1 + 1},
+ 		}},
+ 		{Value: []int64{40, 40 * 2000 * 1000}, Location: []*profile.Location{
+ 			{ID: 3, Mapping: map2, Address: addr2},
+-			{ID: 4, Mapping: map2, Address: addr2 + 2},
++			{ID: 4, Mapping: map2, Address: addr2 + 1},
+ 		}},
+ 	}
+ 	checkProfile(t, p, period, periodType, sampleType, samples, "")
+diff --git a/src/runtime/pprof/protomem_test.go b/src/runtime/pprof/protomem_test.go
+index 65ef4edf8f..471b1ae9c3 100644
+--- a/src/runtime/pprof/protomem_test.go
++++ b/src/runtime/pprof/protomem_test.go
+@@ -14,7 +14,11 @@ import (
+ func TestConvertMemProfile(t *testing.T) {
+ 	addr1, addr2, map1, map2 := testPCs(t)
+ 
+-	a1, a2 := uintptr(addr1), uintptr(addr2)
++	// MemProfileRecord stacks are return PCs, so add one to the
++	// addresses recorded in the "profile". The proto profile
++	// locations are call PCs, so conversion will subtract one
++	// from these and get back to addr1 and addr2.
++	a1, a2 := uintptr(addr1)+1, uintptr(addr2)+1
+ 	rate := int64(512 * 1024)
+ 	rec := []runtime.MemProfileRecord{
+ 		{AllocBytes: 4096, FreeBytes: 1024, AllocObjects: 4, FreeObjects: 1, Stack0: [32]uintptr{a1, a2}},
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 0fd4330944..245a7e6b01 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -87,6 +87,13 @@ func (ci *Frames) Next() (frame Frame, more bool) {
+ 		}
+ 		f := funcInfo._Func()
+ 		entry := f.Entry()
++		if pc > entry {
++			// We store the pc of the start of the instruction following
++			// the instruction in question (the call or the inline mark).
++			// This is done for historical reasons, and to make FuncForPC
++			// work correctly for entries in the result of runtime.Callers.
++			pc--
++		}
+ 		name := funcname(funcInfo)
+ 		file, line := funcline1(funcInfo, pc, false)
+ 		if inldata := funcdata(funcInfo, _FUNCDATA_InlTree); inldata != nil {
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 9b7fafcad7..a536fb2a71 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -344,8 +344,9 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 		}
+ 
+ 		if pcbuf != nil {
++			pc := frame.pc
+ 			// backup to CALL instruction to read inlining info (same logic as below)
+-			tracepc := frame.pc
++			tracepc := pc
+ 			if (n > 0 || flags&_TraceTrap == 0) && frame.pc > f.entry && !waspanic {
+ 				tracepc--
+ 			}
+@@ -363,12 +364,13 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 					} else if skip > 0 {
+ 						skip--
+ 					} else if n < max {
+-						(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = tracepc
++						(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = pc
+ 						n++
+ 					}
+ 					lastFuncID = inltree[ix].funcID
+ 					// Back up to an instruction in the "caller".
+ 					tracepc = frame.fn.entry + uintptr(inltree[ix].parentPc)
++					pc = tracepc + 1
+ 				}
+ 			}
+ 			// Record the main frame.
+@@ -377,7 +379,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 			} else if skip > 0 {
+ 				skip--
+ 			} else if n < max {
+-				(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = tracepc
++				(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = pc
+ 				n++
+ 			}
+ 			lastFuncID = f.funcID

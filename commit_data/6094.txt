@@ -12,6 +12,20 @@ Date:   Wed Aug 25 18:08:16 2010 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/1983050
-
+---
  src/cmd/goinstall/download.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/goinstall/download.go b/src/cmd/goinstall/download.go
+index b5e74fe693..c60d9c41ca 100644
+--- a/src/cmd/goinstall/download.go
++++ b/src/cmd/goinstall/download.go
+@@ -58,7 +58,7 @@ func download(pkg string) (string, os.Error) {
+ 			// regexp only allows hg, svn to get through
+ 			panic("missing case in download: " + pkg)
+ 		}
+-		if err := vcsCheckout(v, root+m[1], "http://"+m[1], m[1]); err != nil {
++		if err := vcsCheckout(v, root+m[1], "https://"+m[1], m[1]); err != nil {
+ 			return "", err
+ 		}
+ 		return root + pkg, nil

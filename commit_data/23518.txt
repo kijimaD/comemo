@@ -10,9 +10,122 @@ Date:   Wed May 20 11:40:17 2015 -0400
     Change-Id: Ic7677a5dd55e3639b99e78ddeb2c71dd1dd091fa
     Reviewed-on: https://go-review.googlesource.com/10267
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mbarrier.go |  2 +-
  src/runtime/mgc.go      |  1 -
  src/runtime/mgcmark.go  |  2 +-
  src/runtime/proc1.go    | 63 -------------------------------------------------
  4 files changed, 2 insertions(+), 66 deletions(-)
+
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index d3e4809737..77b50095a0 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -60,7 +60,7 @@ func gcmarkwb_m(slot *uintptr, ptr uintptr) {
+ 	default:
+ 		throw("gcphasework in bad gcphase")
+ 
+-	case _GCoff, _GCquiesce, _GCstw, _GCsweep, _GCscan:
++	case _GCoff, _GCstw, _GCsweep, _GCscan:
+ 		// ok
+ 
+ 	case _GCmark, _GCmarktermination:
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index ebecc4ffa8..db5b2dcd36 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -206,7 +206,6 @@ var gcBlackenEnabled uint32
+ 
+ const (
+ 	_GCoff             = iota // GC not running, write barrier disabled
+-	_GCquiesce                // unused state
+ 	_GCstw                    // unused state
+ 	_GCscan                   // GC collecting roots into workbufs, write barrier disabled
+ 	_GCmark                   // GC marking from workbufs, write barrier ENABLED
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 0c4e6eba51..62fa33895b 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -261,7 +261,7 @@ func gcphasework(gp *g) {
+ 	switch gcphase {
+ 	default:
+ 		throw("gcphasework in bad gcphase")
+-	case _GCoff, _GCquiesce, _GCstw, _GCsweep:
++	case _GCoff, _GCstw, _GCsweep:
+ 		// No work.
+ 	case _GCscan:
+ 		// scan the stack, mark the objects, put pointers in work buffers
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 54d6698b3f..27281406b8 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -465,69 +465,6 @@ func stopscanstart(gp *g) {
+ 	}
+ }
+ 
+-// Runs on g0 and does the actual work after putting the g back on the run queue.
+-func mquiesce(gpmaster *g) {
+-	// enqueue the calling goroutine.
+-	restartg(gpmaster)
+-
+-	activeglen := len(allgs)
+-	for i := 0; i < activeglen; i++ {
+-		gp := allgs[i]
+-		if readgstatus(gp) == _Gdead {
+-			gp.gcworkdone = true // noop scan.
+-		} else {
+-			gp.gcworkdone = false
+-		}
+-		stopscanstart(gp)
+-	}
+-
+-	// Check that the G's gcwork (such as scanning) has been done. If not do it now.
+-	// You can end up doing work here if the page trap on a Grunning Goroutine has
+-	// not been sprung or in some race situations. For example a runnable goes dead
+-	// and is started up again with a gp->gcworkdone set to false.
+-	for i := 0; i < activeglen; i++ {
+-		gp := allgs[i]
+-		for !gp.gcworkdone {
+-			status := readgstatus(gp)
+-			if status == _Gdead {
+-				//do nothing, scan not needed.
+-				gp.gcworkdone = true // scan is a noop
+-				break
+-			}
+-			if status == _Grunning && gp.stackguard0 == uintptr(stackPreempt) && notetsleep(&sched.stopnote, 100*1000) { // nanosecond arg
+-				noteclear(&sched.stopnote)
+-			} else {
+-				stopscanstart(gp)
+-			}
+-		}
+-	}
+-
+-	for i := 0; i < activeglen; i++ {
+-		gp := allgs[i]
+-		status := readgstatus(gp)
+-		if isscanstatus(status) {
+-			print("mstopandscang:bottom: post scan bad status gp=", gp, " has status ", hex(status), "\n")
+-			dumpgstatus(gp)
+-		}
+-		if !gp.gcworkdone && status != _Gdead {
+-			print("mstopandscang:bottom: post scan gp=", gp, "->gcworkdone still false\n")
+-			dumpgstatus(gp)
+-		}
+-	}
+-
+-	schedule() // Never returns.
+-}
+-
+-// quiesce moves all the goroutines to a GC safepoint which for now is a at preemption point.
+-// If the global gcphase is GCmark quiesce will ensure that all of the goroutine's stacks
+-// have been scanned before it returns.
+-func quiesce(mastergp *g) {
+-	castogscanstatus(mastergp, _Grunning, _Gscanenqueue)
+-	// Now move this to the g0 (aka m) stack.
+-	// g0 will potentially scan this thread and put mastergp on the runqueue
+-	mcall(mquiesce)
+-}
+-
+ // stopTheWorld stops all P's from executing goroutines, interrupting
+ // all goroutines at GC safe points and records reason as the reason
+ // for the stop. On return, only the current goroutine's P is running.

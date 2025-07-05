@@ -7,6 +7,29 @@ Date:   Thu Sep 2 10:16:31 2010 -0700
     R=rsc
     CC=golang-dev, r
     https://golang.org/cl/2141041
-
+---
  doc/go_spec.html | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 861c858be1..b23ef7606b 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,5 +1,5 @@
+ <!-- title The Go Programming Language Specification -->
+-<!-- subtitle Version of Sep 1, 2010 -->
++<!-- subtitle Version of Sep 2, 2010 -->
+ 
+ <!--
+ TODO
+@@ -2464,8 +2464,8 @@ for slices, the upper bound is the capacity rather than the length.
+ <p>
+ If the sliced operand is a string or slice, the result of the slice operation
+ is a string or slice of the same type.
+-If the sliced operand is an array, the result of the slice operation is a slice
+-with the same element type as the array.
++If the sliced operand is an array, it must be <a href="#Address_operators">addressable</a>
++and the result of the slice operation is a slice with the same element type as the array.
+ </p>
+ 
+ 

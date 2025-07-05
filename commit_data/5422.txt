@@ -16,9 +16,56 @@ Date:   Mon May 3 01:26:39 2010 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/1052042
-
+---
  src/pkg/runtime/darwin/386/defs.h  | 2 +-
  src/pkg/runtime/darwin/defs.c      | 2 +-
  src/pkg/runtime/freebsd/386/defs.h | 2 +-
  src/pkg/runtime/freebsd/defs.c     | 2 +-
  4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/runtime/darwin/386/defs.h b/src/pkg/runtime/darwin/386/defs.h
+index 69ccc35f7d..371f650a87 100644
+--- a/src/pkg/runtime/darwin/386/defs.h
++++ b/src/pkg/runtime/darwin/386/defs.h
+@@ -1,4 +1,4 @@
+-// godefs defs.c
++// godefs -f -m32 defs.c
+ 
+ // MACHINE GENERATED - DO NOT EDIT.
+ 
+diff --git a/src/pkg/runtime/darwin/defs.c b/src/pkg/runtime/darwin/defs.c
+index 95edf7bb10..8735e78572 100644
+--- a/src/pkg/runtime/darwin/defs.c
++++ b/src/pkg/runtime/darwin/defs.c
+@@ -6,7 +6,7 @@
+  * Input to godefs.
+  *
+ 	godefs -f -m64 defs.c >amd64/defs.h
+-	godefs defs.c >386/defs.h
++	godefs -f -m32 defs.c >386/defs.h
+  */
+ 
+ #define __DARWIN_UNIX03 0
+diff --git a/src/pkg/runtime/freebsd/386/defs.h b/src/pkg/runtime/freebsd/386/defs.h
+index 69b8661eb0..76c55721f6 100644
+--- a/src/pkg/runtime/freebsd/386/defs.h
++++ b/src/pkg/runtime/freebsd/386/defs.h
+@@ -1,4 +1,4 @@
+-// godefs defs.c
++// godefs -f -m32 defs.c
+ 
+ // MACHINE GENERATED - DO NOT EDIT.
+ 
+diff --git a/src/pkg/runtime/freebsd/defs.c b/src/pkg/runtime/freebsd/defs.c
+index 0c75e75c4c..36e69093e4 100644
+--- a/src/pkg/runtime/freebsd/defs.c
++++ b/src/pkg/runtime/freebsd/defs.c
+@@ -6,7 +6,7 @@
+  * Input to godefs.
+  *
+ 	godefs -f -m64 defs.c >amd64/defs.h
+-	godefs defs.c >386/defs.h
++	godefs -f -m32 defs.c >386/defs.h
+  */
+ 
+ #include <sys/types.h>

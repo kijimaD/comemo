@@ -36,7 +36,514 @@ Date:   Fri Apr 27 08:50:39 2018 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |   3 +
  src/cmd/compile/internal/ssa/rewritegeneric.go | 432 +++++++++++++++++++++++++
  2 files changed, 435 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 16b2792a5e..f6a5f857e4 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -1072,6 +1072,9 @@
+ (Mod64u <t> x (Const64 [c])) && x.Op != OpConst64 && c > 0 && umagicOK(64,c)
+   -> (Sub64 x (Mul64 <t> (Div64u <t> x (Const64 <t> [c])) (Const64 <t> [c])))
+ 
++(Eq(8|16|32|64)  s:(Sub(8|16|32|64) x y) (Const(8|16|32|64) [0])) && s.Uses == 1 -> (Eq(8|16|32|64)  x y)
++(Neq(8|16|32|64) s:(Sub(8|16|32|64) x y) (Const(8|16|32|64) [0])) && s.Uses == 1 -> (Neq(8|16|32|64) x y)
++
+ // Reassociate expressions involving
+ // constants such that constants come first,
+ // exposing obvious constant-folding opportunities.
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 7e1c56675e..d590a357d1 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -9451,6 +9451,60 @@ func rewriteValuegeneric_OpEq16_0(v *Value) bool {
+ 		v.AuxInt = b2i(c == d)
+ 		return true
+ 	}
++	// match: (Eq16 s:(Sub16 x y) (Const16 [0]))
++	// cond: s.Uses == 1
++	// result: (Eq16 x y)
++	for {
++		_ = v.Args[1]
++		s := v.Args[0]
++		if s.Op != OpSub16 {
++			break
++		}
++		_ = s.Args[1]
++		x := s.Args[0]
++		y := s.Args[1]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst16 {
++			break
++		}
++		if v_1.AuxInt != 0 {
++			break
++		}
++		if !(s.Uses == 1) {
++			break
++		}
++		v.reset(OpEq16)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	// match: (Eq16 (Const16 [0]) s:(Sub16 x y))
++	// cond: s.Uses == 1
++	// result: (Eq16 x y)
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst16 {
++			break
++		}
++		if v_0.AuxInt != 0 {
++			break
++		}
++		s := v.Args[1]
++		if s.Op != OpSub16 {
++			break
++		}
++		_ = s.Args[1]
++		x := s.Args[0]
++		y := s.Args[1]
++		if !(s.Uses == 1) {
++			break
++		}
++		v.reset(OpEq16)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpEq32_0(v *Value) bool {
+@@ -9635,6 +9689,60 @@ func rewriteValuegeneric_OpEq32_0(v *Value) bool {
+ 		v.AuxInt = b2i(c == d)
+ 		return true
+ 	}
++	// match: (Eq32 s:(Sub32 x y) (Const32 [0]))
++	// cond: s.Uses == 1
++	// result: (Eq32 x y)
++	for {
++		_ = v.Args[1]
++		s := v.Args[0]
++		if s.Op != OpSub32 {
++			break
++		}
++		_ = s.Args[1]
++		x := s.Args[0]
++		y := s.Args[1]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst32 {
++			break
++		}
++		if v_1.AuxInt != 0 {
++			break
++		}
++		if !(s.Uses == 1) {
++			break
++		}
++		v.reset(OpEq32)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	// match: (Eq32 (Const32 [0]) s:(Sub32 x y))
++	// cond: s.Uses == 1
++	// result: (Eq32 x y)
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst32 {
++			break
++		}
++		if v_0.AuxInt != 0 {
++			break
++		}
++		s := v.Args[1]
++		if s.Op != OpSub32 {
++			break
++		}
++		_ = s.Args[1]
++		x := s.Args[0]
++		y := s.Args[1]
++		if !(s.Uses == 1) {
++			break
++		}
++		v.reset(OpEq32)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpEq32F_0(v *Value) bool {
+@@ -9860,6 +9968,60 @@ func rewriteValuegeneric_OpEq64_0(v *Value) bool {
+ 		v.AuxInt = b2i(c == d)
+ 		return true
+ 	}
++	// match: (Eq64 s:(Sub64 x y) (Const64 [0]))
++	// cond: s.Uses == 1
++	// result: (Eq64 x y)
++	for {
++		_ = v.Args[1]
++		s := v.Args[0]
++		if s.Op != OpSub64 {
++			break
++		}
++		_ = s.Args[1]
++		x := s.Args[0]
++		y := s.Args[1]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		if v_1.AuxInt != 0 {
++			break
++		}
++		if !(s.Uses == 1) {
++			break
++		}
++		v.reset(OpEq64)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	// match: (Eq64 (Const64 [0]) s:(Sub64 x y))
++	// cond: s.Uses == 1
++	// result: (Eq64 x y)
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst64 {
++			break
++		}
++		if v_0.AuxInt != 0 {
++			break
++		}
++		s := v.Args[1]
++		if s.Op != OpSub64 {
++			break
++		}
++		_ = s.Args[1]
++		x := s.Args[0]
++		y := s.Args[1]
++		if !(s.Uses == 1) {
++			break
++		}
++		v.reset(OpEq64)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpEq64F_0(v *Value) bool {
+@@ -10085,6 +10247,60 @@ func rewriteValuegeneric_OpEq8_0(v *Value) bool {
+ 		v.AuxInt = b2i(c == d)
+ 		return true
+ 	}
++	// match: (Eq8 s:(Sub8 x y) (Const8 [0]))
++	// cond: s.Uses == 1
++	// result: (Eq8 x y)
++	for {
++		_ = v.Args[1]
++		s := v.Args[0]
++		if s.Op != OpSub8 {
++			break
++		}
++		_ = s.Args[1]
++		x := s.Args[0]
++		y := s.Args[1]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst8 {
++			break
++		}
++		if v_1.AuxInt != 0 {
++			break
++		}
++		if !(s.Uses == 1) {
++			break
++		}
++		v.reset(OpEq8)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	// match: (Eq8 (Const8 [0]) s:(Sub8 x y))
++	// cond: s.Uses == 1
++	// result: (Eq8 x y)
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst8 {
++			break
++		}
++		if v_0.AuxInt != 0 {
++			break
++		}
++		s := v.Args[1]
++		if s.Op != OpSub8 {
++			break
++		}
++		_ = s.Args[1]
++		x := s.Args[0]
++		y := s.Args[1]
++		if !(s.Uses == 1) {
++			break
++		}
++		v.reset(OpEq8)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpEqB_0(v *Value) bool {
+@@ -17525,6 +17741,60 @@ func rewriteValuegeneric_OpNeq16_0(v *Value) bool {
+ 		v.AuxInt = b2i(c != d)
+ 		return true
+ 	}
++	// match: (Neq16 s:(Sub16 x y) (Const16 [0]))
++	// cond: s.Uses == 1
++	// result: (Neq16 x y)
++	for {
++		_ = v.Args[1]
++		s := v.Args[0]
++		if s.Op != OpSub16 {
++			break
++		}
++		_ = s.Args[1]
++		x := s.Args[0]
++		y := s.Args[1]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst16 {
++			break
++		}
++		if v_1.AuxInt != 0 {
++			break
++		}
++		if !(s.Uses == 1) {
++			break
++		}
++		v.reset(OpNeq16)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	// match: (Neq16 (Const16 [0]) s:(Sub16 x y))
++	// cond: s.Uses == 1
++	// result: (Neq16 x y)
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst16 {
++			break
++		}
++		if v_0.AuxInt != 0 {
++			break
++		}
++		s := v.Args[1]
++		if s.Op != OpSub16 {
++			break
++		}
++		_ = s.Args[1]
++		x := s.Args[0]
++		y := s.Args[1]
++		if !(s.Uses == 1) {
++			break
++		}
++		v.reset(OpNeq16)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpNeq32_0(v *Value) bool {
+@@ -17709,6 +17979,60 @@ func rewriteValuegeneric_OpNeq32_0(v *Value) bool {
+ 		v.AuxInt = b2i(c != d)
+ 		return true
+ 	}
++	// match: (Neq32 s:(Sub32 x y) (Const32 [0]))
++	// cond: s.Uses == 1
++	// result: (Neq32 x y)
++	for {
++		_ = v.Args[1]
++		s := v.Args[0]
++		if s.Op != OpSub32 {
++			break
++		}
++		_ = s.Args[1]
++		x := s.Args[0]
++		y := s.Args[1]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst32 {
++			break
++		}
++		if v_1.AuxInt != 0 {
++			break
++		}
++		if !(s.Uses == 1) {
++			break
++		}
++		v.reset(OpNeq32)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	// match: (Neq32 (Const32 [0]) s:(Sub32 x y))
++	// cond: s.Uses == 1
++	// result: (Neq32 x y)
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst32 {
++			break
++		}
++		if v_0.AuxInt != 0 {
++			break
++		}
++		s := v.Args[1]
++		if s.Op != OpSub32 {
++			break
++		}
++		_ = s.Args[1]
++		x := s.Args[0]
++		y := s.Args[1]
++		if !(s.Uses == 1) {
++			break
++		}
++		v.reset(OpNeq32)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpNeq32F_0(v *Value) bool {
+@@ -17934,6 +18258,60 @@ func rewriteValuegeneric_OpNeq64_0(v *Value) bool {
+ 		v.AuxInt = b2i(c != d)
+ 		return true
+ 	}
++	// match: (Neq64 s:(Sub64 x y) (Const64 [0]))
++	// cond: s.Uses == 1
++	// result: (Neq64 x y)
++	for {
++		_ = v.Args[1]
++		s := v.Args[0]
++		if s.Op != OpSub64 {
++			break
++		}
++		_ = s.Args[1]
++		x := s.Args[0]
++		y := s.Args[1]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		if v_1.AuxInt != 0 {
++			break
++		}
++		if !(s.Uses == 1) {
++			break
++		}
++		v.reset(OpNeq64)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	// match: (Neq64 (Const64 [0]) s:(Sub64 x y))
++	// cond: s.Uses == 1
++	// result: (Neq64 x y)
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst64 {
++			break
++		}
++		if v_0.AuxInt != 0 {
++			break
++		}
++		s := v.Args[1]
++		if s.Op != OpSub64 {
++			break
++		}
++		_ = s.Args[1]
++		x := s.Args[0]
++		y := s.Args[1]
++		if !(s.Uses == 1) {
++			break
++		}
++		v.reset(OpNeq64)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpNeq64F_0(v *Value) bool {
+@@ -18159,6 +18537,60 @@ func rewriteValuegeneric_OpNeq8_0(v *Value) bool {
+ 		v.AuxInt = b2i(c != d)
+ 		return true
+ 	}
++	// match: (Neq8 s:(Sub8 x y) (Const8 [0]))
++	// cond: s.Uses == 1
++	// result: (Neq8 x y)
++	for {
++		_ = v.Args[1]
++		s := v.Args[0]
++		if s.Op != OpSub8 {
++			break
++		}
++		_ = s.Args[1]
++		x := s.Args[0]
++		y := s.Args[1]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst8 {
++			break
++		}
++		if v_1.AuxInt != 0 {
++			break
++		}
++		if !(s.Uses == 1) {
++			break
++		}
++		v.reset(OpNeq8)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	// match: (Neq8 (Const8 [0]) s:(Sub8 x y))
++	// cond: s.Uses == 1
++	// result: (Neq8 x y)
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst8 {
++			break
++		}
++		if v_0.AuxInt != 0 {
++			break
++		}
++		s := v.Args[1]
++		if s.Op != OpSub8 {
++			break
++		}
++		_ = s.Args[1]
++		x := s.Args[0]
++		y := s.Args[1]
++		if !(s.Uses == 1) {
++			break
++		}
++		v.reset(OpNeq8)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpNeqB_0(v *Value) bool {

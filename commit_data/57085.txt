@@ -28,6 +28,20 @@ Date:   Fri Jun 16 09:03:11 2023 -0400
     Run-TryBot: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/distpack/pack.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/distpack/pack.go b/src/cmd/distpack/pack.go
+index cddbd0747d..fb549f967d 100644
+--- a/src/cmd/distpack/pack.go
++++ b/src/cmd/distpack/pack.go
+@@ -235,6 +235,8 @@ func mode(name string, _ fs.FileMode) fs.FileMode {
+ 		strings.HasSuffix(name, ".pl") ||
+ 		strings.HasSuffix(name, ".rc") {
+ 		return 0o755
++	} else if ok, _ := amatch("**/go_?*_?*_exec", name); ok {
++		return 0o755
+ 	}
+ 	return 0o644
+ }

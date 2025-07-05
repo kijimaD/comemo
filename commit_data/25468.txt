@@ -41,10 +41,295 @@ Date:   Wed Oct 28 23:20:26 2015 +0300
     Reviewed-by: Klaus Post <klauspost@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/internal/obj/x86/a.out.go  |  2 ++
  src/cmd/internal/obj/x86/anames.go |  2 ++
  src/cmd/internal/obj/x86/asm6.go   | 58 +++++++++++++++++++++++++++----
  src/runtime/asm_amd64.s            | 70 +++++++++++++++++++++++++++++++++++++-
  src/runtime/runtime2.go            |  2 ++
  5 files changed, 126 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/a.out.go b/src/cmd/internal/obj/x86/a.out.go
+index 108ca6a289..55fc31ddaf 100644
+--- a/src/cmd/internal/obj/x86/a.out.go
++++ b/src/cmd/internal/obj/x86/a.out.go
+@@ -746,6 +746,8 @@ const (
+ 	AMOVHDU
+ 	AMOVNTHD
+ 	AMOVHDA
++	AVPCMPEQB
++	AVPMOVMSKB
+ 
+ 	// from 386
+ 	AJCXZW
+diff --git a/src/cmd/internal/obj/x86/anames.go b/src/cmd/internal/obj/x86/anames.go
+index c075a15c80..729b9d423b 100644
+--- a/src/cmd/internal/obj/x86/anames.go
++++ b/src/cmd/internal/obj/x86/anames.go
+@@ -687,6 +687,8 @@ var Anames = []string{
+ 	"MOVHDU",
+ 	"MOVNTHD",
+ 	"MOVHDA",
++	"VPCMPEQB",
++	"VPMOVMSKB",
+ 	"JCXZW",
+ 	"FCMOVCC",
+ 	"FCMOVCS",
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index f03df5bf00..739ba67105 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -195,6 +195,7 @@ const (
+ 	Zr_m
+ 	Zr_m_xm
+ 	Zr_m_xm_vex
++	Zr_r_r_vex
+ 	Zrp_
+ 	Z_ib
+ 	Z_il
+@@ -630,6 +631,11 @@ var yxr_ml_vex = []ytab{
+ 	{Yxr, Ynone, Yml, Zr_m_xm_vex, 1},
+ }
+ 
++var yxm_xm_xm = []ytab{
++	{Yxr, Yxr, Yxr, Zr_r_r_vex, 1},
++	{Yxm, Yxr, Yxr, Zr_r_r_vex, 1},
++}
++
+ var ymr = []ytab{
+ 	{Ymr, Ynone, Ymr, Zm_r, 1},
+ }
+@@ -725,6 +731,10 @@ var ymskb = []ytab{
+ 	{Ymr, Ynone, Yrl, Zm_r_xm, 1},
+ }
+ 
++var ymskb_vex = []ytab{
++	{Yxr, Ynone, Yrl, Zm_r_xm_vex, 2},
++}
++
+ var ycrc32l = []ytab{
+ 	{Yml, Ynone, Yrl, Zlitm_r, 0},
+ }
+@@ -1497,6 +1507,8 @@ var optab =
+ 	{AMOVHDU, yxmov_vex, Pvex2, [23]uint8{0x6f, 0x7f}},
+ 	{AMOVNTHD, yxr_ml_vex, Pvex1, [23]uint8{0xe7}},
+ 	{AMOVHDA, yxmov_vex, Pvex1, [23]uint8{0x6f, 0x7f}},
++	{AVPCMPEQB, yxm_xm_xm, Pvex1, [23]uint8{0x74, 0x74}},
++	{AVPMOVMSKB, ymskb_vex, Pvex1, [23]uint8{0xd7}},
+ 	{obj.AUSEFIELD, ynop, Px, [23]uint8{0, 0}},
+ 	{obj.ATYPE, nil, 0, [23]uint8{}},
+ 	{obj.AFUNCDATA, yfuncdata, Px, [23]uint8{0, 0}},
+@@ -2943,11 +2955,15 @@ var bpduff2 = []byte{
+ 	0x48, 0x8b, 0x6d, 0x00, // MOVQ 0(BP), BP
+ }
+ 
+-func vexprefix(ctxt *obj.Link, to *obj.Addr, from *obj.Addr, pref uint8) {
++// Assemble vex prefix, from 3 operands and prefix.
++// For details about vex prefix see:
++// https://en.wikipedia.org/wiki/VEX_prefix#Technical_description
++func vexprefix(ctxt *obj.Link, to *obj.Addr, from *obj.Addr, from3 *obj.Addr, pref uint8) {
+ 	rexR := regrex[to.Reg]
+ 	rexB := regrex[from.Reg]
+ 	rexX := regrex[from.Index]
+ 	var prefBit uint8
++	// This will go into VEX.PP field.
+ 	if pref == Pvex1 {
+ 		prefBit = 1
+ 	} else if pref == Pvex2 {
+@@ -2955,21 +2971,36 @@ func vexprefix(ctxt *obj.Link, to *obj.Addr, from *obj.Addr, pref uint8) {
+ 	} // TODO add Pvex0,Pvex3
+ 
+ 	if rexX == 0 && rexB == 0 { // 2-byte vex prefix
++		// In 2-byte case, first byte is always C5
+ 		ctxt.Andptr[0] = 0xc5
+ 		ctxt.Andptr = ctxt.Andptr[1:]
+ 
+-		if rexR != 0 {
++		if from3 == nil {
++			// If this is a 2-operand instruction fill VEX.VVVV with 1111
++			// We are also interested only in 256-bit version, so VEX.L=1
+ 			ctxt.Andptr[0] = 0x7c
+ 		} else {
+-			ctxt.Andptr[0] = 0xfc
++			// VEX.L=1
++			ctxt.Andptr[0] = 0x4
++			// VEX.VVVV (bits 3:6) is a inversed register number
++			ctxt.Andptr[0] |= byte((^(from3.Reg - REG_X0))<<3) & 0x78
++		}
++
++		// VEX encodes REX.R as inversed upper bit
++		if rexR == 0 {
++			ctxt.Andptr[0] |= 0x80
+ 		}
+ 		ctxt.Andptr[0] |= prefBit
+ 		ctxt.Andptr = ctxt.Andptr[1:]
+-	} else {
++	} else { // 3-byte case
++		// First byte is always C$
+ 		ctxt.Andptr[0] = 0xc4
+ 		ctxt.Andptr = ctxt.Andptr[1:]
+ 
++		// Encode VEX.mmmmm with prefix value, for now assume 0F 38,
++		// which encodes as 1.
+ 		ctxt.Andptr[0] = 0x1 // TODO handle different prefix
++		// REX.[RXB] are inverted and encoded in 3 upper bits
+ 		if rexR == 0 {
+ 			ctxt.Andptr[0] |= 0x80
+ 		}
+@@ -2981,7 +3012,13 @@ func vexprefix(ctxt *obj.Link, to *obj.Addr, from *obj.Addr, pref uint8) {
+ 		}
+ 		ctxt.Andptr = ctxt.Andptr[1:]
+ 
+-		ctxt.Andptr[0] = 0x7c
++		// Fill VEX.VVVV, same as 2-operand VEX instruction.
++		if from3 == nil {
++			ctxt.Andptr[0] = 0x7c
++		} else {
++			ctxt.Andptr[0] = 0x4
++			ctxt.Andptr[0] |= byte((^(from3.Reg - REG_X0))<<3) & 0x78
++		}
+ 		ctxt.Andptr[0] |= prefBit
+ 		ctxt.Andptr = ctxt.Andptr[1:]
+ 	}
+@@ -3222,7 +3259,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 
+ 			case Zm_r_xm_vex:
+ 				ctxt.Vexflag = 1
+-				vexprefix(ctxt, &p.To, &p.From, o.prefix)
++				vexprefix(ctxt, &p.To, &p.From, nil, o.prefix)
+ 				ctxt.Andptr[0] = byte(op)
+ 				ctxt.Andptr = ctxt.Andptr[1:]
+ 				asmand(ctxt, p, &p.From, &p.To)
+@@ -3284,11 +3321,18 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 
+ 			case Zr_m_xm_vex:
+ 				ctxt.Vexflag = 1
+-				vexprefix(ctxt, &p.From, &p.To, o.prefix)
++				vexprefix(ctxt, &p.From, &p.To, nil, o.prefix)
+ 				ctxt.Andptr[0] = byte(op)
+ 				ctxt.Andptr = ctxt.Andptr[1:]
+ 				asmand(ctxt, p, &p.To, &p.From)
+ 
++			case Zr_r_r_vex:
++				ctxt.Vexflag = 1
++				vexprefix(ctxt, &p.To, &p.From, p.From3, o.prefix)
++				ctxt.Andptr[0] = byte(op)
++				ctxt.Andptr = ctxt.Andptr[1:]
++				asmand(ctxt, p, &p.From, &p.To)
++
+ 			case Zr_m_xm:
+ 				mediaop(ctxt, o, op, int(yt.zoffset), z)
+ 				asmand(ctxt, p, &p.To, &p.From)
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 454789c509..33d641e612 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -42,11 +42,37 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
+ 	JNE	notintel
+ 	MOVB	$1, runtime·lfenceBeforeRdtsc(SB)
+ notintel:
++	// Do nothing.
+ 
+ 	MOVQ	$1, AX
+ 	CPUID
+ 	MOVL	CX, runtime·cpuid_ecx(SB)
+ 	MOVL	DX, runtime·cpuid_edx(SB)
++	// Detect AVX and AVX2 as per 14.7.1  Detection of AVX2 chapter of [1]
++	// [1] 64-ia-32-architectures-software-developer-manual-325462.pdf
++	// http://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-manual-325462.pdf
++	ANDL    $0x18000000, CX // check for OSXSAVE and AVX bits
++	CMPL    CX, $0x18000000
++	JNE     noavx
++	MOVL    $0, CX
++	// For XGETBV, OSXSAVE bit is required and sufficient
++	BYTE $0x0F; BYTE $0x01; BYTE $0xD0
++	ANDL    $6, AX
++	CMPL    AX, $6 // Check for OS support of YMM registers
++	JNE     noavx
++	MOVB    $1, runtime·support_avx(SB)
++	MOVL    $7, AX
++	MOVL    $0, CX
++	CPUID
++	ANDL    $0x20, BX // check for AVX2 bit
++	CMPL    BX, $0x20
++	JNE     noavx2
++	MOVB    $1, runtime·support_avx2(SB)
++	JMP     nocpuinfo
++noavx:
++	MOVB    $0, runtime·support_avx(SB)
++noavx2:
++	MOVB    $0, runtime·support_avx2(SB)
+ nocpuinfo:	
+ 	
+ 	// if there is an _cgo_init, call it.
+@@ -1508,7 +1534,10 @@ TEXT runtime·cmpbody(SB),NOSPLIT,$0-0
+ 	JB	small
+ 
+ 	CMPQ	R8, $63
+-	JA	big_loop
++	JBE	loop
++	CMPB    runtime·support_avx2(SB), $1
++	JEQ     big_loop_avx2
++	JMP	big_loop
+ loop:
+ 	CMPQ	R8, $16
+ 	JBE	_0through16
+@@ -1657,6 +1686,45 @@ big_loop:
+ 	JBE	loop
+ 	JMP	big_loop
+ 
++	// Compare 64-bytes per loop iteration.
++	// Loop is unrolled and uses AVX2.
++big_loop_avx2:
++	MOVHDU	(SI), X2
++	MOVHDU	(DI), X3
++	MOVHDU	32(SI), X4
++	MOVHDU	32(DI), X5
++	VPCMPEQB X2, X3, X0
++	VPMOVMSKB X0, AX
++	XORL	$0xffffffff, AX
++	JNE	diff32_avx2
++	VPCMPEQB X4, X5, X6
++	VPMOVMSKB X6, AX
++	XORL	$0xffffffff, AX
++	JNE	diff64_avx2
++
++	ADDQ	$64, SI
++	ADDQ	$64, DI
++	SUBQ	$64, R8
++	CMPQ	R8, $64
++	JB	big_loop_avx2_exit
++	JMP	big_loop_avx2
++
++	// Avoid AVX->SSE transition penalty and search first 32 bytes of 64 byte chunk.
++diff32_avx2:
++	VZEROUPPER
++	JMP diff16
++
++	// Same as diff32_avx2, but for last 32 bytes.
++diff64_avx2:
++	VZEROUPPER
++	JMP diff48
++
++	// For <64 bytes remainder jump to normal loop.
++big_loop_avx2_exit:
++	VZEROUPPER
++	JMP loop
++
++
+ TEXT bytes·IndexByte(SB),NOSPLIT,$0-40
+ 	MOVQ s+0(FP), SI
+ 	MOVQ s_len+8(FP), BX
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 6b61cd62fa..f1337e570e 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -627,6 +627,8 @@ var (
+ 	cpuid_ecx         uint32
+ 	cpuid_edx         uint32
+ 	lfenceBeforeRdtsc bool
++	support_avx       bool
++	support_avx2      bool
+ 
+ 	goarm uint8 // set by cmd/link on arm systems
+ )

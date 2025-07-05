@@ -7,6 +7,20 @@ Date:   Wed Oct 20 15:35:37 2010 -0400
     R=kaib
     CC=golang-dev
     https://golang.org/cl/2608041
-
+---
  src/pkg/runtime/arm/softfloat.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/arm/softfloat.c b/src/pkg/runtime/arm/softfloat.c
+index 353e960b64..096cc6da68 100644
+--- a/src/pkg/runtime/arm/softfloat.c
++++ b/src/pkg/runtime/arm/softfloat.c
+@@ -449,7 +449,7 @@ loadstore(uint32 *pc, uint32 *regs)
+ 	isload = i>>20&1;
+ 	p = i>>24&1;
+ 	ud = i>>23&1;
+-	tlen = i>>(22 - 1)&1 | i>>15&1;	// NOTE(rsc): should this say i>>(22-1)&2 (not &1)?
++	tlen = i>>(22 - 1)&2 | i>>15&1;
+ 	wb = i>>21&1;
+ 	reg = i>>16 &0xf;
+ 	freg = i>>12 &0x7;

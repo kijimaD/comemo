@@ -9,7 +9,93 @@ Date:   Sun Jun 2 23:54:34 2013 +0200
     R=golang-dev, daniel.morsing, r, dsymonds
     CC=golang-dev
     https://golang.org/cl/9952043
-
+---
  src/cmd/gc/sinit.c          | 10 +++++++---
  test/fixedbugs/issue5607.go | 36 ++++++++++++++++++++++++++++++++++++
  2 files changed, 43 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index f8c61828cf..b84b3afdc4 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -50,8 +50,11 @@ init1(Node *n, NodeList **out)
+ 	case PFUNC:
+ 		break;
+ 	default:
+-		if(isblank(n) && n->defn != N && n->defn->initorder == InitNotStarted) {
++		if(isblank(n) && n->curfn == N && n->defn != N && n->defn->initorder == InitNotStarted) {
++			// blank names initialization is part of init() but not
++			// when they are inside a function.
+ 			n->defn->initorder = InitDone;
++			if(debug['%']) dump("nonstatic", n->defn);
+ 			*out = list(*out, n->defn);
+ 		}
+ 		return;
+@@ -62,7 +65,7 @@ init1(Node *n, NodeList **out)
+ 	if(n->initorder == InitPending) {
+ 		if(n->class == PFUNC)
+ 			return;
+-		
++
+ 		// if there have already been errors printed,
+ 		// those errors probably confused us and
+ 		// there might not be a loop.  let the user
+@@ -128,7 +131,7 @@ init1(Node *n, NodeList **out)
+ 				if(debug['j'])
+ 					print("%S\n", n->sym);
+ 				if(!staticinit(n, out)) {
+-if(debug['%']) dump("nonstatic", n->defn);
++					if(debug['%']) dump("nonstatic", n->defn);
+ 					*out = list(*out, n->defn);
+ 				}
+ 			} else if(0) {
+@@ -149,6 +152,7 @@ if(debug['%']) dump("nonstatic", n->defn);
+ 			n->defn->initorder = InitDone;
+ 			for(l=n->defn->rlist; l; l=l->next)
+ 				init1(l->n, out);
++			if(debug['%']) dump("nonstatic", n->defn);
+ 			*out = list(*out, n->defn);
+ 			break;
+ 		}
+diff --git a/test/fixedbugs/issue5607.go b/test/fixedbugs/issue5607.go
+new file mode 100644
+index 0000000000..785be7a2c7
+--- /dev/null
++++ b/test/fixedbugs/issue5607.go
+@@ -0,0 +1,36 @@
++// run
++
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 5607: generation of init() function incorrectly
++// uses initializers of blank variables inside closures.
++
++package main
++
++var Test = func() {
++	var mymap = map[string]string{"a": "b"}
++
++	var innerTest = func() {
++		// Used to crash trying to compile this line as
++		// part of init() (funcdepth mismatch).
++		var _, x = mymap["a"]
++		println(x)
++	}
++	innerTest()
++}
++
++var Test2 = func() {
++	// The following initializer should not be part of init()
++	// The compiler used to generate a call to Panic() in init().
++	var _, x = Panic()
++	_ = x
++}
++
++func Panic() (int, int) {
++	panic("omg")
++	return 1, 2
++}
++
++func main() {}

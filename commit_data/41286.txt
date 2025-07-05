@@ -16,6 +16,20 @@ Date:   Thu Sep 19 16:08:45 2019 -0400
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/debug/mod.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/debug/mod.go b/src/runtime/debug/mod.go
+index e3b929a977..837cd689a0 100644
+--- a/src/runtime/debug/mod.go
++++ b/src/runtime/debug/mod.go
+@@ -22,7 +22,7 @@ func ReadBuildInfo() (info *BuildInfo, ok bool) {
+ // the running binary.
+ type BuildInfo struct {
+ 	Path string    // The main package path
+-	Main Module    // The main module information
++	Main Module    // The module containing the main package
+ 	Deps []*Module // Module dependencies
+ }
+ 

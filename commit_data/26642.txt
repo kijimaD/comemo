@@ -16,7 +16,97 @@ Date:   Fri Feb 19 22:45:38 2016 +0100
     Change-Id: Ifa2ae85257909f40b1b18118c92b516933271729
     Reviewed-on: https://go-review.googlesource.com/19721
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/fmt/fmt_test.go |  6 ++++++
  src/fmt/format.go   | 43 +++++++++++++++++--------------------------
  2 files changed, 23 insertions(+), 26 deletions(-)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index 793f709a79..8d7c36ceb1 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -259,6 +259,12 @@ var fmtTests = []struct {
+ 	{"%+.3F", float32(-1.0), "-1.000"},
+ 	{"%+07.2f", 1.0, "+001.00"},
+ 	{"%+07.2f", -1.0, "-001.00"},
++	{"%-07.2f", 1.0, "1.00   "},
++	{"%-07.2f", -1.0, "-1.00  "},
++	{"%+-07.2f", 1.0, "+1.00  "},
++	{"%+-07.2f", -1.0, "-1.00  "},
++	{"%-+07.2f", 1.0, "+1.00  "},
++	{"%-+07.2f", -1.0, "-1.00  "},
+ 	{"%+10.2f", +1.0, "     +1.00"},
+ 	{"%+10.2f", -1.0, "     -1.00"},
+ 	{"% .3E", -1.0, "-1.000E+00"},
+diff --git a/src/fmt/format.go b/src/fmt/format.go
+index 517b18f7d4..bf9d00bbc0 100644
+--- a/src/fmt/format.go
++++ b/src/fmt/format.go
+@@ -5,7 +5,6 @@
+ package fmt
+ 
+ import (
+-	"math"
+ 	"strconv"
+ 	"unicode/utf8"
+ )
+@@ -405,42 +404,34 @@ func doPrec(f *fmt, def int) int {
+ // formatFloat formats a float64; it is an efficient equivalent to  f.pad(strconv.FormatFloat()...).
+ func (f *fmt) formatFloat(v float64, verb byte, prec, n int) {
+ 	// Format number, reserving space for leading + sign if needed.
+-	num := strconv.AppendFloat(f.intbuf[0:1], v, verb, prec, n)
++	num := strconv.AppendFloat(f.intbuf[:1], v, verb, prec, n)
+ 	if num[1] == '-' || num[1] == '+' {
+ 		num = num[1:]
+ 	} else {
+ 		num[0] = '+'
+ 	}
+-	// Special handling for infinity, which doesn't look like a number so shouldn't be padded with zeros.
+-	if math.IsInf(v, 0) {
+-		if f.zero {
+-			defer func() { f.zero = true }()
+-			f.zero = false
+-		}
+-	}
+-	// num is now a signed version of the number.
+-	// If we're zero padding, want the sign before the leading zeros.
+-	// Achieve this by writing the sign out and then padding the unsigned number.
+-	if f.zero && f.widPresent && f.wid > len(num) {
+-		if f.space && v >= 0 {
+-			f.buf.WriteByte(' ') // This is what C does: even with zero, f.space means space.
+-			f.wid--
+-		} else if f.plus || v < 0 {
+-			f.buf.WriteByte(num[0])
+-			f.wid--
+-		}
+-		f.pad(num[1:])
+-		return
+-	}
+ 	// f.space says to replace a leading + with a space.
+ 	if f.space && num[0] == '+' {
+ 		num[0] = ' '
++	}
++	// Special handling for "+Inf" and "-Inf",
++	// which don't look like a number so shouldn't be padded with zeros.
++	if num[1] == 'I' {
++		oldZero := f.zero
++		f.zero = false
+ 		f.pad(num)
++		f.zero = oldZero
+ 		return
+ 	}
+-	// Now we know the sign is attached directly to the number, if present at all.
+-	// We want a sign if asked for, if it's negative, or if it's infinity (+Inf vs. -Inf).
+-	if f.plus || num[0] == '-' || math.IsInf(v, 0) {
++	// We want a sign if asked for and if the sign is not positive.
++	if f.plus || num[0] != '+' {
++		// If we're zero padding we want the sign before the leading zeros.
++		// Achieve this by writing the sign out and then padding the unsigned number.
++		if f.zero && f.widPresent && f.wid > len(num) {
++			f.buf.WriteByte(num[0])
++			f.wid--
++			num = num[1:]
++		}
+ 		f.pad(num)
+ 		return
+ 	}

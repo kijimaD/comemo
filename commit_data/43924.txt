@@ -18,7 +18,125 @@ Date:   Sat Mar 21 08:23:13 2020 -0400
     Change-Id: Ic738d72802cc2fa448f7633915e7126d2f76d8ca
     Reviewed-on: https://go-review.googlesource.com/c/go/+/224737
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/ast/ast.go      | 47 +++++++++++++++++++++++++++++++++++++++++------
  src/go/ast/ast_test.go | 29 +++++++++++++++++++++++++++++
  2 files changed, 70 insertions(+), 6 deletions(-)
+
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index b5b13b2908..81c64589d0 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -87,10 +87,10 @@ func stripTrailingWhitespace(s string) string {
+ 
+ // Text returns the text of the comment.
+ // Comment markers (//, /*, and */), the first space of a line comment, and
+-// leading and trailing empty lines are removed. Multiple empty lines are
+-// reduced to one, and trailing space on lines is trimmed. Unless the result
+-// is empty, it is newline-terminated.
+-//
++// leading and trailing empty lines are removed.
++// Comment directives like "//line" and "//go:noinline" are also removed.
++// Multiple empty lines are reduced to one, and trailing space on lines is trimmed.
++// Unless the result is empty, it is newline-terminated.
+ func (g *CommentGroup) Text() string {
+ 	if g == nil {
+ 		return ""
+@@ -108,9 +108,18 @@ func (g *CommentGroup) Text() string {
+ 		case '/':
+ 			//-style comment (no newline at the end)
+ 			c = c[2:]
+-			// strip first space - required for Example tests
+-			if len(c) > 0 && c[0] == ' ' {
++			if len(c) == 0 {
++				// empty line
++				break
++			}
++			if c[0] == ' ' {
++				// strip first space - required for Example tests
+ 				c = c[1:]
++				break
++			}
++			if isDirective(c) {
++				// Ignore //go:noinline, //line, and so on.
++				continue
+ 			}
+ 		case '*':
+ 			/*-style comment */
+@@ -145,6 +154,32 @@ func (g *CommentGroup) Text() string {
+ 	return strings.Join(lines, "\n")
+ }
+ 
++// isDirective reports whether c is a comment directive.
++func isDirective(c string) bool {
++	// "//line " is a line directive.
++	// (The // has been removed.)
++	if strings.HasPrefix(c, "line ") {
++		return true
++	}
++
++	// "//[a-z0-9]+:[a-z0-9]"
++	// (The // has been removed.)
++	colon := strings.Index(c, ":")
++	if colon <= 0 || colon+1 >= len(c) {
++		return false
++	}
++	for i := 0; i <= colon+1; i++ {
++		if i == colon {
++			continue
++		}
++		b := c[i]
++		if !('a' <= b && b <= 'z' || '0' <= b && b <= '9') {
++			return false
++		}
++	}
++	return true
++}
++
+ // ----------------------------------------------------------------------------
+ // Expressions and types
+ 
+diff --git a/src/go/ast/ast_test.go b/src/go/ast/ast_test.go
+index 1a6a283f23..71b2d6ca4b 100644
+--- a/src/go/ast/ast_test.go
++++ b/src/go/ast/ast_test.go
+@@ -33,6 +33,9 @@ var comments = []struct {
+ 	{[]string{"/* Foo*/", "/*\n*/", "//", "/*\n*/", "// Bar"}, " Foo\n\nBar\n"},
+ 	{[]string{"/* Foo*/", "// Bar"}, " Foo\nBar\n"},
+ 	{[]string{"/* Foo\n Bar*/"}, " Foo\n Bar\n"},
++
++	{[]string{"// foo", "//go:noinline", "// bar", "//:baz"}, "foo\nbar\n:baz\n"},
++	{[]string{"// foo", "//lint123:ignore", "// bar"}, "foo\nbar\n"},
+ }
+ 
+ func TestCommentText(t *testing.T) {
+@@ -48,3 +51,29 @@ func TestCommentText(t *testing.T) {
+ 		}
+ 	}
+ }
++
++var isDirectiveTests = []struct {
++	in string
++	ok bool
++}{
++	{"abc", false},
++	{"go:inline", true},
++	{"Go:inline", false},
++	{"go:Inline", false},
++	{":inline", false},
++	{"lint:ignore", true},
++	{"lint:1234", true},
++	{"1234:lint", true},
++	{"go: inline", false},
++	{"go:", false},
++	{"go:*", false},
++	{"go:x*", true},
++}
++
++func TestIsDirective(t *testing.T) {
++	for _, tt := range isDirectiveTests {
++		if ok := isDirective(tt.in); ok != tt.ok {
++			t.Errorf("isDirective(%q) = %v, want %v", tt.in, ok, tt.ok)
++		}
++	}
++}

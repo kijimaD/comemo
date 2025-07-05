@@ -11,7 +11,7 @@ Date:   Sat Sep 3 18:48:30 2016 -0700
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go  | 12 +-----------
  src/cmd/compile/internal/arm/ssa.go    | 12 +-----------
  src/cmd/compile/internal/arm64/ssa.go  | 12 +-----------
@@ -20,3 +20,173 @@ Date:   Sat Sep 3 18:48:30 2016 -0700
  src/cmd/compile/internal/ppc64/ssa.go  | 13 +------------
  src/cmd/compile/internal/x86/ssa.go    | 12 +-----------
  7 files changed, 25 insertions(+), 67 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index aa581eebfb..ba358f33df 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -903,17 +903,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpVarLive:
+ 		gc.Gvarlive(v.Aux.(*gc.Node))
+ 	case ssa.OpKeepAlive:
+-		if !v.Args[0].Type.IsPtrShaped() {
+-			v.Fatalf("keeping non-pointer alive %v", v.Args[0])
+-		}
+-		n, off := gc.AutoVar(v.Args[0])
+-		if n == nil {
+-			v.Fatalf("KeepLive with non-spilled value %s %s", v, v.Args[0])
+-		}
+-		if off != 0 {
+-			v.Fatalf("KeepLive with non-zero offset spill location %s:%d", n, off)
+-		}
+-		gc.Gvarlive(n)
++		gc.KeepAlive(v)
+ 	case ssa.OpAMD64LoweredNilCheck:
+ 		// Optimization - if the subsequent block has a load or store
+ 		// at the same address, we don't need to issue this instruction.
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index d6a501f907..cea2cf4908 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -917,17 +917,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpVarLive:
+ 		gc.Gvarlive(v.Aux.(*gc.Node))
+ 	case ssa.OpKeepAlive:
+-		if !v.Args[0].Type.IsPtrShaped() {
+-			v.Fatalf("keeping non-pointer alive %v", v.Args[0])
+-		}
+-		n, off := gc.AutoVar(v.Args[0])
+-		if n == nil {
+-			v.Fatalf("KeepLive with non-spilled value %s %s", v, v.Args[0])
+-		}
+-		if off != 0 {
+-			v.Fatalf("KeepLive with non-zero offset spill location %s:%d", n, off)
+-		}
+-		gc.Gvarlive(n)
++		gc.KeepAlive(v)
+ 	case ssa.OpARMEqual,
+ 		ssa.OpARMNotEqual,
+ 		ssa.OpARMLessThan,
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 96d79cb48b..11ae535d7a 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -690,17 +690,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpVarLive:
+ 		gc.Gvarlive(v.Aux.(*gc.Node))
+ 	case ssa.OpKeepAlive:
+-		if !v.Args[0].Type.IsPtrShaped() {
+-			v.Fatalf("keeping non-pointer alive %v", v.Args[0])
+-		}
+-		n, off := gc.AutoVar(v.Args[0])
+-		if n == nil {
+-			v.Fatalf("KeepLive with non-spilled value %s %s", v, v.Args[0])
+-		}
+-		if off != 0 {
+-			v.Fatalf("KeepLive with non-zero offset spill location %s:%d", n, off)
+-		}
+-		gc.Gvarlive(n)
++		gc.KeepAlive(v)
+ 	case ssa.OpARM64Equal,
+ 		ssa.OpARM64NotEqual,
+ 		ssa.OpARM64LessThan,
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 201212a4aa..2a8619f1c2 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4568,6 +4568,25 @@ func CheckLoweredGetClosurePtr(v *ssa.Value) {
+ 	}
+ }
+ 
++// KeepAlive marks the variable referenced by OpKeepAlive as live.
++// Called during ssaGenValue.
++func KeepAlive(v *ssa.Value) {
++	if v.Op != ssa.OpKeepAlive {
++		v.Fatalf("KeepAlive called with non-KeepAlive value: %v", v.LongString())
++	}
++	if !v.Args[0].Type.IsPtrShaped() {
++		v.Fatalf("keeping non-pointer alive %v", v.Args[0])
++	}
++	n, off := AutoVar(v.Args[0])
++	if n == nil {
++		v.Fatalf("KeepAlive with non-spilled value %s %s", v, v.Args[0])
++	}
++	if off != 0 {
++		v.Fatalf("KeepAlive with non-zero offset spill location %s:%d", n, off)
++	}
++	Gvarlive(n)
++}
++
+ // AutoVar returns a *Node and int64 representing the auto variable and offset within it
+ // where v should be spilled.
+ func AutoVar(v *ssa.Value) (*Node, int64) {
+diff --git a/src/cmd/compile/internal/mips64/ssa.go b/src/cmd/compile/internal/mips64/ssa.go
+index fdeb43fbc8..62b662e560 100644
+--- a/src/cmd/compile/internal/mips64/ssa.go
++++ b/src/cmd/compile/internal/mips64/ssa.go
+@@ -713,17 +713,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpVarLive:
+ 		gc.Gvarlive(v.Aux.(*gc.Node))
+ 	case ssa.OpKeepAlive:
+-		if !v.Args[0].Type.IsPtrShaped() {
+-			v.Fatalf("keeping non-pointer alive %v", v.Args[0])
+-		}
+-		n, off := gc.AutoVar(v.Args[0])
+-		if n == nil {
+-			v.Fatalf("KeepLive with non-spilled value %s %s", v, v.Args[0])
+-		}
+-		if off != 0 {
+-			v.Fatalf("KeepLive with non-zero offset spill location %s:%d", n, off)
+-		}
+-		gc.Gvarlive(n)
++		gc.KeepAlive(v)
+ 	case ssa.OpMIPS64FPFlagTrue,
+ 		ssa.OpMIPS64FPFlagFalse:
+ 		// MOVV	$0, r
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 78047269d3..802105cf6b 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -841,18 +841,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpVarLive:
+ 		gc.Gvarlive(v.Aux.(*gc.Node))
+ 	case ssa.OpKeepAlive:
+-		if !v.Args[0].Type.IsPtrShaped() {
+-			v.Fatalf("keeping non-pointer alive %v", v.Args[0])
+-		}
+-		n, off := gc.AutoVar(v.Args[0])
+-		if n == nil {
+-			v.Fatalf("KeepLive with non-spilled value %s %s", v, v.Args[0])
+-		}
+-		if off != 0 {
+-			v.Fatalf("KeepLive with non-zero offset spill location %s:%d", n, off)
+-		}
+-		gc.Gvarlive(n)
+-
++		gc.KeepAlive(v)
+ 	case ssa.OpPhi:
+ 		gc.CheckLoweredPhi(v)
+ 
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index 42e5df163c..b0bffd0f5d 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -818,17 +818,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpVarLive:
+ 		gc.Gvarlive(v.Aux.(*gc.Node))
+ 	case ssa.OpKeepAlive:
+-		if !v.Args[0].Type.IsPtrShaped() {
+-			v.Fatalf("keeping non-pointer alive %v", v.Args[0])
+-		}
+-		n, off := gc.AutoVar(v.Args[0])
+-		if n == nil {
+-			v.Fatalf("KeepLive with non-spilled value %s %s", v, v.Args[0])
+-		}
+-		if off != 0 {
+-			v.Fatalf("KeepLive with non-zero offset spill location %s:%d", n, off)
+-		}
+-		gc.Gvarlive(n)
++		gc.KeepAlive(v)
+ 	case ssa.Op386LoweredNilCheck:
+ 		// Optimization - if the subsequent block has a load or store
+ 		// at the same address, we don't need to issue this instruction.

@@ -22,7 +22,7 @@ Date:   Thu Feb 29 18:03:23 2024 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/568339
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/export_test.go |  2 ++
  src/runtime/mgcscavenge.go |  4 +--
  src/runtime/time.go        | 44 ++++++++++++++++++-----------
@@ -32,3 +32,427 @@ Date:   Thu Feb 29 18:03:23 2024 -0500
  src/time/sleep.go          | 70 +++++++++++++++++++---------------------------
  src/time/tick.go           | 35 +++++++++++++----------
  8 files changed, 115 insertions(+), 86 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 9b84e96e50..fe79497e7f 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -63,6 +63,8 @@ var MapValues = values
+ 
+ var LockPartialOrder = lockPartialOrder
+ 
++type TimeTimer = timeTimer
++
+ type LockRank lockRank
+ 
+ func (l LockRank) String() string {
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 86c2103f18..a7930c9c7e 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -497,7 +497,7 @@ func (s *scavengerState) sleep(worked float64) {
+ 		// because we can't close over any variables without
+ 		// failing escape analysis.
+ 		start := nanotime()
+-		resetTimer(s.timer, start+sleepTime)
++		s.timer.reset(start + sleepTime)
+ 
+ 		// Mark ourselves as asleep and go to sleep.
+ 		s.parked = true
+@@ -512,7 +512,7 @@ func (s *scavengerState) sleep(worked float64) {
+ 		// reason we might fail is that we've already woken up, but the timer
+ 		// might be in the process of firing on some other P; essentially we're
+ 		// racing with it. That's totally OK. Double wake-ups are perfectly safe.
+-		stopTimer(s.timer)
++		s.timer.stop()
+ 		unlock(&s.lock)
+ 	} else {
+ 		unlock(&s.lock)
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index cee0197907..194d231428 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -24,9 +24,6 @@ import (
+ // The lock bit supports a manual cas-based spin lock that handles
+ // contention by yielding the OS thread. The expectation is that critical
+ // sections are very short and contention on the lock bit is low.
+-//
+-// Package time knows the layout of this structure.
+-// If this struct changes, adjust ../time/sleep.go:/runtimeTimer.
+ type timer struct {
+ 	ts *timers
+ 
+@@ -102,8 +99,7 @@ func (ts *timers) unlock() {
+ }
+ 
+ // Timer state field.
+-// Note that state 0 must be "unlocked, not in heap" and usable,
+-// at least for time.Timer.Stop. See go.dev/issue/21874.
++// Timers start zeroed, so the zero state should be "unlocked, not in heap".
+ const (
+ 	// timerLocked is set when the timer is locked,
+ 	// meaning other goroutines cannot read or write mutable fields.
+@@ -258,24 +254,38 @@ func resetForSleep(gp *g, ut unsafe.Pointer) bool {
+ 	return true
+ }
+ 
+-// startTimer adds t to the timer heap.
++// A timeTimer is a runtime-allocated time.Timer or time.Ticker
++// with the additional runtime state following it.
++// The runtime state is inaccessible to package time.
++type timeTimer struct {
++	c    unsafe.Pointer // <-chan time.Time
++	init bool
++	timer
++}
++
++// newTimer allocates and returns a new time.Timer or time.Ticker (same layout)
++// with the given parameters.
+ //
+-//go:linkname startTimer time.startTimer
+-func startTimer(t *timer) {
++//go:linkname newTimer time.newTimer
++func newTimer(when, period int64, f func(any, uintptr), arg any) *timeTimer {
++	t := new(timeTimer)
++	t.when = when
++	t.period = period
++	t.f = f
++	t.arg = arg
+ 	if raceenabled {
+-		racerelease(unsafe.Pointer(t))
+-	}
+-	if t.state.Load() != 0 {
+-		throw("startTimer called with initialized timer")
++		racerelease(unsafe.Pointer(&t.timer))
+ 	}
+ 	t.reset(t.when)
++	t.init = true
++	return t
+ }
+ 
+ // stopTimer stops a timer.
+ // It reports whether t was stopped before being run.
+ //
+ //go:linkname stopTimer time.stopTimer
+-func stopTimer(t *timer) bool {
++func stopTimer(t *timeTimer) bool {
+ 	return t.stop()
+ }
+ 
+@@ -284,9 +294,9 @@ func stopTimer(t *timer) bool {
+ // Reports whether the timer was modified before it was run.
+ //
+ //go:linkname resetTimer time.resetTimer
+-func resetTimer(t *timer, when int64) bool {
++func resetTimer(t *timeTimer, when int64) bool {
+ 	if raceenabled {
+-		racerelease(unsafe.Pointer(t))
++		racerelease(unsafe.Pointer(&t.timer))
+ 	}
+ 	return t.reset(when)
+ }
+@@ -294,9 +304,9 @@ func resetTimer(t *timer, when int64) bool {
+ // modTimer modifies an existing timer.
+ //
+ //go:linkname modTimer time.modTimer
+-func modTimer(t *timer, when, period int64) {
++func modTimer(t *timeTimer, when, period int64) {
+ 	if raceenabled {
+-		racerelease(unsafe.Pointer(t))
++		racerelease(unsafe.Pointer(&t.timer))
+ 	}
+ 	t.modify(when, period, t.f, t.arg, t.seq)
+ }
+diff --git a/src/runtime/time_test.go b/src/runtime/time_test.go
+index f08682055b..7ac86998c6 100644
+--- a/src/runtime/time_test.go
++++ b/src/runtime/time_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"reflect"
+ 	"runtime"
+ 	"testing"
++	"time"
+ )
+ 
+ func TestFakeTime(t *testing.T) {
+@@ -95,3 +96,34 @@ func parseFakeTime(x []byte) ([]fakeTimeFrame, error) {
+ 	}
+ 	return frames, nil
+ }
++
++func TestTimeTimerType(t *testing.T) {
++	// runtime.timeTimer (exported for testing as TimeTimer)
++	// must have time.Timer and time.Ticker as a prefix
++	// (meaning those two must have the same layout).
++	runtimeTimeTimer := reflect.TypeOf(runtime.TimeTimer{})
++
++	check := func(name string, typ reflect.Type) {
++		n1 := runtimeTimeTimer.NumField()
++		n2 := typ.NumField()
++		if n1 != n2+1 {
++			t.Errorf("runtime.TimeTimer has %d fields, want %d (%s has %d fields)", n1, n2+1, name, n2)
++			return
++		}
++		for i := 0; i < n2; i++ {
++			f1 := runtimeTimeTimer.Field(i)
++			f2 := typ.Field(i)
++			t1 := f1.Type
++			t2 := f2.Type
++			if t1 != t2 && !(t1.Kind() == reflect.UnsafePointer && t2.Kind() == reflect.Chan) {
++				t.Errorf("runtime.Timer field %s %v incompatible with %s field %s %v", f1.Name, t1, name, f2.Name, t2)
++			}
++			if f1.Offset != f2.Offset {
++				t.Errorf("runtime.Timer field %s offset %d incompatible with %s field %s offset %d", f1.Name, f1.Offset, name, f2.Name, f2.Offset)
++			}
++		}
++	}
++
++	check("time.Timer", reflect.TypeOf(time.Timer{}))
++	check("time.Ticker", reflect.TypeOf(time.Ticker{}))
++}
+diff --git a/src/runtime/trace2.go b/src/runtime/trace2.go
+index 6d6d4363a9..b2020da887 100644
+--- a/src/runtime/trace2.go
++++ b/src/runtime/trace2.go
+@@ -968,7 +968,7 @@ func newWakeableSleep() *wakeableSleep {
+ // Must not be called by more than one goroutine at a time and
+ // must not be called concurrently with close.
+ func (s *wakeableSleep) sleep(ns int64) {
+-	resetTimer(s.timer, nanotime()+ns)
++	s.timer.reset(nanotime() + ns)
+ 	lock(&s.lock)
+ 	if raceenabled {
+ 		raceacquire(unsafe.Pointer(&s.lock))
+@@ -979,7 +979,7 @@ func (s *wakeableSleep) sleep(ns int64) {
+ 	}
+ 	unlock(&s.lock)
+ 	<-wakeup
+-	stopTimer(s.timer)
++	s.timer.stop()
+ }
+ 
+ // wake awakens any goroutine sleeping on the timer.
+diff --git a/src/time/internal_test.go b/src/time/internal_test.go
+index 4c4a720f74..42ebd4d42c 100644
+--- a/src/time/internal_test.go
++++ b/src/time/internal_test.go
+@@ -47,14 +47,8 @@ func CheckRuntimeTimerPeriodOverflow() {
+ 	// We manually create a runtimeTimer with huge period, but that expires
+ 	// immediately. The public Timer interface would require waiting for
+ 	// the entire period before the first update.
+-	r := &runtimeTimer{
+-		when:   runtimeNano(),
+-		period: 1<<63 - 1,
+-		f:      empty,
+-		arg:    nil,
+-	}
+-	startTimer(r)
+-	defer stopTimer(r)
++	t := (*Timer)(newTimer(runtimeNano(), 1<<63-1, empty, nil))
++	defer t.Stop()
+ 
+ 	// If this test fails, we will either throw (when siftdownTimer detects
+ 	// bad when on update), or other timers will hang (if the timer in a
+diff --git a/src/time/sleep.go b/src/time/sleep.go
+index bd78de9fd3..a8df25781a 100644
+--- a/src/time/sleep.go
++++ b/src/time/sleep.go
+@@ -4,25 +4,12 @@
+ 
+ package time
+ 
+-import "unsafe"
++import _ "unsafe" // for go:linkname
+ 
+ // Sleep pauses the current goroutine for at least the duration d.
+ // A negative or zero duration causes Sleep to return immediately.
+ func Sleep(d Duration)
+ 
+-// Interface to timers implemented in package runtime.
+-// Must be in sync with ../runtime/time.go:/^type timer
+-type runtimeTimer struct {
+-	ts       unsafe.Pointer
+-	when     int64
+-	period   int64
+-	f        func(any, uintptr) // NOTE: must not be closure
+-	arg      any
+-	seq      uintptr
+-	nextwhen int64
+-	status   uint32
+-}
+-
+ // when is a helper function for setting the 'when' field of a runtimeTimer.
+ // It returns what the time will be, in nanoseconds, Duration d in the future.
+ // If d is negative, it is ignored. If the returned value would be less than
+@@ -40,18 +27,32 @@ func when(d Duration) int64 {
+ 	return t
+ }
+ 
+-func startTimer(*runtimeTimer)
+-func stopTimer(*runtimeTimer) bool
+-func resetTimer(*runtimeTimer, int64) bool
+-func modTimer(t *runtimeTimer, when, period int64)
++// These functions are pushed to package time from package runtime.
++
++//go:linkname newTimer
++func newTimer(when, period int64, f func(any, uintptr), arg any) *Timer
++
++//go:linkname stopTimer
++func stopTimer(*Timer) bool
++
++//go:linkname resetTimer
++func resetTimer(*Timer, int64) bool
++
++//go:linkname modTimer
++func modTimer(t *Timer, when, period int64)
++
++// Note: The runtime knows the layout of struct Timer, since newTimer allocates it.
++// The runtime also knows that Ticker and Timer have the same layout.
++// There are extra fields after the channel, reserved for the runtime
++// and inaccessible to users.
+ 
+ // The Timer type represents a single event.
+ // When the Timer expires, the current time will be sent on C,
+ // unless the Timer was created by AfterFunc.
+ // A Timer must be created with NewTimer or AfterFunc.
+ type Timer struct {
+-	C <-chan Time
+-	r runtimeTimer
++	C         <-chan Time
++	initTimer bool
+ }
+ 
+ // Stop prevents the Timer from firing.
+@@ -77,25 +78,18 @@ type Timer struct {
+ // If the caller needs to know whether f is completed, it must coordinate
+ // with f explicitly.
+ func (t *Timer) Stop() bool {
+-	if t.r.f == nil {
++	if !t.initTimer {
+ 		panic("time: Stop called on uninitialized Timer")
+ 	}
+-	return stopTimer(&t.r)
++	return stopTimer(t)
+ }
+ 
+ // NewTimer creates a new Timer that will send
+ // the current time on its channel after at least duration d.
+ func NewTimer(d Duration) *Timer {
+ 	c := make(chan Time, 1)
+-	t := &Timer{
+-		C: c,
+-		r: runtimeTimer{
+-			when: when(d),
+-			f:    sendTime,
+-			arg:  c,
+-		},
+-	}
+-	startTimer(&t.r)
++	t := (*Timer)(newTimer(when(d), 0, sendTime, c))
++	t.C = c
+ 	return t
+ }
+ 
+@@ -134,11 +128,11 @@ func NewTimer(d Duration) *Timer {
+ // one. If the caller needs to know whether the prior execution of
+ // f is completed, it must coordinate with f explicitly.
+ func (t *Timer) Reset(d Duration) bool {
+-	if t.r.f == nil {
++	if !t.initTimer {
+ 		panic("time: Reset called on uninitialized Timer")
+ 	}
+ 	w := when(d)
+-	return resetTimer(&t.r, w)
++	return resetTimer(t, w)
+ }
+ 
+ // sendTime does a non-blocking send of the current time on c.
+@@ -164,15 +158,7 @@ func After(d Duration) <-chan Time {
+ // be used to cancel the call using its Stop method.
+ // The returned Timer's C field is not used and will be nil.
+ func AfterFunc(d Duration, f func()) *Timer {
+-	t := &Timer{
+-		r: runtimeTimer{
+-			when: when(d),
+-			f:    goFunc,
+-			arg:  f,
+-		},
+-	}
+-	startTimer(&t.r)
+-	return t
++	return (*Timer)(newTimer(when(d), 0, goFunc, f))
+ }
+ 
+ func goFunc(arg any, seq uintptr) {
+diff --git a/src/time/tick.go b/src/time/tick.go
+index e06810db5d..3610ead570 100644
+--- a/src/time/tick.go
++++ b/src/time/tick.go
+@@ -4,11 +4,18 @@
+ 
+ package time
+ 
++import "unsafe"
++
++// Note: The runtime knows the layout of struct Ticker, since newTimer allocates it.
++// Note also that Ticker and Timer have the same layout, so that newTimer can handle both.
++// The initTimer and initTicker fields are named differently so that
++// users cannot convert between the two without unsafe.
++
+ // A Ticker holds a channel that delivers “ticks” of a clock
+ // at intervals.
+ type Ticker struct {
+-	C <-chan Time // The channel on which the ticks are delivered.
+-	r runtimeTimer
++	C          <-chan Time // The channel on which the ticks are delivered.
++	initTicker bool
+ }
+ 
+ // NewTicker returns a new Ticker containing a channel that will send
+@@ -25,16 +32,8 @@ func NewTicker(d Duration) *Ticker {
+ 	// If the client falls behind while reading, we drop ticks
+ 	// on the floor until the client catches up.
+ 	c := make(chan Time, 1)
+-	t := &Ticker{
+-		C: c,
+-		r: runtimeTimer{
+-			when:   when(d),
+-			period: int64(d),
+-			f:      sendTime,
+-			arg:    c,
+-		},
+-	}
+-	startTimer(&t.r)
++	t := (*Ticker)(unsafe.Pointer(newTimer(when(d), int64(d), sendTime, c)))
++	t.C = c
+ 	return t
+ }
+ 
+@@ -42,7 +41,13 @@ func NewTicker(d Duration) *Ticker {
+ // Stop does not close the channel, to prevent a concurrent goroutine
+ // reading from the channel from seeing an erroneous "tick".
+ func (t *Ticker) Stop() {
+-	stopTimer(&t.r)
++	if !t.initTicker {
++		// This is misuse, and the same for time.Timer would panic,
++		// but this didn't always panic, and we keep it not panicking
++		// to avoid breaking old programs. See issue 21874.
++		return
++	}
++	stopTimer((*Timer)(unsafe.Pointer(t)))
+ }
+ 
+ // Reset stops a ticker and resets its period to the specified duration.
+@@ -52,10 +57,10 @@ func (t *Ticker) Reset(d Duration) {
+ 	if d <= 0 {
+ 		panic("non-positive interval for Ticker.Reset")
+ 	}
+-	if t.r.f == nil {
++	if !t.initTicker {
+ 		panic("time: Reset called on uninitialized Ticker")
+ 	}
+-	modTimer(&t.r, when(d), int64(d))
++	modTimer((*Timer)(unsafe.Pointer(t)), when(d), int64(d))
+ }
+ 
+ // Tick is a convenience wrapper for NewTicker providing access to the ticking

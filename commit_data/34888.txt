@@ -30,7 +30,66 @@ Date:   Wed Nov 22 16:15:11 2017 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/lookup_test.go    | 21 +++++++++++++++++++++
  src/net/lookup_windows.go |  5 +++--
  2 files changed, 24 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 68a7abe95d..4a9f6c664d 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -9,7 +9,9 @@ import (
+ 	"context"
+ 	"fmt"
+ 	"internal/testenv"
++	"reflect"
+ 	"runtime"
++	"sort"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -303,6 +305,25 @@ func TestLookupGoogleHost(t *testing.T) {
+ 	}
+ }
+ 
++func TestLookupLongTXT(t *testing.T) {
++	if testenv.Builder() == "" {
++		testenv.MustHaveExternalNetwork(t)
++	}
++
++	txts, err := LookupTXT("golang.rsc.io")
++	if err != nil {
++		t.Fatal(err)
++	}
++	sort.Strings(txts)
++	want := []string{
++		strings.Repeat("abcdefghijklmnopqrstuvwxyABCDEFGHJIKLMNOPQRSTUVWXY", 10),
++		"gophers rule",
++	}
++	if !reflect.DeepEqual(txts, want) {
++		t.Fatalf("LookupTXT golang.rsc.io incorrect\nhave %q\nwant %q", txts, want)
++	}
++}
++
+ var lookupGoogleIPTests = []struct {
+ 	name string
+ }{
+diff --git a/src/net/lookup_windows.go b/src/net/lookup_windows.go
+index 0036d89d15..ac1f9b431a 100644
+--- a/src/net/lookup_windows.go
++++ b/src/net/lookup_windows.go
+@@ -279,10 +279,11 @@ func (*Resolver) lookupTXT(ctx context.Context, name string) ([]string, error) {
+ 	txts := make([]string, 0, 10)
+ 	for _, p := range validRecs(r, syscall.DNS_TYPE_TEXT, name) {
+ 		d := (*syscall.DNSTXTData)(unsafe.Pointer(&p.Data[0]))
++		s := ""
+ 		for _, v := range (*[1 << 10]*uint16)(unsafe.Pointer(&(d.StringArray[0])))[:d.StringCount] {
+-			s := syscall.UTF16ToString((*[1 << 20]uint16)(unsafe.Pointer(v))[:])
+-			txts = append(txts, s)
++			s += syscall.UTF16ToString((*[1 << 20]uint16)(unsafe.Pointer(v))[:])
+ 		}
++		txts = append(txts, s)
+ 	}
+ 	return txts, nil
+ }

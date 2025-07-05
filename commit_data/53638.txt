@@ -12,8 +12,82 @@ Date:   Thu Aug 25 02:26:08 2022 +0800
     Run-TryBot: hopehook <hopehook@qq.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/netpoll.go      | 6 +++---
  src/runtime/netpoll_stub.go | 2 +-
  src/runtime/proc.go         | 6 +++---
  3 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/netpoll.go b/src/runtime/netpoll.go
+index 8bcdce549b..5ac1f37048 100644
+--- a/src/runtime/netpoll.go
++++ b/src/runtime/netpoll.go
+@@ -181,7 +181,7 @@ var (
+ 	netpollInited   atomic.Uint32
+ 
+ 	pollcache      pollCache
+-	netpollWaiters uint32
++	netpollWaiters atomic.Uint32
+ )
+ 
+ //go:linkname poll_runtime_pollServerInit internal/poll.runtime_pollServerInit
+@@ -483,13 +483,13 @@ func netpollblockcommit(gp *g, gpp unsafe.Pointer) bool {
+ 		// Bump the count of goroutines waiting for the poller.
+ 		// The scheduler uses this to decide whether to block
+ 		// waiting for the poller if there is nothing else to do.
+-		atomic.Xadd(&netpollWaiters, 1)
++		netpollWaiters.Add(1)
+ 	}
+ 	return r
+ }
+ 
+ func netpollgoready(gp *g, traceskip int) {
+-	atomic.Xadd(&netpollWaiters, -1)
++	netpollWaiters.Add(-1)
+ 	goready(gp, traceskip+1)
+ }
+ 
+diff --git a/src/runtime/netpoll_stub.go b/src/runtime/netpoll_stub.go
+index 5860e1db03..14cf0c327f 100644
+--- a/src/runtime/netpoll_stub.go
++++ b/src/runtime/netpoll_stub.go
+@@ -9,7 +9,7 @@ package runtime
+ import "runtime/internal/atomic"
+ 
+ var netpollInited atomic.Uint32
+-var netpollWaiters uint32
++var netpollWaiters atomic.Uint32
+ 
+ var netpollStubLock mutex
+ var netpollNote note
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index d572fa2215..3038b9819d 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2659,7 +2659,7 @@ top:
+ 	// blocked thread (e.g. it has already returned from netpoll, but does
+ 	// not set lastpoll yet), this thread will do blocking netpoll below
+ 	// anyway.
+-	if netpollinited() && atomic.Load(&netpollWaiters) > 0 && sched.lastpoll.Load() != 0 {
++	if netpollinited() && netpollWaiters.Load() > 0 && sched.lastpoll.Load() != 0 {
+ 		if list := netpoll(0); !list.empty() { // non-blocking
+ 			gp := list.pop()
+ 			injectglist(&list)
+@@ -2851,7 +2851,7 @@ top:
+ 	}
+ 
+ 	// Poll network until next timer.
+-	if netpollinited() && (atomic.Load(&netpollWaiters) > 0 || pollUntil != 0) && sched.lastpoll.Swap(0) != 0 {
++	if netpollinited() && (netpollWaiters.Load() > 0 || pollUntil != 0) && sched.lastpoll.Swap(0) != 0 {
+ 		sched.pollUntil.Store(pollUntil)
+ 		if mp.p != 0 {
+ 			throw("findrunnable: netpoll with p")
+@@ -2924,7 +2924,7 @@ func pollWork() bool {
+ 	if !runqempty(p) {
+ 		return true
+ 	}
+-	if netpollinited() && atomic.Load(&netpollWaiters) > 0 && sched.lastpoll.Load() != 0 {
++	if netpollinited() && netpollWaiters.Load() > 0 && sched.lastpoll.Load() != 0 {
+ 		if list := netpoll(0); !list.empty() {
+ 			injectglist(&list)
+ 			return true

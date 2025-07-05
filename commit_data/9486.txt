@@ -12,7 +12,36 @@ Date:   Thu Aug 25 14:00:00 2011 +0400
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/4962041
-
+---
  src/pkg/http/serve_test.go | 4 ++--
  src/pkg/http/server.go     | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/http/serve_test.go b/src/pkg/http/serve_test.go
+index 08925faa0e..17439110f0 100644
+--- a/src/pkg/http/serve_test.go
++++ b/src/pkg/http/serve_test.go
+@@ -891,8 +891,8 @@ func TestRequestLimit(t *testing.T) {
+ 		// we do support it (at least currently), so we expect a response below.
+ 		t.Fatalf("Do: %v", err)
+ 	}
+-	if res.StatusCode != 400 {
+-		t.Fatalf("expected 400 response status; got: %d %s", res.StatusCode, res.Status)
++	if res.StatusCode != 413 {
++		t.Fatalf("expected 413 response status; got: %d %s", res.StatusCode, res.Status)
+ 	}
+ }
+ 
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index a6cb5eeafa..654af378a1 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -572,7 +572,7 @@ func (c *conn) serve() {
+ 				// responding to them and hanging up
+ 				// while they're still writing their
+ 				// request.  Undefined behavior.
+-				msg = "400 Request Too Large"
++				msg = "413 Request Entity Too Large"
+ 			} else if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
+ 				break // Don't reply
+ 			}

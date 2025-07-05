@@ -15,7 +15,7 @@ Date:   Mon Feb 28 13:41:33 2022 -0500
     Run-TryBot: Michael Pratt <mpratt@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/syscall/syscall_aix.go       | 5 +++++
  src/syscall/syscall_darwin.go    | 5 +++++
  src/syscall/syscall_dragonfly.go | 5 +++++
@@ -26,3 +26,168 @@ Date:   Mon Feb 28 13:41:33 2022 -0500
  src/syscall/syscall_solaris.go   | 5 +++++
  src/syscall/syscall_unix.go      | 5 -----
  9 files changed, 42 insertions(+), 9 deletions(-)
+
+diff --git a/src/syscall/syscall_aix.go b/src/syscall/syscall_aix.go
+index a2f8c78438..693424165e 100644
+--- a/src/syscall/syscall_aix.go
++++ b/src/syscall/syscall_aix.go
+@@ -15,6 +15,11 @@ import (
+ 	"unsafe"
+ )
+ 
++func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
++func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
++func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
++func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
++
+ // Implemented in runtime/syscall_aix.go.
+ func rawSyscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+ func syscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+diff --git a/src/syscall/syscall_darwin.go b/src/syscall/syscall_darwin.go
+index 2e5387a6d9..663bd98c10 100644
+--- a/src/syscall/syscall_darwin.go
++++ b/src/syscall/syscall_darwin.go
+@@ -17,6 +17,11 @@ import (
+ 	"unsafe"
+ )
+ 
++func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
++func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
++func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
++func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
++
+ var dupTrampoline = abi.FuncPCABI0(libc_dup2_trampoline)
+ 
+ type SockaddrDatalink struct {
+diff --git a/src/syscall/syscall_dragonfly.go b/src/syscall/syscall_dragonfly.go
+index d8edca9961..3628895ef9 100644
+--- a/src/syscall/syscall_dragonfly.go
++++ b/src/syscall/syscall_dragonfly.go
+@@ -17,6 +17,11 @@ import (
+ 	"unsafe"
+ )
+ 
++func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
++func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
++func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
++func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
++
+ const _SYS_DUP3 = 0
+ 
+ // See version list in https://github.com/DragonFlyBSD/DragonFlyBSD/blob/master/sys/sys/param.h
+diff --git a/src/syscall/syscall_freebsd.go b/src/syscall/syscall_freebsd.go
+index 8494b21e5b..0637215f89 100644
+--- a/src/syscall/syscall_freebsd.go
++++ b/src/syscall/syscall_freebsd.go
+@@ -17,6 +17,11 @@ import (
+ 	"unsafe"
+ )
+ 
++func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
++func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
++func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
++func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
++
+ const (
+ 	_SYS_FSTAT_FREEBSD12         = 551 // { int fstat(int fd, _Out_ struct stat *sb); }
+ 	_SYS_FSTATAT_FREEBSD12       = 552 // { int fstatat(int fd, _In_z_ char *path, _Out_ struct stat *buf, int flag); }
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index 74322caea1..a10bfbb0c9 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -16,6 +16,11 @@ import (
+ 	"unsafe"
+ )
+ 
++func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
++func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
++func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
++func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
++
+ func rawSyscallNoError(trap, a1, a2, a3 uintptr) (r1, r2 uintptr)
+ 
+ /*
+diff --git a/src/syscall/syscall_netbsd.go b/src/syscall/syscall_netbsd.go
+index 9ccb66c083..07afa072fc 100644
+--- a/src/syscall/syscall_netbsd.go
++++ b/src/syscall/syscall_netbsd.go
+@@ -14,6 +14,12 @@ package syscall
+ 
+ import "unsafe"
+ 
++func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
++func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
++func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
++func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
++func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
++
+ const _SYS_DUP3 = SYS_DUP3
+ 
+ type SockaddrDatalink struct {
+@@ -28,8 +34,6 @@ type SockaddrDatalink struct {
+ 	raw    RawSockaddrDatalink
+ }
+ 
+-func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
+-
+ func sysctlNodes(mib []_C_int) (nodes []Sysctlnode, err error) {
+ 	var olen uintptr
+ 
+diff --git a/src/syscall/syscall_openbsd.go b/src/syscall/syscall_openbsd.go
+index 1d82351084..19cf1f4985 100644
+--- a/src/syscall/syscall_openbsd.go
++++ b/src/syscall/syscall_openbsd.go
+@@ -14,6 +14,12 @@ package syscall
+ 
+ import "unsafe"
+ 
++func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
++func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
++func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
++func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
++func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
++
+ type SockaddrDatalink struct {
+ 	Len    uint8
+ 	Family uint8
+@@ -26,8 +32,6 @@ type SockaddrDatalink struct {
+ 	raw    RawSockaddrDatalink
+ }
+ 
+-func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
+-
+ func nametomib(name string) (mib []_C_int, err error) {
+ 	// Perform lookup via a binary search
+ 	left := 0
+diff --git a/src/syscall/syscall_solaris.go b/src/syscall/syscall_solaris.go
+index 37ce5c9e3c..e591ae6671 100644
+--- a/src/syscall/syscall_solaris.go
++++ b/src/syscall/syscall_solaris.go
+@@ -14,6 +14,11 @@ package syscall
+ 
+ import "unsafe"
+ 
++func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
++func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
++func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
++func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
++
+ const _F_DUP2FD_CLOEXEC = F_DUP2FD_CLOEXEC
+ 
+ // Implemented in asm_solaris_amd64.s.
+diff --git a/src/syscall/syscall_unix.go b/src/syscall/syscall_unix.go
+index e12f024fe7..cf0e238e2f 100644
+--- a/src/syscall/syscall_unix.go
++++ b/src/syscall/syscall_unix.go
+@@ -28,11 +28,6 @@ const (
+ 	netbsd32Bit = runtime.GOOS == "netbsd" && sizeofPtr == 4
+ )
+ 
+-func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+-func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+-func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+-func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+-
+ // clen returns the index of the first NULL byte in n or len(n) if n contains no NULL byte.
+ func clen(n []byte) int {
+ 	if i := bytealg.IndexByte(n, 0); i != -1 {

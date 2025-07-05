@@ -13,6 +13,40 @@ Date:   Tue Sep 15 10:59:27 2015 -0700
     Change-Id: I72c2da79d8eb240e1a37aa6140454c552b05e0f1
     Reviewed-on: https://go-review.googlesource.com/14595
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/obj/util.go | 18 +++++++++++++++---
  1 file changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index f03eb6943f..73d33666e2 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -457,13 +457,25 @@ func Mconv(a *Addr) string {
+ 		}
+ 
+ 	case NAME_EXTERN:
+-		str = fmt.Sprintf("%s%s(SB)", a.Sym.Name, offConv(a.Offset))
++		if a.Sym != nil {
++			str = fmt.Sprintf("%s%s(SB)", a.Sym.Name, offConv(a.Offset))
++		} else {
++			str = fmt.Sprintf("%s(SB)", offConv(a.Offset))
++		}
+ 
+ 	case NAME_GOTREF:
+-		str = fmt.Sprintf("%s%s@GOT(SB)", a.Sym.Name, offConv(a.Offset))
++		if a.Sym != nil {
++			str = fmt.Sprintf("%s%s@GOT(SB)", a.Sym.Name, offConv(a.Offset))
++		} else {
++			str = fmt.Sprintf("%s@GOT(SB)", offConv(a.Offset))
++		}
+ 
+ 	case NAME_STATIC:
+-		str = fmt.Sprintf("%s<>%s(SB)", a.Sym.Name, offConv(a.Offset))
++		if a.Sym != nil {
++			str = fmt.Sprintf("%s<>%s(SB)", a.Sym.Name, offConv(a.Offset))
++		} else {
++			str = fmt.Sprintf("<>%s(SB)", offConv(a.Offset))
++		}
+ 
+ 	case NAME_AUTO:
+ 		if a.Sym != nil {

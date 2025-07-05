@@ -13,6 +13,22 @@ Date:   Fri Feb 14 11:36:52 2014 -0800
     R=iant
     CC=golang-codereviews
     https://golang.org/cl/57210046
-
+---
  src/cmd/go/build.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 5ffb9d9f3e..824351b7e6 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -2068,10 +2068,6 @@ var (
+ )
+ 
+ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles, gxxfiles, mfiles []string) (outGo, outObj []string, err error) {
+-	if goos != toolGOOS {
+-		return nil, nil, errors.New("cannot use cgo when compiling for a different operating system")
+-	}
+-
+ 	cgoCPPFLAGS := stringList(envList("CGO_CPPFLAGS"), p.CgoCPPFLAGS)
+ 	cgoCFLAGS := stringList(envList("CGO_CFLAGS"), p.CgoCFLAGS)
+ 	cgoCXXFLAGS := stringList(envList("CGO_CXXFLAGS"), p.CgoCXXFLAGS)

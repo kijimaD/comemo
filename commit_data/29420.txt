@@ -15,6 +15,41 @@ Date:   Wed Sep 14 18:03:26 2016 +0000
     Change-Id: Ibb2c7272c18b9014a775949c656a5b930f197cd4
     Reviewed-on: https://go-review.googlesource.com/29158
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/bytes/bytes_test.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/bytes/bytes_test.go b/src/bytes/bytes_test.go
+index e9a022b91a..a4c701c8e8 100644
+--- a/src/bytes/bytes_test.go
++++ b/src/bytes/bytes_test.go
+@@ -7,8 +7,10 @@ package bytes_test
+ import (
+ 	. "bytes"
+ 	"fmt"
++	"internal/testenv"
+ 	"math/rand"
+ 	"reflect"
++	"strings"
+ 	"testing"
+ 	"unicode"
+ 	"unicode/utf8"
+@@ -384,6 +386,9 @@ func valName(x int) string {
+ 
+ func benchBytes(b *testing.B, sizes []int, f func(b *testing.B, n int)) {
+ 	for _, n := range sizes {
++		if isRaceBuilder && n > 4<<10 {
++			continue
++		}
+ 		b.Run(valName(n), func(b *testing.B) {
+ 			if len(bmbuf) < n {
+ 				bmbuf = make([]byte, n)
+@@ -396,6 +401,8 @@ func benchBytes(b *testing.B, sizes []int, f func(b *testing.B, n int)) {
+ 
+ var indexSizes = []int{10, 32, 4 << 10, 4 << 20, 64 << 20}
+ 
++var isRaceBuilder = strings.HasSuffix(testenv.Builder(), "-race")
++
+ func BenchmarkIndexByte(b *testing.B) {
+ 	benchBytes(b, indexSizes, bmIndexByte(IndexByte))
+ }

@@ -19,10 +19,183 @@ Date:   Thu Apr 23 21:53:48 2015 +1200
     Reviewed-on: https://go-review.googlesource.com/9273
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/8l/asm.go                |  3 +--
  src/cmd/internal/ld/data.go      | 17 +++++++--------
  src/cmd/internal/obj/link.go     | 15 +++++++++++++
  src/cmd/internal/obj/x86/asm6.go |  2 +-
  src/cmd/internal/obj/x86/obj6.go | 46 +++++++++++++++++++++++-----------------
  5 files changed, 51 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/8l/asm.go b/src/cmd/8l/asm.go
+index 3e8f1afadc..e7966f3ac3 100644
+--- a/src/cmd/8l/asm.go
++++ b/src/cmd/8l/asm.go
+@@ -269,8 +269,7 @@ func elfreloc1(r *ld.Reloc, sectoff int64) int {
+ 			return -1
+ 		}
+ 
+-	case obj.R_TLS_LE,
+-		obj.R_TLS_IE:
++	case obj.R_TLS_LE:
+ 		if r.Siz == 4 {
+ 			ld.Thearch.Lput(ld.R_386_TLS_LE | uint32(elfsym)<<8)
+ 		} else {
+diff --git a/src/cmd/internal/ld/data.go b/src/cmd/internal/ld/data.go
+index 5a0ac9e7df..07f26200c8 100644
+--- a/src/cmd/internal/ld/data.go
++++ b/src/cmd/internal/ld/data.go
+@@ -412,7 +412,13 @@ func relocsym(s *LSym) {
+ 				break
+ 			}
+ 
+-			o = int64(Ctxt.Tlsoffset) + r.Add
++			if Iself || Ctxt.Headtype == obj.Hplan9 {
++				o = int64(Ctxt.Tlsoffset) + r.Add
++			} else if Ctxt.Headtype == obj.Hwindows {
++				o = r.Add
++			} else {
++				log.Fatalf("unexpected R_TLS_LE relocation for %s", Headstr(Ctxt.Headtype))
++			}
+ 
+ 		case obj.R_TLS_IE:
+ 			if Linkmode == LinkExternal && Iself && HEADTYPE != obj.Hopenbsd {
+@@ -426,14 +432,7 @@ func relocsym(s *LSym) {
+ 				}
+ 				break
+ 			}
+-
+-			if Iself || Ctxt.Headtype == obj.Hplan9 {
+-				o = int64(Ctxt.Tlsoffset) + r.Add
+-			} else if Ctxt.Headtype == obj.Hwindows {
+-				o = r.Add
+-			} else {
+-				log.Fatalf("unexpected R_TLS_IE relocation for %s", Headstr(Ctxt.Headtype))
+-			}
++			log.Fatalf("cannot handle R_TLS_IE when linking internally")
+ 
+ 		case obj.R_ADDR:
+ 			if Linkmode == LinkExternal && r.Sym.Type != obj.SCONST {
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 39f8941779..a0add7bf1f 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -380,8 +380,23 @@ const (
+ 	R_CALLPOWER
+ 	R_CONST
+ 	R_PCREL
++	// R_TLS (only used on arm currently, and not on android and darwin where tlsg is
++	// a regular variable) resolves to data needed to access the thread-local g. It is
++	// interpreted differently depending on toolchain flags to implement either the
++	// "local exec" or "inital exec" model for tls access.
++	// TODO(mwhudson): change to use R_TLS_LE or R_TLS_IE as appropriate, not having
++	// R_TLS do double duty.
+ 	R_TLS
++	// R_TLS_LE (only used on 386 and amd64 currently) resolves to the offset of the
++	// thread-local g from the thread local base and is used to implement the "local
++	// exec" model for tls access (r.Sym is not set by the compiler for this case but
++	// is set to Tlsg in the linker when externally linking).
+ 	R_TLS_LE
++	// R_TLS_IE (only used on 386 and amd64 currently) resolves to the PC-relative
++	// offset to a GOT slot containing the offset the thread-local g from the thread
++	// local base and is used to implemented the "initial exec" model for tls access
++	// (r.Sym is not set by the compiler for this case but is set to Tlsg in the
++	// linker when externally linking).
+ 	R_TLS_IE
+ 	R_GOTOFF
+ 	R_PLT0
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 480e2ddce6..0c0cc04548 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -2627,7 +2627,7 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
+ 	if REG_AX <= base && base <= REG_R15 {
+ 		if a.Index == REG_TLS && ctxt.Flag_shared == 0 {
+ 			rel = obj.Reloc{}
+-			rel.Type = obj.R_TLS_IE
++			rel.Type = obj.R_TLS_LE
+ 			rel.Siz = 4
+ 			rel.Sym = nil
+ 			rel.Add = int64(v)
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index e70bdca9df..549738bae1 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -38,7 +38,7 @@ import (
+ 	"math"
+ )
+ 
+-func canuselocaltls(ctxt *obj.Link) bool {
++func canuse1insntls(ctxt *obj.Link) bool {
+ 	if ctxt.Arch.Regsize == 4 {
+ 		switch ctxt.Headtype {
+ 		case obj.Hlinux,
+@@ -92,29 +92,36 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 	// if the linker needs to adjust the offset, it can. For example:
+ 	//
+ 	//         MOVQ TLS, AX
+-	//         MOVQ 8(AX)(TLS*1), CX // load m into CX
++	//         MOVQ 0(AX)(TLS*1), CX // load g into CX
+ 	//
+ 	// On systems that support direct access to the TLS memory, this
+ 	// pair of instructions can be reduced to a direct TLS memory reference:
+ 	//
+-	//         MOVQ 8(TLS), CX // load m into CX
++	//         MOVQ 0(TLS), CX // load g into CX
+ 	//
+-	// The 2-instruction and 1-instruction forms correspond roughly to
+-	// ELF TLS initial exec mode and ELF TLS local exec mode, respectively.
++	// The 2-instruction and 1-instruction forms correspond to the two code
++	// sequences for loading a TLS variable in the local exec model given in "ELF
++	// Handling For Thread-Local Storage".
+ 	//
+-	// We applies this rewrite on systems that support the 1-instruction form.
+-	// The decision is made using only the operating system (and probably
+-	// the -shared flag, eventually), not the link mode. If some link modes
+-	// on a particular operating system require the 2-instruction form,
+-	// then all builds for that operating system will use the 2-instruction
+-	// form, so that the link mode decision can be delayed to link time.
++	// We apply this rewrite on systems that support the 1-instruction form.
++	// The decision is made using only the operating system and the -shared flag,
++	// not the link mode. If some link modes on a particular operating system
++	// require the 2-instruction form, then all builds for that operating system
++	// will use the 2-instruction form, so that the link mode decision can be
++	// delayed to link time.
+ 	//
+ 	// In this way, all supported systems use identical instructions to
+ 	// access TLS, and they are rewritten appropriately first here in
+ 	// liblink and then finally using relocations in the linker.
+-
+-	if canuselocaltls(ctxt) {
+-		// Reduce TLS initial exec model to TLS local exec model.
++	//
++	// When -shared is passed, we leave the code in the 2-instruction form but
++	// assemble (and relocate) them in different ways to generate the initial
++	// exec code sequence. It's a bit of a fluke that this is possible without
++	// rewriting the instructions more comprehensively, and it only does because
++	// we only support a single TLS variable (g).
++
++	if canuse1insntls(ctxt) {
++		// Reduce 2-instruction sequence to 1-instruction sequence.
+ 		// Sequences like
+ 		//	MOVQ TLS, BX
+ 		//	... off(BX)(TLS*1) ...
+@@ -140,13 +147,12 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 			p.To.Index = REG_NONE
+ 		}
+ 	} else {
+-		// As a courtesy to the C compilers, rewrite TLS local exec load as TLS initial exec load.
+-		// The instruction
+-		//	MOVQ off(TLS), BX
+-		// becomes the sequence
++		// load_g_cx, below, always inserts the 1-instruction sequence. Rewrite it
++		// as the 2-instruction sequence if necessary.
++		//	MOVQ 0(TLS), BX
++		// becomes
+ 		//	MOVQ TLS, BX
+-		//	MOVQ off(BX)(TLS*1), BX
+-		// This allows the C compilers to emit references to m and g using the direct off(TLS) form.
++		//	MOVQ 0(BX)(TLS*1), BX
+ 		if (p.As == AMOVQ || p.As == AMOVL) && p.From.Type == obj.TYPE_MEM && p.From.Reg == REG_TLS && p.To.Type == obj.TYPE_REG && REG_AX <= p.To.Reg && p.To.Reg <= REG_R15 {
+ 			q := obj.Appendp(ctxt, p)
+ 			q.As = p.As

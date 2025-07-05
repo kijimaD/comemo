@@ -9,7 +9,7 @@ Date:   Thu Sep 17 15:20:15 2009 -0700
     DELTA=471  (364 added, 47 deleted, 60 changed)
     OCL=34747
     CL=34751
-
+---
  src/pkg/go/printer/printer.go                   | 151 +++++++++++-----------
  src/pkg/go/printer/testdata/comments.golden     |  16 +--
  src/pkg/go/printer/testdata/comments.x          |   6 +-
@@ -18,3 +18,715 @@ Date:   Thu Sep 17 15:20:15 2009 -0700
  src/pkg/go/printer/testdata/expressions.golden  |  10 +-
  src/pkg/go/printer/testdata/linebreaks.golden   |   4 +-
  7 files changed, 411 insertions(+), 94 deletions(-)
+
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 5ee428ca1c..c34b21e527 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -571,84 +571,70 @@ func (p *printer) signature(params, result []*ast.Field) (optSemi bool) {
+ }
+ 
+ 
+-func incompleteMsg(isInterface bool) string {
+-	if isInterface {
+-		return "// contains unexported methods";
++func separator(useTab bool) whiteSpace {
++	if useTab {
++		return tab;
+ 	}
+-	return "// contains unexported fields";
++	return blank;
+ }
+ 
+ 
+-func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace token.Position, isIncomplete, isInterface bool) {
+-	if len(list) == 0 {
+-		if isIncomplete {
+-			// all entries were stripped
+-			p.print(blank, lbrace, token.LBRACE, +1, newline, incompleteMsg(isInterface), -1, newline, rbrace, token.RBRACE);
+-		} else {
+-			// no blank between keyword and {} in this case
+-			p.print(lbrace, token.LBRACE, rbrace, token.RBRACE);
+-		}
++func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace token.Position, isIncomplete, isStruct bool) {
++	if len(list) == 0 && !isIncomplete {
++		// no blank between keyword and {} in this case
++		// TODO(gri): This will not look nice if there are comments inside the {}'s.
++		p.print(lbrace, token.LBRACE, rbrace, token.RBRACE);
+ 		return;
+ 	}
+ 
+-	p.print(blank, lbrace, token.LBRACE, +1, newline);
+-
+-	var lastWasAnon bool;  // true if the last line was an anonymous field
+-	var lastComment *ast.CommentGroup;  // the comment from the last line
+-	for i, f := range list {
+-		// at least one visible identifier or anonymous field
+-		isAnon := len(f.Names) == 0;
+-		if i > 0 {
++	// at least one entry or incomplete
++	p.print(blank, lbrace, token.LBRACE, +1, formfeed);
++	if isStruct {
++		sep := separator(len(list) > 1);
++		for i, f := range list {
++			p.leadComment(f.Doc);
++			if len(f.Names) > 0 {
++				p.identList(f.Names);
++				p.print(sep);
++			}
++			p.expr(f.Type);
++			if f.Tag != nil {
++				p.print(sep);
++				p.expr(&ast.StringList{f.Tag});
++			}
+ 			p.print(token.SEMICOLON);
+-			p.lineComment(lastComment);
+-			if lastWasAnon == isAnon {
+-				// last and current line have same structure;
+-				// continue with existing columns
++			p.lineComment(f.Comment);
++			if i+1 < len(list) || isIncomplete {
+ 				p.print(newline);
+-			} else {
+-				// last and current line have different structure;
+-				// flush tabwriter and start new columns (the "type
+-				// column" on a line with named fields may line up
+-				// with the "line comment column" on a line with
+-				// an anonymous field, leading to bad alignment)
+-				p.print(formfeed);
+ 			}
+ 		}
+-
+-		p.leadComment(f.Doc);
+-		if !isAnon {
+-			p.identList(f.Names);
+-			p.print(tab);
++		if isIncomplete {
++			p.print("// contains unexported fields");
+ 		}
+-
+-		if isInterface {
++	} else { // interface
++		for i, f := range list {
++			p.leadComment(f.Doc);
++			p.identList(f.Names);
++			if len(f.Names) > 1 {
++				p.print(blank);
++			}
+ 			if ftyp, isFtyp := f.Type.(*ast.FuncType); isFtyp {
+-				// methods
++				// method(s)
+ 				p.signature(ftyp.Params, ftyp.Results);
+ 			} else {
+ 				// embedded interface
+ 				p.expr(f.Type);
+ 			}
+-		} else {
+-			p.expr(f.Type);
+-			if f.Tag != nil {
+-				p.print(tab);
+-				p.expr(&ast.StringList{f.Tag});
++			p.print(token.SEMICOLON);
++			p.lineComment(f.Comment);
++			if i+1 < len(list) || isIncomplete {
++				p.print(newline);
+ 			}
+ 		}
+-
+-		lastWasAnon = isAnon;
+-		lastComment = f.Comment;
+-	}
+-
+-	p.print(token.SEMICOLON);
+-	p.lineComment(lastComment);
+-
+-	if isIncomplete {
+-		// at least one entry printed, but some entries were stripped
+-		p.print(newline, incompleteMsg(isInterface));
++		if isIncomplete {
++			p.print("// contains unexported methods");
++		}
+ 	}
+-
+ 	p.print(-1, formfeed, rbrace, token.RBRACE);
+ }
+ 
+@@ -839,7 +825,7 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
+ 
+ 	case *ast.StructType:
+ 		p.print(token.STRUCT);
+-		p.fieldList(x.Lbrace, x.Fields, x.Rbrace, x.Incomplete, false);
++		p.fieldList(x.Lbrace, x.Fields, x.Rbrace, x.Incomplete, true);
+ 		optSemi = true;
+ 
+ 	case *ast.FuncType:
+@@ -848,7 +834,7 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
+ 
+ 	case *ast.InterfaceType:
+ 		p.print(token.INTERFACE);
+-		p.fieldList(x.Lbrace, x.Methods, x.Rbrace, x.Incomplete, true);
++		p.fieldList(x.Lbrace, x.Methods, x.Rbrace, x.Incomplete, false);
+ 		optSemi = true;
+ 
+ 	case *ast.MapType:
+@@ -1134,22 +1120,21 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
+ // ImportSpec:
+ //   m = number of imports with a rename
+ //
++// ValueSpec:
++//   m = number of values with a type
++//
+ func (p *printer) spec(spec ast.Spec, m, n int) (comment *ast.CommentGroup, optSemi bool) {
++	sep := separator(n > 1);
++
+ 	switch s := spec.(type) {
+ 	case *ast.ImportSpec:
+ 		p.leadComment(s.Doc);
+ 		if m > 0 {
+-			// we may have a rename
++			// at least one entry with a rename
+ 			if s.Name != nil {
+ 				p.expr(s.Name);
+ 			}
+-			if m > 1 {
+-				// more than one rename - align with tab
+-				p.print(tab);
+-			} else {
+-				// only one rename - no need for alignment with tab
+-				p.print(blank);
+-			}
++			p.print(sep);
+ 		}
+ 		p.expr(&ast.StringList{s.Path});
+ 		comment = s.Comment;
+@@ -1157,12 +1142,17 @@ func (p *printer) spec(spec ast.Spec, m, n int) (comment *ast.CommentGroup, optS
+ 	case *ast.ValueSpec:
+ 		p.leadComment(s.Doc);
+ 		p.identList(s.Names);
+-		if s.Type != nil {
+-			p.print(blank);  // TODO switch to tab? (indent problem with structs)
+-			optSemi = p.expr(s.Type);
++		if m > 0 {
++			// at least one entry with a type
++			if s.Type != nil {
++				p.print(sep);
++				optSemi = p.expr(s.Type);
++			} else if s.Values != nil {
++				p.print(sep);
++			}
+ 		}
+ 		if s.Values != nil {
+-			p.print(tab, token.ASSIGN);
++			p.print(sep, token.ASSIGN);
+ 			p.exprList(s.Values, blankStart | commaSep);
+ 			optSemi = false;
+ 		}
+@@ -1171,7 +1161,7 @@ func (p *printer) spec(spec ast.Spec, m, n int) (comment *ast.CommentGroup, optS
+ 	case *ast.TypeSpec:
+ 		p.leadComment(s.Doc);
+ 		p.expr(s.Name);
+-		p.print(blank);  // TODO switch to tab? (but indent problem with structs)
++		p.print(sep);
+ 		optSemi = p.expr(s.Type);
+ 		comment = s.Comment;
+ 
+@@ -1193,6 +1183,16 @@ func countImportRenames(list []ast.Spec) (n int) {
+ }
+ 
+ 
++func countValueTypes(list []ast.Spec) (n int) {
++	for _, s := range list {
++		if s.(*ast.ValueSpec).Type != nil {
++			n++;
++		}
++	}
++	return;
++}
++
++
+ // Returns true if a separating semicolon is optional.
+ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool) {
+ 	switch d := decl.(type) {
+@@ -1205,8 +1205,11 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool)
+ 
+ 		// determine layout constant m
+ 		var m int;
+-		if d.Tok == token.IMPORT {
++		switch d.Tok {
++		case token.IMPORT:
+ 			m = countImportRenames(d.Specs);
++		case token.CONST, token.VAR:
++			m = countValueTypes(d.Specs);
+ 		}
+ 
+ 		if d.Lparen.IsValid() {
+@@ -1220,7 +1223,7 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool)
+ 						p.lineComment(comment);
+ 						p.print(newline);
+ 					}
+-					comment, optSemi = p.spec(s, m, len(d.Specs));
++					comment, _ = p.spec(s, m, len(d.Specs));
+ 				}
+ 				p.print(token.SEMICOLON);
+ 				p.lineComment(comment);
+diff --git a/src/pkg/go/printer/testdata/comments.golden b/src/pkg/go/printer/testdata/comments.golden
+index af11771afa..2d37c5d265 100644
+--- a/src/pkg/go/printer/testdata/comments.golden
++++ b/src/pkg/go/printer/testdata/comments.golden
+@@ -8,7 +8,7 @@ package main
+ 
+ import "fmt"	// fmt
+ 
+-const c0	= 0	// zero
++const c0 = 0	// zero
+ const (
+ 	c1	= iota;	// c1
+ 	c2;	// c2
+@@ -42,20 +42,20 @@ type SZ interface{}
+ 
+ // The I0 interface; no method is exported.
+ type I0 interface {
+-	f, g	(x int) int;	// 2 unexported methods
++	f, g (x int) int;	// 2 unexported methods
+ }
+ 
+ // The I1 interface; some methods are not exported.
+ type I1 interface {
+ 	I0;
+-	F, G	(x float) float;	// 2 exported methods
+-	H, g	(x int) int;		// 1 unexported method
++	F, G (x float) float;	// 2 exported methods
++	H, g (x int) int;		// 1 unexported method
+ }
+ 
+ // The I2 interface; all methods are exported.
+ type I1 interface {
+ 	I0;
+-	F, G	(x float) float;	// 2 exported methods
++	F, G (x float) float;	// 2 exported methods
+ }
+ 
+ // This comment group should be separated
+@@ -70,11 +70,11 @@ var ()
+ 
+ // This comment SHOULD be associated with the next declaration.
+ func f0() {
+-	const pi		= 3.14;					// pi
+-	var s1 struct{}	/* an empty struct */	/* foo */
++	const pi = 3.14;	// pi
++	var s1 struct{}		/* an empty struct */	/* foo */
+ 	// a struct constructor
+ 	// --------------------
+-	var s2 struct{}	= struct{}{};
++	var s2 struct{} = struct{}{};
+ 	x := pi;
+ }
+ //
+diff --git a/src/pkg/go/printer/testdata/comments.x b/src/pkg/go/printer/testdata/comments.x
+index d8aa0fceeb..98c57a40ce 100644
+--- a/src/pkg/go/printer/testdata/comments.x
++++ b/src/pkg/go/printer/testdata/comments.x
+@@ -35,13 +35,13 @@ type I0 interface {
+ // The I1 interface; some methods are not exported.
+ type I1 interface {
+ 	I0;
+-	F, G	(x float) float;
+-	H		(x int) int;
++	F, G (x float) float;
++	H(x int) int;
+ 	// contains unexported methods
+ }
+ 
+ // The I2 interface; all methods are exported.
+ type I1 interface {
+ 	I0;
+-	F, G	(x float) float;
++	F, G (x float) float;
+ }
+diff --git a/src/pkg/go/printer/testdata/declarations.go b/src/pkg/go/printer/testdata/declarations.go
+index 3865a4319a..4ad78fe0eb 100644
+--- a/src/pkg/go/printer/testdata/declarations.go
++++ b/src/pkg/go/printer/testdata/declarations.go
+@@ -25,6 +25,7 @@ import (
+ 	c "i" "o";
+ )
+ 
++
+ func _() {
+ 	// the following decls need a semicolon at the end
+ 	type _ int;
+@@ -71,4 +72,161 @@ func _() {
+ 	var _ func() interface{}
+ }
+ 
+-// TODO(gri) add more test cases
++
++// no tabs for single or ungrouped decls
++func _() {
++	const xxxxxx = 0;
++	type x int;
++	var xxx int;
++	var yyyy float = 3.14;
++	var zzzzz = "bar";
++
++	const (
++		xxxxxx = 0;
++	)
++	type (
++		x int;
++	)
++	var (
++		xxx int;
++	)
++	var (
++		yyyy float = 3.14;
++	)
++	var (
++		zzzzz = "bar";
++	)
++}
++
++// tabs for multiple or grouped decls
++func _() {
++	// no entry has a type
++	const (
++		zzzzzz = 1;
++		z = 2;
++		zzz = 3;
++	)
++	// some entries have a type
++	const (
++		xxxxxx = 1;
++		x = 2;
++		xxx = 3;
++		yyyyyyyy float = iota;
++		yyyy = "bar";
++		yyy;
++		yy = 2;
++	)
++}
++
++func _() {
++	// no entry has a type
++	var (
++		zzzzzz = 1;
++		z = 2;
++		zzz = 3;
++	)
++	// some entries have a type
++	var (
++		xxxxxx int;
++		x float;
++		xxx string;
++		yyyyyyyy int = 1234;
++		y float = 3.14;
++		yyyy = "bar";
++		yyy string = "foo";
++	)
++}
++
++func _() {
++	type (
++		xxxxxx int;
++		x float;
++		xxx string;
++		xxxxx []x;
++		xx struct{};
++		xxxxxxx struct {
++			_, _ int;
++			_ float;
++		};
++		xxxx chan<- string;
++	)
++}
++
++
++// formatting of structs
++type ES struct{}
++
++type _ struct {  // this comment must not change indentation
++	f int;
++	f, ff, fff, ffff int;
++}
++
++type _ struct {
++	string;
++}
++
++type _ struct {
++	string;  // comment
++}
++
++type _ struct {
++	string "tag"
++}
++
++type _ struct {
++	string "tag"  // comment
++}
++
++type _ struct {
++	f int;
++}
++
++type _ struct {
++	f int;  // comment
++}
++
++type _ struct {
++	f int "tag";
++}
++
++type _ struct {
++	f int "tag";  // comment
++}
++
++type _ struct {
++	bool;
++	a, b, c int;
++	int "tag";
++	ES; // comment
++	float "tag";  // comment
++	f int;  // comment
++	f, ff, fff, ffff int;  // comment
++	g float "tag";
++	h float "tag";  // comment
++}
++
++
++// formatting of interfaces
++type EI interface{}
++
++type _ interface {
++	EI;
++}
++
++type _ interface {
++	f();
++	fffff, g ();
++}
++
++type _ interface {
++	EI;
++	f();
++	fffff, g ();
++}
++
++type _ interface {  // this comment must not change indentation
++	EI;  // here's a comment
++	f();  // no blank between f and ()
++	fffff, g ();  // blank between identifiers and ()
++	gggggggggggg, hhhhhhhhhhhhhh (x, y, z int) ();  // hurray
++}
+diff --git a/src/pkg/go/printer/testdata/declarations.golden b/src/pkg/go/printer/testdata/declarations.golden
+index 131841c943..8da17307f4 100644
+--- a/src/pkg/go/printer/testdata/declarations.golden
++++ b/src/pkg/go/printer/testdata/declarations.golden
+@@ -67,4 +67,160 @@ func _() {
+ 	var _ func() interface{}
+ }
+ 
+-// TODO(gri) add more test cases
++
++// no tabs for single or ungrouped decls
++func _() {
++	const xxxxxx = 0;
++	type x int;
++	var xxx int;
++	var yyyy float = 3.14;
++	var zzzzz = "bar";
++	const (
++		xxxxxx = 0;
++	)
++	type (
++		x int;
++	)
++	var (
++		xxx int;
++	)
++	var (
++		yyyy float = 3.14;
++	)
++	var (
++		zzzzz = "bar";
++	)
++}
++
++// tabs for multiple or grouped decls
++func _() {
++	// no entry has a type
++	const (
++		zzzzzz	= 1;
++		z		= 2;
++		zzz		= 3;
++	)
++	// some entries have a type
++	const (
++		xxxxxx				= 1;
++		x					= 2;
++		xxx					= 3;
++		yyyyyyyy	float	= iota;
++		yyyy				= "bar";
++		yyy;
++		yy		= 2;
++	)
++}
++
++func _() {
++	// no entry has a type
++	var (
++		zzzzzz	= 1;
++		z		= 2;
++		zzz		= 3;
++	)
++	// some entries have a type
++	var (
++		xxxxxx		int;
++		x			float;
++		xxx			string;
++		yyyyyyyy	int		= 1234;
++		y			float	= 3.14;
++		yyyy				= "bar";
++		yyy			string	= "foo";
++	)
++}
++
++func _() {
++	type (
++		xxxxxx	int;
++		x		float;
++		xxx		string;
++		xxxxx	[]x;
++		xx		struct{};
++		xxxxxxx	struct {
++			_, _	int;
++			_		float;
++		};
++		xxxx	chan<- string;
++	)
++}
++
++
++// formatting of structs
++type ES struct{}
++
++type _ struct {	// this comment must not change indentation
++	f					int;
++	f, ff, fff, ffff	int;
++}
++
++type _ struct {
++	string;
++}
++
++type _ struct {
++	string;	// comment
++}
++
++type _ struct {
++	string "tag";
++}
++
++type _ struct {
++	string "tag";	// comment
++}
++
++type _ struct {
++	f int;
++}
++
++type _ struct {
++	f int;	// comment
++}
++
++type _ struct {
++	f int "tag";
++}
++
++type _ struct {
++	f int "tag";	// comment
++}
++
++type _ struct {
++	bool;
++	a, b, c				int;
++	int					"tag";
++	ES;					// comment
++	float				"tag";	// comment
++	f					int;	// comment
++	f, ff, fff, ffff	int;	// comment
++	g					float	"tag";
++	h					float	"tag";	// comment
++}
++
++
++// formatting of interfaces
++type EI interface{}
++
++type _ interface {
++	EI;
++}
++
++type _ interface {
++	f();
++	fffff, g ();
++}
++
++type _ interface {
++	EI;
++	f();
++	fffff, g ();
++}
++
++type _ interface {	// this comment must not change indentation
++	EI;											// here's a comment
++	f();										// no blank between f and ()
++	fffff, g ();								// blank between identifiers and ()
++	gggggggggggg, hhhhhhhhhhhhhh (x, y, z int);	// hurray
++}
+diff --git a/src/pkg/go/printer/testdata/expressions.golden b/src/pkg/go/printer/testdata/expressions.golden
+index f63eb5e379..a8b9928c96 100644
+--- a/src/pkg/go/printer/testdata/expressions.golden
++++ b/src/pkg/go/printer/testdata/expressions.golden
+@@ -5,14 +5,14 @@
+ package expressions
+ 
+ type T struct {
+-	x, y, z	int;
++	x, y, z int;
+ }
+ 
+ var (
+-	a, b, c, d, e int;
+-	longIdentifier1, longIdentifier2, longIdentifier3 int;
+-	t0, t1, t2 T;
+-	s string;
++	a, b, c, d, e										int;
++	longIdentifier1, longIdentifier2, longIdentifier3	int;
++	t0, t1, t2											T;
++	s													string;
+ )
+ 
+ func main() {
+diff --git a/src/pkg/go/printer/testdata/linebreaks.golden b/src/pkg/go/printer/testdata/linebreaks.golden
+index 3fc487dbbf..1700492c16 100644
+--- a/src/pkg/go/printer/testdata/linebreaks.golden
++++ b/src/pkg/go/printer/testdata/linebreaks.golden
+@@ -19,7 +19,7 @@ type untarTest struct {
+ 	headers	[]*Header;
+ }
+ 
+-var untarTests	= []*untarTest{
++var untarTests = []*untarTest{
+ 	&untarTest{
+ 		file: "testdata/gnu.tar",
+ 		headers: []*Header{
+@@ -103,7 +103,7 @@ var untarTests	= []*untarTest{
+ 	},
+ }
+ 
+-var facts	= map[int]string{
++var facts = map[int]string{
+ 	0: "1",
+ 	1: "1",
+ 	2: "2",

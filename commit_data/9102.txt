@@ -7,6 +7,29 @@ Date:   Mon Jul 18 11:44:27 2011 +1000
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/4758050
-
+---
  src/pkg/fmt/print.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index ba91bcd9f6..53c39f18da 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -53,7 +53,7 @@ type Formatter interface {
+ 	Format(f State, c int)
+ }
+ 
+-// Stringer is implemented by any value that has a String method(),
++// Stringer is implemented by any value that has a String method,
+ // which defines the ``native'' format for that value.
+ // The String method is used to print values passed as an operand
+ // to a %s or %v format or to an unformatted printer such as Print.
+@@ -61,7 +61,7 @@ type Stringer interface {
+ 	String() string
+ }
+ 
+-// GoStringer is implemented by any value that has a GoString() method,
++// GoStringer is implemented by any value that has a GoString method,
+ // which defines the Go syntax for that value.
+ // The GoString method is used to print values passed as an operand
+ // to a %#v format.

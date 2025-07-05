@@ -7,6 +7,30 @@ Date:   Wed Dec 9 14:23:43 2009 -0800
     
     R=r, rsc
     https://golang.org/cl/170043
-
+---
  src/pkg/rand/rand_test.go | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/src/pkg/rand/rand_test.go b/src/pkg/rand/rand_test.go
+index ae417a9be7..e0d1da4bb7 100644
+--- a/src/pkg/rand/rand_test.go
++++ b/src/pkg/rand/rand_test.go
+@@ -312,3 +312,18 @@ func TestExpTables(t *testing.T) {
+ 		t.Errorf("fe disagrees at index %v; %v != %v\n", i, fe[i], testFe[i])
+ 	}
+ }
++
++// Benchmarks
++
++func BenchmarkInt63Threadsafe(b *testing.B) {
++	for n := b.N; n > 0; n-- {
++		Int63()
++	}
++}
++
++func BenchmarkInt63Unthreadsafe(b *testing.B) {
++	r := New(NewSource(1));
++	for n := b.N; n > 0; n-- {
++		r.Int63()
++	}
++}

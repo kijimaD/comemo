@@ -13,9 +13,413 @@ Date:   Mon Nov 1 15:11:31 2021 -0400
     Trust: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/check_test.go                         |   1 +
  src/go/types/operand.go                            | 107 +++++++---
  src/go/types/testdata/spec/assignability.go2       | 236 +++++++++++++++++++++
  .../testdata/{examples => spec}/conversions.go2    |   0
  4 files changed, 318 insertions(+), 26 deletions(-)
+
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index e6176738d1..75b26e34bd 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -359,6 +359,7 @@ func TestIssue47243_TypedRHS(t *testing.T) {
+ }
+ 
+ func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDirFiles(t, "testdata/check", false) }
++func TestSpec(t *testing.T)      { DefPredeclaredTestFuncs(); testDirFiles(t, "testdata/spec", false) }
+ func TestExamples(t *testing.T)  { testDirFiles(t, "testdata/examples", false) }
+ func TestFixedbugs(t *testing.T) { testDirFiles(t, "testdata/fixedbugs", false) }
+ 
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index ef7d764201..0ba3c4bafc 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -234,53 +234,46 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 
+ 	V := x.typ
+ 
+-	const debugAssignableTo = false
+-	if debugAssignableTo && check != nil {
+-		check.dump("V = %s", V)
+-		check.dump("T = %s", T)
+-	}
+-
+ 	// x's type is identical to T
+ 	if Identical(V, T) {
+ 		return true, 0
+ 	}
+ 
+-	Vu := optype(V)
+-	Tu := optype(T)
+-
+-	if debugAssignableTo && check != nil {
+-		check.dump("Vu = %s", Vu)
+-		check.dump("Tu = %s", Tu)
+-	}
++	Vu := under(V)
++	Tu := under(T)
++	Vp, _ := Vu.(*TypeParam)
++	Tp, _ := Tu.(*TypeParam)
+ 
+ 	// x is an untyped value representable by a value of type T.
+ 	if isUntyped(Vu) {
+-		if t, _ := under(T).(*TypeParam); t != nil {
+-			return t.is(func(t *term) bool {
+-				// TODO(gri) this could probably be more efficient
++		assert(Vp == nil)
++		if Tp != nil {
++			// T is a type parameter: x is assignable to T if it is
++			// representable by each specific type in the type set of T.
++			return Tp.is(func(t *term) bool {
+ 				if t == nil {
+ 					return false
+ 				}
+-				if t.tilde {
+-					// TODO(gri) We need to check assignability
+-					//           for the underlying type of x.
+-				}
+-				ok, _ := x.assignableTo(check, t.typ, reason)
+-				return ok
++				// A term may be a tilde term but the underlying
++				// type of an untyped value doesn't change so we
++				// don't need to do anything special.
++				newType, _, _ := check.implicitTypeAndValue(x, t.typ)
++				return newType != nil
+ 			}), _IncompatibleAssign
+ 		}
+-		newType, _, _ := check.implicitTypeAndValue(x, Tu)
++		newType, _, _ := check.implicitTypeAndValue(x, T)
+ 		return newType != nil, _IncompatibleAssign
+ 	}
+ 	// Vu is typed
+ 
+ 	// x's type V and T have identical underlying types
+ 	// and at least one of V or T is not a named type
+-	if Identical(Vu, Tu) && (!isNamed(V) || !isNamed(T)) {
++	// and neither is a type parameter.
++	if Identical(Vu, Tu) && (!isNamed(V) || !isNamed(T)) && Vp == nil && Tp == nil {
+ 		return true, 0
+ 	}
+ 
+-	// T is an interface type and x implements T
++	// T is an interface type and x implements T and T is not a type parameter
+ 	if Ti, ok := Tu.(*Interface); ok {
+ 		if m, wrongType := check.missingMethod(V, Ti, true); m != nil /* Implements(V, Ti) */ {
+ 			if reason != nil {
+@@ -310,5 +303,67 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 		}
+ 	}
+ 
+-	return false, _IncompatibleAssign
++	// common case: if we don't have type parameters, we're done
++	if Vp == nil && Tp == nil {
++		return false, _IncompatibleAssign
++	}
++
++	// determine type parameter operands with specific type terms
++	if Vp != nil && !Vp.hasTerms() {
++		Vp = nil
++	}
++	if Tp != nil && !Tp.hasTerms() {
++		Tp = nil
++	}
++
++	errorf := func(format string, args ...interface{}) {
++		if check != nil && reason != nil {
++			msg := check.sprintf(format, args...)
++			if *reason != "" {
++				msg += "\n\t" + *reason
++			}
++			*reason = msg
++		}
++	}
++
++	ok := false
++	code := _IncompatibleAssign
++	switch {
++	case Vp != nil && Tp != nil:
++		x := *x // don't clobber outer x
++		ok = Vp.is(func(V *term) bool {
++			x.typ = V.typ
++			return Tp.is(func(T *term) bool {
++				ok, code = x.assignableTo(check, T.typ, reason)
++				if !ok {
++					errorf("cannot assign %s (in %s) to %s (in %s)", V.typ, Vp, T.typ, Tp)
++					return false
++				}
++				return true
++			})
++		})
++	case Vp != nil:
++		x := *x // don't clobber outer x
++		ok = Vp.is(func(V *term) bool {
++			x.typ = V.typ
++			ok, code = x.assignableTo(check, T, reason)
++			if !ok {
++				errorf("cannot assign %s (in %s) to %s", V.typ, Vp, T)
++				return false
++			}
++			return true
++		})
++	case Tp != nil:
++		x := *x // don't clobber outer x
++		ok = Tp.is(func(T *term) bool {
++			ok, code = x.assignableTo(check, T.typ, reason)
++			if !ok {
++				errorf("cannot assign %s to %s (in %s)", x.typ, T.typ, Tp)
++				return false
++			}
++			return true
++		})
++	}
++
++	return ok, code
+ }
+diff --git a/src/go/types/testdata/spec/assignability.go2 b/src/go/types/testdata/spec/assignability.go2
+new file mode 100644
+index 0000000000..4c6774b811
+--- /dev/null
++++ b/src/go/types/testdata/spec/assignability.go2
+@@ -0,0 +1,236 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package assignability
++
++// See the end of this package for the declarations
++// of the types and variables used in these tests.
++
++// "x's type is identical to T"
++func _[TP any](X TP) {
++	b = b
++	a = a
++	l = l
++	s = s
++	p = p
++	f = f
++	i = i
++	m = m
++	c = c
++	d = d
++
++	B = B
++	A = A
++	L = L
++	S = S
++	P = P
++	F = F
++	I = I
++	M = M
++	C = C
++	D = D
++	X = X
++}
++
++// "x's type V and T have identical underlying types and at least one
++// of V or T is not a defined type and neither is a type parameter"
++func _[TP1, TP2 Interface](X1 TP1, X2 TP2) {
++	b = B // ERROR cannot use B .* as int value
++	a = A
++	l = L
++	s = S
++	p = P
++	f = F
++	i = I
++	m = M
++	c = C
++	d = D
++
++	B = b // ERROR cannot use b .* as Basic value
++	A = a
++	L = l
++	S = s
++	P = p
++	F = f
++	I = i
++	M = m
++	C = c
++	D = d
++	X1 = i  // ERROR cannot use i .* as TP1 value
++	X1 = X2 // ERROR cannot use X2 .* as TP1 value
++}
++
++// "T is an interface type and x implements T and T is not a type parameter"
++func _[TP Interface](X TP) {
++	i = d // ERROR missing method m
++	i = D
++	i = X
++	X = i // ERROR cannot use i .* as TP value
++}
++
++// "x is a bidirectional channel value, T is a channel type, x's type V and T have identical element types, and at least one of V or T is not a defined type"
++type (
++	_SendChan = chan<- int
++	_RecvChan = <-chan int
++
++	SendChan _SendChan
++	RecvChan _RecvChan
++)
++
++func _[
++	_CC ~_Chan,
++	_SC ~_SendChan,
++	_RC ~_RecvChan,
++
++	CC Chan,
++	SC SendChan,
++	RC RecvChan,
++]() {
++	var (
++		_ _SendChan = c
++		_ _RecvChan = c
++		_ _Chan = c
++
++		_ _SendChan = C
++		_ _RecvChan = C
++		_ _Chan = C
++
++		_ SendChan = c
++		_ RecvChan = c
++		_ Chan = c
++
++		_ SendChan = C // ERROR cannot use C .* as SendChan value
++		_ RecvChan = C // ERROR cannot use C .* as RecvChan value
++		_ Chan = C
++		_ Chan = make /* ERROR cannot use make\(chan Basic\) .* as Chan value */ (chan Basic)
++	)
++
++	var (
++		_ _CC = C
++		_ _SC = C
++		_ _RC = C
++
++		_ CC = _CC(nil)
++		_ SC = _CC(nil)
++		_ RC = _CC(nil)
++
++		_ CC = C
++		_ SC = C // ERROR cannot use C .* as SC value .* cannot assign Chan to SendChan
++		_ RC = C // ERROR cannot use C .* as RC value .* cannot assign Chan to RecvChan
++	)
++}
++
++// "x is the predeclared identifier nil and T is a pointer, function, slice, map, channel, or interface type"
++// TODO(rfindley) error messages about untyped nil diverge from types2 here.
++// Consider aligning them.
++func _[TP Interface](X TP) {
++	b = nil // ERROR cannot use.*untyped nil
++	a = nil // ERROR cannot use.*untyped nil
++	l = nil
++	s = nil // ERROR cannot use.*untyped nil
++	p = nil
++	f = nil
++	i = nil
++	m = nil
++	c = nil
++	d = nil // ERROR cannot use.*untyped nil
++
++	B = nil // ERROR cannot use.*untyped nil
++	A = nil // ERROR cannot use.*untyped nil
++	L = nil
++	S = nil // ERROR cannot use.*untyped nil
++	P = nil
++	F = nil
++	I = nil
++	M = nil
++	C = nil
++	D = nil // ERROR cannot use.*untyped nil
++	X = nil // ERROR cannot use.*untyped nil
++}
++
++// "x is an untyped constant representable by a value of type T"
++func _[
++	Int8 ~int8,
++	Int16 ~int16,
++	Int32 ~int32,
++	Int64 ~int64,
++        Int8_16 ~int8 | ~int16,
++](
++	i8 Int8,
++	i16 Int16,
++	i32 Int32,
++	i64 Int64,
++        i8_16 Int8_16,
++) {
++	b = 42
++	b = 42.0
++	// etc.
++
++	i8 = -1 << 7
++	i8 = 1<<7 - 1
++	i16 = -1 << 15
++	i16 = 1<<15 - 1
++	i32 = -1 << 31
++	i32 = 1<<31 - 1
++	i64 = -1 << 63
++	i64 = 1<<63 - 1
++
++	i8_16 = -1 << 7
++	i8_16 = 1<<7 - 1
++	i8_16 = - /* ERROR cannot use .* as Int8_16 */ 1 << 15
++	i8_16 = 1 /* ERROR cannot use .* as Int8_16 */ <<15 - 1
++}
++
++// proto-types for tests
++
++type (
++	_Basic     = int
++	_Array     = [10]int
++	_Slice     = []int
++	_Struct    = struct{ f int }
++	_Pointer   = *int
++	_Func      = func(x int) string
++	_Interface = interface{ m() int }
++	_Map       = map[string]int
++	_Chan      = chan int
++
++	Basic     _Basic
++	Array     _Array
++	Slice     _Slice
++	Struct    _Struct
++	Pointer   _Pointer
++	Func      _Func
++	Interface _Interface
++	Map       _Map
++	Chan      _Chan
++	Defined   _Struct
++)
++
++func (Defined) m() int
++
++// proto-variables for tests
++
++var (
++	b _Basic
++	a _Array
++	l _Slice
++	s _Struct
++	p _Pointer
++	f _Func
++	i _Interface
++	m _Map
++	c _Chan
++	d _Struct
++
++	B Basic
++	A Array
++	L Slice
++	S Struct
++	P Pointer
++	F Func
++	I Interface
++	M Map
++	C Chan
++	D Defined
++)
+diff --git a/src/go/types/testdata/examples/conversions.go2 b/src/go/types/testdata/spec/conversions.go2
+similarity index 100%
+rename from src/go/types/testdata/examples/conversions.go2
+rename to src/go/types/testdata/spec/conversions.go2

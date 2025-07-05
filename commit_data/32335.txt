@@ -14,7 +14,37 @@ Date:   Fri Apr 14 09:50:00 2017 -0700
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/html/template/escape_test.go | 5 +++++
  src/html/template/js.go          | 2 +-
  2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/html/template/escape_test.go b/src/html/template/escape_test.go
+index 5dfb09b500..0a6a9e49c7 100644
+--- a/src/html/template/escape_test.go
++++ b/src/html/template/escape_test.go
+@@ -1399,6 +1399,11 @@ func TestEscapeText(t *testing.T) {
+ 			`<script type="text/template">`,
+ 			context{state: stateText},
+ 		},
++		// covering issue 19968
++		{
++			`<script type="TEXT/JAVASCRIPT">`,
++			context{state: stateJS, element: elementScript},
++		},
+ 		{
+ 			`<script type="notjs">`,
+ 			context{state: stateText},
+diff --git a/src/html/template/js.go b/src/html/template/js.go
+index 6434fa3be6..239395f8d3 100644
+--- a/src/html/template/js.go
++++ b/src/html/template/js.go
+@@ -372,7 +372,7 @@ func isJSType(mimeType string) bool {
+ 	//   https://tools.ietf.org/html/rfc7231#section-3.1.1
+ 	//   https://tools.ietf.org/html/rfc4329#section-3
+ 	//   https://www.ietf.org/rfc/rfc4627.txt
+-
++	mimeType = strings.ToLower(mimeType)
+ 	// discard parameters
+ 	if i := strings.Index(mimeType, ";"); i >= 0 {
+ 		mimeType = mimeType[:i]

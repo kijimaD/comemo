@@ -7,7 +7,34 @@ Date:   Wed Aug 17 13:57:06 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4876057
-
+---
  doc/tmpltohtml.go         | 2 +-
  src/pkg/go/doc/comment.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/tmpltohtml.go b/doc/tmpltohtml.go
+index 0a509d90b8..f4d2e2c2c4 100644
+--- a/doc/tmpltohtml.go
++++ b/doc/tmpltohtml.go
+@@ -46,7 +46,7 @@ func main() {
+ 	// Read and parse the input.
+ 	name := flag.Args()[0]
+ 	tmpl := template.New(name).Funcs(template.FuncMap{"code": code})
+-	if err := tmpl.ParseFile(name); err != nil {
++	if _, err := tmpl.ParseFile(name); err != nil {
+ 		log.Fatal(err)
+ 	}
+ 
+diff --git a/src/pkg/go/doc/comment.go b/src/pkg/go/doc/comment.go
+index 2a24b14556..af307459ec 100644
+--- a/src/pkg/go/doc/comment.go
++++ b/src/pkg/go/doc/comment.go
+@@ -11,7 +11,7 @@ import (
+ 	"io"
+ 	"regexp"
+ 	"strings"
+-	"template" // for htmlEscape
++	"exp/template" // for HTMLEscape
+ )
+ 
+ func isWhitespace(ch byte) bool { return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' }

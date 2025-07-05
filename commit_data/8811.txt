@@ -9,6 +9,49 @@ Date:   Tue Jun 21 17:13:16 2011 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4654045
-
+---
  src/cmd/goinstall/main.go | 10 +++-------
  1 file changed, 3 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/goinstall/main.go b/src/cmd/goinstall/main.go
+index aad3ca8635..64fae08688 100644
+--- a/src/cmd/goinstall/main.go
++++ b/src/cmd/goinstall/main.go
+@@ -150,7 +150,7 @@ func logPackage(pkg string) {
+ }
+ 
+ // install installs the package named by path, which is needed by parent.
+-func install(pkg, parent string) (built bool) {
++func install(pkg, parent string) {
+ 	// Make sure we're not already trying to install pkg.
+ 	switch visit[pkg] {
+ 	case done:
+@@ -201,12 +201,9 @@ func install(pkg, parent string) (built bool) {
+ 		errorf("%s: package has no files\n", pkg)
+ 		return
+ 	}
+-	var depBuilt bool
+ 	for _, p := range dirInfo.Imports {
+ 		if p != "C" {
+-			if install(p, pkg) {
+-				depBuilt = true
+-			}
++			install(p, pkg)
+ 		}
+ 	}
+ 	if errors {
+@@ -227,13 +224,12 @@ func install(pkg, parent string) (built bool) {
+ 		script.Clean()
+ 	}
+ 	if *doInstall {
+-		if depBuilt || script.Stale() {
++		if script.Stale() {
+ 			printf("%s: install\n", pkg)
+ 			if err := script.Run(); err != nil {
+ 				errorf("%s: install: %v\n", pkg, err)
+ 				return
+ 			}
+-			built = true
+ 		} else {
+ 			printf("%s: up-to-date\n", pkg)
+ 		}

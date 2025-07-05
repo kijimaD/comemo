@@ -15,6 +15,34 @@ Date:   Sat Mar 13 00:21:18 2021 +0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/cgo/main.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 5767c54307..77ac5e0d3a 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -20,6 +20,7 @@ import (
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
++	"os/exec"
+ 	"path/filepath"
+ 	"reflect"
+ 	"runtime"
+@@ -302,6 +303,14 @@ func main() {
+ 
+ 	p := newPackage(args[:i])
+ 
++	// We need a C compiler to be available. Check this.
++	gccName := p.gccBaseCmd()[0]
++	_, err := exec.LookPath(gccName)
++	if err != nil {
++		fatalf("C compiler %q not found: %v", gccName, err)
++		os.Exit(2)
++	}
++
+ 	// Record CGO_LDFLAGS from the environment for external linking.
+ 	if ldflags := os.Getenv("CGO_LDFLAGS"); ldflags != "" {
+ 		args, err := splitQuoted(ldflags)

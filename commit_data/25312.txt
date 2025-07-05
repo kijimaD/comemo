@@ -9,6 +9,24 @@ Date:   Mon Oct 19 16:13:58 2015 -0700
     Change-Id: I76a7bf0401b4b6c8a129c245b15a2d6f06080e94
     Reviewed-on: https://go-review.googlesource.com/16095
     Reviewed-by: Todd Neal <todd@tneal.org>
-
+---
  src/cmd/compile/internal/ssa/regalloc.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 6418bb375d..72b056cd8d 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -982,7 +982,11 @@ func (v *Value) rematerializeable() bool {
+ 		// which can't be moved.
+ 		return false
+ 	}
+-	// TODO: maybe not OpAMD64LoweredGetG?
++	if v.Op == OpAMD64LoweredGetG {
++		// It would almost always be ok to rematerialize this op.
++		// The annoying exception is functions that call runtime.setg.
++		return false
++	}
+ 	if len(v.Args) == 0 {
+ 		return true
+ 	}

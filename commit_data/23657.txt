@@ -10,6 +10,56 @@ Date:   Sun Apr 19 23:55:47 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/9151
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/build.go | 24 +++++++++++++++++++-----
  1 file changed, 19 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 0cdb7d69f7..2262a736de 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -714,17 +714,31 @@ func install(dir string) {
+ 	run("", CheckExit|ShowOutput, link...)
+ }
+ 
+-// matchfield reports whether the field matches this build.
++// matchfield reports whether the field (x,y,z) matches this build.
++// all the elements in the field must be satisfied.
+ func matchfield(f string) bool {
+ 	for _, tag := range strings.Split(f, ",") {
+-		if tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" || (goos == "android" && tag == "linux") {
+-			continue
++		if !matchtag(tag) {
++			return false
+ 		}
+-		return false
+ 	}
+ 	return true
+ }
+ 
++// matchtag reports whether the tag (x or !x) matches this build.
++func matchtag(tag string) bool {
++	if tag == "" {
++		return false
++	}
++	if tag[0] == '!' {
++		if len(tag) == 1 || tag[1] == '!' {
++			return false
++		}
++		return !matchtag(tag[1:])
++	}
++	return tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" || (goos == "android" && tag == "linux")
++}
++
+ // shouldbuild reports whether we should build this file.
+ // It applies the same rules that are used with context tags
+ // in package go/build, except that the GOOS and GOARCH
+@@ -783,7 +797,7 @@ func shouldbuild(file, dir string) bool {
+ 			continue
+ 		}
+ 		for _, p := range fields[2:] {
+-			if (p[0] == '!' && !matchfield(p[1:])) || matchfield(p) {
++			if matchfield(p) {
+ 				goto fieldmatch
+ 			}
+ 		}

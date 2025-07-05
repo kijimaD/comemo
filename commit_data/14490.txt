@@ -14,7 +14,7 @@ Date:   Mon Nov 26 12:49:04 2012 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6816083
-
+---
  src/pkg/exp/types/check.go            |  23 +--
  src/pkg/exp/types/check_test.go       |   1 +
  src/pkg/exp/types/expr.go             | 310 +++++++++++++++++++++++++---------
@@ -24,3 +24,1052 @@ Date:   Mon Nov 26 12:49:04 2012 -0800
  src/pkg/exp/types/testdata/expr3.src  |  52 +++++-
  src/pkg/exp/types/types.go            |   9 +
  8 files changed, 644 insertions(+), 122 deletions(-)
+
+diff --git a/src/pkg/exp/types/check.go b/src/pkg/exp/types/check.go
+index 1300d0a6dd..07c16d58e9 100644
+--- a/src/pkg/exp/types/check.go
++++ b/src/pkg/exp/types/check.go
+@@ -36,7 +36,7 @@ type checker struct {
+ //
+ // TODO(gri) This is very similar to the declare function in go/parser; it
+ // is only used to associate methods with their respective receiver base types.
+-// In a future version, it might be simpler and cleaner do to all the resolution
++// In a future version, it might be simpler and cleaner to do all the resolution
+ // in the type-checking phase. It would simplify the parser, AST, and also
+ // reduce some amount of code duplication.
+ //
+@@ -188,11 +188,7 @@ func (check *checker) object(obj *ast.Object, cycleOk bool) {
+ 
+ 	case ast.Fun:
+ 		fdecl := obj.Decl.(*ast.FuncDecl)
+-		if fdecl.Recv != nil {
+-			// This will ensure that the method base type is
+-			// type-checked
+-			check.collectFields(token.FUNC, fdecl.Recv, true)
+-		}
++		check.collectParams(fdecl.Recv) // ensure method base is type-checked
+ 		ftyp := check.typ(fdecl.Type, cycleOk).(*Signature)
+ 		obj.Type = ftyp
+ 		check.function(ftyp, fdecl.Body)
+@@ -355,12 +351,19 @@ func check(fset *token.FileSet, pkg *ast.Package, errh func(token.Pos, string),
+ 	check.mapf = f
+ 	check.initexprs = make(map[*ast.ValueSpec][]ast.Expr)
+ 
+-	// handle bailouts
++	// handle panics
+ 	defer func() {
+-		if p := recover(); p != nil {
+-			_ = p.(bailout) // re-panic if not a bailout
++		switch p := recover().(type) {
++		case nil:
++			// normal return - nothing to do
++		case bailout:
++			// early exit
++			err = check.firsterr
++		default:
++			// unexpected panic: don't crash clients
++			// panic(p) // enable for debugging
++			err = fmt.Errorf("types.check internal error: %v", p)
+ 		}
+-		err = check.firsterr
+ 	}()
+ 
+ 	// determine missing constant initialization expressions
+diff --git a/src/pkg/exp/types/check_test.go b/src/pkg/exp/types/check_test.go
+index bfa4d2c2b1..3a0cc044f0 100644
+--- a/src/pkg/exp/types/check_test.go
++++ b/src/pkg/exp/types/check_test.go
+@@ -48,6 +48,7 @@ var tests = []struct {
+ 	{"decls0", []string{"testdata/decls0.src"}},
+ 	{"decls1", []string{"testdata/decls1.src"}},
+ 	{"decls2", []string{"testdata/decls2a.src", "testdata/decls2b.src"}},
++	{"decls3", []string{"testdata/decls3.src"}},
+ 	{"const0", []string{"testdata/const0.src"}},
+ 	{"expr0", []string{"testdata/expr0.src"}},
+ 	{"expr1", []string{"testdata/expr1.src"}},
+diff --git a/src/pkg/exp/types/expr.go b/src/pkg/exp/types/expr.go
+index 58a33d0548..c952507a04 100644
+--- a/src/pkg/exp/types/expr.go
++++ b/src/pkg/exp/types/expr.go
+@@ -17,70 +17,98 @@ import (
+ // - simplify invalid handling: maybe just use Typ[Invalid] as marker, get rid of invalid Mode for values?
+ // - rethink error handling: should all callers check if x.mode == valid after making a call?
+ 
+-func (check *checker) tag(field *ast.Field) string {
+-	if t := field.Tag; t != nil {
+-		assert(t.Kind == token.STRING)
+-		if tag, err := strconv.Unquote(t.Value); err == nil {
+-			return tag
++func (check *checker) collectParams(list *ast.FieldList) (params ObjList, isVariadic bool) {
++	if list == nil {
++		return
++	}
++	for _, field := range list.List {
++		ftype := field.Type
++		if t, ok := ftype.(*ast.Ellipsis); ok {
++			ftype = t.Elt
++			isVariadic = true
++		}
++		// the parser ensures that f.Tag is nil and we don't
++		// care if a constructed AST contains a non-nil tag
++		typ := check.typ(ftype, true)
++		if len(field.Names) > 0 {
++			// named parameter
++			for _, name := range field.Names {
++				obj := name.Obj
++				obj.Type = typ
++				params = append(params, obj)
++			}
++		} else {
++			// anonymous parameter
++			obj := ast.NewObj(ast.Var, "")
++			obj.Type = typ
++			params = append(params, obj)
+ 		}
+-		check.invalidAST(t.Pos(), "incorrect tag syntax: %q", t.Value)
+ 	}
+-	return ""
++	return
+ }
+ 
+-// collectFields collects interface methods (tok = token.INTERFACE), and function arguments/results (tok = token.FUNC).
+-func (check *checker) collectFields(tok token.Token, list *ast.FieldList, cycleOk bool) (fields ObjList, tags []string, isVariadic bool) {
+-	if list != nil {
+-		for _, field := range list.List {
+-			ftype := field.Type
+-			if t, ok := ftype.(*ast.Ellipsis); ok {
+-				ftype = t.Elt
+-				isVariadic = true
++func (check *checker) collectMethods(list *ast.FieldList) (methods ObjList) {
++	if list == nil {
++		return
++	}
++	for _, f := range list.List {
++		typ := check.typ(f.Type, len(f.Names) > 0) // cycles are not ok for embedded interfaces
++		// the parser ensures that f.Tag is nil and we don't
++		// care if a constructed AST contains a non-nil tag
++		if len(f.Names) > 0 {
++			// methods (the parser ensures that there's only one
++			// and we don't care if a constructed AST has more)
++			if _, ok := typ.(*Signature); !ok {
++				check.invalidAST(f.Type.Pos(), "%s is not a method signature", typ)
++				continue
+ 			}
+-			typ := check.typ(ftype, cycleOk)
+-			tag := check.tag(field)
+-			if len(field.Names) > 0 {
+-				// named fields
+-				for _, name := range field.Names {
+-					obj := name.Obj
+-					obj.Type = typ
+-					fields = append(fields, obj)
+-					if tok == token.STRUCT {
+-						tags = append(tags, tag)
+-					}
+-				}
+-			} else {
+-				// anonymous field
+-				switch tok {
+-				case token.FUNC:
+-					obj := ast.NewObj(ast.Var, "")
+-					obj.Type = typ
+-					fields = append(fields, obj)
+-				case token.INTERFACE:
+-					utyp := underlying(typ)
+-					if typ, ok := utyp.(*Interface); ok {
+-						// TODO(gri) This is not good enough. Check for double declarations!
+-						fields = append(fields, typ.Methods...)
+-					} else if utyp != Typ[Invalid] {
+-						// if utyp is invalid, don't complain (the root cause was reported before)
+-						check.errorf(ftype.Pos(), "interface contains embedded non-interface type")
+-					}
+-				default:
+-					panic("unreachable")
+-				}
++			for _, name := range f.Names {
++				obj := name.Obj
++				obj.Type = typ
++				methods = append(methods, obj)
+ 			}
++		} else {
++			// embedded interface
++			utyp := underlying(typ)
++			if ityp, ok := utyp.(*Interface); ok {
++				methods = append(methods, ityp.Methods...)
++			} else if utyp != Typ[Invalid] {
++				// if utyp is invalid, don't complain (the root cause was reported before)
++				check.errorf(f.Type.Pos(), "%s is not an interface type", typ)
++			}
++		}
++	}
++	// check for double declarations
++	methods.Sort()
++	prev := ""
++	for _, obj := range methods {
++		if obj.Name == prev {
++			check.errorf(list.Pos(), "multiple methods named %s", prev)
++			return // keep multiple entries, lookup will only return the first entry
+ 		}
+ 	}
+ 	return
+ }
+ 
+-func (check *checker) collectStructFields(list *ast.FieldList, cycleOk bool) (fields []*StructField) {
++func (check *checker) tag(t *ast.BasicLit) string {
++	if t != nil {
++		if t.Kind == token.STRING {
++			if val, err := strconv.Unquote(t.Value); err == nil {
++				return val
++			}
++		}
++		check.invalidAST(t.Pos(), "incorrect tag syntax: %q", t.Value)
++	}
++	return ""
++}
++
++func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields []*StructField) {
+ 	if list == nil {
+ 		return
+ 	}
+ 	for _, f := range list.List {
+ 		typ := check.typ(f.Type, cycleOk)
+-		tag := check.tag(f)
++		tag := check.tag(f.Tag)
+ 		if len(f.Names) > 0 {
+ 			// named fields
+ 			for _, name := range f.Names {
+@@ -115,9 +143,6 @@ var unaryOpPredicates = opPredicates{
+ func (check *checker) op(m opPredicates, x *operand, op token.Token) bool {
+ 	if pred := m[op]; pred != nil {
+ 		if !pred(x.typ) {
+-			// TODO(gri) better error message for <-x where x is a send-only channel
+-			//           (<- is defined but not permitted). Special-case here or
+-			//           handle higher up.
+ 			check.invalidOp(x.pos(), "operator %s not defined for %s", op, x)
+ 			return false
+ 		}
+@@ -537,27 +562,155 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 		}
+ 
+ 	case *ast.FuncLit:
+-		x.mode = value
+-		x.typ = check.typ(e.Type, false)
+-		// TODO(gri) handle errors (e.g. x.typ is not a *Signature)
+-		check.function(x.typ.(*Signature), e.Body)
++		if typ, ok := check.typ(e.Type, false).(*Signature); ok {
++			x.mode = value
++			x.typ = typ
++			check.function(typ, e.Body)
++		} else {
++			check.invalidAST(e.Pos(), "invalid function literal %s", e)
++			goto Error
++		}
+ 
+ 	case *ast.CompositeLit:
+-		// TODO(gri)
+-		//	- determine element type if nil
+-		//	- deal with map elements
+-		var typ Type
++		typ := hint
+ 		if e.Type != nil {
+-			// TODO(gri) Fix this - just to get going for now
+ 			typ = check.typ(e.Type, false)
+ 		}
+-		for _, e := range e.Elts {
+-			var x operand
+-			check.expr(&x, e, hint, iota)
+-			// TODO(gri) check assignment compatibility to element type
++		if typ == nil {
++			check.errorf(e.Pos(), "missing type in composite literal")
++			goto Error
++		}
++
++		// TODO(gri) try to factor code below better
++
++		switch utyp := underlying(deref(typ)).(type) {
++		case *Struct:
++			if len(e.Elts) == 0 {
++				break
++			}
++			fields := utyp.Fields
++			if _, ok := e.Elts[0].(*ast.KeyValueExpr); ok {
++				// all elements must have keys
++				visited := make([]bool, len(fields))
++				for _, e := range e.Elts {
++					kv, _ := e.(*ast.KeyValueExpr)
++					if kv == nil {
++						check.errorf(e.Pos(), "mixture of field:value and value elements in struct literal")
++						continue
++					}
++					key, _ := kv.Key.(*ast.Ident)
++					if key == nil {
++						check.errorf(kv.Pos(), "invalid field name %s in struct literal", kv.Key)
++						continue
++					}
++					i := utyp.fieldIndex(key.Name)
++					if i < 0 {
++						check.errorf(kv.Pos(), "unknown field %s in struct literal", key.Name)
++						continue
++					}
++					// 0 <= i < len(fields)
++					if visited[i] {
++						check.errorf(kv.Pos(), "duplicate field name %s in struct literal", key.Name)
++						continue
++					}
++					visited[i] = true
++					check.expr(x, kv.Value, nil, iota)
++					etyp := fields[i].Type
++					if !x.isAssignable(etyp) {
++						check.errorf(x.pos(), "cannot use %s as %s value in struct literal", x, etyp)
++						continue
++					}
++				}
++			} else {
++				// no element must have a key
++				for i, e := range e.Elts {
++					if kv, _ := e.(*ast.KeyValueExpr); kv != nil {
++						check.errorf(kv.Pos(), "mixture of field:value and value elements in struct literal")
++						continue
++					}
++					check.expr(x, e, nil, iota)
++					if i >= len(fields) {
++						check.errorf(x.pos(), "too many values in struct literal")
++						goto Error
++					}
++					etyp := fields[i].Type
++					if !x.isAssignable(etyp) {
++						check.errorf(x.pos(), "cannot use %s as an element of type %s in struct literal", x, etyp)
++						continue
++					}
++				}
++				if len(e.Elts) < len(fields) {
++					check.errorf(e.Rbrace, "too few values in struct literal")
++					goto Error
++				}
++			}
++
++		case *Array:
++			var index int64
++			for _, e := range e.Elts {
++				eval := e
++				if kv, _ := e.(*ast.KeyValueExpr); kv != nil {
++					check.index(kv.Key, -1, iota)
++					eval = kv.Value
++				}
++				// TODO(gri) missing index range & duplicate check
++				check.expr(x, eval, utyp.Elt, iota)
++				if !x.isAssignable(utyp.Elt) {
++					check.errorf(x.pos(), "cannot use %s as %s value in array literal", x, utyp.Elt)
++				}
++				index++
++			}
++
++		case *Slice:
++			var index int64
++			for _, e := range e.Elts {
++				eval := e
++				if kv, _ := e.(*ast.KeyValueExpr); kv != nil {
++					// TODO(gri) check key
++					check.index(kv.Key, -1, iota)
++					eval = kv.Value
++				}
++				// TODO(gri) missing index range & duplicate check
++				check.expr(x, eval, utyp.Elt, iota)
++				if !x.isAssignable(utyp.Elt) {
++					check.errorf(x.pos(), "cannot use %s as %s value in slice literal", x, utyp.Elt)
++				}
++				index++
++			}
++
++		case *Map:
++			visited := make(map[interface{}]bool, len(e.Elts))
++			for _, e := range e.Elts {
++				kv, _ := e.(*ast.KeyValueExpr)
++				if kv == nil {
++					check.errorf(e.Pos(), "missing key in map literal")
++					continue
++				}
++				check.expr(x, kv.Key, nil, iota)
++				if !x.isAssignable(utyp.Key) {
++					check.errorf(x.pos(), "cannot use %s as %s key in map literal", x, utyp.Key)
++					continue
++				}
++				if x.mode == constant {
++					if visited[x.val] {
++						check.errorf(x.pos(), "duplicate key %s in map literal", x.val)
++						continue
++					}
++					visited[x.val] = true
++				}
++				check.expr(x, kv.Value, utyp.Elt, iota)
++				if !x.isAssignable(utyp.Elt) {
++					check.errorf(x.pos(), "cannot use %s as %s value in map literal", x, utyp.Elt)
++					continue
++				}
++			}
++
++		default:
++			check.errorf(e.Pos(), "%s is not a valid composite literal type", typ)
++			goto Error
+ 		}
+-		// TODO(gri) this is not correct - leave for now to get going
+-		x.mode = variable
++
++		x.mode = variable // TODO(gri) mode is really a value - keep for now to get going
+ 		x.typ = typ
+ 
+ 	case *ast.ParenExpr:
+@@ -604,7 +757,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 		}
+ 		mode, typ := lookupField(x.typ, sel)
+ 		if mode == invalid {
+-			check.invalidOp(e.Pos(), "%s has no field or method %s", x, sel)
++			check.invalidOp(e.Pos(), "%s has no single field or method %s", x, sel)
+ 			goto Error
+ 		}
+ 		if x.mode == typexpr {
+@@ -617,7 +770,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 			// the receiver type becomes the type of the first function
+ 			// argument of the method expression's function type
+ 			// TODO(gri) at the moment, method sets don't correctly track
+-			// pointer vs non-pointer receivers -> typechecker is too lenient
++			// pointer vs non-pointer receivers => typechecker is too lenient
+ 			arg := ast.NewObj(ast.Var, "")
+ 			arg.Type = x.typ
+ 			x.mode = value
+@@ -665,7 +818,12 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 			x.typ = typ.Elt
+ 
+ 		case *Map:
+-			// TODO(gri) check index type
++			var key operand
++			check.expr(&key, e.Index, nil, iota)
++			if key.mode == invalid || !key.isAssignable(typ.Key) {
++				check.invalidOp(x.pos(), "cannot use %s as map index of type %s", &key, typ.Key)
++				goto Error
++			}
+ 			x.mode = valueok
+ 			x.typ = typ.Elt
+ 			return
+@@ -827,7 +985,9 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 		check.binary(x, &y, e.Op, hint)
+ 
+ 	case *ast.KeyValueExpr:
+-		unimplemented()
++		// key:value expressions are handled in composite literals
++		check.invalidAST(e.Pos(), "no key:value expected")
++		goto Error
+ 
+ 	case *ast.ArrayType:
+ 		if e.Len != nil {
+@@ -862,19 +1022,17 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 
+ 	case *ast.StructType:
+ 		x.mode = typexpr
+-		x.typ = &Struct{Fields: check.collectStructFields(e.Fields, cycleOk)}
++		x.typ = &Struct{Fields: check.collectFields(e.Fields, cycleOk)}
+ 
+ 	case *ast.FuncType:
+-		params, _, isVariadic := check.collectFields(token.FUNC, e.Params, true)
+-		results, _, _ := check.collectFields(token.FUNC, e.Results, true)
++		params, isVariadic := check.collectParams(e.Params)
++		results, _ := check.collectParams(e.Results)
+ 		x.mode = typexpr
+ 		x.typ = &Signature{Recv: nil, Params: params, Results: results, IsVariadic: isVariadic}
+ 
+ 	case *ast.InterfaceType:
+-		methods, _, _ := check.collectFields(token.INTERFACE, e.Methods, cycleOk)
+-		methods.Sort()
+ 		x.mode = typexpr
+-		x.typ = &Interface{Methods: methods}
++		x.typ = &Interface{Methods: check.collectMethods(e.Methods)}
+ 
+ 	case *ast.MapType:
+ 		x.mode = typexpr
+diff --git a/src/pkg/exp/types/operand.go b/src/pkg/exp/types/operand.go
+index 49ba899d91..35c5fe3d51 100644
+--- a/src/pkg/exp/types/operand.go
++++ b/src/pkg/exp/types/operand.go
+@@ -125,7 +125,16 @@ func (x *operand) implements(T *Interface) bool {
+ 		return true // avoid spurious errors
+ 	}
+ 
+-	unimplemented()
++	// x implements T if it implements all methods of T.
++	// TODO(gri): distinguish pointer and non-pointer receivers
++	for _, m := range T.Methods {
++		mode, typ := lookupField(x.typ, m.Name)
++		if mode == invalid || !isIdentical(typ, m.Type.(Type)) {
++			// TODO(gri) should report which method is missing
++			return false
++		}
++	}
++
+ 	return true
+ }
+ 
+@@ -134,6 +143,10 @@ func (x *operand) isNil() bool {
+ 	return x.mode == constant && x.val == nilConst
+ }
+ 
++// TODO(gri) The functions operand.isAssignable, checker.convertUntyped,
++//           checker.isRepresentable, and checker.assignOperand are
++//           overlapping in functionality. Need to simplify and clean up.
++
+ // isAssignable reports whether x is assignable to a variable of type T.
+ func (x *operand) isAssignable(T Type) bool {
+ 	if x.mode == invalid || T == Typ[Invalid] {
+@@ -181,8 +194,18 @@ func (x *operand) isAssignable(T Type) bool {
+ 	}
+ 
+ 	// x is an untyped constant representable by a value of type T
+-	// - this is taken care of in the assignment check
+-	// TODO(gri) double-check - isAssignable is used elsewhere
++	// TODO(gri) This is borrowing from checker.convertUntyped and
++	//           checker.isRepresentable. Need to clean up.
++	if isUntyped(Vu) {
++		switch t := Tu.(type) {
++		case *Basic:
++			return x.mode == constant && isRepresentableConst(x.val, t.Kind)
++		case *Interface:
++			return x.isNil() || len(t.Methods) == 0
++		case *Pointer, *Signature, *Slice, *Map, *Chan:
++			return x.isNil()
++		}
++	}
+ 
+ 	return false
+ }
+@@ -199,35 +222,50 @@ type lookupResult struct {
+ 	typ  Type
+ }
+ 
+-// lookupFieldRecursive is similar to FieldByNameFunc in reflect/type.go
+-// TODO(gri): FieldByNameFunc seems more complex - what are we missing?
+-func lookupFieldRecursive(list []*NamedType, name string) (res lookupResult) {
+-	// visited records the types that have been searched already
+-	visited := make(map[Type]bool)
++type embeddedType struct {
++	typ       *NamedType
++	multiples bool // if set, typ is embedded multiple times at the same level
++}
++
++// lookupFieldBreadthFirst searches all types in list for a single entry (field
++// or method) of the given name. If such a field is found, the result describes
++// the field mode and type; otherwise the result mode is invalid.
++// (This function is similar in structure to FieldByNameFunc in reflect/type.go)
++//
++func lookupFieldBreadthFirst(list []embeddedType, name string) (res lookupResult) {
++	// visited records the types that have been searched already.
++	visited := make(map[*NamedType]bool)
+ 
+ 	// embedded types of the next lower level
+-	var next []*NamedType
++	var next []embeddedType
+ 
+-	potentialMatch := func(mode operandMode, typ Type) bool {
+-		if res.mode != invalid {
+-			// name appeared multiple times at this level - annihilate
++	// potentialMatch is invoked every time a match is found.
++	potentialMatch := func(multiples bool, mode operandMode, typ Type) bool {
++		if multiples || res.mode != invalid {
++			// name appeared already at this level - annihilate
+ 			res.mode = invalid
+ 			return false
+ 		}
++		// first appearance of name
+ 		res.mode = mode
+ 		res.typ = typ
+ 		return true
+ 	}
+ 
+-	// look for name in all types of this level
++	// Search the current level if there is any work to do and collect
++	// embedded types of the next lower level in the next list.
+ 	for len(list) > 0 {
++		// The res.mode indicates whether we have found a match already
++		// on this level (mode != invalid), or not (mode == invalid).
+ 		assert(res.mode == invalid)
+-		for _, typ := range list {
++
++		// start with empty next list (don't waste underlying array)
++		next = next[:0]
++
++		// look for name in all types at this level
++		for _, e := range list {
++			typ := e.typ
+ 			if visited[typ] {
+-				// We have seen this type before, at a higher level.
+-				// That higher level shadows the lower level we are
+-				// at now, and either we would have found or not
+-				// found the field before. Ignore this type now.
+ 				continue
+ 			}
+ 			visited[typ] = true
+@@ -236,7 +274,7 @@ func lookupFieldRecursive(list []*NamedType, name string) (res lookupResult) {
+ 			if data := typ.Obj.Data; data != nil {
+ 				if obj := data.(*ast.Scope).Lookup(name); obj != nil {
+ 					assert(obj.Type != nil)
+-					if !potentialMatch(value, obj.Type.(Type)) {
++					if !potentialMatch(e.multiples, value, obj.Type.(Type)) {
+ 						return // name collision
+ 					}
+ 				}
+@@ -244,21 +282,26 @@ func lookupFieldRecursive(list []*NamedType, name string) (res lookupResult) {
+ 
+ 			switch typ := underlying(typ).(type) {
+ 			case *Struct:
+-				// look for a matching fieldm and collect embedded types
++				// look for a matching field and collect embedded types
+ 				for _, f := range typ.Fields {
+ 					if f.Name == name {
+ 						assert(f.Type != nil)
+-						if !potentialMatch(variable, f.Type) {
++						if !potentialMatch(e.multiples, variable, f.Type) {
+ 							return // name collision
+ 						}
+ 						continue
+ 					}
+ 					// Collect embedded struct fields for searching the next
+-					// lower level, but only if we have not seen a match yet.
++					// lower level, but only if we have not seen a match yet
++					// (if we have a match it is either the desired field or
++					// we have a name collision on the same level; in either
++					// case we don't need to look further).
+ 					// Embedded fields are always of the form T or *T where
+-					// T is a named type.
++					// T is a named type. If typ appeared multiple times at
++					// this level, f.Type appears multiple times at the next
++					// level.
+ 					if f.IsAnonymous && res.mode == invalid {
+-						next = append(next, deref(f.Type).(*NamedType))
++						next = append(next, embeddedType{deref(f.Type).(*NamedType), e.multiples})
+ 					}
+ 				}
+ 
+@@ -267,7 +310,7 @@ func lookupFieldRecursive(list []*NamedType, name string) (res lookupResult) {
+ 				for _, obj := range typ.Methods {
+ 					if obj.Name == name {
+ 						assert(obj.Type != nil)
+-						if !potentialMatch(value, obj.Type.(Type)) {
++						if !potentialMatch(e.multiples, value, obj.Type.(Type)) {
+ 							return // name collision
+ 						}
+ 					}
+@@ -276,17 +319,41 @@ func lookupFieldRecursive(list []*NamedType, name string) (res lookupResult) {
+ 		}
+ 
+ 		if res.mode != invalid {
+-			// we found a match on this level
++			// we found a single match on this level
+ 			return
+ 		}
+ 
+-		// search the next level
+-		list = append(list[:0], next...) // don't waste underlying arrays
+-		next = next[:0]
++		// No match and no collision so far.
++		// Compute the list to search for the next level.
++		list = list[:0] // don't waste underlying array
++		for _, e := range next {
++			// Instead of adding the same type multiple times, look for
++			// it in the list and mark it as multiple if it was added
++			// before.
++			// We use a sequential search (instead of a map for next)
++			// because the lists tend to be small, can easily be reused,
++			// and explicit search appears to be faster in this case.
++			if alt := findType(list, e.typ); alt != nil {
++				alt.multiples = true
++			} else {
++				list = append(list, e)
++			}
++		}
++
+ 	}
++
+ 	return
+ }
+ 
++func findType(list []embeddedType, typ *NamedType) *embeddedType {
++	for i := range list {
++		if p := &list[i]; p.typ == typ {
++			return p
++		}
++	}
++	return nil
++}
++
+ func lookupField(typ Type, name string) (operandMode, Type) {
+ 	typ = deref(typ)
+ 
+@@ -301,17 +368,20 @@ func lookupField(typ Type, name string) (operandMode, Type) {
+ 
+ 	switch typ := underlying(typ).(type) {
+ 	case *Struct:
+-		var list []*NamedType
++		var next []embeddedType
+ 		for _, f := range typ.Fields {
+ 			if f.Name == name {
+ 				return variable, f.Type
+ 			}
+ 			if f.IsAnonymous {
+-				list = append(list, deref(f.Type).(*NamedType))
++				// Possible optimization: If the embedded type
++				// is a pointer to the current type we could
++				// ignore it.
++				next = append(next, embeddedType{typ: deref(f.Type).(*NamedType)})
+ 			}
+ 		}
+-		if len(list) > 0 {
+-			res := lookupFieldRecursive(list, name)
++		if len(next) > 0 {
++			res := lookupFieldBreadthFirst(next, name)
+ 			return res.mode, res.typ
+ 		}
+ 
+diff --git a/src/pkg/exp/types/testdata/decls0.src b/src/pkg/exp/types/testdata/decls0.src
+index 3537a9e558..f5fd3d8b86 100644
+--- a/src/pkg/exp/types/testdata/decls0.src
++++ b/src/pkg/exp/types/testdata/decls0.src
+@@ -41,7 +41,7 @@ type (
+ 
+ 
+ type (
+-	p1 pi /* ERROR "no field or method foo" */ .foo
++	p1 pi /* ERROR "no single field or method foo" */ .foo
+ 	p2 unsafe.Pointer
+ )
+ 
+@@ -131,7 +131,7 @@ type (
+ 		m1(I5)
+ 	}
+ 	I6 interface {
+-		S0 /* ERROR "non-interface" */
++		S0 /* ERROR "not an interface" */
+ 	}
+ 	I7 interface {
+ 		I1
+diff --git a/src/pkg/exp/types/testdata/decls3.src b/src/pkg/exp/types/testdata/decls3.src
+new file mode 100644
+index 0000000000..4bc7d41494
+--- /dev/null
++++ b/src/pkg/exp/types/testdata/decls3.src
+@@ -0,0 +1,231 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// embedded types
++
++package decls3
++
++// fields with the same name at the same level cancel each other out
++
++func _() {
++	type (
++		T1 struct { X int }
++		T2 struct { X int }
++		T3 struct { T1; T2 } // X is embedded twice at the same level via T1->X, T2->X
++	)
++
++	var t T3
++	_ = t /* ERROR "no single field or method" */ .X
++}
++
++func _() {
++	type (
++		T1 struct { X int }
++		T2 struct { T1 }
++		T3 struct { T1 }
++		T4 struct { T2; T3 } // X is embedded twice at the same level via T2->T1->X, T3->T1->X
++	)
++
++	var t T4
++	_ = t /* ERROR "no single field or method" */ .X
++}
++
++func issue4355() {
++	type (
++	    T1 struct {X int}
++	    T2 struct {T1}
++	    T3 struct {T2}
++	    T4 struct {T2}
++	    T5 struct {T3; T4} // X is embedded twice at the same level via T3->T2->T1->X, T4->T2->T1->X
++	)	
++
++	var t T5
++	_ = t /* ERROR "no single field or method" */ .X
++}
++
++// Borrowed from the FieldByName test cases in reflect/all_test.go.
++
++type D1 struct {
++	d int
++}
++type D2 struct {
++	d int
++}
++
++type S0 struct {
++	A, B, C int
++	D1
++	D2
++}
++
++type S1 struct {
++	B int
++	S0
++}
++
++type S2 struct {
++	A int
++	*S1
++}
++
++type S1x struct {
++	S1
++}
++
++type S1y struct {
++	S1
++}
++
++type S3 struct {
++	S1x
++	S2
++	D, E int
++	*S1y
++}
++
++type S4 struct {
++	*S4
++	A int
++}
++
++// The X in S6 and S7 annihilate, but they also block the X in S8.S9.
++type S5 struct {
++	S6
++	S7
++	S8
++}
++
++type S6 struct {
++	X int
++}
++
++type S7 S6
++
++type S8 struct {
++	S9
++}
++
++type S9 struct {
++	X int
++	Y int
++}
++
++// The X in S11.S6 and S12.S6 annihilate, but they also block the X in S13.S8.S9.
++type S10 struct {
++	S11
++	S12
++	S13
++}
++
++type S11 struct {
++	S6
++}
++
++type S12 struct {
++	S6
++}
++
++type S13 struct {
++	S8
++}
++
++func _() {
++	_ = struct /* ERROR "no single field or method" */ {}{}.Foo
++	_ = S0{}.A
++	_ = S0 /* ERROR "no single field or method" */ {}.D
++	_ = S1{}.A
++	_ = S1{}.B
++	_ = S1{}.S0
++	_ = S1{}.C
++	_ = S2{}.A
++	_ = S2{}.S1
++	_ = S2{}.B
++	_ = S2{}.C
++	_ = S2 /* ERROR "no single field or method" */ {}.D
++	_ = S3 /* ERROR "no single field or method" */ {}.S1
++	_ = S3{}.A
++	_ = S3 /* ERROR "no single field or method" */ {}.B
++	_ = S3{}.D
++	_ = S3{}.E
++	_ = S4{}.A
++	_ = S4 /* ERROR "no single field or method" */ {}.B
++	_ = S5 /* ERROR "no single field or method" */ {}.X
++	_ = S5{}.Y
++	_ = S10 /* ERROR "no single field or method" */ {}.X
++	_ = S10{}.Y
++}
++
++// Borrowed from the FieldByName benchmark in reflect/all_test.go.
++
++type R0 struct {
++	*R1
++	*R2
++	*R3
++	*R4
++}
++
++type R1 struct {
++	*R5
++	*R6
++	*R7
++	*R8
++}
++
++type R2 R1
++type R3 R1
++type R4 R1
++
++type R5 struct {
++	*R9
++	*R10
++	*R11
++	*R12
++}
++
++type R6 R5
++type R7 R5
++type R8 R5
++
++type R9 struct {
++	*R13
++	*R14
++	*R15
++	*R16
++}
++
++type R10 R9
++type R11 R9
++type R12 R9
++
++type R13 struct {
++	*R17
++	*R18
++	*R19
++	*R20
++}
++
++type R14 R13
++type R15 R13
++type R16 R13
++
++type R17 struct {
++	*R21
++	*R22
++	*R23
++	*R24
++}
++
++type R18 R17
++type R19 R17
++type R20 R17
++
++type R21 struct {
++	X int
++}
++
++type R22 R21
++type R23 R21
++type R24 R21
++
++var _ = R0 /* ERROR "no single field or method" */ {}.X
+\ No newline at end of file
+diff --git a/src/pkg/exp/types/testdata/expr3.src b/src/pkg/exp/types/testdata/expr3.src
+index 890f5e9938..1a7c5dfb90 100644
+--- a/src/pkg/exp/types/testdata/expr3.src
++++ b/src/pkg/exp/types/testdata/expr3.src
+@@ -126,9 +126,59 @@ type T struct {
+ func (*T) m() {}
+ 
+ func method_expressions() {
+-	_ = T /* ERROR "no field or method" */ .a
++	_ = T /* ERROR "no single field or method" */ .a
+ 	_ = T /* ERROR "has no method" */ .x
+ 	_ = T.m
+ 	var f func(*T) = (*T).m
+ 	var g func(*T) = ( /* ERROR "cannot assign" */ T).m
++}
++
++func struct_literals() {
++	type T0 struct {
++		a, b, c int
++	}
++
++	type T1 struct {
++		T0
++		a, b int
++		u float64
++		s string
++	}
++
++	// keyed elements
++	_ = T1{}
++	_ = T1{a: 0, 1 /* ERROR "mixture of .* elements" */ }
++	_ = T1{aa /* ERROR "unknown field" */ : 0}
++	_ = T1{1 /* ERROR "invalid field name" */ : 0}
++	_ = T1{a: 0, s: "foo", u: 0, a /* ERROR "duplicate field" */: 10}
++	_ = T1{a: "foo" /* ERROR "cannot use" */ }
++	_ = T1{c /* ERROR "unknown field" */ : 0}
++	_ = T1{T0: { /* ERROR "missing type" */ }}
++	_ = T1{T0: T0{}}
++	_ = T1{T0 /* ERROR "invalid field name" */ .a: 0}
++
++	// unkeyed elements
++	_ = T0{1, 2, 3}
++	_ = T0{1, b /* ERROR "mixture" */ : 2, 3}
++	_ = T0{1, 2} /* ERROR "too few values" */
++	_ = T0{1, 2, 3, 4  /* ERROR "too many values" */ }
++	_ = T0{1, "foo" /* ERROR "cannot use" */, 3.4  /* ERROR "cannot use" */}
++}
++
++func array_literals() {
++	// TODO(gri)
++}
++
++func slice_literals() {
++	// TODO(gri)
++}
++
++func map_literals() {
++	type M0 map[string]int
++
++	_ = M0{}
++	_ = M0{1 /* ERROR "missing key" */ }
++	_ = M0{1 /* ERROR "cannot use .* as string key" */ : 2}
++	_ = M0{"foo": "bar" /* ERROR "cannot use .* as int value" */ }
++	_ = M0{"foo": 1, "bar": 2, "foo" /* ERROR "duplicate key" */ : 3 }
+ }
+\ No newline at end of file
+diff --git a/src/pkg/exp/types/types.go b/src/pkg/exp/types/types.go
+index eed0c8a6c3..83a08266dd 100644
+--- a/src/pkg/exp/types/types.go
++++ b/src/pkg/exp/types/types.go
+@@ -126,6 +126,15 @@ type Struct struct {
+ 	Fields []*StructField
+ }
+ 
++func (typ *Struct) fieldIndex(name string) int {
++	for i, f := range typ.Fields {
++		if f.Name == name {
++			return i
++		}
++	}
++	return -1
++}
++
+ // A Pointer represents a pointer type *Base.
+ type Pointer struct {
+ 	implementsType

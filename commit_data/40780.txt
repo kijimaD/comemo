@@ -20,7 +20,7 @@ Date:   Fri Jun 28 11:20:15 2019 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/defs_darwin.go       |  4 ++++
  src/runtime/defs_darwin_386.go   |  4 ++++
  src/runtime/defs_darwin_amd64.go |  4 ++++
@@ -35,3 +35,334 @@ Date:   Fri Jun 28 11:20:15 2019 -0700
  src/runtime/sys_darwin_arm.s     |  8 +++++++
  src/runtime/sys_darwin_arm64.s   |  8 +++++++
  13 files changed, 159 insertions(+)
+
+diff --git a/src/runtime/defs_darwin.go b/src/runtime/defs_darwin.go
+index 61ae7a4186..0cd133f6e0 100644
+--- a/src/runtime/defs_darwin.go
++++ b/src/runtime/defs_darwin.go
+@@ -116,7 +116,11 @@ const (
+ 	PTHREAD_CREATE_DETACHED = C.PTHREAD_CREATE_DETACHED
+ 
+ 	F_SETFD    = C.F_SETFD
++	F_GETFL    = C.F_GETFL
++	F_SETFL    = C.F_SETFL
+ 	FD_CLOEXEC = C.FD_CLOEXEC
++
++	O_NONBLOCK = C.O_NONBLOCK
+ )
+ 
+ type StackT C.struct_sigaltstack
+diff --git a/src/runtime/defs_darwin_386.go b/src/runtime/defs_darwin_386.go
+index 43dc08a078..83928e7841 100644
+--- a/src/runtime/defs_darwin_386.go
++++ b/src/runtime/defs_darwin_386.go
+@@ -94,7 +94,11 @@ const (
+ 	_PTHREAD_CREATE_DETACHED = 0x2
+ 
+ 	_F_SETFD    = 0x2
++	_F_GETFL    = 0x3
++	_F_SETFL    = 0x4
+ 	_FD_CLOEXEC = 0x1
++
++	_O_NONBLOCK = 4
+ )
+ 
+ type stackt struct {
+diff --git a/src/runtime/defs_darwin_amd64.go b/src/runtime/defs_darwin_amd64.go
+index 59b0effa13..45c34a8fc0 100644
+--- a/src/runtime/defs_darwin_amd64.go
++++ b/src/runtime/defs_darwin_amd64.go
+@@ -94,7 +94,11 @@ const (
+ 	_PTHREAD_CREATE_DETACHED = 0x2
+ 
+ 	_F_SETFD    = 0x2
++	_F_GETFL    = 0x3
++	_F_SETFL    = 0x4
+ 	_FD_CLOEXEC = 0x1
++
++	_O_NONBLOCK = 4
+ )
+ 
+ type stackt struct {
+diff --git a/src/runtime/defs_darwin_arm.go b/src/runtime/defs_darwin_arm.go
+index 243f52a5df..5e2af978a7 100644
+--- a/src/runtime/defs_darwin_arm.go
++++ b/src/runtime/defs_darwin_arm.go
+@@ -96,7 +96,11 @@ const (
+ 	_PTHREAD_CREATE_DETACHED = 0x2
+ 
+ 	_F_SETFD    = 0x2
++	_F_GETFL    = 0x3
++	_F_SETFL    = 0x4
+ 	_FD_CLOEXEC = 0x1
++
++	_O_NONBLOCK = 4
+ )
+ 
+ type stackt struct {
+diff --git a/src/runtime/defs_darwin_arm64.go b/src/runtime/defs_darwin_arm64.go
+index 7056074f46..f673eb7b24 100644
+--- a/src/runtime/defs_darwin_arm64.go
++++ b/src/runtime/defs_darwin_arm64.go
+@@ -94,7 +94,11 @@ const (
+ 	_PTHREAD_CREATE_DETACHED = 0x2
+ 
+ 	_F_SETFD    = 0x2
++	_F_GETFL    = 0x3
++	_F_SETFL    = 0x4
+ 	_FD_CLOEXEC = 0x1
++
++	_O_NONBLOCK = 4
+ )
+ 
+ type stackt struct {
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index 819aaaca70..1614b66c8a 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -75,6 +75,52 @@ func semawakeup(mp *m) {
+ 	pthread_mutex_unlock(&mp.mutex)
+ }
+ 
++// The read and write file descriptors used by the sigNote functions.
++var sigNoteRead, sigNoteWrite int32
++
++// sigNoteSetup initializes an async-signal-safe note.
++//
++// The current implementation of notes on Darwin is not async-signal-safe,
++// because the functions pthread_mutex_lock, pthread_cond_signal, and
++// pthread_mutex_unlock, called by semawakeup, are not async-signal-safe.
++// There is only one case where we need to wake up a note from a signal
++// handler: the sigsend function. The signal handler code does not require
++// all the features of notes: it does not need to do a timed wait.
++// This is a separate implementation of notes, based on a pipe, that does
++// not support timed waits but is async-signal-safe.
++func sigNoteSetup(*note) {
++	if sigNoteRead != 0 || sigNoteWrite != 0 {
++		throw("duplicate sigNoteSetup")
++	}
++	var errno int32
++	sigNoteRead, sigNoteWrite, errno = pipe()
++	if errno != 0 {
++		throw("pipe failed")
++	}
++	closeonexec(sigNoteRead)
++	closeonexec(sigNoteWrite)
++
++	// Make the write end of the pipe non-blocking, so that if the pipe
++	// buffer is somehow full we will not block in the signal handler.
++	// Leave the read end of the pipe blocking so that we will block
++	// in sigNoteSleep.
++	setNonblock(sigNoteWrite)
++}
++
++// sigNoteWakeup wakes up a thread sleeping on a note created by sigNoteSetup.
++func sigNoteWakeup(*note) {
++	var b byte
++	write(uintptr(sigNoteWrite), unsafe.Pointer(&b), 1)
++}
++
++// sigNoteSleep waits for a note created by sigNoteSetup to be woken.
++func sigNoteSleep(*note) {
++	entersyscallblock()
++	var b byte
++	read(sigNoteRead, unsafe.Pointer(&b), 1)
++	exitsyscall()
++}
++
+ // BSD interface for threading.
+ func osinit() {
+ 	// pthread_create delayed until end of goenvs so that we
+diff --git a/src/runtime/sigqueue.go b/src/runtime/sigqueue.go
+index a425433b20..b2ebb2b457 100644
+--- a/src/runtime/sigqueue.go
++++ b/src/runtime/sigqueue.go
+@@ -105,6 +105,10 @@ Send:
+ 			break Send
+ 		case sigReceiving:
+ 			if atomic.Cas(&sig.state, sigReceiving, sigIdle) {
++				if GOOS == "darwin" {
++					sigNoteWakeup(&sig.note)
++					break Send
++				}
+ 				notewakeup(&sig.note)
+ 				break Send
+ 			}
+@@ -136,6 +140,10 @@ func signal_recv() uint32 {
+ 				throw("signal_recv: inconsistent state")
+ 			case sigIdle:
+ 				if atomic.Cas(&sig.state, sigIdle, sigReceiving) {
++					if GOOS == "darwin" {
++						sigNoteSleep(&sig.note)
++						break Receive
++					}
+ 					notetsleepg(&sig.note, -1)
+ 					noteclear(&sig.note)
+ 					break Receive
+@@ -188,6 +196,10 @@ func signal_enable(s uint32) {
+ 		// to use for initialization. It does not pass
+ 		// signal information in m.
+ 		sig.inuse = true // enable reception of signals; cannot disable
++		if GOOS == "darwin" {
++			sigNoteSetup(&sig.note)
++			return
++		}
+ 		noteclear(&sig.note)
+ 		return
+ 	}
+diff --git a/src/runtime/sigqueue_note.go b/src/runtime/sigqueue_note.go
+new file mode 100644
+index 0000000000..16aeeb2ef0
+--- /dev/null
++++ b/src/runtime/sigqueue_note.go
+@@ -0,0 +1,25 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The current implementation of notes on Darwin is not async-signal-safe,
++// so on Darwin the sigqueue code uses different functions to wake up the
++// signal_recv thread. This file holds the non-Darwin implementations of
++// those functions. These functions will never be called.
++
++// +build !darwin
++// +build !plan9
++
++package runtime
++
++func sigNoteSetup(*note) {
++	throw("sigNoteSetup")
++}
++
++func sigNoteSleep(*note) {
++	throw("sigNoteSleep")
++}
++
++func sigNoteWakeup(*note) {
++	throw("sigNoteWakeup")
++}
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index b50d441d92..376f76dbc5 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -197,6 +197,13 @@ func read(fd int32, p unsafe.Pointer, n int32) int32 {
+ }
+ func read_trampoline()
+ 
++func pipe() (r, w int32, errno int32) {
++	var p [2]int32
++	errno = libcCall(unsafe.Pointer(funcPC(pipe_trampoline)), noescape(unsafe.Pointer(&p)))
++	return p[0], p[1], errno
++}
++func pipe_trampoline()
++
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func closefd(fd int32) int32 {
+@@ -395,6 +402,12 @@ func closeonexec(fd int32) {
+ 	fcntl(fd, _F_SETFD, _FD_CLOEXEC)
+ }
+ 
++//go:nosplit
++func setNonblock(fd int32) {
++	flags := fcntl(fd, _F_GETFL, 0)
++	fcntl(fd, _F_SETFL, flags|_O_NONBLOCK)
++}
++
+ // Tell the linker that the libc_* functions are to be found
+ // in a system library, with the libc_ prefix missing.
+ 
+@@ -409,6 +422,7 @@ func closeonexec(fd int32) {
+ //go:cgo_import_dynamic libc_close close "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_read read "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_write write "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_pipe pipe "/usr/lib/libSystem.B.dylib"
+ 
+ //go:cgo_import_dynamic libc_mmap mmap "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_munmap munmap "/usr/lib/libSystem.B.dylib"
+diff --git a/src/runtime/sys_darwin_386.s b/src/runtime/sys_darwin_386.s
+index 9a0b3607c2..ac5f4e4d63 100644
+--- a/src/runtime/sys_darwin_386.s
++++ b/src/runtime/sys_darwin_386.s
+@@ -84,6 +84,21 @@ TEXT runtime·write_trampoline(SB),NOSPLIT,$0
+ 	POPL	BP
+ 	RET
+ 
++TEXT runtime·pipe_trampoline(SB),NOSPLIT,$0
++	PUSHL	BP
++	MOVL	SP, BP
++	SUBL	$8, SP
++	MOVL	16(SP), CX		// arg 1 pipefd
++	MOVL	AX, 0(SP)
++	CALL	libc_pipe(SB)
++	TESTL	AX, AX
++	JEQ	3(PC)
++	CALL	libc_error(SB)		// return negative errno value
++	NEGL	AX
++	MOVL	BP, SP
++	POPL	BP
++	RET
++
+ TEXT runtime·mmap_trampoline(SB),NOSPLIT,$0
+ 	PUSHL	BP
+ 	MOVL	SP, BP
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index bbe6bc14bf..87c8db8c82 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -59,6 +59,17 @@ TEXT runtime·write_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
++TEXT runtime·pipe_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	CALL	libc_pipe(SB)		// pointer already in DI
++	TESTL	AX, AX
++	JEQ	3(PC)
++	CALL	libc_error(SB)		// return negative errno value
++	NEGL	AX
++	POPQ	BP
++	RET
++
+ TEXT runtime·setitimer_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+diff --git a/src/runtime/sys_darwin_arm.s b/src/runtime/sys_darwin_arm.s
+index b1c22b3242..996f8028a3 100644
+--- a/src/runtime/sys_darwin_arm.s
++++ b/src/runtime/sys_darwin_arm.s
+@@ -41,6 +41,14 @@ TEXT runtime·read_trampoline(SB),NOSPLIT,$0
+ 	BL	libc_read(SB)
+ 	RET
+ 
++TEXT runtime·pipe_trampoline(SB),NOSPLIT,$0
++	BL	libc_pipe(SB)	// pointer already in R0
++	CMP	$0, R0
++	BEQ	3(PC)
++	BL	libc_error(SB)	// return negative errno value
++	RSB	$0, R0, R0
++	RET
++
+ TEXT runtime·exit_trampoline(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	0(R0), R0	// arg 0 code
+ 	BL libc_exit(SB)
+diff --git a/src/runtime/sys_darwin_arm64.s b/src/runtime/sys_darwin_arm64.s
+index af03af37bb..ac3ca74f63 100644
+--- a/src/runtime/sys_darwin_arm64.s
++++ b/src/runtime/sys_darwin_arm64.s
+@@ -44,6 +44,14 @@ TEXT runtime·read_trampoline(SB),NOSPLIT,$0
+ 	BL	libc_read(SB)
+ 	RET
+ 
++TEXT runtime·pipe_trampoline(SB),NOSPLIT,$0
++	BL	libc_pipe(SB)	// pointer already in R0
++	CMP	$0, R0
++	BEQ	3(PC)
++	BL	libc_error(SB)	// return negative errno value
++	NEG	R0, R0
++	RET
++
+ TEXT runtime·exit_trampoline(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	0(R0), R0
+ 	BL	libc_exit(SB)

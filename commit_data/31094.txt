@@ -11,8 +11,55 @@ Date:   Sun Jan 29 20:53:35 2017 +0100
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go                    |  7 +++++++
  src/cmd/go/testdata/timeoutbench_test.go | 10 ++++++++++
  src/testing/testing.go                   |  1 +
  3 files changed, 18 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index f26c3660e4..ef5348bba4 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3744,6 +3744,13 @@ func TestMatchesOnlySubtestParallelIsOK(t *testing.T) {
+ 	tg.grepBoth(okPattern, "go test did not say ok")
+ }
+ 
++// Issue 18845
++func TestBenchTimeout(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.run("test", "-bench", ".", "-timeout", "750ms", "testdata/timeoutbench_test.go")
++}
++
+ func TestLinkXImportPathEscape(t *testing.T) {
+ 	// golang.org/issue/16710
+ 	tg := testgo(t)
+diff --git a/src/cmd/go/testdata/timeoutbench_test.go b/src/cmd/go/testdata/timeoutbench_test.go
+new file mode 100644
+index 0000000000..57a8888299
+--- /dev/null
++++ b/src/cmd/go/testdata/timeoutbench_test.go
+@@ -0,0 +1,10 @@
++package timeoutbench_test
++
++import (
++	"testing"
++	"time"
++)
++
++func BenchmarkSleep1s(b *testing.B) {
++	time.Sleep(1 * time.Second)
++}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index ddbdc25bf1..bd19a31c27 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -821,6 +821,7 @@ func (m *M) Run() int {
+ 	haveExamples = len(m.examples) > 0
+ 	testRan, testOk := runTests(m.deps.MatchString, m.tests)
+ 	exampleRan, exampleOk := runExamples(m.deps.MatchString, m.examples)
++	stopAlarm()
+ 	if !testRan && !exampleRan && *matchBenchmarks == "" {
+ 		fmt.Fprintln(os.Stderr, "testing: warning: no tests to run")
+ 	}

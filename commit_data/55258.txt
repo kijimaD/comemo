@@ -15,7 +15,38 @@ Date:   Tue Jan 24 16:11:06 2023 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/prove.go | 3 ---
  test/prove.go                         | 5 -----
  2 files changed, 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index 89098e411b..26a349997e 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -856,9 +856,6 @@ func prove(f *Func) {
+ 			case OpAnd64, OpAnd32, OpAnd16, OpAnd8:
+ 				ft.update(b, v, v.Args[1], unsigned, lt|eq)
+ 				ft.update(b, v, v.Args[0], unsigned, lt|eq)
+-			case OpOr64, OpOr32, OpOr16, OpOr8:
+-				ft.update(b, v, v.Args[1], unsigned, gt|eq)
+-				ft.update(b, v, v.Args[0], unsigned, gt|eq)
+ 			case OpDiv64u, OpDiv32u, OpDiv16u, OpDiv8u,
+ 				OpRsh8Ux64, OpRsh8Ux32, OpRsh8Ux16, OpRsh8Ux8,
+ 				OpRsh16Ux64, OpRsh16Ux32, OpRsh16Ux16, OpRsh16Ux8,
+diff --git a/test/prove.go b/test/prove.go
+index ab893099bf..cf225ff38e 100644
+--- a/test/prove.go
++++ b/test/prove.go
+@@ -1092,11 +1092,6 @@ func issue51622(b []byte) int {
+ 	return 0
+ }
+ 
+-func issue45928(x int) {
+-	combinedFrac := (x) / (x | (1 << 31)) // ERROR "Proved Neq64$"
+-	useInt(combinedFrac)
+-}
+-
+ //go:noinline
+ func useInt(a int) {
+ }

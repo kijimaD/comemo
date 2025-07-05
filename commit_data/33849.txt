@@ -16,6 +16,19 @@ Date:   Tue Sep 12 12:22:22 2017 -0400
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/cpuprof.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/cpuprof.go b/src/runtime/cpuprof.go
+index fb841a9f3d..e00dcb1bbd 100644
+--- a/src/runtime/cpuprof.go
++++ b/src/runtime/cpuprof.go
+@@ -160,6 +160,7 @@ func (p *cpuProfile) addExtra() {
+ 			funcPC(_ExternalCode) + sys.PCQuantum,
+ 		}
+ 		cpuprof.log.write(nil, 0, hdr[:], lostStk[:])
++		p.lostExtra = 0
+ 	}
+ }
+ 

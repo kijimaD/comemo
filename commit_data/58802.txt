@@ -13,6 +13,21 @@ Date:   Thu Dec 14 10:37:33 2023 -0500
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  doc/go1.22.html | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/doc/go1.22.html b/doc/go1.22.html
+index c4337f1fe7..a2ae843bc7 100644
+--- a/doc/go1.22.html
++++ b/doc/go1.22.html
+@@ -895,6 +895,9 @@ defer func() {
+   On 64-bit ARM-based macOS (the <code>darwin/arm64</code> port),
+   the Go toolchain already generates PIE by default.
+ </p>
++<p><!-- go.dev/issue/64207 -->
++  Go 1.22 is the last release that will run on macOS 10.15 Catalina. Go 1.23 will require macOS 11 Big Sur or later.
++</p>
+ 
+ <h3 id="arm">Arm</h3>
+ <p><!-- CL 514907 -->

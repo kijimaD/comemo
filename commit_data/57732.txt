@@ -20,7 +20,7 @@ Date:   Fri Mar 31 15:36:59 2023 +0800
     Reviewed-by: abner chenc <chenguoqi@loongson.cn>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Run-TryBot: WANG Xuerui <git@xen0n.name>
-
+---
  src/cmd/go/alldocs.go              |  2 +-
  src/cmd/go/internal/work/build.go  |  2 +-
  src/internal/platform/supported.go |  2 +-
@@ -32,3 +32,248 @@ Date:   Fri Mar 31 15:36:59 2023 +0800
  src/runtime/msan_loong64.s         | 72 ++++++++++++++++++++++++++++++++++++++
  src/runtime/sys_linux_loong64.s    | 37 +++++++++++++++++---
  10 files changed, 113 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index ef7e5fdf72..17c46913f3 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -117,7 +117,7 @@
+ //		linux/ppc64le and linux/arm64 (only for 48-bit VMA).
+ //	-msan
+ //		enable interoperation with memory sanitizer.
+-//		Supported only on linux/amd64, linux/arm64, freebsd/amd64
++//		Supported only on linux/amd64, linux/arm64, linux/loong64, freebsd/amd64
+ //		and only with Clang/LLVM as the host C compiler.
+ //		PIE build mode will be used on all platforms except linux/amd64.
+ //	-asan
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index e2e0e07299..05e300581c 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -76,7 +76,7 @@ and test commands:
+ 		linux/ppc64le and linux/arm64 (only for 48-bit VMA).
+ 	-msan
+ 		enable interoperation with memory sanitizer.
+-		Supported only on linux/amd64, linux/arm64, freebsd/amd64
++		Supported only on linux/amd64, linux/arm64, linux/loong64, freebsd/amd64
+ 		and only with Clang/LLVM as the host C compiler.
+ 		PIE build mode will be used on all platforms except linux/amd64.
+ 	-asan
+diff --git a/src/internal/platform/supported.go b/src/internal/platform/supported.go
+index f20a977526..b70a3d98ca 100644
+--- a/src/internal/platform/supported.go
++++ b/src/internal/platform/supported.go
+@@ -38,7 +38,7 @@ func RaceDetectorSupported(goos, goarch string) bool {
+ func MSanSupported(goos, goarch string) bool {
+ 	switch goos {
+ 	case "linux":
+-		return goarch == "amd64" || goarch == "arm64"
++		return goarch == "amd64" || goarch == "arm64" || goarch == "loong64"
+ 	case "freebsd":
+ 		return goarch == "amd64"
+ 	default:
+diff --git a/src/runtime/cgo/gcc_mmap.c b/src/runtime/cgo/gcc_mmap.c
+index 1fbd5e82a4..eb710a039d 100644
+--- a/src/runtime/cgo/gcc_mmap.c
++++ b/src/runtime/cgo/gcc_mmap.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (linux && (amd64 || arm64 || ppc64le)) || (freebsd && amd64)
++//go:build (linux && (amd64 || arm64 || loong64 || ppc64le)) || (freebsd && amd64)
+ 
+ #include <errno.h>
+ #include <stdint.h>
+diff --git a/src/runtime/cgo/mmap.go b/src/runtime/cgo/mmap.go
+index 2f7e83bcb7..144af2b2ca 100644
+--- a/src/runtime/cgo/mmap.go
++++ b/src/runtime/cgo/mmap.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (linux && amd64) || (linux && arm64) || (freebsd && amd64)
++//go:build (linux && (amd64 || arm64 || loong64)) || (freebsd && amd64)
+ 
+ package cgo
+ 
+diff --git a/src/runtime/cgo_mmap.go b/src/runtime/cgo_mmap.go
+index 30660f7784..36d776e628 100644
+--- a/src/runtime/cgo_mmap.go
++++ b/src/runtime/cgo_mmap.go
+@@ -4,7 +4,7 @@
+ 
+ // Support for memory sanitizer. See runtime/cgo/mmap.go.
+ 
+-//go:build (linux && amd64) || (linux && arm64) || (freebsd && amd64)
++//go:build (linux && (amd64 || arm64 || loong64)) || (freebsd && amd64)
+ 
+ package runtime
+ 
+diff --git a/src/runtime/mmap.go b/src/runtime/mmap.go
+index f0183f61cf..9a7b298562 100644
+--- a/src/runtime/mmap.go
++++ b/src/runtime/mmap.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !aix && !darwin && !js && (!linux || !amd64) && (!linux || !arm64) && (!freebsd || !amd64) && !openbsd && !plan9 && !solaris && !windows
++//go:build !aix && !darwin && !js && !((linux && (amd64 || arm64 || loong64)) || (freebsd && amd64)) && !openbsd && !plan9 && !solaris && !windows
+ 
+ package runtime
+ 
+diff --git a/src/runtime/msan/msan.go b/src/runtime/msan/msan.go
+index 4e41f8528d..7b3e8e608d 100644
+--- a/src/runtime/msan/msan.go
++++ b/src/runtime/msan/msan.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build msan && ((linux && (amd64 || arm64)) || (freebsd && amd64))
++//go:build msan && ((linux && (amd64 || arm64 || loong64)) || (freebsd && amd64))
+ 
+ package msan
+ 
+diff --git a/src/runtime/msan_loong64.s b/src/runtime/msan_loong64.s
+new file mode 100644
+index 0000000000..f69fb45454
+--- /dev/null
++++ b/src/runtime/msan_loong64.s
+@@ -0,0 +1,72 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build msan
++
++#include "go_asm.h"
++#include "textflag.h"
++
++#define RARG0 R4
++#define RARG1 R5
++#define RARG2 R6
++#define FARG  R7
++
++// func runtime·domsanread(addr unsafe.Pointer, sz uintptr)
++// Called from msanread.
++TEXT	runtime·domsanread(SB), NOSPLIT, $0-16
++	MOVV	addr+0(FP), RARG0
++	MOVV	size+8(FP), RARG1
++	// void __msan_read_go(void *addr, uintptr_t sz);
++	MOVV	$__msan_read_go(SB), FARG
++	JMP	msancall<>(SB)
++
++// func runtime·msanwrite(addr unsafe.Pointer, sz uintptr)
++// Called from instrumented code.
++TEXT	runtime·msanwrite(SB), NOSPLIT, $0-16
++	MOVV	addr+0(FP), RARG0
++	MOVV	size+8(FP), RARG1
++	// void __msan_write_go(void *addr, uintptr_t sz);
++	MOVV	$__msan_write_go(SB), FARG
++	JMP	msancall<>(SB)
++
++// func runtime·msanmalloc(addr unsafe.Pointer, sz uintptr)
++TEXT	runtime·msanmalloc(SB), NOSPLIT, $0-16
++	MOVV	addr+0(FP), RARG0
++	MOVV	size+8(FP), RARG1
++	// void __msan_malloc_go(void *addr, uintptr_t sz);
++	MOVV	$__msan_malloc_go(SB), FARG
++	JMP	msancall<>(SB)
++
++// func runtime·msanfree(addr unsafe.Pointer, sz uintptr)
++TEXT	runtime·msanfree(SB), NOSPLIT, $0-16
++	MOVV	addr+0(FP), RARG0
++	MOVV	size+8(FP), RARG1
++	// void __msan_free_go(void *addr, uintptr_t sz);
++	MOVV	$__msan_free_go(SB), FARG
++	JMP	msancall<>(SB)
++
++// func runtime·msanmove(dst, src unsafe.Pointer, sz uintptr)
++TEXT	runtime·msanmove(SB), NOSPLIT, $0-24
++	MOVV	dst+0(FP), RARG0
++	MOVV	src+8(FP), RARG1
++	MOVV	size+16(FP), RARG2
++	// void __msan_memmove(void *dst, void *src, uintptr_t sz);
++	MOVV	$__msan_memmove(SB), FARG
++	JMP	msancall<>(SB)
++
++// Switches SP to g0 stack and calls (FARG). Arguments already set.
++TEXT	msancall<>(SB), NOSPLIT, $0-0
++	MOVV	R3, R23         // callee-saved
++	BEQ	g, g0stack      // no g, still on a system stack
++	MOVV	g_m(g), R14
++	MOVV	m_g0(R14), R15
++	BEQ	R15, g, g0stack
++
++	MOVV	(g_sched+gobuf_sp)(R15), R9
++	MOVV	R9, R3
++
++g0stack:
++	JAL	(FARG)
++	MOVV	R23, R3
++	RET
+diff --git a/src/runtime/sys_linux_loong64.s b/src/runtime/sys_linux_loong64.s
+index 12e5455345..eba8e1f24c 100644
+--- a/src/runtime/sys_linux_loong64.s
++++ b/src/runtime/sys_linux_loong64.s
+@@ -461,8 +461,8 @@ TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$168
+ TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
+ 	JMP	runtime·sigtramp(SB)
+ 
+-// func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (p unsafe.Pointer, err int)
+-TEXT runtime·mmap(SB),NOSPLIT|NOFRAME,$0
++// func sysMmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (p unsafe.Pointer, err int)
++TEXT runtime·sysMmap(SB),NOSPLIT|NOFRAME,$0
+ 	MOVV	addr+0(FP), R4
+ 	MOVV	n+8(FP), R5
+ 	MOVW	prot+16(FP), R6
+@@ -483,8 +483,25 @@ ok:
+ 	MOVV	$0, err+40(FP)
+ 	RET
+ 
+-// func munmap(addr unsafe.Pointer, n uintptr)
+-TEXT runtime·munmap(SB),NOSPLIT|NOFRAME,$0
++// Call the function stored in _cgo_mmap using the GCC calling convention.
++// This must be called on the system stack.
++// func callCgoMmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) uintptr
++TEXT runtime·callCgoMmap(SB),NOSPLIT,$0
++	MOVV	addr+0(FP), R4
++	MOVV	n+8(FP), R5
++	MOVW	prot+16(FP), R6
++	MOVW	flags+20(FP), R7
++	MOVW	fd+24(FP), R8
++	MOVW	off+28(FP), R9
++	MOVV	_cgo_mmap(SB), R13
++	SUBV	$16, R3		// reserve 16 bytes for sp-8 where fp may be saved.
++	JAL	(R13)
++	ADDV	$16, R3
++	MOVV	R4, ret+32(FP)
++	RET
++
++// func sysMunmap(addr unsafe.Pointer, n uintptr)
++TEXT runtime·sysMunmap(SB),NOSPLIT|NOFRAME,$0
+ 	MOVV	addr+0(FP), R4
+ 	MOVV	n+8(FP), R5
+ 	MOVV	$SYS_munmap, R11
+@@ -494,6 +511,18 @@ TEXT runtime·munmap(SB),NOSPLIT|NOFRAME,$0
+ 	MOVV	R0, 0xf3(R0)	// crash
+ 	RET
+ 
++// Call the function stored in _cgo_munmap using the GCC calling convention.
++// This must be called on the system stack.
++// func callCgoMunmap(addr unsafe.Pointer, n uintptr)
++TEXT runtime·callCgoMunmap(SB),NOSPLIT,$0
++	MOVV	addr+0(FP), R4
++	MOVV	n+8(FP), R5
++	MOVV	_cgo_munmap(SB), R13
++	SUBV	$16, R3		// reserve 16 bytes for sp-8 where fp may be saved.
++	JAL	(R13)
++	ADDV	$16, R3
++	RET
++
+ // func madvise(addr unsafe.Pointer, n uintptr, flags int32)
+ TEXT runtime·madvise(SB),NOSPLIT|NOFRAME,$0
+ 	MOVV	addr+0(FP), R4

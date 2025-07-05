@@ -8,7 +8,74 @@ Date:   Thu Jan 26 16:50:56 2012 +0000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5573072
-
+---
  src/pkg/net/http/request.go      |  4 +---
  src/pkg/net/http/request_test.go | 19 +++++++++++--------
  2 files changed, 12 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/net/http/request.go b/src/pkg/net/http/request.go
+index 554ad26b2c..59fe0bf9ed 100644
+--- a/src/pkg/net/http/request.go
++++ b/src/pkg/net/http/request.go
+@@ -606,7 +606,7 @@ func (r *Request) ParseForm() (err error) {
+ 			return errors.New("missing form body")
+ 		}
+ 		ct := r.Header.Get("Content-Type")
+-		ct, _, err := mime.ParseMediaType(ct)
++		ct, _, err = mime.ParseMediaType(ct)
+ 		switch {
+ 		case ct == "application/x-www-form-urlencoded":
+ 			var reader io.Reader = r.Body
+@@ -646,8 +646,6 @@ func (r *Request) ParseForm() (err error) {
+ 			// Clean this up and write more tests.
+ 			// request_test.go contains the start of this,
+ 			// in TestRequestMultipartCallOrder.
+-		default:
+-			return &badStringError{"unknown Content-Type", ct}
+ 		}
+ 	}
+ 	return err
+diff --git a/src/pkg/net/http/request_test.go b/src/pkg/net/http/request_test.go
+index 7b78645169..7a3556d036 100644
+--- a/src/pkg/net/http/request_test.go
++++ b/src/pkg/net/http/request_test.go
+@@ -46,19 +46,19 @@ func TestPostQuery(t *testing.T) {
+ 
+ type stringMap map[string][]string
+ type parseContentTypeTest struct {
++	shouldError bool
+ 	contentType stringMap
+ }
+ 
+ var parseContentTypeTests = []parseContentTypeTest{
+-	{contentType: stringMap{"Content-Type": {"text/plain"}}},
+-	{contentType: stringMap{}}, // Non-existent keys are not placed. The value nil is illegal.
+-	{contentType: stringMap{"Content-Type": {"text/plain; boundary="}}},
+-	{
+-		contentType: stringMap{"Content-Type": {"application/unknown"}},
+-	},
++	{false, stringMap{"Content-Type": {"text/plain"}}},
++	// Non-existent keys are not placed. The value nil is illegal.
++	{true, stringMap{}},
++	{true, stringMap{"Content-Type": {"text/plain; boundary="}}},
++	{false, stringMap{"Content-Type": {"application/unknown"}}},
+ }
+ 
+-func TestParseFormBadContentType(t *testing.T) {
++func TestParseFormUnknownContentType(t *testing.T) {
+ 	for i, test := range parseContentTypeTests {
+ 		req := &Request{
+ 			Method: "POST",
+@@ -66,8 +66,11 @@ func TestParseFormBadContentType(t *testing.T) {
+ 			Body:   ioutil.NopCloser(bytes.NewBufferString("body")),
+ 		}
+ 		err := req.ParseForm()
+-		if err == nil {
++		switch {
++		case err == nil && test.shouldError:
+ 			t.Errorf("test %d should have returned error", i)
++		case err != nil && !test.shouldError:
++			t.Errorf("test %d should not have returned error, got %v", i, err)
+ 		}
+ 	}
+ }

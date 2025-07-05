@@ -12,8 +12,65 @@ Date:   Tue Aug 25 11:25:38 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/crypto/boring/boring.go         |  3 +++
  src/crypto/boring/notboring_test.go | 13 +++++++++++++
  src/go/build/build.go               |  5 +++++
  3 files changed, 21 insertions(+)
+
+diff --git a/src/crypto/boring/boring.go b/src/crypto/boring/boring.go
+index 31831d6412..19e2a0876f 100644
+--- a/src/crypto/boring/boring.go
++++ b/src/crypto/boring/boring.go
+@@ -6,6 +6,9 @@
+ // Go+BoringCrypto. This package is available on all targets as long as the
+ // Go+BoringCrypto toolchain is used. Use the Enabled function to determine
+ // whether the BoringCrypto core is actually in use.
++//
++// Any time the Go+BoringCrypto toolchain is used, the "boringcrypto" build tag
++// is satisfied, so that applications can tag files that use this package.
+ package boring
+ 
+ import "crypto/internal/boring"
+diff --git a/src/crypto/boring/notboring_test.go b/src/crypto/boring/notboring_test.go
+new file mode 100644
+index 0000000000..385a384dd7
+--- /dev/null
++++ b/src/crypto/boring/notboring_test.go
+@@ -0,0 +1,13 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !boringcrypto
++
++package boring_test
++
++import "testing"
++
++func TestNotBoring(t *testing.T) {
++	t.Error("a file tagged !boringcrypto should not build under Go+BoringCrypto")
++}
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 4a5da308a0..0a606161ca 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -1697,6 +1697,7 @@ func splitQuoted(s string) (r []string, err error) {
+ //	$GOARCH
+ //	cgo (if cgo is enabled)
+ //	!cgo (if cgo is disabled)
++//	boringcrypto
+ //	ctxt.Compiler
+ //	!ctxt.Compiler
+ //	tag (if tag is listed in ctxt.BuildTags or ctxt.ReleaseTags)
+@@ -1748,6 +1749,10 @@ func (ctxt *Context) match(name string, allTags map[string]bool) bool {
+ 	if ctxt.GOOS == "illumos" && name == "solaris" {
+ 		return true
+ 	}
++	// Let applications know that the Go+BoringCrypto toolchain is in use.
++	if name == "boringcrypto" {
++		return true
++	}
+ 
+ 	// other tags
+ 	for _, tag := range ctxt.BuildTags {

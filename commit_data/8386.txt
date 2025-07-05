@@ -7,7 +7,52 @@ Date:   Fri May 13 12:15:46 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4543049
-
+---
  src/cmd/5c/peep.c | 4 ++--
  src/cmd/5g/peep.c | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/5c/peep.c b/src/cmd/5c/peep.c
+index c15bf0fc4c..8945ee7321 100644
+--- a/src/cmd/5c/peep.c
++++ b/src/cmd/5c/peep.c
+@@ -1100,7 +1100,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 		if(v->type == D_REG) {
+ 			if(v->reg <= REGEXT && v->reg > exregoffset)
+ 				return 2;
+-			if(v->reg == (uchar)REGARG)
++			if(v->reg == REGARG)
+ 				return 2;
+ 		}
+ 		if(v->type == D_FREG)
+@@ -1118,7 +1118,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 
+ 	case ATEXT:	/* funny */
+ 		if(v->type == D_REG)
+-			if(v->reg == (uchar)REGARG)
++			if(v->reg == REGARG)
+ 				return 3;
+ 		return 0;
+ 	}
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index 6f36e12d42..ca12d70f26 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -1134,7 +1134,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 		if(v->type == D_REG) {
+ 			if(v->reg <= REGEXT && v->reg > exregoffset)
+ 				return 2;
+-			if(v->reg == (uchar)REGARG)
++			if(v->reg == REGARG)
+ 				return 2;
+ 		}
+ 		if(v->type == D_FREG)
+@@ -1152,7 +1152,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 
+ 	case ATEXT:	/* funny */
+ 		if(v->type == D_REG)
+-			if(v->reg == (uchar)REGARG)
++			if(v->reg == REGARG)
+ 				return 3;
+ 		return 0;
+ 	}

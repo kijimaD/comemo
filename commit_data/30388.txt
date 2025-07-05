@@ -14,9 +14,84 @@ Date:   Sat Sep 24 08:39:31 2016 +1000
     Reviewed-on: https://go-review.googlesource.com/29692
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  misc/cgo/testplugin/src/host/host.go           | 12 ++++++++++++
  misc/cgo/testplugin/src/sub/plugin1/plugin1.go |  3 +++
  src/cmd/compile/internal/gc/reflect.go         |  2 +-
  src/cmd/link/internal/ld/deadcode.go           |  5 +++++
  4 files changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testplugin/src/host/host.go b/misc/cgo/testplugin/src/host/host.go
+index 636655aa5c..477a9e63a2 100644
+--- a/misc/cgo/testplugin/src/host/host.go
++++ b/misc/cgo/testplugin/src/host/host.go
+@@ -61,6 +61,15 @@ func main() {
+ 		log.Fatalf("plugin.Open(%q) failed: %v", subpPath, err)
+ 	}
+ 
++	funcVar, err := subp.Lookup("FuncVar")
++	if err != nil {
++		log.Fatalf(`sub/plugin1.Lookup("FuncVar") failed: %v`, err)
++	}
++	called := false
++	*funcVar.(*func()) = func() {
++		called = true
++	}
++
+ 	readFunc, err = subp.Lookup("ReadCommonX")
+ 	if err != nil {
+ 		log.Fatalf(`sub/plugin1.Lookup("ReadCommonX") failed: %v`, err)
+@@ -68,6 +77,9 @@ func main() {
+ 	if got := readFunc.(func() int)(); got != wantX {
+ 		log.Fatalf("sub/plugin1.ReadCommonX()=%d, want %d", got, wantX)
+ 	}
++	if !called {
++		log.Fatal("calling ReadCommonX did not call FuncVar")
++	}
+ 
+ 	subf, err := subp.Lookup("F")
+ 	if err != nil {
+diff --git a/misc/cgo/testplugin/src/sub/plugin1/plugin1.go b/misc/cgo/testplugin/src/sub/plugin1/plugin1.go
+index 4ed76c7caf..cf9000c4a4 100644
+--- a/misc/cgo/testplugin/src/sub/plugin1/plugin1.go
++++ b/misc/cgo/testplugin/src/sub/plugin1/plugin1.go
+@@ -11,7 +11,10 @@ import "common"
+ 
+ func F() int { return 17 }
+ 
++var FuncVar = func() {}
++
+ func ReadCommonX() int {
++	FuncVar()
+ 	return common.X
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 26643c0250..14f7ab66ee 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1416,7 +1416,7 @@ func dumptypestructs() {
+ 			// }
+ 			nsym := dname(p.s.Name, "", nil, true)
+ 			ot = dsymptrOffLSym(s, ot, nsym, 0)
+-			ot = dsymptrOffLSym(s, ot, Linksym(typesym(p.t)), 0)
++			ot = dsymptrOffLSym(s, ot, Linksym(dtypesym(p.t)), 0)
+ 		}
+ 		ggloblLSym(s, int32(ot), int16(obj.RODATA))
+ 
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index ac64813228..335d9849c9 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -290,6 +290,11 @@ func (d *deadcodepass) flood() {
+ 		}
+ 
+ 		if strings.HasPrefix(s.Name, "type.") && s.Name[5] != '.' {
++			if len(s.P) == 0 {
++				// Probably a bug. The undefined symbol check
++				// later will give a better error than deadcode.
++				continue
++			}
+ 			if decodetypeKind(s)&kindMask == kindInterface {
+ 				for _, sig := range decodeIfaceMethods(d.ctxt.Arch, s) {
+ 					if d.ctxt.Debugvlog > 1 {

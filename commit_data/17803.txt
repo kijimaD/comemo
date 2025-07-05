@@ -8,6 +8,19 @@ Date:   Tue Oct 15 21:30:49 2013 -0400
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/14425062
-
+---
  doc/effective_go.html | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 30c015aea1..f9199511a3 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -795,6 +795,7 @@ This example shows both uses.
+ <pre>
+ Loop:
+ 	for n := 0; n &lt; len(src); n += size {
++		switch {
+ 		case src[n] &lt; sizeOne:
+ 			if validateOnly {
+ 				break

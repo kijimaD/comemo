@@ -103,8 +103,85 @@ Date:   Tue Oct 31 04:50:26 2023 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/malloc.go               |  3 +--
  src/runtime/mbitmap_allocheaders.go | 11 +++++------
  src/runtime/mfinal.go               |  8 +-------
  3 files changed, 7 insertions(+), 15 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index beff9043ec..d9b4112ded 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1149,8 +1149,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 				memclrNoHeapPointers(x, size)
+ 			}
+ 			if goexperiment.AllocHeaders && hasHeader {
+-				header = (**_type)(x)
+-				x = add(x, mallocHeaderSize)
++				header = (**_type)(unsafe.Pointer(uintptr(v) + size - mallocHeaderSize))
+ 				size -= mallocHeaderSize
+ 			}
+ 		}
+diff --git a/src/runtime/mbitmap_allocheaders.go b/src/runtime/mbitmap_allocheaders.go
+index 8a6b6a6564..9370d50b72 100644
+--- a/src/runtime/mbitmap_allocheaders.go
++++ b/src/runtime/mbitmap_allocheaders.go
+@@ -48,9 +48,9 @@
+ // is zeroed, so the GC just observes nil pointers.
+ // Note that this "tiled" bitmap isn't stored anywhere; it is generated on-the-fly.
+ //
+-// For objects without their own span, the type metadata is stored in the first
+-// word before the object at the beginning of the allocation slot. For objects
+-// with their own span, the type metadata is stored in the mspan.
++// For objects without their own span, the type metadata is stored in the last
++// word of the allocation slot. For objects with their own span, the type metadata
++// is stored in the mspan.
+ //
+ // The bitmap for small unallocated objects in scannable spans is not maintained
+ // (can be junk).
+@@ -191,9 +191,8 @@ func (span *mspan) typePointersOfUnchecked(addr uintptr) typePointers {
+ 	// All of these objects have a header.
+ 	var typ *_type
+ 	if spc.sizeclass() != 0 {
+-		// Pull the allocation header from the first word of the object.
+-		typ = *(**_type)(unsafe.Pointer(addr))
+-		addr += mallocHeaderSize
++		// Pull the allocation header from the last word of the object.
++		typ = *(**_type)(unsafe.Pointer(addr + span.elemsize - mallocHeaderSize))
+ 	} else {
+ 		typ = span.largeType
+ 	}
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index be501e6fca..18cd93e77e 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -9,7 +9,6 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+-	"internal/goexperiment"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+@@ -411,7 +410,7 @@ func SetFinalizer(obj any, finalizer any) {
+ 	}
+ 
+ 	// find the containing object
+-	base, span, _ := findObject(uintptr(e.data), 0, 0)
++	base, _, _ := findObject(uintptr(e.data), 0, 0)
+ 
+ 	if base == 0 {
+ 		if isGoPointerWithoutSpan(e.data) {
+@@ -420,11 +419,6 @@ func SetFinalizer(obj any, finalizer any) {
+ 		throw("runtime.SetFinalizer: pointer not in allocated block")
+ 	}
+ 
+-	// Move base forward if we've got an allocation header.
+-	if goexperiment.AllocHeaders && !span.spanclass.noscan() && !heapBitsInSpan(span.elemsize) && span.spanclass.sizeclass() != 0 {
+-		base += mallocHeaderSize
+-	}
+-
+ 	if uintptr(e.data) != base {
+ 		// As an implementation detail we allow to set finalizers for an inner byte
+ 		// of an object if it could come from tiny alloc (see mallocgc for details).

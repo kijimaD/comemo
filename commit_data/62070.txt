@@ -15,6 +15,17 @@ Date:   Mon Feb 3 09:59:25 2025 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/646155
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/internal/goversion/goversion.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/goversion/goversion.go b/src/internal/goversion/goversion.go
+index de2bcf4c82..18703a64ea 100644
+--- a/src/internal/goversion/goversion.go
++++ b/src/internal/goversion/goversion.go
+@@ -9,4 +9,4 @@ package goversion
+ //
+ // It should be updated at the start of each development cycle to be
+ // the version of the next Go 1.x release. See go.dev/issue/40705.
+-const Version = 24
++const Version = 25

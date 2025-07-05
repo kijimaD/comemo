@@ -18,6 +18,29 @@ Date:   Sun Apr 25 18:26:30 2021 +1000
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/signal_windows_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/signal_windows_test.go b/src/runtime/signal_windows_test.go
+index d0f61fb6c2..1b7cb9d4c4 100644
+--- a/src/runtime/signal_windows_test.go
++++ b/src/runtime/signal_windows_test.go
+@@ -32,7 +32,7 @@ func TestVectoredHandlerDontCrashOnLibrary(t *testing.T) {
+ 
+ 	// build go dll
+ 	dll := filepath.Join(dir, "testwinlib.dll")
+-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", dll, "--buildmode", "c-shared", "testdata/testwinlib/main.go")
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", dll, "-buildmode", "c-shared", "testdata/testwinlib/main.go")
+ 	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("failed to build go library: %s\n%s", err, out)
+@@ -156,7 +156,7 @@ func TestLibraryCtrlHandler(t *testing.T) {
+ 
+ 	// build go dll
+ 	dll := filepath.Join(dir, "dummy.dll")
+-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", dll, "--buildmode", "c-shared", "testdata/testwinlibsignal/dummy.go")
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", dll, "-buildmode", "c-shared", "testdata/testwinlibsignal/dummy.go")
+ 	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("failed to build go library: %s\n%s", err, out)

@@ -12,8 +12,153 @@ Date:   Sat Jul 11 11:53:58 2015 -0400
     Change-Id: Ib0d19d6e0939296c0a3e06dda5e9b76f813bbc7e
     Reviewed-on: https://go-review.googlesource.com/12086
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/chan.go             | 27 ++++++++------
  src/runtime/chanbarrier_test.go | 80 +++++++++++++++++++++++++++++++++++++++++
  src/runtime/select.go           |  2 +-
  3 files changed, 97 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index a9eb83aeb3..cfee12a551 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -165,17 +165,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
+ 
+ 			recvg := sg.g
+ 			if sg.elem != nil {
+-				// This is the only place in the entire runtime where one goroutine
+-				// writes to the stack of another goroutine. The GC assumes that
+-				// stack writes only happen when the goroutine is running and are
+-				// only done by that goroutine. Using a write barrier is sufficient to
+-				// make up for violating that assumption, but the write barrier has to work.
+-				// typedmemmove will call heapBitsBulkBarrier, but the target bytes
+-				// are not in the heap, so that will not help. We arrange to call
+-				// memmove and typeBitsBulkBarrier instead.
+-				memmove(sg.elem, ep, c.elemtype.size)
+-				typeBitsBulkBarrier(c.elemtype, uintptr(sg.elem), c.elemtype.size)
+-				sg.elem = nil
++				syncsend(c, sg, ep)
+ 			}
+ 			recvg.param = unsafe.Pointer(sg)
+ 			if sg.releasetime != 0 {
+@@ -287,6 +277,21 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
+ 	return true
+ }
+ 
++func syncsend(c *hchan, sg *sudog, elem unsafe.Pointer) {
++	// Send on unbuffered channel is the only operation
++	// in the entire runtime where one goroutine
++	// writes to the stack of another goroutine. The GC assumes that
++	// stack writes only happen when the goroutine is running and are
++	// only done by that goroutine. Using a write barrier is sufficient to
++	// make up for violating that assumption, but the write barrier has to work.
++	// typedmemmove will call heapBitsBulkBarrier, but the target bytes
++	// are not in the heap, so that will not help. We arrange to call
++	// memmove and typeBitsBulkBarrier instead.
++	memmove(sg.elem, elem, c.elemtype.size)
++	typeBitsBulkBarrier(c.elemtype, uintptr(sg.elem), c.elemtype.size)
++	sg.elem = nil
++}
++
+ func closechan(c *hchan) {
+ 	if c == nil {
+ 		panic("close of nil channel")
+diff --git a/src/runtime/chanbarrier_test.go b/src/runtime/chanbarrier_test.go
+new file mode 100644
+index 0000000000..c48fd3c965
+--- /dev/null
++++ b/src/runtime/chanbarrier_test.go
+@@ -0,0 +1,80 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime_test
++
++import (
++	"runtime"
++	"sync"
++	"testing"
++)
++
++type response struct {
++}
++
++type myError struct {
++}
++
++func (myError) Error() string { return "" }
++
++func doRequest(useSelect bool) (*response, error) {
++	type async struct {
++		resp *response
++		err  error
++	}
++	ch := make(chan *async, 0)
++	done := make(chan struct{}, 0)
++
++	if useSelect {
++		go func() {
++			select {
++			case ch <- &async{resp: nil, err: myError{}}:
++			case <-done:
++			}
++		}()
++	} else {
++		go func() {
++			ch <- &async{resp: nil, err: myError{}}
++		}()
++	}
++
++	r := <-ch
++	runtime.Gosched()
++	return r.resp, r.err
++}
++
++func TestChanSendSelectBarrier(t *testing.T) {
++	testChanSendBarrier(true)
++}
++
++func TestChanSendBarrier(t *testing.T) {
++	testChanSendBarrier(false)
++}
++
++func testChanSendBarrier(useSelect bool) {
++	var wg sync.WaitGroup
++	outer := 100
++	inner := 100000
++	if testing.Short() {
++		outer = 10
++		inner = 1000
++	}
++	for i := 0; i < outer; i++ {
++		wg.Add(1)
++		go func() {
++			defer wg.Done()
++			var garbage []byte
++			for j := 0; j < inner; j++ {
++				_, err := doRequest(useSelect)
++				_, ok := err.(myError)
++				if !ok {
++					panic(1)
++				}
++				garbage = make([]byte, 1<<10)
++			}
++			global = garbage
++		}()
++	}
++	wg.Wait()
++}
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index 29cc077779..b18b44ce61 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -575,7 +575,7 @@ syncsend:
+ 		print("syncsend: sel=", sel, " c=", c, "\n")
+ 	}
+ 	if sg.elem != nil {
+-		typedmemmove(c.elemtype, sg.elem, cas.elem)
++		syncsend(c, sg, cas.elem)
+ 	}
+ 	sg.elem = nil
+ 	gp = sg.g

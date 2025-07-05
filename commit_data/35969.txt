@@ -19,9 +19,658 @@ Date:   Wed Mar 14 22:22:31 2018 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Reviewed-by: Peter Weinberger <pjw@google.com>
-
+---
  src/cmd/trace/annotations.go      | 161 ++++++++++----------------------
  src/cmd/trace/annotations_test.go |   9 +-
  src/cmd/trace/trace.go            |  22 ++---
  src/internal/trace/goroutines.go  | 188 +++++++++++++++++++++++++++++++++-----
  4 files changed, 227 insertions(+), 153 deletions(-)
+
+diff --git a/src/cmd/trace/annotations.go b/src/cmd/trace/annotations.go
+index 677ba0366a..0cfef8e3b9 100644
+--- a/src/cmd/trace/annotations.go
++++ b/src/cmd/trace/annotations.go
+@@ -95,10 +95,18 @@ func httpUserTask(w http.ResponseWriter, r *http.Request) {
+ 		if !filter.match(task) {
+ 			continue
+ 		}
++		// merge events in the task.events and task.spans.Start
++		rawEvents := append([]*trace.Event{}, task.events...)
++		for _, s := range task.spans {
++			if s.Start != nil {
++				rawEvents = append(rawEvents, s.Start)
++			}
++		}
++		sort.SliceStable(rawEvents, func(i, j int) bool { return rawEvents[i].Ts < rawEvents[j].Ts })
++
+ 		var events []event
+ 		var last time.Duration
+-
+-		for i, ev := range task.events {
++		for i, ev := range rawEvents {
+ 			when := time.Duration(ev.Ts)*time.Nanosecond - base
+ 			elapsed := time.Duration(ev.Ts)*time.Nanosecond - last
+ 			if i == 0 {
+@@ -152,65 +160,6 @@ type annotationAnalysisResult struct {
+ 	gcEvents []*trace.Event       // GCStartevents, sorted
+ }
+ 
+-type activeSpanTracker struct {
+-	stacks map[uint64][]*trace.Event // goid to stack of active span start events
+-}
+-
+-func (t *activeSpanTracker) top(goid uint64) *trace.Event {
+-	if t.stacks == nil {
+-		return nil
+-	}
+-	stk := t.stacks[goid]
+-	if len(stk) == 0 {
+-		return nil
+-	}
+-	return stk[len(stk)-1]
+-}
+-
+-func (t *activeSpanTracker) addSpanEvent(ev *trace.Event, task *taskDesc) *spanDesc {
+-	if ev.Type != trace.EvUserSpan {
+-		return nil
+-	}
+-	if t.stacks == nil {
+-		t.stacks = make(map[uint64][]*trace.Event)
+-	}
+-
+-	goid := ev.G
+-	stk := t.stacks[goid]
+-
+-	var sd *spanDesc
+-	switch mode := ev.Args[1]; mode {
+-	case 0: // span start
+-		t.stacks[goid] = append(stk, ev) // push
+-		sd = &spanDesc{
+-			name:  ev.SArgs[0],
+-			task:  task,
+-			goid:  goid,
+-			start: ev,
+-			end:   ev.Link,
+-		}
+-	case 1: // span end
+-		if n := len(stk); n > 0 {
+-			stk = stk[:n-1] // pop
+-		} else {
+-			// There is no matching span start event; can happen if the span start was before tracing.
+-			sd = &spanDesc{
+-				name:  ev.SArgs[0],
+-				task:  task,
+-				goid:  goid,
+-				start: nil,
+-				end:   ev,
+-			}
+-		}
+-		if len(stk) == 0 {
+-			delete(t.stacks, goid)
+-		} else {
+-			t.stacks[goid] = stk
+-		}
+-	}
+-	return sd
+-}
+-
+ // analyzeAnnotations analyzes user annotation events and
+ // returns the task descriptors keyed by internal task id.
+ func analyzeAnnotations() (annotationAnalysisResult, error) {
+@@ -226,11 +175,8 @@ func analyzeAnnotations() (annotationAnalysisResult, error) {
+ 
+ 	tasks := allTasks{}
+ 	var gcEvents []*trace.Event
+-	var activeSpans activeSpanTracker
+ 
+ 	for _, ev := range events {
+-		goid := ev.G
+-
+ 		switch typ := ev.Type; typ {
+ 		case trace.EvUserTaskCreate, trace.EvUserTaskEnd, trace.EvUserLog:
+ 			taskid := ev.Args[0]
+@@ -248,36 +194,26 @@ func analyzeAnnotations() (annotationAnalysisResult, error) {
+ 				}
+ 			}
+ 
+-		case trace.EvUserSpan:
+-			taskid := ev.Args[0]
+-			task := tasks.task(taskid)
+-			task.addEvent(ev)
+-			sd := activeSpans.addSpanEvent(ev, task)
+-			if task != nil && sd != nil {
+-				task.spans = append(task.spans, sd)
+-			}
+-
+-		case trace.EvGoCreate:
+-			// When a goroutine is newly created, it inherits the task
+-			// of the active span if any.
+-			//
+-			// TODO(hyangah): the task info needs to propagate
+-			// to all decendents, not only to the immediate child.
+-			s := activeSpans.top(goid)
+-			if s == nil {
+-				continue
+-			}
+-			taskid := s.Args[0]
+-			task := tasks.task(taskid)
+-			task.addEvent(ev)
+-
+ 		case trace.EvGCStart:
+ 			gcEvents = append(gcEvents, ev)
+ 		}
+ 	}
++	// combine span info.
++	analyzeGoroutines(events)
++	for goid, stats := range gs {
++		for _, s := range stats.Spans {
++			if s.TaskID == 0 {
++				continue
++			}
++			task := tasks.task(s.TaskID)
++			task.goroutines[goid] = struct{}{}
++			task.spans = append(task.spans, spanDesc{UserSpanDesc: s, goid: goid})
++		}
++	}
++
+ 	// sort spans based on the timestamps.
+ 	for _, task := range tasks {
+-		sort.Slice(task.spans, func(i, j int) bool {
++		sort.SliceStable(task.spans, func(i, j int) bool {
+ 			si, sj := task.spans[i].firstTimestamp(), task.spans[j].firstTimestamp()
+ 			if si != sj {
+ 				return si < sj
+@@ -290,11 +226,11 @@ func analyzeAnnotations() (annotationAnalysisResult, error) {
+ 
+ // taskDesc represents a task.
+ type taskDesc struct {
+-	name       string                    // user-provided task name
+-	id         uint64                    // internal task id
+-	events     []*trace.Event            // sorted based on timestamp.
+-	spans      []*spanDesc               // associated spans, sorted based on the start timestamp and then the last timestamp.
+-	goroutines map[uint64][]*trace.Event // Events grouped by goroutine id
++	name       string              // user-provided task name
++	id         uint64              // internal task id
++	events     []*trace.Event      // sorted based on timestamp.
++	spans      []spanDesc          // associated spans, sorted based on the start timestamp and then the last timestamp.
++	goroutines map[uint64]struct{} // involved goroutines
+ 
+ 	create *trace.Event // Task create event
+ 	end    *trace.Event // Task end event
+@@ -306,7 +242,7 @@ type taskDesc struct {
+ func newTaskDesc(id uint64) *taskDesc {
+ 	return &taskDesc{
+ 		id:         id,
+-		goroutines: make(map[uint64][]*trace.Event),
++		goroutines: make(map[uint64]struct{}),
+ 	}
+ }
+ 
+@@ -320,7 +256,7 @@ func (task *taskDesc) String() string {
+ 	fmt.Fprintf(wb, "\t%d goroutines\n", len(task.goroutines))
+ 	fmt.Fprintf(wb, "\t%d spans:\n", len(task.spans))
+ 	for _, s := range task.spans {
+-		fmt.Fprintf(wb, "\t\t%s(goid=%d)\n", s.name, s.goid)
++		fmt.Fprintf(wb, "\t\t%s(goid=%d)\n", s.Name, s.goid)
+ 	}
+ 	if task.parent != nil {
+ 		fmt.Fprintf(wb, "\tparent: %s\n", task.parent.name)
+@@ -335,11 +271,8 @@ func (task *taskDesc) String() string {
+ 
+ // spanDesc represents a span.
+ type spanDesc struct {
+-	name  string       // user-provided span name
+-	task  *taskDesc    // can be nil
+-	goid  uint64       // id of goroutine where the span was defined
+-	start *trace.Event // span start event
+-	end   *trace.Event // span end event (user span end, goroutine end)
++	*trace.UserSpanDesc
++	goid uint64 // id of goroutine where the span was defined
+ }
+ 
+ type allTasks map[uint64]*taskDesc
+@@ -356,7 +289,7 @@ func (tasks allTasks) task(taskID uint64) *taskDesc {
+ 
+ 	t = &taskDesc{
+ 		id:         taskID,
+-		goroutines: make(map[uint64][]*trace.Event),
++		goroutines: make(map[uint64]struct{}),
+ 	}
+ 	tasks[taskID] = t
+ 	return t
+@@ -368,11 +301,8 @@ func (task *taskDesc) addEvent(ev *trace.Event) {
+ 		return
+ 	}
+ 
+-	if ev != task.lastEvent() {
+-		goid := ev.G
+-		task.events = append(task.events, ev)
+-		task.goroutines[goid] = append(task.goroutines[goid], ev)
+-	}
++	task.events = append(task.events, ev)
++	task.goroutines[ev.G] = struct{}{}
+ 
+ 	switch typ := ev.Type; typ {
+ 	case trace.EvUserTaskCreate:
+@@ -558,22 +488,22 @@ func (task *taskDesc) lastEvent() *trace.Event {
+ 
+ // firstTimestamp returns the timestamp of span start event.
+ // If the span's start event is not present in the trace,
+-// the first timestamp of the task will be returned.
++// the first timestamp of the trace will be returned.
+ func (span *spanDesc) firstTimestamp() int64 {
+-	if span.start != nil {
+-		return span.start.Ts
++	if span.Start != nil {
++		return span.Start.Ts
+ 	}
+-	return span.task.firstTimestamp()
++	return firstTimestamp()
+ }
+ 
+ // lastTimestamp returns the timestamp of span end event.
+ // If the span's end event is not present in the trace,
+-// the last timestamp of the task will be returned.
++// the last timestamp of the trace will be returned.
+ func (span *spanDesc) lastTimestamp() int64 {
+-	if span.end != nil {
+-		return span.end.Ts
++	if span.End != nil {
++		return span.End.Ts
+ 	}
+-	return span.task.lastTimestamp()
++	return lastTimestamp()
+ }
+ 
+ // RelatedGoroutines returns IDs of goroutines related to the task. A goroutine
+@@ -962,7 +892,8 @@ func formatUserLog(ev *trace.Event) string {
+ func describeEvent(ev *trace.Event) string {
+ 	switch ev.Type {
+ 	case trace.EvGoCreate:
+-		return fmt.Sprintf("new goroutine %d", ev.Args[0])
++		goid := ev.Args[0]
++		return fmt.Sprintf("new goroutine %d: %s", goid, gs[goid].Name)
+ 	case trace.EvGoEnd, trace.EvGoStop:
+ 		return "goroutine stopped"
+ 	case trace.EvUserLog:
+diff --git a/src/cmd/trace/annotations_test.go b/src/cmd/trace/annotations_test.go
+index 161d1ec0b1..a6d271bdf4 100644
+--- a/src/cmd/trace/annotations_test.go
++++ b/src/cmd/trace/annotations_test.go
+@@ -111,7 +111,7 @@ func TestAnalyzeAnnotations(t *testing.T) {
+ 		"task0": {
+ 			complete:   true,
+ 			goroutines: 2,
+-			spans:      []string{"task0.span0", "task0.span1", "task0.span2"},
++			spans:      []string{"task0.span0", "", "task0.span1", "task0.span2"},
+ 		},
+ 		"task1": {
+ 			complete:   true,
+@@ -327,7 +327,7 @@ func traceProgram(t *testing.T, f func(), name string) error {
+ 
+ func spanNames(task *taskDesc) (ret []string) {
+ 	for _, s := range task.spans {
+-		ret = append(ret, s.name)
++		ret = append(ret, s.Name)
+ 	}
+ 	return ret
+ }
+@@ -349,8 +349,13 @@ func childrenNames(task *taskDesc) (ret []string) {
+ func swapLoaderData(res traceparser.ParseResult, err error) {
+ 	// swap loader's data.
+ 	parseTrace() // fool loader.once.
++
+ 	loader.res = res
+ 	loader.err = err
++
++	analyzeGoroutines(nil) // fool gsInit once.
++	gs = traceparser.GoroutineStats(res.Events)
++
+ }
+ 
+ func saveTrace(buf *bytes.Buffer, name string) {
+diff --git a/src/cmd/trace/trace.go b/src/cmd/trace/trace.go
+index fcf27e8f1f..de062eea01 100644
+--- a/src/cmd/trace/trace.go
++++ b/src/cmd/trace/trace.go
+@@ -202,7 +202,7 @@ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
+ 		}
+ 		annotRes, _ := analyzeAnnotations()
+ 		task, ok := annotRes.tasks[taskid]
+-		if !ok {
++		if !ok || len(task.events) == 0 {
+ 			log.Printf("failed to find task with id %d", taskid)
+ 			return
+ 		}
+@@ -824,16 +824,16 @@ func (ctx *traceContext) emitSlice(ev *trace.Event, name string) *ViewerEvent {
+ 	return sl
+ }
+ 
+-func (ctx *traceContext) emitSpan(s *spanDesc) {
+-	id := uint64(0)
+-	if task := s.task; task != nil {
+-		id = task.id
++func (ctx *traceContext) emitSpan(s spanDesc) {
++	if s.Name == "" {
++		return
+ 	}
++	id := s.TaskID
+ 	scopeID := fmt.Sprintf("%x", id)
+ 
+ 	sl0 := &ViewerEvent{
+ 		Category: "Span",
+-		Name:     s.name,
++		Name:     s.Name,
+ 		Phase:    "b",
+ 		Time:     float64(s.firstTimestamp()) / 1e3,
+ 		Tid:      s.goid,
+@@ -841,14 +841,14 @@ func (ctx *traceContext) emitSpan(s *spanDesc) {
+ 		Scope:    scopeID,
+ 		Cname:    colorDeepMagenta,
+ 	}
+-	if s.start != nil {
+-		sl0.Stack = ctx.stack(s.start.Stk)
++	if s.Start != nil {
++		sl0.Stack = ctx.stack(s.Start.Stk)
+ 	}
+ 	ctx.emit(sl0)
+ 
+ 	sl1 := &ViewerEvent{
+ 		Category: "Span",
+-		Name:     s.name,
++		Name:     s.Name,
+ 		Phase:    "e",
+ 		Time:     float64(s.lastTimestamp()) / 1e3,
+ 		Tid:      s.goid,
+@@ -856,8 +856,8 @@ func (ctx *traceContext) emitSpan(s *spanDesc) {
+ 		Scope:    scopeID,
+ 		Cname:    colorDeepMagenta,
+ 	}
+-	if s.end != nil {
+-		sl1.Stack = ctx.stack(s.end.Stk)
++	if s.End != nil {
++		sl1.Stack = ctx.stack(s.End.Stk)
+ 	}
+ 	ctx.emit(sl1)
+ }
+diff --git a/src/internal/trace/goroutines.go b/src/internal/trace/goroutines.go
+index 355fb4d0ad..583df71c8a 100644
+--- a/src/internal/trace/goroutines.go
++++ b/src/internal/trace/goroutines.go
+@@ -4,7 +4,9 @@
+ 
+ package trace
+ 
+-// GDesc contains statistics about execution of a single goroutine.
++import "sort"
++
++// GDesc contains statistics and execution details of a single goroutine.
+ type GDesc struct {
+ 	ID           uint64
+ 	Name         string
+@@ -13,6 +15,37 @@ type GDesc struct {
+ 	StartTime    int64
+ 	EndTime      int64
+ 
++	// List of spans in the goroutine, sorted based on the start time.
++	Spans []*UserSpanDesc
++
++	// Statistics of execution time during the goroutine execution.
++	GExecutionStat
++
++	*gdesc // private part.
++}
++
++// UserSpanDesc represents a span and goroutine execution stats
++// while the span was active.
++type UserSpanDesc struct {
++	TaskID uint64
++	Name   string
++
++	// Span start event. Normally EvUserSpan start event or nil,
++	// but can be EvGoCreate event if the span is a synthetic
++	// span representing task inheritance from the parent goroutine.
++	Start *Event
++
++	// Span end event. Normally EvUserSpan end event or nil,
++	// but can be EvGoStop or EvGoEnd event if the goroutine
++	// terminated without explicitely ending the span.
++	End *Event
++
++	GExecutionStat
++}
++
++// GExecutionStat contains statistics about a goroutine's execution
++// during a period of time.
++type GExecutionStat struct {
+ 	ExecTime      int64
+ 	SchedWaitTime int64
+ 	IOTime        int64
+@@ -21,8 +54,71 @@ type GDesc struct {
+ 	GCTime        int64
+ 	SweepTime     int64
+ 	TotalTime     int64
++}
++
++// sub returns the stats v-s.
++func (s GExecutionStat) sub(v GExecutionStat) (r GExecutionStat) {
++	r = s
++	r.ExecTime -= v.ExecTime
++	r.SchedWaitTime -= v.SchedWaitTime
++	r.IOTime -= v.IOTime
++	r.BlockTime -= v.BlockTime
++	r.SyscallTime -= v.SyscallTime
++	r.GCTime -= v.GCTime
++	r.SweepTime -= v.SweepTime
++	r.TotalTime -= v.TotalTime
++	return r
++}
++
++// snapshotStat returns the snapshot of the goroutine execution statistics.
++// This is called as we process the ordered trace event stream. lastTs and
++// activeGCStartTime are used to process pending statistics if this is called
++// before any goroutine end event.
++func (g *GDesc) snapshotStat(lastTs, activeGCStartTime int64) (ret GExecutionStat) {
++	ret = g.GExecutionStat
++
++	if g.gdesc == nil {
++		return ret // finalized GDesc. No pending state.
++	}
++
++	if activeGCStartTime != 0 {
++		ret.GCTime += lastTs - activeGCStartTime
++	}
++
++	if g.TotalTime == 0 {
++		ret.TotalTime = lastTs - g.CreationTime
++	}
++
++	if g.lastStartTime != 0 {
++		ret.ExecTime += lastTs - g.lastStartTime
++	}
++	if g.blockNetTime != 0 {
++		ret.IOTime += lastTs - g.blockNetTime
++	}
++	if g.blockSyncTime != 0 {
++		ret.BlockTime += lastTs - g.blockSyncTime
++	}
++	if g.blockSyscallTime != 0 {
++		ret.SyscallTime += lastTs - g.blockSyscallTime
++	}
++	if g.blockSchedTime != 0 {
++		ret.SchedWaitTime += lastTs - g.blockSchedTime
++	}
++	if g.blockSweepTime != 0 {
++		ret.SweepTime += lastTs - g.blockSweepTime
++	}
++	return ret
++}
+ 
+-	*gdesc // private part
++// finalizeActiveSpans is called when processing a goroutine end event
++// to finalize any active spans in the goroutine.
++func (g *GDesc) finalizeActiveSpans(lastTs, activeGCStartTime int64, trigger *Event) {
++	for _, s := range g.activeSpans {
++		s.End = trigger
++		s.GExecutionStat = g.snapshotStat(lastTs, activeGCStartTime).sub(s.GExecutionStat)
++		g.Spans = append(g.Spans, s)
++	}
++	g.activeSpans = nil
+ }
+ 
+ // gdesc is a private part of GDesc that is required only during analysis.
+@@ -34,6 +130,8 @@ type gdesc struct {
+ 	blockSweepTime   int64
+ 	blockGCTime      int64
+ 	blockSchedTime   int64
++
++	activeSpans []*UserSpanDesc // stack of active spans
+ }
+ 
+ // GoroutineStats generates statistics for all goroutines in the trace.
+@@ -47,6 +145,19 @@ func GoroutineStats(events []*Event) map[uint64]*GDesc {
+ 		case EvGoCreate:
+ 			g := &GDesc{ID: ev.Args[0], CreationTime: ev.Ts, gdesc: new(gdesc)}
+ 			g.blockSchedTime = ev.Ts
++			// When a goroutine is newly created, inherit the
++			// task of the active span. For ease handling of
++			// this case, we create a fake span description with
++			// the task id.
++			if creatorG := gs[ev.G]; creatorG != nil && len(creatorG.gdesc.activeSpans) > 0 {
++				spans := creatorG.gdesc.activeSpans
++				s := spans[len(spans)-1]
++				if s.TaskID != 0 {
++					g.gdesc.activeSpans = []*UserSpanDesc{
++						{TaskID: s.TaskID, Start: ev},
++					}
++				}
++			}
+ 			gs[g.ID] = g
+ 		case EvGoStart, EvGoStartLabel:
+ 			g := gs[ev.G]
+@@ -65,9 +176,10 @@ func GoroutineStats(events []*Event) map[uint64]*GDesc {
+ 		case EvGoEnd, EvGoStop:
+ 			g := gs[ev.G]
+ 			g.ExecTime += ev.Ts - g.lastStartTime
++			g.lastStartTime = 0
+ 			g.TotalTime = ev.Ts - g.CreationTime
+ 			g.EndTime = ev.Ts
+-			if gcStartTime != 0 {
++			if gcStartTime != 0 { // terminating while GC is active
+ 				if g.CreationTime < gcStartTime {
+ 					g.GCTime += ev.Ts - gcStartTime
+ 				} else {
+@@ -76,25 +188,31 @@ func GoroutineStats(events []*Event) map[uint64]*GDesc {
+ 					g.GCTime += ev.Ts - g.CreationTime
+ 				}
+ 			}
++			g.finalizeActiveSpans(lastTs, gcStartTime, ev)
+ 		case EvGoBlockSend, EvGoBlockRecv, EvGoBlockSelect,
+ 			EvGoBlockSync, EvGoBlockCond:
+ 			g := gs[ev.G]
+ 			g.ExecTime += ev.Ts - g.lastStartTime
++			g.lastStartTime = 0
+ 			g.blockSyncTime = ev.Ts
+ 		case EvGoSched, EvGoPreempt:
+ 			g := gs[ev.G]
+ 			g.ExecTime += ev.Ts - g.lastStartTime
++			g.lastStartTime = 0
+ 			g.blockSchedTime = ev.Ts
+ 		case EvGoSleep, EvGoBlock:
+ 			g := gs[ev.G]
+ 			g.ExecTime += ev.Ts - g.lastStartTime
++			g.lastStartTime = 0
+ 		case EvGoBlockNet:
+ 			g := gs[ev.G]
+ 			g.ExecTime += ev.Ts - g.lastStartTime
++			g.lastStartTime = 0
+ 			g.blockNetTime = ev.Ts
+ 		case EvGoBlockGC:
+ 			g := gs[ev.G]
+ 			g.ExecTime += ev.Ts - g.lastStartTime
++			g.lastStartTime = 0
+ 			g.blockGCTime = ev.Ts
+ 		case EvGoUnblock:
+ 			g := gs[ev.Args[0]]
+@@ -110,6 +228,7 @@ func GoroutineStats(events []*Event) map[uint64]*GDesc {
+ 		case EvGoSysBlock:
+ 			g := gs[ev.G]
+ 			g.ExecTime += ev.Ts - g.lastStartTime
++			g.lastStartTime = 0
+ 			g.blockSyscallTime = ev.Ts
+ 		case EvGoSysExit:
+ 			g := gs[ev.G]
+@@ -144,32 +263,51 @@ func GoroutineStats(events []*Event) map[uint64]*GDesc {
+ 				}
+ 			}
+ 			gcStartTime = 0 // indicates gc is inactive.
++		case EvUserSpan:
++			g := gs[ev.G]
++			switch mode := ev.Args[1]; mode {
++			case 0: // span start
++				g.activeSpans = append(g.activeSpans, &UserSpanDesc{
++					Name:           ev.SArgs[0],
++					TaskID:         ev.Args[0],
++					Start:          ev,
++					GExecutionStat: g.snapshotStat(lastTs, gcStartTime),
++				})
++			case 1: // span end
++				var sd *UserSpanDesc
++				if spanStk := g.activeSpans; len(spanStk) > 0 {
++					n := len(spanStk)
++					sd = spanStk[n-1]
++					spanStk = spanStk[:n-1] // pop
++					g.activeSpans = spanStk
++				} else {
++					sd = &UserSpanDesc{
++						Name:   ev.SArgs[0],
++						TaskID: ev.Args[0],
++					}
++				}
++				sd.GExecutionStat = g.snapshotStat(lastTs, gcStartTime).sub(sd.GExecutionStat)
++				sd.End = ev
++				g.Spans = append(g.Spans, sd)
++			}
+ 		}
+ 	}
+ 
+ 	for _, g := range gs {
+-		if g.TotalTime == 0 {
+-			g.TotalTime = lastTs - g.CreationTime
+-		}
+-		if g.EndTime == 0 {
+-			g.EndTime = lastTs
+-		}
+-		if g.blockNetTime != 0 {
+-			g.IOTime += lastTs - g.blockNetTime
+-			g.blockNetTime = 0
+-		}
+-		if g.blockSyncTime != 0 {
+-			g.BlockTime += lastTs - g.blockSyncTime
+-			g.blockSyncTime = 0
+-		}
+-		if g.blockSyscallTime != 0 {
+-			g.SyscallTime += lastTs - g.blockSyscallTime
+-			g.blockSyscallTime = 0
+-		}
+-		if g.blockSchedTime != 0 {
+-			g.SchedWaitTime += lastTs - g.blockSchedTime
+-			g.blockSchedTime = 0
+-		}
++		g.GExecutionStat = g.snapshotStat(lastTs, gcStartTime)
++		g.finalizeActiveSpans(lastTs, gcStartTime, nil)
++		// sort based on span start time
++		sort.Slice(g.Spans, func(i, j int) bool {
++			x := g.Spans[i].Start
++			y := g.Spans[j].Start
++			if x == nil {
++				return true
++			}
++			if y == nil {
++				return false
++			}
++			return x.Ts < y.Ts
++		})
+ 		g.gdesc = nil
+ 	}
+ 

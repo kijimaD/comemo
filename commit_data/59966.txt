@@ -27,6 +27,21 @@ Date:   Mon May 13 21:31:18 2024 +0000
     Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/encoding/csv/reader.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/csv/reader.go b/src/encoding/csv/reader.go
+index d9cab86572..df4702fede 100644
+--- a/src/encoding/csv/reader.go
++++ b/src/encoding/csv/reader.go
+@@ -4,7 +4,8 @@
+ 
+ // Package csv reads and writes comma-separated values (CSV) files.
+ // There are many kinds of CSV files; this package supports the format
+-// described in RFC 4180.
++// described in RFC 4180, except that [Writer] uses LF
++// instead of CRLF as newline character by default.
+ //
+ // A csv file contains zero or more records of one or more fields per record.
+ // Each record is separated by the newline character. The final record may

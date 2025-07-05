@@ -9,6 +9,33 @@ Date:   Fri Feb 19 17:37:04 2016 +0900
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/mockserver_test.go | 12 +++++++++++-
  1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/mockserver_test.go b/src/net/mockserver_test.go
+index dd6f4df3b9..38b317af7d 100644
+--- a/src/net/mockserver_test.go
++++ b/src/net/mockserver_test.go
+@@ -30,10 +30,20 @@ func testUnixAddr() string {
+ 
+ func newLocalListener(network string) (Listener, error) {
+ 	switch network {
+-	case "tcp", "tcp4", "tcp6":
++	case "tcp":
++		if supportsIPv4 {
++			if ln, err := Listen("tcp4", "127.0.0.1:0"); err == nil {
++				return ln, nil
++			}
++		}
++		if supportsIPv6 {
++			return Listen("tcp6", "[::1]:0")
++		}
++	case "tcp4":
+ 		if supportsIPv4 {
+ 			return Listen("tcp4", "127.0.0.1:0")
+ 		}
++	case "tcp6":
+ 		if supportsIPv6 {
+ 			return Listen("tcp6", "[::1]:0")
+ 		}

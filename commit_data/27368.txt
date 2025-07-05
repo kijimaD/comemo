@@ -23,8 +23,109 @@ Date:   Tue Mar 22 21:25:40 2016 -0400
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/deadcode.go | 11 -----------
  src/reflect/all_test.go              | 26 ++++++++++++++++++++++++++
  src/reflect/type.go                  | 30 ++++++++++++++++--------------
  3 files changed, 42 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 900364cdfb..f99f5e8984 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -86,17 +86,6 @@ func deadcode(ctxt *Link) {
+ 		for _, m := range d.markableMethods {
+ 			if (reflectSeen && m.isExported()) || d.ifaceMethod[m.m] {
+ 				d.markMethod(m)
+-			} else if reflectSeen {
+-				// This ensures the Type and Func fields of
+-				// reflect.Method are filled as they were in
+-				// Go 1.
+-				//
+-				// An argument could be made for changing this
+-				// and setting those fields to nil. Doing so
+-				// would reduce the binary size of typical
+-				// programs like cmd/go by ~2%.
+-				d.mark(m.mtyp(), m.src)
+-				rem = append(rem, m)
+ 			} else {
+ 				rem = append(rem, m)
+ 			}
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index e5326a673a..bb4592b332 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -2367,6 +2367,32 @@ func TestNestedMethods(t *testing.T) {
+ 	}
+ }
+ 
++type unexp struct{}
++
++func (*unexp) f() (int32, int8) { return 7, 7 }
++func (*unexp) g() (int64, int8) { return 8, 8 }
++
++func TestUnexportedMethods(t *testing.T) {
++	_ = (interface {
++		f() (int32, int8)
++	})(new(unexp))
++
++	typ := TypeOf(new(unexp))
++
++	if typ.Method(0).Type == nil {
++		t.Error("missing type for satisfied method 'f'")
++	}
++	if !typ.Method(0).Func.IsValid() {
++		t.Error("missing func for satisfied method 'f'")
++	}
++	if typ.Method(1).Type != nil {
++		t.Error("found type for unsatisfied method 'g'")
++	}
++	if typ.Method(1).Func.IsValid() {
++		t.Error("found func for unsatisfied method 'g'")
++	}
++}
++
+ type InnerInt struct {
+ 	X int
+ }
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 736c0824cb..41e378911d 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -591,20 +591,22 @@ func (t *rtype) Method(i int) (m Method) {
+ 		m.PkgPath = *p.pkgPath
+ 		fl |= flagStickyRO
+ 	}
+-	ft := (*funcType)(unsafe.Pointer(p.mtyp))
+-	in := make([]Type, 0, 1+len(ft.in()))
+-	in = append(in, t)
+-	for _, arg := range ft.in() {
+-		in = append(in, arg)
+-	}
+-	out := make([]Type, 0, len(ft.out()))
+-	for _, ret := range ft.out() {
+-		out = append(out, ret)
+-	}
+-	mt := FuncOf(in, out, p.mtyp.IsVariadic())
+-	m.Type = mt
+-	fn := unsafe.Pointer(&p.tfn)
+-	m.Func = Value{mt.(*rtype), fn, fl}
++	if p.mtyp != nil {
++		ft := (*funcType)(unsafe.Pointer(p.mtyp))
++		in := make([]Type, 0, 1+len(ft.in()))
++		in = append(in, t)
++		for _, arg := range ft.in() {
++			in = append(in, arg)
++		}
++		out := make([]Type, 0, len(ft.out()))
++		for _, ret := range ft.out() {
++			out = append(out, ret)
++		}
++		mt := FuncOf(in, out, p.mtyp.IsVariadic())
++		m.Type = mt
++		fn := unsafe.Pointer(&p.tfn)
++		m.Func = Value{mt.(*rtype), fn, fl}
++	}
+ 	m.Index = i
+ 	return m
+ }

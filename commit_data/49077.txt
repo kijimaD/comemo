@@ -15,7 +15,7 @@ Date:   Fri Jul 16 09:51:19 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/internal/typeparams/typeparams.go |  2 --
  src/go/parser/error_test.go              |  6 +-----
  src/go/parser/parser.go                  |  2 +-
@@ -27,3 +27,218 @@ Date:   Fri Jul 16 09:51:19 2021 -0400
  src/go/types/methodset_test.go           |  7 ++-----
  src/go/types/typexpr.go                  |  7 ++-----
  10 files changed, 9 insertions(+), 54 deletions(-)
+
+diff --git a/src/go/internal/typeparams/typeparams.go b/src/go/internal/typeparams/typeparams.go
+index e102b77ef8..3191654d4f 100644
+--- a/src/go/internal/typeparams/typeparams.go
++++ b/src/go/internal/typeparams/typeparams.go
+@@ -10,8 +10,6 @@ import (
+ 	"go/token"
+ )
+ 
+-const Enabled = true
+-
+ func PackIndexExpr(x ast.Expr, lbrack token.Pos, exprs []ast.Expr, rbrack token.Pos) ast.Expr {
+ 	switch len(exprs) {
+ 	case 0:
+diff --git a/src/go/parser/error_test.go b/src/go/parser/error_test.go
+index e22ab12451..f35ba0b501 100644
+--- a/src/go/parser/error_test.go
++++ b/src/go/parser/error_test.go
+@@ -189,11 +189,7 @@ func TestErrors(t *testing.T) {
+ 		t.Run(name, func(t *testing.T) {
+ 			if !d.IsDir() && !strings.HasPrefix(name, ".") && (strings.HasSuffix(name, ".src") || strings.HasSuffix(name, ".go2")) {
+ 				mode := DeclarationErrors | AllErrors
+-				if strings.HasSuffix(name, ".go2") {
+-					if !typeparams.Enabled {
+-						return
+-					}
+-				} else {
++				if !strings.HasSuffix(name, ".go2") {
+ 					mode |= typeparams.DisallowParsing
+ 				}
+ 				checkErrors(t, filepath.Join(testdata, name), nil, mode, true)
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index d108259171..bdc2ad308c 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -77,7 +77,7 @@ func (p *parser) init(fset *token.FileSet, filename string, src []byte, mode Mod
+ }
+ 
+ func (p *parser) parseTypeParams() bool {
+-	return typeparams.Enabled && p.mode&typeparams.DisallowParsing == 0
++	return p.mode&typeparams.DisallowParsing == 0
+ }
+ 
+ // ----------------------------------------------------------------------------
+diff --git a/src/go/parser/resolver_test.go b/src/go/parser/resolver_test.go
+index 625c009c91..0c06c592d5 100644
+--- a/src/go/parser/resolver_test.go
++++ b/src/go/parser/resolver_test.go
+@@ -41,11 +41,7 @@ func TestResolution(t *testing.T) {
+ 			path := filepath.Join(dir, fi.Name())
+ 			src := readFile(path) // panics on failure
+ 			var mode Mode
+-			if strings.HasSuffix(path, ".go2") {
+-				if !typeparams.Enabled {
+-					t.Skip("type params are not enabled")
+-				}
+-			} else {
++			if !strings.HasSuffix(path, ".go2") {
+ 				mode |= typeparams.DisallowParsing
+ 			}
+ 			file, err := ParseFile(fset, path, src, mode)
+diff --git a/src/go/parser/short_test.go b/src/go/parser/short_test.go
+index 2467ccb4a7..bfc6f6714b 100644
+--- a/src/go/parser/short_test.go
++++ b/src/go/parser/short_test.go
+@@ -133,9 +133,6 @@ func TestValid(t *testing.T) {
+ 		}
+ 	})
+ 	t.Run("tparams", func(t *testing.T) {
+-		if !typeparams.Enabled {
+-			t.Skip("type params are not enabled")
+-		}
+ 		for _, src := range valids {
+ 			checkErrors(t, src, src, DeclarationErrors|AllErrors, false)
+ 		}
+@@ -268,9 +265,6 @@ func TestInvalid(t *testing.T) {
+ 		}
+ 	})
+ 	t.Run("tparams", func(t *testing.T) {
+-		if !typeparams.Enabled {
+-			t.Skip("type params are not enabled")
+-		}
+ 		for _, src := range invalids {
+ 			checkErrors(t, src, src, DeclarationErrors|AllErrors, true)
+ 		}
+diff --git a/src/go/printer/printer_test.go b/src/go/printer/printer_test.go
+index 20c97b8c08..ff8be4ae97 100644
+--- a/src/go/printer/printer_test.go
++++ b/src/go/printer/printer_test.go
+@@ -10,7 +10,6 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"go/ast"
+-	"go/internal/typeparams"
+ 	"go/parser"
+ 	"go/token"
+ 	"io"
+@@ -222,9 +221,6 @@ var data = []entry{
+ func TestFiles(t *testing.T) {
+ 	t.Parallel()
+ 	for _, e := range data {
+-		if !typeparams.Enabled && e.mode&allowTypeParams != 0 {
+-			continue
+-		}
+ 		source := filepath.Join(dataDir, e.source)
+ 		golden := filepath.Join(dataDir, e.golden)
+ 		mode := e.mode
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index ef248781cc..e6c209dda0 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -353,9 +353,6 @@ func TestTypesInfo(t *testing.T) {
+ 	}
+ 
+ 	for _, test := range tests {
+-		if strings.HasPrefix(test.src, genericPkg) && !typeparams.Enabled {
+-			continue
+-		}
+ 		info := Info{Types: make(map[ast.Expr]TypeAndValue)}
+ 		var name string
+ 		if strings.HasPrefix(test.src, broken) {
+@@ -534,9 +531,6 @@ func TestDefsInfo(t *testing.T) {
+ 	}
+ 
+ 	for _, test := range tests {
+-		if strings.HasPrefix(test.src, genericPkg) && !typeparams.Enabled {
+-			continue
+-		}
+ 		info := Info{
+ 			Defs: make(map[*ast.Ident]Object),
+ 		}
+@@ -582,9 +576,6 @@ func TestUsesInfo(t *testing.T) {
+ 	}
+ 
+ 	for _, test := range tests {
+-		if strings.HasPrefix(test.src, genericPkg) && !typeparams.Enabled {
+-			continue
+-		}
+ 		info := Info{
+ 			Uses: make(map[*ast.Ident]Object),
+ 		}
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index f0cfced97f..692004facf 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -207,10 +207,8 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
+ 		t.Fatal("no source files")
+ 	}
+ 
+-	if strings.HasSuffix(filenames[0], ".go2") && !typeparams.Enabled {
+-		t.Skip("type params are not enabled")
+-	}
+-	if strings.HasSuffix(filenames[0], ".go1") && typeparams.Enabled {
++	if strings.HasSuffix(filenames[0], ".go1") {
++		// TODO(rfindley): re-enable this test by using GoVersion.
+ 		t.Skip("type params are enabled")
+ 	}
+ 
+@@ -356,14 +354,6 @@ func TestIndexRepresentability(t *testing.T) {
+ 	testFiles(t, &StdSizes{4, 4}, []string{"index.go"}, [][]byte{[]byte(src)}, false, nil)
+ }
+ 
+-func TestIssue46453(t *testing.T) {
+-	if typeparams.Enabled {
+-		t.Skip("type params are enabled")
+-	}
+-	const src = "package p\ntype _ comparable // ERROR \"undeclared name: comparable\""
+-	testFiles(t, nil, []string{"issue46453.go"}, [][]byte{[]byte(src)}, false, nil)
+-}
+-
+ func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDirFiles(t, "testdata/check", false) }
+ func TestExamples(t *testing.T)  { testDirFiles(t, "testdata/examples", false) }
+ func TestFixedbugs(t *testing.T) { testDirFiles(t, "testdata/fixedbugs", false) }
+diff --git a/src/go/types/methodset_test.go b/src/go/types/methodset_test.go
+index 4a373fa2c4..566356ad6d 100644
+--- a/src/go/types/methodset_test.go
++++ b/src/go/types/methodset_test.go
+@@ -7,7 +7,6 @@ package types_test
+ import (
+ 	"testing"
+ 
+-	"go/internal/typeparams"
+ 	. "go/types"
+ )
+ 
+@@ -101,9 +100,7 @@ func TestNewMethodSet(t *testing.T) {
+ 		check(src, methods, false)
+ 	}
+ 
+-	if typeparams.Enabled {
+-		for src, methods := range genericTests {
+-			check(src, methods, true)
+-		}
++	for src, methods := range genericTests {
++		check(src, methods, true)
+ 	}
+ }
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 64a1b37cef..ea39473b51 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -263,11 +263,8 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
+ 
+ 	case *ast.IndexExpr, *ast.MultiIndexExpr:
+ 		ix := typeparams.UnpackIndexExpr(e)
+-		if typeparams.Enabled {
+-			return check.instantiatedType(ix, def)
+-		}
+-		check.errorf(e0, _NotAType, "%s is not a type", e0)
+-		check.use(ix.X)
++		// TODO(rfindley): type instantiation should require go1.18
++		return check.instantiatedType(ix, def)
+ 
+ 	case *ast.ParenExpr:
+ 		// Generic types must be instantiated before they can be used in any form.

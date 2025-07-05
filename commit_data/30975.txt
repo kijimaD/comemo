@@ -14,6 +14,19 @@ Date:   Thu Jan 5 18:10:19 2017 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/http.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/http.go b/src/cmd/go/http.go
+index 1dc2c12c64..dcb4e9fea5 100644
+--- a/src/cmd/go/http.go
++++ b/src/cmd/go/http.go
+@@ -33,6 +33,7 @@ var httpClient = http.DefaultClient
+ var impatientInsecureHTTPClient = &http.Client{
+ 	Timeout: 5 * time.Second,
+ 	Transport: &http.Transport{
++		Proxy: http.ProxyFromEnvironment,
+ 		TLSClientConfig: &tls.Config{
+ 			InsecureSkipVerify: true,
+ 		},

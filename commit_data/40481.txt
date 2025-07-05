@@ -11,6 +11,20 @@ Date:   Thu May 16 13:28:35 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/work/action.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index ec9f8583d2..33b7818fb2 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -430,7 +430,7 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
+ 	// by the install action during (*Builder).installAction.
+ 	buildAction := a
+ 	switch buildAction.Mode {
+-	case "build", "built-in package":
++	case "build", "built-in package", "gccgo stdlib":
+ 		// ok
+ 	case "build-install":
+ 		buildAction = a.Deps[0]

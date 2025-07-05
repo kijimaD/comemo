@@ -9,6 +9,22 @@ Date:   Sat Oct 3 12:06:32 2015 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/math/big/int_test.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/math/big/int_test.go b/src/math/big/int_test.go
+index 72c2c985c5..5d65217c61 100644
+--- a/src/math/big/int_test.go
++++ b/src/math/big/int_test.go
+@@ -695,7 +695,9 @@ func TestGcd(t *testing.T) {
+ 		testGcd(t, d, x, y, a, b)
+ 	}
+ 
+-	quick.Check(checkGcd, nil)
++	if err := quick.Check(checkGcd, nil); err != nil {
++		t.Error(err)
++	}
+ }
+ 
+ var primes = []string{

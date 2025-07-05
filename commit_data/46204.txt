@@ -215,7 +215,7 @@ Date:   Mon Dec 14 13:26:35 2020 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  test/fixedbugs/issue25958.go  |  4 ++--
  test/fixedbugs/issue26416.go  |  6 +++---
  test/fixedbugs/issue26616.go  | 10 +++++-----
@@ -265,3 +265,862 @@ Date:   Mon Dec 14 13:26:35 2020 -0800
  test/fixedbugs/issue8507.go   |  2 +-
  test/fixedbugs/issue9521.go   |  4 ++--
  48 files changed, 147 insertions(+), 147 deletions(-)
+
+diff --git a/test/fixedbugs/issue25958.go b/test/fixedbugs/issue25958.go
+index ba7ee82230..90fcee15fd 100644
+--- a/test/fixedbugs/issue25958.go
++++ b/test/fixedbugs/issue25958.go
+@@ -11,7 +11,7 @@ package p
+ 
+ func f(done chan struct{}) {
+ 	select {
+-	case done: // ERROR "must be receive", "not used"
+-	case (chan struct{})(done): // ERROR "must be receive"
++	case done: // ERROR "must be receive|expected .*<-.* or .*=" "not used"
++	case (chan struct{})(done): // ERROR "must be receive|expected .*<-.* or .*="
+ 	}
+ }
+diff --git a/test/fixedbugs/issue26416.go b/test/fixedbugs/issue26416.go
+index bc37fd9d3a..44a4fc73b7 100644
+--- a/test/fixedbugs/issue26416.go
++++ b/test/fixedbugs/issue26416.go
+@@ -21,7 +21,7 @@ type t3 struct {
+ }
+ 
+ var (
+-	_ = t2{t1f1: 600} // ERROR "cannot use promoted field t1.t1f1 in struct literal of type t2"
+-	_ = t3{t1f2: 800} // ERROR "cannot use promoted field t2.t1.t1f2 in struct literal of type t3"
+-	_ = t3{t2f1: 900} // ERROR "cannot use promoted field t2.t2f1 in struct literal of type t3"
++	_ = t2{t1f1: 600} // ERROR "cannot use promoted field t1.t1f1 in struct literal of type t2|unknown field"
++	_ = t3{t1f2: 800} // ERROR "cannot use promoted field t2.t1.t1f2 in struct literal of type t3|unknown field"
++	_ = t3{t2f1: 900} // ERROR "cannot use promoted field t2.t2f1 in struct literal of type t3|unknown field"
+ )
+diff --git a/test/fixedbugs/issue26616.go b/test/fixedbugs/issue26616.go
+index e5565b68ca..87c0293661 100644
+--- a/test/fixedbugs/issue26616.go
++++ b/test/fixedbugs/issue26616.go
+@@ -6,13 +6,13 @@
+ 
+ package p
+ 
+-var x int = three() // ERROR "assignment mismatch: 1 variable but three returns 3 values"
++var x int = three() // ERROR "assignment mismatch: 1 variable but three returns 3 values|multiple-value function call in single-value context"
+ 
+ func f() {
+-	var _ int = three() // ERROR "assignment mismatch: 1 variable but three returns 3 values"
+-	var a int = three() // ERROR "assignment mismatch: 1 variable but three returns 3 values"
+-	a = three()         // ERROR "assignment mismatch: 1 variable but three returns 3 values"
+-	b := three()        // ERROR "assignment mismatch: 1 variable but three returns 3 values"
++	var _ int = three() // ERROR "assignment mismatch: 1 variable but three returns 3 values|multiple-value function call in single-value context"
++	var a int = three() // ERROR "assignment mismatch: 1 variable but three returns 3 values|multiple-value function call in single-value context"
++	a = three()         // ERROR "assignment mismatch: 1 variable but three returns 3 values|multiple-value function call in single-value context"
++	b := three()        // ERROR "assignment mismatch: 1 variable but three returns 3 values|single variable set to multiple-value|multiple-value function call in single-value context"
+ 
+ 	_, _ = a, b
+ }
+diff --git a/test/fixedbugs/issue26855.go b/test/fixedbugs/issue26855.go
+index 144e4415f7..b965635a65 100644
+--- a/test/fixedbugs/issue26855.go
++++ b/test/fixedbugs/issue26855.go
+@@ -20,9 +20,9 @@ type P struct {
+ type T struct{}
+ 
+ var _ = S{
+-	f: &T{}, // ERROR "cannot use &T{}"
++	f: &T{}, // ERROR "cannot use &T{}|incompatible type"
+ }
+ 
+ var _ = P{
+-	f: T{}, // ERROR "cannot use T{}"
++	f: T{}, // ERROR "cannot use T{}|incompatible type"
+ }
+diff --git a/test/fixedbugs/issue27356.go b/test/fixedbugs/issue27356.go
+index 42784876a5..c3e686df33 100644
+--- a/test/fixedbugs/issue27356.go
++++ b/test/fixedbugs/issue27356.go
+@@ -11,9 +11,9 @@ package p
+ var a = []int{1,2,3}
+ 
+ func _(len int) {
+-	_ =  len(a) // ERROR "cannot call non-function"
++	_ =  len(a) // ERROR "cannot call non-function|expected function"
+ }
+ 
+ var cap = false
+-var _ = cap(a) // ERROR "cannot call non-function"
++var _ = cap(a) // ERROR "cannot call non-function|expected function"
+ 
+diff --git a/test/fixedbugs/issue27938.go b/test/fixedbugs/issue27938.go
+index b0007be928..ed974e642d 100644
+--- a/test/fixedbugs/issue27938.go
++++ b/test/fixedbugs/issue27938.go
+@@ -11,13 +11,13 @@
+ package p
+ 
+ type _ struct {
+-	F sync.Mutex // ERROR "undefined: sync"
++	F sync.Mutex // ERROR "undefined: sync|expected package"
+ }
+ 
+ type _ struct {
+-	sync.Mutex // ERROR "undefined: sync"
++	sync.Mutex // ERROR "undefined: sync|expected package"
+ }
+ 
+ type _ interface {
+-	sync.Mutex // ERROR "undefined: sync"
++	sync.Mutex // ERROR "undefined: sync|expected package|expected signature or type name"
+ }
+diff --git a/test/fixedbugs/issue28079b.go b/test/fixedbugs/issue28079b.go
+index 47cc16dfb2..d1992e1d09 100644
+--- a/test/fixedbugs/issue28079b.go
++++ b/test/fixedbugs/issue28079b.go
+@@ -10,8 +10,8 @@ package p
+ 
+ import "unsafe"
+ 
+-type T [uintptr(unsafe.Pointer(nil))]int // ERROR "non-constant array bound"
++type T [uintptr(unsafe.Pointer(nil))]int // ERROR "non-constant array bound|array bound is not constant"
+ 
+ func f() {
+-	_ = complex(1<<uintptr(unsafe.Pointer(nil)), 0)
++	_ = complex(1<<uintptr(unsafe.Pointer(nil)), 0) // GCCGO_ERROR "non-integer type for left operand of shift"
+ }
+diff --git a/test/fixedbugs/issue28079c.go b/test/fixedbugs/issue28079c.go
+index bea1898304..dfac8d0155 100644
+--- a/test/fixedbugs/issue28079c.go
++++ b/test/fixedbugs/issue28079c.go
+@@ -11,5 +11,5 @@ package p
+ import "unsafe"
+ 
+ func f() {
+-	_ = complex(1<<uintptr(unsafe.Pointer(nil)), 0) // ERROR "invalid operation: .*shift of type float64.*"
++	_ = complex(1<<uintptr(unsafe.Pointer(nil)), 0) // ERROR "invalid operation: .*shift of type float64.*|non-integer type for left operand of shift"
+ }
+diff --git a/test/fixedbugs/issue28268.go b/test/fixedbugs/issue28268.go
+index fdc6974d1c..59a4c57c67 100644
+--- a/test/fixedbugs/issue28268.go
++++ b/test/fixedbugs/issue28268.go
+@@ -16,8 +16,8 @@ type T struct {
+ 
+ type E struct{}
+ 
+-func (T) b()  {} // ERROR "field and method named b"
+-func (*T) E() {} // ERROR "field and method named E"
++func (T) b()  {} // ERROR "field and method named b|redeclares struct field name"
++func (*T) E() {} // ERROR "field and method named E|redeclares struct field name"
+ 
+ func _() {
+ 	var x T
+diff --git a/test/fixedbugs/issue28450.go b/test/fixedbugs/issue28450.go
+index 1a1183b291..2acfe39177 100644
+--- a/test/fixedbugs/issue28450.go
++++ b/test/fixedbugs/issue28450.go
+@@ -6,13 +6,13 @@
+ 
+ package p
+ 
+-func f(a, b, c, d ...int)       {} // ERROR "non-final parameter a"
+-func g(a ...int, b ...int)      {} // ERROR "non-final parameter a"
+-func h(...int, ...int, float32) {} // ERROR "non-final parameter"
++func f(a, b, c, d ...int)       {} // ERROR "non-final parameter a|only permits one name"
++func g(a ...int, b ...int)      {} // ERROR "non-final parameter a|must be last parameter"
++func h(...int, ...int, float32) {} // ERROR "non-final parameter|must be last parameter"
+ 
+-type a func(...float32, ...interface{}) // ERROR "non-final parameter"
++type a func(...float32, ...interface{}) // ERROR "non-final parameter|must be last parameter"
+ type b interface {
+-	f(...int, ...int)                // ERROR "non-final parameter"
+-	g(a ...int, b ...int, c float32) // ERROR "non-final parameter a"
++	f(...int, ...int)                // ERROR "non-final parameter|must be last parameter"
++	g(a ...int, b ...int, c float32) // ERROR "non-final parameter a|must be last parameter"
+ 	valid(...int)
+ }
+diff --git a/test/fixedbugs/issue28926.go b/test/fixedbugs/issue28926.go
+index 5a46bd307c..1ca97d6f60 100644
+--- a/test/fixedbugs/issue28926.go
++++ b/test/fixedbugs/issue28926.go
+@@ -13,12 +13,12 @@ type Stringer interface {
+ func main() {
+ 	var e interface{}
+ 	switch e := e.(type) {
+-	case G: // ERROR "undefined: G"
++	case G: // ERROR "undefined: G|undefined type .*G"
+ 		e.M() // ok: this error should be ignored because the case failed its typecheck
+-	case E: // ERROR "undefined: E"
++	case E: // ERROR "undefined: E|undefined type .*E"
+ 		e.D() // ok: this error should be ignored because the case failed its typecheck
+ 	case Stringer:
+ 		// ok: this error should not be ignored to prove that passing legs aren't left out
+-		_ = e.(T) // ERROR "undefined: T"
++		_ = e.(T) // ERROR "undefined: T|undefined type .*T"
+ 	}
+ }
+diff --git a/test/fixedbugs/issue29855.go b/test/fixedbugs/issue29855.go
+index b57eae2b44..402093c160 100644
+--- a/test/fixedbugs/issue29855.go
++++ b/test/fixedbugs/issue29855.go
+@@ -10,7 +10,7 @@ type T struct {
+ 	GlobalName string
+ }
+ 
+-var t = T{Name: "foo"} // ERROR "unknown field 'Name' in struct literal of type T"
++var t = T{Name: "foo"} // ERROR "unknown field 'Name' in struct literal of type T|unknown field .*Name.* in .*T"
+ 
+ func (t T) Name() string {
+ 	return t.GlobalName
+diff --git a/test/fixedbugs/issue29870b.go b/test/fixedbugs/issue29870b.go
+index 2d5f638530..0a83489d96 100644
+--- a/test/fixedbugs/issue29870b.go
++++ b/test/fixedbugs/issue29870b.go
+@@ -10,5 +10,5 @@
+ package main
+ 
+ func _() {
+-	x := 7 // ERROR "x declared but not used"
++	x := 7 // ERROR ".*x.* declared but not used"
+ }
+diff --git a/test/fixedbugs/issue30085.go b/test/fixedbugs/issue30085.go
+index 8223c855cd..d2ac4cfbfa 100644
+--- a/test/fixedbugs/issue30085.go
++++ b/test/fixedbugs/issue30085.go
+@@ -7,6 +7,6 @@
+ package main
+ 
+ func main() {
+-	var c, d = 1, 2, 3 // ERROR "assignment mismatch: 2 variables but 3 values"
+-	var e, f, g = 1, 2 // ERROR "assignment mismatch: 3 variables but 2 values"
++	var c, d = 1, 2, 3 // ERROR "assignment mismatch: 2 variables but 3 values|wrong number of initializations"
++	var e, f, g = 1, 2 // ERROR "assignment mismatch: 3 variables but 2 values|wrong number of initializations"
+ }
+diff --git a/test/fixedbugs/issue30087.go b/test/fixedbugs/issue30087.go
+index dc12364d80..3ad9c8c8d9 100644
+--- a/test/fixedbugs/issue30087.go
++++ b/test/fixedbugs/issue30087.go
+@@ -7,8 +7,8 @@
+ package main
+ 
+ func main() {
+-	var a, b = 1    // ERROR "assignment mismatch: 2 variables but 1 values"
+-	_ = 1, 2        // ERROR "assignment mismatch: 1 variables but 2 values"
+-	c, d := 1       // ERROR "assignment mismatch: 2 variables but 1 values"
+-	e, f := 1, 2, 3 // ERROR "assignment mismatch: 2 variables but 3 values"
++	var a, b = 1    // ERROR "assignment mismatch: 2 variables but 1 values|wrong number of initializations"
++	_ = 1, 2        // ERROR "assignment mismatch: 1 variables but 2 values|number of variables does not match"
++	c, d := 1       // ERROR "assignment mismatch: 2 variables but 1 values|wrong number of initializations"
++	e, f := 1, 2, 3 // ERROR "assignment mismatch: 2 variables but 3 values|wrong number of initializations"
+ }
+diff --git a/test/fixedbugs/issue30722.go b/test/fixedbugs/issue30722.go
+index 02258f0bea..fe04c8f41a 100644
+--- a/test/fixedbugs/issue30722.go
++++ b/test/fixedbugs/issue30722.go
+@@ -10,8 +10,8 @@ package p
+ 
+ const (
+ 	_ = 1_       // ERROR "'_' must separate successive digits"
+-	_ = 0b       // ERROR "binary literal has no digits"
+-	_ = 0o       // ERROR "octal literal has no digits"
+-	_ = 0x       // ERROR "hexadecimal literal has no digits"
++	_ = 0b       // ERROR "binary literal has no digits|invalid numeric literal"
++	_ = 0o       // ERROR "octal literal has no digits|invalid numeric literal"
++	_ = 0x       // ERROR "hexadecimal literal has no digits|invalid numeric literal"
+ 	_ = 0xde__ad // ERROR "'_' must separate successive digits"
+ )
+diff --git a/test/fixedbugs/issue32723.go b/test/fixedbugs/issue32723.go
+index 7d9e403fc0..850334d702 100644
+--- a/test/fixedbugs/issue32723.go
++++ b/test/fixedbugs/issue32723.go
+@@ -9,14 +9,14 @@
+ package p
+ 
+ const x = 1i
+-const y = 1i < 2i // ERROR "invalid operation: .*not defined on untyped complex"
+-const z = x < 2i  // ERROR "invalid operation: .*not defined on untyped complex"
++const y = 1i < 2i // ERROR "invalid operation: .*not defined on untyped complex|non-ordered type"
++const z = x < 2i  // ERROR "invalid operation: .*not defined on untyped complex|non-ordered type"
+ 
+ func f() {
+-	_ = 1i < 2i // ERROR "invalid operation: .*not defined on untyped complex"
+-	_ = 1i < 2  // ERROR "invalid operation: .*not defined on untyped complex"
+-	_ = 1 < 2i  // ERROR "invalid operation: .*not defined on untyped complex"
++	_ = 1i < 2i // ERROR "invalid operation: .*not defined on untyped complex|non-ordered type"
++	_ = 1i < 2  // ERROR "invalid operation: .*not defined on untyped complex|non-ordered type"
++	_ = 1 < 2i  // ERROR "invalid operation: .*not defined on untyped complex|non-ordered type"
+ 
+ 	c := 1i
+-	_ = c < 2i // ERROR "invalid operation: .*not defined on complex128"
++	_ = c < 2i // ERROR "invalid operation: .*not defined on complex128|non-ordered type"
+ }
+diff --git a/test/fixedbugs/issue33308.go b/test/fixedbugs/issue33308.go
+index b0fd6a450c..5821099e3d 100644
+--- a/test/fixedbugs/issue33308.go
++++ b/test/fixedbugs/issue33308.go
+@@ -9,4 +9,4 @@
+ package p
+ 
+ var v uint
+-var x = []byte((1 << v) + 1) // ERROR "cannot convert"
++var x = []byte((1 << v) + 1) // ERROR "cannot convert|non-integer type for left operand of shift"
+diff --git a/test/fixedbugs/issue33386.go b/test/fixedbugs/issue33386.go
+index afc27e62f3..7b2f565285 100644
+--- a/test/fixedbugs/issue33386.go
++++ b/test/fixedbugs/issue33386.go
+@@ -11,19 +11,19 @@
+ package p
+ 
+ func _() {
+-	go func() { // no error here about goroutine
+-		send <-
+-	}() // ERROR "expecting expression"
++	go func() {     // no error here about goroutine
++		send <- // GCCGO_ERROR "undefined name"
++	}()             // ERROR "expecting expression|expected operand"
+ }
+ 
+ func _() {
+ 	defer func() { // no error here about deferred function
+-		1 +
+-	}() // ERROR "expecting expression"
++		1 +    // GCCGO_ERROR "value computed is not used"
++	}()            // ERROR "expecting expression|expected operand"
+ }
+ 
+ func _() {
+-	_ = (1 +)             // ERROR "expecting expression"
+-	_ = a[2 +]            // ERROR "expecting expression"
+-	_ = []int{1, 2, 3 + } // ERROR "expecting expression"
++	_ = (1 +)             // ERROR "expecting expression|expected operand"
++	_ = a[2 +]            // ERROR "expecting expression|expected operand|undefined name"
++	_ = []int{1, 2, 3 + } // ERROR "expecting expression|expected operand"
+ }
+diff --git a/test/fixedbugs/issue33460.go b/test/fixedbugs/issue33460.go
+index 1061d3e746..d90b0a4348 100644
+--- a/test/fixedbugs/issue33460.go
++++ b/test/fixedbugs/issue33460.go
+@@ -18,11 +18,11 @@ const iii int = 0x3
+ func f(v int) {
+ 	switch v {
+ 	case zero, one:
+-	case two, one: // ERROR "previous case at LINE-1"
++	case two, one: // ERROR "previous case at LINE-1|duplicate case in switch"
+ 
+ 	case three:
+-	case 3: // ERROR "previous case at LINE-1"
+-	case iii: // ERROR "previous case at LINE-2"
++	case 3: // ERROR "previous case at LINE-1|duplicate case in switch"
++	case iii: // ERROR "previous case at LINE-2|duplicate case in switch"
+ 	}
+ }
+ 
+@@ -31,7 +31,7 @@ const b = "b"
+ var _ = map[string]int{
+ 	"a": 0,
+ 	b:   1,
+-	"a": 2, // ERROR "previous key at LINE-2"
+-	"b": 3, // ERROR "previous key at LINE-2"
+-	"b": 4, // ERROR "previous key at LINE-3"
++	"a": 2, // ERROR "previous key at LINE-2|duplicate key in map literal"
++	"b": 3, // GC_ERROR "previous key at LINE-2"
++	"b": 4, // GC_ERROR "previous key at LINE-3"
+ }
+diff --git a/test/fixedbugs/issue35291.go b/test/fixedbugs/issue35291.go
+index 3cbdbf962a..5d8381c244 100644
+--- a/test/fixedbugs/issue35291.go
++++ b/test/fixedbugs/issue35291.go
+@@ -10,5 +10,5 @@ package p
+ 
+ var s = []string{
+ 	1: "dup",
+-	1: "dup", // ERROR "duplicate index in slice literal: 1"
++	1: "dup", // ERROR "duplicate index in slice literal: 1|duplicate value for index 1"
+ }
+diff --git a/test/fixedbugs/issue38745.go b/test/fixedbugs/issue38745.go
+index 83a3bc6fad..7d4283b845 100644
+--- a/test/fixedbugs/issue38745.go
++++ b/test/fixedbugs/issue38745.go
+@@ -9,10 +9,10 @@ package p
+ type t struct{ x int }
+ 
+ func f1() {
+-	t{}.M()     // ERROR "t{}.M undefined \(type t has no field or method M\)"
+-	t{x: 1}.M() // ERROR "t{...}.M undefined \(type t has no field or method M\)"
++	t{}.M()     // ERROR "t{}.M undefined \(type t has no field or method M\)|undefined field or method .*M"
++	t{x: 1}.M() // ERROR "t{...}.M undefined \(type t has no field or method M\)|undefined field or method .*M"
+ }
+ 
+ func f2() (*t, error) {
+-	return t{}.M() // ERROR "t{}.M undefined \(type t has no field or method M\)"
++	return t{}.M() // ERROR "t{}.M undefined \(type t has no field or method M\)|undefined field or method .*M|not enough arguments"
+ }
+diff --git a/test/fixedbugs/issue41247.go b/test/fixedbugs/issue41247.go
+index b8bd81274f..c5e495ba93 100644
+--- a/test/fixedbugs/issue41247.go
++++ b/test/fixedbugs/issue41247.go
+@@ -7,5 +7,5 @@
+ package p
+ 
+ func f() [2]int {
+-	return [...]int{2: 0} // ERROR "cannot use \[\.\.\.\]int{...} \(type \[3\]int\)"
++	return [...]int{2: 0} // ERROR "cannot use \[\.\.\.\]int{...} \(type \[3\]int\)|incompatible type"
+ }
+diff --git a/test/fixedbugs/issue41440.go b/test/fixedbugs/issue41440.go
+index 2b441db803..0d911f0173 100644
+--- a/test/fixedbugs/issue41440.go
++++ b/test/fixedbugs/issue41440.go
+@@ -10,5 +10,5 @@ func f(...int) {}
+ 
+ func g() {
+ 	var x []int
+-	f(x, x...) // ERROR "have \(\[\]int, \.\.\.int\)"
++	f(x, x...) // ERROR "have \(\[\]int, \.\.\.int\)|too many arguments"
+ }
+diff --git a/test/fixedbugs/issue41500.go b/test/fixedbugs/issue41500.go
+index d1e4efc8fd..82dca34820 100644
+--- a/test/fixedbugs/issue41500.go
++++ b/test/fixedbugs/issue41500.go
+@@ -13,8 +13,8 @@ type s struct {
+ func f() {
+ 	var x *s
+ 
+-	_ = x == nil || len(x.slice) // ERROR "invalid operation: .+ \(operator \|\| not defined on int\)"
+-	_ = len(x.slice) || x == nil // ERROR "invalid operation: .+ \(operator \|\| not defined on int\)"
+-	_ = x == nil && len(x.slice) // ERROR "invalid operation: .+ \(operator && not defined on int\)"
+-	_ = len(x.slice) && x == nil // ERROR "invalid operation: .+ \(operator && not defined on int\)"
++	_ = x == nil || len(x.slice) // ERROR "invalid operation: .+ \(operator \|\| not defined on int\)|incompatible types"
++	_ = len(x.slice) || x == nil // ERROR "invalid operation: .+ \(operator \|\| not defined on int\)|incompatible types"
++	_ = x == nil && len(x.slice) // ERROR "invalid operation: .+ \(operator && not defined on int\)|incompatible types"
++	_ = len(x.slice) && x == nil // ERROR "invalid operation: .+ \(operator && not defined on int\)|incompatible types"
+ }
+diff --git a/test/fixedbugs/issue41575.go b/test/fixedbugs/issue41575.go
+index d03d1c8b3e..456873038f 100644
+--- a/test/fixedbugs/issue41575.go
++++ b/test/fixedbugs/issue41575.go
+@@ -6,31 +6,31 @@
+ 
+ package p
+ 
+-type T1 struct { // ERROR "invalid recursive type T1\n\tLINE: T1 refers to\n\tLINE+4: T2 refers to\n\tLINE: T1$"
++type T1 struct { // ERROR "invalid recursive type T1\n\tLINE: T1 refers to\n\tLINE+4: T2 refers to\n\tLINE: T1$|invalid recursive type"
+ 	f2 T2
+ }
+ 
+-type T2 struct {
++type T2 struct { // GCCGO_ERROR "invalid recursive type"
+ 	f1 T1
+ }
+ 
+-type a b
+-type b c // ERROR "invalid recursive type b\n\tLINE: b refers to\n\tLINE+1: c refers to\n\tLINE: b$"
+-type c b
++type a b // GCCGO_ERROR "invalid recursive type"
++type b c // ERROR "invalid recursive type b\n\tLINE: b refers to\n\tLINE+1: c refers to\n\tLINE: b$|invalid recursive type"
++type c b // GCCGO_ERROR "invalid recursive type"
+ 
+ type d e
+ type e f
+-type f f // ERROR "invalid recursive type f\n\tLINE: f refers to\n\tLINE: f$"
++type f f // ERROR "invalid recursive type f\n\tLINE: f refers to\n\tLINE: f$|invalid recursive type"
+ 
+-type g struct { // ERROR "invalid recursive type g\n\tLINE: g refers to\n\tLINE: g$"
++type g struct { // ERROR "invalid recursive type g\n\tLINE: g refers to\n\tLINE: g$|invalid recursive type"
+ 	h struct {
+ 		g
+ 	}
+ }
+ 
+ type w x
+-type x y // ERROR "invalid recursive type x\n\tLINE: x refers to\n\tLINE+1: y refers to\n\tLINE+2: z refers to\n\tLINE: x$"
+-type y struct{ z }
++type x y           // ERROR "invalid recursive type x\n\tLINE: x refers to\n\tLINE+1: y refers to\n\tLINE+2: z refers to\n\tLINE: x$|invalid recursive type"
++type y struct{ z } // GCCGO_ERROR "invalid recursive type"
+ type z [10]x
+ 
+ type w2 w // refer to the type loop again
+diff --git a/test/fixedbugs/issue42058a.go b/test/fixedbugs/issue42058a.go
+index 67751a1b0c..722f86e1ec 100644
+--- a/test/fixedbugs/issue42058a.go
++++ b/test/fixedbugs/issue42058a.go
+@@ -6,8 +6,8 @@
+ 
+ package p
+ 
+-var c chan [2 << 16]byte // ERROR "channel element type too large"
++var c chan [2 << 16]byte // GC_ERROR "channel element type too large"
+ 
+ type T [1 << 17]byte
+ 
+-var x chan T // ERROR "channel element type too large"
++var x chan T // GC_ERROR "channel element type too large"
+diff --git a/test/fixedbugs/issue42058b.go b/test/fixedbugs/issue42058b.go
+index 03f86ee1b1..71a280f96b 100644
+--- a/test/fixedbugs/issue42058b.go
++++ b/test/fixedbugs/issue42058b.go
+@@ -6,7 +6,7 @@
+ 
+ package p
+ 
+-var c chan [2 << 16]byte // ERROR "channel element type too large"
++var c chan [2 << 16]byte // GC_ERROR "channel element type too large"
+ 
+ func f() {
+ 	_ = 42
+diff --git a/test/fixedbugs/issue4215.go b/test/fixedbugs/issue4215.go
+index 795d48d7f5..be9fc7434a 100644
+--- a/test/fixedbugs/issue4215.go
++++ b/test/fixedbugs/issue4215.go
+@@ -7,28 +7,28 @@
+ package main
+ 
+ func foo() (int, int) {
+-	return 2.3 // ERROR "not enough arguments to return\n\thave \(number\)\n\twant \(int, int\)"
++	return 2.3 // ERROR "not enough arguments to return\n\thave \(number\)\n\twant \(int, int\)|not enough arguments to return"
+ }
+ 
+ func foo2() {
+-	return int(2), 2 // ERROR "too many arguments to return\n\thave \(int, number\)\n\twant \(\)"
++	return int(2), 2 // ERROR "too many arguments to return\n\thave \(int, number\)\n\twant \(\)|return with value in function with no return type"
+ }
+ 
+ func foo3(v int) (a, b, c, d int) {
+ 	if v >= 0 {
+-		return 1 // ERROR "not enough arguments to return\n\thave \(number\)\n\twant \(int, int, int, int\)"
++		return 1 // ERROR "not enough arguments to return\n\thave \(number\)\n\twant \(int, int, int, int\)|not enough arguments to return"
+ 	}
+-	return 2, 3 // ERROR "not enough arguments to return\n\thave \(number, number\)\n\twant \(int, int, int, int\)"
++	return 2, 3 // ERROR "not enough arguments to return\n\thave \(number, number\)\n\twant \(int, int, int, int\)|not enough arguments to return"
+ }
+ 
+ func foo4(name string) (string, int) {
+ 	switch name {
+ 	case "cow":
+-		return "moo" // ERROR "not enough arguments to return\n\thave \(string\)\n\twant \(string, int\)"
++		return "moo" // ERROR "not enough arguments to return\n\thave \(string\)\n\twant \(string, int\)|not enough arguments to return"
+ 	case "dog":
+-		return "dog", 10, true // ERROR "too many arguments to return\n\thave \(string, number, bool\)\n\twant \(string, int\)"
++		return "dog", 10, true // ERROR "too many arguments to return\n\thave \(string, number, bool\)\n\twant \(string, int\)|too many values in return statement"
+ 	case "fish":
+-		return "" // ERROR "not enough arguments to return\n\thave \(string\)\n\twant \(string, int\)"
++		return "" // ERROR "not enough arguments to return\n\thave \(string\)\n\twant \(string, int\)|not enough arguments to return"
+ 	default:
+ 		return "lizard", 10
+ 	}
+@@ -40,14 +40,14 @@ type U float64
+ 
+ func foo5() (S, T, U) {
+ 	if false {
+-		return "" // ERROR "not enough arguments to return\n\thave \(string\)\n\twant \(S, T, U\)"
++		return "" // ERROR "not enough arguments to return\n\thave \(string\)\n\twant \(S, T, U\)|not enough arguments to return"
+ 	} else {
+ 		ptr := new(T)
+-		return ptr // ERROR "not enough arguments to return\n\thave \(\*T\)\n\twant \(S, T, U\)"
++		return ptr // ERROR "not enough arguments to return\n\thave \(\*T\)\n\twant \(S, T, U\)|not enough arguments to return"
+ 	}
+-	return new(S), 12.34, 1 + 0i, 'r', true // ERROR "too many arguments to return\n\thave \(\*S, number, number, number, bool\)\n\twant \(S, T, U\)"
++	return new(S), 12.34, 1 + 0i, 'r', true // ERROR "too many arguments to return\n\thave \(\*S, number, number, number, bool\)\n\twant \(S, T, U\)|too many values in return statement"
+ }
+ 
+ func foo6() (T, string) {
+-	return "T", true, true // ERROR "too many arguments to return\n\thave \(string, bool, bool\)\n\twant \(T, string\)"
++	return "T", true, true // ERROR "too many arguments to return\n\thave \(string, bool, bool\)\n\twant \(T, string\)|too many values in return statement"
+ }
+diff --git a/test/fixedbugs/issue6402.go b/test/fixedbugs/issue6402.go
+index da5980c9ab..ecde9ae510 100644
+--- a/test/fixedbugs/issue6402.go
++++ b/test/fixedbugs/issue6402.go
+@@ -9,5 +9,5 @@
+ package p
+ 
+ func f() uintptr {
+-	return nil // ERROR "cannot use nil as type uintptr in return argument"
++	return nil // ERROR "cannot use nil as type uintptr in return argument|incompatible type"
+ }
+diff --git a/test/fixedbugs/issue6403.go b/test/fixedbugs/issue6403.go
+index b61e2e225d..809efefa0f 100644
+--- a/test/fixedbugs/issue6403.go
++++ b/test/fixedbugs/issue6403.go
+@@ -10,5 +10,5 @@ package p
+ 
+ import "syscall"
+ 
+-const A int = syscall.X // ERROR "undefined: syscall.X"
+-const B int = voidpkg.X // ERROR "undefined: voidpkg"
++const A int = syscall.X // ERROR "undefined: syscall.X|undefined identifier .*syscall.X"
++const B int = voidpkg.X // ERROR "undefined: voidpkg|undefined name .*voidpkg"
+diff --git a/test/fixedbugs/issue6772.go b/test/fixedbugs/issue6772.go
+index 4d0001c870..5bd15ba72e 100644
+--- a/test/fixedbugs/issue6772.go
++++ b/test/fixedbugs/issue6772.go
+@@ -7,14 +7,14 @@
+ package p
+ 
+ func f1() {
+-	for a, a := range []int{1, 2, 3} { // ERROR "a repeated on left side of :="
++	for a, a := range []int{1, 2, 3} { // ERROR "a.* repeated on left side of :="
+ 		println(a)
+ 	}
+ }
+ 
+ func f2() {
+ 	var a int
+-	for a, a := range []int{1, 2, 3} { // ERROR "a repeated on left side of :="
++	for a, a := range []int{1, 2, 3} { // ERROR "a.* repeated on left side of :="
+ 		println(a)
+ 	}
+ 	println(a)
+diff --git a/test/fixedbugs/issue6889.go b/test/fixedbugs/issue6889.go
+index 805a877d58..efd8b76148 100644
+--- a/test/fixedbugs/issue6889.go
++++ b/test/fixedbugs/issue6889.go
+@@ -107,5 +107,5 @@ const (
+ 	f96 = f95 * 96
+ 	f97 = f96 * 97
+ 	f98 = f97 * 98
+-	f99 = f98 * 99 // ERROR "overflow"
++	f99 = f98 * 99 // GC_ERROR "overflow"
+ )
+diff --git a/test/fixedbugs/issue6964.go b/test/fixedbugs/issue6964.go
+index 7ad83364ab..36a3c5bb40 100644
+--- a/test/fixedbugs/issue6964.go
++++ b/test/fixedbugs/issue6964.go
+@@ -7,5 +7,5 @@
+ package main
+ 
+ func main() {
+-	_ = string(-4 + 2i + 2) // ERROR "-4 \+ 2i"
++	_ = string(-4 + 2i + 2) // ERROR "-4 \+ 2i|invalid type conversion"
+ }
+diff --git a/test/fixedbugs/issue7129.go b/test/fixedbugs/issue7129.go
+index 2425cbd343..2765200ac8 100644
+--- a/test/fixedbugs/issue7129.go
++++ b/test/fixedbugs/issue7129.go
+@@ -15,7 +15,7 @@ func g() bool { return true }
+ func h(int, int) {}
+ 
+ func main() {
+-	f(g())        // ERROR "in argument to f"
+-	f(true)       // ERROR "in argument to f"
+-	h(true, true) // ERROR "in argument to h"
++	f(g())        // ERROR "in argument to f|incompatible type"
++	f(true)       // ERROR "in argument to f|incompatible type"
++	h(true, true) // ERROR "in argument to h|incompatible type"
+ }
+diff --git a/test/fixedbugs/issue7150.go b/test/fixedbugs/issue7150.go
+index 8a8a7d088f..7cddf4875e 100644
+--- a/test/fixedbugs/issue7150.go
++++ b/test/fixedbugs/issue7150.go
+@@ -9,9 +9,9 @@
+ package main
+ 
+ func main() {
+-	_ = [0]int{-1: 50}              // ERROR "index must be non-negative integer constant"
+-	_ = [0]int{0: 0}                // ERROR "index 0 out of bounds \[0:0\]"
+-	_ = [0]int{5: 25}               // ERROR "index 5 out of bounds \[0:0\]"
+-	_ = [10]int{2: 10, 15: 30}      // ERROR "index 15 out of bounds \[0:10\]"
+-	_ = [10]int{5: 5, 1: 1, 12: 12} // ERROR "index 12 out of bounds \[0:10\]"
++	_ = [0]int{-1: 50}              // ERROR "index must be non-negative integer constant|index expression is negative"
++	_ = [0]int{0: 0}                // ERROR "index 0 out of bounds \[0:0\]|out of range"
++	_ = [0]int{5: 25}               // ERROR "index 5 out of bounds \[0:0\]|out of range"
++	_ = [10]int{2: 10, 15: 30}      // ERROR "index 15 out of bounds \[0:10\]|out of range"
++	_ = [10]int{5: 5, 1: 1, 12: 12} // ERROR "index 12 out of bounds \[0:10\]|out of range"
+ }
+diff --git a/test/fixedbugs/issue7153.go b/test/fixedbugs/issue7153.go
+index 66b1338496..e8b95d5db8 100644
+--- a/test/fixedbugs/issue7153.go
++++ b/test/fixedbugs/issue7153.go
+@@ -8,4 +8,4 @@
+ 
+ package p
+ 
+-var _ = []int{a: true, true} // ERROR "undefined: a" "cannot use true \(type untyped bool\) as type int in slice literal"
++var _ = []int{a: true, true} // ERROR "undefined: a" "cannot use true \(type untyped bool\) as type int in slice literal|undefined name .*a|incompatible type"
+diff --git a/test/fixedbugs/issue7310.go b/test/fixedbugs/issue7310.go
+index 6829d5e126..ba50e4237b 100644
+--- a/test/fixedbugs/issue7310.go
++++ b/test/fixedbugs/issue7310.go
+@@ -9,7 +9,7 @@
+ package main
+ 
+ func main() {
+-	_ = copy(nil, []int{}) // ERROR "use of untyped nil"
+-	_ = copy([]int{}, nil) // ERROR "use of untyped nil"
+-	_ = 1 + true           // ERROR "mismatched types untyped int and untyped bool"
++	_ = copy(nil, []int{}) // ERROR "use of untyped nil|left argument must be a slice"
++	_ = copy([]int{}, nil) // ERROR "use of untyped nil|second argument must be slice or string"
++	_ = 1 + true           // ERROR "mismatched types untyped int and untyped bool|incompatible types"
+ }
+diff --git a/test/fixedbugs/issue7538a.go b/test/fixedbugs/issue7538a.go
+index 283d9eb1ba..b1701508d8 100644
+--- a/test/fixedbugs/issue7538a.go
++++ b/test/fixedbugs/issue7538a.go
+@@ -11,5 +11,5 @@ package p
+ func f() {
+ _:
+ _:
+-	goto _ // ERROR "not defined"
++	goto _ // ERROR "not defined|undefined label"
+ }
+diff --git a/test/fixedbugs/issue7675.go b/test/fixedbugs/issue7675.go
+index d97ee357a2..6cda05f332 100644
+--- a/test/fixedbugs/issue7675.go
++++ b/test/fixedbugs/issue7675.go
+@@ -13,12 +13,12 @@ func f(string, int, float64, string)
+ func g(string, int, float64, ...string)
+ 
+ func main() {
+-	f(1, 0.5, "hello") // ERROR "not enough arguments"
++	f(1, 0.5, "hello") // ERROR "not enough arguments|incompatible type"
+ 	f("1", 2, 3.1, "4")
+-	f(1, 0.5, "hello", 4, 5) // ERROR "too many arguments"
+-	g(1, 0.5)                // ERROR "not enough arguments"
++	f(1, 0.5, "hello", 4, 5) // ERROR "too many arguments|incompatible type"
++	g(1, 0.5)                // ERROR "not enough arguments|incompatible type"
+ 	g("1", 2, 3.1)
+-	g(1, 0.5, []int{3, 4}...) // ERROR "not enough arguments"
++	g(1, 0.5, []int{3, 4}...) // ERROR "not enough arguments|incompatible type"
+ 	g("1", 2, 3.1, "4", "5")
+-	g(1, 0.5, "hello", 4, []int{5, 6}...) // ERROR "too many arguments"
++	g(1, 0.5, "hello", 4, []int{5, 6}...) // ERROR "too many arguments|truncated to integer"
+ }
+diff --git a/test/fixedbugs/issue7746.go b/test/fixedbugs/issue7746.go
+index 0dc119d2e6..745496293d 100644
+--- a/test/fixedbugs/issue7746.go
++++ b/test/fixedbugs/issue7746.go
+@@ -10,7 +10,7 @@ const (
+ 	c0   = 1 << 100
+ 	c1   = c0 * c0
+ 	c2   = c1 * c1
+-	c3   = c2 * c2 // ERROR "overflow"
++	c3   = c2 * c2 // GC_ERROR "overflow"
+ 	c4   = c3 * c3
+ 	c5   = c4 * c4
+ 	c6   = c5 * c5
+@@ -21,7 +21,7 @@ const (
+ 	c11  = c10 * c10
+ 	c12  = c11 * c11
+ 	c13  = c12 * c12
+-	c14  = c13 * c13
++	c14  = c13 * c13 // GCCGO_ERROR "overflow"
+ 	c15  = c14 * c14
+ 	c16  = c15 * c15
+ 	c17  = c16 * c16
+diff --git a/test/fixedbugs/issue7760.go b/test/fixedbugs/issue7760.go
+index cccae48910..7e1d03596e 100644
+--- a/test/fixedbugs/issue7760.go
++++ b/test/fixedbugs/issue7760.go
+@@ -12,14 +12,14 @@ import "unsafe"
+ 
+ type myPointer unsafe.Pointer
+ 
+-const _ = unsafe.Pointer(uintptr(1)) // ERROR "is not (a )?constant"
+-const _ = myPointer(uintptr(1)) // ERROR "is not (a )?constant"
++const _ = unsafe.Pointer(uintptr(1)) // ERROR "is not (a )?constant|invalid constant type"
++const _ = myPointer(uintptr(1)) // ERROR "is not (a )?constant|invalid constant type"
+ 
+-const _ = (*int)(unsafe.Pointer(uintptr(1))) // ERROR "is not (a )?constant"
+-const _ = (*int)(myPointer(uintptr(1))) // ERROR "is not (a )?constant"
++const _ = (*int)(unsafe.Pointer(uintptr(1))) // ERROR "is not (a )?constant|invalid constant type"
++const _ = (*int)(myPointer(uintptr(1))) // ERROR "is not (a )?constant|invalid constant type"
+ 
+-const _ = uintptr(unsafe.Pointer(uintptr(1))) // ERROR "is not (a )?constant"
+-const _ = uintptr(myPointer(uintptr(1))) // ERROR "is not (a )?constant"
++const _ = uintptr(unsafe.Pointer(uintptr(1))) // ERROR "is not (a )?constant|expression is not constant"
++const _ = uintptr(myPointer(uintptr(1))) // ERROR "is not (a )?constant|expression is no constant"
+ 
+-const _ = []byte("") // ERROR "is not (a )?constant"
+-const _ = []rune("") // ERROR "is not (a )?constant"
++const _ = []byte("") // ERROR "is not (a )?constant|invalid constant type"
++const _ = []rune("") // ERROR "is not (a )?constant|invalid constant type"
+diff --git a/test/fixedbugs/issue8311.go b/test/fixedbugs/issue8311.go
+index 375b480a17..b5fd5daea1 100644
+--- a/test/fixedbugs/issue8311.go
++++ b/test/fixedbugs/issue8311.go
+@@ -11,6 +11,6 @@ package p
+ 
+ func f() {
+ 	var x []byte
+-	x++ // ERROR "invalid operation: x[+][+]"
++	x++ // ERROR "invalid operation: x[+][+]|non-numeric type"
+ 
+ }
+diff --git a/test/fixedbugs/issue8385.go b/test/fixedbugs/issue8385.go
+index 6447e9f0e8..f3d395e521 100644
+--- a/test/fixedbugs/issue8385.go
++++ b/test/fixedbugs/issue8385.go
+@@ -27,16 +27,16 @@ func (t T) M(x int) {
+ func g() func(int)
+ 
+ func main() {
+-	Fooer.Foo(5, 6) // ERROR "not enough arguments in call to method expression Fooer.Foo"
++	Fooer.Foo(5, 6) // ERROR "not enough arguments in call to method expression Fooer.Foo|incompatible type|not enough arguments"
+ 
+ 	var i I
+ 	var t *T
+ 
+-	g()()    // ERROR "not enough arguments in call to g\(\)"
+-	f()      // ERROR "not enough arguments in call to f"
+-	i.M()    // ERROR "not enough arguments in call to i\.M"
+-	I.M()    // ERROR "not enough arguments in call to method expression I\.M"
+-	t.M()    // ERROR "not enough arguments in call to t\.M"
+-	T.M()    // ERROR "not enough arguments in call to method expression T\.M"
+-	(*T).M() // ERROR "not enough arguments in call to method expression \(\*T\)\.M"
++	g()()    // ERROR "not enough arguments in call to g\(\)|not enough arguments"
++	f()      // ERROR "not enough arguments in call to f|not enough arguments"
++	i.M()    // ERROR "not enough arguments in call to i\.M|not enough arguments"
++	I.M()    // ERROR "not enough arguments in call to method expression I\.M|not enough arguments"
++	t.M()    // ERROR "not enough arguments in call to t\.M|not enough arguments"
++	T.M()    // ERROR "not enough arguments in call to method expression T\.M|not enough arguments"
++	(*T).M() // ERROR "not enough arguments in call to method expression \(\*T\)\.M|not enough arguments"
+ }
+diff --git a/test/fixedbugs/issue8438.go b/test/fixedbugs/issue8438.go
+index 3a4f193b57..f433e36924 100644
+--- a/test/fixedbugs/issue8438.go
++++ b/test/fixedbugs/issue8438.go
+@@ -10,8 +10,8 @@
+ package main
+ 
+ func main() {
+-	_ = []byte{"foo"}   // ERROR "cannot use"
+-	_ = []int{"foo"}    // ERROR "cannot use"
+-	_ = []rune{"foo"}   // ERROR "cannot use"
++	_ = []byte{"foo"}   // ERROR "cannot use|incompatible type"
++	_ = []int{"foo"}    // ERROR "cannot use|incompatible type"
++	_ = []rune{"foo"}   // ERROR "cannot use|incompatible type"
+ 	_ = []string{"foo"} // OK
+ }
+diff --git a/test/fixedbugs/issue8440.go b/test/fixedbugs/issue8440.go
+index f9b1dea3eb..e9c5b54d51 100644
+--- a/test/fixedbugs/issue8440.go
++++ b/test/fixedbugs/issue8440.go
+@@ -7,5 +7,5 @@
+ package main
+ 
+ func main() {
+-	n.foo = 6 // ERROR "undefined: n in n.foo"
++	n.foo = 6 // ERROR "undefined: n in n.foo|undefined name .*n"
+ }
+diff --git a/test/fixedbugs/issue8507.go b/test/fixedbugs/issue8507.go
+index ad6ba8ac68..392ecf4063 100644
+--- a/test/fixedbugs/issue8507.go
++++ b/test/fixedbugs/issue8507.go
+@@ -9,7 +9,7 @@
+ 
+ package p
+ 
+-type T struct{ T } // ERROR "invalid recursive type T"
++type T struct{ T } // ERROR "invalid recursive type .*T"
+ 
+ func f() {
+ 	println(T{} == T{})
+diff --git a/test/fixedbugs/issue9521.go b/test/fixedbugs/issue9521.go
+index a33f0483f3..1ad40bdfda 100644
+--- a/test/fixedbugs/issue9521.go
++++ b/test/fixedbugs/issue9521.go
+@@ -13,6 +13,6 @@ func f() (_, _ []int)         { return }
+ func g() (x []int, y float64) { return }
+ 
+ func main() {
+-	_ = append(f()) // ERROR "cannot use \[\]int value as type int in append"
+-	_ = append(g()) // ERROR "cannot use float64 value as type int in append"
++	_ = append(f()) // ERROR "cannot use \[\]int value as type int in append|incompatible type"
++	_ = append(g()) // ERROR "cannot use float64 value as type int in append|incompatible type"
+ }

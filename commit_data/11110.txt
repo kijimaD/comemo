@@ -7,6 +7,20 @@ Date:   Wed Jan 11 11:15:36 2012 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5533070
-
+---
  src/cmd/go/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index c1ddb332fa..ad34ba22ac 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -518,7 +518,7 @@ func (b *builder) printTest(a *action) error {
+ 
+ // notest is the action for testing a package with no test files.
+ func (b *builder) notest(a *action) error {
+-	fmt.Printf("?   \t%s [no test files]\n", a.p.ImportPath)
++	fmt.Printf("?   \t%s\t[no test files]\n", a.p.ImportPath)
+ 	return nil
+ }
+ 

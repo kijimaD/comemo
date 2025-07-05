@@ -53,8 +53,54 @@ Date:   Fri Jan 27 12:01:05 2017 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/config.go   |  1 +
  src/cmd/compile/internal/ssa/func.go     | 10 ++++++++++
  src/cmd/compile/internal/ssa/regalloc.go |  1 +
  3 files changed, 12 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 1cf05ef1cd..ae99e3f31d 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -51,6 +51,7 @@ type Config struct {
+ 	// Storage for low-numbered values and blocks.
+ 	values [2000]Value
+ 	blocks [200]Block
++	locs   [2000]Location
+ 
+ 	// Reusable stackAllocState.
+ 	// See stackalloc.go's {new,put}StackAllocState.
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index e931f2285b..3f3c0d6888 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -438,6 +438,16 @@ func (f *Func) Free() {
+ 		f.Config.blocks[i].ID = ID(i)
+ 	}
+ 
++	// Clear locs.
++	n = len(f.RegAlloc)
++	if n > len(f.Config.locs) {
++		n = len(f.Config.locs)
++	}
++	head := f.Config.locs[:n]
++	for i := range head {
++		head[i] = nil
++	}
++
+ 	// Unregister from config.
+ 	if f.Config.curFunc != f {
+ 		f.Fatalf("free of function which isn't the last one allocated")
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 1f8092e4b9..aac950a76b 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -476,6 +476,7 @@ func isLeaf(f *Func) bool {
+ 
+ func (s *regAllocState) init(f *Func) {
+ 	s.f = f
++	s.f.RegAlloc = s.f.Config.locs[:0]
+ 	s.registers = f.Config.registers
+ 	if nr := len(s.registers); nr == 0 || nr > int(noRegister) || nr > int(unsafe.Sizeof(regMask(0))*8) {
+ 		s.f.Fatalf("bad number of registers: %d", nr)

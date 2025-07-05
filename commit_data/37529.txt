@@ -26,8 +26,204 @@ Date:   Thu Aug 9 21:08:24 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/work/buildid.go               | 65 +++++++++++++++++++----
  src/cmd/go/internal/work/exec.go                  |  6 +--
  src/cmd/go/testdata/script/build_cache_output.txt | 48 ++++++++++++++++-
  3 files changed, 104 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/buildid.go b/src/cmd/go/internal/work/buildid.go
+index fbc05af19b..f6b79711f9 100644
+--- a/src/cmd/go/internal/work/buildid.go
++++ b/src/cmd/go/internal/work/buildid.go
+@@ -469,6 +469,14 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
+ 				a.buildID = id[1] + buildIDSeparator + id[2]
+ 				linkID := hashToString(b.linkActionID(a.triggers[0]))
+ 				if id[0] == linkID {
++					// Best effort attempt to display output from the compile and link steps.
++					// If it doesn't work, it doesn't work: reusing the cached binary is more
++					// important than reprinting diagnostic information.
++					if c := cache.Default(); c != nil {
++						showStdout(b, c, a.actionID, "stdout")      // compile output
++						showStdout(b, c, a.actionID, "link-stdout") // link output
++					}
++
+ 					// Poison a.Target to catch uses later in the build.
+ 					a.Target = "DO NOT USE - main build pseudo-cache Target"
+ 					a.built = "DO NOT USE - main build pseudo-cache built"
+@@ -486,6 +494,15 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
+ 	// We avoid the nested build ID problem in the previous special case
+ 	// by recording the test results in the cache under the action ID half.
+ 	if !cfg.BuildA && len(a.triggers) == 1 && a.triggers[0].TryCache != nil && a.triggers[0].TryCache(b, a.triggers[0]) {
++		// Best effort attempt to display output from the compile and link steps.
++		// If it doesn't work, it doesn't work: reusing the test result is more
++		// important than reprinting diagnostic information.
++		if c := cache.Default(); c != nil {
++			showStdout(b, c, a.Deps[0].actionID, "stdout")      // compile output
++			showStdout(b, c, a.Deps[0].actionID, "link-stdout") // link output
++		}
++
++		// Poison a.Target to catch uses later in the build.
+ 		a.Target = "DO NOT USE -  pseudo-cache Target"
+ 		a.built = "DO NOT USE - pseudo-cache built"
+ 		return true
+@@ -526,15 +543,7 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
+ 		if !cfg.BuildA {
+ 			if file, _, err := c.GetFile(actionHash); err == nil {
+ 				if buildID, err := buildid.ReadFile(file); err == nil {
+-					if stdout, stdoutEntry, err := c.GetBytes(cache.Subkey(a.actionID, "stdout")); err == nil {
+-						if len(stdout) > 0 {
+-							if cfg.BuildX || cfg.BuildN {
+-								b.Showcmd("", "%s  # internal", joinUnambiguously(str.StringList("cat", c.OutputFile(stdoutEntry.OutputID))))
+-							}
+-							if !cfg.BuildN {
+-								b.Print(string(stdout))
+-							}
+-						}
++					if err := showStdout(b, c, a.actionID, "stdout"); err == nil {
+ 						a.built = file
+ 						a.Target = "DO NOT USE - using cache"
+ 						a.buildID = buildID
+@@ -555,6 +564,23 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
+ 	return false
+ }
+ 
++func showStdout(b *Builder, c *cache.Cache, actionID cache.ActionID, key string) error {
++	stdout, stdoutEntry, err := c.GetBytes(cache.Subkey(actionID, key))
++	if err != nil {
++		return err
++	}
++
++	if len(stdout) > 0 {
++		if cfg.BuildX || cfg.BuildN {
++			b.Showcmd("", "%s  # internal", joinUnambiguously(str.StringList("cat", c.OutputFile(stdoutEntry.OutputID))))
++		}
++		if !cfg.BuildN {
++			b.Print(string(stdout))
++		}
++	}
++	return nil
++}
++
+ // flushOutput flushes the output being queued in a.
+ func (b *Builder) flushOutput(a *Action) {
+ 	b.Print(string(a.output))
+@@ -579,6 +605,26 @@ func (b *Builder) updateBuildID(a *Action, target string, rewrite bool) error {
+ 		}
+ 	}
+ 
++	// Cache output from compile/link, even if we don't do the rest.
++	if c := cache.Default(); c != nil {
++		switch a.Mode {
++		case "build":
++			c.PutBytes(cache.Subkey(a.actionID, "stdout"), a.output)
++		case "link":
++			// Even though we don't cache the binary, cache the linker text output.
++			// We might notice that an installed binary is up-to-date but still
++			// want to pretend to have run the linker.
++			// Store it under the main package's action ID
++			// to make it easier to find when that's all we have.
++			for _, a1 := range a.Deps {
++				if p1 := a1.Package; p1 != nil && p1.Name == "main" {
++					c.PutBytes(cache.Subkey(a1.actionID, "link-stdout"), a.output)
++					break
++				}
++			}
++		}
++	}
++
+ 	// Find occurrences of old ID and compute new content-based ID.
+ 	r, err := os.Open(target)
+ 	if err != nil {
+@@ -646,7 +692,6 @@ func (b *Builder) updateBuildID(a *Action, target string, rewrite bool) error {
+ 				}
+ 				a.Package.Export = c.OutputFile(outputID)
+ 			}
+-			c.PutBytes(cache.Subkey(a.actionID, "stdout"), a.output)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 9eab02554b..42fa0e64ac 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -1155,11 +1155,11 @@ func (b *Builder) link(a *Action) (err error) {
+ 	// We still call updateBuildID to update a.buildID, which is important
+ 	// for test result caching, but passing rewrite=false (final arg)
+ 	// means we don't actually rewrite the binary, nor store the
+-	// result into the cache.
+-	// Not calling updateBuildID means we also don't insert these
+-	// binaries into the build object cache. That's probably a net win:
++	// result into the cache. That's probably a net win:
+ 	// less cache space wasted on large binaries we are not likely to
+ 	// need again. (On the other hand it does make repeated go test slower.)
++	// It also makes repeated go run slower, which is a win in itself:
++	// we don't want people to treat go run like a scripting environment.
+ 	if err := b.updateBuildID(a, a.Target, !a.Package.Internal.OmitDebug); err != nil {
+ 		return err
+ 	}
+diff --git a/src/cmd/go/testdata/script/build_cache_output.txt b/src/cmd/go/testdata/script/build_cache_output.txt
+index d80c7f2dcc..ee4099e5f3 100644
+--- a/src/cmd/go/testdata/script/build_cache_output.txt
++++ b/src/cmd/go/testdata/script/build_cache_output.txt
+@@ -6,14 +6,58 @@ mkdir $GOCACHE
+ 
+ # Building a trivial non-main package should run compiler the first time.
+ go build -x -gcflags=-m lib.go
+-stderr 'compile( |\.exe)'
++stderr 'compile( |\.exe"?)'
+ stderr 'lib.go:2.* can inline f'
+ 
+ # ... but not the second, even though it still prints the compiler output.
+ go build -x -gcflags=-m lib.go
+-! stderr 'compile( |\.exe)'
++! stderr 'compile( |\.exe"?)'
+ stderr 'lib.go:2.* can inline f'
+ 
++# Building a trivial main package should run the compiler and linker the first time.
++go build -x -gcflags=-m -ldflags='-v -w' main.go
++stderr 'compile( |\.exe"?)'
++stderr 'main.go:2.* can inline main' # from compiler
++stderr 'link(\.exe"?)? -'
++stderr '\d+ symbols' # from linker
++
++# ... but not the second, even though it still prints the compiler and linker output.
++go build -x -gcflags=-m -ldflags='-v -w' main.go
++! stderr 'compile( |\.exe"?)'
++stderr 'main.go:2.* can inline main' # from compiler
++! stderr 'link(\.exe"?)? -'
++stderr '\d+ symbols' # from linker
++
++# Running a test should run the compiler, linker, and the test the first time.
++go test -v -x -gcflags=-m -ldflags=-v p_test.go
++stderr 'compile( |\.exe"?)'
++stderr 'p_test.go:.*can inline Test' # from compile of p_test
++stderr 'testmain\.go:.*inlin' # from compile of testmain
++stderr 'link(\.exe"?)? -'
++stderr '\d+ symbols' # from linker
++stderr 'p\.test( |\.exe"?)'
++stdout 'TEST' # from test
++
++# ... but not the second, even though it still prints the compiler, linker, and test output.
++go test -v -x -gcflags=-m -ldflags=-v p_test.go
++! stderr 'compile( |\.exe"?)'
++stderr 'p_test.go:.*can inline Test' # from compile of p_test
++stderr 'testmain\.go:.*inlin' # from compile of testmain
++! stderr 'link(\.exe"?)? -'
++stderr '\d+ symbols' # from linker
++! stderr 'p\.test( |\.exe"?)'
++stdout 'TEST' # from test
++
++
+ -- lib.go --
+ package p
+ func f(x *int) *int { return x }
++
++-- main.go --
++package main
++func main() {}
++
++-- p_test.go --
++package p
++import "testing"
++func Test(t *testing.T) {println("TEST")}

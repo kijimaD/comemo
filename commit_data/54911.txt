@@ -16,6 +16,20 @@ Date:   Mon Nov 21 11:01:53 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/runtime/syscall_windows_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index c0d3379e65..f38316a809 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -628,7 +628,7 @@ func TestOutputDebugString(t *testing.T) {
+ }
+ 
+ func TestRaiseException(t *testing.T) {
+-	if testenv.Builder() == "windows-amd64-2012" {
++	if strings.HasPrefix(testenv.Builder(), "windows-amd64-2012") {
+ 		testenv.SkipFlaky(t, 49681)
+ 	}
+ 	o := runTestProg(t, "testprog", "RaiseException")

@@ -16,7 +16,7 @@ Date:   Fri Feb 22 10:50:47 2019 -0500
     Change-Id: Ibc4a024a52c12a274058298b41cc90709f7f56c8
     Reviewed-on: https://go-review.googlesource.com/c/163420
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testso/noso_test.go                 |   9 ++
  misc/cgo/testso/overlaydir_test.go           |  81 +++++++++++++++++
  misc/cgo/testso/so_test.go                   | 126 +++++++++++++++++++++++++++
@@ -34,3 +34,655 @@ Date:   Fri Feb 22 10:50:47 2019 -0500
  misc/cgo/testsovar/{ => testdata}/main.go    |   2 +-
  src/cmd/dist/test.go                         |  98 +--------------------
  16 files changed, 436 insertions(+), 98 deletions(-)
+
+diff --git a/misc/cgo/testso/noso_test.go b/misc/cgo/testso/noso_test.go
+new file mode 100644
+index 0000000000..c88aebfb02
+--- /dev/null
++++ b/misc/cgo/testso/noso_test.go
+@@ -0,0 +1,9 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !cgo
++
++package so_test
++
++// Nothing to test.
+diff --git a/misc/cgo/testso/overlaydir_test.go b/misc/cgo/testso/overlaydir_test.go
+new file mode 100644
+index 0000000000..10c874d925
+--- /dev/null
++++ b/misc/cgo/testso/overlaydir_test.go
+@@ -0,0 +1,81 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package so_test
++
++import (
++	"io"
++	"os"
++	"path/filepath"
++	"strings"
++)
++
++// overlayDir makes a minimal-overhead copy of srcRoot in which new files may be added.
++//
++// TODO: Once we no longer need to support the misc module in GOPATH mode,
++// factor this function out into a package to reduce duplication.
++func overlayDir(dstRoot, srcRoot string) error {
++	dstRoot = filepath.Clean(dstRoot)
++	if err := os.MkdirAll(dstRoot, 0777); err != nil {
++		return err
++	}
++
++	symBase, err := filepath.Rel(srcRoot, dstRoot)
++	if err != nil {
++		symBase, err = filepath.Abs(srcRoot)
++		if err != nil {
++			return err
++		}
++	}
++
++	return filepath.Walk(srcRoot, func(srcPath string, info os.FileInfo, err error) error {
++		if err != nil || srcPath == srcRoot {
++			return err
++		}
++
++		suffix := strings.TrimPrefix(srcPath, srcRoot)
++		for len(suffix) > 0 && suffix[0] == filepath.Separator {
++			suffix = suffix[1:]
++		}
++		dstPath := filepath.Join(dstRoot, suffix)
++
++		perm := info.Mode() & os.ModePerm
++		if info.Mode()&os.ModeSymlink != 0 {
++			info, err = os.Stat(srcPath)
++			if err != nil {
++				return err
++			}
++			perm = info.Mode() & os.ModePerm
++		}
++
++		// Always copy directories (don't symlink them).
++		// If we add a file in the overlay, we don't want to add it in the original.
++		if info.IsDir() {
++			return os.Mkdir(dstPath, perm)
++		}
++
++		// If the OS supports symlinks, use them instead of copying bytes.
++		if err := os.Symlink(filepath.Join(symBase, suffix), dstPath); err == nil {
++			return nil
++		}
++
++		// Otherwise, copy the bytes.
++		src, err := os.Open(srcPath)
++		if err != nil {
++			return err
++		}
++		defer src.Close()
++
++		dst, err := os.OpenFile(dstPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
++		if err != nil {
++			return err
++		}
++
++		_, err = io.Copy(dst, src)
++		if closeErr := dst.Close(); err == nil {
++			err = closeErr
++		}
++		return err
++	})
++}
+diff --git a/misc/cgo/testso/so_test.go b/misc/cgo/testso/so_test.go
+new file mode 100644
+index 0000000000..500b08fae8
+--- /dev/null
++++ b/misc/cgo/testso/so_test.go
+@@ -0,0 +1,126 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build cgo
++
++package so_test
++
++import (
++	"io/ioutil"
++	"log"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"runtime"
++	"strings"
++	"testing"
++)
++
++func requireTestSOSupported(t *testing.T) {
++	t.Helper()
++	switch runtime.GOARCH {
++	case "arm", "arm64":
++		if runtime.GOOS == "darwin" {
++			t.Skip("No exec facility on iOS.")
++		}
++	case "ppc64":
++		t.Skip("External linking not implemented on ppc64 (issue #8912).")
++	case "mips64le", "mips64":
++		t.Skip("External linking not implemented on mips64.")
++	}
++	if runtime.GOOS == "android" {
++		t.Skip("No exec facility on Android.")
++	}
++}
++
++func TestSO(t *testing.T) {
++	requireTestSOSupported(t)
++
++	GOPATH, err := ioutil.TempDir("", "cgosotest")
++	if err != nil {
++		log.Fatal(err)
++	}
++	defer os.RemoveAll(GOPATH)
++
++	modRoot := filepath.Join(GOPATH, "src", "cgosotest")
++	if err := overlayDir(modRoot, "testdata"); err != nil {
++		log.Panic(err)
++	}
++	if err := ioutil.WriteFile(filepath.Join(modRoot, "go.mod"), []byte("module cgosotest\n"), 0666); err != nil {
++		log.Panic(err)
++	}
++
++	cmd := exec.Command("go", "env", "CC", "GOGCCFLAGS")
++	cmd.Dir = modRoot
++	cmd.Stderr = new(strings.Builder)
++	cmd.Env = append(os.Environ(), "GOPATH="+GOPATH)
++	out, err := cmd.Output()
++	if err != nil {
++		t.Fatalf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, cmd.Stderr)
++	}
++	lines := strings.Split(string(out), "\n")
++	if len(lines) != 3 || lines[2] != "" {
++		t.Fatalf("Unexpected output from %s:\n%s", strings.Join(cmd.Args, " "), lines)
++	}
++
++	cc := lines[0]
++	if cc == "" {
++		t.Fatal("CC environment variable (go env CC) cannot be empty")
++	}
++	gogccflags := strings.Split(lines[1], " ")
++
++	// build shared object
++	ext := "so"
++	args := append(gogccflags, "-shared")
++	switch runtime.GOOS {
++	case "darwin":
++		ext = "dylib"
++		args = append(args, "-undefined", "suppress", "-flat_namespace")
++	case "windows":
++		ext = "dll"
++		args = append(args, "-DEXPORT_DLL")
++	}
++	sofname := "libcgosotest." + ext
++	args = append(args, "-o", sofname, "cgoso_c.c")
++
++	cmd = exec.Command(cc, args...)
++	cmd.Dir = modRoot
++	cmd.Env = append(os.Environ(), "GOPATH="+GOPATH)
++	out, err = cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("%s: %s\n%s", strings.Join(cmd.Args, " "), err, out)
++	}
++	t.Logf("%s:\n%s", strings.Join(cmd.Args, " "), out)
++
++	cmd = exec.Command("go", "build", "-o", "main.exe", "main.go")
++	cmd.Dir = modRoot
++	cmd.Env = append(os.Environ(), "GOPATH="+GOPATH)
++	out, err = cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("%s: %s\n%s", strings.Join(cmd.Args, " "), err, out)
++	}
++	t.Logf("%s:\n%s", strings.Join(cmd.Args, " "), out)
++
++	cmd = exec.Command("./main.exe")
++	cmd.Dir = modRoot
++	cmd.Env = append(os.Environ(), "GOPATH="+GOPATH)
++	if runtime.GOOS != "windows" {
++		s := "LD_LIBRARY_PATH"
++		if runtime.GOOS == "darwin" {
++			s = "DYLD_LIBRARY_PATH"
++		}
++		cmd.Env = append(os.Environ(), s+"=.")
++
++		// On FreeBSD 64-bit architectures, the 32-bit linker looks for
++		// different environment variables.
++		if runtime.GOOS == "freebsd" && runtime.GOARCH == "386" {
++			cmd.Env = append(cmd.Env, "LD_32_LIBRARY_PATH=.")
++		}
++	}
++	out, err = cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("%s: %s\n%s", strings.Join(cmd.Args, " "), err, out)
++	}
++	t.Logf("%s:\n%s", strings.Join(cmd.Args, " "), out)
++}
+diff --git a/misc/cgo/testso/cgoso.c b/misc/cgo/testso/testdata/cgoso.c
+similarity index 100%
+rename from misc/cgo/testso/cgoso.c
+rename to misc/cgo/testso/testdata/cgoso.c
+diff --git a/misc/cgo/testso/cgoso.go b/misc/cgo/testso/testdata/cgoso.go
+similarity index 100%
+rename from misc/cgo/testso/cgoso.go
+rename to misc/cgo/testso/testdata/cgoso.go
+diff --git a/misc/cgo/testso/cgoso_c.c b/misc/cgo/testso/testdata/cgoso_c.c
+similarity index 100%
+rename from misc/cgo/testso/cgoso_c.c
+rename to misc/cgo/testso/testdata/cgoso_c.c
+diff --git a/misc/cgo/testso/cgoso_unix.go b/misc/cgo/testso/testdata/cgoso_unix.go
+similarity index 100%
+rename from misc/cgo/testso/cgoso_unix.go
+rename to misc/cgo/testso/testdata/cgoso_unix.go
+diff --git a/misc/cgo/testso/main.go b/misc/cgo/testso/testdata/main.go
+similarity index 92%
+rename from misc/cgo/testso/main.go
+rename to misc/cgo/testso/testdata/main.go
+index 88aa4322d2..963d45121e 100644
+--- a/misc/cgo/testso/main.go
++++ b/misc/cgo/testso/testdata/main.go
+@@ -6,7 +6,7 @@
+ 
+ package main
+ 
+-import "."
++import "cgosotest"
+ 
+ func main() {
+ 	cgosotest.Test()
+diff --git a/misc/cgo/testsovar/noso_test.go b/misc/cgo/testsovar/noso_test.go
+new file mode 100644
+index 0000000000..c88aebfb02
+--- /dev/null
++++ b/misc/cgo/testsovar/noso_test.go
+@@ -0,0 +1,9 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !cgo
++
++package so_test
++
++// Nothing to test.
+diff --git a/misc/cgo/testsovar/overlaydir_test.go b/misc/cgo/testsovar/overlaydir_test.go
+new file mode 100644
+index 0000000000..10c874d925
+--- /dev/null
++++ b/misc/cgo/testsovar/overlaydir_test.go
+@@ -0,0 +1,81 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package so_test
++
++import (
++	"io"
++	"os"
++	"path/filepath"
++	"strings"
++)
++
++// overlayDir makes a minimal-overhead copy of srcRoot in which new files may be added.
++//
++// TODO: Once we no longer need to support the misc module in GOPATH mode,
++// factor this function out into a package to reduce duplication.
++func overlayDir(dstRoot, srcRoot string) error {
++	dstRoot = filepath.Clean(dstRoot)
++	if err := os.MkdirAll(dstRoot, 0777); err != nil {
++		return err
++	}
++
++	symBase, err := filepath.Rel(srcRoot, dstRoot)
++	if err != nil {
++		symBase, err = filepath.Abs(srcRoot)
++		if err != nil {
++			return err
++		}
++	}
++
++	return filepath.Walk(srcRoot, func(srcPath string, info os.FileInfo, err error) error {
++		if err != nil || srcPath == srcRoot {
++			return err
++		}
++
++		suffix := strings.TrimPrefix(srcPath, srcRoot)
++		for len(suffix) > 0 && suffix[0] == filepath.Separator {
++			suffix = suffix[1:]
++		}
++		dstPath := filepath.Join(dstRoot, suffix)
++
++		perm := info.Mode() & os.ModePerm
++		if info.Mode()&os.ModeSymlink != 0 {
++			info, err = os.Stat(srcPath)
++			if err != nil {
++				return err
++			}
++			perm = info.Mode() & os.ModePerm
++		}
++
++		// Always copy directories (don't symlink them).
++		// If we add a file in the overlay, we don't want to add it in the original.
++		if info.IsDir() {
++			return os.Mkdir(dstPath, perm)
++		}
++
++		// If the OS supports symlinks, use them instead of copying bytes.
++		if err := os.Symlink(filepath.Join(symBase, suffix), dstPath); err == nil {
++			return nil
++		}
++
++		// Otherwise, copy the bytes.
++		src, err := os.Open(srcPath)
++		if err != nil {
++			return err
++		}
++		defer src.Close()
++
++		dst, err := os.OpenFile(dstPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
++		if err != nil {
++			return err
++		}
++
++		_, err = io.Copy(dst, src)
++		if closeErr := dst.Close(); err == nil {
++			err = closeErr
++		}
++		return err
++	})
++}
+diff --git a/misc/cgo/testsovar/so_test.go b/misc/cgo/testsovar/so_test.go
+new file mode 100644
+index 0000000000..500b08fae8
+--- /dev/null
++++ b/misc/cgo/testsovar/so_test.go
+@@ -0,0 +1,126 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build cgo
++
++package so_test
++
++import (
++	"io/ioutil"
++	"log"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"runtime"
++	"strings"
++	"testing"
++)
++
++func requireTestSOSupported(t *testing.T) {
++	t.Helper()
++	switch runtime.GOARCH {
++	case "arm", "arm64":
++		if runtime.GOOS == "darwin" {
++			t.Skip("No exec facility on iOS.")
++		}
++	case "ppc64":
++		t.Skip("External linking not implemented on ppc64 (issue #8912).")
++	case "mips64le", "mips64":
++		t.Skip("External linking not implemented on mips64.")
++	}
++	if runtime.GOOS == "android" {
++		t.Skip("No exec facility on Android.")
++	}
++}
++
++func TestSO(t *testing.T) {
++	requireTestSOSupported(t)
++
++	GOPATH, err := ioutil.TempDir("", "cgosotest")
++	if err != nil {
++		log.Fatal(err)
++	}
++	defer os.RemoveAll(GOPATH)
++
++	modRoot := filepath.Join(GOPATH, "src", "cgosotest")
++	if err := overlayDir(modRoot, "testdata"); err != nil {
++		log.Panic(err)
++	}
++	if err := ioutil.WriteFile(filepath.Join(modRoot, "go.mod"), []byte("module cgosotest\n"), 0666); err != nil {
++		log.Panic(err)
++	}
++
++	cmd := exec.Command("go", "env", "CC", "GOGCCFLAGS")
++	cmd.Dir = modRoot
++	cmd.Stderr = new(strings.Builder)
++	cmd.Env = append(os.Environ(), "GOPATH="+GOPATH)
++	out, err := cmd.Output()
++	if err != nil {
++		t.Fatalf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, cmd.Stderr)
++	}
++	lines := strings.Split(string(out), "\n")
++	if len(lines) != 3 || lines[2] != "" {
++		t.Fatalf("Unexpected output from %s:\n%s", strings.Join(cmd.Args, " "), lines)
++	}
++
++	cc := lines[0]
++	if cc == "" {
++		t.Fatal("CC environment variable (go env CC) cannot be empty")
++	}
++	gogccflags := strings.Split(lines[1], " ")
++
++	// build shared object
++	ext := "so"
++	args := append(gogccflags, "-shared")
++	switch runtime.GOOS {
++	case "darwin":
++		ext = "dylib"
++		args = append(args, "-undefined", "suppress", "-flat_namespace")
++	case "windows":
++		ext = "dll"
++		args = append(args, "-DEXPORT_DLL")
++	}
++	sofname := "libcgosotest." + ext
++	args = append(args, "-o", sofname, "cgoso_c.c")
++
++	cmd = exec.Command(cc, args...)
++	cmd.Dir = modRoot
++	cmd.Env = append(os.Environ(), "GOPATH="+GOPATH)
++	out, err = cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("%s: %s\n%s", strings.Join(cmd.Args, " "), err, out)
++	}
++	t.Logf("%s:\n%s", strings.Join(cmd.Args, " "), out)
++
++	cmd = exec.Command("go", "build", "-o", "main.exe", "main.go")
++	cmd.Dir = modRoot
++	cmd.Env = append(os.Environ(), "GOPATH="+GOPATH)
++	out, err = cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("%s: %s\n%s", strings.Join(cmd.Args, " "), err, out)
++	}
++	t.Logf("%s:\n%s", strings.Join(cmd.Args, " "), out)
++
++	cmd = exec.Command("./main.exe")
++	cmd.Dir = modRoot
++	cmd.Env = append(os.Environ(), "GOPATH="+GOPATH)
++	if runtime.GOOS != "windows" {
++		s := "LD_LIBRARY_PATH"
++		if runtime.GOOS == "darwin" {
++			s = "DYLD_LIBRARY_PATH"
++		}
++		cmd.Env = append(os.Environ(), s+"=.")
++
++		// On FreeBSD 64-bit architectures, the 32-bit linker looks for
++		// different environment variables.
++		if runtime.GOOS == "freebsd" && runtime.GOARCH == "386" {
++			cmd.Env = append(cmd.Env, "LD_32_LIBRARY_PATH=.")
++		}
++	}
++	out, err = cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("%s: %s\n%s", strings.Join(cmd.Args, " "), err, out)
++	}
++	t.Logf("%s:\n%s", strings.Join(cmd.Args, " "), out)
++}
+diff --git a/misc/cgo/testsovar/cgoso.go b/misc/cgo/testsovar/testdata/cgoso.go
+similarity index 100%
+rename from misc/cgo/testsovar/cgoso.go
+rename to misc/cgo/testsovar/testdata/cgoso.go
+diff --git a/misc/cgo/testsovar/cgoso_c.c b/misc/cgo/testsovar/testdata/cgoso_c.c
+similarity index 100%
+rename from misc/cgo/testsovar/cgoso_c.c
+rename to misc/cgo/testsovar/testdata/cgoso_c.c
+diff --git a/misc/cgo/testsovar/cgoso_c.h b/misc/cgo/testsovar/testdata/cgoso_c.h
+similarity index 100%
+rename from misc/cgo/testsovar/cgoso_c.h
+rename to misc/cgo/testsovar/testdata/cgoso_c.h
+diff --git a/misc/cgo/testsovar/main.go b/misc/cgo/testsovar/testdata/main.go
+similarity index 92%
+rename from misc/cgo/testsovar/main.go
+rename to misc/cgo/testsovar/testdata/main.go
+index 9c8a1c4e66..87b52cef60 100644
+--- a/misc/cgo/testsovar/main.go
++++ b/misc/cgo/testsovar/testdata/main.go
+@@ -6,7 +6,7 @@
+ 
+ package main
+ 
+-import "."
++import "cgosotest"
+ 
+ func main() {
+ 	cgosotest.Test()
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index c5cc6dcb3c..31b44e8ef4 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -6,7 +6,6 @@ package main
+ 
+ import (
+ 	"bytes"
+-	"errors"
+ 	"flag"
+ 	"fmt"
+ 	"io/ioutil"
+@@ -675,22 +674,8 @@ func (t *tester) registerTests() {
+ 	// recompile the entire standard library. If make.bash ran with
+ 	// special -gcflags, that's not true.
+ 	if t.cgoEnabled && gogcflags == "" {
+-		if t.cgoTestSOSupported() {
+-			t.tests = append(t.tests, distTest{
+-				name:    "testso",
+-				heading: "../misc/cgo/testso",
+-				fn: func(dt *distTest) error {
+-					return t.cgoTestSO(dt, "misc/cgo/testso")
+-				},
+-			})
+-			t.tests = append(t.tests, distTest{
+-				name:    "testsovar",
+-				heading: "../misc/cgo/testsovar",
+-				fn: func(dt *distTest) error {
+-					return t.cgoTestSO(dt, "misc/cgo/testsovar")
+-				},
+-			})
+-		}
++		t.registerHostTest("testso", "../misc/cgo/testso", "misc/cgo/testso", ".")
++		t.registerHostTest("testsovar", "../misc/cgo/testsovar", "misc/cgo/testsovar", ".")
+ 		if t.supportedBuildmode("c-archive") {
+ 			t.registerHostTest("testcarchive", "../misc/cgo/testcarchive", "misc/cgo/testcarchive", ".")
+ 		}
+@@ -1166,85 +1151,6 @@ func (t *tester) runPending(nextTest *distTest) {
+ 	}
+ }
+ 
+-func (t *tester) cgoTestSOSupported() bool {
+-	if goos == "android" || t.iOS() {
+-		// No exec facility on Android or iOS.
+-		return false
+-	}
+-	if goarch == "ppc64" {
+-		// External linking not implemented on ppc64 (issue #8912).
+-		return false
+-	}
+-	if goarch == "mips64le" || goarch == "mips64" {
+-		// External linking not implemented on mips64.
+-		return false
+-	}
+-	return true
+-}
+-
+-func (t *tester) cgoTestSO(dt *distTest, testpath string) error {
+-	t.runPending(dt)
+-
+-	timelog("start", dt.name)
+-	defer timelog("end", dt.name)
+-
+-	dir := filepath.Join(goroot, testpath)
+-
+-	// build shared object
+-	output, err := exec.Command("go", "env", "CC").Output()
+-	if err != nil {
+-		return fmt.Errorf("Error running go env CC: %v", err)
+-	}
+-	cc := strings.TrimSuffix(string(output), "\n")
+-	if cc == "" {
+-		return errors.New("CC environment variable (go env CC) cannot be empty")
+-	}
+-	output, err = exec.Command("go", "env", "GOGCCFLAGS").Output()
+-	if err != nil {
+-		return fmt.Errorf("Error running go env GOGCCFLAGS: %v", err)
+-	}
+-	gogccflags := strings.Split(strings.TrimSuffix(string(output), "\n"), " ")
+-
+-	ext := "so"
+-	args := append(gogccflags, "-shared")
+-	switch goos {
+-	case "darwin":
+-		ext = "dylib"
+-		args = append(args, "-undefined", "suppress", "-flat_namespace")
+-	case "windows":
+-		ext = "dll"
+-		args = append(args, "-DEXPORT_DLL")
+-	}
+-	sofname := "libcgosotest." + ext
+-	args = append(args, "-o", sofname, "cgoso_c.c")
+-
+-	if err := t.dirCmd(dir, cc, args).Run(); err != nil {
+-		return err
+-	}
+-	defer os.Remove(filepath.Join(dir, sofname))
+-
+-	if err := t.dirCmd(dir, "go", "build", "-o", "main.exe", "main.go").Run(); err != nil {
+-		return err
+-	}
+-	defer os.Remove(filepath.Join(dir, "main.exe"))
+-
+-	cmd := t.dirCmd(dir, "./main.exe")
+-	if goos != "windows" {
+-		s := "LD_LIBRARY_PATH"
+-		if goos == "darwin" {
+-			s = "DYLD_LIBRARY_PATH"
+-		}
+-		cmd.Env = append(os.Environ(), s+"=.")
+-
+-		// On FreeBSD 64-bit architectures, the 32-bit linker looks for
+-		// different environment variables.
+-		if goos == "freebsd" && gohostarch == "386" {
+-			cmd.Env = append(cmd.Env, "LD_32_LIBRARY_PATH=.")
+-		}
+-	}
+-	return cmd.Run()
+-}
+-
+ func (t *tester) hasBash() bool {
+ 	switch gohostos {
+ 	case "windows", "plan9":

@@ -24,8 +24,134 @@ Date:   Mon Nov 28 08:51:32 2022 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/ecdsa/ecdsa.go        |  6 ++-
  src/crypto/ecdsa/ecdsa_legacy.go |  3 ++
  src/crypto/ecdsa/ecdsa_test.go   | 81 ++++++++++++++++++++++++++++++++++++++++
  3 files changed, 89 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index 6722a6bcd2..68272af41f 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -339,9 +339,13 @@ func encodeSignature(r, s []byte) ([]byte, error) {
+ // addASN1IntBytes encodes in ASN.1 a positive integer represented as
+ // a big-endian byte slice with zero or more leading zeroes.
+ func addASN1IntBytes(b *cryptobyte.Builder, bytes []byte) {
+-	for len(bytes) > 1 && bytes[0] == 0 {
++	for len(bytes) > 0 && bytes[0] == 0 {
+ 		bytes = bytes[1:]
+ 	}
++	if len(bytes) == 0 {
++		b.SetError(errors.New("invalid integer"))
++		return
++	}
+ 	b.AddASN1(asn1.INTEGER, func(c *cryptobyte.Builder) {
+ 		if bytes[0]&0x80 != 0 {
+ 			c.AddUint8(0)
+diff --git a/src/crypto/ecdsa/ecdsa_legacy.go b/src/crypto/ecdsa/ecdsa_legacy.go
+index 4ae0b415b8..12a40e4828 100644
+--- a/src/crypto/ecdsa/ecdsa_legacy.go
++++ b/src/crypto/ecdsa/ecdsa_legacy.go
+@@ -116,6 +116,9 @@ func signLegacy(priv *PrivateKey, csprng io.Reader, hash []byte) (sig []byte, er
+ // return value records whether the signature is valid. Most applications should
+ // use VerifyASN1 instead of dealing directly with r, s.
+ func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
++	if r.Sign() <= 0 || s.Sign() <= 0 {
++		return false
++	}
+ 	sig, err := encodeSignature(r.Bytes(), s.Bytes())
+ 	if err != nil {
+ 		return false
+diff --git a/src/crypto/ecdsa/ecdsa_test.go b/src/crypto/ecdsa/ecdsa_test.go
+index 6ed2f946e3..95c78c8e32 100644
+--- a/src/crypto/ecdsa/ecdsa_test.go
++++ b/src/crypto/ecdsa/ecdsa_test.go
+@@ -398,6 +398,87 @@ func testRandomPoint[Point nistPoint[Point]](t *testing.T, c *nistCurve[Point])
+ 	}
+ }
+ 
++func TestZeroSignature(t *testing.T) {
++	testAllCurves(t, testZeroSignature)
++}
++
++func testZeroSignature(t *testing.T, curve elliptic.Curve) {
++	privKey, err := GenerateKey(curve, rand.Reader)
++	if err != nil {
++		panic(err)
++	}
++
++	if Verify(&privKey.PublicKey, make([]byte, 64), big.NewInt(0), big.NewInt(0)) {
++		t.Errorf("Verify with r,s=0 succeeded: %T", curve)
++	}
++}
++
++func TestNegtativeSignature(t *testing.T) {
++	testAllCurves(t, testNegativeSignature)
++}
++
++func testNegativeSignature(t *testing.T, curve elliptic.Curve) {
++	zeroHash := make([]byte, 64)
++
++	privKey, err := GenerateKey(curve, rand.Reader)
++	if err != nil {
++		panic(err)
++	}
++	r, s, err := Sign(rand.Reader, privKey, zeroHash)
++	if err != nil {
++		panic(err)
++	}
++
++	r = r.Neg(r)
++	if Verify(&privKey.PublicKey, zeroHash, r, s) {
++		t.Errorf("Verify with r=-r succeeded: %T", curve)
++	}
++}
++
++func TestRPlusNSignature(t *testing.T) {
++	testAllCurves(t, testRPlusNSignature)
++}
++
++func testRPlusNSignature(t *testing.T, curve elliptic.Curve) {
++	zeroHash := make([]byte, 64)
++
++	privKey, err := GenerateKey(curve, rand.Reader)
++	if err != nil {
++		panic(err)
++	}
++	r, s, err := Sign(rand.Reader, privKey, zeroHash)
++	if err != nil {
++		panic(err)
++	}
++
++	r = r.Add(r, curve.Params().N)
++	if Verify(&privKey.PublicKey, zeroHash, r, s) {
++		t.Errorf("Verify with r=r+n succeeded: %T", curve)
++	}
++}
++
++func TestRMinusNSignature(t *testing.T) {
++	testAllCurves(t, testRMinusNSignature)
++}
++
++func testRMinusNSignature(t *testing.T, curve elliptic.Curve) {
++	zeroHash := make([]byte, 64)
++
++	privKey, err := GenerateKey(curve, rand.Reader)
++	if err != nil {
++		panic(err)
++	}
++	r, s, err := Sign(rand.Reader, privKey, zeroHash)
++	if err != nil {
++		panic(err)
++	}
++
++	r = r.Sub(r, curve.Params().N)
++	if Verify(&privKey.PublicKey, zeroHash, r, s) {
++		t.Errorf("Verify with r=r-n succeeded: %T", curve)
++	}
++}
++
+ func randomPointForCurve(curve elliptic.Curve, rand io.Reader) error {
+ 	switch curve.Params() {
+ 	case elliptic.P224().Params():

@@ -12,7 +12,59 @@ Date:   Wed May 28 00:00:01 2014 -0400
     R=golang-codereviews, rsc
     CC=golang-codereviews, khr
     https://golang.org/cl/97620043
-
+---
  src/pkg/runtime/crash_test.go | 21 +++++++++++++++++++++
  src/pkg/runtime/proc.c        |  4 ++++
  2 files changed, 25 insertions(+)
+
+diff --git a/src/pkg/runtime/crash_test.go b/src/pkg/runtime/crash_test.go
+index b2e846a187..b0277f293c 100644
+--- a/src/pkg/runtime/crash_test.go
++++ b/src/pkg/runtime/crash_test.go
+@@ -158,6 +158,14 @@ func TestGoexitCrash(t *testing.T) {
+ 	}
+ }
+ 
++func TestGoNil(t *testing.T) {
++	output := executeTest(t, goNilSource, nil)
++	want := "go of nil func value"
++	if !strings.Contains(output, want) {
++		t.Fatalf("output:\n%s\n\nwant output containing: %s", output, want)
++	}
++}
++
+ const crashSource = `
+ package main
+ 
+@@ -343,3 +351,16 @@ func main() {
+ 	runtime.Goexit()
+ }
+ `
++
++const goNilSource = `
++package main
++
++func main() {
++	defer func() {
++		recover()
++	}()
++	var f func()
++	go f()
++	select{}
++}
++`
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 7500e8a5f9..fc52e09230 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1816,6 +1816,10 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
+ 	int32 siz;
+ 
+ //runtime·printf("newproc1 %p %p narg=%d nret=%d\n", fn->fn, argp, narg, nret);
++	if(fn == nil) {
++		m->throwing = -1;  // do not dump full stacks
++		runtime·throw("go of nil func value");
++	}
+ 	m->locks++;  // disable preemption because it can be holding p in a local var
+ 	siz = narg + nret;
+ 	siz = (siz+7) & ~7;

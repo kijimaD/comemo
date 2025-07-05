@@ -29,7 +29,7 @@ Date:   Wed Dec 2 12:49:20 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.16.html                            |   2 +-
  src/embed/internal/embedtest/embed_test.go |   2 +-
  src/io/fs/readdir_test.go                  |  12 ++-
@@ -40,3 +40,396 @@ Date:   Wed Dec 2 12:49:20 2020 -0500
  src/testing/fstest/mapfs.go                |  10 +++
  src/testing/fstest/testfs.go               |  42 ++++++++++
  9 files changed, 271 insertions(+), 4 deletions(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index 4d4b459009..62d9b97db8 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -384,7 +384,7 @@ Do not send CLs removing the interior tags from such phrases.
+   the new <a href="/pkg/embed/#FS">embed.FS</code></a> type
+   implements <code>fs.FS</code>, as does
+   <a href="/pkg/archive/zip/#Reader"><code>zip.Reader</code></a>.
+-  The new <a href="/pkg/os/#Dir"><code>os.Dir</code></a> function
++  The new <a href="/pkg/os/#DirFS"><code>os.DirFS</code></a> function
+   provides an implementation of <code>fs.FS</code> backed by a tree
+   of operating system files.
+ </p>
+diff --git a/src/embed/internal/embedtest/embed_test.go b/src/embed/internal/embedtest/embed_test.go
+index b1707a4c04..c6a7bea7a3 100644
+--- a/src/embed/internal/embedtest/embed_test.go
++++ b/src/embed/internal/embedtest/embed_test.go
+@@ -65,7 +65,7 @@ func TestGlobal(t *testing.T) {
+ 	testFiles(t, global, "testdata/hello.txt", "hello, world\n")
+ 	testFiles(t, global, "testdata/glass.txt", "I can eat glass and it doesn't hurt me.\n")
+ 
+-	if err := fstest.TestFS(global); err != nil {
++	if err := fstest.TestFS(global, "concurrency.txt", "testdata/hello.txt"); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+diff --git a/src/io/fs/readdir_test.go b/src/io/fs/readdir_test.go
+index 46a4bc2788..405bfa67ca 100644
+--- a/src/io/fs/readdir_test.go
++++ b/src/io/fs/readdir_test.go
+@@ -16,12 +16,12 @@ func (readDirOnly) Open(name string) (File, error) { return nil, ErrNotExist }
+ func TestReadDir(t *testing.T) {
+ 	check := func(desc string, dirs []DirEntry, err error) {
+ 		t.Helper()
+-		if err != nil || len(dirs) != 1 || dirs[0].Name() != "hello.txt" {
++		if err != nil || len(dirs) != 2 || dirs[0].Name() != "hello.txt" || dirs[1].Name() != "sub" {
+ 			var names []string
+ 			for _, d := range dirs {
+ 				names = append(names, d.Name())
+ 			}
+-			t.Errorf("ReadDir(%s) = %v, %v, want %v, nil", desc, names, err, []string{"hello.txt"})
++			t.Errorf("ReadDir(%s) = %v, %v, want %v, nil", desc, names, err, []string{"hello.txt", "sub"})
+ 		}
+ 	}
+ 
+@@ -32,4 +32,12 @@ func TestReadDir(t *testing.T) {
+ 	// Test that ReadDir uses Open when the method is not present.
+ 	dirs, err = ReadDir(openOnly{testFsys}, ".")
+ 	check("openOnly", dirs, err)
++
++	// Test that ReadDir on Sub of . works (sub_test checks non-trivial subs).
++	sub, err := Sub(testFsys, ".")
++	if err != nil {
++		t.Fatal(err)
++	}
++	dirs, err = ReadDir(sub, ".")
++	check("sub(.)", dirs, err)
+ }
+diff --git a/src/io/fs/readfile_test.go b/src/io/fs/readfile_test.go
+index 0afa334ace..07219c1445 100644
+--- a/src/io/fs/readfile_test.go
++++ b/src/io/fs/readfile_test.go
+@@ -18,6 +18,12 @@ var testFsys = fstest.MapFS{
+ 		ModTime: time.Now(),
+ 		Sys:     &sysValue,
+ 	},
++	"sub/goodbye.txt": {
++		Data:    []byte("goodbye, world"),
++		Mode:    0456,
++		ModTime: time.Now(),
++		Sys:     &sysValue,
++	},
+ }
+ 
+ var sysValue int
+@@ -40,4 +46,14 @@ func TestReadFile(t *testing.T) {
+ 	if string(data) != "hello, world" || err != nil {
+ 		t.Fatalf(`ReadFile(openOnly, "hello.txt") = %q, %v, want %q, nil`, data, err, "hello, world")
+ 	}
++
++	// Test that ReadFile on Sub of . works (sub_test checks non-trivial subs).
++	sub, err := Sub(testFsys, ".")
++	if err != nil {
++		t.Fatal(err)
++	}
++	data, err = ReadFile(sub, "hello.txt")
++	if string(data) != "hello, world" || err != nil {
++		t.Fatalf(`ReadFile(sub(.), "hello.txt") = %q, %v, want %q, nil`, data, err, "hello, world")
++	}
+ }
+diff --git a/src/io/fs/sub.go b/src/io/fs/sub.go
+new file mode 100644
+index 0000000000..381f409504
+--- /dev/null
++++ b/src/io/fs/sub.go
+@@ -0,0 +1,127 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fs
++
++import (
++	"errors"
++	"path"
++)
++
++// A SubFS is a file system with a Sub method.
++type SubFS interface {
++	FS
++
++	// Sub returns an FS corresponding to the subtree rooted at dir.
++	Sub(dir string) (FS, error)
++}
++
++// Sub returns an FS corresponding to the subtree rooted at fsys's dir.
++//
++// If fs implements SubFS, Sub calls returns fsys.Sub(dir).
++// Otherwise, if dir is ".", Sub returns fsys unchanged.
++// Otherwise, Sub returns a new FS implementation sub that,
++// in effect, implements sub.Open(dir) as fsys.Open(path.Join(dir, name)).
++// The implementation also translates calls to ReadDir, ReadFile, and Glob appropriately.
++//
++// Note that Sub(os.DirFS("/"), "prefix") is equivalent to os.DirFS("/prefix")
++// and that neither of them guarantees to avoid operating system
++// accesses outside "/prefix", because the implementation of os.DirFS
++// does not check for symbolic links inside "/prefix" that point to
++// other directories. That is, os.DirFS is not a general substitute for a
++// chroot-style security mechanism, and Sub does not change that fact.
++func Sub(fsys FS, dir string) (FS, error) {
++	if !ValidPath(dir) {
++		return nil, &PathError{Op: "sub", Path: dir, Err: errors.New("invalid name")}
++	}
++	if dir == "." {
++		return fsys, nil
++	}
++	if fsys, ok := fsys.(SubFS); ok {
++		return fsys.Sub(dir)
++	}
++	return &subFS{fsys, dir}, nil
++}
++
++type subFS struct {
++	fsys FS
++	dir  string
++}
++
++// fullName maps name to the fully-qualified name dir/name.
++func (f *subFS) fullName(op string, name string) (string, error) {
++	if !ValidPath(name) {
++		return "", &PathError{Op: op, Path: name, Err: errors.New("invalid name")}
++	}
++	return path.Join(f.dir, name), nil
++}
++
++// shorten maps name, which should start with f.dir, back to the suffix after f.dir.
++func (f *subFS) shorten(name string) (rel string, ok bool) {
++	if name == f.dir {
++		return ".", true
++	}
++	if len(name) >= len(f.dir)+2 && name[len(f.dir)] == '/' && name[:len(f.dir)] == f.dir {
++		return name[len(f.dir)+1:], true
++	}
++	return "", false
++}
++
++// fixErr shortens any reported names in PathErrors by stripping dir.
++func (f *subFS) fixErr(err error) error {
++	if e, ok := err.(*PathError); ok {
++		if short, ok := f.shorten(e.Path); ok {
++			e.Path = short
++		}
++	}
++	return err
++}
++
++func (f *subFS) Open(name string) (File, error) {
++	full, err := f.fullName("open", name)
++	if err != nil {
++		return nil, err
++	}
++	file, err := f.fsys.Open(full)
++	return file, f.fixErr(err)
++}
++
++func (f *subFS) ReadDir(name string) ([]DirEntry, error) {
++	full, err := f.fullName("open", name)
++	if err != nil {
++		return nil, err
++	}
++	dir, err := ReadDir(f.fsys, full)
++	return dir, f.fixErr(err)
++}
++
++func (f *subFS) ReadFile(name string) ([]byte, error) {
++	full, err := f.fullName("open", name)
++	if err != nil {
++		return nil, err
++	}
++	data, err := ReadFile(f.fsys, full)
++	return data, f.fixErr(err)
++}
++
++func (f *subFS) Glob(pattern string) ([]string, error) {
++	// Check pattern is well-formed.
++	if _, err := path.Match(pattern, ""); err != nil {
++		return nil, err
++	}
++	if pattern == "." {
++		return []string{"."}, nil
++	}
++
++	full := f.dir + "/" + pattern
++	list, err := Glob(f.fsys, full)
++	for i, name := range list {
++		name, ok := f.shorten(name)
++		if !ok {
++			return nil, errors.New("invalid result from inner fsys Glob: " + name + " not in " + f.dir) // can't use fmt in this package
++		}
++		list[i] = name
++	}
++	return list, f.fixErr(err)
++}
+diff --git a/src/io/fs/sub_test.go b/src/io/fs/sub_test.go
+new file mode 100644
+index 0000000000..451b0efb02
+--- /dev/null
++++ b/src/io/fs/sub_test.go
+@@ -0,0 +1,57 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fs_test
++
++import (
++	. "io/fs"
++	"testing"
++)
++
++type subOnly struct{ SubFS }
++
++func (subOnly) Open(name string) (File, error) { return nil, ErrNotExist }
++
++func TestSub(t *testing.T) {
++	check := func(desc string, sub FS, err error) {
++		t.Helper()
++		if err != nil {
++			t.Errorf("Sub(sub): %v", err)
++			return
++		}
++		data, err := ReadFile(sub, "goodbye.txt")
++		if string(data) != "goodbye, world" || err != nil {
++			t.Errorf(`ReadFile(%s, "goodbye.txt" = %q, %v, want %q, nil`, desc, string(data), err, "goodbye, world")
++		}
++
++		dirs, err := ReadDir(sub, ".")
++		if err != nil || len(dirs) != 1 || dirs[0].Name() != "goodbye.txt" {
++			var names []string
++			for _, d := range dirs {
++				names = append(names, d.Name())
++			}
++			t.Errorf(`ReadDir(%s, ".") = %v, %v, want %v, nil`, desc, names, err, []string{"goodbye.txt"})
++		}
++	}
++
++	// Test that Sub uses the method when present.
++	sub, err := Sub(subOnly{testFsys}, "sub")
++	check("subOnly", sub, err)
++
++	// Test that Sub uses Open when the method is not present.
++	sub, err = Sub(openOnly{testFsys}, "sub")
++	check("openOnly", sub, err)
++
++	_, err = sub.Open("nonexist")
++	if err == nil {
++		t.Fatal("Open(nonexist): succeeded")
++	}
++	pe, ok := err.(*PathError)
++	if !ok {
++		t.Fatalf("Open(nonexist): error is %T, want *PathError", err)
++	}
++	if pe.Path != "nonexist" {
++		t.Fatalf("Open(nonexist): err.Path = %q, want %q", pe.Path, "nonexist")
++	}
++}
+diff --git a/src/os/file.go b/src/os/file.go
+index 304b055dbe..416bc0efa6 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -609,6 +609,13 @@ func isWindowsNulName(name string) bool {
+ }
+ 
+ // DirFS returns a file system (an fs.FS) for the tree of files rooted at the directory dir.
++//
++// Note that DirFS("/prefix") only guarantees that the Open calls it makes to the
++// operating system will begin with "/prefix": DirFS("/prefix").Open("file") is the
++// same as os.Open("/prefix/file"). So if /prefix/file is a symbolic link pointing outside
++// the /prefix tree, then using DirFS does not stop the access any more than using
++// os.Open does. DirFS is therefore not a general substitute for a chroot-style security
++// mechanism when the directory tree contains arbitrary content.
+ func DirFS(dir string) fs.FS {
+ 	return dirFS(dir)
+ }
+diff --git a/src/testing/fstest/mapfs.go b/src/testing/fstest/mapfs.go
+index 10e56f5b3c..a5d4a23fac 100644
+--- a/src/testing/fstest/mapfs.go
++++ b/src/testing/fstest/mapfs.go
+@@ -132,6 +132,16 @@ func (fsys MapFS) Glob(pattern string) ([]string, error) {
+ 	return fs.Glob(fsOnly{fsys}, pattern)
+ }
+ 
++type noSub struct {
++	MapFS
++}
++
++func (noSub) Sub() {} // not the fs.SubFS signature
++
++func (fsys MapFS) Sub(dir string) (fs.FS, error) {
++	return fs.Sub(noSub{fsys}, dir)
++}
++
+ // A mapFileInfo implements fs.FileInfo and fs.DirEntry for a given map file.
+ type mapFileInfo struct {
+ 	name string
+diff --git a/src/testing/fstest/testfs.go b/src/testing/fstest/testfs.go
+index 4912a271b2..2602bdf0cc 100644
+--- a/src/testing/fstest/testfs.go
++++ b/src/testing/fstest/testfs.go
+@@ -22,6 +22,8 @@ import (
+ // It walks the entire tree of files in fsys,
+ // opening and checking that each file behaves correctly.
+ // It also checks that the file system contains at least the expected files.
++// As a special case, if no expected files are listed, fsys must be empty.
++// Otherwise, fsys must only contain at least the listed files: it can also contain others.
+ //
+ // If TestFS finds any misbehaviors, it returns an error reporting all of them.
+ // The error text spans multiple lines, one per detected misbehavior.
+@@ -33,6 +35,32 @@ import (
+ //	}
+ //
+ func TestFS(fsys fs.FS, expected ...string) error {
++	if err := testFS(fsys, expected...); err != nil {
++		return err
++	}
++	for _, name := range expected {
++		if i := strings.Index(name, "/"); i >= 0 {
++			dir, dirSlash := name[:i], name[:i+1]
++			var subExpected []string
++			for _, name := range expected {
++				if strings.HasPrefix(name, dirSlash) {
++					subExpected = append(subExpected, name[len(dirSlash):])
++				}
++			}
++			sub, err := fs.Sub(fsys, dir)
++			if err != nil {
++				return err
++			}
++			if err := testFS(sub, subExpected...); err != nil {
++				return fmt.Errorf("testing fs.Sub(fsys, %s): %v", dir, err)
++			}
++			break // one sub-test is enough
++		}
++	}
++	return nil
++}
++
++func testFS(fsys fs.FS, expected ...string) error {
+ 	t := fsTester{fsys: fsys}
+ 	t.checkDir(".")
+ 	t.checkOpen(".")
+@@ -43,6 +71,20 @@ func TestFS(fsys fs.FS, expected ...string) error {
+ 	for _, file := range t.files {
+ 		found[file] = true
+ 	}
++	delete(found, ".")
++	if len(expected) == 0 && len(found) > 0 {
++		var list []string
++		for k := range found {
++			if k != "." {
++				list = append(list, k)
++			}
++		}
++		sort.Strings(list)
++		if len(list) > 15 {
++			list = append(list[:10], "...")
++		}
++		t.errorf("expected empty file system but found files:\n%s", strings.Join(list, "\n"))
++	}
+ 	for _, name := range expected {
+ 		if !found[name] {
+ 			t.errorf("expected but not found: %s", name)

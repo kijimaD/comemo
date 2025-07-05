@@ -7,6 +7,20 @@ Date:   Wed Sep 25 14:27:23 2013 +1000
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/13892043
-
+---
  doc/install-source.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/install-source.html b/doc/install-source.html
+index 3181cd7c9f..9aaf588124 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -223,7 +223,7 @@ set up a work environment in which to build and test Go code.
+ <h2 id="tools">Install additional tools</h2>
+ 
+ <p>
+-The source code for seeral Go tools (including <a href="/cmd/godoc/">godoc</a>)
++The source code for several Go tools (including <a href="/cmd/godoc/">godoc</a>)
+ is kept in <a href="https://code.google.com/p/go.tools">the go.tools repository</a>.
+ To install all of them, run the <code>go</code> <code>get</code> command:
+ </p>

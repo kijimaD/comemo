@@ -24,7 +24,54 @@ Date:   Wed Oct 31 15:07:57 2018 +0100
     Reviewed-on: https://go-review.googlesource.com/c/146344
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/internal/poll/fd_poll_runtime.go | 15 ++++++---------
  src/runtime/netpoll.go               |  9 +++++++--
  2 files changed, 13 insertions(+), 11 deletions(-)
+
+diff --git a/src/internal/poll/fd_poll_runtime.go b/src/internal/poll/fd_poll_runtime.go
+index a48e62eefa..f4540a60f6 100644
+--- a/src/internal/poll/fd_poll_runtime.go
++++ b/src/internal/poll/fd_poll_runtime.go
+@@ -136,15 +136,12 @@ func (fd *FD) SetWriteDeadline(t time.Time) error {
+ }
+ 
+ func setDeadlineImpl(fd *FD, t time.Time, mode int) error {
+-	diff := int64(time.Until(t))
+-	d := runtimeNano() + diff
+-	if d <= 0 && diff > 0 {
+-		// If the user has a deadline in the future, but the delay calculation
+-		// overflows, then set the deadline to the maximum possible value.
+-		d = 1<<63 - 1
+-	}
+-	if t.IsZero() {
+-		d = 0
++	var d int64
++	if !t.IsZero() {
++		d = int64(time.Until(t))
++		if d == 0 {
++			d = -1 // don't confuse deadline right now with no deadline
++		}
+ 	}
+ 	if err := fd.incref(); err != nil {
+ 		return err
+diff --git a/src/runtime/netpoll.go b/src/runtime/netpoll.go
+index f914844cdf..7e6e93d6c3 100644
+--- a/src/runtime/netpoll.go
++++ b/src/runtime/netpoll.go
+@@ -201,8 +201,13 @@ func poll_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
+ 	}
+ 	rd0, wd0 := pd.rd, pd.wd
+ 	combo0 := rd0 > 0 && rd0 == wd0
+-	if d != 0 && d <= nanotime() {
+-		d = -1
++	if d > 0 {
++		d += nanotime()
++		if d <= 0 {
++			// If the user has a deadline in the future, but the delay calculation
++			// overflows, then set the deadline to the maximum possible value.
++			d = 1<<63 - 1
++		}
+ 	}
+ 	if mode == 'r' || mode == 'r'+'w' {
+ 		pd.rd = d

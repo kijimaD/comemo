@@ -16,6 +16,119 @@ Date:   Fri Mar 24 16:22:08 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/38652
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/walk.go | 55 +++++--------------------------------
  1 file changed, 7 insertions(+), 48 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 63573f9017..0528949081 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -498,24 +498,15 @@ opswitch:
+ 		Dump("walk", n)
+ 		Fatalf("walkexpr: switch 1 unknown op %+S", n)
+ 
+-	case OTYPE,
+-		ONONAME,
+-		OINDREGSP,
+-		OEMPTY,
+-		OGETG:
++	case OTYPE, ONONAME, OINDREGSP, OEMPTY, OGETG:
+ 
+-	case ONOT,
+-		OMINUS,
+-		OPLUS,
+-		OCOM,
+-		OREAL,
+-		OIMAG,
+-		ODOTMETH,
+-		ODOTINTER:
++	case ONOT, OMINUS, OPLUS, OCOM, OREAL, OIMAG, ODOTMETH, ODOTINTER,
++		OIND, OSPTR, OITAB, OIDATA, ODOTTYPE, ODOTTYPE2, OADDR:
+ 		n.Left = walkexpr(n.Left, init)
+ 
+-	case OIND:
++	case OEFACE, OAND, OSUB, OMUL, OLT, OLE, OGE, OGT, OADD, OOR, OXOR:
+ 		n.Left = walkexpr(n.Left, init)
++		n.Right = walkexpr(n.Right, init)
+ 
+ 	case ODOT:
+ 		usefield(n)
+@@ -532,13 +523,6 @@ opswitch:
+ 
+ 		n.Left = walkexpr(n.Left, init)
+ 
+-	case OEFACE:
+-		n.Left = walkexpr(n.Left, init)
+-		n.Right = walkexpr(n.Right, init)
+-
+-	case OSPTR, OITAB, OIDATA:
+-		n.Left = walkexpr(n.Left, init)
+-
+ 	case OLEN, OCAP:
+ 		n.Left = walkexpr(n.Left, init)
+ 
+@@ -564,19 +548,6 @@ opswitch:
+ 			Warn("shift bounds check elided")
+ 		}
+ 
+-	case OAND,
+-		OSUB,
+-		OMUL,
+-		OLT,
+-		OLE,
+-		OGE,
+-		OGT,
+-		OADD,
+-		OOR,
+-		OXOR:
+-		n.Left = walkexpr(n.Left, init)
+-		n.Right = walkexpr(n.Right, init)
+-
+ 	case OCOMPLEX:
+ 		// Use results from call expression as arguments for complex.
+ 		if n.Left == nil && n.Right == nil {
+@@ -622,13 +593,7 @@ opswitch:
+ 	case ORECOVER:
+ 		n = mkcall("gorecover", n.Type, init, nod(OADDR, nodfp, nil))
+ 
+-	case OLITERAL:
+-		n.SetAddable(true)
+-
+-	case OCLOSUREVAR, OCFUNC:
+-		n.SetAddable(true)
+-
+-	case ONAME:
++	case OLITERAL, OCLOSUREVAR, OCFUNC, ONAME:
+ 		n.SetAddable(true)
+ 
+ 	case OCALLINTER:
+@@ -794,7 +759,7 @@ opswitch:
+ 		n = nod(OAS, ok, call)
+ 		n = typecheck(n, Etop)
+ 
+-		// a,b = m[i];
++	// a,b = m[i]
+ 	case OAS2MAPR:
+ 		init.AppendNodes(&n.Ninit)
+ 
+@@ -874,9 +839,6 @@ opswitch:
+ 		e := n.Rlist.First() // i.(T)
+ 		e.Left = walkexpr(e.Left, init)
+ 
+-	case ODOTTYPE, ODOTTYPE2:
+-		n.Left = walkexpr(n.Left, init)
+-
+ 	case OCONVIFACE:
+ 		n.Left = walkexpr(n.Left, init)
+ 
+@@ -1242,9 +1204,6 @@ opswitch:
+ 			n = reduceSlice(n)
+ 		}
+ 
+-	case OADDR:
+-		n.Left = walkexpr(n.Left, init)
+-
+ 	case ONEW:
+ 		if n.Esc == EscNone {
+ 			if n.Type.Elem().Width >= 1<<16 {

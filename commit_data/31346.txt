@@ -44,6 +44,20 @@ Date:   Mon Feb 13 22:28:26 2017 +0300
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/asm_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index c9b2e2f8b4..44e715ffa3 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -43,7 +43,7 @@ func TestAssembly(t *testing.T) {
+ 		}
+ 		for _, r := range test.regexps {
+ 			if b, err := regexp.MatchString(r, asm); !b || err != nil {
+-				t.Errorf("expected:%s\ngo:%s\nasm:%s\n", r, test.function, asm)
++				t.Errorf("%s/%s: expected:%s\ngo:%s\nasm:%s\n", test.os, test.arch, r, test.function, asm)
+ 			}
+ 		}
+ 	}

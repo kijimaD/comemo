@@ -13,8 +13,43 @@ Date:   Tue Jul 18 17:08:00 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Heschi Kreinick <heschi@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  misc/go.mod    | 2 +-
  src/cmd/go.mod | 2 +-
  src/go.mod     | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/misc/go.mod b/misc/go.mod
+index d5494b157f..ef9d188b1b 100644
+--- a/misc/go.mod
++++ b/misc/go.mod
+@@ -3,4 +3,4 @@
+ // tests and tools.
+ module misc
+ 
+-go 1.21
++go 1.22
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index ac8c9e4976..886bb857cf 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -1,6 +1,6 @@
+ module cmd
+ 
+-go 1.21
++go 1.22
+ 
+ require (
+ 	github.com/google/pprof v0.0.0-20221118152302-e6195bd50e26
+diff --git a/src/go.mod b/src/go.mod
+index 25829e17f2..fa2f97ae13 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -1,6 +1,6 @@
+ module std
+ 
+-go 1.21
++go 1.22
+ 
+ require (
+ 	golang.org/x/crypto v0.11.1-0.20230711161743-2e82bdd1719d

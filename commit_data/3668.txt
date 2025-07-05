@@ -9,9 +9,134 @@ Date:   Wed Oct 28 16:19:09 2009 -0700
     
     R=rsc
     http://go/go-review/1017001
-
+---
  lib/godoc/package.html    |  4 ++--
  lib/godoc/parseerror.html |  2 +-
  lib/godoc/search.html     |  2 +-
  src/cmd/godoc/godoc.go    | 22 ++++++++++++++++------
  4 files changed, 20 insertions(+), 10 deletions(-)
+
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index b703b2e707..f2980f2068 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -11,11 +11,11 @@
+ 	{.section Filenames}
+ 		<p>
+ 		<h4>Package files</h4>
+-		<font size=-1>
++		<span style="font-size:90%">
+ 		{.repeated section @}
+ 			<a href="/{FilePath|html}/{@|html}">{@|html}</a>
+ 		{.end}
+-		</font>
++		</span>
+ 		</p>
+ 	{.end}
+ 	{.section Consts}
+diff --git a/lib/godoc/parseerror.html b/lib/godoc/parseerror.html
+index 361cffe8c1..4fa97a5e1f 100644
+--- a/lib/godoc/parseerror.html
++++ b/lib/godoc/parseerror.html
+@@ -6,5 +6,5 @@
+ 
+ <pre>
+ {.repeated section list}
+-{src}{.section msg}<b><font color=red>«{msg|html}»</font></b>{.end}{.end}
++{src|html}{.section msg}<b><span class="alert">«{msg|html}»</span></b>{.end}{.end}
+ </pre>
+diff --git a/lib/godoc/search.html b/lib/godoc/search.html
+index e054dd5b0b..8dc32b8434 100644
+--- a/lib/godoc/search.html
++++ b/lib/godoc/search.html
+@@ -36,7 +36,7 @@
+ 		<p>
+ 		Legend:
+ 		{.repeated section Legend}
+-			<a class="{@}">{@}</a>
++			<a class="{@|html}">{@|html}</a>
+ 		{.end}
+ 		</p>
+ 		{.repeated section @}
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 845c9e510b..1db2795f8a 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -133,7 +133,7 @@ func init() {
+ 
+ 
+ // ----------------------------------------------------------------------------
+-// Support
++// Predicates and small utility functions
+ 
+ func isGoFile(dir *os.Dir) bool {
+ 	return dir.IsRegular() &&
+@@ -153,6 +153,13 @@ func isPkgDir(dir *os.Dir) bool {
+ }
+ 
+ 
++func htmlEscape(s string) string {
++	var buf bytes.Buffer;
++	template.HtmlEscape(&buf, strings.Bytes(s));
++	return buf.String();
++}
++
++
+ // ----------------------------------------------------------------------------
+ // Parsing
+ 
+@@ -322,7 +329,7 @@ func htmlFmt(w io.Writer, x interface{}, format string) {
+ func htmlCommentFmt(w io.Writer, x interface{}, format string) {
+ 	var buf bytes.Buffer;
+ 	writeAny(&buf, x, false);
+-	doc.ToHtml(w, buf.Bytes());
++	doc.ToHtml(w, buf.Bytes());  // does html-escaping
+ }
+ 
+ 
+@@ -342,12 +349,13 @@ func linkFmt(w io.Writer, x interface{}, format string) {
+ 		if pos.IsValid() {
+ 			// line id's in html-printed source are of the
+ 			// form "L%d" where %d stands for the line number
+-			fmt.Fprintf(w, "/%s#L%d", pos.Filename, pos.Line);
++			fmt.Fprintf(w, "/%s#L%d", htmlEscape(pos.Filename), pos.Line);
+ 		}
+ 	}
+ }
+ 
+ 
++// The strings in infoClasses must be properly html-escaped.
+ var infoClasses = [nKinds]string{
+ 	"package",	// PackageClause
+ 	"import",	// ImportDecl
+@@ -362,7 +370,7 @@ var infoClasses = [nKinds]string{
+ 
+ // Template formatter for "infoClass" format.
+ func infoClassFmt(w io.Writer, x interface{}, format string) {
+-	fmt.Fprintf(w, infoClasses[x.(SpotInfo).Kind()]);
++	fmt.Fprintf(w, infoClasses[x.(SpotInfo).Kind()]);  // no html escaping needed
+ }
+ 
+ 
+@@ -384,9 +392,11 @@ func infoSnippetFmt(w io.Writer, x interface{}, format string) {
+ 	text := `<span class="alert">no snippet text available</span>`;
+ 	if info.IsIndex() {
+ 		index, _ := searchIndex.get();
++		// no escaping of snippet text needed;
++		// snippet text is escaped when generated
+ 		text = index.(*Index).Snippet(info.Lori()).Text;
+ 	}
+-	fmt.Fprintf(w, "%s", text);
++	fmt.Fprint(w, text);
+ }
+ 
+ 
+@@ -667,7 +677,7 @@ func servePkg(c *http.Conn, r *http.Request) {
+ 	info := getPageInfo(path);
+ 
+ 	var buf bytes.Buffer;
+-	if false {	// TODO req.Params["format"] == "text"
++	if r.FormValue("f") == "text" {
+ 		if err := packageText.Execute(info, &buf); err != nil {
+ 			log.Stderrf("packageText.Execute: %s", err);
+ 		}

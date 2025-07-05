@@ -11,7 +11,7 @@ Date:   Thu Jul 7 15:29:48 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/big/arith_test.go        | 121 ++++++++------------
  src/cmd/compile/internal/big/decimal_test.go      |   4 +-
  src/cmd/compile/internal/big/doc.go               |  99 ++++++++++++++++
@@ -30,3 +30,961 @@ Date:   Thu Jul 7 15:29:48 2016 -0700
  src/cmd/compile/internal/big/ratconv.go           |   8 +-
  src/cmd/compile/internal/big/ratconv_test.go      |   1 +
  17 files changed, 443 insertions(+), 196 deletions(-)
+
+diff --git a/src/cmd/compile/internal/big/arith_test.go b/src/cmd/compile/internal/big/arith_test.go
+index 7d2f69a751..75862b4951 100644
+--- a/src/cmd/compile/internal/big/arith_test.go
++++ b/src/cmd/compile/internal/big/arith_test.go
+@@ -5,6 +5,7 @@
+ package big
+ 
+ import (
++	"fmt"
+ 	"math/rand"
+ 	"testing"
+ )
+@@ -118,28 +119,22 @@ func rndV(n int) []Word {
+ 	return v
+ }
+ 
+-func benchmarkFunVV(b *testing.B, f funVV, n int) {
+-	x := rndV(n)
+-	y := rndV(n)
+-	z := make([]Word, n)
+-	b.SetBytes(int64(n * _W))
+-	b.ResetTimer()
+-	for i := 0; i < b.N; i++ {
+-		f(z, x, y)
++var benchSizes = []int{1, 2, 3, 4, 5, 1e1, 1e2, 1e3, 1e4, 1e5}
++
++func BenchmarkAddVV(b *testing.B) {
++	for _, n := range benchSizes {
++		x := rndV(n)
++		y := rndV(n)
++		z := make([]Word, n)
++		b.Run(fmt.Sprint(n), func(b *testing.B) {
++			b.SetBytes(int64(n * _W))
++			for i := 0; i < b.N; i++ {
++				addVV(z, x, y)
++			}
++		})
+ 	}
+ }
+ 
+-func BenchmarkAddVV_1(b *testing.B)   { benchmarkFunVV(b, addVV, 1) }
+-func BenchmarkAddVV_2(b *testing.B)   { benchmarkFunVV(b, addVV, 2) }
+-func BenchmarkAddVV_3(b *testing.B)   { benchmarkFunVV(b, addVV, 3) }
+-func BenchmarkAddVV_4(b *testing.B)   { benchmarkFunVV(b, addVV, 4) }
+-func BenchmarkAddVV_5(b *testing.B)   { benchmarkFunVV(b, addVV, 5) }
+-func BenchmarkAddVV_1e1(b *testing.B) { benchmarkFunVV(b, addVV, 1e1) }
+-func BenchmarkAddVV_1e2(b *testing.B) { benchmarkFunVV(b, addVV, 1e2) }
+-func BenchmarkAddVV_1e3(b *testing.B) { benchmarkFunVV(b, addVV, 1e3) }
+-func BenchmarkAddVV_1e4(b *testing.B) { benchmarkFunVV(b, addVV, 1e4) }
+-func BenchmarkAddVV_1e5(b *testing.B) { benchmarkFunVV(b, addVV, 1e5) }
+-
+ type funVW func(z, x []Word, y Word) (c Word)
+ type argVW struct {
+ 	z, x nat
+@@ -236,28 +231,20 @@ func TestFunVW(t *testing.T) {
+ 	}
+ }
+ 
+-func benchmarkFunVW(b *testing.B, f funVW, n int) {
+-	x := rndV(n)
+-	y := rndW()
+-	z := make([]Word, n)
+-	b.SetBytes(int64(n * _S))
+-	b.ResetTimer()
+-	for i := 0; i < b.N; i++ {
+-		f(z, x, y)
++func BenchmarkAddVW(b *testing.B) {
++	for _, n := range benchSizes {
++		x := rndV(n)
++		y := rndW()
++		z := make([]Word, n)
++		b.Run(fmt.Sprint(n), func(b *testing.B) {
++			b.SetBytes(int64(n * _S))
++			for i := 0; i < b.N; i++ {
++				addVW(z, x, y)
++			}
++		})
+ 	}
+ }
+ 
+-func BenchmarkAddVW_1(b *testing.B)   { benchmarkFunVW(b, addVW, 1) }
+-func BenchmarkAddVW_2(b *testing.B)   { benchmarkFunVW(b, addVW, 2) }
+-func BenchmarkAddVW_3(b *testing.B)   { benchmarkFunVW(b, addVW, 3) }
+-func BenchmarkAddVW_4(b *testing.B)   { benchmarkFunVW(b, addVW, 4) }
+-func BenchmarkAddVW_5(b *testing.B)   { benchmarkFunVW(b, addVW, 5) }
+-func BenchmarkAddVW_1e1(b *testing.B) { benchmarkFunVW(b, addVW, 1e1) }
+-func BenchmarkAddVW_1e2(b *testing.B) { benchmarkFunVW(b, addVW, 1e2) }
+-func BenchmarkAddVW_1e3(b *testing.B) { benchmarkFunVW(b, addVW, 1e3) }
+-func BenchmarkAddVW_1e4(b *testing.B) { benchmarkFunVW(b, addVW, 1e4) }
+-func BenchmarkAddVW_1e5(b *testing.B) { benchmarkFunVW(b, addVW, 1e5) }
+-
+ type funVWW func(z, x []Word, y, r Word) (c Word)
+ type argVWW struct {
+ 	z, x nat
+@@ -382,28 +369,20 @@ func TestMulAddWWW(t *testing.T) {
+ 	}
+ }
+ 
+-func benchmarkAddMulVVW(b *testing.B, n int) {
+-	x := rndV(n)
+-	y := rndW()
+-	z := make([]Word, n)
+-	b.SetBytes(int64(n * _W))
+-	b.ResetTimer()
+-	for i := 0; i < b.N; i++ {
+-		addMulVVW(z, x, y)
++func BenchmarkAddMulVVW(b *testing.B) {
++	for _, n := range benchSizes {
++		x := rndV(n)
++		y := rndW()
++		z := make([]Word, n)
++		b.Run(fmt.Sprint(n), func(b *testing.B) {
++			b.SetBytes(int64(n * _W))
++			for i := 0; i < b.N; i++ {
++				addMulVVW(z, x, y)
++			}
++		})
+ 	}
+ }
+ 
+-func BenchmarkAddMulVVW_1(b *testing.B)   { benchmarkAddMulVVW(b, 1) }
+-func BenchmarkAddMulVVW_2(b *testing.B)   { benchmarkAddMulVVW(b, 2) }
+-func BenchmarkAddMulVVW_3(b *testing.B)   { benchmarkAddMulVVW(b, 3) }
+-func BenchmarkAddMulVVW_4(b *testing.B)   { benchmarkAddMulVVW(b, 4) }
+-func BenchmarkAddMulVVW_5(b *testing.B)   { benchmarkAddMulVVW(b, 5) }
+-func BenchmarkAddMulVVW_1e1(b *testing.B) { benchmarkAddMulVVW(b, 1e1) }
+-func BenchmarkAddMulVVW_1e2(b *testing.B) { benchmarkAddMulVVW(b, 1e2) }
+-func BenchmarkAddMulVVW_1e3(b *testing.B) { benchmarkAddMulVVW(b, 1e3) }
+-func BenchmarkAddMulVVW_1e4(b *testing.B) { benchmarkAddMulVVW(b, 1e4) }
+-func BenchmarkAddMulVVW_1e5(b *testing.B) { benchmarkAddMulVVW(b, 1e5) }
+-
+ func testWordBitLen(t *testing.T, fname string, f func(Word) int) {
+ 	for i := 0; i <= _W; i++ {
+ 		x := Word(1) << uint(i-1) // i == 0 => x == 0
+@@ -420,23 +399,15 @@ func TestWordBitLen(t *testing.T) {
+ }
+ 
+ // runs b.N iterations of bitLen called on a Word containing (1 << nbits)-1.
+-func benchmarkBitLenN(b *testing.B, nbits uint) {
+-	testword := Word((uint64(1) << nbits) - 1)
+-	for i := 0; i < b.N; i++ {
+-		bitLen(testword)
++func BenchmarkBitLen(b *testing.B) {
++	// Individual bitLen tests. Numbers chosen to examine both sides
++	// of powers-of-two boundaries.
++	for _, nbits := range []uint{0, 1, 2, 3, 4, 5, 8, 9, 16, 17, 31} {
++		testword := Word((uint64(1) << nbits) - 1)
++		b.Run(fmt.Sprint(nbits), func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				bitLen(testword)
++			}
++		})
+ 	}
+ }
+-
+-// Individual bitLen tests. Numbers chosen to examine both sides
+-// of powers-of-two boundaries.
+-func BenchmarkBitLen0(b *testing.B)  { benchmarkBitLenN(b, 0) }
+-func BenchmarkBitLen1(b *testing.B)  { benchmarkBitLenN(b, 1) }
+-func BenchmarkBitLen2(b *testing.B)  { benchmarkBitLenN(b, 2) }
+-func BenchmarkBitLen3(b *testing.B)  { benchmarkBitLenN(b, 3) }
+-func BenchmarkBitLen4(b *testing.B)  { benchmarkBitLenN(b, 4) }
+-func BenchmarkBitLen5(b *testing.B)  { benchmarkBitLenN(b, 5) }
+-func BenchmarkBitLen8(b *testing.B)  { benchmarkBitLenN(b, 8) }
+-func BenchmarkBitLen9(b *testing.B)  { benchmarkBitLenN(b, 9) }
+-func BenchmarkBitLen16(b *testing.B) { benchmarkBitLenN(b, 16) }
+-func BenchmarkBitLen17(b *testing.B) { benchmarkBitLenN(b, 17) }
+-func BenchmarkBitLen31(b *testing.B) { benchmarkBitLenN(b, 31) }
+diff --git a/src/cmd/compile/internal/big/decimal_test.go b/src/cmd/compile/internal/big/decimal_test.go
+index 15bdb181e7..13452f8343 100644
+--- a/src/cmd/compile/internal/big/decimal_test.go
++++ b/src/cmd/compile/internal/big/decimal_test.go
+@@ -105,12 +105,14 @@ func TestDecimalRounding(t *testing.T) {
+ 	}
+ }
+ 
++var sink string
++
+ func BenchmarkDecimalConversion(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		for shift := -100; shift <= +100; shift++ {
+ 			var d decimal
+ 			d.init(natOne, shift)
+-			d.String()
++			sink = d.String()
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/big/doc.go b/src/cmd/compile/internal/big/doc.go
+new file mode 100644
+index 0000000000..a3c23751ba
+--- /dev/null
++++ b/src/cmd/compile/internal/big/doc.go
+@@ -0,0 +1,99 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++Package big implements arbitrary-precision arithmetic (big numbers).
++The following numeric types are supported:
++
++	Int    signed integers
++	Rat    rational numbers
++	Float  floating-point numbers
++
++The zero value for an Int, Rat, or Float correspond to 0. Thus, new
++values can be declared in the usual ways and denote 0 without further
++initialization:
++
++	var x Int        // &x is an *Int of value 0
++	var r = &Rat{}   // r is a *Rat of value 0
++	y := new(Float)  // y is a *Float of value 0
++
++Alternatively, new values can be allocated and initialized with factory
++functions of the form:
++
++	func NewT(v V) *T
++
++For instance, NewInt(x) returns an *Int set to the value of the int64
++argument x, NewRat(a, b) returns a *Rat set to the fraction a/b where
++a and b are int64 values, and NewFloat(f) returns a *Float initialized
++to the float64 argument f. More flexibility is provided with explicit
++setters, for instance:
++
++	var z1 Int
++	z1.SetUint64(123)                 // z1 := 123
++	z2 := new(Rat).SetFloat64(1.2)    // z2 := 6/5
++	z3 := new(Float).SetInt(z1)       // z3 := 123.0
++
++Setters, numeric operations and predicates are represented as methods of
++the form:
++
++	func (z *T) SetV(v V) *T          // z = v
++	func (z *T) Unary(x *T) *T        // z = unary x
++	func (z *T) Binary(x, y *T) *T    // z = x binary y
++	func (x *T) Pred() P              // p = pred(x)
++
++with T one of Int, Rat, or Float. For unary and binary operations, the
++result is the receiver (usually named z in that case; see below); if it
++is one of the operands x or y it may be safely overwritten (and its memory
++reused).
++
++Arithmetic expressions are typically written as a sequence of individual
++method calls, with each call corresponding to an operation. The receiver
++denotes the result and the method arguments are the operation's operands.
++For instance, given three *Int values a, b and c, the invocation
++
++	c.Add(a, b)
++
++computes the sum a + b and stores the result in c, overwriting whatever
++value was held in c before. Unless specified otherwise, operations permit
++aliasing of parameters, so it is perfectly ok to write
++
++	sum.Add(sum, x)
++
++to accumulate values x in a sum.
++
++(By always passing in a result value via the receiver, memory use can be
++much better controlled. Instead of having to allocate new memory for each
++result, an operation can reuse the space allocated for the result value,
++and overwrite that value with the new result in the process.)
++
++Notational convention: Incoming method parameters (including the receiver)
++are named consistently in the API to clarify their use. Incoming operands
++are usually named x, y, a, b, and so on, but never z. A parameter specifying
++the result is named z (typically the receiver).
++
++For instance, the arguments for (*Int).Add are named x and y, and because
++the receiver specifies the result destination, it is called z:
++
++	func (z *Int) Add(x, y *Int) *Int
++
++Methods of this form typically return the incoming receiver as well, to
++enable simple call chaining.
++
++Methods which don't require a result value to be passed in (for instance,
++Int.Sign), simply return the result. In this case, the receiver is typically
++the first operand, named x:
++
++	func (x *Int) Sign() int
++
++Various methods support conversions between strings and corresponding
++numeric values, and vice versa: *Int, *Rat, and *Float values implement
++the Stringer interface for a (default) string representation of the value,
++but also provide SetString methods to initialize a value from a string in
++a variety of supported formats (see the respective SetString documentation).
++
++Finally, *Int, *Rat, and *Float satisfy the fmt package's Scanner interface
++for scanning and (except for *Rat) the Formatter interface for formatted
++printing.
++*/
++package big
+diff --git a/src/cmd/compile/internal/big/float.go b/src/cmd/compile/internal/big/float.go
+index 4b8ad388d3..7a9c2b3dfb 100644
+--- a/src/cmd/compile/internal/big/float.go
++++ b/src/cmd/compile/internal/big/float.go
+@@ -1008,9 +1008,9 @@ func (x *Float) Float64() (float64, Accuracy) {
+ 		if r.form == inf || e > emax {
+ 			// overflow
+ 			if x.neg {
+-				return float64(math.Inf(-1)), Below
++				return math.Inf(-1), Below
+ 			}
+-			return float64(math.Inf(+1)), Above
++			return math.Inf(+1), Above
+ 		}
+ 		// e <= emax
+ 
+diff --git a/src/cmd/compile/internal/big/floatconv_test.go b/src/cmd/compile/internal/big/floatconv_test.go
+index b6f9993608..b2a1ab05fc 100644
+--- a/src/cmd/compile/internal/big/floatconv_test.go
++++ b/src/cmd/compile/internal/big/floatconv_test.go
+@@ -290,6 +290,11 @@ func TestFloat64Text(t *testing.T) {
+ 		// Issue 2625.
+ 		{383260575764816448, 'f', 0, "383260575764816448"},
+ 		{383260575764816448, 'g', -1, "3.8326057576481645e+17"},
++
++		// Issue 15918.
++		{1, 'f', -10, "1"},
++		{1, 'f', -11, "1"},
++		{1, 'f', -12, "1"},
+ 	} {
+ 		// The test cases are from the strconv package which tests float64 values.
+ 		// When formatting values with prec = -1 (shortest representation),
+diff --git a/src/cmd/compile/internal/big/floatexample_test.go b/src/cmd/compile/internal/big/floatexample_test.go
+index 83c6bdacae..beb9052ebd 100644
+--- a/src/cmd/compile/internal/big/floatexample_test.go
++++ b/src/cmd/compile/internal/big/floatexample_test.go
+@@ -11,7 +11,7 @@ import (
+ )
+ 
+ func ExampleFloat_Add() {
+-	// Operating on numbers of different precision.
++	// Operate on numbers of different precision.
+ 	var x, y, z big.Float
+ 	x.SetInt64(1000)          // x is automatically set to 64bit precision
+ 	y.SetFloat64(2.718281828) // y is automatically set to 53bit precision
+@@ -26,8 +26,8 @@ func ExampleFloat_Add() {
+ 	// z = 1002.718282 (0x.faadf854p+10, prec = 32, acc = Below)
+ }
+ 
+-func Example_Shift() {
+-	// Implementing Float "shift" by modifying the (binary) exponents directly.
++func ExampleFloat_shift() {
++	// Implement Float "shift" by modifying the (binary) exponents directly.
+ 	for s := -5; s <= 5; s++ {
+ 		x := big.NewFloat(0.5)
+ 		x.SetMantExp(x, x.MantExp(nil)+s) // shift x by s
+diff --git a/src/cmd/compile/internal/big/floatmarsh.go b/src/cmd/compile/internal/big/floatmarsh.go
+index 44987ee03a..3725d4b834 100644
+--- a/src/cmd/compile/internal/big/floatmarsh.go
++++ b/src/cmd/compile/internal/big/floatmarsh.go
+@@ -6,7 +6,94 @@
+ 
+ package big
+ 
+-import "fmt"
++import (
++	"encoding/binary"
++	"fmt"
++)
++
++// Gob codec version. Permits backward-compatible changes to the encoding.
++const floatGobVersion byte = 1
++
++// GobEncode implements the gob.GobEncoder interface.
++// The Float value and all its attributes (precision,
++// rounding mode, accuracy) are marshalled.
++func (x *Float) GobEncode() ([]byte, error) {
++	if x == nil {
++		return nil, nil
++	}
++
++	// determine max. space (bytes) required for encoding
++	sz := 1 + 1 + 4 // version + mode|acc|form|neg (3+2+2+1bit) + prec
++	n := 0          // number of mantissa words
++	if x.form == finite {
++		// add space for mantissa and exponent
++		n = int((x.prec + (_W - 1)) / _W) // required mantissa length in words for given precision
++		// actual mantissa slice could be shorter (trailing 0's) or longer (unused bits):
++		// - if shorter, only encode the words present
++		// - if longer, cut off unused words when encoding in bytes
++		//   (in practice, this should never happen since rounding
++		//   takes care of it, but be safe and do it always)
++		if len(x.mant) < n {
++			n = len(x.mant)
++		}
++		// len(x.mant) >= n
++		sz += 4 + n*_S // exp + mant
++	}
++	buf := make([]byte, sz)
++
++	buf[0] = floatGobVersion
++	b := byte(x.mode&7)<<5 | byte((x.acc+1)&3)<<3 | byte(x.form&3)<<1
++	if x.neg {
++		b |= 1
++	}
++	buf[1] = b
++	binary.BigEndian.PutUint32(buf[2:], x.prec)
++
++	if x.form == finite {
++		binary.BigEndian.PutUint32(buf[6:], uint32(x.exp))
++		x.mant[len(x.mant)-n:].bytes(buf[10:]) // cut off unused trailing words
++	}
++
++	return buf, nil
++}
++
++// GobDecode implements the gob.GobDecoder interface.
++// The result is rounded per the precision and rounding mode of
++// z unless z's precision is 0, in which case z is set exactly
++// to the decoded value.
++func (z *Float) GobDecode(buf []byte) error {
++	if len(buf) == 0 {
++		// Other side sent a nil or default value.
++		*z = Float{}
++		return nil
++	}
++
++	if buf[0] != floatGobVersion {
++		return fmt.Errorf("Float.GobDecode: encoding version %d not supported", buf[0])
++	}
++
++	oldPrec := z.prec
++	oldMode := z.mode
++
++	b := buf[1]
++	z.mode = RoundingMode((b >> 5) & 7)
++	z.acc = Accuracy((b>>3)&3) - 1
++	z.form = form((b >> 1) & 3)
++	z.neg = b&1 != 0
++	z.prec = binary.BigEndian.Uint32(buf[2:])
++
++	if z.form == finite {
++		z.exp = int32(binary.BigEndian.Uint32(buf[6:]))
++		z.mant = z.mant.setBytes(buf[10:])
++	}
++
++	if oldPrec != 0 {
++		z.mode = oldMode
++		z.SetPrec(uint(oldPrec))
++	}
++
++	return nil
++}
+ 
+ // MarshalText implements the encoding.TextMarshaler interface.
+ // Only the Float value is marshaled (in full precision), other
+diff --git a/src/cmd/compile/internal/big/floatmarsh_test.go b/src/cmd/compile/internal/big/floatmarsh_test.go
+index d7ef2fca68..5bd906ddae 100644
+--- a/src/cmd/compile/internal/big/floatmarsh_test.go
++++ b/src/cmd/compile/internal/big/floatmarsh_test.go
+@@ -5,7 +5,10 @@
+ package big
+ 
+ import (
++	"bytes"
++	"encoding/gob"
+ 	"encoding/json"
++	"io"
+ 	"testing"
+ )
+ 
+@@ -23,6 +26,85 @@ var floatVals = []string{
+ 	"Inf",
+ }
+ 
++func TestFloatGobEncoding(t *testing.T) {
++	var medium bytes.Buffer
++	enc := gob.NewEncoder(&medium)
++	dec := gob.NewDecoder(&medium)
++	for _, test := range floatVals {
++		for _, sign := range []string{"", "+", "-"} {
++			for _, prec := range []uint{0, 1, 2, 10, 53, 64, 100, 1000} {
++				for _, mode := range []RoundingMode{ToNearestEven, ToNearestAway, ToZero, AwayFromZero, ToNegativeInf, ToPositiveInf} {
++					medium.Reset() // empty buffer for each test case (in case of failures)
++					x := sign + test
++
++					var tx Float
++					_, _, err := tx.SetPrec(prec).SetMode(mode).Parse(x, 0)
++					if err != nil {
++						t.Errorf("parsing of %s (%dbits, %v) failed (invalid test case): %v", x, prec, mode, err)
++						continue
++					}
++
++					// If tx was set to prec == 0, tx.Parse(x, 0) assumes precision 64. Correct it.
++					if prec == 0 {
++						tx.SetPrec(0)
++					}
++
++					if err := enc.Encode(&tx); err != nil {
++						t.Errorf("encoding of %v (%dbits, %v) failed: %v", &tx, prec, mode, err)
++						continue
++					}
++
++					var rx Float
++					if err := dec.Decode(&rx); err != nil {
++						t.Errorf("decoding of %v (%dbits, %v) failed: %v", &tx, prec, mode, err)
++						continue
++					}
++
++					if rx.Cmp(&tx) != 0 {
++						t.Errorf("transmission of %s failed: got %s want %s", x, rx.String(), tx.String())
++						continue
++					}
++
++					if rx.Prec() != prec {
++						t.Errorf("transmission of %s's prec failed: got %d want %d", x, rx.Prec(), prec)
++					}
++
++					if rx.Mode() != mode {
++						t.Errorf("transmission of %s's mode failed: got %s want %s", x, rx.Mode(), mode)
++					}
++
++					if rx.Acc() != tx.Acc() {
++						t.Errorf("transmission of %s's accuracy failed: got %s want %s", x, rx.Acc(), tx.Acc())
++					}
++				}
++			}
++		}
++	}
++}
++
++func TestFloatCorruptGob(t *testing.T) {
++	var buf bytes.Buffer
++	tx := NewFloat(4 / 3).SetPrec(1000).SetMode(ToPositiveInf)
++	if err := gob.NewEncoder(&buf).Encode(tx); err != nil {
++		t.Fatal(err)
++	}
++	b := buf.Bytes()
++
++	var rx Float
++	if err := gob.NewDecoder(bytes.NewReader(b)).Decode(&rx); err != nil {
++		t.Fatal(err)
++	}
++
++	if err := gob.NewDecoder(bytes.NewReader(b[:10])).Decode(&rx); err != io.ErrUnexpectedEOF {
++		t.Errorf("got %v want EOF", err)
++	}
++
++	b[1] = 0
++	if err := gob.NewDecoder(bytes.NewReader(b)).Decode(&rx); err == nil {
++		t.Fatal("got nil want version error")
++	}
++}
++
+ func TestFloatJSONEncoding(t *testing.T) {
+ 	for _, test := range floatVals {
+ 		for _, sign := range []string{"", "+", "-"} {
+diff --git a/src/cmd/compile/internal/big/ftoa.go b/src/cmd/compile/internal/big/ftoa.go
+index 624ea5e073..57b16e1ad1 100644
+--- a/src/cmd/compile/internal/big/ftoa.go
++++ b/src/cmd/compile/internal/big/ftoa.go
+@@ -41,8 +41,11 @@ import (
+ // x.Prec() mantissa bits.
+ // The prec value is ignored for the 'b' or 'p' format.
+ func (x *Float) Text(format byte, prec int) string {
+-	const extra = 10 // TODO(gri) determine a good/better value here
+-	return string(x.Append(make([]byte, 0, prec+extra), format, prec))
++	cap := 10 // TODO(gri) determine a good/better value here
++	if prec > 0 {
++		cap += prec
++	}
++	return string(x.Append(make([]byte, 0, cap), format, prec))
+ }
+ 
+ // String formats x like x.Text('g', 10).
+diff --git a/src/cmd/compile/internal/big/gcd_test.go b/src/cmd/compile/internal/big/gcd_test.go
+index c0b9f58300..a929bf597f 100644
+--- a/src/cmd/compile/internal/big/gcd_test.go
++++ b/src/cmd/compile/internal/big/gcd_test.go
+@@ -20,13 +20,27 @@ func randInt(r *rand.Rand, size uint) *Int {
+ }
+ 
+ func runGCD(b *testing.B, aSize, bSize uint) {
++	b.Run("WithoutXY", func(b *testing.B) {
++		runGCDExt(b, aSize, bSize, false)
++	})
++	b.Run("WithXY", func(b *testing.B) {
++		runGCDExt(b, aSize, bSize, true)
++	})
++}
++
++func runGCDExt(b *testing.B, aSize, bSize uint, calcXY bool) {
+ 	b.StopTimer()
+ 	var r = rand.New(rand.NewSource(1234))
+ 	aa := randInt(r, aSize)
+ 	bb := randInt(r, bSize)
++	var x, y *Int
++	if calcXY {
++		x = new(Int)
++		y = new(Int)
++	}
+ 	b.StartTimer()
+ 	for i := 0; i < b.N; i++ {
+-		new(Int).GCD(nil, nil, aa, bb)
++		new(Int).GCD(x, y, aa, bb)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/big/int.go b/src/cmd/compile/internal/big/int.go
+index 67ab7042ff..f2a75d1cd5 100644
+--- a/src/cmd/compile/internal/big/int.go
++++ b/src/cmd/compile/internal/big/int.go
+@@ -459,11 +459,11 @@ func (z *Int) GCD(x, y, a, b *Int) *Int {
+ 	q := new(Int)
+ 	temp := new(Int)
+ 
++	r := new(Int)
+ 	for len(B.abs) > 0 {
+-		r := new(Int)
+ 		q, r = q.QuoRem(A, B, r)
+ 
+-		A, B = B, r
++		A, B, r = B, r, A
+ 
+ 		temp.Set(X)
+ 		X.Mul(X, q)
+diff --git a/src/cmd/compile/internal/big/nat.go b/src/cmd/compile/internal/big/nat.go
+index 7668b6481b..2e65d2a7ef 100644
+--- a/src/cmd/compile/internal/big/nat.go
++++ b/src/cmd/compile/internal/big/nat.go
+@@ -8,7 +8,10 @@
+ 
+ package big
+ 
+-import "math/rand"
++import (
++	"math/rand"
++	"sync"
++)
+ 
+ // An unsigned integer x of the form
+ //
+@@ -539,6 +542,21 @@ func (z nat) div(z2, u, v nat) (q, r nat) {
+ 	return
+ }
+ 
++// getNat returns a nat of len n. The contents may not be zero.
++func getNat(n int) nat {
++	var z nat
++	if v := natPool.Get(); v != nil {
++		z = v.(nat)
++	}
++	return z.make(n)
++}
++
++func putNat(x nat) {
++	natPool.Put(x)
++}
++
++var natPool sync.Pool
++
+ // q = (uIn-r)/v, with 0 <= r < y
+ // Uses z as storage for q, and u as storage for r if possible.
+ // See Knuth, Volume 2, section 4.3.1, Algorithm D.
+@@ -557,7 +575,7 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
+ 	}
+ 	q = z.make(m + 1)
+ 
+-	qhatv := make(nat, n+1)
++	qhatv := getNat(n + 1)
+ 	if alias(u, uIn) || alias(u, v) {
+ 		u = nil // u is an alias for uIn or v - cannot reuse
+ 	}
+@@ -565,10 +583,11 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
+ 	u.clear() // TODO(gri) no need to clear if we allocated a new u
+ 
+ 	// D1.
++	var v1 nat
+ 	shift := nlz(v[n-1])
+ 	if shift > 0 {
+ 		// do not modify v, it may be used by another goroutine simultaneously
+-		v1 := make(nat, n)
++		v1 = getNat(n)
+ 		shlVU(v1, v, shift)
+ 		v = v1
+ 	}
+@@ -609,6 +628,10 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
+ 
+ 		q[j] = qhat
+ 	}
++	if v1 != nil {
++		putNat(v1)
++	}
++	putNat(qhatv)
+ 
+ 	q = q.norm()
+ 	shrVU(u, u, shift)
+diff --git a/src/cmd/compile/internal/big/nat_test.go b/src/cmd/compile/internal/big/nat_test.go
+index 563ccb3052..ebb2985654 100644
+--- a/src/cmd/compile/internal/big/nat_test.go
++++ b/src/cmd/compile/internal/big/nat_test.go
+@@ -5,6 +5,7 @@
+ package big
+ 
+ import (
++	"fmt"
+ 	"runtime"
+ 	"strings"
+ 	"testing"
+@@ -509,24 +510,20 @@ func TestExpNN(t *testing.T) {
+ 	}
+ }
+ 
+-func ExpHelper(b *testing.B, x, y Word) {
+-	var z nat
+-	for i := 0; i < b.N; i++ {
+-		z.expWW(x, y)
++func BenchmarkExp3Power(b *testing.B) {
++	const x = 3
++	for _, y := range []Word{
++		0x10, 0x40, 0x100, 0x400, 0x1000, 0x4000, 0x10000, 0x40000, 0x100000, 0x400000,
++	} {
++		b.Run(fmt.Sprintf("%#x", y), func(b *testing.B) {
++			var z nat
++			for i := 0; i < b.N; i++ {
++				z.expWW(x, y)
++			}
++		})
+ 	}
+ }
+ 
+-func BenchmarkExp3Power0x10(b *testing.B)     { ExpHelper(b, 3, 0x10) }
+-func BenchmarkExp3Power0x40(b *testing.B)     { ExpHelper(b, 3, 0x40) }
+-func BenchmarkExp3Power0x100(b *testing.B)    { ExpHelper(b, 3, 0x100) }
+-func BenchmarkExp3Power0x400(b *testing.B)    { ExpHelper(b, 3, 0x400) }
+-func BenchmarkExp3Power0x1000(b *testing.B)   { ExpHelper(b, 3, 0x1000) }
+-func BenchmarkExp3Power0x4000(b *testing.B)   { ExpHelper(b, 3, 0x4000) }
+-func BenchmarkExp3Power0x10000(b *testing.B)  { ExpHelper(b, 3, 0x10000) }
+-func BenchmarkExp3Power0x40000(b *testing.B)  { ExpHelper(b, 3, 0x40000) }
+-func BenchmarkExp3Power0x100000(b *testing.B) { ExpHelper(b, 3, 0x100000) }
+-func BenchmarkExp3Power0x400000(b *testing.B) { ExpHelper(b, 3, 0x400000) }
+-
+ func fibo(n int) nat {
+ 	switch n {
+ 	case 0:
+diff --git a/src/cmd/compile/internal/big/natconv.go b/src/cmd/compile/internal/big/natconv.go
+index d2ce667fb6..44547842c1 100644
+--- a/src/cmd/compile/internal/big/natconv.go
++++ b/src/cmd/compile/internal/big/natconv.go
+@@ -302,7 +302,7 @@ func (x nat) itoa(neg bool, base int) []byte {
+ 		}
+ 
+ 	} else {
+-		bb, ndigits := maxPow(Word(b))
++		bb, ndigits := maxPow(b)
+ 
+ 		// construct table of successive squares of bb*leafSize to use in subdivisions
+ 		// result (table != nil) <=> (len(x) > leafSize > 0)
+@@ -391,7 +391,7 @@ func (q nat) convertWords(s []byte, b Word, ndigits int, bb Word, table []diviso
+ 				// this appears to be faster for BenchmarkString10000Base10
+ 				// and smaller strings (but a bit slower for larger ones)
+ 				t := r / 10
+-				s[i] = '0' + byte(r-t<<3-t-t) // TODO(gri) replace w/ t*10 once compiler produces better code
++				s[i] = '0' + byte(r-t*10)
+ 				r = t
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/big/natconv_test.go b/src/cmd/compile/internal/big/natconv_test.go
+index 028e5a858e..79901d1880 100644
+--- a/src/cmd/compile/internal/big/natconv_test.go
++++ b/src/cmd/compile/internal/big/natconv_test.go
+@@ -6,6 +6,7 @@ package big
+ 
+ import (
+ 	"bytes"
++	"fmt"
+ 	"io"
+ 	"strings"
+ 	"testing"
+@@ -273,102 +274,58 @@ func BenchmarkStringPiParallel(b *testing.B) {
+ 	})
+ }
+ 
+-func BenchmarkScan10Base2(b *testing.B)     { ScanHelper(b, 2, 10, 10) }
+-func BenchmarkScan100Base2(b *testing.B)    { ScanHelper(b, 2, 10, 100) }
+-func BenchmarkScan1000Base2(b *testing.B)   { ScanHelper(b, 2, 10, 1000) }
+-func BenchmarkScan10000Base2(b *testing.B)  { ScanHelper(b, 2, 10, 10000) }
+-func BenchmarkScan100000Base2(b *testing.B) { ScanHelper(b, 2, 10, 100000) }
+-
+-func BenchmarkScan10Base8(b *testing.B)     { ScanHelper(b, 8, 10, 10) }
+-func BenchmarkScan100Base8(b *testing.B)    { ScanHelper(b, 8, 10, 100) }
+-func BenchmarkScan1000Base8(b *testing.B)   { ScanHelper(b, 8, 10, 1000) }
+-func BenchmarkScan10000Base8(b *testing.B)  { ScanHelper(b, 8, 10, 10000) }
+-func BenchmarkScan100000Base8(b *testing.B) { ScanHelper(b, 8, 10, 100000) }
+-
+-func BenchmarkScan10Base10(b *testing.B)     { ScanHelper(b, 10, 10, 10) }
+-func BenchmarkScan100Base10(b *testing.B)    { ScanHelper(b, 10, 10, 100) }
+-func BenchmarkScan1000Base10(b *testing.B)   { ScanHelper(b, 10, 10, 1000) }
+-func BenchmarkScan10000Base10(b *testing.B)  { ScanHelper(b, 10, 10, 10000) }
+-func BenchmarkScan100000Base10(b *testing.B) { ScanHelper(b, 10, 10, 100000) }
+-
+-func BenchmarkScan10Base16(b *testing.B)     { ScanHelper(b, 16, 10, 10) }
+-func BenchmarkScan100Base16(b *testing.B)    { ScanHelper(b, 16, 10, 100) }
+-func BenchmarkScan1000Base16(b *testing.B)   { ScanHelper(b, 16, 10, 1000) }
+-func BenchmarkScan10000Base16(b *testing.B)  { ScanHelper(b, 16, 10, 10000) }
+-func BenchmarkScan100000Base16(b *testing.B) { ScanHelper(b, 16, 10, 100000) }
+-
+-func ScanHelper(b *testing.B, base int, x, y Word) {
+-	b.StopTimer()
+-	var z nat
+-	z = z.expWW(x, y)
+-
+-	s := z.utoa(base)
+-	if t := itoa(z, base); !bytes.Equal(s, t) {
+-		b.Fatalf("scanning: got %s; want %s", s, t)
++func BenchmarkScan(b *testing.B) {
++	const x = 10
++	for _, base := range []int{2, 8, 10, 16} {
++		for _, y := range []Word{10, 100, 1000, 10000, 100000} {
++			b.Run(fmt.Sprintf("%d/Base%d", y, base), func(b *testing.B) {
++				b.StopTimer()
++				var z nat
++				z = z.expWW(x, y)
++
++				s := z.utoa(base)
++				if t := itoa(z, base); !bytes.Equal(s, t) {
++					b.Fatalf("scanning: got %s; want %s", s, t)
++				}
++				b.StartTimer()
++
++				for i := 0; i < b.N; i++ {
++					z.scan(bytes.NewReader(s), base, false)
++				}
++			})
++		}
+ 	}
+-	b.StartTimer()
++}
+ 
+-	for i := 0; i < b.N; i++ {
+-		z.scan(bytes.NewReader(s), base, false)
++func BenchmarkString(b *testing.B) {
++	const x = 10
++	for _, base := range []int{2, 8, 10, 16} {
++		for _, y := range []Word{10, 100, 1000, 10000, 100000} {
++			b.Run(fmt.Sprintf("%d/Base%d", y, base), func(b *testing.B) {
++				b.StopTimer()
++				var z nat
++				z = z.expWW(x, y)
++				z.utoa(base) // warm divisor cache
++				b.StartTimer()
++
++				for i := 0; i < b.N; i++ {
++					_ = z.utoa(base)
++				}
++			})
++		}
+ 	}
+ }
+ 
+-func BenchmarkString10Base2(b *testing.B)     { StringHelper(b, 2, 10, 10) }
+-func BenchmarkString100Base2(b *testing.B)    { StringHelper(b, 2, 10, 100) }
+-func BenchmarkString1000Base2(b *testing.B)   { StringHelper(b, 2, 10, 1000) }
+-func BenchmarkString10000Base2(b *testing.B)  { StringHelper(b, 2, 10, 10000) }
+-func BenchmarkString100000Base2(b *testing.B) { StringHelper(b, 2, 10, 100000) }
+-
+-func BenchmarkString10Base8(b *testing.B)     { StringHelper(b, 8, 10, 10) }
+-func BenchmarkString100Base8(b *testing.B)    { StringHelper(b, 8, 10, 100) }
+-func BenchmarkString1000Base8(b *testing.B)   { StringHelper(b, 8, 10, 1000) }
+-func BenchmarkString10000Base8(b *testing.B)  { StringHelper(b, 8, 10, 10000) }
+-func BenchmarkString100000Base8(b *testing.B) { StringHelper(b, 8, 10, 100000) }
+-
+-func BenchmarkString10Base10(b *testing.B)     { StringHelper(b, 10, 10, 10) }
+-func BenchmarkString100Base10(b *testing.B)    { StringHelper(b, 10, 10, 100) }
+-func BenchmarkString1000Base10(b *testing.B)   { StringHelper(b, 10, 10, 1000) }
+-func BenchmarkString10000Base10(b *testing.B)  { StringHelper(b, 10, 10, 10000) }
+-func BenchmarkString100000Base10(b *testing.B) { StringHelper(b, 10, 10, 100000) }
+-
+-func BenchmarkString10Base16(b *testing.B)     { StringHelper(b, 16, 10, 10) }
+-func BenchmarkString100Base16(b *testing.B)    { StringHelper(b, 16, 10, 100) }
+-func BenchmarkString1000Base16(b *testing.B)   { StringHelper(b, 16, 10, 1000) }
+-func BenchmarkString10000Base16(b *testing.B)  { StringHelper(b, 16, 10, 10000) }
+-func BenchmarkString100000Base16(b *testing.B) { StringHelper(b, 16, 10, 100000) }
+-
+-func StringHelper(b *testing.B, base int, x, y Word) {
+-	b.StopTimer()
+-	var z nat
+-	z = z.expWW(x, y)
+-	z.utoa(base) // warm divisor cache
+-	b.StartTimer()
+-
+-	for i := 0; i < b.N; i++ {
+-		_ = z.utoa(base)
++func BenchmarkLeafSize(b *testing.B) {
++	for n := 0; n <= 16; n++ {
++		b.Run(fmt.Sprint(n), func(b *testing.B) { LeafSizeHelper(b, 10, n) })
++	}
++	// Try some large lengths
++	for _, n := range []int{32, 64} {
++		b.Run(fmt.Sprint(n), func(b *testing.B) { LeafSizeHelper(b, 10, n) })
+ 	}
+ }
+ 
+-func BenchmarkLeafSize0(b *testing.B)  { LeafSizeHelper(b, 10, 0) } // test without splitting
+-func BenchmarkLeafSize1(b *testing.B)  { LeafSizeHelper(b, 10, 1) }
+-func BenchmarkLeafSize2(b *testing.B)  { LeafSizeHelper(b, 10, 2) }
+-func BenchmarkLeafSize3(b *testing.B)  { LeafSizeHelper(b, 10, 3) }
+-func BenchmarkLeafSize4(b *testing.B)  { LeafSizeHelper(b, 10, 4) }
+-func BenchmarkLeafSize5(b *testing.B)  { LeafSizeHelper(b, 10, 5) }
+-func BenchmarkLeafSize6(b *testing.B)  { LeafSizeHelper(b, 10, 6) }
+-func BenchmarkLeafSize7(b *testing.B)  { LeafSizeHelper(b, 10, 7) }
+-func BenchmarkLeafSize8(b *testing.B)  { LeafSizeHelper(b, 10, 8) }
+-func BenchmarkLeafSize9(b *testing.B)  { LeafSizeHelper(b, 10, 9) }
+-func BenchmarkLeafSize10(b *testing.B) { LeafSizeHelper(b, 10, 10) }
+-func BenchmarkLeafSize11(b *testing.B) { LeafSizeHelper(b, 10, 11) }
+-func BenchmarkLeafSize12(b *testing.B) { LeafSizeHelper(b, 10, 12) }
+-func BenchmarkLeafSize13(b *testing.B) { LeafSizeHelper(b, 10, 13) }
+-func BenchmarkLeafSize14(b *testing.B) { LeafSizeHelper(b, 10, 14) }
+-func BenchmarkLeafSize15(b *testing.B) { LeafSizeHelper(b, 10, 15) }
+-func BenchmarkLeafSize16(b *testing.B) { LeafSizeHelper(b, 10, 16) }
+-func BenchmarkLeafSize32(b *testing.B) { LeafSizeHelper(b, 10, 32) } // try some large lengths
+-func BenchmarkLeafSize64(b *testing.B) { LeafSizeHelper(b, 10, 64) }
+-
+ func LeafSizeHelper(b *testing.B, base, size int) {
+ 	b.StopTimer()
+ 	originalLeafSize := leafSize
+diff --git a/src/cmd/compile/internal/big/ratconv.go b/src/cmd/compile/internal/big/ratconv.go
+index 57df124e88..ef2b6750d0 100644
+--- a/src/cmd/compile/internal/big/ratconv.go
++++ b/src/cmd/compile/internal/big/ratconv.go
+@@ -88,6 +88,12 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
+ 		return nil, false
+ 	}
+ 
++	// special-case 0 (see also issue #16176)
++	if len(z.a.abs) == 0 {
++		return z, true
++	}
++	// len(z.a.abs) > 0
++
+ 	// correct exponent
+ 	if ecorr < 0 {
+ 		exp += int64(ecorr)
+@@ -178,7 +184,7 @@ func scanExponent(r io.ByteScanner, binExpOk bool) (exp int64, base int, err err
+ 			}
+ 			break // i > 0
+ 		}
+-		digits = append(digits, byte(ch))
++		digits = append(digits, ch)
+ 	}
+ 	// i > 0 => we have at least one digit
+ 
+diff --git a/src/cmd/compile/internal/big/ratconv_test.go b/src/cmd/compile/internal/big/ratconv_test.go
+index 17bda47637..35ad6ccea7 100644
+--- a/src/cmd/compile/internal/big/ratconv_test.go
++++ b/src/cmd/compile/internal/big/ratconv_test.go
+@@ -48,6 +48,7 @@ var setStringTests = []StringTest{
+ 	{"53/70893980658822810696", "53/70893980658822810696", true},
+ 	{"106/141787961317645621392", "53/70893980658822810696", true},
+ 	{"204211327800791583.81095", "4084226556015831676219/20000", true},
++	{"0e9999999999", "0", true}, // issue #16176
+ 	{in: "1/0"},
+ }
+ 

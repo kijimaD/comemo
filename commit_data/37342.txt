@@ -7,7 +7,7 @@ Date:   Tue Jul 17 23:46:12 2018 -0400
     Change-Id: Iba185e00e9df2462e9089566053f6c64e24a6a92
     Reviewed-on: https://go-review.googlesource.com/124698
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/mod_test.go                           | 357 -----------------------
  src/cmd/go/testdata/script/mod_bad_domain.txt    |  21 ++
  src/cmd/go/testdata/script/mod_bad_filenames.txt |  11 +
@@ -17,3 +17,679 @@ Date:   Tue Jul 17 23:46:12 2018 -0400
  src/cmd/go/testdata/script/mod_list.txt          |  60 ++++
  src/cmd/go/testdata/script/mod_verify.txt        |  85 ++++++
  8 files changed, 251 insertions(+), 357 deletions(-)
+
+diff --git a/src/cmd/go/mod_test.go b/src/cmd/go/mod_test.go
+index 1a985eb774..8ba2ed31e2 100644
+--- a/src/cmd/go/mod_test.go
++++ b/src/cmd/go/mod_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"internal/testenv"
+ 	"io/ioutil"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"regexp"
+ 	"sort"
+@@ -635,62 +634,6 @@ func TestModGetUpgrade(t *testing.T) {
+ 	tg.grepStderr(`go get: disabled by -getmode=vendor`, "expected disabled")
+ }
+ 
+-func TestModPathCase(t *testing.T) {
+-	tg := testGoModules(t)
+-	defer tg.cleanup()
+-
+-	tg.run("get", "rsc.io/QUOTE")
+-
+-	tg.run("list", "-m", "all")
+-	tg.grepStdout(`^rsc.io/quote v1.5.2`, "want lower-case quote v1.5.2")
+-	tg.grepStdout(`^rsc.io/QUOTE v1.5.2`, "want upper-case quote v1.5.2")
+-
+-	// Note: the package is rsc.io/QUOTE/QUOTE to avoid
+-	// a case-sensitive import collision error in load/pkg.go.
+-	tg.run("list", "-f=DEPS {{.Deps}}\nDIR {{.Dir}}", "rsc.io/QUOTE/QUOTE")
+-	tg.grepStdout(`DEPS.*rsc.io/quote`, "want quote as dep")
+-	tg.grepStdout(`DIR.*!q!u!o!t!e`, "want !q!u!o!t!e in directory name")
+-}
+-
+-func TestModFileNames(t *testing.T) {
+-	tg := testGoModules(t)
+-	defer tg.cleanup()
+-
+-	tg.runFail("get",
+-		"rsc.io/badfile1",
+-		"rsc.io/badfile2",
+-		"rsc.io/badfile3",
+-		"rsc.io/badfile4",
+-		"rsc.io/badfile5",
+-	)
+-	tg.grepStderrNot(`unzip .*badfile1.*:`, "badfile1 should be OK")
+-	tg.grepStderr(`rsc.io/badfile2.*malformed file path "☺.go": invalid char '☺'`, "want diagnosed invalid character")
+-	tg.grepStderr(`rsc.io/badfile3.*malformed file path "x\?y.go": invalid char '\?'`, "want diagnosed invalid character")
+-	tg.grepStderr(`rsc.io/badfile4.*case-insensitive file name collision: "x/Y.go" and "x/y.go"`, "want case collision")
+-	tg.grepStderr(`rsc.io/badfile5.*case-insensitive file name collision: "x/y" and "x/Y"`, "want case collision")
+-}
+-
+-func TestModBadDomain(t *testing.T) {
+-	tg := testGoModules(t)
+-	defer tg.cleanup()
+-
+-	tg.tempFile("work/x.go", `
+-		package x
+-
+-		import _ "appengine"
+-		import _ "nonexistent.rsc.io" // domain does not exist
+-	`)
+-
+-	tg.runFail("get", "appengine")
+-	tg.grepStderr(`cannot find module providing package appengine`, "expected module error ")
+-	tg.runFail("get", "x/y.z")
+-	tg.grepStderr(`cannot find module providing package x/y.z`, "expected module error")
+-
+-	tg.runFail("build")
+-	tg.grepStderrNot("unknown module appengine: not a domain name", "expected nothing about appengine")
+-	tg.grepStderr("cannot find module providing package nonexistent.rsc.io", "expected error for nonexistent.rsc.io")
+-}
+-
+ func TestModSync(t *testing.T) {
+ 	tg := testGoModules(t)
+ 	defer tg.cleanup()
+@@ -851,306 +794,6 @@ func TestModVendor(t *testing.T) {
+ 	}
+ }
+ 
+-func TestModList(t *testing.T) {
+-	tg := testGoModules(t)
+-	defer tg.cleanup()
+-
+-	tg.setenv(homeEnvName(), tg.path("."))
+-	tg.must(os.MkdirAll(tg.path("x"), 0777))
+-	tg.must(ioutil.WriteFile(tg.path("x/x.go"), []byte(`
+-		package x
+-		import _ "rsc.io/quote"
+-	`), 0666))
+-	tg.must(ioutil.WriteFile(tg.path("x/go.mod"), []byte(`
+-		module x
+-		require rsc.io/quote v1.5.2
+-	`), 0666))
+-	tg.cd(tg.path("x"))
+-
+-	tg.run("list", "-m", "-f={{.Main}}: {{.Dir}}")
+-	tg.grepStdout(`^true: `, "expected main module to have Main=true")
+-	tg.grepStdout(regexp.QuoteMeta(tg.path("x")), "expected Dir of main module to be present")
+-
+-	tg.run("list", "-m", "-f={{.Main}}: {{.Dir}}", "rsc.io/quote")
+-	tg.grepStdout(`^false: `, "expected non-main module to have Main=false")
+-	tg.grepStdoutNot(`quote@`, "should not have local copy of code")
+-
+-	tg.run("list", "-f={{.Dir}}", "rsc.io/quote") // downloads code to load package
+-	tg.grepStdout(`mod[\\/]rsc.io[\\/]quote@v1.5.2`, "expected cached copy of code")
+-	dir := strings.TrimSpace(tg.getStdout())
+-	info, err := os.Stat(dir)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	if info.Mode()&0222 != 0 {
+-		t.Fatalf("%s should be unwritable", dir)
+-	}
+-	info, err = os.Stat(filepath.Join(dir, "buggy"))
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	if info.Mode()&0222 != 0 {
+-		t.Fatalf("%s should be unwritable", filepath.Join(dir, "buggy"))
+-	}
+-
+-	tg.run("clean", "-modcache")
+-	if _, err = os.Stat(dir); err == nil {
+-		t.Fatal("clean -modcache did not remove download dir")
+-	}
+-
+-	tg.must(ioutil.WriteFile(tg.path("x/go.mod"), []byte(`
+-		module x
+-		require rsc.io/quote v1.5.1
+-		replace rsc.io/sampler v1.3.0 => rsc.io/sampler v1.3.1
+-	`), 0666))
+-
+-	tg.run("list", "-f={{.Dir}}", "rsc.io/quote") // downloads code to load package
+-	tg.run("list", "-m", "-f={{.Path}} {{.Version}} {{.Dir}}{{with .Replace}} => {{.Version}} {{.Dir}}{{end}}", "all")
+-	tg.grepStdout(`mod[\\/]rsc.io[\\/]quote@v1.5.1`, "expected cached copy of code")
+-	tg.grepStdout(`v1.3.0 .*mod[\\/]rsc.io[\\/]sampler@v1.3.1 => v1.3.1 .*@v1.3.1`, "expected v1.3.1 replacement")
+-
+-	// check that list std works; also check that rsc.io/quote/buggy is a listable package
+-	tg.run("list", "std", "rsc.io/quote/buggy")
+-	tg.grepStdout("^math/big", "expected standard library")
+-
+-	tg.run("list", "-m", "-e", "-f={{.Path}} {{.Error.Err}}", "nonexist", "rsc.io/quote/buggy")
+-	tg.grepStdout(`^nonexist module "nonexist" is not a known dependency`, "expected error via template")
+-	tg.grepStdout(`^rsc.io/quote/buggy module "rsc.io/quote/buggy" is not a known dependency`, "expected error via template")
+-
+-	tg.runFail("list", "-m", "nonexist", "rsc.io/quote/buggy")
+-	tg.grepStderr(`go list -m nonexist: module "nonexist" is not a known dependency`, "expected error on stderr")
+-	tg.grepStderr(`go list -m rsc.io/quote/buggy: module "rsc.io/quote/buggy" is not a known dependency`, "expected error on stderr")
+-
+-	// Check that module loader does not interfere with list -e (golang.org/issue/24149).
+-	tg.run("list", "-e", "-f={{.ImportPath}} {{.Error.Err}}", "database")
+-	tg.grepStdout(`^database no Go files in `, "expected error via template")
+-	tg.runFail("list", "database")
+-	tg.grepStderr(`package database: no Go files`, "expected error on stderr")
+-
+-}
+-
+-func TestModInitLegacy(t *testing.T) {
+-	testenv.MustHaveExternalNetwork(t)
+-	if _, err := exec.LookPath("git"); err != nil {
+-		t.Skip("skipping because git binary not found")
+-	}
+-
+-	tg := testGoModules(t)
+-	defer tg.cleanup()
+-
+-	tg.setenv(homeEnvName(), tg.path("."))
+-	tg.must(os.MkdirAll(tg.path("x"), 0777))
+-	tg.must(ioutil.WriteFile(tg.path("x/x.go"), []byte(`
+-		package x
+-	`), 0666))
+-
+-	tg.must(ioutil.WriteFile(tg.path("x/go.mod"), []byte(`
+-		module x
+-	`), 0666))
+-	tg.must(ioutil.WriteFile(tg.path("x/Gopkg.lock"), []byte(`
+-[[projects]]
+-  name = "rsc.io/sampler"
+-  version = "v1.0.0"
+-	`), 0666))
+-
+-	tg.cd(tg.path("x"))
+-	tg.run("build", "-v")
+-	tg.grepStderr("copying requirements from .*Gopkg.lock", "did not copy Gopkg.lock")
+-	tg.run("list", "-m", "all")
+-	tg.grepStderrNot("copying requirements from .*Gopkg.lock", "should not copy Gopkg.lock again")
+-	tg.grepStdout("rsc.io/sampler.*v1.0.0", "did not copy Gopkg.lock")
+-
+-	tg.must(ioutil.WriteFile(tg.path("x/go.mod"), []byte(`
+-		module x
+-	`), 0666))
+-	tg.must(ioutil.WriteFile(tg.path("x/Gopkg.lock"), []byte(`
+-	`), 0666))
+-
+-	tg.run("list")
+-	tg.grepStderr("copying requirements from .*Gopkg.lock", "did not copy Gopkg.lock")
+-	tg.run("list")
+-	tg.grepStderrNot("copying requirements from .*Gopkg.lock", "should not copy Gopkg.lock again")
+-}
+-
+-func TestModInitLegacy2(t *testing.T) {
+-	testenv.MustHaveExternalNetwork(t)
+-	if _, err := exec.LookPath("git"); err != nil {
+-		t.Skip("skipping because git binary not found")
+-	}
+-
+-	tg := testGoModules(t)
+-	defer tg.cleanup()
+-
+-	tg.setenv(homeEnvName(), tg.path("."))
+-
+-	// Testing that on Windows the path x/Gopkg.lock turning into x\Gopkg.lock does not confuse converter.
+-	tg.must(os.MkdirAll(tg.path("x"), 0777))
+-	tg.must(ioutil.WriteFile(tg.path("x/Gopkg.lock"), []byte(`
+-	  [[projects]]
+-		name = "rsc.io/quote"
+-		packages = ["."]
+-		revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
+-		version = "v1.4.0"`), 0666))
+-	tg.must(ioutil.WriteFile(tg.path("x/main.go"), []byte("package x // import \"x\"\n import _ \"github.com/pkg/errors\""), 0666))
+-	tg.cd(tg.path("x"))
+-	tg.run("list", "-m", "all")
+-
+-	// If the conversion just ignored the Gopkg.lock entirely
+-	// it would choose a newer version (like v1.5.2 or maybe
+-	// something even newer). Check for the older version to
+-	// make sure Gopkg.lock was properly used.
+-	tg.grepStdout("v1.4.0", "expected rsc.io/quote at v1.4.0")
+-}
+-
+-func TestModVerify(t *testing.T) {
+-	tg := testGoModules(t)
+-	defer tg.cleanup()
+-
+-	gopath := tg.path("gp")
+-	tg.setenv("GOPATH", gopath)
+-	tg.must(os.MkdirAll(tg.path("x"), 0777))
+-	tg.must(ioutil.WriteFile(tg.path("x/go.mod"), []byte(`
+-		module x
+-		require rsc.io/quote v1.1.0
+-	`), 0666))
+-	tg.must(ioutil.WriteFile(tg.path("x/x.go"), []byte(`package x; import _ "rsc.io/quote"`), 0666))
+-
+-	// With correct go.sum,verify succeeds but avoids download.
+-	tg.must(ioutil.WriteFile(tg.path("x/go.sum"), []byte(`rsc.io/quote v1.1.0 h1:WdK/asTD0HN+q6hsWO3/vpuAkAr+tw6aNJNDFFf0+qw=
+-`), 0666))
+-	tg.cd(tg.path("x"))
+-	tg.run("mod", "-verify")
+-	tg.mustNotExist(filepath.Join(gopath, "src/mod/cache/download/rsc.io/quote/@v/v1.1.0.zip"))
+-	tg.mustNotExist(filepath.Join(gopath, "src/mod/github.com/pkg"))
+-
+-	// With incorrect sum, sync (which must download) fails.
+-	// Even if the incorrect sum is in the old legacy go.modverify file.
+-	tg.must(ioutil.WriteFile(tg.path("x/go.sum"), []byte(`
+-`), 0666))
+-	tg.must(ioutil.WriteFile(tg.path("x/go.modverify"), []byte(`rsc.io/quote v1.1.0 h1:a3YaZoizPtXyv6ZsJ74oo2L4/bwOSTKMY7MAyo4O/1c=
+-`), 0666))
+-	tg.runFail("mod", "-sync") // downloads pkg/errors
+-	tg.grepStderr("checksum mismatch", "must detect mismatch")
+-	tg.mustNotExist(filepath.Join(gopath, "src/mod/cache/download/rsc.io/quote/@v/v1.1.0.zip"))
+-	tg.mustNotExist(filepath.Join(gopath, "src/mod/github.com/pkg"))
+-
+-	// With corrected sum, sync works.
+-	tg.must(ioutil.WriteFile(tg.path("x/go.modverify"), []byte(`rsc.io/quote v1.1.0 h1:a3YaZoizPtXyv6ZsJ74oo2L4/bwOSTKMY7MAyo4O/0c=
+-`), 0666))
+-	tg.run("mod", "-sync")
+-	tg.mustExist(filepath.Join(gopath, "src/mod/cache/download/rsc.io/quote/@v/v1.1.0.zip"))
+-	tg.mustExist(filepath.Join(gopath, "src/mod/rsc.io"))
+-	tg.mustNotExist(tg.path("x/go.modverify")) // moved into go.sum
+-
+-	// Sync should have added sum for go.mod.
+-	data, err := ioutil.ReadFile(tg.path("x/go.sum"))
+-	if !strings.Contains(string(data), "\nrsc.io/quote v1.1.0/go.mod ") {
+-		t.Fatalf("cannot find go.mod hash in go.sum: %v\n%s", err, data)
+-	}
+-
+-	// Verify should work too.
+-	tg.run("mod", "-verify")
+-
+-	// Even the most basic attempt to load the module graph should detect incorrect go.mod files.
+-	tg.run("mod", "-graph") // loads module graph, is OK
+-	tg.must(ioutil.WriteFile(tg.path("x/go.sum"), []byte(`rsc.io/quote v1.1.0 a3YaZoizPtXyv6ZsJ74oo2L4/bwOSTKMY7MAyo4O/1c=
+-rsc.io/quote v1.1.0/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl1=
+-`), 0666))
+-	tg.runFail("mod", "-graph") // loads module graph, fails (even though sum is in old go.modverify file)
+-	tg.grepStderr("go.mod: checksum mismatch", "must detect mismatch")
+-
+-	// go.sum should be created and updated automatically.
+-	tg.must(os.Remove(tg.path("x/go.sum")))
+-	tg.run("mod", "-graph")
+-	tg.mustExist(tg.path("x/go.sum"))
+-	data, err = ioutil.ReadFile(tg.path("x/go.sum"))
+-	if !strings.Contains(string(data), " v1.1.0/go.mod ") {
+-		t.Fatalf("cannot find go.mod hash in go.sum: %v\n%s", err, data)
+-	}
+-	if strings.Contains(string(data), " v1.1.0 ") {
+-		t.Fatalf("unexpected module tree hash in go.sum: %v\n%s", err, data)
+-	}
+-	tg.run("mod", "-sync")
+-	data, err = ioutil.ReadFile(tg.path("x/go.sum"))
+-	if !strings.Contains(string(data), " v1.1.0/go.mod ") {
+-		t.Fatalf("cannot find go.mod hash in go.sum: %v\n%s", err, data)
+-	}
+-	if !strings.Contains(string(data), " v1.1.0 ") {
+-		t.Fatalf("cannot find module tree hash in go.sum: %v\n%s", err, data)
+-	}
+-
+-	tg.must(os.Remove(filepath.Join(gopath, "src/mod/cache/download/rsc.io/quote/@v/v1.1.0.ziphash")))
+-	tg.run("mod", "-sync") // ignores missing ziphash file for ordinary go.sum validation
+-
+-	tg.runFail("mod", "-verify") // explicit verify fails with missing ziphash
+-
+-	tg.run("mod", "-droprequire", "rsc.io/quote")
+-	tg.run("list", "rsc.io/quote/buggy")
+-	data, err = ioutil.ReadFile(tg.path("x/go.sum"))
+-	if strings.Contains(string(data), "buggy") {
+-		t.Fatalf("did not expect buggy in go.sum:\n%s", data)
+-	}
+-	if !strings.Contains(string(data), "rsc.io/quote v1.5.2/go.mod") {
+-		t.Fatalf("did expect rsc.io/quote go.mod in go.sum:\n%s", data)
+-	}
+-
+-	tg.run("mod", "-droprequire", "rsc.io/quote")
+-	tg.runFail("list", "rsc.io/quote/buggy/foo")
+-	data, err = ioutil.ReadFile(tg.path("x/go.sum"))
+-	if strings.Contains(string(data), "buggy") {
+-		t.Fatalf("did not expect buggy in go.sum:\n%s", data)
+-	}
+-	if !strings.Contains(string(data), "rsc.io/quote v1.5.2/go.mod") {
+-		t.Fatalf("did expect rsc.io/quote go.mod in go.sum:\n%s", data)
+-	}
+-
+-	tg.run("mod", "-droprequire", "rsc.io/quote")
+-	tg.runFail("list", "rsc.io/quote/morebuggy")
+-	if strings.Contains(string(data), "morebuggy") {
+-		t.Fatalf("did not expect morebuggy in go.sum:\n%s", data)
+-	}
+-	if !strings.Contains(string(data), "rsc.io/quote v1.5.2/go.mod") {
+-		t.Fatalf("did expect rsc.io/quote go.mod in go.sum:\n%s", data)
+-	}
+-}
+-
+-func TestModFileProxy(t *testing.T) {
+-	tg := testGoModules(t)
+-	defer tg.cleanup()
+-
+-	tg.setenv("GOPATH", tg.path("gp1"))
+-
+-	tg.must(os.MkdirAll(tg.path("x"), 0777))
+-	tg.must(ioutil.WriteFile(tg.path("x/main.go"), []byte(`package x; import _ "rsc.io/quote"`), 0666))
+-	tg.must(ioutil.WriteFile(tg.path("x/go.mod"), []byte(`module x
+-		require rsc.io/quote v1.5.1`), 0666))
+-	tg.cd(tg.path("x"))
+-	tg.run("list", "all")
+-	tg.run("list", "-getmode=local", "all")
+-	tg.mustExist(tg.path("gp1/src/mod/cache/download/rsc.io/quote/@v/list"))
+-
+-	// @v/list should contain version list.
+-	data, err := ioutil.ReadFile(tg.path("gp1/src/mod/cache/download/rsc.io/quote/@v/list"))
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	if !strings.Contains(string(data), "v1.5.1\n") {
+-		t.Fatalf("cannot find v1.5.1 in @v/list:\n%s", data)
+-	}
+-
+-	tg.setenv("GOPROXY", "file:///nonexist")
+-	tg.run("list", "-getmode=local", "all")
+-
+-	tg.setenv("GOPATH", tg.path("gp2"))
+-	tg.runFail("list", "-getmode=local", "all")
+-	tg.runFail("list", "all") // because GOPROXY is bogus
+-
+-	tg.setenv("GOPROXY", "file://"+filepath.ToSlash(tg.path("gp1/src/mod/cache/download")))
+-	tg.runFail("list", "-getmode=local", "all")
+-	tg.run("list", "all")
+-	tg.mustExist(tg.path("gp2/src/mod/cache/download/rsc.io/quote/@v/list"))
+-}
+-
+ func TestModMultiVersion(t *testing.T) {
+ 	tg := testGoModules(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/testdata/script/mod_bad_domain.txt b/src/cmd/go/testdata/script/mod_bad_domain.txt
+new file mode 100644
+index 0000000000..236564eeb2
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_bad_domain.txt
+@@ -0,0 +1,21 @@
++env GO111MODULE=on
++
++# explicit get should report errors about bad names
++! go get appengine
++stderr 'cannot find module providing package appengine'
++! go get x/y.z
++stderr 'cannot find module providing package x/y.z'
++
++# build should skip over appengine imports
++! go build
++! stderr appengine
++stderr 'cannot find module providing package nonexistent.rsc.io'
++
++-- go.mod --
++module x
++
++-- x.go --
++package x
++
++import _ "appengine"
++import _ "nonexistent.rsc.io" // domain does not exist
+diff --git a/src/cmd/go/testdata/script/mod_bad_filenames.txt b/src/cmd/go/testdata/script/mod_bad_filenames.txt
+new file mode 100644
+index 0000000000..b59e737c52
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_bad_filenames.txt
+@@ -0,0 +1,11 @@
++env GO111MODULE=on
++
++! go get rsc.io/badfile1 rsc.io/badfile2 rsc.io/badfile3 rsc.io/badfile4 rsc.io/badfile5
++! stderr 'unzip.*badfile1'
++stderr 'unzip.*badfile2/@v/v1.0.0.zip:.*malformed file path "☺.go": invalid char ''☺'''
++stderr 'unzip.*badfile3/@v/v1.0.0.zip: malformed file path "x\?y.go": invalid char ''\?'''
++stderr 'unzip.*badfile4/@v/v1.0.0.zip: case-insensitive file name collision: "x/Y.go" and "x/y.go"'
++stderr 'unzip.*badfile5/@v/v1.0.0.zip: case-insensitive file name collision: "x/y" and "x/Y"'
++
++-- go.mod --
++module x
+diff --git a/src/cmd/go/testdata/script/mod_case.txt b/src/cmd/go/testdata/script/mod_case.txt
+new file mode 100644
+index 0000000000..db21c13efe
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_case.txt
+@@ -0,0 +1,13 @@
++env GO111MODULE=on
++
++go get rsc.io/QUOTE
++go list -m all
++stdout '^rsc.io/quote v1.5.2'
++stdout '^rsc.io/QUOTE v1.5.2'
++
++go list -f 'DIR {{.Dir}} DEPS {{.Deps}}' rsc.io/QUOTE/QUOTE
++stdout 'DEPS.*rsc.io/quote'
++stdout 'DIR.*!q!u!o!t!e'
++
++-- go.mod --
++module x
+diff --git a/src/cmd/go/testdata/script/mod_file_proxy.txt b/src/cmd/go/testdata/script/mod_file_proxy.txt
+new file mode 100644
+index 0000000000..4e93ff1a9e
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_file_proxy.txt
+@@ -0,0 +1,27 @@
++# Use download cache for -getmode=local.
++env GO111MODULE=on
++env GOPATH=$WORK/gopath1
++cd $WORK/x
++! go list -getmode=local all
++go list all
++go list -getmode=local all
++env GOPROXY=file:///nonexist
++go list -getmode=local all
++grep v1.5.1 $GOPATH/src/mod/cache/download/rsc.io/quote/@v/list
++
++# Use download cache as file:/// proxy.
++env GOPATH=$WORK/gopath2
++env GOPROXY=file:///nonexist
++! go list -getmode=local all
++! go list all
++env GOPROXY=file://$WORK/gopath1/src/mod/cache/download
++! go list -getmode=local all
++go list all
++grep v1.5.1 $GOPATH/src/mod/cache/download/rsc.io/quote/@v/list
++
++-- $WORK/x/go.mod --
++module x
++require rsc.io/quote v1.5.1
++-- $WORK/x/x.go --
++package x
++import _ "rsc.io/quote"
+diff --git a/src/cmd/go/testdata/script/mod_init_dep.txt b/src/cmd/go/testdata/script/mod_init_dep.txt
+new file mode 100644
+index 0000000000..29c840b383
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_init_dep.txt
+@@ -0,0 +1,34 @@
++env GO111MODULE=on
++
++# modconv uses git directly to examine what old 'go get' would
++[!net] skip
++[!exec:git] skip
++
++# go build should populate go.mod from Gopkg.lock
++cp go.mod1 go.mod
++go build
++stderr 'copying requirements from Gopkg.lock'
++go list -m all
++! stderr 'copying requirements from Gopkg.lock'
++stdout 'rsc.io/sampler v1.0.0'
++
++# go list should populate go.mod from Gopkg.lock
++cp go.mod1 go.mod
++go list
++stderr 'copying requirements from Gopkg.lock'
++go list
++! stderr 'copying requirements from Gopkg.lock'
++go list -m all
++stdout 'rsc.io/sampler v1.0.0'
++
++-- go.mod1 --
++module x
++
++-- x.go --
++package x
++
++-- Gopkg.lock --
++[[projects]]
++  name = "rsc.io/sampler"
++  version = "v1.0.0"
++
+diff --git a/src/cmd/go/testdata/script/mod_list.txt b/src/cmd/go/testdata/script/mod_list.txt
+new file mode 100644
+index 0000000000..1597ebbf12
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_list.txt
+@@ -0,0 +1,60 @@
++env GO111MODULE=on
++
++# list {{.Dir}} shows main module but not not-yet-downloaded dependency
++go list -m -f '{{.Path}} {{.Main}} {{.Dir}}' all
++stdout '^x true .*[\\/]src$'
++stdout '^rsc.io/quote false $'
++
++# list {{.Dir}} shows dependency after download
++go list -f {{.Dir}} rsc.io/quote
++stdout 'mod[\\/]rsc.io[\\/]quote@v1.5.2'
++
++# downloaded dependencies are read-only
++exists -readonly $GOPATH/src/mod/rsc.io/quote@v1.5.2
++exists -readonly $GOPATH/src/mod/rsc.io/quote@v1.5.2/buggy
++
++# go clean -modcache can delete read-only dependencies
++go clean -modcache
++! exists $GOPATH/src/mod/rsc.io/quote@v1.5.2
++
++# list {{.Dir}} shows replaced directories
++cp go.mod2 go.mod
++go list -f {{.Dir}} rsc.io/quote
++go list -m -f '{{.Path}} {{.Version}} {{.Dir}}{{with .Replace}} => {{.Version}} {{.Dir}}{{end}}' all
++stdout 'mod[\\/]rsc.io[\\/]quote@v1.5.1'
++stdout 'v1.3.0.*mod[\\/]rsc.io[\\/]sampler@v1.3.1 => v1.3.1.*sampler@v1.3.1'
++
++# list std should work
++go list std
++stdout ^math/big
++
++# rsc.io/quote/buggy should be listable as a package
++go list rsc.io/quote/buggy
++
++# rsc.io/quote/buggy should not be listable as a module
++go list -m -e -f '{{.Error.Err}}' nonexist rsc.io/quote/buggy
++stdout '^module "nonexist" is not a known dependency'
++stdout '^module "rsc.io/quote/buggy" is not a known dependency'
++
++! go list -m nonexist rsc.io/quote/buggy
++stderr '^go list -m nonexist: module "nonexist" is not a known dependency'
++stderr '^go list -m rsc.io/quote/buggy: module "rsc.io/quote/buggy" is not a known dependency'
++
++# Module loader does not interfere with list -e (golang.org/issue/24149).
++go list -e -f '{{.Error.Err}}' database
++stdout 'no Go files in '
++! go list database
++stderr 'no Go files in '
++
++-- go.mod --
++module x
++require rsc.io/quote v1.5.2
++
++-- go.mod2 --
++module x
++require rsc.io/quote v1.5.1
++replace rsc.io/sampler v1.3.0 => rsc.io/sampler v1.3.1
++
++-- x.go --
++package x
++import _ "rsc.io/quote"
+diff --git a/src/cmd/go/testdata/script/mod_verify.txt b/src/cmd/go/testdata/script/mod_verify.txt
+new file mode 100644
+index 0000000000..249cee6d98
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_verify.txt
+@@ -0,0 +1,85 @@
++env GO111MODULE=on
++
++# With good go.sum, verify succeeds by avoiding download.
++cp go.sum.good go.sum
++go mod -verify
++! exists $GOPATH/src/mod/cache/download/rsc.io/quote/@v/v1.1.0.zip
++
++# With bad go.sum, verify succeeds by avoiding download.
++cp go.sum.bad go.sum
++go mod -verify
++! exists $GOPATH/src/mod/cache/download/rsc.io/quote/@v/v1.1.0.zip
++
++# With bad go.sum, sync (which must download) fails.
++# Even if the bad sum is in the old legacy go.modverify file.
++rm go.sum
++cp go.sum.bad go.modverify
++! go mod -sync
++stderr 'checksum mismatch'
++! exists $GOPATH/src/mod/cache/download/rsc.io/quote/@v/v1.1.0.zip
++
++# With good go.sum, sync works (and moves go.modverify to go.sum).
++rm go.sum
++cp go.sum.good go.modverify
++go mod -sync
++exists $GOPATH/src/mod/cache/download/rsc.io/quote/@v/v1.1.0.zip
++exists $GOPATH/src/mod/rsc.io/quote@v1.1.0/quote.go
++! exists go.modverify
++
++# go.sum should have the new checksum for go.mod
++grep '^rsc.io/quote v1.1.0/go.mod ' go.sum
++
++# verify should work
++go mod -verify
++
++# basic loading of module graph should detect incorrect go.mod files.
++go mod -graph
++cp go.sum.bad2 go.sum
++! go mod -graph
++stderr 'go.mod: checksum mismatch'
++
++# go.sum should be created and updated automatically.
++rm go.sum
++go mod -graph
++exists go.sum
++grep '^rsc.io/quote v1.1.0/go.mod ' go.sum
++! grep '^rsc.io/quote v1.1.0 ' go.sum
++
++go mod -sync
++grep '^rsc.io/quote v1.1.0/go.mod ' go.sum
++grep '^rsc.io/quote v1.1.0 ' go.sum
++
++# sync should ignore missing ziphash; verify should not
++rm $GOPATH/src/mod/cache/download/rsc.io/quote/@v/v1.1.0.ziphash
++go mod -sync
++! go mod -verify
++
++# Packages below module root should not be mentioned in go.sum.
++rm go.sum
++go mod -droprequire rsc.io/quote
++go list rsc.io/quote/buggy # re-resolves import path and updates go.mod
++grep '^rsc.io/quote v1.5.2/go.mod ' go.sum
++! grep buggy go.sum
++
++# non-existent packages below module root should not be mentioned in go.sum
++go mod -droprequire rsc.io/quote
++! go list rsc.io/quote/morebuggy
++grep '^rsc.io/quote v1.5.2/go.mod ' go.sum
++! grep buggy go.sum
++
++-- go.mod --
++module x
++require rsc.io/quote v1.1.0
++
++-- x.go --
++package x
++import _ "rsc.io/quote"
++
++-- go.sum.good --
++rsc.io/quote v1.1.0 h1:a3YaZoizPtXyv6ZsJ74oo2L4/bwOSTKMY7MAyo4O/0c=
++
++-- go.sum.bad --
++rsc.io/quote v1.1.0 h1:a3YaZoizPtXyv6ZsJ74oo2L4/bwOSTKMY7MAyo4O/1c=
++
++-- go.sum.bad2 --
++rsc.io/quote v1.1.0/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl1=

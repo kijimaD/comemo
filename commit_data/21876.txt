@@ -13,8 +13,480 @@ Date:   Mon Feb 9 16:59:31 2015 -0800
     Change-Id: I0d33980c08be3095b25d7b3d16bcad1aa7abbd0f
     Reviewed-on: https://go-review.googlesource.com/4292
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/math/big/float.go      | 225 +++++++++++++++++++++++++++++++--------------
  src/math/big/float_test.go | 126 ++++++++++++++++++++++++-
  src/math/big/floatconv.go  |   1 +
  3 files changed, 284 insertions(+), 68 deletions(-)
+
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index d280916d0d..d911143864 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -172,6 +172,86 @@ func (x *Float) Mode() RoundingMode {
+ 	return x.mode
+ }
+ 
++// Sign returns:
++//
++//	-1 if x <  0
++//	 0 if x == 0 or x == -0
++//	+1 if x >  0
++//
++func (x *Float) Sign() int {
++	s := 0
++	if len(x.mant) != 0 || x.exp == infExp {
++		s = 1 // non-zero x
++	}
++	if x.neg {
++		s = -s
++	}
++	return s
++}
++
++// MantExp breaks x into its mantissa and exponent components.
++// It returns mant and exp satisfying x == mant × 2**exp, with
++// the absolute value of mant satisfying 0.5 <= |mant| < 1.0.
++// mant has the same precision and rounding mode as x.
++//
++// Special cases are:
++//
++//	(  ±0).MantExp() =   ±0, 0
++//	(±Inf).MantExp() = ±Inf, 0
++//
++// MantExp does not modify x; the result mant is a new Float.
++func (x *Float) MantExp() (mant *Float, exp int) {
++	mant = new(Float).Copy(x)
++	if x.exp != infExp {
++		mant.exp = 0
++		exp = int(x.exp)
++	}
++	return
++}
++
++// SetMantExp is the inverse of MantExp. It sets z to mant × 2**exp and
++// and returns z. The result z has the same precision and rounding mode
++// as mant.
++//
++// Special cases are:
++//
++//	z.SetMantExp(  ±0, exp) =   ±0
++//	z.SetMantExp(±Inf, exp) = ±Inf
++//
++// The result is ±Inf if the magnitude of exp is > MaxExp.
++func (z *Float) SetMantExp(mant *Float, exp int) *Float {
++	z.Copy(mant)
++	if len(z.mant) == 0 || z.exp == infExp {
++		return z
++	}
++	z.setExp(int64(exp))
++	return z
++}
++
++// IsInt reports whether x is an integer.
++// ±Inf are not considered integers.
++func (x *Float) IsInt() bool {
++	// pick off easy cases
++	if len(x.mant) == 0 {
++		return x.exp != infExp // x == 0
++	}
++	// x != 0
++	if x.exp <= 0 {
++		return false // 0 < |x| <= 0.5
++	}
++	// x.exp > 0
++	if uint(x.exp) >= x.prec {
++		return true // not enough precision for fractional mantissa
++	}
++	if debugFloat {
++		x.validate()
++	}
++	// x.mant[len(x.mant)-1] != 0
++	// determine minimum required precision for x
++	minPrec := uint(len(x.mant))*_W - x.mant.trailingZeroBits()
++	return uint(x.exp) >= minPrec
++}
++
+ // IsInf reports whether x is an infinity, according to sign.
+ // If sign > 0, IsInf reports whether x is positive infinity.
+ // If sign < 0, IsInf reports whether x is negative infinity.
+@@ -181,7 +261,7 @@ func (x *Float) IsInf(sign int) bool {
+ }
+ 
+ // setExp sets the exponent for z.
+-// If the exponent's magnitude is too large, z becomes +/-Inf.
++// If the exponent's magnitude is too large, z becomes ±Inf.
+ func (z *Float) setExp(e int64) {
+ 	if -MaxExp <= e && e <= MaxExp {
+ 		z.exp = int32(e)
+@@ -374,9 +454,8 @@ func (z *Float) round(sbit uint) {
+ 
+ // Round sets z to the value of x rounded according to mode to prec bits and returns z.
+ // TODO(gri) rethink this signature.
+-// TODO(gri) adjust this to match precision semantics.
+ func (z *Float) Round(x *Float, prec uint, mode RoundingMode) *Float {
+-	z.Set(x)
++	z.Copy(x)
+ 	z.prec = prec
+ 	z.mode = mode
+ 	z.round(0)
+@@ -530,14 +609,38 @@ func (z *Float) SetRat(x *Rat) *Float {
+ 	return z.Quo(&a, &b)
+ }
+ 
+-// Set sets z to x, with the same precision as x, and returns z.
+-// TODO(gri) adjust this to match precision semantics.
++// Set sets z to the (possibly rounded) value of x and returns z.
++// If z's precision is 0, it is changed to the precision of x
++// before setting z (and rounding will have no effect).
++// Rounding is performed according to z's precision and rounding
++// mode; and z's accuracy reports the result error relative to the
++// exact (not rounded) result.
+ func (z *Float) Set(x *Float) *Float {
+ 	if z != x {
++		if z.prec == 0 {
++			z.prec = x.prec
++		}
++		z.acc = Exact
++		z.neg = x.neg
++		z.exp = x.exp
++		z.mant = z.mant.set(x.mant)
++		if z.prec < x.prec {
++			z.round(0)
++		}
++	}
++	return z
++}
++
++// Copy sets z to x, with the same precision and rounding mode as x,
++// and returns z.
++func (z *Float) Copy(x *Float) *Float {
++	if z != x {
++		z.acc = Exact
+ 		z.neg = x.neg
+ 		z.exp = x.exp
+ 		z.mant = z.mant.set(x.mant)
+ 		z.prec = x.prec
++		z.mode = x.mode
+ 	}
+ 	return z
+ }
+@@ -581,7 +684,7 @@ func (x *Float) Int64() int64 {
+ // by rounding to nearest with 53 bits precision.
+ // TODO(gri) implement/document error scenarios.
+ func (x *Float) Float64() (float64, Accuracy) {
+-	// x == +/-Inf
++	// x == ±Inf
+ 	if x.exp == infExp {
+ 		var sign int
+ 		if x.neg {
+@@ -604,40 +707,26 @@ func (x *Float) Float64() (float64, Accuracy) {
+ 	return math.Float64frombits(s | e<<52 | m), r.acc
+ }
+ 
+-func (x *Float) Int() *Int {
+-	if len(x.mant) == 0 {
+-		return new(Int)
+-	}
++// BUG(gri) Int is not yet implemented
++func (x *Float) Int() (*Int, Accuracy) {
+ 	panic("unimplemented")
+ }
+ 
++// BUG(gri) Rat is not yet implemented
+ func (x *Float) Rat() *Rat {
+ 	panic("unimplemented")
+ }
+ 
+-func (x *Float) IsInt() bool {
+-	if len(x.mant) == 0 {
+-		return true
+-	}
+-	if x.exp <= 0 {
+-		return false
+-	}
+-	if uint(x.exp) >= x.prec {
+-		return true
+-	}
+-	panic("unimplemented")
+-}
+-
+-// Abs sets z to |x| (the absolute value of x) and returns z.
+-// TODO(gri) adjust this to match precision semantics.
++// Abs sets z to the (possibly rounded) value |x| (the absolute value of x)
++// and returns z.
+ func (z *Float) Abs(x *Float) *Float {
+ 	z.Set(x)
+ 	z.neg = false
+ 	return z
+ }
+ 
+-// Neg sets z to x with its sign negated, and returns z.
+-// TODO(gri) adjust this to match precision semantics.
++// Neg sets z to the (possibly rounded) value of x with its sign negated,
++// and returns z.
+ func (z *Float) Neg(x *Float) *Float {
+ 	z.Set(x)
+ 	z.neg = !z.neg
+@@ -1022,52 +1111,31 @@ func (z *Float) Rsh(x *Float, s uint, mode RoundingMode) *Float {
+ //   +1 if x >  y
+ //
+ func (x *Float) Cmp(y *Float) int {
+-	// TODO(gri) handle Inf
++	if debugFloat {
++		x.validate()
++		y.validate()
++	}
++
++	mx := x.mag()
++	my := y.mag()
+ 
+-	// special cases
+-	switch {
+-	case len(x.mant) == 0:
+-		// 0 cmp y == -sign(y)
+-		return -y.Sign()
+-	case len(y.mant) == 0:
+-		// x cmp 0 == sign(x)
+-		return x.Sign()
+-	}
+-	// x != 0 && y != 0
+-
+-	// x cmp y == x cmp y
+-	// x cmp (-y) == 1
+-	// (-x) cmp y == -1
+-	// (-x) cmp (-y) == -(x cmp y)
+ 	switch {
+-	case x.neg == y.neg:
+-		r := x.ucmp(y)
+-		if x.neg {
+-			r = -r
+-		}
+-		return r
+-	case x.neg:
++	case mx < my:
+ 		return -1
+-	default:
+-		return 1
++	case mx > my:
++		return +1
+ 	}
+-	return 0
+-}
++	// mx == my
+ 
+-// Sign returns:
+-//
+-//	-1 if x <  0
+-//	 0 if x == 0 (incl. x == -0) // TODO(gri) is this correct?
+-//	+1 if x >  0
+-//
+-func (x *Float) Sign() int {
+-	if len(x.mant) == 0 {
+-		return 0
+-	}
+-	if x.neg {
+-		return -1
++	// only if |mx| == 1 we have to compare the mantissae
++	switch mx {
++	case -1:
++		return -x.ucmp(y)
++	case +1:
++		return +x.ucmp(y)
+ 	}
+-	return 1
++
++	return 0
+ }
+ 
+ func umax(x, y uint) uint {
+@@ -1076,3 +1144,26 @@ func umax(x, y uint) uint {
+ 	}
+ 	return y
+ }
++
++// mag returns:
++//
++//	-2 if x == -Inf
++//	-1 if x < 0
++//	 0 if x == -0 or x == +0
++//	+1 if x > 0
++//	+2 if x == +Inf
++//
++// mag is a helper function for Cmp.
++func (x *Float) mag() int {
++	m := 1
++	if len(x.mant) == 0 {
++		m = 0
++		if x.exp == infExp {
++			m = 2
++		}
++	}
++	if x.neg {
++		m = -m
++	}
++	return m
++}
+diff --git a/src/math/big/float_test.go b/src/math/big/float_test.go
+index 89212094cd..e4c2e1ad99 100644
+--- a/src/math/big/float_test.go
++++ b/src/math/big/float_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"math"
+ 	"sort"
+ 	"strconv"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -66,7 +67,126 @@ func TestFloatZeroValue(t *testing.T) {
+ 	// TODO(gri) test how precision is set for zero value results
+ }
+ 
+-func TestFloatInf(t *testing.T) {
++func makeFloat(s string) *Float {
++	if s == "Inf" || s == "+Inf" {
++		return NewInf(+1)
++	}
++	if s == "-Inf" {
++		return NewInf(-1)
++	}
++	var x Float
++	x.prec = 100 // TODO(gri) find a better way to do this
++	if _, ok := x.SetString(s); !ok {
++		panic(fmt.Sprintf("%q is not a valid float", s))
++	}
++	return &x
++}
++
++func TestFloatSign(t *testing.T) {
++	for _, test := range []struct {
++		x string
++		s int
++	}{
++		{"-Inf", -1},
++		{"-1", -1},
++		{"-0", 0},
++		{"+0", 0},
++		{"+1", +1},
++		{"+Inf", +1},
++	} {
++		x := makeFloat(test.x)
++		s := x.Sign()
++		if s != test.s {
++			t.Errorf("%s.Sign() = %d; want %d", test.x, s, test.s)
++		}
++	}
++}
++
++// feq(x, y) is like x.Cmp(y) == 0 but it also considers the sign of 0 (0 != -0).
++func feq(x, y *Float) bool {
++	return x.Cmp(y) == 0 && x.neg == y.neg
++}
++
++func TestFloatMantExp(t *testing.T) {
++	for _, test := range []struct {
++		x    string
++		frac string
++		exp  int
++	}{
++		{"0", "0", 0},
++		{"+0", "0", 0},
++		{"-0", "-0", 0},
++		{"Inf", "+Inf", 0},
++		{"+Inf", "+Inf", 0},
++		{"-Inf", "-Inf", 0},
++		{"1.5", "0.75", 1},
++		{"1.024e3", "0.5", 11},
++		{"-0.125", "-0.5", -2},
++	} {
++		x := makeFloat(test.x)
++		frac := makeFloat(test.frac)
++		f, e := x.MantExp()
++		if !feq(f, frac) || e != test.exp {
++			t.Errorf("%s.MantExp() = %s, %d; want %s, %d", test.x, f.Format('g', 10), e, test.frac, test.exp)
++		}
++	}
++}
++
++func TestFloatSetMantExp(t *testing.T) {
++	for _, test := range []struct {
++		frac string
++		exp  int
++		z    string
++	}{
++		{"0", 0, "0"},
++		{"+0", 0, "0"},
++		{"-0", 0, "-0"},
++		{"Inf", 1234, "+Inf"},
++		{"+Inf", -1234, "+Inf"},
++		{"-Inf", -1234, "-Inf"},
++		{"0", -MaxExp - 1, "0"},
++		{"1", -MaxExp - 1, "+Inf"},  // exponent magnitude too large
++		{"-1", -MaxExp - 1, "-Inf"}, // exponent magnitude too large
++		{"0.75", 1, "1.5"},
++		{"0.5", 11, "1024"},
++		{"-0.5", -2, "-0.125"},
++	} {
++		frac := makeFloat(test.frac)
++		want := makeFloat(test.z)
++		var z Float
++		z.SetMantExp(frac, test.exp)
++		if !feq(&z, want) {
++			t.Errorf("SetMantExp(%s, %d) = %s; want %s", test.frac, test.exp, z.Format('g', 10), test.z)
++		}
++	}
++}
++
++func TestFloatIsInt(t *testing.T) {
++	for _, test := range []string{
++		"0 int",
++		"-0 int",
++		"1 int",
++		"-1 int",
++		"0.5",
++		"1.23",
++		"1.23e1",
++		"1.23e2 int",
++		"0.000000001e+8",
++		"0.000000001e+9 int",
++		"1.2345e200 int",
++		"Inf",
++		"+Inf",
++		"-Inf",
++	} {
++		s := strings.TrimSuffix(test, " int")
++		want := s != test
++		if got := makeFloat(s).IsInt(); got != want {
++			t.Errorf("%s.IsInt() == %t", s, got)
++		}
++	}
++}
++
++func TestFloatIsInf(t *testing.T) {
+ 	// TODO(gri) implement this
+ }
+ 
+@@ -709,6 +829,10 @@ func TestFloatQuoSmoke(t *testing.T) {
+ 	}
+ }
+ 
++func TestFloatCmp(t *testing.T) {
++	// TODO(gri) implement this
++}
++
+ // normBits returns the normalized bits for x: It
+ // removes multiple equal entries by treating them
+ // as an addition (e.g., []int{5, 5} => []int{6}),
+diff --git a/src/math/big/floatconv.go b/src/math/big/floatconv.go
+index e3611b234b..71920cd51c 100644
+--- a/src/math/big/floatconv.go
++++ b/src/math/big/floatconv.go
+@@ -57,6 +57,7 @@ func (z *Float) SetString(s string) (*Float, bool) {
+ // with base 0 or 10 corresponds to the value 1.2 * 2**3.
+ //
+ // BUG(gri) This signature conflicts with Scan(s fmt.ScanState, ch rune) error.
++// TODO(gri) What should the default precision be?
+ func (z *Float) Scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
+ 	// sign
+ 	z.neg, err = scanSign(r)

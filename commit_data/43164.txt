@@ -128,3 +128,26 @@ Date:   Fri Mar 13 14:45:05 2020 -0400
  test/fixedbugs/issue37753.go                       |    18 +
  test/run.go                                        |    28 +-
  118 files changed, 7707 insertions(+), 14886 deletions(-)
+
+diff --cc src/cmd/link/internal/ld/pe.go
+index 5b66deeba2,f775132393..fdfb9962e5
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@@ -1524,13 -1486,13 +1492,13 @@@ func addpersrc(ctxt *Link) 
+  		p[3] = byte(val >> 24)
+  	}
+  
+ -	ctxt.Out.Write(rsrcsym.P)
+ -	h.pad(ctxt.Out, uint32(rsrcsym.Size))
+ +	ctxt.Out.Write(data)
+ +	h.pad(ctxt.Out, uint32(size))
+  
+  	// update data directory
+- 	pefile.dataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE].VirtualAddress = h.virtualAddress
++ 	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_RESOURCE].VirtualAddress = h.virtualAddress
+  
+- 	pefile.dataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE].Size = h.virtualSize
++ 	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_RESOURCE].Size = h.virtualSize
+  }
+  
+  func Asmbpe(ctxt *Link) {

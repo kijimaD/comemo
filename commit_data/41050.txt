@@ -13,6 +13,18 @@ Date:   Fri Aug 30 05:36:14 2019 +0000
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/README | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/README b/src/cmd/compile/internal/ssa/gen/README
+index 6731b970b3..6d2c6bb477 100644
+--- a/src/cmd/compile/internal/ssa/gen/README
++++ b/src/cmd/compile/internal/ssa/gen/README
+@@ -3,5 +3,5 @@
+ // license that can be found in the LICENSE file.
+ 
+ This package generates opcode tables, rewrite rules, etc. for the ssa compiler.
+-Run it with:
++Run it with go-1.13 (or above):
+    go run *.go

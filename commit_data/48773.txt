@@ -100,7 +100,7 @@ Date:   Thu May 13 20:23:13 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/noder/codes.go            |  126 ++
  src/cmd/compile/internal/noder/decoder.go          |  243 +++
  src/cmd/compile/internal/noder/encoder.go          |  245 +++
@@ -114,3 +114,6240 @@ Date:   Thu May 13 20:23:13 2021 -0700
  src/cmd/compile/internal/noder/unified.go          |  276 +++
  src/cmd/compile/internal/noder/writer.go           | 1746 +++++++++++++++++
  12 files changed, 6164 insertions(+)
+
+diff --git a/src/cmd/compile/internal/noder/codes.go b/src/cmd/compile/internal/noder/codes.go
+new file mode 100644
+index 0000000000..4a6a4e8307
+--- /dev/null
++++ b/src/cmd/compile/internal/noder/codes.go
+@@ -0,0 +1,126 @@
++// UNREVIEWED
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package noder
++
++type code interface {
++	marker() syncMarker
++	value() int
++}
++
++type codeVal int
++
++func (c codeVal) marker() syncMarker { return syncVal }
++func (c codeVal) value() int         { return int(c) }
++
++const (
++	valBool codeVal = iota
++	valString
++	valInt64
++	valBigInt
++	valBigRat
++	valBigFloat
++)
++
++type codeType int
++
++func (c codeType) marker() syncMarker { return syncType }
++func (c codeType) value() int         { return int(c) }
++
++const (
++	typeBasic codeType = iota
++	typeNamed
++	typePointer
++	typeSlice
++	typeArray
++	typeChan
++	typeMap
++	typeSignature
++	typeStruct
++	typeInterface
++	typeUnion
++	typeTypeParam
++)
++
++type codeObj int
++
++func (c codeObj) marker() syncMarker { return syncCodeObj }
++func (c codeObj) value() int         { return int(c) }
++
++const (
++	objAlias codeObj = iota
++	objConst
++	objType
++	objFunc
++	objVar
++	objStub
++)
++
++type codeStmt int
++
++func (c codeStmt) marker() syncMarker { return syncStmt1 }
++func (c codeStmt) value() int         { return int(c) }
++
++const (
++	stmtEnd codeStmt = iota
++	stmtLabel
++	stmtBlock
++	stmtExpr
++	stmtSend
++	stmtAssign
++	stmtAssignOp
++	stmtIncDec
++	stmtBranch
++	stmtCall
++	stmtReturn
++	stmtIf
++	stmtFor
++	stmtSwitch
++	stmtSelect
++
++	// TODO(mdempsky): Remove after we don't care about toolstash -cmp.
++	stmtTypeDeclHack
++)
++
++type codeExpr int
++
++func (c codeExpr) marker() syncMarker { return syncExpr }
++func (c codeExpr) value() int         { return int(c) }
++
++// TODO(mdempsky): Split expr into addr, for lvalues.
++const (
++	exprNone codeExpr = iota
++	exprConst
++	exprType  // type expression
++	exprLocal // local variable
++	exprName  // global variable or function
++	exprBlank
++	exprCompLit
++	exprFuncLit
++	exprSelector
++	exprIndex
++	exprSlice
++	exprAssert
++	exprUnaryOp
++	exprBinaryOp
++	exprCall
++
++	// TODO(mdempsky): Handle in switchStmt directly instead.
++	exprTypeSwitchGuard
++)
++
++type codeDecl int
++
++func (c codeDecl) marker() syncMarker { return syncDecl }
++func (c codeDecl) value() int         { return int(c) }
++
++const (
++	declEnd codeDecl = iota
++	declFunc
++	declMethod
++	declVar
++	declOther
++)
+diff --git a/src/cmd/compile/internal/noder/decoder.go b/src/cmd/compile/internal/noder/decoder.go
+new file mode 100644
+index 0000000000..023388875c
+--- /dev/null
++++ b/src/cmd/compile/internal/noder/decoder.go
+@@ -0,0 +1,243 @@
++// UNREVIEWED
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package noder
++
++import (
++	"encoding/binary"
++	"fmt"
++	"go/constant"
++	"go/token"
++	"math/big"
++	"os"
++	"strings"
++
++	"cmd/compile/internal/base"
++)
++
++type pkgDecoder struct {
++	pkgPath string
++
++	elemEndsEnds [numRelocs]uint32
++	elemEnds     []uint32
++	elemData     string
++}
++
++func newPkgDecoder(pkgPath, input string) pkgDecoder {
++	pr := pkgDecoder{
++		pkgPath: pkgPath,
++	}
++
++	// TODO(mdempsky): Implement direct indexing of input string to
++	// avoid copying the position information.
++
++	r := strings.NewReader(input)
++
++	assert(binary.Read(r, binary.LittleEndian, pr.elemEndsEnds[:]) == nil)
++
++	pr.elemEnds = make([]uint32, pr.elemEndsEnds[len(pr.elemEndsEnds)-1])
++	assert(binary.Read(r, binary.LittleEndian, pr.elemEnds[:]) == nil)
++
++	pos, err := r.Seek(0, os.SEEK_CUR)
++	assert(err == nil)
++
++	pr.elemData = input[pos:]
++	assert(len(pr.elemData) == int(pr.elemEnds[len(pr.elemEnds)-1]))
++
++	return pr
++}
++
++func (pr *pkgDecoder) numElems(k reloc) int {
++	count := int(pr.elemEndsEnds[k])
++	if k > 0 {
++		count -= int(pr.elemEndsEnds[k-1])
++	}
++	return count
++}
++
++func (pr *pkgDecoder) totalElems() int {
++	return len(pr.elemEnds)
++}
++
++func (pr *pkgDecoder) absIdx(k reloc, idx int) int {
++	absIdx := idx
++	if k > 0 {
++		absIdx += int(pr.elemEndsEnds[k-1])
++	}
++	if absIdx >= int(pr.elemEndsEnds[k]) {
++		base.Fatalf("%v:%v is out of bounds; %v", k, idx, pr.elemEndsEnds)
++	}
++	return absIdx
++}
++
++func (pr *pkgDecoder) dataIdx(k reloc, idx int) string {
++	absIdx := pr.absIdx(k, idx)
++
++	var start uint32
++	if absIdx > 0 {
++		start = pr.elemEnds[absIdx-1]
++	}
++	end := pr.elemEnds[absIdx]
++
++	return pr.elemData[start:end]
++}
++
++func (pr *pkgDecoder) stringIdx(idx int) string {
++	return pr.dataIdx(relocString, idx)
++}
++
++func (pr *pkgDecoder) newDecoder(k reloc, idx int, marker syncMarker) decoder {
++	r := pr.newDecoderRaw(k, idx)
++	r.sync(marker)
++	return r
++}
++
++func (pr *pkgDecoder) newDecoderRaw(k reloc, idx int) decoder {
++	r := decoder{
++		common: pr,
++		k:      k,
++		idx:    idx,
++	}
++
++	// TODO(mdempsky) r.data.Reset(...) after #44505 is resolved.
++	r.data = *strings.NewReader(pr.dataIdx(k, idx))
++
++	r.sync(syncRelocs)
++	r.relocs = make([]relocEnt, r.len())
++	for i := range r.relocs {
++		r.sync(syncReloc)
++		r.relocs[i] = relocEnt{reloc(r.len()), r.len()}
++	}
++
++	return r
++}
++
++type decoder struct {
++	common *pkgDecoder
++
++	relocs []relocEnt
++	data   strings.Reader
++
++	k   reloc
++	idx int
++}
++
++func (r *decoder) checkErr(err error) {
++	if err != nil {
++		base.Fatalf("unexpected error: %v", err)
++	}
++}
++
++func (r *decoder) sync(m syncMarker) {
++	if debug {
++		pos, err0 := r.data.Seek(0, os.SEEK_CUR)
++		x, err := r.data.ReadByte()
++		r.checkErr(err)
++		if x != byte(m) {
++			// TODO(mdempsky): Revisit this error message, and make it more
++			// useful (e.g., include r.p.pkgPath).
++			base.Fatalf("data sync error: found %v at %v (%v) in (%v:%v), but expected %v", syncMarker(x), pos, err0, r.k, r.idx, m)
++		}
++	}
++}
++
++func (r *decoder) bool() bool {
++	r.sync(syncBool)
++	x, err := r.data.ReadByte()
++	r.checkErr(err)
++	assert(x < 2)
++	return x != 0
++}
++
++func (r *decoder) int64() int64 {
++	r.sync(syncInt64)
++	x, err := binary.ReadVarint(&r.data)
++	r.checkErr(err)
++	return x
++}
++
++func (r *decoder) uint64() uint64 {
++	r.sync(syncUint64)
++	x, err := binary.ReadUvarint(&r.data)
++	r.checkErr(err)
++	return x
++}
++
++func (r *decoder) len() int   { x := r.uint64(); v := int(x); assert(uint64(v) == x); return v }
++func (r *decoder) int() int   { x := r.int64(); v := int(x); assert(int64(v) == x); return v }
++func (r *decoder) uint() uint { x := r.uint64(); v := uint(x); assert(uint64(v) == x); return v }
++
++func (r *decoder) code(mark syncMarker) int {
++	r.sync(mark)
++	return r.len()
++}
++
++func (r *decoder) reloc(k reloc) int {
++	r.sync(syncUseReloc)
++	idx := r.len()
++
++	e := r.relocs[idx]
++	assert(e.kind == k)
++	return e.idx
++}
++
++func (r *decoder) string() string {
++	r.sync(syncString)
++	return r.common.stringIdx(r.reloc(relocString))
++}
++
++func (r *decoder) strings() []string {
++	res := make([]string, r.len())
++	for i := range res {
++		res[i] = r.string()
++	}
++	return res
++}
++
++func (r *decoder) rawValue() constant.Value {
++	isComplex := r.bool()
++	val := r.scalar()
++	if isComplex {
++		val = constant.BinaryOp(val, token.ADD, constant.MakeImag(r.scalar()))
++	}
++	return val
++}
++
++func (r *decoder) scalar() constant.Value {
++	switch tag := codeVal(r.code(syncVal)); tag {
++	default:
++		panic(fmt.Sprintf("unexpected scalar tag: %v", tag))
++
++	case valBool:
++		return constant.MakeBool(r.bool())
++	case valString:
++		return constant.MakeString(r.string())
++	case valInt64:
++		return constant.MakeInt64(r.int64())
++	case valBigInt:
++		return constant.Make(r.bigInt())
++	case valBigRat:
++		num := r.bigInt()
++		denom := r.bigInt()
++		return constant.Make(new(big.Rat).SetFrac(num, denom))
++	case valBigFloat:
++		return constant.Make(r.bigFloat())
++	}
++}
++
++func (r *decoder) bigInt() *big.Int {
++	v := new(big.Int).SetBytes([]byte(r.string()))
++	if r.bool() {
++		v.Neg(v)
++	}
++	return v
++}
++
++func (r *decoder) bigFloat() *big.Float {
++	v := new(big.Float).SetPrec(512)
++	assert(v.UnmarshalText([]byte(r.string())) == nil)
++	return v
++}
+diff --git a/src/cmd/compile/internal/noder/encoder.go b/src/cmd/compile/internal/noder/encoder.go
+new file mode 100644
+index 0000000000..dc288dc29f
+--- /dev/null
++++ b/src/cmd/compile/internal/noder/encoder.go
+@@ -0,0 +1,245 @@
++// UNREVIEWED
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package noder
++
++import (
++	"bytes"
++	"encoding/binary"
++	"fmt"
++	"go/constant"
++	"io"
++	"math/big"
++
++	"cmd/compile/internal/base"
++)
++
++type pkgEncoder struct {
++	elems [numRelocs][]string
++
++	stringsIdx map[string]int
++}
++
++func newPkgEncoder() pkgEncoder {
++	return pkgEncoder{
++		stringsIdx: make(map[string]int),
++	}
++}
++
++func (pw *pkgEncoder) dump(out io.Writer) {
++	writeUint32 := func(x uint32) {
++		assert(binary.Write(out, binary.LittleEndian, x) == nil)
++	}
++
++	var sum uint32
++	for _, elems := range &pw.elems {
++		sum += uint32(len(elems))
++		writeUint32(sum)
++	}
++
++	sum = 0
++	for _, elems := range &pw.elems {
++		for _, elem := range elems {
++			sum += uint32(len(elem))
++			writeUint32(sum)
++		}
++	}
++
++	for _, elems := range &pw.elems {
++		for _, elem := range elems {
++			_, err := io.WriteString(out, elem)
++			assert(err == nil)
++		}
++	}
++}
++
++func (pw *pkgEncoder) stringIdx(s string) int {
++	if idx, ok := pw.stringsIdx[s]; ok {
++		assert(pw.elems[relocString][idx] == s)
++		return idx
++	}
++
++	idx := len(pw.elems[relocString])
++	pw.elems[relocString] = append(pw.elems[relocString], s)
++	pw.stringsIdx[s] = idx
++	return idx
++}
++
++func (pw *pkgEncoder) newEncoder(k reloc, marker syncMarker) encoder {
++	e := pw.newEncoderRaw(k)
++	e.sync(marker)
++	return e
++}
++
++func (pw *pkgEncoder) newEncoderRaw(k reloc) encoder {
++	idx := len(pw.elems[k])
++	pw.elems[k] = append(pw.elems[k], "") // placeholder
++
++	return encoder{
++		p:   pw,
++		k:   k,
++		idx: idx,
++	}
++}
++
++// Encoders
++
++type encoder struct {
++	p *pkgEncoder
++
++	relocs []relocEnt
++	data   bytes.Buffer
++
++	k   reloc
++	idx int
++}
++
++func (w *encoder) flush() int {
++	var sb bytes.Buffer // TODO(mdempsky): strings.Builder after #44505 is resolved
++
++	// Backup the data so we write the relocations at the front.
++	var tmp bytes.Buffer
++	io.Copy(&tmp, &w.data)
++
++	// TODO(mdempsky): Consider writing these out separately so they're
++	// easier to strip, along with function bodies, so that we can prune
++	// down to just the data that's relevant to go/types.
++	w.sync(syncRelocs)
++	w.len(len(w.relocs))
++	for _, rent := range w.relocs {
++		w.sync(syncReloc)
++		w.len(int(rent.kind))
++		w.len(rent.idx)
++	}
++
++	io.Copy(&sb, &w.data)
++	io.Copy(&sb, &tmp)
++	w.p.elems[w.k][w.idx] = sb.String()
++
++	return w.idx
++}
++
++func (w *encoder) checkErr(err error) {
++	if err != nil {
++		base.Fatalf("unexpected error: %v", err)
++	}
++}
++
++func (w *encoder) sync(m syncMarker) {
++	if debug {
++		err := w.data.WriteByte(byte(m))
++		w.checkErr(err)
++	}
++}
++
++func (w *encoder) bool(b bool) bool {
++	w.sync(syncBool)
++	var x byte
++	if b {
++		x = 1
++	}
++	err := w.data.WriteByte(x)
++	w.checkErr(err)
++	return b
++}
++
++func (w *encoder) int64(x int64) {
++	w.sync(syncInt64)
++	var buf [binary.MaxVarintLen64]byte
++	n := binary.PutVarint(buf[:], x)
++	_, err := w.data.Write(buf[:n])
++	w.checkErr(err)
++}
++
++func (w *encoder) uint64(x uint64) {
++	w.sync(syncUint64)
++	var buf [binary.MaxVarintLen64]byte
++	n := binary.PutUvarint(buf[:], x)
++	_, err := w.data.Write(buf[:n])
++	w.checkErr(err)
++}
++
++func (w *encoder) len(x int)   { assert(x >= 0); w.uint64(uint64(x)) }
++func (w *encoder) int(x int)   { w.int64(int64(x)) }
++func (w *encoder) uint(x uint) { w.uint64(uint64(x)) }
++
++func (w *encoder) reloc(r reloc, idx int) {
++	w.sync(syncUseReloc)
++
++	// TODO(mdempsky): Use map for lookup.
++	for i, rent := range w.relocs {
++		if rent.kind == r && rent.idx == idx {
++			w.len(i)
++			return
++		}
++	}
++
++	w.len(len(w.relocs))
++	w.relocs = append(w.relocs, relocEnt{r, idx})
++}
++
++func (w *encoder) code(c code) {
++	w.sync(c.marker())
++	w.len(c.value())
++}
++
++func (w *encoder) string(s string) {
++	w.sync(syncString)
++	w.reloc(relocString, w.p.stringIdx(s))
++}
++
++func (w *encoder) strings(ss []string) {
++	w.len(len(ss))
++	for _, s := range ss {
++		w.string(s)
++	}
++}
++
++func (w *encoder) rawValue(val constant.Value) {
++	if w.bool(val.Kind() == constant.Complex) {
++		w.scalar(constant.Real(val))
++		w.scalar(constant.Imag(val))
++	} else {
++		w.scalar(val)
++	}
++}
++
++func (w *encoder) scalar(val constant.Value) {
++	switch v := constant.Val(val).(type) {
++	default:
++		panic(fmt.Sprintf("unhandled %v (%v)", val, val.Kind()))
++	case bool:
++		w.code(valBool)
++		w.bool(v)
++	case string:
++		w.code(valString)
++		w.string(v)
++	case int64:
++		w.code(valInt64)
++		w.int64(v)
++	case *big.Int:
++		w.code(valBigInt)
++		w.bigInt(v)
++	case *big.Rat:
++		w.code(valBigRat)
++		w.bigInt(v.Num())
++		w.bigInt(v.Denom())
++	case *big.Float:
++		w.code(valBigFloat)
++		w.bigFloat(v)
++	}
++}
++
++func (w *encoder) bigInt(v *big.Int) {
++	b := v.Bytes()
++	w.string(string(b)) // TODO: More efficient encoding.
++	w.bool(v.Sign() < 0)
++}
++
++func (w *encoder) bigFloat(v *big.Float) {
++	b := v.Append(nil, 'p', -1)
++	w.string(string(b)) // TODO: More efficient encoding.
++}
+diff --git a/src/cmd/compile/internal/noder/linker.go b/src/cmd/compile/internal/noder/linker.go
+new file mode 100644
+index 0000000000..324902d246
+--- /dev/null
++++ b/src/cmd/compile/internal/noder/linker.go
+@@ -0,0 +1,296 @@
++// UNREVIEWED
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package noder
++
++import (
++	"io"
++
++	"cmd/compile/internal/base"
++	"cmd/compile/internal/ir"
++	"cmd/compile/internal/reflectdata"
++	"cmd/compile/internal/types"
++	"cmd/internal/goobj"
++	"cmd/internal/obj"
++)
++
++// This file implements the unified IR linker, which combines the
++// local package's stub data with imported package data to produce a
++// complete export data file. It also rewrites the compiler's
++// extension data sections based on the results of compilation (e.g.,
++// the function inlining cost and linker symbol index assignments).
++//
++// TODO(mdempsky): Using the name "linker" here is confusing, because
++// readers are likely to mistake references to it for cmd/link. But
++// there's a shortage of good names for "something that combines
++// multiple parts into a cohesive whole"... e.g., "assembler" and
++// "compiler" are also already taken.
++
++type linker struct {
++	pw pkgEncoder
++
++	pkgs  map[string]int
++	decls map[*types.Sym]int
++}
++
++func (l *linker) relocAll(pr *pkgReader, relocs []relocEnt) []relocEnt {
++	res := make([]relocEnt, len(relocs))
++	for i, rent := range relocs {
++		rent.idx = l.relocIdx(pr, rent.kind, rent.idx)
++		res[i] = rent
++	}
++	return res
++}
++
++func (l *linker) relocIdx(pr *pkgReader, k reloc, idx int) int {
++	assert(pr != nil)
++
++	absIdx := pr.absIdx(k, idx)
++
++	if newidx := pr.newindex[absIdx]; newidx != 0 {
++		return ^newidx
++	}
++
++	var newidx int
++	switch k {
++	case relocString:
++		newidx = l.relocString(pr, idx)
++	case relocPkg:
++		newidx = l.relocPkg(pr, idx)
++	case relocObj:
++		newidx = l.relocObj(pr, idx)
++
++	default:
++		// Generic relocations.
++		//
++		// TODO(mdempsky): Deduplicate more sections? In fact, I think
++		// every section could be deduplicated. This would also be easier
++		// if we do external relocations.
++
++		w := l.pw.newEncoderRaw(k)
++		l.relocCommon(pr, &w, k, idx)
++		newidx = w.idx
++	}
++
++	pr.newindex[absIdx] = ^newidx
++
++	return newidx
++}
++
++func (l *linker) relocString(pr *pkgReader, idx int) int {
++	return l.pw.stringIdx(pr.stringIdx(idx))
++}
++
++func (l *linker) relocPkg(pr *pkgReader, idx int) int {
++	path := pr.peekPkgPath(idx)
++
++	if newidx, ok := l.pkgs[path]; ok {
++		return newidx
++	}
++
++	r := pr.newDecoder(relocPkg, idx, syncPkgDef)
++	w := l.pw.newEncoder(relocPkg, syncPkgDef)
++	l.pkgs[path] = w.idx
++
++	// TODO(mdempsky): We end up leaving an empty string reference here
++	// from when the package was originally written as "". Probably not
++	// a big deal, but a little annoying. Maybe relocating
++	// cross-references in place is the way to go after all.
++	w.relocs = l.relocAll(pr, r.relocs)
++
++	_ = r.string() // original path
++	w.string(path)
++
++	io.Copy(&w.data, &r.data)
++
++	return w.flush()
++}
++
++func (l *linker) relocObj(pr *pkgReader, idx int) int {
++	path, name, tag, _ := pr.peekObj(idx)
++	sym := types.NewPkg(path, "").Lookup(name)
++
++	if newidx, ok := l.decls[sym]; ok {
++		return newidx
++	}
++
++	if tag == objStub && path != "builtin" && path != "unsafe" {
++		pri, ok := objReader[sym]
++		if !ok {
++			base.Fatalf("missing reader for %q.%v", path, name)
++		}
++		assert(ok)
++
++		pr = pri.pr
++		idx = pri.idx
++
++		path2, name2, tag2, _ := pr.peekObj(idx)
++		sym2 := types.NewPkg(path2, "").Lookup(name2)
++		assert(sym == sym2)
++		assert(tag2 != objStub)
++	}
++
++	w := l.pw.newEncoderRaw(relocObj)
++	bside := l.pw.newEncoderRaw(relocObjExt)
++	assert(bside.idx == w.idx)
++	l.decls[sym] = w.idx
++
++	l.relocCommon(pr, &w, relocObj, idx)
++
++	var obj *ir.Name
++	if path == "" {
++		var ok bool
++		obj, ok = sym.Def.(*ir.Name)
++
++		// Generic types and functions won't have definitions.
++		// For now, just generically copy their extension data.
++		if !ok && base.Flag.G == 0 {
++			base.Fatalf("missing definition for %v", sym)
++		}
++	}
++
++	if obj != nil {
++		bside.sync(syncObject1)
++		switch tag {
++		case objFunc:
++			l.relocFuncExt(&bside, obj)
++		case objType:
++			l.relocTypeExt(&bside, obj)
++		case objVar:
++			l.relocVarExt(&bside, obj)
++		}
++		bside.flush()
++	} else {
++		l.relocCommon(pr, &bside, relocObjExt, idx)
++	}
++
++	return w.idx
++}
++
++func (l *linker) relocCommon(pr *pkgReader, w *encoder, k reloc, idx int) {
++	r := pr.newDecoderRaw(k, idx)
++	w.relocs = l.relocAll(pr, r.relocs)
++	io.Copy(&w.data, &r.data)
++	w.flush()
++}
++
++func (l *linker) pragmaFlag(w *encoder, pragma ir.PragmaFlag) {
++	w.sync(syncPragma)
++	w.int(int(pragma))
++}
++
++func (l *linker) relocFuncExt(w *encoder, name *ir.Name) {
++	w.sync(syncFuncExt)
++
++	l.pragmaFlag(w, name.Func.Pragma)
++	l.linkname(w, name)
++
++	// Relocated extension data.
++	w.bool(true)
++
++	// Record definition ABI so cross-ABI calls can be direct.
++	// This is important for the performance of calling some
++	// common functions implemented in assembly (e.g., bytealg).
++	w.uint64(uint64(name.Func.ABI))
++
++	// Escape analysis.
++	for _, fs := range &types.RecvsParams {
++		for _, f := range fs(name.Type()).FieldSlice() {
++			w.string(f.Note)
++		}
++	}
++
++	if inl := name.Func.Inl; w.bool(inl != nil) {
++		w.len(int(inl.Cost))
++		w.bool(inl.CanDelayResults)
++
++		pri, ok := bodyReader[name.Func]
++		assert(ok)
++		w.sync(syncAddBody)
++		w.reloc(relocBody, l.relocIdx(pri.pr, relocBody, pri.idx))
++	}
++
++	w.sync(syncEOF)
++}
++
++func (l *linker) relocTypeExt(w *encoder, name *ir.Name) {
++	w.sync(syncTypeExt)
++
++	typ := name.Type()
++
++	l.pragmaFlag(w, name.Pragma())
++
++	// For type T, export the index of type descriptor symbols of T and *T.
++	l.lsymIdx(w, "", reflectdata.TypeLinksym(typ))
++	l.lsymIdx(w, "", reflectdata.TypeLinksym(typ.PtrTo()))
++
++	if typ.Kind() != types.TINTER {
++		for _, method := range typ.Methods().Slice() {
++			l.relocFuncExt(w, method.Nname.(*ir.Name))
++		}
++	}
++}
++
++func (l *linker) relocVarExt(w *encoder, name *ir.Name) {
++	w.sync(syncVarExt)
++	l.linkname(w, name)
++}
++
++func (l *linker) linkname(w *encoder, name *ir.Name) {
++	w.sync(syncLinkname)
++
++	linkname := name.Sym().Linkname
++	if !l.lsymIdx(w, linkname, name.Linksym()) {
++		w.string(linkname)
++	}
++}
++
++func (l *linker) lsymIdx(w *encoder, linkname string, lsym *obj.LSym) bool {
++	if lsym.PkgIdx > goobj.PkgIdxSelf || (lsym.PkgIdx == goobj.PkgIdxInvalid && !lsym.Indexed()) || linkname != "" {
++		w.int64(-1)
++		return false
++	}
++
++	// For a defined symbol, export its index.
++	// For re-exporting an imported symbol, pass its index through.
++	w.int64(int64(lsym.SymIdx))
++	return true
++}
++
++// @@@ Helpers
++
++// TODO(mdempsky): These should probably be removed. I think they're a
++// smell that the export data format is not yet quite right.
++
++func (pr *pkgDecoder) peekPkgPath(idx int) string {
++	r := pr.newDecoder(relocPkg, idx, syncPkgDef)
++	path := r.string()
++	if path == "" {
++		path = pr.pkgPath
++	}
++	return path
++}
++
++func (pr *pkgDecoder) peekObj(idx int) (string, string, codeObj, []int) {
++	r := pr.newDecoder(relocObj, idx, syncObject1)
++	r.sync(syncSym)
++	r.sync(syncPkg)
++	path := pr.peekPkgPath(r.reloc(relocPkg))
++	name := r.string()
++	assert(name != "")
++
++	r.sync(syncTypeParamBounds)
++	r.len() // implicits
++	bounds := make([]int, r.len())
++	for i := range bounds {
++		r.sync(syncType)
++		bounds[i] = r.reloc(relocType)
++	}
++
++	tag := codeObj(r.code(syncCodeObj))
++
++	return path, name, tag, bounds
++}
+diff --git a/src/cmd/compile/internal/noder/quirks.go b/src/cmd/compile/internal/noder/quirks.go
+new file mode 100644
+index 0000000000..9f33fc576d
+--- /dev/null
++++ b/src/cmd/compile/internal/noder/quirks.go
+@@ -0,0 +1,453 @@
++// UNREVIEWED
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package noder
++
++import (
++	"fmt"
++
++	"cmd/compile/internal/base"
++	"cmd/compile/internal/ir"
++	"cmd/compile/internal/syntax"
++	"cmd/compile/internal/types2"
++	"cmd/internal/src"
++)
++
++// This file defines helper functions useful for satisfying toolstash
++// -cmp when compared against the legacy frontend behavior, but can be
++// removed after that's no longer a concern.
++
++// quirksMode controls whether behavior specific to satsifying
++// toolstash -cmp is used.
++func quirksMode() bool {
++	// Currently, unified IR doesn't try to be compatible with
++	// -d=inlfuncswithclosures=1, so we overload this as a flag for
++	// enabling quirks mode.
++	return base.Debug.InlFuncsWithClosures == 0
++}
++
++// posBasesOf returns all of the position bases in the source files,
++// as seen in a straightforward traversal.
++//
++// This is necessary to ensure position bases (and thus file names)
++// get registered in the same order as noder would visit them.
++func posBasesOf(noders []*noder) []*syntax.PosBase {
++	seen := make(map[*syntax.PosBase]bool)
++	var bases []*syntax.PosBase
++
++	for _, p := range noders {
++		syntax.Walk(p.file, func(n syntax.Node) bool {
++			if b := n.Pos().Base(); !seen[b] {
++				bases = append(bases, b)
++				seen[b] = true
++			}
++			return false
++		})
++	}
++
++	return bases
++}
++
++// importedObjsOf returns the imported objects (i.e., referenced
++// objects not declared by curpkg) from the parsed source files, in
++// the order that typecheck used to load their definitions.
++//
++// This is needed because loading the definitions for imported objects
++// can also add file names.
++func importedObjsOf(curpkg *types2.Package, info *types2.Info, noders []*noder) []types2.Object {
++	// This code is complex because it matches the precise order that
++	// typecheck recursively and repeatedly traverses the IR. It's meant
++	// to be thrown away eventually anyway.
++
++	seen := make(map[types2.Object]bool)
++	var objs []types2.Object
++
++	var phase int
++
++	decls := make(map[types2.Object]syntax.Decl)
++	assoc := func(decl syntax.Decl, names ...*syntax.Name) {
++		for _, name := range names {
++			obj, ok := info.Defs[name]
++			assert(ok)
++			decls[obj] = decl
++		}
++	}
++
++	for _, p := range noders {
++		syntax.Walk(p.file, func(n syntax.Node) bool {
++			switch n := n.(type) {
++			case *syntax.ConstDecl:
++				assoc(n, n.NameList...)
++			case *syntax.FuncDecl:
++				assoc(n, n.Name)
++			case *syntax.TypeDecl:
++				assoc(n, n.Name)
++			case *syntax.VarDecl:
++				assoc(n, n.NameList...)
++			case *syntax.BlockStmt:
++				return true
++			}
++			return false
++		})
++	}
++
++	var visited map[syntax.Decl]bool
++
++	var resolveDecl func(n syntax.Decl)
++	var resolveNode func(n syntax.Node, top bool)
++
++	resolveDecl = func(n syntax.Decl) {
++		if visited[n] {
++			return
++		}
++		visited[n] = true
++
++		switch n := n.(type) {
++		case *syntax.ConstDecl:
++			resolveNode(n.Type, true)
++			resolveNode(n.Values, true)
++
++		case *syntax.FuncDecl:
++			if n.Recv != nil {
++				resolveNode(n.Recv, true)
++			}
++			resolveNode(n.Type, true)
++
++		case *syntax.TypeDecl:
++			resolveNode(n.Type, true)
++
++		case *syntax.VarDecl:
++			if n.Type != nil {
++				resolveNode(n.Type, true)
++			} else {
++				resolveNode(n.Values, true)
++			}
++		}
++	}
++
++	resolveObj := func(pos syntax.Pos, obj types2.Object) {
++		switch obj.Pkg() {
++		case nil:
++			// builtin; nothing to do
++
++		case curpkg:
++			if decl, ok := decls[obj]; ok {
++				resolveDecl(decl)
++			}
++
++		default:
++			if obj.Parent() == obj.Pkg().Scope() && !seen[obj] {
++				seen[obj] = true
++				objs = append(objs, obj)
++			}
++		}
++	}
++
++	checkdefat := func(pos syntax.Pos, n *syntax.Name) {
++		if n.Value == "_" {
++			return
++		}
++		obj, ok := info.Uses[n]
++		if !ok {
++			obj, ok = info.Defs[n]
++			if !ok {
++				return
++			}
++		}
++		if obj == nil {
++			return
++		}
++		resolveObj(pos, obj)
++	}
++	checkdef := func(n *syntax.Name) { checkdefat(n.Pos(), n) }
++
++	var later []syntax.Node
++
++	resolveNode = func(n syntax.Node, top bool) {
++		if n == nil {
++			return
++		}
++		syntax.Walk(n, func(n syntax.Node) bool {
++			switch n := n.(type) {
++			case *syntax.Name:
++				checkdef(n)
++
++			case *syntax.SelectorExpr:
++				if name, ok := n.X.(*syntax.Name); ok {
++					if _, isPkg := info.Uses[name].(*types2.PkgName); isPkg {
++						checkdefat(n.X.Pos(), n.Sel)
++						return true
++					}
++				}
++
++			case *syntax.AssignStmt:
++				resolveNode(n.Rhs, top)
++				resolveNode(n.Lhs, top)
++				return true
++
++			case *syntax.VarDecl:
++				resolveNode(n.Values, top)
++
++			case *syntax.FuncLit:
++				if top {
++					resolveNode(n.Type, top)
++					later = append(later, n.Body)
++					return true
++				}
++
++			case *syntax.BlockStmt:
++				if phase >= 3 {
++					for _, stmt := range n.List {
++						resolveNode(stmt, false)
++					}
++				}
++				return true
++			}
++
++			return false
++		})
++	}
++
++	for phase = 1; phase <= 5; phase++ {
++		visited = map[syntax.Decl]bool{}
++
++		for _, p := range noders {
++			for _, decl := range p.file.DeclList {
++				switch decl := decl.(type) {
++				case *syntax.ConstDecl:
++					resolveDecl(decl)
++
++				case *syntax.FuncDecl:
++					resolveDecl(decl)
++					if phase >= 3 && decl.Body != nil {
++						resolveNode(decl.Body, true)
++					}
++
++				case *syntax.TypeDecl:
++					if !decl.Alias || phase >= 2 {
++						resolveDecl(decl)
++					}
++
++				case *syntax.VarDecl:
++					if phase >= 2 {
++						resolveNode(decl.Values, true)
++						resolveDecl(decl)
++					}
++				}
++			}
++
++			if phase >= 5 {
++				syntax.Walk(p.file, func(n syntax.Node) bool {
++					if name, ok := n.(*syntax.Name); ok {
++						if obj, ok := info.Uses[name]; ok {
++							resolveObj(name.Pos(), obj)
++						}
++					}
++					return false
++				})
++			}
++		}
++
++		for i := 0; i < len(later); i++ {
++			resolveNode(later[i], true)
++		}
++		later = nil
++	}
++
++	return objs
++}
++
++// typeExprEndPos returns the position that noder would leave base.Pos
++// after parsing the given type expression.
++func typeExprEndPos(expr0 syntax.Expr) syntax.Pos {
++	for {
++		switch expr := expr0.(type) {
++		case *syntax.Name:
++			return expr.Pos()
++		case *syntax.SelectorExpr:
++			return expr.X.Pos()
++
++		case *syntax.ParenExpr:
++			expr0 = expr.X
++
++		case *syntax.Operation:
++			assert(expr.Op == syntax.Mul)
++			assert(expr.Y == nil)
++			expr0 = expr.X
++
++		case *syntax.ArrayType:
++			expr0 = expr.Elem
++		case *syntax.ChanType:
++			expr0 = expr.Elem
++		case *syntax.DotsType:
++			expr0 = expr.Elem
++		case *syntax.MapType:
++			expr0 = expr.Value
++		case *syntax.SliceType:
++			expr0 = expr.Elem
++
++		case *syntax.StructType:
++			return expr.Pos()
++
++		case *syntax.InterfaceType:
++			expr0 = lastFieldType(expr.MethodList)
++			if expr0 == nil {
++				return expr.Pos()
++			}
++
++		case *syntax.FuncType:
++			expr0 = lastFieldType(expr.ResultList)
++			if expr0 == nil {
++				expr0 = lastFieldType(expr.ParamList)
++				if expr0 == nil {
++					return expr.Pos()
++				}
++			}
++
++		case *syntax.IndexExpr: // explicit type instantiation
++			targs := unpackListExpr(expr.Index)
++			expr0 = targs[len(targs)-1]
++
++		default:
++			panic(fmt.Sprintf("%s: unexpected type expression %v", expr.Pos(), syntax.String(expr)))
++		}
++	}
++}
++
++func lastFieldType(fields []*syntax.Field) syntax.Expr {
++	if len(fields) == 0 {
++		return nil
++	}
++	return fields[len(fields)-1].Type
++}
++
++// sumPos returns the position that noder.sum would produce for
++// constant expression x.
++func sumPos(x syntax.Expr) syntax.Pos {
++	orig := x
++	for {
++		switch x1 := x.(type) {
++		case *syntax.BasicLit:
++			assert(x1.Kind == syntax.StringLit)
++			return x1.Pos()
++		case *syntax.Operation:
++			assert(x1.Op == syntax.Add && x1.Y != nil)
++			if r, ok := x1.Y.(*syntax.BasicLit); ok {
++				assert(r.Kind == syntax.StringLit)
++				x = x1.X
++				continue
++			}
++		}
++		return orig.Pos()
++	}
++}
++
++// funcParamsEndPos returns the value of base.Pos left by noder after
++// processing a function signature.
++func funcParamsEndPos(fn *ir.Func) src.XPos {
++	sig := fn.Nname.Type()
++
++	fields := sig.Results().FieldSlice()
++	if len(fields) == 0 {
++		fields = sig.Params().FieldSlice()
++		if len(fields) == 0 {
++			fields = sig.Recvs().FieldSlice()
++			if len(fields) == 0 {
++				if fn.OClosure != nil {
++					return fn.Nname.Ntype.Pos()
++				}
++				return fn.Pos()
++			}
++		}
++	}
++
++	return fields[len(fields)-1].Pos
++}
++
++type dupTypes struct {
++	origs map[types2.Type]types2.Type
++}
++
++func (d *dupTypes) orig(t types2.Type) types2.Type {
++	if orig, ok := d.origs[t]; ok {
++		return orig
++	}
++	return t
++}
++
++func (d *dupTypes) add(t, orig types2.Type) {
++	if t == orig {
++		return
++	}
++
++	if d.origs == nil {
++		d.origs = make(map[types2.Type]types2.Type)
++	}
++	assert(d.origs[t] == nil)
++	d.origs[t] = orig
++
++	switch t := t.(type) {
++	case *types2.Pointer:
++		orig := orig.(*types2.Pointer)
++		d.add(t.Elem(), orig.Elem())
++
++	case *types2.Slice:
++		orig := orig.(*types2.Slice)
++		d.add(t.Elem(), orig.Elem())
++
++	case *types2.Map:
++		orig := orig.(*types2.Map)
++		d.add(t.Key(), orig.Key())
++		d.add(t.Elem(), orig.Elem())
++
++	case *types2.Array:
++		orig := orig.(*types2.Array)
++		assert(t.Len() == orig.Len())
++		d.add(t.Elem(), orig.Elem())
++
++	case *types2.Chan:
++		orig := orig.(*types2.Chan)
++		assert(t.Dir() == orig.Dir())
++		d.add(t.Elem(), orig.Elem())
++
++	case *types2.Struct:
++		orig := orig.(*types2.Struct)
++		assert(t.NumFields() == orig.NumFields())
++		for i := 0; i < t.NumFields(); i++ {
++			d.add(t.Field(i).Type(), orig.Field(i).Type())
++		}
++
++	case *types2.Interface:
++		orig := orig.(*types2.Interface)
++		assert(t.NumExplicitMethods() == orig.NumExplicitMethods())
++		assert(t.NumEmbeddeds() == orig.NumEmbeddeds())
++		for i := 0; i < t.NumExplicitMethods(); i++ {
++			d.add(t.ExplicitMethod(i).Type(), orig.ExplicitMethod(i).Type())
++		}
++		for i := 0; i < t.NumEmbeddeds(); i++ {
++			d.add(t.EmbeddedType(i), orig.EmbeddedType(i))
++		}
++
++	case *types2.Signature:
++		orig := orig.(*types2.Signature)
++		assert((t.Recv() == nil) == (orig.Recv() == nil))
++		if t.Recv() != nil {
++			d.add(t.Recv().Type(), orig.Recv().Type())
++		}
++		d.add(t.Params(), orig.Params())
++		d.add(t.Results(), orig.Results())
++
++	case *types2.Tuple:
++		orig := orig.(*types2.Tuple)
++		assert(t.Len() == orig.Len())
++		for i := 0; i < t.Len(); i++ {
++			d.add(t.At(i).Type(), orig.At(i).Type())
++		}
++
++	default:
++		assert(types2.Identical(t, orig))
++	}
++}
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+new file mode 100644
+index 0000000000..18ecbff3cc
+--- /dev/null
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -0,0 +1,1970 @@
++// UNREVIEWED
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package noder
++
++import (
++	"bytes"
++	"fmt"
++	"go/constant"
++	"strings"
++
++	"cmd/compile/internal/base"
++	"cmd/compile/internal/deadcode"
++	"cmd/compile/internal/dwarfgen"
++	"cmd/compile/internal/ir"
++	"cmd/compile/internal/typecheck"
++	"cmd/compile/internal/types"
++	"cmd/internal/obj"
++	"cmd/internal/src"
++)
++
++// TODO(mdempsky): Suppress duplicate type/const errors that can arise
++// during typecheck due to naive type substitution (e.g., see #42758).
++// I anticipate these will be handled as a consequence of adding
++// dictionaries support, so it's probably not important to focus on
++// this until after that's done.
++
++type pkgReader struct {
++	pkgDecoder
++
++	posBases []*src.PosBase
++	pkgs     []*types.Pkg
++	typs     []*types.Type
++
++	// offset for rewriting the given index into the output,
++	// but bitwise inverted so we can detect if we're missing the entry or not.
++	newindex []int
++}
++
++func newPkgReader(pr pkgDecoder) *pkgReader {
++	return &pkgReader{
++		pkgDecoder: pr,
++
++		posBases: make([]*src.PosBase, pr.numElems(relocPosBase)),
++		pkgs:     make([]*types.Pkg, pr.numElems(relocPkg)),
++		typs:     make([]*types.Type, pr.numElems(relocType)),
++
++		newindex: make([]int, pr.totalElems()),
++	}
++}
++
++type pkgReaderIndex struct {
++	pr        *pkgReader
++	idx       int
++	implicits []*types.Type
++}
++
++func (pri pkgReaderIndex) asReader(k reloc, marker syncMarker) *reader {
++	r := pri.pr.newReader(k, pri.idx, marker)
++	r.implicits = pri.implicits
++	return r
++}
++
++func (pr *pkgReader) newReader(k reloc, idx int, marker syncMarker) *reader {
++	return &reader{
++		decoder: pr.newDecoder(k, idx, marker),
++		p:       pr,
++	}
++}
++
++type reader struct {
++	decoder
++
++	p *pkgReader
++
++	// Implicit and explicit type arguments in use for reading the
++	// current object. For example:
++	//
++	//	func F[T any]() {
++	//		type X[U any] struct { t T; u U }
++	//		var _ X[string]
++	//	}
++	//
++	//	var _ = F[int]
++	//
++	// While instantiating F[int], we need to in turn instantiate
++	// X[string]. [int] and [string] are explicit type arguments for F
++	// and X, respectively; but [int] is also the implicit type
++	// arguments for X.
++	//
++	// (As an analogy to function literals, explicits are the function
++	// literal's formal parameters, while implicits are variables
++	// captured by the function literal.)
++	implicits []*types.Type
++	explicits []*types.Type
++
++	ext *reader
++
++	// TODO(mdempsky): The state below is all specific to reading
++	// function bodies. It probably makes sense to split it out
++	// separately so that it doesn't take up space in every reader
++	// instance.
++
++	curfn  *ir.Func
++	locals []*ir.Name
++
++	funarghack bool
++
++	// scopeVars is a stack tracking the number of variables declared in
++	// the current function at the moment each open scope was opened.
++	scopeVars         []int
++	marker            dwarfgen.ScopeMarker
++	lastCloseScopePos src.XPos
++
++	// === details for handling inline body expansion ===
++
++	// If we're reading in a function body because of inlining, this is
++	// the call that we're inlining for.
++	inlCaller    *ir.Func
++	inlCall      *ir.CallExpr
++	inlFunc      *ir.Func
++	inlTreeIndex int
++	inlPosBases  map[*src.PosBase]*src.PosBase
++
++	delayResults bool
++
++	// Label to return to.
++	retlabel *types.Sym
++
++	inlvars, retvars ir.Nodes
++}
++
++func (r *reader) setType(n ir.Node, typ *types.Type) {
++	n.SetType(typ)
++	n.SetTypecheck(1)
++
++	if name, ok := n.(*ir.Name); ok {
++		name.SetWalkdef(1)
++		name.Ntype = ir.TypeNode(name.Type())
++	}
++}
++
++func (r *reader) setValue(name *ir.Name, val constant.Value) {
++	name.SetVal(val)
++	name.Defn = nil
++}
++
++// @@@ Positions
++
++func (r *reader) pos() src.XPos {
++	return base.Ctxt.PosTable.XPos(r.pos0())
++}
++
++func (r *reader) pos0() src.Pos {
++	r.sync(syncPos)
++	if !r.bool() {
++		return src.NoPos
++	}
++
++	posBase := r.posBase()
++	line := r.uint()
++	col := r.uint()
++	return src.MakePos(posBase, line, col)
++}
++
++func (r *reader) posBase() *src.PosBase {
++	return r.inlPosBase(r.p.posBaseIdx(r.reloc(relocPosBase)))
++}
++
++func (pr *pkgReader) posBaseIdx(idx int) *src.PosBase {
++	if b := pr.posBases[idx]; b != nil {
++		return b
++	}
++
++	r := pr.newReader(relocPosBase, idx, syncPosBase)
++	var b *src.PosBase
++
++	fn := r.string()
++	absfn := r.string()
++
++	if r.bool() {
++		b = src.NewFileBase(fn, absfn)
++	} else {
++		pos := r.pos0()
++		line := r.uint()
++		col := r.uint()
++		b = src.NewLinePragmaBase(pos, fn, absfn, line, col)
++	}
++
++	pr.posBases[idx] = b
++	return b
++}
++
++func (r *reader) inlPosBase(oldBase *src.PosBase) *src.PosBase {
++	if r.inlCall == nil {
++		return oldBase
++	}
++
++	if newBase, ok := r.inlPosBases[oldBase]; ok {
++		return newBase
++	}
++
++	newBase := src.NewInliningBase(oldBase, r.inlTreeIndex)
++	r.inlPosBases[oldBase] = newBase
++	return newBase
++}
++
++func (r *reader) updatePos(xpos src.XPos) src.XPos {
++	pos := base.Ctxt.PosTable.Pos(xpos)
++	pos.SetBase(r.inlPosBase(pos.Base()))
++	return base.Ctxt.PosTable.XPos(pos)
++}
++
++func (r *reader) origPos(xpos src.XPos) src.XPos {
++	if r.inlCall == nil {
++		return xpos
++	}
++
++	pos := base.Ctxt.PosTable.Pos(xpos)
++	for old, new := range r.inlPosBases {
++		if pos.Base() == new {
++			pos.SetBase(old)
++			return base.Ctxt.PosTable.XPos(pos)
++		}
++	}
++
++	base.FatalfAt(xpos, "pos base missing from inlPosBases")
++	panic("unreachable")
++}
++
++// @@@ Packages
++
++func (r *reader) pkg() *types.Pkg {
++	r.sync(syncPkg)
++	return r.p.pkgIdx(r.reloc(relocPkg))
++}
++
++func (pr *pkgReader) pkgIdx(idx int) *types.Pkg {
++	if pkg := pr.pkgs[idx]; pkg != nil {
++		return pkg
++	}
++
++	pkg := pr.newReader(relocPkg, idx, syncPkgDef).doPkg()
++	pr.pkgs[idx] = pkg
++	return pkg
++}
++
++func (r *reader) doPkg() *types.Pkg {
++	path := r.string()
++	if path == "builtin" {
++		return types.BuiltinPkg
++	}
++	if path == "" {
++		path = r.p.pkgPath
++	}
++
++	name := r.string()
++	height := r.len()
++
++	pkg := types.NewPkg(path, "")
++
++	if pkg.Name == "" {
++		pkg.Name = name
++	} else {
++		assert(pkg.Name == name)
++	}
++
++	if pkg.Height == 0 {
++		pkg.Height = height
++	} else {
++		assert(pkg.Height == height)
++	}
++
++	return pkg
++}
++
++// @@@ Types
++
++func (r *reader) typ() *types.Type {
++	r.sync(syncType)
++	return r.p.typIdx(r.reloc(relocType), r.implicits, r.explicits)
++}
++
++func (pr *pkgReader) typIdx(idx int, implicits, explicits []*types.Type) *types.Type {
++	if typ := pr.typs[idx]; typ != nil {
++		return typ
++	}
++
++	r := pr.newReader(relocType, idx, syncTypeIdx)
++	r.implicits = implicits
++	r.explicits = explicits
++	typ := r.doTyp()
++	assert(typ != nil)
++
++	if typ := pr.typs[idx]; typ != nil {
++		// This happens in fixedbugs/issue27232.go.
++		// TODO(mdempsky): Explain why/how this happens.
++		return typ
++	}
++
++	// If we have type parameters, the type might refer to them, and it
++	// wouldn't be safe to reuse those in other contexts. So we
++	// conservatively avoid caching them in that case.
++	//
++	// TODO(mdempsky): If we're clever, we should be able to still cache
++	// types by tracking which type parameters are used. However, in my
++	// attempts so far, I haven't yet succeeded in being clever enough.
++	if len(implicits)+len(explicits) == 0 {
++		pr.typs[idx] = typ
++	}
++
++	if !typ.IsUntyped() {
++		types.CheckSize(typ)
++	}
++
++	return typ
++}
++
++func (r *reader) doTyp() *types.Type {
++	switch tag := codeType(r.code(syncType)); tag {
++	default:
++		panic(fmt.Sprintf("unexpected type: %v", tag))
++
++	case typeBasic:
++		return *basics[r.len()]
++
++	case typeNamed:
++		obj := r.obj()
++		assert(obj.Op() == ir.OTYPE)
++		return obj.Type()
++
++	case typeTypeParam:
++		idx := r.len()
++		if idx < len(r.implicits) {
++			return r.implicits[idx]
++		}
++		return r.explicits[idx-len(r.implicits)]
++
++	case typeArray:
++		len := int64(r.uint64())
++		return types.NewArray(r.typ(), len)
++	case typeChan:
++		dir := dirs[r.len()]
++		return types.NewChan(r.typ(), dir)
++	case typeMap:
++		return types.NewMap(r.typ(), r.typ())
++	case typePointer:
++		return types.NewPtr(r.typ())
++	case typeSignature:
++		return r.signature(types.LocalPkg, nil)
++	case typeSlice:
++		return types.NewSlice(r.typ())
++	case typeStruct:
++		return r.structType()
++	case typeInterface:
++		return r.interfaceType()
++	}
++}
++
++func (r *reader) interfaceType() *types.Type {
++	tpkg := types.LocalPkg // TODO(mdempsky): Remove after iexport is gone.
++
++	nmethods, nembeddeds := r.len(), r.len()
++
++	fields := make([]*types.Field, nmethods+nembeddeds)
++	methods, embeddeds := fields[:nmethods], fields[nmethods:]
++
++	for i := range methods {
++		pos := r.pos()
++		pkg, sym := r.selector()
++		tpkg = pkg
++		mtyp := r.signature(pkg, typecheck.FakeRecv())
++		methods[i] = types.NewField(pos, sym, mtyp)
++	}
++	for i := range embeddeds {
++		embeddeds[i] = types.NewField(src.NoXPos, nil, r.typ())
++	}
++
++	if len(fields) == 0 {
++		return types.Types[types.TINTER] // empty interface
++	}
++	return types.NewInterface(tpkg, fields)
++}
++
++func (r *reader) structType() *types.Type {
++	tpkg := types.LocalPkg // TODO(mdempsky): Remove after iexport is gone.
++	fields := make([]*types.Field, r.len())
++	for i := range fields {
++		pos := r.pos()
++		pkg, sym := r.selector()
++		tpkg = pkg
++		ftyp := r.typ()
++		tag := r.string()
++		embedded := r.bool()
++
++		f := types.NewField(pos, sym, ftyp)
++		f.Note = tag
++		if embedded {
++			f.Embedded = 1
++		}
++		fields[i] = f
++	}
++	return types.NewStruct(tpkg, fields)
++}
++
++func (r *reader) signature(tpkg *types.Pkg, recv *types.Field) *types.Type {
++	r.sync(syncSignature)
++
++	params := r.params(&tpkg)
++	results := r.params(&tpkg)
++	if r.bool() { // variadic
++		params[len(params)-1].SetIsDDD(true)
++	}
++
++	return types.NewSignature(tpkg, recv, nil, params, results)
++}
++
++func (r *reader) params(tpkg **types.Pkg) []*types.Field {
++	r.sync(syncParams)
++	fields := make([]*types.Field, r.len())
++	for i := range fields {
++		*tpkg, fields[i] = r.param()
++	}
++	return fields
++}
++
++func (r *reader) param() (*types.Pkg, *types.Field) {
++	r.sync(syncParam)
++
++	pos := r.pos()
++	pkg, sym := r.localIdent()
++	typ := r.typ()
++
++	return pkg, types.NewField(pos, sym, typ)
++}
++
++// @@@ Objects
++
++var objReader = map[*types.Sym]pkgReaderIndex{}
++
++func (r *reader) obj() ir.Node {
++	r.sync(syncObject)
++
++	idx := r.reloc(relocObj)
++
++	explicits := make([]*types.Type, r.len())
++	for i := range explicits {
++		explicits[i] = r.typ()
++	}
++
++	return r.p.objIdx(idx, r.implicits, explicits)
++}
++
++func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node {
++	r := pr.newReader(relocObj, idx, syncObject1)
++	r.ext = pr.newReader(relocObjExt, idx, syncObject1)
++
++	_, sym := r.qualifiedIdent()
++
++	// Middle dot indicates local defined type; see writer.sym.
++	// TODO(mdempsky): Come up with a better way to handle this.
++	if strings.Contains(sym.Name, "·") {
++		r.implicits = implicits
++		r.ext.implicits = implicits
++	}
++	r.explicits = explicits
++	r.ext.explicits = explicits
++
++	origSym := sym
++
++	sym = r.mangle(sym)
++	if !sym.IsBlank() && sym.Def != nil {
++		return sym.Def.(ir.Node)
++	}
++
++	r.typeParamBounds(origSym)
++	tag := codeObj(r.code(syncCodeObj))
++
++	do := func(op ir.Op, hasTParams bool) *ir.Name {
++		pos := r.pos()
++		if hasTParams {
++			r.typeParamNames()
++		}
++
++		name := ir.NewDeclNameAt(pos, op, sym)
++		name.Class = ir.PEXTERN // may be overridden later
++		if !sym.IsBlank() {
++			if sym.Def != nil {
++				base.FatalfAt(name.Pos(), "already have a definition for %v", name)
++			}
++			assert(sym.Def == nil)
++			sym.Def = name
++		}
++		return name
++	}
++
++	switch tag {
++	default:
++		panic("unexpected object")
++
++	case objStub:
++		if pri, ok := objReader[origSym]; ok {
++			return pri.pr.objIdx(pri.idx, pri.implicits, r.explicits)
++		}
++		if haveLegacyImports {
++			assert(len(r.implicits)+len(r.explicits) == 0)
++			return typecheck.Resolve(ir.NewIdent(src.NoXPos, origSym))
++		}
++		base.Fatalf("unresolved stub: %v", origSym)
++		panic("unreachable")
++
++	case objAlias:
++		name := do(ir.OTYPE, false)
++		r.setType(name, r.typ())
++		name.SetAlias(true)
++		return name
++
++	case objConst:
++		name := do(ir.OLITERAL, false)
++		typ, val := r.value()
++		r.setType(name, typ)
++		r.setValue(name, val)
++		return name
++
++	case objFunc:
++		if sym.Name == "init" {
++			sym = renameinit()
++		}
++		name := do(ir.ONAME, true)
++		r.setType(name, r.signature(sym.Pkg, nil))
++
++		name.Func = ir.NewFunc(r.pos())
++		name.Func.Nname = name
++
++		r.ext.funcExt(name)
++		return name
++
++	case objType:
++		name := do(ir.OTYPE, true)
++		typ := types.NewNamed(name)
++		r.setType(name, typ)
++
++		// Important: We need to do this before SetUnderlying.
++		r.ext.typeExt(name)
++
++		// We need to defer CheckSize until we've called SetUnderlying to
++		// handle recursive types.
++		types.DeferCheckSize()
++		typ.SetUnderlying(r.typ())
++		types.ResumeCheckSize()
++
++		methods := make([]*types.Field, r.len())
++		for i := range methods {
++			methods[i] = r.method()
++		}
++		if len(methods) != 0 {
++			typ.Methods().Set(methods)
++		}
++
++		return name
++
++	case objVar:
++		name := do(ir.ONAME, false)
++		r.setType(name, r.typ())
++		r.ext.varExt(name)
++		return name
++	}
++}
++
++func (r *reader) mangle(sym *types.Sym) *types.Sym {
++	if len(r.implicits)+len(r.explicits) == 0 {
++		return sym
++	}
++
++	var buf bytes.Buffer
++	buf.WriteString(sym.Name)
++	buf.WriteByte('[')
++	for i, targs := range [2][]*types.Type{r.implicits, r.explicits} {
++		if i > 0 && len(r.implicits) != 0 && len(r.explicits) != 0 {
++			buf.WriteByte(';')
++		}
++		for j, targ := range targs {
++			if j > 0 {
++				buf.WriteByte(',')
++			}
++			// TODO(mdempsky): We need the linker to replace "" in the symbol
++			// names here.
++			buf.WriteString(targ.ShortString())
++		}
++	}
++	buf.WriteByte(']')
++	return sym.Pkg.Lookup(buf.String())
++}
++
++func (r *reader) typeParamBounds(sym *types.Sym) {
++	r.sync(syncTypeParamBounds)
++
++	nimplicits := r.len()
++	nexplicits := r.len()
++
++	if len(r.implicits) != nimplicits || len(r.explicits) != nexplicits {
++		base.Fatalf("%v has %v+%v params, but instantiated with %v+%v args", sym, nimplicits, nexplicits, len(r.implicits), len(r.explicits))
++	}
++
++	// For stenciling, we can just skip over the type parameters.
++
++	for range r.explicits {
++		// Skip past bounds without actually evaluating them.
++		r.sync(syncType)
++		r.reloc(relocType)
++	}
++}
++
++func (r *reader) typeParamNames() {
++	r.sync(syncTypeParamNames)
++
++	for range r.explicits {
++		r.pos()
++		r.localIdent()
++	}
++}
++
++func (r *reader) value() (*types.Type, constant.Value) {
++	r.sync(syncValue)
++	typ := r.typ()
++	return typ, FixValue(typ, r.rawValue())
++}
++
++func (r *reader) method() *types.Field {
++	r.sync(syncMethod)
++	pos := r.pos()
++	pkg, sym := r.selector()
++	r.typeParamNames()
++	_, recv := r.param()
++	typ := r.signature(pkg, recv)
++
++	fnsym := sym
++	fnsym = ir.MethodSym(recv.Type, fnsym)
++	name := ir.NewNameAt(pos, fnsym)
++	r.setType(name, typ)
++
++	name.Func = ir.NewFunc(r.pos())
++	name.Func.Nname = name
++
++	// TODO(mdempsky): Make sure we're handling //go:nointerface
++	// correctly. I don't think this is exercised within the Go repo.
++
++	r.ext.funcExt(name)
++
++	meth := types.NewField(name.Func.Pos(), sym, typ)
++	meth.Nname = name
++	return meth
++}
++
++func (r *reader) qualifiedIdent() (pkg *types.Pkg, sym *types.Sym) {
++	r.sync(syncSym)
++	pkg = r.pkg()
++	if name := r.string(); name != "" {
++		sym = pkg.Lookup(name)
++	}
++	return
++}
++
++func (r *reader) localIdent() (pkg *types.Pkg, sym *types.Sym) {
++	r.sync(syncLocalIdent)
++	pkg = r.pkg()
++	if name := r.string(); name != "" {
++		sym = pkg.Lookup(name)
++	}
++	return
++}
++
++func (r *reader) selector() (origPkg *types.Pkg, sym *types.Sym) {
++	r.sync(syncSelector)
++	origPkg = r.pkg()
++	name := r.string()
++	pkg := origPkg
++	if types.IsExported(name) {
++		pkg = types.LocalPkg
++	}
++	sym = pkg.Lookup(name)
++	return
++}
++
++// @@@ Compiler extensions
++
++func (r *reader) funcExt(name *ir.Name) {
++	r.sync(syncFuncExt)
++
++	name.Class = 0 // so MarkFunc doesn't complain
++	ir.MarkFunc(name)
++
++	fn := name.Func
++
++	// XXX: Workaround because linker doesn't know how to copy Pos.
++	if !fn.Pos().IsKnown() {
++		fn.SetPos(name.Pos())
++	}
++
++	// TODO(mdempsky): Remember why I wrote this code. I think it has to
++	// do with how ir.VisitFuncsBottomUp works?
++	if name.Sym().Pkg == types.LocalPkg || len(r.implicits)+len(r.explicits) != 0 {
++		name.Defn = fn
++	}
++
++	fn.Pragma = r.pragmaFlag()
++	r.linkname(name)
++
++	if r.bool() {
++		fn.ABI = obj.ABI(r.uint64())
++
++		// Escape analysis.
++		for _, fs := range &types.RecvsParams {
++			for _, f := range fs(name.Type()).FieldSlice() {
++				f.Note = r.string()
++			}
++		}
++
++		if r.bool() {
++			fn.Inl = &ir.Inline{
++				Cost:            int32(r.len()),
++				CanDelayResults: r.bool(),
++			}
++			r.addBody(name.Func)
++		}
++	} else {
++		r.addBody(name.Func)
++	}
++	r.sync(syncEOF)
++}
++
++func (r *reader) typeExt(name *ir.Name) {
++	r.sync(syncTypeExt)
++
++	typ := name.Type()
++
++	if len(r.implicits)+len(r.explicits) != 0 {
++		// Set "RParams" (really type arguments here, not parameters) so
++		// this type is treated as "fully instantiated". This ensures the
++		// type descriptor is written out as DUPOK and method wrappers are
++		// generated even for imported types.
++		var targs []*types.Type
++		targs = append(targs, r.implicits...)
++		targs = append(targs, r.explicits...)
++		typ.SetRParams(targs)
++	}
++
++	name.SetPragma(r.pragmaFlag())
++	if name.Pragma()&ir.NotInHeap != 0 {
++		typ.SetNotInHeap(true)
++	}
++
++	typecheck.SetBaseTypeIndex(typ, r.int64(), r.int64())
++}
++
++func (r *reader) varExt(name *ir.Name) {
++	r.sync(syncVarExt)
++	r.linkname(name)
++}
++
++func (r *reader) linkname(name *ir.Name) {
++	assert(name.Op() == ir.ONAME)
++	r.sync(syncLinkname)
++
++	if idx := r.int64(); idx >= 0 {
++		lsym := name.Linksym()
++		lsym.SymIdx = int32(idx)
++		lsym.Set(obj.AttrIndexed, true)
++	} else {
++		name.Sym().Linkname = r.string()
++	}
++}
++
++func (r *reader) pragmaFlag() ir.PragmaFlag {
++	r.sync(syncPragma)
++	return ir.PragmaFlag(r.int())
++}
++
++// @@@ Function bodies
++
++// bodyReader tracks where the serialized IR for a function's body can
++// be found.
++var bodyReader = map[*ir.Func]pkgReaderIndex{}
++
++// todoBodies holds the list of function bodies that still need to be
++// constructed.
++var todoBodies []*ir.Func
++
++func (r *reader) addBody(fn *ir.Func) {
++	r.sync(syncAddBody)
++
++	// See commont in writer.addBody for why r.implicits and r.explicits
++	// should never both be non-empty.
++	implicits := r.implicits
++	if len(implicits) == 0 {
++		implicits = r.explicits
++	} else {
++		assert(len(r.explicits) == 0)
++	}
++
++	pri := pkgReaderIndex{r.p, r.reloc(relocBody), implicits}
++	bodyReader[fn] = pri
++
++	if r.curfn == nil {
++		todoBodies = append(todoBodies, fn)
++		return
++	}
++
++	pri.funcBody(fn)
++}
++
++func (pri pkgReaderIndex) funcBody(fn *ir.Func) {
++	r := pri.asReader(relocBody, syncFuncBody)
++	r.funcBody(fn)
++}
++
++func (r *reader) funcBody(fn *ir.Func) {
++	r.curfn = fn
++	r.locals = fn.ClosureVars
++
++	// TODO(mdempsky): Get rid of uses of typecheck.NodAddrAt so we
++	// don't have to set ir.CurFunc.
++	outerCurFunc := ir.CurFunc
++	ir.CurFunc = fn
++
++	r.funcargs(fn)
++
++	if r.bool() {
++		body := r.stmts()
++		if body == nil {
++			pos := src.NoXPos
++			if quirksMode() {
++				pos = funcParamsEndPos(fn)
++			}
++			body = []ir.Node{ir.NewBlockStmt(pos, nil)}
++		}
++		fn.Body = body
++		fn.Endlineno = r.pos()
++	}
++
++	ir.CurFunc = outerCurFunc
++	r.marker.WriteTo(fn)
++}
++
++func (r *reader) funcargs(fn *ir.Func) {
++	sig := fn.Nname.Type()
++
++	if recv := sig.Recv(); recv != nil {
++		r.funcarg(recv, recv.Sym, ir.PPARAM)
++	}
++	for _, param := range sig.Params().FieldSlice() {
++		r.funcarg(param, param.Sym, ir.PPARAM)
++	}
++
++	for i, param := range sig.Results().FieldSlice() {
++		sym := types.OrigSym(param.Sym)
++
++		if sym == nil || sym.IsBlank() {
++			prefix := "~r"
++			if r.inlCall != nil {
++				prefix = "~R"
++			} else if sym != nil {
++				prefix = "~b"
++			}
++			sym = typecheck.LookupNum(prefix, i)
++		}
++
++		r.funcarg(param, sym, ir.PPARAMOUT)
++	}
++}
++
++func (r *reader) funcarg(param *types.Field, sym *types.Sym, ctxt ir.Class) {
++	if sym == nil {
++		assert(ctxt == ir.PPARAM)
++		if r.inlCall != nil {
++			r.inlvars.Append(ir.BlankNode)
++		}
++		return
++	}
++
++	name := ir.NewNameAt(r.updatePos(param.Pos), sym)
++	r.setType(name, param.Type)
++	r.addLocal(name, ctxt)
++
++	if r.inlCall == nil {
++		if !r.funarghack {
++			param.Sym = sym
++			param.Nname = name
++		}
++	} else {
++		if ctxt == ir.PPARAMOUT {
++			r.retvars.Append(name)
++		} else {
++			r.inlvars.Append(name)
++		}
++	}
++}
++
++func (r *reader) addLocal(name *ir.Name, ctxt ir.Class) {
++	assert(ctxt == ir.PAUTO || ctxt == ir.PPARAM || ctxt == ir.PPARAMOUT)
++
++	r.sync(syncAddLocal)
++	if debug {
++		want := r.int()
++		if have := len(r.locals); have != want {
++			base.FatalfAt(name.Pos(), "locals table has desynced")
++		}
++	}
++
++	name.SetUsed(true)
++	r.locals = append(r.locals, name)
++
++	// TODO(mdempsky): Move earlier.
++	if ir.IsBlank(name) {
++		return
++	}
++
++	if r.inlCall != nil {
++		if ctxt == ir.PAUTO {
++			name.SetInlLocal(true)
++		} else {
++			name.SetInlFormal(true)
++			ctxt = ir.PAUTO
++		}
++
++		// TODO(mdempsky): Rethink this hack.
++		if strings.HasPrefix(name.Sym().Name, "~") || base.Flag.GenDwarfInl == 0 {
++			name.SetPos(r.inlCall.Pos())
++			name.SetInlFormal(false)
++			name.SetInlLocal(false)
++		}
++	}
++
++	name.Class = ctxt
++	name.Curfn = r.curfn
++
++	r.curfn.Dcl = append(r.curfn.Dcl, name)
++
++	if ctxt == ir.PAUTO {
++		name.SetFrameOffset(0)
++	}
++}
++
++func (r *reader) useLocal() *ir.Name {
++	r.sync(syncUseObjLocal)
++	return r.locals[r.len()]
++}
++
++func (r *reader) openScope() {
++	r.sync(syncOpenScope)
++	pos := r.pos()
++
++	if base.Flag.Dwarf {
++		r.scopeVars = append(r.scopeVars, len(r.curfn.Dcl))
++		r.marker.Push(pos)
++	}
++}
++
++func (r *reader) closeScope() {
++	r.sync(syncCloseScope)
++	r.lastCloseScopePos = r.pos()
++
++	r.closeAnotherScope()
++}
++
++// closeAnotherScope is like closeScope, but it reuses the same mark
++// position as the last closeScope call. This is useful for "for" and
++// "if" statements, as their implicit blocks always end at the same
++// position as an explicit block.
++func (r *reader) closeAnotherScope() {
++	r.sync(syncCloseAnotherScope)
++
++	if base.Flag.Dwarf {
++		scopeVars := r.scopeVars[len(r.scopeVars)-1]
++		r.scopeVars = r.scopeVars[:len(r.scopeVars)-1]
++
++		if scopeVars == len(r.curfn.Dcl) {
++			// no variables were declared in this scope, so we can retract it.
++			r.marker.Unpush()
++		} else {
++			r.marker.Pop(r.lastCloseScopePos)
++		}
++	}
++}
++
++// @@@ Statements
++
++func (r *reader) stmt() ir.Node {
++	switch stmts := r.stmts(); len(stmts) {
++	case 0:
++		return nil
++	case 1:
++		return stmts[0]
++	default:
++		return ir.NewBlockStmt(stmts[0].Pos(), stmts)
++	}
++}
++
++func (r *reader) stmts() []ir.Node {
++	var res ir.Nodes
++
++	r.sync(syncStmts)
++	for {
++		tag := codeStmt(r.code(syncStmt1))
++		if tag == stmtEnd {
++			r.sync(syncStmtsEnd)
++			return res
++		}
++
++		if n := r.stmt1(tag, &res); n != nil {
++			res.Append(n)
++		}
++	}
++}
++
++func (r *reader) stmt1(tag codeStmt, out *ir.Nodes) ir.Node {
++	var label *types.Sym
++	if n := len(*out); n > 0 {
++		if ls, ok := (*out)[n-1].(*ir.LabelStmt); ok {
++			label = ls.Label
++		}
++	}
++
++	switch tag {
++	default:
++		panic("unexpected statement")
++
++	case stmtAssign:
++		pos := r.pos()
++		names, lhs := r.assignList()
++		rhs := r.exprList()
++
++		if len(rhs) == 0 {
++			for _, name := range names {
++				as := ir.NewAssignStmt(pos, name, nil)
++				as.PtrInit().Append(ir.NewDecl(pos, ir.ODCL, name))
++				out.Append(as)
++			}
++			return nil
++		}
++
++		if len(lhs) == 1 && len(rhs) == 1 {
++			n := ir.NewAssignStmt(pos, lhs[0], rhs[0])
++			n.Def = r.initDefn(n, names)
++			return n
++		}
++
++		n := ir.NewAssignListStmt(pos, ir.OAS2, lhs, rhs)
++		n.Def = r.initDefn(n, names)
++		return n
++
++	case stmtAssignOp:
++		op := r.op()
++		lhs := r.expr()
++		pos := r.pos()
++		rhs := r.expr()
++		return ir.NewAssignOpStmt(pos, op, lhs, rhs)
++
++	case stmtIncDec:
++		op := r.op()
++		lhs := r.expr()
++		pos := r.pos()
++		n := ir.NewAssignOpStmt(pos, op, lhs, ir.NewBasicLit(pos, one))
++		n.IncDec = true
++		return n
++
++	case stmtBlock:
++		out.Append(r.blockStmt()...)
++		return nil
++
++	case stmtBranch:
++		pos := r.pos()
++		op := r.op()
++		sym := r.optLabel()
++		return ir.NewBranchStmt(pos, op, sym)
++
++	case stmtCall:
++		pos := r.pos()
++		op := r.op()
++		call := r.expr()
++		return ir.NewGoDeferStmt(pos, op, call)
++
++	case stmtExpr:
++		return r.expr()
++
++	case stmtFor:
++		return r.forStmt(label)
++
++	case stmtIf:
++		return r.ifStmt()
++
++	case stmtLabel:
++		pos := r.pos()
++		sym := r.label()
++		return ir.NewLabelStmt(pos, sym)
++
++	case stmtReturn:
++		pos := r.pos()
++		results := r.exprList()
++		return ir.NewReturnStmt(pos, results)
++
++	case stmtSelect:
++		return r.selectStmt(label)
++
++	case stmtSend:
++		pos := r.pos()
++		ch := r.expr()
++		value := r.expr()
++		return ir.NewSendStmt(pos, ch, value)
++
++	case stmtSwitch:
++		return r.switchStmt(label)
++
++	case stmtTypeDeclHack:
++		// fake "type _ = int" declaration to prevent inlining in quirks mode.
++		assert(quirksMode())
++
++		name := ir.NewDeclNameAt(src.NoXPos, ir.OTYPE, ir.BlankNode.Sym())
++		name.SetAlias(true)
++		r.setType(name, types.Types[types.TINT])
++
++		n := ir.NewDecl(src.NoXPos, ir.ODCLTYPE, name)
++		n.SetTypecheck(1)
++		return n
++	}
++}
++
++func (r *reader) assignList() ([]*ir.Name, []ir.Node) {
++	lhs := make([]ir.Node, r.len())
++	var names []*ir.Name
++
++	for i := range lhs {
++		if r.bool() {
++			pos := r.pos()
++			_, sym := r.localIdent()
++			typ := r.typ()
++
++			name := ir.NewNameAt(pos, sym)
++			lhs[i] = name
++			names = append(names, name)
++			r.setType(name, typ)
++			r.addLocal(name, ir.PAUTO)
++			continue
++		}
++
++		lhs[i] = r.expr()
++	}
++
++	return names, lhs
++}
++
++func (r *reader) blockStmt() []ir.Node {
++	r.sync(syncBlockStmt)
++	r.openScope()
++	stmts := r.stmts()
++	r.closeScope()
++	return stmts
++}
++
++func (r *reader) forStmt(label *types.Sym) ir.Node {
++	r.sync(syncForStmt)
++
++	r.openScope()
++
++	if r.bool() {
++		pos := r.pos()
++		names, lhs := r.assignList()
++		x := r.expr()
++		body := r.blockStmt()
++		r.closeAnotherScope()
++
++		rang := ir.NewRangeStmt(pos, nil, nil, x, body)
++		if len(lhs) >= 1 {
++			rang.Key = lhs[0]
++			if len(lhs) >= 2 {
++				rang.Value = lhs[1]
++			}
++		}
++		rang.Def = r.initDefn(rang, names)
++		rang.Label = label
++		return rang
++	}
++
++	pos := r.pos()
++	init := r.stmt()
++	cond := r.expr()
++	post := r.stmt()
++	body := r.blockStmt()
++	r.closeAnotherScope()
++
++	stmt := ir.NewForStmt(pos, init, cond, post, body)
++	stmt.Label = label
++	return stmt
++}
++
++func (r *reader) ifStmt() ir.Node {
++	r.sync(syncIfStmt)
++	r.openScope()
++	pos := r.pos()
++	init := r.stmts()
++	cond := r.expr()
++	then := r.blockStmt()
++	els := r.stmts()
++	n := ir.NewIfStmt(pos, cond, then, els)
++	n.SetInit(init)
++	r.closeAnotherScope()
++	return n
++}
++
++func (r *reader) selectStmt(label *types.Sym) ir.Node {
++	r.sync(syncSelectStmt)
++
++	pos := r.pos()
++	clauses := make([]*ir.CommClause, r.len())
++	for i := range clauses {
++		if i > 0 {
++			r.closeScope()
++		}
++		r.openScope()
++
++		pos := r.pos()
++		comm := r.stmt()
++		body := r.stmts()
++
++		clauses[i] = ir.NewCommStmt(pos, comm, body)
++	}
++	if len(clauses) > 0 {
++		r.closeScope()
++	}
++	n := ir.NewSelectStmt(pos, clauses)
++	n.Label = label
++	return n
++}
++
++func (r *reader) switchStmt(label *types.Sym) ir.Node {
++	r.sync(syncSwitchStmt)
++
++	r.openScope()
++	pos := r.pos()
++	init := r.stmt()
++	tag := r.expr()
++
++	tswitch, ok := tag.(*ir.TypeSwitchGuard)
++	if ok && tswitch.Tag == nil {
++		tswitch = nil
++	}
++
++	clauses := make([]*ir.CaseClause, r.len())
++	for i := range clauses {
++		if i > 0 {
++			r.closeScope()
++		}
++		r.openScope()
++
++		pos := r.pos()
++		cases := r.exprList()
++
++		clause := ir.NewCaseStmt(pos, cases, nil)
++		if tswitch != nil {
++			pos := r.pos()
++			typ := r.typ()
++
++			name := ir.NewNameAt(pos, tswitch.Tag.Sym())
++			r.setType(name, typ)
++			r.addLocal(name, ir.PAUTO)
++			clause.Var = name
++			name.Defn = tswitch
++		}
++
++		clause.Body = r.stmts()
++		clauses[i] = clause
++	}
++	if len(clauses) > 0 {
++		r.closeScope()
++	}
++	r.closeScope()
++
++	n := ir.NewSwitchStmt(pos, tag, clauses)
++	n.Label = label
++	if init != nil {
++		n.SetInit([]ir.Node{init})
++	}
++	return n
++}
++
++func (r *reader) label() *types.Sym {
++	r.sync(syncLabel)
++	name := r.string()
++	if r.inlCall != nil {
++		name = fmt.Sprintf("~%s·%d", name, inlgen)
++	}
++	return typecheck.Lookup(name)
++}
++
++func (r *reader) optLabel() *types.Sym {
++	r.sync(syncOptLabel)
++	if r.bool() {
++		return r.label()
++	}
++	return nil
++}
++
++// initDefn marks the given names as declared by defn and populates
++// its Init field with ODCL nodes. It then reports whether any names
++// were so declared, which can be used to initialize defn.Def.
++func (r *reader) initDefn(defn ir.InitNode, names []*ir.Name) bool {
++	if len(names) == 0 {
++		return false
++	}
++
++	init := make([]ir.Node, len(names))
++	for i, name := range names {
++		name.Defn = defn
++		init[i] = ir.NewDecl(name.Pos(), ir.ODCL, name)
++	}
++	defn.SetInit(init)
++	return true
++}
++
++// @@@ Expressions
++
++func (r *reader) expr() ir.Node {
++	switch tag := codeExpr(r.code(syncExpr)); tag {
++	default:
++		panic("unhandled expression")
++
++	case exprNone:
++		return nil
++
++	case exprBlank:
++		return ir.BlankNode
++
++	case exprLocal:
++		return r.useLocal()
++
++	case exprName:
++		return r.obj()
++
++	case exprType:
++		return ir.TypeNode(r.typ())
++
++	case exprConst:
++		pos := r.pos()
++		typ, val := r.value()
++		op := r.op()
++		orig := r.string()
++		return OrigConst(pos, typ, val, op, orig)
++
++	case exprCompLit:
++		return r.compLit()
++
++	case exprFuncLit:
++		return r.funcLit()
++
++	case exprSelector:
++		x := r.expr()
++		pos := r.pos()
++		_, sym := r.selector()
++		return ir.NewSelectorExpr(pos, ir.OXDOT, x, sym)
++
++	case exprIndex:
++		x := r.expr()
++		pos := r.pos()
++		index := r.expr()
++		return ir.NewIndexExpr(pos, x, index)
++
++	case exprSlice:
++		x := r.expr()
++		pos := r.pos()
++		var index [3]ir.Node
++		for i := range index {
++			index[i] = r.expr()
++		}
++		op := ir.OSLICE
++		if index[2] != nil {
++			op = ir.OSLICE3
++		}
++		return ir.NewSliceExpr(pos, op, x, index[0], index[1], index[2])
++
++	case exprAssert:
++		x := r.expr()
++		pos := r.pos()
++		typ := r.expr().(ir.Ntype)
++		return ir.NewTypeAssertExpr(pos, x, typ)
++
++	case exprUnaryOp:
++		op := r.op()
++		pos := r.pos()
++		x := r.expr()
++
++		switch op {
++		case ir.OADDR:
++			return typecheck.NodAddrAt(pos, x)
++		case ir.ODEREF:
++			return ir.NewStarExpr(pos, x)
++		}
++		return ir.NewUnaryExpr(pos, op, x)
++
++	case exprBinaryOp:
++		op := r.op()
++		x := r.expr()
++		pos := r.pos()
++		y := r.expr()
++
++		switch op {
++		case ir.OANDAND, ir.OOROR:
++			return ir.NewLogicalExpr(pos, op, x, y)
++		}
++		return ir.NewBinaryExpr(pos, op, x, y)
++
++	case exprCall:
++		fun := r.expr()
++		pos := r.pos()
++		args := r.exprs()
++		dots := r.bool()
++		n := ir.NewCallExpr(pos, ir.OCALL, fun, args)
++		n.IsDDD = dots
++		return n
++
++	case exprTypeSwitchGuard:
++		pos := r.pos()
++		var tag *ir.Ident
++		if r.bool() {
++			pos := r.pos()
++			sym := typecheck.Lookup(r.string())
++			tag = ir.NewIdent(pos, sym)
++		}
++		x := r.expr()
++		return ir.NewTypeSwitchGuard(pos, tag, x)
++	}
++}
++
++func (r *reader) compLit() ir.Node {
++	r.sync(syncCompLit)
++	pos := r.pos()
++	typ := r.typ()
++
++	isPtrLit := typ.IsPtr()
++	if isPtrLit {
++		typ = typ.Elem()
++	}
++	if typ.Kind() == types.TFORW {
++		base.FatalfAt(pos, "unresolved composite literal type: %v", typ)
++	}
++	isStruct := typ.Kind() == types.TSTRUCT
++
++	elems := make([]ir.Node, r.len())
++	for i := range elems {
++		elemp := &elems[i]
++
++		if isStruct {
++			sk := ir.NewStructKeyExpr(r.pos(), typ.Field(r.len()), nil)
++			*elemp, elemp = sk, &sk.Value
++		} else if r.bool() {
++			kv := ir.NewKeyExpr(r.pos(), r.expr(), nil)
++			*elemp, elemp = kv, &kv.Value
++		}
++
++		*elemp = wrapName(r.pos(), r.expr())
++	}
++
++	lit := ir.NewCompLitExpr(pos, ir.OCOMPLIT, ir.TypeNode(typ), elems)
++	if isPtrLit {
++		return typecheck.NodAddrAt(pos, lit)
++	}
++	return lit
++}
++
++func wrapName(pos src.XPos, x ir.Node) ir.Node {
++	// These nodes do not carry line numbers.
++	// Introduce a wrapper node to give them the correct line.
++	switch ir.Orig(x).Op() {
++	case ir.OTYPE, ir.OLITERAL:
++		if x.Sym() == nil {
++			break
++		}
++		fallthrough
++	case ir.ONAME, ir.ONONAME, ir.OPACK, ir.ONIL:
++		p := ir.NewParenExpr(pos, x)
++		p.SetImplicit(true)
++		return p
++	}
++	return x
++}
++
++func (r *reader) funcLit() ir.Node {
++	r.sync(syncFuncLit)
++
++	pos := r.pos()
++	typPos := r.pos()
++	xtype2 := r.signature(types.LocalPkg, nil)
++
++	opos := pos
++	if quirksMode() {
++		opos = r.origPos(pos)
++	}
++
++	fn := ir.NewClosureFunc(opos, r.curfn != nil)
++
++	r.setType(fn.Nname, xtype2)
++	if quirksMode() {
++		fn.Nname.Ntype = ir.TypeNodeAt(typPos, xtype2)
++	}
++
++	fn.ClosureVars = make([]*ir.Name, r.len())
++	for i := range fn.ClosureVars {
++		pos := r.pos()
++		outer := r.useLocal()
++
++		cv := ir.NewNameAt(pos, outer.Sym())
++		r.setType(cv, outer.Type())
++		cv.Curfn = fn
++		cv.Class = ir.PAUTOHEAP
++		cv.SetIsClosureVar(true)
++		cv.Defn = outer.Canonical()
++		cv.Outer = outer
++
++		fn.ClosureVars[i] = cv
++	}
++
++	r.addBody(fn)
++
++	return fn.OClosure
++}
++
++func (r *reader) exprList() []ir.Node {
++	r.sync(syncExprList)
++	return r.exprs()
++}
++
++func (r *reader) exprs() []ir.Node {
++	r.sync(syncExprs)
++	nodes := make([]ir.Node, r.len())
++	if len(nodes) == 0 {
++		return nil // TODO(mdempsky): Unclear if this matters.
++	}
++	for i := range nodes {
++		nodes[i] = r.expr()
++	}
++	return nodes
++}
++
++func (r *reader) op() ir.Op {
++	r.sync(syncOp)
++	return ir.Op(r.len())
++}
++
++// @@@ Package initialization
++
++func (r *reader) pkgInit(self *types.Pkg, target *ir.Package) {
++	if quirksMode() {
++		for i, n := 0, r.len(); i < n; i++ {
++			// Eagerly register position bases, so their filenames are
++			// assigned stable indices.
++			posBase := r.posBase()
++			_ = base.Ctxt.PosTable.XPos(src.MakePos(posBase, 0, 0))
++		}
++
++		for i, n := 0, r.len(); i < n; i++ {
++			// Eagerly resolve imported objects, so any filenames registered
++			// in the process are assigned stable indices too.
++			_, sym := r.qualifiedIdent()
++			typecheck.Resolve(ir.NewIdent(src.NoXPos, sym))
++			assert(sym.Def != nil)
++		}
++	}
++
++	cgoPragmas := make([][]string, r.len())
++	for i := range cgoPragmas {
++		cgoPragmas[i] = r.strings()
++	}
++	target.CgoPragmas = cgoPragmas
++
++	r.pkgDecls(target)
++
++	r.sync(syncEOF)
++}
++
++func (r *reader) pkgDecls(target *ir.Package) {
++	r.sync(syncDecls)
++	for {
++		switch code := codeDecl(r.code(syncDecl)); code {
++		default:
++			panic(fmt.Sprintf("unhandled decl: %v", code))
++
++		case declEnd:
++			return
++
++		case declFunc:
++			names := r.pkgObjs(target)
++			assert(len(names) == 1)
++			target.Decls = append(target.Decls, names[0].Func)
++
++		case declMethod:
++			typ := r.typ()
++			_, sym := r.selector()
++
++			method := typecheck.Lookdot1(nil, sym, typ, typ.Methods(), 0)
++			target.Decls = append(target.Decls, method.Nname.(*ir.Name).Func)
++
++		case declVar:
++			pos := r.pos()
++			names := r.pkgObjs(target)
++			values := r.exprList()
++
++			if len(names) > 1 && len(values) == 1 {
++				as := ir.NewAssignListStmt(pos, ir.OAS2, nil, values)
++				for _, name := range names {
++					as.Lhs.Append(name)
++					name.Defn = as
++				}
++				target.Decls = append(target.Decls, as)
++			} else {
++				for i, name := range names {
++					as := ir.NewAssignStmt(pos, name, nil)
++					if i < len(values) {
++						as.Y = values[i]
++					}
++					name.Defn = as
++					target.Decls = append(target.Decls, as)
++				}
++			}
++
++			if n := r.len(); n > 0 {
++				assert(len(names) == 1)
++				embeds := make([]ir.Embed, n)
++				for i := range embeds {
++					embeds[i] = ir.Embed{Pos: r.pos(), Patterns: r.strings()}
++				}
++				names[0].Embed = &embeds
++				target.Embeds = append(target.Embeds, names[0])
++			}
++
++		case declOther:
++			r.pkgObjs(target)
++		}
++	}
++}
++
++func (r *reader) pkgObjs(target *ir.Package) []*ir.Name {
++	r.sync(syncDeclNames)
++	nodes := make([]*ir.Name, r.len())
++	for i := range nodes {
++		r.sync(syncDeclName)
++
++		name := r.obj().(*ir.Name)
++		nodes[i] = name
++
++		sym := name.Sym()
++		if sym.IsBlank() {
++			continue
++		}
++
++		switch name.Class {
++		default:
++			base.FatalfAt(name.Pos(), "unexpected class: %v", name.Class)
++
++		case ir.PEXTERN:
++			target.Externs = append(target.Externs, name)
++
++		case ir.PFUNC:
++			assert(name.Type().Recv() == nil)
++
++			// TODO(mdempsky): Cleaner way to recognize init?
++			if strings.HasPrefix(sym.Name, "init.") {
++				target.Inits = append(target.Inits, name.Func)
++			}
++		}
++
++		if types.IsExported(sym.Name) {
++			assert(!sym.OnExportList())
++			target.Exports = append(target.Exports, name)
++			sym.SetOnExportList(true)
++		}
++
++		if base.Flag.AsmHdr != "" {
++			assert(!sym.Asm())
++			target.Asms = append(target.Asms, name)
++			sym.SetAsm(true)
++		}
++	}
++
++	return nodes
++}
++
++// @@@ Inlining
++
++var inlgen = 0
++
++func InlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExpr {
++	// TODO(mdempsky): Turn callerfn into an explicit parameter.
++	callerfn := ir.CurFunc
++
++	pri, ok := bodyReader[fn]
++	if !ok {
++		// Assume it's an imported function or something that we don't
++		// have access to in quirks mode.
++		if haveLegacyImports {
++			return nil
++		}
++
++		base.FatalfAt(call.Pos(), "missing function body for call to %v", fn)
++	}
++
++	if fn.Inl.Body == nil {
++		expandInline(fn, pri)
++	}
++
++	r := pri.asReader(relocBody, syncFuncBody)
++
++	// TODO(mdempsky): This still feels clumsy. Can we do better?
++	tmpfn := ir.NewFunc(fn.Pos())
++	tmpfn.Nname = ir.NewNameAt(fn.Nname.Pos(), callerfn.Sym())
++	tmpfn.Closgen = callerfn.Closgen
++	defer func() { callerfn.Closgen = tmpfn.Closgen }()
++
++	r.setType(tmpfn.Nname, fn.Type())
++	r.curfn = tmpfn
++
++	r.inlCaller = ir.CurFunc
++	r.inlCall = call
++	r.inlFunc = fn
++	r.inlTreeIndex = inlIndex
++	r.inlPosBases = make(map[*src.PosBase]*src.PosBase)
++
++	for _, cv := range r.inlFunc.ClosureVars {
++		r.locals = append(r.locals, cv.Outer)
++	}
++
++	r.funcargs(fn)
++
++	assert(r.bool()) // have body
++	r.delayResults = fn.Inl.CanDelayResults
++
++	r.retlabel = typecheck.AutoLabel(".i")
++	inlgen++
++
++	init := ir.TakeInit(call)
++
++	// For normal function calls, the function callee expression
++	// may contain side effects (e.g., added by addinit during
++	// inlconv2expr or inlconv2list). Make sure to preserve these,
++	// if necessary (#42703).
++	if call.Op() == ir.OCALLFUNC {
++		callee := call.X
++		for callee.Op() == ir.OCONVNOP {
++			conv := callee.(*ir.ConvExpr)
++			init.Append(ir.TakeInit(conv)...)
++			callee = conv.X
++		}
++
++		switch callee.Op() {
++		case ir.ONAME, ir.OCLOSURE, ir.OMETHEXPR:
++			// ok
++		default:
++			base.Fatalf("unexpected callee expression: %v", callee)
++		}
++	}
++
++	var args ir.Nodes
++	if call.Op() == ir.OCALLMETH {
++		assert(call.X.Op() == ir.ODOTMETH)
++		args.Append(call.X.(*ir.SelectorExpr).X)
++	}
++	args.Append(call.Args...)
++
++	// Create assignment to declare and initialize inlvars.
++	as2 := ir.NewAssignListStmt(call.Pos(), ir.OAS2, r.inlvars, args)
++	as2.Def = true
++	var as2init ir.Nodes
++	for _, name := range r.inlvars {
++		if ir.IsBlank(name) {
++			continue
++		}
++		// TODO(mdempsky): Use inlined position of name.Pos() instead?
++		name := name.(*ir.Name)
++		as2init.Append(ir.NewDecl(call.Pos(), ir.ODCL, name))
++		name.Defn = as2
++	}
++	as2.SetInit(as2init)
++	init.Append(typecheck.Stmt(as2))
++
++	if !r.delayResults {
++		// If not delaying retvars, declare and zero initialize the
++		// result variables now.
++		for _, name := range r.retvars {
++			// TODO(mdempsky): Use inlined position of name.Pos() instead?
++			name := name.(*ir.Name)
++			init.Append(ir.NewDecl(call.Pos(), ir.ODCL, name))
++			ras := ir.NewAssignStmt(call.Pos(), name, nil)
++			init.Append(typecheck.Stmt(ras))
++		}
++	}
++
++	// Add an inline mark just before the inlined body.
++	// This mark is inline in the code so that it's a reasonable spot
++	// to put a breakpoint. Not sure if that's really necessary or not
++	// (in which case it could go at the end of the function instead).
++	// Note issue 28603.
++	init.Append(ir.NewInlineMarkStmt(call.Pos().WithIsStmt(), int64(r.inlTreeIndex)))
++
++	nparams := len(r.curfn.Dcl)
++
++	oldcurfn := ir.CurFunc
++	ir.CurFunc = r.curfn
++
++	r.curfn.Body = r.stmts()
++	r.curfn.Endlineno = r.pos()
++
++	typecheck.Stmts(r.curfn.Body)
++	deadcode.Func(r.curfn)
++
++	// Replace any "return" statements within the function body.
++	{
++		var edit func(ir.Node) ir.Node
++		edit = func(n ir.Node) ir.Node {
++			if ret, ok := n.(*ir.ReturnStmt); ok {
++				n = typecheck.Stmt(r.inlReturn(ret))
++			}
++			ir.EditChildren(n, edit)
++			return n
++		}
++		edit(r.curfn)
++	}
++
++	ir.CurFunc = oldcurfn
++
++	body := ir.Nodes(r.curfn.Body)
++
++	// Quirk: If deadcode elimination turned a non-empty function into
++	// an empty one, we need to set the position for the empty block
++	// left behind to the the inlined position for src.NoXPos, so that
++	// an empty string gets added into the DWARF file name listing at
++	// the appropriate index.
++	if quirksMode() && len(body) == 1 {
++		if block, ok := body[0].(*ir.BlockStmt); ok && len(block.List) == 0 {
++			block.SetPos(r.updatePos(src.NoXPos))
++		}
++	}
++
++	// Quirkish: We need to eagerly prune variables added during
++	// inlining, but removed by deadcode.FuncBody above. Unused
++	// variables will get removed during stack frame layout anyway, but
++	// len(fn.Dcl) ends up influencing things like autotmp naming.
++
++	used := usedLocals(body)
++
++	for i, name := range r.curfn.Dcl {
++		if i < nparams || used.Has(name) {
++			name.Curfn = callerfn
++			callerfn.Dcl = append(callerfn.Dcl, name)
++
++			// Quirkish. TODO(mdempsky): Document why.
++			if name.AutoTemp() {
++				name.SetEsc(ir.EscUnknown)
++
++				if base.Flag.GenDwarfInl != 0 {
++					name.SetInlLocal(true)
++				} else {
++					name.SetPos(r.inlCall.Pos())
++				}
++			}
++		}
++	}
++
++	body.Append(ir.NewLabelStmt(call.Pos(), r.retlabel))
++
++	res := ir.NewInlinedCallExpr(call.Pos(), body, append([]ir.Node(nil), r.retvars...))
++	res.SetInit(init)
++	res.SetType(call.Type())
++	res.SetTypecheck(1)
++
++	// Inlining shouldn't add any functions to todoBodies.
++	assert(len(todoBodies) == 0)
++
++	return res
++}
++
++// inlReturn returns a statement that can substitute for the given
++// return statement when inlining.
++func (r *reader) inlReturn(ret *ir.ReturnStmt) *ir.BlockStmt {
++	pos := r.inlCall.Pos()
++
++	block := ir.TakeInit(ret)
++
++	if results := ret.Results; len(results) != 0 {
++		assert(len(r.retvars) == len(results))
++
++		as2 := ir.NewAssignListStmt(pos, ir.OAS2, append([]ir.Node(nil), r.retvars...), ret.Results)
++
++		if r.delayResults {
++			for _, name := range r.retvars {
++				// TODO(mdempsky): Use inlined position of name.Pos() instead?
++				name := name.(*ir.Name)
++				block.Append(ir.NewDecl(pos, ir.ODCL, name))
++				name.Defn = as2
++			}
++		}
++
++		block.Append(as2)
++	}
++
++	block.Append(ir.NewBranchStmt(pos, ir.OGOTO, r.retlabel))
++	return ir.NewBlockStmt(pos, block)
++}
++
++// expandInline reads in an extra copy of IR to populate
++// fn.Inl.{Dcl,Body}.
++func expandInline(fn *ir.Func, pri pkgReaderIndex) {
++	// TODO(mdempsky): Remove this function. It's currently needed for
++	// dwarfgen for some reason, but we should be able to provide it
++	// with the same information some other way.
++
++	fndcls := len(fn.Dcl)
++	topdcls := len(typecheck.Target.Decls)
++
++	tmpfn := ir.NewFunc(fn.Pos())
++	tmpfn.Nname = ir.NewNameAt(fn.Nname.Pos(), fn.Sym())
++	tmpfn.ClosureVars = fn.ClosureVars
++
++	{
++		r := pri.asReader(relocBody, syncFuncBody)
++		r.setType(tmpfn.Nname, fn.Type())
++
++		// Don't change parameter's Sym/Nname fields.
++		r.funarghack = true
++
++		r.funcBody(tmpfn)
++	}
++
++	oldcurfn := ir.CurFunc
++	ir.CurFunc = tmpfn
++
++	typecheck.Stmts(tmpfn.Body)
++	deadcode.Func(tmpfn)
++
++	ir.CurFunc = oldcurfn
++
++	used := usedLocals(tmpfn.Body)
++
++	for _, name := range tmpfn.Dcl {
++		if name.Class != ir.PAUTO || used.Has(name) {
++			name.Curfn = fn
++			fn.Inl.Dcl = append(fn.Inl.Dcl, name)
++		}
++	}
++	fn.Inl.Body = tmpfn.Body
++
++	// Double check that we didn't change fn.Dcl by accident.
++	assert(fndcls == len(fn.Dcl))
++
++	// typecheck.Stmts may have added function literals to
++	// typecheck.Target.Decls. Remove them again so we don't risk trying
++	// to compile them multiple times.
++	typecheck.Target.Decls = typecheck.Target.Decls[:topdcls]
++}
++
++// usedLocals returns a set of local variables that are used within body.
++func usedLocals(body []ir.Node) ir.NameSet {
++	var used ir.NameSet
++	ir.VisitList(body, func(n ir.Node) {
++		if n, ok := n.(*ir.Name); ok && n.Op() == ir.ONAME && n.Class == ir.PAUTO {
++			used.Add(n)
++		}
++	})
++	return used
++}
+diff --git a/src/cmd/compile/internal/noder/reader2.go b/src/cmd/compile/internal/noder/reader2.go
+new file mode 100644
+index 0000000000..174bd3f5bd
+--- /dev/null
++++ b/src/cmd/compile/internal/noder/reader2.go
+@@ -0,0 +1,463 @@
++// UNREVIEWED
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package noder
++
++import (
++	"go/constant"
++
++	"cmd/compile/internal/base"
++	"cmd/compile/internal/syntax"
++	"cmd/compile/internal/types2"
++	"cmd/internal/src"
++)
++
++type pkgReader2 struct {
++	pkgDecoder
++
++	check   *types2.Checker
++	imports map[string]*types2.Package
++
++	posBases []*syntax.PosBase
++	pkgs     []*types2.Package
++	typs     []types2.Type
++}
++
++func readPackage2(check *types2.Checker, imports map[string]*types2.Package, input pkgDecoder) *types2.Package {
++	pr := pkgReader2{
++		pkgDecoder: input,
++
++		check:   check,
++		imports: imports,
++
++		posBases: make([]*syntax.PosBase, input.numElems(relocPosBase)),
++		pkgs:     make([]*types2.Package, input.numElems(relocPkg)),
++		typs:     make([]types2.Type, input.numElems(relocType)),
++	}
++
++	r := pr.newReader(relocMeta, publicRootIdx, syncPublic)
++	pkg := r.pkg()
++	r.bool() // has init
++
++	for i, n := 0, r.len(); i < n; i++ {
++		r.obj()
++	}
++
++	r.sync(syncEOF)
++
++	pkg.MarkComplete()
++	return pkg
++}
++
++type reader2 struct {
++	decoder
++
++	p *pkgReader2
++
++	tparams []*types2.TypeName
++}
++
++func (pr *pkgReader2) newReader(k reloc, idx int, marker syncMarker) *reader2 {
++	return &reader2{
++		decoder: pr.newDecoder(k, idx, marker),
++		p:       pr,
++	}
++}
++
++// @@@ Positions
++
++func (r *reader2) pos() syntax.Pos {
++	r.sync(syncPos)
++	if !r.bool() {
++		return syntax.Pos{}
++	}
++
++	// TODO(mdempsky): Delta encoding.
++	posBase := r.posBase()
++	line := r.uint()
++	col := r.uint()
++	return syntax.MakePos(posBase, line, col)
++}
++
++func (r *reader2) posBase() *syntax.PosBase {
++	return r.p.posBaseIdx(r.reloc(relocPosBase))
++}
++
++func (pr *pkgReader2) posBaseIdx(idx int) *syntax.PosBase {
++	if b := pr.posBases[idx]; b != nil {
++		return b
++	}
++
++	r := pr.newReader(relocPosBase, idx, syncPosBase)
++	var b *syntax.PosBase
++
++	filename := r.string()
++	_ = r.string() // absolute file name
++
++	if r.bool() {
++		b = syntax.NewFileBase(filename)
++	} else {
++		pos := r.pos()
++		line := r.uint()
++		col := r.uint()
++		b = syntax.NewLineBase(pos, filename, line, col)
++	}
++
++	pr.posBases[idx] = b
++	return b
++}
++
++// @@@ Packages
++
++func (r *reader2) pkg() *types2.Package {
++	r.sync(syncPkg)
++	return r.p.pkgIdx(r.reloc(relocPkg))
++}
++
++func (pr *pkgReader2) pkgIdx(idx int) *types2.Package {
++	// TODO(mdempsky): Consider using some non-nil pointer to indicate
++	// the universe scope, so we don't need to keep re-reading it.
++	if pkg := pr.pkgs[idx]; pkg != nil {
++		return pkg
++	}
++
++	pkg := pr.newReader(relocPkg, idx, syncPkgDef).doPkg()
++	pr.pkgs[idx] = pkg
++	return pkg
++}
++
++func (r *reader2) doPkg() *types2.Package {
++	path := r.string()
++	if path == "builtin" {
++		return nil // universe
++	}
++	if path == "" {
++		path = r.p.pkgPath
++	}
++
++	if pkg := r.p.imports[path]; pkg != nil {
++		return pkg
++	}
++
++	name := r.string()
++	height := r.len()
++
++	pkg := types2.NewPackageHeight(path, name, height)
++	r.p.imports[path] = pkg
++
++	// TODO(mdempsky): The list of imported packages is important for
++	// go/types, but we could probably skip populating it for types2.
++	imports := make([]*types2.Package, r.len())
++	for i := range imports {
++		imports[i] = r.pkg()
++	}
++	pkg.SetImports(imports)
++
++	return pkg
++}
++
++// @@@ Types
++
++func (r *reader2) typ() types2.Type {
++	r.sync(syncType)
++	return r.p.typIdx(r.reloc(relocType), r.tparams)
++}
++
++func (pr *pkgReader2) typIdx(idx int, tparams []*types2.TypeName) types2.Type {
++	if typ := pr.typs[idx]; typ != nil {
++		return typ
++	}
++
++	r := pr.newReader(relocType, idx, syncTypeIdx)
++	r.tparams = tparams
++	typ := r.doTyp()
++	assert(typ != nil)
++
++	if pr.typs[idx] != nil {
++		// See comment in pkgReader.typIdx.
++		return pr.typs[idx]
++	}
++
++	if len(tparams) == 0 {
++		pr.typs[idx] = typ
++	}
++
++	return typ
++}
++
++func (r *reader2) doTyp() (res types2.Type) {
++	switch tag := codeType(r.code(syncType)); tag {
++	default:
++		base.FatalfAt(src.NoXPos, "unhandled type tag: %v", tag)
++		panic("unreachable")
++
++	case typeBasic:
++		return types2.Typ[r.len()]
++
++	case typeNamed:
++		obj, targs := r.obj()
++		name := obj.(*types2.TypeName)
++		if len(targs) != 0 {
++			return r.p.check.InstantiateLazy(syntax.Pos{}, name.Type(), targs)
++		}
++		return name.Type()
++
++	case typeTypeParam:
++		idx := r.len()
++		return r.tparams[idx].Type().(*types2.TypeParam)
++
++	case typeArray:
++		len := int64(r.uint64())
++		return types2.NewArray(r.typ(), len)
++	case typeChan:
++		dir := types2.ChanDir(r.len())
++		return types2.NewChan(dir, r.typ())
++	case typeMap:
++		return types2.NewMap(r.typ(), r.typ())
++	case typePointer:
++		return types2.NewPointer(r.typ())
++	case typeSignature:
++		return r.signature(nil)
++	case typeSlice:
++		return types2.NewSlice(r.typ())
++	case typeStruct:
++		return r.structType()
++	case typeInterface:
++		return r.interfaceType()
++	case typeUnion:
++		return r.unionType()
++	}
++}
++
++func (r *reader2) structType() *types2.Struct {
++	fields := make([]*types2.Var, r.len())
++	var tags []string
++	for i := range fields {
++		pos := r.pos()
++		pkg, name := r.selector()
++		ftyp := r.typ()
++		tag := r.string()
++		embedded := r.bool()
++
++		fields[i] = types2.NewField(pos, pkg, name, ftyp, embedded)
++		if tag != "" {
++			for len(tags) < i {
++				tags = append(tags, "")
++			}
++			tags = append(tags, tag)
++		}
++	}
++	return types2.NewStruct(fields, tags)
++}
++
++func (r *reader2) unionType() *types2.Union {
++	terms := make([]types2.Type, r.len())
++	tildes := make([]bool, len(terms))
++	for i := range terms {
++		terms[i] = r.typ()
++		tildes[i] = r.bool()
++	}
++	return types2.NewUnion(terms, tildes)
++}
++
++func (r *reader2) interfaceType() *types2.Interface {
++	methods := make([]*types2.Func, r.len())
++	embeddeds := make([]types2.Type, r.len())
++
++	for i := range methods {
++		pos := r.pos()
++		pkg, name := r.selector()
++		mtyp := r.signature(nil)
++		methods[i] = types2.NewFunc(pos, pkg, name, mtyp)
++	}
++
++	for i := range embeddeds {
++		embeddeds[i] = r.typ()
++	}
++
++	typ := types2.NewInterfaceType(methods, embeddeds)
++	typ.Complete()
++	return typ
++}
++
++func (r *reader2) signature(recv *types2.Var) *types2.Signature {
++	r.sync(syncSignature)
++
++	params := r.params()
++	results := r.params()
++	variadic := r.bool()
++
++	return types2.NewSignature(recv, params, results, variadic)
++}
++
++func (r *reader2) params() *types2.Tuple {
++	r.sync(syncParams)
++	params := make([]*types2.Var, r.len())
++	for i := range params {
++		params[i] = r.param()
++	}
++	return types2.NewTuple(params...)
++}
++
++func (r *reader2) param() *types2.Var {
++	r.sync(syncParam)
++
++	pos := r.pos()
++	pkg, name := r.localIdent()
++	typ := r.typ()
++
++	return types2.NewParam(pos, pkg, name, typ)
++}
++
++// @@@ Objects
++
++func (r *reader2) obj() (types2.Object, []types2.Type) {
++	r.sync(syncObject)
++
++	pkg, name := r.p.objIdx(r.reloc(relocObj))
++	obj := pkg.Scope().Lookup(name)
++
++	targs := make([]types2.Type, r.len())
++	for i := range targs {
++		targs[i] = r.typ()
++	}
++
++	return obj, targs
++}
++
++func (pr *pkgReader2) objIdx(idx int) (*types2.Package, string) {
++	r := pr.newReader(relocObj, idx, syncObject1)
++	objPkg, objName := r.qualifiedIdent()
++	assert(objName != "")
++
++	bounds := r.typeParamBounds()
++	tag := codeObj(r.code(syncCodeObj))
++
++	if tag == objStub {
++		assert(objPkg == nil)
++		return objPkg, objName
++	}
++
++	objPkg.Scope().InsertLazy(objName, func() types2.Object {
++		switch tag {
++		default:
++			panic("weird")
++
++		case objAlias:
++			pos := r.pos()
++			typ := r.typ()
++			return types2.NewTypeName(pos, objPkg, objName, typ)
++
++		case objConst:
++			pos := r.pos()
++			typ, val := r.value()
++			return types2.NewConst(pos, objPkg, objName, typ, val)
++
++		case objFunc:
++			pos := r.pos()
++			r.typeParamNames(bounds)
++			sig := r.signature(nil)
++			if len(r.tparams) != 0 {
++				sig.SetTParams(r.tparams)
++			}
++			return types2.NewFunc(pos, objPkg, objName, sig)
++
++		case objType:
++			pos := r.pos()
++
++			return types2.NewTypeNameLazy(pos, objPkg, objName, func(named *types2.Named) (tparams []*types2.TypeName, underlying types2.Type, methods []*types2.Func) {
++				r.typeParamNames(bounds)
++				if len(r.tparams) != 0 {
++					tparams = r.tparams
++				}
++
++				// TODO(mdempsky): Rewrite receiver types to underlying is an
++				// Interface? The go/types importer does this (I think because
++				// unit tests expected that), but cmd/compile doesn't care
++				// about it, so maybe we can avoid worrying about that here.
++				underlying = r.typ().Underlying()
++
++				methods = make([]*types2.Func, r.len())
++				for i := range methods {
++					methods[i] = r.method(bounds)
++				}
++
++				return
++			})
++
++		case objVar:
++			pos := r.pos()
++			typ := r.typ()
++			return types2.NewVar(pos, objPkg, objName, typ)
++		}
++	})
++
++	return objPkg, objName
++}
++
++func (r *reader2) value() (types2.Type, constant.Value) {
++	r.sync(syncValue)
++	return r.typ(), r.rawValue()
++}
++
++func (r *reader2) typeParamBounds() []int {
++	r.sync(syncTypeParamBounds)
++
++	// exported types never have implicit type parameters
++	// TODO(mdempsky): Hide this from public importer.
++	assert(r.len() == 0)
++
++	bounds := make([]int, r.len())
++	for i := range bounds {
++		r.sync(syncType)
++		bounds[i] = r.reloc(relocType)
++	}
++	return bounds
++}
++
++func (r *reader2) typeParamNames(bounds []int) {
++	r.sync(syncTypeParamNames)
++
++	r.tparams = make([]*types2.TypeName, len(bounds))
++
++	for i := range r.tparams {
++		pos := r.pos()
++		pkg, name := r.localIdent()
++
++		obj := types2.NewTypeName(pos, pkg, name, nil)
++		r.p.check.NewTypeParam(obj, i, nil)
++		r.tparams[i] = obj
++	}
++
++	for i, tparam := range r.tparams {
++		bound := r.p.typIdx(bounds[i], r.tparams)
++		tparam.Type().(*types2.TypeParam).SetBound(bound)
++	}
++}
++
++func (r *reader2) method(bounds []int) *types2.Func {
++	r.sync(syncMethod)
++	pos := r.pos()
++	pkg, name := r.selector()
++
++	r.typeParamNames(bounds)
++	sig := r.signature(r.param())
++	if len(r.tparams) != 0 {
++		sig.SetRParams(r.tparams)
++	}
++
++	_ = r.pos() // TODO(mdempsky): Remove; this is a hacker for linker.go.
++	return types2.NewFunc(pos, pkg, name, sig)
++}
++
++func (r *reader2) qualifiedIdent() (*types2.Package, string) { return r.ident(syncSym) }
++func (r *reader2) localIdent() (*types2.Package, string)     { return r.ident(syncLocalIdent) }
++func (r *reader2) selector() (*types2.Package, string)       { return r.ident(syncSelector) }
++
++func (r *reader2) ident(marker syncMarker) (*types2.Package, string) {
++	r.sync(marker)
++	return r.pkg(), r.string()
++}
+diff --git a/src/cmd/compile/internal/noder/reloc.go b/src/cmd/compile/internal/noder/reloc.go
+new file mode 100644
+index 0000000000..961de49419
+--- /dev/null
++++ b/src/cmd/compile/internal/noder/reloc.go
+@@ -0,0 +1,40 @@
++// UNREVIEWED
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package noder
++
++// A reloc indicates a particular section within a unified IR export.
++//
++// TODO(mdempsky): Rename to "section" or something similar?
++type reloc int
++
++// A relocEnt (relocation entry) is an entry in an atom's local
++// reference table.
++//
++// TODO(mdempsky): Rename this too.
++type relocEnt struct {
++	kind reloc
++	idx  int
++}
++
++// Reserved indices within the meta relocation section.
++const (
++	publicRootIdx  = 0
++	privateRootIdx = 1
++)
++
++const (
++	relocString reloc = iota
++	relocMeta
++	relocPosBase
++	relocPkg
++	relocType
++	relocObj
++	relocObjExt
++	relocBody
++
++	numRelocs = iota
++)
+diff --git a/src/cmd/compile/internal/noder/sync.go b/src/cmd/compile/internal/noder/sync.go
+new file mode 100644
+index 0000000000..d77a784479
+--- /dev/null
++++ b/src/cmd/compile/internal/noder/sync.go
+@@ -0,0 +1,154 @@
++// UNREVIEWED
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package noder
++
++const debug = true
++
++type syncMarker int
++
++//go:generate stringer -type=syncMarker -trimprefix=sync
++
++// TODO(mdempsky): Cleanup unneeded sync markers.
++
++// TODO(mdempsky): Split these markers into public/stable markers, and
++// private ones. Also, trim unused ones.
++const (
++	_ syncMarker = iota
++	syncNode
++	syncBool
++	syncInt64
++	syncUint64
++	syncString
++	syncPos
++	syncPkg
++	syncSym
++	syncSelector
++	syncKind
++	syncType
++	syncTypePkg
++	syncSignature
++	syncParam
++	syncOp
++	syncObject
++	syncExpr
++	syncStmt
++	syncDecl
++	syncConstDecl
++	syncFuncDecl
++	syncTypeDecl
++	syncVarDecl
++	syncPragma
++	syncValue
++	syncEOF
++	syncMethod
++	syncFuncBody
++	syncUse
++	syncUseObj
++	syncObjectIdx
++	syncTypeIdx
++	syncBOF
++	syncEntry
++	syncOpenScope
++	syncCloseScope
++	syncGlobal
++	syncLocal
++	syncDefine
++	syncDefLocal
++	syncUseLocal
++	syncDefGlobal
++	syncUseGlobal
++	syncTypeParams
++	syncUseLabel
++	syncDefLabel
++	syncFuncLit
++	syncCommonFunc
++	syncBodyRef
++	syncLinksymExt
++	syncHack
++	syncSetlineno
++	syncName
++	syncImportDecl
++	syncDeclNames
++	syncDeclName
++	syncExprList
++	syncExprs
++	syncWrapname
++	syncTypeExpr
++	syncTypeExprOrNil
++	syncChanDir
++	syncParams
++	syncCloseAnotherScope
++	syncSum
++	syncUnOp
++	syncBinOp
++	syncStructType
++	syncInterfaceType
++	syncPackname
++	syncEmbedded
++	syncStmts
++	syncStmtsFall
++	syncStmtFall
++	syncBlockStmt
++	syncIfStmt
++	syncForStmt
++	syncSwitchStmt
++	syncRangeStmt
++	syncCaseClause
++	syncCommClause
++	syncSelectStmt
++	syncDecls
++	syncLabeledStmt
++	syncCompLit
++
++	sync1
++	sync2
++	sync3
++	sync4
++
++	syncN
++	syncDefImplicit
++	syncUseName
++	syncUseObjLocal
++	syncAddLocal
++	syncBothSignature
++	syncSetUnderlying
++	syncLinkname
++	syncStmt1
++	syncStmtsEnd
++	syncDeclare
++	syncTopDecls
++	syncTopConstDecl
++	syncTopFuncDecl
++	syncTopTypeDecl
++	syncTopVarDecl
++	syncObject1
++	syncAddBody
++	syncLabel
++	syncFuncExt
++	syncMethExt
++	syncOptLabel
++	syncScalar
++	syncStmtDecls
++	syncDeclLocal
++	syncObjLocal
++	syncObjLocal1
++	syncDeclareLocal
++	syncPublic
++	syncPrivate
++	syncRelocs
++	syncReloc
++	syncUseReloc
++	syncVarExt
++	syncPkgDef
++	syncTypeExt
++	syncVal
++	syncCodeObj
++	syncPosBase
++	syncLocalIdent
++	syncTypeParamNames
++	syncTypeParamBounds
++)
+diff --git a/src/cmd/compile/internal/noder/syncmarker_string.go b/src/cmd/compile/internal/noder/syncmarker_string.go
+new file mode 100644
+index 0000000000..3eb88fb911
+--- /dev/null
++++ b/src/cmd/compile/internal/noder/syncmarker_string.go
+@@ -0,0 +1,152 @@
++// Code generated by "stringer -type=syncMarker -trimprefix=sync"; DO NOT EDIT.
++
++package noder
++
++import "strconv"
++
++func _() {
++	// An "invalid array index" compiler error signifies that the constant values have changed.
++	// Re-run the stringer command to generate them again.
++	var x [1]struct{}
++	_ = x[syncNode-1]
++	_ = x[syncBool-2]
++	_ = x[syncInt64-3]
++	_ = x[syncUint64-4]
++	_ = x[syncString-5]
++	_ = x[syncPos-6]
++	_ = x[syncPkg-7]
++	_ = x[syncSym-8]
++	_ = x[syncSelector-9]
++	_ = x[syncKind-10]
++	_ = x[syncType-11]
++	_ = x[syncTypePkg-12]
++	_ = x[syncSignature-13]
++	_ = x[syncParam-14]
++	_ = x[syncOp-15]
++	_ = x[syncObject-16]
++	_ = x[syncExpr-17]
++	_ = x[syncStmt-18]
++	_ = x[syncDecl-19]
++	_ = x[syncConstDecl-20]
++	_ = x[syncFuncDecl-21]
++	_ = x[syncTypeDecl-22]
++	_ = x[syncVarDecl-23]
++	_ = x[syncPragma-24]
++	_ = x[syncValue-25]
++	_ = x[syncEOF-26]
++	_ = x[syncMethod-27]
++	_ = x[syncFuncBody-28]
++	_ = x[syncUse-29]
++	_ = x[syncUseObj-30]
++	_ = x[syncObjectIdx-31]
++	_ = x[syncTypeIdx-32]
++	_ = x[syncBOF-33]
++	_ = x[syncEntry-34]
++	_ = x[syncOpenScope-35]
++	_ = x[syncCloseScope-36]
++	_ = x[syncGlobal-37]
++	_ = x[syncLocal-38]
++	_ = x[syncDefine-39]
++	_ = x[syncDefLocal-40]
++	_ = x[syncUseLocal-41]
++	_ = x[syncDefGlobal-42]
++	_ = x[syncUseGlobal-43]
++	_ = x[syncTypeParams-44]
++	_ = x[syncUseLabel-45]
++	_ = x[syncDefLabel-46]
++	_ = x[syncFuncLit-47]
++	_ = x[syncCommonFunc-48]
++	_ = x[syncBodyRef-49]
++	_ = x[syncLinksymExt-50]
++	_ = x[syncHack-51]
++	_ = x[syncSetlineno-52]
++	_ = x[syncName-53]
++	_ = x[syncImportDecl-54]
++	_ = x[syncDeclNames-55]
++	_ = x[syncDeclName-56]
++	_ = x[syncExprList-57]
++	_ = x[syncExprs-58]
++	_ = x[syncWrapname-59]
++	_ = x[syncTypeExpr-60]
++	_ = x[syncTypeExprOrNil-61]
++	_ = x[syncChanDir-62]
++	_ = x[syncParams-63]
++	_ = x[syncCloseAnotherScope-64]
++	_ = x[syncSum-65]
++	_ = x[syncUnOp-66]
++	_ = x[syncBinOp-67]
++	_ = x[syncStructType-68]
++	_ = x[syncInterfaceType-69]
++	_ = x[syncPackname-70]
++	_ = x[syncEmbedded-71]
++	_ = x[syncStmts-72]
++	_ = x[syncStmtsFall-73]
++	_ = x[syncStmtFall-74]
++	_ = x[syncBlockStmt-75]
++	_ = x[syncIfStmt-76]
++	_ = x[syncForStmt-77]
++	_ = x[syncSwitchStmt-78]
++	_ = x[syncRangeStmt-79]
++	_ = x[syncCaseClause-80]
++	_ = x[syncCommClause-81]
++	_ = x[syncSelectStmt-82]
++	_ = x[syncDecls-83]
++	_ = x[syncLabeledStmt-84]
++	_ = x[syncCompLit-85]
++	_ = x[sync1-86]
++	_ = x[sync2-87]
++	_ = x[sync3-88]
++	_ = x[sync4-89]
++	_ = x[syncN-90]
++	_ = x[syncDefImplicit-91]
++	_ = x[syncUseName-92]
++	_ = x[syncUseObjLocal-93]
++	_ = x[syncAddLocal-94]
++	_ = x[syncBothSignature-95]
++	_ = x[syncSetUnderlying-96]
++	_ = x[syncLinkname-97]
++	_ = x[syncStmt1-98]
++	_ = x[syncStmtsEnd-99]
++	_ = x[syncDeclare-100]
++	_ = x[syncTopDecls-101]
++	_ = x[syncTopConstDecl-102]
++	_ = x[syncTopFuncDecl-103]
++	_ = x[syncTopTypeDecl-104]
++	_ = x[syncTopVarDecl-105]
++	_ = x[syncObject1-106]
++	_ = x[syncAddBody-107]
++	_ = x[syncLabel-108]
++	_ = x[syncFuncExt-109]
++	_ = x[syncMethExt-110]
++	_ = x[syncOptLabel-111]
++	_ = x[syncScalar-112]
++	_ = x[syncStmtDecls-113]
++	_ = x[syncDeclLocal-114]
++	_ = x[syncObjLocal-115]
++	_ = x[syncObjLocal1-116]
++	_ = x[syncDeclareLocal-117]
++	_ = x[syncPublic-118]
++	_ = x[syncPrivate-119]
++	_ = x[syncRelocs-120]
++	_ = x[syncReloc-121]
++	_ = x[syncUseReloc-122]
++	_ = x[syncVarExt-123]
++	_ = x[syncPkgDef-124]
++	_ = x[syncTypeExt-125]
++	_ = x[syncVal-126]
++	_ = x[syncCodeObj-127]
++	_ = x[syncPosBase-128]
++	_ = x[syncLocalIdent-129]
++}
++
++const _syncMarker_name = "NodeBoolInt64Uint64StringPosPkgSymSelectorKindTypeTypePkgSignatureParamOpObjectExprStmtDeclConstDeclFuncDeclTypeDeclVarDeclPragmaValueEOFMethodFuncBodyUseUseObjObjectIdxTypeIdxBOFEntryOpenScopeCloseScopeGlobalLocalDefineDefLocalUseLocalDefGlobalUseGlobalTypeParamsUseLabelDefLabelFuncLitCommonFuncBodyRefLinksymExtHackSetlinenoNameImportDeclDeclNamesDeclNameExprListExprsWrapnameTypeExprTypeExprOrNilChanDirParamsCloseAnotherScopeSumUnOpBinOpStructTypeInterfaceTypePacknameEmbeddedStmtsStmtsFallStmtFallBlockStmtIfStmtForStmtSwitchStmtRangeStmtCaseClauseCommClauseSelectStmtDeclsLabeledStmtCompLit1234NDefImplicitUseNameUseObjLocalAddLocalBothSignatureSetUnderlyingLinknameStmt1StmtsEndDeclareTopDeclsTopConstDeclTopFuncDeclTopTypeDeclTopVarDeclObject1AddBodyLabelFuncExtMethExtOptLabelScalarStmtDeclsDeclLocalObjLocalObjLocal1DeclareLocalPublicPrivateRelocsRelocUseRelocVarExtPkgDefTypeExtValCodeObjPosBaseLocalIdent"
++
++var _syncMarker_index = [...]uint16{0, 4, 8, 13, 19, 25, 28, 31, 34, 42, 46, 50, 57, 66, 71, 73, 79, 83, 87, 91, 100, 108, 116, 123, 129, 134, 137, 143, 151, 154, 160, 169, 176, 179, 184, 193, 203, 209, 214, 220, 228, 236, 245, 254, 264, 272, 280, 287, 297, 304, 314, 318, 327, 331, 341, 350, 358, 366, 371, 379, 387, 400, 407, 413, 430, 433, 437, 442, 452, 465, 473, 481, 486, 495, 503, 512, 518, 525, 535, 544, 554, 564, 574, 579, 590, 597, 598, 599, 600, 601, 602, 613, 620, 631, 639, 652, 665, 673, 678, 686, 693, 701, 713, 724, 735, 745, 752, 759, 764, 771, 778, 786, 792, 801, 810, 818, 827, 839, 845, 852, 858, 863, 871, 877, 883, 890, 893, 900, 907, 917}
++
++func (i syncMarker) String() string {
++	i -= 1
++	if i < 0 || i >= syncMarker(len(_syncMarker_index)-1) {
++		return "syncMarker(" + strconv.FormatInt(int64(i+1), 10) + ")"
++	}
++	return _syncMarker_name[_syncMarker_index[i]:_syncMarker_index[i+1]]
++}
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+new file mode 100644
+index 0000000000..9a41ea9dfe
+--- /dev/null
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -0,0 +1,276 @@
++// UNREVIEWED
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package noder
++
++import (
++	"bytes"
++	"fmt"
++	"internal/goversion"
++	"io"
++	"runtime"
++	"sort"
++
++	"cmd/compile/internal/base"
++	"cmd/compile/internal/inline"
++	"cmd/compile/internal/ir"
++	"cmd/compile/internal/typecheck"
++	"cmd/compile/internal/types"
++	"cmd/compile/internal/types2"
++	"cmd/internal/src"
++)
++
++// localPkgReader holds the package reader used for reading the local
++// package. It exists so the unified IR linker can refer back to it
++// later.
++var localPkgReader *pkgReader
++
++// useUnifiedIR reports whether the unified IR frontend should be
++// used; and if so, uses it to construct the local package's IR.
++func useUnifiedIR(noders []*noder) {
++	inline.NewInline = InlineCall
++
++	if !quirksMode() {
++		writeNewExportFunc = writeNewExport
++	}
++
++	newReadImportFunc = func(data string, pkg1 *types.Pkg, check *types2.Checker, packages map[string]*types2.Package) (pkg2 *types2.Package, err error) {
++		pr := newPkgDecoder(pkg1.Path, data)
++
++		// Read package descriptors for both types2 and compiler backend.
++		readPackage(newPkgReader(pr), pkg1)
++		pkg2 = readPackage2(check, packages, pr)
++		return
++	}
++
++	data := writePkgStub(noders)
++
++	// We already passed base.Flag.Lang to types2 to handle validating
++	// the user's source code. Bump it up now to the current version and
++	// re-parse, so typecheck doesn't complain if we construct IR that
++	// utilizes newer Go features.
++	base.Flag.Lang = fmt.Sprintf("go1.%d", goversion.Version)
++	types.ParseLangFlag()
++
++	assert(types.LocalPkg.Path == "")
++	types.LocalPkg.Height = 0 // reset so pkgReader.pkgIdx doesn't complain
++	target := typecheck.Target
++
++	typecheck.TypecheckAllowed = true
++
++	localPkgReader = newPkgReader(newPkgDecoder(types.LocalPkg.Path, data))
++	readPackage(localPkgReader, types.LocalPkg)
++
++	r := localPkgReader.newReader(relocMeta, privateRootIdx, syncPrivate)
++	r.ext = r
++	r.pkgInit(types.LocalPkg, target)
++
++	// Don't use range--bodyIdx can add closures to todoBodies.
++	for len(todoBodies) > 0 {
++		// The order we expand bodies doesn't matter, so pop from the end
++		// to reduce todoBodies reallocations if it grows further.
++		fn := todoBodies[len(todoBodies)-1]
++		todoBodies = todoBodies[:len(todoBodies)-1]
++
++		pri, ok := bodyReader[fn]
++		assert(ok)
++		pri.funcBody(fn)
++
++		// Instantiated generic function: add to Decls for typechecking
++		// and compilation.
++		if len(pri.implicits) != 0 && fn.OClosure == nil {
++			target.Decls = append(target.Decls, fn)
++		}
++	}
++	todoBodies = nil
++
++	// Don't use range--typecheck can add closures to Target.Decls.
++	for i := 0; i < len(target.Decls); i++ {
++		target.Decls[i] = typecheck.Stmt(target.Decls[i])
++	}
++
++	// Don't use range--typecheck can add closures to Target.Decls.
++	for i := 0; i < len(target.Decls); i++ {
++		if fn, ok := target.Decls[i].(*ir.Func); ok {
++			if base.Flag.W > 1 {
++				s := fmt.Sprintf("\nbefore typecheck %v", fn)
++				ir.Dump(s, fn)
++			}
++			ir.CurFunc = fn
++			typecheck.Stmts(fn.Body)
++			if base.Flag.W > 1 {
++				s := fmt.Sprintf("\nafter typecheck %v", fn)
++				ir.Dump(s, fn)
++			}
++		}
++	}
++
++	base.ExitIfErrors() // just in case
++}
++
++// writePkgStub type checks the given parsed source files and then
++// returns
++func writePkgStub(noders []*noder) string {
++	m, pkg, info := checkFiles(noders)
++
++	pw := newPkgWriter(m, pkg, info)
++
++	pw.collectDecls(noders)
++
++	publicRootWriter := pw.newWriter(relocMeta, syncPublic)
++	privateRootWriter := pw.newWriter(relocMeta, syncPrivate)
++
++	assert(publicRootWriter.idx == publicRootIdx)
++	assert(privateRootWriter.idx == privateRootIdx)
++
++	{
++		w := publicRootWriter
++		w.pkg(pkg)
++		w.bool(false) // has init; XXX
++
++		scope := pkg.Scope()
++		names := scope.Names()
++		w.len(len(names))
++		for _, name := range scope.Names() {
++			w.obj(scope.Lookup(name), nil)
++		}
++
++		w.sync(syncEOF)
++		w.flush()
++	}
++
++	{
++		w := privateRootWriter
++		w.ext = w
++		w.pkgInit(noders)
++		w.flush()
++	}
++
++	var sb bytes.Buffer // TODO(mdempsky): strings.Builder after #44505 is resolved
++	pw.dump(&sb)
++
++	// At this point, we're done with types2. Make sure the package is
++	// garbage collected.
++	freePackage(pkg)
++
++	return sb.String()
++}
++
++// freePackage ensures the given package is garbage collected.
++func freePackage(pkg *types2.Package) {
++	// Set a finalizer on pkg so we can detect if/when it's collected.
++	done := make(chan struct{})
++	runtime.SetFinalizer(pkg, func(*types2.Package) { close(done) })
++
++	// Important: objects involved in cycles are not finalized, so zero
++	// out pkg to break its cycles and allow the finalizer to run.
++	*pkg = types2.Package{}
++
++	// It typically takes just 1 or 2 cycles to release pkg, but it
++	// doesn't hurt to try a few more times.
++	for i := 0; i < 10; i++ {
++		select {
++		case <-done:
++			return
++		default:
++			runtime.GC()
++		}
++	}
++
++	base.Fatalf("package never finalized")
++}
++
++func readPackage(pr *pkgReader, importpkg *types.Pkg) {
++	r := pr.newReader(relocMeta, publicRootIdx, syncPublic)
++
++	pkg := r.pkg()
++	assert(pkg == importpkg)
++
++	if r.bool() {
++		sym := pkg.Lookup(".inittask")
++		task := ir.NewNameAt(src.NoXPos, sym)
++		task.Class = ir.PEXTERN
++		sym.Def = task
++	}
++
++	for i, n := 0, r.len(); i < n; i++ {
++		r.sync(syncObject)
++		idx := r.reloc(relocObj)
++		assert(r.len() == 0)
++
++		path, name, code, _ := r.p.peekObj(idx)
++		if code != objStub {
++			objReader[types.NewPkg(path, "").Lookup(name)] = pkgReaderIndex{pr, idx, nil}
++		}
++	}
++}
++
++func writeNewExport(out io.Writer) {
++	l := linker{
++		pw: newPkgEncoder(),
++
++		pkgs:  make(map[string]int),
++		decls: make(map[*types.Sym]int),
++	}
++
++	publicRootWriter := l.pw.newEncoder(relocMeta, syncPublic)
++	assert(publicRootWriter.idx == publicRootIdx)
++
++	var selfPkgIdx int
++
++	{
++		pr := localPkgReader
++		r := pr.newDecoder(relocMeta, publicRootIdx, syncPublic)
++
++		r.sync(syncPkg)
++		selfPkgIdx = l.relocIdx(pr, relocPkg, r.reloc(relocPkg))
++
++		r.bool() // has init
++
++		for i, n := 0, r.len(); i < n; i++ {
++			r.sync(syncObject)
++			idx := r.reloc(relocObj)
++			assert(r.len() == 0)
++
++			xpath, xname, xtag, _ := pr.peekObj(idx)
++			assert(xpath == pr.pkgPath)
++			assert(xtag != objStub)
++
++			if types.IsExported(xname) {
++				l.relocIdx(pr, relocObj, idx)
++			}
++		}
++
++		r.sync(syncEOF)
++	}
++
++	{
++		var idxs []int
++		for _, idx := range l.decls {
++			idxs = append(idxs, idx)
++		}
++		sort.Ints(idxs)
++
++		w := publicRootWriter
++
++		w.sync(syncPkg)
++		w.reloc(relocPkg, selfPkgIdx)
++
++		w.bool(typecheck.Lookup(".inittask").Def != nil)
++
++		w.len(len(idxs))
++		for _, idx := range idxs {
++			w.sync(syncObject)
++			w.reloc(relocObj, idx)
++			w.len(0)
++		}
++
++		w.sync(syncEOF)
++		w.flush()
++	}
++
++	l.pw.dump(out)
++}
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+new file mode 100644
+index 0000000000..b39dd8651b
+--- /dev/null
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -0,0 +1,1746 @@
++// UNREVIEWED
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package noder
++
++import (
++	"fmt"
++	"go/constant"
++
++	"cmd/compile/internal/base"
++	"cmd/compile/internal/ir"
++	"cmd/compile/internal/syntax"
++	"cmd/compile/internal/types2"
++)
++
++type pkgWriter struct {
++	pkgEncoder
++
++	m      posMap
++	curpkg *types2.Package
++	info   *types2.Info
++
++	posBasesIdx map[*syntax.PosBase]int
++	pkgsIdx     map[*types2.Package]int
++	typsIdx     map[types2.Type]int
++	globalsIdx  map[types2.Object]int
++
++	funDecls map[*types2.Func]*syntax.FuncDecl
++	typDecls map[*types2.TypeName]typeDeclGen
++
++	linknames  map[types2.Object]string
++	cgoPragmas [][]string
++
++	dups dupTypes
++}
++
++func newPkgWriter(m posMap, pkg *types2.Package, info *types2.Info) *pkgWriter {
++	return &pkgWriter{
++		pkgEncoder: newPkgEncoder(),
++
++		m:      m,
++		curpkg: pkg,
++		info:   info,
++
++		pkgsIdx:    make(map[*types2.Package]int),
++		globalsIdx: make(map[types2.Object]int),
++		typsIdx:    make(map[types2.Type]int),
++
++		posBasesIdx: make(map[*syntax.PosBase]int),
++
++		funDecls: make(map[*types2.Func]*syntax.FuncDecl),
++		typDecls: make(map[*types2.TypeName]typeDeclGen),
++
++		linknames: make(map[types2.Object]string),
++	}
++}
++
++func (pw *pkgWriter) errorf(p poser, msg string, args ...interface{}) {
++	base.ErrorfAt(pw.m.pos(p), msg, args...)
++}
++
++func (pw *pkgWriter) fatalf(p poser, msg string, args ...interface{}) {
++	base.FatalfAt(pw.m.pos(p), msg, args...)
++}
++
++func (pw *pkgWriter) unexpected(what string, p poser) {
++	pw.fatalf(p, "unexpected %s: %v (%T)", what, p, p)
++}
++
++type writer struct {
++	p *pkgWriter
++
++	encoder
++
++	// For writing out object descriptions, ext points to the extension
++	// writer for where we can write the compiler's private extension
++	// details for the object.
++	//
++	// TODO(mdempsky): This is a little hacky, but works easiest with
++	// the way things are currently.
++	ext *writer
++
++	// TODO(mdempsky): We should be able to prune localsIdx whenever a
++	// scope closes, and then maybe we can just use the same map for
++	// storing the TypeParams too (as their TypeName instead).
++
++	// type parameters. explicitIdx has the type parameters declared on
++	// the current object, while implicitIdx has the type parameters
++	// declared on the enclosing object (if any).
++	//
++	// TODO(mdempsky): Merge these back together, now that I've got them
++	// working.
++	implicitIdx map[*types2.TypeParam]int
++	explicitIdx map[*types2.TypeParam]int
++
++	// variables declared within this function
++	localsIdx map[types2.Object]int
++}
++
++func (pw *pkgWriter) newWriter(k reloc, marker syncMarker) *writer {
++	return &writer{
++		encoder: pw.newEncoder(k, marker),
++		p:       pw,
++	}
++}
++
++// @@@ Positions
++
++func (w *writer) pos(p poser) {
++	w.sync(syncPos)
++	pos := p.Pos()
++
++	// TODO(mdempsky): Track down the remaining cases here and fix them.
++	if !w.bool(pos.IsKnown()) {
++		return
++	}
++
++	// TODO(mdempsky): Delta encoding. Also, if there's a b-side, update
++	// its position base too (but not vice versa!).
++	w.posBase(pos.Base())
++	w.uint(pos.Line())
++	w.uint(pos.Col())
++}
++
++func (w *writer) posBase(b *syntax.PosBase) {
++	w.reloc(relocPosBase, w.p.posBaseIdx(b))
++}
++
++func (pw *pkgWriter) posBaseIdx(b *syntax.PosBase) int {
++	if idx, ok := pw.posBasesIdx[b]; ok {
++		return idx
++	}
++
++	w := pw.newWriter(relocPosBase, syncPosBase)
++	w.p.posBasesIdx[b] = w.idx
++
++	// TODO(mdempsky): What exactly does "fileh" do anyway? Is writing
++	// out both of these strings really the right thing to do here?
++	fn := b.Filename()
++	w.string(fn)
++	w.string(fileh(fn))
++
++	if !w.bool(b.IsFileBase()) {
++		w.pos(b)
++		w.uint(b.Line())
++		w.uint(b.Col())
++	}
++
++	return w.flush()
++}
++
++// @@@ Packages
++
++func (w *writer) pkg(pkg *types2.Package) {
++	w.sync(syncPkg)
++	w.reloc(relocPkg, w.p.pkgIdx(pkg))
++}
++
++func (pw *pkgWriter) pkgIdx(pkg *types2.Package) int {
++	if idx, ok := pw.pkgsIdx[pkg]; ok {
++		return idx
++	}
++
++	w := pw.newWriter(relocPkg, syncPkgDef)
++	pw.pkgsIdx[pkg] = w.idx
++
++	if pkg == nil {
++		w.string("builtin")
++	} else {
++		var path string
++		if pkg != w.p.curpkg {
++			path = pkg.Path()
++		}
++		w.string(path)
++		w.string(pkg.Name())
++		w.len(pkg.Height())
++
++		w.len(len(pkg.Imports()))
++		for _, imp := range pkg.Imports() {
++			w.pkg(imp)
++		}
++	}
++
++	return w.flush()
++}
++
++// @@@ Types
++
++func (w *writer) typ(typ types2.Type) {
++	w.sync(syncType)
++
++	if quirksMode() {
++		typ = w.p.dups.orig(typ)
++	}
++
++	w.reloc(relocType, w.p.typIdx(typ, w.implicitIdx, w.explicitIdx))
++}
++
++func (pw *pkgWriter) typIdx(typ types2.Type, implicitIdx, explicitIdx map[*types2.TypeParam]int) int {
++	if idx, ok := pw.typsIdx[typ]; ok {
++		return idx
++	}
++
++	w := pw.newWriter(relocType, syncTypeIdx)
++	w.implicitIdx = implicitIdx
++	w.explicitIdx = explicitIdx
++
++	pw.typsIdx[typ] = w.idx // handle cycles
++	w.doTyp(typ)
++	return w.flush()
++}
++
++func (w *writer) doTyp(typ types2.Type) {
++	switch typ := typ.(type) {
++	default:
++		base.Fatalf("unexpected type: %v (%T)", typ, typ)
++
++	case *types2.Basic:
++		if kind := typ.Kind(); types2.Typ[kind] == typ {
++			w.code(typeBasic)
++			w.len(int(kind))
++			break
++		}
++
++		// Handle "byte" and "rune" as references to their TypeName.
++		obj := types2.Universe.Lookup(typ.Name())
++		assert(obj.Type() == typ)
++
++		w.code(typeNamed)
++		w.obj(obj, nil)
++
++	case *types2.Named:
++		// Type aliases can refer to uninstantiated generic types, so we
++		// might see len(TParams) != 0 && len(TArgs) == 0 here.
++		// TODO(mdempsky): Revisit after #46477 is resolved.
++		assert(len(typ.TParams()) == len(typ.TArgs()) || len(typ.TArgs()) == 0)
++
++		// TODO(mdempsky): Why do we need to loop here?
++		orig := typ
++		for orig.TArgs() != nil {
++			orig = orig.Orig()
++		}
++
++		w.code(typeNamed)
++		w.obj(orig.Obj(), typ.TArgs())
++
++	case *types2.TypeParam:
++		w.code(typeTypeParam)
++		if idx, ok := w.implicitIdx[typ]; ok {
++			w.len(idx)
++		} else if idx, ok := w.explicitIdx[typ]; ok {
++			w.len(len(w.implicitIdx) + idx)
++		} else {
++			w.p.fatalf(typ.Obj(), "%v not in %v or %v", typ, w.implicitIdx, w.explicitIdx)
++		}
++
++	case *types2.Array:
++		w.code(typeArray)
++		w.uint64(uint64(typ.Len()))
++		w.typ(typ.Elem())
++
++	case *types2.Chan:
++		w.code(typeChan)
++		w.len(int(typ.Dir()))
++		w.typ(typ.Elem())
++
++	case *types2.Map:
++		w.code(typeMap)
++		w.typ(typ.Key())
++		w.typ(typ.Elem())
++
++	case *types2.Pointer:
++		w.code(typePointer)
++		w.typ(typ.Elem())
++
++	case *types2.Signature:
++		assert(typ.TParams() == nil)
++		w.code(typeSignature)
++		w.signature(typ)
++
++	case *types2.Slice:
++		w.code(typeSlice)
++		w.typ(typ.Elem())
++
++	case *types2.Struct:
++		w.code(typeStruct)
++		w.structType(typ)
++
++	case *types2.Interface:
++		w.code(typeInterface)
++		w.interfaceType(typ)
++
++	case *types2.Union:
++		w.code(typeUnion)
++		w.unionType(typ)
++	}
++}
++
++func (w *writer) structType(typ *types2.Struct) {
++	w.len(typ.NumFields())
++	for i := 0; i < typ.NumFields(); i++ {
++		f := typ.Field(i)
++		w.pos(f)
++		w.selector(f)
++		w.typ(f.Type())
++		w.string(typ.Tag(i))
++		w.bool(f.Embedded())
++	}
++}
++
++func (w *writer) unionType(typ *types2.Union) {
++	w.len(typ.NumTerms())
++	for i := 0; i < typ.NumTerms(); i++ {
++		term, tilde := typ.Term(i)
++		w.typ(term)
++		w.bool(tilde)
++	}
++}
++
++func (w *writer) interfaceType(typ *types2.Interface) {
++	w.len(typ.NumExplicitMethods())
++	w.len(typ.NumEmbeddeds())
++
++	for i := 0; i < typ.NumExplicitMethods(); i++ {
++		m := typ.ExplicitMethod(i)
++		sig := m.Type().(*types2.Signature)
++		assert(sig.TParams() == nil)
++
++		w.pos(m)
++		w.selector(m)
++		w.signature(sig)
++	}
++
++	for i := 0; i < typ.NumEmbeddeds(); i++ {
++		w.typ(typ.EmbeddedType(i))
++	}
++}
++
++func (w *writer) signature(sig *types2.Signature) {
++	w.sync(syncSignature)
++	w.params(sig.Params())
++	w.params(sig.Results())
++	w.bool(sig.Variadic())
++}
++
++func (w *writer) params(typ *types2.Tuple) {
++	w.sync(syncParams)
++	w.len(typ.Len())
++	for i := 0; i < typ.Len(); i++ {
++		w.param(typ.At(i))
++	}
++}
++
++func (w *writer) param(param *types2.Var) {
++	w.sync(syncParam)
++	w.pos(param)
++	w.localIdent(param)
++	w.typ(param.Type())
++}
++
++// @@@ Objects
++
++func (w *writer) obj(obj types2.Object, explicits []types2.Type) {
++	w.sync(syncObject)
++
++	var implicitIdx map[*types2.TypeParam]int
++	if isDefinedType(obj) && !isGlobal(obj) {
++		implicitIdx = w.implicitIdx
++	}
++	w.reloc(relocObj, w.p.objIdx(obj, implicitIdx))
++
++	w.len(len(explicits))
++	for _, explicit := range explicits {
++		w.typ(explicit)
++	}
++}
++
++func (pw *pkgWriter) objIdx(obj types2.Object, implicitIdx map[*types2.TypeParam]int) int {
++	if idx, ok := pw.globalsIdx[obj]; ok {
++		return idx
++	}
++
++	w := pw.newWriter(relocObj, syncObject1)
++	w.ext = pw.newWriter(relocObjExt, syncObject1)
++	assert(w.ext.idx == w.idx)
++
++	pw.globalsIdx[obj] = w.idx
++
++	w.implicitIdx = implicitIdx
++	w.ext.implicitIdx = implicitIdx
++
++	w.doObj(obj)
++
++	w.flush()
++	w.ext.flush()
++
++	return w.idx
++}
++
++func (w *writer) doObj(obj types2.Object) {
++	// Ident goes first so importer can avoid unnecessary work if
++	// they've already resolved this object.
++	w.qualifiedIdent(obj)
++
++	tparams := objTypeParams(obj)
++	w.setTypeParams(tparams)
++	w.typeParamBounds(tparams)
++
++	if obj.Pkg() != w.p.curpkg {
++		w.code(objStub)
++		return
++	}
++
++	switch obj := obj.(type) {
++	default:
++		w.p.unexpected("object", obj)
++
++	case *types2.Const:
++		w.code(objConst)
++		w.pos(obj)
++		w.value(obj.Type(), obj.Val())
++
++	case *types2.Func:
++		decl, ok := w.p.funDecls[obj]
++		assert(ok)
++		sig := obj.Type().(*types2.Signature)
++
++		// Rewrite blank methods into blank functions.
++		// They aren't included in the receiver type's method set,
++		// and we still want to write them out to be compiled
++		// for regression tests.
++		// TODO(mdempsky): Change regress tests to avoid relying
++		// on blank functions/methods, so we can just ignore them
++		// altogether.
++		if recv := sig.Recv(); recv != nil {
++			assert(obj.Name() == "_")
++			assert(sig.TParams() == nil)
++
++			params := make([]*types2.Var, 1+sig.Params().Len())
++			params[0] = recv
++			for i := 0; i < sig.Params().Len(); i++ {
++				params[1+i] = sig.Params().At(i)
++			}
++			sig = types2.NewSignature(nil, types2.NewTuple(params...), sig.Results(), sig.Variadic())
++		}
++
++		w.code(objFunc)
++		w.pos(obj)
++		w.typeParamNames(sig.TParams())
++		w.signature(sig)
++		w.pos(decl)
++		w.ext.funcExt(obj)
++
++	case *types2.TypeName:
++		decl, ok := w.p.typDecls[obj]
++		assert(ok)
++
++		if obj.IsAlias() {
++			w.code(objAlias)
++			w.pos(obj)
++			w.typ(obj.Type())
++			break
++		}
++
++		named := obj.Type().(*types2.Named)
++		assert(named.TArgs() == nil)
++
++		w.code(objType)
++		w.pos(obj)
++		w.typeParamNames(named.TParams())
++		w.ext.typeExt(obj)
++		w.typExpr(decl.Type)
++
++		w.len(named.NumMethods())
++		for i := 0; i < named.NumMethods(); i++ {
++			w.method(named.Method(i))
++		}
++
++	case *types2.Var:
++		w.code(objVar)
++		w.pos(obj)
++		w.typ(obj.Type())
++		w.ext.varExt(obj)
++	}
++}
++
++// typExpr writes the type represented by the given expression.
++func (w *writer) typExpr(expr syntax.Expr) {
++	tv, ok := w.p.info.Types[expr]
++	assert(ok)
++	assert(tv.IsType())
++	w.typ(tv.Type)
++}
++
++func (w *writer) value(typ types2.Type, val constant.Value) {
++	w.sync(syncValue)
++	w.typ(typ)
++	w.rawValue(val)
++}
++
++func (w *writer) setTypeParams(tparams []*types2.TypeName) {
++	if len(tparams) == 0 {
++		return
++	}
++
++	explicitIdx := make(map[*types2.TypeParam]int)
++	for _, tparam := range tparams {
++		explicitIdx[tparam.Type().(*types2.TypeParam)] = len(explicitIdx)
++	}
++
++	w.explicitIdx = explicitIdx
++	w.ext.explicitIdx = explicitIdx
++}
++
++func (w *writer) typeParamBounds(tparams []*types2.TypeName) {
++	w.sync(syncTypeParamBounds)
++
++	// TODO(mdempsky): Remove. It's useful for debugging at the moment,
++	// but it doesn't belong here.
++	w.len(len(w.implicitIdx))
++	w.len(len(w.explicitIdx))
++	assert(len(w.explicitIdx) == len(tparams))
++
++	for _, tparam := range tparams {
++		w.typ(tparam.Type().(*types2.TypeParam).Bound())
++	}
++}
++
++func (w *writer) typeParamNames(tparams []*types2.TypeName) {
++	w.sync(syncTypeParamNames)
++
++	for _, tparam := range tparams {
++		w.pos(tparam)
++		w.localIdent(tparam)
++	}
++}
++
++func (w *writer) method(meth *types2.Func) {
++	decl, ok := w.p.funDecls[meth]
++	assert(ok)
++	sig := meth.Type().(*types2.Signature)
++
++	assert(len(w.explicitIdx) == len(sig.RParams()))
++	w.setTypeParams(sig.RParams())
++
++	w.sync(syncMethod)
++	w.pos(meth)
++	w.selector(meth)
++	w.typeParamNames(sig.RParams())
++	w.param(sig.Recv())
++	w.signature(sig)
++
++	w.pos(decl) // XXX: Hack to workaround linker limitations.
++	w.ext.funcExt(meth)
++}
++
++// qualifiedIdent writes out the name of an object declared at package
++// scope. (For now, it's also used to refer to local defined types.)
++func (w *writer) qualifiedIdent(obj types2.Object) {
++	w.sync(syncSym)
++
++	name := obj.Name()
++	if isDefinedType(obj) && !isGlobal(obj) {
++		// TODO(mdempsky): Find a better solution, this is terrible.
++		decl, ok := w.p.typDecls[obj.(*types2.TypeName)]
++		assert(ok)
++		name = fmt.Sprintf("%s·%v", name, decl.gen)
++	}
++
++	w.pkg(obj.Pkg())
++	w.string(name)
++}
++
++// TODO(mdempsky): We should be able to omit pkg from both localIdent
++// and selector, because they should always be known from context.
++// However, past frustrations with this optimization in iexport make
++// me a little nervous to try it again.
++
++// localIdent writes the name of a locally declared object (i.e.,
++// objects that can only be accessed by name, within the context of a
++// particular function).
++func (w *writer) localIdent(obj types2.Object) {
++	assert(!isGlobal(obj))
++	w.sync(syncLocalIdent)
++	w.pkg(obj.Pkg())
++	w.string(obj.Name())
++}
++
++// selector writes the name of a field or method (i.e., objects that
++// can only be accessed using selector expressions).
++func (w *writer) selector(obj types2.Object) {
++	w.sync(syncSelector)
++	w.pkg(obj.Pkg())
++	w.string(obj.Name())
++}
++
++// @@@ Compiler extensions
++
++func (w *writer) funcExt(obj *types2.Func) {
++	decl, ok := w.p.funDecls[obj]
++	assert(ok)
++
++	// TODO(mdempsky): Extend these pragma validation flags to account
++	// for generics. E.g., linkname probably doesn't make sense at
++	// least.
++
++	pragma := asPragmaFlag(decl.Pragma)
++	if pragma&ir.Systemstack != 0 && pragma&ir.Nosplit != 0 {
++		w.p.errorf(decl, "go:nosplit and go:systemstack cannot be combined")
++	}
++
++	if decl.Body != nil {
++		if pragma&ir.Noescape != 0 {
++			w.p.errorf(decl, "can only use //go:noescape with external func implementations")
++		}
++	} else {
++		if base.Flag.Complete || decl.Name.Value == "init" {
++			// Linknamed functions are allowed to have no body. Hopefully
++			// the linkname target has a body. See issue 23311.
++			if _, ok := w.p.linknames[obj]; !ok {
++				w.p.errorf(decl, "missing function body")
++			}
++		}
++	}
++
++	w.sync(syncFuncExt)
++	w.pragmaFlag(pragma)
++	w.linkname(obj)
++	w.bool(false) // stub extension
++	w.addBody(obj.Type().(*types2.Signature), decl.Body, make(map[types2.Object]int))
++	w.sync(syncEOF)
++}
++
++func (w *writer) typeExt(obj *types2.TypeName) {
++	decl, ok := w.p.typDecls[obj]
++	assert(ok)
++
++	w.sync(syncTypeExt)
++
++	w.pragmaFlag(asPragmaFlag(decl.Pragma))
++
++	// No LSym.SymIdx info yet.
++	w.int64(-1)
++	w.int64(-1)
++}
++
++func (w *writer) varExt(obj *types2.Var) {
++	w.sync(syncVarExt)
++	w.linkname(obj)
++}
++
++func (w *writer) linkname(obj types2.Object) {
++	w.sync(syncLinkname)
++	w.int64(-1)
++	w.string(w.p.linknames[obj])
++}
++
++func (w *writer) pragmaFlag(p ir.PragmaFlag) {
++	w.sync(syncPragma)
++	w.int(int(p))
++}
++
++// @@@ Function bodies
++
++func (w *writer) addBody(sig *types2.Signature, block *syntax.BlockStmt, localsIdx map[types2.Object]int) {
++	// TODO(mdempsky): Theoretically, I think at this point we want to
++	// extend the implicit type parameters list with any new explicit
++	// type parameters.
++	//
++	// However, I believe that's moot: declared functions and methods
++	// have explicit type parameters, but are always declared at package
++	// scope (which has no implicit type parameters); and function
++	// literals can appear within a type-parameterized function (i.e.,
++	// implicit type parameters), but cannot have explicit type
++	// parameters of their own.
++	//
++	// So I think it's safe to just use whichever is non-empty.
++	implicitIdx := w.implicitIdx
++	if len(implicitIdx) == 0 {
++		implicitIdx = w.explicitIdx
++	} else {
++		assert(len(w.explicitIdx) == 0)
++	}
++
++	w.sync(syncAddBody)
++	w.reloc(relocBody, w.p.bodyIdx(w.p.curpkg, sig, block, implicitIdx, localsIdx))
++}
++
++func (pw *pkgWriter) bodyIdx(pkg *types2.Package, sig *types2.Signature, block *syntax.BlockStmt, implicitIdx map[*types2.TypeParam]int, localsIdx map[types2.Object]int) int {
++	w := pw.newWriter(relocBody, syncFuncBody)
++	w.implicitIdx = implicitIdx
++	w.localsIdx = localsIdx
++
++	w.funcargs(sig)
++	if w.bool(block != nil) {
++		w.stmts(block.List)
++		w.pos(block.Rbrace)
++	}
++
++	return w.flush()
++}
++
++func (w *writer) funcargs(sig *types2.Signature) {
++	do := func(params *types2.Tuple, result bool) {
++		for i := 0; i < params.Len(); i++ {
++			w.funcarg(params.At(i), result)
++		}
++	}
++
++	if recv := sig.Recv(); recv != nil {
++		w.funcarg(recv, false)
++	}
++	do(sig.Params(), false)
++	do(sig.Results(), true)
++}
++
++func (w *writer) funcarg(param *types2.Var, result bool) {
++	if param.Name() != "" || result {
++		w.addLocal(param)
++	}
++}
++
++func (w *writer) addLocal(obj types2.Object) {
++	w.sync(syncAddLocal)
++	idx := len(w.localsIdx)
++	if debug {
++		w.int(idx)
++	}
++	w.localsIdx[obj] = idx
++}
++
++func (w *writer) useLocal(obj types2.Object) {
++	w.sync(syncUseObjLocal)
++	idx, ok := w.localsIdx[obj]
++	assert(ok)
++	w.len(idx)
++}
++
++func (w *writer) openScope(pos syntax.Pos) {
++	w.sync(syncOpenScope)
++	w.pos(pos)
++}
++
++func (w *writer) closeScope(pos syntax.Pos) {
++	w.sync(syncCloseScope)
++	w.pos(pos)
++	w.closeAnotherScope()
++}
++
++func (w *writer) closeAnotherScope() {
++	w.sync(syncCloseAnotherScope)
++}
++
++// @@@ Statements
++
++func (w *writer) stmt(stmt syntax.Stmt) {
++	var stmts []syntax.Stmt
++	if stmt != nil {
++		stmts = []syntax.Stmt{stmt}
++	}
++	w.stmts(stmts)
++}
++
++func (w *writer) stmts(stmts []syntax.Stmt) {
++	w.sync(syncStmts)
++	for _, stmt := range stmts {
++		w.stmt1(stmt)
++	}
++	w.code(stmtEnd)
++	w.sync(syncStmtsEnd)
++}
++
++func (w *writer) stmt1(stmt syntax.Stmt) {
++	switch stmt := stmt.(type) {
++	default:
++		w.p.unexpected("statement", stmt)
++
++	case nil, *syntax.EmptyStmt:
++		return
++
++	case *syntax.AssignStmt:
++		switch {
++		case stmt.Rhs == nil:
++			w.code(stmtIncDec)
++			w.op(binOps[stmt.Op])
++			w.expr(stmt.Lhs)
++			w.pos(stmt)
++
++		case stmt.Op != 0 && stmt.Op != syntax.Def:
++			w.code(stmtAssignOp)
++			w.op(binOps[stmt.Op])
++			w.expr(stmt.Lhs)
++			w.pos(stmt)
++			w.expr(stmt.Rhs)
++
++		default:
++			w.code(stmtAssign)
++			w.pos(stmt)
++			w.assignList(stmt.Lhs)
++			w.exprList(stmt.Rhs)
++		}
++
++	case *syntax.BlockStmt:
++		w.code(stmtBlock)
++		w.blockStmt(stmt)
++
++	case *syntax.BranchStmt:
++		w.code(stmtBranch)
++		w.pos(stmt)
++		w.op(branchOps[stmt.Tok])
++		w.optLabel(stmt.Label)
++
++	case *syntax.CallStmt:
++		w.code(stmtCall)
++		w.pos(stmt)
++		w.op(callOps[stmt.Tok])
++		w.expr(stmt.Call)
++
++	case *syntax.DeclStmt:
++		for _, decl := range stmt.DeclList {
++			w.declStmt(decl)
++		}
++
++	case *syntax.ExprStmt:
++		w.code(stmtExpr)
++		w.expr(stmt.X)
++
++	case *syntax.ForStmt:
++		w.code(stmtFor)
++		w.forStmt(stmt)
++
++	case *syntax.IfStmt:
++		w.code(stmtIf)
++		w.ifStmt(stmt)
++
++	case *syntax.LabeledStmt:
++		w.code(stmtLabel)
++		w.pos(stmt)
++		w.label(stmt.Label)
++		w.stmt1(stmt.Stmt)
++
++	case *syntax.ReturnStmt:
++		w.code(stmtReturn)
++		w.pos(stmt)
++		w.exprList(stmt.Results)
++
++	case *syntax.SelectStmt:
++		w.code(stmtSelect)
++		w.selectStmt(stmt)
++
++	case *syntax.SendStmt:
++		w.code(stmtSend)
++		w.pos(stmt)
++		w.expr(stmt.Chan)
++		w.expr(stmt.Value)
++
++	case *syntax.SwitchStmt:
++		w.code(stmtSwitch)
++		w.switchStmt(stmt)
++	}
++}
++
++func (w *writer) assignList(expr syntax.Expr) {
++	exprs := unpackListExpr(expr)
++	w.len(len(exprs))
++
++	for _, expr := range exprs {
++		if name, ok := expr.(*syntax.Name); ok && name.Value != "_" {
++			if obj, ok := w.p.info.Defs[name]; ok {
++				w.bool(true)
++				w.pos(obj)
++				w.localIdent(obj)
++				w.typ(obj.Type())
++
++				// TODO(mdempsky): Minimize locals index size by deferring
++				// this until the variables actually come into scope.
++				w.addLocal(obj)
++				continue
++			}
++		}
++
++		w.bool(false)
++		w.expr(expr)
++	}
++}
++
++func (w *writer) declStmt(decl syntax.Decl) {
++	switch decl := decl.(type) {
++	default:
++		w.p.unexpected("declaration", decl)
++
++	case *syntax.ConstDecl:
++
++	case *syntax.TypeDecl:
++		// Quirk: The legacy inliner doesn't support inlining functions
++		// with type declarations. Unified IR doesn't have any need to
++		// write out type declarations explicitly (they're always looked
++		// up via global index tables instead), so we just write out a
++		// marker so the reader knows to synthesize a fake declaration to
++		// prevent inlining.
++		if quirksMode() {
++			w.code(stmtTypeDeclHack)
++		}
++
++	case *syntax.VarDecl:
++		values := unpackListExpr(decl.Values)
++
++		// Quirk: When N variables are declared with N initialization
++		// values, we need to decompose that into N interleaved
++		// declarations+initializations, because it leads to different
++		// (albeit semantically equivalent) code generation.
++		if quirksMode() && len(decl.NameList) == len(values) {
++			for i, name := range decl.NameList {
++				w.code(stmtAssign)
++				w.pos(decl)
++				w.assignList(name)
++				w.exprList(values[i])
++			}
++			break
++		}
++
++		w.code(stmtAssign)
++		w.pos(decl)
++		w.assignList(namesAsExpr(decl.NameList))
++		w.exprList(decl.Values)
++	}
++}
++
++func (w *writer) blockStmt(stmt *syntax.BlockStmt) {
++	w.sync(syncBlockStmt)
++	w.openScope(stmt.Pos())
++	w.stmts(stmt.List)
++	w.closeScope(stmt.Rbrace)
++}
++
++func (w *writer) forStmt(stmt *syntax.ForStmt) {
++	w.sync(syncForStmt)
++	w.openScope(stmt.Pos())
++
++	if rang, ok := stmt.Init.(*syntax.RangeClause); w.bool(ok) {
++		w.pos(rang)
++		w.assignList(rang.Lhs)
++		w.expr(rang.X)
++	} else {
++		w.pos(stmt)
++		w.stmt(stmt.Init)
++		w.expr(stmt.Cond)
++		w.stmt(stmt.Post)
++	}
++
++	w.blockStmt(stmt.Body)
++	w.closeAnotherScope()
++}
++
++func (w *writer) ifStmt(stmt *syntax.IfStmt) {
++	w.sync(syncIfStmt)
++	w.openScope(stmt.Pos())
++	w.pos(stmt)
++	w.stmt(stmt.Init)
++	w.expr(stmt.Cond)
++	w.blockStmt(stmt.Then)
++	w.stmt(stmt.Else)
++	w.closeAnotherScope()
++}
++
++func (w *writer) selectStmt(stmt *syntax.SelectStmt) {
++	w.sync(syncSelectStmt)
++
++	w.pos(stmt)
++	w.len(len(stmt.Body))
++	for i, clause := range stmt.Body {
++		if i > 0 {
++			w.closeScope(clause.Pos())
++		}
++		w.openScope(clause.Pos())
++
++		w.pos(clause)
++		w.stmt(clause.Comm)
++		w.stmts(clause.Body)
++	}
++	if len(stmt.Body) > 0 {
++		w.closeScope(stmt.Rbrace)
++	}
++}
++
++func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
++	w.sync(syncSwitchStmt)
++
++	w.openScope(stmt.Pos())
++	w.pos(stmt)
++	w.stmt(stmt.Init)
++	w.expr(stmt.Tag)
++
++	w.len(len(stmt.Body))
++	for i, clause := range stmt.Body {
++		if i > 0 {
++			w.closeScope(clause.Pos())
++		}
++		w.openScope(clause.Pos())
++
++		w.pos(clause)
++		w.exprList(clause.Cases)
++
++		if obj, ok := w.p.info.Implicits[clause]; ok {
++			// TODO(mdempsky): These pos details are quirkish, but also
++			// necessary so the variable's position is correct for DWARF
++			// scope assignment later. It would probably be better for us to
++			// instead just set the variable's DWARF scoping info earlier so
++			// we can give it the correct position information.
++			pos := clause.Pos()
++			if typs := unpackListExpr(clause.Cases); len(typs) != 0 {
++				pos = typeExprEndPos(typs[len(typs)-1])
++			}
++			w.pos(pos)
++
++			obj := obj.(*types2.Var)
++			w.typ(obj.Type())
++			w.addLocal(obj)
++		}
++
++		w.stmts(clause.Body)
++	}
++	if len(stmt.Body) > 0 {
++		w.closeScope(stmt.Rbrace)
++	}
++
++	w.closeScope(stmt.Rbrace)
++}
++
++func (w *writer) label(label *syntax.Name) {
++	w.sync(syncLabel)
++
++	// TODO(mdempsky): Replace label strings with dense indices.
++	w.string(label.Value)
++}
++
++func (w *writer) optLabel(label *syntax.Name) {
++	w.sync(syncOptLabel)
++	if w.bool(label != nil) {
++		w.label(label)
++	}
++}
++
++// @@@ Expressions
++
++func (w *writer) expr(expr syntax.Expr) {
++	expr = unparen(expr) // skip parens; unneeded after typecheck
++
++	obj, targs := lookupObj(w.p.info, expr)
++
++	if tv, ok := w.p.info.Types[expr]; ok {
++		if tv.IsType() {
++			w.code(exprType)
++			w.typ(tv.Type)
++			return
++		}
++
++		if tv.Value != nil {
++			pos := expr.Pos()
++			if quirksMode() {
++				if obj != nil {
++					// Quirk: IR (and thus iexport) doesn't track position
++					// information for uses of declared objects.
++					pos = syntax.Pos{}
++				} else if tv.Value.Kind() == constant.String {
++					// Quirk: noder.sum picks a particular position for certain
++					// string concatenations.
++					pos = sumPos(expr)
++				}
++			}
++
++			w.code(exprConst)
++			w.pos(pos)
++			w.value(tv.Type, tv.Value)
++
++			// TODO(mdempsky): These details are only important for backend
++			// diagnostics. Explore writing them out separately.
++			w.op(constExprOp(expr))
++			w.string(syntax.String(expr))
++			return
++		}
++	}
++
++	if obj != nil {
++		if _, ok := w.localsIdx[obj]; ok {
++			assert(len(targs) == 0)
++			w.code(exprLocal)
++			w.useLocal(obj)
++			return
++		}
++
++		w.code(exprName)
++		w.obj(obj, targs)
++		return
++	}
++
++	switch expr := expr.(type) {
++	default:
++		w.p.unexpected("expression", expr)
++
++	case nil: // absent slice index, for condition, or switch tag
++		w.code(exprNone)
++
++	case *syntax.Name:
++		assert(expr.Value == "_")
++		w.code(exprBlank)
++
++	case *syntax.CompositeLit:
++		w.code(exprCompLit)
++		w.compLit(expr)
++
++	case *syntax.FuncLit:
++		w.code(exprFuncLit)
++		w.funcLit(expr)
++
++	case *syntax.SelectorExpr:
++		sel, ok := w.p.info.Selections[expr]
++		assert(ok)
++
++		w.code(exprSelector)
++		w.expr(expr.X)
++		w.pos(expr)
++		w.selector(sel.Obj())
++
++	case *syntax.IndexExpr:
++		tv, ok := w.p.info.Types[expr.Index]
++		assert(ok && tv.IsValue())
++
++		w.code(exprIndex)
++		w.expr(expr.X)
++		w.pos(expr)
++		w.expr(expr.Index)
++
++	case *syntax.SliceExpr:
++		w.code(exprSlice)
++		w.expr(expr.X)
++		w.pos(expr)
++		for _, n := range &expr.Index {
++			w.expr(n)
++		}
++
++	case *syntax.AssertExpr:
++		w.code(exprAssert)
++		w.expr(expr.X)
++		w.pos(expr)
++		w.expr(expr.Type)
++
++	case *syntax.Operation:
++		if expr.Y == nil {
++			w.code(exprUnaryOp)
++			w.op(unOps[expr.Op])
++			w.pos(expr)
++			w.expr(expr.X)
++			break
++		}
++
++		w.code(exprBinaryOp)
++		w.op(binOps[expr.Op])
++		w.expr(expr.X)
++		w.pos(expr)
++		w.expr(expr.Y)
++
++	case *syntax.CallExpr:
++		w.code(exprCall)
++
++		if inf, ok := w.p.info.Inferred[expr]; ok {
++			obj, _ := lookupObj(w.p.info, expr.Fun)
++			assert(obj != nil)
++
++			// As if w.expr(expr.Fun), but using inf.TArgs instead.
++			w.code(exprName)
++			w.obj(obj, inf.TArgs)
++		} else {
++			w.expr(expr.Fun)
++		}
++
++		w.pos(expr)
++		w.exprs(expr.ArgList)
++		w.bool(expr.HasDots)
++
++	case *syntax.TypeSwitchGuard:
++		w.code(exprTypeSwitchGuard)
++		w.pos(expr)
++		if tag := expr.Lhs; w.bool(tag != nil) {
++			w.pos(tag)
++			w.string(tag.Value)
++		}
++		w.expr(expr.X)
++	}
++}
++
++func (w *writer) compLit(lit *syntax.CompositeLit) {
++	tv, ok := w.p.info.Types[lit]
++	assert(ok)
++
++	w.sync(syncCompLit)
++	w.pos(lit)
++	w.typ(tv.Type)
++
++	typ := tv.Type
++	if ptr, ok := typ.Underlying().(*types2.Pointer); ok {
++		typ = ptr.Elem()
++	}
++	str, isStruct := typ.Underlying().(*types2.Struct)
++
++	w.len(len(lit.ElemList))
++	for i, elem := range lit.ElemList {
++		if isStruct {
++			if kv, ok := elem.(*syntax.KeyValueExpr); ok {
++				// use position of expr.Key rather than of elem (which has position of ':')
++				w.pos(kv.Key)
++				w.len(fieldIndex(w.p.info, str, kv.Key.(*syntax.Name)))
++				elem = kv.Value
++			} else {
++				w.pos(elem)
++				w.len(i)
++			}
++		} else {
++			if kv, ok := elem.(*syntax.KeyValueExpr); w.bool(ok) {
++				// use position of expr.Key rather than of elem (which has position of ':')
++				w.pos(kv.Key)
++				w.expr(kv.Key)
++				elem = kv.Value
++			}
++		}
++		w.pos(elem)
++		w.expr(elem)
++	}
++}
++
++func (w *writer) funcLit(expr *syntax.FuncLit) {
++	tv, ok := w.p.info.Types[expr]
++	assert(ok)
++	sig := tv.Type.(*types2.Signature)
++
++	w.sync(syncFuncLit)
++	w.pos(expr)
++	w.pos(expr.Type) // for QuirksMode
++	w.signature(sig)
++
++	closureVars, localsIdx := w.captureVars(expr)
++	w.len(len(closureVars))
++	for _, closureVar := range closureVars {
++		w.pos(closureVar.pos)
++		w.useLocal(closureVar.obj)
++	}
++
++	w.addBody(sig, expr.Body, localsIdx)
++}
++
++type posObj struct {
++	pos syntax.Pos
++	obj types2.Object
++}
++
++// captureVars returns the free variables used by the given function
++// literal.
++func (w *writer) captureVars(expr *syntax.FuncLit) (closureVars []posObj, localsIdx map[types2.Object]int) {
++	scope, ok := w.p.info.Scopes[expr.Type]
++	assert(ok)
++
++	localsIdx = make(map[types2.Object]int)
++
++	// TODO(mdempsky): This code needs to be cleaned up (e.g., to avoid
++	// traversing nested function literals multiple times). This will be
++	// easier after we drop quirks mode.
++
++	var rbracePos syntax.Pos
++
++	var visitor func(n syntax.Node) bool
++	visitor = func(n syntax.Node) bool {
++
++		// Constant expressions don't count towards capturing.
++		if n, ok := n.(syntax.Expr); ok {
++			if tv, ok := w.p.info.Types[n]; ok && tv.Value != nil {
++				return true
++			}
++		}
++
++		switch n := n.(type) {
++		case *syntax.Name:
++			if obj, ok := w.p.info.Uses[n].(*types2.Var); ok && !obj.IsField() && obj.Pkg() == w.p.curpkg && obj.Parent() != obj.Pkg().Scope() {
++				// Found a local variable. See if it chains up to scope.
++				parent := obj.Parent()
++				for {
++					if parent == scope {
++						break
++					}
++					if parent == obj.Pkg().Scope() {
++						if _, present := localsIdx[obj]; !present {
++							pos := rbracePos
++							if pos == (syntax.Pos{}) {
++								pos = n.Pos()
++							}
++
++							idx := len(closureVars)
++							closureVars = append(closureVars, posObj{pos, obj})
++							localsIdx[obj] = idx
++						}
++						break
++					}
++					parent = parent.Parent()
++				}
++			}
++
++		case *syntax.FuncLit:
++			// Quirk: typecheck uses the rbrace position position of the
++			// function literal as the position of the intermediary capture.
++			if quirksMode() && rbracePos == (syntax.Pos{}) {
++				rbracePos = n.Body.Rbrace
++				syntax.Walk(n.Body, visitor)
++				rbracePos = syntax.Pos{}
++				return true
++			}
++
++		case *syntax.AssignStmt:
++			// Quirk: typecheck visits (and thus captures) the RHS of
++			// assignment statements before the LHS.
++			if quirksMode() && (n.Op == 0 || n.Op == syntax.Def) {
++				syntax.Walk(n.Rhs, visitor)
++				syntax.Walk(n.Lhs, visitor)
++				return true
++			}
++		case *syntax.RangeClause:
++			// Quirk: Similarly, it visits the expression to be iterated
++			// over before the iteration variables.
++			if quirksMode() {
++				syntax.Walk(n.X, visitor)
++				if n.Lhs != nil {
++					syntax.Walk(n.Lhs, visitor)
++				}
++				return true
++			}
++		}
++
++		return false
++	}
++	syntax.Walk(expr.Body, visitor)
++
++	return
++}
++
++func (w *writer) exprList(expr syntax.Expr) {
++	w.sync(syncExprList)
++	w.exprs(unpackListExpr(expr))
++}
++
++func (w *writer) exprs(exprs []syntax.Expr) {
++	if len(exprs) == 0 {
++		assert(exprs == nil)
++	}
++
++	w.sync(syncExprs)
++	w.len(len(exprs))
++	for _, expr := range exprs {
++		w.expr(expr)
++	}
++}
++
++func (w *writer) op(op ir.Op) {
++	// TODO(mdempsky): Remove in favor of explicit codes? Would make
++	// export data more stable against internal refactorings, but low
++	// priority at the moment.
++	assert(op != 0)
++	w.sync(syncOp)
++	w.len(int(op))
++}
++
++// @@@ Package initialization
++
++// Caution: This code is still clumsy, because toolstash -cmp is
++// particularly sensitive to it.
++
++type typeDeclGen struct {
++	*syntax.TypeDecl
++	gen int
++}
++
++func (pw *pkgWriter) collectDecls(noders []*noder) {
++	var typegen int
++
++	for _, p := range noders {
++		var importedEmbed, importedUnsafe bool
++
++		syntax.Walk(p.file, func(n syntax.Node) bool {
++			switch n := n.(type) {
++			case *syntax.File:
++				pw.checkPragmas(n.Pragma, ir.GoBuildPragma, false)
++
++			case *syntax.ImportDecl:
++				pw.checkPragmas(n.Pragma, 0, false)
++
++				switch pkgNameOf(pw.info, n).Imported().Path() {
++				case "embed":
++					importedEmbed = true
++				case "unsafe":
++					importedUnsafe = true
++				}
++
++			case *syntax.ConstDecl:
++				pw.checkPragmas(n.Pragma, 0, false)
++
++			case *syntax.FuncDecl:
++				pw.checkPragmas(n.Pragma, funcPragmas, false)
++
++				obj := pw.info.Defs[n.Name].(*types2.Func)
++				pw.funDecls[obj] = n
++
++			case *syntax.TypeDecl:
++				obj := pw.info.Defs[n.Name].(*types2.TypeName)
++				d := typeDeclGen{TypeDecl: n}
++
++				if n.Alias {
++					pw.checkPragmas(n.Pragma, 0, false)
++				} else {
++					pw.checkPragmas(n.Pragma, typePragmas, false)
++
++					// Assign a unique ID to function-scoped defined types.
++					if !isGlobal(obj) {
++						typegen++
++						d.gen = typegen
++					}
++				}
++
++				pw.typDecls[obj] = d
++
++			case *syntax.VarDecl:
++				pw.checkPragmas(n.Pragma, 0, true)
++
++				if p, ok := n.Pragma.(*pragmas); ok && len(p.Embeds) > 0 {
++					obj := pw.info.Defs[n.NameList[0]].(*types2.Var)
++					// TODO(mdempsky): isGlobal(obj) gives false positive errors
++					// for //go:embed directives on package-scope blank
++					// variables.
++					if err := checkEmbed(n, importedEmbed, !isGlobal(obj)); err != nil {
++						pw.errorf(p.Embeds[0].Pos, "%s", err)
++					}
++				}
++
++				// Workaround for #46208. For variable declarations that
++				// declare multiple variables and have an explicit type
++				// expression, the type expression is evaluated multiple
++				// times. This affects toolstash -cmp, because iexport is
++				// sensitive to *types.Type pointer identity.
++				if quirksMode() && n.Type != nil {
++					tv, ok := pw.info.Types[n.Type]
++					assert(ok)
++					assert(tv.IsType())
++					for _, name := range n.NameList {
++						obj := pw.info.Defs[name].(*types2.Var)
++						pw.dups.add(obj.Type(), tv.Type)
++					}
++				}
++			}
++			return false
++		})
++
++		pw.cgoPragmas = append(pw.cgoPragmas, p.pragcgobuf...)
++
++		for _, l := range p.linknames {
++			if !importedUnsafe {
++				pw.errorf(l.pos, "//go:linkname only allowed in Go files that import \"unsafe\"")
++				continue
++			}
++
++			switch obj := pw.curpkg.Scope().Lookup(l.local).(type) {
++			case *types2.Func, *types2.Var:
++				if _, ok := pw.linknames[obj]; !ok {
++					pw.linknames[obj] = l.remote
++				} else {
++					pw.errorf(l.pos, "duplicate //go:linkname for %s", l.local)
++				}
++
++			default:
++				// TODO(mdempsky): Enable after #42938 is fixed.
++				if false {
++					pw.errorf(l.pos, "//go:linkname must refer to declared function or variable")
++				}
++			}
++		}
++	}
++}
++
++func (pw *pkgWriter) checkPragmas(p syntax.Pragma, allowed ir.PragmaFlag, embedOK bool) {
++	if p == nil {
++		return
++	}
++	pragma := p.(*pragmas)
++
++	for _, pos := range pragma.Pos {
++		if pos.Flag&^allowed != 0 {
++			pw.errorf(pos.Pos, "misplaced compiler directive")
++		}
++	}
++
++	if !embedOK {
++		for _, e := range pragma.Embeds {
++			pw.errorf(e.Pos, "misplaced go:embed directive")
++		}
++	}
++}
++
++func (w *writer) pkgInit(noders []*noder) {
++	if quirksMode() {
++		posBases := posBasesOf(noders)
++		w.len(len(posBases))
++		for _, posBase := range posBases {
++			w.posBase(posBase)
++		}
++
++		objs := importedObjsOf(w.p.curpkg, w.p.info, noders)
++		w.len(len(objs))
++		for _, obj := range objs {
++			w.qualifiedIdent(obj)
++		}
++	}
++
++	w.len(len(w.p.cgoPragmas))
++	for _, cgoPragma := range w.p.cgoPragmas {
++		w.strings(cgoPragma)
++	}
++
++	w.sync(syncDecls)
++	for _, p := range noders {
++		for _, decl := range p.file.DeclList {
++			w.pkgDecl(decl)
++		}
++	}
++	w.code(declEnd)
++
++	w.sync(syncEOF)
++}
++
++func (w *writer) pkgDecl(decl syntax.Decl) {
++	switch decl := decl.(type) {
++	default:
++		w.p.unexpected("declaration", decl)
++
++	case *syntax.ImportDecl:
++
++	case *syntax.ConstDecl:
++		w.code(declOther)
++		w.pkgObjs(decl.NameList...)
++
++	case *syntax.FuncDecl:
++		obj := w.p.info.Defs[decl.Name].(*types2.Func)
++		sig := obj.Type().(*types2.Signature)
++
++		if sig.RParams() != nil || sig.TParams() != nil {
++			break // skip generic functions
++		}
++
++		if recv := sig.Recv(); recv != nil && obj.Name() != "_" {
++			w.code(declMethod)
++			w.typ(recvBase(recv))
++			w.selector(obj)
++			break
++		}
++
++		w.code(declFunc)
++		w.pkgObjs(decl.Name)
++
++	case *syntax.TypeDecl:
++		if len(decl.TParamList) != 0 {
++			break // skip generic type decls
++		}
++
++		name := w.p.info.Defs[decl.Name].(*types2.TypeName)
++
++		// Skip type declarations for interfaces that are only usable as
++		// type parameter bounds.
++		if iface, ok := name.Type().Underlying().(*types2.Interface); ok && iface.IsConstraint() {
++			break
++		}
++
++		// Skip aliases to uninstantiated generic types.
++		// TODO(mdempsky): Revisit after #46477 is resolved.
++		if name.IsAlias() {
++			named, ok := name.Type().(*types2.Named)
++			if ok && len(named.TParams()) != 0 && len(named.TArgs()) == 0 {
++				break
++			}
++		}
++
++		w.code(declOther)
++		w.pkgObjs(decl.Name)
++
++	case *syntax.VarDecl:
++		w.code(declVar)
++		w.pos(decl)
++		w.pkgObjs(decl.NameList...)
++		w.exprList(decl.Values)
++
++		var embeds []pragmaEmbed
++		if p, ok := decl.Pragma.(*pragmas); ok {
++			embeds = p.Embeds
++		}
++		w.len(len(embeds))
++		for _, embed := range embeds {
++			w.pos(embed.Pos)
++			w.strings(embed.Patterns)
++		}
++	}
++}
++
++func (w *writer) pkgObjs(names ...*syntax.Name) {
++	w.sync(syncDeclNames)
++	w.len(len(names))
++
++	for _, name := range names {
++		obj, ok := w.p.info.Defs[name]
++		assert(ok)
++
++		w.sync(syncDeclName)
++		w.obj(obj, nil)
++	}
++}
++
++// @@@ Helpers
++
++// isDefinedType reports whether obj is a defined type.
++func isDefinedType(obj types2.Object) bool {
++	if obj, ok := obj.(*types2.TypeName); ok {
++		return !obj.IsAlias()
++	}
++	return false
++}
++
++// isGlobal reports whether obj was declared at package scope.
++//
++// Caveat: blank objects are not declared.
++func isGlobal(obj types2.Object) bool {
++	return obj.Parent() == obj.Pkg().Scope()
++}
++
++// lookupObj returns the object that expr refers to, if any. If expr
++// is an explicit instantiation of a generic object, then the type
++// arguments are returned as well.
++func lookupObj(info *types2.Info, expr syntax.Expr) (obj types2.Object, targs []types2.Type) {
++	if index, ok := expr.(*syntax.IndexExpr); ok {
++		if inf, ok := info.Inferred[index]; ok {
++			targs = inf.TArgs
++		} else {
++			args := unpackListExpr(index.Index)
++
++			if len(args) == 1 {
++				tv, ok := info.Types[args[0]]
++				assert(ok)
++				if tv.IsValue() {
++					return // normal index expression
++				}
++			}
++
++			targs = make([]types2.Type, len(args))
++			for i, arg := range args {
++				tv, ok := info.Types[arg]
++				assert(ok)
++				assert(tv.IsType())
++				targs[i] = tv.Type
++			}
++		}
++
++		expr = index.X
++	}
++
++	// Strip package qualifier, if present.
++	if sel, ok := expr.(*syntax.SelectorExpr); ok {
++		if !isPkgQual(info, sel) {
++			return // normal selector expression
++		}
++		expr = sel.Sel
++	}
++
++	if name, ok := expr.(*syntax.Name); ok {
++		obj, _ = info.Uses[name]
++	}
++	return
++}
++
++// isPkgQual reports whether the given selector expression is a
++// package-qualified identifier.
++func isPkgQual(info *types2.Info, sel *syntax.SelectorExpr) bool {
++	if name, ok := sel.X.(*syntax.Name); ok {
++		_, isPkgName := info.Uses[name].(*types2.PkgName)
++		return isPkgName
++	}
++	return false
++}
++
++// recvBase returns the base type for the given receiver parameter.
++func recvBase(recv *types2.Var) *types2.Named {
++	typ := recv.Type()
++	if ptr, ok := typ.(*types2.Pointer); ok {
++		typ = ptr.Elem()
++	}
++	return typ.(*types2.Named)
++}
++
++// namesAsExpr returns a list of names as a syntax.Expr.
++func namesAsExpr(names []*syntax.Name) syntax.Expr {
++	if len(names) == 1 {
++		return names[0]
++	}
++
++	exprs := make([]syntax.Expr, len(names))
++	for i, name := range names {
++		exprs[i] = name
++	}
++	return &syntax.ListExpr{ElemList: exprs}
++}
++
++// fieldIndex returns the index of the struct field named by key.
++func fieldIndex(info *types2.Info, str *types2.Struct, key *syntax.Name) int {
++	field := info.Uses[key].(*types2.Var)
++
++	for i := 0; i < str.NumFields(); i++ {
++		if str.Field(i) == field {
++			return i
++		}
++	}
++
++	panic(fmt.Sprintf("%s: %v is not a field of %v", key.Pos(), field, str))
++}
++
++// objTypeParams returns the type parameters on the given object.
++func objTypeParams(obj types2.Object) []*types2.TypeName {
++	switch obj := obj.(type) {
++	case *types2.Func:
++		return obj.Type().(*types2.Signature).TParams()
++	case *types2.TypeName:
++		if !obj.IsAlias() {
++			return obj.Type().(*types2.Named).TParams()
++		}
++	}
++	return nil
++}
++
++func asPragmaFlag(p syntax.Pragma) ir.PragmaFlag {
++	if p == nil {
++		return 0
++	}
++	return p.(*pragmas).Flag
++}

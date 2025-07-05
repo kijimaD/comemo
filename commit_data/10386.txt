@@ -7,6 +7,21 @@ Date:   Mon Nov 14 22:31:39 2011 +0300
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5374083
-
+---
  src/pkg/time/sleep_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/time/sleep_test.go b/src/pkg/time/sleep_test.go
+index dae7dfe8fb..4c4a079880 100644
+--- a/src/pkg/time/sleep_test.go
++++ b/src/pkg/time/sleep_test.go
+@@ -54,6 +54,9 @@ func TestAfterStress(t *testing.T) {
+ 	go func() {
+ 		for atomic.LoadUint32(&stop) == 0 {
+ 			runtime.GC()
++			// Need to yield, because otherwise
++			// the main goroutine will never set the stop flag.
++			runtime.Gosched()
+ 		}
+ 	}()
+ 	c := Tick(1)

@@ -12,6 +12,23 @@ Date:   Mon Jul 19 16:49:32 2021 -0700
     Trust: Keith Randall <khr@golang.org>
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  test/run.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/test/run.go b/test/run.go
+index ce0d645985..6e0c12d46b 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2173,6 +2173,11 @@ var g3Failures = setOf(
+ 	"typeparam/nested.go", // -G=3 doesn't support function-local types with generics
+ 
+ 	"typeparam/mdempsky/4.go", // -G=3 can't export functions with labeled breaks in loops
++
++	"typeparam/cons.go",              // causes an unreachable method
++	"typeparam/dictionaryCapture.go", // segv, dictionary access failure?
++	"typeparam/issue44688.go",        // interface conversion fails due to missing method
++	"typeparam/mdempsky/14.go",       // interface comparison failure
+ )
+ 
+ var unifiedFailures = setOf(

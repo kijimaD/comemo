@@ -7,10 +7,101 @@ Date:   Tue Aug 30 14:33:16 2011 -0300
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/4956051
-
+---
  misc/cgo/test/Makefile     |  1 +
  misc/cgo/test/callback.go  |  2 +-
  misc/cgo/test/cgo_test.go  |  1 +
  misc/cgo/test/helpers.go   | 35 +++++++++++++++++++++++++++++++++++
  src/pkg/runtime/string.goc |  2 ++
  5 files changed, 40 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/test/Makefile b/misc/cgo/test/Makefile
+index d4309be3c6..5617e78c37 100644
+--- a/misc/cgo/test/Makefile
++++ b/misc/cgo/test/Makefile
+@@ -12,6 +12,7 @@ CGOFILES=\
+ 	callback.go\
+ 	env.go\
+ 	exports.go\
++	helpers.go\
+ 	issue1222.go\
+ 	issue1328.go\
+ 	issue1560.go\
+diff --git a/misc/cgo/test/callback.go b/misc/cgo/test/callback.go
+index 3edee97581..d20790e875 100644
+--- a/misc/cgo/test/callback.go
++++ b/misc/cgo/test/callback.go
+@@ -65,7 +65,7 @@ func testCallbackPanic(t *testing.T) {
+ func testCallbackPanicLoop(t *testing.T) {
+ 	// Make sure we don't blow out m->g0 stack.
+ 	for i := 0; i < 100000; i++ {
+-		TestCallbackPanic(t)
++		testCallbackPanic(t)
+ 	}
+ }
+ 
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 03f02370a1..34beee69d1 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -26,5 +26,6 @@ func TestBlocking(t *testing.T)            { testBlocking(t) }
+ func Test1328(t *testing.T)                { test1328(t) }
+ func TestParallelSleep(t *testing.T)       { testParallelSleep(t) }
+ func TestSetEnv(t *testing.T)              { testSetEnv(t) }
++func TestHelpers(t *testing.T)             { testHelpers(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/misc/cgo/test/helpers.go b/misc/cgo/test/helpers.go
+new file mode 100644
+index 0000000000..3a4f014225
+--- /dev/null
++++ b/misc/cgo/test/helpers.go
+@@ -0,0 +1,35 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++// const char *greeting = "hello, world";
++import "C"
++
++import (
++	"reflect"
++	"testing"
++	"unsafe"
++)
++
++const greeting = "hello, world"
++
++type testPair struct {
++	Name string
++	Got, Want interface{}
++}
++
++var testPairs = []testPair{
++	{"GoString", C.GoString(C.greeting), greeting},
++	{"GoStringN", C.GoStringN(C.greeting, 5), greeting[:5]},
++	{"GoBytes", C.GoBytes(unsafe.Pointer(C.greeting), 5), []byte(greeting[:5])},
++}
++
++func testHelpers(t *testing.T) {
++	for _, pair := range testPairs {
++		if !reflect.DeepEqual(pair.Got, pair.Want) {
++			t.Errorf("%s: got %#v, want %#v", pair.Got, pair.Want)
++		}
++	}
++}
+diff --git a/src/pkg/runtime/string.goc b/src/pkg/runtime/string.goc
+index 48bf3183b5..322706c0c4 100644
+--- a/src/pkg/runtime/string.goc
++++ b/src/pkg/runtime/string.goc
+@@ -80,6 +80,8 @@ runtime·gobytes(byte *p, int32 n)
+ 	Slice sl;
+ 
+ 	sl.array = runtime·mallocgc(n, FlagNoPointers, 1, 0);
++	sl.len = n;
++	sl.cap = n;
+ 	runtime·memmove(sl.array, p, n);
+ 	return sl;
+ }

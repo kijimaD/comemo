@@ -12,7 +12,65 @@ Date:   Wed Nov 2 18:16:51 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/32671
     Reviewed-by: Michael Munday <munday@ca.ibm.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/vet/all/main.go             |  7 ++-----
  src/cmd/vet/all/whitelist/s390x.txt | 19 +++++++++++++++++++
  2 files changed, 21 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/vet/all/main.go b/src/cmd/vet/all/main.go
+index e0926e1114..f7a47d687e 100644
+--- a/src/cmd/vet/all/main.go
++++ b/src/cmd/vet/all/main.go
+@@ -105,7 +105,7 @@ func (w whitelist) load(goos string, goarch string) {
+ 	// Look up whether goarch is a 32-bit or 64-bit architecture.
+ 	archbits, ok := nbits[goarch]
+ 	if !ok {
+-		log.Fatal("unknown bitwidth for arch %q", goarch)
++		log.Fatalf("unknown bitwidth for arch %q", goarch)
+ 	}
+ 
+ 	// Look up whether goarch has a shared arch suffix,
+@@ -197,10 +197,6 @@ func vetPlatforms(pp []platform) {
+ }
+ 
+ func (p platform) vet(ncpus int) {
+-	if p.arch == "s390x" {
+-		// TODO: reinstate when s390x gets vet support (issue 15454)
+-		return
+-	}
+ 	var buf bytes.Buffer
+ 	fmt.Fprintf(&buf, "go run main.go -p %s\n", p)
+ 
+@@ -329,6 +325,7 @@ var nbits = map[string]int{
+ 	"mips64le": 64,
+ 	"ppc64":    64,
+ 	"ppc64le":  64,
++	"s390x":    64,
+ }
+ 
+ // archAsmX maps architectures to the suffix usually used for their assembly files,
+diff --git a/src/cmd/vet/all/whitelist/s390x.txt b/src/cmd/vet/all/whitelist/s390x.txt
+new file mode 100644
+index 0000000000..875835e01e
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/s390x.txt
+@@ -0,0 +1,19 @@
++reflect/asm_s390x.s: [s390x] makeFuncStub: use of 16(R15) points beyond argument frame
++reflect/asm_s390x.s: [s390x] methodValueCall: use of 16(R15) points beyond argument frame
++runtime/asm_s390x.s: [s390x] abort: function abort missing Go declaration
++runtime/asm_s390x.s: [s390x] memeqbody: function memeqbody missing Go declaration
++runtime/asm_s390x.s: [s390x] memeqbodyclc: function memeqbodyclc missing Go declaration
++runtime/asm_s390x.s: [s390x] indexbytebody: function indexbytebody missing Go declaration
++runtime/asm_s390x.s: [s390x] cannot check cross-package assembly function: Compare is in package bytes
++runtime/asm_s390x.s: [s390x] cmpbody: function cmpbody missing Go declaration
++runtime/asm_s390x.s: [s390x] cmpbodyclc: function cmpbodyclc missing Go declaration
++runtime/asm_s390x.s: [s390x] cannot check cross-package assembly function: supportsVX is in package strings
++runtime/asm_s390x.s: [s390x] cannot check cross-package assembly function: supportsVX is in package bytes
++runtime/asm_s390x.s: [s390x] cannot check cross-package assembly function: indexShortStr is in package strings
++runtime/asm_s390x.s: [s390x] cannot check cross-package assembly function: indexShortStr is in package bytes
++runtime/asm_s390x.s: [s390x] indexShortStr: function indexShortStr missing Go declaration
++runtime/asm_s390x.s: [s390x] addmoduledata: function addmoduledata missing Go declaration
++runtime/memclr_s390x.s: [s390x] memclr_s390x_exrl_xc: function memclr_s390x_exrl_xc missing Go declaration
++runtime/memmove_s390x.s: [s390x] memmove_s390x_exrl_mvc: function memmove_s390x_exrl_mvc missing Go declaration
++runtime/tls_s390x.s: [s390x] save_g: function save_g missing Go declaration
++runtime/tls_s390x.s: [s390x] load_g: function load_g missing Go declaration

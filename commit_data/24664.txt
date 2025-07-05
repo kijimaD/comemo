@@ -12,8 +12,156 @@ Date:   Mon Jul 27 15:23:17 2015 -0700
     Change-Id: I060db212e8e0ee35fdefb4d482398f8f71650b38
     Reviewed-on: https://go-review.googlesource.com/12713
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/expr.go            |  4 +--
  src/go/types/stmt.go            | 32 ++++++++++------------
  src/go/types/testdata/stmt0.src | 59 +++++++++++++++++++++++++++++++++++++++++
  3 files changed, 75 insertions(+), 20 deletions(-)
+
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 7d00dd5fa5..542ce76497 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1462,9 +1462,9 @@ func (check *Checker) expr(x *operand, e ast.Expr) {
+ 	x.mode = invalid
+ }
+ 
+-// exprWithHint typechecks expression e and initializes x with the expression value.
++// exprWithHint typechecks expression e and initializes x with the expression value;
++// hint is the type of a composite literal element.
+ // If an error occurred, x.mode is set to invalid.
+-// If hint != nil, it is the type of a composite literal element.
+ //
+ func (check *Checker) exprWithHint(x *operand, e ast.Expr, hint Type) {
+ 	assert(hint != nil)
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 88a1d9b866..0ab2492d09 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -155,25 +155,20 @@ func (check *Checker) suspendedCall(keyword string, call *ast.CallExpr) {
+ 	check.errorf(x.pos(), "%s %s %s", keyword, msg, &x)
+ }
+ 
+-func (check *Checker) caseValues(x operand /* copy argument (not *operand!) */, values []ast.Expr) {
++func (check *Checker) caseValues(x *operand, values []ast.Expr) {
+ 	// No duplicate checking for now. See issue 4524.
+ 	for _, e := range values {
+-		var y operand
+-		check.expr(&y, e)
+-		if y.mode == invalid {
+-			return
+-		}
+-		// TODO(gri) The convertUntyped call pair below appears in other places. Factor!
+-		// Order matters: By comparing y against x, error positions are at the case values.
+-		check.convertUntyped(&y, x.typ)
+-		if y.mode == invalid {
+-			return
++		var v operand
++		check.expr(&v, e)
++		if x.mode == invalid || v.mode == invalid {
++			continue
+ 		}
+-		check.convertUntyped(&x, y.typ)
+-		if x.mode == invalid {
+-			return
++		check.convertUntyped(&v, x.typ)
++		if v.mode == invalid {
++			continue
+ 		}
+-		check.comparison(&y, &x, token.EQL)
++		// Order matters: By comparing v against x, error positions are at the case values.
++		check.comparison(&v, x, token.EQL)
+ 	}
+ }
+ 
+@@ -399,6 +394,9 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 		var x operand
+ 		if s.Tag != nil {
+ 			check.expr(&x, s.Tag)
++			// By checking assignment of x to an invisible temporary
++			// (as a compiler would), we get all the relevant checks.
++			check.assignment(&x, nil)
+ 		} else {
+ 			// spec: "A missing switch expression is
+ 			// equivalent to the boolean value true."
+@@ -416,9 +414,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 				check.invalidAST(c.Pos(), "incorrect expression switch case")
+ 				continue
+ 			}
+-			if x.mode != invalid {
+-				check.caseValues(x, clause.List)
+-			}
++			check.caseValues(&x, clause.List)
+ 			check.openScope(clause, "case")
+ 			inner := inner
+ 			if i+1 < len(s.Body.List) {
+diff --git a/src/go/types/testdata/stmt0.src b/src/go/types/testdata/stmt0.src
+index fd1ddba2ec..7e28c23fb0 100644
+--- a/src/go/types/testdata/stmt0.src
++++ b/src/go/types/testdata/stmt0.src
+@@ -512,6 +512,65 @@ func switches1() {
+ 	}
+ }
+ 
++func switches2() {
++	// untyped nil is not permitted as switch expression
++	switch nil /* ERROR "use of untyped nil" */ {
++	case 1, 2, "foo": // don't report additional errors here
++	}
++
++	// untyped constants are converted to default types
++	switch 1<<63-1 {
++	}
++	switch 1 /* ERROR "overflows int" */ << 63 {
++	}
++	var x int
++	switch 1.0 {
++	case 1.0, 2.0, x /* ERROR "mismatched types int and float64" */ :
++	}
++	switch x {
++	case 1.0:
++	}
++
++	// untyped bools become of type bool
++	type B bool
++	var b B = true
++	switch x == x {
++	case b /* ERROR "mismatched types B and bool" */ :
++	}
++	switch {
++	case b /* ERROR "mismatched types B and bool" */ :
++	}
++}
++
++func issue11667() {
++	switch 9223372036854775808 /* ERROR "overflows int" */ {
++	}
++	switch 9223372036854775808 /* ERROR "overflows int" */ {
++	case 9223372036854775808:
++	}
++	var x int
++	switch x {
++	case 9223372036854775808 /* ERROR "overflows int" */ :
++	}
++	var y float64
++	switch y {
++	case 9223372036854775808:
++	}
++}
++
++func issue11687() {
++	f := func() (_, _ int) { return }
++	switch f /* ERROR "2-valued expression" */ () {
++	}
++	var x int
++	switch f /* ERROR "2-valued expression" */ () {
++	case x:
++	}
++	switch x {
++	case f /* ERROR "cannot compare" */ (): // TODO(gri) better error message (issue 11896)
++	}
++}
++
+ type I interface {
+ 	m()
+ }

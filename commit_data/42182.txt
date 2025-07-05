@@ -12,7 +12,7 @@ Date:   Mon Nov 11 16:49:29 2019 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/dist/buildtool.go                |   1 -
  src/cmd/link/internal/ld/deadcode.go     | 301 +-------------
  src/cmd/link/internal/ld/go.go           |   8 +-
@@ -20,3 +20,1233 @@ Date:   Mon Nov 11 16:49:29 2019 -0500
  src/cmd/link/internal/ld/main.go         |   5 +-
  src/cmd/link/internal/objfile/objfile.go | 659 -------------------------------
  6 files changed, 39 insertions(+), 1050 deletions(-)
+
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 788598873d..60faedae06 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -80,7 +80,6 @@ var bootstrapDirs = []string{
+ 	"cmd/link/internal/loadxcoff",
+ 	"cmd/link/internal/mips",
+ 	"cmd/link/internal/mips64",
+-	"cmd/link/internal/objfile",
+ 	"cmd/link/internal/ppc64",
+ 	"cmd/link/internal/s390x",
+ 	"cmd/link/internal/sym",
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index e79207e2b8..4a53d7947b 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -6,11 +6,7 @@ package ld
+ 
+ import (
+ 	"cmd/internal/objabi"
+-	"cmd/internal/sys"
+ 	"cmd/link/internal/sym"
+-	"fmt"
+-	"strings"
+-	"unicode"
+ )
+ 
+ // deadcode marks all reachable symbols.
+@@ -46,84 +42,7 @@ import (
+ //
+ // Any unreached text symbols are removed from ctxt.Textp.
+ func deadcode(ctxt *Link) {
+-	if ctxt.Debugvlog != 0 {
+-		ctxt.Logf("deadcode\n")
+-	}
+-
+-	if *flagNewobj {
+-		deadcode2(ctxt)
+-		return
+-	}
+-
+-	d := &deadcodepass{
+-		ctxt:        ctxt,
+-		ifaceMethod: make(map[methodsig]bool),
+-	}
+-
+-	// First, flood fill any symbols directly reachable in the call
+-	// graph from *flagEntrySymbol. Ignore all methods not directly called.
+-	d.init()
+-	d.flood()
+-
+-	callSym := ctxt.Syms.ROLookup("reflect.Value.Call", sym.SymVerABIInternal)
+-	methSym := ctxt.Syms.ROLookup("reflect.Value.Method", sym.SymVerABIInternal)
+-	reflectSeen := false
+-
+-	if ctxt.DynlinkingGo() {
+-		// Exported methods may satisfy interfaces we don't know
+-		// about yet when dynamically linking.
+-		reflectSeen = true
+-	}
+-
+-	for {
+-		if !reflectSeen {
+-			if d.reflectMethod || (callSym != nil && callSym.Attr.Reachable()) || (methSym != nil && methSym.Attr.Reachable()) {
+-				// Methods might be called via reflection. Give up on
+-				// static analysis, mark all exported methods of
+-				// all reachable types as reachable.
+-				reflectSeen = true
+-			}
+-		}
+-
+-		// Mark all methods that could satisfy a discovered
+-		// interface as reachable. We recheck old marked interfaces
+-		// as new types (with new methods) may have been discovered
+-		// in the last pass.
+-		var rem []methodref
+-		for _, m := range d.markableMethods {
+-			if (reflectSeen && m.isExported()) || d.ifaceMethod[m.m] {
+-				d.markMethod(m)
+-			} else {
+-				rem = append(rem, m)
+-			}
+-		}
+-		d.markableMethods = rem
+-
+-		if len(d.markQueue) == 0 {
+-			// No new work was discovered. Done.
+-			break
+-		}
+-		d.flood()
+-	}
+-
+-	// Remove all remaining unreached R_METHODOFF relocations.
+-	for _, m := range d.markableMethods {
+-		for _, r := range m.r {
+-			d.cleanupReloc(r)
+-		}
+-	}
+-
+-	if ctxt.BuildMode != BuildModeShared {
+-		// Keep a itablink if the symbol it points at is being kept.
+-		// (When BuildModeShared, always keep itablinks.)
+-		for _, s := range ctxt.Syms.Allsym {
+-			if strings.HasPrefix(s.Name, "go.itablink.") {
+-				s.Attr.Set(sym.AttrReachable, len(s.R) == 1 && s.R[0].Sym.Attr.Reachable())
+-			}
+-		}
+-	}
+-
+-	addToTextp(ctxt)
++	deadcode2(ctxt)
+ }
+ 
+ func addToTextp(ctxt *Link) {
+@@ -188,221 +107,3 @@ func addToTextp(ctxt *Link) {
+ 		ctxt.Textp = textp
+ 	}
+ }
+-
+-// methodref holds the relocations from a receiver type symbol to its
+-// method. There are three relocations, one for each of the fields in
+-// the reflect.method struct: mtyp, ifn, and tfn.
+-type methodref struct {
+-	m   methodsig
+-	src *sym.Symbol   // receiver type symbol
+-	r   [3]*sym.Reloc // R_METHODOFF relocations to fields of runtime.method
+-}
+-
+-func (m methodref) ifn() *sym.Symbol { return m.r[1].Sym }
+-
+-func (m methodref) isExported() bool {
+-	for _, r := range m.m {
+-		return unicode.IsUpper(r)
+-	}
+-	panic("methodref has no signature")
+-}
+-
+-// deadcodepass holds state for the deadcode flood fill.
+-type deadcodepass struct {
+-	ctxt            *Link
+-	markQueue       []*sym.Symbol      // symbols to flood fill in next pass
+-	ifaceMethod     map[methodsig]bool // methods declared in reached interfaces
+-	markableMethods []methodref        // methods of reached types
+-	reflectMethod   bool
+-}
+-
+-func (d *deadcodepass) cleanupReloc(r *sym.Reloc) {
+-	if r.Sym.Attr.Reachable() {
+-		r.Type = objabi.R_ADDROFF
+-	} else {
+-		if d.ctxt.Debugvlog > 1 {
+-			d.ctxt.Logf("removing method %s\n", r.Sym.Name)
+-		}
+-		r.Sym = nil
+-		r.Siz = 0
+-	}
+-}
+-
+-// mark appends a symbol to the mark queue for flood filling.
+-func (d *deadcodepass) mark(s, parent *sym.Symbol) {
+-	if s == nil || s.Attr.Reachable() {
+-		return
+-	}
+-	if s.Attr.ReflectMethod() {
+-		d.reflectMethod = true
+-	}
+-	if *flagDumpDep {
+-		p := "_"
+-		if parent != nil {
+-			p = parent.Name
+-		}
+-		fmt.Printf("%s -> %s\n", p, s.Name)
+-	}
+-	s.Attr |= sym.AttrReachable
+-	if d.ctxt.Reachparent != nil {
+-		d.ctxt.Reachparent[s] = parent
+-	}
+-	d.markQueue = append(d.markQueue, s)
+-}
+-
+-// markMethod marks a method as reachable.
+-func (d *deadcodepass) markMethod(m methodref) {
+-	for _, r := range m.r {
+-		d.mark(r.Sym, m.src)
+-		r.Type = objabi.R_ADDROFF
+-	}
+-}
+-
+-// init marks all initial symbols as reachable.
+-// In a typical binary, this is *flagEntrySymbol.
+-func (d *deadcodepass) init() {
+-	var names []string
+-
+-	if d.ctxt.BuildMode == BuildModeShared {
+-		// Mark all symbols defined in this library as reachable when
+-		// building a shared library.
+-		for _, s := range d.ctxt.Syms.Allsym {
+-			if s.Type != 0 && s.Type != sym.SDYNIMPORT {
+-				d.mark(s, nil)
+-			}
+-		}
+-	} else {
+-		// In a normal binary, start at main.main and the init
+-		// functions and mark what is reachable from there.
+-
+-		if d.ctxt.linkShared && (d.ctxt.BuildMode == BuildModeExe || d.ctxt.BuildMode == BuildModePIE) {
+-			names = append(names, "main.main", "main..inittask")
+-		} else {
+-			// The external linker refers main symbol directly.
+-			if d.ctxt.LinkMode == LinkExternal && (d.ctxt.BuildMode == BuildModeExe || d.ctxt.BuildMode == BuildModePIE) {
+-				if d.ctxt.HeadType == objabi.Hwindows && d.ctxt.Arch.Family == sys.I386 {
+-					*flagEntrySymbol = "_main"
+-				} else {
+-					*flagEntrySymbol = "main"
+-				}
+-			}
+-			names = append(names, *flagEntrySymbol)
+-			if d.ctxt.BuildMode == BuildModePlugin {
+-				names = append(names, objabi.PathToPrefix(*flagPluginPath)+"..inittask", objabi.PathToPrefix(*flagPluginPath)+".main", "go.plugin.tabs")
+-
+-				// We don't keep the go.plugin.exports symbol,
+-				// but we do keep the symbols it refers to.
+-				exports := d.ctxt.Syms.ROLookup("go.plugin.exports", 0)
+-				if exports != nil {
+-					for i := range exports.R {
+-						d.mark(exports.R[i].Sym, nil)
+-					}
+-				}
+-			}
+-		}
+-		for _, s := range dynexp {
+-			d.mark(s, nil)
+-		}
+-	}
+-
+-	for _, name := range names {
+-		// Mark symbol as an data/ABI0 symbol.
+-		d.mark(d.ctxt.Syms.ROLookup(name, 0), nil)
+-		// Also mark any Go functions (internal ABI).
+-		d.mark(d.ctxt.Syms.ROLookup(name, sym.SymVerABIInternal), nil)
+-	}
+-}
+-
+-// flood fills symbols reachable from the markQueue symbols.
+-// As it goes, it collects methodref and interface method declarations.
+-func (d *deadcodepass) flood() {
+-	for len(d.markQueue) > 0 {
+-		s := d.markQueue[0]
+-		d.markQueue = d.markQueue[1:]
+-		if s.Type == sym.STEXT {
+-			if d.ctxt.Debugvlog > 1 {
+-				d.ctxt.Logf("marktext %s\n", s.Name)
+-			}
+-		}
+-
+-		if strings.HasPrefix(s.Name, "type.") && s.Name[5] != '.' {
+-			if len(s.P) == 0 {
+-				// Probably a bug. The undefined symbol check
+-				// later will give a better error than deadcode.
+-				continue
+-			}
+-			if decodetypeKind(d.ctxt.Arch, s.P)&kindMask == kindInterface {
+-				for _, sig := range decodeIfaceMethods(d.ctxt.Arch, s) {
+-					if d.ctxt.Debugvlog > 1 {
+-						d.ctxt.Logf("reached iface method: %s\n", sig)
+-					}
+-					d.ifaceMethod[sig] = true
+-				}
+-			}
+-		}
+-
+-		mpos := 0 // 0-3, the R_METHODOFF relocs of runtime.uncommontype
+-		var methods []methodref
+-		for i := range s.R {
+-			r := &s.R[i]
+-			if r.Sym == nil {
+-				continue
+-			}
+-			if r.Type == objabi.R_WEAKADDROFF {
+-				// An R_WEAKADDROFF relocation is not reason
+-				// enough to mark the pointed-to symbol as
+-				// reachable.
+-				continue
+-			}
+-			if r.Sym.Type == sym.SABIALIAS {
+-				// Patch this relocation through the
+-				// ABI alias before marking.
+-				r.Sym = resolveABIAlias(r.Sym)
+-			}
+-			if r.Type != objabi.R_METHODOFF {
+-				d.mark(r.Sym, s)
+-				continue
+-			}
+-			// Collect rtype pointers to methods for
+-			// later processing in deadcode.
+-			if mpos == 0 {
+-				m := methodref{src: s}
+-				m.r[0] = r
+-				methods = append(methods, m)
+-			} else {
+-				methods[len(methods)-1].r[mpos] = r
+-			}
+-			mpos++
+-			if mpos == len(methodref{}.r) {
+-				mpos = 0
+-			}
+-		}
+-		if len(methods) > 0 {
+-			// Decode runtime type information for type methods
+-			// to help work out which methods can be called
+-			// dynamically via interfaces.
+-			methodsigs := decodetypeMethods(d.ctxt.Arch, s)
+-			if len(methods) != len(methodsigs) {
+-				panic(fmt.Sprintf("%q has %d method relocations for %d methods", s.Name, len(methods), len(methodsigs)))
+-			}
+-			for i, m := range methodsigs {
+-				name := string(m)
+-				name = name[:strings.Index(name, "(")]
+-				if !strings.HasSuffix(methods[i].ifn().Name, name) {
+-					panic(fmt.Sprintf("%q relocation for %q does not match method %q", s.Name, methods[i].ifn().Name, name))
+-				}
+-				methods[i].m = m
+-			}
+-			d.markableMethods = append(d.markableMethods, methods...)
+-		}
+-
+-		if s.FuncInfo != nil {
+-			for i := range s.FuncInfo.Funcdata {
+-				d.mark(s.FuncInfo.Funcdata[i], s)
+-			}
+-		}
+-		d.mark(s.Gotype, s)
+-		d.mark(s.Sub, s)
+-		d.mark(s.Outer, s)
+-	}
+-}
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 21457fdfc8..a9dde2209a 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -145,12 +145,8 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+ 		}
+ 	}
+ 
+-	if *flagNewobj {
+-		// Record the directives. We'll process them later after Symbols are created.
+-		ctxt.cgodata = append(ctxt.cgodata, cgodata{file, pkg, directives})
+-	} else {
+-		setCgoAttr(ctxt, ctxt.Syms.Lookup, file, pkg, directives)
+-	}
++	// Record the directives. We'll process them later after Symbols are created.
++	ctxt.cgodata = append(ctxt.cgodata, cgodata{file, pkg, directives})
+ }
+ 
+ // Set symbol attributes or flags based on cgo directives.
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 8d9104f0cb..5564a27c4c 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -42,7 +42,6 @@ import (
+ 	"cmd/link/internal/loadmacho"
+ 	"cmd/link/internal/loadpe"
+ 	"cmd/link/internal/loadxcoff"
+-	"cmd/link/internal/objfile"
+ 	"cmd/link/internal/sym"
+ 	"crypto/sha1"
+ 	"debug/elf"
+@@ -380,18 +379,16 @@ func (ctxt *Link) findLibPath(libname string) string {
+ }
+ 
+ func (ctxt *Link) loadlib() {
+-	if *flagNewobj {
+-		var flags uint32
+-		switch *FlagStrictDups {
+-		case 0:
+-			// nothing to do
+-		case 1, 2:
+-			flags = loader.FlagStrictDups
+-		default:
+-			log.Fatalf("invalid -strictdups flag value %d", *FlagStrictDups)
+-		}
+-		ctxt.loader = loader.NewLoader(flags)
++	var flags uint32
++	switch *FlagStrictDups {
++	case 0:
++		// nothing to do
++	case 1, 2:
++		flags = loader.FlagStrictDups
++	default:
++		log.Fatalf("invalid -strictdups flag value %d", *FlagStrictDups)
+ 	}
++	ctxt.loader = loader.NewLoader(flags)
+ 
+ 	ctxt.cgo_export_static = make(map[string]bool)
+ 	ctxt.cgo_export_dynamic = make(map[string]bool)
+@@ -426,13 +423,8 @@ func (ctxt *Link) loadlib() {
+ 		}
+ 	}
+ 
+-	if *flagNewobj {
+-		iscgo = ctxt.loader.Lookup("x_cgo_init", 0) != 0
+-		ctxt.canUsePlugins = ctxt.loader.Lookup("plugin.Open", sym.SymVerABIInternal) != 0
+-	} else {
+-		iscgo = ctxt.Syms.ROLookup("x_cgo_init", 0) != nil
+-		ctxt.canUsePlugins = ctxt.Syms.ROLookup("plugin.Open", sym.SymVerABIInternal) != nil
+-	}
++	iscgo = ctxt.loader.Lookup("x_cgo_init", 0) != 0
++	ctxt.canUsePlugins = ctxt.loader.Lookup("plugin.Open", sym.SymVerABIInternal) != 0
+ 
+ 	// We now have enough information to determine the link mode.
+ 	determineLinkMode(ctxt)
+@@ -464,18 +456,16 @@ func (ctxt *Link) loadlib() {
+ 	}
+ 
+ 	if ctxt.LinkMode == LinkInternal && len(hostobj) != 0 {
+-		if *flagNewobj {
+-			// In newobj mode, we typically create sym.Symbols later therefore
+-			// also set cgo attributes later. However, for internal cgo linking,
+-			// the host object loaders still work with sym.Symbols (for now),
+-			// and they need cgo attributes set to work properly. So process
+-			// them now.
+-			lookup := func(name string, ver int) *sym.Symbol { return ctxt.loader.LookupOrCreate(name, ver, ctxt.Syms) }
+-			for _, d := range ctxt.cgodata {
+-				setCgoAttr(ctxt, lookup, d.file, d.pkg, d.directives)
+-			}
+-			ctxt.cgodata = nil
++		// In newobj mode, we typically create sym.Symbols later therefore
++		// also set cgo attributes later. However, for internal cgo linking,
++		// the host object loaders still work with sym.Symbols (for now),
++		// and they need cgo attributes set to work properly. So process
++		// them now.
++		lookup := func(name string, ver int) *sym.Symbol { return ctxt.loader.LookupOrCreate(name, ver, ctxt.Syms) }
++		for _, d := range ctxt.cgodata {
++			setCgoAttr(ctxt, lookup, d.file, d.pkg, d.directives)
+ 		}
++		ctxt.cgodata = nil
+ 
+ 		// Drop all the cgo_import_static declarations.
+ 		// Turns out we won't be needing them.
+@@ -498,15 +488,8 @@ func (ctxt *Link) loadlib() {
+ 	hostobjs(ctxt)
+ 	hostlinksetup(ctxt)
+ 
+-	if *flagNewobj {
+-		// Add references of externally defined symbols.
+-		ctxt.loader.LoadRefs(ctxt.Arch, ctxt.Syms)
+-	}
+-
+-	// Now that we know the link mode, set the dynexp list.
+-	if !*flagNewobj { // set this later in newobj mode
+-		setupdynexp(ctxt)
+-	}
++	// Add references of externally defined symbols.
++	ctxt.loader.LoadRefs(ctxt.Arch, ctxt.Syms)
+ 
+ 	if ctxt.LinkMode == LinkInternal && len(hostobj) != 0 {
+ 		// If we have any undefined symbols in external
+@@ -563,9 +546,7 @@ func (ctxt *Link) loadlib() {
+ 
+ 	importcycles()
+ 
+-	if *flagNewobj {
+-		strictDupMsgCount = ctxt.loader.NStrictDupMsgs()
+-	}
++	strictDupMsgCount = ctxt.loader.NStrictDupMsgs()
+ }
+ 
+ // Set up dynexp list.
+@@ -1825,24 +1806,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 	ldpkg(ctxt, f, lib, import1-import0-2, pn) // -2 for !\n
+ 	f.MustSeek(import1, 0)
+ 
+-	flags := 0
+-	switch *FlagStrictDups {
+-	case 0:
+-		break
+-	case 1:
+-		flags = objfile.StrictDupsWarnFlag
+-	case 2:
+-		flags = objfile.StrictDupsErrFlag
+-	default:
+-		log.Fatalf("invalid -strictdups flag value %d", *FlagStrictDups)
+-	}
+-	var c int
+-	if *flagNewobj {
+-		ctxt.loader.Preload(ctxt.Arch, ctxt.Syms, f, lib, unit, eof-f.Offset(), pn, flags)
+-	} else {
+-		c = objfile.Load(ctxt.Arch, ctxt.Syms, f, lib, unit, eof-f.Offset(), pn, flags)
+-	}
+-	strictDupMsgCount += c
++	ctxt.loader.Preload(ctxt.Arch, ctxt.Syms, f, lib, unit, eof-f.Offset(), pn, 0)
+ 	addImports(ctxt, lib, pn)
+ 	return nil
+ }
+@@ -1996,17 +1960,13 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 			ver = sym.SymVerABIInternal
+ 		}
+ 
+-		var lsym *sym.Symbol
+-		if *flagNewobj {
+-			i := ctxt.loader.AddExtSym(elfsym.Name, ver)
+-			if i == 0 {
+-				continue
+-			}
+-			lsym = ctxt.Syms.Newsym(elfsym.Name, ver)
+-			ctxt.loader.Syms[i] = lsym
+-		} else {
+-			lsym = ctxt.Syms.Lookup(elfsym.Name, ver)
++		i := ctxt.loader.AddExtSym(elfsym.Name, ver)
++		if i == 0 {
++			continue
+ 		}
++		lsym := ctxt.Syms.Newsym(elfsym.Name, ver)
++		ctxt.loader.Syms[i] = lsym
++
+ 		// Because loadlib above loads all .a files before loading any shared
+ 		// libraries, any non-dynimport symbols we find that duplicate symbols
+ 		// already loaded should be ignored (the symbols from the .a files
+@@ -2035,17 +1995,12 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 		// mangle Go function names in the .so to include the
+ 		// ABI.
+ 		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && ver == 0 {
+-			var alias *sym.Symbol
+-			if *flagNewobj {
+-				i := ctxt.loader.AddExtSym(elfsym.Name, sym.SymVerABIInternal)
+-				if i == 0 {
+-					continue
+-				}
+-				alias = ctxt.Syms.Newsym(elfsym.Name, sym.SymVerABIInternal)
+-				ctxt.loader.Syms[i] = alias
+-			} else {
+-				alias = ctxt.Syms.Lookup(elfsym.Name, sym.SymVerABIInternal)
++			i := ctxt.loader.AddExtSym(elfsym.Name, sym.SymVerABIInternal)
++			if i == 0 {
++				continue
+ 			}
++			alias := ctxt.Syms.Newsym(elfsym.Name, sym.SymVerABIInternal)
++			ctxt.loader.Syms[i] = alias
+ 			if alias.Type != 0 {
+ 				continue
+ 			}
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 69e6aff643..299a0a1fa5 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -87,7 +87,6 @@ var (
+ 	flagInterpreter = flag.String("I", "", "use `linker` as ELF dynamic linker")
+ 	FlagDebugTramp  = flag.Int("debugtramp", 0, "debug trampolines")
+ 	FlagStrictDups  = flag.Int("strictdups", 0, "sanity check duplicate symbol contents during object file reading (1=warn 2=err).")
+-	flagNewobj      = flag.Bool("newobj", true, "use new object file format")
+ 
+ 	FlagRound       = flag.Int("R", -1, "set address rounding `quantum`")
+ 	FlagTextAddr    = flag.Int64("T", -1, "set text segment `address`")
+@@ -210,9 +209,7 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	ctxt.loadlib()
+ 
+ 	deadcode(ctxt)
+-	if *flagNewobj {
+-		ctxt.loadlibfull() // XXX do it here for now
+-	}
++	ctxt.loadlibfull() // XXX do it here for now
+ 	ctxt.linksetup()
+ 	ctxt.dostrdata()
+ 
+diff --git a/src/cmd/link/internal/objfile/objfile.go b/src/cmd/link/internal/objfile/objfile.go
+deleted file mode 100644
+index a15d3c3e07..0000000000
+--- a/src/cmd/link/internal/objfile/objfile.go
++++ /dev/null
+@@ -1,659 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Package objfile reads Go object files for the Go linker, cmd/link.
+-//
+-// This package is similar to cmd/internal/objfile which also reads
+-// Go object files.
+-package objfile
+-
+-import (
+-	"bufio"
+-	"bytes"
+-	"cmd/internal/bio"
+-	"cmd/internal/dwarf"
+-	"cmd/internal/obj"
+-	"cmd/internal/objabi"
+-	"cmd/internal/sys"
+-	"cmd/link/internal/sym"
+-	"fmt"
+-	"io"
+-	"log"
+-	"os"
+-	"strconv"
+-	"strings"
+-	"unsafe"
+-)
+-
+-const (
+-	startmagic = "\x00go114ld"
+-	endmagic   = "\xffgo114ld"
+-)
+-
+-var emptyPkg = []byte(`"".`)
+-
+-// objReader reads Go object files.
+-type objReader struct {
+-	rd              *bio.Reader
+-	arch            *sys.Arch
+-	syms            *sym.Symbols
+-	lib             *sym.Library
+-	unit            *sym.CompilationUnit
+-	pn              string
+-	dupSym          *sym.Symbol
+-	localSymVersion int
+-	flags           int
+-	strictDupMsgs   int
+-	dataSize        int
+-
+-	// rdBuf is used by readString and readSymName as scratch for reading strings.
+-	rdBuf []byte
+-
+-	// List of symbol references for the file being read.
+-	refs        []*sym.Symbol
+-	data        []byte
+-	reloc       []sym.Reloc
+-	pcdata      []sym.Pcdata
+-	funcdata    []*sym.Symbol
+-	funcdataoff []int64
+-	file        []*sym.Symbol
+-	pkgpref     string // objabi.PathToPrefix(r.lib.Pkg) + "."
+-
+-	roObject []byte // from read-only mmap of object file (may be nil)
+-	roOffset int64  // offset into readonly object data examined so far
+-
+-	dataReadOnly bool // whether data is backed by read-only memory
+-}
+-
+-// Flags to enable optional behavior during object loading/reading.
+-
+-const (
+-	NoFlag int = iota
+-
+-	// Sanity-check duplicate symbol contents, issuing warning
+-	// when duplicates have different lengths or contents.
+-	StrictDupsWarnFlag
+-
+-	// Similar to StrictDupsWarnFlag, but issue fatal error.
+-	StrictDupsErrFlag
+-)
+-
+-// Load loads an object file f into library lib.
+-// The symbols loaded are added to syms.
+-func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, unit *sym.CompilationUnit, length int64, pn string, flags int) int {
+-	start := f.Offset()
+-	roObject := f.SliceRO(uint64(length))
+-	if roObject != nil {
+-		f.MustSeek(int64(-length), os.SEEK_CUR)
+-	}
+-	r := &objReader{
+-		rd:              f,
+-		lib:             lib,
+-		unit:            unit,
+-		arch:            arch,
+-		syms:            syms,
+-		pn:              pn,
+-		dupSym:          &sym.Symbol{Name: ".dup"},
+-		localSymVersion: syms.IncVersion(),
+-		flags:           flags,
+-		roObject:        roObject,
+-		pkgpref:         objabi.PathToPrefix(lib.Pkg) + ".",
+-	}
+-	r.loadObjFile()
+-	if roObject != nil {
+-		if r.roOffset != length {
+-			log.Fatalf("%s: unexpected end at %d, want %d", pn, r.roOffset, start+length)
+-		}
+-		r.rd.MustSeek(int64(length), os.SEEK_CUR)
+-	} else if f.Offset() != start+length {
+-		log.Fatalf("%s: unexpected end at %d, want %d", pn, f.Offset(), start+length)
+-	}
+-	return r.strictDupMsgs
+-}
+-
+-func (r *objReader) loadObjFile() {
+-	// Magic header
+-	var buf [8]uint8
+-	r.readFull(buf[:])
+-	if string(buf[:]) != startmagic {
+-		log.Fatalf("%s: invalid file start %x %x %x %x %x %x %x %x", r.pn, buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7])
+-	}
+-
+-	// Version
+-	c, err := r.readByte()
+-	if err != nil || c != 1 {
+-		log.Fatalf("%s: invalid file version number %d", r.pn, c)
+-	}
+-
+-	// Autolib
+-	for {
+-		lib := r.readString()
+-		if lib == "" {
+-			break
+-		}
+-		r.lib.ImportStrings = append(r.lib.ImportStrings, lib)
+-	}
+-
+-	// DWARF strings
+-	count := r.readInt()
+-	r.unit.DWARFFileTable = make([]string, count)
+-	for i := 0; i < count; i++ {
+-		// TODO: This should probably be a call to mkROString.
+-		r.unit.DWARFFileTable[i] = r.readString()
+-	}
+-
+-	// Symbol references
+-	r.refs = []*sym.Symbol{nil} // zeroth ref is nil
+-	for {
+-		c, err := r.peek(1)
+-		if err != nil {
+-			log.Fatalf("%s: peeking: %v", r.pn, err)
+-		}
+-		if c[0] == 0xff {
+-			r.readByte()
+-			break
+-		}
+-		r.readRef()
+-	}
+-
+-	// Lengths
+-	r.readSlices()
+-
+-	// Data section
+-	err = r.readDataSection()
+-	if err != nil {
+-		log.Fatalf("%s: error reading %s", r.pn, err)
+-	}
+-
+-	// Defined symbols
+-	for {
+-		c, err := r.peek(1)
+-		if err != nil {
+-			log.Fatalf("%s: peeking: %v", r.pn, err)
+-		}
+-		if c[0] == 0xff {
+-			break
+-		}
+-		r.readSym()
+-	}
+-
+-	// Magic footer
+-	buf = [8]uint8{}
+-	r.readFull(buf[:])
+-	if string(buf[:]) != endmagic {
+-		log.Fatalf("%s: invalid file end", r.pn)
+-	}
+-}
+-
+-func (r *objReader) readSlices() {
+-	r.dataSize = r.readInt()
+-	n := r.readInt()
+-	r.reloc = make([]sym.Reloc, n)
+-	n = r.readInt()
+-	r.pcdata = make([]sym.Pcdata, n)
+-	_ = r.readInt() // TODO: remove on next object file rev (autom count)
+-	n = r.readInt()
+-	r.funcdata = make([]*sym.Symbol, n)
+-	r.funcdataoff = make([]int64, n)
+-	n = r.readInt()
+-	r.file = make([]*sym.Symbol, n)
+-}
+-
+-func (r *objReader) readDataSection() (err error) {
+-	if r.roObject != nil {
+-		r.data, r.dataReadOnly, err =
+-			r.roObject[r.roOffset:r.roOffset+int64(r.dataSize)], true, nil
+-		r.roOffset += int64(r.dataSize)
+-		return
+-	}
+-	r.data, r.dataReadOnly, err = r.rd.Slice(uint64(r.dataSize))
+-	return
+-}
+-
+-// Symbols are prefixed so their content doesn't get confused with the magic footer.
+-const symPrefix = 0xfe
+-
+-func (r *objReader) readSym() {
+-	var c byte
+-	var err error
+-	if c, err = r.readByte(); c != symPrefix || err != nil {
+-		log.Fatalln("readSym out of sync")
+-	}
+-	if c, err = r.readByte(); err != nil {
+-		log.Fatalln("error reading input: ", err)
+-	}
+-	t := sym.AbiSymKindToSymKind[c]
+-	s := r.readSymIndex()
+-	flags := r.readInt()
+-	dupok := flags&1 != 0
+-	local := flags&2 != 0
+-	makeTypelink := flags&4 != 0
+-	size := r.readInt()
+-	typ := r.readSymIndex()
+-	data := r.readData()
+-	nreloc := r.readInt()
+-	isdup := false
+-
+-	var dup *sym.Symbol
+-	if s.Type != 0 && s.Type != sym.SXREF {
+-		if (t == sym.SDATA || t == sym.SBSS || t == sym.SNOPTRBSS) && len(data) == 0 && nreloc == 0 {
+-			if s.Size < int64(size) {
+-				s.Size = int64(size)
+-			}
+-			if typ != nil && s.Gotype == nil {
+-				s.Gotype = typ
+-			}
+-			return
+-		}
+-
+-		if (s.Type == sym.SDATA || s.Type == sym.SBSS || s.Type == sym.SNOPTRBSS) && len(s.P) == 0 && len(s.R) == 0 {
+-			goto overwrite
+-		}
+-		if s.Type != sym.SBSS && s.Type != sym.SNOPTRBSS && !dupok && !s.Attr.DuplicateOK() {
+-			log.Fatalf("duplicate symbol %s (types %d and %d) in %s and %s", s.Name, s.Type, t, s.File, r.pn)
+-		}
+-		if len(s.P) > 0 {
+-			dup = s
+-			s = r.dupSym
+-			isdup = true
+-		}
+-	}
+-
+-overwrite:
+-	s.File = r.pkgpref[:len(r.pkgpref)-1]
+-	s.Unit = r.unit
+-	if dupok {
+-		s.Attr |= sym.AttrDuplicateOK
+-	}
+-	if t == sym.SXREF {
+-		log.Fatalf("bad sxref")
+-	}
+-	if t == 0 {
+-		log.Fatalf("missing type for %s in %s", s.Name, r.pn)
+-	}
+-	if t == sym.SBSS && (s.Type == sym.SRODATA || s.Type == sym.SNOPTRBSS) {
+-		t = s.Type
+-	}
+-	s.Type = t
+-	if s.Size < int64(size) {
+-		s.Size = int64(size)
+-	}
+-	s.Attr.Set(sym.AttrLocal, local)
+-	s.Attr.Set(sym.AttrMakeTypelink, makeTypelink)
+-	if typ != nil {
+-		s.Gotype = typ
+-	}
+-	if isdup && typ != nil { // if bss sym defined multiple times, take type from any one def
+-		dup.Gotype = typ
+-	}
+-	s.P = data
+-	s.Attr.Set(sym.AttrReadOnly, r.dataReadOnly)
+-	if nreloc > 0 {
+-		s.R = r.reloc[:nreloc:nreloc]
+-		if !isdup {
+-			r.reloc = r.reloc[nreloc:]
+-		}
+-
+-		for i := 0; i < nreloc; i++ {
+-			s.R[i] = sym.Reloc{
+-				Off:  r.readInt32(),
+-				Siz:  r.readUint8(),
+-				Type: objabi.RelocType(r.readInt32()),
+-				Add:  r.readInt64(),
+-				Sym:  r.readSymIndex(),
+-			}
+-		}
+-	}
+-
+-	if s.Type == sym.STEXT {
+-		s.FuncInfo = new(sym.FuncInfo)
+-		pc := s.FuncInfo
+-
+-		pc.Args = r.readInt32()
+-		pc.Locals = r.readInt32()
+-		if r.readUint8() != 0 {
+-			s.Attr |= sym.AttrNoSplit
+-		}
+-		flags := r.readInt()
+-		if flags&(1<<2) != 0 {
+-			s.Attr |= sym.AttrReflectMethod
+-		}
+-		if flags&(1<<3) != 0 {
+-			s.Attr |= sym.AttrShared
+-		}
+-		if flags&(1<<4) != 0 {
+-			s.Attr |= sym.AttrTopFrame
+-		}
+-		n := r.readInt()
+-		if n != 0 {
+-			log.Fatalf("stale object file: autom count nonzero")
+-		}
+-
+-		pc.Pcsp.P = r.readData()
+-		pc.Pcfile.P = r.readData()
+-		pc.Pcline.P = r.readData()
+-		pc.Pcinline.P = r.readData()
+-		n = r.readInt()
+-		pc.Pcdata = r.pcdata[:n:n]
+-		if !isdup {
+-			r.pcdata = r.pcdata[n:]
+-		}
+-		for i := 0; i < n; i++ {
+-			pc.Pcdata[i].P = r.readData()
+-		}
+-		n = r.readInt()
+-		pc.Funcdata = r.funcdata[:n:n]
+-		pc.Funcdataoff = r.funcdataoff[:n:n]
+-		if !isdup {
+-			r.funcdata = r.funcdata[n:]
+-			r.funcdataoff = r.funcdataoff[n:]
+-		}
+-		for i := 0; i < n; i++ {
+-			pc.Funcdata[i] = r.readSymIndex()
+-		}
+-		for i := 0; i < n; i++ {
+-			pc.Funcdataoff[i] = r.readInt64()
+-		}
+-		n = r.readInt()
+-		pc.File = r.file[:n:n]
+-		if !isdup {
+-			r.file = r.file[n:]
+-		}
+-		for i := 0; i < n; i++ {
+-			pc.File[i] = r.readSymIndex()
+-		}
+-		n = r.readInt()
+-		pc.InlTree = make([]sym.InlinedCall, n)
+-		for i := 0; i < n; i++ {
+-			pc.InlTree[i].Parent = r.readInt32()
+-			pc.InlTree[i].File = r.readSymIndex()
+-			pc.InlTree[i].Line = r.readInt32()
+-			pc.InlTree[i].Func = r.readSymIndex().Name
+-			pc.InlTree[i].ParentPC = r.readInt32()
+-		}
+-
+-		if !dupok {
+-			if s.Attr.OnList() {
+-				log.Fatalf("symbol %s listed multiple times", s.Name)
+-			}
+-			s.Attr |= sym.AttrOnList
+-			r.lib.Textp = append(r.lib.Textp, s)
+-		} else {
+-			// there may ba a dup in another package
+-			// put into a temp list and add to text later
+-			if !isdup {
+-				r.lib.DupTextSyms = append(r.lib.DupTextSyms, s)
+-			} else {
+-				r.lib.DupTextSyms = append(r.lib.DupTextSyms, dup)
+-			}
+-		}
+-	}
+-	if s.Type == sym.SDWARFINFO {
+-		r.patchDWARFName(s)
+-	}
+-
+-	if isdup && r.flags&(StrictDupsWarnFlag|StrictDupsErrFlag) != 0 {
+-		// Compare the just-read symbol with the previously read
+-		// symbol of the same name, verifying that they have the same
+-		// payload. If not, issue a warning and possibly an error.
+-		if !bytes.Equal(s.P, dup.P) {
+-			reason := "same length but different contents"
+-			if len(s.P) != len(dup.P) {
+-				reason = fmt.Sprintf("new length %d != old length %d",
+-					len(data), len(dup.P))
+-			}
+-			fmt.Fprintf(os.Stderr, "cmd/link: while reading object for '%v': duplicate symbol '%s', previous def at '%v', with mismatched payload: %s\n", r.lib, dup, dup.Unit.Lib, reason)
+-
+-			// For the moment, whitelist DWARF subprogram DIEs for
+-			// auto-generated wrapper functions. What seems to happen
+-			// here is that we get different line numbers on formal
+-			// params; I am guessing that the pos is being inherited
+-			// from the spot where the wrapper is needed.
+-			whitelist := (strings.HasPrefix(dup.Name, "go.info.go.interface") ||
+-				strings.HasPrefix(dup.Name, "go.info.go.builtin") ||
+-				strings.HasPrefix(dup.Name, "go.isstmt.go.builtin") ||
+-				strings.HasPrefix(dup.Name, "go.debuglines"))
+-			if !whitelist {
+-				r.strictDupMsgs++
+-			}
+-		}
+-	}
+-}
+-
+-func (r *objReader) patchDWARFName(s *sym.Symbol) {
+-	// This is kind of ugly. Really the package name should not
+-	// even be included here.
+-	if s.Size < 1 || s.P[0] != dwarf.DW_ABRV_FUNCTION {
+-		return
+-	}
+-	e := bytes.IndexByte(s.P, 0)
+-	if e == -1 {
+-		return
+-	}
+-	p := bytes.Index(s.P[:e], emptyPkg)
+-	if p == -1 {
+-		return
+-	}
+-	pkgprefix := []byte(r.pkgpref)
+-	patched := bytes.Replace(s.P[:e], emptyPkg, pkgprefix, -1)
+-
+-	s.P = append(patched, s.P[e:]...)
+-	delta := int64(len(s.P)) - s.Size
+-	s.Size = int64(len(s.P))
+-	for i := range s.R {
+-		r := &s.R[i]
+-		if r.Off > int32(e) {
+-			r.Off += int32(delta)
+-		}
+-	}
+-}
+-
+-func (r *objReader) readFull(b []byte) {
+-	if r.roObject != nil {
+-		copy(b, r.roObject[r.roOffset:])
+-		r.roOffset += int64(len(b))
+-		return
+-	}
+-	_, err := io.ReadFull(r.rd, b)
+-	if err != nil {
+-		log.Fatalf("%s: error reading %s", r.pn, err)
+-	}
+-}
+-
+-func (r *objReader) readByte() (byte, error) {
+-	if r.roObject != nil {
+-		b := r.roObject[r.roOffset]
+-		r.roOffset++
+-		return b, nil
+-	}
+-	return r.rd.ReadByte()
+-}
+-
+-func (r *objReader) peek(n int) ([]byte, error) {
+-	if r.roObject != nil {
+-		return r.roObject[r.roOffset : r.roOffset+int64(n)], nil
+-	}
+-	return r.rd.Peek(n)
+-}
+-
+-func (r *objReader) readRef() {
+-	if c, err := r.readByte(); c != symPrefix || err != nil {
+-		log.Fatalf("readSym out of sync")
+-	}
+-	name := r.readSymName()
+-	var v int
+-	if abi := r.readInt(); abi == -1 {
+-		// Static
+-		v = r.localSymVersion
+-	} else if abiver := sym.ABIToVersion(obj.ABI(abi)); abiver != -1 {
+-		// Note that data symbols are "ABI0", which maps to version 0.
+-		v = abiver
+-	} else {
+-		log.Fatalf("invalid symbol ABI for %q: %d", name, abi)
+-	}
+-	s := r.syms.Lookup(name, v)
+-	r.refs = append(r.refs, s)
+-
+-	if s == nil || v == r.localSymVersion {
+-		return
+-	}
+-	if s.Name[0] == '$' && len(s.Name) > 5 && s.Type == 0 && len(s.P) == 0 {
+-		x, err := strconv.ParseUint(s.Name[5:], 16, 64)
+-		if err != nil {
+-			log.Panicf("failed to parse $-symbol %s: %v", s.Name, err)
+-		}
+-		s.Type = sym.SRODATA
+-		s.Attr |= sym.AttrLocal
+-		switch s.Name[:5] {
+-		case "$f32.":
+-			if uint64(uint32(x)) != x {
+-				log.Panicf("$-symbol %s too large: %d", s.Name, x)
+-			}
+-			s.AddUint32(r.arch, uint32(x))
+-		case "$f64.", "$i64.":
+-			s.AddUint64(r.arch, x)
+-		default:
+-			log.Panicf("unrecognized $-symbol: %s", s.Name)
+-		}
+-		s.Attr.Set(sym.AttrReachable, false)
+-	}
+-	if strings.HasPrefix(s.Name, "runtime.gcbits.") {
+-		s.Attr |= sym.AttrLocal
+-	}
+-}
+-
+-func (r *objReader) readInt64() int64 {
+-	uv := uint64(0)
+-	for shift := uint(0); ; shift += 7 {
+-		if shift >= 64 {
+-			log.Fatalf("corrupt input")
+-		}
+-		c, err := r.readByte()
+-		if err != nil {
+-			log.Fatalln("error reading input: ", err)
+-		}
+-		uv |= uint64(c&0x7F) << shift
+-		if c&0x80 == 0 {
+-			break
+-		}
+-	}
+-
+-	return int64(uv>>1) ^ (int64(uv<<63) >> 63)
+-}
+-
+-func (r *objReader) readInt() int {
+-	n := r.readInt64()
+-	if int64(int(n)) != n {
+-		log.Panicf("%v out of range for int", n)
+-	}
+-	return int(n)
+-}
+-
+-func (r *objReader) readInt32() int32 {
+-	n := r.readInt64()
+-	if int64(int32(n)) != n {
+-		log.Panicf("%v out of range for int32", n)
+-	}
+-	return int32(n)
+-}
+-
+-func (r *objReader) readInt16() int16 {
+-	n := r.readInt64()
+-	if int64(int16(n)) != n {
+-		log.Panicf("%v out of range for int16", n)
+-	}
+-	return int16(n)
+-}
+-
+-func (r *objReader) readUint8() uint8 {
+-	n := r.readInt64()
+-	if int64(uint8(n)) != n {
+-		log.Panicf("%v out of range for uint8", n)
+-	}
+-	return uint8(n)
+-}
+-
+-func (r *objReader) readString() string {
+-	n := r.readInt()
+-	if cap(r.rdBuf) < n {
+-		r.rdBuf = make([]byte, 2*n)
+-	}
+-	r.readFull(r.rdBuf[:n])
+-	return string(r.rdBuf[:n])
+-}
+-
+-func (r *objReader) readData() []byte {
+-	n := r.readInt()
+-	p := r.data[:n:n]
+-	r.data = r.data[n:]
+-	return p
+-}
+-
+-type stringHeader struct {
+-	str unsafe.Pointer
+-	len int
+-}
+-
+-func mkROString(rodata []byte) string {
+-	if len(rodata) == 0 {
+-		return ""
+-	}
+-	ss := stringHeader{str: unsafe.Pointer(&rodata[0]), len: len(rodata)}
+-	s := *(*string)(unsafe.Pointer(&ss))
+-	return s
+-}
+-
+-// readSymName reads a symbol name, replacing all "". with pkg.
+-func (r *objReader) readSymName() string {
+-	n := r.readInt()
+-	if n == 0 {
+-		r.readInt64()
+-		return ""
+-	}
+-	if cap(r.rdBuf) < n {
+-		r.rdBuf = make([]byte, 2*n)
+-	}
+-	sOffset := r.roOffset
+-	origName, err := r.peek(n)
+-	if err == bufio.ErrBufferFull {
+-		// Long symbol names are rare but exist. One source is type
+-		// symbols for types with long string forms. See #15104.
+-		origName = make([]byte, n)
+-		r.readFull(origName)
+-	} else if err != nil {
+-		log.Fatalf("%s: error reading symbol: %v", r.pn, err)
+-	}
+-	adjName := r.rdBuf[:0]
+-	nPkgRefs := 0
+-	for {
+-		i := bytes.Index(origName, emptyPkg)
+-		if i == -1 {
+-			var s string
+-			if r.roObject != nil && nPkgRefs == 0 {
+-				s = mkROString(r.roObject[sOffset : sOffset+int64(n)])
+-			} else {
+-				s = string(append(adjName, origName...))
+-			}
+-			// Read past the peeked origName, now that we're done with it,
+-			// using the rfBuf (also no longer used) as the scratch space.
+-			// TODO: use bufio.Reader.Discard if available instead?
+-			if err == nil {
+-				r.readFull(r.rdBuf[:n])
+-			}
+-			r.rdBuf = adjName[:0] // in case 2*n wasn't enough
+-			return s
+-		}
+-		nPkgRefs++
+-		adjName = append(adjName, origName[:i]...)
+-		adjName = append(adjName, r.pkgpref[:len(r.pkgpref)-1]...)
+-		adjName = append(adjName, '.')
+-		origName = origName[i+len(emptyPkg):]
+-	}
+-}
+-
+-// Reads the index of a symbol reference and resolves it to a symbol
+-func (r *objReader) readSymIndex() *sym.Symbol {
+-	i := r.readInt()
+-	return r.refs[i]
+-}

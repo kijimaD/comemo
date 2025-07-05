@@ -11,9 +11,74 @@ Date:   Wed May 4 20:06:18 2022 +0000
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/metrics.go             | 6 ++++++
  src/runtime/metrics/description.go | 5 +++++
  src/runtime/metrics/doc.go         | 5 +++++
  src/runtime/metrics_test.go        | 4 ++++
  4 files changed, 20 insertions(+)
+
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index 8ef495faed..125539b682 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -280,6 +280,12 @@ func initMetrics() {
+ 					in.sysStats.gcMiscSys + in.sysStats.otherSys
+ 			},
+ 		},
++		"/sched/gomaxprocs:threads": {
++			compute: func(_ *statAggregate, out *metricValue) {
++				out.kind = metricKindUint64
++				out.scalar = uint64(gomaxprocs)
++			},
++		},
+ 		"/sched/goroutines:goroutines": {
+ 			compute: func(_ *statAggregate, out *metricValue) {
+ 				out.kind = metricKindUint64
+diff --git a/src/runtime/metrics/description.go b/src/runtime/metrics/description.go
+index 80aa930fd0..5235177236 100644
+--- a/src/runtime/metrics/description.go
++++ b/src/runtime/metrics/description.go
+@@ -220,6 +220,11 @@ var allDesc = []Description{
+ 		Description: "All memory mapped by the Go runtime into the current process as read-write. Note that this does not include memory mapped by code called via cgo or via the syscall package. Sum of all metrics in /memory/classes.",
+ 		Kind:        KindUint64,
+ 	},
++	{
++		Name:        "/sched/gomaxprocs:threads",
++		Description: "The current runtime.GOMAXPROCS setting, or the number of operating system threads that can execute user-level Go code simultaneously.",
++		Kind:        KindUint64,
++	},
+ 	{
+ 		Name:        "/sched/goroutines:goroutines",
+ 		Description: "Count of live goroutines.",
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index fcc9d1a3a4..30fdf06a71 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -167,6 +167,11 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		by code called via cgo or via the syscall package.
+ 		Sum of all metrics in /memory/classes.
+ 
++	/sched/gomaxprocs:threads
++		The current runtime.GOMAXPROCS setting, or the number of
++		operating system threads that can execute user-level Go code
++		simultaneously.
++
+ 	/sched/goroutines:goroutines
+ 		Count of live goroutines.
+ 
+diff --git a/src/runtime/metrics_test.go b/src/runtime/metrics_test.go
+index 4bd1408dbe..6c9ca1b5f0 100644
+--- a/src/runtime/metrics_test.go
++++ b/src/runtime/metrics_test.go
+@@ -223,6 +223,10 @@ func TestReadMetricsConsistency(t *testing.T) {
+ 			for i := range h.Counts {
+ 				gc.pauses += h.Counts[i]
+ 			}
++		case "/sched/gomaxprocs:threads":
++			if got, want := samples[i].Value.Uint64(), uint64(runtime.GOMAXPROCS(-1)); got != want {
++				t.Errorf("gomaxprocs doesn't match runtime.GOMAXPROCS: got %d, want %d", got, want)
++			}
+ 		case "/sched/goroutines:goroutines":
+ 			if samples[i].Value.Uint64() < 1 {
+ 				t.Error("number of goroutines is less than one")

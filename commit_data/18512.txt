@@ -27,10 +27,154 @@ Date:   Thu Feb 13 20:59:39 2014 -0500
     TBR=ken2
     CC=golang-codereviews
     https://golang.org/cl/63630043
-
+---
  src/cmd/gc/dcl.c  | 22 ++++++++++++++--------
  src/cmd/gc/fmt.c  | 16 ++++++++++++----
  src/cmd/gc/walk.c |  2 +-
  test/escape5.go   |  8 ++++----
  test/live.go      |  7 +++++++
  5 files changed, 38 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 7df1d97a8c..d105c74f69 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -643,8 +643,8 @@ funcargs(Node *nt)
+ 			fatal("funcargs out %O", n->op);
+ 
+ 		if(n->left == N) {
+-			// give it a name so escape analysis has nodes to work with
+-			snprint(namebuf, sizeof(namebuf), "~anon%d", gen++);
++			// Name so that escape analysis can track it. ~r stands for 'result'.
++			snprint(namebuf, sizeof(namebuf), "~r%d", gen++);
+ 			n->left = newname(lookup(namebuf));
+ 			// TODO: n->left->missing = 1;
+ 		} 
+@@ -652,14 +652,20 @@ funcargs(Node *nt)
+ 		n->left->op = ONAME;
+ 
+ 		if(isblank(n->left)) {
+-			// Give it a name so we can assign to it during return.
+-			// preserve the original in ->orig
++			// Give it a name so we can assign to it during return. ~b stands for 'blank'.
++			// The name must be different from ~r above because if you have
++			//	func f() (_ int)
++			//	func g() int
++			// f is allowed to use a plain 'return' with no arguments, while g is not.
++			// So the two cases must be distinguished.
++			// We do not record a pointer to the original node (n->orig).
++			// Having multiple names causes too much confusion in later passes.
+ 			nn = nod(OXXX, N, N);
+ 			*nn = *n->left;
++			nn->orig = nn;
++			snprint(namebuf, sizeof(namebuf), "~b%d", gen++);
++			nn->sym = lookup(namebuf);
+ 			n->left = nn;
+-			
+-			snprint(namebuf, sizeof(namebuf), "~anon%d", gen++);
+-			n->left->sym = lookup(namebuf);
+ 		}
+ 
+ 		n->left->ntype = n->right;
+@@ -1209,7 +1215,7 @@ functype(Node *this, NodeList *in, NodeList *out)
+ 	t->outnamed = 0;
+ 	if(t->outtuple > 0 && out->n->left != N && out->n->left->orig != N) {
+ 		s = out->n->left->orig->sym;
+-		if(s != S && s->name[0] != '~')
++		if(s != S && s->name[0] != '~' || s->name[1] != 'r') // ~r%d is the name invented for an unnamed result
+ 			t->outnamed = 1;
+ 	}
+ 
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 6f40c7ff30..bffe8dfc7e 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -678,12 +678,17 @@ typefmt(Fmt *fp, Type *t)
+ 		if(!(fp->flags&FmtShort)) {
+ 			s = t->sym;
+ 
+-			// Take the name from the original, lest we substituted it with ~anon%d
++			// Take the name from the original, lest we substituted it with ~r%d or ~b%d.
++			// ~r%d is a (formerly) unnamed result.
+ 			if ((fmtmode == FErr || fmtmode == FExp) && t->nname != N) {
+ 				if(t->nname->orig != N) {
+ 					s = t->nname->orig->sym;
+-					if(s != S && s->name[0] == '~')
+-						s = S;
++					if(s != S && s->name[0] == '~') {
++						if(s->name[1] == 'r') // originally an unnamed result
++							s = S;
++						else if(s->name[1] == 'b') // originally the blank identifier _
++							s = lookup("_");
++					}
+ 				} else 
+ 					s = S;
+ 			}
+@@ -1104,7 +1109,10 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 		case PAUTO:
+ 		case PPARAM:
+ 		case PPARAMOUT:
+-			if(fmtmode == FExp && n->sym && !isblanksym(n->sym) && n->vargen > 0)
++			// _ becomes ~b%d internally; print as _ for export
++			if(fmtmode == FExp && n->sym && n->sym->name[0] == '~' && n->sym->name[1] == 'b')
++				return fmtprint(f, "_");
++			if(fmtmode == FExp && n->sym && !isblank(n) && n->vargen > 0)
+ 				return fmtprint(f, "%S·%d", n->sym, n->vargen);
+ 		}
+ 
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index eb5a3f1b6b..1bceae9982 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -2430,7 +2430,7 @@ paramstoheap(Type **argin, int out)
+ 	nn = nil;
+ 	for(t = structfirst(&savet, argin); t != T; t = structnext(&savet)) {
+ 		v = t->nname;
+-		if(v && v->sym && v->sym->name[0] == '~')
++		if(v && v->sym && v->sym->name[0] == '~' && v->sym->name[1] == 'r') // unnamed result
+ 			v = N;
+ 		// In precisestack mode, the garbage collector assumes results
+ 		// are always live, so zero them always.
+diff --git a/test/escape5.go b/test/escape5.go
+index c9646872d5..a33daeee18 100644
+--- a/test/escape5.go
++++ b/test/escape5.go
+@@ -17,19 +17,19 @@ func leaktoret(p *int) *int { // ERROR "leaking param: p to result"
+ 	return p
+ }
+ 
+-func leaktoret2(p *int) (*int, *int) { // ERROR "leaking param: p to result .anon1" "leaking param: p to result .anon2"
++func leaktoret2(p *int) (*int, *int) { // ERROR "leaking param: p to result ~r1" "leaking param: p to result ~r2"
+ 	return p, p
+ }
+ 
+-func leaktoret22(p, q *int) (*int, *int) { // ERROR "leaking param: p to result .anon2" "leaking param: q to result .anon3"
++func leaktoret22(p, q *int) (*int, *int) { // ERROR "leaking param: p to result ~r2" "leaking param: q to result ~r3"
+ 	return p, q
+ }
+ 
+-func leaktoret22b(p, q *int) (*int, *int) { // ERROR "leaking param: p to result .anon3" "leaking param: q to result .anon2"
++func leaktoret22b(p, q *int) (*int, *int) { // ERROR "leaking param: p to result ~r3" "leaking param: q to result ~r2"
+ 	return leaktoret22(q, p)
+ }
+ 
+-func leaktoret22c(p, q *int) (*int, *int) { // ERROR "leaking param: p to result .anon3" "leaking param: q to result .anon2"
++func leaktoret22c(p, q *int) (*int, *int) { // ERROR "leaking param: p to result ~r3" "leaking param: q to result ~r2"
+ 	r, s := leaktoret22(q, p)
+ 	return r, s
+ }
+diff --git a/test/live.go b/test/live.go
+index dc2ec86fde..c0ea131294 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -79,3 +79,10 @@ func f5(b1 bool) {
+ 	}
+ 	print(**z) // ERROR "live at call to printint: x y$"
+ }
++
++// confusion about the _ result used to cause spurious "live at entry to f6: _".
++
++func f6() (_, y string) {
++	y = "hello"
++	return
++}

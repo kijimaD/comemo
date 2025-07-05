@@ -15,7 +15,7 @@ Date:   Fri Oct 29 16:47:22 2021 -0400
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modcmd/download.go             | 27 ++++----
  src/cmd/go/internal/modload/init.go                | 75 ++++++++++++++++------
  src/cmd/go/internal/workcmd/edit.go                | 27 ++------
@@ -24,3 +24,441 @@ Date:   Fri Oct 29 16:47:22 2021 -0400
  src/cmd/go/internal/workcmd/use.go                 | 28 ++------
  .../go/testdata/script/work_why_download_graph.txt | 59 +++++++++++++++++
  7 files changed, 160 insertions(+), 79 deletions(-)
+
+diff --git a/src/cmd/go/internal/modcmd/download.go b/src/cmd/go/internal/modcmd/download.go
+index f252133762..6b8a010fd9 100644
+--- a/src/cmd/go/internal/modcmd/download.go
++++ b/src/cmd/go/internal/modcmd/download.go
+@@ -93,24 +93,27 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ 	modload.ExplicitWriteGoMod = true
+ 	haveExplicitArgs := len(args) > 0
+ 
+-	if modload.HasModRoot() {
++	if modload.HasModRoot() || modload.WorkFilePath() != "" {
+ 		modload.LoadModFile(ctx) // to fill MainModules
+ 
+-		if len(modload.MainModules.Versions()) != 1 {
+-			panic(modload.TODOWorkspaces("Support workspace mode in go mod download"))
+-		}
+-		mainModule := modload.MainModules.Versions()[0]
+-
+ 		if haveExplicitArgs {
+-			targetAtUpgrade := mainModule.Path + "@upgrade"
+-			targetAtPatch := mainModule.Path + "@patch"
+-			for _, arg := range args {
+-				switch arg {
+-				case mainModule.Path, targetAtUpgrade, targetAtPatch:
+-					os.Stderr.WriteString("go: skipping download of " + arg + " that resolves to the main module\n")
++			for _, mainModule := range modload.MainModules.Versions() {
++				targetAtUpgrade := mainModule.Path + "@upgrade"
++				targetAtPatch := mainModule.Path + "@patch"
++				for _, arg := range args {
++					switch arg {
++					case mainModule.Path, targetAtUpgrade, targetAtPatch:
++						os.Stderr.WriteString("go: skipping download of " + arg + " that resolves to the main module\n")
++					}
+ 				}
+ 			}
++		} else if modload.WorkFilePath() != "" {
++			// TODO(#44435): Think about what the correct query is to download the
++			// right set of modules. Also see code review comment at
++			// https://go-review.googlesource.com/c/go/+/359794/comments/ce946a80_6cf53992.
++			args = []string{"all"}
+ 		} else {
++			mainModule := modload.MainModules.Versions()[0]
+ 			modFile := modload.MainModules.ModFile(mainModule)
+ 			if modFile.Go == nil || semver.Compare("v"+modFile.Go.Version, modload.ExplicitIndirectVersionV) < 0 {
+ 				if len(modFile.Require) > 0 {
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index fcf6ce2620..ab899fac1e 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -12,6 +12,7 @@ import (
+ 	"fmt"
+ 	"go/build"
+ 	"internal/lazyregexp"
++	"io/ioutil"
+ 	"os"
+ 	"path"
+ 	"path/filepath"
+@@ -56,10 +57,6 @@ var (
+ 	ExplicitWriteGoMod bool
+ )
+ 
+-func TODOWorkspaces(s string) error {
+-	return fmt.Errorf("need to support this for workspaces: %s", s)
+-}
+-
+ // Variables set in Init.
+ var (
+ 	initialized bool
+@@ -417,9 +414,6 @@ func Init() {
+ 	// We're in module mode. Set any global variables that need to be set.
+ 	cfg.ModulesEnabled = true
+ 	setDefaultBuildMod()
+-	_ = TODOWorkspaces("In workspace mode, mod will not be readonly for go mod download," +
+-		"verify, graph, and why. Implement support for go mod download and add test cases" +
+-		"to ensure verify, graph, and why work properly.")
+ 	list := filepath.SplitList(cfg.BuildContext.GOPATH)
+ 	if len(list) > 0 && list[0] != "" {
+ 		gopath = list[0]
+@@ -562,13 +556,8 @@ func (goModDirtyError) Error() string {
+ var errGoModDirty error = goModDirtyError{}
+ 
+ func loadWorkFile(path string) (goVersion string, modRoots []string, replaces []*modfile.Replace, err error) {
+-	_ = TODOWorkspaces("Clean up and write back the go.work file: add module paths for workspace modules.")
+ 	workDir := filepath.Dir(path)
+-	workData, err := lockedfile.Read(path)
+-	if err != nil {
+-		return "", nil, nil, err
+-	}
+-	wf, err := modfile.ParseWork(path, workData, nil)
++	wf, err := ReadWorkFile(path)
+ 	if err != nil {
+ 		return "", nil, nil, err
+ 	}
+@@ -581,15 +570,60 @@ func loadWorkFile(path string) (goVersion string, modRoots []string, replaces []
+ 		if !filepath.IsAbs(modRoot) {
+ 			modRoot = filepath.Join(workDir, modRoot)
+ 		}
++
+ 		if seen[modRoot] {
+ 			return "", nil, nil, fmt.Errorf("path %s appears multiple times in workspace", modRoot)
+ 		}
+ 		seen[modRoot] = true
+ 		modRoots = append(modRoots, modRoot)
+ 	}
++
+ 	return goVersion, modRoots, wf.Replace, nil
+ }
+ 
++// ReadWorkFile reads and parses the go.work file at the given path.
++func ReadWorkFile(path string) (*modfile.WorkFile, error) {
++	workData, err := ioutil.ReadFile(path)
++	if err != nil {
++		return nil, err
++	}
++	wf, err := modfile.ParseWork(path, workData, nil)
++
++	return wf, nil
++}
++
++// WriteWorkFile cleans and writes out the go.work file to the given path.
++func WriteWorkFile(path string, wf *modfile.WorkFile) error {
++	wf.SortBlocks()
++	wf.Cleanup()
++	out := modfile.Format(wf.Syntax)
++
++	return ioutil.WriteFile(path, out, 0666)
++}
++
++// UpdateWorkFile updates comments on directory directives in the go.work
++// file to include the associated module path.
++func UpdateWorkFile(wf *modfile.WorkFile) {
++	missingModulePaths := map[string]string{} // module directory listed in file -> abspath modroot
++
++	for _, d := range wf.Directory {
++		modRoot := d.Path
++		if d.ModulePath == "" {
++			missingModulePaths[d.Path] = modRoot
++		}
++	}
++
++	// Clean up and annotate directories.
++	// TODO(matloob): update x/mod to actually add module paths.
++	for moddir, absmodroot := range missingModulePaths {
++		_, f, err := ReadModFile(filepath.Join(absmodroot, "go.mod"), nil)
++		if err != nil {
++			continue // Error will be reported if modules are loaded.
++		}
++		wf.AddDirectory(moddir, f.Module.Mod.Path)
++	}
++}
++
+ // LoadModFile sets Target and, if there is a main module, parses the initial
+ // build list from its go.mod file.
+ //
+@@ -651,7 +685,9 @@ func LoadModFile(ctx context.Context) *Requirements {
+ 		modfetch.GoSumFile = strings.TrimSuffix(modFilePath(modRoots[0]), ".mod") + ".sum"
+ 	}
+ 	if len(modRoots) == 0 {
+-		_ = TODOWorkspaces("Instead of creating a fake module with an empty modroot, make MainModules.Len() == 0 mean that we're in module mode but not inside any module.")
++		// TODO(#49228): Instead of creating a fake module with an empty modroot,
++		// make MainModules.Len() == 0 mean that we're in module mode but not inside
++		// any module.
+ 		mainModule := module.Version{Path: "command-line-arguments"}
+ 		MainModules = makeMainModules([]module.Version{mainModule}, []string{""}, []*modfile.File{nil}, []*modFileIndex{nil}, "", nil)
+ 		goVersion := LatestGoVersion()
+@@ -854,8 +890,8 @@ func CreateWorkFile(ctx context.Context, workFile string, modDirs []string) {
+ 		workF.AddDirectory(ToDirectoryPath(dir), f.Module.Mod.Path)
+ 	}
+ 
+-	data := modfile.Format(workF.Syntax)
+-	lockedfile.Write(workFile, bytes.NewReader(data), 0666)
++	UpdateWorkFile(workF)
++	WriteWorkFile(workFile, workF)
+ }
+ 
+ // fixVersion returns a modfile.VersionFixer implemented using the Query function.
+@@ -1233,9 +1269,10 @@ func findWorkspaceFile(dir string) (root string) {
+ 			break
+ 		}
+ 		if d == cfg.GOROOT {
+-			_ = TODOWorkspaces("If we end up checking in a go.work file to GOROOT/src," +
+-				"remove this case.")
+-			return "" // As a special case, don't cross GOROOT to find a go.work file.
++			// As a special case, don't cross GOROOT to find a go.work file.
++			// The standard library and commands built in go always use the vendored
++			// dependencies, so avoid using a most likely irrelevant go.work file.
++			return ""
+ 		}
+ 		dir = d
+ 	}
+diff --git a/src/cmd/go/internal/workcmd/edit.go b/src/cmd/go/internal/workcmd/edit.go
+index f4e630f43f..5158ac9b49 100644
+--- a/src/cmd/go/internal/workcmd/edit.go
++++ b/src/cmd/go/internal/workcmd/edit.go
+@@ -7,13 +7,10 @@
+ package workcmd
+ 
+ import (
+-	"bytes"
+ 	"cmd/go/internal/base"
+-	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/modload"
+ 	"context"
+ 	"encoding/json"
+-	"errors"
+ 	"fmt"
+ 	"os"
+ 	"path/filepath"
+@@ -150,12 +147,7 @@ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
+ 		}
+ 	}
+ 
+-	data, err := lockedfile.Read(gowork)
+-	if err != nil {
+-		base.Fatalf("go: %v", err)
+-	}
+-
+-	workFile, err := modfile.ParseWork(gowork, data, nil)
++	workFile, err := modload.ReadWorkFile(gowork)
+ 	if err != nil {
+ 		base.Fatalf("go: errors parsing %s:\n%s", base.ShortPath(gowork), err)
+ 	}
+@@ -171,6 +163,9 @@ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
+ 			edit(workFile)
+ 		}
+ 	}
++
++	modload.UpdateWorkFile(workFile)
++
+ 	workFile.SortBlocks()
+ 	workFile.Cleanup() // clean file after edits
+ 
+@@ -179,22 +174,12 @@ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
+ 		return
+ 	}
+ 
+-	out := modfile.Format(workFile.Syntax)
+-
+ 	if *editPrint {
+-		os.Stdout.Write(out)
++		os.Stdout.Write(modfile.Format(workFile.Syntax))
+ 		return
+ 	}
+ 
+-	err = lockedfile.Transform(gowork, func(lockedData []byte) ([]byte, error) {
+-		if !bytes.Equal(lockedData, data) {
+-			return nil, errors.New("go.work changed during editing; not overwriting")
+-		}
+-		return out, nil
+-	})
+-	if err != nil {
+-		base.Fatalf("go: %v", err)
+-	}
++	modload.WriteWorkFile(gowork, workFile)
+ }
+ 
+ // flagEditworkDirectory implements the -directory flag.
+diff --git a/src/cmd/go/internal/workcmd/init.go b/src/cmd/go/internal/workcmd/init.go
+index 1342748023..fde1483efb 100644
+--- a/src/cmd/go/internal/workcmd/init.go
++++ b/src/cmd/go/internal/workcmd/init.go
+@@ -13,9 +13,9 @@ import (
+ 	"path/filepath"
+ )
+ 
+-var _ = modload.TODOWorkspaces("Add more documentation below. Though this is" +
+-	"enough for those trying workspaces out, there should be more through" +
+-	"documentation if the proposal is accepted and released.")
++// TODO(#49232) Add more documentation below. Though this is
++// enough for those trying workspaces out, there should be more through
++// documentation before Go 1.18 is released.
+ 
+ var cmdInit = &base.Command{
+ 	UsageLine: "go work init [moddirs]",
+diff --git a/src/cmd/go/internal/workcmd/sync.go b/src/cmd/go/internal/workcmd/sync.go
+index 2723013bf8..6f35dc4ff3 100644
+--- a/src/cmd/go/internal/workcmd/sync.go
++++ b/src/cmd/go/internal/workcmd/sync.go
+@@ -15,9 +15,9 @@ import (
+ 	"golang.org/x/mod/module"
+ )
+ 
+-var _ = modload.TODOWorkspaces("Add more documentation below. Though this is" +
+-	"enough for those trying workspaces out, there should be more through" +
+-	"documentation if the proposal is accepted and released.")
++// TODO(#49232) Add more documentation below. Though this is
++// enough for those trying workspaces out, there should be more thorough
++// documentation before Go 1.18 is released.
+ 
+ var cmdSync = &base.Command{
+ 	UsageLine: "go work sync [moddirs]",
+@@ -71,6 +71,8 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
+ 		mustSelectFor[m] = mustSelect
+ 	}
+ 
++	workFilePath := modload.WorkFilePath() // save go.work path because EnterModule clobbers it.
++
+ 	for _, m := range mms.Versions() {
+ 		// Use EnterModule to reset the global state in modload to be in
+ 		// single-module mode using the modroot of m.
+@@ -98,4 +100,13 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
+ 		}, "all")
+ 		modload.WriteGoMod(ctx)
+ 	}
++
++	wf, err := modload.ReadWorkFile(workFilePath)
++	if err != nil {
++		base.Fatalf("go: %v", err)
++	}
++	modload.UpdateWorkFile(wf)
++	if err := modload.WriteWorkFile(workFilePath, wf); err != nil {
++		base.Fatalf("go: %v", err)
++	}
+ }
+diff --git a/src/cmd/go/internal/workcmd/use.go b/src/cmd/go/internal/workcmd/use.go
+index 10c25da396..b2218280e4 100644
+--- a/src/cmd/go/internal/workcmd/use.go
++++ b/src/cmd/go/internal/workcmd/use.go
+@@ -9,20 +9,16 @@ package workcmd
+ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/fsys"
+-	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/modload"
+ 	"context"
+ 	"io/fs"
+-	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+-
+-	"golang.org/x/mod/modfile"
+ )
+ 
+-var _ = modload.TODOWorkspaces("Add more documentation below. Though this is" +
+-	"enough for those trying workspaces out, there should be more through" +
+-	"documentation if the proposal is accepted and released.")
++// TODO(#49232) Add more documentation below. Though this is
++// enough for those trying workspaces out, there should be more thorough
++// documentation before Go 1.18 is released.
+ 
+ var cmdUse = &base.Command{
+ 	UsageLine: "go work use [-r] [moddirs]",
+@@ -51,14 +47,9 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
+ 	modload.InitWorkfile()
+ 	gowork = modload.WorkFilePath()
+ 
+-	data, err := lockedfile.Read(gowork)
+-	if err != nil {
+-		base.Fatalf("goX: %v", err)
+-	}
+-
+-	workFile, err := modfile.ParseWork(gowork, data, nil)
++	workFile, err := modload.ReadWorkFile(gowork)
+ 	if err != nil {
+-		base.Fatalf("go: errors parsing %s:\n%s", base.ShortPath(gowork), err)
++		base.Fatalf("go: %v", err)
+ 	}
+ 
+ 	haveDirs := make(map[string]bool)
+@@ -119,11 +110,6 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
+ 	for dir := range addDirs {
+ 		workFile.AddDirectory(filepath.ToSlash(dir), "")
+ 	}
+-	workFile.SortBlocks()
+-	workFile.Cleanup() // clean file after edits
+-	out := modfile.Format(workFile.Syntax)
+-
+-	if err := ioutil.WriteFile(gowork, out, 0666); err != nil {
+-		base.Fatalf("go: %v", err)
+-	}
++	modload.UpdateWorkFile(workFile)
++	modload.WriteWorkFile(gowork, workFile)
+ }
+diff --git a/src/cmd/go/testdata/script/work_why_download_graph.txt b/src/cmd/go/testdata/script/work_why_download_graph.txt
+new file mode 100644
+index 0000000000..c03b4a7a62
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_why_download_graph.txt
+@@ -0,0 +1,59 @@
++# Test go mod download, why, and graph work in workspace mode.
++# TODO(bcmills): clarify the interaction with #44435
++
++go mod download rsc.io/quote
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
++! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.info
++! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.mod
++
++go mod download
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
++! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.info
++! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.mod
++
++go mod why rsc.io/quote
++stdout '# rsc.io/quote\nexample.com/a\nrsc.io/quote'
++
++go mod graph
++stdout 'example.com/a rsc.io/quote@v1.5.2\nexample.com/b example.com/c@v1.0.0\nrsc.io/quote@v1.5.2 rsc.io/sampler@v1.3.0\nrsc.io/sampler@v1.3.0 golang.org/x/text@v0.0.0-20170915032832-14c0d48ead0c'
++
++-- go.work --
++go 1.18
++
++directory (
++    ./a
++    ./b
++)
++-- a/go.mod --
++go 1.18
++
++module example.com/a
++
++require "rsc.io/quote" v1.5.2
++-- a/main.go --
++package main
++
++import (
++	"fmt"
++	"rsc.io/quote"
++)
++
++func main() {
++	fmt.Println(quote.Hello())
++}
++-- b/go.mod --
++go 1.18
++
++module example.com/b
++
++require example.com/c v1.0.0
++replace example.com/c => ../c
++-- c/go.mod --
++go 1.18
++
++module example.com/c
++

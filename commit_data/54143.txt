@@ -13,6 +13,23 @@ Date:   Tue Sep 27 16:13:40 2022 +0200
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/cmd/api/goapi_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/api/goapi_test.go b/src/cmd/api/goapi_test.go
+index e905e65b24..f8ee520bda 100644
+--- a/src/cmd/api/goapi_test.go
++++ b/src/cmd/api/goapi_test.go
+@@ -18,6 +18,11 @@ import (
+ )
+ 
+ func TestMain(m *testing.M) {
++	if !testenv.HasExec() {
++		os.Stdout.WriteString("skipping test: platform cannot exec")
++		os.Exit(0)
++	}
++
+ 	flag.Parse()
+ 	for _, c := range contexts {
+ 		c.Compiler = build.Default.Compiler

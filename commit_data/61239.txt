@@ -12,7 +12,7 @@ Date:   Tue Oct 22 13:58:53 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/621640
     Reviewed-by: Robert Findley <rfindley@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/go/internal/typeparams/typeparams.go | 74 --------------------------------
  src/go/parser/parser.go                  | 31 ++++++++++---
  src/go/types/call.go                     | 31 +++++++------
@@ -22,3 +22,578 @@ Date:   Tue Oct 22 13:58:53 2024 -0400
  src/go/types/resolver.go                 |  9 ++--
  src/go/types/typexpr.go                  | 23 +++++-----
  8 files changed, 117 insertions(+), 132 deletions(-)
+
+diff --git a/src/go/internal/typeparams/typeparams.go b/src/go/internal/typeparams/typeparams.go
+deleted file mode 100644
+index 0bddf737d3..0000000000
+--- a/src/go/internal/typeparams/typeparams.go
++++ /dev/null
+@@ -1,74 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package typeparams
+-
+-import (
+-	"go/ast"
+-	"go/token"
+-)
+-
+-func PackIndexExpr(x ast.Expr, lbrack token.Pos, exprs []ast.Expr, rbrack token.Pos) ast.Expr {
+-	switch len(exprs) {
+-	case 0:
+-		panic("internal error: PackIndexExpr with empty expr slice")
+-	case 1:
+-		return &ast.IndexExpr{
+-			X:      x,
+-			Lbrack: lbrack,
+-			Index:  exprs[0],
+-			Rbrack: rbrack,
+-		}
+-	default:
+-		return &ast.IndexListExpr{
+-			X:       x,
+-			Lbrack:  lbrack,
+-			Indices: exprs,
+-			Rbrack:  rbrack,
+-		}
+-	}
+-}
+-
+-// IndexExpr wraps an ast.IndexExpr or ast.IndexListExpr.
+-//
+-// Orig holds the original ast.Expr from which this IndexExpr was derived.
+-//
+-// Note: IndexExpr (intentionally) does not wrap ast.Expr, as that leads to
+-// accidental misuse such as encountered in golang/go#63933.
+-//
+-// TODO(rfindley): remove this helper, in favor of just having a helper
+-// function that returns indices.
+-type IndexExpr struct {
+-	Orig    ast.Expr   // the wrapped expr, which may be distinct from the IndexListExpr below.
+-	X       ast.Expr   // expression
+-	Lbrack  token.Pos  // position of "["
+-	Indices []ast.Expr // index expressions
+-	Rbrack  token.Pos  // position of "]"
+-}
+-
+-func (x *IndexExpr) Pos() token.Pos {
+-	return x.Orig.Pos()
+-}
+-
+-func UnpackIndexExpr(n ast.Node) *IndexExpr {
+-	switch e := n.(type) {
+-	case *ast.IndexExpr:
+-		return &IndexExpr{
+-			Orig:    e,
+-			X:       e.X,
+-			Lbrack:  e.Lbrack,
+-			Indices: []ast.Expr{e.Index},
+-			Rbrack:  e.Rbrack,
+-		}
+-	case *ast.IndexListExpr:
+-		return &IndexExpr{
+-			Orig:    e,
+-			X:       e.X,
+-			Lbrack:  e.Lbrack,
+-			Indices: e.Indices,
+-			Rbrack:  e.Rbrack,
+-		}
+-	}
+-	return nil
+-}
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 8ed893430d..cbd1d93fa1 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -19,7 +19,6 @@ import (
+ 	"fmt"
+ 	"go/ast"
+ 	"go/build/constraint"
+-	"go/internal/typeparams"
+ 	"go/scanner"
+ 	"go/token"
+ 	"strings"
+@@ -643,7 +642,7 @@ func (p *parser) parseArrayFieldOrTypeInstance(x *ast.Ident) (*ast.Ident, ast.Ex
+ 	}
+ 
+ 	// x[P], x[P1, P2], ...
+-	return nil, typeparams.PackIndexExpr(x, lbrack, args, rbrack)
++	return nil, packIndexExpr(x, lbrack, args, rbrack)
+ }
+ 
+ func (p *parser) parseFieldDecl() *ast.Field {
+@@ -1163,7 +1162,7 @@ func (p *parser) parseMethodSpec() *ast.Field {
+ 					p.exprLev--
+ 				}
+ 				rbrack := p.expectClosing(token.RBRACK, "type argument list")
+-				typ = typeparams.PackIndexExpr(ident, lbrack, list, rbrack)
++				typ = packIndexExpr(ident, lbrack, list, rbrack)
+ 			}
+ 		case p.tok == token.LPAREN:
+ 			// ordinary method
+@@ -1352,7 +1351,7 @@ func (p *parser) parseTypeInstance(typ ast.Expr) ast.Expr {
+ 		}
+ 	}
+ 
+-	return typeparams.PackIndexExpr(typ, opening, list, closing)
++	return packIndexExpr(typ, opening, list, closing)
+ }
+ 
+ func (p *parser) tryIdentOrType() ast.Expr {
+@@ -1605,7 +1604,7 @@ func (p *parser) parseIndexOrSliceOrInstance(x ast.Expr) ast.Expr {
+ 	}
+ 
+ 	// instance expression
+-	return typeparams.PackIndexExpr(x, lbrack, args, rbrack)
++	return packIndexExpr(x, lbrack, args, rbrack)
+ }
+ 
+ func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
+@@ -2921,3 +2920,25 @@ func (p *parser) parseFile() *ast.File {
+ 
+ 	return f
+ }
++
++// packIndexExpr returns an IndexExpr x[expr0] or IndexListExpr x[expr0, ...].
++func packIndexExpr(x ast.Expr, lbrack token.Pos, exprs []ast.Expr, rbrack token.Pos) ast.Expr {
++	switch len(exprs) {
++	case 0:
++		panic("internal error: packIndexExpr with empty expr slice")
++	case 1:
++		return &ast.IndexExpr{
++			X:      x,
++			Lbrack: lbrack,
++			Index:  exprs[0],
++			Rbrack: rbrack,
++		}
++	default:
++		return &ast.IndexListExpr{
++			X:       x,
++			Lbrack:  lbrack,
++			Indices: exprs,
++			Rbrack:  rbrack,
++		}
++	}
++}
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index e4d0d927f5..bb7d0bd0d3 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -8,7 +8,6 @@ package types
+ 
+ import (
+ 	"go/ast"
+-	"go/internal/typeparams"
+ 	"go/token"
+ 	. "internal/types/errors"
+ 	"strings"
+@@ -33,13 +32,13 @@ import (
+ //
+ // If an error (other than a version error) occurs in any case, it is reported
+ // and x.mode is set to invalid.
+-func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *typeparams.IndexExpr, infer bool) ([]Type, []ast.Expr) {
++func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *indexedExpr, infer bool) ([]Type, []ast.Expr) {
+ 	assert(T != nil || ix != nil)
+ 
+ 	var instErrPos positioner
+ 	if ix != nil {
+-		instErrPos = inNode(ix.Orig, ix.Lbrack)
+-		x.expr = ix.Orig // if we don't have an index expression, keep the existing expression of x
++		instErrPos = inNode(ix.orig, ix.lbrack)
++		x.expr = ix.orig // if we don't have an index expression, keep the existing expression of x
+ 	} else {
+ 		instErrPos = atPos(pos)
+ 	}
+@@ -49,7 +48,7 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *typepar
+ 	var targs []Type
+ 	var xlist []ast.Expr
+ 	if ix != nil {
+-		xlist = ix.Indices
++		xlist = ix.indices
+ 		targs = check.typeList(xlist)
+ 		if targs == nil {
+ 			x.mode = invalid
+@@ -65,7 +64,7 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *typepar
+ 	got, want := len(targs), sig.TypeParams().Len()
+ 	if got > want {
+ 		// Providing too many type arguments is always an error.
+-		check.errorf(ix.Indices[got-1], WrongTypeArgCount, "got %d type arguments but want %d", got, want)
++		check.errorf(ix.indices[got-1], WrongTypeArgCount, "got %d type arguments but want %d", got, want)
+ 		x.mode = invalid
+ 		return nil, nil
+ 	}
+@@ -169,7 +168,7 @@ func (check *Checker) instantiateSignature(pos token.Pos, expr ast.Expr, typ *Si
+ }
+ 
+ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
+-	ix := typeparams.UnpackIndexExpr(call.Fun)
++	ix := unpackIndexedExpr(call.Fun)
+ 	if ix != nil {
+ 		if check.indexExpr(x, ix) {
+ 			// Delay function instantiation to argument checking,
+@@ -259,7 +258,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
+ 	var xlist []ast.Expr
+ 	var targs []Type
+ 	if ix != nil {
+-		xlist = ix.Indices
++		xlist = ix.indices
+ 		targs = check.typeList(xlist)
+ 		if targs == nil {
+ 			check.use(call.Args...)
+@@ -285,8 +284,8 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
+ 		// is an error checking its arguments (for example, if an incorrect number
+ 		// of arguments is supplied).
+ 		if got == want && want > 0 {
+-			check.verifyVersionf(atPos(ix.Lbrack), go1_18, "function instantiation")
+-			sig = check.instantiateSignature(ix.Pos(), ix.Orig, sig, targs, xlist)
++			check.verifyVersionf(atPos(ix.lbrack), go1_18, "function instantiation")
++			sig = check.instantiateSignature(ix.Pos(), ix.orig, sig, targs, xlist)
+ 			// targs have been consumed; proceed with checking arguments of the
+ 			// non-generic signature.
+ 			targs = nil
+@@ -383,7 +382,7 @@ func (check *Checker) genericExprList(elist []ast.Expr) (resList []*operand, tar
+ 		// single value (possibly a partially instantiated function), or a multi-valued expression
+ 		e := elist[0]
+ 		var x operand
+-		if ix := typeparams.UnpackIndexExpr(e); ix != nil && check.indexExpr(&x, ix) {
++		if ix := unpackIndexedExpr(e); ix != nil && check.indexExpr(&x, ix) {
+ 			// x is a generic function.
+ 			targs, xlist := check.funcInst(nil, x.Pos(), &x, ix, infer)
+ 			if targs != nil {
+@@ -391,7 +390,7 @@ func (check *Checker) genericExprList(elist []ast.Expr) (resList []*operand, tar
+ 				targsList = [][]Type{targs}
+ 				xlistList = [][]ast.Expr{xlist}
+ 				// Update x.expr so that we can record the partially instantiated function.
+-				x.expr = ix.Orig
++				x.expr = ix.orig
+ 			} else {
+ 				// x was instantiated: we must record it here because we didn't
+ 				// use the usual expression evaluators.
+@@ -420,7 +419,7 @@ func (check *Checker) genericExprList(elist []ast.Expr) (resList []*operand, tar
+ 		xlistList = make([][]ast.Expr, n)
+ 		for i, e := range elist {
+ 			var x operand
+-			if ix := typeparams.UnpackIndexExpr(e); ix != nil && check.indexExpr(&x, ix) {
++			if ix := unpackIndexedExpr(e); ix != nil && check.indexExpr(&x, ix) {
+ 				// x is a generic function.
+ 				targs, xlist := check.funcInst(nil, x.Pos(), &x, ix, infer)
+ 				if targs != nil {
+@@ -428,7 +427,7 @@ func (check *Checker) genericExprList(elist []ast.Expr) (resList []*operand, tar
+ 					targsList[i] = targs
+ 					xlistList[i] = xlist
+ 					// Update x.expr so that we can record the partially instantiated function.
+-					x.expr = ix.Orig
++					x.expr = ix.orig
+ 				} else {
+ 					// x was instantiated: we must record it here because we didn't
+ 					// use the usual expression evaluators.
+@@ -546,8 +545,8 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
+ 		if !check.allowVersion(go1_18) {
+ 			switch call.Fun.(type) {
+ 			case *ast.IndexExpr, *ast.IndexListExpr:
+-				ix := typeparams.UnpackIndexExpr(call.Fun)
+-				check.versionErrorf(inNode(call.Fun, ix.Lbrack), go1_18, "function instantiation")
++				ix := unpackIndexedExpr(call.Fun)
++				check.versionErrorf(inNode(call.Fun, ix.lbrack), go1_18, "function instantiation")
+ 			default:
+ 				check.versionErrorf(inNode(call, call.Lparen), go1_18, "implicit function instantiation")
+ 			}
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 4a4f195c32..8cfacca6f4 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -10,7 +10,6 @@ import (
+ 	"fmt"
+ 	"go/ast"
+ 	"go/constant"
+-	"go/internal/typeparams"
+ 	"go/token"
+ 	. "internal/types/errors"
+ )
+@@ -1062,7 +1061,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
+ 		check.selector(x, e, nil, false)
+ 
+ 	case *ast.IndexExpr, *ast.IndexListExpr:
+-		ix := typeparams.UnpackIndexExpr(e)
++		ix := unpackIndexedExpr(e)
+ 		if check.indexExpr(x, ix) {
+ 			if !enableReverseTypeInference {
+ 				T = nil
+diff --git a/src/go/types/exprstring.go b/src/go/types/exprstring.go
+index 0403a06d8c..00d3fd1938 100644
+--- a/src/go/types/exprstring.go
++++ b/src/go/types/exprstring.go
+@@ -10,7 +10,6 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"go/ast"
+-	"go/internal/typeparams"
+ )
+ 
+ // ExprString returns the (possibly shortened) string representation for x.
+@@ -71,10 +70,10 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
+ 		buf.WriteString(x.Sel.Name)
+ 
+ 	case *ast.IndexExpr, *ast.IndexListExpr:
+-		ix := typeparams.UnpackIndexExpr(x)
+-		WriteExpr(buf, ix.X)
++		ix := unpackIndexedExpr(x)
++		WriteExpr(buf, ix.x)
+ 		buf.WriteByte('[')
+-		writeExprList(buf, ix.Indices)
++		writeExprList(buf, ix.indices)
+ 		buf.WriteByte(']')
+ 
+ 	case *ast.SliceExpr:
+diff --git a/src/go/types/index.go b/src/go/types/index.go
+index e52d9a00ff..1c04f16a97 100644
+--- a/src/go/types/index.go
++++ b/src/go/types/index.go
+@@ -9,27 +9,27 @@ package types
+ import (
+ 	"go/ast"
+ 	"go/constant"
+-	"go/internal/typeparams"
++	"go/token"
+ 	. "internal/types/errors"
+ )
+ 
+ // If e is a valid function instantiation, indexExpr returns true.
+ // In that case x represents the uninstantiated function value and
+ // it is the caller's responsibility to instantiate the function.
+-func (check *Checker) indexExpr(x *operand, e *typeparams.IndexExpr) (isFuncInst bool) {
+-	check.exprOrType(x, e.X, true)
++func (check *Checker) indexExpr(x *operand, e *indexedExpr) (isFuncInst bool) {
++	check.exprOrType(x, e.x, true)
+ 	// x may be generic
+ 
+ 	switch x.mode {
+ 	case invalid:
+-		check.use(e.Indices...)
++		check.use(e.indices...)
+ 		return false
+ 
+ 	case typexpr:
+ 		// type instantiation
+ 		x.mode = invalid
+ 		// TODO(gri) here we re-evaluate e.X - try to avoid this
+-		x.typ = check.varType(e.Orig)
++		x.typ = check.varType(e.orig)
+ 		if isValid(x.typ) {
+ 			x.mode = typexpr
+ 		}
+@@ -98,7 +98,7 @@ func (check *Checker) indexExpr(x *operand, e *typeparams.IndexExpr) (isFuncInst
+ 		// ok to continue even if indexing failed - map element type is known
+ 		x.mode = mapindex
+ 		x.typ = typ.elem
+-		x.expr = e.Orig
++		x.expr = e.orig
+ 		return false
+ 
+ 	case *Interface:
+@@ -172,7 +172,7 @@ func (check *Checker) indexExpr(x *operand, e *typeparams.IndexExpr) (isFuncInst
+ 				// ok to continue even if indexing failed - map element type is known
+ 				x.mode = mapindex
+ 				x.typ = elem
+-				x.expr = e.Orig
++				x.expr = e.orig
+ 				return false
+ 			}
+ 
+@@ -186,7 +186,7 @@ func (check *Checker) indexExpr(x *operand, e *typeparams.IndexExpr) (isFuncInst
+ 	if !valid {
+ 		// types2 uses the position of '[' for the error
+ 		check.errorf(x, NonIndexableOperand, invalidOp+"cannot index %s", x)
+-		check.use(e.Indices...)
++		check.use(e.indices...)
+ 		x.mode = invalid
+ 		return false
+ 	}
+@@ -330,16 +330,16 @@ L:
+ // singleIndex returns the (single) index from the index expression e.
+ // If the index is missing, or if there are multiple indices, an error
+ // is reported and the result is nil.
+-func (check *Checker) singleIndex(expr *typeparams.IndexExpr) ast.Expr {
+-	if len(expr.Indices) == 0 {
+-		check.errorf(expr.Orig, InvalidSyntaxTree, "index expression %v with 0 indices", expr)
++func (check *Checker) singleIndex(expr *indexedExpr) ast.Expr {
++	if len(expr.indices) == 0 {
++		check.errorf(expr.orig, InvalidSyntaxTree, "index expression %v with 0 indices", expr)
+ 		return nil
+ 	}
+-	if len(expr.Indices) > 1 {
++	if len(expr.indices) > 1 {
+ 		// TODO(rFindley) should this get a distinct error code?
+-		check.error(expr.Indices[1], InvalidIndex, invalidOp+"more than one index")
++		check.error(expr.indices[1], InvalidIndex, invalidOp+"more than one index")
+ 	}
+-	return expr.Indices[0]
++	return expr.indices[0]
+ }
+ 
+ // index checks an index expression for validity.
+@@ -408,3 +408,46 @@ func (check *Checker) isValidIndex(x *operand, code Code, what string, allowNega
+ 
+ 	return true
+ }
++
++// indexedExpr wraps an ast.IndexExpr or ast.IndexListExpr.
++//
++// Orig holds the original ast.Expr from which this indexedExpr was derived.
++//
++// Note: indexedExpr (intentionally) does not wrap ast.Expr, as that leads to
++// accidental misuse such as encountered in golang/go#63933.
++//
++// TODO(rfindley): remove this helper, in favor of just having a helper
++// function that returns indices.
++type indexedExpr struct {
++	orig    ast.Expr   // the wrapped expr, which may be distinct from the IndexListExpr below.
++	x       ast.Expr   // expression
++	lbrack  token.Pos  // position of "["
++	indices []ast.Expr // index expressions
++	rbrack  token.Pos  // position of "]"
++}
++
++func (x *indexedExpr) Pos() token.Pos {
++	return x.orig.Pos()
++}
++
++func unpackIndexedExpr(n ast.Node) *indexedExpr {
++	switch e := n.(type) {
++	case *ast.IndexExpr:
++		return &indexedExpr{
++			orig:    e,
++			x:       e.X,
++			lbrack:  e.Lbrack,
++			indices: []ast.Expr{e.Index},
++			rbrack:  e.Rbrack,
++		}
++	case *ast.IndexListExpr:
++		return &indexedExpr{
++			orig:    e,
++			x:       e.X,
++			lbrack:  e.Lbrack,
++			indices: e.Indices,
++			rbrack:  e.Rbrack,
++		}
++	}
++	return nil
++}
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index 939bcecffa..8e1626cd9d 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -9,7 +9,6 @@ import (
+ 	"fmt"
+ 	"go/ast"
+ 	"go/constant"
+-	"go/internal/typeparams"
+ 	"go/token"
+ 	. "internal/types/errors"
+ 	"slices"
+@@ -552,10 +551,10 @@ func (check *Checker) unpackRecv(rtyp ast.Expr, unpackParams bool) (ptr bool, ba
+ 	// unpack type parameters, if any
+ 	switch base.(type) {
+ 	case *ast.IndexExpr, *ast.IndexListExpr:
+-		ix := typeparams.UnpackIndexExpr(base)
+-		base = ix.X
++		ix := unpackIndexedExpr(base)
++		base = ix.x
+ 		if unpackParams {
+-			for _, arg := range ix.Indices {
++			for _, arg := range ix.indices {
+ 				var par *ast.Ident
+ 				switch arg := arg.(type) {
+ 				case *ast.Ident:
+@@ -563,7 +562,7 @@ func (check *Checker) unpackRecv(rtyp ast.Expr, unpackParams bool) (ptr bool, ba
+ 				case *ast.BadExpr:
+ 					// ignore - error already reported by parser
+ 				case nil:
+-					check.error(ix.Orig, InvalidSyntaxTree, "parameterized receiver contains nil parameters")
++					check.error(ix.orig, InvalidSyntaxTree, "parameterized receiver contains nil parameters")
+ 				default:
+ 					check.errorf(arg, BadDecl, "receiver type parameter %s must be an identifier", arg)
+ 				}
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 42c2f2ed98..c83f53ba61 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -10,7 +10,6 @@ import (
+ 	"fmt"
+ 	"go/ast"
+ 	"go/constant"
+-	"go/internal/typeparams"
+ 	. "internal/types/errors"
+ 	"strings"
+ )
+@@ -285,8 +284,8 @@ func (check *Checker) typInternal(e0 ast.Expr, def *TypeName) (T Type) {
+ 		}
+ 
+ 	case *ast.IndexExpr, *ast.IndexListExpr:
+-		ix := typeparams.UnpackIndexExpr(e)
+-		check.verifyVersionf(inNode(e, ix.Lbrack), go1_18, "type instantiation")
++		ix := unpackIndexedExpr(e)
++		check.verifyVersionf(inNode(e, ix.lbrack), go1_18, "type instantiation")
+ 		return check.instantiatedType(ix, def)
+ 
+ 	case *ast.ParenExpr:
+@@ -425,9 +424,9 @@ func setDefType(def *TypeName, typ Type) {
+ 	}
+ }
+ 
+-func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *TypeName) (res Type) {
++func (check *Checker) instantiatedType(ix *indexedExpr, def *TypeName) (res Type) {
+ 	if check.conf._Trace {
+-		check.trace(ix.Pos(), "-- instantiating type %s with %s", ix.X, ix.Indices)
++		check.trace(ix.Pos(), "-- instantiating type %s with %s", ix.x, ix.indices)
+ 		check.indent++
+ 		defer func() {
+ 			check.indent--
+@@ -441,9 +440,9 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *TypeName)
+ 	}()
+ 
+ 	var cause string
+-	typ := check.genericType(ix.X, &cause)
++	typ := check.genericType(ix.x, &cause)
+ 	if cause != "" {
+-		check.errorf(ix.Orig, NotAGenericType, invalidOp+"%s (%s)", ix.Orig, cause)
++		check.errorf(ix.orig, NotAGenericType, invalidOp+"%s (%s)", ix.orig, cause)
+ 	}
+ 	if !isValid(typ) {
+ 		return typ // error already reported
+@@ -455,7 +454,7 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *TypeName)
+ 	gtyp := typ.(genericType)
+ 
+ 	// evaluate arguments
+-	targs := check.typeList(ix.Indices)
++	targs := check.typeList(ix.indices)
+ 	if targs == nil {
+ 		return Typ[Invalid]
+ 	}
+@@ -470,7 +469,7 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *TypeName)
+ 		// This is an instance from the source, not from recursive substitution,
+ 		// and so it must be resolved during type-checking so that we can report
+ 		// errors.
+-		check.recordInstance(ix.Orig, targs, inst)
++		check.recordInstance(ix.orig, targs, inst)
+ 
+ 		name := inst.(interface{ Obj() *TypeName }).Obj().name
+ 		tparams := inst.TypeParams().list()
+@@ -479,12 +478,12 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *TypeName)
+ 			if i, err := check.verify(ix.Pos(), inst.TypeParams().list(), targs, check.context()); err != nil {
+ 				// best position for error reporting
+ 				pos := ix.Pos()
+-				if i < len(ix.Indices) {
+-					pos = ix.Indices[i].Pos()
++				if i < len(ix.indices) {
++					pos = ix.indices[i].Pos()
+ 				}
+ 				check.softErrorf(atPos(pos), InvalidTypeArg, "%v", err)
+ 			} else {
+-				check.mono.recordInstance(check.pkg, ix.Pos(), tparams, targs, ix.Indices)
++				check.mono.recordInstance(check.pkg, ix.Pos(), tparams, targs, ix.indices)
+ 			}
+ 		}
+ 	}).describef(ix, "verify instantiation %s", inst)

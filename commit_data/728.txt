@@ -7,8 +7,462 @@ Date:   Thu Sep 25 11:50:34 2008 -0700
     R=r
     OCL=15863
     CL=15863
-
+---
  usr/gri/pretty/ast.go     |  53 +++++++++++++++--------
  usr/gri/pretty/parser.go  | 107 +++++++++++++++++++++-------------------------
  usr/gri/pretty/printer.go |  52 +++++++++++++++++-----
  3 files changed, 125 insertions(+), 87 deletions(-)
+
+diff --git a/usr/gri/pretty/ast.go b/usr/gri/pretty/ast.go
+index 037a07b261..0ec00709da 100644
+--- a/usr/gri/pretty/ast.go
++++ b/usr/gri/pretty/ast.go
+@@ -49,6 +49,7 @@ export type Visitor interface {
+ 	DoSwitchStat(x *SwitchStat);
+ 	DoReturnStat(x *ReturnStat);
+ 	DoIncDecStat(x *IncDecStat);
++	DoControlFlowStat(x *ControlFlowStat);
+ 	
+ 	// Program
+ 	DoProgram(x *Program);
+@@ -65,6 +66,9 @@ export type Node interface {
+ 
+ // ----------------------------------------------------------------------------
+ // Lists
++//
++// If p is a list and p == nil, then p.len() == 0.
++// Thus, empty lists can be represented by nil.
+ 
+ export type List struct {
+ 	a *[] Node
+@@ -335,19 +339,26 @@ export type Assignment struct {
+ }
+ 
+ 
++export type ControlClause struct {
++	init Stat;
++	expr Expr;
++	post Stat;
++	has_init, has_expr, has_post bool;
++}
++
++
+ export type IfStat struct {
+ 	pos int;  // position of "if"
+-	init Stat;
+-	cond Expr;
+-	then, else_ *Block;
++	ctrl *ControlClause;
++	then *Block;
++	else_ Stat;
++	has_else bool;
+ }
+ 
+ 
+ export type ForStat struct {
+ 	pos int;  // position of "for"
+-	init Stat;
+-	cond Expr;
+-	post Stat;
++	ctrl *ControlClause;
+ 	body *Block;
+ }
+ 
+@@ -362,15 +373,14 @@ export type CaseClause struct {
+ 
+ export type SwitchStat struct {
+ 	pos int;  // position of "switch"
+-	init Stat;
+-	tag Expr;
++	ctrl *ControlClause;
+ 	cases *List;  // list of *CaseClause
+ }
+ 
+ 
+ export type ReturnStat struct {
+ 	pos int;  // position of "return"
+-	res *List;
++	res *List;  // list of Expr
+ }
+ 
+ 
+@@ -381,16 +391,23 @@ export type IncDecStat struct {
+ }
+ 
+ 
+-func (x *Block)       Visit(v Visitor)  { v.DoBlock(x); }
+-func (x *ExprStat)    Visit(v Visitor)  { v.DoExprStat(x); }
+-func (x *Assignment)  Visit(v Visitor)  { v.DoAssignment(x); }
+-func (x *IfStat)      Visit(v Visitor)  { v.DoIfStat(x); }
+-func (x *ForStat)     Visit(v Visitor)  { v.DoForStat(x); }
+-func (x *CaseClause)  Visit(v Visitor)  { v.DoCaseClause(x); }
+-func (x *SwitchStat)  Visit(v Visitor)  { v.DoSwitchStat(x); }
+-func (x *ReturnStat)  Visit(v Visitor)  { v.DoReturnStat(x); }
+-func (x *IncDecStat)  Visit(v Visitor)  { v.DoIncDecStat(x); }
++export type ControlFlowStat struct {
++	pos int;  // position of token
++	tok int;
++	label *Ident;  // nil, if no label
++}
++
+ 
++func (x *Block)            Visit(v Visitor)  { v.DoBlock(x); }
++func (x *ExprStat)         Visit(v Visitor)  { v.DoExprStat(x); }
++func (x *Assignment)       Visit(v Visitor)  { v.DoAssignment(x); }
++func (x *IfStat)           Visit(v Visitor)  { v.DoIfStat(x); }
++func (x *ForStat)          Visit(v Visitor)  { v.DoForStat(x); }
++func (x *CaseClause)       Visit(v Visitor)  { v.DoCaseClause(x); }
++func (x *SwitchStat)       Visit(v Visitor)  { v.DoSwitchStat(x); }
++func (x *ReturnStat)       Visit(v Visitor)  { v.DoReturnStat(x); }
++func (x *IncDecStat)       Visit(v Visitor)  { v.DoIncDecStat(x); }
++func (x *ControlFlowStat)  Visit(v Visitor)  { v.DoControlFlowStat(x); }
+ 
+ // ----------------------------------------------------------------------------
+ // Program
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index 7e3dda3ad3..d272b0bebf 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -404,7 +404,7 @@ func (P *Parser) ParseMapType() *AST.MapType {
+ 
+ func (P *Parser) ParseStructType() *AST.StructType {
+ 	P.Trace("StructType");
+-	
++
+ 	typ := new(AST.StructType);
+ 	typ.pos = P.pos;
+ 	typ.fields = AST.NewList();
+@@ -912,99 +912,91 @@ func (P *Parser) ParseGoStat() {
+ func (P *Parser) ParseReturnStat() *AST.ReturnStat {
+ 	P.Trace("ReturnStat");
+ 	
+-	ret := new(AST.ReturnStat);
+-	ret.pos = P.pos;
++	stat := new(AST.ReturnStat);
++	stat.pos = P.pos;
+ 	
+ 	P.Expect(Scanner.RETURN);
+ 	if P.tok != Scanner.SEMICOLON && P.tok != Scanner.RBRACE {
+-		ret.res = P.ParseExpressionList();
++		stat.res = P.ParseExpressionList();
+ 	}
+ 	
+ 	P.Ecart();
+-	return ret;
++	return stat;
+ }
+ 
+ 
+-func (P *Parser) ParseControlFlowStat(tok int) {
++func (P *Parser) ParseControlFlowStat(tok int) *AST.ControlFlowStat {
+ 	P.Trace("ControlFlowStat");
+ 	
++	stat := new(AST.ControlFlowStat);
++	stat.pos, stat.tok = P.pos, P.tok;
++	
+ 	P.Expect(tok);
+ 	if P.tok == Scanner.IDENT {
+-		P.ParseIdent();
++		stat.label = P.ParseIdent();
+ 	}
+ 	
+ 	P.Ecart();
++	return stat;
+ }
+ 
+ 
+-func (P *Parser) ParseStatHeader(keyword int) (init_ AST.Stat, expr_ AST.Expr, post_ AST.Stat) {
++func (P *Parser) ParseControlClause(keyword int) *AST.ControlClause {
+ 	P.Trace("StatHeader");
+ 	
+-	var (
+-		init AST.Stat = AST.NIL;
+-		expr AST.Expr = AST.NIL;
+-		post AST.Stat = AST.NIL;
+-	)
+-	
+-	has_init, has_expr, has_post := false, false, false;
++	ctrl := new(AST.ControlClause);
++	ctrl.init, ctrl.expr, ctrl.post = AST.NIL, AST.NIL, AST.NIL;
+ 
+ 	P.Expect(keyword);
+ 	if P.tok != Scanner.LBRACE {
+ 		if P.tok != Scanner.SEMICOLON {
+-			init = P.ParseSimpleStat();
+-			has_init = true;
++			ctrl.init = P.ParseSimpleStat();
++			ctrl.has_init = true;
+ 		}
+ 		if P.tok == Scanner.SEMICOLON {
+ 			P.Next();
++			if P.tok != Scanner.SEMICOLON && P.tok != Scanner.LBRACE {
++				ctrl.expr = P.ParseExpression();
++				ctrl.has_expr = true;
++			}
+ 			if keyword == Scanner.FOR {
+-				if P.tok != Scanner.SEMICOLON {
+-					expr = P.ParseExpression();
+-					has_expr = true;
+-				}
+ 				P.Expect(Scanner.SEMICOLON);
+ 				if P.tok != Scanner.LBRACE {
+-					post = P.ParseSimpleStat();
+-					has_post = true;
+-				}
+-			} else {
+-				if P.tok != Scanner.LBRACE {
+-					expr = P.ParseExpression();
+-					has_expr = true;
++					ctrl.post = P.ParseSimpleStat();
++					ctrl.has_post = true;
+ 				}
+ 			}
++		} else {
++			ctrl.expr, ctrl.has_expr = ctrl.init, ctrl.has_init;
++			ctrl.init, ctrl.has_init = AST.NIL, false;
+ 		}
+ 	}
+ 
+ 	P.Ecart();
+-	return init, expr, post;
++	return ctrl;
+ }
+ 
+ 
+ func (P *Parser) ParseIfStat() *AST.IfStat {
+ 	P.Trace("IfStat");
+ 
+-	x := new(AST.IfStat);
+-	x.pos = P.pos;
+-	var dummy AST.Stat;
+-		
+-	x.init, x.cond, dummy = P.ParseStatHeader(Scanner.IF);
+-	
+-	x.then = P.ParseBlock();
++	stat := new(AST.IfStat);
++	stat.pos = P.pos;
++	stat.ctrl = P.ParseControlClause(Scanner.IF);
++	stat.then = P.ParseBlock();
+ 	if P.tok == Scanner.ELSE {
+ 		P.Next();
+-		b := new(AST.Block);
+-		b.stats = AST.NewList();
+ 		if P.tok == Scanner.IF {
+-			b.stats.Add(P.ParseIfStat());
++			stat.else_ = P.ParseIfStat();
+ 		} else {
+-			// TODO should be P.ParseBlock()
+-			b.stats.Add(P.ParseStatement());
++			// TODO: Should be P.ParseBlock().
++			stat.else_ = P.ParseStatement();
+ 		}
+-		x.else_ = b;
++		stat.has_else = true;
+ 	}
+ 	
+ 	P.Ecart();
+-	return x;
++	return stat;
+ }
+ 
+ 
+@@ -1014,7 +1006,7 @@ func (P *Parser) ParseForStat() *AST.ForStat {
+ 	stat := new(AST.ForStat);
+ 	stat.pos = P.pos;
+ 	
+-	P.ParseStatHeader(Scanner.FOR);
++	stat.ctrl = P.ParseControlClause(Scanner.FOR);
+ 	stat.body = P.ParseBlock();
+ 	
+ 	P.Ecart();
+@@ -1065,10 +1057,8 @@ func (P *Parser) ParseSwitchStat() *AST.SwitchStat {
+ 	
+ 	stat := new(AST.SwitchStat);
+ 	stat.pos = P.pos;
+-	stat.init = AST.NIL;
++	stat.ctrl = P.ParseControlClause(Scanner.SWITCH);
+ 	stat.cases = AST.NewList();
+-
+-	P.ParseStatHeader(Scanner.SWITCH);
+ 	
+ 	P.Expect(Scanner.LBRACE);
+ 	for P.tok == Scanner.CASE || P.tok == Scanner.DEFAULT {
+@@ -1169,7 +1159,7 @@ func (P *Parser) TryStatement() (stat_ AST.Stat, ok_ bool) {
+ 	case Scanner.RETURN:
+ 		stat = P.ParseReturnStat();
+ 	case Scanner.BREAK, Scanner.CONTINUE, Scanner.GOTO:
+-		P.ParseControlFlowStat(P.tok);
++		stat = P.ParseControlFlowStat(P.tok);
+ 	case Scanner.LBRACE:
+ 		stat = P.ParseBlock();
+ 	case Scanner.IF:
+@@ -1219,7 +1209,7 @@ func (P *Parser) ParseImportSpec() {
+ }
+ 
+ 
+-func (P *Parser) ParseConstSpec(exported bool) AST.Decl {
++func (P *Parser) ParseConstSpec(exported bool) *AST.ConstDecl {
+ 	P.Trace("ConstSpec");
+ 	
+ 	decl := new(AST.ConstDecl);
+@@ -1237,7 +1227,7 @@ func (P *Parser) ParseConstSpec(exported bool) AST.Decl {
+ }
+ 
+ 
+-func (P *Parser) ParseTypeSpec(exported bool) AST.Decl {
++func (P *Parser) ParseTypeSpec(exported bool) *AST.TypeDecl {
+ 	P.Trace("TypeSpec");
+ 
+ 	decl := new(AST.TypeDecl);
+@@ -1249,7 +1239,7 @@ func (P *Parser) ParseTypeSpec(exported bool) AST.Decl {
+ }
+ 
+ 
+-func (P *Parser) ParseVarSpec(exported bool) AST.Decl {
++func (P *Parser) ParseVarSpec(exported bool) *AST.VarDecl {
+ 	P.Trace("VarSpec");
+ 	
+ 	decl := new(AST.VarDecl);
+@@ -1270,7 +1260,7 @@ func (P *Parser) ParseVarSpec(exported bool) AST.Decl {
+ }
+ 
+ 
+-// TODO With method variables, we wouldn't need this dispatch function.
++// TODO Replace this by using function pointers derived from methods.
+ func (P *Parser) ParseSpec(exported bool, keyword int) AST.Decl {
+ 	var decl AST.Decl = AST.NIL;
+ 	switch keyword {
+@@ -1333,13 +1323,14 @@ func (P *Parser) ParseFuncDecl(exported bool) *AST.FuncDecl {
+ 
+ 	var recv *AST.VarDeclList;
+ 	if P.tok == Scanner.LPAREN {
+-		recv_pos := P.pos;
+-		recv := P.ParseParameters().at(0);
+-		/*
+-		if n != 1 {
+-			P.Error(recv_pos, "must have exactly one receiver");
++		pos := P.pos;
++		tmp := P.ParseParameters();
++		if tmp.len() > 0 {
++			recv = tmp.at(0);
++		}
++		if recv.idents.len() != 1 {
++			P.Error(pos, "must have exactly one receiver");
+ 		}
+-		*/
+ 	}
+ 	
+ 	fun.ident = P.ParseIdent();
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index 902a2fa79a..7438c57b5a 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -8,7 +8,8 @@ import Scanner "scanner"
+ import AST "ast"
+ 
+ 
+-type Printer /* implements AST.Visitor */ struct {
++// Printer implements AST.Visitor
++type Printer struct {
+ 	indent int;
+ }
+ 
+@@ -49,7 +50,7 @@ func (P *Printer) PrintList(p *AST.List) {
+ // Basics
+ 
+ func (P *Printer) DoNil(x *AST.Nil) {
+-	P.String("?");
++	P.String("<NIL>");
+ }
+ 
+ 
+@@ -162,7 +163,7 @@ func (P *Printer) DoFuncDecl(x *AST.FuncDecl) {
+ 	P.String("func ");
+ 	if x.typ.recv != nil {
+ 		P.String("(");
+-		P.PrintList(x.typ.recv.idents);
++		P.DoVarDeclList(x.typ.recv);
+ 		P.String(") ");
+ 	}
+ 	P.DoIdent(x.ident);
+@@ -193,6 +194,7 @@ func (P *Printer) DoDeclaration(x *AST.Declaration) {
+ 			if i > 0 {
+ 				P.NewLine(0);
+ 			}
++			//print("*** i = ", i, "\n");
+ 			P.Print(x.decls.at(i));
+ 		}
+ 		P.NewLine(-1);
+@@ -291,21 +293,38 @@ func (P *Printer) DoAssignment(x *AST.Assignment) {
+ }
+ 
+ 
++func (P *Printer) PrintControlClause(x *AST.ControlClause) {
++	if x.has_init {
++		P.String(" ");
++		P.Print(x.init);
++		P.String(";");
++	}
++	if x.has_expr {
++		P.String(" ");
++		P.Print(x.expr);
++	}
++	if x.has_post {
++		P.String("; ");
++		P.Print(x.post);
++	}
++	P.String(" ");
++}
++
++
+ func (P *Printer) DoIfStat(x *AST.IfStat) {
+-	P.String("if ");
+-	P.Print(x.init);
+-	P.String("; ");
+-	P.Print(x.cond);
++	P.String("if");
++	P.PrintControlClause(x.ctrl);
+ 	P.DoBlock(x.then);
+-	if x.else_ != nil {
++	if x.has_else {
+ 		P.String(" else ");
+-		P.DoBlock(x.else_);
++		P.Print(x.else_);
+ 	}
+ }
+ 
+ 
+ func (P *Printer) DoForStat(x *AST.ForStat) {
+-	P.String("for ");
++	P.String("for");
++	P.PrintControlClause(x.ctrl);
+ 	P.DoBlock(x.body);
+ }
+ 
+@@ -360,7 +379,8 @@ func (P *Printer) DoCaseClause(x *AST.CaseClause) {
+ 
+ 
+ func (P *Printer) DoSwitchStat(x *AST.SwitchStat) {
+-	P.String("switch ");
++	P.String("switch");
++	P.PrintControlClause(x.ctrl);
+ 	P.String("{");
+ 	P.NewLine(0);
+ 	for i := 0; i < x.cases.len(); i++ {
+@@ -385,6 +405,16 @@ func (P *Printer) DoIncDecStat(x *AST.IncDecStat) {
+ }
+ 
+ 
++func (P *Printer) DoControlFlowStat(x *AST.ControlFlowStat) {
++	P.String(Scanner.TokenName(x.tok));
++	if x.label != nil {
++		P.String(" ");
++		P.Print(x.label);
++	}
++	P.String(";");
++}
++
++
+ // ----------------------------------------------------------------------------
+ // Program
+ 

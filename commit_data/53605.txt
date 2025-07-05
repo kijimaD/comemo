@@ -11,7 +11,152 @@ Date:   Wed Jun 8 23:27:05 2022 +0200
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  5 ++
  src/cmd/compile/internal/ssa/rewritegeneric.go | 68 ++++++++++++++++++++++++++
  2 files changed, 73 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index e56ee4a6f1..ac0b6eb8c1 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -163,6 +163,11 @@
+ 
+ (Not (ConstBool [c])) => (ConstBool [!c])
+ 
++(Floor       (Const64F [c])) => (Const64F [math.Floor(c)])
++(Ceil        (Const64F [c])) => (Const64F [math.Ceil(c)])
++(Trunc       (Const64F [c])) => (Const64F [math.Trunc(c)])
++(RoundToEven (Const64F [c])) => (Const64F [math.RoundToEven(c)])
++
+ // Convert x * 1 to x.
+ (Mul(8|16|32|64)  (Const(8|16|32|64)  [1]) x) => x
+ (Select0 (Mul(32|64)uover (Const(32|64) [1]) x)) => x
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 971d369a09..19a4f47914 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -34,6 +34,8 @@ func rewriteValuegeneric(v *Value) bool {
+ 		return rewriteValuegeneric_OpAndB(v)
+ 	case OpArraySelect:
+ 		return rewriteValuegeneric_OpArraySelect(v)
++	case OpCeil:
++		return rewriteValuegeneric_OpCeil(v)
+ 	case OpCom16:
+ 		return rewriteValuegeneric_OpCom16(v)
+ 	case OpCom32:
+@@ -120,6 +122,8 @@ func rewriteValuegeneric(v *Value) bool {
+ 		return rewriteValuegeneric_OpEqPtr(v)
+ 	case OpEqSlice:
+ 		return rewriteValuegeneric_OpEqSlice(v)
++	case OpFloor:
++		return rewriteValuegeneric_OpFloor(v)
+ 	case OpIMake:
+ 		return rewriteValuegeneric_OpIMake(v)
+ 	case OpInterLECall:
+@@ -298,6 +302,8 @@ func rewriteValuegeneric(v *Value) bool {
+ 		return rewriteValuegeneric_OpRound32F(v)
+ 	case OpRound64F:
+ 		return rewriteValuegeneric_OpRound64F(v)
++	case OpRoundToEven:
++		return rewriteValuegeneric_OpRoundToEven(v)
+ 	case OpRsh16Ux16:
+ 		return rewriteValuegeneric_OpRsh16Ux16(v)
+ 	case OpRsh16Ux32:
+@@ -412,6 +418,8 @@ func rewriteValuegeneric(v *Value) bool {
+ 		return rewriteValuegeneric_OpSub64F(v)
+ 	case OpSub8:
+ 		return rewriteValuegeneric_OpSub8(v)
++	case OpTrunc:
++		return rewriteValuegeneric_OpTrunc(v)
+ 	case OpTrunc16to8:
+ 		return rewriteValuegeneric_OpTrunc16to8(v)
+ 	case OpTrunc32to16:
+@@ -5085,6 +5093,21 @@ func rewriteValuegeneric_OpArraySelect(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuegeneric_OpCeil(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (Ceil (Const64F [c]))
++	// result: (Const64F [math.Ceil(c)])
++	for {
++		if v_0.Op != OpConst64F {
++			break
++		}
++		c := auxIntToFloat64(v_0.AuxInt)
++		v.reset(OpConst64F)
++		v.AuxInt = float64ToAuxInt(math.Ceil(c))
++		return true
++	}
++	return false
++}
+ func rewriteValuegeneric_OpCom16(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (Com16 (Com16 x))
+@@ -10145,6 +10168,21 @@ func rewriteValuegeneric_OpEqSlice(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValuegeneric_OpFloor(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (Floor (Const64F [c]))
++	// result: (Const64F [math.Floor(c)])
++	for {
++		if v_0.Op != OpConst64F {
++			break
++		}
++		c := auxIntToFloat64(v_0.AuxInt)
++		v.reset(OpConst64F)
++		v.AuxInt = float64ToAuxInt(math.Floor(c))
++		return true
++	}
++	return false
++}
+ func rewriteValuegeneric_OpIMake(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+@@ -23703,6 +23741,21 @@ func rewriteValuegeneric_OpRound64F(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuegeneric_OpRoundToEven(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (RoundToEven (Const64F [c]))
++	// result: (Const64F [math.RoundToEven(c)])
++	for {
++		if v_0.Op != OpConst64F {
++			break
++		}
++		c := auxIntToFloat64(v_0.AuxInt)
++		v.reset(OpConst64F)
++		v.AuxInt = float64ToAuxInt(math.RoundToEven(c))
++		return true
++	}
++	return false
++}
+ func rewriteValuegeneric_OpRsh16Ux16(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+@@ -29016,6 +29069,21 @@ func rewriteValuegeneric_OpSub8(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuegeneric_OpTrunc(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (Trunc (Const64F [c]))
++	// result: (Const64F [math.Trunc(c)])
++	for {
++		if v_0.Op != OpConst64F {
++			break
++		}
++		c := auxIntToFloat64(v_0.AuxInt)
++		v.reset(OpConst64F)
++		v.AuxInt = float64ToAuxInt(math.Trunc(c))
++		return true
++	}
++	return false
++}
+ func rewriteValuegeneric_OpTrunc16to8(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (Trunc16to8 (Const16 [c]))

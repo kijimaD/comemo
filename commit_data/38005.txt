@@ -10,8 +10,67 @@ Date:   Mon Sep 24 12:26:58 2018 -0700
     Change-Id: Ic322ed2019cc839b812740afe8cd2cf0b61da046
     Reviewed-on: https://go-review.googlesource.com/137016
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/main.go |  9 +++++++--
  src/cmd/compile/internal/ssa/op.go       | 12 ++++++++++--
  src/cmd/compile/internal/ssa/regalloc.go |  2 ++
  3 files changed, 19 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/gen/main.go
+index f35a991db2..f7195bf536 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/gen/main.go
+@@ -63,9 +63,14 @@ type blockData struct {
+ }
+ 
+ type regInfo struct {
+-	inputs   []regMask
++	// inputs[i] encodes the set of registers allowed for the i'th input.
++	// Inputs that don't use registers (flags, memory, etc.) should be 0.
++	inputs []regMask
++	// clobbers encodes the set of registers that are overwritten by
++	// the instruction (other than the output registers).
+ 	clobbers regMask
+-	outputs  []regMask
++	// outpus[i] encodes the set of registers allowed for the i'th output.
++	outputs []regMask
+ }
+ 
+ type regMask uint64
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 610921808e..43f5c59591 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -50,9 +50,17 @@ type outputInfo struct {
+ }
+ 
+ type regInfo struct {
+-	inputs   []inputInfo // ordered in register allocation order
++	// inputs encodes the register restrictions for an instruction's inputs.
++	// Each entry specifies an allowed register set for a particular input.
++	// They are listed in the order in which regalloc should pick a register
++	// from the register set (most constrained first).
++	// Inputs which do not need registers are not listed.
++	inputs []inputInfo
++	// clobbers encodes the set of registers that are overwritten by
++	// the instruction (other than the output registers).
+ 	clobbers regMask
+-	outputs  []outputInfo // ordered in register allocation order
++	// outputs is the same as inputs, but for the outputs of the instruction.
++	outputs []outputInfo
+ }
+ 
+ type auxType int8
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 278da6fe99..8946cf6b5c 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -150,6 +150,8 @@ type register uint8
+ 
+ const noRegister register = 255
+ 
++// A regMask encodes a set of machine registers.
++// TODO: regMask -> regSet?
+ type regMask uint64
+ 
+ func (m regMask) String() string {

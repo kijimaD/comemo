@@ -12,6 +12,19 @@ Date:   Thu Jun 12 09:44:59 2014 -0700
     R=ruiu
     CC=golang-codereviews
     https://golang.org/cl/109880043
-
+---
  src/pkg/encoding/json/stream.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/encoding/json/stream.go b/src/pkg/encoding/json/stream.go
+index 1cb289fd84..9566ecadcb 100644
+--- a/src/pkg/encoding/json/stream.go
++++ b/src/pkg/encoding/json/stream.go
+@@ -139,7 +139,6 @@ func nonSpace(b []byte) bool {
+ // An Encoder writes JSON objects to an output stream.
+ type Encoder struct {
+ 	w   io.Writer
+-	e   encodeState
+ 	err error
+ }
+ 

@@ -12,6 +12,33 @@ Date:   Sun Jan 20 16:18:04 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/158643
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/subtle/constant_time.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/subtle/constant_time.go b/src/crypto/subtle/constant_time.go
+index 9f5fee87e3..7c3cf05c46 100644
+--- a/src/crypto/subtle/constant_time.go
++++ b/src/crypto/subtle/constant_time.go
+@@ -6,9 +6,9 @@
+ // code but require careful thought to use correctly.
+ package subtle
+ 
+-// ConstantTimeCompare returns 1 if and only if the two slices, x
+-// and y, have equal contents. The time taken is a function of the length of
+-// the slices and is independent of the contents.
++// ConstantTimeCompare returns 1 if the two slices, x and y, have equal contents
++// and 0 otherwise. The time taken is a function of the length of the slices and
++// is independent of the contents.
+ func ConstantTimeCompare(x, y []byte) int {
+ 	if len(x) != len(y) {
+ 		return 0
+@@ -23,7 +23,7 @@ func ConstantTimeCompare(x, y []byte) int {
+ 	return ConstantTimeByteEq(v, 0)
+ }
+ 
+-// ConstantTimeSelect returns x if v is 1 and y if v is 0.
++// ConstantTimeSelect returns x if v == 1 and y if v == 0.
+ // Its behavior is undefined if v takes any other value.
+ func ConstantTimeSelect(v, x, y int) int { return ^(v-1)&x | (v-1)&y }
+ 

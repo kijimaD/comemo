@@ -10,7 +10,96 @@ Date:   Thu Jan 30 11:12:08 2014 +0100
     R=jas, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/57190045
-
+---
  src/pkg/net/http/serve_test.go     | 12 ++++++++++++
  src/pkg/net/http/transport_test.go | 12 ++++++++++++
  2 files changed, 24 insertions(+)
+
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index 82197cac7b..f826724a16 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -441,6 +441,9 @@ func TestMuxRedirectLeadingSlashes(t *testing.T) {
+ }
+ 
+ func TestServerTimeouts(t *testing.T) {
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping test; see http://golang.org/issue/7237")
++	}
+ 	defer afterTest(t)
+ 	reqNum := 0
+ 	ts := httptest.NewUnstartedServer(HandlerFunc(func(res ResponseWriter, req *Request) {
+@@ -517,6 +520,9 @@ func TestServerTimeouts(t *testing.T) {
+ // shouldn't cause a handler to block forever on reads (next HTTP
+ // request) that will never happen.
+ func TestOnlyWriteTimeout(t *testing.T) {
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping test; see http://golang.org/issue/7237")
++	}
+ 	defer afterTest(t)
+ 	var conn net.Conn
+ 	var afterTimeoutErrc = make(chan error, 1)
+@@ -840,6 +846,9 @@ func TestHeadResponses(t *testing.T) {
+ }
+ 
+ func TestTLSHandshakeTimeout(t *testing.T) {
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping test; see http://golang.org/issue/7237")
++	}
+ 	defer afterTest(t)
+ 	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
+ 	ts.Config.ReadTimeout = 250 * time.Millisecond
+@@ -1414,6 +1423,9 @@ func TestRequestBodyLimit(t *testing.T) {
+ // TestClientWriteShutdown tests that if the client shuts down the write
+ // side of their TCP connection, the server doesn't send a 400 Bad Request.
+ func TestClientWriteShutdown(t *testing.T) {
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping test; see http://golang.org/issue/7237")
++	}
+ 	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
+ 	defer ts.Close()
+diff --git a/src/pkg/net/http/transport_test.go b/src/pkg/net/http/transport_test.go
+index a9d05fa09a..4ac00bf411 100644
+--- a/src/pkg/net/http/transport_test.go
++++ b/src/pkg/net/http/transport_test.go
+@@ -793,6 +793,9 @@ func TestTransportGzipRecursive(t *testing.T) {
+ 
+ // tests that persistent goroutine connections shut down when no longer desired.
+ func TestTransportPersistConnLeak(t *testing.T) {
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping test; see http://golang.org/issue/7237")
++	}
+ 	defer afterTest(t)
+ 	gotReqCh := make(chan bool)
+ 	unblockCh := make(chan bool)
+@@ -859,6 +862,9 @@ func TestTransportPersistConnLeak(t *testing.T) {
+ // golang.org/issue/4531: Transport leaks goroutines when
+ // request.ContentLength is explicitly short
+ func TestTransportPersistConnLeakShortBody(t *testing.T) {
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping test; see http://golang.org/issue/7237")
++	}
+ 	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 	}))
+@@ -1066,6 +1072,9 @@ func TestTransportConcurrency(t *testing.T) {
+ }
+ 
+ func TestIssue4191_InfiniteGetTimeout(t *testing.T) {
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping test; see http://golang.org/issue/7237")
++	}
+ 	defer afterTest(t)
+ 	const debug = false
+ 	mux := NewServeMux()
+@@ -1127,6 +1136,9 @@ func TestIssue4191_InfiniteGetTimeout(t *testing.T) {
+ }
+ 
+ func TestIssue4191_InfiniteGetToPutTimeout(t *testing.T) {
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping test; see http://golang.org/issue/7237")
++	}
+ 	defer afterTest(t)
+ 	const debug = false
+ 	mux := NewServeMux()

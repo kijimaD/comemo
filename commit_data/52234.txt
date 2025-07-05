@@ -11,6 +11,34 @@ Date:   Tue Apr 19 08:55:04 2022 -0700
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/reflect/all_test.go | 9 +++++++--
  1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index f7adf2fa1a..f18df4e6c5 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"fmt"
+ 	"go/token"
+ 	"internal/goarch"
++	"internal/testenv"
+ 	"io"
+ 	"math"
+ 	"math/rand"
+@@ -373,8 +374,12 @@ func TestMapIterSet(t *testing.T) {
+ 	// Calling MapRange should not allocate even though it returns a *MapIter.
+ 	// The function is inlineable, so if the local usage does not escape
+ 	// the *MapIter, it can remain stack allocated.
+-	if got != 0 {
+-		t.Errorf("wanted 0 alloc, got %d", got)
++	want := 0
++	if strings.HasSuffix(testenv.Builder(), "-noopt") {
++		want = 1 // no inlining with the noopt builder
++	}
++	if got != want {
++		t.Errorf("wanted %d alloc, got %d", want, got)
+ 	}
+ }
+ 

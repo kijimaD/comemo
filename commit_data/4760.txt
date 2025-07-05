@@ -7,7 +7,7 @@ Date:   Mon Feb 1 17:51:55 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/198048
-
+---
  src/pkg/go/printer/printer_test.go              |  13 +-
  src/pkg/go/printer/testdata/comments.input      |  68 ++--
  src/pkg/go/printer/testdata/declarations.golden |  69 +----
@@ -18,3 +18,1719 @@ Date:   Mon Feb 1 17:51:55 2010 -0800
  src/pkg/go/printer/testdata/linebreaks.input    |  52 ++--
  src/pkg/go/printer/testdata/statements.input    |  66 ++--
  9 files changed, 466 insertions(+), 590 deletions(-)
+
+diff --git a/src/pkg/go/printer/printer_test.go b/src/pkg/go/printer/printer_test.go
+index 12c01e9062..a5de3774a2 100644
+--- a/src/pkg/go/printer/printer_test.go
++++ b/src/pkg/go/printer/printer_test.go
+@@ -6,12 +6,10 @@ package printer
+ 
+ import (
+ 	"bytes"
+-	oldParser "exp/parser"
+ 	"flag"
+ 	"io/ioutil"
+ 	"go/ast"
+ 	"go/parser"
+-	"os"
+ 	"path"
+ 	"testing"
+ )
+@@ -40,19 +38,12 @@ type checkMode uint
+ const (
+ 	export checkMode = 1 << iota
+ 	rawFormat
+-	oldSyntax
+ )
+ 
+ 
+ func check(t *testing.T, source, golden string, mode checkMode) {
+ 	// parse source
+-	var prog *ast.File
+-	var err os.Error
+-	if mode&oldSyntax != 0 {
+-		prog, err = oldParser.ParseFile(source, nil, parser.ParseComments)
+-	} else {
+-		prog, err = parser.ParseFile(source, nil, nil, parser.ParseComments)
+-	}
++	prog, err := parser.ParseFile(source, nil, nil, parser.ParseComments)
+ 	if err != nil {
+ 		t.Error(err)
+ 		return
+@@ -136,7 +127,7 @@ func Test(t *testing.T) {
+ 	for _, e := range data {
+ 		source := path.Join(dataDir, e.source)
+ 		golden := path.Join(dataDir, e.golden)
+-		check(t, source, golden, e.mode|oldSyntax)
++		check(t, source, golden, e.mode)
+ 		// TODO(gri) check that golden is idempotent
+ 		//check(t, golden, golden, e.mode);
+ 	}
+diff --git a/src/pkg/go/printer/testdata/comments.input b/src/pkg/go/printer/testdata/comments.input
+index 7e954c9a24..700a492306 100644
+--- a/src/pkg/go/printer/testdata/comments.input
++++ b/src/pkg/go/printer/testdata/comments.input
+@@ -8,10 +8,10 @@ package main
+ 
+ import "fmt"  // fmt
+ 
+-const c0 = 0;  // zero
++const c0 = 0  // zero
+ const (
+-	c1 = iota;  // c1
+-	c2;  // c2
++	c1 = iota  // c1
++	c2  // c2
+ )
+ 
+ 
+@@ -20,21 +20,21 @@ type SZ struct {}
+ 
+ // The S0 struct; no field is exported.
+ type S0 struct {
+-	int;
+-	x, y, z int;  // 3 unexported fields
++	int
++	x, y, z int  // 3 unexported fields
+ }
+ 
+ // The S1 struct; some fields are not exported.
+ type S1 struct {
+-	S0;
+-	A, B, C float;  // 3 exported fields
+-	D, b, c int;  // 2 unexported fields
++	S0
++	A, B, C float  // 3 exported fields
++	D, b, c int  // 2 unexported fields
+ }
+ 
+ // The S2 struct; all fields are exported.
+ type S2 struct {
+-	S1;
+-	A, B, C float;  // 3 exported fields
++	S1
++	A, B, C float  // 3 exported fields
+ }
+ 
+ // The IZ interface; it is empty.
+@@ -42,21 +42,21 @@ type SZ interface {}
+ 
+ // The I0 interface; no method is exported.
+ type I0 interface {
+-	f(x int) int;  // unexported method
++	f(x int) int  // unexported method
+ }
+ 
+ // The I1 interface; some methods are not exported.
+ type I1 interface {
+-	I0;
+-	F(x float) float;  // exported methods
+-	g(x int) int;  // unexported method
++	I0
++	F(x float) float  // exported methods
++	g(x int) int  // unexported method
+ }
+ 
+ // The I2 interface; all methods are exported.
+ type I2 interface {
+-	I0;
+-	F(x float) float;  // exported method
+-	G(x float) float;  // exported method
++	I0
++	F(x float) float  // exported method
++	G(x float) float  // exported method
+ }
+ 
+ // This comment group should be separated
+@@ -65,29 +65,29 @@ type I2 interface {
+ 
+ // This comment should NOT be associated with the next declaration.
+ 
+-var x int;  // x
++var x int  // x
+ var ()
+ 
+ 
+ // This comment SHOULD be associated with the next declaration.
+ func f0() {
+-	const pi = 3.14;  // pi
++	const pi = 3.14  // pi
+ 	var s1 struct {}  /* an empty struct */ /* foo */
+ 	// a struct constructor
+ 	// --------------------
+-	var s2 struct {} = struct {}{};
+-	x := pi;
++	var s2 struct {} = struct {}{}
++	x := pi
+ }
+ //
+ // NO SPACE HERE
+ //
+ func f1() {
+-	f0();
++	f0()
+ 	/* 1 */
+ 	// 2
+ 	/* 3 */
+ 	/* 4 */
+-	f0();
++	f0()
+ }
+ 
+ 
+@@ -98,9 +98,9 @@ func _() {
+ 
+ func abs(x int) int {
+ 	if x < 0 {  // the tab printed before this comment's // must not affect the remaining lines
+-		return -x;  // this statement should be properly indented
++		return -x  // this statement should be properly indented
+ 	}
+-	return x;
++	return x
+ }
+ 
+ 
+@@ -120,7 +120,7 @@ func typeswitch(x interface{}) {
+ 	switch v0, ok := x.(int); x.(type) {
+ 	case byte:  // this comment should be on the same line as the keyword
+ 		// this comment should be normally indented
+-		_ = 0;
++		_ = 0
+ 	case bool, int, float:
+ 		// this comment should be indented
+ 	case string:
+@@ -284,14 +284,14 @@ func _(/* this */x/* is *//* an */ int) {
+ 
+ // Line comments with tabs
+ func _() {
+-var	finput		*bufio.Reader;			// input file
+-var	stderr		*bufio.Writer;
+-var	ftable		*bufio.Writer;			// y.go file
+-var	foutput		*bufio.Writer;			// y.output file
+-
+-var	oflag		string;				// -o [y.go]		- y.go file
+-var	vflag		string;				// -v [y.output]	- y.output file
+-var	lflag		bool;				// -l			- disable line directives
++var	finput		*bufio.Reader			// input file
++var	stderr		*bufio.Writer
++var	ftable		*bufio.Writer			// y.go file
++var	foutput		*bufio.Writer			// y.output file
++
++var	oflag		string				// -o [y.go]		- y.go file
++var	vflag		string				// -v [y.output]	- y.output file
++var	lflag		bool				// -l			- disable line directives
+ }
+ 
+ 
+diff --git a/src/pkg/go/printer/testdata/declarations.golden b/src/pkg/go/printer/testdata/declarations.golden
+index d21316969f..9998103cfe 100644
+--- a/src/pkg/go/printer/testdata/declarations.golden
++++ b/src/pkg/go/printer/testdata/declarations.golden
+@@ -40,19 +40,15 @@ import _ "fmt"
+ import _ "fmt"
+ import _ "fmt"
+ 
+-// make sure a comment doesn't cause semicolons to be inserted
+-import _ "foo"	// a comment
+-import		// a comment
+-"bar"
+ import "foo"	// a comment
+ import "bar"	// a comment
+ 
+ import (
+-	_ "foo" +	// a comment
+-		// a comment
+-		"bar" +
+-		"foo" +	// a comment
+-		"bar"	// a comment
++	_ "foo"
++	// a comment
++	"bar"
++	"foo"	// a comment
++	"bar"	// a comment
+ )
+ 
+ // a case that caused problems in the past (comment placement)
+@@ -492,62 +488,9 @@ func _() int		{ type T struct{} }
+ // making function declarations safe for new semicolon rules
+ func _() { /* one-line func */ }
+ 
+-func _() {	// opening "{" must move up
++func _() {
+ 	/* one-line func */ }
+ 
+-func _() {	// opening "{" must move up
+-	// multi-line func
+-
+-	// in the following declarations, a comment must not
+-	// introduce a newline and thus cause a semicolon to
+-	// be inserted
+-	const _ T = x	// comment
+-	const _ = x	// comment
+-
+-	type _ T	// comment
+-	type _ struct // comment
+-	{
+-
+-	}
+-	type _ interface // comment
+-	{
+-
+-	}
+-	type _ * // comment
+-	T
+-	type _ [ // comment
+-	]T
+-	type _ [ // comment
+-	10]T
+-	type _ chan // comment
+-	T
+-	type _ map // comment
+-	[T]T
+-
+-	var _ T		// comment
+-	var _ T = x	// comment
+-	var _ struct // comment
+-	{
+-
+-	}
+-	var _ interface // comment
+-	{
+-
+-	}
+-	var _ * // comment
+-	T
+-	var _ [ // comment
+-	]T
+-	var _ [ // comment
+-	10]T
+-	var _ chan // comment
+-	T
+-	var _ map // comment
+-	[T]T
+-
+-	var _ = x	// comment
+-}
+-
+ 
+ // ellipsis parameters
+ func _(...)
+diff --git a/src/pkg/go/printer/testdata/declarations.input b/src/pkg/go/printer/testdata/declarations.input
+index 948755a9a6..fd80cb626c 100644
+--- a/src/pkg/go/printer/testdata/declarations.input
++++ b/src/pkg/go/printer/testdata/declarations.input
+@@ -13,16 +13,16 @@ import (
+ import _ "io"
+ 
+ import (
+-	"io";
+-	"io";
+-	"io";
++	"io"
++	"io"
++	"io"
+ )
+ 
+ import (
+-	"io";
+-	aLongRename "io";
++	"io"
++	aLongRename "io"
+ 
+-	b "io";
++	b "io"
+ )
+ 
+ // no newlines between consecutive single imports, but
+@@ -40,17 +40,11 @@ import _ "fmt"
+ import _ "fmt"
+ import _ "fmt"
+ 
+-// make sure a comment doesn't cause semicolons to be inserted
+-import _ // a comment
+-	"foo"
+-import // a comment
+-	"bar"
+ import "foo"  // a comment
+ import "bar"  // a comment
+ 
+ import (
+-	_ // a comment
+-	"foo"
++	_ "foo"
+ 	// a comment
+ 	"bar"
+ 	"foo"  // a comment
+@@ -59,35 +53,35 @@ import (
+ 
+ // a case that caused problems in the past (comment placement)
+ import (
+-	. "fmt";
+-	"io";
+-	"malloc";	// for the malloc count test only
+-	"math";
+-	"strings";
+-	"testing";
++	. "fmt"
++	"io"
++	"malloc"	// for the malloc count test only
++	"math"
++	"strings"
++	"testing"
+ )
+ 
+ 
+ // at least one empty line between declarations of different kind
+ import _ "io"
+-var _ int;
++var _ int
+ 
+ 
+ func _() {
+ 	// the following decls need a semicolon at the end
+-	type _ int;
+-	type _ *int;
+-	type _ []int;
+-	type _ map[string]int;
+-	type _ chan int;
+-	type _ func() int;
+-
+-	var _ int;
+-	var _ *int;
+-	var _ []int;
+-	var _ map[string]int;
+-	var _ chan int;
+-	var _ func() int;
++	type _ int
++	type _ *int
++	type _ []int
++	type _ map[string]int
++	type _ chan int
++	type _ func() int
++
++	var _ int
++	var _ *int
++	var _ []int
++	var _ map[string]int
++	var _ chan int
++	var _ func() int
+ 
+ 	// the following decls don't need a semicolon at the end
+ 	type _ struct{}
+@@ -122,116 +116,116 @@ func _() {
+ 
+ // don't lose blank lines in grouped declarations
+ const (
+-	_ int = 0;
+-	_ float = 1;
++	_ int = 0
++	_ float = 1
+ 
+-	_ string = "foo";
++	_ string = "foo"
+ 
+-	_ = iota;
+-	_;
++	_ = iota
++	_
+ 	
+ 	// a comment
+-	_;
++	_
+ 
+-	_;
++	_
+ )
+ 
+ 
+ type (
+-	_ int;
+-	_ struct {};
++	_ int
++	_ struct {}
+ 	
+-	_ interface{};
++	_ interface{}
+ 	
+ 	// a comment
+-	_ map[string]int;
++	_ map[string]int
+ )
+ 
+ 
+ var (
+-	_ int = 0;
+-	_ float = 1;
++	_ int = 0
++	_ float = 1
+ 
+-	_ string = "foo";
++	_ string = "foo"
+ 
+-	_ bool;
++	_ bool
+ 	
+ 	// a comment
+-	_ bool;
++	_ bool
+ )
+ 
+ 
+ // don't lose blank lines in this struct
+ type _ struct {
+ 	String struct {
+-		Str, Len int;
+-	};
++		Str, Len int
++	}
+ 	Slice struct {
+-		Array, Len, Cap int;
+-	};
++		Array, Len, Cap int
++	}
+ 	Eface struct {
+-		Typ, Ptr int;
+-	};
++		Typ, Ptr int
++	}
+ 
+ 	UncommonType struct {
+-		Name, PkgPath int;
+-	};
++		Name, PkgPath int
++	}
+ 	CommonType struct {
+-		Size, Hash, Alg, Align, FieldAlign, String, UncommonType int;
+-	};
++		Size, Hash, Alg, Align, FieldAlign, String, UncommonType int
++	}
+ 	Type struct {
+-		Typ, Ptr int;
+-	};
++		Typ, Ptr int
++	}
+ 	StructField struct {
+-		Name, PkgPath, Typ, Tag, Offset int;
+-	};
++		Name, PkgPath, Typ, Tag, Offset int
++	}
+ 	StructType struct {
+-		Fields int;
+-	};
++		Fields int
++	}
+ 	PtrType struct {
+-		Elem int;
+-	};
++		Elem int
++	}
+ 	SliceType struct {
+-		Elem int;
+-	};
++		Elem int
++	}
+ 	ArrayType struct {
+-		Elem, Len int;
+-	};
++		Elem, Len int
++	}
+ 
+ 	Stktop struct {
+-		Stackguard, Stackbase, Gobuf int;
+-	};
++		Stackguard, Stackbase, Gobuf int
++	}
+ 	Gobuf struct {
+-		Sp, Pc, G int;
+-	};
++		Sp, Pc, G int
++	}
+ 	G struct {
+-		Stackbase, Sched, Status, Alllink int;
+-	};
++		Stackbase, Sched, Status, Alllink int
++	}
+ }
+ 
+ 
+ // no tabs for single or ungrouped decls
+ func _() {
+-	const xxxxxx = 0;
+-	type x int;
+-	var xxx int;
+-	var yyyy float = 3.14;
+-	var zzzzz = "bar";
++	const xxxxxx = 0
++	type x int
++	var xxx int
++	var yyyy float = 3.14
++	var zzzzz = "bar"
+ 
+ 	const (
+-		xxxxxx = 0;
++		xxxxxx = 0
+ 	)
+ 	type (
+-		x int;
++		x int
+ 	)
+ 	var (
+-		xxx int;
++		xxx int
+ 	)
+ 	var (
+-		yyyy float = 3.14;
++		yyyy float = 3.14
+ 	)
+ 	var (
+-		zzzzz = "bar";
++		zzzzz = "bar"
+ 	)
+ }
+ 
+@@ -239,79 +233,79 @@ func _() {
+ func _() {
+ 	// no entry has a type
+ 	const (
+-		zzzzzz = 1;
+-		z = 2;
+-		zzz = 3;
++		zzzzzz = 1
++		z = 2
++		zzz = 3
+ 	)
+ 	// some entries have a type
+ 	const (
+-		xxxxxx = 1;
+-		x = 2;
+-		xxx = 3;
+-		yyyyyyyy float = iota;
+-		yyyy = "bar";
+-		yyy;
+-		yy = 2;
++		xxxxxx = 1
++		x = 2
++		xxx = 3
++		yyyyyyyy float = iota
++		yyyy = "bar"
++		yyy
++		yy = 2
+ 	)
+ }
+ 
+ func _() {
+ 	// no entry has a type
+ 	var (
+-		zzzzzz = 1;
+-		z = 2;
+-		zzz = 3;
++		zzzzzz = 1
++		z = 2
++		zzz = 3
+ 	)
+ 	// no entry has a value
+ 	var (
+-		_ int;
+-		_ float;
+-		_ string;
++		_ int
++		_ float
++		_ string
+ 
+-		_ int;  // comment
+-		_ float;  // comment
+-		_ string;  // comment
++		_ int  // comment
++		_ float  // comment
++		_ string  // comment
+ 	)
+ 	// some entries have a type
+ 	var (
+-		xxxxxx int;
+-		x float;
+-		xxx string;
+-		yyyyyyyy int = 1234;
+-		y float = 3.14;
+-		yyyy = "bar";
+-		yyy string = "foo";
++		xxxxxx int
++		x float
++		xxx string
++		yyyyyyyy int = 1234
++		y float = 3.14
++		yyyy = "bar"
++		yyy string = "foo"
+ 	)
+ 	// mixed entries - all comments should be aligned
+ 	var (
+-		a, b, c int;
+-		x = 10;
+-		d int;  // comment
+-		y = 20;  // comment
+-		f, ff, fff, ffff int = 0, 1, 2, 3;  // comment
++		a, b, c int
++		x = 10
++		d int  // comment
++		y = 20  // comment
++		f, ff, fff, ffff int = 0, 1, 2, 3  // comment
+ 	)
+ 	// respect original line breaks
+ 	var _ = []T {
+ 		T{0x20,	"Telugu"},
+-	};
++	}
+ 	var _ = []T {
+ 		// respect original line breaks
+ 		T{0x20,	"Telugu"},
+-	};
++	}
+ }
+ 
+ func _() {
+ 	type (
+-		xxxxxx int;
+-		x float;
+-		xxx string;
+-		xxxxx []x;
+-		xx struct{};
++		xxxxxx int
++		x float
++		xxx string
++		xxxxx []x
++		xx struct{}
+ 		xxxxxxx struct {
+-			_, _ int;
+-			_ float;
+-		};
+-		xxxx chan<- string;
++			_, _ int
++			_ float
++		}
++		xxxx chan<- string
+ 	)
+ }
+ 
+@@ -326,16 +320,16 @@ type _ struct{
+ }
+ 
+ type _ struct {  // this comment must not change indentation
+-	f int;
+-	f, ff, fff, ffff int;
++	f int
++	f, ff, fff, ffff int
+ }
+ 
+ type _ struct {
+-	string;
++	string
+ }
+ 
+ type _ struct {
+-	string;  // comment
++	string  // comment
+ }
+ 
+ type _ struct {
+@@ -347,38 +341,38 @@ type _ struct {
+ }
+ 
+ type _ struct {
+-	f int;
++	f int
+ }
+ 
+ type _ struct {
+-	f int;  // comment
++	f int  // comment
+ }
+ 
+ type _ struct {
+-	f int "tag";
++	f int "tag"
+ }
+ 
+ type _ struct {
+-	f int "tag";  // comment
++	f int "tag"  // comment
+ }
+ 
+ type _ struct {
+-	bool;
+-	a, b, c int;
+-	int "tag";
+-	ES; // comment
+-	float "tag";  // comment
+-	f int;  // comment
+-	f, ff, fff, ffff int;  // comment
+-	g float "tag";
+-	h float "tag";  // comment
++	bool
++	a, b, c int
++	int "tag"
++	ES // comment
++	float "tag"  // comment
++	f int  // comment
++	f, ff, fff, ffff int  // comment
++	g float "tag"
++	h float "tag"  // comment
+ }
+ 
+ 
+ // difficult cases
+ type _ struct {
+-	bool;  // comment
+-	text []byte;  // comment
++	bool  // comment
++	text []byte  // comment
+ }
+ 
+ 
+@@ -387,38 +381,38 @@ type _ struct {
+ type EI interface{}
+ 
+ type _ interface {
+-	EI;
++	EI
+ }
+ 
+ type _ interface {
+-	f();
+-	fffff();
++	f()
++	fffff()
+ }
+ 
+ type _ interface {
+-	EI;
+-	f();
+-	fffffg();
++	EI
++	f()
++	fffffg()
+ }
+ 
+ type _ interface {  // this comment must not change indentation
+-	EI;  // here's a comment
+-	f();  // no blank between identifier and ()
+-	fffff();  // no blank between identifier and ()
+-	gggggggggggg(x, y, z int) ();  // hurray
++	EI  // here's a comment
++	f()  // no blank between identifier and ()
++	fffff()  // no blank between identifier and ()
++	gggggggggggg(x, y, z int) ()  // hurray
+ }
+ 
+ // formatting of variable declarations
+ func _() {
+-	type day struct { n int; short, long string };
++	type day struct { n int; short, long string }
+ 	var (
+-		Sunday = day{ 0, "SUN", "Sunday" };
+-		Monday = day{ 1, "MON", "Monday" };
+-		Tuesday = day{ 2, "TUE", "Tuesday" };
+-		Wednesday = day{ 3, "WED", "Wednesday" };
+-		Thursday = day{ 4, "THU", "Thursday" };
+-		Friday = day{ 5, "FRI", "Friday" };
+-		Saturday = day{ 6, "SAT", "Saturday" };
++		Sunday = day{ 0, "SUN", "Sunday" }
++		Monday = day{ 1, "MON", "Monday" }
++		Tuesday = day{ 2, "TUE", "Tuesday" }
++		Wednesday = day{ 3, "WED", "Wednesday" }
++		Thursday = day{ 4, "THU", "Thursday" }
++		Friday = day{ 5, "FRI", "Friday" }
++		Saturday = day{ 6, "SAT", "Saturday" }
+ 	)
+ }
+ 
+@@ -469,7 +463,7 @@ func _() {
+ 
+ func _() {
+ 	var _ = T{
+-		a	// must introduce trailing comma
++		a,	// must introduce trailing comma
+ 	}
+ }
+ 
+@@ -484,7 +478,7 @@ func _() {}
+ func _() {}
+ 
+ func _() {
+-	f(1, 2, 3);
++	f(1, 2, 3)
+ }
+ func _(x int) int {
+ 	return x+1
+@@ -495,62 +489,10 @@ func _() int {
+ 
+ 
+ // making function declarations safe for new semicolon rules
+-func _()
+-{ /* one-line func */ }
+-
+-func _()  // opening "{" must move up
+-{ /* one-line func */ }
+-
+-func _()  // opening "{" must move up
+-// multi-line func
+-{
+-	// in the following declarations, a comment must not
+-	// introduce a newline and thus cause a semicolon to
+-	// be inserted
+-	const _  // comment
+-	T = x;
+-	const _  // comment
+-	= x;
+-
+-	type _  // comment
+-	T;
+-	type _  // comment
+-	struct {};
+-	type _  // comment
+-	interface {};
+-	type _  // comment
+-	*T;
+-	type _  // comment
+-	[]T;
+-	type _  // comment
+-	[10]T;
+-	type _  // comment
+-	chan T;
+-	type _  // comment
+-	map[T]T;
+-
+-	var _  // comment
+-	T;
+-	var _  // comment
+-	T = x;
+-	var _  // comment
+-	struct {};
+-	var _  // comment
+-	interface {};
+-	var _  // comment
+-	*T;
+-	var _  // comment
+-	[]T;
+-	var _  // comment
+-	[10]T;
+-	var _  // comment
+-	chan T;
+-	var _  // comment
+-	map[T]T;
+-
+-	var _  // comment
+-	= x;
+-}
++func _() { /* one-line func */ }
++
++func _() {
++/* one-line func */ }
+ 
+ 
+ // ellipsis parameters
+diff --git a/src/pkg/go/printer/testdata/expressions.golden b/src/pkg/go/printer/testdata/expressions.golden
+index deff4243ea..b688c9bc02 100644
+--- a/src/pkg/go/printer/testdata/expressions.golden
++++ b/src/pkg/go/printer/testdata/expressions.golden
+@@ -302,7 +302,7 @@ func _() {
+ 	_ = a +	// comment
+ 		b +	// comment
+ 		c
+-	_ = "a" +	// comment
++	_ = "a" +
+ 		"b" +	// comment
+ 		"c"
+ 	_ = "ba0408" + "7265717569726564"	// field 71, encoding 2, string "required"
+diff --git a/src/pkg/go/printer/testdata/expressions.input b/src/pkg/go/printer/testdata/expressions.input
+index 136e046a73..b05c51ef8a 100644
+--- a/src/pkg/go/printer/testdata/expressions.input
++++ b/src/pkg/go/printer/testdata/expressions.input
+@@ -9,227 +9,227 @@ type T struct {
+ }
+ 
+ var (
+-	a, b, c, d, e int;
+-	under_bar int;
+-	longIdentifier1, longIdentifier2, longIdentifier3 int;
+-	t0, t1, t2 T;
+-	s string;
+-	p *int;
++	a, b, c, d, e int
++	under_bar int
++	longIdentifier1, longIdentifier2, longIdentifier3 int
++	t0, t1, t2 T
++	s string
++	p *int
+ )
+ 
+ 
+ func _() {
+ 	// no spaces around simple or parenthesized expressions
+-	_ = a+b;
+-	_ = a+b+c;
+-	_ = a+b-c;
+-	_ = a-b-c;
+-	_ = a+(b*c);
+-	_ = a+(b/c);
+-	_ = a-(b%c);
+-	_ = 1+a;
+-	_ = a+1;
+-	_ = a+b+1;
+-	_ = s[1:2];
+-	_ = s[a:b];
+-	_ = s[0:len(s)];
+-	_ = s[0]<<1;
+-	_ = (s[0]<<1)&0xf;
+-	_ = s[0] << 2 | s[1] >> 4;
+-	_ = "foo"+s;
+-	_ = s+"foo";
+-	_ = 'a'+'b';
+-	_ = len(s)/2;
+-	_ = len(t0.x)/a;
++	_ = a+b
++	_ = a+b+c
++	_ = a+b-c
++	_ = a-b-c
++	_ = a+(b*c)
++	_ = a+(b/c)
++	_ = a-(b%c)
++	_ = 1+a
++	_ = a+1
++	_ = a+b+1
++	_ = s[1:2]
++	_ = s[a:b]
++	_ = s[0:len(s)]
++	_ = s[0]<<1
++	_ = (s[0]<<1)&0xf
++	_ = s[0] << 2 | s[1] >> 4
++	_ = "foo"+s
++	_ = s+"foo"
++	_ = 'a'+'b'
++	_ = len(s)/2
++	_ = len(t0.x)/a
+ 
+ 	// spaces around expressions of different precedence or expressions containing spaces
+-	_ = a + -b;
+-	_ = a - ^b;
+-	_ = a / *p;
+-	_ = a + b*c;
+-	_ = 1 + b*c;
+-	_ = a + 2*c;
+-	_ = a + c*2;
+-	_ = 1 + 2*3;
+-	_ = s[1 : 2*3];
+-	_ = s[a : b-c];
+-	_ = s[0:];
+-	_ = s[a+b];
+-	_ = s[a+b :];
+-	_ = a[a<<b+1];
+-	_ = a[a<<b+1 :];
+-	_ = s[a+b : len(s)];
+-	_ = s[len(s) : -a];
+-	_ = s[a : len(s)+1];
+-	_ = s[a : len(s)+1]+s;
++	_ = a + -b
++	_ = a - ^b
++	_ = a / *p
++	_ = a + b*c
++	_ = 1 + b*c
++	_ = a + 2*c
++	_ = a + c*2
++	_ = 1 + 2*3
++	_ = s[1 : 2*3]
++	_ = s[a : b-c]
++	_ = s[0:]
++	_ = s[a+b]
++	_ = s[a+b :]
++	_ = a[a<<b+1]
++	_ = a[a<<b+1 :]
++	_ = s[a+b : len(s)]
++	_ = s[len(s) : -a]
++	_ = s[a : len(s)+1]
++	_ = s[a : len(s)+1]+s
+ 
+ 	// spaces around operators with equal or lower precedence than comparisons
+-	_ = a == b;
+-	_ = a != b;
+-	_ = a > b;
+-	_ = a >= b;
+-	_ = a < b;
+-	_ = a <= b;
+-	_ = a < b && c > d;
+-	_ = a < b || c > d;
++	_ = a == b
++	_ = a != b
++	_ = a > b
++	_ = a >= b
++	_ = a < b
++	_ = a <= b
++	_ = a < b && c > d
++	_ = a < b || c > d
+ 
+ 	// spaces around "long" operands
+-	_ = a + longIdentifier1;
+-	_ = longIdentifier1 + a;
+-	_ = longIdentifier1 + longIdentifier2 * longIdentifier3;
+-	_ = s + "a longer string";
++	_ = a + longIdentifier1
++	_ = longIdentifier1 + a
++	_ = longIdentifier1 + longIdentifier2 * longIdentifier3
++	_ = s + "a longer string"
+ 
+ 	// some selected cases
+-	_ = a + t0.x;
+-	_ = a + t0.x + t1.x * t2.x;
+-	_ = a + b + c + d + e + 2*3;
+-	_ = a + b + c + 2*3 + d + e;
+-	_ = (a+b+c)*2;
+-	_ = a - b + c - d + (a+b+c) + d&e;
+-	_ = under_bar-1;
+-	_ = Open(dpath + "/file", O_WRONLY | O_CREAT, 0666);
+-	_ = int(c0&_Mask4)<<18 | int(c1&_Maskx)<<12 | int(c2&_Maskx)<<6 | int(c3&_Maskx);
++	_ = a + t0.x
++	_ = a + t0.x + t1.x * t2.x
++	_ = a + b + c + d + e + 2*3
++	_ = a + b + c + 2*3 + d + e
++	_ = (a+b+c)*2
++	_ = a - b + c - d + (a+b+c) + d&e
++	_ = under_bar-1
++	_ = Open(dpath + "/file", O_WRONLY | O_CREAT, 0666)
++	_ = int(c0&_Mask4)<<18 | int(c1&_Maskx)<<12 | int(c2&_Maskx)<<6 | int(c3&_Maskx)
+ }
+ 
+ 
+ func _() {
+-	a+b;
+-	a+b+c;
+-	a+b*c;
+-	a+(b*c);
+-	(a+b)*c;
+-	a+(b*c*d);
+-	a+(b*c+d);
+-
+-	1<<x;
+-	-1<<x;
+-	1<<x-1;
+-	-1<<x-1;
+-
+-	f(a+b);
+-	f(a+b+c);
+-	f(a+b*c);
+-	f(a+(b*c));
+-	f(1<<x-1, 1<<x-2);
+-
+-	1<<d.logWindowSize-1;
+-
+-	buf = make(x, 2*cap(b.buf) + n);
+-
+-	dst[i*3+2] = dbuf[0]<<2;
+-	dst[i*3+2] = dbuf[0]<<2 | dbuf[1]>>4;
+-
+-	b.buf = b.buf[0:b.off+m+n];
+-	b.buf = b.buf[0:b.off+m*n];
+-	f(b.buf[0:b.off+m+n]);
+-
+-	signed += ' '*8;
+-	tw.octal(header[148:155], chksum);
+-
+-	x > 0 && i >= 0;
+-
+-	x1, x0 := x>>w2, x&m2;
+-	z0 = t1<<w2+t0;
+-	z1 = (t1+t0>>w2)>>w2;
+-	q1, r1 := x1/d1, x1%d1;
+-	r1 = r1*b2 | x0>>w2;
+-	x1 = (x1<<z)|(x0>>(uint(w)-z));
+-	x1 = x1<<z | x0>>(uint(w)-z);
+-
+-	buf[0:len(buf)+1];
+-	buf[0:n+1];
+-
+-	a,b = b,a;
+-	a = b+c;
+-	a = b*c+d;
+-	a*b+c;
+-	a-b-c;
+-	a-(b-c);
+-	a-b*c;
+-	a-(b*c);
+-	a*b/c;
+-	a/ *b;
+-	x[a|^b];
+-	x[a/ *b];
+-	a& ^b;
+-	a+ +b;
+-	a- -b;
+-	x[a*-b];
+-	x[a+ +b];
+-	x^y^z;
+-	b[a>>24] ^ b[(a>>16)&0xFF] ^ b[(a>>8)&0xFF] ^ b[a&0xFF];
+-	len(longVariableName)*2;
+-
+-	token(matchType + xlength<<lengthShift + xoffset);
++	a+b
++	a+b+c
++	a+b*c
++	a+(b*c)
++	(a+b)*c
++	a+(b*c*d)
++	a+(b*c+d)
++
++	1<<x
++	-1<<x
++	1<<x-1
++	-1<<x-1
++
++	f(a+b)
++	f(a+b+c)
++	f(a+b*c)
++	f(a+(b*c))
++	f(1<<x-1, 1<<x-2)
++
++	1<<d.logWindowSize-1
++
++	buf = make(x, 2*cap(b.buf) + n)
++
++	dst[i*3+2] = dbuf[0]<<2
++	dst[i*3+2] = dbuf[0]<<2 | dbuf[1]>>4
++
++	b.buf = b.buf[0:b.off+m+n]
++	b.buf = b.buf[0:b.off+m*n]
++	f(b.buf[0:b.off+m+n])
++
++	signed += ' '*8
++	tw.octal(header[148:155], chksum)
++
++	x > 0 && i >= 0
++
++	x1, x0 := x>>w2, x&m2
++	z0 = t1<<w2+t0
++	z1 = (t1+t0>>w2)>>w2
++	q1, r1 := x1/d1, x1%d1
++	r1 = r1*b2 | x0>>w2
++	x1 = (x1<<z)|(x0>>(uint(w)-z))
++	x1 = x1<<z | x0>>(uint(w)-z)
++
++	buf[0:len(buf)+1]
++	buf[0:n+1]
++
++	a,b = b,a
++	a = b+c
++	a = b*c+d
++	a*b+c
++	a-b-c
++	a-(b-c)
++	a-b*c
++	a-(b*c)
++	a*b/c
++	a/ *b
++	x[a|^b]
++	x[a/ *b]
++	a& ^b
++	a+ +b
++	a- -b
++	x[a*-b]
++	x[a+ +b]
++	x^y^z
++	b[a>>24] ^ b[(a>>16)&0xFF] ^ b[(a>>8)&0xFF] ^ b[a&0xFF]
++	len(longVariableName)*2
++
++	token(matchType + xlength<<lengthShift + xoffset)
+ }
+ 
+ 
+ func _() {
+-	_ = T{};
+-	_ = struct{}{};
+-	_ = [10]T{};
+-	_ = [...]T{};
+-	_ = []T{};
+-	_ = map[int]T{};
+-
+-	_ = (T){};
+-	_ = (struct{}){};
+-	_ = ([10]T){};
+-	_ = ([...]T){};
+-	_ = ([]T){};
+-	_ = (map[int]T){};
++	_ = T{}
++	_ = struct{}{}
++	_ = [10]T{}
++	_ = [...]T{}
++	_ = []T{}
++	_ = map[int]T{}
++
++	_ = (T){}
++	_ = (struct{}){}
++	_ = ([10]T){}
++	_ = ([...]T){}
++	_ = ([]T){}
++	_ = (map[int]T){}
+ }
+ 
+ 
+ // one-line structs/interfaces in composite literals (up to a threshold)
+ func _() {
+-	_ = struct{}{};
+-	_ = struct{ x int }{0};
+-	_ = struct{ x, y, z int }{0, 1, 2};
+-	_ = struct{ int }{0};
+-	_ = struct{ s struct { int } }{struct{ int}{0}};  // compositeLit context not propagated => multiLine result
++	_ = struct{}{}
++	_ = struct{ x int }{0}
++	_ = struct{ x, y, z int }{0, 1, 2}
++	_ = struct{ int }{0}
++	_ = struct{ s struct { int } }{struct{ int}{0}}  // compositeLit context not propagated => multiLine result
+ }
+ 
+ 
+ func _() {
+ 	// do not modify literals
+-	_ = "tab1	tab2	tab3	end";  // string contains 3 tabs
+-	_ = "tab1 tab2 tab3 end";  // same string with 3 blanks - may be unaligned because editors see tabs in strings
+-	_ = "";  // this comment should be aligned with the one on the previous line
+-	_ = ``;
++	_ = "tab1	tab2	tab3	end"  // string contains 3 tabs
++	_ = "tab1 tab2 tab3 end"  // same string with 3 blanks - may be unaligned because editors see tabs in strings
++	_ = ""  // this comment should be aligned with the one on the previous line
++	_ = ``
+ 	_ = `
+-`;
++`
+ _ = `foo
+-		bar`;
++		bar`
+ }
+ 
+ 
+ func _() {
+ 	// one-line function literals
+-	_ = func() {};
++	_ = func() {}
+ 	_ = func() int {
+-		return 0;
+-	};
++		return 0
++	}
+ 	_ = func(x, y int) bool {
+ 		return x < y
+-	};
++	}
+ 
+-	f(func() {});
++	f(func() {})
+ 	f(func() int {
+-		return 0;
+-	});
++		return 0
++	})
+ 	f(func(x, y int) bool {
+ 		return x < y
+-	});
++	})
+ }
+ 
+ 
+ func _() {
+ 	// do not add extra indentation to multi-line string lists
+-	_ = "foo" + "bar";
++	_ = "foo" + "bar"
+ 	_ = "foo" +
+ 	"bar" +
+-	"bah";
++	"bah"
+ 	_ = []string {
+ 		"abc" +
+ 		"def",
+@@ -262,13 +262,13 @@ func _() {
+ 	_ = F1 +
+ 		`string = "%s";` +
+ 		`ptr = *;` +
+-		`datafmt.T2 = s ["-" p "-"];`;
++		`datafmt.T2 = s ["-" p "-"];`
+ 
+ 	_ =
+ 		`datafmt "datafmt";` +
+ 		`default = "%v";` +
+ 		`array = *;` +
+-		`datafmt.T3 = s  {" " a a / ","};`;
++		`datafmt.T3 = s  {" " a a / ","};`
+ 
+ 	_ = `datafmt "datafmt";` +
+ 	`default = "%v";` +
+@@ -281,36 +281,36 @@ func _() {
+ 	// respect source lines in multi-line expressions
+ 	_ = a+
+ 	b+
+-	c;
++	c
+ 	_ = a < b ||
+-		b < a;
++		b < a
+ 	_ = "933262154439441526816992388562667004907159682643816214685929" +
+ 	"638952175999932299156089414639761565182862536979208272237582" +
+-	"51185210916864000000000000000000000000";  // 100!
+-	_ = "170141183460469231731687303715884105727";  // prime
++	"51185210916864000000000000000000000000"  // 100!
++	_ = "170141183460469231731687303715884105727"  // prime
+ }
+ 
+ 
+ // Alignment after overlong lines
+ const (
+-	_ = "991";
+-	_ = "2432902008176640000";  // 20!
++	_ = "991"
++	_ = "2432902008176640000"  // 20!
+ 	_ = "933262154439441526816992388562667004907159682643816214685929" +
+ 	"638952175999932299156089414639761565182862536979208272237582" +
+-	"51185210916864000000000000000000000000";  // 100!
+-	_ = "170141183460469231731687303715884105727";  // prime
++	"51185210916864000000000000000000000000"  // 100!
++	_ = "170141183460469231731687303715884105727"  // prime
+ )
+ 
+ 
+ // Correct placement of operators and comments in multi-line expressions
+ func _() {
+-	_ = a  // comment
+-		+ b +  // comment
+-		c;
+-	_ = "a"	// comment
+-		"b"	// comment
+-		"c";
+-	_ = "ba0408" "7265717569726564"     // field 71, encoding 2, string "required"
++	_ = a +  // comment
++		b +  // comment
++		c
++	_ = "a"	+
++		"b" +	// comment
++		"c"
++	_ = "ba0408" + "7265717569726564"     // field 71, encoding 2, string "required"
+ }
+ 
+ 
+@@ -318,26 +318,26 @@ func _() {
+ func _() {
+ 	f(1,
+ 		2,
+-		3);
++		3)
+ 	f(1,
+ 		2,
+-		3
+-	);
++		3,
++	)
+ 	// TODO(gri) the cases below are not correct yet
+ 	f(1,
+ 		2,
+-		3);  // comment
++		3)  // comment
+ 	f(1,
+ 		2,
+-		3  // comment
+-	);
++		3,  // comment
++	)
+ 	f(1,
+ 		2,
+-		3);// comment
++		3)// comment
+ 	f(1,
+ 		2,
+-		3// comment
+-	);
++		3,// comment
++	)
+ }
+ 
+ 
+@@ -359,8 +359,8 @@ func (p *parser) charClass() {
+ 	// respect source lines in multi-line expressions
+ 	if cc.negate && len(cc.ranges) == 2 &&
+ 		cc.ranges[0] == '\n' && cc.ranges[1] == '\n' {
+-		nl := new(_NotNl);
+-		p.re.add(nl);
++		nl := new(_NotNl)
++		p.re.add(nl)
+ 	}
+ }
+ 
+diff --git a/src/pkg/go/printer/testdata/expressions.raw b/src/pkg/go/printer/testdata/expressions.raw
+index 003e83aeed..10964a45e9 100644
+--- a/src/pkg/go/printer/testdata/expressions.raw
++++ b/src/pkg/go/printer/testdata/expressions.raw
+@@ -302,7 +302,7 @@ func _() {
+ 	_ = a +	// comment
+ 		b +	// comment
+ 		c
+-	_ = "a" +	// comment
++	_ = "a" +
+ 		"b" +	// comment
+ 		"c"
+ 	_ = "ba0408" + "7265717569726564"	// field 71, encoding 2, string "required"
+diff --git a/src/pkg/go/printer/testdata/linebreaks.input b/src/pkg/go/printer/testdata/linebreaks.input
+index 9aa7bc075c..c3a5238287 100644
+--- a/src/pkg/go/printer/testdata/linebreaks.input
++++ b/src/pkg/go/printer/testdata/linebreaks.input
+@@ -5,23 +5,23 @@
+ package linebreaks
+ 
+ import (
+-	"bytes";
+-	"fmt";
+-	"io";
+-	"os";
+-	"reflect";
+-	"strings";
+-	"testing";
++	"bytes"
++	"fmt"
++	"io"
++	"os"
++	"reflect"
++	"strings"
++	"testing"
+ )
+ 
+ type writerTestEntry struct {
+-	header *Header;
+-	contents string;
++	header *Header
++	contents string
+ }
+ 
+ type writerTest struct {
+-	file string;  // filename of expected output
+-	entries []*writerTestEntry;
++	file string  // filename of expected output
++	entries []*writerTestEntry
+ }
+ 
+ var writerTests = []*writerTest{
+@@ -83,8 +83,8 @@ var writerTests = []*writerTest{
+ }
+ 
+ type untarTest struct {
+-	file string;
+-	headers []*Header;
++	file string
++	headers []*Header
+ }
+ 
+ var untarTests = []*untarTest{
+@@ -186,36 +186,36 @@ func usage() {
+ 	fmt.Fprintf(os.Stderr,
+ 		// TODO(gri): the 2nd string of this string list should not be indented
+ 		"usage: godoc package [name ...]\n" +
+-		"	godoc -http=:6060\n");
+-	flag.PrintDefaults();
+-	os.Exit(2);
++		"	godoc -http=:6060\n")
++	flag.PrintDefaults()
++	os.Exit(2)
+ }
+ 
+ func TestReader(t *testing.T) {
+ testLoop:
+ 	for i, test := range untarTests {
+-		f, err := os.Open(test.file, os.O_RDONLY, 0444);
++		f, err := os.Open(test.file, os.O_RDONLY, 0444)
+ 		if err != nil {
+-			t.Errorf("test %d: Unexpected error: %v", i, err);
++			t.Errorf("test %d: Unexpected error: %v", i, err)
+ 			continue
+ 		}
+-		tr := NewReader(f);
++		tr := NewReader(f)
+ 		for j, header := range test.headers {
+-			hdr, err := tr.Next();
++			hdr, err := tr.Next()
+ 			if err != nil || hdr == nil {
+-				t.Errorf("test %d, entry %d: Didn't get entry: %v", i, j, err);
+-				f.Close();
++				t.Errorf("test %d, entry %d: Didn't get entry: %v", i, j, err)
++				f.Close()
+ 				continue testLoop
+ 			}
+ 			if !reflect.DeepEqual(hdr, header) {
+ 				t.Errorf("test %d, entry %d: Incorrect header:\nhave %+v\nwant %+v",
+-					 i, j, *hdr, *header);
++					 i, j, *hdr, *header)
+ 			}
+ 		}
+-		hdr, err := tr.Next();
++		hdr, err := tr.Next()
+ 		if hdr != nil || err != nil {
+-			t.Errorf("test %d: Unexpected entry or error: hdr=%v err=%v", i, err);
++			t.Errorf("test %d: Unexpected entry or error: hdr=%v err=%v", i, err)
+ 		}
+-		f.Close();
++		f.Close()
+ 	}
+ }
+diff --git a/src/pkg/go/printer/testdata/statements.input b/src/pkg/go/printer/testdata/statements.input
+index 85a79f152c..a6efba7c64 100644
+--- a/src/pkg/go/printer/testdata/statements.input
++++ b/src/pkg/go/printer/testdata/statements.input
+@@ -4,7 +4,7 @@
+ 
+ package statements
+ 
+-var expr bool;
++var expr bool
+ 
+ func use(x interface{}) {}
+ 
+@@ -44,34 +44,34 @@ func _() {
+ 
+ 	switch x := 0; x {
+ 	case 1:
+-		use(x);
+-		use(x);  // followed by an empty line
++		use(x)
++		use(x)  // followed by an empty line
+ 
+ 	case 2:  // followed by an empty line
+ 
+-		use(x);  // followed by an empty line
++		use(x)  // followed by an empty line
+ 
+ 	case 3:  // no empty lines
+-		use(x);
+-		use(x);
++		use(x)
++		use(x)
+ 	}
+ 
+ 	switch x {
+ 	case 0:
+-		use(x);
++		use(x)
+ 	case 1:  // this comment should have no effect on the previous or next line
+-		use(x);
++		use(x)
+ 	}
+ 
+ 	switch x := 0; x {
+ 	case 1:
+-		x = 0;
++		x = 0
+ 		// this comment should be indented
+ 	case 2:
+-		x = 0;
++		x = 0
+ 	// this comment should not be indented, it is aligned with the next case
+ 	case 3:
+-		x = 0;
++		x = 0
+ 		/* indented comment
+ 		   aligned
+ 		   aligned
+@@ -79,7 +79,7 @@ func _() {
+ 		// bla
+ 		/* and more */
+ 	case 4:
+-		x = 0;
++		x = 0
+ 	/* not indented comment
+ 	   aligned
+ 	   aligned
+@@ -115,28 +115,28 @@ func _() {
+ // line at a time.
+ func _() {
+ 
+-	const _ = 0;
++	const _ = 0
+ 
+-	const _ = 1;
+-	type _ int;
+-	type _ float;
++	const _ = 1
++	type _ int
++	type _ float
+ 
+-	var _ = 0;
+-	var x = 1;
++	var _ = 0
++	var x = 1
+ 
+ 	// Each use(x) call below should have at most one empty line before and after.
+ 
+ 
+ 
+-	use(x);
++	use(x)
+ 
+ 	if x < x {
+ 
+-		use(x);
++		use(x)
+ 
+ 	} else {
+ 
+-		use(x);
++		use(x)
+ 
+ 	}
+ }
+@@ -155,21 +155,21 @@ func _() {
+ 
+ 
+ func _() {
+-	L: _ = 0;
++	L: _ = 0
+ }
+ 
+ 
+ func _() {
+ 	// this comment should be indented
+-	L: _ = 0;
++	L: _ = 0
+ }
+ 
+ 
+ func _() {
+ 	for {
+-	L1: _ = 0;
++	L1: _ = 0
+ 	L2:
+-		_ = 0;
++		_ = 0
+ 	}
+ }
+ 
+@@ -177,25 +177,25 @@ func _() {
+ func _() {
+ 		// this comment should be indented
+ 	for {
+-	L1: _ = 0;
++	L1: _ = 0
+ 	L2:
+-		_ = 0;
++		_ = 0
+ 	}
+ }
+ 
+ 
+ func _() {
+ 	if {
+-		_ = 0;
++		_ = 0
+ 	}
+-	_ = 0;  // the indentation here should not be affected by the long label name
++	_ = 0  // the indentation here should not be affected by the long label name
+ AnOverlongLabel:
+-	_ = 0;
++	_ = 0
+ 	
+ 	if {
+-		_ = 0;
++		_ = 0
+ 	}
+-	_ = 0;
++	_ = 0
+ 
+-L:	_ = 0;
++L:	_ = 0
+ }

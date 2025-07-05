@@ -16,7 +16,84 @@ Date:   Tue Apr 27 17:32:02 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/work/buildid.go |  2 +-
  src/cmd/go/internal/work/exec.go    | 27 ++++++++++++++++++++-------
  2 files changed, 21 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/buildid.go b/src/cmd/go/internal/work/buildid.go
+index c555d4a9f1..4e9189a363 100644
+--- a/src/cmd/go/internal/work/buildid.go
++++ b/src/cmd/go/internal/work/buildid.go
+@@ -204,7 +204,7 @@ func (b *Builder) toolID(name string) string {
+ // In order to get reproducible builds for released compilers, we
+ // detect a released compiler by the absence of "experimental" in the
+ // --version output, and in that case we just use the version string.
+-func (b *Builder) gccgoToolID(name, language string) (string, error) {
++func (b *Builder) gccToolID(name, language string) (string, error) {
+ 	key := name + "." + language
+ 	b.id.Lock()
+ 	id := b.toolIDCache[key]
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index d04ba06901..994c4dafcf 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -249,14 +249,27 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
+ 	if len(p.CgoFiles)+len(p.SwigFiles)+len(p.SwigCXXFiles) > 0 {
+ 		fmt.Fprintf(h, "cgo %q\n", b.toolID("cgo"))
+ 		cppflags, cflags, cxxflags, fflags, ldflags, _ := b.CFlags(p)
+-		fmt.Fprintf(h, "CC=%q %q %q %q\n", b.ccExe(), cppflags, cflags, ldflags)
++
++		ccExe := b.ccExe()
++		fmt.Fprintf(h, "CC=%q %q %q %q\n", ccExe, cppflags, cflags, ldflags)
++		if ccID, err := b.gccToolID(ccExe[0], "c"); err == nil {
++			fmt.Fprintf(h, "CC ID=%q\n", ccID)
++		}
+ 		if len(p.CXXFiles)+len(p.SwigCXXFiles) > 0 {
+-			fmt.Fprintf(h, "CXX=%q %q\n", b.cxxExe(), cxxflags)
++			cxxExe := b.cxxExe()
++			fmt.Fprintf(h, "CXX=%q %q\n", cxxExe, cxxflags)
++			if cxxID, err := b.gccToolID(cxxExe[0], "c++"); err == nil {
++				fmt.Fprintf(h, "CXX ID=%q\n", cxxID)
++			}
+ 		}
+ 		if len(p.FFiles) > 0 {
+-			fmt.Fprintf(h, "FC=%q %q\n", b.fcExe(), fflags)
++			fcExe := b.fcExe()
++			fmt.Fprintf(h, "FC=%q %q\n", fcExe, fflags)
++			if fcID, err := b.gccToolID(fcExe[0], "f95"); err == nil {
++				fmt.Fprintf(h, "FC ID=%q\n", fcID)
++			}
+ 		}
+-		// TODO(rsc): Should we include the SWIG version or Fortran/GCC/G++/Objective-C compiler versions?
++		// TODO(rsc): Should we include the SWIG version?
+ 	}
+ 	if p.Internal.CoverMode != "" {
+ 		fmt.Fprintf(h, "cover %q %q\n", p.Internal.CoverMode, b.toolID("cover"))
+@@ -316,7 +329,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
+ 		}
+ 
+ 	case "gccgo":
+-		id, err := b.gccgoToolID(BuildToolchain.compiler(), "go")
++		id, err := b.gccToolID(BuildToolchain.compiler(), "go")
+ 		if err != nil {
+ 			base.Fatalf("%v", err)
+ 		}
+@@ -324,7 +337,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
+ 		fmt.Fprintf(h, "pkgpath %s\n", gccgoPkgpath(p))
+ 		fmt.Fprintf(h, "ar %q\n", BuildToolchain.(gccgoToolchain).ar())
+ 		if len(p.SFiles) > 0 {
+-			id, _ = b.gccgoToolID(BuildToolchain.compiler(), "assembler-with-cpp")
++			id, _ = b.gccToolID(BuildToolchain.compiler(), "assembler-with-cpp")
+ 			// Ignore error; different assembler versions
+ 			// are unlikely to make any difference anyhow.
+ 			fmt.Fprintf(h, "asm %q\n", id)
+@@ -1274,7 +1287,7 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
+ 		// Or external linker settings and flags?
+ 
+ 	case "gccgo":
+-		id, err := b.gccgoToolID(BuildToolchain.linker(), "go")
++		id, err := b.gccToolID(BuildToolchain.linker(), "go")
+ 		if err != nil {
+ 			base.Fatalf("%v", err)
+ 		}

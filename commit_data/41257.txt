@@ -16,6 +16,20 @@ Date:   Wed Sep 18 14:07:55 2019 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modload/build.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index f8dc0c84ff..f049a1ad94 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -274,7 +274,7 @@ var __debug_modinfo__ = %q
+ 	} else {
+ 		return []byte(fmt.Sprintf(`package main
+ import _ "unsafe"
+-//go:linkname __set_debug_modinfo__ runtime..z2fdebug.setmodinfo
++//go:linkname __set_debug_modinfo__ runtime.setmodinfo
+ func __set_debug_modinfo__(string)
+ func init() { __set_debug_modinfo__(%q) }
+ 	`, string(infoStart)+info+string(infoEnd)))

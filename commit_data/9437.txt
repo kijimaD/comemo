@@ -11,7 +11,64 @@ Date:   Mon Aug 22 15:19:27 2011 +1000
     R=adg
     CC=golang-dev, r, rsc
     https://golang.org/cl/4943041
-
+---
  src/pkg/json/indent.go       |  1 +
  src/pkg/json/scanner_test.go | 25 +++++++++++++++++++++++++
  2 files changed, 26 insertions(+)
+
+diff --git a/src/pkg/json/indent.go b/src/pkg/json/indent.go
+index 000da42f6f..2a75303730 100644
+--- a/src/pkg/json/indent.go
++++ b/src/pkg/json/indent.go
+@@ -59,6 +59,7 @@ func Indent(dst *bytes.Buffer, src []byte, prefix, indent string) os.Error {
+ 	needIndent := false
+ 	depth := 0
+ 	for _, c := range src {
++		scan.bytes++
+ 		v := scan.step(&scan, int(c))
+ 		if v == scanSkipSpace {
+ 			continue
+diff --git a/src/pkg/json/scanner_test.go b/src/pkg/json/scanner_test.go
+index 023e7c81ee..67d4a28c75 100644
+--- a/src/pkg/json/scanner_test.go
++++ b/src/pkg/json/scanner_test.go
+@@ -7,7 +7,9 @@ package json
+ import (
+ 	"bytes"
+ 	"math"
++	"os"
+ 	"rand"
++	"reflect"
+ 	"testing"
+ )
+ 
+@@ -136,6 +138,29 @@ func TestIndentBig(t *testing.T) {
+ 	}
+ }
+ 
++type indentErrorTest struct {
++	in  string
++	err os.Error
++}
++
++var indentErrorTests = []indentErrorTest{
++	{`{"X": "foo", "Y"}`, &SyntaxError{"invalid character '}' after object key", 17}},
++	{`{"X": "foo" "Y": "bar"}`, &SyntaxError{"invalid character '\"' after object key:value pair", 13}},
++}
++
++func TestIdentErrors(t *testing.T) {
++	for i, tt := range indentErrorTests {
++		slice := make([]uint8, 0)
++		buf := bytes.NewBuffer(slice)
++		if err := Indent(buf, []uint8(tt.in), "", ""); err != nil {
++			if !reflect.DeepEqual(err, tt.err) {
++				t.Errorf("#%d: Indent: %#v", i, err)
++				continue
++			}
++		}
++	}
++}
++
+ func TestNextValueBig(t *testing.T) {
+ 	initBig()
+ 	var scan scanner

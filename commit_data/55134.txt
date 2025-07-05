@@ -16,6 +16,19 @@ Date:   Tue Jan 17 16:37:42 2023 +0000
     Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/strings/clone_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/strings/clone_test.go b/src/strings/clone_test.go
+index 77479cfacf..64f2760ee3 100644
+--- a/src/strings/clone_test.go
++++ b/src/strings/clone_test.go
+@@ -1,6 +1,6 @@
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.ß
++// license that can be found in the LICENSE file.
+ 
+ package strings_test
+ 

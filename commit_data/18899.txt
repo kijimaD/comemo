@@ -24,6 +24,19 @@ Date:   Wed Mar 19 17:04:51 2014 +0400
     R=golang-codereviews, iant
     CC=golang-codereviews, khr, rsc
     https://golang.org/cl/77340045
-
+---
  src/pkg/runtime/proc.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index e11f9b18ac..b5093497d9 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1696,6 +1696,7 @@ exitsyscall0(G *gp)
+ }
+ 
+ // Called from syscall package before fork.
++#pragma textflag NOSPLIT
+ void
+ syscall·runtime_BeforeFork(void)
+ {

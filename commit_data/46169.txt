@@ -32,8 +32,106 @@ Date:   Mon Dec 14 09:45:44 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go           |  4 +--
  src/cmd/compile/internal/ssa/expand_calls.go |  8 +-----
  test/fixedbugs/issue43112.go                 | 41 ++++++++++++++++++++++++++++
  3 files changed, 44 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 65b9291b76..5b74754b53 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -5925,7 +5925,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
+ 				// Load type out of itab, build interface with existing idata.
+ 				off := s.newValue1I(ssa.OpOffPtr, byteptr, int64(Widthptr), itab)
+ 				typ := s.load(byteptr, off)
+-				idata := s.newValue1(ssa.OpIData, n.Type, iface)
++				idata := s.newValue1(ssa.OpIData, byteptr, iface)
+ 				res = s.newValue2(ssa.OpIMake, n.Type, typ, idata)
+ 				return
+ 			}
+@@ -5947,7 +5947,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
+ 			bOk.AddEdgeTo(bEnd)
+ 			bFail.AddEdgeTo(bEnd)
+ 			s.startBlock(bEnd)
+-			idata := s.newValue1(ssa.OpIData, n.Type, iface)
++			idata := s.newValue1(ssa.OpIData, byteptr, iface)
+ 			res = s.newValue2(ssa.OpIMake, n.Type, s.variable(&typVar, byteptr), idata)
+ 			resok = cond
+ 			delete(s.vars, &typVar)
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index f266e49327..fbde19d94c 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -196,9 +196,6 @@ func expandCalls(f *Func) {
+ 			}
+ 			if leaf.Op == OpIData {
+ 				leafType = removeTrivialWrapperTypes(leaf.Type)
+-				if leafType.IsEmptyInterface() {
+-					leafType = typ.BytePtr
+-				}
+ 			}
+ 			aux := selector.Aux
+ 			auxInt := selector.AuxInt + offset
+@@ -247,12 +244,9 @@ func expandCalls(f *Func) {
+ 			// i.e., the struct select is generated and remains in because it is not applied to an actual structure.
+ 			// The OpLoad was created to load the single field of the IData
+ 			// This case removes that StructSelect.
+-			if leafType != selector.Type && !selector.Type.IsEmptyInterface() { // empty interface for #42727
++			if leafType != selector.Type {
+ 				f.Fatalf("Unexpected Load as selector, leaf=%s, selector=%s\n", leaf.LongString(), selector.LongString())
+ 			}
+-			if selector.Type.IsEmptyInterface() {
+-				selector.Type = typ.BytePtr
+-			}
+ 			leaf.copyOf(selector)
+ 			for _, s := range namedSelects[selector] {
+ 				locs = append(locs, f.Names[s.locIndex])
+diff --git a/test/fixedbugs/issue43112.go b/test/fixedbugs/issue43112.go
+new file mode 100644
+index 0000000000..e36627a015
+--- /dev/null
++++ b/test/fixedbugs/issue43112.go
+@@ -0,0 +1,41 @@
++// compile
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type Symbol interface{}
++
++type Value interface {
++	String() string
++}
++
++type Object interface {
++	String() string
++}
++
++type Scope struct {
++	outer *Scope
++	elems map[string]Object
++}
++
++func (s *Scope) findouter(name string) (*Scope, Object) {
++	return s.outer.findouter(name)
++}
++
++func (s *Scope) Resolve(name string) (sym Symbol) {
++	if _, obj := s.findouter(name); obj != nil {
++		sym = obj.(Symbol)
++	}
++	return
++}
++
++type ScopeName struct {
++	scope *Scope
++}
++
++func (n *ScopeName) Get(name string) (Value, error) {
++	return n.scope.Resolve(name).(Value), nil
++}

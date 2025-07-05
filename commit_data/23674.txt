@@ -92,8 +92,111 @@ Date:   Thu May 28 15:18:35 2015 -0700
     Change-Id: I8a9db77e1d4ea1956575895893bc9d04bd81204b
     Reviewed-on: https://go-review.googlesource.com/10497
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/internal/obj/arm/obj5.go | 61 ++++++++++++++++++++++------------------
  src/runtime/asm_arm.s            |  1 -
  src/runtime/sys_arm.go           |  2 +-
  3 files changed, 35 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index 752f577dc3..ce1cad9c47 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -795,38 +795,45 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 		p.Scond = C_SCOND_NE
+ 	}
+ 
+-	// MOVW.LS	R14, R3
+-	p = obj.Appendp(ctxt, p)
+-
+-	p.As = AMOVW
+-	p.Scond = C_SCOND_LS
+-	p.From.Type = obj.TYPE_REG
+-	p.From.Reg = REGLINK
+-	p.To.Type = obj.TYPE_REG
+-	p.To.Reg = REG_R3
+-
+-	// BL.LS		runtime.morestack(SB) // modifies LR, returns with LO still asserted
+-	p = obj.Appendp(ctxt, p)
++	// BLS call-to-morestack
++	bls := obj.Appendp(ctxt, p)
++	bls.As = ABLS
++	bls.To.Type = obj.TYPE_BRANCH
+ 
+-	p.As = ABL
+-	p.Scond = C_SCOND_LS
+-	p.To.Type = obj.TYPE_BRANCH
+-	if ctxt.Cursym.Cfunc != 0 {
+-		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
+-	} else if ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0 {
+-		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
+-	} else {
+-		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack", 0)
++	var last *obj.Prog
++	for last = ctxt.Cursym.Text; last.Link != nil; last = last.Link {
+ 	}
+ 
+-	// BLS	start
+-	p = obj.Appendp(ctxt, p)
++	// MOVW	LR, R3
++	movw := obj.Appendp(ctxt, last)
++	movw.As = AMOVW
++	movw.From.Type = obj.TYPE_REG
++	movw.From.Reg = REGLINK
++	movw.To.Type = obj.TYPE_REG
++	movw.To.Reg = REG_R3
++
++	bls.Pcond = movw
++
++	// BL runtime.morestack
++	call := obj.Appendp(ctxt, movw)
++	call.As = obj.ACALL
++	call.To.Type = obj.TYPE_BRANCH
++	morestack := "runtime.morestack"
++	switch {
++	case ctxt.Cursym.Cfunc != 0:
++		morestack = "runtime.morestackc"
++	case ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0:
++		morestack = "runtime.morestack_noctxt"
++	}
++	call.To.Sym = obj.Linklookup(ctxt, morestack, 0)
+ 
+-	p.As = ABLS
+-	p.To.Type = obj.TYPE_BRANCH
+-	p.Pcond = ctxt.Cursym.Text.Link
++	// B start
++	b := obj.Appendp(ctxt, call)
++	b.As = obj.AJMP
++	b.To.Type = obj.TYPE_BRANCH
++	b.Pcond = ctxt.Cursym.Text.Link
+ 
+-	return p
++	return bls
+ }
+ 
+ func initdiv(ctxt *obj.Link) {
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 291aa83cd8..a765b0c6b9 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -259,7 +259,6 @@ noswitch:
+ 
+ // Called during function prolog when more stack is needed.
+ // R1 frame size
+-// R2 arg size
+ // R3 prolog's LR
+ // NB. we do not save R0 because we've forced 5c to pass all arguments
+ // on the stack.
+diff --git a/src/runtime/sys_arm.go b/src/runtime/sys_arm.go
+index 324276e962..6e50d21098 100644
+--- a/src/runtime/sys_arm.go
++++ b/src/runtime/sys_arm.go
+@@ -24,7 +24,7 @@ func rewindmorestack(buf *gobuf) {
+ 	var inst uint32
+ 	if buf.pc&3 == 0 && buf.pc != 0 {
+ 		inst = *(*uint32)(unsafe.Pointer(buf.pc))
+-		if inst>>24 == 0x9a {
++		if inst>>24 == 0x9a || inst>>24 == 0xea {
+ 			buf.pc += uintptr(int32(inst<<8)>>6) + 8
+ 			return
+ 		}

@@ -9,7 +9,34 @@ Date:   Wed Mar 26 17:18:59 2014 +1100
     R=golang-codereviews, adg, mikioh.mikioh
     CC=golang-codereviews
     https://golang.org/cl/80370043
-
+---
  src/cmd/go/doc.go  | 2 +-
  src/cmd/go/help.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index 6169378935..d5f1d1bf24 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -652,7 +652,7 @@ example.org/user/foo or foo.hg, and
+ 	import "example.org/repo.git/foo/bar"
+ 
+ denotes the foo/bar directory of the Git repository at
+-example.com/repo or repo.git.
++example.org/repo or repo.git.
+ 
+ When a version control system supports multiple protocols,
+ each is tried in turn when downloading.  For example, a Git
+diff --git a/src/cmd/go/help.go b/src/cmd/go/help.go
+index 71e55175a0..faa4d9af82 100644
+--- a/src/cmd/go/help.go
++++ b/src/cmd/go/help.go
+@@ -182,7 +182,7 @@ example.org/user/foo or foo.hg, and
+ 	import "example.org/repo.git/foo/bar"
+ 
+ denotes the foo/bar directory of the Git repository at
+-example.com/repo or repo.git.
++example.org/repo or repo.git.
+ 
+ When a version control system supports multiple protocols,
+ each is tried in turn when downloading.  For example, a Git

@@ -11,6 +11,20 @@ Date:   Fri Oct 25 07:14:18 2019 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/debug/dwarf/line.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/debug/dwarf/line.go b/src/debug/dwarf/line.go
+index 1cd9dd98cf..7692f05552 100644
+--- a/src/debug/dwarf/line.go
++++ b/src/debug/dwarf/line.go
+@@ -806,7 +806,7 @@ func pathJoin(dirname, filename string) string {
+ 	// DOS-style path.
+ 	drive2, filename := splitDrive(filename)
+ 	if drive2 != "" {
+-		if strings.ToLower(drive) != strings.ToLower(drive2) {
++		if !strings.EqualFold(drive, drive2) {
+ 			// Different drives. There's not much we can
+ 			// do here, so just ignore the directory.
+ 			return drive2 + filename

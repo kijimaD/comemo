@@ -11,6 +11,32 @@ Date:   Wed Apr 19 11:35:13 2017 +1000
     Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ppc64/ssa.go | 14 --------------
  1 file changed, 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 041ff3abed..c2b561c49f 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -12,20 +12,6 @@ import (
+ 	"math"
+ )
+ 
+-var condOps = map[ssa.Op]obj.As{
+-	ssa.OpPPC64Equal:        ppc64.ABEQ,
+-	ssa.OpPPC64NotEqual:     ppc64.ABNE,
+-	ssa.OpPPC64LessThan:     ppc64.ABLT,
+-	ssa.OpPPC64GreaterEqual: ppc64.ABGE,
+-	ssa.OpPPC64GreaterThan:  ppc64.ABGT,
+-	ssa.OpPPC64LessEqual:    ppc64.ABLE,
+-
+-	ssa.OpPPC64FLessThan:     ppc64.ABLT, // 1 branch for FCMP
+-	ssa.OpPPC64FGreaterThan:  ppc64.ABGT, // 1 branch for FCMP
+-	ssa.OpPPC64FLessEqual:    ppc64.ABLT, // 2 branches for FCMP <=, second is BEQ
+-	ssa.OpPPC64FGreaterEqual: ppc64.ABGT, // 2 branches for FCMP >=, second is BEQ
+-}
+-
+ // iselOp encodes mapping of comparison operations onto ISEL operands
+ type iselOp struct {
+ 	cond        int64

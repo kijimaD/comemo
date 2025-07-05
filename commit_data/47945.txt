@@ -25,7 +25,57 @@ Date:   Mon Apr 19 02:39:50 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/reflectdata/reflect.go |  4 ++++
  test/fixedbugs/issue45258.go                    | 28 +++++++++++++++++++++++++
  2 files changed, 32 insertions(+)
+
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index f0a60998a1..d23ca6b839 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1837,6 +1837,10 @@ func MarkTypeUsedInInterface(t *types.Type, from *obj.LSym) {
+ // MarkUsedIfaceMethod marks that an interface method is used in the current
+ // function. n is OCALLINTER node.
+ func MarkUsedIfaceMethod(n *ir.CallExpr) {
++	// skip unnamed functions (func _())
++	if ir.CurFunc.LSym == nil {
++		return
++	}
+ 	dot := n.X.(*ir.SelectorExpr)
+ 	ityp := dot.X.Type()
+ 	tsym := TypeLinksym(ityp)
+diff --git a/test/fixedbugs/issue45258.go b/test/fixedbugs/issue45258.go
+new file mode 100644
+index 0000000000..f4d6fccf17
+--- /dev/null
++++ b/test/fixedbugs/issue45258.go
+@@ -0,0 +1,28 @@
++// compile
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type Fooer interface {
++	Foo() Barer
++}
++
++type Barer interface {
++	Bar()
++}
++
++type impl struct{}
++
++func (r *impl) Foo() Barer {
++	return r
++}
++
++func (r *impl) Bar() {}
++
++func _() {
++	var r Fooer = &impl{}
++	r.Foo().Bar()
++}

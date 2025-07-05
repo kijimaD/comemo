@@ -14,6 +14,20 @@ Date:   Fri Mar 8 07:34:10 2024 +0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Commit-Queue: Ian Lance Taylor <iant@google.com>
-
+---
  src/unicode/utf8/utf8.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/unicode/utf8/utf8.go b/src/unicode/utf8/utf8.go
+index 71d6bf18d0..c7389d4d6f 100644
+--- a/src/unicode/utf8/utf8.go
++++ b/src/unicode/utf8/utf8.go
+@@ -316,7 +316,7 @@ func DecodeLastRuneInString(s string) (r rune, size int) {
+ 	return r, size
+ }
+ 
+-// RuneLen returns the number of bytes required to encode the rune.
++// RuneLen returns the number of bytes in the UTF-8 encoding of the rune.
+ // It returns -1 if the rune is not a valid value to encode in UTF-8.
+ func RuneLen(r rune) int {
+ 	switch {

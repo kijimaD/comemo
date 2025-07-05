@@ -7,6 +7,20 @@ Date:   Tue Apr 27 10:24:17 2010 +1000
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/1010041
-
+---
  doc/root.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/root.html b/doc/root.html
+index 19ebcfec79..8d73ba67bf 100644
+--- a/doc/root.html
++++ b/doc/root.html
+@@ -8,7 +8,7 @@
+ </script>
+ 
+ <!-- begin blog post widget JS/styles -->
+-<script src="http://www.google.com/jsapi/?key=ABQIAAAA4TEcjQ5y1r35xLDoRydN_RQJvypqxg_hbbvOIUrMXndwfI6kkBStplaG-3V8WLePPIt0A4nJSKKJdA" type="text/javascript"></script>
++<script src="http://www.google.com/jsapi" type="text/javascript"></script>
+ <script src="http://www.google.com/uds/solutions/dynamicfeed/gfdynamicfeedcontrol.js" type="text/javascript"></script>
+ <script type="text/javascript">
+ function loadFeedControl() {

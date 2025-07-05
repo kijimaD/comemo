@@ -45,7 +45,7 @@ Date:   Mon Mar 27 11:38:20 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/38773
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/bexport.go   | 18 +--------
  src/cmd/compile/internal/gc/esc.go       | 19 +++-------
  src/cmd/compile/internal/gc/inl.go       | 10 -----
@@ -57,3 +57,297 @@ Date:   Mon Mar 27 11:38:20 2017 -0700
  test/fixedbugs/issue19699b.go            | 14 +++++++
  test/fixedbugs/issue19705.go             | 17 +++++++++
  10 files changed, 121 insertions(+), 55 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 5d0feea313..3637804a12 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -1469,22 +1469,8 @@ func (p *exporter) stmt(n *Node) {
+ 		p.pos(n)
+ 		p.stmtList(n.Ninit)
+ 		p.expr(n.Left)
+-		nbody := n.Nbody
+-		rlist := n.Rlist
+-		if Isconst(n.Left, CTBOOL) {
+-			// if false { ... } or if true { ... }
+-			// Only export the taken branch.
+-			// This is more efficient,
+-			// and avoids trying to export
+-			// un-exportable nodes.
+-			if n.Left.Bool() {
+-				rlist = Nodes{}
+-			} else {
+-				nbody = Nodes{}
+-			}
+-		}
+-		p.stmtList(nbody)
+-		p.stmtList(rlist)
++		p.stmtList(n.Nbody)
++		p.stmtList(n.Rlist)
+ 
+ 	case OFOR:
+ 		p.op(OFOR)
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 75adb8eecb..4565c4aa02 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -690,20 +690,11 @@ func (e *EscState) esc(n *Node, parent *Node) {
+ 		e.escassignSinkWhy(n, n, "too large for stack") // TODO category: tooLarge
+ 	}
+ 
+-	if n.Op == OIF && Isconst(n.Left, CTBOOL) {
+-		// Don't examine dead code.
+-		if n.Left.Bool() {
+-			e.esclist(n.Nbody, n)
+-		} else {
+-			e.esclist(n.Rlist, n)
+-		}
+-	} else {
+-		e.esc(n.Left, n)
+-		e.esc(n.Right, n)
+-		e.esclist(n.Nbody, n)
+-		e.esclist(n.List, n)
+-		e.esclist(n.Rlist, n)
+-	}
++	e.esc(n.Left, n)
++	e.esc(n.Right, n)
++	e.esclist(n.Nbody, n)
++	e.esclist(n.List, n)
++	e.esclist(n.Rlist, n)
+ 
+ 	if n.Op == OFOR || n.Op == OFORUNTIL || n.Op == ORANGE {
+ 		e.loopdepth--
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 3ecca14f10..b7a387141b 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -279,16 +279,6 @@ func ishairy(n *Node, budget *int32, reason *string) bool {
+ 		return true
+ 	}
+ 
+-	if n.Op == OIF && Isconst(n.Left, CTBOOL) {
+-		var taken Nodes // statements for the branch that is always taken
+-		if n.Left.Bool() {
+-			taken = n.Nbody // then case
+-		} else {
+-			taken = n.Rlist // else case
+-		}
+-		return ishairylist(n.Ninit, budget, reason) || ishairylist(taken, budget, reason)
+-	}
+-
+ 	return ishairy(n.Left, budget, reason) || ishairy(n.Right, budget, reason) ||
+ 		ishairylist(n.List, budget, reason) || ishairylist(n.Rlist, budget, reason) ||
+ 		ishairylist(n.Ninit, budget, reason) || ishairylist(n.Nbody, budget, reason)
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 79e95958ef..560e7c68e5 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -443,6 +443,9 @@ func Main(archInit func(*Arch)) {
+ 			if nerrors != 0 {
+ 				Curfn.Nbody.Set(nil) // type errors; do not compile
+ 			}
++			// Now that we've checked whether n terminates,
++			// we can eliminate some obviously dead code.
++			deadcode(Curfn)
+ 			fcount++
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index e78634a867..b8c81b528a 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3842,13 +3842,7 @@ func markbreak(n *Node, implicit *Node) {
+ 				lab.SetHasBreak(true)
+ 			}
+ 		}
+-
+-	case OFOR,
+-		OFORUNTIL,
+-		OSWITCH,
+-		OTYPESW,
+-		OSELECT,
+-		ORANGE:
++	case OFOR, OFORUNTIL, OSWITCH, OTYPESW, OSELECT, ORANGE:
+ 		implicit = n
+ 		fallthrough
+ 	default:
+@@ -3883,8 +3877,7 @@ func markbreaklist(l Nodes, implicit *Node) {
+ 	}
+ }
+ 
+-// Isterminating whether the Nodes list ends with a terminating
+-// statement.
++// isterminating reports whether the Nodes list ends with a terminating statement.
+ func (l Nodes) isterminating() bool {
+ 	s := l.Slice()
+ 	c := len(s)
+@@ -3894,7 +3887,7 @@ func (l Nodes) isterminating() bool {
+ 	return s[c-1].isterminating()
+ }
+ 
+-// Isterminating returns whether the node n, the last one in a
++// Isterminating reports whether the node n, the last one in a
+ // statement list, is a terminating statement.
+ func (n *Node) isterminating() bool {
+ 	switch n.Op {
+@@ -3906,11 +3899,7 @@ func (n *Node) isterminating() bool {
+ 	case OBLOCK:
+ 		return n.List.isterminating()
+ 
+-	case OGOTO,
+-		ORETURN,
+-		ORETJMP,
+-		OPANIC,
+-		OXFALL:
++	case OGOTO, ORETURN, ORETJMP, OPANIC, OXFALL:
+ 		return true
+ 
+ 	case OFOR, OFORUNTIL:
+@@ -3948,6 +3937,7 @@ func (n *Node) isterminating() bool {
+ 	return false
+ }
+ 
++// checkreturn makes sure that fn terminates appropriately.
+ func checkreturn(fn *Node) {
+ 	if fn.Type.Results().NumFields() != 0 && fn.Nbody.Len() != 0 {
+ 		markbreaklist(fn.Nbody, nil)
+@@ -3956,3 +3946,48 @@ func checkreturn(fn *Node) {
+ 		}
+ 	}
+ }
++
++func deadcode(fn *Node) {
++	deadcodeslice(fn.Nbody)
++}
++
++func deadcodeslice(nn Nodes) {
++	for _, n := range nn.Slice() {
++		if n == nil {
++			continue
++		}
++		if n.Op == OIF && Isconst(n.Left, CTBOOL) {
++			var dead *Nodes
++			if n.Left.Bool() {
++				dead = &n.Rlist
++			} else {
++				dead = &n.Nbody
++			}
++			// TODO(mdempsky/josharian): eliminate need for haslabelgoto
++			// by checking labels and gotos earlier. See issue 19699.
++			if !(*dead).haslabelgoto() {
++				*dead = Nodes{}
++			}
++		}
++		deadcodeslice(n.Ninit)
++		deadcodeslice(n.Nbody)
++		deadcodeslice(n.List)
++		deadcodeslice(n.Rlist)
++	}
++}
++
++// haslabelgoto reports whether the Nodes list contains any label or goto statements.
++func (l Nodes) haslabelgoto() bool {
++	for _, n := range l.Slice() {
++		if n == nil {
++			continue
++		}
++		if n.Op == OLABEL || n.Op == OGOTO {
++			return true
++		}
++		if n.Ninit.haslabelgoto() || n.Nbody.haslabelgoto() || n.List.haslabelgoto() || n.Rlist.haslabelgoto() {
++			return true
++		}
++	}
++	return false
++}
+diff --git a/test/fixedbugs/issue19699.dir/a.go b/test/fixedbugs/issue19699.dir/a.go
+new file mode 100644
+index 0000000000..83be926fd8
+--- /dev/null
++++ b/test/fixedbugs/issue19699.dir/a.go
+@@ -0,0 +1,12 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++func F() {
++l1:
++	if false {
++		goto l1
++	}
++}
+diff --git a/test/fixedbugs/issue19699.dir/b.go b/test/fixedbugs/issue19699.dir/b.go
+new file mode 100644
+index 0000000000..e727133bda
+--- /dev/null
++++ b/test/fixedbugs/issue19699.dir/b.go
+@@ -0,0 +1,11 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "./a"
++
++func main() {
++	a.F()
++}
+diff --git a/test/fixedbugs/issue19699.go b/test/fixedbugs/issue19699.go
+new file mode 100644
+index 0000000000..8000a5224f
+--- /dev/null
++++ b/test/fixedbugs/issue19699.go
+@@ -0,0 +1,7 @@
++// compiledir
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored
+diff --git a/test/fixedbugs/issue19699b.go b/test/fixedbugs/issue19699b.go
+new file mode 100644
+index 0000000000..4afc0ca833
+--- /dev/null
++++ b/test/fixedbugs/issue19699b.go
+@@ -0,0 +1,14 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f() bool {
++	if false {
++	} else {
++		return true
++	}
++} // ERROR "missing return at end of function"
+diff --git a/test/fixedbugs/issue19705.go b/test/fixedbugs/issue19705.go
+new file mode 100644
+index 0000000000..6157945bbb
+--- /dev/null
++++ b/test/fixedbugs/issue19705.go
+@@ -0,0 +1,17 @@
++// compile
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f1() {
++	f2()
++}
++
++func f2() {
++	if false {
++		_ = func() {}
++	}
++}

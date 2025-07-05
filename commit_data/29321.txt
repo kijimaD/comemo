@@ -13,6 +13,21 @@ Date:   Thu Sep 8 11:27:04 2016 -0700
     Change-Id: I0223e9b4cb67cc83a9ebe4d424e6c151d7ed600f
     Reviewed-on: https://go-review.googlesource.com/28393
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/fmt/doc.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index c312914b44..eb97e51d5d 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -48,9 +48,6 @@
+ 	Pointer:
+ 		%p	base 16 notation, with leading 0x
+ 
+-	There is no 'u' flag.  Integers are printed unsigned if they have unsigned type.
+-	Similarly, there is no need to specify the size of the operand (int8, int64).
+-
+ 	The default format for %v is:
+ 		bool:                    %t
+ 		int, int8 etc.:          %d

@@ -11,7 +11,50 @@ Date:   Thu May 18 10:53:28 2023 +0300
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/os/error_test.go | 4 ----
  src/os/os_test.go    | 1 -
  2 files changed, 5 deletions(-)
+
+diff --git a/src/os/error_test.go b/src/os/error_test.go
+index 4fa6146194..8f82ae65d3 100644
+--- a/src/os/error_test.go
++++ b/src/os/error_test.go
+@@ -27,11 +27,9 @@ func TestErrIsExist(t *testing.T) {
+ 	if err == nil {
+ 		f2.Close()
+ 		t.Fatal("Open should have failed")
+-		return
+ 	}
+ 	if s := checkErrorPredicate("os.IsExist", os.IsExist, err, fs.ErrExist); s != "" {
+ 		t.Fatal(s)
+-		return
+ 	}
+ }
+ 
+@@ -68,13 +66,11 @@ func TestErrIsNotExist(t *testing.T) {
+ 	name := filepath.Join(tmpDir, "NotExists")
+ 	if s := testErrNotExist(t, name); s != "" {
+ 		t.Fatal(s)
+-		return
+ 	}
+ 
+ 	name = filepath.Join(name, "NotExists2")
+ 	if s := testErrNotExist(t, name); s != "" {
+ 		t.Fatal(s)
+-		return
+ 	}
+ }
+ 
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 09d923a338..0a6be3516a 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -2864,7 +2864,6 @@ func TestDirSeek(t *testing.T) {
+ 	dirnames2, err := f.Readdirnames(0)
+ 	if err != nil {
+ 		t.Fatal(err)
+-		return
+ 	}
+ 
+ 	if len(dirnames1) != len(dirnames2) {

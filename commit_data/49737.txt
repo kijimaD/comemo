@@ -20,6 +20,24 @@ Date:   Fri Sep 3 18:11:00 2021 -0400
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/init.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index a1016ec5a3..a855e6c851 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -976,9 +976,9 @@ func requirementsFromModFiles(ctx context.Context, modFiles []*modfile.File) *Re
+ func setDefaultBuildMod() {
+ 	if cfg.BuildModExplicit {
+ 		if inWorkspaceMode() && cfg.BuildMod != "readonly" {
+-			base.Fatalf("go: -mod may only be set to readonly when in workspace mode." +
+-				"\n\tRemove the -mod flag to use the default readonly value," +
+-				"\n\tor set -workfile=off to disable workspace mode.")
++			base.Fatalf("go: -mod may only be set to readonly when in workspace mode, but it is set to %q"+
++				"\n\tRemove the -mod flag to use the default readonly value,"+
++				"\n\tor set -workfile=off to disable workspace mode.", cfg.BuildMod)
+ 		}
+ 		// Don't override an explicit '-mod=' argument.
+ 		return

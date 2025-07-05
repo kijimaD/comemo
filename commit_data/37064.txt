@@ -14,7 +14,75 @@ Date:   Thu Jun 21 10:31:57 2018 +1200
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testshared/src/trivial/trivial.go |  5 ++++
  src/cmd/link/internal/ld/symtab.go         | 38 ++++++++++++++++--------------
  2 files changed, 25 insertions(+), 18 deletions(-)
+
+diff --git a/misc/cgo/testshared/src/trivial/trivial.go b/misc/cgo/testshared/src/trivial/trivial.go
+index da29a2cadf..6ade47ce36 100644
+--- a/misc/cgo/testshared/src/trivial/trivial.go
++++ b/misc/cgo/testshared/src/trivial/trivial.go
+@@ -1,4 +1,9 @@
+ package main
+ 
+ func main() {
++	// This is enough to make sure that the executable references
++	// a type descriptor, which was the cause of
++	// https://golang.org/issue/25970.
++	c := make(chan int)
++	_ = c
+ }
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index bb8c1992ba..88d476710b 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -368,28 +368,30 @@ func (ctxt *Link) symtab() {
+ 	// pseudo-symbols to mark locations of type, string, and go string data.
+ 	var symtype *sym.Symbol
+ 	var symtyperel *sym.Symbol
+-	if ctxt.UseRelro() && (ctxt.BuildMode == BuildModeCArchive || ctxt.BuildMode == BuildModeCShared || ctxt.BuildMode == BuildModePIE) {
+-		s = ctxt.Syms.Lookup("type.*", 0)
++	if !ctxt.DynlinkingGo() {
++		if ctxt.UseRelro() && (ctxt.BuildMode == BuildModeCArchive || ctxt.BuildMode == BuildModeCShared || ctxt.BuildMode == BuildModePIE) {
++			s = ctxt.Syms.Lookup("type.*", 0)
+ 
+-		s.Type = sym.STYPE
+-		s.Size = 0
+-		s.Attr |= sym.AttrReachable
+-		symtype = s
++			s.Type = sym.STYPE
++			s.Size = 0
++			s.Attr |= sym.AttrReachable
++			symtype = s
+ 
+-		s = ctxt.Syms.Lookup("typerel.*", 0)
++			s = ctxt.Syms.Lookup("typerel.*", 0)
+ 
+-		s.Type = sym.STYPERELRO
+-		s.Size = 0
+-		s.Attr |= sym.AttrReachable
+-		symtyperel = s
+-	} else if !ctxt.DynlinkingGo() {
+-		s = ctxt.Syms.Lookup("type.*", 0)
++			s.Type = sym.STYPERELRO
++			s.Size = 0
++			s.Attr |= sym.AttrReachable
++			symtyperel = s
++		} else {
++			s = ctxt.Syms.Lookup("type.*", 0)
+ 
+-		s.Type = sym.STYPE
+-		s.Size = 0
+-		s.Attr |= sym.AttrReachable
+-		symtype = s
+-		symtyperel = s
++			s.Type = sym.STYPE
++			s.Size = 0
++			s.Attr |= sym.AttrReachable
++			symtype = s
++			symtyperel = s
++		}
+ 	}
+ 
+ 	groupSym := func(name string, t sym.SymKind) *sym.Symbol {

@@ -14,6 +14,25 @@ Date:   Tue Dec 5 04:12:45 2023 +0000
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     Run-TryBot: Jes Cok <xigua67damn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/log/slog/handler.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/log/slog/handler.go b/src/log/slog/handler.go
+index 2182bfb609..2ff85b582e 100644
+--- a/src/log/slog/handler.go
++++ b/src/log/slog/handler.go
+@@ -76,11 +76,11 @@ type Handler interface {
+ 	// A Handler should treat WithGroup as starting a Group of Attrs that ends
+ 	// at the end of the log event. That is,
+ 	//
+-	//     logger.WithGroup("s").LogAttrs(level, msg, slog.Int("a", 1), slog.Int("b", 2))
++	//     logger.WithGroup("s").LogAttrs(ctx, level, msg, slog.Int("a", 1), slog.Int("b", 2))
+ 	//
+ 	// should behave like
+ 	//
+-	//     logger.LogAttrs(level, msg, slog.Group("s", slog.Int("a", 1), slog.Int("b", 2)))
++	//     logger.LogAttrs(ctx, level, msg, slog.Group("s", slog.Int("a", 1), slog.Int("b", 2)))
+ 	//
+ 	// If the name is empty, WithGroup returns the receiver.
+ 	WithGroup(name string) Handler

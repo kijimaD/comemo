@@ -7,6 +7,15 @@ Date:   Tue Aug 2 14:30:06 2016 -0700
     Change-Id: I1134a4758b7e1a7da243c56f12ad9d2200c8ba41
     Reviewed-on: https://go-review.googlesource.com/25414
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  VERSION | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/VERSION b/VERSION
+deleted file mode 100644
+index 11a343977d..0000000000
+--- a/VERSION
++++ /dev/null
+@@ -1 +0,0 @@
+-go1.7rc4
+\ No newline at end of file

@@ -12,6 +12,21 @@ Date:   Fri Aug 11 14:00:08 2017 +0200
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  test/ddd1.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/test/ddd1.go b/test/ddd1.go
+index 4284e32137..b4ad80b687 100644
+--- a/test/ddd1.go
++++ b/test/ddd1.go
+@@ -53,8 +53,7 @@ func bad(args ...int) {
+ 	_ = new(int...)	// ERROR "[.][.][.]"
+ 	n := 10
+ 	_ = make([]byte, n...)	// ERROR "[.][.][.]"
+-	// TODO(rsc): enable after gofmt bug is fixed
+-	//	_ = make([]byte, 10 ...)	// error "[.][.][.]"
++	_ = make([]byte, 10 ...)	// ERROR "[.][.][.]"
+ 	var x int
+ 	_ = unsafe.Pointer(&x...)	// ERROR "[.][.][.]"
+ 	_ = unsafe.Sizeof(x...)	// ERROR "[.][.][.]"

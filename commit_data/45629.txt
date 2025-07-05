@@ -12,10 +12,119 @@ Date:   Fri Oct 30 18:36:41 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/asm/internal/asm/endtoend_test.go |  7 +------
  src/cmd/internal/obj/x86/asm6.go          | 11 +++--------
  src/cmd/internal/objabi/util.go           |  9 +--------
  src/cmd/link/internal/amd64/l.go          |  2 +-
  src/cmd/link/internal/amd64/obj.go        |  7 +------
  5 files changed, 7 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index 989b7a5405..7472507caf 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -390,12 +390,7 @@ func TestARM64Errors(t *testing.T) {
+ }
+ 
+ func TestAMD64EndToEnd(t *testing.T) {
+-	defer func(old string) { objabi.GOAMD64 = old }(objabi.GOAMD64)
+-	for _, goamd64 := range []string{"normaljumps", "alignedjumps"} {
+-		t.Logf("GOAMD64=%s", goamd64)
+-		objabi.GOAMD64 = goamd64
+-		testEndToEnd(t, "amd64", "amd64")
+-	}
++	testEndToEnd(t, "amd64", "amd64")
+ }
+ 
+ func Test386Encoder(t *testing.T) {
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 94aed44871..a6b85ac4a0 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -1851,9 +1851,9 @@ func spadjop(ctxt *obj.Link, l, q obj.As) obj.As {
+ 	return q
+ }
+ 
+-// If the environment variable GOAMD64=alignedjumps the assembler will ensure that
+-// no standalone or macro-fused jump will straddle or end on a 32 byte boundary
+-// by inserting NOPs before the jumps
++// isJump returns whether p is a jump instruction.
++// It is used to ensure that no standalone or macro-fused jump will straddle
++// or end on a 32 byte boundary by inserting NOPs before the jumps.
+ func isJump(p *obj.Prog) bool {
+ 	return p.To.Target() != nil || p.As == obj.AJMP || p.As == obj.ACALL ||
+ 		p.As == obj.ARET || p.As == obj.ADUFFCOPY || p.As == obj.ADUFFZERO
+@@ -1987,11 +1987,6 @@ func makePjcCtx(ctxt *obj.Link) padJumpsCtx {
+ 		return padJumpsCtx(0)
+ 	}
+ 
+-	if objabi.GOAMD64 != "alignedjumps" {
+-		return padJumpsCtx(0)
+-
+-	}
+-
+ 	return padJumpsCtx(32)
+ }
+ 
+diff --git a/src/cmd/internal/objabi/util.go b/src/cmd/internal/objabi/util.go
+index b81b73a022..9479ab2cd9 100644
+--- a/src/cmd/internal/objabi/util.go
++++ b/src/cmd/internal/objabi/util.go
+@@ -25,7 +25,6 @@ var (
+ 	GOARCH   = envOr("GOARCH", defaultGOARCH)
+ 	GOOS     = envOr("GOOS", defaultGOOS)
+ 	GO386    = envOr("GO386", defaultGO386)
+-	GOAMD64  = goamd64()
+ 	GOARM    = goarm()
+ 	GOMIPS   = gomips()
+ 	GOMIPS64 = gomips64()
+@@ -37,15 +36,9 @@ var (
+ 
+ const (
+ 	ElfRelocOffset   = 256
+-	MachoRelocOffset = 2048           // reserve enough space for ELF relocations
+-	Go115AMD64       = "alignedjumps" // Should be "alignedjumps" or "normaljumps"; this replaces environment variable introduced in CL 219357.
++	MachoRelocOffset = 2048 // reserve enough space for ELF relocations
+ )
+ 
+-// TODO(1.16): assuming no issues in 1.15 release, remove this and related constant.
+-func goamd64() string {
+-	return Go115AMD64
+-}
+-
+ func goarm() int {
+ 	switch v := envOr("GOARM", defaultGOARM); v {
+ 	case "5":
+diff --git a/src/cmd/link/internal/amd64/l.go b/src/cmd/link/internal/amd64/l.go
+index a9afb3a39f..c9ea90a9c8 100644
+--- a/src/cmd/link/internal/amd64/l.go
++++ b/src/cmd/link/internal/amd64/l.go
+@@ -33,7 +33,7 @@ package amd64
+ const (
+ 	maxAlign  = 32 // max data alignment
+ 	minAlign  = 1  // min data alignment
+-	funcAlign = 16
++	funcAlign = 32
+ )
+ 
+ /* Used by ../internal/ld/dwarf.go */
+diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
+index 777f99dbe2..d09c90ea28 100644
+--- a/src/cmd/link/internal/amd64/obj.go
++++ b/src/cmd/link/internal/amd64/obj.go
+@@ -39,13 +39,8 @@ import (
+ func Init() (*sys.Arch, ld.Arch) {
+ 	arch := sys.ArchAMD64
+ 
+-	fa := funcAlign
+-	if objabi.GOAMD64 == "alignedjumps" {
+-		fa = 32
+-	}
+-
+ 	theArch := ld.Arch{
+-		Funcalign:  fa,
++		Funcalign:  funcAlign,
+ 		Maxalign:   maxAlign,
+ 		Minalign:   minAlign,
+ 		Dwarfregsp: dwarfRegSP,

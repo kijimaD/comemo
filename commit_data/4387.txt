@@ -6,7 +6,33 @@ Date:   Fri Dec 11 12:41:33 2009 -0800
     
     R=golang-dev, rsc
     https://golang.org/cl/173041
-
+---
  src/cmd/gc/Makefile  | 2 +-
  src/cmd/gc/mkbuiltin | 4 +---
  2 files changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index 94019322a2..6629361d4e 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -55,7 +55,7 @@ y.tab.c: y.tab.h
+ 	test -f y.tab.c && touch y.tab.c
+ 
+ builtin.c:	runtime.go unsafe.go mkbuiltin1.c mkbuiltin
+-	./mkbuiltin >builtin.c || \
++	./mkbuiltin || \
+ 	(echo 'mkbuiltin failed; using bootstrap copy of builtin.c'; cp builtin.c.boot builtin.c)
+ 
+ subr.$O: opnames.h
+diff --git a/src/cmd/gc/mkbuiltin b/src/cmd/gc/mkbuiltin
+index 7fe11caf71..6616977dbc 100755
+--- a/src/cmd/gc/mkbuiltin
++++ b/src/cmd/gc/mkbuiltin
+@@ -35,6 +35,4 @@ ken | r | rsc)
+ 	fi
+ esac
+ 
+-cat _builtin.c
+-rm -f _builtin.c
+-
++mv _builtin.c builtin.c

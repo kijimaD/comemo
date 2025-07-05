@@ -15,6 +15,22 @@ Date:   Thu Aug 18 19:15:51 2022 +0200
     Reviewed-by: Joedian Reid <joedian@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/pprof/pprof_rusage.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/pprof/pprof_rusage.go b/src/runtime/pprof/pprof_rusage.go
+index 984a32e79d..a3ca4c8d5d 100644
+--- a/src/runtime/pprof/pprof_rusage.go
++++ b/src/runtime/pprof/pprof_rusage.go
+@@ -28,6 +28,8 @@ func addMaxRSS(w io.Writer) {
+ 	}
+ 
+ 	var rusage syscall.Rusage
+-	syscall.Getrusage(syscall.RUSAGE_SELF, &rusage)
+-	fmt.Fprintf(w, "# MaxRSS = %d\n", uintptr(rusage.Maxrss)*rssToBytes)
++	err := syscall.Getrusage(syscall.RUSAGE_SELF, &rusage)
++	if err == nil {
++		fmt.Fprintf(w, "# MaxRSS = %d\n", uintptr(rusage.Maxrss)*rssToBytes)
++	}
+ }

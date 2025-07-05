@@ -12,9 +12,99 @@ Date:   Wed Apr 28 10:02:16 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/api_test.go   |  1 +
  src/go/types/check.go      |  2 --
  src/go/types/type.go       | 13 +++++++++++--
  src/go/types/types_test.go | 13 +++++++++++++
  4 files changed, 25 insertions(+), 4 deletions(-)
+
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 3438d79024..5ac91bedd2 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -353,6 +353,7 @@ func TestTypesInfo(t *testing.T) {
+ 	}
+ 
+ 	for _, test := range tests {
++		ResetId() // avoid renumbering of type parameter ids when adding tests
+ 		if strings.HasPrefix(test.src, genericPkg) && !typeparams.Enabled {
+ 			continue
+ 		}
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 83568c9353..1f64d3e3c3 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -86,7 +86,6 @@ type Checker struct {
+ 	pkg  *Package
+ 	*Info
+ 	version version                    // accepted language version
+-	nextId  uint64                     // unique Id for type parameters (first valid Id is 1)
+ 	objMap  map[Object]*declInfo       // maps package-level objects and (non-interface) methods to declaration info
+ 	impMap  map[importKey]*Package     // maps (import path, source directory) to (complete or fake) package
+ 	posMap  map[*Interface][]token.Pos // maps interface types to lists of embedded interface positions
+@@ -191,7 +190,6 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
+ 		pkg:     pkg,
+ 		Info:    info,
+ 		version: version,
+-		nextId:  1,
+ 		objMap:  make(map[Object]*declInfo),
+ 		impMap:  make(map[importKey]*Package),
+ 		posMap:  make(map[*Interface][]token.Pos),
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index 21d49de3aa..3303cfc077 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -7,6 +7,7 @@ package types
+ import (
+ 	"fmt"
+ 	"go/token"
++	"sync/atomic"
+ )
+ 
+ // A Type represents a type of Go.
+@@ -715,6 +716,15 @@ func (t *Named) AddMethod(m *Func) {
+ 	}
+ }
+ 
++// Note: This is a uint32 rather than a uint64 because the
++// respective 64 bit atomic instructions are not available
++// on all platforms.
++var lastId uint32
++
++// nextId returns a value increasing monotonically by 1 with
++// each call, starting with 1. It may be called concurrently.
++func nextId() uint64 { return uint64(atomic.AddUint32(&lastId, 1)) }
++
+ // A _TypeParam represents a type parameter type.
+ type _TypeParam struct {
+ 	check *Checker  // for lazy type bound completion
+@@ -727,8 +737,7 @@ type _TypeParam struct {
+ // newTypeParam returns a new TypeParam.
+ func (check *Checker) newTypeParam(obj *TypeName, index int, bound Type) *_TypeParam {
+ 	assert(bound != nil)
+-	typ := &_TypeParam{check: check, id: check.nextId, obj: obj, index: index, bound: bound}
+-	check.nextId++
++	typ := &_TypeParam{check: check, id: nextId(), obj: obj, index: index, bound: bound}
+ 	if obj.typ == nil {
+ 		obj.typ = typ
+ 	}
+diff --git a/src/go/types/types_test.go b/src/go/types/types_test.go
+new file mode 100644
+index 0000000000..fd9462c4a2
+--- /dev/null
++++ b/src/go/types/types_test.go
+@@ -0,0 +1,13 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package types
++
++import "sync/atomic"
++
++// Upon calling ResetId, nextId starts with 1 again.
++// It may be called concurrently. This is only needed
++// for tests where we may want to have a consistent
++// numbering for each individual test case.
++func ResetId() { atomic.StoreUint32(&lastId, 0) }

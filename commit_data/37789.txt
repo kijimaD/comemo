@@ -14,7 +14,81 @@ Date:   Tue Aug 28 15:56:10 2018 +0000
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/json/decode.go      |  6 +++---
  src/encoding/json/decode_test.go | 17 +++++++++++++++++
  2 files changed, 20 insertions(+), 3 deletions(-)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index 2e734fb39e..fd2bf92dc2 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -670,6 +670,7 @@ func (d *decodeState) object(v reflect.Value) error {
+ 	}
+ 
+ 	var mapElem reflect.Value
++	originalErrorContext := d.errorContext
+ 
+ 	for {
+ 		// Read opening " of string key or closing }.
+@@ -829,8 +830,7 @@ func (d *decodeState) object(v reflect.Value) error {
+ 			return errPhase
+ 		}
+ 
+-		d.errorContext.Struct = nil
+-		d.errorContext.Field = ""
++		d.errorContext = originalErrorContext
+ 	}
+ 	return nil
+ }
+@@ -988,7 +988,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
+ 			if fromQuoted {
+ 				return fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type())
+ 			}
+-			return &UnmarshalTypeError{Value: "number", Type: v.Type(), Offset: int64(d.readIndex())}
++			d.saveError(&UnmarshalTypeError{Value: "number", Type: v.Type(), Offset: int64(d.readIndex())})
+ 		case reflect.Interface:
+ 			n, err := d.convertNumber(s)
+ 			if err != nil {
+diff --git a/src/encoding/json/decode_test.go b/src/encoding/json/decode_test.go
+index 127bc494e5..b84bbabfcd 100644
+--- a/src/encoding/json/decode_test.go
++++ b/src/encoding/json/decode_test.go
+@@ -371,6 +371,10 @@ func (b *intWithPtrMarshalText) UnmarshalText(data []byte) error {
+ 	return (*intWithMarshalText)(b).UnmarshalText(data)
+ }
+ 
++type mapStringToStringData struct {
++	Data map[string]string `json:"data"`
++}
++
+ type unmarshalTest struct {
+ 	in                    string
+ 	ptr                   interface{}
+@@ -401,6 +405,7 @@ var unmarshalTests = []unmarshalTest{
+ 	{in: `"invalid: \uD834x\uDD1E"`, ptr: new(string), out: "invalid: \uFFFDx\uFFFD"},
+ 	{in: "null", ptr: new(interface{}), out: nil},
+ 	{in: `{"X": [1,2,3], "Y": 4}`, ptr: new(T), out: T{Y: 4}, err: &UnmarshalTypeError{"array", reflect.TypeOf(""), 7, "T", "X"}},
++	{in: `{"X": 23}`, ptr: new(T), out: T{}, err: &UnmarshalTypeError{"number", reflect.TypeOf(""), 8, "T", "X"}}, {in: `{"x": 1}`, ptr: new(tx), out: tx{}},
+ 	{in: `{"x": 1}`, ptr: new(tx), out: tx{}},
+ 	{in: `{"x": 1}`, ptr: new(tx), err: fmt.Errorf("json: unknown field \"x\""), disallowUnknownFields: true},
+ 	{in: `{"F1":1,"F2":2,"F3":3}`, ptr: new(V), out: V{F1: float64(1), F2: int32(2), F3: Number("3")}},
+@@ -866,6 +871,18 @@ var unmarshalTests = []unmarshalTest{
+ 		err:                   fmt.Errorf("json: unknown field \"extra\""),
+ 		disallowUnknownFields: true,
+ 	},
++	// issue 26444
++	// UnmarshalTypeError without field & struct values
++	{
++		in:  `{"data":{"test1": "bob", "test2": 123}}`,
++		ptr: new(mapStringToStringData),
++		err: &UnmarshalTypeError{Value: "number", Type: reflect.TypeOf(""), Offset: 37, Struct: "mapStringToStringData", Field: "data"},
++	},
++	{
++		in:  `{"data":{"test1": 123, "test2": "bob"}}`,
++		ptr: new(mapStringToStringData),
++		err: &UnmarshalTypeError{Value: "number", Type: reflect.TypeOf(""), Offset: 21, Struct: "mapStringToStringData", Field: "data"},
++	},
+ }
+ 
+ func TestMarshal(t *testing.T) {

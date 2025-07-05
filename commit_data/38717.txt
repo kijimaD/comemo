@@ -12,7 +12,7 @@ Date:   Fri Nov 16 12:47:33 2018 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/make.bash | 1 +
  src/make.bat  | 1 +
  src/make.rc   | 1 +
@@ -20,3 +20,75 @@ Date:   Fri Nov 16 12:47:33 2018 -0500
  src/run.bat   | 1 +
  src/run.rc    | 1 +
  6 files changed, 6 insertions(+)
+
+diff --git a/src/make.bash b/src/make.bash
+index 78882d9834..13497eb039 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -64,6 +64,7 @@ set -e
+ 
+ unset GOBIN # Issue 14340
+ unset GOFLAGS
++unset GO111MODULE
+ 
+ if [ ! -f run.bash ]; then
+ 	echo 'make.bash must be run from $GOROOT/src' 1>&2
+diff --git a/src/make.bat b/src/make.bat
+index 9ca7afb5aa..69275e2256 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -48,6 +48,7 @@ setlocal
+ 
+ set GOBUILDFAIL=0
+ set GOFLAGS=
++set GO111MODULE=
+ 
+ if exist make.bat goto ok
+ echo Must run make.bat from Go src directory.
+diff --git a/src/make.rc b/src/make.rc
+index a97dfc8a01..5f888c19fd 100755
+--- a/src/make.rc
++++ b/src/make.rc
+@@ -48,6 +48,7 @@ if(~ $1 -v) {
+ }
+ 
+ GOFLAGS=()
++GO111MODULE=()
+ GOROOT = `{cd .. && pwd}
+ if(! ~ $#GOROOT_BOOTSTRAP 1)
+ 	GOROOT_BOOTSTRAP = $home/go1.4
+diff --git a/src/run.bash b/src/run.bash
+index c14f4a206d..1c6c424434 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -21,6 +21,7 @@ export GOPATH
+ unset CDPATH	# in case user has it set
+ unset GOBIN     # Issue 14340
+ unset GOFLAGS
++unset GO111MODULE
+ 
+ export GOHOSTOS
+ export CC
+diff --git a/src/run.bat b/src/run.bat
+index 0e0c413617..123edcc35d 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -18,6 +18,7 @@ set GOPATH=
+ :: Issue 14340: ignore GOBIN during all.bat.
+ set GOBIN=
+ set GOFLAGS=
++set GO111MODULE=
+ 
+ rem TODO avoid rebuild if possible
+ 
+diff --git a/src/run.rc b/src/run.rc
+index 49d6fd9a4d..c346f5cf5c 100755
+--- a/src/run.rc
++++ b/src/run.rc
+@@ -11,5 +11,6 @@ GOPATH = () # we disallow local import for non-local packages, if $GOROOT happen
+             # to be under $GOPATH, then some tests below will fail
+ GOBIN = () # Issue 14340
+ GOFLAGS = ()
++GO111MODULE = ()
+ 
+ exec go tool dist test -rebuild $*

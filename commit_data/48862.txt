@@ -19,9 +19,835 @@ Date:   Thu Jun 17 11:54:10 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/internal/fuzz/mutator.go                 | 296 +++-----------------------
  src/internal/fuzz/mutators_byteslice.go      | 301 +++++++++++++++++++++++++++
  src/internal/fuzz/mutators_byteslice_test.go | 171 +++++++++++++++
  src/internal/fuzz/pcg.go                     |   8 +
  4 files changed, 510 insertions(+), 266 deletions(-)
+
+diff --git a/src/internal/fuzz/mutator.go b/src/internal/fuzz/mutator.go
+index bd8651f806..2d7dbe6ed8 100644
+--- a/src/internal/fuzz/mutator.go
++++ b/src/internal/fuzz/mutator.go
+@@ -13,7 +13,7 @@ import (
+ )
+ 
+ type mutator struct {
+-	r *pcgRand
++	r mutatorRand
+ }
+ 
+ func newMutator() *mutator {
+@@ -242,6 +242,29 @@ func (m *mutator) mutateFloat(v, maxValue float64) float64 {
+ 	return v
+ }
+ 
++type byteSliceMutator func(*mutator, []byte) []byte
++
++var byteSliceMutators = []byteSliceMutator{
++	byteSliceRemoveBytes,
++	byteSliceInsertRandomBytes,
++	byteSliceDuplicateBytes,
++	byteSliceOverwriteBytes,
++	byteSliceBitFlip,
++	byteSliceXORByte,
++	byteSliceSwapByte,
++	byteSliceArithmeticUint8,
++	byteSliceArithmeticUint16,
++	byteSliceArithmeticUint32,
++	byteSliceArithmeticUint64,
++	byteSliceOverwriteInterestingUint8,
++	byteSliceOverwriteInterestingUint16,
++	byteSliceOverwriteInterestingUint32,
++	byteSliceInsertConstantBytes,
++	byteSliceOverwriteConstantBytes,
++	byteSliceShuffleBytes,
++	byteSliceSwapBytes,
++}
++
+ func (m *mutator) mutateBytes(ptrB *[]byte) {
+ 	b := *ptrB
+ 	defer func() {
+@@ -255,272 +278,13 @@ func (m *mutator) mutateBytes(ptrB *[]byte) {
+ 
+ 	numIters := 1 + m.r.exp2()
+ 	for iter := 0; iter < numIters; iter++ {
+-		switch m.rand(18) {
+-		case 0:
+-			// Remove a range of bytes.
+-			if len(b) <= 1 {
+-				iter--
+-				continue
+-			}
+-			pos0 := m.rand(len(b))
+-			pos1 := pos0 + m.chooseLen(len(b)-pos0)
+-			copy(b[pos0:], b[pos1:])
+-			b = b[:len(b)-(pos1-pos0)]
+-		case 1:
+-			// Insert a range of random bytes.
+-			pos := m.rand(len(b) + 1)
+-			n := m.chooseLen(1024)
+-			if len(b)+n >= cap(b) {
+-				iter--
+-				continue
+-			}
+-			b = b[:len(b)+n]
+-			copy(b[pos+n:], b[pos:])
+-			for i := 0; i < n; i++ {
+-				b[pos+i] = byte(m.rand(256))
+-			}
+-		case 2:
+-			// Duplicate a range of bytes and insert it into
+-			// a random position
+-			if len(b) <= 1 {
+-				iter--
+-				continue
+-			}
+-			src := m.rand(len(b))
+-			dst := m.rand(len(b))
+-			for dst == src {
+-				dst = m.rand(len(b))
+-			}
+-			n := m.chooseLen(len(b) - src)
+-			// Use the end of the slice as scratch space to avoid doing an
+-			// allocation. If the slice is too small abort and try something
+-			// else.
+-			if len(b)+(n*2) >= cap(b) {
+-				iter--
+-				continue
+-			}
+-			end := len(b)
+-			// Increase the size of b to fit the duplicated block as well as
+-			// some extra working space
+-			b = b[:end+(n*2)]
+-			// Copy the block of bytes we want to duplicate to the end of the
+-			// slice
+-			copy(b[end+n:], b[src:src+n])
+-			// Shift the bytes after the splice point n positions to the right
+-			// to make room for the new block
+-			copy(b[dst+n:end+n], b[dst:end])
+-			// Insert the duplicate block into the splice point
+-			copy(b[dst:], b[end+n:])
+-			b = b[:end+n]
+-		case 3:
+-			// Overwrite a range of bytes with a randomly selected
+-			// chunk
+-			if len(b) <= 1 {
+-				iter--
+-				continue
+-			}
+-			src := m.rand(len(b))
+-			dst := m.rand(len(b))
+-			for dst == src {
+-				dst = m.rand(len(b))
+-			}
+-			n := m.chooseLen(len(b) - src)
+-			copy(b[dst:], b[src:src+n])
+-		case 4:
+-			// Bit flip.
+-			if len(b) == 0 {
+-				iter--
+-				continue
+-			}
+-			pos := m.rand(len(b))
+-			b[pos] ^= 1 << uint(m.rand(8))
+-		case 5:
+-			// Set a byte to a random value.
+-			if len(b) == 0 {
+-				iter--
+-				continue
+-			}
+-			pos := m.rand(len(b))
+-			// In order to avoid a no-op (where the random value matches
+-			// the existing value), use XOR instead of just setting to
+-			// the random value.
+-			b[pos] ^= byte(1 + m.rand(255))
+-		case 6:
+-			// Swap 2 bytes.
+-			if len(b) <= 1 {
+-				iter--
+-				continue
+-			}
+-			src := m.rand(len(b))
+-			dst := m.rand(len(b))
+-			for dst == src {
+-				dst = m.rand(len(b))
+-			}
+-			b[src], b[dst] = b[dst], b[src]
+-		case 7:
+-			// Add/subtract from a byte.
+-			if len(b) == 0 {
+-				iter--
+-				continue
+-			}
+-			pos := m.rand(len(b))
+-			v := byte(m.rand(35) + 1)
+-			if m.r.bool() {
+-				b[pos] += v
+-			} else {
+-				b[pos] -= v
+-			}
+-		case 8:
+-			// Add/subtract from a uint16.
+-			if len(b) < 2 {
+-				iter--
+-				continue
+-			}
+-			v := uint16(m.rand(35) + 1)
+-			if m.r.bool() {
+-				v = 0 - v
+-			}
+-			pos := m.rand(len(b) - 1)
+-			enc := m.randByteOrder()
+-			enc.PutUint16(b[pos:], enc.Uint16(b[pos:])+v)
+-		case 9:
+-			// Add/subtract from a uint32.
+-			if len(b) < 4 {
+-				iter--
+-				continue
+-			}
+-			v := uint32(m.rand(35) + 1)
+-			if m.r.bool() {
+-				v = 0 - v
+-			}
+-			pos := m.rand(len(b) - 3)
+-			enc := m.randByteOrder()
+-			enc.PutUint32(b[pos:], enc.Uint32(b[pos:])+v)
+-		case 10:
+-			// Add/subtract from a uint64.
+-			if len(b) < 8 {
+-				iter--
+-				continue
+-			}
+-			v := uint64(m.rand(35) + 1)
+-			if m.r.bool() {
+-				v = 0 - v
+-			}
+-			pos := m.rand(len(b) - 7)
+-			enc := m.randByteOrder()
+-			enc.PutUint64(b[pos:], enc.Uint64(b[pos:])+v)
+-		case 11:
+-			// Replace a byte with an interesting value.
+-			if len(b) == 0 {
+-				iter--
+-				continue
+-			}
+-			pos := m.rand(len(b))
+-			b[pos] = byte(interesting8[m.rand(len(interesting8))])
+-		case 12:
+-			// Replace a uint16 with an interesting value.
+-			if len(b) < 2 {
+-				iter--
+-				continue
+-			}
+-			pos := m.rand(len(b) - 1)
+-			v := uint16(interesting16[m.rand(len(interesting16))])
+-			m.randByteOrder().PutUint16(b[pos:], v)
+-		case 13:
+-			// Replace a uint32 with an interesting value.
+-			if len(b) < 4 {
+-				iter--
+-				continue
+-			}
+-			pos := m.rand(len(b) - 3)
+-			v := uint32(interesting32[m.rand(len(interesting32))])
+-			m.randByteOrder().PutUint32(b[pos:], v)
+-		case 14:
+-			// Insert a range of constant bytes.
+-			if len(b) <= 1 {
+-				iter--
+-				continue
+-			}
+-			dst := m.rand(len(b))
+-			// TODO(rolandshoemaker,katiehockman): 4096 was mainly picked
+-			// randomly. We may want to either pick a much larger value
+-			// (AFL uses 32768, paired with a similar impl to chooseLen
+-			// which biases towards smaller lengths that grow over time),
+-			// or set the max based on characteristics of the corpus
+-			// (libFuzzer sets a min/max based on the min/max size of
+-			// entries in the corpus and then picks uniformly from
+-			// that range).
+-			n := m.chooseLen(4096)
+-			if len(b)+n >= cap(b) {
+-				iter--
+-				continue
+-			}
+-			b = b[:len(b)+n]
+-			copy(b[dst+n:], b[dst:])
+-			rb := byte(m.rand(256))
+-			for i := dst; i < dst+n; i++ {
+-				b[i] = rb
+-			}
+-		case 15:
+-			// Overwrite a range of bytes with a chunk of
+-			// constant bytes.
+-			if len(b) <= 1 {
+-				iter--
+-				continue
+-			}
+-			dst := m.rand(len(b))
+-			n := m.chooseLen(len(b) - dst)
+-			rb := byte(m.rand(256))
+-			for i := dst; i < dst+n; i++ {
+-				b[i] = rb
+-			}
+-		case 16:
+-			// Shuffle a range of bytes
+-			if len(b) <= 1 {
+-				iter--
+-				continue
+-			}
+-			dst := m.rand(len(b))
+-			n := m.chooseLen(len(b) - dst)
+-			if n <= 2 {
+-				iter--
+-				continue
+-			}
+-			// Start at the end of the range, and iterate backwards
+-			// to dst, swapping each element with another element in
+-			// dst:dst+n (Fisher-Yates shuffle).
+-			for i := n - 1; i > 0; i-- {
+-				j := m.rand(i + 1)
+-				b[dst+i], b[dst+j] = b[dst+j], b[dst+i]
+-			}
+-		case 17:
+-			// Swap two chunks
+-			if len(b) <= 1 {
+-				iter--
+-				continue
+-			}
+-			src := m.rand(len(b))
+-			dst := m.rand(len(b))
+-			for dst == src {
+-				dst = m.rand(len(b))
+-			}
+-			n := m.chooseLen(len(b) - src)
+-			// Use the end of the slice as scratch space to avoid doing an
+-			// allocation. If the slice is too small abort and try something
+-			// else.
+-			if len(b)+n >= cap(b) {
+-				iter--
+-				continue
+-			}
+-			end := len(b)
+-			b = b[:end+n]
+-			copy(b[end:], b[dst:dst+n])
+-			copy(b[dst:], b[src:src+n])
+-			copy(b[src:], b[end:])
+-			b = b[:end]
+-		default:
+-			panic("unknown mutator")
++		mut := byteSliceMutators[m.rand(len(byteSliceMutators))]
++		mutated := mut(m, b)
++		if mutated == nil {
++			iter--
++			continue
+ 		}
++		b = mutated
+ 	}
+ }
+ 
+diff --git a/src/internal/fuzz/mutators_byteslice.go b/src/internal/fuzz/mutators_byteslice.go
+new file mode 100644
+index 0000000000..7c96b5920e
+--- /dev/null
++++ b/src/internal/fuzz/mutators_byteslice.go
+@@ -0,0 +1,301 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fuzz
++
++// byteSliceRemoveBytes removes a random chunk of bytes from b.
++func byteSliceRemoveBytes(m *mutator, b []byte) []byte {
++	if len(b) <= 1 {
++		return nil
++	}
++	pos0 := m.rand(len(b))
++	pos1 := pos0 + m.chooseLen(len(b)-pos0)
++	copy(b[pos0:], b[pos1:])
++	b = b[:len(b)-(pos1-pos0)]
++	return b
++}
++
++// byteSliceInsertRandomBytes inserts a chunk of random bytes into b at a random
++// position.
++func byteSliceInsertRandomBytes(m *mutator, b []byte) []byte {
++	pos := m.rand(len(b) + 1)
++	n := m.chooseLen(1024)
++	if len(b)+n >= cap(b) {
++		return nil
++	}
++	b = b[:len(b)+n]
++	copy(b[pos+n:], b[pos:])
++	for i := 0; i < n; i++ {
++		b[pos+i] = byte(m.rand(256))
++	}
++	return b
++}
++
++// byteSliceDuplicateBytes duplicates a chunk of bytes in b and inserts it into
++// a random position.
++func byteSliceDuplicateBytes(m *mutator, b []byte) []byte {
++	if len(b) <= 1 {
++		return nil
++	}
++	src := m.rand(len(b))
++	dst := m.rand(len(b))
++	for dst == src {
++		dst = m.rand(len(b))
++	}
++	n := m.chooseLen(len(b) - src)
++	// Use the end of the slice as scratch space to avoid doing an
++	// allocation. If the slice is too small abort and try something
++	// else.
++	if len(b)+(n*2) >= cap(b) {
++		return nil
++	}
++	end := len(b)
++	// Increase the size of b to fit the duplicated block as well as
++	// some extra working space
++	b = b[:end+(n*2)]
++	// Copy the block of bytes we want to duplicate to the end of the
++	// slice
++	copy(b[end+n:], b[src:src+n])
++	// Shift the bytes after the splice point n positions to the right
++	// to make room for the new block
++	copy(b[dst+n:end+n], b[dst:end])
++	// Insert the duplicate block into the splice point
++	copy(b[dst:], b[end+n:])
++	b = b[:end+n]
++	return b
++}
++
++// byteSliceOverwriteBytes overwrites a chunk of b with another chunk of b.
++func byteSliceOverwriteBytes(m *mutator, b []byte) []byte {
++	if len(b) <= 1 {
++		return nil
++	}
++	src := m.rand(len(b))
++	dst := m.rand(len(b))
++	for dst == src {
++		dst = m.rand(len(b))
++	}
++	n := m.chooseLen(len(b) - src - 1)
++	copy(b[dst:], b[src:src+n])
++	return b
++}
++
++// byteSliceBitFlip flips a random bit in a random byte in b.
++func byteSliceBitFlip(m *mutator, b []byte) []byte {
++	if len(b) == 0 {
++		return nil
++	}
++	pos := m.rand(len(b))
++	b[pos] ^= 1 << uint(m.rand(8))
++	return b
++}
++
++// byteSliceXORByte XORs a random byte in b with a random value.
++func byteSliceXORByte(m *mutator, b []byte) []byte {
++	if len(b) == 0 {
++		return nil
++	}
++	pos := m.rand(len(b))
++	// In order to avoid a no-op (where the random value matches
++	// the existing value), use XOR instead of just setting to
++	// the random value.
++	b[pos] ^= byte(1 + m.rand(255))
++	return b
++}
++
++// byteSliceSwapByte swaps two random bytes in b.
++func byteSliceSwapByte(m *mutator, b []byte) []byte {
++	if len(b) <= 1 {
++		return nil
++	}
++	src := m.rand(len(b))
++	dst := m.rand(len(b))
++	for dst == src {
++		dst = m.rand(len(b))
++	}
++	b[src], b[dst] = b[dst], b[src]
++	return b
++}
++
++// byteSliceArithmeticUint8 adds/subtracts from a random byte in b.
++func byteSliceArithmeticUint8(m *mutator, b []byte) []byte {
++	if len(b) == 0 {
++		return nil
++	}
++	pos := m.rand(len(b))
++	v := byte(m.rand(35) + 1)
++	if m.r.bool() {
++		b[pos] += v
++	} else {
++		b[pos] -= v
++	}
++	return b
++}
++
++// byteSliceArithmeticUint16 adds/subtracts from a random uint16 in b.
++func byteSliceArithmeticUint16(m *mutator, b []byte) []byte {
++	if len(b) < 2 {
++		return nil
++	}
++	v := uint16(m.rand(35) + 1)
++	if m.r.bool() {
++		v = 0 - v
++	}
++	pos := m.rand(len(b) - 1)
++	enc := m.randByteOrder()
++	enc.PutUint16(b[pos:], enc.Uint16(b[pos:])+v)
++	return b
++}
++
++// byteSliceArithmeticUint32 adds/subtracts from a random uint32 in b.
++func byteSliceArithmeticUint32(m *mutator, b []byte) []byte {
++	if len(b) < 4 {
++		return nil
++	}
++	v := uint32(m.rand(35) + 1)
++	if m.r.bool() {
++		v = 0 - v
++	}
++	pos := m.rand(len(b) - 3)
++	enc := m.randByteOrder()
++	enc.PutUint32(b[pos:], enc.Uint32(b[pos:])+v)
++	return b
++}
++
++// byteSliceArithmeticUint64 adds/subtracts from a random uint64 in b.
++func byteSliceArithmeticUint64(m *mutator, b []byte) []byte {
++	if len(b) < 8 {
++		return nil
++	}
++	v := uint64(m.rand(35) + 1)
++	if m.r.bool() {
++		v = 0 - v
++	}
++	pos := m.rand(len(b) - 7)
++	enc := m.randByteOrder()
++	enc.PutUint64(b[pos:], enc.Uint64(b[pos:])+v)
++	return b
++}
++
++// byteSliceOverwriteInterestingUint8 overwrites a random byte in b with an interesting
++// value.
++func byteSliceOverwriteInterestingUint8(m *mutator, b []byte) []byte {
++	if len(b) == 0 {
++		return nil
++	}
++	pos := m.rand(len(b))
++	b[pos] = byte(interesting8[m.rand(len(interesting8))])
++	return b
++}
++
++// byteSliceOverwriteInterestingUint16 overwrites a random uint16 in b with an interesting
++// value.
++func byteSliceOverwriteInterestingUint16(m *mutator, b []byte) []byte {
++	if len(b) < 2 {
++		return nil
++	}
++	pos := m.rand(len(b) - 1)
++	v := uint16(interesting16[m.rand(len(interesting16))])
++	m.randByteOrder().PutUint16(b[pos:], v)
++	return b
++}
++
++// byteSliceOverwriteInterestingUint32 overwrites a random uint16 in b with an interesting
++// value.
++func byteSliceOverwriteInterestingUint32(m *mutator, b []byte) []byte {
++	if len(b) < 4 {
++		return nil
++	}
++	pos := m.rand(len(b) - 3)
++	v := uint32(interesting32[m.rand(len(interesting32))])
++	m.randByteOrder().PutUint32(b[pos:], v)
++	return b
++}
++
++// byteSliceInsertConstantBytes inserts a chunk of constant bytes into a random position in b.
++func byteSliceInsertConstantBytes(m *mutator, b []byte) []byte {
++	if len(b) <= 1 {
++		return nil
++	}
++	dst := m.rand(len(b))
++	// TODO(rolandshoemaker,katiehockman): 4096 was mainly picked
++	// randomly. We may want to either pick a much larger value
++	// (AFL uses 32768, paired with a similar impl to chooseLen
++	// which biases towards smaller lengths that grow over time),
++	// or set the max based on characteristics of the corpus
++	// (libFuzzer sets a min/max based on the min/max size of
++	// entries in the corpus and then picks uniformly from
++	// that range).
++	n := m.chooseLen(4096)
++	if len(b)+n >= cap(b) {
++		return nil
++	}
++	b = b[:len(b)+n]
++	copy(b[dst+n:], b[dst:])
++	rb := byte(m.rand(256))
++	for i := dst; i < dst+n; i++ {
++		b[i] = rb
++	}
++	return b
++}
++
++// byteSliceOverwriteConstantBytes overwrites a chunk of b with constant bytes.
++func byteSliceOverwriteConstantBytes(m *mutator, b []byte) []byte {
++	if len(b) <= 1 {
++		return nil
++	}
++	dst := m.rand(len(b))
++	n := m.chooseLen(len(b) - dst)
++	rb := byte(m.rand(256))
++	for i := dst; i < dst+n; i++ {
++		b[i] = rb
++	}
++	return b
++}
++
++// byteSliceShuffleBytes shuffles a chunk of bytes in b.
++func byteSliceShuffleBytes(m *mutator, b []byte) []byte {
++	if len(b) <= 1 {
++		return nil
++	}
++	dst := m.rand(len(b))
++	n := m.chooseLen(len(b) - dst)
++	if n <= 2 {
++		return nil
++	}
++	// Start at the end of the range, and iterate backwards
++	// to dst, swapping each element with another element in
++	// dst:dst+n (Fisher-Yates shuffle).
++	for i := n - 1; i > 0; i-- {
++		j := m.rand(i + 1)
++		b[dst+i], b[dst+j] = b[dst+j], b[dst+i]
++	}
++	return b
++}
++
++// byteSliceSwapBytes swaps two chunks of bytes in b.
++func byteSliceSwapBytes(m *mutator, b []byte) []byte {
++	if len(b) <= 1 {
++		return nil
++	}
++	src := m.rand(len(b))
++	dst := m.rand(len(b))
++	for dst == src {
++		dst = m.rand(len(b))
++	}
++	n := m.chooseLen(len(b) - src - 1)
++	// Use the end of the slice as scratch space to avoid doing an
++	// allocation. If the slice is too small abort and try something
++	// else.
++	if len(b)+n >= cap(b) {
++		return nil
++	}
++	end := len(b)
++	b = b[:end+n]
++	copy(b[end:], b[dst:dst+n])
++	copy(b[dst:], b[src:src+n])
++	copy(b[src:], b[end:])
++	b = b[:end]
++	return b
++}
+diff --git a/src/internal/fuzz/mutators_byteslice_test.go b/src/internal/fuzz/mutators_byteslice_test.go
+new file mode 100644
+index 0000000000..4b8652cf03
+--- /dev/null
++++ b/src/internal/fuzz/mutators_byteslice_test.go
+@@ -0,0 +1,171 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fuzz
++
++import (
++	"bytes"
++	"testing"
++)
++
++type mockRand struct {
++	counter int
++	b       bool
++}
++
++func (mr *mockRand) uint32() uint32 {
++	c := mr.counter
++	mr.counter++
++	return uint32(c)
++}
++
++func (mr *mockRand) intn(n int) int {
++	c := mr.counter
++	mr.counter++
++	return c % n
++}
++
++func (mr *mockRand) uint32n(n uint32) uint32 {
++	c := mr.counter
++	mr.counter++
++	return uint32(c) % n
++}
++
++func (mr *mockRand) exp2() int {
++	c := mr.counter
++	mr.counter++
++	return c
++}
++
++func (mr *mockRand) bool() bool {
++	b := mr.b
++	mr.b = !mr.b
++	return b
++}
++
++func TestByteSliceMutators(t *testing.T) {
++	for _, tc := range []struct {
++		name     string
++		mutator  func(*mutator, []byte) []byte
++		input    []byte
++		expected []byte
++	}{
++		{
++			name:     "byteSliceRemoveBytes",
++			mutator:  byteSliceRemoveBytes,
++			input:    []byte{1, 2, 3, 4},
++			expected: []byte{4},
++		},
++		{
++			name:     "byteSliceInsertRandomBytes",
++			mutator:  byteSliceInsertRandomBytes,
++			input:    make([]byte, 4, 8),
++			expected: []byte{3, 4, 5, 0, 0, 0, 0},
++		},
++		{
++			name:     "byteSliceDuplicateBytes",
++			mutator:  byteSliceDuplicateBytes,
++			input:    append(make([]byte, 0, 13), []byte{1, 2, 3, 4}...),
++			expected: []byte{1, 1, 2, 3, 4, 2, 3, 4},
++		},
++		{
++			name:     "byteSliceOverwriteBytes",
++			mutator:  byteSliceOverwriteBytes,
++			input:    []byte{1, 2, 3, 4},
++			expected: []byte{1, 1, 3, 4},
++		},
++		{
++			name:     "byteSliceBitFlip",
++			mutator:  byteSliceBitFlip,
++			input:    []byte{1, 2, 3, 4},
++			expected: []byte{3, 2, 3, 4},
++		},
++		{
++			name:     "byteSliceXORByte",
++			mutator:  byteSliceXORByte,
++			input:    []byte{1, 2, 3, 4},
++			expected: []byte{3, 2, 3, 4},
++		},
++		{
++			name:     "byteSliceSwapByte",
++			mutator:  byteSliceSwapByte,
++			input:    []byte{1, 2, 3, 4},
++			expected: []byte{2, 1, 3, 4},
++		},
++		{
++			name:     "byteSliceArithmeticUint8",
++			mutator:  byteSliceArithmeticUint8,
++			input:    []byte{1, 2, 3, 4},
++			expected: []byte{255, 2, 3, 4},
++		},
++		{
++			name:     "byteSliceArithmeticUint16",
++			mutator:  byteSliceArithmeticUint16,
++			input:    []byte{1, 2, 3, 4},
++			expected: []byte{1, 3, 3, 4},
++		},
++		{
++			name:     "byteSliceArithmeticUint32",
++			mutator:  byteSliceArithmeticUint32,
++			input:    []byte{1, 2, 3, 4},
++			expected: []byte{2, 2, 3, 4},
++		},
++		{
++			name:     "byteSliceArithmeticUint64",
++			mutator:  byteSliceArithmeticUint64,
++			input:    []byte{1, 2, 3, 4, 5, 6, 7, 8},
++			expected: []byte{2, 2, 3, 4, 5, 6, 7, 8},
++		},
++		{
++			name:     "byteSliceOverwriteInterestingUint8",
++			mutator:  byteSliceOverwriteInterestingUint8,
++			input:    []byte{1, 2, 3, 4},
++			expected: []byte{255, 2, 3, 4},
++		},
++		{
++			name:     "byteSliceOverwriteInterestingUint16",
++			mutator:  byteSliceOverwriteInterestingUint16,
++			input:    []byte{1, 2, 3, 4},
++			expected: []byte{255, 127, 3, 4},
++		},
++		{
++			name:     "byteSliceOverwriteInterestingUint32",
++			mutator:  byteSliceOverwriteInterestingUint32,
++			input:    []byte{1, 2, 3, 4},
++			expected: []byte{250, 0, 0, 250},
++		},
++		{
++			name:     "byteSliceInsertConstantBytes",
++			mutator:  byteSliceInsertConstantBytes,
++			input:    append(make([]byte, 0, 8), []byte{1, 2, 3, 4}...),
++			expected: []byte{3, 3, 3, 1, 2, 3, 4},
++		},
++		{
++			name:     "byteSliceOverwriteConstantBytes",
++			mutator:  byteSliceOverwriteConstantBytes,
++			input:    []byte{1, 2, 3, 4},
++			expected: []byte{3, 3, 3, 4},
++		},
++		{
++			name:     "byteSliceShuffleBytes",
++			mutator:  byteSliceShuffleBytes,
++			input:    []byte{1, 2, 3, 4},
++			expected: []byte{2, 3, 1, 4},
++		},
++		{
++			name:     "byteSliceSwapBytes",
++			mutator:  byteSliceSwapBytes,
++			input:    append(make([]byte, 0, 9), []byte{1, 2, 3, 4}...),
++			expected: []byte{2, 1, 3, 4},
++		},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			m := &mutator{r: &mockRand{}}
++			b := tc.mutator(m, tc.input)
++			if !bytes.Equal(b, tc.expected) {
++				t.Errorf("got %x, want %x", b, tc.expected)
++			}
++		})
++	}
++}
+diff --git a/src/internal/fuzz/pcg.go b/src/internal/fuzz/pcg.go
+index 18e553bc94..0b799aab02 100644
+--- a/src/internal/fuzz/pcg.go
++++ b/src/internal/fuzz/pcg.go
+@@ -13,6 +13,14 @@ import (
+ 	"time"
+ )
+ 
++type mutatorRand interface {
++	uint32() uint32
++	intn(int) int
++	uint32n(uint32) uint32
++	exp2() int
++	bool() bool
++}
++
+ // The functions in pcg implement a 32 bit PRNG with a 64 bit period: pcg xsh rr
+ // 64 32. See https://www.pcg-random.org/ for more information. This
+ // implementation is geared specifically towards the needs of fuzzing: Simple

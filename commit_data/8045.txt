@@ -9,7 +9,91 @@ Date:   Mon Apr 11 10:28:34 2011 -0400
     R=agl1
     CC=golang-dev, rsc
     https://golang.org/cl/4367049
-
+---
  src/pkg/asn1/marshal.go      | 26 ++++++++++++++++++++++++--
  src/pkg/asn1/marshal_test.go | 24 ++++++++++++++++++++++++
  2 files changed, 48 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/asn1/marshal.go b/src/pkg/asn1/marshal.go
+index dfcc15eb20..64cb0f2bbc 100644
+--- a/src/pkg/asn1/marshal.go
++++ b/src/pkg/asn1/marshal.go
+@@ -125,6 +125,28 @@ func int64Length(i int64) (numBytes int) {
+ 	return
+ }
+ 
++func marshalLength(out *forkableWriter, i int) (err os.Error) {
++	n := lengthLength(i)
++
++	for ; n > 0; n-- {
++		err = out.WriteByte(byte(i >> uint((n-1)*8)))
++		if err != nil {
++			return
++		}
++	}
++
++	return nil
++}
++
++func lengthLength(i int) (numBytes int) {
++	numBytes = 1
++	for i > 255 {
++		numBytes++
++		i >>= 8
++	}
++	return
++}
++
+ func marshalTagAndLength(out *forkableWriter, t tagAndLength) (err os.Error) {
+ 	b := uint8(t.class) << 6
+ 	if t.isCompound {
+@@ -149,12 +171,12 @@ func marshalTagAndLength(out *forkableWriter, t tagAndLength) (err os.Error) {
+ 	}
+ 
+ 	if t.length >= 128 {
+-		l := int64Length(int64(t.length))
++		l := lengthLength(t.length)
+ 		err = out.WriteByte(0x80 | byte(l))
+ 		if err != nil {
+ 			return
+ 		}
+-		err = marshalInt64(out, int64(t.length))
++		err = marshalLength(out, t.length)
+ 		if err != nil {
+ 			return
+ 		}
+diff --git a/src/pkg/asn1/marshal_test.go b/src/pkg/asn1/marshal_test.go
+index 85eafc9e4d..cd165d2035 100644
+--- a/src/pkg/asn1/marshal_test.go
++++ b/src/pkg/asn1/marshal_test.go
+@@ -77,6 +77,30 @@ var marshalTests = []marshalTest{
+ 	{ObjectIdentifier([]int{1, 2, 3, 4}), "06032a0304"},
+ 	{ObjectIdentifier([]int{1, 2, 840, 133549, 1, 1, 5}), "06092a864888932d010105"},
+ 	{"test", "130474657374"},
++	{
++		"" +
++			"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" +
++			"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" +
++			"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" +
++			"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", // This is 127 times 'x'
++		"137f" +
++			"7878787878787878787878787878787878787878787878787878787878787878" +
++			"7878787878787878787878787878787878787878787878787878787878787878" +
++			"7878787878787878787878787878787878787878787878787878787878787878" +
++			"78787878787878787878787878787878787878787878787878787878787878",
++	},
++	{
++		"" +
++			"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" +
++			"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" +
++			"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" +
++			"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", // This is 128 times 'x'
++		"138180" +
++			"7878787878787878787878787878787878787878787878787878787878787878" +
++			"7878787878787878787878787878787878787878787878787878787878787878" +
++			"7878787878787878787878787878787878787878787878787878787878787878" +
++			"7878787878787878787878787878787878787878787878787878787878787878",
++	},
+ 	{ia5StringTest{"test"}, "3006160474657374"},
+ 	{printableStringTest{"test"}, "3006130474657374"},
+ 	{printableStringTest{"test*"}, "30071305746573742a"},

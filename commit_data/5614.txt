@@ -7,7 +7,32 @@ Date:   Mon Jun 7 12:42:02 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/1535041
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index a7659cf1ed..f2d5744e47 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -26,6 +26,7 @@ Chris Lennert <calennert@gmail.com>
+ Christopher Wedgwood <cw@f00f.org>
+ Conrad Meyer <cemeyer@cs.washington.edu>
+ Daniel Fleischman <danielfleischman@gmail.com>
++Daniel Theophanes <kardianos@gmail.com>
+ David G. Andersen <dave.andersen@gmail.com>
+ David Titarenco <david.titarenco@gmail.com>
+ Dean Prichard <dean.prichard@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 367be4c734..c05d2b4a04 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -53,6 +53,7 @@ Christopher Wedgwood <cw@f00f.org>
+ Conrad Meyer <cemeyer@cs.washington.edu>
+ Daniel Fleischman <danielfleischman@gmail.com>
+ Daniel Nadasi <dnadasi@google.com>
++Daniel Theophanes <kardianos@gmail.com>
+ David G. Andersen <dave.andersen@gmail.com>
+ David Symonds <dsymonds@golang.org>
+ David Titarenco <david.titarenco@gmail.com>

@@ -21,9 +21,143 @@ Date:   Thu Aug 18 05:20:16 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/inline/inl.go | 67 ++++++++++++++++++----------------
  test/run.go                            |  1 +
  test/typeparam/issue49309.go           |  1 +
  test/typeparam/issue54497.go           | 19 ++++++++++
  4 files changed, 56 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 795486f7a2..ce667d3bed 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -722,44 +722,47 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
+ 		return n
+ 	}
+ 
+-	// Don't inline a function fn that has no shape parameters, but is passed at
+-	// least one shape arg. This means we must be inlining a non-generic function
+-	// fn that was passed into a generic function, and can be called with a shape
+-	// arg because it matches an appropriate type parameters. But fn may include
+-	// an interface conversion (that may be applied to a shape arg) that was not
+-	// apparent when we first created the instantiation of the generic function.
+-	// We can't handle this if we actually do the inlining, since we want to know
+-	// all interface conversions immediately after stenciling. So, we avoid
+-	// inlining in this case, see issue #49309. (1)
+-	//
+-	// See discussion on go.dev/cl/406475 for more background.
+-	if !fn.Type().Params().HasShape() {
+-		for _, arg := range n.Args {
+-			if arg.Type().HasShape() {
++	// The non-unified frontend has issues with inlining and shape parameters.
++	if base.Debug.Unified == 0 {
++		// Don't inline a function fn that has no shape parameters, but is passed at
++		// least one shape arg. This means we must be inlining a non-generic function
++		// fn that was passed into a generic function, and can be called with a shape
++		// arg because it matches an appropriate type parameters. But fn may include
++		// an interface conversion (that may be applied to a shape arg) that was not
++		// apparent when we first created the instantiation of the generic function.
++		// We can't handle this if we actually do the inlining, since we want to know
++		// all interface conversions immediately after stenciling. So, we avoid
++		// inlining in this case, see issue #49309. (1)
++		//
++		// See discussion on go.dev/cl/406475 for more background.
++		if !fn.Type().Params().HasShape() {
++			for _, arg := range n.Args {
++				if arg.Type().HasShape() {
++					if logopt.Enabled() {
++						logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(ir.CurFunc),
++							fmt.Sprintf("inlining function %v has no-shape params with shape args", ir.FuncName(fn)))
++					}
++					return n
++				}
++			}
++		} else {
++			// Don't inline a function fn that has shape parameters, but is passed no shape arg.
++			// See comments (1) above, and issue #51909.
++			inlineable := len(n.Args) == 0 // Function has shape in type, with no arguments can always be inlined.
++			for _, arg := range n.Args {
++				if arg.Type().HasShape() {
++					inlineable = true
++					break
++				}
++			}
++			if !inlineable {
+ 				if logopt.Enabled() {
+ 					logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(ir.CurFunc),
+-						fmt.Sprintf("inlining function %v has no-shape params with shape args", ir.FuncName(fn)))
++						fmt.Sprintf("inlining function %v has shape params with no-shape args", ir.FuncName(fn)))
+ 				}
+ 				return n
+ 			}
+ 		}
+-	} else {
+-		// Don't inline a function fn that has shape parameters, but is passed no shape arg.
+-		// See comments (1) above, and issue #51909.
+-		inlineable := len(n.Args) == 0 // Function has shape in type, with no arguments can always be inlined.
+-		for _, arg := range n.Args {
+-			if arg.Type().HasShape() {
+-				inlineable = true
+-				break
+-			}
+-		}
+-		if !inlineable {
+-			if logopt.Enabled() {
+-				logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(ir.CurFunc),
+-					fmt.Sprintf("inlining function %v has shape params with no-shape args", ir.FuncName(fn)))
+-			}
+-			return n
+-		}
+ 	}
+ 
+ 	if base.Flag.Cfg.Instrumenting && types.IsRuntimePkg(fn.Sym().Pkg) {
+diff --git a/test/run.go b/test/run.go
+index cdbe15c389..21f0f7d634 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -1990,6 +1990,7 @@ var go118Failures = setOf(
+ 	"fixedbugs/issue54343.go",  // 1.18 compiler assigns receiver parameter to global variable
+ 	"typeparam/nested.go",      // 1.18 compiler doesn't support function-local types with generics
+ 	"typeparam/issue51521.go",  // 1.18 compiler produces bad panic message and link error
++	"typeparam/issue54497.go",  // 1.18 compiler is more conservative about inlining due to repeated issues
+ 	"typeparam/mdempsky/16.go", // 1.18 compiler uses interface shape type in failed type assertions
+ 	"typeparam/mdempsky/17.go", // 1.18 compiler mishandles implicit conversions from range loops
+ 	"typeparam/mdempsky/18.go", // 1.18 compiler mishandles implicit conversions in select statements
+diff --git a/test/typeparam/issue49309.go b/test/typeparam/issue49309.go
+index 265e0bf525..16c97cd451 100644
+--- a/test/typeparam/issue49309.go
++++ b/test/typeparam/issue49309.go
+@@ -18,6 +18,7 @@ func myfunc(c string) {
+ 
+ //go:noinline
+ func test2(a interface{}) {
++	_ = a.(string)
+ }
+ 
+ func main() {
+diff --git a/test/typeparam/issue54497.go b/test/typeparam/issue54497.go
+new file mode 100644
+index 0000000000..1b24cd9afb
+--- /dev/null
++++ b/test/typeparam/issue54497.go
+@@ -0,0 +1,19 @@
++// errorcheck -0 -m
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that inlining works with generic functions.
++
++package testcase
++
++type C interface{ ~uint | ~uint32 | ~uint64 }
++
++func isAligned[T C](x, y T) bool { // ERROR "can inline isAligned\[uint\]" "can inline isAligned\[go\.shape\.uint\]" "inlining call to isAligned\[go\.shape\.uint\]"
++	return x%y == 0
++}
++
++func foo(x uint) bool { // ERROR "can inline foo"
++	return isAligned(x, 64) // ERROR "inlining call to isAligned\[go\.shape\.uint\]"
++}

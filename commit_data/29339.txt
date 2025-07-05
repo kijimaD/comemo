@@ -14,7 +14,7 @@ Date:   Wed Sep 7 11:39:31 2016 -0700
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/code.html         |  2 +-
  src/cmd/go/alldocs.go | 18 +++++++++---------
  src/cmd/go/build.go   |  2 +-
@@ -24,3 +24,203 @@ Date:   Wed Sep 7 11:39:31 2016 -0700
  src/cmd/go/main.go    |  2 +-
  src/go/build/build.go |  2 +-
  8 files changed, 26 insertions(+), 26 deletions(-)
+
+diff --git a/doc/code.html b/doc/code.html
+index fdca404ba4..b64bc1a142 100644
+--- a/doc/code.html
++++ b/doc/code.html
+@@ -149,7 +149,7 @@ $ <b>export PATH=$PATH:$GOPATH/bin</b>
+ <p>
+ To learn more about setting up the <code>GOPATH</code> environment variable,
+ please see
+-<a href="/cmd/go/#hdr-GOPATH_environment_variable"><code>go help gopath</code></a>
++<a href="/cmd/go/#hdr-GOPATH_environment_variable"><code>'go help gopath'</code></a>
+ </p>
+ 
+ <h3 id="ImportPaths">Import paths</h3>
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 9c7b9573d0..16c0028f77 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -514,7 +514,7 @@
+ //
+ // When checking out a new package, get creates the target directory
+ // GOPATH/src/<import-path>. If the GOPATH contains multiple entries,
+-// get uses the first one. See 'go help gopath'.
++// get uses the first one. For more details see: 'go help gopath'.
+ //
+ // When checking out or updating a package, get looks for a branch or tag
+ // that matches the locally installed version of Go. The most important
+@@ -1074,7 +1074,7 @@
+ // 		The operating system for which to compile code.
+ // 		Examples are linux, darwin, windows, netbsd.
+ // 	GOPATH
+-// 		See 'go help gopath'.
++// 		For more details see: 'go help gopath'.
+ // 	GORACE
+ // 		Options for the race detector.
+ // 		See https://golang.org/doc/articles/race_detector.html.
+@@ -1125,10 +1125,10 @@
+ //
+ // Import path syntax
+ //
+-// An import path (see 'go help packages') denotes a package
+-// stored in the local file system.  In general, an import path denotes
+-// either a standard package (such as "unicode/utf8") or a package
+-// found in one of the work spaces (see 'go help gopath').
++// An import path (see 'go help packages') denotes a package stored in the local
++// file system.  In general, an import path denotes either a standard package (such
++// as "unicode/utf8") or a package found in one of the work spaces (For more
++// details see: 'go help gopath').
+ //
+ // Relative import paths
+ //
+@@ -1260,8 +1260,8 @@
+ // same meta tag and then git clone https://code.org/r/p/exproj into
+ // GOPATH/src/example.org.
+ //
+-// New downloaded packages are written to the first directory
+-// listed in the GOPATH environment variable (see 'go help gopath').
++// New downloaded packages are written to the first directory listed in the GOPATH
++// environment variable (For more details see: 'go help gopath').
+ //
+ // The go command attempts to download the version of the
+ // package appropriate for the Go release being used.
+@@ -1305,7 +1305,7 @@
+ //
+ // Otherwise, the import path P denotes the package found in
+ // the directory DIR/src/P for some DIR listed in the GOPATH
+-// environment variable (see 'go help gopath').
++// environment variable (For more details see: 'go help gopath').
+ //
+ // If no import paths are given, the action applies to the
+ // package in the current directory.
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 3d0326b967..e2b018abba 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -605,7 +605,7 @@ func installPackages(args []string, forGet bool) {
+ 				errorf("go install: no install location for %s: hidden by %s", p.Dir, p.ConflictDir)
+ 			default:
+ 				errorf("go install: no install location for directory %s outside GOPATH\n"+
+-					"\tFor more details see: go help gopath", p.Dir)
++					"\tFor more details see: 'go help gopath'", p.Dir)
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index 05b6cb787e..572a865448 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -49,7 +49,7 @@ Get also accepts build flags to control the installation. See 'go help build'.
+ 
+ When checking out a new package, get creates the target directory
+ GOPATH/src/<import-path>. If the GOPATH contains multiple entries,
+-get uses the first one. See 'go help gopath'.
++get uses the first one. For more details see: 'go help gopath'.
+ 
+ When checking out or updating a package, get looks for a branch or tag
+ that matches the locally installed version of Go. The most important
+@@ -393,11 +393,11 @@ func downloadPackage(p *Package) error {
+ 		// Package not found. Put in first directory of $GOPATH.
+ 		list := filepath.SplitList(buildContext.GOPATH)
+ 		if len(list) == 0 {
+-			return fmt.Errorf("cannot download, $GOPATH not set. For more details see: go help gopath")
++			return fmt.Errorf("cannot download, $GOPATH not set. For more details see: 'go help gopath'")
+ 		}
+ 		// Guard against people setting GOPATH=$GOROOT.
+ 		if list[0] == goroot {
+-			return fmt.Errorf("cannot download, $GOPATH must not be set to $GOROOT. For more details see: go help gopath")
++			return fmt.Errorf("cannot download, $GOPATH must not be set to $GOROOT. For more details see: 'go help gopath'")
+ 		}
+ 		p.build.SrcRoot = filepath.Join(list[0], "src")
+ 		p.build.PkgRoot = filepath.Join(list[0], "pkg")
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 5d7e2e9f3a..2fda20ce03 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1622,8 +1622,8 @@ func TestMissingGOPATHIsReported(t *testing.T) {
+ 	defer tg.cleanup()
+ 	tg.setenv("GOPATH", "")
+ 	tg.runFail("install", "foo/quxx")
+-	if tg.grepCountBoth(`\(\$GOPATH not set\)$`) != 1 {
+-		t.Error(`go install foo/quxx expected error: ($GOPATH not set)`)
++	if tg.grepCountBoth(`\(\$GOPATH not set\. For more details see: 'go help gopath'\)$`) != 1 {
++		t.Error(`go install foo/quxx expected error: ($GOPATH not set. For more details see: 'go help gopath')`)
+ 	}
+ }
+ 
+diff --git a/src/cmd/go/help.go b/src/cmd/go/help.go
+index 056a0af112..d2b8444d8e 100644
+--- a/src/cmd/go/help.go
++++ b/src/cmd/go/help.go
+@@ -42,7 +42,7 @@ denotes the package in that directory.
+ 
+ Otherwise, the import path P denotes the package found in
+ the directory DIR/src/P for some DIR listed in the GOPATH
+-environment variable (see 'go help gopath').
++environment variable (For more details see: 'go help gopath').
+ 
+ If no import paths are given, the action applies to the
+ package in the current directory.
+@@ -102,10 +102,10 @@ var helpImportPath = &Command{
+ 	Short:     "import path syntax",
+ 	Long: `
+ 
+-An import path (see 'go help packages') denotes a package
+-stored in the local file system.  In general, an import path denotes
+-either a standard package (such as "unicode/utf8") or a package
+-found in one of the work spaces (see 'go help gopath').
++An import path (see 'go help packages') denotes a package stored in the local
++file system.  In general, an import path denotes either a standard package (such
++as "unicode/utf8") or a package found in one of the work spaces (For more
++details see: 'go help gopath').
+ 
+ Relative import paths
+ 
+@@ -237,8 +237,8 @@ the go tool will verify that https://example.org/?go-get=1 contains the
+ same meta tag and then git clone https://code.org/r/p/exproj into
+ GOPATH/src/example.org.
+ 
+-New downloaded packages are written to the first directory
+-listed in the GOPATH environment variable (see 'go help gopath').
++New downloaded packages are written to the first directory listed in the GOPATH
++environment variable (For more details see: 'go help gopath').
+ 
+ The go command attempts to download the version of the
+ package appropriate for the Go release being used.
+@@ -439,7 +439,7 @@ General-purpose environment variables:
+ 		The operating system for which to compile code.
+ 		Examples are linux, darwin, windows, netbsd.
+ 	GOPATH
+-		See 'go help gopath'.
++		For more details see: 'go help gopath'.
+ 	GORACE
+ 		Options for the race detector.
+ 		See https://golang.org/doc/articles/race_detector.html.
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 8fdc87d665..90e1a9d02d 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -147,7 +147,7 @@ func main() {
+ 				os.Exit(2)
+ 			}
+ 			if !filepath.IsAbs(p) {
+-				fmt.Fprintf(os.Stderr, "go: GOPATH entry is relative; must be absolute path: %q.\nRun 'go help gopath' for usage.\n", p)
++				fmt.Fprintf(os.Stderr, "go: GOPATH entry is relative; must be absolute path: %q.\nFor more details see: 'go help gopath'\n", p)
+ 				os.Exit(2)
+ 			}
+ 		}
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 93a91cbccc..5a14d1ac33 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -636,7 +636,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
+ 			format = "\t%s"
+ 		}
+ 		if len(tried.gopath) == 0 {
+-			paths = append(paths, "\t($GOPATH not set)")
++			paths = append(paths, "\t($GOPATH not set. For more details see: 'go help gopath')")
+ 		}
+ 		return p, fmt.Errorf("cannot find package %q in any of:\n%s", path, strings.Join(paths, "\n"))
+ 	}

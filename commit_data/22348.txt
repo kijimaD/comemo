@@ -7,6 +7,19 @@ Date:   Fri Mar 6 09:48:08 2015 -0800
     Change-Id: I18b78677b2ac9a82560d5d787225d4fc46d451d3
     Reviewed-on: https://go-review.googlesource.com/7050
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.5.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index e944e46c96..613f9b329e 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -26,6 +26,7 @@ testing/quick: support generation of arrays (https://golang.org/cl/3865)
+ Tools:
+ 
+ cmd/go: std wildcard now excludes commands in main repo (https://golang.org/cl/5550)
++cmd/go: .swig/.swigcxx files now require SWIG 3.0.6 or later
+ cmd/vet: better validation of struct tags (https://golang.org/cl/2685)
+ cmd/ld: no longer record build timestamp in Windows PE file header (https://golang.org/cl/3740)
+ 

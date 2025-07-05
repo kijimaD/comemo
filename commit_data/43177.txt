@@ -14,7 +14,52 @@ Date:   Sat Mar 14 00:37:20 2020 -0600
     Run-TryBot: Brian Kessler <brian.m.kessler@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/math/cmplx/cmath_test.go |  5 -----
  src/math/cmplx/huge_test.go  | 22 ++++++++++++++++++++++
  2 files changed, 22 insertions(+), 5 deletions(-)
+
+diff --git a/src/math/cmplx/cmath_test.go b/src/math/cmplx/cmath_test.go
+index 1b076c881c..d934ba5e57 100644
+--- a/src/math/cmplx/cmath_test.go
++++ b/src/math/cmplx/cmath_test.go
+@@ -834,11 +834,6 @@ func TestTan(t *testing.T) {
+ 			t.Errorf("Tan(%g) = %g, want %g", vc[i], f, tan[i])
+ 		}
+ 	}
+-	for i, x := range hugeIn {
+-		if f := Tan(x); !cSoclose(tanHuge[i], f, 3e-15) {
+-			t.Errorf("Tan(%g) = %g, want %g", x, f, tanHuge[i])
+-		}
+-	}
+ 	for i := 0; i < len(vcTanSC); i++ {
+ 		if f := Tan(vcTanSC[i]); !cAlike(tanSC[i], f) {
+ 			t.Errorf("Tan(%g) = %g, want %g", vcTanSC[i], f, tanSC[i])
+diff --git a/src/math/cmplx/huge_test.go b/src/math/cmplx/huge_test.go
+new file mode 100644
+index 0000000000..f8e60c265f
+--- /dev/null
++++ b/src/math/cmplx/huge_test.go
+@@ -0,0 +1,22 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Disabled for s390x because it uses assembly routines that are not
++// accurate for huge arguments.
++
++// +build !s390x
++
++package cmplx
++
++import (
++	"testing"
++)
++
++func TestTanHuge(t *testing.T) {
++	for i, x := range hugeIn {
++		if f := Tan(x); !cSoclose(tanHuge[i], f, 3e-15) {
++			t.Errorf("Tan(%g) = %g, want %g", x, f, tanHuge[i])
++		}
++	}
++}

@@ -20,7 +20,87 @@ Date:   Tue Jun 28 15:17:12 2022 -0400
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/export_test.go |  4 ++--
  src/runtime/metrics.go     | 33 +++++++++++++++++++++++++--------
  2 files changed, 27 insertions(+), 10 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 1626f99336..9639946fa9 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -312,9 +312,9 @@ func ReadMetricsSlow(memStats *MemStats, samplesp unsafe.Pointer, len, cap int)
+ 
+ 	// Initialize the metrics beforehand because this could
+ 	// allocate and skew the stats.
+-	semacquire(&metricsSema)
++	metricsLock()
+ 	initMetrics()
+-	semrelease(&metricsSema)
++	metricsUnlock()
+ 
+ 	systemstack(func() {
+ 		// Read memstats first. It's going to flush
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index 75ad318b07..986121b9c2 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -12,9 +12,12 @@ import (
+ )
+ 
+ var (
+-	// metrics is a map of runtime/metrics keys to
+-	// data used by the runtime to sample each metric's
+-	// value.
++	// metrics is a map of runtime/metrics keys to data used by the runtime
++	// to sample each metric's value. metricsInit indicates it has been
++	// initialized.
++	//
++	// These fields are protected by metricsSema which should be
++	// locked/unlocked with metricsLock() / metricsUnlock().
+ 	metricsSema uint32 = 1
+ 	metricsInit bool
+ 	metrics     map[string]metricData
+@@ -34,6 +37,23 @@ type metricData struct {
+ 	compute func(in *statAggregate, out *metricValue)
+ }
+ 
++func metricsLock() {
++	// Acquire the metricsSema but with handoff. Operations are typically
++	// expensive enough that queueing up goroutines and handing off between
++	// them will be noticeably better-behaved.
++	semacquire1(&metricsSema, true, 0, 0)
++	if raceenabled {
++		raceacquire(unsafe.Pointer(&metricsSema))
++	}
++}
++
++func metricsUnlock() {
++	if raceenabled {
++		racerelease(unsafe.Pointer(&metricsSema))
++	}
++	semrelease(&metricsSema)
++}
++
+ // initMetrics initializes the metrics map if it hasn't been yet.
+ //
+ // metricsSema must be held.
+@@ -570,10 +590,7 @@ func readMetrics(samplesp unsafe.Pointer, len int, cap int) {
+ 	sl := slice{samplesp, len, cap}
+ 	samples := *(*[]metricSample)(unsafe.Pointer(&sl))
+ 
+-	// Acquire the metricsSema but with handoff. This operation
+-	// is expensive enough that queueing up goroutines and handing
+-	// off between them will be noticeably better-behaved.
+-	semacquire1(&metricsSema, true, 0, 0)
++	metricsLock()
+ 
+ 	// Ensure the map is initialized.
+ 	initMetrics()
+@@ -597,5 +614,5 @@ func readMetrics(samplesp unsafe.Pointer, len int, cap int) {
+ 		data.compute(&agg, &sample.value)
+ 	}
+ 
+-	semrelease(&metricsSema)
++	metricsUnlock()
+ }

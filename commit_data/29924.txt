@@ -7,7 +7,49 @@ Date:   Mon Oct 17 13:34:40 2016 -0700
     Change-Id: I34b3650ee9512879ff7528336813a7850c46ea90
     Reviewed-on: https://go-review.googlesource.com/31311
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/devel/release.html  | 8 ++++++++
  doc/install-source.html | 4 ++--
  2 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 95b6ee07dd..6c1cb996bd 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -49,6 +49,14 @@ See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.7.1">Go
+ 1.7.1 milestone</a> on our issue tracker for details.
+ </p>
+ 
++<p>
++go1.7.2 (released 2016/10/17) includes fixes to the compiler, runtime,
++and the <code>crypto/cipher</code>, <code>crypto/tls</code>,
++<code>net/http</code>, and <code>strings</code> packages.
++See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.7.2">Go
++1.7.2 milestone</a> on our issue tracker for details.
++</p>
++
+ <h2 id="go1.6">go1.6 (released 2016/02/17)</h2>
+ 
+ <p>
+diff --git a/doc/install-source.html b/doc/install-source.html
+index e24a1e5702..9a7128cbce 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -203,7 +203,7 @@ To build without <code>cgo</code>, set the environment variable
+ Change to the directory that will be its parent
+ and make sure the <code>go</code> directory does not exist.
+ Then clone the repository and check out the latest release tag
+-(<code class="versionTag">go1.7.1</code>, for example):</p>
++(<code class="versionTag">go1.7.2</code>, for example):</p>
+ 
+ <pre>
+ $ git clone https://go.googlesource.com/go
+@@ -391,7 +391,7 @@ New releases are announced on the
+ <a href="//groups.google.com/group/golang-announce">golang-announce</a>
+ mailing list.
+ Each announcement mentions the latest release tag, for instance,
+-<code class="versionTag">go1.7.1</code>.
++<code class="versionTag">go1.7.2</code>.
+ </p>
+ 
+ <p>

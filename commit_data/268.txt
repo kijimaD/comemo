@@ -5,7 +5,7 @@ Date:   Mon Jun 30 14:39:47 2008 -0700
     makes stack traces work for segmented stacks
     
     SVN=125371
-
+---
  src/runtime/rt0_amd64.s        |  9 +++++++++
  src/runtime/rt1_amd64_darwin.c |  8 ++++----
  src/runtime/rt1_amd64_linux.c  |  2 +-
@@ -13,3 +13,167 @@ Date:   Mon Jun 30 14:39:47 2008 -0700
  src/runtime/runtime.c          |  2 +-
  src/runtime/runtime.h          |  3 ++-
  6 files changed, 58 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/rt0_amd64.s b/src/runtime/rt0_amd64.s
+index 18559eb78a..21c1aa9f1d 100644
+--- a/src/runtime/rt0_amd64.s
++++ b/src/runtime/rt0_amd64.s
+@@ -175,7 +175,16 @@ easy:
+ 	ADDQ	$8, SP
+ 	RET
+ 
++// marker.  must be here; used by traceback() to discover calls to _morestack
++TEXT _endmorestack(SB), 7, $-8
++	RET
++
+ TEXT	FLUSH(SB),7,$-8
+ 	RET
+ 
++TEXT	getu(SB),7,$-8
++	MOVQ	R15, AX
++	RET
++
++
+ GLOBL	peruser<>(SB),$64
+diff --git a/src/runtime/rt1_amd64_darwin.c b/src/runtime/rt1_amd64_darwin.c
+index b39c298ee7..9d03ce0559 100644
+--- a/src/runtime/rt1_amd64_darwin.c
++++ b/src/runtime/rt1_amd64_darwin.c
+@@ -145,11 +145,11 @@ sighandler(int32 sig, siginfo *info, void *context)
+         _STRUCT_X86_THREAD_STATE64 *ss = get___ss(uc_mcontext);
+ 
+ 	prints("\nFaulting address: 0x");  sys·printpointer(info->si_addr);
+-        prints("\npc: 0x");  sys·printpointer((void *)ss->__rip);
+-        prints("\n\n");
++	prints("\npc: 0x");  sys·printpointer((void *)ss->__rip);
++	prints("\n\n");
+         
+-	traceback((void *)ss->__rip, (void *)ss->__rsp);
+-        print_thread_state(ss);
++	traceback((void *)ss->__rip, (void *)ss->__rsp, (void*)ss->__r15);
++	print_thread_state(ss);
+         
+ 	sys·exit(2);
+ }
+diff --git a/src/runtime/rt1_amd64_linux.c b/src/runtime/rt1_amd64_linux.c
+index e7dfbc79b4..b31b89aa68 100644
+--- a/src/runtime/rt1_amd64_linux.c
++++ b/src/runtime/rt1_amd64_linux.c
+@@ -152,7 +152,7 @@ sighandler(int32 sig, siginfo* info, void** context)
+         prints("\npc: 0x");  sys·printpointer((void *)sc->rip);
+         prints("\n\n");
+         
+-	traceback((void *)sc->rip, (void *)sc->rsp);
++	traceback((void *)sc->rip, (void *)sc->rsp, (void *)sc->r15);
+         print_sigcontext(sc);
+ 
+ 	sys·breakpoint();
+diff --git a/src/runtime/rt2_amd64.c b/src/runtime/rt2_amd64.c
+index f544ddd213..795285d7de 100644
+--- a/src/runtime/rt2_amd64.c
++++ b/src/runtime/rt2_amd64.c
+@@ -8,22 +8,54 @@ extern int32	debug;
+ 
+ static int8 spmark[] = "\xa7\xf1\xd9\x2a\x82\xc8\xd8\xfe";
+ 
++typedef struct U U;
++struct U {
++	uint8*	stackguard;
++	uint8*	stackbase;
++	uint8*	istackguard;
++	uint8*	istackbase;
++};
++
++typedef struct Stktop Stktop;
++struct Stktop {
++	uint8*	oldbase;
++	uint8*	oldsp;
++	uint8*	magic;
++	uint8*	oldguard;
++};
++
++extern void _morestack();
++extern void _endmorestack();
++
+ void
+-traceback(uint8 *pc, uint8 *sp)
++traceback(uint8 *pc, uint8 *sp, void* r15)
+ {
+ 	int32 spoff;
+ 	int8* spp;
++	uint8* callpc;
+ 	int32 counter;
+ 	int32 i;
+ 	int8* name;
++	U u;
++	Stktop *stktop;
+ 
++	// store local copy of per-process data block that we can write as we unwind
++	mcpy((byte*)&u, (byte*)r15, sizeof(U));
+ 
+ 	counter = 0;
+ 	name = "panic";
+ 	for(;;){
+-		prints("0x");
+-		sys·printpointer(pc);
+-		prints("?zi\n");
++		callpc = pc;
++		if((uint8*)_morestack < pc && pc < (uint8*)_endmorestack) {
++			// call site in _morestack(); pop to earlier stack block to get true caller
++			stktop = (Stktop*)u.stackbase;
++			u.stackbase = stktop->oldbase;
++			u.stackguard = stktop->oldguard;
++			sp = stktop->oldsp;
++			pc = ((uint8**)sp)[1];
++			sp += 16;  // two irrelevant calls on stack - morestack, plus the call morestack made
++			continue;
++		}
+ 		/* find SP offset by stepping back through instructions to SP offset marker */
+ 		while(pc > (uint8*)0x1000+sizeof spmark-1) {
+ 			for(spp = spmark; *spp != '\0' && *pc++ == (uint8)*spp++; )
+@@ -43,7 +75,11 @@ traceback(uint8 *pc, uint8 *sp)
+ 		}
+ 		if((pc = ((uint8**)sp)[-1]) <= (uint8*)0x1000)
+ 			break;
+-		/* print args for this frame */
++
++		/* print this frame */
++		prints("0x");
++		sys·printpointer(callpc);
++		prints("?zi\n");
+ 		prints("\t");
+ 		prints(name);
+ 		prints("(");
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index f1d7fc385e..3f9e8c2741 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -18,7 +18,7 @@ sys·panicl(int32 lno)
+ 	sys·printpc(&lno);
+ 	prints("\n");
+ 	sp = (uint8*)&lno;
+-	traceback(sys·getcallerpc(&lno), sp);
++	traceback(sys·getcallerpc(&lno), sp, getu());
+ 	sys·breakpoint();
+ 	sys·exit(2);
+ }
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index bc183815f4..f64353e22a 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -93,13 +93,14 @@ extern int32 debug;
+  * very low level c-called
+  */
+ void	FLUSH(void*);
++void*	getu(void);
+ void	throw(int8*);
+ void	prints(int8*);
+ void	mcpy(byte*, byte*, uint32);
+ void*	mal(uint32);
+ uint32	cmpstring(string, string);
+ void	initsig(void);
+-void	traceback(uint8 *pc, uint8 *sp);
++void	traceback(uint8 *pc, uint8 *sp, void* up);
+ int32	open(byte*, int32);
+ int32	read(int32, void*, int32);
+ void	close(int32);

@@ -14,9 +14,152 @@ Date:   Wed Jun 12 21:54:53 2024 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/592204
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/covdata/dump.go                    |  2 +-
  src/internal/coverage/cfile/testsupport.go |  2 +-
  src/internal/coverage/cformat/fmt_test.go  | 26 ++++++++++++++++++++++----
  src/internal/coverage/cformat/format.go    | 21 ++++++++++++++-------
  4 files changed, 38 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/covdata/dump.go b/src/cmd/covdata/dump.go
+index a51762f0d1..cbbeae0a80 100644
+--- a/src/cmd/covdata/dump.go
++++ b/src/cmd/covdata/dump.go
+@@ -325,7 +325,7 @@ func (d *dstate) Finish() {
+ 	// d.format maybe nil here if the specified input dir was empty.
+ 	if d.format != nil {
+ 		if d.cmd == percentMode {
+-			d.format.EmitPercent(os.Stdout, "", false, false)
++			d.format.EmitPercent(os.Stdout, nil, "", false, false)
+ 		}
+ 		if d.cmd == funcMode {
+ 			d.format.EmitFuncs(os.Stdout)
+diff --git a/src/internal/coverage/cfile/testsupport.go b/src/internal/coverage/cfile/testsupport.go
+index a5119187a2..72d09150cf 100644
+--- a/src/internal/coverage/cfile/testsupport.go
++++ b/src/internal/coverage/cfile/testsupport.go
+@@ -103,7 +103,7 @@ func ProcessCoverTestDir(dir string, cfile string, cm string, cpkg string, w io.
+ 	}
+ 
+ 	// Emit percent.
+-	if err := ts.cf.EmitPercent(w, cpkg, true, true); err != nil {
++	if err := ts.cf.EmitPercent(w, nil, cpkg, true, true); err != nil {
+ 		return err
+ 	}
+ 
+diff --git a/src/internal/coverage/cformat/fmt_test.go b/src/internal/coverage/cformat/fmt_test.go
+index f5ed01b3b0..d296939d5c 100644
+--- a/src/internal/coverage/cformat/fmt_test.go
++++ b/src/internal/coverage/cformat/fmt_test.go
+@@ -66,7 +66,7 @@ lit.go:99.0,100.0 1 0`)
+ 
+ 	// Percent output with no aggregation.
+ 	noCoverPkg := ""
+-	if err := fm.EmitPercent(&b2, noCoverPkg, false, false); err != nil {
++	if err := fm.EmitPercent(&b2, nil, noCoverPkg, false, false); err != nil {
+ 		t.Fatalf("EmitPercent returned %v", err)
+ 	}
+ 	wantPercent := strings.Fields(`
+@@ -81,7 +81,7 @@ lit.go:99.0,100.0 1 0`)
+ 
+ 	// Percent mode with aggregation.
+ 	withCoverPkg := " in ./..."
+-	if err := fm.EmitPercent(&b3, withCoverPkg, false, true); err != nil {
++	if err := fm.EmitPercent(&b3, nil, withCoverPkg, false, true); err != nil {
+ 		t.Fatalf("EmitPercent returned %v", err)
+ 	}
+ 	wantPercent = strings.Fields(`
+@@ -110,6 +110,24 @@ total		(statements)	62.5%`)
+ 		t.Logf("perc2 is %s\n", b3.String())
+ 		t.Logf("funcs is %s\n", b4.String())
+ 	}
++
++	// Percent output with specific packages selected.
++	{
++		var b strings.Builder
++		selpkgs := []string{"foo/bar", "my/pack1"}
++		if err := fm.EmitPercent(&b, selpkgs, noCoverPkg, false, false); err != nil {
++			t.Fatalf("EmitPercent returned %v", err)
++		}
++		wantPercent := strings.Fields(`
++       	my/pack1		coverage: 66.7% of statements
++`)
++		gotPercent := strings.Fields(b.String())
++		if !slices.Equal(wantPercent, gotPercent) {
++			t.Errorf("emit percent: got:\n%+v\nwant:\n%+v\n",
++				gotPercent, wantPercent)
++		}
++	}
++
+ }
+ 
+ func TestEmptyPackages(t *testing.T) {
+@@ -122,7 +140,7 @@ func TestEmptyPackages(t *testing.T) {
+ 	{
+ 		var b strings.Builder
+ 		noCoverPkg := ""
+-		if err := fm.EmitPercent(&b, noCoverPkg, true, false); err != nil {
++		if err := fm.EmitPercent(&b, nil, noCoverPkg, true, false); err != nil {
+ 			t.Fatalf("EmitPercent returned %v", err)
+ 		}
+ 		wantPercent := strings.Fields(`
+@@ -140,7 +158,7 @@ func TestEmptyPackages(t *testing.T) {
+ 	{
+ 		var b strings.Builder
+ 		noCoverPkg := ""
+-		if err := fm.EmitPercent(&b, noCoverPkg, true, true); err != nil {
++		if err := fm.EmitPercent(&b, nil, noCoverPkg, true, true); err != nil {
+ 			t.Fatalf("EmitPercent returned %v", err)
+ 		}
+ 		wantPercent := strings.Fields(`
+diff --git a/src/internal/coverage/cformat/format.go b/src/internal/coverage/cformat/format.go
+index dcbe584c0b..0f9e981df8 100644
+--- a/src/internal/coverage/cformat/format.go
++++ b/src/internal/coverage/cformat/format.go
+@@ -23,7 +23,7 @@ package cformat
+ //				}
+ //			}
+ //		}
+-//		myformatter.EmitPercent(os.Stdout, "", true, true)
++//		myformatter.EmitPercent(os.Stdout, nil, "", true, true)
+ //		myformatter.EmitTextual(somefile)
+ //
+ // These apis are linked into tests that are built with "-cover", and
+@@ -199,17 +199,21 @@ func (fm *Formatter) EmitTextual(w io.Writer) error {
+ 	return nil
+ }
+ 
+-// EmitPercent writes out a "percentage covered" string to the writer 'w'.
+-func (fm *Formatter) EmitPercent(w io.Writer, covpkgs string, noteEmpty bool, aggregate bool) error {
+-	pkgs := make([]string, 0, len(fm.pm))
+-	for importpath := range fm.pm {
+-		pkgs = append(pkgs, importpath)
++// EmitPercent writes out a "percentage covered" string to the writer
++// 'w', selecting the set of packages in 'pkgs' and suffixing the
++// printed string with 'inpkgs'.
++func (fm *Formatter) EmitPercent(w io.Writer, pkgs []string, inpkgs string, noteEmpty bool, aggregate bool) error {
++	if len(pkgs) == 0 {
++		pkgs = make([]string, 0, len(fm.pm))
++		for importpath := range fm.pm {
++			pkgs = append(pkgs, importpath)
++		}
+ 	}
+ 
+ 	rep := func(cov, tot uint64) error {
+ 		if tot != 0 {
+ 			if _, err := fmt.Fprintf(w, "coverage: %.1f%% of statements%s\n",
+-				100.0*float64(cov)/float64(tot), covpkgs); err != nil {
++				100.0*float64(cov)/float64(tot), inpkgs); err != nil {
+ 				return err
+ 			}
+ 		} else if noteEmpty {
+@@ -224,6 +228,9 @@ func (fm *Formatter) EmitPercent(w io.Writer, covpkgs string, noteEmpty bool, ag
+ 	var totalStmts, coveredStmts uint64
+ 	for _, importpath := range pkgs {
+ 		p := fm.pm[importpath]
++		if p == nil {
++			continue
++		}
+ 		if !aggregate {
+ 			totalStmts, coveredStmts = 0, 0
+ 		}

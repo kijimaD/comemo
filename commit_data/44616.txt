@@ -14,9 +14,134 @@ Date:   Tue May 26 14:40:44 2020 +1000
     Run-TryBot: Joel Sing <joel@sing.id.au>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/elf.go                   |  1 +
  src/cmd/link/internal/ld/elf_test.go              | 55 +++++++++++++++++++++++
  src/cmd/link/internal/ld/testdata/issue39256/x.go | 20 +++++++++
  src/cmd/link/internal/ld/testdata/issue39256/x.s  | 10 +++++
  4 files changed, 86 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 957f5081f6..2862f65f9f 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -2378,6 +2378,7 @@ func elfadddynsym(ldr *loader.Loader, target *Target, syms *ArchSyms, s loader.S
+ 		if target.Arch.Family == sys.AMD64 && !cgoeDynamic && dil != "" && !seenlib[dil] {
+ 			du := ldr.MakeSymbolUpdater(syms.Dynamic)
+ 			Elfwritedynent(target.Arch, du, DT_NEEDED, uint64(dstru.Addstring(dil)))
++			seenlib[dil] = true
+ 		}
+ 	} else {
+ 
+diff --git a/src/cmd/link/internal/ld/elf_test.go b/src/cmd/link/internal/ld/elf_test.go
+index 8e86beb1ec..37f0e77336 100644
+--- a/src/cmd/link/internal/ld/elf_test.go
++++ b/src/cmd/link/internal/ld/elf_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
++	"runtime"
+ 	"testing"
+ )
+ 
+@@ -77,3 +78,57 @@ func main() {
+ 		t.Fatalf("Unexpected sh info, want greater than 0, got: %d", section.Info)
+ 	}
+ }
++
++func TestNoDuplicateNeededEntries(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
++
++	// run this test on just a small set of platforms (no need to test it
++	// across the board given the nature of the test).
++	pair := runtime.GOOS + "-" + runtime.GOARCH
++	switch pair {
++	case "linux-amd64", "freebsd-amd64", "openbsd-amd64":
++	default:
++		t.Skip("no need for test on " + pair)
++	}
++
++	t.Parallel()
++
++	dir, err := ioutil.TempDir("", "no-dup-needed")
++	if err != nil {
++		t.Fatalf("Failed to create temp dir: %v", err)
++	}
++	defer os.RemoveAll(dir)
++
++	wd, err := os.Getwd()
++	if err != nil {
++		t.Fatalf("Failed to get working directory: %v", err)
++	}
++
++	path := filepath.Join(dir, "x")
++	argv := []string{"build", "-o", path, filepath.Join(wd, "testdata", "issue39256")}
++	out, err := exec.Command(testenv.GoToolPath(t), argv...).CombinedOutput()
++	if err != nil {
++		t.Fatalf("Build failure: %s\n%s\n", err, string(out))
++	}
++
++	f, err := elf.Open(path)
++	if err != nil {
++		t.Fatalf("Failed to open ELF file: %v", err)
++	}
++	libs, err := f.ImportedLibraries()
++	if err != nil {
++		t.Fatalf("Failed to read imported libraries: %v", err)
++	}
++
++	var count int
++	for _, lib := range libs {
++		if lib == "libc.so" {
++			count++
++		}
++	}
++
++	if got, want := count, 1; got != want {
++		t.Errorf("Got %d entries for `libc.so`, want %d", got, want)
++	}
++}
+diff --git a/src/cmd/link/internal/ld/testdata/issue39256/x.go b/src/cmd/link/internal/ld/testdata/issue39256/x.go
+new file mode 100644
+index 0000000000..d8562ad172
+--- /dev/null
++++ b/src/cmd/link/internal/ld/testdata/issue39256/x.go
+@@ -0,0 +1,20 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	_ "unsafe"
++)
++
++//go:cgo_import_dynamic libc_getpid getpid "libc.so"
++//go:cgo_import_dynamic libc_kill kill "libc.so"
++//go:cgo_import_dynamic libc_close close "libc.so"
++//go:cgo_import_dynamic libc_open open "libc.so"
++
++func trampoline()
++
++func main() {
++	trampoline()
++}
+diff --git a/src/cmd/link/internal/ld/testdata/issue39256/x.s b/src/cmd/link/internal/ld/testdata/issue39256/x.s
+new file mode 100644
+index 0000000000..41a54b2e04
+--- /dev/null
++++ b/src/cmd/link/internal/ld/testdata/issue39256/x.s
+@@ -0,0 +1,10 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT ·trampoline(SB),0,$0
++	CALL	libc_getpid(SB)
++	CALL	libc_kill(SB)
++	CALL	libc_open(SB)
++	CALL	libc_close(SB)
++	RET

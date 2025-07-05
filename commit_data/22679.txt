@@ -9,10 +9,147 @@ Date:   Thu Apr 2 12:15:03 2015 +0900
     Change-Id: I8dbd90270e08728ab309ab88a3030e0f8e547175
     Reviewed-on: https://go-review.googlesource.com/8394
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/dial_test.go       |  3 ---
  src/net/dialgoogle_test.go |  4 ----
  src/net/lookup_test.go     |  5 -----
  src/net/main_test.go       | 21 +++++++++++++++++++++
  src/net/server_test.go     |  7 -------
  5 files changed, 21 insertions(+), 19 deletions(-)
+
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index 15ee71b9a0..39e61d5734 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -6,7 +6,6 @@ package net
+ 
+ import (
+ 	"bytes"
+-	"flag"
+ 	"fmt"
+ 	"io"
+ 	"os"
+@@ -77,8 +76,6 @@ func TestSelfConnect(t *testing.T) {
+ 	}
+ }
+ 
+-var runErrorTest = flag.Bool("run_error_test", false, "let TestDialError check for dns errors")
+-
+ type DialErrorTest struct {
+ 	Net     string
+ 	Raddr   string
+diff --git a/src/net/dialgoogle_test.go b/src/net/dialgoogle_test.go
+index df5895afa7..084de9f444 100644
+--- a/src/net/dialgoogle_test.go
++++ b/src/net/dialgoogle_test.go
+@@ -5,7 +5,6 @@
+ package net
+ 
+ import (
+-	"flag"
+ 	"fmt"
+ 	"io"
+ 	"strings"
+@@ -13,9 +12,6 @@ import (
+ 	"testing"
+ )
+ 
+-// If an IPv6 tunnel is running, we can try dialing a real IPv6 address.
+-var testIPv6 = flag.Bool("ipv6", false, "assume ipv6 tunnel is present")
+-
+ func TestResolveGoogle(t *testing.T) {
+ 	if testing.Short() || !*testExternal {
+ 		t.Skip("skipping test to avoid external network")
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 430adfd476..658b32a885 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -8,15 +8,12 @@
+ package net
+ 
+ import (
+-	"flag"
+ 	"fmt"
+ 	"strings"
+ 	"testing"
+ 	"time"
+ )
+ 
+-var testExternal = flag.Bool("external", true, "allow use of external networks during long test")
+-
+ var lookupGoogleSRVTests = []struct {
+ 	service, proto, name string
+ 	cname, target        string
+@@ -232,8 +229,6 @@ func TestReverseAddress(t *testing.T) {
+ 	}
+ }
+ 
+-var testDNSFlood = flag.Bool("dnsflood", false, "whether to test dns query flooding")
+-
+ func TestLookupIPDeadline(t *testing.T) {
+ 	if !*testDNSFlood {
+ 		t.Skip("test disabled; use -dnsflood to enable")
+diff --git a/src/net/main_test.go b/src/net/main_test.go
+index 3ea27f1791..2948c4ecd8 100644
+--- a/src/net/main_test.go
++++ b/src/net/main_test.go
+@@ -5,6 +5,7 @@
+ package net
+ 
+ import (
++	"flag"
+ 	"fmt"
+ 	"net/internal/socktest"
+ 	"os"
+@@ -22,6 +23,26 @@ var (
+ 	testHookUninstaller sync.Once
+ )
+ 
++var (
++	// Do not test datagrams with empty payload by default.
++	// It depends on each platform implementation whether generic
++	// read, socket recv system calls return the result of zero
++	// byte read.
++	testDatagram = flag.Bool("datagram", false, "whether to test UDP and unixgram")
++
++	testDNSFlood = flag.Bool("dnsflood", false, "whether to test DNS query flooding")
++
++	testExternal = flag.Bool("external", true, "allow use of external networks during long test")
++
++	// If external IPv6 connectivity exists, we can try dialing
++	// non-node/interface local scope IPv6 addresses.
++	testIPv6 = flag.Bool("ipv6", false, "assume external IPv6 connectivity exists")
++
++	// BUG: TestDialError has been broken, and so this flag
++	// exists. We should fix the test and remove this flag soon.
++	runErrorTest = flag.Bool("run_error_test", false, "let TestDialError check for DNS errors")
++)
++
+ func TestMain(m *testing.M) {
+ 	installTestHooks()
+ 
+diff --git a/src/net/server_test.go b/src/net/server_test.go
+index 479c181248..215d59d29f 100644
+--- a/src/net/server_test.go
++++ b/src/net/server_test.go
+@@ -5,7 +5,6 @@
+ package net
+ 
+ import (
+-	"flag"
+ 	"io"
+ 	"os"
+ 	"testing"
+@@ -201,12 +200,6 @@ func runStreamConnClient(t *testing.T, net, taddr string, isEmpty bool) {
+ 	}
+ }
+ 
+-// Do not test empty datagrams by default.
+-// It causes unexplained timeouts on some systems,
+-// including Snow Leopard.  I think that the kernel
+-// doesn't quite expect them.
+-var testDatagram = flag.Bool("datagram", false, "whether to test udp and unixgram")
+-
+ var datagramPacketConnServerTests = []struct {
+ 	snet  string // server side
+ 	saddr string

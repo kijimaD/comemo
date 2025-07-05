@@ -15,6 +15,33 @@ Date:   Mon Oct 17 16:03:27 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/dcl.go | 15 ---------------
  1 file changed, 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index d385e76fc9..70f3d3c667 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -506,21 +506,6 @@ func ifacedcl(n *Node) {
+ 	if isblank(n.Left) {
+ 		yyerror("methods must have a unique non-blank name")
+ 	}
+-
+-	n.Func = new(Func)
+-	n.Func.FCurfn = Curfn
+-	dclcontext = PPARAM
+-
+-	funcstart(n)
+-	funcargs(n.Right)
+-
+-	// funcbody is normally called after the parser has
+-	// seen the body of a function but since an interface
+-	// field declaration does not have a body, we must
+-	// call it now to pop the current declaration context.
+-	dclcontext = PAUTO
+-
+-	funcbody(n)
+ }
+ 
+ // declare the function proper

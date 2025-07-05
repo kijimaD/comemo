@@ -22,10 +22,190 @@ Date:   Thu Apr 20 02:41:08 2023 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/export_test.go      |  1 +
  src/runtime/mgcscavenge.go      | 31 +++++++++++++++++++++++++++----
  src/runtime/mpagealloc.go       |  6 ++++--
  src/runtime/mpagealloc_32bit.go | 35 +++++++++++++++++++++++------------
  src/runtime/mpagealloc_64bit.go |  8 ++++----
  5 files changed, 59 insertions(+), 22 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 1045d510ef..320aff869a 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1641,6 +1641,7 @@ func NewScavengeIndex(min, max ChunkIdx) *ScavengeIndex {
+ 	s.i.chunks = make([]atomicScavChunkData, max)
+ 	s.i.min.Store(uintptr(min))
+ 	s.i.max.Store(uintptr(max))
++	s.i.minHeapIdx.Store(uintptr(min))
+ 	s.i.test = true
+ 	return s
+ }
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 664c933733..782a2e696e 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -1011,9 +1011,14 @@ type scavengeIndex struct {
+ 	// threshold it immediately becomes unavailable for scavenging in the current cycle as
+ 	// well as the next.
+ 	//
++	// [min, max) represents the range of chunks that is safe to access (i.e. will not cause
++	// a fault). As an optimization minHeapIdx represents the true minimum chunk that has been
++	// mapped, since min is likely rounded down to include the system page containing minHeapIdx.
++	//
+ 	// For a chunk size of 4 MiB this structure will only use 2 MiB for a 1 TiB contiguous heap.
+-	chunks   []atomicScavChunkData
+-	min, max atomic.Uintptr
++	chunks     []atomicScavChunkData
++	min, max   atomic.Uintptr
++	minHeapIdx atomic.Uintptr
+ 
+ 	// searchAddr* is the maximum address (in the offset address space, so we have a linear
+ 	// view of the address space; see mranges.go:offAddr) containing memory available to
+@@ -1056,10 +1061,27 @@ type scavengeIndex struct {
+ }
+ 
+ // init initializes the scavengeIndex.
+-func (s *scavengeIndex) init() {
++//
++// Returns the amount added to sysStat.
++func (s *scavengeIndex) init(test bool, sysStat *sysMemStat) uintptr {
+ 	s.searchAddrBg.Clear()
+ 	s.searchAddrForce.Clear()
+ 	s.freeHWM = minOffAddr
++	s.test = test
++	return s.sysInit(test, sysStat)
++}
++
++// sysGrow updates the index's backing store in response to a heap growth.
++//
++// Returns the amount of memory added to sysStat.
++func (s *scavengeIndex) grow(base, limit uintptr, sysStat *sysMemStat) uintptr {
++	// Update minHeapIdx. Note that even if there's no mapping work to do,
++	// we may still have a new, lower minimum heap address.
++	minHeapIdx := s.minHeapIdx.Load()
++	if baseIdx := uintptr(chunkIndex(base)); minHeapIdx == 0 || baseIdx < minHeapIdx {
++		s.minHeapIdx.Store(baseIdx)
++	}
++	return s.sysGrow(base, limit, sysStat)
+ }
+ 
+ // find returns the highest chunk index that may contain pages available to scavenge.
+@@ -1077,8 +1099,9 @@ func (s *scavengeIndex) find(force bool) (chunkIdx, uint) {
+ 
+ 	// Starting from searchAddr's chunk, iterate until we find a chunk with pages to scavenge.
+ 	gen := s.gen
+-	min := chunkIdx(s.min.Load())
++	min := chunkIdx(s.minHeapIdx.Load())
+ 	start := chunkIndex(uintptr(searchAddr))
++	// N.B. We'll never map the 0'th chunk, so minHeapIdx ensures this loop overflow.
+ 	for i := start; i >= min; i-- {
+ 		// Skip over chunks.
+ 		if !s.chunks[i].load().shouldScavenge(gen, force) {
+diff --git a/src/runtime/mpagealloc.go b/src/runtime/mpagealloc.go
+index 7c4d8ba2c9..12ae474a4d 100644
+--- a/src/runtime/mpagealloc.go
++++ b/src/runtime/mpagealloc.go
+@@ -322,11 +322,10 @@ func (p *pageAlloc) init(mheapLock *mutex, sysStat *sysMemStat, test bool) {
+ 	p.mheapLock = mheapLock
+ 
+ 	// Initialize the scavenge index.
+-	p.scav.index.init()
++	p.summaryMappedReady += p.scav.index.init(test, sysStat)
+ 
+ 	// Set if we're in a test.
+ 	p.test = test
+-	p.scav.index.test = test
+ }
+ 
+ // tryChunkOf returns the bitmap data for the given chunk.
+@@ -363,6 +362,9 @@ func (p *pageAlloc) grow(base, size uintptr) {
+ 	// We just update a bunch of additional metadata here.
+ 	p.sysGrow(base, limit)
+ 
++	// Grow the scavenge index.
++	p.summaryMappedReady += p.scav.index.grow(base, limit, p.sysStat)
++
+ 	// Update p.start and p.end.
+ 	// If no growth happened yet, start == 0. This is generally
+ 	// safe since the zero page is unmapped.
+diff --git a/src/runtime/mpagealloc_32bit.go b/src/runtime/mpagealloc_32bit.go
+index 03990e47cf..900146e363 100644
+--- a/src/runtime/mpagealloc_32bit.go
++++ b/src/runtime/mpagealloc_32bit.go
+@@ -93,18 +93,6 @@ func (p *pageAlloc) sysInit(test bool) {
+ 
+ 		reservation = add(reservation, uintptr(entries)*pallocSumBytes)
+ 	}
+-
+-	if test {
+-		// Set up the scavenge index via sysAlloc so the test can free it later.
+-		scavIndexSize := uintptr(len(scavengeIndexArray)) * unsafe.Sizeof(atomicScavChunkData{})
+-		p.scav.index.chunks = ((*[(1 << heapAddrBits) / pallocChunkBytes]atomicScavChunkData)(sysAlloc(scavIndexSize, p.sysStat)))[:]
+-		p.summaryMappedReady += scavIndexSize
+-	} else {
+-		// Set up the scavenge index.
+-		p.scav.index.chunks = scavengeIndexArray[:]
+-	}
+-	p.scav.index.min.Store(1) // The 0th chunk is never going to be mapped for the heap.
+-	p.scav.index.max.Store(uintptr(len(p.scav.index.chunks)))
+ }
+ 
+ // See mpagealloc_64bit.go for details.
+@@ -127,3 +115,26 @@ func (p *pageAlloc) sysGrow(base, limit uintptr) {
+ 		}
+ 	}
+ }
++
++// sysInit initializes the scavengeIndex' chunks array.
++//
++// Returns the amount of memory added to sysStat.
++func (s *scavengeIndex) sysInit(test bool, sysStat *sysMemStat) (mappedReady uintptr) {
++	if test {
++		// Set up the scavenge index via sysAlloc so the test can free it later.
++		scavIndexSize := uintptr(len(scavengeIndexArray)) * unsafe.Sizeof(atomicScavChunkData{})
++		s.chunks = ((*[(1 << heapAddrBits) / pallocChunkBytes]atomicScavChunkData)(sysAlloc(scavIndexSize, sysStat)))[:]
++		mappedReady = scavIndexSize
++	} else {
++		// Set up the scavenge index.
++		s.chunks = scavengeIndexArray[:]
++	}
++	s.min.Store(1) // The 0th chunk is never going to be mapped for the heap.
++	s.max.Store(uintptr(len(s.chunks)))
++	return
++}
++
++// sysGrow is a no-op on 32-bit platforms.
++func (s *scavengeIndex) sysGrow(base, limit uintptr, sysStat *sysMemStat) uintptr {
++	return 0
++}
+diff --git a/src/runtime/mpagealloc_64bit.go b/src/runtime/mpagealloc_64bit.go
+index a6f1954679..0ebeafad61 100644
+--- a/src/runtime/mpagealloc_64bit.go
++++ b/src/runtime/mpagealloc_64bit.go
+@@ -85,9 +85,6 @@ func (p *pageAlloc) sysInit(test bool) {
+ 		sl := notInHeapSlice{(*notInHeap)(r), 0, entries}
+ 		p.summary[l] = *(*[]pallocSum)(unsafe.Pointer(&sl))
+ 	}
+-
+-	// Set up the scavenge index.
+-	p.scav.index.sysInit()
+ }
+ 
+ // sysGrow performs architecture-dependent operations on heap
+@@ -249,10 +246,13 @@ func (s *scavengeIndex) sysGrow(base, limit uintptr, sysStat *sysMemStat) uintpt
+ }
+ 
+ // sysInit initializes the scavengeIndex' chunks array.
+-func (s *scavengeIndex) sysInit() {
++//
++// Returns the amount of memory added to sysStat.
++func (s *scavengeIndex) sysInit(test bool, sysStat *sysMemStat) uintptr {
+ 	n := uintptr(1<<heapAddrBits) / pallocChunkBytes
+ 	nbytes := n * unsafe.Sizeof(atomicScavChunkData{})
+ 	r := sysReserve(nil, nbytes)
+ 	sl := notInHeapSlice{(*notInHeap)(r), int(n), int(n)}
+ 	s.chunks = *(*[]atomicScavChunkData)(unsafe.Pointer(&sl))
++	return 0 // All memory above is mapped Reserved.
+ }

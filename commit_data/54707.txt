@@ -19,8 +19,71 @@ Date:   Wed Nov 9 15:29:09 2022 -0800
     Reviewed-by: Robert Griesemer <gri@google.com>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go/doc/comment_test.go        | 12 ++++++------
  src/go/doc/doc.go                 |  8 ++++++--
  src/go/doc/testdata/pkgdoc/doc.go |  5 +++++
  3 files changed, 17 insertions(+), 8 deletions(-)
+
+diff --git a/src/go/doc/comment_test.go b/src/go/doc/comment_test.go
+index e1e5f15bdf..004ae9d13d 100644
+--- a/src/go/doc/comment_test.go
++++ b/src/go/doc/comment_test.go
+@@ -24,12 +24,12 @@ func TestComment(t *testing.T) {
+ 	pkg := New(pkgs["pkgdoc"], "testdata/pkgdoc", 0)
+ 
+ 	var (
+-		input           = "[T] and [U] are types, and [T.M] is a method, but [V] is a broken link. [rand.Int] and [crand.Reader] are things.\n"
+-		wantHTML        = `<p><a href="#T">T</a> and <a href="#U">U</a> are types, and <a href="#T.M">T.M</a> is a method, but [V] is a broken link. <a href="/math/rand#Int">rand.Int</a> and <a href="/crypto/rand#Reader">crand.Reader</a> are things.` + "\n"
+-		wantOldHTML     = "<p>[T] and [U] are <i>types</i>, and [T.M] is a method, but [V] is a broken link. [rand.Int] and [crand.Reader] are things.\n"
+-		wantMarkdown    = "[T](#T) and [U](#U) are types, and [T.M](#T.M) is a method, but \\[V] is a broken link. [rand.Int](/math/rand#Int) and [crand.Reader](/crypto/rand#Reader) are things.\n"
+-		wantText        = "T and U are types, and T.M is a method, but [V] is a broken link. rand.Int and\ncrand.Reader are things.\n"
+-		wantOldText     = "[T] and [U] are types, and [T.M] is a method, but [V] is a broken link.\n[rand.Int] and [crand.Reader] are things.\n"
++		input           = "[T] and [U] are types, and [T.M] is a method, but [V] is a broken link. [rand.Int] and [crand.Reader] are things. [G.M1] and [G.M2] are generic methods.\n"
++		wantHTML        = `<p><a href="#T">T</a> and <a href="#U">U</a> are types, and <a href="#T.M">T.M</a> is a method, but [V] is a broken link. <a href="/math/rand#Int">rand.Int</a> and <a href="/crypto/rand#Reader">crand.Reader</a> are things. <a href="#G.M1">G.M1</a> and <a href="#G.M2">G.M2</a> are generic methods.` + "\n"
++		wantOldHTML     = "<p>[T] and [U] are <i>types</i>, and [T.M] is a method, but [V] is a broken link. [rand.Int] and [crand.Reader] are things. [G.M1] and [G.M2] are generic methods.\n"
++		wantMarkdown    = "[T](#T) and [U](#U) are types, and [T.M](#T.M) is a method, but \\[V] is a broken link. [rand.Int](/math/rand#Int) and [crand.Reader](/crypto/rand#Reader) are things. [G.M1](#G.M1) and [G.M2](#G.M2) are generic methods.\n"
++		wantText        = "T and U are types, and T.M is a method, but [V] is a broken link. rand.Int and\ncrand.Reader are things. G.M1 and G.M2 are generic methods.\n"
++		wantOldText     = "[T] and [U] are types, and [T.M] is a method, but [V] is a broken link.\n[rand.Int] and [crand.Reader] are things. [G.M1] and [G.M2] are generic methods.\n"
+ 		wantSynopsis    = "T and U are types, and T.M is a method, but [V] is a broken link."
+ 		wantOldSynopsis = "[T] and [U] are types, and [T.M] is a method, but [V] is a broken link."
+ 	)
+diff --git a/src/go/doc/doc.go b/src/go/doc/doc.go
+index 651a2c1f6c..eefadfa932 100644
+--- a/src/go/doc/doc.go
++++ b/src/go/doc/doc.go
+@@ -76,7 +76,7 @@ type Func struct {
+ 
+ 	// methods
+ 	// (for functions, these fields have the respective zero value)
+-	Recv  string // actual   receiver "T" or "*T"
++	Recv  string // actual   receiver "T" or "*T" possibly followed by type parameters [P1, ..., Pn]
+ 	Orig  string // original receiver "T" or "*T"
+ 	Level int    // embedding level; 0 means not embedded
+ 
+@@ -173,7 +173,11 @@ func (p *Package) collectTypes(types []*Type) {
+ func (p *Package) collectFuncs(funcs []*Func) {
+ 	for _, f := range funcs {
+ 		if f.Recv != "" {
+-			p.syms[strings.TrimPrefix(f.Recv, "*")+"."+f.Name] = true
++			r := strings.TrimPrefix(f.Recv, "*")
++			if i := strings.IndexByte(r, '['); i >= 0 {
++				r = r[:i] // remove type parameters
++			}
++			p.syms[r+"."+f.Name] = true
+ 		} else {
+ 			p.syms[f.Name] = true
+ 		}
+diff --git a/src/go/doc/testdata/pkgdoc/doc.go b/src/go/doc/testdata/pkgdoc/doc.go
+index 61bd4e32f9..3f822c7554 100644
+--- a/src/go/doc/testdata/pkgdoc/doc.go
++++ b/src/go/doc/testdata/pkgdoc/doc.go
+@@ -17,3 +17,8 @@ func (T) M() {}
+ 
+ var _ = rand.Int
+ var _ = crand.Reader
++
++type G[T any] struct{ x T }
++
++func (g G[T]) M1() {}
++func (g *G[T]) M2() {}

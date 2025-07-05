@@ -7,6 +7,20 @@ Date:   Tue Feb 21 15:42:03 2012 -0500
     R=golang-dev, minux.ma, rsc
     CC=golang-dev
     https://golang.org/cl/5686058
-
+---
  src/cmd/go/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index f2ddacfacd..57cdc7696a 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -142,7 +142,7 @@ here are passed through unaltered.  For instance, the command
+ 
+ 	go test -x -v -cpuprofile=prof.out -dir=testdata -update
+ 
+-will compile the test binary using x_test.go and then run it as
++will compile the test binary and then run it as
+ 
+ 	pkg.test -test.v -test.cpuprofile=prof.out -dir=testdata -update
+ 	`,

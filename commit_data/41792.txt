@@ -15,7 +15,45 @@ Date:   Mon Apr 15 21:46:43 2019 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/proc.go     | 6 ++++--
  src/runtime/runtime2.go | 2 +-
  2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 4814a5fc87..524d75e3c7 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2177,6 +2177,10 @@ func gcstopm() {
+ func execute(gp *g, inheritTime bool) {
+ 	_g_ := getg()
+ 
++	// Assign gp.m before entering _Grunning so running Gs have an
++	// M.
++	_g_.m.curg = gp
++	gp.m = _g_.m
+ 	casgstatus(gp, _Grunnable, _Grunning)
+ 	gp.waitsince = 0
+ 	gp.preempt = false
+@@ -2184,8 +2188,6 @@ func execute(gp *g, inheritTime bool) {
+ 	if !inheritTime {
+ 		_g_.m.p.ptr().schedtick++
+ 	}
+-	_g_.m.curg = gp
+-	gp.m = _g_.m
+ 
+ 	// Check whether the profiler needs to be turned on or off.
+ 	hz := sched.profilehz
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index aebc9af06f..c5023027be 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -40,7 +40,7 @@ const (
+ 
+ 	// _Grunning means this goroutine may execute user code. The
+ 	// stack is owned by this goroutine. It is not on a run queue.
+-	// It is assigned an M and a P.
++	// It is assigned an M and a P (g.m and g.m.p are valid).
+ 	_Grunning // 2
+ 
+ 	// _Gsyscall means this goroutine is executing a system call.

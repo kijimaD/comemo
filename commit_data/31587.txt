@@ -11,7 +11,87 @@ Date:   Thu Mar 2 06:30:26 2017 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/hashmap.go       | 12 +++++++++---
  test/fixedbugs/issue19359.go | 37 +++++++++++++++++++++++++++++++++++++
  2 files changed, 46 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index 1f2dafa91e..5fd8e882bb 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -498,11 +498,13 @@ func mapassign(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+ 	if h.flags&hashWriting != 0 {
+ 		throw("concurrent map writes")
+ 	}
+-	h.flags |= hashWriting
+-
+ 	alg := t.key.alg
+ 	hash := alg.hash(key, uintptr(h.hash0))
+ 
++	// Set hashWriting after calling alg.hash, since alg.hash may panic,
++	// in which case we have not actually done a write.
++	h.flags |= hashWriting
++
+ 	if h.buckets == nil {
+ 		h.buckets = newarray(t.bucket, 1)
+ 	}
+@@ -611,10 +613,14 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
+ 	if h.flags&hashWriting != 0 {
+ 		throw("concurrent map writes")
+ 	}
+-	h.flags |= hashWriting
+ 
+ 	alg := t.key.alg
+ 	hash := alg.hash(key, uintptr(h.hash0))
++
++	// Set hashWriting after calling alg.hash, since alg.hash may panic,
++	// in which case we have not actually done a write (delete).
++	h.flags |= hashWriting
++
+ 	bucket := hash & (uintptr(1)<<h.B - 1)
+ 	if h.growing() {
+ 		growWork(t, h, bucket)
+diff --git a/test/fixedbugs/issue19359.go b/test/fixedbugs/issue19359.go
+new file mode 100644
+index 0000000000..4717d1365d
+--- /dev/null
++++ b/test/fixedbugs/issue19359.go
+@@ -0,0 +1,37 @@
++// run
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "fmt"
++
++func set(m map[interface{}]interface{}, key interface{}) (err error) {
++	defer func() {
++		if r := recover(); r != nil {
++			err = fmt.Errorf("set failed: %v", r)
++		}
++	}()
++	m[key] = nil
++	return nil
++}
++
++func del(m map[interface{}]interface{}, key interface{}) (err error) {
++	defer func() {
++		if r := recover(); r != nil {
++			err = fmt.Errorf("del failed: %v", r)
++		}
++	}()
++	delete(m, key)
++	return nil
++}
++
++func main() {
++	m := make(map[interface{}]interface{})
++	set(m, []int{1, 2, 3})
++	set(m, "abc") // used to throw
++	del(m, []int{1, 2, 3})
++	del(m, "abc") // used to throw
++}

@@ -9,6 +9,21 @@ Date:   Fri Oct 2 18:07:27 2009 -0700
     DELTA=3  (3 added, 0 deleted, 0 changed)
     OCL=35289
     CL=35294
-
+---
  usr/rsc/nacl/av/av.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/usr/rsc/nacl/av/av.go b/usr/rsc/nacl/av/av.go
+index 8433cda547..0accf46126 100644
+--- a/usr/rsc/nacl/av/av.go
++++ b/usr/rsc/nacl/av/av.go
+@@ -6,6 +6,9 @@
+ 
+ // Package av implements audio and video access for Native Client
+ // binaries running standalone or embedded in a web browser window.
++//
++// The C version of the API is documented at
++// http://nativeclient.googlecode.com/svn/data/docs_tarball/nacl/googleclient/native_client/scons-out/doc/html/group__audio__video.html
+ package av
+ 
+ import (

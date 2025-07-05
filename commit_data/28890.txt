@@ -16,6 +16,34 @@ Date:   Thu Jun 30 10:48:54 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/27114
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/container/list/list_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/container/list/list_test.go b/src/container/list/list_test.go
+index e3bfe53a49..99e006f39f 100644
+--- a/src/container/list/list_test.go
++++ b/src/container/list/list_test.go
+@@ -271,7 +271,7 @@ func TestMove(t *testing.T) {
+ 
+ 	l.MoveBefore(e2, e4)
+ 	checkListPointers(t, l, []*Element{e1, e3, e2, e4})
+-	e1, e2, e3, e4 = e1, e3, e2, e4
++	e2, e3 = e3, e2
+ 
+ 	l.MoveBefore(e4, e1)
+ 	checkListPointers(t, l, []*Element{e4, e1, e2, e3})
+@@ -279,11 +279,11 @@ func TestMove(t *testing.T) {
+ 
+ 	l.MoveAfter(e4, e1)
+ 	checkListPointers(t, l, []*Element{e1, e4, e2, e3})
+-	e1, e2, e3, e4 = e1, e4, e2, e3
++	e2, e3, e4 = e4, e2, e3
+ 
+ 	l.MoveAfter(e2, e3)
+ 	checkListPointers(t, l, []*Element{e1, e3, e2, e4})
+-	e1, e2, e3, e4 = e1, e3, e2, e4
++	e2, e3 = e3, e2
+ }
+ 
+ // Test PushFront, PushBack, PushFrontList, PushBackList with uninitialized List

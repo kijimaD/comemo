@@ -7,6 +7,24 @@ Date:   Sun Jan 15 10:22:15 2012 -0500
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/5528102
-
+---
  src/pkg/Makefile | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index c090a2f6c6..47e6a51745 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -81,10 +81,11 @@ DIRS=\
+ 	exp/ebnflint\
+ 	exp/gotype\
+ 	exp/norm\
+-	exp/ssh\
+ 	exp/spdy\
+ 	exp/sql\
+ 	exp/sql/driver\
++	exp/ssh\
++	exp/terminal\
+ 	exp/types\
+ 	expvar\
+ 	flag\

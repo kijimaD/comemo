@@ -15,8 +15,78 @@ Date:   Fri Nov 8 16:07:58 2024 -0600
     Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/_gen/PPC64.rules |  1 +
  src/cmd/compile/internal/ssa/rewritePPC64.go  | 27 +++++++++++++++++++++++++++
  test/codegen/bits.go                          |  1 +
  3 files changed, 29 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/PPC64.rules b/src/cmd/compile/internal/ssa/_gen/PPC64.rules
+index 8bec4895f5..feef6ee52a 100644
+--- a/src/cmd/compile/internal/ssa/_gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/PPC64.rules
+@@ -113,6 +113,7 @@
+ // Fold transfer of CA -> GPR -> CA. Note 2 uses when feeding into a chained Add64carry.
+ (Select1 (ADDCconst n:(ADDZEzero x) [-1])) && n.Uses <= 2 => x
+ (ADDE (MOVDconst [0]) y c) => (ADDZE y c)
++(ADDC x (MOVDconst [y])) && is16Bit(y) => (ADDCconst [y] x)
+ 
+ // Borrowing subtraction.
+ (Select0 (Sub64borrow x y c)) =>                 (Select0 <typ.UInt64> (SUBE x y (Select1 <typ.UInt64> (SUBCconst c [0]))))
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 9c082c31bf..4e3b8a5cc6 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -446,6 +446,8 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return true
+ 	case OpPPC64ADD:
+ 		return rewriteValuePPC64_OpPPC64ADD(v)
++	case OpPPC64ADDC:
++		return rewriteValuePPC64_OpPPC64ADDC(v)
+ 	case OpPPC64ADDE:
+ 		return rewriteValuePPC64_OpPPC64ADDE(v)
+ 	case OpPPC64ADDconst:
+@@ -4068,6 +4070,31 @@ func rewriteValuePPC64_OpPPC64ADD(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuePPC64_OpPPC64ADDC(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (ADDC x (MOVDconst [y]))
++	// cond: is16Bit(y)
++	// result: (ADDCconst [y] x)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			x := v_0
++			if v_1.Op != OpPPC64MOVDconst {
++				continue
++			}
++			y := auxIntToInt64(v_1.AuxInt)
++			if !(is16Bit(y)) {
++				continue
++			}
++			v.reset(OpPPC64ADDCconst)
++			v.AuxInt = int64ToAuxInt(y)
++			v.AddArg(x)
++			return true
++		}
++		break
++	}
++	return false
++}
+ func rewriteValuePPC64_OpPPC64ADDE(v *Value) bool {
+ 	v_2 := v.Args[2]
+ 	v_1 := v.Args[1]
+diff --git a/test/codegen/bits.go b/test/codegen/bits.go
+index 554e363ef5..354dbf407a 100644
+--- a/test/codegen/bits.go
++++ b/test/codegen/bits.go
+@@ -366,6 +366,7 @@ func issue48467(x, y uint64) uint64 {
+ 
+ func foldConst(x, y uint64) uint64 {
+ 	// arm64: "ADDS\t[$]7",-"MOVD\t[$]7"
++	// ppc64x: "ADDC\t[$]7,"
+ 	d, b := bits.Add64(x, 7, 0)
+ 	return b & d
+ }

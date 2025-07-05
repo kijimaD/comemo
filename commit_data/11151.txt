@@ -89,7 +89,7 @@ Date:   Fri Jan 13 11:05:19 2012 +0100
     R=cw, gustavo, kevlar, adg, rogpeppe, fullung, christoph, rsc
     CC=golang-dev
     https://golang.org/cl/5503078
-
+---
  src/pkg/encoding/xml/Makefile        |   1 +
  src/pkg/encoding/xml/atom_test.go    |  27 +--
  src/pkg/encoding/xml/embed_test.go   | 127 ----------
@@ -100,3 +100,2354 @@ Date:   Fri Jan 13 11:05:19 2012 +0100
  src/pkg/encoding/xml/typeinfo.go     | 321 ++++++++++++++++++++++++++
  src/pkg/encoding/xml/xml_test.go     |  42 ++--
  9 files changed, 1043 insertions(+), 677 deletions(-)
+
+diff --git a/src/pkg/encoding/xml/Makefile b/src/pkg/encoding/xml/Makefile
+index dccb1009fd..ca84c211e8 100644
+--- a/src/pkg/encoding/xml/Makefile
++++ b/src/pkg/encoding/xml/Makefile
+@@ -9,6 +9,7 @@ TARG=encoding/xml
+ GOFILES=\
+ 	marshal.go\
+ 	read.go\
++	typeinfo.go\
+ 	xml.go\
+ 
+ include ../../../Make.pkg
+diff --git a/src/pkg/encoding/xml/atom_test.go b/src/pkg/encoding/xml/atom_test.go
+index d365510bf5..8d003aade0 100644
+--- a/src/pkg/encoding/xml/atom_test.go
++++ b/src/pkg/encoding/xml/atom_test.go
+@@ -5,6 +5,7 @@
+ package xml
+ 
+ var atomValue = &Feed{
++	XMLName: Name{"http://www.w3.org/2005/Atom", "feed"},
+ 	Title:   "Example Feed",
+ 	Link:    []Link{{Href: "http://example.org/"}},
+ 	Updated: ParseTime("2003-12-13T18:30:02Z"),
+@@ -24,19 +25,19 @@ var atomValue = &Feed{
+ 
+ var atomXml = `` +
+ 	`<feed xmlns="http://www.w3.org/2005/Atom">` +
+-	`<Title>Example Feed</Title>` +
+-	`<Id>urn:uuid:60a76c80-d399-11d9-b93C-0003939e0af6</Id>` +
+-	`<Link href="http://example.org/"></Link>` +
+-	`<Updated>2003-12-13T18:30:02Z</Updated>` +
+-	`<Author><Name>John Doe</Name><URI></URI><Email></Email></Author>` +
+-	`<Entry>` +
+-	`<Title>Atom-Powered Robots Run Amok</Title>` +
+-	`<Id>urn:uuid:1225c695-cfb8-4ebb-aaaa-80da344efa6a</Id>` +
+-	`<Link href="http://example.org/2003/12/13/atom03"></Link>` +
+-	`<Updated>2003-12-13T18:30:02Z</Updated>` +
+-	`<Author><Name></Name><URI></URI><Email></Email></Author>` +
+-	`<Summary>Some text.</Summary>` +
+-	`</Entry>` +
++	`<title>Example Feed</title>` +
++	`<id>urn:uuid:60a76c80-d399-11d9-b93C-0003939e0af6</id>` +
++	`<link href="http://example.org/"></link>` +
++	`<updated>2003-12-13T18:30:02Z</updated>` +
++	`<author><name>John Doe</name><uri></uri><email></email></author>` +
++	`<entry>` +
++	`<title>Atom-Powered Robots Run Amok</title>` +
++	`<id>urn:uuid:1225c695-cfb8-4ebb-aaaa-80da344efa6a</id>` +
++	`<link href="http://example.org/2003/12/13/atom03"></link>` +
++	`<updated>2003-12-13T18:30:02Z</updated>` +
++	`<author><name></name><uri></uri><email></email></author>` +
++	`<summary>Some text.</summary>` +
++	`</entry>` +
+ 	`</feed>`
+ 
+ func ParseTime(str string) Time {
+diff --git a/src/pkg/encoding/xml/embed_test.go b/src/pkg/encoding/xml/embed_test.go
+deleted file mode 100644
+index 0867d46de5..0000000000
+--- a/src/pkg/encoding/xml/embed_test.go
++++ /dev/null
+@@ -1,127 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package xml
+-
+-import (
+-	"strings"
+-	"testing"
+-)
+-
+-type C struct {
+-	Name string
+-	Open bool
+-}
+-
+-type A struct {
+-	XMLName Name `xml:"http://domain a"`
+-	C
+-	B      B
+-	FieldA string
+-}
+-
+-type B struct {
+-	XMLName Name `xml:"b"`
+-	C
+-	FieldB string
+-}
+-
+-const _1a = `
+-<?xml version="1.0" encoding="UTF-8"?>
+-<a xmlns="http://domain">
+-  <name>KmlFile</name>
+-  <open>1</open>
+-  <b>
+-    <name>Absolute</name>
+-    <open>0</open>
+-    <fieldb>bar</fieldb>
+-  </b>
+-  <fielda>foo</fielda>
+-</a>
+-`
+-
+-// Tests that embedded structs are marshalled.
+-func TestEmbedded1(t *testing.T) {
+-	var a A
+-	if e := Unmarshal(strings.NewReader(_1a), &a); e != nil {
+-		t.Fatalf("Unmarshal: %s", e)
+-	}
+-	if a.FieldA != "foo" {
+-		t.Fatalf("Unmarshal: expected 'foo' but found '%s'", a.FieldA)
+-	}
+-	if a.Name != "KmlFile" {
+-		t.Fatalf("Unmarshal: expected 'KmlFile' but found '%s'", a.Name)
+-	}
+-	if !a.Open {
+-		t.Fatal("Unmarshal: expected 'true' but found otherwise")
+-	}
+-	if a.B.FieldB != "bar" {
+-		t.Fatalf("Unmarshal: expected 'bar' but found '%s'", a.B.FieldB)
+-	}
+-	if a.B.Name != "Absolute" {
+-		t.Fatalf("Unmarshal: expected 'Absolute' but found '%s'", a.B.Name)
+-	}
+-	if a.B.Open {
+-		t.Fatal("Unmarshal: expected 'false' but found otherwise")
+-	}
+-}
+-
+-type A2 struct {
+-	XMLName Name `xml:"http://domain a"`
+-	XY      string
+-	Xy      string
+-}
+-
+-const _2a = `
+-<?xml version="1.0" encoding="UTF-8"?>
+-<a xmlns="http://domain">
+-  <xy>foo</xy>
+-</a>
+-`
+-
+-// Tests that conflicting field names get excluded.
+-func TestEmbedded2(t *testing.T) {
+-	var a A2
+-	if e := Unmarshal(strings.NewReader(_2a), &a); e != nil {
+-		t.Fatalf("Unmarshal: %s", e)
+-	}
+-	if a.XY != "" {
+-		t.Fatalf("Unmarshal: expected empty string but found '%s'", a.XY)
+-	}
+-	if a.Xy != "" {
+-		t.Fatalf("Unmarshal: expected empty string but found '%s'", a.Xy)
+-	}
+-}
+-
+-type A3 struct {
+-	XMLName Name `xml:"http://domain a"`
+-	xy      string
+-}
+-
+-// Tests that private fields are not set.
+-func TestEmbedded3(t *testing.T) {
+-	var a A3
+-	if e := Unmarshal(strings.NewReader(_2a), &a); e != nil {
+-		t.Fatalf("Unmarshal: %s", e)
+-	}
+-	if a.xy != "" {
+-		t.Fatalf("Unmarshal: expected empty string but found '%s'", a.xy)
+-	}
+-}
+-
+-type A4 struct {
+-	XMLName Name `xml:"http://domain a"`
+-	Any     string
+-}
+-
+-// Tests that private fields are not set.
+-func TestEmbedded4(t *testing.T) {
+-	var a A4
+-	if e := Unmarshal(strings.NewReader(_2a), &a); e != nil {
+-		t.Fatalf("Unmarshal: %s", e)
+-	}
+-	if a.Any != "foo" {
+-		t.Fatalf("Unmarshal: expected 'foo' but found '%s'", a.Any)
+-	}
+-}
+diff --git a/src/pkg/encoding/xml/marshal.go b/src/pkg/encoding/xml/marshal.go
+index e94fdbc531..d25ee30a72 100644
+--- a/src/pkg/encoding/xml/marshal.go
++++ b/src/pkg/encoding/xml/marshal.go
+@@ -6,6 +6,8 @@ package xml
+ 
+ import (
+ 	"bufio"
++	"bytes"
++	"fmt"
+ 	"io"
+ 	"reflect"
+ 	"strconv"
+@@ -42,20 +44,26 @@ type printer struct {
+ // elements containing the data.
+ //
+ // The name for the XML elements is taken from, in order of preference:
+-//     - the tag on an XMLName field, if the data is a struct
+-//     - the value of an XMLName field of type xml.Name
++//     - the tag on the XMLName field, if the data is a struct
++//     - the value of the XMLName field of type xml.Name
+ //     - the tag of the struct field used to obtain the data
+ //     - the name of the struct field used to obtain the data
+-//     - the name '???'.
++//     - the name of the marshalled type
+ //
+ // The XML element for a struct contains marshalled elements for each of the
+ // exported fields of the struct, with these exceptions:
+ //     - the XMLName field, described above, is omitted.
+-//     - a field with tag "attr" becomes an attribute in the XML element.
+-//     - a field with tag "chardata" is written as character data,
+-//        not as an XML element.
+-//     - a field with tag "innerxml" is written verbatim,
+-//        not subject to the usual marshalling procedure.
++//     - a field with tag "name,attr" becomes an attribute with
++//       the given name in the XML element.
++//     - a field with tag ",attr" becomes an attribute with the
++//       field name in the in the XML element.
++//     - a field with tag ",chardata" is written as character data,
++//       not as an XML element.
++//     - a field with tag ",innerxml" is written verbatim, not subject
++//       to the usual marshalling procedure.
++//     - a field with tag ",comment" is written as an XML comment, not
++//       subject to the usual marshalling procedure. It must not contain
++//       the "--" string within it.
+ //
+ // If a field uses a tag "a>b>c", then the element c will be nested inside
+ // parent elements a and b.  Fields that appear next to each other that name
+@@ -63,17 +71,18 @@ type printer struct {
+ //
+ //	type Result struct {
+ //		XMLName   xml.Name `xml:"result"`
++//		Id        int      `xml:"id,attr"`
+ //		FirstName string   `xml:"person>name>first"`
+ //		LastName  string   `xml:"person>name>last"`
+ //		Age       int      `xml:"person>age"`
+ //	}
+ //
+-//	xml.Marshal(w, &Result{FirstName: "John", LastName: "Doe", Age: 42})
++//	xml.Marshal(w, &Result{Id: 13, FirstName: "John", LastName: "Doe", Age: 42})
+ //
+ // would be marshalled as:
+ //
+ //	<result>
+-//		<person>
++//		<person id="13">
+ //			<name>
+ //				<first>John</first>
+ //				<last>Doe</last>
+@@ -85,12 +94,12 @@ type printer struct {
+ // Marshal will return an error if asked to marshal a channel, function, or map.
+ func Marshal(w io.Writer, v interface{}) (err error) {
+ 	p := &printer{bufio.NewWriter(w)}
+-	err = p.marshalValue(reflect.ValueOf(v), "???")
++	err = p.marshalValue(reflect.ValueOf(v), nil)
+ 	p.Flush()
+ 	return err
+ }
+ 
+-func (p *printer) marshalValue(val reflect.Value, name string) error {
++func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo) error {
+ 	if !val.IsValid() {
+ 		return nil
+ 	}
+@@ -115,58 +124,75 @@ func (p *printer) marshalValue(val reflect.Value, name string) error {
+ 		if val.IsNil() {
+ 			return nil
+ 		}
+-		return p.marshalValue(val.Elem(), name)
++		return p.marshalValue(val.Elem(), finfo)
+ 	}
+ 
+ 	// Slices and arrays iterate over the elements. They do not have an enclosing tag.
+ 	if (kind == reflect.Slice || kind == reflect.Array) && typ.Elem().Kind() != reflect.Uint8 {
+ 		for i, n := 0, val.Len(); i < n; i++ {
+-			if err := p.marshalValue(val.Index(i), name); err != nil {
++			if err := p.marshalValue(val.Index(i), finfo); err != nil {
+ 				return err
+ 			}
+ 		}
+ 		return nil
+ 	}
+ 
+-	// Find XML name
+-	xmlns := ""
+-	if kind == reflect.Struct {
+-		if f, ok := typ.FieldByName("XMLName"); ok {
+-			if tag := f.Tag.Get("xml"); tag != "" {
+-				if i := strings.Index(tag, " "); i >= 0 {
+-					xmlns, name = tag[:i], tag[i+1:]
+-				} else {
+-					name = tag
+-				}
+-			} else if v, ok := val.FieldByIndex(f.Index).Interface().(Name); ok && v.Local != "" {
+-				xmlns, name = v.Space, v.Local
+-			}
++	tinfo, err := getTypeInfo(typ)
++	if err != nil {
++		return err
++	}
++
++	// Precedence for the XML element name is:
++	// 1. XMLName field in underlying struct;
++	// 2. field name/tag in the struct field; and
++	// 3. type name
++	var xmlns, name string
++	if tinfo.xmlname != nil {
++		xmlname := tinfo.xmlname
++		if xmlname.name != "" {
++			xmlns, name = xmlname.xmlns, xmlname.name
++		} else if v, ok := val.FieldByIndex(xmlname.idx).Interface().(Name); ok && v.Local != "" {
++			xmlns, name = v.Space, v.Local
++		}
++	}
++	if name == "" && finfo != nil {
++		xmlns, name = finfo.xmlns, finfo.name
++	}
++	if name == "" {
++		name = typ.Name()
++		if name == "" {
++			return &UnsupportedTypeError{typ}
+ 		}
+ 	}
+ 
+ 	p.WriteByte('<')
+ 	p.WriteString(name)
+ 
++	if xmlns != "" {
++		p.WriteString(` xmlns="`)
++		// TODO: EscapeString, to avoid the allocation.
++		Escape(p, []byte(xmlns))
++		p.WriteByte('"')
++	}
++
+ 	// Attributes
+-	if kind == reflect.Struct {
+-		if len(xmlns) > 0 {
+-			p.WriteString(` xmlns="`)
+-			Escape(p, []byte(xmlns))
+-			p.WriteByte('"')
++	for i := range tinfo.fields {
++		finfo := &tinfo.fields[i]
++		if finfo.flags&fAttr == 0 {
++			continue
+ 		}
+-
+-		for i, n := 0, typ.NumField(); i < n; i++ {
+-			if f := typ.Field(i); f.PkgPath == "" && f.Tag.Get("xml") == "attr" {
+-				if f.Type.Kind() == reflect.String {
+-					if str := val.Field(i).String(); str != "" {
+-						p.WriteByte(' ')
+-						p.WriteString(strings.ToLower(f.Name))
+-						p.WriteString(`="`)
+-						Escape(p, []byte(str))
+-						p.WriteByte('"')
+-					}
+-				}
+-			}
++		var str string
++		if fv := val.FieldByIndex(finfo.idx); fv.Kind() == reflect.String {
++			str = fv.String()
++		} else {
++			str = fmt.Sprint(fv.Interface())
++		}
++		if str != "" {
++			p.WriteByte(' ')
++			p.WriteString(finfo.name)
++			p.WriteString(`="`)
++			Escape(p, []byte(str))
++			p.WriteByte('"')
+ 		}
+ 	}
+ 	p.WriteByte('>')
+@@ -194,58 +220,9 @@ func (p *printer) marshalValue(val reflect.Value, name string) error {
+ 		bytes := val.Interface().([]byte)
+ 		Escape(p, bytes)
+ 	case reflect.Struct:
+-		s := parentStack{printer: p}
+-		for i, n := 0, val.NumField(); i < n; i++ {
+-			if f := typ.Field(i); f.Name != "XMLName" && f.PkgPath == "" {
+-				name := f.Name
+-				vf := val.Field(i)
+-				switch tag := f.Tag.Get("xml"); tag {
+-				case "":
+-					s.trim(nil)
+-				case "chardata":
+-					if tk := f.Type.Kind(); tk == reflect.String {
+-						Escape(p, []byte(vf.String()))
+-					} else if tk == reflect.Slice {
+-						if elem, ok := vf.Interface().([]byte); ok {
+-							Escape(p, elem)
+-						}
+-					}
+-					continue
+-				case "innerxml":
+-					iface := vf.Interface()
+-					switch raw := iface.(type) {
+-					case []byte:
+-						p.Write(raw)
+-						continue
+-					case string:
+-						p.WriteString(raw)
+-						continue
+-					}
+-				case "attr":
+-					continue
+-				default:
+-					parents := strings.Split(tag, ">")
+-					if len(parents) == 1 {
+-						parents, name = nil, tag
+-					} else {
+-						parents, name = parents[:len(parents)-1], parents[len(parents)-1]
+-						if parents[0] == "" {
+-							parents[0] = f.Name
+-						}
+-					}
+-
+-					s.trim(parents)
+-					if !(vf.Kind() == reflect.Ptr || vf.Kind() == reflect.Interface) || !vf.IsNil() {
+-						s.push(parents[len(s.stack):])
+-					}
+-				}
+-
+-				if err := p.marshalValue(vf, name); err != nil {
+-					return err
+-				}
+-			}
++		if err := p.marshalStruct(tinfo, val); err != nil {
++			return err
+ 		}
+-		s.trim(nil)
+ 	default:
+ 		return &UnsupportedTypeError{typ}
+ 	}
+@@ -258,6 +235,94 @@ func (p *printer) marshalValue(val reflect.Value, name string) error {
+ 	return nil
+ }
+ 
++var ddBytes = []byte("--")
++
++func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
++	s := parentStack{printer: p}
++	for i := range tinfo.fields {
++		finfo := &tinfo.fields[i]
++		if finfo.flags&(fAttr|fAny) != 0 {
++			continue
++		}
++		vf := val.FieldByIndex(finfo.idx)
++		switch finfo.flags & fMode {
++		case fCharData:
++			switch vf.Kind() {
++			case reflect.String:
++				Escape(p, []byte(vf.String()))
++			case reflect.Slice:
++				if elem, ok := vf.Interface().([]byte); ok {
++					Escape(p, elem)
++				}
++			}
++			continue
++
++		case fComment:
++			k := vf.Kind()
++			if !(k == reflect.String || k == reflect.Slice && vf.Type().Elem().Kind() == reflect.Uint8) {
++				return fmt.Errorf("xml: bad type for comment field of %s", val.Type())
++			}
++			if vf.Len() == 0 {
++				continue
++			}
++			p.WriteString("<!--")
++			dashDash := false
++			dashLast := false
++			switch k {
++			case reflect.String:
++				s := vf.String()
++				dashDash = strings.Index(s, "--") >= 0
++				dashLast = s[len(s)-1] == '-'
++				if !dashDash {
++					p.WriteString(s)
++				}
++			case reflect.Slice:
++				b := vf.Bytes()
++				dashDash = bytes.Index(b, ddBytes) >= 0
++				dashLast = b[len(b)-1] == '-'
++				if !dashDash {
++					p.Write(b)
++				}
++			default:
++				panic("can't happen")
++			}
++			if dashDash {
++				return fmt.Errorf(`xml: comments must not contain "--"`)
++			}
++			if dashLast {
++				// "--->" is invalid grammar. Make it "- -->"
++				p.WriteByte(' ')
++			}
++			p.WriteString("-->")
++			continue
++
++		case fInnerXml:
++			iface := vf.Interface()
++			switch raw := iface.(type) {
++			case []byte:
++				p.Write(raw)
++				continue
++			case string:
++				p.WriteString(raw)
++				continue
++			}
++
++		case fElement:
++			s.trim(finfo.parents)
++			if len(finfo.parents) > len(s.stack) {
++				if vf.Kind() != reflect.Ptr && vf.Kind() != reflect.Interface || !vf.IsNil() {
++					s.push(finfo.parents[len(s.stack):])
++				}
++			}
++		}
++		if err := p.marshalValue(vf, finfo); err != nil {
++			return err
++		}
++	}
++	s.trim(nil)
++	return nil
++}
++
+ type parentStack struct {
+ 	*printer
+ 	stack []string
+diff --git a/src/pkg/encoding/xml/marshal_test.go b/src/pkg/encoding/xml/marshal_test.go
+index 6a241694ba..bec53761e1 100644
+--- a/src/pkg/encoding/xml/marshal_test.go
++++ b/src/pkg/encoding/xml/marshal_test.go
+@@ -25,10 +25,10 @@ type Passenger struct {
+ }
+ 
+ type Ship struct {
+-	XMLName Name `xml:"spaceship"`
++	XMLName struct{} `xml:"spaceship"`
+ 
+-	Name      string       `xml:"attr"`
+-	Pilot     string       `xml:"attr"`
++	Name      string       `xml:"name,attr"`
++	Pilot     string       `xml:"pilot,attr"`
+ 	Drive     DriveType    `xml:"drive"`
+ 	Age       uint         `xml:"age"`
+ 	Passenger []*Passenger `xml:"passenger"`
+@@ -44,48 +44,50 @@ func (rx RawXML) MarshalXML() ([]byte, error) {
+ type NamedType string
+ 
+ type Port struct {
+-	XMLName Name   `xml:"port"`
+-	Type    string `xml:"attr"`
+-	Number  string `xml:"chardata"`
++	XMLName struct{} `xml:"port"`
++	Type    string   `xml:"type,attr"`
++	Comment string   `xml:",comment"`
++	Number  string   `xml:",chardata"`
+ }
+ 
+ type Domain struct {
+-	XMLName Name   `xml:"domain"`
+-	Country string `xml:"attr"`
+-	Name    []byte `xml:"chardata"`
++	XMLName struct{} `xml:"domain"`
++	Country string   `xml:",attr"`
++	Name    []byte   `xml:",chardata"`
++	Comment []byte   `xml:",comment"`
+ }
+ 
+ type Book struct {
+-	XMLName Name   `xml:"book"`
+-	Title   string `xml:"chardata"`
++	XMLName struct{} `xml:"book"`
++	Title   string   `xml:",chardata"`
+ }
+ 
+ type SecretAgent struct {
+-	XMLName   Name   `xml:"agent"`
+-	Handle    string `xml:"attr"`
++	XMLName   struct{} `xml:"agent"`
++	Handle    string   `xml:"handle,attr"`
+ 	Identity  string
+-	Obfuscate string `xml:"innerxml"`
++	Obfuscate string `xml:",innerxml"`
+ }
+ 
+ type NestedItems struct {
+-	XMLName Name     `xml:"result"`
++	XMLName struct{} `xml:"result"`
+ 	Items   []string `xml:">item"`
+ 	Item1   []string `xml:"Items>item1"`
+ }
+ 
+ type NestedOrder struct {
+-	XMLName Name   `xml:"result"`
+-	Field1  string `xml:"parent>c"`
+-	Field2  string `xml:"parent>b"`
+-	Field3  string `xml:"parent>a"`
++	XMLName struct{} `xml:"result"`
++	Field1  string   `xml:"parent>c"`
++	Field2  string   `xml:"parent>b"`
++	Field3  string   `xml:"parent>a"`
+ }
+ 
+ type MixedNested struct {
+-	XMLName Name   `xml:"result"`
+-	A       string `xml:"parent1>a"`
+-	B       string `xml:"b"`
+-	C       string `xml:"parent1>parent2>c"`
+-	D       string `xml:"parent1>d"`
++	XMLName struct{} `xml:"result"`
++	A       string   `xml:"parent1>a"`
++	B       string   `xml:"b"`
++	C       string   `xml:"parent1>parent2>c"`
++	D       string   `xml:"parent1>d"`
+ }
+ 
+ type NilTest struct {
+@@ -95,62 +97,165 @@ type NilTest struct {
+ }
+ 
+ type Service struct {
+-	XMLName Name    `xml:"service"`
+-	Domain  *Domain `xml:"host>domain"`
+-	Port    *Port   `xml:"host>port"`
++	XMLName struct{} `xml:"service"`
++	Domain  *Domain  `xml:"host>domain"`
++	Port    *Port    `xml:"host>port"`
+ 	Extra1  interface{}
+ 	Extra2  interface{} `xml:"host>extra2"`
+ }
+ 
+ var nilStruct *Ship
+ 
++type EmbedA struct {
++	EmbedC
++	EmbedB EmbedB
++	FieldA string
++}
++
++type EmbedB struct {
++	FieldB string
++	EmbedC
++}
++
++type EmbedC struct {
++	FieldA1 string `xml:"FieldA>A1"`
++	FieldA2 string `xml:"FieldA>A2"`
++	FieldB  string
++	FieldC  string
++}
++
++type NameCasing struct {
++	XMLName struct{} `xml:"casing"`
++	Xy      string
++	XY      string
++	XyA     string `xml:"Xy,attr"`
++	XYA     string `xml:"XY,attr"`
++}
++
++type NamePrecedence struct {
++	XMLName     Name              `xml:"Parent"`
++	FromTag     XMLNameWithoutTag `xml:"InTag"`
++	FromNameVal XMLNameWithoutTag
++	FromNameTag XMLNameWithTag
++	InFieldName string
++}
++
++type XMLNameWithTag struct {
++	XMLName Name   `xml:"InXMLNameTag"`
++	Value   string ",chardata"
++}
++
++type XMLNameWithoutTag struct {
++	XMLName Name
++	Value   string ",chardata"
++}
++
++type AttrTest struct {
++	Int   int     `xml:",attr"`
++	Lower int     `xml:"int,attr"`
++	Float float64 `xml:",attr"`
++	Uint8 uint8   `xml:",attr"`
++	Bool  bool    `xml:",attr"`
++	Str   string  `xml:",attr"`
++}
++
++type AnyTest struct {
++	XMLName  struct{}  `xml:"a"`
++	Nested   string    `xml:"nested>value"`
++	AnyField AnyHolder `xml:",any"`
++}
++
++type AnyHolder struct {
++	XMLName Name
++	XML     string `xml:",innerxml"`
++}
++
++type RecurseA struct {
++	A string
++	B *RecurseB
++}
++
++type RecurseB struct {
++	A *RecurseA
++	B string
++}
++
++type Plain struct {
++	V interface{}
++}
++
++// Unless explicitly stated as such (or *Plain), all of the
++// tests below are two-way tests. When introducing new tests,
++// please try to make them two-way as well to ensure that
++// marshalling and unmarshalling are as symmetrical as feasible.
+ var marshalTests = []struct {
+-	Value     interface{}
+-	ExpectXML string
++	Value         interface{}
++	ExpectXML     string
++	MarshalOnly   bool
++	UnmarshalOnly bool
+ }{
+ 	// Test nil marshals to nothing
+-	{Value: nil, ExpectXML: ``},
+-	{Value: nilStruct, ExpectXML: ``},
+-
+-	// Test value types (no tag name, so ???)
+-	{Value: true, ExpectXML: `<???>true</???>`},
+-	{Value: int(42), ExpectXML: `<???>42</???>`},
+-	{Value: int8(42), ExpectXML: `<???>42</???>`},
+-	{Value: int16(42), ExpectXML: `<???>42</???>`},
+-	{Value: int32(42), ExpectXML: `<???>42</???>`},
+-	{Value: uint(42), ExpectXML: `<???>42</???>`},
+-	{Value: uint8(42), ExpectXML: `<???>42</???>`},
+-	{Value: uint16(42), ExpectXML: `<???>42</???>`},
+-	{Value: uint32(42), ExpectXML: `<???>42</???>`},
+-	{Value: float32(1.25), ExpectXML: `<???>1.25</???>`},
+-	{Value: float64(1.25), ExpectXML: `<???>1.25</???>`},
+-	{Value: uintptr(0xFFDD), ExpectXML: `<???>65501</???>`},
+-	{Value: "gopher", ExpectXML: `<???>gopher</???>`},
+-	{Value: []byte("gopher"), ExpectXML: `<???>gopher</???>`},
+-	{Value: "</>", ExpectXML: `<???>&lt;/&gt;</???>`},
+-	{Value: []byte("</>"), ExpectXML: `<???>&lt;/&gt;</???>`},
+-	{Value: [3]byte{'<', '/', '>'}, ExpectXML: `<???>&lt;/&gt;</???>`},
+-	{Value: NamedType("potato"), ExpectXML: `<???>potato</???>`},
+-	{Value: []int{1, 2, 3}, ExpectXML: `<???>1</???><???>2</???><???>3</???>`},
+-	{Value: [3]int{1, 2, 3}, ExpectXML: `<???>1</???><???>2</???><???>3</???>`},
++	{Value: nil, ExpectXML: ``, MarshalOnly: true},
++	{Value: nilStruct, ExpectXML: ``, MarshalOnly: true},
++
++	// Test value types
++	{Value: &Plain{true}, ExpectXML: `<Plain><V>true</V></Plain>`},
++	{Value: &Plain{false}, ExpectXML: `<Plain><V>false</V></Plain>`},
++	{Value: &Plain{int(42)}, ExpectXML: `<Plain><V>42</V></Plain>`},
++	{Value: &Plain{int8(42)}, ExpectXML: `<Plain><V>42</V></Plain>`},
++	{Value: &Plain{int16(42)}, ExpectXML: `<Plain><V>42</V></Plain>`},
++	{Value: &Plain{int32(42)}, ExpectXML: `<Plain><V>42</V></Plain>`},
++	{Value: &Plain{uint(42)}, ExpectXML: `<Plain><V>42</V></Plain>`},
++	{Value: &Plain{uint8(42)}, ExpectXML: `<Plain><V>42</V></Plain>`},
++	{Value: &Plain{uint16(42)}, ExpectXML: `<Plain><V>42</V></Plain>`},
++	{Value: &Plain{uint32(42)}, ExpectXML: `<Plain><V>42</V></Plain>`},
++	{Value: &Plain{float32(1.25)}, ExpectXML: `<Plain><V>1.25</V></Plain>`},
++	{Value: &Plain{float64(1.25)}, ExpectXML: `<Plain><V>1.25</V></Plain>`},
++	{Value: &Plain{uintptr(0xFFDD)}, ExpectXML: `<Plain><V>65501</V></Plain>`},
++	{Value: &Plain{"gopher"}, ExpectXML: `<Plain><V>gopher</V></Plain>`},
++	{Value: &Plain{[]byte("gopher")}, ExpectXML: `<Plain><V>gopher</V></Plain>`},
++	{Value: &Plain{"</>"}, ExpectXML: `<Plain><V>&lt;/&gt;</V></Plain>`},
++	{Value: &Plain{[]byte("</>")}, ExpectXML: `<Plain><V>&lt;/&gt;</V></Plain>`},
++	{Value: &Plain{[3]byte{'<', '/', '>'}}, ExpectXML: `<Plain><V>&lt;/&gt;</V></Plain>`},
++	{Value: &Plain{NamedType("potato")}, ExpectXML: `<Plain><V>potato</V></Plain>`},
++	{Value: &Plain{[]int{1, 2, 3}}, ExpectXML: `<Plain><V>1</V><V>2</V><V>3</V></Plain>`},
++	{Value: &Plain{[3]int{1, 2, 3}}, ExpectXML: `<Plain><V>1</V><V>2</V><V>3</V></Plain>`},
+ 
+ 	// Test innerxml
+-	{Value: RawXML("</>"), ExpectXML: `</>`},
+ 	{
+ 		Value: &SecretAgent{
+ 			Handle:    "007",
+ 			Identity:  "James Bond",
+ 			Obfuscate: "<redacted/>",
+ 		},
+-		//ExpectXML: `<agent handle="007"><redacted/></agent>`,
+-		ExpectXML: `<agent handle="007"><Identity>James Bond</Identity><redacted/></agent>`,
++		ExpectXML:   `<agent handle="007"><Identity>James Bond</Identity><redacted/></agent>`,
++		MarshalOnly: true,
++	},
++	{
++		Value: &SecretAgent{
++			Handle:    "007",
++			Identity:  "James Bond",
++			Obfuscate: "<Identity>James Bond</Identity><redacted/>",
++		},
++		ExpectXML:     `<agent handle="007"><Identity>James Bond</Identity><redacted/></agent>`,
++		UnmarshalOnly: true,
++	},
++
++	// Test marshaller interface
++	{
++		Value:       RawXML("</>"),
++		ExpectXML:   `</>`,
++		MarshalOnly: true,
+ 	},
+ 
+ 	// Test structs
+ 	{Value: &Port{Type: "ssl", Number: "443"}, ExpectXML: `<port type="ssl">443</port>`},
+ 	{Value: &Port{Number: "443"}, ExpectXML: `<port>443</port>`},
+ 	{Value: &Port{Type: "<unix>"}, ExpectXML: `<port type="&lt;unix&gt;"></port>`},
++	{Value: &Port{Number: "443", Comment: "https"}, ExpectXML: `<port><!--https-->443</port>`},
++	{Value: &Port{Number: "443", Comment: "add space-"}, ExpectXML: `<port><!--add space- -->443</port>`, MarshalOnly: true},
+ 	{Value: &Domain{Name: []byte("google.com&friends")}, ExpectXML: `<domain>google.com&amp;friends</domain>`},
++	{Value: &Domain{Name: []byte("google.com"), Comment: []byte(" &friends ")}, ExpectXML: `<domain>google.com<!-- &friends --></domain>`},
+ 	{Value: &Book{Title: "Pride & Prejudice"}, ExpectXML: `<book>Pride &amp; Prejudice</book>`},
+ 	{Value: atomValue, ExpectXML: atomXml},
+ 	{
+@@ -203,16 +308,25 @@ var marshalTests = []struct {
+ 			`</passenger>` +
+ 			`</spaceship>`,
+ 	},
++
+ 	// Test a>b
+ 	{
+-		Value: NestedItems{Items: []string{}, Item1: []string{}},
++		Value: &NestedItems{Items: nil, Item1: nil},
++		ExpectXML: `<result>` +
++			`<Items>` +
++			`</Items>` +
++			`</result>`,
++	},
++	{
++		Value: &NestedItems{Items: []string{}, Item1: []string{}},
+ 		ExpectXML: `<result>` +
+ 			`<Items>` +
+ 			`</Items>` +
+ 			`</result>`,
++		MarshalOnly: true,
+ 	},
+ 	{
+-		Value: NestedItems{Items: []string{}, Item1: []string{"A"}},
++		Value: &NestedItems{Items: nil, Item1: []string{"A"}},
+ 		ExpectXML: `<result>` +
+ 			`<Items>` +
+ 			`<item1>A</item1>` +
+@@ -220,7 +334,7 @@ var marshalTests = []struct {
+ 			`</result>`,
+ 	},
+ 	{
+-		Value: NestedItems{Items: []string{"A", "B"}, Item1: []string{}},
++		Value: &NestedItems{Items: []string{"A", "B"}, Item1: nil},
+ 		ExpectXML: `<result>` +
+ 			`<Items>` +
+ 			`<item>A</item>` +
+@@ -229,7 +343,7 @@ var marshalTests = []struct {
+ 			`</result>`,
+ 	},
+ 	{
+-		Value: NestedItems{Items: []string{"A", "B"}, Item1: []string{"C"}},
++		Value: &NestedItems{Items: []string{"A", "B"}, Item1: []string{"C"}},
+ 		ExpectXML: `<result>` +
+ 			`<Items>` +
+ 			`<item>A</item>` +
+@@ -239,7 +353,7 @@ var marshalTests = []struct {
+ 			`</result>`,
+ 	},
+ 	{
+-		Value: NestedOrder{Field1: "C", Field2: "B", Field3: "A"},
++		Value: &NestedOrder{Field1: "C", Field2: "B", Field3: "A"},
+ 		ExpectXML: `<result>` +
+ 			`<parent>` +
+ 			`<c>C</c>` +
+@@ -249,16 +363,17 @@ var marshalTests = []struct {
+ 			`</result>`,
+ 	},
+ 	{
+-		Value: NilTest{A: "A", B: nil, C: "C"},
+-		ExpectXML: `<???>` +
++		Value: &NilTest{A: "A", B: nil, C: "C"},
++		ExpectXML: `<NilTest>` +
+ 			`<parent1>` +
+ 			`<parent2><a>A</a></parent2>` +
+ 			`<parent2><c>C</c></parent2>` +
+ 			`</parent1>` +
+-			`</???>`,
++			`</NilTest>`,
++		MarshalOnly: true, // Uses interface{}
+ 	},
+ 	{
+-		Value: MixedNested{A: "A", B: "B", C: "C", D: "D"},
++		Value: &MixedNested{A: "A", B: "B", C: "C", D: "D"},
+ 		ExpectXML: `<result>` +
+ 			`<parent1><a>A</a></parent1>` +
+ 			`<b>B</b>` +
+@@ -269,32 +384,154 @@ var marshalTests = []struct {
+ 			`</result>`,
+ 	},
+ 	{
+-		Value:     Service{Port: &Port{Number: "80"}},
++		Value:     &Service{Port: &Port{Number: "80"}},
+ 		ExpectXML: `<service><host><port>80</port></host></service>`,
+ 	},
+ 	{
+-		Value:     Service{},
++		Value:     &Service{},
+ 		ExpectXML: `<service></service>`,
+ 	},
+ 	{
+-		Value: Service{Port: &Port{Number: "80"}, Extra1: "A", Extra2: "B"},
++		Value: &Service{Port: &Port{Number: "80"}, Extra1: "A", Extra2: "B"},
+ 		ExpectXML: `<service>` +
+ 			`<host><port>80</port></host>` +
+ 			`<Extra1>A</Extra1>` +
+ 			`<host><extra2>B</extra2></host>` +
+ 			`</service>`,
++		MarshalOnly: true,
+ 	},
+ 	{
+-		Value: Service{Port: &Port{Number: "80"}, Extra2: "example"},
++		Value: &Service{Port: &Port{Number: "80"}, Extra2: "example"},
+ 		ExpectXML: `<service>` +
+ 			`<host><port>80</port></host>` +
+ 			`<host><extra2>example</extra2></host>` +
+ 			`</service>`,
++		MarshalOnly: true,
++	},
++
++	// Test struct embedding
++	{
++		Value: &EmbedA{
++			EmbedC: EmbedC{
++				FieldA1: "", // Shadowed by A.A
++				FieldA2: "", // Shadowed by A.A
++				FieldB:  "A.C.B",
++				FieldC:  "A.C.C",
++			},
++			EmbedB: EmbedB{
++				FieldB: "A.B.B",
++				EmbedC: EmbedC{
++					FieldA1: "A.B.C.A1",
++					FieldA2: "A.B.C.A2",
++					FieldB:  "", // Shadowed by A.B.B
++					FieldC:  "A.B.C.C",
++				},
++			},
++			FieldA: "A.A",
++		},
++		ExpectXML: `<EmbedA>` +
++			`<FieldB>A.C.B</FieldB>` +
++			`<FieldC>A.C.C</FieldC>` +
++			`<EmbedB>` +
++			`<FieldB>A.B.B</FieldB>` +
++			`<FieldA>` +
++			`<A1>A.B.C.A1</A1>` +
++			`<A2>A.B.C.A2</A2>` +
++			`</FieldA>` +
++			`<FieldC>A.B.C.C</FieldC>` +
++			`</EmbedB>` +
++			`<FieldA>A.A</FieldA>` +
++			`</EmbedA>`,
++	},
++
++	// Test that name casing matters
++	{
++		Value:     &NameCasing{Xy: "mixed", XY: "upper", XyA: "mixedA", XYA: "upperA"},
++		ExpectXML: `<casing Xy="mixedA" XY="upperA"><Xy>mixed</Xy><XY>upper</XY></casing>`,
++	},
++
++	// Test the order in which the XML element name is chosen
++	{
++		Value: &NamePrecedence{
++			FromTag:     XMLNameWithoutTag{Value: "A"},
++			FromNameVal: XMLNameWithoutTag{XMLName: Name{Local: "InXMLName"}, Value: "B"},
++			FromNameTag: XMLNameWithTag{Value: "C"},
++			InFieldName: "D",
++		},
++		ExpectXML: `<Parent>` +
++			`<InTag><Value>A</Value></InTag>` +
++			`<InXMLName><Value>B</Value></InXMLName>` +
++			`<InXMLNameTag><Value>C</Value></InXMLNameTag>` +
++			`<InFieldName>D</InFieldName>` +
++			`</Parent>`,
++		MarshalOnly: true,
++	},
++	{
++		Value: &NamePrecedence{
++			XMLName:     Name{Local: "Parent"},
++			FromTag:     XMLNameWithoutTag{XMLName: Name{Local: "InTag"}, Value: "A"},
++			FromNameVal: XMLNameWithoutTag{XMLName: Name{Local: "FromNameVal"}, Value: "B"},
++			FromNameTag: XMLNameWithTag{XMLName: Name{Local: "InXMLNameTag"}, Value: "C"},
++			InFieldName: "D",
++		},
++		ExpectXML: `<Parent>` +
++			`<InTag><Value>A</Value></InTag>` +
++			`<FromNameVal><Value>B</Value></FromNameVal>` +
++			`<InXMLNameTag><Value>C</Value></InXMLNameTag>` +
++			`<InFieldName>D</InFieldName>` +
++			`</Parent>`,
++		UnmarshalOnly: true,
++	},
++
++	// Test attributes
++	{
++		Value: &AttrTest{
++			Int:   8,
++			Lower: 9,
++			Float: 23.5,
++			Uint8: 255,
++			Bool:  true,
++			Str:   "s",
++		},
++		ExpectXML: `<AttrTest Int="8" int="9" Float="23.5" Uint8="255" Bool="true" Str="s"></AttrTest>`,
++	},
++
++	// Test ",any"
++	{
++		ExpectXML: `<a><nested><value>known</value></nested><other><sub>unknown</sub></other></a>`,
++		Value: &AnyTest{
++			Nested: "known",
++			AnyField: AnyHolder{
++				XMLName: Name{Local: "other"},
++				XML:     "<sub>unknown</sub>",
++			},
++		},
++		UnmarshalOnly: true,
++	},
++	{
++		Value:       &AnyTest{Nested: "known", AnyField: AnyHolder{XML: "<unknown/>"}},
++		ExpectXML:   `<a><nested><value>known</value></nested></a>`,
++		MarshalOnly: true,
++	},
++
++	// Test recursive types.
++	{
++		Value: &RecurseA{
++			A: "a1",
++			B: &RecurseB{
++				A: &RecurseA{"a2", nil},
++				B: "b1",
++			},
++		},
++		ExpectXML: `<RecurseA><A>a1</A><B><A><A>a2</A></A><B>b1</B></B></RecurseA>`,
+ 	},
+ }
+ 
+ func TestMarshal(t *testing.T) {
+ 	for idx, test := range marshalTests {
++		if test.UnmarshalOnly {
++			continue
++		}
+ 		buf := bytes.NewBuffer(nil)
+ 		err := Marshal(buf, test.Value)
+ 		if err != nil {
+@@ -303,9 +540,9 @@ func TestMarshal(t *testing.T) {
+ 		}
+ 		if got, want := buf.String(), test.ExpectXML; got != want {
+ 			if strings.Contains(want, "\n") {
+-				t.Errorf("#%d: marshal(%#v) - GOT:\n%s\nWANT:\n%s", idx, test.Value, got, want)
++				t.Errorf("#%d: marshal(%#v):\nHAVE:\n%s\nWANT:\n%s", idx, test.Value, got, want)
+ 			} else {
+-				t.Errorf("#%d: marshal(%#v) = %#q want %#q", idx, test.Value, got, want)
++				t.Errorf("#%d: marshal(%#v):\nhave %#q\nwant %#q", idx, test.Value, got, want)
+ 			}
+ 		}
+ 	}
+@@ -334,6 +571,10 @@ var marshalErrorTests = []struct {
+ 		Err:   "xml: unsupported type: map[*xml.Ship]bool",
+ 		Kind:  reflect.Map,
+ 	},
++	{
++		Value: &Domain{Comment: []byte("f--bar")},
++		Err:   `xml: comments must not contain "--"`,
++	},
+ }
+ 
+ func TestMarshalErrors(t *testing.T) {
+@@ -341,10 +582,12 @@ func TestMarshalErrors(t *testing.T) {
+ 		buf := bytes.NewBuffer(nil)
+ 		err := Marshal(buf, test.Value)
+ 		if err == nil || err.Error() != test.Err {
+-			t.Errorf("#%d: marshal(%#v) = [error] %q, want %q", idx, test.Value, err, test.Err)
++			t.Errorf("#%d: marshal(%#v) = [error] %v, want %v", idx, test.Value, err, test.Err)
+ 		}
+-		if kind := err.(*UnsupportedTypeError).Type.Kind(); kind != test.Kind {
+-			t.Errorf("#%d: marshal(%#v) = [error kind] %s, want %s", idx, test.Value, kind, test.Kind)
++		if test.Kind != reflect.Invalid {
++			if kind := err.(*UnsupportedTypeError).Type.Kind(); kind != test.Kind {
++				t.Errorf("#%d: marshal(%#v) = [error kind] %s, want %s", idx, test.Value, kind, test.Kind)
++			}
+ 		}
+ 	}
+ }
+@@ -352,39 +595,20 @@ func TestMarshalErrors(t *testing.T) {
+ // Do invertibility testing on the various structures that we test
+ func TestUnmarshal(t *testing.T) {
+ 	for i, test := range marshalTests {
+-		// Skip the nil pointers
+-		if i <= 1 {
++		if test.MarshalOnly {
+ 			continue
+ 		}
+-
+-		var dest interface{}
+-
+-		switch test.Value.(type) {
+-		case *Ship, Ship:
+-			dest = &Ship{}
+-		case *Port, Port:
+-			dest = &Port{}
+-		case *Domain, Domain:
+-			dest = &Domain{}
+-		case *Feed, Feed:
+-			dest = &Feed{}
+-		default:
++		if _, ok := test.Value.(*Plain); ok {
+ 			continue
+ 		}
+ 
++		vt := reflect.TypeOf(test.Value)
++		dest := reflect.New(vt.Elem()).Interface()
+ 		buffer := bytes.NewBufferString(test.ExpectXML)
+ 		err := Unmarshal(buffer, dest)
+ 
+-		// Don't compare XMLNames
+ 		switch fix := dest.(type) {
+-		case *Ship:
+-			fix.XMLName = Name{}
+-		case *Port:
+-			fix.XMLName = Name{}
+-		case *Domain:
+-			fix.XMLName = Name{}
+ 		case *Feed:
+-			fix.XMLName = Name{}
+ 			fix.Author.InnerXML = ""
+ 			for i := range fix.Entry {
+ 				fix.Entry[i].Author.InnerXML = ""
+@@ -394,30 +618,23 @@ func TestUnmarshal(t *testing.T) {
+ 		if err != nil {
+ 			t.Errorf("#%d: unexpected error: %#v", i, err)
+ 		} else if got, want := dest, test.Value; !reflect.DeepEqual(got, want) {
+-			t.Errorf("#%d: unmarshal(%q) = %#v, want %#v", i, test.ExpectXML, got, want)
++			t.Errorf("#%d: unmarshal(%q):\nhave %#v\nwant %#v", i, test.ExpectXML, got, want)
+ 		}
+ 	}
+ }
+ 
+ func BenchmarkMarshal(b *testing.B) {
+-	idx := len(marshalTests) - 1
+-	test := marshalTests[idx]
+-
+ 	buf := bytes.NewBuffer(nil)
+ 	for i := 0; i < b.N; i++ {
+-		Marshal(buf, test.Value)
++		Marshal(buf, atomValue)
+ 		buf.Truncate(0)
+ 	}
+ }
+ 
+ func BenchmarkUnmarshal(b *testing.B) {
+-	idx := len(marshalTests) - 1
+-	test := marshalTests[idx]
+-	sm := &Ship{}
+-	xml := []byte(test.ExpectXML)
+-
++	xml := []byte(atomXml)
+ 	for i := 0; i < b.N; i++ {
+ 		buffer := bytes.NewBuffer(xml)
+-		Unmarshal(buffer, sm)
++		Unmarshal(buffer, &Feed{})
+ 	}
+ }
+diff --git a/src/pkg/encoding/xml/read.go b/src/pkg/encoding/xml/read.go
+index 6dd3654100..dde68de3e7 100644
+--- a/src/pkg/encoding/xml/read.go
++++ b/src/pkg/encoding/xml/read.go
+@@ -7,13 +7,10 @@ package xml
+ import (
+ 	"bytes"
+ 	"errors"
+-	"fmt"
+ 	"io"
+ 	"reflect"
+ 	"strconv"
+ 	"strings"
+-	"unicode"
+-	"unicode/utf8"
+ )
+ 
+ // BUG(rsc): Mapping between XML elements and data structures is inherently flawed:
+@@ -31,7 +28,7 @@ import (
+ // For example, given these definitions:
+ //
+ //	type Email struct {
+-//		Where string `xml:"attr"`
++//		Where string `xml:",attr"`
+ //		Addr  string
+ //	}
+ //
+@@ -64,7 +61,8 @@ import (
+ //
+ // via Unmarshal(r, &result) is equivalent to assigning
+ //
+-//	r = Result{xml.Name{"", "result"},
++//	r = Result{
++//		xml.Name{Local: "result"},
+ //		"Grace R. Emlin", // name
+ //		"phone",	  // no phone given
+ //		[]Email{
+@@ -87,9 +85,9 @@ import (
+ // In the rules, the tag of a field refers to the value associated with the
+ // key 'xml' in the struct field's tag (see the example above).
+ //
+-//   * If the struct has a field of type []byte or string with tag "innerxml",
+-//      Unmarshal accumulates the raw XML nested inside the element
+-//      in that field.  The rest of the rules still apply.
++//   * If the struct has a field of type []byte or string with tag
++//      ",innerxml", Unmarshal accumulates the raw XML nested inside the
++//      element in that field.  The rest of the rules still apply.
+ //
+ //   * If the struct has a field named XMLName of type xml.Name,
+ //      Unmarshal records the element name in that field.
+@@ -100,8 +98,9 @@ import (
+ //      returns an error.
+ //
+ //   * If the XML element has an attribute whose name matches a
+-//      struct field of type string with tag "attr", Unmarshal records
+-//      the attribute value in that field.
++//      struct field name with an associated tag containing ",attr" or
++//      the explicit name in a struct field tag of the form "name,attr",
++//      Unmarshal records the attribute value in that field.
+ //
+ //   * If the XML element contains character data, that data is
+ //      accumulated in the first struct field that has tag "chardata".
+@@ -109,23 +108,30 @@ import (
+ //      If there is no such field, the character data is discarded.
+ //
+ //   * If the XML element contains comments, they are accumulated in
+-//      the first struct field that has tag "comments".  The struct
++//      the first struct field that has tag ",comments".  The struct
+ //      field may have type []byte or string.  If there is no such
+ //      field, the comments are discarded.
+ //
+ //   * If the XML element contains a sub-element whose name matches
+-//      the prefix of a tag formatted as "a>b>c", unmarshal
++//      the prefix of a tag formatted as "a" or "a>b>c", unmarshal
+ //      will descend into the XML structure looking for elements with the
+-//      given names, and will map the innermost elements to that struct field.
+-//      A tag starting with ">" is equivalent to one starting
++//      given names, and will map the innermost elements to that struct
++//      field. A tag starting with ">" is equivalent to one starting
+ //      with the field name followed by ">".
+ //
+-//   * If the XML element contains a sub-element whose name
+-//      matches a field whose tag is neither "attr" nor "chardata",
+-//      Unmarshal maps the sub-element to that struct field.
+-//      Otherwise, if the struct has a field named Any, unmarshal
++//   * If the XML element contains a sub-element whose name matches
++//      a struct field's XMLName tag and the struct field has no
++//      explicit name tag as per the previous rule, unmarshal maps
++//      the sub-element to that struct field.
++//
++//   * If the XML element contains a sub-element whose name matches a
++//      field without any mode flags (",attr", ",chardata", etc), Unmarshal
+ //      maps the sub-element to that struct field.
+ //
++//   * If the XML element contains a sub-element that hasn't matched any
++//      of the above rules and the struct has a field with tag ",any",
++//      unmarshal maps the sub-element to that struct field.
++//
+ // Unmarshal maps an XML element to a string or []byte by saving the
+ // concatenation of that element's character data in the string or
+ // []byte.
+@@ -169,18 +175,6 @@ type UnmarshalError string
+ 
+ func (e UnmarshalError) Error() string { return string(e) }
+ 
+-// A TagPathError represents an error in the unmarshalling process
+-// caused by the use of field tags with conflicting paths.
+-type TagPathError struct {
+-	Struct       reflect.Type
+-	Field1, Tag1 string
+-	Field2, Tag2 string
+-}
+-
+-func (e *TagPathError) Error() string {
+-	return fmt.Sprintf("%s field %q with tag %q conflicts with field %q with tag %q", e.Struct, e.Field1, e.Tag1, e.Field2, e.Tag2)
+-}
+-
+ // The Parser's Unmarshal method is like xml.Unmarshal
+ // except that it can be passed a pointer to the initial start element,
+ // useful when a client reads some raw XML tokens itself
+@@ -195,26 +189,6 @@ func (p *Parser) Unmarshal(val interface{}, start *StartElement) error {
+ 	return p.unmarshal(v.Elem(), start)
+ }
+ 
+-// fieldName strips invalid characters from an XML name
+-// to create a valid Go struct name.  It also converts the
+-// name to lower case letters.
+-func fieldName(original string) string {
+-
+-	var i int
+-	//remove leading underscores, without exhausting all characters
+-	for i = 0; i < len(original)-1 && original[i] == '_'; i++ {
+-	}
+-
+-	return strings.Map(
+-		func(x rune) rune {
+-			if x == '_' || unicode.IsDigit(x) || unicode.IsLetter(x) {
+-				return unicode.ToLower(x)
+-			}
+-			return -1
+-		},
+-		original[i:])
+-}
+-
+ // Unmarshal a single XML element into val.
+ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) error {
+ 	// Find start element if we need it.
+@@ -246,15 +220,22 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) error {
+ 		saveXML      reflect.Value
+ 		saveXMLIndex int
+ 		saveXMLData  []byte
++		saveAny      reflect.Value
+ 		sv           reflect.Value
+-		styp         reflect.Type
+-		fieldPaths   map[string]pathInfo
++		tinfo        *typeInfo
++		err          error
+ 	)
+ 
+ 	switch v := val; v.Kind() {
+ 	default:
+ 		return errors.New("unknown type " + v.Type().String())
+ 
++	case reflect.Interface:
++		// TODO: For now, simply ignore the field. In the near
++		//       future we may choose to unmarshal the start
++		//       element on it, if not nil.
++		return p.Skip()
++
+ 	case reflect.Slice:
+ 		typ := v.Type()
+ 		if typ.Elem().Kind() == reflect.Uint8 {
+@@ -288,75 +269,69 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) error {
+ 		saveData = v
+ 
+ 	case reflect.Struct:
+-		if _, ok := v.Interface().(Name); ok {
+-			v.Set(reflect.ValueOf(start.Name))
+-			break
+-		}
+-
+ 		sv = v
+ 		typ := sv.Type()
+-		styp = typ
+-		// Assign name.
+-		if f, ok := typ.FieldByName("XMLName"); ok {
+-			// Validate element name.
+-			if tag := f.Tag.Get("xml"); tag != "" {
+-				ns := ""
+-				i := strings.LastIndex(tag, " ")
+-				if i >= 0 {
+-					ns, tag = tag[0:i], tag[i+1:]
+-				}
+-				if tag != start.Name.Local {
+-					return UnmarshalError("expected element type <" + tag + "> but have <" + start.Name.Local + ">")
+-				}
+-				if ns != "" && ns != start.Name.Space {
+-					e := "expected element <" + tag + "> in name space " + ns + " but have "
+-					if start.Name.Space == "" {
+-						e += "no name space"
+-					} else {
+-						e += start.Name.Space
+-					}
+-					return UnmarshalError(e)
++		tinfo, err = getTypeInfo(typ)
++		if err != nil {
++			return err
++		}
++
++		// Validate and assign element name.
++		if tinfo.xmlname != nil {
++			finfo := tinfo.xmlname
++			if finfo.name != "" && finfo.name != start.Name.Local {
++				return UnmarshalError("expected element type <" + finfo.name + "> but have <" + start.Name.Local + ">")
++			}
++			if finfo.xmlns != "" && finfo.xmlns != start.Name.Space {
++				e := "expected element <" + finfo.name + "> in name space " + finfo.xmlns + " but have "
++				if start.Name.Space == "" {
++					e += "no name space"
++				} else {
++					e += start.Name.Space
+ 				}
++				return UnmarshalError(e)
+ 			}
+-
+-			// Save
+-			v := sv.FieldByIndex(f.Index)
+-			if _, ok := v.Interface().(Name); ok {
+-				v.Set(reflect.ValueOf(start.Name))
++			fv := sv.FieldByIndex(finfo.idx)
++			if _, ok := fv.Interface().(Name); ok {
++				fv.Set(reflect.ValueOf(start.Name))
+ 			}
+ 		}
+ 
+ 		// Assign attributes.
+ 		// Also, determine whether we need to save character data or comments.
+-		for i, n := 0, typ.NumField(); i < n; i++ {
+-			f := typ.Field(i)
+-			switch f.Tag.Get("xml") {
+-			case "attr":
+-				strv := sv.FieldByIndex(f.Index)
++		for i := range tinfo.fields {
++			finfo := &tinfo.fields[i]
++			switch finfo.flags & fMode {
++			case fAttr:
++				strv := sv.FieldByIndex(finfo.idx)
+ 				// Look for attribute.
+ 				val := ""
+-				k := strings.ToLower(f.Name)
+ 				for _, a := range start.Attr {
+-					if fieldName(a.Name.Local) == k {
++					if a.Name.Local == finfo.name {
+ 						val = a.Value
+ 						break
+ 					}
+ 				}
+ 				copyValue(strv, []byte(val))
+ 
+-			case "comment":
++			case fCharData:
++				if !saveData.IsValid() {
++					saveData = sv.FieldByIndex(finfo.idx)
++				}
++
++			case fComment:
+ 				if !saveComment.IsValid() {
+-					saveComment = sv.FieldByIndex(f.Index)
++					saveComment = sv.FieldByIndex(finfo.idx)
+ 				}
+ 
+-			case "chardata":
+-				if !saveData.IsValid() {
+-					saveData = sv.FieldByIndex(f.Index)
++			case fAny:
++				if !saveAny.IsValid() {
++					saveAny = sv.FieldByIndex(finfo.idx)
+ 				}
+ 
+-			case "innerxml":
++			case fInnerXml:
+ 				if !saveXML.IsValid() {
+-					saveXML = sv.FieldByIndex(f.Index)
++					saveXML = sv.FieldByIndex(finfo.idx)
+ 					if p.saved == nil {
+ 						saveXMLIndex = 0
+ 						p.saved = new(bytes.Buffer)
+@@ -364,24 +339,6 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) error {
+ 						saveXMLIndex = p.savedOffset()
+ 					}
+ 				}
+-
+-			default:
+-				if tag := f.Tag.Get("xml"); strings.Contains(tag, ">") {
+-					if fieldPaths == nil {
+-						fieldPaths = make(map[string]pathInfo)
+-					}
+-					path := strings.ToLower(tag)
+-					if strings.HasPrefix(tag, ">") {
+-						path = strings.ToLower(f.Name) + path
+-					}
+-					if strings.HasSuffix(tag, ">") {
+-						path = path[:len(path)-1]
+-					}
+-					err := addFieldPath(sv, fieldPaths, path, f.Index)
+-					if err != nil {
+-						return err
+-					}
+-				}
+ 			}
+ 		}
+ 	}
+@@ -400,44 +357,23 @@ Loop:
+ 		}
+ 		switch t := tok.(type) {
+ 		case StartElement:
+-			// Sub-element.
+-			// Look up by tag name.
++			consumed := false
+ 			if sv.IsValid() {
+-				k := fieldName(t.Name.Local)
+-
+-				if fieldPaths != nil {
+-					if _, found := fieldPaths[k]; found {
+-						if err := p.unmarshalPaths(sv, fieldPaths, k, &t); err != nil {
+-							return err
+-						}
+-						continue Loop
+-					}
+-				}
+-
+-				match := func(s string) bool {
+-					// check if the name matches ignoring case
+-					if strings.ToLower(s) != k {
+-						return false
+-					}
+-					// now check that it's public
+-					c, _ := utf8.DecodeRuneInString(s)
+-					return unicode.IsUpper(c)
+-				}
+-
+-				f, found := styp.FieldByNameFunc(match)
+-				if !found { // fall back to mop-up field named "Any"
+-					f, found = styp.FieldByName("Any")
++				consumed, err = p.unmarshalPath(tinfo, sv, nil, &t)
++				if err != nil {
++					return err
+ 				}
+-				if found {
+-					if err := p.unmarshal(sv.FieldByIndex(f.Index), &t); err != nil {
++				if !consumed && saveAny.IsValid() {
++					consumed = true
++					if err := p.unmarshal(saveAny, &t); err != nil {
+ 						return err
+ 					}
+-					continue Loop
+ 				}
+ 			}
+-			// Not saving sub-element but still have to skip over it.
+-			if err := p.Skip(); err != nil {
+-				return err
++			if !consumed {
++				if err := p.Skip(); err != nil {
++					return err
++				}
+ 			}
+ 
+ 		case EndElement:
+@@ -503,10 +439,10 @@ func copyValue(dst reflect.Value, src []byte) (err error) {
+ 		return err == nil
+ 	}
+ 
+-	// Save accumulated data and comments
++	// Save accumulated data.
+ 	switch t := dst; t.Kind() {
+ 	case reflect.Invalid:
+-		// Probably a comment, handled below
++		// Probably a comment.
+ 	default:
+ 		return errors.New("cannot happen: unknown type " + t.Type().String())
+ 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+@@ -538,70 +474,66 @@ func copyValue(dst reflect.Value, src []byte) (err error) {
+ 	return nil
+ }
+ 
+-type pathInfo struct {
+-	fieldIdx []int
+-	complete bool
+-}
+-
+-// addFieldPath takes an element path such as "a>b>c" and fills the
+-// paths map with all paths leading to it ("a", "a>b", and "a>b>c").
+-// It is okay for paths to share a common, shorter prefix but not ok
+-// for one path to itself be a prefix of another.
+-func addFieldPath(sv reflect.Value, paths map[string]pathInfo, path string, fieldIdx []int) error {
+-	if info, found := paths[path]; found {
+-		return tagError(sv, info.fieldIdx, fieldIdx)
+-	}
+-	paths[path] = pathInfo{fieldIdx, true}
+-	for {
+-		i := strings.LastIndex(path, ">")
+-		if i < 0 {
+-			break
++// unmarshalPath walks down an XML structure looking for wanted
++// paths, and calls unmarshal on them.
++// The consumed result tells whether XML elements have been consumed
++// from the Parser until start's matching end element, or if it's
++// still untouched because start is uninteresting for sv's fields.
++func (p *Parser) unmarshalPath(tinfo *typeInfo, sv reflect.Value, parents []string, start *StartElement) (consumed bool, err error) {
++	recurse := false
++Loop:
++	for i := range tinfo.fields {
++		finfo := &tinfo.fields[i]
++		if finfo.flags&fElement == 0 || len(finfo.parents) < len(parents) {
++			continue
+ 		}
+-		path = path[:i]
+-		if info, found := paths[path]; found {
+-			if info.complete {
+-				return tagError(sv, info.fieldIdx, fieldIdx)
++		for j := range parents {
++			if parents[j] != finfo.parents[j] {
++				continue Loop
+ 			}
+-		} else {
+-			paths[path] = pathInfo{fieldIdx, false}
++		}
++		if len(finfo.parents) == len(parents) && finfo.name == start.Name.Local {
++			// It's a perfect match, unmarshal the field.
++			return true, p.unmarshal(sv.FieldByIndex(finfo.idx), start)
++		}
++		if len(finfo.parents) > len(parents) && finfo.parents[len(parents)] == start.Name.Local {
++			// It's a prefix for the field. Break and recurse
++			// since it's not ok for one field path to be itself
++			// the prefix for another field path.
++			recurse = true
++
++			// We can reuse the same slice as long as we
++			// don't try to append to it.
++			parents = finfo.parents[:len(parents)+1]
++			break
+ 		}
+ 	}
+-	return nil
+-
+-}
+-
+-func tagError(sv reflect.Value, idx1 []int, idx2 []int) error {
+-	t := sv.Type()
+-	f1 := t.FieldByIndex(idx1)
+-	f2 := t.FieldByIndex(idx2)
+-	return &TagPathError{t, f1.Name, f1.Tag.Get("xml"), f2.Name, f2.Tag.Get("xml")}
+-}
+-
+-// unmarshalPaths walks down an XML structure looking for
+-// wanted paths, and calls unmarshal on them.
+-func (p *Parser) unmarshalPaths(sv reflect.Value, paths map[string]pathInfo, path string, start *StartElement) error {
+-	if info, _ := paths[path]; info.complete {
+-		return p.unmarshal(sv.FieldByIndex(info.fieldIdx), start)
++	if !recurse {
++		// We have no business with this element.
++		return false, nil
+ 	}
++	// The element is not a perfect match for any field, but one
++	// or more fields have the path to this element as a parent
++	// prefix. Recurse and attempt to match these.
+ 	for {
+-		tok, err := p.Token()
++		var tok Token
++		tok, err = p.Token()
+ 		if err != nil {
+-			return err
++			return true, err
+ 		}
+ 		switch t := tok.(type) {
+ 		case StartElement:
+-			k := path + ">" + fieldName(t.Name.Local)
+-			if _, found := paths[k]; found {
+-				if err := p.unmarshalPaths(sv, paths, k, &t); err != nil {
+-					return err
+-				}
+-				continue
++			consumed2, err := p.unmarshalPath(tinfo, sv, parents, &t)
++			if err != nil {
++				return true, err
+ 			}
+-			if err := p.Skip(); err != nil {
+-				return err
++			if !consumed2 {
++				if err := p.Skip(); err != nil {
++					return true, err
++				}
+ 			}
+ 		case EndElement:
+-			return nil
++			return true, nil
+ 		}
+ 	}
+ 	panic("unreachable")
+diff --git a/src/pkg/encoding/xml/read_test.go b/src/pkg/encoding/xml/read_test.go
+index 842f7b71da..ff61bd7e1c 100644
+--- a/src/pkg/encoding/xml/read_test.go
++++ b/src/pkg/encoding/xml/read_test.go
+@@ -25,8 +25,8 @@ func TestUnmarshalFeed(t *testing.T) {
+ // hget http://codereview.appspot.com/rss/mine/rsc
+ const atomFeedString = `
+ <?xml version="1.0" encoding="utf-8"?>
+-<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en-us"><title>Code Review - My issues</title><link href="http://codereview.appspot.com/" rel="alternate"></link><li-nk href="http://codereview.appspot.com/rss/mine/rsc" rel="self"></li-nk><id>http://codereview.appspot.com/</id><updated>2009-10-04T01:35:58+00:00</updated><author><name>rietveld&lt;&gt;</name></author><entry><title>rietveld: an attempt at pubsubhubbub
+-</title><link hre-f="http://codereview.appspot.com/126085" rel="alternate"></link><updated>2009-10-04T01:35:58+00:00</updated><author><name>email-address-removed</name></author><id>urn:md5:134d9179c41f806be79b3a5f7877d19a</id><summary type="html">
++<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en-us"><title>Code Review - My issues</title><link href="http://codereview.appspot.com/" rel="alternate"></link><link href="http://codereview.appspot.com/rss/mine/rsc" rel="self"></link><id>http://codereview.appspot.com/</id><updated>2009-10-04T01:35:58+00:00</updated><author><name>rietveld&lt;&gt;</name></author><entry><title>rietveld: an attempt at pubsubhubbub
++</title><link href="http://codereview.appspot.com/126085" rel="alternate"></link><updated>2009-10-04T01:35:58+00:00</updated><author><name>email-address-removed</name></author><id>urn:md5:134d9179c41f806be79b3a5f7877d19a</id><summary type="html">
+   An attempt at adding pubsubhubbub support to Rietveld.
+ http://code.google.com/p/pubsubhubbub
+ http://code.google.com/p/rietveld/issues/detail?id=155
+@@ -79,39 +79,39 @@ not being used from outside intra_region_diff.py.
+ </summary></entry></feed> 	   `
+ 
+ type Feed struct {
+-	XMLName Name `xml:"http://www.w3.org/2005/Atom feed"`
+-	Title   string
+-	Id      string
+-	Link    []Link
+-	Updated Time
+-	Author  Person
+-	Entry   []Entry
++	XMLName Name    `xml:"http://www.w3.org/2005/Atom feed"`
++	Title   string  `xml:"title"`
++	Id      string  `xml:"id"`
++	Link    []Link  `xml:"link"`
++	Updated Time    `xml:"updated"`
++	Author  Person  `xml:"author"`
++	Entry   []Entry `xml:"entry"`
+ }
+ 
+ type Entry struct {
+-	Title   string
+-	Id      string
+-	Link    []Link
+-	Updated Time
+-	Author  Person
+-	Summary Text
++	Title   string `xml:"title"`
++	Id      string `xml:"id"`
++	Link    []Link `xml:"link"`
++	Updated Time   `xml:"updated"`
++	Author  Person `xml:"author"`
++	Summary Text   `xml:"summary"`
+ }
+ 
+ type Link struct {
+-	Rel  string `xml:"attr"`
+-	Href string `xml:"attr"`
++	Rel  string `xml:"rel,attr"`
++	Href string `xml:"href,attr"`
+ }
+ 
+ type Person struct {
+-	Name     string
+-	URI      string
+-	Email    string
+-	InnerXML string `xml:"innerxml"`
++	Name     string `xml:"name"`
++	URI      string `xml:"uri"`
++	Email    string `xml:"email"`
++	InnerXML string `xml:",innerxml"`
+ }
+ 
+ type Text struct {
+-	Type string `xml:"attr"`
+-	Body string `xml:"chardata"`
++	Type string `xml:"type,attr"`
++	Body string `xml:",chardata"`
+ }
+ 
+ type Time string
+@@ -214,44 +214,26 @@ not being used from outside intra_region_diff.py.
+ 	},
+ }
+ 
+-type FieldNameTest struct {
+-	in, out string
+-}
+-
+-var FieldNameTests = []FieldNameTest{
+-	{"Profile-Image", "profileimage"},
+-	{"_score", "score"},
+-}
+-
+-func TestFieldName(t *testing.T) {
+-	for _, tt := range FieldNameTests {
+-		a := fieldName(tt.in)
+-		if a != tt.out {
+-			t.Fatalf("have %#v\nwant %#v\n\n", a, tt.out)
+-		}
+-	}
+-}
+-
+ const pathTestString = `
+-<result>
+-    <before>1</before>
+-    <items>
+-        <item1>
+-            <value>A</value>
+-        </item1>
+-        <item2>
+-            <value>B</value>
+-        </item2>
++<Result>
++    <Before>1</Before>
++    <Items>
++        <Item1>
++            <Value>A</Value>
++        </Item1>
++        <Item2>
++            <Value>B</Value>
++        </Item2>
+         <Item1>
+             <Value>C</Value>
+             <Value>D</Value>
+         </Item1>
+         <_>
+-            <value>E</value>
++            <Value>E</Value>
+         </_>
+-    </items>
+-    <after>2</after>
+-</result>
++    </Items>
++    <After>2</After>
++</Result>
+ `
+ 
+ type PathTestItem struct {
+@@ -259,18 +241,18 @@ type PathTestItem struct {
+ }
+ 
+ type PathTestA struct {
+-	Items         []PathTestItem `xml:">item1"`
++	Items         []PathTestItem `xml:">Item1"`
+ 	Before, After string
+ }
+ 
+ type PathTestB struct {
+-	Other         []PathTestItem `xml:"items>Item1"`
++	Other         []PathTestItem `xml:"Items>Item1"`
+ 	Before, After string
+ }
+ 
+ type PathTestC struct {
+-	Values1       []string `xml:"items>item1>value"`
+-	Values2       []string `xml:"items>item2>value"`
++	Values1       []string `xml:"Items>Item1>Value"`
++	Values2       []string `xml:"Items>Item2>Value"`
+ 	Before, After string
+ }
+ 
+@@ -279,12 +261,12 @@ type PathTestSet struct {
+ }
+ 
+ type PathTestD struct {
+-	Other         PathTestSet `xml:"items>"`
++	Other         PathTestSet `xml:"Items"`
+ 	Before, After string
+ }
+ 
+ type PathTestE struct {
+-	Underline     string `xml:"items>_>value"`
++	Underline     string `xml:"Items>_>Value"`
+ 	Before, After string
+ }
+ 
+@@ -311,7 +293,7 @@ func TestUnmarshalPaths(t *testing.T) {
+ type BadPathTestA struct {
+ 	First  string `xml:"items>item1"`
+ 	Other  string `xml:"items>item2"`
+-	Second string `xml:"items>"`
++	Second string `xml:"items"`
+ }
+ 
+ type BadPathTestB struct {
+@@ -320,76 +302,50 @@ type BadPathTestB struct {
+ 	Second string `xml:"items>item1>value"`
+ }
+ 
++type BadPathTestC struct {
++	First  string
++	Second string `xml:"First"`
++}
++
++type BadPathTestD struct {
++	BadPathEmbeddedA
++	BadPathEmbeddedB
++}
++
++type BadPathEmbeddedA struct {
++	First string
++}
++
++type BadPathEmbeddedB struct {
++	Second string `xml:"First"`
++}
++
+ var badPathTests = []struct {
+ 	v, e interface{}
+ }{
+-	{&BadPathTestA{}, &TagPathError{reflect.TypeOf(BadPathTestA{}), "First", "items>item1", "Second", "items>"}},
++	{&BadPathTestA{}, &TagPathError{reflect.TypeOf(BadPathTestA{}), "First", "items>item1", "Second", "items"}},
+ 	{&BadPathTestB{}, &TagPathError{reflect.TypeOf(BadPathTestB{}), "First", "items>item1", "Second", "items>item1>value"}},
++	{&BadPathTestC{}, &TagPathError{reflect.TypeOf(BadPathTestC{}), "First", "", "Second", "First"}},
++	{&BadPathTestD{}, &TagPathError{reflect.TypeOf(BadPathTestD{}), "First", "", "Second", "First"}},
+ }
+ 
+ func TestUnmarshalBadPaths(t *testing.T) {
+ 	for _, tt := range badPathTests {
+ 		err := Unmarshal(strings.NewReader(pathTestString), tt.v)
+ 		if !reflect.DeepEqual(err, tt.e) {
+-			t.Fatalf("Unmarshal with %#v didn't fail properly: %#v", tt.v, err)
++			t.Fatalf("Unmarshal with %#v didn't fail properly:\nhave %#v,\nwant %#v", tt.v, err, tt.e)
+ 		}
+ 	}
+ }
+ 
+-func TestUnmarshalAttrs(t *testing.T) {
+-	var f AttrTest
+-	if err := Unmarshal(strings.NewReader(attrString), &f); err != nil {
+-		t.Fatalf("Unmarshal: %s", err)
+-	}
+-	if !reflect.DeepEqual(f, attrStruct) {
+-		t.Fatalf("have %#v\nwant %#v", f, attrStruct)
+-	}
+-}
+-
+-type AttrTest struct {
+-	Test1 Test1
+-	Test2 Test2
+-}
+-
+-type Test1 struct {
+-	Int   int     `xml:"attr"`
+-	Float float64 `xml:"attr"`
+-	Uint8 uint8   `xml:"attr"`
+-}
+-
+-type Test2 struct {
+-	Bool bool `xml:"attr"`
+-}
+-
+-const attrString = `
+-<?xml version="1.0" charset="utf-8"?>
+-<attrtest>
+-  <test1 int="8" float="23.5" uint8="255"/>
+-  <test2 bool="true"/>
+-</attrtest>
+-`
+-
+-var attrStruct = AttrTest{
+-	Test1: Test1{
+-		Int:   8,
+-		Float: 23.5,
+-		Uint8: 255,
+-	},
+-	Test2: Test2{
+-		Bool: true,
+-	},
+-}
+-
+-// test data for TestUnmarshalWithoutNameType
+-
+ const OK = "OK"
+ const withoutNameTypeData = `
+ <?xml version="1.0" charset="utf-8"?>
+-<Test3 attr="OK" />`
++<Test3 Attr="OK" />`
+ 
+ type TestThree struct {
+-	XMLName bool   `xml:"Test3"` // XMLName field without an xml.Name type 
+-	Attr    string `xml:"attr"`
++	XMLName Name   `xml:"Test3"`
++	Attr    string `xml:",attr"`
+ }
+ 
+ func TestUnmarshalWithoutNameType(t *testing.T) {
+diff --git a/src/pkg/encoding/xml/typeinfo.go b/src/pkg/encoding/xml/typeinfo.go
+new file mode 100644
+index 0000000000..8f79c4e78b
+--- /dev/null
++++ b/src/pkg/encoding/xml/typeinfo.go
+@@ -0,0 +1,321 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package xml
++
++import (
++	"fmt"
++	"reflect"
++	"strings"
++	"sync"
++)
++
++// typeInfo holds details for the xml representation of a type.
++type typeInfo struct {
++	xmlname *fieldInfo
++	fields  []fieldInfo
++}
++
++// fieldInfo holds details for the xml representation of a single field.
++type fieldInfo struct {
++	idx     []int
++	name    string
++	xmlns   string
++	flags   fieldFlags
++	parents []string
++}
++
++type fieldFlags int
++
++const (
++	fElement fieldFlags = 1 << iota
++	fAttr
++	fCharData
++	fInnerXml
++	fComment
++	fAny
++
++	// TODO:
++	//fIgnore
++	//fOmitEmpty
++
++	fMode = fElement | fAttr | fCharData | fInnerXml | fComment | fAny
++)
++
++var tinfoMap = make(map[reflect.Type]*typeInfo)
++var tinfoLock sync.RWMutex
++
++// getTypeInfo returns the typeInfo structure with details necessary
++// for marshalling and unmarshalling typ.
++func getTypeInfo(typ reflect.Type) (*typeInfo, error) {
++	tinfoLock.RLock()
++	tinfo, ok := tinfoMap[typ]
++	tinfoLock.RUnlock()
++	if ok {
++		return tinfo, nil
++	}
++	tinfo = &typeInfo{}
++	if typ.Kind() == reflect.Struct {
++		n := typ.NumField()
++		for i := 0; i < n; i++ {
++			f := typ.Field(i)
++			if f.PkgPath != "" {
++				continue // Private field
++			}
++
++			// For embedded structs, embed its fields.
++			if f.Anonymous {
++				if f.Type.Kind() != reflect.Struct {
++					continue
++				}
++				inner, err := getTypeInfo(f.Type)
++				if err != nil {
++					return nil, err
++				}
++				for _, finfo := range inner.fields {
++					finfo.idx = append([]int{i}, finfo.idx...)
++					if err := addFieldInfo(typ, tinfo, &finfo); err != nil {
++						return nil, err
++					}
++				}
++				continue
++			}
++
++			finfo, err := structFieldInfo(typ, &f)
++			if err != nil {
++				return nil, err
++			}
++
++			if f.Name == "XMLName" {
++				tinfo.xmlname = finfo
++				continue
++			}
++
++			// Add the field if it doesn't conflict with other fields.
++			if err := addFieldInfo(typ, tinfo, finfo); err != nil {
++				return nil, err
++			}
++		}
++	}
++	tinfoLock.Lock()
++	tinfoMap[typ] = tinfo
++	tinfoLock.Unlock()
++	return tinfo, nil
++}
++
++// structFieldInfo builds and returns a fieldInfo for f.
++func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, error) {
++	finfo := &fieldInfo{idx: f.Index}
++
++	// Split the tag from the xml namespace if necessary.
++	tag := f.Tag.Get("xml")
++	if i := strings.Index(tag, " "); i >= 0 {
++		finfo.xmlns, tag = tag[:i], tag[i+1:]
++	}
++
++	// Parse flags.
++	tokens := strings.Split(tag, ",")
++	if len(tokens) == 1 {
++		finfo.flags = fElement
++	} else {
++		tag = tokens[0]
++		for _, flag := range tokens[1:] {
++			switch flag {
++			case "attr":
++				finfo.flags |= fAttr
++			case "chardata":
++				finfo.flags |= fCharData
++			case "innerxml":
++				finfo.flags |= fInnerXml
++			case "comment":
++				finfo.flags |= fComment
++			case "any":
++				finfo.flags |= fAny
++			}
++		}
++
++		// Validate the flags used.
++		switch mode := finfo.flags & fMode; mode {
++		case 0:
++			finfo.flags |= fElement
++		case fAttr, fCharData, fInnerXml, fComment, fAny:
++			if f.Name != "XMLName" && (tag == "" || mode == fAttr) {
++				break
++			}
++			fallthrough
++		default:
++			// This will also catch multiple modes in a single field.
++			return nil, fmt.Errorf("xml: invalid tag in field %s of type %s: %q",
++				f.Name, typ, f.Tag.Get("xml"))
++		}
++	}
++
++	// Use of xmlns without a name is not allowed.
++	if finfo.xmlns != "" && tag == "" {
++		return nil, fmt.Errorf("xml: namespace without name in field %s of type %s: %q",
++			f.Name, typ, f.Tag.Get("xml"))
++	}
++
++	if f.Name == "XMLName" {
++		// The XMLName field records the XML element name. Don't
++		// process it as usual because its name should default to
++		// empty rather than to the field name.
++		finfo.name = tag
++		return finfo, nil
++	}
++
++	if tag == "" {
++		// If the name part of the tag is completely empty, get
++		// default from XMLName of underlying struct if feasible,
++		// or field name otherwise.
++		if xmlname := lookupXMLName(f.Type); xmlname != nil {
++			finfo.xmlns, finfo.name = xmlname.xmlns, xmlname.name
++		} else {
++			finfo.name = f.Name
++		}
++		return finfo, nil
++	}
++
++	// Prepare field name and parents.
++	tokens = strings.Split(tag, ">")
++	if tokens[0] == "" {
++		tokens[0] = f.Name
++	}
++	if tokens[len(tokens)-1] == "" {
++		return nil, fmt.Errorf("xml: trailing '>' in field %s of type %s", f.Name, typ)
++	}
++	finfo.name = tokens[len(tokens)-1]
++	if len(tokens) > 1 {
++		finfo.parents = tokens[:len(tokens)-1]
++	}
++
++	// If the field type has an XMLName field, the names must match
++	// so that the behavior of both marshalling and unmarshalling
++	// is straighforward and unambiguous.
++	if finfo.flags&fElement != 0 {
++		ftyp := f.Type
++		xmlname := lookupXMLName(ftyp)
++		if xmlname != nil && xmlname.name != finfo.name {
++			return nil, fmt.Errorf("xml: name %q in tag of %s.%s conflicts with name %q in %s.XMLName",
++				finfo.name, typ, f.Name, xmlname.name, ftyp)
++		}
++	}
++	return finfo, nil
++}
++
++// lookupXMLName returns the fieldInfo for typ's XMLName field
++// in case it exists and has a valid xml field tag, otherwise
++// it returns nil.
++func lookupXMLName(typ reflect.Type) (xmlname *fieldInfo) {
++	for typ.Kind() == reflect.Ptr {
++		typ = typ.Elem()
++	}
++	if typ.Kind() != reflect.Struct {
++		return nil
++	}
++	for i, n := 0, typ.NumField(); i < n; i++ {
++		f := typ.Field(i)
++		if f.Name != "XMLName" {
++			continue
++		}
++		finfo, err := structFieldInfo(typ, &f)
++		if finfo.name != "" && err == nil {
++			return finfo
++		}
++		// Also consider errors as a non-existent field tag
++		// and let getTypeInfo itself report the error.
++		break
++	}
++	return nil
++}
++
++func min(a, b int) int {
++	if a <= b {
++		return a
++	}
++	return b
++}
++
++// addFieldInfo adds finfo to tinfo.fields if there are no
++// conflicts, or if conflicts arise from previous fields that were
++// obtained from deeper embedded structures than finfo. In the latter
++// case, the conflicting entries are dropped.
++// A conflict occurs when the path (parent + name) to a field is
++// itself a prefix of another path, or when two paths match exactly.
++// It is okay for field paths to share a common, shorter prefix.
++func addFieldInfo(typ reflect.Type, tinfo *typeInfo, newf *fieldInfo) error {
++	var conflicts []int
++Loop:
++	// First, figure all conflicts. Most working code will have none.
++	for i := range tinfo.fields {
++		oldf := &tinfo.fields[i]
++		if oldf.flags&fMode != newf.flags&fMode {
++			continue
++		}
++		minl := min(len(newf.parents), len(oldf.parents))
++		for p := 0; p < minl; p++ {
++			if oldf.parents[p] != newf.parents[p] {
++				continue Loop
++			}
++		}
++		if len(oldf.parents) > len(newf.parents) {
++			if oldf.parents[len(newf.parents)] == newf.name {
++				conflicts = append(conflicts, i)
++			}
++		} else if len(oldf.parents) < len(newf.parents) {
++			if newf.parents[len(oldf.parents)] == oldf.name {
++				conflicts = append(conflicts, i)
++			}
++		} else {
++			if newf.name == oldf.name {
++				conflicts = append(conflicts, i)
++			}
++		}
++	}
++	// Without conflicts, add the new field and return.
++	if conflicts == nil {
++		tinfo.fields = append(tinfo.fields, *newf)
++		return nil
++	}
++
++	// If any conflict is shallower, ignore the new field.
++	// This matches the Go field resolution on embedding.
++	for _, i := range conflicts {
++		if len(tinfo.fields[i].idx) < len(newf.idx) {
++			return nil
++		}
++	}
++
++	// Otherwise, if any of them is at the same depth level, it's an error.
++	for _, i := range conflicts {
++		oldf := &tinfo.fields[i]
++		if len(oldf.idx) == len(newf.idx) {
++			f1 := typ.FieldByIndex(oldf.idx)
++			f2 := typ.FieldByIndex(newf.idx)
++			return &TagPathError{typ, f1.Name, f1.Tag.Get("xml"), f2.Name, f2.Tag.Get("xml")}
++		}
++	}
++
++	// Otherwise, the new field is shallower, and thus takes precedence,
++	// so drop the conflicting fields from tinfo and append the new one.
++	for c := len(conflicts) - 1; c >= 0; c-- {
++		i := conflicts[c]
++		copy(tinfo.fields[i:], tinfo.fields[i+1:])
++		tinfo.fields = tinfo.fields[:len(tinfo.fields)-1]
++	}
++	tinfo.fields = append(tinfo.fields, *newf)
++	return nil
++}
++
++// A TagPathError represents an error in the unmarshalling process
++// caused by the use of field tags with conflicting paths.
++type TagPathError struct {
++	Struct       reflect.Type
++	Field1, Tag1 string
++	Field2, Tag2 string
++}
++
++func (e *TagPathError) Error() string {
++	return fmt.Sprintf("%s field %q with tag %q conflicts with field %q with tag %q", e.Struct, e.Field1, e.Tag1, e.Field2, e.Tag2)
++}
+diff --git a/src/pkg/encoding/xml/xml_test.go b/src/pkg/encoding/xml/xml_test.go
+index c6093047d6..524d4dda4f 100644
+--- a/src/pkg/encoding/xml/xml_test.go
++++ b/src/pkg/encoding/xml/xml_test.go
+@@ -344,26 +344,26 @@ var all = allScalars{
+ var sixteen = "16"
+ 
+ const testScalarsInput = `<allscalars>
+-	<true1>true</true1>
+-	<true2>1</true2>
+-	<false1>false</false1>
+-	<false2>0</false2>
+-	<int>1</int>
+-	<int8>-2</int8>
+-	<int16>3</int16>
+-	<int32>-4</int32>
+-	<int64>5</int64>
+-	<uint>6</uint>
+-	<uint8>7</uint8>
+-	<uint16>8</uint16>
+-	<uint32>9</uint32>
+-	<uint64>10</uint64>
+-	<uintptr>11</uintptr>
+-	<float>12.0</float>
+-	<float32>13.0</float32>
+-	<float64>14.0</float64>
+-	<string>15</string>
+-	<ptrstring>16</ptrstring>
++	<True1>true</True1>
++	<True2>1</True2>
++	<False1>false</False1>
++	<False2>0</False2>
++	<Int>1</Int>
++	<Int8>-2</Int8>
++	<Int16>3</Int16>
++	<Int32>-4</Int32>
++	<Int64>5</Int64>
++	<Uint>6</Uint>
++	<Uint8>7</Uint8>
++	<Uint16>8</Uint16>
++	<Uint32>9</Uint32>
++	<Uint64>10</Uint64>
++	<Uintptr>11</Uintptr>
++	<Float>12.0</Float>
++	<Float32>13.0</Float32>
++	<Float64>14.0</Float64>
++	<String>15</String>
++	<PtrString>16</PtrString>
+ </allscalars>`
+ 
+ func TestAllScalars(t *testing.T) {
+@@ -384,7 +384,7 @@ type item struct {
+ }
+ 
+ func TestIssue569(t *testing.T) {
+-	data := `<item><field_a>abcd</field_a></item>`
++	data := `<item><Field_a>abcd</Field_a></item>`
+ 	var i item
+ 	buf := bytes.NewBufferString(data)
+ 	err := Unmarshal(buf, &i)

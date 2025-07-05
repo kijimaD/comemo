@@ -17,7 +17,107 @@ Date:   Mon Jun 2 21:06:30 2014 -0400
     R=golang-codereviews, dsymonds
     CC=golang-codereviews, iant, r
     https://golang.org/cl/100940043
-
+---
  src/pkg/runtime/iface.goc   | 23 +++++++++++++++++----
  test/fixedbugs/issue8139.go | 50 +++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 69 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/runtime/iface.goc b/src/pkg/runtime/iface.goc
+index 96bb8b8aa4..c0a17e3034 100644
+--- a/src/pkg/runtime/iface.goc
++++ b/src/pkg/runtime/iface.goc
+@@ -209,9 +209,19 @@ func convT2E(t *Type, elem *byte) (ret Eface) {
+ 
+ static void assertI2Tret(Type *t, Iface i, byte *ret);
+ 
++/*
++ * NOTE: Cannot use 'func' here, because we have to declare
++ * a return value, the only types we have are at least 1 byte large,
++ * goc2c will zero the return value, and the actual return value
++ * might have size 0 bytes, in which case the zeroing of the
++ * 1 or more bytes would be wrong.
++ * Using C lets us control (avoid) the initial zeroing.
++ */
+ #pragma textflag NOSPLIT
+-func assertI2T(t *Type, i Iface) (ret byte, ...) {
+-	assertI2Tret(t, i, &ret);
++void
++runtime·assertI2T(Type *t, Iface i, GoOutput retbase)
++{
++	assertI2Tret(t, i, (byte*)&retbase);
+ }
+ 
+ static void
+@@ -260,9 +270,14 @@ func assertI2TOK(t *Type, i Iface) (ok bool) {
+ 
+ static void assertE2Tret(Type *t, Eface e, byte *ret);
+ 
++/*
++ * NOTE: Cannot use 'func' here. See assertI2T above.
++ */
+ #pragma textflag NOSPLIT
+-func assertE2T(t *Type, e Eface) (ret byte, ...) {
+-	assertE2Tret(t, e, &ret);
++void
++runtime·assertE2T(Type *t, Eface e, GoOutput retbase)
++{
++	assertE2Tret(t, e, (byte*)&retbase);
+ }
+ 
+ static void
+diff --git a/test/fixedbugs/issue8139.go b/test/fixedbugs/issue8139.go
+new file mode 100644
+index 0000000000..821c9ff656
+--- /dev/null
++++ b/test/fixedbugs/issue8139.go
+@@ -0,0 +1,50 @@
++// run
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 8139. The x.(T) assertions used to write 1 (unexpected)
++// return byte for the 0-byte return value T.
++
++package main
++
++import "fmt"
++
++type T struct{}
++
++func (T) M() {}
++
++type M interface {
++	M()
++}
++
++var e interface{} = T{}
++var i M = T{}
++var b bool
++
++func f1() int {
++	if b {
++		return f1() // convince inliner not to inline
++	}
++	z := 0x11223344
++	_ = e.(T)
++	return z
++}
++
++func f2() int {
++	if b {
++		return f1() // convince inliner not to inline
++	}
++	z := 0x11223344
++	_ = i.(T)
++	return z
++}
++
++func main() {
++	x := f1()
++	y := f2()
++	if x != 0x11223344 || y != 0x11223344 {
++		fmt.Printf("BUG: x=%#x y=%#x, want 0x11223344 for both\n", x, y)
++	}
++}

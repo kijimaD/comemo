@@ -10,7 +10,73 @@ Date:   Thu Apr 28 14:16:41 2011 -0300
     R=golang-dev, rsc1
     CC=golang-dev
     https://golang.org/cl/4431074
-
+---
  src/pkg/reflect/all_test.go   |  8 +-------
  src/pkg/syslog/syslog_test.go | 20 +++++++++++++++++---
  2 files changed, 18 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 5bf65333c9..00d59d8081 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -579,13 +579,7 @@ func TestCopyArray(t *testing.T) {
+ 	}
+ 	for i := len(a); i < len(b); i++ {
+ 		if b[i] != c[i] {
+-			if i < len(a) {
+-				t.Errorf("(ii) a[%d]=%d, b[%d]=%d, c[%d]=%d",
+-					i, a[i], i, b[i], i, c[i])
+-			} else {
+-				t.Errorf("(iii) b[%d]=%d, c[%d]=%d",
+-					i, b[i], i, c[i])
+-			}
++			t.Errorf("(ii) b[%d]=%d, c[%d]=%d", i, b[i], i, c[i])
+ 		} else {
+ 			t.Logf("elem %d is okay\n", i)
+ 		}
+diff --git a/src/pkg/syslog/syslog_test.go b/src/pkg/syslog/syslog_test.go
+index 4816ddf2a3..5c0b3e0c4e 100644
+--- a/src/pkg/syslog/syslog_test.go
++++ b/src/pkg/syslog/syslog_test.go
+@@ -35,7 +35,19 @@ func startServer(done chan<- string) {
+ 	go runSyslog(c, done)
+ }
+ 
++func skipNetTest(t *testing.T) bool {
++	if testing.Short() {
++		// Depends on syslog daemon running, and sometimes it's not.
++		t.Logf("skipping syslog test during -short")
++		return true
++	}
++	return false
++}
++
+ func TestNew(t *testing.T) {
++	if skipNetTest(t) {
++		return
++	}
+ 	s, err := New(LOG_INFO, "")
+ 	if err != nil {
+ 		t.Fatalf("New() failed: %s", err)
+@@ -45,6 +57,9 @@ func TestNew(t *testing.T) {
+ }
+ 
+ func TestNewLogger(t *testing.T) {
++	if skipNetTest(t) {
++		return
++	}
+ 	f := NewLogger(LOG_INFO, 0)
+ 	if f == nil {
+ 		t.Error("NewLogger() failed")
+@@ -52,9 +67,8 @@ func TestNewLogger(t *testing.T) {
+ }
+ 
+ func TestDial(t *testing.T) {
+-	if testing.Short() {
+-		// Depends on syslog daemon running, and sometimes it's not.
+-		t.Logf("skipping syslog test during -short")
++	if skipNetTest(t) {
++		return
+ 	}
+ 	l, err := Dial("", "", LOG_ERR, "syslog_test")
+ 	if err != nil {

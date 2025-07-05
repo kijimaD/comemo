@@ -9,6 +9,39 @@ Date:   Wed Nov 25 11:45:16 2015 -0500
     Change-Id: Id0611667e6149753c351c0c5e01211340a87d3fd
     Reviewed-on: https://go-review.googlesource.com/17230
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/encoding/json/decode.go | 20 +++++++++++++++-----
  1 file changed, 15 insertions(+), 5 deletions(-)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index ef08b0c274..6dc1b9d5b6 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -48,12 +48,22 @@ import (
+ //	map[string]interface{}, for JSON objects
+ //	nil for JSON null
+ //
+-// To unmarshal a JSON array into a slice, Unmarshal resets the slice to nil
+-// and then appends each element to the slice.
++// To unmarshal a JSON array into a slice, Unmarshal resets the slice length
++// to zero and then appends each element to the slice.
++// As a special case, to unmarshal an empty JSON array into a slice,
++// Unmarshal replaces the slice with a new empty slice.
+ //
+-// To unmarshal a JSON object into a map, Unmarshal replaces the map
+-// with an empty map and then adds key-value pairs from the object to
+-// the map.
++// To unmarshal a JSON array into a Go array, Unmarshal decodes
++// JSON array elements into corresponding Go array elements.
++// If the Go array is smaller than the JSON array,
++// the additional JSON array elements are discarded.
++// If the JSON array is smaller than the Go array,
++// the additional Go array elements are set to zero values.
++//
++// To unmarshal a JSON object into a string-keyed map, Unmarshal first 
++// establishes a map to use, If the map is nil, Unmarshal allocates a new map.
++// Otherwise Unmarshal reuses the existing map, keeping existing entries.
++// Unmarshal then stores key-value pairs from the JSON object into the map.
+ //
+ // If a JSON value is not appropriate for a given target type,
+ // or if a JSON number overflows the target type, Unmarshal

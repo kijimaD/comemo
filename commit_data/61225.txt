@@ -15,8 +15,107 @@ Date:   Mon Oct 21 16:27:03 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Commit-Queue: Ian Lance Taylor <iant@google.com>
-
+---
  src/html/entity.go      | 20 ++++++++------------
  src/html/entity_test.go |  6 ++----
  src/html/escape.go      |  8 ++++----
  3 files changed, 14 insertions(+), 20 deletions(-)
+
+diff --git a/src/html/entity.go b/src/html/entity.go
+index f0f9a6a973..421a54ab57 100644
+--- a/src/html/entity.go
++++ b/src/html/entity.go
+@@ -9,22 +9,16 @@ import "sync"
+ // All entities that do not end with ';' are 6 or fewer bytes long.
+ const longestEntityWithoutSemicolon = 6
+ 
++// entityMaps returns entity and entity2.
++//
+ // entity is a map from HTML entity names to their values. The semicolon matters:
+ // https://html.spec.whatwg.org/multipage/named-characters.html
+ // lists both "amp" and "amp;" as two separate entries.
+-//
+ // Note that the HTML5 list is larger than the HTML4 list at
+ // http://www.w3.org/TR/html4/sgml/entities.html
+-var entity map[string]rune
+-
+-// HTML entities that are two unicode codepoints.
+-var entity2 map[string][2]rune
+-
+-// populateMapsOnce guards calling populateMaps.
+-var populateMapsOnce sync.Once
+-
+-// populateMaps populates entity and entity2.
+-func populateMaps() {
++//
++// entity2 is a map of HTML entities to two unicode codepoints.
++var entityMaps = sync.OnceValues(func() (entity map[string]rune, entity2 map[string][2]rune) {
+ 	entity = map[string]rune{
+ 		"AElig;":                           '\U000000C6',
+ 		"AMP;":                             '\U00000026',
+@@ -2262,4 +2256,6 @@ func populateMaps() {
+ 		"vsupnE;":                  {'\u2ACC', '\uFE00'},
+ 		"vsupne;":                  {'\u228B', '\uFE00'},
+ 	}
+-}
++
++	return entity, entity2
++})
+diff --git a/src/html/entity_test.go b/src/html/entity_test.go
+index 6688ed2c43..4011da6141 100644
+--- a/src/html/entity_test.go
++++ b/src/html/entity_test.go
+@@ -9,11 +9,9 @@ import (
+ 	"unicode/utf8"
+ )
+ 
+-func init() {
+-	UnescapeString("") // force load of entity maps
+-}
+-
+ func TestEntityLength(t *testing.T) {
++	entity, entity2 := entityMaps()
++
+ 	if len(entity) == 0 || len(entity2) == 0 {
+ 		t.Fatal("maps not loaded")
+ 	}
+diff --git a/src/html/escape.go b/src/html/escape.go
+index 1dc12873b0..b718c247ff 100644
+--- a/src/html/escape.go
++++ b/src/html/escape.go
+@@ -53,7 +53,7 @@ var replacementTable = [...]rune{
+ // unescapeEntity reads an entity like "&lt;" from b[src:] and writes the
+ // corresponding "<" to b[dst:], returning the incremented dst and src cursors.
+ // Precondition: b[src] == '&' && dst <= src.
+-func unescapeEntity(b []byte, dst, src int) (dst1, src1 int) {
++func unescapeEntity(b []byte, dst, src int, entity map[string]rune, entity2 map[string][2]rune) (dst1, src1 int) {
+ 	const attribute = false
+ 
+ 	// http://www.whatwg.org/specs/web-apps/current-work/multipage/tokenization.html#consume-a-character-reference
+@@ -185,7 +185,6 @@ func EscapeString(s string) string {
+ // UnescapeString(EscapeString(s)) == s always holds, but the converse isn't
+ // always true.
+ func UnescapeString(s string) string {
+-	populateMapsOnce.Do(populateMaps)
+ 	i := strings.IndexByte(s, '&')
+ 
+ 	if i < 0 {
+@@ -193,7 +192,8 @@ func UnescapeString(s string) string {
+ 	}
+ 
+ 	b := []byte(s)
+-	dst, src := unescapeEntity(b, i, i)
++	entity, entity2 := entityMaps()
++	dst, src := unescapeEntity(b, i, i, entity, entity2)
+ 	for len(s[src:]) > 0 {
+ 		if s[src] == '&' {
+ 			i = 0
+@@ -208,7 +208,7 @@ func UnescapeString(s string) string {
+ 		if i > 0 {
+ 			copy(b[dst:], s[src:src+i])
+ 		}
+-		dst, src = unescapeEntity(b, dst+i, src+i)
++		dst, src = unescapeEntity(b, dst+i, src+i, entity, entity2)
+ 	}
+ 	return string(b[:dst])
+ }

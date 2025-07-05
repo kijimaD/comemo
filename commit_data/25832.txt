@@ -18,7 +18,37 @@ Date:   Thu Nov 19 17:41:57 2015 -0800
     Change-Id: I52ba35b6cc544fff724327140e0c27898431d1dc
     Reviewed-on: https://go-review.googlesource.com/17069
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/hash/crc32/crc32_amd64.go    | 2 ++
  src/hash/crc32/crc32_amd64p32.go | 1 +
  2 files changed, 3 insertions(+)
+
+diff --git a/src/hash/crc32/crc32_amd64.go b/src/hash/crc32/crc32_amd64.go
+index 01f86840d6..ab4e2b8c8c 100644
+--- a/src/hash/crc32/crc32_amd64.go
++++ b/src/hash/crc32/crc32_amd64.go
+@@ -15,10 +15,12 @@ func haveCLMUL() bool
+ 
+ // castagnoliSSE42 is defined in crc_amd64.s and uses the SSE4.2 CRC32
+ // instruction.
++//go:noescape
+ func castagnoliSSE42(crc uint32, p []byte) uint32
+ 
+ // ieeeCLMUL is defined in crc_amd64.s and uses the PCLMULQDQ
+ // instruction as well as SSE 4.1.
++//go:noescape
+ func ieeeCLMUL(crc uint32, p []byte) uint32
+ 
+ var sse42 = haveSSE42()
+diff --git a/src/hash/crc32/crc32_amd64p32.go b/src/hash/crc32/crc32_amd64p32.go
+index e6c2a523df..067fbb162f 100644
+--- a/src/hash/crc32/crc32_amd64p32.go
++++ b/src/hash/crc32/crc32_amd64p32.go
+@@ -13,6 +13,7 @@ func haveSSE42() bool
+ 
+ // castagnoliSSE42 is defined in crc_amd64.s and uses the SSE4.2 CRC32
+ // instruction.
++//go:noescape
+ func castagnoliSSE42(crc uint32, p []byte) uint32
+ 
+ var sse42 = haveSSE42()

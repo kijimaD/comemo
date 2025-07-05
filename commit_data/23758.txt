@@ -11,7 +11,7 @@ Date:   Thu Jun 11 16:49:38 2015 +0300
     Reviewed-on: https://go-review.googlesource.com/10941
     Reviewed-by: Aamir Khan <syst3m.w0rm@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/devel/weekly.html                          | 2 +-
  doc/go1.1.html                                 | 2 +-
  src/cmd/asm/internal/asm/parse.go              | 2 +-
@@ -60,3 +60,676 @@ Date:   Thu Jun 11 16:49:38 2015 +0300
  src/syscall/mksyscall_windows.go               | 2 +-
  src/syscall/route_bsd.go                       | 2 +-
  47 files changed, 54 insertions(+), 54 deletions(-)
+
+diff --git a/doc/devel/weekly.html b/doc/devel/weekly.html
+index 5a9c51ef1d..143727fb07 100644
+--- a/doc/devel/weekly.html
++++ b/doc/devel/weekly.html
+@@ -5971,7 +5971,7 @@ You can now check build status on various platforms at the Go Dashboard:
+ * runtime: add SetFinalizer
+ * time: Sleep through interruptions (thanks Chris Wedgwood)
+ 	add RFC822 formats
+-	experimental implemenation of Ticker using two goroutines for all tickers
++	experimental implementation of Ticker using two goroutines for all tickers
+ * xml: allow underscores in XML element names (thanks Michael Hoisie)
+ 	allow any scalar type in xml.Unmarshal
+ </pre>
+diff --git a/doc/go1.1.html b/doc/go1.1.html
+index 825867f442..f059fd7f1f 100644
+--- a/doc/go1.1.html
++++ b/doc/go1.1.html
+@@ -160,7 +160,7 @@ The GCC release schedule does not coincide with the Go release schedule, so some
+ The 4.8.0 version of GCC shipped in March, 2013 and includes a nearly-Go 1.1 version of <code>gccgo</code>.
+ Its library is a little behind the release, but the biggest difference is that method values are not implemented.
+ Sometime around July 2013, we expect 4.8.2 of GCC to ship with a <code>gccgo</code>
+-providing a complete Go 1.1 implementaiton.
++providing a complete Go 1.1 implementation.
+ </p>
+ 
+ <h3 id="gc_flag">Command-line flag parsing</h3>
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index 7d03c5c180..72e91b8e55 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -736,7 +736,7 @@ func (p *Parser) registerNumber(name string) uint16 {
+ }
+ 
+ // Note: There are two changes in the expression handling here
+-// compared to the old yacc/C implemenatations. Neither has
++// compared to the old yacc/C implementations. Neither has
+ // much practical consequence because the expressions we
+ // see in assembly code are simple, but for the record:
+ //
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index fc674a8d1c..ea11740c9a 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -772,7 +772,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 	inlgen++
+ 	body := inlsubstlist(fn.Func.Inl)
+ 
+-	body = list(body, Nod(OGOTO, inlretlabel, nil)) // avoid 'not used' when function doesnt have return
++	body = list(body, Nod(OGOTO, inlretlabel, nil)) // avoid 'not used' when function doesn't have return
+ 	body = list(body, Nod(OLABEL, inlretlabel, nil))
+ 
+ 	typechecklist(body, Etop)
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index b437142086..7d89a821bc 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -490,7 +490,7 @@ func orderstmt(n *Node, order *Order) {
+ 
+ 	case OASOP:
+ 		// Special: rewrite l op= r into l = l op r.
+-		// This simplies quite a few operations;
++		// This simplifies quite a few operations;
+ 		// most important is that it lets us separate
+ 		// out map read from map write when l is
+ 		// a map index expression.
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index fa9c212844..efaf69f550 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -585,7 +585,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar Bvec, varkill Bvec, avarini
+ 				// If the result had its address taken, it is being tracked
+ 			// by the avarinit code, which does not use uevar.
+ 			// If we added it to uevar too, we'd not see any kill
+-			// and decide that the varible was live entry, which it is not.
++			// and decide that the variable was live entry, which it is not.
+ 			// So only use uevar in the non-addrtaken case.
+ 			// The p->to.type == thearch.D_NONE limits the bvset to
+ 			// non-tail-call return instructions; see note above
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 6c0962f258..8ef2380e07 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -105,7 +105,7 @@ func lsort(l *Sig, f func(*Sig, *Sig) int) *Sig {
+ 	return l
+ }
+ 
+-// Builds a type respresenting a Bucket structure for
++// Builds a type representing a Bucket structure for
+ // the given map type.  This type is not visible to users -
+ // we include only enough information to generate a correct GC
+ // program for it.
+@@ -1234,7 +1234,7 @@ ok:
+ 			// a package that imports the first one and does use *T pointers.
+ 			// The second module will end up defining type data for *T and a
+ 			// type.*T symbol pointing at it. It's important that calling
+-			// .PtrTo() on the refect.Type for T returns this type data and
++			// .PtrTo() on the reflect.Type for T returns this type data and
+ 			// not some synthesized object, so we need reflect to be able to
+ 			// find it!
+ 			if !Ctxt.Flag_dynlink {
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 006b5f98fa..9f4db270f6 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2829,7 +2829,7 @@ func keydup(n *Node, hash map[uint32][]*Node) {
+ 	}
+ 	evconst(n)
+ 	if n.Op != OLITERAL {
+-		return // we dont check variables
++		return // we don't check variables
+ 	}
+ 
+ 	var h uint32
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index c83738237c..e0bf59f6d0 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -2453,7 +2453,7 @@ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []
+ 				apackagesSeen[a.p] = true
+ 				if a.p.fake && a.p.external {
+ 					// external _tests, if present must come before
+-					// internal _tests. Store these on a seperate list
++					// internal _tests. Store these on a separate list
+ 					// and place them at the head after this loop.
+ 					xfiles = append(xfiles, a.target)
+ 				} else if a.p.fake {
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 75977ab45e..f55357cd4b 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -503,7 +503,7 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
+ 				break
+ 			} else {
+ 				// if a load/store instruction takes more than 1 word to implement, then
+-				// we need to seperate the instruction into two:
++				// we need to separate the instruction into two:
+ 				// 1. explicitly load the address into R11.
+ 				// 2. load/store from R11.
+ 				// This won't handle .W/.P, so we should reject such code.
+diff --git a/src/cmd/internal/rsc.io/arm/armasm/ext_test.go b/src/cmd/internal/rsc.io/arm/armasm/ext_test.go
+index b0bd855970..aa87cf930a 100644
+--- a/src/cmd/internal/rsc.io/arm/armasm/ext_test.go
++++ b/src/cmd/internal/rsc.io/arm/armasm/ext_test.go
+@@ -216,7 +216,7 @@ func writeInst(generate func(func([]byte))) (file string, f *os.File, size int,
+ 
+ var zeros = []byte{0, 0, 0, 0}
+ 
+-// pad pads the code sequenc with pops.
++// pad pads the code sequence with pops.
+ func pad(enc []byte) []byte {
+ 	if len(enc) < 4 {
+ 		enc = append(enc[:len(enc):len(enc)], zeros[:4-len(enc)]...)
+diff --git a/src/cmd/internal/rsc.io/x86/x86asm/ext_test.go b/src/cmd/internal/rsc.io/x86/x86asm/ext_test.go
+index f65d6b2d52..bb56c0d913 100644
+--- a/src/cmd/internal/rsc.io/x86/x86asm/ext_test.go
++++ b/src/cmd/internal/rsc.io/x86/x86asm/ext_test.go
+@@ -225,7 +225,7 @@ var pops = []byte{
+ 	0x5f, 0x5f, 0x5f, 0x5f, 0x5f, 0x5f, 0x5f, 0x5f,
+ }
+ 
+-// pad pads the code sequenc with pops.
++// pad pads the code sequence with pops.
+ func pad(enc []byte) []byte {
+ 	return append(enc[:len(enc):len(enc)], pops...)
+ }
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index 39d4550917..a0e31a3c49 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -179,7 +179,7 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
+ 			ld.Adddynsym(ld.Ctxt, targ)
+ 			rel := ld.Linklookup(ld.Ctxt, ".rel", 0)
+ 			ld.Addaddrplus(ld.Ctxt, rel, s, int64(r.Off))
+-			ld.Adduint32(ld.Ctxt, rel, ld.ELF32_R_INFO(uint32(targ.Dynid), ld.R_ARM_GLOB_DAT)) // we need a nil + A dynmic reloc
++			ld.Adduint32(ld.Ctxt, rel, ld.ELF32_R_INFO(uint32(targ.Dynid), ld.R_ARM_GLOB_DAT)) // we need a nil + A dynamic reloc
+ 			r.Type = obj.R_CONST                                                               // write r->add during relocsym
+ 			r.Sym = nil
+ 			return
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index e0859b167e..9bd71495af 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -126,7 +126,7 @@ func TestDisasmExtld(t *testing.T) {
+ 	case "arm64":
+ 		t.Skipf("skipping on %s, issue 10106", runtime.GOARCH)
+ 	}
+-	// TODO(jsing): Renable once openbsd/arm has external linking support.
++	// TODO(jsing): Reenable once openbsd/arm has external linking support.
+ 	if runtime.GOOS == "openbsd" && runtime.GOARCH == "arm" {
+ 		t.Skip("skipping on openbsd/arm, no support for external linking, issue 10619")
+ 	}
+diff --git a/src/cmd/pprof/internal/profile/encode.go b/src/cmd/pprof/internal/profile/encode.go
+index 455aca29ff..9e669980a1 100644
+--- a/src/cmd/pprof/internal/profile/encode.go
++++ b/src/cmd/pprof/internal/profile/encode.go
+@@ -162,7 +162,7 @@ var profileDecoder = []decoder{
+ 		pp.Location = append(pp.Location, x)
+ 		return decodeMessage(b, x)
+ 	},
+-	// repeasted Function function = 5
++	// repeated Function function = 5
+ 	func(b *buffer, m message) error {
+ 		x := new(Function)
+ 		pp := m.(*Profile)
+diff --git a/src/cmd/pprof/internal/svg/svg.go b/src/cmd/pprof/internal/svg/svg.go
+index fbde103ef4..04f6ff1870 100644
+--- a/src/cmd/pprof/internal/svg/svg.go
++++ b/src/cmd/pprof/internal/svg/svg.go
+@@ -17,7 +17,7 @@ var (
+ 	svgClose = regexp.MustCompile(`</svg>`)
+ )
+ 
+-// Massage enhances the SVG output from DOT to provide bettern
++// Massage enhances the SVG output from DOT to provide better
+ // panning inside a web browser. It uses the SVGPan library, which is
+ // included directly.
+ func Massage(in bytes.Buffer) string {
+diff --git a/src/cmd/yacc/testdata/expr/main.go b/src/cmd/yacc/testdata/expr/main.go
+index 8d5b6911f0..37f0023cff 100644
+--- a/src/cmd/yacc/testdata/expr/main.go
++++ b/src/cmd/yacc/testdata/expr/main.go
+@@ -11,5 +11,5 @@
+ //go:generate yacc -o expr.go -p "expr" expr.y
+ 
+ // Expr is a simple expression evaluator that serves as a working example of
+-// how to use Go's yacc implemenation.
++// how to use Go's yacc implementation.
+ package main
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index 99fa94e58a..8a6014a5dc 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -129,7 +129,7 @@ type PrecomputedValues struct {
+ 	CRTValues []CRTValue
+ }
+ 
+-// CRTValue contains the precomputed chinese remainder theorem values.
++// CRTValue contains the precomputed Chinese remainder theorem values.
+ type CRTValue struct {
+ 	Exp   *big.Int // D mod (prime-1).
+ 	Coeff *big.Int // R·Coeff ≡ 1 mod Prime.
+diff --git a/src/crypto/tls/key_agreement.go b/src/crypto/tls/key_agreement.go
+index b9f86d24d6..0e6a7c2262 100644
+--- a/src/crypto/tls/key_agreement.go
++++ b/src/crypto/tls/key_agreement.go
+@@ -46,7 +46,7 @@ func (ka rsaKeyAgreement) processClientKeyExchange(config *Config, cert *Certifi
+ 	if !ok {
+ 		return nil, errors.New("tls: certificate private key does not implement crypto.Decrypter")
+ 	}
+-	// Perform contant time RSA PKCS#1 v1.5 decryption
++	// Perform constant time RSA PKCS#1 v1.5 decryption
+ 	preMasterSecret, err := priv.Decrypt(config.rand(), ciphertext, &rsa.PKCS1v15DecryptOptions{SessionKeyLen: 48})
+ 	if err != nil {
+ 		return nil, err
+diff --git a/src/debug/dwarf/entry.go b/src/debug/dwarf/entry.go
+index a94be32a21..d607e5b4a3 100644
+--- a/src/debug/dwarf/entry.go
++++ b/src/debug/dwarf/entry.go
+@@ -282,7 +282,7 @@ const (
+ 	// into the "line" section.
+ 	ClassLinePtr
+ 
+-	// ClassLocListPtr repersents values that are an int64 offset
++	// ClassLocListPtr represents values that are an int64 offset
+ 	// into the "loclist" section.
+ 	ClassLocListPtr
+ 
+diff --git a/src/encoding/csv/writer.go b/src/encoding/csv/writer.go
+index db2dc79a9e..353d91f238 100644
+--- a/src/encoding/csv/writer.go
++++ b/src/encoding/csv/writer.go
+@@ -125,7 +125,7 @@ func (w *Writer) WriteAll(records [][]string) (err error) {
+ // CSV with quoted empty strings strictly less useful.
+ // Not quoting the empty string also makes this package match the behavior
+ // of Microsoft Excel and Google Drive.
+-// For Postgres, quote the data termating string `\.`.
++// For Postgres, quote the data terminating string `\.`.
+ func (w *Writer) fieldNeedsQuotes(field string) bool {
+ 	if field == "" {
+ 		return false
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+index 8d48bfdfe6..330671325d 100644
+--- a/src/internal/trace/parser.go
++++ b/src/internal/trace/parser.go
+@@ -454,7 +454,7 @@ func postProcessTrace(events []*Event) error {
+ 			g.evStart = ev
+ 			p.g = ev.G
+ 			if g.evCreate != nil {
+-				// +1 because symblizer expects return pc.
++				// +1 because symbolizer expects return pc.
+ 				ev.Stk = []*Frame{&Frame{PC: g.evCreate.Args[1] + 1}}
+ 				g.evCreate = nil
+ 			}
+@@ -701,7 +701,7 @@ const (
+ 	EvHeapAlloc      = 33 // memstats.heap_alloc change [timestamp, heap_alloc]
+ 	EvNextGC         = 34 // memstats.next_gc change [timestamp, next_gc]
+ 	EvTimerGoroutine = 35 // denotes timer goroutine [timer goroutine id]
+-	EvFutileWakeup   = 36 // denotes that the revious wakeup of this goroutine was futile [timestamp]
++	EvFutileWakeup   = 36 // denotes that the previous wakeup of this goroutine was futile [timestamp]
+ 	EvCount          = 37
+ )
+ 
+diff --git a/src/net/file_test.go b/src/net/file_test.go
+index f358f709ac..003dbb2ecb 100644
+--- a/src/net/file_test.go
++++ b/src/net/file_test.go
+@@ -156,7 +156,7 @@ var filePacketConnTests = []struct {
+ 
+ 	{net: "udp6", addr: "[::1]:0"},
+ 
+-	// TODO(mikioh,bradfitz): renable once 10730 is fixed
++	// TODO(mikioh,bradfitz): reenable once 10730 is fixed
+ 	// {net: "ip4:icmp", addr: "127.0.0.1"},
+ 
+ 	{net: "unixgram", addr: "@gotest3/net"},
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index b1d8799fa5..12e165a5ef 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -427,7 +427,7 @@ func TestJarCalls(t *testing.T) {
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		pathSuffix := r.RequestURI[1:]
+ 		if r.RequestURI == "/nosetcookie" {
+-			return // dont set cookies for this path
++			return // don't set cookies for this path
+ 		}
+ 		SetCookie(w, &Cookie{Name: "name" + pathSuffix, Value: "val" + pathSuffix})
+ 		if r.RequestURI == "/" {
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index ca1a3ab407..c2e7552b17 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -510,7 +510,7 @@ func TestStressSurpriseServerCloses(t *testing.T) {
+ 
+ 	// Do a bunch of traffic from different goroutines. Send to activityc
+ 	// after each request completes, regardless of whether it failed.
+-	// If these are too high, OS X exhausts its emphemeral ports
++	// If these are too high, OS X exhausts its ephemeral ports
+ 	// and hangs waiting for them to transition TCP states. That's
+ 	// not what we want to test.  TODO(bradfitz): use an io.Pipe
+ 	// dialer for this test instead?
+diff --git a/src/net/internal/socktest/sys_windows.go b/src/net/internal/socktest/sys_windows.go
+index 07af0e7046..e61bf2be60 100644
+--- a/src/net/internal/socktest/sys_windows.go
++++ b/src/net/internal/socktest/sys_windows.go
+@@ -68,7 +68,7 @@ func (sw *Switch) Closesocket(s syscall.Handle) (err error) {
+ 	return nil
+ }
+ 
+-// Conenct wraps syscall.Connect.
++// Connect wraps syscall.Connect.
+ func (sw *Switch) Connect(s syscall.Handle, sa syscall.Sockaddr) (err error) {
+ 	so := sw.sockso(s)
+ 	if so == nil {
+@@ -97,7 +97,7 @@ func (sw *Switch) Connect(s syscall.Handle, sa syscall.Sockaddr) (err error) {
+ 	return nil
+ }
+ 
+-// ConenctEx wraps syscall.ConnectEx.
++// ConnectEx wraps syscall.ConnectEx.
+ func (sw *Switch) ConnectEx(s syscall.Handle, sa syscall.Sockaddr, b *byte, n uint32, nwr *uint32, o *syscall.Overlapped) (err error) {
+ 	so := sw.sockso(s)
+ 	if so == nil {
+diff --git a/src/net/sock_posix.go b/src/net/sock_posix.go
+index 2634a6b646..4d2cfde3f1 100644
+--- a/src/net/sock_posix.go
++++ b/src/net/sock_posix.go
+@@ -52,7 +52,7 @@ func socket(net string, family, sotype, proto int, ipv6only bool, laddr, raddr s
+ 	// following applications:
+ 	//
+ 	// - An endpoint holder that opens a passive stream
+-	//   connenction, known as a stream listener
++	//   connection, known as a stream listener
+ 	//
+ 	// - An endpoint holder that opens a destination-unspecific
+ 	//   datagram connection, known as a datagram listener
+diff --git a/src/net/url/example_test.go b/src/net/url/example_test.go
+index e55c1aa166..af4ad0b532 100644
+--- a/src/net/url/example_test.go
++++ b/src/net/url/example_test.go
+@@ -47,7 +47,7 @@ func ExampleURL_opaque() {
+ 	// Sending a literal '%' in an HTTP request's Path
+ 	req := &http.Request{
+ 		Method: "GET",
+-		Host:   "example.com", // takes precendence over URL.Host
++		Host:   "example.com", // takes precedence over URL.Host
+ 		URL: &url.URL{
+ 			Host:   "ignored",
+ 			Scheme: "https",
+diff --git a/src/os/exec/lp_windows_test.go b/src/os/exec/lp_windows_test.go
+index 72df03ed2d..8e1d4239bf 100644
+--- a/src/os/exec/lp_windows_test.go
++++ b/src/os/exec/lp_windows_test.go
+@@ -422,7 +422,7 @@ var commandTests = []commandTest{
+ 	},
+ 	// tests commands, like `a.exe`, with c.Dir set
+ 	{
+-		// should not find a.exe in p, becasue LookPath(`a.exe`) will fail
++		// should not find a.exe in p, because LookPath(`a.exe`) will fail
+ 		files: []string{`p\a.exe`},
+ 		dir:   `p`,
+ 		arg0:  `a.exe`,
+diff --git a/src/runtime/lfstack_test.go b/src/runtime/lfstack_test.go
+index 4da4d88619..fb4b45992d 100644
+--- a/src/runtime/lfstack_test.go
++++ b/src/runtime/lfstack_test.go
+@@ -30,7 +30,7 @@ func TestLFStack(t *testing.T) {
+ 	stack := new(uint64)
+ 	global = stack // force heap allocation
+ 
+-	// Need to keep additional referenfces to nodes, the stack is not all that type-safe.
++	// Need to keep additional references to nodes, the stack is not all that type-safe.
+ 	var nodes []*MyNode
+ 
+ 	// Check the stack is initially empty.
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index a4090b9a08..a1d5d8fc81 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -355,7 +355,7 @@ func (h heapBits) setCheckmarked(size uintptr) {
+ // Callers should call heapBitsBulkBarrier immediately after
+ // calling memmove(p, src, size). This function is marked nosplit
+ // to avoid being preempted; the GC must not stop the goroutine
+-// betwen the memmove and the execution of the barriers.
++// between the memmove and the execution of the barriers.
+ //
+ // The heap bitmap is not maintained for allocations containing
+ // no pointers at all; any caller of heapBitsBulkBarrier must first
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index c2ee16383e..53d6797c52 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -322,7 +322,7 @@ type gcControllerState struct {
+ 	fractionalMarkTime int64
+ 
+ 	// idleMarkTime is the nanoseconds spent in idle marking
+-	// during this cycle. This is udpated atomically throughout
++	// during this cycle. This is updated atomically throughout
+ 	// the cycle.
+ 	idleMarkTime int64
+ 
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 2c076734bd..dead22a312 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -954,7 +954,7 @@ func gcmarknewobject_m(obj, size uintptr) {
+ // stopped ensuring that any object encountered has their normal
+ // mark bit set. To do this we use an orthogonal bit
+ // pattern to indicate the object is marked. The following pattern
+-// uses the upper two bits in the object's bounday nibble.
++// uses the upper two bits in the object's boundary nibble.
+ // 01: scalar  not marked
+ // 10: pointer not marked
+ // 11: pointer     marked
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index b7feb847b4..226c65635f 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -308,7 +308,7 @@ func putfull(b *workbuf, entry int) {
+ 
+ // getpartialorempty tries to return a partially empty
+ // and if none are available returns an empty one.
+-// entry is used to provide a brief histoy of ownership
++// entry is used to provide a brief history of ownership
+ // using entry + xxx00000 to
+ // indicating that two line numbers in the call chain.
+ //go:nowritebarrier
+@@ -328,7 +328,7 @@ func getpartialorempty(entry int) *workbuf {
+ // putpartial puts empty buffers on the work.empty queue,
+ // full buffers on the work.full queue and
+ // others on the work.partial queue.
+-// entry is used to provide a brief histoy of ownership
++// entry is used to provide a brief history of ownership
+ // using entry + xxx00000 to
+ // indicating that two call chain line numbers.
+ //go:nowritebarrier
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 04fa050bc5..06d6fb15f7 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -58,7 +58,7 @@ type mheap struct {
+ 	cachealloc            fixalloc // allocator for mcache*
+ 	specialfinalizeralloc fixalloc // allocator for specialfinalizer*
+ 	specialprofilealloc   fixalloc // allocator for specialprofile*
+-	speciallock           mutex    // lock for sepcial record allocators.
++	speciallock           mutex    // lock for special record allocators.
+ }
+ 
+ var mheap_ mheap
+diff --git a/src/runtime/netpoll.go b/src/runtime/netpoll.go
+index c06722fb98..7c6e3fa93e 100644
+--- a/src/runtime/netpoll.go
++++ b/src/runtime/netpoll.go
+@@ -46,7 +46,7 @@ type pollDesc struct {
+ 	// in a lock-free way by all operations.
+ 	// NOTE(dvyukov): the following code uses uintptr to store *g (rg/wg),
+ 	// that will blow up when GC starts moving objects.
+-	lock    mutex // protectes the following fields
++	lock    mutex // protects the following fields
+ 	fd      uintptr
+ 	closing bool
+ 	seq     uintptr // protects from stale timers and ready notifications
+diff --git a/src/runtime/netpoll_solaris.go b/src/runtime/netpoll_solaris.go
+index 359fd47b2a..e4652d8ebd 100644
+--- a/src/runtime/netpoll_solaris.go
++++ b/src/runtime/netpoll_solaris.go
+@@ -32,7 +32,7 @@ import "unsafe"
+ // Beside calling runtime·netpollopen, the networking code paths
+ // will call runtime·netpollarm each time goroutines are interested
+ // in doing network I/O. Because now we know what kind of I/O we
+-// are interested in (reading/writting), we can call port_associate
++// are interested in (reading/writing), we can call port_associate
+ // passing the correct type of event set (POLLIN/POLLOUT). As we made
+ // sure to have already associated the file descriptor with the port,
+ // when we now call port_associate, we will unblock the main poller
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 47563f450e..c8158b9dec 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -411,7 +411,7 @@ func gopanic(e interface{}) {
+ 
+ 		// Mark defer as started, but keep on list, so that traceback
+ 		// can find and update the defer's argument frame if stack growth
+-		// or a garbage collection hapens before reflectcall starts executing d.fn.
++		// or a garbage collection happens before reflectcall starts executing d.fn.
+ 		d.started = true
+ 
+ 		// Record the panic that is running the defer.
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 0f93ff7620..c179c5aea7 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -1960,7 +1960,7 @@ func exitsyscall(dummy int32) {
+ 
+ 	var exitTicks int64
+ 	if trace.enabled {
+-		// Wait till traceGoSysBlock event is emited.
++		// Wait till traceGoSysBlock event is emitted.
+ 		// This ensures consistency of the trace (the goroutine is started after it is blocked).
+ 		for oldp != nil && oldp.syscalltick == _g_.m.syscalltick {
+ 			osyield()
+@@ -2047,7 +2047,7 @@ func exitsyscallfast() bool {
+ 			ok = exitsyscallfast_pidle()
+ 			if ok && trace.enabled {
+ 				if oldp != nil {
+-					// Wait till traceGoSysBlock event is emited.
++					// Wait till traceGoSysBlock event is emitted.
+ 					// This ensures consistency of the trace (the goroutine is started after it is blocked).
+ 					for oldp.syscalltick == _g_.m.syscalltick {
+ 						osyield()
+@@ -2695,7 +2695,7 @@ func procresize(nprocs int32) *p {
+ 				traceProcStop(p)
+ 			}
+ 		}
+-		// move all runable goroutines to the global queue
++		// move all runnable goroutines to the global queue
+ 		for p.runqhead != p.runqtail {
+ 			// pop from tail of local queue
+ 			p.runqtail--
+diff --git a/src/runtime/race/testdata/select_test.go b/src/runtime/race/testdata/select_test.go
+index 4a3a236479..b4b1991155 100644
+--- a/src/runtime/race/testdata/select_test.go
++++ b/src/runtime/race/testdata/select_test.go
+@@ -236,7 +236,7 @@ func TestRaceSelect4(t *testing.T) {
+ // there are two variables, access to one
+ // of them is synchronized, access to the other
+ // is not.
+-// Select must (unconditionaly) choose the non-synchronized variable
++// Select must (unconditionally) choose the non-synchronized variable
+ // thus causing exactly one race.
+ // Currently this test doesn't look like it accomplishes
+ // this goal.
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 81555af6af..55d153bc15 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -27,7 +27,7 @@ const (
+ 	// the following encode that the GC is scanning the stack and what to do when it is done
+ 	_Gscan = 0x1000 // atomicstatus&~Gscan = the non-scan state,
+ 	// _Gscanidle =     _Gscan + _Gidle,      // Not used. Gidle only used with newly malloced gs
+-	_Gscanrunnable = _Gscan + _Grunnable //  0x1001 When scanning complets make Grunnable (it is already on run queue)
++	_Gscanrunnable = _Gscan + _Grunnable //  0x1001 When scanning completes make Grunnable (it is already on run queue)
+ 	_Gscanrunning  = _Gscan + _Grunning  //  0x1002 Used to tell preemption newstack routine to scan preempted stack.
+ 	_Gscansyscall  = _Gscan + _Gsyscall  //  0x1003 When scanning completes make it Gsyscall
+ 	_Gscanwaiting  = _Gscan + _Gwaiting  //  0x1004 When scanning completes make it Gwaiting
+@@ -237,7 +237,7 @@ type g struct {
+ 	preempt      bool // preemption signal, duplicates stackguard0 = stackpreempt
+ 	paniconfault bool // panic (instead of crash) on unexpected fault address
+ 	preemptscan  bool // preempted g does scan for gc
+-	gcworkdone   bool // debug: cleared at begining of gc work phase cycle, set by gcphasework, tested at end of cycle
++	gcworkdone   bool // debug: cleared at beginning of gc work phase cycle, set by gcphasework, tested at end of cycle
+ 	gcscanvalid  bool // false at start of gc cycle, true if G has not run since last scan
+ 	throwsplit   bool // must not split stack
+ 	raceignore   int8 // ignore race detection events
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index 79b611839d..15820a5181 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -83,7 +83,7 @@ func growslice(t *slicetype, old slice, n int) slice {
+ 		memmove(p, old.array, lenmem)
+ 		memclr(add(p, lenmem), capmem-lenmem)
+ 	} else {
+-		// Note: can't use rawmem (which avoids zeroing of memory), because then GC can scan unitialized memory.
++		// Note: can't use rawmem (which avoids zeroing of memory), because then GC can scan uninitialized memory.
+ 		p = newarray(et, uintptr(newcap))
+ 		if !writeBarrierEnabled {
+ 			memmove(p, old.array, lenmem)
+diff --git a/src/runtime/sqrt_test.go b/src/runtime/sqrt_test.go
+index f1a6e8369d..d5ccc7fb1d 100644
+--- a/src/runtime/sqrt_test.go
++++ b/src/runtime/sqrt_test.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // A copy of Sqrt tests from the math package to test the
+-// purely integer arithmetic implementaiton in sqrt.go.
++// purely integer arithmetic implementation in sqrt.go.
+ 
+ package runtime_test
+ 
+diff --git a/src/runtime/sys_nacl_386.s b/src/runtime/sys_nacl_386.s
+index f8e7196bd3..bf2d36ec85 100644
+--- a/src/runtime/sys_nacl_386.s
++++ b/src/runtime/sys_nacl_386.s
+@@ -322,7 +322,7 @@ ret:
+ 	// Enable exceptions again.
+ 	NACL_SYSCALL(SYS_exception_clear_flag)
+ 
+-	// NaCl has abidcated its traditional operating system responsibility
++	// NaCl has abdicated its traditional operating system responsibility
+ 	// and declined to implement 'sigreturn'. Instead the only way to return
+ 	// to the execution of our program is to restore the registers ourselves.
+ 	// Unfortunately, that is impossible to do with strict fidelity, because
+diff --git a/src/syscall/dll_windows.go b/src/syscall/dll_windows.go
+index 18663b486b..c157e6dd7b 100644
+--- a/src/syscall/dll_windows.go
++++ b/src/syscall/dll_windows.go
+@@ -55,7 +55,7 @@ func LoadDLL(name string) (dll *DLL, err error) {
+ 	return d, nil
+ }
+ 
+-// MustLoadDLL is like LoadDLL but panics if load operation failes.
++// MustLoadDLL is like LoadDLL but panics if load operation fails.
+ func MustLoadDLL(name string) *DLL {
+ 	d, e := LoadDLL(name)
+ 	if e != nil {
+diff --git a/src/syscall/mksyscall_windows.go b/src/syscall/mksyscall_windows.go
+index d4c09273d6..622272ad50 100644
+--- a/src/syscall/mksyscall_windows.go
++++ b/src/syscall/mksyscall_windows.go
+@@ -627,7 +627,7 @@ func (src *Source) DLLs() []string {
+ 	return r
+ }
+ 
+-// ParseFile adds adition file path to a source set src.
++// ParseFile adds additional file path to a source set src.
+ func (src *Source) ParseFile(path string) error {
+ 	file, err := os.Open(path)
+ 	if err != nil {
+diff --git a/src/syscall/route_bsd.go b/src/syscall/route_bsd.go
+index a55198b634..c62fdc3c81 100644
+--- a/src/syscall/route_bsd.go
++++ b/src/syscall/route_bsd.go
+@@ -58,7 +58,7 @@ func parseSockaddrLink(b []byte) (*SockaddrDatalink, error) {
+ // parseLinkLayerAddr parses b as a datalink socket address in
+ // conventional BSD kernel form.
+ func parseLinkLayerAddr(b []byte) (*SockaddrDatalink, int, error) {
+-	// The encoding looks like the follwoing:
++	// The encoding looks like the following:
+ 	// +----------------------------+
+ 	// | Type             (1 octet) |
+ 	// +----------------------------+

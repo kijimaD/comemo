@@ -7,6 +7,31 @@ Date:   Thu Mar 25 14:05:54 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/760042
-
+---
  src/cmd/8c/swt.c | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/8c/swt.c b/src/cmd/8c/swt.c
+index 72cebc00c8..534b30fef3 100644
+--- a/src/cmd/8c/swt.c
++++ b/src/cmd/8c/swt.c
+@@ -541,7 +541,7 @@ align(int32 i, Type *t, int op)
+ 		}
+ 		break;
+ 
+-	case Aarg1:	/* initial allign of parameter */
++	case Aarg1:	/* initial align of parameter */
+ 		w = ewidth[t->etype];
+ 		if(w <= 0 || w >= SZ_LONG) {
+ 			w = SZ_LONG;
+@@ -552,7 +552,9 @@ align(int32 i, Type *t, int op)
+ 
+ 	case Aarg2:	/* width of a parameter */
+ 		o += t->width;
+-		w = SZ_LONG;
++		w = t->width;
++		if(w > SZ_LONG)
++			w = SZ_LONG;
+ 		break;
+ 
+ 	case Aaut3:	/* total allign of automatic */

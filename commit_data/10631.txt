@@ -7,6 +7,25 @@ Date:   Wed Dec 7 09:41:20 2011 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5448124
-
+---
  src/cmd/goinstall/make.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/goinstall/make.go b/src/cmd/goinstall/make.go
+index 1a52ab2e72..1e40d6ea37 100644
+--- a/src/cmd/goinstall/make.go
++++ b/src/cmd/goinstall/make.go
+@@ -29,7 +29,12 @@ func domake(dir, pkg string, tree *build.Tree, isCmd bool) (err error) {
+ 	} else if *clean {
+ 		cmd = append(cmd, "clean")
+ 	}
+-	cmd = append(cmd, "install")
++	if *doInstall {
++		cmd = append(cmd, "install")
++	}
++	if len(cmd) <= 3 { // nothing to do
++		return nil
++	}
+ 	return run(dir, makefile, cmd...)
+ }
+ 

@@ -7,7 +7,7 @@ Date:   Sun Jan 29 19:11:05 2012 +0900
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/5569087
-
+---
  src/pkg/net/dnsmsg.go          |  2 +-
  src/pkg/net/fd.go              |  2 +-
  src/pkg/net/fd_windows.go      |  2 +-
@@ -21,3 +21,434 @@ Date:   Sun Jan 29 19:11:05 2012 +0900
  src/pkg/net/unixsock_plan9.go  | 14 +++++++-------
  src/pkg/net/unixsock_posix.go  | 14 +++++++-------
  12 files changed, 47 insertions(+), 47 deletions(-)
+
+diff --git a/src/pkg/net/dnsmsg.go b/src/pkg/net/dnsmsg.go
+index 7595aa2ab5..97c5062103 100644
+--- a/src/pkg/net/dnsmsg.go
++++ b/src/pkg/net/dnsmsg.go
+@@ -4,7 +4,7 @@
+ 
+ // DNS packet assembly.  See RFC 1035.
+ //
+-// This is intended to support name resolution during net.Dial.
++// This is intended to support name resolution during Dial.
+ // It doesn't have to be blazing fast.
+ //
+ // Rather than write the usual handful of routines to pack and
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index 495ef007fe..c1bda7d67e 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -45,7 +45,7 @@ type netFD struct {
+ 
+ type InvalidConnError struct{}
+ 
+-func (e *InvalidConnError) Error() string   { return "invalid net.Conn" }
++func (e *InvalidConnError) Error() string   { return "invalid Conn" }
+ func (e *InvalidConnError) Temporary() bool { return false }
+ func (e *InvalidConnError) Timeout() bool   { return false }
+ 
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index f00459f0ba..2ade0964fc 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -16,7 +16,7 @@ import (
+ 
+ type InvalidConnError struct{}
+ 
+-func (e *InvalidConnError) Error() string   { return "invalid net.Conn" }
++func (e *InvalidConnError) Error() string   { return "invalid Conn" }
+ func (e *InvalidConnError) Temporary() bool { return false }
+ func (e *InvalidConnError) Timeout() bool   { return false }
+ 
+diff --git a/src/pkg/net/iprawsock_plan9.go b/src/pkg/net/iprawsock_plan9.go
+index 859153c2aa..382a440277 100644
+--- a/src/pkg/net/iprawsock_plan9.go
++++ b/src/pkg/net/iprawsock_plan9.go
+@@ -15,17 +15,17 @@ import (
+ // interfaces for IP network connections.
+ type IPConn bool
+ 
+-// SetDeadline implements the net.Conn SetDeadline method.
++// SetDeadline implements the Conn SetDeadline method.
+ func (c *IPConn) SetDeadline(t time.Time) error {
+ 	return os.EPLAN9
+ }
+ 
+-// SetReadDeadline implements the net.Conn SetReadDeadline method.
++// SetReadDeadline implements the Conn SetReadDeadline method.
+ func (c *IPConn) SetReadDeadline(t time.Time) error {
+ 	return os.EPLAN9
+ }
+ 
+-// SetWriteDeadline implements the net.Conn SetWriteDeadline method.
++// SetWriteDeadline implements the Conn SetWriteDeadline method.
+ func (c *IPConn) SetWriteDeadline(t time.Time) error {
+ 	return os.EPLAN9
+ }
+diff --git a/src/pkg/net/ipsock_plan9.go b/src/pkg/net/ipsock_plan9.go
+index 09d8d6b4e0..29eeb75825 100644
+--- a/src/pkg/net/ipsock_plan9.go
++++ b/src/pkg/net/ipsock_plan9.go
+@@ -91,7 +91,7 @@ func (c *plan9Conn) ok() bool { return c != nil && c.ctl != nil }
+ 
+ // Implementation of the Conn interface - see Conn for documentation.
+ 
+-// Read implements the net.Conn Read method.
++// Read implements the Conn Read method.
+ func (c *plan9Conn) Read(b []byte) (n int, err error) {
+ 	if !c.ok() {
+ 		return 0, os.EINVAL
+@@ -110,7 +110,7 @@ func (c *plan9Conn) Read(b []byte) (n int, err error) {
+ 	return
+ }
+ 
+-// Write implements the net.Conn Write method.
++// Write implements the Conn Write method.
+ func (c *plan9Conn) Write(b []byte) (n int, err error) {
+ 	if !c.ok() {
+ 		return 0, os.EINVAL
+@@ -157,17 +157,17 @@ func (c *plan9Conn) RemoteAddr() Addr {
+ 	return c.raddr
+ }
+ 
+-// SetDeadline implements the net.Conn SetDeadline method.
++// SetDeadline implements the Conn SetDeadline method.
+ func (c *plan9Conn) SetDeadline(t time.Time) error {
+ 	return os.EPLAN9
+ }
+ 
+-// SetReadDeadline implements the net.Conn SetReadDeadline method.
++// SetReadDeadline implements the Conn SetReadDeadline method.
+ func (c *plan9Conn) SetReadDeadline(t time.Time) error {
+ 	return os.EPLAN9
+ }
+ 
+-// SetWriteDeadline implements the net.Conn SetWriteDeadline method.
++// SetWriteDeadline implements the Conn SetWriteDeadline method.
+ func (c *plan9Conn) SetWriteDeadline(t time.Time) error {
+ 	return os.EPLAN9
+ }
+diff --git a/src/pkg/net/net.go b/src/pkg/net/net.go
+index 609fee242d..84cb4fcc73 100644
+--- a/src/pkg/net/net.go
++++ b/src/pkg/net/net.go
+@@ -23,12 +23,12 @@ type Addr interface {
+ // Conn is a generic stream-oriented network connection.
+ type Conn interface {
+ 	// Read reads data from the connection.
+-	// Read can be made to time out and return a net.Error with Timeout() == true
++	// Read can be made to time out and return a Error with Timeout() == true
+ 	// after a fixed time limit; see SetDeadline and SetReadDeadline.
+ 	Read(b []byte) (n int, err error)
+ 
+ 	// Write writes data to the connection.
+-	// Write can be made to time out and return a net.Error with Timeout() == true
++	// Write can be made to time out and return a Error with Timeout() == true
+ 	// after a fixed time limit; see SetDeadline and SetWriteDeadline.
+ 	Write(b []byte) (n int, err error)
+ 
+diff --git a/src/pkg/net/tcpsock_plan9.go b/src/pkg/net/tcpsock_plan9.go
+index f2444a4d96..128766144d 100644
+--- a/src/pkg/net/tcpsock_plan9.go
++++ b/src/pkg/net/tcpsock_plan9.go
+@@ -17,17 +17,17 @@ type TCPConn struct {
+ 	plan9Conn
+ }
+ 
+-// SetDeadline implements the net.Conn SetDeadline method.
++// SetDeadline implements the Conn SetDeadline method.
+ func (c *TCPConn) SetDeadline(t time.Time) error {
+ 	return os.EPLAN9
+ }
+ 
+-// SetReadDeadline implements the net.Conn SetReadDeadline method.
++// SetReadDeadline implements the Conn SetReadDeadline method.
+ func (c *TCPConn) SetReadDeadline(t time.Time) error {
+ 	return os.EPLAN9
+ }
+ 
+-// SetWriteDeadline implements the net.Conn SetWriteDeadline method.
++// SetWriteDeadline implements the Conn SetWriteDeadline method.
+ func (c *TCPConn) SetWriteDeadline(t time.Time) error {
+ 	return os.EPLAN9
+ }
+diff --git a/src/pkg/net/tcpsock_posix.go b/src/pkg/net/tcpsock_posix.go
+index 65ec493039..e589f86b44 100644
+--- a/src/pkg/net/tcpsock_posix.go
++++ b/src/pkg/net/tcpsock_posix.go
+@@ -67,7 +67,7 @@ func (c *TCPConn) ok() bool { return c != nil && c.fd != nil }
+ 
+ // Implementation of the Conn interface - see Conn for documentation.
+ 
+-// Read implements the net.Conn Read method.
++// Read implements the Conn Read method.
+ func (c *TCPConn) Read(b []byte) (n int, err error) {
+ 	if !c.ok() {
+ 		return 0, os.EINVAL
+@@ -83,7 +83,7 @@ func (c *TCPConn) ReadFrom(r io.Reader) (int64, error) {
+ 	return genericReadFrom(c, r)
+ }
+ 
+-// Write implements the net.Conn Write method.
++// Write implements the Conn Write method.
+ func (c *TCPConn) Write(b []byte) (n int, err error) {
+ 	if !c.ok() {
+ 		return 0, os.EINVAL
+@@ -135,7 +135,7 @@ func (c *TCPConn) RemoteAddr() Addr {
+ 	return c.fd.raddr
+ }
+ 
+-// SetDeadline implements the net.Conn SetDeadline method.
++// SetDeadline implements the Conn SetDeadline method.
+ func (c *TCPConn) SetDeadline(t time.Time) error {
+ 	if !c.ok() {
+ 		return os.EINVAL
+@@ -143,7 +143,7 @@ func (c *TCPConn) SetDeadline(t time.Time) error {
+ 	return setDeadline(c.fd, t)
+ }
+ 
+-// SetReadDeadline implements the net.Conn SetReadDeadline method.
++// SetReadDeadline implements the Conn SetReadDeadline method.
+ func (c *TCPConn) SetReadDeadline(t time.Time) error {
+ 	if !c.ok() {
+ 		return os.EINVAL
+@@ -151,7 +151,7 @@ func (c *TCPConn) SetReadDeadline(t time.Time) error {
+ 	return setReadDeadline(c.fd, t)
+ }
+ 
+-// SetWriteDeadline implements the net.Conn SetWriteDeadline method.
++// SetWriteDeadline implements the Conn SetWriteDeadline method.
+ func (c *TCPConn) SetWriteDeadline(t time.Time) error {
+ 	if !c.ok() {
+ 		return os.EINVAL
+diff --git a/src/pkg/net/udpsock_plan9.go b/src/pkg/net/udpsock_plan9.go
+index 573438f85d..cf50753688 100644
+--- a/src/pkg/net/udpsock_plan9.go
++++ b/src/pkg/net/udpsock_plan9.go
+@@ -18,17 +18,17 @@ type UDPConn struct {
+ 	plan9Conn
+ }
+ 
+-// SetDeadline implements the net.Conn SetDeadline method.
++// SetDeadline implements the Conn SetDeadline method.
+ func (c *UDPConn) SetDeadline(t time.Time) error {
+ 	return os.EPLAN9
+ }
+ 
+-// SetReadDeadline implements the net.Conn SetReadDeadline method.
++// SetReadDeadline implements the Conn SetReadDeadline method.
+ func (c *UDPConn) SetReadDeadline(t time.Time) error {
+ 	return os.EPLAN9
+ }
+ 
+-// SetWriteDeadline implements the net.Conn SetWriteDeadline method.
++// SetWriteDeadline implements the Conn SetWriteDeadline method.
+ func (c *UDPConn) SetWriteDeadline(t time.Time) error {
+ 	return os.EPLAN9
+ }
+@@ -66,7 +66,7 @@ func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err error) {
+ 	return n, &UDPAddr{h.raddr, int(h.rport)}, nil
+ }
+ 
+-// ReadFrom implements the net.PacketConn ReadFrom method.
++// ReadFrom implements the PacketConn ReadFrom method.
+ func (c *UDPConn) ReadFrom(b []byte) (n int, addr Addr, err error) {
+ 	if !c.ok() {
+ 		return 0, nil, os.EINVAL
+@@ -103,7 +103,7 @@ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (n int, err error) {
+ 	return c.data.Write(buf)
+ }
+ 
+-// WriteTo implements the net.PacketConn WriteTo method.
++// WriteTo implements the PacketConn WriteTo method.
+ func (c *UDPConn) WriteTo(b []byte, addr Addr) (n int, err error) {
+ 	if !c.ok() {
+ 		return 0, os.EINVAL
+diff --git a/src/pkg/net/udpsock_posix.go b/src/pkg/net/udpsock_posix.go
+index fa3d29adfa..b8092e6b89 100644
+--- a/src/pkg/net/udpsock_posix.go
++++ b/src/pkg/net/udpsock_posix.go
+@@ -60,7 +60,7 @@ func (c *UDPConn) ok() bool { return c != nil && c.fd != nil }
+ 
+ // Implementation of the Conn interface - see Conn for documentation.
+ 
+-// Read implements the net.Conn Read method.
++// Read implements the Conn Read method.
+ func (c *UDPConn) Read(b []byte) (n int, err error) {
+ 	if !c.ok() {
+ 		return 0, os.EINVAL
+@@ -68,7 +68,7 @@ func (c *UDPConn) Read(b []byte) (n int, err error) {
+ 	return c.fd.Read(b)
+ }
+ 
+-// Write implements the net.Conn Write method.
++// Write implements the Conn Write method.
+ func (c *UDPConn) Write(b []byte) (n int, err error) {
+ 	if !c.ok() {
+ 		return 0, os.EINVAL
+@@ -102,7 +102,7 @@ func (c *UDPConn) RemoteAddr() Addr {
+ 	return c.fd.raddr
+ }
+ 
+-// SetDeadline implements the net.Conn SetDeadline method.
++// SetDeadline implements the Conn SetDeadline method.
+ func (c *UDPConn) SetDeadline(t time.Time) error {
+ 	if !c.ok() {
+ 		return os.EINVAL
+@@ -110,7 +110,7 @@ func (c *UDPConn) SetDeadline(t time.Time) error {
+ 	return setDeadline(c.fd, t)
+ }
+ 
+-// SetReadDeadline implements the net.Conn SetReadDeadline method.
++// SetReadDeadline implements the Conn SetReadDeadline method.
+ func (c *UDPConn) SetReadDeadline(t time.Time) error {
+ 	if !c.ok() {
+ 		return os.EINVAL
+@@ -118,7 +118,7 @@ func (c *UDPConn) SetReadDeadline(t time.Time) error {
+ 	return setReadDeadline(c.fd, t)
+ }
+ 
+-// SetWriteDeadline implements the net.Conn SetWriteDeadline method.
++// SetWriteDeadline implements the Conn SetWriteDeadline method.
+ func (c *UDPConn) SetWriteDeadline(t time.Time) error {
+ 	if !c.ok() {
+ 		return os.EINVAL
+@@ -166,7 +166,7 @@ func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err error) {
+ 	return
+ }
+ 
+-// ReadFrom implements the net.PacketConn ReadFrom method.
++// ReadFrom implements the PacketConn ReadFrom method.
+ func (c *UDPConn) ReadFrom(b []byte) (n int, addr Addr, err error) {
+ 	if !c.ok() {
+ 		return 0, nil, os.EINVAL
+@@ -195,7 +195,7 @@ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (int, error) {
+ 	return c.fd.WriteTo(b, sa)
+ }
+ 
+-// WriteTo implements the net.PacketConn WriteTo method.
++// WriteTo implements the PacketConn WriteTo method.
+ func (c *UDPConn) WriteTo(b []byte, addr Addr) (int, error) {
+ 	if !c.ok() {
+ 		return 0, os.EINVAL
+diff --git a/src/pkg/net/unixsock_plan9.go b/src/pkg/net/unixsock_plan9.go
+index e8087d09a3..1d9d7578f4 100644
+--- a/src/pkg/net/unixsock_plan9.go
++++ b/src/pkg/net/unixsock_plan9.go
+@@ -17,12 +17,12 @@ type UnixConn bool
+ 
+ // Implementation of the Conn interface - see Conn for documentation.
+ 
+-// Read implements the net.Conn Read method.
++// Read implements the Conn Read method.
+ func (c *UnixConn) Read(b []byte) (n int, err error) {
+ 	return 0, os.EPLAN9
+ }
+ 
+-// Write implements the net.Conn Write method.
++// Write implements the Conn Write method.
+ func (c *UnixConn) Write(b []byte) (n int, err error) {
+ 	return 0, os.EPLAN9
+ }
+@@ -45,28 +45,28 @@ func (c *UnixConn) RemoteAddr() Addr {
+ 	return nil
+ }
+ 
+-// SetDeadline implements the net.Conn SetDeadline method.
++// SetDeadline implements the Conn SetDeadline method.
+ func (c *UnixConn) SetDeadline(t time.Time) error {
+ 	return os.EPLAN9
+ }
+ 
+-// SetReadDeadline implements the net.Conn SetReadDeadline method.
++// SetReadDeadline implements the Conn SetReadDeadline method.
+ func (c *UnixConn) SetReadDeadline(t time.Time) error {
+ 	return os.EPLAN9
+ }
+ 
+-// SetWriteDeadline implements the net.Conn SetWriteDeadline method.
++// SetWriteDeadline implements the Conn SetWriteDeadline method.
+ func (c *UnixConn) SetWriteDeadline(t time.Time) error {
+ 	return os.EPLAN9
+ }
+ 
+-// ReadFrom implements the net.PacketConn ReadFrom method.
++// ReadFrom implements the PacketConn ReadFrom method.
+ func (c *UnixConn) ReadFrom(b []byte) (n int, addr Addr, err error) {
+ 	err = os.EPLAN9
+ 	return
+ }
+ 
+-// WriteTo implements the net.PacketConn WriteTo method.
++// WriteTo implements the PacketConn WriteTo method.
+ func (c *UnixConn) WriteTo(b []byte, addr Addr) (n int, err error) {
+ 	err = os.EPLAN9
+ 	return
+diff --git a/src/pkg/net/unixsock_posix.go b/src/pkg/net/unixsock_posix.go
+index e500ddb4e0..beb2aa90f5 100644
+--- a/src/pkg/net/unixsock_posix.go
++++ b/src/pkg/net/unixsock_posix.go
+@@ -120,7 +120,7 @@ func (c *UnixConn) ok() bool { return c != nil && c.fd != nil }
+ 
+ // Implementation of the Conn interface - see Conn for documentation.
+ 
+-// Read implements the net.Conn Read method.
++// Read implements the Conn Read method.
+ func (c *UnixConn) Read(b []byte) (n int, err error) {
+ 	if !c.ok() {
+ 		return 0, os.EINVAL
+@@ -128,7 +128,7 @@ func (c *UnixConn) Read(b []byte) (n int, err error) {
+ 	return c.fd.Read(b)
+ }
+ 
+-// Write implements the net.Conn Write method.
++// Write implements the Conn Write method.
+ func (c *UnixConn) Write(b []byte) (n int, err error) {
+ 	if !c.ok() {
+ 		return 0, os.EINVAL
+@@ -165,7 +165,7 @@ func (c *UnixConn) RemoteAddr() Addr {
+ 	return c.fd.raddr
+ }
+ 
+-// SetDeadline implements the net.Conn SetDeadline method.
++// SetDeadline implements the Conn SetDeadline method.
+ func (c *UnixConn) SetDeadline(t time.Time) error {
+ 	if !c.ok() {
+ 		return os.EINVAL
+@@ -173,7 +173,7 @@ func (c *UnixConn) SetDeadline(t time.Time) error {
+ 	return setDeadline(c.fd, t)
+ }
+ 
+-// SetReadDeadline implements the net.Conn SetReadDeadline method.
++// SetReadDeadline implements the Conn SetReadDeadline method.
+ func (c *UnixConn) SetReadDeadline(t time.Time) error {
+ 	if !c.ok() {
+ 		return os.EINVAL
+@@ -181,7 +181,7 @@ func (c *UnixConn) SetReadDeadline(t time.Time) error {
+ 	return setReadDeadline(c.fd, t)
+ }
+ 
+-// SetWriteDeadline implements the net.Conn SetWriteDeadline method.
++// SetWriteDeadline implements the Conn SetWriteDeadline method.
+ func (c *UnixConn) SetWriteDeadline(t time.Time) error {
+ 	if !c.ok() {
+ 		return os.EINVAL
+@@ -226,7 +226,7 @@ func (c *UnixConn) ReadFromUnix(b []byte) (n int, addr *UnixAddr, err error) {
+ 	return
+ }
+ 
+-// ReadFrom implements the net.PacketConn ReadFrom method.
++// ReadFrom implements the PacketConn ReadFrom method.
+ func (c *UnixConn) ReadFrom(b []byte) (n int, addr Addr, err error) {
+ 	if !c.ok() {
+ 		return 0, nil, os.EINVAL
+@@ -252,7 +252,7 @@ func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (n int, err error) {
+ 	return c.fd.WriteTo(b, sa)
+ }
+ 
+-// WriteTo implements the net.PacketConn WriteTo method.
++// WriteTo implements the PacketConn WriteTo method.
+ func (c *UnixConn) WriteTo(b []byte, addr Addr) (n int, err error) {
+ 	if !c.ok() {
+ 		return 0, os.EINVAL

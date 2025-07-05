@@ -10,7 +10,7 @@ Date:   Thu Jul 30 16:53:08 2009 -0700
     R=ken
     OCL=32536
     CL=32543
-
+---
  src/cmd/5g/cgen.c      |    6 +-
  src/cmd/6g/cgen.c      |    6 +-
  src/cmd/8g/cgen.c      |    6 +-
@@ -27,3 +27,3082 @@ Date:   Thu Jul 30 16:53:08 2009 -0700
  src/cmd/gc/typecheck.c | 1099 ++++++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/gc/walk.c      |  584 +++++--------------------
  15 files changed, 1327 insertions(+), 555 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 6e9d9aa8b6..e431dc03cf 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -281,7 +281,7 @@ cgen(Node *n, Node *res)
+ 		cgen_callret(n, res);
+ 		break;
+ 
+-	case OCALL:
++	case OCALLFUNC:
+ 		cgen_call(n, 0);
+ 		cgen_callret(n, res);
+ 		break;
+@@ -404,7 +404,7 @@ agen(Node *n, Node *res)
+ 		cgen_aret(n, res);
+ 		break;
+ 
+-	case OCALL:
++	case OCALLFUNC:
+ 		cgen_call(n, 0);
+ 		cgen_aret(n, res);
+ 		break;
+@@ -811,7 +811,7 @@ stkof(Node *n)
+ 
+ 	case OCALLMETH:
+ 	case OCALLINTER:
+-	case OCALL:
++	case OCALLFUNC:
+ 		t = n->left->type;
+ 		if(isptr[t->etype])
+ 			t = t->type;
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 27ad4fdbe6..de7bf6313f 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -300,7 +300,7 @@ cgen(Node *n, Node *res)
+ 		cgen_callret(n, res);
+ 		break;
+ 
+-	case OCALL:
++	case OCALLFUNC:
+ 		cgen_call(n, 0);
+ 		cgen_callret(n, res);
+ 		break;
+@@ -420,7 +420,7 @@ agen(Node *n, Node *res)
+ 		cgen_aret(n, res);
+ 		break;
+ 
+-	case OCALL:
++	case OCALLFUNC:
+ 		cgen_call(n, 0);
+ 		cgen_aret(n, res);
+ 		break;
+@@ -827,7 +827,7 @@ stkof(Node *n)
+ 
+ 	case OCALLMETH:
+ 	case OCALLINTER:
+-	case OCALL:
++	case OCALLFUNC:
+ 		t = n->left->type;
+ 		if(isptr[t->etype])
+ 			t = t->type;
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 2306387493..5664ac53d8 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -306,7 +306,7 @@ cgen(Node *n, Node *res)
+ 		cgen_callret(n, res);
+ 		break;
+ 
+-	case OCALL:
++	case OCALLFUNC:
+ 		cgen_call(n, 0);
+ 		cgen_callret(n, res);
+ 		break;
+@@ -447,7 +447,7 @@ agen(Node *n, Node *res)
+ 		cgen_aret(n, res);
+ 		break;
+ 
+-	case OCALL:
++	case OCALLFUNC:
+ 		cgen_call(n, 0);
+ 		cgen_aret(n, res);
+ 		break;
+@@ -922,7 +922,7 @@ stkof(Node *n)
+ 
+ 	case OCALLMETH:
+ 	case OCALLINTER:
+-	case OCALL:
++	case OCALLFUNC:
+ 		t = n->left->type;
+ 		if(isptr[t->etype])
+ 			t = t->type;
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index 697cca9409..2338163ac9 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -35,6 +35,7 @@ OFILES=\
+ 	gen.$O\
+ 	obj.$O\
+ 	print.$O\
++	typecheck.$O\
+ 
+ $(LIB): $(OFILES)
+ 	ar rsc $(LIB) $(OFILES)
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index 5735cbd5c5..b3abd57ba0 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -339,6 +339,14 @@ typeinit(void)
+ 	okfor[OCAP] = okforcap;
+ 	okfor[OLEN] = okforlen;
+ 
++	// comparison
++	iscmp[OLT] = 1;
++	iscmp[OGT] = 1;
++	iscmp[OGE] = 1;
++	iscmp[OLE] = 1;
++	iscmp[OEQ] = 1;
++	iscmp[ONE] = 1;
++
+ 	mpatofix(maxintval[TINT8], "0x7f");
+ 	mpatofix(minintval[TINT8], "-0x80");
+ 	mpatofix(maxintval[TINT16], "0x7fff");
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 02f17b7d5a..8b4046bf53 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -89,12 +89,17 @@ convlit1(Node **np, Type *t, int explicit)
+ 
+ 	switch(n->op) {
+ 	default:
++		if(n->type->etype == TIDEAL) {
++			convlit(&n->left, t);
++			convlit(&n->right, t);
++			n->type = t;
++		}
+ 		return;
+ 	case OLITERAL:
+ 		break;
+ 	case OLSH:
+ 	case ORSH:
+-		convlit1(&n->left, t, explicit);
++		convlit(&n->left, t);
+ 		n->type = n->left->type;
+ 		return;
+ 	}
+@@ -259,11 +264,15 @@ overflow(Val v, Type *t)
+ 		return;
+ 	switch(v.ctype) {
+ 	case CTINT:
++		if(!isint[t->etype])
++			fatal("overflow: %T integer constant", t);
+ 		if(mpcmpfixfix(v.u.xval, minintval[t->etype]) < 0
+ 		|| mpcmpfixfix(v.u.xval, maxintval[t->etype]) > 0)
+ 			yyerror("constant %B overflows %T", v.u.xval, t);
+ 		break;
+ 	case CTFLT:
++		if(!isfloat[t->etype])
++			fatal("overflow: %T floating-point constant", t);
+ 		if(mpcmpfltflt(v.u.fval, minfltval[t->etype]) < 0
+ 		|| mpcmpfltflt(v.u.fval, maxfltval[t->etype]) > 0)
+ 			yyerror("constant %#F overflows %T", v.u.fval, t);
+@@ -325,6 +334,11 @@ evconst(Node *n)
+ 	Val v;
+ 	Mpint b;
+ 
++	switch(n->op) {
++	case OMAKE:
++		return;
++	}
++
+ 	nl = n->left;
+ 	if(nl == N || nl->type == T)
+ 		return;
+@@ -590,6 +604,7 @@ unary:
+ 	case TUP(OCONV, CTINT):
+ 	case TUP(OCONV, CTFLT):
+ 	case TUP(OCONV, CTSTR):
++	case TUP(OCONV, CTNIL):
+ 		convlit1(&nl, n->type, 1);
+ 		break;
+ 
+@@ -711,6 +726,11 @@ defaultlit(Node **np, Type *t)
+ 		defaultlit(&n->left, t);
+ 		n->type = n->left->type;
+ 		return;
++	default:
++		defaultlit(&n->left, t);
++		defaultlit(&n->right, t);
++		n->type = n->left->type;
++		return;
+ 	}
+ 
+ 	lno = lineno;
+@@ -753,7 +773,7 @@ defaultlit(Node **np, Type *t)
+  * get the same type going out.
+  */
+ void
+-defaultlit2(Node **lp, Node **rp)
++defaultlit2(Node **lp, Node **rp, int force)
+ {
+ 	Node *l, *r;
+ 
+@@ -769,6 +789,8 @@ defaultlit2(Node **lp, Node **rp)
+ 		convlit(lp, r->type);
+ 		return;
+ 	}
++	if(!force)
++		return;
+ 	if(isconst(l, CTFLT) || isconst(r, CTFLT)) {
+ 		convlit(lp, types[TFLOAT]);
+ 		convlit(rp, types[TFLOAT]);
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index d050b8bca8..3440de692b 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -528,7 +528,7 @@ funclit0(Node *t)
+ 	autodcl = dcl();
+ 	autodcl->back = autodcl;
+ 
+-	walkexpr(&t, Etype, &t->ninit);
++	typecheck(&t, Etype);
+ 	funcargs(t->type);
+ 	return t;
+ }
+@@ -703,7 +703,7 @@ stotype(NodeList *l, int et, Type **t)
+ 		if(n->op != ODCLFIELD)
+ 			fatal("stotype: oops %N\n", n);
+ 		if(n->right != N) {
+-			walkexpr(&n->right, Etype, &init);
++			typecheck(&n->right, Etype);
+ 			n->type = n->right->type;
+ 			n->right = N;
+ 			if(n->embedded && n->type != T) {
+@@ -1298,7 +1298,7 @@ xanondcl(Node *nt)
+ 	Node *n;
+ 	Type *t;
+ 
+-	walkexpr(&nt, Etype, &nt->ninit);
++	typecheck(&nt, Etype);
+ 	t = nt->type;
+ 	if(nt->op != OTYPE) {
+ 		yyerror("%S is not a type", nt->sym);
+@@ -1318,7 +1318,7 @@ namedcl(Node *nn, Node *nt)
+ 	if(nn->op == OKEY)
+ 		nn = nn->left;
+ 	if(nn->sym == S) {
+-		walkexpr(&nn, Etype, &nn->ninit);
++		typecheck(&nn, Etype);
+ 		yyerror("cannot mix anonymous %T with named arguments", nn->type);
+ 		return xanondcl(nn);
+ 	}
+@@ -1326,7 +1326,7 @@ namedcl(Node *nn, Node *nt)
+ 	if(nt == N)
+ 		yyerror("missing type for argument %S", nn->sym);
+ 	else {
+-		walkexpr(&nt, Etype, &nt->ninit);
++		typecheck(&nt, Etype);
+ 		if(nt->op != OTYPE)
+ 			yyerror("%S is not a type", nt->sym);
+ 		else
+@@ -1650,7 +1650,7 @@ variter(NodeList *vl, Node *nt, NodeList *el)
+ 
+ 	t = T;
+ 	if(nt) {
+-		walkexpr(&nt, Etype, &nt->ninit);
++		typecheck(&nt, Etype);
+ 		t = nt->type;
+ 	}
+ 
+@@ -1763,7 +1763,7 @@ unsafenmagic(Node *fn, NodeList *args)
+ 
+ 	n = nod(OLITERAL, N, N);
+ 	if(strcmp(s->name, "Sizeof") == 0) {
+-		walkexpr(&r, Erv, &n->ninit);
++		typecheck(&r, Erv);
+ 		tr = r->type;
+ 		if(r->op == OLITERAL && r->val.ctype == CTSTR)
+ 			tr = types[TSTRING];
+@@ -1775,12 +1775,12 @@ unsafenmagic(Node *fn, NodeList *args)
+ 	if(strcmp(s->name, "Offsetof") == 0) {
+ 		if(r->op != ODOT && r->op != ODOTPTR)
+ 			goto no;
+-		walkexpr(&r, Erv, &n->ninit);
++		typecheck(&r, Erv);
+ 		v = r->xoffset;
+ 		goto yes;
+ 	}
+ 	if(strcmp(s->name, "Alignof") == 0) {
+-		walkexpr(&r, Erv, &n->ninit);
++		typecheck(&r, Erv);
+ 		tr = r->type;
+ 		if(r->op == OLITERAL && r->val.ctype == CTSTR)
+ 			tr = types[TSTRING];
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index 46373f8b82..f87b70e95c 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -321,7 +321,7 @@ gen(Node *n)
+ 		cgen_callinter(n, N, 0);
+ 		break;
+ 
+-	case OCALL:
++	case OCALLFUNC:
+ 		cgen_call(n, 0);
+ 		break;
+ 
+@@ -360,7 +360,7 @@ cgen_callmeth(Node *n, int proc)
+ 	if(l->op != ODOTMETH)
+ 		fatal("cgen_callmeth: not dotmethod: %N");
+ 
+-	n->op = OCALL;
++	n->op = OCALLFUNC;
+ 	n->left = n->left->right;
+ 	n->left->type = l->type;
+ 
+@@ -387,7 +387,7 @@ cgen_proc(Node *n, int proc)
+ 		cgen_callinter(n->left, N, proc);
+ 		break;
+ 
+-	case OCALL:
++	case OCALLFUNC:
+ 		cgen_call(n->left, proc);
+ 		break;
+ 	}
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index d4412baa12..778162d9c1 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -343,14 +343,15 @@ enum
+ 	OCONTINUE,
+ 	OADDR,
+ 	OIND,
+-	OCALL, OCALLMETH, OCALLINTER,
++	OCALL, OCALLFUNC, OCALLMETH, OCALLINTER,
+ 	OINDEX, OSLICE,
+ 	ONOT, OCOM, OPLUS, OMINUS, OSEND, ORECV,
+ 	OREGISTER, OINDREG,
+ 	OKEY, OPARAM,
+ 	OCOMPOS, OCOMPSLICE, OCOMPMAP,
+-	OCONV, OCONVNOP,
+-	ODOTTYPE, OTYPESW,
++	OCONV, OCONVNOP, OCONVRUNE, OCONVSTRB, OCONVSTRI,
++	OCONVA2S,
++	ODOTTYPE, OTYPESW, OTYPECASE,
+ 	OBAD,
+ 
+ 	OTCHAN, OTMAP, OTSTRUCT, OTINTER, OTFUNC, OTARRAY,
+@@ -440,7 +441,7 @@ enum
+ 	Elv = 1<<2,	// evaluated in lvalue context
+ 	Erv = 1<<3,	// evaluated in rvalue context
+ 	Etype = 1<<4,
+-	Eideal = 1<<5,
++	Ecall = 1<<5,
+ };
+ 
+ #define	BITS	5
+@@ -593,6 +594,7 @@ EXTERN	uchar	okforcap[NTYPE];
+ EXTERN	uchar	okforlen[NTYPE];
+ EXTERN	uchar	okforarith[NTYPE];
+ EXTERN	uchar*	okfor[OEND];
++EXTERN	uchar	iscmp[OEND];
+ 
+ EXTERN	Mpint*	minintval[NTYPE];
+ EXTERN	Mpint*	maxintval[NTYPE];
+@@ -830,7 +832,6 @@ int	Wconv(Fmt*);
+ int	Zconv(Fmt*);
+ 
+ int	lookdot0(Sym*, Type*, Type**);
+-Type*	lookdot1(Sym*, Type*, Type*);
+ int	adddot1(Sym*, Type*, int, Type**);
+ Node*	adddot(Node*);
+ void	expandmeth(Sym*, Type*);
+@@ -846,7 +847,7 @@ Type*	dodcltype(Type*);
+ void	updatetype(Type*, Type*);
+ void	dodclconst(Node*, Node*);
+ void	defaultlit(Node**, Type*);
+-void	defaultlit2(Node**, Node**);
++void	defaultlit2(Node**, Node**, int);
+ int	structcount(Type*);
+ void	addmethod(Node*, Type*, int);
+ Node*	methodname(Node*, Type*);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 4cf6fd771c..97800d34dc 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -400,7 +400,7 @@ typedclname:
+ typedcl:
+ 	typedclname ntype
+ 	{
+-		walkexpr(&$2, Etype, &$2->ninit);
++		typecheck(&$2, Etype);
+ 		updatetype($1, $2->type);
+ 		resumecheckwidth();
+ 	}
+@@ -478,21 +478,21 @@ case:
+ 				yyerror("type switch case cannot be list");
+ 			if(n->op == OLITERAL && n->val.ctype == CTNIL) {
+ 				// case nil
+-				$$->list = list1(nod(OTYPESW, N, N));
++				$$->list = list1(nod(OTYPECASE, N, N));
+ 				break;
+ 			}
+ 
+ 			// TODO: move
+ 			e = nerrors;
+-			walkexpr(&n, Etype | Erv, &$$->ninit);
++			typecheck(&n, Etype | Erv);
+ 			if(n->op == OTYPE) {
+ 				n = old2new(typeswvar->right, n->type, &$$->ninit);
+-				$$->list = list1(nod(OTYPESW, n, N));
++				$$->list = list1(nod(OTYPECASE, n, N));
+ 				break;
+ 			}
+-			// maybe walkexpr found problems that keep
++			// maybe typecheck found problems that keep
+ 			// e from being valid even outside a type switch.
+-			// only complain if walkexpr didn't print new errors.
++			// only complain if typecheck didn't print new errors.
+ 			if(nerrors == e)
+ 				yyerror("non-type case in type switch");
+ 			$$->diag = 1;
+@@ -518,6 +518,7 @@ case:
+ 		// done in casebody()
+ 		poptodcl();
+ 		$$ = nod(OXCASE, N, N);
++		typecheck(&$4, Erv);
+ 		$$->list = list1(nod(OAS, selectas($2, $4, &$$->ninit), $4));
+ 	}
+ |	LDEFAULT ':'
+@@ -1143,7 +1144,7 @@ fndcl:
+ 		n = nod(OTFUNC, N, N);
+ 		n->list = $3;
+ 		n->rlist = $5;
+-		walkexpr(&n, Etype, &n->ninit);
++		typecheck(&n, Etype);
+ 		$$->type = n->type;
+ 		funchdr($$);
+ 	}
+diff --git a/src/cmd/gc/print.c b/src/cmd/gc/print.c
+index fc96b3a2bf..18d1ba38f4 100644
+--- a/src/cmd/gc/print.c
++++ b/src/cmd/gc/print.c
+@@ -24,7 +24,7 @@ void
+ exprfmt(Fmt *f, Node *n, int prec)
+ {
+ 	int nprec;
+-	
++
+ 	nprec = 0;
+ 	if(n == nil) {
+ 		fmtprint(f, "<nil>");
+@@ -38,7 +38,7 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case OLITERAL:
+ 		nprec = 7;
+ 		break;
+-	
++
+ 	case OMUL:
+ 	case ODIV:
+ 	case OMOD:
+@@ -48,14 +48,14 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case OANDNOT:
+ 		nprec = 6;
+ 		break;
+-	
++
+ 	case OADD:
+ 	case OSUB:
+ 	case OOR:
+ 	case OXOR:
+ 		nprec = 5;
+ 		break;
+-	
++
+ 	case OEQ:
+ 	case OLT:
+ 	case OLE:
+@@ -64,15 +64,15 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case ONE:
+ 		nprec = 4;
+ 		break;
+-	
++
+ 	case OSEND:
+ 		nprec = 3;
+ 		break;
+-	
++
+ 	case OANDAND:
+ 		nprec = 2;
+ 		break;
+-	
++
+ 	case OOROR:
+ 		nprec = 1;
+ 		break;
+@@ -117,7 +117,7 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case ONONAME:
+ 		fmtprint(f, "%S", n->sym);
+ 		break;
+-	
++
+ 	case OTYPE:
+ 		fmtprint(f, "%T", n->type);
+ 		break;
+@@ -126,7 +126,7 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 		fmtprint(f, "[]");
+ 		exprfmt(f, n->left, PFIXME);
+ 		break;
+-	
++
+ 	case OTMAP:
+ 		fmtprint(f, "map[");
+ 		exprfmt(f, n->left, 0);
+@@ -146,19 +146,31 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 			exprfmt(f, n->left, PCHAN);
+ 		}
+ 		break;
+-	
++
+ 	case OTSTRUCT:
+ 		fmtprint(f, "<struct>");
+ 		break;
+-	
++
+ 	case OTINTER:
+ 		fmtprint(f, "<inter>");
+ 		break;
+-	
++
+ 	case OTFUNC:
+ 		fmtprint(f, "<func>");
+ 		break;
+-	
++
++	case OAS:
++		exprfmt(f, n->left, 0);
++		fmtprint(f, " = ");
++		exprfmt(f, n->right, 0);
++		break;
++
++	case OASOP:
++		exprfmt(f, n->left, 0);
++		fmtprint(f, " %#O= ", n->etype);
++		exprfmt(f, n->right, 0);
++		break;
++
+ 	case OADD:
+ 	case OANDAND:
+ 	case OANDNOT:
+@@ -182,7 +194,7 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 		fmtprint(f, " %#O ", n->op);
+ 		exprfmt(f, n->right, nprec+1);
+ 		break;
+-	
++
+ 	case OADDR:
+ 	case OCOM:
+ 	case OIND:
+@@ -195,35 +207,35 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 			fmtprint(f, " ");
+ 		exprfmt(f, n->left, 0);
+ 		break;
+-	
++
+ 	case OCOMPOS:
+ 		fmtprint(f, "<compos>");
+ 		break;
+-	
++
+ 	case ODOT:
+ 	case ODOTINTER:
+ 	case ODOTMETH:
+ 		exprfmt(f, n->left, 7);
+-		if(n->sym == S)
++		if(n->right == N || n->right->sym == S)
+ 			fmtprint(f, ".<nil>");
+ 		else
+-			fmtprint(f, ".%s", n->sym->name);
++			fmtprint(f, ".%s", n->right->sym->name);
+ 		break;
+-	
++
+ 	case ODOTTYPE:
+ 		exprfmt(f, n->left, 7);
+ 		fmtprint(f, ".(");
+ 		exprfmt(f, n->right, 0);
+ 		fmtprint(f, ")");
+ 		break;
+-	
++
+ 	case OINDEX:
+ 		exprfmt(f, n->left, 7);
+ 		fmtprint(f, "[");
+ 		exprfmt(f, n->right, 0);
+ 		fmtprint(f, "]");
+ 		break;
+-	
++
+ 	case OSLICE:
+ 		exprfmt(f, n->left, 7);
+ 		fmtprint(f, "[");
+@@ -232,8 +244,9 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 		exprfmt(f, n->right->right, 0);
+ 		fmtprint(f, "]");
+ 		break;
+-	
++
+ 	case OCALL:
++	case OCALLFUNC:
+ 	case OCALLINTER:
+ 	case OCALLMETH:
+ 		exprfmt(f, n->left, 7);
+@@ -241,13 +254,13 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 		exprlistfmt(f, n->list);
+ 		fmtprint(f, ")");
+ 		break;
+-	
++
+ 	case OCONV:
+ 		fmtprint(f, "%T(", n->type);
+ 		exprfmt(f, n->left, 0);
+ 		fmtprint(f, ")");
+ 		break;
+-	
++
+ 	case OCAP:
+ 	case OCLOSE:
+ 	case OCLOSED:
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 4ea0683d02..1512dab28b 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -461,7 +461,7 @@ aindex(Node *b, Type *t)
+ 
+ 	bound = -1;	// open bound
+ 	init = nil;
+-	walkexpr(&b, Erv, &init);
++	typecheck(&b, Erv);
+ 	if(b != nil) {
+ 		switch(consttype(b)) {
+ 		default:
+@@ -638,6 +638,7 @@ opnames[] =
+ 	[OBAD]		= "BAD",
+ 	[OBLOCK]		= "BLOCK",
+ 	[OBREAK]	= "BREAK",
++	[OCALLFUNC]	= "CALLFUNC",
+ 	[OCALLINTER]	= "CALLINTER",
+ 	[OCALLMETH]	= "CALLMETH",
+ 	[OCALL]		= "CALL",
+@@ -2100,6 +2101,7 @@ ullmancalc(Node *n)
+ 			ul++;
+ 		goto out;
+ 	case OCALL:
++	case OCALLFUNC:
+ 	case OCALLMETH:
+ 	case OCALLINTER:
+ 		ul = UINF;
+@@ -2389,6 +2391,7 @@ saferef(Node *n, NodeList **init)
+ 		r = nod(OXXX, N, N);
+ 		*r = *n;
+ 		r->left = l;
++		typecheck(&r, Elv);
+ 		walkexpr(&r, Elv, init);
+ 		return r;
+ 
+@@ -2398,9 +2401,11 @@ saferef(Node *n, NodeList **init)
+ 		l = nod(OXXX, N, N);
+ 		tempname(l, ptrto(n->type));
+ 		a = nod(OAS, l, nod(OADDR, n, N));
++		typecheck(&a, Etop);
+ 		walkexpr(&a, Etop, init);
+ 		*init = list(*init, a);
+ 		r = nod(OIND, l, N);
++		typecheck(&r, Elv);
+ 		walkexpr(&r, Elv, init);
+ 		return r;
+ 	}
+@@ -2555,13 +2560,11 @@ out:
+ Node*
+ adddot(Node *n)
+ {
+-	NodeList *init;
+ 	Type *t;
+ 	Sym *s;
+ 	int c, d;
+ 
+-	init = nil;
+-	walkexpr(&n->left, Erv, &init);
++	typecheck(&n->left, Erv);
+ 	t = n->left->type;
+ 	if(t == T)
+ 		goto ret;
+@@ -2589,7 +2592,6 @@ out:
+ 		n->left->right = newname(dotlist[c].field->sym);
+ 	}
+ ret:
+-	n->ninit = concat(init, n->ninit);
+ 	return n;
+ }
+ 
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index 785a401b5b..aa8fa81a14 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -247,14 +247,15 @@ sw0(Node **cp, Type *place, int arg)
+ 	switch(c->op) {
+ 	default:
+ 		if(arg == Stype) {
+-			yyerror("inappropriate case for a type switch");
++			yyerror("expression case in a type switch");
+ 			return T;
+ 		}
+ 		walkexpr(cp, Erv, nil);
+ 		break;
+ 	case OTYPESW:
++	case OTYPECASE:
+ 		if(arg != Stype)
+-			yyerror("inappropriate type case");
++			yyerror("type case in an expression switch");
+ 		break;
+ 	case OAS:
+ 		yyerror("inappropriate assignment in a case statement");
+@@ -542,12 +543,14 @@ exprbsw(Case *c0, int ncase, int arg)
+ 			case Sfalse:
+ 				a = nod(OIF, N, N);
+ 				a->ntest = nod(ONOT, n->left, N);	// if !val
++				typecheck(&a->ntest, Erv);
+ 				a->nbody = list1(n->right);			// then goto l
+ 				break;
+ 
+ 			default:
+ 				a = nod(OIF, N, N);
+ 				a->ntest = nod(OEQ, exprname, n->left);	// if name == val
++				typecheck(&a->ntest, Erv);
+ 				a->nbody = list1(n->right);			// then goto l
+ 				break;
+ 			}
+@@ -566,6 +569,7 @@ exprbsw(Case *c0, int ncase, int arg)
+ 		c = c->link;
+ 	a = nod(OIF, N, N);
+ 	a->ntest = nod(OLE, exprname, c->node->left);
++	typecheck(&a->ntest, Erv);
+ 	a->nbody = list1(exprbsw(c0, half, arg));
+ 	a->nelse = list1(exprbsw(c->link, ncase-half, arg));
+ 	return a;
+@@ -619,6 +623,7 @@ exprswitch(Node *sw)
+ 		exprname = nod(OXXX, N, N);
+ 		tempname(exprname, sw->ntest->type);
+ 		cas = list1(nod(OAS, exprname, sw->ntest));
++		typechecklist(cas, Etop);
+ 	}
+ 
+ 	c0 = mkcaselist(sw, arg);
+@@ -686,6 +691,7 @@ typeone(Node *t)
+ 	b = nod(ODOTTYPE, facename, N);
+ 	b->type = t->left->left->type;		// interface.(type)
+ 	a->rlist = list1(b);
++	typecheck(&a, Etop);
+ 	init = list(init, a);
+ 
+ 	b = nod(OIF, N, N);
+@@ -716,6 +722,7 @@ typebsw(Case *c0, int ncase)
+ 				v.ctype = CTNIL;
+ 				a = nod(OIF, N, N);
+ 				a->ntest = nod(OEQ, facename, nodlit(v));
++				typecheck(&a->ntest, Erv);
+ 				a->nbody = list1(n->right);		// if i==nil { goto l }
+ 				cas = list(cas, a);
+ 				break;
+@@ -728,6 +735,7 @@ typebsw(Case *c0, int ncase)
+ 			case Ttypeconst:
+ 				a = nod(OIF, N, N);
+ 				a->ntest = nod(OEQ, hashname, nodintconst(c0->hash));
++				typecheck(&a->ntest, Erv);
+ 				a->nbody = list1(typeone(n));
+ 				cas = list(cas, a);
+ 				break;
+@@ -744,6 +752,7 @@ typebsw(Case *c0, int ncase)
+ 		c = c->link;
+ 	a = nod(OIF, N, N);
+ 	a->ntest = nod(OLE, hashname, nodintconst(c->hash));
++	typecheck(&a->ntest, Erv);
+ 	a->nbody = list1(typebsw(c0, half));
+ 	a->nelse = list1(typebsw(c->link, ncase-half));
+ 	return a;
+@@ -786,13 +795,16 @@ typeswitch(Node *sw)
+ 	facename = nod(OXXX, N, N);
+ 	tempname(facename, sw->ntest->right->type);
+ 	a = nod(OAS, facename, sw->ntest->right);
++	typecheck(&a, Etop);
+ 	cas = list(cas, a);
+ 
+ 	boolname = nod(OXXX, N, N);
+ 	tempname(boolname, types[TBOOL]);
++	typecheck(&boolname, Erv);
+ 
+ 	hashname = nod(OXXX, N, N);
+ 	tempname(hashname, types[TUINT32]);
++	typecheck(&hashname, Erv);
+ 
+ 	t = sw->ntest->right->type;
+ 	if(isnilinter(t))
+@@ -803,6 +815,7 @@ typeswitch(Node *sw)
+ 	a = nod(OCALL, a, N);
+ 	a->list = list1(facename);
+ 	a = nod(OAS, hashname, a);
++	typecheck(&a, Etop);
+ 	cas = list(cas, a);
+ 
+ 	c0 = mkcaselist(sw, Stype);
+@@ -861,8 +874,10 @@ walkswitch(Node *sw)
+ 	 * both have inserted OBREAK statements
+ 	 */
+ 	walkstmtlist(sw->ninit);
+-	if(sw->ntest == N)
++	if(sw->ntest == N) {
+ 		sw->ntest = nodbool(1);
++		typecheck(&sw->ntest, Erv);
++	}
+ 	casebody(sw);
+ 
+ 	if(sw->ntest->op == OTYPESW) {
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+new file mode 100644
+index 0000000000..cf250f27d5
+--- /dev/null
++++ b/src/cmd/gc/typecheck.c
+@@ -0,0 +1,1099 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go.h"
++
++static void	implicitstar(Node**);
++static int	onearg(Node*);
++static int	lookdot(Node*, Type*);
++static int	convert(Node**, Type*, int);
++
++void
++typechecklist(NodeList *l, int top)
++{
++	for(; l; l=l->next)
++		typecheck(&l->n, top);
++}
++
++/*
++ * type check the whole tree of an expression.
++ * calculates expression types.
++ * evaluates compile time constants.
++ * marks variables that escape the local frame.
++ * rewrites n->op to be more specific in some cases.
++ * replaces *np with a new pointer in some cases.
++ * returns the final value of *np as a convenience.
++ */
++Node*
++typecheck(Node **np, int top)
++{
++	int et, et1, et2, op, nerr, len;
++	NodeList *ll;
++	Node *n, *l, *r;
++	NodeList *args;
++	int i, lno, ok;
++	Type *t;
++
++	n = *np;
++	if(n == N || n->typecheck == 1)
++		return n;
++	if(n->typecheck == 2)
++		fatal("typecheck loop");
++	n->typecheck = 2;
++
++	if(n->sym && n->walkdef != 1)
++		walkdef(n);
++
++	lno = setlineno(n);
++
++reswitch:
++	ok = 0;
++	switch(n->op) {
++	default:
++		// until typecheck is complete, do nothing.
++		dump("typecheck", n);
++		fatal("typecheck %O", n->op);
++
++	/*
++	 * names
++	 */
++	case OLITERAL:
++		ok |= Erv;
++		goto ret;
++
++	case ONONAME:
++		ok |= Elv | Erv;
++		goto ret;
++
++	case ONAME:
++		if(n->etype != 0) {
++			yyerror("must call builtin %S", n->sym);
++			goto error;
++		}
++		ok |= Erv;
++		if(n->class != PFUNC)
++			ok |= Elv;
++		goto ret;
++
++	/*
++	 * types (OIND is with exprs)
++	 */
++	case OTYPE:
++		ok |= Etype;
++		if(n->type == T)
++			goto error;
++		break;
++
++	case OTARRAY:
++		ok |= Etype;
++		t = typ(TARRAY);
++		l = n->left;
++		r = n->right;
++		if(l == nil) {
++			t->bound = -1;
++		} else {
++			typecheck(&l, Erv | Etype);
++			switch(l->op) {
++			default:
++				yyerror("invalid array bound %#N", l);
++				goto error;
++
++			case OLITERAL:
++				if(consttype(l) == CTINT) {
++					t->bound = mpgetfix(l->val.u.xval);
++					if(t->bound < 0) {
++						yyerror("array bound must be non-negative");
++						goto error;
++					}
++				}
++				break;
++
++			case OTYPE:
++				if(l->type == T)
++					goto error;
++				if(l->type->etype != TDDD) {
++					yyerror("invalid array bound %T", l->type);
++					goto error;
++				}
++				t->bound = -100;
++				break;
++			}
++		}
++		typecheck(&r, Etype);
++		if(r->type == T)
++			goto error;
++		t->type = r->type;
++		n->op = OTYPE;
++		n->type = t;
++		n->left = N;
++		n->right = N;
++		checkwidth(t);
++		break;
++
++	case OTMAP:
++		ok |= Etype;
++		l = typecheck(&n->left, Etype);
++		r = typecheck(&n->right, Etype);
++		if(l->type == T || r->type == T)
++			goto error;
++		n->op = OTYPE;
++		n->type = maptype(l->type, r->type);
++		n->left = N;
++		n->right = N;
++		break;
++
++	case OTCHAN:
++		ok |= Etype;
++		l = typecheck(&n->left, Etype);
++		if(l->type == T)
++			goto error;
++		t = typ(TCHAN);
++		t->type = l->type;
++		t->chan = n->etype;
++		n->op = OTYPE;
++		n->type = t;
++		n->left = N;
++		n->etype = 0;
++		break;
++
++	case OTSTRUCT:
++		ok |= Etype;
++		n->op = OTYPE;
++		n->type = dostruct(n->list, TSTRUCT);
++		if(n->type == T)
++			goto error;
++		n->list = nil;
++		break;
++
++	case OTINTER:
++		ok |= Etype;
++		n->op = OTYPE;
++		n->type = dostruct(n->list, TINTER);
++		if(n->type == T)
++			goto error;
++		n->type = sortinter(n->type);
++		break;
++
++	case OTFUNC:
++		ok |= Etype;
++		n->op = OTYPE;
++		n->type = functype(n->left, n->list, n->rlist);
++		if(n->type == T)
++			goto error;
++		break;
++
++	/*
++	 * type or expr
++	 */
++	case OIND:
++		l = typecheck(&n->left, top | Etype);
++		if((t = l->type) == T)
++			goto error;
++		if(l->op == OTYPE) {
++			ok |= Etype;
++			n->op = OTYPE;
++			n->type = ptrto(l->type);
++			n->left = N;
++			goto ret;
++		}
++		if(!isptr[t->etype]) {
++			yyerror("invalid indirect %#N (non-pointer type %T)", n, t);
++			goto error;
++		}
++		n->type = t->type;
++		goto ret;
++
++	/*
++	 * arithmetic exprs
++	 */
++	case OASOP:
++		ok |= Etop;
++		l = typecheck(&n->left, Elv);
++		r = typecheck(&n->right, Erv);
++		if(l->type == T || r->type == T)
++			goto error;
++		op = n->etype;
++		goto arith;
++
++	case OADD:
++	case OAND:
++	case OANDAND:
++	case OANDNOT:
++	case ODIV:
++	case OEQ:
++	case OGE:
++	case OGT:
++	case OLE:
++	case OLT:
++	case OLSH:
++	case ORSH:
++	case OMOD:
++	case OMUL:
++	case ONE:
++	case OOR:
++	case OOROR:
++	case OSUB:
++	case OXOR:
++		ok |= Erv;
++		l = typecheck(&n->left, Erv);
++		r = typecheck(&n->right, Erv);
++		if(l->type == T || r->type == T)
++			goto error;
++		op = n->op;
++	arith:
++		if(op == OLSH || op == ORSH)
++			goto shift;
++		// ideal mixed with non-ideal
++		defaultlit2(&l, &r, 0);
++		n->left = l;
++		n->right = r;
++		t = l->type;
++		if(t->etype == TIDEAL)
++			t = r->type;
++		et = t->etype;
++		if(et == TIDEAL)
++			et = TINT;
++		if(t->etype != TIDEAL && !eqtype(l->type, r->type)) {
++		badbinary:
++			yyerror("invalid operation: %#N (type %T %#O %T)", n, l->type, op, r->type);
++			goto error;
++		}
++		if(!okfor[op][et])
++			goto badbinary;
++		// okfor allows any array == array;
++		// restrict to slice == nil and nil == slice.
++		if(l->type->etype == TARRAY && !isslice(l->type))
++			goto badbinary;
++		if(r->type->etype == TARRAY && !isslice(r->type))
++			goto badbinary;
++		if(isslice(l->type) && !isnil(l) && !isnil(r))
++			goto badbinary;
++		t = l->type;
++		if(iscmp[n->op])
++			t = types[TBOOL];
++		n->type = t;
++		goto ret;
++
++	shift:
++		defaultlit(&r, types[TUINT]);
++		n->right = r;
++		t = r->type;
++		if(!isint[t->etype] || issigned[t->etype]) {
++			yyerror("invalid operation: %#N (shift count type %T)", n, r->type);
++			goto error;
++		}
++		// no defaultlit for left
++		// the outer context gives the type
++		n->type = l->type;
++		goto ret;
++
++	case OCOM:
++	case OMINUS:
++	case ONOT:
++	case OPLUS:
++		ok |= Erv;
++		l = typecheck(&n->left, Erv);
++		if((t = l->type) == T)
++			goto error;
++		if(!okfor[n->op][t->etype]) {
++			yyerror("invalid operation: %#O %T", n->op, t);
++			goto error;
++		}
++		n->type = t;
++		goto ret;
++
++	/*
++	 * exprs
++	 */
++	case OADDR:
++		l = typecheck(&n->left, Elv);
++		if((t = l->type) == T)
++			goto error;
++		n->type = ptrto(t);
++		goto ret;
++
++	case OCOMPOS:
++		l = typecheck(&n->right /* sic */, Etype /* TODO | Edotarray */);
++		if((t = l->type) == T)
++			goto error;
++		nerr = nerrors;
++		switch(t->etype) {
++		case TARRAY:
++			len = 0;
++			i = 0;
++			for(ll=n->list; ll; ll=ll->next) {
++				l = ll->n;
++				if(l->op == OKEY) {
++					typecheck(&l->left, Erv);
++					evconst(l->left);
++					i = nonnegconst(l->left);
++					typecheck(&l->right, Erv);
++					defaultlit(&l->right, t->type);
++					// TODO more forceful conversion of l->right
++				} else {
++					typecheck(&ll->n, Erv);
++					defaultlit(&ll->n, t->type);
++					// TODO more forceful conversion
++				}
++				i++;
++				if(i > len) {
++					len = i;
++					if(t->bound >= 0 && len > t->bound) {
++						setlineno(l);
++						yyerror("array index out of bounds");
++						t->bound = -1;	// no more errors
++					}
++				}
++			}
++			if(t->bound == -100)
++				t->bound = len;
++			break;
++
++		case TMAP:
++			for(ll=n->list; ll; ll=ll->next) {
++				l = ll->n;
++				if(l->op != OKEY) {
++					yyerror("missing key in map literal");
++					continue;
++				}
++				typecheck(&l->left, Erv);
++				typecheck(&l->right, Erv);
++				defaultlit(&l->left, t->down);
++				defaultlit(&l->right, t->type);
++				// TODO more forceful
++			}
++			break;
++
++		case TSTRUCT:
++		//	fatal("compos %T", t);
++			;
++		}
++		if(nerr != nerrors)
++			goto error;
++		n->type = t;
++		goto ret;
++
++	case ODOT:
++		l = typecheck(&n->left, Erv);
++		if((t = l->type) == T)
++			goto error;
++		if(n->right->op != ONAME) {
++			yyerror("rhs of . must be a name");	// impossible
++			goto error;
++		}
++		if(isptr[t->etype]) {
++			t = t->type;
++			if(t == T)
++				goto error;
++			n->op = ODOTPTR;
++		}
++		if(!lookdot(n, t)) {
++			yyerror("%#N undefined (%S in type %T)", n, n->right->sym, t);
++			goto error;
++		}
++		switch(n->op) {
++		case ODOTINTER:
++		case ODOTMETH:
++			ok |= Ecall;
++			break;
++		default:
++			ok |= Erv;
++			// TODO ok |= Elv sometimes
++			break;
++		}
++		goto ret;
++
++	case ODOTTYPE:
++		typecheck(&n->left, Erv);
++		defaultlit(&n->left, T);
++		l = n->left;
++		if((t = l->type) == T)
++			goto error;
++		if(!isinter(t)) {
++			yyerror("invalid type assertion: %#N (non-interface type %T on left)", n, t);
++			goto error;
++		}
++		if(n->right != N) {
++			typecheck(&n->right, Etype);
++			n->type = n->right->type;
++			n->right = N;
++			if(n->type == T)
++				goto error;
++		}
++		goto ret;
++
++	case OINDEX:
++		typecheck(&n->left, Erv);
++		defaultlit(&n->left, T);
++		implicitstar(&n->left);
++		l = n->left;
++		typecheck(&n->right, Erv);
++		r = n->right;
++		if((t = l->type) == T || r->type == T)
++			goto error;
++		switch(t->etype) {
++		default:
++			yyerror("invalid operation: %#N (index of type %T)", n, t);
++			goto error;
++
++		case TARRAY:
++			ok |= Erv | Elv;
++			defaultlit(&n->right, types[TUINT]);
++			n->type = t->type;
++			break;
++
++		case TMAP:
++			ok |= Erv | Elv;
++			defaultlit(&n->right, t->down);
++			n->type = t->type;
++			break;
++
++		case TSTRING:
++			ok |= Erv;
++			defaultlit(&n->right, types[TUINT]);
++			n->type = types[TUINT8];
++			break;
++		}
++		goto ret;
++
++	case ORECV:
++		typecheck(&n->left, Erv);
++		defaultlit(&n->left, T);
++		l = n->left;
++		if((t = l->type) == T)
++			goto error;
++		if(t->etype != TCHAN) {
++			yyerror("invalid operation: %#N (recv from non-chan type %T)", n, t);
++			goto error;
++		}
++		if(!(t->chan & Crecv)) {
++			yyerror("invalid operation: %#N (recv from send-only type %T)", n, t);
++			goto error;
++		}
++		n->type = t->type;
++		ok |= Erv;
++		goto ret;
++
++	case OSEND:
++		l = typecheck(&n->left, Erv);
++		typecheck(&n->right, Erv);
++		defaultlit(&n->left, T);
++		l = n->left;
++		if((t = l->type) == T)
++			goto error;
++		if(!(t->chan & Csend)) {
++			yyerror("invalid operation: %#N (send to recv-only type %T)", n, t);
++			goto error;
++		}
++		defaultlit(&n->right, t->type);
++		r = n->right;
++		if((t = r->type) == T)
++			goto error;
++		// TODO: more aggressive
++		ok |= Etop | Erv;
++		n->type = types[TBOOL];
++		goto ret;
++
++	case OSLICE:
++		ok |= Erv;
++		typecheck(&n->left, top);
++		typecheck(&n->right->left, Erv);
++		typecheck(&n->right->right, Erv);
++		defaultlit(&n->left, T);
++		defaultlit(&n->right->left, types[TUINT]);
++		defaultlit(&n->right->right, types[TUINT]);
++		implicitstar(&n->left);
++		if(n->right->left == N || n->right->right == N) {
++			yyerror("missing slice bounds?");
++			goto error;
++		}
++		if((t = n->right->left->type) == T)
++			goto error;
++		if(!isint[t->etype]) {
++			yyerror("invalid array index %#N (type %T)", n->right->left, t);
++			goto error;
++		}
++		if((t = n->right->right->type) == T)
++			goto error;
++		if(!isint[t->etype]) {
++			yyerror("invalid array index %#N (type %T)", n->right->right, t);
++			goto error;
++		}
++		l = n->left;
++		if((t = l->type) == T)
++			goto error;
++		// TODO(rsc): 64-bit slice index needs to be checked
++		// for overflow in generated code
++		switch(t->etype) {
++		default:
++			yyerror("invalid operation: %#N (slice of type %T)", n, t);
++			goto error;
++
++		case TARRAY:
++			ok |= Elv;
++			n = arrayop(n, Erv);
++			break;
++
++		case TSTRING:
++			n = stringop(n, Erv, nil);
++			break;
++		}
++		goto ret;
++
++	/*
++	 * call and call like
++	 */
++	case OCALL:
++		l = n->left;
++		if(l->op == ONAME && l->etype != 0) {
++			// builtin: OLEN, OCAP, etc.
++			n->op = l->etype;
++			n->left = n->right;
++			n->right = N;
++			goto reswitch;
++		}
++		l = typecheck(&n->left, Erv | Etype | Ecall);
++		typechecklist(n->list, Erv);
++		if((t = l->type) == T)
++{
++yyerror("skip %#N", n);
++			goto error;
++}
++		if(l->op == OTYPE) {
++			ok |= Erv;
++			// turn CALL(type, arg) into CONV(arg) w/ type
++			n->left = N;
++			if(onearg(n) < 0)
++				goto error;
++			n->op = OCONV;
++			n->type = l->type;
++			goto doconv;
++		}
++		// TODO: check args
++		if(t->outtuple == 0) {
++			ok |= Etop;
++			goto ret;
++		}
++		if(t->outtuple == 1) {
++			ok |= Erv;
++			t = getoutargx(l->type)->type;
++			if(t->etype == TFIELD)
++				t = t->type;
++			n->type = t;
++			goto ret;
++		}
++		// multiple return
++		// ok |= Emulti;
++		n->type = getoutargx(l->type);
++		goto ret;
++
++	case OCAP:
++	case OLEN:
++		if(onearg(n) < 0)
++			goto error;
++		typecheck(&n->left, Erv);
++		defaultlit(&n->left, T);
++		implicitstar(&n->left);
++		l = n->left;
++		if((t = l->type) == T)
++			goto error;
++		switch(n->op) {
++		case OCAP:
++			if(!okforcap[t->etype])
++				goto badcall1;
++			break;
++		case OLEN:
++			if(!okforlen[t->etype])
++				goto badcall1;
++			break;
++		}
++		// might be constant
++		switch(t->etype) {
++		case TSTRING:
++			if(isconst(l, CTSTR))
++				nodconst(n, types[TINT], l->val.u.sval->len);
++			break;
++		case TARRAY:
++			if(t->bound >= 0)
++				nodconst(n, types[TINT], t->bound);
++			break;
++		}
++		n->type = types[TINT];
++		goto ret;
++
++	case OCLOSED:
++		ok |= Erv;
++	case OCLOSE:
++		ok |= Etop;
++		if(onearg(n) < 0)
++			goto error;
++		typecheck(&n->left, Erv);
++		defaultlit(&n->left, T);
++		l = n->left;
++		if((t = l->type) == T)
++			goto error;
++		if(t->etype != TCHAN) {
++			yyerror("invalid operation: %#N (non-chan type %T)", n, t);
++			goto error;
++		}
++		goto ret;
++
++	case OCONV:
++	doconv:
++		typecheck(&n->left, Erv);
++		defaultlit(&n->left, n->type);
++		if((t = n->left->type) == T)
++			goto error;
++		switch(convert(&n->left, n->type, 1)) {
++		case -1:
++			goto error;
++		case 0:
++			n = n->left;
++			break;
++		case OCONV:
++			break;
++		}
++		goto ret;
++
++	case OMAKE:
++		args = n->list;
++		if(args == nil) {
++			yyerror("missing argument to make");
++			goto error;
++		}
++		l = args->n;
++		args = args->next;
++		typecheck(&l, Etype);
++		if((t = l->type) == T)
++			goto error;
++
++		switch(t->etype) {
++		default:
++		badmake:
++			yyerror("cannot make type %T", t);
++			goto error;
++
++		case TARRAY:
++			if(!isslice(t))
++				goto badmake;
++			if(args == nil) {
++				yyerror("missing len argument to make(%T)", t);
++				goto error;
++			}
++			l = args->n;
++			args = args->next;
++			typecheck(&l, Erv);
++			defaultlit(&l, types[TUINT]);
++			r = N;
++			if(args != nil) {
++				r = args->n;
++				args = args->next;
++				typecheck(&r, Erv);
++				defaultlit(&r, types[TUINT]);
++			}
++			if(l->type == T || (r && r->type == T))
++				goto error;
++			if(!isint[l->type->etype]) {
++				yyerror("non-integer len argument to make(%T)", t);
++				goto error;
++			}
++			if(r && !isint[r->type->etype]) {
++				yyerror("non-integer cap argument to make(%T)", t);
++				goto error;
++			}
++			n->left = l;
++			n->right = r;
++			break;
++
++		case TMAP:
++			if(args != nil) {
++				l = args->n;
++				args = args->next;
++				typecheck(&l, Erv);
++				defaultlit(&l, types[TUINT]);
++				if(l->type == T)
++					goto error;
++				if(!isint[l->type->etype]) {
++					yyerror("non-integer size argument to make(%T)", t);
++					goto error;
++				}
++				n->left = l;
++			}
++			break;
++
++		case TCHAN:
++			l = N;
++			if(args != nil) {
++				l = args->n;
++				args = args->next;
++				typecheck(&l, Erv);
++				defaultlit(&l, types[TUINT]);
++				if(l->type == T)
++					goto error;
++				if(!isint[l->type->etype]) {
++					yyerror("non-integer buffer argument to make(%T)", t);
++					goto error;
++				}
++				n->left = l;
++			}
++			break;
++		}
++		if(args != nil) {
++			yyerror("too many arguments to make(%T)", t);
++			goto error;
++		}
++		n->type = t;
++		goto ret;
++
++	case ONEW:
++		args = n->list;
++		if(args == nil) {
++			yyerror("missing argument to new");
++			goto error;
++		}
++		l = args->n;
++		typecheck(&l, Etype);
++		if((t = l->type) == T)
++			goto error;
++		if(args->next != nil) {
++			yyerror("too many arguments to new(%T)", t);
++			goto error;
++		}
++		n->left = l;
++		n->type = ptrto(t);
++		goto ret;
++
++	case OPANIC:
++	case OPANICN:
++	case OPRINT:
++	case OPRINTN:
++		typechecklist(n->list, Erv);
++		goto ret;
++
++	/*
++	 * statements
++	 */
++	case OAS:
++		typecheck(&n->left, Elv);
++		typecheck(&n->right, Erv);
++		goto ret;
++
++	case OAS2:
++		typechecklist(n->list, Elv);
++		typechecklist(n->rlist, Erv);
++		goto ret;
++
++	case OBREAK:
++	case OCONTINUE:
++	case ODCL:
++	case OEMPTY:
++	case OGOTO:
++	case OLABEL:
++	case OXFALL:
++		goto ret;
++
++	case ODEFER:
++	case OPROC:
++		typecheck(&n->left, Etop);
++		goto ret;
++
++	case OFOR:
++		typechecklist(n->ninit, Etop);
++		typecheck(&n->ntest, Erv);	// TODO Ebool
++		typecheck(&n->nincr, Etop);
++		typechecklist(n->nbody, Etop);
++		goto ret;
++
++	case OIF:
++		typechecklist(n->ninit, Etop);
++		typecheck(&n->ntest, Erv);	// TODO Ebool
++		typechecklist(n->nbody, Etop);
++		typechecklist(n->nelse, Etop);
++		goto ret;
++
++	case ORETURN:
++		typechecklist(n->list, Erv);
++		// TODO convert
++		goto ret;
++
++	case OSELECT:
++		typechecklist(n->ninit, Etop);
++		typecheck(&n->ntest, Erv);
++		typechecklist(n->list, Etop);
++		goto ret;
++
++	case OSWITCH:
++		typechecklist(n->ninit, Etop);
++		typecheck(&n->ntest, Erv);
++		typechecklist(n->list, Etop);
++		goto ret;
++
++	case OTYPECASE:
++		typecheck(&n->left, Elv);
++		goto ret;
++
++	case OTYPESW:
++		typecheck(&n->right, Erv);
++		goto ret;
++
++	case OXCASE:
++		typechecklist(n->list, Erv);
++		typechecklist(n->nbody, Etop);
++		goto ret;
++	}
++
++ret:
++	evconst(n);
++	if(n->op == OTYPE && !(top & Etype)) {
++		yyerror("type %T is not an expression", n->type);
++		goto error;
++	}
++	if((top & (Elv|Erv|Etype)) == Etype && n->op != OTYPE) {
++		yyerror("%O is not a type", n->op);
++		goto error;
++	}
++	if((ok & Ecall) && !(top & Ecall)) {
++		yyerror("must call method %#N", n);
++		goto error;
++	}
++
++	/* TODO
++	if(n->type == T)
++		fatal("typecheck nil type");
++	*/
++	goto out;
++
++badcall1:
++	yyerror("invalid argument %#N (type %T) for %#O", n->left, n->left->type, n->op);
++	goto error;
++
++error:
++	n->type = T;
++
++out:
++	lineno = lno;
++	n->typecheck = 1;
++	*np = n;
++	return n;
++}
++
++static void
++implicitstar(Node **nn)
++{
++	Type *t;
++	Node *n;
++
++	// insert implicit * if needed
++	n = *nn;
++	t = n->type;
++	if(t == T || !isptr[t->etype])
++		return;
++	t = t->type;
++	if(t == T)
++		return;
++	if(!isfixedarray(t))
++		return;
++	n = nod(OIND, n, N);
++	typecheck(&n, Erv);
++	*nn = n;
++}
++
++static int
++onearg(Node *n)
++{
++	if(n->left != N)
++		return 0;
++	if(n->list == nil) {
++		yyerror("missing argument to %#O - %#N", n->op, n);
++		return -1;
++	}
++	n->left = n->list->n;
++	if(n->list->next != nil) {
++		yyerror("too many arguments to %#O", n->op);
++		n->list = nil;
++		return -1;
++	}
++	n->list = nil;
++	return 0;
++}
++
++static Type*
++lookdot1(Sym *s, Type *t, Type *f)
++{
++	Type *r;
++
++	r = T;
++	for(; f!=T; f=f->down) {
++		if(f->sym != s)
++			continue;
++		if(r != T) {
++			yyerror("ambiguous DOT reference %T.%S", t, s);
++			break;
++		}
++		r = f;
++	}
++	return r;
++}
++
++static int
++lookdot(Node *n, Type *t)
++{
++	Type *f1, *f2, *tt, *rcvr;
++	Sym *s;
++
++	s = n->right->sym;
++
++	f1 = T;
++	if(t->etype == TSTRUCT || t->etype == TINTER)
++		f1 = lookdot1(s, t, t->type);
++
++	f2 = methtype(n->left->type);
++	if(f2 != T)
++		f2 = lookdot1(s, f2, f2->method);
++
++	if(f1 != T) {
++		if(f2 != T)
++			yyerror("ambiguous DOT reference %S as both field and method",
++				n->right->sym);
++		n->xoffset = f1->width;
++		n->type = f1->type;
++		if(t->etype == TINTER) {
++			if(isptr[n->left->type->etype]) {
++				n->left = nod(OIND, n->left, N);	// implicitstar
++				typecheck(&n->left, Elv);
++			}
++			n->op = ODOTINTER;
++		}
++		return 1;
++	}
++
++	if(f2 != T) {
++		tt = n->left->type;
++		rcvr = getthisx(f2->type)->type->type;
++		if(!eqtype(rcvr, tt)) {
++			if(rcvr->etype == tptr && eqtype(rcvr->type, tt)) {
++				typecheck(&n->left, Elv);
++				addrescapes(n->left);
++				n->left = nod(OADDR, n->left, N);
++				typecheck(&n->left, Erv);
++			} else if(tt->etype == tptr && eqtype(tt->type, rcvr)) {
++				n->left = nod(OIND, n->left, N);
++				typecheck(&n->left, Erv);
++			} else {
++				// method is attached to wrong type?
++				fatal("method mismatch: %T for %T", rcvr, tt);
++			}
++		}
++		n->right = methodname(n->right, n->left->type);
++		n->xoffset = f2->width;
++		n->type = f2->type;
++		n->op = ODOTMETH;
++		return 1;
++	}
++
++	return 0;
++}
++
++/*
++ * try to convert *np to t.
++ * explicit means conversion like int64(n).
++ * not explicit means assignment, return, or function call parameter.
++ * return -1 for failure, 0 if OCONV node not needed, 1 if OCONV is needed.
++ */
++static int
++convert(Node **np, Type *t, int explicit)
++{
++	int et;
++	Node *n, *n1;
++	Type *tt;
++
++	n = *np;
++
++	if(n->type == t)
++		return 0;
++
++	if(eqtype(n->type, t))
++		return OCONV;
++
++	// XXX wtf?
++	convlit1(&n, t, explicit);
++	if(n->type == T)
++		return -1;
++
++	// no-op conversion
++	if(cvttype(t, n->type) == 1) {
++	nop:
++		if(n->op == OLITERAL) {
++			// can convert literal in place
++			n1 = nod(OXXX, N, N);
++			*n1 = *n;
++			n1->type = t;
++			*np = n1;
++			return 0;
++		}
++		return OCONV;
++	}
++
++	if(!explicit) {
++		yyerror("cannot use %#N (type %T) as type %T", n, n->type, t);
++		return -1;
++	}
++
++	// simple fix-float
++	if(isint[n->type->etype] || isfloat[n->type->etype])
++	if(isint[t->etype] || isfloat[t->etype]) {
++		// evconst(n);	// XXX is this needed?
++		return OCONV;
++	}
++
++	// to/from interface.
++	// ifaceas1 will generate a good error if the conversion fails.
++	if(t->etype == TINTER || n->type->etype == TINTER) {
++		n = ifacecvt(t, n, ifaceas1(t, n->type, 0));
++		n->type = t;
++		*np = n;
++		return 0;
++	}
++
++	// to string
++	if(istype(t, TSTRING)) {
++		// integer rune
++		et = n->type->etype;
++		if(isint[et]) {
++		//	xxx;
++			return OCONVRUNE;
++		}
++
++		// []byte and *[10]byte -> string
++		tt = T;
++		if(isptr[et] && isfixedarray(n->type->type))
++			tt = n->type->type->type;
++		else if(isslice(n->type))
++			tt = n->type->type;
++		if(tt) {
++			if(tt->etype == TUINT8)
++				return OCONVSTRB;
++			if(tt->etype == TINT)
++				return OCONVSTRI;
++		}
++	}
++
++	// convert static array to slice
++	if(isslice(t) && isptr[n->type->etype] && isfixedarray(n->type->type)
++	&& eqtype(t->type, n->type->type->type))
++		return OCONVA2S;
++
++	// convert to unsafe pointer
++	if(isptrto(t, TANY)
++	&& (isptr[n->type->etype] || n->type->etype == TUINTPTR))
++		return OCONV;
++
++	// convert from unsafe pointer
++	if(isptrto(n->type, TANY)
++	&& (isptr[t->etype] || t->etype == TUINTPTR))
++		return OCONV;
++
++	yyerror("cannot convert %#N (type %T) to type %T", n, n->type, t);
++	return -1;
++}
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 807edb84ab..95350c97da 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -81,6 +81,7 @@ walk(Node *fn)
+ 	if(curfn->type->outtuple)
+ 		if(walkret(curfn->nbody))
+ 			yyerror("function ends without a return statement");
++	typechecklist(curfn->nbody, Etop);
+ 	walkstmtlist(curfn->nbody);
+ 	if(debug['W']) {
+ 		snprint(s, sizeof(s), "after walk %S", curfn->nname->sym);
+@@ -98,7 +99,7 @@ gettype(Node **np, NodeList **init)
+ {
+ 	if(debug['W'])
+ 		dump("\nbefore gettype", *np);
+-	walkexpr(np, Erv, init);
++	typecheck(np, Erv);
+ 	if(debug['W'])
+ 		dump("after gettype", *np);
+ }
+@@ -145,7 +146,7 @@ walkdef(Node *n)
+ 	switch(n->op) {
+ 	case OLITERAL:
+ 		if(n->ntype != N) {
+-			walkexpr(&n->ntype, Etype, &init);
++			typecheck(&n->ntype, Etype);
+ 			n->type = n->ntype->type;
+ 			n->ntype = N;
+ 			if(n->type == T) {
+@@ -160,7 +161,7 @@ walkdef(Node *n)
+ 			dump("walkdef nil defn", n);
+ 			yyerror("xxx");
+ 		}
+-		walkexpr(&e, Erv, &init);
++		typecheck(&e, Erv);
+ 		if(e->op != OLITERAL) {
+ 			yyerror("const initializer must be constant");
+ 			goto ret;
+@@ -217,6 +218,7 @@ walkstmt(Node **np)
+ 	case OCALLMETH:
+ 	case OCALLINTER:
+ 	case OCALL:
++	case OCALLFUNC:
+ 	case OSEND:
+ 	case ORECV:
+ 	case OPRINT:
+@@ -299,319 +301,6 @@ walkstmt(Node **np)
+ 	*np = n;
+ }
+ 
+-void
+-implicitstar(Node **nn)
+-{
+-	Type *t;
+-	Node *n;
+-
+-	// insert implicit * if needed
+-	n = *nn;
+-	t = n->type;
+-	if(t == T || !isptr[t->etype])
+-		return;
+-	t = t->type;
+-	if(t == T)
+-		return;
+-	if(!isfixedarray(t))
+-		return;
+-	n = nod(OIND, n, N);
+-	walkexpr(&n, Elv, nil);
+-	*nn = n;
+-}
+-
+-void
+-typechecklist(NodeList *l, int top)
+-{
+-	for(; l; l=l->next)
+-		typecheck(&l->n, top);
+-}
+-
+-/*
+- * type check the whole tree of an expression.
+- * calculates expression types.
+- * evaluates compile time constants.
+- * marks variables that escape the local frame.
+- * rewrites n->op to be more specific in some cases.
+- * replaces *np with a new pointer in some cases.
+- * returns the final value of *np as a convenience.
+- */
+-Node*
+-typecheck(Node **np, int top)
+-{
+-	int et, et1, et2;
+-	Node *n, *l, *r;
+-	int lno, ok;
+-	Type *t;
+-
+-	n = *np;
+-	if(n == N || n->typecheck == 1)
+-		return n;
+-	if(n->typecheck == 2)
+-		fatal("typecheck loop");
+-	n->typecheck = 2;
+-
+-	if(n->sym && n->walkdef != 1)
+-		walkdef(n);
+-
+-	lno = setlineno(n);
+-
+-	ok = 0;
+-	switch(n->op) {
+-	default:
+-		// until typecheck is complete, do nothing.
+-		goto ret;
+-		dump("typecheck", n);
+-		fatal("typecheck %O", n->op);
+-
+-	/*
+-	 * names
+-	 */
+-	case OLITERAL:
+-		ok |= Erv;
+-		goto ret;
+-
+-	case ONONAME:
+-		ok |= Elv | Erv;
+-		goto ret;
+-
+-	case ONAME:
+-		if(n->etype != 0) {
+-			yyerror("must call builtin %S", n->sym);
+-			goto error;
+-		}
+-		ok |= Erv;
+-		if(n->class != PFUNC)
+-			ok |= Elv;
+-		goto ret;
+-
+-	/*
+-	 * types (OIND is with exprs)
+-	 */
+-	case OTYPE:
+-		ok |= Etype;
+-		if(n->type == T)
+-			goto error;
+-		break;
+-
+-	case OTARRAY:
+-		ok |= Etype;
+-		t = typ(TARRAY);
+-		l = n->left;
+-		r = n->right;
+-		if(l == nil) {
+-			t->bound = -1;
+-		} else {
+-			typecheck(&l, Erv | Etype);
+-			walkexpr(&l, Erv | Etype, &n->ninit);	// TODO: remove
+-			switch(l->op) {
+-			default:
+-				yyerror("invalid array bound %O", l->op);
+-				goto error;
+-
+-			case OLITERAL:
+-				if(consttype(l) == CTINT) {
+-					t->bound = mpgetfix(l->val.u.xval);
+-					if(t->bound < 0) {
+-						yyerror("array bound must be non-negative");
+-						goto error;
+-					}
+-				}
+-				break;
+-
+-			case OTYPE:
+-				if(l->type == T)
+-					goto error;
+-				if(l->type->etype != TDDD) {
+-					yyerror("invalid array bound %T", l->type);
+-					goto error;
+-				}
+-				t->bound = -100;
+-				break;
+-			}
+-		}
+-		typecheck(&r, Etype);
+-		if(r->type == T)
+-			goto error;
+-		t->type = r->type;
+-		n->op = OTYPE;
+-		n->type = t;
+-		n->left = N;
+-		n->right = N;
+-		checkwidth(t);
+-		break;
+-
+-	case OTMAP:
+-		ok |= Etype;
+-		l = typecheck(&n->left, Etype);
+-		r = typecheck(&n->right, Etype);
+-		if(l->type == T || r->type == T)
+-			goto error;
+-		n->op = OTYPE;
+-		n->type = maptype(l->type, r->type);
+-		n->left = N;
+-		n->right = N;
+-		break;
+-
+-	case OTCHAN:
+-		ok |= Etype;
+-		l = typecheck(&n->left, Etype);
+-		if(l->type == T)
+-			goto error;
+-		t = typ(TCHAN);
+-		t->type = l->type;
+-		t->chan = n->etype;
+-		n->op = OTYPE;
+-		n->type = t;
+-		n->left = N;
+-		n->etype = 0;
+-		break;
+-
+-	case OTSTRUCT:
+-		ok |= Etype;
+-		n->op = OTYPE;
+-		n->type = dostruct(n->list, TSTRUCT);
+-		if(n->type == T)
+-			goto error;
+-		n->list = nil;
+-		break;
+-
+-	case OTINTER:
+-		ok |= Etype;
+-		n->op = OTYPE;
+-		n->type = dostruct(n->list, TINTER);
+-		if(n->type == T)
+-			goto error;
+-		n->type = sortinter(n->type);
+-		break;
+-
+-	case OTFUNC:
+-		ok |= Etype;
+-		n->op = OTYPE;
+-		n->type = functype(n->left, n->list, n->rlist);
+-		if(n->type == T)
+-			goto error;
+-		break;
+-
+-	/*
+-	 * exprs
+-	 */
+-	case OADD:
+-	case OAND:
+-	case OANDAND:
+-	case OANDNOT:
+-	case ODIV:
+-	case OEQ:
+-	case OGE:
+-	case OGT:
+-	case OLE:
+-	case OLT:
+-	case OMOD:
+-	case OMUL:
+-	case ONE:
+-	case OOR:
+-	case OOROR:
+-	case OSUB:
+-	case OXOR:
+-		ok |= Erv;
+-		l = typecheck(&n->left, Erv | Eideal);
+-		r = typecheck(&n->right, Erv | Eideal);
+-		if(l->type == T || r->type == T)
+-			goto error;
+-		et1 = l->type->etype;
+-		et2 = r->type->etype;
+-		if(et1 == TIDEAL || et1 == TNIL || et2 == TIDEAL || et2 == TNIL)
+-		if(et1 != TIDEAL && et1 != TNIL || et2 != TIDEAL && et2 != TNIL) {
+-			// ideal mixed with non-ideal
+-			defaultlit2(&l, &r);
+-			n->left = l;
+-			n->right = r;
+-		}
+-		t = l->type;
+-		if(t->etype == TIDEAL)
+-			t = r->type;
+-		et = t->etype;
+-		if(et == TIDEAL)
+-			et = TINT;
+-		if(t->etype != TIDEAL && !eqtype(l->type, r->type)) {
+-		badbinary:
+-			yyerror("invalid operation: %#N", n);
+-			goto error;
+-		}
+-		if(!okfor[n->op][et])
+-			goto badbinary;
+-		// okfor allows any array == array;
+-		// restrict to slice == nil and nil == slice.
+-		if(l->type->etype == TARRAY && !isslice(l->type))
+-			goto badbinary;
+-		if(r->type->etype == TARRAY && !isslice(r->type))
+-			goto badbinary;
+-		if(isslice(l->type) && !isnil(l) && !isnil(r))
+-			goto badbinary;
+-		evconst(n);
+-		goto ret;
+-
+-	case OCOM:
+-	case OMINUS:
+-	case ONOT:
+-	case OPLUS:
+-		ok |= Erv;
+-		l = typecheck(&n->left, Erv | Eideal);
+-		walkexpr(&n->left, Erv | Eideal, &n->ninit);	// TODO: remove
+-		if((t = l->type) == T)
+-			goto error;
+-		if(!okfor[n->op][t->etype]) {
+-			yyerror("invalid operation: %#O %T", n->op, t);
+-			goto error;
+-		}
+-		n->type = t;
+-		goto ret;
+-
+-	/*
+-	 * type or expr
+-	 */
+-	case OIND:
+-		typecheck(&n->left, top | Etype);
+-		if(n->left->op == OTYPE) {
+-			ok |= Etype;
+-			n->op = OTYPE;
+-			n->type = ptrto(n->left->type);
+-			n->left = N;
+-			goto ret;
+-		}
+-
+-		// TODO: OIND expression type checking
+-		goto ret;
+-
+-	}
+-
+-ret:
+-	evconst(n);
+-	if(n->op == OTYPE && !(top & Etype)) {
+-		yyerror("type %T is not an expression", n->type);
+-		goto error;
+-	}
+-	if((top & (Elv|Erv|Etype)) == Etype && n->op != OTYPE) {
+-		yyerror("%O is not a type", n->op);
+-		goto error;
+-	}
+-
+-	/* TODO
+-	if(n->type == T)
+-		fatal("typecheck nil type");
+-	*/
+-	goto out;
+-
+-error:
+-	n->type = T;
+-
+-out:
+-	lineno = lno;
+-	n->typecheck = 1;
+-	*np = n;
+-	return n;
+-}
+-
+ 
+ /*
+  * walk the whole tree of the body of an
+@@ -651,8 +340,10 @@ walkexpr(Node **np, int top, NodeList **init)
+ 	if(debug['w'] > 1 && top == Etop)
+ 		dump("walk-before", n);
+ 
+-	if(n->typecheck != 1)
+-		typecheck(&n, top | typeok);
++	if(n->typecheck != 1) {
++		dump("missed typecheck", n);
++		fatal("missed typecheck");
++	}
+ 
+ reswitch:
+ 	t = T;
+@@ -738,13 +429,13 @@ reswitch:
+ 
+ 	case OCALLMETH:
+ 	case OCALLINTER:
++	case OCALLFUNC:
++		goto ret;
++
+ 	case OCALL:
+ 		if(top == Elv)
+ 			goto nottop;
+ 
+-		if(n->type != T)
+-			goto ret;
+-
+ 		if(n->left == N)
+ 			goto ret;
+ 
+@@ -752,22 +443,24 @@ reswitch:
+ 			// builtin OLEN, OCAP, etc.
+ 			n->op = n->left->etype;
+ 			n->left = N;
+-//dump("do", n);
+ 			goto reswitch;
+ 		}
+ 
+-		walkexpr(&n->left, Erv | Etype, init);
++		walkexpr(&n->left, Erv | Etype | Ecall, init);
+ 		defaultlit(&n->left, T);
+ 
+ 		t = n->left->type;
+ 		if(t == T)
+ 			goto ret;
+ 
+-		if(n->left->op == ODOTMETH)
++		switch(n->left->op) {
++		case ODOTMETH:
+ 			n->op = OCALLMETH;
+-		if(n->left->op == ODOTINTER)
++			break;
++		case ODOTINTER:
+ 			n->op = OCALLINTER;
+-		if(n->left->op == OTYPE) {
++			break;
++		case OTYPE:
+ 			n->op = OCONV;
+ 			if(!(top & Erv))
+ 				goto nottop;
+@@ -784,6 +477,9 @@ reswitch:
+ 			n->left = n->list->n;
+ 			n->list = nil;
+ 			goto reswitch;
++		default:
++			n->op = OCALLFUNC;
++			break;
+ 		}
+ 
+ 		if(t->etype != TFUNC) {
+@@ -818,7 +514,7 @@ reswitch:
+ 			n->list = reorder1(ll);
+ 			break;
+ 
+-		case OCALL:
++		case OCALLFUNC:
+ 			ll = ascompatte(n->op, getinarg(t), n->list, 0, init);
+ 			n->list = reorder1(ll);
+ 			if(isselect(n)) {
+@@ -886,6 +582,7 @@ reswitch:
+ 		switch(r->op) {
+ 		case OCALLMETH:
+ 		case OCALLINTER:
++		case OCALLFUNC:
+ 		case OCALL:
+ 			if(cr == 1) {
+ 				// a,b,... = fn()
+@@ -902,7 +599,6 @@ reswitch:
+ 			if(cl == 2 && cr == 1) {
+ 				// a,b = map[] - mapaccess2
+ 				walkexpr(&r->left, Erv, init);
+-				implicitstar(&r->left);
+ 				if(!istype(r->left->type, TMAP))
+ 					break;
+ 				l = mapop(n, top, init);
+@@ -938,9 +634,11 @@ reswitch:
+ 				case I2Isame:
+ 				case E2Esame:
+ 					n->rlist = list(list1(r->left), nodbool(1));
++					typechecklist(n->rlist, Erv);
+ 					goto multias;
+ 				case I2E:
+ 					n->list = list(list1(n->right), nodbool(1));
++					typechecklist(n->rlist, Erv);
+ 					goto multias;
+ 				case I2T:
+ 					et = I2T2;
+@@ -1109,7 +807,7 @@ reswitch:
+ 		evconst(n);
+ 		if(n->op == OLITERAL)
+ 			goto ret;
+-		defaultlit2(&n->left, &n->right);
++		defaultlit2(&n->left, &n->right, iscmp[n->op]);
+ 		if(n->left->type == T || n->right->type == T)
+ 			goto ret;
+ 		if(!eqtype(n->left->type, n->right->type))
+@@ -1176,7 +874,6 @@ reswitch:
+ 		}
+ 		walkexpr(&n->left, Erv, init);
+ 		defaultlit(&n->left, T);
+-		implicitstar(&n->left);
+ 		t = n->left->type;
+ 		if(t == T)
+ 			goto ret;
+@@ -1211,7 +908,6 @@ reswitch:
+ 		}
+ 		walkexpr(&n->left, Erv, init);
+ 		defaultlit(&n->left, T);
+-		implicitstar(&n->left);
+ 		t = n->left->type;
+ 		if(t == T)
+ 			goto ret;
+@@ -1237,7 +933,6 @@ reswitch:
+ 			goto ret;
+ 
+ 		defaultlit(&n->left, T);
+-		implicitstar(&n->left);
+ 
+ 		t = n->left->type;
+ 		if(t == T)
+@@ -1331,7 +1026,6 @@ reswitch:
+ 		defaultlit(&n->left, T);
+ 		defaultlit(&n->right->left, types[TUINT]);
+ 		defaultlit(&n->right->right, types[TUINT]);
+-		implicitstar(&n->left);
+ 		t = n->left->type;
+ 		if(t == T)
+ 			goto ret;
+@@ -1350,10 +1044,7 @@ reswitch:
+ 	case ODOTPTR:
+ 	case ODOTMETH:
+ 	case ODOTINTER:
+-		if(top == Etop)
+-			goto nottop;
+-		defaultlit(&n->left, T);
+-		walkdot(n, init);
++		walkexpr(&n->left, Erv, init);
+ 		goto ret;
+ 
+ 	case OADDR:
+@@ -1378,6 +1069,7 @@ reswitch:
+ 			tempname(nvar, ptrto(n->left->type));
+ 
+ 			nas = nod(OAS, nvar, callnew(n->left->type));
++			typecheck(&nas, Etop);
+ 			walkexpr(&nas, Etop, init);
+ 			*init = list(*init, nas);
+ 
+@@ -1540,6 +1232,7 @@ reswitch:
+ 			// TODO(rsc): Can do this more efficiently,
+ 			// but OSUB is wrong.  Should be in back end anyway.
+ 			n = nod(OMUL, n->left, nodintconst(-1));
++			typecheck(&n, Erv);
+ 			walkexpr(&n, Erv, init);
+ 			goto ret;
+ 		}
+@@ -1588,6 +1281,7 @@ reswitch:
+ 		r->list = list(list1(n->left), n->right);
+ 		r = nod(OCONV, r, N);
+ 		r->type = n->left->left->type;
++		typecheck(&r, Erv);
+ 		walkexpr(&r, Erv, init);
+ 		n = r;
+ 		goto ret;
+@@ -1598,6 +1292,7 @@ reswitch:
+ 			break;
+ 		l = saferef(n->left, init);
+ 		r = nod(OAS, l, nod(n->etype, l, n->right));
++		typecheck(&r, Etop);
+ 		walkexpr(&r, Etop, init);
+ 		n = r;
+ 		goto ret;
+@@ -1612,7 +1307,7 @@ nottop:
+ 	if(n->diag)
+ 		goto ret;
+ 	n->diag = 1;
+-	switch((top | typeok) & ~Eideal) {
++	switch(top | typeok) {
+ 	default:
+ 		yyerror("didn't expect %O here [top=%d]", n->op, top);
+ 		break;
+@@ -1718,6 +1413,7 @@ walkconv(Node **np, NodeList **init)
+ 	t = n->type;
+ 	if(t == T)
+ 		return;
++	typecheck(&n->left, Erv);
+ 	walkexpr(&n->left, Erv, init);
+ 	l = n->left;
+ 	if(l == N)
+@@ -2075,7 +1771,9 @@ walkselect(Node *sel)
+ 				tempname(on, l->left->type);
+ 				on->sym = lookup("!tmpselect!");
+ 				r->left = on;
+-				nbod = list(n->ninit, nod(OAS, l->left, on));
++				on = nod(OAS, l->left, on);
++				typecheck(&on, Etop);
++				nbod = list(n->ninit, on);
+ 				n->ninit = nil;
+ 			}
+ 			break;
+@@ -2112,6 +1810,8 @@ walkselect(Node *sel)
+ 	r = nod(OCALL, on, N);
+ 	r->list = args;
+ 	r = nod(OAS, var, r);
++	typecheck(&r, Etop);
++	typechecklist(res, Etop);
+ 
+ 	sel->ninit = list1(r);
+ 	sel->nbody = res;
+@@ -2125,128 +1825,6 @@ walkselect(Node *sel)
+ 	lineno = lno;
+ }
+ 
+-Type*
+-lookdot1(Sym *s, Type *t, Type *f)
+-{
+-	Type *r;
+-
+-	r = T;
+-	for(; f!=T; f=f->down) {
+-		if(f->sym != s)
+-			continue;
+-		if(r != T) {
+-			yyerror("ambiguous DOT reference %T.%S", t, s);
+-			break;
+-		}
+-		r = f;
+-	}
+-	return r;
+-}
+-
+-int
+-lookdot(Node *n, Type *t)
+-{
+-	Type *f1, *f2, *tt, *rcvr;
+-	Sym *s;
+-
+-	s = n->right->sym;
+-
+-	f1 = T;
+-	if(t->etype == TSTRUCT || t->etype == TINTER)
+-		f1 = lookdot1(s, t, t->type);
+-
+-	f2 = methtype(n->left->type);
+-	if(f2 != T)
+-		f2 = lookdot1(s, f2, f2->method);
+-
+-	if(f1 != T) {
+-		if(f2 != T)
+-			yyerror("ambiguous DOT reference %S as both field and method",
+-				n->right->sym);
+-		n->xoffset = f1->width;
+-		n->type = f1->type;
+-		if(t->etype == TINTER) {
+-			if(isptr[n->left->type->etype]) {
+-				n->left = nod(OIND, n->left, N);	// implicitstar
+-				walkexpr(&n->left, Elv, nil);
+-			}
+-			n->op = ODOTINTER;
+-		}
+-		return 1;
+-	}
+-
+-	if(f2 != T) {
+-		tt = n->left->type;
+-		rcvr = getthisx(f2->type)->type->type;
+-		if(!eqtype(rcvr, tt)) {
+-			if(rcvr->etype == tptr && eqtype(rcvr->type, tt)) {
+-				walkexpr(&n->left, Elv, nil);
+-				addrescapes(n->left);
+-				n->left = nod(OADDR, n->left, N);
+-				n->left->type = ptrto(tt);
+-			} else if(tt->etype == tptr && eqtype(tt->type, rcvr)) {
+-				n->left = nod(OIND, n->left, N);
+-				n->left->type = tt->type;
+-			} else {
+-				// method is attached to wrong type?
+-				fatal("method mismatch: %T for %T", rcvr, tt);
+-			}
+-		}
+-		n->right = methodname(n->right, n->left->type);
+-		n->xoffset = f2->width;
+-		n->type = f2->type;
+-		n->op = ODOTMETH;
+-		return 1;
+-	}
+-
+-	return 0;
+-}
+-
+-void
+-walkdot(Node *n, NodeList **init)
+-{
+-	Type *t;
+-
+-	walkexprlist(n->ninit, Etop, init);
+-	if(n->ninit != nil) {
+-		*init = concat(*init, n->ninit);
+-		n->ninit = nil;
+-	}
+-
+-	if(n->left == N || n->right == N)
+-		return;
+-	switch(n->op) {
+-	case ODOTINTER:
+-	case ODOTMETH:
+-		return;	// already done
+-	}
+-
+-	walkexpr(&n->left, Erv, init);
+-	if(n->right->op != ONAME) {
+-		yyerror("rhs of . must be a name");
+-		return;
+-	}
+-
+-	t = n->left->type;
+-	if(t == T)
+-		return;
+-
+-	// as a structure field or pointer to structure field
+-	if(isptr[t->etype]) {
+-		t = t->type;
+-		if(t == T)
+-			return;
+-		n->op = ODOTPTR;
+-	}
+-
+-	if(!lookdot(n, t)) {
+-		if(!n->diag) {
+-			n->diag = 1;
+-			yyerror("undefined: %T field %S", n->left->type, n->right->sym);
+-		}
+-	}
+-}
+-
+ Node*
+ ascompatee1(int op, Node *l, Node *r, NodeList **init)
+ {
+@@ -2451,6 +2029,7 @@ mkdotargs(NodeList *lr0, NodeList *nn, Type *l, int fp, NodeList **init)
+ 		*r->left = *var;
+ 		r->left->type = r->right->type;
+ 		r->left->xoffset += t->width;
++		typecheck(&r, Etop);
+ 		walkexpr(&r, Etop, init);
+ 		lr->n = r;
+ 		t = t->down;
+@@ -2544,7 +2123,8 @@ ascompatte(int op, Type **nl, NodeList *lr, int fp, NodeList **init)
+ 			fatal("misaligned multiple return\n\t%T\n\t%T", r->type, *nl);
+ 		a = nodarg(*nl, fp);
+ 		a->type = r->type;
+-		return list1(convas(nod(OAS, a, r), init));
++		nn = list1(convas(nod(OAS, a, r), init));
++		goto ret;
+ 	}
+ 
+ loop:
+@@ -2562,13 +2142,14 @@ loop:
+ 			a = nod(OAS, nodarg(l, fp), r);
+ 			a = convas(a, init);
+ 			nn = list(nn, a);
+-			return nn;
++			goto ret;
+ 		}
+ 
+ 		// normal case -- make a structure of all
+ 		// remaining arguments and pass a pointer to
+ 		// it to the ddd parameter (empty interface)
+-		return mkdotargs(lr, nn, l, fp, init);
++		nn = mkdotargs(lr, nn, l, fp, init);
++		goto ret;
+ 	}
+ 
+ 	if(l == T || r == N) {
+@@ -2580,7 +2161,7 @@ loop:
+ 			dumptypes(nl, "expected");
+ 			dumpnodetypes(lr0, "given");
+ 		}
+-		return nn;
++		goto ret;
+ 	}
+ 	convlit(&r, l->type);
+ 	if(!ascompat(l->type, r->type)) {
+@@ -2598,6 +2179,11 @@ loop:
+ 	if(lr != nil)
+ 		r = lr->n;
+ 	goto loop;
++
++ret:
++	for(lr=nn; lr; lr=lr->next)
++		lr->n->typecheck = 1;
++	return nn;
+ }
+ 
+ /*
+@@ -2721,7 +2307,7 @@ prcompat(NodeList *all, int fmt, int dopanic)
+ 		}
+ 		notfirst = fmt;
+ 
+-		walkexpr(&l->n, Erv, nil);
++		typecheck(&l->n, Erv);
+ 		n = l->n;
+ 		if(n->op == OLITERAL) {
+ 			switch(n->val.ctype) {
+@@ -2733,6 +2319,8 @@ prcompat(NodeList *all, int fmt, int dopanic)
+ 				break;
+ 			}
+ 		}
++		if(n->op != OLITERAL && n->type && n->type->etype == TIDEAL)
++			defaultlit(&n, types[TINT64]);
+ 		defaultlit(&n, nil);
+ 		l->n = n;
+ 		if(n->type == T)
+@@ -2786,12 +2374,14 @@ prcompat(NodeList *all, int fmt, int dopanic)
+ 		on = syslook("printnl", 0);
+ 		calls = list(calls, nod(OCALL, on, N));
+ 	}
++	typechecklist(calls, Etop);
+ 	walkexprlist(calls, Etop, nil);
+ 
+ 	if(dopanic)
+ 		r = nodpanic(0);
+ 	else
+ 		r = nod(OEMPTY, N, N);
++	typecheck(&r, Etop);
+ 	walkexpr(&r, Etop, nil);
+ 	r->ninit = calls;
+ 	return r;
+@@ -2808,6 +2398,7 @@ nodpanic(int32 lineno)
+ 	args = list1(n);
+ 	n = nod(OCALL, on, N);
+ 	n->list = args;
++	typecheck(&n, Etop);
+ 	walkexpr(&n, Etop, nil);
+ 	return n;
+ }
+@@ -2871,6 +2462,7 @@ callnew(Type *t)
+ 	args = list1(r);
+ 	r = nod(OCALL, on, N);
+ 	r->list = args;
++	typecheck(&r, Erv);
+ 	walkexpr(&r, Erv, nil);
+ 	return r;
+ }
+@@ -3002,6 +2594,7 @@ stringop(Node *n, int top, NodeList **init)
+ 		break;
+ 	}
+ 
++	typecheck(&r, top);
+ 	walkexpr(&r, top, init);
+ 	return r;
+ }
+@@ -3097,6 +2690,7 @@ mapop(Node *n, int top, NodeList **init)
+ 
+ 		r = nod(OCALL, on, N);
+ 		r->list = args;
++		typecheck(&r, Erv);
+ 		walkexpr(&r, top, nil);
+ 		r->type = n->type;
+ 		break;
+@@ -3131,6 +2725,7 @@ mapop(Node *n, int top, NodeList **init)
+ 
+ 		r = nod(OCALL, on, N);
+ 		r->list = args;
++		typecheck(&r, Erv);
+ 		walkexpr(&r, Erv, nil);
+ 		r->type = t->type;
+ 		break;
+@@ -3160,6 +2755,7 @@ mapop(Node *n, int top, NodeList **init)
+ 
+ 		r = nod(OCALL, on, N);
+ 		r->list = args;
++		typecheck(&r, Etop);
+ 		walkexpr(&r, Etop, init);
+ 		break;
+ 
+@@ -3197,6 +2793,7 @@ mapop(Node *n, int top, NodeList **init)
+ 
+ 		r = nod(OCALL, on, N);
+ 		r->list = args;
++		typecheck(&r, Etop);
+ 		walkexpr(&r, Etop, init);
+ 		break;
+ 
+@@ -3224,7 +2821,9 @@ mapop(Node *n, int top, NodeList **init)
+ 
+ 		a = nod(OCALL, on, N);
+ 		a->list = args;
++		typecheck(&a, Erv);
+ 		n->rlist = list1(a);
++		typecheck(&n, Etop);
+ 		walkexpr(&n, Etop, init);
+ 		r = n;
+ 		break;
+@@ -3239,6 +2838,7 @@ mapop(Node *n, int top, NodeList **init)
+ 		tempname(a, t->down);			// tmpi
+ 		r = nod(OAS, a, n->left->right);	// tmpi := index
+ 		n->left->right = a;			// m[tmpi]
++		typecheck(&r, Etop);
+ 		walkexpr(&r, Etop, init);
+ 		*init = list(*init, r);
+ 
+@@ -3246,6 +2846,7 @@ mapop(Node *n, int top, NodeList **init)
+ 		*a = *n->left;		// copy of map[tmpi]
+ 		a = nod(n->etype, a, n->right);		// m[tmpi] op right
+ 		r = nod(OAS, n->left, a);		// map[tmpi] = map[tmpi] op right
++		typecheck(&r, Etop);
+ 		walkexpr(&r, Etop, init);
+ 		break;
+ 	}
+@@ -3275,13 +2876,6 @@ chanop(Node *n, int top, NodeList **init)
+ 		fatal("chanop: unknown op %O", n->op);
+ 
+ 	case OCLOSE:
+-		cl = count(n->list);
+-		if(cl > 1)
+-			yyerror("too many arguments to close");
+-		else if(cl < 1)
+-			yyerror("missing argument to close");
+-		n->left = n->list->n;
+-
+ 		// closechan(hchan *chan any);
+ 		t = fixchan(n->left->type);
+ 		if(t == T)
+@@ -3295,18 +2889,12 @@ chanop(Node *n, int top, NodeList **init)
+ 
+ 		r = nod(OCALL, on, N);
+ 		r->list = args;
++		typecheck(&r, Etop);
+ 		walkexpr(&r, top, nil);
+ 		r->type = n->type;
+ 		break;
+ 
+ 	case OCLOSED:
+-		cl = count(n->list);
+-		if(cl > 1)
+-			yyerror("too many arguments to closed");
+-		else if(cl < 1)
+-			yyerror("missing argument to closed");
+-		n->left = n->list->n;
+-
+ 		// closedchan(hchan *chan any) bool;
+ 		t = fixchan(n->left->type);
+ 		if(t == T)
+@@ -3320,6 +2908,7 @@ chanop(Node *n, int top, NodeList **init)
+ 
+ 		r = nod(OCALL, on, N);
+ 		r->list = args;
++		typecheck(&r, Erv);
+ 		walkexpr(&r, top, nil);
+ 		n->type = r->type;
+ 		break;
+@@ -3353,6 +2942,7 @@ chanop(Node *n, int top, NodeList **init)
+ 
+ 		r = nod(OCALL, on, N);
+ 		r->list = args;
++		typecheck(&r, Erv);
+ 		walkexpr(&r, top, nil);
+ 		r->type = n->type;
+ 		break;
+@@ -3385,6 +2975,7 @@ chanop(Node *n, int top, NodeList **init)
+ 		argtype(on, t->type);	// any-2
+ 		r = nod(OCALL, on, N);
+ 		r->list = args;
++		typecheck(&r, Etop);
+ 		n->rlist->n = r;
+ 		r = n;
+ 		walkexpr(&r, Etop, init);
+@@ -3417,6 +3008,7 @@ chanop(Node *n, int top, NodeList **init)
+ 		argtype(on, t->type);	// any-2
+ 		r = nod(OCALL, on, N);
+ 		r->list = args;
++		typecheck(&r, Erv);
+ 		walkexpr(&r, Erv, nil);
+ 		break;
+ 
+@@ -3443,6 +3035,7 @@ chanop(Node *n, int top, NodeList **init)
+ 		argtype(on, t->type);	// any-2
+ 		r = nod(OCALL, on, N);
+ 		r->list = args;
++		typecheck(&r, Etop);
+ 		walkexpr(&r, Etop, nil);
+ 		break;
+ 
+@@ -3458,6 +3051,7 @@ chanop(Node *n, int top, NodeList **init)
+ 		argtype(on, t->type);	// any-2
+ 		r = nod(OCALL, on, N);
+ 		r->list = args;
++		typecheck(&r, Etop);
+ 		walkexpr(&r, Etop, nil);
+ 		break;
+ 	}
+@@ -3523,6 +3117,7 @@ arrayop(Node *n, int top)
+ 		r = nod(OCALL, on, N);
+ 		r->list = args;
+ 		n->left = r;
++		typecheck(&n, Erv);
+ 		walkexpr(&n, top, nil);
+ 		return n;
+ 
+@@ -3571,6 +3166,7 @@ arrayop(Node *n, int top)
+ 		argtype(on, t->type);			// any-1
+ 		r = nod(OCALL, on, N);
+ 		r->list = args;
++		typecheck(&r, Erv);
+ 		walkexpr(&r, top, nil);
+ 		r->type = t;	// if t had a name, going through newarray lost it
+ 		break;
+@@ -3621,7 +3217,7 @@ arrayop(Node *n, int top)
+ 
+ 		r = nod(OCALL, on, N);
+ 		r->list = args;
+-		walkexpr(&r, top, nil);
++		typecheck(&r, Erv);
+ 		break;
+ 	}
+ 	return r;
+@@ -3770,6 +3366,7 @@ ifacecvt(Type *tl, Node *n, int et)
+ 
+ 	r = nod(OCALL, on, N);
+ 	r->list = args;
++	typecheck(&r, Erv);
+ 	walkexpr(&r, Erv, nil);
+ 	return r;
+ }
+@@ -3803,6 +3400,7 @@ ifaceop(Node *n)
+ 		r->list = args;
+ 		if(n->op == ONE)
+ 			r = nod(ONOT, r, N);
++		typecheck(&r, Erv);
+ 		walkexpr(&r, Erv, nil);
+ 		return r;
+ 	}
+@@ -4004,14 +3602,17 @@ colas(NodeList *ll, NodeList *lr)
+ 		nr = lr->n;
+ 		switch(nr->op) {
+ 		case OCALL:
++		case OCALLFUNC:
+ 			if(nr->left->op == ONAME && nr->left->etype != 0)
+ 				break;
+-			walkexpr(&nr->left, Erv | Etype, &init);
++			typecheck(&nr->left, Erv | Etype | Ecall);
++			walkexpr(&nr->left, Erv | Etype | Ecall, &init);
+ 			if(nr->left->op == OTYPE)
+ 				break;
+ 			goto call;
+ 		case OCALLMETH:
+ 		case OCALLINTER:
++			typecheck(&nr->left, Erv);
+ 			walkexpr(&nr->left, Erv, &init);
+ 		call:
+ 			convlit(&nr->left, types[TFUNC]);
+@@ -4054,7 +3655,7 @@ colas(NodeList *ll, NodeList *lr)
+ 		l = savel->n;
+ 		r = saver->n;
+ 
+-		walkexpr(&r, Erv, &init);
++		typecheck(&r, Erv);
+ 		defaultlit(&r, T);
+ 		saver->n = r;
+ 		a = mixedoldnew(l, r->type);
+@@ -4064,6 +3665,9 @@ colas(NodeList *ll, NodeList *lr)
+ 	goto out;
+ 
+ multi:
++	typecheck(&nr, Erv);
++	lr->n = nr;
++
+ 	/*
+ 	 * there is a list on the left
+ 	 * and a mono on the right.
+@@ -4080,7 +3684,6 @@ multi:
+ 		if(cl != 2)
+ 			goto badt;
+ 		walkexpr(&nr->left, Erv, &init);
+-		implicitstar(&nr->left);
+ 		t = nr->left->type;
+ 		if(!istype(t, TMAP))
+ 			goto badt;
+@@ -4124,7 +3727,7 @@ badt:
+ 	nl = ll->n;
+ 	if(nl->diag == 0) {
+ 		nl->diag = 1;
+-		yyerror("assignment count mismatch: %d = %d", cl, cr);
++		yyerror("assignment count mismatch: %d = %d %#N", cl, cr, lr->n);
+ 	}
+ outl:
+ 	n = ll;
+@@ -4172,8 +3775,7 @@ dorange(Node *nn)
+ 	n = nod(OFOR, N, N);
+ 	init = nil;
+ 
+-	walkexpr(&nn->right, Erv, &init);
+-	implicitstar(&nn->right);
++	typecheck(&nn->right, Erv);
+ 	m = nn->right;
+ 	local = nn->etype;
+ 
+@@ -4625,6 +4227,7 @@ structlit(Node *n, Node *var, NodeList **init)
+ 		// build list of var.field = expr
+ 		a = nod(ODOT, var, newname(l->sym));
+ 		a = nod(OAS, a, r);
++		typecheck(&a, Etop);
+ 		walkexpr(&a, Etop, init);
+ 		if(nerr != nerrors)
+ 			return var;
+@@ -4641,6 +4244,7 @@ structlit(Node *n, Node *var, NodeList **init)
+ keyval:
+ 	memset(hash, 0, sizeof(hash));
+ 	a = nod(OAS, var, N);
++	typecheck(&a, Etop);
+ 	walkexpr(&a, Etop, init);
+ 	*init = list(*init, a);
+ 
+@@ -4660,6 +4264,7 @@ keyval:
+ 			break;
+ 
+ 		a = nod(OAS, a, r->right);
++		typecheck(&a, Etop);
+ 		walkexpr(&a, Etop, init);
+ 		if(nerr != nerrors)
+ 			break;
+@@ -4741,6 +4346,7 @@ arraylit(Node *n, Node *var, NodeList **init)
+ 		a = nod(OMAKE, N, N);
+ 		a->list = list(list1(typenod(t)), nodintconst(ninit));
+ 		a = nod(OAS, var, a);
++		typecheck(&a, Etop);
+ 		walkexpr(&a, Etop, init);
+ 		*init = list(*init, a);
+ 	} else {
+@@ -4748,6 +4354,7 @@ arraylit(Node *n, Node *var, NodeList **init)
+ 		// then clear the array
+ 		if(ninit < b) {
+ 			a = nod(OAS, var, N);
++			typecheck(&a, Etop);
+ 			walkexpr(&a, Etop, init);
+ 			*init = list(*init, a);
+ 		}
+@@ -4779,6 +4386,7 @@ arraylit(Node *n, Node *var, NodeList **init)
+ 
+ 		a = nod(OINDEX, var, a);
+ 		a = nod(OAS, a, r);
++		typecheck(&a, Etop);
+ 		walkexpr(&a, Etop, init);	// add any assignments in r to top
+ 		if(nerr != nerrors)
+ 			break;
+@@ -4866,6 +4474,7 @@ maplit(Node *n, Node *var, NodeList **init)
+ 	a = nod(OMAKE, N, N);
+ 	a->list = list1(typenod(t));
+ 	a = nod(OAS, var, a);
++	typecheck(&a, Etop);
+ 	walkexpr(&a, Etop, init);
+ 	*init = list(*init, a);
+ 
+@@ -4884,6 +4493,7 @@ maplit(Node *n, Node *var, NodeList **init)
+ 
+ 		a = nod(OINDEX, var, r->left);
+ 		a = nod(OAS, a, r->right);
++		typecheck(&a, Etop);
+ 		walkexpr(&a, Etop, init);
+ 		if(nerr != nerrors)
+ 			break;

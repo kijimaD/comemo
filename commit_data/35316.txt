@@ -15,6 +15,23 @@ Date:   Sun Feb 11 16:20:38 2018 +0000
     Change-Id: I449e0afd7292718e57d9d428494799c78296a0d2
     Reviewed-on: https://go-review.googlesource.com/93335
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  CONTRIBUTING.md | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/CONTRIBUTING.md b/CONTRIBUTING.md
+index 4f2c4d4b02..7c1dd54b30 100644
+--- a/CONTRIBUTING.md
++++ b/CONTRIBUTING.md
+@@ -30,11 +30,6 @@ For change proposals, see [Proposing Changes To Go](https://github.com/golang/pr
+ 
+ Please read the [Contribution Guidelines](https://golang.org/doc/contribute.html) before sending patches.
+ 
+-**We do not accept GitHub pull requests**
+-(we use [an instance](https://go-review.googlesource.com/) of the
+-[Gerrit](https://www.gerritcodereview.com/) code review system instead).
+-Also, please do not post patches on the issue tracker.
+-
+ Unless otherwise noted, the Go source files are distributed under
+ the BSD-style license found in the LICENSE file.
+ 

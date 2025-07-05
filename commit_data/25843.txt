@@ -18,8 +18,77 @@ Date:   Wed Nov 25 12:40:43 2015 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/errors/issue13129.go | 14 ++++++++++++++
  misc/cgo/errors/test.bash     | 11 +++++++++--
  src/cmd/cgo/gcc.go            |  1 +
  3 files changed, 24 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/errors/issue13129.go b/misc/cgo/errors/issue13129.go
+new file mode 100644
+index 0000000000..942d2f783c
+--- /dev/null
++++ b/misc/cgo/errors/issue13129.go
+@@ -0,0 +1,14 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 13129: used to output error about C.unsignedshort with CC=clang
++
++package main
++
++import "C"
++
++func main() {
++	var x C.ushort
++	x = int(0) // ERROR HERE
++}
+diff --git a/misc/cgo/errors/test.bash b/misc/cgo/errors/test.bash
+index a061419992..d15c9e113d 100755
+--- a/misc/cgo/errors/test.bash
++++ b/misc/cgo/errors/test.bash
+@@ -11,6 +11,12 @@ check() {
+ 		echo 1>&2 misc/cgo/errors/test.bash: BUG: cannot find ERROR HERE in $file
+ 		exit 1
+ 	fi
++	expect $file $file:$line:
++}
++
++expect() {
++	file=$1
++	error=$2
+ 	if go build $file >errs 2>&1; then
+ 		echo 1>&2 misc/cgo/errors/test.bash: BUG: expected cgo to fail but it succeeded
+ 		exit 1
+@@ -19,8 +25,8 @@ check() {
+ 		echo 1>&2 misc/cgo/errors/test.bash: BUG: expected error output but saw none
+ 		exit 1
+ 	fi
+-	if ! fgrep $file:$line: errs >/dev/null 2>&1; then
+-		echo 1>&2 misc/cgo/errors/test.bash: BUG: expected error on line $line but saw:
++	if ! fgrep $error errs >/dev/null 2>&1; then
++		echo 1>&2 misc/cgo/errors/test.bash: BUG: expected error output to contain \"$error\" but saw:
+ 		cat 1>&2 errs
+ 		exit 1
+ 	fi
+@@ -33,6 +39,7 @@ check issue7757.go
+ check issue8442.go
+ check issue11097a.go
+ check issue11097b.go
++expect issue13129.go C.ushort
+ 
+ if ! go run ptr.go; then
+ 	exit 1
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index ed121dad81..af2456e421 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1314,6 +1314,7 @@ var dwarfToName = map[string]string{
+ 	"long unsigned int":      "ulong",
+ 	"unsigned int":           "uint",
+ 	"short unsigned int":     "ushort",
++	"unsigned short":         "ushort", // Used by Clang; issue 13129.
+ 	"short int":              "short",
+ 	"long long int":          "longlong",
+ 	"long long unsigned int": "ulonglong",

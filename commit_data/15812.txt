@@ -11,6 +11,40 @@ Date:   Mon Mar 18 08:56:38 2013 +1100
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/7621044
-
+---
  misc/dist/bindist.go | 13 ++++++++++---
  1 file changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/misc/dist/bindist.go b/misc/dist/bindist.go
+index 29454c73cf..2d633bef97 100644
+--- a/misc/dist/bindist.go
++++ b/misc/dist/bindist.go
+@@ -386,9 +386,13 @@ func (b *Build) tour() error {
+ 	}
+ 
+ 	// Copy gotour binary to tool directory as "tour"; invoked as "go tool tour".
++	gotour := "gotour"
++	if runtime.GOOS == "windows" {
++		gotour = "gotour.exe"
++	}
+ 	return cp(
+ 		filepath.Join(b.root, "pkg", "tool", b.OS+"_"+b.Arch, "tour"),
+-		filepath.Join(b.gopath, "bin", "gotour"),
++		filepath.Join(b.gopath, "bin", gotour),
+ 	)
+ }
+ 
+@@ -620,8 +624,11 @@ func cp(dst, src string) error {
+ 		return err
+ 	}
+ 	defer df.Close()
+-	if err := df.Chmod(fi.Mode()); err != nil {
+-		return err
++	// Windows doesn't currently implement Fchmod
++	if runtime.GOOS != "windows" {
++		if err := df.Chmod(fi.Mode()); err != nil {
++			return err
++		}
+ 	}
+ 	_, err = io.Copy(df, sf)
+ 	return err

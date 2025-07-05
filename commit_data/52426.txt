@@ -16,8 +16,136 @@ Date:   Tue May 3 10:40:34 2022 -0700
     Reviewed-by: Keith Randall <khr@google.com>
     Run-TryBot: Keith Randall <khr@golang.org>
     Auto-Submit: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules     |  4 +-
  src/cmd/compile/internal/ssa/rewriteAMD64.go     | 12 +++--
  src/cmd/compile/internal/test/intrinsics_test.go | 62 ++++++++++++++++++++++++
  3 files changed, 73 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 81fdebaf49..c0a376e352 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -105,7 +105,9 @@
+ (BitLen8  x) && buildcfg.GOAMD64 <  3 => (BSRL (LEAL1 <typ.UInt32> [1] (MOVBQZX <typ.UInt32> x) (MOVBQZX <typ.UInt32> x)))
+ (BitLen64 <t> x)        && buildcfg.GOAMD64 >= 3 => (NEGQ (ADDQconst <t> [-64] (LZCNTQ x)))
+ // Use 64-bit version to allow const-fold remove unnecessary arithmetic.
+-(BitLen(32|16|8) <t> x) && buildcfg.GOAMD64 >= 3 => (NEGQ (ADDQconst <t> [-32] (LZCNTL x)))
++(BitLen32 <t> x) && buildcfg.GOAMD64 >= 3 => (NEGQ (ADDQconst <t> [-32] (LZCNTL x)))
++(BitLen16 <t> x) && buildcfg.GOAMD64 >= 3 => (NEGQ (ADDQconst <t> [-32] (LZCNTL (MOVWQZX <x.Type> x))))
++(BitLen8 <t> x) && buildcfg.GOAMD64 >= 3 => (NEGQ (ADDQconst <t> [-32] (LZCNTL (MOVBQZX <x.Type> x))))
+ 
+ (Bswap(64|32) ...) => (BSWAP(Q|L) ...)
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 36e69781a5..341fcc2f07 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -30988,7 +30988,7 @@ func rewriteValueAMD64_OpBitLen16(v *Value) bool {
+ 	}
+ 	// match: (BitLen16 <t> x)
+ 	// cond: buildcfg.GOAMD64 >= 3
+-	// result: (NEGQ (ADDQconst <t> [-32] (LZCNTL x)))
++	// result: (NEGQ (ADDQconst <t> [-32] (LZCNTL (MOVWQZX <x.Type> x))))
+ 	for {
+ 		t := v.Type
+ 		x := v_0
+@@ -30999,7 +30999,9 @@ func rewriteValueAMD64_OpBitLen16(v *Value) bool {
+ 		v0 := b.NewValue0(v.Pos, OpAMD64ADDQconst, t)
+ 		v0.AuxInt = int32ToAuxInt(-32)
+ 		v1 := b.NewValue0(v.Pos, OpAMD64LZCNTL, typ.UInt32)
+-		v1.AddArg(x)
++		v2 := b.NewValue0(v.Pos, OpAMD64MOVWQZX, x.Type)
++		v2.AddArg(x)
++		v1.AddArg(v2)
+ 		v0.AddArg(v1)
+ 		v.AddArg(v0)
+ 		return true
+@@ -31120,7 +31122,7 @@ func rewriteValueAMD64_OpBitLen8(v *Value) bool {
+ 	}
+ 	// match: (BitLen8 <t> x)
+ 	// cond: buildcfg.GOAMD64 >= 3
+-	// result: (NEGQ (ADDQconst <t> [-32] (LZCNTL x)))
++	// result: (NEGQ (ADDQconst <t> [-32] (LZCNTL (MOVBQZX <x.Type> x))))
+ 	for {
+ 		t := v.Type
+ 		x := v_0
+@@ -31131,7 +31133,9 @@ func rewriteValueAMD64_OpBitLen8(v *Value) bool {
+ 		v0 := b.NewValue0(v.Pos, OpAMD64ADDQconst, t)
+ 		v0.AuxInt = int32ToAuxInt(-32)
+ 		v1 := b.NewValue0(v.Pos, OpAMD64LZCNTL, typ.UInt32)
+-		v1.AddArg(x)
++		v2 := b.NewValue0(v.Pos, OpAMD64MOVBQZX, x.Type)
++		v2.AddArg(x)
++		v1.AddArg(v2)
+ 		v0.AddArg(v1)
+ 		v.AddArg(v0)
+ 		return true
+diff --git a/src/cmd/compile/internal/test/intrinsics_test.go b/src/cmd/compile/internal/test/intrinsics_test.go
+new file mode 100644
+index 0000000000..b89198c505
+--- /dev/null
++++ b/src/cmd/compile/internal/test/intrinsics_test.go
+@@ -0,0 +1,62 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package test
++
++import (
++	"math/bits"
++	"testing"
++)
++
++func TestBitLen64(t *testing.T) {
++	for i := 0; i <= 64; i++ {
++		got := bits.Len64(1 << i)
++		want := i + 1
++		if want == 65 {
++			want = 0
++		}
++		if got != want {
++			t.Errorf("Len64(1<<%d) = %d, want %d", i, got, want)
++		}
++	}
++}
++
++func TestBitLen32(t *testing.T) {
++	for i := 0; i <= 32; i++ {
++		got := bits.Len32(1 << i)
++		want := i + 1
++		if want == 33 {
++			want = 0
++		}
++		if got != want {
++			t.Errorf("Len32(1<<%d) = %d, want %d", i, got, want)
++		}
++	}
++}
++
++func TestBitLen16(t *testing.T) {
++	for i := 0; i <= 16; i++ {
++		got := bits.Len16(1 << i)
++		want := i + 1
++		if want == 17 {
++			want = 0
++		}
++		if got != want {
++			t.Errorf("Len16(1<<%d) = %d, want %d", i, got, want)
++		}
++	}
++}
++
++func TestBitLen8(t *testing.T) {
++	for i := 0; i <= 8; i++ {
++		got := bits.Len8(1 << i)
++		want := i + 1
++		if want == 9 {
++			want = 0
++		}
++		if got != want {
++			t.Errorf("Len8(1<<%d) = %d, want %d", i, got, want)
++		}
++	}
++}

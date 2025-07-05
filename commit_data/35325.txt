@@ -21,9 +21,311 @@ Date:   Wed Dec 13 21:37:13 2017 -0800
     Change-Id: I7699e577b70aadef6a2997e882beb0644da89fa3
     Reviewed-on: https://go-review.googlesource.com/83996
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/check.go            | 11 +----
  src/go/types/decl.go             | 44 +++++++++---------
  src/go/types/resolver.go         | 97 ++++++++++++++++++++++++++++++++++------
  src/go/types/testdata/decls4.src | 49 ++++++++++++++++++++
  4 files changed, 157 insertions(+), 44 deletions(-)
+
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index af2ce9e605..aa0fd123e6 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -85,7 +85,7 @@ type Checker struct {
+ 	unusedDotImports map[*Scope]map[*Package]token.Pos // positions of unused dot-imported packages for each file scope
+ 
+ 	firstErr   error                    // first error encountered
+-	methods    map[string][]*Func       // maps package scope type names to associated non-blank, non-interface methods
++	methods    map[*TypeName][]*Func    // maps package scope type names to associated non-blank, non-interface methods
+ 	interfaces map[*TypeName]*ifaceInfo // maps interface type names to corresponding interface infos
+ 	untyped    map[ast.Expr]exprInfo    // map of expressions without final type
+ 	delayed    []func()                 // stack of delayed actions
+@@ -126,15 +126,6 @@ func (check *Checker) addDeclDep(to Object) {
+ 	from.addDep(to)
+ }
+ 
+-func (check *Checker) assocMethod(tname string, meth *Func) {
+-	m := check.methods
+-	if m == nil {
+-		m = make(map[string][]*Func)
+-		check.methods = m
+-	}
+-	m[tname] = append(m[tname], meth)
+-}
+-
+ func (check *Checker) rememberUntyped(e ast.Expr, lhs bool, mode operandMode, typ *Basic, val constant.Value) {
+ 	m := check.untyped
+ 	if m == nil {
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 764a56ad89..8278fab2ad 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -57,7 +57,7 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
+ 	}
+ 
+ 	if trace {
+-		check.trace(obj.Pos(), "-- declaring %s (path = %s)", obj.Name(), pathString(path))
++		check.trace(obj.Pos(), "-- checking %s (path = %s)", obj, pathString(path))
+ 		check.indent++
+ 		defer func() {
+ 			check.indent--
+@@ -67,7 +67,7 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
+ 
+ 	d := check.objMap[obj]
+ 	if d == nil {
+-		check.dump("%s: %s should have been declared", obj.Pos(), obj.Name())
++		check.dump("%s: %s should have been declared", obj.Pos(), obj)
+ 		unreachable()
+ 	}
+ 
+@@ -271,18 +271,22 @@ func (check *Checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, path []*
+ 
+ func (check *Checker) addMethodDecls(obj *TypeName) {
+ 	// get associated methods
+-	methods := check.methods[obj.name]
+-	if len(methods) == 0 {
+-		return // no methods
++	// (Checker.collectObjects only collects methods with non-blank names;
++	// Checker.resolveBaseTypeName ensures that obj is not an alias name
++	// if it has attached methods.)
++	methods := check.methods[obj]
++	if methods == nil {
++		return
+ 	}
+-	delete(check.methods, obj.name)
++	delete(check.methods, obj)
++	assert(!obj.IsAlias())
+ 
+ 	// use an objset to check for name conflicts
+ 	var mset objset
+ 
+ 	// spec: "If the base type is a struct type, the non-blank method
+ 	// and field names must be distinct."
+-	base, _ := obj.typ.(*Named) // nil if receiver base type is type alias
++	base, _ := obj.typ.(*Named) // shouldn't fail but be conservative
+ 	if base != nil {
+ 		if t, _ := base.underlying.(*Struct); t != nil {
+ 			for _, fld := range t.fields {
+@@ -305,26 +309,24 @@ func (check *Checker) addMethodDecls(obj *TypeName) {
+ 	for _, m := range methods {
+ 		// spec: "For a base type, the non-blank names of methods bound
+ 		// to it must be unique."
+-		if m.name != "_" {
+-			if alt := mset.insert(m); alt != nil {
+-				switch alt.(type) {
+-				case *Var:
+-					check.errorf(m.pos, "field and method with the same name %s", m.name)
+-				case *Func:
+-					check.errorf(m.pos, "method %s already declared for %s", m.name, obj)
+-				default:
+-					unreachable()
+-				}
+-				check.reportAltDecl(alt)
+-				continue
++		assert(m.name != "_")
++		if alt := mset.insert(m); alt != nil {
++			switch alt.(type) {
++			case *Var:
++				check.errorf(m.pos, "field and method with the same name %s", m.name)
++			case *Func:
++				check.errorf(m.pos, "method %s already declared for %s", m.name, obj)
++			default:
++				unreachable()
+ 			}
++			check.reportAltDecl(alt)
++			continue
+ 		}
+ 
+ 		// type-check
+ 		check.objDecl(m, nil, nil)
+ 
+-		// methods with blank _ names cannot be found - don't keep them
+-		if base != nil && m.name != "_" {
++		if base != nil {
+ 			base.methods = append(base.methods, m)
+ 		}
+ 	}
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index a49bf4961d..11a74f63d8 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -217,6 +217,7 @@ func (check *Checker) collectObjects() {
+ 		pkgImports[imp] = true
+ 	}
+ 
++	var methods []*Func // list of methods with non-blank _ names
+ 	for fileNo, file := range check.files {
+ 		// The package identifier denotes the current package,
+ 		// but there is no corresponding package object.
+@@ -412,20 +413,13 @@ func (check *Checker) collectObjects() {
+ 					}
+ 				} else {
+ 					// method
+-					check.recordDef(d.Name, obj)
+-					// Associate method with receiver base type name, if possible.
+-					// Ignore methods that have an invalid receiver, or a blank _
+-					// receiver name. They will be type-checked later, with regular
+-					// functions.
+-					if list := d.Recv.List; len(list) > 0 {
+-						typ := unparen(list[0].Type)
+-						if ptr, _ := typ.(*ast.StarExpr); ptr != nil {
+-							typ = unparen(ptr.X)
+-						}
+-						if base, _ := typ.(*ast.Ident); base != nil && base.Name != "_" {
+-							check.assocMethod(base.Name, obj)
+-						}
++					// (Methods with blank _ names are never found; no need to collect
++					// them for later type association. They will still be type-checked
++					// with all the other functions.)
++					if name != "_" {
++						methods = append(methods, obj)
+ 					}
++					check.recordDef(d.Name, obj)
+ 				}
+ 				info := &declInfo{file: fileScope, fdecl: d}
+ 				check.objMap[obj] = info
+@@ -452,6 +446,83 @@ func (check *Checker) collectObjects() {
+ 			}
+ 		}
+ 	}
++
++	// Now that we have all package scope objects and all methods,
++	// associate methods with receiver base type name where possible.
++	// Ignore methods that have an invalid receiver. They will be
++	// type-checked later, with regular functions.
++	if methods == nil {
++		return // nothing to do
++	}
++	check.methods = make(map[*TypeName][]*Func)
++	for _, f := range methods {
++		fdecl := check.objMap[f].fdecl
++		if list := fdecl.Recv.List; len(list) > 0 {
++			// f is a method
++			// receiver may be of the form T or *T, possibly with parentheses
++			typ := unparen(list[0].Type)
++			if ptr, _ := typ.(*ast.StarExpr); ptr != nil {
++				typ = unparen(ptr.X)
++			}
++			if base, _ := typ.(*ast.Ident); base != nil {
++				// base is a potential base type name; determine
++				// "underlying" defined type and associate f with it
++				if tname := check.resolveBaseTypeName(base); tname != nil {
++					check.methods[tname] = append(check.methods[tname], f)
++				}
++			}
++		}
++	}
++}
++
++// resolveBaseTypeName returns the non-alias receiver base type name,
++// explicitly declared in the package scope, for the given receiver
++// type name; or nil.
++func (check *Checker) resolveBaseTypeName(name *ast.Ident) *TypeName {
++	var path []*TypeName
++	for {
++		// name must denote an object found in the current package
++		// (it could be explicitly declared or dot-imported)
++		obj := check.pkg.scope.Lookup(name.Name)
++		if obj == nil {
++			return nil
++		}
++		// the object must be a type name...
++		tname, _ := obj.(*TypeName)
++		if tname == nil {
++			return nil
++		}
++
++		// ... which we have not seen before
++		if check.cycle(tname, path, false) {
++			return nil
++		}
++
++		// tname must have been explicitly declared
++		// (dot-imported objects are not in objMap)
++		tdecl := check.objMap[tname]
++		if tdecl == nil {
++			return nil
++		}
++
++		// we're done if tdecl defined tname as a new type
++		// (rather than an alias)
++		if !tdecl.alias {
++			return tname
++		}
++
++		// Otherwise, if tdecl defined an alias for a (possibly parenthesized)
++		// type which is not an (unqualified) named type, we're done because
++		// receiver base types must be named types declared in this package.
++		typ := unparen(tdecl.typ) // a type may be parenthesized
++		name, _ = typ.(*ast.Ident)
++		if name == nil {
++			return nil
++		}
++
++		// continue resolving name
++		path = append(path, tname)
++	}
+ }
+ 
+ // packageObjects typechecks all package objects, but not function bodies.
+diff --git a/src/go/types/testdata/decls4.src b/src/go/types/testdata/decls4.src
+index 5e5e2e940b..e9e16bb97a 100644
+--- a/src/go/types/testdata/decls4.src
++++ b/src/go/types/testdata/decls4.src
+@@ -69,6 +69,55 @@ func (A10 /* ERROR invalid receiver */ ) m1() {}
+ // x0 has methods m1, m2 declared via receiver type names T0 and A0
+ var _ interface{ m1(); m2() } = x0
+ 
++// alias receiver types (test case for issue #23042)
++type T struct{}
++
++var (
++	_ = T.m
++	_ = T{}.m
++	_ interface{m()} = T{}
++)
++
++var (
++	_ = T.n
++	_ = T{}.n
++	_ interface{m(); n()} = T{}
++)
++
++type U = T
++func (U) m() {}
++
++// alias receiver types (long type declaration chains)
++type (
++	V0 = V1
++	V1 = (V2)
++	V2 = ((V3))
++	V3 = T
++)
++
++func (V0) m /* ERROR already declared */ () {}
++func (V1) n() {}
++
++// alias receiver types (invalid due to cycles)
++type (
++	W0 /* ERROR illegal cycle */ = W1
++	W1 = (W2)
++	W2 = ((W0))
++)
++
++func (W0) m() {} // no error expected (due to above cycle error)
++func (W1) n() {}
++
++// alias receiver types (invalid due to builtin underlying type)
++type (
++	B0 = B1
++	B1 = B2
++	B2 = int
++)
++
++func (B0 /* ERROR invalid receiver */ ) m() {}
++func (B1 /* ERROR invalid receiver */ ) n() {}
++
+ // cycles
+ type (
+ 	C2 /* ERROR illegal cycle */ = C2

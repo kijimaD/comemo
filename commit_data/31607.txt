@@ -16,6 +16,29 @@ Date:   Sun Feb 5 19:34:16 2017 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mheap.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index ef62eff6da..650a6d1a9c 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -589,7 +589,7 @@ func (h *mheap) alloc_m(npage uintptr, sizeclass int32, large bool) *mspan {
+ 			memstats.heap_objects++
+ 			atomic.Xadd64(&memstats.heap_live, int64(npage<<_PageShift))
+ 			// Swept spans are at the end of lists.
+-			if s.npages < uintptr(len(h.free)) {
++			if s.npages < uintptr(len(h.busy)) {
+ 				h.busy[s.npages].insertBack(s)
+ 			} else {
+ 				h.busylarge.insertBack(s)
+@@ -941,7 +941,7 @@ func (h *mheap) freeList(npages uintptr) *mSpanList {
+ }
+ 
+ func (h *mheap) busyList(npages uintptr) *mSpanList {
+-	if npages < uintptr(len(h.free)) {
++	if npages < uintptr(len(h.busy)) {
+ 		return &h.busy[npages]
+ 	}
+ 	return &h.busylarge

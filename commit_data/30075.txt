@@ -11,6 +11,19 @@ Date:   Fri Oct 21 00:02:33 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/objfile/disasm.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/internal/objfile/disasm.go b/src/cmd/internal/objfile/disasm.go
+index 315aaed2ab..8af0c8f859 100644
+--- a/src/cmd/internal/objfile/disasm.go
++++ b/src/cmd/internal/objfile/disasm.go
+@@ -50,7 +50,6 @@ func (f *File) Disasm() (*Disasm, error) {
+ 	}
+ 
+ 	goarch := f.GOARCH()
+-	println("GOARCH", goarch)
+ 	disasm := disasms[goarch]
+ 	byteOrder := byteOrders[goarch]
+ 	if disasm == nil || byteOrder == nil {

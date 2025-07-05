@@ -13,7 +13,7 @@ Date:   Tue Oct 31 15:38:06 2017 -0500
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/amd64enc.s | 64 ++++++++++++++--------------
  src/cmd/internal/obj/x86/aenum.go            |  4 ++
  src/cmd/internal/obj/x86/anames.go           |  4 ++
@@ -21,3 +21,196 @@ Date:   Tue Oct 31 15:38:06 2017 -0500
  src/internal/cpu/cpu.go                      |  1 +
  src/internal/cpu/cpu_x86.go                  |  1 +
  6 files changed, 60 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64enc.s b/src/cmd/asm/internal/asm/testdata/amd64enc.s
+index cc4d6658e9..cbfe8b4717 100644
+--- a/src/cmd/asm/internal/asm/testdata/amd64enc.s
++++ b/src/cmd/asm/internal/asm/testdata/amd64enc.s
+@@ -84,22 +84,22 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	ADCB (R11), DL                          // 411213
+ 	ADCB (BX), R11                          // 44121b
+ 	ADCB (R11), R11                         // 45121b
+-	//TODO: ADCXL (BX), DX                  // 660f38f613
+-	//TODO: ADCXL (R11), DX                 // 66410f38f613
+-	//TODO: ADCXL DX, DX                    // 660f38f6d2
+-	//TODO: ADCXL R11, DX                   // 66410f38f6d3
+-	//TODO: ADCXL (BX), R11                 // 66440f38f61b
+-	//TODO: ADCXL (R11), R11                // 66450f38f61b
+-	//TODO: ADCXL DX, R11                   // 66440f38f6da
+-	//TODO: ADCXL R11, R11                  // 66450f38f6db
+-	//TODO: ADCXQ (BX), DX                  // 66480f38f613
+-	//TODO: ADCXQ (R11), DX                 // 66490f38f613
+-	//TODO: ADCXQ DX, DX                    // 66480f38f6d2
+-	//TODO: ADCXQ R11, DX                   // 66490f38f6d3
+-	//TODO: ADCXQ (BX), R11                 // 664c0f38f61b
+-	//TODO: ADCXQ (R11), R11                // 664d0f38f61b
+-	//TODO: ADCXQ DX, R11                   // 664c0f38f6da
+-	//TODO: ADCXQ R11, R11                  // 664d0f38f6db
++	ADCXL (BX), DX                          // 660f38f613
++	ADCXL (R11), DX                         // 66410f38f613
++	ADCXL DX, DX                            // 660f38f6d2
++	ADCXL R11, DX                           // 66410f38f6d3
++	ADCXL (BX), R11                         // 66440f38f61b
++	ADCXL (R11), R11                        // 66450f38f61b
++	ADCXL DX, R11                           // 66440f38f6da
++	ADCXL R11, R11                          // 66450f38f6db
++	ADCXQ (BX), DX                          // 66480f38f613
++	ADCXQ (R11), DX                         // 66490f38f613
++	ADCXQ DX, DX                            // 66480f38f6d2
++	ADCXQ R11, DX                           // 66490f38f6d3
++	ADCXQ (BX), R11                         // 664c0f38f61b
++	ADCXQ (R11), R11                        // 664d0f38f61b
++	ADCXQ DX, R11                           // 664c0f38f6da
++	ADCXQ R11, R11                          // 664d0f38f6db
+ 	ADDB $7, AL                             // 0407
+ 	ADDW $61731, AX                         // 660523f1
+ 	ADDL $4045620583, AX                    // 05674523f1
+@@ -228,22 +228,22 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	ADDSUBPS (R11), X11                     // f2450fd01b
+ 	ADDSUBPS X2, X11                        // f2440fd0da
+ 	ADDSUBPS X11, X11                       // f2450fd0db
+-	//TODO: ADOXL (BX), DX                  // f30f38f613
+-	//TODO: ADOXL (R11), DX                 // f3410f38f613
+-	//TODO: ADOXL DX, DX                    // f30f38f6d2
+-	//TODO: ADOXL R11, DX                   // f3410f38f6d3
+-	//TODO: ADOXL (BX), R11                 // f3440f38f61b
+-	//TODO: ADOXL (R11), R11                // f3450f38f61b
+-	//TODO: ADOXL DX, R11                   // f3440f38f6da
+-	//TODO: ADOXL R11, R11                  // f3450f38f6db
+-	//TODO: ADOXQ (BX), DX                  // f3480f38f613
+-	//TODO: ADOXQ (R11), DX                 // f3490f38f613
+-	//TODO: ADOXQ DX, DX                    // f3480f38f6d2
+-	//TODO: ADOXQ R11, DX                   // f3490f38f6d3
+-	//TODO: ADOXQ (BX), R11                 // f34c0f38f61b
+-	//TODO: ADOXQ (R11), R11                // f34d0f38f61b
+-	//TODO: ADOXQ DX, R11                   // f34c0f38f6da
+-	//TODO: ADOXQ R11, R11                  // f34d0f38f6db
++	ADOXL (BX), DX                          // f30f38f613
++	ADOXL (R11), DX                         // f3410f38f613
++	ADOXL DX, DX                            // f30f38f6d2
++	ADOXL R11, DX                           // f3410f38f6d3
++	ADOXL (BX), R11                         // f3440f38f61b
++	ADOXL (R11), R11                        // f3450f38f61b
++	ADOXL DX, R11                           // f3440f38f6da
++	ADOXL R11, R11                          // f3450f38f6db
++	ADOXQ (BX), DX                          // f3480f38f613
++	ADOXQ (R11), DX                         // f3490f38f613
++	ADOXQ DX, DX                            // f3480f38f6d2
++	ADOXQ R11, DX                           // f3490f38f6d3
++	ADOXQ (BX), R11                         // f34c0f38f61b
++	ADOXQ (R11), R11                        // f34d0f38f61b
++	ADOXQ DX, R11                           // f34c0f38f6da
++	ADOXQ R11, R11                          // f34d0f38f6db
+ 	AESDEC (BX), X2                         // 660f38de13
+ 	AESDEC (R11), X2                        // 66410f38de13
+ 	AESDEC X2, X2                           // 660f38ded2
+diff --git a/src/cmd/internal/obj/x86/aenum.go b/src/cmd/internal/obj/x86/aenum.go
+index c02e1aa155..7e1c48d50f 100644
+--- a/src/cmd/internal/obj/x86/aenum.go
++++ b/src/cmd/internal/obj/x86/aenum.go
+@@ -14,9 +14,13 @@ const (
+ 	AADCB
+ 	AADCL
+ 	AADCW
++	AADCXL
++	AADCXQ
+ 	AADDB
+ 	AADDL
+ 	AADDW
++	AADOXL
++	AADOXQ
+ 	AADJSP
+ 	AANDB
+ 	AANDL
+diff --git a/src/cmd/internal/obj/x86/anames.go b/src/cmd/internal/obj/x86/anames.go
+index c12729fcab..0bbf1036eb 100644
+--- a/src/cmd/internal/obj/x86/anames.go
++++ b/src/cmd/internal/obj/x86/anames.go
+@@ -13,9 +13,13 @@ var Anames = []string{
+ 	"ADCB",
+ 	"ADCL",
+ 	"ADCW",
++	"ADCXL",
++	"ADCXQ",
+ 	"ADDB",
+ 	"ADDL",
+ 	"ADDW",
++	"ADOXL",
++	"ADOXQ",
+ 	"ADJSP",
+ 	"ANDB",
+ 	"ANDL",
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index e0c03ea5b6..6b5cb29cb4 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -225,6 +225,9 @@ const (
+ 	Pef3 = 0xf5 /* xmm escape 2 with 16-bit prefix: 66 f3 0f */
+ 	Pq3  = 0x67 /* xmm escape 3: 66 48 0f */
+ 	Pq4  = 0x68 /* xmm escape 4: 66 0F 38 */
++	Pq4w = 0x69 /* Pq4 with Rex.w 66 0F 38 */
++	Pq5  = 0x6a /* xmm escape 5: F3 0F 38 */
++	Pq5w = 0x6b /* Pq5 with Rex.w F3 0F 38 */
+ 	Pfw  = 0xf4 /* Pf3 with Rex.w: f3 48 0f */
+ 	Pw   = 0x48 /* Rex.w */
+ 	Pw8  = 0x90 // symbolic; exact value doesn't matter
+@@ -956,6 +959,8 @@ var optab =
+ 	{AADCL, yaddl, Px, [23]uint8{0x83, 02, 0x15, 0x81, 02, 0x11, 0x13}},
+ 	{AADCQ, yaddl, Pw, [23]uint8{0x83, 02, 0x15, 0x81, 02, 0x11, 0x13}},
+ 	{AADCW, yaddl, Pe, [23]uint8{0x83, 02, 0x15, 0x81, 02, 0x11, 0x13}},
++	{AADCXL, yml_rl, Pq4, [23]uint8{0xf6}},
++	{AADCXQ, yml_rl, Pq4w, [23]uint8{0xf6}},
+ 	{AADDB, yxorb, Pb, [23]uint8{0x04, 0x80, 00, 0x00, 0x02}},
+ 	{AADDL, yaddl, Px, [23]uint8{0x83, 00, 0x05, 0x81, 00, 0x01, 0x03}},
+ 	{AADDPD, yxm, Pq, [23]uint8{0x58}},
+@@ -966,6 +971,8 @@ var optab =
+ 	{AADDSUBPD, yxm, Pq, [23]uint8{0xd0}},
+ 	{AADDSUBPS, yxm, Pf2, [23]uint8{0xd0}},
+ 	{AADDW, yaddl, Pe, [23]uint8{0x83, 00, 0x05, 0x81, 00, 0x01, 0x03}},
++	{AADOXL, yml_rl, Pq5, [23]uint8{0xf6}},
++	{AADOXQ, yml_rl, Pq5w, [23]uint8{0xf6}},
+ 	{AADJSP, nil, 0, [23]uint8{}},
+ 	{AANDB, yxorb, Pb, [23]uint8{0x24, 0x80, 04, 0x20, 0x22}},
+ 	{AANDL, yaddl, Px, [23]uint8{0x83, 04, 0x25, 0x81, 04, 0x21, 0x23}},
+@@ -3432,6 +3439,17 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 			case Pq4: /*  66 0F 38 */
+ 				asmbuf.Put3(0x66, 0x0F, 0x38)
+ 
++			case Pq4w: /*  66 0F 38 + REX.W */
++				asmbuf.rexflag |= Pw
++				asmbuf.Put3(0x66, 0x0F, 0x38)
++
++			case Pq5: /*  F3 0F 38 */
++				asmbuf.Put3(0xF3, 0x0F, 0x38)
++
++			case Pq5w: /*  F3 0F 38 + REX.W */
++				asmbuf.rexflag |= Pw
++				asmbuf.Put3(0xF3, 0x0F, 0x38)
++
+ 			case Pf2, /* xmm opcode escape */
+ 				Pf3:
+ 				asmbuf.Put2(o.prefix, Pm)
+diff --git a/src/internal/cpu/cpu.go b/src/internal/cpu/cpu.go
+index d84a92ce56..38fedc4e2b 100644
+--- a/src/internal/cpu/cpu.go
++++ b/src/internal/cpu/cpu.go
+@@ -15,6 +15,7 @@ var X86 x86
+ type x86 struct {
+ 	_            [CacheLineSize]byte
+ 	HasAES       bool
++	HasADX       bool
+ 	HasAVX       bool
+ 	HasAVX2      bool
+ 	HasBMI1      bool
+diff --git a/src/internal/cpu/cpu_x86.go b/src/internal/cpu/cpu_x86.go
+index 6a7b5c2271..34c632f2f9 100644
+--- a/src/internal/cpu/cpu_x86.go
++++ b/src/internal/cpu/cpu_x86.go
+@@ -53,6 +53,7 @@ func init() {
+ 	X86.HasAVX2 = isSet(5, ebx7) && osSupportsAVX
+ 	X86.HasBMI2 = isSet(8, ebx7)
+ 	X86.HasERMS = isSet(9, ebx7)
++	X86.HasADX = isSet(19, ebx7)
+ }
+ 
+ func isSet(bitpos uint, value uint32) bool {

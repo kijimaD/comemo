@@ -9,6 +9,22 @@ Date:   Fri Feb 3 10:18:04 2017 +0000
     Change-Id: Iec90d6aaa62595983db28b17794429f3c9a3dc36
     Reviewed-on: https://go-review.googlesource.com/36272
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/testing/testing.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 97c703d8ba..d63d5d85a7 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -569,7 +569,9 @@ func (c *common) Skipped() bool {
+ }
+ 
+ // Parallel signals that this test is to be run in parallel with (and only with)
+-// other parallel tests.
++// other parallel tests. When a test is run multiple times due to use of
++// -test.count or -test.cpu, multiple instances of a single test never run in
++// parallel with each other.
+ func (t *T) Parallel() {
+ 	if t.isParallel {
+ 		panic("testing: t.Parallel called multiple times")

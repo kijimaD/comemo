@@ -19,9 +19,87 @@ Date:   Wed Aug 5 10:26:57 2020 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go          | 6 +++++-
  src/cmd/compile/internal/ssa/config.go      | 3 +++
  src/cmd/compile/internal/ssa/export_test.go | 4 ++++
  src/cmd/compile/internal/ssa/func.go        | 5 +++--
  4 files changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 956569b86f..c8fb013ad0 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -329,8 +329,8 @@ func buildssa(fn *Node, worker int) *ssa.Func {
+ 	s.f.Config = ssaConfig
+ 	s.f.Cache = &ssaCaches[worker]
+ 	s.f.Cache.Reset()
+-	s.f.DebugTest = s.f.DebugHashMatch("GOSSAHASH", name)
+ 	s.f.Name = name
++	s.f.DebugTest = s.f.DebugHashMatch("GOSSAHASH")
+ 	s.f.PrintOrHtmlSSA = printssa
+ 	if fn.Func.Pragma&Nosplit != 0 {
+ 		s.f.NoSplit = true
+@@ -6863,6 +6863,10 @@ func (e *ssafn) SetWBPos(pos src.XPos) {
+ 	e.curfn.Func.setWBPos(pos)
+ }
+ 
++func (e *ssafn) MyImportPath() string {
++	return myimportpath
++}
++
+ func (n *Node) Typ() *types.Type {
+ 	return n.Type
+ }
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index fdff3bbdeb..4b2f06def1 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -173,6 +173,9 @@ type Frontend interface {
+ 	// SetWBPos indicates that a write barrier has been inserted
+ 	// in this function at position pos.
+ 	SetWBPos(pos src.XPos)
++
++	// MyImportPath provides the import name (roughly, the package) for the function being compiled.
++	MyImportPath() string
+ }
+ 
+ // interface used to hold a *gc.Node (a stack variable).
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index a94cce48a4..51665c60e2 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -146,6 +146,10 @@ func (d DummyFrontend) Fatalf(_ src.XPos, msg string, args ...interface{}) { d.t
+ func (d DummyFrontend) Warnl(_ src.XPos, msg string, args ...interface{})  { d.t.Logf(msg, args...) }
+ func (d DummyFrontend) Debug_checknil() bool                               { return false }
+ 
++func (d DummyFrontend) MyImportPath() string {
++	return "my/import/path"
++}
++
+ var dummyTypes Types
+ 
+ func init() {
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 9e40b6214c..6718b778e1 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -678,7 +678,8 @@ func (f *Func) invalidateCFG() {
+ //  GSHS_LOGFILE
+ // or standard out if that is empty or there is an error
+ // opening the file.
+-func (f *Func) DebugHashMatch(evname, name string) bool {
++func (f *Func) DebugHashMatch(evname string) bool {
++	name := f.fe.MyImportPath() + "." + f.Name
+ 	evhash := os.Getenv(evname)
+ 	switch evhash {
+ 	case "":
+@@ -727,7 +728,7 @@ func (f *Func) logDebugHashMatch(evname, name string) {
+ 		file = os.Stdout
+ 		if tmpfile := os.Getenv("GSHS_LOGFILE"); tmpfile != "" {
+ 			var err error
+-			file, err = os.Create(tmpfile)
++			file, err = os.OpenFile(tmpfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+ 			if err != nil {
+ 				f.Fatalf("could not open hash-testing logfile %s", tmpfile)
+ 			}

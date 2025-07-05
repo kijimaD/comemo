@@ -21,7 +21,55 @@ Date:   Thu Feb 9 14:03:45 2023 +0000
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/go/go_test.go            | 16 ++++++++++++++++
  src/cmd/go/internal/work/exec.go |  9 ++++++---
  2 files changed, 22 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index ef22499b87..f056ab9a37 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1616,6 +1616,22 @@ func main() {
+ `)
+ 	tg.setenv("PKG_CONFIG_PATH", tg.path("."))
+ 	tg.run("run", tg.path("foo.go"))
++
++	// test for ldflags
++	tg.tempFile("bar.pc", `
++Name: bar
++Description: The bar library
++Version: 1.0.0
++Libs: -Wl,-rpath=/path\ with\ spaces/bin
++`)
++	tg.tempFile("bar.go", `package main
++/*
++#cgo pkg-config: bar
++*/
++import "C"
++func main() {}
++`)
++	tg.run("run", tg.path("bar.go"))
+ }
+ 
+ func TestListTemplateContextFunction(t *testing.T) {
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 8dde0a9e06..c1476f8757 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -1549,9 +1549,12 @@ func (b *Builder) getPkgConfigFlags(p *load.Package) (cflags, ldflags []string,
+ 			return nil, nil, err
+ 		}
+ 		if len(out) > 0 {
+-			// NOTE: we don't attempt to parse quotes and unescapes here. pkg-config
+-			// is typically used within shell backticks, which treats quotes literally.
+-			ldflags = strings.Fields(string(out))
++			// We need to handle path with spaces so that C:/Program\ Files can pass
++			// checkLinkerFlags. Use splitPkgConfigOutput here just like we treat cflags.
++			ldflags, err = splitPkgConfigOutput(out)
++			if err != nil {
++				return nil, nil, err
++			}
+ 			if err := checkLinkerFlags("LDFLAGS", "pkg-config --libs", ldflags); err != nil {
+ 				return nil, nil, err
+ 			}

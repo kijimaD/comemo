@@ -7,7 +7,71 @@ Date:   Tue Sep 8 18:18:59 2015 +0200
     Change-Id: I28bc6373bb42d9abf4f179664dbaab8d514a6ab9
     Reviewed-on: https://go-review.googlesource.com/14376
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go                 |  4 +--
  src/cmd/compile/internal/gc/testdata/string_ssa.go | 30 ++++++++++++++++++++++
  2 files changed, 32 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 70990bbd18..a554a1dfd9 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1722,12 +1722,12 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		if n.Right.Left == nil {
+ 			low = zero
+ 		} else {
+-			low = s.expr(n.Right.Left)
++			low = s.extendIndex(s.expr(n.Right.Left))
+ 		}
+ 		if n.Right.Right == nil {
+ 			high = len
+ 		} else {
+-			high = s.expr(n.Right.Right)
++			high = s.extendIndex(s.expr(n.Right.Right))
+ 		}
+ 
+ 		// Panic if slice indices are not in bounds.
+diff --git a/src/cmd/compile/internal/gc/testdata/string_ssa.go b/src/cmd/compile/internal/gc/testdata/string_ssa.go
+index efc734e1a2..448433acd3 100644
+--- a/src/cmd/compile/internal/gc/testdata/string_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/string_ssa.go
+@@ -86,9 +86,39 @@ func testStringSlicePanic() {
+ 	failed = true
+ }
+ 
++const _Accuracy_name = "BelowExactAbove"
++
++var _Accuracy_index = [...]uint8{0, 5, 10, 15}
++
++func testSmallIndexType_ssa(i int) string {
++	switch { // prevent inlining
++	}
++	return _Accuracy_name[_Accuracy_index[i]:_Accuracy_index[i+1]]
++}
++
++func testSmallIndexType() {
++	tests := []struct {
++		i    int
++		want string
++	}{
++		{0, "Below"},
++		{1, "Exact"},
++		{2, "Above"},
++	}
++
++	for i, t := range tests {
++		if got := testSmallIndexType_ssa(t.i); got != t.want {
++			println("#", i, "got ", got, ", wanted", t.want)
++			failed = true
++		}
++	}
++}
++
+ func main() {
+ 	testStringSlice()
+ 	testStringSlicePanic()
++	testStructSlice()
++	testSmallIndexType()
+ 
+ 	if failed {
+ 		panic("failed")

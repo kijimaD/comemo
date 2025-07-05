@@ -10,9 +10,104 @@ Date:   Fri Aug 29 23:13:17 2014 -0700
     R=golang-codereviews, bradfitz
     CC=dave, golang-codereviews, iant, rsc
     https://golang.org/cl/140050043
-
+---
  src/pkg/runtime/defs_openbsd.go      | 4 ++--
  src/pkg/runtime/defs_openbsd_386.h   | 4 ++--
  src/pkg/runtime/defs_openbsd_amd64.h | 4 ++--
  src/pkg/runtime/os_openbsd.c         | 6 +++---
  4 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/runtime/defs_openbsd.go b/src/pkg/runtime/defs_openbsd.go
+index cf4e06d37b..39224c988c 100644
+--- a/src/pkg/runtime/defs_openbsd.go
++++ b/src/pkg/runtime/defs_openbsd.go
+@@ -104,7 +104,7 @@ const (
+ 	EVFILT_WRITE = C.EVFILT_WRITE
+ )
+ 
+-type Tfork C.struct___tfork
++type TforkT C.struct___tfork
+ 
+ type SigaltstackT C.struct_sigaltstack
+ type Sigcontext C.struct_sigcontext
+@@ -118,4 +118,4 @@ type Timespec C.struct_timespec
+ type Timeval C.struct_timeval
+ type Itimerval C.struct_itimerval
+ 
+-type Kevent C.struct_kevent
++type KeventT C.struct_kevent
+diff --git a/src/pkg/runtime/defs_openbsd_386.h b/src/pkg/runtime/defs_openbsd_386.h
+index 669a35c357..6b77e0084a 100644
+--- a/src/pkg/runtime/defs_openbsd_386.h
++++ b/src/pkg/runtime/defs_openbsd_386.h
+@@ -81,7 +81,7 @@ enum {
+ 	EVFILT_WRITE	= -0x2,
+ };
+ 
+-typedef struct Tfork Tfork;
++typedef struct TforkT TforkT;
+ typedef struct SigaltstackT SigaltstackT;
+ typedef struct Sigcontext Sigcontext;
+ typedef struct Siginfo Siginfo;
+@@ -93,7 +93,7 @@ typedef struct KeventT KeventT;
+ 
+ #pragma pack on
+ 
+-struct Tfork {
++struct TforkT {
+ 	byte	*tf_tcb;
+ 	int32	*tf_tid;
+ 	byte	*tf_stack;
+diff --git a/src/pkg/runtime/defs_openbsd_amd64.h b/src/pkg/runtime/defs_openbsd_amd64.h
+index 9877f8b4c2..761e8e47df 100644
+--- a/src/pkg/runtime/defs_openbsd_amd64.h
++++ b/src/pkg/runtime/defs_openbsd_amd64.h
+@@ -81,7 +81,7 @@ enum {
+ 	EVFILT_WRITE	= -0x2,
+ };
+ 
+-typedef struct Tfork Tfork;
++typedef struct TforkT TforkT;
+ typedef struct SigaltstackT SigaltstackT;
+ typedef struct Sigcontext Sigcontext;
+ typedef struct Siginfo Siginfo;
+@@ -93,7 +93,7 @@ typedef struct KeventT KeventT;
+ 
+ #pragma pack on
+ 
+-struct Tfork {
++struct TforkT {
+ 	byte	*tf_tcb;
+ 	int32	*tf_tid;
+ 	byte	*tf_stack;
+diff --git a/src/pkg/runtime/os_openbsd.c b/src/pkg/runtime/os_openbsd.c
+index a746385314..dbd12a1282 100644
+--- a/src/pkg/runtime/os_openbsd.c
++++ b/src/pkg/runtime/os_openbsd.c
+@@ -26,7 +26,7 @@ extern SigTab runtime·sigtab[];
+ static Sigset sigset_none;
+ static Sigset sigset_all = ~(Sigset)0;
+ 
+-extern int32 runtime·tfork(void *param, uintptr psize, M *mp, G *gp, void (*fn)(void));
++extern int32 runtime·tfork(TforkT *param, uintptr psize, M *mp, G *gp, void (*fn)(void));
+ extern int32 runtime·thrsleep(void *ident, int32 clock_id, void *tsp, void *lock, const int32 *abort);
+ extern int32 runtime·thrwakeup(void *ident, int32 n);
+ 
+@@ -130,7 +130,7 @@ runtime·semawakeup(M *mp)
+ void
+ runtime·newosproc(M *mp, void *stk)
+ {
+-	Tfork param;
++	TforkT param;
+ 	Sigset oset;
+ 	int32 ret;
+ 
+@@ -147,7 +147,7 @@ runtime·newosproc(M *mp, void *stk)
+ 	param.tf_stack = stk;
+ 
+ 	oset = runtime·sigprocmask(SIG_SETMASK, sigset_all);
+-	ret = runtime·tfork((byte*)&param, sizeof(param), mp, mp->g0, runtime·mstart);
++	ret = runtime·tfork(&param, sizeof(param), mp, mp->g0, runtime·mstart);
+ 	runtime·sigprocmask(SIG_SETMASK, oset);
+ 
+ 	if(ret < 0) {

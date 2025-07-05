@@ -65,7 +65,7 @@ Date:   Sun Apr 1 01:55:55 2018 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/fmt_test.go                 |    3 +
  src/cmd/compile/internal/gc/closure.go      |    2 +
  src/cmd/compile/internal/gc/export.go       |   39 +-
@@ -83,3 +83,3480 @@ Date:   Sun Apr 1 01:55:55 2018 -0700
  src/go/internal/gcimporter/bimport.go       |    4 +
  src/go/internal/gcimporter/iimport.go       |  583 +++++++++++
  16 files changed, 3237 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/compile/fmt_test.go b/src/cmd/compile/fmt_test.go
+index 64933ea063..992b43460b 100644
+--- a/src/cmd/compile/fmt_test.go
++++ b/src/cmd/compile/fmt_test.go
+@@ -598,6 +598,7 @@ var knownFormats = map[string]string{
+ 	"*cmd/internal/obj.LSym %v":                       "",
+ 	"*math/big.Int %#x":                               "",
+ 	"*math/big.Int %s":                                "",
++	"*math/big.Int %v":                                "",
+ 	"[16]byte %x":                                     "",
+ 	"[]*cmd/compile/internal/gc.Node %v":              "",
+ 	"[]*cmd/compile/internal/ssa.Block %v":            "",
+@@ -612,6 +613,7 @@ var knownFormats = map[string]string{
+ 	"bool %v":                                         "",
+ 	"byte %08b":                                       "",
+ 	"byte %c":                                         "",
++	"byte %v":                                         "",
+ 	"cmd/compile/internal/arm.shift %d":               "",
+ 	"cmd/compile/internal/gc.Class %d":                "",
+ 	"cmd/compile/internal/gc.Class %s":                "",
+@@ -631,6 +633,7 @@ var knownFormats = map[string]string{
+ 	"cmd/compile/internal/gc.Val %v":                  "",
+ 	"cmd/compile/internal/gc.fmtMode %d":              "",
+ 	"cmd/compile/internal/gc.initKind %d":             "",
++	"cmd/compile/internal/gc.itag %v":                 "",
+ 	"cmd/compile/internal/ssa.BranchPrediction %d":    "",
+ 	"cmd/compile/internal/ssa.Edge %v":                "",
+ 	"cmd/compile/internal/ssa.GCNode %v":              "",
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index a0bf1e8cb9..f92223511c 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -442,6 +442,8 @@ func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
+ 	xfunc.Func.SetDupok(true)
+ 	xfunc.Func.SetNeedctxt(true)
+ 
++	tfn.Type.SetPkg(t0.Pkg())
++
+ 	// Declare and initialize variable holding receiver.
+ 
+ 	cv := nod(OCLOSUREVAR, nil, nil)
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 1747ccc29e..cd71db3a14 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -5,8 +5,6 @@
+ package gc
+ 
+ import (
+-	"bufio"
+-	"bytes"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/bio"
+ 	"cmd/internal/src"
+@@ -14,6 +12,8 @@ import (
+ )
+ 
+ var (
++	flagiexport bool // if set, use indexed export data format
++
+ 	Debug_export int // if set, print debugging information about export data
+ )
+ 
+@@ -72,32 +72,15 @@ func (x methodbyname) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+ func (x methodbyname) Less(i, j int) bool { return x[i].Sym.Name < x[j].Sym.Name }
+ 
+ func dumpexport(bout *bio.Writer) {
+-	size := 0 // size of export section without enclosing markers
+ 	// The linker also looks for the $$ marker - use char after $$ to distinguish format.
+ 	exportf(bout, "\n$$B\n") // indicate binary export format
+-	if debugFormat {
+-		// save a copy of the export data
+-		var copy bytes.Buffer
+-		bcopy := bufio.NewWriter(&copy)
+-		size = export(bcopy, Debug_export != 0)
+-		bcopy.Flush() // flushing to bytes.Buffer cannot fail
+-		if n, err := bout.Write(copy.Bytes()); n != size || err != nil {
+-			Fatalf("error writing export data: got %d bytes, want %d bytes, err = %v", n, size, err)
+-		}
+-		// export data must contain no '$' so that we can find the end by searching for "$$"
+-		// TODO(gri) is this still needed?
+-		if bytes.IndexByte(copy.Bytes(), '$') >= 0 {
+-			Fatalf("export data contains $")
+-		}
+-
+-		// verify that we can read the copied export data back in
+-		// (use empty package map to avoid collisions)
+-		types.CleanroomDo(func() {
+-			Import(types.NewPkg("", ""), bufio.NewReader(&copy)) // must not die
+-		})
++	off := bout.Offset()
++	if flagiexport {
++		iexport(bout.Writer)
+ 	} else {
+-		size = export(bout.Writer, Debug_export != 0)
++		export(bout.Writer, Debug_export != 0)
+ 	}
++	size := bout.Offset() - off
+ 	exportf(bout, "\n$$\n")
+ 
+ 	if Debug_export != 0 {
+@@ -108,6 +91,14 @@ func dumpexport(bout *bio.Writer) {
+ func importsym(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op Op) *Node {
+ 	n := asNode(s.Def)
+ 	if n == nil {
++		// iimport should have created a stub ONONAME
++		// declaration for all imported symbols. The exception
++		// is declarations for Runtimepkg, which are populated
++		// by loadsys instead.
++		if flagiexport && s.Pkg != Runtimepkg {
++			Fatalf("missing ONONAME for %v\n", s)
++		}
++
+ 		n = dclname(s)
+ 		s.Def = asTypesNode(n)
+ 		s.Importdef = ipkg
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+new file mode 100644
+index 0000000000..e08ee95fbc
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -0,0 +1,1414 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Indexed package export.
++//
++// The indexed export data format is an evolution of the previous
++// binary export data format. Its chief contribution is introducing an
++// index table, which allows efficient random access of individual
++// declarations and inline function bodies. In turn, this allows
++// avoiding unnecessary work for compilation units that import large
++// packages.
++//
++//
++// The top-level data format is structured as:
++//
++//     Header struct {
++//         Tag        byte   // 'i'
++//         Version    uvarint
++//         StringSize uvarint
++//         DataSize   uvarint
++//     }
++//
++//     Strings [StringSize]byte
++//     Data    [DataSize]byte
++//
++//     MainIndex []struct{
++//         PkgPath   stringOff
++//         PkgName   stringOff
++//         PkgHeight uvarint
++//
++//         Decls []struct{
++//             Name   stringOff
++//             Offset declOff
++//         }
++//     }
++//
++// uvarint means a uint64 written out using uvarint encoding.
++//
++// []T means a uvarint followed by that many T objects. In other
++// words:
++//
++//     Len   uvarint
++//     Elems [Len]T
++//
++// stringOff means a uvarint that indicates an offset within the
++// Strings section. At that offset is another uvarint, followed by
++// that many bytes, which form the string value.
++//
++// declOff means a uvarint that indicates an offset within the Data
++// section where the associated declaration can be found.
++//
++//
++// There are five kinds of declarations, distinguished by their first
++// byte:
++//
++//     type Var struct {
++//         Tag  byte // 'V'
++//         Pos  Pos
++//         Type typeOff
++//     }
++//
++//     type Func struct {
++//         Tag       byte // 'F'
++//         Pos       Pos
++//         Signature Signature
++//     }
++//
++//     type Const struct {
++//         Tag   byte // 'C'
++//         Pos   Pos
++//         Value Value
++//     }
++//
++//     type Type struct {
++//         Tag        byte // 'T'
++//         Pos        Pos
++//         Underlying typeOff
++//
++//         Methods []struct{  // omitted if Underlying is an interface type
++//             Pos       Pos
++//             Name      stringOff
++//             Recv      Param
++//             Signature Signature
++//         }
++//     }
++//
++//     type Alias struct {
++//         Tag  byte // 'A'
++//         Pos  Pos
++//         Type typeOff
++//     }
++//
++//
++// typeOff means a uvarint that either indicates a predeclared type,
++// or an offset into the Data section. If the uvarint is less than
++// predeclReserved, then it indicates the index into the predeclared
++// types list (see predeclared in bexport.go for order). Otherwise,
++// subtracting predeclReserved yields the offset of a type descriptor.
++//
++// Value means a type and type-specific value. See
++// (*exportWriter).value for details.
++//
++//
++// There are nine kinds of type descriptors, distinguished by an itag:
++//
++//     type DefinedType struct {
++//         Tag     itag // definedType
++//         Name    stringOff
++//         PkgPath stringOff
++//     }
++//
++//     type PointerType struct {
++//         Tag  itag // pointerType
++//         Elem typeOff
++//     }
++//
++//     type SliceType struct {
++//         Tag  itag // sliceType
++//         Elem typeOff
++//     }
++//
++//     type ArrayType struct {
++//         Tag  itag // arrayType
++//         Len  uint64
++//         Elem typeOff
++//     }
++//
++//     type ChanType struct {
++//         Tag  itag   // chanType
++//         Dir  uint64 // 1 RecvOnly; 2 SendOnly; 3 SendRecv
++//         Elem typeOff
++//     }
++//
++//     type MapType struct {
++//         Tag  itag // mapType
++//         Key  typeOff
++//         Elem typeOff
++//     }
++//
++//     type FuncType struct {
++//         Tag       itag // signatureType
++//         PkgPath   stringOff
++//         Signature Signature
++//     }
++//
++//     type StructType struct {
++//         Tag     itag // structType
++//         PkgPath stringOff
++//         Fields []struct {
++//             Pos      Pos
++//             Name     stringOff
++//             Type     typeOff
++//             Embedded bool
++//             Note     stringOff
++//         }
++//     }
++//
++//     type InterfaceType struct {
++//         Tag     itag // interfaceType
++//         PkgPath stringOff
++//         Embeddeds []struct {
++//             Pos  Pos
++//             Type typeOff
++//         }
++//         Methods []struct {
++//             Pos       Pos
++//             Name      stringOff
++//             Signature Signature
++//         }
++//     }
++//
++//
++//     type Signature struct {
++//         Params   []Param
++//         Results  []Param
++//         Variadic bool  // omitted if Results is empty
++//     }
++//
++//     type Param struct {
++//         Pos  Pos
++//         Name stringOff
++//         Type typOff
++//     }
++//
++//
++// Pos encodes a file:line pair, incorporating a simple delta encoding
++// scheme within a data object. See exportWriter.pos for details.
++//
++//
++// Compiler-specific details.
++//
++// cmd/compile writes out a second index for inline bodies and also
++// appends additional compiler-specific details after declarations.
++// Third-party tools are not expected to depend on these details and
++// they're expected to change much more rapidly, so they're omitted
++// here. See exportWriter's varExt/funcExt/etc methods for details.
++
++package gc
++
++import (
++	"bufio"
++	"bytes"
++	"cmd/compile/internal/types"
++	"cmd/internal/obj"
++	"cmd/internal/src"
++	"encoding/binary"
++	"fmt"
++	"go/ast"
++	"io"
++	"math/big"
++	"strings"
++)
++
++// Current indexed export format version. Increase with each format change.
++// 0: Go1.11 encoding
++const iexportVersion = 0
++
++// predeclReserved is the number of type offsets reserved for types
++// implicitly declared in the universe block.
++const predeclReserved = 32
++
++// An itag distinguishes the kind of type that was written into the
++// indexed export format.
++type itag uint64
++
++const (
++	// Types
++	definedType itag = iota
++	pointerType
++	sliceType
++	arrayType
++	chanType
++	mapType
++	signatureType
++	structType
++	interfaceType
++)
++
++func iexport(out *bufio.Writer) {
++	// Mark inline bodies that are reachable through exported types.
++	// (Phase 0 of bexport.go.)
++	{
++		// TODO(mdempsky): Separate from bexport logic.
++		p := &exporter{marked: make(map[*types.Type]bool)}
++		for _, n := range exportlist {
++			sym := n.Sym
++			p.markType(asNode(sym.Def).Type)
++		}
++	}
++
++	p := iexporter{
++		allPkgs:     map[*types.Pkg]bool{},
++		stringIndex: map[string]uint64{},
++		declIndex:   map[*Node]uint64{},
++		inlineIndex: map[*Node]uint64{},
++		typIndex:    map[*types.Type]uint64{},
++	}
++
++	for i, pt := range predeclared() {
++		p.typIndex[pt] = uint64(i)
++	}
++	if len(p.typIndex) > predeclReserved {
++		Fatalf("too many predeclared types: %d > %d", len(p.typIndex), predeclReserved)
++	}
++
++	// Initialize work queue with exported declarations.
++	for _, n := range exportlist {
++		p.pushDecl(n)
++	}
++
++	// Loop until no more work. We use a queue because while
++	// writing out inline bodies, we may discover additional
++	// declarations that are needed.
++	for !p.declTodo.empty() {
++		p.doDecl(p.declTodo.popLeft())
++	}
++
++	// Append indices to data0 section.
++	dataLen := uint64(p.data0.Len())
++	w := p.newWriter()
++	w.writeIndex(p.declIndex, true)
++	w.writeIndex(p.inlineIndex, false)
++	w.flush()
++
++	// Assemble header.
++	var hdr intWriter
++	hdr.WriteByte('i')
++	hdr.uint64(iexportVersion)
++	hdr.uint64(uint64(p.strings.Len()))
++	hdr.uint64(dataLen)
++
++	// Flush output.
++	io.Copy(out, &hdr)
++	io.Copy(out, &p.strings)
++	io.Copy(out, &p.data0)
++}
++
++// writeIndex writes out an object index. mainIndex indicates whether
++// we're writing out the main index, which is also read by
++// non-compiler tools and includes a complete package description
++// (i.e., name and height).
++func (w *exportWriter) writeIndex(index map[*Node]uint64, mainIndex bool) {
++	// Build a map from packages to objects from that package.
++	pkgObjs := map[*types.Pkg][]*Node{}
++
++	// For the main index, make sure to include every package that
++	// we reference, even if we're not exporting (or reexporting)
++	// any symbols from it.
++	if mainIndex {
++		pkgObjs[localpkg] = nil
++		for pkg := range w.p.allPkgs {
++			pkgObjs[pkg] = nil
++		}
++	}
++
++	for n := range index {
++		pkgObjs[n.Sym.Pkg] = append(pkgObjs[n.Sym.Pkg], n)
++	}
++
++	var pkgs []*types.Pkg
++	for pkg, objs := range pkgObjs {
++		pkgs = append(pkgs, pkg)
++
++		obj.SortSlice(objs, func(i, j int) bool {
++			return objs[i].Sym.Name < objs[j].Sym.Name
++		})
++	}
++
++	obj.SortSlice(pkgs, func(i, j int) bool {
++		return pkgs[i].Path < pkgs[j].Path
++	})
++
++	w.uint64(uint64(len(pkgs)))
++	for _, pkg := range pkgs {
++		w.string(pkg.Path)
++		if mainIndex {
++			w.string(pkg.Name)
++			w.uint64(uint64(pkg.Height))
++		}
++
++		objs := pkgObjs[pkg]
++		w.uint64(uint64(len(objs)))
++		for _, n := range objs {
++			w.string(n.Sym.Name)
++			w.uint64(index[n])
++		}
++	}
++}
++
++type iexporter struct {
++	// allPkgs tracks all packages that have been referenced by
++	// the export data, so we can ensure to include them in the
++	// main index.
++	allPkgs map[*types.Pkg]bool
++
++	declTodo nodeQueue
++
++	strings     intWriter
++	stringIndex map[string]uint64
++
++	data0       intWriter
++	declIndex   map[*Node]uint64
++	inlineIndex map[*Node]uint64
++	typIndex    map[*types.Type]uint64
++}
++
++// stringOff returns the offset of s within the string section.
++// If not already present, it's added to the end.
++func (p *iexporter) stringOff(s string) uint64 {
++	off, ok := p.stringIndex[s]
++	if !ok {
++		off = uint64(p.strings.Len())
++		p.stringIndex[s] = off
++
++		p.strings.uint64(uint64(len(s)))
++		p.strings.WriteString(s)
++	}
++	return off
++}
++
++// pushDecl adds n to the declaration work queue, if not already present.
++func (p *iexporter) pushDecl(n *Node) {
++	if n.Sym == nil || asNode(n.Sym.Def) != n && n.Op != OTYPE {
++		Fatalf("weird Sym: %v, %v", n, n.Sym)
++	}
++
++	// Don't export predeclared declarations.
++	if n.Sym.Pkg == builtinpkg || n.Sym.Pkg == unsafepkg {
++		return
++	}
++
++	if _, ok := p.declIndex[n]; ok {
++		return
++	}
++
++	p.declIndex[n] = ^uint64(0) // mark n present in work queue
++	p.declTodo.pushRight(n)
++}
++
++// exportWriter handles writing out individual data section chunks.
++type exportWriter struct {
++	p *iexporter
++
++	data     intWriter
++	currPkg  *types.Pkg
++	prevFile string
++	prevLine int64
++}
++
++func (p *iexporter) doDecl(n *Node) {
++	w := p.newWriter()
++	w.setPkg(n.Sym.Pkg, false)
++
++	switch n.Op {
++	case ONAME:
++		switch n.Class() {
++		case PEXTERN:
++			// Variable.
++			w.tag('V')
++			w.pos(n.Pos)
++			w.typ(n.Type)
++			w.varExt(n)
++
++		case PFUNC:
++			if n.IsMethod() {
++				Fatalf("unexpected method: %v", n)
++			}
++
++			// Function.
++			w.tag('F')
++			w.pos(n.Pos)
++			w.signature(n.Type)
++			w.funcExt(n)
++
++		default:
++			Fatalf("unexpected class: %v, %v", n, n.Class())
++		}
++
++	case OLITERAL:
++		// Constant.
++		n = typecheck(n, Erv)
++		w.tag('C')
++		w.pos(n.Pos)
++		w.value(n.Type, n.Val())
++
++	case OTYPE:
++		if IsAlias(n.Sym) {
++			// Alias.
++			w.tag('A')
++			w.pos(n.Pos)
++			w.typ(n.Type)
++			break
++		}
++
++		// Defined type.
++		w.tag('T')
++		w.pos(n.Pos)
++
++		underlying := n.Type.Orig
++		if underlying == types.Errortype.Orig {
++			// For "type T error", use error as the
++			// underlying type instead of error's own
++			// underlying anonymous interface. This
++			// ensures consistency with how importers may
++			// declare error (e.g., go/types uses nil Pkg
++			// for predeclared objects).
++			underlying = types.Errortype
++		}
++		w.typ(underlying)
++
++		t := n.Type
++		if t.IsInterface() {
++			break
++		}
++
++		ms := t.Methods()
++		w.uint64(uint64(ms.Len()))
++		for _, m := range ms.Slice() {
++			w.pos(m.Pos)
++			w.selector(m.Sym)
++			w.param(m.Type.Recv())
++			w.signature(m.Type)
++		}
++
++		for _, m := range ms.Slice() {
++			w.methExt(m)
++		}
++
++	default:
++		Fatalf("unexpected node: %v", n)
++	}
++
++	p.declIndex[n] = w.flush()
++}
++
++func (w *exportWriter) tag(tag byte) {
++	w.data.WriteByte(tag)
++}
++
++func (p *iexporter) doInline(f *Node) {
++	w := p.newWriter()
++	w.setPkg(fnpkg(f), false)
++
++	w.stmtList(asNodes(f.Func.Inl.Body))
++
++	p.inlineIndex[f] = w.flush()
++}
++
++func (w *exportWriter) pos(pos src.XPos) {
++	p := Ctxt.PosTable.Pos(pos)
++	file := p.Base().AbsFilename()
++	line := int64(p.RelLine())
++
++	// When file is the same as the last position (common case),
++	// we can save a few bytes by delta encoding just the line
++	// number.
++	//
++	// Note: Because data objects may be read out of order (or not
++	// at all), we can only apply delta encoding within a single
++	// object. This is handled implicitly by tracking prevFile and
++	// prevLine as fields of exportWriter.
++
++	if file == w.prevFile {
++		delta := line - w.prevLine
++		w.int64(delta)
++		if delta == deltaNewFile {
++			w.int64(-1)
++		}
++	} else {
++		w.int64(deltaNewFile)
++		w.int64(line) // line >= 0
++		w.string(file)
++		w.prevFile = file
++	}
++	w.prevLine = line
++}
++
++func (w *exportWriter) pkg(pkg *types.Pkg) {
++	// Ensure any referenced packages are declared in the main index.
++	w.p.allPkgs[pkg] = true
++
++	w.string(pkg.Path)
++}
++
++func (w *exportWriter) qualifiedIdent(n *Node) {
++	// Ensure any referenced declarations are written out too.
++	w.p.pushDecl(n)
++
++	s := n.Sym
++	w.string(s.Name)
++	w.pkg(s.Pkg)
++}
++
++func (w *exportWriter) selector(s *types.Sym) {
++	if w.currPkg == nil {
++		Fatalf("missing currPkg")
++	}
++
++	// Method selectors are rewritten into method symbols (of the
++	// form T.M) during typechecking, but we want to write out
++	// just the bare method name.
++	name := s.Name
++	if i := strings.LastIndex(name, "."); i >= 0 {
++		name = name[i+1:]
++	} else {
++		pkg := w.currPkg
++		if types.IsExported(name) {
++			pkg = localpkg
++		}
++		if s.Pkg != pkg {
++			Fatalf("package mismatch in selector: %v in package %q, but want %q", s, s.Pkg.Path, pkg.Path)
++		}
++	}
++
++	w.string(name)
++}
++
++func (w *exportWriter) typ(t *types.Type) {
++	w.data.uint64(w.p.typOff(t))
++}
++
++func (p *iexporter) newWriter() *exportWriter {
++	return &exportWriter{p: p}
++}
++
++func (w *exportWriter) flush() uint64 {
++	off := uint64(w.p.data0.Len())
++	io.Copy(&w.p.data0, &w.data)
++	return off
++}
++
++func (p *iexporter) typOff(t *types.Type) uint64 {
++	off, ok := p.typIndex[t]
++	if !ok {
++		w := p.newWriter()
++		w.doTyp(t)
++		off = predeclReserved + uint64(w.flush())
++		p.typIndex[t] = off
++	}
++	return off
++}
++
++func (w *exportWriter) startType(k itag) {
++	w.data.uint64(uint64(k))
++}
++
++func (w *exportWriter) doTyp(t *types.Type) {
++	if t.Sym != nil {
++		if t.Sym.Pkg == builtinpkg || t.Sym.Pkg == unsafepkg {
++			Fatalf("builtin type missing from typIndex: %v", t)
++		}
++
++		w.startType(definedType)
++		w.qualifiedIdent(typenod(t))
++		return
++	}
++
++	switch t.Etype {
++	case TPTR32, TPTR64:
++		w.startType(pointerType)
++		w.typ(t.Elem())
++
++	case TSLICE:
++		w.startType(sliceType)
++		w.typ(t.Elem())
++
++	case TARRAY:
++		w.startType(arrayType)
++		w.uint64(uint64(t.NumElem()))
++		w.typ(t.Elem())
++
++	case TCHAN:
++		w.startType(chanType)
++		w.uint64(uint64(t.ChanDir()))
++		w.typ(t.Elem())
++
++	case TMAP:
++		w.startType(mapType)
++		w.typ(t.Key())
++		w.typ(t.Val())
++
++	case TFUNC:
++		w.startType(signatureType)
++		w.setPkg(t.Pkg(), true)
++		w.signature(t)
++
++	case TSTRUCT:
++		w.startType(structType)
++		w.setPkg(t.Pkg(), true)
++
++		w.uint64(uint64(t.NumFields()))
++		for _, f := range t.FieldSlice() {
++			w.pos(f.Pos)
++			w.selector(f.Sym)
++			w.typ(f.Type)
++			w.bool(f.Embedded != 0)
++			w.string(f.Note)
++		}
++
++	case TINTER:
++		var embeddeds, methods []*types.Field
++		for _, m := range t.Methods().Slice() {
++			if m.Sym != nil {
++				methods = append(methods, m)
++			} else {
++				embeddeds = append(embeddeds, m)
++			}
++		}
++
++		w.startType(interfaceType)
++		w.setPkg(t.Pkg(), true)
++
++		w.uint64(uint64(len(embeddeds)))
++		for _, f := range embeddeds {
++			w.pos(f.Pos)
++			w.typ(f.Type)
++		}
++
++		w.uint64(uint64(len(methods)))
++		for _, f := range methods {
++			w.pos(f.Pos)
++			w.selector(f.Sym)
++			w.signature(f.Type)
++		}
++
++	default:
++		Fatalf("unexpected type: %v", t)
++	}
++}
++
++func (w *exportWriter) setPkg(pkg *types.Pkg, write bool) {
++	if pkg == nil {
++		// TODO(mdempsky): Proactively set Pkg for types and
++		// remove this fallback logic.
++		pkg = localpkg
++	}
++
++	if write {
++		w.pkg(pkg)
++	}
++
++	w.currPkg = pkg
++}
++
++func (w *exportWriter) signature(t *types.Type) {
++	w.paramList(t.Params().FieldSlice())
++	w.paramList(t.Results().FieldSlice())
++	if n := t.Params().NumFields(); n > 0 {
++		w.bool(t.Params().Field(n - 1).Isddd())
++	}
++}
++
++func (w *exportWriter) paramList(fs []*types.Field) {
++	w.uint64(uint64(len(fs)))
++	for _, f := range fs {
++		w.param(f)
++	}
++}
++
++func (w *exportWriter) param(f *types.Field) {
++	w.pos(f.Pos)
++	w.localIdent(origSym(f.Sym), 0)
++	w.typ(f.Type)
++}
++
++func constTypeOf(typ *types.Type) Ctype {
++	switch typ {
++	case types.Idealint, types.Idealrune:
++		return CTINT
++	case types.Idealfloat:
++		return CTFLT
++	case types.Idealcomplex:
++		return CTCPLX
++	}
++
++	switch typ.Etype {
++	case TCHAN, TFUNC, TMAP, TNIL, TINTER, TSLICE:
++		return CTNIL
++	case TBOOL:
++		return CTBOOL
++	case TSTRING:
++		return CTSTR
++	case TINT, TINT8, TINT16, TINT32, TINT64,
++		TUINT, TUINT8, TUINT16, TUINT32, TUINT64, TUINTPTR,
++		TPTR32, TPTR64, TUNSAFEPTR:
++		return CTINT
++	case TFLOAT32, TFLOAT64:
++		return CTFLT
++	case TCOMPLEX64, TCOMPLEX128:
++		return CTCPLX
++	}
++
++	Fatalf("unexpected constant type: %v", typ)
++	return 0
++}
++
++func (w *exportWriter) value(typ *types.Type, v Val) {
++	if typ.IsUntyped() {
++		typ = untype(v.Ctype())
++	}
++	w.typ(typ)
++
++	// Each type has only one admissible constant representation,
++	// so we could type switch directly on v.U here. However,
++	// switching on the type increases symmetry with import logic
++	// and provides a useful consistency check.
++
++	switch constTypeOf(typ) {
++	case CTNIL:
++		// Only one value; nothing to encode.
++		_ = v.U.(*NilVal)
++	case CTBOOL:
++		w.bool(v.U.(bool))
++	case CTSTR:
++		w.string(v.U.(string))
++	case CTINT:
++		w.mpint(&v.U.(*Mpint).Val, typ)
++	case CTFLT:
++		w.mpfloat(&v.U.(*Mpflt).Val, typ)
++	case CTCPLX:
++		x := v.U.(*Mpcplx)
++		w.mpfloat(&x.Real.Val, typ)
++		w.mpfloat(&x.Imag.Val, typ)
++	}
++}
++
++func intSize(typ *types.Type) (signed bool, maxBytes uint) {
++	if typ.IsUntyped() {
++		return true, Mpprec / 8
++	}
++
++	switch typ.Etype {
++	case TFLOAT32, TCOMPLEX64:
++		return true, 3
++	case TFLOAT64, TCOMPLEX128:
++		return true, 7
++	}
++
++	signed = typ.IsSigned()
++	maxBytes = uint(typ.Size())
++
++	// The go/types API doesn't expose sizes to importers, so they
++	// don't know how big these types are.
++	switch typ.Etype {
++	case TINT, TUINT, TUINTPTR:
++		maxBytes = 8
++	}
++
++	return
++}
++
++// mpint exports a multi-precision integer.
++//
++// For unsigned types, small values are written out as a single
++// byte. Larger values are written out as a length-prefixed big-endian
++// byte string, where the length prefix is encoded as its complement.
++// For example, bytes 0, 1, and 2 directly represent the integer
++// values 0, 1, and 2; while bytes 255, 254, and 253 indicate a 1-,
++// 2-, and 3-byte big-endian string follow.
++//
++// Encoding for signed types use the same general approach as for
++// unsigned types, except small values use zig-zag encoding and the
++// bottom bit of length prefix byte for large values is reserved as a
++// sign bit.
++//
++// The exact boundary between small and large encodings varies
++// according to the maximum number of bytes needed to encode a value
++// of type typ. As a special case, 8-bit types are always encoded as a
++// single byte.
++//
++// TODO(mdempsky): Is this level of complexity really worthwhile?
++func (w *exportWriter) mpint(x *big.Int, typ *types.Type) {
++	signed, maxBytes := intSize(typ)
++
++	negative := x.Sign() < 0
++	if !signed && negative {
++		Fatalf("negative unsigned integer; type %v, value %v", typ, x)
++	}
++
++	b := x.Bytes()
++	if len(b) > 0 && b[0] == 0 {
++		Fatalf("leading zeros")
++	}
++	if uint(len(b)) > maxBytes {
++		Fatalf("bad mpint length: %d > %d (type %v, value %v)", len(b), maxBytes, typ, x)
++	}
++
++	maxSmall := 256 - maxBytes
++	if signed {
++		maxSmall = 256 - 2*maxBytes
++	}
++	if maxBytes == 1 {
++		maxSmall = 256
++	}
++
++	// Check if x can use small value encoding.
++	if len(b) <= 1 {
++		var ux uint
++		if len(b) == 1 {
++			ux = uint(b[0])
++		}
++		if signed {
++			ux <<= 1
++			if negative {
++				ux--
++			}
++		}
++		if ux < maxSmall {
++			w.data.WriteByte(byte(ux))
++			return
++		}
++	}
++
++	n := 256 - uint(len(b))
++	if signed {
++		n = 256 - 2*uint(len(b))
++		if negative {
++			n |= 1
++		}
++	}
++	if n < maxSmall || n >= 256 {
++		Fatalf("encoding mistake: %d, %v, %v => %d", len(b), signed, negative, n)
++	}
++
++	w.data.WriteByte(byte(n))
++	w.data.Write(b)
++}
++
++// mpfloat exports a multi-precision floating point number.
++//
++// The number's value is decomposed into mantissa × 2**exponent, where
++// mantissa is an integer. The value is written out as mantissa (as a
++// multi-precision integer) and then the exponent, except exponent is
++// omitted if mantissa is zero.
++func (w *exportWriter) mpfloat(f *big.Float, typ *types.Type) {
++	if f.IsInf() {
++		Fatalf("infinite constant")
++	}
++
++	// Break into f = mant × 2**exp, with 0.5 <= mant < 1.
++	var mant big.Float
++	exp := int64(f.MantExp(&mant))
++
++	// Scale so that mant is an integer.
++	prec := mant.MinPrec()
++	mant.SetMantExp(&mant, int(prec))
++	exp -= int64(prec)
++
++	manti, acc := mant.Int(nil)
++	if acc != big.Exact {
++		Fatalf("exporter: internal error")
++	}
++	w.mpint(manti, typ)
++	if manti.Sign() != 0 {
++		w.int64(exp)
++	}
++}
++
++func (w *exportWriter) bool(b bool) bool {
++	var x uint64
++	if b {
++		x = 1
++	}
++	w.uint64(x)
++	return b
++}
++
++func (w *exportWriter) int64(x int64)   { w.data.int64(x) }
++func (w *exportWriter) uint64(x uint64) { w.data.uint64(x) }
++func (w *exportWriter) string(s string) { w.uint64(w.p.stringOff(s)) }
++
++// Compiler-specific extensions.
++
++func (w *exportWriter) varExt(n *Node) {
++	w.linkname(n.Sym)
++}
++
++func (w *exportWriter) funcExt(n *Node) {
++	w.linkname(n.Sym)
++
++	// Escape analysis.
++	for _, fs := range types.RecvsParams {
++		for _, f := range fs(n.Type).FieldSlice() {
++			w.string(f.Note)
++		}
++	}
++
++	// Inline body.
++	if n.Func.Inl != nil {
++		w.uint64(1 + uint64(n.Func.Inl.Cost))
++		if n.Func.ExportInline() {
++			w.p.doInline(n)
++		}
++	} else {
++		w.uint64(0)
++	}
++}
++
++func (w *exportWriter) methExt(m *types.Field) {
++	w.bool(m.Nointerface())
++	w.funcExt(asNode(m.Type.Nname()))
++}
++
++func (w *exportWriter) linkname(s *types.Sym) {
++	w.string(s.Linkname)
++}
++
++// Inline bodies.
++
++func (w *exportWriter) stmtList(list Nodes) {
++	for _, n := range list.Slice() {
++		if opprec[n.Op] < 0 {
++			w.stmt(n)
++		} else {
++			w.expr(n)
++		}
++	}
++	w.op(OEND)
++}
++
++// Caution: stmt will emit more than one node for statement nodes n that have a non-empty
++// n.Ninit and where n cannot have a natural init section (such as in "if", "for", etc.).
++func (w *exportWriter) stmt(n *Node) {
++	if n.Ninit.Len() > 0 && !stmtwithinit(n.Op) {
++		// can't use stmtList here since we don't want the final OEND
++		for _, n := range n.Ninit.Slice() {
++			w.stmt(n)
++		}
++	}
++
++	switch op := n.Op; op {
++	case ODCL:
++		w.op(ODCL)
++		w.pos(n.Left.Pos)
++		w.localName(n.Left)
++		w.typ(n.Left.Type)
++
++	// case ODCLFIELD:
++	//	unimplemented - handled by default case
++
++	case OAS:
++		// Don't export "v = <N>" initializing statements, hope they're always
++		// preceded by the DCL which will be re-parsed and typecheck to reproduce
++		// the "v = <N>" again.
++		if n.Right != nil {
++			w.op(OAS)
++			w.pos(n.Pos)
++			w.expr(n.Left)
++			w.expr(n.Right)
++		}
++
++	case OASOP:
++		w.op(OASOP)
++		w.pos(n.Pos)
++		w.op(n.SubOp())
++		w.expr(n.Left)
++		if w.bool(!n.Implicit()) {
++			w.expr(n.Right)
++		}
++
++	case OAS2, OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
++		w.op(OAS2)
++		w.pos(n.Pos)
++		w.exprList(n.List)
++		w.exprList(n.Rlist)
++
++	case ORETURN:
++		w.op(ORETURN)
++		w.pos(n.Pos)
++		w.exprList(n.List)
++
++	// case ORETJMP:
++	// 	unreachable - generated by compiler for trampolin routines
++
++	case OPROC, ODEFER:
++		w.op(op)
++		w.pos(n.Pos)
++		w.expr(n.Left)
++
++	case OIF:
++		w.op(OIF)
++		w.pos(n.Pos)
++		w.stmtList(n.Ninit)
++		w.expr(n.Left)
++		w.stmtList(n.Nbody)
++		w.stmtList(n.Rlist)
++
++	case OFOR:
++		w.op(OFOR)
++		w.pos(n.Pos)
++		w.stmtList(n.Ninit)
++		w.exprsOrNil(n.Left, n.Right)
++		w.stmtList(n.Nbody)
++
++	case ORANGE:
++		w.op(ORANGE)
++		w.pos(n.Pos)
++		w.stmtList(n.List)
++		w.expr(n.Right)
++		w.stmtList(n.Nbody)
++
++	case OSELECT, OSWITCH:
++		w.op(op)
++		w.pos(n.Pos)
++		w.stmtList(n.Ninit)
++		w.exprsOrNil(n.Left, nil)
++		w.stmtList(n.List)
++
++	case OCASE, OXCASE:
++		w.op(OXCASE)
++		w.pos(n.Pos)
++		w.stmtList(n.List)
++		w.stmtList(n.Nbody)
++
++	case OFALL:
++		w.op(OFALL)
++		w.pos(n.Pos)
++
++	case OBREAK, OCONTINUE:
++		w.op(op)
++		w.pos(n.Pos)
++		w.exprsOrNil(n.Left, nil)
++
++	case OEMPTY:
++		// nothing to emit
++
++	case OGOTO, OLABEL:
++		w.op(op)
++		w.pos(n.Pos)
++		w.expr(n.Left)
++
++	default:
++		Fatalf("exporter: CANNOT EXPORT: %v\nPlease notify gri@\n", n.Op)
++	}
++}
++
++func (w *exportWriter) exprList(list Nodes) {
++	for _, n := range list.Slice() {
++		w.expr(n)
++	}
++	w.op(OEND)
++}
++
++func (w *exportWriter) expr(n *Node) {
++	// from nodefmt (fmt.go)
++	//
++	// nodefmt reverts nodes back to their original - we don't need to do
++	// it because we are not bound to produce valid Go syntax when exporting
++	//
++	// if (fmtmode != FExp || n.Op != OLITERAL) && n.Orig != nil {
++	// 	n = n.Orig
++	// }
++
++	// from exprfmt (fmt.go)
++	for n.Op == OPAREN || n.Implicit() && (n.Op == OIND || n.Op == OADDR || n.Op == ODOT || n.Op == ODOTPTR) {
++		n = n.Left
++	}
++
++	switch op := n.Op; op {
++	// expressions
++	// (somewhat closely following the structure of exprfmt in fmt.go)
++	case OLITERAL:
++		if n.Val().Ctype() == CTNIL && n.Orig != nil && n.Orig != n {
++			w.expr(n.Orig)
++			break
++		}
++		w.op(OLITERAL)
++		w.pos(n.Pos)
++		w.value(n.Type, n.Val())
++
++	case ONAME:
++		// Special case: explicit name of func (*T) method(...) is turned into pkg.(*T).method,
++		// but for export, this should be rendered as (*pkg.T).meth.
++		// These nodes have the special property that they are names with a left OTYPE and a right ONAME.
++		if n.isMethodExpression() {
++			w.op(OXDOT)
++			w.pos(n.Pos)
++			w.expr(n.Left) // n.Left.Op == OTYPE
++			w.selector(n.Right.Sym)
++			break
++		}
++
++		// Package scope name.
++		if (n.Class() == PEXTERN || n.Class() == PFUNC) && !n.isBlank() {
++			w.op(ONONAME)
++			w.qualifiedIdent(n)
++			break
++		}
++
++		// Function scope name.
++		w.op(ONAME)
++		w.localName(n)
++
++	// case OPACK, ONONAME:
++	// 	should have been resolved by typechecking - handled by default case
++
++	case OTYPE:
++		w.op(OTYPE)
++		w.typ(n.Type)
++
++	// case OTARRAY, OTMAP, OTCHAN, OTSTRUCT, OTINTER, OTFUNC:
++	// 	should have been resolved by typechecking - handled by default case
++
++	// case OCLOSURE:
++	//	unimplemented - handled by default case
++
++	// case OCOMPLIT:
++	// 	should have been resolved by typechecking - handled by default case
++
++	case OPTRLIT:
++		w.op(OPTRLIT)
++		w.pos(n.Pos)
++		w.expr(n.Left)
++		w.bool(n.Implicit())
++
++	case OSTRUCTLIT:
++		w.op(OSTRUCTLIT)
++		w.pos(n.Pos)
++		w.typ(n.Type)
++		w.elemList(n.List) // special handling of field names
++
++	case OARRAYLIT, OSLICELIT, OMAPLIT:
++		w.op(OCOMPLIT)
++		w.pos(n.Pos)
++		w.typ(n.Type)
++		w.exprList(n.List)
++
++	case OKEY:
++		w.op(OKEY)
++		w.pos(n.Pos)
++		w.exprsOrNil(n.Left, n.Right)
++
++	// case OSTRUCTKEY:
++	//	unreachable - handled in case OSTRUCTLIT by elemList
++
++	// case OCALLPART:
++	//	unimplemented - handled by default case
++
++	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
++		w.op(OXDOT)
++		w.pos(n.Pos)
++		w.expr(n.Left)
++		w.selector(n.Sym)
++
++	case ODOTTYPE, ODOTTYPE2:
++		w.op(ODOTTYPE)
++		w.pos(n.Pos)
++		w.expr(n.Left)
++		w.typ(n.Type)
++
++	case OINDEX, OINDEXMAP:
++		w.op(OINDEX)
++		w.pos(n.Pos)
++		w.expr(n.Left)
++		w.expr(n.Right)
++
++	case OSLICE, OSLICESTR, OSLICEARR:
++		w.op(OSLICE)
++		w.pos(n.Pos)
++		w.expr(n.Left)
++		low, high, _ := n.SliceBounds()
++		w.exprsOrNil(low, high)
++
++	case OSLICE3, OSLICE3ARR:
++		w.op(OSLICE3)
++		w.pos(n.Pos)
++		w.expr(n.Left)
++		low, high, max := n.SliceBounds()
++		w.exprsOrNil(low, high)
++		w.expr(max)
++
++	case OCOPY, OCOMPLEX:
++		// treated like other builtin calls (see e.g., OREAL)
++		w.op(op)
++		w.pos(n.Pos)
++		w.expr(n.Left)
++		w.expr(n.Right)
++		w.op(OEND)
++
++	case OCONV, OCONVIFACE, OCONVNOP, OARRAYBYTESTR, OARRAYRUNESTR, OSTRARRAYBYTE, OSTRARRAYRUNE, ORUNESTR:
++		w.op(OCONV)
++		w.pos(n.Pos)
++		w.expr(n.Left)
++		w.typ(n.Type)
++
++	case OREAL, OIMAG, OAPPEND, OCAP, OCLOSE, ODELETE, OLEN, OMAKE, ONEW, OPANIC, ORECOVER, OPRINT, OPRINTN:
++		w.op(op)
++		w.pos(n.Pos)
++		if n.Left != nil {
++			w.expr(n.Left)
++			w.op(OEND)
++		} else {
++			w.exprList(n.List) // emits terminating OEND
++		}
++		// only append() calls may contain '...' arguments
++		if op == OAPPEND {
++			w.bool(n.Isddd())
++		} else if n.Isddd() {
++			Fatalf("exporter: unexpected '...' with %v call", op)
++		}
++
++	case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER, OGETG:
++		w.op(OCALL)
++		w.pos(n.Pos)
++		w.expr(n.Left)
++		w.exprList(n.List)
++		w.bool(n.Isddd())
++
++	case OMAKEMAP, OMAKECHAN, OMAKESLICE:
++		w.op(op) // must keep separate from OMAKE for importer
++		w.pos(n.Pos)
++		w.typ(n.Type)
++		switch {
++		default:
++			// empty list
++			w.op(OEND)
++		case n.List.Len() != 0: // pre-typecheck
++			w.exprList(n.List) // emits terminating OEND
++		case n.Right != nil:
++			w.expr(n.Left)
++			w.expr(n.Right)
++			w.op(OEND)
++		case n.Left != nil && (n.Op == OMAKESLICE || !n.Left.Type.IsUntyped()):
++			w.expr(n.Left)
++			w.op(OEND)
++		}
++
++	// unary expressions
++	case OPLUS, OMINUS, OADDR, OCOM, OIND, ONOT, ORECV:
++		w.op(op)
++		w.pos(n.Pos)
++		w.expr(n.Left)
++
++	// binary expressions
++	case OADD, OAND, OANDAND, OANDNOT, ODIV, OEQ, OGE, OGT, OLE, OLT,
++		OLSH, OMOD, OMUL, ONE, OOR, OOROR, ORSH, OSEND, OSUB, OXOR:
++		w.op(op)
++		w.pos(n.Pos)
++		w.expr(n.Left)
++		w.expr(n.Right)
++
++	case OADDSTR:
++		w.op(OADDSTR)
++		w.pos(n.Pos)
++		w.exprList(n.List)
++
++	case OCMPSTR, OCMPIFACE:
++		w.op(n.SubOp())
++		w.pos(n.Pos)
++		w.expr(n.Left)
++		w.expr(n.Right)
++
++	case ODCLCONST:
++		// if exporting, DCLCONST should just be removed as its usage
++		// has already been replaced with literals
++
++	default:
++		Fatalf("cannot export %v (%d) node\n"+
++			"==> please file an issue and assign to gri@\n", n.Op, int(n.Op))
++	}
++}
++
++func (w *exportWriter) op(op Op) {
++	w.uint64(uint64(op))
++}
++
++func (w *exportWriter) exprsOrNil(a, b *Node) {
++	ab := 0
++	if a != nil {
++		ab |= 1
++	}
++	if b != nil {
++		ab |= 2
++	}
++	w.uint64(uint64(ab))
++	if ab&1 != 0 {
++		w.expr(a)
++	}
++	if ab&2 != 0 {
++		w.expr(b)
++	}
++}
++
++func (w *exportWriter) elemList(list Nodes) {
++	w.uint64(uint64(list.Len()))
++	for _, n := range list.Slice() {
++		w.selector(n.Sym)
++		w.expr(n.Left)
++	}
++}
++
++func (w *exportWriter) localName(n *Node) {
++	// Escape analysis happens after inline bodies are saved, but
++	// we're using the same ONAME nodes, so we might still see
++	// PAUTOHEAP here.
++	//
++	// Check for Stackcopy to identify PAUTOHEAP that came from
++	// PPARAM/PPARAMOUT, because we only want to include vargen in
++	// non-param names.
++	var v int32
++	if n.Class() == PAUTO || (n.Class() == PAUTOHEAP && n.Name.Param.Stackcopy == nil) {
++		v = n.Name.Vargen
++	}
++
++	w.localIdent(n.Sym, v)
++}
++
++func (w *exportWriter) localIdent(s *types.Sym, v int32) {
++	// Anonymous parameters.
++	if s == nil {
++		w.string("")
++		return
++	}
++
++	name := s.Name
++	if name == "_" {
++		w.string("_")
++		return
++	}
++
++	if i := strings.LastIndex(name, "."); i >= 0 {
++		Fatalf("unexpected dot in identifier:", name)
++	}
++
++	if v > 0 {
++		if strings.Contains(name, "·") {
++			Fatalf("exporter: unexpected · in symbol name")
++		}
++		name = fmt.Sprintf("%s·%d", name, v)
++	}
++
++	if !ast.IsExported(name) && s.Pkg != w.currPkg {
++		Fatalf("weird package in name: %v => %v, not %q", s, name, w.currPkg.Path)
++	}
++
++	w.string(name)
++}
++
++type intWriter struct {
++	bytes.Buffer
++}
++
++func (w *intWriter) int64(x int64) {
++	var buf [binary.MaxVarintLen64]byte
++	n := binary.PutVarint(buf[:], x)
++	w.Write(buf[:n])
++}
++
++func (w *intWriter) uint64(x uint64) {
++	var buf [binary.MaxVarintLen64]byte
++	n := binary.PutUvarint(buf[:], x)
++	w.Write(buf[:n])
++}
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+new file mode 100644
+index 0000000000..4d66b4b042
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -0,0 +1,1066 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Indexed package import.
++// See iexport.go for the export data format.
++
++package gc
++
++import (
++	"cmd/compile/internal/types"
++	"cmd/internal/bio"
++	"cmd/internal/src"
++	"encoding/binary"
++	"fmt"
++	"math/big"
++	"os"
++	"strings"
++)
++
++// An iimporterAndOffset identifies an importer and an offset within
++// its data section.
++type iimporterAndOffset struct {
++	p   *iimporter
++	off uint64
++}
++
++var (
++	// declImporter maps from imported identifiers to an importer
++	// and offset where that identifier's declaration can be read.
++	declImporter = map[*types.Sym]iimporterAndOffset{}
++
++	// inlineImporter is like declImporter, but for inline bodies
++	// for function and method symbols.
++	inlineImporter = map[*types.Sym]iimporterAndOffset{}
++)
++
++func expandDecl(n *Node) {
++	if n.Op != ONONAME {
++		return
++	}
++
++	r := importReaderFor(n, declImporter)
++	if r == nil {
++		// Can happen if user tries to reference an undeclared name.
++		return
++	}
++
++	inimport = true
++	r.doDecl(n)
++	inimport = false
++}
++
++func expandInline(fn *Node) {
++	if fn.Func.Inl.Body != nil {
++		return
++	}
++
++	r := importReaderFor(fn, inlineImporter)
++	if r == nil {
++		Fatalf("missing import reader for %v", fn)
++	}
++
++	r.doInline(fn)
++}
++
++func importReaderFor(n *Node, importers map[*types.Sym]iimporterAndOffset) *importReader {
++	x, ok := importers[n.Sym]
++	if !ok {
++		return nil
++	}
++
++	return x.p.newReader(x.off, n.Sym.Pkg)
++}
++
++type intReader struct {
++	*bio.Reader
++	pkg *types.Pkg
++}
++
++func (r *intReader) int64() int64 {
++	i, err := binary.ReadVarint(r.Reader)
++	if err != nil {
++		yyerror("import %q: read error: %v", r.pkg.Path, err)
++		errorexit()
++	}
++	return i
++}
++
++func (r *intReader) uint64() uint64 {
++	i, err := binary.ReadUvarint(r.Reader)
++	if err != nil {
++		yyerror("import %q: read error: %v", r.pkg.Path, err)
++		errorexit()
++	}
++	return i
++}
++
++func iimport(pkg *types.Pkg, in *bio.Reader) {
++	ir := &intReader{in, pkg}
++
++	version := ir.uint64()
++	if version != iexportVersion {
++		yyerror("import %q: unknown export format version %d", pkg.Path, version)
++		errorexit()
++	}
++
++	sLen := ir.uint64()
++	dLen := ir.uint64()
++
++	// Map string (and data) section into memory as a single large
++	// string. This reduces heap fragmentation and allows
++	// returning individual substrings very efficiently.
++	data, err := mapFile(in.File(), in.Offset(), int64(sLen+dLen))
++	if err != nil {
++		yyerror("import %q: mapping input: %v", pkg.Path, err)
++		errorexit()
++	}
++	stringData := data[:sLen]
++	declData := data[sLen:]
++
++	in.Seek(int64(sLen+dLen), os.SEEK_CUR)
++
++	p := &iimporter{
++		ipkg: pkg,
++
++		pkgCache:     map[uint64]*types.Pkg{},
++		posBaseCache: map[uint64]*src.PosBase{},
++		typCache:     map[uint64]*types.Type{},
++
++		stringData: stringData,
++		declData:   declData,
++	}
++
++	for i, pt := range predeclared() {
++		p.typCache[uint64(i)] = pt
++	}
++
++	// Declaration index.
++	for nPkgs := ir.uint64(); nPkgs > 0; nPkgs-- {
++		pkg := p.pkgAt(ir.uint64())
++		pkgName := p.stringAt(ir.uint64())
++		pkgHeight := int(ir.uint64())
++		if pkg.Name == "" {
++			pkg.Name = pkgName
++			pkg.Height = pkgHeight
++			numImport[pkgName]++
++
++			// TODO(mdempsky): This belongs somewhere else.
++			pkg.Lookup("_").Def = asTypesNode(nblank)
++		} else {
++			if pkg.Name != pkgName {
++				Fatalf("conflicting package names %v and %v for path %q", pkg.Name, pkgName, pkg.Path)
++			}
++			if pkg.Height != pkgHeight {
++				Fatalf("conflicting package heights %v and %v for path %q", pkg.Height, pkgHeight, pkg.Path)
++			}
++		}
++
++		for nSyms := ir.uint64(); nSyms > 0; nSyms-- {
++			s := pkg.Lookup(p.stringAt(ir.uint64()))
++			off := ir.uint64()
++
++			if _, ok := declImporter[s]; ok {
++				continue
++			}
++			declImporter[s] = iimporterAndOffset{p, off}
++
++			// Create stub declaration. If used, this will
++			// be overwritten by expandDecl.
++			if s.Def != nil {
++				Fatalf("unexpected definition for %v: %v", s, asNode(s.Def))
++			}
++			s.Def = asTypesNode(npos(src.NoXPos, dclname(s)))
++		}
++	}
++
++	// Inline body index.
++	for nPkgs := ir.uint64(); nPkgs > 0; nPkgs-- {
++		pkg := p.pkgAt(ir.uint64())
++
++		for nSyms := ir.uint64(); nSyms > 0; nSyms-- {
++			s := pkg.Lookup(p.stringAt(ir.uint64()))
++			off := ir.uint64()
++
++			if _, ok := inlineImporter[s]; ok {
++				continue
++			}
++			inlineImporter[s] = iimporterAndOffset{p, off}
++		}
++	}
++}
++
++type iimporter struct {
++	ipkg *types.Pkg
++
++	pkgCache     map[uint64]*types.Pkg
++	posBaseCache map[uint64]*src.PosBase
++	typCache     map[uint64]*types.Type
++
++	stringData string
++	declData   string
++}
++
++func (p *iimporter) stringAt(off uint64) string {
++	var x [binary.MaxVarintLen64]byte
++	n := copy(x[:], p.stringData[off:])
++
++	slen, n := binary.Uvarint(x[:n])
++	if n <= 0 {
++		Fatalf("varint failed")
++	}
++	spos := off + uint64(n)
++	return p.stringData[spos : spos+slen]
++}
++
++func (p *iimporter) posBaseAt(off uint64) *src.PosBase {
++	if posBase, ok := p.posBaseCache[off]; ok {
++		return posBase
++	}
++
++	file := p.stringAt(off)
++	posBase := src.NewFileBase(file, file)
++	p.posBaseCache[off] = posBase
++	return posBase
++}
++
++func (p *iimporter) pkgAt(off uint64) *types.Pkg {
++	if pkg, ok := p.pkgCache[off]; ok {
++		return pkg
++	}
++
++	pkg := p.ipkg
++	if pkgPath := p.stringAt(off); pkgPath != "" {
++		pkg = types.NewPkg(pkgPath, "")
++	}
++	p.pkgCache[off] = pkg
++	return pkg
++}
++
++// An importReader keeps state for reading an individual imported
++// object (declaration or inline body).
++type importReader struct {
++	strings.Reader
++	p *iimporter
++
++	currPkg  *types.Pkg
++	prevBase *src.PosBase
++	prevLine int64
++}
++
++func (p *iimporter) newReader(off uint64, pkg *types.Pkg) *importReader {
++	r := &importReader{
++		p:       p,
++		currPkg: pkg,
++	}
++	// (*strings.Reader).Reset wasn't added until Go 1.7, and we
++	// need to build with Go 1.4.
++	r.Reader = *strings.NewReader(p.declData[off:])
++	return r
++}
++
++func (r *importReader) string() string        { return r.p.stringAt(r.uint64()) }
++func (r *importReader) posBase() *src.PosBase { return r.p.posBaseAt(r.uint64()) }
++func (r *importReader) pkg() *types.Pkg       { return r.p.pkgAt(r.uint64()) }
++
++func (r *importReader) setPkg() {
++	r.currPkg = r.pkg()
++}
++
++func (r *importReader) doDecl(n *Node) {
++	if n.Op != ONONAME {
++		Fatalf("doDecl: unexpected Op for %v: %v", n.Sym, n.Op)
++	}
++
++	tag := r.byte()
++	pos := r.pos()
++
++	switch tag {
++	case 'A':
++		typ := r.typ()
++
++		importalias(r.p.ipkg, pos, n.Sym, typ)
++
++	case 'C':
++		typ, val := r.value()
++
++		importconst(r.p.ipkg, pos, n.Sym, typ, val)
++
++	case 'F':
++		typ := r.signature(nil)
++
++		importfunc(r.p.ipkg, pos, n.Sym, typ)
++		r.funcExt(n)
++
++	case 'T':
++		// Types can be recursive. We need to setup a stub
++		// declaration before recursing.
++		t := importtype(r.p.ipkg, pos, n.Sym)
++
++		underlying := r.typ()
++		copytype(typenod(t), underlying)
++
++		if underlying.IsInterface() {
++			break
++		}
++
++		ms := make([]*types.Field, r.uint64())
++		for i := range ms {
++			mpos := r.pos()
++			msym := r.ident()
++			recv := r.param()
++			mtyp := r.signature(recv)
++
++			f := types.NewField()
++			f.Pos = mpos
++			f.Sym = msym
++			f.Type = mtyp
++			ms[i] = f
++
++			m := newfuncnamel(mpos, methodSym(recv.Type, msym))
++			m.Type = mtyp
++			m.SetClass(PFUNC)
++
++			// (comment from parser.go)
++			// inl.C's inlnode in on a dotmeth node expects to find the inlineable body as
++			// (dotmeth's type).Nname.Inl, and dotmeth's type has been pulled
++			// out by typecheck's lookdot as this $$.ttype. So by providing
++			// this back link here we avoid special casing there.
++			mtyp.SetNname(asTypesNode(m))
++		}
++		t.Methods().Set(ms)
++
++		for _, m := range ms {
++			r.methExt(m)
++		}
++
++	case 'V':
++		typ := r.typ()
++
++		importvar(r.p.ipkg, pos, n.Sym, typ)
++		r.varExt(n)
++
++	default:
++		Fatalf("unexpected tag: %v", tag)
++	}
++}
++
++func (p *importReader) value() (typ *types.Type, v Val) {
++	typ = p.typ()
++
++	switch constTypeOf(typ) {
++	case CTNIL:
++		v.U = &NilVal{}
++	case CTBOOL:
++		v.U = p.bool()
++	case CTSTR:
++		v.U = p.string()
++	case CTINT:
++		x := new(Mpint)
++		x.Rune = typ == types.Idealrune
++		p.mpint(&x.Val, typ)
++		v.U = x
++	case CTFLT:
++		x := newMpflt()
++		p.float(x, typ)
++		v.U = x
++	case CTCPLX:
++		x := newMpcmplx()
++		p.float(&x.Real, typ)
++		p.float(&x.Imag, typ)
++		v.U = x
++	}
++
++	typ = idealType(typ)
++	return
++}
++
++func (p *importReader) mpint(x *big.Int, typ *types.Type) {
++	signed, maxBytes := intSize(typ)
++
++	maxSmall := 256 - maxBytes
++	if signed {
++		maxSmall = 256 - 2*maxBytes
++	}
++	if maxBytes == 1 {
++		maxSmall = 256
++	}
++
++	n, _ := p.ReadByte()
++	if uint(n) < maxSmall {
++		v := int64(n)
++		if signed {
++			v >>= 1
++			if n&1 != 0 {
++				v = ^v
++			}
++		}
++		x.SetInt64(v)
++		return
++	}
++
++	v := -n
++	if signed {
++		v = -(n &^ 1) >> 1
++	}
++	if v < 1 || uint(v) > maxBytes {
++		Fatalf("weird decoding: %v, %v => %v", n, signed, v)
++	}
++	b := make([]byte, v)
++	p.Read(b)
++	x.SetBytes(b)
++	if signed && n&1 != 0 {
++		x.Neg(x)
++	}
++}
++
++func (p *importReader) float(x *Mpflt, typ *types.Type) {
++	var mant big.Int
++	p.mpint(&mant, typ)
++	m := x.Val.SetInt(&mant)
++	if m.Sign() == 0 {
++		return
++	}
++	m.SetMantExp(m, int(p.int64()))
++}
++
++func (r *importReader) ident() *types.Sym {
++	name := r.string()
++	if name == "" {
++		return nil
++	}
++	pkg := r.currPkg
++	if types.IsExported(name) {
++		pkg = localpkg
++	}
++	return pkg.Lookup(name)
++}
++
++func (r *importReader) qualifiedIdent() *types.Sym {
++	name := r.string()
++	pkg := r.pkg()
++	return pkg.Lookup(name)
++}
++
++func (r *importReader) pos() src.XPos {
++	delta := r.int64()
++	if delta != deltaNewFile {
++		r.prevLine += delta
++	} else if l := r.int64(); l == -1 {
++		r.prevLine += deltaNewFile
++	} else {
++		r.prevBase = r.posBase()
++		r.prevLine = l
++	}
++
++	if (r.prevBase == nil || r.prevBase.AbsFilename() == "") && r.prevLine == 0 {
++		// TODO(mdempsky): Remove once we reliably write
++		// position information for all nodes.
++		return src.NoXPos
++	}
++
++	if r.prevBase == nil {
++		Fatalf("missing posbase")
++	}
++	pos := src.MakePos(r.prevBase, uint(r.prevLine), 0)
++	return Ctxt.PosTable.XPos(pos)
++}
++
++func (r *importReader) typ() *types.Type {
++	return r.p.typAt(r.uint64())
++}
++
++func (p *iimporter) typAt(off uint64) *types.Type {
++	t, ok := p.typCache[off]
++	if !ok {
++		if off < predeclReserved {
++			Fatalf("predeclared type missing from cache: %d", off)
++		}
++		t = p.newReader(off-predeclReserved, nil).typ1()
++		p.typCache[off] = t
++	}
++	return t
++}
++
++func (r *importReader) typ1() *types.Type {
++	switch k := r.kind(); k {
++	default:
++		Fatalf("unexpected kind tag in %q: %v", r.p.ipkg.Path, k)
++		return nil
++
++	case definedType:
++		// We might be called from within doInline, in which
++		// case Sym.Def can point to declared parameters
++		// instead of the top-level types. Also, we don't
++		// support inlining functions with local defined
++		// types. Therefore, this must be a package-scope
++		// type.
++		n := asNode(r.qualifiedIdent().PkgDef())
++		if n.Op == ONONAME {
++			expandDecl(n)
++		}
++		if n.Op != OTYPE {
++			Fatalf("expected OTYPE, got %v: %v, %v", n.Op, n.Sym, n)
++		}
++		return n.Type
++	case pointerType:
++		return types.NewPtr(r.typ())
++	case sliceType:
++		return types.NewSlice(r.typ())
++	case arrayType:
++		n := r.uint64()
++		return types.NewArray(r.typ(), int64(n))
++	case chanType:
++		dir := types.ChanDir(r.uint64())
++		return types.NewChan(r.typ(), dir)
++	case mapType:
++		return types.NewMap(r.typ(), r.typ())
++
++	case signatureType:
++		r.setPkg()
++		return r.signature(nil)
++
++	case structType:
++		r.setPkg()
++
++		fs := make([]*types.Field, r.uint64())
++		for i := range fs {
++			pos := r.pos()
++			sym := r.ident()
++			typ := r.typ()
++			emb := r.bool()
++			note := r.string()
++
++			f := types.NewField()
++			f.Pos = pos
++			f.Sym = sym
++			f.Type = typ
++			if emb {
++				f.Embedded = 1
++			}
++			f.Note = note
++			fs[i] = f
++		}
++
++		t := types.New(TSTRUCT)
++		t.SetPkg(r.currPkg)
++		t.SetFields(fs)
++		return t
++
++	case interfaceType:
++		r.setPkg()
++
++		embeddeds := make([]*types.Field, r.uint64())
++		for i := range embeddeds {
++			pos := r.pos()
++			typ := r.typ()
++
++			f := types.NewField()
++			f.Pos = pos
++			f.Type = typ
++			embeddeds[i] = f
++		}
++
++		methods := make([]*types.Field, r.uint64())
++		for i := range methods {
++			pos := r.pos()
++			sym := r.ident()
++			typ := r.signature(fakeRecvField())
++
++			f := types.NewField()
++			f.Pos = pos
++			f.Sym = sym
++			f.Type = typ
++			methods[i] = f
++		}
++
++		t := types.New(TINTER)
++		t.SetPkg(r.currPkg)
++		t.SetInterface(append(embeddeds, methods...))
++		return t
++	}
++}
++
++func (r *importReader) kind() itag {
++	return itag(r.uint64())
++}
++
++func (r *importReader) signature(recv *types.Field) *types.Type {
++	params := r.paramList()
++	results := r.paramList()
++	if n := len(params); n > 0 {
++		params[n-1].SetIsddd(r.bool())
++	}
++	t := functypefield(recv, params, results)
++	t.SetPkg(r.currPkg)
++	return t
++}
++
++func (r *importReader) paramList() []*types.Field {
++	fs := make([]*types.Field, r.uint64())
++	for i := range fs {
++		fs[i] = r.param()
++	}
++	return fs
++}
++
++func (r *importReader) param() *types.Field {
++	f := types.NewField()
++	f.Pos = r.pos()
++	f.Sym = r.ident()
++	f.Type = r.typ()
++	return f
++}
++
++func (r *importReader) bool() bool {
++	return r.uint64() != 0
++}
++
++func (r *importReader) int64() int64 {
++	n, err := binary.ReadVarint(r)
++	if err != nil {
++		Fatalf("readVarint: %v", err)
++	}
++	return n
++}
++
++func (r *importReader) uint64() uint64 {
++	n, err := binary.ReadUvarint(r)
++	if err != nil {
++		Fatalf("readVarint: %v", err)
++	}
++	return n
++}
++
++func (r *importReader) byte() byte {
++	x, err := r.ReadByte()
++	if err != nil {
++		Fatalf("declReader.ReadByte: %v", err)
++	}
++	return x
++}
++
++// Compiler-specific extensions.
++
++func (r *importReader) varExt(n *Node) {
++	r.linkname(n.Sym)
++}
++
++func (r *importReader) funcExt(n *Node) {
++	r.linkname(n.Sym)
++
++	// Escape analysis.
++	for _, fs := range types.RecvsParams {
++		for _, f := range fs(n.Type).FieldSlice() {
++			f.Note = r.string()
++		}
++	}
++
++	// Inline body.
++	if u := r.uint64(); u > 0 {
++		n.Func.Inl = &Inline{
++			Cost: int32(u - 1),
++		}
++	}
++}
++
++func (r *importReader) methExt(m *types.Field) {
++	if r.bool() {
++		m.SetNointerface(true)
++	}
++	r.funcExt(asNode(m.Type.Nname()))
++}
++
++func (r *importReader) linkname(s *types.Sym) {
++	s.Linkname = r.string()
++}
++
++func (r *importReader) doInline(n *Node) {
++	if len(n.Func.Inl.Body) != 0 {
++		Fatalf("%v already has inline body", n)
++	}
++
++	funchdr(n)
++	body := r.stmtList()
++	funcbody()
++	if body == nil {
++		//
++		// Make sure empty body is not interpreted as
++		// no inlineable body (see also parser.fnbody)
++		// (not doing so can cause significant performance
++		// degradation due to unnecessary calls to empty
++		// functions).
++		body = []*Node{}
++	}
++	n.Func.Inl.Body = body
++
++	importlist = append(importlist, n)
++
++	if Debug['E'] > 0 && Debug['m'] > 2 {
++		if Debug['m'] > 3 {
++			fmt.Printf("inl body for %v %#v: %+v\n", n, n.Type, asNodes(n.Func.Inl.Body))
++		} else {
++			fmt.Printf("inl body for %v %#v: %v\n", n, n.Type, asNodes(n.Func.Inl.Body))
++		}
++	}
++}
++
++// ----------------------------------------------------------------------------
++// Inlined function bodies
++
++// Approach: Read nodes and use them to create/declare the same data structures
++// as done originally by the (hidden) parser by closely following the parser's
++// original code. In other words, "parsing" the import data (which happens to
++// be encoded in binary rather textual form) is the best way at the moment to
++// re-establish the syntax tree's invariants. At some future point we might be
++// able to avoid this round-about way and create the rewritten nodes directly,
++// possibly avoiding a lot of duplicate work (name resolution, type checking).
++//
++// Refined nodes (e.g., ODOTPTR as a refinement of OXDOT) are exported as their
++// unrefined nodes (since this is what the importer uses). The respective case
++// entries are unreachable in the importer.
++
++func (r *importReader) stmtList() []*Node {
++	var list []*Node
++	for {
++		n := r.node()
++		if n == nil {
++			break
++		}
++		// OBLOCK nodes may be created when importing ODCL nodes - unpack them
++		if n.Op == OBLOCK {
++			list = append(list, n.List.Slice()...)
++		} else {
++			list = append(list, n)
++		}
++
++	}
++	return list
++}
++
++func (r *importReader) exprList() []*Node {
++	var list []*Node
++	for {
++		n := r.expr()
++		if n == nil {
++			break
++		}
++		list = append(list, n)
++	}
++	return list
++}
++
++func (r *importReader) expr() *Node {
++	n := r.node()
++	if n != nil && n.Op == OBLOCK {
++		Fatalf("unexpected block node: %v", n)
++	}
++	return n
++}
++
++// TODO(gri) split into expr and stmt
++func (r *importReader) node() *Node {
++	switch op := r.op(); op {
++	// expressions
++	// case OPAREN:
++	// 	unreachable - unpacked by exporter
++
++	// case ODDDARG:
++	//	unimplemented
++
++	case OLITERAL:
++		pos := r.pos()
++		typ, val := r.value()
++
++		n := npos(pos, nodlit(val))
++		n.Type = typ
++		return n
++
++	case ONONAME:
++		return mkname(r.qualifiedIdent())
++
++	case ONAME:
++		return mkname(r.ident())
++
++	// case OPACK, ONONAME:
++	// 	unreachable - should have been resolved by typechecking
++
++	case OTYPE:
++		return typenod(r.typ())
++
++	// case OTARRAY, OTMAP, OTCHAN, OTSTRUCT, OTINTER, OTFUNC:
++	//      unreachable - should have been resolved by typechecking
++
++	// case OCLOSURE:
++	//	unimplemented
++
++	case OPTRLIT:
++		pos := r.pos()
++		n := npos(pos, r.expr())
++		if !r.bool() /* !implicit, i.e. '&' operator */ {
++			if n.Op == OCOMPLIT {
++				// Special case for &T{...}: turn into (*T){...}.
++				n.Right = nodl(pos, OIND, n.Right, nil)
++				n.Right.SetImplicit(true)
++			} else {
++				n = nodl(pos, OADDR, n, nil)
++			}
++		}
++		return n
++
++	case OSTRUCTLIT:
++		// TODO(mdempsky): Export position information for OSTRUCTKEY nodes.
++		savedlineno := lineno
++		lineno = r.pos()
++		n := nodl(lineno, OCOMPLIT, nil, typenod(r.typ()))
++		n.List.Set(r.elemList()) // special handling of field names
++		lineno = savedlineno
++		return n
++
++	// case OARRAYLIT, OSLICELIT, OMAPLIT:
++	// 	unreachable - mapped to case OCOMPLIT below by exporter
++
++	case OCOMPLIT:
++		n := nodl(r.pos(), OCOMPLIT, nil, typenod(r.typ()))
++		n.List.Set(r.exprList())
++		return n
++
++	case OKEY:
++		pos := r.pos()
++		left, right := r.exprsOrNil()
++		return nodl(pos, OKEY, left, right)
++
++	// case OSTRUCTKEY:
++	//	unreachable - handled in case OSTRUCTLIT by elemList
++
++	// case OCALLPART:
++	//	unimplemented
++
++	// case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
++	// 	unreachable - mapped to case OXDOT below by exporter
++
++	case OXDOT:
++		// see parser.new_dotname
++		return npos(r.pos(), nodSym(OXDOT, r.expr(), r.ident()))
++
++	// case ODOTTYPE, ODOTTYPE2:
++	// 	unreachable - mapped to case ODOTTYPE below by exporter
++
++	case ODOTTYPE:
++		n := nodl(r.pos(), ODOTTYPE, r.expr(), nil)
++		n.Type = r.typ()
++		return n
++
++	// case OINDEX, OINDEXMAP, OSLICE, OSLICESTR, OSLICEARR, OSLICE3, OSLICE3ARR:
++	// 	unreachable - mapped to cases below by exporter
++
++	case OINDEX:
++		return nodl(r.pos(), op, r.expr(), r.expr())
++
++	case OSLICE, OSLICE3:
++		n := nodl(r.pos(), op, r.expr(), nil)
++		low, high := r.exprsOrNil()
++		var max *Node
++		if n.Op.IsSlice3() {
++			max = r.expr()
++		}
++		n.SetSliceBounds(low, high, max)
++		return n
++
++	// case OCONV, OCONVIFACE, OCONVNOP, OARRAYBYTESTR, OARRAYRUNESTR, OSTRARRAYBYTE, OSTRARRAYRUNE, ORUNESTR:
++	// 	unreachable - mapped to OCONV case below by exporter
++
++	case OCONV:
++		n := nodl(r.pos(), OCONV, r.expr(), nil)
++		n.Type = r.typ()
++		return n
++
++	case OCOPY, OCOMPLEX, OREAL, OIMAG, OAPPEND, OCAP, OCLOSE, ODELETE, OLEN, OMAKE, ONEW, OPANIC, ORECOVER, OPRINT, OPRINTN:
++		n := npos(r.pos(), builtinCall(op))
++		n.List.Set(r.exprList())
++		if op == OAPPEND {
++			n.SetIsddd(r.bool())
++		}
++		return n
++
++	// case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER, OGETG:
++	// 	unreachable - mapped to OCALL case below by exporter
++
++	case OCALL:
++		n := nodl(r.pos(), OCALL, r.expr(), nil)
++		n.List.Set(r.exprList())
++		n.SetIsddd(r.bool())
++		return n
++
++	case OMAKEMAP, OMAKECHAN, OMAKESLICE:
++		n := npos(r.pos(), builtinCall(OMAKE))
++		n.List.Append(typenod(r.typ()))
++		n.List.Append(r.exprList()...)
++		return n
++
++	// unary expressions
++	case OPLUS, OMINUS, OADDR, OCOM, OIND, ONOT, ORECV:
++		return nodl(r.pos(), op, r.expr(), nil)
++
++	// binary expressions
++	case OADD, OAND, OANDAND, OANDNOT, ODIV, OEQ, OGE, OGT, OLE, OLT,
++		OLSH, OMOD, OMUL, ONE, OOR, OOROR, ORSH, OSEND, OSUB, OXOR:
++		return nodl(r.pos(), op, r.expr(), r.expr())
++
++	case OADDSTR:
++		pos := r.pos()
++		list := r.exprList()
++		x := npos(pos, list[0])
++		for _, y := range list[1:] {
++			x = nodl(pos, OADD, x, y)
++		}
++		return x
++
++	// case OCMPSTR, OCMPIFACE:
++	// 	unreachable - mapped to std comparison operators by exporter
++
++	// --------------------------------------------------------------------
++	// statements
++	case ODCL:
++		pos := r.pos()
++		lhs := npos(pos, dclname(r.ident()))
++		typ := typenod(r.typ())
++		return npos(pos, liststmt(variter([]*Node{lhs}, typ, nil))) // TODO(gri) avoid list creation
++
++	// case ODCLFIELD:
++	//	unimplemented
++
++	// case OAS, OASWB:
++	// 	unreachable - mapped to OAS case below by exporter
++
++	case OAS:
++		return nodl(r.pos(), OAS, r.expr(), r.expr())
++
++	case OASOP:
++		n := nodl(r.pos(), OASOP, nil, nil)
++		n.SetSubOp(r.op())
++		n.Left = r.expr()
++		if !r.bool() {
++			n.Right = nodintconst(1)
++			n.SetImplicit(true)
++		} else {
++			n.Right = r.expr()
++		}
++		return n
++
++	// case OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
++	// 	unreachable - mapped to OAS2 case below by exporter
++
++	case OAS2:
++		n := nodl(r.pos(), OAS2, nil, nil)
++		n.List.Set(r.exprList())
++		n.Rlist.Set(r.exprList())
++		return n
++
++	case ORETURN:
++		n := nodl(r.pos(), ORETURN, nil, nil)
++		n.List.Set(r.exprList())
++		return n
++
++	// case ORETJMP:
++	// 	unreachable - generated by compiler for trampolin routines (not exported)
++
++	case OPROC, ODEFER:
++		return nodl(r.pos(), op, r.expr(), nil)
++
++	case OIF:
++		n := nodl(r.pos(), OIF, nil, nil)
++		n.Ninit.Set(r.stmtList())
++		n.Left = r.expr()
++		n.Nbody.Set(r.stmtList())
++		n.Rlist.Set(r.stmtList())
++		return n
++
++	case OFOR:
++		n := nodl(r.pos(), OFOR, nil, nil)
++		n.Ninit.Set(r.stmtList())
++		n.Left, n.Right = r.exprsOrNil()
++		n.Nbody.Set(r.stmtList())
++		return n
++
++	case ORANGE:
++		n := nodl(r.pos(), ORANGE, nil, nil)
++		n.List.Set(r.stmtList())
++		n.Right = r.expr()
++		n.Nbody.Set(r.stmtList())
++		return n
++
++	case OSELECT, OSWITCH:
++		n := nodl(r.pos(), op, nil, nil)
++		n.Ninit.Set(r.stmtList())
++		n.Left, _ = r.exprsOrNil()
++		n.List.Set(r.stmtList())
++		return n
++
++	// case OCASE, OXCASE:
++	// 	unreachable - mapped to OXCASE case below by exporter
++
++	case OXCASE:
++		n := nodl(r.pos(), OXCASE, nil, nil)
++		n.List.Set(r.exprList())
++		// TODO(gri) eventually we must declare variables for type switch
++		// statements (type switch statements are not yet exported)
++		n.Nbody.Set(r.stmtList())
++		return n
++
++	// case OFALL:
++	// 	unreachable - mapped to OXFALL case below by exporter
++
++	case OFALL:
++		n := nodl(r.pos(), OFALL, nil, nil)
++		return n
++
++	case OBREAK, OCONTINUE:
++		pos := r.pos()
++		left, _ := r.exprsOrNil()
++		if left != nil {
++			left = newname(left.Sym)
++		}
++		return nodl(pos, op, left, nil)
++
++	// case OEMPTY:
++	// 	unreachable - not emitted by exporter
++
++	case OGOTO, OLABEL:
++		return nodl(r.pos(), op, newname(r.expr().Sym), nil)
++
++	case OEND:
++		return nil
++
++	default:
++		Fatalf("cannot import %v (%d) node\n"+
++			"==> please file an issue and assign to gri@\n", op, int(op))
++		panic("unreachable") // satisfy compiler
++	}
++}
++
++func (r *importReader) op() Op {
++	return Op(r.uint64())
++}
++
++func (r *importReader) elemList() []*Node {
++	c := r.uint64()
++	list := make([]*Node, c)
++	for i := range list {
++		s := r.ident()
++		list[i] = nodSym(OSTRUCTKEY, r.expr(), s)
++	}
++	return list
++}
++
++func (r *importReader) exprsOrNil() (a, b *Node) {
++	ab := r.uint64()
++	if ab&1 != 0 {
++		a = r.expr()
++	}
++	if ab&2 != 0 {
++		b = r.expr()
++	}
++	return
++}
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 88179d7135..4029955e4d 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -59,6 +59,10 @@ func fnpkg(fn *Node) *types.Pkg {
+ func typecheckinl(fn *Node) {
+ 	lno := setlineno(fn)
+ 
++	if flagiexport {
++		expandInline(fn)
++	}
++
+ 	// typecheckinl is only for imported functions;
+ 	// their bodies may refer to unsafe as long as the package
+ 	// was marked safe during import (which was checked then).
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 80c7db5357..7b8bdfa9f7 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -244,6 +244,7 @@ func Main(archInit func(*Arch)) {
+ 	flag.StringVar(&blockprofile, "blockprofile", "", "write block profile to `file`")
+ 	flag.StringVar(&mutexprofile, "mutexprofile", "", "write mutex profile to `file`")
+ 	flag.StringVar(&benchfile, "bench", "", "append benchmark times to `file`")
++	flag.BoolVar(&flagiexport, "iexport", false, "export indexed package data")
+ 	objabi.Flagparse(usage)
+ 
+ 	// Record flags that affect the build result. (And don't
+@@ -1107,7 +1108,20 @@ func importfile(f *Val) *types.Pkg {
+ 			fmt.Printf("importing %s (%s)\n", path_, file)
+ 		}
+ 		imp.ReadByte() // skip \n after $$B
+-		Import(importpkg, imp.Reader)
++
++		c, err = imp.ReadByte()
++		if err != nil {
++			yyerror("import %s: reading input: %v", file, err)
++			errorexit()
++		}
++
++		if c == 'i' {
++			iimport(importpkg, imp)
++		} else {
++			// Old export format always starts with 'c', 'd', or 'v'.
++			imp.UnreadByte()
++			Import(importpkg, imp.Reader)
++		}
+ 
+ 	default:
+ 		yyerror("no import in %q", path_)
+diff --git a/src/cmd/compile/internal/gc/mapfile_mmap.go b/src/cmd/compile/internal/gc/mapfile_mmap.go
+new file mode 100644
+index 0000000000..9483688d68
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/mapfile_mmap.go
+@@ -0,0 +1,48 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux netbsd openbsd
++
++package gc
++
++import (
++	"os"
++	"reflect"
++	"syscall"
++	"unsafe"
++)
++
++// TODO(mdempsky): Is there a higher-level abstraction that still
++// works well for iimport?
++
++// mapFile returns length bytes from the file starting at the
++// specified offset as a string.
++func mapFile(f *os.File, offset, length int64) (string, error) {
++	// POSIX mmap: "The implementation may require that off is a
++	// multiple of the page size."
++	x := offset & int64(os.Getpagesize()-1)
++	offset -= x
++	length += x
++
++	buf, err := syscall.Mmap(int(f.Fd()), offset, int(length), syscall.PROT_READ, syscall.MAP_SHARED)
++	keepAlive(f)
++	if err != nil {
++		return "", err
++	}
++
++	buf = buf[x:]
++	pSlice := (*reflect.SliceHeader)(unsafe.Pointer(&buf))
++
++	var res string
++	pString := (*reflect.StringHeader)(unsafe.Pointer(&res))
++
++	pString.Data = pSlice.Data
++	pString.Len = pSlice.Len
++
++	return res, nil
++}
++
++// keepAlive is a reimplementation of runtime.KeepAlive, which wasn't
++// added until Go 1.7, whereas we need to compile with Go 1.4.
++var keepAlive = func(interface{}) {}
+diff --git a/src/cmd/compile/internal/gc/mapfile_read.go b/src/cmd/compile/internal/gc/mapfile_read.go
+new file mode 100644
+index 0000000000..c6f68ed5df
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/mapfile_read.go
+@@ -0,0 +1,21 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !darwin,!dragonfly,!freebsd,!linux,!netbsd,!openbsd
++
++package gc
++
++import (
++	"io"
++	"os"
++)
++
++func mapFile(f *os.File, offset, length int64) (string, error) {
++	buf := make([]byte, length)
++	_, err := io.ReadFull(io.NewSectionReader(f, offset, length), buf)
++	if err != nil {
++		return "", err
++	}
++	return string(buf), nil
++}
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index ecd039ae78..98ac9b36b8 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -67,6 +67,17 @@ func parseFiles(filenames []string) uint {
+ 
+ 	localpkg.Height = myheight
+ 
++	if flagiexport {
++		// init.go requires all imported init functions to be
++		// fully resolved.
++		// TODO(mdempsky): Can this be done elsewhere more cleanly?
++		for _, s := range types.InitSyms {
++			if n := asNode(s.Def); n != nil && s.Pkg != localpkg {
++				resolve(n)
++			}
++		}
++	}
++
+ 	return lines
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index e131d1eafe..5db6f0c810 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1588,6 +1588,7 @@ func structargs(tl *types.Type, mustname bool) []*Node {
+ 			gen++
+ 		}
+ 		a := symfield(s, t.Type)
++		a.Pos = t.Pos
+ 		a.SetIsddd(t.Isddd())
+ 		args = append(args, a)
+ 	}
+@@ -1705,7 +1706,13 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
+ 	Curfn = fn
+ 	typecheckslice(fn.Nbody.Slice(), Etop)
+ 
+-	inlcalls(fn)
++	// TODO(mdempsky): Investigate why this doesn't work with
++	// indexed export. For now, we disable even in non-indexed
++	// mode to ensure fair benchmark comparisons and to track down
++	// unintended compilation differences.
++	if false {
++		inlcalls(fn)
++	}
+ 	escAnalyze([]*Node{fn}, false)
+ 
+ 	Curfn = nil
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 00c3242815..d8a39f9fc6 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -32,21 +32,30 @@ var typecheckdefstack []*Node
+ 
+ // resolve ONONAME to definition, if any.
+ func resolve(n *Node) *Node {
+-	if n != nil && n.Op == ONONAME && n.Sym != nil {
+-		r := asNode(n.Sym.Def)
+-		if r != nil {
+-			if r.Op != OIOTA {
+-				n = r
+-			} else if len(typecheckdefstack) > 0 {
+-				x := typecheckdefstack[len(typecheckdefstack)-1]
+-				if x.Op == OLITERAL {
+-					n = nodintconst(x.Iota())
+-				}
++	if n == nil || n.Op != ONONAME {
++		return n
++	}
++
++	if n.Sym.Pkg != localpkg {
++		expandDecl(n)
++		return n
++	}
++
++	r := asNode(n.Sym.Def)
++	if r == nil {
++		return n
++	}
++
++	if r.Op == OIOTA {
++		if i := len(typecheckdefstack); i > 0 {
++			if x := typecheckdefstack[i-1]; x.Op == OLITERAL {
++				return nodintconst(x.Iota())
+ 			}
+ 		}
++		return n
+ 	}
+ 
+-	return n
++	return r
+ }
+ 
+ func typecheckslice(l []*Node, top int) {
+diff --git a/src/cmd/compile/internal/types/scope.go b/src/cmd/compile/internal/types/scope.go
+index aef3b3bbe0..156174746f 100644
+--- a/src/cmd/compile/internal/types/scope.go
++++ b/src/cmd/compile/internal/types/scope.go
+@@ -77,3 +77,18 @@ func IsDclstackValid() bool {
+ 	}
+ 	return true
+ }
++
++// PkgDef returns the definition associated with s at package scope.
++func (s *Sym) PkgDef() *Node {
++	// Look for outermost saved declaration, which must be the
++	// package scope definition, if present.
++	for _, d := range dclstack {
++		if s == d.sym {
++			return d.def
++		}
++	}
++
++	// Otherwise, the declaration hasn't been shadowed within a
++	// function scope.
++	return s.Def
++}
+diff --git a/src/cmd/internal/bio/buf.go b/src/cmd/internal/bio/buf.go
+index 54ce3c7681..a3edd74383 100644
+--- a/src/cmd/internal/bio/buf.go
++++ b/src/cmd/internal/bio/buf.go
+@@ -97,3 +97,11 @@ func (w *Writer) Close() error {
+ 	}
+ 	return err
+ }
++
++func (r *Reader) File() *os.File {
++	return r.f
++}
++
++func (w *Writer) File() *os.File {
++	return w.f
++}
+diff --git a/src/go/internal/gcimporter/bimport.go b/src/go/internal/gcimporter/bimport.go
+index 98fc2ae387..e736c4067b 100644
+--- a/src/go/internal/gcimporter/bimport.go
++++ b/src/go/internal/gcimporter/bimport.go
+@@ -59,6 +59,10 @@ func BImportData(fset *token.FileSet, imports map[string]*types.Package, data []
+ 		}
+ 	}()
+ 
++	if len(data) > 0 && data[0] == 'i' {
++		return iImportData(fset, imports, data[1:], path)
++	}
++
+ 	p := importer{
+ 		imports:    imports,
+ 		data:       data,
+diff --git a/src/go/internal/gcimporter/iimport.go b/src/go/internal/gcimporter/iimport.go
+new file mode 100644
+index 0000000000..cd3046897a
+--- /dev/null
++++ b/src/go/internal/gcimporter/iimport.go
+@@ -0,0 +1,583 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Indexed package import.
++// See cmd/compile/internal/gc/iexport.go for the export data format.
++
++package gcimporter
++
++import (
++	"bytes"
++	"encoding/binary"
++	"go/constant"
++	"go/token"
++	"go/types"
++	"io"
++	"sort"
++)
++
++type intReader struct {
++	*bytes.Reader
++	path string
++}
++
++func (r *intReader) int64() int64 {
++	i, err := binary.ReadVarint(r.Reader)
++	if err != nil {
++		errorf("import %q: read varint error: %v", r.path, err)
++	}
++	return i
++}
++
++func (r *intReader) uint64() uint64 {
++	i, err := binary.ReadUvarint(r.Reader)
++	if err != nil {
++		errorf("import %q: read varint error: %v", r.path, err)
++	}
++	return i
++}
++
++const predeclReserved = 32
++
++type itag uint64
++
++const (
++	// Types
++	definedType itag = iota
++	pointerType
++	sliceType
++	arrayType
++	chanType
++	mapType
++	signatureType
++	structType
++	interfaceType
++)
++
++// iImportData imports a package from the serialized package data
++// and returns the number of bytes consumed and a reference to the package.
++// If the export data version is not recognized or the format is otherwise
++// compromised, an error is returned.
++func iImportData(fset *token.FileSet, imports map[string]*types.Package, data []byte, path string) (_ int, pkg *types.Package, err error) {
++	r := &intReader{bytes.NewReader(data), path}
++
++	version := r.uint64()
++	switch version {
++	case 0:
++	default:
++		errorf("cannot import %q: unknown iexport format version %d", path, version)
++	}
++
++	sLen := int64(r.uint64())
++	dLen := int64(r.uint64())
++
++	whence, _ := r.Seek(0, io.SeekCurrent)
++	stringData := data[whence : whence+sLen]
++	declData := data[whence+sLen : whence+sLen+dLen]
++	r.Seek(sLen+dLen, io.SeekCurrent)
++
++	p := iimporter{
++		ipath: path,
++
++		stringData:  stringData,
++		stringCache: make(map[uint64]string),
++		pkgCache:    make(map[uint64]*types.Package),
++
++		declData: declData,
++		pkgIndex: make(map[*types.Package]map[string]uint64),
++		typCache: make(map[uint64]types.Type),
++
++		fake: fakeFileSet{
++			fset:  fset,
++			files: make(map[string]*token.File),
++		},
++	}
++
++	for i, pt := range predeclared {
++		p.typCache[uint64(i)] = pt
++	}
++
++	pkgList := make([]*types.Package, r.uint64())
++	for i := range pkgList {
++		pkgPathOff := r.uint64()
++		pkgPath := p.stringAt(pkgPathOff)
++		pkgName := p.stringAt(r.uint64())
++		_ = r.uint64() // package height; unused by go/types
++
++		if pkgPath == "" {
++			pkgPath = path
++		}
++		pkg := imports[pkgPath]
++		if pkg == nil {
++			pkg = types.NewPackage(pkgPath, pkgName)
++			imports[pkgPath] = pkg
++		} else if pkg.Name() != pkgName {
++			errorf("conflicting names %s and %s for package %q", pkg.Name(), pkgName, path)
++		}
++
++		p.pkgCache[pkgPathOff] = pkg
++
++		nameIndex := make(map[string]uint64)
++		for nSyms := r.uint64(); nSyms > 0; nSyms-- {
++			name := p.stringAt(r.uint64())
++			nameIndex[name] = r.uint64()
++		}
++
++		p.pkgIndex[pkg] = nameIndex
++		pkgList[i] = pkg
++	}
++
++	localpkg := pkgList[0]
++
++	names := make([]string, 0, len(p.pkgIndex[localpkg]))
++	for name := range p.pkgIndex[localpkg] {
++		names = append(names, name)
++	}
++	sort.Strings(names)
++	for _, name := range names {
++		p.doDecl(localpkg, name)
++	}
++
++	for _, typ := range p.interfaceList {
++		typ.Complete()
++	}
++
++	// record all referenced packages as imports
++	list := append(([]*types.Package)(nil), pkgList[1:]...)
++	sort.Sort(byPath(list))
++	localpkg.SetImports(list)
++
++	// package was imported completely and without errors
++	localpkg.MarkComplete()
++
++	consumed, _ := r.Seek(0, io.SeekCurrent)
++	return int(consumed), localpkg, nil
++}
++
++type iimporter struct {
++	ipath string
++
++	stringData  []byte
++	stringCache map[uint64]string
++	pkgCache    map[uint64]*types.Package
++
++	declData []byte
++	pkgIndex map[*types.Package]map[string]uint64
++	typCache map[uint64]types.Type
++
++	fake          fakeFileSet
++	interfaceList []*types.Interface
++}
++
++func (p *iimporter) doDecl(pkg *types.Package, name string) {
++	// See if we've already imported this declaration.
++	if obj := pkg.Scope().Lookup(name); obj != nil {
++		return
++	}
++
++	off, ok := p.pkgIndex[pkg][name]
++	if !ok {
++		errorf("%v.%v not in index", pkg, name)
++	}
++
++	r := &importReader{p: p, currPkg: pkg}
++	r.declReader.Reset(p.declData[off:])
++
++	r.obj(name)
++}
++
++func (p *iimporter) stringAt(off uint64) string {
++	if s, ok := p.stringCache[off]; ok {
++		return s
++	}
++
++	slen, n := binary.Uvarint(p.stringData[off:])
++	if n <= 0 {
++		errorf("varint failed")
++	}
++	spos := off + uint64(n)
++	s := string(p.stringData[spos : spos+slen])
++	p.stringCache[off] = s
++	return s
++}
++
++func (p *iimporter) pkgAt(off uint64) *types.Package {
++	if pkg, ok := p.pkgCache[off]; ok {
++		return pkg
++	}
++	path := p.stringAt(off)
++	errorf("missing package %q in %q", path, p.ipath)
++	return nil
++}
++
++func (p *iimporter) typAt(off uint64, base *types.Named) types.Type {
++	if t, ok := p.typCache[off]; ok && (base == nil || !isInterface(t)) {
++		return t
++	}
++
++	if off < predeclReserved {
++		errorf("predeclared type missing from cache: %v", off)
++	}
++
++	r := &importReader{p: p}
++	r.declReader.Reset(p.declData[off-predeclReserved:])
++	t := r.doType(base)
++
++	if base == nil || !isInterface(t) {
++		p.typCache[off] = t
++	}
++	return t
++}
++
++type importReader struct {
++	p          *iimporter
++	declReader bytes.Reader
++	currPkg    *types.Package
++	prevFile   string
++	prevLine   int64
++}
++
++func (r *importReader) obj(name string) {
++	tag := r.byte()
++	pos := r.pos()
++
++	switch tag {
++	case 'A':
++		typ := r.typ()
++
++		r.declare(types.NewTypeName(pos, r.currPkg, name, typ))
++
++	case 'C':
++		typ, val := r.value()
++
++		r.declare(types.NewConst(pos, r.currPkg, name, typ, val))
++
++	case 'F':
++		sig := r.signature(nil)
++
++		r.declare(types.NewFunc(pos, r.currPkg, name, sig))
++
++	case 'T':
++		// Types can be recursive. We need to setup a stub
++		// declaration before recursing.
++		obj := types.NewTypeName(pos, r.currPkg, name, nil)
++		named := types.NewNamed(obj, nil, nil)
++		r.declare(obj)
++
++		underlying := r.p.typAt(r.uint64(), named).Underlying()
++		named.SetUnderlying(underlying)
++
++		if !isInterface(underlying) {
++			for n := r.uint64(); n > 0; n-- {
++				mpos := r.pos()
++				mname := r.ident()
++				recv := r.param()
++				msig := r.signature(recv)
++
++				named.AddMethod(types.NewFunc(mpos, r.currPkg, mname, msig))
++			}
++		}
++
++	case 'V':
++		typ := r.typ()
++
++		r.declare(types.NewVar(pos, r.currPkg, name, typ))
++
++	default:
++		errorf("unexpected tag: %v", tag)
++	}
++}
++
++func (r *importReader) declare(obj types.Object) {
++	obj.Pkg().Scope().Insert(obj)
++}
++
++func (r *importReader) value() (typ types.Type, val constant.Value) {
++	typ = r.typ()
++
++	switch b := typ.Underlying().(*types.Basic); b.Info() & types.IsConstType {
++	case types.IsBoolean:
++		val = constant.MakeBool(r.bool())
++
++	case types.IsString:
++		val = constant.MakeString(r.string())
++
++	case types.IsInteger:
++		val = r.mpint(b)
++
++	case types.IsFloat:
++		val = r.mpfloat(b)
++
++	case types.IsComplex:
++		re := r.mpfloat(b)
++		im := r.mpfloat(b)
++		val = constant.BinaryOp(re, token.ADD, constant.MakeImag(im))
++
++	default:
++		errorf("unexpected type %v", typ) // panics
++		panic("unreachable")
++	}
++
++	return
++}
++
++func intSize(b *types.Basic) (signed bool, maxBytes uint) {
++	if (b.Info() & types.IsUntyped) != 0 {
++		return true, 64
++	}
++
++	switch b.Kind() {
++	case types.Float32, types.Complex64:
++		return true, 3
++	case types.Float64, types.Complex128:
++		return true, 7
++	}
++
++	signed = (b.Info() & types.IsUnsigned) == 0
++	switch b.Kind() {
++	case types.Int8, types.Uint8:
++		maxBytes = 1
++	case types.Int16, types.Uint16:
++		maxBytes = 2
++	case types.Int32, types.Uint32:
++		maxBytes = 4
++	default:
++		maxBytes = 8
++	}
++
++	return
++}
++
++func (r *importReader) mpint(b *types.Basic) constant.Value {
++	signed, maxBytes := intSize(b)
++
++	maxSmall := 256 - maxBytes
++	if signed {
++		maxSmall = 256 - 2*maxBytes
++	}
++	if maxBytes == 1 {
++		maxSmall = 256
++	}
++
++	n, _ := r.declReader.ReadByte()
++	if uint(n) < maxSmall {
++		v := int64(n)
++		if signed {
++			v >>= 1
++			if n&1 != 0 {
++				v = ^v
++			}
++		}
++		return constant.MakeInt64(v)
++	}
++
++	v := -n
++	if signed {
++		v = -(n &^ 1) >> 1
++	}
++	if v < 1 || uint(v) > maxBytes {
++		errorf("weird decoding: %v, %v => %v", n, signed, v)
++	}
++
++	buf := make([]byte, v)
++	io.ReadFull(&r.declReader, buf)
++
++	// convert to little endian
++	// TODO(gri) go/constant should have a more direct conversion function
++	//           (e.g., once it supports a big.Float based implementation)
++	for i, j := 0, len(buf)-1; i < j; i, j = i+1, j-1 {
++		buf[i], buf[j] = buf[j], buf[i]
++	}
++
++	x := constant.MakeFromBytes(buf)
++	if signed && n&1 != 0 {
++		x = constant.UnaryOp(token.SUB, x, 0)
++	}
++	return x
++}
++
++func (r *importReader) mpfloat(b *types.Basic) constant.Value {
++	x := r.mpint(b)
++	if constant.Sign(x) == 0 {
++		return x
++	}
++
++	exp := r.int64()
++	switch {
++	case exp > 0:
++		x = constant.Shift(x, token.SHL, uint(exp))
++	case exp < 0:
++		d := constant.Shift(constant.MakeInt64(1), token.SHL, uint(-exp))
++		x = constant.BinaryOp(x, token.QUO, d)
++	}
++	return x
++}
++
++func (r *importReader) ident() string {
++	return r.string()
++}
++
++func (r *importReader) qualifiedIdent() (*types.Package, string) {
++	name := r.string()
++	pkg := r.pkg()
++	return pkg, name
++}
++
++func (r *importReader) pos() token.Pos {
++	delta := r.int64()
++	if delta != deltaNewFile {
++		r.prevLine += delta
++	} else if l := r.int64(); l == -1 {
++		r.prevLine += deltaNewFile
++	} else {
++		r.prevFile = r.string()
++		r.prevLine = l
++	}
++
++	if r.prevFile == "" && r.prevLine == 0 {
++		return token.NoPos
++	}
++
++	return r.p.fake.pos(r.prevFile, int(r.prevLine))
++}
++
++func (r *importReader) typ() types.Type {
++	return r.p.typAt(r.uint64(), nil)
++}
++
++func isInterface(t types.Type) bool {
++	_, ok := t.(*types.Interface)
++	return ok
++}
++
++func (r *importReader) pkg() *types.Package { return r.p.pkgAt(r.uint64()) }
++func (r *importReader) string() string      { return r.p.stringAt(r.uint64()) }
++
++func (r *importReader) doType(base *types.Named) types.Type {
++	switch k := r.kind(); k {
++	default:
++		errorf("unexpected kind tag in %q: %v", r.p.ipath, k)
++		return nil
++
++	case definedType:
++		pkg, name := r.qualifiedIdent()
++		r.p.doDecl(pkg, name)
++		return pkg.Scope().Lookup(name).(*types.TypeName).Type()
++	case pointerType:
++		return types.NewPointer(r.typ())
++	case sliceType:
++		return types.NewSlice(r.typ())
++	case arrayType:
++		n := r.uint64()
++		return types.NewArray(r.typ(), int64(n))
++	case chanType:
++		dir := chanDir(int(r.uint64()))
++		return types.NewChan(dir, r.typ())
++	case mapType:
++		return types.NewMap(r.typ(), r.typ())
++	case signatureType:
++		r.currPkg = r.pkg()
++		return r.signature(nil)
++
++	case structType:
++		r.currPkg = r.pkg()
++
++		fields := make([]*types.Var, r.uint64())
++		tags := make([]string, len(fields))
++		for i := range fields {
++			fpos := r.pos()
++			fname := r.ident()
++			ftyp := r.typ()
++			emb := r.bool()
++			tag := r.string()
++
++			fields[i] = types.NewField(fpos, r.currPkg, fname, ftyp, emb)
++			tags[i] = tag
++		}
++		return types.NewStruct(fields, tags)
++
++	case interfaceType:
++		r.currPkg = r.pkg()
++
++		embeddeds := make([]*types.Named, r.uint64())
++		for i := range embeddeds {
++			_ = r.pos()
++			embeddeds[i] = r.typ().(*types.Named)
++		}
++
++		methods := make([]*types.Func, r.uint64())
++		for i := range methods {
++			mpos := r.pos()
++			mname := r.ident()
++
++			// TODO(mdempsky): Matches bimport.go, but I
++			// don't agree with this.
++			var recv *types.Var
++			if base != nil {
++				recv = types.NewVar(token.NoPos, r.currPkg, "", base)
++			}
++
++			msig := r.signature(recv)
++			methods[i] = types.NewFunc(mpos, r.currPkg, mname, msig)
++		}
++
++		typ := types.NewInterface(methods, embeddeds)
++		r.p.interfaceList = append(r.p.interfaceList, typ)
++		return typ
++	}
++}
++
++func (r *importReader) kind() itag {
++	return itag(r.uint64())
++}
++
++func (r *importReader) signature(recv *types.Var) *types.Signature {
++	params := r.paramList()
++	results := r.paramList()
++	variadic := params.Len() > 0 && r.bool()
++	return types.NewSignature(recv, params, results, variadic)
++}
++
++func (r *importReader) paramList() *types.Tuple {
++	xs := make([]*types.Var, r.uint64())
++	for i := range xs {
++		xs[i] = r.param()
++	}
++	return types.NewTuple(xs...)
++}
++
++func (r *importReader) param() *types.Var {
++	pos := r.pos()
++	name := r.ident()
++	typ := r.typ()
++	return types.NewParam(pos, r.currPkg, name, typ)
++}
++
++func (r *importReader) bool() bool {
++	return r.uint64() != 0
++}
++
++func (r *importReader) int64() int64 {
++	n, err := binary.ReadVarint(&r.declReader)
++	if err != nil {
++		errorf("readVarint: %v", err)
++	}
++	return n
++}
++
++func (r *importReader) uint64() uint64 {
++	n, err := binary.ReadUvarint(&r.declReader)
++	if err != nil {
++		errorf("readUvarint: %v", err)
++	}
++	return n
++}
++
++func (r *importReader) byte() byte {
++	x, err := r.declReader.ReadByte()
++	if err != nil {
++		errorf("declReader.ReadByte: %v", err)
++	}
++	return x
++}

@@ -7,6 +7,20 @@ Date:   Thu Apr 8 21:16:05 2010 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/872043
-
+---
  src/pkg/os/os_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 47661c44ad..d8208bfe41 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -363,7 +363,7 @@ func checkMode(t *testing.T, path string, mode uint32) {
+ 		t.Fatalf("Stat %q (looking for mode %#o): %s", path, mode, err)
+ 	}
+ 	if dir.Mode&0777 != mode {
+-		t.Errorf("Stat %q: mode %#o want %#o", path, dir.Mode, 0777)
++		t.Errorf("Stat %q: mode %#o want %#o", path, dir.Mode, mode)
+ 	}
+ }
+ 

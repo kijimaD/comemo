@@ -22,7 +22,55 @@ Date:   Mon Sep 25 14:58:13 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/70979
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/gc_test.go | 16 ++++++++++++++++
  src/runtime/mgc.go     |  5 ++++-
  2 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/gc_test.go b/src/runtime/gc_test.go
+index 25dc869caa..0620f2d61e 100644
+--- a/src/runtime/gc_test.go
++++ b/src/runtime/gc_test.go
+@@ -499,3 +499,19 @@ func BenchmarkReadMemStats(b *testing.B) {
+ 
+ 	hugeSink = nil
+ }
++
++func TestUserForcedGC(t *testing.T) {
++	// Test that runtime.GC() triggers a GC even if GOGC=off.
++	defer debug.SetGCPercent(debug.SetGCPercent(-1))
++
++	var ms1, ms2 runtime.MemStats
++	runtime.ReadMemStats(&ms1)
++	runtime.GC()
++	runtime.ReadMemStats(&ms2)
++	if ms1.NumGC == ms2.NumGC {
++		t.Fatalf("runtime.GC() did not trigger GC")
++	}
++	if ms1.NumForcedGC == ms2.NumForcedGC {
++		t.Fatalf("runtime.GC() was not accounted in NumForcedGC")
++	}
++}
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 111fa781e1..b708720322 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1158,7 +1158,7 @@ func (t gcTrigger) test() bool {
+ 	if t.kind == gcTriggerAlways {
+ 		return true
+ 	}
+-	if gcphase != _GCoff || gcpercent < 0 {
++	if gcphase != _GCoff {
+ 		return false
+ 	}
+ 	switch t.kind {
+@@ -1169,6 +1169,9 @@ func (t gcTrigger) test() bool {
+ 		// own write.
+ 		return memstats.heap_live >= memstats.gc_trigger
+ 	case gcTriggerTime:
++		if gcpercent < 0 {
++			return false
++		}
+ 		lastgc := int64(atomic.Load64(&memstats.last_gc_nanotime))
+ 		return lastgc != 0 && t.now-lastgc > forcegcperiod
+ 	case gcTriggerCycle:

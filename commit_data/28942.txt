@@ -7,6 +7,20 @@ Date:   Wed Aug 17 16:08:10 2016 -0700
     Change-Id: I82eaf5c14a5b8b9ec088409f946adf7b5fd5dbe3
     Reviewed-on: https://go-review.googlesource.com/27311
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/cpuprof.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/cpuprof.go b/src/runtime/cpuprof.go
+index 53082006d0..b2c8ac8459 100644
+--- a/src/runtime/cpuprof.go
++++ b/src/runtime/cpuprof.go
+@@ -4,7 +4,7 @@
+ 
+ // CPU profiling.
+ // Based on algorithms and data structures used in
+-// http://code.google.com/p/google-perftools/.
++// https://github.com/google/pprof.
+ //
+ // The main difference between this code and the google-perftools
+ // code is that this code is written to allow copying the profile data

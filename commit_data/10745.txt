@@ -121,9 +121,394 @@ Date:   Tue Dec 13 13:33:40 2011 -0500
     R=golang-dev, dsymonds, mattn.jp, r, gri, r
     CC=golang-dev
     https://golang.org/cl/5472051
-
+---
  lib/godoc/package.txt          |  22 +++---
  src/cmd/godoc/godoc.go         |  22 ++++++
  src/pkg/go/doc/comment.go      | 162 +++++++++++++++++++++++++++++++++++------
  src/pkg/go/doc/comment_test.go |  43 +++++++++++
  4 files changed, 214 insertions(+), 35 deletions(-)
+
+diff --git a/lib/godoc/package.txt b/lib/godoc/package.txt
+index 90d1dda103..2eae7055d5 100644
+--- a/lib/godoc/package.txt
++++ b/lib/godoc/package.txt
+@@ -5,11 +5,11 @@
+ */}}{{with .PDoc}}{{if $.IsPkg}}PACKAGE
+ 
+ package {{.PackageName}}
+-import "{{.ImportPath}}"
++    import "{{.ImportPath}}"
+ 
+ {{else}}COMMAND DOCUMENTATION
+ 
+-{{end}}{{.Doc}}{{/*
++{{end}}{{comment_text .Doc "    " "\t"}}{{/*
+ 
+ ---------------------------------------
+ 
+@@ -17,7 +17,7 @@ import "{{.ImportPath}}"
+ CONSTANTS
+ 
+ {{range .}}{{node .Decl $.FSet}}
+-{{.Doc}}{{end}}
++{{comment_text .Doc "    " "\t"}}{{end}}
+ {{end}}{{/*
+ 
+ ---------------------------------------
+@@ -26,7 +26,7 @@ CONSTANTS
+ VARIABLES
+ 
+ {{range .}}{{node .Decl $.FSet}}
+-{{.Doc}}{{end}}
++{{comment_text .Doc "    " "\t"}}{{end}}
+ {{end}}{{/*
+ 
+ ---------------------------------------
+@@ -35,7 +35,7 @@ VARIABLES
+ FUNCTIONS
+ 
+ {{range .}}{{node .Decl $.FSet}}
+-{{.Doc}}
++{{comment_text .Doc "    " "\t"}}
+ {{end}}{{end}}{{/*
+ 
+ ---------------------------------------
+@@ -44,15 +44,15 @@ FUNCTIONS
+ TYPES
+ 
+ {{range .}}{{node .Decl $.FSet}}
+-{{.Doc}}
++{{comment_text .Doc "    " "\t"}}
+ {{range .Consts}}{{node .Decl $.FSet}}
+-{{.Doc}}
++{{comment_text .Doc "    " "\t"}}
+ {{end}}{{range .Vars}}{{node .Decl $.FSet}}
+-{{.Doc}}
++{{comment_text .Doc "    " "\t"}}
+ {{end}}{{range .Factories}}{{node .Decl $.FSet}}
+-{{.Doc}}
++{{comment_text .Doc "    " "\t"}}
+ {{end}}{{range .Methods}}{{node .Decl $.FSet}}
+-{{.Doc}}
++{{comment_text .Doc "    " "\t"}}
+ {{end}}{{end}}{{end}}{{/*
+ 
+ ---------------------------------------
+@@ -60,7 +60,7 @@ TYPES
+ */}}{{with .Bugs}}
+ BUGS
+ 
+-{{range .}}{{.}}
++{{range .}}{{comment_text . "    " "\t"}}
+ {{end}}{{end}}{{end}}{{/*
+ 
+ ---------------------------------------
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index dfaadc4dfe..a56a9b1095 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -461,6 +461,27 @@ func comment_htmlFunc(comment string) string {
+ 	return buf.String()
+ }
+ 
++// punchCardWidth is the number of columns of fixed-width
++// characters to assume when wrapping text.  Very few people
++// use terminals or cards smaller than 80 characters, so 80 it is.
++// We do not try to sniff the environment or the tty to adapt to
++// the situation; instead, by using a constant we make sure that
++// godoc always produces the same output regardless of context,
++// a consistency that is lost otherwise.  For example, if we sniffed
++// the environment or tty, then http://golang.org/pkg/math/?m=text
++// would depend on the width of the terminal where godoc started,
++// which is clearly bogus.  More generally, the Unix tools that behave
++// differently when writing to a tty than when writing to a file have
++// a history of causing confusion (compare `ls` and `ls | cat`), and we
++// want to avoid that mistake here.
++const punchCardWidth = 80
++
++func comment_textFunc(comment, indent, preIndent string) string {
++	var buf bytes.Buffer
++	doc.ToText(&buf, comment, indent, preIndent, punchCardWidth-2*len(indent))
++	return buf.String()
++}
++
+ func example_htmlFunc(funcName string, examples []*doc.Example, fset *token.FileSet) string {
+ 	var buf bytes.Buffer
+ 	for _, eg := range examples {
+@@ -556,6 +577,7 @@ var fmap = template.FuncMap{
+ 	"node":         nodeFunc,
+ 	"node_html":    node_htmlFunc,
+ 	"comment_html": comment_htmlFunc,
++	"comment_text": comment_textFunc,
+ 
+ 	// support for URL attributes
+ 	"pkgLink":     pkgLinkFunc,
+diff --git a/src/pkg/go/doc/comment.go b/src/pkg/go/doc/comment.go
+index c9fb55bd54..39f34afa10 100644
+--- a/src/pkg/go/doc/comment.go
++++ b/src/pkg/go/doc/comment.go
+@@ -281,7 +281,20 @@ func heading(line string) string {
+ 	return line
+ }
+ 
+-// Convert comment text to formatted HTML.
++type op int
++
++const (
++	opPara op = iota
++	opHead
++	opPre
++)
++
++type block struct {
++	op    op
++	lines []string
++}
++
++// ToHTML converts comment text to formatted HTML.
+ // The comment was prepared by DocReader,
+ // so it is known not to have leading, trailing blank lines
+ // nor to have trailing spaces at the end of lines.
+@@ -299,20 +312,43 @@ func heading(line string) string {
+ // map value is not the empty string, it is considered a URL and the word is converted
+ // into a link.
+ func ToHTML(w io.Writer, text string, words map[string]string) {
+-	inpara := false
+-	lastWasBlank := false
+-	lastWasHeading := false
+-
+-	close := func() {
+-		if inpara {
++	for _, b := range blocks(text) {
++		switch b.op {
++		case opPara:
++			w.Write(html_p)
++			for _, line := range b.lines {
++				emphasize(w, line, words, true)
++			}
+ 			w.Write(html_endp)
+-			inpara = false
++		case opHead:
++			w.Write(html_h)
++			for _, line := range b.lines {
++				commentEscape(w, line, true)
++			}
++			w.Write(html_endh)
++		case opPre:
++			w.Write(html_pre)
++			for _, line := range b.lines {
++				emphasize(w, line, nil, false)
++			}
++			w.Write(html_endpre)
+ 		}
+ 	}
+-	open := func() {
+-		if !inpara {
+-			w.Write(html_p)
+-			inpara = true
++}
++
++func blocks(text string) []block {
++	var (
++		out  []block
++		para []string
++
++		lastWasBlank   = false
++		lastWasHeading = false
++	)
++
++	close := func() {
++		if para != nil {
++			out = append(out, block{opPara, para})
++			para = nil
+ 		}
+ 	}
+ 
+@@ -340,17 +376,13 @@ func ToHTML(w io.Writer, text string, words map[string]string) {
+ 			for j > i && isBlank(lines[j-1]) {
+ 				j--
+ 			}
+-			block := lines[i:j]
++			pre := lines[i:j]
+ 			i = j
+ 
+-			unindent(block)
++			unindent(pre)
+ 
+ 			// put those lines in a pre block
+-			w.Write(html_pre)
+-			for _, line := range block {
+-				emphasize(w, line, nil, false) // no nice text formatting
+-			}
+-			w.Write(html_endpre)
++			out = append(out, block{opPre, pre})
+ 			lastWasHeading = false
+ 			continue
+ 		}
+@@ -362,9 +394,7 @@ func ToHTML(w io.Writer, text string, words map[string]string) {
+ 			// might be a heading.
+ 			if head := heading(line); head != "" {
+ 				close()
+-				w.Write(html_h)
+-				commentEscape(w, head, true) // nice text formatting
+-				w.Write(html_endh)
++				out = append(out, block{opHead, []string{head}})
+ 				i += 2
+ 				lastWasHeading = true
+ 				continue
+@@ -372,11 +402,95 @@ func ToHTML(w io.Writer, text string, words map[string]string) {
+ 		}
+ 
+ 		// open paragraph
+-		open()
+ 		lastWasBlank = false
+ 		lastWasHeading = false
+-		emphasize(w, lines[i], words, true) // nice text formatting
++		para = append(para, lines[i])
+ 		i++
+ 	}
+ 	close()
++
++	return out
++}
++
++// ToText prepares comment text for presentation in textual output.
++// It wraps paragraphs of text to width or fewer Unicode code points
++// and then prefixes each line with the indent.  In preformatted sections
++// (such as program text), it prefixes each non-blank line with preIndent.
++func ToText(w io.Writer, text string, indent, preIndent string, width int) {
++	l := lineWrapper{
++		out:    w,
++		width:  width,
++		indent: indent,
++	}
++	for i, b := range blocks(text) {
++		switch b.op {
++		case opPara:
++			if i > 0 {
++				w.Write(nl)
++			}
++			for _, line := range b.lines {
++				l.write(line)
++			}
++			l.flush()
++		case opHead:
++			w.Write(nl)
++			for _, line := range b.lines {
++				l.write(line + "\n")
++			}
++			l.flush()
++		case opPre:
++			w.Write(nl)
++			for _, line := range b.lines {
++				if !isBlank(line) {
++					w.Write([]byte(preIndent))
++					w.Write([]byte(line))
++				}
++			}
++		}
++	}
++}
++
++type lineWrapper struct {
++	out       io.Writer
++	printed   bool
++	width     int
++	indent    string
++	n         int
++	pendSpace int
++}
++
++var nl = []byte("\n")
++var space = []byte(" ")
++
++func (l *lineWrapper) write(text string) {
++	if l.n == 0 && l.printed {
++		l.out.Write(nl) // blank line before new paragraph
++	}
++	l.printed = true
++
++	for _, f := range strings.Fields(text) {
++		w := utf8.RuneCountInString(f)
++		// wrap if line is too long
++		if l.n > 0 && l.n+l.pendSpace+w > l.width {
++			l.out.Write(nl)
++			l.n = 0
++			l.pendSpace = 0
++		}
++		if l.n == 0 {
++			l.out.Write([]byte(l.indent))
++		}
++		l.out.Write(space[:l.pendSpace])
++		l.out.Write([]byte(f))
++		l.n += l.pendSpace + w
++		l.pendSpace = 1
++	}
++}
++
++func (l *lineWrapper) flush() {
++	if l.n == 0 {
++		return
++	}
++	l.out.Write(nl)
++	l.pendSpace = 0
++	l.n = 0
+ }
+diff --git a/src/pkg/go/doc/comment_test.go b/src/pkg/go/doc/comment_test.go
+index 6424053ac9..e8d7f2e4b0 100644
+--- a/src/pkg/go/doc/comment_test.go
++++ b/src/pkg/go/doc/comment_test.go
+@@ -5,6 +5,7 @@
+ package doc
+ 
+ import (
++	"reflect"
+ 	"testing"
+ )
+ 
+@@ -38,3 +39,45 @@ func TestIsHeading(t *testing.T) {
+ 		}
+ 	}
+ }
++
++var blocksTests = []struct {
++	in  string
++	out []block
++}{
++	{
++		in: `Para 1.
++Para 1 line 2.
++
++Para 2.
++
++Section
++
++Para 3.
++
++	pre
++	pre1
++
++Para 4.
++	pre
++	pre2
++`,
++		out: []block{
++			{opPara, []string{"Para 1.\n", "Para 1 line 2.\n"}},
++			{opPara, []string{"Para 2.\n"}},
++			{opHead, []string{"Section"}},
++			{opPara, []string{"Para 3.\n"}},
++			{opPre, []string{"pre\n", "pre1\n"}},
++			{opPara, []string{"Para 4.\n"}},
++			{opPre, []string{"pre\n", "pre2\n"}},
++		},
++	},
++}
++
++func TestBlocks(t *testing.T) {
++	for i, tt := range blocksTests {
++		b := blocks(tt.in)
++		if !reflect.DeepEqual(b, tt.out) {
++			t.Errorf("#%d: mismatch\nhave: %v\nwant: %v", i, b, tt.out)
++		}
++	}
++}

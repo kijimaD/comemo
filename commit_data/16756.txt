@@ -7,6 +7,37 @@ Date:   Fri Jul 12 12:24:57 2013 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/11056044
-
+---
  src/cmd/dist/buildruntime.c | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/buildruntime.c b/src/cmd/dist/buildruntime.c
+index 2d221eb39c..a9c341c93a 100644
+--- a/src/cmd/dist/buildruntime.c
++++ b/src/cmd/dist/buildruntime.c
+@@ -234,10 +234,11 @@ ok:
+ 	//		Gobuf 24 sched;
+ 	//		'Y' 48 stack0;
+ 	//	}
++	//	StackMin = 128;
+ 	// into output like
+ 	//	#define g_sched 24
+ 	//	#define g_stack0 48
+-	//
++	//	#define const_StackMin 128
+ 	aggr = nil;
+ 	splitlines(&lines, bstr(&in));
+ 	for(i=0; i<lines.len; i++) {
+@@ -265,6 +266,12 @@ ok:
+ 				p[xstrlen(p)-1] = '\0';
+ 			bwritestr(&out, bprintf(&b, "#define %s_%s %s\n", aggr, fields.p[n-1], fields.p[n-2]));
+ 		}
++		if(fields.len == 3 && streq(fields.p[1], "=")) { // generated from enumerated constants
++			p = fields.p[2];
++			if(p[xstrlen(p)-1] == ';')
++				p[xstrlen(p)-1] = '\0';
++			bwritestr(&out, bprintf(&b, "#define const_%s %s\n", fields.p[0], p));
++		}
+ 	}
+ 
+ 	// Some #defines that are used for .c files.

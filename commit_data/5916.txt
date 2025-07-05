@@ -7,10 +7,156 @@ Date:   Fri Jul 30 11:47:11 2010 +1000
     R=brainman, rsc
     CC=golang-dev
     https://golang.org/cl/1676054
-
+---
  include/libc.h        |  8 ++++++-
  src/cmd/cov/Makefile  |  9 +++++++-
  src/cmd/prof/Makefile |  9 +++++++-
  src/libmach/Makefile  |  4 ++++
  src/libmach/windows.c | 59 +++++++++++++++++++++++++++++++++++++++++++++++++++
  5 files changed, 86 insertions(+), 3 deletions(-)
+
+diff --git a/include/libc.h b/include/libc.h
+index ea6fc3b262..1103bcf811 100644
+--- a/include/libc.h
++++ b/include/libc.h
+@@ -292,9 +292,15 @@ extern	char*	getgoroot(void);
+ extern	char*	getgoversion(void);
+ 
+ #ifdef __MINGW32__
+-extern int fork();
++struct timespec {
++	int tv_sec;
++	long tv_nsec;
++};
++extern int nanosleep(const struct timespec *rqtp, struct timespec *rmtp);
++extern int fork(void);
+ extern int pread(int fd, void *buf, int n, int off);
+ extern int pwrite(int fd, void *buf, int n, int off);
++#define execv(prog, argv) execv(prog, (const char* const*)(argv))
+ #define execvp(prog, argv) execvp(prog, (const char**)(argv))
+ #define lseek(fd, n, base) _lseeki64(fd, n, base)
+ #define mkdir(path, perm) mkdir(path)
+diff --git a/src/cmd/cov/Makefile b/src/cmd/cov/Makefile
+index 58cb2302c7..4017dba190 100644
+--- a/src/cmd/cov/Makefile
++++ b/src/cmd/cov/Makefile
+@@ -22,9 +22,16 @@ $(TARG): $(OFILES)
+ clean:
+ 	rm -f *.$O $(TARG)
+ 
+-install: install-$(shell uname | tr A-Z a-z)
++ifeq ($(GOOS),windows)
++NAME=windows
++else
++NAME=$(shell uname | tr A-Z a-z)
++endif
++
++install: install-$(NAME)
+ install-linux: install-default
+ install-freebsd: install-default
++install-windows: install-default
+ 
+ # on Darwin, have to install and setgid; see $GOROOT/src/sudo.bash
+ install-darwin: $(TARG)
+diff --git a/src/cmd/prof/Makefile b/src/cmd/prof/Makefile
+index 602c07da6a..1d1094b5a0 100644
+--- a/src/cmd/prof/Makefile
++++ b/src/cmd/prof/Makefile
+@@ -22,9 +22,16 @@ $(TARG): $(OFILES)
+ clean:
+ 	rm -f *.$O $(TARG)
+ 
+-install: install-$(shell uname | tr A-Z a-z) install-pprof
++ifeq ($(GOOS),windows)
++NAME=windows
++else
++NAME=$(shell uname | tr A-Z a-z)
++endif
++
++install: install-$(NAME) install-pprof
+ install-linux: install-default
+ install-freebsd: install-default
++install-windows: install-default
+ 
+ # on Darwin, have to install and setgid; see $GOROOT/src/sudo.bash
+ install-darwin: $(TARG)
+diff --git a/src/libmach/Makefile b/src/libmach/Makefile
+index 900d278617..74c176ebcf 100644
+--- a/src/libmach/Makefile
++++ b/src/libmach/Makefile
+@@ -52,6 +52,10 @@ ifneq ($(GOOS),windows)
+ OFILES+=\
+ 	$(shell uname | tr A-Z a-z).$O\
+ 
++else
++OFILES+=\
++	windows.$O\
++
+ endif
+ 
+ HFILES=../../include/mach.h elf.h macho.h obj.h
+diff --git a/src/libmach/windows.c b/src/libmach/windows.c
+new file mode 100644
+index 0000000000..391761c185
+--- /dev/null
++++ b/src/libmach/windows.c
+@@ -0,0 +1,59 @@
++// This is stubbed out for the moment. Will revisit when the time comes.
++#include <u.h>
++#include <libc.h>
++#include <bio.h>
++#include <mach.h>
++
++int
++ctlproc(int pid, char *msg)
++{
++	sysfatal("ctlproc unimplemented in Windows");
++}
++
++char*
++proctextfile(int pid)
++{
++	sysfatal("proctextfile unimplemented in Windows");
++}
++
++char*
++procstatus(int pid)
++{
++	sysfatal("procstatus unimplemented in Windows");
++}
++
++Map*
++attachproc(int pid, Fhdr *fp)
++{
++	sysfatal("attachproc unimplemented in Windows");
++}
++
++void
++detachproc(Map *m)
++{
++	sysfatal("detachproc unimplemented in Windows");
++}
++
++int
++procthreadpids(int pid, int *p, int np)
++{
++	sysfatal("procthreadpids unimplemented in Windows");
++}
++
++int 
++pread(int fd, void *buf, int count, int offset)
++{
++	sysfatal("pread unimplemented in Windows");
++}
++
++int 
++pwrite(int fd, void *buf, int count, int offset)
++{
++	sysfatal("pwrite unimplemented in Windows");
++}
++
++int 
++nanosleep(const struct timespec *rqtp, struct timespec *rmtp)
++{
++	sysfatal("nanosleep unimplemented in Windows");
++}

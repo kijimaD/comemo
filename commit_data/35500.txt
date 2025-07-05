@@ -11,6 +11,41 @@ Date:   Wed Feb 14 18:04:54 2018 -0800
     Reviewed-on: https://go-review.googlesource.com/94158
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  doc/go1.10.html | 16 ++++++++++++++++
  1 file changed, 16 insertions(+)
+
+diff --git a/doc/go1.10.html b/doc/go1.10.html
+index a6e186fb73..4c0e847c05 100644
+--- a/doc/go1.10.html
++++ b/doc/go1.10.html
+@@ -30,6 +30,10 @@ adds <a href="#test">caching of successful test results</a>,
+ runs <a href="#test-vet">vet automatically during tests</a>,
+ and
+ permits <a href="#cgo">passing string values directly between Go and C using cgo</a>.
++A new <a href="#cgo">compiler option whitelist</a> may cause
++unexpected <a href="https://golang.org/s/invalidflag"><code>invalid
++flag</code></a> errors in code that built successfully with older
++releases.
+ </p>
+ 
+ <h2 id="language">Changes to the language</h2>
+@@ -261,6 +265,18 @@ and the <a href="/cmd/test2json/">test2json documentation</a>.
+ 
+ <h3 id="cgo">Cgo</h3>
+ 
++<p>
++Options specified by cgo using <code>#cgo CFLAGS</code> and the like
++are now checked against a whitelist of permitted options.
++This closes a security hole in which a downloaded package uses
++compiler options like
++<span style="white-space: nowrap"><code>-fplugin</code></span>
++to run arbitrary code on the machine where it is being built.
++This can cause a build error such as <code>invalid flag in #cgo CFLAGS</code>.
++For more background, and how to handle this error, see
++<a href="https://golang.org/s/invalidflag">https://golang.org/s/invalidflag</a>.
++</p>
++
+ <p>
+ Cgo now implements a C typedef like “<code>typedef</code> <code>X</code> <code>Y</code>” using a Go type alias,
+ so that Go code may use the types <code>C.X</code> and <code>C.Y</code> interchangeably.

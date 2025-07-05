@@ -17,6 +17,19 @@ Date:   Thu Aug 22 15:02:49 2024 +0200
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/sys_windows_arm.s | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/sys_windows_arm.s b/src/runtime/sys_windows_arm.s
+index d194899d50..99f33cf07d 100644
+--- a/src/runtime/sys_windows_arm.s
++++ b/src/runtime/sys_windows_arm.s
+@@ -205,6 +205,7 @@ TEXT runtime·read_tls_fallback(SB),NOSPLIT,$0
+ 	RET
+ 
+ TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
++	MOVW	$_INTERRUPT_TIME, R3
+ loop:
+ 	MOVW	time_hi1(R3), R1
+ 	DMB	MB_ISH

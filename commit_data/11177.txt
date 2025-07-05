@@ -7,8 +7,47 @@ Date:   Sun Jan 15 10:41:16 2012 -0500
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/5542050
-
+---
  src/pkg/Makefile                      | 1 -
  src/pkg/exp/terminal/terminal.go      | 2 --
  src/pkg/exp/terminal/terminal_test.go | 2 --
  3 files changed, 5 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 47e6a51745..0b8a1d16f1 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -186,7 +186,6 @@ DIRS=\
+ ifeq ($(GOOS),linux)
+ DIRS+=\
+ 	exp/inotify\
+-	exp/terminal\
+ 
+ endif
+ 
+diff --git a/src/pkg/exp/terminal/terminal.go b/src/pkg/exp/terminal/terminal.go
+index 5fd862e595..c3ba5bde2e 100644
+--- a/src/pkg/exp/terminal/terminal.go
++++ b/src/pkg/exp/terminal/terminal.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux
+-
+ package terminal
+ 
+ import (
+diff --git a/src/pkg/exp/terminal/terminal_test.go b/src/pkg/exp/terminal/terminal_test.go
+index 75628f695e..a2197210e2 100644
+--- a/src/pkg/exp/terminal/terminal_test.go
++++ b/src/pkg/exp/terminal/terminal_test.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux
+-
+ package terminal
+ 
+ import (

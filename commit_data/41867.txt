@@ -13,6 +13,20 @@ Date:   Tue Oct 29 10:37:05 2019 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Run-TryBot: Rebecca Stambler <rstambler@golang.org>
     Reviewed-by: Rebecca Stambler <rstambler@golang.org>
-
+---
  src/go/parser/parser.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index beb563f25f..31a73985bf 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -403,7 +403,7 @@ func (p *parser) expect2(tok token.Token) (pos token.Pos) {
+ 	if p.tok == tok {
+ 		pos = p.pos
+ 	} else {
+-		p.errorExpected(pos, "'"+tok.String()+"'")
++		p.errorExpected(p.pos, "'"+tok.String()+"'")
+ 	}
+ 	p.next() // make progress
+ 	return

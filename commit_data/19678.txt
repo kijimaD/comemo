@@ -8,6 +8,23 @@ Date:   Tue Jul 8 13:43:02 2014 -0400
     R=golang-codereviews, minux
     CC=golang-codereviews
     https://golang.org/cl/111970043
-
+---
  src/pkg/crypto/x509/x509_test.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/crypto/x509/x509_test.go b/src/pkg/crypto/x509/x509_test.go
+index bac3b6c7dc..56f7a98322 100644
+--- a/src/pkg/crypto/x509/x509_test.go
++++ b/src/pkg/crypto/x509/x509_test.go
+@@ -728,8 +728,9 @@ func TestParsePEMCRL(t *testing.T) {
+ }
+ 
+ func TestImports(t *testing.T) {
+-	if runtime.GOOS == "nacl" {
+-		t.Skip("skipping on nacl")
++	switch runtime.GOOS {
++	case "android", "nacl":
++		t.Skipf("skipping on %s", runtime.GOOS)
+ 	}
+ 
+ 	if err := exec.Command("go", "run", "x509_test_import.go").Run(); err != nil {

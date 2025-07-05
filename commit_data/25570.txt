@@ -15,8 +15,90 @@ Date:   Tue Nov 3 17:15:30 2015 -0800
     Change-Id: I80438dbd4561502bdee97fad3f02893a06880ee1
     Reviewed-on: https://go-review.googlesource.com/16611
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  misc/cgo/testsanitizers/msan3.go  | 32 ++++++++++++++++++++++++++++++++
  misc/cgo/testsanitizers/test.bash |  7 ++++++-
  src/runtime/cgocall.go            |  7 +++++++
  3 files changed, 45 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testsanitizers/msan3.go b/misc/cgo/testsanitizers/msan3.go
+new file mode 100644
+index 0000000000..05b16ad184
+--- /dev/null
++++ b/misc/cgo/testsanitizers/msan3.go
+@@ -0,0 +1,32 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++/*
++extern int *GoFn(void);
++
++// Yes, you can have definitions if you use //export, as long as they are weak.
++int f(void) __attribute__ ((weak));
++
++int f() {
++  int *p = GoFn();
++  if (*p != 12345)
++    return 0;
++  return 1;
++}
++*/
++import "C"
++
++//export GoFn
++func GoFn() *C.int {
++	i := C.int(12345)
++	return &i
++}
++
++func main() {
++	if r := C.f(); r != 1 {
++		panic(r)
++	}
++}
+diff --git a/misc/cgo/testsanitizers/test.bash b/misc/cgo/testsanitizers/test.bash
+index e200bcb80b..a4cff27701 100755
+--- a/misc/cgo/testsanitizers/test.bash
++++ b/misc/cgo/testsanitizers/test.bash
+@@ -17,7 +17,7 @@ export CC
+ 
+ TMPDIR=${TMPDIR:-/tmp}
+ echo > ${TMPDIR}/testsanitizers$$.c
+-if $CC -fsanitize=memory -c ${TMPDIR}/testsanitizers$$.c 2>&1 | grep "unrecognized" >& /dev/null; then
++if $CC -fsanitize=memory -c ${TMPDIR}/testsanitizers$$.c -o ${TMPDIR}/testsanitizers$$.o 2>&1 | grep "unrecognized" >& /dev/null; then
+   echo "skipping msan test: -fsanitize=memory not supported"
+   rm -f ${TMPDIR}/testsanitizers$$.*
+   exit 0
+@@ -52,6 +52,11 @@ if ! go run -msan msan2.go; then
+   status=1
+ fi
+ 
++if ! go run -msan msan3.go; then
++  echo "FAIL: msan3"
++  status=1
++fi
++
+ if go run -msan msan_fail.go 2>/dev/null; then
+   echo "FAIL: msan_fail"
+   status=1
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 4ce778fc05..a01548a32f 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -266,6 +266,13 @@ func cgocallbackg1() {
+ 	if raceenabled {
+ 		racereleasemerge(unsafe.Pointer(&racecgosync))
+ 	}
++	if msanenabled {
++		// Tell msan that we wrote to the entire argument block.
++		// This tells msan that we set the results.
++		// Since we have already called the function it doesn't
++		// matter that we are writing to the non-result parameters.
++		msanwrite(cb.arg, cb.argsize)
++	}
+ 
+ 	// Do not unwind m->g0->sched.sp.
+ 	// Our caller, cgocallback, will do that.

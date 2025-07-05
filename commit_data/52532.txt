@@ -17,7 +17,51 @@ Date:   Sun May 8 13:29:27 2022 +0100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: David du Colombier <0intro@gmail.com>
     Reviewed-by: David du Colombier <0intro@gmail.com>
-
+---
  src/path/filepath/symlink_plan9.go | 27 +++++++++++++++++++++++++++
  src/path/filepath/symlink_unix.go  |  2 +-
  2 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/src/path/filepath/symlink_plan9.go b/src/path/filepath/symlink_plan9.go
+new file mode 100644
+index 0000000000..820d150d97
+--- /dev/null
++++ b/src/path/filepath/symlink_plan9.go
+@@ -0,0 +1,27 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package filepath
++
++import (
++	"os"
++	"strings"
++	"syscall"
++)
++
++func evalSymlinks(path string) (string, error) {
++	// Plan 9 doesn't have symbolic links, so no need for substitutions.
++	if len(path) > 0 {
++		// Check validity of path
++		_, err := os.Lstat(path)
++		if err != nil {
++			// Return the same error value as on other operating systems
++			if strings.HasSuffix(err.Error(), "not a directory") {
++				err = syscall.ENOTDIR
++			}
++			return "", err
++		}
++	}
++	return Clean(path), nil
++}
+diff --git a/src/path/filepath/symlink_unix.go b/src/path/filepath/symlink_unix.go
+index 7bfe17e2fd..f8980d5ad3 100644
+--- a/src/path/filepath/symlink_unix.go
++++ b/src/path/filepath/symlink_unix.go
+@@ -1,4 +1,4 @@
+-//go:build !windows
++//go:build !windows && !plan9
+ 
+ package filepath
+ 

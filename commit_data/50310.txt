@@ -18,8 +18,254 @@ Date:   Fri Sep 3 21:58:57 2021 +0200
     Reviewed-on: https://go-review.googlesource.com/c/go/+/347353
     Trust: Richard Musiol <neelance@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  misc/wasm/go_js_wasm_exec   |   2 +-
  misc/wasm/wasm_exec.js      | 115 ++++++--------------------------------------
  misc/wasm/wasm_exec_node.js |  49 +++++++++++++++++++
  3 files changed, 66 insertions(+), 100 deletions(-)
+
+diff --git a/misc/wasm/go_js_wasm_exec b/misc/wasm/go_js_wasm_exec
+index b700722dfe..fcbd0e4fc8 100755
+--- a/misc/wasm/go_js_wasm_exec
++++ b/misc/wasm/go_js_wasm_exec
+@@ -11,4 +11,4 @@ while [ -h "$SOURCE" ]; do
+ done
+ DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+ 
+-exec node "$DIR/wasm_exec.js" "$@"
++exec node "$DIR/wasm_exec_node.js" "$@"
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index e2f3cda995..30044a6f85 100644
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -1,49 +1,19 @@
+ // Copyright 2018 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
++
+ "use strict";
+ 
+ (() => {
+-	// Map multiple JavaScript environments to a single common API,
+-	// preferring web standards over Node.js API.
+-	//
+-	// Environments considered:
+-	// - Browsers
+-	// - Node.js
+-	// - Electron
+-	// - Parcel
+-	// - Webpack
+-
+-	if (typeof global !== "undefined") {
+-		// global already exists
+-	} else if (typeof window !== "undefined") {
+-		window.global = window;
+-	} else if (typeof self !== "undefined") {
+-		self.global = self;
+-	} else {
+-		throw new Error("cannot export Go (neither global, window nor self is defined)");
+-	}
+-
+-	if (!global.require && typeof require !== "undefined") {
+-		global.require = require;
+-	}
+-
+-	if (!global.fs && global.require) {
+-		const fs = require("fs");
+-		if (typeof fs === "object" && fs !== null && Object.keys(fs).length !== 0) {
+-			global.fs = fs;
+-		}
+-	}
+-
+ 	const enosys = () => {
+ 		const err = new Error("not implemented");
+ 		err.code = "ENOSYS";
+ 		return err;
+ 	};
+ 
+-	if (!global.fs) {
++	if (!globalThis.fs) {
+ 		let outputBuf = "";
+-		global.fs = {
++		globalThis.fs = {
+ 			constants: { O_WRONLY: -1, O_RDWR: -1, O_CREAT: -1, O_TRUNC: -1, O_APPEND: -1, O_EXCL: -1 }, // unused
+ 			writeSync(fd, buf) {
+ 				outputBuf += decoder.decode(buf);
+@@ -88,8 +58,8 @@
+ 		};
+ 	}
+ 
+-	if (!global.process) {
+-		global.process = {
++	if (!globalThis.process) {
++		globalThis.process = {
+ 			getuid() { return -1; },
+ 			getgid() { return -1; },
+ 			geteuid() { return -1; },
+@@ -103,47 +73,26 @@
+ 		}
+ 	}
+ 
+-	if (!global.crypto && global.require) {
+-		const nodeCrypto = require("crypto");
+-		global.crypto = {
+-			getRandomValues(b) {
+-				nodeCrypto.randomFillSync(b);
+-			},
+-		};
+-	}
+-	if (!global.crypto) {
+-		throw new Error("global.crypto is not available, polyfill required (getRandomValues only)");
++	if (!globalThis.crypto) {
++		throw new Error("globalThis.crypto is not available, polyfill required (crypto.getRandomValues only)");
+ 	}
+ 
+-	if (!global.performance) {
+-		global.performance = {
+-			now() {
+-				const [sec, nsec] = process.hrtime();
+-				return sec * 1000 + nsec / 1000000;
+-			},
+-		};
++	if (!globalThis.performance) {
++		throw new Error("globalThis.performance is not available, polyfill required (performance.now only)");
+ 	}
+ 
+-	if (!global.TextEncoder && global.require) {
+-		global.TextEncoder = require("util").TextEncoder;
+-	}
+-	if (!global.TextEncoder) {
+-		throw new Error("global.TextEncoder is not available, polyfill required");
++	if (!globalThis.TextEncoder) {
++		throw new Error("globalThis.TextEncoder is not available, polyfill required");
+ 	}
+ 
+-	if (!global.TextDecoder && global.require) {
+-		global.TextDecoder = require("util").TextDecoder;
++	if (!globalThis.TextDecoder) {
++		throw new Error("globalThis.TextDecoder is not available, polyfill required");
+ 	}
+-	if (!global.TextDecoder) {
+-		throw new Error("global.TextDecoder is not available, polyfill required");
+-	}
+-
+-	// End of polyfills for common API.
+ 
+ 	const encoder = new TextEncoder("utf-8");
+ 	const decoder = new TextDecoder("utf-8");
+ 
+-	global.Go = class {
++	globalThis.Go = class {
+ 		constructor() {
+ 			this.argv = ["js"];
+ 			this.env = {};
+@@ -518,7 +467,7 @@
+ 				null,
+ 				true,
+ 				false,
+-				global,
++				globalThis,
+ 				this,
+ 			];
+ 			this._goRefCounts = new Array(this._values.length).fill(Infinity); // number of references that Go has to a JS value, indexed by reference id
+@@ -527,7 +476,7 @@
+ 				[null, 2],
+ 				[true, 3],
+ 				[false, 4],
+-				[global, 5],
++				[globalThis, 5],
+ 				[this, 6],
+ 			]);
+ 			this._idPool = [];   // unused ids that have been garbage collected
+@@ -602,36 +551,4 @@
+ 			};
+ 		}
+ 	}
+-
+-	if (
+-		typeof module !== "undefined" &&
+-		global.require &&
+-		global.require.main === module &&
+-		global.process &&
+-		global.process.versions &&
+-		!global.process.versions.electron
+-	) {
+-		if (process.argv.length < 3) {
+-			console.error("usage: go_js_wasm_exec [wasm binary] [arguments]");
+-			process.exit(1);
+-		}
+-
+-		const go = new Go();
+-		go.argv = process.argv.slice(2);
+-		go.env = Object.assign({ TMPDIR: require("os").tmpdir() }, process.env);
+-		go.exit = process.exit;
+-		WebAssembly.instantiate(fs.readFileSync(process.argv[2]), go.importObject).then((result) => {
+-			process.on("exit", (code) => { // Node.js exits if no event handler is pending
+-				if (code === 0 && !go.exited) {
+-					// deadlock, make Go print error and stack traces
+-					go._pendingEvent = { id: 0 };
+-					go._resume();
+-				}
+-			});
+-			return go.run(result.instance);
+-		}).catch((err) => {
+-			console.error(err);
+-			process.exit(1);
+-		});
+-	}
+ })();
+diff --git a/misc/wasm/wasm_exec_node.js b/misc/wasm/wasm_exec_node.js
+new file mode 100644
+index 0000000000..f9200ca950
+--- /dev/null
++++ b/misc/wasm/wasm_exec_node.js
+@@ -0,0 +1,49 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++"use strict";
++
++if (process.argv.length < 3) {
++	console.error("usage: go_js_wasm_exec [wasm binary] [arguments]");
++	process.exit(1);
++}
++
++globalThis.require = require;
++globalThis.fs = require("fs");
++globalThis.TextEncoder = require("util").TextEncoder;
++globalThis.TextDecoder = require("util").TextDecoder;
++
++globalThis.performance = {
++	now() {
++		const [sec, nsec] = process.hrtime();
++		return sec * 1000 + nsec / 1000000;
++	},
++};
++
++const crypto = require("crypto");
++globalThis.crypto = {
++	getRandomValues(b) {
++		crypto.randomFillSync(b);
++	},
++};
++
++require("./wasm_exec");
++
++const go = new Go();
++go.argv = process.argv.slice(2);
++go.env = Object.assign({ TMPDIR: require("os").tmpdir() }, process.env);
++go.exit = process.exit;
++WebAssembly.instantiate(fs.readFileSync(process.argv[2]), go.importObject).then((result) => {
++	process.on("exit", (code) => { // Node.js exits if no event handler is pending
++		if (code === 0 && !go.exited) {
++			// deadlock, make Go print error and stack traces
++			go._pendingEvent = { id: 0 };
++			go._resume();
++		}
++	});
++	return go.run(result.instance);
++}).catch((err) => {
++	console.error(err);
++	process.exit(1);
++});

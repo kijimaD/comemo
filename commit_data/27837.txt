@@ -22,6 +22,24 @@ Date:   Wed Apr 13 15:06:01 2016 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/runtime/atomic_pointer.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/atomic_pointer.go b/src/runtime/atomic_pointer.go
+index e9f5d03b2b..ee55de13b9 100644
+--- a/src/runtime/atomic_pointer.go
++++ b/src/runtime/atomic_pointer.go
+@@ -53,9 +53,9 @@ func sync_atomic_SwapUintptr(ptr *uintptr, new uintptr) uintptr
+ 
+ //go:linkname sync_atomic_SwapPointer sync/atomic.SwapPointer
+ //go:nosplit
+-func sync_atomic_SwapPointer(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer {
+-	old := unsafe.Pointer(sync_atomic_SwapUintptr((*uintptr)(noescape(ptr)), uintptr(new)))
+-	writebarrierptr_nostore((*uintptr)(ptr), uintptr(new))
++func sync_atomic_SwapPointer(ptr *unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer {
++	old := unsafe.Pointer(sync_atomic_SwapUintptr((*uintptr)(noescape(unsafe.Pointer(ptr))), uintptr(new)))
++	writebarrierptr_nostore((*uintptr)(unsafe.Pointer(ptr)), uintptr(new))
+ 	return old
+ }
+ 

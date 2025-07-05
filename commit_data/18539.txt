@@ -8,6 +8,20 @@ Date:   Sat Feb 15 20:00:15 2014 -0500
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/64380043
-
+---
  src/pkg/debug/elf/elf_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/debug/elf/elf_test.go b/src/pkg/debug/elf/elf_test.go
+index 67b961b5c6..e3c51bb717 100644
+--- a/src/pkg/debug/elf/elf_test.go
++++ b/src/pkg/debug/elf/elf_test.go
+@@ -43,7 +43,7 @@ func TestNames(t *testing.T) {
+ 	for i, tt := range nameTests {
+ 		s := fmt.Sprint(tt.val)
+ 		if s != tt.str {
+-			t.Errorf("#%d: want %q have %q", i, s, tt.str)
++			t.Errorf("#%d: Sprint(%d) = %q, want %q", i, tt.val, s, tt.str)
+ 		}
+ 	}
+ }

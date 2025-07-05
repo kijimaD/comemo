@@ -7,6 +7,26 @@ Date:   Mon May 30 16:15:08 2011 +1000
     R=golang-dev, r, adg
     CC=golang-dev
     https://golang.org/cl/4551074
-
+---
  src/cmd/goinstall/make.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/goinstall/make.go b/src/cmd/goinstall/make.go
+index b2ca82b469..67c7b93ef3 100644
+--- a/src/cmd/goinstall/make.go
++++ b/src/cmd/goinstall/make.go
+@@ -21,12 +21,12 @@ import (
+ func domake(dir, pkg string, root *pkgroot, local, isCmd bool) (err os.Error) {
+ 	needMakefile := true
+ 	if local {
+-		_, err := os.Stat(dir + "/Makefile")
++		_, err := os.Stat(filepath.Join(dir, "Makefile"))
+ 		if err == nil {
+ 			needMakefile = false
+ 		}
+ 	}
+-	cmd := []string{"gomake"}
++	cmd := []string{"bash", "gomake"}
+ 	var makefile []byte
+ 	if needMakefile {
+ 		if makefile, err = makeMakefile(dir, pkg, root, isCmd); err != nil {

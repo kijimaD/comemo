@@ -9,6 +9,31 @@ Date:   Mon Jul 11 07:31:08 2011 -0700
     R=golang-dev, bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/4678046
-
+---
  src/pkg/json/encode.go | 11 +++++++++--
  1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/json/encode.go b/src/pkg/json/encode.go
+index adc0f0f371..3e4532cee4 100644
+--- a/src/pkg/json/encode.go
++++ b/src/pkg/json/encode.go
+@@ -344,10 +344,17 @@ func (e *encodeState) string(s string) {
+ 			if start < i {
+ 				e.WriteString(s[start:i])
+ 			}
+-			if b == '\\' || b == '"' {
++			switch b {
++			case '\\', '"':
+ 				e.WriteByte('\\')
+ 				e.WriteByte(b)
+-			} else {
++			case '\n':
++				e.WriteByte('\\')
++				e.WriteByte('n')
++			case '\r':
++				e.WriteByte('\\')
++				e.WriteByte('r')
++			default:
+ 				e.WriteString(`\u00`)
+ 				e.WriteByte(hex[b>>4])
+ 				e.WriteByte(hex[b&0xF])

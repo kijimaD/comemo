@@ -22,7 +22,7 @@ Date:   Fri Feb 13 14:21:18 2015 -0800
     Change-Id: I002335ace8e876c5b63c71c2560533eb835346d2
     Reviewed-on: https://go-review.googlesource.com/4822
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/crypto/md5/md5block_arm.s   | 348 ++++++++++++++++++++--------------------
  src/crypto/rc4/rc4_arm.s        |  78 ++++-----
  src/crypto/sha1/sha1block_arm.s | 274 +++++++++++++++----------------
@@ -34,3 +34,1771 @@ Date:   Fri Feb 13 14:21:18 2015 -0800
  src/runtime/vlop_arm.s          | 203 ++++++++++++-----------
  src/sync/atomic/asm_linux_arm.s |  12 +-
  10 files changed, 620 insertions(+), 621 deletions(-)
+
+diff --git a/src/crypto/md5/md5block_arm.s b/src/crypto/md5/md5block_arm.s
+index 3b26e549b9..82f2198193 100644
+--- a/src/crypto/md5/md5block_arm.s
++++ b/src/crypto/md5/md5block_arm.s
+@@ -7,20 +7,20 @@
+ #include "textflag.h"
+ 
+ // Register definitions
+-table = 0	// Pointer to MD5 constants table
+-data = 1	// Pointer to data to hash
+-a = 2		// MD5 accumulator
+-b = 3		// MD5 accumulator
+-c = 4		// MD5 accumulator
+-d = 5		// MD5 accumulator
+-c0 = 6		// MD5 constant
+-c1 = 7		// MD5 constant
+-c2 = 8		// MD5 constant
++#define Rtable	R0	// Pointer to MD5 constants table
++#define Rdata	R1	// Pointer to data to hash
++#define Ra	R2	// MD5 accumulator
++#define Rb	R3	// MD5 accumulator
++#define Rc	R4	// MD5 accumulator
++#define Rd	R5	// MD5 accumulator
++#define Rc0	R6	// MD5 constant
++#define Rc1	R7	// MD5 constant
++#define Rc2	R8	// MD5 constant
+ // r9, r10 are forbidden
+ // r11 is OK provided you check the assembler that no synthetic instructions use it
+-c3 = 11		// MD5 constant
+-t0 = 12		// temporary
+-t1 = 14		// temporary
++#define Rc3	R11	// MD5 constant
++#define Rt0	R12	// temporary
++#define Rt1	R14	// temporary
+ 
+ // func block(dig *digest, p []byte)
+ // 0(FP) is *digest
+@@ -29,198 +29,198 @@ t1 = 14		// temporary
+ //12(FP) is p.cap
+ //
+ // Stack frame
+-p_end = -4	// -4(SP) pointer to the end of data
+-p_data = -8	// -8(SP) current data pointer
+-buf = -8-4*16	//-72(SP) 16 words temporary buffer
++#define p_end	-4	// -4(SP) pointer to the end of data
++#define p_data	-8	// -8(SP) current data pointer
++#define buf	(-8-4*16)	//-72(SP) 16 words temporary buffer
+ 		// 3 words at 4..12(R13) for called routine parameters
+ 
+ TEXT	·block(SB), NOSPLIT, $84-16
+-	MOVW	p+4(FP), R(data)	// pointer to the data
+-	MOVW	p_len+8(FP), R(t0)	// number of bytes
+-	ADD	R(data), R(t0)
+-	MOVW	R(t0), p_end(SP)	// pointer to end of data
++	MOVW	p+4(FP), Rdata	// pointer to the data
++	MOVW	p_len+8(FP), Rt0	// number of bytes
++	ADD	Rdata, Rt0
++	MOVW	Rt0, p_end(SP)	// pointer to end of data
+ 
+ loop:
+-	MOVW	R(data), p_data(SP)	// Save R(data)
+-	AND.S	$3, R(data), R(t0)	// TST $3, R(data) not working see issue 5921
++	MOVW	Rdata, p_data(SP)	// Save Rdata
++	AND.S	$3, Rdata, Rt0	// TST $3, Rdata not working see issue 5921
+ 	BEQ	aligned			// aligned detected - skip copy
+ 
+ 	// Copy the unaligned source data into the aligned temporary buffer
+ 	// memove(to=4(R13), from=8(R13), n=12(R13)) - Corrupts all registers
+-	MOVW	$buf(SP), R(table)	// to
+-	MOVW	$64, R(c0)		// n
+-	MOVM.IB	[R(table),R(data),R(c0)], (R13)
++	MOVW	$buf(SP), Rtable	// to
++	MOVW	$64, Rc0		// n
++	MOVM.IB	[Rtable,Rdata,Rc0], (R13)
+ 	BL	runtime·memmove(SB)
+ 
+ 	// Point to the local aligned copy of the data
+-	MOVW	$buf(SP), R(data)
++	MOVW	$buf(SP), Rdata
+ 
+ aligned:
+ 	// Point to the table of constants
+ 	// A PC relative add would be cheaper than this
+-	MOVW	$·table(SB), R(table)
++	MOVW	$·table(SB), Rtable
+ 
+ 	// Load up initial MD5 accumulator
+-	MOVW	dig+0(FP), R(c0)
+-	MOVM.IA (R(c0)), [R(a),R(b),R(c),R(d)]
++	MOVW	dig+0(FP), Rc0
++	MOVM.IA (Rc0), [Ra,Rb,Rc,Rd]
+ 
+ // a += (((c^d)&b)^d) + X[index] + const
+ // a = a<<shift | a>>(32-shift) + b
+-#define ROUND1(a, b, c, d, index, shift, const) \
+-	EOR	R(c), R(d), R(t0)		; \
+-	AND	R(b), R(t0)			; \
+-	EOR	R(d), R(t0)			; \
+-	MOVW	(index<<2)(R(data)), R(t1)	; \
+-	ADD	R(t1), R(t0)			; \
+-	ADD	R(const), R(t0)			; \
+-	ADD	R(t0), R(a)			; \
+-	ADD	R(a)@>(32-shift), R(b), R(a)	;
+-
+-	MOVM.IA.W (R(table)), [R(c0),R(c1),R(c2),R(c3)]
+-	ROUND1(a, b, c, d,  0,	7, c0)
+-	ROUND1(d, a, b, c,  1, 12, c1)
+-	ROUND1(c, d, a, b,  2, 17, c2)
+-	ROUND1(b, c, d, a,  3, 22, c3)
+-
+-	MOVM.IA.W (R(table)), [R(c0),R(c1),R(c2),R(c3)]
+-	ROUND1(a, b, c, d,  4,	7, c0)
+-	ROUND1(d, a, b, c,  5, 12, c1)
+-	ROUND1(c, d, a, b,  6, 17, c2)
+-	ROUND1(b, c, d, a,  7, 22, c3)
+-
+-	MOVM.IA.W (R(table)), [R(c0),R(c1),R(c2),R(c3)]
+-	ROUND1(a, b, c, d,  8,	7, c0)
+-	ROUND1(d, a, b, c,  9, 12, c1)
+-	ROUND1(c, d, a, b, 10, 17, c2)
+-	ROUND1(b, c, d, a, 11, 22, c3)
+-
+-	MOVM.IA.W (R(table)), [R(c0),R(c1),R(c2),R(c3)]
+-	ROUND1(a, b, c, d, 12,	7, c0)
+-	ROUND1(d, a, b, c, 13, 12, c1)
+-	ROUND1(c, d, a, b, 14, 17, c2)
+-	ROUND1(b, c, d, a, 15, 22, c3)
++#define ROUND1(a, b, c, d, index, shift, Rconst) \
++	EOR	Rc, Rd, Rt0		; \
++	AND	Rb, Rt0			; \
++	EOR	Rd, Rt0			; \
++	MOVW	(index<<2)(Rdata), Rt1	; \
++	ADD	Rt1, Rt0			; \
++	ADD	Rconst, Rt0			; \
++	ADD	Rt0, Ra			; \
++	ADD	Ra@>(32-shift), Rb, Ra	;
++
++	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
++	ROUND1(a, b, c, d,  0,	7, Rc0)
++	ROUND1(d, a, b, c,  1, 12, Rc1)
++	ROUND1(c, d, a, b,  2, 17, Rc2)
++	ROUND1(b, c, d, a,  3, 22, Rc3)
++
++	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
++	ROUND1(a, b, c, d,  4,	7, Rc0)
++	ROUND1(d, a, b, c,  5, 12, Rc1)
++	ROUND1(c, d, a, b,  6, 17, Rc2)
++	ROUND1(b, c, d, a,  7, 22, Rc3)
++
++	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
++	ROUND1(a, b, c, d,  8,	7, Rc0)
++	ROUND1(d, a, b, c,  9, 12, Rc1)
++	ROUND1(c, d, a, b, 10, 17, Rc2)
++	ROUND1(b, c, d, a, 11, 22, Rc3)
++
++	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
++	ROUND1(a, b, c, d, 12,	7, Rc0)
++	ROUND1(d, a, b, c, 13, 12, Rc1)
++	ROUND1(c, d, a, b, 14, 17, Rc2)
++	ROUND1(b, c, d, a, 15, 22, Rc3)
+ 
+ // a += (((b^c)&d)^c) + X[index] + const
+ // a = a<<shift | a>>(32-shift) + b
+-#define ROUND2(a, b, c, d, index, shift, const) \
+-	EOR	R(b), R(c), R(t0)		; \
+-	AND	R(d), R(t0)			; \
+-	EOR	R(c), R(t0)			; \
+-	MOVW	(index<<2)(R(data)), R(t1)	; \
+-	ADD	R(t1), R(t0)			; \
+-	ADD	R(const), R(t0)			; \
+-	ADD	R(t0), R(a)			; \
+-	ADD	R(a)@>(32-shift), R(b), R(a)	;
+-
+-	MOVM.IA.W (R(table)), [R(c0),R(c1),R(c2),R(c3)]
+-	ROUND2(a, b, c, d,  1,	5, c0)
+-	ROUND2(d, a, b, c,  6,	9, c1)
+-	ROUND2(c, d, a, b, 11, 14, c2)
+-	ROUND2(b, c, d, a,  0, 20, c3)
+-
+-	MOVM.IA.W (R(table)), [R(c0),R(c1),R(c2),R(c3)]
+-	ROUND2(a, b, c, d,  5,	5, c0)
+-	ROUND2(d, a, b, c, 10,	9, c1)
+-	ROUND2(c, d, a, b, 15, 14, c2)
+-	ROUND2(b, c, d, a,  4, 20, c3)
+-
+-	MOVM.IA.W (R(table)), [R(c0),R(c1),R(c2),R(c3)]
+-	ROUND2(a, b, c, d,  9,	5, c0)
+-	ROUND2(d, a, b, c, 14,	9, c1)
+-	ROUND2(c, d, a, b,  3, 14, c2)
+-	ROUND2(b, c, d, a,  8, 20, c3)
+-
+-	MOVM.IA.W (R(table)), [R(c0),R(c1),R(c2),R(c3)]
+-	ROUND2(a, b, c, d, 13,	5, c0)
+-	ROUND2(d, a, b, c,  2,	9, c1)
+-	ROUND2(c, d, a, b,  7, 14, c2)
+-	ROUND2(b, c, d, a, 12, 20, c3)
++#define ROUND2(Ra, Rb, Rc, Rd, index, shift, Rconst) \
++	EOR	Rb, Rc, Rt0		; \
++	AND	Rd, Rt0			; \
++	EOR	Rc, Rt0			; \
++	MOVW	(index<<2)(Rdata), Rt1	; \
++	ADD	Rt1, Rt0			; \
++	ADD	Rconst, Rt0			; \
++	ADD	Rt0, Ra			; \
++	ADD	Ra@>(32-shift), Rb, Ra	;
++
++	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
++	ROUND2(Ra, Rb, Rc, Rd,  1,	5, Rc0)
++	ROUND2(Rd, Ra, Rb, Rc,  6,	9, Rc1)
++	ROUND2(Rc, Rd, Ra, Rb, 11, 14, Rc2)
++	ROUND2(Rb, Rc, Rd, Ra,  0, 20, Rc3)
++
++	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
++	ROUND2(Ra, Rb, Rc, Rd,  5,	5, Rc0)
++	ROUND2(Rd, Ra, Rb, Rc, 10,	9, Rc1)
++	ROUND2(Rc, Rd, Ra, Rb, 15, 14, Rc2)
++	ROUND2(Rb, Rc, Rd, Ra,  4, 20, Rc3)
++
++	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
++	ROUND2(Ra, Rb, Rc, Rd,  9,	5, Rc0)
++	ROUND2(Rd, Ra, Rb, Rc, 14,	9, Rc1)
++	ROUND2(Rc, Rd, Ra, Rb,  3, 14, Rc2)
++	ROUND2(Rb, Rc, Rd, Ra,  8, 20, Rc3)
++
++	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
++	ROUND2(Ra, Rb, Rc, Rd, 13,	5, Rc0)
++	ROUND2(Rd, Ra, Rb, Rc,  2,	9, Rc1)
++	ROUND2(Rc, Rd, Ra, Rb,  7, 14, Rc2)
++	ROUND2(Rb, Rc, Rd, Ra, 12, 20, Rc3)
+ 
+ // a += (b^c^d) + X[index] + const
+ // a = a<<shift | a>>(32-shift) + b
+-#define ROUND3(a, b, c, d, index, shift, const) \
+-	EOR	R(b), R(c), R(t0)		; \
+-	EOR	R(d), R(t0)			; \
+-	MOVW	(index<<2)(R(data)), R(t1)	; \
+-	ADD	R(t1), R(t0)			; \
+-	ADD	R(const), R(t0)			; \
+-	ADD	R(t0), R(a)			; \
+-	ADD	R(a)@>(32-shift), R(b), R(a)	;
+-
+-	MOVM.IA.W (R(table)), [R(c0),R(c1),R(c2),R(c3)]
+-	ROUND3(a, b, c, d,  5,	4, c0)
+-	ROUND3(d, a, b, c,  8, 11, c1)
+-	ROUND3(c, d, a, b, 11, 16, c2)
+-	ROUND3(b, c, d, a, 14, 23, c3)
+-
+-	MOVM.IA.W (R(table)), [R(c0),R(c1),R(c2),R(c3)]
+-	ROUND3(a, b, c, d,  1,	4, c0)
+-	ROUND3(d, a, b, c,  4, 11, c1)
+-	ROUND3(c, d, a, b,  7, 16, c2)
+-	ROUND3(b, c, d, a, 10, 23, c3)
+-
+-	MOVM.IA.W (R(table)), [R(c0),R(c1),R(c2),R(c3)]
+-	ROUND3(a, b, c, d, 13,	4, c0)
+-	ROUND3(d, a, b, c,  0, 11, c1)
+-	ROUND3(c, d, a, b,  3, 16, c2)
+-	ROUND3(b, c, d, a,  6, 23, c3)
+-
+-	MOVM.IA.W (R(table)), [R(c0),R(c1),R(c2),R(c3)]
+-	ROUND3(a, b, c, d,  9,	4, c0)
+-	ROUND3(d, a, b, c, 12, 11, c1)
+-	ROUND3(c, d, a, b, 15, 16, c2)
+-	ROUND3(b, c, d, a,  2, 23, c3)
++#define ROUND3(Ra, Rb, Rc, Rd, index, shift, Rconst) \
++	EOR	Rb, Rc, Rt0		; \
++	EOR	Rd, Rt0			; \
++	MOVW	(index<<2)(Rdata), Rt1	; \
++	ADD	Rt1, Rt0			; \
++	ADD	Rconst, Rt0			; \
++	ADD	Rt0, Ra			; \
++	ADD	Ra@>(32-shift), Rb, Ra	;
++
++	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
++	ROUND3(Ra, Rb, Rc, Rd,  5,	4, Rc0)
++	ROUND3(Rd, Ra, Rb, Rc,  8, 11, Rc1)
++	ROUND3(Rc, Rd, Ra, Rb, 11, 16, Rc2)
++	ROUND3(Rb, Rc, Rd, Ra, 14, 23, Rc3)
++
++	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
++	ROUND3(Ra, Rb, Rc, Rd,  1,	4, Rc0)
++	ROUND3(Rd, Ra, Rb, Rc,  4, 11, Rc1)
++	ROUND3(Rc, Rd, Ra, Rb,  7, 16, Rc2)
++	ROUND3(Rb, Rc, Rd, Ra, 10, 23, Rc3)
++
++	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
++	ROUND3(Ra, Rb, Rc, Rd, 13,	4, Rc0)
++	ROUND3(Rd, Ra, Rb, Rc,  0, 11, Rc1)
++	ROUND3(Rc, Rd, Ra, Rb,  3, 16, Rc2)
++	ROUND3(Rb, Rc, Rd, Ra,  6, 23, Rc3)
++
++	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
++	ROUND3(Ra, Rb, Rc, Rd,  9,	4, Rc0)
++	ROUND3(Rd, Ra, Rb, Rc, 12, 11, Rc1)
++	ROUND3(Rc, Rd, Ra, Rb, 15, 16, Rc2)
++	ROUND3(Rb, Rc, Rd, Ra,  2, 23, Rc3)
+ 
+ // a += (c^(b|^d)) + X[index] + const
+ // a = a<<shift | a>>(32-shift) + b
+-#define ROUND4(a, b, c, d, index, shift, const) \
+-	MVN	R(d), R(t0)			; \
+-	ORR	R(b), R(t0)			; \
+-	EOR	R(c), R(t0)			; \
+-	MOVW	(index<<2)(R(data)), R(t1)	; \
+-	ADD	R(t1), R(t0)			; \
+-	ADD	R(const), R(t0)			; \
+-	ADD	R(t0), R(a)			; \
+-	ADD	R(a)@>(32-shift), R(b), R(a)	;
+-
+-	MOVM.IA.W (R(table)), [R(c0),R(c1),R(c2),R(c3)]
+-	ROUND4(a, b, c, d,  0,	6, c0)
+-	ROUND4(d, a, b, c,  7, 10, c1)
+-	ROUND4(c, d, a, b, 14, 15, c2)
+-	ROUND4(b, c, d, a,  5, 21, c3)
+-
+-	MOVM.IA.W (R(table)), [R(c0),R(c1),R(c2),R(c3)]
+-	ROUND4(a, b, c, d, 12,	6, c0)
+-	ROUND4(d, a, b, c,  3, 10, c1)
+-	ROUND4(c, d, a, b, 10, 15, c2)
+-	ROUND4(b, c, d, a,  1, 21, c3)
+-
+-	MOVM.IA.W (R(table)), [R(c0),R(c1),R(c2),R(c3)]
+-	ROUND4(a, b, c, d,  8,	6, c0)
+-	ROUND4(d, a, b, c, 15, 10, c1)
+-	ROUND4(c, d, a, b,  6, 15, c2)
+-	ROUND4(b, c, d, a, 13, 21, c3)
+-
+-	MOVM.IA.W (R(table)), [R(c0),R(c1),R(c2),R(c3)]
+-	ROUND4(a, b, c, d,  4,	6, c0)
+-	ROUND4(d, a, b, c, 11, 10, c1)
+-	ROUND4(c, d, a, b,  2, 15, c2)
+-	ROUND4(b, c, d, a,  9, 21, c3)
+-
+-	MOVW	dig+0(FP), R(t0)
+-	MOVM.IA (R(t0)), [R(c0),R(c1),R(c2),R(c3)]
+-
+-	ADD	R(c0), R(a)
+-	ADD	R(c1), R(b)
+-	ADD	R(c2), R(c)
+-	ADD	R(c3), R(d)
+-
+-	MOVM.IA [R(a),R(b),R(c),R(d)], (R(t0))
+-
+-	MOVW	p_data(SP), R(data)
+-	MOVW	p_end(SP), R(t0)
+-	ADD	$64, R(data)
+-	CMP	R(t0), R(data)
++#define ROUND4(Ra, Rb, Rc, d, index, shift, Rconst) \
++	MVN	Rd, Rt0			; \
++	ORR	Rb, Rt0			; \
++	EOR	Rc, Rt0			; \
++	MOVW	(index<<2)(Rdata), Rt1	; \
++	ADD	Rt1, Rt0			; \
++	ADD	Rconst, Rt0			; \
++	ADD	Rt0, Ra			; \
++	ADD	Ra@>(32-shift), Rb, Ra	;
++
++	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
++	ROUND4(Ra, Rb, Rc, Rd,  0,	6, Rc0)
++	ROUND4(Rd, Ra, Rb, Rc,  7, 10, Rc1)
++	ROUND4(Rc, Rd, Ra, Rb, 14, 15, Rc2)
++	ROUND4(Rb, Rc, Rd, Ra,  5, 21, Rc3)
++
++	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
++	ROUND4(Ra, Rb, Rc, Rd, 12,	6, Rc0)
++	ROUND4(Rd, Ra, Rb, Rc,  3, 10, Rc1)
++	ROUND4(Rc, Rd, Ra, Rb, 10, 15, Rc2)
++	ROUND4(Rb, Rc, Rd, Ra,  1, 21, Rc3)
++
++	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
++	ROUND4(Ra, Rb, Rc, Rd,  8,	6, Rc0)
++	ROUND4(Rd, Ra, Rb, Rc, 15, 10, Rc1)
++	ROUND4(Rc, Rd, Ra, Rb,  6, 15, Rc2)
++	ROUND4(Rb, Rc, Rd, Ra, 13, 21, Rc3)
++
++	MOVM.IA.W (Rtable), [Rc0,Rc1,Rc2,Rc3]
++	ROUND4(Ra, Rb, Rc, Rd,  4,	6, Rc0)
++	ROUND4(Rd, Ra, Rb, Rc, 11, 10, Rc1)
++	ROUND4(Rc, Rd, Ra, Rb,  2, 15, Rc2)
++	ROUND4(Rb, Rc, Rd, Ra,  9, 21, Rc3)
++
++	MOVW	dig+0(FP), Rt0
++	MOVM.IA (Rt0), [Rc0,Rc1,Rc2,Rc3]
++
++	ADD	Rc0, Ra
++	ADD	Rc1, Rb
++	ADD	Rc2, Rc
++	ADD	Rc3, Rd
++
++	MOVM.IA [Ra,Rb,Rc,Rd], (Rt0)
++
++	MOVW	p_data(SP), Rdata
++	MOVW	p_end(SP), Rt0
++	ADD	$64, Rdata
++	CMP	Rt0, Rdata
+ 	BLO	loop
+ 
+ 	RET
+diff --git a/src/crypto/rc4/rc4_arm.s b/src/crypto/rc4/rc4_arm.s
+index 51be3bf95b..b4b807ad80 100644
+--- a/src/crypto/rc4/rc4_arm.s
++++ b/src/crypto/rc4/rc4_arm.s
+@@ -7,56 +7,56 @@
+ #include "textflag.h"
+ 
+ // Registers
+-dst = 0
+-src = 1
+-n = 2
+-state = 3
+-pi = 4
+-pj = 5
+-i = 6
+-j = 7
+-k = 8
+-t = 11
+-t2 = 12
++#define Rdst	R0
++#define Rsrc	R1
++#define Rn	R2
++#define Rstate	R3
++#define Rpi	R4
++#define Rpj	R5
++#define Ri	R6
++#define Rj	R7
++#define Rk	R8
++#define Rt	R11
++#define Rt2	R12
+ 
+ // func xorKeyStream(dst, src *byte, n int, state *[256]byte, i, j *uint8)
+ TEXT ·xorKeyStream(SB),NOSPLIT,$0
+-	MOVW 0(FP), R(dst)
+-	MOVW 4(FP), R(src)
+-	MOVW 8(FP), R(n)
+-	MOVW 12(FP), R(state)
+-	MOVW 16(FP), R(pi)
+-	MOVW 20(FP), R(pj)
+-	MOVBU (R(pi)), R(i)
+-	MOVBU (R(pj)), R(j)
+-	MOVW $0, R(k)
++	MOVW 0(FP), Rdst
++	MOVW 4(FP), Rsrc
++	MOVW 8(FP), Rn
++	MOVW 12(FP), Rstate
++	MOVW 16(FP), Rpi
++	MOVW 20(FP), Rpj
++	MOVBU (Rpi), Ri
++	MOVBU (Rpj), Rj
++	MOVW $0, Rk
+ 
+ loop:
+ 	// i += 1; j += state[i]
+-	ADD $1, R(i)
+-	AND $0xff, R(i)
+-	MOVBU R(i)<<2(R(state)), R(t)
+-	ADD R(t), R(j)
+-	AND $0xff, R(j)
++	ADD $1, Ri
++	AND $0xff, Ri
++	MOVBU Ri<<2(Rstate), Rt
++	ADD Rt, Rj
++	AND $0xff, Rj
+ 
+ 	// swap state[i] <-> state[j]
+-	MOVBU R(j)<<2(R(state)), R(t2)
+-	MOVB R(t2), R(i)<<2(R(state))
+-	MOVB R(t), R(j)<<2(R(state))
++	MOVBU Rj<<2(Rstate), Rt2
++	MOVB Rt2, Ri<<2(Rstate)
++	MOVB Rt, Rj<<2(Rstate)
+ 
+ 	// dst[k] = src[k] ^ state[state[i] + state[j]]
+-	ADD R(t2), R(t)
+-	AND $0xff, R(t)
+-	MOVBU R(t)<<2(R(state)), R(t)
+-	MOVBU R(k)<<0(R(src)), R(t2)
+-	EOR R(t), R(t2)
+-	MOVB R(t2), R(k)<<0(R(dst))
+-
+-	ADD $1, R(k)
+-	CMP R(k), R(n)
++	ADD Rt2, Rt
++	AND $0xff, Rt
++	MOVBU Rt<<2(Rstate), Rt
++	MOVBU Rk<<0(Rsrc), Rt2
++	EOR Rt, Rt2
++	MOVB Rt2, Rk<<0(Rdst)
++
++	ADD $1, Rk
++	CMP Rk, Rn
+ 	BNE loop
+ 
+ done:
+-	MOVB R(i), (R(pi))
+-	MOVB R(j), (R(pj))
++	MOVB Ri, (Rpi)
++	MOVB Rj, (Rpj)
+ 	RET
+diff --git a/src/crypto/sha1/sha1block_arm.s b/src/crypto/sha1/sha1block_arm.s
+index f11f33dc33..2cc0e09914 100644
+--- a/src/crypto/sha1/sha1block_arm.s
++++ b/src/crypto/sha1/sha1block_arm.s
+@@ -23,20 +23,20 @@
+ // the round macros instead of by explicit move instructions.
+ 
+ // Register definitions
+-data = 0	// Pointer to incoming data
+-const = 1	// Current constant for SHA round
+-a = 2		// SHA1 accumulator
+-b = 3		// SHA1 accumulator
+-c = 4		// SHA1 accumulator
+-d = 5		// SHA1 accumulator
+-e = 6		// SHA1 accumulator
+-t0 = 7		// Temporary
+-t1 = 8		// Temporary
++#define Rdata	R0	// Pointer to incoming data
++#define Rconst	R1	// Current constant for SHA round
++#define Ra	R2		// SHA1 accumulator
++#define Rb	R3		// SHA1 accumulator
++#define Rc	R4		// SHA1 accumulator
++#define Rd	R5		// SHA1 accumulator
++#define Re	R6		// SHA1 accumulator
++#define Rt0	R7		// Temporary
++#define Rt1	R8		// Temporary
+ // r9, r10 are forbidden
+ // r11 is OK provided you check the assembler that no synthetic instructions use it
+-t2 = 11		// Temporary
+-ctr = 12	// loop counter
+-w = 14		// point to w buffer
++#define Rt2	R11		// Temporary
++#define Rctr	R12	// loop counter
++#define Rw	R14		// point to w buffer
+ 
+ // func block(dig *digest, p []byte)
+ // 0(FP) is *digest
+@@ -45,173 +45,173 @@ w = 14		// point to w buffer
+ //12(FP) is p.cap
+ //
+ // Stack frame
+-p_end = -4		// -4(SP) pointer to the end of data
+-p_data = p_end - 4	// -8(SP) current data pointer
+-w_buf = p_data - 4*80	// -328(SP) 80 words temporary buffer w uint32[80]
+-saved = w_buf - 4*5	// -348(SP) saved sha1 registers a,b,c,d,e - these must be last
++#define p_end	-4		// -4(SP) pointer to the end of data
++#define p_data	(p_end - 4)	// -8(SP) current data pointer
++#define w_buf	(p_data - 4*80)	// -328(SP) 80 words temporary buffer w uint32[80]
++#define saved	(w_buf - 4*5)	// -348(SP) saved sha1 registers a,b,c,d,e - these must be last
+ // Total size +4 for saved LR is 352
+ 
+ 	// w[i] = p[j]<<24 | p[j+1]<<16 | p[j+2]<<8 | p[j+3]
+ 	// e += w[i]
+-#define LOAD(e) \
+-	MOVBU	2(R(data)), R(t0) ; \
+-	MOVBU	3(R(data)), R(t1) ; \
+-	MOVBU	1(R(data)), R(t2) ; \
+-	ORR	R(t0)<<8, R(t1), R(t0)	    ; \
+-	MOVBU.P	4(R(data)), R(t1) ; \
+-	ORR	R(t2)<<16, R(t0), R(t0)	    ; \
+-	ORR	R(t1)<<24, R(t0), R(t0)	    ; \
+-	MOVW.P	R(t0), 4(R(w))		    ; \
+-	ADD	R(t0), R(e), R(e)
++#define LOAD(Re) \
++	MOVBU	2(Rdata), Rt0 ; \
++	MOVBU	3(Rdata), Rt1 ; \
++	MOVBU	1(Rdata), Rt2 ; \
++	ORR	Rt0<<8, Rt1, Rt0	    ; \
++	MOVBU.P	4(Rdata), Rt1 ; \
++	ORR	Rt2<<16, Rt0, Rt0	    ; \
++	ORR	Rt1<<24, Rt0, Rt0	    ; \
++	MOVW.P	Rt0, 4(Rw)		    ; \
++	ADD	Rt0, Re, Re
+ 	
+ 	// tmp := w[(i-3)&0xf] ^ w[(i-8)&0xf] ^ w[(i-14)&0xf] ^ w[(i)&0xf]
+ 	// w[i&0xf] = tmp<<1 | tmp>>(32-1)
+ 	// e += w[i&0xf] 
+-#define SHUFFLE(e) \
+-	MOVW	(-16*4)(R(w)), R(t0) ; \
+-	MOVW	(-14*4)(R(w)), R(t1) ; \
+-	MOVW	(-8*4)(R(w)), R(t2)  ; \
+-	EOR	R(t0), R(t1), R(t0)  ; \
+-	MOVW	(-3*4)(R(w)), R(t1)  ; \
+-	EOR	R(t2), R(t0), R(t0)  ; \
+-	EOR	R(t0), R(t1), R(t0)  ; \
+-	MOVW	R(t0)@>(32-1), R(t0)  ; \
+-	MOVW.P	R(t0), 4(R(w))	  ; \
+-	ADD	R(t0), R(e), R(e)
++#define SHUFFLE(Re) \
++	MOVW	(-16*4)(Rw), Rt0 ; \
++	MOVW	(-14*4)(Rw), Rt1 ; \
++	MOVW	(-8*4)(Rw), Rt2  ; \
++	EOR	Rt0, Rt1, Rt0  ; \
++	MOVW	(-3*4)(Rw), Rt1  ; \
++	EOR	Rt2, Rt0, Rt0  ; \
++	EOR	Rt0, Rt1, Rt0  ; \
++	MOVW	Rt0@>(32-1), Rt0  ; \
++	MOVW.P	Rt0, 4(Rw)	  ; \
++	ADD	Rt0, Re, Re
+ 
+ 	// t1 = (b & c) | ((~b) & d)
+-#define FUNC1(a, b, c, d, e) \
+-	MVN	R(b), R(t1)	   ; \
+-	AND	R(b), R(c), R(t0)  ; \
+-	AND	R(d), R(t1), R(t1) ; \
+-	ORR	R(t0), R(t1), R(t1)
++#define FUNC1(Ra, Rb, Rc, Rd, Re) \
++	MVN	Rb, Rt1	   ; \
++	AND	Rb, Rc, Rt0  ; \
++	AND	Rd, Rt1, Rt1 ; \
++	ORR	Rt0, Rt1, Rt1
+ 
+ 	// t1 = b ^ c ^ d
+-#define FUNC2(a, b, c, d, e) \
+-	EOR	R(b), R(c), R(t1) ; \
+-	EOR	R(d), R(t1), R(t1)
++#define FUNC2(Ra, Rb, Rc, Rd, Re) \
++	EOR	Rb, Rc, Rt1 ; \
++	EOR	Rd, Rt1, Rt1
+ 
+ 	// t1 = (b & c) | (b & d) | (c & d) =
+ 	// t1 = (b & c) | ((b | c) & d)
+-#define FUNC3(a, b, c, d, e) \
+-	ORR	R(b), R(c), R(t0)  ; \
+-	AND	R(b), R(c), R(t1)  ; \
+-	AND	R(d), R(t0), R(t0) ; \
+-	ORR	R(t0), R(t1), R(t1)
++#define FUNC3(Ra, Rb, Rc, Rd, Re) \
++	ORR	Rb, Rc, Rt0  ; \
++	AND	Rb, Rc, Rt1  ; \
++	AND	Rd, Rt0, Rt0 ; \
++	ORR	Rt0, Rt1, Rt1
+ 
+ #define FUNC4 FUNC2
+ 
+ 	// a5 := a<<5 | a>>(32-5)
+ 	// b = b<<30 | b>>(32-30)
+ 	// e = a5 + t1 + e + const
+-#define MIX(a, b, c, d, e) \
+-	ADD	R(t1), R(e), R(e)	 ; \
+-	MOVW	R(b)@>(32-30), R(b)	 ; \
+-	ADD	R(a)@>(32-5), R(e), R(e) ; \
+-	ADD	R(const), R(e), R(e)
+-
+-#define ROUND1(a, b, c, d, e) \
+-	LOAD(e)		; \
+-	FUNC1(a, b, c, d, e)	; \
+-	MIX(a, b, c, d, e)
+-
+-#define ROUND1x(a, b, c, d, e) \
+-	SHUFFLE(e)	; \
+-	FUNC1(a, b, c, d, e)	; \
+-	MIX(a, b, c, d, e)
+-
+-#define ROUND2(a, b, c, d, e) \
+-	SHUFFLE(e)	; \
+-	FUNC2(a, b, c, d, e)	; \
+-	MIX(a, b, c, d, e)
+-
+-#define ROUND3(a, b, c, d, e) \
+-	SHUFFLE(e)	; \
+-	FUNC3(a, b, c, d, e)	; \
+-	MIX(a, b, c, d, e)
+-
+-#define ROUND4(a, b, c, d, e) \
+-	SHUFFLE(e)	; \
+-	FUNC4(a, b, c, d, e)	; \
+-	MIX(a, b, c, d, e)
++#define MIX(Ra, Rb, Rc, Rd, Re) \
++	ADD	Rt1, Re, Re	 ; \
++	MOVW	Rb@>(32-30), Rb	 ; \
++	ADD	Ra@>(32-5), Re, Re ; \
++	ADD	Rconst, Re, Re
++
++#define ROUND1(Ra, Rb, Rc, Rd, Re) \
++	LOAD(Re)		; \
++	FUNC1(Ra, Rb, Rc, Rd, Re)	; \
++	MIX(Ra, Rb, Rc, Rd, Re)
++
++#define ROUND1x(Ra, Rb, Rc, Rd, Re) \
++	SHUFFLE(Re)	; \
++	FUNC1(Ra, Rb, Rc, Rd, Re)	; \
++	MIX(Ra, Rb, Rc, Rd, Re)
++
++#define ROUND2(Ra, Rb, Rc, Rd, Re) \
++	SHUFFLE(Re)	; \
++	FUNC2(Ra, Rb, Rc, Rd, Re)	; \
++	MIX(Ra, Rb, Rc, Rd, Re)
++
++#define ROUND3(Ra, Rb, Rc, Rd, Re) \
++	SHUFFLE(Re)	; \
++	FUNC3(Ra, Rb, Rc, Rd, Re)	; \
++	MIX(Ra, Rb, Rc, Rd, Re)
++
++#define ROUND4(Ra, Rb, Rc, Rd, Re) \
++	SHUFFLE(Re)	; \
++	FUNC4(Ra, Rb, Rc, Rd, Re)	; \
++	MIX(Ra, Rb, Rc, Rd, Re)
+ 
+ 
+ // func block(dig *digest, p []byte)
+ TEXT	·block(SB), 0, $352-16
+-	MOVW	p+4(FP), R(data)	// pointer to the data
+-	MOVW	p_len+8(FP), R(t0)	// number of bytes
+-	ADD	R(data), R(t0)
+-	MOVW	R(t0), p_end(SP)	// pointer to end of data
++	MOVW	p+4(FP), Rdata	// pointer to the data
++	MOVW	p_len+8(FP), Rt0	// number of bytes
++	ADD	Rdata, Rt0
++	MOVW	Rt0, p_end(SP)	// pointer to end of data
+ 
+ 	// Load up initial SHA1 accumulator
+-	MOVW	dig+0(FP), R(t0)
+-	MOVM.IA (R(t0)), [R(a),R(b),R(c),R(d),R(e)]
++	MOVW	dig+0(FP), Rt0
++	MOVM.IA (Rt0), [Ra,Rb,Rc,Rd,Re]
+ 
+ loop:
+ 	// Save registers at SP+4 onwards
+-	MOVM.IB [R(a),R(b),R(c),R(d),R(e)], (R13)
+-
+-	MOVW	$w_buf(SP), R(w)
+-	MOVW	$0x5A827999, R(const)
+-	MOVW	$3, R(ctr)
+-loop1:	ROUND1(a, b, c, d, e)
+-	ROUND1(e, a, b, c, d)
+-	ROUND1(d, e, a, b, c)
+-	ROUND1(c, d, e, a, b)
+-	ROUND1(b, c, d, e, a)
+-	SUB.S	$1, R(ctr)
++	MOVM.IB [Ra,Rb,Rc,Rd,Re], (R13)
++
++	MOVW	$w_buf(SP), Rw
++	MOVW	$0x5A827999, Rconst
++	MOVW	$3, Rctr
++loop1:	ROUND1(Ra, Rb, Rc, Rd, Re)
++	ROUND1(Re, Ra, Rb, Rc, Rd)
++	ROUND1(Rd, Re, Ra, Rb, Rc)
++	ROUND1(Rc, Rd, Re, Ra, Rb)
++	ROUND1(Rb, Rc, Rd, Re, Ra)
++	SUB.S	$1, Rctr
+ 	BNE	loop1
+ 
+-	ROUND1(a, b, c, d, e)
+-	ROUND1x(e, a, b, c, d)
+-	ROUND1x(d, e, a, b, c)
+-	ROUND1x(c, d, e, a, b)
+-	ROUND1x(b, c, d, e, a)
++	ROUND1(Ra, Rb, Rc, Rd, Re)
++	ROUND1x(Re, Ra, Rb, Rc, Rd)
++	ROUND1x(Rd, Re, Ra, Rb, Rc)
++	ROUND1x(Rc, Rd, Re, Ra, Rb)
++	ROUND1x(Rb, Rc, Rd, Re, Ra)
+ 	
+-	MOVW	$0x6ED9EBA1, R(const)
+-	MOVW	$4, R(ctr)
+-loop2:	ROUND2(a, b, c, d, e)
+-	ROUND2(e, a, b, c, d)
+-	ROUND2(d, e, a, b, c)
+-	ROUND2(c, d, e, a, b)
+-	ROUND2(b, c, d, e, a)
+-	SUB.S	$1, R(ctr)
++	MOVW	$0x6ED9EBA1, Rconst
++	MOVW	$4, Rctr
++loop2:	ROUND2(Ra, Rb, Rc, Rd, Re)
++	ROUND2(Re, Ra, Rb, Rc, Rd)
++	ROUND2(Rd, Re, Ra, Rb, Rc)
++	ROUND2(Rc, Rd, Re, Ra, Rb)
++	ROUND2(Rb, Rc, Rd, Re, Ra)
++	SUB.S	$1, Rctr
+ 	BNE	loop2
+ 	
+-	MOVW	$0x8F1BBCDC, R(const)
+-	MOVW	$4, R(ctr)
+-loop3:	ROUND3(a, b, c, d, e)
+-	ROUND3(e, a, b, c, d)
+-	ROUND3(d, e, a, b, c)
+-	ROUND3(c, d, e, a, b)
+-	ROUND3(b, c, d, e, a)
+-	SUB.S	$1, R(ctr)
++	MOVW	$0x8F1BBCDC, Rconst
++	MOVW	$4, Rctr
++loop3:	ROUND3(Ra, Rb, Rc, Rd, Re)
++	ROUND3(Re, Ra, Rb, Rc, Rd)
++	ROUND3(Rd, Re, Ra, Rb, Rc)
++	ROUND3(Rc, Rd, Re, Ra, Rb)
++	ROUND3(Rb, Rc, Rd, Re, Ra)
++	SUB.S	$1, Rctr
+ 	BNE	loop3
+ 	
+-	MOVW	$0xCA62C1D6, R(const)
+-	MOVW	$4, R(ctr)
+-loop4:	ROUND4(a, b, c, d, e)
+-	ROUND4(e, a, b, c, d)
+-	ROUND4(d, e, a, b, c)
+-	ROUND4(c, d, e, a, b)
+-	ROUND4(b, c, d, e, a)
+-	SUB.S	$1, R(ctr)
++	MOVW	$0xCA62C1D6, Rconst
++	MOVW	$4, Rctr
++loop4:	ROUND4(Ra, Rb, Rc, Rd, Re)
++	ROUND4(Re, Ra, Rb, Rc, Rd)
++	ROUND4(Rd, Re, Ra, Rb, Rc)
++	ROUND4(Rc, Rd, Re, Ra, Rb)
++	ROUND4(Rb, Rc, Rd, Re, Ra)
++	SUB.S	$1, Rctr
+ 	BNE	loop4
+ 
+ 	// Accumulate - restoring registers from SP+4
+-	MOVM.IB (R13), [R(t0),R(t1),R(t2),R(ctr),R(w)]
+-	ADD	R(t0), R(a)
+-	ADD	R(t1), R(b)
+-	ADD	R(t2), R(c)
+-	ADD	R(ctr), R(d)
+-	ADD	R(w), R(e)
+-
+-	MOVW	p_end(SP), R(t0)
+-	CMP	R(t0), R(data)
++	MOVM.IB (R13), [Rt0,Rt1,Rt2,Rctr,Rw]
++	ADD	Rt0, Ra
++	ADD	Rt1, Rb
++	ADD	Rt2, Rc
++	ADD	Rctr, Rd
++	ADD	Rw, Re
++
++	MOVW	p_end(SP), Rt0
++	CMP	Rt0, Rdata
+ 	BLO	loop
+ 
+ 	// Save final SHA1 accumulator
+-	MOVW	dig+0(FP), R(t0)
+-	MOVM.IA [R(a),R(b),R(c),R(d),R(e)], (R(t0))
++	MOVW	dig+0(FP), Rt0
++	MOVM.IA [Ra,Rb,Rc,Rd,Re], (Rt0)
+ 
+ 	RET
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 2efeaaa531..cd81c25d6a 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -107,7 +107,7 @@ TEXT runtime·asminit(SB),NOSPLIT,$0-0
+ // save state in Gobuf; setjmp
+ TEXT runtime·gosave(SB),NOSPLIT,$-4-4
+ 	MOVW	0(FP), R0		// gobuf
+-	MOVW	SP, gobuf_sp(R0)
++	MOVW	R13, gobuf_sp(R0)
+ 	MOVW	LR, gobuf_pc(R0)
+ 	MOVW	g, gobuf_g(R0)
+ 	MOVW	$0, R11
+@@ -133,7 +133,7 @@ TEXT runtime·gogo(SB),NOSPLIT,$-4-4
+ 	// after this point: it must be straight-line code until the
+ 	// final B instruction.
+ 	// See large comment in sigprof for more details.
+-	MOVW	gobuf_sp(R1), SP	// restore SP
++	MOVW	gobuf_sp(R1), R13	// restore SP==R13
+ 	MOVW	gobuf_lr(R1), LR
+ 	MOVW	gobuf_ret(R1), R0
+ 	MOVW	gobuf_ctxt(R1), R7
+@@ -152,7 +152,7 @@ TEXT runtime·gogo(SB),NOSPLIT,$-4-4
+ // to keep running g.
+ TEXT runtime·mcall(SB),NOSPLIT,$-4-4
+ 	// Save caller state in g->sched.
+-	MOVW	SP, (g_sched+gobuf_sp)(g)
++	MOVW	R13, (g_sched+gobuf_sp)(g)
+ 	MOVW	LR, (g_sched+gobuf_pc)(g)
+ 	MOVW	$0, R11
+ 	MOVW	R11, (g_sched+gobuf_lr)(g)
+@@ -170,8 +170,8 @@ TEXT runtime·mcall(SB),NOSPLIT,$-4-4
+ 	CMP	$0, R11
+ 	BL.NE	runtime·save_g(SB)
+ 	MOVW	fn+0(FP), R0
+-	MOVW	(g_sched+gobuf_sp)(g), SP
+-	SUB	$8, SP
++	MOVW	(g_sched+gobuf_sp)(g), R13
++	SUB	$8, R13
+ 	MOVW	R1, 4(SP)
+ 	MOVW	R0, R7
+ 	MOVW	0(R0), R0
+@@ -217,7 +217,7 @@ switch:
+ 	MOVW	$runtime·systemstack_switch(SB), R3
+ 	ADD	$4, R3, R3 // get past push {lr}
+ 	MOVW	R3, (g_sched+gobuf_pc)(g)
+-	MOVW	SP, (g_sched+gobuf_sp)(g)
++	MOVW	R13, (g_sched+gobuf_sp)(g)
+ 	MOVW	LR, (g_sched+gobuf_lr)(g)
+ 	MOVW	g, (g_sched+gobuf_g)(g)
+ 
+@@ -231,7 +231,7 @@ switch:
+ 	SUB	$4, R3, R3
+ 	MOVW	$runtime·mstart(SB), R4
+ 	MOVW	R4, 0(R3)
+-	MOVW	R3, SP
++	MOVW	R3, R13
+ 
+ 	// call target function
+ 	MOVW	R0, R7
+@@ -242,7 +242,7 @@ switch:
+ 	MOVW	g_m(g), R1
+ 	MOVW	m_curg(R1), R0
+ 	BL	setg<>(SB)
+-	MOVW	(g_sched+gobuf_sp)(g), SP
++	MOVW	(g_sched+gobuf_sp)(g), R13
+ 	MOVW	$0, R3
+ 	MOVW	R3, (g_sched+gobuf_sp)(g)
+ 	RET
+@@ -284,21 +284,21 @@ TEXT runtime·morestack(SB),NOSPLIT,$-4-0
+ 	// Called from f.
+ 	// Set g->sched to context in f.
+ 	MOVW	R7, (g_sched+gobuf_ctxt)(g)
+-	MOVW	SP, (g_sched+gobuf_sp)(g)
++	MOVW	R13, (g_sched+gobuf_sp)(g)
+ 	MOVW	LR, (g_sched+gobuf_pc)(g)
+ 	MOVW	R3, (g_sched+gobuf_lr)(g)
+ 
+ 	// Called from f.
+ 	// Set m->morebuf to f's caller.
+ 	MOVW	R3, (m_morebuf+gobuf_pc)(R8)	// f's caller's PC
+-	MOVW	SP, (m_morebuf+gobuf_sp)(R8)	// f's caller's SP
++	MOVW	R13, (m_morebuf+gobuf_sp)(R8)	// f's caller's SP
+ 	MOVW	$4(SP), R3			// f's argument pointer
+ 	MOVW	g, (m_morebuf+gobuf_g)(R8)
+ 
+ 	// Call newstack on m->g0's stack.
+ 	MOVW	m_g0(R8), R0
+ 	BL	setg<>(SB)
+-	MOVW	(g_sched+gobuf_sp)(g), SP
++	MOVW	(g_sched+gobuf_sp)(g), R13
+ 	BL	runtime·newstack(SB)
+ 
+ 	// Not reached, but make sure the return PC from the call to newstack
+@@ -362,7 +362,7 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-20;		\
+ 	/* copy arguments to stack */		\
+ 	MOVW	argptr+8(FP), R0;		\
+ 	MOVW	argsize+12(FP), R2;		\
+-	ADD	$4, SP, R1;			\
++	ADD	$4, R13, R1;			\
+ 	CMP	$0, R2;				\
+ 	B.EQ	5(PC);				\
+ 	MOVBU.P	1(R0), R5;			\
+@@ -378,7 +378,7 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-20;		\
+ 	MOVW	argptr+8(FP), R0;		\
+ 	MOVW	argsize+12(FP), R2;		\
+ 	MOVW	retoffset+16(FP), R3;		\
+-	ADD	$4, SP, R1;			\
++	ADD	$4, R13, R1;			\
+ 	ADD	R3, R1;				\
+ 	ADD	R3, R0;				\
+ 	SUB	R3, R2;				\
+@@ -443,8 +443,8 @@ TEXT runtime·jmpdefer(SB),NOSPLIT,$0-8
+ 	MOVW	0(SP), LR
+ 	MOVW	$-4(LR), LR	// BL deferreturn
+ 	MOVW	fv+0(FP), R7
+-	MOVW	argp+4(FP), SP
+-	MOVW	$-4(SP), SP	// SP is 4 below argp, due to saved LR
++	MOVW	argp+4(FP), R13
++	MOVW	$-4(SP), R13	// SP is 4 below argp, due to saved LR
+ 	MOVW	0(R7), R1
+ 	B	(R1)
+ 
+diff --git a/src/runtime/memclr_arm.s b/src/runtime/memclr_arm.s
+index 1824d33b14..8b5fe31c51 100644
+--- a/src/runtime/memclr_arm.s
++++ b/src/runtime/memclr_arm.s
+@@ -25,31 +25,31 @@
+ 
+ #include "textflag.h"
+ 
+-TO = 8
+-TOE = 11
+-N = 12
+-TMP = 12				/* N and TMP don't overlap */
++#define TO	R8
++#define TOE	R11
++#define N	R12
++#define TMP	R12				/* N and TMP don't overlap */
+ 
+ TEXT runtime·memclr(SB),NOSPLIT,$0-8
+-	MOVW	ptr+0(FP), R(TO)
+-	MOVW	n+4(FP), R(N)
+-	MOVW	$0, R(0)
++	MOVW	ptr+0(FP), TO
++	MOVW	n+4(FP), N
++	MOVW	$0, R0
+ 
+-	ADD	R(N), R(TO), R(TOE)	/* to end pointer */
++	ADD	N, TO, TOE	/* to end pointer */
+ 
+-	CMP	$4, R(N)		/* need at least 4 bytes to copy */
++	CMP	$4, N		/* need at least 4 bytes to copy */
+ 	BLT	_1tail
+ 
+ _4align:				/* align on 4 */
+-	AND.S	$3, R(TO), R(TMP)
++	AND.S	$3, TO, TMP
+ 	BEQ	_4aligned
+ 
+-	MOVBU.P	R(0), 1(R(TO))		/* implicit write back */
++	MOVBU.P	R0, 1(TO)		/* implicit write back */
+ 	B	_4align
+ 
+ _4aligned:
+-	SUB	$31, R(TOE), R(TMP)	/* do 32-byte chunks if possible */
+-	CMP	R(TMP), R(TO)
++	SUB	$31, TOE, TMP	/* do 32-byte chunks if possible */
++	CMP	TMP, TO
+ 	BHS	_4tail
+ 
+ 	MOVW	R0, R1			/* replicate */
+@@ -61,26 +61,26 @@ _4aligned:
+ 	MOVW	R0, R7
+ 
+ _f32loop:
+-	CMP	R(TMP), R(TO)
++	CMP	TMP, TO
+ 	BHS	_4tail
+ 
+-	MOVM.IA.W [R0-R7], (R(TO))
++	MOVM.IA.W [R0-R7], (TO)
+ 	B	_f32loop
+ 
+ _4tail:
+-	SUB	$3, R(TOE), R(TMP)	/* do remaining words if possible */
++	SUB	$3, TOE, TMP	/* do remaining words if possible */
+ _4loop:
+-	CMP	R(TMP), R(TO)
++	CMP	TMP, TO
+ 	BHS	_1tail
+ 
+-	MOVW.P	R(0), 4(R(TO))		/* implicit write back */
++	MOVW.P	R0, 4(TO)		/* implicit write back */
+ 	B	_4loop
+ 
+ _1tail:
+-	CMP	R(TO), R(TOE)
++	CMP	TO, TOE
+ 	BEQ	_return
+ 
+-	MOVBU.P	R(0), 1(R(TO))		/* implicit write back */
++	MOVBU.P	R0, 1(TO)		/* implicit write back */
+ 	B	_1tail
+ 
+ _return:
+diff --git a/src/runtime/memmove_arm.s b/src/runtime/memmove_arm.s
+index f187d42678..35f04a84bc 100644
+--- a/src/runtime/memmove_arm.s
++++ b/src/runtime/memmove_arm.s
+@@ -26,138 +26,138 @@
+ #include "textflag.h"
+ 
+ // TE or TS are spilled to the stack during bulk register moves.
+-TS = 0
+-TE = 8
++#define TS	R0
++#define TE	R8
+ 
+ // Warning: the linker will use R11 to synthesize certain instructions. Please
+ // take care and double check with objdump.
+-FROM = 11
+-N = 12
+-TMP = 12				/* N and TMP don't overlap */
+-TMP1 = 5
+-
+-RSHIFT = 5
+-LSHIFT = 6
+-OFFSET = 7
+-
+-BR0 = 0					/* shared with TS */
+-BW0 = 1
+-BR1 = 1
+-BW1 = 2
+-BR2 = 2
+-BW2 = 3
+-BR3 = 3
+-BW3 = 4
+-
+-FW0 = 1
+-FR0 = 2
+-FW1 = 2
+-FR1 = 3
+-FW2 = 3
+-FR2 = 4
+-FW3 = 4
+-FR3 = 8					/* shared with TE */
++#define FROM	R11
++#define N	R12
++#define TMP	R12				/* N and TMP don't overlap */
++#define TMP1	R5
++
++#define RSHIFT	R5
++#define LSHIFT	R6
++#define OFFSET	R7
++
++#define BR0	R0					/* shared with TS */
++#define BW0	R1
++#define BR1	R1
++#define BW1	R2
++#define BR2	R2
++#define BW2	R3
++#define BR3	R3
++#define BW3	R4
++
++#define FW0	R1
++#define FR0	R2
++#define FW1	R2
++#define FR1	R3
++#define FW2	R3
++#define FR2	R4
++#define FW3	R4
++#define FR3	R8					/* shared with TE */
+ 
+ TEXT runtime·memmove(SB), NOSPLIT, $4-12
+ _memmove:
+-	MOVW	to+0(FP), R(TS)
+-	MOVW	from+4(FP), R(FROM)
+-	MOVW	n+8(FP), R(N)
++	MOVW	to+0(FP), TS
++	MOVW	from+4(FP), FROM
++	MOVW	n+8(FP), N
+ 
+-	ADD	R(N), R(TS), R(TE)	/* to end pointer */
++	ADD	N, TS, TE	/* to end pointer */
+ 
+-	CMP	R(FROM), R(TS)
++	CMP	FROM, TS
+ 	BLS	_forward
+ 
+ _back:
+-	ADD	R(N), R(FROM)		/* from end pointer */
+-	CMP	$4, R(N)		/* need at least 4 bytes to copy */
++	ADD	N, FROM		/* from end pointer */
++	CMP	$4, N		/* need at least 4 bytes to copy */
+ 	BLT	_b1tail
+ 
+ _b4align:				/* align destination on 4 */
+-	AND.S	$3, R(TE), R(TMP)
++	AND.S	$3, TE, TMP
+ 	BEQ	_b4aligned
+ 
+-	MOVBU.W	-1(R(FROM)), R(TMP)	/* pre-indexed */
+-	MOVBU.W	R(TMP), -1(R(TE))	/* pre-indexed */
++	MOVBU.W	-1(FROM), TMP	/* pre-indexed */
++	MOVBU.W	TMP, -1(TE)	/* pre-indexed */
+ 	B	_b4align
+ 
+ _b4aligned:				/* is source now aligned? */
+-	AND.S	$3, R(FROM), R(TMP)
++	AND.S	$3, FROM, TMP
+ 	BNE	_bunaligned
+ 
+-	ADD	$31, R(TS), R(TMP)	/* do 32-byte chunks if possible */
+-	MOVW	R(TS), savedts-4(SP)
++	ADD	$31, TS, TMP	/* do 32-byte chunks if possible */
++	MOVW	TS, savedts-4(SP)
+ _b32loop:
+-	CMP	R(TMP), R(TE)
++	CMP	TMP, TE
+ 	BLS	_b4tail
+ 
+-	MOVM.DB.W (R(FROM)), [R0-R7]
+-	MOVM.DB.W [R0-R7], (R(TE))
++	MOVM.DB.W (FROM), [R0-R7]
++	MOVM.DB.W [R0-R7], (TE)
+ 	B	_b32loop
+ 
+ _b4tail:				/* do remaining words if possible */
+-	MOVW	savedts-4(SP), R(TS)
+-	ADD	$3, R(TS), R(TMP)
++	MOVW	savedts-4(SP), TS
++	ADD	$3, TS, TMP
+ _b4loop:
+-	CMP	R(TMP), R(TE)
++	CMP	TMP, TE
+ 	BLS	_b1tail
+ 
+-	MOVW.W	-4(R(FROM)), R(TMP1)	/* pre-indexed */
+-	MOVW.W	R(TMP1), -4(R(TE))	/* pre-indexed */
++	MOVW.W	-4(FROM), TMP1	/* pre-indexed */
++	MOVW.W	TMP1, -4(TE)	/* pre-indexed */
+ 	B	_b4loop
+ 
+ _b1tail:				/* remaining bytes */
+-	CMP	R(TE), R(TS)
++	CMP	TE, TS
+ 	BEQ	_return
+ 
+-	MOVBU.W	-1(R(FROM)), R(TMP)	/* pre-indexed */
+-	MOVBU.W	R(TMP), -1(R(TE))	/* pre-indexed */
++	MOVBU.W	-1(FROM), TMP	/* pre-indexed */
++	MOVBU.W	TMP, -1(TE)	/* pre-indexed */
+ 	B	_b1tail
+ 
+ _forward:
+-	CMP	$4, R(N)		/* need at least 4 bytes to copy */
++	CMP	$4, N		/* need at least 4 bytes to copy */
+ 	BLT	_f1tail
+ 
+ _f4align:				/* align destination on 4 */
+-	AND.S	$3, R(TS), R(TMP)
++	AND.S	$3, TS, TMP
+ 	BEQ	_f4aligned
+ 
+-	MOVBU.P	1(R(FROM)), R(TMP)	/* implicit write back */
+-	MOVBU.P	R(TMP), 1(R(TS))	/* implicit write back */
++	MOVBU.P	1(FROM), TMP	/* implicit write back */
++	MOVBU.P	TMP, 1(TS)	/* implicit write back */
+ 	B	_f4align
+ 
+ _f4aligned:				/* is source now aligned? */
+-	AND.S	$3, R(FROM), R(TMP)
++	AND.S	$3, FROM, TMP
+ 	BNE	_funaligned
+ 
+-	SUB	$31, R(TE), R(TMP)	/* do 32-byte chunks if possible */
+-	MOVW	R(TE), savedte-4(SP)
++	SUB	$31, TE, TMP	/* do 32-byte chunks if possible */
++	MOVW	TE, savedte-4(SP)
+ _f32loop:
+-	CMP	R(TMP), R(TS)
++	CMP	TMP, TS
+ 	BHS	_f4tail
+ 
+-	MOVM.IA.W (R(FROM)), [R1-R8] 
+-	MOVM.IA.W [R1-R8], (R(TS))
++	MOVM.IA.W (FROM), [R1-R8] 
++	MOVM.IA.W [R1-R8], (TS)
+ 	B	_f32loop
+ 
+ _f4tail:
+-	MOVW	savedte-4(SP), R(TE)
+-	SUB	$3, R(TE), R(TMP)	/* do remaining words if possible */
++	MOVW	savedte-4(SP), TE
++	SUB	$3, TE, TMP	/* do remaining words if possible */
+ _f4loop:
+-	CMP	R(TMP), R(TS)
++	CMP	TMP, TS
+ 	BHS	_f1tail
+ 
+-	MOVW.P	4(R(FROM)), R(TMP1)	/* implicit write back */
+-	MOVW.P	R(TMP1), 4(R(TS))	/* implicit write back */
++	MOVW.P	4(FROM), TMP1	/* implicit write back */
++	MOVW.P	TMP1, 4(TS)	/* implicit write back */
+ 	B	_f4loop
+ 
+ _f1tail:
+-	CMP	R(TS), R(TE)
++	CMP	TS, TE
+ 	BEQ	_return
+ 
+-	MOVBU.P	1(R(FROM)), R(TMP)	/* implicit write back */
+-	MOVBU.P	R(TMP), 1(R(TS))	/* implicit write back */
++	MOVBU.P	1(FROM), TMP	/* implicit write back */
++	MOVBU.P	TMP, 1(TS)	/* implicit write back */
+ 	B	_f1tail
+ 
+ _return:
+@@ -165,97 +165,97 @@ _return:
+ 	RET
+ 
+ _bunaligned:
+-	CMP	$2, R(TMP)		/* is R(TMP) < 2 ? */
++	CMP	$2, TMP		/* is TMP < 2 ? */
+ 
+-	MOVW.LT	$8, R(RSHIFT)		/* (R(n)<<24)|(R(n-1)>>8) */
+-	MOVW.LT	$24, R(LSHIFT)
+-	MOVW.LT	$1, R(OFFSET)
++	MOVW.LT	$8, RSHIFT		/* (R(n)<<24)|(R(n-1)>>8) */
++	MOVW.LT	$24, LSHIFT
++	MOVW.LT	$1, OFFSET
+ 
+-	MOVW.EQ	$16, R(RSHIFT)		/* (R(n)<<16)|(R(n-1)>>16) */
+-	MOVW.EQ	$16, R(LSHIFT)
+-	MOVW.EQ	$2, R(OFFSET)
++	MOVW.EQ	$16, RSHIFT		/* (R(n)<<16)|(R(n-1)>>16) */
++	MOVW.EQ	$16, LSHIFT
++	MOVW.EQ	$2, OFFSET
+ 
+-	MOVW.GT	$24, R(RSHIFT)		/* (R(n)<<8)|(R(n-1)>>24) */
+-	MOVW.GT	$8, R(LSHIFT)
+-	MOVW.GT	$3, R(OFFSET)
++	MOVW.GT	$24, RSHIFT		/* (R(n)<<8)|(R(n-1)>>24) */
++	MOVW.GT	$8, LSHIFT
++	MOVW.GT	$3, OFFSET
+ 
+-	ADD	$16, R(TS), R(TMP)	/* do 16-byte chunks if possible */
+-	CMP	R(TMP), R(TE)
++	ADD	$16, TS, TMP	/* do 16-byte chunks if possible */
++	CMP	TMP, TE
+ 	BLS	_b1tail
+ 
+-	BIC	$3, R(FROM)		/* align source */
+-	MOVW	R(TS), savedts-4(SP)
+-	MOVW	(R(FROM)), R(BR0)	/* prime first block register */
++	BIC	$3, FROM		/* align source */
++	MOVW	TS, savedts-4(SP)
++	MOVW	(FROM), BR0	/* prime first block register */
+ 
+ _bu16loop:
+-	CMP	R(TMP), R(TE)
++	CMP	TMP, TE
+ 	BLS	_bu1tail
+ 
+-	MOVW	R(BR0)<<R(LSHIFT), R(BW3)
+-	MOVM.DB.W (R(FROM)), [R(BR0)-R(BR3)]
+-	ORR	R(BR3)>>R(RSHIFT), R(BW3)
++	MOVW	BR0<<LSHIFT, BW3
++	MOVM.DB.W (FROM), [BR0-BR3]
++	ORR	BR3>>RSHIFT, BW3
+ 
+-	MOVW	R(BR3)<<R(LSHIFT), R(BW2)
+-	ORR	R(BR2)>>R(RSHIFT), R(BW2)
++	MOVW	BR3<<LSHIFT, BW2
++	ORR	BR2>>RSHIFT, BW2
+ 
+-	MOVW	R(BR2)<<R(LSHIFT), R(BW1)
+-	ORR	R(BR1)>>R(RSHIFT), R(BW1)
++	MOVW	BR2<<LSHIFT, BW1
++	ORR	BR1>>RSHIFT, BW1
+ 
+-	MOVW	R(BR1)<<R(LSHIFT), R(BW0)
+-	ORR	R(BR0)>>R(RSHIFT), R(BW0)
++	MOVW	BR1<<LSHIFT, BW0
++	ORR	BR0>>RSHIFT, BW0
+ 
+-	MOVM.DB.W [R(BW0)-R(BW3)], (R(TE))
++	MOVM.DB.W [BW0-BW3], (TE)
+ 	B	_bu16loop
+ 
+ _bu1tail:
+-	MOVW	savedts-4(SP), R(TS)
+-	ADD	R(OFFSET), R(FROM)
++	MOVW	savedts-4(SP), TS
++	ADD	OFFSET, FROM
+ 	B	_b1tail
+ 
+ _funaligned:
+-	CMP	$2, R(TMP)
++	CMP	$2, TMP
+ 
+-	MOVW.LT	$8, R(RSHIFT)		/* (R(n+1)<<24)|(R(n)>>8) */
+-	MOVW.LT	$24, R(LSHIFT)
+-	MOVW.LT	$3, R(OFFSET)
++	MOVW.LT	$8, RSHIFT		/* (R(n+1)<<24)|(R(n)>>8) */
++	MOVW.LT	$24, LSHIFT
++	MOVW.LT	$3, OFFSET
+ 
+-	MOVW.EQ	$16, R(RSHIFT)		/* (R(n+1)<<16)|(R(n)>>16) */
+-	MOVW.EQ	$16, R(LSHIFT)
+-	MOVW.EQ	$2, R(OFFSET)
++	MOVW.EQ	$16, RSHIFT		/* (R(n+1)<<16)|(R(n)>>16) */
++	MOVW.EQ	$16, LSHIFT
++	MOVW.EQ	$2, OFFSET
+ 
+-	MOVW.GT	$24, R(RSHIFT)		/* (R(n+1)<<8)|(R(n)>>24) */
+-	MOVW.GT	$8, R(LSHIFT)
+-	MOVW.GT	$1, R(OFFSET)
++	MOVW.GT	$24, RSHIFT		/* (R(n+1)<<8)|(R(n)>>24) */
++	MOVW.GT	$8, LSHIFT
++	MOVW.GT	$1, OFFSET
+ 
+-	SUB	$16, R(TE), R(TMP)	/* do 16-byte chunks if possible */
+-	CMP	R(TMP), R(TS)
++	SUB	$16, TE, TMP	/* do 16-byte chunks if possible */
++	CMP	TMP, TS
+ 	BHS	_f1tail
+ 
+-	BIC	$3, R(FROM)		/* align source */
+-	MOVW	R(TE), savedte-4(SP)
+-	MOVW.P	4(R(FROM)), R(FR3)	/* prime last block register, implicit write back */
++	BIC	$3, FROM		/* align source */
++	MOVW	TE, savedte-4(SP)
++	MOVW.P	4(FROM), FR3	/* prime last block register, implicit write back */
+ 
+ _fu16loop:
+-	CMP	R(TMP), R(TS)
++	CMP	TMP, TS
+ 	BHS	_fu1tail
+ 
+-	MOVW	R(FR3)>>R(RSHIFT), R(FW0)
+-	MOVM.IA.W (R(FROM)), [R(FR0),R(FR1),R(FR2),R(FR3)]
+-	ORR	R(FR0)<<R(LSHIFT), R(FW0)
++	MOVW	FR3>>RSHIFT, FW0
++	MOVM.IA.W (FROM), [FR0,FR1,FR2,FR3]
++	ORR	FR0<<LSHIFT, FW0
+ 
+-	MOVW	R(FR0)>>R(RSHIFT), R(FW1)
+-	ORR	R(FR1)<<R(LSHIFT), R(FW1)
++	MOVW	FR0>>RSHIFT, FW1
++	ORR	FR1<<LSHIFT, FW1
+ 
+-	MOVW	R(FR1)>>R(RSHIFT), R(FW2)
+-	ORR	R(FR2)<<R(LSHIFT), R(FW2)
++	MOVW	FR1>>RSHIFT, FW2
++	ORR	FR2<<LSHIFT, FW2
+ 
+-	MOVW	R(FR2)>>R(RSHIFT), R(FW3)
+-	ORR	R(FR3)<<R(LSHIFT), R(FW3)
++	MOVW	FR2>>RSHIFT, FW3
++	ORR	FR3<<LSHIFT, FW3
+ 
+-	MOVM.IA.W [R(FW0),R(FW1),R(FW2),R(FW3)], (R(TS))
++	MOVM.IA.W [FW0,FW1,FW2,FW3], (TS)
+ 	B	_fu16loop
+ 
+ _fu1tail:
+-	MOVW	savedte-4(SP), R(TE)
+-	SUB	R(OFFSET), R(FROM)
++	MOVW	savedte-4(SP), TE
++	SUB	OFFSET, FROM
+ 	B	_f1tail
+diff --git a/src/runtime/rt0_linux_arm.s b/src/runtime/rt0_linux_arm.s
+index 15a57cbc56..15c1092a36 100644
+--- a/src/runtime/rt0_linux_arm.s
++++ b/src/runtime/rt0_linux_arm.s
+@@ -77,7 +77,7 @@ DATA bad_abi_msg+0x2c(SB)/1, $0xa
+ GLOBL bad_abi_msg(SB), RODATA, $45
+ 
+ TEXT oabi_syscall<>(SB),NOSPLIT,$-4
+-	ADD $1, PC, R4
++	ADD $1, R15, R4 // R15 is hardware PC
+ 	WORD $0xe12fff14 //BX	(R4) // enter thumb mode
+ 	// TODO(minux): only supports little-endian CPUs
+ 	WORD $0x4770df01 // swi $1; bx lr
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index bf0c810ad1..b0a9b4fc7d 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -383,7 +383,7 @@ TEXT runtime·usleep(SB),NOSPLIT,$12
+ // Use kernel version instead of native armcas in asm_arm.s.
+ // See ../sync/atomic/asm_linux_arm.s for details.
+ TEXT cas<>(SB),NOSPLIT,$0
+-	MOVW	$0xffff0fc0, PC
++	MOVW	$0xffff0fc0, R15 // R15 is hardware PC.
+ 
+ TEXT runtime·cas(SB),NOSPLIT,$0
+ 	MOVW	ptr+0(FP), R2
+diff --git a/src/runtime/vlop_arm.s b/src/runtime/vlop_arm.s
+index 5354bf9115..28f75190ec 100644
+--- a/src/runtime/vlop_arm.s
++++ b/src/runtime/vlop_arm.s
+@@ -27,8 +27,6 @@
+ #include "go_tls.h"
+ #include "textflag.h"
+ 
+-arg=0
+-
+ /* replaced use of R10 by R11 because the former can be the data segment base register */
+ 
+ TEXT _mulv(SB), NOSPLIT, $0
+@@ -111,70 +109,71 @@ TEXT runtime·_sfloatpanic(SB),NOSPLIT,$-4
+ // Reference: 
+ // Sloss, Andrew et. al; ARM System Developer's Guide: Designing and Optimizing System Software
+ // Morgan Kaufmann; 1 edition (April 8, 2004), ISBN 978-1558608740
+-q = 0 // input d, output q
+-r = 1 // input n, output r
+-s = 2 // three temporary variables
+-M = 3
+-a = 11
+-// Be careful: R(a) == R11 will be used by the linker for synthesized instructions.
++#define Rq	R0 // input d, output q
++#define Rr	R1 // input n, output r
++#define Rs	R2 // three temporary variables
++#define RM	R3
++#define Ra	R11
++
++// Be careful: Ra == R11 will be used by the linker for synthesized instructions.
+ TEXT udiv<>(SB),NOSPLIT,$-4
+-	CLZ 	R(q), R(s) // find normalizing shift
+-	MOVW.S	R(q)<<R(s), R(a)
+-	MOVW	$fast_udiv_tab<>-64(SB), R(M)
+-	ADD.NE	R(a)>>25, R(M), R(a) // index by most significant 7 bits of divisor
+-	MOVBU.NE	(R(a)), R(a)
++	CLZ 	Rq, Rs // find normalizing shift
++	MOVW.S	Rq<<Rs, Ra
++	MOVW	$fast_udiv_tab<>-64(SB), RM
++	ADD.NE	Ra>>25, RM, Ra // index by most significant 7 bits of divisor
++	MOVBU.NE	(Ra), Ra
+ 
+-	SUB.S	$7, R(s)
+-	RSB 	$0, R(q), R(M) // M = -q
+-	MOVW.PL	R(a)<<R(s), R(q)
++	SUB.S	$7, Rs
++	RSB 	$0, Rq, RM // M = -q
++	MOVW.PL	Ra<<Rs, Rq
+ 
+ 	// 1st Newton iteration
+-	MUL.PL	R(M), R(q), R(a) // a = -q*d
++	MUL.PL	RM, Rq, Ra // a = -q*d
+ 	BMI 	udiv_by_large_d
+-	MULAWT	R(a), R(q), R(q), R(q) // q approx q-(q*q*d>>32)
+-	TEQ 	R(M)->1, R(M) // check for d=0 or d=1
++	MULAWT	Ra, Rq, Rq, Rq // q approx q-(q*q*d>>32)
++	TEQ 	RM->1, RM // check for d=0 or d=1
+ 
+ 	// 2nd Newton iteration
+-	MUL.NE	R(M), R(q), R(a)
+-	MOVW.NE	$0, R(s)
+-	MULAL.NE R(q), R(a), (R(q),R(s))
++	MUL.NE	RM, Rq, Ra
++	MOVW.NE	$0, Rs
++	MULAL.NE Rq, Ra, (Rq,Rs)
+ 	BEQ 	udiv_by_0_or_1
+ 
+ 	// q now accurate enough for a remainder r, 0<=r<3*d
+-	MULLU	R(q), R(r), (R(q),R(s)) // q = (r * q) >> 32	
+-	ADD 	R(M), R(r), R(r) // r = n - d
+-	MULA	R(M), R(q), R(r), R(r) // r = n - (q+1)*d
++	MULLU	Rq, Rr, (Rq,Rs) // q = (r * q) >> 32
++	ADD 	RM, Rr, Rr // r = n - d
++	MULA	RM, Rq, Rr, Rr // r = n - (q+1)*d
+ 
+ 	// since 0 <= n-q*d < 3*d; thus -d <= r < 2*d
+-	CMN 	R(M), R(r) // t = r-d
+-	SUB.CS	R(M), R(r), R(r) // if (t<-d || t>=0) r=r+d
+-	ADD.CC	$1, R(q)
+-	ADD.PL	R(M)<<1, R(r)
+-	ADD.PL	$2, R(q)
++	CMN 	RM, Rr // t = r-d
++	SUB.CS	RM, Rr, Rr // if (t<-d || t>=0) r=r+d
++	ADD.CC	$1, Rq
++	ADD.PL	RM<<1, Rr
++	ADD.PL	$2, Rq
+ 	RET
+ 
+ udiv_by_large_d:
+ 	// at this point we know d>=2^(31-6)=2^25
+-	SUB 	$4, R(a), R(a)
+-	RSB 	$0, R(s), R(s)
+-	MOVW	R(a)>>R(s), R(q)
+-	MULLU	R(q), R(r), (R(q),R(s))
+-	MULA	R(M), R(q), R(r), R(r)
++	SUB 	$4, Ra, Ra
++	RSB 	$0, Rs, Rs
++	MOVW	Ra>>Rs, Rq
++	MULLU	Rq, Rr, (Rq,Rs)
++	MULA	RM, Rq, Rr, Rr
+ 
+ 	// q now accurate enough for a remainder r, 0<=r<4*d
+-	CMN 	R(r)>>1, R(M) // if(r/2 >= d)
+-	ADD.CS	R(M)<<1, R(r)
+-	ADD.CS	$2, R(q)
+-	CMN 	R(r), R(M)
+-	ADD.CS	R(M), R(r)
+-	ADD.CS	$1, R(q)
++	CMN 	Rr>>1, RM // if(r/2 >= d)
++	ADD.CS	RM<<1, Rr
++	ADD.CS	$2, Rq
++	CMN 	Rr, RM
++	ADD.CS	RM, Rr
++	ADD.CS	$1, Rq
+ 	RET
+ 
+ udiv_by_0_or_1:
+ 	// carry set if d==1, carry clear if d==0
+ 	BCC udiv_by_0
+-	MOVW	R(r), R(q)
+-	MOVW	$0, R(r)
++	MOVW	Rr, Rq
++	MOVW	$0, Rr
+ 	RET
+ 
+ udiv_by_0:
+@@ -216,96 +215,96 @@ DATA fast_udiv_tab<>+0x38(SB)/4, $0x85868788
+ DATA fast_udiv_tab<>+0x3c(SB)/4, $0x81828384
+ GLOBL fast_udiv_tab<>(SB), RODATA, $64
+ 
+-// The linker will pass numerator in R(TMP), and it also
+-// expects the result in R(TMP)
+-TMP = 11
++// The linker will pass numerator in RTMP, and it also
++// expects the result in RTMP
++#define RTMP R11
+ 
+ TEXT _divu(SB), NOSPLIT, $16
+-	MOVW	R(q), 4(R13)
+-	MOVW	R(r), 8(R13)
+-	MOVW	R(s), 12(R13)
+-	MOVW	R(M), 16(R13)
++	MOVW	Rq, 4(R13)
++	MOVW	Rr, 8(R13)
++	MOVW	Rs, 12(R13)
++	MOVW	RM, 16(R13)
+ 
+-	MOVW	R(TMP), R(r)		/* numerator */
+-	MOVW	0(FP), R(q) 		/* denominator */
++	MOVW	RTMP, Rr		/* numerator */
++	MOVW	0(FP), Rq 		/* denominator */
+ 	BL  	udiv<>(SB)
+-	MOVW	R(q), R(TMP)
+-	MOVW	4(R13), R(q)
+-	MOVW	8(R13), R(r)
+-	MOVW	12(R13), R(s)
+-	MOVW	16(R13), R(M)
++	MOVW	Rq, RTMP
++	MOVW	4(R13), Rq
++	MOVW	8(R13), Rr
++	MOVW	12(R13), Rs
++	MOVW	16(R13), RM
+ 	RET
+ 
+ TEXT _modu(SB), NOSPLIT, $16
+-	MOVW	R(q), 4(R13)
+-	MOVW	R(r), 8(R13)
+-	MOVW	R(s), 12(R13)
+-	MOVW	R(M), 16(R13)
++	MOVW	Rq, 4(R13)
++	MOVW	Rr, 8(R13)
++	MOVW	Rs, 12(R13)
++	MOVW	RM, 16(R13)
+ 
+-	MOVW	R(TMP), R(r)		/* numerator */
+-	MOVW	0(FP), R(q) 		/* denominator */
++	MOVW	RTMP, Rr		/* numerator */
++	MOVW	0(FP), Rq 		/* denominator */
+ 	BL  	udiv<>(SB)
+-	MOVW	R(r), R(TMP)
+-	MOVW	4(R13), R(q)
+-	MOVW	8(R13), R(r)
+-	MOVW	12(R13), R(s)
+-	MOVW	16(R13), R(M)
++	MOVW	Rr, RTMP
++	MOVW	4(R13), Rq
++	MOVW	8(R13), Rr
++	MOVW	12(R13), Rs
++	MOVW	16(R13), RM
+ 	RET
+ 
+ TEXT _div(SB),NOSPLIT,$16
+-	MOVW	R(q), 4(R13)
+-	MOVW	R(r), 8(R13)
+-	MOVW	R(s), 12(R13)
+-	MOVW	R(M), 16(R13)
+-	MOVW	R(TMP), R(r)		/* numerator */
+-	MOVW	0(FP), R(q) 		/* denominator */
+-	CMP 	$0, R(r)
++	MOVW	Rq, 4(R13)
++	MOVW	Rr, 8(R13)
++	MOVW	Rs, 12(R13)
++	MOVW	RM, 16(R13)
++	MOVW	RTMP, Rr		/* numerator */
++	MOVW	0(FP), Rq 		/* denominator */
++	CMP 	$0, Rr
+ 	BGE 	d1
+-	RSB 	$0, R(r), R(r)
+-	CMP 	$0, R(q)
++	RSB 	$0, Rr, Rr
++	CMP 	$0, Rq
+ 	BGE 	d2
+-	RSB 	$0, R(q), R(q)
++	RSB 	$0, Rq, Rq
+ d0:
+ 	BL  	udiv<>(SB)  		/* none/both neg */
+-	MOVW	R(q), R(TMP)
++	MOVW	Rq, RTMP
+ 	B		out1
+ d1:
+-	CMP 	$0, R(q)
++	CMP 	$0, Rq
+ 	BGE 	d0
+-	RSB 	$0, R(q), R(q)
++	RSB 	$0, Rq, Rq
+ d2:
+ 	BL  	udiv<>(SB)  		/* one neg */
+-	RSB		$0, R(q), R(TMP)
++	RSB		$0, Rq, RTMP
+ out1:
+-	MOVW	4(R13), R(q)
+-	MOVW	8(R13), R(r)
+-	MOVW	12(R13), R(s)
+-	MOVW	16(R13), R(M)
++	MOVW	4(R13), Rq
++	MOVW	8(R13), Rr
++	MOVW	12(R13), Rs
++	MOVW	16(R13), RM
+ 	RET
+ 
+ TEXT _mod(SB),NOSPLIT,$16
+-	MOVW	R(q), 4(R13)
+-	MOVW	R(r), 8(R13)
+-	MOVW	R(s), 12(R13)
+-	MOVW	R(M), 16(R13)
+-	MOVW	R(TMP), R(r)		/* numerator */
+-	MOVW	0(FP), R(q) 		/* denominator */
+-	CMP 	$0, R(q)
+-	RSB.LT	$0, R(q), R(q)
+-	CMP 	$0, R(r)
++	MOVW	Rq, 4(R13)
++	MOVW	Rr, 8(R13)
++	MOVW	Rs, 12(R13)
++	MOVW	RM, 16(R13)
++	MOVW	RTMP, Rr		/* numerator */
++	MOVW	0(FP), Rq 		/* denominator */
++	CMP 	$0, Rq
++	RSB.LT	$0, Rq, Rq
++	CMP 	$0, Rr
+ 	BGE 	m1
+-	RSB 	$0, R(r), R(r)
++	RSB 	$0, Rr, Rr
+ 	BL  	udiv<>(SB)  		/* neg numerator */
+-	RSB 	$0, R(r), R(TMP)
++	RSB 	$0, Rr, RTMP
+ 	B   	out
+ m1:
+ 	BL  	udiv<>(SB)  		/* pos numerator */
+-	MOVW	R(r), R(TMP)
++	MOVW	Rr, RTMP
+ out:
+-	MOVW	4(R13), R(q)
+-	MOVW	8(R13), R(r)
+-	MOVW	12(R13), R(s)
+-	MOVW	16(R13), R(M)
++	MOVW	4(R13), Rq
++	MOVW	8(R13), Rr
++	MOVW	12(R13), Rs
++	MOVW	16(R13), RM
+ 	RET
+ 
+ // _mul64by32 and _div64by32 not implemented on arm
+diff --git a/src/sync/atomic/asm_linux_arm.s b/src/sync/atomic/asm_linux_arm.s
+index b388e4c550..63562388a2 100644
+--- a/src/sync/atomic/asm_linux_arm.s
++++ b/src/sync/atomic/asm_linux_arm.s
+@@ -24,7 +24,7 @@
+ // http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=b49c0f24cf6744a3f4fd09289fe7cade349dead5
+ //
+ TEXT cas<>(SB),NOSPLIT,$0
+-	MOVW	$0xffff0fc0, PC
++	MOVW	$0xffff0fc0, R15
+ 
+ TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0
+ 	B	·CompareAndSwapUint32(SB)
+@@ -95,7 +95,7 @@ TEXT ·SwapUintptr(SB),NOSPLIT,$0
+ 	B	·SwapUint32(SB)
+ 
+ TEXT cas64<>(SB),NOSPLIT,$0
+-	MOVW	$0xffff0f60, PC // __kuser_cmpxchg64: Linux-3.1 and above
++	MOVW	$0xffff0f60, R15 // R15 = hardware PC. __kuser_cmpxchg64: Linux-3.1 and above
+ 
+ TEXT kernelCAS64<>(SB),NOSPLIT,$0-21
+ 	// int (*__kuser_cmpxchg64_t)(const int64_t *oldval, const int64_t *newval, volatile int64_t *ptr);
+@@ -127,17 +127,17 @@ TEXT setupAndCallCAS64<>(SB),NOSPLIT,$-4-21
+ 	CMP 	$5, R0
+ 	MOVW.CS	$kernelCAS64<>(SB), R1
+ 	MOVW.CS	R1, armCAS64(SB)
+-	MOVW.CS	R1, PC
++	MOVW.CS	R1, R15 // R15 = hardware PC
+ 	MOVB	runtime·armArch(SB), R0
+ 	// LDREXD, STREXD only present on ARMv6K or higher
+ 	CMP	$6, R0 // TODO(minux): how to differentiate ARMv6 with ARMv6K?
+ 	MOVW.CS	$·armCompareAndSwapUint64(SB), R1
+ 	MOVW.CS	R1, armCAS64(SB)
+-	MOVW.CS	R1, PC
++	MOVW.CS	R1, R15
+ 	// we are out of luck, can only use runtime's emulated 64-bit cas
+ 	MOVW	$·generalCAS64(SB), R1
+ 	MOVW	R1, armCAS64(SB)
+-	MOVW	R1, PC
++	MOVW	R1, R15
+ 
+ TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0
+ 	B   	·CompareAndSwapUint64(SB)
+@@ -145,7 +145,7 @@ TEXT ·CompareAndSwapInt64(SB),NOSPLIT,$0
+ TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$-4-21
+ 	MOVW	armCAS64(SB), R0
+ 	CMP 	$0, R0
+-	MOVW.NE	R0, PC
++	MOVW.NE	R0, R15 // R15 = hardware PC
+ 	B	setupAndCallCAS64<>(SB)
+ 
+ TEXT ·AddInt64(SB),NOSPLIT,$0

@@ -25,6 +25,20 @@ Date:   Thu Aug 15 10:36:46 2013 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12916043
-
+---
  src/cmd/go/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index c197007c43..d4a1c50f41 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -1010,7 +1010,7 @@ type coverInfo struct {
+ func writeTestmain(out string, pmain, p *Package) error {
+ 	var cover []coverInfo
+ 	for _, cp := range pmain.imports {
+-		if cp.coverVars != nil {
++		if len(cp.coverVars) > 0 {
+ 			cover = append(cover, coverInfo{cp, cp.coverVars})
+ 		}
+ 	}

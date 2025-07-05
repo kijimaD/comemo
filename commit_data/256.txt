@@ -5,6 +5,25 @@ Date:   Fri Jun 27 16:59:14 2008 -0700
     fixed fncall both sides
     
     SVN=125217
-
+---
  src/cmd/6g/cgen.c | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 4611a5f00f..c0e685318d 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -63,8 +63,11 @@ cgen(Node *n, Node *res)
+ 	nr = n->right;
+ 	if(nl != N && nl->ullman >= UINF)
+ 	if(nr != N && nr->ullman >= UINF) {
+-		dump("fncalls", n);
+-		fatal("cgen: both sides functions");
++		tempname(&n1, nr->type);
++		cgen(nr, &n1);
++		n2 = *n;
++		n2.right = &n1;
++		cgen(&n2, res);
+ 		goto ret;
+ 	}
+ 

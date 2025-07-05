@@ -12,6 +12,23 @@ Date:   Wed Nov 11 23:13:14 2015 -0800
     Change-Id: Ib48b3b5e9a74567ddfaccb7ab4a897ee2aedc2b8
     Reviewed-on: https://go-review.googlesource.com/16837
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/pkg.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index b9218ff9a7..b1b27e4662 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -832,8 +832,9 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 		importPaths = append(importPaths, "runtime/cgo")
+ 	}
+ 
+-	// Everything depends on runtime, except runtime, its subpackages, and unsafe.
+-	if !p.Standard || (p.ImportPath != "runtime" && !strings.HasPrefix(p.ImportPath, "runtime/") && p.ImportPath != "unsafe") {
++	// Everything depends on runtime, except runtime, its internal
++	// subpackages, and unsafe.
++	if !p.Standard || (p.ImportPath != "runtime" && !strings.HasPrefix(p.ImportPath, "runtime/internal/") && p.ImportPath != "unsafe") {
+ 		importPaths = append(importPaths, "runtime")
+ 		// When race detection enabled everything depends on runtime/race.
+ 		// Exclude certain packages to avoid circular dependencies.

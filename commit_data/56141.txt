@@ -26,7 +26,102 @@ Date:   Wed Apr 12 13:58:54 2023 +0000
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/net/http/serve_test.go     | 25 +++++++++++++++++++++++--
  src/net/http/transport_test.go | 34 +++++++++++++++++++++++++++++++++-
  2 files changed, 56 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 164b18287f..9b8496e7ad 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -6546,9 +6546,30 @@ func testMaxBytesHandler(t *testing.T, mode testMode, maxSize, requestSize int64
+ 	defer ts.Close()
+ 
+ 	c := ts.Client()
++
++	body := strings.Repeat("a", int(requestSize))
++	var wg sync.WaitGroup
++	defer wg.Wait()
++	getBody := func() (io.ReadCloser, error) {
++		wg.Add(1)
++		body := &wgReadCloser{
++			Reader: strings.NewReader(body),
++			wg:     &wg,
++		}
++		return body, nil
++	}
++	reqBody, _ := getBody()
++	req, err := NewRequest("POST", ts.URL, reqBody)
++	if err != nil {
++		reqBody.Close()
++		t.Fatal(err)
++	}
++	req.ContentLength = int64(len(body))
++	req.GetBody = getBody
++	req.Header.Set("Content-Type", "text/plain")
++
+ 	var buf strings.Builder
+-	body := strings.NewReader(strings.Repeat("a", int(requestSize)))
+-	res, err := c.Post(ts.URL, "text/plain", body)
++	res, err := c.Do(req)
+ 	if err != nil {
+ 		t.Errorf("unexpected connection error: %v", err)
+ 	} else {
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 6f57629eff..f9e8a285c5 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -4250,6 +4250,21 @@ func testTransportFlushesRequestHeader(t *testing.T, mode testMode) {
+ 	<-gotRes
+ }
+ 
++type wgReadCloser struct {
++	io.Reader
++	wg     *sync.WaitGroup
++	closed bool
++}
++
++func (c *wgReadCloser) Close() error {
++	if c.closed {
++		return net.ErrClosed
++	}
++	c.closed = true
++	c.wg.Done()
++	return nil
++}
++
+ // Issue 11745.
+ func TestTransportPrefersResponseOverWriteError(t *testing.T) {
+ 	run(t, testTransportPrefersResponseOverWriteError)
+@@ -4271,12 +4286,29 @@ func testTransportPrefersResponseOverWriteError(t *testing.T, mode testMode) {
+ 
+ 	fail := 0
+ 	count := 100
++
+ 	bigBody := strings.Repeat("a", contentLengthLimit*2)
++	var wg sync.WaitGroup
++	defer wg.Wait()
++	getBody := func() (io.ReadCloser, error) {
++		wg.Add(1)
++		body := &wgReadCloser{
++			Reader: strings.NewReader(bigBody),
++			wg:     &wg,
++		}
++		return body, nil
++	}
++
+ 	for i := 0; i < count; i++ {
+-		req, err := NewRequest("PUT", ts.URL, strings.NewReader(bigBody))
++		reqBody, _ := getBody()
++		req, err := NewRequest("PUT", ts.URL, reqBody)
+ 		if err != nil {
++			reqBody.Close()
+ 			t.Fatal(err)
+ 		}
++		req.ContentLength = int64(len(bigBody))
++		req.GetBody = getBody
++
+ 		resp, err := c.Do(req)
+ 		if err != nil {
+ 			fail++

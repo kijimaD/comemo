@@ -10,7 +10,100 @@ Date:   Thu Feb 25 21:16:45 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/19933
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/crash_cgo_test.go           | 36 +++++++++++++++++++++++----------
  src/runtime/testdata/testprogcgo/cgo.go | 14 +++++++++++--
  2 files changed, 37 insertions(+), 13 deletions(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 635e271d5d..00686ee755 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -7,6 +7,7 @@
+ package runtime_test
+ 
+ import (
++	"fmt"
+ 	"internal/testenv"
+ 	"os/exec"
+ 	"runtime"
+@@ -161,22 +162,35 @@ func TestCgoCheckBytes(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	cmd := testEnv(exec.Command(exe, "CgoCheckBytes"))
+-	cmd.Env = append(cmd.Env, "GODEBUG=cgocheck=0")
++	// Try it 10 times to avoid flakiness.
++	const tries = 10
++	var tot1, tot2 time.Duration
++	for i := 0; i < tries; i++ {
++		cmd := testEnv(exec.Command(exe, "CgoCheckBytes"))
++		cmd.Env = append(cmd.Env, "GODEBUG=cgocheck=0", fmt.Sprintf("GO_CGOCHECKBYTES_TRY=%d", i))
+ 
+-	start := time.Now()
+-	cmd.Run()
+-	d1 := time.Since(start)
++		start := time.Now()
++		cmd.Run()
++		d1 := time.Since(start)
+ 
+-	cmd = testEnv(exec.Command(exe, "CgoCheckBytes"))
++		cmd = testEnv(exec.Command(exe, "CgoCheckBytes"))
++		cmd.Env = append(cmd.Env, fmt.Sprintf("GO_CGOCHECKBYTES_TRY=%d", i))
+ 
+-	start = time.Now()
+-	cmd.Run()
+-	d2 := time.Since(start)
++		start = time.Now()
++		cmd.Run()
++		d2 := time.Since(start)
+ 
+-	if d1*20 < d2 {
+-		t.Errorf("cgo check too slow: got %v, expected at most %v", d1, d2*10)
++		if d1*20 > d2 {
++			// The slow version (d2) was less than 20 times
++			// slower than the fast version (d1), so OK.
++			return
++		}
++
++		tot1 += d1
++		tot2 += d2
+ 	}
++
++	t.Errorf("cgo check too slow: got %v, expected at most %v", tot2/tries, (tot1/tries)*20)
+ }
+ 
+ func TestCgoPanicDeadlock(t *testing.T) {
+diff --git a/src/runtime/testdata/testprogcgo/cgo.go b/src/runtime/testdata/testprogcgo/cgo.go
+index 5d2550dbb0..7a2e013d43 100644
+--- a/src/runtime/testdata/testprogcgo/cgo.go
++++ b/src/runtime/testdata/testprogcgo/cgo.go
+@@ -11,7 +11,9 @@ void foo2(void* p) {}
+ import "C"
+ import (
+ 	"fmt"
++	"os"
+ 	"runtime"
++	"strconv"
+ 	"time"
+ 	"unsafe"
+ )
+@@ -83,8 +85,16 @@ func CgoTraceback() {
+ }
+ 
+ func CgoCheckBytes() {
+-	b := make([]byte, 1e6)
+-	for i := 0; i < 1e3; i++ {
++	try, _ := strconv.Atoi(os.Getenv("GO_CGOCHECKBYTES_TRY"))
++	if try <= 0 {
++		try = 1
++	}
++	b := make([]byte, 1e6*try)
++	start := time.Now()
++	for i := 0; i < 1e3*try; i++ {
+ 		C.foo2(unsafe.Pointer(&b[0]))
++		if time.Since(start) > time.Second {
++			break
++		}
+ 	}
+ }

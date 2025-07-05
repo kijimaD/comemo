@@ -7,7 +7,130 @@ Date:   Fri Apr 17 14:55:07 2015 +0900
     Change-Id: I7c6c91a0551aacb49e1beb4a39215b93c8c7fcfa
     Reviewed-on: https://go-review.googlesource.com/8997
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/error_test.go | 51 +++++++++++++++++++++++++++++++++++++++++++++++++++
  src/net/net_test.go   | 38 --------------------------------------
  2 files changed, 51 insertions(+), 38 deletions(-)
+
+diff --git a/src/net/error_test.go b/src/net/error_test.go
+index 8448eb1c39..d7f502ef19 100644
+--- a/src/net/error_test.go
++++ b/src/net/error_test.go
+@@ -150,6 +150,9 @@ func TestDialError(t *testing.T) {
+ 			c.Close()
+ 			continue
+ 		}
++		if c != nil {
++			t.Errorf("Dial returned non-nil interface %T(%v) with err != nil", c, c)
++		}
+ 		if err = parseDialError(err); err != nil {
+ 			t.Errorf("#%d: %v", i, err)
+ 			continue
+@@ -166,6 +169,11 @@ var listenErrorTests = []struct {
+ 	{"tcp", "127.0.0.1:☺"},
+ 	{"tcp", "no-such-name:80"},
+ 	{"tcp", "mh/astro/r70:http"},
++
++	{"tcp", "127.0.0.1:0"},
++
++	{"unix", "/path/to/somewhere"},
++	{"unixpacket", "/path/to/somewhere"},
+ }
+ 
+ func TestListenError(t *testing.T) {
+@@ -191,6 +199,49 @@ func TestListenError(t *testing.T) {
+ 			ln.Close()
+ 			continue
+ 		}
++		if ln != nil {
++			t.Errorf("Listen returned non-nil interface %T(%v) with err != nil", ln, ln)
++		}
++		if err = parseDialError(err); err != nil {
++			t.Errorf("#%d: %v", i, err)
++			continue
++		}
++	}
++}
++
++var listenPacketErrorTests = []struct {
++	network, address string
++}{
++	{"foo", ""},
++	{"bar", "baz"},
++	{"datakit", "mh/astro/r70"},
++	{"udp", "127.0.0.1:☺"},
++	{"udp", "no-such-name:80"},
++	{"udp", "mh/astro/r70:http"},
++}
++
++func TestListenPacketError(t *testing.T) {
++	switch runtime.GOOS {
++	case "plan9":
++		t.Skipf("%s does not have full support of socktest", runtime.GOOS)
++	}
++
++	origTestHookLookupIP := testHookLookupIP
++	defer func() { testHookLookupIP = origTestHookLookupIP }()
++	testHookLookupIP = func(fn func(string) ([]IPAddr, error), host string) ([]IPAddr, error) {
++		return nil, &DNSError{Err: "listen error test", Name: "name", Server: "server", IsTimeout: true}
++	}
++
++	for i, tt := range listenPacketErrorTests {
++		c, err := ListenPacket(tt.network, tt.address)
++		if err == nil {
++			t.Errorf("#%d: should fail; %s:%s->", i, tt.network, c.LocalAddr())
++			c.Close()
++			continue
++		}
++		if c != nil {
++			t.Errorf("ListenPacket returned non-nil interface %T(%v) with err != nil", c, c)
++		}
+ 		if err = parseDialError(err); err != nil {
+ 			t.Errorf("#%d: %v", i, err)
+ 			continue
+diff --git a/src/net/net_test.go b/src/net/net_test.go
+index 5a88363eb6..5cdc769a51 100644
+--- a/src/net/net_test.go
++++ b/src/net/net_test.go
+@@ -223,41 +223,3 @@ func TestTCPClose(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ }
+-
+-func TestErrorNil(t *testing.T) {
+-	c, err := Dial("tcp", "127.0.0.1:65535")
+-	if err == nil {
+-		t.Fatal("Dial 127.0.0.1:65535 succeeded")
+-	}
+-	if c != nil {
+-		t.Fatalf("Dial returned non-nil interface %T(%v) with err != nil", c, c)
+-	}
+-
+-	// Make Listen fail by relistening on the same address.
+-	l, err := Listen("tcp", "127.0.0.1:0")
+-	if err != nil {
+-		t.Fatalf("Listen 127.0.0.1:0: %v", err)
+-	}
+-	defer l.Close()
+-	l1, err := Listen("tcp", l.Addr().String())
+-	if err == nil {
+-		t.Fatalf("second Listen %v: %v", l.Addr(), err)
+-	}
+-	if l1 != nil {
+-		t.Fatalf("Listen returned non-nil interface %T(%v) with err != nil", l1, l1)
+-	}
+-
+-	// Make ListenPacket fail by relistening on the same address.
+-	lp, err := ListenPacket("udp", "127.0.0.1:0")
+-	if err != nil {
+-		t.Fatalf("Listen 127.0.0.1:0: %v", err)
+-	}
+-	defer lp.Close()
+-	lp1, err := ListenPacket("udp", lp.LocalAddr().String())
+-	if err == nil {
+-		t.Fatalf("second Listen %v: %v", lp.LocalAddr(), err)
+-	}
+-	if lp1 != nil {
+-		t.Fatalf("ListenPacket returned non-nil interface %T(%v) with err != nil", lp1, lp1)
+-	}
+-}

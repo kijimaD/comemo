@@ -9,6 +9,20 @@ Date:   Wed Dec 4 17:04:02 2019 +0000
     Change-Id: I1a4d26c5f7f3fbd4de13fc337de482667d83c47f
     Reviewed-on: https://go-review.googlesource.com/c/go/+/209758
     Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
-
+---
  src/math/rand/rand.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/math/rand/rand.go b/src/math/rand/rand.go
+index 3e44613663..d6422c914d 100644
+--- a/src/math/rand/rand.go
++++ b/src/math/rand/rand.go
+@@ -298,7 +298,7 @@ var _ *rngSource = globalRand.src.(*lockedSource).src
+ // Seed uses the provided seed value to initialize the default Source to a
+ // deterministic state. If Seed is not called, the generator behaves as
+ // if seeded by Seed(1). Seed values that have the same remainder when
+-// divided by 2^31-1 generate the same pseudo-random sequence.
++// divided by 2³¹-1 generate the same pseudo-random sequence.
+ // Seed, unlike the Rand.Seed method, is safe for concurrent use.
+ func Seed(seed int64) { globalRand.Seed(seed) }
+ 

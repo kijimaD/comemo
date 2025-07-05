@@ -11,7 +11,7 @@ Date:   Wed Mar 9 05:58:47 2011 -0800
     R=bradfitzgo, bradfitzwork
     CC=golang-dev
     https://golang.org/cl/4247070
-
+---
  src/pkg/syscall/mkerrors.sh             |  2 ++
  src/pkg/syscall/syscall_linux.go        |  2 ++
  src/pkg/syscall/zerrors_linux_386.go    | 22 ++++++++++++++++++++++
@@ -21,3 +21,322 @@ Date:   Wed Mar 9 05:58:47 2011 -0800
  src/pkg/syscall/zsyscall_linux_amd64.go | 16 ++++++++++++++++
  src/pkg/syscall/zsyscall_linux_arm.go   | 16 ++++++++++++++++
  8 files changed, 118 insertions(+)
+
+diff --git a/src/pkg/syscall/mkerrors.sh b/src/pkg/syscall/mkerrors.sh
+index 7329a90c98..fc49a71d71 100755
+--- a/src/pkg/syscall/mkerrors.sh
++++ b/src/pkg/syscall/mkerrors.sh
+@@ -26,6 +26,7 @@ includes_Linux='
+ #include <sys/inotify.h>
+ #include <sys/ioctl.h>
+ #include <sys/mman.h>
++#include <sys/mount.h>
+ #include <sys/stat.h>
+ #include <linux/ptrace.h>
+ #include <linux/wait.h>
+@@ -123,6 +124,7 @@ done
+ 		$2 == "IFNAMSIZ" ||
+ 		$2 == "CTL_NET" ||
+ 		$2 == "CTL_MAXNAME" ||
++		$2 ~ /^(MS|MNT)_/ ||
+ 		$2 ~ /^TUN(SET|GET|ATTACH|DETACH)/ ||
+ 		$2 ~ /^(O|F|FD|NAME|S|PTRACE)_/ ||
+ 		$2 ~ /^LINUX_REBOOT_CMD_/ ||
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index 550a377b89..6bed85fed6 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -722,6 +722,7 @@ func Reboot(cmd int) (errno int) {
+ //sys	Mkdirat(dirfd int, path string, mode uint32) (errno int)
+ //sys	Mknod(path string, mode uint32, dev int) (errno int)
+ //sys	Mknodat(dirfd int, path string, mode uint32, dev int) (errno int)
++//sys	Mount(source string, target string, fstype string, flags int, data string) (errno int)
+ //sys	Nanosleep(time *Timespec, leftover *Timespec) (errno int)
+ //sys	Pause() (errno int)
+ //sys	PivotRoot(newroot string, putold string) (errno int) = SYS_PIVOT_ROOT
+@@ -747,6 +748,7 @@ func Reboot(cmd int) (errno int) {
+ //sys	Uname(buf *Utsname) (errno int)
+ //sys	Unlink(path string) (errno int)
+ //sys	Unlinkat(dirfd int, path string) (errno int)
++//sys	Unmount(target string, flags int) (errno int) = SYS_UMOUNT2
+ //sys	Unshare(flags int) (errno int)
+ //sys	Ustat(dev int, ubuf *Ustat_t) (errno int)
+ //sys	Utime(path string, buf *Utimbuf) (errno int)
+diff --git a/src/pkg/syscall/zerrors_linux_386.go b/src/pkg/syscall/zerrors_linux_386.go
+index 198e713692..a0e14b2a37 100644
+--- a/src/pkg/syscall/zerrors_linux_386.go
++++ b/src/pkg/syscall/zerrors_linux_386.go
+@@ -436,6 +436,9 @@ const (
+ 	MAP_TYPE                         = 0xf
+ 	MCL_CURRENT                      = 0x1
+ 	MCL_FUTURE                       = 0x2
++	MNT_DETACH                       = 0x2
++	MNT_EXPIRE                       = 0x4
++	MNT_FORCE                        = 0x1
+ 	MSG_CMSG_CLOEXEC                 = 0x40000000
+ 	MSG_CONFIRM                      = 0x800
+ 	MSG_CTRUNC                       = 0x8
+@@ -454,6 +457,22 @@ const (
+ 	MSG_TRUNC                        = 0x20
+ 	MSG_TRYHARD                      = 0x4
+ 	MSG_WAITALL                      = 0x100
++	MS_ASYNC                         = 0x1
++	MS_BIND                          = 0x1000
++	MS_INVALIDATE                    = 0x2
++	MS_MANDLOCK                      = 0x40
++	MS_MGC_MSK                       = 0xffff0000
++	MS_MGC_VAL                       = 0xc0ed0000
++	MS_NOATIME                       = 0x400
++	MS_NODEV                         = 0x4
++	MS_NODIRATIME                    = 0x800
++	MS_NOEXEC                        = 0x8
++	MS_NOSUID                        = 0x2
++	MS_RDONLY                        = 0x1
++	MS_REMOUNT                       = 0x20
++	MS_RMT_MASK                      = 0xc51
++	MS_SYNC                          = 0x4
++	MS_SYNCHRONOUS                   = 0x10
+ 	NAME_MAX                         = 0xff
+ 	O_ACCMODE                        = 0x3
+ 	O_APPEND                         = 0x400
+@@ -712,6 +731,7 @@ const (
+ 	SO_TIMESTAMPING                  = 0x25
+ 	SO_TIMESTAMPNS                   = 0x23
+ 	SO_TYPE                          = 0x3
++	S_APPEND                         = 0x100
+ 	S_BLKSIZE                        = 0x200
+ 	S_IEXEC                          = 0x40
+ 	S_IFBLK                          = 0x6000
+@@ -722,6 +742,7 @@ const (
+ 	S_IFMT                           = 0xf000
+ 	S_IFREG                          = 0x8000
+ 	S_IFSOCK                         = 0xc000
++	S_IMMUTABLE                      = 0x200
+ 	S_IREAD                          = 0x100
+ 	S_IRGRP                          = 0x20
+ 	S_IROTH                          = 0x4
+@@ -739,6 +760,7 @@ const (
+ 	S_IXGRP                          = 0x8
+ 	S_IXOTH                          = 0x1
+ 	S_IXUSR                          = 0x40
++	S_WRITE                          = 0x80
+ 	TCP_CONGESTION                   = 0xd
+ 	TCP_CORK                         = 0x3
+ 	TCP_DEFER_ACCEPT                 = 0x9
+diff --git a/src/pkg/syscall/zerrors_linux_amd64.go b/src/pkg/syscall/zerrors_linux_amd64.go
+index 675bc95499..122ac8b79c 100644
+--- a/src/pkg/syscall/zerrors_linux_amd64.go
++++ b/src/pkg/syscall/zerrors_linux_amd64.go
+@@ -436,6 +436,9 @@ const (
+ 	MAP_TYPE                         = 0xf
+ 	MCL_CURRENT                      = 0x1
+ 	MCL_FUTURE                       = 0x2
++	MNT_DETACH                       = 0x2
++	MNT_EXPIRE                       = 0x4
++	MNT_FORCE                        = 0x1
+ 	MSG_CMSG_CLOEXEC                 = 0x40000000
+ 	MSG_CONFIRM                      = 0x800
+ 	MSG_CTRUNC                       = 0x8
+@@ -454,6 +457,22 @@ const (
+ 	MSG_TRUNC                        = 0x20
+ 	MSG_TRYHARD                      = 0x4
+ 	MSG_WAITALL                      = 0x100
++	MS_ASYNC                         = 0x1
++	MS_BIND                          = 0x1000
++	MS_INVALIDATE                    = 0x2
++	MS_MANDLOCK                      = 0x40
++	MS_MGC_MSK                       = 0xffff0000
++	MS_MGC_VAL                       = 0xc0ed0000
++	MS_NOATIME                       = 0x400
++	MS_NODEV                         = 0x4
++	MS_NODIRATIME                    = 0x800
++	MS_NOEXEC                        = 0x8
++	MS_NOSUID                        = 0x2
++	MS_RDONLY                        = 0x1
++	MS_REMOUNT                       = 0x20
++	MS_RMT_MASK                      = 0xc51
++	MS_SYNC                          = 0x4
++	MS_SYNCHRONOUS                   = 0x10
+ 	NAME_MAX                         = 0xff
+ 	O_ACCMODE                        = 0x3
+ 	O_APPEND                         = 0x400
+@@ -713,6 +732,7 @@ const (
+ 	SO_TIMESTAMPING                  = 0x25
+ 	SO_TIMESTAMPNS                   = 0x23
+ 	SO_TYPE                          = 0x3
++	S_APPEND                         = 0x100
+ 	S_BLKSIZE                        = 0x200
+ 	S_IEXEC                          = 0x40
+ 	S_IFBLK                          = 0x6000
+@@ -723,6 +743,7 @@ const (
+ 	S_IFMT                           = 0xf000
+ 	S_IFREG                          = 0x8000
+ 	S_IFSOCK                         = 0xc000
++	S_IMMUTABLE                      = 0x200
+ 	S_IREAD                          = 0x100
+ 	S_IRGRP                          = 0x20
+ 	S_IROTH                          = 0x4
+@@ -740,6 +761,7 @@ const (
+ 	S_IXGRP                          = 0x8
+ 	S_IXOTH                          = 0x1
+ 	S_IXUSR                          = 0x40
++	S_WRITE                          = 0x80
+ 	TCP_CONGESTION                   = 0xd
+ 	TCP_CORK                         = 0x3
+ 	TCP_DEFER_ACCEPT                 = 0x9
+diff --git a/src/pkg/syscall/zerrors_linux_arm.go b/src/pkg/syscall/zerrors_linux_arm.go
+index adbbc774f7..356d51ca50 100644
+--- a/src/pkg/syscall/zerrors_linux_arm.go
++++ b/src/pkg/syscall/zerrors_linux_arm.go
+@@ -389,6 +389,25 @@ const (
+ 	LINUX_REBOOT_CMD_SW_SUSPEND      = 0xd000fce2
+ 	LINUX_REBOOT_MAGIC1              = 0xfee1dead
+ 	LINUX_REBOOT_MAGIC2              = 0x28121969
++	MNT_DETACH                       = 0x2
++	MNT_EXPIRE                       = 0x4
++	MNT_FORCE                        = 0x1
++	MS_ASYNC                         = 0x1
++	MS_BIND                          = 0x1000
++	MS_INVALIDATE                    = 0x2
++	MS_MANDLOCK                      = 0x40
++	MS_MGC_MSK                       = 0xffff0000
++	MS_MGC_VAL                       = 0xc0ed0000
++	MS_NOATIME                       = 0x400
++	MS_NODEV                         = 0x4
++	MS_NODIRATIME                    = 0x800
++	MS_NOEXEC                        = 0x8
++	MS_NOSUID                        = 0x2
++	MS_RDONLY                        = 0x1
++	MS_REMOUNT                       = 0x20
++	MS_RMT_MASK                      = 0xc51
++	MS_SYNC                          = 0x4
++	MS_SYNCHRONOUS                   = 0x10
+ 	NAME_MAX                         = 0xff
+ 	O_ACCMODE                        = 0x3
+ 	O_APPEND                         = 0x400
+@@ -552,6 +571,7 @@ const (
+ 	SO_TIMESTAMPING                  = 0x25
+ 	SO_TIMESTAMPNS                   = 0x23
+ 	SO_TYPE                          = 0x3
++	S_APPEND                         = 0x100
+ 	S_BLKSIZE                        = 0x200
+ 	S_IEXEC                          = 0x40
+ 	S_IFBLK                          = 0x6000
+@@ -562,6 +582,7 @@ const (
+ 	S_IFMT                           = 0xf000
+ 	S_IFREG                          = 0x8000
+ 	S_IFSOCK                         = 0xc000
++	S_IMMUTABLE                      = 0x200
+ 	S_IREAD                          = 0x100
+ 	S_IRGRP                          = 0x20
+ 	S_IROTH                          = 0x4
+@@ -579,6 +600,7 @@ const (
+ 	S_IXGRP                          = 0x8
+ 	S_IXOTH                          = 0x1
+ 	S_IXUSR                          = 0x40
++	S_WRITE                          = 0x80
+ 	TCP_CONGESTION                   = 0xd
+ 	TCP_CORK                         = 0x3
+ 	TCP_DEFER_ACCEPT                 = 0x9
+diff --git a/src/pkg/syscall/zsyscall_linux_386.go b/src/pkg/syscall/zsyscall_linux_386.go
+index 746fee8a67..bade293e24 100644
+--- a/src/pkg/syscall/zsyscall_linux_386.go
++++ b/src/pkg/syscall/zsyscall_linux_386.go
+@@ -456,6 +456,14 @@ func Mknodat(dirfd int, path string, mode uint32, dev int) (errno int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Mount(source string, target string, fstype string, flags int, data string) (errno int) {
++	_, _, e1 := Syscall6(SYS_MOUNT, uintptr(unsafe.Pointer(StringBytePtr(source))), uintptr(unsafe.Pointer(StringBytePtr(target))), uintptr(unsafe.Pointer(StringBytePtr(fstype))), uintptr(flags), uintptr(unsafe.Pointer(StringBytePtr(data))), 0)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Nanosleep(time *Timespec, leftover *Timespec) (errno int) {
+ 	_, _, e1 := Syscall(SYS_NANOSLEEP, uintptr(unsafe.Pointer(time)), uintptr(unsafe.Pointer(leftover)), 0)
+ 	errno = int(e1)
+@@ -684,6 +692,14 @@ func Unlinkat(dirfd int, path string) (errno int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Unmount(target string, flags int) (errno int) {
++	_, _, e1 := Syscall(SYS_UMOUNT2, uintptr(unsafe.Pointer(StringBytePtr(target))), uintptr(flags), 0)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Unshare(flags int) (errno int) {
+ 	_, _, e1 := Syscall(SYS_UNSHARE, uintptr(flags), 0, 0)
+ 	errno = int(e1)
+diff --git a/src/pkg/syscall/zsyscall_linux_amd64.go b/src/pkg/syscall/zsyscall_linux_amd64.go
+index b688ecf022..65ea8dab5c 100644
+--- a/src/pkg/syscall/zsyscall_linux_amd64.go
++++ b/src/pkg/syscall/zsyscall_linux_amd64.go
+@@ -456,6 +456,14 @@ func Mknodat(dirfd int, path string, mode uint32, dev int) (errno int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Mount(source string, target string, fstype string, flags int, data string) (errno int) {
++	_, _, e1 := Syscall6(SYS_MOUNT, uintptr(unsafe.Pointer(StringBytePtr(source))), uintptr(unsafe.Pointer(StringBytePtr(target))), uintptr(unsafe.Pointer(StringBytePtr(fstype))), uintptr(flags), uintptr(unsafe.Pointer(StringBytePtr(data))), 0)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Nanosleep(time *Timespec, leftover *Timespec) (errno int) {
+ 	_, _, e1 := Syscall(SYS_NANOSLEEP, uintptr(unsafe.Pointer(time)), uintptr(unsafe.Pointer(leftover)), 0)
+ 	errno = int(e1)
+@@ -684,6 +692,14 @@ func Unlinkat(dirfd int, path string) (errno int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Unmount(target string, flags int) (errno int) {
++	_, _, e1 := Syscall(SYS_UMOUNT2, uintptr(unsafe.Pointer(StringBytePtr(target))), uintptr(flags), 0)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Unshare(flags int) (errno int) {
+ 	_, _, e1 := Syscall(SYS_UNSHARE, uintptr(flags), 0, 0)
+ 	errno = int(e1)
+diff --git a/src/pkg/syscall/zsyscall_linux_arm.go b/src/pkg/syscall/zsyscall_linux_arm.go
+index fc4ef9fd50..883dd62dd4 100644
+--- a/src/pkg/syscall/zsyscall_linux_arm.go
++++ b/src/pkg/syscall/zsyscall_linux_arm.go
+@@ -456,6 +456,14 @@ func Mknodat(dirfd int, path string, mode uint32, dev int) (errno int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Mount(source string, target string, fstype string, flags int, data string) (errno int) {
++	_, _, e1 := Syscall6(SYS_MOUNT, uintptr(unsafe.Pointer(StringBytePtr(source))), uintptr(unsafe.Pointer(StringBytePtr(target))), uintptr(unsafe.Pointer(StringBytePtr(fstype))), uintptr(flags), uintptr(unsafe.Pointer(StringBytePtr(data))), 0)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Nanosleep(time *Timespec, leftover *Timespec) (errno int) {
+ 	_, _, e1 := Syscall(SYS_NANOSLEEP, uintptr(unsafe.Pointer(time)), uintptr(unsafe.Pointer(leftover)), 0)
+ 	errno = int(e1)
+@@ -684,6 +692,14 @@ func Unlinkat(dirfd int, path string) (errno int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Unmount(target string, flags int) (errno int) {
++	_, _, e1 := Syscall(SYS_UMOUNT2, uintptr(unsafe.Pointer(StringBytePtr(target))), uintptr(flags), 0)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Unshare(flags int) (errno int) {
+ 	_, _, e1 := Syscall(SYS_UNSHARE, uintptr(flags), 0, 0)
+ 	errno = int(e1)

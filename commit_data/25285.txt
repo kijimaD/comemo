@@ -42,6 +42,26 @@ Date:   Thu Oct 8 17:37:07 2015 -0700
     Change-Id: Ie194925c827988a380b8c2fdd13b13c4faa5d397
     Reviewed-on: https://go-review.googlesource.com/15651
     Reviewed-by: Nigel Tao <nigeltao@golang.org>
-
+---
  src/compress/flate/inflate.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/compress/flate/inflate.go b/src/compress/flate/inflate.go
+index 13855d6bc0..42261e9b61 100644
+--- a/src/compress/flate/inflate.go
++++ b/src/compress/flate/inflate.go
+@@ -465,6 +465,14 @@ func (f *decompressor) readHuffman() error {
+ 		return CorruptInputError(f.roffset)
+ 	}
+ 
++	// As an optimization, we can initialize the min bits to read at a time
++	// for the HLIT tree to the length of the EOB marker since we know that
++	// every block must terminate with one. This preserves the property that
++	// we never read any extra bytes after the end of the DEFLATE stream.
++	if f.h1.min < f.bits[endBlockMarker] {
++		f.h1.min = f.bits[endBlockMarker]
++	}
++
+ 	return nil
+ }
+ 

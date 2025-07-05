@@ -7,6 +7,21 @@ Date:   Wed Aug 4 17:18:57 2010 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/1923043
-
+---
  src/cmd/goinstall/main.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/goinstall/main.go b/src/cmd/goinstall/main.go
+index 60efdf082f..5d2af2e7ca 100644
+--- a/src/cmd/goinstall/main.go
++++ b/src/cmd/goinstall/main.go
+@@ -207,6 +207,9 @@ func genRun(dir string, stdin []byte, cmd []string, quiet bool) os.Error {
+ 	io.Copy(&buf, p.Stdout)
+ 	w, err := p.Wait(0)
+ 	p.Close()
++	if err != nil {
++		return err
++	}
+ 	if !w.Exited() || w.ExitStatus() != 0 {
+ 		if !quiet || *verbose {
+ 			if dir != "" {

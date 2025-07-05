@@ -11,8 +11,136 @@ Date:   Wed Nov 30 15:46:37 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/test/cgo_test.go   |  1 +
  misc/cgo/test/issue18126.go | 26 +++++++++++++++++++++++
  src/cmd/cgo/gcc.go          | 51 +++++++++++++++++++++++++++++----------------
  3 files changed, 60 insertions(+), 18 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 2f591377ae..a6de999752 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -75,5 +75,6 @@ func Test17065(t *testing.T)                 { test17065(t) }
+ func TestThreadLock(t *testing.T)            { testThreadLockFunc(t) }
+ func TestCheckConst(t *testing.T)            { testCheckConst(t) }
+ func Test17537(t *testing.T)                 { test17537(t) }
++func Test18126(t *testing.T)                 { test18126(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/misc/cgo/test/issue18126.go b/misc/cgo/test/issue18126.go
+new file mode 100644
+index 0000000000..ac94a66aab
+--- /dev/null
++++ b/misc/cgo/test/issue18126.go
+@@ -0,0 +1,26 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 18126: cgo check of void function returning errno.
++
++package cgotest
++
++/*
++#include <stdlib.h>
++
++void Issue18126C(void **p) {
++}
++*/
++import "C"
++
++import (
++	"testing"
++)
++
++func test18126(t *testing.T) {
++	p := C.malloc(1)
++	_, err := C.Issue18126C(&p)
++	C.free(p)
++	_ = err
++}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index f6ddfbeceb..670a73f546 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -713,15 +713,7 @@ func (p *Package) rewriteCall(f *File, call *Call, name *Name) bool {
+ 			List: params,
+ 		},
+ 	}
+-	var fbody ast.Stmt
+-	if name.FuncType.Result == nil {
+-		fbody = &ast.ExprStmt{
+-			X: fcall,
+-		}
+-	} else {
+-		fbody = &ast.ReturnStmt{
+-			Results: []ast.Expr{fcall},
+-		}
++	if name.FuncType.Result != nil {
+ 		rtype := p.rewriteUnsafe(name.FuncType.Result.Go)
+ 		if rtype != name.FuncType.Result.Go {
+ 			needsUnsafe = true
+@@ -734,14 +726,6 @@ func (p *Package) rewriteCall(f *File, call *Call, name *Name) bool {
+ 			},
+ 		}
+ 	}
+-	call.Call.Fun = &ast.FuncLit{
+-		Type: ftype,
+-		Body: &ast.BlockStmt{
+-			List: append(stmts, fbody),
+-		},
+-	}
+-	call.Call.Lparen = token.NoPos
+-	call.Call.Rparen = token.NoPos
+ 
+ 	// There is a Ref pointing to the old call.Call.Fun.
+ 	for _, ref := range f.Ref {
+@@ -749,8 +733,20 @@ func (p *Package) rewriteCall(f *File, call *Call, name *Name) bool {
+ 			ref.Expr = &fcall.Fun
+ 
+ 			// If this call expects two results, we have to
+-			// adjust the results of the  function we generated.
++			// adjust the results of the function we generated.
+ 			if ref.Context == "call2" {
++				if ftype.Results == nil {
++					// An explicit void argument
++					// looks odd but it seems to
++					// be how cgo has worked historically.
++					ftype.Results = &ast.FieldList{
++						List: []*ast.Field{
++							&ast.Field{
++								Type: ast.NewIdent("_Ctype_void"),
++							},
++						},
++					}
++				}
+ 				ftype.Results.List = append(ftype.Results.List,
+ 					&ast.Field{
+ 						Type: ast.NewIdent("error"),
+@@ -759,6 +755,25 @@ func (p *Package) rewriteCall(f *File, call *Call, name *Name) bool {
+ 		}
+ 	}
+ 
++	var fbody ast.Stmt
++	if ftype.Results == nil {
++		fbody = &ast.ExprStmt{
++			X: fcall,
++		}
++	} else {
++		fbody = &ast.ReturnStmt{
++			Results: []ast.Expr{fcall},
++		}
++	}
++	call.Call.Fun = &ast.FuncLit{
++		Type: ftype,
++		Body: &ast.BlockStmt{
++			List: append(stmts, fbody),
++		},
++	}
++	call.Call.Lparen = token.NoPos
++	call.Call.Rparen = token.NoPos
++
+ 	return needsUnsafe
+ }
+ 

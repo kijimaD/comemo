@@ -9,6 +9,19 @@ Date:   Thu Jul 30 12:54:38 2009 -0700
     DELTA=4  (4 added, 0 deleted, 0 changed)
     OCL=32522
     CL=32528
-
+---
  src/Make.conf | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/Make.conf b/src/Make.conf
+index 417e49b136..9c927bae29 100644
+--- a/src/Make.conf
++++ b/src/Make.conf
+@@ -11,3 +11,7 @@ YFLAGS=-d
+ ifndef GOBIN
+ GOBIN=$(HOME)/bin
+ endif
++PWD=$(shell pwd)
++
++%.$O: %.c
++	$(CC) $(CFLAGS) -c $(PWD)/$*.c

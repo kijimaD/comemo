@@ -98,6 +98,33 @@ Date:   Sun Apr 30 19:23:45 2017 -0400
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/expvar/expvar.go | 14 ++++++++++----
  1 file changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/src/expvar/expvar.go b/src/expvar/expvar.go
+index 8a777e45d8..64dae70c62 100644
+--- a/src/expvar/expvar.go
++++ b/src/expvar/expvar.go
+@@ -142,11 +142,17 @@ func (v *Map) Get(key string) Var {
+ }
+ 
+ func (v *Map) Set(key string, av Var) {
+-	if _, dup := v.m.LoadOrStore(key, av); dup {
+-		v.m.Store(key, av)
+-	} else {
+-		v.addKey(key)
++	// Before we store the value, check to see whether the key is new. Try a Load
++	// before LoadOrStore: LoadOrStore causes the key interface to escape even on
++	// the Load path.
++	if _, ok := v.m.Load(key); !ok {
++		if _, dup := v.m.LoadOrStore(key, av); !dup {
++			v.addKey(key)
++			return
++		}
+ 	}
++
++	v.m.Store(key, av)
+ }
+ 
+ // Add adds delta to the *Int value stored under the given map key.

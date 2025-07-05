@@ -9,8 +9,87 @@ Date:   Mon Oct 12 12:32:03 2015 +1300
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/alldocs.go              |  2 +-
  src/cmd/go/build.go                | 10 ++++++----
  src/cmd/link/internal/ppc64/obj.go |  5 +++++
  3 files changed, 12 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 001133b0ca..7e4892ccd1 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -122,7 +122,7 @@ and test commands:
+ 		arguments to pass on each go tool link invocation.
+ 	-linkshared
+ 		link against shared libraries previously created with
+-		-buildmode=shared
++		-buildmode=shared.
+ 	-pkgdir dir
+ 		install and load all packages from dir instead of the usual locations.
+ 		For example, when building with a non-standard configuration,
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index e869b27927..e62075379a 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -101,7 +101,7 @@ and test commands:
+ 		arguments to pass on each go tool link invocation.
+ 	-linkshared
+ 		link against shared libraries previously created with
+-		-buildmode=shared
++		-buildmode=shared.
+ 	-pkgdir dir
+ 		install and load all packages from dir instead of the usual locations.
+ 		For example, when building with a non-standard configuration,
+@@ -332,6 +332,9 @@ func buildModeInit() {
+ 	_, gccgo := buildToolchain.(gccgoToolchain)
+ 	var codegenArg string
+ 	platform := goos + "/" + goarch
++	if buildBuildmode != "default" {
++		buildAsmflags = append(buildAsmflags, "-D=GOBUILDMODE_"+strings.Replace(buildBuildmode, "-", "_", -1)+"=1")
++	}
+ 	switch buildBuildmode {
+ 	case "archive":
+ 		pkgsFilter = pkgsNotMain
+@@ -375,7 +378,7 @@ func buildModeInit() {
+ 			fatalf("-buildmode=pie not supported by gccgo")
+ 		} else {
+ 			switch platform {
+-			case "android/arm", "linux/amd64", "android/amd64":
++			case "android/arm", "linux/amd64", "android/amd64", "linux/ppc64le":
+ 				codegenArg = "-shared"
+ 			default:
+ 				fatalf("-buildmode=pie not supported on %s\n", platform)
+@@ -389,7 +392,6 @@ func buildModeInit() {
+ 		} else {
+ 			switch platform {
+ 			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64":
+-				buildAsmflags = append(buildAsmflags, "-D=GOBUILDMODE_shared=1")
+ 			default:
+ 				fatalf("-buildmode=shared not supported on %s\n", platform)
+ 			}
+@@ -407,7 +409,7 @@ func buildModeInit() {
+ 			codegenArg = "-fPIC"
+ 		} else {
+ 			switch platform {
+-			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64":
++			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le":
+ 				buildAsmflags = append(buildAsmflags, "-D=GOBUILDMODE_shared=1")
+ 			default:
+ 				fatalf("-buildmode=shared not supported on %s\n", platform)
+diff --git a/src/cmd/link/internal/ppc64/obj.go b/src/cmd/link/internal/ppc64/obj.go
+index d663b6ebae..e2c98fc59e 100644
+--- a/src/cmd/link/internal/ppc64/obj.go
++++ b/src/cmd/link/internal/ppc64/obj.go
+@@ -98,6 +98,11 @@ func archinit() {
+ 		ld.Linkmode = ld.LinkInternal
+ 	}
+ 
++	switch ld.Buildmode {
++	case ld.BuildmodePIE:
++		ld.Linkmode = ld.LinkExternal
++	}
++
+ 	switch ld.HEADTYPE {
+ 	default:
+ 		if ld.Linkmode == ld.LinkAuto {

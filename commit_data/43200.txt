@@ -11,7 +11,7 @@ Date:   Mon Mar 16 02:38:43 2020 +1100
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             |  4 ++--
  src/cmd/compile/internal/riscv64/ssa.go        | 19 ++++++++++++++++++
  src/cmd/compile/internal/ssa/gen/RISCV64.rules |  5 +++++
@@ -19,3 +19,154 @@ Date:   Mon Mar 16 02:38:43 2020 +1100
  src/cmd/compile/internal/ssa/opGen.go          | 27 ++++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/rewriteRISCV64.go |  6 ++++++
  6 files changed, 68 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 2553feefbc..d5a5614ba2 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3341,7 +3341,7 @@ func init() {
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, types.Types[TUINT8], v)
+ 		},
+-		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.MIPS64, sys.PPC64)
++		sys.AMD64, sys.ARM64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
+ 	addF("runtime/internal/atomic", "Load64",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue2(ssa.OpAtomicLoad64, types.NewTuple(types.Types[TUINT64], types.TypeMem), args[0], s.mem())
+@@ -3375,7 +3375,7 @@ func init() {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicStore8, types.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+ 		},
+-		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.MIPS64, sys.PPC64)
++		sys.AMD64, sys.ARM64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
+ 	addF("runtime/internal/atomic", "Store64",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicStore64, types.TypeMem, args[0], args[1], s.mem())
+diff --git a/src/cmd/compile/internal/riscv64/ssa.go b/src/cmd/compile/internal/riscv64/ssa.go
+index 631e069a4e..13015a5f3d 100644
+--- a/src/cmd/compile/internal/riscv64/ssa.go
++++ b/src/cmd/compile/internal/riscv64/ssa.go
+@@ -341,6 +341,25 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Name = obj.NAME_EXTERN
+ 		p.To.Sym = gc.BoundsCheckFunc[v.AuxInt]
+ 		s.UseArgs(16) // space used in callee args area by assembly stubs
++
++	case ssa.OpRISCV64LoweredAtomicLoad8:
++		s.Prog(riscv.AFENCE)
++		p := s.Prog(riscv.AMOVBU)
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = v.Args[0].Reg()
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg0()
++		s.Prog(riscv.AFENCE)
++
++	case ssa.OpRISCV64LoweredAtomicStore8:
++		s.Prog(riscv.AFENCE)
++		p := s.Prog(riscv.AMOVB)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = v.Args[1].Reg()
++		p.To.Type = obj.TYPE_MEM
++		p.To.Reg = v.Args[0].Reg()
++		s.Prog(riscv.AFENCE)
++
+ 	case ssa.OpRISCV64LoweredZero:
+ 		mov, sz := largestMove(v.AuxInt)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index fba431368b..04d93d5f4d 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -468,6 +468,11 @@
+ (ClosureCall ...) -> (CALLclosure ...)
+ (InterCall   ...) -> (CALLinter   ...)
+ 
++// Atomic Intrinsics
++(AtomicLoad8 ...) -> (LoweredAtomicLoad8 ...)
++
++(AtomicStore8 ...) -> (LoweredAtomicStore8 ...)
++
+ // Optimizations
+ 
+ // Absorb SNEZ into branch.
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+index 3fd28b3d10..a8de1ab2d0 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+@@ -265,6 +265,15 @@ func init() {
+ 			faultOnNilArg1: true,
+ 		},
+ 
++		// Atomic loads.
++		// load from arg0. arg1=mem.
++		// returns <value,memory> so they can be properly ordered with other loads.
++		{name: "LoweredAtomicLoad8", argLength: 2, reg: gpload, faultOnNilArg0: true},
++
++		// Atomic stores.
++		// store arg1 to arg0. arg2=mem. returns memory.
++		{name: "LoweredAtomicStore8", argLength: 3, reg: gpstore, faultOnNilArg0: true, hasSideEffects: true},
++
+ 		// Lowering pass-throughs
+ 		{name: "LoweredNilCheck", argLength: 2, faultOnNilArg0: true, nilCheck: true, reg: regInfo{inputs: []regMask{gpspMask}}}, // arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
+ 		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{regCtxt}}},                                                // scheduler ensures only at beginning of entry block
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 481b404bf3..d7913eec9c 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1948,6 +1948,8 @@ const (
+ 	OpRISCV64CALLinter
+ 	OpRISCV64LoweredZero
+ 	OpRISCV64LoweredMove
++	OpRISCV64LoweredAtomicLoad8
++	OpRISCV64LoweredAtomicStore8
+ 	OpRISCV64LoweredNilCheck
+ 	OpRISCV64LoweredGetClosurePtr
+ 	OpRISCV64LoweredGetCallerSP
+@@ -25912,6 +25914,31 @@ var opcodeTable = [...]opInfo{
+ 			clobbers: 112, // X5 X6 X7
+ 		},
+ 	},
++	{
++		name:           "LoweredAtomicLoad8",
++		argLen:         2,
++		faultOnNilArg0: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
++			},
++			outputs: []outputInfo{
++				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
++			},
++		},
++	},
++	{
++		name:           "LoweredAtomicStore8",
++		argLen:         3,
++		faultOnNilArg0: true,
++		hasSideEffects: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 1073741814},          // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
++				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
++			},
++		},
++	},
+ 	{
+ 		name:           "LoweredNilCheck",
+ 		argLen:         2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index a7b0ba05b9..7284b3f239 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -47,6 +47,12 @@ func rewriteValueRISCV64(v *Value) bool {
+ 	case OpAndB:
+ 		v.Op = OpRISCV64AND
+ 		return true
++	case OpAtomicLoad8:
++		v.Op = OpRISCV64LoweredAtomicLoad8
++		return true
++	case OpAtomicStore8:
++		v.Op = OpRISCV64LoweredAtomicStore8
++		return true
+ 	case OpAvg64u:
+ 		return rewriteValueRISCV64_OpAvg64u(v)
+ 	case OpClosureCall:

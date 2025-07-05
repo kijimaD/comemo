@@ -16,9 +16,166 @@ Date:   Fri Dec 11 22:42:11 2020 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Austin Clements <austin@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/signal/signal_linux_test.go | 42 ++++++++++++++++++++++++++++++++++++++
  src/runtime/proc.go                |  1 +
  src/runtime/sigqueue.go            | 34 ++++++++++++++++++++++++++++--
  src/runtime/sigqueue_plan9.go      |  7 +++++++
  4 files changed, 82 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/signal/signal_linux_test.go b/src/os/signal/signal_linux_test.go
+new file mode 100644
+index 0000000000..2e553d0b0f
+--- /dev/null
++++ b/src/os/signal/signal_linux_test.go
+@@ -0,0 +1,42 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux
++
++package signal
++
++import (
++	"os"
++	"syscall"
++	"testing"
++	"time"
++)
++
++const prSetKeepCaps = 8
++
++// This test validates that syscall.AllThreadsSyscall() can reliably
++// reach all 'm' (threads) of the nocgo runtime even when one thread
++// is blocked waiting to receive signals from the kernel. This monitors
++// for a regression vs. the fix for #43149.
++func TestAllThreadsSyscallSignals(t *testing.T) {
++	if _, _, err := syscall.AllThreadsSyscall(syscall.SYS_PRCTL, prSetKeepCaps, 0, 0); err == syscall.ENOTSUP {
++		t.Skip("AllThreadsSyscall disabled with cgo")
++	}
++
++	sig := make(chan os.Signal, 1)
++	Notify(sig, os.Interrupt)
++
++	for i := 0; i <= 100; i++ {
++		if _, _, errno := syscall.AllThreadsSyscall(syscall.SYS_PRCTL, prSetKeepCaps, uintptr(i&1), 0); errno != 0 {
++			t.Fatalf("[%d] failed to set KEEP_CAPS=%d: %v", i, i&1, errno)
++		}
++	}
++
++	select {
++	case <-time.After(10 * time.Millisecond):
++	case <-sig:
++		t.Fatal("unexpected signal")
++	}
++	Stop(sig)
++}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 592d621241..ca78587aad 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1515,6 +1515,7 @@ func syscall_runtime_doAllThreadsSyscall(fn func(bool) bool) {
+ 	if netpollinited() {
+ 		netpollBreak()
+ 	}
++	sigRecvPrepareForFixup()
+ 	_g_ := getg()
+ 	if raceenabled {
+ 		// For m's running without racectx, we loan out the
+diff --git a/src/runtime/sigqueue.go b/src/runtime/sigqueue.go
+index 0605f5da80..28b9e26d0f 100644
+--- a/src/runtime/sigqueue.go
++++ b/src/runtime/sigqueue.go
+@@ -12,12 +12,16 @@
+ // sigsend is called by the signal handler to queue a new signal.
+ // signal_recv is called by the Go program to receive a newly queued signal.
+ // Synchronization between sigsend and signal_recv is based on the sig.state
+-// variable. It can be in 3 states: sigIdle, sigReceiving and sigSending.
++// variable. It can be in 4 states: sigIdle, sigReceiving, sigSending and sigFixup.
+ // sigReceiving means that signal_recv is blocked on sig.Note and there are no
+ // new pending signals.
+ // sigSending means that sig.mask *may* contain new pending signals,
+ // signal_recv can't be blocked in this state.
+ // sigIdle means that there are no new pending signals and signal_recv is not blocked.
++// sigFixup is a transient state that can only exist as a short
++// transition from sigReceiving and then on to sigIdle: it is
++// used to ensure the AllThreadsSyscall()'s mDoFixup() operation
++// occurs on the sleeping m, waiting to receive a signal.
+ // Transitions between states are done atomically with CAS.
+ // When signal_recv is unblocked, it resets sig.Note and rechecks sig.mask.
+ // If several sigsends and signal_recv execute concurrently, it can lead to
+@@ -59,6 +63,7 @@ const (
+ 	sigIdle = iota
+ 	sigReceiving
+ 	sigSending
++	sigFixup
+ )
+ 
+ // sigsend delivers a signal from sighandler to the internal signal delivery queue.
+@@ -112,6 +117,9 @@ Send:
+ 				notewakeup(&sig.note)
+ 				break Send
+ 			}
++		case sigFixup:
++			// nothing to do - we need to wait for sigIdle.
++			osyield()
+ 		}
+ 	}
+ 
+@@ -119,6 +127,19 @@ Send:
+ 	return true
+ }
+ 
++// sigRecvPrepareForFixup is used to temporarily wake up the
++// signal_recv() running thread while it is blocked waiting for the
++// arrival of a signal. If it causes the thread to wake up, the
++// sig.state travels through this sequence: sigReceiving -> sigFixup
++// -> sigIdle -> sigReceiving and resumes. (This is only called while
++// GC is disabled.)
++//go:nosplit
++func sigRecvPrepareForFixup() {
++	if atomic.Cas(&sig.state, sigReceiving, sigFixup) {
++		notewakeup(&sig.note)
++	}
++}
++
+ // Called to receive the next queued signal.
+ // Must only be called from a single goroutine at a time.
+ //go:linkname signal_recv os/signal.signal_recv
+@@ -146,7 +167,16 @@ func signal_recv() uint32 {
+ 					}
+ 					notetsleepg(&sig.note, -1)
+ 					noteclear(&sig.note)
+-					break Receive
++					if !atomic.Cas(&sig.state, sigFixup, sigIdle) {
++						break Receive
++					}
++					// Getting here, the code will
++					// loop around again to sleep
++					// in state sigReceiving. This
++					// path is taken when
++					// sigRecvPrepareForFixup()
++					// has been called by another
++					// thread.
+ 				}
+ 			case sigSending:
+ 				if atomic.Cas(&sig.state, sigSending, sigIdle) {
+diff --git a/src/runtime/sigqueue_plan9.go b/src/runtime/sigqueue_plan9.go
+index d5fe8f8b35..aebd2060e7 100644
+--- a/src/runtime/sigqueue_plan9.go
++++ b/src/runtime/sigqueue_plan9.go
+@@ -92,6 +92,13 @@ func sendNote(s *byte) bool {
+ 	return true
+ }
+ 
++// sigRecvPrepareForFixup is a no-op on plan9. (This would only be
++// called while GC is disabled.)
++//
++//go:nosplit
++func sigRecvPrepareForFixup() {
++}
++
+ // Called to receive the next queued signal.
+ // Must only be called from a single goroutine at a time.
+ //go:linkname signal_recv os/signal.signal_recv

@@ -20,8 +20,83 @@ Date:   Thu Jul 23 20:13:49 2020 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/mgc.go    | 5 +++--
  src/runtime/mheap.go  | 4 ++--
  src/runtime/mstats.go | 4 +++-
  3 files changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index c42c7fbd29..94539dd770 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -494,6 +494,7 @@ func (c *gcControllerState) revise() {
+ 		gcpercent = 100000
+ 	}
+ 	live := atomic.Load64(&memstats.heap_live)
++	scan := atomic.Load64(&memstats.heap_scan)
+ 
+ 	// Assume we're under the soft goal. Pace GC to complete at
+ 	// next_gc assuming the heap is in steady-state.
+@@ -508,7 +509,7 @@ func (c *gcControllerState) revise() {
+ 	//
+ 	// (This is a float calculation to avoid overflowing on
+ 	// 100*heap_scan.)
+-	scanWorkExpected := int64(float64(memstats.heap_scan) * 100 / float64(100+gcpercent))
++	scanWorkExpected := int64(float64(scan) * 100 / float64(100+gcpercent))
+ 
+ 	if live > memstats.next_gc || c.scanWork > scanWorkExpected {
+ 		// We're past the soft goal, or we've already done more scan
+@@ -518,7 +519,7 @@ func (c *gcControllerState) revise() {
+ 		heapGoal = int64(float64(memstats.next_gc) * maxOvershoot)
+ 
+ 		// Compute the upper bound on the scan work remaining.
+-		scanWorkExpected = int64(memstats.heap_scan)
++		scanWorkExpected = int64(scan)
+ 	}
+ 
+ 	// Compute the remaining scan work estimate.
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 1a57bcd66e..124bbacd1d 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1168,7 +1168,7 @@ func (h *mheap) allocSpan(npages uintptr, manual bool, spanclass spanClass, sysS
+ 				throw("mheap.allocSpan called with no P")
+ 			}
+ 		}
+-		memstats.heap_scan += uint64(c.local_scan)
++		atomic.Xadd64(&memstats.heap_scan, int64(c.local_scan))
+ 		c.local_scan = 0
+ 		memstats.tinyallocs += uint64(c.local_tinyallocs)
+ 		c.local_tinyallocs = 0
+@@ -1375,7 +1375,7 @@ func (h *mheap) freeSpan(s *mspan) {
+ 	systemstack(func() {
+ 		c := getg().m.p.ptr().mcache
+ 		lock(&h.lock)
+-		memstats.heap_scan += uint64(c.local_scan)
++		atomic.Xadd64(&memstats.heap_scan, int64(c.local_scan))
+ 		c.local_scan = 0
+ 		memstats.tinyallocs += uint64(c.local_tinyallocs)
+ 		c.local_tinyallocs = 0
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index b95b332134..2c217ecf84 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -139,6 +139,8 @@ type mstats struct {
+ 	// no-scan objects and no-scan tails of objects.
+ 	//
+ 	// Whenever this is updated, call gcController.revise().
++	//
++	// Read and written atomically or with the world stopped.
+ 	heap_scan uint64
+ 
+ 	// heap_marked is the number of bytes marked by the previous
+@@ -635,7 +637,7 @@ func flushallmcaches() {
+ func purgecachedstats(c *mcache) {
+ 	// Protected by either heap or GC lock.
+ 	h := &mheap_
+-	memstats.heap_scan += uint64(c.local_scan)
++	atomic.Xadd64(&memstats.heap_scan, int64(c.local_scan))
+ 	c.local_scan = 0
+ 	memstats.tinyallocs += uint64(c.local_tinyallocs)
+ 	c.local_tinyallocs = 0

@@ -10,6 +10,21 @@ Date:   Tue Mar 30 12:21:20 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/mpagealloc.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/mpagealloc.go b/src/runtime/mpagealloc.go
+index dac1f39969..071f1fc274 100644
+--- a/src/runtime/mpagealloc.go
++++ b/src/runtime/mpagealloc.go
+@@ -395,6 +395,9 @@ func (p *pageAlloc) grow(base, size uintptr) {
+ 			// Store it atomically to avoid races with readers which
+ 			// don't acquire the heap lock.
+ 			r := sysAlloc(unsafe.Sizeof(*p.chunks[0]), p.sysStat)
++			if r == nil {
++				throw("pageAlloc: out of memory")
++			}
+ 			atomic.StorepNoWB(unsafe.Pointer(&p.chunks[c.l1()]), r)
+ 		}
+ 		p.chunkOf(c).scavenged.setRange(0, pallocChunkPages)

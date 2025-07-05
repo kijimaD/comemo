@@ -7,6 +7,18 @@ Date:   Wed Feb 22 11:04:25 2012 +0900
     R=mikioh.mikioh, rsc
     CC=golang-dev
     https://golang.org/cl/5690062
-
+---
  src/pkg/runtime/sys_freebsd_amd64.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/sys_freebsd_amd64.s b/src/pkg/runtime/sys_freebsd_amd64.s
+index b14b66556c..fbed690d18 100644
+--- a/src/pkg/runtime/sys_freebsd_amd64.s
++++ b/src/pkg/runtime/sys_freebsd_amd64.s
+@@ -231,5 +231,5 @@ TEXT runtime·sysctl(SB),7,$0
+ 
+ TEXT runtime·osyield(SB),7,$-4
+ 	MOVL	$331, AX		// sys_sched_yield
+-	INT	$0x80
++	SYSCALL
+ 	RET

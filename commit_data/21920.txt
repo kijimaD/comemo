@@ -16,9 +16,62 @@ Date:   Fri Jan 9 11:57:51 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/2605
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/5g/cgen.c | 2 +-
  src/cmd/6g/cgen.c | 2 +-
  src/cmd/8g/cgen.c | 2 +-
  src/cmd/9g/cgen.c | 2 +-
  4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 6acf6dfdf0..aa64d05ed0 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -1680,7 +1680,7 @@ componentgen(Node *nr, Node *nl)
+ 
+ 	nodl = *nl;
+ 	if(!cadable(nl)) {
+-		if(nr == N || !cadable(nr))
++		if(nr != N && !cadable(nr))
+ 			goto no;
+ 		igen(nl, &nodl, N);
+ 		freel = 1;
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 5e98934da6..fa7d1eefbe 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -1587,7 +1587,7 @@ componentgen(Node *nr, Node *nl)
+ 
+ 	nodl = *nl;
+ 	if(!cadable(nl)) {
+-		if(nr == N || !cadable(nr))
++		if(nr != N && !cadable(nr))
+ 			goto no;
+ 		igen(nl, &nodl, N);
+ 		freel = 1;
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index c65a437857..a0e39c0ffe 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -1427,7 +1427,7 @@ componentgen(Node *nr, Node *nl)
+ 
+ 	nodl = *nl;
+ 	if(!cadable(nl)) {
+-		if(nr == N || !cadable(nr))
++		if(nr != N && !cadable(nr))
+ 			goto no;
+ 		igen(nl, &nodl, N);
+ 		freel = 1;
+diff --git a/src/cmd/9g/cgen.c b/src/cmd/9g/cgen.c
+index 706658de0e..e4520fb44d 100644
+--- a/src/cmd/9g/cgen.c
++++ b/src/cmd/9g/cgen.c
+@@ -1602,7 +1602,7 @@ componentgen(Node *nr, Node *nl)
+ 
+ 	nodl = *nl;
+ 	if(!cadable(nl)) {
+-		if(nr == N || !cadable(nr))
++		if(nr != N && !cadable(nr))
+ 			goto no;
+ 		igen(nl, &nodl, N);
+ 		freel = 1;

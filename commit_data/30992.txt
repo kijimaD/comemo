@@ -10,7 +10,7 @@ Date:   Sat Jan 7 08:23:11 2017 -0800
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/bytes/buffer.go                           | 2 +-
  src/cmd/compile/internal/gc/bexport.go        | 2 +-
  src/cmd/compile/internal/gc/sinit.go          | 2 +-
@@ -29,3 +29,241 @@ Date:   Sat Jan 7 08:23:11 2017 -0800
  src/runtime/fastlog2.go                       | 4 ++--
  src/testing/sub_test.go                       | 4 ++--
  17 files changed, 19 insertions(+), 19 deletions(-)
+
+diff --git a/src/bytes/buffer.go b/src/bytes/buffer.go
+index 2ee3d738ef..196419dc3d 100644
+--- a/src/bytes/buffer.go
++++ b/src/bytes/buffer.go
+@@ -23,7 +23,7 @@ type Buffer struct {
+ 
+ // The readOp constants describe the last action performed on
+ // the buffer, so that UnreadRune and UnreadByte can check for
+-// invalid usage. opReadRuneX constants are choosen such that
++// invalid usage. opReadRuneX constants are chosen such that
+ // converted to int they correspond to the rune size that was read.
+ type readOp int
+ 
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 1da5b699a4..ffc5419708 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -1000,7 +1000,7 @@ func parName(f *Field, numbered bool) string {
+ 		Fatalf("invalid symbol name: %s", name)
+ 	}
+ 
+-	// Functions that can be inlined use numbered parameters so we can distingish them
++	// Functions that can be inlined use numbered parameters so we can distinguish them
+ 	// from other names in their context after inlining (i.e., the parameter numbering
+ 	// is a form of parameter rewriting). See issue 4326 for an example and test case.
+ 	if forceObjFileStability || numbered {
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 89eec60216..6b3c426ca3 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -1197,7 +1197,7 @@ func getlit(lit *Node) int {
+ 	return -1
+ }
+ 
+-// stataddr sets nam to the static address of n and reports whether it succeeeded.
++// stataddr sets nam to the static address of n and reports whether it succeeded.
+ func stataddr(nam *Node, n *Node) bool {
+ 	if n == nil {
+ 		return false
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 29048f1a19..5f04f680c7 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -213,7 +213,7 @@ func (t *Type) FuncType() *FuncType {
+ 	return t.Extra.(*FuncType)
+ }
+ 
+-// InterMethType contains Type fields specific to interface method psuedo-types.
++// InterMethType contains Type fields specific to interface method pseudo-types.
+ type InterMethType struct {
+ 	Nname *Node
+ }
+diff --git a/src/cmd/compile/internal/ssa/checkbce.go b/src/cmd/compile/internal/ssa/checkbce.go
+index 820ea6e809..3b15d5a125 100644
+--- a/src/cmd/compile/internal/ssa/checkbce.go
++++ b/src/cmd/compile/internal/ssa/checkbce.go
+@@ -6,7 +6,7 @@ package ssa
+ 
+ // checkbce prints all bounds checks that are present in the function.
+ // Useful to find regressions. checkbce is only activated when with
+-// corresponsing debug options, so it's off by default.
++// corresponding debug options, so it's off by default.
+ // See test/checkbce.go
+ func checkbce(f *Func) {
+ 	if f.pass.debug <= 0 {
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 919386e889..4931da8d07 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -93,7 +93,7 @@ type Logger interface {
+ 	// Warnl writes compiler messages in the form expected by "errorcheck" tests
+ 	Warnl(line int32, fmt_ string, args ...interface{})
+ 
+-	// Fowards the Debug flags from gc
++	// Forwards the Debug flags from gc
+ 	Debug_checknil() bool
+ 	Debug_wb() bool
+ }
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index dce61e3b8a..e8d5be2582 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -12,7 +12,7 @@ import "strings"
+ //  - Integer types live in the low portion of registers. Upper portions are junk.
+ //  - Boolean types use the low-order byte of a register. 0=false, 1=true.
+ //    Upper bytes are junk.
+-//  - *const instructions may use a constant larger than the instuction can encode.
++//  - *const instructions may use a constant larger than the instruction can encode.
+ //    In this case the assembler expands to multiple instructions and uses tmp
+ //    register (R27).
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index 5bf3c0091a..e296d0600d 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -12,7 +12,7 @@ import "strings"
+ //  - Integer types live in the low portion of registers. Upper portions are junk.
+ //  - Boolean types use the low-order byte of a register. 0=false, 1=true.
+ //    Upper bytes are junk.
+-//  - *const instructions may use a constant larger than the instuction can encode.
++//  - *const instructions may use a constant larger than the instruction can encode.
+ //    In this case the assembler expands to multiple instructions and uses tmp
+ //    register (R11).
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go b/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+index d7d7fece28..020d6930d7 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+@@ -12,7 +12,7 @@ import "strings"
+ //  - Integer types live in the low portion of registers. Upper portions are junk.
+ //  - Boolean types use the low-order byte of a register. 0=false, 1=true.
+ //    Upper bytes are junk.
+-//  - *const instructions may use a constant larger than the instuction can encode.
++//  - *const instructions may use a constant larger than the instruction can encode.
+ //    In this case the assembler expands to multiple instructions and uses tmp
+ //    register (R23).
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPSOps.go b/src/cmd/compile/internal/ssa/gen/MIPSOps.go
+index c803c49519..78b961ffb2 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPSOps.go
++++ b/src/cmd/compile/internal/ssa/gen/MIPSOps.go
+@@ -13,7 +13,7 @@ import "strings"
+ //  - Boolean types use the low-order byte of a register. 0=false, 1=true.
+ //    Upper bytes are junk.
+ //  - Unused portions of AuxInt are filled by sign-extending the used portion.
+-//  - *const instructions may use a constant larger than the instuction can encode.
++//  - *const instructions may use a constant larger than the instruction can encode.
+ //    In this case the assembler expands to multiple instructions and uses tmp
+ //    register (R23).
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index d7a1363c0c..003479774a 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -12,7 +12,7 @@ import "strings"
+ //  - Less-than-64-bit integer types live in the low portion of registers.
+ //    For now, the upper portion is junk; sign/zero-extension might be optimized in the future, but not yet.
+ //  - Boolean types are zero or 1; stored in a byte, but loaded with AMOVBZ so the upper bytes of a register are zero.
+-//  - *const instructions may use a constant larger than the instuction can encode.
++//  - *const instructions may use a constant larger than the instruction can encode.
+ //    In this case the assembler expands to multiple instructions and uses tmp
+ //    register (R31).
+ 
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 315d7203d4..4c3164f231 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -21,7 +21,7 @@ type opInfo struct {
+ 	name              string
+ 	reg               regInfo
+ 	auxType           auxType
+-	argLen            int32 // the number of arugments, -1 if variable length
++	argLen            int32 // the number of arguments, -1 if variable length
+ 	asm               obj.As
+ 	generic           bool // this is a generic (arch-independent) opcode
+ 	rematerializeable bool // this op is rematerializeable
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 2b66982340..7bf778609e 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -759,7 +759,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 			liveSet.add(e.ID)
+ 		}
+ 		if v := b.Control; v != nil && s.values[v.ID].needReg {
+-			s.addUse(v.ID, int32(len(b.Values)), b.Line) // psuedo-use by control value
++			s.addUse(v.ID, int32(len(b.Values)), b.Line) // pseudo-use by control value
+ 			liveSet.add(v.ID)
+ 		}
+ 		for i := len(b.Values) - 1; i >= 0; i-- {
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 58e927e0c4..0fa7c34a13 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -2086,7 +2086,7 @@ func (rs *Rows) Next() bool {
+ 		}
+ 		// The driver is at the end of the current result set.
+ 		// Test to see if there is another result set after the current one.
+-		// Only close Rows if there is no futher result sets to read.
++		// Only close Rows if there is no further result sets to read.
+ 		if !nextResultSet.HasNextResultSet() {
+ 			rs.Close()
+ 		}
+diff --git a/src/path/filepath/symlink_windows.go b/src/path/filepath/symlink_windows.go
+index bb05aabc92..f771fe3a8a 100644
+--- a/src/path/filepath/symlink_windows.go
++++ b/src/path/filepath/symlink_windows.go
+@@ -47,7 +47,7 @@ func baseIsDotDot(path string) bool {
+ 	return path[i+1:] == ".."
+ }
+ 
+-// toNorm returns the normalized path that is guranteed to be unique.
++// toNorm returns the normalized path that is guaranteed to be unique.
+ // It should accept the following formats:
+ //   * UNC paths                              (e.g \\server\share\foo\bar)
+ //   * absolute paths                         (e.g C:\foo\bar)
+diff --git a/src/runtime/fastlog2.go b/src/runtime/fastlog2.go
+index b22e8259ad..5f3fb53423 100644
+--- a/src/runtime/fastlog2.go
++++ b/src/runtime/fastlog2.go
+@@ -8,7 +8,7 @@ import "unsafe"
+ 
+ // fastlog2 implements a fast approximation to the base 2 log of a
+ // float64. This is used to compute a geometric distribution for heap
+-// sampling, without introducing dependences into package math. This
++// sampling, without introducing dependencies into package math. This
+ // uses a very rough approximation using the float64 exponent and the
+ // first 25 bits of the mantissa. The top 5 bits of the mantissa are
+ // used to load limits from a table of constants and the rest are used
+@@ -29,5 +29,5 @@ func fastlog2(x float64) float64 {
+ }
+ 
+ // float64bits returns the IEEE 754 binary representation of f.
+-// Taken from math.Float64bits to avoid dependences into package math.
++// Taken from math.Float64bits to avoid dependencies into package math.
+ func float64bits(f float64) uint64 { return *(*uint64)(unsafe.Pointer(&f)) }
+diff --git a/src/testing/sub_test.go b/src/testing/sub_test.go
+index 2a24aaacfd..8d5d9206f0 100644
+--- a/src/testing/sub_test.go
++++ b/src/testing/sub_test.go
+@@ -357,7 +357,7 @@ func TestTRun(t *T) {
+ 		want := strings.TrimSpace(tc.output)
+ 		re := makeRegexp(want)
+ 		if ok, err := regexp.MatchString(re, got); !ok || err != nil {
+-			t.Errorf("%s:ouput:\ngot:\n%s\nwant:\n%s", tc.desc, got, want)
++			t.Errorf("%s:output:\ngot:\n%s\nwant:\n%s", tc.desc, got, want)
+ 		}
+ 	}
+ }
+@@ -498,7 +498,7 @@ func TestBRun(t *T) {
+ 		want := strings.TrimSpace(tc.output)
+ 		re := makeRegexp(want)
+ 		if ok, err := regexp.MatchString(re, got); !ok || err != nil {
+-			t.Errorf("%s:ouput:\ngot:\n%s\nwant:\n%s", tc.desc, got, want)
++			t.Errorf("%s:output:\ngot:\n%s\nwant:\n%s", tc.desc, got, want)
+ 		}
+ 	}
+ }

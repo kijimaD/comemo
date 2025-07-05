@@ -35,7 +35,100 @@ Date:   Tue May 26 14:14:08 2020 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/net/mail/message.go      | 24 +++++++++++++++++++-----
  src/net/mail/message_test.go | 39 +++++++++++++++++++++++++++++++++++++++
  2 files changed, 58 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index 09fb794005..47bbf6ca97 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -112,11 +112,25 @@ func ParseDate(date string) (time.Time, error) {
+ 	if ind := strings.IndexAny(p.s, "+-"); ind != -1 && len(p.s) >= ind+5 {
+ 		date = p.s[:ind+5]
+ 		p.s = p.s[ind+5:]
+-	} else if ind := strings.Index(p.s, "T"); ind != -1 && len(p.s) >= ind+1 {
+-		// The last letter T of the obsolete time zone is checked when no standard time zone is found.
+-		// If T is misplaced, the date to parse is garbage.
+-		date = p.s[:ind+1]
+-		p.s = p.s[ind+1:]
++	} else {
++		ind := strings.Index(p.s, "T")
++		if ind == 0 {
++			// In this case we have the following date formats:
++			// * Thu, 20 Nov 1997 09:55:06 MDT
++			// * Thu, 20 Nov 1997 09:55:06 MDT (MDT)
++			// * Thu, 20 Nov 1997 09:55:06 MDT (This comment)
++			ind = strings.Index(p.s[1:], "T")
++			if ind != -1 {
++				ind++
++			}
++		}
++
++		if ind != -1 && len(p.s) >= ind+5 {
++			// The last letter T of the obsolete time zone is checked when no standard time zone is found.
++			// If T is misplaced, the date to parse is garbage.
++			date = p.s[:ind+1]
++			p.s = p.s[ind+1:]
++		}
+ 	}
+ 	if !p.skipCFWS() {
+ 		return time.Time{}, errors.New("mail: misformatted parenthetical comment")
+diff --git a/src/net/mail/message_test.go b/src/net/mail/message_test.go
+index 188d0bf766..0daa3d6c63 100644
+--- a/src/net/mail/message_test.go
++++ b/src/net/mail/message_test.go
+@@ -102,6 +102,18 @@ func TestDateParsing(t *testing.T) {
+ 			"Fri, 21 Nov 1997 09:55:06 -0600 (MDT)",
+ 			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("", -6*60*60)),
+ 		},
++		{
++			"Thu, 20 Nov 1997 09:55:06 -0600 (MDT)",
++			time.Date(1997, 11, 20, 9, 55, 6, 0, time.FixedZone("", -6*60*60)),
++		},
++		{
++			"Thu, 20 Nov 1997 09:55:06 MDT (MDT)",
++			time.Date(1997, 11, 20, 9, 55, 6, 0, time.FixedZone("MDT", 0)),
++		},
++		{
++			"Fri, 21 Nov 1997 09:55:06 +1300 (TOT)",
++			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("", +13*60*60)),
++		},
+ 	}
+ 	for _, test := range tests {
+ 		hdr := Header{
+@@ -243,6 +255,33 @@ func TestDateParsingCFWS(t *testing.T) {
+ 			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("", -6*60*60)),
+ 			false,
+ 		},
++		// Ensure that the presence of "T" in the date
++		// doesn't trip out ParseDate, as per issue 39260.
++		{
++			"Tue, 26 May 2020 14:04:40 GMT",
++			time.Date(2020, 05, 26, 14, 04, 40, 0, time.UTC),
++			true,
++		},
++		{
++			"Tue, 26 May 2020 14:04:40 UT",
++			time.Date(2020, 05, 26, 14, 04, 40, 0, time.UTC),
++			false,
++		},
++		{
++			"Thu, 21 May 2020 14:04:40 UT",
++			time.Date(2020, 05, 21, 14, 04, 40, 0, time.UTC),
++			false,
++		},
++		{
++			"Thu, 21 May 2020 14:04:40 UTC",
++			time.Date(2020, 05, 21, 14, 04, 40, 0, time.UTC),
++			true,
++		},
++		{
++			"Fri, 21 Nov 1997 09:55:06 MDT (MDT)",
++			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("MDT", 0)),
++			true,
++		},
+ 	}
+ 	for _, test := range tests {
+ 		hdr := Header{

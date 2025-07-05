@@ -15,7 +15,7 @@ Date:   Sat Dec 29 14:27:15 2018 +0200
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  api/except.txt                      | 24 -----------
  api/go1.12.txt                      | 24 -----------
  src/archive/tar/stat_actime1.go     |  2 +-
@@ -27,3 +27,587 @@ Date:   Sat Dec 29 14:27:15 2018 +0200
  src/syscall/ztypes_freebsd_amd64.go | 72 ++++++++++++++++----------------
  src/syscall/ztypes_freebsd_arm.go   | 72 ++++++++++++++++----------------
  10 files changed, 140 insertions(+), 182 deletions(-)
+
+diff --git a/api/except.txt b/api/except.txt
+index a911783c6b..637be18135 100644
+--- a/api/except.txt
++++ b/api/except.txt
+@@ -386,15 +386,11 @@ pkg syscall (windows-amd64), type RawSockaddrAny struct, Pad [96]int8
+ pkg syscall (freebsd-386), func Mknod(string, uint32, int) error
+ pkg syscall (freebsd-386), type Dirent struct, Fileno uint32
+ pkg syscall (freebsd-386), type Dirent struct, Namlen uint8
+-pkg syscall (freebsd-386), type Stat_t struct, Atimespec Timespec
+-pkg syscall (freebsd-386), type Stat_t struct, Birthtimespec Timespec
+ pkg syscall (freebsd-386), type Stat_t struct, Blksize uint32
+-pkg syscall (freebsd-386), type Stat_t struct, Ctimespec Timespec
+ pkg syscall (freebsd-386), type Stat_t struct, Dev uint32
+ pkg syscall (freebsd-386), type Stat_t struct, Gen uint32
+ pkg syscall (freebsd-386), type Stat_t struct, Ino uint32
+ pkg syscall (freebsd-386), type Stat_t struct, Lspare int32
+-pkg syscall (freebsd-386), type Stat_t struct, Mtimespec Timespec
+ pkg syscall (freebsd-386), type Stat_t struct, Nlink uint16
+ pkg syscall (freebsd-386), type Stat_t struct, Pad_cgo_0 [8]uint8
+ pkg syscall (freebsd-386), type Stat_t struct, Rdev uint32
+@@ -403,15 +399,11 @@ pkg syscall (freebsd-386), type Statfs_t struct, Mntonname [88]int8
+ pkg syscall (freebsd-386-cgo), func Mknod(string, uint32, int) error
+ pkg syscall (freebsd-386-cgo), type Dirent struct, Fileno uint32
+ pkg syscall (freebsd-386-cgo), type Dirent struct, Namlen uint8
+-pkg syscall (freebsd-386-cgo), type Stat_t struct, Atimespec Timespec
+-pkg syscall (freebsd-386-cgo), type Stat_t struct, Birthtimespec Timespec
+ pkg syscall (freebsd-386-cgo), type Stat_t struct, Blksize uint32
+-pkg syscall (freebsd-386-cgo), type Stat_t struct, Ctimespec Timespec
+ pkg syscall (freebsd-386-cgo), type Stat_t struct, Dev uint32
+ pkg syscall (freebsd-386-cgo), type Stat_t struct, Gen uint32
+ pkg syscall (freebsd-386-cgo), type Stat_t struct, Ino uint32
+ pkg syscall (freebsd-386-cgo), type Stat_t struct, Lspare int32
+-pkg syscall (freebsd-386-cgo), type Stat_t struct, Mtimespec Timespec
+ pkg syscall (freebsd-386-cgo), type Stat_t struct, Nlink uint16
+ pkg syscall (freebsd-386-cgo), type Stat_t struct, Pad_cgo_0 [8]uint8
+ pkg syscall (freebsd-386-cgo), type Stat_t struct, Rdev uint32
+@@ -420,15 +412,11 @@ pkg syscall (freebsd-386-cgo), type Statfs_t struct, Mntonname [88]int8
+ pkg syscall (freebsd-amd64), func Mknod(string, uint32, int) error
+ pkg syscall (freebsd-amd64), type Dirent struct, Fileno uint32
+ pkg syscall (freebsd-amd64), type Dirent struct, Namlen uint8
+-pkg syscall (freebsd-amd64), type Stat_t struct, Atimespec Timespec
+-pkg syscall (freebsd-amd64), type Stat_t struct, Birthtimespec Timespec
+ pkg syscall (freebsd-amd64), type Stat_t struct, Blksize uint32
+-pkg syscall (freebsd-amd64), type Stat_t struct, Ctimespec Timespec
+ pkg syscall (freebsd-amd64), type Stat_t struct, Dev uint32
+ pkg syscall (freebsd-amd64), type Stat_t struct, Gen uint32
+ pkg syscall (freebsd-amd64), type Stat_t struct, Ino uint32
+ pkg syscall (freebsd-amd64), type Stat_t struct, Lspare int32
+-pkg syscall (freebsd-amd64), type Stat_t struct, Mtimespec Timespec
+ pkg syscall (freebsd-amd64), type Stat_t struct, Nlink uint16
+ pkg syscall (freebsd-amd64), type Stat_t struct, Rdev uint32
+ pkg syscall (freebsd-amd64), type Statfs_t struct, Mntfromname [88]int8
+@@ -436,15 +424,11 @@ pkg syscall (freebsd-amd64), type Statfs_t struct, Mntonname [88]int8
+ pkg syscall (freebsd-amd64-cgo), func Mknod(string, uint32, int) error
+ pkg syscall (freebsd-amd64-cgo), type Dirent struct, Fileno uint32
+ pkg syscall (freebsd-amd64-cgo), type Dirent struct, Namlen uint8
+-pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Atimespec Timespec
+-pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Birthtimespec Timespec
+ pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Blksize uint32
+-pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Ctimespec Timespec
+ pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Dev uint32
+ pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Gen uint32
+ pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Ino uint32
+ pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Lspare int32
+-pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Mtimespec Timespec
+ pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Nlink uint16
+ pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Rdev uint32
+ pkg syscall (freebsd-amd64-cgo), type Statfs_t struct, Mntfromname [88]int8
+@@ -452,15 +436,11 @@ pkg syscall (freebsd-amd64-cgo), type Statfs_t struct, Mntonname [88]int8
+ pkg syscall (freebsd-arm), func Mknod(string, uint32, int) error
+ pkg syscall (freebsd-arm), type Dirent struct, Fileno uint32
+ pkg syscall (freebsd-arm), type Dirent struct, Namlen uint8
+-pkg syscall (freebsd-arm), type Stat_t struct, Atimespec Timespec
+-pkg syscall (freebsd-arm), type Stat_t struct, Birthtimespec Timespec
+ pkg syscall (freebsd-arm), type Stat_t struct, Blksize uint32
+-pkg syscall (freebsd-arm), type Stat_t struct, Ctimespec Timespec
+ pkg syscall (freebsd-arm), type Stat_t struct, Dev uint32
+ pkg syscall (freebsd-arm), type Stat_t struct, Gen uint32
+ pkg syscall (freebsd-arm), type Stat_t struct, Ino uint32
+ pkg syscall (freebsd-arm), type Stat_t struct, Lspare int32
+-pkg syscall (freebsd-arm), type Stat_t struct, Mtimespec Timespec
+ pkg syscall (freebsd-arm), type Stat_t struct, Nlink uint16
+ pkg syscall (freebsd-arm), type Stat_t struct, Rdev uint32
+ pkg syscall (freebsd-arm), type Statfs_t struct, Mntfromname [88]int8
+@@ -468,15 +448,11 @@ pkg syscall (freebsd-arm), type Statfs_t struct, Mntonname [88]int8
+ pkg syscall (freebsd-arm-cgo), func Mknod(string, uint32, int) error
+ pkg syscall (freebsd-arm-cgo), type Dirent struct, Fileno uint32
+ pkg syscall (freebsd-arm-cgo), type Dirent struct, Namlen uint8
+-pkg syscall (freebsd-arm-cgo), type Stat_t struct, Atimespec Timespec
+-pkg syscall (freebsd-arm-cgo), type Stat_t struct, Birthtimespec Timespec
+ pkg syscall (freebsd-arm-cgo), type Stat_t struct, Blksize uint32
+-pkg syscall (freebsd-arm-cgo), type Stat_t struct, Ctimespec Timespec
+ pkg syscall (freebsd-arm-cgo), type Stat_t struct, Dev uint32
+ pkg syscall (freebsd-arm-cgo), type Stat_t struct, Gen uint32
+ pkg syscall (freebsd-arm-cgo), type Stat_t struct, Ino uint32
+ pkg syscall (freebsd-arm-cgo), type Stat_t struct, Lspare int32
+-pkg syscall (freebsd-arm-cgo), type Stat_t struct, Mtimespec Timespec
+ pkg syscall (freebsd-arm-cgo), type Stat_t struct, Nlink uint16
+ pkg syscall (freebsd-arm-cgo), type Stat_t struct, Rdev uint32
+ pkg syscall (freebsd-arm-cgo), type Statfs_t struct, Mntfromname [88]int8
+diff --git a/api/go1.12.txt b/api/go1.12.txt
+index 865f04b76b..319bb6f145 100644
+--- a/api/go1.12.txt
++++ b/api/go1.12.txt
+@@ -67,17 +67,13 @@ pkg syscall (freebsd-386), type Dirent struct, Namlen uint16
+ pkg syscall (freebsd-386), type Dirent struct, Off int64
+ pkg syscall (freebsd-386), type Dirent struct, Pad0 uint8
+ pkg syscall (freebsd-386), type Dirent struct, Pad1 uint16
+-pkg syscall (freebsd-386), type Stat_t struct, Atim Timespec
+ pkg syscall (freebsd-386), type Stat_t struct, Atim_ext int32
+-pkg syscall (freebsd-386), type Stat_t struct, Birthtim Timespec
+ pkg syscall (freebsd-386), type Stat_t struct, Blksize int32
+ pkg syscall (freebsd-386), type Stat_t struct, Btim_ext int32
+-pkg syscall (freebsd-386), type Stat_t struct, Ctim Timespec
+ pkg syscall (freebsd-386), type Stat_t struct, Ctim_ext int32
+ pkg syscall (freebsd-386), type Stat_t struct, Dev uint64
+ pkg syscall (freebsd-386), type Stat_t struct, Gen uint64
+ pkg syscall (freebsd-386), type Stat_t struct, Ino uint64
+-pkg syscall (freebsd-386), type Stat_t struct, Mtim Timespec
+ pkg syscall (freebsd-386), type Stat_t struct, Mtim_ext int32
+ pkg syscall (freebsd-386), type Stat_t struct, Nlink uint64
+ pkg syscall (freebsd-386), type Stat_t struct, Padding0 int16
+@@ -97,17 +93,13 @@ pkg syscall (freebsd-386-cgo), type Dirent struct, Namlen uint16
+ pkg syscall (freebsd-386-cgo), type Dirent struct, Off int64
+ pkg syscall (freebsd-386-cgo), type Dirent struct, Pad0 uint8
+ pkg syscall (freebsd-386-cgo), type Dirent struct, Pad1 uint16
+-pkg syscall (freebsd-386-cgo), type Stat_t struct, Atim Timespec
+ pkg syscall (freebsd-386-cgo), type Stat_t struct, Atim_ext int32
+-pkg syscall (freebsd-386-cgo), type Stat_t struct, Birthtim Timespec
+ pkg syscall (freebsd-386-cgo), type Stat_t struct, Blksize int32
+ pkg syscall (freebsd-386-cgo), type Stat_t struct, Btim_ext int32
+-pkg syscall (freebsd-386-cgo), type Stat_t struct, Ctim Timespec
+ pkg syscall (freebsd-386-cgo), type Stat_t struct, Ctim_ext int32
+ pkg syscall (freebsd-386-cgo), type Stat_t struct, Dev uint64
+ pkg syscall (freebsd-386-cgo), type Stat_t struct, Gen uint64
+ pkg syscall (freebsd-386-cgo), type Stat_t struct, Ino uint64
+-pkg syscall (freebsd-386-cgo), type Stat_t struct, Mtim Timespec
+ pkg syscall (freebsd-386-cgo), type Stat_t struct, Mtim_ext int32
+ pkg syscall (freebsd-386-cgo), type Stat_t struct, Nlink uint64
+ pkg syscall (freebsd-386-cgo), type Stat_t struct, Padding0 int16
+@@ -127,14 +119,10 @@ pkg syscall (freebsd-amd64), type Dirent struct, Namlen uint16
+ pkg syscall (freebsd-amd64), type Dirent struct, Off int64
+ pkg syscall (freebsd-amd64), type Dirent struct, Pad0 uint8
+ pkg syscall (freebsd-amd64), type Dirent struct, Pad1 uint16
+-pkg syscall (freebsd-amd64), type Stat_t struct, Atim Timespec
+-pkg syscall (freebsd-amd64), type Stat_t struct, Birthtim Timespec
+ pkg syscall (freebsd-amd64), type Stat_t struct, Blksize int32
+-pkg syscall (freebsd-amd64), type Stat_t struct, Ctim Timespec
+ pkg syscall (freebsd-amd64), type Stat_t struct, Dev uint64
+ pkg syscall (freebsd-amd64), type Stat_t struct, Gen uint64
+ pkg syscall (freebsd-amd64), type Stat_t struct, Ino uint64
+-pkg syscall (freebsd-amd64), type Stat_t struct, Mtim Timespec
+ pkg syscall (freebsd-amd64), type Stat_t struct, Nlink uint64
+ pkg syscall (freebsd-amd64), type Stat_t struct, Padding0 int16
+ pkg syscall (freebsd-amd64), type Stat_t struct, Padding1 int32
+@@ -153,14 +141,10 @@ pkg syscall (freebsd-amd64-cgo), type Dirent struct, Namlen uint16
+ pkg syscall (freebsd-amd64-cgo), type Dirent struct, Off int64
+ pkg syscall (freebsd-amd64-cgo), type Dirent struct, Pad0 uint8
+ pkg syscall (freebsd-amd64-cgo), type Dirent struct, Pad1 uint16
+-pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Atim Timespec
+-pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Birthtim Timespec
+ pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Blksize int32
+-pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Ctim Timespec
+ pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Dev uint64
+ pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Gen uint64
+ pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Ino uint64
+-pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Mtim Timespec
+ pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Nlink uint64
+ pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Padding0 int16
+ pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Padding1 int32
+@@ -179,14 +163,10 @@ pkg syscall (freebsd-arm), type Dirent struct, Namlen uint16
+ pkg syscall (freebsd-arm), type Dirent struct, Off int64
+ pkg syscall (freebsd-arm), type Dirent struct, Pad0 uint8
+ pkg syscall (freebsd-arm), type Dirent struct, Pad1 uint16
+-pkg syscall (freebsd-arm), type Stat_t struct, Atim Timespec
+-pkg syscall (freebsd-arm), type Stat_t struct, Birthtim Timespec
+ pkg syscall (freebsd-arm), type Stat_t struct, Blksize int32
+-pkg syscall (freebsd-arm), type Stat_t struct, Ctim Timespec
+ pkg syscall (freebsd-arm), type Stat_t struct, Dev uint64
+ pkg syscall (freebsd-arm), type Stat_t struct, Gen uint64
+ pkg syscall (freebsd-arm), type Stat_t struct, Ino uint64
+-pkg syscall (freebsd-arm), type Stat_t struct, Mtim Timespec
+ pkg syscall (freebsd-arm), type Stat_t struct, Nlink uint64
+ pkg syscall (freebsd-arm), type Stat_t struct, Padding0 int16
+ pkg syscall (freebsd-arm), type Stat_t struct, Padding1 int32
+@@ -205,14 +185,10 @@ pkg syscall (freebsd-arm-cgo), type Dirent struct, Namlen uint16
+ pkg syscall (freebsd-arm-cgo), type Dirent struct, Off int64
+ pkg syscall (freebsd-arm-cgo), type Dirent struct, Pad0 uint8
+ pkg syscall (freebsd-arm-cgo), type Dirent struct, Pad1 uint16
+-pkg syscall (freebsd-arm-cgo), type Stat_t struct, Atim Timespec
+-pkg syscall (freebsd-arm-cgo), type Stat_t struct, Birthtim Timespec
+ pkg syscall (freebsd-arm-cgo), type Stat_t struct, Blksize int32
+-pkg syscall (freebsd-arm-cgo), type Stat_t struct, Ctim Timespec
+ pkg syscall (freebsd-arm-cgo), type Stat_t struct, Dev uint64
+ pkg syscall (freebsd-arm-cgo), type Stat_t struct, Gen uint64
+ pkg syscall (freebsd-arm-cgo), type Stat_t struct, Ino uint64
+-pkg syscall (freebsd-arm-cgo), type Stat_t struct, Mtim Timespec
+ pkg syscall (freebsd-arm-cgo), type Stat_t struct, Nlink uint64
+ pkg syscall (freebsd-arm-cgo), type Stat_t struct, Padding0 int16
+ pkg syscall (freebsd-arm-cgo), type Stat_t struct, Padding1 int32
+diff --git a/src/archive/tar/stat_actime1.go b/src/archive/tar/stat_actime1.go
+index eb82edb6d9..cf9cc79c59 100644
+--- a/src/archive/tar/stat_actime1.go
++++ b/src/archive/tar/stat_actime1.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux dragonfly freebsd openbsd solaris
++// +build linux dragonfly openbsd solaris
+ 
+ package tar
+ 
+diff --git a/src/archive/tar/stat_actime2.go b/src/archive/tar/stat_actime2.go
+index f707012714..6f17dbe307 100644
+--- a/src/archive/tar/stat_actime2.go
++++ b/src/archive/tar/stat_actime2.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin netbsd
++// +build darwin freebsd netbsd
+ 
+ package tar
+ 
+diff --git a/src/os/stat_freebsd.go b/src/os/stat_freebsd.go
+index d36afa9ffd..bab4ffa798 100644
+--- a/src/os/stat_freebsd.go
++++ b/src/os/stat_freebsd.go
+@@ -12,7 +12,7 @@ import (
+ func fillFileStatFromSys(fs *fileStat, name string) {
+ 	fs.name = basename(name)
+ 	fs.size = fs.sys.Size
+-	fs.modTime = timespecToTime(fs.sys.Mtim)
++	fs.modTime = timespecToTime(fs.sys.Mtimespec)
+ 	fs.mode = FileMode(fs.sys.Mode & 0777)
+ 	switch fs.sys.Mode & syscall.S_IFMT {
+ 	case syscall.S_IFBLK:
+@@ -47,5 +47,5 @@ func timespecToTime(ts syscall.Timespec) time.Time {
+ 
+ // For testing.
+ func atime(fi FileInfo) time.Time {
+-	return timespecToTime(fi.Sys().(*syscall.Stat_t).Atim)
++	return timespecToTime(fi.Sys().(*syscall.Stat_t).Atimespec)
+ }
+diff --git a/src/syscall/mkpost.go b/src/syscall/mkpost.go
+index e75ba1502a..d5f5c8d6d6 100644
+--- a/src/syscall/mkpost.go
++++ b/src/syscall/mkpost.go
+@@ -30,7 +30,8 @@ func main() {
+ 
+ 	goarch := os.Getenv("GOARCH")
+ 	goos := os.Getenv("GOOS")
+-	if goarch == "s390x" && goos == "linux" {
++	switch {
++	case goarch == "s390x" && goos == "linux":
+ 		// Export the types of PtraceRegs fields.
+ 		re := regexp.MustCompile("ptrace(Psw|Fpregs|Per)")
+ 		s = re.ReplaceAllString(s, "Ptrace$1")
+@@ -53,6 +54,11 @@ func main() {
+ 		// the existing gccgo API.
+ 		re = regexp.MustCompile("(Data\\s+\\[14\\])uint8")
+ 		s = re.ReplaceAllString(s, "${1}int8")
++
++	case goos == "freebsd":
++		// Keep pre-FreeBSD 10 / non-POSIX 2008 names for timespec fields
++		re := regexp.MustCompile("(A|M|C|Birth)tim\\s+Timespec")
++		s = re.ReplaceAllString(s, "${1}timespec Timespec")
+ 	}
+ 
+ 	// gofmt
+diff --git a/src/syscall/syscall_freebsd.go b/src/syscall/syscall_freebsd.go
+index adeb9c2852..87a27b1ff7 100644
+--- a/src/syscall/syscall_freebsd.go
++++ b/src/syscall/syscall_freebsd.go
+@@ -300,22 +300,22 @@ func roundup(x, y int) int {
+ 
+ func (s *Stat_t) convertFrom(old *stat_freebsd11_t) {
+ 	*s = Stat_t{
+-		Dev:      uint64(old.Dev),
+-		Ino:      uint64(old.Ino),
+-		Nlink:    uint64(old.Nlink),
+-		Mode:     old.Mode,
+-		Uid:      old.Uid,
+-		Gid:      old.Gid,
+-		Rdev:     uint64(old.Rdev),
+-		Atim:     old.Atim,
+-		Mtim:     old.Mtim,
+-		Ctim:     old.Ctim,
+-		Birthtim: old.Birthtim,
+-		Size:     old.Size,
+-		Blocks:   old.Blocks,
+-		Blksize:  old.Blksize,
+-		Flags:    old.Flags,
+-		Gen:      uint64(old.Gen),
++		Dev:           uint64(old.Dev),
++		Ino:           uint64(old.Ino),
++		Nlink:         uint64(old.Nlink),
++		Mode:          old.Mode,
++		Uid:           old.Uid,
++		Gid:           old.Gid,
++		Rdev:          uint64(old.Rdev),
++		Atimespec:     old.Atimespec,
++		Mtimespec:     old.Mtimespec,
++		Ctimespec:     old.Ctimespec,
++		Birthtimespec: old.Birthtimespec,
++		Size:          old.Size,
++		Blocks:        old.Blocks,
++		Blksize:       old.Blksize,
++		Flags:         old.Flags,
++		Gen:           uint64(old.Gen),
+ 	}
+ }
+ 
+diff --git a/src/syscall/ztypes_freebsd_386.go b/src/syscall/ztypes_freebsd_386.go
+index 3ca31f2872..27d82dea10 100644
+--- a/src/syscall/ztypes_freebsd_386.go
++++ b/src/syscall/ztypes_freebsd_386.go
+@@ -81,50 +81,50 @@ const (
+ )
+ 
+ type Stat_t struct {
+-	Dev      uint64
+-	Ino      uint64
+-	Nlink    uint64
+-	Mode     uint16
+-	Padding0 int16
+-	Uid      uint32
+-	Gid      uint32
+-	Padding1 int32
+-	Rdev     uint64
+-	Atim_ext int32
+-	Atim     Timespec
+-	Mtim_ext int32
+-	Mtim     Timespec
+-	Ctim_ext int32
+-	Ctim     Timespec
+-	Btim_ext int32
+-	Birthtim Timespec
+-	Size     int64
+-	Blocks   int64
+-	Blksize  int32
+-	Flags    uint32
+-	Gen      uint64
+-	Spare    [10]uint64
++	Dev           uint64
++	Ino           uint64
++	Nlink         uint64
++	Mode          uint16
++	Padding0      int16
++	Uid           uint32
++	Gid           uint32
++	Padding1      int32
++	Rdev          uint64
++	Atim_ext      int32
++	Atimespec     Timespec
++	Mtim_ext      int32
++	Mtimespec     Timespec
++	Ctim_ext      int32
++	Ctimespec     Timespec
++	Btim_ext      int32
++	Birthtimespec Timespec
++	Size          int64
++	Blocks        int64
++	Blksize       int32
++	Flags         uint32
++	Gen           uint64
++	Spare         [10]uint64
+ }
+ 
+ type stat_freebsd11_t struct {
+-	Dev       uint32
+-	Ino       uint32
+-	Mode      uint16
+-	Nlink     uint16
+-	Uid       uint32
+-	Gid       uint32
+-	Rdev      uint32
+-	Atim      Timespec
+-	Mtim      Timespec
+-	Ctim      Timespec
+-	Size      int64
+-	Blocks    int64
+-	Blksize   int32
+-	Flags     uint32
+-	Gen       uint32
+-	Lspare    int32
+-	Birthtim  Timespec
+-	Pad_cgo_0 [8]byte
++	Dev           uint32
++	Ino           uint32
++	Mode          uint16
++	Nlink         uint16
++	Uid           uint32
++	Gid           uint32
++	Rdev          uint32
++	Atimespec     Timespec
++	Mtimespec     Timespec
++	Ctimespec     Timespec
++	Size          int64
++	Blocks        int64
++	Blksize       int32
++	Flags         uint32
++	Gen           uint32
++	Lspare        int32
++	Birthtimespec Timespec
++	Pad_cgo_0     [8]byte
+ }
+ 
+ type Statfs_t struct {
+diff --git a/src/syscall/ztypes_freebsd_amd64.go b/src/syscall/ztypes_freebsd_amd64.go
+index 797a3bab08..8abfbb45d6 100644
+--- a/src/syscall/ztypes_freebsd_amd64.go
++++ b/src/syscall/ztypes_freebsd_amd64.go
+@@ -81,45 +81,45 @@ const (
+ )
+ 
+ type Stat_t struct {
+-	Dev      uint64
+-	Ino      uint64
+-	Nlink    uint64
+-	Mode     uint16
+-	Padding0 int16
+-	Uid      uint32
+-	Gid      uint32
+-	Padding1 int32
+-	Rdev     uint64
+-	Atim     Timespec
+-	Mtim     Timespec
+-	Ctim     Timespec
+-	Birthtim Timespec
+-	Size     int64
+-	Blocks   int64
+-	Blksize  int32
+-	Flags    uint32
+-	Gen      uint64
+-	Spare    [10]uint64
++	Dev           uint64
++	Ino           uint64
++	Nlink         uint64
++	Mode          uint16
++	Padding0      int16
++	Uid           uint32
++	Gid           uint32
++	Padding1      int32
++	Rdev          uint64
++	Atimespec     Timespec
++	Mtimespec     Timespec
++	Ctimespec     Timespec
++	Birthtimespec Timespec
++	Size          int64
++	Blocks        int64
++	Blksize       int32
++	Flags         uint32
++	Gen           uint64
++	Spare         [10]uint64
+ }
+ 
+ type stat_freebsd11_t struct {
+-	Dev      uint32
+-	Ino      uint32
+-	Mode     uint16
+-	Nlink    uint16
+-	Uid      uint32
+-	Gid      uint32
+-	Rdev     uint32
+-	Atim     Timespec
+-	Mtim     Timespec
+-	Ctim     Timespec
+-	Size     int64
+-	Blocks   int64
+-	Blksize  int32
+-	Flags    uint32
+-	Gen      uint32
+-	Lspare   int32
+-	Birthtim Timespec
++	Dev           uint32
++	Ino           uint32
++	Mode          uint16
++	Nlink         uint16
++	Uid           uint32
++	Gid           uint32
++	Rdev          uint32
++	Atimespec     Timespec
++	Mtimespec     Timespec
++	Ctimespec     Timespec
++	Size          int64
++	Blocks        int64
++	Blksize       int32
++	Flags         uint32
++	Gen           uint32
++	Lspare        int32
++	Birthtimespec Timespec
+ }
+ 
+ type Statfs_t struct {
+diff --git a/src/syscall/ztypes_freebsd_arm.go b/src/syscall/ztypes_freebsd_arm.go
+index 9be8752e18..ff552a6a63 100644
+--- a/src/syscall/ztypes_freebsd_arm.go
++++ b/src/syscall/ztypes_freebsd_arm.go
+@@ -83,45 +83,45 @@ const (
+ )
+ 
+ type Stat_t struct {
+-	Dev      uint64
+-	Ino      uint64
+-	Nlink    uint64
+-	Mode     uint16
+-	Padding0 int16
+-	Uid      uint32
+-	Gid      uint32
+-	Padding1 int32
+-	Rdev     uint64
+-	Atim     Timespec
+-	Mtim     Timespec
+-	Ctim     Timespec
+-	Birthtim Timespec
+-	Size     int64
+-	Blocks   int64
+-	Blksize  int32
+-	Flags    uint32
+-	Gen      uint64
+-	Spare    [10]uint64
++	Dev           uint64
++	Ino           uint64
++	Nlink         uint64
++	Mode          uint16
++	Padding0      int16
++	Uid           uint32
++	Gid           uint32
++	Padding1      int32
++	Rdev          uint64
++	Atimespec     Timespec
++	Mtimespec     Timespec
++	Ctimespec     Timespec
++	Birthtimespec Timespec
++	Size          int64
++	Blocks        int64
++	Blksize       int32
++	Flags         uint32
++	Gen           uint64
++	Spare         [10]uint64
+ }
+ 
+ type stat_freebsd11_t struct {
+-	Dev      uint32
+-	Ino      uint32
+-	Mode     uint16
+-	Nlink    uint16
+-	Uid      uint32
+-	Gid      uint32
+-	Rdev     uint32
+-	Atim     Timespec
+-	Mtim     Timespec
+-	Ctim     Timespec
+-	Size     int64
+-	Blocks   int64
+-	Blksize  int32
+-	Flags    uint32
+-	Gen      uint32
+-	Lspare   int32
+-	Birthtim Timespec
++	Dev           uint32
++	Ino           uint32
++	Mode          uint16
++	Nlink         uint16
++	Uid           uint32
++	Gid           uint32
++	Rdev          uint32
++	Atimespec     Timespec
++	Mtimespec     Timespec
++	Ctimespec     Timespec
++	Size          int64
++	Blocks        int64
++	Blksize       int32
++	Flags         uint32
++	Gen           uint32
++	Lspare        int32
++	Birthtimespec Timespec
+ }
+ 
+ type Statfs_t struct {

@@ -13,6 +13,38 @@ Date:   Sat Mar 1 20:34:45 2025 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
     Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/interface_plan9.go | 13 ++++++++++++-
  1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/interface_plan9.go b/src/net/interface_plan9.go
+index 7c44566acf..21d2f95040 100644
+--- a/src/net/interface_plan9.go
++++ b/src/net/interface_plan9.go
+@@ -57,6 +57,17 @@ func readInterface(i int) (*Interface, error) {
+ 	}
+ 
+ 	fields := getFields(line)
++
++	// If the interface has no device file then we see two spaces between "device" and
++	// "maxtu" and and getFields treats the two spaces as one delimiter.
++	// Insert a gap for the missing device name.
++	// See https://go.dev/issue/72060.
++	if stringslite.HasPrefix(line, "device  maxtu ") {
++		fields = append(fields, "")
++		copy(fields[2:], fields[1:])
++		fields[1] = ""
++	}
++
+ 	if len(fields) < 4 {
+ 		return nil, errors.New("invalid interface status file: " + ifcstat)
+ 	}
+@@ -163,7 +174,7 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
+ 		for line, ok := statusf.readLine(); ok; line, ok = statusf.readLine() {
+ 			fields := getFields(line)
+ 			if len(fields) < 1 {
+-				return nil, errors.New("cannot parse IP address for interface: " + status)
++				continue
+ 			}
+ 			addr := fields[0]
+ 			ip := ParseIP(addr)

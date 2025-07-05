@@ -10,7 +10,61 @@ Date:   Fri Oct 16 04:41:34 2015 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/net_test.go     | 9 ++++++++-
  src/syscall/net_nacl.go | 8 +++++++-
  2 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/net_test.go b/src/net/net_test.go
+index 3907ce4aa5..b91a9e3326 100644
+--- a/src/net/net_test.go
++++ b/src/net/net_test.go
+@@ -208,7 +208,6 @@ func TestListenerClose(t *testing.T) {
+ 		case "unix", "unixpacket":
+ 			defer os.Remove(ln.Addr().String())
+ 		}
+-		defer ln.Close()
+ 
+ 		if err := ln.Close(); err != nil {
+ 			if perr := parseCloseError(err); perr != nil {
+@@ -221,6 +220,14 @@ func TestListenerClose(t *testing.T) {
+ 			c.Close()
+ 			t.Fatal("should fail")
+ 		}
++
++		if network == "tcp" {
++			cc, err := Dial("tcp", ln.Addr().String())
++			if err == nil {
++				t.Error("Dial to closed TCP listener succeeeded.")
++				cc.Close()
++			}
++		}
+ 	}
+ }
+ 
+diff --git a/src/syscall/net_nacl.go b/src/syscall/net_nacl.go
+index b5cb530306..a3633ad9e6 100644
+--- a/src/syscall/net_nacl.go
++++ b/src/syscall/net_nacl.go
+@@ -577,7 +577,7 @@ func (f *netFile) connect(sa Sockaddr) error {
+ 		return EISCONN
+ 	}
+ 	l, ok := net.listener[netAddr{f.proto, f.sotype, sa.key()}]
+-	if !ok {
++	if !ok || l.listenerClosed() {
+ 		net.Unlock()
+ 		return ECONNREFUSED
+ 	}
+@@ -676,6 +676,12 @@ func (f *netFile) sendto(p []byte, flags int, to Sockaddr) error {
+ 	return nil
+ }
+ 
++func (f *netFile) listenerClosed() bool {
++	f.listener.Lock()
++	defer f.listener.Unlock()
++	return f.listener.closed
++}
++
+ func (f *netFile) close() error {
+ 	if f.listener != nil {
+ 		f.listener.close()

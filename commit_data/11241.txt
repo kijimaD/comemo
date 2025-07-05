@@ -18,7 +18,7 @@ Date:   Thu Jan 19 11:24:54 2012 +1100
     R=gri, rsc, r, bradfitz, dsymonds
     CC=golang-dev
     https://golang.org/cl/5532093
-
+---
  doc/articles/defer_panic_recover.html        |  4 ++-
  doc/articles/defer_panic_recover.tmpl        |  4 ++-
  doc/articles/error_handling.html             |  4 ++-
@@ -48,3 +48,410 @@ Date:   Thu Jan 19 11:24:54 2012 +1100
  doc/playground.html                          |  4 ++-
  src/cmd/godoc/godoc.go                       | 40 +++++++++++++++-------------
  28 files changed, 104 insertions(+), 48 deletions(-)
+
+diff --git a/doc/articles/defer_panic_recover.html b/doc/articles/defer_panic_recover.html
+index b78258d1c8..18c0de2d6c 100644
+--- a/doc/articles/defer_panic_recover.html
++++ b/doc/articles/defer_panic_recover.html
+@@ -1,4 +1,6 @@
+-<!-- Defer, Panic, and Recover -->
++<!--{
++	"Title": "Defer, Panic, and Recover"
++}-->
+ <!--
+   DO NOT EDIT: created by
+     tmpltohtml articles/defer_panic_recover.tmpl
+diff --git a/doc/articles/defer_panic_recover.tmpl b/doc/articles/defer_panic_recover.tmpl
+index 780040a7d8..60c8eebe0b 100644
+--- a/doc/articles/defer_panic_recover.tmpl
++++ b/doc/articles/defer_panic_recover.tmpl
+@@ -1,4 +1,6 @@
+-<!-- Defer, Panic, and Recover -->
++<!--{
++	"Title": "Defer, Panic, and Recover"
++}-->
+ {{donotedit}}
+ <p>
+ Go has the usual mechanisms for control flow: if, for, switch, goto.  It also
+diff --git a/doc/articles/error_handling.html b/doc/articles/error_handling.html
+index 89f29983d1..b9393a2cba 100644
+--- a/doc/articles/error_handling.html
++++ b/doc/articles/error_handling.html
+@@ -1,4 +1,6 @@
+-<!-- Error Handling and Go -->
++<!--{
++	"Title": "Error Handling and Go"
++}-->
+ <!--
+   DO NOT EDIT: created by
+     tmpltohtml articles/error_handling.tmpl
+diff --git a/doc/articles/error_handling.tmpl b/doc/articles/error_handling.tmpl
+index 508885a8fd..141b4a54dd 100644
+--- a/doc/articles/error_handling.tmpl
++++ b/doc/articles/error_handling.tmpl
+@@ -1,4 +1,6 @@
+-<!-- Error Handling and Go -->
++<!--{
++	"Title": "Error Handling and Go"
++}-->
+ {{donotedit}}
+ <p>
+ If you have written any Go code you have probably encountered the built-in
+diff --git a/doc/articles/slices_usage_and_internals.html b/doc/articles/slices_usage_and_internals.html
+index 66ca4a2b54..c10dfe0cad 100644
+--- a/doc/articles/slices_usage_and_internals.html
++++ b/doc/articles/slices_usage_and_internals.html
+@@ -1,4 +1,6 @@
+-<!-- Slices: usage and internals -->
++<!--{
++	"Title": "Slices: usage and internals"
++}-->
+ <!--
+   DO NOT EDIT: created by
+     tmpltohtml articles/slices_usage_and_internals.tmpl
+diff --git a/doc/articles/slices_usage_and_internals.tmpl b/doc/articles/slices_usage_and_internals.tmpl
+index 94929818b0..d2f8fb7f58 100644
+--- a/doc/articles/slices_usage_and_internals.tmpl
++++ b/doc/articles/slices_usage_and_internals.tmpl
+@@ -1,4 +1,6 @@
+-<!-- Slices: usage and internals -->
++<!--{
++	"Title": "Slices: usage and internals"
++}-->
+ {{donotedit}}
+ 
+ <p>
+diff --git a/doc/code.html b/doc/code.html
+index 4737a38fd8..76d25e13ae 100644
+--- a/doc/code.html
++++ b/doc/code.html
+@@ -1,4 +1,6 @@
+-<!-- How to Write Go Code -->
++<!--{
++	"Title": "How to Write Go Code"
++}-->
+ 
+ <h2 id="Introduction">Introduction</h2>
+ 
+diff --git a/doc/codereview_with_mq.html b/doc/codereview_with_mq.html
+index 33f415f139..38ecbda6e7 100644
+--- a/doc/codereview_with_mq.html
++++ b/doc/codereview_with_mq.html
+@@ -1,4 +1,6 @@
+-<!-- Using Mercurial Queues with Codereview -->
++<!--{
++	"Title": "Using Mercurial Queues with Codereview"
++}-->
+ 
+ <h2 id="Introduction">Introduction</h2>
+ 
+diff --git a/doc/community.html b/doc/community.html
+index c3b16cacbc..aee731e3c0 100644
+--- a/doc/community.html
++++ b/doc/community.html
+@@ -1,4 +1,6 @@
+-<!-- title Community -->
++<!--{
++	"Title": "Community"
++}-->
+ 
+ <div class="left-column">
+ 
+diff --git a/doc/contrib.html b/doc/contrib.html
+index 5e00345c8e..3ef7d5695a 100644
+--- a/doc/contrib.html
++++ b/doc/contrib.html
+@@ -1,4 +1,6 @@
+-<!-- title Contributing -->
++<!--{
++	"Title": "Contributing"
++}-->
+ 
+ <div class="left-column">
+ 
+diff --git a/doc/contribute.html b/doc/contribute.html
+index a5beb54f9b..5af9af48e5 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -1,4 +1,6 @@
+-<!-- Contribution Guidelines -->
++<!--{
++	"Title": "Contribution Guidelines"
++}-->
+ 
+ <h2 id="Introduction">Introduction</h2>
+ 
+diff --git a/doc/debugging_with_gdb.html b/doc/debugging_with_gdb.html
+index 874c468345..d5c1a884c0 100644
+--- a/doc/debugging_with_gdb.html
++++ b/doc/debugging_with_gdb.html
+@@ -1,4 +1,6 @@
+-<!-- title Debugging Go Code with GDB -->
++<!--{
++	"Title": "Debugging Go Code with GDB"
++}-->
+ 
+ <p><i>
+ This applies to the 6g toolchain. Gccgo has native gdb support. Besides this
+diff --git a/doc/docs.html b/doc/docs.html
+index 5a5c8ee131..c0ced98de4 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -1,4 +1,6 @@
+-<!-- title Documentation -->
++<!--{
++	"Title": "Documentation"
++}-->
+ 
+ <div class="left-column">
+ 
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 3c16e10c3a..4ecbe19b9f 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -1,4 +1,6 @@
+-<!-- Effective Go -->
++<!--{
++	"Title": "Effective Go"
++}-->
+ <!--
+   DO NOT EDIT: created by
+     tmpltohtml effective_go.tmpl
+diff --git a/doc/effective_go.tmpl b/doc/effective_go.tmpl
+index af1bc1ea43..782c7003e7 100644
+--- a/doc/effective_go.tmpl
++++ b/doc/effective_go.tmpl
+@@ -1,4 +1,6 @@
+-<!-- Effective Go -->
++<!--{
++	"Title": "Effective Go"
++}-->
+ {{donotedit}}
+ 
+ <h2 id="introduction">Introduction</h2>
+diff --git a/doc/gccgo_contribute.html b/doc/gccgo_contribute.html
+index 8eeb3a5c5c..b641c1abb5 100644
+--- a/doc/gccgo_contribute.html
++++ b/doc/gccgo_contribute.html
+@@ -1,4 +1,6 @@
+-<!-- Contributing to the gccgo frontend -->
++<!--{
++	"Title": "Contributing to the gccgo frontend"
++}-->
+ 
+ <h2>Introduction</h2>
+ 
+diff --git a/doc/gccgo_install.html b/doc/gccgo_install.html
+index 38a30e9c62..1aaf64e54e 100644
+--- a/doc/gccgo_install.html
++++ b/doc/gccgo_install.html
+@@ -1,4 +1,6 @@
+-<!-- Setting up and using gccgo -->
++<!--{
++	"Title": "Setting up and using gccgo"
++}-->
+ 
+ <p>
+ This document explains how to use <code>gccgo</code>, a compiler for
+diff --git a/doc/go1.html b/doc/go1.html
+index 4b985071ef..f116ee209a 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -1,4 +1,6 @@
+-<!-- Go 1 Release Notes -->
++<!--{
++	"Title": "Go 1 Release Notes"
++}-->
+ <!--
+   DO NOT EDIT: created by
+     tmpltohtml go1.tmpl
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index 8d295d6e45..41d599822d 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -1,4 +1,6 @@
+-<!-- Go 1 Release Notes -->
++<!--{
++	"Title": "Go 1 Release Notes"
++}-->
+ {{donotedit}}
+ 
+ <h2 id="introduction">Introduction to Go 1</h2>
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index e68b4e2855..6a8199fd94 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -1,4 +1,6 @@
+-<!-- FAQ -->
++<!--{
++	"Title": "FAQ"
++}-->
+ 
+ <h2 id="Origins">Origins</h2>
+ 
+diff --git a/doc/go_for_cpp_programmers.html b/doc/go_for_cpp_programmers.html
+index 7168f1d057..7edb88013f 100644
+--- a/doc/go_for_cpp_programmers.html
++++ b/doc/go_for_cpp_programmers.html
+@@ -1,4 +1,6 @@
+-<!-- Go For C++ Programmers -->
++<!--{
++	"Title": "Go For C++ Programmers"
++}-->
+ 
+ <p>
+ Go is a systems programming language intended to be a general-purpose
+diff --git a/doc/go_mem.html b/doc/go_mem.html
+index 45ee0f53f2..2e341771fb 100644
+--- a/doc/go_mem.html
++++ b/doc/go_mem.html
+@@ -1,5 +1,7 @@
+-<!-- The Go Memory Model -->
+-<!-- subtitle Version of June 10, 2011 -->
++<!--{
++	"Title": "The Go Memory Model",
++	"Subtitle": "Version of June 10, 2011"
++}-->
+ 
+ <style>
+ p.rule {
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 90be6d587b..8bf6c2195a 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,5 +1,7 @@
+-<!-- title The Go Programming Language Specification -->
+-<!-- subtitle Version of January 13, 2012 -->
++<!--{
++	"Title": "The Go Programming Language Specification",
++	"Subtitle": "Version of January 13, 2012"
++}-->
+ 
+ <!--
+ TODO
+diff --git a/doc/go_tutorial.html b/doc/go_tutorial.html
+index 071ca1aa9d..eaa989a200 100644
+--- a/doc/go_tutorial.html
++++ b/doc/go_tutorial.html
+@@ -1,4 +1,6 @@
+-<!-- A Tutorial for the Go Programming Language -->
++<!--{
++	"Title": "A Tutorial for the Go Programming Language"
++}-->
+ <!--
+   DO NOT EDIT: created by
+     tmpltohtml go_tutorial.tmpl
+diff --git a/doc/go_tutorial.tmpl b/doc/go_tutorial.tmpl
+index ff3057b6ef..bde724ce31 100644
+--- a/doc/go_tutorial.tmpl
++++ b/doc/go_tutorial.tmpl
+@@ -1,4 +1,6 @@
+-<!-- A Tutorial for the Go Programming Language -->
++<!--{
++	"Title": "A Tutorial for the Go Programming Language"
++}-->
+ {{donotedit}}
+ 
+ <h2>Introduction</h2>
+diff --git a/doc/install.html b/doc/install.html
+index 70dfe81289..61a90dad12 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -1,4 +1,6 @@
+-<!-- Getting Started -->
++<!--{
++	"Title": "Getting Started"
++}-->
+ 
+ <h2 id="introduction">Introduction</h2>
+ 
+diff --git a/doc/playground.html b/doc/playground.html
+index 01d3adc9cd..746b29c869 100644
+--- a/doc/playground.html
++++ b/doc/playground.html
+@@ -1,4 +1,6 @@
+-<!-- About the Go Playground -->
++<!--{
++	"Title": "About the Go Playground"
++}-->
+ 
+ <div class="left-column">
+ <p>
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 92273ceaed..61a3142ff6 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -6,6 +6,7 @@ package main
+ 
+ import (
+ 	"bytes"
++	"encoding/json"
+ 	"flag"
+ 	"fmt"
+ 	"go/ast"
+@@ -692,17 +693,14 @@ func serveText(w http.ResponseWriter, text []byte) {
+ // Files
+ 
+ var (
+-	titleRx        = regexp.MustCompile(`<!-- title ([^\-]*)-->`)
+-	subtitleRx     = regexp.MustCompile(`<!-- subtitle ([^\-]*)-->`)
+-	firstCommentRx = regexp.MustCompile(`<!--([^\-]*)-->`)
++	doctype   = []byte("<!DOCTYPE ")
++	jsonStart = []byte("<!--{")
++	jsonEnd   = []byte("}-->")
+ )
+ 
+-func extractString(src []byte, rx *regexp.Regexp) (s string) {
+-	m := rx.FindSubmatch(src)
+-	if m != nil {
+-		s = strings.TrimSpace(string(m[1]))
+-	}
+-	return
++type Metadata struct {
++	Title    string
++	Subtitle string
+ }
+ 
+ func serveHTMLDoc(w http.ResponseWriter, r *http.Request, abspath, relpath string) {
+@@ -716,11 +714,23 @@ func serveHTMLDoc(w http.ResponseWriter, r *http.Request, abspath, relpath strin
+ 
+ 	// if it begins with "<!DOCTYPE " assume it is standalone
+ 	// html that doesn't need the template wrapping.
+-	if bytes.HasPrefix(src, []byte("<!DOCTYPE ")) {
++	if bytes.HasPrefix(src, doctype) {
+ 		w.Write(src)
+ 		return
+ 	}
+ 
++	// if it begins with a JSON blob, read in the metadata.
++	var meta Metadata
++	if bytes.HasPrefix(src, jsonStart) {
++		if end := bytes.Index(src, jsonEnd); end > -1 {
++			b := src[len(jsonStart)-1 : end+1] // drop leading <!-- and include trailing }
++			if err := json.Unmarshal(b, &meta); err != nil {
++				log.Printf("decoding metadata for %s: %v", relpath, err)
++			}
++			src = src[end+len(jsonEnd):]
++		}
++	}
++
+ 	// if it's the language spec, add tags to EBNF productions
+ 	if strings.HasSuffix(abspath, "go_spec.html") {
+ 		var buf bytes.Buffer
+@@ -728,15 +738,7 @@ func serveHTMLDoc(w http.ResponseWriter, r *http.Request, abspath, relpath strin
+ 		src = buf.Bytes()
+ 	}
+ 
+-	// get title and subtitle, if any
+-	title := extractString(src, titleRx)
+-	if title == "" {
+-		// no title found; try first comment for backward-compatibility
+-		title = extractString(src, firstCommentRx)
+-	}
+-	subtitle := extractString(src, subtitleRx)
+-
+-	servePage(w, title, subtitle, "", src)
++	servePage(w, meta.Title, meta.Subtitle, "", src)
+ }
+ 
+ func applyTemplate(t *template.Template, name string, data interface{}) []byte {

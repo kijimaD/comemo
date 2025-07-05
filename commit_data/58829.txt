@@ -13,6 +13,46 @@ Date:   Mon Dec 18 16:00:06 2023 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/550975
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  test/rangegen.go | 17 +++++++++++++++++
  1 file changed, 17 insertions(+)
+
+diff --git a/test/rangegen.go b/test/rangegen.go
+index bdcf099862..8231c64db7 100644
+--- a/test/rangegen.go
++++ b/test/rangegen.go
+@@ -25,6 +25,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"log"
++	"math/bits"
+ 	"os"
+ 	"os/exec"
+ 	"strings"
+@@ -37,6 +38,13 @@ func main() {
+ 	log.SetFlags(0)
+ 	log.SetPrefix("rangegen: ")
+ 
++	if !long && bits.UintSize == 32 {
++		// Skip this test on 32-bit platforms, where it seems to
++		// cause timeouts and build problems.
++		skip()
++		return
++	}
++
+ 	b := new(bytes.Buffer)
+ 	tests := ""
+ 	flush := func(force bool) {
+@@ -331,3 +339,12 @@ func run(f func(*output, int)int, i int) *output {
+ }
+ 
+ `
++
++func skip() {
++	const code = `
++package main
++func main() {
++}
++`
++	fmt.Printf("%s\n", code)
++}

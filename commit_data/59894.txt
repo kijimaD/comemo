@@ -12,7 +12,54 @@ Date:   Tue May 7 09:56:09 2024 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/flag/flag.go      | 6 +++---
  src/flag/flag_test.go | 4 ++--
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/flag/flag.go b/src/flag/flag.go
+index 1669e9aca7..4fa502839a 100644
+--- a/src/flag/flag.go
++++ b/src/flag/flag.go
+@@ -90,7 +90,7 @@ import (
+ 	"os"
+ 	"reflect"
+ 	"runtime"
+-	"sort"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"time"
+@@ -420,8 +420,8 @@ func sortFlags(flags map[string]*Flag) []*Flag {
+ 		result[i] = f
+ 		i++
+ 	}
+-	sort.Slice(result, func(i, j int) bool {
+-		return result[i].Name < result[j].Name
++	slices.SortFunc(result, func(a, b *Flag) int {
++		return strings.Compare(a.Name, b.Name)
+ 	})
+ 	return result
+ }
+diff --git a/src/flag/flag_test.go b/src/flag/flag_test.go
+index 8e9ae316fe..14a5038917 100644
+--- a/src/flag/flag_test.go
++++ b/src/flag/flag_test.go
+@@ -14,7 +14,7 @@ import (
+ 	"os/exec"
+ 	"regexp"
+ 	"runtime"
+-	"sort"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"testing"
+@@ -101,7 +101,7 @@ func TestEverything(t *testing.T) {
+ 	// Now test they're visited in sort order.
+ 	var flagNames []string
+ 	Visit(func(f *Flag) { flagNames = append(flagNames, f.Name) })
+-	if !sort.StringsAreSorted(flagNames) {
++	if !slices.IsSorted(flagNames) {
+ 		t.Errorf("flag names not sorted: %v", flagNames)
+ 	}
+ }

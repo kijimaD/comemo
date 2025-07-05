@@ -18,7 +18,7 @@ Date:   Wed Oct 31 17:27:16 2018 +0100
     Change-Id: I2275d57b7b5ed8fd0d53eb0f19d55a86136cc555
     Reviewed-on: https://go-review.googlesource.com/c/146340
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/proc.go             |  3 +--
  src/runtime/sys_windows_386.s   |  7 +------
  src/runtime/sys_windows_amd64.s |  2 --
@@ -29,3 +29,173 @@ Date:   Wed Oct 31 17:27:16 2018 +0100
  src/time/sleep.go               |  3 ---
  src/time/time.go                | 12 ++++++++++++
  9 files changed, 17 insertions(+), 34 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 365e516ec8..542cf1ed70 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -157,8 +157,7 @@ func main() {
+ 		}
+ 	}()
+ 
+-	// Record when the world started. Must be after runtime_init
+-	// because nanotime on some platforms depends on startNano.
++	// Record when the world started.
+ 	runtimeInitTime = nanotime()
+ 
+ 	gcenable()
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index babd91c936..e6d774e66f 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -455,9 +455,7 @@ loop:
+ 	MULL	CX
+ 	IMULL	$100, DI
+ 	ADDL	DI, DX
+-	// wintime*100 = DX:AX, subtract startNano and return
+-	SUBL	runtime·startNano+0(SB), AX
+-	SBBL	runtime·startNano+4(SB), DX
++	// wintime*100 = DX:AX
+ 	MOVL	AX, ret_lo+0(FP)
+ 	MOVL	DX, ret_hi+4(FP)
+ 	RET
+@@ -482,9 +480,6 @@ loop:
+ 	IMULL	$100, DI
+ 	ADDL	DI, DX
+ 	// w*100 = DX:AX
+-	// subtract startNano and save for return
+-	SUBL	runtime·startNano+0(SB), AX
+-	SBBL	runtime·startNano+4(SB), DX
+ 	MOVL	AX, mono+12(FP)
+ 	MOVL	DX, mono+16(FP)
+ 
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index ec49caa43e..612f0a474d 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -486,7 +486,6 @@ loop:
+ 	SHLQ	$32, CX
+ 	ORQ	BX, CX
+ 	IMULQ	$100, CX
+-	SUBQ	runtime·startNano(SB), CX
+ 	MOVQ	CX, ret+0(FP)
+ 	RET
+ useQPC:
+@@ -506,7 +505,6 @@ loop:
+ 	SHLQ	$32, AX
+ 	ORQ	BX, AX
+ 	IMULQ	$100, AX
+-	SUBQ	runtime·startNano(SB), AX
+ 	MOVQ	AX, mono+16(FP)
+ 
+ 	MOVQ	$_SYSTEM_TIME, DI
+diff --git a/src/runtime/sys_windows_arm.s b/src/runtime/sys_windows_arm.s
+index 409c72c554..60a85b8ffb 100644
+--- a/src/runtime/sys_windows_arm.s
++++ b/src/runtime/sys_windows_arm.s
+@@ -510,11 +510,7 @@ loop:
+ 	MULLU	R0, R2, (R4, R3)    // R4:R3 = R1:R0 * R2
+ 	MULA	R1, R2, R4, R4
+ 
+-	// wintime*100 = R4:R3, subtract startNano and return
+-	MOVW    runtime·startNano+0(SB), R0
+-	MOVW    runtime·startNano+4(SB), R1
+-	SUB.S   R0, R3
+-	SBC	R1, R4
++	// wintime*100 = R4:R3
+ 	MOVW	R3, ret_lo+0(FP)
+ 	MOVW	R4, ret_hi+4(FP)
+ 	RET
+@@ -540,11 +536,7 @@ loop:
+ 	MULLU	R0, R2, (R4, R3)    // R4:R3 = R1:R0 * R2
+ 	MULA	R1, R2, R4, R4
+ 
+-	// wintime*100 = R4:R3, subtract startNano and return
+-	MOVW    runtime·startNano+0(SB), R0
+-	MOVW    runtime·startNano+4(SB), R1
+-	SUB.S   R0, R3
+-	SBC	R1, R4
++	// wintime*100 = R4:R3
+ 	MOVW	R3, mono+12(FP)
+ 	MOVW	R4, mono+16(FP)
+ 
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index 88fd319a90..b345ed4e02 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -470,11 +470,3 @@ func poll_runtimeNano() int64 {
+ func time_runtimeNano() int64 {
+ 	return nanotime()
+ }
+-
+-// Monotonic times are reported as offsets from startNano.
+-// We initialize startNano to nanotime() - 1 so that on systems where
+-// monotonic time resolution is fairly low (e.g. Windows 2008
+-// which appears to have a default resolution of 15ms),
+-// we avoid ever reporting a nanotime of 0.
+-// (Callers may want to use 0 as "time not set".)
+-var startNano int64 = nanotime() - 1
+diff --git a/src/runtime/timeasm.go b/src/runtime/timeasm.go
+index 5af920c18c..82cf63edff 100644
+--- a/src/runtime/timeasm.go
++++ b/src/runtime/timeasm.go
+@@ -3,8 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Declarations for operating systems implementing time.now directly in assembly.
+-// Those systems are also expected to have nanotime subtract startNano,
+-// so that time.now and nanotime return the same monotonic clock readings.
+ 
+ // +build windows
+ 
+diff --git a/src/runtime/timestub.go b/src/runtime/timestub.go
+index f9230da69f..459bf8e543 100644
+--- a/src/runtime/timestub.go
++++ b/src/runtime/timestub.go
+@@ -14,5 +14,5 @@ import _ "unsafe" // for go:linkname
+ //go:linkname time_now time.now
+ func time_now() (sec int64, nsec int32, mono int64) {
+ 	sec, nsec = walltime()
+-	return sec, nsec, nanotime() - startNano
++	return sec, nsec, nanotime()
+ }
+diff --git a/src/time/sleep.go b/src/time/sleep.go
+index b8c81b437c..10edf6fe0e 100644
+--- a/src/time/sleep.go
++++ b/src/time/sleep.go
+@@ -8,9 +8,6 @@ package time
+ // A negative or zero duration causes Sleep to return immediately.
+ func Sleep(d Duration)
+ 
+-// runtimeNano returns the current value of the runtime clock in nanoseconds.
+-func runtimeNano() int64
+-
+ // Interface to timers implemented in package runtime.
+ // Must be in sync with ../runtime/time.go:/^type timer
+ type runtimeTimer struct {
+diff --git a/src/time/time.go b/src/time/time.go
+index f2da32dbad..144f2fe73d 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -1050,9 +1050,21 @@ func daysIn(m Month, year int) int {
+ // Provided by package runtime.
+ func now() (sec int64, nsec int32, mono int64)
+ 
++// runtimeNano returns the current value of the runtime clock in nanoseconds.
++func runtimeNano() int64
++
++// Monotonic times are reported as offsets from startNano.
++// We initialize startNano to runtimeNano() - 1 so that on systems where
++// monotonic time resolution is fairly low (e.g. Windows 2008
++// which appears to have a default resolution of 15ms),
++// we avoid ever reporting a monotonic time of 0.
++// (Callers may want to use 0 as "time not set".)
++var startNano int64 = runtimeNano() - 1
++
+ // Now returns the current local time.
+ func Now() Time {
+ 	sec, nsec, mono := now()
++	mono -= startNano
+ 	sec += unixToInternal - minWall
+ 	if uint64(sec)>>33 != 0 {
+ 		return Time{uint64(nsec), sec + minWall, Local}

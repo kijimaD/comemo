@@ -98,7 +98,7 @@ Date:   Fri Feb 3 22:40:56 2017 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/builtin.go         |  12 ++
  src/cmd/compile/internal/gc/builtin/runtime.go |  14 ++
  src/cmd/compile/internal/gc/walk.go            |  28 +++
@@ -106,3 +106,551 @@ Date:   Fri Feb 3 22:40:56 2017 -0800
  src/runtime/iface_test.go                      | 140 +++++++++++++++
  test/live.go                                   |   8 +-
  6 files changed, 426 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index 9f8aa2697b..c1506f7874 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -49,7 +49,19 @@ var runtimeDecls = [...]struct {
+ 	{"slicestringcopy", funcTag, 51},
+ 	{"convI2I", funcTag, 52},
+ 	{"convT2E", funcTag, 53},
++	{"convT2E16", funcTag, 53},
++	{"convT2E32", funcTag, 53},
++	{"convT2E64", funcTag, 53},
++	{"convT2Estring", funcTag, 53},
++	{"convT2Eslice", funcTag, 53},
++	{"convT2Enoptr", funcTag, 53},
+ 	{"convT2I", funcTag, 53},
++	{"convT2I16", funcTag, 53},
++	{"convT2I32", funcTag, 53},
++	{"convT2I64", funcTag, 53},
++	{"convT2Istring", funcTag, 53},
++	{"convT2Islice", funcTag, 53},
++	{"convT2Inoptr", funcTag, 53},
+ 	{"assertE2I", funcTag, 52},
+ 	{"assertE2I2", funcTag, 54},
+ 	{"assertI2I", funcTag, 52},
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index fc55104ef8..2bc974387a 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -61,8 +61,22 @@ func slicestringcopy(to any, fr any) int
+ 
+ // interface conversions
+ func convI2I(typ *byte, elem any) (ret any)
++
+ func convT2E(typ *byte, elem *any) (ret any)
++func convT2E16(typ *byte, elem *any) (ret any)
++func convT2E32(typ *byte, elem *any) (ret any)
++func convT2E64(typ *byte, elem *any) (ret any)
++func convT2Estring(typ *byte, elem *any) (ret any)
++func convT2Eslice(typ *byte, elem *any) (ret any)
++func convT2Enoptr(typ *byte, elem *any) (ret any)
++
+ func convT2I(tab *byte, elem *any) (ret any)
++func convT2I16(tab *byte, elem *any) (ret any)
++func convT2I32(tab *byte, elem *any) (ret any)
++func convT2I64(tab *byte, elem *any) (ret any)
++func convT2Istring(tab *byte, elem *any) (ret any)
++func convT2Islice(tab *byte, elem *any) (ret any)
++func convT2Inoptr(tab *byte, elem *any) (ret any)
+ 
+ // interface type assertions  x.(T)
+ func assertE2I(typ *byte, iface any) (ret any)
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 072c0ac69c..96f66148a5 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -417,8 +417,36 @@ func convFuncName(from, to *Type) string {
+ 	case 'T':
+ 		switch tkind {
+ 		case 'E':
++			switch {
++			case from.Size() == 2 && from.Align == 2:
++				return "convT2E16"
++			case from.Size() == 4 && from.Align == 4 && !haspointers(from):
++				return "convT2E32"
++			case from.Size() == 8 && from.Align == Types[TUINT64].Align && !haspointers(from):
++				return "convT2E64"
++			case from.IsString():
++				return "convT2Estring"
++			case from.IsSlice():
++				return "convT2Eslice"
++			case !haspointers(from):
++				return "convT2Enoptr"
++			}
+ 			return "convT2E"
+ 		case 'I':
++			switch {
++			case from.Size() == 2 && from.Align == 2:
++				return "convT2I16"
++			case from.Size() == 4 && from.Align == 4 && !haspointers(from):
++				return "convT2I32"
++			case from.Size() == 8 && from.Align == Types[TUINT64].Align && !haspointers(from):
++				return "convT2I64"
++			case from.IsString():
++				return "convT2Istring"
++			case from.IsSlice():
++				return "convT2Islice"
++			case !haspointers(from):
++				return "convT2Inoptr"
++			}
+ 			return "convT2I"
+ 		}
+ 	}
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index f043724a56..58ed61e3aa 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -205,19 +205,124 @@ func convT2E(t *_type, elem unsafe.Pointer) (e eface) {
+ 	if msanenabled {
+ 		msanread(elem, t.size)
+ 	}
+-	if isDirectIface(t) {
+-		// This case is implemented directly by the compiler.
+-		throw("direct convT2E")
+-	}
+-	x := newobject(t)
+-	// TODO: We allocate a zeroed object only to overwrite it with
+-	// actual data. Figure out how to avoid zeroing. Also below in convT2I.
++	x := mallocgc(t.size, t, true)
++	// TODO: We allocate a zeroed object only to overwrite it with actual data.
++	// Figure out how to avoid zeroing. Also below in convT2Eslice, convT2I, convT2Islice.
+ 	typedmemmove(t, x, elem)
+ 	e._type = t
+ 	e.data = x
+ 	return
+ }
+ 
++func convT2E16(t *_type, elem unsafe.Pointer) (e eface) {
++	if raceenabled {
++		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2E16))
++	}
++	if msanenabled {
++		msanread(elem, t.size)
++	}
++	var x unsafe.Pointer
++	if *(*uint16)(elem) == 0 {
++		x = unsafe.Pointer(&zeroVal[0])
++	} else {
++		x = mallocgc(2, t, false)
++		*(*uint16)(x) = *(*uint16)(elem)
++	}
++	e._type = t
++	e.data = x
++	return
++}
++
++func convT2E32(t *_type, elem unsafe.Pointer) (e eface) {
++	if raceenabled {
++		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2E32))
++	}
++	if msanenabled {
++		msanread(elem, t.size)
++	}
++	var x unsafe.Pointer
++	if *(*uint32)(elem) == 0 {
++		x = unsafe.Pointer(&zeroVal[0])
++	} else {
++		x = mallocgc(4, t, false)
++		*(*uint32)(x) = *(*uint32)(elem)
++	}
++	e._type = t
++	e.data = x
++	return
++}
++
++func convT2E64(t *_type, elem unsafe.Pointer) (e eface) {
++	if raceenabled {
++		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2E64))
++	}
++	if msanenabled {
++		msanread(elem, t.size)
++	}
++	var x unsafe.Pointer
++	if *(*uint64)(elem) == 0 {
++		x = unsafe.Pointer(&zeroVal[0])
++	} else {
++		x = mallocgc(8, t, false)
++		*(*uint64)(x) = *(*uint64)(elem)
++	}
++	e._type = t
++	e.data = x
++	return
++}
++
++func convT2Estring(t *_type, elem unsafe.Pointer) (e eface) {
++	if raceenabled {
++		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2Estring))
++	}
++	if msanenabled {
++		msanread(elem, t.size)
++	}
++	var x unsafe.Pointer
++	if *(*string)(elem) == "" {
++		x = unsafe.Pointer(&zeroVal[0])
++	} else {
++		x = mallocgc(t.size, t, true)
++		*(*string)(x) = *(*string)(elem)
++	}
++	e._type = t
++	e.data = x
++	return
++}
++
++func convT2Eslice(t *_type, elem unsafe.Pointer) (e eface) {
++	if raceenabled {
++		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2Eslice))
++	}
++	if msanenabled {
++		msanread(elem, t.size)
++	}
++	var x unsafe.Pointer
++	if v := *(*slice)(elem); uintptr(v.array) == 0 {
++		x = unsafe.Pointer(&zeroVal[0])
++	} else {
++		x = mallocgc(t.size, t, true)
++		*(*slice)(x) = *(*slice)(elem)
++	}
++	e._type = t
++	e.data = x
++	return
++}
++
++func convT2Enoptr(t *_type, elem unsafe.Pointer) (e eface) {
++	if raceenabled {
++		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2Enoptr))
++	}
++	if msanenabled {
++		msanread(elem, t.size)
++	}
++	x := mallocgc(t.size, t, false)
++	memmove(x, elem, t.size)
++	e._type = t
++	e.data = x
++	return
++}
++
+ func convT2I(tab *itab, elem unsafe.Pointer) (i iface) {
+ 	t := tab._type
+ 	if raceenabled {
+@@ -226,17 +331,128 @@ func convT2I(tab *itab, elem unsafe.Pointer) (i iface) {
+ 	if msanenabled {
+ 		msanread(elem, t.size)
+ 	}
+-	if isDirectIface(t) {
+-		// This case is implemented directly by the compiler.
+-		throw("direct convT2I")
+-	}
+-	x := newobject(t)
++	x := mallocgc(t.size, t, true)
+ 	typedmemmove(t, x, elem)
+ 	i.tab = tab
+ 	i.data = x
+ 	return
+ }
+ 
++func convT2I16(tab *itab, elem unsafe.Pointer) (i iface) {
++	t := tab._type
++	if raceenabled {
++		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&tab)), funcPC(convT2I16))
++	}
++	if msanenabled {
++		msanread(elem, t.size)
++	}
++	var x unsafe.Pointer
++	if *(*uint16)(elem) == 0 {
++		x = unsafe.Pointer(&zeroVal[0])
++	} else {
++		x = mallocgc(2, t, false)
++		*(*uint16)(x) = *(*uint16)(elem)
++	}
++	i.tab = tab
++	i.data = x
++	return
++}
++
++func convT2I32(tab *itab, elem unsafe.Pointer) (i iface) {
++	t := tab._type
++	if raceenabled {
++		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&tab)), funcPC(convT2I32))
++	}
++	if msanenabled {
++		msanread(elem, t.size)
++	}
++	var x unsafe.Pointer
++	if *(*uint32)(elem) == 0 {
++		x = unsafe.Pointer(&zeroVal[0])
++	} else {
++		x = mallocgc(4, t, false)
++		*(*uint32)(x) = *(*uint32)(elem)
++	}
++	i.tab = tab
++	i.data = x
++	return
++}
++
++func convT2I64(tab *itab, elem unsafe.Pointer) (i iface) {
++	t := tab._type
++	if raceenabled {
++		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&tab)), funcPC(convT2I64))
++	}
++	if msanenabled {
++		msanread(elem, t.size)
++	}
++	var x unsafe.Pointer
++	if *(*uint64)(elem) == 0 {
++		x = unsafe.Pointer(&zeroVal[0])
++	} else {
++		x = mallocgc(8, t, false)
++		*(*uint64)(x) = *(*uint64)(elem)
++	}
++	i.tab = tab
++	i.data = x
++	return
++}
++
++func convT2Istring(tab *itab, elem unsafe.Pointer) (i iface) {
++	t := tab._type
++	if raceenabled {
++		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&tab)), funcPC(convT2Istring))
++	}
++	if msanenabled {
++		msanread(elem, t.size)
++	}
++	var x unsafe.Pointer
++	if *(*string)(elem) == "" {
++		x = unsafe.Pointer(&zeroVal[0])
++	} else {
++		x = mallocgc(t.size, t, true)
++		*(*string)(x) = *(*string)(elem)
++	}
++	i.tab = tab
++	i.data = x
++	return
++}
++
++func convT2Islice(tab *itab, elem unsafe.Pointer) (i iface) {
++	t := tab._type
++	if raceenabled {
++		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&tab)), funcPC(convT2Islice))
++	}
++	if msanenabled {
++		msanread(elem, t.size)
++	}
++	var x unsafe.Pointer
++	if v := *(*slice)(elem); uintptr(v.array) == 0 {
++		x = unsafe.Pointer(&zeroVal[0])
++	} else {
++		x = mallocgc(t.size, t, true)
++		*(*slice)(x) = *(*slice)(elem)
++	}
++	i.tab = tab
++	i.data = x
++	return
++}
++
++func convT2Inoptr(tab *itab, elem unsafe.Pointer) (i iface) {
++	t := tab._type
++	if raceenabled {
++		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&tab)), funcPC(convT2Inoptr))
++	}
++	if msanenabled {
++		msanread(elem, t.size)
++	}
++	x := mallocgc(t.size, t, false)
++	memmove(x, elem, t.size)
++	i.tab = tab
++	i.data = x
++	return
++}
++
+ func convI2I(inter *interfacetype, i iface) (r iface) {
+ 	tab := i.tab
+ 	if tab == nil {
+diff --git a/src/runtime/iface_test.go b/src/runtime/iface_test.go
+index 7f27baa61f..6d8f8614d9 100644
+--- a/src/runtime/iface_test.go
++++ b/src/runtime/iface_test.go
+@@ -29,6 +29,20 @@ func (TM) Method2() {}
+ func (TL) Method1() {}
+ func (TL) Method2() {}
+ 
++type T8 uint8
++type T16 uint16
++type T32 uint32
++type T64 uint64
++type Tstr string
++type Tslice []byte
++
++func (T8) Method1()     {}
++func (T16) Method1()    {}
++func (T32) Method1()    {}
++func (T64) Method1()    {}
++func (Tstr) Method1()   {}
++func (Tslice) Method1() {}
++
+ var (
+ 	e  interface{}
+ 	e_ interface{}
+@@ -261,3 +275,129 @@ func TestNonEscapingConvT2I(t *testing.T) {
+ 		t.Fatalf("want 0 allocs, got %v", n)
+ 	}
+ }
++
++func TestZeroConvT2x(t *testing.T) {
++	tests := []struct {
++		name string
++		fn   func()
++	}{
++		{name: "E8", fn: func() { e = eight8 }},  // any byte-sized value does not allocate
++		{name: "E16", fn: func() { e = zero16 }}, // zero values do not allocate
++		{name: "E32", fn: func() { e = zero32 }},
++		{name: "E64", fn: func() { e = zero64 }},
++		{name: "Estr", fn: func() { e = zerostr }},
++		{name: "Eslice", fn: func() { e = zeroslice }},
++		{name: "Econstflt", fn: func() { e = 99.0 }}, // constants do not allocate
++		{name: "Econststr", fn: func() { e = "change" }},
++		{name: "I8", fn: func() { i1 = eight8I }},
++		{name: "I16", fn: func() { i1 = zero16I }},
++		{name: "I32", fn: func() { i1 = zero32I }},
++		{name: "I64", fn: func() { i1 = zero64I }},
++		{name: "Istr", fn: func() { i1 = zerostrI }},
++		{name: "Islice", fn: func() { i1 = zerosliceI }},
++	}
++
++	for _, test := range tests {
++		t.Run(test.name, func(t *testing.T) {
++			n := testing.AllocsPerRun(1000, test.fn)
++			if n != 0 {
++				t.Errorf("want zero allocs, got %v", n)
++			}
++		})
++	}
++}
++
++var (
++	eight8  uint8 = 8
++	eight8I T8    = 8
++
++	zero16  uint16 = 0
++	zero16I T16    = 0
++	one16   uint16 = 1
++
++	zero32  uint32 = 0
++	zero32I T32    = 0
++	one32   uint32 = 1
++
++	zero64  uint64 = 0
++	zero64I T64    = 0
++	one64   uint64 = 1
++
++	zerostr  string = ""
++	zerostrI Tstr   = ""
++	nzstr    string = "abc"
++
++	zeroslice  []byte = nil
++	zerosliceI Tslice = nil
++	nzslice    []byte = []byte("abc")
++
++	zerobig [512]byte
++	nzbig   [512]byte = [512]byte{511: 1}
++)
++
++func BenchmarkConvT2Ezero(b *testing.B) {
++	b.Run("zero", func(b *testing.B) {
++		b.Run("16", func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				e = zero16
++			}
++		})
++		b.Run("32", func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				e = zero32
++			}
++		})
++		b.Run("64", func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				e = zero64
++			}
++		})
++		b.Run("str", func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				e = zerostr
++			}
++		})
++		b.Run("slice", func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				e = zeroslice
++			}
++		})
++		b.Run("big", func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				e = zerobig
++			}
++		})
++	})
++	b.Run("nonzero", func(b *testing.B) {
++		b.Run("16", func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				e = one16
++			}
++		})
++		b.Run("32", func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				e = one32
++			}
++		})
++		b.Run("64", func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				e = one64
++			}
++		})
++		b.Run("str", func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				e = nzstr
++			}
++		})
++		b.Run("slice", func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				e = nzslice
++			}
++		})
++		b.Run("big", func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				e = nzbig
++			}
++		})
++	})
++}
+diff --git a/test/live.go b/test/live.go
+index 0466956254..708786339d 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -141,7 +141,7 @@ var i9 interface{}
+ func f9() bool {
+ 	g8()
+ 	x := i9
+-	y := interface{}(str()) // ERROR "live at call to convT2E: .autotmp_[0-9]+ x.data x.type$" "live at call to str: x.data x.type$"
++	y := interface{}(str()) // ERROR "live at call to convT2Estring: .autotmp_[0-9]+ x.data x.type$" "live at call to str: x.data x.type$"
+ 	i9 = y                  // make y escape so the line above has to call convT2E
+ 	return x != y
+ }
+@@ -494,13 +494,13 @@ func f30(b bool) {
+ 
+ func f31(b1, b2, b3 bool) {
+ 	if b1 {
+-		g31(str()) // ERROR "live at call to convT2E: .autotmp_[0-9]+$" "live at call to g31: .autotmp_[0-9]+$"
++		g31(str()) // ERROR "live at call to convT2Estring: .autotmp_[0-9]+$" "live at call to g31: .autotmp_[0-9]+$"
+ 	}
+ 	if b2 {
+-		h31(str()) // ERROR "live at call to convT2E: .autotmp_[0-9]+ .autotmp_[0-9]+$" "live at call to h31: .autotmp_[0-9]+$" "live at call to newobject: .autotmp_[0-9]+$"
++		h31(str()) // ERROR "live at call to convT2Estring: .autotmp_[0-9]+ .autotmp_[0-9]+$" "live at call to h31: .autotmp_[0-9]+$" "live at call to newobject: .autotmp_[0-9]+$"
+ 	}
+ 	if b3 {
+-		panic(str()) // ERROR "live at call to convT2E: .autotmp_[0-9]+$" "live at call to gopanic: .autotmp_[0-9]+$"
++		panic(str()) // ERROR "live at call to convT2Estring: .autotmp_[0-9]+$" "live at call to gopanic: .autotmp_[0-9]+$"
+ 	}
+ 	print(b3)
+ }

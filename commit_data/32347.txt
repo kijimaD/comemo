@@ -22,6 +22,32 @@ Date:   Tue Apr 18 13:12:58 2017 +0300
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/sync/pool.go | 11 +++++++++--
  1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/sync/pool.go b/src/sync/pool.go
+index b3fd9d397c..e54f917225 100644
+--- a/src/sync/pool.go
++++ b/src/sync/pool.go
+@@ -54,11 +54,18 @@ type Pool struct {
+ }
+ 
+ // Local per-P Pool appendix.
+-type poolLocal struct {
++type poolLocalInternal struct {
+ 	private interface{}   // Can be used only by the respective P.
+ 	shared  []interface{} // Can be used by any P.
+ 	Mutex                 // Protects shared.
+-	pad     [128]byte     // Prevents false sharing.
++}
++
++type poolLocal struct {
++	poolLocalInternal
++
++	// Prevents false sharing on widespread platforms with
++	// 128 mod (cache line size) = 0 .
++	pad [128 - unsafe.Sizeof(poolLocalInternal{})%128]byte
+ }
+ 
+ // from runtime

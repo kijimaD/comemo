@@ -9,7 +9,32 @@ Date:   Mon Jun 24 13:27:39 2013 +1000
     R=gobot
     CC=golang-dev
     https://golang.org/cl/10482043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index eddaccbb7c..55c82ebebb 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -57,6 +57,7 @@ Caine Tighe <arctanofyourface@gmail.com>
+ Caleb Spare <cespare@gmail.com>
+ Carlos Castillo <cookieo9@gmail.com>
+ Casey Marshall <casey.marshall@gmail.com>
++ChaiShushan <chaishushan@gmail.com>
+ Charles L. Dorian <cldorian@gmail.com>
+ Chris Dollin <ehog.hedge@gmail.com>
+ Chris Farmiloe <chrisfarms@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 7d199c2d83..ab4d86d3de 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -101,6 +101,7 @@ Carl Shapiro <cshapiro@google.com> <cshapiro@golang.org>
+ Carlos Castillo <cookieo9@gmail.com>
+ Cary Hull <chull@google.com>
+ Casey Marshall <casey.marshall@gmail.com>
++ChaiShushan <chaishushan@gmail.com>
+ Charles L. Dorian <cldorian@gmail.com>
+ Chris Dollin <ehog.hedge@gmail.com>
+ Chris Farmiloe <chrisfarms@gmail.com>

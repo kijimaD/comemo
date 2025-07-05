@@ -9,6 +9,37 @@ Date:   Fri Feb 3 07:19:25 2012 -0800
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5622054
-
+---
  test/fixedbugs/bug405.go | 24 ++++++++++++++++++++++++
  1 file changed, 24 insertions(+)
+
+diff --git a/test/fixedbugs/bug405.go b/test/fixedbugs/bug405.go
+new file mode 100644
+index 0000000000..36e8013ea5
+--- /dev/null
++++ b/test/fixedbugs/bug405.go
+@@ -0,0 +1,24 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test using _ receiver.  Failed with gccgo.
++
++package main
++
++type S struct {}
++
++func (_ S) F(i int) int {
++	return i
++}
++
++func main() {
++	s := S{}
++	const c = 123
++	i := s.F(c)
++	if i != c {
++		panic(i)
++	}
++}

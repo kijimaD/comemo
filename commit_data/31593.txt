@@ -11,6 +11,21 @@ Date:   Thu Mar 2 18:46:00 2017 +0000
     Change-Id: Iea46f32857e8467f8d5a49b31e20a52fda8bce60
     Reviewed-on: https://go-review.googlesource.com/37693
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/vet/all/main.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/cmd/vet/all/main.go b/src/cmd/vet/all/main.go
+index 9d6bf9ed48..03337a4e8b 100644
+--- a/src/cmd/vet/all/main.go
++++ b/src/cmd/vet/all/main.go
+@@ -182,9 +182,6 @@ var ignorePathPrefixes = [...]string{
+ 	"cmd/go/testdata/",
+ 	"cmd/vet/testdata/",
+ 	"go/printer/testdata/",
+-	// Ignore pprof for the moment to get the builders happy.
+-	// TODO: Fix all the issues and reinstate.
+-	"cmd/vendor/github.com/google/pprof",
+ }
+ 
+ func vetPlatforms(pp []platform) {

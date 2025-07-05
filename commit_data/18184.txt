@@ -10,6 +10,20 @@ Date:   Tue Jan 7 23:50:31 2014 +1100
     R=golang-codereviews, dave
     CC=golang-codereviews
     https://golang.org/cl/48520043
-
+---
  src/pkg/crypto/sha512/sha512block_decl.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/sha512/sha512block_decl.go b/src/pkg/crypto/sha512/sha512block_decl.go
+index 229e46ba64..bef99de2e4 100644
+--- a/src/pkg/crypto/sha512/sha512block_decl.go
++++ b/src/pkg/crypto/sha512/sha512block_decl.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build 386 amd64
++// +build amd64
+ 
+ package sha512
+ 

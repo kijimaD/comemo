@@ -10,6 +10,22 @@ Date:   Wed Apr 14 19:53:59 2021 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/pe.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 30654412b9..b70c0693e8 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -607,6 +607,10 @@ dwarfLoop:
+ 		Errorf(nil, "emitRelocations: could not find %q section", sect.Name)
+ 	}
+ 
++	if f.ctorsSect == nil {
++		return
++	}
++
+ 	f.ctorsSect.emitRelocations(ctxt.Out, func() int {
+ 		dottext := ldr.Lookup(".text", 0)
+ 		ctxt.Out.Write32(0)

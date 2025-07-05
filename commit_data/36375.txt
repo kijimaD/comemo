@@ -31,6 +31,53 @@ Date:   Tue Apr 17 09:09:07 2018 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/regalloc.go | 21 +++++++++++++++++++--
  1 file changed, 19 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 7e35526f19..28cc752b66 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -165,6 +165,21 @@ func (m regMask) String() string {
+ 	return s
+ }
+ 
++func (s *regAllocState) RegMaskString(m regMask) string {
++	str := ""
++	for r := register(0); m != 0; r++ {
++		if m>>r&1 == 0 {
++			continue
++		}
++		m &^= regMask(1) << r
++		if str != "" {
++			str += " "
++		}
++		str += s.registers[r].String()
++	}
++	return str
++}
++
+ // countRegs returns the number of set bits in the register mask.
+ func countRegs(r regMask) int {
+ 	n := 0
+@@ -793,7 +808,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 			}
+ 		}
+ 		if s.f.pass.debug > regDebug {
+-			fmt.Printf("uses for %s:%s\n", s.f.Name, b)
++			fmt.Printf("use distances for %s\n", b)
+ 			for i := range s.values {
+ 				vi := &s.values[i]
+ 				u := vi.uses
+@@ -2400,7 +2415,9 @@ func (s *regAllocState) computeLive() {
+ 					fmt.Printf("]")
+ 				}
+ 			}
+-			fmt.Printf(" avoid=%x", int64(s.desired[b.ID].avoid))
++			if avoid := s.desired[b.ID].avoid; avoid != 0 {
++				fmt.Printf(" avoid=%v", s.RegMaskString(avoid))
++			}
+ 			fmt.Println()
+ 		}
+ 	}

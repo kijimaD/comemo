@@ -7,7 +7,7 @@ Date:   Tue Feb 22 20:23:21 2011 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/4197041
-
+---
  doc/code.html                               | 2 +-
  src/Make.pkg                                | 2 +-
  src/cmd/gotest/doc.go                       | 2 +-
@@ -15,3 +15,82 @@ Date:   Tue Feb 22 20:23:21 2011 -0800
  src/pkg/crypto/tls/handshake_server_test.go | 2 +-
  src/pkg/testing/testing.go                  | 2 +-
  6 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/doc/code.html b/doc/code.html
+index 9236cf263b..8bd9eec3d4 100644
+--- a/doc/code.html
++++ b/doc/code.html
+@@ -229,7 +229,7 @@ run <code>gotest one_test.go</code>.
+ <p>
+ If your change affects performance, add a <code>Benchmark</code> function 
+ (see the <a href="/cmd/gotest/">gotest command documentation</a>)
+-and run it using <code>gotest -benchmarks=.</code>.
++and run it using <code>gotest -test.bench=.</code>.
+ </p>
+ 
+ <p>
+diff --git a/src/Make.pkg b/src/Make.pkg
+index ca0fa9ee2c..7b5e478b7f 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -55,7 +55,7 @@ test:
+ 	gotest
+ 
+ bench:
+-	gotest -benchmarks=. -match="Do not run tests"
++	gotest -test.bench=. -test.run="Do not run tests"
+ 
+ nuke: clean
+ 	rm -f $(pkgdir)/$(TARG).a
+diff --git a/src/cmd/gotest/doc.go b/src/cmd/gotest/doc.go
+index 8618e80459..581eaaab9c 100644
+--- a/src/cmd/gotest/doc.go
++++ b/src/cmd/gotest/doc.go
+@@ -20,7 +20,7 @@ They should have signature
+ 	func TestXXX(t *testing.T) { ... }
+ 
+ Benchmark functions can be written as well; they will be run only
+-when the -benchmarks flag is provided.  Benchmarks should have
++when the -test.bench flag is provided.  Benchmarks should have
+ signature
+ 
+ 	func BenchmarkXXX(b *testing.B) { ... }
+diff --git a/src/pkg/crypto/tls/handshake_client_test.go b/src/pkg/crypto/tls/handshake_client_test.go
+index e5c9684b97..fd1f145cfc 100644
+--- a/src/pkg/crypto/tls/handshake_client_test.go
++++ b/src/pkg/crypto/tls/handshake_client_test.go
+@@ -61,7 +61,7 @@ func TestRunClient(t *testing.T) {
+ 
+ // Script of interaction with gnutls implementation.
+ // The values for this test are obtained by building and running in client mode:
+-//   % gotest -match "TestRunClient" -connect
++//   % gotest -test.run "TestRunClient" -connect
+ // and then:
+ //   % gnutls-serv -p 10443 --debug 100 --x509keyfile key.pem --x509certfile cert.pem -a > /tmp/log 2>&1
+ //   % python parse-gnutls-cli-debug-log.py < /tmp/log
+diff --git a/src/pkg/crypto/tls/handshake_server_test.go b/src/pkg/crypto/tls/handshake_server_test.go
+index 5cf3ae0499..6beb6a9f62 100644
+--- a/src/pkg/crypto/tls/handshake_server_test.go
++++ b/src/pkg/crypto/tls/handshake_server_test.go
+@@ -194,7 +194,7 @@ var testPrivateKey = &rsa.PrivateKey{
+ 
+ // Script of interaction with gnutls implementation.
+ // The values for this test are obtained by building and running in server mode:
+-//   % gotest -match "TestRunServer" -serve
++//   % gotest -test.run "TestRunServer" -serve
+ // and then:
+ //   % gnutls-cli --insecure --debug 100 -p 10443 localhost > /tmp/log 2>&1
+ //   % python parse-gnutls-cli-debug-log.py < /tmp/log
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index cc31451914..324b5a70e1 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -12,7 +12,7 @@
+ //
+ // Functions of the form
+ //     func BenchmarkXxx(*testing.B)
+-// are considered benchmarks, and are executed by gotest when the -benchmarks
++// are considered benchmarks, and are executed by gotest when the -test.bench
+ // flag is provided.
+ //
+ // A sample benchmark function looks like this:

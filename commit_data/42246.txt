@@ -16,6 +16,25 @@ Date:   Mon Nov 18 09:01:44 2019 -0500
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index aaeb42d98c..c5c5d411b9 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -683,8 +683,11 @@ func (tg *testgoData) creatingTemp(path string) {
+ 	// If we have changed the working directory, make sure we have
+ 	// an absolute path, because we are going to change directory
+ 	// back before we remove the temporary.
+-	if tg.wd != "" && !filepath.IsAbs(path) {
+-		path = filepath.Join(tg.pwd(), path)
++	if !filepath.IsAbs(path) {
++		if tg.wd == "" || strings.HasPrefix(tg.wd, testGOROOT) {
++			tg.t.Fatalf("internal testsuite error: creatingTemp(%q) within GOROOT/src", path)
++		}
++		path = filepath.Join(tg.wd, path)
+ 	}
+ 	tg.must(robustio.RemoveAll(path))
+ 	tg.temps = append(tg.temps, path)

@@ -9,10 +9,228 @@ Date:   Mon Oct 5 04:08:24 2009 -0700
     DELTA=102  (89 added, 1 deleted, 12 changed)
     OCL=35321
     CL=35327
-
+---
  src/pkg/archive/tar/testdata/writer-big.tar | Bin 0 -> 4096 bytes
  src/pkg/archive/tar/writer.go               |  42 +++++++++++++++++++++-------
  src/pkg/archive/tar/writer_test.go          |  32 +++++++++++++++++++--
  src/pkg/testing/iotest/Makefile             |   1 +
  src/pkg/testing/iotest/writer.go            |  38 +++++++++++++++++++++++++
  5 files changed, 100 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/archive/tar/testdata/writer-big.tar b/src/pkg/archive/tar/testdata/writer-big.tar
+new file mode 100644
+index 0000000000..753e883ceb
+Binary files /dev/null and b/src/pkg/archive/tar/testdata/writer-big.tar differ
+diff --git a/src/pkg/archive/tar/writer.go b/src/pkg/archive/tar/writer.go
+index 42e628f5cc..745a7c43d1 100644
+--- a/src/pkg/archive/tar/writer.go
++++ b/src/pkg/archive/tar/writer.go
+@@ -16,9 +16,8 @@ import (
+ )
+ 
+ var (
+-	ErrWriteTooLong os.Error = os.ErrorString("write too long");
+-	// TODO(dsymonds): remove ErrIntFieldTooBig after we implement binary extension.
+-	ErrIntFieldTooBig os.Error = os.ErrorString("an integer header field was too big");
++	ErrWriteTooLong = os.NewError("write too long");
++	ErrFieldTooLong = os.NewError("header field too long");
+ )
+ 
+ // A Writer provides sequential writing of a tar archive in POSIX.1 format.
+@@ -42,6 +41,7 @@ type Writer struct {
+ 	nb int64;	// number of unwritten bytes for current file entry
+ 	pad int64;	// amount of padding to write after current file entry
+ 	closed bool;
++	usedBinary bool;	// whether the binary numeric field extension was used
+ }
+ 
+ // NewWriter creates a new Writer writing to w.
+@@ -70,7 +70,7 @@ func (tw *Writer) Flush() os.Error {
+ func (tw *Writer) cString(b []byte, s string) {
+ 	if len(s) > len(b) {
+ 		if tw.err == nil {
+-			tw.err = ErrIntFieldTooBig;
++			tw.err = ErrFieldTooLong;
+ 		}
+ 		return
+ 	}
+@@ -92,6 +92,23 @@ func (tw *Writer) octal(b []byte, x int64) {
+ 	tw.cString(b, s);
+ }
+ 
++// Write x into b, either as octal or as binary (GNUtar/star extension).
++func (tw *Writer) numeric(b []byte, x int64) {
++	// Try octal first.
++	s := strconv.Itob64(x, 8);
++	if len(s) < len(b) {
++		tw.octal(b, x);
++		return
++	}
++	// Too big: use binary (big-endian).
++	tw.usedBinary = true;
++	for i := len(b)-1; x > 0 && i >= 0; i-- {
++		b[i] = byte(x);
++		x >>= 8;
++	}
++	b[0] |= 0x80;  // highest bit indicates binary format
++}
++
+ // WriteHeader writes hdr and prepares to accept the file's contents.
+ // WriteHeader calls Flush if it is not the first header.
+ func (tw *Writer) WriteHeader(hdr *Header) os.Error {
+@@ -112,18 +129,23 @@ func (tw *Writer) WriteHeader(hdr *Header) os.Error {
+ 	bytes.Copy(s.next(100), strings.Bytes(hdr.Name));
+ 
+ 	tw.octal(s.next(8), hdr.Mode);	// 100:108
+-	tw.octal(s.next(8), hdr.Uid);	// 108:116
+-	tw.octal(s.next(8), hdr.Gid);	// 116:124
+-	tw.octal(s.next(12), hdr.Size);	// 124:136
+-	tw.octal(s.next(12), hdr.Mtime);	// 136:148
++	tw.numeric(s.next(8), hdr.Uid);	// 108:116
++	tw.numeric(s.next(8), hdr.Gid);	// 116:124
++	tw.numeric(s.next(12), hdr.Size);	// 124:136
++	tw.numeric(s.next(12), hdr.Mtime);	// 136:148
+ 	s.next(8);  // chksum (148:156)
+ 	s.next(1)[0] = hdr.Typeflag;	// 156:157
+ 	s.next(100);  // linkname (157:257)
+ 	bytes.Copy(s.next(8), strings.Bytes("ustar\x0000"));	// 257:265
+ 	tw.cString(s.next(32), hdr.Uname);	// 265:297
+ 	tw.cString(s.next(32), hdr.Gname);	// 297:329
+-	tw.octal(s.next(8), hdr.Devmajor);	// 329:337
+-	tw.octal(s.next(8), hdr.Devminor);	// 337:345
++	tw.numeric(s.next(8), hdr.Devmajor);	// 329:337
++	tw.numeric(s.next(8), hdr.Devminor);	// 337:345
++
++	// Use the GNU magic instead of POSIX magic if we used any GNU extensions.
++	if tw.usedBinary {
++		bytes.Copy(header[257:265], strings.Bytes("ustar  \x00"));
++	}
+ 
+ 	// The chksum field is terminated by a NUL and a space.
+ 	// This is different from the other octal fields.
+diff --git a/src/pkg/archive/tar/writer_test.go b/src/pkg/archive/tar/writer_test.go
+index 69f069ff3e..cd67fedf0a 100644
+--- a/src/pkg/archive/tar/writer_test.go
++++ b/src/pkg/archive/tar/writer_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"fmt";
+ 	"io";
+ 	"testing";
++	"testing/iotest";
+ )
+ 
+ type writerTestEntry struct {
+@@ -37,7 +38,7 @@ var writerTests = []*writerTest{
+ 					Uname: "dsymonds",
+ 					Gname: "eng",
+ 				},
+-				contents: `Kilts`,
++				contents: "Kilts",
+ 			},
+ 			&writerTestEntry{
+ 				header: &Header{
+@@ -55,6 +56,28 @@ var writerTests = []*writerTest{
+ 			},
+ 		}
+ 	},
++	// The truncated test file was produced using these commands:
++	//   dd if=/dev/zero bs=1048576 count=16384 > /tmp/16gig.txt
++	//   tar -b 1 -c -f- /tmp/16gig.txt | dd bs=512 count=8 > writer-big.tar
++	&writerTest{
++		file: "testdata/writer-big.tar",
++		entries: []*writerTestEntry{
++			&writerTestEntry{
++				header: &Header{
++					Name: "tmp/16gig.txt",
++					Mode: 0640,
++					Uid: 73025,
++					Gid: 5000,
++					Size: 16 << 30,
++					Mtime: 1254699560,
++					Typeflag: '0',
++					Uname: "dsymonds",
++					Gname: "eng",
++				},
++				// no contents
++			},
++		},
++	},
+ }
+ 
+ // Render byte array in a two-character hexadecimal string, spaced for easy visual inspection.
+@@ -105,7 +128,7 @@ testLoop:
+ 		}
+ 
+ 		buf := new(bytes.Buffer);
+-		tw := NewWriter(buf);
++		tw := NewWriter(iotest.TruncateWriter(buf, 4 << 10));  // only catch the first 4 KB
+ 		for j, entry := range test.entries {
+ 			if err := tw.WriteHeader(entry.header); err != nil {
+ 				t.Errorf("test %d, entry %d: Failed writing header: %v", i, j, err);
+@@ -116,7 +139,10 @@ testLoop:
+ 				continue testLoop
+ 			}
+ 		}
+-		tw.Close();
++		if err := tw.Close(); err != nil {
++			t.Errorf("test %d: Failed closing archive: %v", err);
++			continue testLoop
++		}
+ 
+ 		actual := buf.Bytes();
+ 		if !bytes.Equal(expected, actual) {
+diff --git a/src/pkg/testing/iotest/Makefile b/src/pkg/testing/iotest/Makefile
+index b223fb9321..a37a9d6228 100644
+--- a/src/pkg/testing/iotest/Makefile
++++ b/src/pkg/testing/iotest/Makefile
+@@ -8,5 +8,6 @@ TARG=testing/iotest
+ GOFILES=\
+ 	logger.go\
+ 	reader.go\
++	writer.go\
+ 
+ include $(GOROOT)/src/Make.pkg
+diff --git a/src/pkg/testing/iotest/writer.go b/src/pkg/testing/iotest/writer.go
+new file mode 100644
+index 0000000000..7bd5ddda66
+--- /dev/null
++++ b/src/pkg/testing/iotest/writer.go
+@@ -0,0 +1,38 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package iotest
++
++import (
++	"io";
++	"os";
++)
++
++// TruncateWriter returns a Writer that writes to w
++// but stops silently after n bytes.
++func TruncateWriter(w io.Writer, n int64) io.Writer {
++	return &truncateWriter{w, n};
++}
++
++type truncateWriter struct {
++	w io.Writer;
++	n int64;
++}
++
++func (t *truncateWriter) Write(p []byte) (n int, err os.Error) {
++	if t.n <= 0 {
++		return len(p), nil
++	}
++	// real write
++	n = len(p);
++	if int64(n) > t.n {
++		n = int(t.n);
++	}
++	n, err = t.w.Write(p[0:n]);
++	t.n -= int64(n);
++	if err == nil {
++		n = len(p);
++	}
++	return
++}

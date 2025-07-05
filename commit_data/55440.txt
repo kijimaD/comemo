@@ -21,7 +21,7 @@ Date:   Thu Jan 26 15:12:00 2023 -0500
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ir/abi.go       | 3 +++
  src/cmd/compile/internal/ir/func.go      | 3 +++
  src/cmd/compile/internal/pkginit/init.go | 1 +
@@ -32,3 +32,166 @@ Date:   Thu Jan 26 15:12:00 2023 -0500
  src/cmd/internal/obj/textflag.go         | 3 +++
  src/cmd/link/internal/loader/loader.go   | 9 +++++++++
  9 files changed, 30 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ir/abi.go b/src/cmd/compile/internal/ir/abi.go
+index 8cd1606e66..041448fb29 100644
+--- a/src/cmd/compile/internal/ir/abi.go
++++ b/src/cmd/compile/internal/ir/abi.go
+@@ -53,6 +53,9 @@ func setupTextLSym(f *Func, flag int) {
+ 	if f.ReflectMethod() {
+ 		flag |= obj.REFLECTMETHOD
+ 	}
++	if f.IsPackageInit() {
++		flag |= obj.PKGINIT
++	}
+ 
+ 	// Clumsy but important.
+ 	// For functions that could be on the path of invoking a deferred
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 8f56c6f2f6..fba62283d5 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -204,6 +204,7 @@ const (
+ 	funcInstrumentBody           // add race/msan/asan instrumentation during SSA construction
+ 	funcOpenCodedDeferDisallowed // can't do open-coded defers
+ 	funcClosureCalled            // closure is only immediately called; used by escape analysis
++	funcPackageInit              // compiler emitted .init func for package
+ )
+ 
+ type SymAndPos struct {
+@@ -225,6 +226,7 @@ func (f *Func) ExportInline() bool             { return f.flags&funcExportInline
+ func (f *Func) InstrumentBody() bool           { return f.flags&funcInstrumentBody != 0 }
+ func (f *Func) OpenCodedDeferDisallowed() bool { return f.flags&funcOpenCodedDeferDisallowed != 0 }
+ func (f *Func) ClosureCalled() bool            { return f.flags&funcClosureCalled != 0 }
++func (f *Func) IsPackageInit() bool            { return f.flags&funcPackageInit != 0 }
+ 
+ func (f *Func) SetDupok(b bool)                    { f.flags.set(funcDupok, b) }
+ func (f *Func) SetWrapper(b bool)                  { f.flags.set(funcWrapper, b) }
+@@ -240,6 +242,7 @@ func (f *Func) SetExportInline(b bool)             { f.flags.set(funcExportInlin
+ func (f *Func) SetInstrumentBody(b bool)           { f.flags.set(funcInstrumentBody, b) }
+ func (f *Func) SetOpenCodedDeferDisallowed(b bool) { f.flags.set(funcOpenCodedDeferDisallowed, b) }
+ func (f *Func) SetClosureCalled(b bool)            { f.flags.set(funcClosureCalled, b) }
++func (f *Func) SetIsPackageInit(b bool)            { f.flags.set(funcPackageInit, b) }
+ 
+ func (f *Func) SetWBPos(pos src.XPos) {
+ 	if base.Debug.WB != 0 {
+diff --git a/src/cmd/compile/internal/pkginit/init.go b/src/cmd/compile/internal/pkginit/init.go
+index 9d4c435764..fac1ad790f 100644
+--- a/src/cmd/compile/internal/pkginit/init.go
++++ b/src/cmd/compile/internal/pkginit/init.go
+@@ -36,6 +36,7 @@ func MakeInit() {
+ 	}
+ 	fn.Dcl = append(fn.Dcl, typecheck.InitTodoFunc.Dcl...)
+ 	typecheck.InitTodoFunc.Dcl = nil
++	fn.SetIsPackageInit(true)
+ 
+ 	// Suppress useless "can inline" diagnostics.
+ 	// Init functions are only called dynamically.
+diff --git a/src/cmd/internal/goobj/objfile.go b/src/cmd/internal/goobj/objfile.go
+index 7b985fae53..547b826495 100644
+--- a/src/cmd/internal/goobj/objfile.go
++++ b/src/cmd/internal/goobj/objfile.go
+@@ -303,6 +303,7 @@ const (
+ 	SymFlagUsedInIface = 1 << iota
+ 	SymFlagItab
+ 	SymFlagDict
++	SymFlagPkgInit
+ )
+ 
+ // Returns the length of the name of the symbol.
+@@ -333,6 +334,7 @@ func (s *Sym) IsGoType() bool      { return s.Flag()&SymFlagGoType != 0 }
+ func (s *Sym) UsedInIface() bool   { return s.Flag2()&SymFlagUsedInIface != 0 }
+ func (s *Sym) IsItab() bool        { return s.Flag2()&SymFlagItab != 0 }
+ func (s *Sym) IsDict() bool        { return s.Flag2()&SymFlagDict != 0 }
++func (s *Sym) IsPkgInit() bool     { return s.Flag2()&SymFlagPkgInit != 0 }
+ 
+ func (s *Sym) SetName(x string, w *Writer) {
+ 	binary.LittleEndian.PutUint32(s[:], uint32(len(x)))
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 6d40b334af..d153afbfae 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -724,6 +724,9 @@ const (
+ 	// IsPcdata indicates this is a pcdata symbol.
+ 	AttrPcdata
+ 
++	// PkgInit indicates this is a compiler-generated package init func.
++	AttrPkgInit
++
+ 	// attrABIBase is the value at which the ABI is encoded in
+ 	// Attribute. This must be last; all bits after this are
+ 	// assumed to be an ABI value.
+@@ -752,6 +755,7 @@ func (a *Attribute) UsedInIface() bool        { return a.load()&AttrUsedInIface
+ func (a *Attribute) ContentAddressable() bool { return a.load()&AttrContentAddressable != 0 }
+ func (a *Attribute) ABIWrapper() bool         { return a.load()&AttrABIWrapper != 0 }
+ func (a *Attribute) IsPcdata() bool           { return a.load()&AttrPcdata != 0 }
++func (a *Attribute) IsPkgInit() bool          { return a.load()&AttrPkgInit != 0 }
+ 
+ func (a *Attribute) Set(flag Attribute, value bool) {
+ 	for {
+@@ -800,6 +804,7 @@ var textAttrStrings = [...]struct {
+ 	{bit: AttrIndexed, s: ""},
+ 	{bit: AttrContentAddressable, s: ""},
+ 	{bit: AttrABIWrapper, s: "ABIWRAPPER"},
++	{bit: AttrPkgInit, s: "PKGINIT"},
+ }
+ 
+ // String formats a for printing in as part of a TEXT prog.
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 85e49e248c..73c29d9686 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -344,6 +344,9 @@ func (w *writer) Sym(s *LSym) {
+ 	if strings.HasPrefix(s.Name, w.ctxt.Pkgpath) && strings.HasPrefix(s.Name[len(w.ctxt.Pkgpath):], ".") && strings.HasPrefix(s.Name[len(w.ctxt.Pkgpath)+1:], objabi.GlobalDictPrefix) {
+ 		flag2 |= goobj.SymFlagDict
+ 	}
++	if s.IsPkgInit() {
++		flag2 |= goobj.SymFlagPkgInit
++	}
+ 	name := s.Name
+ 	if strings.HasPrefix(name, "gofile..") {
+ 		name = filepath.ToSlash(name)
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index fe9d2e1fb7..835f37f2ff 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -193,6 +193,7 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int, start src.XPos) {
+ 	s.Set(AttrABIWrapper, flag&ABIWRAPPER != 0)
+ 	s.Set(AttrNeedCtxt, flag&NEEDCTXT != 0)
+ 	s.Set(AttrNoFrame, flag&NOFRAME != 0)
++	s.Set(AttrPkgInit, flag&PKGINIT != 0)
+ 	s.Type = objabi.STEXT
+ 	ctxt.Text = append(ctxt.Text, s)
+ 
+diff --git a/src/cmd/internal/obj/textflag.go b/src/cmd/internal/obj/textflag.go
+index 5ae75027c2..bf9c8c99f1 100644
+--- a/src/cmd/internal/obj/textflag.go
++++ b/src/cmd/internal/obj/textflag.go
+@@ -55,4 +55,7 @@ const (
+ 
+ 	// Function is an ABI wrapper.
+ 	ABIWRAPPER = 4096
++
++	// Function is a compiler-generated package init function.
++	PKGINIT = 8192
+ )
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 2ac17f4f16..e3ee819a9d 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1190,6 +1190,15 @@ func (l *Loader) IsDict(i Sym) bool {
+ 	return r.Sym(li).IsDict()
+ }
+ 
++// Returns whether this symbol is a compiler-generated package init func.
++func (l *Loader) IsPkgInit(i Sym) bool {
++	if l.IsExternal(i) {
++		return false
++	}
++	r, li := l.toLocal(i)
++	return r.Sym(li).IsPkgInit()
++}
++
+ // Return whether this is a trampoline of a deferreturn call.
+ func (l *Loader) IsDeferReturnTramp(i Sym) bool {
+ 	return l.deferReturnTramp[i]

@@ -21,7 +21,101 @@ Date:   Thu Aug 8 16:33:57 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12662043
-
+---
  src/pkg/net/dnsclient.go    | 12 ++++++------
  src/pkg/net/dnsname_test.go | 20 +++++++++++++++++++-
  2 files changed, 25 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/net/dnsclient.go b/src/pkg/net/dnsclient.go
+index 76b192645a..01db437294 100644
+--- a/src/pkg/net/dnsclient.go
++++ b/src/pkg/net/dnsclient.go
+@@ -122,12 +122,9 @@ func isDomainName(s string) bool {
+ 	if len(s) > 255 {
+ 		return false
+ 	}
+-	if s[len(s)-1] != '.' { // simplify checking loop: make name end in dot
+-		s += "."
+-	}
+ 
+ 	last := byte('.')
+-	ok := false // ok once we've seen a letter
++	ok := false // Ok once we've seen a letter.
+ 	partlen := 0
+ 	for i := 0; i < len(s); i++ {
+ 		c := s[i]
+@@ -141,13 +138,13 @@ func isDomainName(s string) bool {
+ 			// fine
+ 			partlen++
+ 		case c == '-':
+-			// byte before dash cannot be dot
++			// Byte before dash cannot be dot.
+ 			if last == '.' {
+ 				return false
+ 			}
+ 			partlen++
+ 		case c == '.':
+-			// byte before dot cannot be dot, dash
++			// Byte before dot cannot be dot, dash.
+ 			if last == '.' || last == '-' {
+ 				return false
+ 			}
+@@ -158,6 +155,9 @@ func isDomainName(s string) bool {
+ 		}
+ 		last = c
+ 	}
++	if last == '-' || partlen > 63 {
++		return false
++	}
+ 
+ 	return ok
+ }
+diff --git a/src/pkg/net/dnsname_test.go b/src/pkg/net/dnsname_test.go
+index 70df693f78..57dd25fe4c 100644
+--- a/src/pkg/net/dnsname_test.go
++++ b/src/pkg/net/dnsname_test.go
+@@ -5,6 +5,7 @@
+ package net
+ 
+ import (
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -16,7 +17,6 @@ type testCase struct {
+ var tests = []testCase{
+ 	// RFC2181, section 11.
+ 	{"_xmpp-server._tcp.google.com", true},
+-	{"_xmpp-server._tcp.google.com", true},
+ 	{"foo.com", true},
+ 	{"1foo.com", true},
+ 	{"26.0.0.73.com", true},
+@@ -24,6 +24,10 @@ var tests = []testCase{
+ 	{"fo1o.com", true},
+ 	{"foo1.com", true},
+ 	{"a.b..com", false},
++	{"a.b-.com", false},
++	{"a.b.com-", false},
++	{"a.b..", false},
++	{"b.com.", true},
+ }
+ 
+ func getTestCases(ch chan<- testCase) {
+@@ -63,3 +67,17 @@ func TestDNSNames(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func BenchmarkDNSNames(b *testing.B) {
++	benchmarks := append(tests, []testCase{
++		{strings.Repeat("a", 63), true},
++		{strings.Repeat("a", 64), false},
++	}...)
++	for n := 0; n < b.N; n++ {
++		for _, tc := range benchmarks {
++			if isDomainName(tc.name) != tc.result {
++				b.Errorf("isDomainName(%q) = %v; want %v", tc.name, !tc.result, tc.result)
++			}
++		}
++	}
++}

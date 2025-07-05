@@ -16,6 +16,24 @@ Date:   Thu Mar 24 22:32:38 2016 -0400
     Change-Id: Ica4722d32241643c060923517b90276ff8ac6b07
     Reviewed-on: https://go-review.googlesource.com/21110
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index a91948fb8e..d02bf66d3f 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -533,7 +533,11 @@ func dname(s *Sym, ot int, name, tag string, pkg *Pkg, exported bool) int {
+ 	if pkg == nil {
+ 		_, bsym = stringsym(string(b))
+ 	} else {
+-		bsymname := fmt.Sprintf(`go.string."".methodname.%d`, dnameCount)
++		// Write out data as "type.." to signal two things to the
++		// linker, first that when dynamically linking, the symbol
++		// should be moved to a relro section, and second that the
++		// contents should not be decoded as a type.
++		bsymname := fmt.Sprintf(`type..methodname."".%d`, dnameCount)
+ 		dnameCount++
+ 		bsym = obj.Linklookup(Ctxt, bsymname, 0)
+ 		bsym.P = b

@@ -9,6 +9,20 @@ Date:   Tue Feb 21 07:50:10 2012 +0100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5687061
-
+---
  test/fixedbugs/bug423.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/bug423.go b/test/fixedbugs/bug423.go
+index 882108df8b..7268912454 100644
+--- a/test/fixedbugs/bug423.go
++++ b/test/fixedbugs/bug423.go
+@@ -14,7 +14,7 @@ func main() {
+ }
+ 
+ func F(arg int) {
+-	var X int64
++	var X interface{}
+ 	_ = X // used once
+ 	X = 0
+ 	X = 0

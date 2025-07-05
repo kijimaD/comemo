@@ -10,6 +10,19 @@ Date:   Sun Jul 1 14:18:03 2018 -0700
     Reviewed-on: https://go-review.googlesource.com/121819
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/cmd/go/internal/work/security.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/internal/work/security.go b/src/cmd/go/internal/work/security.go
+index cd39a8f791..d5d126123a 100644
+--- a/src/cmd/go/internal/work/security.go
++++ b/src/cmd/go/internal/work/security.go
+@@ -136,6 +136,7 @@ var validLinkerFlags = []*regexp.Regexp{
+ 	re(`-f(no-)?(pic|PIC|pie|PIE)`),
+ 	re(`-f(no-)?openmp(-simd)?`),
+ 	re(`-fsanitize=([^@\-].*)`),
++	re(`-flat_namespace`),
+ 	re(`-g([^@\-].*)?`),
+ 	re(`-headerpad_max_install_names`),
+ 	re(`-m(abi|arch|cpu|fpu|tune)=([^@\-].*)`),

@@ -17,8 +17,136 @@ Date:   Wed Oct 28 18:49:10 2020 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/inl.go  | 53 +++++++++++++++++++++++++++++++++++++
  src/cmd/compile/internal/gc/main.go |  7 +++++
  test/escape_iface.go                | 19 ++++++-------
  3 files changed, 68 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 098c0c99d5..c35691bfd2 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -1418,3 +1418,56 @@ func pruneUnusedAutos(ll []*Node, vis *hairyVisitor) []*Node {
+ 	}
+ 	return s
+ }
++
++// devirtualize replaces interface method calls within fn with direct
++// concrete-type method calls where applicable.
++func devirtualize(fn *Node) {
++	Curfn = fn
++	inspectList(fn.Nbody, func(n *Node) bool {
++		if n.Op == OCALLINTER {
++			devirtualizeCall(n)
++		}
++		return true
++	})
++}
++
++func devirtualizeCall(call *Node) {
++	recv := staticValue(call.Left.Left)
++	if recv.Op != OCONVIFACE {
++		return
++	}
++
++	typ := recv.Left.Type
++	if typ.IsInterface() {
++		return
++	}
++
++	if Debug.m != 0 {
++		Warnl(call.Pos, "devirtualizing %v to %v", call.Left, typ)
++	}
++
++	x := nodl(call.Left.Pos, ODOTTYPE, call.Left.Left, nil)
++	x.Type = typ
++	x = nodlSym(call.Left.Pos, OXDOT, x, call.Left.Sym)
++	x = typecheck(x, ctxExpr|ctxCallee)
++	if x.Op != ODOTMETH {
++		Fatalf("devirtualization failed: %v", x)
++	}
++	call.Op = OCALLMETH
++	call.Left = x
++
++	// Duplicated logic from typecheck for function call return
++	// value types.
++	//
++	// Receiver parameter size may have changed; need to update
++	// call.Type to get correct stack offsets for result
++	// parameters.
++	checkwidth(x.Type)
++	switch ft := x.Type; ft.NumResults() {
++	case 0:
++	case 1:
++		call.Type = ft.Results().Field(0).Type
++	default:
++		call.Type = ft.Results()
++	}
++}
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 4b401f2aa4..8b94c7f71b 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -701,6 +701,13 @@ func Main(archInit func(*Arch)) {
+ 		})
+ 	}
+ 
++	for _, n := range xtop {
++		if n.Op == ODCLFUNC {
++			devirtualize(n)
++		}
++	}
++	Curfn = nil
++
+ 	// Phase 6: Escape analysis.
+ 	// Required for moving heap allocations onto stack,
+ 	// which in turn is required by the closure implementation,
+diff --git a/test/escape_iface.go b/test/escape_iface.go
+index 7b0914cadb..5a232fdbd4 100644
+--- a/test/escape_iface.go
++++ b/test/escape_iface.go
+@@ -58,11 +58,10 @@ func efaceEscape0() {
+ 		sink = v1
+ 	}
+ 	{
+-		i := 0 // ERROR "moved to heap: i"
++		i := 0
+ 		v := M0{&i}
+-		// BAD: v does not escape to heap here
+ 		var x M = v
+-		x.M()
++		x.M() // ERROR "devirtualizing x.M"
+ 	}
+ 	{
+ 		i := 0 // ERROR "moved to heap: i"
+@@ -115,11 +114,10 @@ func efaceEscape1() {
+ 		sink = v1 // ERROR "v1 escapes to heap"
+ 	}
+ 	{
+-		i := 0 // ERROR "moved to heap: i"
++		i := 0
+ 		v := M1{&i, 0}
+-		// BAD: v does not escape to heap here
+-		var x M = v // ERROR "v escapes to heap"
+-		x.M()
++		var x M = v // ERROR "v does not escape"
++		x.M()       // ERROR "devirtualizing x.M"
+ 	}
+ 	{
+ 		i := 0 // ERROR "moved to heap: i"
+@@ -189,11 +187,10 @@ func efaceEscape2() {
+ 		_ = ok
+ 	}
+ 	{
+-		i := 0       // ERROR "moved to heap: i"
+-		v := &M2{&i} // ERROR "&M2{...} escapes to heap"
+-		// BAD: v does not escape to heap here
++		i := 0
++		v := &M2{&i} // ERROR "&M2{...} does not escape"
+ 		var x M = v
+-		x.M()
++		x.M() // ERROR "devirtualizing x.M"
+ 	}
+ 	{
+ 		i := 0       // ERROR "moved to heap: i"

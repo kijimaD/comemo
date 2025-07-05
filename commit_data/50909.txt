@@ -10,6 +10,32 @@ Date:   Tue Nov 16 17:30:47 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/364536
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/api_test.go | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index 7ec1063843..ca90e6b97d 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -2014,6 +2014,20 @@ func TestInstantiateErrors(t *testing.T) {
+ 	}
+ }
+ 
++func TestArgumentErrorUnwrapping(t *testing.T) {
++	var err error = &ArgumentError{
++		Index: 1,
++		Err:   Error{Msg: "test"},
++	}
++	var e Error
++	if !errors.As(err, &e) {
++		t.Fatalf("error %v does not wrap types.Error", err)
++	}
++	if e.Msg != "test" {
++		t.Errorf("e.Msg = %q, want %q", e.Msg, "test")
++	}
++}
++
+ func TestInstanceIdentity(t *testing.T) {
+ 	imports := make(testImporter)
+ 	conf := Config{Importer: imports}

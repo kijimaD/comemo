@@ -10,6 +10,23 @@ Date:   Sun Jun 26 12:14:41 2016 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/url/url.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index d77e9295dd..8824c99ddc 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -356,10 +356,7 @@ func (u *Userinfo) Username() string {
+ 
+ // Password returns the password in case it is set, and whether it is set.
+ func (u *Userinfo) Password() (string, bool) {
+-	if u.passwordSet {
+-		return u.password, true
+-	}
+-	return "", false
++	return u.password, u.passwordSet
+ }
+ 
+ // String returns the encoded userinfo information in the standard form

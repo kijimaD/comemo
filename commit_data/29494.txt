@@ -11,7 +11,7 @@ Date:   Fri Sep 16 19:19:42 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/amd64/prog.go  | 1 -
  src/cmd/compile/internal/arm/prog.go    | 1 -
  src/cmd/compile/internal/arm64/prog.go  | 1 -
@@ -23,3 +23,124 @@ Date:   Fri Sep 16 19:19:42 2016 -0700
  src/cmd/internal/obj/util.go            | 1 -
  src/cmd/internal/obj/x86/asm6.go        | 1 -
  10 files changed, 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/prog.go b/src/cmd/compile/internal/amd64/prog.go
+index 42b3c4d82e..8087718ee4 100644
+--- a/src/cmd/compile/internal/amd64/prog.go
++++ b/src/cmd/compile/internal/amd64/prog.go
+@@ -29,7 +29,6 @@ var progtable = [x86.ALAST & obj.AMask]obj.ProgInfo{
+ 	obj.APCDATA:   {Flags: gc.Pseudo},
+ 	obj.AUNDEF:    {Flags: gc.Break},
+ 	obj.AUSEFIELD: {Flags: gc.OK},
+-	obj.ACHECKNIL: {Flags: gc.LeftRead},
+ 	obj.AVARDEF:   {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARKILL:  {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARLIVE:  {Flags: gc.Pseudo | gc.LeftRead},
+diff --git a/src/cmd/compile/internal/arm/prog.go b/src/cmd/compile/internal/arm/prog.go
+index 9a89e4ae40..9a7fa9bdda 100644
+--- a/src/cmd/compile/internal/arm/prog.go
++++ b/src/cmd/compile/internal/arm/prog.go
+@@ -28,7 +28,6 @@ var progtable = [arm.ALAST & obj.AMask]obj.ProgInfo{
+ 	obj.APCDATA:   {Flags: gc.Pseudo},
+ 	obj.AUNDEF:    {Flags: gc.Break},
+ 	obj.AUSEFIELD: {Flags: gc.OK},
+-	obj.ACHECKNIL: {Flags: gc.LeftRead},
+ 	obj.AVARDEF:   {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARKILL:  {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARLIVE:  {Flags: gc.Pseudo | gc.LeftRead},
+diff --git a/src/cmd/compile/internal/arm64/prog.go b/src/cmd/compile/internal/arm64/prog.go
+index abb5a24d32..c6ff0899cb 100644
+--- a/src/cmd/compile/internal/arm64/prog.go
++++ b/src/cmd/compile/internal/arm64/prog.go
+@@ -31,7 +31,6 @@ var progtable = [arm64.ALAST & obj.AMask]obj.ProgInfo{
+ 	obj.APCDATA:   {Flags: gc.Pseudo},
+ 	obj.AUNDEF:    {Flags: gc.Break},
+ 	obj.AUSEFIELD: {Flags: gc.OK},
+-	obj.ACHECKNIL: {Flags: gc.LeftRead},
+ 	obj.AVARDEF:   {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARKILL:  {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARLIVE:  {Flags: gc.Pseudo | gc.LeftRead},
+diff --git a/src/cmd/compile/internal/mips64/prog.go b/src/cmd/compile/internal/mips64/prog.go
+index caf848286d..9404c0384a 100644
+--- a/src/cmd/compile/internal/mips64/prog.go
++++ b/src/cmd/compile/internal/mips64/prog.go
+@@ -31,7 +31,6 @@ var progtable = [mips.ALAST & obj.AMask]obj.ProgInfo{
+ 	obj.APCDATA:   {Flags: gc.Pseudo},
+ 	obj.AUNDEF:    {Flags: gc.Break},
+ 	obj.AUSEFIELD: {Flags: gc.OK},
+-	obj.ACHECKNIL: {Flags: gc.LeftRead},
+ 	obj.AVARDEF:   {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARKILL:  {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARLIVE:  {Flags: gc.Pseudo | gc.LeftRead},
+diff --git a/src/cmd/compile/internal/ppc64/prog.go b/src/cmd/compile/internal/ppc64/prog.go
+index cc83f0d208..b5d9d29ffc 100644
+--- a/src/cmd/compile/internal/ppc64/prog.go
++++ b/src/cmd/compile/internal/ppc64/prog.go
+@@ -31,7 +31,6 @@ var progtable = [ppc64.ALAST & obj.AMask]obj.ProgInfo{
+ 	obj.APCDATA:   {Flags: gc.Pseudo},
+ 	obj.AUNDEF:    {Flags: gc.Break},
+ 	obj.AUSEFIELD: {Flags: gc.OK},
+-	obj.ACHECKNIL: {Flags: gc.LeftRead},
+ 	obj.AVARDEF:   {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARKILL:  {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARLIVE:  {Flags: gc.Pseudo | gc.LeftRead},
+diff --git a/src/cmd/compile/internal/s390x/prog.go b/src/cmd/compile/internal/s390x/prog.go
+index a00924a8ea..c0920b2e8b 100644
+--- a/src/cmd/compile/internal/s390x/prog.go
++++ b/src/cmd/compile/internal/s390x/prog.go
+@@ -24,7 +24,6 @@ var progtable = [s390x.ALAST & obj.AMask]obj.ProgInfo{
+ 	obj.APCDATA & obj.AMask:   {Flags: gc.Pseudo},
+ 	obj.AUNDEF & obj.AMask:    {Flags: gc.Break},
+ 	obj.AUSEFIELD & obj.AMask: {Flags: gc.OK},
+-	obj.ACHECKNIL & obj.AMask: {Flags: gc.LeftRead},
+ 	obj.AVARDEF & obj.AMask:   {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARKILL & obj.AMask:  {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARLIVE & obj.AMask:  {Flags: gc.Pseudo | gc.LeftRead},
+diff --git a/src/cmd/compile/internal/x86/prog.go b/src/cmd/compile/internal/x86/prog.go
+index f2b4a65ebf..b09b844c86 100644
+--- a/src/cmd/compile/internal/x86/prog.go
++++ b/src/cmd/compile/internal/x86/prog.go
+@@ -37,7 +37,6 @@ var progtable = [x86.ALAST & obj.AMask]obj.ProgInfo{
+ 	obj.APCDATA:   {Flags: gc.Pseudo},
+ 	obj.AUNDEF:    {Flags: gc.Break},
+ 	obj.AUSEFIELD: {Flags: gc.OK},
+-	obj.ACHECKNIL: {Flags: gc.LeftRead},
+ 	obj.AVARDEF:   {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARKILL:  {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARLIVE:  {Flags: gc.Pseudo | gc.LeftRead},
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index c5d600d564..e239c9d552 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -271,7 +271,6 @@ type As int16
+ const (
+ 	AXXX As = iota
+ 	ACALL
+-	ACHECKNIL
+ 	ADUFFCOPY
+ 	ADUFFZERO
+ 	AEND
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 9a12e88ed6..bbff065f73 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -472,7 +472,6 @@ func (a As) String() string {
+ var Anames = []string{
+ 	"XXX",
+ 	"CALL",
+-	"CHECKNIL",
+ 	"DUFFCOPY",
+ 	"DUFFZERO",
+ 	"END",
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index a8e3303813..a4c9603534 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -1742,7 +1742,6 @@ var optab =
+ 	{obj.ATYPE, nil, 0, [23]uint8{}},
+ 	{obj.AFUNCDATA, yfuncdata, Px, [23]uint8{0, 0}},
+ 	{obj.APCDATA, ypcdata, Px, [23]uint8{0, 0}},
+-	{obj.ACHECKNIL, nil, 0, [23]uint8{}},
+ 	{obj.AVARDEF, nil, 0, [23]uint8{}},
+ 	{obj.AVARKILL, nil, 0, [23]uint8{}},
+ 	{obj.ADUFFCOPY, yduff, Px, [23]uint8{0xe8}},

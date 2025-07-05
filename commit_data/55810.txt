@@ -14,6 +14,21 @@ Date:   Wed Mar 15 18:11:06 2023 +0100
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/protoconn_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/protoconn_test.go b/src/net/protoconn_test.go
+index 52cb508155..8275d80d74 100644
+--- a/src/net/protoconn_test.go
++++ b/src/net/protoconn_test.go
+@@ -168,7 +168,8 @@ func TestIPConnSpecificMethods(t *testing.T) {
+ 	}
+ 	c, err := ListenIP("ip4:icmp", la)
+ 	if testenv.SyscallIsNotSupported(err) {
+-		// May be inside a container that disallows creating a socket.
++		// May be inside a container that disallows creating a socket or
++		// not running as root.
+ 		t.Skipf("skipping: %v", err)
+ 	} else if err != nil {
+ 		t.Fatal(err)

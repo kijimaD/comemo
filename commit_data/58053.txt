@@ -22,9 +22,73 @@ Date:   Mon Sep 18 11:29:20 2023 -0500
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/_gen/PPC64.rules |  1 +
  src/cmd/compile/internal/ssa/rewrite.go       |  2 +-
  src/cmd/compile/internal/ssa/rewritePPC64.go  | 13 +++++++++++++
  test/codegen/copy.go                          |  6 ++++++
  4 files changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/PPC64.rules b/src/cmd/compile/internal/ssa/_gen/PPC64.rules
+index 97e592fd7e..4c4f7c8c17 100644
+--- a/src/cmd/compile/internal/ssa/_gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/PPC64.rules
+@@ -559,6 +559,7 @@
+ (NOR (MOVDconst [c]) (MOVDconst [d])) => (MOVDconst [^(c|d)])
+ 
+ // Discover consts
++(AND x (MOVDconst [-1])) => x
+ (AND x (MOVDconst [c])) && isU16Bit(c) => (Select0 (ANDCCconst [c] x))
+ (XOR x (MOVDconst [c])) && isU32Bit(c) => (XORconst [c] x)
+ (OR x (MOVDconst [c])) && isU32Bit(c) => (ORconst [c] x)
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index efbaae4d46..eebedea68c 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1478,7 +1478,7 @@ func encodePPC64RotateMask(rotate, mask, nbits int64) int64 {
+ 
+ 	// Determine boundaries and then decode them
+ 	if mask == 0 || ^mask == 0 || rotate >= nbits {
+-		panic("Invalid PPC64 rotate mask")
++		panic(fmt.Sprintf("invalid PPC64 rotate mask: %x %d %d", uint64(mask), rotate, nbits))
+ 	} else if nbits == 32 {
+ 		mb = bits.LeadingZeros32(uint32(mask))
+ 		me = 32 - bits.TrailingZeros32(uint32(mask))
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index d1c0c2b07f..2bcc27fbc8 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -4226,6 +4226,19 @@ func rewriteValuePPC64_OpPPC64AND(v *Value) bool {
+ 		}
+ 		break
+ 	}
++	// match: (AND x (MOVDconst [-1]))
++	// result: x
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			x := v_0
++			if v_1.Op != OpPPC64MOVDconst || auxIntToInt64(v_1.AuxInt) != -1 {
++				continue
++			}
++			v.copyOf(x)
++			return true
++		}
++		break
++	}
+ 	// match: (AND x (MOVDconst [c]))
+ 	// cond: isU16Bit(c)
+ 	// result: (Select0 (ANDCCconst [c] x))
+diff --git a/test/codegen/copy.go b/test/codegen/copy.go
+index 4c4c857460..17ee8bc807 100644
+--- a/test/codegen/copy.go
++++ b/test/codegen/copy.go
+@@ -151,3 +151,9 @@ func ptrBothOffset() {
+ 	// s390x:-"BEQ",-"BNE"
+ 	copy(x[1:], x[2:])
+ }
++
++// Verify #62698 on PPC64.
++func noMaskOnCopy(a []int, s string, x int) int {
++	// ppc64x:-"MOVD\t$-1", -"AND"
++	return a[x&^copy([]byte{}, s)]
++}

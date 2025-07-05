@@ -20,7 +20,63 @@ Date:   Tue Jun 28 12:06:08 2016 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/database/sql/sql.go      | 6 ++++++
  src/database/sql/sql_test.go | 6 ++++--
  2 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index e7482a8e2f..09de1c34e8 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -718,6 +718,9 @@ func (db *DB) maybeOpenNewConnections() {
+ 	for numRequests > 0 {
+ 		db.numOpen++ // optimistically
+ 		numRequests--
++		if db.closed {
++			return
++		}
+ 		db.openerCh <- struct{}{}
+ 	}
+ }
+@@ -915,6 +918,9 @@ func (db *DB) putConn(dc *driverConn, err error) {
+ // If a connRequest was fulfilled or the *driverConn was placed in the
+ // freeConn list, then true is returned, otherwise false is returned.
+ func (db *DB) putConnDBLocked(dc *driverConn, err error) bool {
++	if db.closed {
++		return false
++	}
+ 	if db.maxOpen > 0 && db.numOpen > db.maxOpen {
+ 		return false
+ 	}
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index 6f11303c14..08df0c7666 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -144,7 +144,7 @@ func closeDB(t testing.TB, db *DB) {
+ 	count := db.numOpen
+ 	db.mu.Unlock()
+ 	if count != 0 {
+-		t.Fatalf("%d connections still open after closing DB", db.numOpen)
++		t.Fatalf("%d connections still open after closing DB", count)
+ 	}
+ }
+ 
+@@ -1239,7 +1239,7 @@ func TestPendingConnsAfterErr(t *testing.T) {
+ 	time.Sleep(10 * time.Millisecond) // make extra sure all workers are blocked
+ 	close(unblock)                    // let all workers proceed
+ 
+-	const timeout = 100 * time.Millisecond
++	const timeout = 5 * time.Second
+ 	to := time.NewTimer(timeout)
+ 	defer to.Stop()
+ 
+@@ -1615,6 +1615,8 @@ func TestManyErrBadConn(t *testing.T) {
+ 			}
+ 		}()
+ 
++		db.mu.Lock()
++		defer db.mu.Unlock()
+ 		if db.numOpen != nconn {
+ 			t.Fatalf("unexpected numOpen %d (was expecting %d)", db.numOpen, nconn)
+ 		} else if len(db.freeConn) != nconn {

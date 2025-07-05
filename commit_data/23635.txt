@@ -12,7 +12,7 @@ Date:   Tue May 26 21:49:31 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/10522
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/dcl.go       |  2 +-
  src/cmd/compile/internal/gc/esc.go       |  2 +-
  src/cmd/compile/internal/gc/pgen.go      |  4 ++--
@@ -20,3 +20,169 @@ Date:   Tue May 26 21:49:31 2015 -0400
  src/cmd/compile/internal/gc/typecheck.go | 13 +++++++++++-
  src/cmd/compile/internal/gc/walk.go      | 11 +++++-----
  6 files changed, 40 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 4a9cb295c8..35c4c4b1ba 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -913,7 +913,7 @@ func tofunargs(l *NodeList) *Type {
+ 
+ 		// esc.c needs to find f given a PPARAM to add the tag.
+ 		if l.N.Left != nil && l.N.Left.Class == PPARAM {
+-			l.N.Left.Paramfld = f
++			l.N.Left.Param.Field = f
+ 		}
+ 
+ 		*tp = f
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index f9d83a2b53..d6ebf13eb9 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -1774,7 +1774,7 @@ func esctag(e *EscState, func_ *Node) {
+ 		case EscNone, // not touched by escflood
+ 			EscReturn:
+ 			if haspointers(ll.N.Type) { // don't bother tagging for scalars
+-				ll.N.Paramfld.Note = mktag(int(ll.N.Esc))
++				ll.N.Param.Field.Note = mktag(int(ll.N.Esc))
+ 			}
+ 
+ 		case EscHeap, // touched by escflood, moved to heap
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 815f723b20..7ed661f045 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -448,8 +448,8 @@ func compile(fn *Node) {
+ 	gcargs = makefuncdatasym("gcargs·%d", obj.FUNCDATA_ArgsPointerMaps)
+ 	gclocals = makefuncdatasym("gclocals·%d", obj.FUNCDATA_LocalsPointerMaps)
+ 
+-	for t := Curfn.Paramfld; t != nil; t = t.Down {
+-		gtrack(tracksym(t.Type))
++	for _, t := range Curfn.Func.Fieldtrack {
++		gtrack(tracksym(t))
+ 	}
+ 
+ 	for l := fn.Func.Dcl; l != nil; l = l.Next {
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index f8f2248185..eb368a3f66 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -29,19 +29,16 @@ type Node struct {
+ 	Func *Func
+ 
+ 	// ONAME
+-	Name     *Name
+-	Defn     *Node // ONAME: initializing assignment; OLABEL: labeled statement
+-	Pack     *Node // real package for import . names
+-	Curfn    *Node // function for local variables
+-	Paramfld *Type // TFIELD for this PPARAM; also for ODOT, curfn
+-	Alloc    *Node // allocation call
+-	Param    *Param
++	Name  *Name
++	Defn  *Node // ONAME: initializing assignment; OLABEL: labeled statement
++	Pack  *Node // real package for import . names
++	Curfn *Node // function for local variables
++	Alloc *Node // allocation call
++	Param *Param
+ 
+ 	// OPACK
+ 	Pkg *Pkg
+ 
+-	// OARRAYLIT, OMAPLIT, OSTRUCTLIT.
+-
+ 	// Escape analysis.
+ 	Escflowsrc *NodeList // flow(this, src)
+ 	Escretval  *NodeList // on OCALLxxx, list of dummy return values
+@@ -116,6 +113,9 @@ type Param struct {
+ 	Outerexpr  *Node // expression copied into closure for variable
+ 	Stackparam *Node // OPARAM node referring to stack copy of param
+ 
++	// ONAME PPARAM
++	Field *Type // TFIELD in arg struct
++
+ 	// ONAME closure param with PPARAMREF
+ 	Outer   *Node // outer PPARAMREF in nested closure
+ 	Closure *Node // ONAME/PHEAP <-> ONAME/PPARAMREF
+@@ -124,14 +124,15 @@ type Param struct {
+ 
+ // Func holds Node fields used only with function-like nodes.
+ type Func struct {
+-	Shortname *Node
+-	Enter     *NodeList
+-	Exit      *NodeList
+-	Cvars     *NodeList // closure params
+-	Dcl       *NodeList // autodcl for this func/closure
+-	Inldcl    *NodeList // copy of dcl for use in inlining
+-	Closgen   int
+-	Outerfunc *Node
++	Shortname  *Node
++	Enter      *NodeList
++	Exit       *NodeList
++	Cvars      *NodeList // closure params
++	Dcl        *NodeList // autodcl for this func/closure
++	Inldcl     *NodeList // copy of dcl for use in inlining
++	Closgen    int
++	Outerfunc  *Node
++	Fieldtrack []*Type
+ 
+ 	Inl     *NodeList // copy of the body for use in inlining
+ 	InlCost int32
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 351f26f157..490468f3b4 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2489,6 +2489,15 @@ func derefall(t *Type) *Type {
+ 	return t
+ }
+ 
++type typeSym struct {
++	t *Type
++	s *Sym
++}
++
++// dotField maps (*Type, *Sym) pairs to the corresponding struct field (*Type with Etype==TFIELD).
++// It is a cache for use during usefield in walk.go, only enabled when field tracking.
++var dotField = map[typeSym]*Type{}
++
+ func lookdot(n *Node, t *Type, dostrcmp int) *Type {
+ 	s := n.Right.Sym
+ 
+@@ -2521,7 +2530,9 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Type {
+ 		}
+ 		n.Xoffset = f1.Width
+ 		n.Type = f1.Type
+-		n.Paramfld = f1
++		if obj.Fieldtrack_enabled > 0 {
++			dotField[typeSym{t, s}] = f1
++		}
+ 		if t.Etype == TINTER {
+ 			if Isptr[n.Left.Type.Etype] {
+ 				n.Left = Nod(OIND, n.Left, nil) // implicitstar
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index cd7db02392..442f746520 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3857,7 +3857,11 @@ func usefield(n *Node) {
+ 		break
+ 	}
+ 
+-	field := n.Paramfld
++	t := n.Left.Type
++	if Isptr[t.Etype] {
++		t = t.Type
++	}
++	field := dotField[typeSym{t, n.Right.Sym}]
+ 	if field == nil {
+ 		Fatal("usefield %v %v without paramfld", n.Left.Type, n.Right.Sym)
+ 	}
+@@ -3881,10 +3885,7 @@ func usefield(n *Node) {
+ 		Yyerror("tracked field must be exported (upper case)")
+ 	}
+ 
+-	l := typ(0)
+-	l.Type = field
+-	l.Down = Curfn.Paramfld
+-	Curfn.Paramfld = l
++	Curfn.Func.Fieldtrack = append(Curfn.Func.Fieldtrack, field)
+ }
+ 
+ func candiscardlist(l *NodeList) bool {

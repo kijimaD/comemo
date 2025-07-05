@@ -21,7 +21,7 @@ Date:   Tue Mar 2 09:52:55 2021 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modcmd/tidy.go            |  9 ++++----
  src/cmd/go/internal/modcmd/vendor.go          |  9 ++++----
  src/cmd/go/internal/modcmd/why.go             |  9 ++++----
@@ -31,3 +31,215 @@ Date:   Tue Mar 2 09:52:55 2021 -0500
  src/cmd/go/testdata/script/mod_list_std.txt   | 14 ++++++------
  src/cmd/go/testdata/script/mod_std_vendor.txt |  6 +++---
  8 files changed, 72 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/go/internal/modcmd/tidy.go b/src/cmd/go/internal/modcmd/tidy.go
+index 3b83d87a8e..e7e63e6533 100644
+--- a/src/cmd/go/internal/modcmd/tidy.go
++++ b/src/cmd/go/internal/modcmd/tidy.go
+@@ -62,10 +62,11 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
+ 	modload.RootMode = modload.NeedRoot
+ 
+ 	modload.LoadPackages(ctx, modload.PackageOpts{
+-		Tags:                  imports.AnyTags(),
+-		ResolveMissingImports: true,
+-		LoadTests:             true,
+-		AllowErrors:           tidyE,
++		Tags:                     imports.AnyTags(),
++		VendorModulesInGOROOTSrc: true,
++		ResolveMissingImports:    true,
++		LoadTests:                true,
++		AllowErrors:              tidyE,
+ 	}, "all")
+ 
+ 	modload.TidyBuildList()
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index d3ed9e00e2..2cd683b75c 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -64,10 +64,11 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
+ 	modload.RootMode = modload.NeedRoot
+ 
+ 	loadOpts := modload.PackageOpts{
+-		Tags:                  imports.AnyTags(),
+-		ResolveMissingImports: true,
+-		UseVendorAll:          true,
+-		AllowErrors:           vendorE,
++		Tags:                     imports.AnyTags(),
++		VendorModulesInGOROOTSrc: true,
++		ResolveMissingImports:    true,
++		UseVendorAll:             true,
++		AllowErrors:              vendorE,
+ 	}
+ 	_, pkgs := modload.LoadPackages(ctx, loadOpts, "all")
+ 
+diff --git a/src/cmd/go/internal/modcmd/why.go b/src/cmd/go/internal/modcmd/why.go
+index a5f3e8afcb..79d257d198 100644
+--- a/src/cmd/go/internal/modcmd/why.go
++++ b/src/cmd/go/internal/modcmd/why.go
+@@ -68,10 +68,11 @@ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
+ 	modload.RootMode = modload.NeedRoot
+ 
+ 	loadOpts := modload.PackageOpts{
+-		Tags:          imports.AnyTags(),
+-		LoadTests:     !*whyVendor,
+-		SilenceErrors: true,
+-		UseVendorAll:  *whyVendor,
++		Tags:                     imports.AnyTags(),
++		VendorModulesInGOROOTSrc: true,
++		LoadTests:                !*whyVendor,
++		SilenceErrors:            true,
++		UseVendorAll:             *whyVendor,
+ 	}
+ 
+ 	if *whyM {
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 971c5a8d8a..b875a46d81 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -1120,9 +1120,10 @@ func (r *resolver) findAndUpgradeImports(ctx context.Context, queries []*query)
+ // build list.
+ func (r *resolver) loadPackages(ctx context.Context, patterns []string, findPackage func(ctx context.Context, path string, m module.Version) (versionOk bool)) {
+ 	opts := modload.PackageOpts{
+-		Tags:          imports.AnyTags(),
+-		LoadTests:     *getT,
+-		SilenceErrors: true, // May be fixed by subsequent upgrades or downgrades.
++		Tags:                     imports.AnyTags(),
++		VendorModulesInGOROOTSrc: true,
++		LoadTests:                *getT,
++		SilenceErrors:            true, // May be fixed by subsequent upgrades or downgrades.
+ 	}
+ 
+ 	opts.AllowPackage = func(ctx context.Context, path string, m module.Version) error {
+@@ -1459,9 +1460,10 @@ func (r *resolver) checkPackagesAndRetractions(ctx context.Context, pkgPatterns
+ 		// LoadPackages will print errors (since it has more context) but will not
+ 		// exit, since we need to load retractions later.
+ 		pkgOpts := modload.PackageOpts{
+-			LoadTests:             *getT,
+-			ResolveMissingImports: false,
+-			AllowErrors:           true,
++			VendorModulesInGOROOTSrc: true,
++			LoadTests:                *getT,
++			ResolveMissingImports:    false,
++			AllowErrors:              true,
+ 		}
+ 		matches, pkgs := modload.LoadPackages(ctx, pkgOpts, pkgPatterns...)
+ 		for _, m := range matches {
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 6d87acc6d3..0dba49e40e 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -134,6 +134,11 @@ type PackageOpts struct {
+ 	// If nil, treated as equivalent to imports.Tags().
+ 	Tags map[string]bool
+ 
++	// VendorModulesInGOROOTSrc indicates that if we are within a module in
++	// GOROOT/src, packages in the module's vendor directory should be resolved as
++	// actual module dependencies (instead of standard-library packages).
++	VendorModulesInGOROOTSrc bool
++
+ 	// ResolveMissingImports indicates that we should attempt to add module
+ 	// dependencies as needed to resolve imports of packages that are not found.
+ 	//
+@@ -1170,13 +1175,13 @@ func (ld *loader) stdVendor(parentPath, path string) string {
+ 	}
+ 
+ 	if str.HasPathPrefix(parentPath, "cmd") {
+-		if Target.Path != "cmd" {
++		if !ld.VendorModulesInGOROOTSrc || Target.Path != "cmd" {
+ 			vendorPath := pathpkg.Join("cmd", "vendor", path)
+ 			if _, err := os.Stat(filepath.Join(cfg.GOROOTsrc, filepath.FromSlash(vendorPath))); err == nil {
+ 				return vendorPath
+ 			}
+ 		}
+-	} else if Target.Path != "std" || str.HasPathPrefix(parentPath, "vendor") {
++	} else if !ld.VendorModulesInGOROOTSrc || Target.Path != "std" || str.HasPathPrefix(parentPath, "vendor") {
+ 		// If we are outside of the 'std' module, resolve imports from within 'std'
+ 		// to the vendor directory.
+ 		//
+diff --git a/src/cmd/go/testdata/script/list_std_stale.txt b/src/cmd/go/testdata/script/list_std_stale.txt
+new file mode 100644
+index 0000000000..e5c1f334fd
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_std_stale.txt
+@@ -0,0 +1,31 @@
++# https://golang.org/issue/44725: packages in std should not be reported as stale,
++# regardless of whether they are listed from within or outside GOROOT/src.
++
++# Control case: net should not be stale at the start of the test,
++# and should depend on vendor/golang.org/… instead of golang.org/….
++
++! stale net
++
++go list -deps net
++stdout '^vendor/golang.org/x/net'
++! stdout '^golang.org/x/net'
++
++# Net should also not be stale when viewed from within GOROOT/src,
++# and should still report the same package dependencies.
++
++cd $GOROOT/src
++! stale net
++
++go list -deps net
++stdout '^vendor/golang.org/x/net'
++! stdout '^golang.org/x/net'
++
++
++# However, 'go mod' and 'go get' subcommands should report the original module
++# dependencies, not the vendored packages.
++
++[!net] stop
++
++env GOPROXY=
++go mod why -m golang.org/x/net
++stdout '^# golang.org/x/net\nnet\ngolang.org/x/net'
+diff --git a/src/cmd/go/testdata/script/mod_list_std.txt b/src/cmd/go/testdata/script/mod_list_std.txt
+index baf7908ab9..f4e0433d8a 100644
+--- a/src/cmd/go/testdata/script/mod_list_std.txt
++++ b/src/cmd/go/testdata/script/mod_list_std.txt
+@@ -48,18 +48,20 @@ stdout ^vendor/golang.org/x/crypto/internal/subtle
+ ! stdout ^golang\.org/x
+ 
+ # Within the std module, the dependencies of the non-vendored packages within
+-# std should appear to come from modules, but they should be loaded from the
+-# vendor directory (just like ordinary vendored module dependencies).
++# std should appear to be packages beginning with 'vendor/', not 'golang.org/…'
++# module dependencies.
+ 
+ go list all
+-stdout ^golang.org/x/
++! stdout ^golang.org/x/
+ ! stdout ^std/
+ ! stdout ^cmd/
+-! stdout ^vendor/
++stdout ^vendor/
+ 
+ go list -deps -f '{{if not .Standard}}{{.ImportPath}}{{end}}' std
+-! stdout ^vendor/golang.org/x/net/http2/hpack
+-stdout ^golang.org/x/net/http2/hpack
++! stdout .
++
++# However, the 'golang.org/…' module dependencies should resolve to those same
++# directories.
+ 
+ go list -f '{{.Dir}}' golang.org/x/net/http2/hpack
+ stdout $GOROOT[/\\]src[/\\]vendor
+diff --git a/src/cmd/go/testdata/script/mod_std_vendor.txt b/src/cmd/go/testdata/script/mod_std_vendor.txt
+index fb954d74ed..c3cde52953 100644
+--- a/src/cmd/go/testdata/script/mod_std_vendor.txt
++++ b/src/cmd/go/testdata/script/mod_std_vendor.txt
+@@ -36,11 +36,11 @@ stderr 'use of vendored package'
+ 
+ 
+ # When run within the 'std' module, 'go list -test' should report vendored
+-# transitive dependencies at their original module paths.
++# transitive dependencies at their vendored paths.
+ cd $GOROOT/src
+ go list -test -f '{{range .Deps}}{{.}}{{"\n"}}{{end}}' net/http
+-stdout ^golang.org/x/net/http2/hpack
+-! stdout ^vendor/golang.org/x/net/http2/hpack
++! stdout ^golang.org/x/net/http2/hpack
++stdout ^vendor/golang.org/x/net/http2/hpack
+ 
+ -- go.mod --
+ module m

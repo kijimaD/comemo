@@ -9,7 +9,56 @@ Date:   Wed Jan 4 21:23:00 2017 +0000
     Change-Id: I6b0b107296311178938609e878e1ef47a30a463f
     Reviewed-on: https://go-review.googlesource.com/34814
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/httputil/dump.go      | 13 +++++++++----
  src/net/http/httputil/dump_test.go | 12 ++++++++++++
  2 files changed, 21 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/http/httputil/dump.go b/src/net/http/httputil/dump.go
+index 1511681632..7104c37454 100644
+--- a/src/net/http/httputil/dump.go
++++ b/src/net/http/httputil/dump.go
+@@ -18,11 +18,16 @@ import (
+ 	"time"
+ )
+ 
+-// One of the copies, say from b to r2, could be avoided by using a more
+-// elaborate trick where the other copy is made during Request/Response.Write.
+-// This would complicate things too much, given that these functions are for
+-// debugging only.
++// drainBody reads all of b to memory and then returns two equivalent
++// ReadClosers yielding the same bytes.
++//
++// It returns an error if the initial slurp of all bytes fails. It does not attempt
++// to make the returned ReadClosers have identical error-matching behavior.
+ func drainBody(b io.ReadCloser) (r1, r2 io.ReadCloser, err error) {
++	if b == http.NoBody {
++		// No copying needed. Preserve the magic sentinel meaning of NoBody.
++		return http.NoBody, http.NoBody, nil
++	}
+ 	var buf bytes.Buffer
+ 	if _, err = buf.ReadFrom(b); err != nil {
+ 		return nil, b, err
+diff --git a/src/net/http/httputil/dump_test.go b/src/net/http/httputil/dump_test.go
+index 2e980d39f8..f881020fef 100644
+--- a/src/net/http/httputil/dump_test.go
++++ b/src/net/http/httputil/dump_test.go
+@@ -184,6 +184,18 @@ var dumpTests = []dumpTest{
+ 		WantDump: "POST /v2/api/?login HTTP/1.1\r\n" +
+ 			"Host: passport.myhost.com\r\n\r\n",
+ 	},
++
++	// Issue 18506: make drainBody recognize NoBody. Otherwise
++	// this was turning into a chunked request.
++	{
++		Req: *mustNewRequest("POST", "http://example.com/foo", http.NoBody),
++
++		WantDumpOut: "POST /foo HTTP/1.1\r\n" +
++			"Host: example.com\r\n" +
++			"User-Agent: Go-http-client/1.1\r\n" +
++			"Content-Length: 0\r\n" +
++			"Accept-Encoding: gzip\r\n\r\n",
++	},
+ }
+ 
+ func TestDumpRequest(t *testing.T) {

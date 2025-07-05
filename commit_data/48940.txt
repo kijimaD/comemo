@@ -12,7 +12,56 @@ Date:   Fri Jun 25 11:17:43 2021 -0700
     Trust: Matthew Dempsky <mdempsky@google.com>
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  doc/go_spec.html     | 10 ++++++++--
  src/unsafe/unsafe.go |  5 ++++-
  2 files changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index b59b37fd55..e0602418e8 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of Jun 22, 2021",
++	"Subtitle": "Version of Jun 28, 2021",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -6789,11 +6789,17 @@ and whose length and capacity are <code>len</code>:
+ (*[len]ArbitraryType)(unsafe.Pointer(ptr))[:]
+ </pre>
+ 
++<p>
++As a special case, if <code>ptr</code> is <code>nil</code> and <code>len</code> is zero,
++<code>Slice</code> returns <code>nil</code>.
++</p>
++
+ <p>
+ The <code>len</code> argument must be of integer type or an untyped <a href="#Constants">constant</a>.
+ A constant <code>len</code> argument must be non-negative and <a href="#Representability">representable</a> by a value of type <code>int</code>;
+ if it is an untyped constant it is given type <code>int</code>.
+-If <code>ptr</code> is <code>nil</code> or <code>len</code> is negative at run time,
++At run time, if <code>len</code> is negative,
++or if <code>ptr</code> is <code>nil</code> and <code>len</code> is not zero,
+ a <a href="#Run_time_panics">run-time panic</a> occurs.
+ </p>
+ 
+diff --git a/src/unsafe/unsafe.go b/src/unsafe/unsafe.go
+index ecbd28c523..eaf72c9618 100644
+--- a/src/unsafe/unsafe.go
++++ b/src/unsafe/unsafe.go
+@@ -221,8 +221,11 @@ func Add(ptr Pointer, len IntegerType) Pointer
+ //
+ //	(*[len]ArbitraryType)(unsafe.Pointer(ptr))[:]
+ //
++// As a special case, if ptr is nil and len is zero, Slice returns nil.
++//
+ // The len argument must be of integer type or an untyped constant.
+ // A constant len argument must be non-negative and representable by a value of type int;
+ // if it is an untyped constant it is given type int.
+-// If ptr is nil or len is negative at run time, a run-time panic occurs.
++// At run time, if len is negative, or if ptr is nil and len is not zero,
++// a run-time panic occurs.
+ func Slice(ptr *ArbitraryType, len IntegerType) []ArbitraryType

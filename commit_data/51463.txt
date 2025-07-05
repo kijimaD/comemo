@@ -13,6 +13,20 @@ Date:   Tue Feb 1 19:32:08 2022 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/runtime2.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index d0b7a162d5..3eada37840 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -941,7 +941,7 @@ func extendRandom(r []byte, n int) {
+ }
+ 
+ // A _defer holds an entry on the list of deferred calls.
+-// If you add a field here, add code to clear it in freedefer and deferProcStack
++// If you add a field here, add code to clear it in deferProcStack.
+ // This struct must match the code in cmd/compile/internal/ssagen/ssa.go:deferstruct
+ // and cmd/compile/internal/ssagen/ssa.go:(*state).call.
+ // Some defers will be allocated on the stack and some on the heap.

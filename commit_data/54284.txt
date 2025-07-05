@@ -16,6 +16,20 @@ Date:   Sat Oct 1 21:53:19 2022 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/log/syslog/syslog.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/log/syslog/syslog.go b/src/log/syslog/syslog.go
+index 8c6ba72135..03e5263d3e 100644
+--- a/src/log/syslog/syslog.go
++++ b/src/log/syslog/syslog.go
+@@ -255,7 +255,7 @@ func (w *Writer) writeAndRetry(p Priority, s string) (int, error) {
+ 
+ 	if w.conn != nil {
+ 		if n, err := w.write(pr, s); err == nil {
+-			return n, err
++			return n, nil
+ 		}
+ 	}
+ 	if err := w.connect(); err != nil {

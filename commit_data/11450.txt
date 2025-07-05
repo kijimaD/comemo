@@ -7,9 +7,58 @@ Date:   Sun Jan 29 12:46:26 2012 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5569085
-
+---
  src/cmd/5l/asm.c | 1 +
  src/cmd/6l/asm.c | 1 +
  src/cmd/8l/asm.c | 1 +
  src/cmd/ld/go.c  | 1 +
  4 files changed, 4 insertions(+)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index fe3a2f3f2a..df33fbe251 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -91,6 +91,7 @@ needlib(char *name)
+ 	/* reuse hash code in symbol table */
+ 	p = smprint(".dynlib.%s", name);
+ 	s = lookup(p, 0);
++	free(p);
+ 	if(s->type == 0) {
+ 		s->type = 100;	// avoid SDATA, etc.
+ 		return 1;
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 7d36b170eb..121aa8613e 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -112,6 +112,7 @@ needlib(char *name)
+ 	/* reuse hash code in symbol table */
+ 	p = smprint(".elfload.%s", name);
+ 	s = lookup(p, 0);
++	free(p);
+ 	if(s->type == 0) {
+ 		s->type = 100;	// avoid SDATA, etc.
+ 		return 1;
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 0fe4cf1123..dcaa0b192b 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -108,6 +108,7 @@ needlib(char *name)
+ 	/* reuse hash code in symbol table */
+ 	p = smprint(".dynlib.%s", name);
+ 	s = lookup(p, 0);
++	free(p);
+ 	if(s->type == 0) {
+ 		s->type = 100;	// avoid SDATA, etc.
+ 		return 1;
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index 2bda628cde..3271be1f59 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -482,6 +482,7 @@ loaddynimport(char *file, char *pkg, char *p, int n)
+ 		if(q)
+ 			*q++ = '\0';
+ 		s = lookup(name, 0);
++		free(name);
+ 		if(s->type == 0 || s->type == SXREF) {
+ 			s->dynimplib = lib;
+ 			s->dynimpname = def;

@@ -23,9 +23,121 @@ Date:   Fri Jan 7 16:52:53 2022 -0500
     Run-TryBot: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modfetch/fetch.go        | 22 +++++++++++++++
  src/cmd/go/internal/modload/init.go          |  1 +
  src/cmd/go/internal/workcmd/sync.go          |  4 +--
  src/cmd/go/testdata/script/work_sync_sum.txt | 40 ++++++++++++++++++++++++++++
  4 files changed, 65 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index 12b7431570..f5423b48ad 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -405,6 +405,28 @@ type modSumStatus struct {
+ 	used, dirty bool
+ }
+ 
++// Reset resets globals in the modfetch package, so previous loads don't affect
++// contents of go.sum files
++func Reset() {
++	GoSumFile = ""
++	WorkspaceGoSumFiles = nil
++
++	// Uses of lookupCache and downloadCache both can call checkModSum,
++	// which in turn sets the used bit on goSum.status for modules.
++	// Reset them so used can be computed properly.
++	lookupCache = par.Cache{}
++	downloadCache = par.Cache{}
++
++	// Clear all fields on goSum. It will be initialized later
++	goSum.mu.Lock()
++	goSum.m = nil
++	goSum.w = nil
++	goSum.status = nil
++	goSum.overwrite = false
++	goSum.enabled = false
++	goSum.mu.Unlock()
++}
++
+ // initGoSum initializes the go.sum data.
+ // The boolean it returns reports whether the
+ // use of go.sum is now enabled.
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index df083e7fcc..fe7d0ef3e6 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -75,6 +75,7 @@ func EnterModule(ctx context.Context, enterModroot string) {
+ 	MainModules = nil // reset MainModules
+ 	requirements = nil
+ 	workFilePath = "" // Force module mode
++	modfetch.Reset()
+ 
+ 	modRoots = []string{enterModroot}
+ 	LoadModFile(ctx)
+diff --git a/src/cmd/go/internal/workcmd/sync.go b/src/cmd/go/internal/workcmd/sync.go
+index a10d15a3b7..1cca817517 100644
+--- a/src/cmd/go/internal/workcmd/sync.go
++++ b/src/cmd/go/internal/workcmd/sync.go
+@@ -108,13 +108,13 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 		modload.LoadPackages(ctx, modload.PackageOpts{
+ 			Tags:                     imports.AnyTags(),
++			Tidy:                     true,
+ 			VendorModulesInGOROOTSrc: true,
+ 			ResolveMissingImports:    false,
+ 			LoadTests:                true,
+ 			AllowErrors:              true,
++			SilenceMissingStdImports: true,
+ 			SilencePackageErrors:     true,
+-			Tidy:                     true,
+-			SilenceUnmatchedWarnings: true,
+ 		}, "all")
+ 		modload.WriteGoMod(ctx)
+ 	}
+diff --git a/src/cmd/go/testdata/script/work_sync_sum.txt b/src/cmd/go/testdata/script/work_sync_sum.txt
+new file mode 100644
+index 0000000000..656fd31379
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_sync_sum.txt
+@@ -0,0 +1,40 @@
++# Test that the sum file data state is properly reset between modules in
++# go work sync so that the sum file that's written is correct.
++# Exercises the fix to #50038.
++
++cp b/go.sum b/go.sum.want
++
++# As a sanity check, verify b/go.sum is tidy.
++cd b
++go mod tidy
++cd ..
++cmp b/go.sum b/go.sum.want
++
++# Run go work sync and verify it doesn't change b/go.sum.
++go work sync
++cmp b/go.sum b/go.sum.want
++
++-- b/go.sum --
++rsc.io/quote v1.0.0 h1:kQ3IZQzPTiDJxSZI98YaWgxFEhlNdYASHvh+MplbViw=
++rsc.io/quote v1.0.0/go.mod h1:v83Ri/njykPcgJltBc/gEkJTmjTsNgtO1Y7vyIK1CQA=
++-- go.work --
++go 1.18
++use (
++    ./a
++    ./b
++)
++replace example.com/c => ./c
++-- a/go.mod --
++module example.com/a
++go 1.18
++require rsc.io/fortune v1.0.0
++-- a/a.go --
++package a
++import "rsc.io/fortune"
++-- b/go.mod --
++module example.com/b
++go 1.18
++require rsc.io/quote v1.0.0
++-- b/b.go --
++package b
++import _ "rsc.io/quote"

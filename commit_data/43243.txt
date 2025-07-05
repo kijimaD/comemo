@@ -12,7 +12,37 @@ Date:   Fri Mar 20 19:13:07 2020 +0100
     Change-Id: Ief1dcac07eacc0ef02f86bfac9044501477bca1c
     Reviewed-on: https://go-review.googlesource.com/c/go/+/224497
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/float.go | 4 +++-
  src/math/big/sqrt.go  | 3 ++-
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index b3c3295201..da964eef3e 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -224,7 +224,9 @@ func (x *Float) Mode() RoundingMode {
+ 	return x.mode
+ }
+ 
+-// Acc returns the accuracy of x produced by the most recent operation.
++// Acc returns the accuracy of x produced by the most recent
++// operation, unless explicitly documented otherwise by that
++// operation.
+ func (x *Float) Acc() Accuracy {
+ 	return x.acc
+ }
+diff --git a/src/math/big/sqrt.go b/src/math/big/sqrt.go
+index 53403aa41d..ac2094f28e 100644
+--- a/src/math/big/sqrt.go
++++ b/src/math/big/sqrt.go
+@@ -14,7 +14,8 @@ var (
+ //
+ // If z's precision is 0, it is changed to x's precision before the
+ // operation. Rounding is performed according to z's precision and
+-// rounding mode.
++// rounding mode, but z's accuracy is not computed. Specifically, the
++// result of z.Acc() is undefined.
+ //
+ // The function panics if z < 0. The value of z is undefined in that
+ // case.

@@ -11,6 +11,20 @@ Date:   Wed Apr 16 01:46:56 2014 -0400
     R=iant
     CC=golang-codereviews
     https://golang.org/cl/88000045
-
+---
  src/cmd/ld/ldpe.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/ldpe.c b/src/cmd/ld/ldpe.c
+index 57ef61c57e..1f1a51fad1 100644
+--- a/src/cmd/ld/ldpe.c
++++ b/src/cmd/ld/ldpe.c
+@@ -297,7 +297,7 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 				case IMAGE_REL_I386_DIR32:
+ 					rp->type = R_ADDR;
+ 					// load addend from image
+-					rp->add = le32(rsect->base+rp->off);
++					rp->add = (int32)le32(rsect->base+rp->off);
+ 					break;
+ 				case IMAGE_REL_AMD64_ADDR64: // R_X86_64_64
+ 					rp->siz = 8;

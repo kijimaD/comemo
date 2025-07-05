@@ -18,7 +18,36 @@ Date:   Wed May 15 04:19:19 2013 +0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/9393043
-
+---
  src/cmd/gc/go.errors | 3 +++
  src/cmd/gc/yerr.h    | 3 +++
  2 files changed, 6 insertions(+)
+
+diff --git a/src/cmd/gc/go.errors b/src/cmd/gc/go.errors
+index 68a5e5af3a..d5549d3eea 100644
+--- a/src/cmd/gc/go.errors
++++ b/src/cmd/gc/go.errors
+@@ -17,6 +17,9 @@ static struct {
+ 	% loadsys package LIMPORT '(' LLITERAL import_package import_there ','
+ 	"unexpected comma during import block",
+ 
++	% loadsys package LIMPORT LNAME ';'
++	"missing import path; require quoted string",
++
+ 	% loadsys package imports LFUNC LNAME '(' ')' '{' LIF if_header ';'
+ 	"unexpected semicolon or newline before {",
+ 
+diff --git a/src/cmd/gc/yerr.h b/src/cmd/gc/yerr.h
+index e7eb6516cc..4cbbd39442 100644
+--- a/src/cmd/gc/yerr.h
++++ b/src/cmd/gc/yerr.h
+@@ -17,6 +17,9 @@ static struct {
+ 	221, ',',
+ 	"unexpected comma during import block",
+ 
++	32, ';',
++	"missing import path; require quoted string",
++
+ 	377, ';',
+ 	"unexpected semicolon or newline before {",
+ 

@@ -22,7 +22,7 @@ Date:   Mon Aug 29 09:34:52 2011 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4953048
-
+---
  src/cmd/5g/cgen.c   | 11 +++++------
  src/cmd/5g/cgen64.c | 10 +++++-----
  src/cmd/5g/gg.h     |  3 +++
@@ -30,3 +30,214 @@ Date:   Mon Aug 29 09:34:52 2011 -0400
  src/cmd/5g/peep.c   |  8 +++++++-
  src/cmd/5g/reg.c    |  1 -
  6 files changed, 21 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 3d98191aa6..9481769d39 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -852,6 +852,7 @@ bgen(Node *n, int true, Prog *to)
+ 	Node n1, n2, n3, n4, tmp;
+ 	Prog *p1, *p2;
+ 
++	USED(n4);			// in unreachable code below
+ 	if(debug['g']) {
+ 		dump("\nbgen", n);
+ 	}
+@@ -862,9 +863,6 @@ bgen(Node *n, int true, Prog *to)
+ 	if(n->ninit != nil)
+ 		genlist(n->ninit);
+ 
+-	nl = n->left;
+-	nr = n->right;
+-
+ 	if(n->type == T) {
+ 		convlit(&n, types[TBOOL]);
+ 		if(n->type == T)
+@@ -877,7 +875,6 @@ bgen(Node *n, int true, Prog *to)
+ 		patch(gins(AEND, N, N), to);
+ 		goto ret;
+ 	}
+-	nl = N;
+ 	nr = N;
+ 
+ 	switch(n->op) {
+@@ -986,6 +983,7 @@ bgen(Node *n, int true, Prog *to)
+ 			regfree(&n1);
+ 			break;
+ 
++#ifdef	NOTDEF
+ 			a = optoas(a, types[tptr]);
+ 			regalloc(&n1, types[tptr], N);
+ 			regalloc(&n3, types[tptr], N);
+@@ -1003,6 +1001,7 @@ bgen(Node *n, int true, Prog *to)
+ 			regfree(&n3);
+ 			regfree(&n1);
+ 			break;
++#endif
+ 		}
+ 
+ 		if(isinter(nl->type)) {
+@@ -1021,6 +1020,7 @@ bgen(Node *n, int true, Prog *to)
+ 			regfree(&n1);
+ 			break;
+ 
++#ifdef	NOTDEF
+ 			a = optoas(a, types[tptr]);
+ 			regalloc(&n1, types[tptr], N);
+ 			regalloc(&n3, types[tptr], N);
+@@ -1038,6 +1038,7 @@ bgen(Node *n, int true, Prog *to)
+ 			regfree(&n3);
+ 			regfree(&n4);
+ 			break;
++#endif
+ 		}
+ 
+ 		if(iscomplex[nl->type->etype]) {
+@@ -1214,7 +1215,6 @@ sgen(Node *n, Node *res, int32 w)
+ 	// smaller operations for less aligned types.
+ 	// for example moving [4]byte must use 4 MOVB not 1 MOVW.
+ 	align = n->type->align;
+-	op = 0;
+ 	switch(align) {
+ 	default:
+ 		fatal("sgen: invalid alignment %d for %T", align, n->type);
+@@ -1315,7 +1315,6 @@ sgen(Node *n, Node *res, int32 w)
+ 			p->from.type = D_OREG;
+ 			p->from.offset = dir;
+ 			p->scond |= C_PBIT;
+-			ploop = p;
+ 	
+ 			p = gins(op, &tmp, &dst);
+ 			p->to.type = D_OREG;
+diff --git a/src/cmd/5g/cgen64.c b/src/cmd/5g/cgen64.c
+index 9ac4aa3ed1..1235d1acef 100644
+--- a/src/cmd/5g/cgen64.c
++++ b/src/cmd/5g/cgen64.c
+@@ -242,7 +242,7 @@ cgen64(Node *n, Node *res)
+ 			// shift is >= 1<<32
+ 			split64(r, &cl, &ch);
+ 			gmove(&ch, &s);
+-			p1 = gins(ATST, &s, N);
++			gins(ATST, &s, N);
+ 			p6 = gbranch(ABNE, T);
+ 			gmove(&cl, &s);
+ 			splitclean();
+@@ -250,7 +250,7 @@ cgen64(Node *n, Node *res)
+ 			gmove(r, &s);
+ 			p6 = P;
+ 		}
+-		p1 = gins(ATST, &s, N);
++		gins(ATST, &s, N);
+ 
+ 		// shift == 0
+ 		p1 = gins(AMOVW, &bl, &al);
+@@ -413,7 +413,7 @@ olsh_break:
+ 			gmove(r, &s);
+ 			p6 = P;
+ 		}
+-		p1 = gins(ATST, &s, N);
++		gins(ATST, &s, N);
+ 
+ 		// shift == 0
+ 		p1 = gins(AMOVW, &bl, &al);
+@@ -455,9 +455,9 @@ olsh_break:
+ 		p1 = gins(AMOVW, &bh, &al);
+ 		p1->scond = C_SCOND_EQ;
+ 		if(bh.type->etype == TINT32)
+-			p1 = gshift(AMOVW, &bh, SHIFT_AR, 31, &ah);
++			gshift(AMOVW, &bh, SHIFT_AR, 31, &ah);
+ 		else
+-			p1 = gins(AEOR, &ah, &ah);
++			gins(AEOR, &ah, &ah);
+ 		p4 = gbranch(ABEQ, T);
+ 
+ 		// check if shift is < 64
+diff --git a/src/cmd/5g/gg.h b/src/cmd/5g/gg.h
+index 08e1e037be..c826d26528 100644
+--- a/src/cmd/5g/gg.h
++++ b/src/cmd/5g/gg.h
+@@ -163,3 +163,6 @@ int	Yconv(Fmt*);
+ void	listinit(void);
+ 
+ void	zaddr(Biobuf*, Addr*, int);
++
++#pragma	varargck	type	"D"	Addr*
++#pragma	varargck	type	"M"	Addr*
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index c03825aad4..3f38318e75 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -546,7 +546,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
+ 	}
+ 
+ 	// test for shift being 0
+-	p1 = gins(ATST, &n1, N);
++	gins(ATST, &n1, N);
+ 	p3 = gbranch(ABEQ, T);
+ 
+ 	// test and fix up large shifts
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index dddad5bd96..e87f5d6973 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -47,6 +47,9 @@ peep(void)
+ 	Reg *r, *r1, *r2;
+ 	Prog *p, *p1;
+ 	int t;
++
++	p1 = nil;
++	USED(p1);		// ... in unreachable code...
+ /*
+  * complete R structure
+  */
+@@ -117,12 +120,14 @@ loop1:
+ 			}
+ 			break;
+ 
++#ifdef	NOTDEF
+ 			if(p->scond == C_SCOND_NONE)
+ 			if(regtyp(&p->to))
+ 			if(isdconst(&p->from)) {
+ 				constprop(&p->from, &p->to, r->s1);
+ 			}
+ 			break;
++#endif
+ 		}
+ 	}
+ 	if(t)
+@@ -130,6 +135,7 @@ loop1:
+ 
+ return;
+ 
++#ifdef	NOTDEF
+ 	for(r=firstr; r!=R; r=r->link) {
+ 		p = r->prog;
+ 		switch(p->as) {
+@@ -257,6 +263,7 @@ return;
+ //	}
+ 
+ 	predicate();
++#endif
+ }
+ 
+ Reg*
+@@ -1161,7 +1168,6 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 				return 3;
+ 		return 0;
+ 	}
+-	return 0;
+ }
+ 
+ /*
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index da8e1e1674..edec593335 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -844,7 +844,6 @@ mkvar(Reg *r, Adr *a)
+ 
+ 	// mark registers used
+ 	t = a->type;
+-	n = D_NONE;
+ 
+ 	flag = 0;
+ 	switch(t) {

@@ -11,7 +11,7 @@ Date:   Thu Oct 12 14:43:47 2023 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: shuang cui <imcusg@gmail.com>
-
+---
  src/compress/bzip2/bit_reader.go |  2 +-
  src/compress/flate/deflate.go    | 22 +++++++++++-----------
  src/compress/flate/inflate.go    | 18 +++++++++---------
@@ -21,3 +21,464 @@ Date:   Thu Oct 12 14:43:47 2023 +0800
  src/compress/lzw/writer.go       | 16 ++++++++--------
  src/compress/zlib/reader.go      | 12 ++++++------
  8 files changed, 75 insertions(+), 75 deletions(-)
+
+diff --git a/src/compress/bzip2/bit_reader.go b/src/compress/bzip2/bit_reader.go
+index b451265475..094422d1d3 100644
+--- a/src/compress/bzip2/bit_reader.go
++++ b/src/compress/bzip2/bit_reader.go
+@@ -32,7 +32,7 @@ func newBitReader(r io.Reader) bitReader {
+ 
+ // ReadBits64 reads the given number of bits and returns them in the
+ // least-significant part of a uint64. In the event of an error, it returns 0
+-// and the error can be obtained by calling Err().
++// and the error can be obtained by calling [bitReader.Err]().
+ func (br *bitReader) ReadBits64(bits uint) (n uint64) {
+ 	for bits > br.bits {
+ 		b, err := br.r.ReadByte()
+diff --git a/src/compress/flate/deflate.go b/src/compress/flate/deflate.go
+index b53764b552..ea343b2298 100644
+--- a/src/compress/flate/deflate.go
++++ b/src/compress/flate/deflate.go
+@@ -650,13 +650,13 @@ func (d *compressor) close() error {
+ 	return nil
+ }
+ 
+-// NewWriter returns a new Writer compressing data at the given level.
+-// Following zlib, levels range from 1 (BestSpeed) to 9 (BestCompression);
++// NewWriter returns a new [Writer] compressing data at the given level.
++// Following zlib, levels range from 1 ([BestSpeed]) to 9 ([BestCompression]);
+ // higher levels typically run slower but compress more. Level 0
+-// (NoCompression) does not attempt any compression; it only adds the
++// ([NoCompression]) does not attempt any compression; it only adds the
+ // necessary DEFLATE framing.
+-// Level -1 (DefaultCompression) uses the default compression level.
+-// Level -2 (HuffmanOnly) will use Huffman compression only, giving
++// Level -1 ([DefaultCompression]) uses the default compression level.
++// Level -2 ([HuffmanOnly]) will use Huffman compression only, giving
+ // a very fast compression for all types of input, but sacrificing considerable
+ // compression efficiency.
+ //
+@@ -670,11 +670,11 @@ func NewWriter(w io.Writer, level int) (*Writer, error) {
+ 	return &dw, nil
+ }
+ 
+-// NewWriterDict is like NewWriter but initializes the new
+-// Writer with a preset dictionary. The returned Writer behaves
++// NewWriterDict is like [NewWriter] but initializes the new
++// [Writer] with a preset dictionary. The returned [Writer] behaves
+ // as if the dictionary had been written to it without producing
+ // any compressed output. The compressed data written to w
+-// can only be decompressed by a Reader initialized with the
++// can only be decompressed by a [Reader] initialized with the
+ // same dictionary.
+ func NewWriterDict(w io.Writer, level int, dict []byte) (*Writer, error) {
+ 	dw := &dictWriter{w}
+@@ -698,7 +698,7 @@ func (w *dictWriter) Write(b []byte) (n int, err error) {
+ var errWriterClosed = errors.New("flate: closed writer")
+ 
+ // A Writer takes data written to it and writes the compressed
+-// form of that data to an underlying writer (see NewWriter).
++// form of that data to an underlying writer (see [NewWriter]).
+ type Writer struct {
+ 	d    compressor
+ 	dict []byte
+@@ -714,7 +714,7 @@ func (w *Writer) Write(data []byte) (n int, err error) {
+ // It is useful mainly in compressed network protocols, to ensure that
+ // a remote reader has enough data to reconstruct a packet.
+ // Flush does not return until the data has been written.
+-// Calling Flush when there is no pending data still causes the Writer
++// Calling Flush when there is no pending data still causes the [Writer]
+ // to emit a sync marker of at least 4 bytes.
+ // If the underlying writer returns an error, Flush returns that error.
+ //
+@@ -731,7 +731,7 @@ func (w *Writer) Close() error {
+ }
+ 
+ // Reset discards the writer's state and makes it equivalent to
+-// the result of NewWriter or NewWriterDict called with dst
++// the result of [NewWriter] or [NewWriterDict] called with dst
+ // and w's level and dictionary.
+ func (w *Writer) Reset(dst io.Writer) {
+ 	if dw, ok := w.d.w.writer.(*dictWriter); ok {
+diff --git a/src/compress/flate/inflate.go b/src/compress/flate/inflate.go
+index 111bf4343e..b5e238c2fb 100644
+--- a/src/compress/flate/inflate.go
++++ b/src/compress/flate/inflate.go
+@@ -65,8 +65,8 @@ func (e *WriteError) Error() string {
+ 	return "flate: write error at offset " + strconv.FormatInt(e.Offset, 10) + ": " + e.Err.Error()
+ }
+ 
+-// Resetter resets a ReadCloser returned by NewReader or NewReaderDict
+-// to switch to a new underlying Reader. This permits reusing a ReadCloser
++// Resetter resets a ReadCloser returned by [NewReader] or [NewReaderDict]
++// to switch to a new underlying [Reader]. This permits reusing a ReadCloser
+ // instead of allocating a new one.
+ type Resetter interface {
+ 	// Reset discards any buffered data and resets the Resetter as if it was
+@@ -255,9 +255,9 @@ func (h *huffmanDecoder) init(lengths []int) bool {
+ 	return true
+ }
+ 
+-// The actual read interface needed by NewReader.
++// The actual read interface needed by [NewReader].
+ // If the passed in io.Reader does not also have ReadByte,
+-// the NewReader will introduce its own buffering.
++// the [NewReader] will introduce its own buffering.
+ type Reader interface {
+ 	io.Reader
+ 	io.ByteReader
+@@ -800,10 +800,10 @@ func (f *decompressor) Reset(r io.Reader, dict []byte) error {
+ // to read the uncompressed version of r.
+ // If r does not also implement [io.ByteReader],
+ // the decompressor may read more data than necessary from r.
+-// The reader returns io.EOF after the final block in the DEFLATE stream has
++// The reader returns [io.EOF] after the final block in the DEFLATE stream has
+ // been encountered. Any trailing data after the final block is ignored.
+ //
+-// The ReadCloser returned by NewReader also implements Resetter.
++// The ReadCloser returned by NewReader also implements [Resetter].
+ func NewReader(r io.Reader) io.ReadCloser {
+ 	fixedHuffmanDecoderInit()
+ 
+@@ -816,13 +816,13 @@ func NewReader(r io.Reader) io.ReadCloser {
+ 	return &f
+ }
+ 
+-// NewReaderDict is like NewReader but initializes the reader
+-// with a preset dictionary. The returned Reader behaves as if
++// NewReaderDict is like [NewReader] but initializes the reader
++// with a preset dictionary. The returned [Reader] behaves as if
+ // the uncompressed data stream started with the given dictionary,
+ // which has already been read. NewReaderDict is typically used
+ // to read data compressed by NewWriterDict.
+ //
+-// The ReadCloser returned by NewReader also implements Resetter.
++// The ReadCloser returned by NewReaderDict also implements [Resetter].
+ func NewReaderDict(r io.Reader, dict []byte) io.ReadCloser {
+ 	fixedHuffmanDecoderInit()
+ 
+diff --git a/src/compress/gzip/gunzip.go b/src/compress/gzip/gunzip.go
+index f138ff70aa..47797db40c 100644
+--- a/src/compress/gzip/gunzip.go
++++ b/src/compress/gzip/gunzip.go
+@@ -45,7 +45,7 @@ func noEOF(err error) error {
+ }
+ 
+ // The gzip file stores a header giving metadata about the compressed file.
+-// That header is exposed as the fields of the Writer and Reader structs.
++// That header is exposed as the fields of the [Writer] and [Reader] structs.
+ //
+ // Strings must be UTF-8 encoded and may only contain Unicode code points
+ // U+0001 through U+00FF, due to limitations of the GZIP file format.
+@@ -57,7 +57,7 @@ type Header struct {
+ 	OS      byte      // operating system type
+ }
+ 
+-// A Reader is an io.Reader that can be read to retrieve
++// A Reader is an [io.Reader] that can be read to retrieve
+ // uncompressed data from a gzip-format compressed file.
+ //
+ // In general, a gzip file can be a concatenation of gzip files,
+@@ -66,10 +66,10 @@ type Header struct {
+ // Only the first header is recorded in the Reader fields.
+ //
+ // Gzip files store a length and checksum of the uncompressed data.
+-// The Reader will return an ErrChecksum when Read
++// The Reader will return an [ErrChecksum] when [Reader.Read]
+ // reaches the end of the uncompressed data if it does not
+ // have the expected length or checksum. Clients should treat data
+-// returned by Read as tentative until they receive the io.EOF
++// returned by [Reader.Read] as tentative until they receive the [io.EOF]
+ // marking the end of the data.
+ type Reader struct {
+ 	Header       // valid after NewReader or Reader.Reset
+@@ -82,13 +82,13 @@ type Reader struct {
+ 	multistream  bool
+ }
+ 
+-// NewReader creates a new Reader reading the given reader.
++// NewReader creates a new [Reader] reading the given reader.
+ // If r does not also implement [io.ByteReader],
+ // the decompressor may read more data than necessary from r.
+ //
+-// It is the caller's responsibility to call Close on the Reader when done.
++// It is the caller's responsibility to call Close on the [Reader] when done.
+ //
+-// The Reader.Header fields will be valid in the Reader returned.
++// The Reader.Header fields will be valid in the [Reader] returned.
+ func NewReader(r io.Reader) (*Reader, error) {
+ 	z := new(Reader)
+ 	if err := z.Reset(r); err != nil {
+@@ -97,9 +97,9 @@ func NewReader(r io.Reader) (*Reader, error) {
+ 	return z, nil
+ }
+ 
+-// Reset discards the Reader z's state and makes it equivalent to the
+-// result of its original state from NewReader, but reading from r instead.
+-// This permits reusing a Reader rather than allocating a new one.
++// Reset discards the [Reader] z's state and makes it equivalent to the
++// result of its original state from [NewReader], but reading from r instead.
++// This permits reusing a [Reader] rather than allocating a new one.
+ func (z *Reader) Reset(r io.Reader) error {
+ 	*z = Reader{
+ 		decompressor: z.decompressor,
+@@ -116,7 +116,7 @@ func (z *Reader) Reset(r io.Reader) error {
+ 
+ // Multistream controls whether the reader supports multistream files.
+ //
+-// If enabled (the default), the Reader expects the input to be a sequence
++// If enabled (the default), the [Reader] expects the input to be a sequence
+ // of individually gzipped data streams, each with its own header and
+ // trailer, ending at EOF. The effect is that the concatenation of a sequence
+ // of gzipped files is treated as equivalent to the gzip of the concatenation
+@@ -125,11 +125,11 @@ func (z *Reader) Reset(r io.Reader) error {
+ // Calling Multistream(false) disables this behavior; disabling the behavior
+ // can be useful when reading file formats that distinguish individual gzip
+ // data streams or mix gzip data streams with other data streams.
+-// In this mode, when the Reader reaches the end of the data stream,
+-// Read returns io.EOF. The underlying reader must implement io.ByteReader
++// In this mode, when the [Reader] reaches the end of the data stream,
++// [Reader.Read] returns [io.EOF]. The underlying reader must implement [io.ByteReader]
+ // in order to be left positioned just after the gzip stream.
+ // To start the next stream, call z.Reset(r) followed by z.Multistream(false).
+-// If there is no next stream, z.Reset(r) will return io.EOF.
++// If there is no next stream, z.Reset(r) will return [io.EOF].
+ func (z *Reader) Multistream(ok bool) {
+ 	z.multistream = ok
+ }
+@@ -242,7 +242,7 @@ func (z *Reader) readHeader() (hdr Header, err error) {
+ 	return hdr, nil
+ }
+ 
+-// Read implements io.Reader, reading uncompressed bytes from its underlying Reader.
++// Read implements [io.Reader], reading uncompressed bytes from its underlying [Reader].
+ func (z *Reader) Read(p []byte) (n int, err error) {
+ 	if z.err != nil {
+ 		return 0, z.err
+@@ -284,7 +284,7 @@ func (z *Reader) Read(p []byte) (n int, err error) {
+ 	return n, nil
+ }
+ 
+-// Close closes the Reader. It does not close the underlying io.Reader.
++// Close closes the [Reader]. It does not close the underlying [io.Reader].
+ // In order for the GZIP checksum to be verified, the reader must be
+-// fully consumed until the io.EOF.
++// fully consumed until the [io.EOF].
+ func (z *Reader) Close() error { return z.decompressor.Close() }
+diff --git a/src/compress/gzip/gzip.go b/src/compress/gzip/gzip.go
+index eaeb185795..ab4598d89f 100644
+--- a/src/compress/gzip/gzip.go
++++ b/src/compress/gzip/gzip.go
+@@ -38,10 +38,10 @@ type Writer struct {
+ 	err         error
+ }
+ 
+-// NewWriter returns a new Writer.
++// NewWriter returns a new [Writer].
+ // Writes to the returned writer are compressed and written to w.
+ //
+-// It is the caller's responsibility to call Close on the Writer when done.
++// It is the caller's responsibility to call Close on the [Writer] when done.
+ // Writes may be buffered and not flushed until Close.
+ //
+ // Callers that wish to set the fields in Writer.Header must do so before
+@@ -51,11 +51,11 @@ func NewWriter(w io.Writer) *Writer {
+ 	return z
+ }
+ 
+-// NewWriterLevel is like NewWriter but specifies the compression level instead
+-// of assuming DefaultCompression.
++// NewWriterLevel is like [NewWriter] but specifies the compression level instead
++// of assuming [DefaultCompression].
+ //
+-// The compression level can be DefaultCompression, NoCompression, HuffmanOnly
+-// or any integer value between BestSpeed and BestCompression inclusive.
++// The compression level can be [DefaultCompression], [NoCompression], [HuffmanOnly]
++// or any integer value between [BestSpeed] and [BestCompression] inclusive.
+ // The error returned will be nil if the level is valid.
+ func NewWriterLevel(w io.Writer, level int) (*Writer, error) {
+ 	if level < HuffmanOnly || level > BestCompression {
+@@ -81,9 +81,9 @@ func (z *Writer) init(w io.Writer, level int) {
+ 	}
+ }
+ 
+-// Reset discards the Writer z's state and makes it equivalent to the
+-// result of its original state from NewWriter or NewWriterLevel, but
+-// writing to w instead. This permits reusing a Writer rather than
++// Reset discards the [Writer] z's state and makes it equivalent to the
++// result of its original state from [NewWriter] or [NewWriterLevel], but
++// writing to w instead. This permits reusing a [Writer] rather than
+ // allocating a new one.
+ func (z *Writer) Reset(w io.Writer) {
+ 	z.init(w, z.level)
+@@ -134,8 +134,8 @@ func (z *Writer) writeString(s string) (err error) {
+ 	return err
+ }
+ 
+-// Write writes a compressed form of p to the underlying io.Writer. The
+-// compressed bytes are not necessarily flushed until the Writer is closed.
++// Write writes a compressed form of p to the underlying [io.Writer]. The
++// compressed bytes are not necessarily flushed until the [Writer] is closed.
+ func (z *Writer) Write(p []byte) (int, error) {
+ 	if z.err != nil {
+ 		return 0, z.err
+@@ -222,9 +222,9 @@ func (z *Writer) Flush() error {
+ 	return z.err
+ }
+ 
+-// Close closes the Writer by flushing any unwritten data to the underlying
+-// io.Writer and writing the GZIP footer.
+-// It does not close the underlying io.Writer.
++// Close closes the [Writer] by flushing any unwritten data to the underlying
++// [io.Writer] and writing the GZIP footer.
++// It does not close the underlying [io.Writer].
+ func (z *Writer) Close() error {
+ 	if z.err != nil {
+ 		return z.err
+diff --git a/src/compress/lzw/reader.go b/src/compress/lzw/reader.go
+index 0866e2f0cb..2cdfaa11b2 100644
+--- a/src/compress/lzw/reader.go
++++ b/src/compress/lzw/reader.go
+@@ -118,7 +118,7 @@ func (r *Reader) readMSB() (uint16, error) {
+ 	return code, nil
+ }
+ 
+-// Read implements io.Reader, reading uncompressed bytes from its underlying Reader.
++// Read implements io.Reader, reading uncompressed bytes from its underlying [Reader].
+ func (r *Reader) Read(b []byte) (int, error) {
+ 	for {
+ 		if len(r.toRead) > 0 {
+@@ -225,22 +225,22 @@ loop:
+ 
+ var errClosed = errors.New("lzw: reader/writer is closed")
+ 
+-// Close closes the Reader and returns an error for any future read operation.
+-// It does not close the underlying io.Reader.
++// Close closes the [Reader] and returns an error for any future read operation.
++// It does not close the underlying [io.Reader].
+ func (r *Reader) Close() error {
+ 	r.err = errClosed // in case any Reads come along
+ 	return nil
+ }
+ 
+-// Reset clears the Reader's state and allows it to be reused again
+-// as a new Reader.
++// Reset clears the [Reader]'s state and allows it to be reused again
++// as a new [Reader].
+ func (r *Reader) Reset(src io.Reader, order Order, litWidth int) {
+ 	*r = Reader{}
+ 	r.init(src, order, litWidth)
+ }
+ 
+-// NewReader creates a new io.ReadCloser.
+-// Reads from the returned io.ReadCloser read and decompress data from r.
++// NewReader creates a new [io.ReadCloser].
++// Reads from the returned [io.ReadCloser] read and decompress data from r.
+ // If r does not also implement [io.ByteReader],
+ // the decompressor may read more data than necessary from r.
+ // It is the caller's responsibility to call Close on the ReadCloser when
+@@ -249,8 +249,8 @@ func (r *Reader) Reset(src io.Reader, order Order, litWidth int) {
+ // range [2,8] and is typically 8. It must equal the litWidth
+ // used during compression.
+ //
+-// It is guaranteed that the underlying type of the returned io.ReadCloser
+-// is a *Reader.
++// It is guaranteed that the underlying type of the returned [io.ReadCloser]
++// is a *[Reader].
+ func NewReader(r io.Reader, order Order, litWidth int) io.ReadCloser {
+ 	return newReader(r, order, litWidth)
+ }
+diff --git a/src/compress/lzw/writer.go b/src/compress/lzw/writer.go
+index cf06ea80c7..6072a40c68 100644
+--- a/src/compress/lzw/writer.go
++++ b/src/compress/lzw/writer.go
+@@ -32,7 +32,7 @@ const (
+ )
+ 
+ // Writer is an LZW compressor. It writes the compressed form of the data
+-// to an underlying writer (see NewWriter).
++// to an underlying writer (see [NewWriter]).
+ type Writer struct {
+ 	// w is the writer that compressed bytes are written to.
+ 	w writer
+@@ -195,7 +195,7 @@ loop:
+ 	return n, nil
+ }
+ 
+-// Close closes the Writer, flushing any pending output. It does not close
++// Close closes the [Writer], flushing any pending output. It does not close
+ // w's underlying writer.
+ func (w *Writer) Close() error {
+ 	if w.err != nil {
+@@ -238,22 +238,22 @@ func (w *Writer) Close() error {
+ 	return w.w.Flush()
+ }
+ 
+-// Reset clears the Writer's state and allows it to be reused again
+-// as a new Writer.
++// Reset clears the[ Writer]'s state and allows it to be reused again
++// as a new [Writer].
+ func (w *Writer) Reset(dst io.Writer, order Order, litWidth int) {
+ 	*w = Writer{}
+ 	w.init(dst, order, litWidth)
+ }
+ 
+-// NewWriter creates a new io.WriteCloser.
+-// Writes to the returned io.WriteCloser are compressed and written to w.
++// NewWriter creates a new [io.WriteCloser].
++// Writes to the returned [io.WriteCloser] are compressed and written to w.
+ // It is the caller's responsibility to call Close on the WriteCloser when
+ // finished writing.
+ // The number of bits to use for literal codes, litWidth, must be in the
+ // range [2,8] and is typically 8. Input bytes must be less than 1<<litWidth.
+ //
+-// It is guaranteed that the underlying type of the returned io.WriteCloser
+-// is a *Writer.
++// It is guaranteed that the underlying type of the returned [io.WriteCloser]
++// is a *[Writer].
+ func NewWriter(w io.Writer, order Order, litWidth int) io.WriteCloser {
+ 	return newWriter(w, order, litWidth)
+ }
+diff --git a/src/compress/zlib/reader.go b/src/compress/zlib/reader.go
+index 6b148bd29a..51d984aa3a 100644
+--- a/src/compress/zlib/reader.go
++++ b/src/compress/zlib/reader.go
+@@ -55,7 +55,7 @@ type reader struct {
+ 	scratch      [4]byte
+ }
+ 
+-// Resetter resets a ReadCloser returned by NewReader or NewReaderDict
++// Resetter resets a ReadCloser returned by [NewReader] or [NewReaderDict]
+ // to switch to a new underlying Reader. This permits reusing a ReadCloser
+ // instead of allocating a new one.
+ type Resetter interface {
+@@ -70,16 +70,16 @@ type Resetter interface {
+ // data than necessary from r.
+ // It is the caller's responsibility to call Close on the ReadCloser when done.
+ //
+-// The ReadCloser returned by NewReader also implements Resetter.
++// The ReadCloser returned by NewReader also implements [Resetter].
+ func NewReader(r io.Reader) (io.ReadCloser, error) {
+ 	return NewReaderDict(r, nil)
+ }
+ 
+-// NewReaderDict is like NewReader but uses a preset dictionary.
++// NewReaderDict is like [NewReader] but uses a preset dictionary.
+ // NewReaderDict ignores the dictionary if the compressed data does not refer to it.
+-// If the compressed data refers to a different dictionary, NewReaderDict returns ErrDictionary.
++// If the compressed data refers to a different dictionary, NewReaderDict returns [ErrDictionary].
+ //
+-// The ReadCloser returned by NewReaderDict also implements Resetter.
++// The ReadCloser returned by NewReaderDict also implements [Resetter].
+ func NewReaderDict(r io.Reader, dict []byte) (io.ReadCloser, error) {
+ 	z := new(reader)
+ 	err := z.Reset(r, dict)
+@@ -119,7 +119,7 @@ func (z *reader) Read(p []byte) (int, error) {
+ 	return n, io.EOF
+ }
+ 
+-// Calling Close does not close the wrapped io.Reader originally passed to NewReader.
++// Calling Close does not close the wrapped io.Reader originally passed to [NewReader].
+ // In order for the ZLIB checksum to be verified, the reader must be
+ // fully consumed until the io.EOF.
+ func (z *reader) Close() error {

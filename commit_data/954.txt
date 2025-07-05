@@ -7,7 +7,47 @@ Date:   Fri Oct 24 14:29:01 2008 -0700
     R=ken
     OCL=17815
     CL=17815
-
+---
  src/cmd/gc/dcl.c  | 7 +++++--
  src/cmd/gc/subr.c | 2 +-
  2 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index f836f3ba74..9f888484dc 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -279,8 +279,10 @@ addmethod(Node *n, Type *t, int local)
+ 			d = f;
+ 			continue;
+ 		}
+-		if(!eqtype(t, f->type, 0))
++		if(!eqtype(t, f->type, 0)) {
+ 			yyerror("method redeclared: %S of type %S", sf, st);
++			print("\t%T\n\t%T\n", f->type, t);
++		}
+ 		return;
+ 	}
+ 
+@@ -340,7 +342,8 @@ funchdr(Node *n)
+ 			if(!eqargs(n->type, on->type))
+ 				yyerror("forward declarations not the same: %S", s);
+ 		} else {
+-			yyerror("redeclare of function: %S", s);
++			yyerror("function redeclared: %S", s);
++			print("\t%T\n\t%T\n", on->type, n->type);
+ 			on = N;
+ 		}
+ 	}
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 4e1a9ea3a3..dfe5913d21 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1773,7 +1773,7 @@ eqtype(Type *t1, Type *t2, int d)
+ 			if(t1->etype != TSTRUCT || t2->etype != TSTRUCT)
+ 				return 0;
+ 
+-			if(!eqtype(t1->type, t2->type, 0))
++			if(!eqtype(t1, t2, 0))
+ 				return 0;
+ 
+ 			t1 = t1->down;

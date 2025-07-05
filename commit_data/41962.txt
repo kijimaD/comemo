@@ -18,7 +18,7 @@ Date:   Mon Oct 28 11:51:13 2019 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/execarchive.go        | 37 ++++++++++++++
  src/cmd/link/internal/ld/execarchive_noexec.go | 13 +++++
  src/cmd/link/internal/ld/ld_test.go            | 70 ++++++++++++++++++++++++++
@@ -26,3 +26,268 @@ Date:   Mon Oct 28 11:51:13 2019 -0400
  src/cmd/link/internal/ld/main.go               |  4 +-
  src/cmd/link/internal/ld/util.go               | 10 +++-
  6 files changed, 153 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/execarchive.go b/src/cmd/link/internal/ld/execarchive.go
+new file mode 100644
+index 0000000000..fe5cc40865
+--- /dev/null
++++ b/src/cmd/link/internal/ld/execarchive.go
+@@ -0,0 +1,37 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !wasm,!windows
++
++package ld
++
++import (
++	"os"
++	"os/exec"
++	"path/filepath"
++	"syscall"
++)
++
++const syscallExecSupported = true
++
++// execArchive invokes the archiver tool with syscall.Exec(), with
++// the expectation that this is the last thing that takes place
++// in the linking operation.
++func (ctxt *Link) execArchive(argv []string) {
++	var err error
++	argv0 := argv[0]
++	if filepath.Base(argv0) == argv0 {
++		argv0, err = exec.LookPath(argv0)
++		if err != nil {
++			Exitf("cannot find %s: %v", argv[0], err)
++		}
++	}
++	if ctxt.Debugvlog != 0 {
++		ctxt.Logf("invoking archiver with syscall.Exec()\n")
++	}
++	err = syscall.Exec(argv0, argv, os.Environ())
++	if err != nil {
++		Exitf("running %s failed: %v", argv[0], err)
++	}
++}
+diff --git a/src/cmd/link/internal/ld/execarchive_noexec.go b/src/cmd/link/internal/ld/execarchive_noexec.go
+new file mode 100644
+index 0000000000..a70dea9fda
+--- /dev/null
++++ b/src/cmd/link/internal/ld/execarchive_noexec.go
+@@ -0,0 +1,13 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build wasm windows
++
++package ld
++
++const syscallExecSupported = false
++
++func (ctxt *Link) execArchive(argv []string) {
++	panic("should never arrive here")
++}
+diff --git a/src/cmd/link/internal/ld/ld_test.go b/src/cmd/link/internal/ld/ld_test.go
+index 0816429316..1ffcadece9 100644
+--- a/src/cmd/link/internal/ld/ld_test.go
++++ b/src/cmd/link/internal/ld/ld_test.go
+@@ -5,10 +5,13 @@
+ package ld
+ 
+ import (
++	"fmt"
+ 	"internal/testenv"
+ 	"io/ioutil"
+ 	"os"
+ 	"os/exec"
++	"path/filepath"
++	"runtime"
+ 	"strings"
+ 	"testing"
+ )
+@@ -69,3 +72,70 @@ func TestUndefinedRelocErrors(t *testing.T) {
+ 		t.Errorf("unexpected error: %s (x%d)", unexpected, n)
+ 	}
+ }
++
++const carchiveSrcText = `
++package main
++
++// int fortytwo;
++import "C"
++
++var v int
++
++//export GoFunc
++func GoFunc() {
++	v = int(C.fortytwo)
++}
++
++func main() {
++}
++`
++
++func TestArchiveBuildInvokeWithExec(t *testing.T) {
++	t.Parallel()
++	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
++
++	// run this test on just a small set of platforms (no need to test it
++	// across the board given the nature of the test).
++	pair := runtime.GOOS + "-" + runtime.GOARCH
++	switch pair {
++	case "darwin-amd64", "darwin-arm64", "linux-amd64", "freebsd-amd64":
++	default:
++		t.Skip("no need for test on " + pair)
++	}
++	switch runtime.GOOS {
++	case "openbsd", "windows":
++		t.Skip("c-archive unsupported")
++	}
++	dir, err := ioutil.TempDir("", "go-build")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(dir)
++
++	srcfile := filepath.Join(dir, "test.go")
++	arfile := filepath.Join(dir, "test.a")
++	if err := ioutil.WriteFile(srcfile, []byte(carchiveSrcText), 0666); err != nil {
++		t.Fatal(err)
++	}
++
++	ldf := fmt.Sprintf("-ldflags=-v -tmpdir=%s", dir)
++	argv := []string{"build", "-buildmode=c-archive", "-o", arfile, ldf, srcfile}
++	out, err := exec.Command(testenv.GoToolPath(t), argv...).CombinedOutput()
++	if err != nil {
++		t.Fatalf("build failure: %s\n%s\n", err, string(out))
++	}
++
++	found := false
++	const want = "invoking archiver with syscall.Exec"
++	for _, l := range strings.Split(string(out), "\n") {
++		if strings.HasPrefix(l, want) {
++			found = true
++			break
++		}
++	}
++
++	if !found {
++		t.Errorf("expected '%s' in -v output, got:\n%s\n", want, string(out))
++	}
++}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index f1b190deaf..7f4d6412c7 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -294,13 +294,16 @@ func libinit(ctxt *Link) {
+ 	}
+ }
+ 
+-func errorexit() {
+-	if nerrors != 0 {
+-		Exit(2)
+-	}
+-	if checkStrictDups > 1 && strictDupMsgCount > 0 {
++func exitIfErrors() {
++	if nerrors != 0 || checkStrictDups > 1 && strictDupMsgCount > 0 {
++		mayberemoveoutfile()
+ 		Exit(2)
+ 	}
++
++}
++
++func errorexit() {
++	exitIfErrors()
+ 	Exit(0)
+ }
+ 
+@@ -1021,6 +1024,7 @@ func hostlinksetup(ctxt *Link) {
+ 			log.Fatal(err)
+ 		}
+ 		*flagTmpdir = dir
++		ownTmpDir = true
+ 		AtExit(func() {
+ 			ctxt.Out.f.Close()
+ 			os.RemoveAll(*flagTmpdir)
+@@ -1114,6 +1118,8 @@ func (ctxt *Link) archive() {
+ 		return
+ 	}
+ 
++	exitIfErrors()
++
+ 	if *flagExtar == "" {
+ 		*flagExtar = "ar"
+ 	}
+@@ -1140,6 +1146,18 @@ func (ctxt *Link) archive() {
+ 		ctxt.Logf("archive: %s\n", strings.Join(argv, " "))
+ 	}
+ 
++	// If supported, use syscall.Exec() to invoke the archive command,
++	// which should be the final remaining step needed for the link.
++	// This will reduce peak RSS for the link (and speed up linking of
++	// large applications), since when the archive command runs we
++	// won't be holding onto all of the linker's live memory.
++	if syscallExecSupported && !ownTmpDir {
++		runAtExitFuncs()
++		ctxt.execArchive(argv)
++		panic("should not get here")
++	}
++
++	// Otherwise invoke 'ar' in the usual way (fork + exec).
+ 	if out, err := exec.Command(argv[0], argv[1:]...).CombinedOutput(); err != nil {
+ 		Exitf("running %s failed: %v\n%s", argv[0], err, out)
+ 	}
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index b62d04af2d..d37ef36e66 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -46,6 +46,7 @@ import (
+ var (
+ 	pkglistfornote []byte
+ 	windowsgui     bool // writes a "GUI binary" instead of a "console binary"
++	ownTmpDir      bool // set to true if tmp dir created by linker (e.g. no -tmpdir)
+ )
+ 
+ func init() {
+@@ -272,13 +273,12 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 
+ 	ctxt.undef()
+ 	ctxt.hostlink()
+-	ctxt.archive()
+ 	if ctxt.Debugvlog != 0 {
+ 		ctxt.Logf("%d symbols\n", len(ctxt.Syms.Allsym))
+ 		ctxt.Logf("%d liveness data\n", liveness)
+ 	}
+-
+ 	ctxt.Bso.Flush()
++	ctxt.archive()
+ 
+ 	errorexit()
+ }
+diff --git a/src/cmd/link/internal/ld/util.go b/src/cmd/link/internal/ld/util.go
+index 5ed0d72d7f..8d041677f0 100644
+--- a/src/cmd/link/internal/ld/util.go
++++ b/src/cmd/link/internal/ld/util.go
+@@ -17,11 +17,17 @@ func AtExit(f func()) {
+ 	atExitFuncs = append(atExitFuncs, f)
+ }
+ 
+-// Exit exits with code after executing all atExitFuncs.
+-func Exit(code int) {
++// runAtExitFuncs runs the queued set of AtExit functions.
++func runAtExitFuncs() {
+ 	for i := len(atExitFuncs) - 1; i >= 0; i-- {
+ 		atExitFuncs[i]()
+ 	}
++	atExitFuncs = nil
++}
++
++// Exit exits with code after executing all atExitFuncs.
++func Exit(code int) {
++	runAtExitFuncs()
+ 	os.Exit(code)
+ }
+ 

@@ -7,9 +7,121 @@ Date:   Sun Jan 24 22:36:26 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/193079
-
+---
  src/cmd/gc/export.c | 51 ---------------------------------------------------
  src/cmd/gc/go.h     |  1 -
  src/cmd/gc/go.y     |  1 -
  src/cmd/gc/lex.c    | 12 +++++++++++-
  4 files changed, 11 insertions(+), 54 deletions(-)
+
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 16e6097953..ec1c135d82 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -384,54 +384,3 @@ importmethod(Sym *s, Type *t)
+ 	addmethod(s, t, 0);
+ }
+ 
+-/*
+- * ******* import *******
+- */
+-
+-void
+-checkimports(void)
+-{
+-	Sym *s;
+-	Type *t, *t1;
+-	uint32 h;
+-	int et;
+-
+-return;
+-
+-	for(h=0; h<NHASH; h++)
+-	for(s = hash[h]; s != S; s = s->link) {
+-		if(s->def == N || s->def->op != OTYPE)
+-			continue;
+-		t = s->def->type;
+-		if(t == T)
+-			continue;
+-
+-		et = t->etype;
+-		switch(t->etype) {
+-		case TFORW:
+-			print("ci-1: %S %lT\n", s, t);
+-			break;
+-
+-		case TPTR32:
+-		case TPTR64:
+-			if(t->type == T) {
+-				print("ci-2: %S %lT\n", s, t);
+-				break;
+-			}
+-
+-			t1 = t->type;
+-			if(t1 == T) {
+-				print("ci-3: %S %lT\n", s, t1);
+-				break;
+-			}
+-
+-			et = t1->etype;
+-			if(et == TFORW) {
+-				print("%L: ci-4: %S %lT\n", lineno, s, t);
+-				break;
+-			}
+-			break;
+-		}
+-	}
+-}
+-
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index cb0b1a119e..ac9e5c6f3f 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1025,7 +1025,6 @@ void	importconst(Sym *s, Type *t, Node *v);
+ void	importmethod(Sym *s, Type *t);
+ void	importtype(Type *s, Type *t);
+ void	importvar(Sym *s, Type *t, int ctxt);
+-void	checkimports(void);
+ Type*	pkgtype(Sym*);
+ Sym*	importsym(Sym*, int);
+ 
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index bc543d5e34..8882f7f2e5 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -253,7 +253,6 @@ import_there:
+ 	hidden_import_list '$' '$'
+ 	{
+ 		resumecheckwidth();
+-		checkimports();
+ 		unimportfile();
+ 	}
+ 
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index efbb11631d..03f5b473c4 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -27,12 +27,22 @@ main(int argc, char *argv[])
+ 	localpkg->prefix = "\"\"";
+ 
+ 	builtinpkg = mkpkg(strlit("go.builtin"));
++
+ 	gostringpkg = mkpkg(strlit("go.string"));
+-	gostringpkg->prefix = "go.string";
++	gostringpkg->name = "go.string";
++	gostringpkg->prefix = "go.string";	// not go%2estring
++
+ 	runtimepkg = mkpkg(strlit("runtime"));
++	runtimepkg->name = "runtime";
++
+ 	stringpkg = mkpkg(strlit("string"));
++	stringpkg->name = "string";
++
+ 	typepkg = mkpkg(strlit("type"));
++	typepkg->name = "type";
++
+ 	unsafepkg = mkpkg(strlit("unsafe"));
++	unsafepkg->name = "unsafe";
+ 
+ 	goroot = getgoroot();
+ 	goos = getgoos();

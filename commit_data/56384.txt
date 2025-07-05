@@ -18,7 +18,7 @@ Date:   Mon May 1 17:38:08 2023 -0700
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/archive/tar/common.go                |  4 ++++
  src/archive/zip/reader.go                |  4 ++++
  src/archive/zip/struct.go                |  4 ++++
@@ -38,3 +38,308 @@ Date:   Mon May 1 17:38:08 2023 -0700
  src/path/filepath/path_test.go           |  4 ++++
  src/testing/fstest/mapfs.go              |  4 ++++
  18 files changed, 83 insertions(+)
+
+diff --git a/src/archive/tar/common.go b/src/archive/tar/common.go
+index 38216ac13f..dc9d350eb7 100644
+--- a/src/archive/tar/common.go
++++ b/src/archive/tar/common.go
+@@ -607,6 +607,10 @@ func (fi headerFileInfo) Mode() (mode fs.FileMode) {
+ 	return mode
+ }
+ 
++func (fi headerFileInfo) String() string {
++	return fs.FormatFileInfo(fi)
++}
++
+ // sysStat, if non-nil, populates h from system-dependent fields of fi.
+ var sysStat func(fi fs.FileInfo, h *Header) error
+ 
+diff --git a/src/archive/zip/reader.go b/src/archive/zip/reader.go
+index c0e8d97e4e..1fde1decc4 100644
+--- a/src/archive/zip/reader.go
++++ b/src/archive/zip/reader.go
+@@ -780,6 +780,10 @@ func (f *fileListEntry) ModTime() time.Time {
+ 
+ func (f *fileListEntry) Info() (fs.FileInfo, error) { return f, nil }
+ 
++func (f *fileListEntry) String() string {
++	return fs.FormatDirEntry(f)
++}
++
+ // toValidName coerces name to be a valid name for fs.FS.Open.
+ func toValidName(name string) string {
+ 	name = strings.ReplaceAll(name, `\`, `/`)
+diff --git a/src/archive/zip/struct.go b/src/archive/zip/struct.go
+index 25ce6f5411..9a8e67cc69 100644
+--- a/src/archive/zip/struct.go
++++ b/src/archive/zip/struct.go
+@@ -190,6 +190,10 @@ func (fi headerFileInfo) Sys() any          { return fi.fh }
+ 
+ func (fi headerFileInfo) Info() (fs.FileInfo, error) { return fi, nil }
+ 
++func (fi headerFileInfo) String() string {
++	return fs.FormatFileInfo(fi)
++}
++
+ // FileInfoHeader creates a partially-populated FileHeader from an
+ // fs.FileInfo.
+ // Because fs.FileInfo's Name method returns only the base name of
+diff --git a/src/cmd/distpack/archive.go b/src/cmd/distpack/archive.go
+index 2fdc006b55..730233765c 100644
+--- a/src/cmd/distpack/archive.go
++++ b/src/cmd/distpack/archive.go
+@@ -48,6 +48,10 @@ func (i fileInfo) IsDir() bool        { return false }
+ func (i fileInfo) Size() int64        { return i.f.Size }
+ func (i fileInfo) Sys() any           { return nil }
+ 
++func (i fileInfo) String() string {
++	return fs.FormatFileInfo(i)
++}
++
+ // NewArchive returns a new Archive containing all the files in the directory dir.
+ // The archive can be amended afterward using methods like Add and Filter.
+ func NewArchive(dir string) (*Archive, error) {
+diff --git a/src/cmd/go/internal/fsys/fsys.go b/src/cmd/go/internal/fsys/fsys.go
+index c371610a4d..b83c5a3202 100644
+--- a/src/cmd/go/internal/fsys/fsys.go
++++ b/src/cmd/go/internal/fsys/fsys.go
+@@ -583,6 +583,10 @@ func (f fakeFile) ModTime() time.Time { return f.real.ModTime() }
+ func (f fakeFile) IsDir() bool        { return f.real.IsDir() }
+ func (f fakeFile) Sys() any           { return f.real.Sys() }
+ 
++func (f fakeFile) String() string {
++	return fs.FormatFileInfo(f)
++}
++
+ // missingFile provides an fs.FileInfo for an overlaid file where the
+ // destination file in the overlay doesn't exist. It returns zero values
+ // for the fileInfo methods other than Name, set to the file's name, and Mode
+@@ -596,6 +600,10 @@ func (f missingFile) ModTime() time.Time { return time.Unix(0, 0) }
+ func (f missingFile) IsDir() bool        { return false }
+ func (f missingFile) Sys() any           { return nil }
+ 
++func (f missingFile) String() string {
++	return fs.FormatFileInfo(f)
++}
++
+ // fakeDir provides an fs.FileInfo implementation for directories that are
+ // implicitly created by overlaid files. Each directory in the
+ // path of an overlaid file is considered to exist in the overlay filesystem.
+@@ -608,6 +616,10 @@ func (f fakeDir) ModTime() time.Time { return time.Unix(0, 0) }
+ func (f fakeDir) IsDir() bool        { return true }
+ func (f fakeDir) Sys() any           { return nil }
+ 
++func (f fakeDir) String() string {
++	return fs.FormatFileInfo(f)
++}
++
+ // Glob is like filepath.Glob but uses the overlay file system.
+ func Glob(pattern string) (matches []string, err error) {
+ 	Trace("Glob", pattern)
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index 047bd71a62..002efcc517 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -1155,6 +1155,10 @@ func (fi dataFileInfo) ModTime() time.Time { return time.Time{} }
+ func (fi dataFileInfo) IsDir() bool        { return false }
+ func (fi dataFileInfo) Sys() any           { return nil }
+ 
++func (fi dataFileInfo) String() string {
++	return fs.FormatFileInfo(fi)
++}
++
+ // hasPathPrefix reports whether the path s begins with the
+ // elements in prefix.
+ func hasPathPrefix(s, prefix string) bool {
+diff --git a/src/cmd/gofmt/long_test.go b/src/cmd/gofmt/long_test.go
+index 2ee5174b96..8db348a50f 100644
+--- a/src/cmd/gofmt/long_test.go
++++ b/src/cmd/gofmt/long_test.go
+@@ -179,3 +179,7 @@ func (d *statDirEntry) Name() string               { return d.info.Name() }
+ func (d *statDirEntry) IsDir() bool                { return d.info.IsDir() }
+ func (d *statDirEntry) Type() fs.FileMode          { return d.info.Mode().Type() }
+ func (d *statDirEntry) Info() (fs.FileInfo, error) { return d.info, nil }
++
++func (d *statDirEntry) String() string {
++	return fs.FormatDirEntry(d)
++}
+diff --git a/src/cmd/pack/pack_test.go b/src/cmd/pack/pack_test.go
+index 309139aa4d..c3a63424dd 100644
+--- a/src/cmd/pack/pack_test.go
++++ b/src/cmd/pack/pack_test.go
+@@ -497,6 +497,10 @@ func (f *FakeFile) Sys() any {
+ 	return nil
+ }
+ 
++func (f *FakeFile) String() string {
++	return fs.FormatFileInfo(f)
++}
++
+ // Special helpers.
+ 
+ func (f *FakeFile) Entry() *archive.Entry {
+diff --git a/src/embed/embed.go b/src/embed/embed.go
+index 66934a8974..8d155ebd55 100644
+--- a/src/embed/embed.go
++++ b/src/embed/embed.go
+@@ -243,6 +243,10 @@ func (f *file) Mode() fs.FileMode {
+ 	return 0444
+ }
+ 
++func (f *file) String() string {
++	return fs.FormatFileInfo(f)
++}
++
+ // dotFile is a file for the root directory,
+ // which is omitted from the files list in a FS.
+ var dotFile = &file{name: "./"}
+diff --git a/src/io/fs/readdir.go b/src/io/fs/readdir.go
+index 2b10ddb0a3..42aca49516 100644
+--- a/src/io/fs/readdir.go
++++ b/src/io/fs/readdir.go
+@@ -67,6 +67,10 @@ func (di dirInfo) Name() string {
+ 	return di.fileInfo.Name()
+ }
+ 
++func (di dirInfo) String() string {
++	return FormatDirEntry(di)
++}
++
+ // FileInfoToDirEntry returns a DirEntry that returns information from info.
+ // If info is nil, FileInfoToDirEntry returns nil.
+ func FileInfoToDirEntry(info FileInfo) DirEntry {
+diff --git a/src/io/fs/walk.go b/src/io/fs/walk.go
+index cff26104f0..baf559ebca 100644
+--- a/src/io/fs/walk.go
++++ b/src/io/fs/walk.go
+@@ -135,3 +135,7 @@ func (d *statDirEntry) Name() string            { return d.info.Name() }
+ func (d *statDirEntry) IsDir() bool             { return d.info.IsDir() }
+ func (d *statDirEntry) Type() FileMode          { return d.info.Mode().Type() }
+ func (d *statDirEntry) Info() (FileInfo, error) { return d.info, nil }
++
++func (d *statDirEntry) String() string {
++	return FormatDirEntry(d)
++}
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index 3f0f864b19..e37e0f04c9 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -768,6 +768,10 @@ func (f *fakeFileInfo) Mode() fs.FileMode {
+ 	return 0644
+ }
+ 
++func (f *fakeFileInfo) String() string {
++	return fs.FormatFileInfo(f)
++}
++
+ type fakeFile struct {
+ 	io.ReadSeeker
+ 	fi     *fakeFileInfo
+diff --git a/src/os/dir_plan9.go b/src/os/dir_plan9.go
+index 8f6b0d6109..6ea5940e71 100644
+--- a/src/os/dir_plan9.go
++++ b/src/os/dir_plan9.go
+@@ -6,6 +6,7 @@ package os
+ 
+ import (
+ 	"io"
++	"io/fs"
+ 	"syscall"
+ )
+ 
+@@ -79,3 +80,7 @@ func (de dirEntry) Name() string            { return de.fs.Name() }
+ func (de dirEntry) IsDir() bool             { return de.fs.IsDir() }
+ func (de dirEntry) Type() FileMode          { return de.fs.Mode().Type() }
+ func (de dirEntry) Info() (FileInfo, error) { return de.fs, nil }
++
++func (de dirEntry) String() string {
++	return fs.FormatDirEntry(de)
++}
+diff --git a/src/os/dir_windows.go b/src/os/dir_windows.go
+index ab120546c0..cee05cc729 100644
+--- a/src/os/dir_windows.go
++++ b/src/os/dir_windows.go
+@@ -7,6 +7,7 @@ package os
+ import (
+ 	"internal/syscall/windows"
+ 	"io"
++	"io/fs"
+ 	"runtime"
+ 	"sync"
+ 	"syscall"
+@@ -140,3 +141,7 @@ func (de dirEntry) Name() string            { return de.fs.Name() }
+ func (de dirEntry) IsDir() bool             { return de.fs.IsDir() }
+ func (de dirEntry) Type() FileMode          { return de.fs.Mode().Type() }
+ func (de dirEntry) Info() (FileInfo, error) { return de.fs, nil }
++
++func (de dirEntry) String() string {
++	return fs.FormatDirEntry(de)
++}
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index 4962e9077d..a14295cfff 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -9,6 +9,7 @@ package os
+ import (
+ 	"internal/poll"
+ 	"internal/syscall/unix"
++	"io/fs"
+ 	"runtime"
+ 	"syscall"
+ )
+@@ -432,6 +433,10 @@ func (d *unixDirent) Info() (FileInfo, error) {
+ 	return lstat(d.parent + "/" + d.name)
+ }
+ 
++func (d *unixDirent) String() string {
++	return fs.FormatDirEntry(d)
++}
++
+ func newUnixDirent(parent, name string, typ FileMode) (DirEntry, error) {
+ 	ude := &unixDirent{
+ 		parent: parent,
+diff --git a/src/path/filepath/path.go b/src/path/filepath/path.go
+index 8382ad5f3b..9772de4342 100644
+--- a/src/path/filepath/path.go
++++ b/src/path/filepath/path.go
+@@ -553,6 +553,10 @@ func (d *statDirEntry) IsDir() bool                { return d.info.IsDir() }
+ func (d *statDirEntry) Type() fs.FileMode          { return d.info.Mode().Type() }
+ func (d *statDirEntry) Info() (fs.FileInfo, error) { return d.info, nil }
+ 
++func (d *statDirEntry) String() string {
++	return fs.FormatDirEntry(d)
++}
++
+ // Walk walks the file tree rooted at root, calling fn for each file or
+ // directory in the tree, including root.
+ //
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index 0c73e288e5..469a107d14 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -571,6 +571,10 @@ func (d *statDirEntry) IsDir() bool                { return d.info.IsDir() }
+ func (d *statDirEntry) Type() fs.FileMode          { return d.info.Mode().Type() }
+ func (d *statDirEntry) Info() (fs.FileInfo, error) { return d.info, nil }
+ 
++func (d *statDirEntry) String() string {
++	return fs.FormatDirEntry(d)
++}
++
+ func TestWalkDir(t *testing.T) {
+ 	testWalk(t, filepath.WalkDir, 2)
+ }
+diff --git a/src/testing/fstest/mapfs.go b/src/testing/fstest/mapfs.go
+index 4595b7313d..a0b1f65668 100644
+--- a/src/testing/fstest/mapfs.go
++++ b/src/testing/fstest/mapfs.go
+@@ -159,6 +159,10 @@ func (i *mapFileInfo) IsDir() bool                { return i.f.Mode&fs.ModeDir !
+ func (i *mapFileInfo) Sys() any                   { return i.f.Sys }
+ func (i *mapFileInfo) Info() (fs.FileInfo, error) { return i, nil }
+ 
++func (i *mapFileInfo) String() string {
++	return fs.FormatFileInfo(i)
++}
++
+ // An openMapFile is a regular (non-directory) fs.File open for reading.
+ type openMapFile struct {
+ 	path string

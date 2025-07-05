@@ -24,7 +24,7 @@ Date:   Tue Nov 26 15:33:37 2019 -0500
     Reviewed-by: Michael Munday <mike.munday@ibm.com>
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/s390x/ssa.go        |  2 +
  src/cmd/compile/internal/ssa/gen/S390X.rules |  6 ++
  src/cmd/compile/internal/ssa/gen/S390XOps.go |  7 ++-
@@ -32,3 +32,222 @@ Date:   Tue Nov 26 15:33:37 2019 -0500
  src/cmd/compile/internal/ssa/rewriteS390X.go | 84 ++++++++++++++++++++++++++++
  test/codegen/floats.go                       | 10 ++++
  6 files changed, 129 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index 2de3ef4b35..becc1b6f91 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -605,6 +605,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Reg = v.Args[0].Reg()
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
++	case ssa.OpS390XLTDBR, ssa.OpS390XLTEBR:
++		opregreg(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[0].Reg())
+ 	case ssa.OpS390XInvertFlags:
+ 		v.Fatalf("InvertFlags should never make it to codegen %v", v.LongString())
+ 	case ssa.OpS390XFlagEQ, ssa.OpS390XFlagLT, ssa.OpS390XFlagGT, ssa.OpS390XFlagOV:
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index 5cff8df3a4..2084179edc 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -1220,6 +1220,12 @@
+ (FSUB (FMUL y z) x) -> (FMSUB x y z)
+ (FSUBS (FMULS y z) x) -> (FMSUBS x y z)
+ 
++// Convert floating point comparisons against zero into 'load and test' instructions.
++(FCMP x (FMOVDconst [c])) && auxTo64F(c) == 0 -> (LTDBR x)
++(FCMPS x (FMOVSconst [c])) && auxTo32F(c) == 0 -> (LTEBR x)
++(FCMP (FMOVDconst [c]) x) && auxTo64F(c) == 0 -> (InvertFlags (LTDBR <v.Type> x))
++(FCMPS (FMOVSconst [c]) x) && auxTo32F(c) == 0 -> (InvertFlags (LTEBR <v.Type> x))
++
+ // Fold memory operations into operations.
+ // Exclude global data (SB) because these instructions cannot handle relative addresses.
+ // TODO(mundaym): use LARL in the assembler to handle SB?
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index 819046d30c..283a0fa6b5 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -181,6 +181,7 @@ func init() {
+ 		fpgp        = regInfo{inputs: fponly, outputs: gponly}
+ 		gpfp        = regInfo{inputs: gponly, outputs: fponly}
+ 		fp11        = regInfo{inputs: fponly, outputs: fponly}
++		fp1flags    = regInfo{inputs: []regMask{fp}}
+ 		fp11clobber = regInfo{inputs: fponly, outputs: fponly}
+ 		fp2flags    = regInfo{inputs: []regMask{fp, fp}}
+ 
+@@ -324,8 +325,10 @@ func init() {
+ 		{name: "CMPUconst", argLength: 1, reg: gp1flags, asm: "CMPU", typ: "Flags", aux: "Int32"},   // arg0 compare to auxint
+ 		{name: "CMPWUconst", argLength: 1, reg: gp1flags, asm: "CMPWU", typ: "Flags", aux: "Int32"}, // arg0 compare to auxint
+ 
+-		{name: "FCMPS", argLength: 2, reg: fp2flags, asm: "CEBR", typ: "Flags"}, // arg0 compare to arg1, f32
+-		{name: "FCMP", argLength: 2, reg: fp2flags, asm: "FCMPU", typ: "Flags"}, // arg0 compare to arg1, f64
++		{name: "FCMPS", argLength: 2, reg: fp2flags, asm: "CEBR", typ: "Flags"},  // arg0 compare to arg1, f32
++		{name: "FCMP", argLength: 2, reg: fp2flags, asm: "FCMPU", typ: "Flags"},  // arg0 compare to arg1, f64
++		{name: "LTDBR", argLength: 1, reg: fp1flags, asm: "LTDBR", typ: "Flags"}, // arg0 compare to 0, f64
++		{name: "LTEBR", argLength: 1, reg: fp1flags, asm: "LTEBR", typ: "Flags"}, // arg0 compare to 0, f32
+ 
+ 		{name: "SLD", argLength: 2, reg: sh21, asm: "SLD"},                   // arg0 << arg1, shift amount is mod 64
+ 		{name: "SLW", argLength: 2, reg: sh21, asm: "SLW"},                   // arg0 << arg1, shift amount is mod 32
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index a6643cb1fc..e2b83e20b3 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2094,6 +2094,8 @@ const (
+ 	OpS390XCMPWUconst
+ 	OpS390XFCMPS
+ 	OpS390XFCMP
++	OpS390XLTDBR
++	OpS390XLTEBR
+ 	OpS390XSLD
+ 	OpS390XSLW
+ 	OpS390XSLDconst
+@@ -27998,6 +28000,26 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "LTDBR",
++		argLen: 1,
++		asm:    s390x.ALTDBR,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
++	{
++		name:   "LTEBR",
++		argLen: 1,
++		asm:    s390x.ALTEBR,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
+ 	{
+ 		name:   "SLD",
+ 		argLen: 2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 7c750574bc..7dd2e7633b 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -612,6 +612,10 @@ func rewriteValueS390X(v *Value) bool {
+ 		return rewriteValueS390X_OpS390XFADD(v)
+ 	case OpS390XFADDS:
+ 		return rewriteValueS390X_OpS390XFADDS(v)
++	case OpS390XFCMP:
++		return rewriteValueS390X_OpS390XFCMP(v)
++	case OpS390XFCMPS:
++		return rewriteValueS390X_OpS390XFCMPS(v)
+ 	case OpS390XFMOVDload:
+ 		return rewriteValueS390X_OpS390XFMOVDload(v)
+ 	case OpS390XFMOVDloadidx:
+@@ -7230,6 +7234,86 @@ func rewriteValueS390X_OpS390XFADDS(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueS390X_OpS390XFCMP(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	b := v.Block
++	// match: (FCMP x (FMOVDconst [c]))
++	// cond: auxTo64F(c) == 0
++	// result: (LTDBR x)
++	for {
++		x := v_0
++		if v_1.Op != OpS390XFMOVDconst {
++			break
++		}
++		c := v_1.AuxInt
++		if !(auxTo64F(c) == 0) {
++			break
++		}
++		v.reset(OpS390XLTDBR)
++		v.AddArg(x)
++		return true
++	}
++	// match: (FCMP (FMOVDconst [c]) x)
++	// cond: auxTo64F(c) == 0
++	// result: (InvertFlags (LTDBR <v.Type> x))
++	for {
++		if v_0.Op != OpS390XFMOVDconst {
++			break
++		}
++		c := v_0.AuxInt
++		x := v_1
++		if !(auxTo64F(c) == 0) {
++			break
++		}
++		v.reset(OpS390XInvertFlags)
++		v0 := b.NewValue0(v.Pos, OpS390XLTDBR, v.Type)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++	return false
++}
++func rewriteValueS390X_OpS390XFCMPS(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	b := v.Block
++	// match: (FCMPS x (FMOVSconst [c]))
++	// cond: auxTo32F(c) == 0
++	// result: (LTEBR x)
++	for {
++		x := v_0
++		if v_1.Op != OpS390XFMOVSconst {
++			break
++		}
++		c := v_1.AuxInt
++		if !(auxTo32F(c) == 0) {
++			break
++		}
++		v.reset(OpS390XLTEBR)
++		v.AddArg(x)
++		return true
++	}
++	// match: (FCMPS (FMOVSconst [c]) x)
++	// cond: auxTo32F(c) == 0
++	// result: (InvertFlags (LTEBR <v.Type> x))
++	for {
++		if v_0.Op != OpS390XFMOVSconst {
++			break
++		}
++		c := v_0.AuxInt
++		x := v_1
++		if !(auxTo32F(c) == 0) {
++			break
++		}
++		v.reset(OpS390XInvertFlags)
++		v0 := b.NewValue0(v.Pos, OpS390XLTEBR, v.Type)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++	return false
++}
+ func rewriteValueS390X_OpS390XFMOVDload(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+diff --git a/test/codegen/floats.go b/test/codegen/floats.go
+index 7ec3654981..117805a2c7 100644
+--- a/test/codegen/floats.go
++++ b/test/codegen/floats.go
+@@ -122,6 +122,16 @@ func Cmp(f float64) bool {
+ 	return f > 4 || f < -4
+ }
+ 
++func CmpZero64(f float64) bool {
++	// s390x:"LTDBR",-"FCMPU"
++	return f <= 0
++}
++
++func CmpZero32(f float32) bool {
++	// s390x:"LTEBR",-"CEBR"
++	return f <= 0
++}
++
+ // ---------------- //
+ //    Non-floats    //
+ // ---------------- //

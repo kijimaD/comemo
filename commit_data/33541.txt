@@ -15,9 +15,74 @@ Date:   Tue Jun 27 19:29:59 2017 -0400
     Change-Id: If6e52c59eab438599d641ecf6f110ebafca740a9
     Reviewed-on: https://go-review.googlesource.com/46912
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/const.go     |  2 +-
  src/cmd/compile/internal/gc/typecheck.go |  2 +-
  test/fixedbugs/issue20812.go             | 15 +++++++++++++++
  test/rename1.go                          |  4 ++--
  4 files changed, 19 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index a465d4a7bb..c6a679ed78 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -408,7 +408,7 @@ func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
+ bad:
+ 	if !n.Diag() {
+ 		if !t.Broke() {
+-			yyerror("cannot convert %v to type %v", n, t)
++			yyerror("cannot convert %L to type %v", n, t)
+ 		}
+ 		n.SetDiag(true)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index b809a8bee7..2f30581cb8 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1760,7 +1760,7 @@ OpSwitch:
+ 		var why string
+ 		n.Op = convertop(t, n.Type, &why)
+ 		if n.Op == 0 {
+-			if !n.Diag() && !n.Type.Broke() {
++			if !n.Diag() && !n.Type.Broke() && !n.Left.Diag() {
+ 				yyerror("cannot convert %L to type %v%s", n.Left, n.Type, why)
+ 				n.SetDiag(true)
+ 			}
+diff --git a/test/fixedbugs/issue20812.go b/test/fixedbugs/issue20812.go
+new file mode 100644
+index 0000000000..0175eede17
+--- /dev/null
++++ b/test/fixedbugs/issue20812.go
+@@ -0,0 +1,15 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f() {
++	_ = int("1")      // ERROR "cannot convert"
++	_ = bool(0)       // ERROR "cannot convert"
++	_ = bool("false") // ERROR "cannot convert"
++	_ = int(false)    // ERROR "cannot convert"
++	_ = string(true)  // ERROR "cannot convert"
++}
+diff --git a/test/rename1.go b/test/rename1.go
+index a71e5b2e53..568aa13d44 100644
+--- a/test/rename1.go
++++ b/test/rename1.go
+@@ -10,10 +10,10 @@
+ package main
+ 
+ func main() {
+-	var n byte       // ERROR "not a type|expected type"
++	var n byte         // ERROR "not a type|expected type"
+ 	var y = float32(0) // ERROR "cannot call|expected function"
+ 	const (
+-		a = 1 + iota // ERROR "string|incompatible types" "convert iota"
++		a = 1 + iota // ERROR "invalid operation|incompatible types" "cannot convert iota"
+ 	)
+ 
+ }

@@ -9,7 +9,58 @@ Date:   Tue Feb 1 17:48:42 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4127045
-
+---
  src/pkg/regexp/all_test.go  | 8 ++++----
  src/pkg/regexp/find_test.go | 4 ++--
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/regexp/all_test.go b/src/pkg/regexp/all_test.go
+index aed7330645..c7ee4c8797 100644
+--- a/src/pkg/regexp/all_test.go
++++ b/src/pkg/regexp/all_test.go
+@@ -316,9 +316,9 @@ func TestNumSubexp(t *testing.T) {
+ }
+ 
+ func BenchmarkLiteral(b *testing.B) {
+-	x := strings.Repeat("x", 50)
++	x := strings.Repeat("x", 50) + "y"
+ 	b.StopTimer()
+-	re := MustCompile(x)
++	re := MustCompile("y")
+ 	b.StartTimer()
+ 	for i := 0; i < b.N; i++ {
+ 		if !re.MatchString(x) {
+@@ -329,9 +329,9 @@ func BenchmarkLiteral(b *testing.B) {
+ }
+ 
+ func BenchmarkNotLiteral(b *testing.B) {
+-	x := strings.Repeat("x", 49)
++	x := strings.Repeat("x", 50) + "y"
+ 	b.StopTimer()
+-	re := MustCompile("^" + x)
++	re := MustCompile(".y")
+ 	b.StartTimer()
+ 	for i := 0; i < b.N; i++ {
+ 		if !re.MatchString(x) {
+diff --git a/src/pkg/regexp/find_test.go b/src/pkg/regexp/find_test.go
+index 1690711dd7..9909303e92 100644
+--- a/src/pkg/regexp/find_test.go
++++ b/src/pkg/regexp/find_test.go
+@@ -381,7 +381,7 @@ func TestFindSubmatchIndex(t *testing.T) {
+ 	}
+ }
+ 
+-func TestFindStringSubmatchndex(t *testing.T) {
++func TestFindStringSubmatchIndex(t *testing.T) {
+ 	for _, test := range findTests {
+ 		testFindSubmatchIndex(&test, MustCompile(test.pat).FindStringSubmatchIndex(test.text), t)
+ 	}
+@@ -452,7 +452,7 @@ func TestFindAllSubmatchIndex(t *testing.T) {
+ 	}
+ }
+ 
+-func TestFindAllStringSubmatchndex(t *testing.T) {
++func TestFindAllStringSubmatchIndex(t *testing.T) {
+ 	for _, test := range findTests {
+ 		testFindAllSubmatchIndex(&test, MustCompile(test.pat).FindAllStringSubmatchIndex(test.text, -1), t)
+ 	}

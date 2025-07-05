@@ -13,6 +13,28 @@ Date:   Tue Nov 15 10:14:41 2022 -0500
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/internal/goobj/objfile_test.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/goobj/objfile_test.go b/src/cmd/internal/goobj/objfile_test.go
+index d7eb0b194b..10e0564a59 100644
+--- a/src/cmd/internal/goobj/objfile_test.go
++++ b/src/cmd/internal/goobj/objfile_test.go
+@@ -11,7 +11,6 @@ import (
+ 	"internal/buildcfg"
+ 	"internal/testenv"
+ 	"os"
+-	"os/exec"
+ 	"testing"
+ 
+ 	"cmd/internal/bio"
+@@ -125,7 +124,7 @@ func TestIssue41621LargeNumberOfRelocations(t *testing.T) {
+ 	w.Reset()
+ 
+ 	// Build.
+-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "large")
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", "large")
+ 	cmd.Dir = tmpdir
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {

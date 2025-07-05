@@ -8,6 +8,28 @@ Date:   Sat Jul 15 12:07:55 2017 -0600
     Reviewed-on: https://go-review.googlesource.com/48874
     Reviewed-by: Matt Layher <mdlayher@gmail.com>
     Run-TryBot: Matt Layher <mdlayher@gmail.com>
-
+---
  src/strings/example_test.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/strings/example_test.go b/src/strings/example_test.go
+index 3f9d63b5a4..099d8c1cdc 100644
+--- a/src/strings/example_test.go
++++ b/src/strings/example_test.go
+@@ -47,6 +47,16 @@ func ExampleContainsAny() {
+ 	// false
+ }
+ 
++func ExampleContainsRune() {
++	// Finds whether a string contains a particular Unicode code point.
++	// The code point for the lowercase letter "a", for example, is 97.
++	fmt.Println(strings.ContainsRune("aardvark", 97))
++	fmt.Println(strings.ContainsRune("timeout", 97))
++	// Output:
++	// true
++	// false
++}
++
+ func ExampleCount() {
+ 	fmt.Println(strings.Count("cheese", "e"))
+ 	fmt.Println(strings.Count("five", "")) // before & after each rune

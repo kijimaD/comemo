@@ -14,6 +14,19 @@ Date:   Sun Aug 14 20:39:30 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/flag/flag.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/flag/flag.go b/src/flag/flag.go
+index fa0f05e968..6c9b292b26 100644
+--- a/src/flag/flag.go
++++ b/src/flag/flag.go
+@@ -238,6 +238,7 @@ func (d *durationValue) String() string { return (*time.Duration)(d).String() }
+ // rather than using the next command-line argument.
+ //
+ // Set is called once, in command line order, for each flag present.
++// String must work on the zero value of the dynamic type.
+ type Value interface {
+ 	String() string
+ 	Set(string) error

@@ -25,8 +25,135 @@ Date:   Wed Jan 29 22:10:51 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/217063
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/loader/loader.go        | 25 +++++++++++++++++++------
  src/cmd/link/internal/loader/loader_test.go   | 17 +++++++++++++----
  src/cmd/link/internal/loader/symbolbuilder.go |  4 ++--
  3 files changed, 34 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 3eea1fd8cd..548863da14 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -158,8 +158,9 @@ type Loader struct {
+ 	extStaticSyms map[nameVer]Sym   // externally defined static symbols, keyed by name
+ 	overwrite     map[Sym]Sym       // overwrite[i]=j if symbol j overwrites symbol i
+ 
+-	payloads []extSymPayload // contents of linker-materialized external syms
+-	values   []int64         // symbol values, indexed by global sym index
++	payloadBatch []extSymPayload
++	payloads     []*extSymPayload // contents of linker-materialized external syms
++	values       []int64          // symbol values, indexed by global sym index
+ 
+ 	itablink map[Sym]struct{} // itablink[j] defined if j is go.itablink.*
+ 
+@@ -349,6 +350,7 @@ func (l *Loader) newExtSym(name string, ver int) Sym {
+ 	}
+ 	l.growSyms(int(i))
+ 	pi := i - l.extStart
++	l.payloads[pi] = l.allocPayload()
+ 	l.payloads[pi].name = name
+ 	l.payloads[pi].ver = ver
+ 	return i
+@@ -405,7 +407,18 @@ func (l *Loader) getPayload(i Sym) *extSymPayload {
+ 		return nil
+ 	}
+ 	pi := i - l.extStart
+-	return &l.payloads[pi]
++	return l.payloads[pi]
++}
++
++// allocPayload allocates a new payload.
++func (l *Loader) allocPayload() *extSymPayload {
++	batch := l.payloadBatch
++	if len(batch) == 0 {
++		batch = make([]extSymPayload, 1000)
++	}
++	p := &batch[0]
++	l.payloadBatch = batch[1:]
++	return p
+ }
+ 
+ func (ms *extSymPayload) Grow(siz int64) {
+@@ -431,7 +444,7 @@ func (l *Loader) growSyms(i int) {
+ 		return
+ 	}
+ 	l.Syms = append(l.Syms, make([]*sym.Symbol, i+1-n)...)
+-	l.payloads = append(l.payloads, make([]extSymPayload, i+1-n)...)
++	l.payloads = append(l.payloads, make([]*extSymPayload, i+1-n)...)
+ 	l.growValues(int(i) + 1)
+ 	l.growAttrBitmaps(int(i) + 1)
+ }
+@@ -1752,7 +1765,7 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
+ 	for _, i := range toConvert {
+ 
+ 		// Copy kind/size/value etc.
+-		pp := &l.payloads[i-l.extStart]
++		pp := l.payloads[i-l.extStart]
+ 		s := l.Syms[i]
+ 		s.Version = int16(pp.ver)
+ 		s.Type = pp.kind
+@@ -2021,7 +2034,7 @@ func (l *Loader) cloneToExternal(symIdx Sym) Sym {
+ 
+ 	// Create new symbol, update version and kind.
+ 	ns := l.newExtSym(sname, sver)
+-	pp := &l.payloads[ns-l.extStart]
++	pp := l.payloads[ns-l.extStart]
+ 	pp.kind = skind
+ 	pp.ver = sver
+ 	pp.size = int64(osym.Siz)
+diff --git a/src/cmd/link/internal/loader/loader_test.go b/src/cmd/link/internal/loader/loader_test.go
+index d183570059..e939a4f062 100644
+--- a/src/cmd/link/internal/loader/loader_test.go
++++ b/src/cmd/link/internal/loader/loader_test.go
+@@ -63,15 +63,24 @@ func TestAddMaterializedSymbol(t *testing.T) {
+ 	sb2, es2 := ldr.MakeSymbolUpdater(es2)
+ 	sb3, es3 := ldr.MakeSymbolUpdater(es3)
+ 
++	// Suppose we create some more symbols, which triggers a grow.
++	// Make sure the symbol builder's payload pointer is valid,
++	// even across a grow.
++	ldr.growSyms(9999)
++
+ 	// Check get/set symbol type
+ 	es3typ := sb3.Type()
+ 	if es3typ != sym.Sxxx {
+-		t.Errorf("SymType(es3): expected %d, got %d", sym.Sxxx, es3typ)
++		t.Errorf("SymType(es3): expected %v, got %v", sym.Sxxx, es3typ)
++	}
++	sb3.SetType(sym.SRODATA)
++	es3typ = sb3.Type()
++	if es3typ != sym.SRODATA {
++		t.Errorf("SymType(es3): expected %v, got %v", sym.SRODATA, es3typ)
+ 	}
+-	sb2.SetType(sym.SRODATA)
+-	es3typ = sb2.Type()
++	es3typ = ldr.SymType(es3)
+ 	if es3typ != sym.SRODATA {
+-		t.Errorf("SymType(es3): expected %d, got %d", sym.SRODATA, es3typ)
++		t.Errorf("SymType(es3): expected %v, got %v", sym.SRODATA, es3typ)
+ 	}
+ 
+ 	// New symbols should not initially be reachable.
+diff --git a/src/cmd/link/internal/loader/symbolbuilder.go b/src/cmd/link/internal/loader/symbolbuilder.go
+index 20646349c7..d5546453d2 100644
+--- a/src/cmd/link/internal/loader/symbolbuilder.go
++++ b/src/cmd/link/internal/loader/symbolbuilder.go
+@@ -28,7 +28,7 @@ func (l *Loader) MakeSymbolBuilder(name string) *SymbolBuilder {
+ 		panic("can't build if sym.Symbol already present")
+ 	}
+ 	sb := &SymbolBuilder{l: l, symIdx: symIdx}
+-	sb.extSymPayload = &l.payloads[symIdx-l.extStart]
++	sb.extSymPayload = l.payloads[symIdx-l.extStart]
+ 	return sb
+ }
+ 
+@@ -53,7 +53,7 @@ func (l *Loader) MakeSymbolUpdater(symIdx Sym) (*SymbolBuilder, Sym) {
+ 
+ 	// Construct updater and return.
+ 	sb := &SymbolBuilder{l: l, symIdx: symIdx}
+-	sb.extSymPayload = &l.payloads[symIdx-l.extStart]
++	sb.extSymPayload = l.payloads[symIdx-l.extStart]
+ 	return sb, symIdx
+ }
+ 

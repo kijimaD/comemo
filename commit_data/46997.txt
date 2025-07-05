@@ -24,7 +24,7 @@ Date:   Wed Feb 10 23:41:23 2021 -0500
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/math/asin_386.s      | 30 -------------------------
  src/math/atan2_386.s     | 13 -----------
  src/math/atan_386.s      | 13 -----------
@@ -40,3 +40,481 @@ Date:   Wed Feb 10 23:41:23 2021 -0500
  src/math/remainder_386.s | 17 ---------------
  src/math/stubs_386.s     | 45 ++++++++++++++++++++++++++++++++++++++
  14 files changed, 45 insertions(+), 321 deletions(-)
+
+diff --git a/src/math/asin_386.s b/src/math/asin_386.s
+deleted file mode 100644
+index 7dab390623..0000000000
+--- a/src/math/asin_386.s
++++ /dev/null
+@@ -1,30 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// func Asin(x float64) float64
+-TEXT ·Asin(SB),NOSPLIT,$0
+-	FMOVD   x+0(FP), F0  // F0=sin(x)
+-	FMOVD   F0, F1       // F0=sin(x), F1=sin(x)
+-	FMULD   F0, F0       // F0=sin(x)*sin(x), F1=sin(x)
+-	FLD1                 // F0=1, F1=sin(x)*sin(x), F2=sin(x)
+-	FSUBRDP F0, F1       // F0=1-sin(x)*sin(x) (=cos(x)*cos(x)), F1=sin(x)
+-	FSQRT                // F0=cos(x), F1=sin(x)
+-	FPATAN               // F0=arcsin(sin(x))=x
+-	FMOVDP  F0, ret+8(FP)
+-	RET
+-
+-// func Acos(x float64) float64
+-TEXT ·Acos(SB),NOSPLIT,$0
+-	FMOVD   x+0(FP), F0  // F0=cos(x)
+-	FMOVD   F0, F1       // F0=cos(x), F1=cos(x)
+-	FMULD   F0, F0       // F0=cos(x)*cos(x), F1=cos(x)
+-	FLD1                 // F0=1, F1=cos(x)*cos(x), F2=cos(x)
+-	FSUBRDP F0, F1       // F0=1-cos(x)*cos(x) (=sin(x)*sin(x)), F1=cos(x)
+-	FSQRT                // F0=sin(x), F1=cos(x)
+-	FXCHD   F0, F1       // F0=cos(x), F1=sin(x)
+-	FPATAN               // F0=arccos(cos(x))=x
+-	FMOVDP	F0, ret+8(FP)
+-	RET
+diff --git a/src/math/atan2_386.s b/src/math/atan2_386.s
+deleted file mode 100644
+index 90d211bf5b..0000000000
+--- a/src/math/atan2_386.s
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// func Atan2(y, x float64) float64	// =atan(y/x)
+-TEXT ·Atan2(SB),NOSPLIT,$0
+-	FMOVD   y+0(FP), F0  // F0=y
+-	FMOVD   x+8(FP), F0  // F0=x, F1=y
+-	FPATAN               // F0=atan(F1/F0)
+-	FMOVDP  F0, ret+16(FP)
+-	RET
+diff --git a/src/math/atan_386.s b/src/math/atan_386.s
+deleted file mode 100644
+index 43e79b92b6..0000000000
+--- a/src/math/atan_386.s
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// func Atan(x float64) float64
+-TEXT ·Atan(SB),NOSPLIT,$0
+-	FMOVD   x+0(FP), F0  // F0=x
+-	FLD1                 // F0=1, F1=x
+-	FPATAN               // F0=atan(F1/F0)
+-	FMOVDP  F0, ret+8(FP)
+-	RET
+diff --git a/src/math/exp2_386.s b/src/math/exp2_386.s
+deleted file mode 100644
+index d04cad6a55..0000000000
+--- a/src/math/exp2_386.s
++++ /dev/null
+@@ -1,40 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// func Exp2(x float64) float64
+-TEXT ·Exp2(SB),NOSPLIT,$0
+-// test bits for not-finite
+-	MOVL    x_hi+4(FP), AX
+-	ANDL    $0x7ff00000, AX
+-	CMPL    AX, $0x7ff00000
+-	JEQ     not_finite
+-	FMOVD   x+0(FP), F0   // F0=x
+-	FMOVD   F0, F1        // F0=x, F1=x
+-	FRNDINT               // F0=int(x), F1=x
+-	FSUBD   F0, F1        // F0=int(x), F1=x-int(x)
+-	FXCHD   F0, F1        // F0=x-int(x), F1=int(x)
+-	F2XM1                 // F0=2**(x-int(x))-1, F1=int(x)
+-	FLD1                  // F0=1, F1=2**(x-int(x))-1, F2=int(x)
+-	FADDDP  F0, F1        // F0=2**(x-int(x)), F1=int(x)
+-	FSCALE                // F0=2**x, F1=int(x)
+-	FMOVDP  F0, F1        // F0=2**x
+-	FMOVDP  F0, ret+8(FP)
+-	RET
+-not_finite:
+-// test bits for -Inf
+-	MOVL    x_hi+4(FP), BX
+-	MOVL    x_lo+0(FP), CX
+-	CMPL    BX, $0xfff00000
+-	JNE     not_neginf
+-	CMPL    CX, $0
+-	JNE     not_neginf
+-	MOVL    $0, ret_lo+8(FP)
+-	MOVL    $0, ret_hi+12(FP)
+-	RET
+-not_neginf:
+-	MOVL    CX, ret_lo+8(FP)
+-	MOVL    BX, ret_hi+12(FP)
+-	RET
+diff --git a/src/math/expm1_386.s b/src/math/expm1_386.s
+deleted file mode 100644
+index d020296ca7..0000000000
+--- a/src/math/expm1_386.s
++++ /dev/null
+@@ -1,57 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// func Expm1(x float64) float64
+-TEXT ·Expm1(SB),NOSPLIT,$0
+-	FLDLN2               // F0=log(2) = 1/log2(e) ~ 0.693147
+-	FMOVD   x+0(FP), F0  // F0=x, F1=1/log2(e)
+-	FABS                 // F0=|x|, F1=1/log2(e)
+-	FUCOMPP F0, F1       // compare F0 to F1
+-	FSTSW   AX
+-	SAHF
+-	JCC     use_exp      // jump if F0 >= F1
+-	FLDL2E                // F0=log2(e)
+-	FMULD   x+0(FP), F0   // F0=x*log2(e) (-1<F0<1)
+-	F2XM1                 // F0=e**x-1 = 2**(x*log2(e))-1
+-	FMOVDP  F0, ret+8(FP)
+-	RET
+-use_exp:
+-// test bits for not-finite
+-	MOVL    x_hi+4(FP), AX
+-	ANDL    $0x7ff00000, AX
+-	CMPL    AX, $0x7ff00000
+-	JEQ     not_finite
+-	FLDL2E                // F0=log2(e)
+-	FMULD   x+0(FP), F0   // F0=x*log2(e)
+-	FMOVD   F0, F1        // F0=x*log2(e), F1=x*log2(e)
+-	FRNDINT               // F0=int(x*log2(e)), F1=x*log2(e)
+-	FSUBD   F0, F1        // F0=int(x*log2(e)), F1=x*log2(e)-int(x*log2(e))
+-	FXCHD   F0, F1        // F0=x*log2(e)-int(x*log2(e)), F1=int(x*log2(e))
+-	F2XM1                 // F0=2**(x*log2(e)-int(x*log2(e)))-1, F1=int(x*log2(e))
+-	FLD1                  // F0=1, F1=2**(x*log2(e)-int(x*log2(e)))-1, F2=int(x*log2(e))
+-	FADDDP  F0, F1        // F0=2**(x*log2(e)-int(x*log2(e))), F1=int(x*log2(e))
+-	FSCALE                // F0=e**x, F1=int(x*log2(e))
+-	FMOVDP  F0, F1        // F0=e**x
+-	FLD1                  // F0=1, F1=e**x
+-	FSUBDP  F0, F1        // F0=e**x-1
+-	FMOVDP  F0, ret+8(FP)
+-	RET
+-not_finite:
+-// test bits for -Inf
+-	MOVL    x_hi+4(FP), BX
+-	MOVL    x_lo+0(FP), CX
+-	CMPL    BX, $0xfff00000
+-	JNE     not_neginf
+-	CMPL    CX, $0
+-	JNE     not_neginf
+-	FLD1                 // F0=1
+-	FCHS                 // F0=-1
+-	FMOVDP  F0, ret+8(FP)
+-	RET
+-not_neginf:
+-	MOVL    CX, ret_lo+8(FP)
+-	MOVL    BX, ret_hi+12(FP)
+-	RET
+diff --git a/src/math/frexp_386.s b/src/math/frexp_386.s
+deleted file mode 100644
+index 832b435fe8..0000000000
+--- a/src/math/frexp_386.s
++++ /dev/null
+@@ -1,25 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// func Frexp(f float64) (frac float64, exp int)
+-TEXT ·Frexp(SB),NOSPLIT,$0
+-	FMOVD   f+0(FP), F0   // F0=f
+-	FXAM
+-	FSTSW   AX
+-	SAHF
+-	JNP     nan_zero_inf
+-	JCS     nan_zero_inf
+-	FXTRACT               // F0=f (0<=f<1), F1=e
+-	FMULD  $(0.5), F0     // F0=f (0.5<=f<1), F1=e
+-	FMOVDP  F0, frac+8(FP)   // F0=e
+-	FLD1                  // F0=1, F1=e
+-	FADDDP  F0, F1        // F0=e+1
+-	FMOVLP  F0, exp+16(FP)  // (int=int32)
+-	RET
+-nan_zero_inf:
+-	FMOVDP  F0, frac+8(FP)   // F0=e
+-	MOVL    $0, exp+16(FP)  // exp=0
+-	RET
+diff --git a/src/math/ldexp_386.s b/src/math/ldexp_386.s
+deleted file mode 100644
+index 6f67ae1d13..0000000000
+--- a/src/math/ldexp_386.s
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// func Ldexp(frac float64, exp int) float64
+-TEXT ·Ldexp(SB),NOSPLIT,$0
+-	FMOVL   exp+8(FP), F0   // F0=exp
+-	FMOVD   frac+0(FP), F0   // F0=frac, F1=e
+-	FSCALE                // F0=x*2**e, F1=e
+-	FMOVDP  F0, F1        // F0=x*2**e
+-	FMOVDP  F0, ret+12(FP)
+-	RET
+diff --git a/src/math/log10_386.s b/src/math/log10_386.s
+deleted file mode 100644
+index 10eecd90e2..0000000000
+--- a/src/math/log10_386.s
++++ /dev/null
+@@ -1,21 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// func Log10(x float64) float64
+-TEXT ·Log10(SB),NOSPLIT,$0
+-	FLDLG2               // F0=log10(2)
+-	FMOVD   x+0(FP), F0  // F0=x, F1=log10(2)
+-	FYL2X                // F0=log10(x)=log2(x)*log10(2)
+-	FMOVDP  F0, ret+8(FP)
+-	RET
+-
+-// func Log2(x float64) float64
+-TEXT ·Log2(SB),NOSPLIT,$0
+-	FLD1                 // F0=1
+-	FMOVD   x+0(FP), F0  // F0=x, F1=1
+-	FYL2X                // F0=log2(x)
+-	FMOVDP  F0, ret+8(FP)
+-	RET
+diff --git a/src/math/log1p_386.s b/src/math/log1p_386.s
+deleted file mode 100644
+index 63b7e62283..0000000000
+--- a/src/math/log1p_386.s
++++ /dev/null
+@@ -1,27 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// func Log1p(x float64) float64
+-TEXT ·Log1p(SB),NOSPLIT,$0
+-	FMOVD   $(2.928932188134524e-01), F0
+-	FMOVD   x+0(FP), F0  // F0=x, F1=1-sqrt(2)/2 = 0.29289321881345247559915564
+-	FABS                 // F0=|x|, F1=1-sqrt(2)/2
+-	FUCOMPP F0, F1       // compare F0 to F1
+-	FSTSW   AX
+-	FLDLN2               // F0=log(2)
+-	ANDW    $0x0100, AX
+-	JEQ     use_fyl2x    // jump if F0 >= F1
+-	FMOVD   x+0(FP), F0  // F0=x, F1=log(2)
+-	FYL2XP1              // F0=log(1+x)=log2(1+x)*log(2)
+-	FMOVDP  F0, ret+8(FP)
+-	RET
+-use_fyl2x:
+-	FLD1                 // F0=1, F2=log(2)
+-	FADDD   x+0(FP), F0  // F0=1+x, F1=log(2)
+-	FYL2X                // F0=log(1+x)=log2(1+x)*log(2)
+-	FMOVDP  F0, ret+8(FP)
+-	RET
+-
+diff --git a/src/math/log_386.s b/src/math/log_386.s
+deleted file mode 100644
+index 0b64b507b2..0000000000
+--- a/src/math/log_386.s
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// func Log(x float64) float64
+-TEXT ·Log(SB),NOSPLIT,$0
+-	FLDLN2               // F0=log(2)
+-	FMOVD   x+0(FP), F0  // F0=x, F1=log(2)
+-	FYL2X                // F0=log(x)=log2(x)*log(2)
+-	FMOVDP  F0, ret+8(FP)
+-	RET
+diff --git a/src/math/mod_386.s b/src/math/mod_386.s
+deleted file mode 100644
+index 10ad98be3e..0000000000
+--- a/src/math/mod_386.s
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// func Mod(x, y float64) float64
+-TEXT ·Mod(SB),NOSPLIT,$0
+-	FMOVD   y+8(FP), F0  // F0=y
+-	FMOVD   x+0(FP), F0  // F0=x, F1=y
+-	FPREM                // F0=reduced_x, F1=y
+-	FSTSW   AX           // AX=status word
+-	ANDW    $0x0400, AX
+-	JNE     -3(PC)       // jump if reduction incomplete
+-	FMOVDP  F0, F1       // F0=x-q*y
+-	FMOVDP  F0, ret+16(FP)
+-	RET
+diff --git a/src/math/modf_386.s b/src/math/modf_386.s
+deleted file mode 100644
+index e9160735d3..0000000000
+--- a/src/math/modf_386.s
++++ /dev/null
+@@ -1,34 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// func Modf(f float64) (int float64, frac float64)
+-TEXT ·Modf(SB),NOSPLIT,$0
+-	// special case for f == -0.0
+-	MOVL f_hi+4(FP), DX	// high word
+-	MOVL f_lo+0(FP), AX	// low word
+-	CMPL DX, $(1<<31)	// beginning of -0.0
+-	JNE notNegativeZero
+-	CMPL AX, $0			// could be denormalized
+-	JNE notNegativeZero
+-	MOVL AX, int_lo+8(FP)
+-	MOVL DX, int_hi+12(FP)
+-	MOVL AX, frac_lo+16(FP)
+-	MOVL DX, frac_hi+20(FP)
+-	RET
+-notNegativeZero:
+-	FMOVD   f+0(FP), F0  // F0=f
+-	FMOVD   F0, F1       // F0=f, F1=f
+-	FSTCW   -2(SP)       // save old Control Word
+-	MOVW    -2(SP), AX
+-	ORW     $0x0c00, AX  // Rounding Control set to truncate
+-	MOVW    AX, -4(SP)   // store new Control Word
+-	FLDCW   -4(SP)       // load new Control Word
+-	FRNDINT              // F0=trunc(f), F1=f
+-	FLDCW   -2(SP)       // load old Control Word
+-	FSUBD   F0, F1       // F0=trunc(f), F1=f-trunc(f)
+-	FMOVDP  F0, int+8(FP)  // F0=f-trunc(f)
+-	FMOVDP  F0, frac+16(FP)
+-	RET
+diff --git a/src/math/remainder_386.s b/src/math/remainder_386.s
+deleted file mode 100644
+index 318fa2c465..0000000000
+--- a/src/math/remainder_386.s
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// func Remainder(x, y float64) float64
+-TEXT ·Remainder(SB),NOSPLIT,$0
+-	FMOVD   y+8(FP), F0  // F0=y
+-	FMOVD   x+0(FP), F0  // F0=x, F1=y
+-	FPREM1               // F0=reduced_x, F1=y
+-	FSTSW   AX           // AX=status word
+-	ANDW    $0x0400, AX
+-	JNE     -3(PC)       // jump if reduction incomplete
+-	FMOVDP  F0, F1       // F0=x-q*y
+-	FMOVDP  F0, ret+16(FP)
+-	RET
+diff --git a/src/math/stubs_386.s b/src/math/stubs_386.s
+index 92c8621523..bccb3edd11 100644
+--- a/src/math/stubs_386.s
++++ b/src/math/stubs_386.s
+@@ -4,12 +4,24 @@
+ 
+ #include "textflag.h"
+ 
++TEXT ·Acos(SB), NOSPLIT, $0
++	JMP ·acos(SB)
++
+ TEXT ·Acosh(SB), NOSPLIT, $0
+ 	JMP ·acosh(SB)
+ 
++TEXT ·Asin(SB), NOSPLIT, $0
++	JMP ·asin(SB)
++
+ TEXT ·Asinh(SB), NOSPLIT, $0
+ 	JMP ·asinh(SB)
+ 
++TEXT ·Atan(SB), NOSPLIT, $0
++	JMP ·atan(SB)
++
++TEXT ·Atan2(SB), NOSPLIT, $0
++	JMP ·atan2(SB)
++
+ TEXT ·Atanh(SB), NOSPLIT, $0
+ 	JMP ·atanh(SB)
+ 
+@@ -31,15 +43,48 @@ TEXT ·Erfc(SB), NOSPLIT, $0
+ TEXT ·Exp(SB), NOSPLIT, $0
+ 	JMP ·exp(SB)
+ 
++TEXT ·Exp2(SB), NOSPLIT, $0
++	JMP ·exp2(SB)
++
++TEXT ·Expm1(SB), NOSPLIT, $0
++	JMP ·expm1(SB)
++
++TEXT ·Frexp(SB), NOSPLIT, $0
++	JMP ·frexp(SB)
++
++TEXT ·Ldexp(SB), NOSPLIT, $0
++	JMP ·ldexp(SB)
++
++TEXT ·Log10(SB), NOSPLIT, $0
++	JMP ·log10(SB)
++
++TEXT ·Log2(SB), NOSPLIT, $0
++	JMP ·log2(SB)
++
++TEXT ·Log1p(SB), NOSPLIT, $0
++	JMP ·log1p(SB)
++
++TEXT ·Log(SB), NOSPLIT, $0
++	JMP ·log(SB)
++
+ TEXT ·Max(SB), NOSPLIT, $0
+ 	JMP ·max(SB)
+ 
+ TEXT ·Min(SB), NOSPLIT, $0
+ 	JMP ·min(SB)
+ 
++TEXT ·Mod(SB), NOSPLIT, $0
++	JMP ·mod(SB)
++
++TEXT ·Modf(SB), NOSPLIT, $0
++	JMP ·modf(SB)
++
+ TEXT ·Pow(SB), NOSPLIT, $0
+ 	JMP ·pow(SB)
+ 
++TEXT ·Remainder(SB), NOSPLIT, $0
++	JMP ·remainder(SB)
++
+ TEXT ·Sin(SB), NOSPLIT, $0
+ 	JMP ·sin(SB)
+ 

@@ -16,9 +16,161 @@ Date:   Mon Mar 6 13:05:29 2023 -0800
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/lookup.go          | 27 +++++++++++++---------
  src/go/types/lookup.go                             | 27 +++++++++++++---------
  src/internal/types/testdata/check/decls4.go        |  2 +-
  .../types/testdata/fixedbugs/issue57352.go         | 21 +++++++++++++++++
  4 files changed, 54 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 855bf2a24c..d2694fc974 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -343,6 +343,7 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
+ 		notFound
+ 		wrongName
+ 		wrongSig
++		ambigSel
+ 		ptrRecv
+ 		field
+ 	)
+@@ -371,21 +372,23 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
+ 		}
+ 	} else {
+ 		for _, m = range methods {
+-			obj, _, indirect := lookupFieldOrMethodImpl(V, false, m.pkg, m.name, false)
++			obj, index, indirect := lookupFieldOrMethodImpl(V, false, m.pkg, m.name, false)
+ 
+-			// check if m is on *V, or on V with case-folding
++			// check if m is ambiguous, on *V, or on V with case-folding
+ 			if obj == nil {
+-				if indirect {
++				switch {
++				case index != nil:
++					state = ambigSel
++				case indirect:
+ 					state = ptrRecv
+-					break
+-				}
+-				obj, _, _ = lookupFieldOrMethodImpl(V, false, m.pkg, m.name, true /* fold case */)
+-				f, _ = obj.(*Func)
+-				if f != nil {
+-					state = wrongName
+-					break
++				default:
++					state = notFound
++					obj, _, _ = lookupFieldOrMethodImpl(V, false, m.pkg, m.name, true /* fold case */)
++					f, _ = obj.(*Func)
++					if f != nil {
++						state = wrongName
++					}
+ 				}
+-				state = notFound
+ 				break
+ 			}
+ 
+@@ -436,6 +439,8 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
+ 			}
+ 			*cause = check.sprintf("(wrong type for method %s)\n\t\thave %s\n\t\twant %s",
+ 				m.Name(), fs, ms)
++		case ambigSel:
++			*cause = check.sprintf("(ambiguous selector %s.%s)", V, m.Name())
+ 		case ptrRecv:
+ 			*cause = check.sprintf("(method %s has pointer receiver)", m.Name())
+ 		case field:
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index a2f7e7ea50..9e6367f9c9 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -345,6 +345,7 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
+ 		notFound
+ 		wrongName
+ 		wrongSig
++		ambigSel
+ 		ptrRecv
+ 		field
+ 	)
+@@ -373,21 +374,23 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
+ 		}
+ 	} else {
+ 		for _, m = range methods {
+-			obj, _, indirect := lookupFieldOrMethodImpl(V, false, m.pkg, m.name, false)
++			obj, index, indirect := lookupFieldOrMethodImpl(V, false, m.pkg, m.name, false)
+ 
+-			// check if m is on *V, or on V with case-folding
++			// check if m is ambiguous, on *V, or on V with case-folding
+ 			if obj == nil {
+-				if indirect {
++				switch {
++				case index != nil:
++					state = ambigSel
++				case indirect:
+ 					state = ptrRecv
+-					break
+-				}
+-				obj, _, _ = lookupFieldOrMethodImpl(V, false, m.pkg, m.name, true /* fold case */)
+-				f, _ = obj.(*Func)
+-				if f != nil {
+-					state = wrongName
+-					break
++				default:
++					state = notFound
++					obj, _, _ = lookupFieldOrMethodImpl(V, false, m.pkg, m.name, true /* fold case */)
++					f, _ = obj.(*Func)
++					if f != nil {
++						state = wrongName
++					}
+ 				}
+-				state = notFound
+ 				break
+ 			}
+ 
+@@ -438,6 +441,8 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
+ 			}
+ 			*cause = check.sprintf("(wrong type for method %s)\n\t\thave %s\n\t\twant %s",
+ 				m.Name(), fs, ms)
++		case ambigSel:
++			*cause = check.sprintf("(ambiguous selector %s.%s)", V, m.Name())
+ 		case ptrRecv:
+ 			*cause = check.sprintf("(method %s has pointer receiver)", m.Name())
+ 		case field:
+diff --git a/src/internal/types/testdata/check/decls4.go b/src/internal/types/testdata/check/decls4.go
+index 6ad20b6502..c47a68d525 100644
+--- a/src/internal/types/testdata/check/decls4.go
++++ b/src/internal/types/testdata/check/decls4.go
+@@ -195,5 +195,5 @@ var (
+ )
+ 
+ var (
+-	_ interface{ xm() } = eD /* ERROR "missing method xm" */ {}
++	_ interface{ xm() } = eD /* ERROR "ambiguous selector eD.xm" */ {}
+ )
+\ No newline at end of file
+diff --git a/src/internal/types/testdata/fixedbugs/issue57352.go b/src/internal/types/testdata/fixedbugs/issue57352.go
+new file mode 100644
+index 0000000000..2b31700337
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue57352.go
+@@ -0,0 +1,21 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type A interface {
++	a()
++}
++
++type AB interface {
++	A
++	b()
++}
++
++type AAB struct {
++	A
++	AB
++}
++
++var _ AB = AAB /* ERROR "ambiguous selector AAB.a" */ {}

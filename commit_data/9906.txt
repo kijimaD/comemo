@@ -8,6 +8,19 @@ Date:   Fri Oct 7 14:15:16 2011 -0700
     R=gri, rsc
     CC=golang-dev
     https://golang.org/cl/5237044
-
+---
  src/pkg/testing/testing.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index 4c2ff3d487..a555cb4a15 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -110,6 +110,7 @@ func (t *T) Failed() bool { return t.failed }
+ // FailNow marks the Test function as having failed and stops its execution.
+ // Execution will continue at the next Test.
+ func (t *T) FailNow() {
++	t.ns = time.Nanoseconds() - t.ns
+ 	t.Fail()
+ 	t.ch <- t
+ 	runtime.Goexit()

@@ -10,6 +10,20 @@ Date:   Fri Jan 1 00:00:00 2016 +1100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  doc/contribute.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index 7f74adf893..5533731415 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -674,7 +674,7 @@ These files will be periodically updated based on the commit logs.
+ <p>Code that you contribute should use the standard copyright header:</p>
+ 
+ <pre>
+-// Copyright 2015 The Go Authors. All rights reserved.
++// Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ </pre>

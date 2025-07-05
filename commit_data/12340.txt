@@ -10,8 +10,26 @@ Date:   Fri Mar 2 14:15:44 2012 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5720059
-
+---
  misc/xcode/3/README              | 3 +++
  misc/xcode/{ => 3}/go.pbfilespec | 0
  misc/xcode/{ => 3}/go.xclangspec | 0
  3 files changed, 3 insertions(+)
+
+diff --git a/misc/xcode/3/README b/misc/xcode/3/README
+new file mode 100644
+index 0000000000..c4cb915dc0
+--- /dev/null
++++ b/misc/xcode/3/README
+@@ -0,0 +1,3 @@
++This directory contains files for Go syntax highlighting in Xcode 3.x.
++See the comments go.pbfilespec and go.xclangspec for installation
++instructions.
+diff --git a/misc/xcode/go.pbfilespec b/misc/xcode/3/go.pbfilespec
+similarity index 100%
+rename from misc/xcode/go.pbfilespec
+rename to misc/xcode/3/go.pbfilespec
+diff --git a/misc/xcode/go.xclangspec b/misc/xcode/3/go.xclangspec
+similarity index 100%
+rename from misc/xcode/go.xclangspec
+rename to misc/xcode/3/go.xclangspec

@@ -11,9 +11,182 @@ Date:   Thu Sep 27 01:53:08 2012 +0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5970055
-
+---
  src/cmd/6a/lex.c   |  7 +++++++
  src/cmd/6l/6.out.h |  9 +++++++++
  src/cmd/6l/optab.c | 45 ++++++++++++++++++++++++++++++++-------------
  src/cmd/6l/span.c  |  3 ++-
  4 files changed, 50 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/6a/lex.c b/src/cmd/6a/lex.c
+index 6a1c652654..376a4b67e5 100644
+--- a/src/cmd/6a/lex.c
++++ b/src/cmd/6a/lex.c
+@@ -1008,6 +1008,13 @@ struct
+ 	"PREFETCHT2",		LTYPE2,	APREFETCHT2,
+ 	"PREFETCHNTA",		LTYPE2,	APREFETCHNTA,
+ 	"UNDEF",	LTYPE0,	AUNDEF,
++	"AESENC",	LTYPE3,	AAESENC,
++	"AESENCLAST",	LTYPE3, AAESENCLAST,
++	"AESDEC",	LTYPE3, AAESDEC,
++	"AESDECLAST",	LTYPE3, AAESDECLAST,
++	"AESIMC",	LTYPE3, AAESIMC,
++	"AESKEYGENASSIST", LTYPEX, AAESKEYGENASSIST,
++	"PSHUFD", LTYPEX, APSHUFD,
+ 
+ 	0
+ };
+diff --git a/src/cmd/6l/6.out.h b/src/cmd/6l/6.out.h
+index 769df3b5ac..6acc1f459e 100644
+--- a/src/cmd/6l/6.out.h
++++ b/src/cmd/6l/6.out.h
+@@ -748,6 +748,15 @@ enum	as
+ 	
+ 	AUNDEF,
+ 
++	AAESENC,
++	AAESENCLAST,
++	AAESDEC,
++	AAESDECLAST,
++	AAESIMC,
++	AAESKEYGENASSIST,
++
++	APSHUFD,
++
+ 	ALAST
+ };
+ 
+diff --git a/src/cmd/6l/optab.c b/src/cmd/6l/optab.c
+index 0716fa4453..e81c1eda01 100644
+--- a/src/cmd/6l/optab.c
++++ b/src/cmd/6l/optab.c
+@@ -269,7 +269,7 @@ uchar	yimul[] =
+ };
+ uchar	yimul3[] =
+ {
+-	Yml,	Yrl,	Zibm_r,	1,
++	Yml,	Yrl,	Zibm_r,	2,
+ 	0
+ };
+ uchar	ybyte[] =
+@@ -518,17 +518,17 @@ uchar	ymrxr[] =
+ };
+ uchar	ymshuf[] =
+ {
+-	Ymm,	Ymr,	Zibm_r,	1,
++	Ymm,	Ymr,	Zibm_r,	2,
+ 	0
+ };
+ uchar	yxshuf[] =
+ {
+-	Yxm,	Yxr,	Zibm_r,	1,
++	Yxm,	Yxr,	Zibm_r,	2,
+ 	0
+ };
+ uchar	yextrw[] =
+ {
+-	Yxr,	Yrl,	Zibm_r,	1,
++	Yxr,	Yrl,	Zibm_r,	2,
+ 	0
+ };
+ uchar	ypsdq[] =
+@@ -551,6 +551,16 @@ uchar	yprefetch[] =
+ 	Ym,	Ynone,	Zm_o,	2,
+ 	0,
+ };
++uchar	yaes[] =
++{
++	Yxm,	Yxr,	Zlitm_r,	2,
++	0
++};
++uchar	yaes2[] =
++{
++	Yxm,	Yxr,	Zibm_r,	2,
++	0
++};
+ 
+ /*
+  * You are doasm, holding in your hand a Prog* with p->as set to, say, ACRC32,
+@@ -791,7 +801,7 @@ Optab optab[] =
+ 	{ AIMULL,	yimul,	Px, 0xf7,(05),0x6b,0x69,Pm,0xaf },
+ 	{ AIMULQ,	yimul,	Pw, 0xf7,(05),0x6b,0x69,Pm,0xaf },
+ 	{ AIMULW,	yimul,	Pe, 0xf7,(05),0x6b,0x69,Pm,0xaf },
+-	{ AIMUL3Q,	yimul3,	Pw, 0x6b },
++	{ AIMUL3Q,	yimul3,	Pw, 0x6b,(00) },
+ 	{ AINB,		yin,	Pb, 0xe4,0xec },
+ 	{ AINCB,	yincb,	Pb, 0xfe,(00) },
+ 	{ AINCL,	yincl,	Px, 0xff,(00) },
+@@ -950,7 +960,7 @@ Optab optab[] =
+ 	{ APCMPGTB,	ymm,	Py, 0x64,Pe,0x64 },
+ 	{ APCMPGTL,	ymm,	Py, 0x66,Pe,0x66 },
+ 	{ APCMPGTW,	ymm,	Py, 0x65,Pe,0x65 },
+-	{ APEXTRW,	yextrw,	Pq, 0xc5 },
++	{ APEXTRW,	yextrw,	Pq, 0xc5,(00) },
+ 	{ APF2IL,	ymfp,	Px, 0x1d },
+ 	{ APF2IW,	ymfp,	Px, 0x1c },
+ 	{ API2FL,	ymfp,	Px, 0x0d },
+@@ -971,7 +981,7 @@ Optab optab[] =
+ 	{ APFRSQRT,	ymfp,	Px, 0x97 },
+ 	{ APFSUB,	ymfp,	Px, 0x9a },
+ 	{ APFSUBR,	ymfp,	Px, 0xaa },
+-	{ APINSRW,	yextrw,	Pq, 0xc4 },
++	{ APINSRW,	yextrw,	Pq, 0xc4,(00) },
+ 	{ APMADDWL,	ymm,	Py, 0xf5,Pe,0xf5 },
+ 	{ APMAXSW,	yxm,	Pe, 0xee },
+ 	{ APMAXUB,	yxm,	Pe, 0xde },
+@@ -993,10 +1003,10 @@ Optab optab[] =
+ 	{ APOPW,	ypopl,	Pe, 0x58,0x8f,(00) },
+ 	{ APOR,		ymm,	Py, 0xeb,Pe,0xeb },
+ 	{ APSADBW,	yxm,	Pq, 0xf6 },
+-	{ APSHUFHW,	yxshuf,	Pf3, 0x70 },
+-	{ APSHUFL,	yxshuf,	Pq, 0x70 },
+-	{ APSHUFLW,	yxshuf,	Pf2, 0x70 },
+-	{ APSHUFW,	ymshuf,	Pm, 0x70 },
++	{ APSHUFHW,	yxshuf,	Pf3, 0x70,(00) },
++	{ APSHUFL,	yxshuf,	Pq, 0x70,(00) },
++	{ APSHUFLW,	yxshuf,	Pf2, 0x70,(00) },
++	{ APSHUFW,	ymshuf,	Pm, 0x70,(00) },
+ 	{ APSLLO,	ypsdq,	Pq, 0x73,(07) },
+ 	{ APSLLL,	yps,	Py, 0xf2, 0x72,(06), Pe,0xf2, Pe,0x72,(06) },
+ 	{ APSLLQ,	yps,	Py, 0xf3, 0x73,(06), Pe,0xf3, Pe,0x73,(06) },
+@@ -1101,8 +1111,8 @@ Optab optab[] =
+ 	{ ASHRL,	yshl,	Px, 0xd1,(05),0xc1,(05),0xd3,(05),0xd3,(05) },
+ 	{ ASHRQ,	yshl,	Pw, 0xd1,(05),0xc1,(05),0xd3,(05),0xd3,(05) },
+ 	{ ASHRW,	yshl,	Pe, 0xd1,(05),0xc1,(05),0xd3,(05),0xd3,(05) },
+-	{ ASHUFPD,	yxshuf,	Pq, 0xc6 },
+-	{ ASHUFPS,	yxshuf,	Pm, 0xc6 },
++	{ ASHUFPD,	yxshuf,	Pq, 0xc6,(00) },
++	{ ASHUFPS,	yxshuf,	Pm, 0xc6,(00) },
+ 	{ ASQRTPD,	yxm,	Pe, 0x51 },
+ 	{ ASQRTPS,	yxm,	Pm, 0x51 },
+ 	{ ASQRTSD,	yxm,	Pf2, 0x51 },
+@@ -1296,6 +1306,15 @@ Optab optab[] =
+ 
+ 	{ AUNDEF,		ynone,	Px, 0x0f, 0x0b },
+ 
++	{ AAESENC,	yaes,	Pq, 0x38,0xdc,(0) },
++	{ AAESENCLAST,	yaes,	Pq, 0x38,0xdd,(0) },
++	{ AAESDEC,	yaes,	Pq, 0x38,0xde,(0) },
++	{ AAESDECLAST,	yaes,	Pq, 0x38,0xdf,(0) },
++	{ AAESIMC,	yaes,	Pq, 0x38,0xdb,(0) },
++	{ AAESKEYGENASSIST,	yaes2,	Pq, 0x3a,0xdf,(0) },
++
++	{ APSHUFD,	yaes2,	Pq,	0x70,(0) },
++
+ 	{ AEND },
+ 	0
+ };
+diff --git a/src/cmd/6l/span.c b/src/cmd/6l/span.c
+index 60916c0412..abffc2935c 100644
+--- a/src/cmd/6l/span.c
++++ b/src/cmd/6l/span.c
+@@ -1247,7 +1247,8 @@ found:
+ 		break;
+ 
+ 	case Zibm_r:
+-		*andptr++ = op;
++		while ((op = o->op[z++]) != 0)
++			*andptr++ = op;
+ 		asmand(&p->from, &p->to);
+ 		*andptr++ = p->to.offset;
+ 		break;

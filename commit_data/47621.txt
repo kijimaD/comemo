@@ -21,8 +21,85 @@ Date:   Thu Apr 1 16:50:53 2021 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/gc_test.go | 17 +++++++++++++++++
  src/runtime/mgc.go     |  2 +-
  src/runtime/stack.go   | 13 ++++++++++++-
  3 files changed, 30 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/gc_test.go b/src/runtime/gc_test.go
+index 273f399864..5e7c6c574f 100644
+--- a/src/runtime/gc_test.go
++++ b/src/runtime/gc_test.go
+@@ -242,6 +242,23 @@ func moveStackCheck(t *testing.T, new *int, old uintptr) bool {
+ 	return true
+ }
+ 
++func TestGCTestMoveStackRepeatedly(t *testing.T) {
++	// Move the stack repeatedly to make sure we're not doubling
++	// it each time.
++	for i := 0; i < 100; i++ {
++		runtime.GCTestMoveStackOnNextCall()
++		moveStack1(false)
++	}
++}
++
++//go:noinline
++func moveStack1(x bool) {
++	// Make sure this function doesn't get auto-nosplit.
++	if x {
++		println("x")
++	}
++}
++
+ func TestGCTestIsReachable(t *testing.T) {
+ 	var all, half []unsafe.Pointer
+ 	var want uint64
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index f0c03b5102..4895fa5ef6 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -2352,7 +2352,7 @@ func fmtNSAsMS(buf []byte, ns uint64) []byte {
+ // there's a preemption between this call and the next.
+ func gcTestMoveStackOnNextCall() {
+ 	gp := getg()
+-	gp.stackguard0 = getcallersp()
++	gp.stackguard0 = stackForceMove
+ }
+ 
+ // gcTestIsReachable performs a GC and returns a bit set where bit i
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index d971e5e26f..5c7fadc2d2 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -132,6 +132,10 @@ const (
+ 	// Stored into g->stackguard0 to cause split stack check failure.
+ 	// Must be greater than any real sp.
+ 	stackFork = uintptrMask & -1234
++
++	// Force a stack movement. Used for debugging.
++	// 0xfffffeed in hex.
++	stackForceMove = uintptrMask & -275
+ )
+ 
+ // Global pool of spans that have free stacks.
+@@ -1054,11 +1058,18 @@ func newstack() {
+ 	// recheck the bounds on return.)
+ 	if f := findfunc(gp.sched.pc); f.valid() {
+ 		max := uintptr(funcMaxSPDelta(f))
+-		for newsize-oldsize < max+_StackGuard {
++		for newsize-gp.sched.sp < max+_StackGuard {
+ 			newsize *= 2
+ 		}
+ 	}
+ 
++	if gp.stackguard0 == stackForceMove {
++		// Forced stack movement used for debugging.
++		// Don't double the stack (or we may quickly run out
++		// if this is done repeatedly).
++		newsize = oldsize
++	}
++
+ 	if newsize > maxstacksize || newsize > maxstackceiling {
+ 		if maxstacksize < maxstackceiling {
+ 			print("runtime: goroutine stack exceeds ", maxstacksize, "-byte limit\n")

@@ -27,6 +27,21 @@ Date:   Fri Oct 8 13:10:08 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/link/internal/ld/symtab.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 4be2634f44..7b1a0b7d1a 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -539,7 +539,8 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 			ldr.SetAttrNotInSymbolTable(s, true)
+ 			ldr.SetCarrierSym(s, symgostring)
+ 
+-		case strings.HasPrefix(name, "runtime.gcbits."):
++		case strings.HasPrefix(name, "runtime.gcbits."),
++			strings.HasPrefix(name, "type..gcprog."):
+ 			symGroupType[s] = sym.SGCBITS
+ 			ldr.SetAttrNotInSymbolTable(s, true)
+ 			ldr.SetCarrierSym(s, symgcbits)

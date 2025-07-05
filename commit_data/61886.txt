@@ -31,9 +31,179 @@ Date:   Tue Dec 10 12:00:10 2024 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/634916
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/internal/{objfile => disasm}/disasm.go | 28 ++++++++++++++------------
  src/cmd/internal/objfile/objfile.go            | 10 +++++----
  src/cmd/objdump/main.go                        |  3 ++-
  src/cmd/pprof/pprof.go                         |  9 +++++----
  4 files changed, 28 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/internal/objfile/disasm.go b/src/cmd/internal/disasm/disasm.go
+similarity index 94%
+rename from src/cmd/internal/objfile/disasm.go
+rename to src/cmd/internal/disasm/disasm.go
+index 99f54143fa..c317effa90 100644
+--- a/src/cmd/internal/objfile/disasm.go
++++ b/src/cmd/internal/disasm/disasm.go
+@@ -2,13 +2,16 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package objfile
++// Package disasm provides disassembly routines.
++//
++// It is broken out from cmd/internal/objfile so tools that don't need
++// disassembling don't need to depend on x/arch disassembler code.
++package disasm
+ 
+ import (
+ 	"bufio"
+ 	"bytes"
+ 	"container/list"
+-	"debug/gosym"
+ 	"encoding/binary"
+ 	"fmt"
+ 	"io"
+@@ -19,6 +22,7 @@ import (
+ 	"strings"
+ 	"text/tabwriter"
+ 
++	"cmd/internal/objfile"
+ 	"cmd/internal/src"
+ 
+ 	"golang.org/x/arch/arm/armasm"
+@@ -32,8 +36,8 @@ import (
+ 
+ // Disasm is a disassembler for a given File.
+ type Disasm struct {
+-	syms      []Sym            //symbols in file, sorted by address
+-	pcln      Liner            // pcln table
++	syms      []objfile.Sym    // symbols in file, sorted by address
++	pcln      objfile.Liner    // pcln table
+ 	text      []byte           // bytes of text segment (actual instructions)
+ 	textStart uint64           // start PC of text
+ 	textEnd   uint64           // end PC of text
+@@ -42,8 +46,12 @@ type Disasm struct {
+ 	byteOrder binary.ByteOrder // byte order for goarch
+ }
+ 
+-// Disasm returns a disassembler for the file f.
+-func (e *Entry) Disasm() (*Disasm, error) {
++// DisasmForFile returns a disassembler for the file f.
++func DisasmForFile(f *objfile.File) (*Disasm, error) {
++	return disasmForEntry(f.Entries()[0])
++}
++
++func disasmForEntry(e *objfile.Entry) (*Disasm, error) {
+ 	syms, err := e.Symbols()
+ 	if err != nil {
+ 		return nil, err
+@@ -269,7 +277,7 @@ func (d *Disasm) Print(w io.Writer, filter *regexp.Regexp, start, end uint64, pr
+ }
+ 
+ // Decode disassembles the text segment range [start, end), calling f for each instruction.
+-func (d *Disasm) Decode(start, end uint64, relocs []Reloc, gnuAsm bool, f func(pc, size uint64, file string, line int, text string)) {
++func (d *Disasm) Decode(start, end uint64, relocs []objfile.Reloc, gnuAsm bool, f func(pc, size uint64, file string, line int, text string)) {
+ 	if start < d.textStart {
+ 		start = d.textStart
+ 	}
+@@ -452,9 +460,3 @@ var byteOrders = map[string]binary.ByteOrder{
+ 	"riscv64": binary.LittleEndian,
+ 	"s390x":   binary.BigEndian,
+ }
+-
+-type Liner interface {
+-	// Given a pc, returns the corresponding file, line, and function data.
+-	// If unknown, returns "",0,nil.
+-	PCToLine(uint64) (string, int, *gosym.Func)
+-}
+diff --git a/src/cmd/internal/objfile/objfile.go b/src/cmd/internal/objfile/objfile.go
+index 2f2d771813..ed9aae280e 100644
+--- a/src/cmd/internal/objfile/objfile.go
++++ b/src/cmd/internal/objfile/objfile.go
+@@ -119,10 +119,6 @@ func (f *File) DWARF() (*dwarf.Data, error) {
+ 	return f.entries[0].DWARF()
+ }
+ 
+-func (f *File) Disasm() (*Disasm, error) {
+-	return f.entries[0].Disasm()
+-}
+-
+ func (e *Entry) Name() string {
+ 	return e.name
+ }
+@@ -181,3 +177,9 @@ func (e *Entry) LoadAddress() (uint64, error) {
+ func (e *Entry) DWARF() (*dwarf.Data, error) {
+ 	return e.raw.dwarf()
+ }
++
++type Liner interface {
++	// Given a pc, returns the corresponding file, line, and function data.
++	// If unknown, returns "",0,nil.
++	PCToLine(uint64) (string, int, *gosym.Func)
++}
+diff --git a/src/cmd/objdump/main.go b/src/cmd/objdump/main.go
+index b5b0d7f517..c98551e6b8 100644
+--- a/src/cmd/objdump/main.go
++++ b/src/cmd/objdump/main.go
+@@ -40,6 +40,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 
++	"cmd/internal/disasm"
+ 	"cmd/internal/objfile"
+ 	"cmd/internal/telemetry/counter"
+ )
+@@ -82,7 +83,7 @@ func main() {
+ 	}
+ 	defer f.Close()
+ 
+-	dis, err := f.Disasm()
++	dis, err := disasm.DisasmForFile(f)
+ 	if err != nil {
+ 		log.Fatalf("disassemble %s: %v", flag.Arg(0), err)
+ 	}
+diff --git a/src/cmd/pprof/pprof.go b/src/cmd/pprof/pprof.go
+index a1c2cd210f..bfc2911b69 100644
+--- a/src/cmd/pprof/pprof.go
++++ b/src/cmd/pprof/pprof.go
+@@ -24,6 +24,7 @@ import (
+ 	"sync"
+ 	"time"
+ 
++	"cmd/internal/disasm"
+ 	"cmd/internal/objfile"
+ 	"cmd/internal/telemetry/counter"
+ 
+@@ -162,7 +163,7 @@ func adjustURL(source string, duration, timeout time.Duration) (string, time.Dur
+ // (instead of invoking GNU binutils).
+ type objTool struct {
+ 	mu          sync.Mutex
+-	disasmCache map[string]*objfile.Disasm
++	disasmCache map[string]*disasm.Disasm
+ }
+ 
+ func (*objTool) Open(name string, start, limit, offset uint64, relocationSymbol string) (driver.ObjFile, error) {
+@@ -202,11 +203,11 @@ func (t *objTool) Disasm(file string, start, end uint64, intelSyntax bool) ([]dr
+ 	return asm, nil
+ }
+ 
+-func (t *objTool) cachedDisasm(file string) (*objfile.Disasm, error) {
++func (t *objTool) cachedDisasm(file string) (*disasm.Disasm, error) {
+ 	t.mu.Lock()
+ 	defer t.mu.Unlock()
+ 	if t.disasmCache == nil {
+-		t.disasmCache = make(map[string]*objfile.Disasm)
++		t.disasmCache = make(map[string]*disasm.Disasm)
+ 	}
+ 	d := t.disasmCache[file]
+ 	if d != nil {
+@@ -216,7 +217,7 @@ func (t *objTool) cachedDisasm(file string) (*objfile.Disasm, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	d, err = f.Disasm()
++	d, err = disasm.DisasmForFile(f)
+ 	f.Close()
+ 	if err != nil {
+ 		return nil, err

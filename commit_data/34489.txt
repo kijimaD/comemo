@@ -16,7 +16,7 @@ Date:   Tue Oct 24 17:10:02 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go           | 13 ++++---------
  src/cmd/compile/internal/gc/syntax.go        | 11 ++++++++++-
  src/cmd/compile/internal/gc/walk.go          |  2 ++
@@ -25,3 +25,166 @@ Date:   Tue Oct 24 17:10:02 2017 -0400
  src/cmd/compile/internal/ssa/func.go         |  2 --
  src/cmd/compile/internal/ssa/writebarrier.go |  7 +------
  7 files changed, 23 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 103a0f4cd6..95f753c167 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -136,11 +136,6 @@ func buildssa(fn *Node, worker int) *ssa.Func {
+ 	if fn.Func.Pragma&Nosplit != 0 {
+ 		s.f.NoSplit = true
+ 	}
+-	defer func() {
+-		if s.f.WBPos.IsKnown() {
+-			fn.Func.WBPos = s.f.WBPos
+-		}
+-	}()
+ 	s.exitCode = fn.Func.Exit
+ 	s.panics = map[funcLine]*ssa.Block{}
+ 
+@@ -5180,10 +5175,6 @@ func (e *ssafn) Debug_checknil() bool {
+ 	return Debug_checknil != 0
+ }
+ 
+-func (e *ssafn) Debug_wb() bool {
+-	return Debug_wb != 0
+-}
+-
+ func (e *ssafn) UseWriteBarrier() bool {
+ 	return use_writebarrier
+ }
+@@ -5205,6 +5196,10 @@ func (e *ssafn) Syslook(name string) *obj.LSym {
+ 	return nil
+ }
+ 
++func (e *ssafn) SetWBPos(pos src.XPos) {
++	e.curfn.Func.setWBPos(pos)
++}
++
+ func (n *Node) Typ() *types.Type {
+ 	return n.Type
+ }
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index e18cdfef5d..e28f8a0df3 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -427,7 +427,7 @@ type Func struct {
+ 	Label int32 // largest auto-generated label in this function
+ 
+ 	Endlineno src.XPos
+-	WBPos     src.XPos // position of first write barrier
++	WBPos     src.XPos // position of first write barrier; see SetWBPos
+ 
+ 	Pragma syntax.Pragma // go:xxx function annotations
+ 
+@@ -484,6 +484,15 @@ func (f *Func) SetHasDefer(b bool)            { f.flags.set(funcHasDefer, b) }
+ func (f *Func) SetNilCheckDisabled(b bool)    { f.flags.set(funcNilCheckDisabled, b) }
+ func (f *Func) SetInlinabilityChecked(b bool) { f.flags.set(funcInlinabilityChecked, b) }
+ 
++func (f *Func) setWBPos(pos src.XPos) {
++	if Debug_wb != 0 {
++		Warnl(pos, "write barrier")
++	}
++	if !f.WBPos.IsKnown() {
++		f.WBPos = pos
++	}
++}
++
+ type Op uint8
+ 
+ // Node ops.
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 65ca6cc27a..3139404b1e 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -2955,6 +2955,7 @@ func appendslice(n *Node, init *Nodes) *Node {
+ 		nptr1.SetSliceBounds(nod(OLEN, l1, nil), nil, nil)
+ 		nptr1.Etype = 1
+ 		nptr2 := l2
++		Curfn.Func.setWBPos(n.Pos)
+ 		fn := syslook("typedslicecopy")
+ 		fn = substArgTypes(fn, l1.Type, l2.Type)
+ 		var ln Nodes
+@@ -3117,6 +3118,7 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
+ //
+ func copyany(n *Node, init *Nodes, runtimecall bool) *Node {
+ 	if types.Haspointers(n.Left.Type.Elem()) {
++		Curfn.Func.setWBPos(n.Pos)
+ 		fn := writebarrierfn("typedslicecopy", n.Left.Type, n.Right.Type)
+ 		return mkcall1(fn, n.Type, init, typename(n.Left.Type.Elem()), n.Left, n.Right)
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index c352219523..de3aadbbe5 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -88,7 +88,6 @@ type Logger interface {
+ 
+ 	// Forwards the Debug flags from gc
+ 	Debug_checknil() bool
+-	Debug_wb() bool
+ }
+ 
+ type Frontend interface {
+@@ -131,6 +130,10 @@ type Frontend interface {
+ 
+ 	// UseWriteBarrier returns whether write barrier is enabled
+ 	UseWriteBarrier() bool
++
++	// SetWBPos indicates that a write barrier has been inserted
++	// in this function at position pos.
++	SetWBPos(pos src.XPos)
+ }
+ 
+ // interface used to hold a *gc.Node (a stack variable).
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index ad69463bdd..d1d6831eb3 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -125,6 +125,8 @@ func (d DummyFrontend) Syslook(s string) *obj.LSym {
+ func (DummyFrontend) UseWriteBarrier() bool {
+ 	return true // only writebarrier_test cares
+ }
++func (DummyFrontend) SetWBPos(pos src.XPos) {
++}
+ 
+ func (d DummyFrontend) Logf(msg string, args ...interface{}) { d.t.Logf(msg, args...) }
+ func (d DummyFrontend) Log() bool                            { return true }
+@@ -132,7 +134,6 @@ func (d DummyFrontend) Log() bool                            { return true }
+ func (d DummyFrontend) Fatalf(_ src.XPos, msg string, args ...interface{}) { d.t.Fatalf(msg, args...) }
+ func (d DummyFrontend) Warnl(_ src.XPos, msg string, args ...interface{})  { d.t.Logf(msg, args...) }
+ func (d DummyFrontend) Debug_checknil() bool                               { return false }
+-func (d DummyFrontend) Debug_wb() bool                                     { return false }
+ 
+ var dummyTypes Types
+ 
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 559f1d70e6..01966adb0f 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -44,8 +44,6 @@ type Func struct {
+ 	scheduled bool // Values in Blocks are in final order
+ 	NoSplit   bool // true if function is marked as nosplit.  Used by schedule check pass.
+ 
+-	WBPos src.XPos // line number of first write barrier
+-
+ 	// when register allocation is done, maps value ids to locations
+ 	RegAlloc []Location
+ 
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index 129a06eecb..60797158b3 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -226,12 +226,7 @@ func writebarrier(f *Func) {
+ 
+ 			if fn != nil {
+ 				// Note that we set up a writebarrier function call.
+-				if !f.WBPos.IsKnown() {
+-					f.WBPos = pos
+-				}
+-				if f.fe.Debug_wb() {
+-					f.Warnl(pos, "write barrier")
+-				}
++				f.fe.SetWBPos(pos)
+ 			}
+ 		}
+ 

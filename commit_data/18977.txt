@@ -17,6 +17,20 @@ Date:   Thu Mar 27 17:35:07 2014 -0400
     R=golang-codereviews, dominik.honnef, adonovan
     CC=golang-codereviews
     https://golang.org/cl/79260043
-
+---
  misc/emacs/go-mode.el | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/emacs/go-mode.el b/misc/emacs/go-mode.el
+index a536a17d2c..29b1fa4423 100644
+--- a/misc/emacs/go-mode.el
++++ b/misc/emacs/go-mode.el
+@@ -262,7 +262,7 @@ For mode=set, all covered lines will have this weight."
+   ;; doesn't understand that
+   (append
+    `((,(go--regexp-enclose-in-symbol (regexp-opt go-mode-keywords t)) . font-lock-keyword-face)
+-     (,(go--regexp-enclose-in-symbol (regexp-opt go-builtins t)) . font-lock-builtin-face)
++     (,(concat "\\(" (go--regexp-enclose-in-symbol (regexp-opt go-builtins t)) "\\)[[:space:]]*(") 1 font-lock-builtin-face)
+      (,(go--regexp-enclose-in-symbol (regexp-opt go-constants t)) . font-lock-constant-face)
+      (,go-func-regexp 1 font-lock-function-name-face)) ;; function (not method) name
+ 

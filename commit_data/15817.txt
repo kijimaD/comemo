@@ -9,7 +9,7 @@ Date:   Mon Mar 18 20:11:11 2013 +0100
     R=golang-dev, minux.ma, rsc
     CC=golang-dev
     https://golang.org/cl/7876043
-
+---
  src/pkg/runtime/export_futex_test.go | 13 +++++++++++++
  src/pkg/runtime/futex_test.go        | 31 +++++++++++++++++++++++++++++++
  src/pkg/runtime/os_darwin.c          |  7 ++++++-
@@ -18,3 +18,178 @@ Date:   Mon Mar 18 20:11:11 2013 +0100
  src/pkg/runtime/os_netbsd.c          |  7 ++++++-
  src/pkg/runtime/os_openbsd.c         |  7 ++++++-
  7 files changed, 74 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/runtime/export_futex_test.go b/src/pkg/runtime/export_futex_test.go
+new file mode 100644
+index 0000000000..bcab60fbef
+--- /dev/null
++++ b/src/pkg/runtime/export_futex_test.go
+@@ -0,0 +1,13 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux freebsd
++
++package runtime
++
++func futexsleep(addr *uint32, val uint32, ns int64)
++func futexwakeup(addr *uint32, val uint32)
++
++var Futexsleep = futexsleep
++var Futexwakeup = futexwakeup
+diff --git a/src/pkg/runtime/futex_test.go b/src/pkg/runtime/futex_test.go
+new file mode 100644
+index 0000000000..51f4d0f120
+--- /dev/null
++++ b/src/pkg/runtime/futex_test.go
+@@ -0,0 +1,31 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux freebsd
++
++package runtime_test
++
++import (
++	. "runtime"
++	"testing"
++	"time"
++)
++
++func TestFutexsleep(t *testing.T) {
++	ch := make(chan bool, 1)
++	var dummy uint32
++	start := time.Now()
++	go func() {
++		Entersyscall()
++		Futexsleep(&dummy, 0, (1<<31+100)*1e9)
++		Exitsyscall()
++		ch <- true
++	}()
++	select {
++	case <-ch:
++		t.Errorf("futexsleep finished early after %s!", time.Since(start))
++	case <-time.After(time.Second):
++		Futexwakeup(&dummy, 1)
++	}
++}
+diff --git a/src/pkg/runtime/os_darwin.c b/src/pkg/runtime/os_darwin.c
+index ba4e6ebdfc..6216e3a3ce 100644
+--- a/src/pkg/runtime/os_darwin.c
++++ b/src/pkg/runtime/os_darwin.c
+@@ -409,9 +409,14 @@ int32
+ runtime·mach_semacquire(uint32 sem, int64 ns)
+ {
+ 	int32 r;
++	int64 secs;
+ 
+ 	if(ns >= 0) {
+-		r = runtime·mach_semaphore_timedwait(sem, ns/1000000000LL, ns%1000000000LL);
++		secs = ns/1000000000LL;
++		// Avoid overflow
++		if(secs > 1LL<<30)
++			secs = 1LL<<30;
++		r = runtime·mach_semaphore_timedwait(sem, secs, ns%1000000000LL);
+ 		if(r == KERN_ABORTED || r == KERN_OPERATION_TIMED_OUT)
+ 			return -1;
+ 		if(r != 0)
+diff --git a/src/pkg/runtime/os_freebsd.c b/src/pkg/runtime/os_freebsd.c
+index 0632eabd30..7ee329ff5c 100644
+--- a/src/pkg/runtime/os_freebsd.c
++++ b/src/pkg/runtime/os_freebsd.c
+@@ -45,11 +45,16 @@ runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
+ {
+ 	int32 ret;
+ 	Timespec ts, *tsp;
++	int64 secs;
+ 
+ 	if(ns < 0)
+ 		tsp = nil;
+ 	else {
+-		ts.tv_sec = ns / 1000000000LL;
++		secs = ns / 1000000000LL;
++		// Avoid overflow
++		if(secs > 1LL<<30)
++			secs = 1LL<<30;
++		ts.tv_sec = secs;
+ 		ts.tv_nsec = ns % 1000000000LL;
+ 		tsp = &ts;
+ 	}
+diff --git a/src/pkg/runtime/os_linux.c b/src/pkg/runtime/os_linux.c
+index dc1e274378..8aa4c3d35d 100644
+--- a/src/pkg/runtime/os_linux.c
++++ b/src/pkg/runtime/os_linux.c
+@@ -36,15 +36,17 @@ void
+ runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
+ {
+ 	Timespec ts, *tsp;
++	int64 secs;
+ 
+ 	if(ns < 0)
+ 		tsp = nil;
+ 	else {
+-		ts.tv_sec = ns/1000000000LL;
+-		ts.tv_nsec = ns%1000000000LL;
++		secs = ns/1000000000LL;
+ 		// Avoid overflow
+-		if(ts.tv_sec > 1<<30)
+-			ts.tv_sec = 1<<30;
++		if(secs > 1LL<<30)
++			secs = 1LL<<30;
++		ts.tv_sec = secs;
++		ts.tv_nsec = ns%1000000000LL;
+ 		tsp = &ts;
+ 	}
+ 
+diff --git a/src/pkg/runtime/os_netbsd.c b/src/pkg/runtime/os_netbsd.c
+index d4b874f4c2..6cf57d6564 100644
+--- a/src/pkg/runtime/os_netbsd.c
++++ b/src/pkg/runtime/os_netbsd.c
+@@ -65,6 +65,7 @@ int32
+ runtime·semasleep(int64 ns)
+ {
+ 	Timespec ts;
++	int64 secs;
+ 
+ 	// spin-mutex lock
+ 	while(runtime·xchg(&m->waitsemalock, 1))
+@@ -93,7 +94,11 @@ runtime·semasleep(int64 ns)
+ 				runtime·lwp_park(nil, 0, &m->waitsemacount, nil);
+ 			} else {
+ 				ns += runtime·nanotime();
+-				ts.tv_sec = ns/1000000000LL;
++				secs = ns/1000000000LL;
++				// Avoid overflow
++				if(secs > 1LL<<30)
++					secs = 1LL<<30;
++				ts.tv_sec = secs;
+ 				ts.tv_nsec = ns%1000000000LL;
+ 				// TODO(jsing) - potential deadlock!
+ 				// See above for details.
+diff --git a/src/pkg/runtime/os_openbsd.c b/src/pkg/runtime/os_openbsd.c
+index 01a2ef1195..c3f562e0a2 100644
+--- a/src/pkg/runtime/os_openbsd.c
++++ b/src/pkg/runtime/os_openbsd.c
+@@ -62,6 +62,7 @@ int32
+ runtime·semasleep(int64 ns)
+ {
+ 	Timespec ts;
++	int64 secs;
+ 
+ 	// spin-mutex lock
+ 	while(runtime·xchg(&m->waitsemalock, 1))
+@@ -76,7 +77,11 @@ runtime·semasleep(int64 ns)
+ 				runtime·thrsleep(&m->waitsemacount, 0, nil, &m->waitsemalock, nil);
+ 			else {
+ 				ns += runtime·nanotime();
+-				ts.tv_sec = ns/1000000000LL;
++				secs = ns/1000000000LL;
++				// Avoid overflow
++				if(secs > 1LL<<30)
++					secs = 1LL<<30;
++				ts.tv_sec = secs;
+ 				ts.tv_nsec = ns%1000000000LL;
+ 				runtime·thrsleep(&m->waitsemacount, CLOCK_REALTIME, &ts, &m->waitsemalock, nil);
+ 			}

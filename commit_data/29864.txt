@@ -14,8 +14,70 @@ Date:   Sat Oct 10 15:24:34 2015 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go  |  6 ++++++
  src/cmd/compile/internal/gc/walk.go | 14 ++------------
  test/fixedbugs/issue11370.go        | 13 +++++++++++++
  3 files changed, 21 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 1e653fe619..d8dae83b5c 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1941,6 +1941,12 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 	case OINDEX:
+ 		switch {
+ 		case n.Left.Type.IsString():
++			if n.Bounded && Isconst(n.Left, CTSTR) && Isconst(n.Right, CTINT) {
++				// Replace "abc"[1] with 'b'.
++				// Delayed until now because "abc"[1] is not an ideal constant.
++				// See test/fixedbugs/issue11370.go.
++				return s.newValue0I(ssa.OpConst8, Types[TUINT8], int64(int8(n.Left.Val().U.(string)[n.Right.Int64()])))
++			}
+ 			a := s.expr(n.Left)
+ 			i := s.expr(n.Right)
+ 			i = s.extendIndex(i, panicindex)
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 25a1d72d82..9a03f1c959 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1263,18 +1263,8 @@ opswitch:
+ 			if Debug['m'] != 0 && n.Bounded && !Isconst(n.Right, CTINT) {
+ 				Warn("index bounds check elided")
+ 			}
+-			if smallintconst(n.Right) {
+-				if !n.Bounded {
+-					yyerror("index out of bounds")
+-				} else {
+-					// replace "abc"[1] with 'b'.
+-					// delayed until now because "abc"[1] is not
+-					// an ideal constant.
+-					v := n.Right.Int64()
+-
+-					Nodconst(n, n.Type, int64(n.Left.Val().U.(string)[v]))
+-					n.Typecheck = 1
+-				}
++			if smallintconst(n.Right) && !n.Bounded {
++				yyerror("index out of bounds")
+ 			}
+ 		}
+ 
+diff --git a/test/fixedbugs/issue11370.go b/test/fixedbugs/issue11370.go
+new file mode 100644
+index 0000000000..30f2904550
+--- /dev/null
++++ b/test/fixedbugs/issue11370.go
+@@ -0,0 +1,13 @@
++// compile
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 11370: cmd/compile: "0"[0] should not be a constant
++
++package p
++
++func main() {
++	println(-"abc"[1] >> 1)
++}

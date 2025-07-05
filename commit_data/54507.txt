@@ -22,7 +22,38 @@ Date:   Thu Oct 20 15:56:11 2022 -0700
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/base/flag.go   | 3 ++-
  src/cmd/compile/internal/noder/irgen.go | 5 +++--
  2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index 42273ea350..3e9d86c9bc 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -122,7 +122,8 @@ type CmdFlags struct {
+ 	SymABIs            string       "help:\"read symbol ABIs from `file`\""
+ 	TraceProfile       string       "help:\"write an execution trace to `file`\""
+ 	TrimPath           string       "help:\"remove `prefix` from recorded source file paths\""
+-	WB                 bool         "help:\"enable write barrier\"" // TODO: remove
++	WB                 bool         "help:\"enable write barrier\""                    // TODO: remove
++	AltComparable      bool         "help:\"enable alternative comparable semantics\"" // experiment - remove eventually
+ 
+ 	// Configuration derived from flags; not a flag itself.
+ 	Cfg struct {
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index 57872bce27..4a15c626b9 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -55,8 +55,9 @@ func checkFiles(noders []*noder) (posMap, *types2.Package, *types2.Info) {
+ 			}
+ 			base.ErrorfAt(m.makeXPos(terr.Pos), "%s", msg)
+ 		},
+-		Importer: &importer,
+-		Sizes:    &gcSizes{},
++		Importer:               &importer,
++		Sizes:                  &gcSizes{},
++		AltComparableSemantics: base.Flag.AltComparable, // experiment - remove eventually
+ 	}
+ 	info := &types2.Info{
+ 		StoreTypesInSyntax: true,

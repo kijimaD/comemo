@@ -5,7 +5,34 @@ Date:   Wed Jun 4 15:33:59 2008 -0700
     loaded problem getting main from a library
     
     SVN=121175
-
+---
  src/cmd/gc/go.h  | 2 +-
  src/cmd/gc/lex.c | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index ecd33a8ead..1d77cc4c4f 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -378,7 +378,7 @@ int	yyparse(void);
+ /*
+  *	lex.c
+  */
+-int	main(int, char*[]);
++int	mainlex(int, char*[]);
+ void	importfile(Val*);
+ void	cannedimports(void);
+ void	unimportfile();
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index b44540cd71..d0edaa19c8 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -14,7 +14,7 @@ enum
+ };
+ 
+ int
+-main(int argc, char *argv[])
++mainlex(int argc, char *argv[])
+ {
+ 	int c;
+ 

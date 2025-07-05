@@ -17,9 +17,402 @@ Date:   Tue May 11 14:14:30 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/stencil.go |  26 +++--
  test/typeparam/sliceimp.dir/a.go          | 141 +++++++++++++++++++++++
  test/typeparam/sliceimp.dir/main.go       | 179 ++++++++++++++++++++++++++++++
  test/typeparam/sliceimp.go                |   7 ++
  4 files changed, 343 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 7a7c05280d..1626ab9dd3 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -565,10 +565,10 @@ func (subst *subster) list(l []ir.Node) []ir.Node {
+ }
+ 
+ // tstruct substitutes type params in types of the fields of a structure type. For
+-// each field, if Nname is set, tstruct also translates the Nname using
+-// subst.vars, if Nname is in subst.vars. To always force the creation of a new
+-// (top-level) struct, regardless of whether anything changed with the types or
+-// names of the struct's fields, set force to true.
++// each field, tstruct copies the Nname, and translates it if Nname is in
++// subst.vars. To always force the creation of a new (top-level) struct,
++// regardless of whether anything changed with the types or names of the struct's
++// fields, set force to true.
+ func (subst *subster) tstruct(t *types.Type, force bool) *types.Type {
+ 	if t.NumFields() == 0 {
+ 		if t.HasTParam() {
+@@ -597,15 +597,21 @@ func (subst *subster) tstruct(t *types.Type, force bool) *types.Type {
+ 			// the type param, not the instantiated type).
+ 			newfields[i] = types.NewField(f.Pos, f.Sym, t2)
+ 			if f.Nname != nil {
+-				// f.Nname may not be in subst.vars[] if this is
+-				// a function name or a function instantiation type
+-				// that we are translating
+ 				v := subst.vars[f.Nname.(*ir.Name)]
+-				// Be careful not to put a nil var into Nname,
+-				// since Nname is an interface, so it would be a
+-				// non-nil interface.
+ 				if v != nil {
++					// This is the case where we are
++					// translating the type of the function we
++					// are substituting, so its dcls are in
++					// the subst.vars table, and we want to
++					// change to reference the new dcl.
+ 					newfields[i].Nname = v
++				} else {
++					// This is the case where we are
++					// translating the type of a function
++					// reference inside the function we are
++					// substituting, so we leave the Nname
++					// value as is.
++					newfields[i].Nname = f.Nname
+ 				}
+ 			}
+ 		}
+diff --git a/test/typeparam/sliceimp.dir/a.go b/test/typeparam/sliceimp.dir/a.go
+new file mode 100644
+index 0000000000..2b58d1c29e
+--- /dev/null
++++ b/test/typeparam/sliceimp.dir/a.go
+@@ -0,0 +1,141 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type Ordered interface {
++        type int, int8, int16, int32, int64,
++                uint, uint8, uint16, uint32, uint64, uintptr,
++                float32, float64,
++                string
++}
++
++// Max returns the maximum of two values of some ordered type.
++func Max[T Ordered](a, b T) T {
++        if a > b {
++                return a
++        }
++        return b
++}
++
++// Min returns the minimum of two values of some ordered type.
++func Min[T Ordered](a, b T) T {
++        if a < b {
++                return a
++        }
++        return b
++}
++
++// Equal reports whether two slices are equal: the same length and all
++// elements equal. All floating point NaNs are considered equal.
++func Equal[Elem comparable](s1, s2 []Elem) bool {
++	if len(s1) != len(s2) {
++		return false
++	}
++	for i, v1 := range s1 {
++		v2 := s2[i]
++		if v1 != v2 {
++			isNaN := func(f Elem) bool { return f != f }
++			if !isNaN(v1) || !isNaN(v2) {
++				return false
++			}
++		}
++	}
++	return true
++}
++
++// EqualFn reports whether two slices are equal using a comparision
++// function on each element.
++func EqualFn[Elem any](s1, s2 []Elem, eq func(Elem, Elem) bool) bool {
++	if len(s1) != len(s2) {
++		return false
++	}
++	for i, v1 := range s1 {
++		v2 := s2[i]
++		if !eq(v1, v2) {
++			return false
++		}
++	}
++	return true
++}
++
++// Map turns a []Elem1 to a []Elem2 using a mapping function.
++func Map[Elem1, Elem2 any](s []Elem1, f func(Elem1) Elem2) []Elem2 {
++	r := make([]Elem2, len(s))
++	for i, v := range s {
++		r[i] = f(v)
++	}
++	return r
++}
++
++// Reduce reduces a []Elem1 to a single value of type Elem2 using
++// a reduction function.
++func Reduce[Elem1, Elem2 any](s []Elem1, initializer Elem2, f func(Elem2, Elem1) Elem2) Elem2 {
++	r := initializer
++	for _, v := range s {
++		r = f(r, v)
++	}
++	return r
++}
++
++// Filter filters values from a slice using a filter function.
++func Filter[Elem any](s []Elem, f func(Elem) bool) []Elem {
++	var r []Elem
++	for _, v := range s {
++		if f(v) {
++			r = append(r, v)
++		}
++	}
++	return r
++}
++
++// Max returns the maximum element in a slice of some ordered type.
++// If the slice is empty it returns the zero value of the element type.
++func SliceMax[Elem Ordered](s []Elem) Elem {
++	if len(s) == 0 {
++		var zero Elem
++		return zero
++	}
++	return Reduce(s[1:], s[0], Max[Elem])
++}
++
++// Min returns the minimum element in a slice of some ordered type.
++// If the slice is empty it returns the zero value of the element type.
++func SliceMin[Elem Ordered](s []Elem) Elem {
++	if len(s) == 0 {
++		var zero Elem
++		return zero
++	}
++	return Reduce(s[1:], s[0], Min[Elem])
++}
++
++// Append adds values to the end of a slice, returning a new slice.
++// This is like the predeclared append function; it's an example
++// of how to write it using generics. We used to write code like
++// this before append was added to the language, but we had to write
++// a separate copy for each type.
++func Append[T any](s []T, t ...T) []T {
++	lens := len(s)
++	tot := lens + len(t)
++	if tot <= cap(s) {
++		s = s[:tot]
++	} else {
++		news := make([]T, tot, tot + tot/2)
++		Copy(news, s)
++		s = news
++	}
++	Copy(s[lens:tot], t)
++	return s
++}
++
++// Copy copies values from t to s, stopping when either slice is full,
++// returning the number of values copied. This is like the predeclared
++// copy function; it's an example of how to write it using generics.
++func Copy[T any](s, t []T) int {
++	i := 0
++	for ; i < len(s) && i < len(t); i++ {
++		s[i] = t[i]
++	}
++	return i
++}
+diff --git a/test/typeparam/sliceimp.dir/main.go b/test/typeparam/sliceimp.dir/main.go
+new file mode 100644
+index 0000000000..0a8e756b26
+--- /dev/null
++++ b/test/typeparam/sliceimp.dir/main.go
+@@ -0,0 +1,179 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"a"
++	"fmt"
++	"math"
++	"strings"
++)
++
++type Integer interface {
++        type int, int8, int16, int32, int64,
++                uint, uint8, uint16, uint32, uint64, uintptr
++}
++
++func TestEqual() {
++        s1 := []int{1, 2, 3}
++        if !a.Equal(s1, s1) {
++                panic(fmt.Sprintf("a.Equal(%v, %v) = false, want true", s1, s1))
++        }
++        s2 := []int{1, 2, 3}
++        if !a.Equal(s1, s2) {
++                panic(fmt.Sprintf("a.Equal(%v, %v) = false, want true", s1, s2))
++        }
++        s2 = append(s2, 4)
++        if a.Equal(s1, s2) {
++                panic(fmt.Sprintf("a.Equal(%v, %v) = true, want false", s1, s2))
++        }
++
++        s3 := []float64{1, 2, math.NaN()}
++        if !a.Equal(s3, s3) {
++                panic(fmt.Sprintf("a.Equal(%v, %v) = false, want true", s3, s3))
++        }
++
++        if a.Equal(s1, nil) {
++                panic(fmt.Sprintf("a.Equal(%v, nil) = true, want false", s1))
++        }
++        if a.Equal(nil, s1) {
++                panic(fmt.Sprintf("a.Equal(nil, %v) = true, want false", s1))
++        }
++        if !a.Equal(s1[:0], nil) {
++                panic(fmt.Sprintf("a.Equal(%v, nil = false, want true", s1[:0]))
++        }
++}
++
++func offByOne[Elem Integer](a, b Elem) bool {
++	return a == b + 1 || a == b - 1
++}
++
++func TestEqualFn() {
++	s1 := []int{1, 2, 3}
++	s2 := []int{2, 3, 4}
++	if a.EqualFn(s1, s1, offByOne[int]) {
++		panic(fmt.Sprintf("a.EqualFn(%v, %v, offByOne) = true, want false", s1, s1))
++	}
++	if !a.EqualFn(s1, s2, offByOne[int]) {
++		panic(fmt.Sprintf("a.EqualFn(%v, %v, offByOne) = false, want true", s1, s2))
++	}
++
++	if !a.EqualFn(s1[:0], nil, offByOne[int]) {
++		panic(fmt.Sprintf("a.EqualFn(%v, nil, offByOne) = false, want true", s1[:0]))
++	}
++
++	s3 := []string{"a", "b", "c"}
++	s4 := []string{"A", "B", "C"}
++	if !a.EqualFn(s3, s4, strings.EqualFold) {
++		panic(fmt.Sprintf("a.EqualFn(%v, %v, strings.EqualFold) = false, want true", s3, s4))
++	}
++}
++
++func TestMap() {
++	s1 := []int{1, 2, 3}
++	s2 := a.Map(s1, func(i int) float64 { return float64(i) * 2.5 })
++	if want := []float64{2.5, 5, 7.5}; !a.Equal(s2, want) {
++		panic(fmt.Sprintf("a.Map(%v, ...) = %v, want %v", s1, s2, want))
++	}
++
++	s3 := []string{"Hello", "World"}
++	s4 := a.Map(s3, strings.ToLower)
++	if want := []string{"hello", "world"}; !a.Equal(s4, want) {
++		panic(fmt.Sprintf("a.Map(%v, strings.ToLower) = %v, want %v", s3, s4, want))
++	}
++
++	s5 := a.Map(nil, func(i int) int { return i })
++	if len(s5) != 0 {
++		panic(fmt.Sprintf("a.Map(nil, identity) = %v, want empty slice", s5))
++	}
++}
++
++func TestReduce() {
++	s1 := []int{1, 2, 3}
++	r := a.Reduce(s1, 0, func(f float64, i int) float64 { return float64(i) * 2.5 + f })
++	if want := 15.0; r != want {
++		panic(fmt.Sprintf("a.Reduce(%v, 0, ...) = %v, want %v", s1, r, want))
++	}
++
++	if got := a.Reduce(nil, 0, func(i, j int) int { return i + j}); got != 0 {
++		panic(fmt.Sprintf("a.Reduce(nil, 0, add) = %v, want 0", got))
++	}
++}
++
++func TestFilter() {
++	s1 := []int{1, 2, 3}
++	s2 := a.Filter(s1, func(i int) bool { return i%2 == 0 })
++	if want := []int{2}; !a.Equal(s2, want) {
++		panic(fmt.Sprintf("a.Filter(%v, even) = %v, want %v", s1, s2, want))
++	}
++
++	if s3 := a.Filter(s1[:0], func(i int) bool { return true }); len(s3) > 0 {
++		panic(fmt.Sprintf("a.Filter(%v, identity) = %v, want empty slice", s1[:0], s3))
++	}
++}
++
++func TestMax() {
++	s1 := []int{1, 2, 3, -5}
++	if got, want := a.SliceMax(s1), 3; got != want {
++		panic(fmt.Sprintf("a.Max(%v) = %d, want %d", s1, got, want))
++	}
++
++	s2 := []string{"aaa", "a", "aa", "aaaa"}
++	if got, want := a.SliceMax(s2), "aaaa"; got != want {
++		panic(fmt.Sprintf("a.Max(%v) = %q, want %q", s2, got, want))
++	}
++
++	if got, want := a.SliceMax(s2[:0]), ""; got != want {
++		panic(fmt.Sprintf("a.Max(%v) = %q, want %q", s2[:0], got, want))
++	}
++}
++
++func TestMin() {
++	s1 := []int{1, 2, 3, -5}
++	if got, want := a.SliceMin(s1), -5; got != want {
++		panic(fmt.Sprintf("a.Min(%v) = %d, want %d", s1, got, want))
++	}
++
++	s2 := []string{"aaa", "a", "aa", "aaaa"}
++	if got, want := a.SliceMin(s2), "a"; got != want {
++		panic(fmt.Sprintf("a.Min(%v) = %q, want %q", s2, got, want))
++	}
++
++	if got, want := a.SliceMin(s2[:0]), ""; got != want {
++		panic(fmt.Sprintf("a.Min(%v) = %q, want %q", s2[:0], got, want))
++	}
++}
++
++func TestAppend() {
++	s := []int{1, 2, 3}
++	s = a.Append(s, 4, 5, 6)
++	want := []int{1, 2, 3, 4, 5, 6}
++	if !a.Equal(s, want) {
++		panic(fmt.Sprintf("after a.Append got %v, want %v", s, want))
++	}
++}
++
++func TestCopy() {
++	s1 := []int{1, 2, 3}
++	s2 := []int{4, 5}
++	if got := a.Copy(s1, s2); got != 2 {
++		panic(fmt.Sprintf("a.Copy returned %d, want 2", got))
++	}
++	want := []int{4, 5, 3}
++	if !a.Equal(s1, want) {
++		panic(fmt.Sprintf("after a.Copy got %v, want %v", s1, want))
++	}
++}
++func main() {
++	TestEqual()
++	TestEqualFn()
++	TestMap()
++	TestReduce()
++	TestFilter()
++	TestMax()
++	TestMin()
++	TestAppend()
++	TestCopy()
++}
+diff --git a/test/typeparam/sliceimp.go b/test/typeparam/sliceimp.go
+new file mode 100644
+index 0000000000..76930e5e4f
+--- /dev/null
++++ b/test/typeparam/sliceimp.go
+@@ -0,0 +1,7 @@
++// rundir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

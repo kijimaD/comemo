@@ -16,6 +16,19 @@ Date:   Sat Aug 27 22:08:09 2022 +0700
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/reflect/value.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 061545bd4f..3611a5a66c 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -3309,6 +3309,7 @@ func (v Value) Comparable() bool {
+ }
+ 
+ // Equal reports true if v is equal to u.
++// For valid values, if either v or u is non-comparable, Equal returns false.
+ func (v Value) Equal(u Value) bool {
+ 	if !v.IsValid() || !u.IsValid() {
+ 		return v.IsValid() == u.IsValid()

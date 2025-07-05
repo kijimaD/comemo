@@ -14,6 +14,62 @@ Date:   Thu May 24 16:07:08 2012 -0700
     R=golang-dev, r
     CC=golang-dev, rsc
     https://golang.org/cl/5956051
-
+---
  src/pkg/net/rpc/client.go | 27 +++++++++++++++++----------
  1 file changed, 17 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/net/rpc/client.go b/src/pkg/net/rpc/client.go
+index db2da8e441..e19bd484bd 100644
+--- a/src/pkg/net/rpc/client.go
++++ b/src/pkg/net/rpc/client.go
+@@ -88,10 +88,13 @@ func (client *Client) send(call *Call) {
+ 	err := client.codec.WriteRequest(&client.request, call.Args)
+ 	if err != nil {
+ 		client.mutex.Lock()
++		call = client.pending[seq]
+ 		delete(client.pending, seq)
+ 		client.mutex.Unlock()
+-		call.Error = err
+-		call.done()
++		if call != nil {
++			call.Error = err
++			call.done()
++		}
+ 	}
+ }
+ 
+@@ -113,22 +116,26 @@ func (client *Client) input() {
+ 		delete(client.pending, seq)
+ 		client.mutex.Unlock()
+ 
+-		if response.Error == "" {
+-			err = client.codec.ReadResponseBody(call.Reply)
+-			if err != nil {
+-				call.Error = errors.New("reading body " + err.Error())
+-			}
+-		} else {
++		if call == nil || response.Error != "" {
+ 			// We've got an error response. Give this to the request;
+ 			// any subsequent requests will get the ReadResponseBody
+ 			// error if there is one.
+-			call.Error = ServerError(response.Error)
++			if call != nil {
++				call.Error = ServerError(response.Error)
++			}
+ 			err = client.codec.ReadResponseBody(nil)
+ 			if err != nil {
+ 				err = errors.New("reading error body: " + err.Error())
+ 			}
++		} else if response.Error == "" {
++			err = client.codec.ReadResponseBody(call.Reply)
++			if err != nil {
++				call.Error = errors.New("reading body " + err.Error())
++			}
++		}
++		if call != nil {
++			call.done()
+ 		}
+-		call.done()
+ 	}
+ 	// Terminate pending calls.
+ 	client.sending.Lock()

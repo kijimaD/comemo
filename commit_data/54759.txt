@@ -15,6 +15,56 @@ Date:   Wed Nov 9 10:45:50 2022 -0500
     Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  doc/go1.20.html | 27 +++++++++++++++++++--------
  1 file changed, 19 insertions(+), 8 deletions(-)
+
+diff --git a/doc/go1.20.html b/doc/go1.20.html
+index 695acdf894..551403fa45 100644
+--- a/doc/go1.20.html
++++ b/doc/go1.20.html
+@@ -59,18 +59,10 @@ Do not send CLs removing the interior tags from such phrases.
+   TODO: <a href="https://go.dev/issue/45454">https://go.dev/issue/45454</a>: provide build tags for architecture environment variables
+ </p>
+ 
+-<p><!-- https://go.dev/issue/50332 -->
+-  TODO: https://go.dev/issue/50332: add -C flag to change directory
+-</p>
+-
+ <p><!-- CL 448357: cmd/go: print test2json start events -->
+   TODO: CL 448357: cmd/go: print test2json start events
+ </p>
+ 
+-<p><!-- https://go.dev/issue/41583 -->
+-  TODO: https://go.dev/issue/41583: add go test -skip to skip specific tests
+-</p>
+-
+ <p><!-- CL 432535: cmd/go: don't install most GOROOT .a files in pkg -->
+   The Go distribution no longer ships with pre-compiled <code>.a</code>
+   files for most of the packages in <code>GOROOT</code>, now only including
+@@ -94,6 +86,25 @@ Do not send CLs removing the interior tags from such phrases.
+   the <code>GOPATH</code> install targets to unexpectedly remain in effect.)
+ </p>
+ 
++<p><!-- https://go.dev/issue/41696, CL 416094 -->
++  The <code>-i</code> flag is no longer accepted by
++  <code>go</code> <code>build</code> and <code>go</code> <code>test</code>.
++  The flag has been <a href="https://go.dev/issue/41696">deprecated since Go 1.16</a>.
++</p>
++
++<p><!-- https://go.dev/issue/50332 -->
++  The <code>go</code> subcommands now accept
++  <code>-C</code> <code>&lt;dir&gt;</code> to change directory to &lt;dir&gt;
++  before performing the command, which may be useful for scripts that need to
++  execute commands in multiple different modules.
++</p>
++
++<p><!-- https://go.dev/issue/41583 -->
++  The <code>go</code> <code>test</code> command now accepts
++  <code>-skip</code> <code>&lt;pattern&gt;</code> to skip tests or subtests
++  matching <code>&lt;pattern&gt;</code>.
++</p>
++
+ <h4 id="go-version"><code>go</code> <code>version</code></h4>
+ 
+ <p><!-- https://go.dev/issue/48187 -->

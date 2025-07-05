@@ -9,7 +9,7 @@ Date:   Fri Feb 28 20:14:18 2020 +0800
     Run-TryBot: Meng Zhuo <mengzhuo1203@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/internal/cpu/cpu.go          |  8 ++++++++
  src/internal/cpu/cpu_mips64.go   |  7 -------
  src/internal/cpu/cpu_mips64le.go |  7 -------
@@ -17,3 +17,118 @@ Date:   Fri Feb 28 20:14:18 2020 +0800
  src/internal/cpu/cpu_no_init.go  |  2 ++
  src/runtime/os_linux_mips64x.go  |  6 ++++++
  6 files changed, 48 insertions(+), 14 deletions(-)
+
+diff --git a/src/internal/cpu/cpu.go b/src/internal/cpu/cpu.go
+index f326b06332..84df6472eb 100644
+--- a/src/internal/cpu/cpu.go
++++ b/src/internal/cpu/cpu.go
+@@ -134,6 +134,14 @@ type s390x struct {
+ 	_         CacheLinePad
+ }
+ 
++var MIPS64X mips64x
++
++type mips64x struct {
++	_      CacheLinePad
++	HasMSA bool // MIPS SIMD architecture
++	_      CacheLinePad
++}
++
+ // Initialize examines the processor and sets the relevant variables above.
+ // This is called by the runtime package early in program initialization,
+ // before normal init functions are run. env is set by runtime if the OS supports
+diff --git a/src/internal/cpu/cpu_mips64.go b/src/internal/cpu/cpu_mips64.go
+deleted file mode 100644
+index 0f821e44e7..0000000000
+--- a/src/internal/cpu/cpu_mips64.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package cpu
+-
+-const CacheLinePadSize = 32
+diff --git a/src/internal/cpu/cpu_mips64le.go b/src/internal/cpu/cpu_mips64le.go
+deleted file mode 100644
+index 0f821e44e7..0000000000
+--- a/src/internal/cpu/cpu_mips64le.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package cpu
+-
+-const CacheLinePadSize = 32
+diff --git a/src/internal/cpu/cpu_mips64x.go b/src/internal/cpu/cpu_mips64x.go
+new file mode 100644
+index 0000000000..9b0a824ee8
+--- /dev/null
++++ b/src/internal/cpu/cpu_mips64x.go
+@@ -0,0 +1,32 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build mips64 mips64le
++
++package cpu
++
++const CacheLinePadSize = 32
++
++// These are initialized by archauxv in runtime/os_linux_mips64x.go.
++// These should not be changed after they are initialized.
++var HWCap uint
++
++// HWCAP bits. These are exposed by the Linux kernel 5.4.
++const (
++	// CPU features
++	hwcap_MIPS_MSA = 1 << 1
++)
++
++func doinit() {
++	options = []option{
++		{Name: "msa", Feature: &MIPS64X.HasMSA},
++	}
++
++	// HWCAP feature bits
++	MIPS64X.HasMSA = isSet(HWCap, hwcap_MIPS_MSA)
++}
++
++func isSet(hwc uint, value uint) bool {
++	return hwc&value != 0
++}
+diff --git a/src/internal/cpu/cpu_no_init.go b/src/internal/cpu/cpu_no_init.go
+index d4b2be8cf4..fb381e1ce2 100644
+--- a/src/internal/cpu/cpu_no_init.go
++++ b/src/internal/cpu/cpu_no_init.go
+@@ -9,6 +9,8 @@
+ // +build !ppc64
+ // +build !ppc64le
+ // +build !s390x
++// +build !mips64
++// +build !mips64le
+ 
+ package cpu
+ 
+diff --git a/src/runtime/os_linux_mips64x.go b/src/runtime/os_linux_mips64x.go
+index 464a26a8a4..4ff66f9538 100644
+--- a/src/runtime/os_linux_mips64x.go
++++ b/src/runtime/os_linux_mips64x.go
+@@ -7,7 +7,13 @@
+ 
+ package runtime
+ 
++import "internal/cpu"
++
+ func archauxv(tag, val uintptr) {
++	switch tag {
++	case _AT_HWCAP:
++		cpu.HWCap = uint(val)
++	}
+ }
+ 
+ func osArchInit() {}

@@ -12,8 +12,80 @@ Date:   Mon Aug 6 18:06:06 2018 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  .../mod/research.swtch.com_vgo-tour_v1.0.0.txt     | 23 ++++++++++++++++++++++
  src/cmd/go/testdata/script/mod_get_commit.txt      |  9 +++++++++
  src/cmd/go/testdata/script/mod_install.txt         | 16 +++++++++++++++
  3 files changed, 48 insertions(+)
+
+diff --git a/src/cmd/go/testdata/mod/research.swtch.com_vgo-tour_v1.0.0.txt b/src/cmd/go/testdata/mod/research.swtch.com_vgo-tour_v1.0.0.txt
+new file mode 100644
+index 0000000000..0f060dc8e3
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/research.swtch.com_vgo-tour_v1.0.0.txt
+@@ -0,0 +1,23 @@
++research.swtch.com/vgo-tour@v1.0.0
++
++-- .mod --
++module "research.swtch.com/vgo-tour"
++-- .info --
++{"Version":"v1.0.0","Name":"84de74b35823c1e49634f2262f1a58cfc951ebae","Short":"84de74b35823","Time":"2018-02-20T00:04:00Z"}
++-- go.mod --
++module "research.swtch.com/vgo-tour"
++-- hello.go --
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"rsc.io/quote"
++)
++
++func main() {
++	fmt.Println(quote.Hello())
++}
+diff --git a/src/cmd/go/testdata/script/mod_get_commit.txt b/src/cmd/go/testdata/script/mod_get_commit.txt
+index 97a10789cf..e96f09712e 100644
+--- a/src/cmd/go/testdata/script/mod_get_commit.txt
++++ b/src/cmd/go/testdata/script/mod_get_commit.txt
+@@ -21,6 +21,15 @@ go get -d -x golang.org/x/text/language@14c0d48
+ go get -x golang.org/x/text/language@14c0d48
+ stderr 'compile|cp|gccgo .*language\.a$'
+ 
++# BUG: after the build, the package should not be stale, as 'go install' would
++# not do anything further.
++go list -f '{{.Stale}}' golang.org/x/text/language
++stdout ^true
++
++# install after get should not run the compiler again.
++go install -x golang.org/x/text/language
++! stderr 'compile|cp|gccgo .*language\.a$'
++
+ # even with -d, we should see an error for unknown packages.
+ ! go get -d -x golang.org/x/text/foo@14c0d48
+ 
+diff --git a/src/cmd/go/testdata/script/mod_install.txt b/src/cmd/go/testdata/script/mod_install.txt
+new file mode 100644
+index 0000000000..9559c4669c
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_install.txt
+@@ -0,0 +1,16 @@
++env GO111MODULE=on
++
++go mod init example.com/m
++
++# get of a binary should install it to $GOPATH/bin
++# BUG: vgo-tour should be installed as vgo-tour, not vgo-tour@v1.0.0.
++go get research.swtch.com/vgo-tour
++exec $GOPATH/bin/vgo-tour@v1.0.0
++stdout 'Hello, world.'
++rm $GOPATH/bin/vgo-tour@v1.0.0
++
++# install of a binary should install it to $GOPATH/bin
++# BUG: vgo-tour should be installed as vgo-tour, not vgo-tour@v1.0.0.
++go install research.swtch.com/vgo-tour
++exec $GOPATH/bin/vgo-tour@v1.0.0
++stdout 'Hello, world.'

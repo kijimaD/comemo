@@ -12,8 +12,87 @@ Date:   Thu Sep 17 07:54:01 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/typecheck.go | 20 ++++++++++++--------
  test/fixedbugs/issue41440.go             | 14 ++++++++++++++
  test/fixedbugs/issue6750.go              |  2 +-
  3 files changed, 27 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index cbfaa3073e..2654177c25 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2717,7 +2717,7 @@ func errorDetails(nl Nodes, tstruct *types.Type, isddd bool) string {
+ // sigrepr is a type's representation to the outside world,
+ // in string representations of return signatures
+ // e.g in error messages about wrong arguments to return.
+-func sigrepr(t *types.Type) string {
++func sigrepr(t *types.Type, isddd bool) string {
+ 	switch t {
+ 	case types.Idealstring:
+ 		return "string"
+@@ -2732,6 +2732,13 @@ func sigrepr(t *types.Type) string {
+ 		return "number"
+ 	}
+ 
++	// Turn []T... argument to ...T for clearer error message.
++	if isddd {
++		if !t.IsSlice() {
++			Fatalf("bad type for ... argument: %v", t)
++		}
++		return "..." + t.Elem().String()
++	}
+ 	return t.String()
+ }
+ 
+@@ -2742,15 +2749,12 @@ func (nl Nodes) sigerr(isddd bool) string {
+ 	}
+ 
+ 	var typeStrings []string
+-	for _, n := range nl.Slice() {
+-		typeStrings = append(typeStrings, sigrepr(n.Type))
++	for i, n := range nl.Slice() {
++		isdddArg := isddd && i == nl.Len()-1
++		typeStrings = append(typeStrings, sigrepr(n.Type, isdddArg))
+ 	}
+ 
+-	ddd := ""
+-	if isddd {
+-		ddd = "..."
+-	}
+-	return fmt.Sprintf("(%s%s)", strings.Join(typeStrings, ", "), ddd)
++	return fmt.Sprintf("(%s)", strings.Join(typeStrings, ", "))
+ }
+ 
+ // type check composite
+diff --git a/test/fixedbugs/issue41440.go b/test/fixedbugs/issue41440.go
+new file mode 100644
+index 0000000000..2b441db803
+--- /dev/null
++++ b/test/fixedbugs/issue41440.go
+@@ -0,0 +1,14 @@
++// errorcheck
++
++// Copyright 2020 The Go Authors. All rights reserved.  Use of this
++// source code is governed by a BSD-style license that can be found in
++// the LICENSE file.
++
++package p
++
++func f(...int) {}
++
++func g() {
++	var x []int
++	f(x, x...) // ERROR "have \(\[\]int, \.\.\.int\)"
++}
+diff --git a/test/fixedbugs/issue6750.go b/test/fixedbugs/issue6750.go
+index dbbb454435..f62a85009c 100644
+--- a/test/fixedbugs/issue6750.go
++++ b/test/fixedbugs/issue6750.go
+@@ -18,5 +18,5 @@ func printmany(nums ...int) {
+ func main() {
+ 	printmany(1, 2, 3)
+ 	printmany([]int{1, 2, 3}...)
+-	printmany(1, "abc", []int{2, 3}...) // ERROR "too many arguments in call to printmany\n\thave \(number, string, \[\]int\.\.\.\)\n\twant \(...int\)"
++	printmany(1, "abc", []int{2, 3}...) // ERROR "too many arguments in call to printmany\n\thave \(number, string, \.\.\.int\)\n\twant \(...int\)"
+ }

@@ -12,7 +12,32 @@ Date:   Tue Dec 1 14:47:22 2015 +1300
     Change-Id: Ia4d0da4c13efda68340d38c045a52b37c2f90796
     Reviewed-on: https://go-review.googlesource.com/17280
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/signal_linux_ppc64x.go | 1 +
  src/runtime/signal_ppc64x.go       | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/runtime/signal_linux_ppc64x.go b/src/runtime/signal_linux_ppc64x.go
+index 5445201b19..49e97a4d25 100644
+--- a/src/runtime/signal_linux_ppc64x.go
++++ b/src/runtime/signal_linux_ppc64x.go
+@@ -63,6 +63,7 @@ func (c *sigctxt) sigaddr() uint64 { return c.info.si_addr }
+ func (c *sigctxt) fault() uint64   { return c.regs().dar }
+ 
+ func (c *sigctxt) set_r0(x uint64)   { c.regs().gpr[0] = x }
++func (c *sigctxt) set_r12(x uint64)  { c.regs().gpr[12] = x }
+ func (c *sigctxt) set_r30(x uint64)  { c.regs().gpr[30] = x }
+ func (c *sigctxt) set_pc(x uint64)   { c.regs().nip = x }
+ func (c *sigctxt) set_sp(x uint64)   { c.regs().gpr[1] = x }
+diff --git a/src/runtime/signal_ppc64x.go b/src/runtime/signal_ppc64x.go
+index e0c5f91e33..b22df88602 100644
+--- a/src/runtime/signal_ppc64x.go
++++ b/src/runtime/signal_ppc64x.go
+@@ -110,6 +110,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 		// In case we are panicking from external C code
+ 		c.set_r0(0)
+ 		c.set_r30(uint64(uintptr(unsafe.Pointer(gp))))
++		c.set_r12(uint64(funcPC(sigpanic)))
+ 		c.set_pc(uint64(funcPC(sigpanic)))
+ 		return
+ 	}

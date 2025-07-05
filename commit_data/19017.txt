@@ -13,6 +13,56 @@ Date:   Wed Apr 2 19:46:47 2014 -0700
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/81160044
-
+---
  src/cmd/ld/dwarf.c | 19 +++++++++++++++----
  1 file changed, 15 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index fe1576bf51..9966cc8d1f 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -1099,21 +1099,29 @@ defptrto(DWDie *dwtype)
+ }
+ 
+ // Copies src's children into dst. Copies attributes by value.
+-// DWAttr.data is copied as pointer only.
++// DWAttr.data is copied as pointer only.  If except is one of
++// the top-level children, it will not be copied.
+ static void
+-copychildren(DWDie *dst, DWDie *src)
++copychildrenexcept(DWDie *dst, DWDie *src, DWDie *except)
+ {
+ 	DWDie *c;
+ 	DWAttr *a;
+ 
+ 	for (src = src->child; src != nil; src = src->link) {
++		if(src == except)
++			continue;
+ 		c = newdie(dst, src->abbrev, getattr(src, DW_AT_name)->data);
+ 		for (a = src->attr; a != nil; a = a->link)
+ 			newattr(c, a->atr, a->cls, a->value, a->data);
+-		copychildren(c, src);
++		copychildrenexcept(c, src, nil);
+ 	}
+ 	reverselist(&dst->child);
+ }
++static void
++copychildren(DWDie *dst, DWDie *src)
++{
++	copychildrenexcept(dst, src, nil);
++}
+ 
+ // Search children (assumed to have DW_TAG_member) for the one named
+ // field and set its DW_AT_type to dwtype
+@@ -1253,7 +1261,10 @@ synthesizemaptypes(DWDie *die)
+ 			      mkinternaltypename("bucket",
+ 						 getattr(keytype, DW_AT_name)->data,
+ 						 getattr(valtype, DW_AT_name)->data));
+-		copychildren(dwhb, bucket);
++		// Copy over all fields except the field "data" from the generic bucket.
++		// "data" will be replaced with keys/values below.
++		copychildrenexcept(dwhb, bucket, find(bucket, "data"));
++		
+ 		fld = newdie(dwhb, DW_ABRV_STRUCTFIELD, "keys");
+ 		newrefattr(fld, DW_AT_type, dwhk);
+ 		newmemberoffsetattr(fld, BucketSize + PtrSize);

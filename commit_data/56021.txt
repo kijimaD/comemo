@@ -21,10 +21,159 @@ Date:   Thu Mar 30 07:22:35 2023 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Mateusz Poliwczak <mpoliwczak34@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/internal/syscall/unix/net_darwin.go |  1 +
  src/net/cgo_unix.go                     |  2 +-
  src/net/cgo_unix_cgo.go                 |  7 ++++
  src/net/cgo_unix_syscall.go             |  1 +
  src/net/lookup_test.go                  | 64 +++++++++++++++++++++++++++++++++
  5 files changed, 74 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/syscall/unix/net_darwin.go b/src/internal/syscall/unix/net_darwin.go
+index b9da4f1dc7..8b908ae600 100644
+--- a/src/internal/syscall/unix/net_darwin.go
++++ b/src/internal/syscall/unix/net_darwin.go
+@@ -17,6 +17,7 @@ const (
+ 	AI_MASK      = 0x1407
+ 
+ 	EAI_AGAIN    = 2
++	EAI_NODATA   = 7
+ 	EAI_NONAME   = 8
+ 	EAI_SYSTEM   = 11
+ 	EAI_OVERFLOW = 14
+diff --git a/src/net/cgo_unix.go b/src/net/cgo_unix.go
+index e378a87ba3..c5281ad3a5 100644
+--- a/src/net/cgo_unix.go
++++ b/src/net/cgo_unix.go
+@@ -166,7 +166,7 @@ func cgoLookupHostIP(network, name string) (addrs []IPAddr, err error) {
+ 				// comes up again. golang.org/issue/6232.
+ 				err = syscall.EMFILE
+ 			}
+-		case _C_EAI_NONAME:
++		case _C_EAI_NONAME, _C_EAI_NODATA:
+ 			err = errNoSuchHost
+ 			isErrorNoSuchHost = true
+ 		default:
+diff --git a/src/net/cgo_unix_cgo.go b/src/net/cgo_unix_cgo.go
+index 69876a675a..c0aa373a9b 100644
+--- a/src/net/cgo_unix_cgo.go
++++ b/src/net/cgo_unix_cgo.go
+@@ -7,6 +7,8 @@
+ package net
+ 
+ /*
++#define _GNU_SOURCE
++
+ #cgo CFLAGS: -fno-stack-protector
+ #include <sys/types.h>
+ #include <sys/socket.h>
+@@ -16,6 +18,10 @@ package net
+ #include <string.h>
+ #include <stdlib.h>
+ 
++#ifndef EAI_NODATA
++#define EAI_NODATA -5
++#endif
++
+ // If nothing else defined EAI_OVERFLOW, make sure it has a value.
+ #ifndef EAI_OVERFLOW
+ #define EAI_OVERFLOW -12
+@@ -29,6 +35,7 @@ const (
+ 	_C_AF_INET6     = C.AF_INET6
+ 	_C_AF_UNSPEC    = C.AF_UNSPEC
+ 	_C_EAI_AGAIN    = C.EAI_AGAIN
++	_C_EAI_NODATA   = C.EAI_NODATA
+ 	_C_EAI_NONAME   = C.EAI_NONAME
+ 	_C_EAI_OVERFLOW = C.EAI_OVERFLOW
+ 	_C_EAI_SYSTEM   = C.EAI_SYSTEM
+diff --git a/src/net/cgo_unix_syscall.go b/src/net/cgo_unix_syscall.go
+index 0f643a021d..cbdeb47714 100644
+--- a/src/net/cgo_unix_syscall.go
++++ b/src/net/cgo_unix_syscall.go
+@@ -19,6 +19,7 @@ const (
+ 	_C_AF_UNSPEC    = syscall.AF_UNSPEC
+ 	_C_EAI_AGAIN    = unix.EAI_AGAIN
+ 	_C_EAI_NONAME   = unix.EAI_NONAME
++	_C_EAI_NODATA   = unix.EAI_NODATA
+ 	_C_EAI_OVERFLOW = unix.EAI_OVERFLOW
+ 	_C_EAI_SYSTEM   = unix.EAI_SYSTEM
+ 	_C_IPPROTO_TCP  = syscall.IPPROTO_TCP
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index dfcf62b1c4..b47e444375 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -8,6 +8,7 @@ package net
+ 
+ import (
+ 	"context"
++	"errors"
+ 	"fmt"
+ 	"internal/testenv"
+ 	"net/netip"
+@@ -1398,3 +1399,66 @@ func TestDNSTimeout(t *testing.T) {
+ 	checkErr(err2)
+ 	cancel()
+ }
++
++func TestLookupNoData(t *testing.T) {
++	if runtime.GOOS == "plan9" {
++		t.Skip("not supported on plan9")
++	}
++
++	mustHaveExternalNetwork(t)
++
++	testLookupNoData(t, "default resolver")
++
++	func() {
++		defer forceGoDNS()()
++		testLookupNoData(t, "forced go resolver")
++	}()
++
++	func() {
++		defer forceCgoDNS()()
++		testLookupNoData(t, "forced cgo resolver")
++	}()
++}
++
++func testLookupNoData(t *testing.T, prefix string) {
++	attempts := 0
++	for {
++		// Domain that doesn't have any A/AAAA RRs, but has different one (in this case a TXT),
++		// so that it returns an empty response without any error codes (NXDOMAIN).
++		_, err := LookupHost("golang.rsc.io")
++		if err == nil {
++			t.Errorf("%v: unexpected success", prefix)
++			return
++		}
++
++		var dnsErr *DNSError
++		if errors.As(err, &dnsErr) {
++			succeeded := true
++			if !dnsErr.IsNotFound {
++				succeeded = false
++				t.Logf("%v: IsNotFound is set to false", prefix)
++			}
++
++			if dnsErr.Err != errNoSuchHost.Error() {
++				succeeded = false
++				t.Logf("%v: error message is not equal to: %v", prefix, errNoSuchHost.Error())
++			}
++
++			if succeeded {
++				return
++			}
++		}
++
++		testenv.SkipFlakyNet(t)
++		if attempts < len(backoffDuration) {
++			dur := backoffDuration[attempts]
++			t.Logf("%v: backoff %v after failure %v\n", prefix, dur, err)
++			time.Sleep(dur)
++			attempts++
++			continue
++		}
++
++		t.Errorf("%v: unexpected error: %v", prefix, err)
++		return
++	}
++}

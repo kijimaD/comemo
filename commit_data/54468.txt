@@ -14,10 +14,70 @@ Date:   Thu Oct 20 10:28:59 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/runtime/race/README                           |   3 ++-
  src/runtime/race/internal/amd64v1/race_linux.syso | Bin 557744 -> 563848 bytes
  src/runtime/race/internal/amd64v3/race_linux.syso | Bin 0 -> 563664 bytes
  src/runtime/race/race_v1_amd64.go                 |   8 ++------
  src/runtime/race/race_v3_amd64.go                 |   8 ++------
  5 files changed, 6 insertions(+), 13 deletions(-)
+
+diff --git a/src/runtime/race/README b/src/runtime/race/README
+index ad8f55fb73..596700aea1 100644
+--- a/src/runtime/race/README
++++ b/src/runtime/race/README
+@@ -6,7 +6,6 @@ To update the .syso files use golang.org/x/build/cmd/racebuild.
+ 
+ race_darwin_amd64.syso built with LLVM 127e59048cd3d8dbb80c14b3036918c114089529 and Go 59ab6f351a370a27458755dc69f4a837e55a05a6.
+ race_freebsd_amd64.syso built with LLVM 127e59048cd3d8dbb80c14b3036918c114089529 and Go 59ab6f351a370a27458755dc69f4a837e55a05a6.
+-race_linux_amd64.syso built with LLVM 127e59048cd3d8dbb80c14b3036918c114089529 and Go 59ab6f351a370a27458755dc69f4a837e55a05a6.
+ race_linux_ppc64le.syso built with LLVM 41cb504b7c4b18ac15830107431a0c1eec73a6b2 and Go 851ecea4cc99ab276109493477b2c7e30c253ea8.
+ race_netbsd_amd64.syso built with LLVM 41cb504b7c4b18ac15830107431a0c1eec73a6b2 and Go 851ecea4cc99ab276109493477b2c7e30c253ea8.
+ race_windows_amd64.syso built with LLVM 89f7ccea6f6488c443655880229c54db1f180153 and Go f62d3202bf9dbb3a00ad2a2c63ff4fa4188c5d3b.
+@@ -14,3 +13,5 @@ race_linux_arm64.syso built with LLVM 41cb504b7c4b18ac15830107431a0c1eec73a6b2 a
+ race_darwin_arm64.syso built with LLVM 41cb504b7c4b18ac15830107431a0c1eec73a6b2 and Go 851ecea4cc99ab276109493477b2c7e30c253ea8.
+ race_openbsd_amd64.syso built with LLVM fcf6ae2f070eba73074b6ec8d8281e54d29dbeeb and Go 8f2db14cd35bbd674cb2988a508306de6655e425.
+ race_linux_s390x.syso built with LLVM 41cb504b7c4b18ac15830107431a0c1eec73a6b2 and Go 851ecea4cc99ab276109493477b2c7e30c253ea8.
++internal/amd64v3/race_linux.syso built with LLVM 74c2d4f6024c8f160871a2baa928d0b42415f183 and Go c0f27eb3d580c8b9efd73802678eba4c6c9461be.
++internal/amd64v1/race_linux.syso built with LLVM 74c2d4f6024c8f160871a2baa928d0b42415f183 and Go c0f27eb3d580c8b9efd73802678eba4c6c9461be.
+diff --git a/src/runtime/race/internal/amd64v1/race_linux.syso b/src/runtime/race/internal/amd64v1/race_linux.syso
+index 6885610f25..68f15087ff 100644
+Binary files a/src/runtime/race/internal/amd64v1/race_linux.syso and b/src/runtime/race/internal/amd64v1/race_linux.syso differ
+diff --git a/src/runtime/race/internal/amd64v3/race_linux.syso b/src/runtime/race/internal/amd64v3/race_linux.syso
+new file mode 100644
+index 0000000000..33c3e76bce
+Binary files /dev/null and b/src/runtime/race/internal/amd64v3/race_linux.syso differ
+diff --git a/src/runtime/race/race_v1_amd64.go b/src/runtime/race/race_v1_amd64.go
+index 8dcd54905f..5bc9ebfc67 100644
+--- a/src/runtime/race/race_v1_amd64.go
++++ b/src/runtime/race/race_v1_amd64.go
+@@ -1,10 +1,6 @@
+-//go:build linux || darwin || freebsd || netbsd || openbsd || windows
+-// +build linux darwin freebsd netbsd openbsd windows
++//go:build (linux && !amd64.v3) || darwin || freebsd || netbsd || openbsd || windows
++// +build linux,!amd64.v3 darwin freebsd netbsd openbsd windows
+ 
+ package race
+ 
+ import _ "runtime/race/internal/amd64v1"
+-
+-// Note: the build line above will eventually be something
+-// like go:build linux && !amd64.v3 || darwin && !amd64.v3 || ...
+-// as we build v3 versions for each OS.
+diff --git a/src/runtime/race/race_v3_amd64.go b/src/runtime/race/race_v3_amd64.go
+index da8759340a..7d2395b907 100644
+--- a/src/runtime/race/race_v3_amd64.go
++++ b/src/runtime/race/race_v3_amd64.go
+@@ -1,10 +1,6 @@
+-//go:build none
+-// +build none
++//go:build linux && amd64.v3
++// +build linux,amd64.v3
+ 
+ package race
+ 
+ import _ "runtime/race/internal/amd64v3"
+-
+-// Note: the build line above will eventually be something
+-// like go:build linux && amd64.v3 || darwin && amd64.v3 || ...
+-// as we build v3 versions for each OS.

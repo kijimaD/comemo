@@ -16,6 +16,21 @@ Date:   Mon Feb 29 12:19:26 2016 +0200
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/link/internal/ld/sym.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
+index 6122b85298..099243442b 100644
+--- a/src/cmd/link/internal/ld/sym.go
++++ b/src/cmd/link/internal/ld/sym.go
+@@ -58,7 +58,8 @@ var headers = []struct {
+ 
+ func linknew(arch *LinkArch) *Link {
+ 	ctxt := new(Link)
+-	ctxt.Hash = make(map[symVer]*LSym)
++	// Preallocate about 2mb for hash
++	ctxt.Hash = make(map[symVer]*LSym, 100000)
+ 	ctxt.Arch = arch
+ 	ctxt.Version = obj.HistVersion
+ 	ctxt.Goroot = obj.Getgoroot()

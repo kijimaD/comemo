@@ -10,7 +10,7 @@ Date:   Mon Oct 17 21:58:56 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/internal/bytealg/compare_riscv64.s   | 18 ------
  src/internal/bytealg/count_riscv64.s     | 19 -------
  src/internal/bytealg/equal_riscv64.s     | 20 -------
@@ -19,3 +19,435 @@ Date:   Mon Oct 17 21:58:56 2022 +0800
  src/runtime/memclr_riscv64.s             |  6 +-
  src/runtime/memmove_riscv64.s            |  8 +--
  7 files changed, 5 insertions(+), 185 deletions(-)
+
+diff --git a/src/internal/bytealg/compare_riscv64.s b/src/internal/bytealg/compare_riscv64.s
+index e616577d53..44a743d3af 100644
+--- a/src/internal/bytealg/compare_riscv64.s
++++ b/src/internal/bytealg/compare_riscv64.s
+@@ -6,13 +6,6 @@
+ #include "textflag.h"
+ 
+ TEXT ·Compare<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-56
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOV	a_base+0(FP), X10
+-	MOV	a_len+8(FP), X11
+-	MOV	b_base+24(FP), X12
+-	MOV	b_len+32(FP), X13
+-	MOV	$ret+48(FP), X14
+-#else
+ 	// X10 = a_base
+ 	// X11 = a_len
+ 	// X12 = a_cap (unused)
+@@ -21,17 +14,9 @@ TEXT ·Compare<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-56
+ 	// X15 = b_cap (unused)
+ 	MOV	X13, X12
+ 	MOV	X14, X13
+-#endif
+ 	JMP	compare<>(SB)
+ 
+ TEXT runtime·cmpstring<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-40
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOV	a_base+0(FP), X10
+-	MOV	a_len+8(FP), X11
+-	MOV	b_base+16(FP), X12
+-	MOV	b_len+24(FP), X13
+-	MOV	$ret+32(FP), X14
+-#endif
+ 	// X10 = a_base
+ 	// X11 = a_len
+ 	// X12 = b_base
+@@ -199,7 +184,4 @@ cmp:
+ 	SLTU	X8, X9, X6
+ cmp_ret:
+ 	SUB	X5, X6, X10
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOV	X10, (X14)
+-#endif
+ 	RET
+diff --git a/src/internal/bytealg/count_riscv64.s b/src/internal/bytealg/count_riscv64.s
+index a15d07d768..d123cbd7c6 100644
+--- a/src/internal/bytealg/count_riscv64.s
++++ b/src/internal/bytealg/count_riscv64.s
+@@ -6,17 +6,11 @@
+ #include "textflag.h"
+ 
+ TEXT ·Count<ABIInternal>(SB),NOSPLIT,$0-40
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOV	b_base+0(FP), X10
+-	MOV	b_len+8(FP), X11
+-	MOVBU	c+24(FP), X12	// byte to count
+-#else
+ 	// X10 = b_base
+ 	// X11 = b_len
+ 	// X12 = b_cap (unused)
+ 	// X13 = byte to count (want in X12)
+ 	AND	$0xff, X13, X12
+-#endif
+ 	MOV	ZERO, X14	// count
+ 	ADD	X10, X11	// end
+ 
+@@ -29,19 +23,10 @@ loop:
+ 	JMP	loop
+ 
+ done:
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOV	X14, ret+32(FP)
+-#else
+ 	MOV	X14, X10
+-#endif
+ 	RET
+ 
+ TEXT ·CountString<ABIInternal>(SB),NOSPLIT,$0-32
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOV	s_base+0(FP), X10
+-	MOV	s_len+8(FP), X11
+-	MOVBU	c+16(FP), X12	// byte to count
+-#endif
+ 	// X10 = s_base
+ 	// X11 = s_len
+ 	// X12 = byte to count
+@@ -58,9 +43,5 @@ loop:
+ 	JMP	loop
+ 
+ done:
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOV	X14, ret+24(FP)
+-#else
+ 	MOV	X14, X10
+-#endif
+ 	RET
+diff --git a/src/internal/bytealg/equal_riscv64.s b/src/internal/bytealg/equal_riscv64.s
+index 1e070beb3e..3834083ec9 100644
+--- a/src/internal/bytealg/equal_riscv64.s
++++ b/src/internal/bytealg/equal_riscv64.s
+@@ -9,12 +9,6 @@
+ 
+ // func memequal(a, b unsafe.Pointer, size uintptr) bool
+ TEXT runtime·memequal<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-25
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOV	a+0(FP), X10
+-	MOV	b+8(FP), X11
+-	MOV	size+16(FP), X12
+-	MOV	$ret+24(FP), X13
+-#endif
+ 	// X10 = a_base
+ 	// X11 = b_base
+ 	// X12 = size
+@@ -23,11 +17,6 @@ TEXT runtime·memequal<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-25
+ // func memequal_varlen(a, b unsafe.Pointer) bool
+ TEXT runtime·memequal_varlen<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-17
+ 	MOV	8(CTXT), X12    // compiler stores size at offset 8 in the closure
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOV	a+0(FP), X10
+-	MOV	b+8(FP), X11
+-	MOV	$ret+16(FP), X13
+-#endif
+ 	// X10 = a_base
+ 	// X11 = b_base
+ 	JMP	memequal<>(SB)
+@@ -128,17 +117,8 @@ loop1:
+ 	JMP	loop1
+ 
+ not_eq:
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOVB	ZERO, (X13)
+-#else
+ 	MOVB	ZERO, X10
+-#endif
+ 	RET
+ eq:
+-#ifndef GOEXPERIMENT_regabiargs
+ 	MOV	$1, X10
+-	MOVB	X10, (X13)
+-#else
+-	MOV	$1, X10
+-#endif
+ 	RET
+diff --git a/src/internal/bytealg/indexbyte_riscv64.s b/src/internal/bytealg/indexbyte_riscv64.s
+index a20396592b..8be78ed950 100644
+--- a/src/internal/bytealg/indexbyte_riscv64.s
++++ b/src/internal/bytealg/indexbyte_riscv64.s
+@@ -6,11 +6,6 @@
+ #include "textflag.h"
+ 
+ TEXT ·IndexByte<ABIInternal>(SB),NOSPLIT,$0-40
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOV	b_base+0(FP), X10
+-	MOV	b_len+8(FP), X11
+-	MOVBU	c+24(FP), X13	// byte to find
+-#endif
+ 	// X10 = b_base
+ 	// X11 = b_len
+ 	// X12 = b_cap (unused)
+@@ -27,24 +22,13 @@ loop:
+ 	BNE	X13, X14, loop
+ 
+ 	SUB	X12, X10		// remove base
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOV	X10, ret+32(FP)
+-#endif
+ 	RET
+ 
+ notfound:
+ 	MOV	$-1, X10
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOV	X10, ret+32(FP)
+-#endif
+ 	RET
+ 
+ TEXT ·IndexByteString<ABIInternal>(SB),NOSPLIT,$0-32
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOV	s_base+0(FP), X10
+-	MOV	s_len+8(FP), X11
+-	MOVBU	c+16(FP), X12	// byte to find
+-#endif
+ 	// X10 = b_base
+ 	// X11 = b_len
+ 	// X12 = byte to find
+@@ -60,14 +44,8 @@ loop:
+ 	BNE	X12, X14, loop
+ 
+ 	SUB	X13, X10		// remove base
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOV	X10, ret+24(FP)
+-#endif
+ 	RET
+ 
+ notfound:
+ 	MOV	$-1, X10
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOV	X10, ret+24(FP)
+-#endif
+ 	RET
+diff --git a/src/runtime/asm_riscv64.s b/src/runtime/asm_riscv64.s
+index 389851beb9..31b81aea12 100644
+--- a/src/runtime/asm_riscv64.s
++++ b/src/runtime/asm_riscv64.s
+@@ -268,11 +268,7 @@ TEXT runtime·procyield(SB),NOSPLIT,$0-0
+ 
+ // func mcall(fn func(*g))
+ TEXT runtime·mcall<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-8
+-#ifdef GOEXPERIMENT_regabiargs
+ 	MOV	X10, CTXT
+-#else
+-	MOV	fn+0(FP), CTXT
+-#endif
+ 
+ 	// Save caller state in g->sched
+ 	MOV	X2, (g_sched+gobuf_sp)(g)
+@@ -644,7 +640,6 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
+ 	MOV	T0, ret+0(FP)
+ 	RET
+ 
+-#ifdef GOEXPERIMENT_regabiargs
+ // spillArgs stores return values from registers to a *internal/abi.RegArgs in X25.
+ TEXT ·spillArgs(SB),NOSPLIT,$0-0
+ 	MOV	X10, (0*8)(X25)
+@@ -716,13 +711,6 @@ TEXT ·unspillArgs(SB),NOSPLIT,$0-0
+ 	MOVD	(30*8)(X25), F22
+ 	MOVD	(31*8)(X25), F23
+ 	RET
+-#else
+-TEXT ·spillArgs(SB),NOSPLIT,$0-0
+-	RET
+-
+-TEXT ·unspillArgs(SB),NOSPLIT,$0-0
+-	RET
+-#endif
+ 
+ // gcWriteBarrier performs a heap pointer write and informs the GC.
+ //
+@@ -832,157 +820,72 @@ flush:
+ // corresponding runtime handler.
+ // The tail call makes these stubs disappear in backtraces.
+ TEXT runtime·panicIndex<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifdef GOEXPERIMENT_regabiargs
+ 	MOV	T0, X10
+ 	MOV	T1, X11
+-#else
+-	MOV	T0, x+0(FP)
+-	MOV	T1, y+8(FP)
+-#endif
+ 	JMP	runtime·goPanicIndex<ABIInternal>(SB)
+ TEXT runtime·panicIndexU<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifdef GOEXPERIMENT_regabiargs
+ 	MOV	T0, X10
+ 	MOV	T1, X11
+-#else
+-	MOV	T0, x+0(FP)
+-	MOV	T1, y+8(FP)
+-#endif
+ 	JMP	runtime·goPanicIndexU<ABIInternal>(SB)
+ TEXT runtime·panicSliceAlen<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifdef GOEXPERIMENT_regabiargs
+ 	MOV	T1, X10
+ 	MOV	T2, X11
+-#else
+-	MOV	T1, x+0(FP)
+-	MOV	T2, y+8(FP)
+-#endif
+ 	JMP	runtime·goPanicSliceAlen<ABIInternal>(SB)
+ TEXT runtime·panicSliceAlenU<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifdef GOEXPERIMENT_regabiargs
+ 	MOV	T1, X10
+ 	MOV	T2, X11
+-#else
+-	MOV	T1, x+0(FP)
+-	MOV	T2, y+8(FP)
+-#endif
+ 	JMP	runtime·goPanicSliceAlenU<ABIInternal>(SB)
+ TEXT runtime·panicSliceAcap<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifdef GOEXPERIMENT_regabiargs
+ 	MOV	T1, X10
+ 	MOV	T2, X11
+-#else
+-	MOV	T1, x+0(FP)
+-	MOV	T2, y+8(FP)
+-#endif
+ 	JMP	runtime·goPanicSliceAcap<ABIInternal>(SB)
+ TEXT runtime·panicSliceAcapU<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifdef GOEXPERIMENT_regabiargs
+ 	MOV	T1, X10
+ 	MOV	T2, X11
+-#else
+-	MOV	T1, x+0(FP)
+-	MOV	T2, y+8(FP)
+-#endif
+ 	JMP	runtime·goPanicSliceAcapU<ABIInternal>(SB)
+ TEXT runtime·panicSliceB<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifdef GOEXPERIMENT_regabiargs
+ 	MOV	T0, X10
+ 	MOV	T1, X11
+-#else
+-	MOV	T0, x+0(FP)
+-	MOV	T1, y+8(FP)
+-#endif
+ 	JMP	runtime·goPanicSliceB<ABIInternal>(SB)
+ TEXT runtime·panicSliceBU<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifdef GOEXPERIMENT_regabiargs
+ 	MOV	T0, X10
+ 	MOV	T1, X11
+-#else
+-	MOV	T0, x+0(FP)
+-	MOV	T1, y+8(FP)
+-#endif
+ 	JMP	runtime·goPanicSliceBU<ABIInternal>(SB)
+ TEXT runtime·panicSlice3Alen<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifdef GOEXPERIMENT_regabiargs
+ 	MOV	T2, X10
+ 	MOV	T3, X11
+-#else
+-	MOV	T2, x+0(FP)
+-	MOV	T3, y+8(FP)
+-#endif
+ 	JMP	runtime·goPanicSlice3Alen<ABIInternal>(SB)
+ TEXT runtime·panicSlice3AlenU<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifdef GOEXPERIMENT_regabiargs
+ 	MOV	T2, X10
+ 	MOV	T3, X11
+-#else
+-	MOV	T2, x+0(FP)
+-	MOV	T3, y+8(FP)
+-#endif
+ 	JMP	runtime·goPanicSlice3AlenU<ABIInternal>(SB)
+ TEXT runtime·panicSlice3Acap<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifdef GOEXPERIMENT_regabiargs
+ 	MOV	T2, X10
+ 	MOV	T3, X11
+-#else
+-	MOV	T2, x+0(FP)
+-	MOV	T3, y+8(FP)
+-#endif
+ 	JMP	runtime·goPanicSlice3Acap<ABIInternal>(SB)
+ TEXT runtime·panicSlice3AcapU<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifdef GOEXPERIMENT_regabiargs
+ 	MOV	T2, X10
+ 	MOV	T3, X11
+-#else
+-	MOV	T2, x+0(FP)
+-	MOV	T3, y+8(FP)
+-#endif
+ 	JMP	runtime·goPanicSlice3AcapU<ABIInternal>(SB)
+ TEXT runtime·panicSlice3B<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifdef GOEXPERIMENT_regabiargs
+ 	MOV	T1, X10
+ 	MOV	T2, X11
+-#else
+-	MOV	T1, x+0(FP)
+-	MOV	T2, y+8(FP)
+-#endif
+ 	JMP	runtime·goPanicSlice3B<ABIInternal>(SB)
+ TEXT runtime·panicSlice3BU<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifdef GOEXPERIMENT_regabiargs
+ 	MOV	T1, X10
+ 	MOV	T2, X11
+-#else
+-	MOV	T1, x+0(FP)
+-	MOV	T2, y+8(FP)
+-#endif
+ 	JMP	runtime·goPanicSlice3BU<ABIInternal>(SB)
+ TEXT runtime·panicSlice3C<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifdef GOEXPERIMENT_regabiargs
+ 	MOV	T0, X10
+ 	MOV	T1, X11
+-#else
+-	MOV	T0, x+0(FP)
+-	MOV	T1, y+8(FP)
+-#endif
+ 	JMP	runtime·goPanicSlice3C<ABIInternal>(SB)
+ TEXT runtime·panicSlice3CU<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifdef GOEXPERIMENT_regabiargs
+ 	MOV	T0, X10
+ 	MOV	T1, X11
+-#else
+-	MOV	T0, x+0(FP)
+-	MOV	T1, y+8(FP)
+-#endif
+ 	JMP	runtime·goPanicSlice3CU<ABIInternal>(SB)
+ TEXT runtime·panicSliceConvert<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifdef GOEXPERIMENT_regabiargs
+ 	MOV	T2, X10
+ 	MOV	T3, X11
+-#else
+-	MOV	T2, x+0(FP)
+-	MOV	T3, y+8(FP)
+-#endif
+ 	JMP	runtime·goPanicSliceConvert<ABIInternal>(SB)
+ 
+ DATA	runtime·mainPC+0(SB)/8,$runtime·main<ABIInternal>(SB)
+diff --git a/src/runtime/memclr_riscv64.s b/src/runtime/memclr_riscv64.s
+index 4cf0f5488f..d12b545b1e 100644
+--- a/src/runtime/memclr_riscv64.s
++++ b/src/runtime/memclr_riscv64.s
+@@ -8,10 +8,8 @@
+ 
+ // void runtime·memclrNoHeapPointers(void*, uintptr)
+ TEXT runtime·memclrNoHeapPointers<ABIInternal>(SB),NOSPLIT,$0-16
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOV	ptr+0(FP), X10
+-	MOV	n+8(FP), X11
+-#endif
++	// X10 = ptr
++	// X11 = n
+ 
+ 	// If less than 8 bytes, do single byte zeroing.
+ 	MOV	$8, X9
+diff --git a/src/runtime/memmove_riscv64.s b/src/runtime/memmove_riscv64.s
+index 538aee3642..79d90c1adb 100644
+--- a/src/runtime/memmove_riscv64.s
++++ b/src/runtime/memmove_riscv64.s
+@@ -8,11 +8,9 @@
+ 
+ // void runtime·memmove(void*, void*, uintptr)
+ TEXT runtime·memmove<ABIInternal>(SB),NOSPLIT,$-0-24
+-#ifndef GOEXPERIMENT_regabiargs
+-	MOV	to+0(FP), A0
+-	MOV	from+8(FP), A1
+-	MOV	n+16(FP), A2
+-#endif
++	// A0 = to
++	// A1 = from
++	// A2 = n
+ 	ADD	A1, A2, T5
+ 
+ 	// If the destination is ahead of the source, start at the end of the

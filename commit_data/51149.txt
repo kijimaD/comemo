@@ -15,7 +15,7 @@ Date:   Tue Dec 7 15:59:22 2021 -0800
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  test/run.go                    |  4 ++++
  test/typeparam/typeswitch1.go  |  6 ++++--
  test/typeparam/typeswitch1.out |  2 ++
@@ -26,3 +26,161 @@ Date:   Tue Dec 7 15:59:22 2021 -0800
  test/typeparam/typeswitch4.go  | 11 ++++++++---
  test/typeparam/typeswitch4.out |  3 +++
  9 files changed, 34 insertions(+), 6 deletions(-)
+
+diff --git a/test/run.go b/test/run.go
+index 2ff7117ea9..37be958959 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2183,6 +2183,10 @@ var unifiedFailures = setOf(
+ 	"fixedbugs/issue49767.go",  // unified IR doesn't report channel element too large
+ 	"fixedbugs/issue49814.go",  // unified IR doesn't report array type too large
+ 	"typeparam/issue50002.go",  // pure stenciling leads to a static type assertion error
++	"typeparam/typeswitch1.go", // duplicate case failure due to stenciling
++	"typeparam/typeswitch2.go", // duplicate case failure due to stenciling
++	"typeparam/typeswitch3.go", // duplicate case failure due to stenciling
++	"typeparam/typeswitch4.go", // duplicate case failure due to stenciling
+ )
+ 
+ func setOf(keys ...string) map[string]bool {
+diff --git a/test/typeparam/typeswitch1.go b/test/typeparam/typeswitch1.go
+index 27161b3db8..834302e37a 100644
+--- a/test/typeparam/typeswitch1.go
++++ b/test/typeparam/typeswitch1.go
+@@ -14,7 +14,7 @@ func f[T any](i interface{}) {
+ 		println("int")
+ 	case int32, int16:
+ 		println("int32/int16")
+-	case struct { a, b T }:
++	case struct{ a, b T }:
+ 		println("struct{T,T}")
+ 	default:
+ 		println("other")
+@@ -24,6 +24,8 @@ func main() {
+ 	f[float64](float64(6))
+ 	f[float64](int(7))
+ 	f[float64](int32(8))
+-	f[float64](struct{a, b float64}{a:1, b:2})
++	f[float64](struct{ a, b float64 }{a: 1, b: 2})
+ 	f[float64](int8(9))
++	f[int32](int32(7))
++	f[int](int32(7))
+ }
+diff --git a/test/typeparam/typeswitch1.out b/test/typeparam/typeswitch1.out
+index 4bdbccfddb..dc5dfdb761 100644
+--- a/test/typeparam/typeswitch1.out
++++ b/test/typeparam/typeswitch1.out
+@@ -3,3 +3,5 @@ int
+ int32/int16
+ struct{T,T}
+ other
++T
++int32/int16
+diff --git a/test/typeparam/typeswitch2.go b/test/typeparam/typeswitch2.go
+index 0e434e1383..ce4af34f04 100644
+--- a/test/typeparam/typeswitch2.go
++++ b/test/typeparam/typeswitch2.go
+@@ -28,4 +28,6 @@ func main() {
+ 	f[float64](int32(8))
+ 	f[float64](struct{ a, b float64 }{a: 1, b: 2})
+ 	f[float64](int8(9))
++	f[int32](int32(7))
++	f[int](int32(7))
+ }
+diff --git a/test/typeparam/typeswitch2.out b/test/typeparam/typeswitch2.out
+index 944cc04cc6..85b54e38ae 100644
+--- a/test/typeparam/typeswitch2.out
++++ b/test/typeparam/typeswitch2.out
+@@ -3,3 +3,5 @@ int 7
+ int32/int16 8
+ struct{T,T} +1.000000e+000 +2.000000e+000
+ other 9
++T 7
++int32/int16 7
+diff --git a/test/typeparam/typeswitch3.go b/test/typeparam/typeswitch3.go
+index 6ab0301140..0527a83eb0 100644
+--- a/test/typeparam/typeswitch3.go
++++ b/test/typeparam/typeswitch3.go
+@@ -6,16 +6,18 @@
+ 
+ package main
+ 
+-type I interface { foo() int }
++type I interface{ foo() int }
+ 
+ type myint int
+ 
+ func (x myint) foo() int { return int(x) }
+ 
+ type myfloat float64
++
+ func (x myfloat) foo() int { return int(x) }
+ 
+ type myint32 int32
++
+ func (x myint32) foo() int { return int(x) }
+ 
+ func f[T I](i I) {
+@@ -32,4 +34,7 @@ func main() {
+ 	f[myfloat](myint(6))
+ 	f[myfloat](myfloat(7))
+ 	f[myfloat](myint32(8))
++	f[myint32](myint32(8))
++	f[myint32](myfloat(7))
++	f[myint](myint32(9))
+ }
+diff --git a/test/typeparam/typeswitch3.out b/test/typeparam/typeswitch3.out
+index 2c69c72c30..ed59987e6d 100644
+--- a/test/typeparam/typeswitch3.out
++++ b/test/typeparam/typeswitch3.out
+@@ -1,3 +1,6 @@
+ myint 6
+ T 7
+ other 8
++T 8
++other 7
++other 9
+diff --git a/test/typeparam/typeswitch4.go b/test/typeparam/typeswitch4.go
+index 6113026b65..08de2a1d41 100644
+--- a/test/typeparam/typeswitch4.go
++++ b/test/typeparam/typeswitch4.go
+@@ -6,16 +6,18 @@
+ 
+ package main
+ 
+-type I interface { foo() int }
++type I interface{ foo() int }
+ 
+ type myint int
+ 
+-func (x myint) foo() int {return int(x)}
++func (x myint) foo() int { return int(x) }
+ 
+ type myfloat float64
+-func (x myfloat) foo() int {return int(x)}
++
++func (x myfloat) foo() int { return int(x) }
+ 
+ type myint32 int32
++
+ func (x myint32) foo() int { return int(x) }
+ 
+ func f[T I](i I) {
+@@ -30,4 +32,7 @@ func main() {
+ 	f[myfloat](myint(6))
+ 	f[myfloat](myfloat(7))
+ 	f[myfloat](myint32(8))
++	f[myint32](myint32(9))
++	f[myint](myint32(10))
++	f[myint](myfloat(42))
+ }
+diff --git a/test/typeparam/typeswitch4.out b/test/typeparam/typeswitch4.out
+index b0d54077c9..d6121d077c 100644
+--- a/test/typeparam/typeswitch4.out
++++ b/test/typeparam/typeswitch4.out
+@@ -1,3 +1,6 @@
+ other 6
+ T/myint32 7
+ T/myint32 8
++T/myint32 9
++T/myint32 10
++other 42

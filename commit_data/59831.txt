@@ -16,6 +16,27 @@ Date:   Sat Apr 27 12:37:53 2024 +0300
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/internal/runtime/atomic/atomic_andor_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/internal/runtime/atomic/atomic_andor_test.go b/src/internal/runtime/atomic/atomic_andor_test.go
+index 631a6e637d..5b594d8edf 100644
+--- a/src/internal/runtime/atomic/atomic_andor_test.go
++++ b/src/internal/runtime/atomic/atomic_andor_test.go
+@@ -54,6 +54,7 @@ func TestAnd32(t *testing.T) {
+ func TestAnd64(t *testing.T) {
+ 	// Basic sanity check.
+ 	x := uint64(0xffffffffffffffff)
++	sink = &x
+ 	for i := uint64(0); i < 64; i++ {
+ 		old := x
+ 		v := atomic.And64(&x, ^(1 << i))
+@@ -131,6 +132,7 @@ func TestOr32(t *testing.T) {
+ func TestOr64(t *testing.T) {
+ 	// Basic sanity check.
+ 	x := uint64(0)
++	sink = &x
+ 	for i := uint64(0); i < 64; i++ {
+ 		old := x
+ 		v := atomic.Or64(&x, 1<<i)

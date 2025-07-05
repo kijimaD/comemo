@@ -48,7 +48,7 @@ Date:   Wed Aug 27 11:32:17 2014 -0400
     R=golang-codereviews, 0intro, dave, alex.brainman, dvyukov, iant
     CC=golang-codereviews, josharian, r
     https://golang.org/cl/135830043
-
+---
  src/cmd/5c/cgen.c                       |  34 +-
  src/cmd/5c/gc.h                         |   4 +-
  src/cmd/5c/sgen.c                       |   2 +-
@@ -114,3 +114,7975 @@ Date:   Wed Aug 27 11:32:17 2014 -0400
  src/pkg/runtime/vlrt_386.c              | 819 --------------------------------
  src/pkg/sync/atomic/asm_linux_arm.s     |  24 +-
  64 files changed, 1947 insertions(+), 1938 deletions(-)
+
+diff --git a/src/cmd/5c/cgen.c b/src/cmd/5c/cgen.c
+index 08ed36055a..5ea8eea073 100644
+--- a/src/cmd/5c/cgen.c
++++ b/src/cmd/5c/cgen.c
+@@ -46,7 +46,7 @@ _cgen(Node *n, Node *nn, int inrel)
+ 	}
+ 	if(n == Z || n->type == T)
+ 		return;
+-	if(typesuv[n->type->etype]) {
++	if(typesuv[n->type->etype] && (n->op != OFUNC || nn != Z)) {
+ 		sugen(n, nn, n->type->width);
+ 		return;
+ 	}
+@@ -75,7 +75,7 @@ _cgen(Node *n, Node *nn, int inrel)
+ 	if(r != Z && r->complex >= FNX)
+ 	switch(o) {
+ 	default:
+-		regret(&nod, r);
++		regret(&nod, r, 0, 0);
+ 		cgen(r, &nod);
+ 
+ 		regsalloc(&nod1, r);
+@@ -107,7 +107,7 @@ _cgen(Node *n, Node *nn, int inrel)
+ 		if(l->addable >= INDEXED && l->complex < FNX) {
+ 			if(nn != Z || r->addable < INDEXED) {
+ 				if(r->complex >= FNX && nn == Z)
+-					regret(&nod, r);
++					regret(&nod, r, 0, 0);
+ 				else
+ 					regalloc(&nod, r, nn);
+ 				cgen(r, &nod);
+@@ -348,7 +348,7 @@ _cgen(Node *n, Node *nn, int inrel)
+ 			if(l->op != OIND)
+ 				diag(n, "bad function call");
+ 
+-			regret(&nod, l->left);
++			regret(&nod, l->left, 0, 0);
+ 			cgen(l->left, &nod);
+ 			regsalloc(&nod1, l->left);
+ 			gopcode(OAS, &nod, Z, &nod1);
+@@ -377,11 +377,11 @@ _cgen(Node *n, Node *nn, int inrel)
+ 		if(REGARG >= 0)
+ 			if(o != reg[REGARG])
+ 				reg[REGARG]--;
+-		if(nn != Z) {
+-			regret(&nod, n);
+-			gopcode(OAS, &nod, Z, nn);
++		regret(&nod, n, l->type, 1);
++		if(nn != Z)
++			gmove(&nod, nn);
++		if(nod.op == OREGISTER)
+ 			regfree(&nod);
+-		}
+ 		break;
+ 
+ 	case OIND:
+@@ -823,7 +823,7 @@ boolgen(Node *n, int true, Node *nn)
+ 		if(true)
+ 			o = comrel[relindex(o)];
+ 		if(l->complex >= FNX && r->complex >= FNX) {
+-			regret(&nod, r);
++			regret(&nod, r, 0, 0);
+ 			cgenrel(r, &nod);
+ 			regsalloc(&nod1, r);
+ 			gopcode(OAS, &nod, Z, &nod1);
+@@ -957,7 +957,7 @@ sugen(Node *n, Node *nn, int32 w)
+ 		if(nn != Z && side(nn)) {
+ 			nod1 = *n;
+ 			nod1.type = typ(TIND, n->type);
+-			regret(&nod2, &nod1);
++			regret(&nod2, &nod1, 0, 0);
+ 			lcgen(nn, &nod2);
+ 			regsalloc(&nod0, &nod1);
+ 			gopcode(OAS, &nod2, Z, &nod0);
+@@ -1036,6 +1036,20 @@ sugen(Node *n, Node *nn, int32 w)
+ 		break;
+ 
+ 	case OFUNC:
++		if(!hasdotdotdot(n->left->type)) {
++			cgen(n, Z);
++			if(nn != Z) {
++				curarg -= n->type->width;
++				regret(&nod1, n, n->left->type, 1);
++				if(nn->complex >= FNX) {
++					regsalloc(&nod2, n);
++					cgen(&nod1, &nod2);
++					nod1 = nod2;
++				}
++				cgen(&nod1, nn);
++			}
++			break;
++		}
+ 		if(nn == Z) {
+ 			sugen(n, nodrat, w);
+ 			break;
+diff --git a/src/cmd/5c/gc.h b/src/cmd/5c/gc.h
+index 166900c3a9..7417b7dbe3 100644
+--- a/src/cmd/5c/gc.h
++++ b/src/cmd/5c/gc.h
+@@ -210,7 +210,7 @@ void	usedset(Node*, int);
+ void	xcom(Node*);
+ int	bcomplex(Node*, Node*);
+ Prog*	gtext(Sym*, int32);
+-vlong	argsize(void);
++vlong	argsize(int);
+ 
+ /*
+  * cgen.c
+@@ -236,7 +236,7 @@ Node*	nodconst(int32);
+ Node*	nod32const(vlong);
+ Node*	nodfconst(double);
+ void	nodreg(Node*, Node*, int);
+-void	regret(Node*, Node*);
++void	regret(Node*, Node*, Type*, int);
+ int	tmpreg(void);
+ void	regalloc(Node*, Node*, Node*);
+ void	regfree(Node*);
+diff --git a/src/cmd/5c/sgen.c b/src/cmd/5c/sgen.c
+index efcc0437bb..a36612caa5 100644
+--- a/src/cmd/5c/sgen.c
++++ b/src/cmd/5c/sgen.c
+@@ -36,7 +36,7 @@ gtext(Sym *s, int32 stkoff)
+ {
+ 	int32 a;
+ 
+-	a = argsize();
++	a = argsize(1);
+ 	if((textflag & NOSPLIT) != 0 && stkoff >= 128)
+ 		yyerror("stack frame too large for NOSPLIT function");
+ 
+diff --git a/src/cmd/5c/txt.c b/src/cmd/5c/txt.c
+index a753510caa..af40220ccb 100644
+--- a/src/cmd/5c/txt.c
++++ b/src/cmd/5c/txt.c
+@@ -274,15 +274,43 @@ nodreg(Node *n, Node *nn, int reg)
+ }
+ 
+ void
+-regret(Node *n, Node *nn)
++regret(Node *n, Node *nn, Type *t, int mode)
+ {
+ 	int r;
+ 
+-	r = REGRET;
+-	if(typefd[nn->type->etype])
+-		r = FREGRET+NREG;
+-	nodreg(n, nn, r);
+-	reg[r]++;
++	if(mode == 0 || hasdotdotdot(t) || nn->type->width == 0) {
++		r = REGRET;
++		if(typefd[nn->type->etype])
++			r = FREGRET+NREG;
++		nodreg(n, nn, r);
++		reg[r]++;
++		return;
++	}
++	
++	if(mode == 1) {
++		// fetch returned value after call.
++		// already called gargs, so curarg is set.
++		curarg = (curarg+3) & ~3;
++		regaalloc(n, nn);
++		return;
++	}
++	
++	if(mode == 2) {
++		// store value to be returned.
++		// must compute arg offset.
++		if(t->etype != TFUNC)
++			fatal(Z, "bad regret func %T", t);
++		*n = *nn;
++		n->op = ONAME;
++		n->class = CPARAM;
++		n->sym = slookup(".ret");
++		n->complex = nodret->complex;
++		n->xoffset = argsize(0);
++		n->addable = 20;
++		return;
++	}
++	
++	fatal(Z, "bad regret");
+ }
+ 
+ int
+diff --git a/src/cmd/6c/cgen.c b/src/cmd/6c/cgen.c
+index bdef76ff08..b66c6add3e 100644
+--- a/src/cmd/6c/cgen.c
++++ b/src/cmd/6c/cgen.c
+@@ -51,7 +51,7 @@ cgen(Node *n, Node *nn)
+ 	}
+ 	if(n == Z || n->type == T)
+ 		return;
+-	if(typesu[n->type->etype]) {
++	if(typesu[n->type->etype] && (n->op != OFUNC || nn != Z)) {
+ 		sugen(n, nn, n->type->width);
+ 		return;
+ 	}
+@@ -88,7 +88,7 @@ cgen(Node *n, Node *nn)
+ 		if(cond(o) && typesu[l->type->etype])
+ 			break;
+ 
+-		regret(&nod, r);
++		regret(&nod, r, 0, 0);
+ 		cgen(r, &nod);
+ 
+ 		regsalloc(&nod1, r);
+@@ -135,7 +135,7 @@ cgen(Node *n, Node *nn)
+ 		if(!hardleft) {
+ 			if(nn != Z || r->addable < INDEXED || hardconst(r)) {
+ 				if(r->complex >= FNX && nn == Z)
+-					regret(&nod, r);
++					regret(&nod, r, 0, 0);
+ 				else
+ 					regalloc(&nod, r, nn);
+ 				cgen(r, &nod);
+@@ -929,7 +929,7 @@ cgen(Node *n, Node *nn)
+ 			if(l->op != OIND)
+ 				diag(n, "bad function call");
+ 
+-			regret(&nod, l->left);
++			regret(&nod, l->left, 0, 0);
+ 			cgen(l->left, &nod);
+ 			regsalloc(&nod1, l->left);
+ 			gmove(&nod, &nod1);
+@@ -956,11 +956,13 @@ cgen(Node *n, Node *nn)
+ 		gpcdata(PCDATA_ArgSize, -1);
+ 		if(REGARG >= 0 && reg[REGARG])
+ 			reg[REGARG]--;
+-		if(nn != Z) {
+-			regret(&nod, n);
++		regret(&nod, n, l->type, 1); // update maxarg if nothing else
++		gpcdata(PCDATA_ArgSize, curarg);
++		gpcdata(PCDATA_ArgSize, -1);
++		if(nn != Z)
+ 			gmove(&nod, nn);
++		if(nod.op == OREGISTER)
+ 			regfree(&nod);
+-		}
+ 		break;
+ 
+ 	case OIND:
+@@ -1382,7 +1384,7 @@ boolgen(Node *n, int true, Node *nn)
+ 		if(true)
+ 			o = comrel[relindex(o)];
+ 		if(l->complex >= FNX && r->complex >= FNX) {
+-			regret(&nod, r);
++			regret(&nod, r, 0, 0);
+ 			cgen(r, &nod);
+ 			regsalloc(&nod1, r);
+ 			gmove(&nod, &nod1);
+@@ -1535,7 +1537,7 @@ sugen(Node *n, Node *nn, int32 w)
+ 		if(nn != Z && side(nn)) {
+ 			nod1 = *n;
+ 			nod1.type = typ(TIND, n->type);
+-			regret(&nod2, &nod1);
++			regret(&nod2, &nod1, 0, 0);
+ 			lcgen(nn, &nod2);
+ 			regsalloc(&nod0, &nod1);
+ 			cgen(&nod2, &nod0);
+@@ -1617,6 +1619,20 @@ sugen(Node *n, Node *nn, int32 w)
+ 		break;
+ 
+ 	case OFUNC:
++		if(!hasdotdotdot(n->left->type)) {
++			cgen(n, Z);
++			if(nn != Z) {
++				curarg -= n->type->width;
++				regret(&nod1, n, n->left->type, 1);
++				if(nn->complex >= FNX) {
++					regsalloc(&nod2, n);
++					cgen(&nod1, &nod2);
++					nod1 = nod2;
++				}
++				cgen(&nod1, nn);
++			}
++			break;
++		}
+ 		if(nn == Z) {
+ 			sugen(n, nodrat, w);
+ 			break;
+diff --git a/src/cmd/6c/gc.h b/src/cmd/6c/gc.h
+index bc4e36ccd8..aa9d95d21d 100644
+--- a/src/cmd/6c/gc.h
++++ b/src/cmd/6c/gc.h
+@@ -210,7 +210,7 @@ void	xcom(Node*);
+ void	indx(Node*);
+ int	bcomplex(Node*, Node*);
+ Prog*	gtext(Sym*, int32);
+-vlong	argsize(void);
++vlong	argsize(int);
+ 
+ /*
+  * cgen.c
+@@ -239,7 +239,7 @@ Node*	nodfconst(double);
+ Node*	nodgconst(vlong, Type*);
+ int	nodreg(Node*, Node*, int);
+ int	isreg(Node*, int);
+-void	regret(Node*, Node*);
++void	regret(Node*, Node*, Type*, int);
+ void	regalloc(Node*, Node*, Node*);
+ void	regfree(Node*);
+ void	regialloc(Node*, Node*, Node*);
+diff --git a/src/cmd/6c/sgen.c b/src/cmd/6c/sgen.c
+index c048e784d4..d99510185e 100644
+--- a/src/cmd/6c/sgen.c
++++ b/src/cmd/6c/sgen.c
+@@ -36,7 +36,7 @@ gtext(Sym *s, int32 stkoff)
+ {
+ 	vlong v;
+ 
+-	v = ((uvlong)argsize() << 32) | (stkoff & 0xffffffff);
++	v = ((uvlong)argsize(1) << 32) | (stkoff & 0xffffffff);
+ 	if((textflag & NOSPLIT) && stkoff >= 128)
+ 		yyerror("stack frame too large for NOSPLIT function");
+ 
+diff --git a/src/cmd/6c/txt.c b/src/cmd/6c/txt.c
+index 4d07436c3f..3bdbf410ea 100644
+--- a/src/cmd/6c/txt.c
++++ b/src/cmd/6c/txt.c
+@@ -351,15 +351,43 @@ nodreg(Node *n, Node *nn, int r)
+ }
+ 
+ void
+-regret(Node *n, Node *nn)
++regret(Node *n, Node *nn, Type *t, int mode)
+ {
+ 	int r;
++	
++	if(mode == 0 || hasdotdotdot(t) || nn->type->width == 0) {
++		r = REGRET;
++		if(typefd[nn->type->etype])
++			r = FREGRET;
++		nodreg(n, nn, r);
++		reg[r]++;
++		return;
++	}
++	
++	if(mode == 1) {
++		// fetch returned value after call.
++		// already called gargs, so curarg is set.
++		curarg = (curarg+7) & ~7;
++		regaalloc(n, nn);
++		return;
++	}
+ 
+-	r = REGRET;
+-	if(typefd[nn->type->etype])
+-		r = FREGRET;
+-	nodreg(n, nn, r);
+-	reg[r]++;
++	if(mode == 2) {
++		// store value to be returned.
++		// must compute arg offset.
++		if(t->etype != TFUNC)
++			fatal(Z, "bad regret func %T", t);
++		*n = *nn;
++		n->op = ONAME;
++		n->class = CPARAM;
++		n->sym = slookup(".ret");
++		n->complex = nodret->complex;
++		n->addable = 20;
++		n->xoffset = argsize(0);
++		return;
++	}
++	
++	fatal(Z, "bad regret");	
+ }
+ 
+ void
+diff --git a/src/cmd/8c/cgen.c b/src/cmd/8c/cgen.c
+index f541022456..8ac8e36009 100644
+--- a/src/cmd/8c/cgen.c
++++ b/src/cmd/8c/cgen.c
+@@ -49,7 +49,7 @@ cgen(Node *n, Node *nn)
+ 	}
+ 	if(n == Z || n->type == T)
+ 		return;
+-	if(typesuv[n->type->etype]) {
++	if(typesuv[n->type->etype] && (n->op != OFUNC || nn != Z)) {
+ 		sugen(n, nn, n->type->width);
+ 		return;
+ 	}
+@@ -86,7 +86,7 @@ cgen(Node *n, Node *nn)
+ 		if(cond(o) && typesuv[l->type->etype])
+ 			break;
+ 
+-		regret(&nod, r);
++		regret(&nod, r, 0, 0);
+ 		cgen(r, &nod);
+ 
+ 		regsalloc(&nod1, r);
+@@ -147,7 +147,7 @@ cgen(Node *n, Node *nn)
+ 		if(!hardleft) {
+ 			if(nn != Z || r->addable < INDEXED) {
+ 				if(r->complex >= FNX && nn == Z)
+-					regret(&nod, r);
++					regret(&nod, r, 0, 0);
+ 				else
+ 					regalloc(&nod, r, nn);
+ 				cgen(r, &nod);
+@@ -922,7 +922,7 @@ cgen(Node *n, Node *nn)
+ 			if(l->op != OIND)
+ 				diag(n, "bad function call");
+ 
+-			regret(&nod, l->left);
++			regret(&nod, l->left, 0, 0);
+ 			cgen(l->left, &nod);
+ 			regsalloc(&nod1, l->left);
+ 			gmove(&nod, &nod1);
+@@ -949,12 +949,12 @@ cgen(Node *n, Node *nn)
+ 		gpcdata(PCDATA_ArgSize, -1);
+ 		if(REGARG >= 0 && reg[REGARG])
+ 			reg[REGARG]--;
+-		if(nn != Z) {
+-			regret(&nod, n);
++		regret(&nod, n, l->type, 1); // update maxarg if nothing else
++		if(nn != Z)
+ 			gmove(&nod, nn);
++		if(nod.op == OREGISTER)
+ 			regfree(&nod);
+-		} else
+-		if(typefd[n->type->etype])
++		if(nn == Z && hasdotdotdot(l->type) && typefd[n->type->etype])
+ 			gins(AFMOVDP, &fregnode0, &fregnode0);
+ 		break;
+ 
+@@ -1374,7 +1374,7 @@ boolgen(Node *n, int true, Node *nn)
+ 		if(true)
+ 			o = comrel[relindex(o)];
+ 		if(l->complex >= FNX && r->complex >= FNX) {
+-			regret(&nod, r);
++			regret(&nod, r, 0, 0);
+ 			cgen(r, &nod);
+ 			regsalloc(&nod1, r);
+ 			gmove(&nod, &nod1);
+@@ -1567,7 +1567,7 @@ sugen(Node *n, Node *nn, int32 w)
+ 		if(nn != Z && side(nn)) {
+ 			nod1 = *n;
+ 			nod1.type = typ(TIND, n->type);
+-			regret(&nod2, &nod1);
++			regret(&nod2, &nod1, 0, 0);
+ 			lcgen(nn, &nod2);
+ 			regsalloc(&nod0, &nod1);
+ 			cgen(&nod2, &nod0);
+@@ -1649,6 +1649,20 @@ sugen(Node *n, Node *nn, int32 w)
+ 		break;
+ 
+ 	case OFUNC:
++		if(!hasdotdotdot(n->left->type)) {
++			cgen(n, Z);
++			if(nn != Z) {
++				curarg -= n->type->width;
++				regret(&nod1, n, n->left->type, 1);
++				if(nn->complex >= FNX) {
++					regsalloc(&nod2, n);
++					cgen(&nod1, &nod2);
++					nod1 = nod2;
++				}
++				cgen(&nod1, nn);
++			}
++			break;
++		}
+ 		if(nn == Z) {
+ 			sugen(n, nodrat, w);
+ 			break;
+diff --git a/src/cmd/8c/gc.h b/src/cmd/8c/gc.h
+index 9c4613f562..aa3888d733 100644
+--- a/src/cmd/8c/gc.h
++++ b/src/cmd/8c/gc.h
+@@ -210,7 +210,7 @@ void	xcom(Node*);
+ void	indx(Node*);
+ int	bcomplex(Node*, Node*);
+ Prog*	gtext(Sym*, int32);
+-vlong	argsize(void);
++vlong	argsize(int);
+ 
+ /*
+  * cgen.c
+@@ -244,7 +244,7 @@ Node*	nodconst(int32);
+ Node*	nodfconst(double);
+ int	nodreg(Node*, Node*, int);
+ int	isreg(Node*, int);
+-void	regret(Node*, Node*);
++void	regret(Node*, Node*, Type*, int);
+ void	regalloc(Node*, Node*, Node*);
+ void	regfree(Node*);
+ void	regialloc(Node*, Node*, Node*);
+diff --git a/src/cmd/8c/sgen.c b/src/cmd/8c/sgen.c
+index 069bbc1fc3..d647010ef7 100644
+--- a/src/cmd/8c/sgen.c
++++ b/src/cmd/8c/sgen.c
+@@ -35,7 +35,7 @@ gtext(Sym *s, int32 stkoff)
+ {
+ 	int32 a;
+ 
+-	a = argsize();
++	a = argsize(1);
+ 	if((textflag & NOSPLIT) != 0 && stkoff >= 128)
+ 		yyerror("stack frame too large for NOSPLIT function");
+ 
+diff --git a/src/cmd/8c/txt.c b/src/cmd/8c/txt.c
+index 25082de05d..7f87a0a0d0 100644
+--- a/src/cmd/8c/txt.c
++++ b/src/cmd/8c/txt.c
+@@ -311,15 +311,43 @@ nodreg(Node *n, Node *nn, int r)
+ }
+ 
+ void
+-regret(Node *n, Node *nn)
++regret(Node *n, Node *nn, Type *t, int mode)
+ {
+ 	int r;
+ 
+-	r = REGRET;
+-	if(typefd[nn->type->etype])
+-		r = FREGRET;
+-	nodreg(n, nn, r);
+-	reg[r]++;
++	if(mode == 0 || hasdotdotdot(t) || nn->type->width == 0) {
++		r = REGRET;
++		if(typefd[nn->type->etype])
++			r = FREGRET;
++		nodreg(n, nn, r);
++		reg[r]++;
++		return;
++	}
++	
++	if(mode == 1) {
++		// fetch returned value after call.
++		// already called gargs, so curarg is set.
++		curarg = (curarg+3) & ~3;
++		regaalloc(n, nn);
++		return;
++	}
++	
++	if(mode == 2) {
++		// store value to be returned.
++		// must compute arg offset.
++		if(t->etype != TFUNC)
++			fatal(Z, "bad regret func %T", t);
++		*n = *nn;
++		n->op = ONAME;
++		n->class = CPARAM;
++		n->sym = slookup(".retx");
++		n->complex = 0;
++		n->addable = 20;
++		n->xoffset = argsize(0);
++		return;
++	}
++	
++	fatal(Z, "bad regret");
+ }
+ 
+ void
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 54c84b4d09..c3ab9c5bcf 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -385,6 +385,7 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
+ 			" mcache struct{}; bucket struct{}; sudog struct{}; g struct{};" +
+ 			" hchan struct{}; chantype struct{}; waitq struct{};" +
+ 			" note struct{}; wincallbackcontext struct{};" +
++			" gobuf struct{}; funcval struct{};" +
+ 			"); " +
+ 			"const ( cb_max = 2000 )"
+ 		f, err = parser.ParseFile(fset, filename, src, 0)
+diff --git a/src/cmd/cc/cc.h b/src/cmd/cc/cc.h
+index c8aac12530..1dae5acd90 100644
+--- a/src/cmd/cc/cc.h
++++ b/src/cmd/cc/cc.h
+@@ -794,7 +794,7 @@ void	xcom(Node*);
+ int32	exreg(Type*);
+ int32	align(int32, Type*, int, int32*);
+ int32	maxround(int32, int32);
+-int	hasdotdotdot(void);
++int	hasdotdotdot(Type*);
+ void    linkarchinit(void);
+ 
+ extern	schar	ewidth[];
+diff --git a/src/cmd/cc/dcl.c b/src/cmd/cc/dcl.c
+index 051a6c0a74..7cda9f924d 100644
+--- a/src/cmd/cc/dcl.c
++++ b/src/cmd/cc/dcl.c
+@@ -697,7 +697,8 @@ argmark(Node *n, int pass)
+ {
+ 	Type *t;
+ 
+-	autoffset = align(0, thisfn->link, Aarg0, nil);
++	if(hasdotdotdot(thisfn->link))
++		autoffset = align(0, thisfn->link, Aarg0, nil);
+ 	stkoff = 0;
+ 	for(; n->left != Z; n = n->left) {
+ 		if(n->op != OFUNC || n->left->op != ONAME)
+diff --git a/src/cmd/cc/pgen.c b/src/cmd/cc/pgen.c
+index 0ee13787f0..53410a11a0 100644
+--- a/src/cmd/cc/pgen.c
++++ b/src/cmd/cc/pgen.c
+@@ -56,24 +56,24 @@ makefuncdatasym(char *namefmt, int64 funcdatakind)
+ }
+ 
+ int
+-hasdotdotdot(void)
++hasdotdotdot(Type *t)
+ {
+-	Type *t;
+-
+-	for(t=thisfn->down; t!=T; t=t->down)
++	for(t=t->down; t!=T; t=t->down)
+ 		if(t->etype == TDOT)
+ 			return 1;
+ 	return 0;
+ }
+ 
+ vlong
+-argsize(void)
++argsize(int doret)
+ {
+ 	Type *t;
+ 	int32 s;
+ 
+ //print("t=%T\n", thisfn);
+-	s = align(0, thisfn->link, Aarg0, nil);
++	s = 0;
++	if(hasdotdotdot(thisfn))
++		s = align(s, thisfn->link, Aarg0, nil);
+ 	for(t=thisfn->down; t!=T; t=t->down) {
+ 		switch(t->etype) {
+ 		case TVOID:
+@@ -93,6 +93,14 @@ argsize(void)
+ 		s = (s+7) & ~7;
+ 	else
+ 		s = (s+3) & ~3;
++	if(doret && thisfn->link->etype != TVOID) {
++		s = align(s, thisfn->link, Aarg1, nil);
++		s = align(s, thisfn->link, Aarg2, nil);
++		if(thechar == '6')
++			s = (s+7) & ~7;
++		else
++			s = (s+3) & ~3;
++	}
+ 	return s;
+ }
+ 
+@@ -129,7 +137,7 @@ codgen(Node *n, Node *nn)
+ 	 * generate funcdata symbol for this function.
+ 	 * data is filled in at the end of codgen().
+ 	 */
+-	isvarargs = hasdotdotdot();
++	isvarargs = hasdotdotdot(thisfn);
+ 	gcargs = nil;
+ 	if(!isvarargs)
+ 		gcargs = makefuncdatasym("gcargs·%d", FUNCDATA_ArgsPointerMaps);
+@@ -212,7 +220,7 @@ supgen(Node *n)
+ void
+ gen(Node *n)
+ {
+-	Node *l, nod;
++	Node *l, nod, nod1;
+ 	Prog *sp, *spc, *spb;
+ 	Case *cn;
+ 	long sbc, scc;
+@@ -273,14 +281,26 @@ loop:
+ 			gbranch(ORETURN);
+ 			break;
+ 		}
++		if(typecmplx[n->type->etype] && !hasdotdotdot(thisfn)) {
++			regret(&nod, n, thisfn, 2);
++			sugen(l, &nod, n->type->width);
++			noretval(3);
++			gbranch(ORETURN);
++			break;
++		}
+ 		if(typecmplx[n->type->etype]) {
+ 			sugen(l, nodret, n->type->width);
+ 			noretval(3);
+ 			gbranch(ORETURN);
+ 			break;
+ 		}
+-		regret(&nod, n);
++		regret(&nod1, n, thisfn, 2);
++		nod = nod1;
++		if(nod.op != OREGISTER)
++			regalloc(&nod, n, Z);
+ 		cgen(l, &nod);
++		if(nod1.op != OREGISTER)
++			gmove(&nod, &nod1);
+ 		regfree(&nod);
+ 		if(typefd[n->type->etype])
+ 			noretval(1);
+@@ -729,9 +749,11 @@ dumpgcargs(Type *fn, Sym *sym)
+ 	symoffset = 0;
+ 	gextern(sym, nodconst(1), symoffset, 4);
+ 	symoffset += 4;
+-	argbytes = (argsize() + ewidth[TIND] - 1);
++	argbytes = (argsize(1) + ewidth[TIND] - 1);
+ 	bv = bvalloc((argbytes  / ewidth[TIND]) * BitsPerPointer);
+-	argoffset = align(0, fn->link, Aarg0, nil);
++	argoffset = 0;
++	if(hasdotdotdot(thisfn))
++		argoffset = align(0, fn->link, Aarg0, nil);
+ 	if(argoffset > 0) {
+ 		// The C calling convention returns structs by copying them to a
+ 		// location pointed to by a hidden first argument.  This first
+diff --git a/src/pkg/runtime/alg.go b/src/pkg/runtime/alg.go
+index ff296b692e..be6eaac230 100644
+--- a/src/pkg/runtime/alg.go
++++ b/src/pkg/runtime/alg.go
+@@ -43,6 +43,9 @@ var use_aeshash bool
+ 
+ // in asm_*.s
+ func aeshash(p unsafe.Pointer, s, h uintptr) uintptr
++func aeshash32(p unsafe.Pointer, s, h uintptr) uintptr
++func aeshash64(p unsafe.Pointer, s, h uintptr) uintptr
++func aeshashstr(p unsafe.Pointer, s, h uintptr) uintptr
+ 
+ func memhash(p unsafe.Pointer, s, h uintptr) uintptr {
+ 	if !nacl && use_aeshash {
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 2163c913d9..d52eca3867 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -134,8 +134,8 @@ TEXT runtime·asminit(SB),NOSPLIT,$0-0
+ // void gosave(Gobuf*)
+ // save state in Gobuf; setjmp
+ TEXT runtime·gosave(SB), NOSPLIT, $0-4
+-	MOVL	4(SP), AX		// gobuf
+-	LEAL	4(SP), BX		// caller's SP
++	MOVL	buf+0(FP), AX		// gobuf
++	LEAL	buf+0(FP), BX		// caller's SP
+ 	MOVL	BX, gobuf_sp(AX)
+ 	MOVL	0(SP), BX		// caller's PC
+ 	MOVL	BX, gobuf_pc(AX)
+@@ -149,7 +149,7 @@ TEXT runtime·gosave(SB), NOSPLIT, $0-4
+ // void gogo(Gobuf*)
+ // restore state from Gobuf; longjmp
+ TEXT runtime·gogo(SB), NOSPLIT, $0-4
+-	MOVL	4(SP), BX		// gobuf
++	MOVL	buf+0(FP), BX		// gobuf
+ 	MOVL	gobuf_g(BX), DX
+ 	MOVL	0(DX), CX		// make sure g != nil
+ 	get_tls(CX)
+@@ -174,7 +174,7 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-4
+ 	MOVL	g(CX), AX	// save state in g->sched
+ 	MOVL	0(SP), BX	// caller's PC
+ 	MOVL	BX, (g_sched+gobuf_pc)(AX)
+-	LEAL	4(SP), BX	// caller's SP
++	LEAL	fn+0(FP), BX	// caller's SP
+ 	MOVL	BX, (g_sched+gobuf_sp)(AX)
+ 	MOVL	AX, (g_sched+gobuf_g)(AX)
+ 
+@@ -318,7 +318,7 @@ TEXT runtime·newstackcall(SB), NOSPLIT, $0-12
+ 	// restore when returning from f.
+ 	MOVL	0(SP), AX	// our caller's PC
+ 	MOVL	AX, (m_morebuf+gobuf_pc)(BX)
+-	LEAL	4(SP), AX	// our caller's SP
++	LEAL	fv+0(FP), AX	// our caller's SP
+ 	MOVL	AX, (m_morebuf+gobuf_sp)(BX)
+ 	MOVL	g(CX), AX
+ 	MOVL	AX, (m_morebuf+gobuf_g)(BX)
+@@ -334,9 +334,9 @@ TEXT runtime·newstackcall(SB), NOSPLIT, $0-12
+ 	// If it turns out that f needs a larger frame than
+ 	// the default stack, f's usual stack growth prolog will
+ 	// allocate a new segment (and recopy the arguments).
+-	MOVL	4(SP), AX	// fn
+-	MOVL	8(SP), DX	// arg frame
+-	MOVL	12(SP), CX	// arg size
++	MOVL	fv+0(FP), AX	// fn
++	MOVL	addr+4(FP), DX	// arg frame
++	MOVL	size+8(FP), CX	// arg size
+ 
+ 	MOVL	AX, m_cret(BX)	// f's PC
+ 	MOVL	DX, m_moreargp(BX)	// f's argument pointer
+@@ -481,7 +481,6 @@ TEXT runtime·lessstack(SB), NOSPLIT, $0-0
+ 	MOVL	$0, 0x1004	// crash if oldstack returns
+ 	RET
+ 
+-
+ // bool cas(int32 *val, int32 old, int32 new)
+ // Atomically:
+ //	if(*val == old){
+@@ -489,16 +488,18 @@ TEXT runtime·lessstack(SB), NOSPLIT, $0-0
+ //		return 1;
+ //	}else
+ //		return 0;
+-TEXT runtime·cas(SB), NOSPLIT, $0-12
+-	MOVL	4(SP), BX
+-	MOVL	8(SP), AX
+-	MOVL	12(SP), CX
++TEXT runtime·cas(SB), NOSPLIT, $0-13
++	MOVL	ptr+0(FP), BX
++	MOVL	old+4(FP), AX
++	MOVL	new+8(FP), CX
+ 	LOCK
+ 	CMPXCHGL	CX, 0(BX)
+-	JZ 3(PC)
++	JZ 4(PC)
+ 	MOVL	$0, AX
++	MOVB	AX, ret+12(FP)
+ 	RET
+ 	MOVL	$1, AX
++	MOVB	AX, ret+12(FP)
+ 	RET
+ 
+ // bool runtime·cas64(uint64 *val, uint64 old, uint64 new)
+@@ -509,19 +510,21 @@ TEXT runtime·cas(SB), NOSPLIT, $0-12
+ //	} else {
+ //		return 0;
+ //	}
+-TEXT runtime·cas64(SB), NOSPLIT, $0-20
+-	MOVL	4(SP), BP
+-	MOVL	8(SP), AX
+-	MOVL	12(SP), DX
+-	MOVL	16(SP), BX
+-	MOVL	20(SP), CX
++TEXT runtime·cas64(SB), NOSPLIT, $0-21
++	MOVL	ptr+0(FP), BP
++	MOVL	old_lo+4(FP), AX
++	MOVL	old_hi+8(FP), DX
++	MOVL	new_lo+12(FP), BX
++	MOVL	new_hi+16(FP), CX
+ 	LOCK
+ 	CMPXCHG8B	0(BP)
+ 	JNZ	cas64_fail
+ 	MOVL	$1, AX
++	MOVB	AX, ret+20(FP)
+ 	RET
+ cas64_fail:
+ 	MOVL	$0, AX
++	MOVB	AX, ret+20(FP)
+ 	RET
+ 
+ // bool casp(void **p, void *old, void *new)
+@@ -531,45 +534,50 @@ cas64_fail:
+ //		return 1;
+ //	}else
+ //		return 0;
+-TEXT runtime·casp(SB), NOSPLIT, $0-12
+-	MOVL	4(SP), BX
+-	MOVL	8(SP), AX
+-	MOVL	12(SP), CX
++TEXT runtime·casp(SB), NOSPLIT, $0-13
++	MOVL	ptr+0(FP), BX
++	MOVL	old+4(FP), AX
++	MOVL	new+8(FP), CX
+ 	LOCK
+ 	CMPXCHGL	CX, 0(BX)
+-	JZ 3(PC)
++	JZ 4(PC)
+ 	MOVL	$0, AX
++	MOVB	AX, ret+12(FP)
+ 	RET
+ 	MOVL	$1, AX
++	MOVB	AX, ret+12(FP)
+ 	RET
+ 
+ // uint32 xadd(uint32 volatile *val, int32 delta)
+ // Atomically:
+ //	*val += delta;
+ //	return *val;
+-TEXT runtime·xadd(SB), NOSPLIT, $0-8
+-	MOVL	4(SP), BX
+-	MOVL	8(SP), AX
++TEXT runtime·xadd(SB), NOSPLIT, $0-12
++	MOVL	ptr+0(FP), BX
++	MOVL	delta+4(FP), AX
+ 	MOVL	AX, CX
+ 	LOCK
+ 	XADDL	AX, 0(BX)
+ 	ADDL	CX, AX
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime·xchg(SB), NOSPLIT, $0-8
+-	MOVL	4(SP), BX
+-	MOVL	8(SP), AX
++TEXT runtime·xchg(SB), NOSPLIT, $0-12
++	MOVL	ptr+0(FP), BX
++	MOVL	new+4(FP), AX
+ 	XCHGL	AX, 0(BX)
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime·xchgp(SB), NOSPLIT, $0-8
+-	MOVL	4(SP), BX
+-	MOVL	8(SP), AX
++TEXT runtime·xchgp(SB), NOSPLIT, $0-12
++	MOVL	ptr+0(FP), BX
++	MOVL	new+4(FP), AX
+ 	XCHGL	AX, 0(BX)
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+ TEXT runtime·procyield(SB),NOSPLIT,$0-0
+-	MOVL	4(SP), AX
++	MOVL	cycles+0(FP), AX
+ again:
+ 	PAUSE
+ 	SUBL	$1, AX
+@@ -577,23 +585,21 @@ again:
+ 	RET
+ 
+ TEXT runtime·atomicstorep(SB), NOSPLIT, $0-8
+-	MOVL	4(SP), BX
+-	MOVL	8(SP), AX
++	MOVL	ptr+0(FP), BX
++	MOVL	val+4(FP), AX
+ 	XCHGL	AX, 0(BX)
+ 	RET
+ 
+ TEXT runtime·atomicstore(SB), NOSPLIT, $0-8
+-	MOVL	4(SP), BX
+-	MOVL	8(SP), AX
++	MOVL	ptr+0(FP), BX
++	MOVL	val+4(FP), AX
+ 	XCHGL	AX, 0(BX)
+ 	RET
+ 
+ // uint64 atomicload64(uint64 volatile* addr);
+-// so actually
+-// void atomicload64(uint64 *res, uint64 volatile *addr);
+-TEXT runtime·atomicload64(SB), NOSPLIT, $0-8
+-	MOVL	4(SP), BX
+-	MOVL	8(SP), AX
++TEXT runtime·atomicload64(SB), NOSPLIT, $0-12
++	MOVL	ptr+0(FP), AX
++	LEAL	ret_lo+4(FP), BX
+ 	// MOVQ (%EAX), %MM0
+ 	BYTE $0x0f; BYTE $0x6f; BYTE $0x00
+ 	// MOVQ %MM0, 0(%EBX)
+@@ -604,7 +610,7 @@ TEXT runtime·atomicload64(SB), NOSPLIT, $0-8
+ 
+ // void runtime·atomicstore64(uint64 volatile* addr, uint64 v);
+ TEXT runtime·atomicstore64(SB), NOSPLIT, $0-12
+-	MOVL	4(SP), AX
++	MOVL	ptr+0(FP), AX
+ 	// MOVQ and EMMS were introduced on the Pentium MMX.
+ 	// MOVQ 0x8(%ESP), %MM0
+ 	BYTE $0x0f; BYTE $0x6f; BYTE $0x44; BYTE $0x24; BYTE $0x08
+@@ -620,7 +626,7 @@ TEXT runtime·atomicstore64(SB), NOSPLIT, $0-12
+ 	RET
+ 
+ // void	runtime·atomicor8(byte volatile*, byte);
+-TEXT runtime·atomicor8(SB), NOSPLIT, $0-8
++TEXT runtime·atomicor8(SB), NOSPLIT, $0-5
+ 	MOVL	ptr+0(FP), AX
+ 	MOVB	val+4(FP), BX
+ 	LOCK
+@@ -633,8 +639,8 @@ TEXT runtime·atomicor8(SB), NOSPLIT, $0-8
+ // 2. sub 5 bytes from the callers return
+ // 3. jmp to the argument
+ TEXT runtime·jmpdefer(SB), NOSPLIT, $0-8
+-	MOVL	4(SP), DX	// fn
+-	MOVL	8(SP), BX	// caller sp
++	MOVL	fv+0(FP), DX	// fn
++	MOVL	argp+4(FP), BX	// caller sp
+ 	LEAL	-4(BX), SP	// caller sp after CALL
+ 	SUBL	$5, (SP)	// return to CALL again
+ 	MOVL	0(DX), BX
+@@ -804,7 +810,7 @@ havem:
+ 	RET
+ 
+ // void setg(G*); set g. for use by needm.
+-TEXT runtime·setg(SB), NOSPLIT, $0-8
++TEXT runtime·setg(SB), NOSPLIT, $0-4
+ 	MOVL	gg+0(FP), BX
+ #ifdef GOOS_windows
+ 	CMPL	BX, $0
+@@ -839,9 +845,10 @@ TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
+ 	INT	$3
+ 	RET
+ 
+-TEXT runtime·getcallerpc(SB),NOSPLIT,$0-4
+-	MOVL	x+0(FP),AX		// addr of first arg
++TEXT runtime·getcallerpc(SB),NOSPLIT,$0-8
++	MOVL	argp+0(FP),AX		// addr of first arg
+ 	MOVL	-4(AX),AX		// get calling pc
++	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+ TEXT runtime·gogetcallerpc(SB),NOSPLIT,$0-8
+@@ -851,13 +858,14 @@ TEXT runtime·gogetcallerpc(SB),NOSPLIT,$0-8
+ 	RET
+ 
+ TEXT runtime·setcallerpc(SB),NOSPLIT,$0-8
+-	MOVL	x+0(FP),AX		// addr of first arg
+-	MOVL	x+4(FP), BX
++	MOVL	argp+0(FP),AX		// addr of first arg
++	MOVL	pc+4(FP), BX
+ 	MOVL	BX, -4(AX)		// set calling pc
+ 	RET
+ 
+-TEXT runtime·getcallersp(SB), NOSPLIT, $0-4
+-	MOVL	sp+0(FP), AX
++TEXT runtime·getcallersp(SB), NOSPLIT, $0-8
++	MOVL	argp+0(FP), AX
++	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+ // func gogetcallersp(p unsafe.Pointer) uintptr
+@@ -868,11 +876,10 @@ TEXT runtime·gogetcallersp(SB),NOSPLIT,$0-8
+ 
+ // int64 runtime·cputicks(void), so really
+ // void runtime·cputicks(int64 *ticks)
+-TEXT runtime·cputicks(SB),NOSPLIT,$0-4
++TEXT runtime·cputicks(SB),NOSPLIT,$0-8
+ 	RDTSC
+-	MOVL	ret+0(FP), DI
+-	MOVL	AX, 0(DI)
+-	MOVL	DX, 4(DI)
++	MOVL	AX, ret_lo+0(FP)
++	MOVL	DX, ret_hi+4(FP)
+ 	RET
+ 
+ TEXT runtime·gocputicks(SB),NOSPLIT,$0-8
+@@ -976,7 +983,7 @@ finalize:
+ 	AESENC	X2, X0
+ 	AESENC	X3, X0
+ 	AESENC	X2, X0
+-	MOVL	X0, res+12(FP)
++	MOVL	X0, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·aeshash32(SB),NOSPLIT,$0-16
+@@ -987,7 +994,7 @@ TEXT runtime·aeshash32(SB),NOSPLIT,$0-16
+ 	AESENC	runtime·aeskeysched+0(SB), X0
+ 	AESENC	runtime·aeskeysched+16(SB), X0
+ 	AESENC	runtime·aeskeysched+0(SB), X0
+-	MOVL	X0, res+12(FP)
++	MOVL	X0, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·aeshash64(SB),NOSPLIT,$0-16
+@@ -998,7 +1005,7 @@ TEXT runtime·aeshash64(SB),NOSPLIT,$0-16
+ 	AESENC	runtime·aeskeysched+0(SB), X0
+ 	AESENC	runtime·aeskeysched+16(SB), X0
+ 	AESENC	runtime·aeskeysched+0(SB), X0
+-	MOVL	X0, res+12(FP)
++	MOVL	X0, ret+12(FP)
+ 	RET
+ 
+ // simple mask to get rid of data in the high part of the register.
+@@ -1309,12 +1316,12 @@ equal:
+ 	RET
+ 
+ TEXT runtime·cmpstring(SB),NOSPLIT,$0-20
+-	MOVL	s1+0(FP), SI
+-	MOVL	s1+4(FP), BX
+-	MOVL	s2+8(FP), DI
+-	MOVL	s2+12(FP), DX
++	MOVL	s1_base+0(FP), SI
++	MOVL	s1_len+4(FP), BX
++	MOVL	s2_base+8(FP), DI
++	MOVL	s2_len+12(FP), DX
+ 	CALL	runtime·cmpbody(SB)
+-	MOVL	AX, res+16(FP)
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+ TEXT bytes·Compare(SB),NOSPLIT,$0-28
+@@ -1323,7 +1330,7 @@ TEXT bytes·Compare(SB),NOSPLIT,$0-28
+ 	MOVL	s2+12(FP), DI
+ 	MOVL	s2+16(FP), DX
+ 	CALL	runtime·cmpbody(SB)
+-	MOVL	AX, res+24(FP)
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ TEXT bytes·IndexByte(SB),NOSPLIT,$0
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index c53e2d350e..70e2225213 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -125,8 +125,8 @@ TEXT runtime·asminit(SB),NOSPLIT,$0-0
+ // void gosave(Gobuf*)
+ // save state in Gobuf; setjmp
+ TEXT runtime·gosave(SB), NOSPLIT, $0-8
+-	MOVQ	8(SP), AX		// gobuf
+-	LEAQ	8(SP), BX		// caller's SP
++	MOVQ	buf+0(FP), AX		// gobuf
++	LEAQ	buf+0(FP), BX		// caller's SP
+ 	MOVQ	BX, gobuf_sp(AX)
+ 	MOVQ	0(SP), BX		// caller's PC
+ 	MOVQ	BX, gobuf_pc(AX)
+@@ -140,7 +140,7 @@ TEXT runtime·gosave(SB), NOSPLIT, $0-8
+ // void gogo(Gobuf*)
+ // restore state from Gobuf; longjmp
+ TEXT runtime·gogo(SB), NOSPLIT, $0-8
+-	MOVQ	8(SP), BX		// gobuf
++	MOVQ	buf+0(FP), BX		// gobuf
+ 	MOVQ	gobuf_g(BX), DX
+ 	MOVQ	0(DX), CX		// make sure g != nil
+ 	get_tls(CX)
+@@ -165,7 +165,7 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-8
+ 	MOVQ	g(CX), AX	// save state in g->sched
+ 	MOVQ	0(SP), BX	// caller's PC
+ 	MOVQ	BX, (g_sched+gobuf_pc)(AX)
+-	LEAQ	8(SP), BX	// caller's SP
++	LEAQ	fn+0(FP), BX	// caller's SP
+ 	MOVQ	BX, (g_sched+gobuf_sp)(AX)
+ 	MOVQ	AX, (g_sched+gobuf_g)(AX)
+ 
+@@ -297,7 +297,7 @@ TEXT runtime·newstackcall(SB), NOSPLIT, $0-20
+ 	// restore when returning from f.
+ 	MOVQ	0(SP), AX	// our caller's PC
+ 	MOVQ	AX, (m_morebuf+gobuf_pc)(BX)
+-	LEAQ	8(SP), AX	// our caller's SP
++	LEAQ	fv+0(FP), AX	// our caller's SP
+ 	MOVQ	AX, (m_morebuf+gobuf_sp)(BX)
+ 	MOVQ	g(CX), AX
+ 	MOVQ	AX, (m_morebuf+gobuf_g)(BX)
+@@ -314,9 +314,9 @@ TEXT runtime·newstackcall(SB), NOSPLIT, $0-20
+ 	// If it turns out that f needs a larger frame than
+ 	// the default stack, f's usual stack growth prolog will
+ 	// allocate a new segment (and recopy the arguments).
+-	MOVQ	8(SP), AX	// fn
+-	MOVQ	16(SP), DX	// arg frame
+-	MOVL	24(SP), CX	// arg size
++	MOVQ	fv+0(FP), AX	// fn
++	MOVQ	addr+8(FP), DX	// arg frame
++	MOVL	size+16(FP), CX	// arg size
+ 
+ 	MOVQ	AX, m_cret(BX)	// f's PC
+ 	MOVQ	DX, m_moreargp(BX)	// argument frame pointer
+@@ -584,16 +584,18 @@ TEXT runtime·morestack48_noctxt(SB),NOSPLIT,$0
+ //		return 1;
+ //	} else
+ //		return 0;
+-TEXT runtime·cas(SB), NOSPLIT, $0-16
+-	MOVQ	8(SP), BX
+-	MOVL	16(SP), AX
+-	MOVL	20(SP), CX
++TEXT runtime·cas(SB), NOSPLIT, $0-17
++	MOVQ	ptr+0(FP), BX
++	MOVL	old+8(FP), AX
++	MOVL	new+12(FP), CX
+ 	LOCK
+ 	CMPXCHGL	CX, 0(BX)
+-	JZ 3(PC)
++	JZ 4(PC)
+ 	MOVL	$0, AX
++	MOVB	AX, ret+16(FP)
+ 	RET
+ 	MOVL	$1, AX
++	MOVB	AX, ret+16(FP)
+ 	RET
+ 
+ // bool	runtime·cas64(uint64 *val, uint64 old, uint64 new)
+@@ -604,17 +606,19 @@ TEXT runtime·cas(SB), NOSPLIT, $0-16
+ //	} else {
+ //		return 0;
+ //	}
+-TEXT runtime·cas64(SB), NOSPLIT, $0-24
+-	MOVQ	8(SP), BX
+-	MOVQ	16(SP), AX
+-	MOVQ	24(SP), CX
++TEXT runtime·cas64(SB), NOSPLIT, $0-25
++	MOVQ	ptr+0(FP), BX
++	MOVQ	old+8(FP), AX
++	MOVQ	new+16(FP), CX
+ 	LOCK
+ 	CMPXCHGQ	CX, 0(BX)
+ 	JNZ	cas64_fail
+ 	MOVL	$1, AX
++	MOVB	AX, ret+24(FP)
+ 	RET
+ cas64_fail:
+ 	MOVL	$0, AX
++	MOVB	AX, ret+24(FP)
+ 	RET
+ 
+ // bool casp(void **val, void *old, void *new)
+@@ -624,60 +628,67 @@ cas64_fail:
+ //		return 1;
+ //	} else
+ //		return 0;
+-TEXT runtime·casp(SB), NOSPLIT, $0-24
+-	MOVQ	8(SP), BX
+-	MOVQ	16(SP), AX
+-	MOVQ	24(SP), CX
++TEXT runtime·casp(SB), NOSPLIT, $0-25
++	MOVQ	ptr+0(FP), BX
++	MOVQ	old+8(FP), AX
++	MOVQ	new+16(FP), CX
+ 	LOCK
+ 	CMPXCHGQ	CX, 0(BX)
+-	JZ 3(PC)
++	JZ 4(PC)
+ 	MOVL	$0, AX
++	MOVB	AX, ret+24(FP)
+ 	RET
+ 	MOVL	$1, AX
++	MOVB	AX, ret+24(FP)
+ 	RET
+ 
+ // uint32 xadd(uint32 volatile *val, int32 delta)
+ // Atomically:
+ //	*val += delta;
+ //	return *val;
+-TEXT runtime·xadd(SB), NOSPLIT, $0-12
+-	MOVQ	8(SP), BX
+-	MOVL	16(SP), AX
++TEXT runtime·xadd(SB), NOSPLIT, $0-20
++	MOVQ	ptr+0(FP), BX
++	MOVL	delta+8(FP), AX
+ 	MOVL	AX, CX
+ 	LOCK
+ 	XADDL	AX, 0(BX)
+ 	ADDL	CX, AX
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·xadd64(SB), NOSPLIT, $0-16
+-	MOVQ	8(SP), BX
+-	MOVQ	16(SP), AX
++TEXT runtime·xadd64(SB), NOSPLIT, $0-24
++	MOVQ	ptr+0(FP), BX
++	MOVQ	delta+8(FP), AX
+ 	MOVQ	AX, CX
+ 	LOCK
+ 	XADDQ	AX, 0(BX)
+ 	ADDQ	CX, AX
++	MOVQ	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·xchg(SB), NOSPLIT, $0-12
+-	MOVQ	8(SP), BX
+-	MOVL	16(SP), AX
++TEXT runtime·xchg(SB), NOSPLIT, $0-20
++	MOVQ	ptr+0(FP), BX
++	MOVL	new+8(FP), AX
+ 	XCHGL	AX, 0(BX)
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·xchg64(SB), NOSPLIT, $0-16
+-	MOVQ	8(SP), BX
+-	MOVQ	16(SP), AX
++TEXT runtime·xchg64(SB), NOSPLIT, $0-24
++	MOVQ	ptr+0(FP), BX
++	MOVQ	new+8(FP), AX
+ 	XCHGQ	AX, 0(BX)
++	MOVQ	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·xchgp(SB), NOSPLIT, $0-16
+-	MOVQ	8(SP), BX
+-	MOVQ	16(SP), AX
++TEXT runtime·xchgp(SB), NOSPLIT, $0-24
++	MOVQ	ptr+0(FP), BX
++	MOVQ	new+8(FP), AX
+ 	XCHGQ	AX, 0(BX)
++	MOVQ	AX, ret+16(FP)
+ 	RET
+ 
+ TEXT runtime·procyield(SB),NOSPLIT,$0-0
+-	MOVL	8(SP), AX
++	MOVL	cycles+0(FP), AX
+ again:
+ 	PAUSE
+ 	SUBL	$1, AX
+@@ -685,25 +696,25 @@ again:
+ 	RET
+ 
+ TEXT runtime·atomicstorep(SB), NOSPLIT, $0-16
+-	MOVQ	8(SP), BX
+-	MOVQ	16(SP), AX
++	MOVQ	ptr+0(FP), BX
++	MOVQ	val+8(FP), AX
+ 	XCHGQ	AX, 0(BX)
+ 	RET
+ 
+ TEXT runtime·atomicstore(SB), NOSPLIT, $0-12
+-	MOVQ	8(SP), BX
+-	MOVL	16(SP), AX
++	MOVQ	ptr+0(FP), BX
++	MOVL	val+8(FP), AX
+ 	XCHGL	AX, 0(BX)
+ 	RET
+ 
+ TEXT runtime·atomicstore64(SB), NOSPLIT, $0-16
+-	MOVQ	8(SP), BX
+-	MOVQ	16(SP), AX
++	MOVQ	ptr+0(FP), BX
++	MOVQ	val+8(FP), AX
+ 	XCHGQ	AX, 0(BX)
+ 	RET
+ 
+ // void	runtime·atomicor8(byte volatile*, byte);
+-TEXT runtime·atomicor8(SB), NOSPLIT, $0-16
++TEXT runtime·atomicor8(SB), NOSPLIT, $0-9
+ 	MOVQ	ptr+0(FP), AX
+ 	MOVB	val+8(FP), BX
+ 	LOCK
+@@ -716,8 +727,8 @@ TEXT runtime·atomicor8(SB), NOSPLIT, $0-16
+ // 2. sub 5 bytes from the callers return
+ // 3. jmp to the argument
+ TEXT runtime·jmpdefer(SB), NOSPLIT, $0-16
+-	MOVQ	8(SP), DX	// fn
+-	MOVQ	16(SP), BX	// caller sp
++	MOVQ	fv+0(FP), DX	// fn
++	MOVQ	argp+8(FP), BX	// caller sp
+ 	LEAQ	-8(BX), SP	// caller sp after CALL
+ 	SUBQ	$5, (SP)	// return to CALL again
+ 	MOVQ	0(DX), BX
+@@ -891,7 +902,7 @@ havem:
+ 	RET
+ 
+ // void setg(G*); set g. for use by needm.
+-TEXT runtime·setg(SB), NOSPLIT, $0-16
++TEXT runtime·setg(SB), NOSPLIT, $0-8
+ 	MOVQ	gg+0(FP), BX
+ #ifdef GOOS_windows
+ 	CMPQ	BX, $0
+@@ -925,9 +936,10 @@ TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
+ 	INT	$3
+ 	RET
+ 
+-TEXT runtime·getcallerpc(SB),NOSPLIT,$0-8
+-	MOVQ	x+0(FP),AX		// addr of first arg
++TEXT runtime·getcallerpc(SB),NOSPLIT,$0-16
++	MOVQ	argp+0(FP),AX		// addr of first arg
+ 	MOVQ	-8(AX),AX		// get calling pc
++	MOVQ	AX, ret+8(FP)
+ 	RET
+ 
+ TEXT runtime·gogetcallerpc(SB),NOSPLIT,$0-16
+@@ -937,13 +949,14 @@ TEXT runtime·gogetcallerpc(SB),NOSPLIT,$0-16
+ 	RET
+ 
+ TEXT runtime·setcallerpc(SB),NOSPLIT,$0-16
+-	MOVQ	x+0(FP),AX		// addr of first arg
+-	MOVQ	x+8(FP), BX
++	MOVQ	argp+0(FP),AX		// addr of first arg
++	MOVQ	pc+8(FP), BX
+ 	MOVQ	BX, -8(AX)		// set calling pc
+ 	RET
+ 
+-TEXT runtime·getcallersp(SB),NOSPLIT,$0-8
+-	MOVQ	sp+0(FP), AX
++TEXT runtime·getcallersp(SB),NOSPLIT,$0-16
++	MOVQ	argp+0(FP), AX
++	MOVQ	AX, ret+8(FP)
+ 	RET
+ 
+ // func gogetcallersp(p unsafe.Pointer) uintptr
+@@ -957,6 +970,7 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-0
+ 	RDTSC
+ 	SHLQ	$32, DX
+ 	ADDQ	DX, AX
++	MOVQ	AX, ret+0(FP)
+ 	RET
+ 
+ TEXT runtime·gocputicks(SB),NOSPLIT,$0-8
+@@ -1057,7 +1071,7 @@ TEXT runtime·aeshash32(SB),NOSPLIT,$0-32
+ 	AESENC	runtime·aeskeysched+0(SB), X0
+ 	AESENC	runtime·aeskeysched+16(SB), X0
+ 	AESENC	runtime·aeskeysched+0(SB), X0
+-	MOVQ	X0, res+24(FP)
++	MOVQ	X0, ret+24(FP)
+ 	RET
+ 
+ TEXT runtime·aeshash64(SB),NOSPLIT,$0-32
+@@ -1068,7 +1082,7 @@ TEXT runtime·aeshash64(SB),NOSPLIT,$0-32
+ 	AESENC	runtime·aeskeysched+0(SB), X0
+ 	AESENC	runtime·aeskeysched+16(SB), X0
+ 	AESENC	runtime·aeskeysched+0(SB), X0
+-	MOVQ	X0, res+24(FP)
++	MOVQ	X0, ret+24(FP)
+ 	RET
+ 
+ // simple mask to get rid of data in the high part of the register.
+@@ -1266,12 +1280,12 @@ equal:
+ 	RET
+ 
+ TEXT runtime·cmpstring(SB),NOSPLIT,$0-40
+-	MOVQ	s1+0(FP), SI
+-	MOVQ	s1+8(FP), BX
+-	MOVQ	s2+16(FP), DI
+-	MOVQ	s2+24(FP), DX
++	MOVQ	s1_base+0(FP), SI
++	MOVQ	s1_len+8(FP), BX
++	MOVQ	s2_base+16(FP), DI
++	MOVQ	s2_len+24(FP), DX
+ 	CALL	runtime·cmpbody(SB)
+-	MOVQ	AX, res+32(FP)
++	MOVQ	AX, ret+32(FP)
+ 	RET
+ 
+ TEXT bytes·Compare(SB),NOSPLIT,$0-56
+diff --git a/src/pkg/runtime/asm_amd64p32.s b/src/pkg/runtime/asm_amd64p32.s
+index 4c039d7767..83faff2815 100644
+--- a/src/pkg/runtime/asm_amd64p32.s
++++ b/src/pkg/runtime/asm_amd64p32.s
+@@ -103,8 +103,8 @@ TEXT runtime·asminit(SB),NOSPLIT,$0-0
+ // void gosave(Gobuf*)
+ // save state in Gobuf; setjmp
+ TEXT runtime·gosave(SB), NOSPLIT, $0-4
+-	MOVL	b+0(FP), AX	// gobuf
+-	LEAL	b+0(FP), BX	// caller's SP
++	MOVL	buf+0(FP), AX	// gobuf
++	LEAL	buf+0(FP), BX	// caller's SP
+ 	MOVL	BX, gobuf_sp(AX)
+ 	MOVL	0(SP), BX		// caller's PC
+ 	MOVL	BX, gobuf_pc(AX)
+@@ -118,7 +118,7 @@ TEXT runtime·gosave(SB), NOSPLIT, $0-4
+ // void gogo(Gobuf*)
+ // restore state from Gobuf; longjmp
+ TEXT runtime·gogo(SB), NOSPLIT, $0-4
+-	MOVL	b+0(FP), BX		// gobuf
++	MOVL	buf+0(FP), BX		// gobuf
+ 	MOVL	gobuf_g(BX), DX
+ 	MOVL	0(DX), CX		// make sure g != nil
+ 	get_tls(CX)
+@@ -266,7 +266,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
+ // with the desired args running the desired function.
+ //
+ // func call(fn *byte, arg *byte, argsize uint32).
+-TEXT runtime·newstackcall(SB), NOSPLIT, $0-20
++TEXT runtime·newstackcall(SB), NOSPLIT, $0-12
+ 	get_tls(CX)
+ 	MOVL	g(CX), BX
+ 	MOVL	g_m(BX), BX
+@@ -275,7 +275,7 @@ TEXT runtime·newstackcall(SB), NOSPLIT, $0-20
+ 	// restore when returning from f.
+ 	MOVL	0(SP), AX	// our caller's PC
+ 	MOVL	AX, (m_morebuf+gobuf_pc)(BX)
+-	LEAL	8(SP), AX	// our caller's SP
++	LEAL	addr+4(FP), AX	// our caller's SP
+ 	MOVL	AX, (m_morebuf+gobuf_sp)(BX)
+ 	MOVL	g(CX), AX
+ 	MOVL	AX, (m_morebuf+gobuf_g)(BX)
+@@ -292,9 +292,9 @@ TEXT runtime·newstackcall(SB), NOSPLIT, $0-20
+ 	// If it turns out that f needs a larger frame than
+ 	// the default stack, f's usual stack growth prolog will
+ 	// allocate a new segment (and recopy the arguments).
+-	MOVL	8(SP), AX	// fn
+-	MOVL	12(SP), DX	// arg frame
+-	MOVL	16(SP), CX	// arg size
++	MOVL	fv+0(FP), AX	// fn
++	MOVL	addr+4(FP), DX	// arg frame
++	MOVL	size+8(FP), CX	// arg size
+ 
+ 	MOVQ	AX, m_cret(BX)	// f's PC
+ 	MOVL	DX, m_moreargp(BX)	// argument frame pointer
+@@ -548,16 +548,18 @@ TEXT runtime·morestack48_noctxt(SB),NOSPLIT,$0
+ //		return 1;
+ //	} else
+ //		return 0;
+-TEXT runtime·cas(SB), NOSPLIT, $0-12
+-	MOVL	val+0(FP), BX
++TEXT runtime·cas(SB), NOSPLIT, $0-17
++	MOVL	ptr+0(FP), BX
+ 	MOVL	old+4(FP), AX
+ 	MOVL	new+8(FP), CX
+ 	LOCK
+ 	CMPXCHGL	CX, 0(BX)
+-	JZ 3(PC)
++	JZ 4(PC)
+ 	MOVL	$0, AX
++	MOVB	AX, ret+16(FP)
+ 	RET
+ 	MOVL	$1, AX
++	MOVB	AX, ret+16(FP)
+ 	RET
+ 
+ // bool	runtime·cas64(uint64 *val, uint64 old, uint64 new)
+@@ -568,17 +570,19 @@ TEXT runtime·cas(SB), NOSPLIT, $0-12
+ //	} else {
+ //		return 0;
+ //	}
+-TEXT runtime·cas64(SB), NOSPLIT, $0-24
+-	MOVL	val+0(FP), BX
++TEXT runtime·cas64(SB), NOSPLIT, $0-25
++	MOVL	ptr+0(FP), BX
+ 	MOVQ	old+8(FP), AX
+ 	MOVQ	new+16(FP), CX
+ 	LOCK
+ 	CMPXCHGQ	CX, 0(BX)
+ 	JNZ	cas64_fail
+ 	MOVL	$1, AX
++	MOVB	AX, ret+24(FP)
+ 	RET
+ cas64_fail:
+ 	MOVL	$0, AX
++	MOVB	AX, ret+24(FP)
+ 	RET
+ 
+ // bool casp(void **val, void *old, void *new)
+@@ -588,54 +592,60 @@ cas64_fail:
+ //		return 1;
+ //	} else
+ //		return 0;
+-TEXT runtime·casp(SB), NOSPLIT, $0-12
+-	MOVL	val+0(FP), BX
++TEXT runtime·casp(SB), NOSPLIT, $0-17
++	MOVL	ptr+0(FP), BX
+ 	MOVL	old+4(FP), AX
+ 	MOVL	new+8(FP), CX
+ 	LOCK
+ 	CMPXCHGL	CX, 0(BX)
+-	JZ 3(PC)
++	JZ 4(PC)
+ 	MOVL	$0, AX
++	MOVB	AX, ret+16(FP)
+ 	RET
+ 	MOVL	$1, AX
++	MOVB	AX, ret+16(FP)
+ 	RET
+ 
+ // uint32 xadd(uint32 volatile *val, int32 delta)
+ // Atomically:
+ //	*val += delta;
+ //	return *val;
+-TEXT runtime·xadd(SB), NOSPLIT, $0-8
+-	MOVL	val+0(FP), BX
++TEXT runtime·xadd(SB), NOSPLIT, $0-12
++	MOVL	ptr+0(FP), BX
+ 	MOVL	delta+4(FP), AX
+ 	MOVL	AX, CX
+ 	LOCK
+ 	XADDL	AX, 0(BX)
+ 	ADDL	CX, AX
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime·xadd64(SB), NOSPLIT, $0-16
+-	MOVL	val+0(FP), BX
++TEXT runtime·xadd64(SB), NOSPLIT, $0-24
++	MOVL	ptr+0(FP), BX
+ 	MOVQ	delta+8(FP), AX
+ 	MOVQ	AX, CX
+ 	LOCK
+ 	XADDQ	AX, 0(BX)
+ 	ADDQ	CX, AX
++	MOVQ	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·xchg(SB), NOSPLIT, $0-8
+-	MOVL	val+0(FP), BX
++TEXT runtime·xchg(SB), NOSPLIT, $0-12
++	MOVL	ptr+0(FP), BX
+ 	MOVL	new+4(FP), AX
+ 	XCHGL	AX, 0(BX)
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime·xchg64(SB), NOSPLIT, $0-16
+-	MOVL	val+0(FP), BX
++TEXT runtime·xchg64(SB), NOSPLIT, $0-24
++	MOVL	ptr+0(FP), BX
+ 	MOVQ	new+8(FP), AX
+ 	XCHGQ	AX, 0(BX)
++	MOVQ	AX, ret+16(FP)
+ 	RET
+ 
+ TEXT runtime·procyield(SB),NOSPLIT,$0-0
+-	MOVL	val+0(FP), AX
++	MOVL	cycles+0(FP), AX
+ again:
+ 	PAUSE
+ 	SUBL	$1, AX
+@@ -661,7 +671,7 @@ TEXT runtime·atomicstore64(SB), NOSPLIT, $0-16
+ 	RET
+ 
+ // void	runtime·atomicor8(byte volatile*, byte);
+-TEXT runtime·atomicor8(SB), NOSPLIT, $0-8
++TEXT runtime·atomicor8(SB), NOSPLIT, $0-5
+ 	MOVL	ptr+0(FP), BX
+ 	MOVB	val+4(FP), AX
+ 	LOCK
+@@ -673,9 +683,9 @@ TEXT runtime·atomicor8(SB), NOSPLIT, $0-8
+ // 1. pop the caller
+ // 2. sub 5 bytes from the callers return
+ // 3. jmp to the argument
+-TEXT runtime·jmpdefer(SB), NOSPLIT, $0-16
+-	MOVL	fn+0(FP), DX
+-	MOVL	callersp+4(FP), BX
++TEXT runtime·jmpdefer(SB), NOSPLIT, $0-8
++	MOVL	fv+0(FP), DX
++	MOVL	argp+4(FP), BX
+ 	LEAL	-8(BX), SP	// caller sp after CALL
+ 	SUBL	$5, (SP)	// return to CALL again
+ 	MOVL	0(DX), BX
+@@ -695,7 +705,7 @@ TEXT runtime·cgocallback(SB),NOSPLIT,$0-12
+ 
+ // void setg(G*); set g. for use by needm.
+ // Not implemented.
+-TEXT runtime·setg(SB), NOSPLIT, $0-8
++TEXT runtime·setg(SB), NOSPLIT, $0-4
+ 	MOVL	0, AX
+ 	RET
+ 
+@@ -726,9 +736,10 @@ TEXT runtime·memclr(SB),NOSPLIT,$0-8
+ 	STOSB
+ 	RET
+ 
+-TEXT runtime·getcallerpc(SB),NOSPLIT,$0-8
+-	MOVL	x+0(FP),AX		// addr of first arg
++TEXT runtime·getcallerpc(SB),NOSPLIT,$0-12
++	MOVL	argp+0(FP),AX		// addr of first arg
+ 	MOVL	-8(AX),AX		// get calling pc
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+ TEXT runtime·gogetcallerpc(SB),NOSPLIT,$0-12
+@@ -737,14 +748,15 @@ TEXT runtime·gogetcallerpc(SB),NOSPLIT,$0-12
+ 	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime·setcallerpc(SB),NOSPLIT,$0-16
+-	MOVL	x+0(FP),AX		// addr of first arg
++TEXT runtime·setcallerpc(SB),NOSPLIT,$0-8
++	MOVL	argp+0(FP),AX		// addr of first arg
+ 	MOVL	pc+4(FP), BX		// pc to set
+ 	MOVQ	BX, -8(AX)		// set calling pc
+ 	RET
+ 
+-TEXT runtime·getcallersp(SB),NOSPLIT,$0-8
+-	MOVL	sp+0(FP), AX
++TEXT runtime·getcallersp(SB),NOSPLIT,$0-12
++	MOVL	argp+0(FP), AX
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+ // func gogetcallersp(p unsafe.Pointer) uintptr
+@@ -758,6 +770,7 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-0
+ 	RDTSC
+ 	SHLQ	$32, DX
+ 	ADDQ	DX, AX
++	MOVQ	AX, ret+0(FP)
+ 	RET
+ 
+ TEXT runtime·gocputicks(SB),NOSPLIT,$0-8
+@@ -784,16 +797,20 @@ GLOBL runtime·tls0(SB), $64
+ // write the implementations. Can copy and adjust the ones
+ // in asm_amd64.s when the time comes.
+ 
+-TEXT runtime·aeshash(SB),NOSPLIT,$0-24
++TEXT runtime·aeshash(SB),NOSPLIT,$0-20
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·aeshashstr(SB),NOSPLIT,$0-24
++TEXT runtime·aeshashstr(SB),NOSPLIT,$0-20
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·aeshash32(SB),NOSPLIT,$0-24
++TEXT runtime·aeshash32(SB),NOSPLIT,$0-20
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·aeshash64(SB),NOSPLIT,$0-24
++TEXT runtime·aeshash64(SB),NOSPLIT,$0-20
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+ TEXT runtime·memeq(SB),NOSPLIT,$0-17
+@@ -925,12 +942,12 @@ equal:
+ 	RET
+ 
+ TEXT runtime·cmpstring(SB),NOSPLIT,$0-20
+-	MOVL	s1+0(FP), SI
+-	MOVL	s1+4(FP), BX
+-	MOVL	s2+8(FP), DI
+-	MOVL	s2+12(FP), DX
++	MOVL	s1_base+0(FP), SI
++	MOVL	s1_len+4(FP), BX
++	MOVL	s2_base+8(FP), DI
++	MOVL	s2_len+12(FP), DX
+ 	CALL	runtime·cmpbody(SB)
+-	MOVL	AX, res+16(FP)
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+ TEXT bytes·Compare(SB),NOSPLIT,$0-28
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 551ba0c88c..3ced211f89 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -468,7 +468,7 @@ TEXT runtime·lessstack(SB), NOSPLIT, $-4-0
+ TEXT runtime·jmpdefer(SB), NOSPLIT, $0-8
+ 	MOVW	0(SP), LR
+ 	MOVW	$-4(LR), LR	// BL deferreturn
+-	MOVW	fn+0(FP), R7
++	MOVW	fv+0(FP), R7
+ 	MOVW	argp+4(FP), SP
+ 	MOVW	$-4(SP), SP	// SP is 4 below argp, due to saved LR
+ 	MOVW	0(R7), R1
+@@ -579,9 +579,6 @@ havem:
+ 	// the earlier calls.
+ 	//
+ 	// In the new goroutine, -8(SP) and -4(SP) are unused.
+-	MOVW	fn+4(FP), R0
+-	MOVW	frame+8(FP), R1
+-	MOVW	framesize+12(FP), R2
+ 	MOVW	m_curg(R8), g
+ 	MOVW	(g_sched+gobuf_sp)(g), R4 // prepare stack as R4
+ 	MOVW	(g_sched+gobuf_pc)(g), R5
+@@ -616,7 +613,7 @@ havem:
+ 	RET
+ 
+ // void setg(G*); set g. for use by needm.
+-TEXT runtime·setg(SB), NOSPLIT, $0-8
++TEXT runtime·setg(SB), NOSPLIT, $0-4
+ 	MOVW	gg+0(FP), g
+ 
+ 	// Save g to thread-local storage.
+@@ -628,6 +625,7 @@ TEXT runtime·setg(SB), NOSPLIT, $0-8
+ 
+ TEXT runtime·getcallerpc(SB),NOSPLIT,$-4-4
+ 	MOVW	0(SP), R0
++	MOVW	R0, ret+4(FP)
+ 	RET
+ 
+ TEXT runtime·gogetcallerpc(SB),NOSPLIT,$-4-8
+@@ -635,13 +633,14 @@ TEXT runtime·gogetcallerpc(SB),NOSPLIT,$-4-8
+ 	RET
+ 
+ TEXT runtime·setcallerpc(SB),NOSPLIT,$-4-8
+-	MOVW	x+4(FP), R0
++	MOVW	pc+4(FP), R0
+ 	MOVW	R0, 0(SP)
+ 	RET
+ 
+ TEXT runtime·getcallersp(SB),NOSPLIT,$-4-4
+ 	MOVW	0(FP), R0
+ 	MOVW	$-4(R0), R0
++	MOVW	R0, ret+4(FP)
+ 	RET
+ 
+ // func gogetcallersp(p unsafe.Pointer) uintptr
+@@ -658,12 +657,6 @@ TEXT runtime·abort(SB),NOSPLIT,$-4-0
+ 	MOVW	$0, R0
+ 	MOVW	(R0), R1
+ 
+-TEXT runtime·gocputicks(SB),NOSPLIT,$4-8
+-	MOVW	$ret_lo+0(FP), R0
+-	MOVW	R0, 4(R13)
+-	BL      runtime·cputicks(SB)
+-	RET
+-
+ // bool armcas(int32 *val, int32 old, int32 new)
+ // Atomically:
+ //	if(*val == old){
+@@ -1264,3 +1257,7 @@ TEXT runtime·fastrand2(SB), NOSPLIT, $-4-4
+ 	MOVW	R0, m_fastrand(R1)
+ 	MOVW	R0, ret+0(FP)
+ 	RET
++
++TEXT runtime·gocputicks(SB), NOSPLIT, $0
++	B runtime·cputicks(SB)
++
+diff --git a/src/pkg/runtime/memclr_plan9_amd64.s b/src/pkg/runtime/memclr_plan9_amd64.s
+index 1fabcd5f09..64f3c992ef 100644
+--- a/src/pkg/runtime/memclr_plan9_amd64.s
++++ b/src/pkg/runtime/memclr_plan9_amd64.s
+@@ -6,8 +6,8 @@
+ 
+ // void runtime·memclr(void*, uintptr)
+ TEXT runtime·memclr(SB),NOSPLIT,$0-16
+-	MOVQ	addr+0(FP), DI
+-	MOVQ	count+8(FP), CX
++	MOVQ	ptr+0(FP), DI
++	MOVQ	n+8(FP), CX
+ 	MOVQ	CX, BX
+ 	ANDQ	$7, BX
+ 	SHRQ	$3, CX
+diff --git a/src/pkg/runtime/memmove_nacl_amd64p32.s b/src/pkg/runtime/memmove_nacl_amd64p32.s
+index 1b5733112c..ba47e85461 100644
+--- a/src/pkg/runtime/memmove_nacl_amd64p32.s
++++ b/src/pkg/runtime/memmove_nacl_amd64p32.s
+@@ -6,7 +6,7 @@
+ 
+ TEXT runtime·memmove(SB), NOSPLIT, $0-12
+ 	MOVL	to+0(FP), DI
+-	MOVL	fr+4(FP), SI
++	MOVL	from+4(FP), SI
+ 	MOVL	n+8(FP), BX
+ 
+ 	CMPL	SI, DI
+diff --git a/src/pkg/runtime/memmove_plan9_386.s b/src/pkg/runtime/memmove_plan9_386.s
+index 5ac5c27d40..4d5f7c6907 100644
+--- a/src/pkg/runtime/memmove_plan9_386.s
++++ b/src/pkg/runtime/memmove_plan9_386.s
+@@ -27,7 +27,7 @@
+ 
+ TEXT runtime·memmove(SB), NOSPLIT, $0-12
+ 	MOVL	to+0(FP), DI
+-	MOVL	fr+4(FP), SI
++	MOVL	from+4(FP), SI
+ 	MOVL	n+8(FP), BX
+ 
+ 	// REP instructions have a high startup cost, so we handle small sizes
+diff --git a/src/pkg/runtime/memmove_plan9_amd64.s b/src/pkg/runtime/memmove_plan9_amd64.s
+index 3664e45ae2..035d475ac8 100644
+--- a/src/pkg/runtime/memmove_plan9_amd64.s
++++ b/src/pkg/runtime/memmove_plan9_amd64.s
+@@ -29,7 +29,7 @@
+ TEXT runtime·memmove(SB), NOSPLIT, $0-24
+ 
+ 	MOVQ	to+0(FP), DI
+-	MOVQ	fr+8(FP), SI
++	MOVQ	from+8(FP), SI
+ 	MOVQ	n+16(FP), BX
+ 
+ 	// REP instructions have a high startup cost, so we handle small sizes
+diff --git a/src/pkg/runtime/os_darwin.go b/src/pkg/runtime/os_darwin.go
+new file mode 100644
+index 0000000000..37ed55cf45
+--- /dev/null
++++ b/src/pkg/runtime/os_darwin.go
+@@ -0,0 +1,27 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++func bsdthread_create(stk, mm, gg, fn unsafe.Pointer) int32
++func bsdthread_register() int32
++func mach_msg_trap(h unsafe.Pointer, op int32, send_size, rcv_size, rcv_name, timeout, notify uint32) int32
++func mach_reply_port() uint32
++func mach_task_self() uint32
++func mach_thread_self() uint32
++func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
++func sigprocmask(sig int32, new, old unsafe.Pointer)
++func sigaction(mode uint32, new, old unsafe.Pointer)
++func sigaltstack(new, old unsafe.Pointer)
++func sigtramp()
++func setitimer(mode int32, new, old unsafe.Pointer)
++func kqueue() int32
++func kevent(fd int32, ev1 unsafe.Pointer, nev1 int32, ev2 unsafe.Pointer, nev2 int32, ts unsafe.Pointer) int32
++func closeonexec(fd int32)
++func mach_semaphore_wait(sema uint32) int32
++func mach_semaphore_timedwait(sema, sec, nsec uint32) int32
++func mach_semaphore_signal(sema uint32) int32
++func mach_semaphore_signal_all(sema uint32) int32
+diff --git a/src/pkg/runtime/os_dragonfly.go b/src/pkg/runtime/os_dragonfly.go
+new file mode 100644
+index 0000000000..ec7ddef533
+--- /dev/null
++++ b/src/pkg/runtime/os_dragonfly.go
+@@ -0,0 +1,21 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++func lwp_create(param unsafe.Pointer) int32
++func sigaltstack(new, old unsafe.Pointer)
++func sigaction(sig int32, new, old unsafe.Pointer)
++func sigprocmask(new, old unsafe.Pointer)
++func setitimer(mode int32, new, old unsafe.Pointer)
++func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
++func getrlimit(kind int32, limit unsafe.Pointer) int32
++func raise(sig int32)
++func kqueue() int32
++func kevent(fd int32, ev1 unsafe.Pointer, nev1 int32, ev2 unsafe.Pointer, nev2 int32, ts unsafe.Pointer) int32
++func closeonexec(fd int32)
++func sys_umtx_sleep(addr unsafe.Pointer, val, timeout int32) int32
++func sys_umtx_wakeup(addr unsafe.Pointer, val int32) int32
+diff --git a/src/pkg/runtime/os_freebsd.go b/src/pkg/runtime/os_freebsd.go
+new file mode 100644
+index 0000000000..a973d3f76c
+--- /dev/null
++++ b/src/pkg/runtime/os_freebsd.go
+@@ -0,0 +1,20 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++func thr_new(param unsafe.Pointer, size int32)
++func sigaltstack(new, old unsafe.Pointer)
++func sigaction(sig int32, new, old unsafe.Pointer)
++func sigprocmask(new, old unsafe.Pointer)
++func setitimer(mode int32, new, old unsafe.Pointer)
++func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
++func getrlimit(kind int32, limit unsafe.Pointer) int32
++func raise(sig int32)
++func kqueue() int32
++func kevent(fd int32, ev1 unsafe.Pointer, nev1 int32, ev2 unsafe.Pointer, nev2 int32, ts unsafe.Pointer) int32
++func closeonexec(fd int32)
++func sys_umtx_op(addr unsafe.Pointer, mode int32, val uint32, ptr2, ts unsafe.Pointer) int32
+diff --git a/src/pkg/runtime/os_linux.go b/src/pkg/runtime/os_linux.go
+new file mode 100644
+index 0000000000..fc82382160
+--- /dev/null
++++ b/src/pkg/runtime/os_linux.go
+@@ -0,0 +1,22 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++func futex(addr unsafe.Pointer, op int32, val uint32, ts, addr2 unsafe.Pointer, val3 uint32) int32
++func clone(flags int32, stk, mm, gg, fn unsafe.Pointer) int32
++func rt_sigaction(sig uintptr, new, old unsafe.Pointer, size uintptr) int32
++func sigaltstack(new, old unsafe.Pointer)
++func setitimer(mode int32, new, old unsafe.Pointer)
++func rtsigprocmask(sig int32, new, old unsafe.Pointer, size int32)
++func getrlimit(kind int32, limit unsafe.Pointer) int32
++func raise(sig int32)
++func epollcreate(size int32) int32
++func epollcreate1(flags int32) int32
++func epollctl(epfd, op, fd int32, ev unsafe.Pointer) int32
++func epollwait(epfd int32, ev unsafe.Pointer, nev, timeout int32) int32
++func closeonexec(fd int32)
++func sched_getaffinity(pid, len uintptr, buf *uintptr) int32
+diff --git a/src/pkg/runtime/os_nacl.go b/src/pkg/runtime/os_nacl.go
+new file mode 100644
+index 0000000000..5b5bcf6a4a
+--- /dev/null
++++ b/src/pkg/runtime/os_nacl.go
+@@ -0,0 +1,24 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++func nacl_exception_stack(p unsafe.Pointer, size int32) int32
++func nacl_exception_handler(fn, arg unsafe.Pointer) int32
++func nacl_sem_create(flag int32) int32
++func nacl_sem_wait(sem int32) int32
++func nacl_sem_post(sem int32) int32
++func nacl_mutex_create(flag int32) int32
++func nacl_mutex_lock(mutex int32) int32
++func nacl_mutex_trylock(mutex int32) int32
++func nacl_mutex_unlock(mutex int32) int32
++func nacl_cond_create(flag int32) int32
++func nacl_cond_wait(cond, n int32) int32
++func nacl_cond_signal(cond int32) int32
++func nacl_cond_broadcast(cond int32) int32
++func nacl_cond_timed_wait_abs(cond, lock int32, ts unsafe.Pointer)
++func nacl_thread_create(fn, stk, tls, xx unsafe.Pointer) int32
++func nacl_nanosleep(ts, extra unsafe.Pointer) int32
+diff --git a/src/pkg/runtime/os_netbsd.go b/src/pkg/runtime/os_netbsd.go
+new file mode 100644
+index 0000000000..5cdf52211d
+--- /dev/null
++++ b/src/pkg/runtime/os_netbsd.go
+@@ -0,0 +1,23 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++func setitimer(mode int32, new, old unsafe.Pointer)
++func sigaction(sig int32, new, old unsafe.Pointer)
++func sigaltstack(new, old unsafe.Pointer)
++func sigprocmask(mode int32, new, old unsafe.Pointer)
++func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
++func lwp_tramp()
++func raise(sig int32)
++func kqueue() int32
++func kevent(fd int32, ev1 unsafe.Pointer, nev1 int32, ev2 unsafe.Pointer, nev2 int32, ts unsafe.Pointer) int32
++func closeonexec(fd int32)
++func getcontext(ctxt unsafe.Pointer)
++func lwp_create(ctxt unsafe.Pointer, flags uintptr, lwpid unsafe.Pointer) int32
++func lwp_park(abstime unsafe.Pointer, unpark int32, hint, unparkhint unsafe.Pointer) int32
++func lwp_unpark(lwp int32, hint unsafe.Pointer) int32
++func lwp_self() int32
+diff --git a/src/pkg/runtime/os_openbsd.go b/src/pkg/runtime/os_openbsd.go
+new file mode 100644
+index 0000000000..6bb6baa62c
+--- /dev/null
++++ b/src/pkg/runtime/os_openbsd.go
+@@ -0,0 +1,20 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++func setitimer(mode int32, new, old unsafe.Pointer)
++func sigaction(sig int32, new, old unsafe.Pointer)
++func sigaltstack(new, old unsafe.Pointer)
++func sigprocmask(mode int32, new uint32) uint32
++func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
++func raise(sig int32)
++func kqueue() int32
++func kevent(fd int32, ev1 unsafe.Pointer, nev1 int32, ev2 unsafe.Pointer, nev2 int32, ts unsafe.Pointer) int32
++func closeonexec(fd int32)
++func tfork(param unsafe.Pointer, psize uintptr, mm, gg, fn unsafe.Pointer) int64
++func thrsleep(ident unsafe.Pointer, clock_id int32, tsp, lock, abort unsafe.Pointer) int32
++func thrwakeup(ident unsafe.Pointer, n int32) int32
+diff --git a/src/pkg/runtime/os_plan9.go b/src/pkg/runtime/os_plan9.go
+new file mode 100644
+index 0000000000..a50211a77b
+--- /dev/null
++++ b/src/pkg/runtime/os_plan9.go
+@@ -0,0 +1,24 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++func pread(fd int32, buf unsafe.Pointer, nbytes int32, offset int64) int32
++func pwrite(fd int32, buf unsafe.Pointer, nbytes int32, offset int64) int32
++func seek(fd int32, offset int64, whence int32) int64
++func exits(msg *byte)
++func brk_(addr unsafe.Pointer) uintptr
++func sleep(ms int32) int32
++func rfork(flags int32, stk, mm, gg, fn unsafe.Pointer) int32
++func plan9_semacquire(addr *uint32, block int32) int32
++func plan9_tsemacquire(addr *uint32, ms int32) int32
++func plan9_semrelease(addr *uint32, count int32) int32
++func notify(fn unsafe.Pointer) int32
++func noted(mode int32) int32
++func nsec(*int64) int64
++func sigtramp(ureg, msg unsafe.Pointer)
++func setfpmasks()
++func errstr() string
+diff --git a/src/pkg/runtime/os_solaris.go b/src/pkg/runtime/os_solaris.go
+new file mode 100644
+index 0000000000..72528c7997
+--- /dev/null
++++ b/src/pkg/runtime/os_solaris.go
+@@ -0,0 +1,22 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++func setitimer(mode int32, new, old unsafe.Pointer)
++func sigaction(sig int32, new, old unsafe.Pointer)
++func sigaltstack(new, old unsafe.Pointer)
++func sigprocmask(mode int32, new, old unsafe.Pointer)
++func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
++func getrlimit(kind int32, limit unsafe.Pointer)
++func asmsysvicall6(fn unsafe.Pointer)
++func miniterrno(fn unsafe.Pointer)
++func raise(sig int32)
++func getcontext(ctxt unsafe.Pointer)
++func tstart_sysvicall(mm unsafe.Pointer) uint32
++func nanotime1() int64
++func usleep1(usec uint32)
++func osyield1()
+diff --git a/src/pkg/runtime/os_windows.go b/src/pkg/runtime/os_windows.go
+new file mode 100644
+index 0000000000..188ca3219e
+--- /dev/null
++++ b/src/pkg/runtime/os_windows.go
+@@ -0,0 +1,12 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++func asmstdcall(fn unsafe.Pointer)
++func getlasterror() uint32
++func setlasterror(err uint32)
++func usleep1(usec uint32)
+diff --git a/src/pkg/runtime/stubs.go b/src/pkg/runtime/stubs.go
+index e3e14caab8..5f396aa009 100644
+--- a/src/pkg/runtime/stubs.go
++++ b/src/pkg/runtime/stubs.go
+@@ -218,3 +218,48 @@ func exitsyscall()
+ 
+ func traceback(pc, sp, lr uintptr, gp *g)
+ func tracebackothers(gp *g)
++
++func cgocallback(fn, frame unsafe.Pointer, framesize uintptr)
++func gogo(buf *gobuf)
++func gosave(buf *gobuf)
++func open(name *byte, mode, perm int32) int32
++func read(fd int32, p unsafe.Pointer, n int32) int32
++func write(fd uintptr, p unsafe.Pointer, n int32) int32
++func close(fd int32) int32
++func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
++func jmpdefer(fv *funcval, argp unsafe.Pointer)
++func exit1(code int32)
++func asminit()
++func getcallersp(argp unsafe.Pointer) uintptr
++func cas(ptr *uint32, old, new uint32) bool
++func cas64(ptr *uint64, old, new uint64) bool
++func casp(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool
++func xadd(ptr *uint32, delta int32) uint32
++func xadd64(ptr *uint64, delta int64) uint64
++func xchg(ptr *uint32, new uint32) uint32
++func xchg64(ptr *uint64, new uint64) uint64
++func xchgp(ptr *unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer
++func atomicstore(ptr *uint32, val uint32)
++func atomicstore64(ptr *uint64, val uint64)
++func atomicstorep(ptr *unsafe.Pointer, val unsafe.Pointer)
++func atomicload(ptr *uint32) uint32
++func atomicload64(ptr *uint64) uint64
++func atomicloadp(ptr *unsafe.Pointer) unsafe.Pointer
++func atomicor8(ptr *uint8, val uint8)
++func setg(gg *g)
++func exit(code int32)
++func breakpoint()
++func asmcgocall(fn, arg unsafe.Pointer)
++func nanotime() int64
++func usleep(usec uint32)
++func cputicks() int64
++func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer
++func munmap(addr unsafe.Pointer, n uintptr)
++func madvise(addr unsafe.Pointer, n uintptr, flags int32)
++func setcallerpc(argp unsafe.Pointer, pc uintptr)
++func getcallerpc(argp unsafe.Pointer) uintptr
++func newstackcall(fv *funcval, addr unsafe.Pointer, size uint32)
++func procyield(cycles uint32)
++func osyield()
++func cgocallback_gofunc(fv *funcval, frame unsafe.Pointer, framesize uintptr)
++func cmpstring(s1, s2 string) int
+diff --git a/src/pkg/runtime/sys_darwin_386.s b/src/pkg/runtime/sys_darwin_386.s
+index a702d9bfa1..1ec694db68 100644
+--- a/src/pkg/runtime/sys_darwin_386.s
++++ b/src/pkg/runtime/sys_darwin_386.s
+@@ -28,21 +28,25 @@ TEXT runtime·exit1(SB),NOSPLIT,$0
+ TEXT runtime·open(SB),NOSPLIT,$0
+ 	MOVL	$5, AX
+ 	INT	$0x80
++	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·close(SB),NOSPLIT,$0
+ 	MOVL	$6, AX
+ 	INT	$0x80
++	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+ TEXT runtime·read(SB),NOSPLIT,$0
+ 	MOVL	$3, AX
+ 	INT	$0x80
++	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·write(SB),NOSPLIT,$0
+ 	MOVL	$4, AX
+ 	INT	$0x80
++	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·raise(SB),NOSPLIT,$16
+@@ -59,6 +63,7 @@ TEXT runtime·raise(SB),NOSPLIT,$16
+ TEXT runtime·mmap(SB),NOSPLIT,$0
+ 	MOVL	$197, AX
+ 	INT	$0x80
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ TEXT runtime·madvise(SB),NOSPLIT,$0
+@@ -206,9 +211,8 @@ TEXT time·now(SB),NOSPLIT,$0
+ // void nanotime(int64 *nsec)
+ TEXT runtime·nanotime(SB),NOSPLIT,$0
+ 	CALL	runtime·now(SB)
+-	MOVL	ret+0(FP), DI
+-	MOVL	AX, 0(DI)
+-	MOVL	DX, 4(DI)
++	MOVL	AX, ret_lo+0(FP)
++	MOVL	DX, ret_hi+4(FP)
+ 	RET
+ 
+ TEXT runtime·sigprocmask(SB),NOSPLIT,$0
+@@ -315,7 +319,7 @@ TEXT runtime·usleep(SB),NOSPLIT,$32
+ TEXT runtime·bsdthread_create(SB),NOSPLIT,$32
+ 	MOVL	$360, AX
+ 	// 0(SP) is where the caller PC would be; kernel skips it
+-	MOVL	func+12(FP), BX
++	MOVL	fn+12(FP), BX
+ 	MOVL	BX, 4(SP)	// func
+ 	MOVL	mm+4(FP), BX
+ 	MOVL	BX, 8(SP)	// arg
+@@ -325,10 +329,12 @@ TEXT runtime·bsdthread_create(SB),NOSPLIT,$32
+ 	MOVL	BX, 16(SP)	// pthread
+ 	MOVL	$0x1000000, 20(SP)	// flags = PTHREAD_START_CUSTOM
+ 	INT	$0x80
+-	JAE	3(PC)
++	JAE	4(PC)
+ 	NEGL	AX
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 	MOVL	$0, AX
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+ // The thread that bsdthread_create creates starts executing here,
+@@ -382,10 +388,12 @@ TEXT runtime·bsdthread_register(SB),NOSPLIT,$40
+ 	MOVL	$0, 20(SP)	// targetconc_ptr
+ 	MOVL	$0, 24(SP)	// dispatchqueue_offset
+ 	INT	$0x80
+-	JAE	3(PC)
++	JAE	4(PC)
+ 	NEGL	AX
++	MOVL	AX, ret+0(FP)
+ 	RET
+ 	MOVL	$0, AX
++	MOVL	AX, ret+0(FP)
+ 	RET
+ 
+ // Invoke Mach system call.
+@@ -408,16 +416,19 @@ TEXT runtime·sysenter(SB),NOSPLIT,$0
+ TEXT runtime·mach_msg_trap(SB),NOSPLIT,$0
+ 	MOVL	$-31, AX
+ 	CALL	runtime·sysenter(SB)
++	MOVL	AX, ret+28(FP)
+ 	RET
+ 
+ TEXT runtime·mach_reply_port(SB),NOSPLIT,$0
+ 	MOVL	$-26, AX
+ 	CALL	runtime·sysenter(SB)
++	MOVL	AX, ret+0(FP)
+ 	RET
+ 
+ TEXT runtime·mach_task_self(SB),NOSPLIT,$0
+ 	MOVL	$-28, AX
+ 	CALL	runtime·sysenter(SB)
++	MOVL	AX, ret+0(FP)
+ 	RET
+ 
+ // Mach provides trap versions of the semaphore ops,
+@@ -427,24 +438,28 @@ TEXT runtime·mach_task_self(SB),NOSPLIT,$0
+ TEXT runtime·mach_semaphore_wait(SB),NOSPLIT,$0
+ 	MOVL	$-36, AX
+ 	CALL	runtime·sysenter(SB)
++	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+ // uint32 mach_semaphore_timedwait(uint32, uint32, uint32)
+ TEXT runtime·mach_semaphore_timedwait(SB),NOSPLIT,$0
+ 	MOVL	$-38, AX
+ 	CALL	runtime·sysenter(SB)
++	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ // uint32 mach_semaphore_signal(uint32)
+ TEXT runtime·mach_semaphore_signal(SB),NOSPLIT,$0
+ 	MOVL	$-33, AX
+ 	CALL	runtime·sysenter(SB)
++	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+ // uint32 mach_semaphore_signal_all(uint32)
+ TEXT runtime·mach_semaphore_signal_all(SB),NOSPLIT,$0
+ 	MOVL	$-34, AX
+ 	CALL	runtime·sysenter(SB)
++	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+ // setldt(int entry, int address, int limit)
+@@ -486,10 +501,12 @@ TEXT runtime·setldt(SB),NOSPLIT,$32
+ TEXT runtime·sysctl(SB),NOSPLIT,$0
+ 	MOVL	$202, AX
+ 	INT	$0x80
+-	JAE	3(PC)
++	JAE	4(PC)
+ 	NEGL	AX
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 	MOVL	$0, AX
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ // int32 runtime·kqueue(void);
+@@ -498,6 +515,7 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	NEGL	AX
++	MOVL	AX, ret+0(FP)
+ 	RET
+ 
+ // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
+@@ -506,6 +524,7 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	NEGL	AX
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ // int32 runtime·closeonexec(int32 fd);
+diff --git a/src/pkg/runtime/sys_darwin_amd64.s b/src/pkg/runtime/sys_darwin_amd64.s
+index 23995db7a8..5f0d9dfa1d 100644
+--- a/src/pkg/runtime/sys_darwin_amd64.s
++++ b/src/pkg/runtime/sys_darwin_amd64.s
+@@ -16,7 +16,7 @@
+ 
+ // Exit the entire program (like C exit)
+ TEXT runtime·exit(SB),NOSPLIT,$0
+-	MOVL	8(SP), DI		// arg 1 exit status
++	MOVL	code+0(FP), DI		// arg 1 exit status
+ 	MOVL	$(0x2000000+1), AX	// syscall entry
+ 	SYSCALL
+ 	MOVL	$0xf1, 0xf1  // crash
+@@ -25,40 +25,44 @@ TEXT runtime·exit(SB),NOSPLIT,$0
+ // Exit this OS thread (like pthread_exit, which eventually
+ // calls __bsdthread_terminate).
+ TEXT runtime·exit1(SB),NOSPLIT,$0
+-	MOVL	8(SP), DI		// arg 1 exit status
++	MOVL	code+0(FP), DI		// arg 1 exit status
+ 	MOVL	$(0x2000000+361), AX	// syscall entry
+ 	SYSCALL
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·open(SB),NOSPLIT,$0
+-	MOVQ	8(SP), DI		// arg 1 pathname
+-	MOVL	16(SP), SI		// arg 2 flags
+-	MOVL	20(SP), DX		// arg 3 mode
++	MOVQ	name+0(FP), DI		// arg 1 pathname
++	MOVL	mode+8(FP), SI		// arg 2 flags
++	MOVL	perm+12(FP), DX		// arg 3 mode
+ 	MOVL	$(0x2000000+5), AX	// syscall entry
+ 	SYSCALL
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+ TEXT runtime·close(SB),NOSPLIT,$0
+-	MOVL	8(SP), DI		// arg 1 fd
++	MOVL	fd+0(FP), DI		// arg 1 fd
+ 	MOVL	$(0x2000000+6), AX	// syscall entry
+ 	SYSCALL
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+ TEXT runtime·read(SB),NOSPLIT,$0
+-	MOVL	8(SP), DI		// arg 1 fd
+-	MOVQ	16(SP), SI		// arg 2 buf
+-	MOVL	24(SP), DX		// arg 3 count
++	MOVL	fd+0(FP), DI		// arg 1 fd
++	MOVQ	p+8(FP), SI		// arg 2 buf
++	MOVL	n+16(FP), DX		// arg 3 count
+ 	MOVL	$(0x2000000+3), AX	// syscall entry
+ 	SYSCALL
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ TEXT runtime·write(SB),NOSPLIT,$0
+-	MOVL	8(SP), DI		// arg 1 fd
+-	MOVQ	16(SP), SI		// arg 2 buf
+-	MOVL	24(SP), DX		// arg 3 count
++	MOVQ	fd+0(FP), DI		// arg 1 fd
++	MOVQ	p+8(FP), SI		// arg 2 buf
++	MOVL	n+16(FP), DX		// arg 3 count
+ 	MOVL	$(0x2000000+4), AX	// syscall entry
+ 	SYSCALL
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ TEXT runtime·raise(SB),NOSPLIT,$24
+@@ -72,17 +76,17 @@ TEXT runtime·raise(SB),NOSPLIT,$24
+ 	RET
+ 
+ TEXT runtime·setitimer(SB), NOSPLIT, $0
+-	MOVL	8(SP), DI
+-	MOVQ	16(SP), SI
+-	MOVQ	24(SP), DX
++	MOVL	mode+0(FP), DI
++	MOVQ	new+8(FP), SI
++	MOVQ	old+16(FP), DX
+ 	MOVL	$(0x2000000+83), AX	// syscall entry
+ 	SYSCALL
+ 	RET
+ 
+ TEXT runtime·madvise(SB), NOSPLIT, $0
+-	MOVQ	8(SP), DI		// arg 1 addr
+-	MOVQ	16(SP), SI		// arg 2 len
+-	MOVL	24(SP), DX		// arg 3 advice
++	MOVQ	addr+0(FP), DI		// arg 1 addr
++	MOVQ	n+8(FP), SI		// arg 2 len
++	MOVL	flags+16(FP), DX		// arg 3 advice
+ 	MOVL	$(0x2000000+75), AX	// syscall entry madvise
+ 	SYSCALL
+ 	// ignore failure - maybe pages are locked
+@@ -99,8 +103,7 @@ TEXT runtime·madvise(SB), NOSPLIT, $0
+ #define	gtod_ns_base	0x70
+ #define	gtod_sec_base	0x78
+ 
+-// int64 nanotime(void)
+-TEXT runtime·nanotime(SB), NOSPLIT, $32
++TEXT nanotime<>(SB), NOSPLIT, $32
+ 	MOVQ	$0x7fffffe00000, BP	/* comm page base */
+ 	// Loop trying to take a consistent snapshot
+ 	// of the time parameters.
+@@ -149,9 +152,14 @@ systime:
+ 	ADDQ	DX, AX
+ 	RET
+ 
++TEXT runtime·nanotime(SB),NOSPLIT,$0-8
++	CALL	nanotime<>(SB)
++	MOVQ	AX, ret+0(FP)
++	RET
++
+ // func now() (sec int64, nsec int32)
+-TEXT time·now(SB),NOSPLIT,$0
+-	CALL	runtime·nanotime(SB)
++TEXT time·now(SB),NOSPLIT,$8
++	CALL	nanotime<>(SB)
+ 
+ 	// generated code for
+ 	//	func f(x uint64) (uint64, uint64) { return x/1000000000, x%100000000 }
+@@ -169,9 +177,9 @@ TEXT time·now(SB),NOSPLIT,$0
+ 	RET
+ 
+ TEXT runtime·sigprocmask(SB),NOSPLIT,$0
+-	MOVL	8(SP), DI
+-	MOVQ	16(SP), SI
+-	MOVQ	24(SP), DX
++	MOVL	sig+0(FP), DI
++	MOVQ	new+8(FP), SI
++	MOVQ	old+16(FP), DX
+ 	MOVL	$(0x2000000+329), AX  // pthread_sigmask (on OS X, sigprocmask==entire process)
+ 	SYSCALL
+ 	JCC	2(PC)
+@@ -179,11 +187,11 @@ TEXT runtime·sigprocmask(SB),NOSPLIT,$0
+ 	RET
+ 
+ TEXT runtime·sigaction(SB),NOSPLIT,$0
+-	MOVL	8(SP), DI		// arg 1 sig
+-	MOVQ	16(SP), SI		// arg 2 act
+-	MOVQ	24(SP), DX		// arg 3 oact
+-	MOVQ	24(SP), CX		// arg 3 oact
+-	MOVQ	24(SP), R10		// arg 3 oact
++	MOVL	mode+0(FP), DI		// arg 1 sig
++	MOVQ	new+8(FP), SI		// arg 2 act
++	MOVQ	old+16(FP), DX		// arg 3 oact
++	MOVQ	old+16(FP), CX		// arg 3 oact
++	MOVQ	old+16(FP), R10		// arg 3 oact
+ 	MOVL	$(0x2000000+46), AX	// syscall entry
+ 	SYSCALL
+ 	JCC	2(PC)
+@@ -234,19 +242,20 @@ sigtramp_ret:
+ 	INT $3	// not reached
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$0
+-	MOVQ	8(SP), DI		// arg 1 addr
+-	MOVQ	16(SP), SI		// arg 2 len
+-	MOVL	24(SP), DX		// arg 3 prot
+-	MOVL	28(SP), R10		// arg 4 flags
+-	MOVL	32(SP), R8		// arg 5 fid
+-	MOVL	36(SP), R9		// arg 6 offset
++	MOVQ	addr+0(FP), DI		// arg 1 addr
++	MOVQ	n+8(FP), SI		// arg 2 len
++	MOVL	prot+16(FP), DX		// arg 3 prot
++	MOVL	flags+20(FP), R10		// arg 4 flags
++	MOVL	fd+24(FP), R8		// arg 5 fid
++	MOVL	off+28(FP), R9		// arg 6 offset
+ 	MOVL	$(0x2000000+197), AX	// syscall entry
+ 	SYSCALL
++	MOVQ	AX, ret+32(FP)
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$0
+-	MOVQ	8(SP), DI		// arg 1 addr
+-	MOVQ	16(SP), SI		// arg 2 len
++	MOVQ	addr+0(FP), DI		// arg 1 addr
++	MOVQ	n+8(FP), SI		// arg 2 len
+ 	MOVL	$(0x2000000+73), AX	// syscall entry
+ 	SYSCALL
+ 	JCC	2(PC)
+@@ -293,10 +302,12 @@ TEXT runtime·bsdthread_create(SB),NOSPLIT,$0
+ 	MOVQ	$0, R9	// paranoia
+ 	MOVQ	$(0x2000000+360), AX	// bsdthread_create
+ 	SYSCALL
+-	JCC 3(PC)
++	JCC 4(PC)
+ 	NEGQ	AX
++	MOVL	AX, ret+32(FP)
+ 	RET
+ 	MOVL	$0, AX
++	MOVL	AX, ret+32(FP)
+ 	RET
+ 
+ // The thread that bsdthread_create creates starts executing here,
+@@ -346,42 +357,48 @@ TEXT runtime·bsdthread_register(SB),NOSPLIT,$0
+ 	MOVQ	$0, R9	// dispatchqueue_offset
+ 	MOVQ	$(0x2000000+366), AX	// bsdthread_register
+ 	SYSCALL
+-	JCC 3(PC)
++	JCC 4(PC)
+ 	NEGQ	AX
++	MOVL	AX, ret+0(FP)
+ 	RET
+ 	MOVL	$0, AX
++	MOVL	AX, ret+0(FP)
+ 	RET
+ 
+ // Mach system calls use 0x1000000 instead of the BSD's 0x2000000.
+ 
+ // uint32 mach_msg_trap(void*, uint32, uint32, uint32, uint32, uint32, uint32)
+ TEXT runtime·mach_msg_trap(SB),NOSPLIT,$0
+-	MOVQ	8(SP), DI
+-	MOVL	16(SP), SI
+-	MOVL	20(SP), DX
+-	MOVL	24(SP), R10
+-	MOVL	28(SP), R8
+-	MOVL	32(SP), R9
+-	MOVL	36(SP), R11
++	MOVQ	h+0(FP), DI
++	MOVL	op+8(FP), SI
++	MOVL	send_size+12(FP), DX
++	MOVL	rcv_size+16(FP), R10
++	MOVL	rcv_name+20(FP), R8
++	MOVL	timeout+24(FP), R9
++	MOVL	notify+28(FP), R11
+ 	PUSHQ	R11	// seventh arg, on stack
+ 	MOVL	$(0x1000000+31), AX	// mach_msg_trap
+ 	SYSCALL
+ 	POPQ	R11
++	MOVL	AX, ret+32(FP)
+ 	RET
+ 
+ TEXT runtime·mach_task_self(SB),NOSPLIT,$0
+ 	MOVL	$(0x1000000+28), AX	// task_self_trap
+ 	SYSCALL
++	MOVL	AX, ret+0(FP)
+ 	RET
+ 
+ TEXT runtime·mach_thread_self(SB),NOSPLIT,$0
+ 	MOVL	$(0x1000000+27), AX	// thread_self_trap
+ 	SYSCALL
++	MOVL	AX, ret+0(FP)
+ 	RET
+ 
+ TEXT runtime·mach_reply_port(SB),NOSPLIT,$0
+ 	MOVL	$(0x1000000+26), AX	// mach_reply_port
+ 	SYSCALL
++	MOVL	AX, ret+0(FP)
+ 	RET
+ 
+ // Mach provides trap versions of the semaphore ops,
+@@ -389,32 +406,36 @@ TEXT runtime·mach_reply_port(SB),NOSPLIT,$0
+ 
+ // uint32 mach_semaphore_wait(uint32)
+ TEXT runtime·mach_semaphore_wait(SB),NOSPLIT,$0
+-	MOVL	8(SP), DI
++	MOVL	sema+0(FP), DI
+ 	MOVL	$(0x1000000+36), AX	// semaphore_wait_trap
+ 	SYSCALL
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+ // uint32 mach_semaphore_timedwait(uint32, uint32, uint32)
+ TEXT runtime·mach_semaphore_timedwait(SB),NOSPLIT,$0
+-	MOVL	8(SP), DI
+-	MOVL	12(SP), SI
+-	MOVL	16(SP), DX
++	MOVL	sema+0(FP), DI
++	MOVL	sec+4(FP), SI
++	MOVL	nsec+8(FP), DX
+ 	MOVL	$(0x1000000+38), AX	// semaphore_timedwait_trap
+ 	SYSCALL
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+ // uint32 mach_semaphore_signal(uint32)
+ TEXT runtime·mach_semaphore_signal(SB),NOSPLIT,$0
+-	MOVL	8(SP), DI
++	MOVL	sema+0(FP), DI
+ 	MOVL	$(0x1000000+33), AX	// semaphore_signal_trap
+ 	SYSCALL
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+ // uint32 mach_semaphore_signal_all(uint32)
+ TEXT runtime·mach_semaphore_signal_all(SB),NOSPLIT,$0
+-	MOVL	8(SP), DI
++	MOVL	sema+0(FP), DI
+ 	MOVL	$(0x1000000+34), AX	// semaphore_signal_all_trap
+ 	SYSCALL
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+ // set tls base to DI
+@@ -431,18 +452,20 @@ TEXT runtime·settls(SB),NOSPLIT,$32
+ 	RET
+ 
+ TEXT runtime·sysctl(SB),NOSPLIT,$0
+-	MOVQ	8(SP), DI
+-	MOVL	16(SP), SI
+-	MOVQ	24(SP), DX
+-	MOVQ	32(SP), R10
+-	MOVQ	40(SP), R8
+-	MOVQ	48(SP), R9
++	MOVQ	mib+0(FP), DI
++	MOVL	miblen+8(FP), SI
++	MOVQ	out+16(FP), DX
++	MOVQ	size+24(FP), R10
++	MOVQ	dst+32(FP), R8
++	MOVQ	ndst+40(FP), R9
+ 	MOVL	$(0x2000000+202), AX	// syscall entry
+ 	SYSCALL
+-	JCC 3(PC)
++	JCC 4(PC)
+ 	NEGQ	AX
++	MOVL	AX, ret+48(FP)
+ 	RET
+ 	MOVL	$0, AX
++	MOVL	AX, ret+48(FP)
+ 	RET
+ 
+ // int32 runtime·kqueue(void);
+@@ -454,25 +477,27 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
+ 	SYSCALL
+ 	JCC	2(PC)
+ 	NEGQ	AX
++	MOVL	AX, ret+0(FP)
+ 	RET
+ 
+ // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
+ TEXT runtime·kevent(SB),NOSPLIT,$0
+-	MOVL    8(SP), DI
+-	MOVQ    16(SP), SI
+-	MOVL    24(SP), DX
+-	MOVQ    32(SP), R10
+-	MOVL    40(SP), R8
+-	MOVQ    48(SP), R9
++	MOVL    fd+0(FP), DI
++	MOVQ    ev1+8(FP), SI
++	MOVL    nev1+16(FP), DX
++	MOVQ    ev2+24(FP), R10
++	MOVL    nev2+32(FP), R8
++	MOVQ    ts+40(FP), R9
+ 	MOVL	$(0x2000000+363), AX
+ 	SYSCALL
+ 	JCC	2(PC)
+ 	NEGQ	AX
++	MOVL	AX, ret+48(FP)
+ 	RET
+ 
+ // void runtime·closeonexec(int32 fd);
+ TEXT runtime·closeonexec(SB),NOSPLIT,$0
+-	MOVL    8(SP), DI  // fd
++	MOVL    fd+0(FP), DI  // fd
+ 	MOVQ    $2, SI  // F_SETFD
+ 	MOVQ    $1, DX  // FD_CLOEXEC
+ 	MOVL	$(0x2000000+92), AX  // fcntl
+diff --git a/src/pkg/runtime/sys_dragonfly_386.s b/src/pkg/runtime/sys_dragonfly_386.s
+index 0b8d219112..bd8c8d8f6d 100644
+--- a/src/pkg/runtime/sys_dragonfly_386.s
++++ b/src/pkg/runtime/sys_dragonfly_386.s
+@@ -14,6 +14,7 @@ TEXT runtime·sys_umtx_sleep(SB),NOSPLIT,$-4
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	NEGL	AX
++	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·sys_umtx_wakeup(SB),NOSPLIT,$-4
+@@ -21,11 +22,13 @@ TEXT runtime·sys_umtx_wakeup(SB),NOSPLIT,$-4
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	NEGL	AX
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+ TEXT runtime·lwp_create(SB),NOSPLIT,$-4
+ 	MOVL	$495, AX		// lwp_create
+ 	INT	$0x80
++	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+ TEXT runtime·lwp_start(SB),NOSPLIT,$0
+@@ -81,26 +84,31 @@ TEXT runtime·exit1(SB),NOSPLIT,$16
+ TEXT runtime·open(SB),NOSPLIT,$-4
+ 	MOVL	$5, AX
+ 	INT	$0x80
++	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·close(SB),NOSPLIT,$-4
+ 	MOVL	$6, AX
+ 	INT	$0x80
++	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+ TEXT runtime·read(SB),NOSPLIT,$-4
+ 	MOVL	$3, AX
+ 	INT	$0x80
++	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·write(SB),NOSPLIT,$-4
+ 	MOVL	$4, AX
+ 	INT	$0x80
++	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·getrlimit(SB),NOSPLIT,$-4
+ 	MOVL	$194, AX
+ 	INT	$0x80
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+ TEXT runtime·raise(SB),NOSPLIT,$16
+@@ -116,7 +124,7 @@ TEXT runtime·raise(SB),NOSPLIT,$16
+ 	RET
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$36
+-	LEAL	arg0+0(FP), SI
++	LEAL	addr+0(FP), SI
+ 	LEAL	4(SP), DI
+ 	CLD
+ 	MOVSL				// arg 1 - addr
+@@ -131,6 +139,7 @@ TEXT runtime·mmap(SB),NOSPLIT,$36
+ 	STOSL
+ 	MOVL	$197, AX		// sys_mmap
+ 	INT	$0x80
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$-4
+@@ -185,9 +194,8 @@ TEXT runtime·nanotime(SB), NOSPLIT, $32
+ 	ADDL	BX, AX
+ 	ADCL	$0, DX
+ 
+-	MOVL	ret+0(FP), DI
+-	MOVL	AX, 0(DI)
+-	MOVL	DX, 4(DI)
++	MOVL	AX, ret_lo+0(FP)
++	MOVL	DX, ret_hi+4(FP)
+ 	RET
+ 
+ 
+@@ -302,7 +310,7 @@ TEXT runtime·settls(SB),NOSPLIT,$24
+ 	RET
+ 
+ TEXT runtime·sysctl(SB),NOSPLIT,$28
+-	LEAL	arg0+0(FP), SI
++	LEAL	mib+0(FP), SI
+ 	LEAL	4(SP), DI
+ 	CLD
+ 	MOVSL				// arg 1 - name
+@@ -313,10 +321,12 @@ TEXT runtime·sysctl(SB),NOSPLIT,$28
+ 	MOVSL				// arg 6 - newlen
+ 	MOVL	$202, AX		// sys___sysctl
+ 	INT	$0x80
+-	JCC	3(PC)
++	JCC	4(PC)
+ 	NEGL	AX
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 	MOVL	$0, AX
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ TEXT runtime·osyield(SB),NOSPLIT,$-4
+@@ -327,9 +337,9 @@ TEXT runtime·osyield(SB),NOSPLIT,$-4
+ TEXT runtime·sigprocmask(SB),NOSPLIT,$16
+ 	MOVL	$0, 0(SP)		// syscall gap
+ 	MOVL	$3, 4(SP)		// arg 1 - how (SIG_SETMASK)
+-	MOVL	args+0(FP), AX
++	MOVL	new+0(FP), AX
+ 	MOVL	AX, 8(SP)		// arg 2 - set
+-	MOVL	args+4(FP), AX
++	MOVL	old+4(FP), AX
+ 	MOVL	AX, 12(SP)		// arg 3 - oset
+ 	MOVL	$340, AX		// sys_sigprocmask
+ 	INT	$0x80
+@@ -343,6 +353,7 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	NEGL	AX
++	MOVL	AX, ret+0(FP)
+ 	RET
+ 
+ // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
+@@ -351,6 +362,7 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	NEGL	AX
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ // int32 runtime·closeonexec(int32 fd);
+diff --git a/src/pkg/runtime/sys_dragonfly_amd64.s b/src/pkg/runtime/sys_dragonfly_amd64.s
+index 25d2be3ad8..1c279df9c8 100644
+--- a/src/pkg/runtime/sys_dragonfly_amd64.s
++++ b/src/pkg/runtime/sys_dragonfly_amd64.s
+@@ -10,28 +10,31 @@
+ #include "../../cmd/ld/textflag.h"
+ 	
+ TEXT runtime·sys_umtx_sleep(SB),NOSPLIT,$0
+-	MOVQ 8(SP), DI		// arg 1 - ptr
+-	MOVL 16(SP), SI		// arg 2 - value
+-	MOVL 20(SP), DX		// arg 3 - timeout
++	MOVQ addr+0(FP), DI		// arg 1 - ptr
++	MOVL val+8(FP), SI		// arg 2 - value
++	MOVL timeout+12(FP), DX		// arg 3 - timeout
+ 	MOVL $469, AX		// umtx_sleep
+ 	SYSCALL
+ 	JCC	2(PC)
+ 	NEGQ	AX
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+ TEXT runtime·sys_umtx_wakeup(SB),NOSPLIT,$0
+-	MOVQ 8(SP), DI		// arg 1 - ptr
+-	MOVL 16(SP), SI		// arg 2 - count
++	MOVQ addr+0(FP), DI		// arg 1 - ptr
++	MOVL val+8(FP), SI		// arg 2 - count
+ 	MOVL $470, AX		// umtx_wakeup
+ 	SYSCALL
+ 	JCC	2(PC)
+ 	NEGQ	AX
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+ TEXT runtime·lwp_create(SB),NOSPLIT,$0
+-	MOVQ 8(SP), DI		// arg 1 - params
++	MOVQ param+0(FP), DI		// arg 1 - params
+ 	MOVL $495, AX		// lwp_create
+ 	SYSCALL
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+ TEXT runtime·lwp_start(SB),NOSPLIT,$0
+@@ -54,54 +57,59 @@ TEXT runtime·lwp_start(SB),NOSPLIT,$0
+ 
+ // Exit the entire program (like C exit)
+ TEXT runtime·exit(SB),NOSPLIT,$-8
+-	MOVL	8(SP), DI		// arg 1 exit status
++	MOVL	code+0(FP), DI		// arg 1 exit status
+ 	MOVL	$1, AX
+ 	SYSCALL
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·exit1(SB),NOSPLIT,$-8
+-	MOVQ	8(SP), DI		// arg 1 exit status
++	MOVL	code+0(FP), DI		// arg 1 exit status
+ 	MOVL	$431, AX
+ 	SYSCALL
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·open(SB),NOSPLIT,$-8
+-	MOVQ	8(SP), DI		// arg 1 pathname
+-	MOVL	16(SP), SI		// arg 2 flags
+-	MOVL	20(SP), DX		// arg 3 mode
++	MOVQ	name+0(FP), DI		// arg 1 pathname
++	MOVL	mode+8(FP), SI		// arg 2 flags
++	MOVL	perm+12(FP), DX		// arg 3 mode
+ 	MOVL	$5, AX
+ 	SYSCALL
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+ TEXT runtime·close(SB),NOSPLIT,$-8
+-	MOVL	8(SP), DI		// arg 1 fd
++	MOVL	fd+0(FP), DI		// arg 1 fd
+ 	MOVL	$6, AX
+ 	SYSCALL
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+ TEXT runtime·read(SB),NOSPLIT,$-8
+-	MOVL	8(SP), DI		// arg 1 fd
+-	MOVQ	16(SP), SI		// arg 2 buf
+-	MOVL	24(SP), DX		// arg 3 count
++	MOVL	fd+0(FP), DI		// arg 1 fd
++	MOVQ	p+8(FP), SI		// arg 2 buf
++	MOVL	n+16(FP), DX		// arg 3 count
+ 	MOVL	$3, AX
+ 	SYSCALL
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ TEXT runtime·write(SB),NOSPLIT,$-8
+-	MOVL	8(SP), DI		// arg 1 fd
+-	MOVQ	16(SP), SI		// arg 2 buf
+-	MOVL	24(SP), DX		// arg 3 count
++	MOVQ	fd+0(FP), DI		// arg 1 fd
++	MOVQ	p+8(FP), SI		// arg 2 buf
++	MOVL	n+16(FP), DX		// arg 3 count
+ 	MOVL	$4, AX
+ 	SYSCALL
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ TEXT runtime·getrlimit(SB),NOSPLIT,$-8
+-	MOVL	8(SP), DI
+-	MOVQ	16(SP), SI
++	MOVL	kind+0(FP), DI
++	MOVQ	limit+8(FP), SI
+ 	MOVL	$194, AX
+ 	SYSCALL
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+ TEXT runtime·raise(SB),NOSPLIT,$16
+@@ -115,9 +123,9 @@ TEXT runtime·raise(SB),NOSPLIT,$16
+ 	RET
+ 
+ TEXT runtime·setitimer(SB), NOSPLIT, $-8
+-	MOVL	8(SP), DI
+-	MOVQ	16(SP), SI
+-	MOVQ	24(SP), DX
++	MOVL	mode+0(FP), DI
++	MOVQ	new+8(FP), SI
++	MOVQ	old+16(FP), DX
+ 	MOVL	$83, AX
+ 	SYSCALL
+ 	RET
+@@ -148,12 +156,13 @@ TEXT runtime·nanotime(SB), NOSPLIT, $32
+ 	// return nsec in AX
+ 	IMULQ	$1000000000, AX
+ 	ADDQ	DX, AX
++	MOVQ	AX, ret+0(FP)
+ 	RET
+ 
+ TEXT runtime·sigaction(SB),NOSPLIT,$-8
+-	MOVL	8(SP), DI		// arg 1 sig
+-	MOVQ	16(SP), SI		// arg 2 act
+-	MOVQ	24(SP), DX		// arg 3 oact
++	MOVL	sig+0(FP), DI		// arg 1 sig
++	MOVQ	new+8(FP), SI		// arg 2 act
++	MOVQ	old+16(FP), DX		// arg 3 oact
+ 	MOVL	$342, AX
+ 	SYSCALL
+ 	JCC	2(PC)
+@@ -194,23 +203,24 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$64
+ 	RET
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$0
+-	MOVQ	8(SP), DI		// arg 1 - addr
+-	MOVQ	16(SP), SI		// arg 2 - len
+-	MOVL	24(SP), DX		// arg 3 - prot
+-	MOVL	28(SP), R10		// arg 4 - flags
+-	MOVL	32(SP), R8		// arg 5 - fd
+-	MOVL	36(SP), R9
++	MOVQ	addr+0(FP), DI		// arg 1 - addr
++	MOVQ	n+8(FP), SI		// arg 2 - len
++	MOVL	prot+16(FP), DX		// arg 3 - prot
++	MOVL	flags+20(FP), R10		// arg 4 - flags
++	MOVL	fd+24(FP), R8		// arg 5 - fd
++	MOVL	off+28(FP), R9
+ 	SUBQ	$16, SP
+ 	MOVQ	R9, 8(SP)		// arg 7 - offset (passed on stack)
+ 	MOVQ	$0, R9			// arg 6 - pad
+ 	MOVL	$197, AX
+ 	SYSCALL
+ 	ADDQ	$16, SP
++	MOVQ	AX, ret+32(FP)
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$0
+-	MOVQ	8(SP), DI		// arg 1 addr
+-	MOVQ	16(SP), SI		// arg 2 len
++	MOVQ	addr+0(FP), DI		// arg 1 addr
++	MOVQ	n+8(FP), SI		// arg 2 len
+ 	MOVL	$73, AX
+ 	SYSCALL
+ 	JCC	2(PC)
+@@ -218,9 +228,9 @@ TEXT runtime·munmap(SB),NOSPLIT,$0
+ 	RET
+ 
+ TEXT runtime·madvise(SB),NOSPLIT,$0
+-	MOVQ	8(SP), DI
+-	MOVQ	16(SP), SI
+-	MOVQ	24(SP), DX
++	MOVQ	addr+0(FP), DI
++	MOVQ	n+8(FP), SI
++	MOVL	flags+16(FP), DX
+ 	MOVQ	$75, AX	// madvise
+ 	SYSCALL
+ 	// ignore failure - maybe pages are locked
+@@ -266,18 +276,20 @@ TEXT runtime·settls(SB),NOSPLIT,$16
+ 	RET
+ 
+ TEXT runtime·sysctl(SB),NOSPLIT,$0
+-	MOVQ	8(SP), DI		// arg 1 - name
+-	MOVL	16(SP), SI		// arg 2 - namelen
+-	MOVQ	24(SP), DX		// arg 3 - oldp
+-	MOVQ	32(SP), R10		// arg 4 - oldlenp
+-	MOVQ	40(SP), R8		// arg 5 - newp
+-	MOVQ	48(SP), R9		// arg 6 - newlen
++	MOVQ	mib+0(FP), DI		// arg 1 - name
++	MOVL	miblen+8(FP), SI		// arg 2 - namelen
++	MOVQ	out+16(FP), DX		// arg 3 - oldp
++	MOVQ	size+24(FP), R10		// arg 4 - oldlenp
++	MOVQ	dst+32(FP), R8		// arg 5 - newp
++	MOVQ	ndst+40(FP), R9		// arg 6 - newlen
+ 	MOVQ	$202, AX		// sys___sysctl
+ 	SYSCALL
+-	JCC 3(PC)
++	JCC 4(PC)
+ 	NEGQ	AX
++	MOVL	AX, ret+48(FP)
+ 	RET
+ 	MOVL	$0, AX
++	MOVL	AX, ret+48(FP)
+ 	RET
+ 
+ TEXT runtime·osyield(SB),NOSPLIT,$-4
+@@ -287,8 +299,8 @@ TEXT runtime·osyield(SB),NOSPLIT,$-4
+ 
+ TEXT runtime·sigprocmask(SB),NOSPLIT,$0
+ 	MOVL	$3, DI			// arg 1 - how (SIG_SETMASK)
+-	MOVQ	8(SP), SI		// arg 2 - set
+-	MOVQ	16(SP), DX		// arg 3 - oset
++	MOVQ	new+0(FP), SI		// arg 2 - set
++	MOVQ	old+8(FP), DX		// arg 3 - oset
+ 	MOVL	$340, AX		// sys_sigprocmask
+ 	SYSCALL
+ 	JAE	2(PC)
+@@ -304,25 +316,27 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
+ 	SYSCALL
+ 	JCC	2(PC)
+ 	NEGQ	AX
++	MOVL	AX, ret+0(FP)
+ 	RET
+ 
+ // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
+ TEXT runtime·kevent(SB),NOSPLIT,$0
+-	MOVL	8(SP), DI
+-	MOVQ	16(SP), SI
+-	MOVL	24(SP), DX
+-	MOVQ	32(SP), R10
+-	MOVL	40(SP), R8
+-	MOVQ	48(SP), R9
++	MOVL	fd+0(FP), DI
++	MOVQ	ev1+8(FP), SI
++	MOVL	nev1+16(FP), DX
++	MOVQ	ev2+24(FP), R10
++	MOVL	nev2+32(FP), R8
++	MOVQ	ts+40(FP), R9
+ 	MOVL	$363, AX
+ 	SYSCALL
+ 	JCC	2(PC)
+ 	NEGQ	AX
++	MOVL	AX, ret+48(FP)
+ 	RET
+ 
+ // void runtime·closeonexec(int32 fd);
+ TEXT runtime·closeonexec(SB),NOSPLIT,$0
+-	MOVL	8(SP), DI	// fd
++	MOVL	fd+0(FP), DI	// fd
+ 	MOVQ	$2, SI		// F_SETFD
+ 	MOVQ	$1, DX		// FD_CLOEXEC
+ 	MOVL	$92, AX		// fcntl
+diff --git a/src/pkg/runtime/sys_freebsd_386.s b/src/pkg/runtime/sys_freebsd_386.s
+index d2ce25f994..929572f073 100644
+--- a/src/pkg/runtime/sys_freebsd_386.s
++++ b/src/pkg/runtime/sys_freebsd_386.s
+@@ -12,6 +12,7 @@
+ TEXT runtime·sys_umtx_op(SB),NOSPLIT,$-4
+ 	MOVL	$454, AX
+ 	INT	$0x80
++	MOVL	AX, ret+20(FP)
+ 	RET
+ 
+ TEXT runtime·thr_new(SB),NOSPLIT,$-4
+@@ -60,26 +61,31 @@ TEXT runtime·exit1(SB),NOSPLIT,$-4
+ TEXT runtime·open(SB),NOSPLIT,$-4
+ 	MOVL	$5, AX
+ 	INT	$0x80
++	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·close(SB),NOSPLIT,$-4
+ 	MOVL	$6, AX
+ 	INT	$0x80
++	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+ TEXT runtime·read(SB),NOSPLIT,$-4
+ 	MOVL	$3, AX
+ 	INT	$0x80
++	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·write(SB),NOSPLIT,$-4
+ 	MOVL	$4, AX
+ 	INT	$0x80
++	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·getrlimit(SB),NOSPLIT,$-4
+ 	MOVL	$194, AX
+ 	INT	$0x80
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+ TEXT runtime·raise(SB),NOSPLIT,$16
+@@ -98,7 +104,7 @@ TEXT runtime·raise(SB),NOSPLIT,$16
+ 	RET
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$32
+-	LEAL arg0+0(FP), SI
++	LEAL addr+0(FP), SI
+ 	LEAL	4(SP), DI
+ 	CLD
+ 	MOVSL
+@@ -111,6 +117,7 @@ TEXT runtime·mmap(SB),NOSPLIT,$32
+ 	STOSL
+ 	MOVL	$477, AX
+ 	INT	$0x80
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$-4
+@@ -167,9 +174,8 @@ TEXT runtime·nanotime(SB), NOSPLIT, $32
+ 	ADDL	BX, AX
+ 	ADCL	$0, DX
+ 
+-	MOVL	ret+0(FP), DI
+-	MOVL	AX, 0(DI)
+-	MOVL	DX, 4(DI)
++	MOVL	AX, ret_lo+0(FP)
++	MOVL	DX, ret_hi+4(FP)
+ 	RET
+ 
+ 
+@@ -314,7 +320,7 @@ TEXT runtime·i386_set_ldt(SB),NOSPLIT,$16
+ 	RET
+ 
+ TEXT runtime·sysctl(SB),NOSPLIT,$28
+-	LEAL	arg0+0(FP), SI
++	LEAL	mib+0(FP), SI
+ 	LEAL	4(SP), DI
+ 	CLD
+ 	MOVSL				// arg 1 - name
+@@ -325,10 +331,12 @@ TEXT runtime·sysctl(SB),NOSPLIT,$28
+ 	MOVSL				// arg 6 - newlen
+ 	MOVL	$202, AX		// sys___sysctl
+ 	INT	$0x80
+-	JAE	3(PC)
++	JAE	4(PC)
+ 	NEGL	AX
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 	MOVL	$0, AX
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ TEXT runtime·osyield(SB),NOSPLIT,$-4
+@@ -339,9 +347,9 @@ TEXT runtime·osyield(SB),NOSPLIT,$-4
+ TEXT runtime·sigprocmask(SB),NOSPLIT,$16
+ 	MOVL	$0, 0(SP)		// syscall gap
+ 	MOVL	$3, 4(SP)		// arg 1 - how (SIG_SETMASK)
+-	MOVL	args+0(FP), AX
++	MOVL	new+0(FP), AX
+ 	MOVL	AX, 8(SP)		// arg 2 - set
+-	MOVL	args+4(FP), AX
++	MOVL	old+4(FP), AX
+ 	MOVL	AX, 12(SP)		// arg 3 - oset
+ 	MOVL	$340, AX		// sys_sigprocmask
+ 	INT	$0x80
+@@ -355,6 +363,7 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	NEGL	AX
++	MOVL	AX, ret+0(FP)
+ 	RET
+ 
+ // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
+@@ -363,6 +372,7 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	NEGL	AX
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ // int32 runtime·closeonexec(int32 fd);
+diff --git a/src/pkg/runtime/sys_freebsd_amd64.s b/src/pkg/runtime/sys_freebsd_amd64.s
+index 2c6e33590f..f1198541dc 100644
+--- a/src/pkg/runtime/sys_freebsd_amd64.s
++++ b/src/pkg/runtime/sys_freebsd_amd64.s
+@@ -35,18 +35,19 @@
+ #define SYSCALL MOVQ R10, CX; INT $0x80
+ 	
+ TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
+-	MOVQ 8(SP), DI
+-	MOVL 16(SP), SI
+-	MOVL 20(SP), DX
+-	MOVQ 24(SP), R10
+-	MOVQ 32(SP), R8
++	MOVQ addr+0(FP), DI
++	MOVL mode+8(FP), SI
++	MOVL val+12(FP), DX
++	MOVQ ptr2+16(FP), R10
++	MOVQ ts+24(FP), R8
+ 	MOVL $454, AX
+ 	SYSCALL
++	MOVL	AX, ret+32(FP)
+ 	RET
+ 
+ TEXT runtime·thr_new(SB),NOSPLIT,$0
+-	MOVQ 8(SP), DI
+-	MOVQ 16(SP), SI
++	MOVQ param+0(FP), DI
++	MOVL size+8(FP), SI
+ 	MOVL $455, AX
+ 	SYSCALL
+ 	RET
+@@ -71,54 +72,59 @@ TEXT runtime·thr_start(SB),NOSPLIT,$0
+ 
+ // Exit the entire program (like C exit)
+ TEXT runtime·exit(SB),NOSPLIT,$-8
+-	MOVL	8(SP), DI		// arg 1 exit status
++	MOVL	code+0(FP), DI		// arg 1 exit status
+ 	MOVL	$1, AX
+ 	SYSCALL
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·exit1(SB),NOSPLIT,$-8
+-	MOVQ	8(SP), DI		// arg 1 exit status
++	MOVL	code+0(FP), DI		// arg 1 exit status
+ 	MOVL	$431, AX
+ 	SYSCALL
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+ TEXT runtime·open(SB),NOSPLIT,$-8
+-	MOVQ	8(SP), DI		// arg 1 pathname
+-	MOVL	16(SP), SI		// arg 2 flags
+-	MOVL	20(SP), DX		// arg 3 mode
++	MOVQ	name+0(FP), DI		// arg 1 pathname
++	MOVL	mode+8(FP), SI		// arg 2 flags
++	MOVL	perm+12(FP), DX		// arg 3 mode
+ 	MOVL	$5, AX
+ 	SYSCALL
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+ TEXT runtime·close(SB),NOSPLIT,$-8
+-	MOVL	8(SP), DI		// arg 1 fd
++	MOVL	fd+0(FP), DI		// arg 1 fd
+ 	MOVL	$6, AX
+ 	SYSCALL
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+ TEXT runtime·read(SB),NOSPLIT,$-8
+-	MOVL	8(SP), DI		// arg 1 fd
+-	MOVQ	16(SP), SI		// arg 2 buf
+-	MOVL	24(SP), DX		// arg 3 count
++	MOVL	fd+0(FP), DI		// arg 1 fd
++	MOVQ	p+8(FP), SI		// arg 2 buf
++	MOVL	n+16(FP), DX		// arg 3 count
+ 	MOVL	$3, AX
+ 	SYSCALL
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ TEXT runtime·write(SB),NOSPLIT,$-8
+-	MOVL	8(SP), DI		// arg 1 fd
+-	MOVQ	16(SP), SI		// arg 2 buf
+-	MOVL	24(SP), DX		// arg 3 count
++	MOVQ	fd+0(FP), DI		// arg 1 fd
++	MOVQ	p+8(FP), SI		// arg 2 buf
++	MOVL	n+16(FP), DX		// arg 3 count
+ 	MOVL	$4, AX
+ 	SYSCALL
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ TEXT runtime·getrlimit(SB),NOSPLIT,$-8
+-	MOVL	8(SP), DI
+-	MOVQ	16(SP), SI
++	MOVL	kind+0(FP), DI
++	MOVQ	limit+8(FP), SI
+ 	MOVL	$194, AX
+ 	SYSCALL
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+ TEXT runtime·raise(SB),NOSPLIT,$16
+@@ -134,9 +140,9 @@ TEXT runtime·raise(SB),NOSPLIT,$16
+ 	RET
+ 
+ TEXT runtime·setitimer(SB), NOSPLIT, $-8
+-	MOVL	8(SP), DI
+-	MOVQ	16(SP), SI
+-	MOVQ	24(SP), DX
++	MOVL	mode+0(FP), DI
++	MOVQ	new+8(FP), SI
++	MOVQ	old+16(FP), DX
+ 	MOVL	$83, AX
+ 	SYSCALL
+ 	RET
+@@ -169,12 +175,13 @@ TEXT runtime·nanotime(SB), NOSPLIT, $32
+ 	// return nsec in AX
+ 	IMULQ	$1000000000, AX
+ 	ADDQ	DX, AX
++	MOVQ	AX, ret+0(FP)
+ 	RET
+ 
+ TEXT runtime·sigaction(SB),NOSPLIT,$-8
+-	MOVL	8(SP), DI		// arg 1 sig
+-	MOVQ	16(SP), SI		// arg 2 act
+-	MOVQ	24(SP), DX		// arg 3 oact
++	MOVL	sig+0(FP), DI		// arg 1 sig
++	MOVQ	new+8(FP), SI		// arg 2 act
++	MOVQ	old+16(FP), DX		// arg 3 oact
+ 	MOVL	$416, AX
+ 	SYSCALL
+ 	JCC	2(PC)
+@@ -215,19 +222,20 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$64
+ 	RET
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$0
+-	MOVQ	8(SP), DI		// arg 1 addr
+-	MOVQ	16(SP), SI		// arg 2 len
+-	MOVL	24(SP), DX		// arg 3 prot
+-	MOVL	28(SP), R10		// arg 4 flags
+-	MOVL	32(SP), R8		// arg 5 fid
+-	MOVL	36(SP), R9		// arg 6 offset
++	MOVQ	addr+0(FP), DI		// arg 1 addr
++	MOVQ	n+8(FP), SI		// arg 2 len
++	MOVL	prot+16(FP), DX		// arg 3 prot
++	MOVL	flags+20(FP), R10		// arg 4 flags
++	MOVL	fd+24(FP), R8		// arg 5 fid
++	MOVL	off+28(FP), R9		// arg 6 offset
+ 	MOVL	$477, AX
+ 	SYSCALL
++	MOVQ	AX, ret+32(FP)
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$0
+-	MOVQ	8(SP), DI		// arg 1 addr
+-	MOVQ	16(SP), SI		// arg 2 len
++	MOVQ	addr+0(FP), DI		// arg 1 addr
++	MOVQ	n+8(FP), SI		// arg 2 len
+ 	MOVL	$73, AX
+ 	SYSCALL
+ 	JCC	2(PC)
+@@ -235,9 +243,9 @@ TEXT runtime·munmap(SB),NOSPLIT,$0
+ 	RET
+ 
+ TEXT runtime·madvise(SB),NOSPLIT,$0
+-	MOVQ	8(SP), DI
+-	MOVQ	16(SP), SI
+-	MOVQ	24(SP), DX
++	MOVQ	addr+0(FP), DI
++	MOVQ	n+8(FP), SI
++	MOVL	flags+16(FP), DX
+ 	MOVQ	$75, AX	// madvise
+ 	SYSCALL
+ 	// ignore failure - maybe pages are locked
+@@ -281,18 +289,20 @@ TEXT runtime·settls(SB),NOSPLIT,$8
+ 	RET
+ 
+ TEXT runtime·sysctl(SB),NOSPLIT,$0
+-	MOVQ	8(SP), DI		// arg 1 - name
+-	MOVL	16(SP), SI		// arg 2 - namelen
+-	MOVQ	24(SP), DX		// arg 3 - oldp
+-	MOVQ	32(SP), R10		// arg 4 - oldlenp
+-	MOVQ	40(SP), R8		// arg 5 - newp
+-	MOVQ	48(SP), R9		// arg 6 - newlen
++	MOVQ	mib+0(FP), DI		// arg 1 - name
++	MOVL	miblen+8(FP), SI		// arg 2 - namelen
++	MOVQ	out+16(FP), DX		// arg 3 - oldp
++	MOVQ	size+24(FP), R10		// arg 4 - oldlenp
++	MOVQ	dst+32(FP), R8		// arg 5 - newp
++	MOVQ	ndst+40(FP), R9		// arg 6 - newlen
+ 	MOVQ	$202, AX		// sys___sysctl
+ 	SYSCALL
+-	JCC 3(PC)
++	JCC 4(PC)
+ 	NEGQ	AX
++	MOVL	AX, ret+48(FP)
+ 	RET
+ 	MOVL	$0, AX
++	MOVL	AX, ret+48(FP)
+ 	RET
+ 
+ TEXT runtime·osyield(SB),NOSPLIT,$-4
+@@ -302,8 +312,8 @@ TEXT runtime·osyield(SB),NOSPLIT,$-4
+ 
+ TEXT runtime·sigprocmask(SB),NOSPLIT,$0
+ 	MOVL	$3, DI			// arg 1 - how (SIG_SETMASK)
+-	MOVQ	8(SP), SI		// arg 2 - set
+-	MOVQ	16(SP), DX		// arg 3 - oset
++	MOVQ	new+0(FP), SI		// arg 2 - set
++	MOVQ	old+8(FP), DX		// arg 3 - oset
+ 	MOVL	$340, AX		// sys_sigprocmask
+ 	SYSCALL
+ 	JAE	2(PC)
+@@ -319,25 +329,27 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
+ 	SYSCALL
+ 	JCC	2(PC)
+ 	NEGQ	AX
++	MOVL	AX, ret+0(FP)
+ 	RET
+ 
+ // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
+ TEXT runtime·kevent(SB),NOSPLIT,$0
+-	MOVL	8(SP), DI
+-	MOVQ	16(SP), SI
+-	MOVL	24(SP), DX
+-	MOVQ	32(SP), R10
+-	MOVL	40(SP), R8
+-	MOVQ	48(SP), R9
++	MOVL	fd+0(FP), DI
++	MOVQ	ev1+8(FP), SI
++	MOVL	nev1+16(FP), DX
++	MOVQ	ev2+24(FP), R10
++	MOVL	nev2+32(FP), R8
++	MOVQ	ts+40(FP), R9
+ 	MOVL	$363, AX
+ 	SYSCALL
+ 	JCC	2(PC)
+ 	NEGQ	AX
++	MOVL	AX, ret+48(FP)
+ 	RET
+ 
+ // void runtime·closeonexec(int32 fd);
+ TEXT runtime·closeonexec(SB),NOSPLIT,$0
+-	MOVL	8(SP), DI	// fd
++	MOVL	fd+0(FP), DI	// fd
+ 	MOVQ	$2, SI		// F_SETFD
+ 	MOVQ	$1, DX		// FD_CLOEXEC
+ 	MOVL	$92, AX		// fcntl
+diff --git a/src/pkg/runtime/sys_freebsd_arm.s b/src/pkg/runtime/sys_freebsd_arm.s
+index dbb2583b00..da43871b96 100644
+--- a/src/pkg/runtime/sys_freebsd_arm.s
++++ b/src/pkg/runtime/sys_freebsd_arm.s
+@@ -48,6 +48,7 @@ TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
+ 	SWI $0
+ 	SUB $20, R13
+ 	// BCS error
++	MOVW	R0, ret+20(FP)
+ 	RET
+ 
+ TEXT runtime·thr_new(SB),NOSPLIT,$0
+@@ -91,6 +92,7 @@ TEXT runtime·open(SB),NOSPLIT,$-8
+ 	MOVW 8(FP), R2	// arg 3 perm
+ 	MOVW $SYS_open, R7
+ 	SWI $0
++	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·read(SB),NOSPLIT,$-8
+@@ -99,6 +101,7 @@ TEXT runtime·read(SB),NOSPLIT,$-8
+ 	MOVW 8(FP), R2	// arg 3 count
+ 	MOVW $SYS_read, R7
+ 	SWI $0
++	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·write(SB),NOSPLIT,$-8
+@@ -107,12 +110,14 @@ TEXT runtime·write(SB),NOSPLIT,$-8
+ 	MOVW 8(FP), R2	// arg 3 count
+ 	MOVW $SYS_write, R7
+ 	SWI $0
++	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·close(SB),NOSPLIT,$-8
+ 	MOVW 0(FP), R0	// arg 1 fd
+ 	MOVW $SYS_close, R7
+ 	SWI $0
++	MOVW	R0, ret+4(FP)
+ 	RET
+ 
+ TEXT runtime·getrlimit(SB),NOSPLIT,$-8
+@@ -120,6 +125,7 @@ TEXT runtime·getrlimit(SB),NOSPLIT,$-8
+ 	MOVW 4(FP), R1
+ 	MOVW $SYS_getrlimit, R7
+ 	SWI $0
++	MOVW	R0, ret+8(FP)
+ 	RET
+ 
+ TEXT runtime·raise(SB),NOSPLIT,$8
+@@ -178,9 +184,8 @@ TEXT runtime·nanotime(SB), NOSPLIT, $32
+ 	ADD.S R2, R0
+ 	ADC R4, R1
+ 
+-	MOVW 0(FP), R3
+-	MOVW R0, 0(R3)
+-	MOVW R1, 4(R3)
++	MOVW R0, ret_lo+0(FP)
++	MOVW R1, ret_hi+4(FP)
+ 	RET
+ 
+ TEXT runtime·sigaction(SB),NOSPLIT,$-8
+@@ -247,6 +252,7 @@ TEXT runtime·mmap(SB),NOSPLIT,$16
+ 	SWI $0
+ 	SUB $4, R13
+ 	// TODO(dfc) error checking ?
++	MOVW	R0, ret+24(FP)
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$0
+@@ -307,6 +313,7 @@ TEXT runtime·sysctl(SB),NOSPLIT,$0
+ 	SWI $0
+ 	SUB.CS $0, R0, R0
+ 	SUB $20, R13
++	MOVW	R0, ret+24(FP)
+ 	RET
+ 
+ TEXT runtime·osyield(SB),NOSPLIT,$-4
+@@ -329,6 +336,7 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
+ 	MOVW $SYS_kqueue, R7
+ 	SWI $0
+ 	RSB.CS $0, R0
++	MOVW	R0, ret+0(FP)
+ 	RET
+ 
+ // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout)
+@@ -342,6 +350,7 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
+ 	SWI $0
+ 	RSB.CS $0, R0
+ 	SUB $20, R13
++	MOVW	R0, ret+24(FP)
+ 	RET
+ 
+ // void runtime·closeonexec(int32 fd)
+diff --git a/src/pkg/runtime/sys_linux_386.s b/src/pkg/runtime/sys_linux_386.s
+index 3a8371cdd4..ace5a1802b 100644
+--- a/src/pkg/runtime/sys_linux_386.s
++++ b/src/pkg/runtime/sys_linux_386.s
+@@ -11,53 +11,58 @@
+ 
+ TEXT runtime·exit(SB),NOSPLIT,$0
+ 	MOVL	$252, AX	// syscall number
+-	MOVL	4(SP), BX
++	MOVL	code+0(FP), BX
+ 	CALL	*runtime·_vdso(SB)
+ 	INT $3	// not reached
+ 	RET
+ 
+ TEXT runtime·exit1(SB),NOSPLIT,$0
+ 	MOVL	$1, AX	// exit - exit the current os thread
+-	MOVL	4(SP), BX
++	MOVL	code+0(FP), BX
+ 	CALL	*runtime·_vdso(SB)
+ 	INT $3	// not reached
+ 	RET
+ 
+ TEXT runtime·open(SB),NOSPLIT,$0
+ 	MOVL	$5, AX		// syscall - open
+-	MOVL	4(SP), BX
+-	MOVL	8(SP), CX
+-	MOVL	12(SP), DX
++	MOVL	name+0(FP), BX
++	MOVL	mode+4(FP), CX
++	MOVL	perm+8(FP), DX
+ 	CALL	*runtime·_vdso(SB)
++	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·close(SB),NOSPLIT,$0
+ 	MOVL	$6, AX		// syscall - close
+-	MOVL	4(SP), BX
++	MOVL	fd+0(FP), BX
+ 	CALL	*runtime·_vdso(SB)
++	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+ TEXT runtime·write(SB),NOSPLIT,$0
+ 	MOVL	$4, AX		// syscall - write
+-	MOVL	4(SP), BX
+-	MOVL	8(SP), CX
+-	MOVL	12(SP), DX
++	MOVL	fd+0(FP), BX
++	MOVL	p+4(FP), CX
++	MOVL	n+8(FP), DX
+ 	CALL	*runtime·_vdso(SB)
++	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·read(SB),NOSPLIT,$0
+ 	MOVL	$3, AX		// syscall - read
+-	MOVL	4(SP), BX
+-	MOVL	8(SP), CX
+-	MOVL	12(SP), DX
++	MOVL	fd+0(FP), BX
++	MOVL	p+4(FP), CX
++	MOVL	n+8(FP), DX
+ 	CALL	*runtime·_vdso(SB)
++	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·getrlimit(SB),NOSPLIT,$0
+ 	MOVL	$191, AX		// syscall - ugetrlimit
+-	MOVL	4(SP), BX
+-	MOVL	8(SP), CX
++	MOVL	kind+0(FP), BX
++	MOVL	limit+4(FP), CX
+ 	CALL	*runtime·_vdso(SB)
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+ TEXT runtime·usleep(SB),NOSPLIT,$8
+@@ -87,20 +92,21 @@ TEXT runtime·raise(SB),NOSPLIT,$12
+ 	CALL	*runtime·_vdso(SB)
+ 	RET
+ 
+-TEXT runtime·setitimer(SB),NOSPLIT,$0-24
++TEXT runtime·setitimer(SB),NOSPLIT,$0-12
+ 	MOVL	$104, AX			// syscall - setitimer
+-	MOVL	4(SP), BX
+-	MOVL	8(SP), CX
+-	MOVL	12(SP), DX
++	MOVL	mode+0(FP), BX
++	MOVL	new+4(FP), CX
++	MOVL	old+8(FP), DX
+ 	CALL	*runtime·_vdso(SB)
+ 	RET
+ 
+-TEXT runtime·mincore(SB),NOSPLIT,$0-24
++TEXT runtime·mincore(SB),NOSPLIT,$0-16
+ 	MOVL	$218, AX			// syscall - mincore
+-	MOVL	4(SP), BX
+-	MOVL	8(SP), CX
+-	MOVL	12(SP), DX
++	MOVL	addr+0(FP), BX
++	MOVL	n+4(FP), CX
++	MOVL	dst+8(FP), DX
+ 	CALL	*runtime·_vdso(SB)
++	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ // func now() (sec int64, nsec int32)
+@@ -137,17 +143,16 @@ TEXT runtime·nanotime(SB), NOSPLIT, $32
+ 	ADDL	BX, AX
+ 	ADCL	$0, DX
+ 
+-	MOVL	ret+0(FP), DI
+-	MOVL	AX, 0(DI)
+-	MOVL	DX, 4(DI)
++	MOVL	AX, ret_lo+0(FP)
++	MOVL	DX, ret_hi+4(FP)
+ 	RET
+ 
+ TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0
+ 	MOVL	$175, AX		// syscall entry
+-	MOVL	4(SP), BX
+-	MOVL	8(SP), CX
+-	MOVL	12(SP), DX
+-	MOVL	16(SP), SI
++	MOVL	sig+0(FP), BX
++	MOVL	new+4(FP), CX
++	MOVL	old+8(FP), DX
++	MOVL	size+12(FP), SI
+ 	CALL	*runtime·_vdso(SB)
+ 	CMPL	AX, $0xfffff001
+ 	JLS	2(PC)
+@@ -156,11 +161,12 @@ TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0
+ 
+ TEXT runtime·rt_sigaction(SB),NOSPLIT,$0
+ 	MOVL	$174, AX		// syscall - rt_sigaction
+-	MOVL	4(SP), BX
+-	MOVL	8(SP), CX
+-	MOVL	12(SP), DX
+-	MOVL	16(SP), SI
++	MOVL	sig+0(FP), BX
++	MOVL	new+4(FP), CX
++	MOVL	old+8(FP), DX
++	MOVL	size+12(FP), SI
+ 	CALL	*runtime·_vdso(SB)
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+ TEXT runtime·sigtramp(SB),NOSPLIT,$44
+@@ -212,24 +218,25 @@ TEXT runtime·sigreturn(SB),NOSPLIT,$0
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$0
+ 	MOVL	$192, AX	// mmap2
+-	MOVL	4(SP), BX
+-	MOVL	8(SP), CX
+-	MOVL	12(SP), DX
+-	MOVL	16(SP), SI
+-	MOVL	20(SP), DI
+-	MOVL	24(SP), BP
++	MOVL	addr+0(FP), BX
++	MOVL	n+4(FP), CX
++	MOVL	prot+8(FP), DX
++	MOVL	flags+12(FP), SI
++	MOVL	fd+16(FP), DI
++	MOVL	off+20(FP), BP
+ 	SHRL	$12, BP
+ 	CALL	*runtime·_vdso(SB)
+ 	CMPL	AX, $0xfffff001
+ 	JLS	3(PC)
+ 	NOTL	AX
+ 	INCL	AX
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$0
+ 	MOVL	$91, AX	// munmap
+-	MOVL	4(SP), BX
+-	MOVL	8(SP), CX
++	MOVL	addr+0(FP), BX
++	MOVL	n+4(FP), CX
+ 	CALL	*runtime·_vdso(SB)
+ 	CMPL	AX, $0xfffff001
+ 	JLS	2(PC)
+@@ -238,9 +245,9 @@ TEXT runtime·munmap(SB),NOSPLIT,$0
+ 
+ TEXT runtime·madvise(SB),NOSPLIT,$0
+ 	MOVL	$219, AX	// madvise
+-	MOVL	4(SP), BX
+-	MOVL	8(SP), CX
+-	MOVL	12(SP), DX
++	MOVL	addr+0(FP), BX
++	MOVL	n+4(FP), CX
++	MOVL	flags+8(FP), DX
+ 	CALL	*runtime·_vdso(SB)
+ 	// ignore failure - maybe pages are locked
+ 	RET
+@@ -249,13 +256,14 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
+ //	struct timespec *timeout, int32 *uaddr2, int32 val2);
+ TEXT runtime·futex(SB),NOSPLIT,$0
+ 	MOVL	$240, AX	// futex
+-	MOVL	4(SP), BX
+-	MOVL	8(SP), CX
+-	MOVL	12(SP), DX
+-	MOVL	16(SP), SI
+-	MOVL	20(SP), DI
+-	MOVL	24(SP), BP
++	MOVL	addr+0(FP), BX
++	MOVL	op+4(FP), CX
++	MOVL	val+8(FP), DX
++	MOVL	ts+12(FP), SI
++	MOVL	addr2+16(FP), DI
++	MOVL	val3+20(FP), BP
+ 	CALL	*runtime·_vdso(SB)
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ // int32 clone(int32 flags, void *stack, M *mp, G *gp, void (*fn)(void));
+@@ -284,11 +292,12 @@ TEXT runtime·clone(SB),NOSPLIT,$0
+ 
+ 	// In parent, return.
+ 	CMPL	AX, $0
+-	JEQ	2(PC)
++	JEQ	3(PC)
++	MOVL	AX, ret+20(FP)
+ 	RET
+ 
+ 	// Paranoia: check that SP is as we expect.
+-	MOVL	12(SP), BP
++	MOVL	mm+8(FP), BP
+ 	CMPL	BP, $1234
+ 	JEQ	2(PC)
+ 	INT	$3
+@@ -299,8 +308,8 @@ TEXT runtime·clone(SB),NOSPLIT,$0
+ 
+ 	// In child on new stack.  Reload registers (paranoia).
+ 	MOVL	0(SP), BX	// m
+-	MOVL	4(SP), DX	// g
+-	MOVL	8(SP), SI	// fn
++	MOVL	flags+0(FP), DX	// g
++	MOVL	stk+4(FP), SI	// fn
+ 
+ 	MOVL	AX, m_procid(BX)	// save tid as m->procid
+ 
+@@ -337,7 +346,6 @@ TEXT runtime·clone(SB),NOSPLIT,$0
+ 	CALL	SI	// fn()
+ 	CALL	runtime·exit1(SB)
+ 	MOVL	$0x1234, 0x1005
+-	RET
+ 
+ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+ 	MOVL	$186, AX	// sigaltstack
+@@ -426,50 +434,55 @@ TEXT runtime·osyield(SB),NOSPLIT,$0
+ 
+ TEXT runtime·sched_getaffinity(SB),NOSPLIT,$0
+ 	MOVL	$242, AX		// syscall - sched_getaffinity
+-	MOVL	4(SP), BX
+-	MOVL	8(SP), CX
+-	MOVL	12(SP), DX
++	MOVL	pid+0(FP), BX
++	MOVL	len+4(FP), CX
++	MOVL	buf+8(FP), DX
+ 	CALL	*runtime·_vdso(SB)
++	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ // int32 runtime·epollcreate(int32 size);
+ TEXT runtime·epollcreate(SB),NOSPLIT,$0
+ 	MOVL    $254, AX
+-	MOVL	4(SP), BX
++	MOVL	size+0(FP), BX
+ 	CALL	*runtime·_vdso(SB)
++	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+ // int32 runtime·epollcreate1(int32 flags);
+ TEXT runtime·epollcreate1(SB),NOSPLIT,$0
+ 	MOVL    $329, AX
+-	MOVL	4(SP), BX
++	MOVL	flags+0(FP), BX
+ 	CALL	*runtime·_vdso(SB)
++	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+ // int32 runtime·epollctl(int32 epfd, int32 op, int32 fd, EpollEvent *ev);
+ TEXT runtime·epollctl(SB),NOSPLIT,$0
+ 	MOVL	$255, AX
+-	MOVL	4(SP), BX
+-	MOVL	8(SP), CX
+-	MOVL	12(SP), DX
+-	MOVL	16(SP), SI
++	MOVL	epfd+0(FP), BX
++	MOVL	op+4(FP), CX
++	MOVL	fd+8(FP), DX
++	MOVL	ev+12(FP), SI
+ 	CALL	*runtime·_vdso(SB)
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+ // int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
+ TEXT runtime·epollwait(SB),NOSPLIT,$0
+ 	MOVL	$256, AX
+-	MOVL	4(SP), BX
+-	MOVL	8(SP), CX
+-	MOVL	12(SP), DX
+-	MOVL	16(SP), SI
++	MOVL	epfd+0(FP), BX
++	MOVL	ev+4(FP), CX
++	MOVL	nev+8(FP), DX
++	MOVL	timeout+12(FP), SI
+ 	CALL	*runtime·_vdso(SB)
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+ // void runtime·closeonexec(int32 fd);
+ TEXT runtime·closeonexec(SB),NOSPLIT,$0
+ 	MOVL	$55, AX  // fcntl
+-	MOVL	4(SP), BX  // fd
++	MOVL	fd+0(FP), BX  // fd
+ 	MOVL	$2, CX  // F_SETFD
+ 	MOVL	$1, DX  // FD_CLOEXEC
+ 	CALL	*runtime·_vdso(SB)
+diff --git a/src/pkg/runtime/sys_linux_amd64.s b/src/pkg/runtime/sys_linux_amd64.s
+index c402c86164..f263ef35ae 100644
+--- a/src/pkg/runtime/sys_linux_amd64.s
++++ b/src/pkg/runtime/sys_linux_amd64.s
+@@ -9,53 +9,58 @@
+ #include "zasm_GOOS_GOARCH.h"
+ #include "../../cmd/ld/textflag.h"
+ 
+-TEXT runtime·exit(SB),NOSPLIT,$0-8
+-	MOVL	8(SP), DI
++TEXT runtime·exit(SB),NOSPLIT,$0-4
++	MOVL	code+0(FP), DI
+ 	MOVL	$231, AX	// exitgroup - force all os threads to exit
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·exit1(SB),NOSPLIT,$0-8
+-	MOVL	8(SP), DI
++TEXT runtime·exit1(SB),NOSPLIT,$0-4
++	MOVL	code+0(FP), DI
+ 	MOVL	$60, AX	// exit - exit the current os thread
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·open(SB),NOSPLIT,$0-16
+-	MOVQ	8(SP), DI
+-	MOVL	16(SP), SI
+-	MOVL	20(SP), DX
++TEXT runtime·open(SB),NOSPLIT,$0-20
++	MOVQ	name+0(FP), DI
++	MOVL	mode+8(FP), SI
++	MOVL	perm+12(FP), DX
+ 	MOVL	$2, AX			// syscall entry
+ 	SYSCALL
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·close(SB),NOSPLIT,$0-16
+-	MOVL	8(SP), DI
++TEXT runtime·close(SB),NOSPLIT,$0-12
++	MOVL	fd+0(FP), DI
+ 	MOVL	$3, AX			// syscall entry
+ 	SYSCALL
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime·write(SB),NOSPLIT,$0-24
+-	MOVL	8(SP), DI
+-	MOVQ	16(SP), SI
+-	MOVL	24(SP), DX
++TEXT runtime·write(SB),NOSPLIT,$0-28
++	MOVQ	fd+0(FP), DI
++	MOVQ	p+8(FP), SI
++	MOVL	n+16(FP), DX
+ 	MOVL	$1, AX			// syscall entry
+ 	SYSCALL
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+-TEXT runtime·read(SB),NOSPLIT,$0-24
+-	MOVL	8(SP), DI
+-	MOVQ	16(SP), SI
+-	MOVL	24(SP), DX
++TEXT runtime·read(SB),NOSPLIT,$0-28
++	MOVL	fd+0(FP), DI
++	MOVQ	p+8(FP), SI
++	MOVL	n+16(FP), DX
+ 	MOVL	$0, AX			// syscall entry
+ 	SYSCALL
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+-TEXT runtime·getrlimit(SB),NOSPLIT,$0-24
+-	MOVL	8(SP), DI
+-	MOVQ	16(SP), SI
++TEXT runtime·getrlimit(SB),NOSPLIT,$0-20
++	MOVL	kind+0(FP), DI
++	MOVQ	limit+8(FP), SI
+ 	MOVL	$97, AX			// syscall entry
+ 	SYSCALL
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+ TEXT runtime·usleep(SB),NOSPLIT,$16
+@@ -86,19 +91,20 @@ TEXT runtime·raise(SB),NOSPLIT,$0
+ 	RET
+ 
+ TEXT runtime·setitimer(SB),NOSPLIT,$0-24
+-	MOVL	8(SP), DI
+-	MOVQ	16(SP), SI
+-	MOVQ	24(SP), DX
++	MOVL	mode+0(FP), DI
++	MOVQ	new+8(FP), SI
++	MOVQ	old+16(FP), DX
+ 	MOVL	$38, AX			// syscall entry
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·mincore(SB),NOSPLIT,$0-24
+-	MOVQ	8(SP), DI
+-	MOVQ	16(SP), SI
+-	MOVQ	24(SP), DX
++TEXT runtime·mincore(SB),NOSPLIT,$0-28
++	MOVQ	addr+0(FP), DI
++	MOVQ	n+8(FP), SI
++	MOVQ	dst+16(FP), DX
+ 	MOVL	$27, AX			// syscall entry
+ 	SYSCALL
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ // func now() (sec int64, nsec int32)
+@@ -145,6 +151,7 @@ TEXT runtime·nanotime(SB),NOSPLIT,$16
+ 	// return nsec in AX
+ 	IMULQ	$1000000000, AX
+ 	ADDQ	DX, AX
++	MOVQ	AX, ret+0(FP)
+ 	RET
+ fallback_gtod_nt:
+ 	LEAQ	0(SP), DI
+@@ -158,13 +165,14 @@ fallback_gtod_nt:
+ 	// return nsec in AX
+ 	IMULQ	$1000000000, AX
+ 	ADDQ	DX, AX
++	MOVQ	AX, ret+0(FP)
+ 	RET
+ 
+-TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0-32
+-	MOVL	8(SP), DI
+-	MOVQ	16(SP), SI
+-	MOVQ	24(SP), DX
+-	MOVL	32(SP), R10
++TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0-28
++	MOVL	sig+0(FP), DI
++	MOVQ	new+8(FP), SI
++	MOVQ	old+16(FP), DX
++	MOVL	size+24(FP), R10
+ 	MOVL	$14, AX			// syscall entry
+ 	SYSCALL
+ 	CMPQ	AX, $0xfffffffffffff001
+@@ -172,13 +180,14 @@ TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0-32
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·rt_sigaction(SB),NOSPLIT,$0-32
+-	MOVL	8(SP), DI
+-	MOVQ	16(SP), SI
+-	MOVQ	24(SP), DX
+-	MOVQ	32(SP), R10
++TEXT runtime·rt_sigaction(SB),NOSPLIT,$0-36
++	MOVQ	sig+0(FP), DI
++	MOVQ	new+8(FP), SI
++	MOVQ	old+16(FP), DX
++	MOVQ	size+24(FP), R10
+ 	MOVL	$13, AX			// syscall entry
+ 	SYSCALL
++	MOVL	AX, ret+32(FP)
+ 	RET
+ 
+ TEXT runtime·sigtramp(SB),NOSPLIT,$64
+@@ -220,12 +229,12 @@ TEXT runtime·sigreturn(SB),NOSPLIT,$0
+ 	INT $3	// not reached
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$0
+-	MOVQ	8(SP), DI
+-	MOVQ	16(SP), SI
+-	MOVL	24(SP), DX
+-	MOVL	28(SP), R10
+-	MOVL	32(SP), R8
+-	MOVL	36(SP), R9
++	MOVQ	addr+0(FP), DI
++	MOVQ	n+8(FP), SI
++	MOVL	prot+16(FP), DX
++	MOVL	flags+20(FP), R10
++	MOVL	fd+24(FP), R8
++	MOVL	off+28(FP), R9
+ 
+ 	MOVL	$9, AX			// mmap
+ 	SYSCALL
+@@ -233,11 +242,12 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
+ 	JLS	3(PC)
+ 	NOTQ	AX
+ 	INCQ	AX
++	MOVQ	AX, ret+32(FP)
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$0
+-	MOVQ	8(SP), DI
+-	MOVQ	16(SP), SI
++	MOVQ	addr+0(FP), DI
++	MOVQ	n+8(FP), SI
+ 	MOVQ	$11, AX	// munmap
+ 	SYSCALL
+ 	CMPQ	AX, $0xfffffffffffff001
+@@ -246,9 +256,9 @@ TEXT runtime·munmap(SB),NOSPLIT,$0
+ 	RET
+ 
+ TEXT runtime·madvise(SB),NOSPLIT,$0
+-	MOVQ	8(SP), DI
+-	MOVQ	16(SP), SI
+-	MOVQ	24(SP), DX
++	MOVQ	addr+0(FP), DI
++	MOVQ	n+8(FP), SI
++	MOVL	flags+16(FP), DX
+ 	MOVQ	$28, AX	// madvise
+ 	SYSCALL
+ 	// ignore failure - maybe pages are locked
+@@ -257,17 +267,18 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
+ // int64 futex(int32 *uaddr, int32 op, int32 val,
+ //	struct timespec *timeout, int32 *uaddr2, int32 val2);
+ TEXT runtime·futex(SB),NOSPLIT,$0
+-	MOVQ	8(SP), DI
+-	MOVL	16(SP), SI
+-	MOVL	20(SP), DX
+-	MOVQ	24(SP), R10
+-	MOVQ	32(SP), R8
+-	MOVL	40(SP), R9
++	MOVQ	addr+0(FP), DI
++	MOVL	op+8(FP), SI
++	MOVL	val+12(FP), DX
++	MOVQ	ts+16(FP), R10
++	MOVQ	addr2+24(FP), R8
++	MOVL	val3+32(FP), R9
+ 	MOVL	$202, AX
+ 	SYSCALL
++	MOVL	AX, ret+40(FP)
+ 	RET
+ 
+-// int64 clone(int32 flags, void *stack, M *mp, G *gp, void (*fn)(void));
++// int32 clone(int32 flags, void *stack, M *mp, G *gp, void (*fn)(void));
+ TEXT runtime·clone(SB),NOSPLIT,$0
+ 	MOVL	flags+8(SP), DI
+ 	MOVQ	stack+16(SP), SI
+@@ -283,7 +294,8 @@ TEXT runtime·clone(SB),NOSPLIT,$0
+ 
+ 	// In parent, return.
+ 	CMPQ	AX, $0
+-	JEQ	2(PC)
++	JEQ	3(PC)
++	MOVL	AX, ret+40(FP)
+ 	RET
+ 
+ 	// In child, on new stack.
+@@ -342,50 +354,55 @@ TEXT runtime·osyield(SB),NOSPLIT,$0
+ 	RET
+ 
+ TEXT runtime·sched_getaffinity(SB),NOSPLIT,$0
+-	MOVQ	8(SP), DI
+-	MOVL	16(SP), SI
+-	MOVQ	24(SP), DX
++	MOVQ	pid+0(FP), DI
++	MOVQ	len+8(FP), SI
++	MOVQ	buf+16(FP), DX
+ 	MOVL	$204, AX			// syscall entry
+ 	SYSCALL
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ // int32 runtime·epollcreate(int32 size);
+ TEXT runtime·epollcreate(SB),NOSPLIT,$0
+-	MOVL    8(SP), DI
++	MOVL    size+0(FP), DI
+ 	MOVL    $213, AX                        // syscall entry
+ 	SYSCALL
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+ // int32 runtime·epollcreate1(int32 flags);
+ TEXT runtime·epollcreate1(SB),NOSPLIT,$0
+-	MOVL	8(SP), DI
++	MOVL	flags+0(FP), DI
+ 	MOVL	$291, AX			// syscall entry
+ 	SYSCALL
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+ // int32 runtime·epollctl(int32 epfd, int32 op, int32 fd, EpollEvent *ev);
+ TEXT runtime·epollctl(SB),NOSPLIT,$0
+-	MOVL	8(SP), DI
+-	MOVL	12(SP), SI
+-	MOVL	16(SP), DX
+-	MOVQ	24(SP), R10
++	MOVL	epfd+0(FP), DI
++	MOVL	op+4(FP), SI
++	MOVL	fd+8(FP), DX
++	MOVQ	ev+16(FP), R10
+ 	MOVL	$233, AX			// syscall entry
+ 	SYSCALL
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ // int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
+ TEXT runtime·epollwait(SB),NOSPLIT,$0
+-	MOVL	8(SP), DI
+-	MOVQ	16(SP), SI
+-	MOVL	24(SP), DX
+-	MOVL	28(SP), R10
++	MOVL	epfd+0(FP), DI
++	MOVQ	ev+8(FP), SI
++	MOVL	nev+16(FP), DX
++	MOVL	timeout+20(FP), R10
+ 	MOVL	$232, AX			// syscall entry
+ 	SYSCALL
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ // void runtime·closeonexec(int32 fd);
+ TEXT runtime·closeonexec(SB),NOSPLIT,$0
+-	MOVL    8(SP), DI  // fd
++	MOVL    fd+0(FP), DI  // fd
+ 	MOVQ    $2, SI  // F_SETFD
+ 	MOVQ    $1, DX  // FD_CLOEXEC
+ 	MOVL	$72, AX  // fcntl
+diff --git a/src/pkg/runtime/sys_linux_arm.s b/src/pkg/runtime/sys_linux_arm.s
+index 770b963d24..3221cdf29f 100644
+--- a/src/pkg/runtime/sys_linux_arm.s
++++ b/src/pkg/runtime/sys_linux_arm.s
+@@ -51,12 +51,14 @@ TEXT runtime·open(SB),NOSPLIT,$0
+ 	MOVW	8(FP), R2
+ 	MOVW	$SYS_open, R7
+ 	SWI	$0
++	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·close(SB),NOSPLIT,$0
+ 	MOVW	0(FP), R0
+ 	MOVW	$SYS_close, R7
+ 	SWI	$0
++	MOVW	R0, ret+4(FP)
+ 	RET
+ 
+ TEXT runtime·write(SB),NOSPLIT,$0
+@@ -65,6 +67,7 @@ TEXT runtime·write(SB),NOSPLIT,$0
+ 	MOVW	8(FP), R2
+ 	MOVW	$SYS_write, R7
+ 	SWI	$0
++	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·read(SB),NOSPLIT,$0
+@@ -73,6 +76,7 @@ TEXT runtime·read(SB),NOSPLIT,$0
+ 	MOVW	8(FP), R2
+ 	MOVW	$SYS_read, R7
+ 	SWI	$0
++	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·getrlimit(SB),NOSPLIT,$0
+@@ -80,6 +84,7 @@ TEXT runtime·getrlimit(SB),NOSPLIT,$0
+ 	MOVW	4(FP), R1
+ 	MOVW	$SYS_ugetrlimit, R7
+ 	SWI	$0
++	MOVW	R0, ret+8(FP)
+ 	RET
+ 
+ TEXT runtime·exit(SB),NOSPLIT,$-4
+@@ -119,6 +124,7 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
+ 	MOVW	$0xfffff001, R6
+ 	CMP		R6, R0
+ 	RSB.HI	$0, R0
++	MOVW	R0, ret+24(FP)
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$0
+@@ -155,6 +161,7 @@ TEXT runtime·mincore(SB),NOSPLIT,$0
+ 	MOVW	8(FP), R2
+ 	MOVW	$SYS_mincore, R7
+ 	SWI	$0
++	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+ TEXT time·now(SB), NOSPLIT, $32
+@@ -172,8 +179,7 @@ TEXT time·now(SB), NOSPLIT, $32
+ 	MOVW	R2, 8(FP)
+ 	RET	
+ 
+-// int64 nanotime(void) so really
+-// void nanotime(int64 *nsec)
++// int64 nanotime(void)
+ TEXT runtime·nanotime(SB),NOSPLIT,$32
+ 	MOVW	$1, R0  // CLOCK_MONOTONIC
+ 	MOVW	$8(R13), R1  // timespec
+@@ -189,9 +195,8 @@ TEXT runtime·nanotime(SB),NOSPLIT,$32
+ 	ADD.S	R2, R0
+ 	ADC	R4, R1
+ 
+-	MOVW	0(FP), R3
+-	MOVW	R0, 0(R3)
+-	MOVW	R1, 4(R3)
++	MOVW	R0, ret_lo+0(FP)
++	MOVW	R1, ret_hi+4(FP)
+ 	RET
+ 
+ // int32 futex(int32 *uaddr, int32 op, int32 val,
+@@ -205,13 +210,14 @@ TEXT runtime·futex(SB),NOSPLIT,$0
+ 	MOVW	24(SP), R5
+ 	MOVW	$SYS_futex, R7
+ 	SWI	$0
++	MOVW	R0, ret+24(FP)
+ 	RET
+ 
+ 
+ // int32 clone(int32 flags, void *stack, M *mp, G *gp, void (*fn)(void));
+ TEXT runtime·clone(SB),NOSPLIT,$0
+ 	MOVW	flags+0(FP), R0
+-	MOVW	stack+4(FP), R1
++	MOVW	stk+4(FP), R1
+ 	MOVW	$0, R2	// parent tid ptr
+ 	MOVW	$0, R3	// tls_val
+ 	MOVW	$0, R4	// child tid ptr
+@@ -234,7 +240,8 @@ TEXT runtime·clone(SB),NOSPLIT,$0
+ 
+ 	// In parent, return.
+ 	CMP	$0, R0
+-	BEQ	2(PC)
++	BEQ	3(PC)
++	MOVW	R0, ret+20(FP)
+ 	RET
+ 
+ 	// Paranoia: check that SP is as we expect. Use R13 to avoid linker 'fixup'
+@@ -338,6 +345,7 @@ TEXT runtime·rt_sigaction(SB),NOSPLIT,$0
+ 	MOVW	12(FP), R3
+ 	MOVW	$SYS_rt_sigaction, R7
+ 	SWI	$0
++	MOVW	R0, ret+16(FP)
+ 	RET
+ 
+ TEXT runtime·usleep(SB),NOSPLIT,$12
+@@ -363,22 +371,24 @@ TEXT cas<>(SB),NOSPLIT,$0
+ 	MOVW	$0xffff0fc0, PC
+ 
+ TEXT runtime·cas(SB),NOSPLIT,$0
+-	MOVW	valptr+0(FP), R2
++	MOVW	ptr+0(FP), R2
+ 	MOVW	old+4(FP), R0
+ casagain:
+ 	MOVW	new+8(FP), R1
+ 	BL	cas<>(SB)
+ 	BCC	cascheck
+ 	MOVW	$1, R0
++	MOVB	R0, ret+12(FP)
+ 	RET
+ cascheck:
+ 	// Kernel lies; double-check.
+-	MOVW	valptr+0(FP), R2
++	MOVW	ptr+0(FP), R2
+ 	MOVW	old+4(FP), R0
+ 	MOVW	0(R2), R3
+ 	CMP	R0, R3
+ 	BEQ	casagain
+ 	MOVW	$0, R0
++	MOVB	R0, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·casp(SB),NOSPLIT,$0
+@@ -395,6 +405,7 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT,$0
+ 	MOVW	8(FP), R2
+ 	MOVW	$SYS_sched_getaffinity, R7
+ 	SWI	$0
++	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+ // int32 runtime·epollcreate(int32 size)
+@@ -402,6 +413,7 @@ TEXT runtime·epollcreate(SB),NOSPLIT,$0
+ 	MOVW	0(FP), R0
+ 	MOVW	$SYS_epoll_create, R7
+ 	SWI	$0
++	MOVW	R0, ret+4(FP)
+ 	RET
+ 
+ // int32 runtime·epollcreate1(int32 flags)
+@@ -409,6 +421,7 @@ TEXT runtime·epollcreate1(SB),NOSPLIT,$0
+ 	MOVW	0(FP), R0
+ 	MOVW	$SYS_epoll_create1, R7
+ 	SWI	$0
++	MOVW	R0, ret+4(FP)
+ 	RET
+ 
+ // int32 runtime·epollctl(int32 epfd, int32 op, int32 fd, EpollEvent *ev)
+@@ -419,6 +432,7 @@ TEXT runtime·epollctl(SB),NOSPLIT,$0
+ 	MOVW	12(FP), R3
+ 	MOVW	$SYS_epoll_ctl, R7
+ 	SWI	$0
++	MOVW	R0, ret+16(FP)
+ 	RET
+ 
+ // int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout)
+@@ -429,6 +443,7 @@ TEXT runtime·epollwait(SB),NOSPLIT,$0
+ 	MOVW	12(FP), R3
+ 	MOVW	$SYS_epoll_wait, R7
+ 	SWI	$0
++	MOVW	R0, ret+16(FP)
+ 	RET
+ 
+ // void runtime·closeonexec(int32 fd)
+diff --git a/src/pkg/runtime/sys_nacl_386.s b/src/pkg/runtime/sys_nacl_386.s
+index 50dca316df..e460e8efcd 100644
+--- a/src/pkg/runtime/sys_nacl_386.s
++++ b/src/pkg/runtime/sys_nacl_386.s
+@@ -96,22 +96,23 @@ TEXT runtime·osyield(SB),NOSPLIT,$0
+ 	NACL_SYSJMP(SYS_sched_yield)
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$32
+-	MOVL	arg1+0(FP), AX
++	MOVL	addr+0(FP), AX
+ 	MOVL	AX, 0(SP)
+-	MOVL	arg2+4(FP), AX
++	MOVL	n+4(FP), AX
+ 	MOVL	AX, 4(SP)
+-	MOVL	arg3+8(FP), AX
++	MOVL	prot+8(FP), AX
+ 	MOVL	AX, 8(SP)
+-	MOVL	arg4+12(FP), AX
++	MOVL	flags+12(FP), AX
+ 	MOVL	AX, 12(SP)
+-	MOVL	arg5+16(FP), AX
++	MOVL	fd+16(FP), AX
+ 	MOVL	AX, 16(SP)
+-	MOVL	arg6+20(FP), AX
++	MOVL	off+20(FP), AX
+ 	MOVL	AX, 24(SP)
+ 	MOVL	$0, 28(SP)
+ 	LEAL	24(SP), AX
+ 	MOVL	AX, 20(SP)
+ 	NACL_SYSCALL(SYS_mmap)
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ TEXT time·now(SB),NOSPLIT,$20
+@@ -150,9 +151,8 @@ TEXT runtime·nanotime(SB),NOSPLIT,$20
+ 	ADDL	BX, AX
+ 	ADCL	$0, DX
+ 
+-	MOVL	ret+0(FP), DI
+-	MOVL	AX, 0(DI)
+-	MOVL	DX, 4(DI)
++	MOVL	AX, ret_lo+0(FP)
++	MOVL	DX, ret_hi+4(FP)
+ 	RET
+ 
+ TEXT runtime·setldt(SB),NOSPLIT,$8
+diff --git a/src/pkg/runtime/sys_nacl_amd64p32.s b/src/pkg/runtime/sys_nacl_amd64p32.s
+index d4e32ffe39..213e12d36d 100644
+--- a/src/pkg/runtime/sys_nacl_amd64p32.s
++++ b/src/pkg/runtime/sys_nacl_amd64p32.s
+@@ -17,27 +17,27 @@ TEXT runtime·settls(SB),NOSPLIT,$0
+ 	RET
+ 
+ TEXT runtime·exit(SB),NOSPLIT,$0
+-	MOVL arg1+0(FP), DI
++	MOVL code+0(FP), DI
+ 	NACL_SYSJMP(SYS_exit)
+ 
+ TEXT runtime·exit1(SB),NOSPLIT,$0
+-	MOVL arg1+0(FP), DI
++	MOVL code+0(FP), DI
+ 	NACL_SYSJMP(SYS_thread_exit)
+ 
+ TEXT runtime·open(SB),NOSPLIT,$0
+-	MOVL arg1+0(FP), DI
+-	MOVL arg2+4(FP), SI
+-	MOVL arg3+8(FP), DX
++	MOVL name+0(FP), DI
++	MOVL mode+4(FP), SI
++	MOVL perm+8(FP), DX
+ 	NACL_SYSJMP(SYS_open)
+ 
+ TEXT runtime·close(SB),NOSPLIT,$0
+-	MOVL arg1+0(FP), DI
++	MOVL fd+0(FP), DI
+ 	NACL_SYSJMP(SYS_close)
+ 
+ TEXT runtime·read(SB),NOSPLIT,$0
+-	MOVL arg1+0(FP), DI
+-	MOVL arg2+4(FP), SI
+-	MOVL arg3+8(FP), DX
++	MOVL fd+0(FP), DI
++	MOVL p+4(FP), SI
++	MOVL n+8(FP), DX
+ 	NACL_SYSJMP(SYS_read)
+ 
+ TEXT syscall·naclWrite(SB), NOSPLIT, $16-20
+@@ -51,13 +51,13 @@ TEXT syscall·naclWrite(SB), NOSPLIT, $16-20
+ 	MOVL AX, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·write(SB),NOSPLIT,$16-12
++TEXT runtime·write(SB),NOSPLIT,$16-20
+ 	// If using fake time and writing to stdout or stderr,
+ 	// emit playback header before actual data.
+ 	MOVQ runtime·timens(SB), AX
+ 	CMPQ AX, $0
+ 	JEQ write
+-	MOVL arg1+0(FP), DI
++	MOVL fd+0(FP), DI
+ 	CMPL DI, $1
+ 	JEQ playback
+ 	CMPL DI, $2
+@@ -65,10 +65,11 @@ TEXT runtime·write(SB),NOSPLIT,$16-12
+ 
+ write:
+ 	// Ordinary write.
+-	MOVL arg1+0(FP), DI
+-	MOVL arg2+4(FP), SI
+-	MOVL arg3+8(FP), DX
++	MOVL fd+0(FP), DI
++	MOVL p+4(FP), SI
++	MOVL n+8(FP), DX
+ 	NACL_SYSCALL(SYS_write)
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+ 	// Write with playback header.
+@@ -83,7 +84,7 @@ playback:
+ 	MOVL $(('B'<<24) | ('P'<<16)), 0(SP)
+ 	BSWAPQ AX
+ 	MOVQ AX, 4(SP)
+-	MOVL arg3+8(FP), DX
++	MOVL n+8(FP), DX
+ 	BSWAPL DX
+ 	MOVL DX, 12(SP)
+ 	MOVL $1, DI // standard output
+@@ -93,81 +94,82 @@ playback:
+ 
+ 	// Write actual data.
+ 	MOVL $1, DI // standard output
+-	MOVL arg2+4(FP), SI
+-	MOVL arg3+8(FP), DX
++	MOVL p+4(FP), SI
++	MOVL n+8(FP), DX
+ 	NACL_SYSCALL(SYS_write)
+ 
+ 	// Unlock.
+ 	MOVL	$0, runtime·writelock(SB)
+ 
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+ TEXT runtime·nacl_exception_stack(SB),NOSPLIT,$0
+-	MOVL arg1+0(FP), DI
+-	MOVL arg2+4(FP), SI
++	MOVL p+0(FP), DI
++	MOVL size+4(FP), SI
+ 	NACL_SYSJMP(SYS_exception_stack)
+ 
+ TEXT runtime·nacl_exception_handler(SB),NOSPLIT,$0
+-	MOVL arg1+0(FP), DI
+-	MOVL arg2+4(FP), SI
++	MOVL fn+0(FP), DI
++	MOVL arg+4(FP), SI
+ 	NACL_SYSJMP(SYS_exception_handler)
+ 
+ TEXT runtime·nacl_sem_create(SB),NOSPLIT,$0
+-	MOVL arg1+0(FP), DI
++	MOVL flag+0(FP), DI
+ 	NACL_SYSJMP(SYS_sem_create)
+ 
+ TEXT runtime·nacl_sem_wait(SB),NOSPLIT,$0
+-	MOVL arg1+0(FP), DI
++	MOVL sem+0(FP), DI
+ 	NACL_SYSJMP(SYS_sem_wait)
+ 
+ TEXT runtime·nacl_sem_post(SB),NOSPLIT,$0
+-	MOVL arg1+0(FP), DI
++	MOVL sem+0(FP), DI
+ 	NACL_SYSJMP(SYS_sem_post)
+ 
+ TEXT runtime·nacl_mutex_create(SB),NOSPLIT,$0
+-	MOVL arg1+0(FP), DI
++	MOVL flag+0(FP), DI
+ 	NACL_SYSJMP(SYS_mutex_create)
+ 
+ TEXT runtime·nacl_mutex_lock(SB),NOSPLIT,$0
+-	MOVL arg1+0(FP), DI
++	MOVL mutex+0(FP), DI
+ 	NACL_SYSJMP(SYS_mutex_lock)
+ 
+ TEXT runtime·nacl_mutex_trylock(SB),NOSPLIT,$0
+-	MOVL arg1+0(FP), DI
++	MOVL mutex+0(FP), DI
+ 	NACL_SYSJMP(SYS_mutex_trylock)
+ 
+ TEXT runtime·nacl_mutex_unlock(SB),NOSPLIT,$0
+-	MOVL arg1+0(FP), DI
++	MOVL mutex+0(FP), DI
+ 	NACL_SYSJMP(SYS_mutex_unlock)
+ 
+ TEXT runtime·nacl_cond_create(SB),NOSPLIT,$0
+-	MOVL arg1+0(FP), DI
++	MOVL flag+0(FP), DI
+ 	NACL_SYSJMP(SYS_cond_create)
+ 
+ TEXT runtime·nacl_cond_wait(SB),NOSPLIT,$0
+-	MOVL arg1+0(FP), DI
+-	MOVL arg2+4(FP), SI
++	MOVL cond+0(FP), DI
++	MOVL n+4(FP), SI
+ 	NACL_SYSJMP(SYS_cond_wait)
+ 
+ TEXT runtime·nacl_cond_signal(SB),NOSPLIT,$0
+-	MOVL arg1+0(FP), DI
++	MOVL cond+0(FP), DI
+ 	NACL_SYSJMP(SYS_cond_signal)
+ 
+ TEXT runtime·nacl_cond_broadcast(SB),NOSPLIT,$0
+-	MOVL arg1+0(FP), DI
++	MOVL cond+0(FP), DI
+ 	NACL_SYSJMP(SYS_cond_broadcast)
+ 
+ TEXT runtime·nacl_cond_timed_wait_abs(SB),NOSPLIT,$0
+-	MOVL arg1+0(FP), DI
+-	MOVL arg2+4(FP), SI
+-	MOVL arg3+8(FP), DX
++	MOVL cond+0(FP), DI
++	MOVL lock+4(FP), SI
++	MOVL ts+8(FP), DX
+ 	NACL_SYSJMP(SYS_cond_timed_wait_abs)
+ 
+ TEXT runtime·nacl_thread_create(SB),NOSPLIT,$0
+-	MOVL arg1+0(FP), DI
+-	MOVL arg2+4(FP), SI
+-	MOVL arg3+8(FP), DX
+-	MOVL arg4+12(FP), CX
++	MOVL fn+0(FP), DI
++	MOVL stk+4(FP), SI
++	MOVL tls+8(FP), DX
++	MOVL xx+12(FP), CX
+ 	NACL_SYSJMP(SYS_thread_create)
+ 
+ TEXT runtime·mstart_nacl(SB),NOSPLIT,$0
+@@ -177,26 +179,27 @@ TEXT runtime·mstart_nacl(SB),NOSPLIT,$0
+ 	JMP runtime·mstart(SB)
+ 
+ TEXT runtime·nacl_nanosleep(SB),NOSPLIT,$0
+-	MOVL arg1+0(FP), DI
+-	MOVL arg2+4(FP), SI
++	MOVL ts+0(FP), DI
++	MOVL extra+4(FP), SI
+ 	NACL_SYSJMP(SYS_nanosleep)
+ 
+ TEXT runtime·osyield(SB),NOSPLIT,$0
+ 	NACL_SYSJMP(SYS_sched_yield)
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$8
+-	MOVL arg1+0(FP), DI
+-	MOVL arg2+4(FP), SI
+-	MOVL arg3+8(FP), DX
+-	MOVL arg4+12(FP), CX
+-	MOVL arg5+16(FP), R8
+-	MOVL arg6+20(FP), AX
++	MOVL addr+0(FP), DI
++	MOVL n+4(FP), SI
++	MOVL prot+8(FP), DX
++	MOVL flags+12(FP), CX
++	MOVL fd+16(FP), R8
++	MOVL off+20(FP), AX
+ 	MOVQ AX, 0(SP)
+ 	MOVL SP, R9
+ 	NACL_SYSCALL(SYS_mmap)
+ 	CMPL AX, $-4095
+ 	JNA 2(PC)
+ 	NEGL AX
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ TEXT time·now(SB),NOSPLIT,$16
+@@ -235,7 +238,8 @@ TEXT runtime·nacl_clock_gettime(SB),NOSPLIT,$0
+ TEXT runtime·nanotime(SB),NOSPLIT,$16
+ 	MOVQ runtime·timens(SB), AX
+ 	CMPQ AX, $0
+-	JEQ 2(PC)
++	JEQ 3(PC)
++	MOVQ	AX, ret+0(FP)
+ 	RET
+ 	MOVL $0, DI // real time clock
+ 	LEAL 0(SP), AX
+@@ -248,6 +252,7 @@ TEXT runtime·nanotime(SB),NOSPLIT,$16
+ 	// return nsec in AX
+ 	IMULQ	$1000000000, AX
+ 	ADDQ	DX, AX
++	MOVQ	AX, ret+0(FP)
+ 	RET
+ 
+ TEXT runtime·sigtramp(SB),NOSPLIT,$80
+diff --git a/src/pkg/runtime/sys_nacl_arm.s b/src/pkg/runtime/sys_nacl_arm.s
+index 6a22368507..48b9aaed7c 100644
+--- a/src/pkg/runtime/sys_nacl_arm.s
++++ b/src/pkg/runtime/sys_nacl_arm.s
+@@ -13,27 +13,27 @@
+ 	MOVW	$(0x10000 + ((code)<<5)), R8; B (R8)
+ 
+ TEXT runtime·exit(SB),NOSPLIT,$0
+-	MOVW	arg1+0(FP), R0
++	MOVW	code+0(FP), R0
+ 	NACL_SYSJMP(SYS_exit)
+ 
+ TEXT runtime·exit1(SB),NOSPLIT,$0
+-	MOVW	arg1+0(FP), R0
++	MOVW	code+0(FP), R0
+ 	NACL_SYSJMP(SYS_thread_exit)
+ 
+ TEXT runtime·open(SB),NOSPLIT,$0
+-	MOVW	arg1+0(FP), R0
+-	MOVW	arg2+0(FP), R1
+-	MOVW	arg3+0(FP), R2
++	MOVW	name+0(FP), R0
++	MOVW	name+0(FP), R1
++	MOVW	name+0(FP), R2
+ 	NACL_SYSJMP(SYS_open)
+ 
+ TEXT runtime·close(SB),NOSPLIT,$0
+-	MOVW	arg1+0(FP), R0
++	MOVW	fd+0(FP), R0
+ 	NACL_SYSJMP(SYS_close)
+ 
+ TEXT runtime·read(SB),NOSPLIT,$0
+-	MOVW	arg1+0(FP), R0
+-	MOVW	arg2+4(FP), R1
+-	MOVW	arg3+8(FP), R2
++	MOVW	fd+0(FP), R0
++	MOVW	p+4(FP), R1
++	MOVW	n+8(FP), R2
+ 	NACL_SYSJMP(SYS_read)
+ 
+ // func naclWrite(fd int, b []byte) int
+@@ -46,77 +46,77 @@ TEXT syscall·naclWrite(SB),NOSPLIT,$0
+ 	RET
+ 
+ TEXT runtime·write(SB),NOSPLIT,$0
+-	MOVW	arg1+0(FP), R0
+-	MOVW	arg2+4(FP), R1
+-	MOVW	arg3+8(FP), R2
++	MOVW	fd+0(FP), R0
++	MOVW	p+4(FP), R1
++	MOVW	n+8(FP), R2
+ 	NACL_SYSJMP(SYS_write)
+ 
+ TEXT runtime·nacl_exception_stack(SB),NOSPLIT,$0
+-	MOVW	arg1+0(FP), R0
+-	MOVW	arg2+4(FP), R1
++	MOVW	p+0(FP), R0
++	MOVW	size+4(FP), R1
+ 	NACL_SYSJMP(SYS_exception_stack)
+ 
+ TEXT runtime·nacl_exception_handler(SB),NOSPLIT,$0
+-	MOVW	arg1+0(FP), R0
+-	MOVW	arg2+4(FP), R1
++	MOVW	fn+0(FP), R0
++	MOVW	arg+4(FP), R1
+ 	NACL_SYSJMP(SYS_exception_handler)
+ 
+ TEXT runtime·nacl_sem_create(SB),NOSPLIT,$0
+-	MOVW	arg1+0(FP), R0
++	MOVW	flag+0(FP), R0
+ 	NACL_SYSJMP(SYS_sem_create)
+ 
+ TEXT runtime·nacl_sem_wait(SB),NOSPLIT,$0
+-	MOVW	arg1+0(FP), R0
++	MOVW	sem+0(FP), R0
+ 	NACL_SYSJMP(SYS_sem_wait)
+ 
+ TEXT runtime·nacl_sem_post(SB),NOSPLIT,$0
+-	MOVW	arg1+0(FP), R0
++	MOVW	sem+0(FP), R0
+ 	NACL_SYSJMP(SYS_sem_post)
+ 
+ TEXT runtime·nacl_mutex_create(SB),NOSPLIT,$0
+-	MOVW	arg1+0(FP), R0
++	MOVW	flag+0(FP), R0
+ 	NACL_SYSJMP(SYS_mutex_create)
+ 
+ TEXT runtime·nacl_mutex_lock(SB),NOSPLIT,$0
+-	MOVW	arg1+0(FP), R0
++	MOVW	mutex+0(FP), R0
+ 	NACL_SYSJMP(SYS_mutex_lock)
+ 
+ TEXT runtime·nacl_mutex_trylock(SB),NOSPLIT,$0
+-	MOVW	arg1+0(FP), R0
++	MOVW	mutex+0(FP), R0
+ 	NACL_SYSJMP(SYS_mutex_trylock)
+ 
+ TEXT runtime·nacl_mutex_unlock(SB),NOSPLIT,$0
+-	MOVW	arg1+0(FP), R0
++	MOVW	mutex+0(FP), R0
+ 	NACL_SYSJMP(SYS_mutex_unlock)
+ 
+ TEXT runtime·nacl_cond_create(SB),NOSPLIT,$0
+-	MOVW	arg1+0(FP), R0
++	MOVW	flag+0(FP), R0
+ 	NACL_SYSJMP(SYS_cond_create)
+ 
+ TEXT runtime·nacl_cond_wait(SB),NOSPLIT,$0
+-	MOVW	arg1+0(FP), R0
+-	MOVW	arg2+4(FP), R1
++	MOVW	cond+0(FP), R0
++	MOVW	n+4(FP), R1
+ 	NACL_SYSJMP(SYS_cond_wait)
+ 
+ TEXT runtime·nacl_cond_signal(SB),NOSPLIT,$0
+-	MOVW	arg1+0(FP), R0
++	MOVW	cond+0(FP), R0
+ 	NACL_SYSJMP(SYS_cond_signal)
+ 
+ TEXT runtime·nacl_cond_broadcast(SB),NOSPLIT,$0
+-	MOVW	arg1+0(FP), R0
++	MOVW	cond+0(FP), R0
+ 	NACL_SYSJMP(SYS_cond_broadcast)
+ 
+ TEXT runtime·nacl_cond_timed_wait_abs(SB),NOSPLIT,$0
+-	MOVW	arg1+0(FP), R0
+-	MOVW	arg2+4(FP), R1
+-	MOVW	arg3+8(FP), R2
++	MOVW	cond+0(FP), R0
++	MOVW	lock+4(FP), R1
++	MOVW	ts+8(FP), R2
+ 	NACL_SYSJMP(SYS_cond_timed_wait_abs)
+ 
+ TEXT runtime·nacl_thread_create(SB),NOSPLIT,$0
+-	MOVW	arg1+0(FP), R0
+-	MOVW	arg2+4(FP), R1
+-	MOVW	arg3+8(FP), R2
+-	MOVW	arg4+12(FP), R3
++	MOVW	fn+0(FP), R0
++	MOVW	stk+4(FP), R1
++	MOVW	tls+8(FP), R2
++	MOVW	xx+12(FP), R3
+ 	NACL_SYSJMP(SYS_thread_create)
+ 
+ TEXT runtime·mstart_nacl(SB),NOSPLIT,$0
+@@ -128,21 +128,21 @@ TEXT runtime·mstart_nacl(SB),NOSPLIT,$0
+ 	B runtime·mstart(SB)
+ 
+ TEXT runtime·nacl_nanosleep(SB),NOSPLIT,$0
+-	MOVW	arg1+0(FP), R0
+-	MOVW	arg2+4(FP), R1
++	MOVW	ts+0(FP), R0
++	MOVW	extra+4(FP), R1
+ 	NACL_SYSJMP(SYS_nanosleep)
+ 
+ TEXT runtime·osyield(SB),NOSPLIT,$0
+ 	NACL_SYSJMP(SYS_sched_yield)
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$8
+-	MOVW	arg1+0(FP), R0
+-	MOVW	arg2+4(FP), R1
+-	MOVW	arg3+8(FP), R2
+-	MOVW	arg4+12(FP), R3
+-	MOVW	arg5+16(FP), R4
++	MOVW	addr+0(FP), R0
++	MOVW	n+4(FP), R1
++	MOVW	prot+8(FP), R2
++	MOVW	flags+12(FP), R3
++	MOVW	fd+16(FP), R4
+ 	// arg6:offset should be passed as a pointer (to int64)
+-	MOVW	arg6+20(FP), R5
++	MOVW	off+20(FP), R5
+ 	MOVW	R5, 4(R13)
+ 	MOVW	$0, R6
+ 	MOVW	R6, 8(R13)
+@@ -152,6 +152,7 @@ TEXT runtime·mmap(SB),NOSPLIT,$8
+ 	MOVM.IA.W (R13), [R4, R5]
+ 	CMP	$-4095, R0
+ 	RSB.HI	$0, R0
++	MOVW	R0, ret+24(FP)
+ 	RET
+ 
+ TEXT time·now(SB),NOSPLIT,$16
+@@ -188,9 +189,8 @@ TEXT runtime·nanotime(SB),NOSPLIT,$16
+ 	MOVW	$0, R4
+ 	ADD.S	R2, R0
+ 	ADC	R4, R1
+-	MOVW	0(FP), R2
+-	MOVW	R0, 0(R2)
+-	MOVW	R1, 4(R2)
++	MOVW	R0, ret_lo+0(FP)
++	MOVW	R1, ret_hi+4(FP)
+ 	RET
+ 
+ TEXT runtime·sigtramp(SB),NOSPLIT,$80
+diff --git a/src/pkg/runtime/sys_netbsd_386.s b/src/pkg/runtime/sys_netbsd_386.s
+index 4a78cb9d2e..cecc389b5f 100644
+--- a/src/pkg/runtime/sys_netbsd_386.s
++++ b/src/pkg/runtime/sys_netbsd_386.s
+@@ -26,21 +26,25 @@ TEXT runtime·exit1(SB),NOSPLIT,$-4
+ TEXT runtime·open(SB),NOSPLIT,$-4
+ 	MOVL	$5, AX
+ 	INT	$0x80
++	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·close(SB),NOSPLIT,$-4
+ 	MOVL	$6, AX
+ 	INT	$0x80
++	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+ TEXT runtime·read(SB),NOSPLIT,$-4
+ 	MOVL	$3, AX
+ 	INT	$0x80
++	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·write(SB),NOSPLIT,$-4
+ 	MOVL	$4, AX			// sys_write
+ 	INT	$0x80
++	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·usleep(SB),NOSPLIT,$24
+@@ -74,7 +78,7 @@ TEXT runtime·raise(SB),NOSPLIT,$12
+ 	RET
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$36
+-	LEAL	arg0+0(FP), SI
++	LEAL	addr+0(FP), SI
+ 	LEAL	4(SP), DI
+ 	CLD
+ 	MOVSL				// arg 1 - addr
+@@ -89,6 +93,7 @@ TEXT runtime·mmap(SB),NOSPLIT,$36
+ 	STOSL
+ 	MOVL	$197, AX		// sys_mmap
+ 	INT	$0x80
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$-4
+@@ -146,9 +151,8 @@ TEXT runtime·nanotime(SB),NOSPLIT,$32
+ 	ADDL	BX, AX
+ 	ADCL	CX, DX			// add high bits with carry
+ 
+-	MOVL	ret+0(FP), DI
+-	MOVL	AX, 0(DI)
+-	MOVL	DX, 4(DI)
++	MOVL	AX, ret_lo+0(FP)
++	MOVL	DX, ret_hi+4(FP)
+ 	RET
+ 
+ TEXT runtime·getcontext(SB),NOSPLIT,$-4
+@@ -175,7 +179,7 @@ TEXT runtime·sigreturn_tramp(SB),NOSPLIT,$0
+ 	INT	$0x80
+ 
+ TEXT runtime·sigaction(SB),NOSPLIT,$24
+-	LEAL	arg0+0(FP), SI
++	LEAL	sig+0(FP), SI
+ 	LEAL	4(SP), DI
+ 	CLD
+ 	MOVSL				// arg 1 - sig
+@@ -232,7 +236,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$44
+ // int32 lwp_create(void *context, uintptr flags, void *lwpid);
+ TEXT runtime·lwp_create(SB),NOSPLIT,$16
+ 	MOVL	$0, 0(SP)
+-	MOVL	context+0(FP), AX
++	MOVL	ctxt+0(FP), AX
+ 	MOVL	AX, 4(SP)		// arg 1 - context
+ 	MOVL	flags+4(FP), AX
+ 	MOVL	AX, 8(SP)		// arg 2 - flags
+@@ -242,6 +246,7 @@ TEXT runtime·lwp_create(SB),NOSPLIT,$16
+ 	INT	$0x80
+ 	JCC	2(PC)
+ 	NEGL	AX
++	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·lwp_tramp(SB),NOSPLIT,$0
+@@ -312,20 +317,23 @@ TEXT runtime·osyield(SB),NOSPLIT,$-4
+ TEXT runtime·lwp_park(SB),NOSPLIT,$-4
+ 	MOVL	$434, AX		// sys__lwp_park
+ 	INT	$0x80
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+ TEXT runtime·lwp_unpark(SB),NOSPLIT,$-4
+ 	MOVL	$321, AX		// sys__lwp_unpark
+ 	INT	$0x80
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+ TEXT runtime·lwp_self(SB),NOSPLIT,$-4
+ 	MOVL	$311, AX		// sys__lwp_self
+ 	INT	$0x80
++	MOVL	AX, ret+0(FP)
+ 	RET
+ 
+ TEXT runtime·sysctl(SB),NOSPLIT,$28
+-	LEAL	arg0+0(FP), SI
++	LEAL	mib+0(FP), SI
+ 	LEAL	4(SP), DI
+ 	CLD
+ 	MOVSL				// arg 1 - name
+@@ -350,6 +358,7 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	NEGL	AX
++	MOVL	AX, ret+0(FP)
+ 	RET
+ 
+ // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout)
+@@ -358,6 +367,7 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	NEGL	AX
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ // int32 runtime·closeonexec(int32 fd)
+diff --git a/src/pkg/runtime/sys_netbsd_amd64.s b/src/pkg/runtime/sys_netbsd_amd64.s
+index 13b1cdc2f7..5b46dbe707 100644
+--- a/src/pkg/runtime/sys_netbsd_amd64.s
++++ b/src/pkg/runtime/sys_netbsd_amd64.s
+@@ -11,13 +11,14 @@
+ 
+ // int32 lwp_create(void *context, uintptr flags, void *lwpid)
+ TEXT runtime·lwp_create(SB),NOSPLIT,$0
+-	MOVQ	context+0(FP), DI
++	MOVQ	ctxt+0(FP), DI
+ 	MOVQ	flags+8(FP), SI
+ 	MOVQ	lwpid+16(FP), DX
+ 	MOVL	$309, AX		// sys__lwp_create
+ 	SYSCALL
+ 	JCC	2(PC)
+ 	NEGQ	AX
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ TEXT runtime·lwp_tramp(SB),NOSPLIT,$0
+@@ -46,29 +47,32 @@ TEXT runtime·osyield(SB),NOSPLIT,$0
+ 	RET
+ 
+ TEXT runtime·lwp_park(SB),NOSPLIT,$0
+-	MOVQ	8(SP), DI		// arg 1 - abstime
+-	MOVL	16(SP), SI		// arg 2 - unpark
+-	MOVQ	24(SP), DX		// arg 3 - hint
+-	MOVQ	32(SP), R10		// arg 4 - unparkhint
++	MOVQ	abstime+0(FP), DI		// arg 1 - abstime
++	MOVL	unpark+8(FP), SI		// arg 2 - unpark
++	MOVQ	hint+16(FP), DX		// arg 3 - hint
++	MOVQ	unparkhint+24(FP), R10		// arg 4 - unparkhint
+ 	MOVL	$434, AX		// sys__lwp_park
+ 	SYSCALL
++	MOVL	AX, ret+32(FP)
+ 	RET
+ 
+ TEXT runtime·lwp_unpark(SB),NOSPLIT,$0
+-	MOVQ	8(SP), DI		// arg 1 - lwp
+-	MOVL	16(SP), SI		// arg 2 - hint
++	MOVL	lwp+0(FP), DI		// arg 1 - lwp
++	MOVQ	hint+8(FP), SI		// arg 2 - hint
+ 	MOVL	$321, AX		// sys__lwp_unpark
+ 	SYSCALL
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+ TEXT runtime·lwp_self(SB),NOSPLIT,$0
+ 	MOVL	$311, AX		// sys__lwp_self
+ 	SYSCALL
++	MOVL	AX, ret+0(FP)
+ 	RET
+ 
+ // Exit the entire program (like C exit)
+ TEXT runtime·exit(SB),NOSPLIT,$-8
+-	MOVL	8(SP), DI		// arg 1 - exit status
++	MOVL	code+0(FP), DI		// arg 1 - exit status
+ 	MOVL	$1, AX			// sys_exit
+ 	SYSCALL
+ 	MOVL	$0xf1, 0xf1		// crash
+@@ -81,33 +85,37 @@ TEXT runtime·exit1(SB),NOSPLIT,$-8
+ 	RET
+ 
+ TEXT runtime·open(SB),NOSPLIT,$-8
+-	MOVQ	8(SP), DI		// arg 1 pathname
+-	MOVL	16(SP), SI		// arg 2 flags
+-	MOVL	20(SP), DX		// arg 3 mode
++	MOVQ	name+0(FP), DI		// arg 1 pathname
++	MOVL	mode+8(FP), SI		// arg 2 flags
++	MOVL	perm+12(FP), DX		// arg 3 mode
+ 	MOVL	$5, AX
+ 	SYSCALL
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+ TEXT runtime·close(SB),NOSPLIT,$-8
+-	MOVL	8(SP), DI		// arg 1 fd
++	MOVL	fd+0(FP), DI		// arg 1 fd
+ 	MOVL	$6, AX
+ 	SYSCALL
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+ TEXT runtime·read(SB),NOSPLIT,$-8
+-	MOVL	8(SP), DI		// arg 1 fd
+-	MOVQ	16(SP), SI		// arg 2 buf
+-	MOVL	24(SP), DX		// arg 3 count
++	MOVL	fd+0(FP), DI		// arg 1 fd
++	MOVQ	p+8(FP), SI		// arg 2 buf
++	MOVL	n+16(FP), DX		// arg 3 count
+ 	MOVL	$3, AX
+ 	SYSCALL
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ TEXT runtime·write(SB),NOSPLIT,$-8
+-	MOVL	8(SP), DI		// arg 1 - fd
+-	MOVQ	16(SP), SI		// arg 2 - buf
+-	MOVL	24(SP), DX		// arg 3 - nbyte
++	MOVQ	fd+0(FP), DI		// arg 1 - fd
++	MOVQ	p+8(FP), SI		// arg 2 - buf
++	MOVL	n+16(FP), DX		// arg 3 - nbyte
+ 	MOVL	$4, AX			// sys_write
+ 	SYSCALL
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ TEXT runtime·usleep(SB),NOSPLIT,$16
+@@ -136,9 +144,9 @@ TEXT runtime·raise(SB),NOSPLIT,$16
+ 	RET
+ 
+ TEXT runtime·setitimer(SB),NOSPLIT,$-8
+-	MOVL	8(SP), DI		// arg 1 - which
+-	MOVQ	16(SP), SI		// arg 2 - itv
+-	MOVQ	24(SP), DX		// arg 3 - oitv
++	MOVL	mode+0(FP), DI		// arg 1 - which
++	MOVQ	new+8(FP), SI		// arg 2 - itv
++	MOVQ	old+16(FP), DX		// arg 3 - oitv
+ 	MOVL	$425, AX		// sys_setitimer
+ 	SYSCALL
+ 	RET
+@@ -169,10 +177,11 @@ TEXT runtime·nanotime(SB),NOSPLIT,$32
+ 	// return nsec in AX
+ 	IMULQ	$1000000000, AX
+ 	ADDQ	DX, AX
++	MOVQ	AX, ret+0(FP)
+ 	RET
+ 
+ TEXT runtime·getcontext(SB),NOSPLIT,$-8
+-	MOVQ	8(SP), DI		// arg 1 - context
++	MOVQ	ctxt+0(FP), DI		// arg 1 - context
+ 	MOVL	$307, AX		// sys_getcontext
+ 	SYSCALL
+ 	JCC	2(PC)
+@@ -180,9 +189,9 @@ TEXT runtime·getcontext(SB),NOSPLIT,$-8
+ 	RET
+ 
+ TEXT runtime·sigprocmask(SB),NOSPLIT,$0
+-	MOVL	8(SP), DI		// arg 1 - how
+-	MOVQ	16(SP), SI		// arg 2 - set
+-	MOVQ	24(SP), DX		// arg 3 - oset
++	MOVL	mode+0(FP), DI		// arg 1 - how
++	MOVQ	new+8(FP), SI		// arg 2 - set
++	MOVQ	old+16(FP), DX		// arg 3 - oset
+ 	MOVL	$293, AX		// sys_sigprocmask
+ 	SYSCALL
+ 	JCC	2(PC)
+@@ -198,9 +207,9 @@ TEXT runtime·sigreturn_tramp(SB),NOSPLIT,$-8
+ 	SYSCALL
+ 
+ TEXT runtime·sigaction(SB),NOSPLIT,$-8
+-	MOVL	8(SP), DI		// arg 1 - signum
+-	MOVQ	16(SP), SI		// arg 2 - nsa
+-	MOVQ	24(SP), DX		// arg 3 - osa
++	MOVL	sig+0(FP), DI		// arg 1 - signum
++	MOVQ	new+8(FP), SI		// arg 2 - nsa
++	MOVQ	old+16(FP), DX		// arg 3 - osa
+ 					// arg 4 - tramp
+ 	LEAQ	runtime·sigreturn_tramp(SB), R10
+ 	MOVQ	$2, R8			// arg 5 - vers
+@@ -244,23 +253,24 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$64
+ 	RET
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$0
+-	MOVQ	8(SP), DI		// arg 1 - addr
+-	MOVQ	16(SP), SI		// arg 2 - len
+-	MOVL	24(SP), DX		// arg 3 - prot
+-	MOVL	28(SP), R10		// arg 4 - flags
+-	MOVL	32(SP), R8		// arg 5 - fd
+-	MOVQ	36(SP), R9
++	MOVQ	addr+0(FP), DI		// arg 1 - addr
++	MOVQ	n+8(FP), SI		// arg 2 - len
++	MOVL	prot+16(FP), DX		// arg 3 - prot
++	MOVL	flags+20(FP), R10		// arg 4 - flags
++	MOVL	fd+24(FP), R8		// arg 5 - fd
++	MOVL	off+28(FP), R9
+ 	SUBQ	$16, SP
+ 	MOVQ	R9, 8(SP)		// arg 7 - offset (passed on stack)
+ 	MOVQ	$0, R9			// arg 6 - pad
+ 	MOVL	$197, AX		// sys_mmap
+ 	SYSCALL
+ 	ADDQ	$16, SP
++	MOVQ	AX, ret+32(FP)
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$0
+-	MOVQ	8(SP), DI		// arg 1 - addr
+-	MOVQ	16(SP), SI		// arg 2 - len
++	MOVQ	addr+0(FP), DI		// arg 1 - addr
++	MOVQ	n+8(FP), SI		// arg 2 - len
+ 	MOVL	$73, AX			// sys_munmap
+ 	SYSCALL
+ 	JCC	2(PC)
+@@ -270,8 +280,8 @@ TEXT runtime·munmap(SB),NOSPLIT,$0
+ 
+ TEXT runtime·madvise(SB),NOSPLIT,$0
+ 	MOVQ	addr+0(FP), DI		// arg 1 - addr
+-	MOVQ	len+8(FP), SI		// arg 2 - len
+-	MOVQ	behav+16(FP), DX	// arg 3 - behav
++	MOVQ	n+8(FP), SI		// arg 2 - len
++	MOVL	flags+16(FP), DX	// arg 3 - behav
+ 	MOVQ	$75, AX			// sys_madvise
+ 	SYSCALL
+ 	// ignore failure - maybe pages are locked
+@@ -297,18 +307,20 @@ TEXT runtime·settls(SB),NOSPLIT,$8
+ 	RET
+ 
+ TEXT runtime·sysctl(SB),NOSPLIT,$0
+-	MOVQ	8(SP), DI		// arg 1 - name
+-	MOVL	16(SP), SI		// arg 2 - namelen
+-	MOVQ	24(SP), DX		// arg 3 - oldp
+-	MOVQ	32(SP), R10		// arg 4 - oldlenp
+-	MOVQ	40(SP), R8		// arg 5 - newp
+-	MOVQ	48(SP), R9		// arg 6 - newlen
++	MOVQ	mib+0(FP), DI		// arg 1 - name
++	MOVL	miblen+8(FP), SI		// arg 2 - namelen
++	MOVQ	out+16(FP), DX		// arg 3 - oldp
++	MOVQ	size+24(FP), R10		// arg 4 - oldlenp
++	MOVQ	dst+32(FP), R8		// arg 5 - newp
++	MOVQ	ndst+40(FP), R9		// arg 6 - newlen
+ 	MOVQ	$202, AX		// sys___sysctl
+ 	SYSCALL
+-	JCC 3(PC)
++	JCC 4(PC)
+ 	NEGQ	AX
++	MOVL	AX, ret+48(FP)
+ 	RET
+ 	MOVL	$0, AX
++	MOVL	AX, ret+48(FP)
+ 	RET
+ 
+ // int32 runtime·kqueue(void)
+@@ -318,25 +330,27 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
+ 	SYSCALL
+ 	JCC	2(PC)
+ 	NEGQ	AX
++	MOVL	AX, ret+0(FP)
+ 	RET
+ 
+ // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout)
+ TEXT runtime·kevent(SB),NOSPLIT,$0
+-	MOVL	8(SP), DI
+-	MOVQ	16(SP), SI
+-	MOVL	24(SP), DX
+-	MOVQ	32(SP), R10
+-	MOVL	40(SP), R8
+-	MOVQ	48(SP), R9
++	MOVL	fd+0(FP), DI
++	MOVQ	ev1+8(FP), SI
++	MOVL	nev1+16(FP), DX
++	MOVQ	ev2+24(FP), R10
++	MOVL	nev2+32(FP), R8
++	MOVQ	ts+40(FP), R9
+ 	MOVL	$435, AX
+ 	SYSCALL
+ 	JCC	2(PC)
+ 	NEGQ	AX
++	MOVL	AX, ret+48(FP)
+ 	RET
+ 
+ // void runtime·closeonexec(int32 fd)
+ TEXT runtime·closeonexec(SB),NOSPLIT,$0
+-	MOVL	8(SP), DI	// fd
++	MOVL	fd+0(FP), DI	// fd
+ 	MOVQ	$2, SI		// F_SETFD
+ 	MOVQ	$1, DX		// FD_CLOEXEC
+ 	MOVL	$92, AX		// fcntl
+diff --git a/src/pkg/runtime/sys_netbsd_arm.s b/src/pkg/runtime/sys_netbsd_arm.s
+index acf01cf3bb..bf133a2100 100644
+--- a/src/pkg/runtime/sys_netbsd_arm.s
++++ b/src/pkg/runtime/sys_netbsd_arm.s
+@@ -28,11 +28,13 @@ TEXT runtime·open(SB),NOSPLIT,$-8
+ 	MOVW 4(FP), R1
+ 	MOVW 8(FP), R2
+ 	SWI $0xa00005
++	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·close(SB),NOSPLIT,$-8
+ 	MOVW 0(FP), R0
+ 	SWI $0xa00006
++	MOVW	R0, ret+4(FP)
+ 	RET
+ 
+ TEXT runtime·read(SB),NOSPLIT,$-8
+@@ -40,6 +42,7 @@ TEXT runtime·read(SB),NOSPLIT,$-8
+ 	MOVW 4(FP), R1
+ 	MOVW 8(FP), R2
+ 	SWI $0xa00003
++	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·write(SB),NOSPLIT,$-4
+@@ -47,14 +50,16 @@ TEXT runtime·write(SB),NOSPLIT,$-4
+ 	MOVW	4(FP), R1	// arg 2 - buf
+ 	MOVW	8(FP), R2	// arg 3 - nbyte
+ 	SWI $0xa00004	// sys_write
++	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+ // int32 lwp_create(void *context, uintptr flags, void *lwpid)
+ TEXT runtime·lwp_create(SB),NOSPLIT,$0
+-	MOVW context+0(FP), R0
++	MOVW ctxt+0(FP), R0
+ 	MOVW flags+4(FP), R1
+ 	MOVW lwpid+8(FP), R2
+ 	SWI $0xa00135	// sys__lwp_create
++	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·osyield(SB),NOSPLIT,$0
+@@ -67,16 +72,19 @@ TEXT runtime·lwp_park(SB),NOSPLIT,$0
+ 	MOVW 8(FP), R2	// arg 3 - hint
+ 	MOVW 12(FP), R3	// arg 4 - unparkhint
+ 	SWI $0xa001b2	// sys__lwp_park
++	MOVW	R0, ret+16(FP)
+ 	RET
+ 
+ TEXT runtime·lwp_unpark(SB),NOSPLIT,$0
+ 	MOVW	0(FP), R0	// arg 1 - lwp
+ 	MOVW	4(FP), R1	// arg 2 - hint
+ 	SWI $0xa00141 // sys__lwp_unpark
++	MOVW	R0, ret+8(FP)
+ 	RET
+ 
+ TEXT runtime·lwp_self(SB),NOSPLIT,$0
+ 	SWI $0xa00137	// sys__lwp_self
++	MOVW	R0, ret+0(FP)
+ 	RET
+ 
+ TEXT runtime·lwp_tramp(SB),NOSPLIT,$0
+@@ -153,9 +161,8 @@ TEXT runtime·nanotime(SB), NOSPLIT, $32
+ 	ADD.S R2, R0
+ 	ADC R4, R1
+ 
+-	MOVW 0(FP), R3
+-	MOVW R0, 0(R3)
+-	MOVW R1, 4(R3)
++	MOVW R0, ret_lo+0(FP)
++	MOVW R1, ret_hi+4(FP)
+ 	RET
+ 
+ TEXT runtime·getcontext(SB),NOSPLIT,$-4
+@@ -249,6 +256,7 @@ TEXT runtime·mmap(SB),NOSPLIT,$12
+ 	ADD $4, R13 // pass arg 5 and arg 6 on stack
+ 	SWI $0xa000c5	// sys_mmap
+ 	SUB $4, R13
++	MOVW	R0, ret+24(FP)
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$0
+@@ -287,12 +295,14 @@ TEXT runtime·sysctl(SB),NOSPLIT,$8
+ 	ADD $4, R13	// pass arg 5 and 6 on stack
+ 	SWI $0xa000ca	// sys___sysctl
+ 	SUB $4, R13
++	MOVW	R0, ret+24(FP)
+ 	RET
+ 
+ // int32 runtime·kqueue(void)
+ TEXT runtime·kqueue(SB),NOSPLIT,$0
+ 	SWI $0xa00158	// sys_kqueue
+ 	RSB.CS $0, R0
++	MOVW	R0, ret+0(FP)
+ 	RET
+ 
+ // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout)
+@@ -309,6 +319,7 @@ TEXT runtime·kevent(SB),NOSPLIT,$8
+ 	SWI $0xa001b3	// sys___kevent50
+ 	RSB.CS $0, R0
+ 	SUB $4, R13
++	MOVW	R0, ret+24(FP)
+ 	RET
+ 
+ // void runtime·closeonexec(int32 fd)
+diff --git a/src/pkg/runtime/sys_openbsd_386.s b/src/pkg/runtime/sys_openbsd_386.s
+index a94c4e4a8f..596d45a023 100644
+--- a/src/pkg/runtime/sys_openbsd_386.s
++++ b/src/pkg/runtime/sys_openbsd_386.s
+@@ -30,21 +30,25 @@ TEXT runtime·exit1(SB),NOSPLIT,$8
+ TEXT runtime·open(SB),NOSPLIT,$-4
+ 	MOVL	$5, AX
+ 	INT	$0x80
++	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·close(SB),NOSPLIT,$-4
+ 	MOVL	$6, AX
+ 	INT	$0x80
++	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+ TEXT runtime·read(SB),NOSPLIT,$-4
+ 	MOVL	$3, AX
+ 	INT	$0x80
++	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·write(SB),NOSPLIT,$-4
+ 	MOVL	$4, AX			// sys_write
+ 	INT	$0x80
++	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·usleep(SB),NOSPLIT,$24
+@@ -78,7 +82,7 @@ TEXT runtime·raise(SB),NOSPLIT,$12
+ 	RET
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$36
+-	LEAL	arg0+0(FP), SI
++	LEAL	addr+0(FP), SI
+ 	LEAL	4(SP), DI
+ 	CLD
+ 	MOVSL				// arg 1 - addr
+@@ -93,6 +97,7 @@ TEXT runtime·mmap(SB),NOSPLIT,$36
+ 	STOSL
+ 	MOVL	$197, AX		// sys_mmap
+ 	INT	$0x80
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$-4
+@@ -151,9 +156,8 @@ TEXT runtime·nanotime(SB),NOSPLIT,$32
+ 	ADDL	BX, AX
+ 	ADCL	CX, DX			// add high bits with carry
+ 
+-	MOVL	ret+0(FP), DI
+-	MOVL	AX, 0(DI)
+-	MOVL	DX, 4(DI)
++	MOVL	AX, ret_lo+0(FP)
++	MOVL	DX, ret_hi+4(FP)
+ 	RET
+ 
+ TEXT runtime·sigaction(SB),NOSPLIT,$-4
+@@ -168,7 +172,7 @@ TEXT runtime·sigprocmask(SB),NOSPLIT,$-4
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	MOVL	$0xf1, 0xf1		// crash
+-	MOVL	AX, oset+0(FP)
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+ TEXT runtime·sigtramp(SB),NOSPLIT,$44
+@@ -222,22 +226,22 @@ sigtramp_ret:
+ TEXT runtime·tfork(SB),NOSPLIT,$12
+ 
+ 	// Copy mp, gp and fn from the parent stack onto the child stack.
+-	MOVL	params+4(FP), AX
++	MOVL	psize+4(FP), AX
+ 	MOVL	8(AX), CX		// tf_stack
+ 	SUBL	$16, CX
+ 	MOVL	CX, 8(AX)
+-	MOVL	mm+12(FP), SI
++	MOVL	mm+8(FP), SI
+ 	MOVL	SI, 0(CX)
+-	MOVL	gg+16(FP), SI
++	MOVL	gg+12(FP), SI
+ 	MOVL	SI, 4(CX)
+-	MOVL	fn+20(FP), SI
++	MOVL	fn+16(FP), SI
+ 	MOVL	SI, 8(CX)
+ 	MOVL	$1234, 12(CX)
+ 
+ 	MOVL	$0, 0(SP)		// syscall gap
+-	MOVL	params+4(FP), AX
++	MOVL	param+0(FP), AX
+ 	MOVL	AX, 4(SP)		// arg 1 - param
+-	MOVL	psize+8(FP), AX
++	MOVL	psize+4(FP), AX
+ 	MOVL	AX, 8(SP)		// arg 2 - psize
+ 	MOVL	$8, AX			// sys___tfork
+ 	INT	$0x80
+@@ -245,15 +249,15 @@ TEXT runtime·tfork(SB),NOSPLIT,$12
+ 	// Return if tfork syscall failed.
+ 	JCC	5(PC)
+ 	NEGL	AX
+-	MOVL	ret+0(FP), DX
+-	MOVL	AX, 0(DX)
++	MOVL	AX, ret_lo+20(FP)
++	MOVL	$-1, ret_hi+24(FP)
+ 	RET
+ 
+ 	// In parent, return.
+ 	CMPL	AX, $0
+ 	JEQ	4(PC)
+-	MOVL	ret+0(FP), DX
+-	MOVL	AX, 0(DX)
++	MOVL	AX, ret_lo+20(FP)
++	MOVL	$0, ret_hi+24(FP)
+ 	RET
+ 
+ 	// Paranoia: check that SP is as we expect.
+@@ -333,15 +337,17 @@ TEXT runtime·osyield(SB),NOSPLIT,$-4
+ TEXT runtime·thrsleep(SB),NOSPLIT,$-4
+ 	MOVL	$94, AX			// sys___thrsleep
+ 	INT	$0x80
++	MOVL	AX, ret+20(FP)
+ 	RET
+ 
+ TEXT runtime·thrwakeup(SB),NOSPLIT,$-4
+ 	MOVL	$301, AX		// sys___thrwakeup
+ 	INT	$0x80
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+ TEXT runtime·sysctl(SB),NOSPLIT,$28
+-	LEAL	arg0+0(FP), SI
++	LEAL	mib+0(FP), SI
+ 	LEAL	4(SP), DI
+ 	CLD
+ 	MOVSL				// arg 1 - name
+@@ -352,10 +358,12 @@ TEXT runtime·sysctl(SB),NOSPLIT,$28
+ 	MOVSL				// arg 6 - newlen
+ 	MOVL	$202, AX		// sys___sysctl
+ 	INT	$0x80
+-	JCC	3(PC)
++	JCC	4(PC)
+ 	NEGL	AX
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 	MOVL	$0, AX
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ // int32 runtime·kqueue(void);
+@@ -364,6 +372,7 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	NEGL	AX
++	MOVL	AX, ret+0(FP)
+ 	RET
+ 
+ // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
+@@ -372,6 +381,7 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	NEGL	AX
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ // int32 runtime·closeonexec(int32 fd);
+diff --git a/src/pkg/runtime/sys_openbsd_amd64.s b/src/pkg/runtime/sys_openbsd_amd64.s
+index dac90eae10..eb5010164c 100644
+--- a/src/pkg/runtime/sys_openbsd_amd64.s
++++ b/src/pkg/runtime/sys_openbsd_amd64.s
+@@ -25,13 +25,15 @@ TEXT runtime·tfork(SB),NOSPLIT,$32
+ 	SYSCALL
+ 
+ 	// Return if tfork syscall failed.
+-	JCC	3(PC)
++	JCC	4(PC)
+ 	NEGQ	AX
++	MOVQ	AX, ret+40(FP)
+ 	RET
+ 
+ 	// In parent, return.
+ 	CMPL	AX, $0
+-	JEQ	2(PC)
++	JEQ	3(PC)
++	MOVQ	AX, ret+40(FP)
+ 	RET
+ 
+ 	// Set FS to point at m->tls.
+@@ -59,25 +61,27 @@ TEXT runtime·osyield(SB),NOSPLIT,$0
+ 	RET
+ 
+ TEXT runtime·thrsleep(SB),NOSPLIT,$0
+-	MOVQ	8(SP), DI		// arg 1 - ident
+-	MOVL	16(SP), SI		// arg 2 - clock_id
+-	MOVQ	24(SP), DX		// arg 3 - tp
+-	MOVQ	32(SP), R10		// arg 4 - lock
+-	MOVQ	40(SP), R8		// arg 5 - abort
++	MOVQ	ident+0(FP), DI		// arg 1 - ident
++	MOVL	clock_id+8(FP), SI		// arg 2 - clock_id
++	MOVQ	tsp+16(FP), DX		// arg 3 - tp
++	MOVQ	lock+24(FP), R10		// arg 4 - lock
++	MOVQ	abort+32(FP), R8		// arg 5 - abort
+ 	MOVL	$94, AX			// sys___thrsleep
+ 	SYSCALL
++	MOVL	AX, ret+40(FP)
+ 	RET
+ 
+ TEXT runtime·thrwakeup(SB),NOSPLIT,$0
+-	MOVQ	8(SP), DI		// arg 1 - ident
+-	MOVL	16(SP), SI		// arg 2 - n
++	MOVQ	ident+0(FP), DI		// arg 1 - ident
++	MOVL	n+8(FP), SI		// arg 2 - n
+ 	MOVL	$301, AX		// sys___thrwakeup
+ 	SYSCALL
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+ // Exit the entire program (like C exit)
+ TEXT runtime·exit(SB),NOSPLIT,$-8
+-	MOVL	8(SP), DI		// arg 1 - exit status
++	MOVL	code+0(FP), DI		// arg 1 - exit status
+ 	MOVL	$1, AX			// sys_exit
+ 	SYSCALL
+ 	MOVL	$0xf1, 0xf1		// crash
+@@ -91,33 +95,37 @@ TEXT runtime·exit1(SB),NOSPLIT,$-8
+ 	RET
+ 
+ TEXT runtime·open(SB),NOSPLIT,$-8
+-	MOVQ	8(SP), DI		// arg 1 pathname
+-	MOVL	16(SP), SI		// arg 2 flags
+-	MOVL	20(SP), DX		// arg 3 mode
++	MOVQ	name+0(FP), DI		// arg 1 pathname
++	MOVL	mode+8(FP), SI		// arg 2 flags
++	MOVL	perm+12(FP), DX		// arg 3 mode
+ 	MOVL	$5, AX
+ 	SYSCALL
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+ TEXT runtime·close(SB),NOSPLIT,$-8
+-	MOVL	8(SP), DI		// arg 1 fd
++	MOVL	fd+0(FP), DI		// arg 1 fd
+ 	MOVL	$6, AX
+ 	SYSCALL
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+ TEXT runtime·read(SB),NOSPLIT,$-8
+-	MOVL	8(SP), DI		// arg 1 fd
+-	MOVQ	16(SP), SI		// arg 2 buf
+-	MOVL	24(SP), DX		// arg 3 count
++	MOVL	fd+0(FP), DI		// arg 1 fd
++	MOVQ	p+8(FP), SI		// arg 2 buf
++	MOVL	n+16(FP), DX		// arg 3 count
+ 	MOVL	$3, AX
+ 	SYSCALL
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ TEXT runtime·write(SB),NOSPLIT,$-8
+-	MOVL	8(SP), DI		// arg 1 - fd
+-	MOVQ	16(SP), SI		// arg 2 - buf
+-	MOVL	24(SP), DX		// arg 3 - nbyte
++	MOVQ	fd+0(FP), DI		// arg 1 - fd
++	MOVQ	p+8(FP), SI		// arg 2 - buf
++	MOVL	n+16(FP), DX		// arg 3 - nbyte
+ 	MOVL	$4, AX			// sys_write
+ 	SYSCALL
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ TEXT runtime·usleep(SB),NOSPLIT,$16
+@@ -146,9 +154,9 @@ TEXT runtime·raise(SB),NOSPLIT,$16
+ 	RET
+ 
+ TEXT runtime·setitimer(SB),NOSPLIT,$-8
+-	MOVL	8(SP), DI		// arg 1 - which
+-	MOVQ	16(SP), SI		// arg 2 - itv
+-	MOVQ	24(SP), DX		// arg 3 - oitv
++	MOVL	mode+0(FP), DI		// arg 1 - which
++	MOVQ	new+8(FP), SI		// arg 2 - itv
++	MOVQ	old+16(FP), DX		// arg 3 - oitv
+ 	MOVL	$69, AX			// sys_setitimer
+ 	SYSCALL
+ 	RET
+@@ -179,12 +187,13 @@ TEXT runtime·nanotime(SB),NOSPLIT,$24
+ 	// return nsec in AX
+ 	IMULQ	$1000000000, AX
+ 	ADDQ	DX, AX
++	MOVQ	AX, ret+0(FP)
+ 	RET
+ 
+ TEXT runtime·sigaction(SB),NOSPLIT,$-8
+-	MOVL	8(SP), DI		// arg 1 - signum
+-	MOVQ	16(SP), SI		// arg 2 - nsa
+-	MOVQ	24(SP), DX		// arg 3 - osa
++	MOVL	sig+0(FP), DI		// arg 1 - signum
++	MOVQ	new+8(FP), SI		// arg 2 - nsa
++	MOVQ	old+16(FP), DX		// arg 3 - osa
+ 	MOVL	$46, AX
+ 	SYSCALL
+ 	JCC	2(PC)
+@@ -192,13 +201,13 @@ TEXT runtime·sigaction(SB),NOSPLIT,$-8
+ 	RET
+ 
+ TEXT runtime·sigprocmask(SB),NOSPLIT,$0
+-	MOVL	8(SP), DI		// arg 1 - how
+-	MOVL	12(SP), SI		// arg 2 - set
++	MOVL	mode+0(FP), DI		// arg 1 - how
++	MOVL	new+4(FP), SI		// arg 2 - set
+ 	MOVL	$48, AX			// sys_sigprocmask
+ 	SYSCALL
+ 	JCC	2(PC)
+ 	MOVL	$0xf1, 0xf1		// crash
+-	MOVL	AX, oset+0(FP)		// Return oset
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+ TEXT runtime·sigtramp(SB),NOSPLIT,$64
+@@ -235,23 +244,24 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$64
+ 	RET
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$0
+-	MOVQ	8(SP), DI		// arg 1 - addr
+-	MOVQ	16(SP), SI		// arg 2 - len
+-	MOVL	24(SP), DX		// arg 3 - prot
+-	MOVL	28(SP), R10		// arg 4 - flags
+-	MOVL	32(SP), R8		// arg 5 - fd
+-	MOVQ	36(SP), R9
++	MOVQ	addr+0(FP), DI		// arg 1 - addr
++	MOVQ	n+8(FP), SI		// arg 2 - len
++	MOVL	prot+16(FP), DX		// arg 3 - prot
++	MOVL	flags+20(FP), R10		// arg 4 - flags
++	MOVL	fd+24(FP), R8		// arg 5 - fd
++	MOVL	off+28(FP), R9
+ 	SUBQ	$16, SP
+ 	MOVQ	R9, 8(SP)		// arg 7 - offset (passed on stack)
+ 	MOVQ	$0, R9			// arg 6 - pad
+ 	MOVL	$197, AX
+ 	SYSCALL
+ 	ADDQ	$16, SP
++	MOVQ	AX, ret+32(FP)
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$0
+-	MOVQ	8(SP), DI		// arg 1 - addr
+-	MOVQ	16(SP), SI		// arg 2 - len
++	MOVQ	addr+0(FP), DI		// arg 1 - addr
++	MOVQ	n+8(FP), SI		// arg 2 - len
+ 	MOVL	$73, AX			// sys_munmap
+ 	SYSCALL
+ 	JCC	2(PC)
+@@ -260,8 +270,8 @@ TEXT runtime·munmap(SB),NOSPLIT,$0
+ 
+ TEXT runtime·madvise(SB),NOSPLIT,$0
+ 	MOVQ	addr+0(FP), DI		// arg 1 - addr
+-	MOVQ	len+8(FP), SI		// arg 2 - len
+-	MOVQ	behav+16(FP), DX	// arg 3 - behav
++	MOVQ	n+8(FP), SI		// arg 2 - len
++	MOVL	flags+16(FP), DX	// arg 3 - behav
+ 	MOVQ	$75, AX			// sys_madvise
+ 	SYSCALL
+ 	// ignore failure - maybe pages are locked
+@@ -287,18 +297,20 @@ TEXT runtime·settls(SB),NOSPLIT,$0
+ 	RET
+ 
+ TEXT runtime·sysctl(SB),NOSPLIT,$0
+-	MOVQ	8(SP), DI		// arg 1 - name
+-	MOVL	16(SP), SI		// arg 2 - namelen
+-	MOVQ	24(SP), DX		// arg 3 - oldp
+-	MOVQ	32(SP), R10		// arg 4 - oldlenp
+-	MOVQ	40(SP), R8		// arg 5 - newp
+-	MOVQ	48(SP), R9		// arg 6 - newlen
++	MOVQ	mib+0(FP), DI		// arg 1 - name
++	MOVL	miblen+8(FP), SI		// arg 2 - namelen
++	MOVQ	out+16(FP), DX		// arg 3 - oldp
++	MOVQ	size+24(FP), R10		// arg 4 - oldlenp
++	MOVQ	dst+32(FP), R8		// arg 5 - newp
++	MOVQ	ndst+40(FP), R9		// arg 6 - newlen
+ 	MOVQ	$202, AX		// sys___sysctl
+ 	SYSCALL
+-	JCC	3(PC)
++	JCC	4(PC)
+ 	NEGQ	AX
++	MOVL	AX, ret+48(FP)
+ 	RET
+ 	MOVL	$0, AX
++	MOVL	AX, ret+48(FP)
+ 	RET
+ 
+ // int32 runtime·kqueue(void);
+@@ -310,25 +322,27 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
+ 	SYSCALL
+ 	JCC	2(PC)
+ 	NEGQ	AX
++	MOVL	AX, ret+0(FP)
+ 	RET
+ 
+ // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
+ TEXT runtime·kevent(SB),NOSPLIT,$0
+-	MOVL	8(SP), DI
+-	MOVQ	16(SP), SI
+-	MOVL	24(SP), DX
+-	MOVQ	32(SP), R10
+-	MOVL	40(SP), R8
+-	MOVQ	48(SP), R9
++	MOVL	fd+0(FP), DI
++	MOVQ	ev1+8(FP), SI
++	MOVL	nev1+16(FP), DX
++	MOVQ	ev2+24(FP), R10
++	MOVL	nev2+32(FP), R8
++	MOVQ	ts+40(FP), R9
+ 	MOVL	$72, AX
+ 	SYSCALL
+ 	JCC	2(PC)
+ 	NEGQ	AX
++	MOVL	AX, ret+48(FP)
+ 	RET
+ 
+ // void runtime·closeonexec(int32 fd);
+ TEXT runtime·closeonexec(SB),NOSPLIT,$0
+-	MOVL	8(SP), DI	// fd
++	MOVL	fd+0(FP), DI	// fd
+ 	MOVQ	$2, SI		// F_SETFD
+ 	MOVQ	$1, DX		// FD_CLOEXEC
+ 	MOVL	$92, AX		// fcntl
+diff --git a/src/pkg/runtime/sys_plan9_386.s b/src/pkg/runtime/sys_plan9_386.s
+index 5e8c7420e2..08d0b32395 100644
+--- a/src/pkg/runtime/sys_plan9_386.s
++++ b/src/pkg/runtime/sys_plan9_386.s
+@@ -12,31 +12,49 @@ TEXT runtime·setldt(SB),NOSPLIT,$0
+ TEXT runtime·open(SB),NOSPLIT,$0
+ 	MOVL    $14, AX
+ 	INT     $64
++	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·pread(SB),NOSPLIT,$0
+ 	MOVL    $50, AX
+ 	INT     $64
++	MOVL	AX, ret+20(FP)
+ 	RET
+ 
+ TEXT runtime·pwrite(SB),NOSPLIT,$0
+ 	MOVL    $51, AX
+ 	INT     $64
++	MOVL	AX, ret+20(FP)
+ 	RET
+ 
+-TEXT runtime·seek(SB),NOSPLIT,$0
++// int32 _seek(int64*, int32, int64, int32)
++TEXT _seek<>(SB),NOSPLIT,$0
+ 	MOVL	$39, AX
+ 	INT	$64
+-	CMPL	AX, $-1
+-	JNE	4(PC)
+-	MOVL	a+0(FP), CX
+-	MOVL	AX, 0(CX)
+-	MOVL	AX, 4(CX)
++	RET
++
++TEXT runtime·seek(SB),NOSPLIT,$24
++	LEAL	ret+16(FP), AX
++	MOVL	fd+0(FP), BX
++	MOVL	offset_lo+4(FP), CX
++	MOVL	offset_hi+8(FP), DX
++	MOVL	whence+12(FP), SI
++	MOVL	AX, 0(SP)
++	MOVL	BX, 4(SP)
++	MOVL	CX, 8(SP)
++	MOVL	DX, 12(SP)
++	MOVL	SI, 16(SP)
++	CALL	_seek<>(SB)
++	CMPL	AX, $0
++	JGE	3(PC)
++	MOVL	$-1, ret_lo+16(FP)
++	MOVL	$-1, ret_hi+20(FP)
+ 	RET
+ 
+ TEXT runtime·close(SB),NOSPLIT,$0
+ 	MOVL	$4, AX
+ 	INT	$64
++	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+ TEXT runtime·exits(SB),NOSPLIT,$0
+@@ -47,50 +65,62 @@ TEXT runtime·exits(SB),NOSPLIT,$0
+ TEXT runtime·brk_(SB),NOSPLIT,$0
+ 	MOVL    $24, AX
+ 	INT     $64
++	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+ TEXT runtime·sleep(SB),NOSPLIT,$0
+ 	MOVL    $17, AX
+ 	INT     $64
++	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+ TEXT runtime·plan9_semacquire(SB),NOSPLIT,$0
+ 	MOVL	$37, AX
+ 	INT	$64
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+ TEXT runtime·plan9_tsemacquire(SB),NOSPLIT,$0
+ 	MOVL	$52, AX
+ 	INT	$64
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime·nsec(SB),NOSPLIT,$0
++TEXT nsec<>(SB),NOSPLIT,$0
+ 	MOVL	$53, AX
+ 	INT	$64
+-	CMPL	AX, $-1
+-	JNE	4(PC)
+-	MOVL	a+0(FP), CX
+-	MOVL	AX, 0(CX)
+-	MOVL	AX, 4(CX)
++	RET
++
++TEXT runtime·nsec(SB),NOSPLIT,$8
++	LEAL	ret+4(FP), AX
++	MOVL	AX, 0(SP)
++	CALL	nsec<>(SB)
++	CMPL	AX, $0
++	JGE	3(PC)
++	MOVL	$-1, ret_lo+4(FP)
++	MOVL	$-1, ret_hi+8(FP)
+ 	RET
+ 
+ TEXT runtime·notify(SB),NOSPLIT,$0
+ 	MOVL	$28, AX
+ 	INT	$64
++	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+ TEXT runtime·noted(SB),NOSPLIT,$0
+ 	MOVL	$29, AX
+ 	INT	$64
++	MOVL	AX, ret+4(FP)
+ 	RET
+ 	
+ TEXT runtime·plan9_semrelease(SB),NOSPLIT,$0
+ 	MOVL	$38, AX
+ 	INT	$64
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 	
+ TEXT runtime·rfork(SB),NOSPLIT,$0
+-	MOVL    $19, AX // rfork
++	MOVL	$19, AX // rfork
+ 	MOVL	stack+8(SP), CX
+ 	MOVL	mm+12(SP), BX	// m
+ 	MOVL	gg+16(SP), DX	// g
+@@ -99,7 +129,8 @@ TEXT runtime·rfork(SB),NOSPLIT,$0
+ 
+ 	// In parent, return.
+ 	CMPL	AX, $0
+-	JEQ	2(PC)
++	JEQ	3(PC)
++	MOVL	AX, ret+20(FP)
+ 	RET
+ 
+ 	// set SP to be on the new child stack
+@@ -127,6 +158,7 @@ TEXT runtime·rfork(SB),NOSPLIT,$0
+ 	
+ 	CALL	SI	// fn()
+ 	CALL	runtime·exit(SB)
++	MOVL	AX, ret+20(FP)
+ 	RET
+ 
+ // void sigtramp(void *ureg, int8 *note)
+@@ -195,17 +227,17 @@ TEXT runtime·errstr(SB),NOSPLIT,$0
+ 	MOVL	g(AX), BX
+ 	MOVL	g_m(BX), BX
+ 	MOVL	m_errstr(BX), CX
+-	MOVL	CX, 4(SP)
+-	MOVL	$ERRMAX, 8(SP)
++	MOVL	CX, ret_base+0(FP)
++	MOVL	$ERRMAX, ret_len+4(FP)
+ 	MOVL	$41, AX
+ 	INT	$64
+ 
+ 	// syscall requires caller-save
+-	MOVL	4(SP), CX
++	MOVL	ret_base+0(FP), CX
+ 
+ 	// push the argument
+ 	PUSHL	CX
+ 	CALL	runtime·findnull(SB)
+ 	POPL	CX
+-	MOVL	AX, 8(SP)
++	MOVL	AX, ret_len+4(FP)
+ 	RET
+diff --git a/src/pkg/runtime/sys_plan9_amd64.s b/src/pkg/runtime/sys_plan9_amd64.s
+index 8f4a5c05ec..c8fa444996 100644
+--- a/src/pkg/runtime/sys_plan9_amd64.s
++++ b/src/pkg/runtime/sys_plan9_amd64.s
+@@ -12,16 +12,19 @@ TEXT runtime·setldt(SB),NOSPLIT,$0
+ TEXT runtime·open(SB),NOSPLIT,$0
+ 	MOVQ	$14, BP
+ 	SYSCALL
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+ TEXT runtime·pread(SB),NOSPLIT,$0
+ 	MOVQ	$50, BP
+ 	SYSCALL
++	MOVL	AX, ret+32(FP)
+ 	RET
+ 
+ TEXT runtime·pwrite(SB),NOSPLIT,$0
+ 	MOVQ	$51, BP
+ 	SYSCALL
++	MOVL	AX, ret+32(FP)
+ 	RET
+ 
+ // int32 _seek(int64*, int32, int64, int32)
+@@ -31,25 +34,26 @@ TEXT _seek<>(SB),NOSPLIT,$0
+ 	RET
+ 
+ // int64 seek(int32, int64, int32)
+-TEXT runtime·seek(SB),NOSPLIT,$56
+-	LEAQ	new+48(SP), CX
+-	MOVQ	CX, 0(SP)
+-	MOVQ	fd+0(FP), CX
+-	MOVQ	CX, 8(SP)
+-	MOVQ	off+8(FP), CX
++// Convenience wrapper around _seek, the actual system call.
++TEXT runtime·seek(SB),NOSPLIT,$32
++	LEAQ	$ret+24(FP), AX
++	MOVL	fd+0(FP), BX
++	MOVQ	offset+8(FP), CX
++	MOVL	whence+16(FP), DX
++	MOVQ	AX, 0(SP)
++	MOVL	BX, 8(SP)
+ 	MOVQ	CX, 16(SP)
+-	MOVQ	whence+16(FP), CX
+-	MOVQ	CX, 24(SP)
++	MOVL	DX, 24(SP)
+ 	CALL	_seek<>(SB)
+ 	CMPL	AX, $0
+ 	JGE	2(PC)
+-	MOVQ	$-1, new+48(SP)
+-	MOVQ	new+48(SP), AX
++	MOVQ	$-1, ret+24(FP)
+ 	RET
+ 
+ TEXT runtime·close(SB),NOSPLIT,$0
+ 	MOVQ	$4, BP
+ 	SYSCALL
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+ TEXT runtime·exits(SB),NOSPLIT,$0
+@@ -60,41 +64,49 @@ TEXT runtime·exits(SB),NOSPLIT,$0
+ TEXT runtime·brk_(SB),NOSPLIT,$0
+ 	MOVQ	$24, BP
+ 	SYSCALL
++	MOVQ	AX, ret+8(FP)
+ 	RET
+ 
+ TEXT runtime·sleep(SB),NOSPLIT,$0
+ 	MOVQ	$17, BP
+ 	SYSCALL
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+ TEXT runtime·plan9_semacquire(SB),NOSPLIT,$0
+ 	MOVQ	$37, BP
+ 	SYSCALL
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+ TEXT runtime·plan9_tsemacquire(SB),NOSPLIT,$0
+ 	MOVQ	$52, BP
+ 	SYSCALL
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+ TEXT runtime·nsec(SB),NOSPLIT,$0
+ 	MOVQ	$53, BP
+ 	SYSCALL
++	MOVQ	AX, ret+8(FP)
+ 	RET
+ 
+ TEXT runtime·notify(SB),NOSPLIT,$0
+ 	MOVQ	$28, BP
+ 	SYSCALL
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+ TEXT runtime·noted(SB),NOSPLIT,$0
+ 	MOVQ	$29, BP
+ 	SYSCALL
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 	
+ TEXT runtime·plan9_semrelease(SB),NOSPLIT,$0
+ 	MOVQ	$38, BP
+ 	SYSCALL
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+ TEXT runtime·rfork(SB),NOSPLIT,$0
+@@ -103,7 +115,8 @@ TEXT runtime·rfork(SB),NOSPLIT,$0
+ 
+ 	// In parent, return.
+ 	CMPQ	AX, $0
+-	JEQ	2(PC)
++	JEQ	3(PC)
++	MOVL	AX, ret+40(FP)
+ 	RET
+ 
+ 	// In child on forked stack.
+@@ -132,6 +145,7 @@ TEXT runtime·rfork(SB),NOSPLIT,$0
+ 	
+ 	CALL	SI	// fn()
+ 	CALL	runtime·exit(SB)
++	MOVL	AX, ret+40(FP)
+ 	RET
+ 
+ // This is needed by asm_amd64.s
+@@ -208,17 +222,17 @@ TEXT runtime·errstr(SB),NOSPLIT,$0
+ 	MOVQ	g(AX), BX
+ 	MOVQ	g_m(BX), BX
+ 	MOVQ	m_errstr(BX), CX
+-	MOVQ	CX, 8(SP)
+-	MOVQ	$ERRMAX, 16(SP)
++	MOVQ	CX, ret_base+0(FP)
++	MOVQ	$ERRMAX, ret_len+8(FP)
+ 	MOVQ	$41, BP
+ 	SYSCALL
+ 
+ 	// syscall requires caller-save
+-	MOVQ	8(SP), CX
++	MOVQ	ret_base+0(FP), CX
+ 
+ 	// push the argument
+ 	PUSHQ	CX
+ 	CALL	runtime·findnull(SB)
+ 	POPQ	CX
+-	MOVQ	AX, 16(SP)
++	MOVQ	AX, ret_len+8(FP)
+ 	RET
+diff --git a/src/pkg/runtime/sys_solaris_amd64.s b/src/pkg/runtime/sys_solaris_amd64.s
+index 1b18c8d9eb..60447d3499 100644
+--- a/src/pkg/runtime/sys_solaris_amd64.s
++++ b/src/pkg/runtime/sys_solaris_amd64.s
+@@ -44,6 +44,7 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$0
+ 	IMULQ	$1000000000, AX	// multiply into nanoseconds
+ 	ADDQ	8(SP), AX	// tv_nsec, offset should be stable.
+ 	ADDQ	$64, SP
++	MOVQ	AX, ret+0(FP)
+ 	RET
+ 
+ // pipe(3c) wrapper that returns fds in AX, DX.
+@@ -137,6 +138,7 @@ TEXT runtime·tstart_sysvicall(SB),NOSPLIT,$0
+ 	CALL	runtime·mstart(SB)
+ 
+ 	XORL	AX, AX			// return 0 == success
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+ // Careful, this is called by __sighndlr, a libc function. We must preserve
+@@ -274,7 +276,7 @@ exit:
+ // Called from runtime·usleep (Go). Can be called on Go stack, on OS stack,
+ // can also be called in cgo callback path without a g->m.
+ TEXT runtime·usleep1(SB),NOSPLIT,$0
+-	MOVL	us+0(FP), DI
++	MOVL	usec+0(FP), DI
+ 	MOVQ	$runtime·usleep2(SB), AX // to hide from 6l
+ 
+ 	// Execute call on m->g0.
+diff --git a/src/pkg/runtime/sys_windows_386.s b/src/pkg/runtime/sys_windows_386.s
+index f2c2a4128c..2a1f4f929c 100644
+--- a/src/pkg/runtime/sys_windows_386.s
++++ b/src/pkg/runtime/sys_windows_386.s
+@@ -7,7 +7,7 @@
+ 
+ // void runtime·asmstdcall(void *c);
+ TEXT runtime·asmstdcall(SB),NOSPLIT,$0
+-	MOVL	c+0(FP), BX
++	MOVL	fn+0(FP), BX
+ 
+ 	// SetLastError(0).
+ 	MOVL	$0, 0x34(FS)
+@@ -29,7 +29,7 @@ TEXT runtime·asmstdcall(SB),NOSPLIT,$0
+ 	MOVL	BP, SP
+ 
+ 	// Return result.
+-	MOVL	c+0(FP), BX
++	MOVL	fn+0(FP), BX
+ 	MOVL	AX, libcall_r1(BX)
+ 	MOVL	DX, libcall_r2(BX)
+ 
+@@ -62,6 +62,7 @@ TEXT	runtime·badsignal2(SB),NOSPLIT,$24
+ // faster get/set last error
+ TEXT runtime·getlasterror(SB),NOSPLIT,$0
+ 	MOVL	0x34(FS), AX
++	MOVL	AX, ret+0(FP)
+ 	RET
+ 
+ TEXT runtime·setlasterror(SB),NOSPLIT,$0
+@@ -301,7 +302,7 @@ TEXT runtime·setldt(SB),NOSPLIT,$0
+ 
+ // Sleep duration is in 100ns units.
+ TEXT runtime·usleep1(SB),NOSPLIT,$0
+-	MOVL	duration+0(FP), BX
++	MOVL	usec+0(FP), BX
+ 	MOVL	$runtime·usleep2(SB), AX // to hide from 8l
+ 
+ 	// Execute call on m->g0 stack, in case we are not actually
+@@ -323,7 +324,7 @@ TEXT runtime·usleep1(SB),NOSPLIT,$0
+ 	MOVL	SI, m_libcallg(BP)
+ 	// sp must be the last, because once async cpu profiler finds
+ 	// all three values to be non-zero, it will use them
+-	LEAL	4(SP), SI
++	LEAL	usec+0(FP), SI
+ 	MOVL	SI, m_libcallsp(BP)
+ 
+ 	MOVL	m_g0(BP), SI
+diff --git a/src/pkg/runtime/sys_windows_amd64.s b/src/pkg/runtime/sys_windows_amd64.s
+index 73b1ba6d8c..60302622cb 100644
+--- a/src/pkg/runtime/sys_windows_amd64.s
++++ b/src/pkg/runtime/sys_windows_amd64.s
+@@ -87,6 +87,7 @@ TEXT runtime·badsignal2(SB),NOSPLIT,$48
+ TEXT runtime·getlasterror(SB),NOSPLIT,$0
+ 	MOVQ	0x30(GS), AX
+ 	MOVL	0x68(AX), AX
++	MOVL	AX, ret+0(FP)
+ 	RET
+ 
+ TEXT runtime·setlasterror(SB),NOSPLIT,$0
+@@ -323,7 +324,7 @@ TEXT runtime·settls(SB),NOSPLIT,$0
+ 
+ // Sleep duration is in 100ns units.
+ TEXT runtime·usleep1(SB),NOSPLIT,$0
+-	MOVL	duration+0(FP), BX
++	MOVL	usec+0(FP), BX
+ 	MOVQ	$runtime·usleep2(SB), AX // to hide from 6l
+ 
+ 	// Execute call on m->g0 stack, in case we are not actually
+@@ -345,7 +346,7 @@ TEXT runtime·usleep1(SB),NOSPLIT,$0
+ 	MOVQ	R12, m_libcallg(R13)
+ 	// sp must be the last, because once async cpu profiler finds
+ 	// all three values to be non-zero, it will use them
+-	LEAQ	8(SP), R12
++	LEAQ	usec+0(FP), R12
+ 	MOVQ	R12, m_libcallsp(R13)
+ 
+ 	MOVQ	m_g0(R13), R14
+diff --git a/src/pkg/runtime/vlop_386.s b/src/pkg/runtime/vlop_386.s
+index 9783fdc936..f3d792c724 100644
+--- a/src/pkg/runtime/vlop_386.s
++++ b/src/pkg/runtime/vlop_386.s
+@@ -29,7 +29,7 @@
+  * C runtime for 64-bit divide.
+  */
+ 
+-// _mul64x32(r *uint64, a uint64, b uint32)
++// _mul64x32(r *uint64, a uint64, b uint32) uint32
+ // sets *r = low 64 bits of 96-bit product a*b; returns high 32 bits.
+ TEXT _mul64by32(SB), NOSPLIT, $0
+ 	MOVL	r+0(FP), CX
+@@ -43,6 +43,7 @@ TEXT _mul64by32(SB), NOSPLIT, $0
+ 	ADCL	$0, DX
+ 	MOVL	BX, 4(CX)
+ 	MOVL	DX, AX
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+ TEXT _div64by32(SB), NOSPLIT, $0
+@@ -51,4 +52,5 @@ TEXT _div64by32(SB), NOSPLIT, $0
+ 	MOVL	a+4(FP), DX
+ 	DIVL	b+8(FP)
+ 	MOVL	DX, 0(CX)
++	MOVL	AX, ret+16(FP)
+ 	RET
+diff --git a/src/pkg/runtime/vlop_arm.s b/src/pkg/runtime/vlop_arm.s
+index 02bab3107e..3b5243c3d2 100644
+--- a/src/pkg/runtime/vlop_arm.s
++++ b/src/pkg/runtime/vlop_arm.s
+@@ -31,18 +31,17 @@ arg=0
+ /* replaced use of R10 by R11 because the former can be the data segment base register */
+ 
+ TEXT _mulv(SB), NOSPLIT, $0
+-	MOVW	0(FP), R0
+-	MOVW	4(FP), R2	/* l0 */
+-	MOVW	8(FP), R11	/* h0 */
+-	MOVW	12(FP), R4	/* l1 */
+-	MOVW	16(FP), R5	/* h1 */
++	MOVW	l0+0(FP), R2	/* l0 */
++	MOVW	h0+4(FP), R11	/* h0 */
++	MOVW	l1+8(FP), R4	/* l1 */
++	MOVW	h1+12(FP), R5	/* h1 */
+ 	MULLU	R4, R2, (R7,R6)
+ 	MUL	R11, R4, R8
+ 	ADD	R8, R7
+ 	MUL	R2, R5, R8
+ 	ADD	R8, R7
+-	MOVW	R6, 0(R(arg))
+-	MOVW	R7, 4(R(arg))
++	MOVW	R6, ret_lo+16(FP)
++	MOVW	R7, ret_hi+20(FP)
+ 	RET
+ 
+ // trampoline for _sfloat2. passes LR as arg0 and
+diff --git a/src/pkg/runtime/vlrt_arm.c b/src/pkg/runtime/vlrt.c
+similarity index 55%
+rename from src/pkg/runtime/vlrt_arm.c
+rename to src/pkg/runtime/vlrt.c
+index b342a3eb86..cab74c5fe8 100644
+--- a/src/pkg/runtime/vlrt_arm.c
++++ b/src/pkg/runtime/vlrt.c
+@@ -1,5 +1,5 @@
+-// Inferno's libkern/vlrt-arm.c
+-// http://code.google.com/p/inferno-os/source/browse/libkern/vlrt-arm.c
++// Inferno's libkern/vlrt-386.c
++// http://code.google.com/p/inferno-os/source/browse/libkern/vlrt-386.c
+ //
+ //         Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+ //         Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.
+@@ -23,55 +23,77 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++// +build arm 386
++
+ #include "../../cmd/ld/textflag.h"
+ 
+-// declared here to avoid include of runtime.h
++/*
++ * C runtime for 64-bit divide, others.
++ *
++ * TODO(rsc): The simple functions are dregs--8c knows how
++ * to generate the code directly now.  Find and remove.
++ */
++
+ void	runtime·panicstring(char*);
+ void	runtime·panicdivide(void);
+ 
+-typedef unsigned long   ulong;
+-typedef unsigned int    uint;
+-typedef unsigned short  ushort;
+-typedef unsigned char   uchar;
+-typedef signed char     schar;
++typedef	unsigned long	ulong;
++typedef	unsigned int	uint;
++typedef	unsigned short	ushort;
++typedef	unsigned char	uchar;
++typedef	signed char	schar;
++
++#define	SIGN(n)	(1UL<<(n-1))
+ 
+-#define SIGN(n) (1UL<<(n-1))
++typedef	struct	Vlong	Vlong;
++struct	Vlong
++{
++	ulong	lo;
++	ulong	hi;
++};
+ 
+-typedef struct  Vlong   Vlong;
+-struct  Vlong
++typedef	union	Vlong64	Vlong64;
++union	Vlong64
+ {
+-	ulong   lo;
+-	ulong   hi;
++	long long	v;
++	Vlong	v2;
+ };
+ 
+-void    runtime·abort(void);
++void	runtime·abort(void);
+ 
+ #pragma textflag NOSPLIT
+-void
+-_addv(Vlong *r, Vlong a, Vlong b)
++Vlong
++_addv(Vlong a, Vlong b)
+ {
+-	r->lo = a.lo + b.lo;
+-	r->hi = a.hi + b.hi;
+-	if(r->lo < a.lo)
+-		r->hi++;
++	Vlong r;
++
++	r.lo = a.lo + b.lo;
++	r.hi = a.hi + b.hi;
++	if(r.lo < a.lo)
++		r.hi++;
++	return r;
+ }
+ 
+ #pragma textflag NOSPLIT
+-void
+-_subv(Vlong *r, Vlong a, Vlong b)
++Vlong
++_subv(Vlong a, Vlong b)
+ {
+-	r->lo = a.lo - b.lo;
+-	r->hi = a.hi - b.hi;
+-	if(r->lo > a.lo)
+-		r->hi--;
++	Vlong r;
++
++	r.lo = a.lo - b.lo;
++	r.hi = a.hi - b.hi;
++	if(r.lo > a.lo)
++		r.hi--;
++	return r;
+ }
+ 
+-void
+-_d2v(Vlong *y, double d)
++Vlong
++_d2v(double d)
+ {
+ 	union { double d; Vlong vl; } x;
+ 	ulong xhi, xlo, ylo, yhi;
+ 	int sh;
++	Vlong y;
+ 
+ 	x.d = d;
+ 
+@@ -102,12 +124,12 @@ _d2v(Vlong *y, double d)
+ 	} else {
+ 		/* v = (hi||lo) << -sh */
+ 		sh = -sh;
+-		if(sh <= 11) {
++		if(sh <= 10) { /* NOTE: sh <= 11 on ARM??? */
+ 			ylo = xlo << sh;
+ 			yhi = (xhi << sh) | (xlo >> (32-sh));
+ 		} else {
+ 			/* overflow */
+-			yhi = d;        /* causes something awful */
++			yhi = d;	/* causes something awful */
+ 		}
+ 	}
+ 	if(x.vl.hi & SIGN(32)) {
+@@ -118,14 +140,15 @@ _d2v(Vlong *y, double d)
+ 			yhi = -yhi;
+ 	}
+ 
+-	y->hi = yhi;
+-	y->lo = ylo;
++	y.hi = yhi;
++	y.lo = ylo;
++	return y;
+ }
+ 
+-void
+-_f2v(Vlong *y, float f)
++Vlong
++_f2v(float f)
+ {
+-	_d2v(y, f);
++	return _d2v(f);
+ }
+ 
+ double
+@@ -150,7 +173,7 @@ _v2d(Vlong x)
+ 			x.hi = -x.hi;
+ 		return -(_ul2d(x.hi)*4294967296. + _ul2d(x.lo));
+ 	}
+-	return x.hi*4294967296. + _ul2d(x.lo);
++	return (long)x.hi*4294967296. + x.lo;
+ }
+ 
+ float
+@@ -159,8 +182,11 @@ _v2f(Vlong x)
+ 	return _v2d(x);
+ }
+ 
++ulong	_div64by32(Vlong, ulong, ulong*);
++int	_mul64by32(Vlong*, Vlong, ulong);
++
+ static void
+-dodiv(Vlong num, Vlong den, Vlong *q, Vlong *r)
++slowdodiv(Vlong num, Vlong den, Vlong *q, Vlong *r)
+ {
+ 	ulong numlo, numhi, denhi, denlo, quohi, quolo, t;
+ 	int i;
+@@ -221,40 +247,107 @@ dodiv(Vlong num, Vlong den, Vlong *q, Vlong *r)
+ 	}
+ }
+ 
+-void
+-_divvu(Vlong *q, Vlong n, Vlong d)
++#ifdef GOARCH_arm
++static void
++dodiv(Vlong num, Vlong den, Vlong *qp, Vlong *rp)
+ {
++	slowdodiv(num, den, qp, rp);
++}
++#endif
+ 
+-	if(n.hi == 0 && d.hi == 0) {
+-		q->hi = 0;
+-		q->lo = n.lo / d.lo;
++#ifdef GOARCH_386
++static void
++dodiv(Vlong num, Vlong den, Vlong *qp, Vlong *rp)
++{
++	ulong n;
++	Vlong x, q, r;
++	
++	if(den.hi > num.hi || (den.hi == num.hi && den.lo > num.lo)){
++		if(qp) {
++			qp->hi = 0;
++			qp->lo = 0;
++		}
++		if(rp) {
++			rp->hi = num.hi;
++			rp->lo = num.lo;
++		}
+ 		return;
+ 	}
+-	dodiv(n, d, q, 0);
++
++	if(den.hi != 0){
++		q.hi = 0;
++		n = num.hi/den.hi;
++		if(_mul64by32(&x, den, n) || x.hi > num.hi || (x.hi == num.hi && x.lo > num.lo))
++			slowdodiv(num, den, &q, &r);
++		else {
++			q.lo = n;
++			*(long long*)&r = *(long long*)&num - *(long long*)&x;
++		}
++	} else {
++		if(num.hi >= den.lo){
++			if(den.lo == 0)
++				runtime·panicdivide();
++			q.hi = n = num.hi/den.lo;
++			num.hi -= den.lo*n;
++		} else {
++			q.hi = 0;
++		}
++		q.lo = _div64by32(num, den.lo, &r.lo);
++		r.hi = 0;
++	}
++	if(qp) {
++		qp->lo = q.lo;
++		qp->hi = q.hi;
++	}
++	if(rp) {
++		rp->lo = r.lo;
++		rp->hi = r.hi;
++	}
+ }
++#endif
+ 
+-void
+-runtime·uint64div(Vlong n, Vlong d, Vlong q)
++Vlong
++_divvu(Vlong n, Vlong d)
+ {
+-	_divvu(&q, n, d);
++	Vlong q;
++
++	if(n.hi == 0 && d.hi == 0) {
++		if(d.lo == 0)
++			runtime·panicdivide();
++		q.hi = 0;
++		q.lo = n.lo / d.lo;
++		return q;
++	}
++	dodiv(n, d, &q, 0);
++	return q;
++}
++
++Vlong
++runtime·uint64div(Vlong n, Vlong d)
++{
++	return _divvu(n, d);
+ }
+ 
+-void
+-_modvu(Vlong *r, Vlong n, Vlong d)
++Vlong
++_modvu(Vlong n, Vlong d)
+ {
++	Vlong r;
+ 
+ 	if(n.hi == 0 && d.hi == 0) {
+-		r->hi = 0;
+-		r->lo = n.lo % d.lo;
+-		return;
++		if(d.lo == 0)
++			runtime·panicdivide();
++		r.hi = 0;
++		r.lo = n.lo % d.lo;
++		return r;
+ 	}
+-	dodiv(n, d, 0, r);
++	dodiv(n, d, 0, &r);
++	return r;
+ }
+ 
+-void
+-runtime·uint64mod(Vlong n, Vlong d, Vlong q)
++Vlong
++runtime·uint64mod(Vlong n, Vlong d)
+ {
+-	_modvu(&q, n, d);
++	return _modvu(n, d);
+ }
+ 
+ static void
+@@ -269,21 +362,25 @@ vneg(Vlong *v)
+ 	v->hi = ~v->hi;
+ }
+ 
+-void
+-_divv(Vlong *q, Vlong n, Vlong d)
++Vlong
++_divv(Vlong n, Vlong d)
+ {
+ 	long nneg, dneg;
++	Vlong q;
+ 
+ 	if(n.hi == (((long)n.lo)>>31) && d.hi == (((long)d.lo)>>31)) {
+ 		if((long)n.lo == -0x80000000 && (long)d.lo == -1) {
+-			// special case: 32-bit -0x80000000 / -1 causes wrong sign
+-			q->lo = 0x80000000;
+-			q->hi = 0;
+-			return;
++			// special case: 32-bit -0x80000000 / -1 causes divide error,
++			// but it's okay in this 64-bit context.
++			q.lo = 0x80000000;
++			q.hi = 0;
++			return q;
+ 		}
+-		q->lo = (long)n.lo / (long)d.lo;
+-		q->hi = ((long)q->lo) >> 31;
+-		return;
++		if(d.lo == 0)
++			runtime·panicdivide();
++		q.lo = (long)n.lo / (long)d.lo;
++		q.hi = ((long)q.lo) >> 31;
++		return q;
+ 	}
+ 	nneg = n.hi >> 31;
+ 	if(nneg)
+@@ -291,26 +388,37 @@ _divv(Vlong *q, Vlong n, Vlong d)
+ 	dneg = d.hi >> 31;
+ 	if(dneg)
+ 		vneg(&d);
+-	dodiv(n, d, q, 0);
++	dodiv(n, d, &q, 0);
+ 	if(nneg != dneg)
+-		vneg(q);
++		vneg(&q);
++	return q;
+ }
+ 
+-void
+-runtime·int64div(Vlong n, Vlong d, Vlong q)
++Vlong
++runtime·int64div(Vlong n, Vlong d)
+ {
+-	_divv(&q, n, d);
++	return _divv(n, d);
+ }
+ 
+-void
+-_modv(Vlong *r, Vlong n, Vlong d)
++Vlong
++_modv(Vlong n, Vlong d)
+ {
+ 	long nneg, dneg;
++	Vlong r;
+ 
+ 	if(n.hi == (((long)n.lo)>>31) && d.hi == (((long)d.lo)>>31)) {
+-		r->lo = (long)n.lo % (long)d.lo;
+-		r->hi = ((long)r->lo) >> 31;
+-		return;
++		if((long)n.lo == -0x80000000 && (long)d.lo == -1) {
++			// special case: 32-bit -0x80000000 % -1 causes divide error,
++			// but it's okay in this 64-bit context.
++			r.lo = 0;
++			r.hi = 0;
++			return r;
++		}
++		if(d.lo == 0)
++			runtime·panicdivide();
++		r.lo = (long)n.lo % (long)d.lo;
++		r.hi = ((long)r.lo) >> 31;
++		return r;
+ 	}
+ 	nneg = n.hi >> 31;
+ 	if(nneg)
+@@ -318,318 +426,348 @@ _modv(Vlong *r, Vlong n, Vlong d)
+ 	dneg = d.hi >> 31;
+ 	if(dneg)
+ 		vneg(&d);
+-	dodiv(n, d, 0, r);
++	dodiv(n, d, 0, &r);
+ 	if(nneg)
+-		vneg(r);
++		vneg(&r);
++	return r;
+ }
+ 
+-void
+-runtime·int64mod(Vlong n, Vlong d, Vlong q)
++Vlong
++runtime·int64mod(Vlong n, Vlong d)
+ {
+-	_modv(&q, n, d);
++	return _modv(n, d);
+ }
+ 
+-void
+-_rshav(Vlong *r, Vlong a, int b)
++Vlong
++_rshav(Vlong a, int b)
+ {
+ 	long t;
++	Vlong r;
+ 
+ 	t = a.hi;
+ 	if(b >= 32) {
+-		r->hi = t>>31;
++		r.hi = t>>31;
+ 		if(b >= 64) {
+ 			/* this is illegal re C standard */
+-			r->lo = t>>31;
+-			return;
++			r.lo = t>>31;
++			return r;
+ 		}
+-		r->lo = t >> (b-32);
+-		return;
++		r.lo = t >> (b-32);
++		return r;
+ 	}
+ 	if(b <= 0) {
+-		r->hi = t;
+-		r->lo = a.lo;
+-		return;
++		r.hi = t;
++		r.lo = a.lo;
++		return r;
+ 	}
+-	r->hi = t >> b;
+-	r->lo = (t << (32-b)) | (a.lo >> b);
++	r.hi = t >> b;
++	r.lo = (t << (32-b)) | (a.lo >> b);
++	return r;
+ }
+ 
+-void
+-_rshlv(Vlong *r, Vlong a, int b)
++Vlong
++_rshlv(Vlong a, int b)
+ {
+ 	ulong t;
++	Vlong r;
+ 
+ 	t = a.hi;
+ 	if(b >= 32) {
+-		r->hi = 0;
++		r.hi = 0;
+ 		if(b >= 64) {
+ 			/* this is illegal re C standard */
+-			r->lo = 0;
+-			return;
++			r.lo = 0;
++			return r;
+ 		}
+-		r->lo = t >> (b-32);
+-		return;
++		r.lo = t >> (b-32);
++		return r;
+ 	}
+ 	if(b <= 0) {
+-		r->hi = t;
+-		r->lo = a.lo;
+-		return;
++		r.hi = t;
++		r.lo = a.lo;
++		return r;
+ 	}
+-	r->hi = t >> b;
+-	r->lo = (t << (32-b)) | (a.lo >> b);
++	r.hi = t >> b;
++	r.lo = (t << (32-b)) | (a.lo >> b);
++	return r;
+ }
+ 
+ #pragma textflag NOSPLIT
+-void
+-_lshv(Vlong *r, Vlong a, int b)
++Vlong
++_lshv(Vlong a, int b)
+ {
++	ulong t;
++
++	t = a.lo;
+ 	if(b >= 32) {
+-		r->lo = 0;
+ 		if(b >= 64) {
+ 			/* this is illegal re C standard */
+-			r->hi = 0;
+-			return;
++			return (Vlong){0, 0};
+ 		}
+-		r->hi = a.lo << (b-32);
+-		return;
++		return (Vlong){0, t<<(b-32)};
+ 	}
+ 	if(b <= 0) {
+-		r->lo = a.lo;
+-		r->hi = a.hi;
+-		return;
++		return (Vlong){t, a.hi};
+ 	}
+-	r->lo = a.lo << b;
+-	r->hi = (a.lo >> (32-b)) | (a.hi << b);
++	return (Vlong){t<<b, (t >> (32-b)) | (a.hi << b)};
+ }
+ 
+-void
+-_andv(Vlong *r, Vlong a, Vlong b)
++Vlong
++_andv(Vlong a, Vlong b)
+ {
+-	r->hi = a.hi & b.hi;
+-	r->lo = a.lo & b.lo;
++	Vlong r;
++
++	r.hi = a.hi & b.hi;
++	r.lo = a.lo & b.lo;
++	return r;
+ }
+ 
+-void
+-_orv(Vlong *r, Vlong a, Vlong b)
++Vlong
++_orv(Vlong a, Vlong b)
+ {
+-	r->hi = a.hi | b.hi;
+-	r->lo = a.lo | b.lo;
++	Vlong r;
++
++	r.hi = a.hi | b.hi;
++	r.lo = a.lo | b.lo;
++	return r;
+ }
+ 
+-void
+-_xorv(Vlong *r, Vlong a, Vlong b)
++Vlong
++_xorv(Vlong a, Vlong b)
+ {
+-	r->hi = a.hi ^ b.hi;
+-	r->lo = a.lo ^ b.lo;
++	Vlong r;
++
++	r.hi = a.hi ^ b.hi;
++	r.lo = a.lo ^ b.lo;
++	return r;
+ }
+ 
+-void
+-_vpp(Vlong *l, Vlong *r)
++Vlong
++_vpp(Vlong *r)
+ {
++	Vlong l;
+ 
+-	l->hi = r->hi;
+-	l->lo = r->lo;
++	l = *r;
+ 	r->lo++;
+ 	if(r->lo == 0)
+ 		r->hi++;
++	return l;
+ }
+ 
+-void
+-_vmm(Vlong *l, Vlong *r)
++Vlong
++_vmm(Vlong *r)
+ {
++	Vlong l;
+ 
+-	l->hi = r->hi;
+-	l->lo = r->lo;
++	l = *r;
+ 	if(r->lo == 0)
+ 		r->hi--;
+ 	r->lo--;
++	return l;
+ }
+ 
+-void
+-_ppv(Vlong *l, Vlong *r)
++Vlong
++_ppv(Vlong *r)
+ {
+ 
+ 	r->lo++;
+ 	if(r->lo == 0)
+ 		r->hi++;
+-	l->hi = r->hi;
+-	l->lo = r->lo;
++	return *r;
+ }
+ 
+-void
+-_mmv(Vlong *l, Vlong *r)
++Vlong
++_mmv(Vlong *r)
+ {
+ 
+ 	if(r->lo == 0)
+ 		r->hi--;
+ 	r->lo--;
+-	l->hi = r->hi;
+-	l->lo = r->lo;
++	return *r;
+ }
+ 
+ #pragma textflag NOSPLIT
+-void
+-_vasop(Vlong *ret, void *lv, void fn(Vlong*, Vlong, Vlong), int type, Vlong rv)
++Vlong
++_vasop(void *lv, Vlong fn(Vlong, Vlong), int type, Vlong rv)
+ {
+ 	Vlong t, u;
+ 
+-	u = *ret;
++	u.lo = 0;
++	u.hi = 0;
+ 	switch(type) {
+ 	default:
+ 		runtime·abort();
+ 		break;
+ 
+-	case 1: /* schar */
++	case 1:	/* schar */
+ 		t.lo = *(schar*)lv;
+ 		t.hi = t.lo >> 31;
+-		fn(&u, t, rv);
++		u = fn(t, rv);
+ 		*(schar*)lv = u.lo;
+ 		break;
+ 
+-	case 2: /* uchar */
++	case 2:	/* uchar */
+ 		t.lo = *(uchar*)lv;
+ 		t.hi = 0;
+-		fn(&u, t, rv);
++		u = fn(t, rv);
+ 		*(uchar*)lv = u.lo;
+ 		break;
+ 
+-	case 3: /* short */
++	case 3:	/* short */
+ 		t.lo = *(short*)lv;
+ 		t.hi = t.lo >> 31;
+-		fn(&u, t, rv);
++		u = fn(t, rv);
+ 		*(short*)lv = u.lo;
+ 		break;
+ 
+-	case 4: /* ushort */
++	case 4:	/* ushort */
+ 		t.lo = *(ushort*)lv;
+ 		t.hi = 0;
+-		fn(&u, t, rv);
++		u = fn(t, rv);
+ 		*(ushort*)lv = u.lo;
+ 		break;
+ 
+-	case 9: /* int */
++	case 9:	/* int */
+ 		t.lo = *(int*)lv;
+ 		t.hi = t.lo >> 31;
+-		fn(&u, t, rv);
++		u = fn(t, rv);
+ 		*(int*)lv = u.lo;
+ 		break;
+ 
+-	case 10:        /* uint */
++	case 10:	/* uint */
+ 		t.lo = *(uint*)lv;
+ 		t.hi = 0;
+-		fn(&u, t, rv);
++		u = fn(t, rv);
+ 		*(uint*)lv = u.lo;
+ 		break;
+ 
+-	case 5: /* long */
++	case 5:	/* long */
+ 		t.lo = *(long*)lv;
+ 		t.hi = t.lo >> 31;
+-		fn(&u, t, rv);
++		u = fn(t, rv);
+ 		*(long*)lv = u.lo;
+ 		break;
+ 
+-	case 6: /* ulong */
++	case 6:	/* ulong */
+ 		t.lo = *(ulong*)lv;
+ 		t.hi = 0;
+-		fn(&u, t, rv);
++		u = fn(t, rv);
+ 		*(ulong*)lv = u.lo;
+ 		break;
+ 
+-	case 7: /* vlong */
+-	case 8: /* uvlong */
+-		fn(&u, *(Vlong*)lv, rv);
++	case 7:	/* vlong */
++	case 8:	/* uvlong */
++		if((void*)fn == _lshv || (void*)fn == _rshav || (void*)fn == _rshlv)
++			u = ((Vlong(*)(Vlong,int))fn)(*(Vlong*)lv, *(int*)&rv);
++		else
++			u = fn(*(Vlong*)lv, rv);
+ 		*(Vlong*)lv = u;
+ 		break;
+ 	}
+-	*ret = u;
++	return u;
+ }
+ 
+-void
+-_p2v(Vlong *ret, void *p)
++Vlong
++_p2v(void *p)
+ {
+ 	long t;
++	Vlong ret;
+ 
+ 	t = (ulong)p;
+-	ret->lo = t;
+-	ret->hi = 0;
++	ret.lo = t;
++	ret.hi = 0;
++	return ret;
+ }
+ 
+-void
+-_sl2v(Vlong *ret, long sl)
++Vlong
++_sl2v(long sl)
+ {
+ 	long t;
++	Vlong ret;
+ 
+ 	t = sl;
+-	ret->lo = t;
+-	ret->hi = t >> 31;
++	ret.lo = t;
++	ret.hi = t >> 31;
++	return ret;
+ }
+ 
+-void
+-_ul2v(Vlong *ret, ulong ul)
++Vlong
++_ul2v(ulong ul)
+ {
+ 	long t;
++	Vlong ret;
+ 
+ 	t = ul;
+-	ret->lo = t;
+-	ret->hi = 0;
++	ret.lo = t;
++	ret.hi = 0;
++	return ret;
+ }
+ 
+ #pragma textflag NOSPLIT
+-void
+-_si2v(Vlong *ret, int si)
++Vlong
++_si2v(int si)
+ {
+-	ret->lo = (long)si;
+-	ret->hi = (long)si >> 31;
++	return (Vlong){si, si>>31};
+ }
+ 
+-void
+-_ui2v(Vlong *ret, uint ui)
++Vlong
++_ui2v(uint ui)
+ {
+ 	long t;
++	Vlong ret;
+ 
+ 	t = ui;
+-	ret->lo = t;
+-	ret->hi = 0;
++	ret.lo = t;
++	ret.hi = 0;
++	return ret;
+ }
+ 
+-void
+-_sh2v(Vlong *ret, long sh)
++Vlong
++_sh2v(long sh)
+ {
+ 	long t;
++	Vlong ret;
+ 
+ 	t = (sh << 16) >> 16;
+-	ret->lo = t;
+-	ret->hi = t >> 31;
++	ret.lo = t;
++	ret.hi = t >> 31;
++	return ret;
+ }
+ 
+-void
+-_uh2v(Vlong *ret, ulong ul)
++Vlong
++_uh2v(ulong ul)
+ {
+ 	long t;
++	Vlong ret;
+ 
+ 	t = ul & 0xffff;
+-	ret->lo = t;
+-	ret->hi = 0;
++	ret.lo = t;
++	ret.hi = 0;
++	return ret;
+ }
+ 
+-void
+-_sc2v(Vlong *ret, long uc)
++Vlong
++_sc2v(long uc)
+ {
+ 	long t;
++	Vlong ret;
+ 
+ 	t = (uc << 24) >> 24;
+-	ret->lo = t;
+-	ret->hi = t >> 31;
++	ret.lo = t;
++	ret.hi = t >> 31;
++	return ret;
+ }
+ 
+-void
+-_uc2v(Vlong *ret, ulong ul)
++Vlong
++_uc2v(ulong ul)
+ {
+ 	long t;
++	Vlong ret;
+ 
+ 	t = ul & 0xff;
+-	ret->lo = t;
+-	ret->hi = 0;
++	ret.lo = t;
++	ret.hi = 0;
++	return ret;
+ }
+ 
+ long
+@@ -682,7 +820,6 @@ _v2ul(Vlong rv)
+ long
+ _v2si(Vlong rv)
+ {
+-
+ 	return rv.lo;
+ }
+ 
+diff --git a/src/pkg/runtime/vlrt_386.c b/src/pkg/runtime/vlrt_386.c
+deleted file mode 100644
+index bda67b1575..0000000000
+--- a/src/pkg/runtime/vlrt_386.c
++++ /dev/null
+@@ -1,819 +0,0 @@
+-// Inferno's libkern/vlrt-386.c
+-// http://code.google.com/p/inferno-os/source/browse/libkern/vlrt-386.c
+-//
+-//         Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+-//         Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.
+-//         Portions Copyright 2009 The Go Authors. All rights reserved.
+-//
+-// Permission is hereby granted, free of charge, to any person obtaining a copy
+-// of this software and associated documentation files (the "Software"), to deal
+-// in the Software without restriction, including without limitation the rights
+-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-// copies of the Software, and to permit persons to whom the Software is
+-// furnished to do so, subject to the following conditions:
+-//
+-// The above copyright notice and this permission notice shall be included in
+-// all copies or substantial portions of the Software.
+-//
+-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-// THE SOFTWARE.
+-
+-#include "../../cmd/ld/textflag.h"
+-
+-/*
+- * C runtime for 64-bit divide, others.
+- *
+- * TODO(rsc): The simple functions are dregs--8c knows how
+- * to generate the code directly now.  Find and remove.
+- */
+-
+-extern void runtime·panicdivide(void);
+-
+-typedef	unsigned long	ulong;
+-typedef	unsigned int	uint;
+-typedef	unsigned short	ushort;
+-typedef	unsigned char	uchar;
+-typedef	signed char	schar;
+-
+-#define	SIGN(n)	(1UL<<(n-1))
+-
+-typedef	union	Vlong	Vlong;
+-union	Vlong
+-{
+-	long long	v;
+-	struct
+-	{
+-		ulong	lo;
+-		ulong	hi;
+-	}		v2;
+-};
+-
+-void	runtime·abort(void);
+-
+-void
+-_d2v(Vlong *y, double d)
+-{
+-	union { double d; Vlong vl; } x;
+-	ulong xhi, xlo, ylo, yhi;
+-	int sh;
+-
+-	x.d = d;
+-
+-	xhi = (x.vl.v2.hi & 0xfffff) | 0x100000;
+-	xlo = x.vl.v2.lo;
+-	sh = 1075 - ((x.vl.v2.hi >> 20) & 0x7ff);
+-
+-	ylo = 0;
+-	yhi = 0;
+-	if(sh >= 0) {
+-		/* v = (hi||lo) >> sh */
+-		if(sh < 32) {
+-			if(sh == 0) {
+-				ylo = xlo;
+-				yhi = xhi;
+-			} else {
+-				ylo = (xlo >> sh) | (xhi << (32-sh));
+-				yhi = xhi >> sh;
+-			}
+-		} else {
+-			if(sh == 32) {
+-				ylo = xhi;
+-			} else
+-			if(sh < 64) {
+-				ylo = xhi >> (sh-32);
+-			}
+-		}
+-	} else {
+-		/* v = (hi||lo) << -sh */
+-		sh = -sh;
+-		if(sh <= 10) {
+-			ylo = xlo << sh;
+-			yhi = (xhi << sh) | (xlo >> (32-sh));
+-		} else {
+-			/* overflow */
+-			yhi = d;	/* causes something awful */
+-		}
+-	}
+-	if(x.vl.v2.hi & SIGN(32)) {
+-		if(ylo != 0) {
+-			ylo = -ylo;
+-			yhi = ~yhi;
+-		} else
+-			yhi = -yhi;
+-	}
+-
+-	y->v2.hi = yhi;
+-	y->v2.lo = ylo;
+-}
+-
+-void
+-_f2v(Vlong *y, float f)
+-{
+-
+-	_d2v(y, f);
+-}
+-
+-double
+-_v2d(Vlong x)
+-{
+-	if(x.v2.hi & SIGN(32)) {
+-		if(x.v2.lo) {
+-			x.v2.lo = -x.v2.lo;
+-			x.v2.hi = ~x.v2.hi;
+-		} else
+-			x.v2.hi = -x.v2.hi;
+-		return -((long)x.v2.hi*4294967296. + x.v2.lo);
+-	}
+-	return (long)x.v2.hi*4294967296. + x.v2.lo;
+-}
+-
+-float
+-_v2f(Vlong x)
+-{
+-	return _v2d(x);
+-}
+-
+-ulong	_div64by32(Vlong, ulong, ulong*);
+-int	_mul64by32(Vlong*, Vlong, ulong);
+-
+-static void
+-slowdodiv(Vlong num, Vlong den, Vlong *q, Vlong *r)
+-{
+-	ulong numlo, numhi, denhi, denlo, quohi, quolo, t;
+-	int i;
+-
+-	numhi = num.v2.hi;
+-	numlo = num.v2.lo;
+-	denhi = den.v2.hi;
+-	denlo = den.v2.lo;
+-
+-	/*
+-	 * get a divide by zero
+-	 */
+-	if(denlo==0 && denhi==0) {
+-		numlo = numlo / denlo;
+-	}
+-
+-	/*
+-	 * set up the divisor and find the number of iterations needed
+-	 */
+-	if(numhi >= SIGN(32)) {
+-		quohi = SIGN(32);
+-		quolo = 0;
+-	} else {
+-		quohi = numhi;
+-		quolo = numlo;
+-	}
+-	i = 0;
+-	while(denhi < quohi || (denhi == quohi && denlo < quolo)) {
+-		denhi = (denhi<<1) | (denlo>>31);
+-		denlo <<= 1;
+-		i++;
+-	}
+-
+-	quohi = 0;
+-	quolo = 0;
+-	for(; i >= 0; i--) {
+-		quohi = (quohi<<1) | (quolo>>31);
+-		quolo <<= 1;
+-		if(numhi > denhi || (numhi == denhi && numlo >= denlo)) {
+-			t = numlo;
+-			numlo -= denlo;
+-			if(numlo > t)
+-				numhi--;
+-			numhi -= denhi;
+-			quolo |= 1;
+-		}
+-		denlo = (denlo>>1) | (denhi<<31);
+-		denhi >>= 1;
+-	}
+-
+-	if(q) {
+-		q->v2.lo = quolo;
+-		q->v2.hi = quohi;
+-	}
+-	if(r) {
+-		r->v2.lo = numlo;
+-		r->v2.hi = numhi;
+-	}
+-}
+-
+-static void
+-dodiv(Vlong num, Vlong den, Vlong *qp, Vlong *rp)
+-{
+-	ulong n;
+-	Vlong x, q, r;
+-
+-	if(den.v2.hi > num.v2.hi || (den.v2.hi == num.v2.hi && den.v2.lo > num.v2.lo)){
+-		if(qp) {
+-			qp->v2.hi = 0;
+-			qp->v2.lo = 0;
+-		}
+-		if(rp) {
+-			rp->v2.hi = num.v2.hi;
+-			rp->v2.lo = num.v2.lo;
+-		}
+-		return;
+-	}
+-
+-	if(den.v2.hi != 0){
+-		q.v2.hi = 0;
+-		n = num.v2.hi/den.v2.hi;
+-		if(_mul64by32(&x, den, n) || x.v2.hi > num.v2.hi || (x.v2.hi == num.v2.hi && x.v2.lo > num.v2.lo))
+-			slowdodiv(num, den, &q, &r);
+-		else {
+-			q.v2.lo = n;
+-			r.v = num.v - x.v;
+-		}
+-	} else {
+-		if(num.v2.hi >= den.v2.lo){
+-			if(den.v2.lo == 0)
+-				runtime·panicdivide();
+-			q.v2.hi = n = num.v2.hi/den.v2.lo;
+-			num.v2.hi -= den.v2.lo*n;
+-		} else {
+-			q.v2.hi = 0;
+-		}
+-		q.v2.lo = _div64by32(num, den.v2.lo, &r.v2.lo);
+-		r.v2.hi = 0;
+-	}
+-	if(qp) {
+-		qp->v2.lo = q.v2.lo;
+-		qp->v2.hi = q.v2.hi;
+-	}
+-	if(rp) {
+-		rp->v2.lo = r.v2.lo;
+-		rp->v2.hi = r.v2.hi;
+-	}
+-}
+-
+-void
+-_divvu(Vlong *q, Vlong n, Vlong d)
+-{
+-
+-	if(n.v2.hi == 0 && d.v2.hi == 0) {
+-		if(d.v2.lo == 0)
+-			runtime·panicdivide();
+-		q->v2.hi = 0;
+-		q->v2.lo = n.v2.lo / d.v2.lo;
+-		return;
+-	}
+-	dodiv(n, d, q, 0);
+-}
+-
+-void
+-runtime·uint64div(Vlong n, Vlong d, Vlong q)
+-{
+-	_divvu(&q, n, d);
+-}
+-
+-void
+-_modvu(Vlong *r, Vlong n, Vlong d)
+-{
+-
+-	if(n.v2.hi == 0 && d.v2.hi == 0) {
+-		if(d.v2.lo == 0)
+-			runtime·panicdivide();
+-		r->v2.hi = 0;
+-		r->v2.lo = n.v2.lo % d.v2.lo;
+-		return;
+-	}
+-	dodiv(n, d, 0, r);
+-}
+-
+-void
+-runtime·uint64mod(Vlong n, Vlong d, Vlong q)
+-{
+-	_modvu(&q, n, d);
+-}
+-
+-static void
+-vneg(Vlong *v)
+-{
+-
+-	if(v->v2.lo == 0) {
+-		v->v2.hi = -v->v2.hi;
+-		return;
+-	}
+-	v->v2.lo = -v->v2.lo;
+-	v->v2.hi = ~v->v2.hi;
+-}
+-
+-void
+-_divv(Vlong *q, Vlong n, Vlong d)
+-{
+-	long nneg, dneg;
+-
+-	if(n.v2.hi == (((long)n.v2.lo)>>31) && d.v2.hi == (((long)d.v2.lo)>>31)) {
+-		if((long)n.v2.lo == -0x80000000 && (long)d.v2.lo == -1) {
+-			// special case: 32-bit -0x80000000 / -1 causes divide error,
+-			// but it's okay in this 64-bit context.
+-			q->v2.lo = 0x80000000;
+-			q->v2.hi = 0;
+-			return;
+-		}
+-		if(d.v2.lo == 0)
+-			runtime·panicdivide();
+-		q->v2.lo = (long)n.v2.lo / (long)d.v2.lo;
+-		q->v2.hi = ((long)q->v2.lo) >> 31;
+-		return;
+-	}
+-	nneg = n.v2.hi >> 31;
+-	if(nneg)
+-		vneg(&n);
+-	dneg = d.v2.hi >> 31;
+-	if(dneg)
+-		vneg(&d);
+-	dodiv(n, d, q, 0);
+-	if(nneg != dneg)
+-		vneg(q);
+-}
+-
+-void
+-runtime·int64div(Vlong n, Vlong d, Vlong q)
+-{
+-	_divv(&q, n, d);
+-}
+-
+-void
+-_modv(Vlong *r, Vlong n, Vlong d)
+-{
+-	long nneg, dneg;
+-
+-	if(n.v2.hi == (((long)n.v2.lo)>>31) && d.v2.hi == (((long)d.v2.lo)>>31)) {
+-		if((long)n.v2.lo == -0x80000000 && (long)d.v2.lo == -1) {
+-			// special case: 32-bit -0x80000000 % -1 causes divide error,
+-			// but it's okay in this 64-bit context.
+-			r->v2.lo = 0;
+-			r->v2.hi = 0;
+-			return;
+-		}
+-		if(d.v2.lo == 0)
+-			runtime·panicdivide();
+-		r->v2.lo = (long)n.v2.lo % (long)d.v2.lo;
+-		r->v2.hi = ((long)r->v2.lo) >> 31;
+-		return;
+-	}
+-	nneg = n.v2.hi >> 31;
+-	if(nneg)
+-		vneg(&n);
+-	dneg = d.v2.hi >> 31;
+-	if(dneg)
+-		vneg(&d);
+-	dodiv(n, d, 0, r);
+-	if(nneg)
+-		vneg(r);
+-}
+-
+-void
+-runtime·int64mod(Vlong n, Vlong d, Vlong q)
+-{
+-	_modv(&q, n, d);
+-}
+-
+-void
+-_rshav(Vlong *r, Vlong a, int b)
+-{
+-	long t;
+-
+-	t = a.v2.hi;
+-	if(b >= 32) {
+-		r->v2.hi = t>>31;
+-		if(b >= 64) {
+-			/* this is illegal re C standard */
+-			r->v2.lo = t>>31;
+-			return;
+-		}
+-		r->v2.lo = t >> (b-32);
+-		return;
+-	}
+-	if(b <= 0) {
+-		r->v2.hi = t;
+-		r->v2.lo = a.v2.lo;
+-		return;
+-	}
+-	r->v2.hi = t >> b;
+-	r->v2.lo = (t << (32-b)) | (a.v2.lo >> b);
+-}
+-
+-void
+-_rshlv(Vlong *r, Vlong a, int b)
+-{
+-	ulong t;
+-
+-	t = a.v2.hi;
+-	if(b >= 32) {
+-		r->v2.hi = 0;
+-		if(b >= 64) {
+-			/* this is illegal re C standard */
+-			r->v2.lo = 0;
+-			return;
+-		}
+-		r->v2.lo = t >> (b-32);
+-		return;
+-	}
+-	if(b <= 0) {
+-		r->v2.hi = t;
+-		r->v2.lo = a.v2.lo;
+-		return;
+-	}
+-	r->v2.hi = t >> b;
+-	r->v2.lo = (t << (32-b)) | (a.v2.lo >> b);
+-}
+-
+-#pragma textflag NOSPLIT
+-void
+-_lshv(Vlong *r, Vlong a, int b)
+-{
+-	ulong t;
+-
+-	t = a.v2.lo;
+-	if(b >= 32) {
+-		r->v2.lo = 0;
+-		if(b >= 64) {
+-			/* this is illegal re C standard */
+-			r->v2.hi = 0;
+-			return;
+-		}
+-		r->v2.hi = t << (b-32);
+-		return;
+-	}
+-	if(b <= 0) {
+-		r->v2.lo = t;
+-		r->v2.hi = a.v2.hi;
+-		return;
+-	}
+-	r->v2.lo = t << b;
+-	r->v2.hi = (t >> (32-b)) | (a.v2.hi << b);
+-}
+-
+-void
+-_andv(Vlong *r, Vlong a, Vlong b)
+-{
+-	r->v2.hi = a.v2.hi & b.v2.hi;
+-	r->v2.lo = a.v2.lo & b.v2.lo;
+-}
+-
+-void
+-_orv(Vlong *r, Vlong a, Vlong b)
+-{
+-	r->v2.hi = a.v2.hi | b.v2.hi;
+-	r->v2.lo = a.v2.lo | b.v2.lo;
+-}
+-
+-void
+-_xorv(Vlong *r, Vlong a, Vlong b)
+-{
+-	r->v2.hi = a.v2.hi ^ b.v2.hi;
+-	r->v2.lo = a.v2.lo ^ b.v2.lo;
+-}
+-
+-void
+-_vpp(Vlong *l, Vlong *r)
+-{
+-
+-	l->v2.hi = r->v2.hi;
+-	l->v2.lo = r->v2.lo;
+-	r->v2.lo++;
+-	if(r->v2.lo == 0)
+-		r->v2.hi++;
+-}
+-
+-void
+-_vmm(Vlong *l, Vlong *r)
+-{
+-
+-	l->v2.hi = r->v2.hi;
+-	l->v2.lo = r->v2.lo;
+-	if(r->v2.lo == 0)
+-		r->v2.hi--;
+-	r->v2.lo--;
+-}
+-
+-void
+-_ppv(Vlong *l, Vlong *r)
+-{
+-
+-	r->v2.lo++;
+-	if(r->v2.lo == 0)
+-		r->v2.hi++;
+-	l->v2.hi = r->v2.hi;
+-	l->v2.lo = r->v2.lo;
+-}
+-
+-void
+-_mmv(Vlong *l, Vlong *r)
+-{
+-
+-	if(r->v2.lo == 0)
+-		r->v2.hi--;
+-	r->v2.lo--;
+-	l->v2.hi = r->v2.hi;
+-	l->v2.lo = r->v2.lo;
+-}
+-
+-void
+-_vasop(Vlong *ret, void *lv, void fn(Vlong*, Vlong, Vlong), int type, Vlong rv)
+-{
+-	Vlong t, u;
+-
+-	u.v2.lo = 0;
+-	u.v2.hi = 0;
+-	switch(type) {
+-	default:
+-		runtime·abort();
+-		break;
+-
+-	case 1:	/* schar */
+-		t.v2.lo = *(schar*)lv;
+-		t.v2.hi = t.v2.lo >> 31;
+-		fn(&u, t, rv);
+-		*(schar*)lv = u.v2.lo;
+-		break;
+-
+-	case 2:	/* uchar */
+-		t.v2.lo = *(uchar*)lv;
+-		t.v2.hi = 0;
+-		fn(&u, t, rv);
+-		*(uchar*)lv = u.v2.lo;
+-		break;
+-
+-	case 3:	/* short */
+-		t.v2.lo = *(short*)lv;
+-		t.v2.hi = t.v2.lo >> 31;
+-		fn(&u, t, rv);
+-		*(short*)lv = u.v2.lo;
+-		break;
+-
+-	case 4:	/* ushort */
+-		t.v2.lo = *(ushort*)lv;
+-		t.v2.hi = 0;
+-		fn(&u, t, rv);
+-		*(ushort*)lv = u.v2.lo;
+-		break;
+-
+-	case 9:	/* int */
+-		t.v2.lo = *(int*)lv;
+-		t.v2.hi = t.v2.lo >> 31;
+-		fn(&u, t, rv);
+-		*(int*)lv = u.v2.lo;
+-		break;
+-
+-	case 10:	/* uint */
+-		t.v2.lo = *(uint*)lv;
+-		t.v2.hi = 0;
+-		fn(&u, t, rv);
+-		*(uint*)lv = u.v2.lo;
+-		break;
+-
+-	case 5:	/* long */
+-		t.v2.lo = *(long*)lv;
+-		t.v2.hi = t.v2.lo >> 31;
+-		fn(&u, t, rv);
+-		*(long*)lv = u.v2.lo;
+-		break;
+-
+-	case 6:	/* ulong */
+-		t.v2.lo = *(ulong*)lv;
+-		t.v2.hi = 0;
+-		fn(&u, t, rv);
+-		*(ulong*)lv = u.v2.lo;
+-		break;
+-
+-	case 7:	/* vlong */
+-	case 8:	/* uvlong */
+-		fn(&u, *(Vlong*)lv, rv);
+-		*(Vlong*)lv = u;
+-		break;
+-	}
+-	*ret = u;
+-}
+-
+-void
+-_p2v(Vlong *ret, void *p)
+-{
+-	long t;
+-
+-	t = (ulong)p;
+-	ret->v2.lo = t;
+-	ret->v2.hi = 0;
+-}
+-
+-void
+-_sl2v(Vlong *ret, long sl)
+-{
+-	long t;
+-
+-	t = sl;
+-	ret->v2.lo = t;
+-	ret->v2.hi = t >> 31;
+-}
+-
+-void
+-_ul2v(Vlong *ret, ulong ul)
+-{
+-	long t;
+-
+-	t = ul;
+-	ret->v2.lo = t;
+-	ret->v2.hi = 0;
+-}
+-
+-void
+-_si2v(Vlong *ret, int si)
+-{
+-	long t;
+-
+-	t = si;
+-	ret->v2.lo = t;
+-	ret->v2.hi = t >> 31;
+-}
+-
+-void
+-_ui2v(Vlong *ret, uint ui)
+-{
+-	long t;
+-
+-	t = ui;
+-	ret->v2.lo = t;
+-	ret->v2.hi = 0;
+-}
+-
+-void
+-_sh2v(Vlong *ret, long sh)
+-{
+-	long t;
+-
+-	t = (sh << 16) >> 16;
+-	ret->v2.lo = t;
+-	ret->v2.hi = t >> 31;
+-}
+-
+-void
+-_uh2v(Vlong *ret, ulong ul)
+-{
+-	long t;
+-
+-	t = ul & 0xffff;
+-	ret->v2.lo = t;
+-	ret->v2.hi = 0;
+-}
+-
+-void
+-_sc2v(Vlong *ret, long uc)
+-{
+-	long t;
+-
+-	t = (uc << 24) >> 24;
+-	ret->v2.lo = t;
+-	ret->v2.hi = t >> 31;
+-}
+-
+-void
+-_uc2v(Vlong *ret, ulong ul)
+-{
+-	long t;
+-
+-	t = ul & 0xff;
+-	ret->v2.lo = t;
+-	ret->v2.hi = 0;
+-}
+-
+-long
+-_v2sc(Vlong rv)
+-{
+-	long t;
+-
+-	t = rv.v2.lo & 0xff;
+-	return (t << 24) >> 24;
+-}
+-
+-long
+-_v2uc(Vlong rv)
+-{
+-
+-	return rv.v2.lo & 0xff;
+-}
+-
+-long
+-_v2sh(Vlong rv)
+-{
+-	long t;
+-
+-	t = rv.v2.lo & 0xffff;
+-	return (t << 16) >> 16;
+-}
+-
+-long
+-_v2uh(Vlong rv)
+-{
+-
+-	return rv.v2.lo & 0xffff;
+-}
+-
+-long
+-_v2sl(Vlong rv)
+-{
+-
+-	return rv.v2.lo;
+-}
+-
+-long
+-_v2ul(Vlong rv)
+-{
+-
+-	return rv.v2.lo;
+-}
+-
+-long
+-_v2si(Vlong rv)
+-{
+-
+-	return rv.v2.lo;
+-}
+-
+-long
+-_v2ui(Vlong rv)
+-{
+-
+-	return rv.v2.lo;
+-}
+-
+-int
+-_testv(Vlong rv)
+-{
+-	return rv.v2.lo || rv.v2.hi;
+-}
+-
+-int
+-_eqv(Vlong lv, Vlong rv)
+-{
+-	return lv.v2.lo == rv.v2.lo && lv.v2.hi == rv.v2.hi;
+-}
+-
+-int
+-_nev(Vlong lv, Vlong rv)
+-{
+-	return lv.v2.lo != rv.v2.lo || lv.v2.hi != rv.v2.hi;
+-}
+-
+-int
+-_ltv(Vlong lv, Vlong rv)
+-{
+-	return (long)lv.v2.hi < (long)rv.v2.hi ||
+-		(lv.v2.hi == rv.v2.hi && lv.v2.lo < rv.v2.lo);
+-}
+-
+-int
+-_lev(Vlong lv, Vlong rv)
+-{
+-	return (long)lv.v2.hi < (long)rv.v2.hi ||
+-		(lv.v2.hi == rv.v2.hi && lv.v2.lo <= rv.v2.lo);
+-}
+-
+-int
+-_gtv(Vlong lv, Vlong rv)
+-{
+-	return (long)lv.v2.hi > (long)rv.v2.hi ||
+-		(lv.v2.hi == rv.v2.hi && lv.v2.lo > rv.v2.lo);
+-}
+-
+-int
+-_gev(Vlong lv, Vlong rv)
+-{
+-	return (long)lv.v2.hi > (long)rv.v2.hi ||
+-		(lv.v2.hi == rv.v2.hi && lv.v2.lo >= rv.v2.lo);
+-}
+-
+-int
+-_lov(Vlong lv, Vlong rv)
+-{
+-	return lv.v2.hi < rv.v2.hi ||
+-		(lv.v2.hi == rv.v2.hi && lv.v2.lo < rv.v2.lo);
+-}
+-
+-int
+-_lsv(Vlong lv, Vlong rv)
+-{
+-	return lv.v2.hi < rv.v2.hi ||
+-		(lv.v2.hi == rv.v2.hi && lv.v2.lo <= rv.v2.lo);
+-}
+-
+-int
+-_hiv(Vlong lv, Vlong rv)
+-{
+-	return lv.v2.hi > rv.v2.hi ||
+-		(lv.v2.hi == rv.v2.hi && lv.v2.lo > rv.v2.lo);
+-}
+-
+-int
+-_hsv(Vlong lv, Vlong rv)
+-{
+-	return lv.v2.hi > rv.v2.hi ||
+-		(lv.v2.hi == rv.v2.hi && lv.v2.lo >= rv.v2.lo);
+-}
+diff --git a/src/pkg/sync/atomic/asm_linux_arm.s b/src/pkg/sync/atomic/asm_linux_arm.s
+index bfcfd79779..63f1f9e38e 100644
+--- a/src/pkg/sync/atomic/asm_linux_arm.s
++++ b/src/pkg/sync/atomic/asm_linux_arm.s
+@@ -121,28 +121,8 @@ TEXT kernelCAS64<>(SB),NOSPLIT,$0-21
+ 	MOVW	R0, 20(FP)
+ 	RET
+ 
+-TEXT ·generalCAS64(SB),NOSPLIT,$20-21
+-	// bool runtime·cas64(uint64 volatile *addr, uint64 old, uint64 new)
+-	MOVW	addr+0(FP), R0
+-	// trigger potential paging fault here,
+-	// because a fault in runtime.cas64 will hang.
+-	MOVW	(R0), R2
+-	// make unaligned atomic access panic
+-	AND.S	$7, R0, R1
+-	BEQ 	2(PC)
+-	MOVW	R1, (R1)
+-	MOVW	R0, 4(R13)
+-	MOVW	old_lo+4(FP), R1
+-	MOVW	R1, 8(R13)
+-	MOVW	old_hi+8(FP), R1
+-	MOVW	R1, 12(R13)
+-	MOVW	new_lo+12(FP), R2
+-	MOVW	R2, 16(R13)
+-	MOVW	new_hi+16(FP), R3
+-	MOVW	R3, 20(R13)
+-	BL  	runtime·cas64(SB)
+-	MOVB	R0, ret+20(FP)
+-	RET
++TEXT ·generalCAS64(SB),NOSPLIT,$0-21
++	B  	runtime·cas64(SB)
+ 
+ GLOBL armCAS64(SB), $4
+ 

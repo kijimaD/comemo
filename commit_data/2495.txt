@@ -8,6 +8,29 @@ Date:   Mon Jun 22 14:26:07 2009 -0700
     DELTA=2  (0 added, 0 deleted, 2 changed)
     OCL=30599
     CL=30602
-
+---
  src/pkg/flag/flag.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/flag/flag.go b/src/pkg/flag/flag.go
+index 63d649a9bd..392f089cd6 100644
+--- a/src/pkg/flag/flag.go
++++ b/src/pkg/flag/flag.go
+@@ -233,7 +233,7 @@ func Lookup(name string) *Flag {
+ 	return f
+ }
+ 
+-// Set sets the value of tne named flag.  It returns true if the set succeeded; false if
++// Set sets the value of the named flag.  It returns true if the set succeeded; false if
+ // there is no such flag defined.
+ func Set(name, value string) bool {
+ 	f, ok := flags.formal[name];
+@@ -264,7 +264,7 @@ func PrintDefaults() {
+ // then calls os.Exit(1).
+ func Usage() {
+ 	if len(os.Args) > 0 {
+-		fmt.Fprintln(os.Stderr, "Usage of", os.Args[0] + ":");
++		fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0]);
+ 	} else {
+ 		fmt.Fprintln(os.Stderr, "Usage:");
+ 	}

@@ -21,9 +21,164 @@ Date:   Thu Mar 23 01:01:46 2023 -0700
     Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
-
+---
  src/log/slog/handler.go                     | 46 ++++++++---------------------
  src/log/slog/handler_test.go                | 12 ++------
  src/log/slog/internal/buffer/buffer.go      | 29 ------------------
  src/log/slog/internal/buffer/buffer_test.go |  3 +-
  4 files changed, 16 insertions(+), 74 deletions(-)
+
+diff --git a/src/log/slog/handler.go b/src/log/slog/handler.go
+index b737612fb1..52c8e7e6ad 100644
+--- a/src/log/slog/handler.go
++++ b/src/log/slog/handler.go
+@@ -545,41 +545,19 @@ func (s *handleState) appendTime(t time.Time) {
+ 	if s.h.json {
+ 		appendJSONTime(s, t)
+ 	} else {
+-		writeTimeRFC3339Millis(s.buf, t)
++		*s.buf = appendRFC3339Millis(*s.buf, t)
+ 	}
+ }
+ 
+-// This takes half the time of Time.AppendFormat.
+-func writeTimeRFC3339Millis(buf *buffer.Buffer, t time.Time) {
+-	year, month, day := t.Date()
+-	buf.WritePosIntWidth(year, 4)
+-	buf.WriteByte('-')
+-	buf.WritePosIntWidth(int(month), 2)
+-	buf.WriteByte('-')
+-	buf.WritePosIntWidth(day, 2)
+-	buf.WriteByte('T')
+-	hour, min, sec := t.Clock()
+-	buf.WritePosIntWidth(hour, 2)
+-	buf.WriteByte(':')
+-	buf.WritePosIntWidth(min, 2)
+-	buf.WriteByte(':')
+-	buf.WritePosIntWidth(sec, 2)
+-	ns := t.Nanosecond()
+-	buf.WriteByte('.')
+-	buf.WritePosIntWidth(ns/1e6, 3)
+-	_, offsetSeconds := t.Zone()
+-	if offsetSeconds == 0 {
+-		buf.WriteByte('Z')
+-	} else {
+-		offsetMinutes := offsetSeconds / 60
+-		if offsetMinutes < 0 {
+-			buf.WriteByte('-')
+-			offsetMinutes = -offsetMinutes
+-		} else {
+-			buf.WriteByte('+')
+-		}
+-		buf.WritePosIntWidth(offsetMinutes/60, 2)
+-		buf.WriteByte(':')
+-		buf.WritePosIntWidth(offsetMinutes%60, 2)
+-	}
++func appendRFC3339Millis(b []byte, t time.Time) []byte {
++	// Format according to time.RFC3339Nano since it is highly optimized,
++	// but truncate it to use millisecond resolution.
++	// Unfortunately, that format trims trailing 0s, so add 1/10 millisecond
++	// to guarantee that there are exactly 4 digits after the period.
++	const prefixLen = len("2006-01-02T15:04:05.000")
++	n := len(b)
++	t = t.Truncate(time.Millisecond).Add(time.Millisecond / 10)
++	b = t.AppendFormat(b, time.RFC3339Nano)
++	b = append(b[:n+prefixLen], b[n+prefixLen+1:]...) // drop the 4th digit
++	return b
+ }
+diff --git a/src/log/slog/handler_test.go b/src/log/slog/handler_test.go
+index 4f10ee5028..21c31929b1 100644
+--- a/src/log/slog/handler_test.go
++++ b/src/log/slog/handler_test.go
+@@ -11,7 +11,6 @@ import (
+ 	"context"
+ 	"encoding/json"
+ 	"io"
+-	"log/slog/internal/buffer"
+ 	"path/filepath"
+ 	"slices"
+ 	"strconv"
+@@ -603,11 +602,8 @@ func TestWriteTimeRFC3339(t *testing.T) {
+ 		time.Date(2000, 1, 2, 3, 4, 5, 400, time.Local),
+ 		time.Date(2000, 11, 12, 3, 4, 500, 5e7, time.UTC),
+ 	} {
++		got := string(appendRFC3339Millis(nil, tm))
+ 		want := tm.Format(rfc3339Millis)
+-		buf := buffer.New()
+-		defer buf.Free()
+-		writeTimeRFC3339Millis(buf, tm)
+-		got := buf.String()
+ 		if got != want {
+ 			t.Errorf("got %s, want %s", got, want)
+ 		}
+@@ -615,12 +611,10 @@ func TestWriteTimeRFC3339(t *testing.T) {
+ }
+ 
+ func BenchmarkWriteTime(b *testing.B) {
+-	buf := buffer.New()
+-	defer buf.Free()
+ 	tm := time.Date(2022, 3, 4, 5, 6, 7, 823456789, time.Local)
+ 	b.ResetTimer()
++	var buf []byte
+ 	for i := 0; i < b.N; i++ {
+-		writeTimeRFC3339Millis(buf, tm)
+-		buf.Reset()
++		buf = appendRFC3339Millis(buf[:0], tm)
+ 	}
+ }
+diff --git a/src/log/slog/internal/buffer/buffer.go b/src/log/slog/internal/buffer/buffer.go
+index c4fcefd775..13546d42fd 100644
+--- a/src/log/slog/internal/buffer/buffer.go
++++ b/src/log/slog/internal/buffer/buffer.go
+@@ -50,35 +50,6 @@ func (b *Buffer) WriteByte(c byte) error {
+ 	return nil
+ }
+ 
+-func (b *Buffer) WritePosInt(i int) {
+-	b.WritePosIntWidth(i, 0)
+-}
+-
+-// WritePosIntWidth writes non-negative integer i to the buffer, padded on the left
+-// by zeroes to the given width. Use a width of 0 to omit padding.
+-func (b *Buffer) WritePosIntWidth(i, width int) {
+-	// Cheap integer to fixed-width decimal ASCII.
+-	// Copied from log/log.go.
+-
+-	if i < 0 {
+-		panic("negative int")
+-	}
+-
+-	// Assemble decimal in reverse order.
+-	var bb [20]byte
+-	bp := len(bb) - 1
+-	for i >= 10 || width > 1 {
+-		width--
+-		q := i / 10
+-		bb[bp] = byte('0' + i - q*10)
+-		bp--
+-		i = q
+-	}
+-	// i < 10
+-	bb[bp] = byte('0' + i)
+-	b.Write(bb[bp:])
+-}
+-
+ func (b *Buffer) String() string {
+ 	return string(*b)
+ }
+diff --git a/src/log/slog/internal/buffer/buffer_test.go b/src/log/slog/internal/buffer/buffer_test.go
+index 40b1d1fda8..06f8284651 100644
+--- a/src/log/slog/internal/buffer/buffer_test.go
++++ b/src/log/slog/internal/buffer/buffer_test.go
+@@ -16,10 +16,9 @@ func Test(t *testing.T) {
+ 	b.WriteString("hello")
+ 	b.WriteByte(',')
+ 	b.Write([]byte(" world"))
+-	b.WritePosIntWidth(17, 4)
+ 
+ 	got := b.String()
+-	want := "hello, world0017"
++	want := "hello, world"
+ 	if got != want {
+ 		t.Errorf("got %q, want %q", got, want)
+ 	}

@@ -17,6 +17,19 @@ Date:   Fri Nov 13 15:19:07 2015 +0000
     Change-Id: I2b8da4564d99820504788ecc41495a62391078d5
     Reviewed-on: https://go-review.googlesource.com/16864
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index cc8c2e4f25..8c4c9f9e6f 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -780,6 +780,7 @@ Stephen Ma <stephenm@golang.org>
+ Stephen McQuay <stephen@mcquay.me>
+ Stephen Weinberg <stephen@q5comm.com>
+ Steve McCoy <mccoyst@gmail.com>
++Steve Newman <snewman@google.com>
+ Steve Phillips <elimisteve@gmail.com>
+ Steve Streeting <steve@stevestreeting.com>
+ Steven Elliot Harris <seharris@gmail.com>

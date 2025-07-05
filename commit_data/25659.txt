@@ -14,7 +14,45 @@ Date:   Thu Nov 12 10:41:09 2015 -0800
     Change-Id: I5f87beff036e5e2fd68a02a15fdb7137e9ca4c37
     Reviewed-on: https://go-review.googlesource.com/16838
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/compress/gzip/gunzip.go | 5 ++++-
  src/compress/gzip/gzip.go   | 2 +-
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/compress/gzip/gunzip.go b/src/compress/gzip/gunzip.go
+index 91473bf598..3d331454a6 100644
+--- a/src/compress/gzip/gunzip.go
++++ b/src/compress/gzip/gunzip.go
+@@ -69,7 +69,7 @@ type Header struct {
+ // returned by Read as tentative until they receive the io.EOF
+ // marking the end of the data.
+ type Reader struct {
+-	Header
++	Header       // valid after NewReader or Reader.Reset
+ 	r            flate.Reader
+ 	decompressor io.ReadCloser
+ 	digest       hash.Hash32
+@@ -83,7 +83,10 @@ type Reader struct {
+ // NewReader creates a new Reader reading the given reader.
+ // If r does not also implement io.ByteReader,
+ // the decompressor may read more data than necessary from r.
++//
+ // It is the caller's responsibility to call Close on the Reader when done.
++//
++// The Reader.Header fields will be valid in the Reader returned.
+ func NewReader(r io.Reader) (*Reader, error) {
+ 	z := new(Reader)
+ 	z.r = makeReader(r)
+diff --git a/src/compress/gzip/gzip.go b/src/compress/gzip/gzip.go
+index 8c76144a0c..4d945e47fe 100644
+--- a/src/compress/gzip/gzip.go
++++ b/src/compress/gzip/gzip.go
+@@ -25,7 +25,7 @@ const (
+ // A Writer is an io.WriteCloser.
+ // Writes to a Writer are compressed and written to w.
+ type Writer struct {
+-	Header
++	Header      // written at first call to Write, Flush, or Close
+ 	w           io.Writer
+ 	level       int
+ 	wroteHeader bool

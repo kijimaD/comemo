@@ -8,6 +8,25 @@ Date:   Thu Mar 5 00:50:38 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/6897
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/internal/obj/x86/obj6.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 07e420a7b5..a096561803 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -609,6 +609,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 		if a == obj.NAME_PARAM {
+ 			p.From.Offset += int64(deltasp) + int64(pcsize)
+ 		}
++		a = int(p.From3.Name)
++		if a == obj.NAME_AUTO {
++			p.From3.Offset += int64(deltasp) - int64(bpsize)
++		}
++		if a == obj.NAME_PARAM {
++			p.From3.Offset += int64(deltasp) + int64(pcsize)
++		}
+ 		a = int(p.To.Name)
+ 		if a == obj.NAME_AUTO {
+ 			p.To.Offset += int64(deltasp) - int64(bpsize)

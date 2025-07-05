@@ -26,8 +26,99 @@ Date:   Sat Dec 14 14:36:21 2024 -0500
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  .../internal/fips140test/acvp_capabilities.json    |  3 +-
  .../internal/fips140test/acvp_test.config.json     |  3 +-
  src/crypto/internal/fips140test/acvp_test.go       | 34 ++++++++++++++++++++++
  3 files changed, 38 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/internal/fips140test/acvp_capabilities.json b/src/crypto/internal/fips140test/acvp_capabilities.json
+index 74317deb41..0209830674 100644
+--- a/src/crypto/internal/fips140test/acvp_capabilities.json
++++ b/src/crypto/internal/fips140test/acvp_capabilities.json
+@@ -61,5 +61,6 @@
+   {"algorithm":"ACVP-AES-GCM","direction":["encrypt","decrypt"],"keyLen":[128,192,256],"payloadLen":[{"min":0,"max":65536,"increment":8}],"aadLen":[{"min":0,"max":65536,"increment":8}],"tagLen":[128],"ivLen":[96],"ivGen":"internal","ivGenMode":"8.2.2","revision":"1.0"},
+   {"algorithm":"CMAC-AES","capabilities":[{"direction":["gen","ver"],"msgLen":[{"min":0,"max":524288,"increment":8}],"keyLen":[128,256],"macLen":[{"min":8,"max":128,"increment":8}]}],"revision":"1.0"},
+ 
+-  {"algorithm":"TLS-v1.2","mode":"KDF","revision":"RFC7627","hashAlg":["SHA2-256","SHA2-384","SHA2-512"]}
++  {"algorithm":"TLS-v1.2","mode":"KDF","revision":"RFC7627","hashAlg":["SHA2-256","SHA2-384","SHA2-512"]},
++  {"algorithm":"TLS-v1.3","mode":"KDF","revision":"RFC8446","hmacAlg":["SHA2-256","SHA2-384"],"runningMode":["DHE","PSK","PSK-DHE"]}
+ ]
+diff --git a/src/crypto/internal/fips140test/acvp_test.config.json b/src/crypto/internal/fips140test/acvp_test.config.json
+index a25d38fd68..3cfe80cce0 100644
+--- a/src/crypto/internal/fips140test/acvp_test.config.json
++++ b/src/crypto/internal/fips140test/acvp_test.config.json
+@@ -44,5 +44,6 @@
+ 
+   {"Wrapper": "go", "In": "vectors/CMAC-AES.bz2", "Out": "expected/CMAC-AES.bz2"},
+ 
+-  {"Wrapper": "go", "In": "vectors/TLS-v1.2.bz2", "Out": "expected/TLS-v1.2.bz2"}
++  {"Wrapper": "go", "In": "vectors/TLS-v1.2.bz2", "Out": "expected/TLS-v1.2.bz2"},
++  {"Wrapper": "go", "In": "vectors/TLS-v1.3.bz2", "Out": "expected/TLS-v1.3.bz2"}
+ ]
+diff --git a/src/crypto/internal/fips140test/acvp_test.go b/src/crypto/internal/fips140test/acvp_test.go
+index 97c0c26aed..2d46ceaf70 100644
+--- a/src/crypto/internal/fips140test/acvp_test.go
++++ b/src/crypto/internal/fips140test/acvp_test.go
+@@ -38,6 +38,7 @@ import (
+ 	"crypto/internal/fips140/sha512"
+ 	"crypto/internal/fips140/subtle"
+ 	"crypto/internal/fips140/tls12"
++	"crypto/internal/fips140/tls13"
+ 	"crypto/rand"
+ 	_ "embed"
+ 	"encoding/binary"
+@@ -117,6 +118,8 @@ var (
+ 	//   https://pages.nist.gov/ACVP/draft-hammett-acvp-kas-kdf-hkdf.html#section-7.3
+ 	// TLS 1.2 KDF algorithm capabilities:
+ 	//   https://pages.nist.gov/ACVP/draft-celi-acvp-kdf-tls.html#section-7.2
++	// TLS 1.3 KDF algorithm capabilities:
++	//   https://pages.nist.gov/ACVP/draft-hammett-acvp-kdf-tls-v1.3.html#section-7.2
+ 	//go:embed acvp_capabilities.json
+ 	capabilitiesJson []byte
+ 
+@@ -181,6 +184,11 @@ var (
+ 		"HKDF/SHA3-384":     cmdHkdfAft(func() fips140.Hash { return sha3.New384() }),
+ 		"HKDF/SHA3-512":     cmdHkdfAft(func() fips140.Hash { return sha3.New512() }),
+ 
++		"HKDFExtract/SHA2-256":     cmdHkdfExtractAft(func() fips140.Hash { return sha256.New() }),
++		"HKDFExtract/SHA2-384":     cmdHkdfExtractAft(func() fips140.Hash { return sha512.New384() }),
++		"HKDFExpandLabel/SHA2-256": cmdHkdfExpandLabelAft(func() fips140.Hash { return sha256.New() }),
++		"HKDFExpandLabel/SHA2-384": cmdHkdfExpandLabelAft(func() fips140.Hash { return sha512.New384() }),
++
+ 		"PBKDF": cmdPbkdf(),
+ 
+ 		"ML-KEM-768/keyGen":  cmdMlKem768KeyGenAft(),
+@@ -537,6 +545,32 @@ func cmdHkdfAft(h func() fips140.Hash) command {
+ 	}
+ }
+ 
++func cmdHkdfExtractAft(h func() fips140.Hash) command {
++	return command{
++		requiredArgs: 2, // secret, salt
++		handler: func(args [][]byte) ([][]byte, error) {
++			secret := args[0]
++			salt := args[1]
++
++			return [][]byte{hkdf.Extract(h, secret, salt)}, nil
++		},
++	}
++}
++
++func cmdHkdfExpandLabelAft(h func() fips140.Hash) command {
++	return command{
++		requiredArgs: 4, // output length, secret, label, transcript hash
++		handler: func(args [][]byte) ([][]byte, error) {
++			keyLen := int(binary.LittleEndian.Uint32(args[0]))
++			secret := args[1]
++			label := args[2]
++			transcriptHash := args[3]
++
++			return [][]byte{tls13.ExpandLabel(h, secret, string(label), transcriptHash, keyLen)}, nil
++		},
++	}
++}
++
+ func cmdPbkdf() command {
+ 	return command{
+ 		// Hash name, key length, salt, password, iteration count

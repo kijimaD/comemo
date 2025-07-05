@@ -7,7 +7,7 @@ Date:   Sat Aug 27 23:17:00 2011 +1000
     R=rsc
     CC=golang-dev, jp, vcc.163
     https://golang.org/cl/4926042
-
+---
  src/pkg/runtime/cgocall.c           |  2 +-
  src/pkg/runtime/mkasmh.sh           |  1 +
  src/pkg/runtime/runtime.h           | 15 ++++---
@@ -16,3 +16,314 @@ Date:   Sat Aug 27 23:17:00 2011 +1000
  src/pkg/runtime/windows/os.h        |  2 +-
  src/pkg/runtime/windows/thread.c    | 38 ++++++++---------
  7 files changed, 91 insertions(+), 90 deletions(-)
+
+diff --git a/src/pkg/runtime/cgocall.c b/src/pkg/runtime/cgocall.c
+index c2f8620a65..4fdb912fa9 100644
+--- a/src/pkg/runtime/cgocall.c
++++ b/src/pkg/runtime/cgocall.c
+@@ -94,7 +94,7 @@ runtime·cgocall(void (*fn)(void*), void *arg)
+ {
+ 	Defer d;
+ 
+-	if(!runtime·iscgo)
++	if(!runtime·iscgo && !Windows)
+ 		runtime·throw("cgocall unavailable");
+ 
+ 	if(fn == 0)
+diff --git a/src/pkg/runtime/mkasmh.sh b/src/pkg/runtime/mkasmh.sh
+index 328e2d5ba4..920e79a024 100755
+--- a/src/pkg/runtime/mkasmh.sh
++++ b/src/pkg/runtime/mkasmh.sh
+@@ -96,6 +96,7 @@ awk '
+ /^aggr G$/ { aggr="g" }
+ /^aggr M$/ { aggr = "m" }
+ /^aggr Gobuf$/ { aggr = "gobuf" }
++/^aggr WinCall$/ { aggr = "wincall" }
+ /^}/ { aggr = "" }
+ 
+ #	Gobuf 24 sched;
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 84bab58772..6feedcbc82 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -70,6 +70,7 @@ typedef	struct	Hmap		Hmap;
+ typedef	struct	Hchan		Hchan;
+ typedef	struct	Complex64	Complex64;
+ typedef	struct	Complex128	Complex128;
++typedef	struct	WinCall		WinCall;
+ 
+ /*
+  * per-cpu declaration.
+@@ -250,11 +251,6 @@ struct	M
+ 	uint32	freglo[16];	// D[i] lsb and F[i]
+ 	uint32	freghi[16];	// D[i] msb and F[i+16]
+ 	uint32	fflag;		// floating point compare flags
+-#ifdef __WINDOWS__
+-#ifdef _64BIT	
+-	void*	gostack;
+-#endif
+-#endif
+ };
+ 
+ struct	Stktop
+@@ -306,6 +302,15 @@ struct	Func
+ 	int32	locals;	// number of 32-bit locals
+ };
+ 
++struct	WinCall
++{
++	void	(*fn)(void*);
++	uintptr	n;	// number of parameters
++	void*	args;	// parameters
++	uintptr	r;	// return value
++	uintptr	err;	// error number
++};
++
+ #ifdef __WINDOWS__
+ enum {
+    Windows = 1
+diff --git a/src/pkg/runtime/windows/386/sys.s b/src/pkg/runtime/windows/386/sys.s
+index 703f77d55b..111e3d94c3 100644
+--- a/src/pkg/runtime/windows/386/sys.s
++++ b/src/pkg/runtime/windows/386/sys.s
+@@ -4,44 +4,34 @@
+ 
+ #include "386/asm.h"
+ 
+-// void *stdcall_raw(void *fn, int32 count, uintptr *args)
+-TEXT runtime·stdcall_raw(SB),7,$0
+-	// Copy arguments from stack.
+-	MOVL	fn+0(FP), AX
+-	MOVL	count+4(FP), CX		// words
+-	MOVL	args+8(FP), BP
+-
+-	// Switch to m->g0 if needed.
+-	get_tls(DI)
+-	MOVL	m(DI), DX
+-	MOVL	m_g0(DX), SI
+-	CMPL	g(DI), SI
+-	MOVL	SP, BX
+-	JEQ	2(PC)
+-	MOVL	(g_sched+gobuf_sp)(SI), SP
+-	PUSHL	BX
+-	PUSHL	g(DI)
+-	MOVL	SI, g(DI)
++// void runtime·asmstdcall(void *c);
++TEXT runtime·asmstdcall(SB),7,$0
++	MOVL	c+0(FP), DX
++
++	// SetLastError(0).
++	MOVL	$0, 0x34(FS)
+ 
+-	// Copy args to new stack.
++	// Copy args to the stack.
++	MOVL	wincall_n(DX), CX	// words
+ 	MOVL	CX, BX
+ 	SALL	$2, BX
+ 	SUBL	BX, SP			// room for args
+ 	MOVL	SP, DI
+-	MOVL	BP, SI
++	MOVL	wincall_args(DX), SI
+ 	CLD
+ 	REP; MOVSL
+ 
+ 	// Call stdcall function.
++	MOVL	wincall_fn(DX), AX
+ 	CALL	AX
+ 
+-	// Restore original SP, g.
+-	get_tls(DI)
+-	POPL	g(DI)
+-	POPL	SP
++	// Return result.
++	MOVL	c+0(FP), DX
++	MOVL	AX, wincall_r(DX)
+ 
+-	// Someday the convention will be D is always cleared.
+-	CLD
++	// GetLastError().
++	MOVL	0x34(FS), BX
++	MOVL	BX, wincall_err(DX)
+ 
+ 	RET
+ 
+diff --git a/src/pkg/runtime/windows/amd64/sys.s b/src/pkg/runtime/windows/amd64/sys.s
+index 891e0d50f9..ddb2f5df43 100644
+--- a/src/pkg/runtime/windows/amd64/sys.s
++++ b/src/pkg/runtime/windows/amd64/sys.s
+@@ -4,46 +4,57 @@
+ 
+ #include "amd64/asm.h"
+ 
+-// void *stdcall_raw(void *fn, uintptr nargs, void *args)
+-TEXT runtime·stdcall_raw(SB),7,$8
+-	MOVQ	fn+0(FP), AX
+-	MOVQ	nargs+8(FP), CX
+-	MOVQ	args+16(FP), R11
+-
+-	// Switch to m->g0 if needed.
+-	get_tls(DI)
+-	MOVQ	m(DI), DX
+-	MOVQ	g(DI), SI
+-	MOVQ	SI, 0(SP)		// save g
+-	MOVQ	SP, m_gostack(DX)	// save SP
+-	MOVQ	m_g0(DX), SI
+-	CMPQ	g(DI), SI
+-	JEQ 3(PC)
+-	MOVQ	(g_sched+gobuf_sp)(SI), SP
+-	ANDQ	$~15, SP
+-	MOVQ	SI, g(DI)
+-	
+-	SUBQ	$0x60, SP
+-	
+-	// Copy args to new stack.
++#define maxargs 12
++
++// void runtime·asmstdcall(void *c);
++TEXT runtime·asmstdcall(SB),7,$0
++	// asmcgocall will put first argument into CX.
++	PUSHQ	CX			// save for later
++	MOVQ	wincall_fn(CX), AX
++	MOVQ	wincall_args(CX), SI
++	MOVQ	wincall_n(CX), CX
++
++	// SetLastError(0).
++	MOVQ	0x30(GS), DI
++	MOVL	$0, 0x68(DI)
++
++	SUBQ	$(maxargs*8), SP	// room for args
++
++	// Fast version, do not store args on the stack.
++	CMPL	CX, $4
++	JLE	loadregs
++
++	// Check we have enough room for args.
++	CMPL	CX, $maxargs
++	JLE	2(PC)
++	INT	$3			// not enough room -> crash
++
++	// Copy args to the stack.
+ 	MOVQ	SP, DI
+-	MOVQ	R11, SI
+ 	CLD
+ 	REP; MOVSQ
+-	MOVQ	0(R11), CX
+-	MOVQ	8(R11), DX
+-	MOVQ	16(R11), R8
+-	MOVQ	24(R11), R9
++	MOVQ	SP, SI
++
++loadregs:
++	// Load first 4 args into correspondent registers.
++	MOVQ	0(SI), CX
++	MOVQ	8(SI), DX
++	MOVQ	16(SI), R8
++	MOVQ	24(SI), R9
+ 
+ 	// Call stdcall function.
+ 	CALL	AX
+-	
+-	// Restore original SP, g.
+-	get_tls(DI)
+-	MOVQ	m(DI), DX
+-	MOVQ	m_gostack(DX), SP	// restore SP
+-	MOVQ	0(SP), SI		// restore g
+-	MOVQ	SI, g(DI)
++
++	ADDQ	$(maxargs*8), SP
++
++	// Return result.
++	POPQ	CX
++	MOVQ	AX, wincall_r(CX)
++
++	// GetLastError().
++	MOVQ	0x30(GS), DI
++	MOVL	0x68(DI), AX
++	MOVQ	AX, wincall_err(CX)
+ 
+ 	RET
+ 
+@@ -70,7 +81,7 @@ TEXT runtime·ctrlhandler(SB),7,$0
+ 	MOVQ	SP, BX
+ 
+ 	// setup dummy m, g
+-	SUBQ	$(m_gostack+8), SP	// at least space for m_gostack
++	SUBQ	$(m_fflag+4), SP	// at least space for m_fflag
+ 	LEAQ	m_tls(SP), CX
+ 	MOVQ	CX, 0x58(GS)
+ 	MOVQ	SP, m(CX)
+diff --git a/src/pkg/runtime/windows/os.h b/src/pkg/runtime/windows/os.h
+index bc96787334..a8cc299b8c 100644
+--- a/src/pkg/runtime/windows/os.h
++++ b/src/pkg/runtime/windows/os.h
+@@ -10,7 +10,7 @@ extern void *runtime·GetProcAddress;
+ #pragma	varargck	countpos	runtime·stdcall	2
+ #pragma	varargck	type		runtime·stdcall	void*
+ #pragma	varargck	type		runtime·stdcall	uintptr
+-void *runtime·stdcall_raw(void *fn, uintptr nargs, void *args);
++void runtime·asmstdcall(void *c);
+ void *runtime·stdcall(void *fn, int32 count, ...);
+ uintptr runtime·syscall(void *fn, uintptr nargs, void *args, uintptr *err);
+ 
+diff --git a/src/pkg/runtime/windows/thread.c b/src/pkg/runtime/windows/thread.c
+index e08d1b6f0e..fbcbf871e6 100644
+--- a/src/pkg/runtime/windows/thread.c
++++ b/src/pkg/runtime/windows/thread.c
+@@ -6,6 +6,7 @@
+ #include "type.h"
+ #include "defs.h"
+ #include "os.h"
++#include "cgocall.h"
+ 
+ #pragma dynimport runtime·CloseHandle CloseHandle "kernel32.dll"
+ #pragma dynimport runtime·CreateEvent CreateEventA "kernel32.dll"
+@@ -221,34 +222,27 @@ runtime·gettime(int64 *sec, int32 *usec)
+ void *
+ runtime·stdcall(void *fn, int32 count, ...)
+ {
+-	return runtime·stdcall_raw(fn, count, (uintptr*)&count + 1);
++	WinCall c;
++
++	c.fn = fn;
++	c.n = count;
++	c.args = (uintptr*)&count + 1;
++	runtime·asmcgocall(runtime·asmstdcall, &c);
++	return (void*)c.r;
+ }
+ 
+ uintptr
+ runtime·syscall(void *fn, uintptr nargs, void *args, uintptr *err)
+ {
+-	G *oldlock;
+-	uintptr ret;
+-
+-	/*
+-	 * Lock g to m to ensure we stay on the same stack if we do a callback.
+-	 */
+-	oldlock = m->lockedg;
+-	m->lockedg = g;
+-	g->lockedm = m;
+-
+-	runtime·entersyscall();
+-	runtime·setlasterror(0);
+-	ret = (uintptr)runtime·stdcall_raw(fn, nargs, args);
+-	if(err)
+-		*err = runtime·getlasterror();
+-	runtime·exitsyscall();
++	WinCall c;
+ 
+-	m->lockedg = oldlock;
+-	if(oldlock == nil)
+-		g->lockedm = nil;
+-
+-	return ret;
++	c.fn = fn;
++	c.n = nargs;
++	c.args = args;
++	runtime·cgocall(runtime·asmstdcall, &c);
++	if(err)
++		*err = c.err;
++	return c.r;
+ }
+ 
+ uint32

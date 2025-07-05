@@ -9,9 +9,121 @@ Date:   Thu Apr 25 18:47:12 2013 +0200
     R=golang-dev, daniel.morsing, iant, r
     CC=golang-dev
     https://golang.org/cl/8663052
-
+---
  src/cmd/gc/reflect.c                 |  8 ++++++++
  test/fixedbugs/issue5291.dir/pkg1.go | 34 ++++++++++++++++++++++++++++++++++
  test/fixedbugs/issue5291.dir/prog.go | 17 +++++++++++++++++
  test/fixedbugs/issue5291.go          |  9 +++++++++
  4 files changed, 68 insertions(+)
+
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index d128bf1174..fc182b03e6 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -1046,6 +1046,9 @@ dgcsym1(Sym *s, int ot, Type *t, vlong *off, int stack_size)
+ 
+ 	if(t->align > 0 && (*off % t->align) != 0)
+ 		fatal("dgcsym1: invalid initial alignment, %T", t);
++
++	if(t->width == BADWIDTH)
++		dowidth(t);
+ 	
+ 	switch(t->etype) {
+ 	case TINT8:
+@@ -1141,6 +1144,8 @@ dgcsym1(Sym *s, int ot, Type *t, vlong *off, int stack_size)
+ 	case TARRAY:
+ 		if(t->bound < -1)
+ 			fatal("dgcsym1: invalid bound, %T", t);
++		if(t->type->width == BADWIDTH)
++			dowidth(t->type);
+ 		if(isslice(t)) {
+ 			// NOTE: Any changes here need to be made to reflect.SliceOf as well.
+ 			// struct { byte* array; uint32 len; uint32 cap; }
+@@ -1214,6 +1219,9 @@ dgcsym(Type *t)
+ 		return s;
+ 	s->flags |= SymGcgen;
+ 
++	if(t->width == BADWIDTH)
++		dowidth(t);
++
+ 	ot = 0;
+ 	off = 0;
+ 	ot = duintptr(s, ot, t->width);
+diff --git a/test/fixedbugs/issue5291.dir/pkg1.go b/test/fixedbugs/issue5291.dir/pkg1.go
+new file mode 100644
+index 0000000000..b1c893ac83
+--- /dev/null
++++ b/test/fixedbugs/issue5291.dir/pkg1.go
+@@ -0,0 +1,34 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package pkg1
++
++import (
++	"runtime"
++)
++
++type T2 *[]string
++
++type Data struct {
++	T1 *[]T2
++}
++
++func CrashCall() (err error) {
++	var d Data
++
++	for count := 0; count < 10; count++ {
++		runtime.GC()
++
++		len := 2 // crash when >=2
++		x := make([]T2, len)
++
++		d = Data{T1: &x}
++
++		for j := 0; j < len; j++ {
++			y := make([]string, 1)
++			(*d.T1)[j] = &y
++		}
++	}
++	return nil
++}
+diff --git a/test/fixedbugs/issue5291.dir/prog.go b/test/fixedbugs/issue5291.dir/prog.go
+new file mode 100644
+index 0000000000..8301091bd8
+--- /dev/null
++++ b/test/fixedbugs/issue5291.dir/prog.go
+@@ -0,0 +1,17 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"./pkg1"
++)
++
++type message struct { // Presence of this creates a crash
++	data pkg1.Data
++}
++
++func main() {
++	pkg1.CrashCall()
++}
+diff --git a/test/fixedbugs/issue5291.go b/test/fixedbugs/issue5291.go
+new file mode 100644
+index 0000000000..00d2ada4cc
+--- /dev/null
++++ b/test/fixedbugs/issue5291.go
+@@ -0,0 +1,9 @@
++// rundir
++
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 5291: GC crash
++
++package ignored

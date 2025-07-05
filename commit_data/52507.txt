@@ -46,7 +46,7 @@ Date:   Thu Oct 21 15:25:14 2021 -0500
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/asm/internal/asm/asm.go           | 49 +++++++++++++++++++------
  src/cmd/asm/internal/asm/testdata/ppc64.s | 61 +++++++++++++++++++++++++------
  src/cmd/compile/internal/ppc64/ssa.go     | 17 ++++++---
@@ -55,3 +55,392 @@ Date:   Thu Oct 21 15:25:14 2021 -0500
  src/cmd/internal/obj/ppc64/asm_test.go    | 21 +++++------
  src/cmd/internal/obj/ppc64/list9.go       |  6 +++
  7 files changed, 127 insertions(+), 69 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index d0cb6328f1..3afbec8b92 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -14,6 +14,7 @@ import (
+ 	"cmd/asm/internal/flags"
+ 	"cmd/asm/internal/lex"
+ 	"cmd/internal/obj"
++	"cmd/internal/obj/ppc64"
+ 	"cmd/internal/obj/x86"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+@@ -410,19 +411,45 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
+ 	case 3:
+ 		if p.arch.Family == sys.PPC64 {
+ 			// Special 3-operand jumps.
+-			// First two must be constants; a[1] is a register number.
++			// a[1] is a register number expressed as a constant or register value
+ 			target = &a[2]
+-			prog.From = obj.Addr{
+-				Type:   obj.TYPE_CONST,
+-				Offset: p.getConstant(prog, op, &a[0]),
++			prog.From = a[0]
++			if a[0].Type != obj.TYPE_CONST {
++				// Legacy code may use a plain constant, accept it, and coerce
++				// into a constant. E.g:
++				//   BC 4,...
++				// into
++				//   BC $4,...
++				prog.From = obj.Addr{
++					Type:   obj.TYPE_CONST,
++					Offset: p.getConstant(prog, op, &a[0]),
++				}
++
+ 			}
+-			reg := int16(p.getConstant(prog, op, &a[1]))
+-			reg, ok := p.arch.RegisterNumber("R", reg)
+-			if !ok {
+-				p.errorf("bad register number %d", reg)
+-				return
++
++			// Likewise, fixup usage like:
++			//   BC x,LT,...
++			//   BC x,foo+2,...
++			//   BC x,4
++			//   BC x,$5
++			// into
++			//   BC x,CR0LT,...
++			//   BC x,CR0EQ,...
++			//   BC x,CR1LT,...
++			//   BC x,CR1GT,...
++			// The first and second case demonstrate a symbol name which is
++			// effectively discarded. In these cases, the offset determines
++			// the CR bit.
++			prog.Reg = a[1].Reg
++			if a[1].Type != obj.TYPE_REG {
++				// The CR bit is represented as a constant 0-31. Convert it to a Reg.
++				c := p.getConstant(prog, op, &a[1])
++				reg, success := ppc64.ConstantToCRbit(c)
++				if !success {
++					p.errorf("invalid CR bit register number %d", c)
++				}
++				prog.Reg = reg
+ 			}
+-			prog.Reg = reg
+ 			break
+ 		}
+ 		if p.arch.Family == sys.MIPS || p.arch.Family == sys.MIPS64 || p.arch.Family == sys.RISCV64 {
+@@ -461,7 +488,7 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
+ 		p.errorf("wrong number of arguments to %s instruction", op)
+ 		return
+ 	case 4:
+-		if p.arch.Family == sys.S390X {
++		if p.arch.Family == sys.S390X || p.arch.Family == sys.PPC64 {
+ 			// 4-operand compare-and-branch.
+ 			prog.From = a[0]
+ 			prog.Reg = p.getRegister(prog, op, &a[1])
+diff --git a/src/cmd/asm/internal/asm/testdata/ppc64.s b/src/cmd/asm/internal/asm/testdata/ppc64.s
+index 8663963c64..03d0a9f38d 100644
+--- a/src/cmd/asm/internal/asm/testdata/ppc64.s
++++ b/src/cmd/asm/internal/asm/testdata/ppc64.s
+@@ -24,7 +24,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	MOVW $-32767, R5                // 38a08001
+ 	MOVW $-32768, R6                // 38c08000
+ 	MOVW $1234567, R5               // 6405001260a5d687
+-	MOVD 8(R3), R4			// e8830008
++	MOVD 8(R3), R4                  // e8830008
+ 	MOVD (R3)(R4), R5               // 7ca4182a
+ 	MOVW 4(R3), R4                  // e8830006
+ 	MOVW (R3)(R4), R5               // 7ca41aaa
+@@ -41,7 +41,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	MOVDBR (R3)(R4), R5             // 7ca41c28
+ 	MOVWBR (R3)(R4), R5             // 7ca41c2c
+ 	MOVHBR (R3)(R4), R5             // 7ca41e2c
+-	MOVD $foo+4009806848(FP), R5    // 3ca1ef0138a5cc20
++	MOVD $foo+4009806848(FP), R5    // 3ca1ef0138a5cc40
+ 	MOVD $foo(SB), R5               // 3ca0000038a50000
+ 
+ 	MOVDU 8(R3), R4                 // e8830009
+@@ -79,14 +79,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	MOVBU R4, 1(R3)                 // 9c830001
+ 	MOVBU R5, (R3)(R4)              // 7ca419ee
+ 
+-	MOVB $0, R4			// 38800000
+-	MOVBZ $0, R4			// 38800000
+-	MOVH $0, R4			// 38800000
+-	MOVHZ $0, R4			// 38800000
+-	MOVW $0, R4			// 38800000
+-	MOVWZ $0, R4			// 38800000
+-	MOVD $0, R4			// 38800000
+-	MOVD $0, R0			// 38000000
++	MOVB $0, R4                     // 38800000
++	MOVBZ $0, R4                    // 38800000
++	MOVH $0, R4                     // 38800000
++	MOVHZ $0, R4                    // 38800000
++	MOVW $0, R4                     // 38800000
++	MOVWZ $0, R4                    // 38800000
++	MOVD $0, R4                     // 38800000
++	MOVD $0, R0                     // 38000000
+ 
+ 	ADD $1, R3                      // 38630001
+ 	ADD $1, R3, R4                  // 38830001
+@@ -772,9 +772,46 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	MOVFL R1, $3                    // 7c203120
+ 
+ 	// Verify supported bdnz/bdz encodings.
+-	BC 16,0,0(PC)                   // BC $16,R0,0(PC) // 42000000
++	BC 16,0,0(PC)                   // BC $16, CR0LT, 0(PC) // 42000000
+ 	BDNZ 0(PC)                      // 42000000
+ 	BDZ 0(PC)                       // 42400000
+-	BC 18,0,0(PC)                   // BC $18,R0,0(PC) // 42400000
++	BC 18,0,0(PC)                   // BC $18, CR0LT, 0(PC) // 42400000
++
++	// Verify the supported forms of bcclr[l]
++	BC $20,CR0LT,$1,LR              // 4e800820
++	BC $20,CR0LT,$0,LR              // 4e800020
++	BC $20,CR0LT,LR                 // 4e800020
++	BC $20,CR0GT,LR                 // 4e810020
++	BC 20,CR0LT,LR                  // BC $20,CR0LT,LR // 4e800020
++	BC 20,undefined_symbol,LR       // BC $20,CR0LT,LR // 4e800020
++	BC 20,undefined_symbol+1,LR     // BC $20,CR0GT,LR // 4e810020
++	JMP LR                          // 4e800020
++	BR LR                           // JMP LR // 4e800020
++	BCL $20,CR0LT,$1,LR             // 4e800821
++	BCL $20,CR0LT,$0,LR             // 4e800021
++	BCL $20,CR0LT,LR                // 4e800021
++	BCL $20,CR0GT,LR                // 4e810021
++	BCL 20,CR0LT,LR                 // BCL $20,CR0LT,LR // 4e800021
++	BCL 20,undefined_symbol,LR      // BCL $20,CR0LT,LR // 4e800021
++	BCL 20,undefined_symbol+1,LR    // BCL $20,CR0GT,LR // 4e810021
++
++	// Verify the supported forms of bcctr[l]
++	BC $20,CR0LT,CTR                // 4e800420
++	BC $20,CR0GT,CTR                // 4e810420
++	BC 20,CR0LT,CTR                 // BC $20,CR0LT,CTR // 4e800420
++	BC 20,undefined_symbol,CTR      // BC $20,CR0LT,CTR // 4e800420
++	BC 20,undefined_symbol+1,CTR    // BC $20,CR0GT,CTR // 4e810420
++	JMP CTR                         // 4e800420
++	BR CTR                          // JMP CTR // 4e800420
++	BCL $20,CR0LT,CTR               // 4e800421
++	BCL $20,CR0GT,CTR               // 4e810421
++	BCL 20,CR0LT,CTR                // BCL $20,CR0LT,CTR // 4e800421
++	BCL 20,undefined_symbol,CTR     // BCL $20,CR0LT,CTR // 4e800421
++	BCL 20,undefined_symbol+1,CTR   // BCL $20,CR0GT,CTR // 4e810421
++
++	// Verify bc encoding (without pic enabled)
++	BC $16,CR0LT,0(PC)              // 42000000
++	BCL $16,CR0LT,0(PC)             // 42000001
++	BC $18,CR0LT,0(PC)              // 42400000
+ 
+ 	RET
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index e5a9eecc6a..ffb6ff93cf 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -1147,7 +1147,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 			p = s.Prog(ppc64.ABC)
+ 			p.From.Type = obj.TYPE_CONST
+ 			p.From.Offset = ppc64.BO_BCTR
+-			p.Reg = ppc64.REG_R0
++			p.Reg = ppc64.REG_CR0LT
+ 			p.To.Type = obj.TYPE_BRANCH
+ 			p.To.SetTarget(top)
+ 		}
+@@ -1347,7 +1347,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 			p = s.Prog(ppc64.ABC)
+ 			p.From.Type = obj.TYPE_CONST
+ 			p.From.Offset = ppc64.BO_BCTR
+-			p.Reg = ppc64.REG_R0
++			p.Reg = ppc64.REG_CR0LT
+ 			p.To.Type = obj.TYPE_BRANCH
+ 			p.To.SetTarget(top)
+ 		}
+@@ -1526,7 +1526,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 			p = s.Prog(ppc64.ABC)
+ 			p.From.Type = obj.TYPE_CONST
+ 			p.From.Offset = ppc64.BO_BCTR
+-			p.Reg = ppc64.REG_R0
++			p.Reg = ppc64.REG_CR0LT
+ 			p.To.Type = obj.TYPE_BRANCH
+ 			p.To.SetTarget(top)
+ 
+@@ -1773,7 +1773,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 			p = s.Prog(ppc64.ABC)
+ 			p.From.Type = obj.TYPE_CONST
+ 			p.From.Offset = ppc64.BO_BCTR
+-			p.Reg = ppc64.REG_R0
++			p.Reg = ppc64.REG_CR0LT
+ 			p.To.Type = obj.TYPE_BRANCH
+ 			p.To.SetTarget(top)
+ 
+@@ -1905,9 +1905,14 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		}
+ 
+ 		pp := s.Call(v)
+-		pp.To.Reg = ppc64.REG_LR
+ 
+-		// Insert a hint this is not a subroutine return.
++		// Convert the call into a blrl with hint this is not a subroutine return.
++		// The full bclrl opcode must be specified when passing a hint.
++		pp.As = ppc64.ABCL
++		pp.From.Type = obj.TYPE_CONST
++		pp.From.Offset = ppc64.BO_ALWAYS
++		pp.Reg = ppc64.REG_CR0LT // The preferred value if BI is ignored.
++		pp.To.Reg = ppc64.REG_LR
+ 		pp.SetFrom3Const(1)
+ 
+ 		if base.Ctxt.Flag_shared {
+diff --git a/src/cmd/internal/obj/ppc64/a.out.go b/src/cmd/internal/obj/ppc64/a.out.go
+index 25081efcee..30eba4339a 100644
+--- a/src/cmd/internal/obj/ppc64/a.out.go
++++ b/src/cmd/internal/obj/ppc64/a.out.go
+@@ -264,6 +264,8 @@ const (
+ 
+ 	REG_SPECIAL = REG_CR0
+ 
++	REG_CRBIT0 = REG_CR0LT // An alias for a Condition Register bit 0
++
+ 	REG_SPR0 = obj.RBasePPC64 + 1024 // first of 1024 registers
+ 
+ 	REG_XER = REG_SPR0 + 1
+@@ -368,6 +370,7 @@ const (
+ // Common values for the BO field.
+ 
+ const (
++	BO_ALWAYS  = 20 // branch unconditionally
+ 	BO_BCTR    = 16 // decrement ctr, branch on ctr != 0
+ 	BO_NOTBCTR = 18 // decrement ctr, branch on ctr == 0
+ 	BO_BCR     = 12 // branch on cr value
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 399e17ebab..aa2737d8f0 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -291,20 +291,15 @@ var optab = []Optab{
+ 	{as: ASYSCALL, a1: C_SCON, type_: 77, size: 12},
+ 	{as: ABEQ, a6: C_SBRA, type_: 16, size: 4},
+ 	{as: ABEQ, a1: C_CREG, a6: C_SBRA, type_: 16, size: 4},
+-	{as: ABR, a6: C_LBRA, type_: 11, size: 4},
+-	{as: ABR, a6: C_LBRAPIC, type_: 11, size: 8},
+-	{as: ABC, a1: C_SCON, a2: C_REG, a6: C_SBRA, type_: 16, size: 4},
+-	{as: ABC, a1: C_SCON, a2: C_REG, a6: C_LBRA, type_: 17, size: 4},
+-	{as: ABR, a6: C_LR, type_: 18, size: 4},
+-	{as: ABR, a3: C_SCON, a6: C_LR, type_: 18, size: 4},
+-	{as: ABR, a6: C_CTR, type_: 18, size: 4},
+-	{as: ABR, a1: C_REG, a6: C_CTR, type_: 18, size: 4},
+-	{as: ABR, a6: C_ZOREG, type_: 15, size: 8},
+-	{as: ABC, a2: C_REG, a6: C_LR, type_: 18, size: 4},
+-	{as: ABC, a2: C_REG, a6: C_CTR, type_: 18, size: 4},
+-	{as: ABC, a1: C_SCON, a2: C_REG, a6: C_LR, type_: 18, size: 4},
+-	{as: ABC, a1: C_SCON, a2: C_REG, a6: C_CTR, type_: 18, size: 4},
+-	{as: ABC, a6: C_ZOREG, type_: 15, size: 8},
++	{as: ABR, a6: C_LBRA, type_: 11, size: 4},                                    // b label
++	{as: ABR, a6: C_LBRAPIC, type_: 11, size: 8},                                 // b label; nop
++	{as: ABR, a6: C_LR, type_: 18, size: 4},                                      // blr
++	{as: ABR, a6: C_CTR, type_: 18, size: 4},                                     // bctr
++	{as: ABC, a1: C_SCON, a2: C_CRBIT, a6: C_SBRA, type_: 16, size: 4},           // bc bo, bi, label
++	{as: ABC, a1: C_SCON, a2: C_CRBIT, a6: C_LBRA, type_: 17, size: 4},           // bc bo, bi, label
++	{as: ABC, a1: C_SCON, a2: C_CRBIT, a6: C_LR, type_: 18, size: 4},             // bclr bo, bi
++	{as: ABC, a1: C_SCON, a2: C_CRBIT, a3: C_SCON, a6: C_LR, type_: 18, size: 4}, // bclr bo, bi, bh
++	{as: ABC, a1: C_SCON, a2: C_CRBIT, a6: C_CTR, type_: 18, size: 4},            // bcctr bo, bi
+ 	{as: ABDNZ, a6: C_SBRA, type_: 16, size: 4},
+ 	{as: ASYNC, type_: 46, size: 4},
+ 	{as: AWORD, a1: C_LCON, type_: 40, size: 4},
+@@ -708,7 +703,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 						q.Link = p.Link
+ 						p.To.SetTarget(p.Link)
+ 						p.Link = q
+-						p.Reg = bi // TODO: This is a hack since BI bits are not enumerated as registers
++						p.Reg = REG_CRBIT0 + bi
+ 					} else {
+ 						// Rewrite
+ 						//     BC ...,far_away_target
+@@ -2808,20 +2803,6 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		}
+ 		o1 = OP_BC(c.opirr(p.As), uint32(a), uint32(r), uint32(v), 0)
+ 
+-	case 15: /* br/bl (r) => mov r,lr; br/bl (lr) */
+-		var v int32
+-		if p.As == ABC || p.As == ABCL {
+-			v = c.regoff(&p.To) & 31
+-		} else {
+-			v = 20 /* unconditional */
+-		}
+-		o1 = AOP_RRR(OP_MTSPR, uint32(p.To.Reg), 0, 0) | (REG_LR&0x1f)<<16 | ((REG_LR>>5)&0x1f)<<11
+-		o2 = OPVCC(19, 16, 0, 0)
+-		if p.As == ABL || p.As == ABCL {
+-			o2 |= 1
+-		}
+-		o2 = OP_BCR(o2, uint32(v), uint32(p.To.Index))
+-
+ 	case 18: /* br/bl (lr/ctr); bc/bcl bo,bi,(lr/ctr) */
+ 		var v int32
+ 		var bh uint32 = 0
+diff --git a/src/cmd/internal/obj/ppc64/asm_test.go b/src/cmd/internal/obj/ppc64/asm_test.go
+index 1de6e76b09..c16d4a6e73 100644
+--- a/src/cmd/internal/obj/ppc64/asm_test.go
++++ b/src/cmd/internal/obj/ppc64/asm_test.go
+@@ -232,46 +232,45 @@ func TestLarge(t *testing.T) {
+ 		// Test the interesting cases of conditional branch rewrites for too-far targets. Simple conditional
+ 		// branches can be made to reach with one JMP insertion, compound conditionals require two.
+ 		//
+-		// TODO: BI is interpreted as a register (the R???x/R0 should be $x)
+ 		// beq <-> bne conversion (insert one jump)
+ 		{"BEQ",
+ 			[]string{``,
+-				`0x20030 131120\s\(.*\)\tBC\t\$4,\sR\?\?\?2,\s131128`,
++				`0x20030 131120\s\(.*\)\tBC\t\$4,\sCR0EQ,\s131128`,
+ 				`0x20034 131124\s\(.*\)\tJMP\t0`},
+ 			[]string{``,
+-				`0x0000 00000\s\(.*\)\tBC\t\$4,\sR\?\?\?2,\s8`,
++				`0x0000 00000\s\(.*\)\tBC\t\$4,\sCR0EQ,\s8`,
+ 				`0x0004 00004\s\(.*\)\tJMP\t131128`},
+ 		},
+ 		{"BNE",
+ 			[]string{``,
+-				`0x20030 131120\s\(.*\)\tBC\t\$12,\sR\?\?\?2,\s131128`,
++				`0x20030 131120\s\(.*\)\tBC\t\$12,\sCR0EQ,\s131128`,
+ 				`0x20034 131124\s\(.*\)\tJMP\t0`},
+ 			[]string{``,
+-				`0x0000 00000\s\(.*\)\tBC\t\$12,\sR\?\?\?2,\s8`,
++				`0x0000 00000\s\(.*\)\tBC\t\$12,\sCR0EQ,\s8`,
+ 				`0x0004 00004\s\(.*\)\tJMP\t131128`}},
+ 		// bdnz (BC 16,0,tgt) <-> bdz (BC 18,0,+4) conversion (insert one jump)
+ 		{"BC 16,0,",
+ 			[]string{``,
+-				`0x20030 131120\s\(.*\)\tBC\t\$18,\s131128`,
++				`0x20030 131120\s\(.*\)\tBC\t\$18,\sCR0LT,\s131128`,
+ 				`0x20034 131124\s\(.*\)\tJMP\t0`},
+ 			[]string{``,
+-				`0x0000 00000\s\(.*\)\tBC\t\$18,\s8`,
++				`0x0000 00000\s\(.*\)\tBC\t\$18,\sCR0LT,\s8`,
+ 				`0x0004 00004\s\(.*\)\tJMP\t131128`}},
+ 		{"BC 18,0,",
+ 			[]string{``,
+-				`0x20030 131120\s\(.*\)\tBC\t\$16,\s131128`,
++				`0x20030 131120\s\(.*\)\tBC\t\$16,\sCR0LT,\s131128`,
+ 				`0x20034 131124\s\(.*\)\tJMP\t0`},
+ 			[]string{``,
+-				`0x0000 00000\s\(.*\)\tBC\t\$16,\s8`,
++				`0x0000 00000\s\(.*\)\tBC\t\$16,\sCR0LT,\s8`,
+ 				`0x0004 00004\s\(.*\)\tJMP\t131128`}},
+ 		// bdnzt (BC 8,0,tgt) <-> bdnzt (BC 8,0,+4) conversion (insert two jumps)
+ 		{"BC 8,0,",
+ 			[]string{``,
+-				`0x20034 131124\s\(.*\)\tBC\t\$8,\sR0,\s131132`,
++				`0x20034 131124\s\(.*\)\tBC\t\$8,\sCR0LT,\s131132`,
+ 				`0x20038 131128\s\(.*\)\tJMP\t131136`,
+ 				`0x2003c 131132\s\(.*\)\tJMP\t0\n`},
+ 			[]string{``,
+-				`0x0000 00000\s\(.*\)\tBC\t\$8,\sR0,\s8`,
++				`0x0000 00000\s\(.*\)\tBC\t\$8,\sCR0LT,\s8`,
+ 				`0x0004 00004\s\(.*\)\tJMP\t12`,
+ 				`0x0008 00008\s\(.*\)\tJMP\t131136\n`}},
+ 	}
+diff --git a/src/cmd/internal/obj/ppc64/list9.go b/src/cmd/internal/obj/ppc64/list9.go
+index ea0dae9e02..dda8d5abd0 100644
+--- a/src/cmd/internal/obj/ppc64/list9.go
++++ b/src/cmd/internal/obj/ppc64/list9.go
+@@ -104,3 +104,9 @@ func DRconv(a int) string {
+ 	fp += s
+ 	return fp
+ }
++
++func ConstantToCRbit(c int64) (int16, bool) {
++	reg64 := REG_CRBIT0 + c
++	success := reg64 >= REG_CR0LT && reg64 <= REG_CR7SO
++	return int16(reg64), success
++}

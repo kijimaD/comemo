@@ -12,7 +12,7 @@ Date:   Mon Sep 5 15:03:02 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/compile/internal/ssa/compile.go          | 3 +--
  src/cmd/compile/internal/ssa/debug_lines_test.go | 3 ++-
  src/cmd/compile/internal/ssa/debug_test.go       | 3 +--
@@ -20,3 +20,144 @@ Date:   Mon Sep 5 15:03:02 2022 +0800
  src/cmd/compile/internal/ssa/html.go             | 8 ++++----
  src/cmd/compile/internal/ssa/print.go            | 4 ++--
  6 files changed, 11 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 5e898ab96f..3be2cc7c37 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -5,7 +5,6 @@
+ package ssa
+ 
+ import (
+-	"bytes"
+ 	"cmd/internal/src"
+ 	"fmt"
+ 	"hash/crc32"
+@@ -152,7 +151,7 @@ func Compile(f *Func) {
+ 			keys = append(keys, key)
+ 		}
+ 		sort.Strings(keys)
+-		buf := new(bytes.Buffer)
++		buf := new(strings.Builder)
+ 		fmt.Fprintf(buf, "%s: ", f.Name)
+ 		for _, key := range keys {
+ 			fmt.Fprintf(buf, "%s=%d ", key, f.ruleMatches[key])
+diff --git a/src/cmd/compile/internal/ssa/debug_lines_test.go b/src/cmd/compile/internal/ssa/debug_lines_test.go
+index 7b8b5eb180..23b511ddb2 100644
+--- a/src/cmd/compile/internal/ssa/debug_lines_test.go
++++ b/src/cmd/compile/internal/ssa/debug_lines_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"internal/buildcfg"
+ 	"runtime"
+ 	"sort"
++	"strings"
+ 
+ 	"fmt"
+ 	"internal/testenv"
+@@ -157,7 +158,7 @@ func compileAndDump(t *testing.T, file, function, moreGCFlags string) []byte {
+ 		fmt.Printf("About to run %s\n", asCommandLine("", cmd))
+ 	}
+ 
+-	var stdout, stderr bytes.Buffer
++	var stdout, stderr strings.Builder
+ 	cmd.Stdout = &stdout
+ 	cmd.Stderr = &stderr
+ 
+diff --git a/src/cmd/compile/internal/ssa/debug_test.go b/src/cmd/compile/internal/ssa/debug_test.go
+index c807863ea6..f3f8eeeb41 100644
+--- a/src/cmd/compile/internal/ssa/debug_test.go
++++ b/src/cmd/compile/internal/ssa/debug_test.go
+@@ -5,7 +5,6 @@
+ package ssa_test
+ 
+ import (
+-	"bytes"
+ 	"flag"
+ 	"fmt"
+ 	"internal/testenv"
+@@ -298,7 +297,7 @@ func runDbgr(dbg dbgr, maxNext int) *nextHist {
+ }
+ 
+ func runGo(t *testing.T, dir string, args ...string) string {
+-	var stdout, stderr bytes.Buffer
++	var stdout, stderr strings.Builder
+ 	cmd := exec.Command(testenv.GoToolPath(t), args...)
+ 	cmd.Dir = dir
+ 	if *dryrun {
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/gen/main.go
+index 2cf0a919fa..b1a7cf9f6f 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/gen/main.go
+@@ -94,7 +94,7 @@ type regInfo struct {
+ type regMask uint64
+ 
+ func (a arch) regMaskComment(r regMask) string {
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	for i := uint64(0); r != 0; i++ {
+ 		if r&1 != 0 {
+ 			if buf.Len() == 0 {
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index 1e6060ab32..c3950697d3 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -848,7 +848,7 @@ func (w *HTMLWriter) WriteSources(phase string, all []*FuncLines) {
+ 	if w == nil {
+ 		return // avoid generating HTML just to discard it
+ 	}
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	fmt.Fprint(&buf, "<div class=\"lines\" style=\"width: 8%\">")
+ 	filename := ""
+ 	for _, fl := range all {
+@@ -890,7 +890,7 @@ func (w *HTMLWriter) WriteAST(phase string, buf *bytes.Buffer) {
+ 		return // avoid generating HTML just to discard it
+ 	}
+ 	lines := strings.Split(buf.String(), "\n")
+-	var out bytes.Buffer
++	var out strings.Builder
+ 
+ 	fmt.Fprint(&out, "<div>")
+ 	for _, l := range lines {
+@@ -1053,7 +1053,7 @@ func (b *Block) LongHTML() string {
+ }
+ 
+ func (f *Func) HTML(phase string, dot *dotWriter) string {
+-	buf := new(bytes.Buffer)
++	buf := new(strings.Builder)
+ 	if dot != nil {
+ 		dot.writeFuncSVG(buf, phase, f)
+ 	}
+@@ -1082,7 +1082,7 @@ func (d *dotWriter) writeFuncSVG(w io.Writer, phase string, f *Func) {
+ 	}
+ 	buf := new(bytes.Buffer)
+ 	cmd.Stdout = buf
+-	bufErr := new(bytes.Buffer)
++	bufErr := new(strings.Builder)
+ 	cmd.Stderr = bufErr
+ 	err = cmd.Start()
+ 	if err != nil {
+diff --git a/src/cmd/compile/internal/ssa/print.go b/src/cmd/compile/internal/ssa/print.go
+index aea9ce9e33..85ba6b72c6 100644
+--- a/src/cmd/compile/internal/ssa/print.go
++++ b/src/cmd/compile/internal/ssa/print.go
+@@ -5,9 +5,9 @@
+ package ssa
+ 
+ import (
+-	"bytes"
+ 	"fmt"
+ 	"io"
++	"strings"
+ 
+ 	"cmd/internal/notsha256"
+ 	"cmd/internal/src"
+@@ -25,7 +25,7 @@ func hashFunc(f *Func) []byte {
+ }
+ 
+ func (f *Func) String() string {
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	p := stringFuncPrinter{w: &buf, printDead: true}
+ 	fprintFunc(p, f)
+ 	return buf.String()

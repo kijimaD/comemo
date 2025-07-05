@@ -10,7 +10,7 @@ Date:   Mon Jul 13 19:20:43 2009 -0700
     R=ken
     OCL=31562
     CL=31566
-
+---
  src/cmd/6c/cgen.c  |  6 ++++--
  src/cmd/6c/peep.c  |  4 ++--
  src/cmd/6c/txt.c   | 16 ++++++++--------
@@ -21,3 +21,256 @@ Date:   Mon Jul 13 19:20:43 2009 -0700
  src/cmd/8l/8.out.h |  2 +-
  src/cmd/cc/pgen.c  | 14 +++++++-------
  9 files changed, 30 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/6c/cgen.c b/src/cmd/6c/cgen.c
+index b9ff040702..aba37b1b5c 100644
+--- a/src/cmd/6c/cgen.c
++++ b/src/cmd/6c/cgen.c
+@@ -923,7 +923,9 @@ cgen(Node *n, Node *nn)
+ 
+ 			return;
+ 		}
+-		o = reg[REGARG];
++		o = 0;
++		if(REGARG >= 0)
++			o = reg[REGARG];
+ 		gargs(r, &nod, &nod1);
+ 		if(l->addable < INDEXED) {
+ 			reglcgen(&nod, l, nn);
+@@ -932,7 +934,7 @@ cgen(Node *n, Node *nn)
+ 			regfree(&nod);
+ 		} else
+ 			gopcode(OFUNC, n->type, Z, l);
+-		if(REGARG)
++		if(REGARG >= 0)
+ 			if(o != reg[REGARG])
+ 				reg[REGARG]--;
+ 		if(nn != Z) {
+diff --git a/src/cmd/6c/peep.c b/src/cmd/6c/peep.c
+index 2800d58c2a..01793bfc5c 100644
+--- a/src/cmd/6c/peep.c
++++ b/src/cmd/6c/peep.c
+@@ -799,7 +799,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 	case ACALL:	/* funny */
+ 		if(REGEXT && v->type <= REGEXT && v->type > exregoffset)
+ 			return 2;
+-		if(REGARG && v->type == REGARG)
++		if(REGARG >= 0 && v->type == REGARG)
+ 			return 2;
+ 
+ 		if(s != A) {
+@@ -812,7 +812,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 		return 3;
+ 
+ 	case ATEXT:	/* funny */
+-		if(REGARG && v->type == REGARG)
++		if(REGARG >= 0 && v->type == REGARG)
+ 			return 3;
+ 		return 0;
+ 	}
+diff --git a/src/cmd/6c/txt.c b/src/cmd/6c/txt.c
+index fba5d2316e..f96c40f8eb 100644
+--- a/src/cmd/6c/txt.c
++++ b/src/cmd/6c/txt.c
+@@ -247,7 +247,7 @@ garg1(Node *n, Node *tn1, Node *tn2, int f, Node **fnxp)
+ 			sugen(n, tn2, n->type->width);
+ 		return;
+ 	}
+-	if(REGARG && curarg == 0 && typechlpv[n->type->etype]) {
++	if(REGARG >= 0 && curarg == 0 && typechlpv[n->type->etype]) {
+ 		regaalloc1(tn1, n);
+ 		if(n->complex >= FNX) {
+ 			cgen(*fnxp, tn1);
+@@ -437,8 +437,8 @@ regsalloc(Node *n, Node *nn)
+ void
+ regaalloc1(Node *n, Node *nn)
+ {
+-	if(REGARG == 0)
+-		diag(n, "regaalloc1 and REGARG==0");
++	if(REGARG < 0)
++		diag(n, "regaalloc1 and REGARG<0");
+ 	nodreg(n, nn, REGARG);
+ 	reg[REGARG]++;
+ 	curarg = align(curarg, nn->type, Aarg1);
+@@ -1475,7 +1475,7 @@ gpseudo(int a, Sym *s, Node *n)
+ 	p->from.sym = s;
+ 	p->from.scale = textflag;
+ 	textflag = 0;
+-	
++
+ 	if(s->class == CSTATIC)
+ 		p->from.type = D_STATIC;
+ 	naddr(n, &p->to);
+@@ -1513,8 +1513,8 @@ exreg(Type *t)
+ 
+ schar	ewidth[NTYPE] =
+ {
+-	-1,		/*[TXXX]*/	
+-	SZ_CHAR,	/*[TCHAR]*/	
++	-1,		/*[TXXX]*/
++	SZ_CHAR,	/*[TCHAR]*/
+ 	SZ_CHAR,	/*[TUCHAR]*/
+ 	SZ_SHORT,	/*[TSHORT]*/
+ 	SZ_SHORT,	/*[TUSHORT]*/
+@@ -1538,10 +1538,10 @@ int32	ncast[NTYPE] =
+ {
+ 	0,				/*[TXXX]*/
+ 	BCHAR|BUCHAR,			/*[TCHAR]*/
+-	BCHAR|BUCHAR,			/*[TUCHAR]*/	
++	BCHAR|BUCHAR,			/*[TUCHAR]*/
+ 	BSHORT|BUSHORT,			/*[TSHORT]*/
+ 	BSHORT|BUSHORT,			/*[TUSHORT]*/
+-	BINT|BUINT|BLONG|BULONG,	/*[TINT]*/		
++	BINT|BUINT|BLONG|BULONG,	/*[TINT]*/
+ 	BINT|BUINT|BLONG|BULONG,	/*[TUINT]*/
+ 	BINT|BUINT|BLONG|BULONG,	/*[TLONG]*/
+ 	BINT|BUINT|BLONG|BULONG,	/*[TULONG]*/
+diff --git a/src/cmd/6l/6.out.h b/src/cmd/6l/6.out.h
+index 15815f4e0d..dc1d057fd1 100644
+--- a/src/cmd/6l/6.out.h
++++ b/src/cmd/6l/6.out.h
+@@ -832,7 +832,7 @@ enum
+ 	T_SCONST	= 1<<5,
+ 	T_64		= 1<<6,
+ 
+-	REGARG		= 0,
++	REGARG		= -1,
+ 	REGRET		= D_AX,
+ 	FREGRET		= D_X0,
+ 	REGSP		= D_SP,
+diff --git a/src/cmd/8c/cgen.c b/src/cmd/8c/cgen.c
+index 1df03ef50c..0d147b02fa 100644
+--- a/src/cmd/8c/cgen.c
++++ b/src/cmd/8c/cgen.c
+@@ -925,7 +925,7 @@ cgen(Node *n, Node *nn)
+ 			regfree(&nod);
+ 		} else
+ 			gopcode(OFUNC, n->type, Z, l);
+-		if(REGARG && reg[REGARG])
++		if(REGARG >= 0 && reg[REGARG])
+ 			reg[REGARG]--;
+ 		if(nn != Z) {
+ 			regret(&nod, n);
+diff --git a/src/cmd/8c/peep.c b/src/cmd/8c/peep.c
+index 64ce5fa786..9e18fc94d2 100644
+--- a/src/cmd/8c/peep.c
++++ b/src/cmd/8c/peep.c
+@@ -713,7 +713,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 		return 3;
+ 
+ 	case ACALL:	/* funny */
+-		if(REGARG && v->type == REGARG)
++		if(REGARG >= 0 && v->type == REGARG)
+ 			return 2;
+ 
+ 		if(s != A) {
+diff --git a/src/cmd/8c/txt.c b/src/cmd/8c/txt.c
+index 5cc43e0e94..8abaa667d4 100644
+--- a/src/cmd/8c/txt.c
++++ b/src/cmd/8c/txt.c
+@@ -233,7 +233,7 @@ garg1(Node *n, Node *tn1, Node *tn2, int f, Node **fnxp)
+ 			sugen(n, tn2, n->type->width);
+ 		return;
+ 	}
+-	if(REGARG && curarg == 0 && typeilp[n->type->etype]) {
++	if(REGARG >= 0 && curarg == 0 && typeilp[n->type->etype]) {
+ 		regaalloc1(tn1, n);
+ 		if(n->complex >= FNX) {
+ 			cgen(*fnxp, tn1);
+@@ -1409,8 +1409,8 @@ exreg(Type *t)
+ 
+ schar	ewidth[NTYPE] =
+ {
+-	-1,		/*[TXXX]*/	
+-	SZ_CHAR,	/*[TCHAR]*/	
++	-1,		/*[TXXX]*/
++	SZ_CHAR,	/*[TCHAR]*/
+ 	SZ_CHAR,	/*[TUCHAR]*/
+ 	SZ_SHORT,	/*[TSHORT]*/
+ 	SZ_SHORT,	/*[TUSHORT]*/
+@@ -1434,10 +1434,10 @@ int32	ncast[NTYPE] =
+ {
+ 	0,				/*[TXXX]*/
+ 	BCHAR|BUCHAR,			/*[TCHAR]*/
+-	BCHAR|BUCHAR,			/*[TUCHAR]*/	
++	BCHAR|BUCHAR,			/*[TUCHAR]*/
+ 	BSHORT|BUSHORT,			/*[TSHORT]*/
+ 	BSHORT|BUSHORT,			/*[TUSHORT]*/
+-	BINT|BUINT|BLONG|BULONG|BIND,	/*[TINT]*/		
++	BINT|BUINT|BLONG|BULONG|BIND,	/*[TINT]*/
+ 	BINT|BUINT|BLONG|BULONG|BIND,	/*[TUINT]*/
+ 	BINT|BUINT|BLONG|BULONG|BIND,	/*[TLONG]*/
+ 	BINT|BUINT|BLONG|BULONG|BIND,	/*[TULONG]*/
+diff --git a/src/cmd/8l/8.out.h b/src/cmd/8l/8.out.h
+index a536242186..ef85b9d220 100644
+--- a/src/cmd/8l/8.out.h
++++ b/src/cmd/8l/8.out.h
+@@ -460,7 +460,7 @@ enum
+ 	T_SCONST	= 1<<5,
+ 	T_OFFSET2	= 1<<6,
+ 
+-	REGARG		= 0,
++	REGARG		= -1,
+ 	REGRET		= D_AX,
+ 	FREGRET		= D_F0,
+ 	REGSP		= D_SP,
+diff --git a/src/cmd/cc/pgen.c b/src/cmd/cc/pgen.c
+index 2b7402f4ea..0b9dc8e163 100644
+--- a/src/cmd/cc/pgen.c
++++ b/src/cmd/cc/pgen.c
+@@ -83,7 +83,7 @@ codgen(Node *n, Node *nn)
+ 	/*
+ 	 * isolate first argument
+ 	 */
+-	if(REGARG) {
++	if(REGARG >= 0) {
+ 		if(typesuv[thisfn->link->etype]) {
+ 			nod1 = *nodret->left;
+ 			nodreg(&nod, &nod1, REGARG);
+@@ -385,8 +385,8 @@ loop:
+ 		gbranch(OGOTO);		/* entry */
+ 		sp = p;
+ 
+-		/* 
+-		 * if there are no incoming labels in the 
++		/*
++		 * if there are no incoming labels in the
+ 		 * body and the top's not reachable, warn
+ 		 */
+ 		if(!canreach && warnreach && deadheads(n)) {
+@@ -410,7 +410,7 @@ loop:
+ 
+ 		patch(spc, pc);
+ 		gen(l->right->right);	/* inc */
+-		patch(sp, pc);	
++		patch(sp, pc);
+ 		if(l->left != Z) {	/* test */
+ 			bcomplex(l->left, Z);
+ 			patch(p, breakpc);
+@@ -460,7 +460,7 @@ loop:
+ 		 * Don't complain about unreachable break statements.
+ 		 * There are breaks hidden in yacc's output and some people
+ 		 * write return; break; in their switch statements out of habit.
+-		 * However, don't confuse the analysis by inserting an 
++		 * However, don't confuse the analysis by inserting an
+ 		 * unreachable reference to breakpc either.
+ 		 */
+ 		if(!canreach)
+@@ -488,7 +488,7 @@ loop:
+ 				canreach = 1;
+ 				gen(n->right->right);
+ 				/*
+-				 * treat constant ifs as regular ifs for 
++				 * treat constant ifs as regular ifs for
+ 				 * reachability warnings.
+ 				 */
+ 				if(!canreach && oldreach && debug['w'] < 2)
+@@ -501,7 +501,7 @@ loop:
+ 				canreach = 1;
+ 				supgen(n->right->right);
+ 				/*
+-				 * treat constant ifs as regular ifs for 
++				 * treat constant ifs as regular ifs for
+ 				 * reachability warnings.
+ 				 */
+ 				if(!oldreach && canreach && debug['w'] < 2)

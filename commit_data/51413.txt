@@ -12,7 +12,158 @@ Date:   Wed Jan 26 09:50:41 2022 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/script_test.go         | 57 ++++++++++++++++++++++++++-------------
  src/cmd/go/testdata/script/README | 13 ++++++---
  2 files changed, 47 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 7adbc71a89..0fc4b0f7ab 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -491,6 +491,7 @@ var scriptCmds = map[string]func(*testScript, simpleStatus, []string){
+ 	"go":      (*testScript).cmdGo,
+ 	"grep":    (*testScript).cmdGrep,
+ 	"mkdir":   (*testScript).cmdMkdir,
++	"mv":      (*testScript).cmdMv,
+ 	"rm":      (*testScript).cmdRm,
+ 	"skip":    (*testScript).cmdSkip,
+ 	"stale":   (*testScript).cmdStale,
+@@ -585,10 +586,6 @@ func (ts *testScript) cmdChmod(want simpleStatus, args []string) {
+ 
+ // cmp compares two files.
+ func (ts *testScript) cmdCmp(want simpleStatus, args []string) {
+-	if want != success {
+-		// It would be strange to say "this file can have any content except this precise byte sequence".
+-		ts.fatalf("unsupported: %v cmp", want)
+-	}
+ 	quiet := false
+ 	if len(args) > 0 && args[0] == "-q" {
+ 		quiet = true
+@@ -597,14 +594,11 @@ func (ts *testScript) cmdCmp(want simpleStatus, args []string) {
+ 	if len(args) != 2 {
+ 		ts.fatalf("usage: cmp file1 file2")
+ 	}
+-	ts.doCmdCmp(args, false, quiet)
++	ts.doCmdCmp(want, args, false, quiet)
+ }
+ 
+ // cmpenv compares two files with environment variable substitution.
+ func (ts *testScript) cmdCmpenv(want simpleStatus, args []string) {
+-	if want != success {
+-		ts.fatalf("unsupported: %v cmpenv", want)
+-	}
+ 	quiet := false
+ 	if len(args) > 0 && args[0] == "-q" {
+ 		quiet = true
+@@ -613,17 +607,18 @@ func (ts *testScript) cmdCmpenv(want simpleStatus, args []string) {
+ 	if len(args) != 2 {
+ 		ts.fatalf("usage: cmpenv file1 file2")
+ 	}
+-	ts.doCmdCmp(args, true, quiet)
++	ts.doCmdCmp(want, args, true, quiet)
+ }
+ 
+-func (ts *testScript) doCmdCmp(args []string, env, quiet bool) {
++func (ts *testScript) doCmdCmp(want simpleStatus, args []string, env, quiet bool) {
+ 	name1, name2 := args[0], args[1]
+ 	var text1, text2 string
+-	if name1 == "stdout" {
++	switch name1 {
++	case "stdout":
+ 		text1 = ts.stdout
+-	} else if name1 == "stderr" {
++	case "stderr":
+ 		text1 = ts.stderr
+-	} else {
++	default:
+ 		data, err := os.ReadFile(ts.mkabs(name1))
+ 		ts.check(err)
+ 		text1 = string(data)
+@@ -638,14 +633,28 @@ func (ts *testScript) doCmdCmp(args []string, env, quiet bool) {
+ 		text2 = ts.expand(text2, false)
+ 	}
+ 
+-	if text1 == text2 {
+-		return
+-	}
+-
+-	if !quiet {
++	eq := text1 == text2
++	if !eq && !quiet && want != failure {
+ 		fmt.Fprintf(&ts.log, "[diff -%s +%s]\n%s\n", name1, name2, diff(text1, text2))
+ 	}
+-	ts.fatalf("%s and %s differ", name1, name2)
++	switch want {
++	case failure:
++		if eq {
++			ts.fatalf("%s and %s do not differ", name1, name2)
++		}
++	case success:
++		if !eq {
++			ts.fatalf("%s and %s differ", name1, name2)
++		}
++	case successOrFailure:
++		if eq {
++			fmt.Fprintf(&ts.log, "%s and %s do not differ", name1, name2)
++		} else {
++			fmt.Fprintf(&ts.log, "%s and %s differ", name1, name2)
++		}
++	default:
++		ts.fatalf("unsupported: %v cmp", want)
++	}
+ }
+ 
+ // cp copies files, maybe eventually directories.
+@@ -840,6 +849,16 @@ func (ts *testScript) cmdMkdir(want simpleStatus, args []string) {
+ 	}
+ }
+ 
++func (ts *testScript) cmdMv(want simpleStatus, args []string) {
++	if want != success {
++		ts.fatalf("unsupported: %v mv", want)
++	}
++	if len(args) != 2 {
++		ts.fatalf("usage: mv old new")
++	}
++	ts.check(os.Rename(ts.mkabs(args[0]), ts.mkabs(args[1])))
++}
++
+ // rm removes files or directories.
+ func (ts *testScript) cmdRm(want simpleStatus, args []string) {
+ 	if want != success {
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index 2b55fa8977..b2a7fd1915 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -110,14 +110,15 @@ The commands are:
+   Change the permissions of the files or directories named by the path arguments
+   to be equal to perm. Only numerical permissions are supported.
+ 
+-- cmp file1 file2
+-  Check that the named files have the same content.
++- [! | ?] cmp file1 file2
++  Check that the named files have (or do not have) the same content.
+   By convention, file1 is the actual data and file2 the expected data.
+   File1 can be "stdout" or "stderr" to use the standard output or standard error
+   from the most recent exec or go command.
+-  (If the files have differing content, the failure prints a diff.)
++  (If the file contents differ and the command is not negated,
++  the failure prints a diff.)
+ 
+-- cmpenv file1 file2
++- [! | ?] cmpenv file1 file2
+   Like cmp, but environment variables are substituted in the file contents
+   before the comparison. For example, $GOOS is replaced by the target GOOS.
+ 
+@@ -163,6 +164,10 @@ The commands are:
+ - mkdir path...
+   Create the listed directories, if they do not already exists.
+ 
++- mv path1 path2
++  Rename path1 to path2. OS-specific restrictions may apply when path1 and path2
++  are in different directories.
++
+ - rm file...
+   Remove the listed files or directories.
+ 

@@ -34,7 +34,7 @@ Date:   Wed Feb 2 18:40:27 2022 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go/parser/parser.go                        | 25 +++++++++++------
  src/go/parser/short_test.go                    | 26 +++++++++++-------
  src/go/parser/testdata/issue50427.go2          | 19 +++++++++++++
@@ -43,3 +43,271 @@ Date:   Wed Feb 2 18:40:27 2022 -0500
  src/go/types/testdata/fixedbugs/issue39634.go2 |  2 +-
  src/go/types/testdata/fixedbugs/issue50427.go2 | 23 ++++++++++++++++
  7 files changed, 97 insertions(+), 40 deletions(-)
+
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index e456e2930e..4479adb732 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -977,7 +977,7 @@ func (p *parser) parseFuncType() *ast.FuncType {
+ 	pos := p.expect(token.FUNC)
+ 	tparams, params := p.parseParameters(true)
+ 	if tparams != nil {
+-		p.error(tparams.Pos(), "function type cannot have type parameters")
++		p.error(tparams.Pos(), "function type must have no type parameters")
+ 	}
+ 	results := p.parseResult()
+ 
+@@ -1004,18 +1004,21 @@ func (p *parser) parseMethodSpec() *ast.Field {
+ 			p.exprLev--
+ 			if name0, _ := x.(*ast.Ident); name0 != nil && p.tok != token.COMMA && p.tok != token.RBRACK {
+ 				// generic method m[T any]
+-				list := p.parseParameterList(name0, token.RBRACK)
+-				rbrack := p.expect(token.RBRACK)
+-				tparams := &ast.FieldList{Opening: lbrack, List: list, Closing: rbrack}
++				//
++				// Interface methods do not have type parameters. We parse them for a
++				// better error message and improved error recovery.
++				_ = p.parseParameterList(name0, token.RBRACK)
++				_ = p.expect(token.RBRACK)
++				p.error(lbrack, "interface method must have no type parameters")
++
+ 				// TODO(rfindley) refactor to share code with parseFuncType.
+ 				_, params := p.parseParameters(false)
+ 				results := p.parseResult()
+ 				idents = []*ast.Ident{ident}
+ 				typ = &ast.FuncType{
+-					Func:       token.NoPos,
+-					TypeParams: tparams,
+-					Params:     params,
+-					Results:    results,
++					Func:    token.NoPos,
++					Params:  params,
++					Results: results,
+ 				}
+ 			} else {
+ 				// embedded instantiated type
+@@ -2655,6 +2658,12 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
+ 	ident := p.parseIdent()
+ 
+ 	tparams, params := p.parseParameters(true)
++	if recv != nil && tparams != nil {
++		// Method declarations do not have type parameters. We parse them for a
++		// better error message and improved error recovery.
++		p.error(tparams.Opening, "method must have no type parameters")
++		tparams = nil
++	}
+ 	results := p.parseResult()
+ 
+ 	var body *ast.BlockStmt
+diff --git a/src/go/parser/short_test.go b/src/go/parser/short_test.go
+index 90a4ec9ecd..6ea430636e 100644
+--- a/src/go/parser/short_test.go
++++ b/src/go/parser/short_test.go
+@@ -94,9 +94,7 @@ var validWithTParamsOnly = []string{
+ 	`package p; func _[ /* ERROR "expected '\(', found '\['" */ A, B any](a A) B`,
+ 	`package p; func _[ /* ERROR "expected '\(', found '\['" */ A, B C](a A) B`,
+ 	`package p; func _[ /* ERROR "expected '\(', found '\['" */ A, B C[A, B]](a A) B`,
+-	`package p; func (T) _[ /* ERROR "expected '\(', found '\['" */ A, B any](a A) B`,
+-	`package p; func (T) _[ /* ERROR "expected '\(', found '\['" */ A, B C](a A) B`,
+-	`package p; func (T) _[ /* ERROR "expected '\(', found '\['" */ A, B C[A, B]](a A) B`,
++
+ 	`package p; type _[A, /* ERROR "expected ']', found ','" */ B any] interface { _(a A) B }`,
+ 	`package p; type _[A, /* ERROR "expected ']', found ','" */ B C[A, B]] interface { _(a A) B }`,
+ 	`package p; func _[ /* ERROR "expected '\(', found '\['" */ T1, T2 interface{}](x T1) T2`,
+@@ -110,10 +108,10 @@ var validWithTParamsOnly = []string{
+ 	`package p; var _ T[ /* ERROR "expected ';', found '\['" */ chan int]`,
+ 
+ 	// TODO(rfindley) this error message could be improved.
+-	`package p; func (_ /* ERROR "mixed named and unnamed parameters" */ R[P]) _[T any](x T)`,
+-	`package p; func (_ /* ERROR "mixed named and unnamed parameters" */ R[ P, Q]) _[T1, T2 any](x T)`,
++	`package p; func (_ /* ERROR "mixed named and unnamed parameters" */ R[P]) _(x T)`,
++	`package p; func (_ /* ERROR "mixed named and unnamed parameters" */ R[ P, Q]) _(x T)`,
+ 
+-	`package p; func (R[P] /* ERROR "missing element type" */ ) _[T any]()`,
++	`package p; func (R[P] /* ERROR "missing element type" */ ) _()`,
+ 	`package p; func _(T[P] /* ERROR "missing element type" */ )`,
+ 	`package p; func _(T[P1, /* ERROR "expected ']', found ','" */ P2, P3 ])`,
+ 	`package p; func _(T[P] /* ERROR "missing element type" */ ) T[P]`,
+@@ -122,7 +120,7 @@ var validWithTParamsOnly = []string{
+ 	`package p; type _ interface{int| /* ERROR "expected ';'" */ float32; bool; m(); string;}`,
+ 	`package p; type I1[T any /* ERROR "expected ']', found any" */ ] interface{}; type I2 interface{ I1[int] }`,
+ 	`package p; type I1[T any /* ERROR "expected ']', found any" */ ] interface{}; type I2[T any] interface{ I1[T] }`,
+-	`package p; type _ interface { f[ /* ERROR "expected ';', found '\['" */ T any]() }`,
++	`package p; type _ interface { N[ /* ERROR "expected ';', found '\['" */ T] }`,
+ 	`package p; type T[P any /* ERROR "expected ']'" */ ] = T0`,
+ }
+ 
+@@ -235,20 +233,28 @@ var invalidNoTParamErrs = []string{
+ 	`package p; func _[ /* ERROR "expected '\(', found '\['" */ ]()`,
+ 	`package p; type _[A, /* ERROR "expected ']', found ','" */] struct{ A }`,
+ 	`package p; func _[ /* ERROR "expected '\(', found '\['" */ type P, *Q interface{}]()`,
++
++	`package p; func (T) _[ /* ERROR "expected '\(', found '\['" */ A, B any](a A) B`,
++	`package p; func (T) _[ /* ERROR "expected '\(', found '\['" */ A, B C](a A) B`,
++	`package p; func (T) _[ /* ERROR "expected '\(', found '\['" */ A, B C[A, B]](a A) B`,
+ }
+ 
+ // invalidTParamErrs holds invalid source code examples annotated with the
+ // error messages produced when ParseTypeParams is set.
+ var invalidTParamErrs = []string{
+ 	`package p; type _[_ any] int; var _ = T[] /* ERROR "expected operand" */ {}`,
+-	`package p; var _ func[ /* ERROR "cannot have type parameters" */ T any](T)`,
++	`package p; var _ func[ /* ERROR "must have no type parameters" */ T any](T)`,
+ 	`package p; func _[]/* ERROR "empty type parameter list" */()`,
+ 
+ 	// TODO(rfindley) a better location would be after the ']'
+-	`package p; type _[A/* ERROR "all type parameters must be named" */,] struct{ A }`,
++	`package p; type _[A /* ERROR "all type parameters must be named" */ ,] struct{ A }`,
+ 
+ 	// TODO(rfindley) this error is confusing.
+-	`package p; func _[type /* ERROR "all type parameters must be named" */P, *Q interface{}]()`,
++	`package p; func _[type /* ERROR "all type parameters must be named" */ P, *Q interface{}]()`,
++
++	`package p; func (T) _[ /* ERROR "must have no type parameters" */ A, B any](a A) B`,
++	`package p; func (T) _[ /* ERROR "must have no type parameters" */ A, B C](a A) B`,
++	`package p; func (T) _[ /* ERROR "must have no type parameters" */ A, B C[A, B]](a A) B`,
+ }
+ 
+ func TestInvalid(t *testing.T) {
+diff --git a/src/go/parser/testdata/issue50427.go2 b/src/go/parser/testdata/issue50427.go2
+new file mode 100644
+index 0000000000..15214594e2
+--- /dev/null
++++ b/src/go/parser/testdata/issue50427.go2
+@@ -0,0 +1,19 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T interface{ m[ /* ERROR "must have no type parameters" */ P any]() }
++
++func _(t T) {
++	var _ interface{ m[ /* ERROR "must have no type parameters" */ P any](); n() } = t
++}
++
++type S struct{}
++
++func (S) m[ /* ERROR "must have no type parameters" */ P any]() {}
++
++func _(s S) {
++	var _ interface{ m[ /* ERROR "must have no type parameters" */ P any](); n() } = s
++}
+diff --git a/src/go/types/errorcodes.go b/src/go/types/errorcodes.go
+index b3796e8919..51f091a9cb 100644
+--- a/src/go/types/errorcodes.go
++++ b/src/go/types/errorcodes.go
+@@ -1385,10 +1385,7 @@ const (
+ 
+ 	// _InvalidMethodTypeParams occurs when methods have type parameters.
+ 	//
+-	// Example:
+-	//  type T int
+-	//
+-	//  func (T) m[P any]() {}
++	// It cannot be encountered with an AST parsed using go/parser.
+ 	_InvalidMethodTypeParams
+ 
+ 	// _MisplacedTypeParam occurs when a type parameter is used in a place where
+diff --git a/src/go/types/testdata/check/typeparams.go2 b/src/go/types/testdata/check/typeparams.go2
+index 6d63d598d9..d5b9ed6e77 100644
+--- a/src/go/types/testdata/check/typeparams.go2
++++ b/src/go/types/testdata/check/typeparams.go2
+@@ -329,8 +329,8 @@ func init[P /* ERROR func init must have no type parameters */ any]() {}
+ type T struct {}
+ 
+ func (T) m1() {}
+-func (T) m2[ /* ERROR methods cannot have type parameters */ _ any]() {}
+-func (T) m3[ /* ERROR methods cannot have type parameters */ P any]() {}
++func (T) m2[ /* ERROR method must have no type parameters */ _ any]() {}
++func (T) m3[ /* ERROR method must have no type parameters */ P any]() {}
+ 
+ // type inference across parameterized types
+ 
+@@ -391,25 +391,28 @@ func _[T any] (x T) {
+ 
+ // type parameters in methods (generalization)
+ 
+-type R0 struct{}
++// Type Parameter lists are not allowed on methods, and are not produced by
++// go/parser. The test cases below are preserved for consistency with types2,
++// which produces an error but stores type parameters.
++// type R0 struct{}
+ 
+-func (R0) _[ /* ERROR methods cannot have type parameters */ T any](x T) {}
+-func (R0 /* ERROR invalid receiver */ ) _[ /* ERROR methods cannot have type parameters */ R0 any]() {} // scope of type parameters starts at "func"
++// func (R0) _[ /* ERROR methods cannot have type parameters */ T any](x T) {}
++// func (R0 /* ERROR invalid receiver */ ) _[ /* ERROR methods cannot have type parameters */ R0 any]() {} // scope of type parameters starts at "func"
+ 
+-type R1[A, B any] struct{}
++// type R1[A, B any] struct{}
+ 
+-func (_ R1[A, B]) m0(A, B)
+-func (_ R1[A, B]) m1[ /* ERROR methods cannot have type parameters */ T any](A, B, T) T  { panic(0) }
+-func (_ R1 /* ERROR not a generic type */ [R1, _]) _()
+-func (_ R1[A, B]) _[ /* ERROR methods cannot have type parameters */ A /* ERROR redeclared */ any](B) {}
++// func (_ R1[A, B]) m0(A, B)
++// func (_ R1[A, B]) m1[ /* ERROR methods cannot have type parameters */ T any](A, B, T) T  { panic(0) }
++// func (_ R1 /* ERROR not a generic type */ [R1, _]) _()
++// func (_ R1[A, B]) _[ /* ERROR methods cannot have type parameters */ A /* ERROR redeclared */ any](B) {}
+ 
+-func _() {
+-        var r R1[int, string]
+-        r.m1[rune](42, "foo", 'a')
+-        r.m1[rune](42, "foo", 1.2 /* ERROR cannot use .* as rune .* \(truncated\) */)
+-        r.m1(42, "foo", 1.2) // using type inference
+-        var _ float64 = r.m1(42, "foo", 1.2)
+-}
++// func _() {
++//         var r R1[int, string]
++//         r.m1[rune](42, "foo", 'a')
++//         r.m1[rune](42, "foo", 1.2 /* ERROR cannot use .* as rune .* \(truncated\) */)
++//         r.m1(42, "foo", 1.2) // using type inference
++//         var _ float64 = r.m1(42, "foo", 1.2)
++// }
+ 
+ type I1[A any] interface {
+         m1(A)
+diff --git a/src/go/types/testdata/fixedbugs/issue39634.go2 b/src/go/types/testdata/fixedbugs/issue39634.go2
+index 34ab654f1c..8cba2e735a 100644
+--- a/src/go/types/testdata/fixedbugs/issue39634.go2
++++ b/src/go/types/testdata/fixedbugs/issue39634.go2
+@@ -85,7 +85,7 @@ func (t T25[A]) m1() {}
+ var x T25 /* ERROR without instantiation */ .m1
+ 
+ // crash 26
+-type T26 = interface{ F26[ /* ERROR methods cannot have type parameters */ Z any]() }
++type T26 = interface{ F26[ /* ERROR interface method must have no type parameters */ Z any]() }
+ // The error messages on the line below differ from types2 because for backward
+ // compatibility go/parser must produce an IndexExpr with BadExpr index for the
+ // expression F26[].
+diff --git a/src/go/types/testdata/fixedbugs/issue50427.go2 b/src/go/types/testdata/fixedbugs/issue50427.go2
+new file mode 100644
+index 0000000000..d89d63e308
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue50427.go2
+@@ -0,0 +1,23 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// The parser no longer parses type parameters for methods.
++// In the past, type checking the code below led to a crash (#50427).
++
++type T interface{ m[ /* ERROR "must have no type parameters" */ P any]() }
++
++func _(t T) {
++	var _ interface{ m[ /* ERROR "must have no type parameters" */ P any](); n() } = t /* ERROR "does not implement" */
++}
++
++type S struct{}
++
++func (S) m[ /* ERROR "must have no type parameters" */ P any]() {}
++
++func _(s S) {
++	var _ interface{ m[ /* ERROR "must have no type parameters" */ P any](); n() } = s /* ERROR "does not implement" */
++
++}

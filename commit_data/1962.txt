@@ -11,9 +11,241 @@ Date:   Sun Apr 5 22:40:40 2009 -0700
     DELTA=173  (170 added, 0 deleted, 3 changed)
     OCL=26980
     CL=27098
-
+---
  src/lib/container/Makefile         | 10 +++--
  src/lib/container/iterable.go      | 80 ++++++++++++++++++++++++++++++++++++++
  src/lib/container/iterable_test.go | 78 +++++++++++++++++++++++++++++++++++++
  src/lib/container/vector.go        | 10 +++++
  4 files changed, 175 insertions(+), 3 deletions(-)
+
+diff --git a/src/lib/container/Makefile b/src/lib/container/Makefile
+index 246130c09c..e5f36be77e 100644
+--- a/src/lib/container/Makefile
++++ b/src/lib/container/Makefile
+@@ -36,8 +36,10 @@ O1=\
+ 
+ O2=\
+ 	intvector.$O\
++	iterable.$O\
+ 
+ vector.a: a1 a2
++iterable.a: a1 a2
+ 
+ a1:	$(O1)
+ 	$(AR) grc vector.a vector.$O
+@@ -45,19 +47,21 @@ a1:	$(O1)
+ 
+ a2:	$(O2)
+ 	$(AR) grc vector.a intvector.$O
++	$(AR) grc iterable.a iterable.$O
+ 	rm -f $(O2)
+ 
+ newpkg: clean
+ 	$(AR) grc vector.a
++	$(AR) grc iterable.a
+ 
+ $(O1): newpkg
+ $(O2): a1
+ 
+ nuke: clean
+-	rm -f $(GOROOT)/pkg/vector.a
++	rm -f $(GOROOT)/pkg/vector.a $(GOROOT)/pkg/iterable.a
+ 
+-packages: vector.a
++packages: vector.a iterable.a
+ 
+ install: packages
+ 	cp vector.a $(GOROOT)/pkg/vector.a
+-
++	cp iterable.a $(GOROOT)/pkg/iterable.a
+diff --git a/src/lib/container/iterable.go b/src/lib/container/iterable.go
+new file mode 100644
+index 0000000000..7963d14b57
+--- /dev/null
++++ b/src/lib/container/iterable.go
+@@ -0,0 +1,80 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The iterable package provides several traversal and searching methods.
++// It can be used on anything that satisfies the Iterable interface,
++// including vector, though certain functions, such as Map, can also be used on
++// something that would produce an infinite amount of data.
++package iterable
++
++import "vector"
++
++
++type Iterable interface {
++	// Iter should return a fresh channel each time it is called.
++	Iter() <-chan interface {}
++}
++
++
++// All tests whether f is true for every element of iter.
++func All(iter Iterable, f func(e interface {}) bool) bool {
++	for e := range iter.Iter() {
++		if !f(e) {
++			return false
++		}
++	}
++	return true
++}
++
++
++// Any tests whether f is true for at least one element of iter.
++func Any(iter Iterable, f func(e interface {}) bool) bool {
++	return !All(iter, func(e interface {}) bool { return !f(e) });
++}
++
++
++// Data returns a slice containing the elements of iter.
++func Data(iter Iterable) []interface {} {
++	vec := vector.New(0);
++	for e := range iter.Iter() {
++		vec.Push(e)
++	}
++	return vec.Data()
++}
++
++
++// mappedIterable is a helper struct that implements Iterable, returned by Map.
++type mappedIterable struct {
++	it Iterable;
++	f func(interface {}) interface {};
++}
++
++
++func (m mappedIterable) iterate(out chan<- interface {}) {
++	for e := range m.it.Iter() {
++		out <- m.f(e)
++	}
++	close(out)
++}
++
++
++func (m mappedIterable) Iter() <-chan interface {} {
++	ch := make(chan interface {});
++	go m.iterate(ch);
++	return ch;
++}
++
++
++// Map returns an Iterable that returns the result of applying f to each
++// element of iter.
++func Map(iter Iterable, f func(e interface {}) interface {}) Iterable {
++	return mappedIterable{ iter, f }
++}
++
++
++// TODO:
++// - Find, Filter
++// - Inject
++// - Partition
++// - Zip
+diff --git a/src/lib/container/iterable_test.go b/src/lib/container/iterable_test.go
+new file mode 100644
+index 0000000000..9c7d291105
+--- /dev/null
++++ b/src/lib/container/iterable_test.go
+@@ -0,0 +1,78 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package iterable
++
++import (
++	"iterable";
++	"testing";
++)
++
++type IntArray []int;
++
++func (arr IntArray) Iter() <-chan interface {} {
++	ch := make(chan interface {});
++	go func() {
++		for i, x := range arr {
++			ch <- x
++		}
++		close(ch)
++	}();
++	return ch
++}
++
++var oneToFive IntArray = []int{ 1, 2, 3, 4, 5 };
++
++func isNegative(n interface {}) bool {
++	return n.(int) < 0
++}
++func isPositive(n interface {}) bool {
++	return n.(int) > 0
++}
++func isAbove3(n interface {}) bool {
++	return n.(int) > 3
++}
++func isEven(n interface {}) bool {
++	return n.(int) % 2 == 0
++}
++func doubler(n interface {}) interface {} {
++	return n.(int) * 2
++}
++func addOne(n interface {}) interface {} {
++	return n.(int) + 1
++}
++
++
++func TestAll(t *testing.T) {
++	if !All(oneToFive, isPositive) {
++		t.Error("All(oneToFive, isPositive) == false")
++	}
++	if All(oneToFive, isAbove3) {
++		t.Error("All(oneToFive, isAbove3) == true")
++	}
++}
++
++
++func TestAny(t *testing.T) {
++	if Any(oneToFive, isNegative) {
++		t.Error("Any(oneToFive, isNegative) == true")
++	}
++	if !Any(oneToFive, isEven) {
++		t.Error("Any(oneToFive, isEven) == false")
++	}
++}
++
++
++func TestMap(t *testing.T) {
++	res := Data(Map(Map(oneToFive, doubler), addOne));
++	if len(res) != len(oneToFive) {
++		t.Fatal("len(res) = %v, want %v", len(res), len(oneToFive))
++	}
++	expected := []int{ 3, 5, 7, 9, 11 };
++	for i := range res {
++		if res[i].(int) != expected[i] {
++			t.Errorf("res[%v] = %v, want %v", i, res[i], expected[i])
++		}
++	}
++}
+diff --git a/src/lib/container/vector.go b/src/lib/container/vector.go
+index 07c7d3df0b..392e5e596d 100644
+--- a/src/lib/container/vector.go
++++ b/src/lib/container/vector.go
+@@ -107,6 +107,16 @@ func (p *Vector) Last() Element {
+ }
+ 
+ 
++// Data returns all the elements as a slice.
++func (p *Vector) Data() []Element {
++	arr := make([]Element, p.Len());
++	for i, v := range p.a {
++		arr[i] = v
++	}
++	return arr
++}
++
++
+ // Insert inserts into the vector an element of value x before
+ // the current element at index i.
+ func (p *Vector) Insert(i int, x Element) {

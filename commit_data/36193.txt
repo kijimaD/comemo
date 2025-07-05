@@ -10,6 +10,24 @@ Date:   Wed Apr 11 09:49:32 2018 +1000
     Change-Id: I48d0cc0273d97ba54ce59b3a3bbcae0b5af9aaef
     Reviewed-on: https://go-review.googlesource.com/106195
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/install.html | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/doc/install.html b/doc/install.html
+index cd9abcc57d..9d78e3a0c8 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -108,8 +108,10 @@ export PATH=$PATH:/usr/local/go/bin
+ 
+ <p>
+ <b>Note</b>: changes made to a <code>profile</code> file may not apply until the
+-next time you log into your computer. Alternatively, you can apply them to the
+-current shell with a command like <code>source $HOME/.profile</code>.
++next time you log into your computer.
++To apply the changes immediately, just run the shell commands directly
++or execute them from the profile using a command such as
++<code>source $HOME/.profile</code>.
+ </p>
+ 
+ <h4 id="tarball_non_standard">Installing to a custom location</h4>

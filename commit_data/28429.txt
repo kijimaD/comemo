@@ -14,6 +14,21 @@ Date:   Tue May 24 23:00:06 2016 +0600
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/math/rand/rand.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/math/rand/rand.go b/src/math/rand/rand.go
+index d693bfb52f..add039ed4b 100644
+--- a/src/math/rand/rand.go
++++ b/src/math/rand/rand.go
+@@ -179,7 +179,8 @@ var globalRand = New(&lockedSource{src: NewSource(1)})
+ 
+ // Seed uses the provided seed value to initialize the default Source to a
+ // deterministic state. If Seed is not called, the generator behaves as
+-// if seeded by Seed(1).
++// if seeded by Seed(1). Only uses the bottom 31 bits of seed; the top 33
++// bits are ignored.
+ func Seed(seed int64) { globalRand.Seed(seed) }
+ 
+ // Int63 returns a non-negative pseudo-random 63-bit integer as an int64

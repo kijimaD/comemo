@@ -7,7 +7,41 @@ Date:   Mon Jul 28 10:22:49 2008 -0700
     R=gri
     OCL=13516
     CL=13516
-
+---
  test/bugs/bug033.go                | 11 -----------
  test/{bugs => fixedbugs}/bug010.go |  2 +-
  2 files changed, 1 insertion(+), 12 deletions(-)
+
+diff --git a/test/bugs/bug033.go b/test/bugs/bug033.go
+deleted file mode 100644
+index 603a4aa915..0000000000
+--- a/test/bugs/bug033.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// $G $D/$F.go && echo BUG: compilation succeeds incorrectly
+-
+-package main
+-
+-type Iputs	interface {
+-	puts func(s string);  // BUG no func allowed
+-}
+diff --git a/test/bugs/bug010.go b/test/fixedbugs/bug010.go
+similarity index 94%
+rename from test/bugs/bug010.go
+rename to test/fixedbugs/bug010.go
+index 43f68748dd..e71c4d7f0b 100644
+--- a/test/bugs/bug010.go
++++ b/test/fixedbugs/bug010.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ 
+-func f() (i int, f float) {
++func f(i int, f float) {
+ 	i = 8;
+ 	f = 8.0;
+ 	return;

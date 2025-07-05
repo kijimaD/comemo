@@ -14,6 +14,19 @@ Date:   Tue Apr 4 12:25:27 2023 -0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-
+---
  src/cmd/dist/build.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 565c93b75f..d82aaa3be2 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1731,7 +1731,6 @@ var cgoEnabled = map[string]bool{
+ // See go.dev/issue/56679.
+ var broken = map[string]bool{
+ 	"linux/sparc64":  true, // An incomplete port. See CL 132155.
+-	"wasip1/wasm":    true, // An incomplete port. See CL 479627.
+ 	"openbsd/ppc64":  true, // An incomplete port: go.dev/issue/56001.
+ 	"openbsd/mips64": true, // Broken: go.dev/issue/58110.
+ }

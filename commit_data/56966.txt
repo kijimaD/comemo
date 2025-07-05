@@ -32,7 +32,7 @@ Date:   Thu Jun 1 14:16:58 2023 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/alldocs.go                              |  13 ++-
  src/cmd/go/internal/gover/toolchain.go             |   8 ++
  src/cmd/go/internal/gover/version.go               |  20 ++++
@@ -85,3 +85,2236 @@ Date:   Thu Jun 1 14:16:58 2023 -0400
  src/cmd/go/testdata/script/work_use_only_dirs.txt  |   8 +-
  src/cmd/go/testdata/script/work_use_toolchain.txt  |  51 ++++++++++
  51 files changed, 773 insertions(+), 297 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 4124eef78a..b872b7abe3 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1616,14 +1616,21 @@
+ //
+ // Usage:
+ //
+-//	go work use [-r] moddirs
++//	go work use [-r] [moddirs]
+ //
+ // Use provides a command-line interface for adding
+ // directories, optionally recursively, to a go.work file.
+ //
+ // A use directive will be added to the go.work file for each argument
+-// directory listed on the command line go.work file, if it exists on disk,
+-// or removed from the go.work file if it does not exist on disk.
++// directory listed on the command line go.work file, if it exists,
++// or removed from the go.work file if it does not exist.
++// Use fails if any remaining use directives refer to modules that
++// do not exist.
++//
++// Use updates the go line in go.work to specify a version at least as
++// new as all the go lines in the used modules, both preexisting ones
++// and newly added ones. With no arguments, this update is the only
++// thing that go work use does.
+ //
+ // The -r flag searches recursively for modules in the argument
+ // directories, and the use command operates as if each of the directories
+diff --git a/src/cmd/go/internal/gover/toolchain.go b/src/cmd/go/internal/gover/toolchain.go
+index 7bd9229fcb..bd0d52ad84 100644
+--- a/src/cmd/go/internal/gover/toolchain.go
++++ b/src/cmd/go/internal/gover/toolchain.go
+@@ -6,6 +6,7 @@ package gover
+ 
+ import (
+ 	"cmd/go/internal/base"
++	"context"
+ 	"errors"
+ 	"fmt"
+ 	"strings"
+@@ -84,3 +85,10 @@ var ErrTooNew = errors.New("module too new")
+ func (e *TooNewError) Is(err error) bool {
+ 	return err == ErrTooNew
+ }
++
++// A Switcher provides the ability to switch to a new toolchain in response to TooNewErrors.
++// See [cmd/go/internal/toolchain.Switcher] for documentation.
++type Switcher interface {
++	Error(err error)
++	Switch(ctx context.Context)
++}
+diff --git a/src/cmd/go/internal/gover/version.go b/src/cmd/go/internal/gover/version.go
+index ca4702120a..2681013fef 100644
+--- a/src/cmd/go/internal/gover/version.go
++++ b/src/cmd/go/internal/gover/version.go
+@@ -4,6 +4,8 @@
+ 
+ package gover
+ 
++import "golang.org/x/mod/modfile"
++
+ const (
+ 	// narrowAllVersion is the Go version at which the
+ 	// module-module "all" pattern no longer closes over the dependencies of
+@@ -52,3 +54,21 @@ const (
+ 	// It is also the version after which "too new" a version is considered a fatal error.
+ 	GoStrictVersion = "1.21"
+ )
++
++// FromGoMod returns the go version from the go.mod file.
++// It returns DefaultGoModVersion if the go.mod file does not contain a go line or if mf is nil.
++func FromGoMod(mf *modfile.File) string {
++	if mf == nil || mf.Go == nil {
++		return DefaultGoModVersion
++	}
++	return mf.Go.Version
++}
++
++// FromGoWork returns the go version from the go.mod file.
++// It returns DefaultGoWorkVersion if the go.mod file does not contain a go line or if wf is nil.
++func FromGoWork(wf *modfile.WorkFile) string {
++	if wf == nil || wf.Go == nil {
++		return DefaultGoWorkVersion
++	}
++	return wf.Go.Version
++}
+diff --git a/src/cmd/go/internal/modcmd/graph.go b/src/cmd/go/internal/modcmd/graph.go
+index eb9e314fc4..172c1dda5c 100644
+--- a/src/cmd/go/internal/modcmd/graph.go
++++ b/src/cmd/go/internal/modcmd/graph.go
+@@ -62,8 +62,7 @@ func runGraph(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	goVersion := graphGo.String()
+ 	if goVersion != "" && gover.Compare(gover.Local(), goVersion) < 0 {
+-		toolchain.TryVersion(ctx, goVersion)
+-		base.Fatal(&gover.TooNewError{
++		toolchain.SwitchOrFatal(ctx, &gover.TooNewError{
+ 			What:      "-go flag",
+ 			GoVersion: goVersion,
+ 		})
+diff --git a/src/cmd/go/internal/modcmd/tidy.go b/src/cmd/go/internal/modcmd/tidy.go
+index 851217f626..36be926057 100644
+--- a/src/cmd/go/internal/modcmd/tidy.go
++++ b/src/cmd/go/internal/modcmd/tidy.go
+@@ -118,8 +118,7 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	goVersion := tidyGo.String()
+ 	if goVersion != "" && gover.Compare(gover.Local(), goVersion) < 0 {
+-		toolchain.TryVersion(ctx, goVersion)
+-		base.Fatal(&gover.TooNewError{
++		toolchain.SwitchOrFatal(ctx, &gover.TooNewError{
+ 			What:      "-go flag",
+ 			GoVersion: goVersion,
+ 		})
+@@ -135,6 +134,6 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
+ 		LoadTests:                true,
+ 		AllowErrors:              tidyE,
+ 		SilenceMissingStdImports: true,
+-		TrySwitchToolchain:       toolchain.TryVersion,
++		Switcher:                 new(toolchain.Switcher),
+ 	}, "all")
+ }
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 6866f10e0a..43708a3cab 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -384,18 +384,23 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 	oldReqs := reqsFromGoMod(modload.ModFile())
+ 
+ 	if err := modload.WriteGoMod(ctx, opts); err != nil {
+-		if tooNew := (*gover.TooNewError)(nil); errors.As(err, &tooNew) {
+-			// This can happen for 'go get go@newversion'
+-			// when all the required modules are old enough
+-			// but the command line is not.
+-			// TODO(bcmills): modload.EditBuildList should catch this instead.
+-			toolchain.TryVersion(ctx, tooNew.GoVersion)
+-		}
+-		base.Fatal(err)
++		// A TooNewError can happen for 'go get go@newversion'
++		// when all the required modules are old enough
++		// but the command line is not.
++		// TODO(bcmills): modload.EditBuildList should catch this instead,
++		// and then this can be changed to base.Fatal(err).
++		toolchain.SwitchOrFatal(ctx, err)
+ 	}
+ 
+ 	newReqs := reqsFromGoMod(modload.ModFile())
+ 	r.reportChanges(oldReqs, newReqs)
++
++	if gowork := modload.FindGoWork(base.Cwd()); gowork != "" {
++		wf, err := modload.ReadWorkFile(gowork)
++		if err == nil && modload.UpdateWorkGoVersion(wf, modload.MainModules.GoVersion()) {
++			modload.WriteWorkFile(gowork, wf)
++		}
++	}
+ }
+ 
+ // parseArgs parses command-line arguments and reports errors.
+@@ -492,10 +497,7 @@ func newResolver(ctx context.Context, queries []*query) *resolver {
+ 	// methods.
+ 	mg, err := modload.LoadModGraph(ctx, "")
+ 	if err != nil {
+-		if tooNew := (*gover.TooNewError)(nil); errors.As(err, &tooNew) {
+-			toolchain.TryVersion(ctx, tooNew.GoVersion)
+-		}
+-		base.Fatal(err)
++		toolchain.SwitchOrFatal(ctx, err)
+ 	}
+ 
+ 	buildList := mg.BuildList()
+@@ -1147,7 +1149,7 @@ func (r *resolver) loadPackages(ctx context.Context, patterns []string, findPack
+ 		LoadTests:                *getT,
+ 		AssumeRootsImported:      true, // After 'go get foo', imports of foo should build.
+ 		SilencePackageErrors:     true, // May be fixed by subsequent upgrades or downgrades.
+-		TrySwitchToolchain:       toolchain.TryVersion,
++		Switcher:                 new(toolchain.Switcher),
+ 	}
+ 
+ 	opts.AllowPackage = func(ctx context.Context, path string, m module.Version) error {
+@@ -1231,16 +1233,19 @@ func (r *resolver) resolveQueries(ctx context.Context, queries []*query) (change
+ 
+ 		// If we found modules that were too new, find the max of the required versions
+ 		// and then try to switch to a newer toolchain.
+-		goVers := ""
++		var sw toolchain.Switcher
+ 		for _, q := range queries {
+ 			for _, cs := range q.candidates {
+-				if e := (*gover.TooNewError)(nil); errors.As(cs.err, &e) {
+-					goVers = gover.Max(goVers, e.GoVersion)
+-				}
++				sw.Error(cs.err)
+ 			}
+ 		}
+-		if goVers != "" {
+-			toolchain.TryVersion(ctx, goVers)
++		// Only switch if we need a newer toolchain.
++		// Otherwise leave the cs.err for reporting later.
++		if sw.NeedSwitch() {
++			sw.Switch(ctx)
++			// If NeedSwitch is true and Switch returns, Switch has failed to locate a newer toolchain.
++			// It printed the errors along with one more about not finding a good toolchain.
++			base.Exit()
+ 		}
+ 
+ 		for _, q := range queries {
+@@ -1840,9 +1845,8 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
+ 
+ 	changed, err := modload.EditBuildList(ctx, additions, resolved)
+ 	if err != nil {
+-		if tooNew := (*gover.TooNewError)(nil); errors.As(err, &tooNew) {
+-			toolchain.TryVersion(ctx, tooNew.GoVersion)
+-			base.Fatal(err)
++		if errors.Is(err, gover.ErrTooNew) {
++			toolchain.SwitchOrFatal(ctx, err)
+ 		}
+ 
+ 		var constraint *modload.ConstraintError
+@@ -1888,10 +1892,7 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
+ 
+ 	mg, err := modload.LoadModGraph(ctx, "")
+ 	if err != nil {
+-		if tooNew := (*gover.TooNewError)(nil); errors.As(err, &tooNew) {
+-			toolchain.TryVersion(ctx, tooNew.GoVersion)
+-		}
+-		base.Fatal(err)
++		toolchain.SwitchOrFatal(ctx, err)
+ 	}
+ 
+ 	r.buildList = mg.BuildList()
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 0b845876cc..0aedfafefd 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -222,10 +222,7 @@ func (mms *MainModuleSet) HighestReplaced() map[string]string {
+ // or the go.work file in workspace mode.
+ func (mms *MainModuleSet) GoVersion() string {
+ 	if inWorkspaceMode() {
+-		if mms.workFile != nil && mms.workFile.Go != nil {
+-			return mms.workFile.Go.Version
+-		}
+-		return gover.DefaultGoWorkVersion
++		return gover.FromGoWork(mms.workFile)
+ 	}
+ 	if mms != nil && len(mms.versions) == 1 {
+ 		f := mms.ModFile(mms.mustGetSingleMainModule())
+@@ -235,9 +232,7 @@ func (mms *MainModuleSet) GoVersion() string {
+ 			// TODO(#49228): Clean this up; see loadModFile.
+ 			return gover.Local()
+ 		}
+-		if f.Go != nil {
+-			return f.Go.Version
+-		}
++		return gover.FromGoMod(f)
+ 	}
+ 	return gover.DefaultGoModVersion
+ }
+@@ -689,6 +684,47 @@ func WriteWorkFile(path string, wf *modfile.WorkFile) error {
+ 	return os.WriteFile(path, out, 0666)
+ }
+ 
++// UpdateWorkGoVersion updates the go line in wf to be at least goVers,
++// reporting whether it changed the file.
++func UpdateWorkGoVersion(wf *modfile.WorkFile, goVers string) (changed bool) {
++	old := gover.FromGoWork(wf)
++	if gover.Compare(old, goVers) >= 0 {
++		return false
++	}
++
++	wf.AddGoStmt(goVers)
++
++	// We wrote a new go line. For reproducibility,
++	// if the toolchain running right now is newer than the new toolchain line,
++	// update the toolchain line to record the newer toolchain.
++	// The user never sets the toolchain explicitly in a 'go work' command,
++	// so this is only happening as a result of a go or toolchain line found
++	// in a module.
++	// If the toolchain running right now is a dev toolchain (like "go1.21")
++	// writing 'toolchain go1.21' will not be useful, since that's not an actual
++	// toolchain you can download and run. In that case fall back to at least
++	// checking that the toolchain is new enough for the Go version.
++	toolchain := "go" + old
++	if wf.Toolchain != nil {
++		toolchain = wf.Toolchain.Name
++	}
++	if gover.IsLang(gover.Local()) {
++		toolchain = gover.ToolchainMax(toolchain, "go"+goVers)
++	} else {
++		toolchain = gover.ToolchainMax(toolchain, "go"+gover.Local())
++	}
++
++	// Drop the toolchain line if it is implied by the go line
++	// or if it is asking for a toolchain older than Go 1.21,
++	// which will not understand the toolchain line.
++	if toolchain == "go"+goVers || gover.Compare(gover.FromToolchain(toolchain), gover.GoStrictVersion) < 0 {
++		wf.DropToolchainStmt()
++	} else {
++		wf.AddToolchainStmt(toolchain)
++	}
++	return true
++}
++
+ // UpdateWorkFile updates comments on directory directives in the go.work
+ // file to include the associated module path.
+ func UpdateWorkFile(wf *modfile.WorkFile) {
+@@ -832,11 +868,31 @@ func loadModFile(ctx context.Context, opts *PackageOpts) (*Requirements, error)
+ 		data, f, err := ReadModFile(gomod, fixVersion(ctx, &fixed))
+ 		if err != nil {
+ 			if inWorkspaceMode() {
+-				err = fmt.Errorf("cannot load module %s listed in go.work file: %w", base.ShortPath(gomod), err)
++				if tooNew, ok := err.(*gover.TooNewError); ok && !strings.HasPrefix(cfg.CmdName, "work ") {
++					// Switching to a newer toolchain won't help - the go.work has the wrong version.
++					// Report this more specific error, unless we are a command like 'go work use'
++					// or 'go work sync', which will fix the problem after the caller sees the TooNewError
++					// and switches to a newer toolchain.
++					err = errWorkTooOld(gomod, workFile, tooNew.GoVersion)
++				} else {
++					err = fmt.Errorf("cannot load module %s listed in go.work file: %w",
++						base.ShortPath(filepath.Dir(gomod)), err)
++				}
+ 			}
+ 			errs = append(errs, err)
+ 			continue
+ 		}
++		if inWorkspaceMode() && !strings.HasPrefix(cfg.CmdName, "work ") {
++			// Refuse to use workspace if its go version is too old.
++			// Disable this check if we are a workspace command like work use or work sync,
++			// which will fix the problem.
++			mv := gover.FromGoMod(f)
++			wv := gover.FromGoWork(workFile)
++			if gover.Compare(mv, wv) > 0 && gover.Compare(mv, gover.GoStrictVersion) >= 0 {
++				errs = append(errs, errWorkTooOld(gomod, workFile, mv))
++				continue
++			}
++		}
+ 
+ 		modFiles = append(modFiles, f)
+ 		mainModule := f.Module.Mod
+@@ -919,6 +975,11 @@ func loadModFile(ctx context.Context, opts *PackageOpts) (*Requirements, error)
+ 	return requirements, nil
+ }
+ 
++func errWorkTooOld(gomod string, wf *modfile.WorkFile, goVers string) error {
++	return fmt.Errorf("module %s listed in go.work file requires go >= %s, but go.work lists go %s; to update it:\n\tgo work use",
++		base.ShortPath(filepath.Dir(gomod)), goVers, gover.FromGoWork(wf))
++}
++
+ // CreateModFile initializes a new module by creating a go.mod file.
+ //
+ // If modPath is empty, CreateModFile will attempt to infer the path from the
+@@ -1187,9 +1248,7 @@ func requirementsFromModFiles(ctx context.Context, workFile *modfile.WorkFile, m
+ 		pruning = workspace
+ 		roots = make([]module.Version, len(MainModules.Versions()), 2+len(MainModules.Versions()))
+ 		copy(roots, MainModules.Versions())
+-		if workFile.Go != nil {
+-			goVersion = workFile.Go.Version
+-		}
++		goVersion = gover.FromGoWork(workFile)
+ 		if workFile.Toolchain != nil {
+ 			toolchain = workFile.Toolchain.Name
+ 		}
+@@ -1216,18 +1275,13 @@ func requirementsFromModFiles(ctx context.Context, workFile *modfile.WorkFile, m
+ 				direct[r.Mod.Path] = true
+ 			}
+ 		}
+-		if modFile.Go != nil {
+-			goVersion = modFile.Go.Version
+-		}
++		goVersion = gover.FromGoMod(modFile)
+ 		if modFile.Toolchain != nil {
+ 			toolchain = modFile.Toolchain.Name
+ 		}
+ 	}
+ 
+ 	// Add explicit go and toolchain versions, inferring as needed.
+-	if goVersion == "" {
+-		goVersion = gover.DefaultGoModVersion
+-	}
+ 	roots = append(roots, module.Version{Path: "go", Version: goVersion})
+ 	direct["go"] = true // Every module directly uses the language and runtime.
+ 
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 8efaf3651b..a993fe819c 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -235,11 +235,9 @@ type PackageOpts struct {
+ 	// Resolve the query against this module.
+ 	MainModule module.Version
+ 
+-	// TrySwitchToolchain, if non-nil, attempts to reinvoke a toolchain capable of
+-	// handling the given Go version.
+-	//
+-	// TrySwitchToolchain only returns if the attempt toswitch was unsuccessful.
+-	TrySwitchToolchain func(ctx context.Context, version string)
++	// If Switcher is non-nil, then LoadPackages passes all encountered errors
++	// to Switcher.Error and tries Switcher.Switch before base.ExitIfErrors.
++	Switcher gover.Switcher
+ }
+ 
+ // LoadPackages identifies the set of packages matching the given patterns and
+@@ -372,11 +370,11 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 	if !ld.SilencePackageErrors {
+ 		for _, match := range matches {
+ 			for _, err := range match.Errs {
+-				ld.errorf("%v\n", err)
++				ld.error(err)
+ 			}
+ 		}
+ 	}
+-	base.ExitIfErrors()
++	ld.exitIfErrors(ctx)
+ 
+ 	if !opts.SilenceUnmatchedWarnings {
+ 		search.WarnUnmatched(matches)
+@@ -881,16 +879,32 @@ func (ld *loader) reset() {
+ 	ld.pkgs = nil
+ }
+ 
+-// errorf reports an error via either os.Stderr or base.Errorf,
++// error reports an error via either os.Stderr or base.Error,
+ // according to whether ld.AllowErrors is set.
+-func (ld *loader) errorf(format string, args ...any) {
++func (ld *loader) error(err error) {
+ 	if ld.AllowErrors {
+-		fmt.Fprintf(os.Stderr, format, args...)
++		fmt.Fprintf(os.Stderr, "go: %v\n", err)
++	} else if ld.Switcher != nil {
++		ld.Switcher.Error(err)
+ 	} else {
+-		base.Errorf(format, args...)
++		base.Error(err)
++	}
++}
++
++// switchIfErrors switches toolchains if a switch is needed.
++func (ld *loader) switchIfErrors(ctx context.Context) {
++	if ld.Switcher != nil {
++		ld.Switcher.Switch(ctx)
+ 	}
+ }
+ 
++// exitIfErrors switches toolchains if a switch is needed
++// or else exits if any errors have been reported.
++func (ld *loader) exitIfErrors(ctx context.Context) {
++	ld.switchIfErrors(ctx)
++	base.ExitIfErrors()
++}
++
+ // goVersion reports the Go version that should be used for the loader's
+ // requirements: ld.TidyGoVersion if set, or ld.requirements.GoVersion()
+ // otherwise.
+@@ -901,17 +915,6 @@ func (ld *loader) goVersion() string {
+ 	return ld.requirements.GoVersion()
+ }
+ 
+-func (ld *loader) maybeTryToolchain(ctx context.Context, err error) {
+-	if ld.TrySwitchToolchain == nil {
+-		return
+-	}
+-	var tooNew *gover.TooNewError
+-	if !errors.As(err, &tooNew) {
+-		return
+-	}
+-	ld.TrySwitchToolchain(ctx, tooNew.GoVersion)
+-}
+-
+ // A loadPkg records information about a single loaded package.
+ type loadPkg struct {
+ 	// Populated at construction time:
+@@ -1045,11 +1048,10 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 		var err error
+ 		ld.requirements, _, err = expandGraph(ctx, ld.requirements)
+ 		if err != nil {
+-			ld.maybeTryToolchain(ctx, err)
+-			ld.errorf("go: %v\n", err)
++			ld.error(err)
+ 		}
+ 	}
+-	base.ExitIfErrors() // or we will report them again
++	ld.exitIfErrors(ctx)
+ 
+ 	updateGoVersion := func() {
+ 		goVersion := ld.goVersion()
+@@ -1058,9 +1060,8 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 			var err error
+ 			ld.requirements, err = convertPruning(ctx, ld.requirements, pruningForGoVersion(goVersion))
+ 			if err != nil {
+-				ld.maybeTryToolchain(ctx, err)
+-				ld.errorf("go: %v\n", err)
+-				base.ExitIfErrors()
++				ld.error(err)
++				ld.exitIfErrors(ctx)
+ 			}
+ 		}
+ 
+@@ -1122,8 +1123,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 
+ 		changed, err := ld.updateRequirements(ctx)
+ 		if err != nil {
+-			ld.maybeTryToolchain(ctx, err)
+-			ld.errorf("go: %v\n", err)
++			ld.error(err)
+ 			break
+ 		}
+ 		if changed {
+@@ -1142,8 +1142,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 
+ 		modAddedBy, err := ld.resolveMissingImports(ctx)
+ 		if err != nil {
+-			ld.maybeTryToolchain(ctx, err)
+-			ld.errorf("go: %v\n", err)
++			ld.error(err)
+ 			break
+ 		}
+ 		if len(modAddedBy) == 0 {
+@@ -1170,17 +1169,16 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 		direct := ld.requirements.direct
+ 		rs, err := updateRoots(ctx, direct, ld.requirements, noPkgs, toAdd, ld.AssumeRootsImported)
+ 		if err != nil {
+-			ld.maybeTryToolchain(ctx, err)
+ 			// If an error was found in a newly added module, report the package
+ 			// import stack instead of the module requirement stack. Packages
+ 			// are more descriptive.
+ 			if err, ok := err.(*mvs.BuildListError); ok {
+ 				if pkg := modAddedBy[err.Module()]; pkg != nil {
+-					ld.errorf("go: %s: %v\n", pkg.stackText(), err.Err)
++					ld.error(fmt.Errorf("%s: %w", pkg.stackText(), err.Err))
+ 					break
+ 				}
+ 			}
+-			ld.errorf("go: %v\n", err)
++			ld.error(err)
+ 			break
+ 		}
+ 		if reflect.DeepEqual(rs.rootModules, ld.requirements.rootModules) {
+@@ -1192,14 +1190,14 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 		}
+ 		ld.requirements = rs
+ 	}
+-	base.ExitIfErrors()
++	ld.exitIfErrors(ctx)
+ 
+ 	// Tidy the build list, if applicable, before we report errors.
+ 	// (The process of tidying may remove errors from irrelevant dependencies.)
+ 	if ld.Tidy {
+ 		rs, err := tidyRoots(ctx, ld.requirements, ld.pkgs)
+ 		if err != nil {
+-			ld.errorf("go: %v\n", err)
++			ld.error(err)
+ 		} else {
+ 			if ld.TidyGoVersion != "" {
+ 				// Attempt to switch to the requested Go version. We have been using its
+@@ -1208,7 +1206,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 				tidy := overrideRoots(ctx, rs, []module.Version{{Path: "go", Version: ld.TidyGoVersion}})
+ 				mg, err := tidy.Graph(ctx)
+ 				if err != nil {
+-					ld.errorf("go: %v\n", err)
++					ld.error(err)
+ 				}
+ 				if v := mg.Selected("go"); v == ld.TidyGoVersion {
+ 					rs = tidy
+@@ -1223,7 +1221,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 					if cfg.BuildV {
+ 						msg = conflict.String()
+ 					}
+-					ld.errorf("go: %v\n", msg)
++					ld.error(errors.New(msg))
+ 				}
+ 			}
+ 
+@@ -1239,7 +1237,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 						continue
+ 					}
+ 					if v, ok := ld.requirements.rootSelected(m.Path); !ok || v != m.Version {
+-						ld.errorf("go: internal error: a requirement on %v is needed but was not added during package loading (selected %s)\n", m, v)
++						ld.error(fmt.Errorf("internal error: a requirement on %v is needed but was not added during package loading (selected %s)", m, v))
+ 					}
+ 				}
+ 			}
+@@ -1247,7 +1245,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 			ld.requirements = rs
+ 		}
+ 
+-		base.ExitIfErrors()
++		ld.exitIfErrors(ctx)
+ 	}
+ 
+ 	// Report errors, if any.
+@@ -1284,7 +1282,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 			continue
+ 		}
+ 
+-		ld.errorf("%s: %v\n", pkg.stackText(), pkg.err)
++		ld.error(fmt.Errorf("%s: %w", pkg.stackText(), pkg.err))
+ 	}
+ 
+ 	ld.checkMultiplePaths()
+@@ -1765,12 +1763,11 @@ func (ld *loader) preloadRootModules(ctx context.Context, rootPkgs []string) (ch
+ 
+ 	rs, err := updateRoots(ctx, ld.requirements.direct, ld.requirements, nil, toAdd, ld.AssumeRootsImported)
+ 	if err != nil {
+-		ld.maybeTryToolchain(ctx, err)
+ 		// We are missing some root dependency, and for some reason we can't load
+ 		// enough of the module dependency graph to add the missing root. Package
+ 		// loading is doomed to fail, so fail quickly.
+-		ld.errorf("go: %v\n", err)
+-		base.ExitIfErrors()
++		ld.error(err)
++		ld.exitIfErrors(ctx)
+ 		return false
+ 	}
+ 	if reflect.DeepEqual(rs.rootModules, ld.requirements.rootModules) {
+@@ -1974,7 +1971,7 @@ func (ld *loader) checkMultiplePaths() {
+ 		if prev, ok := firstPath[src]; !ok {
+ 			firstPath[src] = mod.Path
+ 		} else if prev != mod.Path {
+-			ld.errorf("go: %s@%s used for two different module paths (%s and %s)\n", src.Path, src.Version, prev, mod.Path)
++			ld.error(fmt.Errorf("%s@%s used for two different module paths (%s and %s)", src.Path, src.Version, prev, mod.Path))
+ 		}
+ 	}
+ }
+@@ -2031,9 +2028,10 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements,
+ 
+ 	mg, err := rs.Graph(ctx)
+ 	if err != nil {
+-		ld.maybeTryToolchain(ctx, err)
+-		ld.errorf("go: error loading go %s module graph: %v\n", compatVersion, err)
++		ld.error(fmt.Errorf("error loading go %s module graph: %w", compatVersion, err))
++		ld.switchIfErrors(ctx)
+ 		suggestFixes()
++		ld.exitIfErrors(ctx)
+ 		return
+ 	}
+ 
+@@ -2133,12 +2131,12 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements,
+ 					Path:    pkg.mod.Path,
+ 					Version: mg.Selected(pkg.mod.Path),
+ 				}
+-				ld.errorf("%s loaded from %v,\n\tbut go %s would fail to locate it in %s\n", pkg.stackText(), pkg.mod, compatVersion, selected)
++				ld.error(fmt.Errorf("%s loaded from %v,\n\tbut go %s would fail to locate it in %s", pkg.stackText(), pkg.mod, compatVersion, selected))
+ 			} else {
+ 				if ambiguous := (*AmbiguousImportError)(nil); errors.As(mismatch.err, &ambiguous) {
+ 					// TODO: Is this check needed?
+ 				}
+-				ld.errorf("%s loaded from %v,\n\tbut go %s would fail to locate it:\n\t%v\n", pkg.stackText(), pkg.mod, compatVersion, mismatch.err)
++				ld.error(fmt.Errorf("%s loaded from %v,\n\tbut go %s would fail to locate it:\n\t%v", pkg.stackText(), pkg.mod, compatVersion, mismatch.err))
+ 			}
+ 
+ 			suggestEFlag = true
+@@ -2176,7 +2174,7 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements,
+ 			// pkg.err should have already been logged elsewhere — along with a
+ 			// stack trace — so log only the import path and non-error info here.
+ 			suggestUpgrade = true
+-			ld.errorf("%s failed to load from any module,\n\tbut go %s would load it from %v\n", pkg.path, compatVersion, mismatch.mod)
++			ld.error(fmt.Errorf("%s failed to load from any module,\n\tbut go %s would load it from %v", pkg.path, compatVersion, mismatch.mod))
+ 
+ 		case pkg.mod != mismatch.mod:
+ 			// The package is loaded successfully by both Go versions, but from a
+@@ -2184,15 +2182,16 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements,
+ 			// unnoticed!) variations in behavior between builds with different
+ 			// toolchains.
+ 			suggestUpgrade = true
+-			ld.errorf("%s loaded from %v,\n\tbut go %s would select %v\n", pkg.stackText(), pkg.mod, compatVersion, mismatch.mod.Version)
++			ld.error(fmt.Errorf("%s loaded from %v,\n\tbut go %s would select %v\n", pkg.stackText(), pkg.mod, compatVersion, mismatch.mod.Version))
+ 
+ 		default:
+ 			base.Fatalf("go: internal error: mismatch recorded for package %s, but no differences found", pkg.path)
+ 		}
+ 	}
+ 
++	ld.switchIfErrors(ctx)
+ 	suggestFixes()
+-	base.ExitIfErrors()
++	ld.exitIfErrors(ctx)
+ }
+ 
+ // scanDir is like imports.ScanDir but elides known magic imports from the list,
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 026be5eef7..d6c395f1fc 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -655,6 +655,12 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
+ 		// are the roots of the module graph and we expect them to be kept consistent.
+ 		panic("internal error: rawGoModSummary called on a main module")
+ 	}
++	if m.Version == "" && inWorkspaceMode() && m.Path == "command-line-arguments" {
++		// "go work sync" calls LoadModGraph to make sure the module graph is valid.
++		// If there are no modules in the workspace, we synthesize an empty
++		// command-line-arguments module, which rawGoModData cannot read a go.mod for.
++		return &modFileSummary{module: m}, nil
++	}
+ 	return rawGoModSummaryCache.Do(m, func() (*modFileSummary, error) {
+ 		summary := new(modFileSummary)
+ 		name, data, err := rawGoModData(m)
+@@ -685,9 +691,9 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
+ 				summary.require = append(summary.require, req.Mod)
+ 			}
+ 		}
+-		if summary.goVersion != "" && gover.Compare(summary.goVersion, "1.21") >= 0 {
++		if summary.goVersion != "" && gover.Compare(summary.goVersion, gover.GoStrictVersion) >= 0 {
+ 			if gover.Compare(summary.goVersion, gover.Local()) > 0 {
+-				return nil, &gover.TooNewError{What: summary.module.String(), GoVersion: summary.goVersion}
++				return nil, &gover.TooNewError{What: "module " + m.String(), GoVersion: summary.goVersion}
+ 			}
+ 			summary.require = append(summary.require, module.Version{Path: "go", Version: summary.goVersion})
+ 		}
+diff --git a/src/cmd/go/internal/toolchain/reqs.go b/src/cmd/go/internal/toolchain/reqs.go
+new file mode 100644
+index 0000000000..e5ca8d0eb4
+--- /dev/null
++++ b/src/cmd/go/internal/toolchain/reqs.go
+@@ -0,0 +1,105 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package toolchain
++
++import (
++	"context"
++	"fmt"
++	"os"
++
++	"cmd/go/internal/base"
++	"cmd/go/internal/gover"
++)
++
++// A Switcher collects errors to be reported and then decides
++// between reporting the errors or switching to a new toolchain
++// to resolve them.
++//
++// The client calls [Switcher.Error] repeatedly with errors encountered
++// and then calls [Switcher.Switch]. If the errors included any
++// *gover.TooNewErrors (potentially wrapped) and switching is
++// permitted by GOTOOLCHAIN, Switch switches to a new toolchain.
++// Otherwise Switch prints all the errors using base.Error.
++type Switcher struct {
++	TooNew *gover.TooNewError // max go requirement observed
++	Errors []error            // errors collected so far
++}
++
++// Error reports the error to the Switcher,
++// which saves it for processing during Switch.
++func (s *Switcher) Error(err error) {
++	s.Errors = append(s.Errors, err)
++	s.addTooNew(err)
++}
++
++// addTooNew adds any TooNew errors that can be found in err.
++func (s *Switcher) addTooNew(err error) {
++	switch err := err.(type) {
++	case interface{ Unwrap() []error }:
++		for _, e := range err.Unwrap() {
++			s.addTooNew(e)
++		}
++
++	case interface{ Unwrap() error }:
++		s.addTooNew(err.Unwrap())
++
++	case *gover.TooNewError:
++		if s.TooNew == nil ||
++			gover.Compare(err.GoVersion, s.TooNew.GoVersion) > 0 ||
++			gover.Compare(err.GoVersion, s.TooNew.GoVersion) == 0 && err.What < s.TooNew.What {
++			s.TooNew = err
++		}
++	}
++}
++
++// NeedSwitch reports whether Switch would attempt to switch toolchains.
++func (s *Switcher) NeedSwitch() bool {
++	return s.TooNew != nil && (HasAuto() || HasPath())
++}
++
++// Switch decides whether to switch to a newer toolchain
++// to resolve any of the saved errors.
++// It switches if toolchain switches are permitted and there is at least one TooNewError.
++//
++// If Switch decides not to switch toolchains, it prints the errors using base.Error and returns.
++//
++// If Switch decides to switch toolchains but cannot identify a toolchain to use.
++// it prints the errors along with one more about not being able to find the toolchain
++// and returns.
++//
++// Otherwise, Switch prints an informational message giving a reason for the
++// switch and the toolchain being invoked and then switches toolchains.
++// This operation never returns.
++func (s *Switcher) Switch(ctx context.Context) {
++	if !s.NeedSwitch() {
++		for _, err := range s.Errors {
++			base.Error(err)
++		}
++		return
++	}
++
++	// Switch to newer Go toolchain if necessary and possible.
++	tv, err := NewerToolchain(ctx, s.TooNew.GoVersion)
++	if err != nil {
++		for _, err := range s.Errors {
++			base.Error(err)
++		}
++		base.Error(fmt.Errorf("switching to go >= %v: %w", s.TooNew.GoVersion, err))
++		return
++	}
++
++	fmt.Fprintf(os.Stderr, "go: %v requires go >= %v; switching to %v\n", s.TooNew.What, s.TooNew.GoVersion, tv)
++	SwitchTo(tv)
++	panic("unreachable")
++}
++
++// SwitchOrFatal attempts a toolchain switch based on the information in err
++// and otherwise falls back to base.Fatal(err).
++func SwitchOrFatal(ctx context.Context, err error) {
++	var s Switcher
++	s.Error(err)
++	s.Switch(ctx)
++	base.Exit()
++}
+diff --git a/src/cmd/go/internal/toolchain/toolchain.go b/src/cmd/go/internal/toolchain/toolchain.go
+index 84907c1419..e6ff584480 100644
+--- a/src/cmd/go/internal/toolchain/toolchain.go
++++ b/src/cmd/go/internal/toolchain/toolchain.go
+@@ -591,22 +591,3 @@ func goInstallVersion() (m module.Version, goVers string, found bool) {
+ 	// consulting go.mod.
+ 	return m, "", true
+ }
+-
+-// TryVersion tries to switch to a Go toolchain appropriate for version,
+-// which was either found in a go.mod file of a dependency or resolved
+-// on the command line from go@v.
+-func TryVersion(ctx context.Context, version string) {
+-	if !gover.IsValid(version) {
+-		fmt.Fprintf(os.Stderr, "go: misuse of tryVersion: invalid version %q\n", version)
+-		return
+-	}
+-	if (!HasAuto() && !HasPath()) || gover.Compare(version, gover.Local()) <= 0 {
+-		return
+-	}
+-	tv, err := NewerToolchain(ctx, version)
+-	if err != nil {
+-		base.Errorf("go: %v\n", err)
+-	}
+-	fmt.Fprintf(os.Stderr, "go: switching to %v\n", tv)
+-	SwitchTo(tv)
+-}
+diff --git a/src/cmd/go/internal/workcmd/edit.go b/src/cmd/go/internal/workcmd/edit.go
+index 4157e521d7..8d975b0b3d 100644
+--- a/src/cmd/go/internal/workcmd/edit.go
++++ b/src/cmd/go/internal/workcmd/edit.go
+@@ -184,11 +184,15 @@ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
+ 		}
+ 	}
+ 
+-	modload.UpdateWorkFile(workFile)
+-
+ 	workFile.SortBlocks()
+ 	workFile.Cleanup() // clean file after edits
+ 
++	// Note: No call to modload.UpdateWorkFile here.
++	// Edit's job is only to make the edits on the command line,
++	// not to apply the kinds of semantic changes that
++	// UpdateWorkFile does (or would eventually do, if we
++	// decide to add the module comments in go.work).
++
+ 	if *editJSON {
+ 		editPrintJSON(workFile)
+ 		return
+diff --git a/src/cmd/go/internal/workcmd/init.go b/src/cmd/go/internal/workcmd/init.go
+index f761494bc4..02240b8189 100644
+--- a/src/cmd/go/internal/workcmd/init.go
++++ b/src/cmd/go/internal/workcmd/init.go
+@@ -7,13 +7,13 @@
+ package workcmd
+ 
+ import (
++	"context"
++	"path/filepath"
++
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/gover"
+ 	"cmd/go/internal/modload"
+-	"context"
+-	"os"
+-	"path/filepath"
+ 
+ 	"golang.org/x/mod/modfile"
+ )
+@@ -48,36 +48,19 @@ func runInit(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	modload.ForceUseModules = true
+ 
+-	workFile := modload.WorkFilePath()
+-	if workFile == "" {
+-		workFile = filepath.Join(base.Cwd(), "go.work")
++	gowork := modload.WorkFilePath()
++	if gowork == "" {
++		gowork = filepath.Join(base.Cwd(), "go.work")
+ 	}
+ 
+-	CreateWorkFile(ctx, workFile, args)
+-}
+-
+-// CreateWorkFile initializes a new workspace by creating a go.work file.
+-func CreateWorkFile(ctx context.Context, workFile string, modDirs []string) {
+-	if _, err := fsys.Stat(workFile); err == nil {
+-		base.Fatalf("go: %s already exists", workFile)
++	if _, err := fsys.Stat(gowork); err == nil {
++		base.Fatalf("go: %s already exists", gowork)
+ 	}
+ 
+ 	goV := gover.Local() // Use current Go version by default
+ 	wf := new(modfile.WorkFile)
+ 	wf.Syntax = new(modfile.FileSyntax)
+ 	wf.AddGoStmt(goV)
+-
+-	for _, dir := range modDirs {
+-		_, f, err := modload.ReadModFile(filepath.Join(dir, "go.mod"), nil)
+-		if err != nil {
+-			if os.IsNotExist(err) {
+-				base.Fatalf("go: creating workspace file: no go.mod file exists in directory %v", dir)
+-			}
+-			base.Fatalf("go: error parsing go.mod in directory %s: %v", dir, err)
+-		}
+-		wf.AddUse(modload.ToDirectoryPath(dir), f.Module.Mod.Path)
+-	}
+-
+-	modload.UpdateWorkFile(wf)
+-	modload.WriteWorkFile(workFile, wf)
++	workUse(ctx, gowork, wf, args)
++	modload.WriteWorkFile(gowork, wf)
+ }
+diff --git a/src/cmd/go/internal/workcmd/sync.go b/src/cmd/go/internal/workcmd/sync.go
+index 2bf76caae5..719cf76c9b 100644
+--- a/src/cmd/go/internal/workcmd/sync.go
++++ b/src/cmd/go/internal/workcmd/sync.go
+@@ -13,7 +13,6 @@ import (
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/toolchain"
+ 	"context"
+-	"errors"
+ 
+ 	"golang.org/x/mod/module"
+ )
+@@ -55,12 +54,10 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
+ 		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using GOWORK environment variable)")
+ 	}
+ 
+-	workGraph, err := modload.LoadModGraph(ctx, "")
+-	if tooNew := (*gover.TooNewError)(nil); errors.As(err, &tooNew) {
+-		toolchain.TryVersion(ctx, tooNew.GoVersion)
+-		base.Fatal(err)
++	_, err := modload.LoadModGraph(ctx, "")
++	if err != nil {
++		toolchain.SwitchOrFatal(ctx, err)
+ 	}
+-	_ = workGraph
+ 	mustSelectFor := map[module.Version][]module.Version{}
+ 
+ 	mms := modload.MainModules
+@@ -96,6 +93,7 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	workFilePath := modload.WorkFilePath() // save go.work path because EnterModule clobbers it.
+ 
++	var goV string
+ 	for _, m := range mms.Versions() {
+ 		if mms.ModRoot(m) == "" && m.Path == "command-line-arguments" {
+ 			// This is not a real module.
+@@ -110,31 +108,37 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 		// Edit the build list in the same way that 'go get' would if we
+ 		// requested the relevant module versions explicitly.
++		// TODO(#57001): Do we need a toolchain.SwitchOrFatal here,
++		// and do we need to pass a toolchain.Switcher in LoadPackages?
++		// If so, think about saving the WriteGoMods for after the loop,
++		// so we don't write some go.mods with the "before" toolchain
++		// and others with the "after" toolchain. If nothing else, that
++		// discrepancy could show up in auto-recorded toolchain lines.
+ 		changed, err := modload.EditBuildList(ctx, nil, mustSelectFor[m])
+ 		if err != nil {
+-			base.Errorf("go: %v", err)
+-		}
+-		if !changed {
+ 			continue
+ 		}
+-
+-		modload.LoadPackages(ctx, modload.PackageOpts{
+-			Tags:                     imports.AnyTags(),
+-			Tidy:                     true,
+-			VendorModulesInGOROOTSrc: true,
+-			ResolveMissingImports:    false,
+-			LoadTests:                true,
+-			AllowErrors:              true,
+-			SilenceMissingStdImports: true,
+-			SilencePackageErrors:     true,
+-		}, "all")
+-		modload.WriteGoMod(ctx, modload.WriteOpts{})
++		if changed {
++			modload.LoadPackages(ctx, modload.PackageOpts{
++				Tags:                     imports.AnyTags(),
++				Tidy:                     true,
++				VendorModulesInGOROOTSrc: true,
++				ResolveMissingImports:    false,
++				LoadTests:                true,
++				AllowErrors:              true,
++				SilenceMissingStdImports: true,
++				SilencePackageErrors:     true,
++			}, "all")
++			modload.WriteGoMod(ctx, modload.WriteOpts{})
++		}
++		goV = gover.Max(goV, modload.MainModules.GoVersion())
+ 	}
+ 
+ 	wf, err := modload.ReadWorkFile(workFilePath)
+ 	if err != nil {
+ 		base.Fatal(err)
+ 	}
++	modload.UpdateWorkGoVersion(wf, goV)
+ 	modload.UpdateWorkFile(wf)
+ 	if err := modload.WriteWorkFile(workFilePath, wf); err != nil {
+ 		base.Fatal(err)
+diff --git a/src/cmd/go/internal/workcmd/use.go b/src/cmd/go/internal/workcmd/use.go
+index 327028e1d6..55477119d4 100644
+--- a/src/cmd/go/internal/workcmd/use.go
++++ b/src/cmd/go/internal/workcmd/use.go
+@@ -7,32 +7,46 @@
+ package workcmd
+ 
+ import (
+-	"cmd/go/internal/base"
+-	"cmd/go/internal/fsys"
+-	"cmd/go/internal/modload"
+-	"cmd/go/internal/str"
+ 	"context"
+ 	"fmt"
+ 	"io/fs"
+ 	"os"
+ 	"path/filepath"
++
++	"cmd/go/internal/base"
++	"cmd/go/internal/fsys"
++	"cmd/go/internal/gover"
++	"cmd/go/internal/modload"
++	"cmd/go/internal/str"
++	"cmd/go/internal/toolchain"
++
++	"golang.org/x/mod/modfile"
+ )
+ 
+ var cmdUse = &base.Command{
+-	UsageLine: "go work use [-r] moddirs",
++	UsageLine: "go work use [-r] [moddirs]",
+ 	Short:     "add modules to workspace file",
+ 	Long: `Use provides a command-line interface for adding
+ directories, optionally recursively, to a go.work file.
+ 
+ A use directive will be added to the go.work file for each argument
+-directory listed on the command line go.work file, if it exists on disk,
+-or removed from the go.work file if it does not exist on disk.
++directory listed on the command line go.work file, if it exists,
++or removed from the go.work file if it does not exist.
++Use fails if any remaining use directives refer to modules that
++do not exist.
++
++Use updates the go line in go.work to specify a version at least as
++new as all the go lines in the used modules, both preexisting ones
++and newly added ones. With no arguments, this update is the only
++thing that go work use does.
+ 
+ The -r flag searches recursively for modules in the argument
+ directories, and the use command operates as if each of the directories
+ were specified as arguments: namely, use directives will be added for
+ directories that exist, and removed for directories that do not exist.
+ 
++
++
+ See the workspaces reference at https://go.dev/ref/mod#workspaces
+ for more information.
+ `,
+@@ -49,22 +63,24 @@ func init() {
+ 
+ func runUse(ctx context.Context, cmd *base.Command, args []string) {
+ 	modload.ForceUseModules = true
+-
+-	var gowork string
+ 	modload.InitWorkfile()
+-	gowork = modload.WorkFilePath()
+-
++	gowork := modload.WorkFilePath()
+ 	if gowork == "" {
+ 		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using GOWORK environment variable)")
+ 	}
+-	workFile, err := modload.ReadWorkFile(gowork)
++	wf, err := modload.ReadWorkFile(gowork)
+ 	if err != nil {
+ 		base.Fatal(err)
+ 	}
+-	workDir := filepath.Dir(gowork) // Absolute, since gowork itself is absolute.
++	workUse(ctx, gowork, wf, args)
++	modload.WriteWorkFile(gowork, wf)
++}
++
++func workUse(ctx context.Context, gowork string, wf *modfile.WorkFile, args []string) {
++	workDir := filepath.Dir(gowork) // absolute, since gowork itself is absolute
+ 
+ 	haveDirs := make(map[string][]string) // absolute → original(s)
+-	for _, use := range workFile.Use {
++	for _, use := range wf.Use {
+ 		var abs string
+ 		if filepath.IsAbs(use.Path) {
+ 			abs = filepath.Clean(use.Path)
+@@ -79,24 +95,28 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
+ 	// all entries for the absolute path should be removed.
+ 	keepDirs := make(map[string]string)
+ 
++	var sw toolchain.Switcher
++
+ 	// lookDir updates the entry in keepDirs for the directory dir,
+ 	// which is either absolute or relative to the current working directory
+ 	// (not necessarily the directory containing the workfile).
+ 	lookDir := func(dir string) {
+ 		absDir, dir := pathRel(workDir, dir)
+ 
+-		fi, err := fsys.Stat(filepath.Join(absDir, "go.mod"))
++		file := base.ShortPath(filepath.Join(absDir, "go.mod"))
++		fi, err := fsys.Stat(file)
+ 		if err != nil {
+ 			if os.IsNotExist(err) {
+ 				keepDirs[absDir] = ""
+ 			} else {
+-				base.Error(err)
++				sw.Error(err)
+ 			}
+ 			return
+ 		}
+ 
+ 		if !fi.Mode().IsRegular() {
+-			base.Errorf("go: %v is not regular", filepath.Join(dir, "go.mod"))
++			sw.Error(fmt.Errorf("%v is not a regular file", file))
++			return
+ 		}
+ 
+ 		if dup := keepDirs[absDir]; dup != "" && dup != dir {
+@@ -105,23 +125,19 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
+ 		keepDirs[absDir] = dir
+ 	}
+ 
+-	if len(args) == 0 {
+-		base.Fatalf("go: 'go work use' requires one or more directory arguments")
+-	}
+ 	for _, useDir := range args {
+ 		absArg, _ := pathRel(workDir, useDir)
+ 
+-		info, err := fsys.Stat(absArg)
++		info, err := fsys.Stat(base.ShortPath(absArg))
+ 		if err != nil {
+ 			// Errors raised from os.Stat are formatted to be more user-friendly.
+ 			if os.IsNotExist(err) {
+-				base.Errorf("go: directory %v does not exist", absArg)
+-			} else {
+-				base.Error(err)
++				err = fmt.Errorf("directory %v does not exist", base.ShortPath(absArg))
+ 			}
++			sw.Error(err)
+ 			continue
+ 		} else if !info.IsDir() {
+-			base.Errorf("go: %s is not a directory", absArg)
++			sw.Error(fmt.Errorf("%s is not a directory", base.ShortPath(absArg)))
+ 			continue
+ 		}
+ 
+@@ -142,7 +158,7 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
+ 			if !info.IsDir() {
+ 				if info.Mode()&fs.ModeSymlink != 0 {
+ 					if target, err := fsys.Stat(path); err == nil && target.IsDir() {
+-						fmt.Fprintf(os.Stderr, "warning: ignoring symlink %s\n", path)
++						fmt.Fprintf(os.Stderr, "warning: ignoring symlink %s\n", base.ShortPath(path))
+ 					}
+ 				}
+ 				return nil
+@@ -162,28 +178,50 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
+ 		}
+ 	}
+ 
+-	base.ExitIfErrors()
+-
++	// Update the work file.
+ 	for absDir, keepDir := range keepDirs {
+ 		nKept := 0
+ 		for _, dir := range haveDirs[absDir] {
+ 			if dir == keepDir { // (note that dir is always non-empty)
+ 				nKept++
+ 			} else {
+-				workFile.DropUse(dir)
++				wf.DropUse(dir)
+ 			}
+ 		}
+ 		if keepDir != "" && nKept != 1 {
+ 			// If we kept more than one copy, delete them all.
+ 			// We'll recreate a unique copy with AddUse.
+ 			if nKept > 1 {
+-				workFile.DropUse(keepDir)
++				wf.DropUse(keepDir)
+ 			}
+-			workFile.AddUse(keepDir, "")
++			wf.AddUse(keepDir, "")
+ 		}
+ 	}
+-	modload.UpdateWorkFile(workFile)
+-	modload.WriteWorkFile(gowork, workFile)
++
++	// Read the Go versions from all the use entries, old and new (but not dropped).
++	goV := gover.FromGoWork(wf)
++	for _, use := range wf.Use {
++		if use.Path == "" { // deleted
++			continue
++		}
++		var abs string
++		if filepath.IsAbs(use.Path) {
++			abs = filepath.Clean(use.Path)
++		} else {
++			abs = filepath.Join(workDir, use.Path)
++		}
++		_, mf, err := modload.ReadModFile(base.ShortPath(filepath.Join(abs, "go.mod")), nil)
++		if err != nil {
++			sw.Error(err)
++			continue
++		}
++		goV = gover.Max(goV, gover.FromGoMod(mf))
++	}
++	sw.Switch(ctx)
++	base.ExitIfErrors()
++
++	modload.UpdateWorkGoVersion(wf, goV)
++	modload.UpdateWorkFile(wf)
+ }
+ 
+ // pathRel returns the absolute and canonical forms of dir for use in a
+diff --git a/src/cmd/go/testdata/script/godebug_default.txt b/src/cmd/go/testdata/script/godebug_default.txt
+index ab642c293c..5bb8cac4bb 100644
+--- a/src/cmd/go/testdata/script/godebug_default.txt
++++ b/src/cmd/go/testdata/script/godebug_default.txt
+@@ -38,12 +38,11 @@ go list -f '{{.Module.GoVersion}} {{.DefaultGODEBUG}}'
+ stdout randautoseed=0
+ rm go.work
+ 
+-# Go 1.20 workspace should set panicnil=1 even in Go 1.21 module.
++# Go 1.20 workspace with Go 1.21 module cannot happen.
+ cp go.work.20 go.work
+ cp go.mod.21 go.mod
+-go list -f '{{.Module.GoVersion}} {{.DefaultGODEBUG}}'
+-stdout panicnil=1
+-stdout randautoseed=0
++! go list -f '{{.Module.GoVersion}} {{.DefaultGODEBUG}}'
++stderr 'go: module . listed in go.work file requires go >= 1.21'
+ rm go.work
+ 
+ [short] skip
+diff --git a/src/cmd/go/testdata/script/goline_order.txt b/src/cmd/go/testdata/script/goline_order.txt
+new file mode 100644
+index 0000000000..6212cd64eb
+--- /dev/null
++++ b/src/cmd/go/testdata/script/goline_order.txt
+@@ -0,0 +1,74 @@
++# Check that go lines are always >= go lines of dependencies.
++
++# Using too old a release cannot even complete module load.
++env TESTGO_VERSION=go1.21.1
++env TESTGO_VERSION_SWITCH=switch
++cp go.mod go.mod.orig
++
++# If the offending module is not imported, it's not detected.
++go list
++cmp go.mod go.mod.orig
++
++# Adding the import produces the error.
++# Maybe this should auto-switch, but it requires more plumbing to get this error through,
++# and it's a misconfigured system that should not arise in practice, so not switching is fine.
++! go list -deps -tags usem1
++cmp go.mod go.mod.orig
++stderr '^go: module ./m1 requires go >= 1.21.2 \(running go 1.21.1\)$'
++
++# go get go@1.21.2 fixes the error.
++cp go.mod.orig go.mod
++go get go@1.21.2
++go list -deps -tags usem1
++
++# go get -tags usem1 fixes the error.
++cp go.mod.orig go.mod
++go get -tags usem1
++go list -deps -tags usem1
++
++# go get fixes the error.
++cp go.mod.orig go.mod
++go get
++go list -deps -tags usem1
++
++# Using a new enough release reports the error after module load and suggests 'go mod tidy'
++env TESTGO_VERSION=go1.21.2
++cp go.mod.orig go.mod
++! go list -deps -tags usem1
++stderr 'updates to go.mod needed'
++stderr 'go mod tidy'
++go mod tidy
++go list -deps -tags usem1
++
++# go get also works
++cp go.mod.orig go.mod
++! go list -deps -tags usem1
++stderr 'updates to go.mod needed'
++stderr 'go mod tidy'
++go get go@1.21.2
++go list -deps -tags usem1
++
++
++-- go.mod --
++module m
++go 1.21.1
++
++require m1 v0.0.1
++
++replace m1 => ./m1
++
++-- m1/go.mod --
++go 1.21.2
++
++-- p.go --
++//go:build usem1
++
++package p
++
++import _ "m1"
++
++-- p1.go --
++package p
++
++-- m1/p.go --
++package p
+diff --git a/src/cmd/go/testdata/script/gotoolchain_modcmds.txt b/src/cmd/go/testdata/script/gotoolchain_modcmds.txt
+index 67917da515..83b75f0abb 100644
+--- a/src/cmd/go/testdata/script/gotoolchain_modcmds.txt
++++ b/src/cmd/go/testdata/script/gotoolchain_modcmds.txt
+@@ -14,19 +14,19 @@ stderr '^go: rsc.io/future@v1.0.0 requires go >= 1.999 \(running go 1.21.0\)'
+ stderr '^go: rsc.io/future@v1.0.0 requires go >= 1.999 \(running go 1.21.0\)'
+ 
+ ! go mod download
+-stderr '^go: rsc.io/future@v1.0.0: rsc.io/future requires go >= 1.999 \(running go 1.21.0\)'
++stderr '^go: rsc.io/future@v1.0.0: module rsc.io/future@v1.0.0 requires go >= 1.999 \(running go 1.21.0\)'
+ 
+ ! go mod verify
+-stderr '^go: rsc.io/future@v1.0.0: rsc.io/future requires go >= 1.999 \(running go 1.21.0\)'
++stderr '^go: rsc.io/future@v1.0.0: module rsc.io/future@v1.0.0 requires go >= 1.999 \(running go 1.21.0\)'
+ 
+ ! go mod graph
+-stderr '^go: rsc.io/future@v1.0.0: rsc.io/future requires go >= 1.999 \(running go 1.21.0\)'
++stderr '^go: rsc.io/future@v1.0.0: module rsc.io/future@v1.0.0 requires go >= 1.999 \(running go 1.21.0\)'
+ 
+ 
+ # 'go get' should update the main module's go.mod file to a version compatible with the
+ # go version required for rsc.io/future, not fail.
+ go get .
+-stderr '^go: switching to go1.999testmod$'
++stderr '^go: module rsc.io/future@v1.0.0 requires go >= 1.999; switching to go1.999testmod$'
+ stderr '^go: upgraded go 1.21 => 1.999$'
+ stderr '^go: added toolchain go1.999testmod$'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_bad_domain.txt b/src/cmd/go/testdata/script/mod_bad_domain.txt
+index afd6e5186c..86aa96e7d4 100644
+--- a/src/cmd/go/testdata/script/mod_bad_domain.txt
++++ b/src/cmd/go/testdata/script/mod_bad_domain.txt
+@@ -28,7 +28,7 @@ go get ./useappengine  # TODO(#41315): This should fail.
+  # stderr '^useappengine[/\\]x.go:2:8: cannot find package$'
+ 
+ ! go get  ./usenonexistent
+-stderr '^x/usenonexistent imports\n\tnonexistent.rsc.io: cannot find module providing package nonexistent.rsc.io$'
++stderr '^go: x/usenonexistent imports\n\tnonexistent.rsc.io: cannot find module providing package nonexistent.rsc.io$'
+ 
+ 
+ # go mod vendor and go mod tidy should ignore appengine imports.
+diff --git a/src/cmd/go/testdata/script/mod_build_info_err.txt b/src/cmd/go/testdata/script/mod_build_info_err.txt
+index 5c3c309b0d..8d7bd0c387 100644
+--- a/src/cmd/go/testdata/script/mod_build_info_err.txt
++++ b/src/cmd/go/testdata/script/mod_build_info_err.txt
+@@ -12,7 +12,7 @@ stderr '^bad[/\\]bad.go:3:8: malformed import path "🐧.example.com/string": in
+ # TODO(#41688): This should include a file and line, and report the reason for the error..
+ # (Today it includes only an import stack.)
+ ! go get ./main
+-stderr '^m/main imports\n\tm/bad imports\n\t🐧.example.com/string: malformed import path "🐧.example.com/string": invalid char ''🐧''$'
++stderr '^go: m/main imports\n\tm/bad imports\n\t🐧.example.com/string: malformed import path "🐧.example.com/string": invalid char ''🐧''$'
+ 
+ 
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/mod_e.txt b/src/cmd/go/testdata/script/mod_e.txt
+index 3cffaf6ef1..6497e6c22b 100644
+--- a/src/cmd/go/testdata/script/mod_e.txt
++++ b/src/cmd/go/testdata/script/mod_e.txt
+@@ -7,13 +7,13 @@ cp go.mod go.mod.orig
+ 
+ ! go mod tidy
+ 
+-stderr '^example.com/untidy imports\n\texample.net/directnotfound: cannot find module providing package example.net/directnotfound: module example.net/directnotfound: reading http://.*: 404 Not Found$'
++stderr '^go: example.com/untidy imports\n\texample.net/directnotfound: cannot find module providing package example.net/directnotfound: module example.net/directnotfound: reading http://.*: 404 Not Found$'
+ 
+-stderr '^example.com/untidy imports\n\texample.net/m imports\n\texample.net/indirectnotfound: cannot find module providing package example.net/indirectnotfound: module example.net/indirectnotfound: reading http://.*: 404 Not Found$'
++stderr '^go: example.com/untidy imports\n\texample.net/m imports\n\texample.net/indirectnotfound: cannot find module providing package example.net/indirectnotfound: module example.net/indirectnotfound: reading http://.*: 404 Not Found$'
+ 
+-stderr '^example.com/untidy tested by\n\texample.com/untidy.test imports\n\texample.net/directtestnotfound: cannot find module providing package example.net/directtestnotfound: module example.net/directtestnotfound: reading http://.*: 404 Not Found$'
++stderr '^go: example.com/untidy tested by\n\texample.com/untidy.test imports\n\texample.net/directtestnotfound: cannot find module providing package example.net/directtestnotfound: module example.net/directtestnotfound: reading http://.*: 404 Not Found$'
+ 
+-stderr '^example.com/untidy imports\n\texample.net/m tested by\n\texample.net/m.test imports\n\texample.net/indirecttestnotfound: cannot find module providing package example.net/indirecttestnotfound: module example.net/indirecttestnotfound: reading http://.*: 404 Not Found$'
++stderr '^go: example.com/untidy imports\n\texample.net/m tested by\n\texample.net/m.test imports\n\texample.net/indirecttestnotfound: cannot find module providing package example.net/indirecttestnotfound: module example.net/indirecttestnotfound: reading http://.*: 404 Not Found$'
+ 
+ cmp go.mod.orig go.mod
+ 
+@@ -24,11 +24,11 @@ cmp go.mod.orig go.mod
+ 
+ ! go mod vendor
+ 
+-stderr '^example.com/untidy imports\n\texample.net/directnotfound: no required module provides package example.net/directnotfound; to add it:\n\tgo get example.net/directnotfound$'
++stderr '^go: example.com/untidy imports\n\texample.net/directnotfound: no required module provides package example.net/directnotfound; to add it:\n\tgo get example.net/directnotfound$'
+ 
+-stderr '^example.com/untidy imports\n\texample.net/m: module example.net/m provides package example.net/m and is replaced but not required; to add it:\n\tgo get example.net/m@v0.1.0$'
++stderr '^go: example.com/untidy imports\n\texample.net/m: module example.net/m provides package example.net/m and is replaced but not required; to add it:\n\tgo get example.net/m@v0.1.0$'
+ 
+-stderr '^example.com/untidy tested by\n\texample.com/untidy.test imports\n\texample.net/directtestnotfound: no required module provides package example.net/directtestnotfound; to add it:\n\tgo get example.net/directtestnotfound$'
++stderr '^go: example.com/untidy tested by\n\texample.com/untidy.test imports\n\texample.net/directtestnotfound: no required module provides package example.net/directtestnotfound; to add it:\n\tgo get example.net/directtestnotfound$'
+ 
+ ! stderr 'indirecttestnotfound'  # Vendor prunes test dependencies.
+ 
+@@ -50,7 +50,7 @@ cmp go.mod.final go.mod
+ cp go.mod.orig go.mod
+ go mod vendor -e
+ stderr -count=2 'no required module provides package'
+-stderr '^example.com/untidy imports\n\texample.net/m: module example.net/m provides package example.net/m and is replaced but not required; to add it:\n\tgo get example.net/m@v0.1.0$'
++stderr '^go: example.com/untidy imports\n\texample.net/m: module example.net/m provides package example.net/m and is replaced but not required; to add it:\n\tgo get example.net/m@v0.1.0$'
+ exists vendor/modules.txt
+ ! exists vendor/example.net
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_ambiguous_import.txt b/src/cmd/go/testdata/script/mod_get_ambiguous_import.txt
+index 0af78bd4f2..f08e540441 100644
+--- a/src/cmd/go/testdata/script/mod_get_ambiguous_import.txt
++++ b/src/cmd/go/testdata/script/mod_get_ambiguous_import.txt
+@@ -9,7 +9,7 @@ cp go.mod go.mod.orig
+ # TODO(#27899): Should we automatically upgrade example.net/m to v0.2.0
+ # to resolve the conflict?
+ ! go get example.net/m/p@v1.0.0
+-stderr '^example.net/m/p: ambiguous import: found package example.net/m/p in multiple modules:\n\texample.net/m v0.1.0 \(.*[/\\]m1[/\\]p\)\n\texample.net/m/p v1.0.0 \(.*[/\\]p0\)\n\z'
++stderr '^go: example.net/m/p: ambiguous import: found package example.net/m/p in multiple modules:\n\texample.net/m v0.1.0 \(.*[/\\]m1[/\\]p\)\n\texample.net/m/p v1.0.0 \(.*[/\\]p0\)\n\z'
+ cmp go.mod go.mod.orig
+ 
+ # Upgrading both modules simultaneously resolves the ambiguous upgrade.
+diff --git a/src/cmd/go/testdata/script/mod_get_downgrade_missing.txt b/src/cmd/go/testdata/script/mod_get_downgrade_missing.txt
+index 582593b96c..4486a671ba 100644
+--- a/src/cmd/go/testdata/script/mod_get_downgrade_missing.txt
++++ b/src/cmd/go/testdata/script/mod_get_downgrade_missing.txt
+@@ -23,7 +23,7 @@ cp go.mod.orig go.mod
+ # package, then 'go get' should fail with a useful error message.
+ 
+ ! go get example.net/pkgadded@v1.0.0 .
+-stderr '^example.com/m imports\n\texample.net/pkgadded/subpkg: cannot find module providing package example.net/pkgadded/subpkg$'
++stderr '^go: example.com/m imports\n\texample.net/pkgadded/subpkg: cannot find module providing package example.net/pkgadded/subpkg$'
+ ! stderr 'example.net/pkgadded v1\.2\.0'
+ cmp go.mod.orig go.mod
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_errors.txt b/src/cmd/go/testdata/script/mod_get_errors.txt
+index 7cb03ce2f1..981d6f08a9 100644
+--- a/src/cmd/go/testdata/script/mod_get_errors.txt
++++ b/src/cmd/go/testdata/script/mod_get_errors.txt
+@@ -6,7 +6,7 @@ cp go.mod go.mod.orig
+ # cannot be resolved.
+ 
+ ! go get
+-stderr '^example.com/m imports\n\texample.com/badimport imports\n\texample.net/oops: cannot find module providing package example.net/oops$'
++stderr '^go: example.com/m imports\n\texample.com/badimport imports\n\texample.net/oops: cannot find module providing package example.net/oops$'
+ cmp go.mod.orig go.mod
+ 
+ cd importsyntax
+diff --git a/src/cmd/go/testdata/script/mod_get_exec_toolchain.txt b/src/cmd/go/testdata/script/mod_get_exec_toolchain.txt
+index ac8e2cc698..f78d517c87 100644
+--- a/src/cmd/go/testdata/script/mod_get_exec_toolchain.txt
++++ b/src/cmd/go/testdata/script/mod_get_exec_toolchain.txt
+@@ -5,9 +5,9 @@ env TESTGO_VERSION_SWITCH=switch
+ env GOTOOLCHAIN=auto
+ cp go.mod.new go.mod
+ go get rsc.io/needgo121 rsc.io/needgo122 rsc.io/needgo123 rsc.io/needall
+-stderr '^go: switching to go1.23.9$'
++stderr '^go: rsc.io/needall@v0.0.1 requires go >= 1.23; switching to go1.23.9$'
++! stderr '\(running'
+ stderr '^go: added rsc.io/needall v0.0.1'
+-! stderr 'requires go >= 1.23'
+ grep 'go 1.23' go.mod
+ grep 'toolchain go1.23.9' go.mod
+ 
+@@ -15,9 +15,9 @@ grep 'toolchain go1.23.9' go.mod
+ env GOTOOLCHAIN=go1.21+auto
+ cp go.mod.new go.mod
+ go get rsc.io/needgo121 rsc.io/needgo122 rsc.io/needgo123 rsc.io/needall
+-stderr '^go: switching to go1.23.9$'
++stderr '^go: rsc.io/needall@v0.0.1 requires go >= 1.23; switching to go1.23.9$'
++! stderr '\(running'
+ stderr '^go: added rsc.io/needall v0.0.1'
+-! stderr 'requires go >= 1.23'
+ grep 'go 1.23' go.mod
+ grep 'toolchain go1.23.9' go.mod
+ 
+@@ -25,7 +25,7 @@ grep 'toolchain go1.23.9' go.mod
+ env GOTOOLCHAIN=go1.21
+ cp go.mod.new go.mod
+ ! go get rsc.io/needgo121 rsc.io/needgo122 rsc.io/needgo123 rsc.io/needall
+-! stderr 'switching to go'
++! stderr switching
+ stderr 'rsc.io/needgo122@v0.0.1 requires go >= 1.22'
+ stderr 'rsc.io/needgo123@v0.0.1 requires go >= 1.23'
+ stderr 'rsc.io/needall@v0.0.1 requires go >= 1.23'
+@@ -37,7 +37,7 @@ cmp go.mod go.mod.new
+ env GOTOOLCHAIN=local
+ cp go.mod.new go.mod
+ ! go get rsc.io/needgo121 rsc.io/needgo122 rsc.io/needgo123 rsc.io/needall
+-! stderr 'switching to go'
++! stderr switching
+ stderr 'rsc.io/needgo122@v0.0.1 requires go >= 1.22'
+ stderr 'rsc.io/needgo123@v0.0.1 requires go >= 1.23'
+ stderr 'rsc.io/needall@v0.0.1 requires go >= 1.23'
+@@ -54,7 +54,7 @@ stderr '^go: updating go.mod requires go >= 1.22.9 \(running go 1.21; GOTOOLCHAI
+ env GOTOOLCHAIN=auto
+ cp go.mod.new go.mod
+ go get go@1.22
+-stderr '^go: switching to go1.22.9$'
++stderr '^go: updating go.mod requires go >= 1.22.9; switching to go1.22.9$'
+ 
+ # go get go@1.22rc1 should use 1.22rc1 exactly, not a later release.
+ env GOTOOLCHAIN=local
+@@ -65,7 +65,7 @@ stderr '^go: updating go.mod requires go >= 1.22rc1 \(running go 1.21; GOTOOLCHA
+ env GOTOOLCHAIN=auto
+ cp go.mod.new go.mod
+ go get go@1.22rc1
+-stderr '^go: switching to go1.22.9$'
++stderr '^go: updating go.mod requires go >= 1.22rc1; switching to go1.22.9$'
+ stderr '^go: upgraded go 1.1 => 1.22rc1$'
+ stderr '^go: added toolchain go1.22.9$'
+ 
+@@ -78,7 +78,7 @@ stderr '^go: updating go.mod requires go >= 1.22.1 \(running go 1.21; GOTOOLCHAI
+ env GOTOOLCHAIN=auto
+ cp go.mod.new go.mod
+ go get go@1.22.1
+-stderr '^go: switching to go1.22.9$'
++stderr '^go: updating go.mod requires go >= 1.22.1; switching to go1.22.9$'
+ stderr '^go: upgraded go 1.1 => 1.22.1$'
+ stderr '^go: added toolchain go1.22.9$'
+ 
+@@ -93,7 +93,7 @@ env GOTOOLCHAIN=auto
+ cp go.mod.new go.mod
+ go get rsc.io/needgo122
+ stderr '^go: upgraded go 1.1 => 1.22$'
+-stderr '^go: switching to go1.22.9$'
++stderr '^go: rsc.io/needgo122@v0.0.1 requires go >= 1.22; switching to go1.22.9$'
+ stderr '^go: added toolchain go1.22.9$'
+ 
+ # go get needgo1223 (says 'go 1.22.3') should use go 1.22.3
+@@ -106,7 +106,7 @@ env GOTOOLCHAIN=auto
+ cp go.mod.new go.mod
+ go get rsc.io/needgo1223
+ stderr '^go: upgraded go 1.1 => 1.22.3$'
+-stderr '^go: switching to go1.22.9$'
++stderr '^go: rsc.io/needgo1223@v0.0.1 requires go >= 1.22.3; switching to go1.22.9$'
+ stderr '^go: added toolchain go1.22.9$'
+ 
+ # go get needgo124 (says 'go 1.24') should use go 1.24rc1, the only version available
+@@ -118,7 +118,7 @@ stderr '^go: rsc.io/needgo124@v0.0.1 requires go >= 1.24 \(running go 1.21; GOTO
+ env GOTOOLCHAIN=auto
+ cp go.mod.new go.mod
+ go get rsc.io/needgo124
+-stderr '^go: switching to go1.24rc1'
++stderr '^go: rsc.io/needgo124@v0.0.1 requires go >= 1.24; switching to go1.24rc1$'
+ stderr '^go: upgraded go 1.1 => 1.24$'
+ stderr '^go: added toolchain go1.24rc1$'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_pkgtags.txt b/src/cmd/go/testdata/script/mod_get_pkgtags.txt
+index 7ad3c3c7c4..8cb41ad2f2 100644
+--- a/src/cmd/go/testdata/script/mod_get_pkgtags.txt
++++ b/src/cmd/go/testdata/script/mod_get_pkgtags.txt
+@@ -52,7 +52,7 @@ go get example.net/testonly@v0.1.0
+ 
+ # With the -t flag, the test dependencies must resolve successfully.
+ ! go get -t example.net/testonly@v0.1.0
+-stderr '^example.net/testonly tested by\n\texample.net/testonly\.test imports\n\texample.net/missing: cannot find module providing package example.net/missing$'
++stderr '^go: example.net/testonly tested by\n\texample.net/testonly\.test imports\n\texample.net/missing: cannot find module providing package example.net/missing$'
+ 
+ 
+ # 'go get' should succeed for a module path that does not contain a package,
+diff --git a/src/cmd/go/testdata/script/mod_get_split.txt b/src/cmd/go/testdata/script/mod_get_split.txt
+index 0fb22c85d3..0552da24ea 100644
+--- a/src/cmd/go/testdata/script/mod_get_split.txt
++++ b/src/cmd/go/testdata/script/mod_get_split.txt
+@@ -33,7 +33,7 @@ stdout '^example.net/split v0.2.1 '
+ cp go.mod.orig go.mod
+ 
+ ! go get example.net/split/nested@v0.1.0
+-stderr '^example.net/split/nested: ambiguous import: found package example.net/split/nested in multiple modules:\n\texample.net/split v0.2.0 \(.*split.2[/\\]nested\)\n\texample.net/split/nested v0.1.0 \(.*nested.1\)$'
++stderr '^go: example.net/split/nested: ambiguous import: found package example.net/split/nested in multiple modules:\n\texample.net/split v0.2.0 \(.*split.2[/\\]nested\)\n\texample.net/split/nested v0.1.0 \(.*nested.1\)$'
+ 
+ # A wildcard that matches packages in some module at its selected version
+ # but not at the requested version should fail.
+diff --git a/src/cmd/go/testdata/script/mod_go_version.txt b/src/cmd/go/testdata/script/mod_go_version.txt
+index b5350fc3e1..82b55d8070 100644
+--- a/src/cmd/go/testdata/script/mod_go_version.txt
++++ b/src/cmd/go/testdata/script/mod_go_version.txt
+@@ -4,9 +4,9 @@ env GO111MODULE=on
+ env TESTGO_VERSION=go1.21
+ 
+ ! go list
+-stderr -count=1 '^go: sub@v1.0.0: sub requires go >= 1.999 \(running go 1.21\)$'
++stderr -count=1 '^go: sub@v1.0.0: module ./sub requires go >= 1.999 \(running go 1.21\)$'
+ ! go build sub
+-stderr -count=1 '^go: sub@v1.0.0: sub requires go >= 1.999 \(running go 1.21\)$'
++stderr -count=1 '^go: sub@v1.0.0: module ./sub requires go >= 1.999 \(running go 1.21\)$'
+ 
+ -- go.mod --
+ module m
+diff --git a/src/cmd/go/testdata/script/mod_goline.txt b/src/cmd/go/testdata/script/mod_goline.txt
+index d7aa34f63a..6b2eab0f2e 100644
+--- a/src/cmd/go/testdata/script/mod_goline.txt
++++ b/src/cmd/go/testdata/script/mod_goline.txt
+@@ -16,10 +16,6 @@ stderr '^go: upgraded go 1.22 => 1.23rc1\ngo: upgraded example.com/a v1.0.0 => v
+ go list -f '{{.Module.GoVersion}}'
+ stdout 1.23rc1
+ 
+- # would be nice but doesn't work yet
+- # go mod why -m go
+- # stderr xxx
+-
+ # Repeating the update with go@1.24.0 should use that Go version.
+ cp go.mod1 go.mod
+ go get example.com/a@v1.0.1 go@1.24.0
+diff --git a/src/cmd/go/testdata/script/mod_goline_too_new.txt b/src/cmd/go/testdata/script/mod_goline_too_new.txt
+index 29077df625..6d2667937a 100644
+--- a/src/cmd/go/testdata/script/mod_goline_too_new.txt
++++ b/src/cmd/go/testdata/script/mod_goline_too_new.txt
+@@ -8,7 +8,10 @@ stderr '^go: go.mod requires go >= 1.99999 \(running go 1\..+\)$'
+ # go.mod referenced from go.work too new
+ cp go.work.old go.work
+ ! go build .
+-stderr '^go: cannot load module go.mod listed in go.work file: go.mod requires go >= 1.99999 \(running go 1\..+\)$'
++stderr '^go: module . listed in go.work file requires go >= 1.99999, but go.work lists go 1.10; to update it:\n\tgo work use$'
++
++! go work sync
++stderr '^go: cannot load module . listed in go.work file: go.mod requires go >= 1.99999 \(running go 1\..+\)$'
+ 
+ # go.work too new
+ cp go.work.new go.work
+diff --git a/src/cmd/go/testdata/script/mod_import_toolchain.txt b/src/cmd/go/testdata/script/mod_import_toolchain.txt
+index 76c75b1f67..42c12c1e2a 100644
+--- a/src/cmd/go/testdata/script/mod_import_toolchain.txt
++++ b/src/cmd/go/testdata/script/mod_import_toolchain.txt
+@@ -6,31 +6,42 @@ env TESTGO_VERSION_SWITCH=switch
+ 
+ cp go.mod go.mod.orig
+ 
++# tidy reports needing 1.22.0 for b1
++env GOTOOLCHAIN=local
++! go mod tidy
++stderr '^go: example imports\n\texample.net/b: module ./b1 requires go >= 1.22.0 \(running go 1.21.0; GOTOOLCHAIN=local\)$'
++env GOTOOLCHAIN=auto
+ go mod tidy
+-	# TODO(bcmills): The "switching to" message should explain which
+-	# newly-added package caused the switch. I think that will be fixed
+-	# by resolving the TODO in modload.fetch.
++
+ cmp stderr tidy-stderr.want
+ cmp go.mod go.mod.tidy
+ 
+ cp go.mod.orig go.mod
++env GOTOOLCHAIN=local
++! go get -v .
++stderr '^go: example.net/b@v0.1.0: module ./b1 requires go >= 1.22.0 \(running go 1.21.0; GOTOOLCHAIN=local\)$'
++env GOTOOLCHAIN=auto
+ go get -v .
+ cmp stderr get-v-stderr.want
+ cmp go.mod go.mod.tidy
+ 
+ cp go.mod.orig go.mod
++env GOTOOLCHAIN=local
++! go get -u -v .
++stderr '^go: example.net/a@v0.2.0: module ./a2 requires go >= 1.22.0 \(running go 1.21.0; GOTOOLCHAIN=local\)$'
++env GOTOOLCHAIN=auto
+ go get -u -v .
+ cmp stderr get-u-v-stderr.want
+ cmp go.mod go.mod.upgraded
+ 
+ -- tidy-stderr.want --
+ go: found example.net/b in example.net/b v0.1.0
+-go: switching to go1.22.9
++go: module ./b1 requires go >= 1.22.0; switching to go1.22.9
+ go: found example.net/b in example.net/b v0.1.0
+ go: found example.net/c in example.net/c v0.1.0
+ -- get-v-stderr.want --
+ go: trying upgrade to example.net/b@v0.1.0
+-go: switching to go1.22.9
++go: module ./b1 requires go >= 1.22.0; switching to go1.22.9
+ go: trying upgrade to example.net/b@v0.1.0
+ go: accepting indirect upgrade from go@1.20 to 1.22.0
+ go: trying upgrade to example.net/c@v0.1.0
+@@ -42,13 +53,13 @@ go: added example.net/d v0.1.0
+ -- get-u-v-stderr.want --
+ go: trying upgrade to example.net/a@v0.2.0
+ go: trying upgrade to example.net/b@v0.1.0
+-go: switching to go1.22.9
++go: module ./a2 requires go >= 1.22.0; switching to go1.22.9
+ go: trying upgrade to example.net/a@v0.2.0
+ go: trying upgrade to example.net/b@v0.1.0
+ go: accepting indirect upgrade from go@1.20 to 1.22.0
+ go: trying upgrade to example.net/c@v0.1.0
+ go: trying upgrade to example.net/d@v0.2.0
+-go: switching to go1.23.9
++go: module ./d2 requires go >= 1.23.0; switching to go1.23.9
+ go: trying upgrade to example.net/a@v0.2.0
+ go: trying upgrade to example.net/b@v0.1.0
+ go: accepting indirect upgrade from go@1.20 to 1.22.0
+diff --git a/src/cmd/go/testdata/script/mod_replace_import.txt b/src/cmd/go/testdata/script/mod_replace_import.txt
+index 7bf3a86fed..753071f4ba 100644
+--- a/src/cmd/go/testdata/script/mod_replace_import.txt
++++ b/src/cmd/go/testdata/script/mod_replace_import.txt
+@@ -28,8 +28,8 @@ stdout 'example.com/v v1.12.0 => ./v12'
+ # TODO(#26909): Ideally these errors should include line numbers for the imports within the main module.
+ cd fail
+ ! go mod tidy
+-stderr '^localhost.fail imports\n\tw: module w@latest found \(v0.0.0-00010101000000-000000000000, replaced by ../w\), but does not contain package w$'
+-stderr '^localhost.fail imports\n\tnonexist: nonexist@v0.1.0: replacement directory ../nonexist does not exist$'
++stderr '^go: localhost.fail imports\n\tw: module w@latest found \(v0.0.0-00010101000000-000000000000, replaced by ../w\), but does not contain package w$'
++stderr '^go: localhost.fail imports\n\tnonexist: nonexist@v0.1.0: replacement directory ../nonexist does not exist$'
+ 
+ -- go.mod --
+ module example.com/m
+diff --git a/src/cmd/go/testdata/script/mod_tidy_compat_added.txt b/src/cmd/go/testdata/script/mod_tidy_compat_added.txt
+index 94fa79bc9f..7a4a9f9672 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_compat_added.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_compat_added.txt
+@@ -17,7 +17,7 @@ cp go.mod go.mod.orig
+ 
+ ! go mod tidy
+ 
+-stderr '^example\.com/m imports\n\texample\.net/added: module example\.net/added@latest found \(v0\.3\.0, replaced by \./a1\), but does not contain package example\.net/added$'
++stderr '^go: example\.com/m imports\n\texample\.net/added: module example\.net/added@latest found \(v0\.3\.0, replaced by \./a1\), but does not contain package example\.net/added$'
+ 
+ cmp go.mod go.mod.orig
+ 
+@@ -31,7 +31,7 @@ cmp go.mod go.mod.orig
+ 
+ go mod tidy -e
+ 
+-stderr '^example\.com/m imports\n\texample\.net/added: module example\.net/added@latest found \(v0\.3\.0, replaced by \./a1\), but does not contain package example\.net/added\nexample\.net/added failed to load from any module,\n\tbut go 1\.16 would load it from example\.net/added@v0\.2\.0$'
++stderr '^go: example\.com/m imports\n\texample\.net/added: module example\.net/added@latest found \(v0\.3\.0, replaced by \./a1\), but does not contain package example\.net/added\ngo: example\.net/added failed to load from any module,\n\tbut go 1\.16 would load it from example\.net/added@v0\.2\.0$'
+ 
+ ! stderr '\n\tgo mod tidy'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_tidy_compat_ambiguous.txt b/src/cmd/go/testdata/script/mod_tidy_compat_ambiguous.txt
+index 8f29f74875..5316220f62 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_compat_ambiguous.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_compat_ambiguous.txt
+@@ -21,7 +21,7 @@ cp go.mod go.mod.orig
+ 
+ ! go mod tidy
+ 
+-stderr '^example\.com/m imports\n\texample\.net/indirect imports\n\texample\.net/ambiguous/nested/pkg loaded from example\.net/ambiguous/nested@v0\.1\.0,\n\tbut go 1.16 would fail to locate it:\n\tambiguous import: found package example\.net/ambiguous/nested/pkg in multiple modules:\n\texample\.net/ambiguous v0.1.0 \(.*\)\n\texample\.net/ambiguous/nested v0.1.0 \(.*\)\n\n'
++stderr '^go: example\.com/m imports\n\texample\.net/indirect imports\n\texample\.net/ambiguous/nested/pkg loaded from example\.net/ambiguous/nested@v0\.1\.0,\n\tbut go 1.16 would fail to locate it:\n\tambiguous import: found package example\.net/ambiguous/nested/pkg in multiple modules:\n\texample\.net/ambiguous v0.1.0 \(.*\)\n\texample\.net/ambiguous/nested v0.1.0 \(.*\)\n\n'
+ 
+ stderr '\n\nTo proceed despite packages unresolved in go 1\.16:\n\tgo mod tidy -e\nIf reproducibility with go 1.16 is not needed:\n\tgo mod tidy -compat=1\.17\nFor other options, see:\n\thttps://golang\.org/doc/modules/pruning\n'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_tidy_compat_deleted.txt b/src/cmd/go/testdata/script/mod_tidy_compat_deleted.txt
+index dcf13e2049..b148fc1c01 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_compat_deleted.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_compat_deleted.txt
+@@ -17,7 +17,7 @@ cp go.mod go.mod.orig
+ 
+ ! go mod tidy
+ 
+-stderr '^example\.com/m imports\n\texample\.net/deleted loaded from example\.net/deleted@v0\.1\.0,\n\tbut go 1\.16 would fail to locate it in example\.net/deleted@v0\.2\.0\n\n'
++stderr '^go: example\.com/m imports\n\texample\.net/deleted loaded from example\.net/deleted@v0\.1\.0,\n\tbut go 1\.16 would fail to locate it in example\.net/deleted@v0\.2\.0\n\n'
+ 
+ stderr '\n\nTo upgrade to the versions selected by go 1.16, leaving some packages unresolved:\n\tgo mod tidy -e -go=1\.16 && go mod tidy -e -go=1\.17\nIf reproducibility with go 1.16 is not needed:\n\tgo mod tidy -compat=1\.17\nFor other options, see:\n\thttps://golang\.org/doc/modules/pruning\n'
+ 
+@@ -40,7 +40,7 @@ go mod edit -go=1.16
+ stderr '^go: updates to go\.mod needed; to update it:\n\tgo mod tidy$'
+ 
+ ! go mod tidy
+-stderr '^example\.com/m imports\n\texample\.net/deleted: module example\.net/deleted@latest found \(v0\.2\.0, replaced by \./d2\), but does not contain package example\.net/deleted$'
++stderr '^go: example\.com/m imports\n\texample\.net/deleted: module example\.net/deleted@latest found \(v0\.2\.0, replaced by \./d2\), but does not contain package example\.net/deleted$'
+ 
+ 
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/mod_tidy_compat_implicit.txt b/src/cmd/go/testdata/script/mod_tidy_compat_implicit.txt
+index 0eded0f458..26e4749203 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_compat_implicit.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_compat_implicit.txt
+@@ -32,7 +32,7 @@ env MODFMT='{{with .Module}}{{.Path}} {{.Version}}{{end}}'
+ 
+ cp go.mod go.mod.orig
+ ! go mod tidy
+-stderr '^example\.com/m imports\n\texample\.net/lazy tested by\n\texample\.net/lazy.test imports\n\texample\.com/retract/incompatible loaded from example\.com/retract/incompatible@v1\.0\.0,\n\tbut go 1\.16 would select v2\.0\.0\+incompatible\n\n'
++stderr '^go: example\.com/m imports\n\texample\.net/lazy tested by\n\texample\.net/lazy.test imports\n\texample\.com/retract/incompatible loaded from example\.com/retract/incompatible@v1\.0\.0,\n\tbut go 1\.16 would select v2\.0\.0\+incompatible\n\n'
+ stderr '\n\nTo upgrade to the versions selected by go 1\.16:\n\tgo mod tidy -go=1\.16 && go mod tidy -go=1\.17\nIf reproducibility with go 1.16 is not needed:\n\tgo mod tidy -compat=1.17\nFor other options, see:\n\thttps://golang\.org/doc/modules/pruning\n'
+ 
+ cmp go.mod go.mod.orig
+diff --git a/src/cmd/go/testdata/script/mod_tidy_compat_incompatible.txt b/src/cmd/go/testdata/script/mod_tidy_compat_incompatible.txt
+index e336210003..9e2a9ee29e 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_compat_incompatible.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_compat_incompatible.txt
+@@ -32,7 +32,7 @@ env MODFMT='{{with .Module}}{{.Path}} {{.Version}}{{end}}'
+ 
+ cp go.mod go.mod.orig
+ ! go mod tidy
+-stderr '^example\.com/m imports\n\texample\.net/lazy imports\n\texample\.com/retract/incompatible loaded from example\.com/retract/incompatible@v1\.0\.0,\n\tbut go 1\.16 would select v2\.0\.0\+incompatible\n\n'
++stderr '^go: example\.com/m imports\n\texample\.net/lazy imports\n\texample\.com/retract/incompatible loaded from example\.com/retract/incompatible@v1\.0\.0,\n\tbut go 1\.16 would select v2\.0\.0\+incompatible\n\n'
+ stderr '\n\nTo upgrade to the versions selected by go 1\.16:\n\tgo mod tidy -go=1\.16 && go mod tidy -go=1\.17\nIf reproducibility with go 1\.16 is not needed:\n\tgo mod tidy -compat=1.17\nFor other options, see:\n\thttps://golang\.org/doc/modules/pruning\n'
+ 
+ cmp go.mod go.mod.orig
+diff --git a/src/cmd/go/testdata/script/mod_tidy_convergence.txt b/src/cmd/go/testdata/script/mod_tidy_convergence.txt
+index be0a8e9b8c..45f74b4367 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_convergence.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_convergence.txt
+@@ -44,7 +44,7 @@ stderr '^go: found example\.net/y in example\.net/y v0.2.0$'
+ stderr '^go: finding module for package example\.net/x$'
+ 
+ 	# TODO: This error message should be clearer — it doesn't indicate why v0.2.0-pre is required.
+-stderr '^example\.net/m imports\n\texample\.net/x: package example\.net/x provided by example\.net/x at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
++stderr '^go: example\.net/m imports\n\texample\.net/x: package example\.net/x provided by example\.net/x at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
+ 
+ 
+ # 'go mod tidy -e' should follow upgrades to try to resolve the modules that it
+@@ -65,7 +65,7 @@ cmp go.mod go.mod.tidye
+ stderr '^go: found example\.net/y in example\.net/y v0.2.0$'
+ 
+ 	# TODO: This error message should be clearer — it doesn't indicate why v0.2.0-pre is required.
+-stderr '^example\.net/m imports\n\texample\.net/x: package example\.net/x provided by example\.net/x at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
++stderr '^go: example\.net/m imports\n\texample\.net/x: package example\.net/x provided by example\.net/x at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
+ 
+ 
+ # Since we attempt to resolve the dependencies of package x whenever we add x itself,
+@@ -94,7 +94,7 @@ go mod edit -go=1.17 go.mod.tidye
+ go mod tidy -e
+ cmp go.mod go.mod.tidye
+ stderr '^go: found example\.net/y in example\.net/y v0.2.0$'
+-stderr '^example\.net/m imports\n\texample\.net/x: package example\.net/x provided by example\.net/x at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
++stderr '^go: example\.net/m imports\n\texample\.net/x: package example\.net/x provided by example\.net/x at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
+ 
+ go get example.net/x@v0.1.0 example.net/y@v0.1.0
+ go mod tidy
+diff --git a/src/cmd/go/testdata/script/mod_tidy_convergence_loop.txt b/src/cmd/go/testdata/script/mod_tidy_convergence_loop.txt
+index 99599e551a..ec58159702 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_convergence_loop.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_convergence_loop.txt
+@@ -51,9 +51,9 @@ stderr -count=2 '^go: finding module for package example\.net/z$'
+ stderr '^go: found example\.net/x in example\.net/x v0.1.0$'
+ 
+ 	# TODO: These error messages should be clearer — it doesn't indicate why v0.2.0-pre is required.
+-stderr '^example\.net/m imports\n\texample\.net/w: package example\.net/w provided by example\.net/w at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
+-stderr '^example\.net/m imports\n\texample\.net/y: package example\.net/y provided by example\.net/y at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
+-stderr '^example\.net/m imports\n\texample\.net/z: package example\.net/z provided by example\.net/z at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
++stderr '^go: example\.net/m imports\n\texample\.net/w: package example\.net/w provided by example\.net/w at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
++stderr '^go: example\.net/m imports\n\texample\.net/y: package example\.net/y provided by example\.net/y at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
++stderr '^go: example\.net/m imports\n\texample\.net/z: package example\.net/z provided by example\.net/z at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
+ 
+ 
+ # 'go mod tidy -e' should preserve all of the upgrades to modules that could
+@@ -74,9 +74,9 @@ stderr -count=2 '^go: finding module for package example\.net/y$'
+ stderr -count=2 '^go: finding module for package example\.net/z$'
+ stderr '^go: found example\.net/x in example\.net/x v0.1.0$'
+ 
+-stderr '^example\.net/m imports\n\texample\.net/w: package example\.net/w provided by example\.net/w at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
+-stderr '^example\.net/m imports\n\texample\.net/y: package example\.net/y provided by example\.net/y at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
+-stderr '^example\.net/m imports\n\texample\.net/z: package example\.net/z provided by example\.net/z at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
++stderr '^go: example\.net/m imports\n\texample\.net/w: package example\.net/w provided by example\.net/w at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
++stderr '^go: example\.net/m imports\n\texample\.net/y: package example\.net/y provided by example\.net/y at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
++stderr '^go: example\.net/m imports\n\texample\.net/z: package example\.net/z provided by example\.net/z at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
+ 
+ 
+ go mod tidy -e
+diff --git a/src/cmd/go/testdata/script/mod_tidy_error.txt b/src/cmd/go/testdata/script/mod_tidy_error.txt
+index bb1d5e5d6c..fc6cd780a8 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_error.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_error.txt
+@@ -5,13 +5,13 @@ env GO111MODULE=on
+ 
+ ! go mod tidy
+ ! stderr 'package nonexist is not in std'
+-stderr '^issue27063 imports\n\tnonexist.example.com: cannot find module providing package nonexist.example.com'
+-stderr '^issue27063 imports\n\tissue27063/other imports\n\tother.example.com/nonexist: cannot find module providing package other.example.com/nonexist'
++stderr '^go: issue27063 imports\n\tnonexist.example.com: cannot find module providing package nonexist.example.com'
++stderr '^go: issue27063 imports\n\tissue27063/other imports\n\tother.example.com/nonexist: cannot find module providing package other.example.com/nonexist'
+ 
+ ! go mod vendor
+ ! stderr 'package nonexist is not in std'
+-stderr '^issue27063 imports\n\tnonexist.example.com: no required module provides package nonexist.example.com; to add it:\n\tgo get nonexist.example.com$'
+-stderr '^issue27063 imports\n\tissue27063/other imports\n\tother.example.com/nonexist: no required module provides package other.example.com/nonexist; to add it:\n\tgo get other.example.com/nonexist$'
++stderr '^go: issue27063 imports\n\tnonexist.example.com: no required module provides package nonexist.example.com; to add it:\n\tgo get nonexist.example.com$'
++stderr '^go: issue27063 imports\n\tissue27063/other imports\n\tother.example.com/nonexist: no required module provides package other.example.com/nonexist; to add it:\n\tgo get other.example.com/nonexist$'
+ 
+ -- go.mod --
+ module issue27063
+diff --git a/src/cmd/go/testdata/script/mod_tidy_replace_old.txt b/src/cmd/go/testdata/script/mod_tidy_replace_old.txt
+index cfd3792600..18605b1781 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_replace_old.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_replace_old.txt
+@@ -9,7 +9,7 @@ cp go.mod go.mod.orig
+ 
+ ! go mod tidy
+ ! stderr panic
+-stderr '^golang\.org/issue46659 imports\n\texample\.com/missingpkg/deprecated: package example\.com/missingpkg/deprecated provided by example\.com/missingpkg at latest version v1\.0\.0 but not at required version v1\.0\.1-beta$'
++stderr '^go: golang\.org/issue46659 imports\n\texample\.com/missingpkg/deprecated: package example\.com/missingpkg/deprecated provided by example\.com/missingpkg at latest version v1\.0\.0 but not at required version v1\.0\.1-beta$'
+ 
+ go mod tidy -e
+ 
+diff --git a/src/cmd/go/testdata/script/work.txt b/src/cmd/go/testdata/script/work.txt
+index 83296fa9cd..e229ab6432 100644
+--- a/src/cmd/go/testdata/script/work.txt
++++ b/src/cmd/go/testdata/script/work.txt
+@@ -1,5 +1,5 @@
+ ! go work init doesnotexist
+-stderr 'go: creating workspace file: no go.mod file exists in directory doesnotexist'
++stderr 'go: directory doesnotexist does not exist'
+ go env GOWORK
+ ! stdout .
+ 
+@@ -12,6 +12,7 @@ stdout '^'$WORK'(\\|/)gopath(\\|/)src(\\|/)go.work$'
+ stderr 'a(\\|/)a.go:4:8: no required module provides package rsc.io/quote; to add it:\n\tcd '$WORK(\\|/)gopath(\\|/)src(\\|/)a'\n\tgo get rsc.io/quote'
+ cd a
+ go get rsc.io/quote
++cat go.mod
+ go env GOMOD # go env GOMOD reports the module in a single module context
+ stdout $GOPATH(\\|/)src(\\|/)a(\\|/)go.mod
+ cd ..
+@@ -44,11 +45,13 @@ stderr 'reading go.work: path .* appears multiple times in workspace'
+ cp go.work.backup go.work
+ 
+ cp go.work.d go.work
++go work use # update go version
+ go run example.com/d
+ 
+ # Test that we don't run into "newRequirements called with unsorted roots"
+ # panic with unsorted main modules.
+ cp go.work.backwards go.work
++go work use # update go version
+ go run example.com/d
+ 
+ # Test that command-line-arguments work inside and outside modules.
+diff --git a/src/cmd/go/testdata/script/work_get_toolchain.txt b/src/cmd/go/testdata/script/work_get_toolchain.txt
+new file mode 100644
+index 0000000000..5a851bb774
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_get_toolchain.txt
+@@ -0,0 +1,24 @@
++# go get should update the go and toolchain lines in go.work
++env TESTGO_VERSION=go1.21
++env TESTGO_VERSION_SWITCH=switch
++env GOTOOLCHAIN=auto
++cp go.mod.new go.mod
++cp go.work.new go.work
++go get rsc.io/needgo121 rsc.io/needgo122 rsc.io/needgo123 rsc.io/needall
++stderr '^go: rsc.io/needall@v0.0.1 requires go >= 1.23; switching to go1.23.9$'
++stderr '^go: added rsc.io/needall v0.0.1'
++grep 'go 1.23$' go.mod
++grep 'go 1.23$' go.work
++grep 'toolchain go1.23.9' go.mod
++grep 'toolchain go1.23.9' go.work
++
++-- go.mod.new --
++module m
++go 1.1
++
++-- p.go --
++package p
++
++-- go.work.new --
++go 1.18
++use .
+diff --git a/src/cmd/go/testdata/script/work_goline_order.txt b/src/cmd/go/testdata/script/work_goline_order.txt
+new file mode 100644
+index 0000000000..fe1cddbcd4
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_goline_order.txt
+@@ -0,0 +1,34 @@
++# Check that go line in go.work is always >= go line of used modules.
++
++# Using an old Go version, fails during module loading, but we rewrite the error to the
++# same one a switching version would use, without the auto-switch.
++# This is a misconfigured system that should not arise in practice.
++env TESTGO_VERSION=go1.21.1
++env TESTGO_VERSION_SWITCH=switch
++cp go.work go.work.orig
++! go list
++stderr '^go: module . listed in go.work file requires go >= 1.21.2, but go.work lists go 1.21.1; to update it:\n\tgo work use$'
++go work use
++go list
++
++# Using a new enough Go version, fails later and can suggest 'go work use'.
++env TESTGO_VERSION=go1.21.2
++env TESTGO_VERSION_SWITCH=switch
++cp go.work.orig go.work
++! go list
++stderr '^go: module . listed in go.work file requires go >= 1.21.2, but go.work lists go 1.21.1; to update it:\n\tgo work use$'
++
++# go work use fixes the problem.
++go work use
++go list
++
++-- go.work --
++go 1.21.1
++use .
++
++-- go.mod --
++module m
++go 1.21.2
++
++-- p.go --
++package p
+diff --git a/src/cmd/go/testdata/script/work_init_toolchain.txt b/src/cmd/go/testdata/script/work_init_toolchain.txt
+new file mode 100644
+index 0000000000..900ea2cf2f
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_init_toolchain.txt
+@@ -0,0 +1,35 @@
++
++# Create basic modules and work space.
++# Note that toolchain lines in modules should be completely ignored.
++env TESTGO_VERSION=go1.50
++mkdir m1_22_0
++go mod init -C m1_22_0
++go mod edit -C m1_22_0 -go=1.22.0 -toolchain=go1.99.0
++
++# work init writes the current Go version to the go line
++go work init
++grep '^go 1.50$' go.work
++! grep toolchain go.work
++
++# work init with older modules should leave go 1.50 in the go.work.
++rm go.work
++go work init ./m1_22_0
++grep '^go 1.50$' go.work
++! grep toolchain go.work
++
++# work init with newer modules should bump go,
++# including updating to a newer toolchain as needed.
++# Because work init writes the current toolchain as the go version,
++# it writes the bumped go version, not the max of the used modules.
++env TESTGO_VERSION=go1.21
++env TESTGO_VERSION_SWITCH=switch
++rm go.work
++env GOTOOLCHAIN=local
++! go work init ./m1_22_0
++stderr '^go: m1_22_0'${/}'go.mod requires go >= 1.22.0 \(running go 1.21; GOTOOLCHAIN=local\)$'
++env GOTOOLCHAIN=auto
++go work init ./m1_22_0
++stderr '^go: m1_22_0'${/}'go.mod requires go >= 1.22.0; switching to go1.22.9$'
++cat go.work
++grep '^go 1.22.9$' go.work
++! grep toolchain go.work
+diff --git a/src/cmd/go/testdata/script/work_sync_toolchain.txt b/src/cmd/go/testdata/script/work_sync_toolchain.txt
+new file mode 100644
+index 0000000000..b752462727
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_sync_toolchain.txt
+@@ -0,0 +1,45 @@
++# Create basic modules and work space.
++env TESTGO_VERSION=go1.50
++mkdir m1_22_0
++go mod init -C m1_22_0
++go mod edit -C m1_22_0 -go=1.22.0 -toolchain=go1.99.0
++mkdir m1_22_1
++go mod init -C m1_22_1
++go mod edit -C m1_22_1 -go=1.22.1 -toolchain=go1.99.1
++mkdir m1_24_rc0
++go mod init -C m1_24_rc0
++go mod edit -C m1_24_rc0 -go=1.24rc0 -toolchain=go1.99.2
++
++go work init ./m1_22_0 ./m1_22_1
++grep '^go 1.50$' go.work
++! grep toolchain go.work
++
++# work sync with older modules should leave go 1.50 in the go.work.
++go work sync
++cat go.work
++grep '^go 1.50$' go.work
++! grep toolchain go.work
++
++# work sync with newer modules should update go 1.21 -> 1.22.1 and toolchain -> go1.22.9 in go.work
++env TESTGO_VERSION=go1.21
++env TESTGO_VERSION_SWITCH=switch
++go work edit -go=1.21
++grep '^go 1.21$' go.work
++! grep toolchain go.work
++env GOTOOLCHAIN=local
++! go work sync
++stderr '^go: cannot load module m1_22_0 listed in go.work file: m1_22_0'${/}'go.mod requires go >= 1.22.0 \(running go 1.21; GOTOOLCHAIN=local\)$'
++stderr '^go: cannot load module m1_22_1 listed in go.work file: m1_22_1'${/}'go.mod requires go >= 1.22.1 \(running go 1.21; GOTOOLCHAIN=local\)$'
++env GOTOOLCHAIN=auto
++go work sync
++stderr '^go: m1_22_1'${/}'go.mod requires go >= 1.22.1; switching to go1.22.9$'
++grep '^go 1.22.1$' go.work
++grep '^toolchain go1.22.9$' go.work
++
++# work sync with newer modules should update go 1.22.1 -> 1.24rc1 and drop toolchain
++go work edit -use=./m1_24_rc0
++go work sync
++stderr '^go: m1_24_rc0'${/}'go.mod requires go >= 1.24rc0; switching to go1.24rc1$'
++cat go.work
++grep '^go 1.24rc0$' go.work
++grep '^toolchain go1.24rc1$' go.work
+diff --git a/src/cmd/go/testdata/script/work_use.txt b/src/cmd/go/testdata/script/work_use.txt
+index 12c8cecab7..747089918f 100644
+--- a/src/cmd/go/testdata/script/work_use.txt
++++ b/src/cmd/go/testdata/script/work_use.txt
+@@ -1,6 +1,10 @@
+ go work use -r foo
+ cmp go.work go.want_work_r
+ 
++! go work use other
++stderr '^go: error reading other'${/}'go.mod: missing module declaration'
++
++go mod edit -C other -module=other
+ go work use other
+ cmp go.work go.want_work_other
+ -- go.work --
+diff --git a/src/cmd/go/testdata/script/work_use_issue55952.txt b/src/cmd/go/testdata/script/work_use_issue55952.txt
+index 31b243bbc8..befec67227 100644
+--- a/src/cmd/go/testdata/script/work_use_issue55952.txt
++++ b/src/cmd/go/testdata/script/work_use_issue55952.txt
+@@ -1,5 +1,5 @@
+ ! go list .
+-stderr '^go: cannot load module y.go.mod listed in go\.work file: open .+go\.mod:'
++stderr '^go: cannot load module y listed in go\.work file: open y'${/}'go\.mod:'
+ 
+ -- go.work --
+ use ./y
+diff --git a/src/cmd/go/testdata/script/work_use_noargs.txt b/src/cmd/go/testdata/script/work_use_noargs.txt
+deleted file mode 100644
+index ca054344c6..0000000000
+--- a/src/cmd/go/testdata/script/work_use_noargs.txt
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# For now, 'go work use' requires arguments.
+-# (Eventually, we may may it implicitly behave like 'go work use .'.
+-
+-! go work use
+-stderr '^go: ''go work use'' requires one or more directory arguments'
+-
+-! go work use -r
+-stderr '^go: ''go work use'' requires one or more directory arguments'
+-
+--- go.work --
+-go 1.18
+diff --git a/src/cmd/go/testdata/script/work_use_only_dirs.txt b/src/cmd/go/testdata/script/work_use_only_dirs.txt
+index aa6dd78a6a..5d0fcdd2a9 100644
+--- a/src/cmd/go/testdata/script/work_use_only_dirs.txt
++++ b/src/cmd/go/testdata/script/work_use_only_dirs.txt
+@@ -1,11 +1,11 @@
+ ! go work use foo bar baz
+ 
+-stderr '^go: '$WORK'[/\\]gopath[/\\]src[/\\]foo is not a directory'
+-stderr '^go: directory '$WORK'[/\\]gopath[/\\]src[/\\]baz does not exist'
++stderr '^go: foo is not a directory'
++stderr '^go: directory baz does not exist'
+ cmp go.work go.work_want
+ 
+ ! go work use -r qux
+-stderr '^go: '$WORK'[/\\]gopath[/\\]src[/\\]qux is not a directory'
++stderr '^go: qux is not a directory'
+ 
+ -- go.work --
+ go 1.18
+@@ -14,4 +14,4 @@ go 1.18
+ -- foo --
+ -- qux --
+ -- bar/go.mod --
+-module bar
+\ No newline at end of file
++module bar
+diff --git a/src/cmd/go/testdata/script/work_use_toolchain.txt b/src/cmd/go/testdata/script/work_use_toolchain.txt
+new file mode 100644
+index 0000000000..bb3db9cf90
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_use_toolchain.txt
+@@ -0,0 +1,51 @@
++# Create basic modules and work space.
++env TESTGO_VERSION=go1.50
++mkdir m1_22_0
++go mod init -C m1_22_0
++go mod edit -C m1_22_0 -go=1.22.0 -toolchain=go1.99.0
++mkdir m1_22_1
++go mod init -C m1_22_1
++go mod edit -C m1_22_1 -go=1.22.1 -toolchain=go1.99.1
++mkdir m1_24_rc0
++go mod init -C m1_24_rc0
++go mod edit -C m1_24_rc0 -go=1.24rc0 -toolchain=go1.99.2
++
++go work init
++grep '^go 1.50$' go.work
++! grep toolchain go.work
++
++# work use with older modules should leave go 1.50 in the go.work.
++go work use ./m1_22_0
++grep '^go 1.50$' go.work
++! grep toolchain go.work
++
++# work use with newer modules should bump go and toolchain,
++# including updating to a newer toolchain as needed.
++env TESTGO_VERSION=go1.21
++env TESTGO_VERSION_SWITCH=switch
++rm go.work
++go work init
++env GOTOOLCHAIN=local
++! go work use ./m1_22_0
++stderr '^go: m1_22_0'${/}'go.mod requires go >= 1.22.0 \(running go 1.21; GOTOOLCHAIN=local\)$'
++env GOTOOLCHAIN=auto
++go work use ./m1_22_0
++stderr '^go: m1_22_0'${/}'go.mod requires go >= 1.22.0; switching to go1.22.9$'
++grep '^go 1.22.0$' go.work
++grep '^toolchain go1.22.9$' go.work
++
++# work use with an even newer module should bump go again.
++go work use ./m1_22_1
++! stderr switching
++grep '^go 1.22.1$' go.work
++grep '^toolchain go1.22.9$' go.work  # unchanged
++
++# work use with an even newer module should bump go and toolchain again.
++env GOTOOLCHAIN=go1.22.9
++! go work use ./m1_24_rc0
++stderr '^go: m1_24_rc0'${/}'go.mod requires go >= 1.24rc0 \(running go 1.22.9; GOTOOLCHAIN=go1.22.9\)$'
++env GOTOOLCHAIN=auto
++go work use ./m1_24_rc0
++stderr '^go: m1_24_rc0'${/}'go.mod requires go >= 1.24rc0; switching to go1.24rc1$'
++grep '^go 1.24rc0$' go.work
++grep '^toolchain go1.24rc1$' go.work

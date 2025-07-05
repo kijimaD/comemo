@@ -36,7 +36,57 @@ Date:   Tue Jan 23 14:27:47 2018 -0500
     Change-Id: I2c8800d2e4b4d10d9e08a0e3e5b20334a75f03c0
     Reviewed-on: https://go-review.googlesource.com/89275
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/serve_test.go | 17 +++++++++++++++++
  src/net/http/server.go     | 10 +++++++++-
  2 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index be465dd35e..e40bbc5575 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -3553,6 +3553,23 @@ func TestHeaderToWire(t *testing.T) {
+ 				return nil
+ 			},
+ 		},
++		{
++			name: "Nosniff without Content-type",
++			handler: func(rw ResponseWriter, r *Request) {
++				rw.Header().Set("X-Content-Type-Options", "nosniff")
++				rw.WriteHeader(200)
++				rw.Write([]byte("<!doctype html>\n<html><head></head><body>some html</body></html>"))
++			},
++			check: func(got string) error {
++				if !strings.Contains(got, "Content-Type: application/octet-stream\r\n") {
++					return errors.New("Output should have an innocuous content-type")
++				}
++				if strings.Contains(got, "text/html") {
++					return errors.New("Output should not have a guess")
++				}
++				return nil
++			},
++		},
+ 	}
+ 	for _, tc := range tests {
+ 		ht := newHandlerTest(HandlerFunc(tc.handler))
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index ad3222d3a1..114a2263c3 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1339,7 +1339,15 @@ func (cw *chunkWriter) writeHeader(p []byte) {
+ 		// If no content type, apply sniffing algorithm to body.
+ 		_, haveType := header["Content-Type"]
+ 		if !haveType && !hasTE && len(p) > 0 {
+-			setHeader.contentType = DetectContentType(p)
++			if cto := header.get("X-Content-Type-Options"); strings.EqualFold("nosniff", cto) {
++				// nosniff is an explicit directive not to guess a content-type.
++				// Content-sniffing is no less susceptible to polyglot attacks via
++				// hosted content when done on the server.
++				setHeader.contentType = "application/octet-stream"
++				w.conn.server.logf("http: WriteHeader called with X-Content-Type-Options:nosniff but no Content-Type")
++			} else {
++				setHeader.contentType = DetectContentType(p)
++			}
+ 		}
+ 	} else {
+ 		for _, k := range suppressedHeaders(code) {

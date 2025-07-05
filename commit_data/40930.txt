@@ -7,6 +7,36 @@ Date:   Sat Aug 24 22:08:51 2019 -0600
     Change-Id: I7db3ad060773c9396fbe34e7bd52e7ccf6e5e52c
     Reviewed-on: https://go-review.googlesource.com/c/go/+/191797
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.13.html | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/doc/go1.13.html b/doc/go1.13.html
+index 0dd2532965..8f7a7ab7fe 100644
+--- a/doc/go1.13.html
++++ b/doc/go1.13.html
+@@ -918,19 +918,19 @@ godoc
+ 
+ </dl><!-- runtime -->
+ 
+-<dl id="strconv"><dt><a href="/pkg/strconv">strconv</a></dt>
++<dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
+   <dd>
+     <p><!-- CL 160243 -->
+-       For <a href="/pkg/math/big/#strconv.ParseFloat"><code>strconv.ParseFloat</code></a>,
+-       <a href="/pkg/math/big/#strconv.ParseInt"><code>strconv.ParseInt</code></a>
+-       and <a href="/pkg/math/big/#strconv.ParseUint"><code>strconv.ParseUint</code></a>,
++       For <a href="/pkg/strconv/#ParseFloat"><code>strconv.ParseFloat</code></a>,
++       <a href="/pkg/strconv/#ParseInt"><code>strconv.ParseInt</code></a>
++       and <a href="/pkg/strconv/#ParseUint"><code>strconv.ParseUint</code></a>,
+        if base is 0, underscores may be used between digits for readability.
+        See the <a href="#language">Changes to the language</a> for details.
+     </p>
+ 
+ </dl><!-- strconv -->
+ 
+-<dl id="strings"><dt><a href="/pkg/strings">strings</a></dt>
++<dl id="strings"><dt><a href="/pkg/strings/">strings</a></dt>
+   <dd>
+     <p><!-- CL 142003 -->
+       The new <a href="/pkg/strings/#ToValidUTF8"><code>ToValidUTF8</code></a> function returns a

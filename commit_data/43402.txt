@@ -11,6 +11,36 @@ Date:   Tue Mar 31 18:53:17 2020 -0400
     Change-Id: I9926387d4512ec8b4acc32b7f32cee2b2aca25b4
     Reviewed-on: https://go-review.googlesource.com/c/go/+/226718
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go | 9 +++++++--
  1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index bf9c112e03..bff29fb568 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -811,7 +811,6 @@ func writeBlocks(out *OutBuf, sem chan int, syms []*sym.Symbol, addr, size int64
+ 	for addr < lastAddr {
+ 		// Find the last symbol we'd write.
+ 		idx := -1
+-		length := int64(0)
+ 		for i, s := range syms {
+ 			// If the next symbol's size would put us out of bounds on the total length,
+ 			// stop looking.
+@@ -834,9 +833,15 @@ func writeBlocks(out *OutBuf, sem chan int, syms []*sym.Symbol, addr, size int64
+ 		}
+ 
+ 		// Compute the length to write, including padding.
++		// We need to write to the end address (lastAddr), or the next symbol's
++		// start address, whichever comes first. If there is no more symbols,
++		// just write to lastAddr. This ensures we don't leave holes between the
++		// blocks or at the end.
++		length := int64(0)
+ 		if idx+1 < len(syms) {
+ 			length = syms[idx+1].Value - addr
+-		} else {
++		}
++		if length == 0 || length > lastAddr-addr {
+ 			length = lastAddr - addr
+ 		}
+ 

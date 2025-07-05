@@ -10,7 +10,7 @@ Date:   Mon Dec 19 10:30:44 2016 -0800
     Change-Id: I6fefaad49daada9cdb3050f112889e49dca0047b
     Reviewed-on: https://go-review.googlesource.com/34566
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/bexport.go  |  2 +-
  src/cmd/compile/internal/gc/esc.go      |  2 +-
  src/cmd/compile/internal/gc/fmt.go      |  2 +-
@@ -23,3 +23,231 @@ Date:   Mon Dec 19 10:30:44 2016 -0800
  src/cmd/compile/internal/gc/syntax.go   |  1 -
  src/cmd/compile/internal/gc/walk.go     | 26 +-------------------------
  11 files changed, 17 insertions(+), 40 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 563e1fba48..3719dc7962 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -1432,7 +1432,7 @@ func (p *exporter) stmt(n *Node) {
+ 	// case ODCLFIELD:
+ 	//	unimplemented - handled by default case
+ 
+-	case OAS, OASWB:
++	case OAS:
+ 		// Don't export "v = <N>" initializing statements, hope they're always
+ 		// preceded by the DCL which will be re-parsed and typecheck to reproduce
+ 		// the "v = <N>" again.
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index b1e4a7992c..1b29aebcc4 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -761,7 +761,7 @@ func (e *EscState) esc(n *Node, parent *Node) {
+ 	// This assignment is a no-op for escape analysis,
+ 	// it does not store any new pointers into b that were not already there.
+ 	// However, without this special case b will escape, because we assign to OIND/ODOTPTR.
+-	case OAS, OASOP, OASWB:
++	case OAS, OASOP:
+ 		if (n.Left.Op == OIND || n.Left.Op == ODOTPTR) && n.Left.Left.Op == ONAME && // dst is ONAME dereference
+ 			(n.Right.Op == OSLICE || n.Right.Op == OSLICE3 || n.Right.Op == OSLICESTR) && // src is slice operation
+ 			(n.Right.Left.Op == OIND || n.Right.Left.Op == ODOTPTR) && n.Right.Left.Left.Op == ONAME && // slice is applied to ONAME dereference
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 835d34bb7f..cd976f0321 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -837,7 +837,7 @@ func (n *Node) stmtfmt(s fmt.State) {
+ 	// Don't export "v = <N>" initializing statements, hope they're always
+ 	// preceded by the DCL which will be re-parsed and typechecked to reproduce
+ 	// the "v = <N>" again.
+-	case OAS, OASWB:
++	case OAS:
+ 		if n.Colas && !complexinit {
+ 			fmt.Fprintf(s, "%v := %v", n.Left, n.Right)
+ 		} else {
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index bfb0da5071..d2fba7bb59 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -41,7 +41,7 @@ func anyinit(n []*Node) bool {
+ 		case ODCLFUNC, ODCLCONST, ODCLTYPE, OEMPTY:
+ 			break
+ 
+-		case OAS, OASWB:
++		case OAS:
+ 			if isblank(ln.Left) && candiscard(ln.Right) {
+ 				break
+ 			}
+diff --git a/src/cmd/compile/internal/gc/opnames.go b/src/cmd/compile/internal/gc/opnames.go
+index c8196a0f74..25e3c660d7 100644
+--- a/src/cmd/compile/internal/gc/opnames.go
++++ b/src/cmd/compile/internal/gc/opnames.go
+@@ -33,7 +33,6 @@ var opnames = []string{
+ 	OAS2MAPR:         "AS2MAPR",
+ 	OAS2DOTTYPE:      "AS2DOTTYPE",
+ 	OASOP:            "ASOP",
+-	OASWB:            "ASWB",
+ 	OCALL:            "CALL",
+ 	OCALLFUNC:        "CALLFUNC",
+ 	OCALLMETH:        "CALLMETH",
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index b9fd64a1ac..f9a897c20c 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -136,7 +136,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
+ 	default:
+ 		Fatalf("instrument: unknown node type %v", n.Op)
+ 
+-	case OAS, OASWB, OAS2FUNC:
++	case OAS, OAS2FUNC:
+ 		instrumentnode(&n.Left, init, 1, 0)
+ 		instrumentnode(&n.Right, init, 0, 0)
+ 		goto ret
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 009d13565f..91cb53773c 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -752,11 +752,6 @@ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes)
+ 		switch kind {
+ 		case initKindStatic:
+ 			a = walkexpr(a, init) // add any assignments in r to top
+-			if a.Op == OASWB {
+-				// Static initialization never needs
+-				// write barriers.
+-				a.Op = OAS
+-			}
+ 			if a.Op != OAS {
+ 				Fatalf("fixedlit: not as, is %v", a)
+ 			}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 1f0f1b0d91..ca198575d1 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -641,7 +641,7 @@ func (s *state) stmt(n *Node) {
+ 		b := s.endBlock()
+ 		b.AddEdgeTo(lab.target)
+ 
+-	case OAS, OASWB:
++	case OAS:
+ 		// Generate static data rather than code, if possible.
+ 		if n.IsStatic {
+ 			if !genAsInitNoCheck(n) {
+@@ -704,7 +704,7 @@ func (s *state) stmt(n *Node) {
+ 		}
+ 		var r *ssa.Value
+ 		var isVolatile bool
+-		needwb := n.Op == OASWB
++		needwb := n.Right != nil && needwritebarrier(n.Left, n.Right)
+ 		deref := !canSSAType(t)
+ 		if deref {
+ 			if rhs == nil {
+@@ -728,6 +728,9 @@ func (s *state) stmt(n *Node) {
+ 			// They get similar wb-removal treatment in walk.go:OAS.
+ 			needwb = true
+ 		}
++		if needwb && Debug_wb > 1 {
++			Warnl(n.Pos, "marking %v for barrier", n.Left)
++		}
+ 
+ 		var skip skipMask
+ 		if rhs != nil && (rhs.Op == OSLICE || rhs.Op == OSLICE3 || rhs.Op == OSLICESTR) && samesafeexpr(rhs.Left, n.Left) {
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 58414e602c..9dd2adcd4c 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1169,7 +1169,12 @@ func ullmancalc(n *Node) {
+ 		}
+ 		goto out
+ 
+-	case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER, OASWB:
++	case OAS:
++		if !needwritebarrier(n.Left, n.Right) {
++			break
++		}
++		fallthrough
++	case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER:
+ 		ul = UINF
+ 		goto out
+ 
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 0d393d15e8..abc0e02aee 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -361,7 +361,6 @@ const (
+ 	OAS2MAPR         // List = Rlist (x, ok = m["foo"])
+ 	OAS2DOTTYPE      // List = Rlist (x, ok = I.(int))
+ 	OASOP            // Left Etype= Right (x += y)
+-	OASWB            // Left = Right (with write barrier)
+ 	OCALL            // Left(List) (function call, method call or type conversion)
+ 	OCALLFUNC        // Left(List) (function call f(args))
+ 	OCALLMETH        // Left(List) (direct method call x.Method(args))
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index a3315c066a..bf7f253517 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -338,10 +338,6 @@ func walkstmt(n *Node) *Node {
+ 
+ 			ll := ascompatee(n.Op, rl, n.List.Slice(), &n.Ninit)
+ 			n.List.Set(reorder3(ll))
+-			ls := n.List.Slice()
+-			for i, n := range ls {
+-				ls[i] = applywritebarrier(n)
+-			}
+ 			break
+ 		}
+ 
+@@ -683,7 +679,7 @@ opswitch:
+ 			break
+ 		}
+ 
+-		if !instrumenting && iszero(n.Right) && !needwritebarrier(n.Left, n.Right) {
++		if !instrumenting && iszero(n.Right) {
+ 			break
+ 		}
+ 
+@@ -727,7 +723,6 @@ opswitch:
+ 			static := n.IsStatic
+ 			n = convas(n, init)
+ 			n.IsStatic = static
+-			n = applywritebarrier(n)
+ 		}
+ 
+ 	case OAS2:
+@@ -736,9 +731,6 @@ opswitch:
+ 		walkexprlistsafe(n.Rlist.Slice(), init)
+ 		ll := ascompatee(OAS, n.List.Slice(), n.Rlist.Slice(), init)
+ 		ll = reorder3(ll)
+-		for i, n := range ll {
+-			ll[i] = applywritebarrier(n)
+-		}
+ 		n = liststmt(ll)
+ 
+ 	// a,b,... = fn()
+@@ -756,9 +748,6 @@ opswitch:
+ 		init.Append(r)
+ 
+ 		ll := ascompatet(n.Op, n.List, r.Type)
+-		for i, n := range ll {
+-			ll[i] = applywritebarrier(n)
+-		}
+ 		n = liststmt(ll)
+ 
+ 	// x, y = <-c
+@@ -2124,19 +2113,6 @@ func needwritebarrier(l *Node, r *Node) bool {
+ 	return true
+ }
+ 
+-// TODO(rsc): Perhaps componentgen should run before this.
+-
+-func applywritebarrier(n *Node) *Node {
+-	if n.Left != nil && n.Right != nil && needwritebarrier(n.Left, n.Right) {
+-		if Debug_wb > 1 {
+-			Warnl(n.Pos, "marking %v for barrier", n.Left)
+-		}
+-		n.Op = OASWB
+-		return n
+-	}
+-	return n
+-}
+-
+ func convas(n *Node, init *Nodes) *Node {
+ 	if n.Op != OAS {
+ 		Fatalf("convas: not OAS %v", n.Op)

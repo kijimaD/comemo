@@ -20,7 +20,141 @@ Date:   Tue Dec 19 19:42:12 2017 +0100
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/lookup.go      | 22 ++++++++++++-------
  src/net/lookup_test.go | 57 ++++++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 71 insertions(+), 8 deletions(-)
+
+diff --git a/src/net/lookup.go b/src/net/lookup.go
+index 000f4a31ae..1a9b4a9f08 100644
+--- a/src/net/lookup.go
++++ b/src/net/lookup.go
+@@ -133,6 +133,11 @@ type Resolver struct {
+ 	// If nil, the default dialer is used.
+ 	Dial func(ctx context.Context, network, address string) (Conn, error)
+ 
++	// lookupGroup merges LookupIPAddr calls together for lookups for the same
++	// host. The lookupGroup key is the LookupIPAddr.host argument.
++	// The return values are ([]IPAddr, error).
++	lookupGroup singleflight.Group
++
+ 	// TODO(bradfitz): optional interface impl override hook
+ 	// TODO(bradfitz): Timeout time.Duration?
+ }
+@@ -140,6 +145,13 @@ type Resolver struct {
+ func (r *Resolver) preferGo() bool     { return r != nil && r.PreferGo }
+ func (r *Resolver) strictErrors() bool { return r != nil && r.StrictErrors }
+ 
++func (r *Resolver) getLookupGroup() *singleflight.Group {
++	if r == nil {
++		return &DefaultResolver.lookupGroup
++	}
++	return &r.lookupGroup
++}
++
+ // LookupHost looks up the given host using the local resolver.
+ // It returns a slice of that host's addresses.
+ func LookupHost(host string) (addrs []string, err error) {
+@@ -204,7 +216,7 @@ func (r *Resolver) LookupIPAddr(ctx context.Context, host string) ([]IPAddr, err
+ 	lookupGroupCtx, lookupGroupCancel := context.WithCancel(context.Background())
+ 
+ 	dnsWaitGroup.Add(1)
+-	ch, called := lookupGroup.DoChan(host, func() (interface{}, error) {
++	ch, called := r.getLookupGroup().DoChan(host, func() (interface{}, error) {
+ 		defer dnsWaitGroup.Done()
+ 		return testHookLookupIP(lookupGroupCtx, resolverFunc, host)
+ 	})
+@@ -221,7 +233,7 @@ func (r *Resolver) LookupIPAddr(ctx context.Context, host string) ([]IPAddr, err
+ 		// let the lookup continue uncanceled, and let later
+ 		// lookups with the same key share the result.
+ 		// See issues 8602, 20703, 22724.
+-		if lookupGroup.ForgetUnshared(host) {
++		if r.getLookupGroup().ForgetUnshared(host) {
+ 			lookupGroupCancel()
+ 		} else {
+ 			go func() {
+@@ -244,12 +256,6 @@ func (r *Resolver) LookupIPAddr(ctx context.Context, host string) ([]IPAddr, err
+ 	}
+ }
+ 
+-// lookupGroup merges LookupIPAddr calls together for lookups
+-// for the same host. The lookupGroup key is is the LookupIPAddr.host
+-// argument.
+-// The return values are ([]IPAddr, error).
+-var lookupGroup singleflight.Group
+-
+ // lookupIPReturn turns the return values from singleflight.Do into
+ // the return values from LookupIP.
+ func lookupIPReturn(addrsi interface{}, err error, shared bool) ([]IPAddr, error) {
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 02fbcd8bac..010f71df2f 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -15,6 +15,7 @@ import (
+ 	"runtime"
+ 	"sort"
+ 	"strings"
++	"sync"
+ 	"testing"
+ 	"time"
+ )
+@@ -925,3 +926,59 @@ func TestLookupHostCancel(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ }
++
++type lookupCustomResolver struct {
++	*Resolver
++	mu     sync.RWMutex
++	dialed bool
++}
++
++func (lcr *lookupCustomResolver) dial() func(ctx context.Context, network, address string) (Conn, error) {
++	return func(ctx context.Context, network, address string) (Conn, error) {
++		lcr.mu.Lock()
++		lcr.dialed = true
++		lcr.mu.Unlock()
++		return Dial(network, address)
++	}
++}
++
++// TestConcurrentPreferGoResolversDial tests that multiple resolvers with the
++// PreferGo option used concurrently are all dialed properly.
++func TestConcurrentPreferGoResolversDial(t *testing.T) {
++	// The windows implementation of the resolver does not use the Dial
++	// function.
++	if runtime.GOOS == "windows" {
++		t.Skip("skip on windows")
++	}
++
++	testenv.MustHaveExternalNetwork(t)
++	testenv.SkipFlakyNet(t)
++
++	defer dnsWaitGroup.Wait()
++
++	resolvers := make([]*lookupCustomResolver, 2)
++	for i := range resolvers {
++		cs := lookupCustomResolver{Resolver: &Resolver{PreferGo: true}}
++		cs.Dial = cs.dial()
++		resolvers[i] = &cs
++	}
++
++	var wg sync.WaitGroup
++	wg.Add(len(resolvers))
++	for i, resolver := range resolvers {
++		go func(r *Resolver, index int) {
++			defer wg.Done()
++			_, err := r.LookupIPAddr(context.Background(), "google.com")
++			if err != nil {
++				t.Fatalf("lookup failed for resolver %d: %q", index, err)
++			}
++		}(resolver.Resolver, i)
++	}
++	wg.Wait()
++
++	for i, resolver := range resolvers {
++		if !resolver.dialed {
++			t.Errorf("custom resolver %d not dialed during lookup", i)
++		}
++	}
++}

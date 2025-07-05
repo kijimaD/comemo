@@ -14,7 +14,7 @@ Date:   Fri Oct 12 17:07:04 2018 -0400
     Change-Id: I01267bb3a3b02664f8f822e97b129075bb14d404
     Reviewed-on: https://go-review.googlesource.com/c/141918
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/crypto/tls/auth.go                    |  7 +++----
  src/crypto/tls/cipher_suites.go           |  8 +++-----
  src/crypto/tls/common.go                  | 27 +++++++++++--------------
@@ -30,3 +30,620 @@ Date:   Fri Oct 12 17:07:04 2018 -0400
  src/crypto/x509/verify.go                 | 20 +++++++++----------
  src/crypto/x509/x509.go                   | 32 +++++++++++++-----------------
  14 files changed, 72 insertions(+), 90 deletions(-)
+
+diff --git a/src/crypto/tls/auth.go b/src/crypto/tls/auth.go
+index 88face4cde..a27db45b01 100644
+--- a/src/crypto/tls/auth.go
++++ b/src/crypto/tls/auth.go
+@@ -23,10 +23,9 @@ import (
+ func pickSignatureAlgorithm(pubkey crypto.PublicKey, peerSigAlgs, ourSigAlgs []SignatureScheme, tlsVersion uint16) (sigAlg SignatureScheme, sigType uint8, hashFunc crypto.Hash, err error) {
+ 	if tlsVersion < VersionTLS12 || len(peerSigAlgs) == 0 {
+ 		// For TLS 1.1 and before, the signature algorithm could not be
+-		// negotiated and the hash is fixed based on the signature type.
+-		// For TLS 1.2, if the client didn't send signature_algorithms
+-		// extension then we can assume that it supports SHA1. See
+-		// https://tools.ietf.org/html/rfc5246#section-7.4.1.4.1
++		// negotiated and the hash is fixed based on the signature type. For TLS
++		// 1.2, if the client didn't send signature_algorithms extension then we
++		// can assume that it supports SHA1. See RFC 5246, Section 7.4.1.4.1.
+ 		switch pubkey.(type) {
+ 		case *rsa.PublicKey:
+ 			if tlsVersion < VersionTLS12 {
+diff --git a/src/crypto/tls/cipher_suites.go b/src/crypto/tls/cipher_suites.go
+index 3c8dc4b2d2..d232996629 100644
+--- a/src/crypto/tls/cipher_suites.go
++++ b/src/crypto/tls/cipher_suites.go
+@@ -13,9 +13,8 @@ import (
+ 	"crypto/sha1"
+ 	"crypto/sha256"
+ 	"crypto/x509"
+-	"hash"
+-
+ 	"golang_org/x/crypto/chacha20poly1305"
++	"hash"
+ )
+ 
+ // a keyAgreement implements the client and server side of a TLS key agreement
+@@ -303,7 +302,7 @@ func newConstantTimeHash(h func() hash.Hash) func() hash.Hash {
+ 	}
+ }
+ 
+-// tls10MAC implements the TLS 1.0 MAC function. RFC 2246, section 6.2.3.
++// tls10MAC implements the TLS 1.0 MAC function. RFC 2246, Section 6.2.3.
+ type tls10MAC struct {
+ 	h hash.Hash
+ }
+@@ -390,7 +389,6 @@ const (
+ 	TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305  uint16 = 0xcca9
+ 
+ 	// TLS_FALLBACK_SCSV isn't a standard cipher suite but an indicator
+-	// that the client is doing version fallback. See
+-	// https://tools.ietf.org/html/rfc7507.
++	// that the client is doing version fallback. See RFC 7507.
+ 	TLS_FALLBACK_SCSV uint16 = 0x5600
+ )
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 7b627fc025..50db88eb60 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -79,7 +79,7 @@ const (
+ 	extensionSupportedPoints     uint16 = 11
+ 	extensionSignatureAlgorithms uint16 = 13
+ 	extensionALPN                uint16 = 16
+-	extensionSCT                 uint16 = 18 // https://tools.ietf.org/html/rfc6962#section-6
++	extensionSCT                 uint16 = 18 // RFC 6962, Section 6
+ 	extensionSessionTicket       uint16 = 35
+ 	extensionNextProtoNeg        uint16 = 13172 // not IANA assigned
+ 	extensionRenegotiationInfo   uint16 = 0xff01
+@@ -128,7 +128,7 @@ const (
+ )
+ 
+ // Signature algorithms (for internal signaling use). Starting at 16 to avoid overlap with
+-// TLS 1.2 codepoints (RFC 5246, section A.4.1), with which these have nothing to do.
++// TLS 1.2 codepoints (RFC 5246, Appendix A.4.1), with which these have nothing to do.
+ const (
+ 	signaturePKCS1v15 uint8 = iota + 16
+ 	signatureECDSA
+@@ -177,9 +177,9 @@ type ConnectionState struct {
+ }
+ 
+ // ExportKeyingMaterial returns length bytes of exported key material in a new
+-// slice as defined in https://tools.ietf.org/html/rfc5705. If context is nil,
+-// it is not used as part of the seed. If the connection was set to allow
+-// renegotiation via Config.Renegotiation, this function will return an error.
++// slice as defined in RFC 5705. If context is nil, it is not used as part of
++// the seed. If the connection was set to allow renegotiation via
++// Config.Renegotiation, this function will return an error.
+ func (cs *ConnectionState) ExportKeyingMaterial(label string, context []byte, length int) ([]byte, error) {
+ 	return cs.ekm(label, context, length)
+ }
+@@ -222,7 +222,7 @@ type ClientSessionCache interface {
+ }
+ 
+ // SignatureScheme identifies a signature algorithm supported by TLS. See
+-// https://tools.ietf.org/html/draft-ietf-tls-tls13-18#section-4.2.3.
++// RFC 8446, Section 4.2.3.
+ type SignatureScheme uint16
+ 
+ const (
+@@ -252,32 +252,27 @@ type ClientHelloInfo struct {
+ 
+ 	// ServerName indicates the name of the server requested by the client
+ 	// in order to support virtual hosting. ServerName is only set if the
+-	// client is using SNI (see
+-	// https://tools.ietf.org/html/rfc4366#section-3.1).
++	// client is using SNI (see RFC 4366, Section 3.1).
+ 	ServerName string
+ 
+ 	// SupportedCurves lists the elliptic curves supported by the client.
+ 	// SupportedCurves is set only if the Supported Elliptic Curves
+-	// Extension is being used (see
+-	// https://tools.ietf.org/html/rfc4492#section-5.1.1).
++	// Extension is being used (see RFC 4492, Section 5.1.1).
+ 	SupportedCurves []CurveID
+ 
+ 	// SupportedPoints lists the point formats supported by the client.
+ 	// SupportedPoints is set only if the Supported Point Formats Extension
+-	// is being used (see
+-	// https://tools.ietf.org/html/rfc4492#section-5.1.2).
++	// is being used (see RFC 4492, Section 5.1.2).
+ 	SupportedPoints []uint8
+ 
+ 	// SignatureSchemes lists the signature and hash schemes that the client
+ 	// is willing to verify. SignatureSchemes is set only if the Signature
+-	// Algorithms Extension is being used (see
+-	// https://tools.ietf.org/html/rfc5246#section-7.4.1.4.1).
++	// Algorithms Extension is being used (see RFC 5246, Section 7.4.1.4.1).
+ 	SignatureSchemes []SignatureScheme
+ 
+ 	// SupportedProtos lists the application protocols supported by the client.
+ 	// SupportedProtos is set only if the Application-Layer Protocol
+-	// Negotiation Extension is being used (see
+-	// https://tools.ietf.org/html/rfc7301#section-3.1).
++	// Negotiation Extension is being used (see RFC 7301, Section 3.1).
+ 	//
+ 	// Servers can select a protocol by setting Config.NextProtos in a
+ 	// GetConfigForClient return value.
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index 6e27e695bd..f05135bc33 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -205,7 +205,7 @@ func (hc *halfConn) incSeq() {
+ 
+ // extractPadding returns, in constant time, the length of the padding to remove
+ // from the end of payload. It also returns a byte which is equal to 255 if the
+-// padding was valid and 0 otherwise. See RFC 2246, section 6.2.3.2
++// padding was valid and 0 otherwise. See RFC 2246, Section 6.2.3.2.
+ func extractPadding(payload []byte) (toRemove int, good byte) {
+ 	if len(payload) < 1 {
+ 		return 0, 0
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index 32fdc6d6eb..af290e33a7 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -845,7 +845,7 @@ func mutualProtocol(protos, preferenceProtos []string) (string, bool) {
+ 
+ // hostnameInSNI converts name into an approriate hostname for SNI.
+ // Literal IP addresses and absolute FQDNs are not permitted as SNI values.
+-// See https://tools.ietf.org/html/rfc6066#section-3.
++// See RFC 6066, Section 3.
+ func hostnameInSNI(name string) string {
+ 	host := name
+ 	if len(host) > 0 && host[0] == '[' && host[len(host)-1] == ']' {
+diff --git a/src/crypto/tls/handshake_messages.go b/src/crypto/tls/handshake_messages.go
+index a5bf10efb8..27004b2d69 100644
+--- a/src/crypto/tls/handshake_messages.go
++++ b/src/crypto/tls/handshake_messages.go
+@@ -155,7 +155,7 @@ func (m *clientHelloMsg) marshal() []byte {
+ 		z[3] = byte(l)
+ 		z = z[4:]
+ 
+-		// RFC 3546, section 3.1
++		// RFC 3546, Section 3.1
+ 		//
+ 		// struct {
+ 		//     NameType name_type;
+@@ -182,7 +182,7 @@ func (m *clientHelloMsg) marshal() []byte {
+ 		z = z[l:]
+ 	}
+ 	if m.ocspStapling {
+-		// RFC 4366, section 3.6
++		// RFC 4366, Section 3.6
+ 		z[0] = byte(extensionStatusRequest >> 8)
+ 		z[1] = byte(extensionStatusRequest)
+ 		z[2] = 0
+@@ -192,7 +192,7 @@ func (m *clientHelloMsg) marshal() []byte {
+ 		z = z[9:]
+ 	}
+ 	if len(m.supportedCurves) > 0 {
+-		// https://tools.ietf.org/html/rfc4492#section-5.5.1
++		// RFC 4492, Section 5.5.1
+ 		z[0] = byte(extensionSupportedCurves >> 8)
+ 		z[1] = byte(extensionSupportedCurves)
+ 		l := 2 + 2*len(m.supportedCurves)
+@@ -209,7 +209,7 @@ func (m *clientHelloMsg) marshal() []byte {
+ 		}
+ 	}
+ 	if len(m.supportedPoints) > 0 {
+-		// https://tools.ietf.org/html/rfc4492#section-5.5.2
++		// RFC 4492, Section 5.5.2
+ 		z[0] = byte(extensionSupportedPoints >> 8)
+ 		z[1] = byte(extensionSupportedPoints)
+ 		l := 1 + len(m.supportedPoints)
+@@ -224,7 +224,7 @@ func (m *clientHelloMsg) marshal() []byte {
+ 		}
+ 	}
+ 	if m.ticketSupported {
+-		// https://tools.ietf.org/html/rfc5077#section-3.2
++		// RFC 5077, Section 3.2
+ 		z[0] = byte(extensionSessionTicket >> 8)
+ 		z[1] = byte(extensionSessionTicket)
+ 		l := len(m.sessionTicket)
+@@ -235,7 +235,7 @@ func (m *clientHelloMsg) marshal() []byte {
+ 		z = z[len(m.sessionTicket):]
+ 	}
+ 	if len(m.supportedSignatureAlgorithms) > 0 {
+-		// https://tools.ietf.org/html/rfc5246#section-7.4.1.4.1
++		// RFC 5246, Section 7.4.1.4.1
+ 		z[0] = byte(extensionSignatureAlgorithms >> 8)
+ 		z[1] = byte(extensionSignatureAlgorithms)
+ 		l := 2 + 2*len(m.supportedSignatureAlgorithms)
+@@ -285,7 +285,7 @@ func (m *clientHelloMsg) marshal() []byte {
+ 		lengths[1] = byte(stringsLength)
+ 	}
+ 	if m.scts {
+-		// https://tools.ietf.org/html/rfc6962#section-3.3.1
++		// RFC 6962, Section 3.3.1
+ 		z[0] = byte(extensionSCT >> 8)
+ 		z[1] = byte(extensionSCT)
+ 		// zero uint16 for the zero-length extension_data
+@@ -396,9 +396,8 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
+ 				}
+ 				if nameType == 0 {
+ 					m.serverName = string(d[:nameLen])
+-					// An SNI value may not include a
+-					// trailing dot. See
+-					// https://tools.ietf.org/html/rfc6066#section-3.
++					// An SNI value may not include a trailing dot.
++					// See RFC 6066, Section 3.
+ 					if strings.HasSuffix(m.serverName, ".") {
+ 						return false
+ 					}
+@@ -414,7 +413,7 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
+ 		case extensionStatusRequest:
+ 			m.ocspStapling = length > 0 && data[0] == statusTypeOCSP
+ 		case extensionSupportedCurves:
+-			// https://tools.ietf.org/html/rfc4492#section-5.5.1
++			// RFC 4492, Section 5.5.1
+ 			if length < 2 {
+ 				return false
+ 			}
+@@ -430,7 +429,7 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
+ 				d = d[2:]
+ 			}
+ 		case extensionSupportedPoints:
+-			// https://tools.ietf.org/html/rfc4492#section-5.5.2
++			// RFC 4492, Section 5.5.2
+ 			if length < 1 {
+ 				return false
+ 			}
+@@ -441,11 +440,11 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
+ 			m.supportedPoints = make([]uint8, l)
+ 			copy(m.supportedPoints, data[1:])
+ 		case extensionSessionTicket:
+-			// https://tools.ietf.org/html/rfc5077#section-3.2
++			// RFC 5077, Section 3.2
+ 			m.ticketSupported = true
+ 			m.sessionTicket = data[:length]
+ 		case extensionSignatureAlgorithms:
+-			// https://tools.ietf.org/html/rfc5246#section-7.4.1.4.1
++			// RFC 5246, Section 7.4.1.4.1
+ 			if length < 2 || length&1 != 0 {
+ 				return false
+ 			}
+@@ -1224,7 +1223,7 @@ func (m *certificateRequestMsg) marshal() (x []byte) {
+ 		return m.raw
+ 	}
+ 
+-	// See https://tools.ietf.org/html/rfc4346#section-7.4.4
++	// See RFC 4346, Section 7.4.4.
+ 	length := 1 + len(m.certificateTypes) + 2
+ 	casLength := 0
+ 	for _, ca := range m.certificateAuthorities {
+@@ -1374,7 +1373,7 @@ func (m *certificateVerifyMsg) marshal() (x []byte) {
+ 		return m.raw
+ 	}
+ 
+-	// See https://tools.ietf.org/html/rfc4346#section-7.4.8
++	// See RFC 4346, Section 7.4.8.
+ 	siglength := len(m.signature)
+ 	length := 2 + siglength
+ 	if m.hasSignatureAndHash {
+@@ -1452,7 +1451,7 @@ func (m *newSessionTicketMsg) marshal() (x []byte) {
+ 		return m.raw
+ 	}
+ 
+-	// See https://tools.ietf.org/html/rfc5077#section-3.3
++	// See RFC 5077, Section 3.3.
+ 	ticketLen := len(m.ticket)
+ 	length := 2 + 4 + ticketLen
+ 	x = make([]byte, 4+length)
+diff --git a/src/crypto/tls/handshake_messages_test.go b/src/crypto/tls/handshake_messages_test.go
+index 4a4a466768..52c5d30e8f 100644
+--- a/src/crypto/tls/handshake_messages_test.go
++++ b/src/crypto/tls/handshake_messages_test.go
+@@ -271,8 +271,7 @@ func (*sessionState) Generate(rand *rand.Rand, size int) reflect.Value {
+ }
+ 
+ func TestRejectEmptySCTList(t *testing.T) {
+-	// https://tools.ietf.org/html/rfc6962#section-3.3.1 specifies that
+-	// empty SCT lists are invalid.
++	// RFC 6962, Section 3.3.1 specifies that empty SCT lists are invalid.
+ 
+ 	var random [32]byte
+ 	sct := []byte{0x42, 0x42, 0x42, 0x42}
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index ac491bad39..b077c90580 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -49,7 +49,7 @@ func (c *Conn) serverHandshake() error {
+ 		return err
+ 	}
+ 
+-	// For an overview of TLS handshaking, see https://tools.ietf.org/html/rfc5246#section-7.3
++	// For an overview of TLS handshaking, see RFC 5246, Section 7.3.
+ 	c.buffering = true
+ 	if isResume {
+ 		// The client has included a session ticket and so we do an abbreviated handshake.
+@@ -268,7 +268,7 @@ Curves:
+ 		return false, errors.New("tls: no cipher suite supported by both client and server")
+ 	}
+ 
+-	// See https://tools.ietf.org/html/rfc7507.
++	// See RFC 7507.
+ 	for _, id := range hs.clientHello.cipherSuites {
+ 		if id == TLS_FALLBACK_SCSV {
+ 			// The client is doing a fallback connection.
+diff --git a/src/crypto/tls/key_agreement.go b/src/crypto/tls/key_agreement.go
+index 1e77facce0..1baa901ec7 100644
+--- a/src/crypto/tls/key_agreement.go
++++ b/src/crypto/tls/key_agreement.go
+@@ -12,10 +12,9 @@ import (
+ 	"crypto/sha1"
+ 	"crypto/x509"
+ 	"errors"
++	"golang_org/x/crypto/curve25519"
+ 	"io"
+ 	"math/big"
+-
+-	"golang_org/x/crypto/curve25519"
+ )
+ 
+ var errClientKeyExchange = errors.New("tls: invalid ClientKeyExchange message")
+@@ -200,7 +199,7 @@ NextCandidate:
+ 		ecdhePublic = elliptic.Marshal(curve, x, y)
+ 	}
+ 
+-	// https://tools.ietf.org/html/rfc4492#section-5.4
++	// See RFC 4492, Section 5.4.
+ 	serverECDHParams := make([]byte, 1+2+1+len(ecdhePublic))
+ 	serverECDHParams[0] = 3 // named curve
+ 	serverECDHParams[1] = byte(ka.curveid >> 8)
+diff --git a/src/crypto/tls/prf.go b/src/crypto/tls/prf.go
+index a8cf21da15..a31a50d14f 100644
+--- a/src/crypto/tls/prf.go
++++ b/src/crypto/tls/prf.go
+@@ -16,14 +16,14 @@ import (
+ 	"hash"
+ )
+ 
+-// Split a premaster secret in two as specified in RFC 4346, section 5.
++// Split a premaster secret in two as specified in RFC 4346, Section 5.
+ func splitPreMasterSecret(secret []byte) (s1, s2 []byte) {
+ 	s1 = secret[0 : (len(secret)+1)/2]
+ 	s2 = secret[len(secret)/2:]
+ 	return
+ }
+ 
+-// pHash implements the P_hash function, as defined in RFC 4346, section 5.
++// pHash implements the P_hash function, as defined in RFC 4346, Section 5.
+ func pHash(result, secret, seed []byte, hash func() hash.Hash) {
+ 	h := hmac.New(hash, secret)
+ 	h.Write(seed)
+@@ -44,7 +44,7 @@ func pHash(result, secret, seed []byte, hash func() hash.Hash) {
+ 	}
+ }
+ 
+-// prf10 implements the TLS 1.0 pseudo-random function, as defined in RFC 2246, section 5.
++// prf10 implements the TLS 1.0 pseudo-random function, as defined in RFC 2246, Section 5.
+ func prf10(result, secret, label, seed []byte) {
+ 	hashSHA1 := sha1.New
+ 	hashMD5 := md5.New
+@@ -63,7 +63,7 @@ func prf10(result, secret, label, seed []byte) {
+ 	}
+ }
+ 
+-// prf12 implements the TLS 1.2 pseudo-random function, as defined in RFC 5246, section 5.
++// prf12 implements the TLS 1.2 pseudo-random function, as defined in RFC 5246, Section 5.
+ func prf12(hashFunc func() hash.Hash) func(result, secret, label, seed []byte) {
+ 	return func(result, secret, label, seed []byte) {
+ 		labelAndSeed := make([]byte, len(label)+len(seed))
+@@ -140,7 +140,7 @@ func prfForVersion(version uint16, suite *cipherSuite) func(result, secret, labe
+ }
+ 
+ // masterFromPreMasterSecret generates the master secret from the pre-master
+-// secret. See https://tools.ietf.org/html/rfc5246#section-8.1
++// secret. See RFC 5246, Section 8.1.
+ func masterFromPreMasterSecret(version uint16, suite *cipherSuite, preMasterSecret, clientRandom, serverRandom []byte) []byte {
+ 	seed := make([]byte, 0, len(clientRandom)+len(serverRandom))
+ 	seed = append(seed, clientRandom...)
+@@ -153,7 +153,7 @@ func masterFromPreMasterSecret(version uint16, suite *cipherSuite, preMasterSecr
+ 
+ // keysFromMasterSecret generates the connection keys from the master
+ // secret, given the lengths of the MAC key, cipher key and IV, as defined in
+-// RFC 2246, section 6.3.
++// RFC 2246, Section 6.3.
+ func keysFromMasterSecret(version uint16, suite *cipherSuite, masterSecret, clientRandom, serverRandom []byte, macLen, keyLen, ivLen int) (clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV []byte) {
+ 	seed := make([]byte, 0, len(serverRandom)+len(clientRandom))
+ 	seed = append(seed, serverRandom...)
+@@ -353,8 +353,7 @@ func noExportedKeyingMaterial(label string, context []byte, length int) ([]byte,
+ 	return nil, errors.New("crypto/tls: ExportKeyingMaterial is unavailable when renegotiation is enabled")
+ }
+ 
+-// ekmFromMasterSecret generates exported keying material as defined in
+-// https://tools.ietf.org/html/rfc5705.
++// ekmFromMasterSecret generates exported keying material as defined in RFC 5705.
+ func ekmFromMasterSecret(version uint16, suite *cipherSuite, masterSecret, clientRandom, serverRandom []byte) func(string, []byte, int) ([]byte, error) {
+ 	return func(label string, context []byte, length int) ([]byte, error) {
+ 		switch label {
+diff --git a/src/crypto/x509/pem_decrypt.go b/src/crypto/x509/pem_decrypt.go
+index 0388d63e14..93d1e4a922 100644
+--- a/src/crypto/x509/pem_decrypt.go
++++ b/src/crypto/x509/pem_decrypt.go
+@@ -203,7 +203,7 @@ func EncryptPEMBlock(rand io.Reader, blockType string, data, password []byte, al
+ 	// the data separately, but it doesn't seem worth the additional
+ 	// code.
+ 	copy(encrypted, data)
+-	// See RFC 1423, section 1.1
++	// See RFC 1423, Section 1.1.
+ 	for i := 0; i < pad; i++ {
+ 		encrypted = append(encrypted, byte(pad))
+ 	}
+diff --git a/src/crypto/x509/pkix/pkix.go b/src/crypto/x509/pkix/pkix.go
+index 3cc4d587e3..59c3b15c83 100644
+--- a/src/crypto/x509/pkix/pkix.go
++++ b/src/crypto/x509/pkix/pkix.go
+@@ -95,7 +95,7 @@ func (r RDNSequence) String() string {
+ type RelativeDistinguishedNameSET []AttributeTypeAndValue
+ 
+ // AttributeTypeAndValue mirrors the ASN.1 structure of the same name in
+-// https://tools.ietf.org/html/rfc5280#section-4.1.2.4
++// RFC 5280, Section 4.1.2.4.
+ type AttributeTypeAndValue struct {
+ 	Type  asn1.ObjectIdentifier
+ 	Value interface{}
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index 91be7c05f9..23ee2d2512 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -222,10 +222,9 @@ type rfc2821Mailbox struct {
+ }
+ 
+ // parseRFC2821Mailbox parses an email address into local and domain parts,
+-// based on the ABNF for a “Mailbox” from RFC 2821. According to
+-// https://tools.ietf.org/html/rfc5280#section-4.2.1.6 that's correct for an
+-// rfc822Name from a certificate: “The format of an rfc822Name is a "Mailbox"
+-// as defined in https://tools.ietf.org/html/rfc2821#section-4.1.2”.
++// based on the ABNF for a “Mailbox” from RFC 2821. According to RFC 5280,
++// Section 4.2.1.6 that's correct for an rfc822Name from a certificate: “The
++// format of an rfc822Name is a "Mailbox" as defined in RFC 2821, Section 4.1.2”.
+ func parseRFC2821Mailbox(in string) (mailbox rfc2821Mailbox, ok bool) {
+ 	if len(in) == 0 {
+ 		return mailbox, false
+@@ -242,9 +241,8 @@ func parseRFC2821Mailbox(in string) (mailbox rfc2821Mailbox, ok bool) {
+ 		// quoted-pair = ("\" text) / obs-qp
+ 		// text = %d1-9 / %d11 / %d12 / %d14-127 / obs-text
+ 		//
+-		// (Names beginning with “obs-” are the obsolete syntax from
+-		// https://tools.ietf.org/html/rfc2822#section-4. Since it has
+-		// been 16 years, we no longer accept that.)
++		// (Names beginning with “obs-” are the obsolete syntax from RFC 2822,
++		// Section 4. Since it has been 16 years, we no longer accept that.)
+ 		in = in[1:]
+ 	QuotedString:
+ 		for {
+@@ -298,7 +296,7 @@ func parseRFC2821Mailbox(in string) (mailbox rfc2821Mailbox, ok bool) {
+ 		// Atom ("." Atom)*
+ 	NextChar:
+ 		for len(in) > 0 {
+-			// atext from https://tools.ietf.org/html/rfc2822#section-3.2.4
++			// atext from RFC 2822, Section 3.2.4
+ 			c := in[0]
+ 
+ 			switch {
+@@ -334,7 +332,7 @@ func parseRFC2821Mailbox(in string) (mailbox rfc2821Mailbox, ok bool) {
+ 			return mailbox, false
+ 		}
+ 
+-		// https://tools.ietf.org/html/rfc3696#section-3
++		// From RFC 3696, Section 3:
+ 		// “period (".") may also appear, but may not be used to start
+ 		// or end the local part, nor may two or more consecutive
+ 		// periods appear.”
+@@ -415,7 +413,7 @@ func matchEmailConstraint(mailbox rfc2821Mailbox, constraint string) (bool, erro
+ }
+ 
+ func matchURIConstraint(uri *url.URL, constraint string) (bool, error) {
+-	// https://tools.ietf.org/html/rfc5280#section-4.2.1.10
++	// From RFC 5280, Section 4.2.1.10:
+ 	// “a uniformResourceIdentifier that does not include an authority
+ 	// component with a host name specified as a fully qualified domain
+ 	// name (e.g., if the URI either does not include an authority
+@@ -987,7 +985,7 @@ func (c *Certificate) VerifyHostname(h string) error {
+ 	}
+ 	if ip := net.ParseIP(candidateIP); ip != nil {
+ 		// We only match IP addresses against IP SANs.
+-		// https://tools.ietf.org/html/rfc6125#appendix-B.2
++		// See RFC 6125, Appendix B.2.
+ 		for _, candidate := range c.IPAddresses {
+ 			if ip.Equal(candidate) {
+ 				return nil
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 2e72471de2..7e8f675886 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -24,6 +24,8 @@ import (
+ 	"encoding/pem"
+ 	"errors"
+ 	"fmt"
++	"golang_org/x/crypto/cryptobyte"
++	cryptobyte_asn1 "golang_org/x/crypto/cryptobyte/asn1"
+ 	"io"
+ 	"math/big"
+ 	"net"
+@@ -32,9 +34,6 @@ import (
+ 	"strings"
+ 	"time"
+ 	"unicode/utf8"
+-
+-	"golang_org/x/crypto/cryptobyte"
+-	cryptobyte_asn1 "golang_org/x/crypto/cryptobyte/asn1"
+ )
+ 
+ // pkixPublicKey reflects a PKIX public key structure. See SubjectPublicKeyInfo
+@@ -78,7 +77,7 @@ func marshalPublicKey(pub interface{}) (publicKeyBytes []byte, publicKeyAlgorith
+ 		}
+ 		publicKeyAlgorithm.Algorithm = oidPublicKeyRSA
+ 		// This is a NULL parameters value which is required by
+-		// https://tools.ietf.org/html/rfc3279#section-2.3.1.
++		// RFC 3279, Section 2.3.1.
+ 		publicKeyAlgorithm.Parameters = asn1.NullRawValue
+ 	case *ecdsa.PublicKey:
+ 		publicKeyBytes = elliptic.Marshal(pub.Curve, pub.X, pub.Y)
+@@ -334,7 +333,7 @@ var signatureAlgorithmDetails = []struct {
+ }
+ 
+ // pssParameters reflects the parameters in an AlgorithmIdentifier that
+-// specifies RSA PSS. See https://tools.ietf.org/html/rfc3447#appendix-A.2.3
++// specifies RSA PSS. See RFC 3447, Appendix A.2.3.
+ type pssParameters struct {
+ 	// The following three fields are not marked as
+ 	// optional because the default values specify SHA-1,
+@@ -413,13 +412,11 @@ func getSignatureAlgorithmFromAI(ai pkix.AlgorithmIdentifier) SignatureAlgorithm
+ 		return UnknownSignatureAlgorithm
+ 	}
+ 
+-	// PSS is greatly overburdened with options. This code forces
+-	// them into three buckets by requiring that the MGF1 hash
+-	// function always match the message hash function (as
+-	// recommended in
+-	// https://tools.ietf.org/html/rfc3447#section-8.1), that the
+-	// salt length matches the hash length, and that the trailer
+-	// field has the default value.
++	// PSS is greatly overburdened with options. This code forces them into
++	// three buckets by requiring that the MGF1 hash function always match the
++	// message hash function (as recommended in RFC 3447, Section 8.1), that the
++	// salt length matches the hash length, and that the trailer field has the
++	// default value.
+ 	if (len(params.Hash.Parameters.FullBytes) != 0 && !bytes.Equal(params.Hash.Parameters.FullBytes, asn1.NullBytes)) ||
+ 		!params.MGF.Algorithm.Equal(oidMGF1) ||
+ 		!mgf1HashFunc.Algorithm.Equal(params.Hash.Algorithm) ||
+@@ -987,8 +984,8 @@ func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{
+ 	asn1Data := keyData.PublicKey.RightAlign()
+ 	switch algo {
+ 	case RSA:
+-		// RSA public keys must have a NULL in the parameters
+-		// (https://tools.ietf.org/html/rfc3279#section-2.3.1).
++		// RSA public keys must have a NULL in the parameters.
++		// See RFC 3279, Section 2.3.1.
+ 		if !bytes.Equal(keyData.Algorithm.Parameters.FullBytes, asn1.NullBytes) {
+ 			return nil, errors.New("x509: RSA key missing NULL parameters")
+ 		}
+@@ -1203,7 +1200,7 @@ func parseNameConstraintsExtension(out *Certificate, e pkix.Extension) (unhandle
+ 	}
+ 
+ 	if !havePermitted && !haveExcluded || len(permitted) == 0 && len(excluded) == 0 {
+-		// https://tools.ietf.org/html/rfc5280#section-4.2.1.10:
++		// From RFC 5280, Section 4.2.1.10:
+ 		//   “either the permittedSubtrees field
+ 		//   or the excludedSubtrees MUST be
+ 		//   present”
+@@ -1798,7 +1795,7 @@ func buildExtensions(template *Certificate, subjectIsEmpty bool, authorityKeyId
+ 	if (len(template.DNSNames) > 0 || len(template.EmailAddresses) > 0 || len(template.IPAddresses) > 0 || len(template.URIs) > 0) &&
+ 		!oidInExtensions(oidExtensionSubjectAltName, template.ExtraExtensions) {
+ 		ret[n].Id = oidExtensionSubjectAltName
+-		// https://tools.ietf.org/html/rfc5280#section-4.2.1.6
++		// From RFC 5280, Section 4.2.1.6:
+ 		// “If the subject field contains an empty sequence ... then
+ 		// subjectAltName extension ... is marked as critical”
+ 		ret[n].Critical = subjectIsEmpty
+@@ -2357,8 +2354,7 @@ func parseRawAttributes(rawAttributes []asn1.RawValue) []pkix.AttributeTypeAndVa
+ // parseCSRExtensions parses the attributes from a CSR and extracts any
+ // requested extensions.
+ func parseCSRExtensions(rawAttributes []asn1.RawValue) ([]pkix.Extension, error) {
+-	// pkcs10Attribute reflects the Attribute structure from section 4.1 of
+-	// https://tools.ietf.org/html/rfc2986.
++	// pkcs10Attribute reflects the Attribute structure from RFC 2986, Section 4.1.
+ 	type pkcs10Attribute struct {
+ 		Id     asn1.ObjectIdentifier
+ 		Values []asn1.RawValue `asn1:"set"`

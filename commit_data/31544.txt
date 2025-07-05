@@ -17,9 +17,182 @@ Date:   Tue Feb 28 22:25:06 2017 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/exec/env_test.go     | 39 +++++++++++++++++++++++++++++++++++++++
  src/os/exec/example_test.go | 12 ++++++++++++
  src/os/exec/exec.go         | 40 ++++++++++++++++++++++++++++++++++++++--
  src/os/exec/exec_test.go    | 20 ++++++++++++++++++++
  4 files changed, 109 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/exec/env_test.go b/src/os/exec/env_test.go
+new file mode 100644
+index 0000000000..b5ac398c27
+--- /dev/null
++++ b/src/os/exec/env_test.go
+@@ -0,0 +1,39 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package exec
++
++import (
++	"reflect"
++	"testing"
++)
++
++func TestDedupEnv(t *testing.T) {
++	tests := []struct {
++		noCase bool
++		in     []string
++		want   []string
++	}{
++		{
++			noCase: true,
++			in:     []string{"k1=v1", "k2=v2", "K1=v3"},
++			want:   []string{"K1=v3", "k2=v2"},
++		},
++		{
++			noCase: false,
++			in:     []string{"k1=v1", "K1=V2", "k1=v3"},
++			want:   []string{"k1=v3", "K1=V2"},
++		},
++		{
++			in:   []string{"=a", "=b", "foo", "bar"},
++			want: []string{"=b", "foo", "bar"},
++		},
++	}
++	for _, tt := range tests {
++		got := dedupEnvCase(tt.noCase, tt.in)
++		if !reflect.DeepEqual(got, tt.want) {
++			t.Errorf("Dedup(%v, %q) = %q; want %q", tt.noCase, tt.in, got, tt.want)
++		}
++	}
++}
+diff --git a/src/os/exec/example_test.go b/src/os/exec/example_test.go
+index 5ccb21af6a..b70b990325 100644
+--- a/src/os/exec/example_test.go
++++ b/src/os/exec/example_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"io"
+ 	"io/ioutil"
+ 	"log"
++	"os"
+ 	"os/exec"
+ 	"strings"
+ 	"time"
+@@ -37,6 +38,17 @@ func ExampleCommand() {
+ 	fmt.Printf("in all caps: %q\n", out.String())
+ }
+ 
++func ExampleCommand_environment() {
++	cmd := exec.Command("prog")
++	cmd.Env = append(os.Environ(),
++		"FOO=duplicate_value", // ignored
++		"FOO=actual_value",    // this value is used
++	)
++	if err := cmd.Run(); err != nil {
++		log.Fatal(err)
++	}
++}
++
+ func ExampleCmd_Output() {
+ 	out, err := exec.Command("date").Output()
+ 	if err != nil {
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index c4c5168b98..2bfc34f5ca 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -55,7 +55,11 @@ type Cmd struct {
+ 	Args []string
+ 
+ 	// Env specifies the environment of the process.
+-	// If Env is nil, Run uses the current process's environment.
++	// Each entry is of the form "key=value".
++	// If Env is nil, the new process uses the current process's
++	// environment.
++	// If Env contains duplicate environment keys, only the last
++	// value in the slice for each duplicate key is used.
+ 	Env []string
+ 
+ 	// Dir specifies the working directory of the command.
+@@ -354,7 +358,7 @@ func (c *Cmd) Start() error {
+ 	c.Process, err = os.StartProcess(c.Path, c.argv(), &os.ProcAttr{
+ 		Dir:   c.Dir,
+ 		Files: c.childFiles,
+-		Env:   c.envv(),
++		Env:   dedupEnv(c.envv()),
+ 		Sys:   c.SysProcAttr,
+ 	})
+ 	if err != nil {
+@@ -712,3 +716,35 @@ func minInt(a, b int) int {
+ 	}
+ 	return b
+ }
++
++// dedupEnv returns a copy of env with any duplicates removed, in favor of
++// later values.
++// Items not of the normal environment "key=value" form are preserved unchanged.
++func dedupEnv(env []string) []string {
++	return dedupEnvCase(runtime.GOOS == "windows", env)
++}
++
++// dedupEnvCase is dedupEnv with a case option for testing.
++// If caseInsensitive is true, the case of keys is ignored.
++func dedupEnvCase(caseInsensitive bool, env []string) []string {
++	out := make([]string, 0, len(env))
++	saw := map[string]int{} // key => index into out
++	for _, kv := range env {
++		eq := strings.Index(kv, "=")
++		if eq < 0 {
++			out = append(out, kv)
++			continue
++		}
++		k := kv[:eq]
++		if caseInsensitive {
++			k = strings.ToLower(k)
++		}
++		if dupIdx, isDup := saw[k]; isDup {
++			out[dupIdx] = kv
++			continue
++		}
++		saw[k] = len(out)
++		out = append(out, kv)
++	}
++	return out
++}
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 13bc39794b..7b69db7c76 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -693,6 +693,11 @@ func TestHelperProcess(*testing.T) {
+ 			iargs = append(iargs, s)
+ 		}
+ 		fmt.Println(iargs...)
++	case "echoenv":
++		for _, s := range args {
++			fmt.Println(os.Getenv(s))
++		}
++		os.Exit(0)
+ 	case "cat":
+ 		if len(args) == 0 {
+ 			io.Copy(os.Stdout, os.Stdin)
+@@ -1043,3 +1048,18 @@ func TestContextCancel(t *testing.T) {
+ 		t.Logf("exit status: %v", err)
+ 	}
+ }
++
++// test that environment variables are de-duped.
++func TestDedupEnvEcho(t *testing.T) {
++	testenv.MustHaveExec(t)
++
++	cmd := helperCommand(t, "echoenv", "FOO")
++	cmd.Env = append(cmd.Env, "FOO=bad", "FOO=good")
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatal(err)
++	}
++	if got, want := strings.TrimSpace(string(out)), "good"; got != want {
++		t.Errorf("output = %q; want %q", got, want)
++	}
++}

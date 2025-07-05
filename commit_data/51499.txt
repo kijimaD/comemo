@@ -12,6 +12,20 @@ Date:   Sun Feb 6 19:34:32 2022 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/tempfile.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/tempfile.go b/src/os/tempfile.go
+index 5b681fcebf..3be3d13dfb 100644
+--- a/src/os/tempfile.go
++++ b/src/os/tempfile.go
+@@ -46,7 +46,7 @@ func CreateTemp(dir, pattern string) (*File, error) {
+ 			if try++; try < 10000 {
+ 				continue
+ 			}
+-			return nil, &PathError{Op: "createtemp", Path: dir + string(PathSeparator) + prefix + "*" + suffix, Err: ErrExist}
++			return nil, &PathError{Op: "createtemp", Path: prefix + "*" + suffix, Err: ErrExist}
+ 		}
+ 		return f, err
+ 	}

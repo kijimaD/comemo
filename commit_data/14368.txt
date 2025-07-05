@@ -7,6 +7,20 @@ Date:   Thu Nov 8 23:48:13 2012 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6810102
-
+---
  src/pkg/runtime/pprof/pprof.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/pprof/pprof.go b/src/pkg/runtime/pprof/pprof.go
+index 952ccf6d89..ee81c94a25 100644
+--- a/src/pkg/runtime/pprof/pprof.go
++++ b/src/pkg/runtime/pprof/pprof.go
+@@ -38,7 +38,7 @@ import (
+ //	threadcreate - stack traces that led to the creation of new OS threads
+ //	block        - stack traces that led to blocking on synchronization primitives
+ //
+-// These predefine profiles maintain themselves and panic on an explicit
++// These predefined profiles maintain themselves and panic on an explicit
+ // Add or Remove method call.
+ //
+ // The CPU profile is not available as a Profile.  It has a special API,

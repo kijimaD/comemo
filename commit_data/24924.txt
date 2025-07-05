@@ -12,6 +12,33 @@ Date:   Wed Sep 9 11:01:01 2015 -0700
     Change-Id: Ib701f867d117931eb6ec6de223941b52eb6cd4a7
     Reviewed-on: https://go-review.googlesource.com/14441
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/doc/main.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/cmd/doc/main.go b/src/cmd/doc/main.go
+index 0985d95b60..1f503e92fa 100644
+--- a/src/cmd/doc/main.go
++++ b/src/cmd/doc/main.go
+@@ -87,6 +87,7 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
+ 	buildPackage, userPath, symbol := parseArgs(flagSet.Args())
+ 	symbol, method := parseSymbol(symbol)
+ 	pkg := parsePackage(writer, buildPackage, userPath)
++
+ 	defer func() {
+ 		pkg.flush()
+ 		e := recover()
+@@ -100,6 +101,13 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
+ 		}
+ 		panic(e)
+ 	}()
++
++	// The builtin package needs special treatment: its symbols are lower
++	// case but we want to see them, always.
++	if pkg.build.ImportPath == "builtin" {
++		unexported = true
++	}
++
+ 	switch {
+ 	case symbol == "":
+ 		pkg.packageDoc()

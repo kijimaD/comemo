@@ -19,7 +19,7 @@ Date:   Tue Mar 4 13:53:08 2014 -0500
     R=khr, dvyukov
     CC=golang-codereviews
     https://golang.org/cl/71030044
-
+---
  include/link.h                 |  2 +-
  src/cmd/5g/gsubr.c             |  2 ++
  src/cmd/6g/gsubr.c             |  2 ++
@@ -36,3 +36,446 @@ Date:   Tue Mar 4 13:53:08 2014 -0500
  src/pkg/runtime/asm_amd64p32.s | 40 ++++++++++++++++++++++++++++++++++++++++
  src/pkg/runtime/asm_arm.s      |  4 ++++
  15 files changed, 135 insertions(+), 20 deletions(-)
+
+diff --git a/include/link.h b/include/link.h
+index 53c5c55822..a762424d22 100644
+--- a/include/link.h
++++ b/include/link.h
+@@ -356,7 +356,7 @@ struct	Link
+ 	LSym*	sym_divu;
+ 	LSym*	sym_mod;
+ 	LSym*	sym_modu;
+-	LSym*	symmorestack[10];
++	LSym*	symmorestack[20];
+ 	LSym*	gmsym;
+ 	LSym*	plan9tos;
+ 	Prog*	curp;
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 0daf40fa8d..72c880cf7d 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -1264,6 +1264,8 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		break;
+ 	
+ 	case OCLOSUREVAR:
++		if(!curfn->needctxt)
++			fatal("closurevar without needctxt");
+ 		a->type = D_OREG;
+ 		a->reg = 7;
+ 		a->offset = n->xoffset;
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index e8a62fb8a6..14cefc35a0 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -1186,6 +1186,8 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		break;
+ 	
+ 	case OCLOSUREVAR:
++		if(!curfn->needctxt)
++			fatal("closurevar without needctxt");
+ 		a->type = D_DX+D_INDIR;
+ 		a->sym = nil;
+ 		a->offset = n->xoffset;
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index ebc3fa81c9..60c74c60ec 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -2211,6 +2211,8 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		break;
+ 
+ 	case OCLOSUREVAR:
++		if(!curfn->needctxt)
++			fatal("closurevar without needctxt");
+ 		a->type = D_DX+D_INDIR;
+ 		a->offset = n->xoffset;
+ 		a->sym = nil;
+diff --git a/src/cmd/gc/closure.c b/src/cmd/gc/closure.c
+index 5a84dfb1be..ee2750b582 100644
+--- a/src/cmd/gc/closure.c
++++ b/src/cmd/gc/closure.c
+@@ -161,6 +161,7 @@ makeclosure(Node *func)
+ 	// and initialize in entry prologue.
+ 	body = nil;
+ 	offset = widthptr;
++	xfunc->needctxt = func->cvars != nil;
+ 	for(l=func->cvars; l; l=l->next) {
+ 		v = l->n;
+ 		if(v->op == 0)
+@@ -361,6 +362,7 @@ makepartialcall(Node *fn, Type *t0, Node *meth)
+ 
+ 	// Declare and initialize variable holding receiver.
+ 	body = nil;
++	xfunc->needctxt = 1;
+ 	cv = nod(OCLOSUREVAR, N, N);
+ 	cv->xoffset = widthptr;
+ 	cv->type = rcvrtype;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 89cda3c3b1..3750413a81 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -283,6 +283,7 @@ struct	Node
+ 	schar	likely; // likeliness of if statement
+ 	uchar	hasbreak;	// has break statement
+ 	uchar	needzero; // if it contains pointers, needs to be zeroed on function entry
++	uchar	needctxt;	// function uses context register (has closure variables)
+ 	uint	esc;		// EscXXX
+ 	int	funcdepth;
+ 
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index f819f923cb..37d603cb0f 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -192,6 +192,8 @@ compile(Node *fn)
+ 		ptxt->TEXTFLAG |= DUPOK;
+ 	if(fn->wrapper)
+ 		ptxt->TEXTFLAG |= WRAPPER;
++	if(fn->needctxt)
++		ptxt->TEXTFLAG |= NEEDCTXT;
+ 
+ 	// Clumsy but important.
+ 	// See test/recover.go for test cases and src/pkg/reflect/value.go
+diff --git a/src/cmd/ld/textflag.h b/src/cmd/ld/textflag.h
+index 1d62db7368..2a76e76c29 100644
+--- a/src/cmd/ld/textflag.h
++++ b/src/cmd/ld/textflag.h
+@@ -19,3 +19,5 @@
+ #define NOPTR	16
+ // This is a wrapper function and should not count as disabling 'recover'.
+ #define WRAPPER 32
++// This function uses its incoming context register.
++#define NEEDCTXT 64
+diff --git a/src/liblink/obj5.c b/src/liblink/obj5.c
+index ce9d4f6541..91d13d8c18 100644
+--- a/src/liblink/obj5.c
++++ b/src/liblink/obj5.c
+@@ -194,7 +194,7 @@ prg(void)
+ 	return p;
+ }
+ 
+-static	Prog*	stacksplit(Link*, Prog*, int32);
++static	Prog*	stacksplit(Link*, Prog*, int32, int);
+ static	void		initdiv(Link*);
+ static	void	softfloat(Link*, LSym*);
+ 
+@@ -237,9 +237,11 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 	
+ 	autosize = 0;
+ 
+-	if(ctxt->symmorestack[0] == nil)
++	if(ctxt->symmorestack[0] == nil) {
+ 		ctxt->symmorestack[0] = linklookup(ctxt, "runtime.morestack", 0);
+-	
++		ctxt->symmorestack[1] = linklookup(ctxt, "runtime.morestack_noctxt", 0);
++	}
++
+ 	q = nil;
+ 	
+ 	ctxt->cursym = cursym;
+@@ -409,7 +411,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 			}
+ 
+ 			if(!(p->reg & NOSPLIT))
+-				p = stacksplit(ctxt, p, autosize); // emit split check
++				p = stacksplit(ctxt, p, autosize, !(cursym->text->from.scale&NEEDCTXT)); // emit split check
+ 			
+ 			// MOVW.W		R14,$-autosize(SP)
+ 			p = appendp(ctxt, p);
+@@ -727,7 +729,7 @@ softfloat(Link *ctxt, LSym *cursym)
+ }
+ 
+ static Prog*
+-stacksplit(Link *ctxt, Prog *p, int32 framesize)
++stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
+ {
+ 	int32 arg;
+ 
+@@ -851,7 +853,7 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize)
+ 	p->as = ABL;
+ 	p->scond = C_SCOND_LS;
+ 	p->to.type = D_BRANCH;
+-	p->to.sym = ctxt->symmorestack[0];
++	p->to.sym = ctxt->symmorestack[noctxt];
+ 	
+ 	// BLS	start
+ 	p = appendp(ctxt, p);
+diff --git a/src/liblink/obj6.c b/src/liblink/obj6.c
+index 9b99a59951..036e20c8d4 100644
+--- a/src/liblink/obj6.c
++++ b/src/liblink/obj6.c
+@@ -342,20 +342,30 @@ static char*
+ morename[] =
+ {
+ 	"runtime.morestack00",
++	"runtime.morestack00_noctxt",
+ 	"runtime.morestack10",
++	"runtime.morestack10_noctxt",
+ 	"runtime.morestack01",
++	"runtime.morestack01_noctxt",
+ 	"runtime.morestack11",
++	"runtime.morestack11_noctxt",
+ 
+ 	"runtime.morestack8",
++	"runtime.morestack8_noctxt",
+ 	"runtime.morestack16",
++	"runtime.morestack16_noctxt",
+ 	"runtime.morestack24",
++	"runtime.morestack24_noctxt",
+ 	"runtime.morestack32",
++	"runtime.morestack32_noctxt",
+ 	"runtime.morestack40",
++	"runtime.morestack40_noctxt",
+ 	"runtime.morestack48",
++	"runtime.morestack48_noctxt",
+ };
+ 
+ static Prog*	load_g_cx(Link*, Prog*);
+-static Prog*	stacksplit(Link*, Prog*, int32, int32, Prog**);
++static Prog*	stacksplit(Link*, Prog*, int32, int32, int, Prog**);
+ static void	indir_cx(Link*, Addr*);
+ 
+ static void
+@@ -419,7 +429,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 		p = load_g_cx(ctxt, p); // load g into CX
+ 	}
+ 	if(!(cursym->text->from.scale & NOSPLIT))
+-		p = stacksplit(ctxt, p, autoffset, textarg, &q); // emit split check
++		p = stacksplit(ctxt, p, autoffset, textarg, !(cursym->text->from.scale&NEEDCTXT), &q); // emit split check
+ 
+ 	if(autoffset) {
+ 		if(autoffset%ctxt->arch->regsize != 0)
+@@ -674,7 +684,7 @@ load_g_cx(Link *ctxt, Prog *p)
+ // On return, *jmpok is the instruction that should jump
+ // to the stack frame allocation if no split is needed.
+ static Prog*
+-stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, Prog **jmpok)
++stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, int noctxt, Prog **jmpok)
+ {
+ 	Prog *q, *q1;
+ 	uint32 moreconst1, moreconst2, i;
+@@ -822,7 +832,7 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, Prog **jmpok)
+ 	if(moreconst1 == 0 && moreconst2 == 0) {
+ 		p->as = ACALL;
+ 		p->to.type = D_BRANCH;
+-		p->to.sym = ctxt->symmorestack[0];
++		p->to.sym = ctxt->symmorestack[0*2+noctxt];
+ 	} else
+ 	if(moreconst1 != 0 && moreconst2 == 0) {
+ 		p->as = AMOVL;
+@@ -833,13 +843,13 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, Prog **jmpok)
+ 		p = appendp(ctxt, p);
+ 		p->as = ACALL;
+ 		p->to.type = D_BRANCH;
+-		p->to.sym = ctxt->symmorestack[1];
++		p->to.sym = ctxt->symmorestack[1*2+noctxt];
+ 	} else
+ 	if(moreconst1 == 0 && moreconst2 <= 48 && moreconst2%8 == 0) {
+ 		i = moreconst2/8 + 3;
+ 		p->as = ACALL;
+ 		p->to.type = D_BRANCH;
+-		p->to.sym = ctxt->symmorestack[i];
++		p->to.sym = ctxt->symmorestack[i*2+noctxt];
+ 	} else
+ 	if(moreconst1 == 0 && moreconst2 != 0) {
+ 		p->as = AMOVL;
+@@ -850,7 +860,7 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, Prog **jmpok)
+ 		p = appendp(ctxt, p);
+ 		p->as = ACALL;
+ 		p->to.type = D_BRANCH;
+-		p->to.sym = ctxt->symmorestack[2];
++		p->to.sym = ctxt->symmorestack[2*2+noctxt];
+ 	} else {
+ 		p->as = mov;
+ 		p->from.type = D_CONST;
+@@ -861,7 +871,7 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, Prog **jmpok)
+ 		p = appendp(ctxt, p);
+ 		p->as = ACALL;
+ 		p->to.type = D_BRANCH;
+-		p->to.sym = ctxt->symmorestack[3];
++		p->to.sym = ctxt->symmorestack[3*2+noctxt];
+ 	}
+ 	
+ 	p = appendp(ctxt, p);
+diff --git a/src/liblink/obj8.c b/src/liblink/obj8.c
+index adee8c6c5b..6e40d04a56 100644
+--- a/src/liblink/obj8.c
++++ b/src/liblink/obj8.c
+@@ -256,7 +256,7 @@ prg(void)
+ }
+ 
+ static Prog*	load_g_cx(Link*, Prog*);
+-static Prog*	stacksplit(Link*, Prog*, int32, Prog**);
++static Prog*	stacksplit(Link*, Prog*, int32, int, Prog**);
+ 
+ static void
+ addstacksplit(Link *ctxt, LSym *cursym)
+@@ -265,8 +265,10 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 	int32 autoffset, deltasp;
+ 	int a;
+ 
+-	if(ctxt->symmorestack[0] == nil)
++	if(ctxt->symmorestack[0] == nil) {
+ 		ctxt->symmorestack[0] = linklookup(ctxt, "runtime.morestack", 0);
++		ctxt->symmorestack[1] = linklookup(ctxt, "runtime.morestack_noctxt", 0);
++	}
+ 
+ 	if(ctxt->headtype == Hplan9 && ctxt->plan9tos == nil)
+ 		ctxt->plan9tos = linklookup(ctxt, "_tos", 0);
+@@ -291,7 +293,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 		p = load_g_cx(ctxt, p); // load g into CX
+ 	}
+ 	if(!(cursym->text->from.scale & NOSPLIT))
+-		p = stacksplit(ctxt, p, autoffset, &q); // emit split check
++		p = stacksplit(ctxt, p, autoffset, !(cursym->text->from.scale&NEEDCTXT), &q); // emit split check
+ 
+ 	if(autoffset) {
+ 		p = appendp(ctxt, p);
+@@ -499,7 +501,7 @@ load_g_cx(Link *ctxt, Prog *p)
+ // On return, *jmpok is the instruction that should jump
+ // to the stack frame allocation if no split is needed.
+ static Prog*
+-stacksplit(Link *ctxt, Prog *p, int32 framesize, Prog **jmpok)
++stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt, Prog **jmpok)
+ {
+ 	Prog *q, *q1;
+ 	int arg;
+@@ -642,7 +644,7 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, Prog **jmpok)
+ 	p = appendp(ctxt, p);
+ 	p->as = ACALL;
+ 	p->to.type = D_BRANCH;
+-	p->to.sym = ctxt->symmorestack[0];
++	p->to.sym = ctxt->symmorestack[noctxt];
+ 
+ 	p = appendp(ctxt, p);
+ 	p->as = AJMP;
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 708d24a725..df2ed464e5 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -247,6 +247,10 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
+ 	MOVL	$0, 0x1003	// crash if newstack returns
+ 	RET
+ 
++TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0-0
++	MOVL	$0, DX
++	JMP runtime·morestack(SB)
++
+ // Called from panic.  Mimics morestack,
+ // reuses stack growth code to create a frame
+ // with the desired args running the desired function.
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 825fc3254c..3153de47e4 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -456,6 +456,46 @@ TEXT morestack<>(SB),NOSPLIT,$0
+ 	MOVQ	$runtime·morestack(SB), AX
+ 	JMP	AX
+ 
++TEXT runtime·morestack00_noctxt(SB),NOSPLIT,$0
++	MOVL	$0, DX
++	JMP	runtime·morestack00(SB)
++
++TEXT runtime·morestack01_noctxt(SB),NOSPLIT,$0
++	MOVL	$0, DX
++	JMP	runtime·morestack01(SB)
++
++TEXT runtime·morestack10_noctxt(SB),NOSPLIT,$0
++	MOVL	$0, DX
++	JMP	runtime·morestack10(SB)
++
++TEXT runtime·morestack11_noctxt(SB),NOSPLIT,$0
++	MOVL	$0, DX
++	JMP	runtime·morestack11(SB)
++
++TEXT runtime·morestack8_noctxt(SB),NOSPLIT,$0
++	MOVL	$0, DX
++	JMP	runtime·morestack8(SB)
++
++TEXT runtime·morestack16_noctxt(SB),NOSPLIT,$0
++	MOVL	$0, DX
++	JMP	runtime·morestack16(SB)
++
++TEXT runtime·morestack24_noctxt(SB),NOSPLIT,$0
++	MOVL	$0, DX
++	JMP	runtime·morestack24(SB)
++
++TEXT runtime·morestack32_noctxt(SB),NOSPLIT,$0
++	MOVL	$0, DX
++	JMP	runtime·morestack32(SB)
++
++TEXT runtime·morestack40_noctxt(SB),NOSPLIT,$0
++	MOVL	$0, DX
++	JMP	runtime·morestack40(SB)
++
++TEXT runtime·morestack48_noctxt(SB),NOSPLIT,$0
++	MOVL	$0, DX
++	JMP	runtime·morestack48(SB)
++
+ // bool cas(int32 *val, int32 old, int32 new)
+ // Atomically:
+ //	if(*val == old){
+diff --git a/src/pkg/runtime/asm_amd64p32.s b/src/pkg/runtime/asm_amd64p32.s
+index efa894bae0..93c1c8fbae 100644
+--- a/src/pkg/runtime/asm_amd64p32.s
++++ b/src/pkg/runtime/asm_amd64p32.s
+@@ -437,6 +437,46 @@ TEXT morestack<>(SB),NOSPLIT,$0
+ 	MOVL	$runtime·morestack(SB), AX
+ 	JMP	AX
+ 
++TEXT runtime·morestack00_noctxt(SB),NOSPLIT,$0
++	MOVL	$0, DX
++	JMP	runtime·morestack00(SB)
++
++TEXT runtime·morestack01_noctxt(SB),NOSPLIT,$0
++	MOVL	$0, DX
++	JMP	runtime·morestack01(SB)
++
++TEXT runtime·morestack10_noctxt(SB),NOSPLIT,$0
++	MOVL	$0, DX
++	JMP	runtime·morestack10(SB)
++
++TEXT runtime·morestack11_noctxt(SB),NOSPLIT,$0
++	MOVL	$0, DX
++	JMP	runtime·morestack11(SB)
++
++TEXT runtime·morestack8_noctxt(SB),NOSPLIT,$0
++	MOVL	$0, DX
++	JMP	runtime·morestack8(SB)
++
++TEXT runtime·morestack16_noctxt(SB),NOSPLIT,$0
++	MOVL	$0, DX
++	JMP	runtime·morestack16(SB)
++
++TEXT runtime·morestack24_noctxt(SB),NOSPLIT,$0
++	MOVL	$0, DX
++	JMP	runtime·morestack24(SB)
++
++TEXT runtime·morestack32_noctxt(SB),NOSPLIT,$0
++	MOVL	$0, DX
++	JMP	runtime·morestack32(SB)
++
++TEXT runtime·morestack40_noctxt(SB),NOSPLIT,$0
++	MOVL	$0, DX
++	JMP	runtime·morestack40(SB)
++
++TEXT runtime·morestack48_noctxt(SB),NOSPLIT,$0
++	MOVL	$0, DX
++	JMP	runtime·morestack48(SB)
++
+ // bool cas(int32 *val, int32 old, int32 new)
+ // Atomically:
+ //	if(*val == old){
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 1591136bc7..aa171d7be9 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -213,6 +213,10 @@ TEXT runtime·morestack(SB),NOSPLIT,$-4-0
+ 	// is still in this function, and not the beginning of the next.
+ 	RET
+ 
++TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-4-0
++	MOVW	$0, R7
++	JMP runtime·morestack(SB)
++
+ // Called from panic.  Mimics morestack,
+ // reuses stack growth code to create a frame
+ // with the desired args running the desired function.

@@ -20,9 +20,62 @@ Date:   Thu Aug 25 11:14:15 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
     Reviewed-by: WANG Xuerui <git@xen0n.name>
-
+---
  misc/cgo/testcshared/testdata/libgo2/dup2.go | 2 +-
  misc/cgo/testcshared/testdata/libgo2/dup3.go | 2 +-
  src/cmd/dist/test.go                         | 2 +-
  src/internal/platform/supported.go           | 2 +-
  4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/misc/cgo/testcshared/testdata/libgo2/dup2.go b/misc/cgo/testcshared/testdata/libgo2/dup2.go
+index ef86083a03..d50e0c42ab 100644
+--- a/misc/cgo/testcshared/testdata/libgo2/dup2.go
++++ b/misc/cgo/testcshared/testdata/libgo2/dup2.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build darwin || dragonfly || freebsd || (linux && !arm64 && !riscv64) || netbsd || openbsd
++//go:build darwin || dragonfly || freebsd || (linux && !arm64 && !loong64 && !riscv64) || netbsd || openbsd
+ 
+ package main
+ 
+diff --git a/misc/cgo/testcshared/testdata/libgo2/dup3.go b/misc/cgo/testcshared/testdata/libgo2/dup3.go
+index 913c4bbaca..ec4b5a73ec 100644
+--- a/misc/cgo/testcshared/testdata/libgo2/dup3.go
++++ b/misc/cgo/testcshared/testdata/libgo2/dup3.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (linux && arm64) || (linux && riscv64)
++//go:build (linux && arm64) || (linux && loong64) || (linux && riscv64)
+ 
+ package main
+ 
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index b7c200af36..f58b49e028 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1716,7 +1716,7 @@ func buildModeSupported(compiler, buildmode, goos, goarch string) bool {
+ 
+ 	case "c-shared":
+ 		switch platform {
+-		case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/ppc64le", "linux/riscv64", "linux/s390x",
++		case "linux/amd64", "linux/arm", "linux/arm64", "linux/loong64", "linux/386", "linux/ppc64le", "linux/riscv64", "linux/s390x",
+ 			"android/amd64", "android/arm", "android/arm64", "android/386",
+ 			"freebsd/amd64",
+ 			"darwin/amd64", "darwin/arm64",
+diff --git a/src/internal/platform/supported.go b/src/internal/platform/supported.go
+index 7039c76774..01524fbcd7 100644
+--- a/src/internal/platform/supported.go
++++ b/src/internal/platform/supported.go
+@@ -157,7 +157,7 @@ func BuildModeSupported(compiler, buildmode, goos, goarch string) bool {
+ 
+ 	case "c-shared":
+ 		switch platform {
+-		case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/ppc64le", "linux/riscv64", "linux/s390x",
++		case "linux/amd64", "linux/arm", "linux/arm64", "linux/loong64", "linux/386", "linux/ppc64le", "linux/riscv64", "linux/s390x",
+ 			"android/amd64", "android/arm", "android/arm64", "android/386",
+ 			"freebsd/amd64",
+ 			"darwin/amd64", "darwin/arm64",

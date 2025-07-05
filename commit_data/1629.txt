@@ -8,7 +8,7 @@ Date:   Fri Feb 6 13:46:56 2009 -0800
     DELTA=257  (250 added, 1 deleted, 6 changed)
     OCL=24509
     CL=24565
-
+---
  src/libmach_amd64/8db.c |  19 ++++++-
  src/runtime/malloc.c    |   2 +-
  src/runtime/mem.c       |   4 +-
@@ -16,3 +16,380 @@ Date:   Fri Feb 6 13:46:56 2009 -0800
  test/closure.go         |  88 ++++++++++++++++++++++++++++++
  test/stack.go           |  14 ++++-
  6 files changed, 260 insertions(+), 7 deletions(-)
+
+diff --git a/src/libmach_amd64/8db.c b/src/libmach_amd64/8db.c
+index 2a7d595b2c..8706d57289 100644
+--- a/src/libmach_amd64/8db.c
++++ b/src/libmach_amd64/8db.c
+@@ -167,7 +167,23 @@ i386trace(Map *map, uvlong pc, uvlong sp, uvlong link, Tracer trace)
+ 	USED(link);
+ 	osp = 0;
+ 	i = 0;
+-	while(findsym(pc, CTEXT, &s)) {
++
++	for(;;) {
++		if(!findsym(pc, CTEXT, &s)) {
++			// check for closure return sequence
++			uchar buf[8];
++			if(get1(map, pc, buf, 8) < 0)
++				break;
++			// ADDQ $xxx, SP; RET
++			if(buf[0] != 0x48 || buf[1] != 0x81 || buf[2] != 0xc4 || buf[7] != 0xc3)
++				break;
++			sp += buf[3] | (buf[4]<<8) | (buf[5]<<16) | (buf[6]<<24);
++			if(geta(map, sp, &pc) < 0)
++				break;
++			sp += mach->szaddr;
++			continue;
++		}
++
+ 		if (osp == sp)
+ 			break;
+ 		osp = sp;
+@@ -186,7 +202,6 @@ i386trace(Map *map, uvlong pc, uvlong sp, uvlong link, Tracer trace)
+ 			(*trace)(map, pc, sp +  8, &s1);
+ 			sp += 16;  // two irrelevant calls on stack - morestack, plus the call morestack made
+ 			continue;
+-			break;
+ 		}
+ 		s1 = s;
+ 		pc1 = 0;
+diff --git a/src/runtime/malloc.c b/src/runtime/malloc.c
+index 74354357c5..ac5de61a5a 100644
+--- a/src/runtime/malloc.c
++++ b/src/runtime/malloc.c
+@@ -203,7 +203,7 @@ void*
+ SysAlloc(uintptr n)
+ {
+ 	mstats.sys += n;
+-	return sys_mmap(nil, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, 0, 0);
++	return sys_mmap(nil, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, 0, 0);
+ }
+ 
+ void
+diff --git a/src/runtime/mem.c b/src/runtime/mem.c
+index 9d6a3969b5..e2208d7bd3 100644
+--- a/src/runtime/mem.c
++++ b/src/runtime/mem.c
+@@ -29,7 +29,7 @@ brk(uint32 n)
+ {
+ 	byte *v;
+ 
+-	v = sys_mmap(nil, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, 0, 0);
++	v = sys_mmap(nil, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, 0, 0);
+ 	m->mem.nmmap += n;
+ 	return v;
+ }
+@@ -64,7 +64,7 @@ oldmal(uint32 n)
+ 			// so we have to call sys_mmap directly - it is written
+ 			// in assembly and tagged not to grow the stack.
+ 			m->mem.hunk =
+-				sys_mmap(nil, NHUNK, PROT_READ|PROT_WRITE,
++				sys_mmap(nil, NHUNK, PROT_READ|PROT_WRITE|PROT_EXEC,
+ 					MAP_ANON|MAP_PRIVATE, 0, 0);
+ 			m->mem.nhunk = NHUNK;
+ 			m->mem.nmmap += NHUNK;
+diff --git a/src/runtime/rt2_amd64.c b/src/runtime/rt2_amd64.c
+index 762eaad581..84ae0b1ba8 100644
+--- a/src/runtime/rt2_amd64.c
++++ b/src/runtime/rt2_amd64.c
+@@ -15,6 +15,7 @@ traceback(byte *pc0, byte *sp, G *g)
+ 	uint64 pc;
+ 	int32 i, n;
+ 	Func *f;
++	byte *p;
+ 
+ 	pc = (uint64)pc0;
+ 
+@@ -36,6 +37,16 @@ traceback(byte *pc0, byte *sp, G *g)
+ 		}
+ 		f = findfunc(pc);
+ 		if(f == nil) {
++			// dangerous, but poke around to see if it is a closure
++			p = (byte*)pc;
++			// ADDQ $xxx, SP; RET
++			if(p[0] == 0x48 && p[1] == 0x81 && p[2] == 0xc4 && p[7] == 0xc3) {
++				sp += *(uint32*)(p+3) + 8;
++				pc = *(uint64*)(sp - 8);
++				if(pc <= 0x1000)
++					return;
++				continue;
++			}
+ 			printf("%p unknown pc\n", pc);
+ 			return;
+ 		}
+@@ -76,6 +87,7 @@ sys·Caller(int32 n, uint64 retpc, string retfile, int32 retline, bool retbool)
+ {
+ 	uint64 pc;
+ 	byte *sp;
++	byte *p;
+ 	Stktop *stk;
+ 	Func *f;
+ 
+@@ -110,9 +122,19 @@ sys·Caller(int32 n, uint64 retpc, string retfile, int32 retline, bool retbool)
+ 		else
+ 			sp += f->frame;
+ 
++	loop:
+ 		pc = *(uint64*)(sp-8);
+-		if(pc <= 0x1000 || (f = findfunc(pc)) == nil)
++		if(pc <= 0x1000 || (f = findfunc(pc)) == nil) {
++			// dangerous, but let's try this.
++			// see if it is a closure.
++			p = (byte*)pc;
++			// ADDQ $xxx, SP; RET
++			if(p[0] == 0x48 && p[1] == 0x81 && p[2] == 0xc4 && p[7] == 0xc3) {
++				sp += *(uint32*)(p+3) + 8;
++				goto loop;
++			}
+ 			goto error;
++		}
+ 	}
+ 
+ 	retpc = pc;
+@@ -124,3 +146,119 @@ sys·Caller(int32 n, uint64 retpc, string retfile, int32 retline, bool retbool)
+ 	FLUSH(&retline);
+ 	FLUSH(&retbool);
+ }
++
++#pragma textflag 7
++// func closure(siz int32,
++//	fn func(arg0, arg1, arg2 *ptr, callerpc uintptr, xxx) yyy,
++//	arg0, arg1, arg2 *ptr) (func(xxx) yyy)
++void
++sys·closure(int32 siz, byte *fn, byte *arg0)
++{
++	byte *p, *q, **ret;
++	int32 i, n;
++	int64 pcrel;
++
++	if(siz < 0 || siz%8 != 0)
++		throw("bad closure size");
++
++	ret = (byte**)((byte*)&arg0 + siz);
++
++	if(siz > 100) {
++		// TODO(rsc): implement stack growth preamble?
++		throw("closure too big");
++	}
++
++	// compute size of new fn.
++	// must match code laid out below.
++	n = 7+10+3;	// SUBQ MOVQ MOVQ
++	if(siz <= 4*8)
++		n += 2*siz/8;	// MOVSQ MOVSQ...
++	else
++		n += 7+3;	// MOVQ REP MOVSQ
++	n += 12;	// CALL worst case; sometimes only 5
++	n += 7+1;	// ADDQ RET
++
++	// store args aligned after code, so gc can find them.
++	n += siz;
++	if(n%8)
++		n += 8 - n%8;
++
++	p = mal(n);
++	*ret = p;
++	q = p + n - siz;
++	mcpy(q, (byte*)&arg0, siz);
++
++	// SUBQ $siz, SP
++	*p++ = 0x48;
++	*p++ = 0x81;
++	*p++ = 0xec;
++	*(uint32*)p = siz;
++	p += 4;
++
++	// MOVQ $q, SI
++	*p++ = 0x48;
++	*p++ = 0xbe;
++	*(byte**)p = q;
++	p += 8;
++
++	// MOVQ SP, DI
++	*p++ = 0x48;
++	*p++ = 0x89;
++	*p++ = 0xe7;
++
++	if(siz <= 4*8) {
++		for(i=0; i<siz; i+=8) {
++			// MOVSQ
++			*p++ = 0x48;
++			*p++ = 0xa5;
++		}
++	} else {
++		// MOVQ $(siz/8), CX  [32-bit immediate siz/8]
++		*p++ = 0x48;
++		*p++ = 0xc7;
++		*p++ = 0xc1;
++		*(uint32*)p = siz/8;
++		p += 4;
++
++		// REP; MOVSQ
++		*p++ = 0xf3;
++		*p++ = 0x48;
++		*p++ = 0xa5;
++	}
++
++
++	// call fn
++	pcrel = fn - (p+5);
++	if((int32)pcrel == pcrel) {
++		// can use direct call with pc-relative offset
++		// CALL fn
++		*p++ = 0xe8;
++		*(int32*)p = pcrel;
++		p += 4;
++	} else {
++		// MOVQ $fn, CX  [64-bit immediate fn]
++		*p++ = 0x48;
++		*p++ = 0xb9;
++		*(byte**)p = fn;
++		p += 8;
++
++		// CALL *CX
++		*p++ = 0xff;
++		*p++ = 0xd1;
++	}
++
++	// ADDQ $siz, SP
++	*p++ = 0x48;
++	*p++ = 0x81;
++	*p++ = 0xc4;
++	*(uint32*)p = siz;
++	p += 4;
++
++	// RET
++	*p++ = 0xc3;
++
++	if(p > q)
++		throw("bad math in sys.closure");
++}
++
++
+diff --git a/test/closure.go b/test/closure.go
+new file mode 100644
+index 0000000000..97361a1dfd
+--- /dev/null
++++ b/test/closure.go
+@@ -0,0 +1,88 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var c = make(chan int);
++
++func check(a []int) {
++	for i := 0; i < len(a); i++ {
++		n := <-c;
++		if n != a[i] {
++			panicln("want", a[i], "got", n, "at", i);
++		}
++	}
++}
++
++func f() {
++	var i, j int;
++
++	i = 1;
++	j = 2;
++	f := func() {
++		c <- i;
++		i = 4;
++		g := func() {
++			c <- i;
++			c <- j;
++		};
++		g();
++		c <- i;
++	};
++	j = 5;
++	f();
++}
++
++// Accumulator generator
++func accum(n int) (func(int) int) {
++	return func(i int) int {
++		n += i;
++		return n;
++	}
++}
++
++func g(a, b func(int) int) {
++	c <- a(2);
++	c <- b(3);
++	c <- a(4);
++	c <- b(5);
++}
++
++func h() {
++	var x8 byte = 100;
++	var x64 int64 = 200;
++
++	c <- int(x8);
++	c <- int(x64);
++	f := func(z int) {
++		g := func() {
++			c <- int(x8);
++			c <- int(x64);
++			c <- z;
++		};
++		g();
++		c <- int(x8);
++		c <- int(x64);
++		c <- int(z);
++	};
++	x8 = 101;
++	x64 = 201;
++	f(500);
++}
++
++
++func main() {
++	go f();
++	check([]int{1,4,5,4});
++
++	a := accum(0);
++	b := accum(1);
++	go g(a, b);
++	check([]int{2,4,6,9});
++
++	go h();
++	check([]int{100,200,101,201,500,101,201,500});
++}
+diff --git a/test/stack.go b/test/stack.go
+index 9fecc9102c..7b7d36f916 100644
+--- a/test/stack.go
++++ b/test/stack.go
+@@ -5,7 +5,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Try to tickle stack splitting bugs by doing
+-// go and defer at different stack depths.
++// go, defer, and closure calls at different stack depths.
+ 
+ package main
+ 
+@@ -38,6 +38,18 @@ func recur(n int) {
+ 	if s != len(t) {
+ 		panicln("bad go", s);
+ 	}
++	f := func(t T) int {
++		s := 0;
++		for i := 0; i < len(t); i++ {
++			s += t[i];
++		}
++		s += n;
++		return s;
++	};
++	s = f(t);
++	if s != len(t) + n {
++		panicln("bad func", s, "at level", n);
++	}
+ 	if n > 0 {
+ 		recur(n-1);
+ 	}

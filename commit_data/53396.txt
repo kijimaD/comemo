@@ -10,6 +10,20 @@ Date:   Sat Aug 13 03:56:02 2022 +0800
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/proc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 9a7bd941db..a366f0264d 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -5992,7 +5992,7 @@ func runqget(pp *p) (gp *g, inheritTime bool) {
+ 	next := pp.runnext
+ 	// If the runnext is non-0 and the CAS fails, it could only have been stolen by another P,
+ 	// because other Ps can race to set runnext to 0, but only the current P can set it to non-0.
+-	// Hence, there's no need to retry this CAS if it falls.
++	// Hence, there's no need to retry this CAS if it fails.
+ 	if next != 0 && pp.runnext.cas(next, 0) {
+ 		return next.ptr(), true
+ 	}

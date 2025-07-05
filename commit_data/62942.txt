@@ -14,7 +14,7 @@ Date:   Thu May 1 13:24:50 2025 -0400
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/chan.go      |  10 +--
  src/runtime/coro.go      |  10 +--
  src/runtime/mgc.go       |   8 +-
@@ -28,3 +28,987 @@ Date:   Thu May 1 13:24:50 2025 -0400
  src/runtime/time.go      |  68 +++++++-------
  src/runtime/traceback.go |   4 +-
  12 files changed, 198 insertions(+), 198 deletions(-)
+
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index 8e09653707..cb2737d096 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -113,7 +113,7 @@ func makechan(t *chantype, size int) *hchan {
+ 	c.elemsize = uint16(elem.Size_)
+ 	c.elemtype = elem
+ 	c.dataqsiz = uint(size)
+-	if getg().syncGroup != nil {
++	if getg().bubble != nil {
+ 		c.synctest = true
+ 	}
+ 	lockInit(&c.lock, lockRankHchan)
+@@ -190,7 +190,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
+ 		racereadpc(c.raceaddr(), callerpc, abi.FuncPCABIInternal(chansend))
+ 	}
+ 
+-	if c.synctest && getg().syncGroup == nil {
++	if c.synctest && getg().bubble == nil {
+ 		panic(plainError("send on synctest channel from outside bubble"))
+ 	}
+ 
+@@ -316,7 +316,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
+ // sg must already be dequeued from c.
+ // ep must be non-nil and point to the heap or the caller's stack.
+ func send(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
+-	if c.synctest && sg.g.syncGroup != getg().syncGroup {
++	if c.synctest && sg.g.bubble != getg().bubble {
+ 		unlockf()
+ 		panic(plainError("send on synctest channel from outside bubble"))
+ 	}
+@@ -534,7 +534,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
+ 		throw("unreachable")
+ 	}
+ 
+-	if c.synctest && getg().syncGroup == nil {
++	if c.synctest && getg().bubble == nil {
+ 		panic(plainError("receive on synctest channel from outside bubble"))
+ 	}
+ 
+@@ -697,7 +697,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
+ // sg must already be dequeued from c.
+ // A non-nil ep must point to the heap or the caller's stack.
+ func recv(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
+-	if c.synctest && sg.g.syncGroup != getg().syncGroup {
++	if c.synctest && sg.g.bubble != getg().bubble {
+ 		unlockf()
+ 		panic(plainError("receive on synctest channel from outside bubble"))
+ 	}
+diff --git a/src/runtime/coro.go b/src/runtime/coro.go
+index f2eb8c9802..40d4e47fbe 100644
+--- a/src/runtime/coro.go
++++ b/src/runtime/coro.go
+@@ -138,13 +138,13 @@ func coroswitch_m(gp *g) {
+ 	trace := traceAcquire()
+ 
+ 	canCAS := true
+-	sg := gp.syncGroup
+-	if sg != nil {
++	bubble := gp.bubble
++	if bubble != nil {
+ 		// If we're in a synctest group, always use casgstatus (which tracks
+ 		// group idleness) rather than directly CASing. Mark the group as active
+ 		// while we're in the process of transferring control.
+ 		canCAS = false
+-		sg.incActive()
++		bubble.incActive()
+ 	}
+ 
+ 	if locked {
+@@ -251,8 +251,8 @@ func coroswitch_m(gp *g) {
+ 		traceRelease(trace)
+ 	}
+ 
+-	if sg != nil {
+-		sg.decActive()
++	if bubble != nil {
++		bubble.decActive()
+ 	}
+ 
+ 	// Switch to gnext. Does not return.
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index cbcd60e281..354ea22b0e 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -646,14 +646,14 @@ func gcStart(trigger gcTrigger) {
+ 	releasem(mp)
+ 	mp = nil
+ 
+-	if gp := getg(); gp.syncGroup != nil {
++	if gp := getg(); gp.bubble != nil {
+ 		// Disassociate the G from its synctest bubble while allocating.
+ 		// This is less elegant than incrementing the group's active count,
+ 		// but avoids any contamination between GC and synctest.
+-		sg := gp.syncGroup
+-		gp.syncGroup = nil
++		bubble := gp.bubble
++		gp.bubble = nil
+ 		defer func() {
+-			gp.syncGroup = sg
++			gp.bubble = bubble
+ 		}()
+ 	}
+ 
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 274acd3374..8340f39a4b 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -429,14 +429,14 @@ func gcAssistAlloc(gp *g) {
+ 		return
+ 	}
+ 
+-	if gp := getg(); gp.syncGroup != nil {
++	if gp := getg(); gp.bubble != nil {
+ 		// Disassociate the G from its synctest bubble while allocating.
+ 		// This is less elegant than incrementing the group's active count,
+ 		// but avoids any contamination between GC assist and synctest.
+-		sg := gp.syncGroup
+-		gp.syncGroup = nil
++		bubble := gp.bubble
++		gp.bubble = nil
+ 		defer func() {
+-			gp.syncGroup = sg
++			gp.bubble = bubble
+ 		}()
+ 	}
+ 
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 706f9879dc..b8f23cc3c2 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -1312,12 +1312,12 @@ func fatalpanic(msgs *_panic) {
+ 
+ 		// If this panic is the result of a synctest bubble deadlock,
+ 		// print stacks for the goroutines in the bubble.
+-		var sg *synctestGroup
++		var bubble *synctestBubble
+ 		if de, ok := msgs.arg.(synctestDeadlockError); ok {
+-			sg = de.sg
++			bubble = de.bubble
+ 		}
+ 
+-		docrash = dopanic_m(gp, pc, sp, sg)
++		docrash = dopanic_m(gp, pc, sp, bubble)
+ 	})
+ 
+ 	if docrash {
+@@ -1399,8 +1399,8 @@ var deadlock mutex
+ 
+ // gp is the crashing g running on this M, but may be a user G, while getg() is
+ // always g0.
+-// If sg is non-nil, print the stacks for goroutines in this group as well.
+-func dopanic_m(gp *g, pc, sp uintptr, sg *synctestGroup) bool {
++// If bubble is non-nil, print the stacks for goroutines in this group as well.
++func dopanic_m(gp *g, pc, sp uintptr, bubble *synctestBubble) bool {
+ 	if gp.sig != 0 {
+ 		signame := signame(gp.sig)
+ 		if signame != "" {
+@@ -1428,11 +1428,11 @@ func dopanic_m(gp *g, pc, sp uintptr, sg *synctestGroup) bool {
+ 			if all {
+ 				didothers = true
+ 				tracebackothers(gp)
+-			} else if sg != nil {
++			} else if bubble != nil {
+ 				// This panic is caused by a synctest bubble deadlock.
+ 				// Print stacks for goroutines in the deadlocked bubble.
+ 				tracebacksomeothers(gp, func(other *g) bool {
+-					return sg == other.syncGroup
++					return bubble == other.bubble
+ 				})
+ 			}
+ 		}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 6929c70fb7..f6814d458c 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1255,9 +1255,9 @@ func casgstatus(gp *g, oldval, newval uint32) {
+ 		}
+ 	}
+ 
+-	if gp.syncGroup != nil {
++	if gp.bubble != nil {
+ 		systemstack(func() {
+-			gp.syncGroup.changegstatus(gp, oldval, newval)
++			gp.bubble.changegstatus(gp, oldval, newval)
+ 		})
+ 	}
+ 
+@@ -1354,10 +1354,10 @@ func casGToPreemptScan(gp *g, old, new uint32) {
+ 	acquireLockRankAndM(lockRankGscan)
+ 	for !gp.atomicstatus.CompareAndSwap(_Grunning, _Gscan|_Gpreempted) {
+ 	}
+-	// We never notify gp.syncGroup that the goroutine state has moved
+-	// from _Grunning to _Gpreempted. We call syncGroup.changegstatus
++	// We never notify gp.bubble that the goroutine state has moved
++	// from _Grunning to _Gpreempted. We call bubble.changegstatus
+ 	// after status changes happen, but doing so here would violate the
+-	// ordering between the gscan and synctest locks. syncGroup doesn't
++	// ordering between the gscan and synctest locks. The bubble doesn't
+ 	// distinguish between _Grunning and _Gpreempted anyway, so not
+ 	// notifying it is fine.
+ }
+@@ -1373,8 +1373,8 @@ func casGFromPreempted(gp *g, old, new uint32) bool {
+ 	if !gp.atomicstatus.CompareAndSwap(_Gpreempted, _Gwaiting) {
+ 		return false
+ 	}
+-	if sg := gp.syncGroup; sg != nil {
+-		sg.changegstatus(gp, _Gpreempted, _Gwaiting)
++	if bubble := gp.bubble; bubble != nil {
++		bubble.changegstatus(gp, _Gpreempted, _Gwaiting)
+ 	}
+ 	return true
+ }
+@@ -4130,10 +4130,10 @@ func park_m(gp *g) {
+ 	// If g is in a synctest group, we don't want to let the group
+ 	// become idle until after the waitunlockf (if any) has confirmed
+ 	// that the park is happening.
+-	// We need to record gp.syncGroup here, since waitunlockf can change it.
+-	sg := gp.syncGroup
+-	if sg != nil {
+-		sg.incActive()
++	// We need to record gp.bubble here, since waitunlockf can change it.
++	bubble := gp.bubble
++	if bubble != nil {
++		bubble.incActive()
+ 	}
+ 
+ 	if trace.ok() {
+@@ -4158,8 +4158,8 @@ func park_m(gp *g) {
+ 		if !ok {
+ 			trace := traceAcquire()
+ 			casgstatus(gp, _Gwaiting, _Grunnable)
+-			if sg != nil {
+-				sg.decActive()
++			if bubble != nil {
++				bubble.decActive()
+ 			}
+ 			if trace.ok() {
+ 				trace.GoUnpark(gp, 2)
+@@ -4169,8 +4169,8 @@ func park_m(gp *g) {
+ 		}
+ 	}
+ 
+-	if sg != nil {
+-		sg.decActive()
++	if bubble != nil {
++		bubble.decActive()
+ 	}
+ 
+ 	schedule()
+@@ -4326,8 +4326,8 @@ func goyield_m(gp *g) {
+ // Finishes execution of the current goroutine.
+ func goexit1() {
+ 	if raceenabled {
+-		if gp := getg(); gp.syncGroup != nil {
+-			racereleasemergeg(gp, gp.syncGroup.raceaddr())
++		if gp := getg(); gp.bubble != nil {
++			racereleasemergeg(gp, gp.bubble.raceaddr())
+ 		}
+ 		racegoend()
+ 	}
+@@ -4367,7 +4367,7 @@ func gdestroy(gp *g) {
+ 	gp.param = nil
+ 	gp.labels = nil
+ 	gp.timer = nil
+-	gp.syncGroup = nil
++	gp.bubble = nil
+ 
+ 	if gcBlackenEnabled != 0 && gp.gcAssistBytes > 0 {
+ 		// Flush assist credit to the global pool. This gives
+@@ -5114,7 +5114,7 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr, parked bool, waitreaso
+ 		sched.ngsys.Add(1)
+ 	} else {
+ 		// Only user goroutines inherit synctest groups and pprof labels.
+-		newg.syncGroup = callergp.syncGroup
++		newg.bubble = callergp.bubble
+ 		if mp.curg != nil {
+ 			newg.labels = mp.curg.labels
+ 		}
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 5f36015e99..16f89f0bf5 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -487,8 +487,8 @@ type g struct {
+ 	// current in-progress goroutine profile
+ 	goroutineProfiled goroutineProfileStateHolder
+ 
+-	coroarg   *coro // argument during coroutine transfers
+-	syncGroup *synctestGroup
++	coroarg *coro // argument during coroutine transfers
++	bubble  *synctestBubble
+ 
+ 	// Per-G tracer state.
+ 	trace gTraceState
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index 0b1d144951..0f3190ade8 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -177,7 +177,7 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
+ 		}
+ 
+ 		if cas.c.synctest {
+-			if getg().syncGroup == nil {
++			if getg().bubble == nil {
+ 				panic(plainError("select on synctest channel from outside bubble"))
+ 			}
+ 		} else {
+@@ -197,7 +197,7 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
+ 	lockorder = lockorder[:norder]
+ 
+ 	waitReason := waitReasonSelect
+-	if gp.syncGroup != nil && allSynctest {
++	if gp.bubble != nil && allSynctest {
+ 		// Every channel selected on is in a synctest bubble,
+ 		// so this goroutine will count as idle while selecting.
+ 		waitReason = waitReasonSynctestSelect
+diff --git a/src/runtime/sema.go b/src/runtime/sema.go
+index 18ada5a68b..4890df3464 100644
+--- a/src/runtime/sema.go
++++ b/src/runtime/sema.go
+@@ -629,7 +629,7 @@ func notifyListNotifyAll(l *notifyList) {
+ 	for s != nil {
+ 		next := s.next
+ 		s.next = nil
+-		if s.g.syncGroup != nil && getg().syncGroup != s.g.syncGroup {
++		if s.g.bubble != nil && getg().bubble != s.g.bubble {
+ 			println("semaphore wake of synctest goroutine", s.g.goid, "from outside bubble")
+ 			panic("semaphore wake of synctest goroutine from outside bubble")
+ 		}
+@@ -686,7 +686,7 @@ func notifyListNotifyOne(l *notifyList) {
+ 			}
+ 			unlock(&l.lock)
+ 			s.next = nil
+-			if s.g.syncGroup != nil && getg().syncGroup != s.g.syncGroup {
++			if s.g.bubble != nil && getg().bubble != s.g.bubble {
+ 				println("semaphore wake of synctest goroutine", s.g.goid, "from outside bubble")
+ 				panic("semaphore wake of synctest goroutine from outside bubble")
+ 			}
+diff --git a/src/runtime/synctest.go b/src/runtime/synctest.go
+index 36d6fa67c7..ff1979a8d8 100644
+--- a/src/runtime/synctest.go
++++ b/src/runtime/synctest.go
+@@ -9,8 +9,8 @@ import (
+ 	"unsafe"
+ )
+ 
+-// A synctestGroup is a group of goroutines started by synctest.Run.
+-type synctestGroup struct {
++// A synctestBubble is a set of goroutines started by synctest.Run.
++type synctestBubble struct {
+ 	mu      mutex
+ 	timers  timers
+ 	now     int64 // current fake time
+@@ -20,16 +20,16 @@ type synctestGroup struct {
+ 	waiting bool  // true if a goroutine is calling synctest.Wait
+ 	done    bool  // true if main has exited
+ 
+-	// The group is active (not blocked) so long as running > 0 || active > 0.
++	// The bubble is active (not blocked) so long as running > 0 || active > 0.
+ 	//
+ 	// running is the number of goroutines which are not "durably blocked":
+ 	// Goroutines which are either running, runnable, or non-durably blocked
+ 	// (for example, blocked in a syscall).
+ 	//
+-	// active is used to keep the group from becoming blocked,
+-	// even if all goroutines in the group are blocked.
++	// active is used to keep the bubble from becoming blocked,
++	// even if all goroutines in the bubble are blocked.
+ 	// For example, park_m can choose to immediately unpark a goroutine after parking it.
+-	// It increments the active count to keep the group active until it has determined
++	// It increments the active count to keep the bubble active until it has determined
+ 	// that the park operation has completed.
+ 	total   int // total goroutines
+ 	running int // non-blocked goroutines
+@@ -38,15 +38,15 @@ type synctestGroup struct {
+ 
+ // changegstatus is called when the non-lock status of a g changes.
+ // It is never called with a Gscanstatus.
+-func (sg *synctestGroup) changegstatus(gp *g, oldval, newval uint32) {
+-	// Determine whether this change in status affects the idleness of the group.
++func (bubble *synctestBubble) changegstatus(gp *g, oldval, newval uint32) {
++	// Determine whether this change in status affects the idleness of the bubble.
+ 	// If this isn't a goroutine starting, stopping, durably blocking,
+ 	// or waking up after durably blocking, then return immediately without
+-	// locking sg.mu.
++	// locking bubble.mu.
+ 	//
+ 	// For example, stack growth (newstack) will changegstatus
+ 	// from _Grunning to _Gcopystack. This is uninteresting to synctest,
+-	// but if stack growth occurs while sg.mu is held, we must not recursively lock.
++	// but if stack growth occurs while bubble.mu is held, we must not recursively lock.
+ 	totalDelta := 0
+ 	wasRunning := true
+ 	switch oldval {
+@@ -63,8 +63,8 @@ func (sg *synctestGroup) changegstatus(gp *g, oldval, newval uint32) {
+ 	case _Gdead:
+ 		isRunning = false
+ 		totalDelta--
+-		if gp == sg.main {
+-			sg.done = true
++		if gp == bubble.main {
++			bubble.done = true
+ 		}
+ 	case _Gwaiting:
+ 		if gp.waitreason.isIdleInSynctest() {
+@@ -77,90 +77,90 @@ func (sg *synctestGroup) changegstatus(gp *g, oldval, newval uint32) {
+ 		return
+ 	}
+ 
+-	lock(&sg.mu)
+-	sg.total += totalDelta
++	lock(&bubble.mu)
++	bubble.total += totalDelta
+ 	if wasRunning != isRunning {
+ 		if isRunning {
+-			sg.running++
++			bubble.running++
+ 		} else {
+-			sg.running--
++			bubble.running--
+ 			if raceenabled && newval != _Gdead {
+ 				// Record that this goroutine parking happens before
+ 				// any subsequent Wait.
+-				racereleasemergeg(gp, sg.raceaddr())
++				racereleasemergeg(gp, bubble.raceaddr())
+ 			}
+ 		}
+ 	}
+-	if sg.total < 0 {
++	if bubble.total < 0 {
+ 		fatal("total < 0")
+ 	}
+-	if sg.running < 0 {
++	if bubble.running < 0 {
+ 		fatal("running < 0")
+ 	}
+-	wake := sg.maybeWakeLocked()
+-	unlock(&sg.mu)
++	wake := bubble.maybeWakeLocked()
++	unlock(&bubble.mu)
+ 	if wake != nil {
+ 		goready(wake, 0)
+ 	}
+ }
+ 
+-// incActive increments the active-count for the group.
+-// A group does not become durably blocked while the active-count is non-zero.
+-func (sg *synctestGroup) incActive() {
+-	lock(&sg.mu)
+-	sg.active++
+-	unlock(&sg.mu)
++// incActive increments the active-count for the bubble.
++// A bubble does not become durably blocked while the active-count is non-zero.
++func (bubble *synctestBubble) incActive() {
++	lock(&bubble.mu)
++	bubble.active++
++	unlock(&bubble.mu)
+ }
+ 
+-// decActive decrements the active-count for the group.
+-func (sg *synctestGroup) decActive() {
+-	lock(&sg.mu)
+-	sg.active--
+-	if sg.active < 0 {
++// decActive decrements the active-count for the bubble.
++func (bubble *synctestBubble) decActive() {
++	lock(&bubble.mu)
++	bubble.active--
++	if bubble.active < 0 {
+ 		throw("active < 0")
+ 	}
+-	wake := sg.maybeWakeLocked()
+-	unlock(&sg.mu)
++	wake := bubble.maybeWakeLocked()
++	unlock(&bubble.mu)
+ 	if wake != nil {
+ 		goready(wake, 0)
+ 	}
+ }
+ 
+-// maybeWakeLocked returns a g to wake if the group is durably blocked.
+-func (sg *synctestGroup) maybeWakeLocked() *g {
+-	if sg.running > 0 || sg.active > 0 {
++// maybeWakeLocked returns a g to wake if the bubble is durably blocked.
++func (bubble *synctestBubble) maybeWakeLocked() *g {
++	if bubble.running > 0 || bubble.active > 0 {
+ 		return nil
+ 	}
+-	// Increment the group active count, since we've determined to wake something.
++	// Increment the bubble active count, since we've determined to wake something.
+ 	// The woken goroutine will decrement the count.
+-	// We can't just call goready and let it increment sg.running,
+-	// since we can't call goready with sg.mu held.
++	// We can't just call goready and let it increment bubble.running,
++	// since we can't call goready with bubble.mu held.
+ 	//
+ 	// Incrementing the active count here is only necessary if something has gone wrong,
+ 	// and a goroutine that we considered durably blocked wakes up unexpectedly.
+ 	// Two wakes happening at the same time leads to very confusing failure modes,
+ 	// so we take steps to avoid it happening.
+-	sg.active++
+-	next := sg.timers.wakeTime()
+-	if next > 0 && next <= sg.now {
++	bubble.active++
++	next := bubble.timers.wakeTime()
++	if next > 0 && next <= bubble.now {
+ 		// A timer is scheduled to fire. Wake the root goroutine to handle it.
+-		return sg.root
++		return bubble.root
+ 	}
+-	if gp := sg.waiter; gp != nil {
++	if gp := bubble.waiter; gp != nil {
+ 		// A goroutine is blocked in Wait. Wake it.
+ 		return gp
+ 	}
+-	// All goroutines in the group are durably blocked, and nothing has called Wait.
++	// All goroutines in the bubble are durably blocked, and nothing has called Wait.
+ 	// Wake the root goroutine.
+-	return sg.root
++	return bubble.root
+ }
+ 
+-func (sg *synctestGroup) raceaddr() unsafe.Pointer {
+-	// Address used to record happens-before relationships created by the group.
++func (bubble *synctestBubble) raceaddr() unsafe.Pointer {
++	// Address used to record happens-before relationships created by the bubble.
+ 	//
+ 	// Wait creates a happens-before relationship between itself and
+-	// the blocking operations which caused other goroutines in the group to park.
+-	return unsafe.Pointer(sg)
++	// the blocking operations which caused other goroutines in the bubble to park.
++	return unsafe.Pointer(bubble)
+ }
+ 
+ //go:linkname synctestRun internal/synctest.Run
+@@ -170,75 +170,75 @@ func synctestRun(f func()) {
+ 	}
+ 
+ 	gp := getg()
+-	if gp.syncGroup != nil {
++	if gp.bubble != nil {
+ 		panic("synctest.Run called from within a synctest bubble")
+ 	}
+-	sg := &synctestGroup{
++	bubble := &synctestBubble{
+ 		total:   1,
+ 		running: 1,
+ 		root:    gp,
+ 	}
+ 	const synctestBaseTime = 946684800000000000 // midnight UTC 2000-01-01
+-	sg.now = synctestBaseTime
+-	sg.timers.syncGroup = sg
+-	lockInit(&sg.mu, lockRankSynctest)
+-	lockInit(&sg.timers.mu, lockRankTimers)
++	bubble.now = synctestBaseTime
++	bubble.timers.bubble = bubble
++	lockInit(&bubble.mu, lockRankSynctest)
++	lockInit(&bubble.timers.mu, lockRankTimers)
+ 
+-	gp.syncGroup = sg
++	gp.bubble = bubble
+ 	defer func() {
+-		gp.syncGroup = nil
++		gp.bubble = nil
+ 	}()
+ 
+-	// This is newproc, but also records the new g in sg.main.
++	// This is newproc, but also records the new g in bubble.main.
+ 	pc := sys.GetCallerPC()
+ 	systemstack(func() {
+ 		fv := *(**funcval)(unsafe.Pointer(&f))
+-		sg.main = newproc1(fv, gp, pc, false, waitReasonZero)
++		bubble.main = newproc1(fv, gp, pc, false, waitReasonZero)
+ 		pp := getg().m.p.ptr()
+-		runqput(pp, sg.main, true)
++		runqput(pp, bubble.main, true)
+ 		wakep()
+ 	})
+ 
+-	lock(&sg.mu)
+-	sg.active++
++	lock(&bubble.mu)
++	bubble.active++
+ 	for {
+-		unlock(&sg.mu)
++		unlock(&bubble.mu)
+ 		systemstack(func() {
+ 			// Clear gp.m.curg while running timers,
+ 			// so timer goroutines inherit their child race context from g0.
+ 			curg := gp.m.curg
+ 			gp.m.curg = nil
+-			gp.syncGroup.timers.check(gp.syncGroup.now)
++			gp.bubble.timers.check(gp.bubble.now)
+ 			gp.m.curg = curg
+ 		})
+ 		gopark(synctestidle_c, nil, waitReasonSynctestRun, traceBlockSynctest, 0)
+-		lock(&sg.mu)
+-		if sg.active < 0 {
++		lock(&bubble.mu)
++		if bubble.active < 0 {
+ 			throw("active < 0")
+ 		}
+-		next := sg.timers.wakeTime()
++		next := bubble.timers.wakeTime()
+ 		if next == 0 {
+ 			break
+ 		}
+-		if next < sg.now {
++		if next < bubble.now {
+ 			throw("time went backwards")
+ 		}
+-		if sg.done {
++		if bubble.done {
+ 			// Time stops once the bubble's main goroutine has exited.
+ 			break
+ 		}
+-		sg.now = next
++		bubble.now = next
+ 	}
+ 
+-	total := sg.total
+-	unlock(&sg.mu)
++	total := bubble.total
++	unlock(&bubble.mu)
+ 	if raceenabled {
+ 		// Establish a happens-before relationship between bubbled goroutines exiting
+ 		// and Run returning.
+-		raceacquireg(gp, gp.syncGroup.raceaddr())
++		raceacquireg(gp, gp.bubble.raceaddr())
+ 	}
+ 	if total != 1 {
+-		panic(synctestDeadlockError{sg})
++		panic(synctestDeadlockError{bubble})
+ 	}
+ 	if gp.timer != nil && gp.timer.isFake {
+ 		// Verify that we haven't marked this goroutine's sleep timer as fake.
+@@ -248,7 +248,7 @@ func synctestRun(f func()) {
+ }
+ 
+ type synctestDeadlockError struct {
+-	sg *synctestGroup
++	bubble *synctestBubble
+ }
+ 
+ func (synctestDeadlockError) Error() string {
+@@ -256,86 +256,86 @@ func (synctestDeadlockError) Error() string {
+ }
+ 
+ func synctestidle_c(gp *g, _ unsafe.Pointer) bool {
+-	lock(&gp.syncGroup.mu)
++	lock(&gp.bubble.mu)
+ 	canIdle := true
+-	if gp.syncGroup.running == 0 && gp.syncGroup.active == 1 {
+-		// All goroutines in the group have blocked or exited.
++	if gp.bubble.running == 0 && gp.bubble.active == 1 {
++		// All goroutines in the bubble have blocked or exited.
+ 		canIdle = false
+ 	} else {
+-		gp.syncGroup.active--
++		gp.bubble.active--
+ 	}
+-	unlock(&gp.syncGroup.mu)
++	unlock(&gp.bubble.mu)
+ 	return canIdle
+ }
+ 
+ //go:linkname synctestWait internal/synctest.Wait
+ func synctestWait() {
+ 	gp := getg()
+-	if gp.syncGroup == nil {
++	if gp.bubble == nil {
+ 		panic("goroutine is not in a bubble")
+ 	}
+-	lock(&gp.syncGroup.mu)
+-	// We use a syncGroup.waiting bool to detect simultaneous calls to Wait rather than
+-	// checking to see if syncGroup.waiter is non-nil. This avoids a race between unlocking
+-	// syncGroup.mu and setting syncGroup.waiter while parking.
+-	if gp.syncGroup.waiting {
+-		unlock(&gp.syncGroup.mu)
++	lock(&gp.bubble.mu)
++	// We use a bubble.waiting bool to detect simultaneous calls to Wait rather than
++	// checking to see if bubble.waiter is non-nil. This avoids a race between unlocking
++	// bubble.mu and setting bubble.waiter while parking.
++	if gp.bubble.waiting {
++		unlock(&gp.bubble.mu)
+ 		panic("wait already in progress")
+ 	}
+-	gp.syncGroup.waiting = true
+-	unlock(&gp.syncGroup.mu)
++	gp.bubble.waiting = true
++	unlock(&gp.bubble.mu)
+ 	gopark(synctestwait_c, nil, waitReasonSynctestWait, traceBlockSynctest, 0)
+ 
+-	lock(&gp.syncGroup.mu)
+-	gp.syncGroup.active--
+-	if gp.syncGroup.active < 0 {
++	lock(&gp.bubble.mu)
++	gp.bubble.active--
++	if gp.bubble.active < 0 {
+ 		throw("active < 0")
+ 	}
+-	gp.syncGroup.waiter = nil
+-	gp.syncGroup.waiting = false
+-	unlock(&gp.syncGroup.mu)
++	gp.bubble.waiter = nil
++	gp.bubble.waiting = false
++	unlock(&gp.bubble.mu)
+ 
+ 	// Establish a happens-before relationship on the activity of the now-blocked
+-	// goroutines in the group.
++	// goroutines in the bubble.
+ 	if raceenabled {
+-		raceacquireg(gp, gp.syncGroup.raceaddr())
++		raceacquireg(gp, gp.bubble.raceaddr())
+ 	}
+ }
+ 
+ func synctestwait_c(gp *g, _ unsafe.Pointer) bool {
+-	lock(&gp.syncGroup.mu)
+-	if gp.syncGroup.running == 0 && gp.syncGroup.active == 0 {
++	lock(&gp.bubble.mu)
++	if gp.bubble.running == 0 && gp.bubble.active == 0 {
+ 		// This shouldn't be possible, since gopark increments active during unlockf.
+ 		throw("running == 0 && active == 0")
+ 	}
+-	gp.syncGroup.waiter = gp
+-	unlock(&gp.syncGroup.mu)
++	gp.bubble.waiter = gp
++	unlock(&gp.bubble.mu)
+ 	return true
+ }
+ 
+ //go:linkname synctest_acquire internal/synctest.acquire
+ func synctest_acquire() any {
+-	if sg := getg().syncGroup; sg != nil {
+-		sg.incActive()
+-		return sg
++	if bubble := getg().bubble; bubble != nil {
++		bubble.incActive()
++		return bubble
+ 	}
+ 	return nil
+ }
+ 
+ //go:linkname synctest_release internal/synctest.release
+-func synctest_release(sg any) {
+-	sg.(*synctestGroup).decActive()
++func synctest_release(bubble any) {
++	bubble.(*synctestBubble).decActive()
+ }
+ 
+ //go:linkname synctest_inBubble internal/synctest.inBubble
+-func synctest_inBubble(sg any, f func()) {
++func synctest_inBubble(bubble any, f func()) {
+ 	gp := getg()
+-	if gp.syncGroup != nil {
++	if gp.bubble != nil {
+ 		panic("goroutine is already bubbled")
+ 	}
+-	gp.syncGroup = sg.(*synctestGroup)
++	gp.bubble = bubble.(*synctestBubble)
+ 	defer func() {
+-		gp.syncGroup = nil
++		gp.bubble = nil
+ 	}()
+ 	f()
+ }
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index d27503e4df..711f3e472d 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -15,9 +15,9 @@ import (
+ 
+ //go:linkname time_runtimeNow time.runtimeNow
+ func time_runtimeNow() (sec int64, nsec int32, mono int64) {
+-	if sg := getg().syncGroup; sg != nil {
+-		sec = sg.now / (1000 * 1000 * 1000)
+-		nsec = int32(sg.now % (1000 * 1000 * 1000))
++	if bubble := getg().bubble; bubble != nil {
++		sec = bubble.now / (1000 * 1000 * 1000)
++		nsec = int32(bubble.now % (1000 * 1000 * 1000))
+ 		// Don't return a monotonic time inside a synctest bubble.
+ 		// If we return a monotonic time based on the fake clock,
+ 		// arithmetic on times created inside/outside bubbles is confusing.
+@@ -32,15 +32,15 @@ func time_runtimeNow() (sec int64, nsec int32, mono int64) {
+ //go:linkname time_runtimeNano time.runtimeNano
+ func time_runtimeNano() int64 {
+ 	gp := getg()
+-	if gp.syncGroup != nil {
+-		return gp.syncGroup.now
++	if gp.bubble != nil {
++		return gp.bubble.now
+ 	}
+ 	return nanotime()
+ }
+ 
+ //go:linkname time_runtimeIsBubbled time.runtimeIsBubbled
+ func time_runtimeIsBubbled() bool {
+-	return getg().syncGroup != nil
++	return getg().bubble != nil
+ }
+ 
+ // A timer is a potentially repeating trigger for calling t.f(t.arg, t.seq).
+@@ -157,7 +157,7 @@ type timers struct {
+ 	// If minWhenModified = 0, it means there are no timerModified timers in the heap.
+ 	minWhenModified atomic.Int64
+ 
+-	syncGroup *synctestGroup
++	bubble *synctestBubble
+ }
+ 
+ type timerWhen struct {
+@@ -323,14 +323,14 @@ func timeSleep(ns int64) {
+ 	if t == nil {
+ 		t = new(timer)
+ 		t.init(goroutineReady, gp)
+-		if gp.syncGroup != nil {
++		if gp.bubble != nil {
+ 			t.isFake = true
+ 		}
+ 		gp.timer = t
+ 	}
+ 	var now int64
+-	if sg := gp.syncGroup; sg != nil {
+-		now = sg.now
++	if bubble := gp.bubble; bubble != nil {
++		now = bubble.now
+ 	} else {
+ 		now = nanotime()
+ 	}
+@@ -340,7 +340,7 @@ func timeSleep(ns int64) {
+ 	}
+ 	gp.sleepWhen = when
+ 	if t.isFake {
+-		// Call timer.reset in this goroutine, since it's the one in a syncGroup.
++		// Call timer.reset in this goroutine, since it's the one in a bubble.
+ 		// We don't need to worry about the timer function running before the goroutine
+ 		// is parked, because time won't advance until we park.
+ 		resetForSleep(gp, nil)
+@@ -387,7 +387,7 @@ func newTimer(when, period int64, f func(arg any, seq uintptr, delay int64), arg
+ 			throw("invalid timer channel: no capacity")
+ 		}
+ 	}
+-	if gr := getg().syncGroup; gr != nil {
++	if gr := getg().bubble; gr != nil {
+ 		t.isFake = true
+ 	}
+ 	t.modify(when, period, f, arg, 0)
+@@ -400,7 +400,7 @@ func newTimer(when, period int64, f func(arg any, seq uintptr, delay int64), arg
+ //
+ //go:linkname stopTimer time.stopTimer
+ func stopTimer(t *timeTimer) bool {
+-	if t.isFake && getg().syncGroup == nil {
++	if t.isFake && getg().bubble == nil {
+ 		panic("stop of synctest timer from outside bubble")
+ 	}
+ 	return t.stop()
+@@ -415,7 +415,7 @@ func resetTimer(t *timeTimer, when, period int64) bool {
+ 	if raceenabled {
+ 		racerelease(unsafe.Pointer(&t.timer))
+ 	}
+-	if t.isFake && getg().syncGroup == nil {
++	if t.isFake && getg().bubble == nil {
+ 		panic("reset of synctest timer from outside bubble")
+ 	}
+ 	return t.reset(when, period)
+@@ -681,11 +681,11 @@ func (t *timer) maybeAdd() {
+ 	mp := acquirem()
+ 	var ts *timers
+ 	if t.isFake {
+-		sg := getg().syncGroup
+-		if sg == nil {
++		bubble := getg().bubble
++		if bubble == nil {
+ 			throw("invalid timer: fake time but no syncgroup")
+ 		}
+-		ts = &sg.timers
++		ts = &bubble.timers
+ 	} else {
+ 		ts = &mp.p.ptr().timers
+ 	}
+@@ -1082,10 +1082,10 @@ func (t *timer) unlockAndRun(now int64) {
+ 		// out from under us while this function executes.
+ 		gp := getg()
+ 		var tsLocal *timers
+-		if t.ts == nil || t.ts.syncGroup == nil {
++		if t.ts == nil || t.ts.bubble == nil {
+ 			tsLocal = &gp.m.p.ptr().timers
+ 		} else {
+-			tsLocal = &t.ts.syncGroup.timers
++			tsLocal = &t.ts.bubble.timers
+ 		}
+ 		if tsLocal.raceCtx == 0 {
+ 			tsLocal.raceCtx = racegostart(abi.FuncPCABIInternal((*timers).run) + sys.PCQuantum)
+@@ -1138,10 +1138,10 @@ func (t *timer) unlockAndRun(now int64) {
+ 		if gp.racectx != 0 {
+ 			throw("unexpected racectx")
+ 		}
+-		if ts == nil || ts.syncGroup == nil {
++		if ts == nil || ts.bubble == nil {
+ 			gp.racectx = gp.m.p.ptr().timers.raceCtx
+ 		} else {
+-			gp.racectx = ts.syncGroup.timers.raceCtx
++			gp.racectx = ts.bubble.timers.raceCtx
+ 		}
+ 	}
+ 
+@@ -1149,14 +1149,14 @@ func (t *timer) unlockAndRun(now int64) {
+ 		ts.unlock()
+ 	}
+ 
+-	if ts != nil && ts.syncGroup != nil {
++	if ts != nil && ts.bubble != nil {
+ 		// Temporarily use the timer's synctest group for the G running this timer.
+ 		gp := getg()
+-		if gp.syncGroup != nil {
++		if gp.bubble != nil {
+ 			throw("unexpected syncgroup set")
+ 		}
+-		gp.syncGroup = ts.syncGroup
+-		ts.syncGroup.changegstatus(gp, _Gdead, _Grunning)
++		gp.bubble = ts.bubble
++		ts.bubble.changegstatus(gp, _Gdead, _Grunning)
+ 	}
+ 
+ 	if !async && t.isChan {
+@@ -1200,15 +1200,15 @@ func (t *timer) unlockAndRun(now int64) {
+ 		unlock(&t.sendLock)
+ 	}
+ 
+-	if ts != nil && ts.syncGroup != nil {
++	if ts != nil && ts.bubble != nil {
+ 		gp := getg()
+-		ts.syncGroup.changegstatus(gp, _Grunning, _Gdead)
++		ts.bubble.changegstatus(gp, _Grunning, _Gdead)
+ 		if raceenabled {
+ 			// Establish a happens-before between this timer event and
+ 			// the next synctest.Wait call.
+-			racereleasemergeg(gp, ts.syncGroup.raceaddr())
++			racereleasemergeg(gp, ts.bubble.raceaddr())
+ 		}
+-		gp.syncGroup = nil
++		gp.bubble = nil
+ 	}
+ 
+ 	if ts != nil {
+@@ -1398,16 +1398,16 @@ func badTimer() {
+ func (t *timer) maybeRunChan() {
+ 	if t.isFake {
+ 		t.lock()
+-		var timerGroup *synctestGroup
++		var timerBubble *synctestBubble
+ 		if t.ts != nil {
+-			timerGroup = t.ts.syncGroup
++			timerBubble = t.ts.bubble
+ 		}
+ 		t.unlock()
+-		sg := getg().syncGroup
+-		if sg == nil {
++		bubble := getg().bubble
++		if bubble == nil {
+ 			panic(plainError("synctest timer accessed from outside bubble"))
+ 		}
+-		if timerGroup != nil && sg != timerGroup {
++		if timerBubble != nil && bubble != timerBubble {
+ 			panic(plainError("timer moved between synctest bubbles"))
+ 		}
+ 		// No need to do anything here.
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 1390e8b1bd..d6aa022674 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -1254,8 +1254,8 @@ func goroutineheader(gp *g) {
+ 	if gp.lockedm != 0 {
+ 		print(", locked to thread")
+ 	}
+-	if sg := gp.syncGroup; sg != nil {
+-		print(", synctest group ", sg.root.goid)
++	if bubble := gp.bubble; bubble != nil {
++		print(", synctest bubble ", bubble.root.goid)
+ 	}
+ 	print("]:\n")
+ }

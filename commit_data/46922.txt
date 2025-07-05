@@ -14,8 +14,69 @@ Date:   Thu Feb 11 10:51:52 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/stdlib_test.go      |  1 -
  src/go/types/testdata/go1_13.src | 22 ++++++++++++++++++++++
  src/go/types/typexpr.go          |  8 ++++++--
  3 files changed, 28 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 979785de95..29f71137df 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -185,7 +185,6 @@ func TestStdFixed(t *testing.T) {
+ 		"issue22200b.go", // go/types does not have constraints on stack size
+ 		"issue25507.go",  // go/types does not have constraints on stack size
+ 		"issue20780.go",  // go/types does not have constraints on stack size
+-		"issue34329.go",  // go/types does not have constraints on language level (-lang=go1.13) (see #31793)
+ 		"bug251.go",      // issue #34333 which was exposed with fix for #34151
+ 		"issue42058a.go", // go/types does not have constraints on channel element size
+ 		"issue42058b.go", // go/types does not have constraints on channel element size
+diff --git a/src/go/types/testdata/go1_13.src b/src/go/types/testdata/go1_13.src
+new file mode 100644
+index 0000000000..6aa1364e8a
+--- /dev/null
++++ b/src/go/types/testdata/go1_13.src
+@@ -0,0 +1,22 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check Go language version-specific errors.
++
++package go1_13 // go1.13
++
++// interface embedding
++
++type I interface { m() }
++
++type _ interface {
++	m()
++	I // ERROR "duplicate method m"
++}
++
++type _ interface {
++	I
++	I // ERROR "duplicate method m"
++}
++
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 6e89ccb027..b9249494fa 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -578,9 +578,13 @@ func (check *Checker) completeInterface(ityp *Interface) {
+ 			check.errorf(atPos(pos), _DuplicateDecl, "duplicate method %s", m.name)
+ 			check.errorf(atPos(mpos[other.(*Func)]), _DuplicateDecl, "\tother declaration of %s", m.name) // secondary error, \t indented
+ 		default:
+-			// check method signatures after all types are computed (issue #33656)
++			// We have a duplicate method name in an embedded (not explicitly declared) method.
++			// Check method signatures after all types are computed (issue #33656).
++			// If we're pre-go1.14 (overlapping embeddings are not permitted), report that
++			// error here as well (even though we could do it eagerly) because it's the same
++			// error message.
+ 			check.atEnd(func() {
+-				if !check.identical(m.typ, other.Type()) {
++				if !check.allowVersion(m.pkg, 1, 14) || !check.identical(m.typ, other.Type()) {
+ 					check.errorf(atPos(pos), _DuplicateDecl, "duplicate method %s", m.name)
+ 					check.errorf(atPos(mpos[other.(*Func)]), _DuplicateDecl, "\tother declaration of %s", m.name) // secondary error, \t indented
+ 				}

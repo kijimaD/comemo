@@ -12,8 +12,94 @@ Date:   Wed Nov 28 13:38:02 2018 +0100
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/obj/ppc64/asm9.go | 12 +++++++-----
  src/cmd/internal/obj/ppc64/obj9.go |  1 +
  src/cmd/link/internal/ppc64/asm.go |  9 ++++++++-
  3 files changed, 16 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index d7f1a08622..a2ea492710 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -2212,7 +2212,7 @@ func (c *ctxt9) opform(insn uint32) int {
+ // instruction op with source or destination (as appropriate) register reg.
+ func (c *ctxt9) symbolAccess(s *obj.LSym, d int64, reg int16, op uint32) (o1, o2 uint32) {
+ 	if c.ctxt.Headtype == objabi.Haix {
+-		// Every symbol accesses must be made via a TOC anchor.
++		// Every symbol access must be made via a TOC anchor.
+ 		c.ctxt.Diag("symbolAccess called for %s", s.Name)
+ 	}
+ 	var base uint32
+@@ -3656,18 +3656,20 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		cy := int(c.regoff(p.GetFrom3()))
+ 		o1 = AOP_Z23I(c.oprrr(p.As), uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.Reg), uint32(cy))
+ 
+-	case 95: /* Retrieve TOC symbol */
+-		v := c.vregoff(&p.To)
++	case 95: /* Retrieve TOC relative symbol */
++		/* This code is for AIX only */
++		v := c.vregoff(&p.From)
+ 		if v != 0 {
+ 			c.ctxt.Diag("invalid offset against TOC slot %v", p)
+ 		}
+ 
+-		if c.opform(c.opload(p.As)) != DS_FORM {
++		inst := c.opload(p.As)
++		if c.opform(inst) != DS_FORM {
+ 			c.ctxt.Diag("invalid form for a TOC access in %v", p)
+ 		}
+ 
+ 		o1 = AOP_IRR(OP_ADDIS, uint32(p.To.Reg), REG_R2, 0)
+-		o2 = AOP_IRR(c.opload(AMOVD), uint32(p.To.Reg), uint32(p.To.Reg), 0)
++		o2 = AOP_IRR(inst, uint32(p.To.Reg), uint32(p.To.Reg), 0)
+ 		rel := obj.Addrel(c.cursym)
+ 		rel.Off = int32(c.pc)
+ 		rel.Siz = 8
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index a9928742de..2286916098 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -114,6 +114,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ }
+ 
+ // Rewrite p, if necessary, to access a symbol using its TOC anchor.
++// This code is for AIX only.
+ func (c *ctxt9) rewriteToUseTOC(p *obj.Prog) {
+ 	if p.As == obj.ATEXT || p.As == obj.AFUNCDATA || p.As == obj.ACALL || p.As == obj.ARET || p.As == obj.AJMP {
+ 		return
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 4f5d8b5539..3b283b3855 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -383,7 +383,7 @@ func addelfdynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 
+ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
+ 	// Beware that bit0~bit15 start from the third byte of a instruction in Big-Endian machines.
+-	if r.Type == objabi.R_ADDR || r.Type == objabi.R_POWER_TLS ||  r.Type == objabi.R_CALLPOWER {
++	if r.Type == objabi.R_ADDR || r.Type == objabi.R_POWER_TLS || r.Type == objabi.R_CALLPOWER {
+ 	} else {
+ 		if ctxt.Arch.ByteOrder == binary.BigEndian {
+ 			sectoff += 2
+@@ -489,7 +489,12 @@ func symtoc(ctxt *ld.Link, s *sym.Symbol) int64 {
+ 	return toc.Value
+ }
+ 
++// archreloctoc relocates a TOC relative symbol.
++// This code is for AIX only.
+ func archreloctoc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) int64 {
++	if ctxt.HeadType == objabi.Hlinux {
++		ld.Errorf(s, "archrelocaddr called for %s relocation\n", r.Sym.Name)
++	}
+ 	var o1, o2 uint32
+ 
+ 	o1 = uint32(val >> 32)
+@@ -519,6 +524,8 @@ func archreloctoc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) int64 {
+ 	return int64(o1)<<32 | int64(o2)
+ }
+ 
++// archrelocaddr relocates a symbol address.
++// This code is for AIX only.
+ func archrelocaddr(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) int64 {
+ 	if ctxt.HeadType == objabi.Haix {
+ 		ld.Errorf(s, "archrelocaddr called for %s relocation\n", r.Sym.Name)

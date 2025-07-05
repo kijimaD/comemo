@@ -26,7 +26,7 @@ Date:   Fri Aug 14 21:47:20 2015 -0700
     Change-Id: I9e2359e4f657bb0ea0e40038969628bf0f84e584
     Reviewed-on: https://go-review.googlesource.com/13636
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go                 | 16 ++++-
  .../compile/internal/gc/testdata/loadstore_ssa.go  | 29 +++++++++
  src/cmd/compile/internal/ssa/deadstore_test.go     | 14 ++--
@@ -39,3 +39,434 @@ Date:   Fri Aug 14 21:47:20 2015 -0700
  src/cmd/compile/internal/ssa/schedule_test.go      |  6 +-
  src/cmd/compile/internal/ssa/shift_test.go         |  2 +-
  11 files changed, 113 insertions(+), 81 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index ef6ca692a4..d37181daf5 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -331,6 +331,11 @@ func (s *state) newValue3(op ssa.Op, t ssa.Type, arg0, arg1, arg2 *ssa.Value) *s
+ 	return s.curBlock.NewValue3(s.peekLine(), op, t, arg0, arg1, arg2)
+ }
+ 
++// newValue3I adds a new value with three arguments and an auxint value to the current block.
++func (s *state) newValue3I(op ssa.Op, t ssa.Type, aux int64, arg0, arg1, arg2 *ssa.Value) *ssa.Value {
++	return s.curBlock.NewValue3I(s.peekLine(), op, t, aux, arg0, arg1, arg2)
++}
++
+ // entryNewValue adds a new value with no arguments to the entry block.
+ func (s *state) entryNewValue0(op ssa.Op, t ssa.Type) *ssa.Value {
+ 	return s.f.Entry.NewValue0(s.peekLine(), op, t)
+@@ -1365,12 +1370,19 @@ func (s *state) expr(n *Node) *ssa.Value {
+ }
+ 
+ func (s *state) assign(op uint8, left *Node, right *Node) {
++	if left.Op == ONAME && isblank(left) {
++		if right != nil {
++			s.expr(right)
++		}
++		return
++	}
+ 	// TODO: do write barrier
+ 	// if op == OASWB
++	t := left.Type
++	dowidth(t)
+ 	var val *ssa.Value
+ 	if right == nil {
+ 		// right == nil means use the zero value of the assigned type.
+-		t := left.Type
+ 		if !canSSA(left) {
+ 			// if we can't ssa this memory, treat it as just zeroing out the backing memory
+ 			addr := s.addr(left)
+@@ -1388,7 +1400,7 @@ func (s *state) assign(op uint8, left *Node, right *Node) {
+ 	}
+ 	// not ssa-able.  Treat as a store.
+ 	addr := s.addr(left)
+-	s.vars[&memvar] = s.newValue3(ssa.OpStore, ssa.TypeMem, addr, val, s.mem())
++	s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, t.Size(), addr, val, s.mem())
+ }
+ 
+ // zeroVal returns the zero value for type t.
+diff --git a/src/cmd/compile/internal/gc/testdata/loadstore_ssa.go b/src/cmd/compile/internal/gc/testdata/loadstore_ssa.go
+index abca2a4bf8..cf37095742 100644
+--- a/src/cmd/compile/internal/gc/testdata/loadstore_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/loadstore_ssa.go
+@@ -8,6 +8,8 @@
+ 
+ package main
+ 
++import "fmt"
++
+ // testLoadStoreOrder tests for reordering of stores/loads.
+ func testLoadStoreOrder() {
+ 	z := uint32(1000)
+@@ -27,11 +29,38 @@ func testLoadStoreOrder_ssa(z *uint32, prec uint) int {
+ 	return 0
+ }
+ 
++func testStoreSize() {
++	a := [4]uint16{11, 22, 33, 44}
++	testStoreSize_ssa(&a[0], &a[2], 77)
++	want := [4]uint16{77, 22, 33, 44}
++	if a != want {
++		fmt.Println("testStoreSize failed.  want =", want, ", got =", a)
++		failed = true
++	}
++}
++func testStoreSize_ssa(p *uint16, q *uint16, v uint32) {
++	switch {
++	}
++	// Test to make sure that (Store ptr (Trunc32to16 val) mem)
++	// does not end up as a 32-bit store.  It must stay a 16 bit store
++	// even when Trunc32to16 is rewritten to be a nop.
++	// To ensure that we get rewrite the Trunc32to16 before
++	// we rewrite the Store, we force the truncate into an
++	// earlier basic block by using it on both branches.
++	w := uint16(v)
++	if p != nil {
++		*p = w
++	} else {
++		*q = w
++	}
++}
++
+ var failed = false
+ 
+ func main() {
+ 
+ 	testLoadStoreOrder()
++	testStoreSize()
+ 
+ 	if failed {
+ 		panic("failed")
+diff --git a/src/cmd/compile/internal/ssa/deadstore_test.go b/src/cmd/compile/internal/ssa/deadstore_test.go
+index 634192f25b..0f295296bd 100644
+--- a/src/cmd/compile/internal/ssa/deadstore_test.go
++++ b/src/cmd/compile/internal/ssa/deadstore_test.go
+@@ -19,10 +19,10 @@ func TestDeadStore(t *testing.T) {
+ 			Valu("addr2", OpAddr, ptrType, 0, nil, "sb"),
+ 			Valu("addr3", OpAddr, ptrType, 0, nil, "sb"),
+ 			Valu("zero1", OpZero, TypeMem, 8, nil, "addr3", "start"),
+-			Valu("store1", OpStore, TypeMem, 0, nil, "addr1", "v", "zero1"),
+-			Valu("store2", OpStore, TypeMem, 0, nil, "addr2", "v", "store1"),
+-			Valu("store3", OpStore, TypeMem, 0, nil, "addr1", "v", "store2"),
+-			Valu("store4", OpStore, TypeMem, 0, nil, "addr3", "v", "store3"),
++			Valu("store1", OpStore, TypeMem, 1, nil, "addr1", "v", "zero1"),
++			Valu("store2", OpStore, TypeMem, 1, nil, "addr2", "v", "store1"),
++			Valu("store3", OpStore, TypeMem, 1, nil, "addr1", "v", "store2"),
++			Valu("store4", OpStore, TypeMem, 1, nil, "addr3", "v", "store3"),
+ 			Goto("exit")),
+ 		Bloc("exit",
+ 			Exit("store3")))
+@@ -54,7 +54,7 @@ func TestDeadStorePhi(t *testing.T) {
+ 			Goto("loop")),
+ 		Bloc("loop",
+ 			Valu("phi", OpPhi, TypeMem, 0, nil, "start", "store"),
+-			Valu("store", OpStore, TypeMem, 0, nil, "addr", "v", "phi"),
++			Valu("store", OpStore, TypeMem, 1, nil, "addr", "v", "phi"),
+ 			If("v", "loop", "exit")),
+ 		Bloc("exit",
+ 			Exit("store")))
+@@ -79,8 +79,8 @@ func TestDeadStoreTypes(t *testing.T) {
+ 			Valu("v", OpConstBool, TypeBool, 0, true),
+ 			Valu("addr1", OpAddr, t1, 0, nil, "sb"),
+ 			Valu("addr2", OpAddr, t2, 0, nil, "sb"),
+-			Valu("store1", OpStore, TypeMem, 0, nil, "addr1", "v", "start"),
+-			Valu("store2", OpStore, TypeMem, 0, nil, "addr2", "v", "store1"),
++			Valu("store1", OpStore, TypeMem, 1, nil, "addr1", "v", "start"),
++			Valu("store2", OpStore, TypeMem, 1, nil, "addr2", "v", "store1"),
+ 			Goto("exit")),
+ 		Bloc("exit",
+ 			Exit("store2")))
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 9b6eb7f831..97eb1a443a 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -249,6 +249,21 @@ func (b *Block) NewValue3(line int32, op Op, t Type, arg0, arg1, arg2 *Value) *V
+ 	return v
+ }
+ 
++// NewValue3I returns a new value in the block with three arguments and an auxint value.
++func (b *Block) NewValue3I(line int32, op Op, t Type, aux int64, arg0, arg1, arg2 *Value) *Value {
++	v := &Value{
++		ID:     b.Func.vid.get(),
++		Op:     op,
++		Type:   t,
++		AuxInt: aux,
++		Block:  b,
++		Line:   line,
++	}
++	v.Args = []*Value{arg0, arg1, arg2}
++	b.Values = append(b.Values, v)
++	return v
++}
++
+ // ConstInt returns an int constant representing its argument.
+ func (f *Func) ConstInt8(line int32, t Type, c int8) *Value {
+ 	// TODO: cache?
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 09e88765b6..0e36737337 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -203,11 +203,10 @@
+ (Load <t> ptr mem) && is32BitInt(t) -> (MOVLload ptr mem)
+ (Load <t> ptr mem) && is16BitInt(t) -> (MOVWload ptr mem)
+ (Load <t> ptr mem) && (t.IsBoolean() || is8BitInt(t)) -> (MOVBload ptr mem)
+-(Store ptr val mem) && (is64BitInt(val.Type) || isPtr(val.Type)) -> (MOVQstore ptr val mem)
+-(Store ptr val mem) && is32BitInt(val.Type) -> (MOVLstore ptr val mem)
+-(Store ptr val mem) && is16BitInt(val.Type) -> (MOVWstore ptr val mem)
+-(Store ptr val mem) && is8BitInt(val.Type) -> (MOVBstore ptr val mem)
+-(Store ptr val mem) && val.Type.IsBoolean() -> (MOVBstore ptr val mem)
++(Store [8] ptr val mem) -> (MOVQstore ptr val mem)
++(Store [4] ptr val mem) -> (MOVLstore ptr val mem)
++(Store [2] ptr val mem) -> (MOVWstore ptr val mem)
++(Store [1] ptr val mem) -> (MOVBstore ptr val mem)
+ 
+ // checks
+ (IsNonNil p) -> (SETNE (TESTQ <TypeFlags> p p))
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 74893cef78..75cd186a43 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -81,8 +81,7 @@
+ (StructSelect [idx] (Load ptr mem)) -> (Load (OffPtr <v.Type.PtrTo()> [idx] ptr) mem)
+ 
+ // big-object moves
+-// TODO: fix size
+-(Store dst (Load <t> src mem) mem) && t.Size() > 8 -> (Move [t.Size()] dst src mem)
++(Store [size] dst (Load src mem) mem) && size > config.IntSize -> (Move [size] dst src mem)
+ 
+ // string ops
+ (ConstString {s}) -> (StringMake (Addr <config.Frontend().TypeBytePtr()> {config.fe.StringData(s.(string))} (SB <config.Frontend().TypeUintptr()>)) (ConstPtr <config.Frontend().TypeUintptr()> [int64(len(s.(string)))]))
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index ec4f038f43..496b57e2e1 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -218,7 +218,7 @@ var genericOps = []opData{
+ 
+ 	// Memory operations
+ 	{name: "Load"},  // Load from arg0.  arg1=memory
+-	{name: "Store"}, // Store arg1 to arg0.  arg2=memory.  Returns memory.
++	{name: "Store"}, // Store arg1 to arg0.  arg2=memory, auxint=size.  Returns memory.
+ 	{name: "Move"},  // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size.  Returns memory.
+ 	{name: "Zero"},  // arg0=destptr, arg1=mem, auxint=size. Returns memory.
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index f3369d6d5f..502efc5640 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -7412,16 +7412,16 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 	end32c5cbec813d1c2ae94fc9b1090e4b2a:
+ 		;
+ 	case OpStore:
+-		// match: (Store ptr val mem)
+-		// cond: (is64BitInt(val.Type) || isPtr(val.Type))
++		// match: (Store [8] ptr val mem)
++		// cond:
+ 		// result: (MOVQstore ptr val mem)
+ 		{
++			if v.AuxInt != 8 {
++				goto endd1eb7c3ea0c806e7a53ff3be86186eb7
++			}
+ 			ptr := v.Args[0]
+ 			val := v.Args[1]
+ 			mem := v.Args[2]
+-			if !(is64BitInt(val.Type) || isPtr(val.Type)) {
+-				goto endbaeb60123806948cd2433605820d5af1
+-			}
+ 			v.Op = OpAMD64MOVQstore
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+@@ -7431,19 +7431,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto endbaeb60123806948cd2433605820d5af1
+-	endbaeb60123806948cd2433605820d5af1:
++		goto endd1eb7c3ea0c806e7a53ff3be86186eb7
++	endd1eb7c3ea0c806e7a53ff3be86186eb7:
+ 		;
+-		// match: (Store ptr val mem)
+-		// cond: is32BitInt(val.Type)
++		// match: (Store [4] ptr val mem)
++		// cond:
+ 		// result: (MOVLstore ptr val mem)
+ 		{
++			if v.AuxInt != 4 {
++				goto end44e3b22360da76ecd59be9a8c2dd1347
++			}
+ 			ptr := v.Args[0]
+ 			val := v.Args[1]
+ 			mem := v.Args[2]
+-			if !(is32BitInt(val.Type)) {
+-				goto end582e895008657c728c141c6b95070de7
+-			}
+ 			v.Op = OpAMD64MOVLstore
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+@@ -7453,19 +7453,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto end582e895008657c728c141c6b95070de7
+-	end582e895008657c728c141c6b95070de7:
++		goto end44e3b22360da76ecd59be9a8c2dd1347
++	end44e3b22360da76ecd59be9a8c2dd1347:
+ 		;
+-		// match: (Store ptr val mem)
+-		// cond: is16BitInt(val.Type)
++		// match: (Store [2] ptr val mem)
++		// cond:
+ 		// result: (MOVWstore ptr val mem)
+ 		{
++			if v.AuxInt != 2 {
++				goto endd0342b7fd3d0713f3e26922660047c71
++			}
+ 			ptr := v.Args[0]
+ 			val := v.Args[1]
+ 			mem := v.Args[2]
+-			if !(is16BitInt(val.Type)) {
+-				goto enda3f6a985b6ebb277665f80ad30b178df
+-			}
+ 			v.Op = OpAMD64MOVWstore
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+@@ -7475,41 +7475,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto enda3f6a985b6ebb277665f80ad30b178df
+-	enda3f6a985b6ebb277665f80ad30b178df:
++		goto endd0342b7fd3d0713f3e26922660047c71
++	endd0342b7fd3d0713f3e26922660047c71:
+ 		;
+-		// match: (Store ptr val mem)
+-		// cond: is8BitInt(val.Type)
++		// match: (Store [1] ptr val mem)
++		// cond:
+ 		// result: (MOVBstore ptr val mem)
+ 		{
+-			ptr := v.Args[0]
+-			val := v.Args[1]
+-			mem := v.Args[2]
+-			if !(is8BitInt(val.Type)) {
+-				goto ende2dee0bc82f631e3c6b0031bf8d224c1
++			if v.AuxInt != 1 {
++				goto end8e76e20031197ca875889d2b4d0eb1d1
+ 			}
+-			v.Op = OpAMD64MOVBstore
+-			v.AuxInt = 0
+-			v.Aux = nil
+-			v.resetArgs()
+-			v.AddArg(ptr)
+-			v.AddArg(val)
+-			v.AddArg(mem)
+-			return true
+-		}
+-		goto ende2dee0bc82f631e3c6b0031bf8d224c1
+-	ende2dee0bc82f631e3c6b0031bf8d224c1:
+-		;
+-		// match: (Store ptr val mem)
+-		// cond: val.Type.IsBoolean()
+-		// result: (MOVBstore ptr val mem)
+-		{
+ 			ptr := v.Args[0]
+ 			val := v.Args[1]
+ 			mem := v.Args[2]
+-			if !(val.Type.IsBoolean()) {
+-				goto end6f343b676bf49740054e459f972b24f5
+-			}
+ 			v.Op = OpAMD64MOVBstore
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+@@ -7519,8 +7497,8 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto end6f343b676bf49740054e459f972b24f5
+-	end6f343b676bf49740054e459f972b24f5:
++		goto end8e76e20031197ca875889d2b4d0eb1d1
++	end8e76e20031197ca875889d2b4d0eb1d1:
+ 		;
+ 	case OpSub16:
+ 		// match: (Sub16 x y)
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 8ce0eca9e4..a0c5269e2e 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -876,35 +876,35 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 	end459613b83f95b65729d45c2ed663a153:
+ 		;
+ 	case OpStore:
+-		// match: (Store dst (Load <t> src mem) mem)
+-		// cond: t.Size() > 8
+-		// result: (Move [t.Size()] dst src mem)
++		// match: (Store [size] dst (Load src mem) mem)
++		// cond: size > config.IntSize
++		// result: (Move [size] dst src mem)
+ 		{
++			size := v.AuxInt
+ 			dst := v.Args[0]
+ 			if v.Args[1].Op != OpLoad {
+-				goto end324ffb6d2771808da4267f62c854e9c8
++				goto enda18a7163888e2f4fca9f38bae56cef42
+ 			}
+-			t := v.Args[1].Type
+ 			src := v.Args[1].Args[0]
+ 			mem := v.Args[1].Args[1]
+ 			if v.Args[2] != mem {
+-				goto end324ffb6d2771808da4267f62c854e9c8
++				goto enda18a7163888e2f4fca9f38bae56cef42
+ 			}
+-			if !(t.Size() > 8) {
+-				goto end324ffb6d2771808da4267f62c854e9c8
++			if !(size > config.IntSize) {
++				goto enda18a7163888e2f4fca9f38bae56cef42
+ 			}
+ 			v.Op = OpMove
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+-			v.AuxInt = t.Size()
++			v.AuxInt = size
+ 			v.AddArg(dst)
+ 			v.AddArg(src)
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto end324ffb6d2771808da4267f62c854e9c8
+-	end324ffb6d2771808da4267f62c854e9c8:
++		goto enda18a7163888e2f4fca9f38bae56cef42
++	enda18a7163888e2f4fca9f38bae56cef42:
+ 		;
+ 		// match: (Store dst str mem)
+ 		// cond: str.Type.IsString()
+diff --git a/src/cmd/compile/internal/ssa/schedule_test.go b/src/cmd/compile/internal/ssa/schedule_test.go
+index 45f3dbcac5..7f62ab9e3b 100644
+--- a/src/cmd/compile/internal/ssa/schedule_test.go
++++ b/src/cmd/compile/internal/ssa/schedule_test.go
+@@ -14,9 +14,9 @@ func TestSchedule(t *testing.T) {
+ 				Valu("mem0", OpArg, TypeMem, 0, ".mem"),
+ 				Valu("ptr", OpConst64, TypeInt64, 0xABCD, nil),
+ 				Valu("v", OpConst64, TypeInt64, 12, nil),
+-				Valu("mem1", OpStore, TypeMem, 0, nil, "ptr", "v", "mem0"),
+-				Valu("mem2", OpStore, TypeMem, 0, nil, "ptr", "v", "mem1"),
+-				Valu("mem3", OpStore, TypeInt64, 0, nil, "ptr", "sum", "mem2"),
++				Valu("mem1", OpStore, TypeMem, 8, nil, "ptr", "v", "mem0"),
++				Valu("mem2", OpStore, TypeMem, 8, nil, "ptr", "v", "mem1"),
++				Valu("mem3", OpStore, TypeInt64, 8, nil, "ptr", "sum", "mem2"),
+ 				Valu("l1", OpLoad, TypeInt64, 0, nil, "ptr", "mem1"),
+ 				Valu("l2", OpLoad, TypeInt64, 0, nil, "ptr", "mem2"),
+ 				Valu("sum", OpAdd64, TypeInt64, 0, nil, "l1", "l2"),
+diff --git a/src/cmd/compile/internal/ssa/shift_test.go b/src/cmd/compile/internal/ssa/shift_test.go
+index fc26ab82ca..611b418b6d 100644
+--- a/src/cmd/compile/internal/ssa/shift_test.go
++++ b/src/cmd/compile/internal/ssa/shift_test.go
+@@ -35,7 +35,7 @@ func makeConstShiftFunc(c *Config, amount int64, op Op, typ Type) fun {
+ 			Valu("load", OpLoad, typ, 0, nil, "argptr", "mem"),
+ 			Valu("c", OpConst64, TypeUInt64, amount, nil),
+ 			Valu("shift", op, typ, 0, nil, "load", "c"),
+-			Valu("store", OpStore, TypeMem, 0, nil, "resptr", "shift", "mem"),
++			Valu("store", OpStore, TypeMem, 8, nil, "resptr", "shift", "mem"),
+ 			Exit("store")))
+ 	Compile(fun.f)
+ 	return fun

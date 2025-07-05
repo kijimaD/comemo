@@ -15,7 +15,34 @@ Date:   Tue Oct 16 16:11:59 2018 +0200
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/sinit.go         | 2 +-
  src/cmd/compile/internal/ssa/writebarrier.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index de0298b746..efdaf1c3c5 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -568,7 +568,7 @@ var statuniqgen int // name generator for static temps
+ // returned node for readonly nodes.
+ func staticname(t *types.Type) *Node {
+ 	// Don't use lookupN; it interns the resulting string, but these are all unique.
+-	n := newname(lookup(fmt.Sprintf("statictmp_%d", statuniqgen)))
++	n := newname(lookup(fmt.Sprintf(".stmp_%d", statuniqgen)))
+ 	statuniqgen++
+ 	addvar(n, t, PEXTERN)
+ 	return n
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index 1024ab25ab..1f40927951 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -439,7 +439,7 @@ func IsSanitizerSafeAddr(v *Value) bool {
+ 		// test sym.Type==objabi.SRODATA, but we don't
+ 		// initialize sym.Type until after function
+ 		// compilation.
+-		if strings.HasPrefix(sym.Name, `"".statictmp_`) {
++		if strings.HasPrefix(sym.Name, `""..stmp_`) {
+ 			return true
+ 		}
+ 	}

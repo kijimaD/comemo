@@ -18,9 +18,108 @@ Date:   Wed Oct 14 20:41:36 2015 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/api/goapi.go       |  9 +++++++--
  src/go/build/deps_test.go  |  1 +
  src/net/http/serve_test.go | 16 ++++++++++++++++
  src/net/http/server.go     | 12 +++++++++++-
  4 files changed, 35 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 01b6defb5f..5d1cf05e31 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -428,10 +428,15 @@ func (w *Walker) Import(name string) (*types.Package, error) {
+ 	}
+ 	w.imported[name] = &importing
+ 
++	root := w.root
++	if strings.HasPrefix(name, "golang.org/x/") {
++		root = filepath.Join(root, "vendor")
++	}
++
+ 	// Determine package files.
+-	dir := filepath.Join(w.root, filepath.FromSlash(name))
++	dir := filepath.Join(root, filepath.FromSlash(name))
+ 	if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
+-		log.Fatalf("no source in tree for package %q", pkg)
++		log.Fatalf("no source in tree for import %q: %v", name, err)
+ 	}
+ 
+ 	context := w.context
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 62bcb12a23..e3c146963a 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -351,6 +351,7 @@ var pkgDeps = map[string][]string{
+ 		"L4", "NET", "OS",
+ 		"compress/gzip", "crypto/tls", "mime/multipart", "runtime/debug",
+ 		"net/http/internal",
++		"golang.org/x/net/http2/hpack",
+ 	},
+ 	"net/http/internal": {"L4"},
+ 
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 11a0a9e120..dddfd40168 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -1068,6 +1068,22 @@ func TestTLSServer(t *testing.T) {
+ 	})
+ }
+ 
++func TestAutomaticHTTP2(t *testing.T) {
++	ln, err := net.Listen("tcp", ":0")
++	if err != nil {
++		t.Fatal(err)
++	}
++	ln.Close() // immediately (not a defer!)
++	var s Server
++	if err := s.Serve(ln); err == nil {
++		t.Fatal("expected an error")
++	}
++	on := s.TLSNextProto["h2"] != nil
++	if !on {
++		t.Errorf("http2 wasn't automatically enabled")
++	}
++}
++
+ type serverExpectTest struct {
+ 	contentLength    int // of request body
+ 	chunked          bool
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index ae62e076dd..dc4f100e01 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1806,7 +1806,8 @@ type Server struct {
+ 	// standard logger.
+ 	ErrorLog *log.Logger
+ 
+-	disableKeepAlives int32 // accessed atomically.
++	disableKeepAlives int32     // accessed atomically.
++	nextProtoOnce     sync.Once // guards initialization of TLSNextProto in Serve
+ }
+ 
+ // A ConnState represents the state of a client connection to a server.
+@@ -1896,6 +1897,7 @@ func (srv *Server) ListenAndServe() error {
+ func (srv *Server) Serve(l net.Listener) error {
+ 	defer l.Close()
+ 	var tempDelay time.Duration // how long to sleep on accept failure
++	srv.nextProtoOnce.Do(srv.setNextProtoDefaults)
+ 	for {
+ 		rw, e := l.Accept()
+ 		if e != nil {
+@@ -2052,6 +2054,14 @@ func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
+ 	return srv.Serve(tlsListener)
+ }
+ 
++func (srv *Server) setNextProtoDefaults() {
++	// Enable HTTP/2 by default if the user hasn't otherwise
++	// configured their TLSNextProto map.
++	if srv.TLSNextProto == nil {
++		http2ConfigureServer(srv, nil)
++	}
++}
++
+ // TimeoutHandler returns a Handler that runs h with the given time limit.
+ //
+ // The new Handler calls h.ServeHTTP to handle each request, but if a

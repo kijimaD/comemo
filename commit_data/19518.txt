@@ -10,6 +10,21 @@ Date:   Wed Jun 11 17:39:34 2014 -0700
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/105040045
-
+---
  src/pkg/mime/multipart/multipart.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/pkg/mime/multipart/multipart.go b/src/pkg/mime/multipart/multipart.go
+index 7382efab96..01a667d930 100644
+--- a/src/pkg/mime/multipart/multipart.go
++++ b/src/pkg/mime/multipart/multipart.go
+@@ -90,8 +90,7 @@ func (p *Part) parseContentDisposition() {
+ func NewReader(r io.Reader, boundary string) *Reader {
+ 	b := []byte("\r\n--" + boundary + "--")
+ 	return &Reader{
+-		bufReader: bufio.NewReader(r),
+-
++		bufReader:        bufio.NewReader(r),
+ 		nl:               b[:2],
+ 		nlDashBoundary:   b[:len(b)-2],
+ 		dashBoundaryDash: b[2:],

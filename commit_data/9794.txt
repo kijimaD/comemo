@@ -27,8 +27,232 @@ Date:   Mon Sep 26 02:10:43 2011 -0700
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5129042
-
+---
  src/pkg/exp/template/html/escape_test.go | 29 +++++++++++++--
  src/pkg/exp/template/html/js.go          | 61 ++++++++++++++++++++++----------
  src/pkg/exp/template/html/js_test.go     | 47 +++++++++++++++++++++++-
  3 files changed, 116 insertions(+), 21 deletions(-)
+
+diff --git a/src/pkg/exp/template/html/escape_test.go b/src/pkg/exp/template/html/escape_test.go
+index da3c011961..ea7d3bdb04 100644
+--- a/src/pkg/exp/template/html/escape_test.go
++++ b/src/pkg/exp/template/html/escape_test.go
+@@ -7,6 +7,7 @@ package html
+ import (
+ 	"bytes"
+ 	"fmt"
++	"json"
+ 	"os"
+ 	"strings"
+ 	"template"
+@@ -14,11 +15,25 @@ import (
+ 	"testing"
+ )
+ 
++type badMarshaler struct{}
++
++func (x *badMarshaler) MarshalJSON() ([]byte, os.Error) {
++	// Keys in valid JSON must be double quoted as must all strings.
++	return []byte("{ foo: 'not quite valid JSON' }"), nil
++}
++
++type goodMarshaler struct{}
++
++func (x *goodMarshaler) MarshalJSON() ([]byte, os.Error) {
++	return []byte(`{ "<foo>": "O'Reilly" }`), nil
++}
++
+ func TestEscape(t *testing.T) {
+ 	var data = struct {
+ 		F, T    bool
+ 		C, G, H string
+ 		A, E    []string
++		B, M    json.Marshaler
+ 		N       int
+ 		Z       *int
+ 		W       HTML
+@@ -31,6 +46,8 @@ func TestEscape(t *testing.T) {
+ 		A: []string{"<a>", "<b>"},
+ 		E: []string{},
+ 		N: 42,
++		B: &badMarshaler{},
++		M: &goodMarshaler{},
+ 		Z: nil,
+ 		W: HTML(`&iexcl;<b class="foo">Hello</b>, <textarea>O'World</textarea>!`),
+ 	}
+@@ -195,6 +212,16 @@ func TestEscape(t *testing.T) {
+ 			"<button onclick='alert(&quot;{{.H}}&quot;)'>",
+ 			`<button onclick='alert(&quot;\x3cHello\x3e&quot;)'>`,
+ 		},
++		{
++			"badMarshaller",
++			`<button onclick='alert(1/{{.B}}in numbers)'>`,
++			`<button onclick='alert(1/ /* json: error calling MarshalJSON for type *html.badMarshaler: invalid character &#39;f&#39; looking for beginning of object key string */null in numbers)'>`,
++		},
++		{
++			"jsMarshaller",
++			`<button onclick='alert({{.M}})'>`,
++			`<button onclick='alert({&#34;&lt;foo&gt;&#34;:&#34;O&#39;Reilly&#34;})'>`,
++		},
+ 		{
+ 			"jsStrNotUnderEscaped",
+ 			"<button onclick='alert({{.C | urlquery}})'>",
+@@ -355,8 +382,6 @@ func TestEscape(t *testing.T) {
+ 		},
+ 		{
+ 			"styleURLSpecialsEncoded",
+-			// TODO: Find out what IE does with url(/*foo*/bar)
+-			// FF, Chrome, and Safari seem to treat it as a URL.
+ 			`<a style="border-image: url({{"/**/'\";:// \\"}}), url(&quot;{{"/**/'\";:// \\"}}&quot;), url('{{"/**/'\";:// \\"}}'), 'http://www.example.com/?q={{"/**/'\";:// \\"}}''">`,
+ 			`<a style="border-image: url(/**/%27%22;://%20%5c), url(&quot;/**/%27%22;://%20%5c&quot;), url('/**/%27%22;://%20%5c'), 'http://www.example.com/?q=%2f%2a%2a%2f%27%22%3b%3a%2f%2f%20%5c''">`,
+ 		},
+diff --git a/src/pkg/exp/template/html/js.go b/src/pkg/exp/template/html/js.go
+index 4318b00acb..98c2ac5f27 100644
+--- a/src/pkg/exp/template/html/js.go
++++ b/src/pkg/exp/template/html/js.go
+@@ -140,19 +140,6 @@ func jsValEscaper(args ...interface{}) string {
+ 	// TODO: detect cycles before calling Marshal which loops infinitely on
+ 	// cyclic data. This may be an unnacceptable DoS risk.
+ 
+-	// TODO: make sure that json.Marshal escapes codepoints U+2028 & U+2029
+-	// so it falls within the subset of JSON which is valid JS and maybe
+-	// post-process to prevent it from containing
+-	// "<!--", "-->", "<![CDATA[", "]]>", or "</script"
+-	// in case custom marshallers produce output containing those.
+-
+-	// TODO: Maybe abbreviate \u00ab to \xab to produce more compact output.
+-
+-	// TODO: JSON allows arbitrary unicode codepoints, but EcmaScript
+-	// defines a SourceCharacter as either a UTF-16 or UCS-2 code-unit.
+-	// Determine whether supplemental codepoints in UTF-8 encoded JS inside
+-	// string literals are properly interpreted by major interpreters.
+-
+ 	b, err := json.Marshal(a)
+ 	if err != nil {
+ 		// Put a space before comment so that if it is flush against
+@@ -163,12 +150,50 @@ func jsValEscaper(args ...interface{}) string {
+ 		//          second line of error message */null
+ 		return fmt.Sprintf(" /* %s */null ", strings.Replace(err.String(), "*/", "* /", -1))
+ 	}
+-	if len(b) != 0 {
+-		first, _ := utf8.DecodeRune(b)
+-		last, _ := utf8.DecodeLastRune(b)
+-		if isJSIdentPart(first) || isJSIdentPart(last) {
+-			return " " + string(b) + " "
++
++	// TODO: maybe post-process output to prevent it from containing
++	// "<!--", "-->", "<![CDATA[", "]]>", or "</script"
++	// in case custom marshallers produce output containing those.
++
++	// TODO: Maybe abbreviate \u00ab to \xab to produce more compact output.
++	if len(b) == 0 {
++		// In, `x=y/{{.}}*z` a json.Marshaler that produces "" should
++		// not cause the output `x=y/*z`.
++		return " null "
++	}
++	first, _ := utf8.DecodeRune(b)
++	last, _ := utf8.DecodeLastRune(b)
++	var buf bytes.Buffer
++	// Prevent IdentifierNames and NumericLiterals from running into
++	// keywords: in, instanceof, typeof, void
++	pad := isJSIdentPart(first) || isJSIdentPart(last)
++	if pad {
++		buf.WriteByte(' ')
++	}
++	written := 0
++	// Make sure that json.Marshal escapes codepoints U+2028 & U+2029
++	// so it falls within the subset of JSON which is valid JS.
++	for i := 0; i < len(b); {
++		rune, n := utf8.DecodeRune(b[i:])
++		repl := ""
++		if rune == 0x2028 {
++			repl = `\u2028`
++		} else if rune == 0x2029 {
++			repl = `\u2029`
++		}
++		if repl != "" {
++			buf.Write(b[written:i])
++			buf.WriteString(repl)
++			written = i + n
++		}
++		i += n
++	}
++	if buf.Len() != 0 {
++		buf.Write(b[written:])
++		if pad {
++			buf.WriteByte(' ')
+ 		}
++		b = buf.Bytes()
+ 	}
+ 	return string(b)
+ }
+diff --git a/src/pkg/exp/template/html/js_test.go b/src/pkg/exp/template/html/js_test.go
+index 76fc23845d..e7764054a3 100644
+--- a/src/pkg/exp/template/html/js_test.go
++++ b/src/pkg/exp/template/html/js_test.go
+@@ -136,12 +136,13 @@ func TestJSValEscaper(t *testing.T) {
+ 		{"", `""`},
+ 		{"foo", `"foo"`},
+ 		// Newlines.
+-		// {"\r\n\u2028\u2029", `"\r\n\u2028\u2029"`}, // TODO: FAILING. Maybe fix in json package.
++		{"\r\n\u2028\u2029", `"\r\n\u2028\u2029"`},
+ 		// "\v" == "v" on IE 6 so use "\x0b" instead.
+ 		{"\t\x0b", `"\u0009\u000b"`},
+ 		{struct{ X, Y int }{1, 2}, `{"X":1,"Y":2}`},
+ 		{[]interface{}{}, "[]"},
+ 		{[]interface{}{42, "foo", nil}, `[42,"foo",null]`},
++		{[]string{"<!--", "</script>", "-->"}, `["\u003c!--","\u003c/script\u003e","--\u003e"]`},
+ 		{"<!--", `"\u003c!--"`},
+ 		{"-->", `"--\u003e"`},
+ 		{"<![CDATA[", `"\u003c![CDATA["`},
+@@ -331,6 +332,50 @@ func TestEscapersOnLower7AndSelectHighCodepoints(t *testing.T) {
+ 	}
+ }
+ 
++func BenchmarkJSValEscaperWithNum(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		jsValEscaper(3.141592654)
++	}
++}
++
++func BenchmarkJSValEscaperWithStr(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		jsValEscaper("The <i>quick</i>,\r\n<span style='color:brown'>brown</span> fox jumps\u2028over the <canine class=\"lazy\">dog</canine>")
++	}
++}
++
++func BenchmarkJSValEscaperWithStrNoSpecials(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		jsValEscaper("The quick, brown fox jumps over the lazy dog")
++	}
++}
++
++func BenchmarkJSValEscaperWithObj(b *testing.B) {
++	o := struct {
++		S string
++		N int
++	}{
++		"The <i>quick</i>,\r\n<span style='color:brown'>brown</span> fox jumps\u2028over the <canine class=\"lazy\">dog</canine>\u2028",
++		42,
++	}
++	for i := 0; i < b.N; i++ {
++		jsValEscaper(o)
++	}
++}
++
++func BenchmarkJSValEscaperWithObjNoSpecials(b *testing.B) {
++	o := struct {
++		S string
++		N int
++	}{
++		"The quick, brown fox jumps over the lazy dog",
++		42,
++	}
++	for i := 0; i < b.N; i++ {
++		jsValEscaper(o)
++	}
++}
++
+ func BenchmarkJSStrEscaperNoSpecials(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		jsStrEscaper("The quick, brown fox jumps over the lazy dog.")

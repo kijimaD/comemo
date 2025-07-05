@@ -18,10 +18,118 @@ Date:   Mon Nov 22 16:04:17 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/366277
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  .../compile/internal/types2/testdata/check/stmt0.src   |  6 +++---
  src/go/types/operand.go                                |  5 +++++
  src/go/types/testdata/check/stmt0.src                  |  6 +++---
  src/go/types/testdata/fixedbugs/issue49296.go2         |  2 +-
  src/go/types/testdata/spec/assignability.go2           | 18 +++++++++---------
  5 files changed, 21 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/testdata/check/stmt0.src b/src/cmd/compile/internal/types2/testdata/check/stmt0.src
+index 353444f068..8171c57d8b 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/stmt0.src
++++ b/src/cmd/compile/internal/types2/testdata/check/stmt0.src
+@@ -69,10 +69,10 @@ func assignments1() {
+ 
+ 	// test cases for issue 5800
+ 	var (
+-		_ int = nil /* ERROR "nil" */
+-		_ [10]int = nil /* ERROR "nil" */
++		_ int = nil /* ERROR "cannot use nil as int value in variable declaration" */
++		_ [10]int = nil /* ERROR "cannot use nil as \[10\]int value in variable declaration" */
+ 		_ []byte = nil
+-		_ struct{} = nil /* ERROR "nil" */
++		_ struct{} = nil /* ERROR "cannot use nil as struct{} value in variable declaration" */
+ 		_ func() = nil
+ 		_ map[int]string = nil
+ 		_ chan int = nil
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index 8cc5eda866..c35b1650be 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -105,6 +105,11 @@ func (x *operand) Pos() token.Pos {
+ // cgofunc    <expr> (               <mode>       of type <typ>)
+ //
+ func operandString(x *operand, qf Qualifier) string {
++	// special-case nil
++	if x.mode == value && x.typ == Typ[UntypedNil] {
++		return "nil"
++	}
++
+ 	var buf bytes.Buffer
+ 
+ 	var expr string
+diff --git a/src/go/types/testdata/check/stmt0.src b/src/go/types/testdata/check/stmt0.src
+index 15df37703c..2cce0b59b2 100644
+--- a/src/go/types/testdata/check/stmt0.src
++++ b/src/go/types/testdata/check/stmt0.src
+@@ -69,10 +69,10 @@ func assignments1() {
+ 
+ 	// test cases for issue 5800
+ 	var (
+-		_ int = nil /* ERROR "untyped nil value" */
+-		_ [10]int = nil /* ERROR "untyped nil value" */
++		_ int = nil /* ERROR "cannot use nil as int value in variable declaration" */
++		_ [10]int = nil /* ERROR "cannot use nil as \[10\]int value in variable declaration" */
+ 		_ []byte = nil
+-		_ struct{} = nil /* ERROR "untyped nil value" */
++		_ struct{} = nil /* ERROR "cannot use nil as struct{} value in variable declaration" */
+ 		_ func() = nil
+ 		_ map[int]string = nil
+ 		_ chan int = nil
+diff --git a/src/go/types/testdata/fixedbugs/issue49296.go2 b/src/go/types/testdata/fixedbugs/issue49296.go2
+index 8c6d0b678d..0ad71ef4b2 100644
+--- a/src/go/types/testdata/fixedbugs/issue49296.go2
++++ b/src/go/types/testdata/fixedbugs/issue49296.go2
+@@ -10,7 +10,7 @@ func _[
+         T2 ~float64 | ~complex128 | chan int,
+ ]() {
+ 	// TODO(rfindley): the types2 error here is clearer.
+-        _ = T0(nil /* ERROR cannot convert nil \(untyped nil value\) to T0 */ )
++        _ = T0(nil /* ERROR cannot convert nil to T0 */ )
+         _ = T1(1 /* ERROR cannot convert 1 .* to T1 */ )
+         _ = T2(2 /* ERROR cannot convert 2 .* to T2 */ )
+ }
+diff --git a/src/go/types/testdata/spec/assignability.go2 b/src/go/types/testdata/spec/assignability.go2
+index a6e71aac81..d5f6ab4419 100644
+--- a/src/go/types/testdata/spec/assignability.go2
++++ b/src/go/types/testdata/spec/assignability.go2
+@@ -155,28 +155,28 @@ func _[
+ // TODO(rfindley) error messages about untyped nil diverge from types2 here.
+ // Consider aligning them.
+ func _[TP Interface](X TP) {
+-	b = nil // ERROR cannot use.*untyped nil
+-	a = nil // ERROR cannot use.*untyped nil
++	b = nil // ERROR cannot use nil
++	a = nil // ERROR cannot use nil
+ 	l = nil
+-	s = nil // ERROR cannot use.*untyped nil
++	s = nil // ERROR cannot use nil
+ 	p = nil
+ 	f = nil
+ 	i = nil
+ 	m = nil
+ 	c = nil
+-	d = nil // ERROR cannot use.*untyped nil
++	d = nil // ERROR cannot use nil
+ 
+-	B = nil // ERROR cannot use.*untyped nil
+-	A = nil // ERROR cannot use.*untyped nil
++	B = nil // ERROR cannot use nil
++	A = nil // ERROR cannot use nil
+ 	L = nil
+-	S = nil // ERROR cannot use.*untyped nil
++	S = nil // ERROR cannot use nil
+ 	P = nil
+ 	F = nil
+ 	I = nil
+ 	M = nil
+ 	C = nil
+-	D = nil // ERROR cannot use.*untyped nil
+-	X = nil // ERROR cannot use.*untyped nil
++	D = nil // ERROR cannot use nil
++	X = nil // ERROR cannot use nil
+ }
+ 
+ // "x is an untyped constant representable by a value of type T"

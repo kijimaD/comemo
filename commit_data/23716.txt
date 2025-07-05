@@ -22,7 +22,7 @@ Date:   Wed Jun 3 14:59:27 2015 -0400
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/math/abs_ppc64x.s          |  2 +-
  src/reflect/asm_ppc64x.s       |  4 +-
  src/runtime/asm_ppc64x.s       | 90 +++++++++++++++++++++---------------------
@@ -35,3 +35,922 @@ Date:   Wed Jun 3 14:59:27 2015 -0400
  src/syscall/asm.s              |  7 ----
  src/syscall/asm_linux_ppc64x.s | 16 ++++----
  11 files changed, 107 insertions(+), 114 deletions(-)
+
+diff --git a/src/math/abs_ppc64x.s b/src/math/abs_ppc64x.s
+index 4fd86785ad..06effb4e8e 100644
+--- a/src/math/abs_ppc64x.s
++++ b/src/math/abs_ppc64x.s
+@@ -11,4 +11,4 @@ TEXT ·Abs(SB),NOSPLIT,$0-16
+ 	MOVD 	$((1<<63)-1), R4
+ 	AND	R4, R3
+ 	MOVD	R3, ret+8(FP)
+-	RETURN
++	RET
+diff --git a/src/reflect/asm_ppc64x.s b/src/reflect/asm_ppc64x.s
+index a87131e004..d5f7f8f593 100644
+--- a/src/reflect/asm_ppc64x.s
++++ b/src/reflect/asm_ppc64x.s
+@@ -17,7 +17,7 @@ TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$16
+ 	MOVD	$argframe+0(FP), R3
+ 	MOVD	R3, 16(R1)
+ 	BL	·callReflect(SB)
+-	RETURN
++	RET
+ 
+ // methodValueCall is the code half of the function returned by makeMethodValue.
+ // See the comment on the declaration of methodValueCall in makefunc.go
+@@ -29,4 +29,4 @@ TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$16
+ 	MOVD	$argframe+0(FP), R3
+ 	MOVD	R3, 16(R1)
+ 	BL	·callMethod(SB)
+-	RETURN
++	RET
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index d31adb88f2..6e3aa3c9d2 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -80,17 +80,17 @@ nocgo:
+ 	BL	runtime·mstart(SB)
+ 
+ 	MOVD	R0, 1(R0)
+-	RETURN
++	RET
+ 
+ DATA	runtime·mainPC+0(SB)/8,$runtime·main(SB)
+ GLOBL	runtime·mainPC(SB),RODATA,$8
+ 
+ TEXT runtime·breakpoint(SB),NOSPLIT,$-8-0
+ 	MOVD	R0, 2(R0) // TODO: TD
+-	RETURN
++	RET
+ 
+ TEXT runtime·asminit(SB),NOSPLIT,$-8-0
+-	RETURN
++	RET
+ 
+ TEXT _cgo_reginit(SB),NOSPLIT,$-8-0
+ 	// crosscall_ppc64 and crosscall2 need to reginit, but can't
+@@ -106,7 +106,7 @@ TEXT runtime·reginit(SB),NOSPLIT,$-8-0
+ 	FSUB	F29, F29, F28
+ 	FADD	F29, F29, F30
+ 	FADD	F30, F30, F31
+-	RETURN
++	RET
+ 
+ /*
+  *  go-routine
+@@ -123,7 +123,7 @@ TEXT runtime·gosave(SB), NOSPLIT, $-8-8
+ 	MOVD	R0, gobuf_lr(R3)
+ 	MOVD	R0, gobuf_ret(R3)
+ 	MOVD	R0, gobuf_ctxt(R3)
+-	RETURN
++	RET
+ 
+ // void gogo(Gobuf*)
+ // restore state from Gobuf; longjmp
+@@ -184,7 +184,7 @@ TEXT runtime·mcall(SB), NOSPLIT, $-8-8
+ TEXT runtime·systemstack_switch(SB), NOSPLIT, $0-0
+ 	UNDEF
+ 	BL	(LR)	// make sure this function is not leaf
+-	RETURN
++	RET
+ 
+ // func systemstack(fn func())
+ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
+@@ -241,14 +241,14 @@ switch:
+ 	BL	runtime·save_g(SB)
+ 	MOVD	(g_sched+gobuf_sp)(g), R1
+ 	MOVD	R0, (g_sched+gobuf_sp)(g)
+-	RETURN
++	RET
+ 
+ noswitch:
+ 	// already on m stack, just call directly
+ 	MOVD	0(R11), R3	// code pointer
+ 	MOVD	R3, CTR
+ 	BL	(CTR)
+-	RETURN
++	RET
+ 
+ /*
+  * support for morestack
+@@ -423,7 +423,7 @@ end:						\
+ 	MOVD	R4, 24(R1);			\
+ 	MOVD	R6, 32(R1);			\
+ 	BL	runtime·callwritebarrier(SB);	\
+-	RETURN
++	RET
+ 
+ CALLFN(·call16, 16)
+ CALLFN(·call32, 32)
+@@ -475,7 +475,7 @@ cas_again:
+ 	SYNC
+ 	ISYNC
+ 	MOVB	R3, ret+16(FP)
+-	RETURN
++	RET
+ cas_fail:
+ 	MOVD	$0, R3
+ 	BR	-5(PC)
+@@ -503,7 +503,7 @@ cas64_again:
+ 	SYNC
+ 	ISYNC
+ 	MOVB	R3, ret+24(FP)
+-	RETURN
++	RET
+ cas64_fail:
+ 	MOVD	$0, R3
+ 	BR	-5(PC)
+@@ -545,7 +545,7 @@ TEXT runtime·xadd(SB), NOSPLIT, $0-20
+ 	SYNC
+ 	ISYNC
+ 	MOVW	R3, ret+16(FP)
+-	RETURN
++	RET
+ 
+ TEXT runtime·xadd64(SB), NOSPLIT, $0-24
+ 	MOVD	ptr+0(FP), R4
+@@ -558,7 +558,7 @@ TEXT runtime·xadd64(SB), NOSPLIT, $0-24
+ 	SYNC
+ 	ISYNC
+ 	MOVD	R3, ret+16(FP)
+-	RETURN
++	RET
+ 
+ TEXT runtime·xchg(SB), NOSPLIT, $0-20
+ 	MOVD	ptr+0(FP), R4
+@@ -570,7 +570,7 @@ TEXT runtime·xchg(SB), NOSPLIT, $0-20
+ 	SYNC
+ 	ISYNC
+ 	MOVW	R3, ret+16(FP)
+-	RETURN
++	RET
+ 
+ TEXT runtime·xchg64(SB), NOSPLIT, $0-24
+ 	MOVD	ptr+0(FP), R4
+@@ -582,7 +582,7 @@ TEXT runtime·xchg64(SB), NOSPLIT, $0-24
+ 	SYNC
+ 	ISYNC
+ 	MOVD	R3, ret+16(FP)
+-	RETURN
++	RET
+ 
+ TEXT runtime·xchgp1(SB), NOSPLIT, $0-24
+ 	BR	runtime·xchg64(SB)
+@@ -591,7 +591,7 @@ TEXT runtime·xchguintptr(SB), NOSPLIT, $0-24
+ 	BR	runtime·xchg64(SB)
+ 
+ TEXT runtime·procyield(SB),NOSPLIT,$0-0
+-	RETURN
++	RET
+ 
+ TEXT runtime·atomicstorep1(SB), NOSPLIT, $0-16
+ 	BR	runtime·atomicstore64(SB)
+@@ -601,14 +601,14 @@ TEXT runtime·atomicstore(SB), NOSPLIT, $0-12
+ 	MOVW	val+8(FP), R4
+ 	SYNC
+ 	MOVW	R4, 0(R3)
+-	RETURN
++	RET
+ 
+ TEXT runtime·atomicstore64(SB), NOSPLIT, $0-16
+ 	MOVD	ptr+0(FP), R3
+ 	MOVD	val+8(FP), R4
+ 	SYNC
+ 	MOVD	R4, 0(R3)
+-	RETURN
++	RET
+ 
+ // void	runtime·atomicor8(byte volatile*, byte);
+ TEXT runtime·atomicor8(SB), NOSPLIT, $0-9
+@@ -635,7 +635,7 @@ again:
+ 	BNE	again
+ 	SYNC
+ 	ISYNC
+-	RETURN
++	RET
+ 
+ // void	runtime·atomicand8(byte volatile*, byte);
+ TEXT runtime·atomicand8(SB), NOSPLIT, $0-9
+@@ -665,7 +665,7 @@ again:
+ 	BNE	again
+ 	SYNC
+ 	ISYNC
+-	RETURN
++	RET
+ 
+ // void jmpdefer(fv, sp);
+ // called from deferreturn.
+@@ -692,7 +692,7 @@ TEXT gosave<>(SB),NOSPLIT,$-8
+ 	MOVD	R0, (g_sched+gobuf_lr)(g)
+ 	MOVD	R0, (g_sched+gobuf_ret)(g)
+ 	MOVD	R0, (g_sched+gobuf_ctxt)(g)
+-	RETURN
++	RET
+ 
+ // asmcgocall(void(*fn)(void*), void *arg)
+ // Call fn(arg) on the scheduler stack,
+@@ -911,7 +911,7 @@ TEXT runtime·getcallerpc(SB),NOSPLIT,$8-16
+ 	MOVD	8(R1), R3
+ nobar:
+ 	MOVD	R3, ret+8(FP)
+-	RETURN
++	RET
+ 
+ TEXT runtime·setcallerpc(SB),NOSPLIT,$8-16
+ 	MOVD	pc+8(FP), R3
+@@ -920,7 +920,7 @@ TEXT runtime·setcallerpc(SB),NOSPLIT,$8-16
+ 	CMP	R4, R5
+ 	BEQ	setbar
+ 	MOVD	R3, 16(R1)		// set LR in caller
+-	RETURN
++	RET
+ setbar:
+ 	// Set the stack barrier return PC.
+ 	MOVD	R3, 8(R1)
+@@ -931,7 +931,7 @@ TEXT runtime·getcallersp(SB),NOSPLIT,$0-16
+ 	MOVD	argp+0(FP), R3
+ 	SUB	$8, R3
+ 	MOVD	R3, ret+8(FP)
+-	RETURN
++	RET
+ 
+ TEXT runtime·abort(SB),NOSPLIT,$-8-0
+ 	MOVW	(R0), R0
+@@ -950,7 +950,7 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-8
+ 	SLD	$32, R5
+ 	OR	R5, R3
+ 	MOVD	R3, ret+0(FP)
+-	RETURN
++	RET
+ 
+ // memhash_varlen(p unsafe.Pointer, h seed) uintptr
+ // redirects to memhash(p, h, size) using the size
+@@ -967,7 +967,7 @@ TEXT runtime·memhash_varlen(SB),NOSPLIT,$40-24
+ 	BL	runtime·memhash(SB)
+ 	MOVD	32(R1), R3
+ 	MOVD	R3, ret+16(FP)
+-	RETURN
++	RET
+ 
+ // AES hashing not implemented for ppc64
+ TEXT runtime·aeshash(SB),NOSPLIT,$-8-0
+@@ -991,7 +991,7 @@ loop:
+ 	BNE	test
+ 	MOVD	$1, R3
+ 	MOVB	R3, ret+24(FP)
+-	RETURN
++	RET
+ test:
+ 	MOVBZU	1(R3), R6
+ 	MOVBZU	1(R4), R7
+@@ -999,7 +999,7 @@ test:
+ 	BEQ	loop
+ 
+ 	MOVB	R0, ret+24(FP)
+-	RETURN
++	RET
+ 
+ // memequal_varlen(a, b unsafe.Pointer) bool
+ TEXT runtime·memequal_varlen(SB),NOSPLIT,$40-17
+@@ -1014,11 +1014,11 @@ TEXT runtime·memequal_varlen(SB),NOSPLIT,$40-17
+ 	BL	runtime·memeq(SB)
+ 	MOVBZ	32(R1), R3
+ 	MOVB	R3, ret+16(FP)
+-	RETURN
++	RET
+ eq:
+ 	MOVD	$1, R3
+ 	MOVB	R3, ret+16(FP)
+-	RETURN
++	RET
+ 
+ // eqstring tests whether two strings are equal.
+ // The compiler guarantees that strings passed
+@@ -1032,7 +1032,7 @@ TEXT runtime·eqstring(SB),NOSPLIT,$0-33
+ 	MOVB	R5, ret+32(FP)
+ 	CMP	R3, R4
+ 	BNE	2(PC)
+-	RETURN
++	RET
+ 	MOVD	s1len+8(FP), R5
+ 	SUB	$1, R3
+ 	SUB	$1, R4
+@@ -1040,13 +1040,13 @@ TEXT runtime·eqstring(SB),NOSPLIT,$0-33
+ loop:
+ 	CMP	R3, R8
+ 	BNE	2(PC)
+-	RETURN
++	RET
+ 	MOVBZU	1(R3), R6
+ 	MOVBZU	1(R4), R7
+ 	CMP	R6, R7
+ 	BEQ	loop
+ 	MOVB	R0, ret+32(FP)
+-	RETURN
++	RET
+ 
+ // TODO: share code with memeq?
+ TEXT bytes·Equal(SB),NOSPLIT,$0-49
+@@ -1072,12 +1072,12 @@ loop:
+ 
+ noteq:
+ 	MOVBZ	R0, ret+48(FP)
+-	RETURN
++	RET
+ 
+ equal:
+ 	MOVD	$1, R3
+ 	MOVBZ	R3, ret+48(FP)
+-	RETURN
++	RET
+ 
+ TEXT bytes·IndexByte(SB),NOSPLIT,$0-40
+ 	MOVD	s+0(FP), R3
+@@ -1096,12 +1096,12 @@ loop:
+ 
+ 	SUB	R6, R3		// remove base
+ 	MOVD	R3, ret+32(FP)
+-	RETURN
++	RET
+ 
+ notfound:
+ 	MOVD	$-1, R3
+ 	MOVD	R3, ret+32(FP)
+-	RETURN
++	RET
+ 
+ TEXT strings·IndexByte(SB),NOSPLIT,$0-32
+ 	MOVD	p+0(FP), R3
+@@ -1120,12 +1120,12 @@ loop:
+ 
+ 	SUB	R6, R3		// remove base
+ 	MOVD	R3, ret+24(FP)
+-	RETURN
++	RET
+ 
+ notfound:
+ 	MOVD	$-1, R3
+ 	MOVD	R3, ret+24(FP)
+-	RETURN
++	RET
+ 
+ TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
+ 	MOVD	g_m(g), R4
+@@ -1136,11 +1136,11 @@ TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
+ 	XOR	$0x88888eef, R3
+ 	MOVW	R3, m_fastrand(R4)
+ 	MOVW	R3, ret+0(FP)
+-	RETURN
++	RET
+ 
+ TEXT runtime·return0(SB), NOSPLIT, $0
+ 	MOVW	$0, R3
+-	RETURN
++	RET
+ 
+ // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
+ // Must obey the gcc calling convention.
+@@ -1169,13 +1169,13 @@ TEXT runtime·goexit(SB),NOSPLIT,$-8-0
+ 	MOVD	R0, R0	// NOP
+ 
+ TEXT runtime·prefetcht0(SB),NOSPLIT,$0-8
+-	RETURN
++	RET
+ 
+ TEXT runtime·prefetcht1(SB),NOSPLIT,$0-8
+-	RETURN
++	RET
+ 
+ TEXT runtime·prefetcht2(SB),NOSPLIT,$0-8
+-	RETURN
++	RET
+ 
+ TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
+-	RETURN
++	RET
+diff --git a/src/runtime/atomic_ppc64x.s b/src/runtime/atomic_ppc64x.s
+index 993b279524..d84865efd6 100644
+--- a/src/runtime/atomic_ppc64x.s
++++ b/src/runtime/atomic_ppc64x.s
+@@ -15,7 +15,7 @@ TEXT ·atomicload(SB),NOSPLIT,$-8-12
+ 	BC	4, 30, 1(PC) // bne- cr7,0x4
+ 	ISYNC
+ 	MOVW	R3, ret+8(FP)
+-	RETURN
++	RET
+ 
+ // uint64 runtime·atomicload64(uint64 volatile* addr)
+ TEXT ·atomicload64(SB),NOSPLIT,$-8-16
+@@ -26,7 +26,7 @@ TEXT ·atomicload64(SB),NOSPLIT,$-8-16
+ 	BC	4, 30, 1(PC) // bne- cr7,0x4
+ 	ISYNC
+ 	MOVD	R3, ret+8(FP)
+-	RETURN
++	RET
+ 
+ // void *runtime·atomicloadp(void *volatile *addr)
+ TEXT ·atomicloadp(SB),NOSPLIT,$-8-16
+@@ -37,4 +37,4 @@ TEXT ·atomicloadp(SB),NOSPLIT,$-8-16
+ 	BC	4, 30, 1(PC) // bne- cr7,0x4
+ 	ISYNC
+ 	MOVD	R3, ret+8(FP)
+-	RETURN
++	RET
+diff --git a/src/runtime/duff_ppc64x.s b/src/runtime/duff_ppc64x.s
+index 1206fed20b..14bc33e35e 100644
+--- a/src/runtime/duff_ppc64x.s
++++ b/src/runtime/duff_ppc64x.s
+@@ -135,6 +135,6 @@ TEXT runtime·duffzero(SB), NOSPLIT, $-8-0
+ 	MOVDU	R0, 8(R3)
+ 	MOVDU	R0, 8(R3)
+ 	MOVDU	R0, 8(R3)
+-	RETURN
++	RET
+ 
+ // TODO: Implement runtime·duffcopy.
+diff --git a/src/runtime/memclr_ppc64x.s b/src/runtime/memclr_ppc64x.s
+index 535faa1c0e..cea42cb70c 100644
+--- a/src/runtime/memclr_ppc64x.s
++++ b/src/runtime/memclr_ppc64x.s
+@@ -17,4 +17,4 @@ TEXT runtime·memclr(SB),NOSPLIT,$0-16
+ 	MOVBU	R0, 1(R3)
+ 	BC	25, 0, -1(PC) // bdnz+ $-4
+ done:
+-	RETURN
++	RET
+diff --git a/src/runtime/memmove_ppc64x.s b/src/runtime/memmove_ppc64x.s
+index 23725ed0f6..3ada63e633 100644
+--- a/src/runtime/memmove_ppc64x.s
++++ b/src/runtime/memmove_ppc64x.s
+@@ -13,7 +13,7 @@ TEXT runtime·memmove(SB), NOSPLIT, $-8-24
+ 	MOVD	n+16(FP), R5
+ 	CMP	R5, $0
+ 	BNE	check
+-	RETURN
++	RET
+ 
+ check:
+ 	CMP	R3, R4
+@@ -27,7 +27,7 @@ loop:
+ 	MOVBU	R6, 1(R3)
+ 	CMP	R3, R5
+ 	BNE	loop
+-	RETURN
++	RET
+ 
+ backward:
+ 	ADD	R5, R4
+@@ -37,4 +37,4 @@ loop1:
+ 	MOVBU	R6, -1(R5)
+ 	CMP	R3, R5
+ 	BNE	loop1
+-	RETURN
++	RET
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index 232f299ac2..8cf1549964 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -50,12 +50,12 @@
+ TEXT runtime·exit(SB),NOSPLIT,$-8-4
+ 	MOVW	code+0(FP), R3
+ 	SYSCALL	$SYS_exit_group
+-	RETURN
++	RET
+ 
+ TEXT runtime·exit1(SB),NOSPLIT,$-8-4
+ 	MOVW	code+0(FP), R3
+ 	SYSCALL	$SYS_exit
+-	RETURN
++	RET
+ 
+ TEXT runtime·open(SB),NOSPLIT,$-8-20
+ 	MOVD	name+0(FP), R3
+@@ -65,7 +65,7 @@ TEXT runtime·open(SB),NOSPLIT,$-8-20
+ 	BVC	2(PC)
+ 	MOVW	$-1, R3
+ 	MOVW	R3, ret+16(FP)
+-	RETURN
++	RET
+ 
+ TEXT runtime·closefd(SB),NOSPLIT,$-8-12
+ 	MOVW	fd+0(FP), R3
+@@ -73,7 +73,7 @@ TEXT runtime·closefd(SB),NOSPLIT,$-8-12
+ 	BVC	2(PC)
+ 	MOVW	$-1, R3
+ 	MOVW	R3, ret+8(FP)
+-	RETURN
++	RET
+ 
+ TEXT runtime·write(SB),NOSPLIT,$-8-28
+ 	MOVD	fd+0(FP), R3
+@@ -83,7 +83,7 @@ TEXT runtime·write(SB),NOSPLIT,$-8-28
+ 	BVC	2(PC)
+ 	MOVW	$-1, R3
+ 	MOVW	R3, ret+24(FP)
+-	RETURN
++	RET
+ 
+ TEXT runtime·read(SB),NOSPLIT,$-8-28
+ 	MOVW	fd+0(FP), R3
+@@ -93,14 +93,14 @@ TEXT runtime·read(SB),NOSPLIT,$-8-28
+ 	BVC	2(PC)
+ 	MOVW	$-1, R3
+ 	MOVW	R3, ret+24(FP)
+-	RETURN
++	RET
+ 
+ TEXT runtime·getrlimit(SB),NOSPLIT,$-8-20
+ 	MOVW	kind+0(FP), R3
+ 	MOVD	limit+8(FP), R4
+ 	SYSCALL	$SYS_ugetrlimit
+ 	MOVW	R3, ret+16(FP)
+-	RETURN
++	RET
+ 
+ TEXT runtime·usleep(SB),NOSPLIT,$16-4
+ 	MOVW	usec+0(FP), R3
+@@ -119,28 +119,28 @@ TEXT runtime·usleep(SB),NOSPLIT,$16-4
+ 	MOVW	$0, R6
+ 	ADD	$8, R1, R7
+ 	SYSCALL	$SYS_newselect
+-	RETURN
++	RET
+ 
+ TEXT runtime·raise(SB),NOSPLIT,$-8
+ 	SYSCALL	$SYS_gettid
+ 	MOVW	R3, R3	// arg 1 tid
+ 	MOVW	sig+0(FP), R4	// arg 2
+ 	SYSCALL	$SYS_tkill
+-	RETURN
++	RET
+ 
+ TEXT runtime·raiseproc(SB),NOSPLIT,$-8
+ 	SYSCALL	$SYS_getpid
+ 	MOVW	R3, R3	// arg 1 pid
+ 	MOVW	sig+0(FP), R4	// arg 2
+ 	SYSCALL	$SYS_kill
+-	RETURN
++	RET
+ 
+ TEXT runtime·setitimer(SB),NOSPLIT,$-8-24
+ 	MOVW	mode+0(FP), R3
+ 	MOVD	new+8(FP), R4
+ 	MOVD	old+16(FP), R5
+ 	SYSCALL	$SYS_setitimer
+-	RETURN
++	RET
+ 
+ TEXT runtime·mincore(SB),NOSPLIT,$-8-28
+ 	MOVD	addr+0(FP), R3
+@@ -148,7 +148,7 @@ TEXT runtime·mincore(SB),NOSPLIT,$-8-28
+ 	MOVD	dst+16(FP), R5
+ 	SYSCALL	$SYS_mincore
+ 	MOVW	R3, ret+24(FP)
+-	RETURN
++	RET
+ 
+ // func now() (sec int64, nsec int32)
+ TEXT time·now(SB),NOSPLIT,$16
+@@ -161,7 +161,7 @@ TEXT time·now(SB),NOSPLIT,$16
+ 	MULLD	R4, R5
+ 	MOVD	R3, sec+0(FP)
+ 	MOVW	R5, nsec+8(FP)
+-	RETURN
++	RET
+ 
+ TEXT runtime·nanotime(SB),NOSPLIT,$16
+ 	MOVW	$1, R3 // CLOCK_MONOTONIC
+@@ -175,7 +175,7 @@ TEXT runtime·nanotime(SB),NOSPLIT,$16
+ 	MULLD	R4, R3
+ 	ADD	R5, R3
+ 	MOVD	R3, ret+0(FP)
+-	RETURN
++	RET
+ 
+ TEXT runtime·rtsigprocmask(SB),NOSPLIT,$-8-28
+ 	MOVW	sig+0(FP), R3
+@@ -185,7 +185,7 @@ TEXT runtime·rtsigprocmask(SB),NOSPLIT,$-8-28
+ 	SYSCALL	$SYS_rt_sigprocmask
+ 	BVC	2(PC)
+ 	MOVD	R0, 0xf1(R0)	// crash
+-	RETURN
++	RET
+ 
+ TEXT runtime·rt_sigaction(SB),NOSPLIT,$-8-36
+ 	MOVD	sig+0(FP), R3
+@@ -194,7 +194,7 @@ TEXT runtime·rt_sigaction(SB),NOSPLIT,$-8-36
+ 	MOVD	size+24(FP), R6
+ 	SYSCALL	$SYS_rt_sigaction
+ 	MOVW	R3, ret+32(FP)
+-	RETURN
++	RET
+ 
+ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	MOVW	sig+8(FP), R3
+@@ -203,7 +203,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	MOVD	fn+0(FP), R31
+ 	MOVD	R31, CTR
+ 	BL	(CTR)
+-	RETURN
++	RET
+ 
+ #ifdef GOARCH_ppc64le
+ // ppc64le doesn't need function descriptors
+@@ -232,7 +232,7 @@ TEXT runtime·_sigtramp(SB),NOSPLIT,$64
+ 	MOVD	$runtime·sigtrampgo(SB), R31
+ 	MOVD	R31, CTR
+ 	BL	(CTR)
+-	RETURN
++	RET
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$-8
+ 	MOVD	addr+0(FP), R3
+@@ -244,7 +244,7 @@ TEXT runtime·mmap(SB),NOSPLIT,$-8
+ 
+ 	SYSCALL	$SYS_mmap
+ 	MOVD	R3, ret+32(FP)
+-	RETURN
++	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$-8
+ 	MOVD	addr+0(FP), R3
+@@ -252,7 +252,7 @@ TEXT runtime·munmap(SB),NOSPLIT,$-8
+ 	SYSCALL	$SYS_munmap
+ 	BVC	2(PC)
+ 	MOVD	R0, 0xf3(R0)
+-	RETURN
++	RET
+ 
+ TEXT runtime·madvise(SB),NOSPLIT,$-8
+ 	MOVD	addr+0(FP), R3
+@@ -260,7 +260,7 @@ TEXT runtime·madvise(SB),NOSPLIT,$-8
+ 	MOVW	flags+16(FP), R5
+ 	SYSCALL	$SYS_madvise
+ 	// ignore failure - maybe pages are locked
+-	RETURN
++	RET
+ 
+ // int64 futex(int32 *uaddr, int32 op, int32 val,
+ //	struct timespec *timeout, int32 *uaddr2, int32 val2);
+@@ -273,7 +273,7 @@ TEXT runtime·futex(SB),NOSPLIT,$-8
+ 	MOVW	val3+32(FP), R8
+ 	SYSCALL	$SYS_futex
+ 	MOVW	R3, ret+40(FP)
+-	RETURN
++	RET
+ 
+ // int64 clone(int32 flags, void *stk, M *mp, G *gp, void (*fn)(void));
+ TEXT runtime·clone(SB),NOSPLIT,$-8
+@@ -298,7 +298,7 @@ TEXT runtime·clone(SB),NOSPLIT,$-8
+ 	CMP	R3, $0
+ 	BEQ	3(PC)
+ 	MOVW	R3, ret+40(FP)
+-	RETURN
++	RET
+ 
+ 	// In child, on new stack.
+ 	// initialize essential registers
+@@ -345,11 +345,11 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+ 	SYSCALL	$SYS_sigaltstack
+ 	BVC	2(PC)
+ 	MOVD	R0, 0xf1(R0)  // crash
+-	RETURN
++	RET
+ 
+ TEXT runtime·osyield(SB),NOSPLIT,$-8
+ 	SYSCALL	$SYS_sched_yield
+-	RETURN
++	RET
+ 
+ TEXT runtime·sched_getaffinity(SB),NOSPLIT,$-8
+ 	MOVD	pid+0(FP), R3
+@@ -357,21 +357,21 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT,$-8
+ 	MOVD	buf+16(FP), R5
+ 	SYSCALL	$SYS_sched_getaffinity
+ 	MOVW	R3, ret+24(FP)
+-	RETURN
++	RET
+ 
+ // int32 runtime·epollcreate(int32 size);
+ TEXT runtime·epollcreate(SB),NOSPLIT,$-8
+ 	MOVW    size+0(FP), R3
+ 	SYSCALL	$SYS_epoll_create
+ 	MOVW	R3, ret+8(FP)
+-	RETURN
++	RET
+ 
+ // int32 runtime·epollcreate1(int32 flags);
+ TEXT runtime·epollcreate1(SB),NOSPLIT,$-8
+ 	MOVW	flags+0(FP), R3
+ 	SYSCALL	$SYS_epoll_create1
+ 	MOVW	R3, ret+8(FP)
+-	RETURN
++	RET
+ 
+ // func epollctl(epfd, op, fd int32, ev *epollEvent) int
+ TEXT runtime·epollctl(SB),NOSPLIT,$-8
+@@ -381,7 +381,7 @@ TEXT runtime·epollctl(SB),NOSPLIT,$-8
+ 	MOVD	ev+16(FP), R6
+ 	SYSCALL	$SYS_epoll_ctl
+ 	MOVW	R3, ret+24(FP)
+-	RETURN
++	RET
+ 
+ // int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
+ TEXT runtime·epollwait(SB),NOSPLIT,$-8
+@@ -391,7 +391,7 @@ TEXT runtime·epollwait(SB),NOSPLIT,$-8
+ 	MOVW	timeout+20(FP), R6
+ 	SYSCALL	$SYS_epoll_wait
+ 	MOVW	R3, ret+24(FP)
+-	RETURN
++	RET
+ 
+ // void runtime·closeonexec(int32 fd);
+ TEXT runtime·closeonexec(SB),NOSPLIT,$-8
+@@ -399,4 +399,4 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$-8
+ 	MOVD    $2, R4  // F_SETFD
+ 	MOVD    $1, R5  // FD_CLOEXEC
+ 	SYSCALL	$SYS_fcntl
+-	RETURN
++	RET
+diff --git a/src/sync/atomic/asm_ppc64x.s b/src/sync/atomic/asm_ppc64x.s
+index 00e1afb78f..d3e49aefb4 100644
+--- a/src/sync/atomic/asm_ppc64x.s
++++ b/src/sync/atomic/asm_ppc64x.s
+@@ -19,7 +19,7 @@ TEXT ·SwapUint32(SB),NOSPLIT,$0-20
+ 	SYNC
+ 	ISYNC
+ 	MOVW	R5, old+16(FP)
+-	RETURN
++	RET
+ 
+ TEXT ·SwapInt64(SB),NOSPLIT,$0-24
+ 	BR	·SwapUint64(SB)
+@@ -34,7 +34,7 @@ TEXT ·SwapUint64(SB),NOSPLIT,$0-24
+ 	SYNC
+ 	ISYNC
+ 	MOVD	R5, old+16(FP)
+-	RETURN
++	RET
+ 
+ TEXT ·SwapUintptr(SB),NOSPLIT,$0-24
+ 	BR	·SwapUint64(SB)
+@@ -56,9 +56,9 @@ TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0-17
+ 	ISYNC
+ 	MOVD	$1, R3
+ 	MOVB	R3, swapped+16(FP)
+-	RETURN
++	RET
+ 	MOVB	R0, swapped+16(FP)
+-	RETURN
++	RET
+ 
+ TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0-25
+ 	BR	·CompareAndSwapUint64(SB)
+@@ -80,9 +80,9 @@ TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$0-25
+ 	ISYNC
+ 	MOVD	$1, R3
+ 	MOVB	R3, swapped+24(FP)
+-	RETURN
++	RET
+ 	MOVB	R0, swapped+24(FP)
+-	RETURN
++	RET
+ 
+ TEXT ·AddInt32(SB),NOSPLIT,$0-20
+ 	BR	·AddUint32(SB)
+@@ -98,7 +98,7 @@ TEXT ·AddUint32(SB),NOSPLIT,$0-20
+ 	SYNC
+ 	ISYNC
+ 	MOVW	R5, ret+16(FP)
+-	RETURN
++	RET
+ 
+ TEXT ·AddUintptr(SB),NOSPLIT,$0-24
+ 	BR	·AddUint64(SB)
+@@ -117,7 +117,7 @@ TEXT ·AddUint64(SB),NOSPLIT,$0-24
+ 	SYNC
+ 	ISYNC
+ 	MOVD	R5, ret+16(FP)
+-	RETURN
++	RET
+ 
+ TEXT ·LoadInt32(SB),NOSPLIT,$0-12
+ 	BR	·LoadUint32(SB)
+@@ -130,7 +130,7 @@ TEXT ·LoadUint32(SB),NOSPLIT,$0-12
+ 	BC	4, 30, 1(PC)	// bne- cr7,0x4
+ 	ISYNC
+ 	MOVW	R3, val+8(FP)
+-	RETURN
++	RET
+ 
+ TEXT ·LoadInt64(SB),NOSPLIT,$0-16
+ 	BR	·LoadUint64(SB)
+@@ -143,7 +143,7 @@ TEXT ·LoadUint64(SB),NOSPLIT,$0-16
+ 	BC	4, 30, 1(PC)	// bne- cr7,0x4
+ 	ISYNC
+ 	MOVD	R3, val+8(FP)
+-	RETURN
++	RET
+ 
+ TEXT ·LoadUintptr(SB),NOSPLIT,$0-16
+ 	BR	·LoadPointer(SB)
+@@ -159,7 +159,7 @@ TEXT ·StoreUint32(SB),NOSPLIT,$0-12
+ 	MOVW	val+8(FP), R4
+ 	SYNC
+ 	MOVW	R4, 0(R3)
+-	RETURN
++	RET
+ 
+ TEXT ·StoreInt64(SB),NOSPLIT,$0-16
+ 	BR	·StoreUint64(SB)
+@@ -169,7 +169,7 @@ TEXT ·StoreUint64(SB),NOSPLIT,$0-16
+ 	MOVD	val+8(FP), R4
+ 	SYNC
+ 	MOVD	R4, 0(R3)
+-	RETURN
++	RET
+ 
+ TEXT ·StoreUintptr(SB),NOSPLIT,$0-16
+ 	BR	·StoreUint64(SB)
+diff --git a/src/syscall/asm.s b/src/syscall/asm.s
+index 642b0b60ef..d4ca868f17 100644
+--- a/src/syscall/asm.s
++++ b/src/syscall/asm.s
+@@ -4,12 +4,5 @@
+ 
+ #include "textflag.h"
+ 
+-#ifdef GOARCH_ppc64
+-#define RET RETURN
+-#endif
+-#ifdef GOARCH_ppc64le
+-#define RET RETURN
+-#endif
+-
+ TEXT ·use(SB),NOSPLIT,$0
+ 	RET
+diff --git a/src/syscall/asm_linux_ppc64x.s b/src/syscall/asm_linux_ppc64x.s
+index 5c47ac0f39..be6727cb1a 100644
+--- a/src/syscall/asm_linux_ppc64x.s
++++ b/src/syscall/asm_linux_ppc64x.s
+@@ -29,13 +29,13 @@ TEXT	·Syscall(SB),NOSPLIT,$0-56
+ 	MOVD	R0, r2+40(FP)	// r2
+ 	MOVD	R3, err+48(FP)	// errno
+ 	BL	runtime·exitsyscall(SB)
+-	RETURN
++	RET
+ ok:
+ 	MOVD	R3, r1+32(FP)	// r1
+ 	MOVD	R4, r2+40(FP)	// r2
+ 	MOVD	R0, err+48(FP)	// errno
+ 	BL	runtime·exitsyscall(SB)
+-	RETURN
++	RET
+ 
+ TEXT ·Syscall6(SB),NOSPLIT,$0-80
+ 	BL	runtime·entersyscall(SB)
+@@ -53,13 +53,13 @@ TEXT ·Syscall6(SB),NOSPLIT,$0-80
+ 	MOVD	R0, r2+64(FP)	// r2
+ 	MOVD	R3, err+72(FP)	// errno
+ 	BL	runtime·exitsyscall(SB)
+-	RETURN
++	RET
+ ok6:
+ 	MOVD	R3, r1+56(FP)	// r1
+ 	MOVD	R4, r2+64(FP)	// r2
+ 	MOVD	R0, err+72(FP)	// errno
+ 	BL	runtime·exitsyscall(SB)
+-	RETURN
++	RET
+ 
+ TEXT ·RawSyscall(SB),NOSPLIT,$0-56
+ 	MOVD	a1+8(FP), R3
+@@ -75,12 +75,12 @@ TEXT ·RawSyscall(SB),NOSPLIT,$0-56
+ 	MOVD	R4, r1+32(FP)	// r1
+ 	MOVD	R0, r2+40(FP)	// r2
+ 	MOVD	R3, err+48(FP)	// errno
+-	RETURN
++	RET
+ ok1:
+ 	MOVD	R3, r1+32(FP)	// r1
+ 	MOVD	R4, r2+40(FP)	// r2
+ 	MOVD	R0, err+48(FP)	// errno
+-	RETURN
++	RET
+ 
+ TEXT ·RawSyscall6(SB),NOSPLIT,$0-80
+ 	MOVD	a1+8(FP), R3
+@@ -96,9 +96,9 @@ TEXT ·RawSyscall6(SB),NOSPLIT,$0-80
+ 	MOVD	R4, r1+56(FP)	// r1
+ 	MOVD	R0, r2+64(FP)	// r2
+ 	MOVD	R3, err+72(FP)	// errno
+-	RETURN
++	RET
+ ok2:
+ 	MOVD	R3, r1+56(FP)	// r1
+ 	MOVD	R4, r2+64(FP)	// r2
+ 	MOVD	R0, err+72(FP)	// errno
+-	RETURN
++	RET

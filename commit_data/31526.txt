@@ -21,6 +21,19 @@ Date:   Tue Feb 28 14:20:44 2017 +0100
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/crypto/sha512/sha512block_amd64.s | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/crypto/sha512/sha512block_amd64.s b/src/crypto/sha512/sha512block_amd64.s
+index 9c9fd98cd8..19b390a448 100644
+--- a/src/crypto/sha512/sha512block_amd64.s
++++ b/src/crypto/sha512/sha512block_amd64.s
+@@ -1480,6 +1480,7 @@ TEXT ·checkAVX2(SB), NOSPLIT, $0
+ 	CMPB AX,$0
+ 	JNE check_bmi2
+ 	MOVB AX, ret+0(FP)
++	RET
+ check_bmi2:
+ 	MOVB runtime·support_bmi2(SB), AX
+ 	MOVB AX, ret+0(FP)

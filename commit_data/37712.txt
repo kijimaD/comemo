@@ -15,6 +15,21 @@ Date:   Wed Aug 22 22:34:39 2018 +0200
     Reviewed-on: https://go-review.googlesource.com/130875
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/gc_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/gc_test.go b/src/runtime/gc_test.go
+index 4895a0e2ac..0da19cdf34 100644
+--- a/src/runtime/gc_test.go
++++ b/src/runtime/gc_test.go
+@@ -21,6 +21,9 @@ func TestGcSys(t *testing.T) {
+ 	if os.Getenv("GOGC") == "off" {
+ 		t.Skip("skipping test; GOGC=off in environment")
+ 	}
++	if runtime.GOOS == "windows" {
++		t.Skip("skipping test; GOOS=windows http://golang.org/issue/27156")
++	}
+ 	got := runTestProg(t, "testprog", "GCSys")
+ 	want := "OK\n"
+ 	if got != want {

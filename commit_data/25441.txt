@@ -15,7 +15,7 @@ Date:   Fri Oct 30 10:13:13 2015 +1300
     Reviewed-on: https://go-review.googlesource.com/14233
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/internal/obj/link.go          |  8 ++++++++
  src/cmd/internal/obj/ppc64/a.out.go   |  1 +
  src/cmd/internal/obj/ppc64/anames9.go |  1 +
@@ -23,3 +23,146 @@ Date:   Fri Oct 30 10:13:13 2015 +1300
  src/cmd/link/internal/ppc64/asm.go    | 12 ++++++++++++
  src/runtime/tls_ppc64x.s              | 15 ++-------------
  6 files changed, 40 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 6ca34f28d3..ef63a7047b 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -451,6 +451,14 @@ const (
+ 	// the thread local base and the thread local variable defined by the
+ 	// referenced (thread local) symbol from the GOT.
+ 	R_ARM64_TLS_IE
++
++	// PPC64.
++
++	// R_POWER_TLS_LE is used to implement the "local exec" model for tls
++	// access. It resolves to the offset of the thread-local symbol from the
++	// thread pointer (R13) and inserts this value into the low 16 bits of an
++	// instruction word.
++	R_POWER_TLS_LE
+ )
+ 
+ type Auto struct {
+diff --git a/src/cmd/internal/obj/ppc64/a.out.go b/src/cmd/internal/obj/ppc64/a.out.go
+index 3028b6cac8..ea868fdb5f 100644
+--- a/src/cmd/internal/obj/ppc64/a.out.go
++++ b/src/cmd/internal/obj/ppc64/a.out.go
+@@ -220,6 +220,7 @@ const (
+ 	C_ANY
+ 	C_GOK
+ 	C_ADDR
++	C_TLS_LE
+ 	C_TEXTSIZE
+ 
+ 	C_NCLASS /* must be the last */
+diff --git a/src/cmd/internal/obj/ppc64/anames9.go b/src/cmd/internal/obj/ppc64/anames9.go
+index b48e5162b0..62125a4e52 100644
+--- a/src/cmd/internal/obj/ppc64/anames9.go
++++ b/src/cmd/internal/obj/ppc64/anames9.go
+@@ -35,6 +35,7 @@ var cnames9 = []string{
+ 	"ANY",
+ 	"GOK",
+ 	"ADDR",
++	"TLS_LE",
+ 	"TEXTSIZE",
+ 	"NCLASS",
+ }
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 993cf178cd..22ec99db04 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -245,6 +245,8 @@ var optab = []Optab{
+ 	{AMOVBZ, C_ADDR, C_NONE, C_NONE, C_REG, 75, 8, 0},
+ 	{AMOVB, C_ADDR, C_NONE, C_NONE, C_REG, 76, 12, 0},
+ 
++	{AMOVD, C_TLS_LE, C_NONE, C_NONE, C_REG, 79, 4, 0},
++
+ 	/* load constant */
+ 	{AMOVD, C_SECON, C_NONE, C_NONE, C_REG, 3, 4, REGSB},
+ 	{AMOVD, C_SACON, C_NONE, C_NONE, C_REG, 3, 4, REGSP},
+@@ -583,6 +585,9 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
+ 			}
+ 			ctxt.Instoffset = a.Offset
+ 			if a.Sym != nil { // use relocation
++				if a.Sym.Type == obj.STLSBSS {
++					return C_TLS_LE
++				}
+ 				return C_ADDR
+ 			}
+ 			return C_LEXT
+@@ -2396,6 +2401,17 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 
+ 		//if(dlm) reloc(&p->from, p->pc, 1);
+ 
++	case 79:
++		if p.From.Offset != 0 {
++			ctxt.Diag("invalid offset against tls var %v", p)
++		}
++		o1 = AOP_IRR(OP_ADDI, uint32(p.To.Reg), REGZERO, 0)
++		rel := obj.Addrel(ctxt.Cursym)
++		rel.Off = int32(ctxt.Pc)
++		rel.Siz = 4
++		rel.Sym = p.From.Sym
++		rel.Type = obj.R_POWER_TLS_LE
++
+ 	}
+ 
+ 	out[0] = o1
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 3798b24f21..b8ab534461 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -408,6 +408,18 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
+ 		*val = ld.Symaddr(r.Sym) + r.Add - symtoc(s)
+ 
+ 		return 0
++
++	case obj.R_POWER_TLS_LE:
++		// The thread pointer points 0x7000 bytes after the start of the the
++		// thread local storage area as documented in section "3.7.2 TLS
++		// Runtime Handling" of "Power Architecture 64-Bit ELF V2 ABI
++		// Specification".
++		v := r.Sym.Value - 0x7000
++		if int64(int16(v)) != v {
++			ld.Diag("TLS offset out of range %d", v)
++		}
++		*val = (*val &^ 0xffff) | (v & 0xffff)
++		return 0
+ 	}
+ 
+ 	return -1
+diff --git a/src/runtime/tls_ppc64x.s b/src/runtime/tls_ppc64x.s
+index d930718c3e..1b030fd36a 100644
+--- a/src/runtime/tls_ppc64x.s
++++ b/src/runtime/tls_ppc64x.s
+@@ -26,16 +26,8 @@ TEXT runtime·save_g(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVB	runtime·iscgo(SB), R31
+ 	CMP	R31, $0
+ 	BEQ	nocgo
+-
+-	// $runtime.tlsg(SB) is a special linker symbol.
+-	// It is the offset from the start of TLS to our
+-	// thread-local storage for g.
+-	MOVD	$runtime·tls_g(SB), R31
++	MOVD	runtime·tls_g(SB), R31
+ 	ADD	R13, R31
+-	// The actual TLS base is 0x7000 below R13
+-	SUB	$0x7000, R31
+-
+-	// Store g in TLS
+ 	MOVD	g, 0(R31)
+ 
+ nocgo:
+@@ -51,11 +43,8 @@ nocgo:
+ //
+ // NOTE: _cgo_topofstack assumes this only clobbers g (R30), and R31.
+ TEXT runtime·load_g(SB),NOSPLIT|NOFRAME,$0-0
+-	MOVD	$runtime·tls_g(SB), R31
+-	// R13 is the C ABI TLS base pointer + 0x7000
++	MOVD	runtime·tls_g(SB), R31
+ 	ADD	R13, R31
+-	SUB	$0x7000, R31
+-
+ 	MOVD	0(R31), g
+ 	RET
+ 

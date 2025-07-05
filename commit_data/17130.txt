@@ -7,6 +7,22 @@ Date:   Fri Aug 9 11:27:29 2013 -0700
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/12580045
-
+---
  src/pkg/io/ioutil/ioutil.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/io/ioutil/ioutil.go b/src/pkg/io/ioutil/ioutil.go
+index ce8d8b48ac..b2508b7899 100644
+--- a/src/pkg/io/ioutil/ioutil.go
++++ b/src/pkg/io/ioutil/ioutil.go
+@@ -132,6 +132,10 @@ func (devNull) Write(p []byte) (int, error) {
+ 	return len(p), nil
+ }
+ 
++func (devNull) WriteString(s string) (int, error) {
++	return len(s), nil
++}
++
+ func (devNull) ReadFrom(r io.Reader) (n int64, err error) {
+ 	buf := blackHole()
+ 	defer blackHolePut(buf)

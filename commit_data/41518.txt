@@ -15,8 +15,69 @@ Date:   Mon Sep 30 14:37:05 2019 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  test/fixedbugs/issue34577.dir/a.go | 14 ++++++++++++++
  test/fixedbugs/issue34577.dir/b.go | 19 +++++++++++++++++++
  test/fixedbugs/issue34577.go       |  9 +++++++++
  3 files changed, 42 insertions(+)
+
+diff --git a/test/fixedbugs/issue34577.dir/a.go b/test/fixedbugs/issue34577.dir/a.go
+new file mode 100644
+index 0000000000..c0203818c1
+--- /dev/null
++++ b/test/fixedbugs/issue34577.dir/a.go
+@@ -0,0 +1,14 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type A struct {
++	x int
++}
++
++//go:noinline
++func W(a A, k, v interface{}) A {
++	return A{3}
++}
+diff --git a/test/fixedbugs/issue34577.dir/b.go b/test/fixedbugs/issue34577.dir/b.go
+new file mode 100644
+index 0000000000..8f07c62175
+--- /dev/null
++++ b/test/fixedbugs/issue34577.dir/b.go
+@@ -0,0 +1,19 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "a"
++
++type B struct {
++	s string
++}
++
++func (b B) Func(x a.A) a.A {
++	return a.W(x, k, b)
++}
++
++type ktype int
++
++const k ktype = 0
+diff --git a/test/fixedbugs/issue34577.go b/test/fixedbugs/issue34577.go
+new file mode 100644
+index 0000000000..b4caaebb66
+--- /dev/null
++++ b/test/fixedbugs/issue34577.go
+@@ -0,0 +1,9 @@
++// compiledir
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 34577: gccgo compiler error emitting export data
++
++package ignored

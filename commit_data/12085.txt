@@ -18,8 +18,63 @@ Date:   Mon Feb 20 13:41:44 2012 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5687046
-
+---
  src/cmd/5g/reg.c | 7 +++++++
  src/cmd/6g/reg.c | 7 +++++++
  src/cmd/8g/reg.c | 7 +++++++
  3 files changed, 21 insertions(+)
+
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index b72b9c1657..93724d0326 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -1029,6 +1029,13 @@ prop(Reg *r, Bits ref, Bits cal)
+ 				ref.b[z] = 0;
+ 			}
+ 			break;
++
++		default:
++			// Work around for issue 1304:
++			// flush modified globals before each instruction.
++			for(z=0; z<BITS; z++)
++				cal.b[z] |= externs.b[z];
++			break;
+ 		}
+ 		for(z=0; z<BITS; z++) {
+ 			ref.b[z] = (ref.b[z] & ~r1->set.b[z]) |
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index 82a2ce3125..bed9f8da68 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -1085,6 +1085,13 @@ prop(Reg *r, Bits ref, Bits cal)
+ 				ref.b[z] = 0;
+ 			}
+ 			break;
++
++		default:
++			// Work around for issue 1304:
++			// flush modified globals before each instruction.
++			for(z=0; z<BITS; z++)
++				cal.b[z] |= externs.b[z];
++			break;
+ 		}
+ 		for(z=0; z<BITS; z++) {
+ 			ref.b[z] = (ref.b[z] & ~r1->set.b[z]) |
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index 4ff68625d2..29270c8203 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -968,6 +968,13 @@ prop(Reg *r, Bits ref, Bits cal)
+ 				ref.b[z] = 0;
+ 			}
+ 			break;
++
++		default:
++			// Work around for issue 1304:
++			// flush modified globals before each instruction.
++			for(z=0; z<BITS; z++)
++				cal.b[z] |= externs.b[z];
++			break;
+ 		}
+ 		for(z=0; z<BITS; z++) {
+ 			ref.b[z] = (ref.b[z] & ~r1->set.b[z]) |

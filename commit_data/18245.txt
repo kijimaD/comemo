@@ -29,6 +29,27 @@ Date:   Tue Jan 14 09:46:40 2014 -0800
     R=golang-codereviews, khr
     CC=golang-codereviews
     https://golang.org/cl/51700043
-
+---
  src/pkg/net/http/server.go | 9 ++++-----
  1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index a56aa3df31..778089aa3e 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -997,11 +997,10 @@ func (w *response) finishRequest() {
+ 	w.cw.close()
+ 	w.conn.buf.Flush()
+ 
+-	// Close the body, unless we're about to close the whole TCP connection
+-	// anyway.
+-	if !w.closeAfterReply {
+-		w.req.Body.Close()
+-	}
++	// Close the body (regardless of w.closeAfterReply) so we can
++	// re-use its bufio.Reader later safely.
++	w.req.Body.Close()
++
+ 	if w.req.MultipartForm != nil {
+ 		w.req.MultipartForm.RemoveAll()
+ 	}

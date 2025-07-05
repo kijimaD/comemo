@@ -18,6 +18,21 @@ Date:   Tue Oct 19 10:09:06 2021 +0200
     Trust: Damien Neil <dneil@google.com>
     Run-TryBot: Jean de Klerk <deklerk@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/errors/wrap.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/errors/wrap.go b/src/errors/wrap.go
+index 4eb4f9ae37..b73d5a8ce2 100644
+--- a/src/errors/wrap.go
++++ b/src/errors/wrap.go
+@@ -35,7 +35,8 @@ func Unwrap(err error) error {
+ //	func (m MyError) Is(target error) bool { return target == fs.ErrExist }
+ //
+ // then Is(MyError{}, fs.ErrExist) returns true. See syscall.Errno.Is for
+-// an example in the standard library.
++// an example in the standard library. An Is method should only shallowly
++// compare err and the target and not call Unwrap on either.
+ func Is(err, target error) bool {
+ 	if target == nil {
+ 		return err == target

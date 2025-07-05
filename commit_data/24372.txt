@@ -9,7 +9,74 @@ Date:   Wed Jul 22 18:04:33 2015 -0700
     Change-Id: I52760a01420a11f3c979f678812b3775a3af61e4
     Reviewed-on: https://go-review.googlesource.com/12545
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/http/transport.go      |  3 +++
  src/net/http/transport_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
  2 files changed, 44 insertions(+)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 6f181efc1a..e7ee5c2825 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -1205,6 +1205,9 @@ WaitResponse:
+ 				}
+ 			default:
+ 				re = responseAndError{err: errClosed}
++				if pc.isCanceled() {
++					re = responseAndError{err: errRequestCanceled}
++				}
+ 			}
+ 			break WaitResponse
+ 		case <-respHeaderTimer:
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index cae254b4da..0950d2de23 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -1552,6 +1552,47 @@ func TestCancelRequestWithChannelBeforeDo(t *testing.T) {
+ 	}
+ }
+ 
++// Issue 11020. The returned error message should be errRequestCanceled
++func TestTransportCancelBeforeResponseHeaders(t *testing.T) {
++	defer afterTest(t)
++
++	serverConnCh := make(chan net.Conn, 1)
++	tr := &Transport{
++		Dial: func(network, addr string) (net.Conn, error) {
++			cc, sc := net.Pipe()
++			serverConnCh <- sc
++			return cc, nil
++		},
++	}
++	defer tr.CloseIdleConnections()
++	errc := make(chan error, 1)
++	req, _ := NewRequest("GET", "http://example.com/", nil)
++	go func() {
++		_, err := tr.RoundTrip(req)
++		errc <- err
++	}()
++
++	sc := <-serverConnCh
++	verb := make([]byte, 3)
++	if _, err := io.ReadFull(sc, verb); err != nil {
++		t.Errorf("Error reading HTTP verb from server: %v", err)
++	}
++	if string(verb) != "GET" {
++		t.Errorf("server received %q; want GET", verb)
++	}
++	defer sc.Close()
++
++	tr.CancelRequest(req)
++
++	err := <-errc
++	if err == nil {
++		t.Fatalf("unexpected success from RoundTrip")
++	}
++	if err != ExportErrRequestCanceled {
++		t.Errorf("RoundTrip error = %v; want ExportErrRequestCanceled", err)
++	}
++}
++
+ // golang.org/issue/3672 -- Client can't close HTTP stream
+ // Calling Close on a Response.Body used to just read until EOF.
+ // Now it actually closes the TCP connection.

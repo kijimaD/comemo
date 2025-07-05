@@ -18,6 +18,36 @@ Date:   Fri Dec 1 20:01:55 2017 +0100
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/time/zoneinfo.go | 11 ++++++++++-
  1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/time/zoneinfo.go b/src/time/zoneinfo.go
+index d2bc642d81..54c76f09e1 100644
+--- a/src/time/zoneinfo.go
++++ b/src/time/zoneinfo.go
+@@ -288,14 +288,23 @@ func LoadLocation(name string) (*Location, error) {
+ 		env, _ := syscall.Getenv("ZONEINFO")
+ 		zoneinfo = &env
+ 	})
++	var firstErr error
+ 	if *zoneinfo != "" {
+ 		if zoneData, err := loadTzinfoFromDirOrZip(*zoneinfo, name); err == nil {
+ 			if z, err := LoadLocationFromTZData(name, zoneData); err == nil {
+ 				return z, nil
+ 			}
++			firstErr = err
++		} else if err != syscall.ENOENT {
++			firstErr = err
+ 		}
+ 	}
+-	return loadLocation(name, zoneSources)
++	if z, err := loadLocation(name, zoneSources); err == nil {
++		return z, nil
++	} else if firstErr == nil {
++		firstErr = err
++	}
++	return nil, firstErr
+ }
+ 
+ // containsDotDot reports whether s contains "..".

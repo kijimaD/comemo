@@ -11,6 +11,26 @@ Date:   Thu May 23 14:01:16 2019 +0000
     Change-Id: Iafb5ef1b2bee5f021a711b0b758aaf6a74758c5d
     Reviewed-on: https://go-review.googlesource.com/c/go/+/178697
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  SECURITY.md | 13 +++++++++++++
  1 file changed, 13 insertions(+)
+
+diff --git a/SECURITY.md b/SECURITY.md
+new file mode 100644
+index 0000000000..35995eeb68
+--- /dev/null
++++ b/SECURITY.md
+@@ -0,0 +1,13 @@
++# Security Policy
++
++## Supported Versions
++
++We support the past two Go releases (for example, Go 1.11.x and Go 1.12.x).
++
++See https://golang.org/wiki/Go-Release-Cycle and in particular the
++[Release Maintenance](https://github.com/golang/go/wiki/Go-Release-Cycle#release-maintenance)
++part of that page.
++
++## Reporting a Vulnerability
++
++See https://golang.org/security for how to report a vulnerability.

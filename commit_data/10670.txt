@@ -10,6 +10,22 @@ Date:   Fri Dec 9 10:42:34 2011 +1100
     R=golang-dev, alex.brainman
     CC=golang-dev
     https://golang.org/cl/5475044
-
+---
  src/pkg/syscall/syscall_windows.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index f3025f1155..5f33364704 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -27,8 +27,8 @@ import (
+ 	"syscall"
+ )
+ 
+-func abort(funcname string, err int) {
+-	panic(funcname + " failed: " + syscall.Errstr(err))
++func abort(funcname string, err error) {
++	panic(funcname + " failed: " + err.Error())
+ }
+ 
+ func print_version(v uint32) {

@@ -7,6 +7,19 @@ Date:   Thu Aug 15 08:13:38 2013 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12957044
-
+---
  doc/go1.2.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.2.txt b/doc/go1.2.txt
+index 948b695b4a..ca7b39d777 100644
+--- a/doc/go1.2.txt
++++ b/doc/go1.2.txt
+@@ -17,6 +17,7 @@ cmd/5l: add MOVBS, MOVHS etc for sub-word moves (CL 12682043).
+ cmd/cgo, cmd/go: support including C++ code with cgo (CL 8248043).
+ cmd/gc: make missing package error fatal (CL 12677043).
+ cmd/go: test coverage (CL 10413044).
++cmd/go: add -t flag to 'go get' to download test dependencies (CL 12566046).
+ 
+ archive/zip: add File.DataOffset accessor (CL 12784045).
+ bufio: add Reset methods to Reader and Writer (CL 12603049).

@@ -10,7 +10,7 @@ Date:   Fri Jul 10 16:32:26 2009 -0700
     DELTA=95  (66 added, 7 deleted, 22 changed)
     OCL=31456
     CL=31469
-
+---
  src/pkg/fmt/print.go         |  2 +-
  src/pkg/reflect/all_test.go  | 33 +++++++++++++++++++++++++++++----
  src/pkg/reflect/deepequal.go |  2 +-
@@ -19,3 +19,263 @@ Date:   Fri Jul 10 16:32:26 2009 -0700
  src/pkg/runtime/reflect.cgo  | 35 ++++++++++++++++++++++++++++-------
  src/pkg/runtime/runtime.h    |  2 ++
  7 files changed, 86 insertions(+), 27 deletions(-)
+
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index f5a8146a34..04323f7fd4 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -453,7 +453,7 @@ func (p *pp) printField(field reflect.Value) (was_string bool) {
+ 			}
+ 			p.printField(key);
+ 			p.addstr(":");
+-			p.printField(f.Get(key));
++			p.printField(f.Elem(key));
+ 		}
+ 		p.addstr("]");
+ 	case *reflect.StructValue:
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index a7f01d7ba2..59d799d672 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -626,15 +626,15 @@ func TestMap(t *testing.T) {
+ 		i++;
+ 
+ 		// Check that value lookup is correct.
+-		vv := mv.Get(NewValue(k));
++		vv := mv.Elem(NewValue(k));
+ 		if vi := vv.(*IntValue).Get(); vi != v {
+ 			t.Errorf("Key %q: have value %d, want %d", vi, v);
+ 		}
+ 
+ 		// Copy into new map.
+-		newmap.Put(NewValue(k), NewValue(v));
++		newmap.SetElem(NewValue(k), NewValue(v));
+ 	}
+-	vv := mv.Get(NewValue("not-present"));
++	vv := mv.Elem(NewValue("not-present"));
+ 	if vv != nil {
+ 		t.Errorf("Invalid key: got non-nil value %s", valueToString(vv));
+ 	}
+@@ -651,7 +651,7 @@ func TestMap(t *testing.T) {
+ 		}
+ 	}
+ 
+-	newmap.Put(NewValue("a"), nil);
++	newmap.SetElem(NewValue("a"), nil);
+ 	v, ok := newm["a"];
+ 	if ok {
+ 		t.Errorf("newm[\"a\"] = %d after delete", v);
+@@ -784,3 +784,28 @@ func TestMethod(t *testing.T) {
+ 		t.Errorf("Interface Method returned %d; want 250", i);
+ 	}
+ }
++
++func TestInterfaceSet(t *testing.T) {
++	p := &Point{3, 4};
++
++	var s struct {
++		I interface {};
++		P interface { Dist(int)int };
++	}
++	sv := NewValue(&s).(*PtrValue).Elem().(*StructValue);
++	sv.Field(0).(*InterfaceValue).Set(NewValue(p));
++	if q := s.I.(*Point); q != p {
++		t.Errorf("i: have %p want %p", q, p);
++	}
++
++	pv := sv.Field(1).(*InterfaceValue);
++	pv.Set(NewValue(p));
++	if q := s.P.(*Point); q != p {
++		t.Errorf("i: have %p want %p", q, p);
++	}
++	
++	i := pv.Method(0).Call([]Value{NewValue(10)})[0].(*IntValue).Get();
++	if i != 250 {
++		t.Errorf("Interface Method returned %d; want 250", i);
++	}
++}
+diff --git a/src/pkg/reflect/deepequal.go b/src/pkg/reflect/deepequal.go
+index 1e4717139d..e93513e8d9 100644
+--- a/src/pkg/reflect/deepequal.go
++++ b/src/pkg/reflect/deepequal.go
+@@ -110,7 +110,7 @@ func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) bool {
+ 			return false;
+ 		}
+ 		for i, k := range map1.Keys() {
+-			if !deepValueEqual(map1.Get(k), map2.Get(k), visited, depth+1) {
++			if !deepValueEqual(map1.Elem(k), map2.Elem(k), visited, depth+1) {
+ 				return false;
+ 			}
+ 		}
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index c7e52a515a..b3bab5f0bf 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -889,20 +889,25 @@ func (v *InterfaceValue) Elem() Value {
+ 	return NewValue(v.Interface());
+ }
+ 
++// ../runtime/reflect.cgo
++func setiface(typ *InterfaceType, x *interface{}, addr addr)
++
+ // Set assigns x to v.
+-func (v *InterfaceValue) Set(x interface{}) {
++func (v *InterfaceValue) Set(x Value) {
++	i := x.Interface();
+ 	if !v.canSet {
+ 		panic(cannotSet);
+ 	}
+ 	// Two different representations; see comment in Get.
+ 	// Empty interface is easy.
+-	if v.typ.(*InterfaceType).NumMethod() == 0 {
+-		*(*interface{})(v.addr) = x;
++	t := v.typ.(*InterfaceType);
++	if t.NumMethod() == 0 {
++		*(*interface{})(v.addr) = i;
++		return;
+ 	}
+ 
+ 	// Non-empty interface requires a runtime check.
+-	panic("unimplemented: interface Set");
+-//	unsafe.SetInterface(v.typ, v.addr, x);
++	setiface(t, &i, v.addr);
+ }
+ 
+ // Method returns a FuncValue corresponding to v's i'th method.
+@@ -959,9 +964,9 @@ func mapiternext(it *byte)
+ func mapiterkey(it *byte, key *byte) bool
+ func makemap(t *runtime.MapType) *byte
+ 
+-// Get returns the value associated with key in the map v.
++// Elem returns the value associated with key in the map v.
+ // It returns nil if key is not found in the map.
+-func (v *MapValue) Get(key Value) Value {
++func (v *MapValue) Elem(key Value) Value {
+ 	t := v.Type().(*MapType);
+ 	typesMustMatch(t.Key(), key.Type());
+ 	m := *(**byte)(v.addr);
+@@ -975,9 +980,9 @@ func (v *MapValue) Get(key Value) Value {
+ 	return newval;
+ }
+ 
+-// Put sets the value associated with key in the map v to val.
++// SetElem sets the value associated with key in the map v to val.
+ // If val is nil, Put deletes the key from map.
+-func (v *MapValue) Put(key, val Value) {
++func (v *MapValue) SetElem(key, val Value) {
+ 	t := v.Type().(*MapType);
+ 	typesMustMatch(t.Key(), key.Type());
+ 	var vaddr *byte;
+diff --git a/src/pkg/runtime/iface.c b/src/pkg/runtime/iface.c
+index cc9eb7eede..63093ad881 100644
+--- a/src/pkg/runtime/iface.c
++++ b/src/pkg/runtime/iface.c
+@@ -379,7 +379,7 @@ sys·ifaceI2I2(InterfaceType *inter, Iface i, Iface ret, bool ok)
+ // ifaceE2I(sigi *byte, iface any) (ret any);
+ // Called only for explicit conversions (with type assertion).
+ void
+-sys·ifaceE2I(InterfaceType *inter, Eface e, Iface ret)
++ifaceE2I(InterfaceType *inter, Eface e, Iface *ret)
+ {
+ 	Type *t;
+ 
+@@ -389,10 +389,17 @@ sys·ifaceE2I(InterfaceType *inter, Eface e, Iface ret)
+ 		printf("interface is nil, not %S\n", *inter->string);
+ 		throw("interface conversion");
+ 	} else {
+-		ret.data = e.data;
+-		ret.tab = itab(inter, t, 0);
++		ret->data = e.data;
++		ret->tab = itab(inter, t, 0);
+ 	}
+-	FLUSH(&ret);
++}
++
++// ifaceE2I(sigi *byte, iface any) (ret any);
++// Called only for explicit conversions (with type assertion).
++void
++sys·ifaceE2I(InterfaceType *inter, Eface e, Iface ret)
++{
++	ifaceE2I(inter, e, &ret);
+ }
+ 
+ // ifaceE2I2(sigi *byte, iface any) (ret any, ok bool);
+@@ -618,4 +625,3 @@ unsafe·Unreflect(Iface typ, void *addr, Eface e)
+ 
+ 	FLUSH(&e);
+ }
+-
+diff --git a/src/pkg/runtime/reflect.cgo b/src/pkg/runtime/reflect.cgo
+index 1c72d2bc18..af74662db3 100644
+--- a/src/pkg/runtime/reflect.cgo
++++ b/src/pkg/runtime/reflect.cgo
+@@ -6,6 +6,16 @@ package reflect
+ #include "runtime.h"
+ #include "type.h"
+ 
++static Type*
++gettype(void *typ)
++{
++	// typ is a *runtime.Type (or *runtime.MapType, etc), but the Type
++	// defined in type.h includes an interface value header
++	// in front of the raw structure.  the -2 below backs up
++	// to the interface value header.
++	return (Type*)((void**)typ - 2);
++}
++
+ /*
+  * Go wrappers around the C functions near the bottom of hashmap.c
+  * There's no recursion here even though it looks like there is:
+@@ -41,12 +51,7 @@ func mapiterkey(it *byte, key *byte) (ok bool) {
+ func makemap(typ *byte) (map *byte) {
+ 	MapType *t;
+ 
+-	// typ is a *runtime.MapType, but the MapType
+-	// defined in type.h includes an interface value header
+-	// in front of the raw MapType.  the -2 below backs up
+-	// to the interface value header.
+-	t = (MapType*)((void**)typ - 2);
+-
++	t = (MapType*)gettype(typ);
+ 	map = (byte*)makemap(t->key->size, t->elem->size, t->key->alg, t->elem->alg, 0);
+ }
+ 
+@@ -61,7 +66,7 @@ func makechan(typ *byte, size uint32) (ch *byte) {
+ 	// defined in type.h includes an interface value header
+ 	// in front of the raw ChanType.  the -2 below backs up
+ 	// to the interface value header.
+-	t = (ChanType*)((void**)typ - 2);
++	t = (ChanType*)gettype(typ);
+ 	ch = (byte*)makechan(t->elem->size, t->elem->alg, size);
+ }
+ 
+@@ -73,3 +78,19 @@ func chanrecv(ch *byte, val *byte, pres *bool) {
+ 	chanrecv((Hchan*)ch, val, pres);
+ }
+ 
++
++/*
++ * Go wrappers around the functions in iface.c
++ */
++
++func setiface(typ *byte, x *byte, ret *byte) {
++	InterfaceType *t;
++
++	t = (InterfaceType*)gettype(typ);
++	if(t->mhdr.nel == 0) {
++		// already an empty interface
++		*(Eface*)ret = *(Eface*)x;
++		return;
++	}
++	ifaceE2I((InterfaceType*)gettype(typ), *(Eface*)x, (Iface*)ret);
++}
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 02226ede03..d0e51fe410 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -477,3 +477,5 @@ Hmap*	makemap(uint32, uint32, uint32, uint32, uint32);
+ Hchan*	makechan(uint32, uint32, uint32);
+ void	chansend(Hchan*, void*, bool*);
+ void	chanrecv(Hchan*, void*, bool*);
++
++void	ifaceE2I(struct InterfaceType*, Eface, Iface*);

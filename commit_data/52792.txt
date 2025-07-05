@@ -12,7 +12,41 @@ Date:   Tue Mar 8 12:21:00 2022 +0100
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/encoding/json/decode.go  | 2 ++
  src/encoding/json/scanner.go | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index 4319918d1e..01af489b56 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -75,6 +75,8 @@ import (
+ // either be any string type, an integer, implement json.Unmarshaler, or
+ // implement encoding.TextUnmarshaler.
+ //
++// If the JSON-encoded data contain a syntax error, Unmarshal returns a SyntaxError.
++//
+ // If a JSON value is not appropriate for a given target type,
+ // or if a JSON number overflows the target type, Unmarshal
+ // skips that field and completes the unmarshaling as best it can.
+diff --git a/src/encoding/json/scanner.go b/src/encoding/json/scanner.go
+index dbaa821bec..22fc6922da 100644
+--- a/src/encoding/json/scanner.go
++++ b/src/encoding/json/scanner.go
+@@ -27,6 +27,7 @@ func Valid(data []byte) bool {
+ 
+ // checkValid verifies that data is valid JSON-encoded data.
+ // scan is passed in for use by checkValid to avoid an allocation.
++// checkValid returns nil or a SyntaxError.
+ func checkValid(data []byte, scan *scanner) error {
+ 	scan.reset()
+ 	for _, c := range data {
+@@ -42,6 +43,7 @@ func checkValid(data []byte, scan *scanner) error {
+ }
+ 
+ // A SyntaxError is a description of a JSON syntax error.
++// Unmarshal will return a SyntaxError if the JSON can't be parsed.
+ type SyntaxError struct {
+ 	msg    string // description of error
+ 	Offset int64  // error occurred after reading Offset bytes

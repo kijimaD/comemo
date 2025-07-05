@@ -24,7 +24,7 @@ Date:   Thu Apr 30 17:05:59 2020 -0400
     Change-Id: I7a6d93ef8dd6e235bcab94e7c47270aad047af31
     Reviewed-on: https://go-review.googlesource.com/c/go/+/231223
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/buildtool.go                      |   1 +
  src/cmd/internal/goobj2/objfile.go             |  14 ++--
  src/cmd/oldlink/internal/objfile/objfile.go    |  14 ++--
@@ -39,3 +39,653 @@ Date:   Thu Apr 30 17:05:59 2020 -0400
  src/reflect/value.go                           |  58 ++++++--------
  src/syscall/syscall_unix.go                    |  16 ++--
  13 files changed, 205 insertions(+), 84 deletions(-)
+
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 5ec2381589..9059225abd 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -97,6 +97,7 @@ var bootstrapDirs = []string{
+ 	"debug/pe",
+ 	"internal/goversion",
+ 	"internal/race",
++	"internal/unsafeheader",
+ 	"internal/xcoff",
+ 	"math/big",
+ 	"math/bits",
+diff --git a/src/cmd/internal/goobj2/objfile.go b/src/cmd/internal/goobj2/objfile.go
+index 28702ebf07..ab07624563 100644
+--- a/src/cmd/internal/goobj2/objfile.go
++++ b/src/cmd/internal/goobj2/objfile.go
+@@ -12,6 +12,7 @@ import (
+ 	"encoding/binary"
+ 	"errors"
+ 	"fmt"
++	"internal/unsafeheader"
+ 	"io"
+ 	"unsafe"
+ )
+@@ -502,16 +503,15 @@ func (r *Reader) StringAt(off uint32, len uint32) string {
+ }
+ 
+ func toString(b []byte) string {
+-	type stringHeader struct {
+-		str unsafe.Pointer
+-		len int
+-	}
+-
+ 	if len(b) == 0 {
+ 		return ""
+ 	}
+-	ss := stringHeader{str: unsafe.Pointer(&b[0]), len: len(b)}
+-	s := *(*string)(unsafe.Pointer(&ss))
++
++	var s string
++	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
++	hdr.Data = unsafe.Pointer(&b[0])
++	hdr.Len = len(b)
++
+ 	return s
+ }
+ 
+diff --git a/src/cmd/oldlink/internal/objfile/objfile.go b/src/cmd/oldlink/internal/objfile/objfile.go
+index 3a59f6a624..6882b7694b 100644
+--- a/src/cmd/oldlink/internal/objfile/objfile.go
++++ b/src/cmd/oldlink/internal/objfile/objfile.go
+@@ -19,6 +19,7 @@ import (
+ 	"cmd/internal/sys"
+ 	"cmd/oldlink/internal/sym"
+ 	"fmt"
++	"internal/unsafeheader"
+ 	"io"
+ 	"log"
+ 	"os"
+@@ -595,17 +596,16 @@ func (r *objReader) readData() []byte {
+ 	return p
+ }
+ 
+-type stringHeader struct {
+-	str unsafe.Pointer
+-	len int
+-}
+-
+ func mkROString(rodata []byte) string {
+ 	if len(rodata) == 0 {
+ 		return ""
+ 	}
+-	ss := stringHeader{str: unsafe.Pointer(&rodata[0]), len: len(rodata)}
+-	s := *(*string)(unsafe.Pointer(&ss))
++
++	var s string
++	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
++	hdr.Data = unsafe.Pointer(&rodata[0])
++	hdr.Len = len(rodata)
++
+ 	return s
+ }
+ 
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 45c92c8eb4..a5b45fada1 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -46,7 +46,8 @@ var pkgDeps = map[string][]string{
+ 	"unsafe":                  {},
+ 	"internal/cpu":            {},
+ 	"internal/bytealg":        {"unsafe", "internal/cpu"},
+-	"internal/reflectlite":    {"runtime", "unsafe"},
++	"internal/reflectlite":    {"runtime", "unsafe", "internal/unsafeheader"},
++	"internal/unsafeheader":   {"unsafe"},
+ 
+ 	"L0": {
+ 		"errors",
+@@ -119,7 +120,7 @@ var pkgDeps = map[string][]string{
+ 	"image/color":            {"L2"},                // interfaces
+ 	"image/color/palette":    {"L2", "image/color"},
+ 	"internal/fmtsort":       {"reflect", "sort"},
+-	"reflect":                {"L2"},
++	"reflect":                {"L2", "internal/unsafeheader"},
+ 	"sort":                   {"internal/reflectlite"},
+ 
+ 	"L3": {
+@@ -147,7 +148,7 @@ var pkgDeps = map[string][]string{
+ 	// End of linear dependency definitions.
+ 
+ 	// Operating system access.
+-	"syscall":                           {"L0", "internal/oserror", "internal/race", "internal/syscall/windows/sysdll", "syscall/js", "unicode/utf16"},
++	"syscall":                           {"L0", "internal/oserror", "internal/race", "internal/syscall/windows/sysdll", "internal/unsafeheader", "syscall/js", "unicode/utf16"},
+ 	"syscall/js":                        {"L0"},
+ 	"internal/oserror":                  {"L0"},
+ 	"internal/syscall/unix":             {"L0", "syscall"},
+diff --git a/src/internal/reflectlite/swapper.go b/src/internal/reflectlite/swapper.go
+index 4594fb5ee2..6330ab2d34 100644
+--- a/src/internal/reflectlite/swapper.go
++++ b/src/internal/reflectlite/swapper.go
+@@ -4,7 +4,10 @@
+ 
+ package reflectlite
+ 
+-import "unsafe"
++import (
++	"internal/unsafeheader"
++	"unsafe"
++)
+ 
+ // Swapper returns a function that swaps the elements in the provided
+ // slice.
+@@ -58,7 +61,7 @@ func Swapper(slice interface{}) func(i, j int) {
+ 		}
+ 	}
+ 
+-	s := (*sliceHeader)(v.ptr)
++	s := (*unsafeheader.Slice)(v.ptr)
+ 	tmp := unsafe_New(typ) // swap scratch space
+ 
+ 	return func(i, j int) {
+diff --git a/src/internal/reflectlite/type.go b/src/internal/reflectlite/type.go
+index 49a03ac1e1..eb7f1a4b78 100644
+--- a/src/internal/reflectlite/type.go
++++ b/src/internal/reflectlite/type.go
+@@ -7,6 +7,7 @@
+ package reflectlite
+ 
+ import (
++	"internal/unsafeheader"
+ 	"unsafe"
+ )
+ 
+@@ -338,7 +339,7 @@ func (n name) name() (s string) {
+ 	}
+ 	b := (*[4]byte)(unsafe.Pointer(n.bytes))
+ 
+-	hdr := (*stringHeader)(unsafe.Pointer(&s))
++	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
+ 	hdr.Data = unsafe.Pointer(&b[3])
+ 	hdr.Len = int(b[1])<<8 | int(b[2])
+ 	return s
+@@ -350,7 +351,7 @@ func (n name) tag() (s string) {
+ 		return ""
+ 	}
+ 	nl := n.nameLen()
+-	hdr := (*stringHeader)(unsafe.Pointer(&s))
++	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
+ 	hdr.Data = unsafe.Pointer(n.data(3+nl+2, "non-empty string"))
+ 	hdr.Len = tl
+ 	return s
+diff --git a/src/internal/reflectlite/value.go b/src/internal/reflectlite/value.go
+index 6a493938f5..85beea606c 100644
+--- a/src/internal/reflectlite/value.go
++++ b/src/internal/reflectlite/value.go
+@@ -5,6 +5,7 @@
+ package reflectlite
+ 
+ import (
++	"internal/unsafeheader"
+ 	"runtime"
+ 	"unsafe"
+ )
+@@ -335,10 +336,10 @@ func (v Value) Len() int {
+ 		return maplen(v.pointer())
+ 	case Slice:
+ 		// Slice is bigger than a word; assume flagIndir.
+-		return (*sliceHeader)(v.ptr).Len
++		return (*unsafeheader.Slice)(v.ptr).Len
+ 	case String:
+ 		// String is bigger than a word; assume flagIndir.
+-		return (*stringHeader)(v.ptr).Len
++		return (*unsafeheader.String)(v.ptr).Len
+ 	}
+ 	panic(&ValueError{"reflect.Value.Len", v.kind()})
+ }
+@@ -379,19 +380,6 @@ func (v Value) Type() Type {
+ 	return v.typ
+ }
+ 
+-// stringHeader is a safe version of StringHeader used within this package.
+-type stringHeader struct {
+-	Data unsafe.Pointer
+-	Len  int
+-}
+-
+-// sliceHeader is a safe version of SliceHeader used within this package.
+-type sliceHeader struct {
+-	Data unsafe.Pointer
+-	Len  int
+-	Cap  int
+-}
+-
+ /*
+  * constructors
+  */
+diff --git a/src/internal/unsafeheader/unsafeheader.go b/src/internal/unsafeheader/unsafeheader.go
+new file mode 100644
+index 0000000000..2d4d00d45c
+--- /dev/null
++++ b/src/internal/unsafeheader/unsafeheader.go
+@@ -0,0 +1,37 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package unsafeheader contains header declarations for the Go runtime's slice
++// and string implementations.
++//
++// This package allows packages that cannot import "reflect" to use types that
++// are tested to be equivalent to reflect.SliceHeader and reflect.StringHeader.
++package unsafeheader
++
++import (
++	"unsafe"
++)
++
++// Slice is the runtime representation of a slice.
++// It cannot be used safely or portably and its representation may
++// change in a later release.
++//
++// Unlike reflect.SliceHeader, its Data field is sufficient to guarantee the
++// data it references will not be garbage collected.
++type Slice struct {
++	Data unsafe.Pointer
++	Len  int
++	Cap  int
++}
++
++// String is the runtime representation of a string.
++// It cannot be used safely or portably and its representation may
++// change in a later release.
++//
++// Unlike reflect.SliceHeader, its Data field is sufficient to guarantee the
++// data it references will not be garbage collected.
++type String struct {
++	Data unsafe.Pointer
++	Len  int
++}
+diff --git a/src/internal/unsafeheader/unsafeheader_test.go b/src/internal/unsafeheader/unsafeheader_test.go
+new file mode 100644
+index 0000000000..6fb7cca888
+--- /dev/null
++++ b/src/internal/unsafeheader/unsafeheader_test.go
+@@ -0,0 +1,100 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unsafeheader_test
++
++import (
++	"bytes"
++	"internal/unsafeheader"
++	"reflect"
++	"testing"
++	"unsafe"
++)
++
++// TestTypeMatchesReflectType ensures that the name and layout of the
++// unsafeheader types matches the corresponding Header types in the reflect
++// package.
++func TestTypeMatchesReflectType(t *testing.T) {
++	t.Run("Slice", func(t *testing.T) {
++		testHeaderMatchesReflect(t, unsafeheader.Slice{}, reflect.SliceHeader{})
++	})
++
++	t.Run("String", func(t *testing.T) {
++		testHeaderMatchesReflect(t, unsafeheader.String{}, reflect.StringHeader{})
++	})
++}
++
++func testHeaderMatchesReflect(t *testing.T, header, reflectHeader interface{}) {
++	h := reflect.TypeOf(header)
++	rh := reflect.TypeOf(reflectHeader)
++
++	for i := 0; i < h.NumField(); i++ {
++		f := h.Field(i)
++		rf, ok := rh.FieldByName(f.Name)
++		if !ok {
++			t.Errorf("Field %d of %v is named %s, but no such field exists in %v", i, h, f.Name, rh)
++			continue
++		}
++		if !typeCompatible(f.Type, rf.Type) {
++			t.Errorf("%v.%s has type %v, but %v.%s has type %v", h, f.Name, f.Type, rh, rf.Name, rf.Type)
++		}
++		if f.Offset != rf.Offset {
++			t.Errorf("%v.%s has offset %d, but %v.%s has offset %d", h, f.Name, f.Offset, rh, rf.Name, rf.Offset)
++		}
++	}
++
++	if h.NumField() != rh.NumField() {
++		t.Errorf("%v has %d fields, but %v has %d", h, h.NumField(), rh, rh.NumField())
++	}
++	if h.Align() != rh.Align() {
++		t.Errorf("%v has alignment %d, but %v has alignment %d", h, h.Align(), rh, rh.Align())
++	}
++}
++
++var (
++	unsafePointerType = reflect.TypeOf(unsafe.Pointer(nil))
++	uintptrType       = reflect.TypeOf(uintptr(0))
++)
++
++func typeCompatible(t, rt reflect.Type) bool {
++	return t == rt || (t == unsafePointerType && rt == uintptrType)
++}
++
++// TestWriteThroughHeader ensures that the headers in the unsafeheader package
++// can successfully mutate variables of the corresponding built-in types.
++//
++// This test is expected to fail under -race (which implicitly enables
++// -d=checkptr) if the runtime views the header types as incompatible with the
++// underlying built-in types.
++func TestWriteThroughHeader(t *testing.T) {
++	t.Run("Slice", func(t *testing.T) {
++		s := []byte("Hello, checkptr!")[:5]
++
++		var alias []byte
++		hdr := (*unsafeheader.Slice)(unsafe.Pointer(&alias))
++		hdr.Data = unsafe.Pointer(&s[0])
++		hdr.Cap = cap(s)
++		hdr.Len = len(s)
++
++		if !bytes.Equal(alias, s) {
++			t.Errorf("alias of %T(%q) constructed via Slice = %T(%q)", s, s, alias, alias)
++		}
++		if cap(alias) != cap(s) {
++			t.Errorf("alias of %T with cap %d has cap %d", s, cap(s), cap(alias))
++		}
++	})
++
++	t.Run("String", func(t *testing.T) {
++		s := "Hello, checkptr!"
++
++		var alias string
++		hdr := (*unsafeheader.String)(unsafe.Pointer(&alias))
++		hdr.Data = (*unsafeheader.String)(unsafe.Pointer(&s)).Data
++		hdr.Len = len(s)
++
++		if alias != s {
++			t.Errorf("alias of %q constructed via String = %q", s, alias)
++		}
++	})
++}
+diff --git a/src/reflect/swapper.go b/src/reflect/swapper.go
+index 016f95d7b0..0cf40666b1 100644
+--- a/src/reflect/swapper.go
++++ b/src/reflect/swapper.go
+@@ -4,7 +4,10 @@
+ 
+ package reflect
+ 
+-import "unsafe"
++import (
++	"internal/unsafeheader"
++	"unsafe"
++)
+ 
+ // Swapper returns a function that swaps the elements in the provided
+ // slice.
+@@ -58,7 +61,7 @@ func Swapper(slice interface{}) func(i, j int) {
+ 		}
+ 	}
+ 
+-	s := (*sliceHeader)(v.ptr)
++	s := (*unsafeheader.Slice)(v.ptr)
+ 	tmp := unsafe_New(typ) // swap scratch space
+ 
+ 	return func(i, j int) {
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index e88a2f6026..ec26bef091 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -16,6 +16,7 @@
+ package reflect
+ 
+ import (
++	"internal/unsafeheader"
+ 	"strconv"
+ 	"sync"
+ 	"unicode"
+@@ -490,7 +491,7 @@ func (n name) name() (s string) {
+ 	}
+ 	b := (*[4]byte)(unsafe.Pointer(n.bytes))
+ 
+-	hdr := (*stringHeader)(unsafe.Pointer(&s))
++	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
+ 	hdr.Data = unsafe.Pointer(&b[3])
+ 	hdr.Len = int(b[1])<<8 | int(b[2])
+ 	return s
+@@ -502,7 +503,7 @@ func (n name) tag() (s string) {
+ 		return ""
+ 	}
+ 	nl := n.nameLen()
+-	hdr := (*stringHeader)(unsafe.Pointer(&s))
++	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
+ 	hdr.Data = unsafe.Pointer(n.data(3+nl+2, "non-empty string"))
+ 	hdr.Len = tl
+ 	return s
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index b0f06b936e..abddd1774f 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -5,6 +5,7 @@
+ package reflect
+ 
+ import (
++	"internal/unsafeheader"
+ 	"math"
+ 	"runtime"
+ 	"unsafe"
+@@ -766,7 +767,7 @@ func (v Value) Cap() int {
+ 		return chancap(v.pointer())
+ 	case Slice:
+ 		// Slice is always bigger than a word; assume flagIndir.
+-		return (*sliceHeader)(v.ptr).Cap
++		return (*unsafeheader.Slice)(v.ptr).Cap
+ 	}
+ 	panic(&ValueError{"reflect.Value.Cap", v.kind()})
+ }
+@@ -945,7 +946,7 @@ func (v Value) Index(i int) Value {
+ 	case Slice:
+ 		// Element flag same as Elem of Ptr.
+ 		// Addressable, indirect, possibly read-only.
+-		s := (*sliceHeader)(v.ptr)
++		s := (*unsafeheader.Slice)(v.ptr)
+ 		if uint(i) >= uint(s.Len) {
+ 			panic("reflect: slice index out of range")
+ 		}
+@@ -956,7 +957,7 @@ func (v Value) Index(i int) Value {
+ 		return Value{typ, val, fl}
+ 
+ 	case String:
+-		s := (*stringHeader)(v.ptr)
++		s := (*unsafeheader.String)(v.ptr)
+ 		if uint(i) >= uint(s.Len) {
+ 			panic("reflect: string index out of range")
+ 		}
+@@ -1143,10 +1144,10 @@ func (v Value) Len() int {
+ 		return maplen(v.pointer())
+ 	case Slice:
+ 		// Slice is bigger than a word; assume flagIndir.
+-		return (*sliceHeader)(v.ptr).Len
++		return (*unsafeheader.Slice)(v.ptr).Len
+ 	case String:
+ 		// String is bigger than a word; assume flagIndir.
+-		return (*stringHeader)(v.ptr).Len
++		return (*unsafeheader.String)(v.ptr).Len
+ 	}
+ 	panic(&ValueError{"reflect.Value.Len", v.kind()})
+ }
+@@ -1632,7 +1633,7 @@ func (v Value) SetInt(x int64) {
+ func (v Value) SetLen(n int) {
+ 	v.mustBeAssignable()
+ 	v.mustBe(Slice)
+-	s := (*sliceHeader)(v.ptr)
++	s := (*unsafeheader.Slice)(v.ptr)
+ 	if uint(n) > uint(s.Cap) {
+ 		panic("reflect: slice length out of range in SetLen")
+ 	}
+@@ -1645,7 +1646,7 @@ func (v Value) SetLen(n int) {
+ func (v Value) SetCap(n int) {
+ 	v.mustBeAssignable()
+ 	v.mustBe(Slice)
+-	s := (*sliceHeader)(v.ptr)
++	s := (*unsafeheader.Slice)(v.ptr)
+ 	if n < s.Len || n > s.Cap {
+ 		panic("reflect: slice capacity out of range in SetCap")
+ 	}
+@@ -1747,18 +1748,18 @@ func (v Value) Slice(i, j int) Value {
+ 
+ 	case Slice:
+ 		typ = (*sliceType)(unsafe.Pointer(v.typ))
+-		s := (*sliceHeader)(v.ptr)
++		s := (*unsafeheader.Slice)(v.ptr)
+ 		base = s.Data
+ 		cap = s.Cap
+ 
+ 	case String:
+-		s := (*stringHeader)(v.ptr)
++		s := (*unsafeheader.String)(v.ptr)
+ 		if i < 0 || j < i || j > s.Len {
+ 			panic("reflect.Value.Slice: string slice index out of bounds")
+ 		}
+-		var t stringHeader
++		var t unsafeheader.String
+ 		if i < s.Len {
+-			t = stringHeader{arrayAt(s.Data, i, 1, "i < s.Len"), j - i}
++			t = unsafeheader.String{Data: arrayAt(s.Data, i, 1, "i < s.Len"), Len: j - i}
+ 		}
+ 		return Value{v.typ, unsafe.Pointer(&t), v.flag}
+ 	}
+@@ -1770,8 +1771,8 @@ func (v Value) Slice(i, j int) Value {
+ 	// Declare slice so that gc can see the base pointer in it.
+ 	var x []unsafe.Pointer
+ 
+-	// Reinterpret as *sliceHeader to edit.
+-	s := (*sliceHeader)(unsafe.Pointer(&x))
++	// Reinterpret as *unsafeheader.Slice to edit.
++	s := (*unsafeheader.Slice)(unsafe.Pointer(&x))
+ 	s.Len = j - i
+ 	s.Cap = cap - i
+ 	if cap-i > 0 {
+@@ -1809,7 +1810,7 @@ func (v Value) Slice3(i, j, k int) Value {
+ 
+ 	case Slice:
+ 		typ = (*sliceType)(unsafe.Pointer(v.typ))
+-		s := (*sliceHeader)(v.ptr)
++		s := (*unsafeheader.Slice)(v.ptr)
+ 		base = s.Data
+ 		cap = s.Cap
+ 	}
+@@ -1822,8 +1823,8 @@ func (v Value) Slice3(i, j, k int) Value {
+ 	// can see the base pointer in it.
+ 	var x []unsafe.Pointer
+ 
+-	// Reinterpret as *sliceHeader to edit.
+-	s := (*sliceHeader)(unsafe.Pointer(&x))
++	// Reinterpret as *unsafeheader.Slice to edit.
++	s := (*unsafeheader.Slice)(unsafe.Pointer(&x))
+ 	s.Len = j - i
+ 	s.Cap = k - i
+ 	if k-i > 0 {
+@@ -1960,12 +1961,6 @@ type StringHeader struct {
+ 	Len  int
+ }
+ 
+-// stringHeader is a safe version of StringHeader used within this package.
+-type stringHeader struct {
+-	Data unsafe.Pointer
+-	Len  int
+-}
+-
+ // SliceHeader is the runtime representation of a slice.
+ // It cannot be used safely or portably and its representation may
+ // change in a later release.
+@@ -1978,13 +1973,6 @@ type SliceHeader struct {
+ 	Cap  int
+ }
+ 
+-// sliceHeader is a safe version of SliceHeader used within this package.
+-type sliceHeader struct {
+-	Data unsafe.Pointer
+-	Len  int
+-	Cap  int
+-}
+-
+ func typesMustMatch(what string, t1, t2 Type) {
+ 	if t1 != t2 {
+ 		panic(what + ": " + t1.String() + " != " + t2.String())
+@@ -2085,22 +2073,22 @@ func Copy(dst, src Value) int {
+ 		typesMustMatch("reflect.Copy", de, se)
+ 	}
+ 
+-	var ds, ss sliceHeader
++	var ds, ss unsafeheader.Slice
+ 	if dk == Array {
+ 		ds.Data = dst.ptr
+ 		ds.Len = dst.Len()
+ 		ds.Cap = ds.Len
+ 	} else {
+-		ds = *(*sliceHeader)(dst.ptr)
++		ds = *(*unsafeheader.Slice)(dst.ptr)
+ 	}
+ 	if sk == Array {
+ 		ss.Data = src.ptr
+ 		ss.Len = src.Len()
+ 		ss.Cap = ss.Len
+ 	} else if sk == Slice {
+-		ss = *(*sliceHeader)(src.ptr)
++		ss = *(*unsafeheader.Slice)(src.ptr)
+ 	} else {
+-		sh := *(*stringHeader)(src.ptr)
++		sh := *(*unsafeheader.String)(src.ptr)
+ 		ss.Data = sh.Data
+ 		ss.Len = sh.Len
+ 		ss.Cap = sh.Len
+@@ -2288,7 +2276,7 @@ func MakeSlice(typ Type, len, cap int) Value {
+ 		panic("reflect.MakeSlice: len > cap")
+ 	}
+ 
+-	s := sliceHeader{unsafe_NewArray(typ.Elem().(*rtype), cap), len, cap}
++	s := unsafeheader.Slice{Data: unsafe_NewArray(typ.Elem().(*rtype), cap), Len: len, Cap: cap}
+ 	return Value{typ.(*rtype), unsafe.Pointer(&s), flagIndir | flag(Slice)}
+ }
+ 
+@@ -2805,7 +2793,7 @@ func typedmemclrpartial(t *rtype, ptr unsafe.Pointer, off, size uintptr)
+ // typedslicecopy copies a slice of elemType values from src to dst,
+ // returning the number of elements copied.
+ //go:noescape
+-func typedslicecopy(elemType *rtype, dst, src sliceHeader) int
++func typedslicecopy(elemType *rtype, dst, src unsafeheader.Slice) int
+ 
+ //go:noescape
+ func typehash(t *rtype, p unsafe.Pointer, h uintptr) uintptr
+diff --git a/src/syscall/syscall_unix.go b/src/syscall/syscall_unix.go
+index b8b8a7c111..56abce19cd 100644
+--- a/src/syscall/syscall_unix.go
++++ b/src/syscall/syscall_unix.go
+@@ -9,6 +9,7 @@ package syscall
+ import (
+ 	"internal/oserror"
+ 	"internal/race"
++	"internal/unsafeheader"
+ 	"runtime"
+ 	"sync"
+ 	"unsafe"
+@@ -60,15 +61,12 @@ func (m *mmapper) Mmap(fd int, offset int64, length int, prot int, flags int) (d
+ 		return nil, errno
+ 	}
+ 
+-	// Slice memory layout
+-	var sl = struct {
+-		addr uintptr
+-		len  int
+-		cap  int
+-	}{addr, length, length}
+-
+-	// Use unsafe to turn sl into a []byte.
+-	b := *(*[]byte)(unsafe.Pointer(&sl))
++	// Use unsafe to turn addr into a []byte.
++	var b []byte
++	hdr := (*unsafeheader.Slice)(unsafe.Pointer(&b))
++	hdr.Data = unsafe.Pointer(addr)
++	hdr.Cap = length
++	hdr.Len = length
+ 
+ 	// Register mapping in m and return it.
+ 	p := &b[cap(b)-1]

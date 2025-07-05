@@ -12,7 +12,38 @@ Date:   Fri May 24 17:42:41 2019 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go               | 4 +++-
  src/cmd/go/internal/modload/help.go | 4 +++-
  2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 26fb337f86..94a9dcb983 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -2579,7 +2579,9 @@
+ // The go command can fetch modules from a proxy or connect to source control
+ // servers directly, according to the setting of the GOPROXY environment
+ // variable (see 'go help env'). The default setting for GOPROXY is
+-// "https://proxy.golang.org", the Go module mirror run by Google.
++// "https://proxy.golang.org,direct", which means to try the
++// Go module mirror run by Google and fall back to a direct connection
++// if the proxy reports that it does not have the module (HTTP error 404 or 410).
+ // See https://proxy.golang.org/privacy for the service's privacy policy.
+ // If GOPROXY is set to the string "direct", downloads use a direct connection
+ // to source control servers. Setting GOPROXY to "off" disallows downloading
+diff --git a/src/cmd/go/internal/modload/help.go b/src/cmd/go/internal/modload/help.go
+index 96fec8451e..cb996d3546 100644
+--- a/src/cmd/go/internal/modload/help.go
++++ b/src/cmd/go/internal/modload/help.go
+@@ -331,7 +331,9 @@ Module downloading and verification
+ The go command can fetch modules from a proxy or connect to source control
+ servers directly, according to the setting of the GOPROXY environment
+ variable (see 'go help env'). The default setting for GOPROXY is
+-"https://proxy.golang.org", the Go module mirror run by Google.
++"https://proxy.golang.org,direct", which means to try the
++Go module mirror run by Google and fall back to a direct connection
++if the proxy reports that it does not have the module (HTTP error 404 or 410).
+ See https://proxy.golang.org/privacy for the service's privacy policy.
+ If GOPROXY is set to the string "direct", downloads use a direct connection
+ to source control servers. Setting GOPROXY to "off" disallows downloading

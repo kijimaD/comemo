@@ -21,6 +21,21 @@ Date:   Thu Feb 1 10:24:25 2024 -0500
     Auto-Submit: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/testdata/script/gotoolchain_path.txt | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/gotoolchain_path.txt b/src/cmd/go/testdata/script/gotoolchain_path.txt
+index 9628348f7a..b7a1c9bd89 100644
+--- a/src/cmd/go/testdata/script/gotoolchain_path.txt
++++ b/src/cmd/go/testdata/script/gotoolchain_path.txt
+@@ -8,8 +8,7 @@ env TESTGO_VERSION=go1.21pre3
+ # Compile a fake toolchain to put in the path under various names.
+ env GOTOOLCHAIN=
+ mkdir $WORK/bin
+-go build -o $WORK/bin/ ./fakego.go  # adds .exe extension implicitly on Windows
+-cp $WORK/bin/fakego$GOEXE $WORK/bin/go1.50.0$GOEXE
++go build -o $WORK/bin/go1.50.0$GOEXE ./fakego.go  # adds .exe extension implicitly on Windows
+ 
+ [!GOOS:plan9] env PATH=$WORK/bin
+ [GOOS:plan9] env path=$WORK/bin

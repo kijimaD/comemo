@@ -33,8 +33,60 @@ Date:   Thu Oct 3 10:49:28 2019 -0700
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/sinit.go | 3 +++
  test/linkx.go                        | 9 +++++++++
  test/linkx_run.go                    | 2 +-
  3 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index ae16d41b1c..a6d13d1ac5 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -83,6 +83,9 @@ func (s *InitSchedule) staticcopy(l *Node, r *Node) bool {
+ 	if r.Name.Defn.Op != OAS {
+ 		return false
+ 	}
++	if r.Type.IsString() { // perhaps overwritten by cmd/link -X (#34675)
++		return false
++	}
+ 	orig := r
+ 	r = r.Name.Defn.Right
+ 
+diff --git a/test/linkx.go b/test/linkx.go
+index 20b8c773d8..520a065182 100644
+--- a/test/linkx.go
++++ b/test/linkx.go
+@@ -14,10 +14,19 @@ import "fmt"
+ var tbd string
+ var overwrite string = "dibs"
+ 
++var tbdcopy = tbd
++var overwritecopy = overwrite
++var arraycopy = [2]string{tbd, overwrite}
++
+ var b bool
+ var x int
+ 
+ func main() {
+ 	fmt.Println(tbd)
++	fmt.Println(tbdcopy)
++	fmt.Println(arraycopy[0])
++
+ 	fmt.Println(overwrite)
++	fmt.Println(overwritecopy)
++	fmt.Println(arraycopy[1])
+ }
+diff --git a/test/linkx_run.go b/test/linkx_run.go
+index ca9d31612a..f25053bf28 100644
+--- a/test/linkx_run.go
++++ b/test/linkx_run.go
+@@ -36,7 +36,7 @@ func test(sep string) {
+ 		os.Exit(1)
+ 	}
+ 
+-	want := "hello\ntrumped\n"
++	want := "hello\nhello\nhello\ntrumped\ntrumped\ntrumped\n"
+ 	got := out.String()
+ 	if got != want {
+ 		fmt.Printf("got %q want %q\n", got, want)

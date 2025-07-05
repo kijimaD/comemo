@@ -13,9 +13,82 @@ Date:   Wed Sep 11 09:56:38 2013 -0400
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/13653043
-
+---
  misc/cgo/test/cgo_test.go  |  1 +
  misc/cgo/test/issue4339.c  | 18 ++++++++++++++++++
  misc/cgo/test/issue4339.go | 16 ++++++++++++++++
  misc/cgo/test/issue4339.h  |  9 +++++++++
  4 files changed, 44 insertions(+)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index f86305bf65..e36f93597c 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -45,5 +45,6 @@ func Test5603(t *testing.T)                { test5603(t) }
+ func Test3250(t *testing.T)                { test3250(t) }
+ func TestCallbackStack(t *testing.T)       { testCallbackStack(t) }
+ func TestFpVar(t *testing.T)               { testFpVar(t) }
++func Test4339(t *testing.T)                { test4339(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/misc/cgo/test/issue4339.c b/misc/cgo/test/issue4339.c
+new file mode 100644
+index 0000000000..15d0004078
+--- /dev/null
++++ b/misc/cgo/test/issue4339.c
+@@ -0,0 +1,18 @@
++#include <stdio.h>
++#include "issue4339.h"
++
++static void
++impl(void)
++{
++	//printf("impl\n");
++}
++
++Issue4339 exported4339 = {"bar", impl};
++
++void
++handle4339(Issue4339 *x)
++{
++	//printf("handle\n");
++	x->bar();
++	//printf("done\n");
++}
+diff --git a/misc/cgo/test/issue4339.go b/misc/cgo/test/issue4339.go
+new file mode 100644
+index 0000000000..f734a25da3
+--- /dev/null
++++ b/misc/cgo/test/issue4339.go
+@@ -0,0 +1,16 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++/*
++#include "issue4339.h"
++*/
++import "C"
++
++import "testing"
++
++func test4339(t *testing.T) {
++	C.handle4339(&C.exported4339)
++}
+diff --git a/misc/cgo/test/issue4339.h b/misc/cgo/test/issue4339.h
+new file mode 100644
+index 0000000000..20f6cebb6b
+--- /dev/null
++++ b/misc/cgo/test/issue4339.h
+@@ -0,0 +1,9 @@
++typedef struct Issue4339 Issue4339;
++
++struct Issue4339 {
++	char *name;
++	void (*bar)(void);
++};
++
++extern Issue4339 exported4339;
++void	handle4339(Issue4339*);

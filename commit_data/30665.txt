@@ -15,8 +15,56 @@ Date:   Mon Nov 21 18:23:12 2016 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/internal/atomic/atomic_mipsx.go | 6 +++++-
  src/runtime/internal/atomic/atomic_test.go  | 4 ++--
  src/sync/atomic/atomic_test.go              | 4 ++--
  3 files changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/internal/atomic/atomic_mipsx.go b/src/runtime/internal/atomic/atomic_mipsx.go
+index 20b000c7a0..93a1f1a9dd 100644
+--- a/src/runtime/internal/atomic/atomic_mipsx.go
++++ b/src/runtime/internal/atomic/atomic_mipsx.go
+@@ -25,7 +25,11 @@ func spinUnlock(state *uint32)
+ 
+ //go:nosplit
+ func lockAndCheck(addr *uint64) {
+-	//  force dereference before taking lock
++	// ensure 8-byte alignement
++	if uintptr(unsafe.Pointer(addr))&7 != 0 {
++		addr = nil
++	}
++	// force dereference before taking lock
+ 	_ = *addr
+ 
+ 	spinLock(&lock.state)
+diff --git a/src/runtime/internal/atomic/atomic_test.go b/src/runtime/internal/atomic/atomic_test.go
+index f7ba90a073..879a82f9c8 100644
+--- a/src/runtime/internal/atomic/atomic_test.go
++++ b/src/runtime/internal/atomic/atomic_test.go
+@@ -87,8 +87,8 @@ func TestUnaligned64(t *testing.T) {
+ 		if unsafe.Sizeof(int(0)) != 4 {
+ 			t.Skip("test only runs on 32-bit systems")
+ 		}
+-	case "amd64p32", "mips", "mipsle":
+-		// amd64p32 and mips can handle unaligned atomics.
++	case "amd64p32":
++		// amd64p32 can handle unaligned atomics.
+ 		t.Skipf("test not needed on %v", runtime.GOARCH)
+ 	}
+ 
+diff --git a/src/sync/atomic/atomic_test.go b/src/sync/atomic/atomic_test.go
+index c151f46fa9..6d0831c3f9 100644
+--- a/src/sync/atomic/atomic_test.go
++++ b/src/sync/atomic/atomic_test.go
+@@ -1401,8 +1401,8 @@ func TestUnaligned64(t *testing.T) {
+ 		if unsafe.Sizeof(int(0)) != 4 {
+ 			t.Skip("test only runs on 32-bit systems")
+ 		}
+-	case "amd64p32", "mips", "mipsle":
+-		// amd64p32 and mips can handle unaligned atomics.
++	case "amd64p32":
++		// amd64p32 can handle unaligned atomics.
+ 		t.Skipf("test not needed on %v", runtime.GOARCH)
+ 	}
+ 

@@ -7,6 +7,20 @@ Date:   Tue Mar 19 16:53:07 2013 -0400
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/7552045
-
+---
  src/cmd/ld/dwarf.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index 36c9bfdfa7..1fc8891d01 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -672,7 +672,7 @@ putattr(int abbrev, int form, int cls, vlong value, char *data)
+ 			if(PtrSize == 8)
+ 				VPUT(0); // invalid dwarf, gdb will complain.
+ 			else
+-				VPUT(0); // invalid dwarf, gdb will complain.
++				LPUT(0); // invalid dwarf, gdb will complain.
+ 		} else {
+ 			if (((DWDie*)data)->offs == 0)
+ 				fwdcount++;

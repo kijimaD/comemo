@@ -10,6 +10,20 @@ Date:   Wed Jul 3 11:56:02 2013 +1000
     R=adg
     CC=golang-dev, matt.jibson
     https://golang.org/cl/10869046
-
+---
  src/cmd/go/vcs.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index 39881a6dc7..504b3bf548 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -102,7 +102,7 @@ var vcsGit = &vcsCmd{
+ 		{"show-ref tags/{tag} origin/{tag}", `((?:tags|origin)/\S+)$`},
+ 	},
+ 	tagSyncCmd:     "checkout {tag}",
+-	tagSyncDefault: "checkout origin/master",
++	tagSyncDefault: "checkout master",
+ 
+ 	scheme:  []string{"git", "https", "http", "git+ssh"},
+ 	pingCmd: "ls-remote {scheme}://{repo}",

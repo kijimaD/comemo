@@ -16,7 +16,55 @@ Date:   Fri Oct 28 11:42:27 2016 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/path/filepath/path_test.go    | 5 ++++-
  src/path/filepath/path_windows.go | 6 +++++-
  2 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index 94f9c01459..921b23842b 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -1061,13 +1061,16 @@ var absTestDirs = []string{
+ var absTests = []string{
+ 	".",
+ 	"b",
++	"b/",
+ 	"../a",
+ 	"../a/b",
+ 	"../a/b/./c/../../.././a",
++	"../a/b/./c/../../.././a/",
+ 	"$",
+ 	"$/.",
+ 	"$/a/../a/b",
+ 	"$/a/b/c/../../.././a",
++	"$/a/b/c/../../.././a/",
+ }
+ 
+ func TestAbs(t *testing.T) {
+@@ -1132,7 +1135,7 @@ func TestAbs(t *testing.T) {
+ 		if !filepath.IsAbs(abspath) {
+ 			t.Errorf("Abs(%q)=%q, not an absolute path", path, abspath)
+ 		}
+-		if filepath.IsAbs(path) && abspath != filepath.Clean(path) {
++		if filepath.IsAbs(abspath) && abspath != filepath.Clean(abspath) {
+ 			t.Errorf("Abs(%q)=%q, isn't clean", path, abspath)
+ 		}
+ 	}
+diff --git a/src/path/filepath/path_windows.go b/src/path/filepath/path_windows.go
+index a74b6469a9..359703de26 100644
+--- a/src/path/filepath/path_windows.go
++++ b/src/path/filepath/path_windows.go
+@@ -106,7 +106,11 @@ func splitList(path string) []string {
+ }
+ 
+ func abs(path string) (string, error) {
+-	return syscall.FullPath(path)
++	fullPath, err := syscall.FullPath(path)
++	if err != nil {
++		return "", err
++	}
++	return Clean(fullPath), nil
+ }
+ 
+ func join(elem []string) string {

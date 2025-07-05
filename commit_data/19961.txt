@@ -9,9 +9,3932 @@ Date:   Thu Aug 7 15:13:25 2014 -0400
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/123010043
-
+---
  include/link.h      |   27 +-
  src/liblink/asm9.c  |  934 ++++++++++++++++++------------------
  src/liblink/list9.c |  250 ++++++----
  src/liblink/obj9.c  | 1299 ++++++++++++++++-----------------------------------
  4 files changed, 1053 insertions(+), 1457 deletions(-)
+
+diff --git a/include/link.h b/include/link.h
+index 2b4de789d5..298b048e7c 100644
+--- a/include/link.h
++++ b/include/link.h
+@@ -62,9 +62,9 @@ struct	Addr
+ 	short	type;
+ 	uint8	index;
+ 	int8	scale;
+-	int8	reg;	// for 5l
+-	int8	name; // for 5l
+-	int8	class;	// for 5l
++	int8	reg;	// for 5l, 9l
++	int8	name; // for 5l, 9l
++	int8	class;	// for 5l, 9l
+ 	uint8	etype; // for 5g, 6g, 8g
+ 	int32	offset2;	// for 5l, 8l
+ 	struct Node*	node; // for 5g, 6g, 8g
+@@ -89,9 +89,10 @@ struct	Prog
+ 	int32	lineno;
+ 	Prog*	link;
+ 	short	as;
+-	uchar	reg; // arm only
++	uchar	reg; // arm, power64 only
+ 	uchar	scond; // arm only
+ 	Addr	from;
++	Addr	from3; // power64 only, fma and rlwm
+ 	Addr	to;
+ 	
+ 	// for 5g, 6g, 8g internal use
+@@ -103,11 +104,11 @@ struct	Prog
+ 	Prog*	comefrom;	// 6l, 8l
+ 	Prog*	pcrel;	// 5l
+ 	int32	spadj;
+-	uchar	mark;
++	uint16	mark;
++	uint16	optab;	// 5l, 9l
+ 	uchar	back;	// 6l, 8l
+ 	uchar	ft;	/* 6l, 8l oclass cache */
+ 	uchar	tt;	// 6l, 8l
+-	uint16	optab;	// 5l
+ 	uchar	isize;	// 6l, 8l
+ 
+ 	char	width;	/* fake for DATA */
+@@ -232,10 +233,12 @@ enum
+ enum
+ {
+ 	R_ADDR = 1,
++	R_ADDRPOWER, // relocation for loading 31-bit address using addis and addi/ld/st for Power
+ 	R_SIZE,
+ 	R_CALL, // relocation for direct PC-relative call
+ 	R_CALLARM, // relocation for ARM direct call
+ 	R_CALLIND, // marker for indirect call (no actual relocating necessary)
++	R_CALLPOWER, // relocation for Power direct call
+ 	R_CONST,
+ 	R_PCREL,
+ 	R_TLS,
+@@ -526,6 +529,9 @@ void	span6(Link *ctxt, LSym *s);
+ // asm8.c
+ void	span8(Link *ctxt, LSym *s);
+ 
++// asm9.c
++void	span9(Link *ctxt, LSym *s);
++
+ // data.c
+ vlong	addaddr(Link *ctxt, LSym *s, LSym *t);
+ vlong	addaddrplus(Link *ctxt, LSym *s, LSym *t, vlong add);
+@@ -572,10 +578,11 @@ Prog*	copyp(Link*, Prog*);
+ Prog*	appendp(Link*, Prog*);
+ vlong	atolwhex(char*);
+ 
+-// list[568].c
++// list[5689].c
+ void	listinit5(void);
+ void	listinit6(void);
+ void	listinit8(void);
++void	listinit9(void);
+ 
+ // obj.c
+ int	linklinefmt(Link *ctxt, Fmt *fp);
+@@ -607,20 +614,24 @@ char*	headstr(int);
+ extern	char*	anames5[];
+ extern	char*	anames6[];
+ extern	char*	anames8[];
++extern	char*	anames9[];
+ 
+ extern	char*	cnames5[];
++extern	char*	cnames9[];
+ 
+ extern	LinkArch	link386;
+ extern	LinkArch	linkamd64;
+ extern	LinkArch	linkamd64p32;
+ extern	LinkArch	linkarm;
++extern	LinkArch	linkpower64;
++extern	LinkArch	linkpower64le;
+ 
+ #pragma	varargck	type	"A"	int
+ #pragma	varargck	type	"D"	Addr*
+ #pragma	varargck	type	"lD"	Addr*
+ #pragma	varargck	type	"P"	Prog*
+ #pragma	varargck	type	"R"	int
+-#pragma varargck	type	"^"	int
++#pragma	varargck	type	"^"	int // for 5l/9l, C_* classes (liblink internal)
+ 
+ // TODO(ality): remove this workaround.
+ //   It's here because Pconv in liblink/list?.c references %L.
+diff --git a/src/liblink/asm9.c b/src/liblink/asm9.c
+index 27ccb0a237..647e6f178e 100644
+--- a/src/liblink/asm9.c
++++ b/src/liblink/asm9.c
+@@ -27,12 +27,38 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-// +build ignore
++// Instruction layout.
+ 
+-#include	"l.h"
++#include <u.h>
++#include <libc.h>
++#include <bio.h>
++#include <link.h>
++#include "../cmd/9l/9.out.h"
++#include "../pkg/runtime/stack.h"
+ 
+-Optab	optab[] =
++enum {
++	FuncAlign = 8,
++};
++
++enum {
++	r0iszero = 1,
++};
++
++typedef	struct	Optab	Optab;
++
++struct	Optab
+ {
++	short	as;
++	uchar	a1;
++	uchar	a2;
++	uchar	a3;
++	uchar	a4;
++	char	type;
++	char	size;
++	char	param;
++};
++
++static Optab	optab[] = {
+ 	{ ATEXT,	C_LEXT,	C_NONE, C_NONE, 	C_LCON, 	 0, 0, 0 },
+ 	{ ATEXT,	C_LEXT,	C_REG, C_NONE, 	C_LCON, 	 0, 0, 0 },
+ 	{ ATEXT,	C_LEXT,	C_NONE, C_LCON, 	C_LCON, 	 0, 0, 0 },
+@@ -268,6 +294,8 @@ Optab	optab[] =
+ 	{ AMOVHBR,	C_REG,	C_NONE, C_NONE,	C_ZOREG,		44, 4, 0 },
+ 
+ 	{ ASYSCALL,	C_NONE,	C_NONE, C_NONE, 	C_NONE,		 5, 4, 0 },
++	{ ASYSCALL,	C_REG,	C_NONE, C_NONE, 	C_NONE,		 77, 12, 0 },
++	{ ASYSCALL,	C_SCON,	C_NONE, C_NONE, 	C_NONE,		 77, 12, 0 },
+ 
+ 	{ ABEQ,		C_NONE,	C_NONE, C_NONE, 	C_SBRA,		16, 4, 0 },
+ 	{ ABEQ,		C_CREG,	C_NONE, C_NONE, 	C_SBRA,		16, 4, 0 },
+@@ -308,6 +336,7 @@ Optab	optab[] =
+ 	{ ASYNC,		C_NONE,	C_NONE, C_NONE, 	C_NONE,		46, 4, 0 },
+ 	{ AWORD,	C_LCON,	C_NONE, C_NONE, 	C_NONE,		40, 4, 0 },
+ 	{ ADWORD,	C_LCON,	C_NONE, C_NONE, C_NONE,	31, 8, 0 },
++	{ ADWORD,	C_DCON,	C_NONE, C_NONE, C_NONE,	31, 8, 0 },
+ 
+ 	{ AADDME,	C_REG,	C_NONE, C_NONE, 	C_REG,		47, 4, 0 },
+ 
+@@ -399,58 +428,86 @@ Optab	optab[] =
+ 	{ ALSW,	C_ZOREG, C_NONE, C_NONE,  C_REG,		45, 4, 0 },
+ 	{ ALSW,	C_ZOREG, C_NONE, C_LCON,  C_REG,		42, 4, 0 },
+ 
++	{ AUNDEF,	C_NONE, C_NONE, C_NONE, C_NONE, 78, 4, 0 },
++	{ AUSEFIELD,	C_ADDR,	C_NONE,	C_NONE, C_NONE,	0, 0, 0 },
++	{ APCDATA,	C_LCON,	C_NONE,	C_NONE, C_LCON,	0, 0, 0 },
++	{ AFUNCDATA,	C_SCON,	C_NONE,	C_NONE, C_ADDR,	0, 0, 0 },
++
++	{ ADUFFZERO,	C_NONE,	C_NONE, C_NONE,	C_LBRA,	11, 4, 0 },  // same as ABR/ABL
++	{ ADUFFCOPY,	C_NONE,	C_NONE, C_NONE,	C_LBRA,	11, 4, 0 },  // same as ABR/ABL
++
+ 	{ AXXX,		C_NONE,	C_NONE, C_NONE, 	C_NONE,		 0, 4, 0 },
+ };
+ 
+-#include	"l.h"
++static int ocmp(const void *, const void *);
++static int cmp(int, int);
++static void buildop(Link*);
++static void prasm(Prog *);
++static int isint32(vlong);
++static int isuint32(uvlong);
++static int aclass(Link*, Addr*);
++static Optab* oplook(Link*, Prog*);
++static void asmout(Link*, Prog*, Optab*, int32*);
++static vlong vregoff(Link*, Addr*);
++static int32 regoff(Link*, Addr*);
++static int32 oprrr(Link*, int);
++static int32 opirr(Link*, int);
++static int32 opload(Link*, int);
++static int32 opstore(Link*, int);
++static int32 oploadx(Link*, int);
++static int32 opstorex(Link*, int);
++static int getmask(uchar*, uint32);
++static void maskgen(Link*, Prog*, uchar*, uint32);
++static int getmask64(uchar*, uvlong);
++static void maskgen64(Link*, Prog*, uchar*, uvlong);
++static uint32 loadu32(int, vlong);
++static void addaddrreloc(Link*, LSym*, int*, int*);
++
++static struct
++{
++	Optab*	start;
++	Optab*	stop;
++} oprange[ALAST];
++
++static char	xcmp[C_NCLASS][C_NCLASS];
++
+ 
+ void
+-span(void)
++span9(Link *ctxt, LSym *cursym)
+ {
+-	Prog *p, *q;
+-	Sym *setext;
++	Prog *p;
+ 	Optab *o;
+ 	int m, bflag;
+-	vlong c, otxt;
++	vlong c;
++	int32 out[6], i, j;
++	uchar *bp, *cast;
++
++	p = cursym->text;
++	if(p == nil || p->link == nil) // handle external functions and ELF section symbols
++		return;
++ 
++	if(oprange[AANDN].start == nil)
++ 		buildop(ctxt);
+ 
+-	if(debug['v'])
+-		Bprint(&bso, "%5.2f span\n", cputime());
+-	Bflush(&bso);
++ 	ctxt->cursym = cursym;
+ 
+ 	bflag = 0;
+-	c = INITTEXT;
+-	otxt = c;
+-	for(p = firstp; p != P; p = p->link) {
++	c = 0;	
++	p->pc = c;
++
++	for(p = p->link; p != nil; p = p->link) {
++		ctxt->curp = p;
+ 		p->pc = c;
+-		o = oplook(p);
++		o = oplook(ctxt, p);
+ 		m = o->size;
+ 		if(m == 0) {
+-			if(p->as == ATEXT) {
+-				curtext = p;
+-				autosize = p->to.offset + 8;
+-				if(p->from3.type == D_CONST) {
+-					if(p->from3.offset & 3)
+-						diag("illegal origin\n%P", p);
+-					if(c > p->from3.offset)
+-						diag("passed origin (#%llux)\n%P", c, p);
+-					else
+-						c = p->from3.offset;
+-					p->pc = c;
+-				}
+-				if(p->from.sym != S)
+-					p->from.sym->value = c;
+-				/* need passes to resolve branches? */
+-				if(c-otxt >= (1L<<15))
+-					bflag = c;
+-				otxt = c;
+-				continue;
+-			}
+-			if(p->as != ANOP)
+-				diag("zero-width instruction\n%P", p);
++			if(p->as != ANOP && p->as != AFUNCDATA && p->as != APCDATA)
++				ctxt->diag("zero-width instruction\n%P", p);
+ 			continue;
+ 		}
+ 		c += m;
+ 	}
++	cursym->size = c;
+ 
+ 	/*
+ 	 * if any procedure is large enough to
+@@ -459,100 +516,93 @@ span(void)
+ 	 * around jmps to fix. this is rare.
+ 	 */
+ 	while(bflag) {
+-		if(debug['v'])
+-			Bprint(&bso, "%5.2f span1\n", cputime());
++		if(ctxt->debugvlog)
++			Bprint(ctxt->bso, "%5.2f span1\n", cputime());
+ 		bflag = 0;
+-		c = INITTEXT;
+-		for(p = firstp; p != P; p = p->link) {
++		c = 0;
++		for(p = cursym->text; p != nil; p = p->link) {
+ 			p->pc = c;
+-			o = oplook(p);
+-			if((o->type == 16 || o->type == 17) && p->cond) {
+-				otxt = p->cond->pc - c;
++			o = oplook(ctxt, p);
++
++/* very large branches
++			if((o->type == 16 || o->type == 17) && p->pcond) {
++				otxt = p->pcond->pc - c;
+ 				if(otxt < -(1L<<16)+10 || otxt >= (1L<<15)-10) {
+ 					q = prg();
+ 					q->link = p->link;
+ 					p->link = q;
+ 					q->as = ABR;
+ 					q->to.type = D_BRANCH;
+-					q->cond = p->cond;
+-					p->cond = q;
++					q->pcond = p->pcond;
++					p->pcond = q;
+ 					q = prg();
+ 					q->link = p->link;
+ 					p->link = q;
+ 					q->as = ABR;
+ 					q->to.type = D_BRANCH;
+-					q->cond = q->link->link;
++					q->pcond = q->link->link;
+ 					addnop(p->link);
+ 					addnop(p);
+ 					bflag = 1;
+ 				}
+ 			}
++*/
+ 			m = o->size;
+ 			if(m == 0) {
+-				if(p->as == ATEXT) {
+-					curtext = p;
+-					autosize = p->to.offset + 8;
+-					if(p->from.sym != S)
+-						p->from.sym->value = c;
+-					continue;
+-				}
+-				if(p->as != ANOP)
+-					diag("zero-width instruction\n%P", p);
++				if(p->as != ANOP && p->as != AFUNCDATA && p->as != APCDATA)
++					ctxt->diag("zero-width instruction\n%P", p);
+ 				continue;
+ 			}
+ 			c += m;
+ 		}
++		cursym->size = c;
+ 	}
+ 
+-	c = rnd(c, 8);
+-
+-	setext = lookup("etext", 0);
+-	if(setext != S) {
+-		setext->value = c;
+-		textsize = c - INITTEXT;
+-	}
+-	if(INITRND)
+-		INITDAT = rnd(c, INITRND);
+-	if(debug['v'])
+-		Bprint(&bso, "tsize = %llux\n", textsize);
+-	Bflush(&bso);
+-}
+-		
+-void
+-xdefine(char *p, int t, vlong v)
+-{
+-	Sym *s;
++	c += -c&(FuncAlign-1);
++	cursym->size = c;
+ 
+-	s = lookup(p, 0);
+-	if(s->type == 0 || s->type == SXREF) {
+-		s->type = t;
+-		s->value = v;
++	/*
++	 * lay out the code, emitting code and data relocations.
++	 */
++	if(ctxt->tlsg == nil)
++		ctxt->tlsg = linklookup(ctxt, "runtime.tlsg", 0);
++
++	p = cursym->text;
++	ctxt->autosize = (int32)(p->to.offset & 0xffffffffll) + 8;
++	symgrow(ctxt, cursym, cursym->size);
++
++	bp = cursym->p;
++	for(p = p->link; p != nil; p = p->link) {
++		ctxt->pc = p->pc;
++		ctxt->curp = p;
++		o = oplook(ctxt, p);
++		if(o->size > 4*nelem(out))
++			sysfatal("out array in span9 is too small, need at least %d for %P", o->size/4, p);
++		asmout(ctxt, p, o, out);
++		for(i=0; i<o->size/4; i++) {
++			cast = (uchar*)&out[i];
++			for(j=0; j<4; j++)
++				*bp++ = cast[inuxi4[j]];
++		}
+ 	}
+ }
+ 
+-int
++static int
+ isint32(vlong v)
+ {
+-	long l;
+-
+-	l = v;
+-	return (vlong)l == v;
++	return (int32)v == v;
+ }
+ 
+-int
++static int
+ isuint32(uvlong v)
+ {
+-	ulong l;
+-
+-	l = v;
+-	return (uvlong)l == v;
++	return (uint32)v == v;
+ }
+ 
+-int
+-aclass(Adr *a)
++static int
++aclass(Link *ctxt, Addr *a)
+ {
+-	Sym *s;
+-	int t;
++	LSym *s;
+ 
+ 	switch(a->type) {
+ 	case D_NONE:
+@@ -589,134 +639,86 @@ aclass(Adr *a)
+ 		switch(a->name) {
+ 		case D_EXTERN:
+ 		case D_STATIC:
+-			if(a->sym == S)
++			if(a->sym == nil)
+ 				break;
+-			t = a->sym->type;
+-			if(t == 0 || t == SXREF) {
+-				diag("undefined external: %s in %s",
+-					a->sym->name, TNAME);
+-				a->sym->type = SDATA;
+-			}
+-			if(dlm){
+-				instoffset = a->sym->value + a->offset;
+-				switch(a->sym->type){
+-				case STEXT:
+-				case SLEAF:
+-				case SCONST:
+-				case SUNDEF:
+-					break;
+-				default:
+-					instoffset += INITDAT;
+-				}
++			ctxt->instoffset = a->offset;
++			if(a->sym != nil) // use relocation
+ 				return C_ADDR;
+-			}
+-			instoffset = a->sym->value + a->offset - BIG;
+-			if(instoffset >= -BIG && instoffset < BIG)
+-				return C_SEXT;
+ 			return C_LEXT;
+ 		case D_AUTO:
+-			instoffset = autosize + a->offset;
+-			if(instoffset >= -BIG && instoffset < BIG)
++			ctxt->instoffset = ctxt->autosize + a->offset;
++			if(ctxt->instoffset >= -BIG && ctxt->instoffset < BIG)
+ 				return C_SAUTO;
+ 			return C_LAUTO;
+ 		case D_PARAM:
+-			instoffset = autosize + a->offset + 8L;
+-			if(instoffset >= -BIG && instoffset < BIG)
++			ctxt->instoffset = ctxt->autosize + a->offset + 8L;
++			if(ctxt->instoffset >= -BIG && ctxt->instoffset < BIG)
+ 				return C_SAUTO;
+ 			return C_LAUTO;
+ 		case D_NONE:
+-			instoffset = a->offset;
+-			if(instoffset == 0)
++			ctxt->instoffset = a->offset;
++			if(ctxt->instoffset == 0)
+ 				return C_ZOREG;
+-			if(instoffset >= -BIG && instoffset < BIG)
++			if(ctxt->instoffset >= -BIG && ctxt->instoffset < BIG)
+ 				return C_SOREG;
+ 			return C_LOREG;
+ 		}
+ 		return C_GOK;
+ 
+ 	case D_OPT:
+-		instoffset = a->offset & 31L;
++		ctxt->instoffset = a->offset & 31L;
+ 		if(a->name == D_NONE)
+ 			return C_SCON;
+ 		return C_GOK;
+ 
+ 	case D_CONST:
+ 		switch(a->name) {
+-
+ 		case D_NONE:
+-			instoffset = a->offset;
++			ctxt->instoffset = a->offset;
+ 		consize:
+-			if(instoffset >= 0) {
+-				if(instoffset == 0)
++			if(ctxt->instoffset >= 0) {
++				if(ctxt->instoffset == 0)
+ 					return C_ZCON;
+-				if(instoffset <= 0x7fff)
++				if(ctxt->instoffset <= 0x7fff)
+ 					return C_SCON;
+-				if(instoffset <= 0xffff)
++				if(ctxt->instoffset <= 0xffff)
+ 					return C_ANDCON;
+-				if((instoffset & 0xffff) == 0 && isuint32(instoffset))	/* && (instoffset & (1<<31)) == 0) */
++				if((ctxt->instoffset & 0xffff) == 0 && isuint32(ctxt->instoffset))	/* && (instoffset & (1<<31)) == 0) */
+ 					return C_UCON;
+-				if(isint32(instoffset) || isuint32(instoffset))
++				if(isint32(ctxt->instoffset) || isuint32(ctxt->instoffset))
+ 					return C_LCON;
+ 				return C_DCON;
+ 			}
+-			if(instoffset >= -0x8000)
++			if(ctxt->instoffset >= -0x8000)
+ 				return C_ADDCON;
+-			if((instoffset & 0xffff) == 0 && isint32(instoffset))
++			if((ctxt->instoffset & 0xffff) == 0 && isint32(ctxt->instoffset))
+ 				return C_UCON;
+-			if(isint32(instoffset))
++			if(isint32(ctxt->instoffset))
+ 				return C_LCON;
+ 			return C_DCON;
+ 
+ 		case D_EXTERN:
+ 		case D_STATIC:
+ 			s = a->sym;
+-			if(s == S)
++			if(s == nil)
+ 				break;
+-			t = s->type;
+-			if(t == 0 || t == SXREF) {
+-				diag("undefined external: %s in %s",
+-					s->name, TNAME);
+-				s->type = SDATA;
+-			}
+-			if(s->type == STEXT || s->type == SLEAF || s->type == SUNDEF) {
+-				instoffset = s->value + a->offset;
+-				return C_LCON;
+-			}
+ 			if(s->type == SCONST) {
+-				instoffset = s->value + a->offset;
+-				if(dlm)
+-					return C_LCON;
++				ctxt->instoffset = s->value + a->offset;
+ 				goto consize;
+ 			}
+-			if(!dlm){
+-				instoffset = s->value + a->offset - BIG;
+-				if(instoffset >= -BIG && instoffset < BIG && instoffset != 0)
+-					return C_SECON;
+-			}
+-			instoffset = s->value + a->offset + INITDAT;
+-			if(dlm)
+-				return C_LCON;
++			ctxt->instoffset = s->value + a->offset;
+ 			/* not sure why this barfs */
+ 			return C_LCON;
+-		/*
+-			if(instoffset == 0)
+-				return C_ZCON;
+-			if(instoffset >= -0x8000 && instoffset <= 0xffff)
+-				return C_SCON;
+-			if((instoffset & 0xffff) == 0)
+-				return C_UCON;
+-			return C_LCON;
+-		*/
+ 
+ 		case D_AUTO:
+-			instoffset = autosize + a->offset;
+-			if(instoffset >= -BIG && instoffset < BIG)
++			ctxt->instoffset = ctxt->autosize + a->offset;
++			if(ctxt->instoffset >= -BIG && ctxt->instoffset < BIG)
+ 				return C_SACON;
+ 			return C_LACON;
+ 
+ 		case D_PARAM:
+-			instoffset = autosize + a->offset + 8L;
+-			if(instoffset >= -BIG && instoffset < BIG)
++			ctxt->instoffset = ctxt->autosize + a->offset + 8L;
++			if(ctxt->instoffset >= -BIG && ctxt->instoffset < BIG)
+ 				return C_SACON;
+ 			return C_LACON;
+ 		}
+@@ -728,8 +730,14 @@ aclass(Adr *a)
+ 	return C_GOK;
+ }
+ 
+-Optab*
+-oplook(Prog *p)
++static void
++prasm(Prog *p)
++{
++	print("%P\n", p);
++}
++
++static Optab*
++oplook(Link *ctxt, Prog *p)
+ {
+ 	int a1, a2, a3, a4, r;
+ 	char *c1, *c3, *c4;
+@@ -740,19 +748,19 @@ oplook(Prog *p)
+ 		return optab+(a1-1);
+ 	a1 = p->from.class;
+ 	if(a1 == 0) {
+-		a1 = aclass(&p->from) + 1;
++		a1 = aclass(ctxt, &p->from) + 1;
+ 		p->from.class = a1;
+ 	}
+ 	a1--;
+ 	a3 = p->from3.class;
+ 	if(a3 == 0) {
+-		a3 = aclass(&p->from3) + 1;
++		a3 = aclass(ctxt, &p->from3) + 1;
+ 		p->from3.class = a3;
+ 	}
+ 	a3--;
+ 	a4 = p->to.class;
+ 	if(a4 == 0) {
+-		a4 = aclass(&p->to) + 1;
++		a4 = aclass(ctxt, &p->to) + 1;
+ 		p->to.class = a4;
+ 	}
+ 	a4--;
+@@ -775,16 +783,15 @@ oplook(Prog *p)
+ 			p->optab = (o-optab)+1;
+ 			return o;
+ 		}
+-	diag("illegal combination %A %R %R %R %R",
++	ctxt->diag("illegal combination %A %^ %^ %^ %^",
+ 		p->as, a1, a2, a3, a4);
+-	if(1||!debug['a'])
+-		prasm(p);
++	prasm(p);
+ 	if(o == 0)
+-		errorexit();
++		o = optab;
+ 	return o;
+ }
+ 
+-int
++static int
+ cmp(int a, int b)
+ {
+ 
+@@ -850,10 +857,10 @@ cmp(int a, int b)
+ 	return 0;
+ }
+ 
+-int
+-ocmp(void *a1, void *a2)
++static int
++ocmp(const void *a1, const void *a2)
+ {
+-	Optab *p1, *p2;
++	const Optab *p1, *p2;
+ 	int n;
+ 
+ 	p1 = a1;
+@@ -876,8 +883,8 @@ ocmp(void *a1, void *a2)
+ 	return 0;
+ }
+ 
+-void
+-buildop(void)
++static void
++buildop(Link *ctxt)
+ {
+ 	int i, n, r;
+ 
+@@ -898,8 +905,8 @@ buildop(void)
+ 		switch(r)
+ 		{
+ 		default:
+-			diag("unknown op in build: %A", r);
+-			errorexit();
++			ctxt->diag("unknown op in build: %A", r);
++			sysfatal("bad code");
+ 		case ADCBF:	/* unary indexed: op (b+a); op (b) */
+ 			oprange[ADCBI] = oprange[r];
+ 			oprange[ADCBST] = oprange[r];
+@@ -910,6 +917,7 @@ buildop(void)
+ 			break;
+ 		case AECOWX:	/* indexed store: op s,(b+a); op s,(b) */
+ 			oprange[ASTWCCC] = oprange[r];
++			oprange[ASTDCCC] = oprange[r];
+ 			break;
+ 		case AREM:	/* macro */
+ 			oprange[AREMCC] = oprange[r];
+@@ -1188,6 +1196,7 @@ buildop(void)
+ 			break;
+ 		case AECIWX:
+ 			oprange[ALWAR] = oprange[r];
++			oprange[ALDAR] = oprange[r];
+ 			break;
+ 		case ASYSCALL:	/* just the op; flow of control */
+ 			oprange[ARFI] = oprange[r];
+@@ -1234,13 +1243,17 @@ buildop(void)
+ 		case ADWORD:
+ 		case ANOP:
+ 		case ATEXT:
++		case AUNDEF:
++		case AUSEFIELD:
++		case AFUNCDATA:
++		case APCDATA:
++		case ADUFFZERO:
++		case ADUFFCOPY:
+ 			break;
+ 		}
+ 	}
+ }
+ 
+-#include "l.h"
+-
+ #define	OPVCC(o,xo,oe,rc) (((o)<<26)|((xo)<<1)|((oe)<<10)|((rc)&1))
+ #define	OPCC(o,xo,rc) OPVCC((o),(xo),0,(rc))
+ #define	OP(o,xo) OPVCC((o),(xo),0,0)
+@@ -1293,18 +1306,30 @@ buildop(void)
+ 
+ #define	oclass(v)	((v).class-1)
+ 
+-long	oprrr(int), opirr(int), opload(int), opstore(int), oploadx(int), opstorex(int);
++// add R_ADDRPOWER relocation to symbol s for the two instructions o1 and o2.
++static void
++addaddrreloc(Link *ctxt, LSym *s, int *o1, int *o2)
++{
++	Reloc *rel;
++
++	rel = addrel(ctxt->cursym);
++	rel->off = ctxt->pc;
++	rel->siz = 8;
++	rel->sym = s;
++	rel->add = ((uvlong)*o1<<32) | (uint32)*o2;
++	rel->type = R_ADDRPOWER;
++}
+ 
+ /*
+  * 32-bit masks
+  */
+-int
+-getmask(uchar *m, ulong v)
++static int
++getmask(uchar *m, uint32 v)
+ {
+ 	int i;
+ 
+ 	m[0] = m[1] = 0;
+-	if(v != ~0L && v & (1<<31) && v & 1){	/* MB > ME */
++	if(v != ~0U && v & (1<<31) && v & 1){	/* MB > ME */
+ 		if(getmask(m, ~v)){
+ 			i = m[0]; m[0] = m[1]+1; m[1] = i-1;
+ 			return 1;
+@@ -1325,17 +1350,17 @@ getmask(uchar *m, ulong v)
+ 	return 0;
+ }
+ 
+-void
+-maskgen(Prog *p, uchar *m, ulong v)
++static void
++maskgen(Link *ctxt, Prog *p, uchar *m, uint32 v)
+ {
+ 	if(!getmask(m, v))
+-		diag("cannot generate mask #%lux\n%P", v, p);
++		ctxt->diag("cannot generate mask #%lux\n%P", v, p);
+ }
+ 
+ /*
+  * 64-bit masks (rldic etc)
+  */
+-int
++static int
+ getmask64(uchar *m, uvlong v)
+ {
+ 	int i;
+@@ -1355,78 +1380,54 @@ getmask64(uchar *m, uvlong v)
+ 	return 0;
+ }
+ 
+-void
+-maskgen64(Prog *p, uchar *m, uvlong v)
+-{
+-	if(!getmask64(m, v))
+-		diag("cannot generate mask #%llux\n%P", v, p);
+-}
+-
+ static void
+-reloc(Adr *a, long pc, int sext)
++maskgen64(Link *ctxt, Prog *p, uchar *m, uvlong v)
+ {
+-	if(a->name == D_EXTERN || a->name == D_STATIC)
+-		dynreloc(a->sym, pc, 1, 1, sext);
++	if(!getmask64(m, v))
++		ctxt->diag("cannot generate mask #%llux\n%P", v, p);
+ }
+ 
+-static ulong
++static uint32
+ loadu32(int r, vlong d)
+ {
+-	long v;
++	int32 v;
+ 
+ 	v = d>>16;
+ 	if(isuint32(d))
+ 		return LOP_IRR(OP_ORIS, r, REGZERO, v);
+ 	return AOP_IRR(OP_ADDIS, r, REGZERO, v);
+ }
+-	
+-int
+-asmout(Prog *p, Optab *o, int aflag)
++
++static void
++asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
+ {
+-	long o1, o2, o3, o4, o5, v, t;
++	int32 o1, o2, o3, o4, o5, v, t;
+ 	vlong d;
+-	Prog *ct;
+ 	int r, a;
+ 	uchar mask[2];
++	Reloc *rel;
+ 
+ 	o1 = 0;
+ 	o2 = 0;
+ 	o3 = 0;
+ 	o4 = 0;
+ 	o5 = 0;
++
+ 	switch(o->type) {
+ 	default:
+-		if(aflag)
+-			return 0;
+-		diag("unknown type %d", o->type);
+-		if(!debug['a'])
+-			prasm(p);
++		ctxt->diag("unknown type %d", o->type);
++		prasm(p);
+ 		break;
+ 
+ 	case 0:		/* pseudo ops */
+-		if(aflag) {
+-			if(p->link) {
+-				if(p->as == ATEXT) {
+-					ct = curtext;
+-					o2 = autosize;
+-					curtext = p;
+-					autosize = p->to.offset + 8;
+-					o1 = asmout(p->link, oplook(p->link), aflag);
+-					curtext = ct;
+-					autosize = o2;
+-				} else
+-					o1 = asmout(p->link, oplook(p->link), aflag);
+-			}
+-			return o1;
+-		}
+ 		break;
+ 
+ 	case 1:		/* mov r1,r2 ==> OR Rs,Rs,Ra */
+ 		if(p->to.reg == REGZERO && p->from.type == D_CONST) {
+-			v = regoff(&p->from);
++			v = regoff(ctxt, &p->from);
+ 			if(r0iszero && v != 0) {
+-				nerrors--;
+-				diag("literal operation on R0\n%P", p);
++				//nerrors--;
++				ctxt->diag("literal operation on R0\n%P", p);
+ 			}
+ 			o1 = LOP_IRR(OP_ADDI, REGZERO, REGZERO, v);
+ 			break;
+@@ -1438,17 +1439,17 @@ asmout(Prog *p, Optab *o, int aflag)
+ 		r = p->reg;
+ 		if(r == NREG)
+ 			r = p->to.reg;
+-		o1 = AOP_RRR(oprrr(p->as), p->to.reg, r, p->from.reg);
++		o1 = AOP_RRR(oprrr(ctxt, p->as), p->to.reg, r, p->from.reg);
+ 		break;
+ 
+ 	case 3:		/* mov $soreg/addcon/ucon, r ==> addis/addi $i,reg',r */
+-		d = vregoff(&p->from);
++		d = vregoff(ctxt, &p->from);
+ 		v = d;
+ 		r = p->from.reg;
+ 		if(r == NREG)
+ 			r = o->param;
+ 		if(r0iszero && p->to.reg == 0 && (r != 0 || v != 0))
+-			diag("literal operation on R0\n%P", p);
++			ctxt->diag("literal operation on R0\n%P", p);
+ 		a = OP_ADDI;
+ 		if(o->a1 == C_UCON) {
+ 			v >>= 16;
+@@ -1462,65 +1463,63 @@ asmout(Prog *p, Optab *o, int aflag)
+ 		break;
+ 
+ 	case 4:		/* add/mul $scon,[r1],r2 */
+-		v = regoff(&p->from);
++		v = regoff(ctxt, &p->from);
+ 		r = p->reg;
+ 		if(r == NREG)
+ 			r = p->to.reg;
+ 		if(r0iszero && p->to.reg == 0)
+-			diag("literal operation on R0\n%P", p);
+-		o1 = AOP_IRR(opirr(p->as), p->to.reg, r, v);
++			ctxt->diag("literal operation on R0\n%P", p);
++		o1 = AOP_IRR(opirr(ctxt, p->as), p->to.reg, r, v);
+ 		break;
+ 
+ 	case 5:		/* syscall */
+-		if(aflag)
+-			return 0;
+-		o1 = oprrr(p->as);
++		o1 = oprrr(ctxt, p->as);
+ 		break;
+ 
+ 	case 6:		/* logical op Rb,[Rs,]Ra; no literal */
+ 		r = p->reg;
+ 		if(r == NREG)
+ 			r = p->to.reg;
+-		o1 = LOP_RRR(oprrr(p->as), p->to.reg, r, p->from.reg);
++		o1 = LOP_RRR(oprrr(ctxt, p->as), p->to.reg, r, p->from.reg);
+ 		break;
+ 
+ 	case 7:		/* mov r, soreg ==> stw o(r) */
+ 		r = p->to.reg;
+ 		if(r == NREG)
+ 			r = o->param;
+-		v = regoff(&p->to);
++		v = regoff(ctxt, &p->to);
+ 		if(p->to.type == D_OREG && p->reg != NREG) {
+ 			if(v)
+-				diag("illegal indexed instruction\n%P", p);
+-			o1 = AOP_RRR(opstorex(p->as), p->from.reg, p->reg, r);
++				ctxt->diag("illegal indexed instruction\n%P", p);
++			o1 = AOP_RRR(opstorex(ctxt, p->as), p->from.reg, p->reg, r);
+ 		} else
+-			o1 = AOP_IRR(opstore(p->as), p->from.reg, r, v);
++			o1 = AOP_IRR(opstore(ctxt, p->as), p->from.reg, r, v);
+ 		break;
+ 
+ 	case 8:		/* mov soreg, r ==> lbz/lhz/lwz o(r) */
+ 		r = p->from.reg;
+ 		if(r == NREG)
+ 			r = o->param;
+-		v = regoff(&p->from);
++		v = regoff(ctxt, &p->from);
+ 		if(p->from.type == D_OREG && p->reg != NREG) {
+ 			if(v)
+-				diag("illegal indexed instruction\n%P", p);
+-			o1 = AOP_RRR(oploadx(p->as), p->to.reg, p->reg, r);
++				ctxt->diag("illegal indexed instruction\n%P", p);
++			o1 = AOP_RRR(oploadx(ctxt, p->as), p->to.reg, p->reg, r);
+ 		} else
+-			o1 = AOP_IRR(opload(p->as), p->to.reg, r, v);
++			o1 = AOP_IRR(opload(ctxt, p->as), p->to.reg, r, v);
+ 		break;
+ 
+ 	case 9:		/* movb soreg, r ==> lbz o(r),r2; extsb r2,r2 */
+ 		r = p->from.reg;
+ 		if(r == NREG)
+ 			r = o->param;
+-		v = regoff(&p->from);
++		v = regoff(ctxt, &p->from);
+ 		if(p->from.type == D_OREG && p->reg != NREG) {
+ 			if(v)
+-				diag("illegal indexed instruction\n%P", p);
+-			o1 = AOP_RRR(oploadx(p->as), p->to.reg, p->reg, r);
++				ctxt->diag("illegal indexed instruction\n%P", p);
++			o1 = AOP_RRR(oploadx(ctxt, p->as), p->to.reg, p->reg, r);
+ 		} else
+-			o1 = AOP_IRR(opload(p->as), p->to.reg, r, v);
++			o1 = AOP_IRR(opload(ctxt, p->as), p->to.reg, r, v);
+ 		o2 = LOP_RRR(OP_EXTSB, p->to.reg, p->to.reg, 0);
+ 		break;
+ 
+@@ -1528,36 +1527,37 @@ asmout(Prog *p, Optab *o, int aflag)
+ 		r = p->reg;
+ 		if(r == NREG)
+ 			r = p->to.reg;
+-		o1 = AOP_RRR(oprrr(p->as), p->to.reg, p->from.reg, r);
++		o1 = AOP_RRR(oprrr(ctxt, p->as), p->to.reg, p->from.reg, r);
+ 		break;
+ 
+ 	case 11:	/* br/bl lbra */
+-		if(aflag)
+-			return 0;
+ 		v = 0;
+-		if(p->cond == UP){
+-			if(p->to.sym->type != SUNDEF)
+-				diag("bad branch sym type");
+-			v = (ulong)p->to.sym->value >> (Roffset-2);
+-			dynreloc(p->to.sym, p->pc, 0, 0, 0);
++		if(p->pcond) {
++			v = p->pcond->pc - p->pc;
++			if(v & 03) {
++				ctxt->diag("odd branch target address\n%P", p);
++				v &= ~03;
++			}
++			if(v < -(1L<<25) || v >= (1L<<24))
++				ctxt->diag("branch too far\n%P", p);
+ 		}
+-		else if(p->cond)
+-			v = p->cond->pc - p->pc;
+-		if(v & 03) {
+-			diag("odd branch target address\n%P", p);
+-			v &= ~03;
++		o1 = OP_BR(opirr(ctxt, p->as), v, 0);
++		if(p->to.sym != nil) {
++			rel = addrel(ctxt->cursym);
++			rel->off = ctxt->pc;
++			rel->siz = 4;
++			rel->sym = p->to.sym;
++			v += p->to.offset;
++			rel->add = o1 | ((v & 0x03FFFFFC) >> 2);
++			rel->type = R_CALLPOWER;
+ 		}
+-		if(v < -(1L<<25) || v >= (1L<<24))
+-			diag("branch too far\n%P", p);
+-		o1 = OP_BR(opirr(p->as), v, 0);
+ 		break;
+ 
+ 	case 12:	/* movb r,r (extsb); movw r,r (extsw) */
+ 		if(p->to.reg == REGZERO && p->from.type == D_CONST) {
+-			v = regoff(&p->from);
++			v = regoff(ctxt, &p->from);
+ 			if(r0iszero && v != 0) {
+-				nerrors--;
+-				diag("literal operation on R0\n%P", p);
++				ctxt->diag("literal operation on R0\n%P", p);
+ 			}
+ 			o1 = LOP_IRR(OP_ADDI, REGZERO, REGZERO, v);
+ 			break;
+@@ -1578,31 +1578,31 @@ asmout(Prog *p, Optab *o, int aflag)
+ 		else if(p->as == AMOVWZ)
+ 			o1 = OP_RLW(OP_RLDIC, p->to.reg, p->from.reg, 0, 0, 0) | (1<<5);	/* MB=32 */
+ 		else
+-			diag("internal: bad mov[bhw]z\n%P", p);
++			ctxt->diag("internal: bad mov[bhw]z\n%P", p);
+ 		break;
+ 
+ 	case 14:	/* rldc[lr] Rb,Rs,$mask,Ra -- left, right give different masks */
+ 		r = p->reg;
+ 		if(r == NREG)
+ 			r = p->to.reg;
+-		d = vregoff(&p->from3);
+-		maskgen64(p, mask, d);
++		d = vregoff(ctxt, &p->from3);
++		maskgen64(ctxt, p, mask, d);
+ 		switch(p->as){
+ 		case ARLDCL: case ARLDCLCC:
+ 			a = mask[0];	/* MB */
+ 			if(mask[1] != 63)
+-				diag("invalid mask for rotate: %llux (end != bit 63)\n%P", d, p);
++				ctxt->diag("invalid mask for rotate: %llux (end != bit 63)\n%P", d, p);
+ 			break;
+ 		case ARLDCR: case ARLDCRCC:
+ 			a = mask[1];	/* ME */
+ 			if(mask[0] != 0)
+-				diag("invalid mask for rotate: %llux (start != 0)\n%P", d, p);
++				ctxt->diag("invalid mask for rotate: %llux (start != 0)\n%P", d, p);
+ 			break;
+ 		default:
+-			diag("unexpected op in rldc case\n%P", p);
++			ctxt->diag("unexpected op in rldc case\n%P", p);
+ 			a = 0;
+ 		}
+-		o1 = LOP_RRR(oprrr(p->as), p->to.reg, r, p->from.reg);
++		o1 = LOP_RRR(oprrr(ctxt, p->as), p->to.reg, r, p->from.reg);
+ 		o1 |= (a&31L)<<6;
+ 		if(a & 0x20)
+ 			o1 |= 1<<5;	/* mb[5] is top bit */
+@@ -1610,31 +1610,27 @@ asmout(Prog *p, Optab *o, int aflag)
+ 
+ 	case 17:	/* bc bo,bi,lbra (same for now) */
+ 	case 16:	/* bc bo,bi,sbra */
+-		if(aflag)
+-			return 0;
+ 		a = 0;
+ 		if(p->from.type == D_CONST)
+-			a = regoff(&p->from);
++			a = regoff(ctxt, &p->from);
+ 		r = p->reg;
+ 		if(r == NREG)
+ 			r = 0;
+ 		v = 0;
+-		if(p->cond)
+-			v = p->cond->pc - p->pc;
++		if(p->pcond)
++			v = p->pcond->pc - p->pc;
+ 		if(v & 03) {
+-			diag("odd branch target address\n%P", p);
++			ctxt->diag("odd branch target address\n%P", p);
+ 			v &= ~03;
+ 		}
+ 		if(v < -(1L<<16) || v >= (1L<<15))
+-			diag("branch too far\n%P", p);
+-		o1 = OP_BC(opirr(p->as), a, r, v, 0);
++			ctxt->diag("branch too far\n%P", p);
++		o1 = OP_BC(opirr(ctxt, p->as), a, r, v, 0);
+ 		break;
+ 
+ 	case 15:	/* br/bl (r) => mov r,lr; br/bl (lr) */
+-		if(aflag)
+-			return 0;
+ 		if(p->as == ABC || p->as == ABCL)
+-			v = regoff(&p->to)&31L;
++			v = regoff(ctxt, &p->to)&31L;
+ 		else
+ 			v = 20;	/* unconditional */
+ 		r = p->reg;
+@@ -1648,10 +1644,8 @@ asmout(Prog *p, Optab *o, int aflag)
+ 		break;
+ 
+ 	case 18:	/* br/bl (lr/ctr); bc/bcl bo,bi,(lr/ctr) */
+-		if(aflag)
+-			return 0;
+ 		if(p->as == ABC || p->as == ABCL)
+-			v = regoff(&p->from)&31L;
++			v = regoff(ctxt, &p->from)&31L;
+ 		else
+ 			v = 20;	/* unconditional */
+ 		r = p->reg;
+@@ -1665,7 +1659,7 @@ asmout(Prog *p, Optab *o, int aflag)
+ 			o1 = OPVCC(19, 16, 0, 0);
+ 			break;
+ 		default:
+-			diag("bad optab entry (18): %d\n%P", p->to.class, p);
++			ctxt->diag("bad optab entry (18): %d\n%P", p->to.class, p);
+ 			v = 0;
+ 		}
+ 		if(p->as == ABL || p->as == ABCL)
+@@ -1674,54 +1668,61 @@ asmout(Prog *p, Optab *o, int aflag)
+ 		break;
+ 
+ 	case 19:	/* mov $lcon,r ==> cau+or */
+-		d = vregoff(&p->from);
+-		o1 = loadu32(p->to.reg, d);
+-		o2 = LOP_IRR(OP_ORI, p->to.reg, p->to.reg, (long)d);
+-		if(dlm)
+-			reloc(&p->from, p->pc, 0);
++		d = vregoff(ctxt, &p->from);
++		if(p->from.sym == nil) {
++			o1 = loadu32(p->to.reg, d);
++			o2 = LOP_IRR(OP_ORI, p->to.reg, p->to.reg, (int32)d);
++		} else {
++			o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, (d>>16)+(d&0x8000)?1:0);
++			o2 = AOP_IRR(OP_ADDI, p->to.reg, REGTMP, d);
++			addaddrreloc(ctxt, p->from.sym, &o1, &o2);
++		}
++		//if(dlm) reloc(&p->from, p->pc, 0);
+ 		break;
+ 
+ 	case 20:	/* add $ucon,,r */
+-		v = regoff(&p->from);
++		v = regoff(ctxt, &p->from);
+ 		r = p->reg;
+ 		if(r == NREG)
+ 			r = p->to.reg;
+ 		if(p->as == AADD && (!r0iszero && p->reg == 0 || r0iszero && p->to.reg == 0))
+-			diag("literal operation on R0\n%P", p);
+-		o1 = AOP_IRR(opirr(p->as+AEND), p->to.reg, r, v>>16);
++			ctxt->diag("literal operation on R0\n%P", p);
++		o1 = AOP_IRR(opirr(ctxt, p->as+AEND), p->to.reg, r, v>>16);
+ 		break;
+ 
+ 	case 22:	/* add $lcon,r1,r2 ==> cau+or+add */	/* could do add/sub more efficiently */
+ 		if(p->to.reg == REGTMP || p->reg == REGTMP)
+-			diag("cant synthesize large constant\n%P", p);
+-		d = vregoff(&p->from);
++			ctxt->diag("cant synthesize large constant\n%P", p);
++		d = vregoff(ctxt, &p->from);
+ 		o1 = loadu32(REGTMP, d);
+-		o2 = LOP_IRR(OP_ORI, REGTMP, REGTMP, (long)d);
++		o2 = LOP_IRR(OP_ORI, REGTMP, REGTMP, (int32)d);
+ 		r = p->reg;
+ 		if(r == NREG)
+ 			r = p->to.reg;
+-		o3 = AOP_RRR(oprrr(p->as), p->to.reg, REGTMP, r);
+-		if(dlm)
+-			reloc(&p->from, p->pc, 0);
++		o3 = AOP_RRR(oprrr(ctxt, p->as), p->to.reg, REGTMP, r);
++		if(p->from.sym != nil)
++			ctxt->diag("%P is not supported", p);
++		//if(dlm) reloc(&p->from, p->pc, 0);
+ 		break;
+ 
+ 	case 23:	/* and $lcon,r1,r2 ==> cau+or+and */	/* masks could be done using rlnm etc. */
+ 		if(p->to.reg == REGTMP || p->reg == REGTMP)
+-			diag("cant synthesize large constant\n%P", p);
+-		d = vregoff(&p->from);
++			ctxt->diag("cant synthesize large constant\n%P", p);
++		d = vregoff(ctxt, &p->from);
+ 		o1 = loadu32(REGTMP, d);
+-		o2 = LOP_IRR(OP_ORI, REGTMP, REGTMP, (long)d);
++		o2 = LOP_IRR(OP_ORI, REGTMP, REGTMP, (int32)d);
+ 		r = p->reg;
+ 		if(r == NREG)
+ 			r = p->to.reg;
+-		o3 = LOP_RRR(oprrr(p->as), p->to.reg, REGTMP, r);
+-		if(dlm)
+-			reloc(&p->from, p->pc, 0);
++		o3 = LOP_RRR(oprrr(ctxt, p->as), p->to.reg, REGTMP, r);
++		if(p->from.sym != nil)
++			ctxt->diag("%P is not supported", p);
++		//if(dlm) reloc(&p->from, p->pc, 0);
+ 		break;
+ /*24*/
+ 
+ 	case 25:	/* sld[.] $sh,rS,rA -> rldicr[.] $sh,rS,mask(0,63-sh),rA; srd[.] -> rldicl */
+-		v = regoff(&p->from);
++		v = regoff(ctxt, &p->from);
+ 		if(v < 0)
+ 			v = 0;
+ 		else if(v > 63)
+@@ -1740,7 +1741,7 @@ asmout(Prog *p, Optab *o, int aflag)
+ 			o1 = OP_RLDICL;
+ 			break;
+ 		default:
+-			diag("unexpected op in sldi case\n%P", p);
++			ctxt->diag("unexpected op in sldi case\n%P", p);
+ 			a = 0;
+ 			o1 = 0;
+ 		}
+@@ -1756,8 +1757,8 @@ asmout(Prog *p, Optab *o, int aflag)
+ 
+ 	case 26:	/* mov $lsext/auto/oreg,,r2 ==> addis+addi */
+ 		if(p->to.reg == REGTMP)
+-			diag("can't synthesize large constant\n%P", p);
+-		v = regoff(&p->from);
++			ctxt->diag("can't synthesize large constant\n%P", p);
++		v = regoff(ctxt, &p->from);
+ 		if(v & 0x8000L)
+ 			v += 0x10000L;
+ 		r = p->from.reg;
+@@ -1768,47 +1769,48 @@ asmout(Prog *p, Optab *o, int aflag)
+ 		break;
+ 
+ 	case 27:		/* subc ra,$simm,rd => subfic rd,ra,$simm */
+-		v = regoff(&p->from3);
++		v = regoff(ctxt, &p->from3);
+ 		r = p->from.reg;
+-		o1 = AOP_IRR(opirr(p->as), p->to.reg, r, v);
++		o1 = AOP_IRR(opirr(ctxt, p->as), p->to.reg, r, v);
+ 		break;
+ 
+ 	case 28:	/* subc r1,$lcon,r2 ==> cau+or+subfc */
+ 		if(p->to.reg == REGTMP || p->from.reg == REGTMP)
+-			diag("can't synthesize large constant\n%P", p);
+-		v = regoff(&p->from3);
++			ctxt->diag("can't synthesize large constant\n%P", p);
++		v = regoff(ctxt, &p->from3);
+ 		o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, v>>16);
+ 		o2 = LOP_IRR(OP_ORI, REGTMP, REGTMP, v);
+-		o3 = AOP_RRR(oprrr(p->as), p->to.reg, p->from.reg, REGTMP);
+-		if(dlm)
+-			reloc(&p->from3, p->pc, 0);
++		o3 = AOP_RRR(oprrr(ctxt, p->as), p->to.reg, p->from.reg, REGTMP);
++		if(p->from.sym != nil)
++			ctxt->diag("%P is not supported", p);
++		//if(dlm) reloc(&p->from3, p->pc, 0);
+ 		break;
+ 
+ 	case 29:	/* rldic[lr]? $sh,s,$mask,a -- left, right, plain give different masks */
+-		v = regoff(&p->from);
+-		d = vregoff(&p->from3);
+-		maskgen64(p, mask, d);
++		v = regoff(ctxt, &p->from);
++		d = vregoff(ctxt, &p->from3);
++		maskgen64(ctxt, p, mask, d);
+ 		switch(p->as){
+ 		case ARLDC: case ARLDCCC:
+ 			a = mask[0];	/* MB */
+ 			if(mask[1] != (63-v))
+-				diag("invalid mask for shift: %llux (shift %ld)\n%P", d, v, p);
++				ctxt->diag("invalid mask for shift: %llux (shift %ld)\n%P", d, v, p);
+ 			break;
+ 		case ARLDCL: case ARLDCLCC:
+ 			a = mask[0];	/* MB */
+ 			if(mask[1] != 63)
+-				diag("invalid mask for shift: %llux (shift %ld)\n%P", d, v, p);
++				ctxt->diag("invalid mask for shift: %llux (shift %ld)\n%P", d, v, p);
+ 			break;
+ 		case ARLDCR: case ARLDCRCC:
+ 			a = mask[1];	/* ME */
+ 			if(mask[0] != 0)
+-				diag("invalid mask for shift: %llux (shift %ld)\n%P", d, v, p);
++				ctxt->diag("invalid mask for shift: %llux (shift %ld)\n%P", d, v, p);
+ 			break;
+ 		default:
+-			diag("unexpected op in rldic case\n%P", p);
++			ctxt->diag("unexpected op in rldic case\n%P", p);
+ 			a = 0;
+ 		}
+-		o1 = AOP_RRR(opirr(p->as), p->reg, p->to.reg, (v&0x1F));
++		o1 = AOP_RRR(opirr(ctxt, p->as), p->reg, p->to.reg, (v&0x1F));
+ 		o1 |= (a&31L)<<6;
+ 		if(v & 0x20)
+ 			o1 |= 1<<1;
+@@ -1817,12 +1819,12 @@ asmout(Prog *p, Optab *o, int aflag)
+ 		break;
+ 
+ 	case 30:	/* rldimi $sh,s,$mask,a */
+-		v = regoff(&p->from);
+-		d = vregoff(&p->from3);
+-		maskgen64(p, mask, d);
++		v = regoff(ctxt, &p->from);
++		d = vregoff(ctxt, &p->from3);
++		maskgen64(ctxt, p, mask, d);
+ 		if(mask[1] != (63-v))
+-			diag("invalid mask for shift: %llux (shift %ld)\n%P", d, v, p);
+-		o1 = AOP_RRR(opirr(p->as), p->reg, p->to.reg, (v&0x1F));
++			ctxt->diag("invalid mask for shift: %llux (shift %ld)\n%P", d, v, p);
++		o1 = AOP_RRR(opirr(ctxt, p->as), p->reg, p->to.reg, (v&0x1F));
+ 		o1 |= (mask[0]&31L)<<6;
+ 		if(v & 0x20)
+ 			o1 |= 1<<1;
+@@ -1831,130 +1833,140 @@ asmout(Prog *p, Optab *o, int aflag)
+ 		break;
+ 
+ 	case 31:	/* dword */
+-		if(aflag)
+-			return 0;
+-		d = vregoff(&p->from);
+-		o1 = d>>32;
+-		o2 = d;
++		d = vregoff(ctxt, &p->from);
++		if(ctxt->arch->endian == BigEndian) {
++			o1 = d>>32;
++			o2 = d;
++		} else {
++			o1 = d;
++			o2 = d>>32;
++		}
++		if(p->from.sym != nil) {
++			rel = addrel(ctxt->cursym);
++			rel->off = ctxt->pc;
++			rel->siz = 8;
++			rel->sym = p->from.sym;
++			rel->add = p->from.offset;
++			rel->type = R_ADDR;
++			o1 = o2 = 0;
++		}
+ 		break;
+ 
+ 	case 32:	/* fmul frc,fra,frd */
+ 		r = p->reg;
+ 		if(r == NREG)
+ 			r = p->to.reg;
+-		o1 = AOP_RRR(oprrr(p->as), p->to.reg, r, 0)|((p->from.reg&31L)<<6);
++		o1 = AOP_RRR(oprrr(ctxt, p->as), p->to.reg, r, 0)|((p->from.reg&31L)<<6);
+ 		break;
+ 
+ 	case 33:	/* fabs [frb,]frd; fmr. frb,frd */
+ 		r = p->from.reg;
+ 		if(oclass(p->from) == C_NONE)
+ 			r = p->to.reg;
+-		o1 = AOP_RRR(oprrr(p->as), p->to.reg, 0, r);
++		o1 = AOP_RRR(oprrr(ctxt, p->as), p->to.reg, 0, r);
+ 		break;
+ 
+ 	case 34:	/* FMADDx fra,frb,frc,frd (d=a*b+c); FSELx a<0? (d=b): (d=c) */
+-		o1 = AOP_RRR(oprrr(p->as), p->to.reg, p->from.reg, p->reg)|((p->from3.reg&31L)<<6);
++		o1 = AOP_RRR(oprrr(ctxt, p->as), p->to.reg, p->from.reg, p->reg)|((p->from3.reg&31L)<<6);
+ 		break;
+ 
+ 	case 35:	/* mov r,lext/lauto/loreg ==> cau $(v>>16),sb,r'; store o(r') */
+-		v = regoff(&p->to);
++		v = regoff(ctxt, &p->to);
+ 		if(v & 0x8000L)
+ 			v += 0x10000L;
+ 		r = p->to.reg;
+ 		if(r == NREG)
+ 			r = o->param;
+ 		o1 = AOP_IRR(OP_ADDIS, REGTMP, r, v>>16);
+-		o2 = AOP_IRR(opstore(p->as), p->from.reg, REGTMP, v);
++		o2 = AOP_IRR(opstore(ctxt, p->as), p->from.reg, REGTMP, v);
+ 		break;
+ 
+ 	case 36:	/* mov bz/h/hz lext/lauto/lreg,r ==> lbz/lha/lhz etc */
+-		v = regoff(&p->from);
++		v = regoff(ctxt, &p->from);
+ 		if(v & 0x8000L)
+ 			v += 0x10000L;
+ 		r = p->from.reg;
+ 		if(r == NREG)
+ 			r = o->param;
+ 		o1 = AOP_IRR(OP_ADDIS, REGTMP, r, v>>16);
+-		o2 = AOP_IRR(opload(p->as), p->to.reg, REGTMP, v);
++		o2 = AOP_IRR(opload(ctxt, p->as), p->to.reg, REGTMP, v);
+ 		break;
+ 
+ 	case 37:	/* movb lext/lauto/lreg,r ==> lbz o(reg),r; extsb r */
+-		v = regoff(&p->from);
++		v = regoff(ctxt, &p->from);
+ 		if(v & 0x8000L)
+ 			v += 0x10000L;
+ 		r = p->from.reg;
+ 		if(r == NREG)
+ 			r = o->param;
+ 		o1 = AOP_IRR(OP_ADDIS, REGTMP, r, v>>16);
+-		o2 = AOP_IRR(opload(p->as), p->to.reg, REGTMP, v);
++		o2 = AOP_IRR(opload(ctxt, p->as), p->to.reg, REGTMP, v);
+ 		o3 = LOP_RRR(OP_EXTSB, p->to.reg, p->to.reg, 0);
+ 		break;
+ 
+ 	case 40:	/* word */
+-		if(aflag)
+-			return 0;
+-		o1 = regoff(&p->from);
++		o1 = regoff(ctxt, &p->from);
+ 		break;
+ 
+ 	case 41:	/* stswi */
+-		o1 = AOP_RRR(opirr(p->as), p->from.reg, p->to.reg, 0) | ((regoff(&p->from3)&0x7F)<<11);
++		o1 = AOP_RRR(opirr(ctxt, p->as), p->from.reg, p->to.reg, 0) | ((regoff(ctxt, &p->from3)&0x7F)<<11);
+ 		break;
+ 
+ 	case 42:	/* lswi */
+-		o1 = AOP_RRR(opirr(p->as), p->to.reg, p->from.reg, 0) | ((regoff(&p->from3)&0x7F)<<11);
++		o1 = AOP_RRR(opirr(ctxt, p->as), p->to.reg, p->from.reg, 0) | ((regoff(ctxt, &p->from3)&0x7F)<<11);
+ 		break;
+ 
+ 	case 43:	/* unary indexed source: dcbf (b); dcbf (a+b) */
+ 		r = p->reg;
+ 		if(r == NREG)
+ 			r = 0;
+-		o1 = AOP_RRR(oprrr(p->as), 0, r, p->from.reg);
++		o1 = AOP_RRR(oprrr(ctxt, p->as), 0, r, p->from.reg);
+ 		break;
+ 
+ 	case 44:	/* indexed store */
+ 		r = p->reg;
+ 		if(r == NREG)
+ 			r = 0;
+-		o1 = AOP_RRR(opstorex(p->as), p->from.reg, r, p->to.reg);
++		o1 = AOP_RRR(opstorex(ctxt, p->as), p->from.reg, r, p->to.reg);
+ 		break;
+ 	case 45:	/* indexed load */
+ 		r = p->reg;
+ 		if(r == NREG)
+ 			r = 0;
+-		o1 = AOP_RRR(oploadx(p->as), p->to.reg, r, p->from.reg);
++		o1 = AOP_RRR(oploadx(ctxt, p->as), p->to.reg, r, p->from.reg);
+ 		break;
+ 
+ 	case 46:	/* plain op */
+-		o1 = oprrr(p->as);
++		o1 = oprrr(ctxt, p->as);
+ 		break;
+ 
+ 	case 47:	/* op Ra, Rd; also op [Ra,] Rd */
+ 		r = p->from.reg;
+ 		if(r == NREG)
+ 			r = p->to.reg;
+-		o1 = AOP_RRR(oprrr(p->as), p->to.reg, r, 0);
++		o1 = AOP_RRR(oprrr(ctxt, p->as), p->to.reg, r, 0);
+ 		break;
+ 
+ 	case 48:	/* op Rs, Ra */
+ 		r = p->from.reg;
+ 		if(r == NREG)
+ 			r = p->to.reg;
+-		o1 = LOP_RRR(oprrr(p->as), p->to.reg, r, 0);
++		o1 = LOP_RRR(oprrr(ctxt, p->as), p->to.reg, r, 0);
+ 		break;
+ 
+ 	case 49:	/* op Rb; op $n, Rb */
+ 		if(p->from.type != D_REG){	/* tlbie $L, rB */
+-			v = regoff(&p->from) & 1;
+-			o1 = AOP_RRR(oprrr(p->as), 0, 0, p->to.reg) | (v<<21);
++			v = regoff(ctxt, &p->from) & 1;
++			o1 = AOP_RRR(oprrr(ctxt, p->as), 0, 0, p->to.reg) | (v<<21);
+ 		}else
+-			o1 = AOP_RRR(oprrr(p->as), 0, 0, p->from.reg);
++			o1 = AOP_RRR(oprrr(ctxt, p->as), 0, 0, p->from.reg);
+ 		break;
+ 
+ 	case 50:	/* rem[u] r1[,r2],r3 */
+ 		r = p->reg;
+ 		if(r == NREG)
+ 			r = p->to.reg;
+-		v = oprrr(p->as);
++		v = oprrr(ctxt, p->as);
+ 		t = v & ((1<<10)|1);	/* OE|Rc */
+ 		o1 = AOP_RRR(v&~t, REGTMP, r, p->from.reg);
+ 		o2 = AOP_RRR(OP_MULLW, REGTMP, REGTMP, p->from.reg);
+@@ -1965,7 +1977,7 @@ asmout(Prog *p, Optab *o, int aflag)
+ 		r = p->reg;
+ 		if(r == NREG)
+ 			r = p->to.reg;
+-		v = oprrr(p->as);
++		v = oprrr(ctxt, p->as);
+ 		t = v & ((1<<10)|1);	/* OE|Rc */
+ 		o1 = AOP_RRR(v&~t, REGTMP, r, p->from.reg);
+ 		o2 = AOP_RRR(OP_MULLD, REGTMP, REGTMP, p->from.reg);
+@@ -1973,8 +1985,8 @@ asmout(Prog *p, Optab *o, int aflag)
+ 		break;
+ 
+ 	case 52:	/* mtfsbNx cr(n) */
+-		v = regoff(&p->from)&31L;
+-		o1 = AOP_RRR(oprrr(p->as), v, 0, 0);
++		v = regoff(ctxt, &p->from)&31L;
++		o1 = AOP_RRR(oprrr(ctxt, p->as), v, 0, 0);
+ 		break;
+ 
+ 	case 53:	/* mffsX ,fr1 */
+@@ -1992,21 +2004,21 @@ asmout(Prog *p, Optab *o, int aflag)
+ 		break;
+ 
+ 	case 55:	/* op Rb, Rd */
+-		o1 = AOP_RRR(oprrr(p->as), p->to.reg, 0, p->from.reg);
++		o1 = AOP_RRR(oprrr(ctxt, p->as), p->to.reg, 0, p->from.reg);
+ 		break;
+ 
+ 	case 56:	/* sra $sh,[s,]a; srd $sh,[s,]a */
+-		v = regoff(&p->from);
++		v = regoff(ctxt, &p->from);
+ 		r = p->reg;
+ 		if(r == NREG)
+ 			r = p->to.reg;
+-		o1 = AOP_RRR(opirr(p->as), r, p->to.reg, v&31L);
++		o1 = AOP_RRR(opirr(ctxt, p->as), r, p->to.reg, v&31L);
+ 		if(p->as == ASRAD && (v&0x20))
+ 			o1 |= 1<<1;	/* mb[5] */
+ 		break;
+ 
+ 	case 57:	/* slw $sh,[s,]a -> rlwinm ... */
+-		v = regoff(&p->from);
++		v = regoff(ctxt, &p->from);
+ 		r = p->reg;
+ 		if(r == NREG)
+ 			r = p->to.reg;
+@@ -2015,7 +2027,7 @@ asmout(Prog *p, Optab *o, int aflag)
+ 		 * qc has already complained.
+ 		 *
+ 		if(v < 0 || v > 31)
+-			diag("illegal shift %ld\n%P", v, p);
++			ctxt->diag("illegal shift %ld\n%P", v, p);
+ 		 */
+ 		if(v < 0)
+ 			v = 0;
+@@ -2035,48 +2047,48 @@ asmout(Prog *p, Optab *o, int aflag)
+ 		break;
+ 
+ 	case 58:		/* logical $andcon,[s],a */
+-		v = regoff(&p->from);
++		v = regoff(ctxt, &p->from);
+ 		r = p->reg;
+ 		if(r == NREG)
+ 			r = p->to.reg;
+-		o1 = LOP_IRR(opirr(p->as), p->to.reg, r, v);
++		o1 = LOP_IRR(opirr(ctxt, p->as), p->to.reg, r, v);
+ 		break;
+ 
+ 	case 59:	/* or/and $ucon,,r */
+-		v = regoff(&p->from);
++		v = regoff(ctxt, &p->from);
+ 		r = p->reg;
+ 		if(r == NREG)
+ 			r = p->to.reg;
+-		o1 = LOP_IRR(opirr(p->as+AEND), p->to.reg, r, v>>16);	/* oris, xoris, andis */
++		o1 = LOP_IRR(opirr(ctxt, p->as+AEND), p->to.reg, r, v>>16);	/* oris, xoris, andis */
+ 		break;
+ 
+ 	case 60:	/* tw to,a,b */
+-		r = regoff(&p->from)&31L;
+-		o1 = AOP_RRR(oprrr(p->as), r, p->reg, p->to.reg);
++		r = regoff(ctxt, &p->from)&31L;
++		o1 = AOP_RRR(oprrr(ctxt, p->as), r, p->reg, p->to.reg);
+ 		break;
+ 
+ 	case 61:	/* tw to,a,$simm */
+-		r = regoff(&p->from)&31L;
+-		v = regoff(&p->to);
+-		o1 = AOP_IRR(opirr(p->as), r, p->reg, v);
++		r = regoff(ctxt, &p->from)&31L;
++		v = regoff(ctxt, &p->to);
++		o1 = AOP_IRR(opirr(ctxt, p->as), r, p->reg, v);
+ 		break;
+ 
+ 	case 62:	/* rlwmi $sh,s,$mask,a */
+-		v = regoff(&p->from);
+-		maskgen(p, mask, regoff(&p->from3));
+-		o1 = AOP_RRR(opirr(p->as), p->reg, p->to.reg, v);
++		v = regoff(ctxt, &p->from);
++		maskgen(ctxt, p, mask, regoff(ctxt, &p->from3));
++		o1 = AOP_RRR(opirr(ctxt, p->as), p->reg, p->to.reg, v);
+ 		o1 |= ((mask[0]&31L)<<6)|((mask[1]&31L)<<1);
+ 		break;
+ 
+ 	case 63:	/* rlwmi b,s,$mask,a */
+-		maskgen(p, mask, regoff(&p->from3));
+-		o1 = AOP_RRR(opirr(p->as), p->reg, p->to.reg, p->from.reg);
++		maskgen(ctxt, p, mask, regoff(ctxt, &p->from3));
++		o1 = AOP_RRR(opirr(ctxt, p->as), p->reg, p->to.reg, p->from.reg);
+ 		o1 |= ((mask[0]&31L)<<6)|((mask[1]&31L)<<1);
+ 		break;
+ 
+ 	case 64:	/* mtfsf fr[, $m] {,fpcsr} */
+ 		if(p->from3.type != D_NONE)
+-			v = regoff(&p->from3)&255L;
++			v = regoff(ctxt, &p->from3)&255L;
+ 		else
+ 			v = 255;
+ 		o1 = OP_MTFSF | (v<<17) | (p->from.reg<<11);
+@@ -2084,8 +2096,8 @@ asmout(Prog *p, Optab *o, int aflag)
+ 
+ 	case 65:	/* MOVFL $imm,FPSCR(n) => mtfsfi crfd,imm */
+ 		if(p->to.reg == NREG)
+-			diag("must specify FPSCR(n)\n%P", p);
+-		o1 = OP_MTFSFI | ((p->to.reg&15L)<<23) | ((regoff(&p->from)&31L)<<12);
++			ctxt->diag("must specify FPSCR(n)\n%P", p);
++		o1 = OP_MTFSFI | ((p->to.reg&15L)<<23) | ((regoff(ctxt, &p->from)&31L)<<12);
+ 		break;
+ 
+ 	case 66:	/* mov spr,r1; mov r1,spr, also dcr */
+@@ -2110,7 +2122,7 @@ asmout(Prog *p, Optab *o, int aflag)
+ 	case 67:	/* mcrf crfD,crfS */
+ 		if(p->from.type != D_CREG || p->from.reg == NREG ||
+ 		   p->to.type != D_CREG || p->to.reg == NREG)
+-			diag("illegal CR field number\n%P", p);
++			ctxt->diag("illegal CR field number\n%P", p);
+ 		o1 = AOP_RRR(OP_MCRF, ((p->to.reg&7L)<<2), ((p->from.reg&7)<<2), 0);
+ 		break;
+ 
+@@ -2125,8 +2137,8 @@ asmout(Prog *p, Optab *o, int aflag)
+ 	case 69:	/* mtcrf CRM,rS */
+ 		if(p->from3.type != D_NONE) {
+ 			if(p->to.reg != NREG)
+-				diag("can't use both mask and CR(n)\n%P", p);
+-			v = regoff(&p->from3) & 0xff;
++				ctxt->diag("can't use both mask and CR(n)\n%P", p);
++			v = regoff(ctxt, &p->from3) & 0xff;
+ 		} else {
+ 			if(p->to.reg == NREG)
+ 				v = 0xff;	/* CR */
+@@ -2141,7 +2153,7 @@ asmout(Prog *p, Optab *o, int aflag)
+ 			r = 0;
+ 		else
+ 			r = (p->reg&7)<<2;
+-		o1 = AOP_RRR(oprrr(p->as), r, p->from.reg, p->to.reg);
++		o1 = AOP_RRR(oprrr(ctxt, p->as), r, p->from.reg, p->to.reg);
+ 		break;
+ 
+ 	case 71:	/* cmp[l] r,i,cr*/
+@@ -2149,50 +2161,77 @@ asmout(Prog *p, Optab *o, int aflag)
+ 			r = 0;
+ 		else
+ 			r = (p->reg&7)<<2;
+-		o1 = AOP_RRR(opirr(p->as), r, p->from.reg, 0) | (regoff(&p->to)&0xffff);
++		o1 = AOP_RRR(opirr(ctxt, p->as), r, p->from.reg, 0) | (regoff(ctxt, &p->to)&0xffff);
+ 		break;
+ 
+ 	case 72:	/* slbmte (Rb+Rs -> slb[Rb]) -> Rs, Rb */
+-		o1 = AOP_RRR(oprrr(p->as), p->from.reg, 0, p->to.reg);
++		o1 = AOP_RRR(oprrr(ctxt, p->as), p->from.reg, 0, p->to.reg);
+ 		break;
+ 
+ 	case 73:	/* mcrfs crfD,crfS */
+ 		if(p->from.type != D_FPSCR || p->from.reg == NREG ||
+ 		   p->to.type != D_CREG || p->to.reg == NREG)
+-			diag("illegal FPSCR/CR field number\n%P", p);
++			ctxt->diag("illegal FPSCR/CR field number\n%P", p);
+ 		o1 = AOP_RRR(OP_MCRFS, ((p->to.reg&7L)<<2), ((p->from.reg&7)<<2), 0);
+ 		break;
+ 
++	case 77:	/* syscall $scon, syscall Rx */
++		if(p->from.type == D_CONST) {
++			if(p->from.offset > BIG || p->from.offset < -BIG)
++				ctxt->diag("illegal syscall, sysnum too large: %P", p);
++			o1 = AOP_IRR(OP_ADDI, REGZERO, REGZERO, p->from.offset);
++		} else if(p->from.type == D_REG) {
++			o1 = LOP_RRR(OP_OR, REGZERO, p->from.reg, p->from.reg);
++		} else {
++			ctxt->diag("illegal syscall: %P", p);
++			o1 = 0x7fe00008; // trap always
++		}
++		o2 = oprrr(ctxt, p->as);
++		o3 = AOP_RRR(oprrr(ctxt, AXOR), REGZERO, REGZERO, REGZERO); // XOR R0, R0
++		break;
++
++	case 78:	/* undef */
++		o1 = 0; /* "An instruction consisting entirely of binary 0s is guaranteed
++			   always to be an illegal instruction."  */
++		break;
++
+ 	/* relocation operations */
+ 
+ 	case 74:
+-		v = regoff(&p->to);
+-		o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, v>>16);
+-		o2 = AOP_IRR(opstore(p->as), p->from.reg, REGTMP, v);
+-		if(dlm)
+-			reloc(&p->to, p->pc, 1);
++		v = regoff(ctxt, &p->to);
++		o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, (v>>16)+(v&0x8000)?1:0);
++		o2 = AOP_IRR(opstore(ctxt, p->as), p->from.reg, REGTMP, v);
++		addaddrreloc(ctxt, p->to.sym, &o1, &o2);
++		//if(dlm) reloc(&p->to, p->pc, 1);
+ 		break;
+ 
+ 	case 75:
+-		v = regoff(&p->from);
+-		o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, v>>16);
+-		o2 = AOP_IRR(opload(p->as), p->to.reg, REGTMP, v);
+-		if(dlm)
+-			reloc(&p->from, p->pc, 1);
++		v = regoff(ctxt, &p->from);
++		o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, (v>>16)+(v&0x8000)?1:0);
++		o2 = AOP_IRR(opload(ctxt, p->as), p->to.reg, REGTMP, v);
++		addaddrreloc(ctxt, p->from.sym, &o1, &o2);
++		//if(dlm) reloc(&p->from, p->pc, 1);
+ 		break;
+ 
+ 	case 76:
+-		v = regoff(&p->from);
+-		o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, v>>16);
+-		o2 = AOP_IRR(opload(p->as), p->to.reg, REGTMP, v);
++		v = regoff(ctxt, &p->from);
++		o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, (v>>16)+(v&0x8000)?1:0);
++		o2 = AOP_IRR(opload(ctxt, p->as), p->to.reg, REGTMP, v);
++		addaddrreloc(ctxt, p->from.sym, &o1, &o2);
+ 		o3 = LOP_RRR(OP_EXTSB, p->to.reg, p->to.reg, 0);
+-		if(dlm)
+-			reloc(&p->from, p->pc, 1);
++		//if(dlm) reloc(&p->from, p->pc, 1);
+ 		break;
+ 
+ 	}
+-	if(aflag)
+-		return o1;
++
++	out[0] = o1;
++	out[1] = o2;
++	out[2] = o3;
++	out[3] = o4;
++	out[4] = o5;
++	return;
++
++#if NOTDEF
+ 	v = p->pc;
+ 	switch(o->size) {
+ 	default:
+@@ -2238,25 +2277,26 @@ asmout(Prog *p, Optab *o, int aflag)
+ 		break;
+ 	}
+ 	return 0;
++#endif
+ }
+ 
+-vlong
+-vregoff(Adr *a)
++static vlong
++vregoff(Link *ctxt, Addr *a)
+ {
+ 
+-	instoffset = 0;
+-	aclass(a);
+-	return instoffset;
++	ctxt->instoffset = 0;
++	aclass(ctxt, a);
++	return ctxt->instoffset;
+ }
+ 
+-long
+-regoff(Adr *a)
++static int32
++regoff(Link *ctxt, Addr *a)
+ {
+-	return vregoff(a);
++	return vregoff(ctxt, a);
+ }
+ 
+-long
+-oprrr(int a)
++static int32
++oprrr(Link *ctxt, int a)
+ {
+ 	switch(a) {
+ 	case AADD:	return OPVCC(31,266,0,0);
+@@ -2531,12 +2571,12 @@ oprrr(int a)
+ 	case AXOR:	return OPVCC(31,316,0,0);
+ 	case AXORCC:	return OPVCC(31,316,0,1);
+ 	}
+-	diag("bad r/r opcode %A", a);
++	ctxt->diag("bad r/r opcode %A", a);
+ 	return 0;
+ }
+ 
+-long
+-opirr(int a)
++static int32
++opirr(Link *ctxt, int a)
+ {
+ 	switch(a) {
+ 	case AADD:	return OPVCC(14,0,0,0);
+@@ -2602,15 +2642,15 @@ opirr(int a)
+ 	case AXOR:	return OPVCC(26,0,0,0);		/* XORIL */
+ 	case AXOR+AEND:	return OPVCC(27,0,0,0);		/* XORIU */
+ 	}
+-	diag("bad opcode i/r %A", a);
++	ctxt->diag("bad opcode i/r %A", a);
+ 	return 0;
+ }
+ 
+ /*
+  * load o(a),d
+  */
+-long
+-opload(int a)
++static int32
++opload(Link *ctxt, int a)
+ {
+ 	switch(a) {
+ 	case AMOVD:	return OPVCC(58,0,0,0);	/* ld */
+@@ -2633,15 +2673,15 @@ opload(int a)
+ 	case AMOVHZU:	return OPVCC(41,0,0,0);
+ 	case AMOVMW:	return OPVCC(46,0,0,0);	/* lmw */
+ 	}
+-	diag("bad load opcode %A", a);
++	ctxt->diag("bad load opcode %A", a);
+ 	return 0;
+ }
+ 
+ /*
+  * indexed load a(b),d
+  */
+-long
+-oploadx(int a)
++static int32
++oploadx(Link *ctxt, int a)
+ {
+ 	switch(a) {
+ 	case AMOVWZ: return OPVCC(31,23,0,0);	/* lwzx */
+@@ -2664,19 +2704,20 @@ oploadx(int a)
+ 	case AMOVHZU:	return OPVCC(31,311,0,0);	/* lhzux */
+ 	case AECIWX:	return OPVCC(31,310,0,0);	/* eciwx */
+ 	case ALWAR:	return OPVCC(31,20,0,0);	/* lwarx */
++	case ALDAR:	return OPVCC(31,84,0,0);
+ 	case ALSW:	return OPVCC(31,533,0,0);	/* lswx */
+ 	case AMOVD:	return OPVCC(31,21,0,0);	/* ldx */
+ 	case AMOVDU:	return OPVCC(31,53,0,0);	/* ldux */
+ 	}
+-	diag("bad loadx opcode %A", a);
++	ctxt->diag("bad loadx opcode %A", a);
+ 	return 0;
+ }
+ 
+ /*
+  * store s,o(d)
+  */
+-long
+-opstore(int a)
++static int32
++opstore(Link *ctxt, int a)
+ {
+ 	switch(a) {
+ 	case AMOVB:
+@@ -2700,15 +2741,15 @@ opstore(int a)
+ 	case AMOVD:	return OPVCC(62,0,0,0);	/* std */
+ 	case AMOVDU:	return OPVCC(62,0,0,1);	/* stdu */
+ 	}
+-	diag("unknown store opcode %A", a);
++	ctxt->diag("unknown store opcode %A", a);
+ 	return 0;
+ }
+ 
+ /*
+  * indexed store s,a(b)
+  */
+-long
+-opstorex(int a)
++static int32
++opstorex(Link *ctxt, int a)
+ {
+ 	switch(a) {
+ 	case AMOVB:
+@@ -2736,6 +2777,7 @@ opstorex(int a)
+ 	case AMOVD:	return OPVCC(31,149,0,0);	/* stdx */
+ 	case AMOVDU:	return OPVCC(31,181,0,0);	/* stdux */
+ 	}
+-	diag("unknown storex opcode %A", a);
++	ctxt->diag("unknown storex opcode %A", a);
+ 	return 0;
+ }
++
+diff --git a/src/liblink/list9.c b/src/liblink/list9.c
+index f9de2bf119..3299d269a3 100644
+--- a/src/liblink/list9.c
++++ b/src/liblink/list9.c
+@@ -27,29 +27,61 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-// +build ignore
++#include <u.h>
++#include <libc.h>
++#include <bio.h>
++#include <link.h>
++#include "../cmd/9l/9.out.h"
+ 
+-#include "l.h"
++enum
++{
++	STRINGSZ	= 1000,
++};
++
++static int	Aconv(Fmt*);
++static int	Dconv(Fmt*);
++static int	Pconv(Fmt*);
++static int	Rconv(Fmt*);
++static int	DSconv(Fmt*);
++static int	Mconv(Fmt*);
++static int	DRconv(Fmt*);
++
++//
++// Format conversions
++//	%A int		Opcodes (instruction mnemonics)
++//
++//	%D Addr*	Addresses (instruction operands)
++//		Flags: "%lD": seperate the high and low words of a constant by "-"
++//
++//	%P Prog*	Instructions
++//
++//	%R int		Registers
++//
++//	%$ char*	String constant addresses (for internal use only)
++//	%^ int   	C_* classes (for liblink internal use)
++
++#pragma	varargck	type	"$"	char*
++#pragma	varargck	type	"M"	Addr*
+ 
+ void
+-listinit(void)
++listinit9(void)
+ {
+-
+ 	fmtinstall('A', Aconv);
+ 	fmtinstall('D', Dconv);
+ 	fmtinstall('P', Pconv);
+-	fmtinstall('S', Sconv);
+-	fmtinstall('N', Nconv);
+ 	fmtinstall('R', Rconv);
+-}
+ 
+-void
+-prasm(Prog *p)
+-{
+-	print("%P\n", p);
++	// for liblink internal use
++	fmtinstall('^', DRconv);
++
++	// for internal use
++	fmtinstall('$', DSconv);
++	fmtinstall('M', Mconv);
+ }
+ 
+-int
++static Prog*	bigP;
++
++static int
+ Pconv(Fmt *fp)
+ {
+ 	char str[STRINGSZ], *s;
+@@ -57,26 +89,36 @@ Pconv(Fmt *fp)
+ 	int a;
+ 
+ 	p = va_arg(fp->args, Prog*);
+-	curp = p;
++	bigP = p;
+ 	a = p->as;
+ 	if(a == ADATA || a == AINIT || a == ADYNT)
+-		sprint(str, "(%d)	%A	%D/%d,%D", p->line, a, &p->from, p->reg, &p->to);
+-	else {
++		sprint(str, "%.5lld (%L)	%A	%D/%d,%D", p->pc, p->lineno, a, &p->from, p->reg, &p->to);
++	else if(a == ATEXT) {
++		if(p->reg != 0)
++			sprint(str, "%.5lld (%L)        %A      %D,%d,%lD", p->pc, p->lineno, a, &p->from, p->reg, &p->to);
++		else
++			sprint(str, "%.5lld (%L)        %A      %D,%lD", p->pc, p->lineno, a, &p->from, &p->to);
++	} else if(a == AGLOBL) {
++		if(p->reg != 0)
++			sprint(str, "%.5lld (%L)        %A      %D,%d,%D", p->pc, p->lineno, a, &p->from, p->reg, &p->to);
++		else
++			sprint(str, "%.5lld (%L)        %A      %D,%D", p->pc, p->lineno, a, &p->from, &p->to);
++	} else {
+ 		s = str;
+ 		if(p->mark & NOSCHED)
+ 			s += sprint(s, "*");
+ 		if(p->reg == NREG && p->from3.type == D_NONE)
+-			sprint(s, "(%d)	%A	%D,%D", p->line, a, &p->from, &p->to);
++			sprint(s, "%.5lld (%d)	%A	%D,%D", p->pc, p->lineno, a, &p->from, &p->to);
+ 		else
+ 		if(a != ATEXT && p->from.type == D_OREG) {
+-			sprint(s, "(%d)	%A	%lld(R%d+R%d),%D", p->line, a,
++			sprint(s, "%.5lld (%d)	%A	%lld(R%d+R%d),%D", p->pc, p->lineno, a,
+ 				p->from.offset, p->from.reg, p->reg, &p->to);
+ 		} else
+ 		if(p->to.type == D_OREG) {
+-			sprint(s, "(%d)	%A	%D,%lld(R%d+R%d)", p->line, a,
++			sprint(s, "%.5lld (%d)	%A	%D,%lld(R%d+R%d)", p->pc, p->lineno, a,
+ 					&p->from, p->to.offset, p->to.reg, p->reg);
+ 		} else {
+-			s += sprint(s, "(%d)	%A	%D", p->line, a, &p->from);
++			s += sprint(s, "%.5lld (%L)	%A	%D", p->pc, p->lineno, a, &p->from);
+ 			if(p->reg != NREG)
+ 				s += sprint(s, ",%c%d", p->from.type==D_FREG?'F':'R', p->reg);
+ 			if(p->from3.type != D_NONE)
+@@ -87,7 +129,7 @@ Pconv(Fmt *fp)
+ 	return fmtstrcpy(fp, str);
+ }
+ 
+-int
++static int
+ Aconv(Fmt *fp)
+ {
+ 	char *s;
+@@ -96,55 +138,65 @@ Aconv(Fmt *fp)
+ 	a = va_arg(fp->args, int);
+ 	s = "???";
+ 	if(a >= AXXX && a < ALAST)
+-		s = anames[a];
++		s = anames9[a];
+ 	return fmtstrcpy(fp, s);
+ }
+ 
+-int
++static int
+ Dconv(Fmt *fp)
+ {
+ 	char str[STRINGSZ];
+-	Adr *a;
+-	long v;
++	Addr *a;
++	int32 v;
+ 
+-	a = va_arg(fp->args, Adr*);
+-	switch(a->type) {
++	a = va_arg(fp->args, Addr*);
+ 
++	if(fp->flags & FmtLong) {
++		if(a->type == D_CONST)
++			sprint(str, "$%d-%d", (int32)a->offset, (int32)(a->offset>>32));
++		else {
++			// ATEXT dst is not constant
++			sprint(str, "!!%D", a);
++		}
++		goto ret;
++	}
++
++	switch(a->type) {
+ 	default:
+ 		sprint(str, "GOK-type(%d)", a->type);
+ 		break;
+ 
+ 	case D_NONE:
+ 		str[0] = 0;
+-		if(a->name != D_NONE || a->reg != NREG || a->sym != S)
+-			sprint(str, "%N(R%d)(NONE)", a, a->reg);
++		if(a->name != D_NONE || a->reg != NREG || a->sym != nil)
++			sprint(str, "%M(R%d)(NONE)", a, a->reg);
+ 		break;
+ 
+ 	case D_CONST:
+ 	case D_DCONST:
+ 		if(a->reg != NREG)
+-			sprint(str, "$%N(R%d)", a, a->reg);
++			sprint(str, "$%M(R%d)", a, a->reg);
+ 		else
+-			sprint(str, "$%N", a);
++			sprint(str, "$%M", a);
+ 		break;
+ 
+ 	case D_OREG:
+ 		if(a->reg != NREG)
+-			sprint(str, "%N(R%d)", a, a->reg);
++			sprint(str, "%M(R%d)", a, a->reg);
+ 		else
+-			sprint(str, "%N", a);
++			sprint(str, "%M", a);
+ 		break;
+ 
+ 	case D_REG:
+ 		sprint(str, "R%d", a->reg);
+-		if(a->name != D_NONE || a->sym != S)
+-			sprint(str, "%N(R%d)(REG)", a, a->reg);
++		if(a->name != D_NONE || a->sym != nil)
++			sprint(str, "%M(R%d)(REG)", a, a->reg);
+ 		break;
+ 
+ 	case D_FREG:
+ 		sprint(str, "F%d", a->reg);
+-		if(a->name != D_NONE || a->sym != S)
+-			sprint(str, "%N(F%d)(REG)", a, a->reg);
++		if(a->name != D_NONE || a->sym != nil)
++			sprint(str, "%M(F%d)(REG)", a, a->reg);
+ 		break;
+ 
+ 	case D_CREG:
+@@ -152,12 +204,12 @@ Dconv(Fmt *fp)
+ 			strcpy(str, "CR");
+ 		else
+ 			sprint(str, "CR%d", a->reg);
+-		if(a->name != D_NONE || a->sym != S)
+-			sprint(str, "%N(C%d)(REG)", a, a->reg);
++		if(a->name != D_NONE || a->sym != nil)
++			sprint(str, "%M(C%d)(REG)", a, a->reg);
+ 		break;
+ 
+ 	case D_SPR:
+-		if(a->name == D_NONE && a->sym == S) {
++		if(a->name == D_NONE && a->sym == nil) {
+ 			switch((ulong)a->offset) {
+ 			case D_XER: sprint(str, "XER"); break;
+ 			case D_LR: sprint(str, "LR"); break;
+@@ -167,18 +219,18 @@ Dconv(Fmt *fp)
+ 			break;
+ 		}
+ 		sprint(str, "SPR-GOK(%d)", a->reg);
+-		if(a->name != D_NONE || a->sym != S)
+-			sprint(str, "%N(SPR-GOK%d)(REG)", a, a->reg);
++		if(a->name != D_NONE || a->sym != nil)
++			sprint(str, "%M(SPR-GOK%d)(REG)", a, a->reg);
+ 		break;
+ 
+ 	case D_DCR:
+-		if(a->name == D_NONE && a->sym == S) {
++		if(a->name == D_NONE && a->sym == nil) {
+ 			sprint(str, "DCR(%lld)", a->offset);
+ 			break;
+ 		}
+ 		sprint(str, "DCR-GOK(%d)", a->reg);
+-		if(a->name != D_NONE || a->sym != S)
+-			sprint(str, "%N(DCR-GOK%d)(REG)", a, a->reg);
++		if(a->name != D_NONE || a->sym != nil)
++			sprint(str, "%M(DCR-GOK%d)(REG)", a, a->reg);
+ 		break;
+ 
+ 	case D_OPT:
+@@ -197,57 +249,71 @@ Dconv(Fmt *fp)
+ 		break;
+ 
+ 	case D_BRANCH:
+-		if(curp->cond != P) {
+-			v = curp->cond->pc;
+-			if(v >= INITTEXT)
+-				v -= INITTEXT-HEADR;
+-			if(a->sym != S)
++		if(bigP->pcond != nil) {
++			v = bigP->pcond->pc;
++			//if(v >= INITTEXT)
++			//	v -= INITTEXT-HEADR;
++			if(a->sym != nil)
+ 				sprint(str, "%s+%.5lux(BRANCH)", a->sym->name, v);
+ 			else
+ 				sprint(str, "%.5lux(BRANCH)", v);
+ 		} else
+-			if(a->sym != S)
++			if(a->sym != nil)
+ 				sprint(str, "%s+%lld(APC)", a->sym->name, a->offset);
+ 			else
+ 				sprint(str, "%lld(APC)", a->offset);
+ 		break;
+ 
+ 	case D_FCONST:
+-		sprint(str, "$%lux-%lux", a->ieee.h, a->ieee.l);
++		//sprint(str, "$%lux-%lux", a->ieee.h, a->ieee.l);
++		sprint(str, "$%.17g", a->u.dval);
+ 		break;
+ 
+ 	case D_SCONST:
+-		sprint(str, "$\"%S\"", a->sval);
++		sprint(str, "$\"%$\"", a->u.sval);
+ 		break;
+ 	}
++
++ret:
+ 	return fmtstrcpy(fp, str);
+ }
+ 
+-int
+-Nconv(Fmt *fp)
++static int
++Mconv(Fmt *fp)
+ {
+ 	char str[STRINGSZ];
+-	Adr *a;
+-	Sym *s;
+-	long l;
++	Addr *a;
++	LSym *s;
++	int32 l;
+ 
+-	a = va_arg(fp->args, Adr*);
++	a = va_arg(fp->args, Addr*);
+ 	s = a->sym;
+-	if(s == S) {
++	//if(s == nil) {
++	//	l = a->offset;
++	//	if((vlong)l != a->offset)
++	//		sprint(str, "0x%llux", a->offset);
++	//	else
++	//		sprint(str, "%lld", a->offset);
++	//	goto out;
++	//}
++	switch(a->name) {
++	default:
++		sprint(str, "GOK-name(%d)", a->name);
++		break;
++
++	case D_NONE:
+ 		l = a->offset;
+ 		if((vlong)l != a->offset)
+ 			sprint(str, "0x%llux", a->offset);
+ 		else
+ 			sprint(str, "%lld", a->offset);
+-		goto out;
+-	}
+-	switch(a->name) {
+-	default:
+-		sprint(str, "GOK-name(%d)", a->name);
+ 		break;
+ 
+ 	case D_EXTERN:
+-		sprint(str, "%s+%lld(SB)", s->name, a->offset);
++		if(a->offset != 0)
++			sprint(str, "%s+%lld(SB)", s->name, a->offset);
++		else
++			sprint(str, "%s(SB)", s->name, a->offset);
+ 		break;
+ 
+ 	case D_STATIC:
+@@ -255,19 +321,36 @@ Nconv(Fmt *fp)
+ 		break;
+ 
+ 	case D_AUTO:
+-		sprint(str, "%s-%lld(SP)", s->name, -a->offset);
++		if(s == nil)
++			sprint(str, "%lld(SP)", -a->offset);
++		else
++			sprint(str, "%s-%lld(SP)", s->name, -a->offset);
+ 		break;
+ 
+ 	case D_PARAM:
+-		sprint(str, "%s+%lld(FP)", s->name, a->offset);
++		if(s == nil)
++			sprint(str, "%lld(FP)", a->offset);
++		else
++			sprint(str, "%s+%lld(FP)", s->name, a->offset);
+ 		break;
+ 	}
+-out:
++//out:
+ 	return fmtstrcpy(fp, str);
+ }
+ 
+-int
++static int
+ Rconv(Fmt *fp)
++{
++	char str[STRINGSZ];
++	int r;
++
++	r = va_arg(fp->args, int);
++	sprint(str, "r%d", r);
++	return fmtstrcpy(fp, str);
++}
++
++static int
++DRconv(Fmt *fp)
+ {
+ 	char *s;
+ 	int a;
+@@ -275,19 +358,19 @@ Rconv(Fmt *fp)
+ 	a = va_arg(fp->args, int);
+ 	s = "C_??";
+ 	if(a >= C_NONE && a <= C_NCLASS)
+-		s = cnames[a];
++		s = cnames9[a];
+ 	return fmtstrcpy(fp, s);
+ }
+ 
+-int
+-Sconv(Fmt *fp)
++static int
++DSconv(Fmt *fp)
+ {
+ 	int i, c;
+ 	char str[STRINGSZ], *p, *a;
+ 
+ 	a = va_arg(fp->args, char*);
+ 	p = str;
+-	for(i=0; i<sizeof(long); i++) {
++	for(i=0; i<sizeof(int32); i++) {
+ 		c = a[i] & 0xff;
+ 		if(c >= 'a' && c <= 'z' ||
+ 		   c >= 'A' && c <= 'Z' ||
+@@ -319,24 +402,3 @@ Sconv(Fmt *fp)
+ 	*p = 0;
+ 	return fmtstrcpy(fp, str);
+ }
+-
+-void
+-diag(char *fmt, ...)
+-{
+-	char buf[STRINGSZ], *tn;
+-	va_list arg;
+-
+-	tn = "??none??";
+-	if(curtext != P && curtext->from.sym != S)
+-		tn = curtext->from.sym->name;
+-	va_start(arg, fmt);
+-	vseprint(buf, buf+sizeof(buf), fmt, arg);
+-	va_end(arg);
+-	print("%s: %s\n", tn, buf);
+-
+-	nerrors++;
+-	if(nerrors > 10) {
+-		print("too many errors\n");
+-		errorexit();
+-	}
+-}
+diff --git a/src/liblink/obj9.c b/src/liblink/obj9.c
+index 0e869fb53f..63f5b59b01 100644
+--- a/src/liblink/obj9.c
++++ b/src/liblink/obj9.c
+@@ -27,58 +27,222 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-// +build ignore
++#include <u.h>
++#include <libc.h>
++#include <bio.h>
++#include <link.h>
++#include "../cmd/9l/9.out.h"
++#include "../pkg/runtime/stack.h"
++
++static Prog zprg = {
++	.as = AGOK,
++	.reg = NREG,
++	.from = {
++		.name = D_NONE,
++		.type = D_NONE,
++		.reg = NREG,
++	},
++	.from3 = {
++		.name = D_NONE,
++		.type = D_NONE,
++		.reg = NREG,
++	},
++	.to = {
++		.name = D_NONE,
++		.type = D_NONE,
++		.reg = NREG,
++	},
++};
++
++static int
++symtype(Addr *a)
++{
++	return a->name;
++}
++
++static int
++isdata(Prog *p)
++{
++	return p->as == ADATA || p->as == AGLOBL;
++}
++
++static int
++iscall(Prog *p)
++{
++	return p->as == ABL;
++}
++
++static int
++datasize(Prog *p)
++{
++	return p->reg;
++}
++
++static int
++textflag(Prog *p)
++{
++	return p->reg;
++}
++
++static void
++settextflag(Prog *p, int f)
++{
++	p->reg = f;
++}
++
++static void
++progedit(Link *ctxt, Prog *p)
++{
++	char literal[64];
++	LSym *s;
++
++	USED(ctxt);
++
++	p->from.class = 0;
++	p->to.class = 0;
++
++	// Rewrite BR/BL to symbol as D_BRANCH.
++	switch(p->as) {
++	case ABR:
++	case ABL:
++	case ARETURN:
++	case ADUFFZERO:
++	case ADUFFCOPY:
++		if(p->to.sym != nil)
++			p->to.type = D_BRANCH;
++		break;
++	}
++
++	// Rewrite float constants to values stored in memory.
++	switch(p->as) {
++	case AFMOVS:
++		if(p->from.type == D_FCONST) {
++			int32 i32;
++			float32 f32;
++			f32 = p->from.u.dval;
++			memmove(&i32, &f32, 4);
++			sprint(literal, "$f32.%08ux", (uint32)i32);
++			s = linklookup(ctxt, literal, 0);
++			s->size = 4;
++			p->from.type = D_OREG;
++			p->from.sym = s;
++			p->from.name = D_EXTERN;
++			p->from.offset = 0;
++		}
++		break;
++	case AFMOVD:
++		if(p->from.type == D_FCONST) {
++			int64 i64;
++			memmove(&i64, &p->from.u.dval, 8);
++			sprint(literal, "$f64.%016llux", (uvlong)i64);
++			s = linklookup(ctxt, literal, 0);
++			s->size = 8;
++			p->from.type = D_OREG;
++			p->from.sym = s;
++			p->from.name = D_EXTERN;
++			p->from.offset = 0;
++		}
++		break;
++	case AMOVD:
++		if(p->from.type == D_CONST && p->from.name == D_NONE && (int64)(uint32)p->from.offset != p->from.offset) {
++			sprint(literal, "$i64.%016llux", (uvlong)p->from.offset);
++			s = linklookup(ctxt, literal, 0);
++			s->size = 8;
++			p->from.type = D_OREG;
++			p->from.sym = s;
++			p->from.name = D_EXTERN;
++			p->from.offset = 0;
++		}
++	}
++
++	// Rewrite SUB constants into ADD.
++	switch(p->as) {
++	case ASUBC:
++		if(p->from.type == D_CONST) {
++			p->from.offset = -p->from.offset;
++			p->as = AADDC;
++		}
++		break;
+ 
+-#include	"l.h"
++	case ASUBCCC:
++		if(p->from.type == D_CONST) {
++			p->from.offset = -p->from.offset;
++			p->as = AADDCCC;
++		}
++		break;
++
++	case ASUB:
++		if(p->from.type == D_CONST) {
++			p->from.offset = -p->from.offset;
++			p->as = AADD;
++		}
++		break;
++	}
++}
++
++static Prog*	stacksplit(Link*, Prog*, int32, int);
++
++static void
++parsetextconst(vlong arg, vlong *textstksiz, vlong *textarg)
++{
++	*textstksiz = arg & 0xffffffffLL;
++	if(*textstksiz & 0x80000000LL)
++		*textstksiz = -(-*textstksiz & 0xffffffffLL);
++
++	*textarg = (arg >> 32) & 0xffffffffLL;
++	if(*textarg & 0x80000000LL)
++		*textarg = 0;
++	*textarg = (*textarg+7) & ~7LL;
++}
+ 
+-void
+-noops(void)
++static void
++addstacksplit(Link *ctxt, LSym *cursym)
+ {
+-	Prog *p, *p1, *q, *q1;
+-	int o, mov, aoffset, curframe, curbecome, maxbecome;
++	Prog *p, *q, *q1;
++	int o, mov, aoffset;
++	vlong textstksiz, textarg;
++	int32 autoffset, autosize;
++
++	if(ctxt->symmorestack[0] == nil) {
++		ctxt->symmorestack[0] = linklookup(ctxt, "runtime.morestack", 0);
++		ctxt->symmorestack[1] = linklookup(ctxt, "runtime.morestack_noctxt", 0);
++		// TODO(minux): add morestack short-cuts with small fixed frame-size.
++	}
++
++	ctxt->cursym = cursym;
++
++	if(cursym->text == nil || cursym->text->link == nil)
++		return;				
++
++	p = cursym->text;
++	parsetextconst(p->to.offset, &textstksiz, &textarg);
++	autoffset = textstksiz;
++	if(autoffset < 0)
++		autoffset = 0;
++	
++	cursym->args = p->to.offset>>32;
++	cursym->locals = textstksiz;
+ 
+ 	/*
+ 	 * find leaf subroutines
+-	 * become sizes
+-	 * frame sizes
+ 	 * strip NOPs
+ 	 * expand RET
+ 	 * expand BECOME pseudo
+ 	 */
+ 
+-	if(debug['v'])
+-		Bprint(&bso, "%5.2f noops\n", cputime());
+-	Bflush(&bso);
+-
+-	curframe = 0;
+-	curbecome = 0;
+-	maxbecome = 0;
+-	curtext = 0;
+-	q = P;
+-	for(p = firstp; p != P; p = p->link) {
+-
+-		/* find out how much arg space is used in this TEXT */
+-		if(p->to.type == D_OREG && p->to.reg == REGSP)
+-			if(p->to.offset > curframe)
+-				curframe = p->to.offset;
++	if(ctxt->debugvlog)
++		Bprint(ctxt->bso, "%5.2f noops\n", cputime());
++	Bflush(ctxt->bso);
+ 
++	q = nil;
++	for(p = cursym->text; p != nil; p = p->link) {
+ 		switch(p->as) {
+ 		/* too hard, just leave alone */
+ 		case ATEXT:
+-			if(curtext && curtext->from.sym) {
+-				curtext->from.sym->frame = curframe;
+-				curtext->from.sym->become = curbecome;
+-				if(curbecome > maxbecome)
+-					maxbecome = curbecome;
+-			}
+-			curframe = 0;
+-			curbecome = 0;
+-
+ 			q = p;
+ 			p->mark |= LABEL|LEAF|SYNC;
+ 			if(p->link)
+ 				p->link->mark |= LABEL;
+-			curtext = p;
+ 			break;
+ 
+ 		case ANOR:
+@@ -183,8 +347,9 @@ noops(void)
+ 
+ 		case ABL:
+ 		case ABCL:
+-			if(curtext != P)
+-				curtext->mark &= ~LEAF;
++		case ADUFFZERO:
++		case ADUFFCOPY:
++			cursym->text->mark &= ~LEAF;
+ 
+ 		case ABC:
+ 		case ABEQ:
+@@ -196,21 +361,20 @@ noops(void)
+ 		case ABR:
+ 		case ABVC:
+ 		case ABVS:
+-
+ 			p->mark |= BRANCH;
+ 			q = p;
+-			q1 = p->cond;
+-			if(q1 != P) {
++			q1 = p->pcond;
++			if(q1 != nil) {
+ 				while(q1->as == ANOP) {
+ 					q1 = q1->link;
+-					p->cond = q1;
++					p->pcond = q1;
+ 				}
+ 				if(!(q1->mark & LEAF))
+ 					q1->mark |= LABEL;
+ 			} else
+ 				p->mark |= LABEL;
+ 			q1 = p->link;
+-			if(q1 != P)
++			if(q1 != nil)
+ 				q1->mark |= LABEL;
+ 			continue;
+ 
+@@ -221,13 +385,8 @@ noops(void)
+ 			continue;
+ 
+ 		case ARETURN:
+-			/* special form of RETURN is BECOME */
+-			if(p->from.type == D_CONST)
+-				if(p->from.offset > curbecome)
+-					curbecome = p->from.offset;
+-
+ 			q = p;
+-			if(p->link != P)
++			if(p->link != nil)
+ 				p->link->mark |= LABEL;
+ 			continue;
+ 
+@@ -242,106 +401,76 @@ noops(void)
+ 			continue;
+ 		}
+ 	}
+-	if(curtext && curtext->from.sym) {
+-		curtext->from.sym->frame = curframe;
+-		curtext->from.sym->become = curbecome;
+-		if(curbecome > maxbecome)
+-			maxbecome = curbecome;
+-	}
+-
+-	if(debug['b'])
+-		print("max become = %d\n", maxbecome);
+-	xdefine("ALEFbecome", STEXT, maxbecome);
+-
+-	curtext = 0;
+-	for(p = firstp; p != P; p = p->link) {
+-		switch(p->as) {
+-		case ATEXT:
+-			curtext = p;
+-			break;
+-
+-		case ABL:	/* ABCL? */
+-			if(curtext != P && curtext->from.sym != S && curtext->to.offset >= 0) {
+-				o = maxbecome - curtext->from.sym->frame;
+-				if(o <= 0)
+-					break;
+-				/* calling a become or calling a variable */
+-				if(p->to.sym == S || p->to.sym->become) {
+-					curtext->to.offset += o;
+-					if(debug['b']) {
+-						curp = p;
+-						print("%D calling %D increase %d\n",
+-							&curtext->from, &p->to, o);
+-					}
+-				}
+-			}
+-			break;
+-		}
+-	}
+ 
+-	curtext = P;
+-	for(p = firstp; p != P; p = p->link) {
++	autosize = 0;
++	for(p = cursym->text; p != nil; p = p->link) {
+ 		o = p->as;
+ 		switch(o) {
+ 		case ATEXT:
+ 			mov = AMOVD;
+ 			aoffset = 0;
+-			curtext = p;
+-			autosize = p->to.offset + 8;
++			autosize = textstksiz + 8;
+ 			if((p->mark & LEAF) && autosize <= 8)
+ 				autosize = 0;
+ 			else
+ 				if(autosize & 4)
+ 					autosize += 4;
+-			p->to.offset = autosize - 8;
++			p->to.offset = (p->to.offset & (0xffffffffull<<32)) | (uint32)(autosize-8);
+ 
+ 			q = p;
+ 			if(autosize) {
+ 				/* use MOVDU to adjust R1 when saving R31, if autosize is small */
+-				if(!(curtext->mark & LEAF) && autosize >= -BIG && autosize <= BIG) {
++				if(!(cursym->text->mark & LEAF) && autosize >= -BIG && autosize <= BIG) {
+ 					mov = AMOVDU;
+ 					aoffset = -autosize;
+ 				} else {
+-					q = prg();
++					q = ctxt->arch->prg();
+ 					q->as = AADD;
+-					q->line = p->line;
++					q->lineno = p->lineno;
+ 					q->from.type = D_CONST;
+ 					q->from.offset = -autosize;
+ 					q->to.type = D_REG;
+ 					q->to.reg = REGSP;
++					q->spadj = +autosize;
+ 
+ 					q->link = p->link;
+ 					p->link = q;
+ 				}
+ 			} else
+-			if(!(curtext->mark & LEAF)) {
+-				if(debug['v'])
+-					Bprint(&bso, "save suppressed in: %s\n",
+-						curtext->from.sym->name);
+-				curtext->mark |= LEAF;
++			if(!(cursym->text->mark & LEAF)) {
++				if(ctxt->debugvlog) {
++					Bprint(ctxt->bso, "save suppressed in: %s\n",
++						cursym->name);
++					Bflush(ctxt->bso);
++				}
++				cursym->text->mark |= LEAF;
+ 			}
+ 
+-			if(curtext->mark & LEAF) {
+-				if(curtext->from.sym)
+-					curtext->from.sym->type = SLEAF;
++			if(cursym->text->mark & LEAF) {
++				cursym->leaf = 1;
+ 				break;
+ 			}
+ 
+-			q1 = prg();
++			if(!(p->reg & NOSPLIT))
++				p = stacksplit(ctxt, p, autosize, !(cursym->text->reg&NEEDCTXT)); // emit split check
++
++			q1 = ctxt->arch->prg();
+ 			q1->as = mov;
+-			q1->line = p->line;
++			q1->lineno = p->lineno;
+ 			q1->from.type = D_REG;
+ 			q1->from.reg = REGTMP;
+ 			q1->to.type = D_OREG;
+ 			q1->to.offset = aoffset;
+ 			q1->to.reg = REGSP;
++			if(q1->as == AMOVDU)
++				q1->spadj = -aoffset;
+ 
+ 			q1->link = q->link;
+ 			q->link = q1;
+ 
+-			q1 = prg();
++			q1 = ctxt->arch->prg();
+ 			q1->as = AMOVD;
+-			q1->line = p->line;
++			q1->lineno = p->lineno;
+ 			q1->from.type = D_SPR;
+ 			q1->from.offset = D_LR;
+ 			q1->to.type = D_REG;
+@@ -352,9 +481,11 @@ noops(void)
+ 			break;
+ 
+ 		case ARETURN:
+-			if(p->from.type == D_CONST)
+-				goto become;
+-			if(curtext->mark & LEAF) {
++			if(p->from.type == D_CONST) {
++				ctxt->diag("using BECOME (%P) is not supported!", p);
++				break;
++			}
++			if(cursym->text->mark & LEAF) {
+ 				if(!autosize) {
+ 					p->as = ABR;
+ 					p->from = zprg.from;
+@@ -369,13 +500,15 @@ noops(void)
+ 				p->from.offset = autosize;
+ 				p->to.type = D_REG;
+ 				p->to.reg = REGSP;
++				p->spadj = -autosize;
+ 
+-				q = prg();
++				q = ctxt->arch->prg();
+ 				q->as = ABR;
+-				q->line = p->line;
++				q->lineno = p->lineno;
+ 				q->to.type = D_SPR;
+ 				q->to.offset = D_LR;
+ 				q->mark |= BRANCH;
++				q->spadj = +autosize;
+ 
+ 				q->link = p->link;
+ 				p->link = q;
+@@ -389,9 +522,9 @@ noops(void)
+ 			p->to.type = D_REG;
+ 			p->to.reg = REGTMP;
+ 
+-			q = prg();
++			q = ctxt->arch->prg();
+ 			q->as = AMOVD;
+-			q->line = p->line;
++			q->lineno = p->lineno;
+ 			q->from.type = D_REG;
+ 			q->from.reg = REGTMP;
+ 			q->to.type = D_SPR;
+@@ -402,111 +535,50 @@ noops(void)
+ 			p = q;
+ 
+ 			if(autosize) {
+-				q = prg();
++				q = ctxt->arch->prg();
+ 				q->as = AADD;
+-				q->line = p->line;
++				q->lineno = p->lineno;
+ 				q->from.type = D_CONST;
+ 				q->from.offset = autosize;
+ 				q->to.type = D_REG;
+ 				q->to.reg = REGSP;
++				q->spadj = -autosize;
+ 
+ 				q->link = p->link;
+ 				p->link = q;
+ 			}
+ 
+-			q1 = prg();
++			q1 = ctxt->arch->prg();
+ 			q1->as = ABR;
+-			q1->line = p->line;
++			q1->lineno = p->lineno;
+ 			q1->to.type = D_SPR;
+ 			q1->to.offset = D_LR;
+ 			q1->mark |= BRANCH;
++			q1->spadj = +autosize;
+ 
+ 			q1->link = q->link;
+ 			q->link = q1;
+ 			break;
+ 
+-		become:
+-			if(curtext->mark & LEAF) {
+-
+-				q = prg();
+-				q->line = p->line;
+-				q->as = ABR;
+-				q->from = zprg.from;
+-				q->to = p->to;
+-				q->cond = p->cond;
+-				q->link = p->link;
+-				q->mark |= BRANCH;
+-				p->link = q;
+-
+-				p->as = AADD;
+-				p->from = zprg.from;
+-				p->from.type = D_CONST;
+-				p->from.offset = autosize;
+-				p->to = zprg.to;
+-				p->to.type = D_REG;
+-				p->to.reg = REGSP;
+-
+-				break;
+-			}
+-			q = prg();
+-			q->line = p->line;
+-			q->as = ABR;
+-			q->from = zprg.from;
+-			q->to = p->to;
+-			q->cond = p->cond;
+-			q->mark |= BRANCH;
+-			q->link = p->link;
+-			p->link = q;
+-
+-			q = prg();
+-			q->line = p->line;
+-			q->as = AADD;
+-			q->from.type = D_CONST;
+-			q->from.offset = autosize;
+-			q->to.type = D_REG;
+-			q->to.reg = REGSP;
+-			q->link = p->link;
+-			p->link = q;
+-
+-			q = prg();
+-			q->line = p->line;
+-			q->as = AMOVD;
+-			q->line = p->line;
+-			q->from.type = D_REG;
+-			q->from.reg = REGTMP;
+-			q->to.type = D_SPR;
+-			q->to.offset = D_LR;
+-			q->link = p->link;
+-			p->link = q;
+-
+-			p->as = AMOVD;
+-			p->from = zprg.from;
+-			p->from.type = D_OREG;
+-			p->from.offset = 0;
+-			p->from.reg = REGSP;
+-			p->to = zprg.to;
+-			p->to.type = D_REG;
+-			p->to.reg = REGTMP;
+-
+-			break;
+ 		}
+ 	}
+ 
++#if 0 // instruction scheduling
+ 	if(debug['Q'] == 0)
+ 		return;
+ 
+-	curtext = P;
+-	q = P;		/* p - 1 */
++	curtext = nil;
++	q = nil;	/* p - 1 */
+ 	q1 = firstp;	/* top of block */
+ 	o = 0;		/* count of instructions */
+-	for(p = firstp; p != P; p = p1) {
++	for(p = firstp; p != nil; p = p1) {
+ 		p1 = p->link;
+ 		o++;
+ 		if(p->mark & NOSCHED){
+ 			if(q1 != p){
+ 				sched(q1, q);
+ 			}
+-			for(; p != P; p = p->link){
++			for(; p != nil; p = p->link){
+ 				if(!(p->mark & NOSCHED))
+ 					break;
+ 				q = p;
+@@ -534,236 +606,34 @@ noops(void)
+ 		}
+ 		q = p;
+ 	}
++#endif
+ }
+ 
+-void
+-addnop(Prog *p)
++static Prog*
++stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
+ {
+-	Prog *q;
+-
+-	q = prg();
+-	q->as = AOR;
+-	q->line = p->line;
+-	q->from.type = D_REG;
+-	q->from.reg = REGZERO;
+-	q->to.type = D_REG;
+-	q->to.reg = REGZERO;
+-
+-	q->link = p->link;
+-	p->link = q;
++	// TODO(minux): add stack split prologue
++	USED(ctxt); USED(p); USED(framesize); USED(noctxt);
++	return p;
+ }
+ 
+-#include	"l.h"
++static void xfol(Link*, Prog*, Prog**);
+ 
+-void
+-dodata(void)
++static void
++follow(Link *ctxt, LSym *s)
+ {
+-	int i, t;
+-	Sym *s;
+-	Prog *p, *p1;
+-	vlong orig, orig1, v;
+-
+-	if(debug['v'])
+-		Bprint(&bso, "%5.2f dodata\n", cputime());
+-	Bflush(&bso);
+-	for(p = datap; p != P; p = p->link) {
+-		s = p->from.sym;
+-		if(p->as == ADYNT || p->as == AINIT)
+-			s->value = dtype;
+-		if(s->type == SBSS)
+-			s->type = SDATA;
+-		if(s->type != SDATA)
+-			diag("initialize non-data (%d): %s\n%P",
+-				s->type, s->name, p);
+-		v = p->from.offset + p->reg;
+-		if(v > s->value)
+-			diag("initialize bounds (%lld): %s\n%P",
+-				s->value, s->name, p);
+-	}
+-
+-	/*
+-	 * pass 1
+-	 *	assign 'small' variables to data segment
+-	 *	(rational is that data segment is more easily
+-	 *	 addressed through offset on REGSB)
+-	 */
+-	orig = 0;
+-	for(i=0; i<NHASH; i++)
+-	for(s = hash[i]; s != S; s = s->link) {
+-		t = s->type;
+-		if(t != SDATA && t != SBSS)
+-			continue;
+-		v = s->value;
+-		if(v == 0) {
+-			diag("%s: no size", s->name);
+-			v = 1;
+-		}
+-		v = rnd(v, 4);
+-		s->value = v;
+-		if(v > MINSIZ)
+-			continue;
+-		if(v >= 8)
+-			orig = rnd(orig, 8);
+-		s->value = orig;
+-		orig += v;
+-		s->type = SDATA1;
+-	}
+-	orig1 = orig;
+-
+-	/*
+-	 * pass 2
+-	 *	assign 'data' variables to data segment
+-	 */
+-	for(i=0; i<NHASH; i++)
+-	for(s = hash[i]; s != S; s = s->link) {
+-		t = s->type;
+-		if(t != SDATA) {
+-			if(t == SDATA1)
+-				s->type = SDATA;
+-			continue;
+-		}
+-		v = s->value;
+-		if(v >= 8)
+-			orig = rnd(orig, 8);
+-		s->value = orig;
+-		orig += v;
+-		s->type = SDATA1;
+-	}
+-
+-	if(orig)
+-		orig = rnd(orig, 8);
+-	datsize = orig;
++	Prog *firstp, *lastp;
+ 
+-	/*
+-	 * pass 3
+-	 *	everything else to bss segment
+-	 */
+-	for(i=0; i<NHASH; i++)
+-	for(s = hash[i]; s != S; s = s->link) {
+-		if(s->type != SBSS)
+-			continue;
+-		v = s->value;
+-		if(v >= 8)
+-			orig = rnd(orig, 8);
+-		s->value = orig;
+-		orig += v;
+-	}
+-	if(orig)
+-		orig = rnd(orig, 8);
+-	bsssize = orig-datsize;
+-
+-	/*
+-	 * pass 4
+-	 *	add literals to all large values.
+-	 *	at this time:
+-	 *		small data is allocated DATA
+-	 *		large data is allocated DATA1
+-	 *		large bss is allocated BSS
+-	 *	the new literals are loaded between
+-	 *	small data and large data.
+-	 */
+-	orig = 0;
+-	for(p = firstp; p != P; p = p->link) {
+-		if(p->as != AMOVW)
+-			continue;
+-		if(p->from.type != D_CONST)
+-			continue;
+-		if(s = p->from.sym) {
+-			t = s->type;
+-			if(t != SDATA && t != SDATA1 && t != SBSS)
+-				continue;
+-			t = p->from.name;
+-			if(t != D_EXTERN && t != D_STATIC)
+-				continue;
+-			v = s->value + p->from.offset;
+-			if(v >= 0 && v <= 0xffff)
+-				continue;
+-			if(!strcmp(s->name, "setSB"))
+-				continue;
+-			/* size should be 19 max */
+-			if(strlen(s->name) >= 10)	/* has loader address */ 
+-				sprint(literal, "$%p.%llux", s, p->from.offset);
+-			else
+-				sprint(literal, "$%s.%d.%llux", s->name, s->version, p->from.offset);
+-		} else {
+-			if(p->from.name != D_NONE)
+-				continue;
+-			if(p->from.reg != NREG)
+-				continue;
+-			v = p->from.offset;
+-			if(v >= -0x7fff-1 && v <= 0x7fff)
+-				continue;
+-			if(!(v & 0xffff))
+-				continue;
+-			if(v)
+-				continue;	/* quicker to build it than load it */
+-			/* size should be 9 max */
+-			sprint(literal, "$%llux", v);
+-		}
+-		s = lookup(literal, 0);
+-		if(s->type == 0) {
+-			s->type = SDATA;
+-			s->value = orig1+orig;
+-			orig += 4;
+-			p1 = prg();
+-			p1->as = ADATA;
+-			p1->line = p->line;
+-			p1->from.type = D_OREG;
+-			p1->from.sym = s;
+-			p1->from.name = D_EXTERN;
+-			p1->reg = 4;
+-			p1->to = p->from;
+-			p1->link = datap;
+-			datap = p1;
+-		}
+-		if(s->type != SDATA)
+-			diag("literal not data: %s", s->name);
+-		p->from.type = D_OREG;
+-		p->from.sym = s;
+-		p->from.name = D_EXTERN;
+-		p->from.offset = 0;
+-		continue;
+-	}
+-	while(orig & 7)
+-		orig++;
+-	/*
+-	 * pass 5
+-	 *	re-adjust offsets
+-	 */
+-	for(i=0; i<NHASH; i++)
+-	for(s = hash[i]; s != S; s = s->link) {
+-		t = s->type;
+-		if(t == SBSS) {
+-			s->value += orig;
+-			continue;
+-		}
+-		if(t == SDATA1) {
+-			s->type = SDATA;
+-			s->value += orig;
+-			continue;
+-		}
+-	}
+-	datsize += orig;
+-	xdefine("setSB", SDATA, 0+BIG);
+-	xdefine("bdata", SDATA, 0);
+-	xdefine("edata", SDATA, datsize);
+-	xdefine("end", SBSS, datsize+bsssize);
+-	xdefine("etext", STEXT, 0);
+-}
+-
+-void
+-undef(void)
+-{
+-	int i;
+-	Sym *s;
++	ctxt->cursym = s;
+ 
+-	for(i=0; i<NHASH; i++)
+-	for(s = hash[i]; s != S; s = s->link)
+-		if(s->type == SXREF)
+-			diag("%s: not defined", s->name);
++	firstp = ctxt->arch->prg();
++	lastp = firstp;
++	xfol(ctxt, s->text, &lastp);
++	lastp->link = nil;
++	s->text = firstp->link;
+ }
+ 
+-int
++static int
+ relinv(int a)
+ {
+ 
+@@ -783,49 +653,30 @@ relinv(int a)
+ 	return 0;
+ }
+ 
+-void
+-follow(void)
+-{
+-
+-	if(debug['v'])
+-		Bprint(&bso, "%5.2f follow\n", cputime());
+-	Bflush(&bso);
+-
+-	firstp = prg();
+-	lastp = firstp;
+-
+-	xfol(textp);
+-
+-	firstp = firstp->link;
+-	lastp->link = P;
+-}
+-
+-void
+-xfol(Prog *p)
++static void
++xfol(Link *ctxt, Prog *p, Prog **last)
+ {
+ 	Prog *q, *r;
+ 	int a, b, i;
+ 
+ loop:
+-	if(p == P)
++	if(p == nil)
+ 		return;
+ 	a = p->as;
+-	if(a == ATEXT)
+-		curtext = p;
+ 	if(a == ABR) {
+-		q = p->cond;
++		q = p->pcond;
+ 		if((p->mark&NOSCHED) || q && (q->mark&NOSCHED)){
+ 			p->mark |= FOLL;
+-			lastp->link = p;
+-			lastp = p;
++			(*last)->link = p;
++			*last = p;
+ 			p = p->link;
+-			xfol(p);
++			xfol(ctxt, p, last);
+ 			p = q;
+ 			if(p && !(p->mark & FOLL))
+ 				goto loop;
+ 			return;
+ 		}
+-		if(q != P) {
++		if(q != nil) {
+ 			p->mark |= FOLL;
+ 			p = q;
+ 			if(!(p->mark & FOLL))
+@@ -834,7 +685,7 @@ loop:
+ 	}
+ 	if(p->mark & FOLL) {
+ 		for(i=0,q=p; i<4; i++,q=q->link) {
+-			if(q == lastp || (q->mark&NOSCHED))
++			if(q == *last || (q->mark&NOSCHED))
+ 				break;
+ 			b = 0;		/* set */
+ 			a = q->as;
+@@ -844,51 +695,51 @@ loop:
+ 			}
+ 			if(a == ABR || a == ARETURN || a == ARFI || a == ARFCI || a == ARFID || a == AHRFID)
+ 				goto copy;
+-			if(!q->cond || (q->cond->mark&FOLL))
++			if(!q->pcond || (q->pcond->mark&FOLL))
+ 				continue;
+ 			b = relinv(a);
+ 			if(!b)
+ 				continue;
+ 		copy:
+ 			for(;;) {
+-				r = prg();
++				r = ctxt->arch->prg();
+ 				*r = *p;
+ 				if(!(r->mark&FOLL))
+ 					print("cant happen 1\n");
+ 				r->mark |= FOLL;
+ 				if(p != q) {
+ 					p = p->link;
+-					lastp->link = r;
+-					lastp = r;
++					(*last)->link = r;
++					*last = r;
+ 					continue;
+ 				}
+-				lastp->link = r;
+-				lastp = r;
++				(*last)->link = r;
++				*last = r;
+ 				if(a == ABR || a == ARETURN || a == ARFI || a == ARFCI || a == ARFID || a == AHRFID)
+ 					return;
+ 				r->as = b;
+-				r->cond = p->link;
+-				r->link = p->cond;
++				r->pcond = p->link;
++				r->link = p->pcond;
+ 				if(!(r->link->mark&FOLL))
+-					xfol(r->link);
+-				if(!(r->cond->mark&FOLL))
++					xfol(ctxt, r->link, last);
++				if(!(r->pcond->mark&FOLL))
+ 					print("cant happen 2\n");
+ 				return;
+ 			}
+ 		}
+ 
+ 		a = ABR;
+-		q = prg();
++		q = ctxt->arch->prg();
+ 		q->as = a;
+-		q->line = p->line;
++		q->lineno = p->lineno;
+ 		q->to.type = D_BRANCH;
+ 		q->to.offset = p->pc;
+-		q->cond = p;
++		q->pcond = p;
+ 		p = q;
+ 	}
+ 	p->mark |= FOLL;
+-	lastp->link = p;
+-	lastp = p;
++	(*last)->link = p;
++	*last = p;
+ 	if(a == ABR || a == ARETURN || a == ARFI || a == ARFCI || a == ARFID || a == AHRFID){
+ 		if(p->mark & NOSCHED){
+ 			p = p->link;
+@@ -896,11 +747,11 @@ loop:
+ 		}
+ 		return;
+ 	}
+-	if(p->cond != P)
+-	if(a != ABL && p->link != P) {
+-		xfol(p->link);
+-		p = p->cond;
+-		if(p == P || (p->mark&FOLL))
++	if(p->pcond != nil)
++	if(a != ABL && p->link != nil) {
++		xfol(ctxt, p->link, last);
++		p = p->pcond;
++		if(p == nil || (p->mark&FOLL))
+ 			return;
+ 		goto loop;
+ 	}
+@@ -908,474 +759,104 @@ loop:
+ 	goto loop;
+ }
+ 
+-void
+-patch(void)
+-{
+-	long c;
+-	Prog *p, *q;
+-	Sym *s;
+-	int a;
+-	vlong vexit;
+-
+-	if(debug['v'])
+-		Bprint(&bso, "%5.2f patch\n", cputime());
+-	Bflush(&bso);
+-	mkfwd();
+-	s = lookup("exit", 0);
+-	vexit = s->value;
+-	for(p = firstp; p != P; p = p->link) {
+-		a = p->as;
+-		if(a == ATEXT)
+-			curtext = p;
+-		if((a == ABL || a == ARETURN) && p->to.sym != S) {
+-			s = p->to.sym;
+-			if(s->type != STEXT && s->type != SUNDEF) {
+-				diag("undefined: %s\n%P", s->name, p);
+-				s->type = STEXT;
+-				s->value = vexit;
+-			}
+-			if(s->type == SUNDEF){
+-				p->to.offset = 0;
+-				p->cond = UP;
+-			}
+-			else
+-				p->to.offset = s->value;
+-			p->to.type = D_BRANCH;
+-		}
+-		if(p->to.type != D_BRANCH || p->cond == UP)
+-			continue;
+-		c = p->to.offset;
+-		for(q = firstp; q != P;) {
+-			if(q->forwd != P)
+-			if(c >= q->forwd->pc) {
+-				q = q->forwd;
+-				continue;
+-			}
+-			if(c == q->pc)
+-				break;
+-			q = q->link;
+-		}
+-		if(q == P) {
+-			diag("branch out of range %ld\n%P", c, p);
+-			p->to.type = D_NONE;
+-		}
+-		p->cond = q;
+-	}
+-
+-	for(p = firstp; p != P; p = p->link) {
+-		if(p->as == ATEXT)
+-			curtext = p;
+-		p->mark = 0;	/* initialization for follow */
+-		if(p->cond != P && p->cond != UP) {
+-			p->cond = brloop(p->cond);
+-			if(p->cond != P)
+-			if(p->to.type == D_BRANCH)
+-				p->to.offset = p->cond->pc;
+-		}
+-	}
+-}
+-
+-#define	LOG	5
+-void
+-mkfwd(void)
+-{
+-	Prog *p;
+-	long dwn[LOG], cnt[LOG], i;
+-	Prog *lst[LOG];
+-
+-	for(i=0; i<LOG; i++) {
+-		if(i == 0)
+-			cnt[i] = 1; else
+-			cnt[i] = LOG * cnt[i-1];
+-		dwn[i] = 1;
+-		lst[i] = P;
+-	}
+-	i = 0;
+-	for(p = firstp; p != P; p = p->link) {
+-		if(p->as == ATEXT)
+-			curtext = p;
+-		i--;
+-		if(i < 0)
+-			i = LOG-1;
+-		p->forwd = P;
+-		dwn[i]--;
+-		if(dwn[i] <= 0) {
+-			dwn[i] = cnt[i];
+-			if(lst[i] != P)
+-				lst[i]->forwd = p;
+-			lst[i] = p;
+-		}
+-	}
+-}
+-
+-Prog*
+-brloop(Prog *p)
+-{
+-	Prog *q;
+-	int c;
+-
+-	for(c=0; p!=P;) {
+-		if(p->as != ABR || (p->mark&NOSCHED))
+-			return p;
+-		q = p->cond;
+-		if(q <= p) {
+-			c++;
+-			if(q == p || c > 5000)
+-				break;
+-		}
+-		p = q;
+-	}
+-	return P;
+-}
+-
+-vlong
+-atolwhex(char *s)
+-{
+-	vlong n;
+-	int f;
+-
+-	n = 0;
+-	f = 0;
+-	while(*s == ' ' || *s == '\t')
+-		s++;
+-	if(*s == '-' || *s == '+') {
+-		if(*s++ == '-')
+-			f = 1;
+-		while(*s == ' ' || *s == '\t')
+-			s++;
+-	}
+-	if(s[0]=='0' && s[1]){
+-		if(s[1]=='x' || s[1]=='X'){
+-			s += 2;
+-			for(;;){
+-				if(*s >= '0' && *s <= '9')
+-					n = n*16 + *s++ - '0';
+-				else if(*s >= 'a' && *s <= 'f')
+-					n = n*16 + *s++ - 'a' + 10;
+-				else if(*s >= 'A' && *s <= 'F')
+-					n = n*16 + *s++ - 'A' + 10;
+-				else
+-					break;
+-			}
+-		} else
+-			while(*s >= '0' && *s <= '7')
+-				n = n*8 + *s++ - '0';
+-	} else
+-		while(*s >= '0' && *s <= '9')
+-			n = n*10 + *s++ - '0';
+-	if(f)
+-		n = -n;
+-	return n;
+-}
+-
+-vlong
+-rnd(vlong v, long r)
+-{
+-	vlong c;
+-
+-	if(r <= 0)
+-		return v;
+-	v += r - 1;
+-	c = v % r;
+-	if(c < 0)
+-		c += r;
+-	v -= c;
+-	return v;
+-}
+-
+-void
+-import(void)
+-{
+-	int i;
+-	Sym *s;
+-
+-	for(i = 0; i < NHASH; i++)
+-		for(s = hash[i]; s != S; s = s->link)
+-			if(s->sig != 0 && s->type == SXREF && (nimports == 0 || s->subtype == SIMPORT)){
+-				undefsym(s);
+-				Bprint(&bso, "IMPORT: %s sig=%lux v=%lld\n", s->name, s->sig, s->value);
+-				if(debug['S'])
+-					s->sig = 0;
+-			}
+-}
+-
+-void
+-ckoff(Sym *s, vlong v)
+-{
+-	if(v < 0 || v >= 1<<Roffset)
+-		diag("relocation offset %lld for %s out of range", v, s->name);
+-}
+-
+ static Prog*
+-newdata(Sym *s, int o, int w, int t)
++prg(void)
+ {
+ 	Prog *p;
+ 
+-	p = prg();
+-	p->link = datap;
+-	datap = p;
+-	p->as = ADATA;
+-	p->reg = w;
+-	p->from.type = D_OREG;
+-	p->from.name = t;
+-	p->from.sym = s;
+-	p->from.offset = o;
+-	p->to.type = D_CONST;
+-	p->to.name = D_NONE;
++	p = emallocz(sizeof(*p));
++	*p = zprg;
+ 	return p;
+ }
+ 
+-void
+-export(void)
+-{
+-	int i, j, n, off, nb, sv, ne;
+-	Sym *s, *et, *str, **esyms;
+-	Prog *p;
+-	char buf[NSNAME], *t;
+-
+-	n = 0;
+-	for(i = 0; i < NHASH; i++)
+-		for(s = hash[i]; s != S; s = s->link)
+-			if(s->type != SXREF && s->type != SUNDEF && (nexports == 0 && s->sig != 0 || s->subtype == SEXPORT || allexport))
+-				n++;
+-	esyms = malloc(n*sizeof(Sym*));
+-	ne = n;
+-	n = 0;
+-	for(i = 0; i < NHASH; i++)
+-		for(s = hash[i]; s != S; s = s->link)
+-			if(s->type != SXREF && s->type != SUNDEF && (nexports == 0 && s->sig != 0 || s->subtype == SEXPORT || allexport))
+-				esyms[n++] = s;
+-	for(i = 0; i < ne-1; i++)
+-		for(j = i+1; j < ne; j++)
+-			if(strcmp(esyms[i]->name, esyms[j]->name) > 0){
+-				s = esyms[i];
+-				esyms[i] = esyms[j];
+-				esyms[j] = s;
+-			}
+-
+-	nb = 0;
+-	off = 0;
+-	et = lookup(EXPTAB, 0);
+-	if(et->type != 0 && et->type != SXREF)
+-		diag("%s already defined", EXPTAB);
+-	et->type = SDATA;
+-	str = lookup(".string", 0);
+-	if(str->type == 0)
+-		str->type = SDATA;
+-	sv = str->value;
+-	for(i = 0; i < ne; i++){
+-		s = esyms[i];
+-		Bprint(&bso, "EXPORT: %s sig=%lux t=%d\n", s->name, s->sig, s->type);
+-
+-		/* signature */
+-		p = newdata(et, off, sizeof(long), D_EXTERN);
+-		off += sizeof(long);
+-		p->to.offset = s->sig;
+-
+-		/* address */
+-		p = newdata(et, off, sizeof(long), D_EXTERN);
+-		off += sizeof(long);		/* TO DO: bug */
+-		p->to.name = D_EXTERN;
+-		p->to.sym = s;
+-
+-		/* string */
+-		t = s->name;
+-		n = strlen(t)+1;
+-		for(;;){
+-			buf[nb++] = *t;
+-			sv++;
+-			if(nb >= NSNAME){
+-				p = newdata(str, sv-NSNAME, NSNAME, D_STATIC);
+-				p->to.type = D_SCONST;
+-				memmove(p->to.sval, buf, NSNAME);
+-				nb = 0;
+-			}
+-			if(*t++ == 0)
+-				break;
+-		}
+-
+-		/* name */
+-		p = newdata(et, off, sizeof(long), D_EXTERN);
+-		off += sizeof(long);
+-		p->to.name = D_STATIC;
+-		p->to.sym = str;
+-		p->to.offset = sv-n;
+-	}
+-
+-	if(nb > 0){
+-		p = newdata(str, sv-nb, nb, D_STATIC);
+-		p->to.type = D_SCONST;
+-		memmove(p->to.sval, buf, nb);
+-	}
+-
+-	for(i = 0; i < 3; i++){
+-		newdata(et, off, sizeof(long), D_EXTERN);
+-		off += sizeof(long);
+-	}
+-	et->value = off;
+-	if(sv == 0)
+-		sv = 1;
+-	str->value = sv;
+-	exports = ne;
+-	free(esyms);
+-}
+-
+-enum{
+-	ABSD = 0,
+-	ABSU = 1,
+-	RELD = 2,
+-	RELU = 3,
++LinkArch linkpower64 = {
++	.name = "power64",
++	.thechar = '9',
++	.endian = BigEndian,
++
++	.addstacksplit = addstacksplit,
++	.assemble = span9,
++	.datasize = datasize,
++	.follow = follow,
++	.iscall = iscall,
++	.isdata = isdata,
++	.prg = prg,
++	.progedit = progedit,
++	.settextflag = settextflag,
++	.symtype = symtype,
++	.textflag = textflag,
++
++	.minlc = 4,
++	.ptrsize = 8,
++	.regsize = 8,
++
++	.D_ADDR = D_ADDR,
++	.D_AUTO = D_AUTO,
++	.D_BRANCH = D_BRANCH,
++	.D_CONST = D_CONST,
++	.D_EXTERN = D_EXTERN,
++	.D_FCONST = D_FCONST,
++	.D_NONE = D_NONE,
++	.D_PARAM = D_PARAM,
++	.D_SCONST = D_SCONST,
++	.D_STATIC = D_STATIC,
++
++	.ACALL = ABL,
++	.ADATA = ADATA,
++	.AEND = AEND,
++	.AFUNCDATA = AFUNCDATA,
++	.AGLOBL = AGLOBL,
++	.AJMP = ABR,
++	.ANOP = ANOP,
++	.APCDATA = APCDATA,
++	.ARET = ARETURN,
++	.ATEXT = ATEXT,
++	.ATYPE = ATYPE,
++	.AUSEFIELD = AUSEFIELD,
+ };
+ 
+-int modemap[8] = { 0, 1, -1, 2, 3, 4, 5, 6};
+-
+-typedef struct Reloc Reloc;
+-
+-struct Reloc
+-{
+-	int n;
+-	int t;
+-	uchar *m;
+-	ulong *a;
++LinkArch linkpower64le = {
++	.name = "power64le",
++	.thechar = '9',
++	.endian = LittleEndian,
++
++	.addstacksplit = addstacksplit,
++	.assemble = span9,
++	.datasize = datasize,
++	.follow = follow,
++	.iscall = iscall,
++	.isdata = isdata,
++	.prg = prg,
++	.progedit = progedit,
++	.settextflag = settextflag,
++	.symtype = symtype,
++	.textflag = textflag,
++
++	.minlc = 4,
++	.ptrsize = 8,
++	.regsize = 8,
++
++	.D_ADDR = D_ADDR,
++	.D_AUTO = D_AUTO,
++	.D_BRANCH = D_BRANCH,
++	.D_CONST = D_CONST,
++	.D_EXTERN = D_EXTERN,
++	.D_FCONST = D_FCONST,
++	.D_NONE = D_NONE,
++	.D_PARAM = D_PARAM,
++	.D_SCONST = D_SCONST,
++	.D_STATIC = D_STATIC,
++
++	.ACALL = ABL,
++	.ADATA = ADATA,
++	.AEND = AEND,
++	.AFUNCDATA = AFUNCDATA,
++	.AGLOBL = AGLOBL,
++	.AJMP = ABR,
++	.ANOP = ANOP,
++	.APCDATA = APCDATA,
++	.ARET = ARETURN,
++	.ATEXT = ATEXT,
++	.ATYPE = ATYPE,
++	.AUSEFIELD = AUSEFIELD,
+ };
+-
+-Reloc rels;
+-
+-static void
+-grow(Reloc *r)
+-{
+-	int t;
+-	uchar *m, *nm;
+-	ulong *a, *na;
+-
+-	t = r->t;
+-	r->t += 64;
+-	m = r->m;
+-	a = r->a;
+-	r->m = nm = malloc(r->t*sizeof(uchar));
+-	r->a = na = malloc(r->t*sizeof(ulong));
+-	memmove(nm, m, t*sizeof(uchar));
+-	memmove(na, a, t*sizeof(ulong));
+-	free(m);
+-	free(a);
+-}
+-
+-void
+-dynreloc(Sym *s, long v, int abs, int split, int sext)
+-{
+-	int i, k, n;
+-	uchar *m;
+-	ulong *a;
+-	Reloc *r;
+-
+-	if(v&3)
+-		diag("bad relocation address");
+-	v >>= 2;
+-	if(s->type == SUNDEF)
+-		k = abs ? ABSU : RELU;
+-	else
+-		k = abs ? ABSD : RELD;
+-	if(split)
+-		k += 4;
+-	if(sext)
+-		k += 2;
+-	/* Bprint(&bso, "R %s a=%ld(%lx) %d\n", s->name, a, a, k); */
+-	k = modemap[k];
+-	r = &rels;
+-	n = r->n;
+-	if(n >= r->t)
+-		grow(r);
+-	m = r->m;
+-	a = r->a;
+-	for(i = n; i > 0; i--){
+-		if(v < a[i-1]){	/* happens occasionally for data */
+-			m[i] = m[i-1];
+-			a[i] = a[i-1];
+-		}
+-		else
+-			break;
+-	}
+-	m[i] = k;
+-	a[i] = v;
+-	r->n++;
+-}
+-
+-static int
+-sput(char *s)
+-{
+-	char *p;
+-
+-	p = s;
+-	while(*s)
+-		cput(*s++);
+-	cput(0);
+-	return s-p+1;
+-}
+-
+-void
+-asmdyn()
+-{
+-	int i, n, t, c;
+-	Sym *s;
+-	ulong la, ra, *a;
+-	vlong off;
+-	uchar *m;
+-	Reloc *r;
+-
+-	cflush();
+-	off = seek(cout, 0, 1);
+-	lput(0);
+-	t = 0;
+-	lput(imports);
+-	t += 4;
+-	for(i = 0; i < NHASH; i++)
+-		for(s = hash[i]; s != S; s = s->link)
+-			if(s->type == SUNDEF){
+-				lput(s->sig);
+-				t += 4;
+-				t += sput(s->name);
+-			}
+-	
+-	la = 0;
+-	r = &rels;
+-	n = r->n;
+-	m = r->m;
+-	a = r->a;
+-	lput(n);
+-	t += 4;
+-	for(i = 0; i < n; i++){
+-		ra = *a-la;
+-		if(*a < la)
+-			diag("bad relocation order");
+-		if(ra < 256)
+-			c = 0;
+-		else if(ra < 65536)
+-			c = 1;
+-		else
+-			c = 2;
+-		cput((c<<6)|*m++);
+-		t++;
+-		if(c == 0){
+-			cput(ra);
+-			t++;
+-		}
+-		else if(c == 1){
+-			wput(ra);
+-			t += 2;
+-		}
+-		else{
+-			lput(ra);
+-			t += 4;
+-		}
+-		la = *a++;
+-	}
+-
+-	cflush();
+-	seek(cout, off, 0);
+-	lput(t);
+-
+-	if(debug['v']){
+-		Bprint(&bso, "import table entries = %d\n", imports);
+-		Bprint(&bso, "export table entries = %d\n", exports);
+-	}
+-}

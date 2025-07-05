@@ -7,7 +7,32 @@ Date:   Tue Aug 3 13:27:50 2010 +1000
     R=adg
     CC=golang-dev
     https://golang.org/cl/1899044
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 75b61a4e51..8cfa5ffbb9 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -68,6 +68,7 @@ Raif S. Naffah <go@naffah-raif.name>
+ Risto Jaakko Saarelma <rsaarelm@gmail.com>
+ Roger Peppe <rogpeppe@gmail.com>
+ Ross Light <rlight2@gmail.com>
++Scott Lawrence <bytbox@gmail.com>
+ Sergei Skorobogatov <skorobo@rambler.ru>
+ Sergey 'SnakE'  Gromov <snake.scaly@gmail.com>
+ Sergio Luis O. B. Correia <sergio@larces.uece.br>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index ced07f32b2..508f4fbd52 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -115,6 +115,7 @@ Ross Light <rlight2@gmail.com>
+ Russ Cox <rsc@golang.org>
+ Sam Thorogood <thorogood@google.com>
+ Scott Schwartz <scotts@golang.org>
++Scott Lawrence <bytbox@gmail.com>
+ Sergei Skorobogatov <skorobo@rambler.ru>
+ Sergey 'SnakE' Gromov <snake.scaly@gmail.com>
+ Sergio Luis O. B. Correia <sergio@larces.uece.br>

@@ -14,7 +14,164 @@ Date:   Mon Dec 14 18:45:34 2015 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/clientserver_test.go | 40 ++++++++++++++++++++++++++++++++
  src/net/http/h2_bundle.go         | 48 +++++++++++++++++++++++++++++++++++----
  2 files changed, 84 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/http/clientserver_test.go b/src/net/http/clientserver_test.go
+index 9dae83d6c6..ccead3f4fe 100644
+--- a/src/net/http/clientserver_test.go
++++ b/src/net/http/clientserver_test.go
+@@ -415,3 +415,43 @@ func TestH12_ServerEmptyContentLength(t *testing.T) {
+ 		},
+ 	}.run(t)
+ }
++
++// Tests that closing the Request.Cancel channel also while still
++// reading the response body. Issue 13159.
++func TestCancelRequestMidBody_h1(t *testing.T) { testCancelRequestMidBody(t, h1Mode) }
++func TestCancelRequestMidBody_h2(t *testing.T) { testCancelRequestMidBody(t, h2Mode) }
++func testCancelRequestMidBody(t *testing.T, h2 bool) {
++	defer afterTest(t)
++	unblock := make(chan bool)
++	didFlush := make(chan bool, 1)
++	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
++		io.WriteString(w, "Hello")
++		w.(Flusher).Flush()
++		didFlush <- true
++		<-unblock
++		io.WriteString(w, ", world.")
++		<-unblock
++	}))
++	defer cst.close()
++	defer close(unblock)
++
++	req, _ := NewRequest("GET", cst.ts.URL, nil)
++	cancel := make(chan struct{})
++	req.Cancel = cancel
++
++	res, err := cst.c.Do(req)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer res.Body.Close()
++	<-didFlush
++	close(cancel)
++
++	slurp, err := ioutil.ReadAll(res.Body)
++	if string(slurp) != "Hello" {
++		t.Errorf("Read %q; want Hello", slurp)
++	}
++	if !reflect.DeepEqual(err, ExportErrRequestCanceled) {
++		t.Errorf("ReadAll error = %v; want %v", err, ExportErrRequestCanceled)
++	}
++}
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index b0106dc444..216b823214 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -1935,10 +1935,11 @@ func http2bodyAllowedForStatus(status int) bool {
+ // io.Pipe except there are no PipeReader/PipeWriter halves, and the
+ // underlying buffer is an interface. (io.Pipe is always unbuffered)
+ type http2pipe struct {
+-	mu  sync.Mutex
+-	c   sync.Cond // c.L must point to
+-	b   http2pipeBuffer
+-	err error // read error once empty. non-nil means closed.
++	mu    sync.Mutex
++	c     sync.Cond // c.L must point to
++	b     http2pipeBuffer
++	err   error         // read error once empty. non-nil means closed.
++	donec chan struct{} // closed on error
+ }
+ 
+ type http2pipeBuffer interface {
+@@ -1999,6 +2000,9 @@ func (p *http2pipe) CloseWithError(err error) {
+ 	defer p.c.Signal()
+ 	if p.err == nil {
+ 		p.err = err
++		if p.donec != nil {
++			close(p.donec)
++		}
+ 	}
+ }
+ 
+@@ -2010,6 +2014,21 @@ func (p *http2pipe) Err() error {
+ 	return p.err
+ }
+ 
++// Done returns a channel which is closed if and when this pipe is closed
++// with CloseWithError.
++func (p *http2pipe) Done() <-chan struct{} {
++	p.mu.Lock()
++	defer p.mu.Unlock()
++	if p.donec == nil {
++		p.donec = make(chan struct{})
++		if p.err != nil {
++
++			close(p.donec)
++		}
++	}
++	return p.donec
++}
++
+ const (
+ 	http2prefaceTimeout        = 10 * time.Second
+ 	http2firstSettingsTimeout  = 2 * time.Second // should be in-flight with preface anyway
+@@ -3868,6 +3887,18 @@ type http2clientStream struct {
+ 	resetErr  error         // populated before peerReset is closed
+ }
+ 
++// awaitRequestCancel runs in its own goroutine and waits for the user's
++func (cs *http2clientStream) awaitRequestCancel(cancel <-chan struct{}) {
++	if cancel == nil {
++		return
++	}
++	select {
++	case <-cancel:
++		cs.bufPipe.CloseWithError(http2errRequestCanceled)
++	case <-cs.bufPipe.Done():
++	}
++}
++
+ // checkReset reports any error sent in a RST_STREAM frame by the
+ // server.
+ func (cs *http2clientStream) checkReset() error {
+@@ -4168,6 +4199,10 @@ func (cc *http2ClientConn) putFrameScratchBuffer(buf []byte) {
+ 
+ }
+ 
++// errRequestCanceled is a copy of net/http's errRequestCanceled because it's not
++// exported. At least they'll be DeepEqual for h1-vs-h2 comparisons tests.
++var http2errRequestCanceled = errors.New("net/http: request canceled")
++
+ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
+ 	cc.mu.Lock()
+ 
+@@ -4212,6 +4247,7 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
+ 			cc.fr.WriteContinuation(cs.ID, endHeaders, chunk)
+ 		}
+ 	}
++
+ 	cc.bw.Flush()
+ 	werr := cc.werr
+ 	cc.wmu.Unlock()
+@@ -4243,6 +4279,9 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
+ 			res.Request = req
+ 			res.TLS = cc.tlsState
+ 			return res, nil
++		case <-req.Cancel:
++			cs.abortRequestBodyWrite()
++			return nil, http2errRequestCanceled
+ 		case err := <-bodyCopyErrc:
+ 			if err != nil {
+ 				return nil, err
+@@ -4591,6 +4630,7 @@ func (rl *http2clientConnReadLoop) processHeaderBlockFragment(frag []byte, strea
+ 		cs.bufPipe = http2pipe{b: buf}
+ 		cs.bytesRemain = res.ContentLength
+ 		res.Body = http2transportResponseBody{cs}
++		go cs.awaitRequestCancel(cs.req.Cancel)
+ 
+ 		if cs.requestedGzip && res.Header.Get("Content-Encoding") == "gzip" {
+ 			res.Header.Del("Content-Encoding")

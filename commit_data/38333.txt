@@ -14,8 +14,131 @@ Date:   Wed Oct 17 09:36:06 2018 +0200
     Run-TryBot: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/link/internal/ld/dwarf.go      |  4 +-
  src/cmd/link/internal/ld/dwarf_test.go | 73 ++++++++++++++++++++++++++++++++++
  src/cmd/link/internal/ld/symtab.go     | 11 +++++
  3 files changed, 87 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 743f4cedd4..827a1d931a 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -863,7 +863,9 @@ func defdwsymb(ctxt *Link, s *sym.Symbol, str string, t SymbolType, v int64, got
+ 		default:
+ 			return
+ 		}
+-
++		if ctxt.LinkMode != LinkExternal && isStaticTemp(s.Name) {
++			return
++		}
+ 		dwarfDefineGlobal(ctxt, s, str, v, gotype)
+ 
+ 	case AutoSym, ParamSym, DeletedAutoSym:
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index e5d9981590..42b598efef 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -1062,3 +1062,76 @@ func main() {
+ 		}
+ 	}
+ }
++
++func TestStaticTmp(t *testing.T) {
++	// Checks that statictmp variables do not appear in debug_info or the
++	// symbol table.
++	// Also checks that statictmp variables do not collide with user defined
++	// variables (issue #25113)
++
++	testenv.MustHaveGoBuild(t)
++
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping on plan9; no DWARF symbol table in executables")
++	}
++
++	dir, err := ioutil.TempDir("", "go-build")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(dir)
++
++	const prog = `package main
++
++var stmp_0 string
++var a []int
++
++func init() {
++	a = []int{ 7 }
++}
++
++func main() {
++	println(a[0])
++}
++`
++
++	f := gobuild(t, dir, prog, NoOpt)
++
++	defer f.Close()
++
++	d, err := f.DWARF()
++	if err != nil {
++		t.Fatalf("error reading DWARF: %v", err)
++	}
++
++	rdr := d.Reader()
++	for {
++		e, err := rdr.Next()
++		if err != nil {
++			t.Fatal(err)
++		}
++		if e == nil {
++			break
++		}
++		if e.Tag != dwarf.TagVariable {
++			continue
++		}
++		name, ok := e.Val(dwarf.AttrName).(string)
++		if !ok {
++			continue
++		}
++		if strings.Contains(name, "stmp") {
++			t.Errorf("statictmp variable found in debug_info: %s at %x", name, e.Offset)
++		}
++	}
++
++	syms, err := f.Symbols()
++	if err != nil {
++		t.Fatalf("error reading symbols: %v", err)
++	}
++	for _, sym := range syms {
++		if strings.Contains(sym.Name, "stmp") {
++			t.Errorf("statictmp variable found in symbol table: %s", sym.Name)
++		}
++	}
++}
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 2a04ef3824..d2737deca5 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -432,6 +432,10 @@ func (ctxt *Link) symtab() {
+ 	// just defined above will be first.
+ 	// hide the specific symbols.
+ 	for _, s := range ctxt.Syms.Allsym {
++		if ctxt.LinkMode != LinkExternal && isStaticTemp(s.Name) {
++			s.Attr |= sym.AttrNotInSymbolTable
++		}
++
+ 		if !s.Attr.Reachable() || s.Attr.Special() || s.Type != sym.SRODATA {
+ 			continue
+ 		}
+@@ -676,3 +680,10 @@ func (ctxt *Link) symtab() {
+ 		lastmoduledatap.AddAddr(ctxt.Arch, moduledata)
+ 	}
+ }
++
++func isStaticTemp(name string) bool {
++	if i := strings.LastIndex(name, "/"); i >= 0 {
++		name = name[i:]
++	}
++	return strings.Contains(name, "..stmp_")
++}

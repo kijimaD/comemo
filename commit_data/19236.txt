@@ -8,7 +8,7 @@ Date:   Sat Apr 26 19:54:48 2014 -0700
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/96850043
-
+---
  src/cmd/link/dead_test.go              | 2 +-
  src/cmd/link/macho_test.go             | 4 ++--
  src/cmd/link/prog_test.go              | 4 ++--
@@ -21,3 +21,192 @@ Date:   Sat Apr 26 19:54:48 2014 -0700
  src/pkg/net/http/serve_test.go         | 2 +-
  src/pkg/net/http/transport_test.go     | 5 ++---
  11 files changed, 16 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/link/dead_test.go b/src/cmd/link/dead_test.go
+index 0e00c7da4b..2e179b453b 100644
+--- a/src/cmd/link/dead_test.go
++++ b/src/cmd/link/dead_test.go
+@@ -92,6 +92,6 @@ func checkDeadSlice(t *testing.T, obj, name string, old, new []*Sym) {
+ 		new = new[1:]
+ 	}
+ 	if len(new) > 0 {
+-		t.Errorf("%s: %s has unexpected symbols: %v", new)
++		t.Errorf("%s: %s has unexpected symbols: %v", obj, name, new)
+ 	}
+ }
+diff --git a/src/cmd/link/macho_test.go b/src/cmd/link/macho_test.go
+index 62b1327497..37c4418b77 100644
+--- a/src/cmd/link/macho_test.go
++++ b/src/cmd/link/macho_test.go
+@@ -324,7 +324,7 @@ func machoRead(arch machoArch, data []byte) (*Prog, error) {
+ 			}
+ 			if load.Maxprot != maxprot || load.Prot != prot {
+ 				errorf("segment %q protection is %d, %d, want %d, %d",
+-					load.Maxprot, load.Prot, maxprot, prot)
++					load.Name, load.Maxprot, load.Prot, maxprot, prot)
+ 			}
+ 
+ 			for len(msects) > 0 && msects[0].Addr < load.Addr+load.Memsz {
+@@ -374,7 +374,7 @@ func machoRead(arch machoArch, data []byte) (*Prog, error) {
+ 					flags = 1
+ 				}
+ 				if msect.Flags != flags {
+-					errorf("section %q flags = %#x, want %#x", msect.Flags, flags)
++					errorf("section %q flags = %#x, want %#x", msect.Name, msect.Flags, flags)
+ 				}
+ 				sect := &Section{
+ 					Name:     strings.ToLower(strings.TrimPrefix(msect.Name, "__")),
+diff --git a/src/cmd/link/prog_test.go b/src/cmd/link/prog_test.go
+index 768b11fc47..0853506957 100644
+--- a/src/cmd/link/prog_test.go
++++ b/src/cmd/link/prog_test.go
+@@ -75,11 +75,11 @@ func diffProg(p, q *Prog) []string {
+ 
+ 		for j := 0; j < len(pseg.Sections) || j < len(qseg.Sections); j++ {
+ 			if j >= len(pseg.Sections) {
+-				errors = append(errors, fmt.Sprintf("segment %q missing section %q", qseg.Sections[i].Name))
++				errors = append(errors, fmt.Sprintf("segment %q missing section %q", pseg.Name, qseg.Sections[i].Name))
+ 				continue
+ 			}
+ 			if j >= len(qseg.Sections) {
+-				errors = append(errors, fmt.Sprintf("segment %q has extra section %q", pseg.Sections[i].Name))
++				errors = append(errors, fmt.Sprintf("segment %q has extra section %q", pseg.Name, pseg.Sections[i].Name))
+ 				continue
+ 			}
+ 			psect := pseg.Sections[j]
+diff --git a/src/cmd/pack/pack_test.go b/src/cmd/pack/pack_test.go
+index b2be74b097..8ecca98e63 100644
+--- a/src/cmd/pack/pack_test.go
++++ b/src/cmd/pack/pack_test.go
+@@ -210,7 +210,7 @@ func TestHello(t *testing.T) {
+ 	run("go", "tool", char+"l", "-o", "a.out", "hello.a")
+ 	out := run("./a.out")
+ 	if out != "hello world\n" {
+-		t.Fatal("incorrect output: %q, want %q", out, "hello world\n")
++		t.Fatalf("incorrect output: %q, want %q", out, "hello world\n")
+ 	}
+ }
+ 
+@@ -271,7 +271,7 @@ func TestLargeDefs(t *testing.T) {
+ 	run("go", "tool", char+"l", "-L", ".", "-o", "a.out", "main."+char)
+ 	out := run("./a.out")
+ 	if out != "ok\n" {
+-		t.Fatal("incorrect output: %q, want %q", out, "ok\n")
++		t.Fatalf("incorrect output: %q, want %q", out, "ok\n")
+ 	}
+ }
+ 
+diff --git a/src/pkg/archive/tar/reader_test.go b/src/pkg/archive/tar/reader_test.go
+index 55b19d3c2e..6d4e06a58d 100644
+--- a/src/pkg/archive/tar/reader_test.go
++++ b/src/pkg/archive/tar/reader_test.go
+@@ -618,7 +618,7 @@ func TestSparseFileReader(t *testing.T) {
+ 			tot: test.realSize,
+ 		}
+ 		if sfr.numBytes() != nb {
+-			t.Errorf("test %d: Before reading, sfr.numBytes() = %d, want %d", i, sfr.numBytes, nb)
++			t.Errorf("test %d: Before reading, sfr.numBytes() = %d, want %d", i, sfr.numBytes(), nb)
+ 		}
+ 		buf, err := ioutil.ReadAll(sfr)
+ 		if err != nil {
+diff --git a/src/pkg/crypto/x509/x509_test.go b/src/pkg/crypto/x509/x509_test.go
+index 4b4b9d7c76..ce9062c4b4 100644
+--- a/src/pkg/crypto/x509/x509_test.go
++++ b/src/pkg/crypto/x509/x509_test.go
+@@ -395,7 +395,7 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
+ 		}
+ 
+ 		if cert.SignatureAlgorithm != test.sigAlgo {
+-			t.Errorf("%s: SignatureAlgorithm wasn't copied from template. Got %s, want %s", test.name, cert.SignatureAlgorithm, test.sigAlgo)
++			t.Errorf("%s: SignatureAlgorithm wasn't copied from template. Got %v, want %v", test.name, cert.SignatureAlgorithm, test.sigAlgo)
+ 		}
+ 
+ 		if !reflect.DeepEqual(cert.ExtKeyUsage, testExtKeyUsage) {
+diff --git a/src/pkg/debug/macho/file_test.go b/src/pkg/debug/macho/file_test.go
+index 0de9184c22..4797780ce7 100644
+--- a/src/pkg/debug/macho/file_test.go
++++ b/src/pkg/debug/macho/file_test.go
+@@ -184,7 +184,7 @@ func TestOpenFat(t *testing.T) {
+ 		ftArch := &fileTests[i]
+ 
+ 		if arch.Cpu != ftArch.hdr.Cpu || arch.SubCpu != ftArch.hdr.SubCpu {
+-			t.Error("OpenFat: architecture #%d got cpu=%#x subtype=%#x, expected cpu=%#x, subtype=%#x", i, arch.Cpu, arch.SubCpu, ftArch.hdr.Cpu, ftArch.hdr.SubCpu)
++			t.Errorf("OpenFat: architecture #%d got cpu=%#x subtype=%#x, expected cpu=%#x, subtype=%#x", i, arch.Cpu, arch.SubCpu, ftArch.hdr.Cpu, ftArch.hdr.SubCpu)
+ 		}
+ 
+ 		if !reflect.DeepEqual(arch.FileHeader, ftArch.hdr) {
+@@ -202,9 +202,9 @@ func TestOpenFatFailure(t *testing.T) {
+ 	filename = "testdata/gcc-386-darwin-exec" // not a fat Mach-O
+ 	ff, err := OpenFat(filename)
+ 	if err != ErrNotFat {
+-		t.Errorf("OpenFat %s: got %v, want ErrNotFat", err)
++		t.Errorf("OpenFat %s: got %v, want ErrNotFat", filename, err)
+ 	}
+ 	if ff != nil {
+-		t.Errorf("OpenFat %s: got %v, want nil", ff)
++		t.Errorf("OpenFat %s: got %v, want nil", filename, ff)
+ 	}
+ }
+diff --git a/src/pkg/encoding/base64/base64_test.go b/src/pkg/encoding/base64/base64_test.go
+index f1469c6842..a075194e03 100644
+--- a/src/pkg/encoding/base64/base64_test.go
++++ b/src/pkg/encoding/base64/base64_test.go
+@@ -336,7 +336,7 @@ func TestDecoderIssue7733(t *testing.T) {
+ 	s, err := StdEncoding.DecodeString("YWJjZA=====")
+ 	want := CorruptInputError(8)
+ 	if !reflect.DeepEqual(want, err) {
+-		t.Errorf("Error = %v; want CorruptInputError(8)")
++		t.Errorf("Error = %v; want CorruptInputError(8)", err)
+ 	}
+ 	if string(s) != "abcd" {
+ 		t.Errorf("DecodeString = %q; want abcd", s)
+diff --git a/src/pkg/html/template/escape.go b/src/pkg/html/template/escape.go
+index 5f458d172d..4e379828d4 100644
+--- a/src/pkg/html/template/escape.go
++++ b/src/pkg/html/template/escape.go
+@@ -221,7 +221,6 @@ func allIdents(node parse.Node) []string {
+ 		return node.Ident
+ 	}
+ 	panic("unidentified node type in allIdents")
+-	return nil
+ }
+ 
+ // ensurePipelineContains ensures that the pipeline has commands with
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index d9a136742c..030fd6e7b2 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -2325,7 +2325,7 @@ func TestServerConnState(t *testing.T) {
+ 	ts.Config.ErrorLog = log.New(ioutil.Discard, "", 0)
+ 	ts.Config.ConnState = func(c net.Conn, state ConnState) {
+ 		if c == nil {
+-			t.Error("nil conn seen in state %s", state)
++			t.Errorf("nil conn seen in state %s", state)
+ 			return
+ 		}
+ 		mu.Lock()
+diff --git a/src/pkg/net/http/transport_test.go b/src/pkg/net/http/transport_test.go
+index ab459738df..a5aaa6bab8 100644
+--- a/src/pkg/net/http/transport_test.go
++++ b/src/pkg/net/http/transport_test.go
+@@ -1412,7 +1412,6 @@ func TestTransportCancelRequestInDial(t *testing.T) {
+ 	case <-gotres:
+ 	case <-time.After(5 * time.Second):
+ 		panic("hang. events are: " + logbuf.String())
+-		t.Fatal("timeout; cancel didn't work?")
+ 	}
+ 
+ 	got := logbuf.String()
+@@ -1869,10 +1868,10 @@ func TestTransportTLSHandshakeTimeout(t *testing.T) {
+ 			return
+ 		}
+ 		if !ne.Timeout() {
+-			t.Error("expected timeout error; got %v", err)
++			t.Errorf("expected timeout error; got %v", err)
+ 		}
+ 		if !strings.Contains(err.Error(), "handshake timeout") {
+-			t.Error("expected 'handshake timeout' in error; got %v", err)
++			t.Errorf("expected 'handshake timeout' in error; got %v", err)
+ 		}
+ 	}()
+ 	select {

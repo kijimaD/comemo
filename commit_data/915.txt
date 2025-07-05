@@ -8,7 +8,7 @@ Date:   Mon Oct 20 15:26:38 2008 -0700
     DELTA=44  (10 added, 9 deleted, 25 changed)
     OCL=17502
     CL=17502
-
+---
  src/cmd/6c/list.c          |  2 +-
  src/cmd/ar/ar.c            |  9 +++------
  src/cmd/gc/dcl.c           |  2 +-
@@ -18,3 +18,266 @@ Date:   Mon Oct 20 15:26:38 2008 -0700
  src/libmach_amd64/linux.c  |  5 ++---
  src/libmach_amd64/map.c    |  2 ++
  8 files changed, 23 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/6c/list.c b/src/cmd/6c/list.c
+index 094f5a2064..e3a0ea81b4 100644
+--- a/src/cmd/6c/list.c
++++ b/src/cmd/6c/list.c
+@@ -92,7 +92,7 @@ Pconv(Fmt *fp)
+ 			p->as, &p->from, &p->to);
+ 		break;
+ 
+-	defaul:
++	default:
+ 		sprint(str, "	%A	%D,%lD", p->as, &p->from, &p->to);
+ 		break;
+ 	}
+diff --git a/src/cmd/ar/ar.c b/src/cmd/ar/ar.c
+index 323103bcb1..aeccc8e573 100644
+--- a/src/cmd/ar/ar.c
++++ b/src/cmd/ar/ar.c
+@@ -779,7 +779,6 @@ int
+ duplicate(char *name)
+ {
+ 	Hashchain *p;
+-	char *cp;
+ 	int h;
+ 
+ 	h = hashstr(name) % NHASH;
+@@ -1602,8 +1601,7 @@ parsepkgdata(char **pp, char *ep, int *exportp, char **prefixp, char **namep, ch
+ int
+ parsemethod(char **pp, char *ep, char **methp)
+ {
+-	char *p, *prefix, *name, *def;
+-	int n;
++	char *p;
+ 	
+ 	// skip white space
+ 	p = *pp;
+@@ -1664,16 +1662,15 @@ strappend(char *s, char *t)
+ void
+ getpkgdef(char **datap, int *lenp)
+ {
+-	Fmt f;
+ 	int i, j, len;
+-	char *data, *p, *ep;
++	char *data, *p;
+ 	Import **all, *x;
+ 
+ 	// make a list of all the exports and count string sizes
+ 	all = armalloc(nimport*sizeof all[0]);
+ 	j = 0;
+ 	len = 7 + 3 + strlen(pkgstmt) + 1;	// import\n$$\npkgstmt\n
+-	for(i=0; i<NHASH; i++) {
++	for(i=0; i<NIHASH; i++) {
+ 		for(x=ihash[i]; x; x=x->hash) {
+ 			all[j++] = x;
+ 			len += strlen(x->prefix) + 1
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 95f4e020cb..7eed70e807 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -1120,7 +1120,7 @@ defercheckwidth(void)
+ void
+ resumecheckwidth(void)
+ {
+-	TypeList *l, *next;
++	TypeList *l;
+ 
+ 	if(!defercalc)
+ 		fatal("restartcheckwidth");
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index c086aeb854..3953ca20c1 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1351,7 +1351,6 @@ wnames[] =
+ int
+ Wconv(Fmt *fp)
+ {
+-	char buf[500];
+ 	int w;
+ 
+ 	w = va_arg(fp->args, int);
+diff --git a/src/libmach_amd64/8db.c b/src/libmach_amd64/8db.c
+index d4ee633ff4..040dd1e861 100644
+--- a/src/libmach_amd64/8db.c
++++ b/src/libmach_amd64/8db.c
+@@ -1364,7 +1364,7 @@ igetl(Map *map, Instr *ip, uint32 *lp)
+ 
+ /*
+  *  get 8 bytes of the instruction
+- */
++ *
+ static int
+ igetq(Map *map, Instr *ip, vlong *qp)
+ {
+@@ -1380,6 +1380,7 @@ igetq(Map *map, Instr *ip, vlong *qp)
+ 	*qp = q;
+ 	return 1;
+ }
++ */
+ 
+ static int
+ getdisp(Map *map, Instr *ip, int mod, int rm, int code, int pcrel)
+@@ -1958,11 +1959,11 @@ pea(Instr *ip)
+ {
+ 	if (ip->mod == 3) {
+ 		if (ip->osize == 'B')
+-			bprint(ip, (ip->rex & REXB? breg64: breg)[ip->base]);
++			bprint(ip, (ip->rex & REXB? breg64: breg)[(uchar)ip->base]);
+ 		else if(ip->rex & REXB)
+ 			bprint(ip, "%s%s", ANAME(ip), reg[ip->base+8]);
+ 		else
+-			bprint(ip, "%s%s", ANAME(ip), reg[ip->base]);
++			bprint(ip, "%s%s", ANAME(ip), reg[(uchar)ip->base]);
+ 		return;
+ 	}
+ 	if (ip->segment)
+diff --git a/src/libmach_amd64/darwin.c b/src/libmach_amd64/darwin.c
+index f210f25a94..e9e9bddc70 100644
+--- a/src/libmach_amd64/darwin.c
++++ b/src/libmach_amd64/darwin.c
+@@ -24,6 +24,7 @@
+ #include <sys/ptrace.h>
+ #include <sys/signal.h>
+ #include <mach/mach.h>
++#include <mach/mach_traps.h>
+ #include <errno.h>
+ #include <libc.h>
+ #include <bio.h>
+@@ -31,6 +32,8 @@
+ #include <ureg_amd64.h>
+ typedef struct Ureg Ureg;
+ 
++extern mach_port_t mach_reply_port(void);	// should be in system headers, is not
++
+ // Mach-error wrapper.
+ // Takes a mach return code and converts it into 0 / -1,
+ // setting errstr when it returns -1.
+@@ -197,7 +200,7 @@ enum {
+ static Thread*
+ addpid(int pid, int force)
+ {
+-	int i, j, r;
++	int i, j;
+ 	mach_port_t task;
+ 	mach_port_t *thread;
+ 	uint nthread;
+@@ -276,6 +279,7 @@ idtotable(int id)
+ 	return &thr[id];
+ }
+ 
++/*
+ static int
+ idtopid(int id)
+ {
+@@ -285,6 +289,7 @@ idtopid(int id)
+ 		return -1;
+ 	return t->pid;
+ }
++*/
+ 
+ static mach_port_t
+ idtotask(int id)
+@@ -388,7 +393,6 @@ proctextfile(int pid)
+ static int
+ machsegrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
+ {
+-	uintptr nn;
+ 	mach_port_t task;
+ 	int r;
+ 
+@@ -397,6 +401,7 @@ machsegrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
+ 		return -1;
+ 
+ 	if(isr){
++		vm_size_t nn;
+ 		nn = n;
+ 		if(me(vm_read_overwrite(task, addr, n, (uintptr)v, &nn)) < 0)
+ 			return -1;
+@@ -477,7 +482,7 @@ machregrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
+ {
+ 	uint nn;
+ 	mach_port_t thread;
+-	int reg, r;
++	int reg;
+ 	union {
+ 		x86_thread_state64_t regs;
+ 		uchar p[1];
+@@ -547,7 +552,6 @@ threadstopped(Thread *t)
+ {
+ 	struct thread_basic_info info;
+ 	uint size;
+-	int r;
+ 
+ 	size = sizeof info;
+ 	if(me(thread_info(t->thread, THREAD_BASIC_INFO, (thread_info_t)&info, &size)) <  0){
+@@ -568,7 +572,7 @@ threadstart(Thread *t, int singlestep)
+ 	x86_thread_state64_t regs;
+ 
+ 	if(!threadstopped(t))
+-		return;
++		return 0;
+ 
+ 	// Set or clear the processor single-step flag, as appropriate.
+ 	n = x86_THREAD_STATE64_COUNT;
+@@ -667,7 +671,7 @@ int
+ ctlproc(int id, char *msg)
+ {
+ 	Thread *t;
+-	int status, r;
++	int status;
+ 
+ 	// Hang/attached dance is for debugging newly exec'ed programs.
+ 	// After fork, the child does ctlproc("hang") before exec,
+diff --git a/src/libmach_amd64/linux.c b/src/libmach_amd64/linux.c
+index ff4012081b..4fb5d49ba3 100644
+--- a/src/libmach_amd64/linux.c
++++ b/src/libmach_amd64/linux.c
+@@ -30,6 +30,7 @@
+ #include <u.h>
+ #include <sys/ptrace.h>
+ #include <sys/signal.h>
++#include <sys/wait.h>
+ #include <errno.h>
+ #include <libc.h>
+ #include <bio.h>
+@@ -132,9 +133,7 @@ ptraceattach(int pid)
+ Map*
+ attachproc(int pid, Fhdr *fp)
+ {
+-	char buf[64];
+ 	Map *map;
+-	vlong n;
+ 
+ 	if(ptraceattach(pid) < 0)
+ 		return nil;
+@@ -264,7 +263,7 @@ procnotes(int pid, char ***pnotes)
+ int
+ ctlproc(int pid, char *msg)
+ {
+-	int i, p, status;
++	int i;
+ 
+ 	if(strcmp(msg, "attached") == 0){
+ 		for(i=0; i<nattached; i++)
+diff --git a/src/libmach_amd64/map.c b/src/libmach_amd64/map.c
+index eb7eaf9990..747969335f 100644
+--- a/src/libmach_amd64/map.c
++++ b/src/libmach_amd64/map.c
+@@ -80,6 +80,7 @@ setmap(Map *map, int fd, uvlong b, uvlong e, vlong f, char *name, Maprw *rw)
+ 	return 1;
+ }
+ 
++/*
+ static uvlong
+ stacktop(int pid)
+ {
+@@ -110,6 +111,7 @@ stacktop(int pid)
+ 		return 0;
+ 	return strtoull(cp, 0, 16);
+ }
++*/
+ 
+ int
+ findseg(Map *map, char *name)

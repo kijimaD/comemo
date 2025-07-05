@@ -7,6 +7,21 @@ Date:   Mon Aug 6 14:56:39 2012 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6454091
-
+---
  test/run.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/test/run.go b/test/run.go
+index 2b26a5b010..e3c305690d 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -314,6 +314,9 @@ func (t *test) run() {
+ 			return
+ 		}
+ 		for _, gofile := range files {
++			if filepath.Ext(gofile.Name()) != ".go" {
++				continue
++			}
+ 			afile := strings.Replace(gofile.Name(), ".go", "."+letter, -1)
+ 			out, err := runcmd("go", "tool", gc, "-e", "-D.", "-I.", "-o", afile, filepath.Join(longdir, gofile.Name()))
+ 			if err != nil {

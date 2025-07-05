@@ -7,8 +7,68 @@ Date:   Wed Aug 14 21:24:48 2013 +0200
     R=golang-dev, bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/12842043
-
+---
  src/cmd/5g/peep.c | 10 +++++-----
  src/cmd/6g/peep.c |  6 +++---
  src/cmd/8g/peep.c |  6 +++---
  3 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index a6c9a6ada9..fc6899d9ed 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -493,15 +493,15 @@ constprop(Adr *c1, Adr *v1, Flow *r)
+ /*
+  * shortprop eliminates redundant zero/sign extensions.
+  *
+- *   MOVBS x, nil
+- *   <no use nil>
+- *   MOVBS nil, nil'
++ *   MOVBS x, R
++ *   <no use R>
++ *   MOVBS R, R'
+  *
+  * changed to
+  *
+- *   MOVBS x, nil
++ *   MOVBS x, R
+  *   ...
+- *   MOVB  nil, nil' (compiled to mov)
++ *   MOVB  R, R' (compiled to mov)
+  *
+  * MOVBS above can be a MOVBS, MOVBU, MOVHS or MOVHU.
+  */
+diff --git a/src/cmd/6g/peep.c b/src/cmd/6g/peep.c
+index d1041d58e5..c0fe97ece1 100644
+--- a/src/cmd/6g/peep.c
++++ b/src/cmd/6g/peep.c
+@@ -98,9 +98,9 @@ peep(Prog *firstp)
+ 	elimshortmov(g);
+ 
+ 	// constant propagation
+-	// find MOV $con,nil followed by
+-	// another MOV $con,nil without
+-	// setting nil in the interim
++	// find MOV $con,R followed by
++	// another MOV $con,R without
++	// setting R in the interim
+ 	for(r=g->start; r!=nil; r=r->link) {
+ 		p = r->prog;
+ 		switch(p->as) {
+diff --git a/src/cmd/8g/peep.c b/src/cmd/8g/peep.c
+index 5a0b1d3ab1..358b0977ae 100644
+--- a/src/cmd/8g/peep.c
++++ b/src/cmd/8g/peep.c
+@@ -97,9 +97,9 @@ peep(Prog *firstp)
+ 	elimshortmov(g);
+ 
+ 	// constant propagation
+-	// find MOV $con,nil followed by
+-	// another MOV $con,nil without
+-	// setting nil in the interim
++	// find MOV $con,R followed by
++	// another MOV $con,R without
++	// setting R in the interim
+ 	for(r=g->start; r!=nil; r=r->link) {
+ 		p = r->prog;
+ 		switch(p->as) {

@@ -9,10 +9,162 @@ Date:   Fri Feb 12 13:59:02 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/207085
-
+---
  src/cmd/gc/const.c       |  6 ++----
  src/cmd/gc/go.h          |  2 ++
  src/cmd/gc/typecheck.c   | 38 +++++++++++++++++++-------------------
  test/fixedbugs/bug254.go | 16 ++++++++++++++++
  test/fixedbugs/bug255.go | 15 +++++++++++++++
  5 files changed, 54 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index a78c122fec..d541c60c54 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -6,9 +6,7 @@
+ #define	TUP(x,y)	(((x)<<16)|(y))
+ 
+ static Val toflt(Val);
+-static Val toint(Val);
+ static Val tostr(Val);
+-static void overflow(Val, Type*);
+ static Val copyval(Val);
+ 
+ /*
+@@ -236,7 +234,7 @@ toflt(Val v)
+ 	return v;
+ }
+ 
+-static Val
++Val
+ toint(Val v)
+ {
+ 	Mpint *i;
+@@ -251,7 +249,7 @@ toint(Val v)
+ 	return v;
+ }
+ 
+-static void
++void
+ overflow(Val v, Type *t)
+ {
+ 	// v has already been converted
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 98a1597011..f3bab1355d 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1088,6 +1088,8 @@ int	consttype(Node*);
+ int	isconst(Node*, int);
+ Mpflt*	truncfltlit(Mpflt*, Type*);
+ void	convconst(Node*, Type*, Val*);
++Val	toint(Val);
++void	overflow(Val, Type*);
+ 
+ /*
+  *	align.c
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 11d142eebb..a7d95a9cd5 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -51,9 +51,10 @@ typecheck(Node **np, int top)
+ 	int et, op;
+ 	Node *n, *l, *r;
+ 	NodeList *args;
+-	int lno, ok, ntop;
++	int lno, ok, ntop, ct;
+ 	Type *t;
+ 	Sym *sym;
++	Val v;
+ 
+ 	// cannot type check until all the source has been parsed
+ 	if(!typecheckok)
+@@ -157,29 +158,28 @@ reswitch:
+ 		l = n->left;
+ 		r = n->right;
+ 		if(l == nil) {
+-			t->bound = -1;
++			t->bound = -1;	// slice
++		} else if(l->op == ODDD) {
++			t->bound = -100;	// to be filled in
+ 		} else {
+-			if(l->op != ODDD)
+-				typecheck(&l, Erv | Etype);
+-			switch(l->op) {
++			l = typecheck(&n->left, Erv);
++			switch(consttype(l)) {
++			case CTINT:
++				v = l->val;
++				break;
++			case CTFLT:
++				v = toint(l->val);
++				break;
+ 			default:
+ 				yyerror("invalid array bound %#N", l);
+ 				goto error;
+-
+-			case OLITERAL:
+-				if(consttype(l) == CTINT) {
+-					t->bound = mpgetfix(l->val.u.xval);
+-					if(t->bound < 0) {
+-						yyerror("array bound must be non-negative");
+-						goto error;
+-					}
+-				}
+-				break;
+-
+-			case ODDD:
+-				t->bound = -100;
+-				break;
+ 			}
++			t->bound = mpgetfix(v.u.xval);
++			if(t->bound < 0) {
++				yyerror("array bound must be non-negative");
++				goto error;
++			} else
++				overflow(v, types[TINT]);
+ 		}
+ 		typecheck(&r, Etype);
+ 		if(r->type == T)
+diff --git a/test/fixedbugs/bug254.go b/test/fixedbugs/bug254.go
+new file mode 100644
+index 0000000000..f351eb84e9
+--- /dev/null
++++ b/test/fixedbugs/bug254.go
+@@ -0,0 +1,16 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug254
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var a [10]int
++var b [1e1]int
++
++func main() {
++	if len(a) != 10 || len(b) != 10 {
++		panicln("len", len(a), len(b))
++	}
++}
+diff --git a/test/fixedbugs/bug255.go b/test/fixedbugs/bug255.go
+new file mode 100644
+index 0000000000..4003a780cc
+--- /dev/null
++++ b/test/fixedbugs/bug255.go
+@@ -0,0 +1,15 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var a [10]int	// ok
++var b [1e1]int	// ok
++var c [1.5]int	// ERROR "truncated"
++var d ["abc"]int	// ERROR "invalid array bound"
++var e [nil]int	// ERROR "invalid array bound"
++var f [e]int	// ERROR "invalid array bound"
++var g [1<<65]int	// ERROR "overflows"

@@ -12,7 +12,7 @@ Date:   Tue Nov 24 22:09:57 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/273106
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/align.go            |  2 +-
  src/cmd/compile/internal/gc/escape.go           |  2 +-
  src/cmd/compile/internal/gc/init.go             | 21 +++---
@@ -29,3 +29,567 @@ Date:   Tue Nov 24 22:09:57 2020 -0500
  src/cmd/compile/internal/syntax/printer_test.go |  2 +-
  src/cmd/compile/internal/types/type.go          |  2 +-
  15 files changed, 100 insertions(+), 101 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 1f7631d199..563bd5030c 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -392,7 +392,7 @@ func dowidth(t *types.Type) {
+ 		w = 1 // anything will do
+ 
+ 	case TANY:
+-		// dummy type; should be replaced before use.
++		// not a real type; should be replaced before use.
+ 		Fatalf("dowidth any")
+ 
+ 	case TSTRING:
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index 497151d02f..50674e1a1a 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -574,7 +574,7 @@ func (e *Escape) exprSkipInit(k EscHole, n *Node) {
+ 		// parameters all flow to the heap.
+ 		//
+ 		// TODO(mdempsky): Change ks into a callback, so that
+-		// we don't have to create this dummy slice?
++		// we don't have to create this slice?
+ 		var ks []EscHole
+ 		for i := m.Type.NumResults(); i > 0; i-- {
+ 			ks = append(ks, e.heapHole())
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index ec9cc4bddc..c3b66a2ad2 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -15,8 +15,9 @@ import (
+ // the name, normally "pkg.init", is altered to "pkg.init.0".
+ var renameinitgen int
+ 
+-// Dummy function for autotmps generated during typechecking.
+-var dummyInitFn = nod(ODCLFUNC, nil, nil)
++// Function collecting autotmps generated during typechecking,
++// to be included in the package-level init function.
++var initTodo = nod(ODCLFUNC, nil, nil)
+ 
+ func renameinit() *types.Sym {
+ 	s := lookupN("init.", renameinitgen)
+@@ -46,11 +47,11 @@ func fninit(n []*Node) {
+ 		lineno = nf[0].Pos // prolog/epilog gets line number of first init stmt
+ 		initializers := lookup("init")
+ 		fn := dclfunc(initializers, nod(OTFUNC, nil, nil))
+-		for _, dcl := range dummyInitFn.Func.Dcl {
++		for _, dcl := range initTodo.Func.Dcl {
+ 			dcl.Name.Curfn = fn
+ 		}
+-		fn.Func.Dcl = append(fn.Func.Dcl, dummyInitFn.Func.Dcl...)
+-		dummyInitFn.Func.Dcl = nil
++		fn.Func.Dcl = append(fn.Func.Dcl, initTodo.Func.Dcl...)
++		initTodo.Func.Dcl = nil
+ 
+ 		fn.Nbody.Set(nf)
+ 		funcbody()
+@@ -62,13 +63,13 @@ func fninit(n []*Node) {
+ 		xtop = append(xtop, fn)
+ 		fns = append(fns, initializers.Linksym())
+ 	}
+-	if dummyInitFn.Func.Dcl != nil {
+-		// We only generate temps using dummyInitFn if there
++	if initTodo.Func.Dcl != nil {
++		// We only generate temps using initTodo if there
+ 		// are package-scope initialization statements, so
+ 		// something's weird if we get here.
+-		Fatalf("dummyInitFn still has declarations")
++		Fatalf("initTodo still has declarations")
+ 	}
+-	dummyInitFn = nil
++	initTodo = nil
+ 
+ 	// Record user init functions.
+ 	for i := 0; i < renameinitgen; i++ {
+@@ -88,7 +89,7 @@ func fninit(n []*Node) {
+ 	// Make an .inittask structure.
+ 	sym := lookup(".inittask")
+ 	nn := newname(sym)
+-	nn.Type = types.Types[TUINT8] // dummy type
++	nn.Type = types.Types[TUINT8] // fake type
+ 	nn.SetClass(PEXTERN)
+ 	sym.Def = asTypesNode(nn)
+ 	exportsym(nn)
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index fca1334a19..428bf31fa9 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -1254,9 +1254,7 @@ func importfile(f constant.Value) *types.Pkg {
+ 		}
+ 	}
+ 
+-	// In the importfile, if we find:
+-	// $$\n  (textual format): not supported anymore
+-	// $$B\n (binary format) : import directly, then feed the lexer a dummy statement
++	// Expect $$B\n to signal binary import format.
+ 
+ 	// look for $$
+ 	var c byte
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 0f0f6b7107..7c1d5543e3 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -459,7 +459,7 @@ func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.S
+ 	decls, dwarfVars := createDwarfVars(fnsym, isODCLFUNC, fn.Func, apdecls)
+ 
+ 	// For each type referenced by the functions auto vars but not
+-	// already referenced by a dwarf var, attach a dummy relocation to
++	// already referenced by a dwarf var, attach an R_USETYPE relocation to
+ 	// the function symbol to insure that the type included in DWARF
+ 	// processing during linking.
+ 	typesyms := []*obj.LSym{}
+diff --git a/src/cmd/compile/internal/gc/phi.go b/src/cmd/compile/internal/gc/phi.go
+index 5218cd0ef3..4beaa11a7e 100644
+--- a/src/cmd/compile/internal/gc/phi.go
++++ b/src/cmd/compile/internal/gc/phi.go
+@@ -59,7 +59,7 @@ type phiState struct {
+ 	hasDef *sparseSet   // has a write of the variable we're processing
+ 
+ 	// miscellaneous
+-	placeholder *ssa.Value // dummy value to use as a "not set yet" placeholder.
++	placeholder *ssa.Value // value to use as a "not set yet" placeholder.
+ }
+ 
+ func (s *phiState) insertPhis() {
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 7a8dda2938..f196bee4a2 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -692,10 +692,10 @@ func (s *state) Warnl(pos src.XPos, msg string, args ...interface{}) { s.f.Warnl
+ func (s *state) Debug_checknil() bool                                { return s.f.Frontend().Debug_checknil() }
+ 
+ var (
+-	// dummy node for the memory variable
++	// marker node for the memory variable
+ 	memVar = Node{Op: ONAME, Sym: &types.Sym{Name: "mem"}}
+ 
+-	// dummy nodes for temporary variables
++	// marker nodes for temporary variables
+ 	ptrVar       = Node{Op: ONAME, Sym: &types.Sym{Name: "ptr"}}
+ 	lenVar       = Node{Op: ONAME, Sym: &types.Sym{Name: "len"}}
+ 	newlenVar    = Node{Op: ONAME, Sym: &types.Sym{Name: "newlen"}}
+@@ -4793,7 +4793,7 @@ func (s *state) getMethodClosure(fn *Node) *ssa.Value {
+ 	n2.SetClass(PFUNC)
+ 	// n2.Sym already existed, so it's already marked as a function.
+ 	n2.Pos = fn.Pos
+-	n2.Type = types.Types[TUINT8] // dummy type for a static closure. Could use runtime.funcval if we had it.
++	n2.Type = types.Types[TUINT8] // fake type for a static closure. Could use runtime.funcval if we had it.
+ 	return s.expr(n2)
+ }
+ 
+@@ -6054,7 +6054,7 @@ func (s *state) mem() *ssa.Value {
+ 
+ func (s *state) addNamedValue(n *Node, v *ssa.Value) {
+ 	if n.Class() == Pxxx {
+-		// Don't track our dummy nodes (&memVar etc.).
++		// Don't track our marker nodes (&memVar etc.).
+ 		return
+ 	}
+ 	if n.IsAutoTmp() {
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index d1bc781a54..9cc1dee773 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2153,11 +2153,11 @@ func typecheckargs(n *Node) {
+ 	// If we're outside of function context, then this call will
+ 	// be executed during the generated init function. However,
+ 	// init.go hasn't yet created it. Instead, associate the
+-	// temporary variables with dummyInitFn for now, and init.go
++	// temporary variables with initTodo for now, and init.go
+ 	// will reassociate them later when it's appropriate.
+ 	static := Curfn == nil
+ 	if static {
+-		Curfn = dummyInitFn
++		Curfn = initTodo
+ 	}
+ 	for _, f := range t.FieldSlice() {
+ 		t := temp(f.Type)
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index b4c3e5cfdf..bfe94ff160 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -36,10 +36,10 @@ func testConfigArch(tb testing.TB, arch string) *Conf {
+ 		tb.Fatalf("unknown arch %s", arch)
+ 	}
+ 	if ctxt.Arch.PtrSize != 8 {
+-		tb.Fatal("dummyTypes is 64-bit only")
++		tb.Fatal("testTypes is 64-bit only")
+ 	}
+ 	c := &Conf{
+-		config: NewConfig(arch, dummyTypes, ctxt, true),
++		config: NewConfig(arch, testTypes, ctxt, true),
+ 		tb:     tb,
+ 	}
+ 	return c
+@@ -53,108 +53,108 @@ type Conf struct {
+ 
+ func (c *Conf) Frontend() Frontend {
+ 	if c.fe == nil {
+-		c.fe = DummyFrontend{t: c.tb, ctxt: c.config.ctxt}
++		c.fe = TestFrontend{t: c.tb, ctxt: c.config.ctxt}
+ 	}
+ 	return c.fe
+ }
+ 
+-// DummyFrontend is a test-only frontend.
++// TestFrontend is a test-only frontend.
+ // It assumes 64 bit integers and pointers.
+-type DummyFrontend struct {
++type TestFrontend struct {
+ 	t    testing.TB
+ 	ctxt *obj.Link
+ }
+ 
+-type DummyAuto struct {
++type TestAuto struct {
+ 	t *types.Type
+ 	s string
+ }
+ 
+-func (d *DummyAuto) Typ() *types.Type {
++func (d *TestAuto) Typ() *types.Type {
+ 	return d.t
+ }
+ 
+-func (d *DummyAuto) String() string {
++func (d *TestAuto) String() string {
+ 	return d.s
+ }
+ 
+-func (d *DummyAuto) StorageClass() StorageClass {
++func (d *TestAuto) StorageClass() StorageClass {
+ 	return ClassAuto
+ }
+ 
+-func (d *DummyAuto) IsSynthetic() bool {
++func (d *TestAuto) IsSynthetic() bool {
+ 	return false
+ }
+ 
+-func (d *DummyAuto) IsAutoTmp() bool {
++func (d *TestAuto) IsAutoTmp() bool {
+ 	return true
+ }
+ 
+-func (DummyFrontend) StringData(s string) *obj.LSym {
++func (TestFrontend) StringData(s string) *obj.LSym {
+ 	return nil
+ }
+-func (DummyFrontend) Auto(pos src.XPos, t *types.Type) GCNode {
+-	return &DummyAuto{t: t, s: "aDummyAuto"}
++func (TestFrontend) Auto(pos src.XPos, t *types.Type) GCNode {
++	return &TestAuto{t: t, s: "aTestAuto"}
+ }
+-func (d DummyFrontend) SplitString(s LocalSlot) (LocalSlot, LocalSlot) {
+-	return LocalSlot{N: s.N, Type: dummyTypes.BytePtr, Off: s.Off}, LocalSlot{N: s.N, Type: dummyTypes.Int, Off: s.Off + 8}
++func (d TestFrontend) SplitString(s LocalSlot) (LocalSlot, LocalSlot) {
++	return LocalSlot{N: s.N, Type: testTypes.BytePtr, Off: s.Off}, LocalSlot{N: s.N, Type: testTypes.Int, Off: s.Off + 8}
+ }
+-func (d DummyFrontend) SplitInterface(s LocalSlot) (LocalSlot, LocalSlot) {
+-	return LocalSlot{N: s.N, Type: dummyTypes.BytePtr, Off: s.Off}, LocalSlot{N: s.N, Type: dummyTypes.BytePtr, Off: s.Off + 8}
++func (d TestFrontend) SplitInterface(s LocalSlot) (LocalSlot, LocalSlot) {
++	return LocalSlot{N: s.N, Type: testTypes.BytePtr, Off: s.Off}, LocalSlot{N: s.N, Type: testTypes.BytePtr, Off: s.Off + 8}
+ }
+-func (d DummyFrontend) SplitSlice(s LocalSlot) (LocalSlot, LocalSlot, LocalSlot) {
++func (d TestFrontend) SplitSlice(s LocalSlot) (LocalSlot, LocalSlot, LocalSlot) {
+ 	return LocalSlot{N: s.N, Type: s.Type.Elem().PtrTo(), Off: s.Off},
+-		LocalSlot{N: s.N, Type: dummyTypes.Int, Off: s.Off + 8},
+-		LocalSlot{N: s.N, Type: dummyTypes.Int, Off: s.Off + 16}
++		LocalSlot{N: s.N, Type: testTypes.Int, Off: s.Off + 8},
++		LocalSlot{N: s.N, Type: testTypes.Int, Off: s.Off + 16}
+ }
+-func (d DummyFrontend) SplitComplex(s LocalSlot) (LocalSlot, LocalSlot) {
++func (d TestFrontend) SplitComplex(s LocalSlot) (LocalSlot, LocalSlot) {
+ 	if s.Type.Size() == 16 {
+-		return LocalSlot{N: s.N, Type: dummyTypes.Float64, Off: s.Off}, LocalSlot{N: s.N, Type: dummyTypes.Float64, Off: s.Off + 8}
++		return LocalSlot{N: s.N, Type: testTypes.Float64, Off: s.Off}, LocalSlot{N: s.N, Type: testTypes.Float64, Off: s.Off + 8}
+ 	}
+-	return LocalSlot{N: s.N, Type: dummyTypes.Float32, Off: s.Off}, LocalSlot{N: s.N, Type: dummyTypes.Float32, Off: s.Off + 4}
++	return LocalSlot{N: s.N, Type: testTypes.Float32, Off: s.Off}, LocalSlot{N: s.N, Type: testTypes.Float32, Off: s.Off + 4}
+ }
+-func (d DummyFrontend) SplitInt64(s LocalSlot) (LocalSlot, LocalSlot) {
++func (d TestFrontend) SplitInt64(s LocalSlot) (LocalSlot, LocalSlot) {
+ 	if s.Type.IsSigned() {
+-		return LocalSlot{N: s.N, Type: dummyTypes.Int32, Off: s.Off + 4}, LocalSlot{N: s.N, Type: dummyTypes.UInt32, Off: s.Off}
++		return LocalSlot{N: s.N, Type: testTypes.Int32, Off: s.Off + 4}, LocalSlot{N: s.N, Type: testTypes.UInt32, Off: s.Off}
+ 	}
+-	return LocalSlot{N: s.N, Type: dummyTypes.UInt32, Off: s.Off + 4}, LocalSlot{N: s.N, Type: dummyTypes.UInt32, Off: s.Off}
++	return LocalSlot{N: s.N, Type: testTypes.UInt32, Off: s.Off + 4}, LocalSlot{N: s.N, Type: testTypes.UInt32, Off: s.Off}
+ }
+-func (d DummyFrontend) SplitStruct(s LocalSlot, i int) LocalSlot {
++func (d TestFrontend) SplitStruct(s LocalSlot, i int) LocalSlot {
+ 	return LocalSlot{N: s.N, Type: s.Type.FieldType(i), Off: s.Off + s.Type.FieldOff(i)}
+ }
+-func (d DummyFrontend) SplitArray(s LocalSlot) LocalSlot {
++func (d TestFrontend) SplitArray(s LocalSlot) LocalSlot {
+ 	return LocalSlot{N: s.N, Type: s.Type.Elem(), Off: s.Off}
+ }
+ 
+-func (d DummyFrontend) SplitSlot(parent *LocalSlot, suffix string, offset int64, t *types.Type) LocalSlot {
++func (d TestFrontend) SplitSlot(parent *LocalSlot, suffix string, offset int64, t *types.Type) LocalSlot {
+ 	return LocalSlot{N: parent.N, Type: t, Off: offset}
+ }
+-func (DummyFrontend) Line(_ src.XPos) string {
++func (TestFrontend) Line(_ src.XPos) string {
+ 	return "unknown.go:0"
+ }
+-func (DummyFrontend) AllocFrame(f *Func) {
++func (TestFrontend) AllocFrame(f *Func) {
+ }
+-func (d DummyFrontend) Syslook(s string) *obj.LSym {
++func (d TestFrontend) Syslook(s string) *obj.LSym {
+ 	return d.ctxt.Lookup(s)
+ }
+-func (DummyFrontend) UseWriteBarrier() bool {
++func (TestFrontend) UseWriteBarrier() bool {
+ 	return true // only writebarrier_test cares
+ }
+-func (DummyFrontend) SetWBPos(pos src.XPos) {
++func (TestFrontend) SetWBPos(pos src.XPos) {
+ }
+ 
+-func (d DummyFrontend) Logf(msg string, args ...interface{}) { d.t.Logf(msg, args...) }
+-func (d DummyFrontend) Log() bool                            { return true }
++func (d TestFrontend) Logf(msg string, args ...interface{}) { d.t.Logf(msg, args...) }
++func (d TestFrontend) Log() bool                            { return true }
+ 
+-func (d DummyFrontend) Fatalf(_ src.XPos, msg string, args ...interface{}) { d.t.Fatalf(msg, args...) }
+-func (d DummyFrontend) Warnl(_ src.XPos, msg string, args ...interface{})  { d.t.Logf(msg, args...) }
+-func (d DummyFrontend) Debug_checknil() bool                               { return false }
++func (d TestFrontend) Fatalf(_ src.XPos, msg string, args ...interface{}) { d.t.Fatalf(msg, args...) }
++func (d TestFrontend) Warnl(_ src.XPos, msg string, args ...interface{})  { d.t.Logf(msg, args...) }
++func (d TestFrontend) Debug_checknil() bool                               { return false }
+ 
+-func (d DummyFrontend) MyImportPath() string {
++func (d TestFrontend) MyImportPath() string {
+ 	return "my/import/path"
+ }
+ 
+-var dummyTypes Types
++var testTypes Types
+ 
+ func init() {
+ 	// Initialize just enough of the universe and the types package to make our tests function.
+@@ -198,12 +198,12 @@ func init() {
+ 		t.Align = uint8(typ.width)
+ 		types.Types[typ.et] = t
+ 	}
+-	dummyTypes.SetTypPtrs()
++	testTypes.SetTypPtrs()
+ }
+ 
+-func (d DummyFrontend) DerefItab(sym *obj.LSym, off int64) *obj.LSym { return nil }
++func (d TestFrontend) DerefItab(sym *obj.LSym, off int64) *obj.LSym { return nil }
+ 
+-func (d DummyFrontend) CanSSA(t *types.Type) bool {
+-	// There are no un-SSAable types in dummy land.
++func (d TestFrontend) CanSSA(t *types.Type) bool {
++	// There are no un-SSAable types in test land.
+ 	return true
+ }
+diff --git a/src/cmd/compile/internal/ssa/poset.go b/src/cmd/compile/internal/ssa/poset.go
+index f5a2b3a8c2..1e04b48ba4 100644
+--- a/src/cmd/compile/internal/ssa/poset.go
++++ b/src/cmd/compile/internal/ssa/poset.go
+@@ -136,13 +136,13 @@ type posetNode struct {
+ // Most internal data structures are pre-allocated and flat, so for instance adding a
+ // new relation does not cause any allocation. For performance reasons,
+ // each node has only up to two outgoing edges (like a binary tree), so intermediate
+-// "dummy" nodes are required to represent more than two relations. For instance,
++// "extra" nodes are required to represent more than two relations. For instance,
+ // to record that A<I, A<J, A<K (with no known relation between I,J,K), we create the
+ // following DAG:
+ //
+ //         A
+ //        / \
+-//       I  dummy
++//       I  extra
+ //           /  \
+ //          J    K
+ //
+@@ -223,7 +223,7 @@ func (po *poset) addchild(i1, i2 uint32, strict bool) {
+ 		po.setchr(i1, e2)
+ 		po.upush(undoSetChr, i1, 0)
+ 	} else {
+-		// If n1 already has two children, add an intermediate dummy
++		// If n1 already has two children, add an intermediate extra
+ 		// node to record the relation correctly (without relating
+ 		// n2 to other existing nodes). Use a non-deterministic value
+ 		// to decide whether to append on the left or the right, to avoid
+@@ -231,27 +231,27 @@ func (po *poset) addchild(i1, i2 uint32, strict bool) {
+ 		//
+ 		//      n1
+ 		//     /  \
+-		//   i1l  dummy
++		//   i1l  extra
+ 		//        /   \
+ 		//      i1r   n2
+ 		//
+-		dummy := po.newnode(nil)
++		extra := po.newnode(nil)
+ 		if (i1^i2)&1 != 0 { // non-deterministic
+-			po.setchl(dummy, i1r)
+-			po.setchr(dummy, e2)
+-			po.setchr(i1, newedge(dummy, false))
++			po.setchl(extra, i1r)
++			po.setchr(extra, e2)
++			po.setchr(i1, newedge(extra, false))
+ 			po.upush(undoSetChr, i1, i1r)
+ 		} else {
+-			po.setchl(dummy, i1l)
+-			po.setchr(dummy, e2)
+-			po.setchl(i1, newedge(dummy, false))
++			po.setchl(extra, i1l)
++			po.setchr(extra, e2)
++			po.setchl(i1, newedge(extra, false))
+ 			po.upush(undoSetChl, i1, i1l)
+ 		}
+ 	}
+ }
+ 
+ // newnode allocates a new node bound to SSA value n.
+-// If n is nil, this is a dummy node (= only used internally).
++// If n is nil, this is an extra node (= only used internally).
+ func (po *poset) newnode(n *Value) uint32 {
+ 	i := po.lastidx + 1
+ 	po.lastidx++
+@@ -380,9 +380,9 @@ func (po *poset) newconst(n *Value) {
+ 
+ 	case higherptr != 0:
+ 		// Higher bound only. To record n < higher, we need
+-		// a dummy root:
++		// an extra root:
+ 		//
+-		//        dummy
++		//        extra
+ 		//        /   \
+ 		//      root   \
+ 		//       /      n
+@@ -395,11 +395,11 @@ func (po *poset) newconst(n *Value) {
+ 		if r2 != po.roots[0] { // all constants should be in root #0
+ 			panic("constant not in root #0")
+ 		}
+-		dummy := po.newnode(nil)
+-		po.changeroot(r2, dummy)
+-		po.upush(undoChangeRoot, dummy, newedge(r2, false))
+-		po.addchild(dummy, r2, false)
+-		po.addchild(dummy, i, false)
++		extra := po.newnode(nil)
++		po.changeroot(r2, extra)
++		po.upush(undoChangeRoot, extra, newedge(r2, false))
++		po.addchild(extra, r2, false)
++		po.addchild(extra, i, false)
+ 		po.addchild(i, i2, true)
+ 	}
+ 
+@@ -612,7 +612,7 @@ func (po *poset) findroot(i uint32) uint32 {
+ 	panic("findroot didn't find any root")
+ }
+ 
+-// mergeroot merges two DAGs into one DAG by creating a new dummy root
++// mergeroot merges two DAGs into one DAG by creating a new extra root
+ func (po *poset) mergeroot(r1, r2 uint32) uint32 {
+ 	// Root #0 is special as it contains all constants. Since mergeroot
+ 	// discards r2 as root and keeps r1, make sure that r2 is not root #0,
+@@ -1004,7 +1004,7 @@ func (po *poset) setOrder(n1, n2 *Value, strict bool) bool {
+ 	case !f1 && f2:
+ 		// n1 is not in any DAG but n2 is. If n2 is a root, we can put
+ 		// n1 in its place as a root; otherwise, we need to create a new
+-		// dummy root to record the relation.
++		// extra root to record the relation.
+ 		i1 = po.newnode(n1)
+ 
+ 		if po.isroot(i2) {
+@@ -1020,17 +1020,17 @@ func (po *poset) setOrder(n1, n2 *Value, strict bool) bool {
+ 
+ 		// Re-parent as follows:
+ 		//
+-		//                  dummy
++		//                  extra
+ 		//     r            /   \
+ 		//      \   ===>   r    i1
+ 		//      i2          \   /
+ 		//                    i2
+ 		//
+-		dummy := po.newnode(nil)
+-		po.changeroot(r, dummy)
+-		po.upush(undoChangeRoot, dummy, newedge(r, false))
+-		po.addchild(dummy, r, false)
+-		po.addchild(dummy, i1, false)
++		extra := po.newnode(nil)
++		po.changeroot(r, extra)
++		po.upush(undoChangeRoot, extra, newedge(r, false))
++		po.addchild(extra, r, false)
++		po.addchild(extra, i1, false)
+ 		po.addchild(i1, i2, strict)
+ 
+ 	case f1 && f2:
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 0339b073ae..4ed884c3e7 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -104,7 +104,7 @@
+ // If b3 is the primary predecessor of b2, then we use x3 in b2 and
+ // add a x4:CX->BX copy at the end of b4.
+ // But the definition of x3 doesn't dominate b2.  We should really
+-// insert a dummy phi at the start of b2 (x5=phi(x3,x4):BX) to keep
++// insert an extra phi at the start of b2 (x5=phi(x3,x4):BX) to keep
+ // SSA form. For now, we ignore this problem as remaining in strict
+ // SSA form isn't needed after regalloc. We'll just leave the use
+ // of x3 not dominated by the definition of x3, and the CX->BX copy
+diff --git a/src/cmd/compile/internal/syntax/dumper_test.go b/src/cmd/compile/internal/syntax/dumper_test.go
+index f84bd2d705..22680dce78 100644
+--- a/src/cmd/compile/internal/syntax/dumper_test.go
++++ b/src/cmd/compile/internal/syntax/dumper_test.go
+@@ -13,7 +13,7 @@ func TestDump(t *testing.T) {
+ 		t.Skip("skipping test in short mode")
+ 	}
+ 
+-	// provide a dummy error handler so parsing doesn't stop after first error
++	// provide a no-op error handler so parsing doesn't stop after first error
+ 	ast, err := ParseFile(*src_, func(error) {}, nil, CheckBranches)
+ 	if err != nil {
+ 		t.Error(err)
+diff --git a/src/cmd/compile/internal/syntax/nodes.go b/src/cmd/compile/internal/syntax/nodes.go
+index 815630fcd4..487cab19fe 100644
+--- a/src/cmd/compile/internal/syntax/nodes.go
++++ b/src/cmd/compile/internal/syntax/nodes.go
+@@ -114,7 +114,7 @@ func (*decl) aDecl() {}
+ 
+ // All declarations belonging to the same group point to the same Group node.
+ type Group struct {
+-	dummy int // not empty so we are guaranteed different Group instances
++	_ int // not empty so we are guaranteed different Group instances
+ }
+ 
+ // ----------------------------------------------------------------------------
+diff --git a/src/cmd/compile/internal/syntax/printer_test.go b/src/cmd/compile/internal/syntax/printer_test.go
+index c3b9aca229..fe72e7a374 100644
+--- a/src/cmd/compile/internal/syntax/printer_test.go
++++ b/src/cmd/compile/internal/syntax/printer_test.go
+@@ -18,7 +18,7 @@ func TestPrint(t *testing.T) {
+ 		t.Skip("skipping test in short mode")
+ 	}
+ 
+-	// provide a dummy error handler so parsing doesn't stop after first error
++	// provide a no-op error handler so parsing doesn't stop after first error
+ 	ast, err := ParseFile(*src_, func(error) {}, nil, 0)
+ 	if err != nil {
+ 		t.Error(err)
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index f1a01b64da..b93409aac1 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -10,7 +10,7 @@ import (
+ 	"fmt"
+ )
+ 
+-// Dummy Node so we can refer to *Node without actually
++// Our own “Node” so we can refer to *gc.Node without actually
+ // having a gc.Node. Necessary to break import cycles.
+ // TODO(gri) try to eliminate soon
+ type Node struct{ _ int }

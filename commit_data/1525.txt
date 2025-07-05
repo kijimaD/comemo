@@ -8,7 +8,7 @@ Date:   Tue Jan 20 14:40:00 2009 -0800
     R=ken
     OCL=23122
     CL=23126
-
+---
  src/cmd/gc/dcl.c        |  35 +++++------
  src/cmd/gc/export.c     |  57 ++++++------------
  src/cmd/gc/go.h         |   7 +--
@@ -16,3 +16,613 @@ Date:   Tue Jan 20 14:40:00 2009 -0800
  src/cmd/gc/sysimport.c  | 150 ++++++++++++++++++++++++------------------------
  src/runtime/rt0_amd64.s |   2 +-
  6 files changed, 123 insertions(+), 210 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index e9e8f51aba..d25ab33284 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -329,8 +329,8 @@ bad:
+  * a function named init is a special case.
+  * it is called by the initialization before
+  * main is run. to make it unique within a
+- * package, the name, normally "pkg.init", is
+- * altered to "pkg.<file>_init".
++ * package and also uncallable, the name,
++ * normally "pkg.init", is altered to "pkg.init·filename".
+  */
+ Node*
+ renameinit(Node *n)
+@@ -342,7 +342,8 @@ renameinit(Node *n)
+ 		return n;
+ 	if(strcmp(s->name, "init") != 0)
+ 		return n;
+-	snprint(namebuf, sizeof(namebuf), "init_%s", filename);
++
++	snprint(namebuf, sizeof(namebuf), "init·%s", filename);
+ 	s = lookup(namebuf);
+ 	return newname(s);
+ }
+@@ -1022,17 +1023,16 @@ mixed:
+ }
+ 
+ // hand-craft the following initialization code
+-//	var	init_<file>_done bool;			(1)
+-//	func	init_<file>_function()			(2)
+-//		if init_<file>_done { return }		(3)
+-//		init_<file>_done = true;		(4)
++//	var initdone·<file> bool 			(1)
++//	func	Init·<file>()				(2)
++//		if initdone·<file> { return }		(3)
++//		initdone.<file> = true;			(4)
+ //		// over all matching imported symbols
+-//			<pkg>.init_<file>_function()	(5)
++//			<pkg>.init·<file>()		(5)
+ //		{ <init stmts> }			(6)
+-//		init()	// if any			(7)
++//		init·<file>()	// if any		(7)
+ //		return					(8)
+ //	}
+-//	export	init_<file>_function			(9)
+ 
+ void
+ fninit(Node *n)
+@@ -1045,7 +1045,7 @@ fninit(Node *n)
+ 	r = N;
+ 
+ 	// (1)
+-	snprint(namebuf, sizeof(namebuf), "init_%s_done", filename);
++	snprint(namebuf, sizeof(namebuf), "initdone·%s", filename);
+ 	done = newname(lookup(namebuf));
+ 	addvar(done, types[TBOOL], PEXTERN);
+ 
+@@ -1054,12 +1054,12 @@ fninit(Node *n)
+ 	maxarg = 0;
+ 	stksize = initstksize;
+ 
+-	snprint(namebuf, sizeof(namebuf), "init_%s_function", filename);
++	snprint(namebuf, sizeof(namebuf), "Init·%s", filename);
+ 
+ 	// this is a botch since we need a known name to
+ 	// call the top level init function out of rt0
+ 	if(strcmp(package, "main") == 0)
+-		snprint(namebuf, sizeof(namebuf), "init_function");
++		snprint(namebuf, sizeof(namebuf), "init");
+ 
+ 	fn = nod(ODCLFUNC, N, N);
+ 	fn->nname = newname(lookup(namebuf));
+@@ -1079,11 +1079,7 @@ fninit(Node *n)
+ 	// (5)
+ 	for(h=0; h<NHASH; h++)
+ 	for(s = hash[h]; s != S; s = s->link) {
+-		if(s->name[0] != 'i')
+-			continue;
+-		if(strstr(s->name, "init_") == nil)
+-			continue;
+-		if(strstr(s->name, "_function") == nil)
++		if(s->name[0] != 'I' || strncmp(s->name, "Init·", 6) != 0)
+ 			continue;
+ 		if(s->oname == N)
+ 			continue;
+@@ -1098,7 +1094,7 @@ fninit(Node *n)
+ 
+ 	// (7)
+ 	// could check that it is fn of no args/returns
+-	snprint(namebuf, sizeof(namebuf), "init_%s", filename);
++	snprint(namebuf, sizeof(namebuf), "init·%s", filename);
+ 	s = lookup(namebuf);
+ 	if(s->oname != N) {
+ 		a = nod(OCALL, s->oname, N);
+@@ -1109,7 +1105,6 @@ fninit(Node *n)
+ 	a = nod(ORETURN, N, N);
+ 	r = list(r, a);
+ 
+-	// (9)
+ 	exportsym(fn->nname->sym);
+ 
+ 	fn->nbody = rev(r);
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index e2f2a284b7..873029264b 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -72,15 +72,9 @@ autoexport(Sym *s)
+ 	if(dclcontext != PEXTERN)
+ 		return;
+ 	if(exportname(s->name)) {
+-		if(dcladj != exportsym)
+-			warn("uppercase missing export: %S", s);
+ 		exportsym(s);
+ 	} else {
+-		if(dcladj == exportsym) {
+-			warn("export missing uppercase: %S", s);
+-			exportsym(s);
+-		} else
+-			packagesym(s);
++		packagesym(s);
+ 	}
+ }
+ 
+@@ -115,10 +109,6 @@ dumpexportconst(Sym *s)
+ 		dumpprereq(t);
+ 
+ 	Bprint(bout, "\t");
+-	if(s->export == 1)
+-		Bprint(bout, "export ");
+-	else if(s->export == 2)
+-		Bprint(bout, "package ");
+ 	Bprint(bout, "const %lS", s);
+ 	if(t != T)
+ 		Bprint(bout, " %#T", t);
+@@ -163,10 +153,6 @@ dumpexportvar(Sym *s)
+ 	dumpprereq(t);
+ 
+ 	Bprint(bout, "\t");
+-	if(s->export == 1)
+-		Bprint(bout, "export ");
+-	else if(s->export == 2)
+-		Bprint(bout, "package ");
+ 	if(t->etype == TFUNC)
+ 		Bprint(bout, "func ");
+ 	else
+@@ -179,10 +165,6 @@ dumpexporttype(Sym *s)
+ {
+ 	dumpprereq(s->otype);
+ 	Bprint(bout, "\t");
+-	if(s->export == 1)
+-		Bprint(bout, "export ");
+-	else if(s->export == 2)
+-		Bprint(bout, "package ");
+ 	switch (s->otype->etype) {
+ 	case TFORW:
+ 	case TFORWSTRUCT:
+@@ -304,7 +286,7 @@ pkgsym(char *name, char *pkg, int lexical)
+  * return the sym for ss, which should match lexical
+  */
+ Sym*
+-importsym(int export, Node *ss, int lexical)
++importsym(Node *ss, int lexical)
+ {
+ 	Sym *s;
+ 
+@@ -316,11 +298,10 @@ importsym(int export, Node *ss, int lexical)
+ 	s = pkgsym(ss->sym->name, ss->psym->name, lexical);
+ 	/* TODO botch - need some diagnostic checking for the following assignment */
+ 	s->opackage = ss->osym->name;
+-	if(export) {
+-		if(s->export != export && s->export != 0)
+-			yyerror("export/package mismatch: %S", s);
+-		s->export = export;
+-	}
++	if(exportname(ss->sym->name))
++		s->export = 1;
++	else
++		s->export = 2;	// package scope
+ 	s->imported = 1;
+ 	return s;
+ }
+@@ -342,7 +323,7 @@ pkgtype(char *name, char *pkg)
+ 	n->psym = lookup(pkg);
+ 	n->osym = n->psym;
+ 	renamepkg(n);
+-	s = importsym(0, n, LATYPE);
++	s = importsym(n, LATYPE);
+ 
+ 	if(s->otype == T) {
+ 		t = typ(TFORW);
+@@ -362,44 +343,39 @@ mypackage(Node *ss)
+ }
+ 
+ void
+-importconst(int export, Node *ss, Type *t, Val *v)
++importconst(Node *ss, Type *t, Val *v)
+ {
+ 	Node *n;
+ 	Sym *s;
+ 
+-	export = exportname(ss->sym->name);
+-	if(export == 2 && !mypackage(ss))
++	if(!exportname(ss->sym->name) && !mypackage(ss))
+ 		return;
+ 
+ 	n = nod(OLITERAL, N, N);
+ 	n->val = *v;
+ 	n->type = t;
+ 
+-	s = importsym(export, ss, LACONST);
++	s = importsym(ss, LACONST);
+ 	if(s->oconst != N) {
+ 		// TODO: check if already the same.
+ 		return;
+ 	}
+ 
+-// fake out export vs upper checks until transition is over
+-if(export == 1) dcladj = exportsym;
+-
+ 	dodclconst(newname(s), n);
+ 
+-dcladj = nil;
+ 	if(debug['e'])
+ 		print("import const %S\n", s);
+ }
+ 
+ void
+-importvar(int export, Node *ss, Type *t)
++importvar(Node *ss, Type *t)
+ {
+ 	Sym *s;
+ 
+-	if(export == 2 && !mypackage(ss))
++	if(!exportname(ss->sym->name) && !mypackage(ss))
+ 		return;
+ 
+-	s = importsym(export, ss, LNAME);
++	s = importsym(ss, LNAME);
+ 	if(s->oname != N) {
+ 		if(eqtype(t, s->oname->type, 0))
+ 			return;
+@@ -408,18 +384,17 @@ importvar(int export, Node *ss, Type *t)
+ 	}
+ 	checkwidth(t);
+ 	addvar(newname(s), t, PEXTERN);
+-	s->export = export;
+ 
+ 	if(debug['e'])
+ 		print("import var %S %lT\n", s, t);
+ }
+ 
+ void
+-importtype(int export, Node *ss, Type *t)
++importtype(Node *ss, Type *t)
+ {
+ 	Sym *s;
+ 
+-	s = importsym(export, ss, LATYPE);
++	s = importsym(ss, LATYPE);
+ 	if(s->otype != T) {
+ 		if(eqtype(t, s->otype, 0))
+ 			return;
+@@ -440,7 +415,7 @@ importtype(int export, Node *ss, Type *t)
+ 	// This will make references in the ordinary program
+ 	// (but not the import sections) look at s->oname,
+ 	// which is nil, as for an undefined name.
+-	if(export == 0 || (export == 2 && !mypackage(ss)))
++	if(s->export == 2 && !mypackage(ss))
+ 		s->lexical = LNAME;
+ 
+ 	if(debug['e'])
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 0d899aaee9..fceb743dea 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -459,7 +459,6 @@ EXTERN	int	tptr;		// either TPTR32 or TPTR64
+ extern	char*	sysimport;
+ extern	char*	unsafeimport;
+ EXTERN	char*	filename;	// name to uniqify names
+-EXTERN	void	(*dcladj)(Sym*);	// declaration is being exported/packaged
+ 
+ EXTERN	Type*	types[NTYPE];
+ EXTERN	uchar	simtype[NTYPE];
+@@ -761,10 +760,10 @@ void	doimport6(Node*, Node*);
+ void	doimport7(Node*, Node*);
+ void	doimport8(Node*, Val*, Node*);
+ void	doimport9(Sym*, Node*);
+-void	importconst(int, Node *ss, Type *t, Val *v);
++void	importconst(Node *ss, Type *t, Val *v);
+ void	importmethod(Sym *s, Type *t);
+-void	importtype(int, Node *ss, Type *t);
+-void	importvar(int, Node *ss, Type *t);
++void	importtype(Node *ss, Type *t);
++void	importvar(Node *ss, Type *t);
+ void	checkimports(void);
+ Type*	pkgtype(char*, char*);
+ 
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 3d62bb3b36..e8843a97e6 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -81,7 +81,6 @@
+ %type	<node>		hidden_interfacedcl
+ %type	<node>		hidden_funarg_list ohidden_funarg_list hidden_funarg_list_r
+ %type	<node>		hidden_funres ohidden_funres hidden_importsym
+-%type	<lint>		oexport
+ 
+ %left			LOROR
+ %left			LANDAND
+@@ -191,30 +190,6 @@ xdcl:
+ 			autoexport($1->nname->sym);
+ 		$$ = N;
+ 	}
+-|	LEXPORT { dcladj = exportsym; stksize = initstksize; } common_dcl
+-	{
+-		$$ = $3;
+-		dcladj = 0;
+-		initstksize = stksize;
+-	}
+-|	LPACKAGE { warn("package is gone"); stksize = initstksize; } common_dcl
+-	{
+-		$$ = $3;
+-		initstksize = stksize;
+-	}
+-|	LEXPORT '(' export_list_r ')'
+-	{
+-		$$ = N;
+-	}
+-|	LEXPORT xfndcl
+-	{
+-		if($2 != N && $2->nname != N) {
+-			dcladj = exportsym;
+-			autoexport($2->nname->sym);
+-			dcladj = nil;
+-		}
+-		$$ = N;
+-	}
+ |	LPACKAGE { warn("package is gone"); } xfndcl
+ 	{
+ 		if($3 != N && $3->nname != N)
+@@ -1604,20 +1579,6 @@ exprsym3_list_r:
+ 		$$ = nod(OLIST, $1, $3);
+ 	}
+ 
+-export_list_r:
+-	export
+-|	export_list_r ocomma export
+-
+-export:
+-	sym
+-	{
+-		exportsym($1);
+-	}
+-|	sym '.' sym2
+-	{
+-		exportsym(pkglookup($3->name, $1->name));
+-	}
+-
+ import_stmt_list_r:
+ 	import_stmt
+ |	import_stmt_list_r osemi import_stmt
+@@ -1768,19 +1729,6 @@ ohidden_interfacedcl_list:
+ 	}
+ |	hidden_interfacedcl_list
+ 
+-oexport:
+-	{
+-		$$ = 0;
+-	}
+-|	LEXPORT
+-	{
+-		$$ = 1;
+-	}
+-|	LPACKAGE
+-	{
+-		$$ = 2;
+-	}
+-
+ oliteral:
+ 	{
+ 		$$.ctype = CTxxx;
+@@ -1794,37 +1742,33 @@ oliteral:
+ hidden_import:
+ 	LPACKAGE sym1
+ 	/* variables */
+-|	oexport LVAR hidden_importsym hidden_type
++|	LVAR hidden_importsym hidden_type
+ 	{
+-		importvar($1, $3, $4);
++		importvar($2, $3);
+ 	}
+-|	oexport LCONST hidden_importsym '=' hidden_constant
++|	LCONST hidden_importsym '=' hidden_constant
+ 	{
+-		importconst($1, $3, T, &$5);
++		importconst($2, T, &$4);
+ 	}
+-|	oexport LCONST hidden_importsym hidden_type '=' hidden_constant
++|	LCONST hidden_importsym hidden_type '=' hidden_constant
+ 	{
+-		importconst($1, $3, $4, &$6);
++		importconst($2, $3, &$5);
+ 	}
+-|	oexport LTYPE hidden_importsym hidden_type
++|	LTYPE hidden_importsym hidden_type
+ 	{
+-		importtype($1, $3, $4);
++		importtype($2, $3);
+ 	}
+-|	oexport LFUNC hidden_importsym '(' ohidden_funarg_list ')' ohidden_funres
++|	LFUNC hidden_importsym '(' ohidden_funarg_list ')' ohidden_funres
+ 	{
+-		importvar($1, $3, functype(N, $5, $7));
++		importvar($2, functype(N, $4, $6));
+ 	}
+-|	oexport LFUNC '(' hidden_funarg_list ')' sym1 '(' ohidden_funarg_list ')' ohidden_funres
++|	LFUNC '(' hidden_funarg_list ')' sym1 '(' ohidden_funarg_list ')' ohidden_funres
+ 	{
+-		// have to put oexport here to avoid shift/reduce
+-		// with non-method func.  but it isn't allowed.
+-		if($1)
+-			yyerror("cannot export method");
+-		if($4->op != ODCLFIELD) {
++		if($3->op != ODCLFIELD) {
+ 			yyerror("bad receiver in method");
+ 			YYERROR;
+ 		}
+-		importmethod($6, functype($4, $8, $10));
++		importmethod($5, functype($3, $7, $9));
+ 	}
+ 
+ hidden_type:
+diff --git a/src/cmd/gc/sysimport.c b/src/cmd/gc/sysimport.c
+index 533c257994..734272aca3 100644
+--- a/src/cmd/gc/sysimport.c
++++ b/src/cmd/gc/sysimport.c
+@@ -1,83 +1,83 @@
+ char *sysimport =
+ 	"package sys\n"
+-	"package func sys.mal (? int32) (? *any)\n"
+-	"package func sys.throwindex ()\n"
+-	"package func sys.throwreturn ()\n"
+-	"package func sys.panicl (? int32)\n"
+-	"package func sys.printbool (? bool)\n"
+-	"package func sys.printfloat (? float64)\n"
+-	"package func sys.printint (? int64)\n"
+-	"package func sys.printstring (? string)\n"
+-	"package func sys.printpointer (? *any)\n"
+-	"package func sys.printinter (? any)\n"
+-	"package func sys.printarray (? any)\n"
+-	"package func sys.printnl ()\n"
+-	"package func sys.printsp ()\n"
+-	"package func sys.catstring (? string, ? string) (? string)\n"
+-	"package func sys.cmpstring (? string, ? string) (? int)\n"
+-	"package func sys.slicestring (? string, ? int, ? int) (? string)\n"
+-	"package func sys.indexstring (? string, ? int) (? uint8)\n"
+-	"package func sys.intstring (? int64) (? string)\n"
+-	"package func sys.byteastring (? *uint8, ? int) (? string)\n"
+-	"package func sys.arraystring (? []uint8) (? string)\n"
+-	"package func sys.ifaceT2I (sigi *uint8, sigt *uint8, elem any) (ret any)\n"
+-	"package func sys.ifaceI2T (sigt *uint8, iface any) (ret any)\n"
+-	"package func sys.ifaceI2T2 (sigt *uint8, iface any) (ret any, ok bool)\n"
+-	"package func sys.ifaceI2I (sigi *uint8, iface any) (ret any)\n"
+-	"package func sys.ifaceI2I2 (sigi *uint8, iface any) (ret any, ok bool)\n"
+-	"package func sys.ifaceeq (i1 any, i2 any) (ret bool)\n"
+-	"package func sys.newmap (keysize int, valsize int, keyalg int, valalg int, hint int) (hmap map[any] any)\n"
+-	"package func sys.mapaccess1 (hmap map[any] any, key any) (val any)\n"
+-	"package func sys.mapaccess2 (hmap map[any] any, key any) (val any, pres bool)\n"
+-	"package func sys.mapassign1 (hmap map[any] any, key any, val any)\n"
+-	"package func sys.mapassign2 (hmap map[any] any, key any, val any, pres bool)\n"
+-	"package func sys.mapiterinit (hmap map[any] any, hiter *any)\n"
+-	"package func sys.mapiternext (hiter *any)\n"
+-	"package func sys.mapiter1 (hiter *any) (key any)\n"
+-	"package func sys.mapiter2 (hiter *any) (key any, val any)\n"
+-	"package func sys.newchan (elemsize int, elemalg int, hint int) (hchan chan any)\n"
+-	"package func sys.chanrecv1 (hchan chan any) (elem any)\n"
+-	"package func sys.chanrecv2 (hchan chan any) (elem any, pres bool)\n"
+-	"package func sys.chanrecv3 (hchan chan any, elem *any) (pres bool)\n"
+-	"package func sys.chansend1 (hchan chan any, elem any)\n"
+-	"package func sys.chansend2 (hchan chan any, elem any) (pres bool)\n"
+-	"package func sys.newselect (size int) (sel *uint8)\n"
+-	"package func sys.selectsend (sel *uint8, hchan chan any, elem any) (selected bool)\n"
+-	"package func sys.selectrecv (sel *uint8, hchan chan any, elem *any) (selected bool)\n"
+-	"package func sys.selectdefault (sel *uint8) (selected bool)\n"
+-	"package func sys.selectgo (sel *uint8)\n"
+-	"package func sys.newarray (nel int, cap int, width int) (ary []any)\n"
+-	"package func sys.arraysliced (old []any, lb int, hb int, width int) (ary []any)\n"
+-	"package func sys.arrayslices (old *any, nel int, lb int, hb int, width int) (ary []any)\n"
+-	"package func sys.arrays2d (old *any, nel int) (ary []any)\n"
+-	"export func sys.Breakpoint ()\n"
+-	"export func sys.Reflect (i interface { }) (? uint64, ? string, ? bool)\n"
+-	"export func sys.Unreflect (? uint64, ? string, ? bool) (ret interface { })\n"
+-	"export var sys.Args []string\n"
+-	"export var sys.Envs []string\n"
+-	"export func sys.Frexp (? float64) (? float64, ? int)\n"
+-	"export func sys.Ldexp (? float64, ? int) (? float64)\n"
+-	"export func sys.Modf (? float64) (? float64, ? float64)\n"
+-	"export func sys.IsInf (? float64, ? int) (? bool)\n"
+-	"export func sys.IsNaN (? float64) (? bool)\n"
+-	"export func sys.Inf (? int) (? float64)\n"
+-	"export func sys.NaN () (? float64)\n"
+-	"export func sys.Float32bits (? float32) (? uint32)\n"
+-	"export func sys.Float64bits (? float64) (? uint64)\n"
+-	"export func sys.Float32frombits (? uint32) (? float32)\n"
+-	"export func sys.Float64frombits (? uint64) (? float64)\n"
+-	"export func sys.Gosched ()\n"
+-	"export func sys.Goexit ()\n"
+-	"export func sys.BytesToRune (? *uint8, ? int, ? int) (? int, ? int)\n"
+-	"export func sys.StringToRune (? string, ? int) (? int, ? int)\n"
+-	"export func sys.Exit (? int)\n"
+-	"export func sys.Caller (n int) (pc uint64, file string, line int, ok bool)\n"
+-	"export func sys.SemAcquire (sema *int32)\n"
+-	"export func sys.SemRelease (sema *int32)\n"
++	"func sys.mal (? int32) (? *any)\n"
++	"func sys.throwindex ()\n"
++	"func sys.throwreturn ()\n"
++	"func sys.panicl (? int32)\n"
++	"func sys.printbool (? bool)\n"
++	"func sys.printfloat (? float64)\n"
++	"func sys.printint (? int64)\n"
++	"func sys.printstring (? string)\n"
++	"func sys.printpointer (? *any)\n"
++	"func sys.printinter (? any)\n"
++	"func sys.printarray (? any)\n"
++	"func sys.printnl ()\n"
++	"func sys.printsp ()\n"
++	"func sys.catstring (? string, ? string) (? string)\n"
++	"func sys.cmpstring (? string, ? string) (? int)\n"
++	"func sys.slicestring (? string, ? int, ? int) (? string)\n"
++	"func sys.indexstring (? string, ? int) (? uint8)\n"
++	"func sys.intstring (? int64) (? string)\n"
++	"func sys.byteastring (? *uint8, ? int) (? string)\n"
++	"func sys.arraystring (? []uint8) (? string)\n"
++	"func sys.ifaceT2I (sigi *uint8, sigt *uint8, elem any) (ret any)\n"
++	"func sys.ifaceI2T (sigt *uint8, iface any) (ret any)\n"
++	"func sys.ifaceI2T2 (sigt *uint8, iface any) (ret any, ok bool)\n"
++	"func sys.ifaceI2I (sigi *uint8, iface any) (ret any)\n"
++	"func sys.ifaceI2I2 (sigi *uint8, iface any) (ret any, ok bool)\n"
++	"func sys.ifaceeq (i1 any, i2 any) (ret bool)\n"
++	"func sys.newmap (keysize int, valsize int, keyalg int, valalg int, hint int) (hmap map[any] any)\n"
++	"func sys.mapaccess1 (hmap map[any] any, key any) (val any)\n"
++	"func sys.mapaccess2 (hmap map[any] any, key any) (val any, pres bool)\n"
++	"func sys.mapassign1 (hmap map[any] any, key any, val any)\n"
++	"func sys.mapassign2 (hmap map[any] any, key any, val any, pres bool)\n"
++	"func sys.mapiterinit (hmap map[any] any, hiter *any)\n"
++	"func sys.mapiternext (hiter *any)\n"
++	"func sys.mapiter1 (hiter *any) (key any)\n"
++	"func sys.mapiter2 (hiter *any) (key any, val any)\n"
++	"func sys.newchan (elemsize int, elemalg int, hint int) (hchan chan any)\n"
++	"func sys.chanrecv1 (hchan chan any) (elem any)\n"
++	"func sys.chanrecv2 (hchan chan any) (elem any, pres bool)\n"
++	"func sys.chanrecv3 (hchan chan any, elem *any) (pres bool)\n"
++	"func sys.chansend1 (hchan chan any, elem any)\n"
++	"func sys.chansend2 (hchan chan any, elem any) (pres bool)\n"
++	"func sys.newselect (size int) (sel *uint8)\n"
++	"func sys.selectsend (sel *uint8, hchan chan any, elem any) (selected bool)\n"
++	"func sys.selectrecv (sel *uint8, hchan chan any, elem *any) (selected bool)\n"
++	"func sys.selectdefault (sel *uint8) (selected bool)\n"
++	"func sys.selectgo (sel *uint8)\n"
++	"func sys.newarray (nel int, cap int, width int) (ary []any)\n"
++	"func sys.arraysliced (old []any, lb int, hb int, width int) (ary []any)\n"
++	"func sys.arrayslices (old *any, nel int, lb int, hb int, width int) (ary []any)\n"
++	"func sys.arrays2d (old *any, nel int) (ary []any)\n"
++	"func sys.Breakpoint ()\n"
++	"func sys.Reflect (i interface { }) (? uint64, ? string, ? bool)\n"
++	"func sys.Unreflect (? uint64, ? string, ? bool) (ret interface { })\n"
++	"var sys.Args []string\n"
++	"var sys.Envs []string\n"
++	"func sys.Frexp (? float64) (? float64, ? int)\n"
++	"func sys.Ldexp (? float64, ? int) (? float64)\n"
++	"func sys.Modf (? float64) (? float64, ? float64)\n"
++	"func sys.IsInf (? float64, ? int) (? bool)\n"
++	"func sys.IsNaN (? float64) (? bool)\n"
++	"func sys.Inf (? int) (? float64)\n"
++	"func sys.NaN () (? float64)\n"
++	"func sys.Float32bits (? float32) (? uint32)\n"
++	"func sys.Float64bits (? float64) (? uint64)\n"
++	"func sys.Float32frombits (? uint32) (? float32)\n"
++	"func sys.Float64frombits (? uint64) (? float64)\n"
++	"func sys.Gosched ()\n"
++	"func sys.Goexit ()\n"
++	"func sys.BytesToRune (? *uint8, ? int, ? int) (? int, ? int)\n"
++	"func sys.StringToRune (? string, ? int) (? int, ? int)\n"
++	"func sys.Exit (? int)\n"
++	"func sys.Caller (n int) (pc uint64, file string, line int, ok bool)\n"
++	"func sys.SemAcquire (sema *int32)\n"
++	"func sys.SemRelease (sema *int32)\n"
+ 	"\n"
+ 	"$$\n";
+ char *unsafeimport =
+ 	"package unsafe\n"
+-	"export type unsafe.pointer *any\n"
++	"type unsafe.Pointer *any\n"
+ 	"\n"
+ 	"$$\n";
+diff --git a/src/runtime/rt0_amd64.s b/src/runtime/rt0_amd64.s
+index f1fbcebbf7..8588d61a4e 100644
+--- a/src/runtime/rt0_amd64.s
++++ b/src/runtime/rt0_amd64.s
+@@ -51,7 +51,7 @@ TEXT	_rt0_amd64(SB),7,$-8
+ 	RET
+ 
+ TEXT mainstart(SB),7,$0
+-	CALL	main·init_function(SB)
++	CALL	main·init(SB)
+ 	CALL	initdone(SB)
+ 	CALL	main·main(SB)
+ 	PUSHQ	$0

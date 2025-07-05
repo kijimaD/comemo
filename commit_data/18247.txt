@@ -19,9 +19,152 @@ Date:   Tue Jan 14 11:10:56 2014 -0800
     R=r, gri
     CC=golang-codereviews
     https://golang.org/cl/52170043
-
+---
  src/cmd/gofmt/doc.go        | 11 ++++-------
  src/cmd/gofmt/gofmt.go      | 39 +++++++++++----------------------------
  src/cmd/gofmt/gofmt_test.go |  1 -
  src/cmd/gofmt/long_test.go  |  2 +-
  4 files changed, 16 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/gofmt/doc.go b/src/cmd/gofmt/doc.go
+index 94e67fd89e..8f73ef5b9d 100644
+--- a/src/cmd/gofmt/doc.go
++++ b/src/cmd/gofmt/doc.go
+@@ -4,6 +4,7 @@
+ 
+ /*
+ Gofmt formats Go programs.
++It uses tabs (width = 8) for indentation and blanks for alignment.
+ 
+ Without an explicit path, it processes the standard input.  Given a file,
+ it operates on that file; given a directory, it operates on all .go files in
+@@ -33,13 +34,9 @@ The flags are:
+ 		If a file's formatting is different from gofmt's, overwrite it
+ 		with gofmt's version.
+ 
+-Formatting control flags:
+-	-comments=true
+-		Print comments; if false, all comments are elided from the output.
+-	-tabs=true
+-		Indent with tabs; if false, spaces are used instead.
+-	-tabwidth=8
+-		Tab width in spaces.
++Debugging support:
++	-cpuprofile filename
++		Write cpu profile to the specified file.
+ 
+ 
+ The rewrite rule specified with the -r flag must be a string of the form:
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 861ff9390f..576cae5228 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -31,21 +31,20 @@ var (
+ 	doDiff      = flag.Bool("d", false, "display diffs instead of rewriting files")
+ 	allErrors   = flag.Bool("e", false, "report all errors (not just the first 10 on different lines)")
+ 
+-	// layout control
+-	comments  = flag.Bool("comments", true, "print comments")
+-	tabWidth  = flag.Int("tabwidth", 8, "tab width")
+-	tabIndent = flag.Bool("tabs", true, "indent with tabs")
+-
+ 	// debugging
+ 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to this file")
+ )
+ 
++const (
++	tabWidth    = 8
++	printerMode = printer.UseSpaces | printer.TabIndent
++)
++
+ var (
+-	fileSet     = token.NewFileSet() // per process FileSet
+-	exitCode    = 0
+-	rewrite     func(*ast.File) *ast.File
+-	parserMode  parser.Mode
+-	printerMode printer.Mode
++	fileSet    = token.NewFileSet() // per process FileSet
++	exitCode   = 0
++	rewrite    func(*ast.File) *ast.File
++	parserMode parser.Mode
+ )
+ 
+ func report(err error) {
+@@ -60,22 +59,12 @@ func usage() {
+ }
+ 
+ func initParserMode() {
+-	parserMode = parser.Mode(0)
+-	if *comments {
+-		parserMode |= parser.ParseComments
+-	}
++	parserMode = parser.ParseComments
+ 	if *allErrors {
+ 		parserMode |= parser.AllErrors
+ 	}
+ }
+ 
+-func initPrinterMode() {
+-	printerMode = printer.UseSpaces
+-	if *tabIndent {
+-		printerMode |= printer.TabIndent
+-	}
+-}
+-
+ func isGoFile(f os.FileInfo) bool {
+ 	// ignore non-Go files
+ 	name := f.Name()
+@@ -118,7 +107,7 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
+ 	}
+ 
+ 	var buf bytes.Buffer
+-	err = (&printer.Config{Mode: printerMode, Tabwidth: *tabWidth}).Fprint(&buf, fileSet, file)
++	err = (&printer.Config{Mode: printerMode, Tabwidth: tabWidth}).Fprint(&buf, fileSet, file)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -180,11 +169,6 @@ func main() {
+ func gofmtMain() {
+ 	flag.Usage = usage
+ 	flag.Parse()
+-	if *tabWidth < 0 {
+-		fmt.Fprintf(os.Stderr, "negative tabwidth %d\n", *tabWidth)
+-		exitCode = 2
+-		return
+-	}
+ 
+ 	if *cpuprofile != "" {
+ 		f, err := os.Create(*cpuprofile)
+@@ -199,7 +183,6 @@ func gofmtMain() {
+ 	}
+ 
+ 	initParserMode()
+-	initPrinterMode()
+ 	initRewrite()
+ 
+ 	if flag.NArg() == 0 {
+diff --git a/src/cmd/gofmt/gofmt_test.go b/src/cmd/gofmt/gofmt_test.go
+index 75a322a6c8..b9335b8f3d 100644
+--- a/src/cmd/gofmt/gofmt_test.go
++++ b/src/cmd/gofmt/gofmt_test.go
+@@ -40,7 +40,6 @@ func runTest(t *testing.T, in, out, flags string) {
+ 	}
+ 
+ 	initParserMode()
+-	initPrinterMode()
+ 	initRewrite()
+ 
+ 	var buf bytes.Buffer
+diff --git a/src/cmd/gofmt/long_test.go b/src/cmd/gofmt/long_test.go
+index 862e9d9877..108278b336 100644
+--- a/src/cmd/gofmt/long_test.go
++++ b/src/cmd/gofmt/long_test.go
+@@ -38,7 +38,7 @@ func gofmt(fset *token.FileSet, filename string, src *bytes.Buffer) error {
+ 	}
+ 	ast.SortImports(fset, f)
+ 	src.Reset()
+-	return (&printer.Config{Mode: printerMode, Tabwidth: *tabWidth}).Fprint(src, fset, f)
++	return (&printer.Config{Mode: printerMode, Tabwidth: tabWidth}).Fprint(src, fset, f)
+ }
+ 
+ func testFile(t *testing.T, b1, b2 *bytes.Buffer, filename string) {

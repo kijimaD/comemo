@@ -25,9 +25,101 @@ Date:   Fri Feb 26 16:36:50 2016 -0300
     Change-Id: I6f3ddadc7da8a250763168cc099ae8b325a79602
     Reviewed-on: https://go-review.googlesource.com/19889
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go                        | 8 ++++++++
  src/cmd/go/testdata/src/benchfatal/x_test.go | 7 +++++++
  src/testing/benchmark.go                     | 9 ++++++++-
  src/testing/testing.go                       | 3 +--
  4 files changed, 24 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 928224cee6..96b3f2d977 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2801,3 +2801,11 @@ func TestGoGetUpdateAllDoesNotTryToLoadDuplicates(t *testing.T) {
+ 	tg.run("get", "-u", ".../")
+ 	tg.grepStderrNot("duplicate loads of", "did not remove old packages from cache")
+ }
++
++func TestFatalInBenchmarkCauseNonZeroExitStatus(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.runFail("test", "-bench", ".", "./testdata/src/benchfatal")
++	tg.grepBothNot("^ok", "test passed unexpectedly")
++	tg.grepBoth("FAIL.*benchfatal", "test did not run everything")
++}
+diff --git a/src/cmd/go/testdata/src/benchfatal/x_test.go b/src/cmd/go/testdata/src/benchfatal/x_test.go
+new file mode 100644
+index 0000000000..8d3a5deced
+--- /dev/null
++++ b/src/cmd/go/testdata/src/benchfatal/x_test.go
+@@ -0,0 +1,7 @@
++package benchfatal
++
++import "testing"
++
++func BenchmarkThatCallsFatal(b *testing.B) {
++	b.Fatal("called by benchmark")
++}
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index 85178c2f86..39b8cff4d3 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -302,9 +302,13 @@ func benchmarkName(name string, n int) string {
+ // An internal function but exported because it is cross-package; part of the implementation
+ // of the "go test" command.
+ func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark) {
++	runBenchmarksInternal(matchString, benchmarks)
++}
++
++func runBenchmarksInternal(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark) bool {
+ 	// If no flag was specified, don't run benchmarks.
+ 	if len(*matchBenchmarks) == 0 {
+-		return
++		return true
+ 	}
+ 	// Collect matching benchmarks and determine longest name.
+ 	maxprocs := 1
+@@ -329,6 +333,7 @@ func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks [
+ 			}
+ 		}
+ 	}
++	ok := true
+ 	for _, Benchmark := range bs {
+ 		for _, procs := range cpuList {
+ 			runtime.GOMAXPROCS(procs)
+@@ -342,6 +347,7 @@ func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks [
+ 			fmt.Printf("%-*s\t", maxlen, benchName)
+ 			r := b.run()
+ 			if b.failed {
++				ok = false
+ 				// The output could be very long here, but probably isn't.
+ 				// We print it all, regardless, because we don't want to trim the reason
+ 				// the benchmark failed.
+@@ -364,6 +370,7 @@ func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks [
+ 			}
+ 		}
+ 	}
++	return ok
+ }
+ 
+ // trimOutput shortens the output from a benchmark, which can be very long.
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index e4c4772fed..95182076ef 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -515,13 +515,12 @@ func (m *M) Run() int {
+ 	testOk := RunTests(m.matchString, m.tests)
+ 	exampleOk := RunExamples(m.matchString, m.examples)
+ 	stopAlarm()
+-	if !testOk || !exampleOk {
++	if !testOk || !exampleOk || !runBenchmarksInternal(m.matchString, m.benchmarks) {
+ 		fmt.Println("FAIL")
+ 		after()
+ 		return 1
+ 	}
+ 	fmt.Println("PASS")
+-	RunBenchmarks(m.matchString, m.benchmarks)
+ 	after()
+ 	return 0
+ }

@@ -10,7 +10,32 @@ Date:   Wed Feb 26 20:44:45 2014 -0800
     R=golang-codereviews
     CC=adg, dsymonds, golang-codereviews
     https://golang.org/cl/69240045
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 02c0826db1..80d552b0a8 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -386,6 +386,7 @@ Volker Dobler <dr.volker.dobler@gmail.com>
+ Wei Guangjing <vcc.163@gmail.com>
+ Willem van der Schyff <willemvds@gmail.com>
+ William Josephson <wjosephson@gmail.com>
++William Orr <will@worrbase.com> <ay1244@gmail.com>
+ Xing Xing <mikespook@gmail.com>
+ Yasuhiro Matsumoto <mattn.jp@gmail.com>
+ Yissakhar Z. Beck <yissakhar.beck@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 6cdfa94e09..efce0cadfc 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -532,6 +532,7 @@ Will Norris <willnorris@google.com>
+ Willem van der Schyff <willemvds@gmail.com>
+ William Chan <willchan@chromium.org>
+ William Josephson <wjosephson@gmail.com>
++William Orr <will@worrbase.com> <ay1244@gmail.com>
+ Xing Xing <mikespook@gmail.com>
+ Yasuhiro Matsumoto <mattn.jp@gmail.com>
+ Yissakhar Z. Beck <yissakhar.beck@gmail.com>

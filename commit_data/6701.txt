@@ -7,6 +7,20 @@ Date:   Wed Nov 3 11:09:43 2010 -0700
     R=rsc, gri
     CC=golang-dev
     https://golang.org/cl/2853042
-
+---
  doc/effective_go.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 075f863195..8bb04e9176 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -1470,7 +1470,7 @@ func Println(v ...interface{}) {
+ }
+ </pre>
+ <p>
+-We write <code>...</code> after <code>v</code> in the call to <code>Output</code> to tell the
++We write <code>...</code> after <code>v</code> in the nested call to <code>Sprintln</code> to tell the
+ compiler to treat <code>v</code> as a list of arguments; otherwise it would just pass
+ <code>v</code> as a single slice argument.
+ <p>

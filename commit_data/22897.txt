@@ -10,6 +10,22 @@ Date:   Mon Apr 13 17:19:09 2015 -0700
     Change-Id: I60f9938503f86f52bb568ca1a99ac721ee72cee5
     Reviewed-on: https://go-review.googlesource.com/8913
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-
+---
  src/net/net.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/net/net.go b/src/net/net.go
+index 3b06e6b489..439d21cfc1 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -419,10 +419,6 @@ func genericReadFrom(w io.Writer, r io.Reader) (n int64, err error) {
+ 
+ var threadLimit = make(chan struct{}, 500)
+ 
+-// Using send for acquire is fine here because we are not using this
+-// to protect any memory. All we care about is the number of goroutines
+-// making calls at a time.
+-
+ func acquireThread() {
+ 	threadLimit <- struct{}{}
+ }

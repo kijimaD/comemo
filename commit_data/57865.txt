@@ -14,8 +14,79 @@ Date:   Thu Sep 7 11:09:10 2023 +0200
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/runtime/os_windows.go       |  2 +-
  src/runtime/sys_windows_386.s   | 10 ++++++++--
  src/runtime/sys_windows_amd64.s |  6 ++++++
  3 files changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 41875d2264..e52f9e6bd5 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -985,7 +985,7 @@ func stdcall(fn stdFunction) uintptr {
+ func stdcall0(fn stdFunction) uintptr {
+ 	mp := getg().m
+ 	mp.libcall.n = 0
+-	mp.libcall.args = uintptr(noescape(unsafe.Pointer(&fn))) // it's unused but must be non-nil, otherwise crashes
++	mp.libcall.args = 0
+ 	return stdcall(fn)
+ }
+ 
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index cb854c52e0..2efde4515b 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -14,13 +14,18 @@
+ // void runtime·asmstdcall(void *c);
+ TEXT runtime·asmstdcall(SB),NOSPLIT,$0
+ 	MOVL	fn+0(FP), BX
++	MOVL	SP, BP	// save stack pointer
+ 
+ 	// SetLastError(0).
+ 	MOVL	$0, 0x34(FS)
+ 
++	MOVL	libcall_n(BX), CX
++
++	// Fast version, do not store args on the stack.
++	CMPL	CX, $0
++	JE	docall
++
+ 	// Copy args to the stack.
+-	MOVL	SP, BP
+-	MOVL	libcall_n(BX), CX	// words
+ 	MOVL	CX, AX
+ 	SALL	$2, AX
+ 	SUBL	AX, SP			// room for args
+@@ -29,6 +34,7 @@ TEXT runtime·asmstdcall(SB),NOSPLIT,$0
+ 	CLD
+ 	REP; MOVSL
+ 
++docall:
+ 	// Call stdcall or cdecl function.
+ 	// DI SI BP BX are preserved, SP is not
+ 	CALL	libcall_fn(BX)
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index 6d26bd3447..4a14b45c63 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -29,6 +29,11 @@ TEXT runtime·asmstdcall(SB),NOSPLIT,$16
+ 
+ 	SUBQ	$(const_maxArgs*8), SP	// room for args
+ 
++	// Fast version, do not store args on the stack nor
++	// load them into registers.
++	CMPL	CX, $0
++	JE	docall
++
+ 	// Fast version, do not store args on the stack.
+ 	CMPL	CX, $4
+ 	JLE	loadregs
+@@ -59,6 +64,7 @@ loadregs:
+ 	MOVQ	R8, X2
+ 	MOVQ	R9, X3
+ 
++docall:
+ 	// Call stdcall function.
+ 	CALL	AX
+ 

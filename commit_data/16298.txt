@@ -17,8 +17,91 @@ Date:   Tue May 14 15:50:46 2013 -0700
     R=r
     CC=gobot, golang-dev
     https://golang.org/cl/9365044
-
+---
  src/pkg/encoding/json/encode.go      | 20 ++++++++++++++++++++
  src/pkg/encoding/json/stream.go      |  9 +++++----
  src/pkg/encoding/json/stream_test.go | 13 +++++++++++++
  3 files changed, 38 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/encoding/json/encode.go b/src/pkg/encoding/json/encode.go
+index 85727ba61c..ffe903a546 100644
+--- a/src/pkg/encoding/json/encode.go
++++ b/src/pkg/encoding/json/encode.go
+@@ -227,6 +227,26 @@ type encodeState struct {
+ 	scratch      [64]byte
+ }
+ 
++// TODO(bradfitz): use a sync.Cache here
++var encodeStatePool = make(chan *encodeState, 8)
++
++func newEncodeState() *encodeState {
++	select {
++	case e := <-encodeStatePool:
++		e.Reset()
++		return e
++	default:
++		return new(encodeState)
++	}
++}
++
++func putEncodeState(e *encodeState) {
++	select {
++	case encodeStatePool <- e:
++	default:
++	}
++}
++
+ func (e *encodeState) marshal(v interface{}) (err error) {
+ 	defer func() {
+ 		if r := recover(); r != nil {
+diff --git a/src/pkg/encoding/json/stream.go b/src/pkg/encoding/json/stream.go
+index 00f4726cf7..67f6be87b2 100644
+--- a/src/pkg/encoding/json/stream.go
++++ b/src/pkg/encoding/json/stream.go
+@@ -156,8 +156,8 @@ func (enc *Encoder) Encode(v interface{}) error {
+ 	if enc.err != nil {
+ 		return enc.err
+ 	}
+-	enc.e.Reset()
+-	err := enc.e.marshal(v)
++	e := newEncodeState()
++	err := e.marshal(v)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -168,11 +168,12 @@ func (enc *Encoder) Encode(v interface{}) error {
+ 	// is required if the encoded value was a number,
+ 	// so that the reader knows there aren't more
+ 	// digits coming.
+-	enc.e.WriteByte('\n')
++	e.WriteByte('\n')
+ 
+-	if _, err = enc.w.Write(enc.e.Bytes()); err != nil {
++	if _, err = enc.w.Write(e.Bytes()); err != nil {
+ 		enc.err = err
+ 	}
++	putEncodeState(e)
+ 	return err
+ }
+ 
+diff --git a/src/pkg/encoding/json/stream_test.go b/src/pkg/encoding/json/stream_test.go
+index 07c9e1d390..b562e87690 100644
+--- a/src/pkg/encoding/json/stream_test.go
++++ b/src/pkg/encoding/json/stream_test.go
+@@ -191,3 +191,16 @@ func TestBlocking(t *testing.T) {
+ 		w.Close()
+ 	}
+ }
++
++func BenchmarkEncoderEncode(b *testing.B) {
++	b.ReportAllocs()
++	type T struct {
++		X, Y string
++	}
++	v := &T{"foo", "bar"}
++	for i := 0; i < b.N; i++ {
++		if err := NewEncoder(ioutil.Discard).Encode(v); err != nil {
++			b.Fatal(err)
++		}
++	}
++}

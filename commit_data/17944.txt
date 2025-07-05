@@ -15,8 +15,51 @@ Date:   Mon Dec 9 23:25:13 2013 -0500
     R=golang-dev, alex.brainman, iant, r
     CC=golang-dev
     https://golang.org/cl/36930044
-
+---
  src/pkg/os/file.go       | 3 +++
  src/pkg/os/file_plan9.go | 3 +--
  src/pkg/os/file_posix.go | 3 +--
  3 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index 2dd1fcf282..18cd61d3a8 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -140,6 +140,9 @@ func (f *File) Write(b []byte) (n int, err error) {
+ 	if n < 0 {
+ 		n = 0
+ 	}
++	if n != len(b) {
++		err = io.ErrShortWrite
++	}
+ 
+ 	epipecheck(f, e)
+ 
+diff --git a/src/pkg/os/file_plan9.go b/src/pkg/os/file_plan9.go
+index 708163ee1c..278fae772c 100644
+--- a/src/pkg/os/file_plan9.go
++++ b/src/pkg/os/file_plan9.go
+@@ -313,8 +313,7 @@ func Remove(name string) error {
+ 	return nil
+ }
+ 
+-// Rename renames a file.
+-func Rename(oldname, newname string) error {
++func rename(oldname, newname string) error {
+ 	var d syscall.Dir
+ 
+ 	d.Null()
+diff --git a/src/pkg/os/file_posix.go b/src/pkg/os/file_posix.go
+index a8bef359b9..90838682b6 100644
+--- a/src/pkg/os/file_posix.go
++++ b/src/pkg/os/file_posix.go
+@@ -48,8 +48,7 @@ func Readlink(name string) (string, error) {
+ 	}
+ }
+ 
+-// Rename renames a file.
+-func Rename(oldname, newname string) error {
++func rename(oldname, newname string) error {
+ 	e := syscall.Rename(oldname, newname)
+ 	if e != nil {
+ 		return &LinkError{"rename", oldname, newname, e}

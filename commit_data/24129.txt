@@ -9,6 +9,22 @@ Date:   Mon Jul 13 11:13:15 2015 +1000
     Change-Id: I8839b48a1cd3da4c29b6def03cb0c74c1c12942e
     Reviewed-on: https://go-review.googlesource.com/12066
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/time/tick.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/time/tick.go b/src/time/tick.go
+index 19007841e1..196e8ac61a 100644
+--- a/src/time/tick.go
++++ b/src/time/tick.go
+@@ -47,7 +47,9 @@ func (t *Ticker) Stop() {
+ }
+ 
+ // Tick is a convenience wrapper for NewTicker providing access to the ticking
+-// channel only.  Useful for clients that have no need to shut down the ticker.
++// channel only. While Tick is useful for clients that have no need to shut down
++// the Ticker, be aware that without a way to shut it down the underlying
++// Ticker cannot be recovered by the garbage collector; it "leaks".
+ func Tick(d Duration) <-chan Time {
+ 	if d <= 0 {
+ 		return nil

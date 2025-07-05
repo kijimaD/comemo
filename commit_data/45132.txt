@@ -16,9 +16,106 @@ Date:   Fri Sep 25 14:09:42 2020 +0000
     Trust: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  doc/go1.16.html                   | 13 +++++++------
  src/cmd/go/alldocs.go             | 15 +++++++--------
  src/cmd/go/internal/get/get.go    |  4 ++--
  src/cmd/go/internal/modget/get.go | 11 +++++------
  4 files changed, 21 insertions(+), 22 deletions(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index f7bcb9e94f..2fb7222482 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -90,12 +90,13 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <p><!-- golang.org/issue/37519 -->
+   The <code>go</code> <code>get</code> <code>-insecure</code> flag is
+-  deprecated and will be removed in a future version. The <code>GOINSECURE</code>
+-  environment variable should be used instead, since it provides control
+-  over which modules may be retrieved using an insecure scheme. Unlike the
+-  <code>-insecure</code> flag, <code>GOINSECURE</code> does not disable module
+-  sum validation using the checksum database. The <code>GOPRIVATE</code> or
+-  <code>GONOSUMDB</code> environment variables may be used instead.
++  deprecated and will be removed in a future version. This flag permits
++  fetching from repositories and resolving custom domains using insecure
++  schemes such as HTTP, and also bypassess module sum validation using the
++  checksum database. To permit the use of insecure schemes, use the
++  <code>GOINSECURE</code> environment variable instead. To bypass module
++  sum validation, use <code>GOPRIVATE</code> or <code>GONOSUMDB</code>.
++  See <code>go</code> <code>help</code> <code>environment</code> for details.
+ </p>
+ 
+ <h4 id="all-pattern">The <code>all</code> pattern</h4>
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 500682ed02..14840efb22 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -662,13 +662,12 @@
+ // this automatically as well.
+ //
+ // The -insecure flag permits fetching from repositories and resolving
+-// custom domains using insecure schemes such as HTTP. Use with caution.
++// custom domains using insecure schemes such as HTTP, and also bypassess
++// module sum validation using the checksum database. Use with caution.
+ // This flag is deprecated and will be removed in a future version of go.
+-// The GOINSECURE environment variable is usually a better alternative, since
+-// it provides control over which modules may be retrieved using an insecure
+-// scheme. It should be noted that the -insecure flag also turns the module
+-// checksum validation off. GOINSECURE does not do that, use GONOSUMDB.
+-// See 'go help environment' for details.
++// To permit the use of insecure schemes, use the GOINSECURE environment
++// variable instead. To bypass module sum validation, use GOPRIVATE or
++// GONOSUMDB. See 'go help environment' for details.
+ //
+ // The second step is to download (if needed), build, and install
+ // the named packages.
+@@ -2211,8 +2210,8 @@
+ // The -insecure flag permits fetching from repositories and resolving
+ // custom domains using insecure schemes such as HTTP. Use with caution.
+ // This flag is deprecated and will be removed in a future version of go.
+-// The GOINSECURE environment variable is usually a better alternative, since
+-// it provides control over which modules may be retrieved using an insecure
++// The GOINSECURE environment variable should be used instead, since it
++// provides control over which packages may be retrieved using an insecure
+ // scheme. See 'go help environment' for details.
+ //
+ // The -t flag instructs get to also download the packages required to build
+diff --git a/src/cmd/go/internal/get/get.go b/src/cmd/go/internal/get/get.go
+index ed2786879c..268962eca8 100644
+--- a/src/cmd/go/internal/get/get.go
++++ b/src/cmd/go/internal/get/get.go
+@@ -46,8 +46,8 @@ before resolving dependencies or building the code.
+ The -insecure flag permits fetching from repositories and resolving
+ custom domains using insecure schemes such as HTTP. Use with caution.
+ This flag is deprecated and will be removed in a future version of go.
+-The GOINSECURE environment variable is usually a better alternative, since
+-it provides control over which modules may be retrieved using an insecure
++The GOINSECURE environment variable should be used instead, since it
++provides control over which packages may be retrieved using an insecure
+ scheme. See 'go help environment' for details.
+ 
+ The -t flag instructs get to also download the packages required to build
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index f1cf8b17a8..ea0e99af7d 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -115,13 +115,12 @@ require downgrading other dependencies, and 'go get' does
+ this automatically as well.
+ 
+ The -insecure flag permits fetching from repositories and resolving
+-custom domains using insecure schemes such as HTTP. Use with caution.
++custom domains using insecure schemes such as HTTP, and also bypassess
++module sum validation using the checksum database. Use with caution.
+ This flag is deprecated and will be removed in a future version of go.
+-The GOINSECURE environment variable is usually a better alternative, since
+-it provides control over which modules may be retrieved using an insecure
+-scheme. It should be noted that the -insecure flag also turns the module
+-checksum validation off. GOINSECURE does not do that, use GONOSUMDB.
+-See 'go help environment' for details.
++To permit the use of insecure schemes, use the GOINSECURE environment
++variable instead. To bypass module sum validation, use GOPRIVATE or
++GONOSUMDB. See 'go help environment' for details.
+ 
+ The second step is to download (if needed), build, and install
+ the named packages.

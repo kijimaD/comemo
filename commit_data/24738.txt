@@ -30,7 +30,51 @@ Date:   Tue Aug 25 16:25:11 2015 +0000
     Change-Id: Ie87773388ee0d21b3a2a4cb941d4d911d0230ba4
     Reviewed-on: https://go-review.googlesource.com/13920
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/asm/internal/asm/operand_test.go | 3 ++-
  src/cmd/asm/internal/asm/parse.go        | 9 +++++++--
  2 files changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/operand_test.go b/src/cmd/asm/internal/asm/operand_test.go
+index b9154a91e9..01335ed38b 100644
+--- a/src/cmd/asm/internal/asm/operand_test.go
++++ b/src/cmd/asm/internal/asm/operand_test.go
+@@ -181,7 +181,7 @@ var amd64OperandTests = []operandTest{
+ 	{"x·y+8(SB)", "x.y+8(SB)"},
+ 	{"x·y+8(SP)", "x.y+8(SP)"},
+ 	{"y+56(FP)", "y+56(FP)"},
+-	{"·AddUint32(SB", "\"\".AddUint32(SB)"},
++	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
+ 	{"·callReflect(SB)", "\"\".callReflect(SB)"},
+ }
+ 
+@@ -288,6 +288,7 @@ var armOperandTests = []operandTest{
+ 	{"runtime·_sfloat2(SB)", "runtime._sfloat2(SB)"},
+ 	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
+ 	{"(R1, R3)", "(R1, R3)"},
++	{"[R0,R1,g,R15", ""}, // Issue 11764 - previously asm just hung parsing ']' missing register lists
+ }
+ 
+ var ppc64OperandTests = []operandTest{
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index c07e6f8e47..6cf50df5bb 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -698,10 +698,15 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
+ func (p *Parser) registerList(a *obj.Addr) {
+ 	// One range per loop.
+ 	var bits uint16
++ListLoop:
+ 	for {
+ 		tok := p.next()
+-		if tok.ScanToken == ']' {
+-			break
++		switch tok.ScanToken {
++		case ']':
++			break ListLoop
++		case scanner.EOF:
++			p.errorf("missing ']' in register list")
++			return
+ 		}
+ 		lo := p.registerNumber(tok.String())
+ 		hi := lo

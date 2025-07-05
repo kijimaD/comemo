@@ -8,7 +8,7 @@ Date:   Thu Nov 22 02:58:24 2012 +0800
     R=golang-dev, rsc, remyoudompheng
     CC=golang-dev
     https://golang.org/cl/6854080
-
+---
  src/pkg/container/ring/ring.go        | 2 +-
  src/pkg/encoding/binary/binary.go     | 2 +-
  src/pkg/encoding/csv/writer.go        | 2 +-
@@ -21,3 +21,147 @@ Date:   Thu Nov 22 02:58:24 2012 +0800
  src/pkg/net/http/transport_test.go    | 2 +-
  src/pkg/reflect/type.go               | 2 +-
  11 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/container/ring/ring.go b/src/pkg/container/ring/ring.go
+index 1d96918d37..6d3b3e5b32 100644
+--- a/src/pkg/container/ring/ring.go
++++ b/src/pkg/container/ring/ring.go
+@@ -74,7 +74,7 @@ func New(n int) *Ring {
+ 	return r
+ }
+ 
+-// Link connects ring r with with ring s such that r.Next()
++// Link connects ring r with ring s such that r.Next()
+ // becomes s and returns the original value for r.Next().
+ // r must not be empty.
+ //
+diff --git a/src/pkg/encoding/binary/binary.go b/src/pkg/encoding/binary/binary.go
+index 06670141e1..04d5723c1e 100644
+--- a/src/pkg/encoding/binary/binary.go
++++ b/src/pkg/encoding/binary/binary.go
+@@ -184,7 +184,7 @@ func Read(r io.Reader, order ByteOrder, data interface{}) error {
+ // values, or a pointer to such data.
+ // Bytes written to w are encoded using the specified byte order
+ // and read from successive fields of the data.
+-// When writing structs, zero values are are written for fields
++// When writing structs, zero values are written for fields
+ // with blank (_) field names.
+ func Write(w io.Writer, order ByteOrder, data interface{}) error {
+ 	// Fast path for basic types.
+diff --git a/src/pkg/encoding/csv/writer.go b/src/pkg/encoding/csv/writer.go
+index 324944cc82..17e485083e 100644
+--- a/src/pkg/encoding/csv/writer.go
++++ b/src/pkg/encoding/csv/writer.go
+@@ -22,7 +22,7 @@ import (
+ //
+ // If UseCRLF is true, the Writer ends each record with \r\n instead of \n.
+ type Writer struct {
+-	Comma   rune // Field delimiter (set to to ',' by NewWriter)
++	Comma   rune // Field delimiter (set to ',' by NewWriter)
+ 	UseCRLF bool // True to use \r\n as the line terminator
+ 	w       *bufio.Writer
+ }
+diff --git a/src/pkg/exp/locale/collate/collate.go b/src/pkg/exp/locale/collate/collate.go
+index a08dcae0d5..8a5c9dc7a8 100644
+--- a/src/pkg/exp/locale/collate/collate.go
++++ b/src/pkg/exp/locale/collate/collate.go
+@@ -450,7 +450,7 @@ func (c *Collator) keyFromElems(buf *Buffer, ws []colElem) {
+ 		}
+ 		// Derive the quaternary weights from the options and other levels.
+ 		// Note that we represent maxQuaternary as 0xFF. The first byte of the
+-		// representation of a a primary weight is always smaller than 0xFF,
++		// representation of a primary weight is always smaller than 0xFF,
+ 		// so using this single byte value will compare correctly.
+ 		if Quaternary <= c.Strength && c.Alternate >= AltShifted {
+ 			if c.Alternate == AltShiftTrimmed {
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index e79e3ffda2..990655e716 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -452,7 +452,7 @@ func trimRight(s string) string {
+ 
+ // stripCommonPrefix removes a common prefix from /*-style comment lines (unless no
+ // comment line is indented, all but the first line have some form of space prefix).
+-// The prefix is computed using heuristics such that is is likely that the comment
++// The prefix is computed using heuristics such that is likely that the comment
+ // contents are nicely laid out after re-printing each line using the printer's
+ // current indentation.
+ //
+diff --git a/src/pkg/html/template/js.go b/src/pkg/html/template/js.go
+index a895a50aa9..a9740931fc 100644
+--- a/src/pkg/html/template/js.go
++++ b/src/pkg/html/template/js.go
+@@ -14,7 +14,7 @@ import (
+ )
+ 
+ // nextJSCtx returns the context that determines whether a slash after the
+-// given run of tokens tokens starts a regular expression instead of a division
++// given run of tokens starts a regular expression instead of a division
+ // operator: / or /=.
+ //
+ // This assumes that the token run does not include any string tokens, comment
+diff --git a/src/pkg/image/jpeg/huffman.go b/src/pkg/image/jpeg/huffman.go
+index 2fc64ade54..9b731fdc4f 100644
+--- a/src/pkg/image/jpeg/huffman.go
++++ b/src/pkg/image/jpeg/huffman.go
+@@ -163,7 +163,7 @@ func (d *decoder) processDHT(n int) error {
+ 
+ // Returns the next Huffman-coded value from the bit stream, decoded according to h.
+ // TODO(nigeltao): This decoding algorithm is simple, but slow. A lookahead table, instead of always
+-// peeling off only 1 bit at at time, ought to be faster.
++// peeling off only 1 bit at time, ought to be faster.
+ func (d *decoder) decodeHuffman(h *huffman) (uint8, error) {
+ 	if h.length == 0 {
+ 		return 0, FormatError("uninitialized Huffman table")
+diff --git a/src/pkg/net/http/httptest/server.go b/src/pkg/net/http/httptest/server.go
+index 165600e52b..0997a8a232 100644
+--- a/src/pkg/net/http/httptest/server.go
++++ b/src/pkg/net/http/httptest/server.go
+@@ -21,7 +21,7 @@ import (
+ type Server struct {
+ 	URL      string // base URL of form http://ipaddr:port with no trailing slash
+ 	Listener net.Listener
+-	TLS      *tls.Config // nil if not using using TLS
++	TLS      *tls.Config // nil if not using TLS
+ 
+ 	// Config may be changed after calling NewUnstartedServer and
+ 	// before Start or StartTLS.
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index 719cecfbda..805e0737a9 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -127,7 +127,7 @@ type response struct {
+ 
+ 	// requestBodyLimitHit is set by requestTooLarge when
+ 	// maxBytesReader hits its max size. It is checked in
+-	// WriteHeader, to make sure we don't consume the the
++	// WriteHeader, to make sure we don't consume the
+ 	// remaining request body to try to advance to the next HTTP
+ 	// request. Instead, when this is set, we stop reading
+ 	// subsequent requests on this connection and stop reading
+diff --git a/src/pkg/net/http/transport_test.go b/src/pkg/net/http/transport_test.go
+index e4072e88fe..e114e71480 100644
+--- a/src/pkg/net/http/transport_test.go
++++ b/src/pkg/net/http/transport_test.go
+@@ -281,7 +281,7 @@ func TestTransportMaxPerHostIdleConns(t *testing.T) {
+ 	c := &Client{Transport: tr}
+ 
+ 	// Start 3 outstanding requests and wait for the server to get them.
+-	// Their responses will hang until we we write to resch, though.
++	// Their responses will hang until we write to resch, though.
+ 	donech := make(chan bool)
+ 	doReq := func() {
+ 		resp, err := c.Get(ts.URL)
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index 110141955c..6c7571b28f 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -1338,7 +1338,7 @@ func cachePut(k cacheKey, t *rtype) Type {
+ 	return t
+ }
+ 
+-// ChanOf returns the channel type with the given direction and and element type.
++// ChanOf returns the channel type with the given direction and element type.
+ // For example, if t represents int, ChanOf(RecvDir, t) represents <-chan int.
+ //
+ // The gc runtime imposes a limit of 64 kB on channel element types.

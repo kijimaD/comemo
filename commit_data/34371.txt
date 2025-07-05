@@ -14,8 +14,93 @@ Date:   Fri Oct 20 15:20:56 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go |  2 +-
  src/cmd/compile/internal/gc/inl.go     | 19 +++++++++++--------
  src/cmd/compile/internal/gc/main.go    |  4 +++-
  3 files changed, 15 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index c8bbd79d26..9564a59f4a 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -594,7 +594,7 @@ func isInlineable(n *Node) bool {
+ 	if exportInlined && n != nil && n.Func != nil && n.Func.Inl.Len() != 0 {
+ 		// when lazily typechecking inlined bodies, some re-exported ones may not have been typechecked yet.
+ 		// currently that can leave unresolved ONONAMEs in import-dot-ed packages in the wrong package
+-		if Debug['l'] < 2 {
++		if Debug_typecheckinl == 0 {
+ 			typecheckinl(n)
+ 		}
+ 		return true
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 5772ebe806..9a434601d5 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -8,18 +8,21 @@
+ // expand calls to inlinable functions.
+ //
+ // The debug['l'] flag controls the aggressiveness. Note that main() swaps level 0 and 1,
+-// making 1 the default and -l disable.  -ll and more is useful to flush out bugs.
+-// These additional levels (beyond -l) may be buggy and are not supported.
++// making 1 the default and -l disable. Additional levels (beyond -l) may be buggy and
++// are not supported.
+ //      0: disabled
+ //      1: 80-nodes leaf functions, oneliners, lazy typechecking (default)
+-//      2: early typechecking of all imported bodies
++//      2: (unassigned)
+ //      3: allow variadic functions
+-//      4: allow non-leaf functions , (breaks runtime.Caller)
++//      4: allow non-leaf functions
+ //
+-//  At some point this may get another default and become switch-offable with -N.
++// At some point this may get another default and become switch-offable with -N.
+ //
+-//  The debug['m'] flag enables diagnostic output.  a single -m is useful for verifying
+-//  which calls get inlined or not, more is for debugging, and may go away at any point.
++// The -d typcheckinl flag enables early typechecking of all imported bodies,
++// which is useful to flush out bugs.
++//
++// The debug['m'] flag enables diagnostic output.  a single -m is useful for verifying
++// which calls get inlined or not, more is for debugging, and may go away at any point.
+ //
+ // TODO:
+ //   - inline functions with ... args
+@@ -727,7 +730,7 @@ func mkinlcall1(n, fn *Node, isddd bool) *Node {
+ 		return n
+ 	}
+ 
+-	if Debug['l'] < 2 {
++	if Debug_typecheckinl == 0 {
+ 		typecheckinl(fn)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 288c1d8420..ce91c6b48b 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -46,6 +46,7 @@ var (
+ 	Debug_wb           int
+ 	Debug_pctab        string
+ 	Debug_locationlist int
++	Debug_typecheckinl int
+ )
+ 
+ // Debug arguments.
+@@ -72,6 +73,7 @@ var debugtab = []struct {
+ 	{"export", "print export data", &Debug_export},
+ 	{"pctab", "print named pc-value table", &Debug_pctab},
+ 	{"locationlists", "print information about DWARF location list creation", &Debug_locationlist},
++	{"typecheckinl", "eager typechecking of inline function bodies", &Debug_typecheckinl},
+ }
+ 
+ const debugHelpHeader = `usage: -d arg[,arg]* and arg is <key>[=<value>]
+@@ -523,7 +525,7 @@ func Main(archInit func(*Arch)) {
+ 
+ 	// Phase 5: Inlining
+ 	timings.Start("fe", "inlining")
+-	if Debug['l'] > 1 {
++	if Debug_typecheckinl != 0 {
+ 		// Typecheck imported function bodies if debug['l'] > 1,
+ 		// otherwise lazily when used or re-exported.
+ 		for _, n := range importlist {

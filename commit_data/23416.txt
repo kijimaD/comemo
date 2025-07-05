@@ -9,7 +9,7 @@ Date:   Tue May 12 15:16:52 2015 -0700
     Change-Id: I826ad5a9d602a8f8be2762ad00b030dea6f41bcc
     Reviewed-on: https://go-review.googlesource.com/9967
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/internal/gc/ssa.go                     | 13 ++++++--
  src/cmd/internal/gc/type.go                    |  4 ---
  src/cmd/internal/ssa/lowerAmd64.go             | 42 ++++++++++++++++++++++++++
@@ -17,3 +17,199 @@ Date:   Tue May 12 15:16:52 2015 -0700
  src/cmd/internal/ssa/op_string.go              |  4 +--
  src/cmd/internal/ssa/rulegen/lower_amd64.rules |  4 +++
  6 files changed, 75 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/internal/gc/ssa.go b/src/cmd/internal/gc/ssa.go
+index 415e9dc639..ec747e970b 100644
+--- a/src/cmd/internal/gc/ssa.go
++++ b/src/cmd/internal/gc/ssa.go
+@@ -153,12 +153,16 @@ func (s *ssaState) stmt(n *Node) {
+ 
+ 			// TODO(khr): nil check
+ 			s.vars[".mem"] = s.curBlock.NewValue3(ssa.OpStore, n.Right.Type, nil, addr, val, s.mem())
+-		} else if n.Left.Addable == 0 {
++		} else if !n.Left.Addable {
+ 			// TODO
+ 			log.Fatalf("assignment to non-addable value")
+ 		} else if n.Left.Class&PHEAP != 0 {
+ 			// TODO
+ 			log.Fatalf("assignment to heap value")
++		} else if n.Left.Class == PEXTERN {
++			// assign to global variable
++			addr := s.f.Entry.NewValue(ssa.OpGlobal, Ptrto(n.Left.Type), n.Left.Sym)
++			s.vars[".mem"] = s.curBlock.NewValue3(ssa.OpStore, ssa.TypeMem, nil, addr, val, s.mem())
+ 		} else if n.Left.Class == PPARAMOUT {
+ 			// store to parameter slot
+ 			addr := s.f.Entry.NewValue(ssa.OpFPAddr, Ptrto(n.Right.Type), n.Left.Xoffset)
+@@ -254,7 +258,12 @@ func (s *ssaState) expr(n *Node) *ssa.Value {
+ 	}
+ 	switch n.Op {
+ 	case ONAME:
+-		// remember offsets for PPARAM names
++		// TODO: remember offsets for PPARAM names
++		if n.Class == PEXTERN {
++			// global variable
++			addr := s.f.Entry.NewValue(ssa.OpGlobal, Ptrto(n.Type), n.Sym)
++			return s.curBlock.NewValue2(ssa.OpLoad, n.Type, nil, addr, s.mem())
++		}
+ 		s.argOffsets[n.Sym.Name] = n.Xoffset
+ 		return s.variable(n.Sym.Name, n.Type)
+ 		// binary ops
+diff --git a/src/cmd/internal/gc/type.go b/src/cmd/internal/gc/type.go
+index e88ca7c898..6f7830d70a 100644
+--- a/src/cmd/internal/gc/type.go
++++ b/src/cmd/internal/gc/type.go
+@@ -56,7 +56,3 @@ func (t *Type) PtrTo() ssa.Type {
+ 
+ func (t *Type) IsMemory() bool { return false }
+ func (t *Type) IsFlags() bool  { return false }
+-
+-func (t *Type) String() string {
+-	return typefmt(t, 0)
+-}
+diff --git a/src/cmd/internal/ssa/lowerAmd64.go b/src/cmd/internal/ssa/lowerAmd64.go
+index 6c0a42d976..842822bda4 100644
+--- a/src/cmd/internal/ssa/lowerAmd64.go
++++ b/src/cmd/internal/ssa/lowerAmd64.go
+@@ -333,6 +333,26 @@ func lowerAmd64(v *Value) bool {
+ 		}
+ 		goto end3d8628a6536350a123be81240b8a1376
+ 	end3d8628a6536350a123be81240b8a1376:
++		;
++		// match: (MOVQload [off] (Global [sym]) mem)
++		// cond:
++		// result: (MOVQloadglobal [GlobalOffset{sym,off.(int64)}] mem)
++		{
++			off := v.Aux
++			if v.Args[0].Op != OpGlobal {
++				goto end20693899317f3f8d1b47fefa64087654
++			}
++			sym := v.Args[0].Aux
++			mem := v.Args[1]
++			v.Op = OpMOVQloadglobal
++			v.Aux = nil
++			v.resetArgs()
++			v.Aux = GlobalOffset{sym, off.(int64)}
++			v.AddArg(mem)
++			return true
++		}
++		goto end20693899317f3f8d1b47fefa64087654
++	end20693899317f3f8d1b47fefa64087654:
+ 		;
+ 		// match: (MOVQload [off1] (ADDCQ [off2] ptr) mem)
+ 		// cond:
+@@ -424,6 +444,28 @@ func lowerAmd64(v *Value) bool {
+ 		}
+ 		goto end1cb5b7e766f018270fa434c6f46f607f
+ 	end1cb5b7e766f018270fa434c6f46f607f:
++		;
++		// match: (MOVQstore [off] (Global [sym]) val mem)
++		// cond:
++		// result: (MOVQstoreglobal [GlobalOffset{sym,off.(int64)}] val mem)
++		{
++			off := v.Aux
++			if v.Args[0].Op != OpGlobal {
++				goto end657d07e37c720a8fbb108a31bb48090d
++			}
++			sym := v.Args[0].Aux
++			val := v.Args[1]
++			mem := v.Args[2]
++			v.Op = OpMOVQstoreglobal
++			v.Aux = nil
++			v.resetArgs()
++			v.Aux = GlobalOffset{sym, off.(int64)}
++			v.AddArg(val)
++			v.AddArg(mem)
++			return true
++		}
++		goto end657d07e37c720a8fbb108a31bb48090d
++	end657d07e37c720a8fbb108a31bb48090d:
+ 		;
+ 		// match: (MOVQstore [off1] (ADDCQ [off2] ptr) val mem)
+ 		// cond:
+diff --git a/src/cmd/internal/ssa/op.go b/src/cmd/internal/ssa/op.go
+index 2d60b92939..1d374db61d 100644
+--- a/src/cmd/internal/ssa/op.go
++++ b/src/cmd/internal/ssa/op.go
+@@ -37,7 +37,7 @@ const (
+ 	OpConst
+ 
+ 	OpArg    // address of a function parameter/result.  Memory input is an arg called ".mem".
+-	OpGlobal // address of a global variable
++	OpGlobal // address of a global variable (aux is a *gc.Sym)
+ 	OpFunc   // entry address of a function
+ 	OpCopy   // output = input
+ 	OpPhi    // select an input based on which predecessor we came from
+@@ -121,6 +121,10 @@ const (
+ 	OpMOVQload8  // (ptr,idx,mem): loads from ptr+idx*8+aux.(int64)
+ 	OpMOVQstore8 // (ptr,idx,val,mem): stores to ptr+idx*8+aux.(int64), returns mem
+ 
++	// load/store from global.  aux = GlobalOffset
++	OpMOVQloadglobal  // (mem) -> value
++	OpMOVQstoreglobal // (val, mem) -> mem
++
+ 	// load/store 8-byte integer register from stack slot.
+ 	OpMOVQloadFP
+ 	OpMOVQloadSP
+@@ -133,6 +137,12 @@ const (
+ 	OpMax // sentinel
+ )
+ 
++// GlobalOffset represents a fixed offset within a global variable
++type GlobalOffset struct {
++	Global interface{} // holds a *cmd/internal/gc.Sym
++	Offset int64
++}
++
+ //go:generate stringer -type=Op
+ 
+ type OpInfo struct {
+@@ -203,6 +213,8 @@ var gpload = [2][]regMask{{gp, 0}, {gp}}
+ var gploadX = [2][]regMask{{gp, gp, 0}, {gp}} // indexed loads
+ var gpstore = [2][]regMask{{gp, gp, 0}, {0}}
+ var gpstoreX = [2][]regMask{{gp, gp, gp, 0}, {0}} // indexed stores
++var gploadglobal = [2][]regMask{{0}, {gp}}
++var gpstoreglobal = [2][]regMask{{gp, 0}, {0}}
+ 
+ var gpload_stack = [2][]regMask{{0}, {gp}}
+ var gpstore_stack = [2][]regMask{{gp, 0}, {0}}
+@@ -292,6 +304,9 @@ var amd64Table = [...]OpInfo{
+ 	OpMOVQload8:  {asm: "MOVQ\t%A(%I0)(%I1*8),%O0", reg: gploadX},
+ 	OpMOVQstore8: {asm: "MOVQ\t%I2,%A(%I0)(%I1*8)", reg: gpstoreX},
+ 
++	OpMOVQloadglobal:  {reg: gploadglobal},
++	OpMOVQstoreglobal: {reg: gpstoreglobal},
++
+ 	OpMOVQconst: {asm: "MOVQ\t$%A,%O0", reg: gp01},
+ 
+ 	OpStaticCall: {asm: "CALL\t%A(SB)"},
+diff --git a/src/cmd/internal/ssa/op_string.go b/src/cmd/internal/ssa/op_string.go
+index c095fba52b..adce17a1f2 100644
+--- a/src/cmd/internal/ssa/op_string.go
++++ b/src/cmd/internal/ssa/op_string.go
+@@ -4,9 +4,9 @@ package ssa
+ 
+ import "fmt"
+ 
+-const _Op_name = "OpUnknownOpNopOpFwdRefOpAddOpSubOpMulOpLessOpConstOpArgOpGlobalOpFuncOpCopyOpPhiOpSliceMakeOpSlicePtrOpSliceLenOpSliceCapOpStringMakeOpStringPtrOpStringLenOpSliceIndexOpSliceIndexAddrOpLoadOpStoreOpCheckNilOpCheckBoundOpCallOpStaticCallOpConvertOpConvNopOpFPAddrOpSPAddrOpStoreReg8OpLoadReg8OpADDQOpSUBQOpADDCQOpSUBCQOpMULQOpMULCQOpSHLQOpSHLCQOpNEGQOpCMPQOpCMPCQOpADDLOpTESTQOpSETEQOpSETNEOpSETLOpSETGEOpSETBOpInvertFlagsOpLEAQOpLEAQ2OpLEAQ4OpLEAQ8OpMOVQloadOpMOVQstoreOpMOVQload8OpMOVQstore8OpMOVQloadFPOpMOVQloadSPOpMOVQstoreFPOpMOVQstoreSPOpMOVQconstOpMax"
++const _Op_name = "OpUnknownOpNopOpFwdRefOpAddOpSubOpMulOpLessOpConstOpArgOpGlobalOpFuncOpCopyOpPhiOpSliceMakeOpSlicePtrOpSliceLenOpSliceCapOpStringMakeOpStringPtrOpStringLenOpSliceIndexOpSliceIndexAddrOpLoadOpStoreOpCheckNilOpCheckBoundOpCallOpStaticCallOpConvertOpConvNopOpFPAddrOpSPAddrOpStoreReg8OpLoadReg8OpADDQOpSUBQOpADDCQOpSUBCQOpMULQOpMULCQOpSHLQOpSHLCQOpNEGQOpCMPQOpCMPCQOpADDLOpTESTQOpSETEQOpSETNEOpSETLOpSETGEOpSETBOpInvertFlagsOpLEAQOpLEAQ2OpLEAQ4OpLEAQ8OpMOVQloadOpMOVQstoreOpMOVQload8OpMOVQstore8OpMOVQloadglobalOpMOVQstoreglobalOpMOVQloadFPOpMOVQloadSPOpMOVQstoreFPOpMOVQstoreSPOpMOVQconstOpMax"
+ 
+-var _Op_index = [...]uint16{0, 9, 14, 22, 27, 32, 37, 43, 50, 55, 63, 69, 75, 80, 91, 101, 111, 121, 133, 144, 155, 167, 183, 189, 196, 206, 218, 224, 236, 245, 254, 262, 270, 281, 291, 297, 303, 310, 317, 323, 330, 336, 343, 349, 355, 362, 368, 375, 382, 389, 395, 402, 408, 421, 427, 434, 441, 448, 458, 469, 480, 492, 504, 516, 529, 542, 553, 558}
++var _Op_index = [...]uint16{0, 9, 14, 22, 27, 32, 37, 43, 50, 55, 63, 69, 75, 80, 91, 101, 111, 121, 133, 144, 155, 167, 183, 189, 196, 206, 218, 224, 236, 245, 254, 262, 270, 281, 291, 297, 303, 310, 317, 323, 330, 336, 343, 349, 355, 362, 368, 375, 382, 389, 395, 402, 408, 421, 427, 434, 441, 448, 458, 469, 480, 492, 508, 525, 537, 549, 562, 575, 586, 591}
+ 
+ func (i Op) String() string {
+ 	if i < 0 || i+1 >= Op(len(_Op_index)) {
+diff --git a/src/cmd/internal/ssa/rulegen/lower_amd64.rules b/src/cmd/internal/ssa/rulegen/lower_amd64.rules
+index 10c8dcc50f..8882e3c253 100644
+--- a/src/cmd/internal/ssa/rulegen/lower_amd64.rules
++++ b/src/cmd/internal/ssa/rulegen/lower_amd64.rules
+@@ -46,6 +46,10 @@
+ (MOVQstore [off1] (FPAddr [off2]) val mem) -> (MOVQstoreFP [off1.(int64)+off2.(int64)] val mem)
+ (MOVQstore [off1] (SPAddr [off2]) val mem) -> (MOVQstoreSP [off1.(int64)+off2.(int64)] val mem)
+ 
++// global loads/stores
++(MOVQload [off] (Global [sym]) mem) -> (MOVQloadglobal [GlobalOffset{sym,off.(int64)}] mem)
++(MOVQstore [off] (Global [sym]) val mem) -> (MOVQstoreglobal [GlobalOffset{sym,off.(int64)}] val mem)
++
+ // fold constants into instructions
+ (ADDQ x (Const [c])) -> (ADDCQ [c] x) // TODO: restrict c to int32 range?
+ (ADDQ (Const [c]) x) -> (ADDCQ [c] x)

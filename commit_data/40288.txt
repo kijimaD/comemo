@@ -12,9 +12,114 @@ Date:   Tue Apr 30 17:15:39 2019 -0400
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/vet/all/whitelist/s390x.txt |  1 +
  src/internal/cpu/cpu.go             |  3 +++
  src/internal/cpu/cpu_s390x.go       | 23 +++++++++++++++++++++++
  src/internal/cpu/cpu_s390x.s        |  8 ++++++++
  4 files changed, 35 insertions(+)
+
+diff --git a/src/cmd/vet/all/whitelist/s390x.txt b/src/cmd/vet/all/whitelist/s390x.txt
+index c8fd385c4a..5d35f5fcdc 100644
+--- a/src/cmd/vet/all/whitelist/s390x.txt
++++ b/src/cmd/vet/all/whitelist/s390x.txt
+@@ -10,6 +10,7 @@ internal/cpu/cpu_s390x.s: [s390x] kmctrQuery: invalid MOVD of ret+0(FP); interna
+ internal/cpu/cpu_s390x.s: [s390x] kmaQuery: invalid MOVD of ret+0(FP); internal/cpu.queryResult is 16-byte value
+ internal/cpu/cpu_s390x.s: [s390x] kimdQuery: invalid MOVD of ret+0(FP); internal/cpu.queryResult is 16-byte value
+ internal/cpu/cpu_s390x.s: [s390x] klmdQuery: invalid MOVD of ret+0(FP); internal/cpu.queryResult is 16-byte value
++internal/cpu/cpu_s390x.s: [s390x] kdsaQuery: invalid MOVD of ret+0(FP); internal/cpu.queryResult is 16-byte value
+ vendor/golang.org/x/sys/cpu/cpu_s390x.s: [s390x] stfle: invalid MOVD of ret+0(FP); vendor/golang.org/x/sys/cpu.facilityList is 32-byte value
+ vendor/golang.org/x/sys/cpu/cpu_s390x.s: [s390x] kmQuery: invalid MOVD of ret+0(FP); vendor/golang.org/x/sys/cpu.queryResult is 16-byte value
+ vendor/golang.org/x/sys/cpu/cpu_s390x.s: [s390x] kmcQuery: invalid MOVD of ret+0(FP); vendor/golang.org/x/sys/cpu.queryResult is 16-byte value
+diff --git a/src/internal/cpu/cpu.go b/src/internal/cpu/cpu.go
+index 3029bcb0c2..76fc878abe 100644
+--- a/src/internal/cpu/cpu.go
++++ b/src/internal/cpu/cpu.go
+@@ -128,6 +128,9 @@ type s390x struct {
+ 	HasSHA3   bool // K{I,L}MD-SHA3-{224,256,384,512} and K{I,L}MD-SHAKE-{128,256} functions
+ 	HasVX     bool // vector facility. Note: the runtime sets this when it processes auxv records.
+ 	HasVXE    bool // vector-enhancements facility 1
++	HasKDSA   bool // elliptic curve functions
++	HasECDSA  bool // NIST curves
++	HasEDDSA  bool // Edwards curves
+ 	_         CacheLinePad
+ }
+ 
+diff --git a/src/internal/cpu/cpu_s390x.go b/src/internal/cpu/cpu_s390x.go
+index 2c3c9d0ea8..526e074225 100644
+--- a/src/internal/cpu/cpu_s390x.go
++++ b/src/internal/cpu/cpu_s390x.go
+@@ -36,6 +36,20 @@ const (
+ 	ghash function = 65 // GHASH
+ )
+ 
++const (
++	// KDSA function codes
++	ecdsaVerifyP256    function = 1  // NIST P256
++	ecdsaVerifyP384    function = 2  // NIST P384
++	ecdsaVerifyP521    function = 3  // NIST P521
++	ecdsaSignP256      function = 9  // NIST P256
++	ecdsaSignP384      function = 10 // NIST P384
++	ecdsaSignP521      function = 11 // NIST P521
++	eddsaVerifyEd25519 function = 32 // Curve25519
++	eddsaVerifyEd448   function = 36 // Curve448
++	eddsaSignEd25519   function = 40 // Curve25519
++	eddsaSignEd448     function = 44 // Curve448
++)
++
+ // queryResult contains the result of a Query function
+ // call. Bits are numbered in big endian order so the
+ // leftmost bit (the MSB) is at index 0.
+@@ -76,6 +90,7 @@ const (
+ 	msa4 facility = 77  // message-security-assist extension 4
+ 	msa5 facility = 57  // message-security-assist extension 5
+ 	msa8 facility = 146 // message-security-assist extension 8
++	msa9 facility = 155 // message-security-assist extension 9
+ 
+ 	// vector facilities
+ 	vxe facility = 135 // vector-enhancements 1
+@@ -113,6 +128,7 @@ func kmctrQuery() queryResult
+ func kmaQuery() queryResult
+ func kimdQuery() queryResult
+ func klmdQuery() queryResult
++func kdsaQuery() queryResult
+ 
+ func doinit() {
+ 	options = []option{
+@@ -125,6 +141,7 @@ func doinit() {
+ 		{Name: "etf3eh", Feature: &S390X.HasETF3EH},
+ 		{Name: "vx", Feature: &S390X.HasVX},
+ 		{Name: "vxe", Feature: &S390X.HasVXE},
++		{Name: "kdsa", Feature: &S390X.HasKDSA},
+ 	}
+ 
+ 	aes := []function{aes128, aes192, aes256}
+@@ -164,6 +181,12 @@ func doinit() {
+ 			shake128, shake256,
+ 		}
+ 		S390X.HasSHA3 = kimd.Has(sha3...) && klmd.Has(sha3...)
++		S390X.HasKDSA = facilities.Has(msa9) // elliptic curves
++		if S390X.HasKDSA {
++			kdsa := kdsaQuery()
++			S390X.HasECDSA = kdsa.Has(ecdsaVerifyP256, ecdsaSignP256, ecdsaVerifyP384, ecdsaSignP384, ecdsaVerifyP521, ecdsaSignP521)
++			S390X.HasEDDSA = kdsa.Has(eddsaVerifyEd25519, eddsaSignEd25519, eddsaVerifyEd448, eddsaSignEd448)
++		}
+ 	}
+ 	if S390X.HasVX {
+ 		S390X.HasVXE = facilities.Has(vxe)
+diff --git a/src/internal/cpu/cpu_s390x.s b/src/internal/cpu/cpu_s390x.s
+index 9678035ffb..a1243aa4db 100644
+--- a/src/internal/cpu/cpu_s390x.s
++++ b/src/internal/cpu/cpu_s390x.s
+@@ -53,3 +53,11 @@ TEXT ·klmdQuery(SB), NOSPLIT|NOFRAME, $0-16
+ 	MOVD $ret+0(FP), R1 // address of 16-byte return value
+ 	WORD $0xB93F0024    // compute last message digest (KLMD)
+ 	RET
++
++// func kdsaQuery() queryResult
++TEXT ·kdsaQuery(SB), NOSPLIT|NOFRAME, $0-16
++	MOVD $0, R0         // set function code to 0 (KLMD-Query)
++	MOVD $ret+0(FP), R1 // address of 16-byte return value
++	WORD $0xB93A0008    // compute digital signature authentication
++	RET
++

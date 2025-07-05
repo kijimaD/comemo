@@ -7,6 +7,20 @@ Date:   Mon Jul 30 15:23:36 2012 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6448081
-
+---
  src/pkg/text/template/parse/lex.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/text/template/parse/lex.go b/src/pkg/text/template/parse/lex.go
+index dcf30f12e7..1334b3033b 100644
+--- a/src/pkg/text/template/parse/lex.go
++++ b/src/pkg/text/template/parse/lex.go
+@@ -128,7 +128,7 @@ type lexer struct {
+ 	pos        int       // current position in the input.
+ 	start      int       // start position of this item.
+ 	width      int       // width of last rune read from input.
+-	lastPos    int       // position of nost recent item returned by nextItem
++	lastPos    int       // position of most recent item returned by nextItem
+ 	items      chan item // channel of scanned items.
+ }
+ 

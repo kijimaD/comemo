@@ -10,6 +10,27 @@ Date:   Thu Jun 1 09:03:50 2023 -0700
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Bypass: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Eli Bendersky <eliben@google.com>
-
+---
  doc/go1.21.html | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/doc/go1.21.html b/doc/go1.21.html
+index e1f10ef929..f6aa2a9d52 100644
+--- a/doc/go1.21.html
++++ b/doc/go1.21.html
+@@ -608,11 +608,11 @@ Do not send CLs removing the interior tags from such phrases.
+       with <code>//go:</code>) in file headers (before
+       the <code>package</code> declaration). These directives are
+       available in the new
+-      <a href="/pkg/go/build/Package"><code>Package</code></a> fields
+-      <a href="/pkg/go/build/Package.Directives"><code>Directives</code></a>,
+-      <a href="/pkg/go/build/Package.TestDirectives"><code>TestDirectives</code></a>,
++      <a href="/pkg/go/build#Package"><code>Package</code></a> fields
++      <a href="/pkg/go/build#Package.Directives"><code>Directives</code></a>,
++      <a href="/pkg/go/build#Package.TestDirectives"><code>TestDirectives</code></a>,
+       and
+-      <a href="/pkg/go/build/Package.XTestDirectives"><code>XTestDirectives</code></a>.
++      <a href="/pkg/go/build#Package.XTestDirectives"><code>XTestDirectives</code></a>.
+     </p>
+   </dd>
+ </dl><!-- go/build -->

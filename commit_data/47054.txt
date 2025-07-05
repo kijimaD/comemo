@@ -15,7 +15,7 @@ Date:   Wed Feb 17 15:27:42 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ssa/config.go     |  1 -
  src/cmd/compile/internal/ssa/gen/386Ops.go | 32 +++++++++---------
  src/cmd/compile/internal/ssa/gen/main.go   |  6 ----
@@ -23,3 +23,343 @@ Date:   Wed Feb 17 15:27:42 2021 +0700
  src/cmd/compile/internal/ssagen/pgen.go    | 10 ------
  src/cmd/compile/internal/ssagen/ssa.go     | 27 +++------------
  6 files changed, 42 insertions(+), 88 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index c29bc8fae6..f3a3a88a66 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -42,7 +42,6 @@ type Config struct {
+ 	useHmul        bool          // Use optimizations that need Hmul* operations
+ 	SoftFloat      bool          //
+ 	Race           bool          // race detector enabled
+-	NeedsFpScratch bool          // No direct move between GP and FP register sets
+ 	BigEndian      bool          //
+ 	UseFMA         bool          // Use hardware FMA operation
+ }
+diff --git a/src/cmd/compile/internal/ssa/gen/386Ops.go b/src/cmd/compile/internal/ssa/gen/386Ops.go
+index 737b99c371..2b7185e537 100644
+--- a/src/cmd/compile/internal/ssa/gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/386Ops.go
+@@ -146,14 +146,14 @@ func init() {
+ 
+ 	var _386ops = []opData{
+ 		// fp ops
+-		{name: "ADDSS", argLength: 2, reg: fp21, asm: "ADDSS", commutative: true, resultInArg0: true, usesScratch: true}, // fp32 add
+-		{name: "ADDSD", argLength: 2, reg: fp21, asm: "ADDSD", commutative: true, resultInArg0: true},                    // fp64 add
+-		{name: "SUBSS", argLength: 2, reg: fp21, asm: "SUBSS", resultInArg0: true, usesScratch: true},                    // fp32 sub
+-		{name: "SUBSD", argLength: 2, reg: fp21, asm: "SUBSD", resultInArg0: true},                                       // fp64 sub
+-		{name: "MULSS", argLength: 2, reg: fp21, asm: "MULSS", commutative: true, resultInArg0: true, usesScratch: true}, // fp32 mul
+-		{name: "MULSD", argLength: 2, reg: fp21, asm: "MULSD", commutative: true, resultInArg0: true},                    // fp64 mul
+-		{name: "DIVSS", argLength: 2, reg: fp21, asm: "DIVSS", resultInArg0: true, usesScratch: true},                    // fp32 div
+-		{name: "DIVSD", argLength: 2, reg: fp21, asm: "DIVSD", resultInArg0: true},                                       // fp64 div
++		{name: "ADDSS", argLength: 2, reg: fp21, asm: "ADDSS", commutative: true, resultInArg0: true}, // fp32 add
++		{name: "ADDSD", argLength: 2, reg: fp21, asm: "ADDSD", commutative: true, resultInArg0: true}, // fp64 add
++		{name: "SUBSS", argLength: 2, reg: fp21, asm: "SUBSS", resultInArg0: true},                    // fp32 sub
++		{name: "SUBSD", argLength: 2, reg: fp21, asm: "SUBSD", resultInArg0: true},                    // fp64 sub
++		{name: "MULSS", argLength: 2, reg: fp21, asm: "MULSS", commutative: true, resultInArg0: true}, // fp32 mul
++		{name: "MULSD", argLength: 2, reg: fp21, asm: "MULSD", commutative: true, resultInArg0: true}, // fp64 mul
++		{name: "DIVSS", argLength: 2, reg: fp21, asm: "DIVSS", resultInArg0: true},                    // fp32 div
++		{name: "DIVSD", argLength: 2, reg: fp21, asm: "DIVSD", resultInArg0: true},                    // fp64 div
+ 
+ 		{name: "MOVSSload", argLength: 2, reg: fpload, asm: "MOVSS", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"}, // fp32 load
+ 		{name: "MOVSDload", argLength: 2, reg: fpload, asm: "MOVSD", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"}, // fp64 load
+@@ -246,8 +246,8 @@ func init() {
+ 		{name: "CMPWconstload", argLength: 2, reg: gp0flagsLoad, asm: "CMPW", aux: "SymValAndOff", typ: "Flags", symEffect: "Read", faultOnNilArg0: true},
+ 		{name: "CMPBconstload", argLength: 2, reg: gp0flagsLoad, asm: "CMPB", aux: "SymValAndOff", typ: "Flags", symEffect: "Read", faultOnNilArg0: true},
+ 
+-		{name: "UCOMISS", argLength: 2, reg: fp2flags, asm: "UCOMISS", typ: "Flags", usesScratch: true}, // arg0 compare to arg1, f32
+-		{name: "UCOMISD", argLength: 2, reg: fp2flags, asm: "UCOMISD", typ: "Flags", usesScratch: true}, // arg0 compare to arg1, f64
++		{name: "UCOMISS", argLength: 2, reg: fp2flags, asm: "UCOMISS", typ: "Flags"}, // arg0 compare to arg1, f32
++		{name: "UCOMISD", argLength: 2, reg: fp2flags, asm: "UCOMISD", typ: "Flags"}, // arg0 compare to arg1, f64
+ 
+ 		{name: "TESTL", argLength: 2, reg: gp2flags, commutative: true, asm: "TESTL", typ: "Flags"}, // (arg0 & arg1) compare to 0
+ 		{name: "TESTW", argLength: 2, reg: gp2flags, commutative: true, asm: "TESTW", typ: "Flags"}, // (arg0 & arg1) compare to 0
+@@ -341,12 +341,12 @@ func init() {
+ 
+ 		{name: "MOVLconst", reg: gp01, asm: "MOVL", typ: "UInt32", aux: "Int32", rematerializeable: true}, // 32 low bits of auxint
+ 
+-		{name: "CVTTSD2SL", argLength: 1, reg: fpgp, asm: "CVTTSD2SL", usesScratch: true}, // convert float64 to int32
+-		{name: "CVTTSS2SL", argLength: 1, reg: fpgp, asm: "CVTTSS2SL", usesScratch: true}, // convert float32 to int32
+-		{name: "CVTSL2SS", argLength: 1, reg: gpfp, asm: "CVTSL2SS", usesScratch: true},   // convert int32 to float32
+-		{name: "CVTSL2SD", argLength: 1, reg: gpfp, asm: "CVTSL2SD", usesScratch: true},   // convert int32 to float64
+-		{name: "CVTSD2SS", argLength: 1, reg: fp11, asm: "CVTSD2SS", usesScratch: true},   // convert float64 to float32
+-		{name: "CVTSS2SD", argLength: 1, reg: fp11, asm: "CVTSS2SD"},                      // convert float32 to float64
++		{name: "CVTTSD2SL", argLength: 1, reg: fpgp, asm: "CVTTSD2SL"}, // convert float64 to int32
++		{name: "CVTTSS2SL", argLength: 1, reg: fpgp, asm: "CVTTSS2SL"}, // convert float32 to int32
++		{name: "CVTSL2SS", argLength: 1, reg: gpfp, asm: "CVTSL2SS"},   // convert int32 to float32
++		{name: "CVTSL2SD", argLength: 1, reg: gpfp, asm: "CVTSL2SD"},   // convert int32 to float64
++		{name: "CVTSD2SS", argLength: 1, reg: fp11, asm: "CVTSD2SS"},   // convert float64 to float32
++		{name: "CVTSS2SD", argLength: 1, reg: fp11, asm: "CVTSS2SD"},   // convert float32 to float64
+ 
+ 		{name: "PXOR", argLength: 2, reg: fp21, asm: "PXOR", commutative: true, resultInArg0: true}, // exclusive or, applied to X regs for float negation.
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/gen/main.go
+index dfa146a28a..e7a4ef0629 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/gen/main.go
+@@ -63,7 +63,6 @@ type opData struct {
+ 	nilCheck          bool   // this op is a nil check on arg0
+ 	faultOnNilArg0    bool   // this op will fault if arg0 is nil (and aux encodes a small offset)
+ 	faultOnNilArg1    bool   // this op will fault if arg1 is nil (and aux encodes a small offset)
+-	usesScratch       bool   // this op requires scratch memory space
+ 	hasSideEffects    bool   // for "reasons", not to be eliminated.  E.g., atomic store, #19182.
+ 	zeroWidth         bool   // op never translates into any machine code. example: copy, which may sometimes translate to machine code, is not zero-width.
+ 	unsafePoint       bool   // this op is an unsafe point, i.e. not safe for async preemption
+@@ -320,9 +319,6 @@ func genOp() {
+ 					log.Fatalf("faultOnNilArg1 with aux %s not allowed", v.aux)
+ 				}
+ 			}
+-			if v.usesScratch {
+-				fmt.Fprintln(w, "usesScratch: true,")
+-			}
+ 			if v.hasSideEffects {
+ 				fmt.Fprintln(w, "hasSideEffects: true,")
+ 			}
+@@ -404,8 +400,6 @@ func genOp() {
+ 	// generate op string method
+ 	fmt.Fprintln(w, "func (o Op) String() string {return opcodeTable[o].name }")
+ 
+-	fmt.Fprintln(w, "func (o Op) UsesScratch() bool { return opcodeTable[o].usesScratch }")
+-
+ 	fmt.Fprintln(w, "func (o Op) SymEffect() SymEffect { return opcodeTable[o].symEffect }")
+ 	fmt.Fprintln(w, "func (o Op) IsCall() bool { return opcodeTable[o].call }")
+ 	fmt.Fprintln(w, "func (o Op) HasSideEffects() bool { return opcodeTable[o].hasSideEffects }")
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index ccfed93475..e4087bd021 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2912,7 +2912,6 @@ var opcodeTable = [...]opInfo{
+ 		argLen:       2,
+ 		commutative:  true,
+ 		resultInArg0: true,
+-		usesScratch:  true,
+ 		asm:          x86.AADDSS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+@@ -2944,7 +2943,6 @@ var opcodeTable = [...]opInfo{
+ 		name:         "SUBSS",
+ 		argLen:       2,
+ 		resultInArg0: true,
+-		usesScratch:  true,
+ 		asm:          x86.ASUBSS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+@@ -2976,7 +2974,6 @@ var opcodeTable = [...]opInfo{
+ 		argLen:       2,
+ 		commutative:  true,
+ 		resultInArg0: true,
+-		usesScratch:  true,
+ 		asm:          x86.AMULSS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+@@ -3008,7 +3005,6 @@ var opcodeTable = [...]opInfo{
+ 		name:         "DIVSS",
+ 		argLen:       2,
+ 		resultInArg0: true,
+-		usesScratch:  true,
+ 		asm:          x86.ADIVSS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+@@ -4072,10 +4068,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:        "UCOMISS",
+-		argLen:      2,
+-		usesScratch: true,
+-		asm:         x86.AUCOMISS,
++		name:   "UCOMISS",
++		argLen: 2,
++		asm:    x86.AUCOMISS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
+@@ -4084,10 +4079,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:        "UCOMISD",
+-		argLen:      2,
+-		usesScratch: true,
+-		asm:         x86.AUCOMISD,
++		name:   "UCOMISD",
++		argLen: 2,
++		asm:    x86.AUCOMISD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
+@@ -5027,10 +5021,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:        "CVTTSD2SL",
+-		argLen:      1,
+-		usesScratch: true,
+-		asm:         x86.ACVTTSD2SL,
++		name:   "CVTTSD2SL",
++		argLen: 1,
++		asm:    x86.ACVTTSD2SL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
+@@ -5041,10 +5034,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:        "CVTTSS2SL",
+-		argLen:      1,
+-		usesScratch: true,
+-		asm:         x86.ACVTTSS2SL,
++		name:   "CVTTSS2SL",
++		argLen: 1,
++		asm:    x86.ACVTTSS2SL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
+@@ -5055,10 +5047,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:        "CVTSL2SS",
+-		argLen:      1,
+-		usesScratch: true,
+-		asm:         x86.ACVTSL2SS,
++		name:   "CVTSL2SS",
++		argLen: 1,
++		asm:    x86.ACVTSL2SS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 239}, // AX CX DX BX BP SI DI
+@@ -5069,10 +5060,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:        "CVTSL2SD",
+-		argLen:      1,
+-		usesScratch: true,
+-		asm:         x86.ACVTSL2SD,
++		name:   "CVTSL2SD",
++		argLen: 1,
++		asm:    x86.ACVTSL2SD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 239}, // AX CX DX BX BP SI DI
+@@ -5083,10 +5073,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:        "CVTSD2SS",
+-		argLen:      1,
+-		usesScratch: true,
+-		asm:         x86.ACVTSD2SS,
++		name:   "CVTSD2SS",
++		argLen: 1,
++		asm:    x86.ACVTSD2SS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
+@@ -36128,7 +36117,6 @@ var opcodeTable = [...]opInfo{
+ func (o Op) Asm() obj.As          { return opcodeTable[o].asm }
+ func (o Op) Scale() int16         { return int16(opcodeTable[o].scale) }
+ func (o Op) String() string       { return opcodeTable[o].name }
+-func (o Op) UsesScratch() bool    { return opcodeTable[o].usesScratch }
+ func (o Op) SymEffect() SymEffect { return opcodeTable[o].symEffect }
+ func (o Op) IsCall() bool         { return opcodeTable[o].call }
+ func (o Op) HasSideEffects() bool { return opcodeTable[o].hasSideEffects }
+diff --git a/src/cmd/compile/internal/ssagen/pgen.go b/src/cmd/compile/internal/ssagen/pgen.go
+index 40f07a8d45..25b09e1f5d 100644
+--- a/src/cmd/compile/internal/ssagen/pgen.go
++++ b/src/cmd/compile/internal/ssagen/pgen.go
+@@ -15,7 +15,6 @@ import (
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/objw"
+ 	"cmd/compile/internal/ssa"
+-	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+@@ -90,7 +89,6 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 		}
+ 	}
+ 
+-	scratchUsed := false
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+ 			if n, ok := v.Aux.(*ir.Name); ok {
+@@ -104,17 +102,9 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 					n.SetUsed(true)
+ 				}
+ 			}
+-			if !scratchUsed {
+-				scratchUsed = v.Op.UsesScratch()
+-			}
+-
+ 		}
+ 	}
+ 
+-	if f.Config.NeedsFpScratch && scratchUsed {
+-		s.scratchFpMem = typecheck.TempAt(src.NoXPos, s.curfn, types.Types[types.TUINT64])
+-	}
+-
+ 	sort.Sort(byStackVar(fn.Dcl))
+ 
+ 	// Reassign stack offsets of the locals that are used.
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index e13ca90d33..cfc54ae0ab 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -6282,9 +6282,6 @@ type State struct {
+ 	// bstart remembers where each block starts (indexed by block ID)
+ 	bstart []*obj.Prog
+ 
+-	// Some architectures require a 64-bit temporary for FP-related register shuffling. Examples include PPC and Sparc V8.
+-	ScratchFpMem *ir.Name
+-
+ 	maxarg int64 // largest frame size for arguments to calls made by the function
+ 
+ 	// Map from GC safe points to liveness index, generated by
+@@ -6398,8 +6395,6 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 		progToBlock[s.pp.Next] = f.Blocks[0]
+ 	}
+ 
+-	s.ScratchFpMem = e.scratchFpMem
+-
+ 	if base.Ctxt.Flag_locationlists {
+ 		if cap(f.Cache.ValueToProgAfter) < f.NumValues() {
+ 			f.Cache.ValueToProgAfter = make([]*obj.Prog, f.NumValues())
+@@ -6948,17 +6943,6 @@ func AddrAuto(a *obj.Addr, v *ssa.Value) {
+ 	}
+ }
+ 
+-func (s *State) AddrScratch(a *obj.Addr) {
+-	if s.ScratchFpMem == nil {
+-		panic("no scratch memory available; forgot to declare usesScratch for Op?")
+-	}
+-	a.Type = obj.TYPE_MEM
+-	a.Name = obj.NAME_AUTO
+-	a.Sym = s.ScratchFpMem.Linksym()
+-	a.Reg = int16(Arch.REGSP)
+-	a.Offset = s.ScratchFpMem.Offset_
+-}
+-
+ // Call returns a new CALL instruction for the SSA value v.
+ // It uses PrepareCall to prepare the call.
+ func (s *State) Call(v *ssa.Value) *obj.Prog {
+@@ -7061,12 +7045,11 @@ func fieldIdx(n *ir.SelectorExpr) int {
+ // ssafn holds frontend information about a function that the backend is processing.
+ // It also exports a bunch of compiler services for the ssa backend.
+ type ssafn struct {
+-	curfn        *ir.Func
+-	strings      map[string]*obj.LSym // map from constant string to data symbols
+-	scratchFpMem *ir.Name             // temp for floating point register / memory moves on some architectures
+-	stksize      int64                // stack size for current frame
+-	stkptrsize   int64                // prefix of stack containing pointers
+-	log          bool                 // print ssa debug to the stdout
++	curfn      *ir.Func
++	strings    map[string]*obj.LSym // map from constant string to data symbols
++	stksize    int64                // stack size for current frame
++	stkptrsize int64                // prefix of stack containing pointers
++	log        bool                 // print ssa debug to the stdout
+ }
+ 
+ // StringData returns a symbol which

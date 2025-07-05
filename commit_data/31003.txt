@@ -9,7 +9,68 @@ Date:   Fri Dec 16 15:56:05 2016 -0800
     Change-Id: I95e84130df40db5241e0cc25c36873c3281199ff
     Reviewed-on: https://go-review.googlesource.com/34987
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/gofmt/testdata/typealias.golden | 24 ++++++++++++++++++++++++
  src/cmd/gofmt/testdata/typealias.input  | 24 ++++++++++++++++++++++++
  2 files changed, 48 insertions(+)
+
+diff --git a/src/cmd/gofmt/testdata/typealias.golden b/src/cmd/gofmt/testdata/typealias.golden
+new file mode 100644
+index 0000000000..bbbbf32121
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/typealias.golden
+@@ -0,0 +1,24 @@
++package q
++
++import "p"
++
++type _ = int
++type a = struct{ x int }
++type b = p.B
++
++type (
++	_  = chan<- int
++	aa = interface{}
++	bb = p.BB
++)
++
++// TODO(gri) We may want to put the '=' into a separate column if
++// we have mixed (regular and alias) type declarations in a group.
++type (
++	_   chan<- int
++	_   = chan<- int
++	aa0 interface{}
++	aaa = interface{}
++	bb0 p.BB
++	bbb = p.BB
++)
+diff --git a/src/cmd/gofmt/testdata/typealias.input b/src/cmd/gofmt/testdata/typealias.input
+new file mode 100644
+index 0000000000..6e49328e34
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/typealias.input
+@@ -0,0 +1,24 @@
++package q
++
++import "p"
++
++type _ = int
++type a = struct{ x int }
++type b = p.B
++
++type (
++	_ = chan<- int
++	aa = interface{}
++	bb = p.BB
++)
++
++// TODO(gri) We may want to put the '=' into a separate column if
++// we have mixed (regular and alias) type declarations in a group.
++type (
++	_ chan<- int
++	_ = chan<- int
++	aa0 interface{}
++	aaa = interface{}
++	bb0 p.BB
++	bbb = p.BB
++)

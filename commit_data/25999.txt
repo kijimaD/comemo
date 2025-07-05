@@ -15,7 +15,7 @@ Date:   Tue Dec 8 18:29:26 2015 -0800
     Reviewed-by: David Symonds <dsymonds@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/arm/peep.go    | 3 ++-
  src/cmd/compile/internal/arm64/peep.go  | 3 ++-
  src/cmd/compile/internal/mips64/peep.go | 3 ++-
@@ -25,3 +25,148 @@ Date:   Tue Dec 8 18:29:26 2015 -0800
  src/cmd/internal/obj/mips/asm0.go       | 4 ++--
  src/cmd/internal/obj/ppc64/asm9.go      | 4 ++--
  8 files changed, 16 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm/peep.go b/src/cmd/compile/internal/arm/peep.go
+index 4fba434619..d7a9c5f67d 100644
+--- a/src/cmd/compile/internal/arm/peep.go
++++ b/src/cmd/compile/internal/arm/peep.go
+@@ -1365,7 +1365,8 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
+ 	case obj.APCDATA,
+ 		obj.AFUNCDATA,
+ 		obj.AVARDEF,
+-		obj.AVARKILL:
++		obj.AVARKILL,
++		obj.AUSEFIELD:
+ 		return 0
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/arm64/peep.go b/src/cmd/compile/internal/arm64/peep.go
+index 387a30ec29..b61ac6e790 100644
+--- a/src/cmd/compile/internal/arm64/peep.go
++++ b/src/cmd/compile/internal/arm64/peep.go
+@@ -710,7 +710,8 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
+ 		obj.APCDATA,
+ 		obj.AFUNCDATA,
+ 		obj.AVARDEF,
+-		obj.AVARKILL:
++		obj.AVARKILL,
++		obj.AUSEFIELD:
+ 		return 0
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/mips64/peep.go b/src/cmd/compile/internal/mips64/peep.go
+index 681a31c041..3d82c81a6f 100644
+--- a/src/cmd/compile/internal/mips64/peep.go
++++ b/src/cmd/compile/internal/mips64/peep.go
+@@ -687,7 +687,8 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
+ 	case obj.APCDATA,
+ 		obj.AFUNCDATA,
+ 		obj.AVARDEF,
+-		obj.AVARKILL:
++		obj.AVARKILL,
++		obj.AUSEFIELD:
+ 		return 0
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ppc64/peep.go b/src/cmd/compile/internal/ppc64/peep.go
+index 9c3f1edb30..fadaa4a971 100644
+--- a/src/cmd/compile/internal/ppc64/peep.go
++++ b/src/cmd/compile/internal/ppc64/peep.go
+@@ -952,7 +952,8 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
+ 	case obj.APCDATA,
+ 		obj.AFUNCDATA,
+ 		obj.AVARDEF,
+-		obj.AVARKILL:
++		obj.AVARKILL,
++		obj.AUSEFIELD:
+ 		return 0
+ 	}
+ }
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 87ebc842ef..3ba0c7d95b 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -614,7 +614,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
+ 			}
+ 		}
+ 
+-		if m == 0 && (p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != ADATABUNDLEEND && p.As != obj.ANOP) {
++		if m == 0 && (p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != ADATABUNDLEEND && p.As != obj.ANOP && p.As != obj.AUSEFIELD) {
+ 			ctxt.Diag("zero-width instruction\n%v", p)
+ 			continue
+ 		}
+@@ -710,7 +710,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
+ 			if m/4 > len(out) {
+ 				ctxt.Diag("instruction size too large: %d > %d", m/4, len(out))
+ 			}
+-			if m == 0 && (p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != ADATABUNDLEEND && p.As != obj.ANOP) {
++			if m == 0 && (p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != ADATABUNDLEEND && p.As != obj.ANOP && p.As != obj.AUSEFIELD) {
+ 				if p.As == obj.ATEXT {
+ 					ctxt.Autosize = int32(p.To.Offset + 4)
+ 					continue
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 38fe3ee92d..dca7a7f832 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -550,7 +550,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym) {
+ 		o = oplook(ctxt, p)
+ 		m = int(o.size)
+ 		if m == 0 {
+-			if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
++			if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != obj.AUSEFIELD {
+ 				ctxt.Diag("zero-width instruction\n%v", p)
+ 			}
+ 			continue
+@@ -618,7 +618,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym) {
+ 			m = int(o.size)
+ 
+ 			if m == 0 {
+-				if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
++				if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != obj.AUSEFIELD {
+ 					ctxt.Diag("zero-width instruction\n%v", p)
+ 				}
+ 				continue
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index f944d3333f..63df672f49 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -342,7 +342,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym) {
+ 		o = oplook(ctxt, p)
+ 		m = int(o.size)
+ 		if m == 0 {
+-			if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
++			if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != obj.AUSEFIELD {
+ 				ctxt.Diag("zero-width instruction\n%v", p)
+ 			}
+ 			continue
+@@ -401,7 +401,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym) {
+ 
+ 			m = int(o.size)
+ 			if m == 0 {
+-				if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
++				if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != obj.AUSEFIELD {
+ 					ctxt.Diag("zero-width instruction\n%v", p)
+ 				}
+ 				continue
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 25deeada42..90224c3e05 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -435,7 +435,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym) {
+ 		o = oplook(ctxt, p)
+ 		m = int(o.size)
+ 		if m == 0 {
+-			if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
++			if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != obj.AUSEFIELD {
+ 				ctxt.Diag("zero-width instruction\n%v", p)
+ 			}
+ 			continue
+@@ -492,7 +492,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym) {
+ 
+ 			m = int(o.size)
+ 			if m == 0 {
+-				if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
++				if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != obj.AUSEFIELD {
+ 					ctxt.Diag("zero-width instruction\n%v", p)
+ 				}
+ 				continue

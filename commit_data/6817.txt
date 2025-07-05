@@ -7,6 +7,19 @@ Date:   Thu Dec 2 10:41:56 2010 -0800
     R=iant, r
     CC=golang-dev
     https://golang.org/cl/3416042
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 2fcd4488f5..55700e84d2 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -96,6 +96,7 @@ James Fysh <james.fysh@gmail.com>
+ James Meneghello <rawrz0r@gmail.com>
+ James Toy <nil@opensesame.st>
+ James Whitehead <jnwhiteh@gmail.com>
++Jamie Gennis <jgennis@google.com>
+ Jan H. Hosang <jan.hosang@gmail.com>
+ Jan Mercl <befelemepeseveze@gmail.com>
+ Jim McGrath <jimmc2@gmail.com>

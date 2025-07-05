@@ -24,7 +24,120 @@ Date:   Tue Aug 4 10:45:29 2015 -0400
     Change-Id: I8b281adf0ba827064e154a1b6cc32d4d8031c03c
     Reviewed-on: https://go-review.googlesource.com/13112
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/mgc.go     |  7 ++---
  src/runtime/mgcmark.go | 70 +++++++++++++++++++++++++++++---------------------
  2 files changed, 45 insertions(+), 32 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 820e3782a8..7fdd93b600 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -129,9 +129,10 @@ const (
+ 	_RootData        = 0
+ 	_RootBss         = 1
+ 	_RootFinalizers  = 2
+-	_RootSpans       = 3
+-	_RootFlushCaches = 4
+-	_RootCount       = 5
++	_RootSpans0      = 3
++	_RootSpansShards = 128
++	_RootFlushCaches = _RootSpans0 + _RootSpansShards
++	_RootCount       = _RootFlushCaches + 1
+ 
+ 	// sweepMinHeapDistance is a lower bound on the heap distance
+ 	// (in bytes) reserved for concurrent sweeping between GC
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 968b0cdca0..128a163297 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -74,41 +74,18 @@ func markroot(desc *parfor, i uint32) {
+ 			scanblock(uintptr(unsafe.Pointer(&fb.fin[0])), uintptr(fb.cnt)*unsafe.Sizeof(fb.fin[0]), &finptrmask[0], &gcw)
+ 		}
+ 
+-	case _RootSpans:
+-		// mark MSpan.specials
+-		sg := mheap_.sweepgen
+-		for spanidx := uint32(0); spanidx < uint32(len(work.spans)); spanidx++ {
+-			s := work.spans[spanidx]
+-			if s.state != mSpanInUse {
+-				continue
+-			}
+-			if !useCheckmark && s.sweepgen != sg {
+-				// sweepgen was updated (+2) during non-checkmark GC pass
+-				print("sweep ", s.sweepgen, " ", sg, "\n")
+-				throw("gc: unswept span")
+-			}
+-			for sp := s.specials; sp != nil; sp = sp.next {
+-				if sp.kind != _KindSpecialFinalizer {
+-					continue
+-				}
+-				// don't mark finalized object, but scan it so we
+-				// retain everything it points to.
+-				spf := (*specialfinalizer)(unsafe.Pointer(sp))
+-				// A finalizer can be set for an inner byte of an object, find object beginning.
+-				p := uintptr(s.start<<_PageShift) + uintptr(spf.special.offset)/s.elemsize*s.elemsize
+-				if gcphase != _GCscan {
+-					scanobject(p, &gcw) // scanned during mark termination
+-				}
+-				scanblock(uintptr(unsafe.Pointer(&spf.fn)), ptrSize, &oneptrmask[0], &gcw)
+-			}
+-		}
+-
+ 	case _RootFlushCaches:
+ 		if gcphase != _GCscan { // Do not flush mcaches during GCscan phase.
+ 			flushallmcaches()
+ 		}
+ 
+ 	default:
++		if _RootSpans0 <= i && i < _RootSpans0+_RootSpansShards {
++			// mark MSpan.specials
++			markrootSpans(&gcw, int(i)-_RootSpans0)
++			break
++		}
++
+ 		// the rest is scanning goroutine stacks
+ 		if uintptr(i-_RootCount) >= allglen {
+ 			throw("markroot: bad index")
+@@ -136,6 +113,41 @@ func markroot(desc *parfor, i uint32) {
+ 	gcw.dispose()
+ }
+ 
++// markrootSpans marks roots for one shard (out of _RootSpansShards)
++// of work.spans.
++//
++//go:nowritebarrier
++func markrootSpans(gcw *gcWork, shard int) {
++	sg := mheap_.sweepgen
++	startSpan := shard * len(work.spans) / _RootSpansShards
++	endSpan := (shard + 1) * len(work.spans) / _RootSpansShards
++	for spanidx := startSpan; spanidx < endSpan; spanidx++ {
++		s := work.spans[spanidx]
++		if s.state != mSpanInUse {
++			continue
++		}
++		if !useCheckmark && s.sweepgen != sg {
++			// sweepgen was updated (+2) during non-checkmark GC pass
++			print("sweep ", s.sweepgen, " ", sg, "\n")
++			throw("gc: unswept span")
++		}
++		for sp := s.specials; sp != nil; sp = sp.next {
++			if sp.kind != _KindSpecialFinalizer {
++				continue
++			}
++			// don't mark finalized object, but scan it so we
++			// retain everything it points to.
++			spf := (*specialfinalizer)(unsafe.Pointer(sp))
++			// A finalizer can be set for an inner byte of an object, find object beginning.
++			p := uintptr(s.start<<_PageShift) + uintptr(spf.special.offset)/s.elemsize*s.elemsize
++			if gcphase != _GCscan {
++				scanobject(p, gcw) // scanned during mark termination
++			}
++			scanblock(uintptr(unsafe.Pointer(&spf.fn)), ptrSize, &oneptrmask[0], gcw)
++		}
++	}
++}
++
+ // gcAssistAlloc records and allocation of size bytes and, if
+ // allowAssist is true, may assist GC scanning in proportion to the
+ // allocations performed by this mutator since the last assist.

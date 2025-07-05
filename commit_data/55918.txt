@@ -21,7 +21,7 @@ Date:   Thu Mar 23 15:28:42 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/os_linux.go              |   4 +-
  src/runtime/runtime-gdb_unix_test.go | 207 +++++++++++++++++++++++++++++++++++
  src/runtime/sys_linux_386.s          |  12 +-
@@ -31,3 +31,337 @@ Date:   Thu Mar 23 15:28:42 2023 -0400
  src/runtime/sys_linux_ppc64x.s       |   3 -
  src/runtime/sys_linux_s390x.s        |   3 -
  8 files changed, 229 insertions(+), 19 deletions(-)
+
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 194d698798..398ff18991 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -424,7 +424,7 @@ func mdestroy(mp *m) {
+ //#define sa_handler k_sa_handler
+ //#endif
+ 
+-func sigreturn()
++func sigreturn__sigaction()
+ func sigtramp() // Called via C ABI
+ func cgoSigtramp()
+ 
+@@ -481,7 +481,7 @@ func setsig(i uint32, fn uintptr) {
+ 	// should not be used". x86_64 kernel requires it. Only use it on
+ 	// x86.
+ 	if GOARCH == "386" || GOARCH == "amd64" {
+-		sa.sa_restorer = abi.FuncPCABI0(sigreturn)
++		sa.sa_restorer = abi.FuncPCABI0(sigreturn__sigaction)
+ 	}
+ 	if fn == abi.FuncPCABIInternal(sighandler) { // abi.FuncPCABIInternal(sighandler) matches the callers in signal_unix.go
+ 		if iscgo {
+diff --git a/src/runtime/runtime-gdb_unix_test.go b/src/runtime/runtime-gdb_unix_test.go
+new file mode 100644
+index 0000000000..a276fdbe8f
+--- /dev/null
++++ b/src/runtime/runtime-gdb_unix_test.go
+@@ -0,0 +1,207 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build unix
++
++package runtime_test
++
++import (
++	"bytes"
++	"internal/testenv"
++	"io"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"regexp"
++	"runtime"
++	"syscall"
++	"testing"
++)
++
++const coreSignalSource = `
++package main
++
++import (
++	"flag"
++	"fmt"
++	"os"
++	"runtime/debug"
++	"syscall"
++)
++
++var pipeFD = flag.Int("pipe-fd", -1, "FD of write end of control pipe")
++
++func enableCore() {
++	debug.SetTraceback("crash")
++
++	var lim syscall.Rlimit
++	err := syscall.Getrlimit(syscall.RLIMIT_CORE, &lim)
++	if err != nil {
++		panic(fmt.Sprintf("error getting rlimit: %v", err))
++	}
++	lim.Cur = lim.Max
++	fmt.Fprintf(os.Stderr, "Setting RLIMIT_CORE = %+#v\n", lim)
++	err = syscall.Setrlimit(syscall.RLIMIT_CORE, &lim)
++	if err != nil {
++		panic(fmt.Sprintf("error setting rlimit: %v", err))
++	}
++}
++
++func main() {
++	flag.Parse()
++
++	enableCore()
++
++	// Ready to go. Notify parent.
++	if err := syscall.Close(*pipeFD); err != nil {
++		panic(fmt.Sprintf("error closing control pipe fd %d: %v", *pipeFD, err))
++	}
++
++	for {}
++}
++`
++
++// TestGdbCoreSignalBacktrace tests that gdb can unwind the stack correctly
++// through a signal handler in a core file
++func TestGdbCoreSignalBacktrace(t *testing.T) {
++	if runtime.GOOS != "linux" {
++		// N.B. This test isn't fundamentally Linux-only, but it needs
++		// to know how to enable/find core files on each OS.
++		t.Skip("Test only supported on Linux")
++	}
++
++	checkGdbEnvironment(t)
++	t.Parallel()
++	checkGdbVersion(t)
++
++	// Ensure there is enough RLIMIT_CORE available to generate a full core.
++	var lim syscall.Rlimit
++	err := syscall.Getrlimit(syscall.RLIMIT_CORE, &lim)
++	if err != nil {
++		t.Fatalf("error getting rlimit: %v", err)
++	}
++	// Minimum RLIMIT_CORE max to allow. This is a conservative estimate.
++	// Most systems allow infinity.
++	const minRlimitCore = 100 << 20 // 100 MB
++	if lim.Max < minRlimitCore {
++		t.Skipf("RLIMIT_CORE max too low: %#+v", lim)
++	}
++
++	// Make sure core pattern will send core to the current directory.
++	b, err := os.ReadFile("/proc/sys/kernel/core_pattern")
++	if err != nil {
++		t.Fatalf("error reading core_pattern: %v", err)
++	}
++	if string(b) != "core\n" {
++		t.Skipf("Unexpected core pattern %q", string(b))
++	}
++
++	dir := t.TempDir()
++
++	// Build the source code.
++	src := filepath.Join(dir, "main.go")
++	err = os.WriteFile(src, []byte(coreSignalSource), 0644)
++	if err != nil {
++		t.Fatalf("failed to create file: %v", err)
++	}
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "a.exe", "main.go")
++	cmd.Dir = dir
++	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
++	if err != nil {
++		t.Fatalf("building source %v\n%s", err, out)
++	}
++
++	r, w, err := os.Pipe()
++	if err != nil {
++		t.Fatalf("error creating control pipe: %v", err)
++	}
++	defer r.Close()
++
++	// Start the test binary.
++	cmd = testenv.Command(t, "./a.exe", "-pipe-fd=3")
++	cmd.Dir = dir
++	cmd.ExtraFiles = []*os.File{w}
++	var output bytes.Buffer
++	cmd.Stdout = &output // for test logging
++	cmd.Stderr = &output
++
++	if err := cmd.Start(); err != nil {
++		t.Fatalf("error starting test binary: %v", err)
++	}
++	w.Close()
++
++	// Wait for child to be ready.
++	var buf [1]byte
++	if _, err := r.Read(buf[:]); err != io.EOF {
++		t.Fatalf("control pipe read get err %v want io.EOF", err)
++	}
++
++	// 💥
++	if err := cmd.Process.Signal(os.Signal(syscall.SIGABRT)); err != nil {
++		t.Fatalf("erroring signaling child: %v", err)
++	}
++
++	err = cmd.Wait()
++	t.Logf("child output:\n%s", output.String())
++	if err == nil {
++		t.Fatalf("Wait succeeded, want SIGABRT")
++	}
++	ee, ok := err.(*exec.ExitError)
++	if !ok {
++		t.Fatalf("Wait err got %T %v, want exec.ExitError", ee, ee)
++	}
++	ws, ok := ee.Sys().(syscall.WaitStatus)
++	if !ok {
++		t.Fatalf("Sys got %T %v, want syscall.WaitStatus", ee.Sys(), ee.Sys())
++	}
++	if ws.Signal() != syscall.SIGABRT {
++		t.Fatalf("Signal got %d want SIGABRT", ws.Signal())
++	}
++	if !ws.CoreDump() {
++		t.Fatalf("CoreDump got %v want true", ws.CoreDump())
++	}
++
++	// Execute gdb commands.
++	args := []string{"-nx", "-batch",
++		"-iex", "add-auto-load-safe-path " + filepath.Join(testenv.GOROOT(t), "src", "runtime"),
++		"-ex", "backtrace",
++		filepath.Join(dir, "a.exe"),
++		filepath.Join(dir, "core"),
++	}
++	cmd = testenv.Command(t, "gdb", args...)
++
++	got, err := cmd.CombinedOutput()
++	t.Logf("gdb output:\n%s", got)
++	if err != nil {
++		t.Fatalf("gdb exited with error: %v", err)
++	}
++
++	// We don't know which thread the fatal signal will land on, but we can still check for basics:
++	//
++	// 1. A frame in the signal handler: runtime.sigtramp
++	// 2. GDB detection of the signal handler: <signal handler called>
++	// 3. A frame before the signal handler: this could be foo, or somewhere in the scheduler
++
++	re := regexp.MustCompile(`#.* runtime\.sigtramp `)
++	if found := re.Find(got) != nil; !found {
++		t.Fatalf("could not find sigtramp in backtrace")
++	}
++
++	re = regexp.MustCompile("#.* <signal handler called>")
++	loc := re.FindIndex(got)
++	if loc == nil {
++		t.Fatalf("could not find signal handler marker in backtrace")
++	}
++	rest := got[loc[1]:]
++
++	// Look for any frames after the signal handler. We want to see
++	// symbolized frames, not garbage unknown frames.
++	//
++	// Since the signal might not be delivered to the main thread we can't
++	// look for main.main. Every thread should have a runtime frame though.
++	re = regexp.MustCompile(`#.* runtime\.`)
++	if found := re.Find(rest) != nil; !found {
++		t.Fatalf("could not find runtime symbol in backtrace after signal handler:\n%s", rest)
++	}
++}
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index 12a294153d..d53be243fe 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -454,7 +454,17 @@ TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$28
+ TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
+ 	JMP	runtime·sigtramp(SB)
+ 
+-TEXT runtime·sigreturn(SB),NOSPLIT,$0
++// For cgo unwinding to work, this function must look precisely like
++// the one in glibc. The glibc source code is:
++// https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/unix/sysv/linux/i386/libc_sigaction.c;h=0665b41bbcd0986f0b33bf19a7ecbcedf9961d0a#l59
++// The code that cares about the precise instructions used is:
++// https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/config/i386/linux-unwind.h;h=5486223d60272c73d5103b29ae592d2ee998e1cf#l136
++//
++// For gdb unwinding to work, this function must look precisely like the one in
++// glibc and must be named "__restore_rt" or contain the string "sigaction" in
++// the name. The gdb source code is:
++// https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=gdb/i386-linux-tdep.c;h=a6adeca1b97416f7194341151a8ce30723a786a3#l168
++TEXT runtime·sigreturn__sigaction(SB),NOSPLIT,$0
+ 	MOVL	$SYS_rt_sigreturn, AX
+ 	// Sigreturn expects same SP as signal handler,
+ 	// so cannot CALL 0x10(GS) here.
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index db6d1cbbb7..b6c64dc095 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -458,11 +458,16 @@ sigtrampnog:
+ 	JMP	AX
+ 
+ // For cgo unwinding to work, this function must look precisely like
+-// the one in glibc.  The glibc source code is:
+-// https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/unix/sysv/linux/x86_64/sigaction.c
++// the one in glibc. The glibc source code is:
++// https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/unix/sysv/linux/x86_64/libc_sigaction.c;h=afdce87381228f0cf32fa9fa6c8c4efa5179065c#l80
+ // The code that cares about the precise instructions used is:
+-// https://gcc.gnu.org/viewcvs/gcc/trunk/libgcc/config/i386/linux-unwind.h?revision=219188&view=markup
+-TEXT runtime·sigreturn(SB),NOSPLIT,$0
++// https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/config/i386/linux-unwind.h;h=5486223d60272c73d5103b29ae592d2ee998e1cf#l49
++//
++// For gdb unwinding to work, this function must look precisely like the one in
++// glibc and must be named "__restore_rt" or contain the string "sigaction" in
++// the name. The gdb source code is:
++// https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=gdb/amd64-linux-tdep.c;h=cbbac1a0c64e1deb8181b9d0ff6404e328e2979d#l178
++TEXT runtime·sigreturn__sigaction(SB),NOSPLIT,$0
+ 	MOVQ	$SYS_rt_sigreturn, AX
+ 	SYSCALL
+ 	INT $3	// not reached
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index 7b8c4f0e04..992d32ab6c 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -650,6 +650,3 @@ TEXT runtime·sbrk0(SB),NOSPLIT,$0-4
+ 	SWI	$0
+ 	MOVW	R0, ret+0(FP)
+ 	RET
+-
+-TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
+-	RET
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index aa8d6ca619..51c87bea05 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -785,6 +785,3 @@ TEXT runtime·sbrk0(SB),NOSPLIT,$0-8
+ 	SVC
+ 	MOVD	R0, ret+0(FP)
+ 	RET
+-
+-TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
+-	RET
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index f293442de9..ec9b966c8c 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -447,9 +447,6 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	MOVD	24(R1), R2
+ 	RET
+ 
+-TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
+-	RET
+-
+ #ifdef GOARCH_ppc64le
+ // ppc64le doesn't need function descriptors
+ // Save callee-save registers in the case of signal forwarding.
+diff --git a/src/runtime/sys_linux_s390x.s b/src/runtime/sys_linux_s390x.s
+index 1448670b91..adf5612c3c 100644
+--- a/src/runtime/sys_linux_s390x.s
++++ b/src/runtime/sys_linux_s390x.s
+@@ -412,9 +412,6 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	BL	R5
+ 	RET
+ 
+-TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
+-	RET
+-
+ TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$64
+ 	// initialize essential registers (just in case)
+ 	XOR	R0, R0

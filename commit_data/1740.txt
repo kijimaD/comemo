@@ -11,7 +11,7 @@ Date:   Wed Mar 4 17:13:12 2009 -0800
     DELTA=1731  (973 added, 753 deleted, 5 changed)
     OCL=25668
     CL=25713
-
+---
  src/lib/Makefile                            |   2 +
  {usr/gri/pretty => src/lib/lang}/scanner.go | 126 ++++++------
  src/lib/lang/scanner_test.go                | 202 +++++++++++++++++++
@@ -20,3 +20,1159 @@ Date:   Wed Mar 4 17:13:12 2009 -0800
  usr/gri/pretty/Makefile                     |  12 +-
  usr/gri/pretty/token.go                     | 286 ---------------------------
  7 files changed, 573 insertions(+), 352 deletions(-)
+
+diff --git a/src/lib/Makefile b/src/lib/Makefile
+index 148a6dc557..089c328f57 100644
+--- a/src/lib/Makefile
++++ b/src/lib/Makefile
+@@ -14,6 +14,7 @@ DIRS=\
+ 	http\
+ 	io\
+ 	json\
++	lang\
+ 	math\
+ 	net\
+ 	os\
+@@ -107,6 +108,7 @@ http.dirinstall: bufio.install io.dirinstall net.dirinstall os.dirinstall string
+ io.dirinstall: os.dirinstall syscall.dirinstall sync.dirinstall
+ json.dirinstall: container/array.dirinstall fmt.dirinstall io.dirinstall math.dirinstall \
+ 	strconv.dirinstall strings.install utf8.install
++lang.dirinstall: strconv.dirinstall utf8.install unicode.dirinstall
+ # TODO(rsc): net is not supposed to depend on fmt or strings or strconv
+ net.dirinstall: fmt.dirinstall once.install os.dirinstall strconv.dirinstall strings.install
+ os.dirinstall: syscall.dirinstall once.install
+diff --git a/usr/gri/pretty/scanner.go b/src/lib/lang/scanner.go
+similarity index 70%
+rename from usr/gri/pretty/scanner.go
+rename to src/lib/lang/scanner.go
+index 85ae2a0f51..ad7f80b5bc 100644
+--- a/usr/gri/pretty/scanner.go
++++ b/src/lib/lang/scanner.go
+@@ -9,12 +9,12 @@ package scanner
+ //
+ // Sample use:
+ //
+-//  import "token"
+-//  import "scanner"
++//	import "token"
++//	import "scanner"
+ //
+ //	func tokenize(src []byte) {
+ //		var s scanner.Scanner;
+-//		s.Init(src, nil, false);
++//		s.Init(src, nil /* no error handler */, false /* ignore comments */);
+ //		for {
+ //			pos, tok, lit := s.Scan();
+ //			if tok == Scanner.EOF {
+@@ -31,41 +31,44 @@ import (
+ 	"token";
+ )
+ 
++
++// An implementation of an ErrorHandler must be provided to the Scanner.
++// If a syntax error is encountered, Error() is called with the exact
++// token position (the byte position of the token in the source) and the
++// error message.
++
+ type ErrorHandler interface {
+ 	Error(pos int, msg string);
+ }
+ 
+ 
+ type Scanner struct {
+-	// setup
++	// immutable state
+ 	src []byte;  // source
+-	err ErrorHandler;
+-	scan_comments bool;
++	err ErrorHandler;  // error reporting
++	scan_comments bool;  // if set, comments are reported as tokens
+ 
+-	// scanning
++	// scanning state
+ 	pos int;  // current reading position
+ 	ch int;  // one char look-ahead
+ 	chpos int;  // position of ch
+ }
+ 
+ 
+-func is_letter(ch int) bool {
++func isLetter(ch int) bool {
+ 	return
+-		'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' ||  // common case
+-		ch == '_' || unicode.IsLetter(ch);
++		'a' <= ch && ch <= 'z' ||
++		'A' <= ch && ch <= 'Z' ||
++		ch == '_' ||
++		ch >= 0x80 && unicode.IsLetter(ch);
+ }
+ 
+ 
+-func digit_val(ch int) int {
+-	// TODO spec permits other Unicode digits as well
+-	if '0' <= ch && ch <= '9' {
+-		return ch - '0';
+-	}
+-	if 'a' <= ch && ch <= 'f' {
+-		return ch - 'a' + 10;
+-	}
+-	if 'A' <= ch && ch <= 'F' {
+-		return ch - 'A' + 10;
++func digitVal(ch int) int {
++	switch {
++	case '0' <= ch && ch <= '9': return ch - '0';
++	case 'a' <= ch && ch <= 'f': return ch - 'a' + 10;
++	case 'A' <= ch && ch <= 'F': return ch - 'A' + 10;
+ 	}
+ 	return 16;  // larger than any legal digit val
+ }
+@@ -75,10 +78,10 @@ func digit_val(ch int) int {
+ // S.ch < 0 means end-of-file.
+ func (S *Scanner) next() {
+ 	if S.pos < len(S.src) {
+-		// assume ascii
++		// assume ASCII
+ 		r, w := int(S.src[S.pos]), 1;
+ 		if r >= 0x80 {
+-			// not ascii
++			// not ASCII
+ 			r, w = utf8.DecodeRune(S.src[S.pos : len(S.src)]);
+ 		}
+ 		S.ch = r;
+@@ -132,7 +135,7 @@ func (S *Scanner) expect(ch int) {
+ 	if S.ch != ch {
+ 		S.error(S.chpos, "expected " + charString(ch) + ", found " + charString(S.ch));
+ 	}
+-	S.next();  // make always progress
++	S.next();  // always make progress
+ }
+ 
+ 
+@@ -166,7 +169,7 @@ func (S *Scanner) scanComment() []byte {
+ 				// '\n' terminates comment but we do not include
+ 				// it in the comment (otherwise we don't see the
+ 				// start of a newline in skipWhitespace()).
+-				goto exit;
++				return S.src[pos : S.chpos];
+ 			}
+ 		}
+ 
+@@ -178,21 +181,19 @@ func (S *Scanner) scanComment() []byte {
+ 			S.next();
+ 			if ch == '*' && S.ch == '/' {
+ 				S.next();
+-				goto exit;
++				return S.src[pos : S.chpos];
+ 			}
+ 		}
+ 	}
+ 
+ 	S.error(pos, "comment not terminated");
+-
+-exit:
+ 	return S.src[pos : S.chpos];
+ }
+ 
+ 
+ func (S *Scanner) scanIdentifier() (tok int, lit []byte) {
+ 	pos := S.chpos;
+-	for is_letter(S.ch) || digit_val(S.ch) < 10 {
++	for isLetter(S.ch) || digitVal(S.ch) < 10 {
+ 		S.next();
+ 	}
+ 	lit = S.src[pos : S.chpos];
+@@ -201,7 +202,7 @@ func (S *Scanner) scanIdentifier() (tok int, lit []byte) {
+ 
+ 
+ func (S *Scanner) scanMantissa(base int) {
+-	for digit_val(S.ch) < base {
++	for digitVal(S.ch) < base {
+ 		S.next();
+ 	}
+ }
+@@ -228,7 +229,7 @@ func (S *Scanner) scanNumber(seen_decimal_point bool) (tok int, lit []byte) {
+ 		} else {
+ 			// octal int or float
+ 			S.scanMantissa(8);
+-			if digit_val(S.ch) < 10 || S.ch == '.' || S.ch == 'e' || S.ch == 'E' {
++			if digitVal(S.ch) < 10 || S.ch == '.' || S.ch == 'e' || S.ch == 'E' {
+ 				// float
+ 				tok = token.FLOAT;
+ 				goto mantissa;
+@@ -266,7 +267,7 @@ exit:
+ 
+ 
+ func (S *Scanner) scanDigits(n int, base int) {
+-	for digit_val(S.ch) < base {
++	for digitVal(S.ch) < base {
+ 		S.next();
+ 		n--;
+ 	}
+@@ -351,7 +352,13 @@ func (S *Scanner) scanRawString() []byte {
+ }
+ 
+ 
+-func (S *Scanner) select2(tok0, tok1 int) int {
++// Helper functions for scanning multi-byte tokens such as >> += >>= .
++// Different routines recognize different length tok_i based on matches
++// of ch_i. If a token ends in '=', the result is tok1 or tok3
++// respectively. Otherwise, the result is tok0 if there was no other
++// matching character, or tok2 if the matching character was ch2.
++
++func (S *Scanner) switch2(tok0, tok1 int) int {
+ 	if S.ch == '=' {
+ 		S.next();
+ 		return tok1;
+@@ -360,7 +367,7 @@ func (S *Scanner) select2(tok0, tok1 int) int {
+ }
+ 
+ 
+-func (S *Scanner) select3(tok0, tok1, ch2, tok2 int) int {
++func (S *Scanner) switch3(tok0, tok1, ch2, tok2 int) int {
+ 	if S.ch == '=' {
+ 		S.next();
+ 		return tok1;
+@@ -373,7 +380,7 @@ func (S *Scanner) select3(tok0, tok1, ch2, tok2 int) int {
+ }
+ 
+ 
+-func (S *Scanner) select4(tok0, tok1, ch2, tok2, tok3 int) int {
++func (S *Scanner) switch4(tok0, tok1, ch2, tok2, tok3 int) int {
+ 	if S.ch == '=' {
+ 		S.next();
+ 		return tok1;
+@@ -392,28 +399,30 @@ func (S *Scanner) select4(tok0, tok1, ch2, tok2, tok3 int) int {
+ 
+ // Scans the next token. Returns the token byte position in the source,
+ // its token value, and the corresponding literal text if the token is
+-// an identifier or basic type literals (token.IsLiteral(tok) == true).
++// an identifier or basic type literal (token.IsLiteral(tok) == true).
+ 
+ func (S *Scanner) Scan() (pos, tok int, lit []byte) {
+-loop:
++scan_again:
+ 	S.skipWhitespace();
+ 
+ 	pos, tok = S.chpos, token.ILLEGAL;
+ 
+ 	switch ch := S.ch; {
+-	case is_letter(ch): tok, lit = S.scanIdentifier();
+-	case digit_val(ch) < 10: tok, lit = S.scanNumber(false);
++	case isLetter(ch):
++		tok, lit = S.scanIdentifier();
++	case digitVal(ch) < 10:
++		tok, lit = S.scanNumber(false);
+ 	default:
+ 		S.next();  // always make progress
+ 		switch ch {
+-		case -1: tok = token.EOF;
++		case -1  : tok = token.EOF;
+ 		case '\n': tok, lit = token.COMMENT, []byte{'\n'};
+-		case '"': tok, lit = token.STRING, S.scanString();
++		case '"' : tok, lit = token.STRING, S.scanString();
+ 		case '\'': tok, lit = token.CHAR, S.scanChar();
+-		case '`': tok, lit = token.STRING, S.scanRawString();
+-		case ':': tok = S.select2(token.COLON, token.DEFINE);
+-		case '.':
+-			if digit_val(S.ch) < 10 {
++		case '`' : tok, lit = token.STRING, S.scanRawString();
++		case ':' : tok = S.switch2(token.COLON, token.DEFINE);
++		case '.' :
++			if digitVal(S.ch) < 10 {
+ 				tok, lit = S.scanNumber(true);
+ 			} else if S.ch == '.' {
+ 				S.next();
+@@ -432,34 +441,33 @@ loop:
+ 		case ']': tok = token.RBRACK;
+ 		case '{': tok = token.LBRACE;
+ 		case '}': tok = token.RBRACE;
+-		case '+': tok = S.select3(token.ADD, token.ADD_ASSIGN, '+', token.INC);
+-		case '-': tok = S.select3(token.SUB, token.SUB_ASSIGN, '-', token.DEC);
+-		case '*': tok = S.select2(token.MUL, token.MUL_ASSIGN);
++		case '+': tok = S.switch3(token.ADD, token.ADD_ASSIGN, '+', token.INC);
++		case '-': tok = S.switch3(token.SUB, token.SUB_ASSIGN, '-', token.DEC);
++		case '*': tok = S.switch2(token.MUL, token.MUL_ASSIGN);
+ 		case '/':
+ 			if S.ch == '/' || S.ch == '*' {
+ 				tok, lit = token.COMMENT, S.scanComment();
+ 				if !S.scan_comments {
+-					goto loop;
++					goto scan_again;
+ 				}
+ 			} else {
+-				tok = S.select2(token.QUO, token.QUO_ASSIGN);
++				tok = S.switch2(token.QUO, token.QUO_ASSIGN);
+ 			}
+-		case '%': tok = S.select2(token.REM, token.REM_ASSIGN);
+-		case '^': tok = S.select2(token.XOR, token.XOR_ASSIGN);
++		case '%': tok = S.switch2(token.REM, token.REM_ASSIGN);
++		case '^': tok = S.switch2(token.XOR, token.XOR_ASSIGN);
+ 		case '<':
+ 			if S.ch == '-' {
+ 				S.next();
+ 				tok = token.ARROW;
+ 			} else {
+-				tok = S.select4(token.LSS, token.LEQ, '<', token.SHL, token.SHL_ASSIGN);
++				tok = S.switch4(token.LSS, token.LEQ, '<', token.SHL, token.SHL_ASSIGN);
+ 			}
+-		case '>': tok = S.select4(token.GTR, token.GEQ, '>', token.SHR, token.SHR_ASSIGN);
+-		case '=': tok = S.select2(token.ASSIGN, token.EQL);
+-		case '!': tok = S.select2(token.NOT, token.NEQ);
+-		case '&': tok = S.select3(token.AND, token.AND_ASSIGN, '&', token.LAND);
+-		case '|': tok = S.select3(token.OR, token.OR_ASSIGN, '|', token.LOR);
+-		default:
+-			S.error(pos, "illegal character " + charString(ch));
++		case '>': tok = S.switch4(token.GTR, token.GEQ, '>', token.SHR, token.SHR_ASSIGN);
++		case '=': tok = S.switch2(token.ASSIGN, token.EQL);
++		case '!': tok = S.switch2(token.NOT, token.NEQ);
++		case '&': tok = S.switch3(token.AND, token.AND_ASSIGN, '&', token.LAND);
++		case '|': tok = S.switch3(token.OR, token.OR_ASSIGN, '|', token.LOR);
++		default: S.error(pos, "illegal character " + charString(ch));
+ 		}
+ 	}
+ 
+diff --git a/src/lib/lang/scanner_test.go b/src/lib/lang/scanner_test.go
+new file mode 100644
+index 0000000000..136677cd0a
+--- /dev/null
++++ b/src/lib/lang/scanner_test.go
+@@ -0,0 +1,202 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package scanner
++
++import (
++	"io";
++	"token";
++	"scanner";
++	"testing";
++)
++
++
++const /* class */ (
++	special = iota;
++	literal;
++	operator;
++	keyword;
++)
++
++
++func tokenclass(tok int) int {
++	switch {
++	case token.IsLiteral(tok): return literal;
++	case token.IsOperator(tok): return operator;
++	case token.IsKeyword(tok): return keyword;
++	}
++	return special;
++}
++
++
++type elt struct {
++	pos int;
++	tok int;
++	lit string;
++	class int;
++}
++
++
++var tokens = [...]elt{
++	// Special tokens
++	elt{ 0, token.COMMENT, "/* a comment */", special },
++	elt{ 0, token.COMMENT, "\n", special },
++
++	// Identifiers and basic type literals
++	elt{ 0, token.IDENT, "foobar", literal },
++	elt{ 0, token.INT, "0", literal },
++	elt{ 0, token.INT, "01234567", literal },
++	elt{ 0, token.INT, "0xcafebabe", literal },
++	elt{ 0, token.FLOAT, "0.", literal },
++	elt{ 0, token.FLOAT, ".0", literal },
++	elt{ 0, token.FLOAT, "3.14159265", literal },
++	elt{ 0, token.FLOAT, "1e0", literal },
++	elt{ 0, token.FLOAT, "1e+100", literal },
++	elt{ 0, token.FLOAT, "1e-100", literal },
++	elt{ 0, token.FLOAT, "2.71828e-1000", literal },
++	elt{ 0, token.CHAR, "'a'", literal },
++	elt{ 0, token.STRING, "`foobar`", literal },
++
++	// Operators and delimitors
++	elt{ 0, token.ADD, "+", operator },
++	elt{ 0, token.SUB, "-", operator },
++	elt{ 0, token.MUL, "*", operator },
++	elt{ 0, token.QUO, "/", operator },
++	elt{ 0, token.REM, "%", operator },
++
++	elt{ 0, token.AND, "&", operator },
++	elt{ 0, token.OR, "|", operator },
++	elt{ 0, token.XOR, "^", operator },
++	elt{ 0, token.SHL, "<<", operator },
++	elt{ 0, token.SHR, ">>", operator },
++
++	elt{ 0, token.ADD_ASSIGN, "+=", operator },
++	elt{ 0, token.SUB_ASSIGN, "-=", operator },
++	elt{ 0, token.MUL_ASSIGN, "*=", operator },
++	elt{ 0, token.QUO_ASSIGN, "/=", operator },
++	elt{ 0, token.REM_ASSIGN, "%=", operator },
++
++	elt{ 0, token.AND_ASSIGN, "&=", operator },
++	elt{ 0, token.OR_ASSIGN, "|=", operator },
++	elt{ 0, token.XOR_ASSIGN, "^=", operator },
++	elt{ 0, token.SHL_ASSIGN, "<<=", operator },
++	elt{ 0, token.SHR_ASSIGN, ">>=", operator },
++
++	elt{ 0, token.LAND, "&&", operator },
++	elt{ 0, token.LOR, "||", operator },
++	elt{ 0, token.ARROW, "<-", operator },
++	elt{ 0, token.INC, "++", operator },
++	elt{ 0, token.DEC, "--", operator },
++
++	elt{ 0, token.EQL, "==", operator },
++	elt{ 0, token.LSS, "<", operator },
++	elt{ 0, token.GTR, ">", operator },
++	elt{ 0, token.ASSIGN, "=", operator },
++	elt{ 0, token.NOT, "!", operator },
++
++	elt{ 0, token.NEQ, "!=", operator },
++	elt{ 0, token.LEQ, "<=", operator },
++	elt{ 0, token.GEQ, ">=", operator },
++	elt{ 0, token.DEFINE, ":=", operator },
++	elt{ 0, token.ELLIPSIS, "...", operator },
++
++	elt{ 0, token.LPAREN, "(", operator },
++	elt{ 0, token.LBRACK, "[", operator },
++	elt{ 0, token.LBRACE, "{", operator },
++	elt{ 0, token.COMMA, ",", operator },
++	elt{ 0, token.PERIOD, ".", operator },
++
++	elt{ 0, token.RPAREN, ")", operator },
++	elt{ 0, token.RBRACK, "]", operator },
++	elt{ 0, token.RBRACE, "}", operator },
++	elt{ 0, token.SEMICOLON, ";", operator },
++	elt{ 0, token.COLON, ":", operator },
++
++	// Keywords
++	elt{ 0, token.BREAK, "break", keyword },
++	elt{ 0, token.CASE, "case", keyword },
++	elt{ 0, token.CHAN, "chan", keyword },
++	elt{ 0, token.CONST, "const", keyword },
++	elt{ 0, token.CONTINUE, "continue", keyword },
++
++	elt{ 0, token.DEFAULT, "default", keyword },
++	elt{ 0, token.DEFER, "defer", keyword },
++	elt{ 0, token.ELSE, "else", keyword },
++	elt{ 0, token.FALLTHROUGH, "fallthrough", keyword },
++	elt{ 0, token.FOR, "for", keyword },
++
++	elt{ 0, token.FUNC, "func", keyword },
++	elt{ 0, token.GO, "go", keyword },
++	elt{ 0, token.GOTO, "goto", keyword },
++	elt{ 0, token.IF, "if", keyword },
++	elt{ 0, token.IMPORT, "import", keyword },
++
++	elt{ 0, token.INTERFACE, "interface", keyword },
++	elt{ 0, token.MAP, "map", keyword },
++	elt{ 0, token.PACKAGE, "package", keyword },
++	elt{ 0, token.RANGE, "range", keyword },
++	elt{ 0, token.RETURN, "return", keyword },
++
++	elt{ 0, token.SELECT, "select", keyword },
++	elt{ 0, token.STRUCT, "struct", keyword },
++	elt{ 0, token.SWITCH, "switch", keyword },
++	elt{ 0, token.TYPE, "type", keyword },
++	elt{ 0, token.VAR, "var", keyword },
++}
++
++
++func init() {
++	// set pos fields
++	pos := 0;
++	for i := 0; i < len(tokens); i++ {
++		tokens[i].pos = pos;
++		pos += len(tokens[i].lit) + 1;  // + 1 for space in between
++	}
++}
++
++
++type TestErrorHandler struct {
++	t *testing.T
++}
++
++func (h *TestErrorHandler) Error(pos int, msg string) {
++	h.t.Errorf("Error() called (pos = %d, msg = %s)", pos, msg);
++}
++
++
++func Test(t *testing.T) {
++	// make source
++	var src string;
++	for i, e := range tokens {
++		src += e.lit + " ";
++	}
++
++	// set up scanner
++	var s scanner.Scanner;
++	s.Init(io.StringBytes(src), &TestErrorHandler{t}, true);
++
++	// verify scan
++	for i, e := range tokens {
++		pos, tok, lit := s.Scan();
++		if pos != e.pos {
++			t.Errorf("bad position for %s: got %d, expected %d", e.lit, pos, e.pos);
++		}
++		if tok != e.tok {
++			t.Errorf("bad token for %s: got %s, expected %s", e.lit, token.TokenString(tok), token.TokenString(e.tok));
++		}
++		if token.IsLiteral(e.tok) && string(lit) != e.lit {
++			t.Errorf("bad literal for %s: got %s, expected %s", e.lit, string(lit), e.lit);
++		}
++		if tokenclass(tok) != e.class {
++			t.Errorf("bad class for %s: got %d, expected %d", e.lit, tokenclass(tok), e.class);
++		}
++	}
++	pos, tok, lit := s.Scan();
++	if tok != token.EOF {
++		t.Errorf("bad token at eof: got %s, expected EOF", token.TokenString(tok));
++	}
++	if tokenclass(tok) != special {
++		t.Errorf("bad class at eof: got %d, expected %d", tokenclass(tok), special);
++	}
++}
+diff --git a/src/lib/lang/token.go b/src/lib/lang/token.go
+new file mode 100644
+index 0000000000..7691bac637
+--- /dev/null
++++ b/src/lib/lang/token.go
+@@ -0,0 +1,296 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package token
++
++// Defines Go tokens and basic token operations.
++
++import "strconv"
++
++const (
++	// Special tokens
++	ILLEGAL = iota;
++	EOF;
++	COMMENT;
++	
++	// Identifiers and basic type literals
++	// (these tokens stand for classes of literals)
++	literal_beg;
++	IDENT;
++	INT;
++	FLOAT;
++	CHAR;
++	STRING;
++	literal_end;
++
++	// Operators and delimiters
++	operator_beg;
++	ADD;
++	SUB;
++	MUL;
++	QUO;
++	REM;
++
++	AND;
++	OR;
++	XOR;
++	SHL;
++	SHR;
++
++	ADD_ASSIGN;
++	SUB_ASSIGN;
++	MUL_ASSIGN;
++	QUO_ASSIGN;
++	REM_ASSIGN;
++
++	AND_ASSIGN;
++	OR_ASSIGN;
++	XOR_ASSIGN;
++	SHL_ASSIGN;
++	SHR_ASSIGN;
++
++	LAND;
++	LOR;
++	ARROW;
++	INC;
++	DEC;
++
++	EQL;
++	LSS;
++	GTR;
++	ASSIGN;
++	NOT;
++
++	NEQ;
++	LEQ;
++	GEQ;
++	DEFINE;
++	ELLIPSIS;
++
++	LPAREN;
++	LBRACK;
++	LBRACE;
++	COMMA;
++	PERIOD;
++
++	RPAREN;
++	RBRACK;
++	RBRACE;
++	SEMICOLON;
++	COLON;
++	operator_end;
++
++	// Keywords
++	keyword_beg;
++	BREAK;
++	CASE;
++	CHAN;
++	CONST;
++	CONTINUE;
++
++	DEFAULT;
++	DEFER;
++	ELSE;
++	FALLTHROUGH;
++	FOR;
++
++	FUNC;
++	GO;
++	GOTO;
++	IF;
++	IMPORT;
++
++	INTERFACE;
++	MAP;
++	PACKAGE;
++	RANGE;
++	RETURN;
++
++	SELECT;
++	STRUCT;
++	SWITCH;
++	TYPE;
++	VAR;
++	keyword_end;
++)
++
++
++// At the moment we have no array literal syntax that lets us describe
++// the index for each element - use a map for now to make sure they are
++// in sync.
++var tokens = map [int] string {
++	ILLEGAL : "ILLEGAL",
++
++	EOF : "EOF",
++	COMMENT : "COMMENT",
++
++	IDENT : "IDENT",
++	INT : "INT",
++	FLOAT : "FLOAT",
++	CHAR : "CHAR",
++	STRING : "STRING",
++
++	ADD : "+",
++	SUB : "-",
++	MUL : "*",
++	QUO : "/",
++	REM : "%",
++
++	AND : "&",
++	OR : "|",
++	XOR : "^",
++	SHL : "<<",
++	SHR : ">>",
++
++	ADD_ASSIGN : "+=",
++	SUB_ASSIGN : "-=",
++	MUL_ASSIGN : "+=",
++	QUO_ASSIGN : "/=",
++	REM_ASSIGN : "%=",
++
++	AND_ASSIGN : "&=",
++	OR_ASSIGN : "|=",
++	XOR_ASSIGN : "^=",
++	SHL_ASSIGN : "<<=",
++	SHR_ASSIGN : ">>=",
++
++	LAND : "&&",
++	LOR : "||",
++	ARROW : "<-",
++	INC : "++",
++	DEC : "--",
++
++	EQL : "==",
++	LSS : "<",
++	GTR : ">",
++	ASSIGN : "=",
++	NOT : "!",
++
++	NEQ : "!=",
++	LEQ : "<=",
++	GEQ : ">=",
++	DEFINE : ":=",
++	ELLIPSIS : "...",
++
++	LPAREN : "(",
++	LBRACK : "[",
++	LBRACE : "{",
++	COMMA : ",",
++	PERIOD : ".",
++
++	RPAREN : ")",
++	RBRACK : "]",
++	RBRACE : "}",
++	SEMICOLON : ";",
++	COLON : ":",
++
++	BREAK : "break",
++	CASE : "case",
++	CHAN : "chan",
++	CONST : "const",
++	CONTINUE : "continue",
++
++	DEFAULT : "default",
++	DEFER : "defer",
++	ELSE : "else",
++	FALLTHROUGH : "fallthrough",
++	FOR : "for",
++
++	FUNC : "func",
++	GO : "go",
++	GOTO : "goto",
++	IF : "if",
++	IMPORT : "import",
++
++	INTERFACE : "interface",
++	MAP : "map",
++	PACKAGE : "package",
++	RANGE : "range",
++	RETURN : "return",
++
++	SELECT : "select",
++	STRUCT : "struct",
++	SWITCH : "switch",
++	TYPE : "type",
++	VAR : "var",
++}
++
++func TokenString(tok int) string {
++	if str, exists := tokens[tok]; exists {
++		return str;
++	}
++	return "token(" + strconv.Itoa(tok) + ")";
++}
++
++
++// A set of constants for precedence-based expression parsing.
++// Non-operators have lowest precedence, followed by operators
++// starting with precedence 0 up to unary operators and finally
++// the highest precedence used for tokens used in selectors, etc.
++
++const (
++	LowestPrec = -1;  // non-operators
++	UnaryPrec = 7;
++	HighestPrec = 8;
++)
++
++// Returns precedence of a token. Returns LowestPrec
++// if the token is not an operator.
++func Precedence(tok int) int {
++	switch tok {
++	case COLON:
++		return 0;
++	case LOR:
++		return 1;
++	case LAND:
++		return 2;
++	case ARROW:
++		return 3;
++	case EQL, NEQ, LSS, LEQ, GTR, GEQ:
++		return 4;
++	case ADD, SUB, OR, XOR:
++		return 5;
++	case MUL, QUO, REM, SHL, SHR, AND:
++		return 6;
++	}
++	return LowestPrec;
++}
++
++
++var keywords map [string] int;
++
++func init() {
++	keywords = make(map [string] int);
++	for i := keyword_beg + 1; i < keyword_end; i++ {
++		keywords[tokens[i]] = i;
++	}
++}
++
++
++// Map an identifier to its keyword token or IDENT (if not a keyword).
++func Lookup(ident []byte) int {
++	// TODO Maps with []byte key are illegal because []byte does not
++	//      support == . Should find a more efficient solution eventually.
++	if tok, is_keyword := keywords[string(ident)]; is_keyword {
++		return tok;
++	}
++	return IDENT;
++}
++
++
++// Predicates
++
++// Identifiers and basic type literals
++func IsLiteral(tok int) bool {
++	return literal_beg < tok && tok < literal_end;
++}
++
++// Operators and delimiters
++func IsOperator(tok int) bool {
++	return operator_beg < tok && tok < operator_end;
++}
++
++func IsKeyword(tok int) bool {
++	return keyword_beg < tok && tok < keyword_end;
++}
+diff --git a/src/run.bash b/src/run.bash
+index 2c5636cfa4..a2fffebf60 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -28,6 +28,7 @@ maketest \
+ 	lib/hash\
+ 	lib/io\
+ 	lib/json\
++	lib/lang\
+ 	lib/math\
+ 	lib/net\
+ 	lib/os\
+diff --git a/usr/gri/pretty/Makefile b/usr/gri/pretty/Makefile
+index 96ac84278a..7a0f5b37b8 100644
+--- a/usr/gri/pretty/Makefile
++++ b/usr/gri/pretty/Makefile
+@@ -32,21 +32,19 @@ gds.6:	 utils.6 platform.6 compilation.6 printer.6
+ 
+ pretty.6:	 platform.6 printer.6 compilation.6
+ 
+-compilation.6:	 platform.6 token.6 scanner.6 parser.6 ast.6 typechecker.6
++compilation.6:	 builder.6 platform.6 parser.6 ast.6 typechecker.6
+ 
+-typechecker.6:	 ast.6 token.6
++typechecker.6:	 ast.6
+ 
+-scanner.6:	 token.6 utils.6
+-
+-ast.6:	 token.6 symboltable.6
++ast.6:	 symboltable.6
+ 
+ symboltable.6:	
+ 
+-parser.6:	 token.6 scanner.6 ast.6 symboltable.6
++parser.6:	ast.6 builder.6 symboltable.6
+ 
+ platform.6:	 utils.6
+ 
+-printer.6:	 utils.6 token.6 ast.6 symboltable.6
++printer.6:	 utils.6 ast.6 symboltable.6
+ 
+ %.6:	%.go
+ 	$(G) $(F) $<
+diff --git a/usr/gri/pretty/token.go b/usr/gri/pretty/token.go
+deleted file mode 100644
+index 7aa186f062..0000000000
+--- a/usr/gri/pretty/token.go
++++ /dev/null
+@@ -1,286 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package token
+-
+-// Defines Go tokens and basic token operations.
+-
+-import "strconv";
+-
+-const (
+-	// Special tokens
+-	ILLEGAL = iota;
+-	EOF;
+-	COMMENT;
+-	
+-	// Identifiers and basic type literals
+-	// (these tokens stand for classes of literals)
+-	literal_beg;
+-	IDENT;
+-	INT;
+-	FLOAT;
+-	CHAR;
+-	STRING;
+-	literal_end;
+-
+-	// Operators and delimiters
+-	operator_beg;
+-	ADD;
+-	SUB;
+-	MUL;
+-	QUO;
+-	REM;
+-
+-	AND;
+-	OR;
+-	XOR;
+-	SHL;
+-	SHR;
+-
+-	ADD_ASSIGN;
+-	SUB_ASSIGN;
+-	MUL_ASSIGN;
+-	QUO_ASSIGN;
+-	REM_ASSIGN;
+-
+-	AND_ASSIGN;
+-	OR_ASSIGN;
+-	XOR_ASSIGN;
+-	SHL_ASSIGN;
+-	SHR_ASSIGN;
+-
+-	LAND;
+-	LOR;
+-	ARROW;
+-	INC;
+-	DEC;
+-
+-	EQL;
+-	LSS;
+-	GTR;
+-	ASSIGN;
+-	NOT;
+-
+-	NEQ;
+-	LEQ;
+-	GEQ;
+-	DEFINE;
+-	ELLIPSIS;
+-
+-	LPAREN;
+-	LBRACK;
+-	LBRACE;
+-	COMMA;
+-	PERIOD;
+-
+-	RPAREN;
+-	RBRACK;
+-	RBRACE;
+-	SEMICOLON;
+-	COLON;
+-	operator_end;
+-
+-	// Keywords
+-	keyword_beg;
+-	BREAK;
+-	CASE;
+-	CHAN;
+-	CONST;
+-	CONTINUE;
+-
+-	DEFAULT;
+-	DEFER;
+-	ELSE;
+-	FALLTHROUGH;
+-	FOR;
+-
+-	FUNC;
+-	GO;
+-	GOTO;
+-	IF;
+-	IMPORT;
+-
+-	INTERFACE;
+-	MAP;
+-	PACKAGE;
+-	RANGE;
+-	RETURN;
+-
+-	SELECT;
+-	STRUCT;
+-	SWITCH;
+-	TYPE;
+-	VAR;
+-	keyword_end;
+-)
+-
+-
+-func TokenString(tok int) string {
+-	switch tok {
+-	case ILLEGAL: return "ILLEGAL";
+-
+-	case EOF: return "EOF";
+-	case COMMENT: return "COMMENT";
+-
+-	case IDENT: return "IDENT";
+-	case INT: return "INT";
+-	case FLOAT: return "FLOAT";
+-	case CHAR: return "CHAR";
+-	case STRING: return "STRING";
+-
+-	case ADD: return "+";
+-	case SUB: return "-";
+-	case MUL: return "*";
+-	case QUO: return "/";
+-	case REM: return "%";
+-
+-	case AND: return "&";
+-	case OR: return "|";
+-	case XOR: return "^";
+-	case SHL: return "<<";
+-	case SHR: return ">>";
+-
+-	case ADD_ASSIGN: return "+=";
+-	case SUB_ASSIGN: return "-=";
+-	case MUL_ASSIGN: return "+=";
+-	case QUO_ASSIGN: return "/=";
+-	case REM_ASSIGN: return "%=";
+-
+-	case AND_ASSIGN: return "&=";
+-	case OR_ASSIGN: return "|=";
+-	case XOR_ASSIGN: return "^=";
+-	case SHL_ASSIGN: return "<<=";
+-	case SHR_ASSIGN: return ">>=";
+-
+-	case LAND: return "&&";
+-	case LOR: return "||";
+-	case ARROW: return "<-";
+-	case INC: return "++";
+-	case DEC: return "--";
+-
+-	case EQL: return "==";
+-	case LSS: return "<";
+-	case GTR: return ">";
+-	case ASSIGN: return "=";
+-	case NOT: return "!";
+-
+-	case NEQ: return "!=";
+-	case LEQ: return "<=";
+-	case GEQ: return ">=";
+-	case DEFINE: return ":=";
+-	case ELLIPSIS: return "...";
+-
+-	case LPAREN: return "(";
+-	case LBRACK: return "[";
+-	case LBRACE: return "{";
+-	case COMMA: return ",";
+-	case PERIOD: return ".";
+-
+-	case RPAREN: return ")";
+-	case RBRACK: return "]";
+-	case RBRACE: return "}";
+-	case SEMICOLON: return ";";
+-	case COLON: return ":";
+-
+-	case BREAK: return "break";
+-	case CASE: return "case";
+-	case CHAN: return "chan";
+-	case CONST: return "const";
+-	case CONTINUE: return "continue";
+-
+-	case DEFAULT: return "default";
+-	case DEFER: return "defer";
+-	case ELSE: return "else";
+-	case FALLTHROUGH: return "fallthrough";
+-	case FOR: return "for";
+-
+-	case FUNC: return "func";
+-	case GO: return "go";
+-	case GOTO: return "goto";
+-	case IF: return "if";
+-	case IMPORT: return "import";
+-
+-	case INTERFACE: return "interface";
+-	case MAP: return "map";
+-	case PACKAGE: return "package";
+-	case RANGE: return "range";
+-	case RETURN: return "return";
+-
+-	case SELECT: return "select";
+-	case STRUCT: return "struct";
+-	case SWITCH: return "switch";
+-	case TYPE: return "type";
+-	case VAR: return "var";
+-	}
+-
+-	return "token(" + strconv.Itoa(tok) + ")";
+-}
+-
+-
+-const (
+-	LowestPrec = -1;
+-	UnaryPrec = 7;
+-	HighestPrec = 8;
+-)
+-
+-
+-func Precedence(tok int) int {
+-	switch tok {
+-	case COLON:
+-		return 0;
+-	case LOR:
+-		return 1;
+-	case LAND:
+-		return 2;
+-	case ARROW:
+-		return 3;
+-	case EQL, NEQ, LSS, LEQ, GTR, GEQ:
+-		return 4;
+-	case ADD, SUB, OR, XOR:
+-		return 5;
+-	case MUL, QUO, REM, SHL, SHR, AND:
+-		return 6;
+-	}
+-	return LowestPrec;
+-}
+-
+-
+-var keywords map [string] int;
+-
+-func init() {
+-	keywords = make(map [string] int);
+-	for i := keyword_beg + 1; i < keyword_end; i++ {
+-		keywords[TokenString(i)] = i;
+-	}
+-}
+-
+-
+-// Map an identifier to its keyword token or IDENT (if not a keyword).
+-func Lookup(ident []byte) int {
+-	// TODO should not have to convert every ident into a string
+-	//      for lookup - but at the moment maps of []byte don't
+-	//      seem to work - gri 3/3/09
+-	if tok, is_keyword := keywords[string(ident)]; is_keyword {
+-		return tok;
+-	}
+-	return IDENT;
+-}
+-
+-
+-// Predicates
+-
+-// Identifiers and basic type literals
+-func IsLiteral(tok int) bool {
+-	return literal_beg < tok && tok < literal_end;
+-}
+-
+-
+-// Operators and delimiters
+-func IsOperator(tok int) bool {
+-	return operator_beg < tok && tok < operator_end;
+-}
+-
+-func IsKeyword(tok int) bool {
+-	return keyword_beg < tok && tok < keyword_end;
+-}

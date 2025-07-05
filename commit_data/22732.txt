@@ -7,6 +7,19 @@ Date:   Mon Apr 6 16:20:45 2015 -0700
     Change-Id: Idd42e0f5c6ed55be2e153ac83022439e5272c1a7
     Reviewed-on: https://go-review.googlesource.com/8444
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  doc/go1.5.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index d9fe86e6fe..a697ac33c5 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -20,6 +20,7 @@ API additions and behavior changes:
+ archive/zip: add (*Writer).SetOffset method (https://golang.org/cl/7445)
+ bufio: add Reader.Discard (https://golang.org/cl/2260)
+ bytes: add Buffer.Cap (https://golang.org/cl/8342)
++bytes, strings: add Reader.Size (https://golang.org/cl/3199)
+ crypto/cipher: clarify what will happen if len(src) != len(dst) for the Stream interface. (https://golang.org/cl/1754)
+ crypto/elliptic: add Name field to CurveParams struct (https://golang.org/cl/2133)
+ crypto/tls: change default minimum version to TLS 1.0. (https://golang.org/cl/1791)

@@ -15,8 +15,117 @@ Date:   Sun Mar 1 23:58:28 2015 +0900
     Change-Id: I2480ba273929e859896697382d1a75b01a116b98
     Reviewed-on: https://go-review.googlesource.com/6391
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/interface_test.go     |  6 ------
  src/syscall/route_bsd.go      | 14 ++++++++++++--
  src/syscall/route_bsd_test.go | 30 +++++++++++++++++++++++++++++-
  3 files changed, 41 insertions(+), 9 deletions(-)
+
+diff --git a/src/net/interface_test.go b/src/net/interface_test.go
+index 98d6734dc3..15c0cd7be4 100644
+--- a/src/net/interface_test.go
++++ b/src/net/interface_test.go
+@@ -48,9 +48,6 @@ func ipv6LinkLocalUnicastAddr(ifi *Interface) string {
+ }
+ 
+ func TestInterfaces(t *testing.T) {
+-	if runtime.GOOS == "dragonfly" {
+-		t.Skip("fail on dragonfly - issue 10041")
+-	}
+ 	ift, err := Interfaces()
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -108,9 +105,6 @@ func TestInterfaces(t *testing.T) {
+ }
+ 
+ func TestInterfaceAddrs(t *testing.T) {
+-	if runtime.GOOS == "dragonfly" {
+-		t.Skip("fail on dragonfly - issue 10041")
+-	}
+ 	ift, err := Interfaces()
+ 	if err != nil {
+ 		t.Fatal(err)
+diff --git a/src/syscall/route_bsd.go b/src/syscall/route_bsd.go
+index bc5de69bed..a55198b634 100644
+--- a/src/syscall/route_bsd.go
++++ b/src/syscall/route_bsd.go
+@@ -140,8 +140,14 @@ func parseNetworkLayerAddr(b []byte, family byte) (Sockaddr, error) {
+ 	if len(b) < l {
+ 		return nil, EINVAL
+ 	}
+-	switch family {
+-	case AF_INET6:
++	// Don't reorder case expressions.
++	// The case expressions for IPv6 must come first.
++	switch {
++	case b[0] == SizeofSockaddrInet6:
++		sa := &SockaddrInet6{}
++		copy(sa.Addr[:], b[offsetofInet6:])
++		return sa, nil
++	case family == AF_INET6:
+ 		sa := &SockaddrInet6{}
+ 		if l-1 < offsetofInet6 {
+ 			copy(sa.Addr[:], b[1:l])
+@@ -149,6 +155,10 @@ func parseNetworkLayerAddr(b []byte, family byte) (Sockaddr, error) {
+ 			copy(sa.Addr[:], b[l-offsetofInet6:l])
+ 		}
+ 		return sa, nil
++	case b[0] == SizeofSockaddrInet4:
++		sa := &SockaddrInet4{}
++		copy(sa.Addr[:], b[offsetofInet4:])
++		return sa, nil
+ 	default: // an old fashion, AF_UNSPEC or unknown means AF_INET
+ 		sa := &SockaddrInet4{}
+ 		if l-1 < offsetofInet4 {
+diff --git a/src/syscall/route_bsd_test.go b/src/syscall/route_bsd_test.go
+index 471f4a25a5..8617663d43 100644
+--- a/src/syscall/route_bsd_test.go
++++ b/src/syscall/route_bsd_test.go
+@@ -18,7 +18,18 @@ import (
+ func TestRouteRIB(t *testing.T) {
+ 	for _, facility := range []int{syscall.NET_RT_DUMP, syscall.NET_RT_IFLIST} {
+ 		for _, param := range []int{syscall.AF_UNSPEC, syscall.AF_INET, syscall.AF_INET6} {
+-			b, err := syscall.RouteRIB(facility, param)
++			var err error
++			var b []byte
++			// The VM allocator wrapper functions can
++			// return ENOMEM easily.
++			for i := 0; i < 3; i++ {
++				b, err = syscall.RouteRIB(facility, param)
++				if err != nil {
++					time.Sleep(5 * time.Millisecond)
++					continue
++				}
++				break
++			}
+ 			if err != nil {
+ 				t.Error(facility, param, err)
+ 				continue
+@@ -185,10 +196,27 @@ func (sas sockaddrs) String() string {
+ 
+ func (sas sockaddrs) match(flags addrFlags) error {
+ 	var f addrFlags
++	family := syscall.AF_UNSPEC
+ 	for i := range sas {
+ 		if sas[i] != nil {
+ 			f |= 1 << uint(i)
+ 		}
++		switch sas[i].(type) {
++		case *syscall.SockaddrInet4:
++			if family == syscall.AF_UNSPEC {
++				family = syscall.AF_INET
++			}
++			if family != syscall.AF_INET {
++				return fmt.Errorf("got %v; want %v", sockaddrs(sas), family)
++			}
++		case *syscall.SockaddrInet6:
++			if family == syscall.AF_UNSPEC {
++				family = syscall.AF_INET6
++			}
++			if family != syscall.AF_INET6 {
++				return fmt.Errorf("got %v; want %v", sockaddrs(sas), family)
++			}
++		}
+ 	}
+ 	if f != flags {
+ 		return fmt.Errorf("got %v; want %v", f, flags)

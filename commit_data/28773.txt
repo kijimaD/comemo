@@ -13,10 +13,830 @@ Date:   Mon Jul 18 10:18:12 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/25004
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go        | 140 ++++++++++----------
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  32 ++---
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  25 ++--
  src/cmd/compile/internal/ssa/opGen.go        | 122 +++---------------
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 184 ++++++++++++++++-----------
  5 files changed, 218 insertions(+), 285 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 94c7c47afe..a714e06c15 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -209,89 +209,87 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		}
+ 		opregreg(v.Op.Asm(), r, gc.SSARegNum(v.Args[1]))
+ 
+-	case ssa.OpAMD64DIVQ, ssa.OpAMD64DIVL, ssa.OpAMD64DIVW,
+-		ssa.OpAMD64DIVQU, ssa.OpAMD64DIVLU, ssa.OpAMD64DIVWU,
+-		ssa.OpAMD64MODQ, ssa.OpAMD64MODL, ssa.OpAMD64MODW,
+-		ssa.OpAMD64MODQU, ssa.OpAMD64MODLU, ssa.OpAMD64MODWU:
++	case ssa.OpAMD64DIVQU, ssa.OpAMD64DIVLU, ssa.OpAMD64DIVWU:
++		// Arg[0] (the dividend) is in AX.
++		// Arg[1] (the divisor) can be in any other register.
++		// Result[0] (the quotient) is in AX.
++		// Result[1] (the remainder) is in DX.
++		r := gc.SSARegNum(v.Args[1])
+ 
+-		// Arg[0] is already in AX as it's the only register we allow
+-		// and AX is the only output
+-		x := gc.SSARegNum(v.Args[1])
+-
+-		// CPU faults upon signed overflow, which occurs when most
+-		// negative int is divided by -1.
+-		var j *obj.Prog
+-		if v.Op == ssa.OpAMD64DIVQ || v.Op == ssa.OpAMD64DIVL ||
+-			v.Op == ssa.OpAMD64DIVW || v.Op == ssa.OpAMD64MODQ ||
+-			v.Op == ssa.OpAMD64MODL || v.Op == ssa.OpAMD64MODW {
+-
+-			var c *obj.Prog
+-			switch v.Op {
+-			case ssa.OpAMD64DIVQ, ssa.OpAMD64MODQ:
+-				c = gc.Prog(x86.ACMPQ)
+-				j = gc.Prog(x86.AJEQ)
+-				// go ahead and sign extend to save doing it later
+-				gc.Prog(x86.ACQO)
++		// Zero extend dividend.
++		c := gc.Prog(x86.AXORL)
++		c.From.Type = obj.TYPE_REG
++		c.From.Reg = x86.REG_DX
++		c.To.Type = obj.TYPE_REG
++		c.To.Reg = x86.REG_DX
+ 
+-			case ssa.OpAMD64DIVL, ssa.OpAMD64MODL:
+-				c = gc.Prog(x86.ACMPL)
+-				j = gc.Prog(x86.AJEQ)
+-				gc.Prog(x86.ACDQ)
+-
+-			case ssa.OpAMD64DIVW, ssa.OpAMD64MODW:
+-				c = gc.Prog(x86.ACMPW)
+-				j = gc.Prog(x86.AJEQ)
+-				gc.Prog(x86.ACWD)
+-			}
+-			c.From.Type = obj.TYPE_REG
+-			c.From.Reg = x
+-			c.To.Type = obj.TYPE_CONST
+-			c.To.Offset = -1
++		// Issue divide.
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = r
+ 
+-			j.To.Type = obj.TYPE_BRANCH
++	case ssa.OpAMD64DIVQ, ssa.OpAMD64DIVL, ssa.OpAMD64DIVW:
++		// Arg[0] (the dividend) is in AX.
++		// Arg[1] (the divisor) can be in any other register.
++		// Result[0] (the quotient) is in AX.
++		// Result[1] (the remainder) is in DX.
++		r := gc.SSARegNum(v.Args[1])
+ 
++		// CPU faults upon signed overflow, which occurs when the most
++		// negative int is divided by -1. Handle divide by -1 as a special case.
++		var c *obj.Prog
++		switch v.Op {
++		case ssa.OpAMD64DIVQ:
++			c = gc.Prog(x86.ACMPQ)
++		case ssa.OpAMD64DIVL:
++			c = gc.Prog(x86.ACMPL)
++		case ssa.OpAMD64DIVW:
++			c = gc.Prog(x86.ACMPW)
+ 		}
++		c.From.Type = obj.TYPE_REG
++		c.From.Reg = r
++		c.To.Type = obj.TYPE_CONST
++		c.To.Offset = -1
++		j1 := gc.Prog(x86.AJEQ)
++		j1.To.Type = obj.TYPE_BRANCH
+ 
+-		// for unsigned ints, we sign extend by setting DX = 0
+-		// signed ints were sign extended above
+-		if v.Op == ssa.OpAMD64DIVQU || v.Op == ssa.OpAMD64MODQU ||
+-			v.Op == ssa.OpAMD64DIVLU || v.Op == ssa.OpAMD64MODLU ||
+-			v.Op == ssa.OpAMD64DIVWU || v.Op == ssa.OpAMD64MODWU {
+-			c := gc.Prog(x86.AXORQ)
+-			c.From.Type = obj.TYPE_REG
+-			c.From.Reg = x86.REG_DX
+-			c.To.Type = obj.TYPE_REG
+-			c.To.Reg = x86.REG_DX
++		// Sign extend dividend.
++		switch v.Op {
++		case ssa.OpAMD64DIVQ:
++			gc.Prog(x86.ACQO)
++		case ssa.OpAMD64DIVL:
++			gc.Prog(x86.ACDQ)
++		case ssa.OpAMD64DIVW:
++			gc.Prog(x86.ACWD)
+ 		}
+ 
++		// Issue divide.
+ 		p := gc.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = x
++		p.From.Reg = r
+ 
+-		// signed division, rest of the check for -1 case
+-		if j != nil {
+-			j2 := gc.Prog(obj.AJMP)
+-			j2.To.Type = obj.TYPE_BRANCH
++		// Skip over -1 fixup code.
++		j2 := gc.Prog(obj.AJMP)
++		j2.To.Type = obj.TYPE_BRANCH
+ 
+-			var n *obj.Prog
+-			if v.Op == ssa.OpAMD64DIVQ || v.Op == ssa.OpAMD64DIVL ||
+-				v.Op == ssa.OpAMD64DIVW {
+-				// n * -1 = -n
+-				n = gc.Prog(x86.ANEGQ)
+-				n.To.Type = obj.TYPE_REG
+-				n.To.Reg = x86.REG_AX
+-			} else {
+-				// n % -1 == 0
+-				n = gc.Prog(x86.AXORQ)
+-				n.From.Type = obj.TYPE_REG
+-				n.From.Reg = x86.REG_DX
+-				n.To.Type = obj.TYPE_REG
+-				n.To.Reg = x86.REG_DX
+-			}
++		// Issue -1 fixup code.
++		// n / -1 = -n
++		n1 := gc.Prog(x86.ANEGQ)
++		n1.To.Type = obj.TYPE_REG
++		n1.To.Reg = x86.REG_AX
+ 
+-			j.To.Val = n
+-			j2.To.Val = s.Pc()
+-		}
++		// n % -1 == 0
++		n2 := gc.Prog(x86.AXORL)
++		n2.From.Type = obj.TYPE_REG
++		n2.From.Reg = x86.REG_DX
++		n2.To.Type = obj.TYPE_REG
++		n2.To.Reg = x86.REG_DX
++
++		// TODO(khr): issue only the -1 fixup code we need.
++		// For instance, if only the quotient is used, no point in zeroing the remainder.
++
++		j1.To.Val = n1
++		j2.To.Val = s.Pc()
+ 
+ 	case ssa.OpAMD64HMULQ, ssa.OpAMD64HMULL, ssa.OpAMD64HMULW, ssa.OpAMD64HMULB,
+ 		ssa.OpAMD64HMULQU, ssa.OpAMD64HMULLU, ssa.OpAMD64HMULWU, ssa.OpAMD64HMULBU:
+@@ -818,6 +816,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Reg = gc.SSARegNum(v)
+ 	case ssa.OpSP, ssa.OpSB:
+ 		// nothing to do
++	case ssa.OpSelect0, ssa.OpSelect1:
++		// nothing to do
+ 	case ssa.OpAMD64SETEQ, ssa.OpAMD64SETNE,
+ 		ssa.OpAMD64SETL, ssa.OpAMD64SETLE,
+ 		ssa.OpAMD64SETG, ssa.OpAMD64SETGE,
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 351feb39d5..4bcb213a13 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -29,14 +29,14 @@
+ (Div32F x y) -> (DIVSS x y)
+ (Div64F x y) -> (DIVSD x y)
+ 
+-(Div64  x y) -> (DIVQ  x y)
+-(Div64u x y) -> (DIVQU x y)
+-(Div32  x y) -> (DIVL  x y)
+-(Div32u x y) -> (DIVLU x y)
+-(Div16  x y) -> (DIVW  x y)
+-(Div16u x y) -> (DIVWU x y)
+-(Div8   x y) -> (DIVW  (SignExt8to16 x) (SignExt8to16 y))
+-(Div8u  x y) -> (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y))
++(Div64  x y) -> (Select0 (DIVQ  x y <&TupleType{config.Frontend().TypeInt64(), config.Frontend().TypeInt64()}>))
++(Div64u x y) -> (Select0 (DIVQU x y <&TupleType{config.Frontend().TypeUInt64(), config.Frontend().TypeUInt64()}>))
++(Div32  x y) -> (Select0 (DIVL  x y <&TupleType{config.Frontend().TypeInt32(), config.Frontend().TypeInt32()}>))
++(Div32u x y) -> (Select0 (DIVLU x y <&TupleType{config.Frontend().TypeUInt32(), config.Frontend().TypeUInt32()}>))
++(Div16  x y) -> (Select0 (DIVW  x y <&TupleType{config.Frontend().TypeInt16(), config.Frontend().TypeInt16()}>))
++(Div16u x y) -> (Select0 (DIVWU x y <&TupleType{config.Frontend().TypeUInt16(), config.Frontend().TypeUInt16()}>))
++(Div8   x y) -> (Select0 (DIVW  (SignExt8to16 x) (SignExt8to16 y) <&TupleType{config.Frontend().TypeInt8(), config.Frontend().TypeInt8()}>))
++(Div8u  x y) -> (Select0 (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y) <&TupleType{config.Frontend().TypeUInt8(), config.Frontend().TypeUInt8()}>))
+ 
+ (Hmul64  x y) -> (HMULQ  x y)
+ (Hmul64u x y) -> (HMULQU x y)
+@@ -49,14 +49,14 @@
+ 
+ (Avg64u x y) -> (AVGQU x y)
+ 
+-(Mod64  x y) -> (MODQ  x y)
+-(Mod64u x y) -> (MODQU x y)
+-(Mod32  x y) -> (MODL  x y)
+-(Mod32u x y) -> (MODLU x y)
+-(Mod16  x y) -> (MODW  x y)
+-(Mod16u x y) -> (MODWU x y)
+-(Mod8   x y) -> (MODW  (SignExt8to16 x) (SignExt8to16 y))
+-(Mod8u  x y) -> (MODWU (ZeroExt8to16 x) (ZeroExt8to16 y))
++(Mod64  x y) -> (Select1 (DIVQ  x y <&TupleType{config.Frontend().TypeInt64(), config.Frontend().TypeInt64()}>))
++(Mod64u x y) -> (Select1 (DIVQU x y <&TupleType{config.Frontend().TypeUInt64(), config.Frontend().TypeUInt64()}>))
++(Mod32  x y) -> (Select1 (DIVL  x y <&TupleType{config.Frontend().TypeInt32(), config.Frontend().TypeInt32()}>))
++(Mod32u x y) -> (Select1 (DIVLU x y <&TupleType{config.Frontend().TypeUInt32(), config.Frontend().TypeUInt32()}>))
++(Mod16  x y) -> (Select1 (DIVW  x y <&TupleType{config.Frontend().TypeInt16(), config.Frontend().TypeInt16()}>))
++(Mod16u x y) -> (Select1 (DIVWU x y <&TupleType{config.Frontend().TypeUInt16(), config.Frontend().TypeUInt16()}>))
++(Mod8   x y) -> (Select1 (DIVW  (SignExt8to16 x) (SignExt8to16 y) <&TupleType{config.Frontend().TypeInt8(), config.Frontend().TypeInt8()}>))
++(Mod8u  x y) -> (Select1 (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y) <&TupleType{config.Frontend().TypeUInt8(), config.Frontend().TypeUInt8()}>))
+ 
+ (And64 x y) -> (ANDQ x y)
+ (And32 x y) -> (ANDL x y)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 7767e14a35..c87172e8e3 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -119,12 +119,10 @@ func init() {
+ 		gp21sp    = regInfo{inputs: []regMask{gpsp, gp}, outputs: gponly, clobbers: flags}
+ 		gp21sb    = regInfo{inputs: []regMask{gpspsb, gpsp}, outputs: gponly}
+ 		gp21shift = regInfo{inputs: []regMask{gp, cx}, outputs: []regMask{gp}, clobbers: flags}
+-		gp11div   = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{ax},
+-			clobbers: dx | flags}
++		gp11div   = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{ax, dx},
++			clobbers: flags}
+ 		gp11hmul = regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx},
+ 			clobbers: ax | flags}
+-		gp11mod = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{dx},
+-			clobbers: ax | flags}
+ 
+ 		gp2flags = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: flagsonly}
+ 		gp1flags = regInfo{inputs: []regMask{gpsp}, outputs: flagsonly}
+@@ -214,19 +212,12 @@ func init() {
+ 
+ 		{name: "AVGQU", argLength: 2, reg: gp21, commutative: true, resultInArg0: true}, // (arg0 + arg1) / 2 as unsigned, all 64 result bits
+ 
+-		{name: "DIVQ", argLength: 2, reg: gp11div, asm: "IDIVQ"}, // arg0 / arg1
+-		{name: "DIVL", argLength: 2, reg: gp11div, asm: "IDIVL"}, // arg0 / arg1
+-		{name: "DIVW", argLength: 2, reg: gp11div, asm: "IDIVW"}, // arg0 / arg1
+-		{name: "DIVQU", argLength: 2, reg: gp11div, asm: "DIVQ"}, // arg0 / arg1
+-		{name: "DIVLU", argLength: 2, reg: gp11div, asm: "DIVL"}, // arg0 / arg1
+-		{name: "DIVWU", argLength: 2, reg: gp11div, asm: "DIVW"}, // arg0 / arg1
+-
+-		{name: "MODQ", argLength: 2, reg: gp11mod, asm: "IDIVQ"}, // arg0 % arg1
+-		{name: "MODL", argLength: 2, reg: gp11mod, asm: "IDIVL"}, // arg0 % arg1
+-		{name: "MODW", argLength: 2, reg: gp11mod, asm: "IDIVW"}, // arg0 % arg1
+-		{name: "MODQU", argLength: 2, reg: gp11mod, asm: "DIVQ"}, // arg0 % arg1
+-		{name: "MODLU", argLength: 2, reg: gp11mod, asm: "DIVL"}, // arg0 % arg1
+-		{name: "MODWU", argLength: 2, reg: gp11mod, asm: "DIVW"}, // arg0 % arg1
++		{name: "DIVQ", argLength: 2, reg: gp11div, asm: "IDIVQ"}, // [arg0 / arg1, arg0 % arg1]
++		{name: "DIVL", argLength: 2, reg: gp11div, asm: "IDIVL"}, // [arg0 / arg1, arg0 % arg1]
++		{name: "DIVW", argLength: 2, reg: gp11div, asm: "IDIVW"}, // [arg0 / arg1, arg0 % arg1]
++		{name: "DIVQU", argLength: 2, reg: gp11div, asm: "DIVQ"}, // [arg0 / arg1, arg0 % arg1]
++		{name: "DIVLU", argLength: 2, reg: gp11div, asm: "DIVL"}, // [arg0 / arg1, arg0 % arg1]
++		{name: "DIVWU", argLength: 2, reg: gp11div, asm: "DIVW"}, // [arg0 / arg1, arg0 % arg1]
+ 
+ 		{name: "ANDQ", argLength: 2, reg: gp21, asm: "ANDQ", commutative: true, resultInArg0: true}, // arg0 & arg1
+ 		{name: "ANDL", argLength: 2, reg: gp21, asm: "ANDL", commutative: true, resultInArg0: true}, // arg0 & arg1
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 9d86cbe623..76baa9ea5e 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -368,12 +368,6 @@ const (
+ 	OpAMD64DIVQU
+ 	OpAMD64DIVLU
+ 	OpAMD64DIVWU
+-	OpAMD64MODQ
+-	OpAMD64MODL
+-	OpAMD64MODW
+-	OpAMD64MODQU
+-	OpAMD64MODLU
+-	OpAMD64MODWU
+ 	OpAMD64ANDQ
+ 	OpAMD64ANDL
+ 	OpAMD64ANDQconst
+@@ -4129,9 +4123,10 @@ var opcodeTable = [...]opInfo{
+ 				{0, 1},     // AX
+ 				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+ 			},
+-			clobbers: 8589934596, // DX FLAGS
++			clobbers: 8589934592, // FLAGS
+ 			outputs: []outputInfo{
+ 				{0, 1}, // AX
++				{1, 4}, // DX
+ 			},
+ 		},
+ 	},
+@@ -4144,9 +4139,10 @@ var opcodeTable = [...]opInfo{
+ 				{0, 1},     // AX
+ 				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+ 			},
+-			clobbers: 8589934596, // DX FLAGS
++			clobbers: 8589934592, // FLAGS
+ 			outputs: []outputInfo{
+ 				{0, 1}, // AX
++				{1, 4}, // DX
+ 			},
+ 		},
+ 	},
+@@ -4159,9 +4155,10 @@ var opcodeTable = [...]opInfo{
+ 				{0, 1},     // AX
+ 				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+ 			},
+-			clobbers: 8589934596, // DX FLAGS
++			clobbers: 8589934592, // FLAGS
+ 			outputs: []outputInfo{
+ 				{0, 1}, // AX
++				{1, 4}, // DX
+ 			},
+ 		},
+ 	},
+@@ -4174,9 +4171,10 @@ var opcodeTable = [...]opInfo{
+ 				{0, 1},     // AX
+ 				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+ 			},
+-			clobbers: 8589934596, // DX FLAGS
++			clobbers: 8589934592, // FLAGS
+ 			outputs: []outputInfo{
+ 				{0, 1}, // AX
++				{1, 4}, // DX
+ 			},
+ 		},
+ 	},
+@@ -4189,9 +4187,10 @@ var opcodeTable = [...]opInfo{
+ 				{0, 1},     // AX
+ 				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+ 			},
+-			clobbers: 8589934596, // DX FLAGS
++			clobbers: 8589934592, // FLAGS
+ 			outputs: []outputInfo{
+ 				{0, 1}, // AX
++				{1, 4}, // DX
+ 			},
+ 		},
+ 	},
+@@ -4204,99 +4203,10 @@ var opcodeTable = [...]opInfo{
+ 				{0, 1},     // AX
+ 				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+ 			},
+-			clobbers: 8589934596, // DX FLAGS
++			clobbers: 8589934592, // FLAGS
+ 			outputs: []outputInfo{
+ 				{0, 1}, // AX
+-			},
+-		},
+-	},
+-	{
+-		name:   "MODQ",
+-		argLen: 2,
+-		asm:    x86.AIDIVQ,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1},     // AX
+-				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+-			},
+-			clobbers: 8589934593, // AX FLAGS
+-			outputs: []outputInfo{
+-				{0, 4}, // DX
+-			},
+-		},
+-	},
+-	{
+-		name:   "MODL",
+-		argLen: 2,
+-		asm:    x86.AIDIVL,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1},     // AX
+-				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+-			},
+-			clobbers: 8589934593, // AX FLAGS
+-			outputs: []outputInfo{
+-				{0, 4}, // DX
+-			},
+-		},
+-	},
+-	{
+-		name:   "MODW",
+-		argLen: 2,
+-		asm:    x86.AIDIVW,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1},     // AX
+-				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+-			},
+-			clobbers: 8589934593, // AX FLAGS
+-			outputs: []outputInfo{
+-				{0, 4}, // DX
+-			},
+-		},
+-	},
+-	{
+-		name:   "MODQU",
+-		argLen: 2,
+-		asm:    x86.ADIVQ,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1},     // AX
+-				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+-			},
+-			clobbers: 8589934593, // AX FLAGS
+-			outputs: []outputInfo{
+-				{0, 4}, // DX
+-			},
+-		},
+-	},
+-	{
+-		name:   "MODLU",
+-		argLen: 2,
+-		asm:    x86.ADIVL,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1},     // AX
+-				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+-			},
+-			clobbers: 8589934593, // AX FLAGS
+-			outputs: []outputInfo{
+-				{0, 4}, // DX
+-			},
+-		},
+-	},
+-	{
+-		name:   "MODWU",
+-		argLen: 2,
+-		asm:    x86.ADIVW,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1},     // AX
+-				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+-			},
+-			clobbers: 8589934593, // AX FLAGS
+-			outputs: []outputInfo{
+-				{0, 4}, // DX
++				{1, 4}, // DX
+ 			},
+ 		},
+ 	},
+@@ -8909,8 +8819,8 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+ 			},
+-			outputs: []regMask{
+-				4294967296, // FLAGS
++			outputs: []outputInfo{
++				{0, 4294967296}, // FLAGS
+ 			},
+ 		},
+ 	},
+@@ -8922,8 +8832,8 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+ 			},
+-			outputs: []regMask{
+-				4294967296, // FLAGS
++			outputs: []outputInfo{
++				{0, 4294967296}, // FLAGS
+ 			},
+ 		},
+ 	},
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 52c2fbc901..fc51135ec7 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -3275,13 +3275,15 @@ func rewriteValueAMD64_OpDiv16(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Div16  x y)
+ 	// cond:
+-	// result: (DIVW  x y)
++	// result: (Select0 (DIVW  x y <&TupleType{config.Frontend().TypeInt16(), config.Frontend().TypeInt16()}>))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpAMD64DIVW)
+-		v.AddArg(x)
+-		v.AddArg(y)
++		v.reset(OpSelect0)
++		v0 := b.NewValue0(v.Line, OpAMD64DIVW, &TupleType{config.Frontend().TypeInt16(), config.Frontend().TypeInt16()})
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
+ 		return true
+ 	}
+ }
+@@ -3290,13 +3292,15 @@ func rewriteValueAMD64_OpDiv16u(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Div16u x y)
+ 	// cond:
+-	// result: (DIVWU x y)
++	// result: (Select0 (DIVWU x y <&TupleType{config.Frontend().TypeUInt16(), config.Frontend().TypeUInt16()}>))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpAMD64DIVWU)
+-		v.AddArg(x)
+-		v.AddArg(y)
++		v.reset(OpSelect0)
++		v0 := b.NewValue0(v.Line, OpAMD64DIVWU, &TupleType{config.Frontend().TypeUInt16(), config.Frontend().TypeUInt16()})
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
+ 		return true
+ 	}
+ }
+@@ -3305,13 +3309,15 @@ func rewriteValueAMD64_OpDiv32(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Div32  x y)
+ 	// cond:
+-	// result: (DIVL  x y)
++	// result: (Select0 (DIVL  x y <&TupleType{config.Frontend().TypeInt32(), config.Frontend().TypeInt32()}>))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpAMD64DIVL)
+-		v.AddArg(x)
+-		v.AddArg(y)
++		v.reset(OpSelect0)
++		v0 := b.NewValue0(v.Line, OpAMD64DIVL, &TupleType{config.Frontend().TypeInt32(), config.Frontend().TypeInt32()})
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
+ 		return true
+ 	}
+ }
+@@ -3335,13 +3341,15 @@ func rewriteValueAMD64_OpDiv32u(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Div32u x y)
+ 	// cond:
+-	// result: (DIVLU x y)
++	// result: (Select0 (DIVLU x y <&TupleType{config.Frontend().TypeUInt32(), config.Frontend().TypeUInt32()}>))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpAMD64DIVLU)
+-		v.AddArg(x)
+-		v.AddArg(y)
++		v.reset(OpSelect0)
++		v0 := b.NewValue0(v.Line, OpAMD64DIVLU, &TupleType{config.Frontend().TypeUInt32(), config.Frontend().TypeUInt32()})
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
+ 		return true
+ 	}
+ }
+@@ -3350,13 +3358,15 @@ func rewriteValueAMD64_OpDiv64(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Div64  x y)
+ 	// cond:
+-	// result: (DIVQ  x y)
++	// result: (Select0 (DIVQ  x y <&TupleType{config.Frontend().TypeInt64(), config.Frontend().TypeInt64()}>))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpAMD64DIVQ)
+-		v.AddArg(x)
+-		v.AddArg(y)
++		v.reset(OpSelect0)
++		v0 := b.NewValue0(v.Line, OpAMD64DIVQ, &TupleType{config.Frontend().TypeInt64(), config.Frontend().TypeInt64()})
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
+ 		return true
+ 	}
+ }
+@@ -3380,13 +3390,15 @@ func rewriteValueAMD64_OpDiv64u(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Div64u x y)
+ 	// cond:
+-	// result: (DIVQU x y)
++	// result: (Select0 (DIVQU x y <&TupleType{config.Frontend().TypeUInt64(), config.Frontend().TypeUInt64()}>))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpAMD64DIVQU)
+-		v.AddArg(x)
+-		v.AddArg(y)
++		v.reset(OpSelect0)
++		v0 := b.NewValue0(v.Line, OpAMD64DIVQU, &TupleType{config.Frontend().TypeUInt64(), config.Frontend().TypeUInt64()})
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
+ 		return true
+ 	}
+ }
+@@ -3395,17 +3407,19 @@ func rewriteValueAMD64_OpDiv8(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Div8   x y)
+ 	// cond:
+-	// result: (DIVW  (SignExt8to16 x) (SignExt8to16 y))
++	// result: (Select0 (DIVW  (SignExt8to16 x) (SignExt8to16 y) <&TupleType{config.Frontend().TypeInt8(), config.Frontend().TypeInt8()}>))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpAMD64DIVW)
+-		v0 := b.NewValue0(v.Line, OpSignExt8to16, config.fe.TypeInt16())
+-		v0.AddArg(x)
+-		v.AddArg(v0)
++		v.reset(OpSelect0)
++		v0 := b.NewValue0(v.Line, OpAMD64DIVW, &TupleType{config.Frontend().TypeInt8(), config.Frontend().TypeInt8()})
+ 		v1 := b.NewValue0(v.Line, OpSignExt8to16, config.fe.TypeInt16())
+-		v1.AddArg(y)
+-		v.AddArg(v1)
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpSignExt8to16, config.fe.TypeInt16())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
+ 		return true
+ 	}
+ }
+@@ -3414,17 +3428,19 @@ func rewriteValueAMD64_OpDiv8u(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Div8u  x y)
+ 	// cond:
+-	// result: (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y))
++	// result: (Select0 (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y) <&TupleType{config.Frontend().TypeUInt8(), config.Frontend().TypeUInt8()}>))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpAMD64DIVWU)
+-		v0 := b.NewValue0(v.Line, OpZeroExt8to16, config.fe.TypeUInt16())
+-		v0.AddArg(x)
+-		v.AddArg(v0)
++		v.reset(OpSelect0)
++		v0 := b.NewValue0(v.Line, OpAMD64DIVWU, &TupleType{config.Frontend().TypeUInt8(), config.Frontend().TypeUInt8()})
+ 		v1 := b.NewValue0(v.Line, OpZeroExt8to16, config.fe.TypeUInt16())
+-		v1.AddArg(y)
+-		v.AddArg(v1)
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpZeroExt8to16, config.fe.TypeUInt16())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
+ 		return true
+ 	}
+ }
+@@ -11892,13 +11908,15 @@ func rewriteValueAMD64_OpMod16(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Mod16  x y)
+ 	// cond:
+-	// result: (MODW  x y)
++	// result: (Select1 (DIVW  x y <&TupleType{config.Frontend().TypeInt16(), config.Frontend().TypeInt16()}>))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpAMD64MODW)
+-		v.AddArg(x)
+-		v.AddArg(y)
++		v.reset(OpSelect1)
++		v0 := b.NewValue0(v.Line, OpAMD64DIVW, &TupleType{config.Frontend().TypeInt16(), config.Frontend().TypeInt16()})
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
+ 		return true
+ 	}
+ }
+@@ -11907,13 +11925,15 @@ func rewriteValueAMD64_OpMod16u(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Mod16u x y)
+ 	// cond:
+-	// result: (MODWU x y)
++	// result: (Select1 (DIVWU x y <&TupleType{config.Frontend().TypeUInt16(), config.Frontend().TypeUInt16()}>))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpAMD64MODWU)
+-		v.AddArg(x)
+-		v.AddArg(y)
++		v.reset(OpSelect1)
++		v0 := b.NewValue0(v.Line, OpAMD64DIVWU, &TupleType{config.Frontend().TypeUInt16(), config.Frontend().TypeUInt16()})
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
+ 		return true
+ 	}
+ }
+@@ -11922,13 +11942,15 @@ func rewriteValueAMD64_OpMod32(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Mod32  x y)
+ 	// cond:
+-	// result: (MODL  x y)
++	// result: (Select1 (DIVL  x y <&TupleType{config.Frontend().TypeInt32(), config.Frontend().TypeInt32()}>))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpAMD64MODL)
+-		v.AddArg(x)
+-		v.AddArg(y)
++		v.reset(OpSelect1)
++		v0 := b.NewValue0(v.Line, OpAMD64DIVL, &TupleType{config.Frontend().TypeInt32(), config.Frontend().TypeInt32()})
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
+ 		return true
+ 	}
+ }
+@@ -11937,13 +11959,15 @@ func rewriteValueAMD64_OpMod32u(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Mod32u x y)
+ 	// cond:
+-	// result: (MODLU x y)
++	// result: (Select1 (DIVLU x y <&TupleType{config.Frontend().TypeUInt32(), config.Frontend().TypeUInt32()}>))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpAMD64MODLU)
+-		v.AddArg(x)
+-		v.AddArg(y)
++		v.reset(OpSelect1)
++		v0 := b.NewValue0(v.Line, OpAMD64DIVLU, &TupleType{config.Frontend().TypeUInt32(), config.Frontend().TypeUInt32()})
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
+ 		return true
+ 	}
+ }
+@@ -11952,13 +11976,15 @@ func rewriteValueAMD64_OpMod64(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Mod64  x y)
+ 	// cond:
+-	// result: (MODQ  x y)
++	// result: (Select1 (DIVQ  x y <&TupleType{config.Frontend().TypeInt64(), config.Frontend().TypeInt64()}>))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpAMD64MODQ)
+-		v.AddArg(x)
+-		v.AddArg(y)
++		v.reset(OpSelect1)
++		v0 := b.NewValue0(v.Line, OpAMD64DIVQ, &TupleType{config.Frontend().TypeInt64(), config.Frontend().TypeInt64()})
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
+ 		return true
+ 	}
+ }
+@@ -11967,13 +11993,15 @@ func rewriteValueAMD64_OpMod64u(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Mod64u x y)
+ 	// cond:
+-	// result: (MODQU x y)
++	// result: (Select1 (DIVQU x y <&TupleType{config.Frontend().TypeUInt64(), config.Frontend().TypeUInt64()}>))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpAMD64MODQU)
+-		v.AddArg(x)
+-		v.AddArg(y)
++		v.reset(OpSelect1)
++		v0 := b.NewValue0(v.Line, OpAMD64DIVQU, &TupleType{config.Frontend().TypeUInt64(), config.Frontend().TypeUInt64()})
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
+ 		return true
+ 	}
+ }
+@@ -11982,17 +12010,19 @@ func rewriteValueAMD64_OpMod8(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Mod8   x y)
+ 	// cond:
+-	// result: (MODW  (SignExt8to16 x) (SignExt8to16 y))
++	// result: (Select1 (DIVW  (SignExt8to16 x) (SignExt8to16 y) <&TupleType{config.Frontend().TypeInt8(), config.Frontend().TypeInt8()}>))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpAMD64MODW)
+-		v0 := b.NewValue0(v.Line, OpSignExt8to16, config.fe.TypeInt16())
+-		v0.AddArg(x)
+-		v.AddArg(v0)
++		v.reset(OpSelect1)
++		v0 := b.NewValue0(v.Line, OpAMD64DIVW, &TupleType{config.Frontend().TypeInt8(), config.Frontend().TypeInt8()})
+ 		v1 := b.NewValue0(v.Line, OpSignExt8to16, config.fe.TypeInt16())
+-		v1.AddArg(y)
+-		v.AddArg(v1)
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpSignExt8to16, config.fe.TypeInt16())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
+ 		return true
+ 	}
+ }
+@@ -12001,17 +12031,19 @@ func rewriteValueAMD64_OpMod8u(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Mod8u  x y)
+ 	// cond:
+-	// result: (MODWU (ZeroExt8to16 x) (ZeroExt8to16 y))
++	// result: (Select1 (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y) <&TupleType{config.Frontend().TypeUInt8(), config.Frontend().TypeUInt8()}>))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpAMD64MODWU)
+-		v0 := b.NewValue0(v.Line, OpZeroExt8to16, config.fe.TypeUInt16())
+-		v0.AddArg(x)
+-		v.AddArg(v0)
++		v.reset(OpSelect1)
++		v0 := b.NewValue0(v.Line, OpAMD64DIVWU, &TupleType{config.Frontend().TypeUInt8(), config.Frontend().TypeUInt8()})
+ 		v1 := b.NewValue0(v.Line, OpZeroExt8to16, config.fe.TypeUInt16())
+-		v1.AddArg(y)
+-		v.AddArg(v1)
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpZeroExt8to16, config.fe.TypeUInt16())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
+ 		return true
+ 	}
+ }

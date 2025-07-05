@@ -12,8 +12,56 @@ Date:   Tue May 17 15:41:59 2022 -0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  test/fixedbugs/issue51291.dir/a.go |  9 +++++++++
  test/fixedbugs/issue51291.dir/b.go | 11 +++++++++++
  test/fixedbugs/issue51291.go       |  9 +++++++++
  3 files changed, 29 insertions(+)
+
+diff --git a/test/fixedbugs/issue51291.dir/a.go b/test/fixedbugs/issue51291.dir/a.go
+new file mode 100644
+index 0000000000..21e2cd6adf
+--- /dev/null
++++ b/test/fixedbugs/issue51291.dir/a.go
+@@ -0,0 +1,9 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type TypeA string
++
++const StrA TypeA = "s"
+diff --git a/test/fixedbugs/issue51291.dir/b.go b/test/fixedbugs/issue51291.dir/b.go
+new file mode 100644
+index 0000000000..26b2c7872e
+--- /dev/null
++++ b/test/fixedbugs/issue51291.dir/b.go
+@@ -0,0 +1,11 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++type TypeB string
++
++const StrB TypeB = TypeB(a.StrA)
+diff --git a/test/fixedbugs/issue51291.go b/test/fixedbugs/issue51291.go
+new file mode 100644
+index 0000000000..9e7d4be891
+--- /dev/null
++++ b/test/fixedbugs/issue51291.go
+@@ -0,0 +1,9 @@
++// compiledir
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored
++
++// gofrontend crashed generating export data.

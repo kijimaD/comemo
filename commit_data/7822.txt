@@ -7,6 +7,33 @@ Date:   Mon Mar 21 11:25:00 2011 -0300
     R=golang-dev, bradfitzwork, rsc1, peterGo
     CC=golang-dev
     https://golang.org/cl/4271056
-
+---
  src/pkg/exec/exec.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/exec/exec.go b/src/pkg/exec/exec.go
+index 0a364da121..44e3b65bec 100644
+--- a/src/pkg/exec/exec.go
++++ b/src/pkg/exec/exec.go
+@@ -75,17 +75,19 @@ func modeToFiles(mode, fd int) (*os.File, *os.File, os.Error) {
+ 
+ // Run starts the named binary running with
+ // arguments argv and environment envv.
++// If the dir argument is not empty, the child changes
++// into the directory before executing the binary.
+ // It returns a pointer to a new Cmd representing
+ // the command or an error.
+ //
+-// The parameters stdin, stdout, and stderr
++// The arguments stdin, stdout, and stderr
+ // specify how to handle standard input, output, and error.
+ // The choices are DevNull (connect to /dev/null),
+ // PassThrough (connect to the current process's standard stream),
+ // Pipe (connect to an operating system pipe), and
+ // MergeWithStdout (only for standard error; use the same
+ // file descriptor as was used for standard output).
+-// If a parameter is Pipe, then the corresponding field (Stdin, Stdout, Stderr)
++// If an argument is Pipe, then the corresponding field (Stdin, Stdout, Stderr)
+ // of the returned Cmd is the other end of the pipe.
+ // Otherwise the field in Cmd is nil.
+ func Run(name string, argv, envv []string, dir string, stdin, stdout, stderr int) (c *Cmd, err os.Error) {

@@ -13,7 +13,44 @@ Date:   Wed Nov 30 18:45:56 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/request.go      |  4 +++-
  src/net/http/request_test.go | 10 ++++++++++
  2 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 7a86322f94..2d65ca3c8a 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -785,7 +785,9 @@ func NewRequest(method, urlStr string, body io.Reader) (*Request, error) {
+ 				return ioutil.NopCloser(&r), nil
+ 			}
+ 		default:
+-			req.ContentLength = -1 // unknown
++			if body != NoBody {
++				req.ContentLength = -1 // unknown
++			}
+ 		}
+ 		// For client requests, Request.ContentLength of 0
+ 		// means either actually 0, or unknown. The only way
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index 3c965c1e8a..483c025fb0 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -825,6 +825,16 @@ func TestNewRequestGetBody(t *testing.T) {
+ 	}
+ }
+ 
++func TestNewRequestNoBody(t *testing.T) {
++	req, err := NewRequest("GET", "http://foo.com/", NoBody)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if req.ContentLength != 0 {
++		t.Errorf("ContentLength = %d; want 0", req.ContentLength)
++	}
++}
++
+ func testMissingFile(t *testing.T, req *Request) {
+ 	f, fh, err := req.FormFile("missing")
+ 	if f != nil {

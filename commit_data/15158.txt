@@ -7,6 +7,20 @@ Date:   Thu Feb 7 09:58:42 2013 -0800
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/7308060
-
+---
  src/pkg/net/multicast_posix_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/multicast_posix_test.go b/src/pkg/net/multicast_posix_test.go
+index 5850a6be0f..ff1edaf838 100644
+--- a/src/pkg/net/multicast_posix_test.go
++++ b/src/pkg/net/multicast_posix_test.go
+@@ -47,7 +47,7 @@ var multicastListenerTests = []struct {
+ // listener with same address family, same group address and same port.
+ func TestMulticastListener(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "netbsd", "openbsd", "plan9", "windows":
++	case "netbsd", "openbsd", "plan9", "solaris", "windows":
+ 		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	case "linux":
+ 		if runtime.GOARCH == "arm" || runtime.GOARCH == "alpha" {

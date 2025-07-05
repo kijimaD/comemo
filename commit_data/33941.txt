@@ -20,7 +20,58 @@ Date:   Tue Sep 19 14:28:03 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/syntax/scanner_test.go | 13 +++++++++++++
  src/cmd/compile/internal/syntax/source.go       | 11 ++++++-----
  2 files changed, 19 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/scanner_test.go b/src/cmd/compile/internal/syntax/scanner_test.go
+index e434db9a91..53995e0c79 100644
+--- a/src/cmd/compile/internal/syntax/scanner_test.go
++++ b/src/cmd/compile/internal/syntax/scanner_test.go
+@@ -7,6 +7,7 @@ package syntax
+ import (
+ 	"fmt"
+ 	"os"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -367,3 +368,15 @@ func TestScanErrors(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestIssue21938(t *testing.T) {
++	s := "/*" + strings.Repeat(" ", 4089) + "*/ .5"
++
++	var got scanner
++	got.init(strings.NewReader(s), nil, nil)
++	got.next()
++
++	if got.tok != _Literal || got.lit != ".5" {
++		t.Errorf("got %s %q; want %s %q", got.tok, got.lit, _Literal, ".5")
++	}
++}
+diff --git a/src/cmd/compile/internal/syntax/source.go b/src/cmd/compile/internal/syntax/source.go
+index 93547213c0..4e3551225a 100644
+--- a/src/cmd/compile/internal/syntax/source.go
++++ b/src/cmd/compile/internal/syntax/source.go
+@@ -164,11 +164,12 @@ func (s *source) fill() {
+ 			s.lit = append(s.lit, s.buf[s.suf:s.r0]...)
+ 			s.suf = 1 // == s.r0 after slide below
+ 		}
+-		s.offs += s.r0 - 1
+-		r := s.r - s.r0 + 1 // last read char plus one byte
+-		s.w = r + copy(s.buf[r:], s.buf[s.r:s.w])
+-		s.r = r
+-		s.r0 = 1
++		n := s.r0 - 1
++		copy(s.buf[:], s.buf[n:s.w])
++		s.offs += n
++		s.r0 = 1 // eqv: s.r0 -= n
++		s.r -= n
++		s.w -= n
+ 	}
+ 
+ 	// read more data: try a limited number of times

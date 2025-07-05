@@ -9,8 +9,224 @@ Date:   Mon Mar 12 16:35:15 2012 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5796072
-
+---
  src/cmd/go/get.go  | 121 +++++++++++++++++++++++++++++++++++++++++------------
  src/cmd/go/http.go |   1 -
  src/cmd/go/vcs.go  |  17 ++++++++
  3 files changed, 112 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index aa0ab7bd75..b6a26f0e20 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -8,6 +8,7 @@ package main
+ 
+ import (
+ 	"fmt"
++	"go/build"
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
+@@ -57,19 +58,13 @@ func init() {
+ 
+ func runGet(cmd *Command, args []string) {
+ 	// Phase 1.  Download/update.
+-	args = importPaths(args)
+ 	var stk importStack
+-	for _, arg := range args {
++	for _, arg := range downloadPaths(args) {
+ 		download(arg, &stk)
+ 	}
+ 	exitIfErrors()
+ 
+-	if *getD {
+-		// download only
+-		return
+-	}
+-
+-	// Phase 2. Install.
++	// Phase 2. Rescan packages and reevaluate args list.
+ 
+ 	// Code we downloaded and all code that depends on it
+ 	// needs to be evicted from the package cache so that
+@@ -80,9 +75,48 @@ func runGet(cmd *Command, args []string) {
+ 		delete(packageCache, name)
+ 	}
+ 
++	args = importPaths(args)
++
++	// Phase 3.  Install.
++	if *getD {
++		// Download only.
++		// Check delayed until now so that importPaths
++		// has a chance to print errors.
++		return
++	}
++
+ 	runInstall(cmd, args)
+ }
+ 
++// downloadPath prepares the list of paths to pass to download.
++// It expands ... patterns that can be expanded.  If there is no match
++// for a particular pattern, downloadPaths leaves it in the result list,
++// in the hope that we can figure out the repository from the
++// initial ...-free prefix.
++func downloadPaths(args []string) []string {
++	args = importPathsNoDotExpansion(args)
++	var out []string
++	for _, a := range args {
++		if strings.Contains(a, "...") {
++			var expand []string
++			// Use matchPackagesInFS to avoid printing
++			// warnings.  They will be printed by the 
++			// eventual call to importPaths instead.
++			if build.IsLocalImport(a) {
++				expand = matchPackagesInFS(a)
++			} else {
++				expand = matchPackages(a)
++			}
++			if len(expand) > 0 {
++				out = append(out, expand...)
++				continue
++			}
++		}
++		out = append(out, a)
++	}
++	return out
++}
++
+ // downloadCache records the import paths we have already
+ // considered during the download, to avoid duplicate work when
+ // there is more than one dependency sequence leading to
+@@ -112,38 +146,73 @@ func download(arg string, stk *importStack) {
+ 	}
+ 	downloadCache[arg] = true
+ 
++	pkgs := []*Package{p}
++	wildcardOkay := len(*stk) == 0
++
+ 	// Download if the package is missing, or update if we're using -u.
+ 	if p.Dir == "" || *getU {
+ 		// The actual download.
+ 		stk.push(p.ImportPath)
+-		defer stk.pop()
+-		if err := downloadPackage(p); err != nil {
++		err := downloadPackage(p)
++		if err != nil {
+ 			errorf("%s", &PackageError{ImportStack: stk.copy(), Err: err.Error()})
++			stk.pop()
+ 			return
+ 		}
+ 
+-		// Reread the package information from the updated files.
+-		p = reloadPackage(arg, stk)
+-		if p.Error != nil {
+-			errorf("%s", p.Error)
+-			return
++		args := []string{arg}
++		// If the argument has a wildcard in it, re-evaluate the wildcard.
++		// We delay this until after reloadPackage so that the old entry
++		// for p has been replaced in the package cache.
++		if wildcardOkay && strings.Contains(arg, "...") {
++			if build.IsLocalImport(arg) {
++				args = matchPackagesInFS(arg)
++			} else {
++				args = matchPackages(arg)
++			}
+ 		}
+-	}
+ 
+-	if *getFix {
+-		run(stringList(tool("fix"), relPaths(p.gofiles)))
++		// Clear all relevant package cache entries before
++		// doing any new loads.
++		for _, arg := range args {
++			p := packageCache[arg]
++			if p != nil {
++				delete(packageCache, p.Dir)
++				delete(packageCache, p.ImportPath)
++			}
++		}
+ 
+-		// The imports might have changed, so reload again.
+-		p = reloadPackage(arg, stk)
+-		if p.Error != nil {
+-			errorf("%s", p.Error)
+-			return
++		pkgs = pkgs[:0]
++		for _, arg := range args {
++			stk.push(arg)
++			p := loadPackage(arg, stk)
++			stk.pop()
++			if p.Error != nil {
++				errorf("%s", p.Error)
++				continue
++			}
++			pkgs = append(pkgs, p)
+ 		}
+ 	}
+ 
+-	// Process dependencies, now that we know what they are.
+-	for _, dep := range p.deps {
+-		download(dep.ImportPath, stk)
++	// Process package, which might now be multiple packages
++	// due to wildcard expansion.
++	for _, p := range pkgs {
++		if *getFix {
++			run(stringList(tool("fix"), relPaths(p.gofiles)))
++
++			// The imports might have changed, so reload again.
++			p = reloadPackage(arg, stk)
++			if p.Error != nil {
++				errorf("%s", p.Error)
++				return
++			}
++		}
++
++		// Process dependencies, now that we know what they are.
++		for _, dep := range p.deps {
++			download(dep.ImportPath, stk)
++		}
+ 	}
+ }
+ 
+diff --git a/src/cmd/go/http.go b/src/cmd/go/http.go
+index 834de6cf24..c1b9bb42a8 100644
+--- a/src/cmd/go/http.go
++++ b/src/cmd/go/http.go
+@@ -76,7 +76,6 @@ func httpsOrHTTP(importPath string) (urlStr string, body io.ReadCloser, err erro
+ 	}
+ 	if err != nil {
+ 		closeBody(res)
+-		log.Printf("http fetch failed")
+ 		return "", nil, err
+ 	}
+ 	// Note: accepting a non-200 OK here, so people can serve a
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index 642a89f891..3634b606c3 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -323,6 +323,23 @@ func repoRootForImportPath(importPath string) (*repoRoot, error) {
+ 	rr, err := repoRootForImportPathStatic(importPath, "")
+ 	if err == errUnknownSite {
+ 		rr, err = repoRootForImportDynamic(importPath)
++
++		// repoRootForImportDynamic returns error detail
++		// that is irrelevant if the user didn't intend to use a
++		// dynamic import in the first place.
++		// Squelch it.
++		if err != nil {
++			if buildV {
++				log.Printf("import %q: %v", importPath, err)
++			}
++			err = fmt.Errorf("unrecognized import path %q", importPath)
++		}
++	}
++
++	if err == nil && strings.Contains(importPath, "...") && strings.Contains(rr.root, "...") {
++		// Do not allow wildcards in the repo root.
++		rr = nil
++		err = fmt.Errorf("cannot expand ... in %q", importPath)
+ 	}
+ 	return rr, err
+ }

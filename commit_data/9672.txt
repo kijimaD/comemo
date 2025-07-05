@@ -9,7 +9,7 @@ Date:   Wed Sep 14 16:19:45 2011 +1000
     R=golang-dev, jp
     CC=golang-dev
     https://golang.org/cl/5000042
-
+---
  src/pkg/runtime/runtime.h               |  3 +-
  src/pkg/runtime/syscall_windows_test.go | 71 +++++++++++++++++++++++++++++++++
  src/pkg/runtime/windows/386/sys.s       | 24 +++++------
@@ -18,3 +18,326 @@ Date:   Wed Sep 14 16:19:45 2011 +1000
  src/pkg/runtime/windows/syscall.goc     | 61 +++++++++++++++++++++++-----
  src/pkg/runtime/windows/thread.c        | 17 +-------
  7 files changed, 138 insertions(+), 41 deletions(-)
+
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 6feedcbc82..8753842a01 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -307,7 +307,8 @@ struct	WinCall
+ 	void	(*fn)(void*);
+ 	uintptr	n;	// number of parameters
+ 	void*	args;	// parameters
+-	uintptr	r;	// return value
++	uintptr	r1;	// return values
++	uintptr	r2;
+ 	uintptr	err;	// error number
+ };
+ 
+diff --git a/src/pkg/runtime/syscall_windows_test.go b/src/pkg/runtime/syscall_windows_test.go
+index c270607015..32eb0533ff 100644
+--- a/src/pkg/runtime/syscall_windows_test.go
++++ b/src/pkg/runtime/syscall_windows_test.go
+@@ -39,6 +39,77 @@ func TestStdCall(t *testing.T) {
+ 	}
+ }
+ 
++func Test64BitReturnStdCall(t *testing.T) {
++
++	const (
++		VER_BUILDNUMBER      = 0x0000004
++		VER_MAJORVERSION     = 0x0000002
++		VER_MINORVERSION     = 0x0000001
++		VER_PLATFORMID       = 0x0000008
++		VER_PRODUCT_TYPE     = 0x0000080
++		VER_SERVICEPACKMAJOR = 0x0000020
++		VER_SERVICEPACKMINOR = 0x0000010
++		VER_SUITENAME        = 0x0000040
++
++		VER_EQUAL         = 1
++		VER_GREATER       = 2
++		VER_GREATER_EQUAL = 3
++		VER_LESS          = 4
++		VER_LESS_EQUAL    = 5
++
++		ERROR_OLD_WIN_VERSION = 1150
++	)
++
++	type OSVersionInfoEx struct {
++		OSVersionInfoSize uint32
++		MajorVersion      uint32
++		MinorVersion      uint32
++		BuildNumber       uint32
++		PlatformId        uint32
++		CSDVersion        [128]uint16
++		ServicePackMajor  uint16
++		ServicePackMinor  uint16
++		SuiteMask         uint16
++		ProductType       byte
++		Reserve           byte
++	}
++
++	kernel32, e := syscall.LoadLibrary("kernel32.dll")
++	if e != 0 {
++		t.Fatalf("LoadLibrary(kernel32.dll) failed: %s", syscall.Errstr(e))
++	}
++	setMask, e := syscall.GetProcAddress(kernel32, "VerSetConditionMask")
++	if e != 0 {
++		t.Fatalf("GetProcAddress(kernel32.dll, VerSetConditionMask) failed: %s", syscall.Errstr(e))
++	}
++	verifyVersion, e := syscall.GetProcAddress(kernel32, "VerifyVersionInfoW")
++	if e != 0 {
++		t.Fatalf("GetProcAddress(kernel32.dll, VerifyVersionInfoW) failed: %s", syscall.Errstr(e))
++	}
++
++	var m1, m2 uintptr
++	m1, m2, _ = syscall.Syscall6(setMask, 4, m1, m2, VER_MAJORVERSION, VER_GREATER_EQUAL, 0, 0)
++	m1, m2, _ = syscall.Syscall6(setMask, 4, m1, m2, VER_MINORVERSION, VER_GREATER_EQUAL, 0, 0)
++	m1, m2, _ = syscall.Syscall6(setMask, 4, m1, m2, VER_SERVICEPACKMAJOR, VER_GREATER_EQUAL, 0, 0)
++	m1, m2, _ = syscall.Syscall6(setMask, 4, m1, m2, VER_SERVICEPACKMINOR, VER_GREATER_EQUAL, 0, 0)
++
++	vi := OSVersionInfoEx{
++		MajorVersion:     5,
++		MinorVersion:     1,
++		ServicePackMajor: 2,
++		ServicePackMinor: 0,
++	}
++	vi.OSVersionInfoSize = uint32(unsafe.Sizeof(vi))
++	r, _, e2 := syscall.Syscall6(verifyVersion,
++		4,
++		uintptr(unsafe.Pointer(&vi)),
++		VER_MAJORVERSION|VER_MINORVERSION|VER_SERVICEPACKMAJOR|VER_SERVICEPACKMINOR,
++		m1, m2, 0, 0)
++	if r == 0 && e2 != ERROR_OLD_WIN_VERSION {
++		t.Errorf("VerifyVersionInfo failed: (%d) %s", e2, syscall.Errstr(int(e2)))
++	}
++}
++
+ func TestCDecl(t *testing.T) {
+ 	h, e := syscall.LoadLibrary("user32.dll")
+ 	if e != 0 {
+diff --git a/src/pkg/runtime/windows/386/sys.s b/src/pkg/runtime/windows/386/sys.s
+index 94aed83f06..2d41d858d9 100644
+--- a/src/pkg/runtime/windows/386/sys.s
++++ b/src/pkg/runtime/windows/386/sys.s
+@@ -6,35 +6,35 @@
+ 
+ // void runtime·asmstdcall(void *c);
+ TEXT runtime·asmstdcall(SB),7,$0
+-	MOVL	c+0(FP), DX
++	MOVL	c+0(FP), BX
+ 
+ 	// SetLastError(0).
+ 	MOVL	$0, 0x34(FS)
+ 
+ 	// Copy args to the stack.
+ 	MOVL	SP, BP
+-	MOVL	wincall_n(DX), CX	// words
+-	MOVL	CX, BX
+-	SALL	$2, BX
+-	SUBL	BX, SP			// room for args
++	MOVL	wincall_n(BX), CX	// words
++	MOVL	CX, AX
++	SALL	$2, AX
++	SUBL	AX, SP			// room for args
+ 	MOVL	SP, DI
+-	MOVL	wincall_args(DX), SI
++	MOVL	wincall_args(BX), SI
+ 	CLD
+ 	REP; MOVSL
+ 
+ 	// Call stdcall or cdecl function.
+ 	// DI SI BP BX are preserved, SP is not
+-	MOVL	wincall_fn(DX), AX
+-	CALL	AX
++	CALL	wincall_fn(BX)
+ 	MOVL	BP, SP
+ 
+ 	// Return result.
+-	MOVL	c+0(FP), DX
+-	MOVL	AX, wincall_r(DX)
++	MOVL	c+0(FP), BX
++	MOVL	AX, wincall_r1(BX)
++	MOVL	DX, wincall_r2(BX)
+ 
+ 	// GetLastError().
+-	MOVL	0x34(FS), BX
+-	MOVL	BX, wincall_err(DX)
++	MOVL	0x34(FS), AX
++	MOVL	AX, wincall_err(BX)
+ 
+ 	RET
+ 
+diff --git a/src/pkg/runtime/windows/amd64/sys.s b/src/pkg/runtime/windows/amd64/sys.s
+index 9b4a17eda7..3e50780dc9 100644
+--- a/src/pkg/runtime/windows/amd64/sys.s
++++ b/src/pkg/runtime/windows/amd64/sys.s
+@@ -49,7 +49,7 @@ loadregs:
+ 
+ 	// Return result.
+ 	POPQ	CX
+-	MOVQ	AX, wincall_r(CX)
++	MOVQ	AX, wincall_r1(CX)
+ 
+ 	// GetLastError().
+ 	MOVQ	0x30(GS), DI
+diff --git a/src/pkg/runtime/windows/os.h b/src/pkg/runtime/windows/os.h
+index a8cc299b8c..0ac5cbfd71 100644
+--- a/src/pkg/runtime/windows/os.h
++++ b/src/pkg/runtime/windows/os.h
+@@ -12,7 +12,6 @@ extern void *runtime·GetProcAddress;
+ #pragma	varargck	type		runtime·stdcall	uintptr
+ void runtime·asmstdcall(void *c);
+ void *runtime·stdcall(void *fn, int32 count, ...);
+-uintptr runtime·syscall(void *fn, uintptr nargs, void *args, uintptr *err);
+ 
+ uintptr runtime·getlasterror(void);
+ void runtime·setlasterror(uintptr err);
+diff --git a/src/pkg/runtime/windows/syscall.goc b/src/pkg/runtime/windows/syscall.goc
+index 4777a61896..68c3a4dfab 100644
+--- a/src/pkg/runtime/windows/syscall.goc
++++ b/src/pkg/runtime/windows/syscall.goc
+@@ -5,15 +5,28 @@
+ package syscall
+ #include "runtime.h"
+ #include "os.h"
++#include "cgocall.h"
+ 
+ func loadlibraryex(filename uintptr) (handle uintptr) {
+ 	uintptr args[3] = { filename };
+-	handle = runtime·syscall(runtime·LoadLibraryEx, 3, args, nil);
++	WinCall c;
++
++	c.fn = runtime·LoadLibraryEx;
++	c.n = 3;
++	c.args = &args[0];
++	runtime·cgocall(runtime·asmstdcall, &c);
++	handle = c.r1;
+ }
+ 
+ func getprocaddress(handle uintptr, procname uintptr) (proc uintptr) {
++	WinCall c;
++
+ 	USED(procname);
+-	proc = runtime·syscall(runtime·GetProcAddress, 2, &handle, nil);
++	c.fn = runtime·GetProcAddress;
++	c.n = 2;
++	c.args = &handle;
++	runtime·cgocall(runtime·asmstdcall, &c);
++	proc = c.r1;
+ }
+ 
+ func NewCallback(fn Eface) (code uintptr) {
+@@ -25,23 +38,39 @@ func NewCallbackCDecl(fn Eface) (code uintptr) {
+ }
+ 
+ func Syscall(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
++	WinCall c;
++
+ 	USED(a2);
+ 	USED(a3);
+-	r1 = runtime·syscall((void*)fn, nargs, &a1, &err);
+-	r2 = 0;
++	c.fn = (void*)fn;
++	c.n = nargs;
++	c.args = &a1;
++	runtime·cgocall(runtime·asmstdcall, &c);
++	err = c.err;
++	r1 = c.r1;
++	r2 = c.r2;
+ }
+ 
+ func Syscall6(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
++	WinCall c;
++
+ 	USED(a2);
+ 	USED(a3);
+ 	USED(a4);
+ 	USED(a5);
+ 	USED(a6);
+-	r1 = runtime·syscall((void*)fn, nargs, &a1, &err);
+-	r2 = 0;
++	c.fn = (void*)fn;
++	c.n = nargs;
++	c.args = &a1;
++	runtime·cgocall(runtime·asmstdcall, &c);
++	err = c.err;
++	r1 = c.r1;
++	r2 = c.r2;
+ }
+ 
+ func Syscall9(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr, a7 uintptr, a8 uintptr, a9 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
++	WinCall c;
++
+ 	USED(a2);
+ 	USED(a3);
+ 	USED(a4);
+@@ -50,11 +79,18 @@ func Syscall9(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4
+ 	USED(a7);
+ 	USED(a8);
+ 	USED(a9);
+-	r1 = runtime·syscall((void*)fn, nargs, &a1, &err);
+-	r2 = 0;
++	c.fn = (void*)fn;
++	c.n = nargs;
++	c.args = &a1;
++	runtime·cgocall(runtime·asmstdcall, &c);
++	err = c.err;
++	r1 = c.r1;
++	r2 = c.r2;
+ }
+ 
+ func Syscall12(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr, a7 uintptr, a8 uintptr, a9 uintptr, a10 uintptr, a11 uintptr, a12 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
++	WinCall c;
++
+ 	USED(a2);
+ 	USED(a3);
+ 	USED(a4);
+@@ -66,6 +102,11 @@ func Syscall12(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4
+ 	USED(a10);
+ 	USED(a11);
+ 	USED(a12);
+-	r1 = runtime·syscall((void*)fn, nargs, &a1, &err);
+-	r2 = 0;
++	c.fn = (void*)fn;
++	c.n = nargs;
++	c.args = &a1;
++	runtime·cgocall(runtime·asmstdcall, &c);
++	err = c.err;
++	r1 = c.r1;
++	r2 = c.r2;
+ }
+diff --git a/src/pkg/runtime/windows/thread.c b/src/pkg/runtime/windows/thread.c
+index b76eaac596..fe8a24f1cd 100644
+--- a/src/pkg/runtime/windows/thread.c
++++ b/src/pkg/runtime/windows/thread.c
+@@ -6,7 +6,6 @@
+ #include "type.h"
+ #include "defs.h"
+ #include "os.h"
+-#include "cgocall.h"
+ 
+ #pragma dynimport runtime·CloseHandle CloseHandle "kernel32.dll"
+ #pragma dynimport runtime·CreateEvent CreateEventA "kernel32.dll"
+@@ -228,21 +227,7 @@ runtime·stdcall(void *fn, int32 count, ...)
+ 	c.n = count;
+ 	c.args = (uintptr*)&count + 1;
+ 	runtime·asmcgocall(runtime·asmstdcall, &c);
+-	return (void*)c.r;
+-}
+-
+-uintptr
+-runtime·syscall(void *fn, uintptr nargs, void *args, uintptr *err)
+-{
+-	WinCall c;
+-
+-	c.fn = fn;
+-	c.n = nargs;
+-	c.args = args;
+-	runtime·cgocall(runtime·asmstdcall, &c);
+-	if(err)
+-		*err = c.err;
+-	return c.r;
++	return (void*)c.r1;
+ }
+ 
+ uint32

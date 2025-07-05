@@ -7,6 +7,34 @@ Date:   Sat Sep 12 14:06:44 2015 -0700
     Change-Id: I5a683f532a5a0b2bc862d80c871e8dc6721016fc
     Reviewed-on: https://go-review.googlesource.com/14534
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 9 ++++-----
  1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 7da49fc6f0..70350e0e2c 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -772,6 +772,10 @@ func (s *state) stmt(n *Node) {
+ 		b.AddEdgeTo(bNext)
+ 		s.startBlock(bNext)
+ 
++	case OCHECKNIL:
++		p := s.expr(n.Left)
++		s.nilCheck(p)
++
+ 	default:
+ 		s.Unimplementedf("unhandled stmt %s", opnames[n.Op])
+ 	}
+@@ -1661,11 +1665,6 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 	case OADDR:
+ 		return s.addr(n.Left)
+ 
+-	case OCHECKNIL:
+-		p := s.expr(n.Left)
+-		s.nilCheck(p)
+-		return p
+-
+ 	case OINDREG:
+ 		if int(n.Reg) != Thearch.REGSP {
+ 			s.Unimplementedf("OINDREG of non-SP register %s in expr: %v", obj.Rconv(int(n.Reg)), n)

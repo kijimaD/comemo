@@ -28,6 +28,20 @@ Date:   Wed Nov 2 14:45:27 2016 -0700
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Quentin Smith <quentin@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/x509/root_cgo_darwin.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/root_cgo_darwin.go b/src/crypto/x509/root_cgo_darwin.go
+index a4b33c7660..ea86b60e11 100644
+--- a/src/crypto/x509/root_cgo_darwin.go
++++ b/src/crypto/x509/root_cgo_darwin.go
+@@ -7,7 +7,7 @@
+ package x509
+ 
+ /*
+-#cgo CFLAGS: -mmacosx-version-min=10.6 -D__MAC_OS_X_VERSION_MAX_ALLOWED=1060
++#cgo CFLAGS: -mmacosx-version-min=10.6 -D__MAC_OS_X_VERSION_MAX_ALLOWED=1080
+ #cgo LDFLAGS: -framework CoreFoundation -framework Security
+ 
+ #include <errno.h>

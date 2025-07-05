@@ -10,7 +10,26 @@ Date:   Sun Nov 9 21:10:49 2014 -0500
     TBR=r
     CC=golang-codereviews
     https://golang.org/cl/171350043
-
+---
  test/linkx_run.go | 1 +
  test/sinit_run.go | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/test/linkx_run.go b/test/linkx_run.go
+index abfc342a6c..5b67ce7d3d 100644
+--- a/test/linkx_run.go
++++ b/test/linkx_run.go
+@@ -1,3 +1,4 @@
++// +build !nacl
+ // run
+ 
+ // Copyright 2014 The Go Authors. All rights reserved.
+diff --git a/test/sinit_run.go b/test/sinit_run.go
+index a21bd1077d..b0a91ce5b1 100644
+--- a/test/sinit_run.go
++++ b/test/sinit_run.go
+@@ -1,3 +1,4 @@
++// +build !nacl
+ // run
+ 
+ // Copyright 2014 The Go Authors. All rights reserved.

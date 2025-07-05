@@ -14,8 +14,91 @@ Date:   Sun Feb 19 00:27:05 2012 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5656102
-
+---
  src/pkg/encoding/json/decode.go      | 14 ++++++++++++++
  src/pkg/encoding/json/decode_test.go | 29 +++++++++++++++++++++++++++++
  src/pkg/encoding/json/encode.go      |  5 +++++
  3 files changed, 48 insertions(+)
+
+diff --git a/src/pkg/encoding/json/decode.go b/src/pkg/encoding/json/decode.go
+index 87076b53dc..110c6fd623 100644
+--- a/src/pkg/encoding/json/decode.go
++++ b/src/pkg/encoding/json/decode.go
+@@ -496,6 +496,12 @@ func (d *decodeState) object(v reflect.Value) {
+ 					// Pretend this field doesn't exist.
+ 					continue
+ 				}
++				if sf.Anonymous {
++					// Pretend this field doesn't exist,
++					// so that we can do a good job with
++					// these in a later version.
++					continue
++				}
+ 				// First, tag match
+ 				tagName, _ := parseTag(tag)
+ 				if tagName == key {
+@@ -963,3 +969,11 @@ func unquoteBytes(s []byte) (t []byte, ok bool) {
+ 	}
+ 	return b[0:w], true
+ }
++
++// The following is issue 3069.
++
++// BUG(rsc): This package ignores anonymous (embedded) struct fields
++// during encoding and decoding.  A future version may assign meaning
++// to them.  To force an anonymous field to be ignored in all future
++// versions of this package, use an explicit `json:"-"` tag in the struct
++// definition.
+diff --git a/src/pkg/encoding/json/decode_test.go b/src/pkg/encoding/json/decode_test.go
+index 775becfa7c..0eec586a9b 100644
+--- a/src/pkg/encoding/json/decode_test.go
++++ b/src/pkg/encoding/json/decode_test.go
+@@ -619,3 +619,32 @@ func TestRefUnmarshal(t *testing.T) {
+ 		t.Errorf("got %+v, want %+v", got, want)
+ 	}
+ }
++
++// Test that anonymous fields are ignored.
++// We may assign meaning to them later.
++func TestAnonymous(t *testing.T) {
++	type S struct {
++		T
++		N int
++	}
++
++	data, err := Marshal(new(S))
++	if err != nil {
++		t.Fatalf("Marshal: %v", err)
++	}
++	want := `{"N":0}`
++	if string(data) != want {
++		t.Fatalf("Marshal = %#q, want %#q", string(data), want)
++	}
++
++	var s S
++	if err := Unmarshal([]byte(`{"T": 1, "T": {"Y": 1}, "N": 2}`), &s); err != nil {
++		t.Fatalf("Unmarshal: %v", err)
++	}
++	if s.N != 2 {
++		t.Fatal("Unmarshal: did not set N")
++	}
++	if s.T.Y != 0 {
++		t.Fatal("Unmarshal: did set T.Y")
++	}
++}
+diff --git a/src/pkg/encoding/json/encode.go b/src/pkg/encoding/json/encode.go
+index 83e73c09cb..8a794b79bd 100644
+--- a/src/pkg/encoding/json/encode.go
++++ b/src/pkg/encoding/json/encode.go
+@@ -538,6 +538,11 @@ func encodeFields(t reflect.Type) []encodeField {
+ 		if f.PkgPath != "" {
+ 			continue
+ 		}
++		if f.Anonymous {
++			// We want to do a better job with these later,
++			// so for now pretend they don't exist.
++			continue
++		}
+ 		var ef encodeField
+ 		ef.i = i
+ 		ef.tag = f.Name

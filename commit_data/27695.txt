@@ -10,6 +10,20 @@ Date:   Fri Apr 8 13:02:49 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/21760
     Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/cgo/main.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 5e863549d6..2dc36c20db 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -156,7 +156,7 @@ var intSizeMap = map[string]int64{
+ 	"ppc64":    8,
+ 	"ppc64le":  8,
+ 	"s390":     4,
+-	"s390x":    4,
++	"s390x":    8,
+ }
+ 
+ var cPrefix string

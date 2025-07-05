@@ -15,7 +15,7 @@ Date:   Wed Aug 13 14:36:29 2014 -0400
     R=minux
     CC=golang-codereviews
     https://golang.org/cl/124300043
-
+---
  src/cmd/9l/obj.c                     |  2 +-
  src/pkg/math/big/arith_power64x.s    | 46 ++++++++++++++++++++++++++++++++++++
  src/pkg/runtime/arch_power64.h       |  2 +-
@@ -24,3 +24,219 @@ Date:   Wed Aug 13 14:36:29 2014 -0400
  src/pkg/runtime/sys_linux_power64x.s |  1 -
  src/pkg/syscall/asm_linux_power64x.s |  4 ----
  7 files changed, 64 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/9l/obj.c b/src/cmd/9l/obj.c
+index 1ab18f491a..badb72a1ac 100644
+--- a/src/cmd/9l/obj.c
++++ b/src/cmd/9l/obj.c
+@@ -88,7 +88,7 @@ archinit(void)
+ 		if(INITDAT == -1)
+ 			INITDAT = 0;
+ 		if(INITRND == -1)
+-			INITRND = 4096;
++			INITRND = 0x10000;
+ 		break;
+ 	case Hnacl:
+ 		elfinit();
+diff --git a/src/pkg/math/big/arith_power64x.s b/src/pkg/math/big/arith_power64x.s
+new file mode 100644
+index 0000000000..502d40cb64
+--- /dev/null
++++ b/src/pkg/math/big/arith_power64x.s
+@@ -0,0 +1,46 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build power64 power64le
++
++#include "../../../cmd/ld/textflag.h"
++
++// This file provides fast assembly versions for the elementary
++// arithmetic operations on vectors implemented in arith.go.
++
++TEXT ·mulWW(SB),NOSPLIT,$0
++	BR ·mulWW_g(SB)
++
++TEXT ·divWW(SB),NOSPLIT,$0
++	BR ·divWW_g(SB)
++
++TEXT ·addVV(SB),NOSPLIT,$0
++	BR ·addVV_g(SB)
++
++TEXT ·subVV(SB),NOSPLIT,$0
++	BR ·subVV_g(SB)
++
++TEXT ·addVW(SB),NOSPLIT,$0
++	BR ·addVW_g(SB)
++
++TEXT ·subVW(SB),NOSPLIT,$0
++	BR ·subVW_g(SB)
++
++TEXT ·shlVU(SB),NOSPLIT,$0
++	BR ·shlVU_g(SB)
++
++TEXT ·shrVU(SB),NOSPLIT,$0
++	BR ·shrVU_g(SB)
++
++TEXT ·mulAddVWW(SB),NOSPLIT,$0
++	BR ·mulAddVWW_g(SB)
++
++TEXT ·addMulVVW(SB),NOSPLIT,$0
++	BR ·addMulVVW_g(SB)
++
++TEXT ·divWVW(SB),NOSPLIT,$0
++	BR ·divWVW_g(SB)
++
++TEXT ·bitLen(SB),NOSPLIT,$0
++	BR ·bitLen_g(SB)
+diff --git a/src/pkg/runtime/arch_power64.h b/src/pkg/runtime/arch_power64.h
+index 3d5b4943c7..1dcbbc226c 100644
+--- a/src/pkg/runtime/arch_power64.h
++++ b/src/pkg/runtime/arch_power64.h
+@@ -7,7 +7,7 @@ enum {
+ 	BigEndian = 1,
+ 	CacheLineSize = 64,
+ 	RuntimeGogoBytes = 84,
+-	PhysPageSize = 4096,
++	PhysPageSize = 65536,
+ 	PCQuantum = 4,
+ 	Int64Align = 8
+ };
+diff --git a/src/pkg/runtime/asm_power64x.s b/src/pkg/runtime/asm_power64x.s
+index 2fbaf5a53e..59c7a9eb5a 100644
+--- a/src/pkg/runtime/asm_power64x.s
++++ b/src/pkg/runtime/asm_power64x.s
+@@ -782,8 +782,8 @@ TEXT bytes·IndexByte(SB),NOSPLIT,$0-40
+ 	MOVD	s+0(FP), R3
+ 	MOVD	s_len+8(FP), R4
+ 	MOVBZ	c+24(FP), R5	// byte to find
++	MOVD	R3, R6		// store base for later
+ 	SUB	$1, R3
+-	MOVD	R3, R6		// store base-1 for later
+ 	ADD	R3, R4		// end-1
+ 
+ _index_loop:
+@@ -798,16 +798,16 @@ _index_loop:
+ 	RETURN
+ 
+ _index_notfound:
+-	MOVW	$-1, R3
+-	MOVW	R3, ret+32(FP)
++	MOVD	$-1, R3
++	MOVD	R3, ret+32(FP)
+ 	RETURN
+ 
+ TEXT strings·IndexByte(SB),NOSPLIT,$0
+ 	MOVD	p+0(FP), R3
+ 	MOVD	b_len+8(FP), R4
+ 	MOVBZ	c+16(FP), R5	// byte to find
++	MOVD	R3, R6		// store base for later
+ 	SUB	$1, R3
+-	MOVD	R3, R6		// store base-1 for later
+ 	ADD	R3, R4		// end-1
+ 
+ _index2_loop:
+@@ -822,8 +822,8 @@ _index2_loop:
+ 	RETURN
+ 
+ _index2_notfound:
+-	MOVW	$-1, R3
+-	MOVW	R3, ret+24(FP)
++	MOVD	$-1, R3
++	MOVD	R3, ret+24(FP)
+ 	RETURN
+ 
+ 
+diff --git a/src/pkg/runtime/mem_linux.c b/src/pkg/runtime/mem_linux.c
+index 635594c365..30594c5282 100644
+--- a/src/pkg/runtime/mem_linux.c
++++ b/src/pkg/runtime/mem_linux.c
+@@ -10,7 +10,7 @@
+ 
+ enum
+ {
+-	_PAGE_SIZE = 4096,
++	_PAGE_SIZE = PhysPageSize,
+ 	EACCES = 13,
+ };
+ 
+@@ -35,8 +35,9 @@ addrspace_free(void *v, uintptr n)
+ 		errval = runtime·mincore((int8*)v + off, chunk, vec);
+ 		// ENOMEM means unmapped, which is what we want.
+ 		// Anything else we assume means the pages are mapped.
+-		if (errval != -ENOMEM)
++		if (errval != -ENOMEM && errval != ENOMEM) {
+ 			return 0;
++		}
+ 	}
+ 	return 1;
+ }
+@@ -47,12 +48,15 @@ mmap_fixed(byte *v, uintptr n, int32 prot, int32 flags, int32 fd, uint32 offset)
+ 	void *p;
+ 
+ 	p = runtime·mmap(v, n, prot, flags, fd, offset);
+-	if(p != v && addrspace_free(v, n)) {
++	if(p != v) {
++		if(p > (void*)4096) {
++			runtime·munmap(p, n);
++			p = nil;
++		}
+ 		// On some systems, mmap ignores v without
+ 		// MAP_FIXED, so retry if the address space is free.
+-		if(p > (void*)4096)
+-			runtime·munmap(p, n);
+-		p = runtime·mmap(v, n, prot, flags|MAP_FIXED, fd, offset);
++		if(addrspace_free(v, n))
++			p = runtime·mmap(v, n, prot, flags|MAP_FIXED, fd, offset);
+ 	}
+ 	return p;
+ }
+diff --git a/src/pkg/runtime/sys_linux_power64x.s b/src/pkg/runtime/sys_linux_power64x.s
+index c0c41efa95..f5149eaeaf 100644
+--- a/src/pkg/runtime/sys_linux_power64x.s
++++ b/src/pkg/runtime/sys_linux_power64x.s
+@@ -223,7 +223,6 @@ TEXT runtime·mmap(SB),NOSPLIT,$-8
+ 
+ 	SYSCALL	$SYS_mmap
+ 	BVC	2(PC)
+-	NEG	R3, R3
+ 	RETURN
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$-8
+diff --git a/src/pkg/syscall/asm_linux_power64x.s b/src/pkg/syscall/asm_linux_power64x.s
+index 1dd23ef305..c9b0fe320c 100644
+--- a/src/pkg/syscall/asm_linux_power64x.s
++++ b/src/pkg/syscall/asm_linux_power64x.s
+@@ -24,7 +24,6 @@ TEXT	·Syscall(SB),NOSPLIT,$0-56
+ 	MOVD	trap+0(FP), R9	// syscall entry
+ 	SYSCALL R9
+ 	BVC	ok
+-	NEG	R3, R3
+ 	MOVD	$-1, R4
+ 	MOVD	R4, r1+32(FP)	// r1
+ 	MOVD	R0, r2+40(FP)	// r2
+@@ -49,7 +48,6 @@ TEXT ·Syscall6(SB),NOSPLIT,$0-80
+ 	MOVD	trap+0(FP), R9	// syscall entry
+ 	SYSCALL R9
+ 	BVC	ok6
+-	NEG	R3, R3
+ 	MOVD	$-1, R4
+ 	MOVD	R4, r1+56(FP)	// r1
+ 	MOVD	R0, r2+64(FP)	// r2
+@@ -73,7 +71,6 @@ TEXT ·RawSyscall(SB),NOSPLIT,$0-56
+ 	MOVD	trap+0(FP), R9	// syscall entry
+ 	SYSCALL R9
+ 	BVC	ok1
+-	NEG	R3, R3
+ 	MOVD	$-1, R4
+ 	MOVD	R4, r1+32(FP)	// r1
+ 	MOVD	R0, r2+40(FP)	// r2
+@@ -95,7 +92,6 @@ TEXT ·RawSyscall6(SB),NOSPLIT,$0-80
+ 	MOVD	trap+0(FP), R9	// syscall entry
+ 	SYSCALL R9
+ 	BVC	ok2
+-	NEG	R3, R3
+ 	MOVD	$-1, R4
+ 	MOVD	R4, r1+56(FP)	// r1
+ 	MOVD	R0, r2+64(FP)	// r2

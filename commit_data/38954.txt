@@ -11,7 +11,65 @@ Date:   Tue Dec 11 21:03:11 2018 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modcmd/tidy.go              | 12 ++++++++++-
  src/cmd/go/testdata/script/mod_sum_replaced.txt | 28 +++++++++++++++++++++++++
  2 files changed, 39 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modcmd/tidy.go b/src/cmd/go/internal/modcmd/tidy.go
+index f2063a9ea6..839c92a0a0 100644
+--- a/src/cmd/go/internal/modcmd/tidy.go
++++ b/src/cmd/go/internal/modcmd/tidy.go
+@@ -77,7 +77,17 @@ func modTidyGoSum() {
+ 	keep := make(map[module.Version]bool)
+ 	var walk func(module.Version)
+ 	walk = func(m module.Version) {
+-		keep[m] = true
++		// If we build using a replacement module, keep the sum for the replacement,
++		// since that's the code we'll actually use during a build.
++		//
++		// TODO(golang.org/issue/29182): Perhaps we should keep both sums, and the
++		// sums for both sets of transitive requirements.
++		r := modload.Replacement(m)
++		if r.Path == "" {
++			keep[m] = true
++		} else {
++			keep[r] = true
++		}
+ 		list, _ := reqs.Required(m)
+ 		for _, r := range list {
+ 			if !keep[r] {
+diff --git a/src/cmd/go/testdata/script/mod_sum_replaced.txt b/src/cmd/go/testdata/script/mod_sum_replaced.txt
+new file mode 100644
+index 0000000000..b03982d9cf
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_sum_replaced.txt
+@@ -0,0 +1,28 @@
++env GO111MODULE=on
++
++# After 'go get -d', the go.sum file should contain the sum for the module.
++go get -d rsc.io/quote@v1.5.0
++grep 'rsc.io/quote v1.5.0' go.sum
++
++# If we replace the module and run 'go mod tidy', we should get a sum for the replacement.
++go mod edit -replace rsc.io/quote@v1.5.0=rsc.io/quote@v1.5.1
++go mod tidy
++grep 'rsc.io/quote v1.5.1' go.sum
++cp go.sum go.sum.tidy
++
++# 'go mod vendor' should preserve that sum, and should not need to add any new entries.
++go mod vendor
++grep 'rsc.io/quote v1.5.1' go.sum
++cmp go.sum go.sum.tidy
++
++-- go.mod --
++module golang.org/issue/27868
++
++require rsc.io/quote v1.5.0
++
++-- main.go --
++package main
++
++import _ "rsc.io/quote"
++
++func main() {}

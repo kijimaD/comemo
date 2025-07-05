@@ -10,6 +10,19 @@ Date:   Sat Oct 28 13:45:36 2017 +0200
     Change-Id: Id81b5d663476a880101a2eed54fa051c40b0b0bc
     Reviewed-on: https://go-review.googlesource.com/74150
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  .gitignore | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/.gitignore b/.gitignore
+index a2c389f033..39723909c7 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -31,6 +31,7 @@ _testmain.go
+ /pkg/
+ /src/*.*/
+ /src/cmd/cgo/zdefaultcc.go
++/src/cmd/dist/dist
+ /src/cmd/go/internal/cfg/zdefaultcc.go
+ /src/cmd/go/internal/cfg/zosarch.go
+ /src/cmd/internal/objabi/zbootstrap.go

@@ -21,10 +21,207 @@ Date:   Fri Mar 15 10:40:23 2024 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  api/next/50102.txt                              |  9 +++++
  doc/next/6-stdlib/99-minor/archive/tar/50102.md |  3 ++
  src/archive/tar/common.go                       | 32 +++++++++++++++-
  src/archive/tar/stat_unix.go                    | 34 ++++++++---------
  src/archive/tar/tar_test.go                     | 50 +++++++++++++++++++++++++
  5 files changed, 109 insertions(+), 19 deletions(-)
+
+diff --git a/api/next/50102.txt b/api/next/50102.txt
+new file mode 100644
+index 0000000000..a142c3c220
+--- /dev/null
++++ b/api/next/50102.txt
+@@ -0,0 +1,9 @@
++pkg archive/tar, type FileInfoNames interface { Gname, IsDir, ModTime, Mode, Name, Size, Sys, Uname } #50102
++pkg archive/tar, type FileInfoNames interface, Gname() (string, error) #50102
++pkg archive/tar, type FileInfoNames interface, IsDir() bool #50102
++pkg archive/tar, type FileInfoNames interface, ModTime() time.Time #50102
++pkg archive/tar, type FileInfoNames interface, Mode() fs.FileMode #50102
++pkg archive/tar, type FileInfoNames interface, Name() string #50102
++pkg archive/tar, type FileInfoNames interface, Size() int64 #50102
++pkg archive/tar, type FileInfoNames interface, Sys() interface{} #50102
++pkg archive/tar, type FileInfoNames interface, Uname() (string, error) #50102
+diff --git a/doc/next/6-stdlib/99-minor/archive/tar/50102.md b/doc/next/6-stdlib/99-minor/archive/tar/50102.md
+new file mode 100644
+index 0000000000..be5592bc05
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/archive/tar/50102.md
+@@ -0,0 +1,3 @@
++If the argument to [`FileInfoHeader`](/archive/tar#FileInfoHeader) implements the new [`FileInfoNames`](/archive/tar#FileInfoNames) interface,
++then the interface methods will be used to set the Uname/Gname of the file header.
++This allows applications to override the system-dependent Uname/Gname lookup.
+diff --git a/src/archive/tar/common.go b/src/archive/tar/common.go
+index 4910908f81..16ba53e94d 100644
+--- a/src/archive/tar/common.go
++++ b/src/archive/tar/common.go
+@@ -612,7 +612,7 @@ func (fi headerFileInfo) String() string {
+ }
+ 
+ // sysStat, if non-nil, populates h from system-dependent fields of fi.
+-var sysStat func(fi fs.FileInfo, h *Header) error
++var sysStat func(fi fs.FileInfo, h *Header, doNameLookups bool) error
+ 
+ const (
+ 	// Mode constants from the USTAR spec:
+@@ -639,6 +639,10 @@ const (
+ // Since fs.FileInfo's Name method only returns the base name of
+ // the file it describes, it may be necessary to modify Header.Name
+ // to provide the full path name of the file.
++//
++// If fi implements [FileInfoNames]
++// Header.Gname and Header.Uname
++// are provided by the methods of the interface.
+ func FileInfoHeader(fi fs.FileInfo, link string) (*Header, error) {
+ 	if fi == nil {
+ 		return nil, errors.New("archive/tar: FileInfo is nil")
+@@ -711,12 +715,36 @@ func FileInfoHeader(fi fs.FileInfo, link string) (*Header, error) {
+ 			}
+ 		}
+ 	}
++	var doNameLookups = true
++	if iface, ok := fi.(FileInfoNames); ok {
++		doNameLookups = false
++		var err error
++		h.Gname, err = iface.Gname()
++		if err != nil {
++			return nil, err
++		}
++		h.Uname, err = iface.Uname()
++		if err != nil {
++			return nil, err
++		}
++	}
+ 	if sysStat != nil {
+-		return h, sysStat(fi, h)
++		return h, sysStat(fi, h, doNameLookups)
+ 	}
+ 	return h, nil
+ }
+ 
++// FileInfoNames extends [fs.FileInfo].
++// Passing an instance of this to [FileInfoHeader] permits the caller
++// to avoid a system-dependent name lookup by specifying the Uname and Gname directly.
++type FileInfoNames interface {
++	fs.FileInfo
++	// Uname should give a user name.
++	Uname() (string, error)
++	// Gname should give a group name.
++	Gname() (string, error)
++}
++
+ // isHeaderOnlyType checks if the given type flag is of the type that has no
+ // data section even if a size is specified.
+ func isHeaderOnlyType(flag byte) bool {
+diff --git a/src/archive/tar/stat_unix.go b/src/archive/tar/stat_unix.go
+index 0f3428bc24..f999f56db6 100644
+--- a/src/archive/tar/stat_unix.go
++++ b/src/archive/tar/stat_unix.go
+@@ -23,30 +23,30 @@ func init() {
+ // The downside is that renaming uname or gname by the OS never takes effect.
+ var userMap, groupMap sync.Map // map[int]string
+ 
+-func statUnix(fi fs.FileInfo, h *Header) error {
++func statUnix(fi fs.FileInfo, h *Header, doNameLookups bool) error {
+ 	sys, ok := fi.Sys().(*syscall.Stat_t)
+ 	if !ok {
+ 		return nil
+ 	}
+ 	h.Uid = int(sys.Uid)
+ 	h.Gid = int(sys.Gid)
+-
+-	// Best effort at populating Uname and Gname.
+-	// The os/user functions may fail for any number of reasons
+-	// (not implemented on that platform, cgo not enabled, etc).
+-	if u, ok := userMap.Load(h.Uid); ok {
+-		h.Uname = u.(string)
+-	} else if u, err := user.LookupId(strconv.Itoa(h.Uid)); err == nil {
+-		h.Uname = u.Username
+-		userMap.Store(h.Uid, h.Uname)
+-	}
+-	if g, ok := groupMap.Load(h.Gid); ok {
+-		h.Gname = g.(string)
+-	} else if g, err := user.LookupGroupId(strconv.Itoa(h.Gid)); err == nil {
+-		h.Gname = g.Name
+-		groupMap.Store(h.Gid, h.Gname)
++	if doNameLookups {
++		// Best effort at populating Uname and Gname.
++		// The os/user functions may fail for any number of reasons
++		// (not implemented on that platform, cgo not enabled, etc).
++		if u, ok := userMap.Load(h.Uid); ok {
++			h.Uname = u.(string)
++		} else if u, err := user.LookupId(strconv.Itoa(h.Uid)); err == nil {
++			h.Uname = u.Username
++			userMap.Store(h.Uid, h.Uname)
++		}
++		if g, ok := groupMap.Load(h.Gid); ok {
++			h.Gname = g.(string)
++		} else if g, err := user.LookupGroupId(strconv.Itoa(h.Gid)); err == nil {
++			h.Gname = g.Name
++			groupMap.Store(h.Gid, h.Gname)
++		}
+ 	}
+-
+ 	h.AccessTime = statAtime(sys)
+ 	h.ChangeTime = statCtime(sys)
+ 
+diff --git a/src/archive/tar/tar_test.go b/src/archive/tar/tar_test.go
+index a476f5eb01..7398e7602a 100644
+--- a/src/archive/tar/tar_test.go
++++ b/src/archive/tar/tar_test.go
+@@ -848,3 +848,53 @@ func Benchmark(b *testing.B) {
+ 	})
+ 
+ }
++
++var _ fileInfoNames = fileInfoNames{}
++
++type fileInfoNames struct{}
++
++func (f *fileInfoNames) Name() string {
++	return "tmp"
++}
++
++func (f *fileInfoNames) Size() int64 {
++	return 0
++}
++
++func (f *fileInfoNames) Mode() fs.FileMode {
++	return 0777
++}
++
++func (f *fileInfoNames) ModTime() time.Time {
++	return time.Time{}
++}
++
++func (f *fileInfoNames) IsDir() bool {
++	return false
++}
++
++func (f *fileInfoNames) Sys() any {
++	return nil
++}
++
++func (f *fileInfoNames) Uname() (string, error) {
++	return "Uname", nil
++}
++
++func (f *fileInfoNames) Gname() (string, error) {
++	return "Gname", nil
++}
++
++func TestFileInfoHeaderUseFileInfoNames(t *testing.T) {
++	info := &fileInfoNames{}
++	header, err := FileInfoHeader(info, "")
++	if err != nil {
++		t.Fatal(err)
++	}
++	if header.Uname != "Uname" {
++		t.Fatalf("header.Uname: got %s, want %s", header.Uname, "Uname")
++	}
++	if header.Gname != "Gname" {
++		t.Fatalf("header.Gname: got %s, want %s", header.Gname, "Gname")
++	}
++}

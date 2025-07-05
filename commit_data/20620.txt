@@ -16,6 +16,32 @@ Date:   Wed Sep 24 18:50:54 2014 -0400
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/143540044
-
+---
  src/os/proc.go | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/proc.go b/src/os/proc.go
+index b63c85ad90..774f09900e 100644
+--- a/src/os/proc.go
++++ b/src/os/proc.go
+@@ -6,12 +6,19 @@
+ 
+ package os
+ 
+-import "syscall"
++import (
++	"runtime"
++	"syscall"
++)
+ 
+ // Args hold the command-line arguments, starting with the program name.
+ var Args []string
+ 
+ func init() {
++	if runtime.GOOS == "windows" {
++		// Initialized in exec_windows.go.
++		return
++	}
+ 	Args = runtime_args()
+ }
+ 

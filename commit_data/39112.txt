@@ -11,6 +11,20 @@ Date:   Wed Jan 2 19:57:11 2019 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/udpsock_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/net/udpsock_test.go b/src/net/udpsock_test.go
+index c5a2439d6c..397b6649cd 100644
+--- a/src/net/udpsock_test.go
++++ b/src/net/udpsock_test.go
+@@ -337,6 +337,8 @@ func TestUDPZeroBytePayload(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "nacl", "plan9":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
++	case "darwin":
++		testenv.SkipFlaky(t, 29225)
+ 	}
+ 
+ 	c, err := newLocalPacketListener("udp")

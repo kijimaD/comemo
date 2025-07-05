@@ -27,7 +27,7 @@ Date:   Thu Mar 28 12:51:30 2019 -0400
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/internal/goobj/read.go           |  2 ++
  src/cmd/internal/obj/link.go             |  6 ++++++
  src/cmd/internal/obj/objfile.go          |  6 ++++++
@@ -45,3 +45,332 @@ Date:   Thu Mar 28 12:51:30 2019 -0400
  src/runtime/runtime-gdb_test.go          | 22 ++++++++++++++++++++++
  src/runtime/textflag.h                   |  3 +++
  16 files changed, 75 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/internal/goobj/read.go b/src/cmd/internal/goobj/read.go
+index 84aed6eeea..dd29bacd04 100644
+--- a/src/cmd/internal/goobj/read.go
++++ b/src/cmd/internal/goobj/read.go
+@@ -97,6 +97,7 @@ type Func struct {
+ 	Frame    int64      // size in bytes of local variable frame
+ 	Leaf     bool       // function omits save of link register (ARM)
+ 	NoSplit  bool       // function omits stack split prologue
++	TopFrame bool       // function is the top of the call stack
+ 	Var      []Var      // detail about local variables
+ 	PCSP     Data       // PC → SP offset map
+ 	PCFile   Data       // PC → file number map (index into File)
+@@ -576,6 +577,7 @@ func (r *objReader) parseObject(prefix []byte) error {
+ 			f.Frame = r.readInt()
+ 			flags := r.readInt()
+ 			f.Leaf = flags&(1<<0) != 0
++			f.TopFrame = flags&(1<<4) != 0
+ 			f.NoSplit = r.readInt() != 0
+ 			f.Var = make([]Var, r.readInt())
+ 			for i := range f.Var {
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index f506f60d06..5d4e5db27f 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -489,6 +489,10 @@ const (
+ 	// target of an inline during compilation
+ 	AttrWasInlined
+ 
++	// TopFrame means that this function is an entry point and unwinders should not
++	// keep unwinding beyond this frame.
++	AttrTopFrame
++
+ 	// attrABIBase is the value at which the ABI is encoded in
+ 	// Attribute. This must be last; all bits after this are
+ 	// assumed to be an ABI value.
+@@ -511,6 +515,7 @@ func (a Attribute) NeedCtxt() bool      { return a&AttrNeedCtxt != 0 }
+ func (a Attribute) NoFrame() bool       { return a&AttrNoFrame != 0 }
+ func (a Attribute) Static() bool        { return a&AttrStatic != 0 }
+ func (a Attribute) WasInlined() bool    { return a&AttrWasInlined != 0 }
++func (a Attribute) TopFrame() bool      { return a&AttrTopFrame != 0 }
+ 
+ func (a *Attribute) Set(flag Attribute, value bool) {
+ 	if value {
+@@ -544,6 +549,7 @@ var textAttrStrings = [...]struct {
+ 	{bit: AttrNoFrame, s: "NOFRAME"},
+ 	{bit: AttrStatic, s: "STATIC"},
+ 	{bit: AttrWasInlined, s: ""},
++	{bit: AttrTopFrame, s: "TOPFRAME"},
+ }
+ 
+ // TextAttrString formats a for printing in as part of a TEXT prog.
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index a94717a404..0aa0d2ac44 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -230,6 +230,9 @@ func (w *objWriter) writeSymDebug(s *LSym) {
+ 	if s.NoSplit() {
+ 		fmt.Fprintf(ctxt.Bso, "nosplit ")
+ 	}
++	if s.TopFrame() {
++		fmt.Fprintf(ctxt.Bso, "topframe ")
++	}
+ 	fmt.Fprintf(ctxt.Bso, "size=%d", s.Size)
+ 	if s.Type == objabi.STEXT {
+ 		fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x", uint64(s.Func.Args), uint64(s.Func.Locals))
+@@ -342,6 +345,9 @@ func (w *objWriter) writeSym(s *LSym) {
+ 	if ctxt.Flag_shared {
+ 		flags |= 1 << 3
+ 	}
++	if s.TopFrame() {
++		flags |= 1 << 4
++	}
+ 	w.writeInt(flags)
+ 	w.writeInt(int64(len(s.Func.Autom)))
+ 	for _, a := range s.Func.Autom {
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 8b177c5a02..303fa469e4 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -132,6 +132,7 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
+ 	s.Set(AttrWrapper, flag&WRAPPER != 0)
+ 	s.Set(AttrNeedCtxt, flag&NEEDCTXT != 0)
+ 	s.Set(AttrNoFrame, flag&NOFRAME != 0)
++	s.Set(AttrTopFrame, flag&TOPFRAME != 0)
+ 	s.Type = objabi.STEXT
+ 	ctxt.Text = append(ctxt.Text, s)
+ 
+diff --git a/src/cmd/internal/obj/textflag.go b/src/cmd/internal/obj/textflag.go
+index d8a52da4af..d2cec734b1 100644
+--- a/src/cmd/internal/obj/textflag.go
++++ b/src/cmd/internal/obj/textflag.go
+@@ -47,4 +47,8 @@ const (
+ 
+ 	// Function can call reflect.Type.Method or reflect.Type.MethodByName.
+ 	REFLECTMETHOD = 1024
++
++	// Function is the top of the call stack. Call stack unwinders should stop
++	// at this function.
++	TOPFRAME = 2048
+ )
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index c7184477de..0d159c7658 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1451,6 +1451,13 @@ func writeframes(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
+ 		// Emit a FDE, Section 6.4.1.
+ 		// First build the section contents into a byte buffer.
+ 		deltaBuf = deltaBuf[:0]
++		if haslinkregister(ctxt) && s.Attr.TopFrame() {
++			// Mark the link register as having an undefined value.
++			// This stops call stack unwinders progressing any further.
++			// TODO: similar mark on non-LR architectures.
++			deltaBuf = append(deltaBuf, dwarf.DW_CFA_undefined)
++			deltaBuf = dwarf.AppendUleb128(deltaBuf, uint64(thearch.Dwarfreglr))
++		}
+ 		for pcsp.init(s.FuncInfo.Pcsp.P); !pcsp.done; pcsp.next() {
+ 			nextpc := pcsp.nextpc
+ 
+@@ -1463,7 +1470,13 @@ func writeframes(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
+ 				}
+ 			}
+ 
+-			if haslinkregister(ctxt) {
++			spdelta := int64(pcsp.value)
++			if !haslinkregister(ctxt) {
++				// Return address has been pushed onto stack.
++				spdelta += int64(ctxt.Arch.PtrSize)
++			}
++
++			if haslinkregister(ctxt) && !s.Attr.TopFrame() {
+ 				// TODO(bryanpkc): This is imprecise. In general, the instruction
+ 				// that stores the return address to the stack frame is not the
+ 				// same one that allocates the frame.
+@@ -1472,17 +1485,16 @@ func writeframes(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
+ 					// after a stack frame has been allocated.
+ 					deltaBuf = append(deltaBuf, dwarf.DW_CFA_offset_extended_sf)
+ 					deltaBuf = dwarf.AppendUleb128(deltaBuf, uint64(thearch.Dwarfreglr))
+-					deltaBuf = dwarf.AppendSleb128(deltaBuf, -int64(pcsp.value)/dataAlignmentFactor)
++					deltaBuf = dwarf.AppendSleb128(deltaBuf, -spdelta/dataAlignmentFactor)
+ 				} else {
+ 					// The return address is restored into the link register
+ 					// when a stack frame has been de-allocated.
+ 					deltaBuf = append(deltaBuf, dwarf.DW_CFA_same_value)
+ 					deltaBuf = dwarf.AppendUleb128(deltaBuf, uint64(thearch.Dwarfreglr))
+ 				}
+-				deltaBuf = appendPCDeltaCFA(ctxt.Arch, deltaBuf, int64(nextpc)-int64(pcsp.pc), int64(pcsp.value))
+-			} else {
+-				deltaBuf = appendPCDeltaCFA(ctxt.Arch, deltaBuf, int64(nextpc)-int64(pcsp.pc), int64(ctxt.Arch.PtrSize)+int64(pcsp.value))
+ 			}
++
++			deltaBuf = appendPCDeltaCFA(ctxt.Arch, deltaBuf, int64(nextpc)-int64(pcsp.pc), spdelta)
+ 		}
+ 		pad := int(Rnd(int64(len(deltaBuf)), int64(ctxt.Arch.PtrSize))) - len(deltaBuf)
+ 		deltaBuf = append(deltaBuf, zeros[:pad]...)
+diff --git a/src/cmd/link/internal/objfile/objfile.go b/src/cmd/link/internal/objfile/objfile.go
+index f3957822b0..7f93912a44 100644
+--- a/src/cmd/link/internal/objfile/objfile.go
++++ b/src/cmd/link/internal/objfile/objfile.go
+@@ -282,6 +282,9 @@ overwrite:
+ 		if flags&(1<<3) != 0 {
+ 			s.Attr |= sym.AttrShared
+ 		}
++		if flags&(1<<4) != 0 {
++			s.Attr |= sym.AttrTopFrame
++		}
+ 		n := r.readInt()
+ 		pc.Autom = r.autom[:n:n]
+ 		if !isdup {
+diff --git a/src/cmd/link/internal/sym/attribute.go b/src/cmd/link/internal/sym/attribute.go
+index 62ccef91a6..74fda1495e 100644
+--- a/src/cmd/link/internal/sym/attribute.go
++++ b/src/cmd/link/internal/sym/attribute.go
+@@ -75,7 +75,10 @@ const (
+ 	// AttrContainer is set on text symbols that are present as the .Outer for some
+ 	// other symbol.
+ 	AttrContainer
+-	// 17 attributes defined so far.
++	// AttrTopFrame means that the function is an entry point and unwinders
++	// should stop when they hit this function.
++	AttrTopFrame
++	// 18 attributes defined so far.
+ )
+ 
+ func (a Attribute) DuplicateOK() bool      { return a&AttrDuplicateOK != 0 }
+@@ -95,6 +98,7 @@ func (a Attribute) Shared() bool           { return a&AttrShared != 0 }
+ func (a Attribute) VisibilityHidden() bool { return a&AttrVisibilityHidden != 0 }
+ func (a Attribute) SubSymbol() bool        { return a&AttrSubSymbol != 0 }
+ func (a Attribute) Container() bool        { return a&AttrContainer != 0 }
++func (a Attribute) TopFrame() bool         { return a&AttrTopFrame != 0 }
+ 
+ func (a Attribute) CgoExport() bool {
+ 	return a.CgoExportDynamic() || a.CgoExportStatic()
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index af7da64ce6..5c6dfedac8 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -864,7 +864,7 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$8
+ 
+ // The top-most function running on a goroutine
+ // returns to goexit+PCQuantum.
+-TEXT runtime·goexit(SB),NOSPLIT|NOFRAME,$0-0
++TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0
+ 	MOVW	R0, R0	// NOP
+ 	BL	runtime·goexit1(SB)	// does not return
+ 	// traceback from goexit1 must hit code range of goexit
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index f7cf0d3544..871dc95dea 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -1124,7 +1124,7 @@ TEXT runtime·return0(SB), NOSPLIT, $0
+ 
+ // The top-most function running on a goroutine
+ // returns to goexit+PCQuantum.
+-TEXT runtime·goexit(SB),NOSPLIT|NOFRAME,$0-0
++TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0
+ 	MOVD	R0, R0	// NOP
+ 	BL	runtime·goexit1(SB)	// does not return
+ 
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index 257c13e9af..8e591400d1 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -642,7 +642,7 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$16
+ 
+ // The top-most function running on a goroutine
+ // returns to goexit+PCQuantum.
+-TEXT runtime·goexit(SB),NOSPLIT|NOFRAME,$0-0
++TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0
+ 	NOR	R0, R0	// NOP
+ 	JAL	runtime·goexit1(SB)	// does not return
+ 	// traceback from goexit1 must hit code range of goexit
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index 9f38bbc71e..971dc37658 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -653,7 +653,7 @@ TEXT _cgo_topofstack(SB),NOSPLIT|NOFRAME,$0
+ 
+ // The top-most function running on a goroutine
+ // returns to goexit+PCQuantum.
+-TEXT runtime·goexit(SB),NOSPLIT|NOFRAME,$0-0
++TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0
+ 	NOR	R0, R0	// NOP
+ 	JAL	runtime·goexit1(SB)	// does not return
+ 	// traceback from goexit1 must hit code range of goexit
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index d7fc66bda1..8b850683f7 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -880,7 +880,7 @@ TEXT _cgo_topofstack(SB),NOSPLIT|NOFRAME,$0
+ // pointer in the correct place).
+ // goexit+_PCQuantum is halfway through the usual global entry point prologue
+ // that derives r2 from r12 which is a bit silly, but not harmful.
+-TEXT runtime·goexit(SB),NOSPLIT|NOFRAME,$0-0
++TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0
+ 	MOVD	24(R1), R2
+ 	BL	runtime·goexit1(SB)	// does not return
+ 	// traceback from goexit1 must hit code range of goexit
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index 5b9e0cd481..e646ea009a 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -775,7 +775,7 @@ TEXT _cgo_topofstack(SB),NOSPLIT|NOFRAME,$0
+ 
+ // The top-most function running on a goroutine
+ // returns to goexit+PCQuantum.
+-TEXT runtime·goexit(SB),NOSPLIT|NOFRAME,$0-0
++TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0
+ 	BYTE $0x07; BYTE $0x00; // 2-byte nop
+ 	BL	runtime·goexit1(SB)	// does not return
+ 	// traceback from goexit1 must hit code range of goexit
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index d47c7c2262..8117a5c979 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -82,6 +82,22 @@ func checkGdbPython(t *testing.T) {
+ 	}
+ }
+ 
++// checkCleanBacktrace checks that the given backtrace is well formed and does
++// not contain any error messages from GDB.
++func checkCleanBacktrace(t *testing.T, backtrace string) {
++	backtrace = strings.TrimSpace(backtrace)
++	lines := strings.Split(backtrace, "\n")
++	if len(lines) == 0 {
++		t.Fatalf("empty backtrace")
++	}
++	for i, l := range lines {
++		if !strings.HasPrefix(l, fmt.Sprintf("#%v  ", i)) {
++			t.Fatalf("malformed backtrace at line %v: %v", i, l)
++		}
++	}
++	// TODO(mundaym): check for unknown frames (e.g. "??").
++}
++
+ const helloSource = `
+ import "fmt"
+ import "runtime"
+@@ -272,6 +288,11 @@ func testGdbPython(t *testing.T, cgo bool) {
+ 		t.Fatalf("info locals failed: %s", bl)
+ 	}
+ 
++	// Check that the backtraces are well formed.
++	checkCleanBacktrace(t, blocks["goroutine 1 bt"])
++	checkCleanBacktrace(t, blocks["goroutine 2 bt"])
++	checkCleanBacktrace(t, blocks["goroutine 1 bt at the end"])
++
+ 	btGoroutine1Re := regexp.MustCompile(`(?m)^#0\s+(0x[0-9a-f]+\s+in\s+)?main\.main.+at`)
+ 	if bl := blocks["goroutine 1 bt"]; !btGoroutine1Re.MatchString(bl) {
+ 		t.Fatalf("goroutine 1 bt failed: %s", bl)
+@@ -281,6 +302,7 @@ func testGdbPython(t *testing.T, cgo bool) {
+ 	if bl := blocks["goroutine 2 bt"]; !btGoroutine2Re.MatchString(bl) {
+ 		t.Fatalf("goroutine 2 bt failed: %s", bl)
+ 	}
++
+ 	btGoroutine1AtTheEndRe := regexp.MustCompile(`(?m)^#0\s+(0x[0-9a-f]+\s+in\s+)?main\.main.+at`)
+ 	if bl := blocks["goroutine 1 bt at the end"]; !btGoroutine1AtTheEndRe.MatchString(bl) {
+ 		t.Fatalf("goroutine 1 bt at the end failed: %s", bl)
+diff --git a/src/runtime/textflag.h b/src/runtime/textflag.h
+index d1bb52cc00..daca36d948 100644
+--- a/src/runtime/textflag.h
++++ b/src/runtime/textflag.h
+@@ -32,3 +32,6 @@
+ #define NOFRAME 512
+ // Function can call reflect.Type.Method or reflect.Type.MethodByName.
+ #define REFLECTMETHOD 1024
++// Function is the top of the call stack. Call stack unwinders should stop
++// at this function.
++#define TOPFRAME 2048

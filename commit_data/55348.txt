@@ -14,7 +14,7 @@ Date:   Mon Jan 30 13:21:34 2023 -0500
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/generate/generate.go |  3 ++-
  src/cmd/go/internal/modload/buildlist.go | 12 ++++--------
  src/cmd/go/internal/modload/init.go      |  3 ++-
@@ -26,3 +26,250 @@ Date:   Mon Jan 30 13:21:34 2023 -0500
  src/cmd/go/internal/vcweb/hg.go          |  3 ++-
  src/cmd/go/internal/work/exec.go         |  3 ++-
  10 files changed, 33 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/go/internal/generate/generate.go b/src/cmd/go/internal/generate/generate.go
+index 3eda6c7145..160a8723a0 100644
+--- a/src/cmd/go/internal/generate/generate.go
++++ b/src/cmd/go/internal/generate/generate.go
+@@ -25,6 +25,7 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/modload"
++	"cmd/go/internal/slices"
+ 	"cmd/go/internal/str"
+ 	"cmd/go/internal/work"
+ )
+@@ -461,7 +462,7 @@ func (g *Generator) setShorthand(words []string) {
+ 	if g.commands[command] != nil {
+ 		g.errorf("command %q multiply defined", command)
+ 	}
+-	g.commands[command] = words[2:len(words):len(words)] // force later append to make copy
++	g.commands[command] = slices.Clip(words[2:])
+ }
+ 
+ // exec runs the command specified by the argument. The first word is
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index aa59611e81..fddcdb6b5d 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -9,6 +9,7 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/mvs"
+ 	"cmd/go/internal/par"
++	"cmd/go/internal/slices"
+ 	"context"
+ 	"fmt"
+ 	"os"
+@@ -23,11 +24,6 @@ import (
+ 	"golang.org/x/mod/semver"
+ )
+ 
+-// capVersionSlice returns s with its cap reduced to its length.
+-func capVersionSlice(s []module.Version) []module.Version {
+-	return s[:len(s):len(s)]
+-}
+-
+ // A Requirements represents a logically-immutable set of root module requirements.
+ type Requirements struct {
+ 	// pruning is the pruning at which the requirement graph is computed.
+@@ -108,7 +104,7 @@ func newRequirements(pruning modPruning, rootModules []module.Version, direct ma
+ 	if pruning == workspace {
+ 		return &Requirements{
+ 			pruning:        pruning,
+-			rootModules:    capVersionSlice(rootModules),
++			rootModules:    slices.Clip(rootModules),
+ 			maxRootVersion: nil,
+ 			direct:         direct,
+ 		}
+@@ -135,7 +131,7 @@ func newRequirements(pruning modPruning, rootModules []module.Version, direct ma
+ 
+ 	rs := &Requirements{
+ 		pruning:        pruning,
+-		rootModules:    capVersionSlice(rootModules),
++		rootModules:    slices.Clip(rootModules),
+ 		maxRootVersion: make(map[string]string, len(rootModules)),
+ 		direct:         direct,
+ 	}
+@@ -470,7 +466,7 @@ func (mg *ModuleGraph) WalkBreadthFirst(f func(m module.Version)) {
+ // and may rely on it not to be modified.
+ func (mg *ModuleGraph) BuildList() []module.Version {
+ 	mg.buildListOnce.Do(func() {
+-		mg.buildList = capVersionSlice(mg.g.BuildList())
++		mg.buildList = slices.Clip(mg.g.BuildList())
+ 	})
+ 	return mg.buildList
+ }
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 34b00d50fa..b23966d83a 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -26,6 +26,7 @@ import (
+ 	"cmd/go/internal/modconv"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/search"
++	"cmd/go/internal/slices"
+ 
+ 	"golang.org/x/mod/modfile"
+ 	"golang.org/x/mod/module"
+@@ -990,7 +991,7 @@ func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile
+ 	}
+ 	modRootContainingCWD := findModuleRoot(base.Cwd())
+ 	mainModules := &MainModuleSet{
+-		versions:           ms[:len(ms):len(ms)],
++		versions:           slices.Clip(ms),
+ 		inGorootSrc:        map[module.Version]bool{},
+ 		pathPrefix:         map[module.Version]string{},
+ 		modRoot:            map[module.Version]string{},
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index c3764b4413..4affdc0374 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -23,6 +23,7 @@ import (
+ 	"cmd/go/internal/modfetch/codehost"
+ 	"cmd/go/internal/modinfo"
+ 	"cmd/go/internal/search"
++	"cmd/go/internal/slices"
+ 	"cmd/go/internal/str"
+ 	"cmd/go/internal/trace"
+ 	"cmd/internal/pkgpattern"
+@@ -768,7 +769,7 @@ func QueryPattern(ctx context.Context, pattern, query string, current func(strin
+ 			Query:   query,
+ 		}
+ 	}
+-	return results[:len(results):len(results)], modOnly, err
++	return slices.Clip(results), modOnly, err
+ }
+ 
+ // modulePrefixesExcludingTarget returns all prefixes of path that may plausibly
+diff --git a/src/cmd/go/internal/mvs/graph.go b/src/cmd/go/internal/mvs/graph.go
+index c5de4866bf..94835bcb3f 100644
+--- a/src/cmd/go/internal/mvs/graph.go
++++ b/src/cmd/go/internal/mvs/graph.go
+@@ -5,6 +5,7 @@
+ package mvs
+ 
+ import (
++	"cmd/go/internal/slices"
+ 	"fmt"
+ 
+ 	"golang.org/x/mod/module"
+@@ -30,7 +31,7 @@ type Graph struct {
+ func NewGraph(cmp func(v1, v2 string) int, roots []module.Version) *Graph {
+ 	g := &Graph{
+ 		cmp:      cmp,
+-		roots:    roots[:len(roots):len(roots)],
++		roots:    slices.Clip(roots),
+ 		required: make(map[module.Version][]module.Version),
+ 		isRoot:   make(map[module.Version]bool),
+ 		selected: make(map[string]string),
+@@ -64,7 +65,7 @@ func (g *Graph) Require(m module.Version, reqs []module.Version) {
+ 
+ 	// Truncate reqs to its capacity to avoid aliasing bugs if it is later
+ 	// returned from RequiredBy and appended to.
+-	reqs = reqs[:len(reqs):len(reqs)]
++	reqs = slices.Clip(reqs)
+ 
+ 	if _, dup := g.required[m]; dup {
+ 		panic(fmt.Sprintf("requirements of %v have already been set", m))
+diff --git a/src/cmd/go/internal/slices/slices.go b/src/cmd/go/internal/slices/slices.go
+new file mode 100644
+index 0000000000..a0adcf4926
+--- /dev/null
++++ b/src/cmd/go/internal/slices/slices.go
+@@ -0,0 +1,12 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// TODO: Replace with slices package when it lands in standard library.
++
++package slices
++
++// Clip removes unused capacity from the slice, returning s[:len(s):len(s)].
++func Clip[S ~[]E, E any](s S) S {
++	return s[:len(s):len(s)]
++}
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index be024f4464..48760ba914 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -28,6 +28,7 @@ import (
+ 	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/search"
++	"cmd/go/internal/slices"
+ 	"cmd/go/internal/str"
+ 	"cmd/go/internal/trace"
+ 	"cmd/go/internal/work"
+@@ -1284,7 +1285,7 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
+ 	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
+ 	cmd.Dir = a.Package.Dir
+ 
+-	env := cfg.OrigEnv[:len(cfg.OrigEnv):len(cfg.OrigEnv)]
++	env := slices.Clip(cfg.OrigEnv)
+ 	env = base.AppendPATH(env)
+ 	env = base.AppendPWD(env, cmd.Dir)
+ 	cmd.Env = env
+diff --git a/src/cmd/go/internal/vcweb/git.go b/src/cmd/go/internal/vcweb/git.go
+index 5f9864e2dd..2168d52156 100644
+--- a/src/cmd/go/internal/vcweb/git.go
++++ b/src/cmd/go/internal/vcweb/git.go
+@@ -5,6 +5,7 @@
+ package vcweb
+ 
+ import (
++	"cmd/go/internal/slices"
+ 	"log"
+ 	"net/http"
+ 	"net/http/cgi"
+@@ -41,7 +42,7 @@ func (h *gitHandler) Handler(dir string, env []string, logger *log.Logger) (http
+ 		Logger: logger,
+ 		Args:   []string{"http-backend"},
+ 		Dir:    dir,
+-		Env: append(env[:len(env):len(env)],
++		Env: append(slices.Clip(env),
+ 			"GIT_PROJECT_ROOT="+dir,
+ 			"GIT_HTTP_EXPORT_ALL=1",
+ 		),
+diff --git a/src/cmd/go/internal/vcweb/hg.go b/src/cmd/go/internal/vcweb/hg.go
+index 86871710d1..3c45acab3e 100644
+--- a/src/cmd/go/internal/vcweb/hg.go
++++ b/src/cmd/go/internal/vcweb/hg.go
+@@ -6,6 +6,7 @@ package vcweb
+ 
+ import (
+ 	"bufio"
++	"cmd/go/internal/slices"
+ 	"context"
+ 	"errors"
+ 	"io"
+@@ -54,7 +55,7 @@ func (h *hgHandler) Handler(dir string, env []string, logger *log.Logger) (http.
+ 
+ 		cmd := exec.CommandContext(ctx, h.hgPath, "serve", "--port", "0", "--address", "localhost", "--accesslog", os.DevNull, "--name", "vcweb", "--print-url")
+ 		cmd.Dir = dir
+-		cmd.Env = append(env[:len(env):len(env)], "PWD="+dir)
++		cmd.Env = append(slices.Clip(env), "PWD="+dir)
+ 
+ 		cmd.Cancel = func() error {
+ 			err := cmd.Process.Signal(os.Interrupt)
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 7f2924f73d..8dde0a9e06 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -36,6 +36,7 @@ import (
+ 	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/modload"
++	"cmd/go/internal/slices"
+ 	"cmd/go/internal/str"
+ 	"cmd/go/internal/trace"
+ 	"cmd/internal/quoted"
+@@ -2490,7 +2491,7 @@ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []s
+ 			} else {
+ 				to = filepath.Join("/_", toPath)
+ 			}
+-			flags = append(flags[:len(flags):len(flags)], "-fdebug-prefix-map="+from+"="+to)
++			flags = append(slices.Clip(flags), "-fdebug-prefix-map="+from+"="+to)
+ 		}
+ 	}
+ 

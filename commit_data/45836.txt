@@ -36,7 +36,7 @@ Date:   Sun Nov 22 20:43:16 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go   | 2 +-
  src/cmd/compile/internal/gc/dcl.go       | 2 +-
  src/cmd/compile/internal/gc/escape.go    | 4 ++--
@@ -47,3 +47,183 @@ Date:   Sun Nov 22 20:43:16 2020 -0800
  src/cmd/compile/internal/gc/scc.go       | 6 +++---
  src/cmd/compile/internal/gc/typecheck.go | 2 +-
  9 files changed, 16 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index f4720f8402..6564024a0c 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -37,7 +37,7 @@ func (p *exporter) markType(t *types.Type) {
+ 	if t.Sym != nil && t.Etype != TINTER {
+ 		for _, m := range t.Methods().Slice() {
+ 			if types.IsExported(m.Sym.Name) {
+-				p.markObject(asNode(m.Type.Nname()))
++				p.markObject(asNode(m.Nname))
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 6af0369246..e1dc647f82 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -897,7 +897,7 @@ func addmethod(n *Node, msym *types.Sym, t *types.Type, local, nointerface bool)
+ 	}
+ 
+ 	f := types.NewField(lineno, msym, t)
+-	f.Type.SetNname(asTypesNode(n.Func.Nname))
++	f.Nname = asTypesNode(n.Func.Nname)
+ 	f.SetNointerface(nointerface)
+ 
+ 	mt.Methods().Append(f)
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index 618bdf78e2..142eacf7d8 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -544,7 +544,7 @@ func (e *Escape) exprSkipInit(k EscHole, n *Node) {
+ 		for i := m.Type.NumResults(); i > 0; i-- {
+ 			ks = append(ks, e.heapHole())
+ 		}
+-		paramK := e.tagHole(ks, asNode(m.Type.Nname()), m.Type.Recv())
++		paramK := e.tagHole(ks, asNode(m.Nname), m.Type.Recv())
+ 
+ 		e.expr(e.teeHole(paramK, closureK), n.Left)
+ 
+@@ -778,7 +778,7 @@ func (e *Escape) call(ks []EscHole, call, where *Node) {
+ 				fn = v.Func.Closure.Func.Nname
+ 			}
+ 		case OCALLMETH:
+-			fn = asNode(call.Left.Type.FuncType().Nname)
++			fn = call.Left.MethodName()
+ 		}
+ 
+ 		fntype := call.Left.Type
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index af5f1b70e4..47910eb3b9 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -994,7 +994,7 @@ func (w *exportWriter) funcExt(n *Node) {
+ 
+ func (w *exportWriter) methExt(m *types.Field) {
+ 	w.bool(m.Nointerface())
+-	w.funcExt(asNode(m.Type.Nname()))
++	w.funcExt(asNode(m.Nname))
+ }
+ 
+ func (w *exportWriter) linkname(s *types.Sym) {
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index de2ea3558c..a37730343a 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -333,7 +333,7 @@ func (r *importReader) doDecl(n *Node) {
+ 			// methodSym already marked m.Sym as a function.
+ 
+ 			f := types.NewField(mpos, msym, mtyp)
+-			f.Type.SetNname(asTypesNode(m))
++			f.Nname = asTypesNode(m)
+ 			ms[i] = f
+ 		}
+ 		t.Methods().Set(ms)
+@@ -667,7 +667,7 @@ func (r *importReader) methExt(m *types.Field) {
+ 	if r.bool() {
+ 		m.SetNointerface(true)
+ 	}
+-	r.funcExt(asNode(m.Type.Nname()))
++	r.funcExt(asNode(m.Nname))
+ }
+ 
+ func (r *importReader) linkname(s *types.Sym) {
+diff --git a/src/cmd/compile/internal/gc/initorder.go b/src/cmd/compile/internal/gc/initorder.go
+index 41f1349bbe..2d7c0176d5 100644
+--- a/src/cmd/compile/internal/gc/initorder.go
++++ b/src/cmd/compile/internal/gc/initorder.go
+@@ -277,7 +277,7 @@ func (d *initDeps) visit(n *Node) bool {
+ 	switch n.Op {
+ 	case ONAME:
+ 		if n.isMethodExpression() {
+-			d.foundDep(asNode(n.Type.FuncType().Nname))
++			d.foundDep(n.MethodName())
+ 			return false
+ 		}
+ 
+@@ -290,7 +290,7 @@ func (d *initDeps) visit(n *Node) bool {
+ 		d.inspectList(n.Func.Closure.Nbody)
+ 
+ 	case ODOTMETH, OCALLPART:
+-		d.foundDep(asNode(n.Type.FuncType().Nname))
++		d.foundDep(n.MethodName())
+ 	}
+ 
+ 	return true
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 1fab67391b..4908dc4463 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -267,7 +267,7 @@ func inlFlood(n *Node) {
+ 			switch n.Class() {
+ 			case PFUNC:
+ 				if n.isMethodExpression() {
+-					inlFlood(asNode(n.Type.Nname()))
++					inlFlood(n.MethodName())
+ 				} else {
+ 					inlFlood(n)
+ 					exportsym(n)
+@@ -277,7 +277,7 @@ func inlFlood(n *Node) {
+ 			}
+ 
+ 		case ODOTMETH:
+-			fn := asNode(n.Type.Nname())
++			fn := n.MethodName()
+ 			inlFlood(fn)
+ 
+ 		case OCALLPART:
+@@ -714,7 +714,7 @@ func inlCallee(fn *Node) *Node {
+ 	switch {
+ 	case fn.Op == ONAME && fn.Class() == PFUNC:
+ 		if fn.isMethodExpression() {
+-			n := asNode(fn.Type.Nname())
++			n := fn.MethodName()
+ 			// Check that receiver type matches fn.Left.
+ 			// TODO(mdempsky): Handle implicit dereference
+ 			// of pointer receiver argument?
+diff --git a/src/cmd/compile/internal/gc/scc.go b/src/cmd/compile/internal/gc/scc.go
+index 5c7935aa87..14f77d613a 100644
+--- a/src/cmd/compile/internal/gc/scc.go
++++ b/src/cmd/compile/internal/gc/scc.go
+@@ -78,7 +78,7 @@ func (v *bottomUpVisitor) visit(n *Node) uint32 {
+ 		case ONAME:
+ 			if n.Class() == PFUNC {
+ 				if n.isMethodExpression() {
+-					n = asNode(n.Type.Nname())
++					n = n.MethodName()
+ 				}
+ 				if n != nil && n.Name.Defn != nil {
+ 					if m := v.visit(n.Name.Defn); m < min {
+@@ -87,14 +87,14 @@ func (v *bottomUpVisitor) visit(n *Node) uint32 {
+ 				}
+ 			}
+ 		case ODOTMETH:
+-			fn := asNode(n.Type.Nname())
++			fn := n.MethodName()
+ 			if fn != nil && fn.Op == ONAME && fn.Class() == PFUNC && fn.Name.Defn != nil {
+ 				if m := v.visit(fn.Name.Defn); m < min {
+ 					min = m
+ 				}
+ 			}
+ 		case OCALLPART:
+-			fn := asNode(callpartMethod(n).Type.Nname())
++			fn := asNode(callpartMethod(n).Nname)
+ 			if fn != nil && fn.Op == ONAME && fn.Class() == PFUNC && fn.Name.Defn != nil {
+ 				if m := v.visit(fn.Name.Defn); m < min {
+ 					min = m
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index d2e805a72f..53a547c3bb 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -4024,7 +4024,7 @@ func curpkg() *types.Pkg {
+ // referenced by expression n, which must be a method selector,
+ // method expression, or method value.
+ func (n *Node) MethodName() *Node {
+-	return asNode(n.MethodFunc().Type.Nname())
++	return asNode(n.MethodFunc().Nname)
+ }
+ 
+ // MethodFunc is like MethodName, but returns the types.Field instead.

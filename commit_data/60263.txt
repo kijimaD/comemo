@@ -15,9 +15,148 @@ Date:   Mon Jun 3 18:42:12 2024 -0400
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
     Auto-Submit: Michael Matloob <matloob@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/modload/init.go            | 12 +++----
  src/cmd/go/testdata/script/mod_errors_pos.txt  | 11 ++++++
  src/cmd/go/testdata/script/work.txt            |  2 +-
  src/cmd/go/testdata/script/work_errors_pos.txt | 46 ++++++++++++++++++++++++++
  4 files changed, 64 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 4b19682536..d1e9feab13 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -695,7 +695,7 @@ func loadWorkFile(path string) (workFile *modfile.WorkFile, modRoots []string, e
+ 		}
+ 
+ 		if seen[modRoot] {
+-			return nil, nil, fmt.Errorf("path %s appears multiple times in workspace", modRoot)
++			return nil, nil, fmt.Errorf("error loading go.work:\n%s:%d: path %s appears multiple times in workspace", base.ShortPath(path), d.Syntax.Start.Line, modRoot)
+ 		}
+ 		seen[modRoot] = true
+ 		modRoots = append(modRoots, modRoot)
+@@ -703,7 +703,7 @@ func loadWorkFile(path string) (workFile *modfile.WorkFile, modRoots []string, e
+ 
+ 	for _, g := range wf.Godebug {
+ 		if err := CheckGodebug("godebug", g.Key, g.Value); err != nil {
+-			return nil, nil, err
++			return nil, nil, fmt.Errorf("error loading go.work:\n%s:%d: %w", base.ShortPath(path), g.Syntax.Start.Line, err)
+ 		}
+ 	}
+ 
+@@ -715,12 +715,12 @@ func ReadWorkFile(path string) (*modfile.WorkFile, error) {
+ 	path = base.ShortPath(path) // use short path in any errors
+ 	workData, err := fsys.ReadFile(path)
+ 	if err != nil {
+-		return nil, err
++		return nil, fmt.Errorf("reading go.work: %w", err)
+ 	}
+ 
+ 	f, err := modfile.ParseWork(path, workData, nil)
+ 	if err != nil {
+-		return nil, err
++		return nil, fmt.Errorf("errors parsing go.work:\n%w", err)
+ 	}
+ 	if f.Go != nil && gover.Compare(f.Go.Version, gover.Local()) > 0 && cfg.CmdName != "work edit" {
+ 		base.Fatal(&gover.TooNewError{What: base.ShortPath(path), GoVersion: f.Go.Version})
+@@ -841,7 +841,7 @@ func loadModFile(ctx context.Context, opts *PackageOpts) (*Requirements, error)
+ 		var err error
+ 		workFile, modRoots, err = loadWorkFile(workFilePath)
+ 		if err != nil {
+-			return nil, fmt.Errorf("reading go.work: %w", err)
++			return nil, err
+ 		}
+ 		for _, modRoot := range modRoots {
+ 			sumFile := strings.TrimSuffix(modFilePath(modRoot), ".mod") + ".sum"
+@@ -951,7 +951,7 @@ func loadModFile(ctx context.Context, opts *PackageOpts) (*Requirements, error)
+ 			ok := true
+ 			for _, g := range f.Godebug {
+ 				if err := CheckGodebug("godebug", g.Key, g.Value); err != nil {
+-					errs = append(errs, fmt.Errorf("%s: %v", base.ShortPath(filepath.Dir(gomod)), err))
++					errs = append(errs, fmt.Errorf("error loading go.mod:\n%s:%d: %v", base.ShortPath(gomod), g.Syntax.Start.Line, err))
+ 					ok = false
+ 				}
+ 			}
+diff --git a/src/cmd/go/testdata/script/mod_errors_pos.txt b/src/cmd/go/testdata/script/mod_errors_pos.txt
+new file mode 100644
+index 0000000000..48f92d763c
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_errors_pos.txt
+@@ -0,0 +1,11 @@
++# Test case for #67623 in go.mod files: make sure the error for
++# an unknown godebug is printed on a line starting with the file
++# and line number, so it can be easily parsed by tools.
++
++! go list
++stderr '^go.mod:3: unknown godebug "foo"$'
++
++-- go.mod --
++module example.com/bar
++
++godebug foo=1
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/work.txt b/src/cmd/go/testdata/script/work.txt
+index 69391efc86..28df1a008c 100644
+--- a/src/cmd/go/testdata/script/work.txt
++++ b/src/cmd/go/testdata/script/work.txt
+@@ -41,7 +41,7 @@ env GOWORK=
+ cp go.work go.work.backup
+ cp go.work.dup go.work
+ ! go run example.com/b
+-stderr 'reading go.work: path .* appears multiple times in workspace'
++stderr 'go.work:6: path .* appears multiple times in workspace'
+ cp go.work.backup go.work
+ 
+ cp go.work.d go.work
+diff --git a/src/cmd/go/testdata/script/work_errors_pos.txt b/src/cmd/go/testdata/script/work_errors_pos.txt
+new file mode 100644
+index 0000000000..2d05703a05
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_errors_pos.txt
+@@ -0,0 +1,46 @@
++# Test case for #67623 in go.work files: make sure the errors are
++# printed on lines starting with file and line number so they
++# can be easily parsed by tools.
++
++cp go.work.repeated.txt go.work
++! go list
++stderr '^go.work:4: path .* appears multiple times in workspace$'
++
++cp go.work.badgodebug.txt go.work
++! go list
++stderr '^go.work:3: unknown godebug "foo"$'
++
++cp go.work.unparsable.txt go.work
++! go list
++stderr '^go.work:5: unknown directive: notadirective'
++
++cp go.work.firstlineerr.txt go.work
++! go list
++stderr '^go.work:1: unknown godebug "bar"$'
++
++cp go.work.firsterrlisted.txt go.work
++! go list
++stderr '^go.work:1: unknown godebug "baz"$'
++
++-- foo/go.mod --
++module example.com/foo
++-- go.work.repeated.txt --
++
++
++use foo
++use foo
++-- go.work.badgodebug.txt --
++
++
++godebug foo=1
++-- go.work.unparsable.txt --
++
++
++
++
++notadirective
++-- go.work.firstlineerr.txt --
++godebug bar=1
++-- go.work.firsterrlisted.txt --
++godebug baz=1
++godebug baz=1

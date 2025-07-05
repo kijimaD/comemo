@@ -13,7 +13,7 @@ Date:   Sat Aug 5 14:44:00 2017 +0800
     Reviewed-on: https://go-review.googlesource.com/53411
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/dcl.go |  6 +++---
  src/cmd/compile/internal/gc/ssa.go |  5 +++++
  src/runtime/alg.go                 | 10 ++++++----
@@ -28,3 +28,337 @@ Date:   Sat Aug 5 14:44:00 2017 +0800
  src/runtime/asm_s390x.s            | 17 -----------------
  src/runtime/stubs.go               | 16 ++++++++++++++++
  13 files changed, 30 insertions(+), 160 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 78d9184cf3..88dfb39732 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -1096,9 +1096,9 @@ func makefuncsym(s *types.Sym) {
+ 	if s.IsBlank() {
+ 		return
+ 	}
+-	if compiling_runtime && s.Name == "getg" {
+-		// runtime.getg() is not a real function and so does
+-		// not get a funcsym.
++	if compiling_runtime && (s.Name == "getg" || s.Name == "getclosureptr") {
++		// runtime.getg() and getclosureptr are not real functions and so do not
++		// get funcsyms.
+ 		return
+ 	}
+ 	if _, existed := s.Pkg.LookupOK(funcsymname(s)); !existed {
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 95db88dc65..f018697fc1 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2577,6 +2577,11 @@ func init() {
+ 			return nil
+ 		},
+ 		all...)
++	add("runtime", "getclosureptr",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			return s.newValue0(ssa.OpGetClosurePtr, s.f.Config.Types.Uintptr)
++		},
++		all...)
+ 
+ 	/******** runtime/internal/sys ********/
+ 	addF("runtime/internal/sys", "Ctz32",
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index 8d388da5a2..b90142814f 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -63,10 +63,12 @@ func memhash128(p unsafe.Pointer, h uintptr) uintptr {
+ 	return memhash(p, h, 16)
+ }
+ 
+-// memhash_varlen is defined in assembly because it needs access
+-// to the closure. It appears here to provide an argument
+-// signature for the assembly routine.
+-func memhash_varlen(p unsafe.Pointer, h uintptr) uintptr
++//go:nosplit
++func memhash_varlen(p unsafe.Pointer, h uintptr) uintptr {
++	ptr := getclosureptr()
++	size := *(*uintptr)(unsafe.Pointer(ptr + unsafe.Sizeof(h)))
++	return memhash(p, h, size)
++}
+ 
+ var algarray = [alg_max]typeAlg{
+ 	alg_NOEQ:     {nil, nil},
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 19fc601259..e1c3267153 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -885,23 +885,6 @@ TEXT runtime·ldt0setup(SB),NOSPLIT,$16-0
+ TEXT runtime·emptyfunc(SB),0,$0-0
+ 	RET
+ 
+-// memhash_varlen(p unsafe.Pointer, h seed) uintptr
+-// redirects to memhash(p, h, size) using the size
+-// stored in the closure.
+-TEXT runtime·memhash_varlen(SB),NOSPLIT,$16-12
+-	GO_ARGS
+-	NO_LOCAL_POINTERS
+-	MOVL	p+0(FP), AX
+-	MOVL	h+4(FP), BX
+-	MOVL	4(DX), CX
+-	MOVL	AX, 0(SP)
+-	MOVL	BX, 4(SP)
+-	MOVL	CX, 8(SP)
+-	CALL	runtime·memhash(SB)
+-	MOVL	12(SP), AX
+-	MOVL	AX, ret+8(FP)
+-	RET
+-
+ // hash function using AES hardware instructions
+ TEXT runtime·aeshash(SB),NOSPLIT,$0-16
+ 	MOVL	p+0(FP), AX	// ptr to data
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index ad19e21be7..dfa49de544 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -854,23 +854,6 @@ done:
+ 	MOVQ	AX, ret+0(FP)
+ 	RET
+ 
+-// memhash_varlen(p unsafe.Pointer, h seed) uintptr
+-// redirects to memhash(p, h, size) using the size
+-// stored in the closure.
+-TEXT runtime·memhash_varlen(SB),NOSPLIT,$32-24
+-	GO_ARGS
+-	NO_LOCAL_POINTERS
+-	MOVQ	p+0(FP), AX
+-	MOVQ	h+8(FP), BX
+-	MOVQ	8(DX), CX
+-	MOVQ	AX, 0(SP)
+-	MOVQ	BX, 8(SP)
+-	MOVQ	CX, 16(SP)
+-	CALL	runtime·memhash(SB)
+-	MOVQ	24(SP), AX
+-	MOVQ	AX, ret+16(FP)
+-	RET
+-
+ // hash function using AES hardware instructions
+ TEXT runtime·aeshash(SB),NOSPLIT,$0-32
+ 	MOVQ	p+0(FP), AX	// ptr to data
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index 379ee1c7cc..1f70ab87f1 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -591,23 +591,6 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-0
+ 	MOVQ	AX, ret+0(FP)
+ 	RET
+ 
+-// memhash_varlen(p unsafe.Pointer, h seed) uintptr
+-// redirects to memhash(p, h, size) using the size
+-// stored in the closure.
+-TEXT runtime·memhash_varlen(SB),NOSPLIT,$24-12
+-	GO_ARGS
+-	NO_LOCAL_POINTERS
+-	MOVL	p+0(FP), AX
+-	MOVL	h+4(FP), BX
+-	MOVL	4(DX), CX
+-	MOVL	AX, 0(SP)
+-	MOVL	BX, 4(SP)
+-	MOVL	CX, 8(SP)
+-	CALL	runtime·memhash(SB)
+-	MOVL	16(SP), AX
+-	MOVL	AX, ret+8(FP)
+-	RET
+-
+ // hash function using AES hardware instructions
+ // For now, our one amd64p32 system (NaCl) does not
+ // support using AES instructions, so have not bothered to
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 2c875fca77..74761d4450 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -719,23 +719,6 @@ TEXT runtime·aeshashstr(SB),NOSPLIT,$-4-0
+ 	MOVW	$0, R0
+ 	MOVW	(R0), R1
+ 
+-// memhash_varlen(p unsafe.Pointer, h seed) uintptr
+-// redirects to memhash(p, h, size) using the size
+-// stored in the closure.
+-TEXT runtime·memhash_varlen(SB),NOSPLIT,$16-12
+-	GO_ARGS
+-	NO_LOCAL_POINTERS
+-	MOVW	p+0(FP), R0
+-	MOVW	h+4(FP), R1
+-	MOVW	4(R7), R2
+-	MOVW	R0, 4(R13)
+-	MOVW	R1, 8(R13)
+-	MOVW	R2, 12(R13)
+-	BL	runtime·memhash(SB)
+-	MOVW	16(R13), R0
+-	MOVW	R0, ret+8(FP)
+-	RET
+-
+ // memequal(p, q unsafe.Pointer, size uintptr) bool
+ TEXT runtime·memequal(SB),NOSPLIT,$-4-13
+ 	MOVW	a+0(FP), R1
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 9d6d963d7f..32c06d5c37 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -713,23 +713,6 @@ TEXT runtime·abort(SB),NOSPLIT,$-8-0
+ 	B	(ZR)
+ 	UNDEF
+ 
+-// memhash_varlen(p unsafe.Pointer, h seed) uintptr
+-// redirects to memhash(p, h, size) using the size
+-// stored in the closure.
+-TEXT runtime·memhash_varlen(SB),NOSPLIT,$40-24
+-	GO_ARGS
+-	NO_LOCAL_POINTERS
+-	MOVD	p+0(FP), R3
+-	MOVD	h+8(FP), R4
+-	MOVD	8(R26), R5
+-	MOVD	R3, 8(RSP)
+-	MOVD	R4, 16(RSP)
+-	MOVD	R5, 24(RSP)
+-	BL	runtime·memhash(SB)
+-	MOVD	32(RSP), R3
+-	MOVD	R3, ret+16(FP)
+-	RET
+-
+ // memequal(p, q unsafe.Pointer, size uintptr) bool
+ TEXT runtime·memequal(SB),NOSPLIT,$-8-25
+ 	MOVD	a+0(FP), R1
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index 4763a42dcd..58ee58ed5b 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -625,23 +625,6 @@ TEXT runtime·abort(SB),NOSPLIT,$-8-0
+ 	MOVW	(R0), R0
+ 	UNDEF
+ 
+-// memhash_varlen(p unsafe.Pointer, h seed) uintptr
+-// redirects to memhash(p, h, size) using the size
+-// stored in the closure.
+-TEXT runtime·memhash_varlen(SB),NOSPLIT,$40-24
+-	GO_ARGS
+-	NO_LOCAL_POINTERS
+-	MOVV	p+0(FP), R1
+-	MOVV	h+8(FP), R2
+-	MOVV	8(REGCTXT), R3
+-	MOVV	R1, 8(R29)
+-	MOVV	R2, 16(R29)
+-	MOVV	R3, 24(R29)
+-	JAL	runtime·memhash(SB)
+-	MOVV	32(R29), R1
+-	MOVV	R1, ret+16(FP)
+-	RET
+-
+ // AES hashing not implemented for mips64
+ TEXT runtime·aeshash(SB),NOSPLIT,$-8-0
+ 	MOVW	(R0), R1
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index b3e85f9865..7a365419b0 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -627,23 +627,6 @@ TEXT runtime·getcallerpc(SB),NOSPLIT,$4-8
+ TEXT runtime·abort(SB),NOSPLIT,$0-0
+ 	UNDEF
+ 
+-// memhash_varlen(p unsafe.Pointer, h seed) uintptr
+-// redirects to memhash(p, h, size) using the size
+-// stored in the closure.
+-TEXT runtime·memhash_varlen(SB),NOSPLIT,$16-12
+-	GO_ARGS
+-	NO_LOCAL_POINTERS
+-	MOVW	p+0(FP), R1
+-	MOVW	h+4(FP), R2
+-	MOVW	4(REGCTXT), R3
+-	MOVW	R1, 4(R29)
+-	MOVW	R2, 8(R29)
+-	MOVW	R3, 12(R29)
+-	JAL	runtime·memhash(SB)
+-	MOVW	16(R29), R1
+-	MOVW	R1, ret+8(FP)
+-	RET
+-
+ // Not implemented.
+ TEXT runtime·aeshash(SB),NOSPLIT,$0
+ 	UNDEF
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 002a084147..142ecdb2b1 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -738,23 +738,6 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-8
+ 	MOVD	R3, ret+0(FP)
+ 	RET
+ 
+-// memhash_varlen(p unsafe.Pointer, h seed) uintptr
+-// redirects to memhash(p, h, size) using the size
+-// stored in the closure.
+-TEXT runtime·memhash_varlen(SB),NOSPLIT,$40-24
+-	GO_ARGS
+-	NO_LOCAL_POINTERS
+-	MOVD	p+0(FP), R3
+-	MOVD	h+8(FP), R4
+-	MOVD	8(R11), R5
+-	MOVD	R3, FIXED_FRAME+0(R1)
+-	MOVD	R4, FIXED_FRAME+8(R1)
+-	MOVD	R5, FIXED_FRAME+16(R1)
+-	BL	runtime·memhash(SB)
+-	MOVD	FIXED_FRAME+24(R1), R3
+-	MOVD	R3, ret+16(FP)
+-	RET
+-
+ // AES hashing not implemented for ppc64
+ TEXT runtime·aeshash(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVW	(R0), R1
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index 0379c546d6..757627d1ea 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -678,23 +678,6 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-8
+ 	MOVD	R3, ret+0(FP)
+ 	RET
+ 
+-// memhash_varlen(p unsafe.Pointer, h seed) uintptr
+-// redirects to memhash(p, h, size) using the size
+-// stored in the closure.
+-TEXT runtime·memhash_varlen(SB),NOSPLIT,$40-24
+-	GO_ARGS
+-	NO_LOCAL_POINTERS
+-	MOVD	p+0(FP), R3
+-	MOVD	h+8(FP), R4
+-	MOVD	8(R12), R5
+-	MOVD	R3, 8(R15)
+-	MOVD	R4, 16(R15)
+-	MOVD	R5, 24(R15)
+-	BL	runtime·memhash(SB)
+-	MOVD	32(R15), R3
+-	MOVD	R3, ret+16(FP)
+-	RET
+-
+ // AES hashing not implemented for s390x
+ TEXT runtime·aeshash(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVW	(R0), R15
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index e1f43a5cf0..ce9b67a0ee 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -227,6 +227,22 @@ func getcallersp(argp unsafe.Pointer) uintptr {
+ 	return uintptr(argp) - sys.MinFrameSize
+ }
+ 
++// getg returns the pointer to the current closure.
++// getclosureptr can only be used in an assignment statement
++// at the entry of a function. Moreover, go:nosplit directive
++// must be specified at the declaration of caller function,
++// so that the function prolog does not clobber the closure register.
++// for example:
++//
++//	//go:nosplit
++//	func f(arg1, arg2, arg3 int) {
++//		dx := getclosureptr()
++//	}
++//
++// The compiler rewrites calls to this function into instructions that fetch the
++// pointer from a well-known register (DX on x86 architecture, etc.) directly.
++func getclosureptr() uintptr
++
+ //go:noescape
+ func asmcgocall(fn, arg unsafe.Pointer) int32
+ 

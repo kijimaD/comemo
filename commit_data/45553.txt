@@ -32,9 +32,248 @@ Date:   Sun Oct 25 11:52:29 2020 +0100
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/cmd/compile/internal/gc/walk.go            |  5 +-
  src/cmd/compile/internal/ssa/gen/generic.rules | 40 +++++++++++++
  src/cmd/compile/internal/ssa/rewritegeneric.go | 60 +++++++++++++++++++
  src/cmd/compile/internal/test/divconst_test.go | 81 +++++++++++++++++++++++++-
  4 files changed, 182 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index b453e9f1d9..82898c8167 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -989,7 +989,7 @@ opswitch:
+ 		// runtime calls late in SSA processing.
+ 		if Widthreg < 8 && (et == TINT64 || et == TUINT64) {
+ 			if n.Right.Op == OLITERAL {
+-				// Leave div/mod by constant powers of 2.
++				// Leave div/mod by constant powers of 2 or small 16-bit constants.
+ 				// The SSA backend will handle those.
+ 				switch et {
+ 				case TINT64:
+@@ -1002,6 +1002,9 @@ opswitch:
+ 					}
+ 				case TUINT64:
+ 					c := uint64(n.Right.Int64Val())
++					if c < 1<<16 {
++						break opswitch
++					}
+ 					if c != 0 && c&(c-1) == 0 {
+ 						break opswitch
+ 					}
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 4351ef5bdd..de0ef9349d 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -1040,6 +1040,46 @@
+           (ZeroExt32to64 x)))
+       (Const64 <typ.UInt64> [32+umagic32(c).s-1])))
+ 
++// For unsigned 64-bit divides on 32-bit machines,
++// if the constant fits in 16 bits (so that the last term
++// fits in 32 bits), convert to three 32-bit divides by a constant.
++//
++// If 1<<32 = Q * c + R
++// and    x = hi << 32 + lo
++//
++// Then x = (hi/c*c + hi%c) << 32 + lo
++//        = hi/c*c<<32 + hi%c<<32 + lo
++//        = hi/c*c<<32 + (hi%c)*(Q*c+R) + lo/c*c + lo%c
++//        = hi/c*c<<32 + (hi%c)*Q*c + lo/c*c + (hi%c*R+lo%c)
++// and x / c = (hi/c)<<32 + (hi%c)*Q + lo/c + (hi%c*R+lo%c)/c
++(Div64u x (Const64 [c])) && c > 0 && c <= 0xFFFF && umagicOK32(int32(c)) && config.RegSize == 4 && config.useHmul =>
++  (Add64
++    (Add64 <typ.UInt64>
++      (Add64 <typ.UInt64>
++        (Lsh64x64 <typ.UInt64>
++          (ZeroExt32to64
++            (Div32u <typ.UInt32>
++              (Trunc64to32 <typ.UInt32> (Rsh64Ux64 <typ.UInt64> x (Const64 <typ.UInt64> [32])))
++              (Const32 <typ.UInt32> [int32(c)])))
++          (Const64 <typ.UInt64> [32]))
++        (ZeroExt32to64 (Div32u <typ.UInt32> (Trunc64to32 <typ.UInt32> x) (Const32 <typ.UInt32> [int32(c)]))))
++      (Mul64 <typ.UInt64>
++        (ZeroExt32to64 <typ.UInt64>
++          (Mod32u <typ.UInt32>
++            (Trunc64to32 <typ.UInt32> (Rsh64Ux64 <typ.UInt64> x (Const64 <typ.UInt64> [32])))
++            (Const32 <typ.UInt32> [int32(c)])))
++        (Const64 <typ.UInt64> [int64((1<<32)/c)])))
++      (ZeroExt32to64
++        (Div32u <typ.UInt32>
++          (Add32 <typ.UInt32>
++            (Mod32u <typ.UInt32> (Trunc64to32 <typ.UInt32> x) (Const32 <typ.UInt32> [int32(c)]))
++            (Mul32 <typ.UInt32>
++              (Mod32u <typ.UInt32>
++                (Trunc64to32 <typ.UInt32> (Rsh64Ux64 <typ.UInt64> x (Const64 <typ.UInt64> [32])))
++                (Const32 <typ.UInt32> [int32(c)]))
++              (Const32 <typ.UInt32> [int32((1<<32)%c)])))
++          (Const32 <typ.UInt32> [int32(c)]))))
++
+ // For 64-bit divides on 64-bit machines
+ // (64-bit divides on 32-bit machines are lowered to a runtime call by the walk pass.)
+ (Div64u x (Const64 [c])) && umagicOK64(c) && config.RegSize == 8 && umagic64(c).m&1 == 0 && config.useHmul =>
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 11f4cc7c58..0d25c76abf 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -5208,6 +5208,66 @@ func rewriteValuegeneric_OpDiv64u(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Div64u x (Const64 [c]))
++	// cond: c > 0 && c <= 0xFFFF && umagicOK32(int32(c)) && config.RegSize == 4
++	// result: (Add64 (Add64 <typ.UInt64> (Add64 <typ.UInt64> (Lsh64x64 <typ.UInt64> (ZeroExt32to64 (Div32u <typ.UInt32> (Trunc64to32 <typ.UInt32> (Rsh64Ux64 <typ.UInt64> x (Const64 <typ.UInt64> [32]))) (Const32 <typ.UInt32> [int32(c)]))) (Const64 <typ.UInt64> [32])) (ZeroExt32to64 (Div32u <typ.UInt32> (Trunc64to32 <typ.UInt32> x) (Const32 <typ.UInt32> [int32(c)])))) (Mul64 <typ.UInt64> (ZeroExt32to64 <typ.UInt64> (Mod32u <typ.UInt32> (Trunc64to32 <typ.UInt32> (Rsh64Ux64 <typ.UInt64> x (Const64 <typ.UInt64> [32]))) (Const32 <typ.UInt32> [int32(c)]))) (Const64 <typ.UInt64> [int64((1<<32)/c)]))) (ZeroExt32to64 (Div32u <typ.UInt32> (Add32 <typ.UInt32> (Mod32u <typ.UInt32> (Trunc64to32 <typ.UInt32> x) (Const32 <typ.UInt32> [int32(c)])) (Mul32 <typ.UInt32> (Mod32u <typ.UInt32> (Trunc64to32 <typ.UInt32> (Rsh64Ux64 <typ.UInt64> x (Const64 <typ.UInt64> [32]))) (Const32 <typ.UInt32> [int32(c)])) (Const32 <typ.UInt32> [int32((1<<32)%c)]))) (Const32 <typ.UInt32> [int32(c)]))))
++	for {
++		x := v_0
++		if v_1.Op != OpConst64 {
++			break
++		}
++		c := auxIntToInt64(v_1.AuxInt)
++		if !(c > 0 && c <= 0xFFFF && umagicOK32(int32(c)) && config.RegSize == 4) {
++			break
++		}
++		v.reset(OpAdd64)
++		v0 := b.NewValue0(v.Pos, OpAdd64, typ.UInt64)
++		v1 := b.NewValue0(v.Pos, OpAdd64, typ.UInt64)
++		v2 := b.NewValue0(v.Pos, OpLsh64x64, typ.UInt64)
++		v3 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
++		v4 := b.NewValue0(v.Pos, OpDiv32u, typ.UInt32)
++		v5 := b.NewValue0(v.Pos, OpTrunc64to32, typ.UInt32)
++		v6 := b.NewValue0(v.Pos, OpRsh64Ux64, typ.UInt64)
++		v7 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
++		v7.AuxInt = int64ToAuxInt(32)
++		v6.AddArg2(x, v7)
++		v5.AddArg(v6)
++		v8 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
++		v8.AuxInt = int32ToAuxInt(int32(c))
++		v4.AddArg2(v5, v8)
++		v3.AddArg(v4)
++		v2.AddArg2(v3, v7)
++		v9 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
++		v10 := b.NewValue0(v.Pos, OpDiv32u, typ.UInt32)
++		v11 := b.NewValue0(v.Pos, OpTrunc64to32, typ.UInt32)
++		v11.AddArg(x)
++		v10.AddArg2(v11, v8)
++		v9.AddArg(v10)
++		v1.AddArg2(v2, v9)
++		v12 := b.NewValue0(v.Pos, OpMul64, typ.UInt64)
++		v13 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
++		v14 := b.NewValue0(v.Pos, OpMod32u, typ.UInt32)
++		v14.AddArg2(v5, v8)
++		v13.AddArg(v14)
++		v15 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
++		v15.AuxInt = int64ToAuxInt(int64((1 << 32) / c))
++		v12.AddArg2(v13, v15)
++		v0.AddArg2(v1, v12)
++		v16 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
++		v17 := b.NewValue0(v.Pos, OpDiv32u, typ.UInt32)
++		v18 := b.NewValue0(v.Pos, OpAdd32, typ.UInt32)
++		v19 := b.NewValue0(v.Pos, OpMod32u, typ.UInt32)
++		v19.AddArg2(v11, v8)
++		v20 := b.NewValue0(v.Pos, OpMul32, typ.UInt32)
++		v21 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
++		v21.AuxInt = int32ToAuxInt(int32((1 << 32) % c))
++		v20.AddArg2(v14, v21)
++		v18.AddArg2(v19, v20)
++		v17.AddArg2(v18, v8)
++		v16.AddArg(v17)
++		v.AddArg2(v0, v16)
++		return true
++	}
++	// match: (Div64u x (Const64 [c]))
+ 	// cond: umagicOK64(c) && config.RegSize == 8 && umagic64(c).m&1 == 0 && config.useHmul
+ 	// result: (Rsh64Ux64 <typ.UInt64> (Hmul64u <typ.UInt64> (Const64 <typ.UInt64> [int64(1<<63+umagic64(c).m/2)]) x) (Const64 <typ.UInt64> [umagic64(c).s-1]))
+ 	for {
+diff --git a/src/cmd/compile/internal/test/divconst_test.go b/src/cmd/compile/internal/test/divconst_test.go
+index b03550058f..9358a60374 100644
+--- a/src/cmd/compile/internal/test/divconst_test.go
++++ b/src/cmd/compile/internal/test/divconst_test.go
+@@ -44,10 +44,85 @@ func BenchmarkDivisibleWDivconstI64(b *testing.B) {
+ 
+ var u64res uint64
+ 
++func TestDivmodConstU64(t *testing.T) {
++	// Test division by c. Function f must be func(n) { return n/c, n%c }
++	testdiv := func(c uint64, f func(uint64) (uint64, uint64)) func(*testing.T) {
++		return func(t *testing.T) {
++			x := uint64(12345)
++			for i := 0; i < 10000; i++ {
++				x += x << 2
++				q, r := f(x)
++				if r < 0 || r >= c || q*c+r != x {
++					t.Errorf("divmod(%d, %d) returned incorrect (%d, %d)", x, c, q, r)
++				}
++			}
++			max := uint64(1<<64-1) / c * c
++			xs := []uint64{0, 1, c - 1, c, c + 1, 2*c - 1, 2 * c, 2*c + 1,
++				c*c - 1, c * c, c*c + 1, max - 1, max, max + 1, 1<<64 - 1}
++			for _, x := range xs {
++				q, r := f(x)
++				if r < 0 || r >= c || q*c+r != x {
++					t.Errorf("divmod(%d, %d) returned incorrect (%d, %d)", x, c, q, r)
++				}
++			}
++		}
++	}
++	t.Run("2", testdiv(2, func(n uint64) (uint64, uint64) { return n / 2, n % 2 }))
++	t.Run("3", testdiv(3, func(n uint64) (uint64, uint64) { return n / 3, n % 3 }))
++	t.Run("4", testdiv(4, func(n uint64) (uint64, uint64) { return n / 4, n % 4 }))
++	t.Run("5", testdiv(5, func(n uint64) (uint64, uint64) { return n / 5, n % 5 }))
++	t.Run("6", testdiv(6, func(n uint64) (uint64, uint64) { return n / 6, n % 6 }))
++	t.Run("7", testdiv(7, func(n uint64) (uint64, uint64) { return n / 7, n % 7 }))
++	t.Run("8", testdiv(8, func(n uint64) (uint64, uint64) { return n / 8, n % 8 }))
++	t.Run("9", testdiv(9, func(n uint64) (uint64, uint64) { return n / 9, n % 9 }))
++	t.Run("10", testdiv(10, func(n uint64) (uint64, uint64) { return n / 10, n % 10 }))
++	t.Run("11", testdiv(11, func(n uint64) (uint64, uint64) { return n / 11, n % 11 }))
++	t.Run("12", testdiv(12, func(n uint64) (uint64, uint64) { return n / 12, n % 12 }))
++	t.Run("13", testdiv(13, func(n uint64) (uint64, uint64) { return n / 13, n % 13 }))
++	t.Run("14", testdiv(14, func(n uint64) (uint64, uint64) { return n / 14, n % 14 }))
++	t.Run("15", testdiv(15, func(n uint64) (uint64, uint64) { return n / 15, n % 15 }))
++	t.Run("16", testdiv(16, func(n uint64) (uint64, uint64) { return n / 16, n % 16 }))
++	t.Run("17", testdiv(17, func(n uint64) (uint64, uint64) { return n / 17, n % 17 }))
++	t.Run("255", testdiv(255, func(n uint64) (uint64, uint64) { return n / 255, n % 255 }))
++	t.Run("256", testdiv(256, func(n uint64) (uint64, uint64) { return n / 256, n % 256 }))
++	t.Run("257", testdiv(257, func(n uint64) (uint64, uint64) { return n / 257, n % 257 }))
++	t.Run("65535", testdiv(65535, func(n uint64) (uint64, uint64) { return n / 65535, n % 65535 }))
++	t.Run("65536", testdiv(65536, func(n uint64) (uint64, uint64) { return n / 65536, n % 65536 }))
++	t.Run("65537", testdiv(65537, func(n uint64) (uint64, uint64) { return n / 65537, n % 65537 }))
++	t.Run("1<<32-1", testdiv(1<<32-1, func(n uint64) (uint64, uint64) { return n / (1<<32 - 1), n % (1<<32 - 1) }))
++	t.Run("1<<32+1", testdiv(1<<32+1, func(n uint64) (uint64, uint64) { return n / (1<<32 + 1), n % (1<<32 + 1) }))
++	t.Run("1<<64-1", testdiv(1<<64-1, func(n uint64) (uint64, uint64) { return n / (1<<64 - 1), n % (1<<64 - 1) }))
++}
++
+ func BenchmarkDivconstU64(b *testing.B) {
+-	for i := 0; i < b.N; i++ {
+-		u64res = uint64(i) / 7
+-	}
++	b.Run("3", func(b *testing.B) {
++		x := uint64(123456789123456789)
++		for i := 0; i < b.N; i++ {
++			x += x << 4
++			u64res = uint64(x) / 3
++		}
++	})
++	b.Run("5", func(b *testing.B) {
++		x := uint64(123456789123456789)
++		for i := 0; i < b.N; i++ {
++			x += x << 4
++			u64res = uint64(x) / 5
++		}
++	})
++	b.Run("37", func(b *testing.B) {
++		x := uint64(123456789123456789)
++		for i := 0; i < b.N; i++ {
++			x += x << 4
++			u64res = uint64(x) / 37
++		}
++	})
++	b.Run("1234567", func(b *testing.B) {
++		x := uint64(123456789123456789)
++		for i := 0; i < b.N; i++ {
++			x += x << 4
++			u64res = uint64(x) / 1234567
++		}
++	})
+ }
+ 
+ func BenchmarkModconstU64(b *testing.B) {

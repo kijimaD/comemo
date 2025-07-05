@@ -15,7 +15,7 @@ Date:   Wed May 2 14:25:00 2018 +0800
     Run-TryBot: Wei Xiao <Wei.Xiao@arm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/arm/ssa.go           |  4 ++
  src/cmd/compile/internal/gc/ssa.go            |  5 ++-
  src/cmd/compile/internal/mips/ssa.go          |  4 ++
@@ -48,3 +48,691 @@ Date:   Wed May 2 14:25:00 2018 +0800
  src/runtime/asm_ppc64x.s                      |  5 ---
  src/runtime/asm_s390x.s                       |  5 ---
  31 files changed, 219 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 4c8358f595..98627344b8 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -797,6 +797,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Name = obj.NAME_PARAM
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
++	case ssa.OpARMLoweredGetCallerPC:
++		p := s.Prog(obj.AGETCALLERPC)
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg()
+ 	case ssa.OpARMFlagEQ,
+ 		ssa.OpARMFlagLT_ULT,
+ 		ssa.OpARMFlagLT_UGT,
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 7d2cd7e847..62dafcb4dc 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2830,10 +2830,11 @@ func init() {
+ 		},
+ 		all...)
+ 
+-	addF("runtime", "getcallerpc",
++	add("runtime", "getcallerpc",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue0(ssa.OpGetCallerPC, s.f.Config.Types.Uintptr)
+-		}, sys.AMD64, sys.I386, sys.ARM64)
++		},
++		all...)
+ 
+ 	add("runtime", "getcallersp",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+diff --git a/src/cmd/compile/internal/mips/ssa.go b/src/cmd/compile/internal/mips/ssa.go
+index 7a81ce911b..2bf17dc415 100644
+--- a/src/cmd/compile/internal/mips/ssa.go
++++ b/src/cmd/compile/internal/mips/ssa.go
+@@ -768,6 +768,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Name = obj.NAME_PARAM
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
++	case ssa.OpMIPSLoweredGetCallerPC:
++		p := s.Prog(obj.AGETCALLERPC)
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg()
+ 	case ssa.OpClobber:
+ 		// TODO: implement for clobberdead experiment. Nop is ok for now.
+ 	default:
+diff --git a/src/cmd/compile/internal/mips64/ssa.go b/src/cmd/compile/internal/mips64/ssa.go
+index 33b3152e18..bf2076f5fb 100644
+--- a/src/cmd/compile/internal/mips64/ssa.go
++++ b/src/cmd/compile/internal/mips64/ssa.go
+@@ -739,6 +739,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Name = obj.NAME_PARAM
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
++	case ssa.OpMIPS64LoweredGetCallerPC:
++		p := s.Prog(obj.AGETCALLERPC)
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg()
+ 	case ssa.OpClobber:
+ 		// TODO: implement for clobberdead experiment. Nop is ok for now.
+ 	default:
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 4c91a04a03..9f6febd903 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -431,6 +431,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 
++	case ssa.OpPPC64LoweredGetCallerPC:
++		p := s.Prog(obj.AGETCALLERPC)
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg()
++
+ 	case ssa.OpPPC64LoweredRound32F, ssa.OpPPC64LoweredRound64F:
+ 		// input is already rounded
+ 
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index eb7474e7fd..6b8d8ab4b3 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -509,6 +509,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Name = obj.NAME_PARAM
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
++	case ssa.OpS390XLoweredGetCallerPC:
++		p := s.Prog(obj.AGETCALLERPC)
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg()
+ 	case ssa.OpS390XCALLstatic, ssa.OpS390XCALLclosure, ssa.OpS390XCALLinter:
+ 		s.Call(v)
+ 	case ssa.OpS390XLoweredWB:
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index 912539cb5b..4714becd73 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -365,6 +365,7 @@
+ // pseudo-ops
+ (GetClosurePtr) -> (LoweredGetClosurePtr)
+ (GetCallerSP) -> (LoweredGetCallerSP)
++(GetCallerPC) -> (LoweredGetCallerPC)
+ 
+ // Absorb pseudo-ops into blocks.
+ (If (Equal cc) yes no) -> (EQ cc yes no)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index 3b916e29ae..2df9003247 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -519,6 +519,12 @@ func init() {
+ 		// LoweredGetCallerSP returns the SP of the caller of the current function.
+ 		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
+ 
++		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
++		// I.e., if f calls g "calls" getcallerpc,
++		// the result should be the PC within f that g will return to.
++		// See runtime/stubs.go for a more detailed discussion.
++		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
++
+ 		// Constant flag values. For any comparison, there are 5 possible
+ 		// outcomes: the three from the signed total order (<,==,>) and the
+ 		// three from the unsigned total order. The == cases overlap.
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS.rules b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+index f097d93689..50fdf29b04 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+@@ -402,6 +402,7 @@
+ // pseudo-ops
+ (GetClosurePtr) -> (LoweredGetClosurePtr)
+ (GetCallerSP) -> (LoweredGetCallerSP)
++(GetCallerPC) -> (LoweredGetCallerPC)
+ 
+ (If cond yes no) -> (NE cond yes no)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64.rules b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+index 6170567870..f5e78ec294 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS64.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+@@ -404,6 +404,7 @@
+ // pseudo-ops
+ (GetClosurePtr) -> (LoweredGetClosurePtr)
+ (GetCallerSP) -> (LoweredGetCallerSP)
++(GetCallerPC) -> (LoweredGetCallerPC)
+ 
+ (If cond yes no) -> (NE cond yes no)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go b/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+index 55f860f053..5235930ccc 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+@@ -409,6 +409,12 @@ func init() {
+ 		// LoweredGetCallerSP returns the SP of the caller of the current function.
+ 		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
+ 
++		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
++		// I.e., if f calls g "calls" getcallerpc,
++		// the result should be the PC within f that g will return to.
++		// See runtime/stubs.go for a more detailed discussion.
++		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
++
+ 		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
+ 		// It saves all GP registers if necessary,
+ 		// but clobbers R31 (LR) because it's a call
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPSOps.go b/src/cmd/compile/internal/ssa/gen/MIPSOps.go
+index e07ad745b3..2605b60650 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPSOps.go
++++ b/src/cmd/compile/internal/ssa/gen/MIPSOps.go
+@@ -379,6 +379,12 @@ func init() {
+ 		// LoweredGetCallerSP returns the SP of the caller of the current function.
+ 		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
+ 
++		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
++		// I.e., if f calls g "calls" getcallerpc,
++		// the result should be the PC within f that g will return to.
++		// See runtime/stubs.go for a more detailed discussion.
++		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
++
+ 		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
+ 		// It saves all GP registers if necessary,
+ 		// but clobbers R31 (LR) because it's a call
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 8f6929f959..c97bbe2963 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -613,6 +613,7 @@
+ // Miscellaneous
+ (GetClosurePtr) -> (LoweredGetClosurePtr)
+ (GetCallerSP) -> (LoweredGetCallerSP)
++(GetCallerPC) -> (LoweredGetCallerPC)
+ (IsNonNil ptr) -> (NotEqual (CMPconst [0] ptr))
+ (IsInBounds idx len) -> (LessThan (CMPU idx len))
+ (IsSliceInBounds idx len) -> (LessEqual (CMPU idx len))
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index ad68794de0..fde88056d3 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -322,6 +322,12 @@ func init() {
+ 		// LoweredGetCallerSP returns the SP of the caller of the current function.
+ 		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
+ 
++		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
++		// I.e., if f calls g "calls" getcallerpc,
++		// the result should be the PC within f that g will return to.
++		// See runtime/stubs.go for a more detailed discussion.
++		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
++
+ 		//arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
+ 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gp | sp | sb}, clobbers: tmp}, clobberFlags: true, nilCheck: true, faultOnNilArg0: true},
+ 		// Round ops to block fused-multiply-add extraction.
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index 9debb25759..ba0891c187 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -384,6 +384,7 @@
+ (GetG mem) -> (LoweredGetG mem)
+ (GetClosurePtr) -> (LoweredGetClosurePtr)
+ (GetCallerSP) -> (LoweredGetCallerSP)
++(GetCallerPC) -> (LoweredGetCallerPC)
+ (Addr {sym} base) -> (MOVDaddr {sym} base)
+ (ITab (Load ptr mem)) -> (MOVDload ptr mem)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index 459148fc2a..7a751a644c 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -451,6 +451,11 @@ func init() {
+ 		// arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
+ 		// LoweredGetCallerSP returns the SP of the caller of the current function.
+ 		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
++		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
++		// I.e., if f calls g "calls" getcallerpc,
++		// the result should be the PC within f that g will return to.
++		// See runtime/stubs.go for a more detailed discussion.
++		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
+ 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{ptrsp}}, clobberFlags: true, nilCheck: true, faultOnNilArg0: true},
+ 		// Round ops to block fused-multiply-add extraction.
+ 		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 0bac31266a..c78b8b663b 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1019,6 +1019,7 @@ const (
+ 	OpARMLoweredMove
+ 	OpARMLoweredGetClosurePtr
+ 	OpARMLoweredGetCallerSP
++	OpARMLoweredGetCallerPC
+ 	OpARMFlagEQ
+ 	OpARMFlagLT_ULT
+ 	OpARMFlagLT_UGT
+@@ -1374,6 +1375,7 @@ const (
+ 	OpMIPSFPFlagFalse
+ 	OpMIPSLoweredGetClosurePtr
+ 	OpMIPSLoweredGetCallerSP
++	OpMIPSLoweredGetCallerPC
+ 	OpMIPSLoweredWB
+ 
+ 	OpMIPS64ADDV
+@@ -1486,6 +1488,7 @@ const (
+ 	OpMIPS64FPFlagFalse
+ 	OpMIPS64LoweredGetClosurePtr
+ 	OpMIPS64LoweredGetCallerSP
++	OpMIPS64LoweredGetCallerPC
+ 	OpMIPS64LoweredWB
+ 
+ 	OpPPC64ADD
+@@ -1614,6 +1617,7 @@ const (
+ 	OpPPC64FGreaterEqual
+ 	OpPPC64LoweredGetClosurePtr
+ 	OpPPC64LoweredGetCallerSP
++	OpPPC64LoweredGetCallerPC
+ 	OpPPC64LoweredNilCheck
+ 	OpPPC64LoweredRound32F
+ 	OpPPC64LoweredRound64F
+@@ -1826,6 +1830,7 @@ const (
+ 	OpS390XLoweredGetG
+ 	OpS390XLoweredGetClosurePtr
+ 	OpS390XLoweredGetCallerSP
++	OpS390XLoweredGetCallerPC
+ 	OpS390XLoweredNilCheck
+ 	OpS390XLoweredRound32F
+ 	OpS390XLoweredRound64F
+@@ -13314,6 +13319,16 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:              "LoweredGetCallerPC",
++		argLen:            0,
++		rematerializeable: true,
++		reg: regInfo{
++			outputs: []outputInfo{
++				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
++			},
++		},
++	},
+ 	{
+ 		name:   "FlagEQ",
+ 		argLen: 0,
+@@ -17995,6 +18010,16 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:              "LoweredGetCallerPC",
++		argLen:            0,
++		rematerializeable: true,
++		reg: regInfo{
++			outputs: []outputInfo{
++				{0, 335544318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 R31
++			},
++		},
++	},
+ 	{
+ 		name:         "LoweredWB",
+ 		auxType:      auxSym,
+@@ -19515,6 +19540,16 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:              "LoweredGetCallerPC",
++		argLen:            0,
++		rematerializeable: true,
++		reg: regInfo{
++			outputs: []outputInfo{
++				{0, 167772158}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R31
++			},
++		},
++	},
+ 	{
+ 		name:         "LoweredWB",
+ 		auxType:      auxSym,
+@@ -21203,6 +21238,16 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:              "LoweredGetCallerPC",
++		argLen:            0,
++		rematerializeable: true,
++		reg: regInfo{
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
+ 	{
+ 		name:           "LoweredNilCheck",
+ 		argLen:         2,
+@@ -24309,6 +24354,16 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:              "LoweredGetCallerPC",
++		argLen:            0,
++		rematerializeable: true,
++		reg: regInfo{
++			outputs: []outputInfo{
++				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
++			},
++		},
++	},
+ 	{
+ 		name:           "LoweredNilCheck",
+ 		argLen:         2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 6d3ab83ce5..2622913eae 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -551,6 +551,8 @@ func rewriteValueARM(v *Value) bool {
+ 		return rewriteValueARM_OpGeq8_0(v)
+ 	case OpGeq8U:
+ 		return rewriteValueARM_OpGeq8U_0(v)
++	case OpGetCallerPC:
++		return rewriteValueARM_OpGetCallerPC_0(v)
+ 	case OpGetCallerSP:
+ 		return rewriteValueARM_OpGetCallerSP_0(v)
+ 	case OpGetClosurePtr:
+@@ -18584,6 +18586,15 @@ func rewriteValueARM_OpGeq8U_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpGetCallerPC_0(v *Value) bool {
++	// match: (GetCallerPC)
++	// cond:
++	// result: (LoweredGetCallerPC)
++	for {
++		v.reset(OpARMLoweredGetCallerPC)
++		return true
++	}
++}
+ func rewriteValueARM_OpGetCallerSP_0(v *Value) bool {
+ 	// match: (GetCallerSP)
+ 	// cond:
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS.go b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+index b33afcc73d..c101e91636 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+@@ -145,6 +145,8 @@ func rewriteValueMIPS(v *Value) bool {
+ 		return rewriteValueMIPS_OpGeq8_0(v)
+ 	case OpGeq8U:
+ 		return rewriteValueMIPS_OpGeq8U_0(v)
++	case OpGetCallerPC:
++		return rewriteValueMIPS_OpGetCallerPC_0(v)
+ 	case OpGetCallerSP:
+ 		return rewriteValueMIPS_OpGetCallerSP_0(v)
+ 	case OpGetClosurePtr:
+@@ -1760,6 +1762,15 @@ func rewriteValueMIPS_OpGeq8U_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueMIPS_OpGetCallerPC_0(v *Value) bool {
++	// match: (GetCallerPC)
++	// cond:
++	// result: (LoweredGetCallerPC)
++	for {
++		v.reset(OpMIPSLoweredGetCallerPC)
++		return true
++	}
++}
+ func rewriteValueMIPS_OpGetCallerSP_0(v *Value) bool {
+ 	// match: (GetCallerSP)
+ 	// cond:
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS64.go b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+index 77573d784a..084463a10f 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS64.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+@@ -169,6 +169,8 @@ func rewriteValueMIPS64(v *Value) bool {
+ 		return rewriteValueMIPS64_OpGeq8_0(v)
+ 	case OpGeq8U:
+ 		return rewriteValueMIPS64_OpGeq8U_0(v)
++	case OpGetCallerPC:
++		return rewriteValueMIPS64_OpGetCallerPC_0(v)
+ 	case OpGetCallerSP:
+ 		return rewriteValueMIPS64_OpGetCallerSP_0(v)
+ 	case OpGetClosurePtr:
+@@ -1931,6 +1933,15 @@ func rewriteValueMIPS64_OpGeq8U_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueMIPS64_OpGetCallerPC_0(v *Value) bool {
++	// match: (GetCallerPC)
++	// cond:
++	// result: (LoweredGetCallerPC)
++	for {
++		v.reset(OpMIPS64LoweredGetCallerPC)
++		return true
++	}
++}
+ func rewriteValueMIPS64_OpGetCallerSP_0(v *Value) bool {
+ 	// match: (GetCallerSP)
+ 	// cond:
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 5c4d81da80..8f2c16cd6b 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -191,6 +191,8 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpGeq8_0(v)
+ 	case OpGeq8U:
+ 		return rewriteValuePPC64_OpGeq8U_0(v)
++	case OpGetCallerPC:
++		return rewriteValuePPC64_OpGetCallerPC_0(v)
+ 	case OpGetCallerSP:
+ 		return rewriteValuePPC64_OpGetCallerSP_0(v)
+ 	case OpGetClosurePtr:
+@@ -2110,6 +2112,15 @@ func rewriteValuePPC64_OpGeq8U_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValuePPC64_OpGetCallerPC_0(v *Value) bool {
++	// match: (GetCallerPC)
++	// cond:
++	// result: (LoweredGetCallerPC)
++	for {
++		v.reset(OpPPC64LoweredGetCallerPC)
++		return true
++	}
++}
+ func rewriteValuePPC64_OpGetCallerSP_0(v *Value) bool {
+ 	// match: (GetCallerSP)
+ 	// cond:
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 6ad6d30043..959ed2b444 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -187,6 +187,8 @@ func rewriteValueS390X(v *Value) bool {
+ 		return rewriteValueS390X_OpGeq8_0(v)
+ 	case OpGeq8U:
+ 		return rewriteValueS390X_OpGeq8U_0(v)
++	case OpGetCallerPC:
++		return rewriteValueS390X_OpGetCallerPC_0(v)
+ 	case OpGetCallerSP:
+ 		return rewriteValueS390X_OpGetCallerSP_0(v)
+ 	case OpGetClosurePtr:
+@@ -2277,6 +2279,15 @@ func rewriteValueS390X_OpGeq8U_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueS390X_OpGetCallerPC_0(v *Value) bool {
++	// match: (GetCallerPC)
++	// cond:
++	// result: (LoweredGetCallerPC)
++	for {
++		v.reset(OpS390XLoweredGetCallerPC)
++		return true
++	}
++}
+ func rewriteValueS390X_OpGetCallerSP_0(v *Value) bool {
+ 	// match: (GetCallerSP)
+ 	// cond:
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index ddafa9cec6..a177e5f75f 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -643,6 +643,19 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			if p.From.Type == obj.TYPE_ADDR && p.From.Reg == REGSP && p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP {
+ 				p.Spadj = int32(-p.From.Offset)
+ 			}
++
++		case obj.AGETCALLERPC:
++			if cursym.Leaf() {
++				/* MOVW LR, Rd */
++				p.As = AMOVW
++				p.From.Type = obj.TYPE_REG
++				p.From.Reg = REGLINK
++			} else {
++				/* MOVW (RSP), Rd */
++				p.As = AMOVW
++				p.From.Type = obj.TYPE_MEM
++				p.From.Reg = REGSP
++			}
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/internal/obj/mips/obj0.go b/src/cmd/internal/obj/mips/obj0.go
+index 697b2b7acb..5bbc4ce638 100644
+--- a/src/cmd/internal/obj/mips/obj0.go
++++ b/src/cmd/internal/obj/mips/obj0.go
+@@ -536,6 +536,19 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.From.Type == obj.TYPE_CONST {
+ 				p.Spadj = int32(-p.From.Offset)
+ 			}
++
++		case obj.AGETCALLERPC:
++			if cursym.Leaf() {
++				/* MOV LR, Rd */
++				p.As = mov
++				p.From.Type = obj.TYPE_REG
++				p.From.Reg = REGLINK
++			} else {
++				/* MOV (RSP), Rd */
++				p.As = mov
++				p.From.Type = obj.TYPE_MEM
++				p.From.Reg = REGSP
++			}
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 4982a85fdb..c3a9443228 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -781,6 +781,18 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.From.Type == obj.TYPE_CONST {
+ 				p.Spadj = int32(-p.From.Offset)
+ 			}
++		case obj.AGETCALLERPC:
++			if cursym.Leaf() {
++				/* MOVD LR, Rd */
++				p.As = AMOVD
++				p.From.Type = obj.TYPE_REG
++				p.From.Reg = REG_LR
++			} else {
++				/* MOVD (RSP), Rd */
++				p.As = AMOVD
++				p.From.Type = obj.TYPE_MEM
++				p.From.Reg = REGSP
++			}
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/internal/obj/s390x/objz.go b/src/cmd/internal/obj/s390x/objz.go
+index 05d31d1ffd..2408af8259 100644
+--- a/src/cmd/internal/obj/s390x/objz.go
++++ b/src/cmd/internal/obj/s390x/objz.go
+@@ -524,6 +524,19 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.From.Type == obj.TYPE_CONST {
+ 				p.Spadj = int32(-p.From.Offset)
+ 			}
++
++		case obj.AGETCALLERPC:
++			if cursym.Leaf() {
++				/* MOVD LR, Rd */
++				p.As = AMOVD
++				p.From.Type = obj.TYPE_REG
++				p.From.Reg = REG_LR
++			} else {
++				/* MOVD (RSP), Rd */
++				p.As = AMOVD
++				p.From.Type = obj.TYPE_MEM
++				p.From.Reg = REGSP
++			}
+ 		}
+ 	}
+ 	if wasSplit {
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 74b1001fc3..a65be1cef2 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -760,11 +760,6 @@ TEXT setg<>(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVW	g, R0
+ 	RET
+ 
+-TEXT runtime·getcallerpc(SB),NOSPLIT|NOFRAME,$0-4
+-	MOVW	0(R13), R0		// LR saved by caller
+-	MOVW	R0, ret+0(FP)
+-	RET
+-
+ TEXT runtime·emptyfunc(SB),0,$0-0
+ 	RET
+ 
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index e4a5a32ad0..4b842ff0f2 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -608,11 +608,6 @@ TEXT setg_gcc<>(SB),NOSPLIT,$0-0
+ 	JAL	runtime·save_g(SB)
+ 	RET
+ 
+-TEXT runtime·getcallerpc(SB),NOSPLIT|NOFRAME,$0-8
+-	MOVV	0(R29), R1		// LR saved by caller
+-	MOVV	R1, ret+0(FP)
+-	RET
+-
+ TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVW	(R0), R0
+ 	UNDEF
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index ef63f41289..654eb6572c 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -611,11 +611,6 @@ TEXT setg_gcc<>(SB),NOSPLIT,$0
+ 	JAL	runtime·save_g(SB)
+ 	RET
+ 
+-TEXT runtime·getcallerpc(SB),NOSPLIT|NOFRAME,$0-4
+-	MOVW	0(R29), R1	// LR saved by caller
+-	MOVW	R1, ret+0(FP)
+-	RET
+-
+ TEXT runtime·abort(SB),NOSPLIT,$0-0
+ 	UNDEF
+ 
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index b565a1370a..93f9110cc0 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -705,11 +705,6 @@ TEXT setg_gcc<>(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVD	R4, LR
+ 	RET
+ 
+-TEXT runtime·getcallerpc(SB),NOSPLIT|NOFRAME,$0-8
+-	MOVD	0(R1), R3		// LR saved by caller
+-	MOVD	R3, ret+0(FP)
+-	RET
+-
+ TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVW	(R0), R0
+ 	UNDEF
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index b569d8b421..9ef1b8a4c8 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -725,11 +725,6 @@ TEXT setg_gcc<>(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVD	R1, LR
+ 	RET
+ 
+-TEXT runtime·getcallerpc(SB),NOSPLIT|NOFRAME,$0-8
+-	MOVD	0(R15), R3		// LR saved by caller
+-	MOVD	R3, ret+0(FP)
+-	RET
+-
+ TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVW	(R0), R0
+ 	UNDEF

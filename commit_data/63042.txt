@@ -30,9 +30,84 @@ Date:   Thu May 15 15:30:57 2025 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Michael Matloob <matloob@google.com>
-
+---
  src/cmd/distpack/pack.go          | 3 ++-
  src/cmd/go/internal/doc/doc.go    | 3 ++-
  src/cmd/go/internal/fix/fix.go    | 3 ++-
  src/cmd/go/internal/work/cover.go | 3 +--
  4 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/distpack/pack.go b/src/cmd/distpack/pack.go
+index 5b10198887..fd091c1ebb 100644
+--- a/src/cmd/distpack/pack.go
++++ b/src/cmd/distpack/pack.go
+@@ -169,7 +169,8 @@ func main() {
+ 			}
+ 			// Inside pkg/tool/$GOOS_$GOARCH, discard helper tools, and tools not needed for builds.
+ 			switch strings.TrimSuffix(path.Base(name), ".exe") {
+-			case "addr2line", "api", "buildid", "dist", "distpack", "metadata", "nm", "objdump", "pprof", "test2json", "trace":
++			case "addr2line", "api", "buildid", "covdata", "dist", "distpack", "doc", "fix",
++				"metadata", "nm", "objdump", "pprof", "test2json", "trace":
+ 				return false
+ 			}
+ 		}
+diff --git a/src/cmd/go/internal/doc/doc.go b/src/cmd/go/internal/doc/doc.go
+index 3b6cd94799..4156284d1d 100644
+--- a/src/cmd/go/internal/doc/doc.go
++++ b/src/cmd/go/internal/doc/doc.go
+@@ -9,6 +9,7 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+ 	"context"
++	"path/filepath"
+ )
+ 
+ var CmdDoc = &base.Command{
+@@ -130,5 +131,5 @@ Flags:
+ }
+ 
+ func runDoc(ctx context.Context, cmd *base.Command, args []string) {
+-	base.Run(cfg.BuildToolexec, base.Tool("doc"), args)
++	base.Run(cfg.BuildToolexec, filepath.Join(cfg.GOROOTbin, "go"), "tool", "doc", args)
+ }
+diff --git a/src/cmd/go/internal/fix/fix.go b/src/cmd/go/internal/fix/fix.go
+index 28ad58daf5..8947da05c3 100644
+--- a/src/cmd/go/internal/fix/fix.go
++++ b/src/cmd/go/internal/fix/fix.go
+@@ -16,6 +16,7 @@ import (
+ 	"fmt"
+ 	"go/build"
+ 	"os"
++	"path/filepath"
+ )
+ 
+ var CmdFix = &base.Command{
+@@ -80,6 +81,6 @@ func runFix(ctx context.Context, cmd *base.Command, args []string) {
+ 		if *fixes != "" {
+ 			fixArg = []string{"-r=" + *fixes}
+ 		}
+-		base.Run(str.StringList(cfg.BuildToolexec, base.Tool("fix"), "-go="+goVersion, fixArg, files))
++		base.Run(str.StringList(cfg.BuildToolexec, filepath.Join(cfg.GOROOTbin, "go"), "tool", "fix", "-go="+goVersion, fixArg, files))
+ 	}
+ }
+diff --git a/src/cmd/go/internal/work/cover.go b/src/cmd/go/internal/work/cover.go
+index 3b732569a8..62fcdb3fda 100644
+--- a/src/cmd/go/internal/work/cover.go
++++ b/src/cmd/go/internal/work/cover.go
+@@ -7,7 +7,6 @@
+ package work
+ 
+ import (
+-	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/str"
+ 	"cmd/internal/cov/covcmd"
+@@ -25,7 +24,7 @@ import (
+ func (b *Builder) CovData(a *Action, cmdargs ...any) ([]byte, error) {
+ 	cmdline := str.StringList(cmdargs...)
+ 	args := append([]string{}, cfg.BuildToolexec...)
+-	args = append(args, base.Tool("covdata"))
++	args = append(args, "go", "tool", "covdata")
+ 	args = append(args, cmdline...)
+ 	return b.Shell(a).runOut(a.Objdir, nil, args)
+ }

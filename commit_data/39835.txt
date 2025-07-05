@@ -20,8 +20,78 @@ Date:   Wed Feb 27 15:27:42 2019 -0500
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/context/context.go           | 4 ++--
  src/go/build/deps_test.go        | 4 ++--
  src/internal/reflectlite/type.go | 7 +++++++
  3 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/src/context/context.go b/src/context/context.go
+index 21a40d5947..36f83c7b5b 100644
+--- a/src/context/context.go
++++ b/src/context/context.go
+@@ -50,7 +50,7 @@ package context
+ import (
+ 	"errors"
+ 	"fmt"
+-	"reflect"
++	"internal/reflectlite"
+ 	"sync"
+ 	"time"
+ )
+@@ -468,7 +468,7 @@ func WithValue(parent Context, key, val interface{}) Context {
+ 	if key == nil {
+ 		panic("nil key")
+ 	}
+-	if !reflect.TypeOf(key).Comparable() {
++	if !reflectlite.TypeOf(key).Comparable() {
+ 		panic("key is not comparable")
+ 	}
+ 	return &valueCtx{parent, key, val}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index df1d8dd3b3..e9ea0fabd8 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -249,7 +249,7 @@ var pkgDeps = map[string][]string{
+ 	"compress/gzip":                  {"L4", "compress/flate"},
+ 	"compress/lzw":                   {"L4"},
+ 	"compress/zlib":                  {"L4", "compress/flate"},
+-	"context":                        {"errors", "fmt", "reflect", "sync", "time"},
++	"context":                        {"errors", "fmt", "internal/reflectlite", "sync", "time"},
+ 	"database/sql":                   {"L4", "container/list", "context", "database/sql/driver", "database/sql/internal"},
+ 	"database/sql/driver":            {"L4", "context", "time", "database/sql/internal"},
+ 	"debug/dwarf":                    {"L4"},
+@@ -324,7 +324,7 @@ var pkgDeps = map[string][]string{
+ 	// do networking portably, it must have a small dependency set: just L0+basic os.
+ 	"net": {
+ 		"L0", "CGO",
+-		"context", "math/rand", "os", "reflect", "sort", "syscall", "time",
++		"context", "math/rand", "os", "sort", "syscall", "time",
+ 		"internal/nettrace", "internal/poll", "internal/syscall/unix",
+ 		"internal/syscall/windows", "internal/singleflight", "internal/race",
+ 		"golang.org/x/net/dns/dnsmessage", "golang.org/x/net/lif", "golang.org/x/net/route",
+diff --git a/src/internal/reflectlite/type.go b/src/internal/reflectlite/type.go
+index 70c3723de7..9767ffbd0d 100644
+--- a/src/internal/reflectlite/type.go
++++ b/src/internal/reflectlite/type.go
+@@ -44,6 +44,9 @@ type Type interface {
+ 	// AssignableTo reports whether a value of the type is assignable to type u.
+ 	AssignableTo(u Type) bool
+ 
++	// Comparable reports whether values of this type are comparable.
++	Comparable() bool
++
+ 	// Elem returns a type's element type.
+ 	// It panics if the type's Kind is not Ptr.
+ 	Elem() Type
+@@ -663,6 +666,10 @@ func (t *rtype) AssignableTo(u Type) bool {
+ 	return directlyAssignable(uu, t) || implements(uu, t)
+ }
+ 
++func (t *rtype) Comparable() bool {
++	return t.alg != nil && t.alg.equal != nil
++}
++
+ // implements reports whether the type V implements the interface type T.
+ func implements(T, V *rtype) bool {
+ 	if T.Kind() != Interface {

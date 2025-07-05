@@ -8,6 +8,20 @@ Date:   Thu Jun 14 22:43:15 2012 +0800
     R=golang-dev, agl
     CC=golang-dev
     https://golang.org/cl/6301083
-
+---
  src/pkg/crypto/elliptic/elliptic.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/elliptic/elliptic.go b/src/pkg/crypto/elliptic/elliptic.go
+index 30835a90b9..a3990891be 100644
+--- a/src/pkg/crypto/elliptic/elliptic.go
++++ b/src/pkg/crypto/elliptic/elliptic.go
+@@ -370,7 +370,7 @@ func P384() Curve {
+ 	return p384
+ }
+ 
+-// P256 returns a Curve which implements P-521 (see FIPS 186-3, section D.2.5)
++// P521 returns a Curve which implements P-521 (see FIPS 186-3, section D.2.5)
+ func P521() Curve {
+ 	initonce.Do(initAll)
+ 	return p521

@@ -8,7 +8,51 @@ Date:   Thu Sep 3 10:59:52 2009 -0700
     DELTA=26  (0 added, 26 deleted, 0 changed)
     OCL=34294
     CL=34317
-
+---
  test/bugs/bug187.go | 23 -----------------------
  test/golden.out     |  3 ---
  2 files changed, 26 deletions(-)
+
+diff --git a/test/bugs/bug187.go b/test/bugs/bug187.go
+deleted file mode 100644
+index 73d73dbb87..0000000000
+--- a/test/bugs/bug187.go
++++ /dev/null
+@@ -1,23 +0,0 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
+-
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "os"
+-
+-func main() {
+-	// This bug doesn't arise with [...]int, or []interface{} or [3]interface{}.
+-	a := [...]interface{} { 1, 2, 3 };
+-	n := 0;
+-	bug := false;
+-	for _, v := range a {
+-		if v.(int) != n {
+-			println("BUG:", n, v.(int));
+-			os.Exit(0);
+-		}
+-		n++;
+-	}
+-}
+diff --git a/test/golden.out b/test/golden.out
+index 6c67c0b08b..eabaf88634 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -151,9 +151,6 @@ BUG: should fail
+ =========== bugs/bug169.go
+ BUG: errchk: command succeeded unexpectedly
+ 
+-=========== bugs/bug187.go
+-BUG: 0 1
+-
+ =========== bugs/bug190.go
+ bugs/bug190.go:11: invalid recursive type []S
+ bugs/bug190.go:16: invalid recursive type S

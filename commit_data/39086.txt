@@ -27,7 +27,7 @@ Date:   Tue Dec 4 07:58:18 2018 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  misc/cgo/test/callback.go                      |   4 -
  src/cmd/compile/internal/amd64/ggen.go         |   3 +-
  src/cmd/compile/internal/arm/ggen.go           |   3 +-
@@ -68,3 +68,1426 @@ Date:   Tue Dec 4 07:58:18 2018 -0800
  test/fixedbugs/issue5856.go                    |   2 +-
  test/inline_callers.go                         |  10 +-
  39 files changed, 341 insertions(+), 387 deletions(-)
+
+diff --git a/misc/cgo/test/callback.go b/misc/cgo/test/callback.go
+index 58e126b41b..4fc6b39ffa 100644
+--- a/misc/cgo/test/callback.go
++++ b/misc/cgo/test/callback.go
+@@ -179,7 +179,6 @@ func testCallbackCallers(t *testing.T) {
+ 	pc := make([]uintptr, 100)
+ 	n := 0
+ 	name := []string{
+-		"runtime.call16",
+ 		"runtime.cgocallbackg1",
+ 		"runtime.cgocallbackg",
+ 		"runtime.cgocallback_gofunc",
+@@ -193,9 +192,6 @@ func testCallbackCallers(t *testing.T) {
+ 		"testing.tRunner",
+ 		"runtime.goexit",
+ 	}
+-	if unsafe.Sizeof((*byte)(nil)) == 8 {
+-		name[0] = "runtime.call32"
+-	}
+ 	nestedCall(func() {
+ 		n = runtime.Callers(4, pc)
+ 	})
+diff --git a/src/cmd/compile/internal/amd64/ggen.go b/src/cmd/compile/internal/amd64/ggen.go
+index df0a69a441..ee4f872bd8 100644
+--- a/src/cmd/compile/internal/amd64/ggen.go
++++ b/src/cmd/compile/internal/amd64/ggen.go
+@@ -141,7 +141,7 @@ func zeroAuto(pp *gc.Progs, n *gc.Node) {
+ 	}
+ }
+ 
+-func ginsnop(pp *gc.Progs) {
++func ginsnop(pp *gc.Progs) *obj.Prog {
+ 	// This is actually not the x86 NOP anymore,
+ 	// but at the point where it gets used, AX is dead
+ 	// so it's okay if we lose the high bits.
+@@ -150,4 +150,5 @@ func ginsnop(pp *gc.Progs) {
+ 	p.From.Reg = x86.REG_AX
+ 	p.To.Type = obj.TYPE_REG
+ 	p.To.Reg = x86.REG_AX
++	return p
+ }
+diff --git a/src/cmd/compile/internal/arm/ggen.go b/src/cmd/compile/internal/arm/ggen.go
+index b2fc272ec6..f525517c49 100644
+--- a/src/cmd/compile/internal/arm/ggen.go
++++ b/src/cmd/compile/internal/arm/ggen.go
+@@ -68,11 +68,12 @@ func zeroAuto(pp *gc.Progs, n *gc.Node) {
+ 	}
+ }
+ 
+-func ginsnop(pp *gc.Progs) {
++func ginsnop(pp *gc.Progs) *obj.Prog {
+ 	p := pp.Prog(arm.AAND)
+ 	p.From.Type = obj.TYPE_REG
+ 	p.From.Reg = arm.REG_R0
+ 	p.To.Type = obj.TYPE_REG
+ 	p.To.Reg = arm.REG_R0
+ 	p.Scond = arm.C_SCOND_EQ
++	return p
+ }
+diff --git a/src/cmd/compile/internal/arm64/ggen.go b/src/cmd/compile/internal/arm64/ggen.go
+index 204391fef1..9d8fe53cfd 100644
+--- a/src/cmd/compile/internal/arm64/ggen.go
++++ b/src/cmd/compile/internal/arm64/ggen.go
+@@ -79,7 +79,8 @@ func zeroAuto(pp *gc.Progs, n *gc.Node) {
+ 	}
+ }
+ 
+-func ginsnop(pp *gc.Progs) {
++func ginsnop(pp *gc.Progs) *obj.Prog {
+ 	p := pp.Prog(arm64.AHINT)
+ 	p.From.Type = obj.TYPE_CONST
++	return p
+ }
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index baea4cc716..fc1af603a2 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -174,6 +174,7 @@ var goopnames = []string{
+ 	OGT:       ">",
+ 	OIF:       "if",
+ 	OIMAG:     "imag",
++	OINLMARK:  "inlmark",
+ 	ODEREF:    "*",
+ 	OLEN:      "len",
+ 	OLE:       "<=",
+@@ -942,6 +943,9 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
+ 	case ORETJMP:
+ 		mode.Fprintf(s, "retjmp %v", n.Sym)
+ 
++	case OINLMARK:
++		mode.Fprintf(s, "inlmark %d", n.Xoffset)
++
+ 	case OGO:
+ 		mode.Fprintf(s, "go %v", n.Left)
+ 
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index c5ff8b6dbe..376637ba9a 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -257,7 +257,7 @@ type Arch struct {
+ 
+ 	PadFrame  func(int64) int64
+ 	ZeroRange func(*Progs, *obj.Prog, int64, int64, *uint32) *obj.Prog
+-	Ginsnop   func(*Progs)
++	Ginsnop   func(*Progs) *obj.Prog
+ 
+ 	// SSAMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
+ 	SSAMarkMoves func(*SSAGenState, *ssa.Block)
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 4699bcfa1f..81cad31a13 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -1063,6 +1063,15 @@ func mkinlcall(n, fn *Node, maxCost int32) *Node {
+ 	}
+ 	newIndex := Ctxt.InlTree.Add(parent, n.Pos, fn.Sym.Linksym())
+ 
++	// Add a inline mark just before the inlined body.
++	// This mark is inline in the code so that it's a reasonable spot
++	// to put a breakpoint. Not sure if that's really necessary or not
++	// (in which case it could go at the end of the function instead).
++	inlMark := nod(OINLMARK, nil, nil)
++	inlMark.Pos = n.Pos
++	inlMark.Xoffset = int64(newIndex)
++	ninit.Append(inlMark)
++
+ 	if genDwarfInline > 0 {
+ 		if !fn.Sym.Linksym().WasInlined() {
+ 			Ctxt.DwFixups.SetPrecursorFunc(fn.Sym.Linksym(), fn)
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 2eec537e4e..4848a02bb6 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -553,7 +553,7 @@ func (o *Order) stmt(n *Node) {
+ 	default:
+ 		Fatalf("orderstmt %v", n.Op)
+ 
+-	case OVARKILL, OVARLIVE:
++	case OVARKILL, OVARLIVE, OINLMARK:
+ 		o.out = append(o.out, n)
+ 
+ 	case OAS:
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 2eeea79ff9..db26f135f5 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1204,6 +1204,9 @@ func (s *state) stmt(n *Node) {
+ 		p := s.expr(n.Left)
+ 		s.nilCheck(p)
+ 
++	case OINLMARK:
++		s.newValue1I(ssa.OpInlMark, types.TypeVoid, n.Xoffset, s.mem())
++
+ 	default:
+ 		s.Fatalf("unhandled stmt %v", n.Op)
+ 	}
+@@ -5163,6 +5166,14 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 				if v.Args[0].Reg() != v.Reg() {
+ 					v.Fatalf("OpConvert should be a no-op: %s; %s", v.Args[0].LongString(), v.LongString())
+ 				}
++			case ssa.OpInlMark:
++				p := thearch.Ginsnop(s.pp)
++				if pp.curfn.Func.lsym != nil {
++					// lsym is nil if the function name is "_".
++					pp.curfn.Func.lsym.Func.AddInlMark(p, v.AuxInt32())
++				}
++				// TODO: if matching line number, merge somehow with previous instruction?
++
+ 			default:
+ 				// let the backend handle it
+ 				// Special case for first line in function; move it to the start.
+@@ -5543,6 +5554,7 @@ func (s *SSAGenState) Call(v *ssa.Value) *obj.Prog {
+ 	s.PrepareCall(v)
+ 
+ 	p := s.Prog(obj.ACALL)
++	p.Pos = v.Pos
+ 	if sym, ok := v.Aux.(*obj.LSym); ok {
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index c7becf53e5..5f07c6c52a 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -46,6 +46,7 @@ type Node struct {
+ 	// - ODOT, ODOTPTR, and OINDREGSP use it to indicate offset relative to their base address.
+ 	// - OSTRUCTKEY uses it to store the named field's offset.
+ 	// - Named OLITERALs use it to store their ambient iota value.
++	// - OINLMARK stores an index into the inlTree data structure.
+ 	// Possibly still more uses. If you find any, document them.
+ 	Xoffset int64
+ 
+@@ -750,6 +751,7 @@ const (
+ 	OVARKILL    // variable is dead
+ 	OVARLIVE    // variable is alive
+ 	OINDREGSP   // offset plus indirect of REGSP, such as 8(SP).
++	OINLMARK    // start of an inlined body, with file/line of caller. Xoffset is an index into the inline tree.
+ 
+ 	// arch-specific opcodes
+ 	ORETJMP // return to other function
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index f23a591647..509579d21f 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -322,6 +322,9 @@ func walkstmt(n *Node) *Node {
+ 	case ORETJMP:
+ 		break
+ 
++	case OINLMARK:
++		break
++
+ 	case OSELECT:
+ 		walkselect(n)
+ 
+diff --git a/src/cmd/compile/internal/mips/ggen.go b/src/cmd/compile/internal/mips/ggen.go
+index acbe4a91de..eab60756ba 100644
+--- a/src/cmd/compile/internal/mips/ggen.go
++++ b/src/cmd/compile/internal/mips/ggen.go
+@@ -59,10 +59,11 @@ func zeroAuto(pp *gc.Progs, n *gc.Node) {
+ 	}
+ }
+ 
+-func ginsnop(pp *gc.Progs) {
++func ginsnop(pp *gc.Progs) *obj.Prog {
+ 	p := pp.Prog(mips.ANOR)
+ 	p.From.Type = obj.TYPE_REG
+ 	p.From.Reg = mips.REG_R0
+ 	p.To.Type = obj.TYPE_REG
+ 	p.To.Reg = mips.REG_R0
++	return p
+ }
+diff --git a/src/cmd/compile/internal/mips64/ggen.go b/src/cmd/compile/internal/mips64/ggen.go
+index a7e07d3740..80c1f0296c 100644
+--- a/src/cmd/compile/internal/mips64/ggen.go
++++ b/src/cmd/compile/internal/mips64/ggen.go
+@@ -63,10 +63,11 @@ func zeroAuto(pp *gc.Progs, n *gc.Node) {
+ 	}
+ }
+ 
+-func ginsnop(pp *gc.Progs) {
++func ginsnop(pp *gc.Progs) *obj.Prog {
+ 	p := pp.Prog(mips.ANOR)
+ 	p.From.Type = obj.TYPE_REG
+ 	p.From.Reg = mips.REG_R0
+ 	p.To.Type = obj.TYPE_REG
+ 	p.To.Reg = mips.REG_R0
++	return p
+ }
+diff --git a/src/cmd/compile/internal/ppc64/ggen.go b/src/cmd/compile/internal/ppc64/ggen.go
+index 5dda2d6e80..ea66baa007 100644
+--- a/src/cmd/compile/internal/ppc64/ggen.go
++++ b/src/cmd/compile/internal/ppc64/ggen.go
+@@ -58,15 +58,16 @@ func zeroAuto(pp *gc.Progs, n *gc.Node) {
+ 	}
+ }
+ 
+-func ginsnop(pp *gc.Progs) {
++func ginsnop(pp *gc.Progs) *obj.Prog {
+ 	p := pp.Prog(ppc64.AOR)
+ 	p.From.Type = obj.TYPE_REG
+ 	p.From.Reg = ppc64.REG_R0
+ 	p.To.Type = obj.TYPE_REG
+ 	p.To.Reg = ppc64.REG_R0
++	return p
+ }
+ 
+-func ginsnop2(pp *gc.Progs) {
++func ginsnop2(pp *gc.Progs) *obj.Prog {
+ 	// PPC64 is unusual because TWO nops are required
+ 	// (see gc/cgen.go, gc/plive.go -- copy of comment below)
+ 	//
+@@ -87,7 +88,7 @@ func ginsnop2(pp *gc.Progs) {
+ 		p.From.Reg = ppc64.REGSP
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = ppc64.REG_R2
+-	} else {
+-		ginsnop(pp)
++		return p
+ 	}
++	return ginsnop(pp)
+ }
+diff --git a/src/cmd/compile/internal/s390x/ggen.go b/src/cmd/compile/internal/s390x/ggen.go
+index 636ab16dd4..ba5f2dfc2b 100644
+--- a/src/cmd/compile/internal/s390x/ggen.go
++++ b/src/cmd/compile/internal/s390x/ggen.go
+@@ -104,10 +104,11 @@ func zeroAuto(pp *gc.Progs, n *gc.Node) {
+ 	}
+ }
+ 
+-func ginsnop(pp *gc.Progs) {
++func ginsnop(pp *gc.Progs) *obj.Prog {
+ 	p := pp.Prog(s390x.AOR)
+ 	p.From.Type = obj.TYPE_REG
+ 	p.From.Reg = int16(s390x.REG_R0)
+ 	p.To.Type = obj.TYPE_REG
+ 	p.To.Reg = int16(s390x.REG_R0)
++	return p
+ }
+diff --git a/src/cmd/compile/internal/ssa/deadcode.go b/src/cmd/compile/internal/ssa/deadcode.go
+index 13b7d7e1e8..72cce448ce 100644
+--- a/src/cmd/compile/internal/ssa/deadcode.go
++++ b/src/cmd/compile/internal/ssa/deadcode.go
+@@ -85,7 +85,7 @@ func liveValues(f *Func, reachable []bool) (live []bool, liveOrderStmts []*Value
+ 				}
+ 			}
+ 			if v.Type.IsVoid() && !live[v.ID] {
+-				// The only Void ops are nil checks.  We must keep these.
++				// The only Void ops are nil checks and inline marks.  We must keep these.
+ 				live[v.ID] = true
+ 				q = append(q, v)
+ 				if v.Pos.IsStmt() != src.PosNotStmt {
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index ba8d93cf2c..89e6961bd7 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -480,6 +480,10 @@ var genericOps = []opData{
+ 	{name: "VarLive", argLength: 1, aux: "Sym", symEffect: "Read", zeroWidth: true}, // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
+ 	{name: "KeepAlive", argLength: 2, typ: "Mem", zeroWidth: true},                  // arg[0] is a value that must be kept alive until this mark.  arg[1]=mem, returns mem
+ 
++	// InlMark marks the start of an inlined function body. Its AuxInt field
++	// distinguishes which entry in the local inline tree it is marking.
++	{name: "InlMark", argLength: 1, aux: "Int32", typ: "Void"}, // arg[0]=mem, returns void.
++
+ 	// Ops for breaking 64-bit operations on 32-bit architectures
+ 	{name: "Int64Make", argLength: 2, typ: "UInt64"}, // arg0=hi, arg1=lo
+ 	{name: "Int64Hi", argLength: 1, typ: "UInt32"},   // high 32-bit of arg0
+diff --git a/src/cmd/compile/internal/ssa/lower.go b/src/cmd/compile/internal/ssa/lower.go
+index 24f927f144..ab0fa803bf 100644
+--- a/src/cmd/compile/internal/ssa/lower.go
++++ b/src/cmd/compile/internal/ssa/lower.go
+@@ -21,7 +21,7 @@ func checkLower(f *Func) {
+ 				continue // lowered
+ 			}
+ 			switch v.Op {
+-			case OpSP, OpSB, OpInitMem, OpArg, OpPhi, OpVarDef, OpVarKill, OpVarLive, OpKeepAlive, OpSelect0, OpSelect1, OpConvert:
++			case OpSP, OpSB, OpInitMem, OpArg, OpPhi, OpVarDef, OpVarKill, OpVarLive, OpKeepAlive, OpSelect0, OpSelect1, OpConvert, OpInlMark:
+ 				continue // ok not to lower
+ 			case OpGetG:
+ 				if f.Config.hasGReg {
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index f6568be660..2278407a26 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2398,6 +2398,7 @@ const (
+ 	OpVarKill
+ 	OpVarLive
+ 	OpKeepAlive
++	OpInlMark
+ 	OpInt64Make
+ 	OpInt64Hi
+ 	OpInt64Lo
+@@ -29796,6 +29797,12 @@ var opcodeTable = [...]opInfo{
+ 		zeroWidth: true,
+ 		generic:   true,
+ 	},
++	{
++		name:    "InlMark",
++		auxType: auxInt32,
++		argLen:  1,
++		generic: true,
++	},
+ 	{
+ 		name:    "Int64Make",
+ 		argLen:  2,
+diff --git a/src/cmd/compile/internal/wasm/ssa.go b/src/cmd/compile/internal/wasm/ssa.go
+index d82b1f7953..6e6dc557b4 100644
+--- a/src/cmd/compile/internal/wasm/ssa.go
++++ b/src/cmd/compile/internal/wasm/ssa.go
+@@ -58,8 +58,8 @@ func zeroAuto(pp *gc.Progs, n *gc.Node) {
+ 	}
+ }
+ 
+-func ginsnop(pp *gc.Progs) {
+-	pp.Prog(wasm.ANop)
++func ginsnop(pp *gc.Progs) *obj.Prog {
++	return pp.Prog(wasm.ANop)
+ }
+ 
+ func ssaMarkMoves(s *gc.SSAGenState, b *ssa.Block) {
+@@ -134,10 +134,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if sym, ok := v.Aux.(*obj.LSym); ok {
+ 			p := s.Prog(obj.ACALL)
+ 			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: sym}
++			p.Pos = v.Pos
+ 		} else {
+ 			getValue64(s, v.Args[0])
+ 			p := s.Prog(obj.ACALL)
+ 			p.To = obj.Addr{Type: obj.TYPE_NONE}
++			p.Pos = v.Pos
+ 		}
+ 
+ 	case ssa.OpWasmLoweredMove:
+diff --git a/src/cmd/compile/internal/x86/ggen.go b/src/cmd/compile/internal/x86/ggen.go
+index ef380bd740..1851af57c4 100644
+--- a/src/cmd/compile/internal/x86/ggen.go
++++ b/src/cmd/compile/internal/x86/ggen.go
+@@ -53,10 +53,11 @@ func zeroAuto(pp *gc.Progs, n *gc.Node) {
+ 	}
+ }
+ 
+-func ginsnop(pp *gc.Progs) {
++func ginsnop(pp *gc.Progs) *obj.Prog {
+ 	p := pp.Prog(x86.AXCHGL)
+ 	p.From.Type = obj.TYPE_REG
+ 	p.From.Reg = x86.REG_AX
+ 	p.To.Type = obj.TYPE_REG
+ 	p.To.Reg = x86.REG_AX
++	return p
+ }
+diff --git a/src/cmd/internal/goobj/read.go b/src/cmd/internal/goobj/read.go
+index 2081098ca8..84aed6eeea 100644
+--- a/src/cmd/internal/goobj/read.go
++++ b/src/cmd/internal/goobj/read.go
+@@ -119,10 +119,11 @@ type FuncData struct {
+ // An InlinedCall is a node in an InlTree.
+ // See cmd/internal/obj.InlTree for details.
+ type InlinedCall struct {
+-	Parent int64
+-	File   string
+-	Line   int64
+-	Func   SymID
++	Parent   int64
++	File     string
++	Line     int64
++	Func     SymID
++	ParentPC int64
+ }
+ 
+ // A Package is a parsed Go object file or archive defining a Go package.
+@@ -610,6 +611,7 @@ func (r *objReader) parseObject(prefix []byte) error {
+ 				f.InlTree[i].File = r.readSymID().Name
+ 				f.InlTree[i].Line = r.readInt()
+ 				f.InlTree[i].Func = r.readSymID()
++				f.InlTree[i].ParentPC = r.readInt()
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/internal/obj/inl.go b/src/cmd/internal/obj/inl.go
+index 671239444c..8860069e47 100644
+--- a/src/cmd/internal/obj/inl.go
++++ b/src/cmd/internal/obj/inl.go
+@@ -47,9 +47,10 @@ type InlTree struct {
+ 
+ // InlinedCall is a node in an InlTree.
+ type InlinedCall struct {
+-	Parent int      // index of the parent in the InlTree or < 0 if outermost call
+-	Pos    src.XPos // position of the inlined call
+-	Func   *LSym    // function that was inlined
++	Parent   int      // index of the parent in the InlTree or < 0 if outermost call
++	Pos      src.XPos // position of the inlined call
++	Func     *LSym    // function that was inlined
++	ParentPC int32    // PC of instruction just before inlined body. Only valid in local trees.
+ }
+ 
+ // Add adds a new call to the tree, returning its index.
+@@ -76,6 +77,10 @@ func (tree *InlTree) CallPos(inlIndex int) src.XPos {
+ 	return tree.nodes[inlIndex].Pos
+ }
+ 
++func (tree *InlTree) setParentPC(inlIndex int, pc int32) {
++	tree.nodes[inlIndex].ParentPC = pc
++}
++
+ // OutermostPos returns the outermost position corresponding to xpos,
+ // which is where xpos was ultimately inlined to. In the example for
+ // InlTree, main() contains inlined AST nodes from h(), but the
+@@ -106,6 +111,6 @@ func (ctxt *Link) InnermostPos(xpos src.XPos) src.Pos {
+ func dumpInlTree(ctxt *Link, tree InlTree) {
+ 	for i, call := range tree.nodes {
+ 		pos := ctxt.PosTable.Pos(call.Pos)
+-		ctxt.Logf("%0d | %0d | %s (%s)\n", i, call.Parent, call.Func, pos)
++		ctxt.Logf("%0d | %0d | %s (%s) pc=%d\n", i, call.Parent, call.Func, pos, call.ParentPC)
+ 	}
+ }
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index dfecdfbb37..7df8e2e516 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -393,11 +393,12 @@ type LSym struct {
+ 
+ // A FuncInfo contains extra fields for STEXT symbols.
+ type FuncInfo struct {
+-	Args   int32
+-	Locals int32
+-	Text   *Prog
+-	Autom  []*Auto
+-	Pcln   Pcln
++	Args     int32
++	Locals   int32
++	Text     *Prog
++	Autom    []*Auto
++	Pcln     Pcln
++	InlMarks []InlMark
+ 
+ 	dwarfInfoSym   *LSym
+ 	dwarfLocSym    *LSym
+@@ -411,6 +412,23 @@ type FuncInfo struct {
+ 	StackObjects *LSym
+ }
+ 
++type InlMark struct {
++	// When unwinding from an instruction in an inlined body, mark
++	// where we should unwind to.
++	// id records the global inlining id of the inlined body.
++	// p records the location of an instruction in the parent (inliner) frame.
++	p  *Prog
++	id int32
++}
++
++// Mark p as the instruction to set as the pc when
++// "unwinding" the inlining global frame id. Usually it should be
++// instruction with a file:line at the callsite, and occur
++// just before the body of the inlined function.
++func (fi *FuncInfo) AddInlMark(p *Prog, id int32) {
++	fi.InlMarks = append(fi.InlMarks, InlMark{p: p, id: id})
++}
++
+ //go:generate stringer -type ABI
+ 
+ // ABI is the calling convention of a text symbol.
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 49301f04d5..c6d2de4273 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -388,6 +388,7 @@ func (w *objWriter) writeSym(s *LSym) {
+ 		w.writeRefIndex(fsym)
+ 		w.writeInt(int64(l))
+ 		w.writeRefIndex(call.Func)
++		w.writeInt(int64(call.ParentPC))
+ 	}
+ }
+ 
+diff --git a/src/cmd/internal/obj/pcln.go b/src/cmd/internal/obj/pcln.go
+index d72d797ee5..84dd494930 100644
+--- a/src/cmd/internal/obj/pcln.go
++++ b/src/cmd/internal/obj/pcln.go
+@@ -193,6 +193,19 @@ func (s *pcinlineState) addBranch(ctxt *Link, globalIndex int) int {
+ 	return localIndex
+ }
+ 
++func (s *pcinlineState) setParentPC(ctxt *Link, globalIndex int, pc int32) {
++	localIndex, ok := s.globalToLocal[globalIndex]
++	if !ok {
++		// We know where to unwind to when we need to unwind a body identified
++		// by globalIndex. But there may be no instructions generated by that
++		// body (it's empty, or its instructions were CSEd with other things, etc.).
++		// In that case, we don't need an unwind entry.
++		// TODO: is this really right? Seems to happen a whole lot...
++		return
++	}
++	s.localTree.setParentPC(localIndex, pc)
++}
++
+ // pctoinline computes the index into the local inlining tree to use at p.
+ // If p is not the result of inlining, pctoinline returns -1. Because p.Pos
+ // applies to p, phase == 0 (before p) takes care of the update.
+@@ -323,6 +336,9 @@ func linkpcln(ctxt *Link, cursym *LSym) {
+ 
+ 	pcinlineState := new(pcinlineState)
+ 	funcpctab(ctxt, &pcln.Pcinline, cursym, "pctoinline", pcinlineState.pctoinline, nil)
++	for _, inlMark := range cursym.Func.InlMarks {
++		pcinlineState.setParentPC(ctxt, int(inlMark.id), int32(inlMark.p.Pc))
++	}
+ 	pcln.InlTree = pcinlineState.localTree
+ 	if ctxt.Debugpcln == "pctoinline" && len(pcln.InlTree.nodes) > 0 {
+ 		ctxt.Logf("-- inlining tree for %s:\n", cursym)
+diff --git a/src/cmd/internal/obj/wasm/wasmobj.go b/src/cmd/internal/obj/wasm/wasmobj.go
+index a1b758836a..52c9710ff0 100644
+--- a/src/cmd/internal/obj/wasm/wasmobj.go
++++ b/src/cmd/internal/obj/wasm/wasmobj.go
+@@ -243,7 +243,6 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 	for p := s.Func.Text; p != nil; p = p.Link {
+ 		prevBase := base
+ 		base = ctxt.PosTable.Pos(p.Pos).Base()
+-
+ 		switch p.As {
+ 		case ABlock, ALoop, AIf:
+ 			explicitBlockDepth++
+@@ -279,7 +278,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 		// more often to avoid bloat of the BrTable instruction.
+ 		// The "base != prevBase" condition detects inlined instructions. They are an
+ 		// implicit call, so entering and leaving this section affects the stack trace.
+-		if p.As == ACALLNORESUME || p.As == obj.ANOP || p.Spadj != 0 || base != prevBase {
++		if p.As == ACALLNORESUME || p.As == obj.ANOP || p.As == ANop || p.Spadj != 0 || base != prevBase {
+ 			pc++
+ 		}
+ 	}
+diff --git a/src/cmd/internal/objabi/funcid.go b/src/cmd/internal/objabi/funcid.go
+index 92799107da..fc9e421836 100644
+--- a/src/cmd/internal/objabi/funcid.go
++++ b/src/cmd/internal/objabi/funcid.go
+@@ -4,6 +4,11 @@
+ 
+ package objabi
+ 
++import (
++	"strconv"
++	"strings"
++)
++
+ // A FuncID identifies particular functions that need to be treated
+ // specially by the runtime.
+ // Note that in some situations involving plugins, there may be multiple
+@@ -30,4 +35,62 @@ const (
+ 	FuncID_gogo
+ 	FuncID_externalthreadhandler
+ 	FuncID_debugCallV1
++	FuncID_gopanic
++	FuncID_panicwrap
++	FuncID_wrapper // any autogenerated code (hash/eq algorithms, method wrappers, etc.)
+ )
++
++// Get the function ID for the named function in the named file.
++// The function should be package-qualified.
++func GetFuncID(name, file string) FuncID {
++	switch name {
++	case "runtime.main":
++		return FuncID_runtime_main
++	case "runtime.goexit":
++		return FuncID_goexit
++	case "runtime.jmpdefer":
++		return FuncID_jmpdefer
++	case "runtime.mcall":
++		return FuncID_mcall
++	case "runtime.morestack":
++		return FuncID_morestack
++	case "runtime.mstart":
++		return FuncID_mstart
++	case "runtime.rt0_go":
++		return FuncID_rt0_go
++	case "runtime.asmcgocall":
++		return FuncID_asmcgocall
++	case "runtime.sigpanic":
++		return FuncID_sigpanic
++	case "runtime.runfinq":
++		return FuncID_runfinq
++	case "runtime.gcBgMarkWorker":
++		return FuncID_gcBgMarkWorker
++	case "runtime.systemstack_switch":
++		return FuncID_systemstack_switch
++	case "runtime.systemstack":
++		return FuncID_systemstack
++	case "runtime.cgocallback_gofunc":
++		return FuncID_cgocallback_gofunc
++	case "runtime.gogo":
++		return FuncID_gogo
++	case "runtime.externalthreadhandler":
++		return FuncID_externalthreadhandler
++	case "runtime.debugCallV1":
++		return FuncID_debugCallV1
++	case "runtime.gopanic":
++		return FuncID_gopanic
++	case "runtime.panicwrap":
++		return FuncID_panicwrap
++	}
++	if file == "<autogenerated>" && !strings.HasSuffix(name, ".init") {
++		return FuncID_wrapper
++	}
++	if strings.HasPrefix(name, "runtime.call") {
++		if _, err := strconv.Atoi(name[12:]); err == nil {
++			// runtime.callXX reflect call wrappers.
++			return FuncID_wrapper
++		}
++	}
++	return FuncID_normal
++}
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index ba098611c0..e4db834622 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -368,10 +368,13 @@ func (ctxt *Link) pclntab() {
+ 				numberfile(ctxt, call.File)
+ 				nameoff := nameToOffset(call.Func.Name)
+ 
+-				inlTreeSym.SetUint32(ctxt.Arch, int64(i*16+0), uint32(call.Parent))
+-				inlTreeSym.SetUint32(ctxt.Arch, int64(i*16+4), uint32(call.File.Value))
+-				inlTreeSym.SetUint32(ctxt.Arch, int64(i*16+8), uint32(call.Line))
+-				inlTreeSym.SetUint32(ctxt.Arch, int64(i*16+12), uint32(nameoff))
++				inlTreeSym.SetUint16(ctxt.Arch, int64(i*20+0), uint16(call.Parent))
++				inlTreeSym.SetUint8(ctxt.Arch, int64(i*20+2), uint8(objabi.GetFuncID(call.Func.Name, call.Func.File)))
++				// byte 3 is unused
++				inlTreeSym.SetUint32(ctxt.Arch, int64(i*20+4), uint32(call.File.Value))
++				inlTreeSym.SetUint32(ctxt.Arch, int64(i*20+8), uint32(call.Line))
++				inlTreeSym.SetUint32(ctxt.Arch, int64(i*20+12), uint32(nameoff))
++				inlTreeSym.SetUint32(ctxt.Arch, int64(i*20+16), uint32(call.ParentPC))
+ 			}
+ 
+ 			pcln.Funcdata[objabi.FUNCDATA_InlTree] = inlTreeSym
+@@ -386,43 +389,12 @@ func (ctxt *Link) pclntab() {
+ 		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(len(pcln.Pcdata))))
+ 
+ 		// funcID uint8
+-		funcID := objabi.FuncID_normal
+-		switch s.Name {
+-		case "runtime.main":
+-			funcID = objabi.FuncID_runtime_main
+-		case "runtime.goexit":
+-			funcID = objabi.FuncID_goexit
+-		case "runtime.jmpdefer":
+-			funcID = objabi.FuncID_jmpdefer
+-		case "runtime.mcall":
+-			funcID = objabi.FuncID_mcall
+-		case "runtime.morestack":
+-			funcID = objabi.FuncID_morestack
+-		case "runtime.mstart":
+-			funcID = objabi.FuncID_mstart
+-		case "runtime.rt0_go":
+-			funcID = objabi.FuncID_rt0_go
+-		case "runtime.asmcgocall":
+-			funcID = objabi.FuncID_asmcgocall
+-		case "runtime.sigpanic":
+-			funcID = objabi.FuncID_sigpanic
+-		case "runtime.runfinq":
+-			funcID = objabi.FuncID_runfinq
+-		case "runtime.gcBgMarkWorker":
+-			funcID = objabi.FuncID_gcBgMarkWorker
+-		case "runtime.systemstack_switch":
+-			funcID = objabi.FuncID_systemstack_switch
+-		case "runtime.systemstack":
+-			funcID = objabi.FuncID_systemstack
+-		case "runtime.cgocallback_gofunc":
+-			funcID = objabi.FuncID_cgocallback_gofunc
+-		case "runtime.gogo":
+-			funcID = objabi.FuncID_gogo
+-		case "runtime.externalthreadhandler":
+-			funcID = objabi.FuncID_externalthreadhandler
+-		case "runtime.debugCallV1":
+-			funcID = objabi.FuncID_debugCallV1
++		var file string
++		if s.FuncInfo != nil && len(s.FuncInfo.File) > 0 {
++			file = s.FuncInfo.File[0].Name
+ 		}
++		funcID := objabi.GetFuncID(s.Name, file)
++
+ 		off = int32(ftab.SetUint8(ctxt.Arch, int64(off), uint8(funcID)))
+ 
+ 		// unused
+diff --git a/src/cmd/link/internal/objfile/objfile.go b/src/cmd/link/internal/objfile/objfile.go
+index a85ba1ebee..b39e052106 100644
+--- a/src/cmd/link/internal/objfile/objfile.go
++++ b/src/cmd/link/internal/objfile/objfile.go
+@@ -318,6 +318,7 @@ overwrite:
+ 			pc.InlTree[i].File = r.readSymIndex()
+ 			pc.InlTree[i].Line = r.readInt32()
+ 			pc.InlTree[i].Func = r.readSymIndex()
++			pc.InlTree[i].ParentPC = r.readInt32()
+ 		}
+ 
+ 		if !dupok {
+diff --git a/src/cmd/link/internal/sym/symbol.go b/src/cmd/link/internal/sym/symbol.go
+index a1af4670a2..24b0d682c4 100644
+--- a/src/cmd/link/internal/sym/symbol.go
++++ b/src/cmd/link/internal/sym/symbol.go
+@@ -28,7 +28,7 @@ type Symbol struct {
+ 	Sub         *Symbol
+ 	Outer       *Symbol
+ 	Gotype      *Symbol
+-	File        string
++	File        string // actually package!
+ 	auxinfo     *AuxSymbol
+ 	Sect        *Section
+ 	FuncInfo    *FuncInfo
+@@ -150,6 +150,10 @@ func (s *Symbol) SetUint8(arch *sys.Arch, r int64, v uint8) int64 {
+ 	return s.setUintXX(arch, r, uint64(v), 1)
+ }
+ 
++func (s *Symbol) SetUint16(arch *sys.Arch, r int64, v uint16) int64 {
++	return s.setUintXX(arch, r, uint64(v), 2)
++}
++
+ func (s *Symbol) SetUint32(arch *sys.Arch, r int64, v uint32) int64 {
+ 	return s.setUintXX(arch, r, uint64(v), 4)
+ }
+@@ -507,10 +511,11 @@ type FuncInfo struct {
+ 
+ // InlinedCall is a node in a local inlining tree (FuncInfo.InlTree).
+ type InlinedCall struct {
+-	Parent int32   // index of parent in InlTree
+-	File   *Symbol // file of the inlined call
+-	Line   int32   // line number of the inlined call
+-	Func   *Symbol // function that was inlined
++	Parent   int32   // index of parent in InlTree
++	File     *Symbol // file of the inlined call
++	Line     int32   // line number of the inlined call
++	Func     *Symbol // function that was inlined
++	ParentPC int32   // PC of the instruction just before the inlined body (offset from function start)
+ }
+ 
+ type Pcdata struct {
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 997e1cb278..5e11eadb92 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -166,27 +166,13 @@ import "runtime/internal/sys"
+ // program counter, file name, and line number within the file of the corresponding
+ // call. The boolean ok is false if it was not possible to recover the information.
+ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
+-	// Make room for three PCs: the one we were asked for,
+-	// what it called, so that CallersFrames can see if it "called"
+-	// sigpanic, and possibly a PC for skipPleaseUseCallersFrames.
+-	var rpc [3]uintptr
+-	if callers(skip, rpc[:]) < 2 {
++	rpc := make([]uintptr, 1)
++	n := callers(skip+1, rpc[:])
++	if n < 1 {
+ 		return
+ 	}
+-	var stackExpander stackExpander
+-	callers := stackExpander.init(rpc[:])
+-	// We asked for one extra, so skip that one. If this is sigpanic,
+-	// stepping over this frame will set up state in Frames so the
+-	// next frame is correct.
+-	callers, _, ok = stackExpander.next(callers, true)
+-	if !ok {
+-		return
+-	}
+-	_, frame, _ := stackExpander.next(callers, true)
+-	pc = frame.PC
+-	file = frame.File
+-	line = frame.Line
+-	return
++	frame, _ := CallersFrames(rpc).Next()
++	return frame.PC, frame.File, frame.Line, frame.PC != 0
+ }
+ 
+ // Callers fills the slice pc with the return program counters of function invocations
+diff --git a/src/runtime/pprof/proto.go b/src/runtime/pprof/proto.go
+index bd5c8f7afc..7621fe2134 100644
+--- a/src/runtime/pprof/proto.go
++++ b/src/runtime/pprof/proto.go
+@@ -208,7 +208,7 @@ func (b *profileBuilder) pbMapping(tag int, id, base, limit, offset uint64, file
+ }
+ 
+ // locForPC returns the location ID for addr.
+-// addr must be a return PC. This returns the location of the call.
++// addr must a PC which is part of a call or the PC of an inline marker. This returns the location of the call.
+ // It may emit to b.pb, so there must be no message encoding in progress.
+ func (b *profileBuilder) locForPC(addr uintptr) uint64 {
+ 	id := uint64(b.locs[addr])
+@@ -236,7 +236,7 @@ func (b *profileBuilder) locForPC(addr uintptr) uint64 {
+ 	if frame.PC == 0 {
+ 		// If we failed to resolve the frame, at least make up
+ 		// a reasonable call PC. This mostly happens in tests.
+-		frame.PC = addr - 1
++		frame.PC = addr
+ 	}
+ 
+ 	// We can't write out functions while in the middle of the
+@@ -403,16 +403,7 @@ func (b *profileBuilder) build() {
+ 		}
+ 
+ 		locs = locs[:0]
+-		for i, addr := range e.stk {
+-			// Addresses from stack traces point to the
+-			// next instruction after each call, except
+-			// for the leaf, which points to where the
+-			// signal occurred. locForPC expects return
+-			// PCs, so increment the leaf address to look
+-			// like a return PC.
+-			if i == 0 {
+-				addr++
+-			}
++		for _, addr := range e.stk {
+ 			l := b.locForPC(addr)
+ 			if l == 0 { // runtime.goexit
+ 				continue
+diff --git a/src/runtime/pprof/proto_test.go b/src/runtime/pprof/proto_test.go
+index 4452d51231..9b2de5f644 100644
+--- a/src/runtime/pprof/proto_test.go
++++ b/src/runtime/pprof/proto_test.go
+@@ -133,11 +133,11 @@ func TestConvertCPUProfile(t *testing.T) {
+ 	samples := []*profile.Sample{
+ 		{Value: []int64{20, 20 * 2000 * 1000}, Location: []*profile.Location{
+ 			{ID: 1, Mapping: map1, Address: addr1},
+-			{ID: 2, Mapping: map1, Address: addr1 + 1},
++			{ID: 2, Mapping: map1, Address: addr1 + 2},
+ 		}},
+ 		{Value: []int64{40, 40 * 2000 * 1000}, Location: []*profile.Location{
+ 			{ID: 3, Mapping: map2, Address: addr2},
+-			{ID: 4, Mapping: map2, Address: addr2 + 1},
++			{ID: 4, Mapping: map2, Address: addr2 + 2},
+ 		}},
+ 	}
+ 	checkProfile(t, p, period, periodType, sampleType, samples, "")
+diff --git a/src/runtime/pprof/protomem_test.go b/src/runtime/pprof/protomem_test.go
+index 471b1ae9c3..65ef4edf8f 100644
+--- a/src/runtime/pprof/protomem_test.go
++++ b/src/runtime/pprof/protomem_test.go
+@@ -14,11 +14,7 @@ import (
+ func TestConvertMemProfile(t *testing.T) {
+ 	addr1, addr2, map1, map2 := testPCs(t)
+ 
+-	// MemProfileRecord stacks are return PCs, so add one to the
+-	// addresses recorded in the "profile". The proto profile
+-	// locations are call PCs, so conversion will subtract one
+-	// from these and get back to addr1 and addr2.
+-	a1, a2 := uintptr(addr1)+1, uintptr(addr2)+1
++	a1, a2 := uintptr(addr1), uintptr(addr2)
+ 	rate := int64(512 * 1024)
+ 	rec := []runtime.MemProfileRecord{
+ 		{AllocBytes: 4096, FreeBytes: 1024, AllocObjects: 4, FreeObjects: 1, Stack0: [32]uintptr{a1, a2}},
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index edda45c669..0fd4330944 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -13,17 +13,12 @@ import (
+ // Frames may be used to get function/file/line information for a
+ // slice of PC values returned by Callers.
+ type Frames struct {
+-	// callers is a slice of PCs that have not yet been expanded.
++	// callers is a slice of PCs that have not yet been expanded to frames.
+ 	callers []uintptr
+ 
+-	// stackExpander expands callers into a sequence of Frames,
+-	// tracking the necessary state across PCs.
+-	stackExpander stackExpander
+-
+-	// elideWrapper indicates that, if the next frame is an
+-	// autogenerated wrapper function, it should be elided from
+-	// the stack.
+-	elideWrapper bool
++	// frames is a slice of Frames that have yet to be returned.
++	frames     []Frame
++	frameStore [2]Frame
+ }
+ 
+ // Frame is the information returned by Frames for each call frame.
+@@ -59,224 +54,79 @@ type Frame struct {
+ 	Entry uintptr
+ }
+ 
+-// stackExpander expands a call stack of PCs into a sequence of
+-// Frames. It tracks state across PCs necessary to perform this
+-// expansion.
+-//
+-// This is the core of the Frames implementation, but is a separate
+-// internal API to make it possible to use within the runtime without
+-// heap-allocating the PC slice. The only difference with the public
+-// Frames API is that the caller is responsible for threading the PC
+-// slice between expansion steps in this API. If escape analysis were
+-// smarter, we may not need this (though it may have to be a lot
+-// smarter).
+-type stackExpander struct {
+-	// pcExpander expands the current PC into a sequence of Frames.
+-	pcExpander pcExpander
+-
+-	// If previous caller in iteration was a panic, then the next
+-	// PC in the call stack is the address of the faulting
+-	// instruction instead of the return address of the call.
+-	wasPanic bool
+-
+-	// skip > 0 indicates that skip frames in the expansion of the
+-	// first PC should be skipped over and callers[1] should also
+-	// be skipped.
+-	skip int
+-}
+-
+ // CallersFrames takes a slice of PC values returned by Callers and
+ // prepares to return function/file/line information.
+ // Do not change the slice until you are done with the Frames.
+ func CallersFrames(callers []uintptr) *Frames {
+-	ci := &Frames{}
+-	ci.callers = ci.stackExpander.init(callers)
+-	return ci
+-}
+-
+-func (se *stackExpander) init(callers []uintptr) []uintptr {
+-	if len(callers) >= 1 {
+-		pc := callers[0]
+-		s := pc - skipPC
+-		if s >= 0 && s < sizeofSkipFunction {
+-			// Ignore skip frame callers[0] since this means the caller trimmed the PC slice.
+-			return callers[1:]
+-		}
+-	}
+-	if len(callers) >= 2 {
+-		pc := callers[1]
+-		s := pc - skipPC
+-		if s > 0 && s < sizeofSkipFunction {
+-			// Skip the first s inlined frames when we expand the first PC.
+-			se.skip = int(s)
+-		}
+-	}
+-	return callers
++	f := &Frames{callers: callers}
++	f.frames = f.frameStore[:0]
++	return f
+ }
+ 
+ // Next returns frame information for the next caller.
+ // If more is false, there are no more callers (the Frame value is valid).
+ func (ci *Frames) Next() (frame Frame, more bool) {
+-	ci.callers, frame, more = ci.stackExpander.next(ci.callers, ci.elideWrapper)
+-	ci.elideWrapper = elideWrapperCalling(frame.Function)
+-	return
+-}
+-
+-func (se *stackExpander) next(callers []uintptr, elideWrapper bool) (ncallers []uintptr, frame Frame, more bool) {
+-	ncallers = callers
+-again:
+-	if !se.pcExpander.more {
+-		// Expand the next PC.
+-		if len(ncallers) == 0 {
+-			se.wasPanic = false
+-			return ncallers, Frame{}, false
++	for len(ci.frames) < 2 {
++		// Find the next frame.
++		// We need to look for 2 frames so we know what
++		// to return for the "more" result.
++		if len(ci.callers) == 0 {
++			break
+ 		}
+-		se.pcExpander.init(ncallers[0], se.wasPanic)
+-		ncallers = ncallers[1:]
+-		se.wasPanic = se.pcExpander.funcInfo.valid() && se.pcExpander.funcInfo.funcID == funcID_sigpanic
+-		if se.skip > 0 {
+-			for ; se.skip > 0; se.skip-- {
+-				se.pcExpander.next()
++		pc := ci.callers[0]
++		ci.callers = ci.callers[1:]
++		funcInfo := findfunc(pc)
++		if !funcInfo.valid() {
++			if cgoSymbolizer != nil {
++				// Pre-expand cgo frames. We could do this
++				// incrementally, too, but there's no way to
++				// avoid allocation in this case anyway.
++				ci.frames = append(ci.frames, expandCgoFrames(pc)...)
+ 			}
+-			se.skip = 0
+-			// Drop skipPleaseUseCallersFrames.
+-			ncallers = ncallers[1:]
+-		}
+-		if !se.pcExpander.more {
+-			// No symbolic information for this PC.
+-			// However, we return at least one frame for
+-			// every PC, so return an invalid frame.
+-			return ncallers, Frame{}, len(ncallers) > 0
+-		}
+-	}
+-
+-	frame = se.pcExpander.next()
+-	if elideWrapper && frame.File == "<autogenerated>" {
+-		// Ignore autogenerated functions such as pointer
+-		// method forwarding functions. These are an
+-		// implementation detail that doesn't reflect the
+-		// source code.
+-		goto again
+-	}
+-	return ncallers, frame, se.pcExpander.more || len(ncallers) > 0
+-}
+-
+-// A pcExpander expands a single PC into a sequence of Frames.
+-type pcExpander struct {
+-	// more indicates that the next call to next will return a
+-	// valid frame.
+-	more bool
+-
+-	// pc is the pc being expanded.
+-	pc uintptr
+-
+-	// frames is a pre-expanded set of Frames to return from the
+-	// iterator. If this is set, then this is everything that will
+-	// be returned from the iterator.
+-	frames []Frame
+-
+-	// funcInfo is the funcInfo of the function containing pc.
+-	funcInfo funcInfo
+-
+-	// inlTree is the inlining tree of the function containing pc.
+-	inlTree *[1 << 20]inlinedCall
+-
+-	// file and line are the file name and line number of the next
+-	// frame.
+-	file string
+-	line int32
+-
+-	// inlIndex is the inlining index of the next frame, or -1 if
+-	// the next frame is an outermost frame.
+-	inlIndex int32
+-}
+-
+-// init initializes this pcExpander to expand pc. It sets ex.more if
+-// pc expands to any Frames.
+-//
+-// A pcExpander can be reused by calling init again.
+-//
+-// If pc was a "call" to sigpanic, panicCall should be true. In this
+-// case, pc is treated as the address of a faulting instruction
+-// instead of the return address of a call.
+-func (ex *pcExpander) init(pc uintptr, panicCall bool) {
+-	ex.more = false
+-
+-	ex.funcInfo = findfunc(pc)
+-	if !ex.funcInfo.valid() {
+-		if cgoSymbolizer != nil {
+-			// Pre-expand cgo frames. We could do this
+-			// incrementally, too, but there's no way to
+-			// avoid allocation in this case anyway.
+-			ex.frames = expandCgoFrames(pc)
+-			ex.more = len(ex.frames) > 0
++			continue
+ 		}
+-		return
+-	}
+-
+-	ex.more = true
+-	entry := ex.funcInfo.entry
+-	ex.pc = pc
+-	if ex.pc > entry && !panicCall {
+-		ex.pc--
+-	}
+-
+-	// file and line are the innermost position at pc.
+-	ex.file, ex.line = funcline1(ex.funcInfo, ex.pc, false)
+-
+-	// Get inlining tree at pc
+-	inldata := funcdata(ex.funcInfo, _FUNCDATA_InlTree)
+-	if inldata != nil {
+-		ex.inlTree = (*[1 << 20]inlinedCall)(inldata)
+-		ex.inlIndex = pcdatavalue(ex.funcInfo, _PCDATA_InlTreeIndex, ex.pc, nil)
+-	} else {
+-		ex.inlTree = nil
+-		ex.inlIndex = -1
+-	}
+-}
+-
+-// next returns the next Frame in the expansion of pc and sets ex.more
+-// if there are more Frames to follow.
+-func (ex *pcExpander) next() Frame {
+-	if !ex.more {
+-		return Frame{}
+-	}
+-
+-	if len(ex.frames) > 0 {
+-		// Return pre-expended frame.
+-		frame := ex.frames[0]
+-		ex.frames = ex.frames[1:]
+-		ex.more = len(ex.frames) > 0
+-		return frame
+-	}
+-
+-	if ex.inlIndex >= 0 {
+-		// Return inner inlined frame.
+-		call := ex.inlTree[ex.inlIndex]
+-		frame := Frame{
+-			PC:       ex.pc,
+-			Func:     nil, // nil for inlined functions
+-			Function: funcnameFromNameoff(ex.funcInfo, call.func_),
+-			File:     ex.file,
+-			Line:     int(ex.line),
+-			Entry:    ex.funcInfo.entry,
++		f := funcInfo._Func()
++		entry := f.Entry()
++		name := funcname(funcInfo)
++		file, line := funcline1(funcInfo, pc, false)
++		if inldata := funcdata(funcInfo, _FUNCDATA_InlTree); inldata != nil {
++			inltree := (*[1 << 20]inlinedCall)(inldata)
++			ix := pcdatavalue(funcInfo, _PCDATA_InlTreeIndex, pc, nil)
++			if ix >= 0 {
++				// Note: entry is not modified. It always refers to a real frame, not an inlined one.
++				f = nil
++				name = funcnameFromNameoff(funcInfo, inltree[ix].func_)
++				// File/line is already correct.
++				// TODO: remove file/line from InlinedCall?
++			}
+ 		}
+-		ex.file = funcfile(ex.funcInfo, call.file)
+-		ex.line = call.line
+-		ex.inlIndex = call.parent
+-		return frame
++		ci.frames = append(ci.frames, Frame{
++			PC:       pc,
++			Func:     f,
++			Function: name,
++			File:     file,
++			Line:     int(line),
++			Entry:    entry,
++		})
+ 	}
+ 
+-	// No inlining or pre-expanded frames.
+-	ex.more = false
+-	return Frame{
+-		PC:       ex.pc,
+-		Func:     ex.funcInfo._Func(),
+-		Function: funcname(ex.funcInfo),
+-		File:     ex.file,
+-		Line:     int(ex.line),
+-		Entry:    ex.funcInfo.entry,
+-	}
++	// Pop one frame from the frame list. Keep the rest.
++	// Avoid allocation in the common case, which is 1 or 2 frames.
++	switch len(ci.frames) {
++	case 0: // In the rare case when there are no frames at all, we return Frame{}.
++	case 1:
++		frame = ci.frames[0]
++		ci.frames = ci.frameStore[:0]
++	case 2:
++		frame = ci.frames[0]
++		ci.frameStore[0] = ci.frames[1]
++		ci.frames = ci.frameStore[:1]
++	default:
++		frame = ci.frames[0]
++		ci.frames = ci.frames[1:]
++	}
++	more = len(ci.frames) > 0
++	return
+ }
+ 
+ // expandCgoFrames expands frame information for pc, known to be
+@@ -378,6 +228,9 @@ const (
+ 	funcID_gogo
+ 	funcID_externalthreadhandler
+ 	funcID_debugCallV1
++	funcID_gopanic
++	funcID_panicwrap
++	funcID_wrapper // any autogenerated code (hash/eq algorithms, method wrappers, etc.)
+ )
+ 
+ // moduledata records information about the layout of the executable
+@@ -943,8 +796,11 @@ func stackmapdata(stkmap *stackmap, n int32) bitvector {
+ 
+ // inlinedCall is the encoding of entries in the FUNCDATA_InlTree table.
+ type inlinedCall struct {
+-	parent int32 // index of parent in the inltree, or < 0
+-	file   int32 // fileno index into filetab
+-	line   int32 // line number of the call site
+-	func_  int32 // offset into pclntab for name of called function
++	parent   int16  // index of parent in the inltree, or < 0
++	funcID   funcID // type of the called function
++	_        byte
++	file     int32 // fileno index into filetab
++	line     int32 // line number of the call site
++	func_    int32 // offset into pclntab for name of called function
++	parentPc int32 // position of an instruction whose source position is the call site (offset from entry)
+ }
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 0328fee4e6..da15ed0680 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -179,6 +179,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 
+ 	var cache pcvalueCache
+ 
++	lastFuncID := funcID_normal
+ 	n := 0
+ 	for n < max {
+ 		// Typically:
+@@ -344,48 +345,44 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 		}
+ 
+ 		if pcbuf != nil {
+-			if skip == 0 {
+-				(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = frame.pc
+-			} else {
+-				// backup to CALL instruction to read inlining info (same logic as below)
+-				tracepc := frame.pc
+-				if (n > 0 || flags&_TraceTrap == 0) && frame.pc > f.entry && !waspanic {
+-					tracepc--
+-				}
+-				inldata := funcdata(f, _FUNCDATA_InlTree)
+-
+-				// no inlining info, skip the physical frame
+-				if inldata == nil {
+-					skip--
+-					goto skipped
+-				}
++			// backup to CALL instruction to read inlining info (same logic as below)
++			tracepc := frame.pc
++			if (n > 0 || flags&_TraceTrap == 0) && frame.pc > f.entry && !waspanic {
++				tracepc--
++			}
+ 
+-				ix := pcdatavalue(f, _PCDATA_InlTreeIndex, tracepc, &cache)
++			// If there is inlining info, record the inner frames.
++			if inldata := funcdata(f, _FUNCDATA_InlTree); inldata != nil {
+ 				inltree := (*[1 << 20]inlinedCall)(inldata)
+-				// skip the logical (inlined) frames
+-				logicalSkipped := 0
+-				for ix >= 0 && skip > 0 {
+-					skip--
+-					logicalSkipped++
+-					ix = inltree[ix].parent
+-				}
+-
+-				// skip the physical frame if there's more to skip
+-				if skip > 0 {
+-					skip--
+-					goto skipped
+-				}
+-
+-				// now we have a partially skipped frame
+-				(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = frame.pc
+-
+-				// if there's room, pcbuf[1] is a skip PC that encodes the number of skipped frames in pcbuf[0]
+-				if n+1 < max {
+-					n++
+-					pc := skipPC + uintptr(logicalSkipped)
+-					(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = pc
++				for {
++					ix := pcdatavalue(f, _PCDATA_InlTreeIndex, tracepc, &cache)
++					if ix < 0 {
++						break
++					}
++					if inltree[ix].funcID == funcID_wrapper && elideWrapperCalling(lastFuncID) {
++						// ignore wrappers
++					} else if skip > 0 {
++						skip--
++					} else if n < max {
++						(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = tracepc
++						n++
++					}
++					lastFuncID = inltree[ix].funcID
++					// Back up to an instruction in the "caller".
++					tracepc = frame.fn.entry + uintptr(inltree[ix].parentPc)
+ 				}
+ 			}
++			// Record the main frame.
++			if f.funcID == funcID_wrapper && elideWrapperCalling(lastFuncID) {
++				// Ignore wrapper functions (except when they trigger panics).
++			} else if skip > 0 {
++				skip--
++			} else if n < max {
++				(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = tracepc
++				n++
++			}
++			lastFuncID = f.funcID
++			n-- // offset n++ below
+ 		}
+ 
+ 		if printing {
+@@ -396,7 +393,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 			// called panic rather than the wrapped
+ 			// function. Otherwise, leave them out.
+ 			name := funcname(f)
+-			nextElideWrapper := elideWrapperCalling(name)
++			nextElideWrapper := elideWrapperCalling(f.funcID)
+ 			if (flags&_TraceRuntimeFrames) != 0 || showframe(f, gp, nprint == 0, elideWrapper && nprint != 0) {
+ 				// Print during crash.
+ 				//	main(0x1, 0x2, 0x3)
+@@ -418,7 +415,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 
+ 						file = funcfile(f, inltree[ix].file)
+ 						line = inltree[ix].line
+-						ix = inltree[ix].parent
++						ix = int32(inltree[ix].parent)
+ 					}
+ 				}
+ 				if name == "runtime.gopanic" {
+@@ -451,7 +448,6 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 		}
+ 		n++
+ 
+-	skipped:
+ 		if f.funcID == funcID_cgocallback_gofunc && len(cgoCtxt) > 0 {
+ 			ctxt := cgoCtxt[len(cgoCtxt)-1]
+ 			cgoCtxt = cgoCtxt[:len(cgoCtxt)-1]
+@@ -798,7 +794,7 @@ func printAncestorTracebackFuncInfo(f funcInfo, pc uintptr) bool {
+ 
+ 			file = funcfile(f, inltree[ix].file)
+ 			line = inltree[ix].line
+-			ix = inltree[ix].parent
++			ix = int32(inltree[ix].parent)
+ 		}
+ 	}
+ 	name := funcname(f)
+@@ -811,7 +807,7 @@ func printAncestorTracebackFuncInfo(f funcInfo, pc uintptr) bool {
+ 		print(" +", hex(pc-f.entry))
+ 	}
+ 	print("\n")
+-	return elideWrapperCalling(name)
++	return elideWrapperCalling(f.funcID)
+ }
+ 
+ func callers(skip int, pcbuf []uintptr) int {
+@@ -877,11 +873,11 @@ func isExportedRuntime(name string) bool {
+ }
+ 
+ // elideWrapperCalling reports whether a wrapper function that called
+-// function "name" should be elided from stack traces.
+-func elideWrapperCalling(name string) bool {
++// function id should be elided from stack traces.
++func elideWrapperCalling(id funcID) bool {
+ 	// If the wrapper called a panic function instead of the
+ 	// wrapped function, we want to include it in stacks.
+-	return !(name == "runtime.gopanic" || name == "runtime.sigpanic" || name == "runtime.panicwrap")
++	return !(id == funcID_gopanic || id == funcID_sigpanic || id == funcID_panicwrap)
+ }
+ 
+ var gStatusStrings = [...]string{
+diff --git a/test/fixedbugs/issue5856.go b/test/fixedbugs/issue5856.go
+index 5e16c78b4d..f13258854e 100644
+--- a/test/fixedbugs/issue5856.go
++++ b/test/fixedbugs/issue5856.go
+@@ -29,7 +29,7 @@ func f() {
+ }
+ 
+ func g() {
+-	_, file, line, _ := runtime.Caller(3)
++	_, file, line, _ := runtime.Caller(2)
+ 	if !strings.HasSuffix(file, "issue5856.go") || line != 28 {
+ 		fmt.Printf("BUG: defer called from %s:%d, want issue5856.go:28\n", file, line)
+ 		os.Exit(1)
+diff --git a/test/inline_callers.go b/test/inline_callers.go
+index 6df6861951..f2c05622dd 100644
+--- a/test/inline_callers.go
++++ b/test/inline_callers.go
+@@ -56,11 +56,11 @@ func testCallersFrames(skp int) (frames []string) {
+ }
+ 
+ var expectedFrames [][]string = [][]string{
+-	0: {"runtime.Callers", "main.testCallers", "main.main"},
+-	1: {"main.testCallers", "main.main"},
+-	2: {"main.testCallers", "runtime.skipPleaseUseCallersFrames", "main.main"},
+-	3: {"main.testCallers", "runtime.skipPleaseUseCallersFrames", "main.main"},
+-	4: {"main.testCallers", "runtime.skipPleaseUseCallersFrames", "main.main"},
++	0: {"runtime.Callers", "main.testCallers", "main.testCallers", "main.testCallers", "main.testCallers", "main.main"},
++	1: {"main.testCallers", "main.testCallers", "main.testCallers", "main.testCallers", "main.main"},
++	2: {"main.testCallers", "main.testCallers", "main.testCallers", "main.main"},
++	3: {"main.testCallers", "main.testCallers", "main.main"},
++	4: {"main.testCallers", "main.main"},
+ 	5: {"main.main"},
+ }
+ 

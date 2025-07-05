@@ -13,6 +13,62 @@ Date:   Mon Apr 4 23:01:16 2022 +0800
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Trust: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/noder/noder.go | 37 +++++++++++++++++++--------------
  1 file changed, 21 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 77ca642183..bbd73aa8be 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -33,29 +33,34 @@ func LoadPackage(filenames []string) {
+ 	sem := make(chan struct{}, runtime.GOMAXPROCS(0)+10)
+ 
+ 	noders := make([]*noder, len(filenames))
+-	for i, filename := range filenames {
++	for i := range noders {
+ 		p := noder{
+ 			err: make(chan syntax.Error),
+ 		}
+ 		noders[i] = &p
++	}
+ 
+-		filename := filename
+-		go func() {
++	go func() {
++		for i, filename := range filenames {
++			filename := filename
++			p := noders[i]
+ 			sem <- struct{}{}
+-			defer func() { <-sem }()
+-			defer close(p.err)
+-			fbase := syntax.NewFileBase(filename)
+-
+-			f, err := os.Open(filename)
+-			if err != nil {
+-				p.error(syntax.Error{Msg: err.Error()})
+-				return
+-			}
+-			defer f.Close()
++			go func() {
++				defer func() { <-sem }()
++				defer close(p.err)
++				fbase := syntax.NewFileBase(filename)
++
++				f, err := os.Open(filename)
++				if err != nil {
++					p.error(syntax.Error{Msg: err.Error()})
++					return
++				}
++				defer f.Close()
+ 
+-			p.file, _ = syntax.Parse(fbase, f, p.error, p.pragma, mode) // errors are tracked via p.error
+-		}()
+-	}
++				p.file, _ = syntax.Parse(fbase, f, p.error, p.pragma, mode) // errors are tracked via p.error
++			}()
++		}
++	}()
+ 
+ 	var lines uint
+ 	for _, p := range noders {

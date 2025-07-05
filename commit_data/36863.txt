@@ -11,9 +11,82 @@ Date:   Mon Jun 4 16:32:07 2018 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/error.go               |  7 ++++++-
  test/fixedbugs/issue18911.dir/a.go |  7 +++++++
  test/fixedbugs/issue18911.dir/b.go | 21 +++++++++++++++++++++
  test/fixedbugs/issue18911.go       |  7 +++++++
  4 files changed, 41 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/error.go b/src/runtime/error.go
+index 4b6fb32b78..1f77c0a0b5 100644
+--- a/src/runtime/error.go
++++ b/src/runtime/error.go
+@@ -36,8 +36,13 @@ func (e *TypeAssertionError) Error() string {
+ 		return "interface conversion: " + inter + " is nil, not " + e.assertedString
+ 	}
+ 	if e.missingMethod == "" {
+-		return "interface conversion: " + inter + " is " + e.concreteString +
++		msg := "interface conversion: " + inter + " is " + e.concreteString +
+ 			", not " + e.assertedString
++		if e.concreteString == e.assertedString {
++			// provide slightly clearer error message
++			msg += " (types from different packages)"
++		}
++		return msg
+ 	}
+ 	return "interface conversion: " + e.concreteString + " is not " + e.assertedString +
+ 		": missing method " + e.missingMethod
+diff --git a/test/fixedbugs/issue18911.dir/a.go b/test/fixedbugs/issue18911.dir/a.go
+new file mode 100644
+index 0000000000..d2221e7612
+--- /dev/null
++++ b/test/fixedbugs/issue18911.dir/a.go
+@@ -0,0 +1,7 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++var X interface{} = struct{ x int }{}
+diff --git a/test/fixedbugs/issue18911.dir/b.go b/test/fixedbugs/issue18911.dir/b.go
+new file mode 100644
+index 0000000000..da2388b88d
+--- /dev/null
++++ b/test/fixedbugs/issue18911.dir/b.go
+@@ -0,0 +1,21 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "./a"
++import "strings"
++
++func main() {
++	defer func() {
++		p, ok := recover().(error)
++		if ok && strings.Contains(p.Error(), "different packages") {
++			return
++		}
++		panic(p)
++	}()
++
++	// expected to fail and report two identical looking (but different) types
++	_ = a.X.(struct{ x int })
++}
+diff --git a/test/fixedbugs/issue18911.go b/test/fixedbugs/issue18911.go
+new file mode 100644
+index 0000000000..8bf34a382a
+--- /dev/null
++++ b/test/fixedbugs/issue18911.go
+@@ -0,0 +1,7 @@
++// rundir
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignore

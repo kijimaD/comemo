@@ -24,7 +24,51 @@ Date:   Thu Dec 20 11:10:06 2018 -0800
     Reviewed-on: https://go-review.googlesource.com/c/155380
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/universe.go | 3 +++
  test/fixedbugs/issue29350.go            | 9 +++++++++
  2 files changed, 12 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index 745ce66bba..104c6bab23 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -386,6 +386,7 @@ func lexinit1() {
+ 	types.Errortype.Sym = s
+ 	types.Errortype.Orig = makeErrorInterface()
+ 	s.Def = asTypesNode(typenod(types.Errortype))
++	dowidth(types.Errortype)
+ 
+ 	// We create separate byte and rune types for better error messages
+ 	// rather than just creating type alias *types.Sym's for the uint8 and
+@@ -401,6 +402,7 @@ func lexinit1() {
+ 	types.Bytetype.Sym = s
+ 	s.Def = asTypesNode(typenod(types.Bytetype))
+ 	asNode(s.Def).Name = new(Name)
++	dowidth(types.Bytetype)
+ 
+ 	// rune alias
+ 	s = builtinpkg.Lookup("rune")
+@@ -408,6 +410,7 @@ func lexinit1() {
+ 	types.Runetype.Sym = s
+ 	s.Def = asTypesNode(typenod(types.Runetype))
+ 	asNode(s.Def).Name = new(Name)
++	dowidth(types.Runetype)
+ 
+ 	// backend-dependent builtin types (e.g. int).
+ 	for _, s := range typedefs {
+diff --git a/test/fixedbugs/issue29350.go b/test/fixedbugs/issue29350.go
+new file mode 100644
+index 0000000000..9d59f6f6c0
+--- /dev/null
++++ b/test/fixedbugs/issue29350.go
+@@ -0,0 +1,9 @@
++// compile
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++var X interface{} = 'x'

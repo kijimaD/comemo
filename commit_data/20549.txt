@@ -10,7 +10,7 @@ Date:   Wed Sep 17 14:49:32 2014 -0400
     R=bradfitz, r, dvyukov
     CC=golang-codereviews, iant, khr
     https://golang.org/cl/143150043
-
+---
  src/runtime/malloc.c       |  5 ++++-
  src/runtime/malloc.go      |  2 +-
  src/runtime/malloc.h       |  3 +++
@@ -19,3 +19,152 @@ Date:   Wed Sep 17 14:49:32 2014 -0400
  src/runtime/mheap.c        |  4 ++++
  src/testing/allocs_test.go | 29 +++++++++++++++++++++++++++++
  7 files changed, 43 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/malloc.c b/src/runtime/malloc.c
+index cfb698ac21..d5f2b9ab80 100644
+--- a/src/runtime/malloc.c
++++ b/src/runtime/malloc.c
+@@ -79,6 +79,8 @@ runtime·purgecachedstats(MCache *c)
+ 	h = &runtime·mheap;
+ 	mstats.heap_alloc += c->local_cachealloc;
+ 	c->local_cachealloc = 0;
++	mstats.tinyallocs += c->local_tinyallocs;
++	c->local_tinyallocs = 0;
+ 	mstats.nlookup += c->local_nlookup;
+ 	c->local_nlookup = 0;
+ 	h->largefree += c->local_largefree;
+@@ -92,9 +94,10 @@ runtime·purgecachedstats(MCache *c)
+ }
+ 
+ // Size of the trailing by_size array differs between Go and C,
++// and all data after by_size is local to C, not exported to Go.
+ // NumSizeClasses was changed, but we can not change Go struct because of backward compatibility.
+ // sizeof_C_MStats is what C thinks about size of Go struct.
+-uintptr runtime·sizeof_C_MStats = sizeof(MStats) - (NumSizeClasses - 61) * sizeof(mstats.by_size[0]);
++uintptr runtime·sizeof_C_MStats = offsetof(MStats, by_size[61]);
+ 
+ #define MaxArena32 (2U<<30)
+ 
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index acf6b48f84..fc22cc29e4 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -103,7 +103,6 @@ func mallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
+ 			// standalone escaping variables. On a json benchmark
+ 			// the allocator reduces number of allocations by ~12% and
+ 			// reduces heap size by ~20%.
+-
+ 			tinysize := uintptr(c.tinysize)
+ 			if size <= tinysize {
+ 				tiny := unsafe.Pointer(c.tiny)
+@@ -121,6 +120,7 @@ func mallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
+ 					x = tiny
+ 					c.tiny = (*byte)(add(x, size))
+ 					c.tinysize -= uintptr(size1)
++					c.local_tinyallocs++
+ 					if debugMalloc {
+ 						mp := acquirem()
+ 						if mp.mallocing == 0 {
+diff --git a/src/runtime/malloc.h b/src/runtime/malloc.h
+index 3f1981f708..410a007173 100644
+--- a/src/runtime/malloc.h
++++ b/src/runtime/malloc.h
+@@ -278,6 +278,8 @@ struct MStats
+ 		uint64 nmalloc;
+ 		uint64 nfree;
+ 	} by_size[NumSizeClasses];
++	
++	uint64	tinyallocs;	// number of tiny allocations that didn't cause actual allocation; not exported to Go directly
+ };
+ 
+ #define mstats runtime·memstats
+@@ -331,6 +333,7 @@ struct MCache
+ 	// See "Tiny allocator" comment in malloc.goc.
+ 	byte*	tiny;
+ 	uintptr	tinysize;
++	uintptr	local_tinyallocs;	// number of tiny allocs not counted in other stats
+ 	// The rest is not accessed on every malloc.
+ 	MSpan*	alloc[NumSizeClasses];	// spans to allocate from
+ 
+diff --git a/src/runtime/mem.go b/src/runtime/mem.go
+index 99bb928511..b3c216f18e 100644
+--- a/src/runtime/mem.go
++++ b/src/runtime/mem.go
+@@ -64,7 +64,7 @@ func init() {
+ 	var memStats MemStats
+ 	if sizeof_C_MStats != unsafe.Sizeof(memStats) {
+ 		println(sizeof_C_MStats, unsafe.Sizeof(memStats))
+-		panic("MStats vs MemStatsType size mismatch")
++		gothrow("MStats vs MemStatsType size mismatch")
+ 	}
+ }
+ 
+diff --git a/src/runtime/mgc0.c b/src/runtime/mgc0.c
+index 35aed78a53..4e901726f6 100644
+--- a/src/runtime/mgc0.c
++++ b/src/runtime/mgc0.c
+@@ -1245,6 +1245,7 @@ runtime·updatememstats(GCStats *stats)
+ 		mstats.by_size[i].nmalloc += runtime·mheap.nsmallfree[i];
+ 		smallfree += runtime·mheap.nsmallfree[i] * runtime·class_to_size[i];
+ 	}
++	mstats.nfree += mstats.tinyallocs;
+ 	mstats.nmalloc += mstats.nfree;
+ 
+ 	// Calculate derived stats.
+diff --git a/src/runtime/mheap.c b/src/runtime/mheap.c
+index 902a5c71a2..bb203d5ce5 100644
+--- a/src/runtime/mheap.c
++++ b/src/runtime/mheap.c
+@@ -184,6 +184,8 @@ mheap_alloc(MHeap *h, uintptr npage, int32 sizeclass, bool large)
+ 	// transfer stats from cache to global
+ 	mstats.heap_alloc += g->m->mcache->local_cachealloc;
+ 	g->m->mcache->local_cachealloc = 0;
++	mstats.tinyallocs += g->m->mcache->local_tinyallocs;
++	g->m->mcache->local_tinyallocs = 0;
+ 
+ 	s = MHeap_AllocSpanLocked(h, npage);
+ 	if(s != nil) {
+@@ -465,6 +467,8 @@ mheap_free(MHeap *h, MSpan *s, int32 acct)
+ 	runtime·lock(&h->lock);
+ 	mstats.heap_alloc += g->m->mcache->local_cachealloc;
+ 	g->m->mcache->local_cachealloc = 0;
++	mstats.tinyallocs += g->m->mcache->local_tinyallocs;
++	g->m->mcache->local_tinyallocs = 0;
+ 	if(acct) {
+ 		mstats.heap_alloc -= s->npages<<PageShift;
+ 		mstats.heap_objects--;
+diff --git a/src/testing/allocs_test.go b/src/testing/allocs_test.go
+new file mode 100644
+index 0000000000..ec17daa2b1
+--- /dev/null
++++ b/src/testing/allocs_test.go
+@@ -0,0 +1,29 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package testing_test
++
++import "testing"
++
++var global interface{}
++
++var allocsPerRunTests = []struct {
++	name   string
++	fn     func()
++	allocs float64
++}{
++	{"alloc *byte", func() { global = new(*byte) }, 1},
++	{"alloc complex128", func() { global = new(complex128) }, 1},
++	{"alloc float64", func() { global = new(float64) }, 1},
++	{"alloc int32", func() { global = new(int32) }, 1},
++	{"alloc byte", func() { global = new(byte) }, 1},
++}
++
++func TestAllocsPerRun(t *testing.T) {
++	for _, tt := range allocsPerRunTests {
++		if allocs := testing.AllocsPerRun(100, tt.fn); allocs != tt.allocs {
++			t.Errorf("AllocsPerRun(100, %s) = %v, want %v", tt.name, allocs, tt.allocs)
++		}
++	}
++}

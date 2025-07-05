@@ -13,8 +13,94 @@ Date:   Tue Mar 3 07:45:06 2015 -0500
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/time/sleep_test.go    |  4 ++++
  src/time/zoneinfo_ios.go  | 51 +++++++++++++++++++++++++++++++++++++++++++++++
  src/time/zoneinfo_unix.go |  2 +-
  3 files changed, 56 insertions(+), 1 deletion(-)
+
+diff --git a/src/time/sleep_test.go b/src/time/sleep_test.go
+index c9b2956b78..6452a9e027 100644
+--- a/src/time/sleep_test.go
++++ b/src/time/sleep_test.go
+@@ -383,6 +383,10 @@ func TestOverflowSleep(t *testing.T) {
+ // Test that a panic while deleting a timer does not leave
+ // the timers mutex held, deadlocking a ticker.Stop in a defer.
+ func TestIssue5745(t *testing.T) {
++	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
++		t.Skipf("skipping on %s/%s, see issue 10043", runtime.GOOS, runtime.GOARCH)
++	}
++
+ 	ticker := NewTicker(Hour)
+ 	defer func() {
+ 		// would deadlock here before the fix due to
+diff --git a/src/time/zoneinfo_ios.go b/src/time/zoneinfo_ios.go
+new file mode 100644
+index 0000000000..f09166c89e
+--- /dev/null
++++ b/src/time/zoneinfo_ios.go
+@@ -0,0 +1,51 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin
++// +build arm arm64
++
++package time
++
++import "syscall"
++
++var zoneFile string
++
++func init() {
++	wd, err := syscall.Getwd()
++	if err != nil {
++		return
++	}
++
++	// The working directory at initialization is the root of the
++	// app bundle: "/private/.../bundlename.app". That's where we
++	// keep zoneinfo.zip.
++	zoneFile = wd + "/zoneinfo.zip"
++}
++
++func forceZipFileForTesting(zipOnly bool) {
++	// On iOS we only have the zip file.
++}
++
++func initTestingZone() {
++	z, err := loadZoneFile(zoneFile, "America/Los_Angeles")
++	if err != nil {
++		panic("cannot load America/Los_Angeles for testing: " + err.Error())
++	}
++	z.name = "Local"
++	localLoc = *z
++}
++
++func initLocal() {
++	// TODO(crawshaw): [NSTimeZone localTimeZone]
++	localLoc = *UTC
++}
++
++func loadLocation(name string) (*Location, error) {
++	z, err := loadZoneFile(zoneFile, name)
++	if err != nil {
++		return nil, err
++	}
++	z.name = name
++	return z, nil
++}
+diff --git a/src/time/zoneinfo_unix.go b/src/time/zoneinfo_unix.go
+index 66540969d5..ed9502da57 100644
+--- a/src/time/zoneinfo_unix.go
++++ b/src/time/zoneinfo_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++// +build darwin,386 darwin,amd64 dragonfly freebsd linux nacl netbsd openbsd solaris
+ 
+ // Parse "zoneinfo" time zone file.
+ // This is a fairly standard file format used on OS X, Linux, BSD, Sun, and others.

@@ -16,9 +16,117 @@ Date:   Tue Sep 17 17:10:48 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/13280050
-
+---
  src/cmd/go/build.go |  3 ++-
  src/cmd/go/doc.go   | 23 ++++++++++++++++++++++-
  src/cmd/go/help.go  | 22 ++++++++++++++++++++++
  src/cmd/go/main.go  |  1 +
  4 files changed, 47 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index e8a9430c1a..bdbe490ad6 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -94,7 +94,8 @@ in an element in the list, surround it with either single or double quotes.
+ 
+ For more about specifying packages, see 'go help packages'.
+ For more about where packages and binaries are installed,
+-see 'go help gopath'.
++run 'go help gopath'.  For more about calling between Go and C/C++,
++run 'go help c'.
+ 
+ See also: go install, go get, go clean.
+ 	`,
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index 46905c1cf9..ffb2ee33a4 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -32,6 +32,7 @@ Use "go help [command]" for more information about a command.
+ 
+ Additional help topics:
+ 
++    c           calling between Go and C/C++
+     gopath      GOPATH environment variable
+     packages    description of package lists
+     remote      remote import path syntax
+@@ -111,7 +112,8 @@ in an element in the list, surround it with either single or double quotes.
+ 
+ For more about specifying packages, see 'go help packages'.
+ For more about where packages and binaries are installed,
+-see 'go help gopath'.
++run 'go help gopath'.  For more about calling between Go and C/C++,
++run 'go help c'.
+ 
+ See also: go install, go get, go clean.
+ 
+@@ -463,6 +465,25 @@ The -x flag prints commands as they are executed.
+ See also: go fmt, go fix.
+ 
+ 
++Calling between Go and C
++
++There are two different ways to call between Go and C/C++ code.
++
++The first is the cgo tool, which is part of the Go distribution.  For
++information on how to use it see the cgo documentation (godoc cmd/cgo).
++
++The second is the SWIG program, which is a general tool for
++interfacing between languages.  For information on SWIG see
++http://swig.org/.  When running go build, any file with a .swig
++extension will be passed to SWIG.  Any file with a .swigcxx extension
++will be passed to SWIG with the -c++ option.
++
++When either cgo or SWIG is used, go build will pass any .c, .s, or .S
++files to the C compiler, and any .cc, .cpp, .cxx files to the C++
++compiler.  The CC or CXX environment variables may be set to determine
++the C or C++ compiler, respectively, to use.
++
++
+ GOPATH environment variable
+ 
+ The Go path is used to resolve import statements.
+diff --git a/src/cmd/go/help.go b/src/cmd/go/help.go
+index 8028fe8a9e..d10043efe1 100644
+--- a/src/cmd/go/help.go
++++ b/src/cmd/go/help.go
+@@ -4,6 +4,28 @@
+ 
+ package main
+ 
++var helpC = &Command{
++	UsageLine: "c",
++	Short:     "calling between Go and C/C++",
++	Long: `
++There are two different ways to call between Go and C/C++ code.
++
++The first is the cgo tool, which is part of the Go distribution.  For
++information on how to use it see the cgo documentation (godoc cmd/cgo).
++
++The second is the SWIG program, which is a general tool for
++interfacing between languages.  For information on SWIG see
++http://swig.org/.  When running go build, any file with a .swig
++extension will be passed to SWIG.  Any file with a .swigcxx extension
++will be passed to SWIG with the -c++ option.
++
++When either cgo or SWIG is used, go build will pass any .c, .s, or .S
++files to the C compiler, and any .cc, .cpp, .cxx files to the C++
++compiler.  The CC or CXX environment variables may be set to determine
++the C or C++ compiler, respectively, to use.
++	`,
++}
++
+ var helpPackages = &Command{
+ 	UsageLine: "packages",
+ 	Short:     "description of package lists",
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 1553c88d60..ac2a7ea286 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -88,6 +88,7 @@ var commands = []*Command{
+ 	cmdVersion,
+ 	cmdVet,
+ 
++	helpC,
+ 	helpGopath,
+ 	helpPackages,
+ 	helpRemote,

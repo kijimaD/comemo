@@ -8,6 +8,20 @@ Date:   Thu May 1 16:29:34 2014 -0400
     R=golang-codereviews, dsymonds, adg, crawshaw, r, nigeltao, sameer, iant, robsc, djd, michael.j.fromberger, gmlewis, adonovan, rsc
     CC=golang-codereviews
     https://golang.org/cl/98880043
-
+---
  src/pkg/html/template/js.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/html/template/js.go b/src/pkg/html/template/js.go
+index d594e0ad71..999a61ed07 100644
+--- a/src/pkg/html/template/js.go
++++ b/src/pkg/html/template/js.go
+@@ -99,7 +99,7 @@ func nextJSCtx(s []byte, preceding jsCtx) jsCtx {
+ 	return jsCtxDivOp
+ }
+ 
+-// regexPrecederKeywords is a set of reserved JS keywords that can precede a
++// regexpPrecederKeywords is a set of reserved JS keywords that can precede a
+ // regular expression in JS source.
+ var regexpPrecederKeywords = map[string]bool{
+ 	"break":      true,

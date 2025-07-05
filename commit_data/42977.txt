@@ -13,6 +13,20 @@ Date:   Thu Feb 27 11:11:48 2020 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/flag/flag.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/flag/flag.go b/src/flag/flag.go
+index 6a51617524..abf20b6240 100644
+--- a/src/flag/flag.go
++++ b/src/flag/flag.go
+@@ -331,7 +331,7 @@ type FlagSet struct {
+ 	formal        map[string]*Flag
+ 	args          []string // arguments after flags
+ 	errorHandling ErrorHandling
+-	output        io.Writer // nil means stderr; use out() accessor
++	output        io.Writer // nil means stderr; use Output() accessor
+ }
+ 
+ // A Flag represents the state of a flag.

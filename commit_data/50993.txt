@@ -14,6 +14,32 @@ Date:   Tue Nov 23 12:25:10 2021 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/runtime/crash_cgo_test.go | 7 +------
  1 file changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 45ee6d6905..bfb260a143 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -94,11 +94,6 @@ func TestCgoExternalThreadSIGPROF(t *testing.T) {
+ 	case "plan9", "windows":
+ 		t.Skipf("no pthreads on %s", runtime.GOOS)
+ 	}
+-	if runtime.GOARCH == "ppc64" && runtime.GOOS == "linux" {
+-		// TODO(austin) External linking not implemented on
+-		// linux/ppc64 (issue #8912)
+-		t.Skipf("no external linking on ppc64")
+-	}
+ 
+ 	exe, err := buildTestProg(t, "testprogcgo", "-tags=threadprof")
+ 	if err != nil {
+@@ -128,7 +123,7 @@ func TestCgoExternalThreadSignal(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	got, err := testenv.CleanCmdEnv(exec.Command(exe, "CgoExternalThreadSIGPROF")).CombinedOutput()
++	got, err := testenv.CleanCmdEnv(exec.Command(exe, "CgoExternalThreadSignal")).CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("exit status: %v\n%s", err, got)
+ 	}

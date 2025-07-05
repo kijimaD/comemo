@@ -11,7 +11,7 @@ Date:   Wed Nov 19 19:11:01 2008 -0800
     DELTA=1747  (864 added, 855 deleted, 28 changed)
     OCL=19666
     CL=19666
-
+---
  src/cmd/gobuild/gobuild.c                             |  4 ++--
  src/cmd/gotest/gotest                                 |  2 +-
  src/lib/container/array/Makefile                      |  2 +-
@@ -31,3 +31,260 @@ Date:   Wed Nov 19 19:11:01 2008 -0800
  src/lib/testing.go                                    |  3 +++
  src/run.bash                                          |  2 +-
  18 files changed, 24 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/gobuild/gobuild.c b/src/cmd/gobuild/gobuild.c
+index 1056d883ad..07a7862f6c 100644
+--- a/src/cmd/gobuild/gobuild.c
++++ b/src/cmd/gobuild/gobuild.c
+@@ -290,7 +290,7 @@ char preamble[] =
+ 	"\n"
+ 	"coverage: packages\n"
+ 	"\tgotest\n"
+-	"\t6cov -g `pwd` | grep -v '^test.*\\.go:'\n"
++	"\t6cov -g `pwd` | grep -v '^.*test\\.go:'\n"
+ 	"\n"
+ 	"%%.$O: %%.go\n"
+ 	"\t$(GC) $*.go\n"
+@@ -487,7 +487,7 @@ main(int argc, char **argv)
+ 	njob = 0;
+ 	job = emalloc(argc*sizeof job[0]);
+ 	for(i=0; i<argc; i++) {
+-		if(strncmp(argv[i], "test", 4) == 0)
++		if(strstr(argv[i], "test.go") != nil)
+ 			continue;
+ 		job[njob].name = argv[i];
+ 		job[njob].pass = -1;
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index 85699547be..9bf7270bff 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -27,7 +27,7 @@ done
+ 
+ case "x$gofiles" in
+ x)
+-	gofiles=$(echo test*.go)
++	gofiles=$(echo *test.go)
+ esac
+ 
+ ofiles=$(echo $gofiles | sed 's/\.go/.6/g')
+diff --git a/src/lib/container/array/Makefile b/src/lib/container/array/Makefile
+index 6494a31507..f16d43cd5e 100644
+--- a/src/lib/container/array/Makefile
++++ b/src/lib/container/array/Makefile
+@@ -20,7 +20,7 @@ test: packages
+ 
+ coverage: packages
+ 	gotest
+-	6cov -g `pwd` | grep -v '^test.*\.go:'
++	6cov -g `pwd` | grep -v '^.*test\.go:'
+ 
+ %.$O: %.go
+ 	$(GC) $*.go
+diff --git a/src/lib/container/array/testarray.go b/src/lib/container/array/array_test.go
+similarity index 100%
+rename from src/lib/container/array/testarray.go
+rename to src/lib/container/array/array_test.go
+diff --git a/src/lib/math/Makefile b/src/lib/math/Makefile
+index 0c5d5a1ee5..5bfa6adcfb 100644
+--- a/src/lib/math/Makefile
++++ b/src/lib/math/Makefile
+@@ -20,7 +20,7 @@ test: packages
+ 
+ coverage: packages
+ 	gotest
+-	6cov -g `pwd` | grep -v '^test.*\.go:'
++	6cov -g `pwd` | grep -v '^.*test\.go:'
+ 
+ %.$O: %.go
+ 	$(GC) $*.go
+diff --git a/src/lib/reflect/Makefile b/src/lib/reflect/Makefile
+index 68870a33a6..d6fafc5c5f 100644
+--- a/src/lib/reflect/Makefile
++++ b/src/lib/reflect/Makefile
+@@ -20,7 +20,7 @@ test: packages
+ 
+ coverage: packages
+ 	gotest
+-	6cov -g `pwd` | grep -v '^test.*\.go:'
++	6cov -g `pwd` | grep -v '^.*test\.go:'
+ 
+ %.$O: %.go
+ 	$(GC) $*.go
+diff --git a/src/lib/reflect/test.bash b/src/lib/reflect/test.bash
+deleted file mode 100755
+index 1e9e0c9560..0000000000
+--- a/src/lib/reflect/test.bash
++++ /dev/null
+@@ -1,12 +0,0 @@
+-#!/bin/bash
+-# Copyright 2009 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-set -e
+-
+-make
+-6g test.go
+-6l test.6
+-./6.out
+-rm -f *.6 6.out
+diff --git a/src/lib/reflect/test.go b/src/lib/reflect/test.go
+index 8497380c78..feb99e61dc 100644
+--- a/src/lib/reflect/test.go
++++ b/src/lib/reflect/test.go
+@@ -2,10 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
++package reflect
+ 
+ import (
+-	"reflect"
++	"reflect";
++	"testing"
+ )
+ 
+ var doprint bool = false
+@@ -87,7 +88,7 @@ export type empty interface {}
+ 
+ export type T struct { a int; b float64; c string; d *int }
+ 
+-func main() {
++export func TestAll(tt *testing.T) {	// TODO(r): wrap up better
+ 	var s string;
+ 	var t reflect.Type;
+ 
+@@ -168,30 +169,30 @@ func main() {
+ 		var i int = 7;
+ 		var tmp = &T{123, 456.75, "hello", &i};
+ 		value := reflect.NewValue(tmp);
+-		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "main.T{123, 456.75, hello, *int(@)}");
++		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "reflect.T{123, 456.75, hello, *int(@)}");
+ 	}
+ 	{
+ 		type C chan *T;	// TODO: should not be necessary
+ 		var tmp = new(C);
+ 		value := reflect.NewValue(tmp);
+-		assert(reflect.ValueToString(value), "*main.C·test(@)");
++		assert(reflect.ValueToString(value), "*reflect.C·test(@)");
+ 	}
+ 	{
+ 		type A [10]int;
+ 		var tmp A = A{1,2,3,4,5,6,7,8,9,10};
+ 		value := reflect.NewValue(&tmp);
+-		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "main.A·test{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}");
++		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "reflect.A·test{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}");
+ 		value.(reflect.PtrValue).Sub().(reflect.ArrayValue).Elem(4).(reflect.IntValue).Set(123);
+-		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "main.A·test{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}");
++		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "reflect.A·test{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}");
+ 	}
+ 	{
+ 		type AA []int;
+ 		tmp1 := [10]int{1,2,3,4,5,6,7,8,9,10};	// TODO: should not be necessary to use tmp1
+ 		var tmp *AA = &tmp1;
+ 		value := reflect.NewValue(tmp);
+-		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "main.AA·test{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}");
++		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "reflect.AA·test{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}");
+ 		value.(reflect.PtrValue).Sub().(reflect.ArrayValue).Elem(4).(reflect.IntValue).Set(123);
+-		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "main.AA·test{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}");
++		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "reflect.AA·test{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}");
+ 	}
+ 
+ 	{
+diff --git a/src/lib/regexp/Makefile b/src/lib/regexp/Makefile
+index 3e82f1c1f6..ec4a5644e5 100644
+--- a/src/lib/regexp/Makefile
++++ b/src/lib/regexp/Makefile
+@@ -20,7 +20,7 @@ test: packages
+ 
+ coverage: packages
+ 	gotest
+-	6cov -g `pwd` | grep -v '^test.*\.go:'
++	6cov -g `pwd` | grep -v '^.*test\.go:'
+ 
+ %.$O: %.go
+ 	$(GC) $*.go
+diff --git a/src/lib/strconv/Makefile b/src/lib/strconv/Makefile
+index 454ef142fd..8d9466963b 100644
+--- a/src/lib/strconv/Makefile
++++ b/src/lib/strconv/Makefile
+@@ -20,7 +20,7 @@ test: packages
+ 
+ coverage: packages
+ 	gotest
+-	6cov -g `pwd` | grep -v '^test.*\.go:'
++	6cov -g `pwd` | grep -v '^.*test\.go:'
+ 
+ %.$O: %.go
+ 	$(GC) $*.go
+@@ -33,8 +33,8 @@ coverage: packages
+ 
+ O1=\
+ 	atoi.$O\
+-	itoa.$O\
+ 	decimal.$O\
++	itoa.$O\
+ 
+ O2=\
+ 	ftoa.$O\
+@@ -45,7 +45,7 @@ O3=\
+ strconv.a: a1 a2 a3
+ 
+ a1:	$(O1)
+-	$(AR) grc strconv.a atoi.$O itoa.$O decimal.$O
++	$(AR) grc strconv.a atoi.$O decimal.$O itoa.$O
+ 	rm -f $(O1)
+ 
+ a2:	$(O2)
+diff --git a/src/lib/strconv/testatof.go b/src/lib/strconv/atof_test.go
+similarity index 100%
+rename from src/lib/strconv/testatof.go
+rename to src/lib/strconv/atof_test.go
+diff --git a/src/lib/strconv/testatoi.go b/src/lib/strconv/atoi_test.go
+similarity index 100%
+rename from src/lib/strconv/testatoi.go
+rename to src/lib/strconv/atoi_test.go
+diff --git a/src/lib/strconv/testdecimal.go b/src/lib/strconv/decimal_test.go
+similarity index 100%
+rename from src/lib/strconv/testdecimal.go
+rename to src/lib/strconv/decimal_test.go
+diff --git a/src/lib/strconv/testfp.go b/src/lib/strconv/fp_test.go
+similarity index 100%
+rename from src/lib/strconv/testfp.go
+rename to src/lib/strconv/fp_test.go
+diff --git a/src/lib/strconv/testftoa.go b/src/lib/strconv/ftoa_test.go
+similarity index 100%
+rename from src/lib/strconv/testftoa.go
+rename to src/lib/strconv/ftoa_test.go
+diff --git a/src/lib/strconv/testitoa.go b/src/lib/strconv/itoa_test.go
+similarity index 100%
+rename from src/lib/strconv/testitoa.go
+rename to src/lib/strconv/itoa_test.go
+diff --git a/src/lib/testing.go b/src/lib/testing.go
+index be82cbdebe..3a95d61d7b 100644
+--- a/src/lib/testing.go
++++ b/src/lib/testing.go
+@@ -74,6 +74,9 @@ func TRunner(t *T, test *Test) {
+ 
+ export func Main(tests *[]Test) {
+ 	ok := true;
++	if len(tests) == 0 {
++		println("gotest: warning: no tests to run");
++	}
+ 	for i := 0; i < len(tests); i++ {
+ 		if chatty {
+ 			println("=== RUN ", tests[i].name);
+diff --git a/src/run.bash b/src/run.bash
+index 5d759cfaf9..8dc4040396 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -20,7 +20,7 @@ make test
+ (xcd lib/reflect
+ make clean
+ time make
+-bash test.bash
++make test
+ ) || exit $?
+ 
+ (xcd lib/regexp

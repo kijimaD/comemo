@@ -7,7 +7,32 @@ Date:   Mon Sep 24 09:49:31 2012 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6541062
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 656923eb24..a1043506d5 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -212,6 +212,7 @@ Sergey 'SnakE'  Gromov <snake.scaly@gmail.com>
+ Sergio Luis O. B. Correia <sergio@larces.uece.br>
+ Shawn Smith <shawn.p.smith@gmail.com>
+ Shenghou Ma <minux.ma@gmail.com>
++Shivakumar GN <shivakumar.gn@gmail.com>
+ Spring Mc <heresy.mc@gmail.com>
+ Stefan Nilsson <snilsson@nada.kth.se> <trolleriprofessorn@gmail.com>
+ Stéphane Travostino <stephane.travostino@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 6823eeb06c..9647dbcac8 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -307,6 +307,7 @@ Sergey 'SnakE' Gromov <snake.scaly@gmail.com>
+ Sergio Luis O. B. Correia <sergio@larces.uece.br>
+ Shawn Smith <shawn.p.smith@gmail.com>
+ Shenghou Ma <minux.ma@gmail.com>
++Shivakumar GN <shivakumar.gn@gmail.com>
+ Spring Mc <heresy.mc@gmail.com>
+ Stefan Nilsson <snilsson@nada.kth.se> <trolleriprofessorn@gmail.com>
+ Stéphane Travostino <stephane.travostino@gmail.com>

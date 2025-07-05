@@ -11,6 +11,41 @@ Date:   Mon May 16 14:14:16 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/walk.go | 15 +++------------
  1 file changed, 3 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 55a29e5bad..9d1c39c85e 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -2127,18 +2127,9 @@ func isstack(n *Node) bool {
+ 	return false
+ }
+ 
+-func isglobal(n *Node) bool {
++func (n *Node) isGlobal() bool {
+ 	n = outervalue(n)
+-
+-	switch n.Op {
+-	case ONAME:
+-		switch n.Class {
+-		case PEXTERN:
+-			return true
+-		}
+-	}
+-
+-	return false
++	return n.Op == ONAME && n.Class == PEXTERN
+ }
+ 
+ // Do we need a write barrier for the assignment l = r?
+@@ -2193,7 +2184,7 @@ func needwritebarrier(l *Node, r *Node) bool {
+ 
+ 	// No write barrier for storing address of global, which
+ 	// is live no matter what.
+-	if r.Op == OADDR && isglobal(r.Left) {
++	if r.Op == OADDR && r.Left.isGlobal() {
+ 		return false
+ 	}
+ 

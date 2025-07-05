@@ -23,9 +23,71 @@ Date:   Thu Nov 11 08:45:02 2021 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/stencil.go |  6 ++++++
  test/typeparam/issue49524.dir/a.go        |  8 ++++++++
  test/typeparam/issue49524.dir/main.go     | 11 +++++++++++
  test/typeparam/issue49524.go              |  7 +++++++
  4 files changed, 32 insertions(+)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index c8c5d80cfc..20197565f5 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -802,6 +802,12 @@ func (g *genInst) genericSubst(newsym *types.Sym, nameNode *ir.Name, shapes []*t
+ 
+ 	// Make sure name/type of newf is set before substituting the body.
+ 	newf.Body = subst.list(gf.Body)
++	if len(newf.Body) == 0 {
++		// Ensure the body is nonempty, for issue 49524.
++		// TODO: have some other way to detect the difference between
++		// a function declared with no body, vs. one with an empty body?
++		newf.Body = append(newf.Body, ir.NewBlockStmt(gf.Pos(), nil))
++	}
+ 
+ 	if len(subst.defnMap) > 0 {
+ 		base.Fatalf("defnMap is not empty")
+diff --git a/test/typeparam/issue49524.dir/a.go b/test/typeparam/issue49524.dir/a.go
+new file mode 100644
+index 0000000000..f40075e953
+--- /dev/null
++++ b/test/typeparam/issue49524.dir/a.go
+@@ -0,0 +1,8 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++func F[T any]() {
++}
+diff --git a/test/typeparam/issue49524.dir/main.go b/test/typeparam/issue49524.dir/main.go
+new file mode 100644
+index 0000000000..ef00c8a81c
+--- /dev/null
++++ b/test/typeparam/issue49524.dir/main.go
+@@ -0,0 +1,11 @@
++package main
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++import "a"
++
++func main() {
++	a.F[int]()
++}
+diff --git a/test/typeparam/issue49524.go b/test/typeparam/issue49524.go
+new file mode 100644
+index 0000000000..76930e5e4f
+--- /dev/null
++++ b/test/typeparam/issue49524.go
+@@ -0,0 +1,7 @@
++// rundir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

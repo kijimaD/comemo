@@ -8,10 +8,76 @@ Date:   Wed Feb 15 08:59:03 2012 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5666045
-
+---
  src/cmd/5c/txt.c   | 2 +-
  src/cmd/6c/txt.c   | 2 +-
  src/cmd/6g/gsubr.c | 2 +-
  src/cmd/8c/txt.c   | 2 +-
  src/cmd/8g/gsubr.c | 2 +-
  5 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/5c/txt.c b/src/cmd/5c/txt.c
+index a32387bc1e..4de8908905 100644
+--- a/src/cmd/5c/txt.c
++++ b/src/cmd/5c/txt.c
+@@ -357,7 +357,7 @@ regfree(Node *n)
+ 	if(n->op != OREGISTER && n->op != OINDREG)
+ 		goto err;
+ 	i = n->reg;
+-	if(i < 0 || i >= sizeof(reg))
++	if(i < 0 || i >= nelem(reg))
+ 		goto err;
+ 	if(reg[i] <= 0)
+ 		goto err;
+diff --git a/src/cmd/6c/txt.c b/src/cmd/6c/txt.c
+index 12fc5b498a..dd232f085f 100644
+--- a/src/cmd/6c/txt.c
++++ b/src/cmd/6c/txt.c
+@@ -411,7 +411,7 @@ regfree(Node *n)
+ 	if(n->op != OREGISTER && n->op != OINDREG)
+ 		goto err;
+ 	i = n->reg;
+-	if(i < 0 || i >= sizeof(reg))
++	if(i < 0 || i >= nelem(reg))
+ 		goto err;
+ 	if(reg[i] <= 0)
+ 		goto err;
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 02df69ac3c..2fea7daab8 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -419,7 +419,7 @@ regfree(Node *n)
+ 	i = n->val.u.reg;
+ 	if(i == D_SP)
+ 		return;
+-	if(i < 0 || i >= sizeof(reg))
++	if(i < 0 || i >= nelem(reg))
+ 		fatal("regfree: reg out of range");
+ 	if(reg[i] <= 0)
+ 		fatal("regfree: reg not allocated");
+diff --git a/src/cmd/8c/txt.c b/src/cmd/8c/txt.c
+index b2e0148a0a..65c551ef6f 100644
+--- a/src/cmd/8c/txt.c
++++ b/src/cmd/8c/txt.c
+@@ -372,7 +372,7 @@ regfree(Node *n)
+ 	if(n->op != OREGISTER && n->op != OINDREG)
+ 		goto err;
+ 	i = n->reg;
+-	if(i < 0 || i >= sizeof(reg))
++	if(i < 0 || i >= nelem(reg))
+ 		goto err;
+ 	if(reg[i] <= 0)
+ 		goto err;
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index dd35c51b08..9cf3645965 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -893,7 +893,7 @@ regfree(Node *n)
+ 	i = n->val.u.reg;
+ 	if(i == D_SP)
+ 		return;
+-	if(i < 0 || i >= sizeof(reg))
++	if(i < 0 || i >= nelem(reg))
+ 		fatal("regfree: reg out of range");
+ 	if(reg[i] <= 0)
+ 		fatal("regfree: reg not allocated");

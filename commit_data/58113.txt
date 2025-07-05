@@ -12,7 +12,37 @@ Date:   Mon Oct 2 16:26:27 2023 -0700
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/syscall/exec_unix_test.go     | 2 +-
  src/syscall/export_rlimit_test.go | 7 ++-----
  2 files changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/src/syscall/exec_unix_test.go b/src/syscall/exec_unix_test.go
+index accf6cc5c5..5584f7d444 100644
+--- a/src/syscall/exec_unix_test.go
++++ b/src/syscall/exec_unix_test.go
+@@ -357,7 +357,7 @@ func TestRlimitRestored(t *testing.T) {
+ 	}
+ 
+ 	orig := syscall.OrigRlimitNofile()
+-	if orig.Cur == 0 {
++	if orig == nil {
+ 		t.Skip("skipping test because rlimit not adjusted at startup")
+ 	}
+ 
+diff --git a/src/syscall/export_rlimit_test.go b/src/syscall/export_rlimit_test.go
+index 25f0ef82c3..8b1545cb03 100644
+--- a/src/syscall/export_rlimit_test.go
++++ b/src/syscall/export_rlimit_test.go
+@@ -6,9 +6,6 @@
+ 
+ package syscall
+ 
+-func OrigRlimitNofile() Rlimit {
+-	if rlim := origRlimitNofile.Load(); rlim != nil {
+-		return *rlim
+-	}
+-	return Rlimit{0, 0}
++func OrigRlimitNofile() *Rlimit {
++	return origRlimitNofile.Load()
+ }

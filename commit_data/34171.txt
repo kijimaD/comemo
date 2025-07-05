@@ -14,7 +14,7 @@ Date:   Thu Oct 5 15:37:13 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/asm/doc.go                  | 31 +++++++++++++-----------
  src/cmd/asm/internal/flags/flags.go |  2 ++
  src/cmd/cgo/doc.go                  | 48 ++++++++++++++++++-------------------
@@ -26,3 +26,317 @@ Date:   Thu Oct 5 15:37:13 2017 -0400
  src/cmd/link/doc.go                 |  2 +-
  src/cmd/link/internal/ld/main.go    |  2 +-
  10 files changed, 98 insertions(+), 45 deletions(-)
+
+diff --git a/src/cmd/asm/doc.go b/src/cmd/asm/doc.go
+index aa62147957..c39cab3c19 100644
+--- a/src/cmd/asm/doc.go
++++ b/src/cmd/asm/doc.go
+@@ -19,23 +19,26 @@ The GOOS and GOARCH environment variables set the desired target.
+ 
+ Flags:
+ 
+-	-D value
+-		predefined symbol with optional simple value -D=identifier=value;
+-		can be set multiple times
+-	-I value
+-		include directory; can be set multiple times
+-	-S	print assembly and machine code
++	-D name[=value]
++		Predefine symbol name with an optional simple value.
++		Can be repeated to define multiple symbols.
++	-I dir1 -I dir2
++		Search for #include files in dir1, dir2, etc,
++		after consulting $GOROOT/pkg/$GOOS_$GOARCH.
++	-S
++		Print assembly and machine code.
++	-V
++		Print assembler version and exit.
+ 	-debug
+-		dump instructions as they are parsed
++		Dump instructions as they are parsed.
+ 	-dynlink
+-		support references to Go symbols defined in other shared libraries
+-	-o string
+-		output file; default foo.o for /a/b/c/foo.s
++		Support references to Go symbols defined in other shared libraries.
++	-o file
++		Write output to file. The default is foo.o for /a/b/c/foo.s.
+ 	-shared
+-		generate code that can be linked into a shared library
+-	-trimpath string
+-		remove prefix from recorded source file paths
+-
++		Generate code that can be linked into a shared library.
++	-trimpath prefix
++		Remove prefix from recorded source file paths.
+ Input language:
+ 
+ The assembler uses mostly the same syntax for all architectures,
+diff --git a/src/cmd/asm/internal/flags/flags.go b/src/cmd/asm/internal/flags/flags.go
+index bd90b82bf6..6acde29432 100644
+--- a/src/cmd/asm/internal/flags/flags.go
++++ b/src/cmd/asm/internal/flags/flags.go
+@@ -6,6 +6,7 @@
+ package flags
+ 
+ import (
++	"cmd/internal/objabi"
+ 	"flag"
+ 	"fmt"
+ 	"os"
+@@ -31,6 +32,7 @@ var (
+ func init() {
+ 	flag.Var(&D, "D", "predefined symbol with optional simple value -D=identifier=value; can be set multiple times")
+ 	flag.Var(&I, "I", "include directory; can be set multiple times")
++	objabi.AddVersionFlag() // -V
+ }
+ 
+ // MultiFlag allows setting a value multiple times to collect a list, as in -I=dir1 -I=dir2.
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 9cd2a42988..ee99bfc2c3 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -315,32 +315,35 @@ invoking the C compiler to compile the C parts of the package.
+ 
+ The following options are available when running cgo directly:
+ 
++	-V
++		Print cgo version and exit.
++	-debug-define
++		Debugging option. Print #defines.
++	-debug-gcc
++		Debugging option. Trace C compiler execution and output.
+ 	-dynimport file
+ 		Write list of symbols imported by file. Write to
+ 		-dynout argument or to standard output. Used by go
+ 		build when building a cgo package.
++	-dynlinker
++		Write dynamic linker as part of -dynimport output.
+ 	-dynout file
+ 		Write -dynimport output to file.
+ 	-dynpackage package
+ 		Set Go package for -dynimport output.
+-	-dynlinker
+-		Write dynamic linker as part of -dynimport output.
+-	-godefs
+-		Write out input file in Go syntax replacing C package
+-		names with real values. Used to generate files in the
+-		syscall package when bootstrapping a new target.
+-	-srcdir directory
+-		Find the Go input files, listed on the command line,
+-		in directory.
+-	-objdir directory
+-		Put all generated files in directory.
+-	-importpath string
+-		The import path for the Go package. Optional; used for
+-		nicer comments in the generated files.
+ 	-exportheader file
+ 		If there are any exported functions, write the
+ 		generated export declarations to file.
+ 		C code can #include this to see the declarations.
++	-importpath string
++		The import path for the Go package. Optional; used for
++		nicer comments in the generated files.
++	-import_runtime_cgo
++		If set (which it is by default) import runtime/cgo in
++		generated output.
++	-import_syscall
++		If set (which it is by default) import syscall in
++		generated output.
+ 	-gccgo
+ 		Generate output for the gccgo compiler rather than the
+ 		gc compiler.
+@@ -348,16 +351,13 @@ The following options are available when running cgo directly:
+ 		The -fgo-prefix option to be used with gccgo.
+ 	-gccgopkgpath path
+ 		The -fgo-pkgpath option to be used with gccgo.
+-	-import_runtime_cgo
+-		If set (which it is by default) import runtime/cgo in
+-		generated output.
+-	-import_syscall
+-		If set (which it is by default) import syscall in
+-		generated output.
+-	-debug-define
+-		Debugging option. Print #defines.
+-	-debug-gcc
+-		Debugging option. Trace C compiler execution and output.
++	-godefs
++		Write out input file in Go syntax replacing C package
++		names with real values. Used to generate files in the
++		syscall package when bootstrapping a new target.
++	-objdir directory
++		Put all generated files in directory.
++	-srcdir directory
+ */
+ package main
+ 
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 8e6bb1f977..8db73d91bb 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -24,6 +24,8 @@ import (
+ 	"runtime"
+ 	"sort"
+ 	"strings"
++
++	"cmd/internal/objabi"
+ )
+ 
+ // A Package collects information about the package we're going to write.
+@@ -201,6 +203,7 @@ var importSyscall = flag.Bool("import_syscall", true, "import syscall in generat
+ var goarch, goos string
+ 
+ func main() {
++	objabi.AddVersionFlag() // -V
+ 	flag.Usage = usage
+ 	flag.Parse()
+ 
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 6b23d7b076..6968d044a4 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -186,7 +186,7 @@ func Main(archInit func(*Arch)) {
+ 	objabi.Flagcount("K", "debug missing line numbers", &Debug['K'])
+ 	objabi.Flagcount("N", "disable optimizations", &Debug['N'])
+ 	flag.BoolVar(&Debug_asm, "S", false, "print assembly listing")
+-	objabi.Flagfn0("V", "print compiler version", doversion)
++	objabi.AddVersionFlag() // -V
+ 	objabi.Flagcount("W", "debug parse tree after type checking", &Debug['W'])
+ 	flag.StringVar(&asmhdr, "asmhdr", "", "write assembly header to `file`")
+ 	flag.StringVar(&buildid, "buildid", "", "record `id` as the build id in the export metadata")
+diff --git a/src/cmd/cover/cover.go b/src/cmd/cover/cover.go
+index ee140702d3..0d51a6ba30 100644
+--- a/src/cmd/cover/cover.go
++++ b/src/cmd/cover/cover.go
+@@ -20,6 +20,8 @@ import (
+ 	"sort"
+ 	"strconv"
+ 	"strings"
++
++	"cmd/internal/objabi"
+ )
+ 
+ const usageMessage = "" +
+@@ -67,6 +69,7 @@ const (
+ )
+ 
+ func main() {
++	objabi.AddVersionFlag()
+ 	flag.Usage = usage
+ 	flag.Parse()
+ 
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index be24082f05..21d3f8f680 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -2522,10 +2522,18 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg string, allaction
+ 	if cfg.BuildBuildmode == "plugin" {
+ 		ldflags = append(ldflags, "-pluginpath", load.PluginPath(root.Package))
+ 	}
++
++	// TODO(rsc): This is probably wrong - see golang.org/issue/22155.
+ 	if cfg.GOROOT != runtime.GOROOT() {
+ 		ldflags = append(ldflags, "-X=runtime/internal/sys.DefaultGoroot="+cfg.GOROOT)
+ 	}
+ 
++	// Store BuildID inside toolchain binaries as a unique identifier of the
++	// tool being run, for use by content-based staleness determination.
++	if root.Package.Goroot && strings.HasPrefix(root.Package.ImportPath, "cmd/") {
++		ldflags = append(ldflags, "-X=cmd/internal/objabi.buildID="+root.Package.Internal.BuildID)
++	}
++
+ 	// If the user has not specified the -extld option, then specify the
+ 	// appropriate linker. In case of C++ code, use the compiler named
+ 	// by the CXX environment variable or defaultCXX if CXX is not set.
+diff --git a/src/cmd/internal/objabi/flag.go b/src/cmd/internal/objabi/flag.go
+index f891456033..388698332d 100644
+--- a/src/cmd/internal/objabi/flag.go
++++ b/src/cmd/internal/objabi/flag.go
+@@ -9,16 +9,13 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"strconv"
++	"strings"
+ )
+ 
+ func Flagcount(name, usage string, val *int) {
+ 	flag.Var((*count)(val), name, usage)
+ }
+ 
+-func Flagfn0(name, usage string, f func()) {
+-	flag.Var(fn0(f), name, usage)
+-}
+-
+ func Flagfn1(name, usage string, f func(string)) {
+ 	flag.Var(fn1(f), name, usage)
+ }
+@@ -35,6 +32,43 @@ func Flagparse(usage func()) {
+ 	flag.Parse()
+ }
+ 
++func AddVersionFlag() {
++	flag.Var(versionFlag{}, "V", "print version and exit")
++}
++
++var buildID string // filled in by linker
++
++type versionFlag struct{}
++
++func (versionFlag) IsBoolFlag() bool { return true }
++func (versionFlag) Get() interface{} { return nil }
++func (versionFlag) String() string   { return "" }
++func (versionFlag) Set(s string) error {
++	name := os.Args[0]
++	name = name[strings.LastIndex(name, `/`)+1:]
++	name = name[strings.LastIndex(name, `\`)+1:]
++	p := Expstring()
++	if p == DefaultExpstring() {
++		p = ""
++	}
++	sep := ""
++	if p != "" {
++		sep = " "
++	}
++
++	// The go command invokes -V=full to get a unique identifier
++	// for this tool. It is assumed that the release version is sufficient
++	// for releases, but during development we include the full
++	// build ID of the binary, so that if the compiler is changed and
++	// rebuilt, we notice and rebuild all packages.
++	if s == "full" && strings.HasPrefix(Version, "devel") {
++		p += " buildID=" + buildID
++	}
++	fmt.Printf("%s version %s%s%s\n", name, Version, sep, p)
++	os.Exit(0)
++	return nil
++}
++
+ // count is a flag.Value that is like a flag.Bool and a flag.Int.
+ // If used as -name, it increments the count, but -name=x sets the count.
+ // Used for verbose flag -v.
+diff --git a/src/cmd/link/doc.go b/src/cmd/link/doc.go
+index 16fddf2345..d61b66a938 100644
+--- a/src/cmd/link/doc.go
++++ b/src/cmd/link/doc.go
+@@ -36,7 +36,7 @@ Flags:
+ 	-T address
+ 		Set text segment address.
+ 	-V
+-		Print the linker version and exit.
++		Print linker version and exit.
+ 	-X importpath.name=value
+ 		Set the value of the string variable in importpath named name to value.
+ 		Note that before Go 1.5 this option took two separate arguments.
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 2f34929974..12f39e4465 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -120,7 +120,7 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	flag.Var(&ctxt.BuildMode, "buildmode", "set build `mode`")
+ 	objabi.Flagfn1("B", "add an ELF NT_GNU_BUILD_ID `note` when using ELF", addbuildinfo)
+ 	objabi.Flagfn1("L", "add specified `directory` to library path", func(a string) { Lflag(ctxt, a) })
+-	objabi.Flagfn0("V", "print version and exit", doversion)
++	objabi.AddVersionFlag() // -V
+ 	objabi.Flagfn1("X", "add string value `definition` of the form importpath.name=value", func(s string) { addstrdata1(ctxt, s) })
+ 	objabi.Flagcount("v", "print link trace", &ctxt.Debugvlog)
+ 	objabi.Flagfn1("importcfg", "read import configuration from `file`", ctxt.readImportCfg)

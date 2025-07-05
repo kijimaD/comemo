@@ -25,7 +25,7 @@ Date:   Mon Sep 16 14:34:02 2019 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/go/types/builtins.go          |  4 ++--
  src/go/types/call.go              |  5 ++++
  src/go/types/conversions.go       |  4 ++--
@@ -41,3 +41,522 @@ Date:   Mon Sep 16 14:34:02 2019 -0700
  src/go/types/type.go              | 15 +++++++++---
  src/go/types/typexpr.go           | 10 ++++----
  14 files changed, 116 insertions(+), 46 deletions(-)
+
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index fb660b5cc8..af374b70c6 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -257,7 +257,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		}
+ 
+ 		// both argument types must be identical
+-		if !Identical(x.typ, y.typ) {
++		if !check.identical(x.typ, y.typ) {
+ 			check.invalidArg(x.pos(), "mismatched types %s and %s", x.typ, y.typ)
+ 			return
+ 		}
+@@ -322,7 +322,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			return
+ 		}
+ 
+-		if !Identical(dst, src) {
++		if !check.identical(dst, src) {
+ 			check.invalidArg(x.pos(), "arguments to copy %s and %s have different element types %s and %s", x, &y, dst, src)
+ 			return
+ 		}
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 1400e0f00b..31f9372644 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -464,6 +464,11 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
+ 				if m := mset.Lookup(check.pkg, sel); m == nil || m.obj != obj {
+ 					check.dump("%v: (%s).%v -> %s", e.Pos(), typ, obj.name, m)
+ 					check.dump("%s\n", mset)
++					// Caution: MethodSets are supposed to be used externally
++					// only (after all interface types were completed). It's
++					// now possible that we get here incorrectly. Not urgent
++					// to fix since we only run this code in debug mode.
++					// TODO(gri) fix this eventually.
+ 					panic("method sets and lookup don't agree")
+ 				}
+ 			}
+diff --git a/src/go/types/conversions.go b/src/go/types/conversions.go
+index fecb7b617f..7ea8fd70aa 100644
+--- a/src/go/types/conversions.go
++++ b/src/go/types/conversions.go
+@@ -89,7 +89,7 @@ func (x *operand) convertibleTo(check *Checker, T Type) bool {
+ 	V := x.typ
+ 	Vu := V.Underlying()
+ 	Tu := T.Underlying()
+-	if IdenticalIgnoreTags(Vu, Tu) {
++	if check.identicalIgnoreTags(Vu, Tu) {
+ 		return true
+ 	}
+ 
+@@ -97,7 +97,7 @@ func (x *operand) convertibleTo(check *Checker, T Type) bool {
+ 	// have identical underlying types if tags are ignored"
+ 	if V, ok := V.(*Pointer); ok {
+ 		if T, ok := T.(*Pointer); ok {
+-			if IdenticalIgnoreTags(V.base.Underlying(), T.base.Underlying()) {
++			if check.identicalIgnoreTags(V.base.Underlying(), T.base.Underlying()) {
+ 				return true
+ 			}
+ 		}
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 66d62d6885..0edd2789fb 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -548,9 +548,6 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
+ 			}
+ 		}
+ 	case *Interface:
+-		if !x.isNil() && !t.Empty() /* empty interfaces are ok */ {
+-			goto Error
+-		}
+ 		// Update operand types to the default type rather then
+ 		// the target (interface) type: values must have concrete
+ 		// dynamic types. If the value is nil, keep it untyped
+@@ -561,6 +558,7 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
+ 			target = Typ[UntypedNil]
+ 		} else {
+ 			// cannot assign untyped values to non-empty interfaces
++			check.completeInterface(t)
+ 			if !t.Empty() {
+ 				goto Error
+ 			}
+@@ -809,7 +807,7 @@ func (check *Checker) binary(x *operand, e *ast.BinaryExpr, lhs, rhs ast.Expr, o
+ 		return
+ 	}
+ 
+-	if !Identical(x.typ, y.typ) {
++	if !check.identical(x.typ, y.typ) {
+ 		// only report an error if we have valid types
+ 		// (otherwise we had an error reported elsewhere already)
+ 		if x.typ != Typ[Invalid] && y.typ != Typ[Invalid] {
+@@ -1223,7 +1221,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 					xkey := keyVal(x.val)
+ 					if _, ok := utyp.key.Underlying().(*Interface); ok {
+ 						for _, vtyp := range visited[xkey] {
+-							if Identical(vtyp, x.typ) {
++							if check.identical(vtyp, x.typ) {
+ 								duplicate = true
+ 								break
+ 							}
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index c9f5413920..1d0c0cb08a 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -465,3 +465,31 @@ func TestIssue29029(t *testing.T) {
+ 		t.Errorf("\ngot : %swant: %s", got, want)
+ 	}
+ }
++
++func TestIssue34151(t *testing.T) {
++	const asrc = `package a; type I interface{ M() }; type T struct { F interface { I } }`
++	const bsrc = `package b; import "a"; type T struct { F interface { a.I } }; var _ = a.T(T{})`
++
++	a, err := pkgFor("a", asrc, nil)
++	if err != nil {
++		t.Fatalf("package %s failed to typecheck: %v", a.Name(), err)
++	}
++
++	bast := mustParse(t, bsrc)
++	conf := Config{Importer: importHelper{a}}
++	b, err := conf.Check(bast.Name.Name, fset, []*ast.File{bast}, nil)
++	if err != nil {
++		t.Errorf("package %s failed to typecheck: %v", b.Name(), err)
++	}
++}
++
++type importHelper struct {
++	pkg *Package
++}
++
++func (h importHelper) Import(path string) (*Package, error) {
++	if path != h.pkg.Path() {
++		return nil, fmt.Errorf("got package path %q; want %q", path, h.pkg.Path())
++	}
++	return h.pkg, nil
++}
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 265e30971d..648e100060 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -200,7 +200,7 @@ func (check *Checker) lookupFieldOrMethod(T Type, addressable bool, pkg *Package
+ 			return
+ 		}
+ 
+-		current = consolidateMultiples(next)
++		current = check.consolidateMultiples(next)
+ 	}
+ 
+ 	return nil, nil, false // not found
+@@ -217,7 +217,7 @@ type embeddedType struct {
+ // consolidateMultiples collects multiple list entries with the same type
+ // into a single entry marked as containing multiples. The result is the
+ // consolidated list.
+-func consolidateMultiples(list []embeddedType) []embeddedType {
++func (check *Checker) consolidateMultiples(list []embeddedType) []embeddedType {
+ 	if len(list) <= 1 {
+ 		return list // at most one entry - nothing to do
+ 	}
+@@ -225,7 +225,7 @@ func consolidateMultiples(list []embeddedType) []embeddedType {
+ 	n := 0                     // number of entries w/ unique type
+ 	prev := make(map[Type]int) // index at which type was previously seen
+ 	for _, e := range list {
+-		if i, found := lookupType(prev, e.typ); found {
++		if i, found := check.lookupType(prev, e.typ); found {
+ 			list[i].multiples = true
+ 			// ignore this entry
+ 		} else {
+@@ -237,14 +237,14 @@ func consolidateMultiples(list []embeddedType) []embeddedType {
+ 	return list[:n]
+ }
+ 
+-func lookupType(m map[Type]int, typ Type) (int, bool) {
++func (check *Checker) lookupType(m map[Type]int, typ Type) (int, bool) {
+ 	// fast path: maybe the types are equal
+ 	if i, found := m[typ]; found {
+ 		return i, true
+ 	}
+ 
+ 	for t, i := range m {
+-		if Identical(t, typ) {
++		if check.identical(t, typ) {
+ 			return i, true
+ 		}
+ 	}
+@@ -278,8 +278,6 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method *
+ 		return
+ 	}
+ 
+-	// TODO(gri) Consider using method sets here. Might be more efficient.
+-
+ 	if ityp, _ := V.Underlying().(*Interface); ityp != nil {
+ 		check.completeInterface(ityp)
+ 		// TODO(gri) allMethods is sorted - can do this more efficiently
+@@ -290,7 +288,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method *
+ 				if static {
+ 					return m, false
+ 				}
+-			case !Identical(obj.Type(), m.typ):
++			case !check.identical(obj.Type(), m.typ):
+ 				return m, true
+ 			}
+ 		}
+@@ -312,7 +310,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method *
+ 			check.objDecl(f, nil)
+ 		}
+ 
+-		if !Identical(f.typ, m.typ) {
++		if !check.identical(f.typ, m.typ) {
+ 			return m, true
+ 		}
+ 	}
+diff --git a/src/go/types/methodset.go b/src/go/types/methodset.go
+index 1c2208002e..a236fe2ea8 100644
+--- a/src/go/types/methodset.go
++++ b/src/go/types/methodset.go
+@@ -180,7 +180,12 @@ func NewMethodSet(T Type) *MethodSet {
+ 			}
+ 		}
+ 
+-		current = consolidateMultiples(next)
++		// It's ok to call consolidateMultiples with a nil *Checker because
++		// MethodSets are not used internally (outside debug mode). When used
++		// externally, interfaces are expected to be completed and then we do
++		// not need a *Checker to complete them when (indirectly) calling
++		// Checker.identical via consolidateMultiples.
++		current = (*Checker)(nil).consolidateMultiples(next)
+ 	}
+ 
+ 	if len(base) == 0 {
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index 97ca6c622f..1259f44300 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -211,7 +211,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
+ 	V := x.typ
+ 
+ 	// x's type is identical to T
+-	if Identical(V, T) {
++	if check.identical(V, T) {
+ 		return true
+ 	}
+ 
+@@ -236,6 +236,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
+ 				return Vb.kind == UntypedBool && isBoolean(Tu)
+ 			}
+ 		case *Interface:
++			check.completeInterface(t)
+ 			return x.isNil() || t.Empty()
+ 		case *Pointer, *Signature, *Slice, *Map, *Chan:
+ 			return x.isNil()
+@@ -245,7 +246,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
+ 
+ 	// x's type V and T have identical underlying types
+ 	// and at least one of V or T is not a named type
+-	if Identical(Vu, Tu) && (!isNamed(V) || !isNamed(T)) {
++	if check.identical(Vu, Tu) && (!isNamed(V) || !isNamed(T)) {
+ 		return true
+ 	}
+ 
+@@ -268,7 +269,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
+ 	// type, x's type V and T have identical element types,
+ 	// and at least one of V or T is not a named type
+ 	if Vc, ok := Vu.(*Chan); ok && Vc.dir == SendRecv {
+-		if Tc, ok := Tu.(*Chan); ok && Identical(Vc.elem, Tc.elem) {
++		if Tc, ok := Tu.(*Chan); ok && check.identical(Vc.elem, Tc.elem) {
+ 			return !isNamed(V) || !isNamed(T)
+ 		}
+ 	}
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 46ad4e2dc4..faaf753cd8 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -110,16 +110,31 @@ func hasNil(typ Type) bool {
+ 	return false
+ }
+ 
++// The functions Identical and IdenticalIgnoreTags are
++// provided for external use only, after interface types
++// were fully set up (completed). During type-checking,
++// use the methods identical and identicalIgnoreTags
++// which take a non-nil *Checker receiver.
++// TODO(gri) factor these out into api.go.
++
+ // Identical reports whether x and y are identical types.
+ // Receivers of Signature types are ignored.
+ func Identical(x, y Type) bool {
+-	return identical(x, y, true, nil)
++	return (*Checker)(nil).identical(x, y)
++}
++
++func (check *Checker) identical(x, y Type) bool {
++	return check.identical0(x, y, true, nil)
+ }
+ 
+ // IdenticalIgnoreTags reports whether x and y are identical types if tags are ignored.
+ // Receivers of Signature types are ignored.
+ func IdenticalIgnoreTags(x, y Type) bool {
+-	return identical(x, y, false, nil)
++	return (*Checker)(nil).identicalIgnoreTags(x, y)
++}
++
++func (check *Checker) identicalIgnoreTags(x, y Type) bool {
++	return check.identical0(x, y, false, nil)
+ }
+ 
+ // An ifacePair is a node in a stack of interface type pairs compared for identity.
+@@ -132,7 +147,7 @@ func (p *ifacePair) identical(q *ifacePair) bool {
+ 	return p.x == q.x && p.y == q.y || p.x == q.y && p.y == q.x
+ }
+ 
+-func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
++func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 	if x == y {
+ 		return true
+ 	}
+@@ -152,13 +167,13 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 		if y, ok := y.(*Array); ok {
+ 			// If one or both array lengths are unknown (< 0) due to some error,
+ 			// assume they are the same to avoid spurious follow-on errors.
+-			return (x.len < 0 || y.len < 0 || x.len == y.len) && identical(x.elem, y.elem, cmpTags, p)
++			return (x.len < 0 || y.len < 0 || x.len == y.len) && check.identical0(x.elem, y.elem, cmpTags, p)
+ 		}
+ 
+ 	case *Slice:
+ 		// Two slice types are identical if they have identical element types.
+ 		if y, ok := y.(*Slice); ok {
+-			return identical(x.elem, y.elem, cmpTags, p)
++			return check.identical0(x.elem, y.elem, cmpTags, p)
+ 		}
+ 
+ 	case *Struct:
+@@ -173,7 +188,7 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 					if f.embedded != g.embedded ||
+ 						cmpTags && x.Tag(i) != y.Tag(i) ||
+ 						!f.sameId(g.pkg, g.name) ||
+-						!identical(f.typ, g.typ, cmpTags, p) {
++						!check.identical0(f.typ, g.typ, cmpTags, p) {
+ 						return false
+ 					}
+ 				}
+@@ -184,7 +199,7 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 	case *Pointer:
+ 		// Two pointer types are identical if they have identical base types.
+ 		if y, ok := y.(*Pointer); ok {
+-			return identical(x.base, y.base, cmpTags, p)
++			return check.identical0(x.base, y.base, cmpTags, p)
+ 		}
+ 
+ 	case *Tuple:
+@@ -195,7 +210,7 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 				if x != nil {
+ 					for i, v := range x.vars {
+ 						w := y.vars[i]
+-						if !identical(v.typ, w.typ, cmpTags, p) {
++						if !check.identical0(v.typ, w.typ, cmpTags, p) {
+ 							return false
+ 						}
+ 					}
+@@ -211,8 +226,8 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 		// names are not required to match.
+ 		if y, ok := y.(*Signature); ok {
+ 			return x.variadic == y.variadic &&
+-				identical(x.params, y.params, cmpTags, p) &&
+-				identical(x.results, y.results, cmpTags, p)
++				check.identical0(x.params, y.params, cmpTags, p) &&
++				check.identical0(x.results, y.results, cmpTags, p)
+ 		}
+ 
+ 	case *Interface:
+@@ -220,6 +235,14 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 		// the same names and identical function types. Lower-case method names from
+ 		// different packages are always different. The order of the methods is irrelevant.
+ 		if y, ok := y.(*Interface); ok {
++			// If identical0 is called (indirectly) via an external API entry point
++			// (such as Identical, IdenticalIgnoreTags, etc.), check is nil. But in
++			// that case, interfaces are expected to be complete and lazy completion
++			// here is not needed.
++			if check != nil {
++				check.completeInterface(x)
++				check.completeInterface(y)
++			}
+ 			a := x.allMethods
+ 			b := y.allMethods
+ 			if len(a) == len(b) {
+@@ -258,7 +281,7 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 				}
+ 				for i, f := range a {
+ 					g := b[i]
+-					if f.Id() != g.Id() || !identical(f.typ, g.typ, cmpTags, q) {
++					if f.Id() != g.Id() || !check.identical0(f.typ, g.typ, cmpTags, q) {
+ 						return false
+ 					}
+ 				}
+@@ -269,14 +292,14 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 	case *Map:
+ 		// Two map types are identical if they have identical key and value types.
+ 		if y, ok := y.(*Map); ok {
+-			return identical(x.key, y.key, cmpTags, p) && identical(x.elem, y.elem, cmpTags, p)
++			return check.identical0(x.key, y.key, cmpTags, p) && check.identical0(x.elem, y.elem, cmpTags, p)
+ 		}
+ 
+ 	case *Chan:
+ 		// Two channel types are identical if they have identical value types
+ 		// and the same direction.
+ 		if y, ok := y.(*Chan); ok {
+-			return x.dir == y.dir && identical(x.elem, y.elem, cmpTags, p)
++			return x.dir == y.dir && check.identical0(x.elem, y.elem, cmpTags, p)
+ 		}
+ 
+ 	case *Named:
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index a3cbe95b3a..1b1db5d2dd 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -182,6 +182,7 @@ func TestStdFixed(t *testing.T) {
+ 		"issue20780.go",  // go/types does not have constraints on stack size
+ 		"issue31747.go",  // go/types does not have constraints on language level (-lang=go1.12) (see #31793)
+ 		"issue34329.go",  // go/types does not have constraints on language level (-lang=go1.13) (see #31793)
++		"bug251.go",      // issue #34333 which was exposed with fix for #34151
+ 	)
+ }
+ 
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index abd9d05ef2..c1593bbee9 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -249,7 +249,7 @@ L:
+ 			// look for duplicate types for a given value
+ 			// (quadratic algorithm, but these lists tend to be very short)
+ 			for _, vt := range seen[val] {
+-				if Identical(v.typ, vt.typ) {
++				if check.identical(v.typ, vt.typ) {
+ 					check.errorf(v.pos(), "duplicate case %s in expression switch", &v)
+ 					check.error(vt.pos, "\tprevious case") // secondary error, \t indented
+ 					continue L
+@@ -270,7 +270,7 @@ L:
+ 		// look for duplicate types
+ 		// (quadratic algorithm, but type switches tend to be reasonably small)
+ 		for t, pos := range seen {
+-			if T == nil && t == nil || T != nil && t != nil && Identical(T, t) {
++			if T == nil && t == nil || T != nil && t != nil && check.identical(T, t) {
+ 				// talk about "case" rather than "type" because of nil case
+ 				Ts := "nil"
+ 				if T != nil {
+diff --git a/src/go/types/testdata/cycles2.src b/src/go/types/testdata/cycles2.src
+index 98ca6f4e44..5fd9e838b6 100644
+--- a/src/go/types/testdata/cycles2.src
++++ b/src/go/types/testdata/cycles2.src
+@@ -58,7 +58,9 @@ var y interface {
+ 	A
+ 	B
+ }
+-var _ = x == y
++
++// TODO(gri) This should be a valid compare. See #33656.
++var _ = x /* ERROR cannot compare */ == y
+ 
+ 
+ // Test case for issue 6638.
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index 5c28a2e7ba..6263da06f2 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -329,14 +329,23 @@ func (t *Interface) Embedded(i int) *Named { tname, _ := t.embeddeds[i].(*Named)
+ func (t *Interface) EmbeddedType(i int) Type { return t.embeddeds[i] }
+ 
+ // NumMethods returns the total number of methods of interface t.
+-func (t *Interface) NumMethods() int { return len(t.allMethods) }
++// The interface must have been completed.
++func (t *Interface) NumMethods() int { t.assertCompleteness(); return len(t.allMethods) }
++
++func (t *Interface) assertCompleteness() {
++	if t.allMethods == nil {
++		panic("interface is incomplete")
++	}
++}
+ 
+ // Method returns the i'th method of interface t for 0 <= i < t.NumMethods().
+ // The methods are ordered by their unique Id.
+-func (t *Interface) Method(i int) *Func { return t.allMethods[i] }
++// The interface must have been completed.
++func (t *Interface) Method(i int) *Func { t.assertCompleteness(); return t.allMethods[i] }
+ 
+ // Empty reports whether t is the empty interface.
+-func (t *Interface) Empty() bool { return len(t.allMethods) == 0 }
++// The interface must have been completed.
++func (t *Interface) Empty() bool { t.assertCompleteness(); return len(t.allMethods) == 0 }
+ 
+ // Complete computes the interface's method set. It must be called by users of
+ // NewInterfaceType and NewInterface after the interface's embedded types are
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 19bedae590..4948b800d1 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -538,10 +538,10 @@ func (check *Checker) completeInterface(ityp *Interface) {
+ 		return
+ 	}
+ 
+-	// completeInterface may be called via the LookupFieldOrMethod or
+-	// MissingMethod external API in which case check will be nil. In
+-	// this case, type-checking must be finished and all interfaces
+-	// should have been completed.
++	// completeInterface may be called via the LookupFieldOrMethod,
++	// MissingMethod, Identical, or IdenticalIgnoreTags external API
++	// in which case check will be nil. In this case, type-checking
++	// must be finished and all interfaces should have been completed.
+ 	if check == nil {
+ 		panic("internal error: incomplete interface")
+ 	}
+@@ -569,7 +569,7 @@ func (check *Checker) completeInterface(ityp *Interface) {
+ 		default:
+ 			// check method signatures after all types are computed (issue #33656)
+ 			check.atEnd(func() {
+-				if !Identical(m.typ, other.Type()) {
++				if !check.identical(m.typ, other.Type()) {
+ 					check.errorf(m.pos, "duplicate method %s", m.name)
+ 					check.reportAltDecl(other)
+ 				}

@@ -12,6 +12,31 @@ Date:   Mon Apr 26 22:32:21 2021 +0900
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Than McIntosh <thanm@google.com>
-
+---
  src/embed/embed.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/embed/embed.go b/src/embed/embed.go
+index 5dcd7f227d..f87cc5b963 100644
+--- a/src/embed/embed.go
++++ b/src/embed/embed.go
+@@ -291,6 +291,8 @@ func (f FS) readDir(dir string) []file {
+ }
+ 
+ // Open opens the named file for reading and returns it as an fs.File.
++//
++// The returned file implements io.Seeker when the file is not a directory.
+ func (f FS) Open(name string) (fs.File, error) {
+ 	file := f.lookup(name)
+ 	if file == nil {
+@@ -338,6 +340,10 @@ type openFile struct {
+ 	offset int64 // current read offset
+ }
+ 
++var (
++	_ io.Seeker = (*openFile)(nil)
++)
++
+ func (f *openFile) Close() error               { return nil }
+ func (f *openFile) Stat() (fs.FileInfo, error) { return f.f, nil }
+ 

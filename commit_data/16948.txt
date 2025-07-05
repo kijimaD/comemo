@@ -12,6 +12,76 @@ Date:   Wed Jul 31 19:59:27 2013 +0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/12167043
-
+---
  src/pkg/runtime/proc.c | 30 ++++++++++++++++++++++++++----
  1 file changed, 26 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index c4b8c02517..f333fdd877 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1536,6 +1536,10 @@ exitsyscallfast(void)
+ 	if(runtime·sched.pidle) {
+ 		runtime·lock(&runtime·sched);
+ 		p = pidleget();
++		if(p && runtime·atomicload(&runtime·sched.sysmonwait)) {
++			runtime·atomicstore(&runtime·sched.sysmonwait, 0);
++			runtime·notewakeup(&runtime·sched.sysmonnote);
++		}
+ 		runtime·unlock(&runtime·sched);
+ 		if(p) {
+ 			acquirep(p);
+@@ -1559,6 +1563,10 @@ exitsyscall0(G *gp)
+ 	p = pidleget();
+ 	if(p == nil)
+ 		globrunqput(gp);
++	else if(runtime·atomicload(&runtime·sched.sysmonwait)) {
++		runtime·atomicstore(&runtime·sched.sysmonwait, 0);
++		runtime·notewakeup(&runtime·sched.sysmonnote);
++	}
+ 	runtime·unlock(&runtime·sched);
+ 	if(p) {
+ 		acquirep(p);
+@@ -1924,24 +1932,38 @@ static struct {
+ 	uintptr pcbuf[100];
+ } prof;
+ 
++static void
++System(void)
++{
++}
++
+ // Called if we receive a SIGPROF signal.
+ void
+ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp)
+ {
+ 	int32 n;
++	bool traceback;
+ 
+-	// Windows does profiling in a dedicated thread w/o m.
+-	if(!Windows && (m == nil || m->mcache == nil))
+-		return;
+ 	if(prof.fn == nil || prof.hz == 0)
+ 		return;
++	traceback = true;
++	// Windows does profiling in a dedicated thread w/o m.
++	if(!Windows && (m == nil || m->mcache == nil))
++		traceback = false;
++	if(gp == m->g0 || gp == m->gsignal)
++		traceback = false;
++	if(m != nil && m->racecall)
++		traceback = false;
+ 
+ 	runtime·lock(&prof);
+ 	if(prof.fn == nil) {
+ 		runtime·unlock(&prof);
+ 		return;
+ 	}
+-	n = runtime·gentraceback((uintptr)pc, (uintptr)sp, (uintptr)lr, gp, 0, prof.pcbuf, nelem(prof.pcbuf), nil, nil, false);
++	n = 1;
++	prof.pcbuf[0] = (uintptr)pc;
++	if(traceback)
++		n = runtime·gentraceback((uintptr)pc, (uintptr)sp, (uintptr)lr, gp, 0, prof.pcbuf, nelem(prof.pcbuf), nil, nil, false);
+ 	if(n > 0)
+ 		prof.fn(prof.pcbuf, n);
+ 	runtime·unlock(&prof);

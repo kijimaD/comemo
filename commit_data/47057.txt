@@ -14,9 +14,69 @@ Date:   Wed Feb 17 21:03:59 2021 +1100
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/endtoend_test.go                  |  8 ++++++--
  .../asm/internal/asm/testdata/{riscvenc.s => riscv64.s}    |  0
  src/cmd/asm/internal/asm/testdata/riscv64error.s           | 14 ++++++++++++++
  src/cmd/internal/obj/riscv/obj.go                          |  5 ++++-
  4 files changed, 24 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index a4153f3af1..92cf64575b 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -439,8 +439,12 @@ func TestPPC64EndToEnd(t *testing.T) {
+ 	testEndToEnd(t, "ppc64", "ppc64")
+ }
+ 
+-func TestRISCVEncoder(t *testing.T) {
+-	testEndToEnd(t, "riscv64", "riscvenc")
++func TestRISCVEndToEnd(t *testing.T) {
++	testEndToEnd(t, "riscv64", "riscv64")
++}
++
++func TestRISCVErrors(t *testing.T) {
++	testErrors(t, "riscv64", "riscv64error")
+ }
+ 
+ func TestS390XEndToEnd(t *testing.T) {
+diff --git a/src/cmd/asm/internal/asm/testdata/riscvenc.s b/src/cmd/asm/internal/asm/testdata/riscv64.s
+similarity index 100%
+rename from src/cmd/asm/internal/asm/testdata/riscvenc.s
+rename to src/cmd/asm/internal/asm/testdata/riscv64.s
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64error.s b/src/cmd/asm/internal/asm/testdata/riscv64error.s
+new file mode 100644
+index 0000000000..fb43e68fc1
+--- /dev/null
++++ b/src/cmd/asm/internal/asm/testdata/riscv64error.s
+@@ -0,0 +1,14 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT errors(SB),$0
++	MOV	$0, 0(SP)			// ERROR "constant load must target register"
++	MOV	$0, 8(SP)			// ERROR "constant load must target register"
++	MOV	$1234, 0(SP)			// ERROR "constant load must target register"
++	MOV	$1234, 8(SP)			// ERROR "constant load must target register"
++	MOVB	$1, X5				// ERROR "unsupported constant load"
++	MOVH	$1, X5				// ERROR "unsupported constant load"
++	MOVW	$1, X5				// ERROR "unsupported constant load"
++	MOVF	$1, X5				// ERROR "unsupported constant load"
++	RET
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index d104f1cfa5..391c2486ca 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -302,7 +302,10 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
+ 		//   LUI top20bits(c), R
+ 		//   ADD bottom12bits(c), R, R
+ 		if p.As != AMOV {
+-			ctxt.Diag("unsupported constant load at %v", p)
++			ctxt.Diag("%v: unsupported constant load", p)
++		}
++		if p.To.Type != obj.TYPE_REG {
++			ctxt.Diag("%v: constant load must target register", p)
+ 		}
+ 		off := p.From.Offset
+ 		to := p.To

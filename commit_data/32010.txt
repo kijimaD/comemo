@@ -13,6 +13,22 @@ Date:   Wed Mar 29 20:39:32 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/38851
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 7f056826c8..548b797f14 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1003,6 +1003,10 @@ func (l *Link) hostlink() {
+ 
+ 	if !*FlagS && !debug_s {
+ 		argv = append(argv, "-gdwarf-2")
++	} else if Headtype == obj.Hdarwin {
++		// Recent versions of macOS print
++		//	ld: warning: option -s is obsolete and being ignored
++		// so do not pass any arguments.
+ 	} else {
+ 		argv = append(argv, "-s")
+ 	}

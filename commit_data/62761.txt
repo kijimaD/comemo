@@ -13,6 +13,17 @@ Date:   Wed Apr 2 16:12:37 2025 -0700
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  doc/next/6-stdlib/99-minor/net/56025.md | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/next/6-stdlib/99-minor/net/56025.md b/doc/next/6-stdlib/99-minor/net/56025.md
+index 3d1af6c2b6..2e3b230ef0 100644
+--- a/doc/next/6-stdlib/99-minor/net/56025.md
++++ b/doc/next/6-stdlib/99-minor/net/56025.md
+@@ -1,4 +1,4 @@
+-[LookupMX] and [(*Resolver).LookupMX] now return DNS names that look
++[LookupMX] and [*Resolver.LookupMX] now return DNS names that look
+ like valid IP address, as well as valid domain names.
+ Previously if a name server returned an IP address as a DNS name,
+ LookupMX would discard it, as required by the RFCs.

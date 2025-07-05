@@ -20,6 +20,24 @@ Date:   Tue May 16 17:41:42 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/file.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index b5a1bb8c0d..c5db78fe2e 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -147,7 +147,11 @@ func (f *File) Write(b []byte) (n int, err error) {
+ 
+ 	epipecheck(f, e)
+ 
+-	return n, f.wrapErr("write", e)
++	if e != nil {
++		err = f.wrapErr("write", e)
++	}
++
++	return n, err
+ }
+ 
+ // WriteAt writes len(b) bytes to the File starting at byte offset off.

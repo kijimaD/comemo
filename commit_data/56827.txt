@@ -13,6 +13,19 @@ Date:   Fri May 19 19:04:07 2023 +0100
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/encoding/json/encode.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 79a82cfe75..6da0bd9c4a 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -42,6 +42,7 @@ import (
+ // Boolean values encode as JSON booleans.
+ //
+ // Floating point, integer, and Number values encode as JSON numbers.
++// NaN and +/-Inf values will return an [UnsupportedValueError].
+ //
+ // String values encode as JSON strings coerced to valid UTF-8,
+ // replacing invalid bytes with the Unicode replacement rune.

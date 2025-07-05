@@ -26,10 +26,530 @@ Date:   Wed Feb 13 18:35:19 2019 -0500
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/list/list.go             |  45 +++++-----
  src/cmd/go/internal/load/pkg.go              |  78 +++++++++--------
  src/cmd/go/internal/load/test.go             |  99 +++++++++++++--------
  src/cmd/go/testdata/script/list_test_e.txt   |   2 +-
  src/cmd/go/testdata/script/list_test_err.txt | 124 +++++++++++++++++++++++++++
  5 files changed, 253 insertions(+), 95 deletions(-)
+
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index e482c393b6..4a6633d9a1 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -447,37 +447,34 @@ func runList(cmd *base.Command, args []string) {
+ 				continue
+ 			}
+ 			if len(p.TestGoFiles)+len(p.XTestGoFiles) > 0 {
+-				pmain, ptest, pxtest, err := load.TestPackagesFor(p, nil)
+-				if err != nil {
+-					if *listE {
+-						pkgs = append(pkgs, &load.Package{
+-							PackagePublic: load.PackagePublic{
+-								ImportPath: p.ImportPath + ".test",
+-								Error:      &load.PackageError{Err: err.Error()},
+-							},
+-						})
+-						continue
++				var pmain, ptest, pxtest *load.Package
++				var err error
++				if *listE {
++					pmain, ptest, pxtest = load.TestPackagesAndErrors(p, nil)
++				} else {
++					pmain, ptest, pxtest, err = load.TestPackagesFor(p, nil)
++					if err != nil {
++						base.Errorf("can't load test package: %s", err)
+ 					}
+-					base.Errorf("can't load test package: %s", err)
+-					continue
+ 				}
+-				pkgs = append(pkgs, pmain)
+-				if ptest != nil {
++				if pmain != nil {
++					pkgs = append(pkgs, pmain)
++					data := *pmain.Internal.TestmainGo
++					h := cache.NewHash("testmain")
++					h.Write([]byte("testmain\n"))
++					h.Write(data)
++					out, _, err := c.Put(h.Sum(), bytes.NewReader(data))
++					if err != nil {
++						base.Fatalf("%s", err)
++					}
++					pmain.GoFiles[0] = c.OutputFile(out)
++				}
++				if ptest != nil && ptest != p {
+ 					pkgs = append(pkgs, ptest)
+ 				}
+ 				if pxtest != nil {
+ 					pkgs = append(pkgs, pxtest)
+ 				}
+-
+-				data := *pmain.Internal.TestmainGo
+-				h := cache.NewHash("testmain")
+-				h.Write([]byte("testmain\n"))
+-				h.Write(data)
+-				out, _, err := c.Put(h.Sum(), bytes.NewReader(data))
+-				if err != nil {
+-					base.Fatalf("%s", err)
+-				}
+-				pmain.GoFiles[0] = c.OutputFile(out)
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 228be07f24..e6c893c257 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1424,41 +1424,7 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 		}
+ 	}
+ 	p.Internal.Imports = imports
+-
+-	deps := make(map[string]*Package)
+-	var q []*Package
+-	q = append(q, imports...)
+-	for i := 0; i < len(q); i++ {
+-		p1 := q[i]
+-		path := p1.ImportPath
+-		// The same import path could produce an error or not,
+-		// depending on what tries to import it.
+-		// Prefer to record entries with errors, so we can report them.
+-		p0 := deps[path]
+-		if p0 == nil || p1.Error != nil && (p0.Error == nil || len(p0.Error.ImportStack) > len(p1.Error.ImportStack)) {
+-			deps[path] = p1
+-			for _, p2 := range p1.Internal.Imports {
+-				if deps[p2.ImportPath] != p2 {
+-					q = append(q, p2)
+-				}
+-			}
+-		}
+-	}
+-
+-	p.Deps = make([]string, 0, len(deps))
+-	for dep := range deps {
+-		p.Deps = append(p.Deps, dep)
+-	}
+-	sort.Strings(p.Deps)
+-	for _, dep := range p.Deps {
+-		p1 := deps[dep]
+-		if p1 == nil {
+-			panic("impossible: missing entry in package cache for " + dep + " imported by " + p.ImportPath)
+-		}
+-		if p1.Error != nil {
+-			p.DepsErrors = append(p.DepsErrors, p1.Error)
+-		}
+-	}
++	p.collectDeps()
+ 
+ 	// unsafe is a fake package.
+ 	if p.Standard && (p.ImportPath == "unsafe" || cfg.BuildContext.Compiler == "gccgo") {
+@@ -1528,6 +1494,48 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 	}
+ }
+ 
++// collectDeps populates p.Deps and p.DepsErrors by iterating over
++// p.Internal.Imports.
++//
++// TODO(jayconrod): collectDeps iterates over transitive imports for every
++// package. We should only need to visit direct imports.
++func (p *Package) collectDeps() {
++	deps := make(map[string]*Package)
++	var q []*Package
++	q = append(q, p.Internal.Imports...)
++	for i := 0; i < len(q); i++ {
++		p1 := q[i]
++		path := p1.ImportPath
++		// The same import path could produce an error or not,
++		// depending on what tries to import it.
++		// Prefer to record entries with errors, so we can report them.
++		p0 := deps[path]
++		if p0 == nil || p1.Error != nil && (p0.Error == nil || len(p0.Error.ImportStack) > len(p1.Error.ImportStack)) {
++			deps[path] = p1
++			for _, p2 := range p1.Internal.Imports {
++				if deps[p2.ImportPath] != p2 {
++					q = append(q, p2)
++				}
++			}
++		}
++	}
++
++	p.Deps = make([]string, 0, len(deps))
++	for dep := range deps {
++		p.Deps = append(p.Deps, dep)
++	}
++	sort.Strings(p.Deps)
++	for _, dep := range p.Deps {
++		p1 := deps[dep]
++		if p1 == nil {
++			panic("impossible: missing entry in package cache for " + dep + " imported by " + p.ImportPath)
++		}
++		if p1.Error != nil {
++			p.DepsErrors = append(p.DepsErrors, p1.Error)
++		}
++	}
++}
++
+ // SafeArg reports whether arg is a "safe" command-line argument,
+ // meaning that when it appears in a command-line, it probably
+ // doesn't have some special meaning other than its own name.
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index 99a2247ede..5142b16e06 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -39,10 +39,43 @@ type TestCover struct {
+ 	DeclVars func(*Package, ...string) map[string]*CoverVar
+ }
+ 
+-// TestPackagesFor returns three packages:
++// TestPackagesFor is like TestPackagesAndErrors but it returns
++// an error if the test packages or their dependencies have errors.
++// Only test packages without errors are returned.
++func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Package, err error) {
++	pmain, ptest, pxtest = TestPackagesAndErrors(p, cover)
++	for _, p1 := range []*Package{ptest, pxtest, pmain} {
++		if p1 == nil {
++			// pxtest may be nil
++			continue
++		}
++		if p1.Error != nil {
++			err = p1.Error
++			break
++		}
++		if len(p1.DepsErrors) > 0 {
++			perr := p1.DepsErrors[0]
++			perr.Pos = "" // show full import stack
++			err = perr
++			break
++		}
++	}
++	if pmain.Error != nil || len(pmain.DepsErrors) > 0 {
++		pmain = nil
++	}
++	if ptest.Error != nil || len(ptest.DepsErrors) > 0 {
++		ptest = nil
++	}
++	if pxtest != nil && (pxtest.Error != nil || len(pxtest.DepsErrors) > 0) {
++		pxtest = nil
++	}
++	return pmain, ptest, pxtest, err
++}
++
++// TestPackagesAndErrors returns three packages:
++//	- pmain, the package main corresponding to the test binary (running tests in ptest and pxtest).
+ //	- ptest, the package p compiled with added "package p" test files.
+ //	- pxtest, the result of compiling any "package p_test" (external) test files.
+-//	- pmain, the package main corresponding to the test binary (running tests in ptest and pxtest).
+ //
+ // If the package has no "package p_test" test files, pxtest will be nil.
+ // If the non-test compilation of package p can be reused
+@@ -50,33 +83,30 @@ type TestCover struct {
+ // package p need not be instrumented for coverage or any other reason),
+ // then the returned ptest == p.
+ //
++// An error is returned if the testmain source cannot be completely generated
++// (for example, due to a syntax error in a test file). No error will be
++// returned for errors loading packages, but the Error or DepsError fields
++// of the returned packages may be set.
++//
+ // The caller is expected to have checked that len(p.TestGoFiles)+len(p.XTestGoFiles) > 0,
+ // or else there's no point in any of this.
+-func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Package, err error) {
++func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *Package) {
++	var ptestErr, pxtestErr *PackageError
+ 	var imports, ximports []*Package
+ 	var stk ImportStack
+ 	stk.Push(p.ImportPath + " (test)")
+ 	rawTestImports := str.StringList(p.TestImports)
+ 	for i, path := range p.TestImports {
+ 		p1 := LoadImport(path, p.Dir, p, &stk, p.Internal.Build.TestImportPos[path], ResolveImport)
+-		if p1.Error != nil {
+-			return nil, nil, nil, p1.Error
+-		}
+-		if len(p1.DepsErrors) > 0 {
+-			err := p1.DepsErrors[0]
+-			err.Pos = "" // show full import stack
+-			return nil, nil, nil, err
+-		}
+ 		if str.Contains(p1.Deps, p.ImportPath) || p1.ImportPath == p.ImportPath {
+ 			// Same error that loadPackage returns (via reusePackage) in pkg.go.
+ 			// Can't change that code, because that code is only for loading the
+ 			// non-test copy of a package.
+-			err := &PackageError{
++			ptestErr = &PackageError{
+ 				ImportStack:   testImportStack(stk[0], p1, p.ImportPath),
+ 				Err:           "import cycle not allowed in test",
+ 				IsImportCycle: true,
+ 			}
+-			return nil, nil, nil, err
+ 		}
+ 		p.TestImports[i] = p1.ImportPath
+ 		imports = append(imports, p1)
+@@ -87,14 +117,6 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
+ 	rawXTestImports := str.StringList(p.XTestImports)
+ 	for i, path := range p.XTestImports {
+ 		p1 := LoadImport(path, p.Dir, p, &stk, p.Internal.Build.XTestImportPos[path], ResolveImport)
+-		if p1.Error != nil {
+-			return nil, nil, nil, p1.Error
+-		}
+-		if len(p1.DepsErrors) > 0 {
+-			err := p1.DepsErrors[0]
+-			err.Pos = "" // show full import stack
+-			return nil, nil, nil, err
+-		}
+ 		if p1.ImportPath == p.ImportPath {
+ 			pxtestNeedsPtest = true
+ 		} else {
+@@ -108,6 +130,7 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
+ 	if len(p.TestGoFiles) > 0 || p.Name == "main" || cover != nil && cover.Local {
+ 		ptest = new(Package)
+ 		*ptest = *p
++		ptest.Error = ptestErr
+ 		ptest.ForTest = p.ImportPath
+ 		ptest.GoFiles = nil
+ 		ptest.GoFiles = append(ptest.GoFiles, p.GoFiles...)
+@@ -140,6 +163,7 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
+ 			m[k] = append(m[k], v...)
+ 		}
+ 		ptest.Internal.Build.ImportPos = m
++		ptest.collectDeps()
+ 	} else {
+ 		ptest = p
+ 	}
+@@ -155,6 +179,7 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
+ 				GoFiles:    p.XTestGoFiles,
+ 				Imports:    p.XTestImports,
+ 				ForTest:    p.ImportPath,
++				Error:      pxtestErr,
+ 			},
+ 			Internal: PackageInternal{
+ 				LocalPrefix: p.Internal.LocalPrefix,
+@@ -173,6 +198,7 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
+ 		if pxtestNeedsPtest {
+ 			pxtest.Internal.Imports = append(pxtest.Internal.Imports, ptest)
+ 		}
++		pxtest.collectDeps()
+ 	}
+ 
+ 	// Build main package.
+@@ -207,9 +233,6 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
+ 			pmain.Internal.Imports = append(pmain.Internal.Imports, ptest)
+ 		} else {
+ 			p1 := LoadImport(dep, "", nil, &stk, nil, 0)
+-			if p1.Error != nil {
+-				return nil, nil, nil, p1.Error
+-			}
+ 			pmain.Internal.Imports = append(pmain.Internal.Imports, p1)
+ 		}
+ 	}
+@@ -240,8 +263,8 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
+ 	// The list of imports is used by recompileForTest and by the loop
+ 	// afterward that gathers t.Cover information.
+ 	t, err := loadTestFuncs(ptest)
+-	if err != nil {
+-		return nil, nil, nil, err
++	if err != nil && pmain.Error == nil {
++		pmain.Error = &PackageError{Err: err.Error()}
+ 	}
+ 	t.Cover = cover
+ 	if len(ptest.GoFiles)+len(ptest.CgoFiles) > 0 {
+@@ -254,6 +277,7 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
+ 		pmain.Imports = append(pmain.Imports, pxtest.ImportPath)
+ 		t.ImportXtest = true
+ 	}
++	pmain.collectDeps()
+ 
+ 	// Sort and dedup pmain.Imports.
+ 	// Only matters for go list -test output.
+@@ -299,12 +323,14 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
+ 	}
+ 
+ 	data, err := formatTestmain(t)
+-	if err != nil {
+-		return nil, nil, nil, err
++	if err != nil && pmain.Error == nil {
++		pmain.Error = &PackageError{Err: err.Error()}
++	}
++	if data != nil {
++		pmain.Internal.TestmainGo = &data
+ 	}
+-	pmain.Internal.TestmainGo = &data
+ 
+-	return pmain, ptest, pxtest, nil
++	return pmain, ptest, pxtest
+ }
+ 
+ func testImportStack(top string, p *Package, target string) []string {
+@@ -420,21 +446,24 @@ type coverInfo struct {
+ }
+ 
+ // loadTestFuncs returns the testFuncs describing the tests that will be run.
++// The returned testFuncs is always non-nil, even if an error occurred while
++// processing test files.
+ func loadTestFuncs(ptest *Package) (*testFuncs, error) {
+ 	t := &testFuncs{
+ 		Package: ptest,
+ 	}
++	var err error
+ 	for _, file := range ptest.TestGoFiles {
+-		if err := t.load(filepath.Join(ptest.Dir, file), "_test", &t.ImportTest, &t.NeedTest); err != nil {
+-			return nil, err
++		if lerr := t.load(filepath.Join(ptest.Dir, file), "_test", &t.ImportTest, &t.NeedTest); lerr != nil && err == nil {
++			err = lerr
+ 		}
+ 	}
+ 	for _, file := range ptest.XTestGoFiles {
+-		if err := t.load(filepath.Join(ptest.Dir, file), "_xtest", &t.ImportXtest, &t.NeedXtest); err != nil {
+-			return nil, err
++		if lerr := t.load(filepath.Join(ptest.Dir, file), "_xtest", &t.ImportXtest, &t.NeedXtest); lerr != nil && err == nil {
++			err = lerr
+ 		}
+ 	}
+-	return t, nil
++	return t, err
+ }
+ 
+ // formatTestmain returns the content of the _testmain.go file for t.
+diff --git a/src/cmd/go/testdata/script/list_test_e.txt b/src/cmd/go/testdata/script/list_test_e.txt
+index 4e36b88e85..263892ba63 100644
+--- a/src/cmd/go/testdata/script/list_test_e.txt
++++ b/src/cmd/go/testdata/script/list_test_e.txt
+@@ -1,7 +1,7 @@
+ env GO111MODULE=off
+ 
+ # issue 25980: crash in go list -e -test
+-go list -e -test -f '{{.Error}}' p
++go list -e -test -deps -f '{{.Error}}' p
+ stdout '^p[/\\]d_test.go:2:8: cannot find package "d" in any of:'
+ 
+ -- p/d.go --
+diff --git a/src/cmd/go/testdata/script/list_test_err.txt b/src/cmd/go/testdata/script/list_test_err.txt
+new file mode 100644
+index 0000000000..42805c9882
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_test_err.txt
+@@ -0,0 +1,124 @@
++# issue 28491: errors in test source files should not prevent
++# "go list -test" from returning useful information.
++
++# go list prints information for package, internal test,
++# external test, but not testmain package when there is a
++# syntax error in test sources.
++! go list -test -deps syntaxerr
++stdout pkgdep
++stdout testdep_a
++stdout testdep_b
++stdout ^syntaxerr$
++stdout '^syntaxerr \[syntaxerr.test\]'
++stdout '^syntaxerr_test \[syntaxerr.test\]'
++! stdout '^syntaxerr\.test'
++stderr 'expected declaration'
++
++# go list -e prints information for all test packages.
++# The syntax error is shown in the package error field.
++go list -e -test -deps -f '{{.ImportPath}} {{.Error | printf "%q"}}' syntaxerr
++stdout 'pkgdep <nil>'
++stdout 'testdep_a <nil>'
++stdout 'testdep_b <nil>'
++stdout 'syntaxerr\.test "[^"]*expected declaration'
++! stderr 'expected declaration'
++
++[short] stop
++
++# go list prints partial information with test naming error
++! go list -test -deps nameerr
++stdout pkgdep
++stdout testdep_a
++stdout testdep_b
++stderr 'wrong signature for TestBad'
++
++go list -e -test -deps -f '{{.ImportPath}} {{.Error | printf "%q"}}' nameerr
++stdout 'pkgdep <nil>'
++stdout 'testdep_a <nil>'
++stdout 'testdep_b <nil>'
++stdout 'nameerr\.test "[^"]*wrong signature for TestBad'
++! stderr 'wrong signature for TestBad'
++
++# go list prints partial information with error if test has cyclic import
++! go list -test -deps cycleerr
++stdout cycleerr
++stderr 'import cycle not allowed in test'
++
++go list -e -test -deps -f '{{.ImportPath}} {{.Error | printf "%q"}}' cycleerr
++stdout 'cycleerr <nil>'
++stdout 'testdep_a <nil>'
++stdout 'testdep_cycle <nil>'
++stdout 'cycleerr \[cycleerr.test\] "[^"]*import cycle not allowed in test'
++! stderr 'import cycle not allowed in test'
++
++-- syntaxerr/syntaxerr.go --
++package syntaxerr
++
++import _ "pkgdep"
++
++-- syntaxerr/syntaxerr_ie_test.go --
++package syntaxerr
++
++!!!syntax error
++
++-- syntaxerr/syntaxerr_xe_test.go --
++package syntaxerr_test
++
++!!!syntax error
++
++-- syntaxerr/syntaxerr_i_test.go --
++package syntaxerr
++
++import _ "testdep_a"
++
++-- syntaxerr/syntaxerr_x_test.go --
++package syntaxerr
++
++import _ "testdep_b"
++
++-- nameerr/nameerr.go --
++package nameerr
++
++import _ "pkgdep"
++
++-- nameerr/nameerr_i_test.go --
++package nameerr
++
++import (
++  _ "testdep_a"
++  "testing"
++)
++
++func TestBad(t *testing.B) {}
++
++-- nameerr/nameerr_x_test.go --
++package nameerr_test
++
++import (
++  _ "testdep_b"
++  "testing"
++)
++
++func TestBad(t *testing.B) {}
++
++-- cycleerr/cycleerr_test.go --
++package cycleerr
++
++import (
++  _ "testdep_a"
++  _ "testdep_cycle"
++)
++
++-- pkgdep/pkgdep.go --
++package pkgdep
++
++-- testdep_a/testdep_a.go --
++package testdep_a
++
++-- testdep_b/testdep_b.go --
++package testdep_b
++
++-- testdep_cycle/testdep_cycle.go --
++package testdep_cycle
++
++import _ "cycleerr"

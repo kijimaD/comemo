@@ -7,9 +7,366 @@ Date:   Fri Sep 24 11:55:30 2010 -0400
     R=ken2, ken3
     CC=golang-dev
     https://golang.org/cl/2208047
-
+---
  src/cmd/gc/go.y        | 20 +++++++------
  src/cmd/gc/subr.c      | 10 +++++--
  src/cmd/gc/typecheck.c | 77 +++++++++++++++++++++++++++++++++-----------------
  test/ddd1.go           | 19 +++++++++++++
  4 files changed, 90 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index e210fbd2cd..6bc63e9118 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -68,7 +68,7 @@ static void fixlbrace(int);
+ 
+ %type	<list>	xdcl fnbody fnres switch_body loop_body dcl_name_list
+ %type	<list>	new_name_list expr_list keyval_list braced_keyval_list expr_or_type_list xdcl_list
+-%type	<list>	oexpr_list oexpr_or_type_list_ocomma caseblock_list stmt_list oarg_type_list_ocomma arg_type_list
++%type	<list>	oexpr_list caseblock_list stmt_list oarg_type_list_ocomma arg_type_list
+ %type	<list>	interfacedcl_list vardcl vardcl_list structdcl structdcl_list
+ %type	<list>	common_dcl constdcl constdcl1 constdcl_list typedcl_list
+ 
+@@ -808,10 +808,20 @@ uexpr:
+  * can be preceded by 'defer' and 'go'
+  */
+ pseudocall:
+-	pexpr '(' oexpr_or_type_list_ocomma ')'
++	pexpr '(' ')'
++	{
++		$$ = nod(OCALL, $1, N);
++	}
++|	pexpr '(' expr_or_type_list ocomma ')'
++	{
++		$$ = nod(OCALL, $1, N);
++		$$->list = $3;
++	}
++|	pexpr '(' expr_or_type_list LDDD ocomma ')'
+ 	{
+ 		$$ = nod(OCALL, $1, N);
+ 		$$->list = $3;
++		$$->isddd = 1;
+ 	}
+ 
+ pexpr_no_paren:
+@@ -1583,12 +1593,6 @@ oexpr_list:
+ 	}
+ |	expr_list
+ 
+-oexpr_or_type_list_ocomma:
+-	{
+-		$$ = nil;
+-	}
+-|	expr_or_type_list ocomma
+-
+ osimple_stmt:
+ 	{
+ 		$$ = N;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index fc89d064db..3ba1519cf5 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -271,7 +271,6 @@ setlineno(Node *n)
+ 	case OTYPE:
+ 	case OPACK:
+ 	case OLITERAL:
+-	case ONONAME:
+ 		break;
+ 	default:
+ 		lineno = n->lineno;
+@@ -3033,11 +3032,14 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
+ 	Node *this, *fn, *call, *n, *t, *pad;
+ 	NodeList *l, *args, *in, *out;
+ 	Type *tpad;
++	int isddd;
+ 
+ 	if(debug['r'])
+ 		print("genwrapper rcvrtype=%T method=%T newnam=%S\n",
+ 			rcvr, method, newnam);
+ 
++	lineno = 1;	// less confusing than end of input
++
+ 	dclcontext = PEXTERN;
+ 	markdcl();
+ 
+@@ -3069,12 +3071,16 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
+ 
+ 	// arg list
+ 	args = nil;
+-	for(l=in; l; l=l->next)
++	isddd = 0;
++	for(l=in; l; l=l->next) {
+ 		args = list(args, l->n->left);
++		isddd = l->n->left->isddd;
++	}
+ 
+ 	// generate call
+ 	call = nod(OCALL, adddot(nod(OXDOT, this->left, newname(method->sym))), N);
+ 	call->list = args;
++	call->isddd = isddd;
+ 	fn->nbody = list1(call);
+ 	if(method->type->outtuple > 0) {
+ 		n = nod(ORETURN, N, N);
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 8ea0f9dca3..1c736d4329 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -17,7 +17,7 @@ static void	implicitstar(Node**);
+ static int	onearg(Node*, char*, ...);
+ static int	twoarg(Node*);
+ static int	lookdot(Node*, Type*, int);
+-static void	typecheckaste(int, Type*, NodeList*, char*);
++static void	typecheckaste(int, int, Type*, NodeList*, char*);
+ static Type*	lookdot1(Sym *s, Type *t, Type *f, int);
+ static int	nokeys(NodeList*);
+ static void	typecheckcomplit(Node**);
+@@ -716,12 +716,16 @@ reswitch:
+ 	case OCALL:
+ 		l = n->left;
+ 		if(l->op == ONAME && (r = unsafenmagic(n)) != N) {
++			if(n->isddd)
++				yyerror("invalid use of ... with builtin %#N", l);
+ 			n = r;
+ 			goto reswitch;
+ 		}
+ 		typecheck(&n->left, Erv | Etype | Ecall);
+ 		l = n->left;
+ 		if(l->op == ONAME && l->etype != 0) {
++			if(n->isddd)
++				yyerror("invalid use of ... with builtin %#N", l);
+ 			// builtin: OLEN, OCAP, etc.
+ 			n->op = l->etype;
+ 			n->left = n->right;
+@@ -731,6 +735,8 @@ reswitch:
+ 		defaultlit(&n->left, T);
+ 		l = n->left;
+ 		if(l->op == OTYPE) {
++			if(n->isddd)
++				yyerror("invalid use of ... in type conversion", l);
+ 			// pick off before type-checking arguments
+ 			ok |= Erv;
+ 			// turn CALL(type, arg) into CONV(arg) w/ type
+@@ -757,7 +763,7 @@ reswitch:
+ 
+ 		case ODOTMETH:
+ 			n->op = OCALLMETH;
+-			typecheckaste(OCALL, getthisx(t), list1(l->left), "method receiver");
++			typecheckaste(OCALL, 0, getthisx(t), list1(l->left), "method receiver");
+ 			break;
+ 
+ 		default:
+@@ -768,7 +774,7 @@ reswitch:
+ 			}
+ 			break;
+ 		}
+-		typecheckaste(OCALL, getinargx(t), n->list, "function argument");
++		typecheckaste(OCALL, n->isddd, getinargx(t), n->list, "function argument");
+ 		ok |= Etop;
+ 		if(t->outtuple == 0)
+ 			goto ret;
+@@ -1160,7 +1166,7 @@ reswitch:
+ 		}
+ 		if(curfn->type->outnamed && n->list == nil)
+ 			goto ret;
+-		typecheckaste(ORETURN, getoutargx(curfn->type), n->list, "return argument");
++		typecheckaste(ORETURN, 0, getoutargx(curfn->type), n->list, "return argument");
+ 		goto ret;
+ 
+ 	case OSELECT:
+@@ -1451,7 +1457,7 @@ nokeys(NodeList *l)
+  * typecheck assignment: type list = expression list
+  */
+ static void
+-typecheckaste(int op, Type *tstruct, NodeList *nl, char *desc)
++typecheckaste(int op, int isddd, Type *tstruct, NodeList *nl, char *desc)
+ {
+ 	Type *t, *tl, *tn;
+ 	Node *n;
+@@ -1465,7 +1471,6 @@ typecheckaste(int op, Type *tstruct, NodeList *nl, char *desc)
+ 
+ 	if(nl != nil && nl->next == nil && (n = nl->n)->type != T)
+ 	if(n->type->etype == TSTRUCT && n->type->funarg) {
+-		setlineno(n);
+ 		tn = n->type->type;
+ 		for(tl=tstruct->type; tl; tl=tl->down) {
+ 			if(tl->isddd) {
+@@ -1474,29 +1479,34 @@ typecheckaste(int op, Type *tstruct, NodeList *nl, char *desc)
+ 						yyerror("cannot use %T as type %T in %s%s", tn->type, tl->type->type, desc, why);
+ 				goto out;
+ 			}
+-			if(tn == T) {
+-				yyerror("not enough arguments to %#O", op);
+-				goto out;
+-			}
++			if(tn == T)
++				goto notenough;
+ 			if(assignop(tn->type, tl->type, &why) == 0)
+ 				yyerror("cannot use %T as type %T in %s%s", tn->type, tl->type, desc, why);
+ 			tn = tn->down;
+ 		}
+ 		if(tn != T)
+-			yyerror("too many arguments to %#O", op);
++			goto toomany;
+ 		goto out;
+ 	}
+ 
+ 	for(tl=tstruct->type; tl; tl=tl->down) {
+ 		t = tl->type;
+ 		if(tl->isddd) {
+-			if(nl != nil && nl->n->isddd && !eqtype(nl->n->type, t)) {
+-				// TODO(rsc): This is not actually illegal but will
+-				// help catch bugs.
+-				yyerror("cannot pass %+N as %T (... mismatch)", nl->n, tl);
++			if(nl != nil && nl->n->isddd && !isddd) {
++				// TODO(rsc): This is not actually illegal, but it will help catch bugs.
++				yyerror("to pass '%#N' as ...%T, use '%#N...'", nl->n, t->type, nl->n);
++				isddd = 1;
+ 			}
+-			if(nl != nil && nl->next == nil && nl->n->isddd && eqtype(nl->n->type, t))
++			if(isddd) {
++				if(nl == nil)
++					goto notenough;
++				if(nl->next != nil)
++					goto toomany;
++				if(assignop(nl->n->type, t, &why) == 0)
++					yyerror("ddd cannot use %+N as type %T in %s%s", nl->n, t, desc, why);
+ 				goto out;
++			}
+ 			for(; nl; nl=nl->next) {
+ 				setlineno(nl->n);
+ 				defaultlit(&nl->n, t->type);
+@@ -1505,23 +1515,30 @@ typecheckaste(int op, Type *tstruct, NodeList *nl, char *desc)
+ 			}
+ 			goto out;
+ 		}
+-		if(nl == nil) {
+-			yyerror("not enough arguments to %#O", op);
+-			goto out;
+-		}
++		if(nl == nil)
++			goto notenough;
+ 		n = nl->n;
+-		setlineno(nl->n);
++		setlineno(n);
+ 		if(n->type != T)
+ 			nl->n = assignconv(n, t, desc);
+ 		nl = nl->next;
+ 	}
+-	if(nl != nil) {
+-		yyerror("too many arguments to %#O", op);
+-		goto out;
+-	}
++	if(nl != nil)
++		goto toomany;
++	if(isddd)
++		yyerror("invalid use of ... in %#O", op);
+ 
+ out:
+ 	lineno = lno;
++	return;
++
++notenough:
++	yyerror("not enough arguments to %#O", op);
++	goto out;
++
++toomany:
++	yyerror("too many arguments to %#O", op);
++	goto out;
+ }
+ 
+ /*
+@@ -1695,11 +1712,13 @@ typecheckcomplit(Node **np)
+ 	NodeList *ll;
+ 	Type *t, *f;
+ 	Sym *s;
++	int32 lno;
+ 
+ 	n = *np;
++	lno = lineno;
+ 
+ 	memset(hash, 0, sizeof hash);
+-
++	setlineno(n->right);
+ 	l = typecheck(&n->right /* sic */, Etype);
+ 	if((t = l->type) == T)
+ 		goto error;
+@@ -1715,6 +1734,7 @@ typecheckcomplit(Node **np)
+ 		i = 0;
+ 		for(ll=n->list; ll; ll=ll->next) {
+ 			l = ll->n;
++			setlineno(l);
+ 			if(l->op == OKEY) {
+ 				typecheck(&l->left, Erv);
+ 				evconst(l->left);
+@@ -1756,6 +1776,7 @@ typecheckcomplit(Node **np)
+ 	case TMAP:
+ 		for(ll=n->list; ll; ll=ll->next) {
+ 			l = ll->n;
++			setlineno(l);
+ 			if(l->op != OKEY) {
+ 				typecheck(&ll->n, Erv);
+ 				yyerror("missing key in map literal");
+@@ -1778,6 +1799,7 @@ typecheckcomplit(Node **np)
+ 			// simple list of variables
+ 			f = t->type;
+ 			for(ll=n->list; ll; ll=ll->next) {
++				setlineno(ll->n);
+ 				typecheck(&ll->n, Erv);
+ 				if(f == nil) {
+ 					if(!bad++)
+@@ -1798,6 +1820,7 @@ typecheckcomplit(Node **np)
+ 			// keyed list
+ 			for(ll=n->list; ll; ll=ll->next) {
+ 				l = ll->n;
++				setlineno(l);
+ 				if(l->op != OKEY) {
+ 					if(!bad++)
+ 						yyerror("mixture of field:value and value initializers");
+@@ -1836,11 +1859,13 @@ typecheckcomplit(Node **np)
+ 	n->type = t;
+ 
+ 	*np = n;
++	lineno = lno;
+ 	return;
+ 
+ error:
+ 	n->type = T;
+ 	*np = n;
++	lineno = lno;
+ }
+ 
+ /*
+diff --git a/test/ddd1.go b/test/ddd1.go
+index 6f714c078a..fcd32c282f 100644
+--- a/test/ddd1.go
++++ b/test/ddd1.go
+@@ -6,6 +6,8 @@
+ 
+ package main
+ 
++import "unsafe"
++
+ func sum(args ...int) int { return 0 }
+ 
+ var (
+@@ -26,3 +28,20 @@ var (
+ 	_ = funny(nil, nil)
+ 	_ = funny([]T{}) // ok because []T{} is a T; passes []T{[]T{}}
+ )
++
++func bad(args ...int) {
++	print(1, 2, args...)	// ERROR "[.][.][.]"
++	println(args...)	// ERROR "[.][.][.]"
++	ch := make(chan int)
++	close(ch...)	// ERROR "[.][.][.]"
++	_ = len(args...)	// ERROR "[.][.][.]"
++	_ = closed(ch...)	// ERROR "[.][.][.]"
++	_ = new(int...)	// ERROR "[.][.][.]"
++	n := 10
++	_ = make([]byte, n...)	// ERROR "[.][.][.]"
++	// TODO(rsc): enable after gofmt bug is fixed
++	//	_ = make([]byte, 10 ...)	// error "[.][.][.]"
++	var x int
++	_ = unsafe.Pointer(&x...)	// ERROR "[.][.][.]"
++	_ = unsafe.Sizeof(x...)	// ERROR "[.][.][.]"
++}

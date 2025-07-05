@@ -10,6 +10,29 @@ Date:   Mon Oct 12 11:19:41 2020 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/bytealg/bytealg.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/bytealg/bytealg.go b/src/internal/bytealg/bytealg.go
+index 6fd9308369..b30c234436 100644
+--- a/src/internal/bytealg/bytealg.go
++++ b/src/internal/bytealg/bytealg.go
+@@ -99,7 +99,7 @@ func HashStrRev(sep string) (uint32, uint32) {
+ }
+ 
+ // IndexRabinKarpBytes uses the Rabin-Karp search algorithm to return the index of the
+-// first occurence of substr in s, or -1 if not present.
++// first occurrence of substr in s, or -1 if not present.
+ func IndexRabinKarpBytes(s, sep []byte) int {
+ 	// Rabin-Karp search
+ 	hashsep, pow := HashStrBytes(sep)
+@@ -124,7 +124,7 @@ func IndexRabinKarpBytes(s, sep []byte) int {
+ }
+ 
+ // IndexRabinKarp uses the Rabin-Karp search algorithm to return the index of the
+-// first occurence of substr in s, or -1 if not present.
++// first occurrence of substr in s, or -1 if not present.
+ func IndexRabinKarp(s, substr string) int {
+ 	// Rabin-Karp search
+ 	hashss, pow := HashStr(substr)

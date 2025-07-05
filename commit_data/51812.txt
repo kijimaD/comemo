@@ -17,7 +17,69 @@ Date:   Tue Mar 15 22:34:19 2022 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/ir/mini.go    | 6 +++---
  src/cmd/compile/internal/types/type.go | 5 ++---
  2 files changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/mini.go b/src/cmd/compile/internal/ir/mini.go
+index eeb74081fb..cfd5dcfb96 100644
+--- a/src/cmd/compile/internal/ir/mini.go
++++ b/src/cmd/compile/internal/ir/mini.go
+@@ -7,6 +7,7 @@
+ package ir
+ 
+ import (
++	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
+ 	"fmt"
+@@ -56,7 +57,6 @@ func (n *miniNode) SetEsc(x uint16)   { n.esc = x }
+ const (
+ 	miniWalkdefShift   = 0 // TODO(mdempsky): Move to Name.flags.
+ 	miniTypecheckShift = 2
+-	miniDiag           = 1 << 4
+ 	miniWalked         = 1 << 5 // to prevent/catch re-walking
+ )
+ 
+@@ -68,8 +68,8 @@ func (n *miniNode) SetTypecheck(x uint8) {
+ 	n.bits.set2(miniTypecheckShift, x)
+ }
+ 
+-func (n *miniNode) Diag() bool     { return n.bits&miniDiag != 0 }
+-func (n *miniNode) SetDiag(x bool) { n.bits.set(miniDiag, x) }
++func (n *miniNode) Diag() bool     { return false }
++func (n *miniNode) SetDiag(x bool) { base.AssertfAt(!x, n.Pos(), "SetDiag") }
+ 
+ func (n *miniNode) Walked() bool     { return n.bits&miniWalked != 0 }
+ func (n *miniNode) SetWalked(x bool) { n.bits.set(miniWalked, x) }
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index fe352e0b6e..51ce614bd8 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -212,7 +212,6 @@ func (*Type) CanBeAnSSAAux() {}
+ 
+ const (
+ 	typeNotInHeap  = 1 << iota // type cannot be heap allocated
+-	typeBroke                  // broken type definition
+ 	typeNoalg                  // suppress hash and eq algorithm generation
+ 	typeDeferwidth             // width computation has been deferred and type is on deferredTypeStack
+ 	typeRecur
+@@ -222,7 +221,7 @@ const (
+ )
+ 
+ func (t *Type) NotInHeap() bool  { return t.flags&typeNotInHeap != 0 }
+-func (t *Type) Broke() bool      { return t.flags&typeBroke != 0 }
++func (t *Type) Broke() bool      { return false }
+ func (t *Type) Noalg() bool      { return t.flags&typeNoalg != 0 }
+ func (t *Type) Deferwidth() bool { return t.flags&typeDeferwidth != 0 }
+ func (t *Type) Recur() bool      { return t.flags&typeRecur != 0 }
+@@ -231,7 +230,7 @@ func (t *Type) IsShape() bool    { return t.flags&typeIsShape != 0 }
+ func (t *Type) HasShape() bool   { return t.flags&typeHasShape != 0 }
+ 
+ func (t *Type) SetNotInHeap(b bool)  { t.flags.set(typeNotInHeap, b) }
+-func (t *Type) SetBroke(b bool)      { t.flags.set(typeBroke, b) }
++func (t *Type) SetBroke(b bool)      { base.Assertf(!b, "SetBroke") }
+ func (t *Type) SetNoalg(b bool)      { t.flags.set(typeNoalg, b) }
+ func (t *Type) SetDeferwidth(b bool) { t.flags.set(typeDeferwidth, b) }
+ func (t *Type) SetRecur(b bool)      { t.flags.set(typeRecur, b) }

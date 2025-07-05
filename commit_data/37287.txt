@@ -26,7 +26,72 @@ Date:   Fri Jul 13 15:55:50 2018 -0400
     Reviewed-on: https://go-review.googlesource.com/123876
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go              | 17 ++++++++---------
  src/cmd/go/internal/work/action.go | 14 +++++++++-----
  2 files changed, 17 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 6f5e0c86a9..7a15ce3256 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -6390,15 +6390,14 @@ func TestNoRelativeTmpdir(t *testing.T) {
+ 	tg.setenv("GOCACHE", "off")
+ 	tg.setenv("GOPATH", tg.path("."))
+ 	tg.setenv("GOTMPDIR", "tmp")
+-	tg.runFail("build", "a")
+-	tg.grepStderr("relative tmpdir", "wrong error")
+-
+-	if runtime.GOOS != "windows" && runtime.GOOS != "plan9" {
+-		tg.unsetenv("GOTMPDIR")
+-		tg.setenv("TMPDIR", "tmp")
+-		tg.runFail("build", "a")
+-		tg.grepStderr("relative tmpdir", "wrong error")
+-	}
++	tg.run("build", "-work", "a")
++	tg.grepStderr("WORK=[^t]", "work should be absolute path")
++
++	tg.unsetenv("GOTMPDIR")
++	tg.setenv("TMP", "tmp")    // windows
++	tg.setenv("TMPDIR", "tmp") // unix
++	tg.run("build", "-work", "a")
++	tg.grepStderr("WORK=[^t]", "work should be absolute path")
+ }
+ 
+ // Issue 24704.
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index 8ce68be15d..9cbc89f32b 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -213,7 +213,6 @@ const (
+ )
+ 
+ func (b *Builder) Init() {
+-	var err error
+ 	b.Print = func(a ...interface{}) (int, error) {
+ 		return fmt.Fprint(os.Stderr, a...)
+ 	}
+@@ -225,14 +224,19 @@ func (b *Builder) Init() {
+ 	if cfg.BuildN {
+ 		b.WorkDir = "$WORK"
+ 	} else {
+-		b.WorkDir, err = ioutil.TempDir(os.Getenv("GOTMPDIR"), "go-build")
++		tmp, err := ioutil.TempDir(os.Getenv("GOTMPDIR"), "go-build")
+ 		if err != nil {
+ 			base.Fatalf("%s", err)
+ 		}
+-		if !filepath.IsAbs(b.WorkDir) {
+-			os.RemoveAll(b.WorkDir)
+-			base.Fatalf("cmd/go: relative tmpdir not supported")
++		if !filepath.IsAbs(tmp) {
++			abs, err := filepath.Abs(tmp)
++			if err != nil {
++				os.RemoveAll(tmp)
++				base.Fatalf("go: creating work dir: %v", err)
++			}
++			tmp = abs
+ 		}
++		b.WorkDir = tmp
+ 		if cfg.BuildX || cfg.BuildWork {
+ 			fmt.Fprintf(os.Stderr, "WORK=%s\n", b.WorkDir)
+ 		}

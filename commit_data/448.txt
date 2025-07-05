@@ -8,7 +8,37 @@ Date:   Tue Jul 29 15:17:27 2008 -0700
     R=gri
     OCL=13548
     CL=13548
-
+---
  src/runtime/rt1_amd64_linux.c | 2 +-
  src/syscall/syscall.go        | 5 +----
  2 files changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/rt1_amd64_linux.c b/src/runtime/rt1_amd64_linux.c
+index 9f3d99e6ef..99700fdf89 100644
+--- a/src/runtime/rt1_amd64_linux.c
++++ b/src/runtime/rt1_amd64_linux.c
+@@ -153,7 +153,7 @@ sighandler(int32 sig, siginfo* info, void** context)
+         prints("\n\n");
+         
+ 	traceback((void *)sc->rip, (void *)sc->rsp, (void *)sc->r15);
+-	tracebackothers((void*)sc->__r15);
++	tracebackothers((void*)sc->r15);
+ 	print_sigcontext(sc);
+ 
+ 	sys·breakpoint();
+diff --git a/src/syscall/syscall.go b/src/syscall/syscall.go
+index 9275360747..8475001a77 100644
+--- a/src/syscall/syscall.go
++++ b/src/syscall/syscall.go
+@@ -5,10 +5,7 @@
+ package syscall
+ 
+ /*
+- * These calls have signatures that are independent of operating system.
+- *
+- * For simplicity of addressing in assembler, all integers are 64 bits
+- * in these calling sequences (although it complicates some, such as pipe)
++ * Foundation of system call interface.
+  */
+ 
+ func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);

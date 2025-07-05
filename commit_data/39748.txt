@@ -11,6 +11,50 @@ Date:   Sun Dec 16 03:14:40 2018 +1100
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/cmd/dist/main.go | 16 ++++++++--------
  1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/dist/main.go b/src/cmd/dist/main.go
+index bab8ab781a..ed116e22f6 100644
+--- a/src/cmd/dist/main.go
++++ b/src/cmd/dist/main.go
+@@ -56,6 +56,9 @@ func main() {
+ 
+ 	gohostos = runtime.GOOS
+ 	switch gohostos {
++	case "aix":
++		// uname -m doesn't work under AIX
++		gohostarch = "ppc64"
+ 	case "darwin":
+ 		// Even on 64-bit platform, darwin uname -m prints i386.
+ 		// We don't support any of the OS X versions that run on 32-bit-only hardware anymore.
+@@ -72,6 +75,11 @@ func main() {
+ 		if runtime.GOARCH == "arm" {
+ 			defaultclang = true
+ 		}
++	case "plan9":
++		gohostarch = os.Getenv("objtype")
++		if gohostarch == "" {
++			fatalf("$objtype is unset")
++		}
+ 	case "solaris":
+ 		// Even on 64-bit platform, solaris uname -m prints i86pc.
+ 		out := run("", CheckExit, "isainfo", "-n")
+@@ -81,16 +89,8 @@ func main() {
+ 		if strings.Contains(out, "i386") {
+ 			gohostarch = "386"
+ 		}
+-	case "plan9":
+-		gohostarch = os.Getenv("objtype")
+-		if gohostarch == "" {
+-			fatalf("$objtype is unset")
+-		}
+ 	case "windows":
+ 		exe = ".exe"
+-	case "aix":
+-		// uname -m doesn't work under AIX
+-		gohostarch = "ppc64"
+ 	}
+ 
+ 	sysinit()

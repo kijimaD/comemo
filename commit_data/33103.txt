@@ -24,6 +24,22 @@ Date:   Tue Jul 11 09:26:01 2017 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Elias Naur <elias.naur@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/stack_test.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/stack_test.go b/src/runtime/stack_test.go
+index 485e327c41..25e8f77da4 100644
+--- a/src/runtime/stack_test.go
++++ b/src/runtime/stack_test.go
+@@ -72,7 +72,9 @@ func TestStackMem(t *testing.T) {
+ 
+ // Test stack growing in different contexts.
+ func TestStackGrowth(t *testing.T) {
+-	t.Parallel()
++	// Don't make this test parallel as this makes the 20 second
++	// timeout unreliable on slow builders. (See issue #19381.)
++
+ 	var wg sync.WaitGroup
+ 
+ 	// in a normal goroutine

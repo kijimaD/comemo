@@ -10,7 +10,7 @@ Date:   Mon Dec 13 15:04:43 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/371514
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/api.go       |  6 ++++++
  src/cmd/compile/internal/types2/api_test.go  | 10 ++++++++++
  src/cmd/compile/internal/types2/interface.go | 10 +---------
@@ -20,3 +20,242 @@ Date:   Mon Dec 13 15:04:43 2021 -0800
  src/go/types/interface.go                    | 10 +---------
  src/go/types/union.go                        | 24 ++++++++++++++++++------
  8 files changed, 70 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index 4ea3989c39..ed5bced643 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -202,6 +202,12 @@ type Info struct {
+ 	// identifier z in a variable declaration 'var z int' is found
+ 	// only in the Defs map, and identifiers denoting packages in
+ 	// qualified identifiers are collected in the Uses map.
++	//
++	// For binary expressions representing unions in constraint
++	// position or type elements in interfaces, a union type is
++	// recorded for the top-level expression only. For instance,
++	// given the constraint a|b|c, the union type for (a|b)|c
++	// is recorded, but not the union type for a|b.
+ 	Types map[syntax.Expr]TypeAndValue
+ 
+ 	// Instances maps identifiers denoting parameterized types or functions to
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index 4227397df9..fc8b5cd4ee 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -342,6 +342,16 @@ func TestTypesInfo(t *testing.T) {
+ 
+ 		// issue 47895
+ 		{`package p; import "unsafe"; type S struct { f int }; var s S; var _ = unsafe.Offsetof(s.f)`, `s.f`, `int`},
++
++		// issue 50093
++		{`package u0a; func _[_ interface{int}]() {}`, `int`, `int`},
++		{`package u1a; func _[_ interface{~int}]() {}`, `~int`, `~int`},
++		{`package u2a; func _[_ interface{int|string}]() {}`, `int | string`, `int|string`},
++		{`package u3a; func _[_ interface{int|string|~bool}]() {}`, `int | string | ~bool`, `int|string|~bool`},
++		{`package u0b; func _[_ int]() {}`, `int`, `int`},
++		{`package u1b; func _[_ ~int]() {}`, `~int`, `~int`},
++		{`package u2b; func _[_ int|string]() {}`, `int | string`, `int|string`},
++		{`package u3b; func _[_ int|string|~bool]() {}`, `int | string | ~bool`, `int|string|~bool`},
+ 	}
+ 
+ 	for _, test := range tests {
+diff --git a/src/cmd/compile/internal/types2/interface.go b/src/cmd/compile/internal/types2/interface.go
+index 96c92ccaec..b048fdd9e2 100644
+--- a/src/cmd/compile/internal/types2/interface.go
++++ b/src/cmd/compile/internal/types2/interface.go
+@@ -111,7 +111,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
+ 
+ 	for _, f := range iface.MethodList {
+ 		if f.Name == nil {
+-			addEmbedded(posFor(f.Type), parseUnion(check, flattenUnion(nil, f.Type)))
++			addEmbedded(posFor(f.Type), parseUnion(check, f.Type))
+ 			continue
+ 		}
+ 		// f.Name != nil
+@@ -182,11 +182,3 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
+ 		ityp.check = nil
+ 	}).describef(iface, "compute type set for %s", ityp)
+ }
+-
+-func flattenUnion(list []syntax.Expr, x syntax.Expr) []syntax.Expr {
+-	if o, _ := x.(*syntax.Operation); o != nil && o.Op == syntax.Or {
+-		list = flattenUnion(list, o.X)
+-		x = o.Y
+-	}
+-	return append(list, x)
+-}
+diff --git a/src/cmd/compile/internal/types2/union.go b/src/cmd/compile/internal/types2/union.go
+index 2304b30280..97581fe863 100644
+--- a/src/cmd/compile/internal/types2/union.go
++++ b/src/cmd/compile/internal/types2/union.go
+@@ -46,10 +46,11 @@ func (t *Term) String() string { return (*term)(t).String() }
+ // Avoid excessive type-checking times due to quadratic termlist operations.
+ const maxTermCount = 100
+ 
+-// parseUnion parses the given list of type expressions tlist as a union of
+-// those expressions. The result is a Union type, or Typ[Invalid] for some
+-// errors.
+-func parseUnion(check *Checker, tlist []syntax.Expr) Type {
++// parseUnion parses uexpr as a union of expressions.
++// The result is a Union type, or Typ[Invalid] for some errors.
++func parseUnion(check *Checker, uexpr syntax.Expr) Type {
++	tlist := flattenUnion(nil, uexpr)
++
+ 	var terms []*Term
+ 	for _, x := range tlist {
+ 		tilde, typ := parseTilde(check, x)
+@@ -57,10 +58,11 @@ func parseUnion(check *Checker, tlist []syntax.Expr) Type {
+ 			// Single type. Ok to return early because all relevant
+ 			// checks have been performed in parseTilde (no need to
+ 			// run through term validity check below).
+-			return typ
++			return typ // typ already recorded through check.typ in parseTilde
+ 		}
+ 		if len(terms) >= maxTermCount {
+ 			check.errorf(x, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
++			check.recordTypeAndValue(uexpr, typexpr, Typ[Invalid], nil)
+ 			return Typ[Invalid]
+ 		}
+ 		terms = append(terms, NewTerm(tilde, typ))
+@@ -105,7 +107,9 @@ func parseUnion(check *Checker, tlist []syntax.Expr) Type {
+ 		}
+ 	})
+ 
+-	return &Union{terms, nil}
++	u := &Union{terms, nil}
++	check.recordTypeAndValue(uexpr, typexpr, u, nil)
++	return u
+ }
+ 
+ func parseTilde(check *Checker, x syntax.Expr) (tilde bool, typ Type) {
+@@ -143,3 +147,11 @@ func overlappingTerm(terms []*Term, y *Term) int {
+ 	}
+ 	return -1
+ }
++
++func flattenUnion(list []syntax.Expr, x syntax.Expr) []syntax.Expr {
++	if o, _ := x.(*syntax.Operation); o != nil && o.Op == syntax.Or {
++		list = flattenUnion(list, o.X)
++		x = o.Y
++	}
++	return append(list, x)
++}
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index 51d58c49aa..c4d81c1491 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -197,6 +197,12 @@ type Info struct {
+ 	// identifier z in a variable declaration 'var z int' is found
+ 	// only in the Defs map, and identifiers denoting packages in
+ 	// qualified identifiers are collected in the Uses map.
++	//
++	// For binary expressions representing unions in constraint
++	// position or type elements in interfaces, a union type is
++	// recorded for the top-level expression only. For instance,
++	// given the constraint a|b|c, the union type for (a|b)|c
++	// is recorded, but not the union type for a|b.
+ 	Types map[ast.Expr]TypeAndValue
+ 
+ 	// Instances maps identifiers denoting parameterized types or functions to
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 7b7baa7604..1ee9806fd0 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -373,6 +373,16 @@ func TestTypesInfo(t *testing.T) {
+ 
+ 		// issue 47895
+ 		{`package p; import "unsafe"; type S struct { f int }; var s S; var _ = unsafe.Offsetof(s.f)`, `s.f`, `int`},
++
++		// issue 50093
++		{genericPkg + `u0a; func _[_ interface{int}]() {}`, `int`, `int`},
++		{genericPkg + `u1a; func _[_ interface{~int}]() {}`, `~int`, `~int`},
++		{genericPkg + `u2a; func _[_ interface{int|string}]() {}`, `int | string`, `int|string`},
++		{genericPkg + `u3a; func _[_ interface{int|string|~bool}]() {}`, `int | string | ~bool`, `int|string|~bool`},
++		{genericPkg + `u0b; func _[_ int]() {}`, `int`, `int`},
++		{genericPkg + `u1b; func _[_ ~int]() {}`, `~int`, `~int`},
++		{genericPkg + `u2b; func _[_ int|string]() {}`, `int | string`, `int|string`},
++		{genericPkg + `u3b; func _[_ int|string|~bool]() {}`, `int | string | ~bool`, `int|string|~bool`},
+ 	}
+ 
+ 	for _, test := range tests {
+diff --git a/src/go/types/interface.go b/src/go/types/interface.go
+index ef65bc6b2b..1ff9015780 100644
+--- a/src/go/types/interface.go
++++ b/src/go/types/interface.go
+@@ -152,7 +152,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 
+ 	for _, f := range iface.Methods.List {
+ 		if len(f.Names) == 0 {
+-			addEmbedded(f.Type.Pos(), parseUnion(check, flattenUnion(nil, f.Type)))
++			addEmbedded(f.Type.Pos(), parseUnion(check, f.Type))
+ 			continue
+ 		}
+ 		// f.Name != nil
+@@ -223,11 +223,3 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 		ityp.check = nil
+ 	}).describef(iface, "compute type set for %s", ityp)
+ }
+-
+-func flattenUnion(list []ast.Expr, x ast.Expr) []ast.Expr {
+-	if o, _ := x.(*ast.BinaryExpr); o != nil && o.Op == token.OR {
+-		list = flattenUnion(list, o.X)
+-		x = o.Y
+-	}
+-	return append(list, x)
+-}
+diff --git a/src/go/types/union.go b/src/go/types/union.go
+index 2a65ca4d8e..1437bd4624 100644
+--- a/src/go/types/union.go
++++ b/src/go/types/union.go
+@@ -49,10 +49,11 @@ func (t *Term) String() string { return (*term)(t).String() }
+ // Avoid excessive type-checking times due to quadratic termlist operations.
+ const maxTermCount = 100
+ 
+-// parseUnion parses the given list of type expressions tlist as a union of
+-// those expressions. The result is a Union type, or Typ[Invalid] for some
+-// errors.
+-func parseUnion(check *Checker, tlist []ast.Expr) Type {
++// parseUnion parses uexpr as a union of expressions.
++// The result is a Union type, or Typ[Invalid] for some errors.
++func parseUnion(check *Checker, uexpr ast.Expr) Type {
++	tlist := flattenUnion(nil, uexpr)
++
+ 	var terms []*Term
+ 	for _, x := range tlist {
+ 		tilde, typ := parseTilde(check, x)
+@@ -60,10 +61,11 @@ func parseUnion(check *Checker, tlist []ast.Expr) Type {
+ 			// Single type. Ok to return early because all relevant
+ 			// checks have been performed in parseTilde (no need to
+ 			// run through term validity check below).
+-			return typ
++			return typ // typ already recorded through check.typ in parseTilde
+ 		}
+ 		if len(terms) >= maxTermCount {
+ 			check.errorf(x, _InvalidUnion, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
++			check.recordTypeAndValue(uexpr, typexpr, Typ[Invalid], nil)
+ 			return Typ[Invalid]
+ 		}
+ 		terms = append(terms, NewTerm(tilde, typ))
+@@ -108,7 +110,9 @@ func parseUnion(check *Checker, tlist []ast.Expr) Type {
+ 		}
+ 	})
+ 
+-	return &Union{terms, nil}
++	u := &Union{terms, nil}
++	check.recordTypeAndValue(uexpr, typexpr, u, nil)
++	return u
+ }
+ 
+ func parseTilde(check *Checker, x ast.Expr) (tilde bool, typ Type) {
+@@ -146,3 +150,11 @@ func overlappingTerm(terms []*Term, y *Term) int {
+ 	}
+ 	return -1
+ }
++
++func flattenUnion(list []ast.Expr, x ast.Expr) []ast.Expr {
++	if o, _ := x.(*ast.BinaryExpr); o != nil && o.Op == token.OR {
++		list = flattenUnion(list, o.X)
++		x = o.Y
++	}
++	return append(list, x)
++}

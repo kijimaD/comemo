@@ -7,6 +7,19 @@ Date:   Tue Apr 7 21:03:00 2015 -0700
     Change-Id: I58de76c49de6e43befb30b2bf677934e7952b5ab
     Reviewed-on: https://go-review.googlesource.com/8610
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/go/types/stdlib_test.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index fd8506d543..515bbcdc58 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -127,7 +127,6 @@ func TestStdTest(t *testing.T) {
+ 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test"),
+ 		"cmplxdivide.go", // also needs file cmplxdivide1.go - ignore
+ 		"sigchld.go",     // don't work on Windows; testTestDir should consult build tags
+-		"float_lit2.go",  // TODO(gri) enable for releases 1.4 and higher
+ 	)
+ }
+ 

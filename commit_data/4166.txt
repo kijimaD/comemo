@@ -38,7 +38,142 @@ Date:   Thu Nov 19 21:08:05 2009 -0800
     
     R=r, rsc
     https://golang.org/cl/157088
-
+---
  src/pkg/template/template.go      | 29 ++++++++++++++++-----------
  src/pkg/template/template_test.go | 42 +++++++++++++++++++++++++++++++++++++++
  2 files changed, 59 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index 9a819db61e..6964d67f43 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -10,10 +10,11 @@
+ 
+ 	Templates are executed by applying them to a data structure.
+ 	Annotations in the template refer to elements of the data
+-	structure (typically a field of a struct) to control execution
+-	and derive values to be displayed.  The template walks the
+-	structure as it executes and the "cursor" @ represents the
+-	value at the current location in the structure.
++	structure (typically a field of a struct or a key in a map)
++	to control execution and derive values to be displayed.
++	The template walks the structure as it executes and the
++	"cursor" @ represents the value at the current location
++	in the structure.
+ 
+ 	Data items may be values or pointers; the interface hides the
+ 	indirection.
+@@ -605,20 +606,24 @@ func (st *state) findVar(s string) reflect.Value {
+ 	data := st.data;
+ 	elems := strings.Split(s, ".", 0);
+ 	for i := 0; i < len(elems); i++ {
+-		// Look up field; data must be a struct.
++		// Look up field; data must be a struct or map.
+ 		data = reflect.Indirect(data);
+ 		if data == nil {
+ 			return nil
+ 		}
+-		typ, ok := data.Type().(*reflect.StructType);
+-		if !ok {
+-			return nil
+-		}
+-		field, ok := typ.FieldByName(elems[i]);
+-		if !ok {
++
++		switch typ := data.Type().(type) {
++		case *reflect.StructType:
++			field, ok := typ.FieldByName(elems[i]);
++			if !ok {
++				return nil
++			}
++			data = data.(*reflect.StructValue).FieldByIndex(field.Index);
++		case *reflect.MapType:
++			data = data.(*reflect.MapValue).Elem(reflect.NewValue(elems[i]))
++		default:
+ 			return nil
+ 		}
+-		data = data.(*reflect.StructValue).FieldByIndex(field.Index);
+ 	}
+ 	return data;
+ }
+diff --git a/src/pkg/template/template_test.go b/src/pkg/template/template_test.go
+index 0b95fcff41..8dadd27f7d 100644
+--- a/src/pkg/template/template_test.go
++++ b/src/pkg/template/template_test.go
+@@ -21,6 +21,10 @@ type T struct {
+ 	value	string;
+ }
+ 
++type U struct {
++	mp map[string]int;
++}
++
+ type S struct {
+ 	header		string;
+ 	integer		int;
+@@ -35,6 +39,8 @@ type S struct {
+ 	vec		*vector.Vector;
+ 	true		bool;
+ 	false		bool;
++	mp		map[string]string;
++	innermap	U;
+ }
+ 
+ var t1 = T{"ItemNumber1", "ValueNumber1"}
+@@ -275,6 +281,20 @@ var tests = []*Test{
+ 
+ 		out: "1\n4\n",
+ 	},
++
++	// Maps
++
++	&Test{
++		in: "{mp.mapkey}\n",
++
++		out: "Ahoy!\n",
++	},
++
++	&Test{
++		in: "{innermap.mp.innerkey}\n",
++
++		out: "55\n",
++	},
+ }
+ 
+ func TestAll(t *testing.T) {
+@@ -293,6 +313,10 @@ func TestAll(t *testing.T) {
+ 	s.vec.Push("elt2");
+ 	s.true = true;
+ 	s.false = false;
++	s.mp = make(map[string]string);
++	s.mp["mapkey"] = "Ahoy!";
++	s.innermap.mp = make(map[string]int);
++	s.innermap.mp["innerkey"] = 55;
+ 
+ 	var buf bytes.Buffer;
+ 	for _, test := range tests {
+@@ -318,6 +342,24 @@ func TestAll(t *testing.T) {
+ 	}
+ }
+ 
++func TestMapDriverType(t *testing.T) {
++	mp := map[string]string{"footer": "Ahoy!"};
++	tmpl, err := Parse("template: {footer}", nil);
++	if err != nil {
++		t.Error("unexpected parse error:", err)
++	}
++	var b bytes.Buffer;
++	err = tmpl.Execute(mp, &b);
++	if err != nil {
++		t.Error("unexpected execute error:", err)
++	}
++	s := b.String();
++	expected := "template: Ahoy!";
++	if s != expected {
++		t.Errorf("failed passing string as data: expected %q got %q", "template: Ahoy!", s)
++	}
++}
++
+ func TestStringDriverType(t *testing.T) {
+ 	tmpl, err := Parse("template: {@}", nil);
+ 	if err != nil {

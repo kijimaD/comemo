@@ -14,7 +14,7 @@ Date:   Fri Sep 15 21:15:56 2023 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/archive/zip/reader.go                      |  4 ++--
  src/go/internal/gccgoimporter/parser.go        |  2 +-
  src/index/suffixarray/sais.go                  |  2 +-
@@ -40,3 +40,441 @@ Date:   Fri Sep 15 21:15:56 2023 +0000
  src/syscall/exec_linux.go                      | 12 ++++++------
  src/syscall/netlink_linux.go                   |  2 +-
  24 files changed, 41 insertions(+), 41 deletions(-)
+
+diff --git a/src/archive/zip/reader.go b/src/archive/zip/reader.go
+index 1fde1decc4..71bf8c2adb 100644
+--- a/src/archive/zip/reader.go
++++ b/src/archive/zip/reader.go
+@@ -469,8 +469,8 @@ parseExtras:
+ 
+ 				const ticksPerSecond = 1e7    // Windows timestamp resolution
+ 				ts := int64(attrBuf.uint64()) // ModTime since Windows epoch
+-				secs := int64(ts / ticksPerSecond)
+-				nsecs := (1e9 / ticksPerSecond) * int64(ts%ticksPerSecond)
++				secs := ts / ticksPerSecond
++				nsecs := (1e9 / ticksPerSecond) * (ts % ticksPerSecond)
+ 				epoch := time.Date(1601, time.January, 1, 0, 0, 0, 0, time.UTC)
+ 				modified = time.Unix(epoch.Unix()+secs, nsecs)
+ 			}
+diff --git a/src/go/internal/gccgoimporter/parser.go b/src/go/internal/gccgoimporter/parser.go
+index de9df0bbfb..a7d2094e0c 100644
+--- a/src/go/internal/gccgoimporter/parser.go
++++ b/src/go/internal/gccgoimporter/parser.go
+@@ -1063,7 +1063,7 @@ func (p *parser) parseTypes(pkg *types.Package) {
+ 		p.typeData = append(p.typeData, allTypeData[to.offset:to.offset+to.length])
+ 	}
+ 
+-	for i := 1; i < int(exportedp1); i++ {
++	for i := 1; i < exportedp1; i++ {
+ 		p.parseSavedType(pkg, i, nil)
+ 	}
+ }
+diff --git a/src/index/suffixarray/sais.go b/src/index/suffixarray/sais.go
+index 3283aa348d..b53700be35 100644
+--- a/src/index/suffixarray/sais.go
++++ b/src/index/suffixarray/sais.go
+@@ -141,7 +141,7 @@ func text_32(text []byte, sa []int32) {
+ // then the algorithm runs a little faster.
+ // If sais_8_32 modifies tmp, it sets tmp[0] = -1 on return.
+ func sais_8_32(text []byte, textMax int, sa, tmp []int32) {
+-	if len(sa) != len(text) || len(tmp) < int(textMax) {
++	if len(sa) != len(text) || len(tmp) < textMax {
+ 		panic("suffixarray: misuse of sais_8_32")
+ 	}
+ 
+diff --git a/src/internal/bisect/bisect.go b/src/internal/bisect/bisect.go
+index 26d3ebf333..bf67ceb9d7 100644
+--- a/src/internal/bisect/bisect.go
++++ b/src/internal/bisect/bisect.go
+@@ -728,7 +728,7 @@ func fnvString(h uint64, x string) uint64 {
+ 
+ func fnvUint64(h uint64, x uint64) uint64 {
+ 	for i := 0; i < 8; i++ {
+-		h ^= uint64(x & 0xFF)
++		h ^= x & 0xFF
+ 		x >>= 8
+ 		h *= prime64
+ 	}
+diff --git a/src/internal/fuzz/mutator.go b/src/internal/fuzz/mutator.go
+index 4310d57c5c..9bba0d627b 100644
+--- a/src/internal/fuzz/mutator.go
++++ b/src/internal/fuzz/mutator.go
+@@ -74,7 +74,7 @@ func (m *mutator) mutate(vals []any, maxBytes int) {
+ 	case uint32:
+ 		vals[i] = uint32(m.mutateUInt(uint64(v), math.MaxUint32))
+ 	case uint64:
+-		vals[i] = m.mutateUInt(uint64(v), maxUint)
++		vals[i] = m.mutateUInt(v, maxUint)
+ 	case float32:
+ 		vals[i] = float32(m.mutateFloat(float64(v), math.MaxFloat32))
+ 	case float64:
+diff --git a/src/internal/syscall/windows/registry/value.go b/src/internal/syscall/windows/registry/value.go
+index bda16fda5d..67b1144eae 100644
+--- a/src/internal/syscall/windows/registry/value.go
++++ b/src/internal/syscall/windows/registry/value.go
+@@ -241,7 +241,7 @@ func (k Key) GetIntegerValue(name string) (val uint64, valtype uint32, err error
+ 		if len(data) != 8 {
+ 			return 0, typ, errors.New("QWORD value is not 8 bytes long")
+ 		}
+-		return uint64(*(*uint64)(unsafe.Pointer(&data[0]))), QWORD, nil
++		return *(*uint64)(unsafe.Pointer(&data[0])), QWORD, nil
+ 	default:
+ 		return 0, typ, ErrUnexpectedType
+ 	}
+diff --git a/src/runtime/arena.go b/src/runtime/arena.go
+index f9806c545e..bd3ae35473 100644
+--- a/src/runtime/arena.go
++++ b/src/runtime/arena.go
+@@ -922,7 +922,7 @@ func (h *mheap) allocUserArenaChunk() *mspan {
+ 			// some extra as a result of trying to find an aligned region.
+ 			//
+ 			// Divide it up and put it on the ready list.
+-			for i := uintptr(userArenaChunkBytes); i < size; i += userArenaChunkBytes {
++			for i := userArenaChunkBytes; i < size; i += userArenaChunkBytes {
+ 				s := h.allocMSpanLocked()
+ 				s.init(uintptr(v)+i, userArenaChunkPages)
+ 				h.userArena.readyList.insertBack(s)
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 430e4bccb5..4283aac320 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -398,7 +398,7 @@ func dumpgoroutine(gp *g) {
+ 		dumpint(uint64(uintptr(unsafe.Pointer(gp))))
+ 		eface := efaceOf(&p.arg)
+ 		dumpint(uint64(uintptr(unsafe.Pointer(eface._type))))
+-		dumpint(uint64(uintptr(unsafe.Pointer(eface.data))))
++		dumpint(uint64(uintptr(eface.data)))
+ 		dumpint(0) // was p->defer, no longer recorded
+ 		dumpint(uint64(uintptr(unsafe.Pointer(p.link))))
+ 	}
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index acfd99b31e..757d09787d 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -284,7 +284,7 @@ func (c *mcache) releaseAll() {
+ 				//
+ 				// If this span was cached before sweep, then gcController.heapLive was totally
+ 				// recomputed since caching this span, so we don't do this for stale spans.
+-				dHeapLive -= int64(uintptr(s.nelems)-uintptr(s.allocCount)) * int64(s.elemsize)
++				dHeapLive -= int64(s.nelems-uintptr(s.allocCount)) * int64(s.elemsize)
+ 			}
+ 
+ 			// Release the span to the mcentral.
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index 3d0f174133..86e0af4dea 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -221,11 +221,11 @@ func initMetrics() {
+ 			deps: makeStatDepSet(heapStatsDep),
+ 			compute: func(in *statAggregate, out *metricValue) {
+ 				hist := out.float64HistOrInit(sizeClassBuckets)
+-				hist.counts[len(hist.counts)-1] = uint64(in.heapStats.largeAllocCount)
++				hist.counts[len(hist.counts)-1] = in.heapStats.largeAllocCount
+ 				// Cut off the first index which is ostensibly for size class 0,
+ 				// but large objects are tracked separately so it's actually unused.
+ 				for i, count := range in.heapStats.smallAllocCount[1:] {
+-					hist.counts[i] = uint64(count)
++					hist.counts[i] = count
+ 				}
+ 			},
+ 		},
+@@ -247,11 +247,11 @@ func initMetrics() {
+ 			deps: makeStatDepSet(heapStatsDep),
+ 			compute: func(in *statAggregate, out *metricValue) {
+ 				hist := out.float64HistOrInit(sizeClassBuckets)
+-				hist.counts[len(hist.counts)-1] = uint64(in.heapStats.largeFreeCount)
++				hist.counts[len(hist.counts)-1] = in.heapStats.largeFreeCount
+ 				// Cut off the first index which is ostensibly for size class 0,
+ 				// but large objects are tracked separately so it's actually unused.
+ 				for i, count := range in.heapStats.smallFreeCount[1:] {
+-					hist.counts[i] = uint64(count)
++					hist.counts[i] = count
+ 				}
+ 			},
+ 		},
+@@ -306,7 +306,7 @@ func initMetrics() {
+ 			deps: makeStatDepSet(heapStatsDep),
+ 			compute: func(in *statAggregate, out *metricValue) {
+ 				out.kind = metricKindUint64
+-				out.scalar = uint64(in.heapStats.tinyAllocCount)
++				out.scalar = in.heapStats.tinyAllocCount
+ 			},
+ 		},
+ 		"/gc/limiter/last-enabled:gc-cycle": {
+@@ -683,7 +683,7 @@ type gcStatsAggregate struct {
+ // compute populates the gcStatsAggregate with values from the runtime.
+ func (a *gcStatsAggregate) compute() {
+ 	a.heapScan = gcController.heapScan.Load()
+-	a.stackScan = uint64(gcController.lastStackScan.Load())
++	a.stackScan = gcController.lastStackScan.Load()
+ 	a.globalsScan = gcController.globalsScan.Load()
+ 	a.totalScan = a.heapScan + a.stackScan + a.globalsScan
+ }
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 650db18105..99ca3a7562 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -473,7 +473,7 @@ okarg:
+ 	// compute size needed for return parameters
+ 	nret := uintptr(0)
+ 	for _, t := range ft.OutSlice() {
+-		nret = alignUp(nret, uintptr(t.Align_)) + uintptr(t.Size_)
++		nret = alignUp(nret, uintptr(t.Align_)) + t.Size_
+ 	}
+ 	nret = alignUp(nret, goarch.PtrSize)
+ 
+diff --git a/src/runtime/mgcpacer.go b/src/runtime/mgcpacer.go
+index 32e19f96e1..1850811865 100644
+--- a/src/runtime/mgcpacer.go
++++ b/src/runtime/mgcpacer.go
+@@ -1119,7 +1119,7 @@ func (c *gcControllerState) trigger() (uint64, uint64) {
+ 	// increase in RSS. By capping us at a point >0, we're essentially
+ 	// saying that we're OK using more CPU during the GC to prevent
+ 	// this growth in RSS.
+-	triggerLowerBound := uint64(((goal-c.heapMarked)/triggerRatioDen)*minTriggerRatioNum) + c.heapMarked
++	triggerLowerBound := ((goal-c.heapMarked)/triggerRatioDen)*minTriggerRatioNum + c.heapMarked
+ 	if minTrigger < triggerLowerBound {
+ 		minTrigger = triggerLowerBound
+ 	}
+@@ -1133,7 +1133,7 @@ func (c *gcControllerState) trigger() (uint64, uint64) {
+ 	// to reflect the costs of a GC with no work to do. With a large heap but
+ 	// very little scan work to perform, this gives us exactly as much runway
+ 	// as we would need, in the worst case.
+-	maxTrigger := uint64(((goal-c.heapMarked)/triggerRatioDen)*maxTriggerRatioNum) + c.heapMarked
++	maxTrigger := ((goal-c.heapMarked)/triggerRatioDen)*maxTriggerRatioNum + c.heapMarked
+ 	if goal > defaultHeapMinimum && goal-defaultHeapMinimum > maxTrigger {
+ 		maxTrigger = goal - defaultHeapMinimum
+ 	}
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index b24d830732..2070492fc8 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -975,7 +975,7 @@ func (m *pallocData) findScavengeCandidate(searchIdx uint, min, max uintptr) (ui
+ 		// to include that huge page.
+ 
+ 		// Compute the huge page boundary above our candidate.
+-		pagesPerHugePage := uintptr(physHugePageSize / pageSize)
++		pagesPerHugePage := physHugePageSize / pageSize
+ 		hugePageAbove := uint(alignUp(uintptr(start), pagesPerHugePage))
+ 
+ 		// If that boundary is within our current candidate, then we may be breaking
+@@ -1098,7 +1098,7 @@ func (s *scavengeIndex) find(force bool) (chunkIdx, uint) {
+ 	// Starting from searchAddr's chunk, iterate until we find a chunk with pages to scavenge.
+ 	gen := s.gen
+ 	min := chunkIdx(s.minHeapIdx.Load())
+-	start := chunkIndex(uintptr(searchAddr))
++	start := chunkIndex(searchAddr)
+ 	// N.B. We'll never map the 0'th chunk, so minHeapIdx ensures this loop overflow.
+ 	for i := start; i >= min; i-- {
+ 		// Skip over chunks.
+@@ -1107,7 +1107,7 @@ func (s *scavengeIndex) find(force bool) (chunkIdx, uint) {
+ 		}
+ 		// We're still scavenging this chunk.
+ 		if i == start {
+-			return i, chunkPageIndex(uintptr(searchAddr))
++			return i, chunkPageIndex(searchAddr)
+ 		}
+ 		// Try to reduce searchAddr to newSearchAddr.
+ 		newSearchAddr := chunkBase(i) + pallocChunkBytes - pageSize
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index f0d34ca200..0ba45009eb 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -2141,7 +2141,7 @@ func (b *gcBitsArena) tryAlloc(bytes uintptr) *gcBits {
+ // newMarkBits returns a pointer to 8 byte aligned bytes
+ // to be used for a span's mark bits.
+ func newMarkBits(nelems uintptr) *gcBits {
+-	blocksNeeded := uintptr((nelems + 63) / 64)
++	blocksNeeded := (nelems + 63) / 64
+ 	bytesNeeded := blocksNeeded * 8
+ 
+ 	// Try directly allocating from the current head arena.
+@@ -2253,7 +2253,7 @@ func newArenaMayUnlock() *gcBitsArena {
+ 	result.next = nil
+ 	// If result.bits is not 8 byte aligned adjust index so
+ 	// that &result.bits[result.free] is 8 byte aligned.
+-	if uintptr(unsafe.Offsetof(gcBitsArena{}.bits))&7 == 0 {
++	if unsafe.Offsetof(gcBitsArena{}.bits)&7 == 0 {
+ 		result.free = 0
+ 	} else {
+ 		result.free = 8 - (uintptr(unsafe.Pointer(&result.bits[0])) & 7)
+diff --git a/src/runtime/mspanset.go b/src/runtime/mspanset.go
+index 5520d6ce75..34c65aaa96 100644
+--- a/src/runtime/mspanset.go
++++ b/src/runtime/mspanset.go
+@@ -296,7 +296,7 @@ type spanSetSpinePointer struct {
+ 
+ // lookup returns &s[idx].
+ func (s spanSetSpinePointer) lookup(idx uintptr) *atomic.Pointer[spanSetBlock] {
+-	return (*atomic.Pointer[spanSetBlock])(add(unsafe.Pointer(s.p), goarch.PtrSize*idx))
++	return (*atomic.Pointer[spanSetBlock])(add(s.p, goarch.PtrSize*idx))
+ }
+ 
+ // spanSetBlockPool is a global pool of spanSetBlocks.
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index cb624ec9ef..93f03400a5 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -678,7 +678,7 @@ func readvarintUnsafe(fd unsafe.Pointer) (uint32, unsafe.Pointer) {
+ 	var r uint32
+ 	var shift int
+ 	for {
+-		b := *(*uint8)((unsafe.Pointer(fd)))
++		b := *(*uint8)(fd)
+ 		fd = add(fd, unsafe.Sizeof(b))
+ 		if b < 128 {
+ 			return r + uint32(b)<<shift, fd
+@@ -906,7 +906,7 @@ func (p *_panic) nextFrame() (ok bool) {
+ 	systemstack(func() {
+ 		var limit uintptr
+ 		if d := gp._defer; d != nil {
+-			limit = uintptr(d.sp)
++			limit = d.sp
+ 		}
+ 
+ 		var u unwinder
+diff --git a/src/runtime/profbuf.go b/src/runtime/profbuf.go
+index 083b55a922..5772a8020c 100644
+--- a/src/runtime/profbuf.go
++++ b/src/runtime/profbuf.go
+@@ -348,7 +348,7 @@ func (b *profBuf) write(tagPtr *unsafe.Pointer, now int64, hdr []uint64, stk []u
+ 	// so there is no need for a deletion barrier on b.tags[wt].
+ 	wt := int(bw.tagCount() % uint32(len(b.tags)))
+ 	if tagPtr != nil {
+-		*(*uintptr)(unsafe.Pointer(&b.tags[wt])) = uintptr(unsafe.Pointer(*tagPtr))
++		*(*uintptr)(unsafe.Pointer(&b.tags[wt])) = uintptr(*tagPtr)
+ 	}
+ 
+ 	// Main record.
+@@ -468,7 +468,7 @@ Read:
+ 			// Won the race, report overflow.
+ 			dst := b.overflowBuf
+ 			dst[0] = uint64(2 + b.hdrsize + 1)
+-			dst[1] = uint64(time)
++			dst[1] = time
+ 			for i := uintptr(0); i < b.hdrsize; i++ {
+ 				dst[2+i] = 0
+ 			}
+diff --git a/src/runtime/stkframe.go b/src/runtime/stkframe.go
+index bfd9eac2b0..a2f40c92d5 100644
+--- a/src/runtime/stkframe.go
++++ b/src/runtime/stkframe.go
+@@ -143,7 +143,7 @@ func (frame *stkframe) argMapInternal() (argMap bitvector, hasReflectStackObj bo
+ 		if !retValid {
+ 			// argMap.n includes the results, but
+ 			// those aren't valid, so drop them.
+-			n := int32((uintptr(mv.argLen) &^ (goarch.PtrSize - 1)) / goarch.PtrSize)
++			n := int32((mv.argLen &^ (goarch.PtrSize - 1)) / goarch.PtrSize)
+ 			if n < argMap.n {
+ 				argMap.n = n
+ 			}
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 65b7299f74..27dbfd21ed 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -446,7 +446,7 @@ func memequal_varlen(a, b unsafe.Pointer) bool
+ func bool2int(x bool) int {
+ 	// Avoid branches. In the SSA compiler, this compiles to
+ 	// exactly what you would want it to.
+-	return int(uint8(*(*uint8)(unsafe.Pointer(&x))))
++	return int(*(*uint8)(unsafe.Pointer(&x)))
+ }
+ 
+ // abort crashes the runtime in situations where even throw might not
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index c05351cb8e..8ed1e45fc9 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -1016,7 +1016,7 @@ func updateTimer0When(pp *p) {
+ func updateTimerModifiedEarliest(pp *p, nextwhen int64) {
+ 	for {
+ 		old := pp.timerModifiedEarliest.Load()
+-		if old != 0 && int64(old) < nextwhen {
++		if old != 0 && old < nextwhen {
+ 			return
+ 		}
+ 
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 08b4f394ce..cfb1ae7a92 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -944,7 +944,7 @@ func traceReadCPU() {
+ 			}
+ 			stackID := trace.stackTab.put(buf.stk[:nstk])
+ 
+-			traceEventLocked(0, nil, 0, bufp, traceEvCPUSample, stackID, 1, uint64(timestamp), ppid, goid)
++			traceEventLocked(0, nil, 0, bufp, traceEvCPUSample, stackID, 1, timestamp, ppid, goid)
+ 		}
+ 	}
+ }
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 0b173deb93..61bb5f57f4 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -177,7 +177,7 @@ func (u *unwinder) initAt(pc0, sp0, lr0 uintptr, gp *g, flags unwindFlags) {
+ 			frame.pc = *(*uintptr)(unsafe.Pointer(frame.sp))
+ 			frame.lr = 0
+ 		} else {
+-			frame.pc = uintptr(*(*uintptr)(unsafe.Pointer(frame.sp)))
++			frame.pc = *(*uintptr)(unsafe.Pointer(frame.sp))
+ 			frame.sp += goarch.PtrSize
+ 		}
+ 	}
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index fb9a5dc907..ac06fbf824 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -420,22 +420,22 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
+ 			if fd1, _, err1 = RawSyscall6(SYS_OPENAT, uintptr(dirfd), uintptr(unsafe.Pointer(&psetgroups[0])), uintptr(O_WRONLY), 0, 0, 0); err1 != 0 {
+ 				goto childerror
+ 			}
+-			pid, _, err1 = RawSyscall(SYS_WRITE, uintptr(fd1), uintptr(unsafe.Pointer(&setgroups[0])), uintptr(len(setgroups)))
++			pid, _, err1 = RawSyscall(SYS_WRITE, fd1, uintptr(unsafe.Pointer(&setgroups[0])), uintptr(len(setgroups)))
+ 			if err1 != 0 {
+ 				goto childerror
+ 			}
+-			if _, _, err1 = RawSyscall(SYS_CLOSE, uintptr(fd1), 0, 0); err1 != 0 {
++			if _, _, err1 = RawSyscall(SYS_CLOSE, fd1, 0, 0); err1 != 0 {
+ 				goto childerror
+ 			}
+ 
+ 			if fd1, _, err1 = RawSyscall6(SYS_OPENAT, uintptr(dirfd), uintptr(unsafe.Pointer(&pgid[0])), uintptr(O_WRONLY), 0, 0, 0); err1 != 0 {
+ 				goto childerror
+ 			}
+-			pid, _, err1 = RawSyscall(SYS_WRITE, uintptr(fd1), uintptr(unsafe.Pointer(&gidmap[0])), uintptr(len(gidmap)))
++			pid, _, err1 = RawSyscall(SYS_WRITE, fd1, uintptr(unsafe.Pointer(&gidmap[0])), uintptr(len(gidmap)))
+ 			if err1 != 0 {
+ 				goto childerror
+ 			}
+-			if _, _, err1 = RawSyscall(SYS_CLOSE, uintptr(fd1), 0, 0); err1 != 0 {
++			if _, _, err1 = RawSyscall(SYS_CLOSE, fd1, 0, 0); err1 != 0 {
+ 				goto childerror
+ 			}
+ 		}
+@@ -445,11 +445,11 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
+ 			if fd1, _, err1 = RawSyscall6(SYS_OPENAT, uintptr(dirfd), uintptr(unsafe.Pointer(&puid[0])), uintptr(O_WRONLY), 0, 0, 0); err1 != 0 {
+ 				goto childerror
+ 			}
+-			pid, _, err1 = RawSyscall(SYS_WRITE, uintptr(fd1), uintptr(unsafe.Pointer(&uidmap[0])), uintptr(len(uidmap)))
++			pid, _, err1 = RawSyscall(SYS_WRITE, fd1, uintptr(unsafe.Pointer(&uidmap[0])), uintptr(len(uidmap)))
+ 			if err1 != 0 {
+ 				goto childerror
+ 			}
+-			if _, _, err1 = RawSyscall(SYS_CLOSE, uintptr(fd1), 0, 0); err1 != 0 {
++			if _, _, err1 = RawSyscall(SYS_CLOSE, fd1, 0, 0); err1 != 0 {
+ 				goto childerror
+ 			}
+ 		}
+diff --git a/src/syscall/netlink_linux.go b/src/syscall/netlink_linux.go
+index a503a07440..99b5b59825 100644
+--- a/src/syscall/netlink_linux.go
++++ b/src/syscall/netlink_linux.go
+@@ -36,7 +36,7 @@ func (rr *NetlinkRouteRequest) toWireFormat() []byte {
+ 	*(*uint16)(unsafe.Pointer(&b[6:8][0])) = rr.Header.Flags
+ 	*(*uint32)(unsafe.Pointer(&b[8:12][0])) = rr.Header.Seq
+ 	*(*uint32)(unsafe.Pointer(&b[12:16][0])) = rr.Header.Pid
+-	b[16] = byte(rr.Data.Family)
++	b[16] = rr.Data.Family
+ 	return b
+ }
+ 

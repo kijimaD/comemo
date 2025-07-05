@@ -9,6 +9,20 @@ Date:   Tue Feb 1 12:12:42 2011 -0500
     R=rsc, ken2
     CC=golang-dev
     https://golang.org/cl/4073049
-
+---
  src/cmd/6g/gsubr.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index ebb61ea945..c3dac1fdcd 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -246,7 +246,7 @@ anyregalloc(void)
+ {
+ 	int i, j;
+ 
+-	for(i=D_AL; i<=D_DI; i++) {
++	for(i=D_AX; i<=D_R15; i++) {
+ 		if(reg[i] == 0)
+ 			goto ok;
+ 		for(j=0; j<nelem(resvd); j++)

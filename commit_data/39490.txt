@@ -11,6 +11,20 @@ Date:   Wed Jan 30 17:35:01 2019 +0000
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modload/build.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index 2a8be90b78..4d4e512ef5 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -219,7 +219,7 @@ func PackageBuildInfo(path string, deps []string) string {
+ 		if r.Path == "" {
+ 			h = "\t" + modfetch.Sum(mod)
+ 		}
+-		fmt.Fprintf(&buf, "dep\t%s\t%s%s\n", mod.Path, mod.Version, h)
++		fmt.Fprintf(&buf, "dep\t%s\t%s%s\n", mod.Path, mv, h)
+ 		if r.Path != "" {
+ 			fmt.Fprintf(&buf, "=>\t%s\t%s\t%s\n", r.Path, r.Version, modfetch.Sum(r))
+ 		}

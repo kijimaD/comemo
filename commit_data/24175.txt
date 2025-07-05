@@ -11,9 +11,56 @@ Date:   Mon Jul 13 22:39:17 2015 -0400
     Change-Id: I662d81dd4818ddf29592057c090805772c84287b
     Reviewed-on: https://go-review.googlesource.com/12147
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/go/go_test.go                           | 3 +++
  src/cmd/go/test.go                              | 2 +-
  src/cmd/go/testdata/src/testcycle/q1/q1.go      | 1 +
  src/cmd/go/testdata/src/testcycle/q1/q1_test.go | 6 ++++++
  4 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 59c2cffa9f..bb22076ce4 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1848,6 +1848,9 @@ func TestGoTestDetectsTestOnlyImportCycles(t *testing.T) {
+ 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+ 	tg.runFail("test", "-c", "testcycle/p3")
+ 	tg.grepStderr("import cycle not allowed in test", "go test testcycle/p3 produced unexpected error")
++
++	tg.runFail("test", "-c", "testcycle/q1")
++	tg.grepStderr("import cycle not allowed in test", "go test testcycle/q1 produced unexpected error")
+ }
+ 
+ func TestGoTestFooTestWorks(t *testing.T) {
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 1f138bc3f5..7ea8d53ad1 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -578,7 +578,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 		if p1.Error != nil {
+ 			return nil, nil, nil, p1.Error
+ 		}
+-		if contains(p1.Deps, p.ImportPath) {
++		if contains(p1.Deps, p.ImportPath) || p1.ImportPath == p.ImportPath {
+ 			// Same error that loadPackage returns (via reusePackage) in pkg.go.
+ 			// Can't change that code, because that code is only for loading the
+ 			// non-test copy of a package.
+diff --git a/src/cmd/go/testdata/src/testcycle/q1/q1.go b/src/cmd/go/testdata/src/testcycle/q1/q1.go
+new file mode 100644
+index 0000000000..7a471f0cc0
+--- /dev/null
++++ b/src/cmd/go/testdata/src/testcycle/q1/q1.go
+@@ -0,0 +1 @@
++package q1
+diff --git a/src/cmd/go/testdata/src/testcycle/q1/q1_test.go b/src/cmd/go/testdata/src/testcycle/q1/q1_test.go
+new file mode 100644
+index 0000000000..ca81bd2bf8
+--- /dev/null
++++ b/src/cmd/go/testdata/src/testcycle/q1/q1_test.go
+@@ -0,0 +1,6 @@
++package q1
++
++import "testing"
++import _ "testcycle/q1"
++
++func Test(t *testing.T) {}

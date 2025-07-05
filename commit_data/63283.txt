@@ -17,6 +17,26 @@ Date:   Thu Jun 5 19:23:55 2025 +0800
     Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  src/runtime/race_loong64.s | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/race_loong64.s b/src/runtime/race_loong64.s
+index 597e0cc6b9..d731871d44 100644
+--- a/src/runtime/race_loong64.s
++++ b/src/runtime/race_loong64.s
+@@ -461,8 +461,13 @@ TEXT	racecall<>(SB), NOSPLIT|NOFRAME, $0-0
+ 	// Switch to g0 stack.
+ 	MOVV	R3, R23	// callee-saved, preserved across the CALL
+ 	MOVV	R1, R24	// callee-saved, preserved across the CALL
++
++	// Switch to g0 stack if we aren't already on g0 or gsignal.
++	MOVV	m_gsignal(R12), R13
++	BEQ	R13, g, call
++
+ 	MOVV	m_g0(R12), R13
+-	BEQ	R13, g, call	// already on g0
++	BEQ	R13, g, call
+ 	MOVV	(g_sched+gobuf_sp)(R13), R3
+ call:
+ 	JAL	(RCALL)

@@ -14,6 +14,35 @@ Date:   Thu Apr 25 11:59:32 2019 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Cottrell <iancottrell@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/modfetch/proxy.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/cmd/go/internal/modfetch/proxy.go b/src/cmd/go/internal/modfetch/proxy.go
+index aa1778296f..2d661a0f75 100644
+--- a/src/cmd/go/internal/modfetch/proxy.go
++++ b/src/cmd/go/internal/modfetch/proxy.go
+@@ -14,9 +14,11 @@ import (
+ 	"os"
+ 	pathpkg "path"
+ 	"path/filepath"
++	"runtime"
+ 	"strings"
+ 	"sync"
+ 	"time"
++	"unicode"
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+@@ -219,6 +221,11 @@ func (p *proxyRepo) getBody(path string) (io.ReadCloser, error) {
+ 		if err != nil {
+ 			return nil, err
+ 		}
++		if runtime.GOOS == "windows" && len(rawPath) >= 4 && rawPath[0] == '/' && unicode.IsLetter(rune(rawPath[1])) && rawPath[2] == ':' {
++			// On Windows, file URLs look like "file:///C:/foo/bar". url.Path will
++			// start with a slash which must be removed. See golang.org/issue/6027.
++			rawPath = rawPath[1:]
++		}
+ 		return os.Open(filepath.FromSlash(rawPath))
+ 	}
+ 

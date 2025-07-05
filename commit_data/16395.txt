@@ -11,7 +11,50 @@ Date:   Thu May 23 14:17:52 2013 -0700
     R=golang-dev, minux.ma, dvyukov, iant, khr
     CC=golang-dev
     https://golang.org/cl/9637043
-
+---
  src/pkg/runtime/hashmap.c        |  2 +-
  src/pkg/runtime/mapspeed_test.go | 21 +++++++++++++++++++++
  2 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/hashmap.c b/src/pkg/runtime/hashmap.c
+index 892f0a1700..959d6bc760 100644
+--- a/src/pkg/runtime/hashmap.c
++++ b/src/pkg/runtime/hashmap.c
+@@ -1355,7 +1355,7 @@ reflect·mapassign(MapType *t, Hmap *h, uintptr key, uintptr val, bool pres)
+ void
+ runtime·mapiterinit(MapType *t, Hmap *h, struct hash_iter *it)
+ {
+-	if(h == nil) {
++	if(h == nil || h->count == 0) {
+ 		it->key = nil;
+ 		return;
+ 	}
+diff --git a/src/pkg/runtime/mapspeed_test.go b/src/pkg/runtime/mapspeed_test.go
+index a737c65dc6..13b57621d4 100644
+--- a/src/pkg/runtime/mapspeed_test.go
++++ b/src/pkg/runtime/mapspeed_test.go
+@@ -233,3 +233,24 @@ func BenchmarkNewEmptyMap(b *testing.B) {
+ 		_ = make(map[int]int)
+ 	}
+ }
++
++func BenchmarkMapIter(b *testing.B) {
++	m := make(map[int]bool)
++	for i := 0; i < 8; i++ {
++		m[i] = true
++	}
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		for _, _ = range m {
++		}
++	}
++}
++
++func BenchmarkMapIterEmpty(b *testing.B) {
++	m := make(map[int]bool)
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		for _, _ = range m {
++		}
++	}
++}

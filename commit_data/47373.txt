@@ -14,6 +14,29 @@ Date:   Sun Mar 14 13:43:26 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/301629
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Trust: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/typecheck/func.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 367df8e9f4..86058a0c73 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -308,7 +308,7 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
+ 		return
+ 	}
+ 
+-	// Don't give a name and add to xtop if we are typechecking an inlined
++	// Don't give a name and add to Target.Decls if we are typechecking an inlined
+ 	// body in ImportedBody(), since we only want to create the named function
+ 	// when the closure is actually inlined (and then we force a typecheck
+ 	// explicitly in (*inlsubst).node()).
+@@ -354,7 +354,7 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
+ 		ir.Dump(s, fn)
+ 	}
+ 	if !inTypeCheckInl {
+-		// Add function to xtop once only when we give it a name
++		// Add function to Target.Decls once only when we give it a name
+ 		Target.Decls = append(Target.Decls, fn)
+ 	}
+ }

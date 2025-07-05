@@ -13,10 +13,223 @@ Date:   Tue Jun 14 17:03:37 2011 +0200
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4571071
-
+---
  src/cmd/5g/ggen.c | 26 ++++++++++++++++++++++++++
  src/cmd/6g/ggen.c | 26 ++++++++++++++++++++++++++
  src/cmd/8g/ggen.c | 26 ++++++++++++++++++++++++++
  src/cmd/gc/go.h   |  4 +++-
  src/cmd/gc/pgen.c | 26 +++++---------------------
  5 files changed, 86 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 0bc1b38fc4..b19698cbd7 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -22,6 +22,32 @@ defframe(Prog *ptxt)
+ 	maxstksize = 0;
+ }
+ 
++// Sweep the prog list to mark any used nodes.
++void
++markautoused(Prog* p)
++{
++	for (; p; p = p->link) {
++		if (p->from.name == D_AUTO && p->from.node)
++			p->from.node->used++;
++
++		if (p->to.name == D_AUTO && p->to.node)
++			p->to.node->used++;
++	}
++}
++
++// Fixup instructions after compactframe has moved all autos around.
++void
++fixautoused(Prog* p)
++{
++	for (; p; p = p->link) {
++		if (p->from.name == D_AUTO && p->from.node)
++			p->from.offset += p->from.node->stkdelta;
++
++		if (p->to.name == D_AUTO && p->to.node)
++			p->to.offset += p->to.node->stkdelta;
++	}
++}
++
+ /*
+  * generate:
+  *	call f
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 5260335df7..7922b2145f 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -18,6 +18,32 @@ defframe(Prog *ptxt)
+ 	ptxt->to.offset |= rnd(stksize+maxarg, widthptr);
+ }
+ 
++// Sweep the prog list to mark any used nodes.
++void
++markautoused(Prog* p)
++{
++	for (; p; p = p->link) {
++		if (p->from.type == D_AUTO && p->from.node)
++			p->from.node->used++;
++
++		if (p->to.type == D_AUTO && p->to.node)
++			p->to.node->used++;
++	}
++}
++
++// Fixup instructions after compactframe has moved all autos around.
++void
++fixautoused(Prog* p)
++{
++	for (; p; p = p->link) {
++		if (p->from.type == D_AUTO && p->from.node)
++			p->from.offset += p->from.node->stkdelta;
++
++		if (p->to.type == D_AUTO && p->to.node)
++			p->to.offset += p->to.node->stkdelta;
++	}
++}
++
+ 
+ /*
+  * generate:
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 25adb38c0c..89a5e42697 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -20,6 +20,32 @@ defframe(Prog *ptxt)
+ 	maxstksize = 0;
+ }
+ 
++// Sweep the prog list to mark any used nodes.
++void
++markautoused(Prog* p)
++{
++	for (; p; p = p->link) {
++		if (p->from.type == D_AUTO && p->from.node)
++			p->from.node->used++;
++
++		if (p->to.type == D_AUTO && p->to.node)
++			p->to.node->used++;
++	}
++}
++
++// Fixup instructions after compactframe has moved all autos around.
++void
++fixautoused(Prog* p)
++{
++	for (; p; p = p->link) {
++		if (p->from.type == D_AUTO && p->from.node)
++			p->from.offset += p->from.node->stkdelta;
++
++		if (p->to.type == D_AUTO && p->to.node)
++			p->to.offset += p->to.node->stkdelta;
++	}
++}
++
+ void
+ clearfat(Node *nl)
+ {
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 86db48391f..2dfcb1669b 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1195,7 +1195,7 @@ void	walkstmt(Node **np);
+ void	walkstmtlist(NodeList *l);
+ 
+ /*
+- *	arch-specific ggen.c/gsubr.c/gobj.c
++ *	arch-specific ggen.c/gsubr.c/gobj.c/pgen.c
+  */
+ #define	P	((Prog*)0)
+ 
+@@ -1237,6 +1237,7 @@ int	dsymptr(Sym *s, int off, Sym *x, int xoff);
+ int	duintxx(Sym *s, int off, uint64 v, int wid);
+ void	dumpdata(void);
+ void	dumpfuncs(void);
++void	fixautoused(Prog*);
+ void	gdata(Node*, Node*, int);
+ void	gdatacomplex(Node*, Mpcplx*);
+ void	gdatastring(Node*, Strlit*);
+@@ -1246,6 +1247,7 @@ void	ggloblsym(Sym *s, int32 width, int dupok);
+ Prog*	gjmp(Prog*);
+ void	gused(Node*);
+ int	isfat(Type*);
++void	markautoused(Prog*);
+ Plist*	newplist(void);
+ Node*	nodarg(Type*, int);
+ void	nopout(Prog*);
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index ab61866973..9a8fa31388 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -111,8 +111,7 @@ compile(Node *fn)
+ 	}
+ 
+ 	oldstksize = stksize;
+-	if(thechar != '5')
+-		compactframe(ptxt);
++	compactframe(ptxt);
+ 	if(0)
+ 		print("compactframe: %ld to %ld\n", oldstksize, stksize);
+ 
+@@ -142,12 +141,12 @@ cmpstackvar(Node *a, Node *b)
+ 
+ }
+ 
++// TODO(lvd) find out where the PAUTO/OLITERAL nodes come from.
+ static void
+ compactframe(Prog* ptxt)
+ {
+ 	NodeList *ll;
+ 	Node* n;
+-	Prog *p;
+ 	uint32 w;
+ 
+ 	if (stksize == 0)
+@@ -155,17 +154,10 @@ compactframe(Prog* ptxt)
+ 
+ 	// Mark the PAUTO's unused.
+ 	for(ll=curfn->dcl; ll != nil; ll=ll->next)
+-		if (ll->n->class == PAUTO && ll->n->op == ONAME)
++		if (ll->n->class == PAUTO)
+ 			ll->n->used = 0;
+ 
+-	// Sweep the prog list to mark any used nodes.
+-	for (p = ptxt; p; p = p->link) {
+-		if (p->from.type == D_AUTO && p->from.node)
+-			p->from.node->used++;
+-
+-		if (p->to.type == D_AUTO && p->to.node)
+-			p->to.node->used++;
+-	}
++	markautoused(ptxt);
+ 
+ 	listsort(&curfn->dcl, cmpstackvar);
+ 
+@@ -191,7 +183,6 @@ compactframe(Prog* ptxt)
+ 	stksize = 0;
+ 	for(ll = curfn->dcl; ll != nil; ll=ll->next) {
+ 		n = ll->n;
+-		// TODO find out where the literal autos come from
+ 		if (n->class != PAUTO || n->op != ONAME)
+ 			continue;
+ 
+@@ -205,14 +196,7 @@ compactframe(Prog* ptxt)
+ 		n->stkdelta = -stksize - n->xoffset;
+ 	}
+ 
+-	// Fixup instructions.
+-	for (p = ptxt; p; p = p->link) {
+-		if (p->from.type == D_AUTO && p->from.node)
+-			p->from.offset += p->from.node->stkdelta;
+-
+-		if (p->to.type == D_AUTO && p->to.node)
+-			p->to.offset += p->to.node->stkdelta;
+-	}
++	fixautoused(ptxt);
+ 
+ 	// The debug information needs accurate offsets on the symbols.
+ 	for(ll = curfn->dcl ;ll != nil; ll=ll->next) {

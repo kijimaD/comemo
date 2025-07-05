@@ -10,6 +10,20 @@ Date:   Tue Feb 17 13:37:06 2015 -0800
     Change-Id: Ia25b0936c5aab2a427f8e6531688c3e537fbfdd0
     Reviewed-on: https://go-review.googlesource.com/5070
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  misc/cgo/test/issue9400/asm_arm.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/cgo/test/issue9400/asm_arm.s b/misc/cgo/test/issue9400/asm_arm.s
+index 68e3a3b94f..d9d2abc2d4 100644
+--- a/misc/cgo/test/issue9400/asm_arm.s
++++ b/misc/cgo/test/issue9400/asm_arm.s
+@@ -1,7 +1,7 @@
+ #include "textflag.h"
+ 
+ TEXT cas<>(SB),NOSPLIT,$0
+-	MOVW	$0xffff0fc0, PC
++	MOVW	$0xffff0fc0, R15 // R15 is PC
+ 
+ TEXT ·RewindAndSetgid(SB),NOSPLIT,$-4-0
+ 	// Save link register

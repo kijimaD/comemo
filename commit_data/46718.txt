@@ -535,3 +535,927 @@ Date:   Fri Jan 22 15:35:11 2021 -0800
  test/reorder.go                                    |   16 +
  test/run.go                                        |   62 +-
  352 files changed, 9499 insertions(+), 7197 deletions(-)
+
+diff --cc src/cmd/compile/internal/inline/inl.go
+index 6f5f6499ce,83f6740a48..f0be169f56
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@@ -351,10 -350,16 +350,23 @@@ func (v *hairyVisitor) doNode(n ir.Node
+  	case ir.ORECOVER:
+  		// recover matches the argument frame pointer to find
+  		// the right panic value, so it needs an argument frame.
+- 		return errors.New("call to recover")
++ 		v.reason = "call to recover"
++ 		return true
++ 
++ 	case ir.OCLOSURE:
+++		// TODO(danscales,mdempsky): Get working with -G.
+++		// Probably after #43818 is fixed.
+++		if base.Flag.G > 0 {
+++			v.reason = "inlining closures not yet working with -G"
+++			return true
+++		}
+ +
+- 	case ir.OCLOSURE,
+- 		ir.ORANGE,
++ 		// TODO(danscales) - fix some bugs when budget is lowered below 30
++ 		// Maybe make budget proportional to number of closure variables, e.g.:
++ 		//v.budget -= int32(len(n.(*ir.ClosureExpr).Func.ClosureVars) * 3)
++ 		v.budget -= 30
++ 
++ 	case ir.ORANGE,
+  		ir.OSELECT,
+  		ir.OGO,
+  		ir.ODEFER,
+diff --cc src/cmd/compile/internal/noder/decl.go
+index 4d20f410bc,0000000000..c41b77c100
+mode 100644,000000..100644
+--- a/src/cmd/compile/internal/noder/decl.go
++++ b/src/cmd/compile/internal/noder/decl.go
+@@@ -1,226 -1,0 +1,228 @@@
+ +// Copyright 2021 The Go Authors. All rights reserved.
+ +// Use of this source code is governed by a BSD-style
+ +// license that can be found in the LICENSE file.
+ +
+ +package noder
+ +
+ +import (
+ +	"cmd/compile/internal/base"
+ +	"cmd/compile/internal/ir"
+ +	"cmd/compile/internal/syntax"
+ +	"cmd/compile/internal/typecheck"
+ +	"cmd/compile/internal/types"
+ +	"cmd/compile/internal/types2"
+ +)
+ +
+ +// TODO(mdempsky): Skip blank declarations? Probably only safe
+ +// for declarations without pragmas.
+ +
+ +func (g *irgen) decls(decls []syntax.Decl) []ir.Node {
+ +	var res ir.Nodes
+ +	for _, decl := range decls {
+ +		switch decl := decl.(type) {
+ +		case *syntax.ConstDecl:
+ +			g.constDecl(&res, decl)
+ +		case *syntax.FuncDecl:
+ +			g.funcDecl(&res, decl)
+ +		case *syntax.TypeDecl:
+ +			if ir.CurFunc == nil {
+ +				continue // already handled in irgen.generate
+ +			}
+ +			g.typeDecl(&res, decl)
+ +		case *syntax.VarDecl:
+ +			g.varDecl(&res, decl)
+ +		default:
+ +			g.unhandled("declaration", decl)
+ +		}
+ +	}
+ +	return res
+ +}
+ +
+ +func (g *irgen) importDecl(p *noder, decl *syntax.ImportDecl) {
+ +	// TODO(mdempsky): Merge with gcimports so we don't have to import
+ +	// packages twice.
+ +
+ +	g.pragmaFlags(decl.Pragma, 0)
+ +
+ +	ipkg := importfile(decl)
+ +	if ipkg == ir.Pkgs.Unsafe {
+ +		p.importedUnsafe = true
+ +	}
+++	if ipkg.Path == "embed" {
+++		p.importedEmbed = true
+++	}
+ +}
+ +
+ +func (g *irgen) constDecl(out *ir.Nodes, decl *syntax.ConstDecl) {
+ +	g.pragmaFlags(decl.Pragma, 0)
+ +
+ +	for _, name := range decl.NameList {
+ +		name, obj := g.def(name)
+ +		name.SetVal(obj.(*types2.Const).Val())
+ +		out.Append(ir.NewDecl(g.pos(decl), ir.ODCLCONST, name))
+ +	}
+ +}
+ +
+ +func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
+ +	fn := ir.NewFunc(g.pos(decl))
+ +	fn.Nname, _ = g.def(decl.Name)
+ +	fn.Nname.Func = fn
+ +	fn.Nname.Defn = fn
+ +
+ +	fn.Pragma = g.pragmaFlags(decl.Pragma, funcPragmas)
+ +	if fn.Pragma&ir.Systemstack != 0 && fn.Pragma&ir.Nosplit != 0 {
+ +		base.ErrorfAt(fn.Pos(), "go:nosplit and go:systemstack cannot be combined")
+ +	}
+ +
+ +	if decl.Name.Value == "init" && decl.Recv == nil {
+ +		g.target.Inits = append(g.target.Inits, fn)
+ +	}
+ +
+ +	g.funcBody(fn, decl.Recv, decl.Type, decl.Body)
+ +
+ +	out.Append(fn)
+ +}
+ +
+ +func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
+ +	if decl.Alias {
+ +		if !types.AllowsGoVersion(types.LocalPkg, 1, 9) {
+ +			base.ErrorfAt(g.pos(decl), "type aliases only supported as of -lang=go1.9")
+ +		}
+ +
+ +		name, _ := g.def(decl.Name)
+ +		g.pragmaFlags(decl.Pragma, 0)
+ +
+ +		// TODO(mdempsky): This matches how typecheckdef marks aliases for
+ +		// export, but this won't generalize to exporting function-scoped
+ +		// type aliases. We should maybe just use n.Alias() instead.
+ +		if ir.CurFunc == nil {
+ +			name.Sym().Def = ir.TypeNode(name.Type())
+ +		}
+ +
+ +		out.Append(ir.NewDecl(g.pos(decl), ir.ODCLTYPE, name))
+ +		return
+ +	}
+ +
+ +	// Prevent size calculations until we set the underlying type.
+ +	types.DeferCheckSize()
+ +
+ +	name, obj := g.def(decl.Name)
+ +	ntyp, otyp := name.Type(), obj.Type()
+ +	if ir.CurFunc != nil {
+ +		typecheck.TypeGen++
+ +		ntyp.Vargen = typecheck.TypeGen
+ +	}
+ +
+ +	pragmas := g.pragmaFlags(decl.Pragma, typePragmas)
+ +	name.SetPragma(pragmas) // TODO(mdempsky): Is this still needed?
+ +
+ +	if pragmas&ir.NotInHeap != 0 {
+ +		ntyp.SetNotInHeap(true)
+ +	}
+ +
+ +	// We need to use g.typeExpr(decl.Type) here to ensure that for
+ +	// chained, defined-type declarations like
+ +	//
+ +	//	type T U
+ +	//
+ +	//	//go:notinheap
+ +	//	type U struct { … }
+ +	//
+ +	// that we mark both T and U as NotInHeap. If we instead used just
+ +	// g.typ(otyp.Underlying()), then we'd instead set T's underlying
+ +	// type directly to the struct type (which is not marked NotInHeap)
+ +	// and fail to mark T as NotInHeap.
+ +	//
+ +	// Also, we rely here on Type.SetUnderlying allowing passing a
+ +	// defined type and handling forward references like from T to U
+ +	// above. Contrast with go/types's Named.SetUnderlying, which
+ +	// disallows this.
+ +	//
+ +	// [mdempsky: Subtleties like these are why I always vehemently
+ +	// object to new type pragmas.]
+ +	ntyp.SetUnderlying(g.typeExpr(decl.Type))
+ +	types.ResumeCheckSize()
+ +
+ +	if otyp, ok := otyp.(*types2.Named); ok && otyp.NumMethods() != 0 {
+ +		methods := make([]*types.Field, otyp.NumMethods())
+ +		for i := range methods {
+ +			m := otyp.Method(i)
+ +			meth := g.obj(m)
+ +			methods[i] = types.NewField(meth.Pos(), g.selector(m), meth.Type())
+ +			methods[i].Nname = meth
+ +		}
+ +		ntyp.Methods().Set(methods)
+ +	}
+ +
+ +	out.Append(ir.NewDecl(g.pos(decl), ir.ODCLTYPE, name))
+ +}
+ +
+ +func (g *irgen) varDecl(out *ir.Nodes, decl *syntax.VarDecl) {
+ +	pos := g.pos(decl)
+ +	names := make([]*ir.Name, len(decl.NameList))
+ +	for i, name := range decl.NameList {
+ +		names[i], _ = g.def(name)
+ +	}
+ +	values := g.exprList(decl.Values)
+ +
+ +	if decl.Pragma != nil {
+ +		pragma := decl.Pragma.(*pragmas)
+- 		if err := varEmbed(g.makeXPos, names[0], decl, pragma); err != nil {
+- 			base.ErrorfAt(g.pos(decl), "%s", err.Error())
+- 		}
+++		// TODO(mdempsky): Plumb noder.importedEmbed through to here.
+++		varEmbed(g.makeXPos, names[0], decl, pragma, true)
+ +		g.reportUnused(pragma)
+ +	}
+ +
+ +	var as2 *ir.AssignListStmt
+ +	if len(values) != 0 && len(names) != len(values) {
+ +		as2 = ir.NewAssignListStmt(pos, ir.OAS2, make([]ir.Node, len(names)), values)
+ +	}
+ +
+ +	for i, name := range names {
+ +		if ir.CurFunc != nil {
+ +			out.Append(ir.NewDecl(pos, ir.ODCL, name))
+ +		}
+ +		if as2 != nil {
+ +			as2.Lhs[i] = name
+ +			name.Defn = as2
+ +		} else {
+ +			as := ir.NewAssignStmt(pos, name, nil)
+ +			if len(values) != 0 {
+ +				as.Y = values[i]
+ +				name.Defn = as
+ +			} else if ir.CurFunc == nil {
+ +				name.Defn = as
+ +			}
+ +			out.Append(typecheck.Stmt(as))
+ +		}
+ +	}
+ +	if as2 != nil {
+ +		out.Append(typecheck.Stmt(as2))
+ +	}
+ +}
+ +
+ +// pragmaFlags returns any specified pragma flags included in allowed,
+ +// and reports errors about any other, unexpected pragmas.
+ +func (g *irgen) pragmaFlags(pragma syntax.Pragma, allowed ir.PragmaFlag) ir.PragmaFlag {
+ +	if pragma == nil {
+ +		return 0
+ +	}
+ +	p := pragma.(*pragmas)
+ +	present := p.Flag & allowed
+ +	p.Flag &^= allowed
+ +	g.reportUnused(p)
+ +	return present
+ +}
+ +
+ +// reportUnused reports errors about any unused pragmas.
+ +func (g *irgen) reportUnused(pragma *pragmas) {
+ +	for _, pos := range pragma.Pos {
+ +		if pos.Flag&pragma.Flag != 0 {
+ +			base.ErrorfAt(g.makeXPos(pos.Pos), "misplaced compiler directive")
+ +		}
+ +	}
+ +	if len(pragma.Embeds) > 0 {
+ +		for _, e := range pragma.Embeds {
+ +			base.ErrorfAt(g.makeXPos(e.Pos), "misplaced go:embed directive")
+ +		}
+ +	}
+ +}
+diff --cc src/cmd/compile/internal/noder/noder.go
+index e1ae2569e0,5bb01895cc..887205b9fb
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@@ -385,9 -465,20 +392,7 @@@ func (p *noder) varDecl(decl *syntax.Va
+  	exprs := p.exprList(decl.Values)
+  
+  	if pragma, ok := decl.Pragma.(*pragmas); ok {
+- 		if err := varEmbed(p.makeXPos, names[0], decl, pragma); err != nil {
+- 			p.errorAt(decl.Pos(), "%s", err.Error())
+ -		if len(pragma.Embeds) > 0 {
+ -			if !p.importedEmbed {
+ -				// This check can't be done when building the list pragma.Embeds
+ -				// because that list is created before the noder starts walking over the file,
+ -				// so at that point it hasn't seen the imports.
+ -				// We're left to check now, just before applying the //go:embed lines.
+ -				for _, e := range pragma.Embeds {
+ -					p.errorAt(e.Pos, "//go:embed only allowed in Go files that import \"embed\"")
+ -				}
+ -			} else {
+ -				varEmbed(p, names, typ, exprs, pragma.Embeds)
+ -			}
+ -			pragma.Embeds = nil
+--		}
+++		varEmbed(p.makeXPos, names[0], decl, pragma, p.importedEmbed)
+  		p.checkUnused(pragma)
+  	}
+  
+@@@ -1829,36 -1923,48 +1834,41 @@@ func oldname(s *types.Sym) ir.Node 
+  	return n
+  }
+  
+- func varEmbed(makeXPos func(syntax.Pos) src.XPos, name *ir.Name, decl *syntax.VarDecl, pragma *pragmas) error {
+ -func varEmbed(p *noder, names []*ir.Name, typ ir.Ntype, exprs []ir.Node, embeds []pragmaEmbed) {
+ -	haveEmbed := false
+ -	for _, decl := range p.file.DeclList {
+ -		imp, ok := decl.(*syntax.ImportDecl)
+ -		if !ok {
+ -			// imports always come first
+ -			break
+ -		}
+ -		path, _ := strconv.Unquote(imp.Path.Value)
+ -		if path == "embed" {
+ -			haveEmbed = true
+ -			break
+ -		}
+++func varEmbed(makeXPos func(syntax.Pos) src.XPos, name *ir.Name, decl *syntax.VarDecl, pragma *pragmas, haveEmbed bool) {
+ +	if pragma.Embeds == nil {
+- 		return nil
+++		return
+  	}
+  
+ -	pos := embeds[0].Pos
+ +	pragmaEmbeds := pragma.Embeds
+ +	pragma.Embeds = nil
+++	pos := makeXPos(pragmaEmbeds[0].Pos)
+ +
+- 	if base.Flag.Cfg.Embed.Patterns == nil {
+- 		return errors.New("invalid go:embed: build system did not supply embed configuration")
++ 	if !haveEmbed {
+ -		p.errorAt(pos, "invalid go:embed: missing import \"embed\"")
+++		base.ErrorfAt(pos, "go:embed only allowed in Go files that import \"embed\"")
++ 		return
+  	}
+ -	if len(names) > 1 {
+ -		p.errorAt(pos, "go:embed cannot apply to multiple vars")
+ +	if len(decl.NameList) > 1 {
+- 		return errors.New("go:embed cannot apply to multiple vars")
+++		base.ErrorfAt(pos, "go:embed cannot apply to multiple vars")
++ 		return
+  	}
+ -	if len(exprs) > 0 {
+ -		p.errorAt(pos, "go:embed cannot apply to var with initializer")
+ +	if decl.Values != nil {
+- 		return errors.New("go:embed cannot apply to var with initializer")
+++		base.ErrorfAt(pos, "go:embed cannot apply to var with initializer")
++ 		return
+  	}
+ -	if typ == nil {
+ -		// Should not happen, since len(exprs) == 0 now.
+ -		p.errorAt(pos, "go:embed cannot apply to var without type")
+ +	if decl.Type == nil {
+ +		// Should not happen, since Values == nil now.
+- 		return errors.New("go:embed cannot apply to var without type")
+++		base.ErrorfAt(pos, "go:embed cannot apply to var without type")
++ 		return
+  	}
+  	if typecheck.DeclContext != ir.PEXTERN {
+- 		return errors.New("go:embed cannot apply to var inside func")
+ -		p.errorAt(pos, "go:embed cannot apply to var inside func")
+++		base.ErrorfAt(pos, "go:embed cannot apply to var inside func")
++ 		return
+  	}
+  
+ -	v := names[0]
+ -	typecheck.Target.Embeds = append(typecheck.Target.Embeds, v)
+ -	v.Embed = new([]ir.Embed)
+ -	for _, e := range embeds {
+ -		*v.Embed = append(*v.Embed, ir.Embed{Pos: p.makeXPos(e.Pos), Patterns: e.Patterns})
+ +	var embeds []ir.Embed
+ +	for _, e := range pragmaEmbeds {
+ +		embeds = append(embeds, ir.Embed{Pos: makeXPos(e.Pos), Patterns: e.Patterns})
+  	}
+ +	typecheck.Target.Embeds = append(typecheck.Target.Embeds, name)
+ +	name.Embed = &embeds
+- 	return nil
+  }
+diff --cc src/cmd/compile/internal/reflectdata/reflect.go
+index 30857fff6d,1ec92e3dd0..3ff14c87f4
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@@ -791,7 -791,7 +791,7 @@@ func dcommontype(lsym *obj.LSym, t *typ
+  // TrackSym returns the symbol for tracking use of field/method f, assumed
+  // to be a member of struct/interface type t.
+  func TrackSym(t *types.Type, f *types.Field) *obj.LSym {
+- 	return ir.Pkgs.Track.Lookup(t.ShortString() + "." + f.Sym.Name).Linksym()
+ -	return base.PkgLinksym("go.track", t.ShortString() + "." + f.Sym.Name, obj.ABI0)
+++	return base.PkgLinksym("go.track", t.ShortString()+"."+f.Sym.Name, obj.ABI0)
+  }
+  
+  func TypeSymPrefix(prefix string, t *types.Type) *types.Sym {
+diff --cc src/cmd/compile/internal/typecheck/dcl.go
+index bd54919c93,c324238bf1..eab0bb09b2
+--- a/src/cmd/compile/internal/typecheck/dcl.go
++++ b/src/cmd/compile/internal/typecheck/dcl.go
+@@@ -309,9 -308,7 +309,9 @@@ func FakeRecv() *types.Field 
+  	return types.NewField(src.NoXPos, nil, types.FakeRecvType())
+  }
+  
+ +var fakeRecvField = FakeRecv
+ +
+- var funcStack []funcStackEnt // stack of previous values of Curfn/dclcontext
++ var funcStack []funcStackEnt // stack of previous values of ir.CurFunc/DeclContext
+  
+  type funcStackEnt struct {
+  	curfn      *ir.Func
+diff --cc src/cmd/compile/internal/typecheck/func.go
+index 766eb8bae9,f624773c8f..7ab5f68ce3
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@@ -303,8 -303,15 +303,15 @@@ func tcClosure(clo *ir.ClosureExpr, to
+  		return
+  	}
+  
+- 	fn.Nname.SetSym(ClosureName(ir.CurFunc))
+- 	ir.MarkFunc(fn.Nname)
++ 	// Don't give a name and add to xtop if we are typechecking an inlined
++ 	// body in ImportedBody(), since we only want to create the named function
++ 	// when the closure is actually inlined (and then we force a typecheck
++ 	// explicitly in (*inlsubst).node()).
++ 	inTypeCheckInl := ir.CurFunc != nil && ir.CurFunc.Body == nil
++ 	if !inTypeCheckInl {
+ -		fn.Nname.SetSym(closurename(ir.CurFunc))
+++		fn.Nname.SetSym(ClosureName(ir.CurFunc))
++ 		ir.MarkFunc(fn.Nname)
++ 	}
+  	Func(fn)
+  	clo.SetType(fn.Type())
+  
+diff --cc src/cmd/compile/internal/types2/stdlib_test.go
+index ae573a4ec8,0000000000..ffd423be27
+mode 100644,000000..100644
+--- a/src/cmd/compile/internal/types2/stdlib_test.go
++++ b/src/cmd/compile/internal/types2/stdlib_test.go
+@@@ -1,323 -1,0 +1,325 @@@
+ +// UNREVIEWED
+ +// Copyright 2013 The Go Authors. All rights reserved.
+ +// Use of this source code is governed by a BSD-style
+ +// license that can be found in the LICENSE file.
+ +
+ +// This file tests types.Check by using it to
+ +// typecheck the standard library and tests.
+ +
+ +package types2_test
+ +
+ +import (
+ +	"bytes"
+ +	"cmd/compile/internal/syntax"
+ +	"fmt"
+ +	"go/build"
+ +	"internal/testenv"
+ +	"io/ioutil"
+ +	"os"
+ +	"path/filepath"
+ +	"runtime"
+ +	"strings"
+ +	"testing"
+ +	"time"
+ +
+ +	. "cmd/compile/internal/types2"
+ +)
+ +
+ +var stdLibImporter = defaultImporter()
+ +
+ +func TestStdlib(t *testing.T) {
+ +	testenv.MustHaveGoBuild(t)
+ +
+ +	pkgCount := 0
+ +	duration := walkPkgDirs(filepath.Join(runtime.GOROOT(), "src"), func(dir string, filenames []string) {
+ +		typecheck(t, dir, filenames)
+ +		pkgCount++
+ +	}, t.Error)
+ +
+ +	if testing.Verbose() {
+ +		fmt.Println(pkgCount, "packages typechecked in", duration)
+ +	}
+ +}
+ +
+ +// firstComment returns the contents of the first non-empty comment in
+ +// the given file, "skip", or the empty string. No matter the present
+ +// comments, if any of them contains a build tag, the result is always
+ +// "skip". Only comments within the first 4K of the file are considered.
+ +// TODO(gri) should only read until we see "package" token.
+ +func firstComment(filename string) (first string) {
+ +	f, err := os.Open(filename)
+ +	if err != nil {
+ +		return ""
+ +	}
+ +	defer f.Close()
+ +
+ +	// read at most 4KB
+ +	var buf [4 << 10]byte
+ +	n, _ := f.Read(buf[:])
+ +	src := bytes.NewBuffer(buf[:n])
+ +
+ +	// TODO(gri) we need a better way to terminate CommentsDo
+ +	defer func() {
+ +		if p := recover(); p != nil {
+ +			if s, ok := p.(string); ok {
+ +				first = s
+ +			}
+ +		}
+ +	}()
+ +
+ +	syntax.CommentsDo(src, func(_, _ uint, text string) {
+ +		if text[0] != '/' {
+ +			return // not a comment
+ +		}
+ +
+ +		// extract comment text
+ +		if text[1] == '*' {
+ +			text = text[:len(text)-2]
+ +		}
+ +		text = strings.TrimSpace(text[2:])
+ +
+ +		if strings.HasPrefix(text, "+build ") {
+ +			panic("skip")
+ +		}
+ +		if first == "" {
+ +			first = text // text may be "" but that's ok
+ +		}
+ +		// continue as we may still see build tags
+ +	})
+ +
+ +	return
+ +}
+ +
+ +func testTestDir(t *testing.T, path string, ignore ...string) {
+ +	files, err := ioutil.ReadDir(path)
+ +	if err != nil {
+ +		t.Fatal(err)
+ +	}
+ +
+ +	excluded := make(map[string]bool)
+ +	for _, filename := range ignore {
+ +		excluded[filename] = true
+ +	}
+ +
+ +	for _, f := range files {
+ +		// filter directory contents
+ +		if f.IsDir() || !strings.HasSuffix(f.Name(), ".go") || excluded[f.Name()] {
+ +			continue
+ +		}
+ +
+ +		// get per-file instructions
+ +		expectErrors := false
+ +		filename := filepath.Join(path, f.Name())
+ +		if comment := firstComment(filename); comment != "" {
+ +			fields := strings.Fields(comment)
+ +			switch fields[0] {
+ +			case "skip", "compiledir":
+ +				continue // ignore this file
+ +			case "errorcheck":
+ +				expectErrors = true
+ +				for _, arg := range fields[1:] {
+ +					if arg == "-0" || arg == "-+" || arg == "-std" {
+ +						// Marked explicitly as not expected errors (-0),
+ +						// or marked as compiling runtime/stdlib, which is only done
+ +						// to trigger runtime/stdlib-only error output.
+ +						// In both cases, the code should typecheck.
+ +						expectErrors = false
+ +						break
+ +					}
+ +				}
+ +			}
+ +		}
+ +
+ +		// parse and type-check file
+ +		if testing.Verbose() {
+ +			fmt.Println("\t", filename)
+ +		}
+ +		file, err := syntax.ParseFile(filename, nil, nil, 0)
+ +		if err == nil {
+ +			conf := Config{Importer: stdLibImporter}
+ +			_, err = conf.Check(filename, []*syntax.File{file}, nil)
+ +		}
+ +
+ +		if expectErrors {
+ +			if err == nil {
+ +				t.Errorf("expected errors but found none in %s", filename)
+ +			}
+ +		} else {
+ +			if err != nil {
+ +				t.Error(err)
+ +			}
+ +		}
+ +	}
+ +}
+ +
+ +func TestStdTest(t *testing.T) {
+ +	testenv.MustHaveGoBuild(t)
+ +
+ +	if testing.Short() && testenv.Builder() == "" {
+ +		t.Skip("skipping in short mode")
+ +	}
+ +
+ +	testTestDir(t, filepath.Join(runtime.GOROOT(), "test"),
+ +		"cmplxdivide.go", // also needs file cmplxdivide1.go - ignore
+ +		"directive.go",   // tests compiler rejection of bad directive placement - ignore
+++		"embedfunc.go",   // tests //go:embed
+++		"embedvers.go",   // tests //go:embed
+ +		"linkname2.go",   // types2 doesn't check validity of //go:xxx directives
+ +	)
+ +}
+ +
+ +func TestStdFixed(t *testing.T) {
+ +	testenv.MustHaveGoBuild(t)
+ +
+ +	if testing.Short() && testenv.Builder() == "" {
+ +		t.Skip("skipping in short mode")
+ +	}
+ +
+ +	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "fixedbugs"),
+ +		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
+ +		"issue6889.go",   // gc-specific test
+ +		"issue7746.go",   // large constants - consumes too much memory
+ +		"issue11362.go",  // canonical import path check
+ +		"issue16369.go",  // go/types handles this correctly - not an issue
+ +		"issue18459.go",  // go/types doesn't check validity of //go:xxx directives
+ +		"issue18882.go",  // go/types doesn't check validity of //go:xxx directives
+ +		"issue20232.go",  // go/types handles larger constants than gc
+ +		"issue20529.go",  // go/types does not have constraints on stack size
+ +		"issue22200.go",  // go/types does not have constraints on stack size
+ +		"issue22200b.go", // go/types does not have constraints on stack size
+ +		"issue25507.go",  // go/types does not have constraints on stack size
+ +		"issue20780.go",  // go/types does not have constraints on stack size
+ +		"issue31747.go",  // go/types does not have constraints on language level (-lang=go1.12) (see #31793)
+ +		"issue34329.go",  // go/types does not have constraints on language level (-lang=go1.13) (see #31793)
+ +		"issue42058a.go", // go/types does not have constraints on channel element size
+ +		"issue42058b.go", // go/types does not have constraints on channel element size
+ +		"bug251.go",      // issue #34333 which was exposed with fix for #34151
+ +	)
+ +}
+ +
+ +func TestStdKen(t *testing.T) {
+ +	testenv.MustHaveGoBuild(t)
+ +
+ +	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "ken"))
+ +}
+ +
+ +// Package paths of excluded packages.
+ +var excluded = map[string]bool{
+ +	"builtin": true,
+ +}
+ +
+ +// typecheck typechecks the given package files.
+ +func typecheck(t *testing.T, path string, filenames []string) {
+ +	// parse package files
+ +	var files []*syntax.File
+ +	for _, filename := range filenames {
+ +		errh := func(err error) { t.Error(err) }
+ +		file, err := syntax.ParseFile(filename, errh, nil, 0)
+ +		if err != nil {
+ +			return
+ +		}
+ +
+ +		if testing.Verbose() {
+ +			if len(files) == 0 {
+ +				fmt.Println("package", file.PkgName.Value)
+ +			}
+ +			fmt.Println("\t", filename)
+ +		}
+ +
+ +		files = append(files, file)
+ +	}
+ +
+ +	// typecheck package files
+ +	conf := Config{
+ +		Error:    func(err error) { t.Error(err) },
+ +		Importer: stdLibImporter,
+ +	}
+ +	info := Info{Uses: make(map[*syntax.Name]Object)}
+ +	conf.Check(path, files, &info)
+ +
+ +	// Perform checks of API invariants.
+ +
+ +	// All Objects have a package, except predeclared ones.
+ +	errorError := Universe.Lookup("error").Type().Interface().ExplicitMethod(0) // (error).Error
+ +	for id, obj := range info.Uses {
+ +		predeclared := obj == Universe.Lookup(obj.Name()) || obj == errorError
+ +		if predeclared == (obj.Pkg() != nil) {
+ +			posn := id.Pos()
+ +			if predeclared {
+ +				t.Errorf("%s: predeclared object with package: %s", posn, obj)
+ +			} else {
+ +				t.Errorf("%s: user-defined object without package: %s", posn, obj)
+ +			}
+ +		}
+ +	}
+ +}
+ +
+ +// pkgFilenames returns the list of package filenames for the given directory.
+ +func pkgFilenames(dir string) ([]string, error) {
+ +	ctxt := build.Default
+ +	ctxt.CgoEnabled = false
+ +	pkg, err := ctxt.ImportDir(dir, 0)
+ +	if err != nil {
+ +		if _, nogo := err.(*build.NoGoError); nogo {
+ +			return nil, nil // no *.go files, not an error
+ +		}
+ +		return nil, err
+ +	}
+ +	if excluded[pkg.ImportPath] {
+ +		return nil, nil
+ +	}
+ +	var filenames []string
+ +	for _, name := range pkg.GoFiles {
+ +		filenames = append(filenames, filepath.Join(pkg.Dir, name))
+ +	}
+ +	for _, name := range pkg.TestGoFiles {
+ +		filenames = append(filenames, filepath.Join(pkg.Dir, name))
+ +	}
+ +	return filenames, nil
+ +}
+ +
+ +func walkPkgDirs(dir string, pkgh func(dir string, filenames []string), errh func(args ...interface{})) time.Duration {
+ +	w := walker{time.Now(), 10 * time.Millisecond, pkgh, errh}
+ +	w.walk(dir)
+ +	return time.Since(w.start)
+ +}
+ +
+ +type walker struct {
+ +	start time.Time
+ +	dmax  time.Duration
+ +	pkgh  func(dir string, filenames []string)
+ +	errh  func(args ...interface{})
+ +}
+ +
+ +func (w *walker) walk(dir string) {
+ +	// limit run time for short tests
+ +	if testing.Short() && time.Since(w.start) >= w.dmax {
+ +		return
+ +	}
+ +
+ +	fis, err := ioutil.ReadDir(dir)
+ +	if err != nil {
+ +		w.errh(err)
+ +		return
+ +	}
+ +
+ +	// apply pkgh to the files in directory dir
+ +	// but ignore files directly under $GOROOT/src (might be temporary test files).
+ +	if dir != filepath.Join(runtime.GOROOT(), "src") {
+ +		files, err := pkgFilenames(dir)
+ +		if err != nil {
+ +			w.errh(err)
+ +			return
+ +		}
+ +		if files != nil {
+ +			w.pkgh(dir, files)
+ +		}
+ +	}
+ +
+ +	// traverse subdirectories, but don't walk into testdata
+ +	for _, fi := range fis {
+ +		if fi.IsDir() && fi.Name() != "testdata" {
+ +			w.walk(filepath.Join(dir, fi.Name()))
+ +		}
+ +	}
+ +}
+diff --cc src/cmd/compile/internal/walk/walk.go
+index 4271772fb7,4273a62fe5..b47d96dc4c
+--- a/src/cmd/compile/internal/walk/walk.go
++++ b/src/cmd/compile/internal/walk/walk.go
+@@@ -50,37 -49,8 +49,13 @@@ func Walk(fn *ir.Func) 
+  	if base.Flag.Cfg.Instrumenting {
+  		instrument(fn)
+  	}
+ +
+ +	// Eagerly compute sizes of all variables for SSA.
+ +	for _, n := range fn.Dcl {
+ +		types.CalcSize(n.Type())
+ +	}
+  }
+  
+- func paramoutheap(fn *ir.Func) bool {
+- 	for _, ln := range fn.Dcl {
+- 		switch ln.Class {
+- 		case ir.PPARAMOUT:
+- 			if ir.IsParamStackCopy(ln) || ln.Addrtaken() {
+- 				return true
+- 			}
+- 
+- 		case ir.PAUTO:
+- 			// stop early - parameters are over
+- 			return false
+- 		}
+- 	}
+- 
+- 	return false
+- }
+- 
+  // walkRecv walks an ORECV node.
+  func walkRecv(n *ir.UnaryExpr) ir.Node {
+  	if n.Typecheck() == 0 {
+diff --cc src/cmd/internal/obj/link.go
+index 977c5c3303,7ba8c6d317..35cb53cbf6
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@@ -796,10 -807,11 +807,11 @@@ type Link struct 
+  	DebugInfo          func(fn *LSym, info *LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls) // if non-nil, curfn is a *gc.Node
+  	GenAbstractFunc    func(fn *LSym)
+  	Errors             int
++ 	RegArgs            []RegArg
+  
+ -	InParallel      bool // parallel backend phase in effect
+ -	UseBASEntries   bool // use Base Address Selection Entries in location lists and PC ranges
+ -	IsAsm           bool // is the source assembly language, which may contain surprising idioms (e.g., call tables)
+ +	InParallel    bool // parallel backend phase in effect
+ +	UseBASEntries bool // use Base Address Selection Entries in location lists and PC ranges
+ +	IsAsm         bool // is the source assembly language, which may contain surprising idioms (e.g., call tables)
+  
+  	// state for writing objects
+  	Text []*LSym
+diff --cc test/fixedbugs/issue43762.go
+index 0000000000,4544b6e496..9f7682ad6a
+mode 000000,100644..100644
+--- a/test/fixedbugs/issue43762.go
++++ b/test/fixedbugs/issue43762.go
+@@@ -1,0 -1,11 +1,11 @@@
++ // errorcheck
++ 
++ // Copyright 2021 The Go Authors. All rights reserved.
++ // Use of this source code is governed by a BSD-style
++ // license that can be found in the LICENSE file.
++ 
++ package p
++ 
+ -var _ = true == '\\' // ERROR "invalid operation: true == '\\\\'"
+ -var _ = true == '\'' // ERROR "invalid operation: true == '\\''"
+ -var _ = true == '\n' // ERROR "invalid operation: true == '\\n'"
+++var _ = true == '\\' // ERROR "invalid operation: true == '\\\\'|cannot convert true"
+++var _ = true == '\'' // ERROR "invalid operation: true == '\\''|cannot convert true"
+++var _ = true == '\n' // ERROR "invalid operation: true == '\\n'|cannot convert true"
+diff --cc test/run.go
+index f2f17c4f20,116f983a97..a460c4d8b6
+--- a/test/run.go
++++ b/test/run.go
+@@@ -59,7 -59,7 +59,7 @@@ var 
+  
+  	// dirs are the directories to look for *.go files in.
+  	// TODO(bradfitz): just use all directories?
+- 	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "codegen", "runtime", "typeparam"}
+ -	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "codegen", "runtime", "abi"}
+++	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "codegen", "runtime", "abi", "typeparam"}
+  
+  	// ratec controls the max number of tests running at a time.
+  	ratec chan bool
+@@@ -1922,74 -1854,3 +1930,76 @@@ func overlayDir(dstRoot, srcRoot string
+  		return err
+  	})
+  }
+ +
+ +// List of files that the compiler cannot errorcheck with the new typechecker (compiler -G option).
+ +// Temporary scaffolding until we pass all the tests at which point this map can be removed.
+ +var excluded = map[string]bool{
+ +	"complit1.go":     true, // types2 reports extra errors
+ +	"const2.go":       true, // types2 not run after syntax errors
+ +	"ddd1.go":         true, // issue #42987
+ +	"directive.go":    true, // misplaced compiler directive checks
+++	"embedfunc.go":    true, // error reported by irgen (only runs with -G=3)
+++	"embedvers.go":    true, // error reported by backend (only runs with -G=3)
+ +	"float_lit3.go":   true, // types2 reports extra errors
+ +	"import1.go":      true, // types2 reports extra errors
+ +	"import5.go":      true, // issue #42988
+ +	"import6.go":      true, // issue #43109
+ +	"initializerr.go": true, // types2 reports extra errors
+ +	"linkname2.go":    true, // error reported by noder (not running for types2 errorcheck test)
+ +	"shift1.go":       true, // issue #42989
+ +	"typecheck.go":    true, // invalid function is not causing errors when called
+ +
+ +	"fixedbugs/bug176.go":    true, // types2 reports all errors (pref: types2)
+ +	"fixedbugs/bug193.go":    true, // types2 bug: shift error not reported (fixed in go/types)
+ +	"fixedbugs/bug195.go":    true, // types2 reports slightly different (but correct) bugs
+ +	"fixedbugs/bug228.go":    true, // types2 not run after syntax errors
+ +	"fixedbugs/bug231.go":    true, // types2 bug? (same error reported twice)
+ +	"fixedbugs/bug255.go":    true, // types2 reports extra errors
+ +	"fixedbugs/bug351.go":    true, // types2 reports extra errors
+ +	"fixedbugs/bug374.go":    true, // types2 reports extra errors
+ +	"fixedbugs/bug385_32.go": true, // types2 doesn't produce "stack frame too large" error (32-bit specific)
+ +	"fixedbugs/bug385_64.go": true, // types2 doesn't produce "stack frame too large" error
+ +	"fixedbugs/bug388.go":    true, // types2 not run due to syntax errors
+ +	"fixedbugs/bug412.go":    true, // types2 produces a follow-on error
+ +
+ +	"fixedbugs/issue11590.go":  true, // types2 doesn't report a follow-on error (pref: types2)
+ +	"fixedbugs/issue11610.go":  true, // types2 not run after syntax errors
+ +	"fixedbugs/issue11614.go":  true, // types2 reports an extra error
+ +	"fixedbugs/issue13415.go":  true, // declared but not used conflict
+ +	"fixedbugs/issue14520.go":  true, // missing import path error by types2
+ +	"fixedbugs/issue14540.go":  true, // error reported by noder (not running for types2 errorcheck test)
+ +	"fixedbugs/issue16428.go":  true, // types2 reports two instead of one error
+ +	"fixedbugs/issue17038.go":  true, // types2 doesn't report a follow-on error (pref: types2)
+ +	"fixedbugs/issue17645.go":  true, // multiple errors on same line
+ +	"fixedbugs/issue18393.go":  true, // types2 not run after syntax errors
+ +	"fixedbugs/issue19012.go":  true, // multiple errors on same line
+ +	"fixedbugs/issue20233.go":  true, // types2 reports two instead of one error (pref: compiler)
+ +	"fixedbugs/issue20245.go":  true, // types2 reports two instead of one error (pref: compiler)
+ +	"fixedbugs/issue20529.go":  true, // types2 doesn't produce "stack frame too large" error
+ +	"fixedbugs/issue20780.go":  true, // types2 doesn't produce "stack frame too large" error
+ +	"fixedbugs/issue21979.go":  true, // types2 doesn't report a follow-on error (pref: types2)
+ +	"fixedbugs/issue22200.go":  true, // types2 doesn't produce "stack frame too large" error
+ +	"fixedbugs/issue22200b.go": true, // types2 doesn't produce "stack frame too large" error
+ +	"fixedbugs/issue23732.go":  true, // types2 reports different (but ok) line numbers
+ +	"fixedbugs/issue25507.go":  true, // types2 doesn't produce "stack frame too large" error
+ +	"fixedbugs/issue25958.go":  true, // types2 doesn't report a follow-on error (pref: types2)
+ +	"fixedbugs/issue28079b.go": true, // types2 reports follow-on errors
+ +	"fixedbugs/issue28268.go":  true, // types2 reports follow-on errors
+ +	"fixedbugs/issue31747.go":  true, // types2 is missing support for -lang flag
+ +	"fixedbugs/issue33460.go":  true, // types2 reports alternative positions in separate error
+ +	"fixedbugs/issue34329.go":  true, // types2 is missing support for -lang flag
+ +	"fixedbugs/issue41575.go":  true, // types2 reports alternative positions in separate error
+ +	"fixedbugs/issue42058a.go": true, // types2 doesn't report "channel element type too large"
+ +	"fixedbugs/issue42058b.go": true, // types2 doesn't report "channel element type too large"
+ +	"fixedbugs/issue4232.go":   true, // types2 reports (correct) extra errors
+ +	"fixedbugs/issue4452.go":   true, // types2 reports (correct) extra errors
+ +	"fixedbugs/issue5609.go":   true, // types2 needs a better error message
+ +	"fixedbugs/issue6889.go":   true, // types2 can handle this without constant overflow
+ +	"fixedbugs/issue7525.go":   true, // types2 reports init cycle error on different line - ok otherwise
+ +	"fixedbugs/issue7525b.go":  true, // types2 reports init cycle error on different line - ok otherwise
+ +	"fixedbugs/issue7525c.go":  true, // types2 reports init cycle error on different line - ok otherwise
+ +	"fixedbugs/issue7525d.go":  true, // types2 reports init cycle error on different line - ok otherwise
+ +	"fixedbugs/issue7525e.go":  true, // types2 reports init cycle error on different line - ok otherwise
+ +	"fixedbugs/issue7742.go":   true, // types2 type-checking doesn't terminate
+ +	"fixedbugs/issue7746.go":   true, // types2 type-checking doesn't terminate
+ +}

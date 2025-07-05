@@ -8,9 +8,201 @@ Date:   Sat Oct 4 02:51:03 2008 -0700
     DELTA=86  (72 added, 9 deleted, 5 changed)
     OCL=16488
     CL=16488
-
+---
  src/cmd/gc/dcl.c  | 13 +++---------
  src/cmd/gc/go.y   |  8 ++++++-
  src/cmd/gc/walk.c | 17 +++++++++------
  test/method.go    | 63 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
  4 files changed, 84 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index a96d58a33c..6b04553f5f 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -176,22 +176,15 @@ methodname(Node *n, Type *t)
+ 	Sym *s;
+ 	char buf[NSYMB];
+ 
++	// caller has already called ismethod to obtain t
+ 	if(t == T)
+ 		goto bad;
+-
+-	// method receiver must be typename or *typename
+-	s = S;
+-	if(t->sym != S)
+-		s = t->sym;
+-	if(isptr[t->etype])
+-		t = t->type;
+-	if(t->sym != S)
+-		s = t->sym;
++	s = t->sym;
+ 	if(s == S)
+ 		goto bad;
+ 
+ 	snprint(buf, sizeof(buf), "%s_%s", s->name, n->sym->name);
+-	return newname(pkglookup(buf, t->sym->opackage));
++	return newname(pkglookup(buf, s->opackage));
+ 
+ bad:
+ 	yyerror("illegal <this> type: %T", t);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 2f9cd0aca4..923107cc55 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1113,9 +1113,15 @@ fndcl:
+ 	}
+ |	'(' oarg_type_list ')' new_name '(' oarg_type_list ')' fnres
+ 	{
++		Type *t;
++
+ 		b0stack = dclstack;	// mark base for fn literals
+ 		$$ = nod(ODCLFUNC, N, N);
+-		$$->nname = methodname($4, $2->type);
++		t = ismethod($2->type);
++		if(t != T)
++			$$->nname = methodname($4, t);
++		else
++			$$->nname = $4;
+ 		$$->type = functype($2, $6, $8);
+ 		funchdr($$);
+ 
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index f3aafc4aad..87b5e6f366 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1230,7 +1230,7 @@ recv:
+ 	r = list(a, r);
+ 	goto out;
+ 
+-recv2:	
++recv2:
+ 	walktype(c->right, Erv);	// chan
+ 
+ 	t = fixchan(c->right->type);
+@@ -1399,6 +1399,7 @@ lookdot(Node *n, Type *f)
+ 	for(; f!=T; f=f->down) {
+ 		if(f->sym == S)
+ 			continue;
++	//	if(strcmp(f->sym->name, s->name) != 0)
+ 		if(f->sym != s)
+ 			continue;
+ 		if(r != T) {
+@@ -1430,6 +1431,7 @@ walkdot(Node *n)
+ 	if(t == T)
+ 		return;
+ 
++	// as a structure field or pointer to structure field
+ 	if(isptr[t->etype]) {
+ 		t = t->type;
+ 		if(t == T)
+@@ -1437,7 +1439,6 @@ walkdot(Node *n)
+ 		n->op = ODOTPTR;
+ 	}
+ 
+-	// as a structure field
+ 	if(t->etype == TSTRUCT || t->etype == TINTER) {
+ 		f = lookdot(n->right, t->type);
+ 		if(f != T) {
+@@ -1450,9 +1451,13 @@ walkdot(Node *n)
+ 		}
+ 	}
+ 
+-	f = lookdot(n->right, t->method);
++	// as a method
++	f = T;
++	t = ismethod(n->left->type);
++	if(t != T)
++		f = lookdot(n->right, t->method);
+ 	if(f == T) {
+-		yyerror("undefined DOT %S", n->right->sym);
++		yyerror("undefined DOT %S on %T", n->right->sym, n->left->type);
+ 		return;
+ 	}
+ 
+@@ -1883,7 +1888,7 @@ fixchan(Type *tm)
+ {
+ 	Type *t;
+ 
+-	if(tm == T) 
++	if(tm == T)
+ 		goto bad;
+ 	t = tm->type;
+ 	if(t == T)
+@@ -2298,7 +2303,7 @@ fixarray(Type *tm)
+ bad:
+ 	yyerror("not an array: %lT", tm);
+ 	return T;
+-	
++
+ }
+ 
+ Node*
+diff --git a/test/method.go b/test/method.go
+new file mode 100644
+index 0000000000..7d4122d000
+--- /dev/null
++++ b/test/method.go
+@@ -0,0 +1,63 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type S string
++type S1 string
++type I int
++type I1 int
++type P *int
++type P1 *int
++type T struct { x int }
++type T1 T
++
++func (s S) val() int { return 1 }
++func (s *S1) val() int { return 2 }
++func (i I) val() int { return 3 }
++func (i *I1) val() int { return 4 }
++func (p P) val() int { return 5 }
++func (p *P1) val() int { return 6 }
++//func (t T) val() int { return 7 }
++func (t *T1) val() int { return 8 }
++
++type Val interface {
++	val() int
++}
++
++func val(v Val) int {
++	return v.val()
++}
++
++func main() {
++	var s S;
++	var ps *S1;
++	var i I;
++	var pi *I1;
++	var p P;
++	var pp *P1;
++	var t T;
++	var pt *T1
++
++	if s.val() != 1 { panicln("s.val:", s.val()) }
++	if ps.val() != 2 { panicln("ps.val:", ps.val()) }
++	if i.val() != 3 { panicln("i.val:", i.val()) }
++	if pi.val() != 4 { panicln("pi.val:", pi.val()) }
++	if p.val() != 5 { panicln("p.val:", p.val()) }
++	if pp.val() != 6 { panicln("pp.val:", pp.val()) }
++//	if t.val() != 7 { panicln("t.val:", t.val()) }
++	if pt.val() != 8 { panicln("pt.val:", pt.val()) }
++
++	if val(s) != 1 { panicln("s.val:", val(s)) }
++	if val(ps) != 2 { panicln("ps.val:", val(ps)) }
++	if val(i) != 3 { panicln("i.val:", val(i)) }
++	if val(pi) != 4 { panicln("pi.val:", val(pi)) }
++	if val(p) != 5 { panicln("p.val:", val(p)) }
++	if val(pp) != 6 { panicln("pp.val:", val(pp)) }
++//	if val(t) != 7 { panicln("t.val:", val(t)) }
++	if val(pt) != 8 { panicln("pt.val:", val(pt)) }
++
++}

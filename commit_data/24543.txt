@@ -11,8 +11,88 @@ Date:   Tue Aug 4 14:22:29 2015 -0700
     Change-Id: I604a1977a3d3884b1f4516bea4e15885ce38272d
     Reviewed-on: https://go-review.googlesource.com/13138
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/check.go         |  7 ++++++
  src/cmd/compile/internal/ssa/regalloc.go      |  5 ++++-
  src/cmd/compile/internal/ssa/regalloc_test.go | 32 +++++++++++++++++++++++++++
  3 files changed, 43 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index 4fe59e08d1..1f6ffc0129 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -137,6 +137,13 @@ func checkFunc(f *Func) {
+ 		}
+ 	}
+ 
++	for _, b := range f.Blocks {
++		if b.Control != nil {
++			if !valueMark[b.Control.ID] {
++				f.Fatalf("control value for %s is missing: %v", b, b.Control)
++			}
++		}
++	}
+ 	for _, id := range f.bid.free {
+ 		if blockMark[id] {
+ 			f.Fatalf("used block b%d in free list", id)
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 46efa9859e..dac107dd18 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -440,6 +440,9 @@ func live(f *Func) [][]ID {
+ 			// Start with known live values at the end of the block
+ 			s.clear()
+ 			s.addAll(live[b.ID])
++			if b.Control != nil {
++				s.add(b.Control.ID)
++			}
+ 
+ 			// Propagate backwards to the start of the block
+ 			// Assumes Values have been scheduled.
+@@ -456,7 +459,7 @@ func live(f *Func) [][]ID {
+ 			}
+ 
+ 			// for each predecessor of b, expand its list of live-at-end values
+-			// inv: s contains the values live at the start of b (excluding phi inputs)
++			// invariant: s contains the values live at the start of b (excluding phi inputs)
+ 			for i, p := range b.Preds {
+ 				t.clear()
+ 				t.addAll(live[p.ID])
+diff --git a/src/cmd/compile/internal/ssa/regalloc_test.go b/src/cmd/compile/internal/ssa/regalloc_test.go
+new file mode 100644
+index 0000000000..dcd253ea14
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/regalloc_test.go
+@@ -0,0 +1,32 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++import "testing"
++
++func TestLiveControlOps(t *testing.T) {
++	c := testConfig(t)
++	f := Fun(c, "entry",
++		Bloc("entry",
++			Valu("mem", OpArg, TypeMem, 0, ".mem"),
++			Valu("x", OpAMD64MOVBconst, TypeInt8, 0, 1),
++			Valu("y", OpAMD64MOVBconst, TypeInt8, 0, 2),
++			Valu("a", OpAMD64TESTB, TypeBool, 0, nil, "x", "y"),
++			Valu("b", OpAMD64TESTB, TypeBool, 0, nil, "y", "x"),
++			If("a", "if", "exit"),
++		),
++		Bloc("if",
++			If("b", "plain", "exit"),
++		),
++		Bloc("plain",
++			Goto("exit"),
++		),
++		Bloc("exit",
++			Exit("mem"),
++		),
++	)
++	regalloc(f.f)
++	checkFunc(f.f)
++}

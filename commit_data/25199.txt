@@ -12,6 +12,28 @@ Date:   Mon Oct 5 16:47:31 2015 -0700
     Change-Id: I825d5040cacbc9d9a8c89443e5a3f83e6f210ce4
     Reviewed-on: https://go-review.googlesource.com/15433
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/go/test.go | 10 ++++++----
  1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index ba1ab82680..fa5ef3eb65 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -817,10 +817,12 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 		}
+ 	}
+ 
+-	// writeTestmain writes _testmain.go. This must happen after recompileForTest,
+-	// because recompileForTest modifies XXX.
+-	if err := writeTestmain(filepath.Join(testDir, "_testmain.go"), t); err != nil {
+-		return nil, nil, nil, err
++	if !buildN {
++		// writeTestmain writes _testmain.go. This must happen after recompileForTest,
++		// because recompileForTest modifies XXX.
++		if err := writeTestmain(filepath.Join(testDir, "_testmain.go"), t); err != nil {
++			return nil, nil, nil, err
++		}
+ 	}
+ 
+ 	computeStale(pmain)

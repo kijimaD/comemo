@@ -15,7 +15,7 @@ Date:   Mon Jul 22 15:48:31 2024 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/imports/build.go          | 75 ++------------------------
  src/cmd/go/internal/modindex/build.go         |  7 +--
  src/cmd/go/internal/modindex/syslist.go       | 78 ---------------------------
@@ -26,3 +26,415 @@ Date:   Mon Jul 22 15:48:31 2024 +0000
  src/internal/goos/gengoos.go                  |  4 +-
  src/{go/build => internal/syslist}/syslist.go | 19 ++++---
  9 files changed, 33 insertions(+), 170 deletions(-)
+
+diff --git a/src/cmd/go/internal/imports/build.go b/src/cmd/go/internal/imports/build.go
+index 3a4a66b869..6a8b7a84cd 100644
+--- a/src/cmd/go/internal/imports/build.go
++++ b/src/cmd/go/internal/imports/build.go
+@@ -24,6 +24,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"go/build/constraint"
++	"internal/syslist"
+ 	"strings"
+ 	"unicode"
+ )
+@@ -213,7 +214,7 @@ func matchTag(name string, tags map[string]bool, prefer bool) bool {
+ 	case "darwin":
+ 		return tags["ios"]
+ 	case "unix":
+-		return unixOS[cfg.BuildContext.GOOS]
++		return syslist.UnixOS[cfg.BuildContext.GOOS]
+ 	default:
+ 		return false
+ 	}
+@@ -295,80 +296,14 @@ func MatchFile(name string, tags map[string]bool) bool {
+ 		l = l[:n-1]
+ 	}
+ 	n := len(l)
+-	if n >= 2 && KnownOS[l[n-2]] && KnownArch[l[n-1]] {
++	if n >= 2 && syslist.KnownOS[l[n-2]] && syslist.KnownArch[l[n-1]] {
+ 		return matchTag(l[n-2], tags, true) && matchTag(l[n-1], tags, true)
+ 	}
+-	if n >= 1 && KnownOS[l[n-1]] {
++	if n >= 1 && syslist.KnownOS[l[n-1]] {
+ 		return matchTag(l[n-1], tags, true)
+ 	}
+-	if n >= 1 && KnownArch[l[n-1]] {
++	if n >= 1 && syslist.KnownArch[l[n-1]] {
+ 		return matchTag(l[n-1], tags, true)
+ 	}
+ 	return true
+ }
+-
+-var KnownOS = map[string]bool{
+-	"aix":       true,
+-	"android":   true,
+-	"darwin":    true,
+-	"dragonfly": true,
+-	"freebsd":   true,
+-	"hurd":      true,
+-	"illumos":   true,
+-	"ios":       true,
+-	"js":        true,
+-	"linux":     true,
+-	"nacl":      true, // legacy; don't remove
+-	"netbsd":    true,
+-	"openbsd":   true,
+-	"plan9":     true,
+-	"solaris":   true,
+-	"wasip1":    true,
+-	"windows":   true,
+-	"zos":       true,
+-}
+-
+-// unixOS is the set of GOOS values matched by the "unix" build tag.
+-// This is not used for filename matching.
+-// This is the same list as in go/build/syslist.go and cmd/dist/build.go.
+-var unixOS = map[string]bool{
+-	"aix":       true,
+-	"android":   true,
+-	"darwin":    true,
+-	"dragonfly": true,
+-	"freebsd":   true,
+-	"hurd":      true,
+-	"illumos":   true,
+-	"ios":       true,
+-	"linux":     true,
+-	"netbsd":    true,
+-	"openbsd":   true,
+-	"solaris":   true,
+-}
+-
+-var KnownArch = map[string]bool{
+-	"386":         true,
+-	"amd64":       true,
+-	"amd64p32":    true, // legacy; don't remove
+-	"arm":         true,
+-	"armbe":       true,
+-	"arm64":       true,
+-	"arm64be":     true,
+-	"ppc64":       true,
+-	"ppc64le":     true,
+-	"mips":        true,
+-	"mipsle":      true,
+-	"mips64":      true,
+-	"mips64le":    true,
+-	"mips64p32":   true,
+-	"mips64p32le": true,
+-	"loong64":     true,
+-	"ppc":         true,
+-	"riscv":       true,
+-	"riscv64":     true,
+-	"s390":        true,
+-	"s390x":       true,
+-	"sparc":       true,
+-	"sparc64":     true,
+-	"wasm":        true,
+-}
+diff --git a/src/cmd/go/internal/modindex/build.go b/src/cmd/go/internal/modindex/build.go
+index 0b06373984..b4dacb0f52 100644
+--- a/src/cmd/go/internal/modindex/build.go
++++ b/src/cmd/go/internal/modindex/build.go
+@@ -17,6 +17,7 @@ import (
+ 	"go/build"
+ 	"go/build/constraint"
+ 	"go/token"
++	"internal/syslist"
+ 	"io"
+ 	"io/fs"
+ 	"path/filepath"
+@@ -878,7 +879,7 @@ func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {
+ 	if ctxt.GOOS == "ios" && name == "darwin" {
+ 		return true
+ 	}
+-	if name == "unix" && unixOS[ctxt.GOOS] {
++	if name == "unix" && syslist.UnixOS[ctxt.GOOS] {
+ 		return true
+ 	}
+ 	if name == "boringcrypto" {
+@@ -941,14 +942,14 @@ func (ctxt *Context) goodOSArchFile(name string, allTags map[string]bool) bool {
+ 		l = l[:n-1]
+ 	}
+ 	n := len(l)
+-	if n >= 2 && knownOS[l[n-2]] && knownArch[l[n-1]] {
++	if n >= 2 && syslist.KnownOS[l[n-2]] && syslist.KnownArch[l[n-1]] {
+ 		if allTags != nil {
+ 			// In case we short-circuit on l[n-1].
+ 			allTags[l[n-2]] = true
+ 		}
+ 		return ctxt.matchTag(l[n-1], allTags) && ctxt.matchTag(l[n-2], allTags)
+ 	}
+-	if n >= 1 && (knownOS[l[n-1]] || knownArch[l[n-1]]) {
++	if n >= 1 && (syslist.KnownOS[l[n-1]] || syslist.KnownArch[l[n-1]]) {
+ 		return ctxt.matchTag(l[n-1], allTags)
+ 	}
+ 	return true
+diff --git a/src/cmd/go/internal/modindex/syslist.go b/src/cmd/go/internal/modindex/syslist.go
+deleted file mode 100644
+index 41adcc5342..0000000000
+--- a/src/cmd/go/internal/modindex/syslist.go
++++ /dev/null
+@@ -1,78 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This file is a lightly modified copy go/build/syslist_test.go.
+-
+-package modindex
+-
+-// knownOS is the list of past, present, and future known GOOS values.
+-// Do not remove from this list, as it is used for filename matching.
+-// If you add an entry to this list, look at unixOS, below.
+-var knownOS = map[string]bool{
+-	"aix":       true,
+-	"android":   true,
+-	"darwin":    true,
+-	"dragonfly": true,
+-	"freebsd":   true,
+-	"hurd":      true,
+-	"illumos":   true,
+-	"ios":       true,
+-	"js":        true,
+-	"linux":     true,
+-	"nacl":      true,
+-	"netbsd":    true,
+-	"openbsd":   true,
+-	"plan9":     true,
+-	"solaris":   true,
+-	"wasip1":    true,
+-	"windows":   true,
+-	"zos":       true,
+-}
+-
+-// unixOS is the set of GOOS values matched by the "unix" build tag.
+-// This is not used for filename matching.
+-// This list also appears in cmd/dist/build.go.
+-var unixOS = map[string]bool{
+-	"aix":       true,
+-	"android":   true,
+-	"darwin":    true,
+-	"dragonfly": true,
+-	"freebsd":   true,
+-	"hurd":      true,
+-	"illumos":   true,
+-	"ios":       true,
+-	"linux":     true,
+-	"netbsd":    true,
+-	"openbsd":   true,
+-	"solaris":   true,
+-}
+-
+-// knownArch is the list of past, present, and future known GOARCH values.
+-// Do not remove from this list, as it is used for filename matching.
+-var knownArch = map[string]bool{
+-	"386":         true,
+-	"amd64":       true,
+-	"amd64p32":    true,
+-	"arm":         true,
+-	"armbe":       true,
+-	"arm64":       true,
+-	"arm64be":     true,
+-	"loong64":     true,
+-	"mips":        true,
+-	"mipsle":      true,
+-	"mips64":      true,
+-	"mips64le":    true,
+-	"mips64p32":   true,
+-	"mips64p32le": true,
+-	"ppc":         true,
+-	"ppc64":       true,
+-	"ppc64le":     true,
+-	"riscv":       true,
+-	"riscv64":     true,
+-	"s390":        true,
+-	"s390x":       true,
+-	"sparc":       true,
+-	"sparc64":     true,
+-	"wasm":        true,
+-}
+diff --git a/src/cmd/go/internal/script/conds.go b/src/cmd/go/internal/script/conds.go
+index d70f274efc..25dd6e17ea 100644
+--- a/src/cmd/go/internal/script/conds.go
++++ b/src/cmd/go/internal/script/conds.go
+@@ -5,8 +5,8 @@
+ package script
+ 
+ import (
+-	"cmd/go/internal/imports"
+ 	"fmt"
++	"internal/syslist"
+ 	"os"
+ 	"runtime"
+ 	"sync"
+@@ -25,7 +25,7 @@ func DefaultConds() map[string]Cond {
+ 			if suffix == runtime.GOOS {
+ 				return true, nil
+ 			}
+-			if _, ok := imports.KnownOS[suffix]; !ok {
++			if _, ok := syslist.KnownOS[suffix]; !ok {
+ 				return false, fmt.Errorf("unrecognized GOOS %q", suffix)
+ 			}
+ 			return false, nil
+@@ -37,7 +37,7 @@ func DefaultConds() map[string]Cond {
+ 			if suffix == runtime.GOARCH {
+ 				return true, nil
+ 			}
+-			if _, ok := imports.KnownArch[suffix]; !ok {
++			if _, ok := syslist.KnownArch[suffix]; !ok {
+ 				return false, fmt.Errorf("unrecognized GOOS %q", suffix)
+ 			}
+ 			return false, nil
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 000db9fb65..9ffffda08a 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -17,6 +17,7 @@ import (
+ 	"internal/goroot"
+ 	"internal/goversion"
+ 	"internal/platform"
++	"internal/syslist"
+ 	"io"
+ 	"io/fs"
+ 	"os"
+@@ -1976,7 +1977,7 @@ func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {
+ 	if ctxt.GOOS == "ios" && name == "darwin" {
+ 		return true
+ 	}
+-	if name == "unix" && unixOS[ctxt.GOOS] {
++	if name == "unix" && syslist.UnixOS[ctxt.GOOS] {
+ 		return true
+ 	}
+ 	if name == "boringcrypto" {
+@@ -2039,14 +2040,14 @@ func (ctxt *Context) goodOSArchFile(name string, allTags map[string]bool) bool {
+ 		l = l[:n-1]
+ 	}
+ 	n := len(l)
+-	if n >= 2 && knownOS[l[n-2]] && knownArch[l[n-1]] {
++	if n >= 2 && syslist.KnownOS[l[n-2]] && syslist.KnownArch[l[n-1]] {
+ 		if allTags != nil {
+ 			// In case we short-circuit on l[n-1].
+ 			allTags[l[n-2]] = true
+ 		}
+ 		return ctxt.matchTag(l[n-1], allTags) && ctxt.matchTag(l[n-2], allTags)
+ 	}
+-	if n >= 1 && (knownOS[l[n-1]] || knownArch[l[n-1]]) {
++	if n >= 1 && (syslist.KnownOS[l[n-1]] || syslist.KnownArch[l[n-1]]) {
+ 		return ctxt.matchTag(l[n-1], allTags)
+ 	}
+ 	return true
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index a0bcb4f27a..441cf8d051 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -58,6 +58,7 @@ var depsRules = `
+ 	  internal/nettrace,
+ 	  internal/platform,
+ 	  internal/profilerecord,
++	  internal/syslist,
+ 	  internal/trace/traceviewer/format,
+ 	  log/internal,
+ 	  math/bits,
+@@ -337,7 +338,7 @@ var depsRules = `
+ 	go/doc/comment, go/parser, internal/lazyregexp, text/template
+ 	< go/doc;
+ 
+-	go/build/constraint, go/doc, go/parser, internal/buildcfg, internal/goroot, internal/goversion, internal/platform
++	go/build/constraint, go/doc, go/parser, internal/buildcfg, internal/goroot, internal/goversion, internal/platform, internal/syslist
+ 	< go/build;
+ 
+ 	# databases
+diff --git a/src/internal/goarch/gengoarch.go b/src/internal/goarch/gengoarch.go
+index 0b0be5cd15..a52936efb6 100644
+--- a/src/internal/goarch/gengoarch.go
++++ b/src/internal/goarch/gengoarch.go
+@@ -17,11 +17,11 @@ import (
+ var goarches []string
+ 
+ func main() {
+-	data, err := os.ReadFile("../../go/build/syslist.go")
++	data, err := os.ReadFile("../../internal/syslist/syslist.go")
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+-	const goarchPrefix = `var knownArch = map[string]bool{`
++	const goarchPrefix = `var KnownArch = map[string]bool{`
+ 	inGOARCH := false
+ 	for _, line := range strings.Split(string(data), "\n") {
+ 		if strings.HasPrefix(line, goarchPrefix) {
+diff --git a/src/internal/goos/gengoos.go b/src/internal/goos/gengoos.go
+index 37d9706d1e..aba0d3c335 100644
+--- a/src/internal/goos/gengoos.go
++++ b/src/internal/goos/gengoos.go
+@@ -17,11 +17,11 @@ import (
+ var gooses []string
+ 
+ func main() {
+-	data, err := os.ReadFile("../../go/build/syslist.go")
++	data, err := os.ReadFile("../../internal/syslist/syslist..go")
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+-	const goosPrefix = `var knownOS = map[string]bool{`
++	const goosPrefix = `var KnownOS = map[string]bool{`
+ 	inGOOS := false
+ 	for _, line := range strings.Split(string(data), "\n") {
+ 		if strings.HasPrefix(line, goosPrefix) {
+diff --git a/src/go/build/syslist.go b/src/internal/syslist/syslist.go
+similarity index 78%
+rename from src/go/build/syslist.go
+rename to src/internal/syslist/syslist.go
+index 783bbe697a..7d1a2b3c3d 100644
+--- a/src/go/build/syslist.go
++++ b/src/internal/syslist/syslist.go
+@@ -2,16 +2,19 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package build
++// Package syslist stores tables of OS and ARCH names that are
++// (or at one point were) acceptable build targets.
++
++package syslist
+ 
+ // Note that this file is read by internal/goarch/gengoarch.go and by
+ // internal/goos/gengoos.go. If you change this file, look at those
+ // files as well.
+ 
+-// knownOS is the list of past, present, and future known GOOS values.
++// KnownOS is the list of past, present, and future known GOOS values.
+ // Do not remove from this list, as it is used for filename matching.
+-// If you add an entry to this list, look at unixOS, below.
+-var knownOS = map[string]bool{
++// If you add an entry to this list, look at UnixOS, below.
++var KnownOS = map[string]bool{
+ 	"aix":       true,
+ 	"android":   true,
+ 	"darwin":    true,
+@@ -32,11 +35,11 @@ var knownOS = map[string]bool{
+ 	"zos":       true,
+ }
+ 
+-// unixOS is the set of GOOS values matched by the "unix" build tag.
++// UnixOS is the set of GOOS values matched by the "unix" build tag.
+ // This is not used for filename matching.
+ // This list also appears in cmd/dist/build.go and
+ // cmd/go/internal/imports/build.go.
+-var unixOS = map[string]bool{
++var UnixOS = map[string]bool{
+ 	"aix":       true,
+ 	"android":   true,
+ 	"darwin":    true,
+@@ -51,9 +54,9 @@ var unixOS = map[string]bool{
+ 	"solaris":   true,
+ }
+ 
+-// knownArch is the list of past, present, and future known GOARCH values.
++// KnownArch is the list of past, present, and future known GOARCH values.
+ // Do not remove from this list, as it is used for filename matching.
+-var knownArch = map[string]bool{
++var KnownArch = map[string]bool{
+ 	"386":         true,
+ 	"amd64":       true,
+ 	"amd64p32":    true,

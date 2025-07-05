@@ -7,6 +7,22 @@ Date:   Thu Nov 10 10:02:24 2011 +0900
     R=rsc, bradfitz
     CC=golang-dev
     https://golang.org/cl/5370050
-
+---
  src/pkg/runtime/freebsd/thread.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/freebsd/thread.c b/src/pkg/runtime/freebsd/thread.c
+index 4a52a83570..48532f6afc 100644
+--- a/src/pkg/runtime/freebsd/thread.c
++++ b/src/pkg/runtime/freebsd/thread.c
+@@ -21,8 +21,8 @@ runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
+ 	if(ns < 0)
+ 		tsp = nil;
+ 	else {
+-		ts.sec = ns / 1000000000LL;
+-		ts.nsec = ns % 1000000000LL;
++		ts.tv_sec = ns / 1000000000LL;
++		ts.tv_nsec = ns % 1000000000LL;
+ 		tsp = &ts;
+ 	}
+ 

@@ -14,7 +14,7 @@ Date:   Thu Apr 30 09:03:55 2020 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/http.go          |  5 +++++
  src/net/http/proxy_test.go    |  2 +-
  src/net/http/request.go       | 13 ++++---------
@@ -24,3 +24,217 @@ Date:   Thu Apr 30 09:03:55 2020 -0700
  src/net/http/transfer_test.go |  2 +-
  src/net/http/transport.go     |  7 ++++++-
  8 files changed, 26 insertions(+), 20 deletions(-)
+
+diff --git a/src/net/http/http.go b/src/net/http/http.go
+index 89e86d80e8..4c5054b399 100644
+--- a/src/net/http/http.go
++++ b/src/net/http/http.go
+@@ -16,6 +16,11 @@ import (
+ 	"golang.org/x/net/http/httpguts"
+ )
+ 
++// incomparable is a zero-width, non-comparable type. Adding it to a struct
++// makes that struct also non-comparable, and generally doesn't add
++// any size (as long as it's first).
++type incomparable [0]func()
++
+ // maxInt64 is the effective "infinite" value for the Server and
+ // Transport's byte-limiting readers.
+ const maxInt64 = 1<<63 - 1
+diff --git a/src/net/http/proxy_test.go b/src/net/http/proxy_test.go
+index feb7047a58..0dd57b4125 100644
+--- a/src/net/http/proxy_test.go
++++ b/src/net/http/proxy_test.go
+@@ -35,7 +35,7 @@ func TestCacheKeys(t *testing.T) {
+ 			}
+ 			proxy = u
+ 		}
+-		cm := connectMethod{proxy, tt.scheme, tt.addr, false}
++		cm := connectMethod{proxyURL: proxy, targetScheme: tt.scheme, targetAddr: tt.addr}
+ 		if got := cm.key().String(); got != tt.key {
+ 			t.Fatalf("{%q, %q, %q} cache key = %q; want %q", tt.proxy, tt.scheme, tt.addr, got, tt.key)
+ 		}
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 88fa0939f2..e386f13a37 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -83,12 +83,7 @@ var (
+ 	ErrMissingContentLength = &ProtocolError{"missing ContentLength in HEAD response"}
+ )
+ 
+-type badStringError struct {
+-	what string
+-	str  string
+-}
+-
+-func (e *badStringError) Error() string { return fmt.Sprintf("%s %q", e.what, e.str) }
++func badStringError(what, val string) error { return fmt.Errorf("%s %q", what, val) }
+ 
+ // Headers that Request.Write handles itself and should be skipped.
+ var reqWriteExcludeHeader = map[string]bool{
+@@ -1025,14 +1020,14 @@ func readRequest(b *bufio.Reader, deleteHostHeader bool) (req *Request, err erro
+ 	var ok bool
+ 	req.Method, req.RequestURI, req.Proto, ok = parseRequestLine(s)
+ 	if !ok {
+-		return nil, &badStringError{"malformed HTTP request", s}
++		return nil, badStringError("malformed HTTP request", s)
+ 	}
+ 	if !validMethod(req.Method) {
+-		return nil, &badStringError{"invalid method", req.Method}
++		return nil, badStringError("invalid method", req.Method)
+ 	}
+ 	rawurl := req.RequestURI
+ 	if req.ProtoMajor, req.ProtoMinor, ok = ParseHTTPVersion(req.Proto); !ok {
+-		return nil, &badStringError{"malformed HTTP version", req.Proto}
++		return nil, badStringError("malformed HTTP version", req.Proto)
+ 	}
+ 
+ 	// CONNECT requests are used two different ways, and neither uses a full URL:
+diff --git a/src/net/http/response.go b/src/net/http/response.go
+index cd9d796c26..72812f0642 100644
+--- a/src/net/http/response.go
++++ b/src/net/http/response.go
+@@ -166,7 +166,7 @@ func ReadResponse(r *bufio.Reader, req *Request) (*Response, error) {
+ 		return nil, err
+ 	}
+ 	if i := strings.IndexByte(line, ' '); i == -1 {
+-		return nil, &badStringError{"malformed HTTP response", line}
++		return nil, badStringError("malformed HTTP response", line)
+ 	} else {
+ 		resp.Proto = line[:i]
+ 		resp.Status = strings.TrimLeft(line[i+1:], " ")
+@@ -176,15 +176,15 @@ func ReadResponse(r *bufio.Reader, req *Request) (*Response, error) {
+ 		statusCode = resp.Status[:i]
+ 	}
+ 	if len(statusCode) != 3 {
+-		return nil, &badStringError{"malformed HTTP status code", statusCode}
++		return nil, badStringError("malformed HTTP status code", statusCode)
+ 	}
+ 	resp.StatusCode, err = strconv.Atoi(statusCode)
+ 	if err != nil || resp.StatusCode < 0 {
+-		return nil, &badStringError{"malformed HTTP status code", statusCode}
++		return nil, badStringError("malformed HTTP status code", statusCode)
+ 	}
+ 	var ok bool
+ 	if resp.ProtoMajor, resp.ProtoMinor, ok = ParseHTTPVersion(resp.Proto); !ok {
+-		return nil, &badStringError{"malformed HTTP version", resp.Proto}
++		return nil, badStringError("malformed HTTP version", resp.Proto)
+ 	}
+ 
+ 	// Parse the response headers.
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 515d98c989..b613c21f16 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -629,6 +629,7 @@ func (srv *Server) newConn(rwc net.Conn) *conn {
+ }
+ 
+ type readResult struct {
++	_   incomparable
+ 	n   int
+ 	err error
+ 	b   byte // byte read, if n == 1
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index 2e01a07f84..960f8ac565 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -310,7 +310,7 @@ func (t *transferWriter) writeHeader(w io.Writer, trace *httptrace.ClientTrace)
+ 			k = CanonicalHeaderKey(k)
+ 			switch k {
+ 			case "Transfer-Encoding", "Trailer", "Content-Length":
+-				return &badStringError{"invalid Trailer key", k}
++				return badStringError("invalid Trailer key", k)
+ 			}
+ 			keys = append(keys, k)
+ 		}
+@@ -637,7 +637,7 @@ func (t *transferReader) fixTransferEncoding() error {
+ 		te[len(te)-1] = encoding
+ 	}
+ 	if len(te) > 1 {
+-		return &badStringError{"too many transfer encodings", strings.Join(te, ",")}
++		return badStringError("too many transfer encodings", strings.Join(te, ","))
+ 	}
+ 	if len(te) > 0 {
+ 		// RFC 7230 3.3.2 says "A sender MUST NOT send a
+@@ -791,7 +791,7 @@ func fixTrailer(header Header, te []string) (Header, error) {
+ 			switch key {
+ 			case "Transfer-Encoding", "Trailer", "Content-Length":
+ 				if err == nil {
+-					err = &badStringError{"bad trailer key", key}
++					err = badStringError("bad trailer key", key)
+ 					return
+ 				}
+ 			}
+@@ -1055,7 +1055,7 @@ func parseContentLength(cl string) (int64, error) {
+ 	}
+ 	n, err := strconv.ParseInt(cl, 10, 64)
+ 	if err != nil || n < 0 {
+-		return 0, &badStringError{"bad Content-Length", cl}
++		return 0, badStringError("bad Content-Length", cl)
+ 	}
+ 	return n, nil
+ 
+diff --git a/src/net/http/transfer_test.go b/src/net/http/transfer_test.go
+index 65009ee8bf..a6846f7dcb 100644
+--- a/src/net/http/transfer_test.go
++++ b/src/net/http/transfer_test.go
+@@ -290,7 +290,7 @@ func TestFixTransferEncoding(t *testing.T) {
+ 		},
+ 		{
+ 			hdr:     Header{"Transfer-Encoding": {"chunked, chunked", "identity", "chunked"}},
+-			wantErr: &badStringError{"too many transfer encodings", "chunked,chunked"},
++			wantErr: badStringError("too many transfer encodings", "chunked,chunked"),
+ 		},
+ 		{
+ 			hdr:     Header{"Transfer-Encoding": {"chunked"}},
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 15feeaf41f..0c1dd1a021 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -518,7 +518,7 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
+ 	}
+ 	if !isHTTP {
+ 		req.closeBody()
+-		return nil, &badStringError{"unsupported protocol scheme", scheme}
++		return nil, badStringError("unsupported protocol scheme", scheme)
+ 	}
+ 	if req.Method != "" && !validMethod(req.Method) {
+ 		req.closeBody()
+@@ -1696,6 +1696,7 @@ var _ io.ReaderFrom = (*persistConnWriter)(nil)
+ //	https://proxy.com|http            https to proxy, http to anywhere after that
+ //
+ type connectMethod struct {
++	_            incomparable
+ 	proxyURL     *url.URL // nil for no proxy, else full proxy URL
+ 	targetScheme string   // "http" or "https"
+ 	// If proxyURL specifies an http or https proxy, and targetScheme is http (not https),
+@@ -2250,6 +2251,7 @@ func newReadWriteCloserBody(br *bufio.Reader, rwc io.ReadWriteCloser) io.ReadWri
+ // the concrete type for a Response.Body on the 101 Switching
+ // Protocols response, as used by WebSockets, h2c, etc.
+ type readWriteCloserBody struct {
++	_  incomparable
+ 	br *bufio.Reader // used until empty
+ 	io.ReadWriteCloser
+ }
+@@ -2350,11 +2352,13 @@ func (pc *persistConn) wroteRequest() bool {
+ // responseAndError is how the goroutine reading from an HTTP/1 server
+ // communicates with the goroutine doing the RoundTrip.
+ type responseAndError struct {
++	_   incomparable
+ 	res *Response // else use this response (see res method)
+ 	err error
+ }
+ 
+ type requestAndChan struct {
++	_   incomparable
+ 	req *Request
+ 	ch  chan responseAndError // unbuffered; always send in select on callerGone
+ 
+@@ -2687,6 +2691,7 @@ func (es *bodyEOFSignal) condfn(err error) error {
+ // gzipReader wraps a response body so it can lazily
+ // call gzip.NewReader on the first call to Read
+ type gzipReader struct {
++	_    incomparable
+ 	body *bodyEOFSignal // underlying HTTP/1 response body framing
+ 	zr   *gzip.Reader   // lazily-initialized gzip reader
+ 	zerr error          // any error from gzip.NewReader; sticky

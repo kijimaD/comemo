@@ -9,7 +9,32 @@ Date:   Thu Feb 13 15:29:10 2014 +1100
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/62870043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 97e7e733e9..3c12fcec3a 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -233,6 +233,7 @@ Luca Greco <luca.greco@alcacoop.it>
+ Lucio De Re <lucio.dere@gmail.com>
+ Luit van Drongelen <luitvd@gmail.com>
+ Luke Curley <qpingu@gmail.com>
++Marc Weistroff <marc@weistroff.net>
+ Marco Hennings <marco.hennings@freiheit.com>
+ Marko Juhani Silokunnas <marko.silokunnas@gmail.com>
+ Marko Tiikkaja <marko@joh.to>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 62f1a227b3..c9aee3c284 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -334,6 +334,7 @@ Luit van Drongelen <luitvd@gmail.com>
+ Luke Curley <qpingu@gmail.com>
+ Luuk van Dijk <lvd@golang.org> <lvd@google.com>
+ Manu Garg <manugarg@google.com>
++Marc Weistroff <marc@weistroff.net>
+ Marcel van Lohuizen <mpvl@golang.org>
+ Marco Hennings <marco.hennings@freiheit.com>
+ Mark Zavislak <zavislak@google.com>

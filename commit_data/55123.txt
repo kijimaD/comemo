@@ -18,7 +18,7 @@ Date:   Wed Jan 11 14:41:03 2023 -0500
     Auto-Submit: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/call.go            | 21 ++++++++++++++++++-
  src/cmd/compile/internal/types2/expr.go            |  2 +-
  src/cmd/compile/internal/types2/typexpr.go         |  2 +-
@@ -32,3 +32,242 @@ Date:   Wed Jan 11 14:41:03 2023 -0500
  .../types/testdata/fixedbugs/issue57522.go         | 24 ++++++++++++++++++++++
  test/fixedbugs/issue18392.go                       |  2 +-
  12 files changed, 77 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 50343bf77a..7d660ca772 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -447,7 +447,7 @@ var cgoPrefixes = [...]string{
+ 	"_Cmacro_", // function to evaluate the expanded expression
+ }
+ 
+-func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named) {
++func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named, wantType bool) {
+ 	// these must be declared before the "goto Error" statements
+ 	var (
+ 		obj      Object
+@@ -559,6 +559,25 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named) {
+ 		goto Error
+ 	}
+ 
++	// Avoid crashing when checking an invalid selector in a method declaration
++	// (i.e., where def is not set):
++	//
++	//   type S[T any] struct{}
++	//   type V = S[any]
++	//   func (fs *S[T]) M(x V.M) {}
++	//
++	// All codepaths below return a non-type expression. If we get here while
++	// expecting a type expression, it is an error.
++	//
++	// See issue #57522 for more details.
++	//
++	// TODO(rfindley): We should do better by refusing to check selectors in all cases where
++	// x.typ is incomplete.
++	if wantType {
++		check.errorf(e.Sel, NotAType, "%s is not a type", syntax.Expr(e))
++		goto Error
++	}
++
+ 	obj, index, indirect = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
+ 	if obj == nil {
+ 		// Don't report another error if the underlying type was invalid (issue #49541).
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 9a0348e025..a3abbb9532 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1587,7 +1587,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 		return kind
+ 
+ 	case *syntax.SelectorExpr:
+-		check.selector(x, e, nil)
++		check.selector(x, e, nil, false)
+ 
+ 	case *syntax.IndexExpr:
+ 		if check.indexExpr(x, e) {
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 4de658b0c4..0f3106d70a 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -256,7 +256,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
+ 
+ 	case *syntax.SelectorExpr:
+ 		var x operand
+-		check.selector(&x, e, def)
++		check.selector(&x, e, def, true)
+ 
+ 		switch x.mode {
+ 		case typexpr:
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 5558244f1b..db603b5260 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -450,7 +450,7 @@ var cgoPrefixes = [...]string{
+ 	"_Cmacro_", // function to evaluate the expanded expression
+ }
+ 
+-func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *Named) {
++func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *Named, wantType bool) {
+ 	// these must be declared before the "goto Error" statements
+ 	var (
+ 		obj      Object
+@@ -563,6 +563,25 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *Named) {
+ 		goto Error
+ 	}
+ 
++	// Avoid crashing when checking an invalid selector in a method declaration
++	// (i.e., where def is not set):
++	//
++	//   type S[T any] struct{}
++	//   type V = S[any]
++	//   func (fs *S[T]) M(x V.M) {}
++	//
++	// All codepaths below return a non-type expression. If we get here while
++	// expecting a type expression, it is an error.
++	//
++	// See issue #57522 for more details.
++	//
++	// TODO(rfindley): We should do better by refusing to check selectors in all cases where
++	// x.typ is incomplete.
++	if wantType {
++		check.errorf(e.Sel, NotAType, "%s is not a type", ast.Expr(e))
++		goto Error
++	}
++
+ 	obj, index, indirect = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
+ 	if obj == nil {
+ 		// Don't report another error if the underlying type was invalid (issue #49541).
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index e09b461d8c..aa90145b36 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1568,7 +1568,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 		return kind
+ 
+ 	case *ast.SelectorExpr:
+-		check.selector(x, e, nil)
++		check.selector(x, e, nil, false)
+ 
+ 	case *ast.IndexExpr, *ast.IndexListExpr:
+ 		ix := typeparams.UnpackIndexExpr(e)
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 3d1f0b8bbb..03817dded1 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -256,7 +256,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
+ 
+ 	case *ast.SelectorExpr:
+ 		var x operand
+-		check.selector(&x, e, def)
++		check.selector(&x, e, def, true)
+ 
+ 		switch x.mode {
+ 		case typexpr:
+diff --git a/src/internal/types/testdata/check/cycles0.go b/src/internal/types/testdata/check/cycles0.go
+index d4e7e60f83..7c00c7d625 100644
+--- a/src/internal/types/testdata/check/cycles0.go
++++ b/src/internal/types/testdata/check/cycles0.go
+@@ -45,7 +45,7 @@ type (
+ 
+ 	// pointers
+ 	P0 *P0
+-	PP *struct{ PP.f /* ERROR no field or method f */ }
++	PP *struct{ PP.f /* ERROR PP.f is not a type */ }
+ 
+ 	// functions
+ 	F0 func(F0)
+diff --git a/src/internal/types/testdata/check/decls0.go b/src/internal/types/testdata/check/decls0.go
+index 6002a9e8a7..868b318a70 100644
+--- a/src/internal/types/testdata/check/decls0.go
++++ b/src/internal/types/testdata/check/decls0.go
+@@ -63,7 +63,7 @@ type (
+ 
+ 
+ type (
+-	p1 pi.foo /* ERROR "no field or method foo" */
++	p1 pi.foo /* ERROR "pi.foo is not a type" */
+ 	p2 unsafe.Pointer
+ )
+ 
+@@ -189,10 +189,10 @@ func f4() (x *f4 /* ERROR "not a type" */ ) { return }
+ // TODO(#43215) this should be detected as a cycle error
+ func f5([unsafe.Sizeof(f5)]int) {}
+ 
+-func (S0) m1 (x S0 /* ERROR illegal cycle in method declaration */ .m1) {}
+-func (S0) m2 (x *S0 /* ERROR illegal cycle in method declaration */ .m2) {}
+-func (S0) m3 () (x S0 /* ERROR illegal cycle in method declaration */ .m3) { return }
+-func (S0) m4 () (x *S0 /* ERROR illegal cycle in method declaration */ .m4) { return }
++func (S0) m1 (x S0.m1 /* ERROR S0.m1 is not a type */ ) {}
++func (S0) m2 (x *S0.m2 /* ERROR S0.m2 is not a type */ ) {}
++func (S0) m3 () (x S0.m3 /* ERROR S0.m3 is not a type */ ) { return }
++func (S0) m4 () (x *S0.m4 /* ERROR S0.m4 is not a type */ ) { return }
+ 
+ // interfaces may not have any blank methods
+ type BlankI interface {
+diff --git a/src/internal/types/testdata/check/issues0.go b/src/internal/types/testdata/check/issues0.go
+index 0cea36c01f..4a66641369 100644
+--- a/src/internal/types/testdata/check/issues0.go
++++ b/src/internal/types/testdata/check/issues0.go
+@@ -97,7 +97,7 @@ func issue10979() {
+ 		nosuchpkg /* ERROR undefined: nosuchpkg */ .Nosuchtype
+ 	}
+ 	type I interface {
+-		I.m /* ERROR no field or method m */
++		I.m /* ERROR I.m is not a type */
+ 		m()
+ 	}
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue39634.go b/src/internal/types/testdata/fixedbugs/issue39634.go
+index 7b458f22f2..6ee15489c5 100644
+--- a/src/internal/types/testdata/fixedbugs/issue39634.go
++++ b/src/internal/types/testdata/fixedbugs/issue39634.go
+@@ -19,7 +19,7 @@ func(*ph1[e,e /* ERROR redeclared */ ])h(d /* ERROR undefined */ )
+ // func t2[T Numeric2](s[]T){0 /* ERROR not a type */ []{s /* ERROR cannot index */ [0][0]}}
+ 
+ // crash 3
+-type t3 *interface{ t3.p /* ERROR no field or method p */ }
++type t3 *interface{ t3.p /* ERROR t3.p is not a type */ }
+ 
+ // crash 4
+ type Numeric4 interface{t4 /* ERROR not a type */ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue57522.go b/src/internal/types/testdata/fixedbugs/issue57522.go
+new file mode 100644
+index 0000000000..d83e5b2443
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue57522.go
+@@ -0,0 +1,24 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// A simplified version of the code in the original report.
++type S[T any] struct{}
++var V = S[any]{}
++func (fs *S[T]) M(V.M /* ERROR "V.M is not a type" */) {}
++
++// Other minimal reproducers.
++type S1[T any] V1.M /* ERROR "V1.M is not a type" */
++type V1 = S1[any]
++
++type S2[T any] struct{}
++type V2 = S2[any]
++func (fs *S2[T]) M(x V2.M /* ERROR "V2.M is not a type" */ ) {}
++
++// The following still panics, as the selector is reached from check.expr
++// rather than check.typexpr. TODO(rfindley): fix this.
++// type X[T any] int
++// func (X[T]) M(x [X[int].M]int) {}
++
+diff --git a/test/fixedbugs/issue18392.go b/test/fixedbugs/issue18392.go
+index e0640ed2ee..32c39c3a7f 100644
+--- a/test/fixedbugs/issue18392.go
++++ b/test/fixedbugs/issue18392.go
+@@ -10,5 +10,5 @@ type A interface {
+ 	// TODO(mdempsky): This should be an error, but this error is
+ 	// nonsense. The error should actually mention that there's a
+ 	// type loop.
+-	Fn(A.Fn) // ERROR "type A has no method Fn|A.Fn undefined"
++	Fn(A.Fn) // ERROR "type A has no method Fn|A.Fn undefined|A.Fn is not a type"
+ }

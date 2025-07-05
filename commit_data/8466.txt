@@ -7,6 +7,20 @@ Date:   Mon May 23 12:38:51 2011 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/4528091
-
+---
  src/pkg/time/sleep.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/time/sleep.go b/src/pkg/time/sleep.go
+index 3bc253c94a..314622d0dc 100644
+--- a/src/pkg/time/sleep.go
++++ b/src/pkg/time/sleep.go
+@@ -91,7 +91,7 @@ func (e *Timer) Stop() (ok bool) {
+ // It assumes that f will not block.
+ func after(ns int64, f func(int64)) (e *Timer) {
+ 	now := Nanoseconds()
+-	t := Nanoseconds() + ns
++	t := now + ns
+ 	if ns > 0 && t < now {
+ 		panic("time: time overflow")
+ 	}

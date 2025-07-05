@@ -33,7 +33,260 @@ Date:   Tue Apr 25 19:36:16 2023 -0400
     Auto-Submit: Austin Clements <austin@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  misc/go_android_exec/exitcode_test.go |  76 ++++++++++++++++++++++
  misc/go_android_exec/main.go          | 116 ++++++++++++++++++++++++++++------
  2 files changed, 171 insertions(+), 21 deletions(-)
+
+diff --git a/misc/go_android_exec/exitcode_test.go b/misc/go_android_exec/exitcode_test.go
+new file mode 100644
+index 0000000000..4ad2f60f86
+--- /dev/null
++++ b/misc/go_android_exec/exitcode_test.go
+@@ -0,0 +1,76 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !(windows || js || wasip1)
++
++package main
++
++import (
++	"regexp"
++	"strings"
++	"testing"
++)
++
++func TestExitCodeFilter(t *testing.T) {
++	// Write text to the filter one character at a time.
++	var out strings.Builder
++	f, exitStr := newExitCodeFilter(&out)
++	// Embed a "fake" exit code in the middle to check that we don't get caught on it.
++	pre := "abc" + exitStr + "123def"
++	text := pre + exitStr + `1`
++	for i := 0; i < len(text); i++ {
++		_, err := f.Write([]byte{text[i]})
++		if err != nil {
++			t.Fatal(err)
++		}
++	}
++
++	// The "pre" output should all have been flushed already.
++	if want, got := pre, out.String(); want != got {
++		t.Errorf("filter should have already flushed %q, but flushed %q", want, got)
++	}
++
++	code, err := f.Finish()
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	// Nothing more should have been written to out.
++	if want, got := pre, out.String(); want != got {
++		t.Errorf("want output %q, got %q", want, got)
++	}
++	if want := 1; want != code {
++		t.Errorf("want exit code %d, got %d", want, code)
++	}
++}
++
++func TestExitCodeMissing(t *testing.T) {
++	var wantErr *regexp.Regexp
++	check := func(text string) {
++		t.Helper()
++		var out strings.Builder
++		f, exitStr := newExitCodeFilter(&out)
++		if want := "exitcode="; want != exitStr {
++			t.Fatalf("test assumes exitStr will be %q, but got %q", want, exitStr)
++		}
++		f.Write([]byte(text))
++		_, err := f.Finish()
++		// We should get a no exit code error
++		if err == nil || !wantErr.MatchString(err.Error()) {
++			t.Errorf("want error matching %s, got %s", wantErr, err)
++		}
++		// And it should flush all output (even if it looks
++		// like we may be getting an exit code)
++		if got := out.String(); text != got {
++			t.Errorf("want full output %q, got %q", text, got)
++		}
++	}
++	wantErr = regexp.MustCompile("^no exit code")
++	check("abc")
++	check("exitcode")
++	check("exitcode=")
++	check("exitcode=123\n")
++	wantErr = regexp.MustCompile("^bad exit code: .* value out of range")
++	check("exitcode=999999999999999999999999")
++}
+diff --git a/misc/go_android_exec/main.go b/misc/go_android_exec/main.go
+index d88d4da1f2..554810c55d 100644
+--- a/misc/go_android_exec/main.go
++++ b/misc/go_android_exec/main.go
+@@ -2,6 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// This wrapper uses syscall.Flock to prevent concurrent adb commands,
++// so for now it only builds on platforms that support that system call.
++// TODO(#33974): use a more portable library for file locking.
++
++//go:build darwin || dragonfly || freebsd || illumos || linux || netbsd || openbsd
++
+ // This program can be used as go_android_GOARCH_exec by the Go tool.
+ // It executes binaries on an android device using adb.
+ package main
+@@ -17,6 +23,7 @@ import (
+ 	"os/signal"
+ 	"path"
+ 	"path/filepath"
++	"regexp"
+ 	"runtime"
+ 	"strconv"
+ 	"strings"
+@@ -24,10 +31,16 @@ import (
+ 	"syscall"
+ )
+ 
+-func run(args ...string) (string, error) {
+-	cmd := adbCmd(args...)
+-	buf := new(strings.Builder)
+-	cmd.Stdout = io.MultiWriter(os.Stdout, buf)
++func adbRun(args string) (int, error) {
++	// The exit code of adb is often wrong. In theory it was fixed in 2016
++	// (https://code.google.com/p/android/issues/detail?id=3254), but it's
++	// still broken on our builders in 2023. Instead, append the exitcode to
++	// the output and parse it from there.
++	filter, exitStr := newExitCodeFilter(os.Stdout)
++	args += "; echo -n " + exitStr + "$?"
++
++	cmd := adbCmd("exec-out", args)
++	cmd.Stdout = filter
+ 	// If the adb subprocess somehow hangs, go test will kill this wrapper
+ 	// and wait for our os.Stderr (and os.Stdout) to close as a result.
+ 	// However, if the os.Stderr (or os.Stdout) file descriptors are
+@@ -39,10 +52,14 @@ func run(args ...string) (string, error) {
+ 	// along stderr from adb.
+ 	cmd.Stderr = struct{ io.Writer }{os.Stderr}
+ 	err := cmd.Run()
++
++	// Before we process err, flush any further output and get the exit code.
++	exitCode, err2 := filter.Finish()
++
+ 	if err != nil {
+-		return "", fmt.Errorf("adb %s: %v", strings.Join(args, " "), err)
++		return 0, fmt.Errorf("adb exec-out %s: %v", args, err)
+ 	}
+-	return buf.String(), nil
++	return exitCode, err2
+ }
+ 
+ func adb(args ...string) error {
+@@ -180,11 +197,6 @@ func runMain() (int, error) {
+ 			adb("exec-out", "killall -QUIT "+binName)
+ 		}
+ 	}()
+-	// In light of
+-	// https://code.google.com/p/android/issues/detail?id=3254
+-	// dont trust the exitcode of adb. Instead, append the exitcode to
+-	// the output and parse it from there.
+-	const exitstr = "exitcode="
+ 	cmd := `export TMPDIR="` + deviceGotmp + `"` +
+ 		`; export GOROOT="` + deviceGoroot + `"` +
+ 		`; export GOPATH="` + deviceGopath + `"` +
+@@ -193,22 +205,84 @@ func runMain() (int, error) {
+ 		`; export GOCACHE="` + deviceRoot + `/gocache"` +
+ 		`; export PATH="` + deviceGoroot + `/bin":$PATH` +
+ 		`; cd "` + deviceCwd + `"` +
+-		"; '" + deviceBin + "' " + strings.Join(os.Args[2:], " ") +
+-		"; echo -n " + exitstr + "$?"
+-	output, err := run("exec-out", cmd)
++		"; '" + deviceBin + "' " + strings.Join(os.Args[2:], " ")
++	code, err := adbRun(cmd)
+ 	signal.Reset(syscall.SIGQUIT)
+ 	close(quit)
+-	if err != nil {
+-		return 0, err
++	return code, err
++}
++
++type exitCodeFilter struct {
++	w      io.Writer // Pass through to w
++	exitRe *regexp.Regexp
++	buf    bytes.Buffer
++}
++
++func newExitCodeFilter(w io.Writer) (*exitCodeFilter, string) {
++	const exitStr = "exitcode="
++
++	// Build a regexp that matches any prefix of the exit string at the end of
++	// the input. We do it this way to avoid assuming anything about the
++	// subcommand output (e.g., it might not be \n-terminated).
++	var exitReStr strings.Builder
++	for i := 1; i <= len(exitStr); i++ {
++		fmt.Fprintf(&exitReStr, "%s$|", exitStr[:i])
+ 	}
++	// Finally, match the exit string along with an exit code.
++	// This is the only case we use a group, and we'll use this
++	// group to extract the numeric code.
++	fmt.Fprintf(&exitReStr, "%s([0-9]+)$", exitStr)
++	exitRe := regexp.MustCompile(exitReStr.String())
+ 
+-	exitIdx := strings.LastIndex(output, exitstr)
+-	if exitIdx == -1 {
+-		return 0, fmt.Errorf("no exit code: %q", output)
++	return &exitCodeFilter{w: w, exitRe: exitRe}, exitStr
++}
++
++func (f *exitCodeFilter) Write(data []byte) (int, error) {
++	n := len(data)
++	f.buf.Write(data)
++	// Flush to w until a potential match of exitRe
++	b := f.buf.Bytes()
++	match := f.exitRe.FindIndex(b)
++	if match == nil {
++		// Flush all of the buffer.
++		_, err := f.w.Write(b)
++		f.buf.Reset()
++		if err != nil {
++			return n, err
++		}
++	} else {
++		// Flush up to the beginning of the (potential) match.
++		_, err := f.w.Write(b[:match[0]])
++		f.buf.Next(match[0])
++		if err != nil {
++			return n, err
++		}
+ 	}
+-	code, err := strconv.Atoi(output[exitIdx+len(exitstr):])
++	return n, nil
++}
++
++func (f *exitCodeFilter) Finish() (int, error) {
++	// f.buf could be empty, contain a partial match of exitRe, or
++	// contain a full match.
++	b := f.buf.Bytes()
++	defer f.buf.Reset()
++	match := f.exitRe.FindSubmatch(b)
++	if len(match) < 2 || match[1] == nil {
++		// Not a full match. Flush.
++		if _, err := f.w.Write(b); err != nil {
++			return 0, err
++		}
++		return 0, fmt.Errorf("no exit code (in %q)", string(b))
++	}
++
++	// Parse the exit code.
++	code, err := strconv.Atoi(string(match[1]))
+ 	if err != nil {
+-		return 0, fmt.Errorf("bad exit code: %v", err)
++		// Something is malformed. Flush.
++		if _, err := f.w.Write(b); err != nil {
++			return 0, err
++		}
++		return 0, fmt.Errorf("bad exit code: %v (in %q)", err, string(b))
+ 	}
+ 	return code, nil
+ }

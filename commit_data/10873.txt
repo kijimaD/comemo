@@ -27,6 +27,24 @@ Date:   Mon Dec 19 15:03:53 2011 -0500
     R=golang-dev, bradfitz, rsc
     CC=golang-dev, remy
     https://golang.org/cl/5491064
-
+---
  src/pkg/strconv/decimal.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/strconv/decimal.go b/src/pkg/strconv/decimal.go
+index 541553097b..cc5591a8d8 100644
+--- a/src/pkg/strconv/decimal.go
++++ b/src/pkg/strconv/decimal.go
+@@ -14,9 +14,9 @@ package strconv
+ type decimal struct {
+ 	// TODO(rsc): Can make d[] a bit smaller and add
+ 	// truncated bool;
+-	d   [2000]byte // digits
+-	nd  int        // number of digits used
+-	dp  int        // decimal point
++	d   [800]byte // digits
++	nd  int       // number of digits used
++	dp  int       // decimal point
+ 	neg bool
+ }
+ 

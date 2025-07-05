@@ -11,6 +11,20 @@ Date:   Fri Aug 11 08:21:31 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/hashmap.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index 1f16fe4e56..22470a08e9 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -1129,7 +1129,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
+ 					dst.k = add(unsafe.Pointer(dst.b), dataOffset)
+ 					dst.v = add(dst.k, bucketCnt*uintptr(t.keysize))
+ 				}
+-				dst.b.tophash[dst.i] = top
++				dst.b.tophash[dst.i&(bucketCnt-1)] = top // mask dst.i as an optimization, to avoid a bounds check
+ 				if t.indirectkey {
+ 					*(*unsafe.Pointer)(dst.k) = k2 // copy pointer
+ 				} else {

@@ -8,7 +8,64 @@ Date:   Fri Mar 6 11:05:46 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/7071
     Reviewed-by: Nigel Tao <nigeltao@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/debug/macho/file.go | 10 +++++-----
  src/debug/pe/file.go    | 10 +++++-----
  2 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/debug/macho/file.go b/src/debug/macho/file.go
+index eefb744442..a7599aa5b2 100644
+--- a/src/debug/macho/file.go
++++ b/src/debug/macho/file.go
+@@ -472,9 +472,9 @@ func (f *File) Section(name string) *Section {
+ // DWARF returns the DWARF debug information for the Mach-O file.
+ func (f *File) DWARF() (*dwarf.Data, error) {
+ 	// There are many other DWARF sections, but these
+-	// are the required ones, and the debug/dwarf package
+-	// does not use the others, so don't bother loading them.
+-	var names = [...]string{"abbrev", "info", "str"}
++	// are the ones the debug/dwarf package uses.
++	// Don't bother loading others.
++	var names = [...]string{"abbrev", "info", "line", "str"}
+ 	var dat [len(names)][]byte
+ 	for i, name := range names {
+ 		name = "__debug_" + name
+@@ -489,8 +489,8 @@ func (f *File) DWARF() (*dwarf.Data, error) {
+ 		dat[i] = b
+ 	}
+ 
+-	abbrev, info, str := dat[0], dat[1], dat[2]
+-	return dwarf.New(abbrev, nil, nil, info, nil, nil, nil, str)
++	abbrev, info, line, str := dat[0], dat[1], dat[2], dat[3]
++	return dwarf.New(abbrev, nil, nil, info, line, nil, nil, str)
+ }
+ 
+ // ImportedSymbols returns the names of all symbols
+diff --git a/src/debug/pe/file.go b/src/debug/pe/file.go
+index 759e5674fd..844dffc888 100644
+--- a/src/debug/pe/file.go
++++ b/src/debug/pe/file.go
+@@ -296,9 +296,9 @@ func (f *File) Section(name string) *Section {
+ 
+ func (f *File) DWARF() (*dwarf.Data, error) {
+ 	// There are many other DWARF sections, but these
+-	// are the required ones, and the debug/dwarf package
+-	// does not use the others, so don't bother loading them.
+-	var names = [...]string{"abbrev", "info", "str"}
++	// are the ones the debug/dwarf package uses.
++	// Don't bother loading others.
++	var names = [...]string{"abbrev", "info", "line", "str"}
+ 	var dat [len(names)][]byte
+ 	for i, name := range names {
+ 		name = ".debug_" + name
+@@ -313,8 +313,8 @@ func (f *File) DWARF() (*dwarf.Data, error) {
+ 		dat[i] = b
+ 	}
+ 
+-	abbrev, info, str := dat[0], dat[1], dat[2]
+-	return dwarf.New(abbrev, nil, nil, info, nil, nil, nil, str)
++	abbrev, info, line, str := dat[0], dat[1], dat[2], dat[3]
++	return dwarf.New(abbrev, nil, nil, info, line, nil, nil, str)
+ }
+ 
+ // ImportedSymbols returns the names of all symbols

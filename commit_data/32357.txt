@@ -32,7 +32,7 @@ Date:   Thu Apr 6 14:32:37 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/malloc.go           | 15 +++++++++++++++
  src/runtime/stubs_linux.go      |  9 +++++++++
  src/runtime/stubs_nonlinux.go   | 12 ++++++++++++
@@ -45,3 +45,253 @@ Date:   Thu Apr 6 14:32:37 2017 -0400
  src/runtime/sys_linux_ppc64x.s  |  9 +++++++++
  src/runtime/sys_linux_s390x.s   | 10 ++++++++++
  11 files changed, 113 insertions(+)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 7517f1284e..2e6c3aca0a 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -312,6 +312,15 @@ func mallocinit() {
+ 		// When that gets used up, we'll start asking the kernel
+ 		// for any memory anywhere.
+ 
++		// We want to start the arena low, but if we're linked
++		// against C code, it's possible global constructors
++		// have called malloc and adjusted the process' brk.
++		// Query the brk so we can avoid trying to map the
++		// arena over it (which will cause the kernel to put
++		// the arena somewhere else, likely at a high
++		// address).
++		procBrk := sbrk0()
++
+ 		// If we fail to allocate, try again with a smaller arena.
+ 		// This is necessary on Android L where we share a process
+ 		// with ART, which reserves virtual memory aggressively.
+@@ -336,6 +345,12 @@ func mallocinit() {
+ 			// to a MB boundary.
+ 			p = round(firstmoduledata.end+(1<<18), 1<<20)
+ 			pSize = bitmapSize + spansSize + arenaSize + _PageSize
++			if p <= procBrk && procBrk < p+pSize {
++				// Move the start above the brk,
++				// leaving some room for future brk
++				// expansion.
++				p = round(procBrk+(1<<20), 1<<20)
++			}
+ 			p = uintptr(sysReserve(unsafe.Pointer(p), pSize, &reserved))
+ 			if p != 0 {
+ 				break
+diff --git a/src/runtime/stubs_linux.go b/src/runtime/stubs_linux.go
+new file mode 100644
+index 0000000000..d10f657197
+--- /dev/null
++++ b/src/runtime/stubs_linux.go
+@@ -0,0 +1,9 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux
++
++package runtime
++
++func sbrk0() uintptr
+diff --git a/src/runtime/stubs_nonlinux.go b/src/runtime/stubs_nonlinux.go
+new file mode 100644
+index 0000000000..e1ea05cf0b
+--- /dev/null
++++ b/src/runtime/stubs_nonlinux.go
+@@ -0,0 +1,12 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !linux
++
++package runtime
++
++// sbrk0 returns the current process brk, or 0 if not implemented.
++func sbrk0() uintptr {
++	return 0
++}
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index a369792d78..2eb4b1e665 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -596,3 +596,12 @@ TEXT runtime·socket(SB),NOSPLIT,$0-16
+ 	INVOKE_SYSCALL
+ 	MOVL	AX, ret+12(FP)
+ 	RET
++
++// func sbrk0() uintptr
++TEXT runtime·sbrk0(SB),NOSPLIT,$0-4
++	// Implemented as brk(NULL).
++	MOVL	$45, AX  // syscall - brk
++	MOVL	$0, BX  // NULL
++	INVOKE_SYSCALL
++	MOVL	AX, ret+0(FP)
++	RET
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index be6f396cfa..c2b1376fa9 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -598,3 +598,12 @@ TEXT runtime·socket(SB),NOSPLIT,$0-20
+ 	SYSCALL
+ 	MOVL	AX, ret+16(FP)
+ 	RET
++
++// func sbrk0() uintptr
++TEXT runtime·sbrk0(SB),NOSPLIT,$0-8
++	// Implemented as brk(NULL).
++	MOVQ	$0, DI
++	MOVL	$12, AX  // syscall entry
++	SYSCALL
++	MOVQ	AX, ret+0(FP)
++	RET
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index 8afc71f059..0244613e67 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -48,6 +48,7 @@
+ #define SYS_access (SYS_BASE + 33)
+ #define SYS_connect (SYS_BASE + 283)
+ #define SYS_socket (SYS_BASE + 281)
++#define SYS_brk (SYS_BASE + 45)
+ 
+ #define ARM_BASE (SYS_BASE + 0x0f0000)
+ 
+@@ -504,3 +505,12 @@ TEXT runtime·socket(SB),NOSPLIT,$0
+ 	SWI	$0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
++
++// func sbrk0() uintptr
++TEXT runtime·sbrk0(SB),NOSPLIT,$0-4
++	// Implemented as brk(NULL).
++	MOVW	$0, R0
++	MOVW	$SYS_brk, R7
++	SWI	$0
++	MOVW	R0, ret+0(FP)
++	RET
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index 204aee7c51..e921f9906c 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -46,6 +46,7 @@
+ #define SYS_faccessat		48
+ #define SYS_socket		198
+ #define SYS_connect		203
++#define SYS_brk			214
+ 
+ TEXT runtime·exit(SB),NOSPLIT,$-8-4
+ 	MOVW	code+0(FP), R0
+@@ -483,3 +484,12 @@ TEXT runtime·socket(SB),NOSPLIT,$0-20
+ 	SVC
+ 	MOVW	R0, ret+16(FP)
+ 	RET
++
++// func sbrk0() uintptr
++TEXT runtime·sbrk0(SB),NOSPLIT,$0-8
++	// Implemented as brk(NULL).
++	MOVD	$0, R0
++	MOVD	$SYS_brk, R8
++	SVC
++	MOVD	R0, ret+0(FP)
++	RET
+diff --git a/src/runtime/sys_linux_mips64x.s b/src/runtime/sys_linux_mips64x.s
+index a4bcc72dd8..27de7b0901 100644
+--- a/src/runtime/sys_linux_mips64x.s
++++ b/src/runtime/sys_linux_mips64x.s
+@@ -45,6 +45,7 @@
+ #define SYS_epoll_wait		5209
+ #define SYS_clock_gettime	5222
+ #define SYS_epoll_create1	5285
++#define SYS_brk			5012
+ 
+ TEXT runtime·exit(SB),NOSPLIT,$-8-4
+ 	MOVW	code+0(FP), R4
+@@ -426,3 +427,12 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$-8
+ 	MOVV	$SYS_fcntl, R2
+ 	SYSCALL
+ 	RET
++
++// func sbrk0() uintptr
++TEXT runtime·sbrk0(SB),NOSPLIT,$-8-8
++	// Implemented as brk(NULL).
++	MOVV	$0, R4
++	MOVV	$SYS_brk, R2
++	SYSCALL
++	MOVV	R2, ret+0(FP)
++	RET
+diff --git a/src/runtime/sys_linux_mipsx.s b/src/runtime/sys_linux_mipsx.s
+index a9c556dd78..39bd731a4d 100644
+--- a/src/runtime/sys_linux_mipsx.s
++++ b/src/runtime/sys_linux_mipsx.s
+@@ -45,6 +45,7 @@
+ #define SYS_epoll_wait		    4250
+ #define SYS_clock_gettime	    4263
+ #define SYS_epoll_create1	    4326
++#define SYS_brk			    4045
+ 
+ TEXT runtime·exit(SB),NOSPLIT,$0-4
+ 	MOVW	code+0(FP), R4
+@@ -465,3 +466,12 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0-4
+ 	MOVW	$SYS_fcntl, R2
+ 	SYSCALL
+ 	RET
++
++// func sbrk0() uintptr
++TEXT runtime·sbrk0(SB),NOSPLIT,$0-4
++	// Implemented as brk(NULL).
++	MOVW	$0, R4
++	MOVW	$SYS_brk, R2
++	SYSCALL
++	MOVW	R2, ret+0(FP)
++	RET
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index ef7dab21b7..2b2aa61d06 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -21,6 +21,7 @@
+ #define SYS_close		  6
+ #define SYS_getpid		 20
+ #define SYS_kill		 37
++#define SYS_brk			 45
+ #define SYS_fcntl		 55
+ #define SYS_gettimeofday	 78
+ #define SYS_select		 82	// always return -ENOSYS
+@@ -422,3 +423,11 @@ TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD    $1, R5  // FD_CLOEXEC
+ 	SYSCALL	$SYS_fcntl
+ 	RET
++
++// func sbrk0() uintptr
++TEXT runtime·sbrk0(SB),NOSPLIT|NOFRAME,$0
++	// Implemented as brk(NULL).
++	MOVD	$0, R3
++	SYSCALL	$SYS_brk
++	MOVD	R3, ret+0(FP)
++	RET
+diff --git a/src/runtime/sys_linux_s390x.s b/src/runtime/sys_linux_s390x.s
+index 2291718074..b8099e2553 100644
+--- a/src/runtime/sys_linux_s390x.s
++++ b/src/runtime/sys_linux_s390x.s
+@@ -16,6 +16,7 @@
+ #define SYS_close                 6
+ #define SYS_getpid               20
+ #define SYS_kill                 37
++#define SYS_brk			 45
+ #define SYS_fcntl                55
+ #define SYS_gettimeofday         78
+ #define SYS_mmap                 90
+@@ -434,3 +435,12 @@ TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	$SYS_fcntl, R1
+ 	SYSCALL
+ 	RET
++
++// func sbrk0() uintptr
++TEXT runtime·sbrk0(SB),NOSPLIT|NOFRAME,$0-8
++	// Implemented as brk(NULL).
++	MOVD	$0, R2
++	MOVW	$SYS_brk, R1
++	SYSCALL
++	MOVD	R2, ret+0(FP)
++	RET

@@ -8,6 +8,29 @@ Date:   Tue Jan 22 03:18:20 2013 +0800
     R=golang-dev, adg, dave
     CC=golang-dev
     https://golang.org/cl/7094062
-
+---
  doc/go_spec.html | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 239e69c987..c93bb6c65d 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of January 18, 2013",
++	"Subtitle": "Version of January 21, 2013",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -4922,7 +4922,8 @@ At any time the following relationship holds:
+ </pre>
+ 
+ <p>
+-The length and capacity of a <code>nil</code> slice, map, or channel are 0.
++The length of a <code>nil</code> slice, map or channel is 0.
++The capacity of a <code>nil</code> slice and channel is 0.
+ </p>
+ 
+ <p>

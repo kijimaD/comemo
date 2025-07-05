@@ -7,8 +7,47 @@ Date:   Mon Dec 5 14:22:41 2011 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5437136
-
+---
  src/cmd/gc/typecheck.c | 2 +-
  test/complit.go        | 2 +-
  test/complit1.go       | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 802d6dcdc5..eb6e84e63e 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -2183,7 +2183,7 @@ typecheckcomplit(Node **np)
+ 				s = f->sym;
+ 				fielddup(newname(s), hash, nhash);
+ 				r = l->right;
+-				pushtype(r, f->type);
++				// No pushtype allowed here.  Tried and rejected.
+ 				typecheck(&r, Erv);
+ 				l->right = assignconv(r, f->type, "field value");
+ 			}
+diff --git a/test/complit.go b/test/complit.go
+index c9de616f55..8dfc71dcb4 100644
+--- a/test/complit.go
++++ b/test/complit.go
+@@ -58,7 +58,7 @@ func main() {
+ 	var tp *T
+ 	tp = &T{0, 7.2, "hi", &t}
+ 
+-	tl := &T{i: 0, next: {i: 1, next: {i: 2, next: {i: 3, next: {i: 4}}}}}
++	tl := &T{i: 0, next: &T{i: 1, next: &T{i: 2, next: &T{i: 3, next: &T{i: 4}}}}}
+ 	teq(tl, 5)
+ 
+ 	a1 := []int{1, 2, 3}
+diff --git a/test/complit1.go b/test/complit1.go
+index f4f7311af3..aaf701f73f 100644
+--- a/test/complit1.go
++++ b/test/complit1.go
+@@ -34,6 +34,6 @@ type T struct {
+ 
+ var (
+ 	_ = &T{0, 0, "", nil}               // ok
+-	_ = &T{i: 0, f: 0, s: "", next: {}} // ok
++	_ = &T{i: 0, f: 0, s: "", next: {}} // ERROR "missing type in composite literal"
+ 	_ = &T{0, 0, "", {}}                // ERROR "missing type in composite literal"
+ )

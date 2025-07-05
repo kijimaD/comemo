@@ -8,6 +8,29 @@ Date:   Fri Feb 17 09:56:14 2012 +1100
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5675070
-
+---
  src/pkg/path/filepath/path_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/path/filepath/path_test.go b/src/pkg/path/filepath/path_test.go
+index 6b70aa2cd7..98ff466427 100644
+--- a/src/pkg/path/filepath/path_test.go
++++ b/src/pkg/path/filepath/path_test.go
+@@ -559,7 +559,7 @@ var EvalSymlinksTestDirs = []EvalSymlinksTest{
+ 	{"test/dir/link3", "../../"},
+ 	{"test/link1", "../test"},
+ 	{"test/link2", "dir"},
+-	{"test/linkabs", "/tmp"},
++	{"test/linkabs", "/"},
+ }
+ 
+ var EvalSymlinksTests = []EvalSymlinksTest{
+@@ -572,7 +572,7 @@ var EvalSymlinksTests = []EvalSymlinksTest{
+ 	{"test/link2/..", "test"},
+ 	{"test/dir/link3", "."},
+ 	{"test/link2/link3/test", "test"},
+-	{"test/linkabs", "/tmp"},
++	{"test/linkabs", "/"},
+ }
+ 
+ var EvalSymlinksAbsWindowsTests = []EvalSymlinksTest{

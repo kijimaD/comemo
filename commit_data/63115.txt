@@ -10,7 +10,34 @@ Date:   Fri Apr 25 19:59:01 2025 +0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/internal/fuzz/counters_supported.go   | 2 +-
  src/internal/fuzz/counters_unsupported.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/fuzz/counters_supported.go b/src/internal/fuzz/counters_supported.go
+index 7d3b92408d..a877239186 100644
+--- a/src/internal/fuzz/counters_supported.go
++++ b/src/internal/fuzz/counters_supported.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build ((darwin || linux || windows || freebsd || openbsd) && (amd64 || arm64)) || loong64
++//go:build (darwin || linux || windows || freebsd || openbsd) && (amd64 || arm64 || loong64)
+ 
+ package fuzz
+ 
+diff --git a/src/internal/fuzz/counters_unsupported.go b/src/internal/fuzz/counters_unsupported.go
+index 93b99e5b09..af2b56cdd8 100644
+--- a/src/internal/fuzz/counters_unsupported.go
++++ b/src/internal/fuzz/counters_unsupported.go
+@@ -8,7 +8,7 @@
+ //
+ // If you update this constraint, also update internal/platform.FuzzInstrumented.
+ //
+-//go:build !((darwin || linux || windows || freebsd || openbsd) && (amd64 || arm64)) && !loong64
++//go:build !((darwin || linux || windows || freebsd || openbsd) && (amd64 || arm64 || loong64))
+ 
+ package fuzz
+ 

@@ -14,10 +14,153 @@ Date:   Sun May 28 09:09:07 2017 -0700
     Run-TryBot: Dhananjay Nakrani <dhananjayn@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cover/cover_test.go        | 28 ++++++++++++++++++++++++----
  src/cmd/cover/func.go              | 14 +++++++++-----
  src/cmd/cover/testdata/p.go        | 27 +++++++++++++++++++++++++++
  src/cmd/cover/testdata/profile.cov |  5 +++++
  src/cmd/vet/all/whitelist/all.txt  |  1 -
  5 files changed, 65 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/cover/cover_test.go b/src/cmd/cover/cover_test.go
+index 81ac8ae467..1584a73b59 100644
+--- a/src/cmd/cover/cover_test.go
++++ b/src/cmd/cover/cover_test.go
+@@ -26,10 +26,11 @@ const (
+ 
+ var (
+ 	// Files we use.
+-	testMain    = filepath.Join(testdata, "main.go")
+-	testTest    = filepath.Join(testdata, "test.go")
+-	coverInput  = filepath.Join(testdata, "test_line.go")
+-	coverOutput = filepath.Join(testdata, "test_cover.go")
++	testMain     = filepath.Join(testdata, "main.go")
++	testTest     = filepath.Join(testdata, "test.go")
++	coverInput   = filepath.Join(testdata, "test_line.go")
++	coverOutput  = filepath.Join(testdata, "test_cover.go")
++	coverProfile = filepath.Join(testdata, "profile.cov")
+ )
+ 
+ var debug = false // Keeps the rewritten files around if set.
+@@ -102,6 +103,25 @@ func TestCover(t *testing.T) {
+ 	}
+ }
+ 
++// Makes sure that `cover -func=profile.cov` reports accurate coverage.
++// Issue #20515.
++func TestCoverFunc(t *testing.T) {
++	// go tool cover -func ./testdata/profile.cov
++	cmd := exec.Command(testenv.GoToolPath(t), "tool", "cover", "-func", coverProfile)
++	out, err := cmd.Output()
++	if err != nil {
++		if ee, ok := err.(*exec.ExitError); ok {
++			t.Logf("%s", ee.Stderr)
++		}
++		t.Fatal(err)
++	}
++
++	if got, err := regexp.Match(".*total:.*100.0.*", out); err != nil || !got {
++		t.Logf("%s", out)
++		t.Errorf("invalid coverage counts. got=(%v, %v); want=(true; nil)", got, err)
++	}
++}
++
+ func run(c *exec.Cmd, t *testing.T) {
+ 	c.Stdout = os.Stdout
+ 	c.Stderr = os.Stderr
+diff --git a/src/cmd/cover/func.go b/src/cmd/cover/func.go
+index 66ec242a40..05c7c12c99 100644
+--- a/src/cmd/cover/func.go
++++ b/src/cmd/cover/func.go
+@@ -66,12 +66,12 @@ func funcOutput(profile, outputFile string) error {
+ 		// Now match up functions and profile blocks.
+ 		for _, f := range funcs {
+ 			c, t := f.coverage(profile)
+-			fmt.Fprintf(tabber, "%s:%d:\t%s\t%.1f%%\n", fn, f.startLine, f.name, 100.0*float64(c)/float64(t))
++			fmt.Fprintf(tabber, "%s:%d:\t%s\t%.1f%%\n", fn, f.startLine, f.name, percent(c, t))
+ 			total += t
+ 			covered += c
+ 		}
+ 	}
+-	fmt.Fprintf(tabber, "total:\t(statements)\t%.1f%%\n", 100.0*float64(covered)/float64(total))
++	fmt.Fprintf(tabber, "total:\t(statements)\t%.1f%%\n", percent(covered, total))
+ 
+ 	return nil
+ }
+@@ -147,9 +147,6 @@ func (f *FuncExtent) coverage(profile *Profile) (num, den int64) {
+ 			covered += int64(b.NumStmt)
+ 		}
+ 	}
+-	if total == 0 {
+-		total = 1 // Avoid zero denominator.
+-	}
+ 	return covered, total
+ }
+ 
+@@ -162,3 +159,10 @@ func findFile(file string) (string, error) {
+ 	}
+ 	return filepath.Join(pkg.Dir, file), nil
+ }
++
++func percent(covered, total int64) float64 {
++	if total == 0 {
++		total = 1 // Avoid zero denominator.
++	}
++	return 100.0 * float64(covered) / float64(total)
++}
+diff --git a/src/cmd/cover/testdata/p.go b/src/cmd/cover/testdata/p.go
+new file mode 100644
+index 0000000000..ce3a8c0612
+--- /dev/null
++++ b/src/cmd/cover/testdata/p.go
+@@ -0,0 +1,27 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// A package such that there are 3 functions with zero total and covered lines.
++// And one with 1 total and covered lines. Reproduces issue #20515.
++package p
++
++//go:noinline
++func A() {
++
++}
++
++//go:noinline
++func B() {
++
++}
++
++//go:noinline
++func C() {
++
++}
++
++//go:noinline
++func D() int64 {
++	return 42
++}
+diff --git a/src/cmd/cover/testdata/profile.cov b/src/cmd/cover/testdata/profile.cov
+new file mode 100644
+index 0000000000..db08602d5a
+--- /dev/null
++++ b/src/cmd/cover/testdata/profile.cov
+@@ -0,0 +1,5 @@
++mode: set
++./testdata/p.go:10.10,12.2 0 0
++./testdata/p.go:15.10,17.2 0 0
++./testdata/p.go:20.10,22.2 0 0
++./testdata/p.go:25.16,27.2 1 1
+diff --git a/src/cmd/vet/all/whitelist/all.txt b/src/cmd/vet/all/whitelist/all.txt
+index 177aeaa3f6..c28035f8bb 100644
+--- a/src/cmd/vet/all/whitelist/all.txt
++++ b/src/cmd/vet/all/whitelist/all.txt
+@@ -24,7 +24,6 @@ runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: I
+ 
+ // Legitimate vet complaints in which we are testing for correct runtime behavior
+ // in bad situations that vet can also detect statically.
+-cmd/cover/testdata/test.go: unreachable code
+ encoding/json/decode_test.go: struct field m has json tag but is not exported
+ encoding/json/decode_test.go: struct field m2 has json tag but is not exported
+ encoding/json/tagkey_test.go: struct field tag `:"BadFormat"` not compatible with reflect.StructTag.Get: bad syntax for struct tag key

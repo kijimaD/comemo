@@ -14,6 +14,48 @@ Date:   Wed Oct 18 00:26:42 2023 +0700
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/internal/testdir/testdir_test.go | 15 +++++++++------
  1 file changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/internal/testdir/testdir_test.go b/src/cmd/internal/testdir/testdir_test.go
+index 92c8f4c093..1b91dbe3ce 100644
+--- a/src/cmd/internal/testdir/testdir_test.go
++++ b/src/cmd/internal/testdir/testdir_test.go
+@@ -24,6 +24,7 @@ import (
+ 	"path/filepath"
+ 	"regexp"
+ 	"runtime"
++	"slices"
+ 	"sort"
+ 	"strconv"
+ 	"strings"
+@@ -417,13 +418,12 @@ func (ctxt *context) match(name string) bool {
+ 		}
+ 	}
+ 
++	if slices.Contains(build.Default.ReleaseTags, name) {
++		return true
++	}
++
+ 	if strings.HasPrefix(name, "goexperiment.") {
+-		for _, tag := range build.Default.ToolTags {
+-			if tag == name {
+-				return true
+-			}
+-		}
+-		return false
++		return slices.Contains(build.Default.ToolTags, name)
+ 	}
+ 
+ 	if name == "cgo" && ctxt.cgoEnabled {
+@@ -1751,6 +1751,9 @@ func TestShouldTest(t *testing.T) {
+ 
+ 	// Test that (!a OR !b) matches anything.
+ 	assert(shouldTest("// +build !windows !plan9", "windows", "amd64"))
++
++	// Test that //go:build tag match.
++	assert(shouldTest("//go:build go1.4", "linux", "amd64"))
+ }
+ 
+ // overlayDir makes a minimal-overhead copy of srcRoot in which new files may be added.

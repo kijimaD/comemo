@@ -7,6 +7,19 @@ Date:   Mon Apr 27 16:23:43 2015 -0700
     Change-Id: I883017b67e8fa76b6f123e8f9bcec3d6f820bbb3
     Reviewed-on: https://go-review.googlesource.com/9348
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.5.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index 661aa17cfe..238e2b56b9 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -64,6 +64,7 @@ cmd/go: std wildcard now excludes commands in main repo (https://golang.org/cl/5
+ cmd/go: .swig/.swigcxx files now require SWIG 3.0.6 or later
+ cmd/go: add -run flag to go generate (https://golang.org/cl/9005)
+ cmd/go: add $GOLINE to generate's variables (https://golang.org/cl/9007)
++cmd/go: add go doc (https://golang.org/cl/9227)
+ cmd/vet: better validation of struct tags (https://golang.org/cl/2685)
+ cmd/ld: no longer record build timestamp in Windows PE file header (https://golang.org/cl/3740)
+ cmd/go: add -toolexec build option

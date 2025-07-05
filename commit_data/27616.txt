@@ -13,6 +13,20 @@ Date:   Tue Apr 5 11:29:15 2016 -0700
     Change-Id: I96ec5be3ec3439e1295c937159dadaf1ebfb2737
     Reviewed-on: https://go-review.googlesource.com/21540
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/file.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index 6b1ecbc34e..74d3c9f963 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -66,6 +66,8 @@ const (
+ )
+ 
+ // Seek whence values.
++//
++// Deprecated: Use io.SeekStart, io.SeekCurrent, and io.SeekEnd.
+ const (
+ 	SEEK_SET int = 0 // seek relative to the origin of the file
+ 	SEEK_CUR int = 1 // seek relative to the current offset

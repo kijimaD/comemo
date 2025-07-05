@@ -20,6 +20,18 @@ Date:   Wed Sep 8 21:03:51 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2146044
-
+---
  test/named1.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/named1.go b/test/named1.go
+index 241697d5c0..600e502f9e 100644
+--- a/test/named1.go
++++ b/test/named1.go
+@@ -64,5 +64,5 @@ func main() {
+ 	b = closed(c)     // ERROR "cannot use.*type bool.*type Bool"
+ 	_ = b
+ 
+-	asString(String(slice)) // ERROR "cannot convert slice"
++	asString(String(slice)) // ERROR "cannot .*type Slice.*type String"
+ }

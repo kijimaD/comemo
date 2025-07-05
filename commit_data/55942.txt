@@ -16,7 +16,43 @@ Date:   Sun Mar 26 08:35:12 2023 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/main_conf_test.go   | 2 +-
  src/net/main_noconf_test.go | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/main_conf_test.go b/src/net/main_conf_test.go
+index 41b78eda1d..71257976bd 100644
+--- a/src/net/main_conf_test.go
++++ b/src/net/main_conf_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !plan9 && !windows
++//go:build !js && !plan9
+ 
+ package net
+ 
+diff --git a/src/net/main_noconf_test.go b/src/net/main_noconf_test.go
+index ab050fac2b..d7f22664b5 100644
+--- a/src/net/main_noconf_test.go
++++ b/src/net/main_noconf_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (js && wasm) || plan9 || windows
++//go:build (js && wasm) || plan9
+ 
+ package net
+ 
+@@ -11,7 +11,7 @@ import "runtime"
+ // See main_conf_test.go for what these (don't) do.
+ func forceGoDNS() func() {
+ 	switch runtime.GOOS {
+-	case "plan9", "windows":
++	case "plan9":
+ 		return func() {}
+ 	default:
+ 		return nil

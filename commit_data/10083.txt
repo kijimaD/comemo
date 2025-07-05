@@ -7,6 +7,20 @@ Date:   Mon Oct 24 19:29:44 2011 -0700
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5303067
-
+---
  src/pkg/http/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/doc.go b/src/pkg/http/doc.go
+index 0215893914..9c47ac7823 100644
+--- a/src/pkg/http/doc.go
++++ b/src/pkg/http/doc.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ /*
+-Package http provides HTTP client and server implementaions.
++Package http provides HTTP client and server implementations.
+ 
+ Get, Head, Post, and PostForm make HTTP requests:
+ 

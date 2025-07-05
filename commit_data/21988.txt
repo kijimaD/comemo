@@ -9,7 +9,34 @@ Date:   Tue Feb 17 15:21:11 2015 +1100
     Change-Id: I5dd401e8d2040e84ccb97c2fe9f5c5a28095b538
     Reviewed-on: https://go-review.googlesource.com/5005
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/syscall/mksyscall_windows.go | 2 ++
  src/syscall/zsyscall_windows.go  | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/src/syscall/mksyscall_windows.go b/src/syscall/mksyscall_windows.go
+index cb540d3956..d4c09273d6 100644
+--- a/src/syscall/mksyscall_windows.go
++++ b/src/syscall/mksyscall_windows.go
+@@ -736,6 +736,8 @@ package {{packagename}}
+ import "unsafe"{{if syscalldot}}
+ import "syscall"{{end}}
+ 
++var _ unsafe.Pointer
++
+ var (
+ {{template "dlls" .}}
+ {{template "funcnames" .}})
+diff --git a/src/syscall/zsyscall_windows.go b/src/syscall/zsyscall_windows.go
+index 9c15cf1a1c..ba62499f4e 100644
+--- a/src/syscall/zsyscall_windows.go
++++ b/src/syscall/zsyscall_windows.go
+@@ -4,6 +4,8 @@ package syscall
+ 
+ import "unsafe"
+ 
++var _ unsafe.Pointer
++
+ var (
+ 	modkernel32 = NewLazyDLL("kernel32.dll")
+ 	modadvapi32 = NewLazyDLL("advapi32.dll")

@@ -13,6 +13,30 @@ Date:   Wed Dec 7 16:18:51 2016 +0000
     Change-Id: I559639aba7e87e07d1a1249f8b212b3f34a078ab
     Reviewed-on: https://go-review.googlesource.com/34019
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/crypto/x509/root_darwin_test.go | 11 +++++++----
  1 file changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/x509/root_darwin_test.go b/src/crypto/x509/root_darwin_test.go
+index c8ca3ead70..d6d8d07520 100644
+--- a/src/crypto/x509/root_darwin_test.go
++++ b/src/crypto/x509/root_darwin_test.go
+@@ -26,11 +26,14 @@ func TestSystemRoots(t *testing.T) {
+ 		if tt == nil {
+ 			t.Fatal("no system roots")
+ 		}
+-		// On Mavericks, there are 212 bundled certs; require only
+-		// 150 here, since this is just a sanity check, and the
+-		// exact number will vary over time.
++		// On Mavericks, there are 212 bundled certs, at least
++		// there was at one point in time on one machine.
++		// (Maybe it was a corp laptop with extra certs?)
++		// Other OS X users report
++		// 135, 142, 145...  Let's try requiring at least 100,
++		// since this is just a sanity check.
+ 		t.Logf("got %d roots", len(tt.certs))
+-		if want, have := 150, len(tt.certs); have < want {
++		if want, have := 100, len(tt.certs); have < want {
+ 			t.Fatalf("want at least %d system roots, have %d", want, have)
+ 		}
+ 	}

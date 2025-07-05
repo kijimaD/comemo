@@ -45,7 +45,7 @@ Date:   Wed Mar 14 01:16:43 2018 -0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/order.go     |   9 +-
  src/cmd/compile/internal/gc/typecheck.go |  19 +-
  src/cmd/compile/internal/gc/walk.go      |  11 +
@@ -54,3 +54,749 @@ Date:   Wed Mar 14 01:16:43 2018 -0700
  test/fixedbugs/issue19359.go             |  26 ++
  test/fixedbugs/issue22881.go             |  40 +++
  7 files changed, 621 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index d3f76953cc..3a80c75bfc 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -438,7 +438,14 @@ func (o *Order) mapAssign(n *Node) {
+ 		if n.Left.Op == OINDEXMAP {
+ 			// Make sure we evaluate the RHS before starting the map insert.
+ 			// We need to make sure the RHS won't panic.  See issue 22881.
+-			n.Right = o.cheapExpr(n.Right)
++			if n.Right.Op == OAPPEND {
++				s := n.Right.List.Slice()[1:]
++				for i, n := range s {
++					s[i] = o.cheapExpr(n)
++				}
++			} else {
++				n.Right = o.cheapExpr(n.Right)
++			}
+ 		}
+ 		o.out = append(o.out, n)
+ 
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 214831f2fb..30fb185c9d 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3231,8 +3231,21 @@ func checkassignlist(stmt *Node, l Nodes) {
+ 	}
+ }
+ 
+-// Check whether l and r are the same side effect-free expression,
+-// so that it is safe to reuse one instead of computing both.
++// samesafeexpr checks whether it is safe to reuse one of l and r
++// instead of computing both. samesafeexpr assumes that l and r are
++// used in the same statement or expression. In order for it to be
++// safe to reuse l or r, they must:
++// * be the same expression
++// * not have side-effects (no function calls, no channel ops);
++//   however, panics are ok
++// * not cause inappropriate aliasing; e.g. two string to []byte
++//   conversions, must result in two distinct slices
++//
++// The handling of OINDEXMAP is subtle. OINDEXMAP can occur both
++// as an lvalue (map assignment) and an rvalue (map access). This is
++// currently OK, since the only place samesafeexpr gets used on an
++// lvalue expression is for OSLICE and OAPPEND optimizations, and it
++// is correct in those settings.
+ func samesafeexpr(l *Node, r *Node) bool {
+ 	if l.Op != r.Op || !eqtype(l.Type, r.Type) {
+ 		return false
+@@ -3253,7 +3266,7 @@ func samesafeexpr(l *Node, r *Node) bool {
+ 		// Allow only numeric-ish types. This is a bit conservative.
+ 		return issimple[l.Type.Etype] && samesafeexpr(l.Left, r.Left)
+ 
+-	case OINDEX:
++	case OINDEX, OINDEXMAP:
+ 		return samesafeexpr(l.Left, r.Left) && samesafeexpr(l.Right, r.Right)
+ 
+ 	case OLITERAL:
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index b3339d6e59..494b7c5970 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -670,9 +670,20 @@ opswitch:
+ 	case OAS, OASOP:
+ 		init.AppendNodes(&n.Ninit)
+ 
++		// Recognize m[k] = append(m[k], ...) so we can reuse
++		// the mapassign call.
++		mapAppend := n.Left.Op == OINDEXMAP && n.Right.Op == OAPPEND
++		if mapAppend && !samesafeexpr(n.Left, n.Right.List.First()) {
++			Fatalf("not same expressions: %v != %v", n.Left, n.Right.List.First())
++		}
++
+ 		n.Left = walkexpr(n.Left, init)
+ 		n.Left = safeexpr(n.Left, init)
+ 
++		if mapAppend {
++			n.Right.List.SetFirst(n.Left)
++		}
++
+ 		if n.Op == OASOP {
+ 			// Rewrite x op= y into x = x op y.
+ 			n.Right = nod(n.SubOp(), n.Left, n.Right)
+diff --git a/src/runtime/map_test.go b/src/runtime/map_test.go
+index 05fe986b33..8ba8d367fb 100644
+--- a/src/runtime/map_test.go
++++ b/src/runtime/map_test.go
+@@ -114,6 +114,24 @@ func TestMapOperatorAssignment(t *testing.T) {
+ 	}
+ }
+ 
++var sinkAppend bool
++
++func TestMapAppendAssignment(t *testing.T) {
++	m := make(map[int][]int, 0)
++
++	m[0] = nil
++	m[0] = append(m[0], 12345)
++	m[0] = append(m[0], 67890)
++	sinkAppend, m[0] = !sinkAppend, append(m[0], 123, 456)
++	a := []int{7, 8, 9, 0}
++	m[0] = append(m[0], a...)
++
++	want := []int{12345, 67890, 123, 456, 7, 8, 9, 0}
++	if got := m[0]; !reflect.DeepEqual(got, want) {
++		t.Errorf("got %v, want %v", got, want)
++	}
++}
++
+ // Maps aren't actually copied on assignment.
+ func TestAlias(t *testing.T) {
+ 	m := make(map[int]int, 0)
+@@ -839,6 +857,16 @@ func benchmarkMapOperatorAssignInt32(b *testing.B, n int) {
+ 	}
+ }
+ 
++func benchmarkMapAppendAssignInt32(b *testing.B, n int) {
++	a := make(map[int32][]int)
++	b.ReportAllocs()
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		key := int32(i & (n - 1))
++		a[key] = append(a[key], i)
++	}
++}
++
+ func benchmarkMapDeleteInt32(b *testing.B, n int) {
+ 	a := make(map[int32]int, n)
+ 	b.ResetTimer()
+@@ -868,6 +896,16 @@ func benchmarkMapOperatorAssignInt64(b *testing.B, n int) {
+ 	}
+ }
+ 
++func benchmarkMapAppendAssignInt64(b *testing.B, n int) {
++	a := make(map[int64][]int)
++	b.ReportAllocs()
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		key := int64(i & (n - 1))
++		a[key] = append(a[key], i)
++	}
++}
++
+ func benchmarkMapDeleteInt64(b *testing.B, n int) {
+ 	a := make(map[int64]int, n)
+ 	b.ResetTimer()
+@@ -908,6 +946,20 @@ func benchmarkMapOperatorAssignStr(b *testing.B, n int) {
+ 	}
+ }
+ 
++func benchmarkMapAppendAssignStr(b *testing.B, n int) {
++	k := make([]string, n)
++	for i := 0; i < len(k); i++ {
++		k[i] = strconv.Itoa(i)
++	}
++	a := make(map[string][]string)
++	b.ReportAllocs()
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		key := k[i&(n-1)]
++		a[key] = append(a[key], key)
++	}
++}
++
+ func benchmarkMapDeleteStr(b *testing.B, n int) {
+ 	i2s := make([]string, n)
+ 	for i := 0; i < n; i++ {
+@@ -949,6 +1001,12 @@ func BenchmarkMapOperatorAssign(b *testing.B) {
+ 	b.Run("Str", runWith(benchmarkMapOperatorAssignStr, 1<<8, 1<<16))
+ }
+ 
++func BenchmarkMapAppendAssign(b *testing.B) {
++	b.Run("Int32", runWith(benchmarkMapAppendAssignInt32, 1<<8, 1<<16))
++	b.Run("Int64", runWith(benchmarkMapAppendAssignInt64, 1<<8, 1<<16))
++	b.Run("Str", runWith(benchmarkMapAppendAssignStr, 1<<8, 1<<16))
++}
++
+ func BenchmarkMapDelete(b *testing.B) {
+ 	b.Run("Int32", runWith(benchmarkMapDeleteInt32, 100, 1000, 10000))
+ 	b.Run("Int64", runWith(benchmarkMapDeleteInt64, 100, 1000, 10000))
+diff --git a/test/codegen/mapaccess.go b/test/codegen/mapaccess.go
+new file mode 100644
+index 0000000000..35620e741c
+--- /dev/null
++++ b/test/codegen/mapaccess.go
+@@ -0,0 +1,462 @@
++// asmcheck
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package codegen
++
++// These tests check that mapaccess calls are not used.
++// Issues #23661 and #24364.
++
++func mapCompoundAssignmentInt8() {
++	m := make(map[int8]int8, 0)
++	var k int8 = 0
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k] += 67
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k] -= 123
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k] *= 45
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k] |= 78
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k] ^= 89
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k] <<= 9
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k] >>= 10
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k]++
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k]--
++}
++
++func mapCompoundAssignmentInt32() {
++	m := make(map[int32]int32, 0)
++	var k int32 = 0
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k] += 67890
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k] -= 123
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k] *= 456
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k] |= 78
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k] ^= 89
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k] <<= 9
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k] >>= 10
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k]++
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k]--
++}
++
++func mapCompoundAssignmentInt64() {
++	m := make(map[int64]int64, 0)
++	var k int64 = 0
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k] += 67890
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k] -= 123
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k] *= 456
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k] |= 78
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k] ^= 89
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k] <<= 9
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k] >>= 10
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k]++
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k]--
++}
++
++func mapCompoundAssignmentComplex128() {
++	m := make(map[complex128]complex128, 0)
++	var k complex128 = 0
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k] += 67890
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k] -= 123
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k] *= 456
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k]++
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k]--
++}
++
++func mapCompoundAssignmentString() {
++	m := make(map[string]string, 0)
++	var k string = "key"
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k] += "value"
++}
++
++var sinkAppend bool
++
++// TODO: optimization is not applied because of mapslow flag.
++func mapAppendAssignmentInt8() {
++	m := make(map[int8][]int8, 0)
++	var k int8 = 0
++
++	// 386:".*mapaccess"
++	// amd64:".*mapaccess"
++	// arm:".*mapaccess"
++	// arm64:".*mapaccess"
++	m[k] = append(m[k], 1)
++
++	// 386:".*mapaccess"
++	// amd64:".*mapaccess"
++	// arm:".*mapaccess"
++	// arm64:".*mapaccess"
++	m[k] = append(m[k], 1, 2, 3)
++
++	a := []int8{7, 8, 9, 0}
++
++	// 386:".*mapaccess"
++	// amd64:".*mapaccess"
++	// arm:".*mapaccess"
++	// arm64:".*mapaccess"
++	m[k] = append(m[k], a...)
++
++	// Exceptions
++
++	// 386:".*mapaccess"
++	// amd64:".*mapaccess"
++	// arm:".*mapaccess"
++	// arm64:".*mapaccess"
++	m[k] = append(a, m[k]...)
++
++	// 386:".*mapaccess"
++	// amd64:".*mapaccess"
++	// arm:".*mapaccess"
++	// arm64:".*mapaccess"
++	sinkAppend, m[k] = !sinkAppend, append(m[k], 99)
++
++	// 386:".*mapaccess"
++	// amd64:".*mapaccess"
++	// arm:".*mapaccess"
++	// arm64:".*mapaccess"
++	m[k] = append(m[k+1], 100)
++}
++
++func mapAppendAssignmentInt32() {
++	m := make(map[int32][]int32, 0)
++	var k int32 = 0
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k] = append(m[k], 1)
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k] = append(m[k], 1, 2, 3)
++
++	a := []int32{7, 8, 9, 0}
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k] = append(m[k], a...)
++
++	// Exceptions
++
++	// 386:".*mapaccess"
++	// amd64:".*mapaccess"
++	// arm:".*mapaccess"
++	// arm64:".*mapaccess"
++	m[k] = append(a, m[k]...)
++
++	// 386:".*mapaccess"
++	// amd64:".*mapaccess"
++	// arm:".*mapaccess"
++	// arm64:".*mapaccess"
++	sinkAppend, m[k] = !sinkAppend, append(m[k], 99)
++
++	// 386:".*mapaccess"
++	// amd64:".*mapaccess"
++	// arm:".*mapaccess"
++	// arm64:".*mapaccess"
++	m[k] = append(m[k+1], 100)
++}
++
++func mapAppendAssignmentInt64() {
++	m := make(map[int64][]int64, 0)
++	var k int64 = 0
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k] = append(m[k], 1)
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k] = append(m[k], 1, 2, 3)
++
++	a := []int64{7, 8, 9, 0}
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k] = append(m[k], a...)
++
++	// Exceptions
++
++	// 386:".*mapaccess"
++	// amd64:".*mapaccess"
++	// arm:".*mapaccess"
++	// arm64:".*mapaccess"
++	m[k] = append(a, m[k]...)
++
++	// 386:".*mapaccess"
++	// amd64:".*mapaccess"
++	// arm:".*mapaccess"
++	// arm64:".*mapaccess"
++	sinkAppend, m[k] = !sinkAppend, append(m[k], 99)
++
++	// 386:".*mapaccess"
++	// amd64:".*mapaccess"
++	// arm:".*mapaccess"
++	// arm64:".*mapaccess"
++	m[k] = append(m[k+1], 100)
++}
++
++// TODO: optimization is not applied because of mapslow flag.
++func mapAppendAssignmentComplex128() {
++	m := make(map[complex128][]complex128, 0)
++	var k complex128 = 0
++
++	// 386:".*mapaccess"
++	// amd64:".*mapaccess"
++	// arm:".*mapaccess"
++	// arm64:".*mapaccess"
++	m[k] = append(m[k], 1)
++
++	// 386:".*mapaccess"
++	// amd64:".*mapaccess"
++	// arm:".*mapaccess"
++	// arm64:".*mapaccess"
++	m[k] = append(m[k], 1, 2, 3)
++
++	a := []complex128{7, 8, 9, 0}
++
++	// 386:".*mapaccess"
++	// amd64:".*mapaccess"
++	// arm:".*mapaccess"
++	// arm64:".*mapaccess"
++	m[k] = append(m[k], a...)
++
++	// Exceptions
++
++	// 386:".*mapaccess"
++	// amd64:".*mapaccess"
++	// arm:".*mapaccess"
++	// arm64:".*mapaccess"
++	m[k] = append(a, m[k]...)
++
++	// 386:".*mapaccess"
++	// amd64:".*mapaccess"
++	// arm:".*mapaccess"
++	// arm64:".*mapaccess"
++	sinkAppend, m[k] = !sinkAppend, append(m[k], 99)
++
++	// 386:".*mapaccess"
++	// amd64:".*mapaccess"
++	// arm:".*mapaccess"
++	// arm64:".*mapaccess"
++	m[k] = append(m[k+1], 100)
++}
++
++func mapAppendAssignmentString() {
++	m := make(map[string][]string, 0)
++	var k string = "key"
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k] = append(m[k], "1")
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k] = append(m[k], "1", "2", "3")
++
++	a := []string{"7", "8", "9", "0"}
++
++	// 386:-".*mapaccess"
++	// amd64:-".*mapaccess"
++	// arm:-".*mapaccess"
++	// arm64:-".*mapaccess"
++	m[k] = append(m[k], a...)
++
++	// Exceptions
++
++	// 386:".*mapaccess"
++	// amd64:".*mapaccess"
++	// arm:".*mapaccess"
++	// arm64:".*mapaccess"
++	m[k] = append(a, m[k]...)
++
++	// 386:".*mapaccess"
++	// amd64:".*mapaccess"
++	// arm:".*mapaccess"
++	// arm64:".*mapaccess"
++	sinkAppend, m[k] = !sinkAppend, append(m[k], "99")
++
++	// 386:".*mapaccess"
++	// amd64:".*mapaccess"
++	// arm:".*mapaccess"
++	// arm64:".*mapaccess"
++	m[k] = append(m[k+"1"], "100")
++}
+diff --git a/test/fixedbugs/issue19359.go b/test/fixedbugs/issue19359.go
+index 3f26d6c0d7..cc3ecc84f6 100644
+--- a/test/fixedbugs/issue19359.go
++++ b/test/fixedbugs/issue19359.go
+@@ -48,6 +48,26 @@ func addStr(m map[interface{}]string, key interface{}) (err error) {
+ 	return nil
+ }
+ 
++func appendInt(m map[interface{}][]int, key interface{}) (err error) {
++	defer func() {
++		if r := recover(); r != nil {
++			err = fmt.Errorf("appendInt failed: %v", r)
++		}
++	}()
++	m[key] = append(m[key], 2018)
++	return nil
++}
++
++func appendStr(m map[interface{}][]string, key interface{}) (err error) {
++	defer func() {
++		if r := recover(); r != nil {
++			err = fmt.Errorf("addStr failed: %v", r)
++		}
++	}()
++	m[key] = append(m[key], "hello, go")
++	return nil
++}
++
+ func main() {
+ 	m := make(map[interface{}]interface{})
+ 	set(m, []int{1, 2, 3})
+@@ -62,4 +82,10 @@ func main() {
+ 	ms := make(map[interface{}]string)
+ 	addStr(ms, []int{1, 2, 3})
+ 	addStr(ms, "abc") // used to throw
++
++	mia := make(map[interface{}][]int)
++	appendInt(mia, []int{1, 2, 3})
++
++	msa := make(map[interface{}][]string)
++	appendStr(msa, "abc") // used to throw
+ }
+diff --git a/test/fixedbugs/issue22881.go b/test/fixedbugs/issue22881.go
+index 8eaf42e1c0..645f2d4b87 100644
+--- a/test/fixedbugs/issue22881.go
++++ b/test/fixedbugs/issue22881.go
+@@ -27,6 +27,23 @@ func main() {
+ 			fmt.Printf("map insert happened, case f%d\n", i)
+ 		}
+ 	}
++
++	// Append slice.
++	for i, f := range []func(map[int][]int){
++		fa0, fa1, fa2, fa3,
++	} {
++		m := map[int][]int{}
++		func() { // wrapper to scope the defer.
++			defer func() {
++				recover()
++			}()
++			f(m) // Will panic. Shouldn't modify m.
++			fmt.Printf("RHS didn't panic, case fa%d\n", i)
++		}()
++		if len(m) != 0 {
++			fmt.Printf("map insert happened, case fa%d\n", i)
++		}
++	}
+ }
+ 
+ func f0(m map[int]int) {
+@@ -74,4 +91,27 @@ func f8(m map[int]int) {
+ 	m[0] %= z
+ }
+ 
++func fa0(m map[int][]int) {
++	var p *int
++	m[0] = append(m[0], *p)
++}
++
++func fa1(m map[int][]int) {
++	var p *int
++	sink, m[0] = !sink, append(m[0], *p)
++}
++
++func fa2(m map[int][]int) {
++	var p *int
++	m[0], _ = append(m[0], 0), *p
++}
++
++func fa3(m map[int][]int) {
++	// OSLICE has similar in-place-reassignment
++	// optimizations as OAPPEND, but we need to make sure
++	// to *not* optimize them, because we can't guarantee
++	// the slice indices are within bounds.
++	m[0] = m[0][:1]
++}
++
+ var sink bool

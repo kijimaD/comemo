@@ -14,7 +14,7 @@ Date:   Wed Feb 5 18:24:23 2020 -0500
     Change-Id: I968a98d8974ca5f220e822841beb6c34290eefe9
     Reviewed-on: https://go-review.googlesource.com/c/go/+/218000
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  README.boringcrypto.md                             |  16 +++++++++-------
  misc/boring/VERSION                                |   2 +-
  src/crypto/internal/boring/LICENSE                 |   2 +-
@@ -27,3 +27,272 @@ Date:   Wed Feb 5 18:24:23 2020 -0500
  .../boring/goboringcrypto_linux_amd64.syso         | Bin 7576096 -> 9713384 bytes
  src/crypto/internal/boring/rsa.go                  |  12 +++++++-----
  11 files changed, 47 insertions(+), 42 deletions(-)
+
+diff --git a/README.boringcrypto.md b/README.boringcrypto.md
+index b6f5805429..dc4fcc911a 100644
+--- a/README.boringcrypto.md
++++ b/README.boringcrypto.md
+@@ -1,16 +1,18 @@
+ # dev.boringcrypto branch
+ 
+ We have been working inside Google on a fork of Go that uses
+-BoringCrypto (the core of [BoringSSL](https://boringssl.googlesource.com/boringssl/)) for various crypto primitives, in
+-furtherance of some [work related to FIPS 140-2](http://csrc.nist.gov/groups/STM/cmvp/documents/140-1/140sp/140sp2964.pdf). We have heard that
+-some external users of Go would be interested in this code as well, so
+-I intend to create a new branch dev.boringcrypto that will hold
+-patches to make Go use BoringCrypto.
++BoringCrypto (the core of [BoringSSL][]) for various crypto
++primitives, in furtherance of some [work related to FIPS 140-2][3318].
++We have heard that some external users of Go would be interested in
++this code as well, so this branch holds the patches to make Go use
++BoringCrypto.
++
++[BoringSSL]: https://boringssl.googlesource.com/boringssl/
++[3318]: https://csrc.nist.gov/CSRC/media/projects/cryptographic-module-validation-program/documents/security-policies/140sp3318.pdf
+ 
+ Unlike typical dev branches, we do not intend any eventual merge of
+ this code into the master branch. Instead we intend to maintain in
+-that branch the latest release plus BoringCrypto patches. In this
+-sense it is a bit like dev.typealias holding go1.8+type alias patches.
++this branch the latest release plus BoringCrypto patches.
+ 
+ To be clear, we are not making any statements or representations about
+ the suitability of this code in relation to the FIPS 140-2 standard.
+diff --git a/misc/boring/VERSION b/misc/boring/VERSION
+index b8626c4cff..7ed6ff82de 100644
+--- a/misc/boring/VERSION
++++ b/misc/boring/VERSION
+@@ -1 +1 @@
+-4
++5
+diff --git a/src/crypto/internal/boring/LICENSE b/src/crypto/internal/boring/LICENSE
+index 4a618c3e8a..58ce9601a3 100644
+--- a/src/crypto/internal/boring/LICENSE
++++ b/src/crypto/internal/boring/LICENSE
+@@ -4,7 +4,7 @@ are covered by the usual Go license (see ../../../../LICENSE).
+ The goboringcrypto_linux_amd64.syso object file is built
+ from BoringSSL source code by build/build.sh and is covered
+ by the BoringSSL license reproduced below and also at
+-https://boringssl.googlesource.com/boringssl/+/fips-20170615/LICENSE.
++https://boringssl.googlesource.com/boringssl/+/fips-20180730/LICENSE.
+ 
+ BoringSSL is a fork of OpenSSL. As such, large parts of it fall under OpenSSL
+ licensing. Files that are completely new have a Google copyright and an ISC
+diff --git a/src/crypto/internal/boring/build/.gitignore b/src/crypto/internal/boring/build/.gitignore
+deleted file mode 100644
+index a19e8a9ffe..0000000000
+--- a/src/crypto/internal/boring/build/.gitignore
++++ /dev/null
+@@ -1 +0,0 @@
+-boringssl-24e5886c0edfc409c8083d10f9f1120111efd6f5.tar.xz
+diff --git a/src/crypto/internal/boring/build/build.sh b/src/crypto/internal/boring/build/build.sh
+index 7c50327c2f..5afbb426e2 100755
+--- a/src/crypto/internal/boring/build/build.sh
++++ b/src/crypto/internal/boring/build/build.sh
+@@ -6,6 +6,7 @@
+ # Run on Ubuntu system set up with:
+ #	sudo apt-get install debootstrap
+ #	sudo apt-get install squid-deb-proxy
++#	sudo /etc/init.d/squid-deb-proxy start
+ #
+ # The script sets up an Ubuntu chroot and then runs the build
+ # in that chroot, to make sure we know exactly what software
+@@ -28,10 +29,10 @@ sudo umount -f $chroot/dev
+ set -e
+ if [ "$1" != "-quick" ]; then
+ 	sudo rm -rf $chroot
+-	sudo http_proxy=$http_proxy debootstrap --variant=minbase zesty $chroot
++	sudo http_proxy=$http_proxy debootstrap --variant=minbase disco $chroot
+ fi
+ 
+-sudo chown $USER $chroot
++sudo chown $(whoami) $chroot
+ sudo chmod u+w $chroot
+ 
+ sudo mount -t proc proc $chroot/proc
+@@ -43,11 +44,11 @@ sudo cp sources.list $chroot/etc/apt/sources.list
+ 
+ cp *chroot.sh $chroot
+ 
+-# Following http://csrc.nist.gov/groups/STM/cmvp/documents/140-1/140sp/140sp2964.pdf page 18.
+-if [ ! -e $chroot/boringssl-24e5886c0edfc409c8083d10f9f1120111efd6f5.tar.xz ]; then
+-	wget -O $chroot/boringssl-24e5886c0edfc409c8083d10f9f1120111efd6f5.tar.xz https://commondatastorage.googleapis.com/chromium-boringssl-docs/fips/boringssl-24e5886c0edfc409c8083d10f9f1120111efd6f5.tar.xz
++# Following https://csrc.nist.gov/CSRC/media/projects/cryptographic-module-validation-program/documents/security-policies/140sp3318.pdf page 19.
++if [ ! -e $chroot/boringssl-66005f41fbc3529ffe8d007708756720529da20d.tar.xz ]; then
++	wget -O $chroot/boringssl-66005f41fbc3529ffe8d007708756720529da20d.tar.xz https://commondatastorage.googleapis.com/chromium-boringssl-docs/fips/boringssl-66005f41fbc3529ffe8d007708756720529da20d.tar.xz
+ fi
+-if [ "$(sha256sum $chroot/boringssl-24e5886c0edfc409c8083d10f9f1120111efd6f5.tar.xz | awk '{print $1}')" != 15a65d676eeae27618e231183a1ce9804fc9c91bcc3abf5f6ca35216c02bf4da ]; then
++if [ "$(sha256sum $chroot/boringssl-66005f41fbc3529ffe8d007708756720529da20d.tar.xz | awk '{print $1}')" != b12ad676ee533824f698741bd127f6fbc82c46344398a6d78d25e62c6c418c73 ]; then
+ 	echo WRONG SHA256SUM
+ 	exit 2
+ fi
+diff --git a/src/crypto/internal/boring/build/build_in_chroot.sh b/src/crypto/internal/boring/build/build_in_chroot.sh
+index b5e5a778b6..73597e11fd 100755
+--- a/src/crypto/internal/boring/build/build_in_chroot.sh
++++ b/src/crypto/internal/boring/build/build_in_chroot.sh
+@@ -11,19 +11,19 @@ export LANG=C
+ unset LANGUAGE
+ 
+ # Build BoringCrypto libcrypto.a.
+-# Following http://csrc.nist.gov/groups/STM/cmvp/documents/140-1/140sp/140sp2964.pdf page 18.
++# Following https://csrc.nist.gov/CSRC/media/projects/cryptographic-module-validation-program/documents/security-policies/140sp3318.pdf page 19.
+ if ! [ -e ./boringssl/build/tool/bssl ]; then
+-	export PATH=$PATH:/usr/lib/go-1.8/bin:/clangbin
++	export PATH=$PATH:/usr/lib/go-1.10/bin:/clangbin
+ 
+ 	# Go requires -fPIC for linux/amd64 cgo builds.
+ 	# Setting -fPIC only affects the compilation of the non-module code in libcrypto.a,
+ 	# because the FIPS module itself is already built with -fPIC.
+ 	mkdir /clangbin
+ 	echo '#!/bin/bash
+-	exec clang-4.0 -fPIC "$@"
++	exec clang-6.0 -fPIC "$@"
+ 	' >/clangbin/clang
+ 	echo '#!/bin/bash
+-	exec clang++-4.0 -fPIC "$@"
++	exec clang++-6.0 -fPIC "$@"
+ 	' >/clangbin/clang++
+ 	chmod +x /clangbin/clang /clangbin/clang++
+ 
+@@ -32,9 +32,9 @@ if ! [ -e ./boringssl/build/tool/bssl ]; then
+ 	cd boringssl
+ 
+ 	# Verbatim instructions from BoringCrypto build docs.
+-	printf "set(CMAKE_C_COMPILER \"clang\")\nset(CMAKE_CXX_COMPILER \"clang++\")\n" >/toolchain
+-	mkdir build && cd build && cmake -GNinja -DCMAKE_TOOLCHAIN_FILE=/toolchain -DFIPS=1 -DCMAKE_BUILD_TYPE=Release ..
+-	ninja -v
++	printf "set(CMAKE_C_COMPILER \"clang\")\nset(CMAKE_CXX_COMPILER \"clang++\")\n" >${HOME}/toolchain
++	mkdir build && cd build && cmake -GNinja -DCMAKE_TOOLCHAIN_FILE=${HOME}/toolchain -DFIPS=1 -DCMAKE_BUILD_TYPE=Release ..
++	ninja
+ 	ninja run_tests
+ 
+ 	cd ../..
+@@ -134,7 +134,7 @@ cat goboringcrypto.h | awk '
+ 	/typedef struct|enum ([a-z_]+ )?{|^[ \t]/ {print;next}
+ 	{gsub(/GO_/, ""); gsub(/enum go_/, "enum "); print}
+ ' >goboringcrypto1.h
+-clang++-4.0 -std=c++11 -fPIC -I../boringssl/include -O2 -o a.out  goboringcrypto.cc
++clang++-6.0 -std=c++11 -fPIC -I../boringssl/include -O2 -o a.out  goboringcrypto.cc
+ ./a.out || exit 2
+ 
+ # Prepare copy of libcrypto.a with only the checked functions renamed and exported.
+@@ -186,7 +186,7 @@ __umodti3:
+ 
+ .section .note.GNU-stack,"",@progbits
+ EOF
+-clang-4.0 -c -o umod.o umod.s
++clang-6.0 -c -o umod.o umod.s
+ 
+ ld -r -nostdlib --whole-archive -o goboringcrypto.o libcrypto.a umod.o
+ echo __umodti3 _goboringcrypto___umodti3 >>renames.txt
+diff --git a/src/crypto/internal/boring/build/root_setup_in_chroot.sh b/src/crypto/internal/boring/build/root_setup_in_chroot.sh
+index fef91f5680..90f0f266c3 100755
+--- a/src/crypto/internal/boring/build/root_setup_in_chroot.sh
++++ b/src/crypto/internal/boring/build/root_setup_in_chroot.sh
+@@ -10,4 +10,4 @@ echo http_proxy=$http_proxy
+ export LANG=C
+ unset LANGUAGE
+ apt-get update
+-apt-get install --no-install-recommends -y cmake clang-4.0 golang-1.8-go ninja-build xz-utils
++apt-get install --no-install-recommends -y cmake clang-6.0 golang-1.10-go ninja-build xz-utils
+diff --git a/src/crypto/internal/boring/build/sources.list b/src/crypto/internal/boring/build/sources.list
+index 35df0f2a58..a5c31c0645 100644
+--- a/src/crypto/internal/boring/build/sources.list
++++ b/src/crypto/internal/boring/build/sources.list
+@@ -1,10 +1,10 @@
+-deb http://archive.ubuntu.com/ubuntu/ zesty main restricted
+-deb http://archive.ubuntu.com/ubuntu/ zesty-updates main restricted
+-deb http://archive.ubuntu.com/ubuntu/ zesty universe
+-deb http://archive.ubuntu.com/ubuntu/ zesty-updates universe
+-deb http://archive.ubuntu.com/ubuntu/ zesty multiverse
+-deb http://archive.ubuntu.com/ubuntu/ zesty-updates multiverse
+-deb http://archive.ubuntu.com/ubuntu/ zesty-backports main restricted universe multiverse
+-deb http://security.ubuntu.com/ubuntu zesty-security main restricted
+-deb http://security.ubuntu.com/ubuntu zesty-security universe
+-deb http://security.ubuntu.com/ubuntu zesty-security multiverse
++deb http://archive.ubuntu.com/ubuntu/ disco main restricted
++deb http://archive.ubuntu.com/ubuntu/ disco-updates main restricted
++deb http://archive.ubuntu.com/ubuntu/ disco universe
++deb http://archive.ubuntu.com/ubuntu/ disco-updates universe
++deb http://archive.ubuntu.com/ubuntu/ disco multiverse
++deb http://archive.ubuntu.com/ubuntu/ disco-updates multiverse
++deb http://archive.ubuntu.com/ubuntu/ disco-backports main restricted universe multiverse
++deb http://security.ubuntu.com/ubuntu disco-security main restricted
++deb http://security.ubuntu.com/ubuntu disco-security universe
++deb http://security.ubuntu.com/ubuntu disco-security multiverse
+diff --git a/src/crypto/internal/boring/goboringcrypto.h b/src/crypto/internal/boring/goboringcrypto.h
+index f982ce83c2..744496c6ef 100644
+--- a/src/crypto/internal/boring/goboringcrypto.h
++++ b/src/crypto/internal/boring/goboringcrypto.h
+@@ -28,6 +28,7 @@
+ 
+ // #include <openssl/crypto.h>
+ int _goboringcrypto_FIPS_mode(void);
++void* _goboringcrypto_OPENSSL_malloc(size_t);
+ 
+ // #include <openssl/rand.h>
+ int _goboringcrypto_RAND_bytes(uint8_t*, size_t);
+@@ -180,7 +181,7 @@ int _goboringcrypto_ECDSA_verify(int, const uint8_t*, size_t, const uint8_t*, si
+ // #include <openssl/rsa.h>
+ 
+ // Note: order of struct fields here is unchecked.
+-typedef struct GO_RSA { void *meth; GO_BIGNUM *n, *e, *d, *p, *q, *dmp1, *dmq1, *iqmp; char data[120]; } GO_RSA;
++typedef struct GO_RSA { void *meth; GO_BIGNUM *n, *e, *d, *p, *q, *dmp1, *dmq1, *iqmp; char data[160]; } GO_RSA;
+ /*unchecked (opaque)*/ typedef struct GO_BN_GENCB { char data[1]; } GO_BN_GENCB;
+ GO_RSA* _goboringcrypto_RSA_new(void);
+ void _goboringcrypto_RSA_free(GO_RSA*);
+diff --git a/src/crypto/internal/boring/goboringcrypto_linux_amd64.syso b/src/crypto/internal/boring/goboringcrypto_linux_amd64.syso
+index e439dc3cd4..4e301cc60d 100644
+Binary files a/src/crypto/internal/boring/goboringcrypto_linux_amd64.syso and b/src/crypto/internal/boring/goboringcrypto_linux_amd64.syso differ
+diff --git a/src/crypto/internal/boring/rsa.go b/src/crypto/internal/boring/rsa.go
+index 8cb55266e4..1ebf6044ba 100644
+--- a/src/crypto/internal/boring/rsa.go
++++ b/src/crypto/internal/boring/rsa.go
+@@ -102,7 +102,7 @@ func (k *PrivateKeyRSA) finalize() {
+ 	C._goboringcrypto_RSA_free(k.key)
+ }
+ 
+-func setupRSA(key *C.GO_RSA,
++func setupRSA(gokey interface{}, key *C.GO_RSA,
+ 	padding C.int, h hash.Hash, label []byte, saltLen int, ch crypto.Hash,
+ 	init func(*C.GO_EVP_PKEY_CTX) C.int) (pkey *C.GO_EVP_PKEY, ctx *C.GO_EVP_PKEY_CTX, err error) {
+ 	defer func() {
+@@ -125,6 +125,9 @@ func setupRSA(key *C.GO_RSA,
+ 	if C._goboringcrypto_EVP_PKEY_set1_RSA(pkey, key) == 0 {
+ 		return nil, nil, fail("EVP_PKEY_set1_RSA")
+ 	}
++	// key is freed by the finalizer on gokey, which is a PrivateKeyRSA or a
++	// PublicKeyRSA. Ensure it doesn't run until after the cgo calls that use key.
++	runtime.KeepAlive(gokey)
+ 	ctx = C._goboringcrypto_EVP_PKEY_CTX_new(pkey, nil)
+ 	if ctx == nil {
+ 		return nil, nil, fail("EVP_PKEY_CTX_new")
+@@ -144,9 +147,9 @@ func setupRSA(key *C.GO_RSA,
+ 			return nil, nil, fail("EVP_PKEY_set_rsa_oaep_md")
+ 		}
+ 		// ctx takes ownership of label, so malloc a copy for BoringCrypto to free.
+-		clabel := (*C.uint8_t)(C.malloc(C.size_t(len(label))))
++		clabel := (*C.uint8_t)(C._goboringcrypto_OPENSSL_malloc(C.size_t(len(label))))
+ 		if clabel == nil {
+-			return nil, nil, fail("malloc")
++			return nil, nil, fail("OPENSSL_malloc")
+ 		}
+ 		copy((*[1 << 30]byte)(unsafe.Pointer(clabel))[:len(label)], label)
+ 		if C._goboringcrypto_EVP_PKEY_CTX_set0_rsa_oaep_label(ctx, clabel, C.size_t(len(label))) == 0 {
+@@ -177,7 +180,7 @@ func cryptRSA(gokey interface{}, key *C.GO_RSA,
+ 	crypt func(*C.GO_EVP_PKEY_CTX, *C.uint8_t, *C.size_t, *C.uint8_t, C.size_t) C.int,
+ 	in []byte) ([]byte, error) {
+ 
+-	pkey, ctx, err := setupRSA(key, padding, h, label, saltLen, ch, init)
++	pkey, ctx, err := setupRSA(gokey, key, padding, h, label, saltLen, ch, init)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -192,7 +195,6 @@ func cryptRSA(gokey interface{}, key *C.GO_RSA,
+ 	if crypt(ctx, base(out), &outLen, base(in), C.size_t(len(in))) == 0 {
+ 		return nil, fail("EVP_PKEY_decrypt/encrypt")
+ 	}
+-	runtime.KeepAlive(gokey) // keep key from being freed before now
+ 	return out[:outLen], nil
+ }
+ 

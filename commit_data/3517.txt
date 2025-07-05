@@ -8,7 +8,16 @@ Date:   Mon Oct 12 22:58:32 2009 -0700
     DELTA=3  (1 added, 1 deleted, 1 changed)
     OCL=35652
     CL=35652
-
+---
  doc/logo-153x55.png | Bin 0 -> 4055 bytes
  doc/logo_blue.png   | Bin 7107 -> 0 bytes
  2 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/doc/logo-153x55.png b/doc/logo-153x55.png
+new file mode 100644
+index 0000000000..4a2446ce72
+Binary files /dev/null and b/doc/logo-153x55.png differ
+diff --git a/doc/logo_blue.png b/doc/logo_blue.png
+deleted file mode 100644
+index 350d3512a3..0000000000
+Binary files a/doc/logo_blue.png and /dev/null differ

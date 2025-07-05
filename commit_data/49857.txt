@@ -21,7 +21,65 @@ Date:   Thu Sep 16 16:11:19 2021 -0600
     Trust: Jason A. Donenfeld <Jason@zx2c4.com>
     Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/os/exec/exec_windows_test.go | 14 ++++++++++++++
  src/syscall/exec_windows.go      |  8 +++++---
  2 files changed, 19 insertions(+), 3 deletions(-)
+
+diff --git a/src/os/exec/exec_windows_test.go b/src/os/exec/exec_windows_test.go
+index fbccffec0e..bd4dfb31da 100644
+--- a/src/os/exec/exec_windows_test.go
++++ b/src/os/exec/exec_windows_test.go
+@@ -10,6 +10,7 @@ package exec_test
+ import (
+ 	"io"
+ 	"os"
++	"os/exec"
+ 	"strconv"
+ 	"syscall"
+ 	"testing"
+@@ -41,3 +42,16 @@ func TestPipePassing(t *testing.T) {
+ 		t.Error(err)
+ 	}
+ }
++
++func TestNoInheritHandles(t *testing.T) {
++	cmd := exec.Command("cmd", "/c exit 88")
++	cmd.SysProcAttr = &syscall.SysProcAttr{NoInheritHandles: true}
++	err := cmd.Run()
++	exitError, ok := err.(*exec.ExitError)
++	if !ok {
++		t.Fatalf("got error %v; want ExitError", err)
++	}
++	if exitError.ExitCode() != 88 {
++		t.Fatalf("got exit code %d; want 88", exitError.ExitCode())
++	}
++}
+diff --git a/src/syscall/exec_windows.go b/src/syscall/exec_windows.go
+index 18d15028c3..9d10d6a512 100644
+--- a/src/syscall/exec_windows.go
++++ b/src/syscall/exec_windows.go
+@@ -390,8 +390,10 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle
+ 	}
+ 	fd = fd[:j]
+ 
++	willInheritHandles := len(fd) > 0 && !sys.NoInheritHandles
++
+ 	// Do not accidentally inherit more than these handles.
+-	if len(fd) > 0 {
++	if willInheritHandles {
+ 		err = updateProcThreadAttribute(si.ProcThreadAttributeList, 0, _PROC_THREAD_ATTRIBUTE_HANDLE_LIST, unsafe.Pointer(&fd[0]), uintptr(len(fd))*unsafe.Sizeof(fd[0]), nil, nil)
+ 		if err != nil {
+ 			return 0, 0, err
+@@ -401,9 +403,9 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle
+ 	pi := new(ProcessInformation)
+ 	flags := sys.CreationFlags | CREATE_UNICODE_ENVIRONMENT | _EXTENDED_STARTUPINFO_PRESENT
+ 	if sys.Token != 0 {
+-		err = CreateProcessAsUser(sys.Token, argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, len(fd) > 0 && !sys.NoInheritHandles, flags, createEnvBlock(attr.Env), dirp, &si.StartupInfo, pi)
++		err = CreateProcessAsUser(sys.Token, argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, willInheritHandles, flags, createEnvBlock(attr.Env), dirp, &si.StartupInfo, pi)
+ 	} else {
+-		err = CreateProcess(argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, len(fd) > 0 && !sys.NoInheritHandles, flags, createEnvBlock(attr.Env), dirp, &si.StartupInfo, pi)
++		err = CreateProcess(argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, willInheritHandles, flags, createEnvBlock(attr.Env), dirp, &si.StartupInfo, pi)
+ 	}
+ 	if err != nil {
+ 		return 0, 0, err

@@ -7,6 +7,20 @@ Date:   Fri Feb 11 20:13:57 2011 -0800
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/4176046
-
+---
  src/cmd/5l/optab.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/5l/optab.c b/src/cmd/5l/optab.c
+index 9ad0193acd..8b3135e06e 100644
+--- a/src/cmd/5l/optab.c
++++ b/src/cmd/5l/optab.c
+@@ -236,7 +236,7 @@ Optab	optab[] =
+ 	{ ALDREX,	C_SOREG,C_NONE,	C_REG,		77, 4, 0 },
+ 	{ ASTREX,	C_SOREG,C_REG,	C_REG,		78, 4, 0 },
+ 
+-	{ AMOVF,	C_ZFCON,C_NONE,	C_FREG,		80, 4, 0 },
++	{ AMOVF,	C_ZFCON,C_NONE,	C_FREG,		80, 8, 0 },
+ 	{ AMOVF,	C_SFCON,C_NONE,	C_FREG,		81, 4, 0 },
+ 
+ 	{ ACMPF,	C_FREG,	C_REG,	C_NONE,		82, 8, 0 },

@@ -25,7 +25,7 @@ Date:   Wed Jan 23 17:33:35 2019 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/defs_darwin.go       |  6 ++-
  src/runtime/defs_darwin_386.go   |  6 ++-
  src/runtime/defs_darwin_amd64.go |  6 ++-
@@ -34,3 +34,209 @@ Date:   Wed Jan 23 17:33:35 2019 +0000
  src/runtime/mem_bsd.go           | 16 +-------
  src/runtime/mem_darwin.go        | 80 ++++++++++++++++++++++++++++++++++++++++
  7 files changed, 102 insertions(+), 24 deletions(-)
+
+diff --git a/src/runtime/defs_darwin.go b/src/runtime/defs_darwin.go
+index d5dc7944ee..61ae7a4186 100644
+--- a/src/runtime/defs_darwin.go
++++ b/src/runtime/defs_darwin.go
+@@ -41,8 +41,10 @@ const (
+ 	MAP_PRIVATE = C.MAP_PRIVATE
+ 	MAP_FIXED   = C.MAP_FIXED
+ 
+-	MADV_DONTNEED = C.MADV_DONTNEED
+-	MADV_FREE     = C.MADV_FREE
++	MADV_DONTNEED      = C.MADV_DONTNEED
++	MADV_FREE          = C.MADV_FREE
++	MADV_FREE_REUSABLE = C.MADV_FREE_REUSABLE
++	MADV_FREE_REUSE    = C.MADV_FREE_REUSE
+ 
+ 	SA_SIGINFO   = C.SA_SIGINFO
+ 	SA_RESTART   = C.SA_RESTART
+diff --git a/src/runtime/defs_darwin_386.go b/src/runtime/defs_darwin_386.go
+index 24a6f15ca7..ae56d154fa 100644
+--- a/src/runtime/defs_darwin_386.go
++++ b/src/runtime/defs_darwin_386.go
+@@ -19,8 +19,10 @@ const (
+ 	_MAP_PRIVATE = 0x2
+ 	_MAP_FIXED   = 0x10
+ 
+-	_MADV_DONTNEED = 0x4
+-	_MADV_FREE     = 0x5
++	_MADV_DONTNEED      = 0x4
++	_MADV_FREE          = 0x5
++	_MADV_FREE_REUSABLE = 0x7
++	_MADV_FREE_REUSE    = 0x8
+ 
+ 	_SA_SIGINFO   = 0x40
+ 	_SA_RESTART   = 0x2
+diff --git a/src/runtime/defs_darwin_amd64.go b/src/runtime/defs_darwin_amd64.go
+index dc4faeb770..a339ebd4c6 100644
+--- a/src/runtime/defs_darwin_amd64.go
++++ b/src/runtime/defs_darwin_amd64.go
+@@ -19,8 +19,10 @@ const (
+ 	_MAP_PRIVATE = 0x2
+ 	_MAP_FIXED   = 0x10
+ 
+-	_MADV_DONTNEED = 0x4
+-	_MADV_FREE     = 0x5
++	_MADV_DONTNEED      = 0x4
++	_MADV_FREE          = 0x5
++	_MADV_FREE_REUSABLE = 0x7
++	_MADV_FREE_REUSE    = 0x8
+ 
+ 	_SA_SIGINFO   = 0x40
+ 	_SA_RESTART   = 0x2
+diff --git a/src/runtime/defs_darwin_arm.go b/src/runtime/defs_darwin_arm.go
+index 52dfbd04b7..148b0a764e 100644
+--- a/src/runtime/defs_darwin_arm.go
++++ b/src/runtime/defs_darwin_arm.go
+@@ -21,8 +21,10 @@ const (
+ 	_MAP_PRIVATE = 0x2
+ 	_MAP_FIXED   = 0x10
+ 
+-	_MADV_DONTNEED = 0x4
+-	_MADV_FREE     = 0x5
++	_MADV_DONTNEED      = 0x4
++	_MADV_FREE          = 0x5
++	_MADV_FREE_REUSABLE = 0x7
++	_MADV_FREE_REUSE    = 0x8
+ 
+ 	_SA_SIGINFO   = 0x40
+ 	_SA_RESTART   = 0x2
+diff --git a/src/runtime/defs_darwin_arm64.go b/src/runtime/defs_darwin_arm64.go
+index fb5acaca3d..46e6d9ff8c 100644
+--- a/src/runtime/defs_darwin_arm64.go
++++ b/src/runtime/defs_darwin_arm64.go
+@@ -19,8 +19,10 @@ const (
+ 	_MAP_PRIVATE = 0x2
+ 	_MAP_FIXED   = 0x10
+ 
+-	_MADV_DONTNEED = 0x4
+-	_MADV_FREE     = 0x5
++	_MADV_DONTNEED      = 0x4
++	_MADV_FREE          = 0x5
++	_MADV_FREE_REUSABLE = 0x7
++	_MADV_FREE_REUSE    = 0x8
+ 
+ 	_SA_SIGINFO   = 0x40
+ 	_SA_RESTART   = 0x2
+diff --git a/src/runtime/mem_bsd.go b/src/runtime/mem_bsd.go
+index 796bb44223..cc70e806ea 100644
+--- a/src/runtime/mem_bsd.go
++++ b/src/runtime/mem_bsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd nacl netbsd openbsd solaris
++// +build dragonfly freebsd nacl netbsd openbsd solaris
+ 
+ package runtime
+ 
+@@ -42,19 +42,7 @@ func sysFault(v unsafe.Pointer, n uintptr) {
+ }
+ 
+ func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+-	flags := int32(_MAP_ANON | _MAP_PRIVATE)
+-	if raceenabled && GOOS == "darwin" {
+-		// Currently the race detector expects memory to live within a certain
+-		// range, and on Darwin 10.10 mmap is prone to ignoring hints, more so
+-		// than later versions and other BSDs (#26475). So, even though it's
+-		// potentially dangerous to MAP_FIXED, we do it in the race detection
+-		// case because it'll help maintain the race detector's invariants.
+-		//
+-		// TODO(mknyszek): Drop this once support for Darwin 10.10 is dropped,
+-		// and reconsider this when #24133 is addressed.
+-		flags |= _MAP_FIXED
+-	}
+-	p, err := mmap(v, n, _PROT_NONE, flags, -1, 0)
++	p, err := mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+ 	if err != 0 {
+ 		return nil
+ 	}
+diff --git a/src/runtime/mem_darwin.go b/src/runtime/mem_darwin.go
+new file mode 100644
+index 0000000000..fd5bba9aa7
+--- /dev/null
++++ b/src/runtime/mem_darwin.go
+@@ -0,0 +1,80 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import (
++	"unsafe"
++)
++
++// Don't split the stack as this function may be invoked without a valid G,
++// which prevents us from allocating more stack.
++//go:nosplit
++func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
++	v, err := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
++	if err != 0 {
++		return nil
++	}
++	mSysStatInc(sysStat, n)
++	return v
++}
++
++func sysUnused(v unsafe.Pointer, n uintptr) {
++	// MADV_FREE_REUSABLE is like MADV_FREE except it also propagates
++	// accounting information about the process to task_info.
++	madvise(v, n, _MADV_FREE_REUSABLE)
++}
++
++func sysUsed(v unsafe.Pointer, n uintptr) {
++	// MADV_FREE_REUSE is necessary to keep the kernel's accounting
++	// accurate. If called on any memory region that hasn't been
++	// MADV_FREE_REUSABLE'd, it's a no-op.
++	madvise(v, n, _MADV_FREE_REUSE)
++}
++
++// Don't split the stack as this function may be invoked without a valid G,
++// which prevents us from allocating more stack.
++//go:nosplit
++func sysFree(v unsafe.Pointer, n uintptr, sysStat *uint64) {
++	mSysStatDec(sysStat, n)
++	munmap(v, n)
++}
++
++func sysFault(v unsafe.Pointer, n uintptr) {
++	mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE|_MAP_FIXED, -1, 0)
++}
++
++func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
++	flags := int32(_MAP_ANON | _MAP_PRIVATE)
++	if raceenabled {
++		// Currently the race detector expects memory to live within a certain
++		// range, and on Darwin 10.10 mmap is prone to ignoring hints, moreso
++		// than later versions and other BSDs (#26475). So, even though it's
++		// potentially dangerous to MAP_FIXED, we do it in the race detection
++		// case because it'll help maintain the race detector's invariants.
++		//
++		// TODO(mknyszek): Drop this once support for Darwin 10.10 is dropped,
++		// and reconsider this when #24133 is addressed.
++		flags |= _MAP_FIXED
++	}
++	p, err := mmap(v, n, _PROT_NONE, flags, -1, 0)
++	if err != 0 {
++		return nil
++	}
++	return p
++}
++
++const _ENOMEM = 12
++
++func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
++	mSysStatInc(sysStat, n)
++
++	p, err := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
++	if err == _ENOMEM {
++		throw("runtime: out of memory")
++	}
++	if p != v || err != 0 {
++		throw("runtime: cannot map pages in arena address space")
++	}
++}

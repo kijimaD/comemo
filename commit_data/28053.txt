@@ -10,8 +10,77 @@ Date:   Wed Apr 27 12:49:27 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/22524
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
-
+---
  src/reflect/all_test.go | 25 +++++++++++++++----------
  src/reflect/type.go     |  3 +++
  src/runtime/type.go     |  3 +++
  3 files changed, 21 insertions(+), 10 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index aff8ea253b..870ccbf521 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -5659,20 +5659,25 @@ type nameTest struct {
+ }
+ 
+ var nameTests = []nameTest{
+-	{int32(0), "int32"},
+-	{D1{}, "D1"},
+-	{[]D1{}, ""},
+-	{(chan D1)(nil), ""},
+-	{(func() D1)(nil), ""},
+-	{(<-chan D1)(nil), ""},
+-	{(chan<- D1)(nil), ""},
+-	{TheNameOfThisTypeIsExactly255BytesLongSoWhenTheCompilerPrependsTheReflectTestPackageNameAndExtraStarTheLinkerRuntimeAndReflectPackagesWillHaveToCorrectlyDecodeTheSecondLengthByte0123456789_0123456789_0123456789_0123456789_0123456789_012345678(0), "TheNameOfThisTypeIsExactly255BytesLongSoWhenTheCompilerPrependsTheReflectTestPackageNameAndExtraStarTheLinkerRuntimeAndReflectPackagesWillHaveToCorrectlyDecodeTheSecondLengthByte0123456789_0123456789_0123456789_0123456789_0123456789_012345678"},
++	{(*int32)(nil), "int32"},
++	{(*D1)(nil), "D1"},
++	{(*[]D1)(nil), ""},
++	{(*chan D1)(nil), ""},
++	{(*func() D1)(nil), ""},
++	{(*<-chan D1)(nil), ""},
++	{(*chan<- D1)(nil), ""},
++	{(*interface{})(nil), ""},
++	{(*interface {
++		F()
++	})(nil), ""},
++	{(*TheNameOfThisTypeIsExactly255BytesLongSoWhenTheCompilerPrependsTheReflectTestPackageNameAndExtraStarTheLinkerRuntimeAndReflectPackagesWillHaveToCorrectlyDecodeTheSecondLengthByte0123456789_0123456789_0123456789_0123456789_0123456789_012345678)(nil), "TheNameOfThisTypeIsExactly255BytesLongSoWhenTheCompilerPrependsTheReflectTestPackageNameAndExtraStarTheLinkerRuntimeAndReflectPackagesWillHaveToCorrectlyDecodeTheSecondLengthByte0123456789_0123456789_0123456789_0123456789_0123456789_012345678"},
+ }
+ 
+ func TestNames(t *testing.T) {
+ 	for _, test := range nameTests {
+-		if got := TypeOf(test.v).Name(); got != test.want {
+-			t.Errorf("%T Name()=%q, want %q", test.v, got, test.want)
++		typ := TypeOf(test.v).Elem()
++		if got := typ.Name(); got != test.want {
++			t.Errorf("%v Name()=%q, want %q", typ, got, test.want)
+ 		}
+ 	}
+ }
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index ff6ff14c83..0213d56e83 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -867,6 +867,9 @@ func (t *rtype) Name() string {
+ 	if hasPrefix(s, "func(") {
+ 		return ""
+ 	}
++	if hasPrefix(s, "interface {") {
++		return ""
++	}
+ 	switch s[0] {
+ 	case '[', '*', '<':
+ 		return ""
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 9e4c40553a..608c601abd 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -132,6 +132,9 @@ func (t *_type) name() string {
+ 	if hasPrefix(s, "func(") {
+ 		return ""
+ 	}
++	if hasPrefix(s, "interface {") {
++		return ""
++	}
+ 	switch s[0] {
+ 	case '[', '*', '<':
+ 		return ""

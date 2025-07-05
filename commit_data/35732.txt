@@ -9,7 +9,337 @@ Date:   Mon Mar 5 19:46:18 2018 +0100
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/asm_test.go | 212 +-------------------------------
  test/codegen/mathbits.go                |  46 ++++++-
  2 files changed, 49 insertions(+), 209 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index 025fa2b45c..1e9bd20548 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -241,7 +241,7 @@ var allAsmTests = []*asmTests{
+ 	{
+ 		arch:    "arm",
+ 		os:      "linux",
+-		imports: []string{"math/bits", "runtime"},
++		imports: []string{"runtime"},
+ 		tests:   linuxARMTests,
+ 	},
+ 	{
+@@ -251,10 +251,9 @@ var allAsmTests = []*asmTests{
+ 		tests:   linuxARM64Tests,
+ 	},
+ 	{
+-		arch:    "mips",
+-		os:      "linux",
+-		imports: []string{"math/bits"},
+-		tests:   linuxMIPSTests,
++		arch:  "mips",
++		os:    "linux",
++		tests: linuxMIPSTests,
+ 	},
+ 	{
+ 		arch:  "mips64",
+@@ -580,48 +579,6 @@ var linuxAMD64Tests = []*asmTest{
+ 		`,
+ 		pos: []string{"\tROLW\t\\$8,"},
+ 	},
+-	{
+-		fn: `
+-		func f53(a uint64) int {
+-			return bits.LeadingZeros64(a)
+-		}
+-		`,
+-		pos: []string{"\tBSRQ\t"},
+-	},
+-	{
+-		fn: `
+-		func f54(a uint32) int {
+-			return bits.LeadingZeros32(a)
+-		}
+-		`,
+-		pos: []string{"\tBSRQ\t"},
+-	},
+-	{
+-		fn: `
+-		func f55(a uint16) int {
+-			return bits.LeadingZeros16(a)
+-		}
+-		`,
+-		pos: []string{"\tBSRQ\t"},
+-	},
+-	/* see ssa.go
+-	{
+-		fn:`
+-		func f56(a uint8) int {
+-			return bits.LeadingZeros8(a)
+-		}
+-		`,
+-		pos:[]string{"\tBSRQ\t"},
+-	},
+-	*/
+-	{
+-		fn: `
+-		func f57(a uint) int {
+-			return bits.LeadingZeros(a)
+-		}
+-		`,
+-		pos: []string{"\tBSRQ\t"},
+-	},
+ 	{
+ 		fn: `
+ 		func pop1(x uint64) int {
+@@ -1322,46 +1279,6 @@ var linuxS390XTests = []*asmTest{
+ 		`,
+ 		pos: []string{"\tMOVWBR\t"},
+ 	},
+-	{
+-		fn: `
+-		func f29(a uint64) int {
+-			return bits.LeadingZeros64(a)
+-		}
+-		`,
+-		pos: []string{"\tFLOGR\t"},
+-	},
+-	{
+-		fn: `
+-		func f30(a uint32) int {
+-			return bits.LeadingZeros32(a)
+-		}
+-		`,
+-		pos: []string{"\tFLOGR\t"},
+-	},
+-	{
+-		fn: `
+-		func f31(a uint16) int {
+-			return bits.LeadingZeros16(a)
+-		}
+-		`,
+-		pos: []string{"\tFLOGR\t"},
+-	},
+-	{
+-		fn: `
+-		func f32(a uint8) int {
+-			return bits.LeadingZeros8(a)
+-		}
+-		`,
+-		pos: []string{"\tFLOGR\t"},
+-	},
+-	{
+-		fn: `
+-		func f33(a uint) int {
+-			return bits.LeadingZeros(a)
+-		}
+-		`,
+-		pos: []string{"\tFLOGR\t"},
+-	},
+ 	{
+ 		// check that stack store is optimized away
+ 		fn: `
+@@ -1419,46 +1336,6 @@ var linuxARMTests = []*asmTest{
+ 		`,
+ 		pos: []string{"\tMOVW\tR[0-9]+@>25,"},
+ 	},
+-	{
+-		fn: `
+-		func f8(a uint64) int {
+-			return bits.LeadingZeros64(a)
+-		}
+-		`,
+-		pos: []string{"\tCLZ\t"},
+-	},
+-	{
+-		fn: `
+-		func f9(a uint32) int {
+-			return bits.LeadingZeros32(a)
+-		}
+-		`,
+-		pos: []string{"\tCLZ\t"},
+-	},
+-	{
+-		fn: `
+-		func f10(a uint16) int {
+-			return bits.LeadingZeros16(a)
+-		}
+-		`,
+-		pos: []string{"\tCLZ\t"},
+-	},
+-	{
+-		fn: `
+-		func f11(a uint8) int {
+-			return bits.LeadingZeros8(a)
+-		}
+-		`,
+-		pos: []string{"\tCLZ\t"},
+-	},
+-	{
+-		fn: `
+-		func f12(a uint) int {
+-			return bits.LeadingZeros(a)
+-		}
+-		`,
+-		pos: []string{"\tCLZ\t"},
+-	},
+ 	{
+ 		// make sure assembly output has matching offset and base register.
+ 		fn: `
+@@ -1593,46 +1470,6 @@ var linuxARM64Tests = []*asmTest{
+ 		`,
+ 		pos: []string{"\tREVW\t"},
+ 	},
+-	{
+-		fn: `
+-		func f29(a uint64) int {
+-			return bits.LeadingZeros64(a)
+-		}
+-		`,
+-		pos: []string{"\tCLZ\t"},
+-	},
+-	{
+-		fn: `
+-		func f30(a uint32) int {
+-			return bits.LeadingZeros32(a)
+-		}
+-		`,
+-		pos: []string{"\tCLZ\t"},
+-	},
+-	{
+-		fn: `
+-		func f31(a uint16) int {
+-			return bits.LeadingZeros16(a)
+-		}
+-		`,
+-		pos: []string{"\tCLZ\t"},
+-	},
+-	{
+-		fn: `
+-		func f32(a uint8) int {
+-			return bits.LeadingZeros8(a)
+-		}
+-		`,
+-		pos: []string{"\tCLZ\t"},
+-	},
+-	{
+-		fn: `
+-		func f33(a uint) int {
+-			return bits.LeadingZeros(a)
+-		}
+-		`,
+-		pos: []string{"\tCLZ\t"},
+-	},
+ 	{
+ 		fn: `
+ 		func f34(a uint64) uint64 {
+@@ -2014,47 +1851,6 @@ var linuxARM64Tests = []*asmTest{
+ }
+ 
+ var linuxMIPSTests = []*asmTest{
+-	// Intrinsic tests for math/bits
+-	{
+-		fn: `
+-		func f5(a uint64) int {
+-			return bits.LeadingZeros64(a)
+-		}
+-		`,
+-		pos: []string{"\tCLZ\t"},
+-	},
+-	{
+-		fn: `
+-		func f6(a uint32) int {
+-			return bits.LeadingZeros32(a)
+-		}
+-		`,
+-		pos: []string{"\tCLZ\t"},
+-	},
+-	{
+-		fn: `
+-		func f7(a uint16) int {
+-			return bits.LeadingZeros16(a)
+-		}
+-		`,
+-		pos: []string{"\tCLZ\t"},
+-	},
+-	{
+-		fn: `
+-		func f8(a uint8) int {
+-			return bits.LeadingZeros8(a)
+-		}
+-		`,
+-		pos: []string{"\tCLZ\t"},
+-	},
+-	{
+-		fn: `
+-		func f9(a uint) int {
+-			return bits.LeadingZeros(a)
+-		}
+-		`,
+-		pos: []string{"\tCLZ\t"},
+-	},
+ 	{
+ 		// check that stack store is optimized away
+ 		fn: `
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 02552e1fdb..98ee8f2a0b 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -8,6 +8,50 @@ package codegen
+ 
+ import "math/bits"
+ 
++// ----------------------- //
++//    bits.LeadingZeros    //
++// ----------------------- //
++
++func LeadingZeros(n uint) int {
++	//amd64:"BSRQ"
++	//s390x:"FLOGR"
++	//arm:"CLZ" arm64:"CLZ"
++	//mips:"CLZ"
++	return bits.LeadingZeros(n)
++}
++
++func LeadingZeros64(n uint64) int {
++	//amd64:"BSRQ"
++	//s390x:"FLOGR"
++	//arm:"CLZ" arm64:"CLZ"
++	//mips:"CLZ"
++	return bits.LeadingZeros64(n)
++}
++
++func LeadingZeros32(n uint32) int {
++	//amd64:"BSRQ"
++	//s390x:"FLOGR"
++	//arm:"CLZ" arm64:"CLZ"
++	//mips:"CLZ"
++	return bits.LeadingZeros32(n)
++}
++
++func LeadingZeros16(n uint16) int {
++	//amd64:"BSRQ"
++	//s390x:"FLOGR"
++	//arm:"CLZ" arm64:"CLZ"
++	//mips:"CLZ"
++	return bits.LeadingZeros16(n)
++}
++
++func LeadingZeros8(n uint8) int {
++	//amd64 LeadingZeros8 not intrinsified (see ssa.go)
++	//s390x:"FLOGR"
++	//arm:"CLZ" arm64:"CLZ"
++	//mips:"CLZ"
++	return bits.LeadingZeros8(n)
++}
++
+ // --------------- //
+ //    bits.Len*    //
+ // --------------- //
+@@ -45,7 +89,7 @@ func Len16(n uint16) int {
+ }
+ 
+ func Len8(n uint8) int {
+-	//amd64 Len8 not intrisified
++	//amd64 Len8 not intrisified (see ssa.go)
+ 	//s390x:"FLOGR"
+ 	//arm:"CLZ" arm64:"CLZ"
+ 	//mips:"CLZ"

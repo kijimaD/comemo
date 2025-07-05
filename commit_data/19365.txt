@@ -52,7 +52,7 @@ Date:   Thu May 15 15:34:53 2014 -0400
     R=golang-codereviews, khr
     CC=golang-codereviews, iant, r
     https://golang.org/cl/97500044
-
+---
  src/cmd/5g/reg.c                    |  64 ++++++++--------------
  src/cmd/6g/reg.c                    |  67 ++++++++---------------
  src/cmd/8g/reg.c                    |  66 ++++++++---------------
@@ -63,3 +63,655 @@ Date:   Thu May 15 15:34:53 2014 -0400
  test/fixedbugs/issue7995b.go        |   9 ++++
  test/nilptr3.go                     | 102 ++++++++++++++++++------------------
  9 files changed, 202 insertions(+), 180 deletions(-)
+
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index 3eadde4cf4..6129698f3a 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -56,28 +56,6 @@ rcmp(const void *a1, const void *a2)
+ 	return p2->varno - p1->varno;
+ }
+ 
+-static void
+-setvar(Bits *dst, Type **args)
+-{
+-	Type *t;
+-	Node *n;
+-	Addr a;
+-	Iter save;
+-	Bits bit;
+-	int z;
+-
+-	t = structfirst(&save, args);
+-	while(t != T) {
+-		n = nodarg(t, 1);
+-		a = zprog.from;
+-		naddr(n, &a, 0);
+-		bit = mkvar(R, &a);
+-		for(z=0; z<BITS; z++)
+-			dst->b[z] |= bit.b[z];
+-		t = structnext(&save);
+-	}
+-}
+-
+ void
+ excise(Flow *r)
+ {
+@@ -192,11 +170,6 @@ regopt(Prog *firstp)
+ 		ovar.b[z] = 0;
+ 	}
+ 
+-	// build lists of parameters and results
+-	setvar(&ivar, getthis(curfn->type));
+-	setvar(&ivar, getinarg(curfn->type));
+-	setvar(&ovar, getoutarg(curfn->type));
+-
+ 	/*
+ 	 * pass 1
+ 	 * build aux data structure
+@@ -837,9 +810,6 @@ mkvar(Reg *r, Adr *a)
+ 	v->nextinnode = node->opt;
+ 	node->opt = v;
+ 	
+-	if(debug['R'])
+-		print("bit=%2d et=%2E w=%d+%d %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
+-
+ 	bit = blsh(i);
+ 	if(n == D_EXTERN || n == D_STATIC)
+ 		for(z=0; z<BITS; z++)
+@@ -848,6 +818,13 @@ mkvar(Reg *r, Adr *a)
+ 		for(z=0; z<BITS; z++)
+ 			params.b[z] |= bit.b[z];
+ 
++	if(node->class == PPARAM)
++		for(z=0; z<BITS; z++)
++			ivar.b[z] |= bit.b[z];
++	if(node->class == PPARAMOUT)
++		for(z=0; z<BITS; z++)
++			ovar.b[z] |= bit.b[z];
++
+ 	// Treat values with their address taken as live at calls,
+ 	// because the garbage collector's liveness analysis in ../gc/plive.c does.
+ 	// These must be consistent or else we will elide stores and the garbage
+@@ -864,7 +841,21 @@ mkvar(Reg *r, Adr *a)
+ 	// The broader := in a closure problem is mentioned in a comment in
+ 	// closure.c:/^typecheckclosure and dcl.c:/^oldname.
+ 	if(node->addrtaken)
+-		setaddrs(bit);
++		v->addr = 1;
++
++	// Disable registerization for globals, because:
++	// (1) we might panic at any time and we want the recovery code
++	// to see the latest values (issue 1304).
++	// (2) we don't know what pointers might point at them and we want
++	// loads via those pointers to see updated values and vice versa (issue 7995).
++	//
++	// Disable registerization for results if using defer, because the deferred func
++	// might recover and return, causing the current values to be used.
++	if(node->class == PEXTERN || (hasdefer && node->class == PPARAMOUT))
++		v->addr = 1;
++
++	if(debug['R'])
++		print("bit=%2d et=%2E w=%d+%d %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
+ 
+ 	return bit;
+ 
+@@ -961,17 +952,6 @@ prop(Reg *r, Bits ref, Bits cal)
+ 				ref.b[z] = 0;
+ 			}
+ 			break;
+-
+-		default:
+-			// Work around for issue 1304:
+-			// flush modified globals before each instruction.
+-			for(z=0; z<BITS; z++) {
+-				cal.b[z] |= externs.b[z];
+-				// issue 4066: flush modified return variables in case of panic
+-				if(hasdefer)
+-					cal.b[z] |= ovar.b[z];
+-			}
+-			break;
+ 		}
+ 		for(z=0; z<BITS; z++) {
+ 			ref.b[z] = (ref.b[z] & ~r1->set.b[z]) |
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index a1f0c756aa..919a07d7bc 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -54,28 +54,6 @@ rcmp(const void *a1, const void *a2)
+ 	return p2->varno - p1->varno;
+ }
+ 
+-static void
+-setvar(Bits *dst, Type **args)
+-{
+-	Type *t;
+-	Node *n;
+-	Addr a;
+-	Iter save;
+-	Bits bit;
+-	int z;
+-
+-	t = structfirst(&save, args);
+-	while(t != T) {
+-		n = nodarg(t, 1);
+-		a = zprog.from;
+-		naddr(n, &a, 0);
+-		bit = mkvar(R, &a);
+-		for(z=0; z<BITS; z++)
+-			dst->b[z] |= bit.b[z];
+-		t = structnext(&save);
+-	}
+-}
+-
+ static void
+ setaddrs(Bits bit)
+ {
+@@ -178,11 +156,6 @@ regopt(Prog *firstp)
+ 		ovar.b[z] = 0;
+ 	}
+ 
+-	// build lists of parameters and results
+-	setvar(&ivar, getthis(curfn->type));
+-	setvar(&ivar, getinarg(curfn->type));
+-	setvar(&ovar, getoutarg(curfn->type));
+-
+ 	/*
+ 	 * pass 1
+ 	 * build aux data structure
+@@ -690,11 +663,6 @@ mkvar(Reg *r, Adr *a)
+ 	v->nextinnode = node->opt;
+ 	node->opt = v;
+ 
+-	if(debug['R'])
+-		print("bit=%2d et=%2E w=%lld+%lld %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
+-
+-	ostats.nvar++;
+-
+ 	bit = blsh(i);
+ 	if(n == D_EXTERN || n == D_STATIC)
+ 		for(z=0; z<BITS; z++)
+@@ -703,6 +671,13 @@ mkvar(Reg *r, Adr *a)
+ 		for(z=0; z<BITS; z++)
+ 			params.b[z] |= bit.b[z];
+ 
++	if(node->class == PPARAM)
++		for(z=0; z<BITS; z++)
++			ivar.b[z] |= bit.b[z];
++	if(node->class == PPARAMOUT)
++		for(z=0; z<BITS; z++)
++			ovar.b[z] |= bit.b[z];
++
+ 	// Treat values with their address taken as live at calls,
+ 	// because the garbage collector's liveness analysis in ../gc/plive.c does.
+ 	// These must be consistent or else we will elide stores and the garbage
+@@ -719,7 +694,22 @@ mkvar(Reg *r, Adr *a)
+ 	// The broader := in a closure problem is mentioned in a comment in
+ 	// closure.c:/^typecheckclosure and dcl.c:/^oldname.
+ 	if(node->addrtaken)
+-		setaddrs(bit);
++		v->addr = 1;
++
++	// Disable registerization for globals, because:
++	// (1) we might panic at any time and we want the recovery code
++	// to see the latest values (issue 1304).
++	// (2) we don't know what pointers might point at them and we want
++	// loads via those pointers to see updated values and vice versa (issue 7995).
++	//
++	// Disable registerization for results if using defer, because the deferred func
++	// might recover and return, causing the current values to be used.
++	if(node->class == PEXTERN || (hasdefer && node->class == PPARAMOUT))
++		v->addr = 1;
++
++	if(debug['R'])
++		print("bit=%2d et=%2E w=%lld+%lld %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
++	ostats.nvar++;
+ 
+ 	return bit;
+ 
+@@ -816,17 +806,6 @@ prop(Reg *r, Bits ref, Bits cal)
+ 				ref.b[z] = 0;
+ 			}
+ 			break;
+-
+-		default:
+-			// Work around for issue 1304:
+-			// flush modified globals before each instruction.
+-			for(z=0; z<BITS; z++) {
+-				cal.b[z] |= externs.b[z];
+-				// issue 4066: flush modified return variables in case of panic
+-				if(hasdefer)
+-					cal.b[z] |= ovar.b[z];
+-			}
+-			break;
+ 		}
+ 		for(z=0; z<BITS; z++) {
+ 			ref.b[z] = (ref.b[z] & ~r1->set.b[z]) |
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index 046011c905..ed019f9373 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -54,28 +54,6 @@ rcmp(const void *a1, const void *a2)
+ 	return p2->varno - p1->varno;
+ }
+ 
+-static void
+-setvar(Bits *dst, Type **args)
+-{
+-	Type *t;
+-	Node *n;
+-	Addr a;
+-	Iter save;
+-	Bits bit;
+-	int z;
+-
+-	t = structfirst(&save, args);
+-	while(t != T) {
+-		n = nodarg(t, 1);
+-		a = zprog.from;
+-		naddr(n, &a, 0);
+-		bit = mkvar(R, &a);
+-		for(z=0; z<BITS; z++)
+-			dst->b[z] |= bit.b[z];
+-		t = structnext(&save);
+-	}
+-}
+-
+ static void
+ setaddrs(Bits bit)
+ {
+@@ -148,11 +126,6 @@ regopt(Prog *firstp)
+ 		ovar.b[z] = 0;
+ 	}
+ 
+-	// build lists of parameters and results
+-	setvar(&ivar, getthis(curfn->type));
+-	setvar(&ivar, getinarg(curfn->type));
+-	setvar(&ovar, getoutarg(curfn->type));
+-
+ 	/*
+ 	 * pass 1
+ 	 * build aux data structure
+@@ -656,10 +629,6 @@ mkvar(Reg *r, Adr *a)
+ 	v->nextinnode = node->opt;
+ 	node->opt = v;
+ 
+-	if(debug['R'])
+-		print("bit=%2d et=%2E w=%d+%d %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
+-	ostats.nvar++;
+-
+ 	bit = blsh(i);
+ 	if(n == D_EXTERN || n == D_STATIC)
+ 		for(z=0; z<BITS; z++)
+@@ -667,6 +636,13 @@ mkvar(Reg *r, Adr *a)
+ 	if(n == D_PARAM)
+ 		for(z=0; z<BITS; z++)
+ 			params.b[z] |= bit.b[z];
++		
++	if(node->class == PPARAM)
++		for(z=0; z<BITS; z++)
++			ivar.b[z] |= bit.b[z];
++	if(node->class == PPARAMOUT)
++		for(z=0; z<BITS; z++)
++			ovar.b[z] |= bit.b[z];
+ 
+ 	// Treat values with their address taken as live at calls,
+ 	// because the garbage collector's liveness analysis in ../gc/plive.c does.
+@@ -684,7 +660,22 @@ mkvar(Reg *r, Adr *a)
+ 	// The broader := in a closure problem is mentioned in a comment in
+ 	// closure.c:/^typecheckclosure and dcl.c:/^oldname.
+ 	if(node->addrtaken)
+-		setaddrs(bit);
++		v->addr = 1;
++
++	// Disable registerization for globals, because:
++	// (1) we might panic at any time and we want the recovery code
++	// to see the latest values (issue 1304).
++	// (2) we don't know what pointers might point at them and we want
++	// loads via those pointers to see updated values and vice versa (issue 7995).
++	//
++	// Disable registerization for results if using defer, because the deferred func
++	// might recover and return, causing the current values to be used.
++	if(node->class == PEXTERN || (hasdefer && node->class == PPARAMOUT))
++		v->addr = 1;
++
++	if(debug['R'])
++		print("bit=%2d et=%2E w=%d+%d %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
++	ostats.nvar++;
+ 
+ 	return bit;
+ 
+@@ -781,17 +772,6 @@ prop(Reg *r, Bits ref, Bits cal)
+ 				ref.b[z] = 0;
+ 			}
+ 			break;
+-
+-		default:
+-			// Work around for issue 1304:
+-			// flush modified globals before each instruction.
+-			for(z=0; z<BITS; z++) {
+-				cal.b[z] |= externs.b[z];
+-				// issue 4066: flush modified return variables in case of panic
+-				if(hasdefer)
+-					cal.b[z] |= ovar.b[z];
+-			}
+-			break;
+ 		}
+ 		for(z=0; z<BITS; z++) {
+ 			ref.b[z] = (ref.b[z] & ~r1->set.b[z]) |
+diff --git a/test/fixedbugs/issue1304.go b/test/fixedbugs/issue1304.go
+new file mode 100644
+index 0000000000..1206e1840f
+--- /dev/null
++++ b/test/fixedbugs/issue1304.go
+@@ -0,0 +1,23 @@
++// run
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var a = 1
++
++func main() {
++	defer func() {
++		recover()
++		if a != 2 {
++			println("BUG a =", a)
++		}
++	}()
++	a = 2
++	b := a - a
++	c := 4
++	a = c / b
++	a = 3
++}
+diff --git a/test/fixedbugs/issue7995.go b/test/fixedbugs/issue7995.go
+new file mode 100644
+index 0000000000..05f116823f
+--- /dev/null
++++ b/test/fixedbugs/issue7995.go
+@@ -0,0 +1,25 @@
++// run
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 7995: globals not flushed quickly enough.
++
++package main
++
++import "fmt"
++
++var (
++	p = 1
++	q = &p
++)
++
++func main() {
++	p = 50
++	*q = 100
++	s := fmt.Sprintln(p, *q)
++	if s != "100 100\n" {
++		println("BUG:", s)
++	}
++}
+diff --git a/test/fixedbugs/issue7995b.dir/x1.go b/test/fixedbugs/issue7995b.dir/x1.go
+new file mode 100644
+index 0000000000..075911b921
+--- /dev/null
++++ b/test/fixedbugs/issue7995b.dir/x1.go
+@@ -0,0 +1,16 @@
++package x1
++
++import "fmt"
++
++var P int
++
++var b bool
++
++func F(x *int) string {
++	if b { // avoid inlining
++		F(x)
++	}
++	P = 50
++	*x = 100
++	return fmt.Sprintln(P, *x)
++}
+diff --git a/test/fixedbugs/issue7995b.dir/x2.go b/test/fixedbugs/issue7995b.dir/x2.go
+new file mode 100644
+index 0000000000..eea23eabba
+--- /dev/null
++++ b/test/fixedbugs/issue7995b.dir/x2.go
+@@ -0,0 +1,10 @@
++package main
++
++import "./x1"
++
++func main() {
++	s := x1.F(&x1.P)
++	if s != "100 100\n" {
++		println("BUG:", s)
++	}
++}
+diff --git a/test/fixedbugs/issue7995b.go b/test/fixedbugs/issue7995b.go
+new file mode 100644
+index 0000000000..2f57371e37
+--- /dev/null
++++ b/test/fixedbugs/issue7995b.go
+@@ -0,0 +1,9 @@
++// rundir
++
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 7995: globals not flushed quickly enough.
++
++package ignored
+diff --git a/test/nilptr3.go b/test/nilptr3.go
+index 08597a02d9..2757daef0b 100644
+--- a/test/nilptr3.go
++++ b/test/nilptr3.go
+@@ -17,7 +17,7 @@ type Struct struct {
+ type BigStruct struct {
+ 	X int
+ 	Y float64
+-	A [1<<20]int
++	A [1 << 20]int
+ 	Z string
+ }
+ 
+@@ -29,93 +29,94 @@ type Empty1 struct {
+ }
+ 
+ var (
+-	intp *int
+-	arrayp *[10]int
+-	array0p *[0]int
+-	bigarrayp *[1<<26]int
+-	structp *Struct
++	intp       *int
++	arrayp     *[10]int
++	array0p    *[0]int
++	bigarrayp  *[1 << 26]int
++	structp    *Struct
+ 	bigstructp *BigStruct
+-	emptyp *Empty
+-	empty1p *Empty1
++	emptyp     *Empty
++	empty1p    *Empty1
+ )
+ 
+ func f1() {
+ 	_ = *intp // ERROR "generated nil check"
+-	
++
+ 	// This one should be removed but the block copy needs
+ 	// to be turned into its own pseudo-op in order to see
+ 	// the indirect.
+ 	_ = *arrayp // ERROR "generated nil check"
+-	
+-	// 0-byte indirect doesn't suffice
++
++	// 0-byte indirect doesn't suffice.
++	// we don't registerize globals, so there are no removed repeated nil checks.
++	_ = *array0p // ERROR "generated nil check"
+ 	_ = *array0p // ERROR "generated nil check"
+-	_ = *array0p // ERROR "removed repeated nil check" 386
+ 
+-	_ = *intp // ERROR "removed repeated nil check"
+-	_ = *arrayp // ERROR "removed repeated nil check"
++	_ = *intp    // ERROR "generated nil check"
++	_ = *arrayp  // ERROR "generated nil check"
+ 	_ = *structp // ERROR "generated nil check"
+-	_ = *emptyp // ERROR "generated nil check"
+-	_ = *arrayp // ERROR "removed repeated nil check"
++	_ = *emptyp  // ERROR "generated nil check"
++	_ = *arrayp  // ERROR "generated nil check"
+ }
+ 
+ func f2() {
+ 	var (
+-		intp *int
+-		arrayp *[10]int
+-		array0p *[0]int
+-		bigarrayp *[1<<20]int
+-		structp *Struct
++		intp       *int
++		arrayp     *[10]int
++		array0p    *[0]int
++		bigarrayp  *[1 << 20]int
++		structp    *Struct
+ 		bigstructp *BigStruct
+-		emptyp *Empty
+-		empty1p *Empty1
++		emptyp     *Empty
++		empty1p    *Empty1
+ 	)
+ 
+-	_ = *intp // ERROR "generated nil check"
+-	_ = *arrayp // ERROR "generated nil check"
+-	_ = *array0p // ERROR "generated nil check"
+-	_ = *array0p // ERROR "removed repeated nil check"
+-	_ = *intp // ERROR "removed repeated nil check"
+-	_ = *arrayp // ERROR "removed repeated nil check"
+-	_ = *structp // ERROR "generated nil check"
+-	_ = *emptyp // ERROR "generated nil check"
+-	_ = *arrayp // ERROR "removed repeated nil check"
+-	_ = *bigarrayp // ERROR "generated nil check" ARM removed nil check before indirect!!
++	_ = *intp       // ERROR "generated nil check"
++	_ = *arrayp     // ERROR "generated nil check"
++	_ = *array0p    // ERROR "generated nil check"
++	_ = *array0p    // ERROR "removed repeated nil check"
++	_ = *intp       // ERROR "removed repeated nil check"
++	_ = *arrayp     // ERROR "removed repeated nil check"
++	_ = *structp    // ERROR "generated nil check"
++	_ = *emptyp     // ERROR "generated nil check"
++	_ = *arrayp     // ERROR "removed repeated nil check"
++	_ = *bigarrayp  // ERROR "generated nil check" ARM removed nil check before indirect!!
+ 	_ = *bigstructp // ERROR "generated nil check"
+-	_ = *empty1p // ERROR "generated nil check"
++	_ = *empty1p    // ERROR "generated nil check"
+ }
+ 
+ func fx10k() *[10000]int
+-var b bool
+ 
++var b bool
+ 
+ func f3(x *[10000]int) {
+ 	// Using a huge type and huge offsets so the compiler
+ 	// does not expect the memory hardware to fault.
+ 	_ = x[9999] // ERROR "generated nil check"
+-	
++
+ 	for {
+ 		if x[9999] != 0 { // ERROR "generated nil check"
+ 			break
+ 		}
+ 	}
+-	
+-	x = fx10k() 
++
++	x = fx10k()
+ 	_ = x[9999] // ERROR "generated nil check"
+ 	if b {
+ 		_ = x[9999] // ERROR "removed repeated nil check"
+ 	} else {
+ 		_ = x[9999] // ERROR "removed repeated nil check"
+-	}	
++	}
+ 	_ = x[9999] // ERROR "generated nil check"
+ 
+-	x = fx10k() 
++	x = fx10k()
+ 	if b {
+ 		_ = x[9999] // ERROR "generated nil check"
+ 	} else {
+ 		_ = x[9999] // ERROR "generated nil check"
+-	}	
++	}
+ 	_ = x[9999] // ERROR "generated nil check"
+-	
++
+ 	fx10k()
+ 	// This one is a bit redundant, if we figured out that
+ 	// x wasn't going to change across the function call.
+@@ -145,7 +146,7 @@ func f3b() {
+ 	_ = &x[9] // ERROR "removed repeated nil check"
+ }
+ 
+-func fx10() *[10]int 
++func fx10() *[10]int
+ 
+ func f4(x *[10]int) {
+ 	// Most of these have no checks because a real memory reference follows,
+@@ -153,14 +154,14 @@ func f4(x *[10]int) {
+ 	// in the first unmapped page of memory.
+ 
+ 	_ = x[9] // ERROR "removed nil check before indirect"
+-	
++
+ 	for {
+ 		if x[9] != 0 { // ERROR "removed nil check before indirect"
+ 			break
+ 		}
+ 	}
+-	
+-	x = fx10() 
++
++	x = fx10()
+ 	_ = x[9] // ERROR "removed nil check before indirect"
+ 	if b {
+ 		_ = x[9] // ERROR "removed nil check before indirect"
+@@ -169,17 +170,17 @@ func f4(x *[10]int) {
+ 	}
+ 	_ = x[9] // ERROR "removed nil check before indirect"
+ 
+-	x = fx10() 
++	x = fx10()
+ 	if b {
+ 		_ = x[9] // ERROR "removed nil check before indirect"
+ 	} else {
+ 		_ = &x[9] // ERROR "generated nil check"
+-	}	
++	}
+ 	_ = x[9] // ERROR "removed nil check before indirect"
+-	
++
+ 	fx10()
+ 	_ = x[9] // ERROR "removed nil check before indirect"
+-	
++
+ 	x = fx10()
+ 	y := fx10()
+ 	_ = &x[9] // ERROR "generated nil check"
+@@ -188,4 +189,3 @@ func f4(x *[10]int) {
+ 	x = y
+ 	_ = &x[9] // ERROR "removed repeated nil check"
+ }
+-

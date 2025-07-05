@@ -15,7 +15,40 @@ Date:   Tue Jul 24 03:47:39 2018 +0000
     Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64error.s |  2 ++
  src/cmd/internal/obj/arm64/asm7.go             | 10 ++++++++++
  2 files changed, 12 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64error.s b/src/cmd/asm/internal/asm/testdata/arm64error.s
+index be2251e442..01d23eb527 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64error.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64error.s
+@@ -89,4 +89,6 @@ TEXT errors(SB),$0
+ 	CSEL	LT, R1, R2                                       // ERROR "illegal combination"
+ 	AND	$0x22220000, R2, RSP                             // ERROR "illegal combination"
+ 	ANDS	$0x22220000, R2, RSP                             // ERROR "illegal combination"
++	LDP	(R0), (F0, F1)                                   // ERROR "invalid register pair"
++	STP	(F2, F3), (R0)                                   // ERROR "invalid register pair"
+ 	RET
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 192d65df96..ff4b1d7ec1 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -6160,6 +6160,16 @@ func (c *ctxt7) opldpstp(p *obj.Prog, o *Optab, vo int32, rbase, rl, rh, ldp uin
+ 	default:
+ 		c.ctxt.Diag("invalid instruction %v\n", p)
+ 	}
++	switch p.As {
++	case ALDP, ALDPW, ALDPSW:
++		if rl < REG_R0 || REG_R30 < rl || rh < REG_R0 || REG_R30 < rh {
++			c.ctxt.Diag("invalid register pair %v\n", p)
++		}
++	case ASTP, ASTPW:
++		if rl < REG_R0 || REG_R31 < rl || rh < REG_R0 || REG_R31 < rh {
++			c.ctxt.Diag("invalid register pair %v\n", p)
++		}
++	}
+ 	switch o.scond {
+ 	case C_XPOST:
+ 		ret |= 1 << 23

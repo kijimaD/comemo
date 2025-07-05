@@ -16,7 +16,85 @@ Date:   Mon Nov 16 20:24:58 2015 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/sniff.go      | 27 +++++++++------------------
  src/net/http/sniff_test.go |  4 +---
  2 files changed, 10 insertions(+), 21 deletions(-)
+
+diff --git a/src/net/http/sniff.go b/src/net/http/sniff.go
+index 3602969031..18810bad06 100644
+--- a/src/net/http/sniff.go
++++ b/src/net/http/sniff.go
+@@ -102,10 +102,9 @@ var sniffSignatures = []sniffSig{
+ 	&exactSig{[]byte("\x50\x4B\x03\x04"), "application/zip"},
+ 	&exactSig{[]byte("\x1F\x8B\x08"), "application/x-gzip"},
+ 
+-	// TODO(dsymonds): Re-enable this when the spec is sorted w.r.t. MP4.
+-	//mp4Sig(0),
++	mp4Sig{},
+ 
+-	textSig(0), // should be last
++	textSig{}, // should be last
+ }
+ 
+ type exactSig struct {
+@@ -166,12 +165,14 @@ func (h htmlSig) match(data []byte, firstNonWS int) string {
+ }
+ 
+ var mp4ftype = []byte("ftyp")
++var mp4 = []byte("mp4")
+ 
+-type mp4Sig int
++type mp4Sig struct{}
+ 
+ func (mp4Sig) match(data []byte, firstNonWS int) string {
+-	// c.f. section 6.1.
+-	if len(data) < 8 {
++	// https://mimesniff.spec.whatwg.org/#signature-for-mp4
++	// c.f. section 6.2.1
++	if len(data) < 12 {
+ 		return ""
+ 	}
+ 	boxSize := int(binary.BigEndian.Uint32(data[:4]))
+@@ -186,24 +187,14 @@ func (mp4Sig) match(data []byte, firstNonWS int) string {
+ 			// minor version number
+ 			continue
+ 		}
+-		seg := string(data[st : st+3])
+-		switch seg {
+-		case "mp4", "iso", "M4V", "M4P", "M4B":
++		if bytes.Equal(data[st:st+3], mp4) {
+ 			return "video/mp4"
+-			/* The remainder are not in the spec.
+-			case "M4A":
+-				return "audio/mp4"
+-			case "3gp":
+-				return "video/3gpp"
+-			case "jp2":
+-				return "image/jp2" // JPEG 2000
+-			*/
+ 		}
+ 	}
+ 	return ""
+ }
+ 
+-type textSig int
++type textSig struct{}
+ 
+ func (textSig) match(data []byte, firstNonWS int) string {
+ 	// c.f. section 5, step 4.
+diff --git a/src/net/http/sniff_test.go b/src/net/http/sniff_test.go
+index 24ca27afc1..f04b59040f 100644
+--- a/src/net/http/sniff_test.go
++++ b/src/net/http/sniff_test.go
+@@ -40,9 +40,7 @@ var sniffTests = []struct {
+ 	{"GIF 87a", []byte(`GIF87a`), "image/gif"},
+ 	{"GIF 89a", []byte(`GIF89a...`), "image/gif"},
+ 
+-	// TODO(dsymonds): Re-enable this when the spec is sorted w.r.t. MP4.
+-	//{"MP4 video", []byte("\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42isom<\x06t\xbfmdat"), "video/mp4"},
+-	//{"MP4 audio", []byte("\x00\x00\x00\x20ftypM4A \x00\x00\x00\x00M4A mp42isom\x00\x00\x00\x00"), "audio/mp4"},
++	{"MP4 video", []byte("\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42isom<\x06t\xbfmdat"), "video/mp4"},
+ }
+ 
+ func TestDetectContentType(t *testing.T) {

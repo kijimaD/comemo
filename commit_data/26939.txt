@@ -14,7 +14,49 @@ Date:   Fri Jan 29 00:32:00 2016 -0800
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/bufio/bufio.go      | 12 +++++++-----
  src/bufio/bufio_test.go |  4 ++--
  2 files changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/src/bufio/bufio.go b/src/bufio/bufio.go
+index 7cf395c6e6..d2ccc74f52 100644
+--- a/src/bufio/bufio.go
++++ b/src/bufio/bufio.go
+@@ -124,14 +124,16 @@ func (b *Reader) Peek(n int) ([]byte, error) {
+ 	if n < 0 {
+ 		return nil, ErrNegativeCount
+ 	}
+-	if n > len(b.buf) {
+-		return nil, ErrBufferFull
+-	}
+-	// 0 <= n <= len(b.buf)
+-	for b.w-b.r < n && b.err == nil {
++
++	for b.w-b.r < n && b.w-b.r < len(b.buf) && b.err == nil {
+ 		b.fill() // b.w-b.r < len(b.buf) => buffer is not full
+ 	}
+ 
++	if n > len(b.buf) {
++		return b.buf[b.r:b.w], ErrBufferFull
++	}
++
++	// 0 <= n <= len(b.buf)
+ 	var err error
+ 	if avail := b.w - b.r; avail < n {
+ 		// not enough data in buffer
+diff --git a/src/bufio/bufio_test.go b/src/bufio/bufio_test.go
+index 666c44e15a..d769a6aaa9 100644
+--- a/src/bufio/bufio_test.go
++++ b/src/bufio/bufio_test.go
+@@ -673,8 +673,8 @@ func TestPeek(t *testing.T) {
+ 	if _, err := buf.Peek(-1); err != ErrNegativeCount {
+ 		t.Fatalf("want ErrNegativeCount got %v", err)
+ 	}
+-	if _, err := buf.Peek(32); err != ErrBufferFull {
+-		t.Fatalf("want ErrBufFull got %v", err)
++	if s, err := buf.Peek(32); string(s) != "abcdefghijklmnop" || err != ErrBufferFull {
++		t.Fatalf("want %q, ErrBufFull got %q, err=%v", "abcdefghijklmnop", string(s), err)
+ 	}
+ 	if _, err := buf.Read(p[0:3]); string(p[0:3]) != "abc" || err != nil {
+ 		t.Fatalf("want %q got %q, err=%v", "abc", string(p[0:3]), err)

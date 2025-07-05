@@ -13,7 +13,7 @@ Date:   Fri Feb 26 14:28:48 2016 -0800
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/cgen.go      |  2 +-
  src/cmd/compile/internal/gc/closure.go   | 25 +++++++-------
  src/cmd/compile/internal/gc/fmt.go       | 32 ++++++++++++++++++
@@ -24,3 +24,482 @@ Date:   Fri Feb 26 14:28:48 2016 -0800
  src/cmd/compile/internal/gc/typecheck.go |  6 ++++
  src/cmd/compile/internal/gc/walk.go      | 50 +++++++++++++++-------------
  9 files changed, 157 insertions(+), 44 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index 7be050dd56..74f61129c2 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -2621,7 +2621,7 @@ func cgen_ret(n *Node) {
+ 	if hasdefer {
+ 		Ginscall(Deferreturn, 0)
+ 	}
+-	Genlist(Curfn.Func.Exit)
++	Genslice(Curfn.Func.Exit.Slice())
+ 	p := Thearch.Gins(obj.ARET, nil, nil)
+ 	if n != nil && n.Op == ORETJMP {
+ 		p.To.Type = obj.TYPE_MEM
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index c8c59ef201..401cd797dc 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -223,7 +223,7 @@ func capturevars(xfunc *Node) {
+ 	lineno = xfunc.Lineno
+ 
+ 	func_ := xfunc.Func.Closure
+-	func_.Func.Enter = nil
++	func_.Func.Enter.Set(nil)
+ 	for _, v := range func_.Func.Cvars() {
+ 		if v.Type == nil {
+ 			// if v->type is nil, it means v looked like it was
+@@ -265,7 +265,7 @@ func capturevars(xfunc *Node) {
+ 		}
+ 
+ 		typecheck(&outer, Erv)
+-		func_.Func.Enter = list(func_.Func.Enter, outer)
++		func_.Func.Enter.Append(outer)
+ 	}
+ 
+ 	lineno = int32(lno)
+@@ -350,9 +350,7 @@ func transformclosure(xfunc *Node) {
+ 		xfunc.Type = f.Type // update type of ODCLFUNC
+ 	} else {
+ 		// The closure is not called, so it is going to stay as closure.
+-		nvar := 0
+-
+-		var body *NodeList
++		var body []*Node
+ 		offset := int64(Widthptr)
+ 		var addr *Node
+ 		var cv *Node
+@@ -360,7 +358,6 @@ func transformclosure(xfunc *Node) {
+ 			if v.Op == OXXX {
+ 				continue
+ 			}
+-			nvar++
+ 
+ 			// cv refers to the field inside of closure OSTRUCTLIT.
+ 			cv = Nod(OCLOSUREVAR, nil, nil)
+@@ -378,7 +375,7 @@ func transformclosure(xfunc *Node) {
+ 				v.Class = PAUTO
+ 				v.Ullman = 1
+ 				xfunc.Func.Dcl = append(xfunc.Func.Dcl, v)
+-				body = list(body, Nod(OAS, v, cv))
++				body = append(body, Nod(OAS, v, cv))
+ 			} else {
+ 				// Declare variable holding addresses taken from closure
+ 				// and initialize in entry prologue.
+@@ -392,14 +389,16 @@ func transformclosure(xfunc *Node) {
+ 				if v.Name.Byval {
+ 					cv = Nod(OADDR, cv, nil)
+ 				}
+-				body = list(body, Nod(OAS, addr, cv))
++				body = append(body, Nod(OAS, addr, cv))
+ 			}
+ 		}
+ 
+-		typechecklist(body, Etop)
+-		walkstmtlist(body)
+-		xfunc.Func.Enter = body
+-		xfunc.Func.Needctxt = nvar > 0
++		if len(body) > 0 {
++			typecheckslice(body, Etop)
++			walkstmtslice(body)
++			xfunc.Func.Enter.Set(body)
++			xfunc.Func.Needctxt = true
++		}
+ 	}
+ 
+ 	lineno = int32(lno)
+@@ -443,7 +442,7 @@ func walkclosure(func_ *Node, init **NodeList) *Node {
+ 	clos := Nod(OCOMPLIT, nil, Nod(OIND, typ, nil))
+ 	clos.Esc = func_.Esc
+ 	clos.Right.Implicit = true
+-	clos.List = concat(list1(Nod(OCFUNC, func_.Func.Closure.Func.Nname, nil)), func_.Func.Enter)
++	clos.List = concat(list1(Nod(OCFUNC, func_.Func.Closure.Func.Nname, nil)), func_.Func.Enter.NodeList())
+ 
+ 	// Force type conversion from *struct to the func type.
+ 	clos = Nod(OCONVNOP, clos, nil)
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index c0a1170839..9327a13d91 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -1729,10 +1729,42 @@ func Hconv(l *NodeList, flag int) string {
+ 	return buf.String()
+ }
+ 
++func Hconvslice(l []*Node, flag int) string {
++	if len(l) == 0 && fmtmode == FDbg {
++		return "<nil>"
++	}
++
++	sf := flag
++	sm, sb := setfmode(&flag)
++	sep := "; "
++	if fmtmode == FDbg {
++		sep = "\n"
++	} else if flag&obj.FmtComma != 0 {
++		sep = ", "
++	}
++
++	var buf bytes.Buffer
++	for i, n := range l {
++		buf.WriteString(Nconv(n, 0))
++		if i+1 < len(l) {
++			buf.WriteString(sep)
++		}
++	}
++
++	flag = sf
++	fmtbody = sb
++	fmtmode = sm
++	return buf.String()
++}
++
+ func dumplist(s string, l *NodeList) {
+ 	fmt.Printf("%s%v\n", s, Hconv(l, obj.FmtSign))
+ }
+ 
++func dumpslice(s string, l []*Node) {
++	fmt.Printf("%s%v\n", s, Hconvslice(l, obj.FmtSign))
++}
++
+ func Dump(s string, n *Node) {
+ 	fmt.Printf("%s [%p]%v\n", s, n, Nconv(n, obj.FmtSign))
+ }
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index adebfb81d0..4edef2b97a 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -219,6 +219,12 @@ func Genlist(l *NodeList) {
+ 	}
+ }
+ 
++func Genslice(l []*Node) {
++	for _, n := range l {
++		gen(n)
++	}
++}
++
+ // generate code to start new proc running call n.
+ func cgen_proc(n *Node, proc int) {
+ 	switch n.Left.Op {
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 475d8e7b83..6c5fb2d35b 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -471,7 +471,7 @@ func compile(fn *Node) {
+ 		}
+ 	}
+ 
+-	Genlist(Curfn.Func.Enter)
++	Genslice(Curfn.Func.Enter.Slice())
+ 	Genlist(Curfn.Nbody)
+ 	gclean()
+ 	checklabels()
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index d1ae6be0ad..d1f6cefec5 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -58,7 +58,7 @@ func instrument(fn *Node) {
+ 		instrumentlist(fn.Nbody, nil)
+ 
+ 		// nothing interesting for race detector in fn->enter
+-		instrumentlist(fn.Func.Exit, nil)
++		instrumentslice(fn.Func.Exit.Slice(), nil)
+ 	}
+ 
+ 	if flag_race != 0 {
+@@ -71,18 +71,18 @@ func instrument(fn *Node) {
+ 		nodpc.Type = Types[TUINTPTR]
+ 		nodpc.Xoffset = int64(-Widthptr)
+ 		nd := mkcall("racefuncenter", nil, nil, nodpc)
+-		fn.Func.Enter = concat(list1(nd), fn.Func.Enter)
++		fn.Func.Enter.Set(append([]*Node{nd}, fn.Func.Enter.Slice()...))
+ 		nd = mkcall("racefuncexit", nil, nil)
+-		fn.Func.Exit = list(fn.Func.Exit, nd)
++		fn.Func.Exit.Append(nd)
+ 	}
+ 
+ 	if Debug['W'] != 0 {
+ 		s := fmt.Sprintf("after instrument %v", fn.Func.Nname.Sym)
+ 		dumplist(s, fn.Nbody)
+ 		s = fmt.Sprintf("enter %v", fn.Func.Nname.Sym)
+-		dumplist(s, fn.Func.Enter)
++		dumpslice(s, fn.Func.Enter.Slice())
+ 		s = fmt.Sprintf("exit %v", fn.Func.Nname.Sym)
+-		dumplist(s, fn.Func.Exit)
++		dumpslice(s, fn.Func.Exit.Slice())
+ 	}
+ }
+ 
+@@ -100,6 +100,18 @@ func instrumentlist(l *NodeList, init **NodeList) {
+ 	}
+ }
+ 
++func instrumentslice(l []*Node, init **NodeList) {
++	for i := range l {
++		var instr *NodeList
++		instrumentnode(&l[i], &instr, 0, 0)
++		if init == nil {
++			l[i].Ninit = concat(l[i].Ninit, instr)
++		} else {
++			*init = concat(*init, instr)
++		}
++	}
++}
++
+ // walkexpr and walkstmt combined
+ // walks the tree and adds calls to the
+ // instrumentation code to top-level (statement) nodes' init
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index edc3f3ca10..4e988360f1 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -149,8 +149,8 @@ type Param struct {
+ // Func holds Node fields used only with function-like nodes.
+ type Func struct {
+ 	Shortname  *Node
+-	Enter      *NodeList
+-	Exit       *NodeList
++	Enter      Nodes
++	Exit       Nodes
+ 	cvars      *[]*Node // closure params
+ 	Dcl        []*Node  // autodcl for this func/closure
+ 	Inldcl     *[]*Node // copy of dcl for use in inlining
+@@ -506,3 +506,55 @@ func count(l *NodeList) int {
+ 	}
+ 	return int(n)
+ }
++
++// Nodes is a pointer to a slice of *Node.
++// For fields that are not used in most nodes, this is used instead of
++// a slice to save space.
++type Nodes struct{ slice *[]*Node }
++
++// Slice returns the entries in Nodes as a slice.
++// Changes to the slice entries (as in s[i] = n) will be reflected in
++// the Nodes.
++func (n *Nodes) Slice() []*Node {
++	if n.slice == nil {
++		return nil
++	}
++	return *n.slice
++}
++
++// NodeList returns the entries in Nodes as a NodeList.
++// Changes to the NodeList entries (as in l.N = n) will *not* be
++// reflect in the Nodes.
++// This wastes memory and should be used as little as possible.
++func (n *Nodes) NodeList() *NodeList {
++	if n.slice == nil {
++		return nil
++	}
++	var ret *NodeList
++	for _, n := range *n.slice {
++		ret = list(ret, n)
++	}
++	return ret
++}
++
++// Set sets Nodes to a slice.
++// This takes ownership of the slice.
++func (n *Nodes) Set(s []*Node) {
++	if len(s) == 0 {
++		n.slice = nil
++	} else {
++		n.slice = &s
++	}
++}
++
++// Append appends entries to Nodes.
++// If a slice is passed in, this will take ownership of it.
++func (n *Nodes) Append(a ...*Node) {
++	if n.slice == nil {
++		if len(a) > 0 {
++			n.slice = &a
++		}
++	} else {
++		*n.slice = append(*n.slice, a...)
++	}
++}
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 395f04c21b..04455515e6 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -40,6 +40,12 @@ func typechecklist(l *NodeList, top int) {
+ 	}
+ }
+ 
++func typecheckslice(l []*Node, top int) {
++	for i := range l {
++		typecheck(&l[i], top)
++	}
++}
++
+ var _typekind = []string{
+ 	TINT:        "int",
+ 	TUINT:       "uint",
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index acc923a866..5e1db64df4 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -71,9 +71,9 @@ func walk(fn *Node) {
+ 	}
+ 
+ 	heapmoves()
+-	if Debug['W'] != 0 && Curfn.Func.Enter != nil {
++	if Debug['W'] != 0 && len(Curfn.Func.Enter.Slice()) > 0 {
+ 		s := fmt.Sprintf("enter %v", Curfn.Func.Nname.Sym)
+-		dumplist(s, Curfn.Func.Enter)
++		dumpslice(s, Curfn.Func.Enter.Slice())
+ 	}
+ }
+ 
+@@ -83,6 +83,12 @@ func walkstmtlist(l *NodeList) {
+ 	}
+ }
+ 
++func walkstmtslice(l []*Node) {
++	for i := range l {
++		walkstmt(&l[i])
++	}
++}
++
+ func samelist(a *NodeList, b *NodeList) bool {
+ 	for ; a != nil && b != nil; a, b = a.Next, b.Next {
+ 		if a.N != b.N {
+@@ -320,7 +326,7 @@ func walkstmt(np **Node) {
+ 			ll := ascompatee(n.Op, rl, n.List, &n.Ninit)
+ 			n.List = reorder3(ll)
+ 			for lr := n.List; lr != nil; lr = lr.Next {
+-				lr.N = applywritebarrier(lr.N, &n.Ninit)
++				lr.N = applywritebarrier(lr.N)
+ 			}
+ 			break
+ 		}
+@@ -588,9 +594,9 @@ opswitch:
+ 			// transformclosure already did all preparation work.
+ 
+ 			// Prepend captured variables to argument list.
+-			n.List = concat(n.Left.Func.Enter, n.List)
++			n.List = concat(n.Left.Func.Enter.NodeList(), n.List)
+ 
+-			n.Left.Func.Enter = nil
++			n.Left.Func.Enter.Set(nil)
+ 
+ 			// Replace OCLOSURE with ONAME/PFUNC.
+ 			n.Left = n.Left.Func.Closure.Func.Nname
+@@ -724,7 +730,7 @@ opswitch:
+ 			r := convas(Nod(OAS, n.Left, n.Right), init)
+ 			r.Dodata = n.Dodata
+ 			n = r
+-			n = applywritebarrier(n, init)
++			n = applywritebarrier(n)
+ 		}
+ 
+ 	case OAS2:
+@@ -735,7 +741,7 @@ opswitch:
+ 		ll := ascompatee(OAS, n.List, n.Rlist, init)
+ 		ll = reorder3(ll)
+ 		for lr := ll; lr != nil; lr = lr.Next {
+-			lr.N = applywritebarrier(lr.N, init)
++			lr.N = applywritebarrier(lr.N)
+ 		}
+ 		n = liststmt(ll)
+ 
+@@ -750,7 +756,7 @@ opswitch:
+ 
+ 		ll := ascompatet(n.Op, n.List, &r.Type, 0, init)
+ 		for lr := ll; lr != nil; lr = lr.Next {
+-			lr.N = applywritebarrier(lr.N, init)
++			lr.N = applywritebarrier(lr.N)
+ 		}
+ 		n = liststmt(concat(list1(r), ll))
+ 
+@@ -2133,7 +2139,7 @@ func needwritebarrier(l *Node, r *Node) bool {
+ 
+ // TODO(rsc): Perhaps componentgen should run before this.
+ 
+-func applywritebarrier(n *Node, init **NodeList) *Node {
++func applywritebarrier(n *Node) *Node {
+ 	if n.Left != nil && n.Right != nil && needwritebarrier(n.Left, n.Right) {
+ 		if Debug_wb > 1 {
+ 			Warnl(int(n.Lineno), "marking %v for barrier", Nconv(n.Left, 0))
+@@ -2542,12 +2548,12 @@ func vmatch1(l *Node, r *Node) bool {
+ // walk through argin parameters.
+ // generate and return code to allocate
+ // copies of escaped parameters to the heap.
+-func paramstoheap(argin **Type, out int) *NodeList {
++func paramstoheap(argin **Type, out int) []*Node {
+ 	var savet Iter
+ 	var v *Node
+ 	var as *Node
+ 
+-	var nn *NodeList
++	var nn []*Node
+ 	for t := Structfirst(&savet, argin); t != nil; t = structnext(&savet) {
+ 		v = t.Nname
+ 		if v != nil && v.Sym != nil && v.Sym.Name[0] == '~' && v.Sym.Name[1] == 'r' { // unnamed result
+@@ -2560,7 +2566,7 @@ func paramstoheap(argin **Type, out int) *NodeList {
+ 			// Defer might stop a panic and show the
+ 			// return values as they exist at the time of panic.
+ 			// Make sure to zero them on entry to the function.
+-			nn = list(nn, Nod(OAS, nodarg(t, 1), nil))
++			nn = append(nn, Nod(OAS, nodarg(t, 1), nil))
+ 		}
+ 
+ 		if v == nil || v.Class&PHEAP == 0 {
+@@ -2574,13 +2580,13 @@ func paramstoheap(argin **Type, out int) *NodeList {
+ 		if prealloc[v] == nil {
+ 			prealloc[v] = callnew(v.Type)
+ 		}
+-		nn = list(nn, Nod(OAS, v.Name.Heapaddr, prealloc[v]))
++		nn = append(nn, Nod(OAS, v.Name.Heapaddr, prealloc[v]))
+ 		if v.Class&^PHEAP != PPARAMOUT {
+ 			as = Nod(OAS, v, v.Name.Param.Stackparam)
+ 			v.Name.Param.Stackparam.Typecheck = 1
+ 			typecheck(&as, Etop)
+-			as = applywritebarrier(as, &nn)
+-			nn = list(nn, as)
++			as = applywritebarrier(as)
++			nn = append(nn, as)
+ 		}
+ 	}
+ 
+@@ -2588,17 +2594,17 @@ func paramstoheap(argin **Type, out int) *NodeList {
+ }
+ 
+ // walk through argout parameters copying back to stack
+-func returnsfromheap(argin **Type) *NodeList {
++func returnsfromheap(argin **Type) []*Node {
+ 	var savet Iter
+ 	var v *Node
+ 
+-	var nn *NodeList
++	var nn []*Node
+ 	for t := Structfirst(&savet, argin); t != nil; t = structnext(&savet) {
+ 		v = t.Nname
+ 		if v == nil || v.Class != PHEAP|PPARAMOUT {
+ 			continue
+ 		}
+-		nn = list(nn, Nod(OAS, v.Name.Param.Stackparam, v))
++		nn = append(nn, Nod(OAS, v.Name.Param.Stackparam, v))
+ 	}
+ 
+ 	return nn
+@@ -2611,11 +2617,11 @@ func heapmoves() {
+ 	lno := lineno
+ 	lineno = Curfn.Lineno
+ 	nn := paramstoheap(getthis(Curfn.Type), 0)
+-	nn = concat(nn, paramstoheap(getinarg(Curfn.Type), 0))
+-	nn = concat(nn, paramstoheap(Getoutarg(Curfn.Type), 1))
+-	Curfn.Func.Enter = concat(Curfn.Func.Enter, nn)
++	nn = append(nn, paramstoheap(getinarg(Curfn.Type), 0)...)
++	nn = append(nn, paramstoheap(Getoutarg(Curfn.Type), 1)...)
++	Curfn.Func.Enter.Append(nn...)
+ 	lineno = Curfn.Func.Endlineno
+-	Curfn.Func.Exit = returnsfromheap(Getoutarg(Curfn.Type))
++	Curfn.Func.Exit.Append(returnsfromheap(Getoutarg(Curfn.Type))...)
+ 	lineno = lno
+ }
+ 

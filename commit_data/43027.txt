@@ -16,9 +16,106 @@ Date:   Fri Feb 28 12:59:38 2020 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/signal_unix.go                   | 24 ++++++++++++++++++++++++
  test/fixedbugs/issue37513.dir/main.go        | 27 +++++++++++++++++++++++++++
  test/fixedbugs/issue37513.dir/sigill_amd64.s |  7 +++++++
  test/fixedbugs/issue37513.go                 |  9 +++++++++
  4 files changed, 67 insertions(+)
+
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index d2e6693805..32b192c977 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -607,6 +607,30 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 		print("signal arrived during cgo execution\n")
+ 		gp = _g_.m.lockedg.ptr()
+ 	}
++	if sig == _SIGILL {
++		// It would be nice to know how long the instruction is.
++		// Unfortunately, that's complicated to do in general (mostly for x86
++		// and s930x, but other archs have non-standard instruction lengths also).
++		// Opt to print 16 bytes, which covers most instructions.
++		const maxN = 16
++		n := uintptr(maxN)
++		// We have to be careful, though. If we're near the end of
++		// a page and the following page isn't mapped, we could
++		// segfault. So make sure we don't straddle a page (even though
++		// that could lead to printing an incomplete instruction).
++		// We're assuming here we can read at least the page containing the PC.
++		// I suppose it is possible that the page is mapped executable but not readable?
++		pc := c.sigpc()
++		if n > physPageSize-pc%physPageSize {
++			n = physPageSize - pc%physPageSize
++		}
++		print("instruction bytes:")
++		b := (*[maxN]byte)(unsafe.Pointer(pc))
++		for i := uintptr(0); i < n; i++ {
++			print(" ", hex(b[i]))
++		}
++		println()
++	}
+ 	print("\n")
+ 
+ 	level, _, docrash := gotraceback()
+diff --git a/test/fixedbugs/issue37513.dir/main.go b/test/fixedbugs/issue37513.dir/main.go
+new file mode 100644
+index 0000000000..75106521b6
+--- /dev/null
++++ b/test/fixedbugs/issue37513.dir/main.go
+@@ -0,0 +1,27 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"bytes"
++	"fmt"
++	"os"
++	"os/exec"
++)
++
++func main() {
++	if len(os.Args) > 1 {
++		// Generate a SIGILL.
++		sigill()
++		return
++	}
++	// Run ourselves with an extra argument. That process should SIGILL.
++	out, _ := exec.Command(os.Args[0], "foo").CombinedOutput()
++	want := "instruction bytes: 0xf 0xb 0xc3"
++	if !bytes.Contains(out, []byte(want)) {
++		fmt.Printf("got:\n%s\nwant:\n%s\n", string(out), want)
++	}
++}
++func sigill()
+diff --git a/test/fixedbugs/issue37513.dir/sigill_amd64.s b/test/fixedbugs/issue37513.dir/sigill_amd64.s
+new file mode 100644
+index 0000000000..43260c21ae
+--- /dev/null
++++ b/test/fixedbugs/issue37513.dir/sigill_amd64.s
+@@ -0,0 +1,7 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT ·sigill(SB),0,$0-0
++	UD2	// generates a SIGILL
++	RET
+diff --git a/test/fixedbugs/issue37513.go b/test/fixedbugs/issue37513.go
+new file mode 100644
+index 0000000000..e05b2d861f
+--- /dev/null
++++ b/test/fixedbugs/issue37513.go
+@@ -0,0 +1,9 @@
++// buildrundir
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux,amd64 darwin,amd64 linux,386
++
++package ignored

@@ -14,6 +14,19 @@ Date:   Wed Dec 4 18:01:05 2019 -0500
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/list_constraints.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/testdata/script/list_constraints.txt b/src/cmd/go/testdata/script/list_constraints.txt
+index 665670e190..7115c365f0 100644
+--- a/src/cmd/go/testdata/script/list_constraints.txt
++++ b/src/cmd/go/testdata/script/list_constraints.txt
+@@ -3,6 +3,7 @@
+ 
+ # Linux and cgo files should be included when building in that configuration.
+ env GOOS=linux
++env GOARCH=amd64
+ env CGO_ENABLED=1
+ go list -f '{{range .GoFiles}}{{.}} {{end}}'
+ stdout '^cgotag.go empty.go suffix_linux.go tag.go $'

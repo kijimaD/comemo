@@ -11,6 +11,30 @@ Date:   Fri Aug 21 21:30:24 2009 -0700
     DELTA=15  (15 added, 0 deleted, 0 changed)
     OCL=33701
     CL=33709
-
+---
  test/fixedbugs/bug195.go | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/test/fixedbugs/bug195.go b/test/fixedbugs/bug195.go
+index 4d679e2f34..27bbbd354a 100644
+--- a/test/fixedbugs/bug195.go
++++ b/test/fixedbugs/bug195.go
+@@ -10,3 +10,18 @@ type I1 interface { I2 }	// ERROR "interface"
+ type I2 int
+ 
+ type I3 interface { int }	// ERROR "interface"
++
++type S struct {
++	x interface{ S }	// ERROR "interface"
++}
++type I4 interface {
++	I4	// ERROR "interface"
++}
++
++type I5 interface {
++	I6
++}
++
++type I6 interface {
++	I5	// ERROR "interface"
++}

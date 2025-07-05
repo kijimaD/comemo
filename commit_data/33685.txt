@@ -12,6 +12,52 @@ Date:   Tue Jul 25 19:18:58 2017 -0300
     Change-Id: Idf920398f1c3b9d185af9df5ce9293f2361db022
     Reviewed-on: https://go-review.googlesource.com/51170
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/runtime/trace/example_test.go | 39 +++++++++++++++++++++++++++++++++++++++
  1 file changed, 39 insertions(+)
+
+diff --git a/src/runtime/trace/example_test.go b/src/runtime/trace/example_test.go
+new file mode 100644
+index 0000000000..ba96a829a3
+--- /dev/null
++++ b/src/runtime/trace/example_test.go
+@@ -0,0 +1,39 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package trace_test
++
++import (
++	"fmt"
++	"log"
++	"os"
++	"runtime/trace"
++)
++
++// Example demonstrates the use of the trace package to trace
++// the execution of a Go program. The trace output will be
++// written to the file trace.out
++func Example() {
++	f, err := os.Create("trace.out")
++	if err != nil {
++		log.Fatalf("failed to create trace output file: %v", err)
++	}
++	defer func() {
++		if err := f.Close(); err != nil {
++			log.Fatalf("failed to close trace file: %v", err)
++		}
++	}()
++
++	if err := trace.Start(f); err != nil {
++		log.Fatalf("failed to start trace: %v", err)
++	}
++	defer trace.Stop()
++
++	// your program here
++	RunMyProgram()
++}
++
++func RunMyProgram() {
++	fmt.Printf("this function will be traced")
++}

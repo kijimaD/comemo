@@ -12,7 +12,34 @@ Date:   Fri May 7 10:47:28 2021 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Heschi Kreinick <heschi@google.com>
-
+---
  src/net/http/httputil/reverseproxy_test.go | 2 +-
  src/net/http/socks_bundle.go               | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index b89eb90ad6..22720caf93 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -1209,7 +1209,7 @@ func TestReverseProxyWebSocket(t *testing.T) {
+ 	}
+ }
+ 
+-func TestReverseProxyWebSocketCancelation(t *testing.T) {
++func TestReverseProxyWebSocketCancellation(t *testing.T) {
+ 	n := 5
+ 	triggerCancelCh := make(chan bool, n)
+ 	nthResponse := func(i int) string {
+diff --git a/src/net/http/socks_bundle.go b/src/net/http/socks_bundle.go
+index e446669589..e6db1c7640 100644
+--- a/src/net/http/socks_bundle.go
++++ b/src/net/http/socks_bundle.go
+@@ -453,7 +453,7 @@ func (up *socksUsernamePassword) Authenticate(ctx context.Context, rw io.ReadWri
+ 		b = append(b, up.Username...)
+ 		b = append(b, byte(len(up.Password)))
+ 		b = append(b, up.Password...)
+-		// TODO(mikio): handle IO deadlines and cancelation if
++		// TODO(mikio): handle IO deadlines and cancellation if
+ 		// necessary
+ 		if _, err := rw.Write(b); err != nil {
+ 			return err

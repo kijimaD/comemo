@@ -15,7 +15,106 @@ Date:   Thu Mar 14 00:55:05 2019 +0000
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/time/time.go      |  6 ++++++
  src/time/time_test.go | 42 +++++++++++++++++++++++++++++++++++++-----
  2 files changed, 43 insertions(+), 5 deletions(-)
+
+diff --git a/src/time/time.go b/src/time/time.go
+index d0d780fd6c..aacde0db2c 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -783,6 +783,12 @@ func fmtInt(buf []byte, v uint64) int {
+ // Nanoseconds returns the duration as an integer nanosecond count.
+ func (d Duration) Nanoseconds() int64 { return int64(d) }
+ 
++// Microseconds returns the duration as an integer microsecond count.
++func (d Duration) Microseconds() int64 { return int64(d) / 1e3 }
++
++// Milliseconds returns the duration as an integer millisecond count.
++func (d Duration) Milliseconds() int64 { return int64(d) / 1e6 }
++
+ // These methods return float64 because the dominant
+ // use case is for printing a floating point number like 1.5s, and
+ // a truncation to integer would make them not useful in those cases.
+diff --git a/src/time/time_test.go b/src/time/time_test.go
+index 76924e36f3..0ac3c3a27f 100644
+--- a/src/time/time_test.go
++++ b/src/time/time_test.go
+@@ -690,7 +690,7 @@ var gobTests = []Time{
+ 	Date(0, 1, 2, 3, 4, 5, 6, UTC),
+ 	Date(7, 8, 9, 10, 11, 12, 13, FixedZone("", 0)),
+ 	Unix(81985467080890095, 0x76543210), // Time.sec: 0x0123456789ABCDEF
+-	{},                                  // nil location
++	{}, // nil location
+ 	Date(1, 2, 3, 4, 5, 6, 7, FixedZone("", 32767*60)),
+ 	Date(1, 2, 3, 4, 5, 6, 7, FixedZone("", -32768*60)),
+ }
+@@ -1021,7 +1021,39 @@ var nsDurationTests = []struct {
+ func TestDurationNanoseconds(t *testing.T) {
+ 	for _, tt := range nsDurationTests {
+ 		if got := tt.d.Nanoseconds(); got != tt.want {
+-			t.Errorf("d.Nanoseconds() = %d; want: %d", got, tt.want)
++			t.Errorf("Duration(%s).Nanoseconds() = %d; want: %d", tt.d, got, tt.want)
++		}
++	}
++}
++
++var usDurationTests = []struct {
++	d    Duration
++	want int64
++}{
++	{Duration(-1000), -1},
++	{Duration(1000), 1},
++}
++
++func TestDurationMicroseconds(t *testing.T) {
++	for _, tt := range usDurationTests {
++		if got := tt.d.Microseconds(); got != tt.want {
++			t.Errorf("Duration(%s).Microseconds() = %d; want: %d", tt.d, got, tt.want)
++		}
++	}
++}
++
++var msDurationTests = []struct {
++	d    Duration
++	want int64
++}{
++	{Duration(-1000000), -1},
++	{Duration(1000000), 1},
++}
++
++func TestDurationMilliseconds(t *testing.T) {
++	for _, tt := range msDurationTests {
++		if got := tt.d.Milliseconds(); got != tt.want {
++			t.Errorf("Duration(%s).Milliseconds() = %d; want: %d", tt.d, got, tt.want)
+ 		}
+ 	}
+ }
+@@ -1036,7 +1068,7 @@ var secDurationTests = []struct {
+ func TestDurationSeconds(t *testing.T) {
+ 	for _, tt := range secDurationTests {
+ 		if got := tt.d.Seconds(); got != tt.want {
+-			t.Errorf("d.Seconds() = %g; want: %g", got, tt.want)
++			t.Errorf("Duration(%s).Seconds() = %g; want: %g", tt.d, got, tt.want)
+ 		}
+ 	}
+ }
+@@ -1055,7 +1087,7 @@ var minDurationTests = []struct {
+ func TestDurationMinutes(t *testing.T) {
+ 	for _, tt := range minDurationTests {
+ 		if got := tt.d.Minutes(); got != tt.want {
+-			t.Errorf("d.Minutes() = %g; want: %g", got, tt.want)
++			t.Errorf("Duration(%s).Minutes() = %g; want: %g", tt.d, got, tt.want)
+ 		}
+ 	}
+ }
+@@ -1074,7 +1106,7 @@ var hourDurationTests = []struct {
+ func TestDurationHours(t *testing.T) {
+ 	for _, tt := range hourDurationTests {
+ 		if got := tt.d.Hours(); got != tt.want {
+-			t.Errorf("d.Hours() = %g; want: %g", got, tt.want)
++			t.Errorf("Duration(%s).Hours() = %g; want: %g", tt.d, got, tt.want)
+ 		}
+ 	}
+ }

@@ -12,7 +12,62 @@ Date:   Sun Feb 28 01:11:23 2016 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/context.go |  1 +
  src/cmd/go/go_test.go | 31 +++++++++++++++++++++++++++----
  2 files changed, 28 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/context.go b/src/cmd/go/context.go
+index 0a0169eb9c..94cd54d00d 100644
+--- a/src/cmd/go/context.go
++++ b/src/cmd/go/context.go
+@@ -26,6 +26,7 @@ func newContext(c *build.Context) *Context {
+ 		GOARCH:        c.GOARCH,
+ 		GOOS:          c.GOOS,
+ 		GOROOT:        c.GOROOT,
++		GOPATH:        c.GOPATH,
+ 		CgoEnabled:    c.CgoEnabled,
+ 		UseAllFiles:   c.UseAllFiles,
+ 		Compiler:      c.Compiler,
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index aa0016ad1e..2af715a3a4 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2105,10 +2105,33 @@ func main() { C.f() }`)
+ 	tg.grepStderr(`gccgo.*\-L alibpath \-lalib`, `no Go-inline "#cgo LDFLAGS:" ("-L alibpath -lalib") passed to gccgo linking stage`)
+ }
+ 
+-func TestListTemplateCanUseContextFunction(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.run("list", "-f", "GOARCH: {{context.GOARCH}}")
++func TestListTemplateContextFunction(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	for _, tt := range []struct {
++		v    string
++		want string
++	}{
++		{"GOARCH", runtime.GOARCH},
++		{"GOOS", runtime.GOOS},
++		{"GOROOT", filepath.Clean(runtime.GOROOT())},
++		{"GOPATH", os.Getenv("GOPATH")},
++		{"CgoEnabled", ""},
++		{"UseAllFiles", ""},
++		{"Compiler", ""},
++		{"BuildTags", ""},
++		{"ReleaseTags", ""},
++		{"InstallSuffix", ""},
++	} {
++		tmpl := "{{context." + tt.v + "}}"
++		tg.run("list", "-f", tmpl)
++		if tt.want == "" {
++			continue
++		}
++		if got := strings.TrimSpace(tg.getStdout()); got != tt.want {
++			t.Errorf("go list -f %q: got %q; want %q", tmpl, got, tt.want)
++		}
++	}
+ }
+ 
+ // cmd/go: "go test" should fail if package does not build

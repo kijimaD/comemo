@@ -7,6 +7,23 @@ Date:   Tue Oct 26 10:59:30 2010 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2701042
-
+---
  src/cmd/goinstall/main.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/goinstall/main.go b/src/cmd/goinstall/main.go
+index 07ab622af0..4e9adf5e40 100644
+--- a/src/cmd/goinstall/main.go
++++ b/src/cmd/goinstall/main.go
+@@ -185,6 +185,11 @@ func install(pkg, parent string) {
+ 		return
+ 	}
+ 	for p := range m {
++		if p == "C" {
++			fmt.Fprintf(os.Stderr, "%s: %s: cgo packages are not supported yet. Try installing manually.\n", argv0, pkg)
++			errors = true
++			return
++		}
+ 		install(p, pkg)
+ 	}
+ 	if pkgname == "main" {

@@ -12,10 +12,152 @@ Date:   Tue May 26 23:18:27 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/10527
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/go.y      | 8 ++++----
  src/cmd/compile/internal/gc/lex.go    | 4 ++--
  src/cmd/compile/internal/gc/subr.go   | 2 +-
  src/cmd/compile/internal/gc/syntax.go | 6 ++----
  src/cmd/compile/internal/gc/y.go      | 8 ++++----
  5 files changed, 13 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.y b/src/cmd/compile/internal/gc/go.y
+index b37d39404c..8ffc18c466 100644
+--- a/src/cmd/compile/internal/gc/go.y
++++ b/src/cmd/compile/internal/gc/go.y
+@@ -246,7 +246,7 @@ import_stmt:
+ 
+ 		pack := Nod(OPACK, nil, nil);
+ 		pack.Sym = my;
+-		pack.Pkg = ipkg;
++		pack.Name.Pkg = ipkg;
+ 		pack.Lineno = int32($1);
+ 
+ 		if strings.HasPrefix(my.Name, ".") {
+@@ -1010,7 +1010,7 @@ pexpr_no_paren:
+ 	{
+ 		if $1.Op == OPACK {
+ 			var s *Sym
+-			s = restrictlookup($3.Name, $1.Pkg);
++			s = restrictlookup($3.Name, $1.Name.Pkg);
+ 			$1.Used = true;
+ 			$$ = oldname(s);
+ 			break;
+@@ -1299,7 +1299,7 @@ dotname:
+ 	{
+ 		if $1.Op == OPACK {
+ 			var s *Sym
+-			s = restrictlookup($3.Name, $1.Pkg);
++			s = restrictlookup($3.Name, $1.Name.Pkg);
+ 			$1.Used = true;
+ 			$$ = oldname(s);
+ 			break;
+@@ -1700,7 +1700,7 @@ packname:
+ 			pkg = localpkg;
+ 		} else {
+ 			$1.Def.Used = true;
+-			pkg = $1.Def.Pkg;
++			pkg = $1.Def.Name.Pkg;
+ 		}
+ 		$$ = restrictlookup($3.Name, pkg);
+ 	}
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 32452e6692..15e9f58c68 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -2577,7 +2577,7 @@ func mkpackage(pkgname string) {
+ 				// errors if a conflicting top-level name is
+ 				// introduced by a different file.
+ 				if !s.Def.Used && nsyntaxerrors == 0 {
+-					pkgnotused(int(s.Def.Lineno), s.Def.Pkg.Path, s.Name)
++					pkgnotused(int(s.Def.Lineno), s.Def.Name.Pkg.Path, s.Name)
+ 				}
+ 				s.Def = nil
+ 				continue
+@@ -2587,7 +2587,7 @@ func mkpackage(pkgname string) {
+ 				// throw away top-level name left over
+ 				// from previous import . "x"
+ 				if s.Def.Name != nil && s.Def.Name.Pack != nil && !s.Def.Name.Pack.Used && nsyntaxerrors == 0 {
+-					pkgnotused(int(s.Def.Name.Pack.Lineno), s.Def.Name.Pack.Pkg.Path, "")
++					pkgnotused(int(s.Def.Name.Pack.Lineno), s.Def.Name.Pack.Name.Pkg.Path, "")
+ 					s.Def.Name.Pack.Used = true
+ 				}
+ 
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index dc85dc4237..c674cc614f 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -378,7 +378,7 @@ func Nod(op int, nleft *Node, nright *Node) *Node {
+ 	case ONAME:
+ 		n.Name = new(Name)
+ 		n.Param = new(Param)
+-	case OLABEL:
++	case OLABEL, OPACK:
+ 		n.Name = new(Name)
+ 	case ODCLFIELD:
+ 		n.Param = new(Param)
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 5878c686a0..28756b7ffb 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -33,9 +33,6 @@ type Node struct {
+ 	Curfn *Node // function for local variables
+ 	Param *Param
+ 
+-	// OPACK
+-	Pkg *Pkg
+-
+ 	// Escape analysis.
+ 	Escflowsrc *NodeList // flow(this, src)
+ 	Escretval  *NodeList // on OCALLxxx, list of dummy return values
+@@ -91,9 +88,10 @@ type Node struct {
+ 	Hasbreak    bool // has break statement
+ }
+ 
+-// Name holds Node fields used only by ONAME nodes.
++// Name holds Node fields used only by named nodes (ONAME, OPACK, some OLITERAL).
+ type Name struct {
+ 	Pack      *Node // real package for import . names
++	Pkg       *Pkg  // pkg for OPACK nodes
+ 	Heapaddr  *Node // temp holding heap address of param
+ 	Inlvar    *Node // ONAME substitute while inlining
+ 	Defn      *Node // initializing assignment
+diff --git a/src/cmd/compile/internal/gc/y.go b/src/cmd/compile/internal/gc/y.go
+index 7399dde08b..5ef933b72c 100644
+--- a/src/cmd/compile/internal/gc/y.go
++++ b/src/cmd/compile/internal/gc/y.go
+@@ -1272,7 +1272,7 @@ yydefault:
+ 
+ 			pack := Nod(OPACK, nil, nil)
+ 			pack.Sym = my
+-			pack.Pkg = ipkg
++			pack.Name.Pkg = ipkg
+ 			pack.Lineno = int32(yyDollar[1].i)
+ 
+ 			if strings.HasPrefix(my.Name, ".") {
+@@ -2169,7 +2169,7 @@ yydefault:
+ 		{
+ 			if yyDollar[1].node.Op == OPACK {
+ 				var s *Sym
+-				s = restrictlookup(yyDollar[3].sym.Name, yyDollar[1].node.Pkg)
++				s = restrictlookup(yyDollar[3].sym.Name, yyDollar[1].node.Name.Pkg)
+ 				yyDollar[1].node.Used = true
+ 				yyVAL.node = oldname(s)
+ 				break
+@@ -2431,7 +2431,7 @@ yydefault:
+ 		{
+ 			if yyDollar[1].node.Op == OPACK {
+ 				var s *Sym
+-				s = restrictlookup(yyDollar[3].sym.Name, yyDollar[1].node.Pkg)
++				s = restrictlookup(yyDollar[3].sym.Name, yyDollar[1].node.Name.Pkg)
+ 				yyDollar[1].node.Used = true
+ 				yyVAL.node = oldname(s)
+ 				break
+@@ -2861,7 +2861,7 @@ yydefault:
+ 				pkg = localpkg
+ 			} else {
+ 				yyDollar[1].sym.Def.Used = true
+-				pkg = yyDollar[1].sym.Def.Pkg
++				pkg = yyDollar[1].sym.Def.Name.Pkg
+ 			}
+ 			yyVAL.sym = restrictlookup(yyDollar[3].sym.Name, pkg)
+ 		}

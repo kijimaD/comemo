@@ -9,8 +9,76 @@ Date:   Sat Feb 4 18:35:37 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5631047
-
+---
  src/pkg/unicode/casetables.go | 4 ++--
  src/pkg/unicode/maketables.go | 2 ++
  src/pkg/unicode/tables.go     | 3 +++
  3 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/unicode/casetables.go b/src/pkg/unicode/casetables.go
+index 86336b1b90..29bf167e56 100644
+--- a/src/pkg/unicode/casetables.go
++++ b/src/pkg/unicode/casetables.go
+@@ -9,7 +9,7 @@
+ 
+ package unicode
+ 
+-var TurkishCase = _TurkishCase
++var TurkishCase SpecialCase = _TurkishCase
+ var _TurkishCase = SpecialCase{
+ 	CaseRange{0x0049, 0x0049, d{0, 0x131 - 0x49, 0}},
+ 	CaseRange{0x0069, 0x0069, d{0x130 - 0x69, 0, 0x130 - 0x69}},
+@@ -17,4 +17,4 @@ var _TurkishCase = SpecialCase{
+ 	CaseRange{0x0131, 0x0131, d{0x49 - 0x131, 0, 0x49 - 0x131}},
+ }
+ 
+-var AzeriCase = _TurkishCase
++var AzeriCase SpecialCase = _TurkishCase
+diff --git a/src/pkg/unicode/maketables.go b/src/pkg/unicode/maketables.go
+index ba39fecdb3..818685d6c5 100644
+--- a/src/pkg/unicode/maketables.go
++++ b/src/pkg/unicode/maketables.go
+@@ -486,6 +486,7 @@ func printCategories() {
+ 			func(code rune) bool { return chars[code].category == name })
+ 	}
+ 	decl.Sort()
++	fmt.Println("// The following variables are of type *RangeTable:")
+ 	fmt.Println("var (")
+ 	for _, d := range decl {
+ 		fmt.Print(d)
+@@ -768,6 +769,7 @@ func printScriptOrProperty(doProps bool) {
+ 		fmt.Print("}\n\n")
+ 	}
+ 	decl.Sort()
++	fmt.Println("// The following variables are of type *RangeTable:")
+ 	fmt.Println("var (")
+ 	for _, d := range decl {
+ 		fmt.Print(d)
+diff --git a/src/pkg/unicode/tables.go b/src/pkg/unicode/tables.go
+index a3b882625e..978c48ae43 100644
+--- a/src/pkg/unicode/tables.go
++++ b/src/pkg/unicode/tables.go
+@@ -2701,6 +2701,7 @@ var _Zs = &RangeTable{
+ 	},
+ }
+ 
++// The following variables are of type *RangeTable:
+ var (
+ 	Cc     = _Cc // Cc is the set of Unicode characters in category Cc.
+ 	Cf     = _Cf // Cf is the set of Unicode characters in category Cf.
+@@ -4053,6 +4054,7 @@ var _Yi = &RangeTable{
+ 	},
+ }
+ 
++// The following variables are of type *RangeTable:
+ var (
+ 	Arabic                 = _Arabic                 // Arabic is the set of Unicode characters in script Arabic.
+ 	Armenian               = _Armenian               // Armenian is the set of Unicode characters in script Armenian.
+@@ -5114,6 +5116,7 @@ var _White_Space = &RangeTable{
+ 	},
+ }
+ 
++// The following variables are of type *RangeTable:
+ var (
+ 	ASCII_Hex_Digit                    = _ASCII_Hex_Digit                    // ASCII_Hex_Digit is the set of Unicode characters with property ASCII_Hex_Digit.
+ 	Bidi_Control                       = _Bidi_Control                       // Bidi_Control is the set of Unicode characters with property Bidi_Control.

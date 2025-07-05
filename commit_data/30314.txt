@@ -12,6 +12,19 @@ Date:   Mon Oct 31 11:43:40 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/vendor/golang_org/x/text/unicode/norm/readwriter.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/vendor/golang_org/x/text/unicode/norm/readwriter.go b/src/vendor/golang_org/x/text/unicode/norm/readwriter.go
+index 4fa0e04b21..d926ee903e 100644
+--- a/src/vendor/golang_org/x/text/unicode/norm/readwriter.go
++++ b/src/vendor/golang_org/x/text/unicode/norm/readwriter.go
+@@ -112,7 +112,6 @@ func (r *normReader) Read(p []byte) (int, error) {
+ 			}
+ 		}
+ 	}
+-	panic("should not reach here")
+ }
+ 
+ // Reader returns a new reader that implements Read

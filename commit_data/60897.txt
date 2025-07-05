@@ -10,9 +10,62 @@ Date:   Thu Sep 5 14:29:50 2024 -0700
     Reviewed-by: Tim King <taking@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/types2/expr.go     | 2 +-
  src/cmd/compile/internal/types2/literals.go | 2 +-
  src/go/types/expr.go                        | 2 +-
  src/go/types/literals.go                    | 2 +-
  4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 18524dde23..0c64265532 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1073,7 +1073,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
+ 		}
+ 
+ 	case *syntax.CompositeLit:
+-		check.compositeLit(T, x, e, hint)
++		check.compositeLit(x, e, hint)
+ 		if x.mode == invalid {
+ 			goto Error
+ 		}
+diff --git a/src/cmd/compile/internal/types2/literals.go b/src/cmd/compile/internal/types2/literals.go
+index 1b47015ae2..1a90700ade 100644
+--- a/src/cmd/compile/internal/types2/literals.go
++++ b/src/cmd/compile/internal/types2/literals.go
+@@ -104,7 +104,7 @@ func (check *Checker) funcLit(x *operand, e *syntax.FuncLit) {
+ 	}
+ }
+ 
+-func (check *Checker) compositeLit(T *target, x *operand, e *syntax.CompositeLit, hint Type) {
++func (check *Checker) compositeLit(x *operand, e *syntax.CompositeLit, hint Type) {
+ 	var typ, base Type
+ 	var isElem bool // true if composite literal is an element of an enclosing composite literal
+ 
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index eb97c89436..159dfdf4cf 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1061,7 +1061,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
+ 		}
+ 
+ 	case *ast.CompositeLit:
+-		check.compositeLit(T, x, e, hint)
++		check.compositeLit(x, e, hint)
+ 		if x.mode == invalid {
+ 			goto Error
+ 		}
+diff --git a/src/go/types/literals.go b/src/go/types/literals.go
+index 0945eed153..efcaa859dc 100644
+--- a/src/go/types/literals.go
++++ b/src/go/types/literals.go
+@@ -108,7 +108,7 @@ func (check *Checker) funcLit(x *operand, e *ast.FuncLit) {
+ 	}
+ }
+ 
+-func (check *Checker) compositeLit(T *target, x *operand, e *ast.CompositeLit, hint Type) {
++func (check *Checker) compositeLit(x *operand, e *ast.CompositeLit, hint Type) {
+ 	var typ, base Type
+ 	var isElem bool // true if composite literal is an element of an enclosing composite literal
+ 

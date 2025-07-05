@@ -19,7 +19,7 @@ Date:   Tue Oct 29 07:33:44 2024 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Vishwanatha HD <vishwanatha.hd@ibm.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/go.mod                                     |    2 +-
  src/cmd/go.sum                                     |    4 +-
  src/cmd/internal/objfile/disasm.go                 |    4 +-
@@ -31,3 +31,1866 @@ Date:   Tue Oct 29 07:33:44 2024 +0100
  .../golang.org/x/arch/s390x/s390xasm/tables.go     |   75 +-
  src/cmd/vendor/modules.txt                         |    2 +-
  10 files changed, 1437 insertions(+), 123 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 9add073013..b15cd62ab1 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -4,7 +4,7 @@ go 1.24
+ 
+ require (
+ 	github.com/google/pprof v0.0.0-20240722153945-304e4f0156b8
+-	golang.org/x/arch v0.10.1-0.20240910142527-7874f23b9c06
++	golang.org/x/arch v0.11.1-0.20241106162200-f977c2e4e3f4
+ 	golang.org/x/build v0.0.0-20240722200705-b9910f320300
+ 	golang.org/x/mod v0.20.0
+ 	golang.org/x/sync v0.8.0
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 64afa2de1b..55e0d64eea 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -6,8 +6,8 @@ github.com/ianlancetaylor/demangle v0.0.0-20240312041847-bd984b5ce465 h1:KwWnWVW
+ github.com/ianlancetaylor/demangle v0.0.0-20240312041847-bd984b5ce465/go.mod h1:gx7rwoVhcfuVKG5uya9Hs3Sxj7EIvldVofAWIUtGouw=
+ github.com/yuin/goldmark v1.6.0 h1:boZcn2GTjpsynOsC0iJHnBWa4Bi0qzfJjthwauItG68=
+ github.com/yuin/goldmark v1.6.0/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
+-golang.org/x/arch v0.10.1-0.20240910142527-7874f23b9c06 h1:UQRD9d43XiTfPsm0o04gmvWqcLLGkwqV+bOwtb7AP6c=
+-golang.org/x/arch v0.10.1-0.20240910142527-7874f23b9c06/go.mod h1:FEVrYAQjsQXMVJ1nsMoVVXPZg6p2JE2mx8psSWTDQys=
++golang.org/x/arch v0.11.1-0.20241106162200-f977c2e4e3f4 h1:B9d6SEXeIaY1QC4c7Gsf88ratIIcxShKAlz60Urrqzw=
++golang.org/x/arch v0.11.1-0.20241106162200-f977c2e4e3f4/go.mod h1:FEVrYAQjsQXMVJ1nsMoVVXPZg6p2JE2mx8psSWTDQys=
+ golang.org/x/build v0.0.0-20240722200705-b9910f320300 h1:2Cqg4LnvfD2ZpG8+6KbyYUkweWhNS3SgfcN/eeVseJ0=
+ golang.org/x/build v0.0.0-20240722200705-b9910f320300/go.mod h1:YsGhg4JUVUWLzdqU2wCrtpRrOveOql6w56FLDHq/CJ4=
+ golang.org/x/mod v0.20.0 h1:utOm6MM3R3dnawAiJgn0y+xvuYRsm1RKM/4giyfDgV0=
+diff --git a/src/cmd/internal/objfile/disasm.go b/src/cmd/internal/objfile/disasm.go
+index 5a7d288e94..4334e88fad 100644
+--- a/src/cmd/internal/objfile/disasm.go
++++ b/src/cmd/internal/objfile/disasm.go
+@@ -421,9 +421,9 @@ func disasm_s390x(code []byte, pc uint64, lookup lookupFunc, _ binary.ByteOrder,
+ 		text = "?"
+ 	} else {
+ 		if gnuAsm {
+-			text = fmt.Sprintf("%s", s390xasm.GNUSyntax(inst, pc))
++			text = fmt.Sprintf("%-36s // %s", s390xasm.GoSyntax(inst, pc, lookup), s390xasm.GNUSyntax(inst, pc))
+ 		} else {
+-			text = fmt.Sprintf("%s", "Go/plan9 syntax unsupported..!!")
++			text = s390xasm.GoSyntax(inst, pc, lookup)
+ 		}
+ 	}
+ 	return text, size
+diff --git a/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/decode.go b/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/decode.go
+index b8d857c6a6..6c25c5c327 100644
+--- a/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/decode.go
++++ b/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/decode.go
+@@ -8,6 +8,8 @@ import (
+ 	"encoding/binary"
+ 	"fmt"
+ 	"log"
++	"sort"
++	"sync"
+ )
+ 
+ const debugDecode = false
+@@ -111,6 +113,47 @@ const (
+ 	TypeLast                 // must be the last one
+ )
+ 
++type InstMaskMap struct {
++	mask uint64
++	insn map[uint64]*instFormat
++}
++
++// Note, plxv/pstxv have a 5 bit opcode in the second instruction word. Only match the most significant 5 of 6 bits of the second primary opcode.
++const lookupOpcodeMask = uint64(0xFC000000F8000000)
++
++// Three level lookup for any instruction:
++//  1. Primary opcode map to a list of secondary opcode maps.
++//  2. A list of opcodes with distinct masks, sorted by largest to smallest mask.
++//  3. A map to a specific opcodes with a given mask.
++var getLookupMap = sync.OnceValue(func() map[uint64][]InstMaskMap {
++	lMap := make(map[uint64][]InstMaskMap)
++	for idx, _ := range instFormats {
++		i := &instFormats[idx]
++		pop := i.Value & lookupOpcodeMask
++		var me *InstMaskMap
++		masks := lMap[pop]
++		for im, m := range masks {
++			if m.mask == i.Mask {
++				me = &masks[im]
++				break
++			}
++		}
++		if me == nil {
++			me = &InstMaskMap{i.Mask, map[uint64]*instFormat{}}
++			masks = append(masks, *me)
++		}
++		me.insn[i.Value] = i
++		lMap[pop] = masks
++	}
++	// Reverse sort masks to ensure extended mnemonics match before more generic forms of an opcode (e.x nop over ori 0,0,0)
++	for _, v := range lMap {
++		sort.Slice(v, func(i, j int) bool {
++			return v[i].mask > v[j].mask
++		})
++	}
++	return lMap
++})
++
+ func (t ArgType) String() string {
+ 	switch t {
+ 	default:
+@@ -191,10 +234,13 @@ func Decode(src []byte, ord binary.ByteOrder) (inst Inst, err error) {
+ 		ui |= uint64(ui_extn[1])
+ 		inst.SuffixEnc = ui_extn[1]
+ 	}
+-	for i, iform := range instFormats {
+-		if ui&iform.Mask != iform.Value {
++
++	fmts := getLookupMap()[ui&lookupOpcodeMask]
++	for i, masks := range fmts {
++		if _, fnd := masks.insn[masks.mask&ui]; !fnd {
+ 			continue
+ 		}
++		iform := masks.insn[masks.mask&ui]
+ 		if ui&iform.DontCare != 0 {
+ 			if debugDecode {
+ 				log.Printf("Decode(%#x): unused bit is 1 for Op %s", ui, iform.Op)
+diff --git a/src/cmd/vendor/golang.org/x/arch/s390x/s390xasm/field.go b/src/cmd/vendor/golang.org/x/arch/s390x/s390xasm/field.go
+index e00415fc09..29adc82149 100644
+--- a/src/cmd/vendor/golang.org/x/arch/s390x/s390xasm/field.go
++++ b/src/cmd/vendor/golang.org/x/arch/s390x/s390xasm/field.go
+@@ -6,7 +6,6 @@ package s390xasm
+ 
+ import (
+ 	"fmt"
+-	"strings"
+ )
+ 
+ // A BitField is a bit-field in a 64-bit double word.
+@@ -46,53 +45,3 @@ func (b BitField) ParseSigned(i uint64) int64 {
+ 	u := int64(b.Parse(i))
+ 	return u << (64 - b.Bits) >> (64 - b.Bits)
+ }
+-
+-// BitFields is a series of BitFields representing a single number.
+-type BitFields []BitField
+-
+-func (bs BitFields) String() string {
+-	ss := make([]string, len(bs))
+-	for i, bf := range bs {
+-		ss[i] = bf.String()
+-	}
+-	return fmt.Sprintf("<%s>", strings.Join(ss, "|"))
+-}
+-
+-func (bs *BitFields) Append(b BitField) {
+-	*bs = append(*bs, b)
+-}
+-
+-// parse extracts the bitfields from i, concatenate them and return the result
+-// as an unsigned integer and the total length of all the bitfields.
+-// parse will panic if any bitfield in b is invalid, but it doesn't check if
+-// the sequence of bitfields is reasonable.
+-func (bs BitFields) parse(i uint64) (u uint64, Bits uint8) {
+-	for _, b := range bs {
+-		u = (u << b.Bits) | uint64(b.Parse(i))
+-		Bits += b.Bits
+-	}
+-	return u, Bits
+-}
+-
+-// Parse extracts the bitfields from i, concatenate them and return the result
+-// as an unsigned integer. Parse will panic if any bitfield in b is invalid.
+-func (bs BitFields) Parse(i uint64) uint64 {
+-	u, _ := bs.parse(i)
+-	return u
+-}
+-
+-// ParseSigned extracts the bitfields from i, concatenate them and return the result
+-// as a signed integer. Parse will panic if any bitfield in b is invalid.
+-func (bs BitFields) ParseSigned(i uint64) int64 {
+-	u, l := bs.parse(i)
+-	return int64(u) << (64 - l) >> (64 - l)
+-}
+-
+-// Count the number of bits in the aggregate BitFields
+-func (bs BitFields) NumBits() int {
+-	num := 0
+-	for _, b := range bs {
+-		num += int(b.Bits)
+-	}
+-	return num
+-}
+diff --git a/src/cmd/vendor/golang.org/x/arch/s390x/s390xasm/gnu.go b/src/cmd/vendor/golang.org/x/arch/s390x/s390xasm/gnu.go
+index 5755b354e4..71b9f13849 100644
+--- a/src/cmd/vendor/golang.org/x/arch/s390x/s390xasm/gnu.go
++++ b/src/cmd/vendor/golang.org/x/arch/s390x/s390xasm/gnu.go
+@@ -280,6 +280,7 @@ func HandleExtndMnemonic(inst *Inst) string {
+ 		typ5ExtndMnics{BaseOpStr: "vfce", Value1: 2, Value2: 0, Value3: 0, Offset1: 3, Offset2: 4, Offset3: 5, ExtnOpStr: "vfcesb"},
+ 		typ5ExtndMnics{BaseOpStr: "vfce", Value1: 2, Value2: 0, Value3: 1, Offset1: 3, Offset2: 4, Offset3: 5, ExtnOpStr: "vfcesbs"},
+ 		typ5ExtndMnics{BaseOpStr: "vfce", Value1: 3, Value2: 0, Value3: 0, Offset1: 3, Offset2: 4, Offset3: 5, ExtnOpStr: "vfcedb"},
++		typ5ExtndMnics{BaseOpStr: "vfce", Value1: 3, Value2: 0, Value3: 1, Offset1: 3, Offset2: 4, Offset3: 5, ExtnOpStr: "vfcedbs"},
+ 		typ5ExtndMnics{BaseOpStr: "vfce", Value1: 2, Value2: 8, Value3: 0, Offset1: 3, Offset2: 4, Offset3: 5, ExtnOpStr: "wfcesb"},
+ 		typ5ExtndMnics{BaseOpStr: "vfce", Value1: 2, Value2: 8, Value3: 1, Offset1: 3, Offset2: 4, Offset3: 5, ExtnOpStr: "wfcesbs"},
+ 		typ5ExtndMnics{BaseOpStr: "vfce", Value1: 3, Value2: 8, Value3: 0, Offset1: 3, Offset2: 4, Offset3: 5, ExtnOpStr: "wfcedb"},
+@@ -453,8 +454,7 @@ func HandleExtndMnemonic(inst *Inst) string {
+ 	case "vavg", "vavgl", "verllv", "veslv", "vesrav", "vesrlv", "vgfm", "vgm", "vmx", "vmxl", "vmrh", "vmrl", "vmn", "vmnl", "vrep",
+ 		"vclz", "vctz", "vec", "vecl", "vlc", "vlp", "vpopct", "vrepi", "verim", "verll", "vesl", "vesra", "vesrl", "vgfma", "vlrep",
+ 		"vlgv", "vlvg", "vlbrrep", "vler", "vlbr", "vstbr", "vster", "vpk", "vme", "vmh", "vmle", "vmlh", "vmlo", "vml", "vmo", "vmae",
+-		"vmale", "vmalo", "vmal", "vmah", "vmalh", "vmao", "vmph", "vmplh", "vupl", "vupll", "vscbi", "vs", "vsum", "vsumg", "vsumq",
+-		"va", "vacc":
++		"vmale", "vmalo", "vmal", "vmah", "vmalh", "vmao", "vmph", "vmplh", "vupl", "vupll", "vscbi", "vs", "vsum", "vsumg", "vsumq", "va", "vacc":
+ 
+ 		switch opString {
+ 
+@@ -569,16 +569,18 @@ func HandleExtndMnemonic(inst *Inst) string {
+ 					break
+ 				}
+ 			}
+-		case "vsum", "vsumg":
+-			for i := 1; i < len(vecInstrExtndMnics)-4; i++ {
+-				if uint8(inst.Args[vecInstrExtndMnics[i].Offset].(Mask)) == vecInstrExtndMnics[i].Value {
+-					newOpStr = opString + vecInstrExtndMnics[i].ExtnOpStr
+-					removeArg(inst, int8(vecInstrExtndMnics[i].Offset))
+-					break
+-				}
++		case "vsum", "vsumg", "vsumq":
++			var off int
++			switch opString {
++			case "vsum":
++				off = 0
++			case "vsumg":
++				off = 1
++			case "vsumq":
++				off = 2
++
+ 			}
+-		case "vsumq":
+-			for i := 2; i < len(vecInstrExtndMnics)-2; i++ {
++			for i := off; i < len(vecInstrExtndMnics)-4+off; i++ {
+ 				if uint8(inst.Args[vecInstrExtndMnics[i].Offset].(Mask)) == vecInstrExtndMnics[i].Value {
+ 					newOpStr = opString + vecInstrExtndMnics[i].ExtnOpStr
+ 					removeArg(inst, int8(vecInstrExtndMnics[i].Offset))
+@@ -668,8 +670,8 @@ func HandleExtndMnemonic(inst *Inst) string {
+ 
+ 	case "vac", "vaccc":
+ 		if uint8(inst.Args[4].(Mask)) == uint8(4) {
+-			newOpStr = opString + vecInstrExtndMnics[3].ExtnOpStr
+-			removeArg(inst, int8(3))
++			newOpStr = opString + vecInstrExtndMnics[4].ExtnOpStr
++			removeArg(inst, int8(4))
+ 		}
+ 
+ 	case "vceq", "vch", "vchl":
+diff --git a/src/cmd/vendor/golang.org/x/arch/s390x/s390xasm/inst.go b/src/cmd/vendor/golang.org/x/arch/s390x/s390xasm/inst.go
+index 19d70156e3..e1fde84785 100644
+--- a/src/cmd/vendor/golang.org/x/arch/s390x/s390xasm/inst.go
++++ b/src/cmd/vendor/golang.org/x/arch/s390x/s390xasm/inst.go
+@@ -12,9 +12,9 @@ import (
+ 
+ type Inst struct {
+ 	Op   Op     // Opcode mnemonic
+-	Enc  uint64 // Raw encoding bits (if Len == 8, this is the prefix word)
++	Enc  uint64 // Raw encoding bits
+ 	Len  int    // Length of encoding in bytes.
+-	Args Args   // Instruction arguments, in Power ISA manual order.
++	Args Args   // Instruction arguments, in s390x ISA manual order.
+ }
+ 
+ func (i Inst) String(pc uint64) string {
+@@ -26,19 +26,32 @@ func (i Inst) String(pc uint64) string {
+ 	}
+ 	mnemonic := HandleExtndMnemonic(&i)
+ 	buf.WriteString(fmt.Sprintf("%s", mnemonic))
+-	for j, arg := range i.Args {
+-		if arg == nil {
++	for j := 0; j < len(i.Args); j++ {
++		if i.Args[j] == nil {
+ 			break
+ 		}
++		str := i.Args[j].String(pc)
+ 		if j == 0 {
+ 			buf.WriteString(" ")
+ 		} else {
+-			switch arg.(type) {
+-			case VReg, Reg:
++			switch i.Args[j].(type) {
++			case VReg:
+ 				if _, ok := i.Args[j-1].(Disp12); ok {
+-					buf.WriteString("")
++					buf.WriteString("(")
+ 				} else if _, ok := i.Args[j-1].(Disp20); ok {
+-					buf.WriteString("")
++					buf.WriteString("(")
++				} else {
++					buf.WriteString(",")
++				}
++			case Reg:
++				if _, ok := i.Args[j-1].(Disp12); ok {
++					if str != "" {
++						buf.WriteString("(")
++					}
++				} else if _, ok := i.Args[j-1].(Disp20); ok {
++					if str != "" {
++						buf.WriteString("(")
++					}
+ 				} else {
+ 					buf.WriteString(",")
+ 				}
+@@ -47,13 +60,34 @@ func (i Inst) String(pc uint64) string {
+ 					buf.WriteString(",")
+ 				} else if _, ok := i.Args[j-1].(Reg); ok {
+ 					buf.WriteString(",")
++				} else if _, ok := i.Args[j-1].(Disp12); ok {
++					if str != "" {
++						buf.WriteString("(")
++					}
++				} else if _, ok := i.Args[j-1].(Disp20); ok {
++					if str != "" {
++						buf.WriteString("(")
++					}
++				} else if _, ok := i.Args[j-1].(Len); ok {
++					buf.WriteString(",")
++				} else if _, ok := i.Args[j-1].(Index); ok {
++					if ((i.Args[j-1].String(pc)) != "") && str != "" {
++						str = "," + str
++					} else if str == "" {
++						str = ")"
++					}
+ 				}
+ 			case Index, Len:
++				if str != "" || (i.Args[j+1].String(pc)) != "" {
++					buf.WriteString("(")
++				} else {
++					j = j + 1
++				}
+ 			default:
+ 				buf.WriteString(",")
+ 			}
+ 		}
+-		buf.WriteString(arg.String(pc))
++		buf.WriteString(str)
+ 		if rxb_check && i.Args[j+2] == nil {
+ 			break
+ 		}
+@@ -145,7 +179,7 @@ func (r Index) String(pc uint64) string {
+ 	switch {
+ 	case X1 <= r && r <= X15:
+ 		s := "%"
+-		return fmt.Sprintf("%sr%d,", s, int(r-X0))
++		return fmt.Sprintf("%sr%d", s, int(r-X0))
+ 	case X0 == r:
+ 		return fmt.Sprintf("")
+ 	default:
+@@ -159,9 +193,9 @@ type Disp20 uint32
+ func (Disp20) IsArg() {}
+ func (r Disp20) String(pc uint64) string {
+ 	if (r>>19)&0x01 == 1 {
+-		return fmt.Sprintf("%d(", int32(r|0xfff<<20))
++		return fmt.Sprintf("%d", int32(r|0xfff<<20))
+ 	} else {
+-		return fmt.Sprintf("%d(", int32(r))
++		return fmt.Sprintf("%d", int32(r))
+ 	}
+ }
+ 
+@@ -170,7 +204,7 @@ type Disp12 uint16
+ 
+ func (Disp12) IsArg() {}
+ func (r Disp12) String(pc uint64) string {
+-	return fmt.Sprintf("%d(", r)
++	return fmt.Sprintf("%d", r)
+ }
+ 
+ // RegIm12 represents an 12-bit Register immediate number.
+@@ -395,5 +429,5 @@ type Len uint8
+ 
+ func (Len) IsArg() {}
+ func (i Len) String(pc uint64) string {
+-	return fmt.Sprintf("%d,", uint16(i)+1)
++	return fmt.Sprintf("%d", uint16(i)+1)
+ }
+diff --git a/src/cmd/vendor/golang.org/x/arch/s390x/s390xasm/plan9.go b/src/cmd/vendor/golang.org/x/arch/s390x/s390xasm/plan9.go
+new file mode 100644
+index 0000000000..95464294c0
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/arch/s390x/s390xasm/plan9.go
+@@ -0,0 +1,1282 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package s390xasm
++
++import (
++	"fmt"
++	"strconv"
++	"strings"
++)
++
++var vectorSize = map[int]string{0: "B", 1: "H", 2: "F", 3: "G", 4: "Q"}
++var vectorCS = map[int]string{0: "BS", 1: "HS", 2: "FS", 3: "GS"}
++
++// GoSyntax returns the Go assembler syntax for the instruction.
++// The syntax was originally defined by Plan 9.
++// The inst relates to single instruction.
++// The pc is the program counter of the instruction, used for
++// expanding PC-relative addresses into absolute ones.
++// The symname function queries the symbol table for the program
++// being disassembled. Given a target address it returns the name
++// and base address of the symbol containing the target, if any;
++// otherwise it returns "", 0.
++func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) string {
++	if symname == nil {
++		symname = func(uint64) (string, uint64) { return "", 0 }
++	}
++
++	var args []string
++	opString := inst.Op.String()
++	op := strings.ToUpper(opString)
++	for i := 0; i < len(inst.Args); i++ {
++		if inst.Args[i] == nil {
++			break
++		}
++		switch inst.Args[i].(type) {
++		case Disp12, Disp20:
++			var temp []string
++			switch inst.Args[i+1].(type) {
++			case Index: // D(X,B)
++				for j := 0; j < 3; j++ {
++					temp = append(temp, plan9Arg(&inst, pc, symname, inst.Args[i+j]))
++				}
++				args = append(args, mem_operandx(temp))
++				i = i + 2
++			case Base: // D(B)
++				for j := 0; j < 2; j++ {
++					temp = append(temp, plan9Arg(&inst, pc, symname, inst.Args[i+j]))
++				}
++				args = append(args, mem_operand(temp))
++				i = i + 1
++			case VReg: // D(B)
++				for j := 0; j < 3; j++ {
++					temp = append(temp, plan9Arg(&inst, pc, symname, inst.Args[i+j]))
++				}
++				args = append(args, mem_operandv(temp))
++				i = i + 2
++			case Len: // D(L,B)
++				for j := 0; j < 3; j++ {
++					temp = append(temp, plan9Arg(&inst, pc, symname, inst.Args[i+j]))
++				}
++				ar1, ar2 := mem_operandl(temp)
++				args = append(args, ar1, ar2)
++				i = i + 2
++			default: // D(R,B)
++				for j := 0; j < 3; j++ {
++					temp = append(temp, plan9Arg(&inst, pc, symname, inst.Args[i+j]))
++				}
++				args = append(args, mem_operandx(temp))
++				i = i + 2
++			}
++		default:
++			args = append(args, plan9Arg(&inst, pc, symname, inst.Args[i]))
++		}
++	}
++	if strings.HasPrefix(op, "V") || strings.Contains(op, "WFC") || strings.Contains(op, "WFK") {
++		args = args[:len(args)-1]
++	}
++
++	switch inst.Op {
++	default:
++		switch len(args) {
++		case 0:
++			return op
++		case 1:
++			return fmt.Sprintf("%s %s", op, args[0])
++		case 2:
++			if reverseOperandOrder(inst.Op) {
++				args[0], args[1] = args[1], args[0]
++			}
++		case 3:
++			if reverseOperandOrder(inst.Op) {
++				args[0], args[2] = args[2], args[0]
++			} else if reverseAllOperands(inst.Op) {
++				args[0], args[1], args[2] = args[1], args[2], args[0]
++			}
++		case 4:
++			if reverseOperandOrder(inst.Op) {
++				args[0], args[3] = args[3], args[0]
++			} else if reverseAllOperands(inst.Op) {
++				args[0], args[1], args[2], args[3] = args[1], args[2], args[3], args[0]
++			}
++		}
++	case LCGR, LCGFR:
++		switch inst.Op {
++		case LCGR:
++			op = "NEG"
++		case LCGFR:
++			op = "NEGW"
++		}
++		if args[0] == args[1] {
++			args = args[:1]
++		} else {
++			args[0], args[1] = args[1], args[0]
++		}
++	case LD, LE, LG, LGF, LLGF, LGH, LLGH, LGB, LLGC, LDY, LEY, LRVG, LRV, LRVH:
++		args[0], args[1] = args[1], args[0]
++		switch inst.Op {
++		case LG:
++			op = "MOVD"
++		case LGF:
++			op = "MOVW"
++		case LLGF:
++			op = "MOVWZ"
++		case LGH:
++			op = "MOVH"
++		case LLGH:
++			op = "MOVHZ"
++		case LGB:
++			op = "MOVB"
++		case LLGC:
++			op = "MOVBZ"
++		case LDY, LD:
++			op = "FMOVD"
++		case LEY, LE:
++			op = "FMOVS"
++		case LRVG:
++			op = "MOVDBR"
++		case LRV:
++			op = "MOVWBR"
++		case LRVH:
++			op = "MOVHBR"
++		}
++	case LA, LAY:
++		args[0], args[1] = args[1], args[0]
++		op = "MOVD"
++
++	case LAA, LAAG, LAAL, LAALG, LAN, LANG, LAX, LAXG, LAO, LAOG:
++		args[0], args[1] = args[1], args[0]
++	case LM, LMY, LMG: // Load Multiple
++		switch inst.Op {
++		case LM, LMY:
++			op = "LMY"
++		}
++		args[0], args[1], args[2] = args[2], args[0], args[1]
++
++	case STM, STMY, STMG: // Store Multiple
++		switch inst.Op {
++		case STM, STMY:
++			op = "STMY"
++		}
++	case ST, STY, STG, STHY, STCY, STRVG, STRV:
++		switch inst.Op {
++		case ST, STY:
++			op = "MOVW"
++		case STHY:
++			op = "MOVH"
++		case STCY:
++			op = "MOVB"
++		case STG:
++			op = "MOVD"
++		case STRVG:
++			op = "MOVDBR"
++		case STRV:
++			op = "MOVWBR"
++		}
++	case LGR, LGFR, LGHR, LGBR, LLGFR, LLGHR, LLGCR, LRVGR, LRVR, LDR:
++		switch inst.Op {
++		case LGR:
++			op = "MOVD"
++		case LGFR:
++			op = "MOVW"
++		case LGHR:
++			op = "MOVH"
++		case LGBR:
++			op = "MOVB"
++		case LLGFR:
++			op = "MOVWZ"
++		case LLGHR:
++			op = "MOVHZ"
++		case LLGCR:
++			op = "MOVBZ"
++		case LRVGR:
++			op = "MOVDBR"
++		case LRVR:
++			op = "MOVWBR"
++		case LDR:
++			op = "FMOVD"
++		}
++		args[0], args[1] = args[1], args[0]
++	case LZDR:
++		op = "FMOVD"
++		return op + " " + "$0" + ", " + args[0]
++	case LZER:
++		op = "FMOVS"
++		return op + " " + "$0" + ", " + args[0]
++	case STD, STDY, STE, STEY:
++		switch inst.Op {
++		case STD, STDY:
++			op = "FMOVD"
++		case STE, STEY:
++			op = "FMOVS"
++		}
++
++	case LGHI, LLILH, LLIHL, LLIHH, LGFI, LLILF, LLIHF:
++		switch inst.Op {
++		case LGFI:
++			op = "MOVW"
++		case LGHI:
++			num, err := strconv.ParseInt(args[1][1:], 10, 16)
++			if err != nil {
++				return fmt.Sprintf("plan9Arg: error in converting ParseInt:%s", err)
++			}
++			if num == int64(int8(num)) {
++				op = "MOVB"
++			} else {
++				op = "MOVH"
++			}
++		default:
++			op = "MOVD"
++		}
++		args[0], args[1] = args[1], args[0]
++	case ARK, AGRK, ALGRK:
++		switch inst.Op {
++		case ARK:
++			op = "ADDW"
++		case AGRK:
++			op = "ADD"
++		case ALGRK:
++			op = "ADDC"
++		}
++		if args[0] == args[1] {
++			args[0], args[1] = args[2], args[0]
++			args = args[:2]
++		} else {
++			args[0], args[2] = args[2], args[0]
++		}
++	case AGHIK, AHIK, ALGHSIK:
++		num, err := strconv.ParseInt(args[2][1:], 10, 32)
++		if err != nil {
++			return fmt.Sprintf("plan9Arg: error in converting ParseInt:%s", err)
++		}
++		switch inst.Op {
++		case AGHIK:
++			if num < 0 {
++				op = "SUB"
++				args[2] = args[2][:1] + args[2][2:]
++			} else {
++				op = "ADD"
++			}
++		case AHIK:
++			op = "ADDW"
++		case ALGHSIK:
++			if num < 0 {
++				op = "SUBC"
++				args[2] = args[2][:1] + args[2][2:]
++			} else {
++				op = "ADDC"
++			}
++		}
++		args[0], args[2] = args[2], args[0]
++	case AGHI, AHI, AGFI, AFI, AR, ALCGR:
++		num, err := strconv.ParseInt(args[1][1:], 10, 32)
++		if err != nil {
++			return fmt.Sprintf("plan9Arg: error in converting ParseInt:%s", err)
++		}
++		switch inst.Op {
++		case AGHI, AGFI:
++			if num < 0 {
++				op = "SUB"
++				args[1] = args[1][:1] + args[1][2:]
++			} else {
++				op = "ADD"
++			}
++		case AHI, AFI, AR:
++			op = "ADDW"
++		case ALCGR:
++			op = "ADDE"
++		}
++		args[0], args[1] = args[1], args[0]
++	case AEBR, ADBR, DDBR, DEBR, MDBR, MEEBR, SDBR, SEBR, LPDBR, LNDBR, LPDFR, LNDFR, LCDFR, LCEBR, LEDBR, LDEBR, SQDBR, SQEBR:
++		switch inst.Op {
++		case AEBR:
++			op = "FADDS"
++		case ADBR:
++			op = "FADD"
++		case DDBR:
++			op = "FDIV"
++		case DEBR:
++			op = "FDIVS"
++		case MDBR:
++			op = "FMUL"
++		case MEEBR:
++			op = "FMULS"
++		case SDBR:
++			op = "FSUB"
++		case SEBR:
++			op = "FSUBS"
++		case LPDBR:
++			op = "FABS"
++		case LNDBR:
++			op = "FNABS"
++		case LCDFR:
++			op = "FNEG"
++		case LCEBR:
++			op = "FNEGS"
++		case SQDBR:
++			op = "FSQRT"
++		case SQEBR:
++			op = "FSQRTS"
++		}
++		args[0], args[1] = args[1], args[0]
++	case SR, SGR, SLGR, SLFI:
++		switch inst.Op {
++		case SR, SLFI:
++			op = "SUBW"
++		case SGR:
++			op = "SUB"
++		case SLGR:
++			op = "SUBC"
++		}
++		args[0], args[1] = args[1], args[0]
++	case SGRK, SLGRK, SRK:
++		switch inst.Op {
++		case SGRK:
++			op = "SUB"
++		case SLGRK:
++			op = "SUBC"
++		case SRK:
++			op = "SUBW"
++		}
++		if args[0] == args[1] {
++			args[0], args[1] = args[2], args[0]
++			args = args[:2]
++		} else {
++			args[0], args[2] = args[2], args[0]
++		}
++	case SLBGR:
++		op = "SUBE"
++		args[0], args[1] = args[1], args[0]
++	case MSGFR, MHI, MSFI, MSGFI:
++		switch inst.Op {
++		case MSGFR, MHI, MSFI:
++			op = "MULLW"
++		case MSGFI:
++			op = "MULLD"
++		}
++		args[0], args[1] = args[1], args[0]
++
++	case NGR, NR, NILL, NILF, NILH, OGR, OR, OILL, OILF, OILH, XGR, XR, XILF:
++		op = bitwise_op(inst.Op)
++		args[0], args[1] = args[1], args[0]
++		switch inst.Op {
++		case NILL:
++			if int(inst.Args[1].(Sign16)) < 0 {
++				op = "ANDW"
++			}
++
++		case NILF:
++			if int(inst.Args[1].(Sign32)) < 0 {
++				op = "AND"
++			}
++		case OILF:
++			if int(inst.Args[1].(Sign32)) < 0 {
++				op = "ORW"
++			}
++		case XILF:
++			if int(inst.Args[1].(Sign32)) < 0 {
++				op = "XORW"
++			}
++		}
++
++	case NGRK, NRK, OGRK, ORK, XGRK, XRK: // opcode R1, R2, R3
++		op = bitwise_op(inst.Op)
++		args[0], args[1], args[2] = args[1], args[2], args[0]
++	case SLLG, SRLG, SLLK, SRLK, RLL, RLLG, SRAK, SRAG:
++		switch inst.Op {
++		case SLLG:
++			op = "SLD"
++		case SRLG:
++			op = "SRD"
++		case SLLK:
++			op = "SLW"
++		case SRLK:
++			op = "SRW"
++		case SRAK:
++			op = "SRAW"
++		case SRAG:
++			op = "SRAD"
++		}
++		args[0], args[2] = args[2], args[0]
++	case TRAP2, SVC:
++		op = "SYSALL"
++	case CR, CLR, CGR, CLGR, KDBR, CDBR, CEBR, CGHI, CHI, CGFI, CLGFI, CFI, CLFI:
++		switch inst.Op {
++		case CGHI, CGFI, CGR:
++			op = "CMP"
++		case CHI, CFI, CR:
++			op = "CMPW"
++		case CLGFI, CLGR:
++			op = "CMPU"
++		case CLFI, CLR:
++			op = "CMPWU"
++		case CDBR:
++			op = "FCMPU"
++		case KDBR:
++			op = "FCMPO"
++		}
++	case CEFBRA, CDFBRA, CEGBRA, CDGBRA, CELFBR, CDLFBR, CELGBR, CDLGBR, CFEBRA, CFDBRA, CGEBRA, CGDBRA, CLFEBR, CLFDBR, CLGEBR, CLGDBR:
++		args[0], args[1] = args[2], args[0]
++		args = args[:2]
++	case CGRJ, CGIJ:
++		mask, err := strconv.Atoi(args[2][1:])
++		if err != nil {
++			return fmt.Sprintf("GoSyntax: error in converting Atoi:%s", err)
++		}
++		var check bool
++		switch mask & 0xf {
++		case 2:
++			op = "CMPBGT"
++			check = true
++		case 4:
++			op = "CMPBLT"
++			check = true
++		case 6:
++			op = "CMPBNE"
++			check = true
++		case 8:
++			op = "CMPBEQ"
++			check = true
++		case 10:
++			op = "CMPBGE"
++			check = true
++		case 12:
++			op = "CMPBLE"
++			check = true
++		}
++		if check {
++			args[2] = args[3]
++			args = args[:3]
++		}
++	case CLGRJ, CLGIJ:
++		mask, err := strconv.Atoi(args[2][1:])
++		if err != nil {
++			return fmt.Sprintf("GoSyntax: error in converting Atoi:%s", err)
++		}
++		var check bool
++		switch mask & 0xf {
++		case 2:
++			op = "CMPUBGT"
++			check = true
++		case 4:
++			op = "CMPUBLT"
++			check = true
++		case 7:
++			op = "CMPUBNE"
++			check = true
++		case 8:
++			op = "CMPUBEQ"
++			check = true
++		case 10:
++			op = "CMPUBGE"
++			check = true
++		case 12:
++			op = "CMPUBLE"
++			check = true
++		}
++		if check {
++			args[2] = args[3]
++			args = args[:3]
++		}
++	case CLRJ, CRJ, CIJ, CLIJ:
++		args[0], args[1], args[2] = args[2], args[0], args[1]
++	case BRC, BRCL:
++		mask, err := strconv.Atoi(args[0][1:])
++		if err != nil {
++			return fmt.Sprintf("GoSyntax: error in converting Atoi:%s", err)
++		}
++		opStr, check := branch_relative_op(mask, inst.Op)
++		if opStr != "" {
++			op = opStr
++		}
++		if check {
++			args[0] = args[1]
++			args = args[:1]
++		}
++	case BCR:
++		mask, err := strconv.Atoi(args[0][1:])
++		if err != nil {
++			return fmt.Sprintf("GoSyntax: error in converting Atoi:%s", err)
++		}
++		opStr, check := branchOnConditionOp(mask, inst.Op)
++		if opStr != "" {
++			op = opStr
++		}
++		if op == "SYNC" || op == "NOPH" {
++			return op
++		}
++		if check {
++			args[0] = args[1]
++			args = args[:1]
++		}
++	case LOCGR:
++		mask, err := strconv.Atoi(args[2][1:])
++		if err != nil {
++			return fmt.Sprintf("GoSyntax: error in converting Atoi:%s", err)
++		}
++		var check bool
++		switch mask & 0xf {
++		case 2: //Greaterthan (M=2)
++			op = "MOVDGT"
++			check = true
++		case 4: //Lessthan (M=4)
++			op = "MOVDLT"
++			check = true
++		case 7: // Not Equal (M=7)
++			op = "MOVDNE"
++			check = true
++		case 8: // Equal (M=8)
++			op = "MOVDEQ"
++			check = true
++		case 10: // Greaterthan or Equal (M=10)
++			op = "MOVDGE"
++			check = true
++		case 12: // Lessthan or Equal (M=12)
++			op = "MOVDLE"
++			check = true
++		}
++		if check {
++			args[0], args[1] = args[1], args[0]
++			args = args[:2]
++		} else {
++			args[0], args[2] = args[2], args[0]
++		}
++	case BRASL:
++		op = "CALL" // BL
++		args[0] = args[1]
++		args = args[:1]
++	case X, XY, XG:
++		switch inst.Op {
++		case X, XY:
++			op = "XORW"
++		case XG:
++			op = "XOR"
++		}
++	case N, NY, NG, O, OY, OG, XC, NC, OC, MVC, MVCIN, CLC:
++		switch inst.Op {
++		case N, NY:
++			op = "ANDW"
++		case NG:
++			op = "AND"
++		case O, OY:
++			op = "ORW"
++		case OG:
++			op = "OR"
++		}
++		args[0], args[1] = args[1], args[0]
++	case S, SY, SLBG, SLG, SG:
++		switch inst.Op {
++		case S, SY:
++			op = "SUBW"
++		case SLBG:
++			op = "SUBE"
++		case SLG:
++			op = "SUBC"
++		case SG:
++			op = "SUB"
++		}
++		args[0], args[1] = args[1], args[0]
++	case MSG, MSY, MS:
++		switch inst.Op {
++		case MSG:
++			op = "MULLD"
++		case MSY, MS:
++			op = "MULLW"
++		}
++	case A, AY, ALCG, ALG, AG:
++		switch inst.Op {
++		case A, AY:
++			op = "ADDW"
++		case ALCG:
++			op = "ADDE"
++		case ALG:
++			op = "ADDC"
++		case AG:
++			op = "ADD"
++		}
++		args[0], args[1] = args[1], args[0]
++	case RISBG, RISBGN, RISBHG, RISBLG, RNSBG, RXSBG, ROSBG:
++		switch inst.Op {
++		case RNSBG, RXSBG, ROSBG:
++			num, err := strconv.Atoi(args[2][1:])
++			if err != nil {
++				return fmt.Sprintf("GoSyntax: error in converting Atoi:%s", err)
++			}
++			if ((num >> 7) & 0x1) != 0 {
++				op = op + "T"
++			}
++		case RISBG, RISBGN, RISBHG, RISBLG:
++			num, err := strconv.Atoi(args[3][1:])
++			if err != nil {
++				return fmt.Sprintf("GoSyntax: error in converting Atoi:%s", err)
++			}
++			if ((num >> 7) & 0x1) != 0 {
++				op = op + "Z"
++			}
++		}
++		if len(args) == 5 {
++			args[0], args[1], args[2], args[3], args[4] = args[2], args[3], args[4], args[1], args[0]
++		} else {
++			args[0], args[1], args[2], args[3] = args[2], args[3], args[1], args[0]
++		}
++
++	case VEC, VECL, VCLZ, VCTZ, VREPI, VPOPCT: //mnemonic V1, V2, M3
++		mask, err := strconv.Atoi(args[2][1:])
++		if err != nil {
++			return fmt.Sprintf("GoSyntax: error in converting Atoi for %q:%s", op, err)
++		}
++		val := mask & 0x7
++		if val >= 0 && val < 4 {
++			op = op + vectorSize[val]
++			args = args[:2]
++		} else {
++			return fmt.Sprintf("specification exception is recognized for %q with mask value: %v \n", op, mask)
++		}
++		switch inst.Op {
++		case VCLZ, VCTZ, VREPI, VPOPCT:
++			args[0], args[1] = args[1], args[0]
++		default:
++		}
++		//Mnemonic V1, V2, V3, M4 or Mnemonic V1, I2, I3, M4 or Mnemonic V1, V3, I2, M4
++	case VA, VS, VACC, VAVG, VAVGL, VMX, VMXL, VMN, VMNL, VGFM, VGM, VREP, VERLLV, VESLV, VSCBI, VSUM, VSUMG, VSUMQ, VMH, VMLH, VML, VME, VMLE, VMO, VMLO:
++		mask, err := strconv.Atoi(args[3][1:])
++		if err != nil {
++			return fmt.Sprintf("GoSyntax: error in converting Atoi:%s", err)
++		}
++		val := mask & 0x7
++		switch inst.Op {
++		case VA, VS, VACC, VSCBI:
++			if val >= 0 && val < 5 {
++				if args[0] == args[2] {
++					args[0], args[1] = args[1], args[0]
++					args = args[:2]
++				} else if inst.Op == VS {
++					if args[0] == args[1] {
++						args[0] = args[2]
++						args = args[:2]
++					} else {
++						args[0], args[2] = args[2], args[0]
++						args = args[:3]
++					}
++				} else {
++					args[0], args[1], args[2] = args[1], args[2], args[0]
++					args = args[:3]
++				}
++				op = op + vectorSize[val]
++			} else {
++				return fmt.Sprintf("specification exception is recognized for %q with mask value: %v \n", op, mask)
++			}
++		case VAVG, VAVGL, VMX, VMXL, VMN, VMNL, VGFM, VGM:
++			if val >= 0 && val < 4 {
++				op = op + vectorSize[val]
++				args[0], args[1], args[2] = args[1], args[2], args[0]
++				args = args[:3]
++			} else {
++				return fmt.Sprintf("specification exception is recognized for %q with mask value: %v \n", op, mask)
++			}
++		case VREP, VERLLV, VESLV:
++			if val >= 0 && val < 4 {
++				op = op + vectorSize[val]
++				args[0], args[2] = args[2], args[0]
++				args = args[:3]
++			} else {
++				return fmt.Sprintf("specification exception is recognized for %q with mask value: %v \n", op, mask)
++			}
++		case VSUM, VSUMG, VSUMQ:
++			var off int
++			switch inst.Op {
++			case VSUM:
++				off = 0
++			case VSUMG:
++				off = 1
++			case VSUMQ:
++				off = 2
++			}
++			if (val > (-1 + off)) && (val < (2 + off)) {
++				op = op + vectorSize[val]
++			} else {
++				return fmt.Sprintf("specification exception is recognized for %q with mask value: %v \n", op, mask)
++			}
++			args = args[:3]
++		case VML, VMH, VMLH, VME, VMLE, VMO, VMLO:
++			if val >= 0 && val < 3 {
++				op = op + vectorSize[val]
++			}
++			if op == "VML" && val == 2 {
++				op = op + "W"
++			}
++			if args[0] == args[2] {
++				args[0], args[1] = args[1], args[0]
++				args = args[:2]
++			} else {
++				args[0], args[1], args[2] = args[1], args[2], args[0]
++				args = args[:3]
++			}
++		}
++
++	case VGFMA, VERIM, VMAH, VMALH: // Mnemonic V1, V2, V3, V4/I4, M5
++		mask, err := strconv.Atoi(args[4][1:])
++		if err != nil {
++			return fmt.Sprintf("GoSyntax: error in converting Atoi:%s", err)
++		}
++		val := mask & 0x7
++		args = args[:4]
++		var off int
++		switch inst.Op {
++		case VMAH, VMALH:
++			off = -1
++		}
++
++		if val >= 0 && val < (4+off) {
++			op = op + vectorSize[val]
++		} else {
++			return fmt.Sprintf("specification exception is recognized for %q with mask value: %v \n", op, mask)
++		}
++		switch inst.Op {
++		case VGFMA, VMAH, VMALH:
++			args[0], args[1], args[2], args[3] = args[1], args[2], args[3], args[0]
++		default:
++			args[0], args[3] = args[3], args[0]
++		}
++	case VSTRC, VFAE, VFEE, VFENE:
++		var off uint8
++		switch inst.Op {
++		case VSTRC:
++			off = uint8(1)
++		default:
++			off = uint8(0)
++		}
++		m1, err := strconv.Atoi(args[3+off][1:])
++		if err != nil {
++			return fmt.Sprintf("GoSyntax: error in converting Atoi:%s", err)
++		}
++		m2, err := strconv.Atoi(args[4+off][1:])
++		if err != nil {
++			return fmt.Sprintf("GoSyntax: error in converting Atoi:%s", err)
++		}
++		index := m1 & 0x3
++		if index < 0 || index > 2 {
++			return fmt.Sprintf("specification exception is recognized for %q with mask values: %v, %v \n", op, m1, m2)
++		}
++		switch m2 {
++		case 0:
++			op = op + vectorSize[index]
++		case 1:
++			op = op + vectorCS[index]
++		case 2:
++			op = op + "Z" + vectorSize[index]
++		case 3:
++			op = op + "Z" + vectorCS[index]
++		default:
++			return fmt.Sprintf("specification exception is recognized for %q with mask values: %v, %v \n", op, m1, m2)
++		}
++		switch inst.Op {
++		case VSTRC:
++			args[0], args[1], args[2], args[3] = args[1], args[2], args[3], args[0]
++		default:
++			args[0], args[1], args[2] = args[1], args[2], args[0]
++		}
++		args = args[:3+off]
++
++	case VCEQ, VCH, VCHL: // Mnemonic V1, V2, V3, M4, M5
++		m4, err := strconv.Atoi(args[3][1:])
++		if err != nil {
++			return fmt.Sprintf("GoSyntax: %q error in converting Atoi:%s", op, err)
++		}
++		m5, err := strconv.Atoi(args[4][1:])
++		if err != nil {
++			return fmt.Sprintf("GoSyntax: %q error in converting Atoi:%s", op, err)
++		}
++		val := (m4 & 0x7)
++		if m5 == 0 {
++			if val >= 0 && val < 4 {
++				op = op + vectorSize[val]
++				args[0], args[1], args[2] = args[1], args[2], args[0]
++				args = args[:3]
++			} else {
++				return fmt.Sprintf("specification exception is recognized for %q with mask(m4) value: %v \n", op, m4)
++			}
++		} else if m5 == 1 {
++			if val >= 0 && val < 4 {
++				op = op + vectorCS[val]
++				args[0], args[1], args[2] = args[1], args[2], args[0]
++				args = args[:3]
++			} else {
++				return fmt.Sprintf("specification exception is recognized for %q with mask(m4) value: %v \n", op, m4)
++			}
++		} else {
++			return fmt.Sprintf("specification exception is recognized for %q with mask(m5) value: %v \n", op, m5)
++		}
++	case VFMA, VFMS, VMSL: //Mnemonic V1, V2, V3, V4, M5, M6
++		m5, err := strconv.Atoi(args[4][1:])
++		if err != nil {
++			return fmt.Sprintf("GoSyntax: %q error in converting Atoi:%s", op, err)
++		}
++		m6, err := strconv.Atoi(args[5][1:])
++		if err != nil {
++			return fmt.Sprintf("GoSyntax: %q error in converting Atoi:%s", op, err)
++		}
++		switch inst.Op {
++		case VMSL:
++			if m5 == 3 && m6 == 8 {
++				op = op + "EG"
++			} else if m5 == 3 && m6 == 4 {
++				op = op + "OG"
++			} else if m5 == 3 && m6 == 12 {
++				op = op + "EOG"
++			} else if m5 == 3 {
++				op = op + "G"
++			}
++		default:
++			if m5 == 0 && m6 == 3 {
++				op = op + "DB"
++			} else if m5 == 8 && m6 == 3 {
++				op = "W" + op[1:] + "DB"
++			} else {
++				return fmt.Sprintf("specification exception is recognized for %q with m5: %v m6: %v \n", op, m5, m6)
++			}
++		}
++		args[0], args[1], args[2], args[3] = args[1], args[2], args[3], args[0]
++		args = args[:4]
++
++	case VFCE, VFCH, VFCHE: //Mnemonic V1,V2,V3,M4,M5,M6
++		m4, err := strconv.Atoi(args[3][1:])
++		if err != nil {
++			return fmt.Sprintf("GoSyntax: %q error in converting Atoi:%s", op, err)
++		}
++		m5, err := strconv.Atoi(args[4][1:])
++		if err != nil {
++			return fmt.Sprintf("GoSyntax: %q error in converting Atoi:%s", op, err)
++		}
++		m6, err := strconv.Atoi(args[5][1:])
++		if err != nil {
++			return fmt.Sprintf("GoSyntax: %q error in converting Atoi:%s", op, err)
++		}
++		if m5 == 0 {
++			if m4 == 3 && m6 == 0 {
++				op = op + "DB"
++			} else if m4 == 3 && m6 == 1 {
++				op = op + "DBS"
++			} else {
++				return fmt.Sprintf("specification exception is recognized for %q with m4: %v, m6: %v \n", op, m4, m6)
++			}
++
++		} else if m5 == 8 {
++			if m4 == 3 && m6 == 0 {
++				op = "W" + op[1:] + "DB"
++			} else if m4 == 3 && m6 == 1 {
++				op = "W" + op[1:] + "DBS"
++			} else {
++				return fmt.Sprintf("specification exception is recognized for %q with m4: %v, m6: %v \n", op, m4, m6)
++			}
++		} else {
++			return fmt.Sprintf("specification exception is recognized for %q with m5: %v \n", op, m5)
++		}
++		args[0], args[1], args[2] = args[1], args[2], args[0]
++		args = args[:3]
++
++	case VFTCI:
++		m4, err := strconv.Atoi(args[3][1:])
++		if err != nil {
++			return fmt.Sprintf("GoSyntax: %q error in converting Atoi:%s", op, err)
++		}
++		m5, err := strconv.Atoi(args[4][1:])
++		if err != nil {
++			return fmt.Sprintf("GoSyntax: %q error in converting Atoi:%s", op, err)
++		}
++		val := (m4 & 0x7)
++		if m5 == 0 {
++			switch val {
++			case 2:
++				op = op + "SB"
++			case 3:
++				op = op + "DB"
++			default:
++				return fmt.Sprintf("specification exception is recognized for %q with mask(m4) value: %v \n", op, m4)
++			}
++		} else if m5 == 8 {
++			switch val {
++			case 2:
++				op = "W" + op[1:] + "SB"
++			case 3:
++				op = "W" + op[1:] + "DB"
++			case 4:
++				op = "W" + op[1:] + "XB"
++			default:
++				return fmt.Sprintf("specification exception is recognized for %q with mask(m4) value: %v \n", op, m4)
++			}
++		} else {
++			return fmt.Sprintf("specification exception is recognized for %q with mask(m5) value: %v \n", op, m5)
++		}
++		args[0], args[2] = args[2], args[0]
++		args = args[:3]
++	case VAC, VACCC:
++		mask, err := strconv.Atoi(args[4][1:])
++		if err != nil {
++			return fmt.Sprintf("GoSyntax: error in converting Atoi:%s", err)
++		}
++		if mask&0x04 == 0 {
++			return fmt.Sprintf("specification exception is recognized for %q with mask value: %v \n", op, mask)
++		}
++		op = op + "Q"
++		args[0], args[1], args[2], args[3] = args[1], args[2], args[3], args[0]
++		args = args[:4]
++	case VL, VLREP:
++		switch inst.Op {
++		case VL:
++			args[0], args[1] = args[1], args[0]
++		case VLREP:
++			args[0], args[1] = args[1], args[0]
++			mask, err := strconv.Atoi(args[2][1:])
++			if err != nil {
++				return fmt.Sprintf("GoSyntax: error in converting Atoi:%s", err)
++			}
++			if mask >= 0 && mask < 4 {
++				op = op + vectorSize[mask]
++			}
++		}
++		args = args[:2]
++	case VST, VSTEB, VSTEH, VSTEF, VSTEG, VLEB, VLEH, VLEF, VLEG: //Mnemonic V1, D2(X2,B2), M3
++		m, err := strconv.Atoi(args[2][1:])
++		if err != nil {
++			return fmt.Sprintf("GoSyntax: error in converting Atoi:%s", err)
++		}
++		switch inst.Op {
++		case VST:
++			if m == 0 || (m > 2 && m < 5) {
++				args = args[:2]
++			} else {
++				return fmt.Sprintf("specification exception is recognized for %q with mask value: %v \n", op, m)
++			}
++		case VLEB, VLEH, VLEF, VLEG:
++			args[0], args[2] = args[2], args[0]
++		default:
++			args[0], args[1], args[2] = args[2], args[0], args[1]
++		}
++	case VSTM, VSTL, VESL, VESRA, VLM, VERLL, VLVG: //Mnemonic V1, V3, D2(B2)[,M4] or V1, R3,D2(B2)
++		switch inst.Op {
++		case VSTM, VLM:
++			m, err := strconv.Atoi(args[3][1:])
++			if err != nil {
++				return fmt.Sprintf("GoSyntax: error in converting Atoi:%s", err)
++			}
++			if !(m == 0 || (m > 2 && m < 5)) {
++				return fmt.Sprintf("specification exception is recognized for %q with mask value: %v \n", op, m)
++			}
++			if inst.Op == VLM {
++				args[0], args[1], args[2] = args[2], args[0], args[1]
++			}
++			args = args[:3]
++		case VESL, VESRA, VERLL, VLVG:
++			m, err := strconv.Atoi(args[3][1:])
++			if err != nil {
++				return fmt.Sprintf("GoSyntax: error in converting Atoi:%s", err)
++			}
++			if m >= 0 && m < 4 {
++				op = op + vectorSize[m]
++			} else {
++				return fmt.Sprintf("specification exception is recognized for %q with mask value: %v \n", op, m)
++			}
++			switch inst.Op {
++			case VLVG:
++				args[0], args[2] = args[2], args[0]
++				args = args[:3]
++			default:
++				if args[0] == args[1] {
++					args[0] = args[2]
++					args = args[:2]
++					break
++				}
++				args[0], args[2] = args[2], args[0]
++				args = args[:3]
++			}
++		case VSTL:
++			args[0], args[1] = args[1], args[0]
++			args = args[:3]
++		}
++	case VGBM:
++		val, err := strconv.Atoi(args[1][1:])
++		if err != nil {
++			return fmt.Sprintf("GoSyntax: error in converting Atoi:%s", err)
++		}
++		if val == 0 {
++			op = "VZERO"
++			args = args[:1]
++		} else if val == 0xffff {
++			op = "VONE"
++			args = args[:1]
++		} else {
++			args[0], args[1] = args[1], args[0]
++			args = args[:2]
++		}
++	case VN, VNC, VO, VX, VNO: //mnemonic V1, V2, V3
++		if args[0] == args[2] {
++			args = args[:2]
++			args[0], args[1] = args[1], args[0]
++		} else {
++			args[0], args[1], args[2] = args[1], args[2], args[0]
++		}
++		if op == "VNO" {
++			op = op + "T"
++		}
++	case VGEG, VGEF, VSCEG, VSCEF: //Mnemonic V1, D2(V2, B2), M3
++		args[0], args[2] = args[2], args[0]
++
++	}
++	if args != nil {
++		op += " " + strings.Join(args, ", ")
++	}
++
++	return op
++}
++
++// This function returns corresponding extended mnemonic for the given
++// branch on relative mnemonic.
++func branch_relative_op(mask int, opconst Op) (op string, check bool) {
++	switch mask & 0xf {
++	case 2:
++		op = "BGT"
++		check = true
++	case 4:
++		op = "BLT"
++		check = true
++	case 5:
++		op = "BLTU"
++		check = true
++	case 7:
++		op = "BNE"
++		check = true
++	case 8:
++		op = "BEQ"
++		check = true
++	case 10:
++		op = "BGE"
++		check = true
++	case 12:
++		op = "BLE"
++		check = true
++	case 13:
++		op = "BLEU"
++		check = true
++	case 15:
++		op = "JMP" // BR
++		check = true
++	}
++	return op, check
++}
++
++// This function returns corresponding extended mnemonic for the given
++// brach on condition mnemonic.
++func branchOnConditionOp(mask int, opconst Op) (op string, check bool) {
++	switch mask & 0xf {
++	case 0:
++		op = "NOPH"
++	case 14:
++		op = "SYNC"
++	case 15:
++		op = "JMP"
++		check = true
++	}
++	return op, check
++}
++
++// This function returns corresponding plan9 mnemonic for the native bitwise mnemonic.
++func bitwise_op(op Op) string {
++	var ret string
++	switch op {
++	case NGR, NGRK, NILL:
++		ret = "AND"
++	case NR, NRK, NILH, NILF:
++		ret = "ANDW"
++	case OGR, OGRK, OILF:
++		ret = "OR"
++	case OR, ORK, OILH, OILL:
++		ret = "ORW"
++	case XGR, XGRK, XILF:
++		ret = "XOR"
++	case XR, XRK:
++		ret = "XORW"
++	}
++	return ret
++}
++
++// This function parses memory operand of type D(B)
++func mem_operand(args []string) string {
++	if args[0] != "" && args[1] != "" {
++		args[0] = fmt.Sprintf("%s(%s)", args[0], args[1])
++	} else if args[0] != "" {
++		args[0] = fmt.Sprintf("$%s", args[0])
++	} else if args[1] != "" {
++		args[0] = fmt.Sprintf("(%s)", args[1])
++	} else {
++		args[0] = ""
++	}
++	return args[0]
++}
++
++// This function parses memory operand of type D(X,B)
++func mem_operandx(args []string) string {
++	if args[1] != "" && args[2] != "" {
++		args[1] = fmt.Sprintf("(%s)(%s*1)", args[2], args[1])
++	} else if args[1] != "" {
++		args[1] = fmt.Sprintf("(%s)", args[1])
++	} else if args[2] != "" {
++		args[1] = fmt.Sprintf("(%s)", args[2])
++	} else if args[0] != "" {
++		args[1] = ""
++	}
++	if args[0] != "" && args[1] != "" {
++		args[0] = fmt.Sprintf("%s%s", args[0], args[1])
++	} else if args[0] != "" {
++		args[0] = fmt.Sprintf("$%s", args[0])
++	} else if args[1] != "" {
++		args[0] = fmt.Sprintf("%s", args[1])
++	} else {
++		args[0] = ""
++	}
++	return args[0]
++}
++
++// This function parses memory operand of type D(V,B)
++func mem_operandv(args []string) string {
++	if args[1] != "" && args[2] != "" {
++		args[1] = fmt.Sprintf("(%s)(%s*1)", args[2], args[1])
++	} else if args[1] != "" {
++		args[1] = fmt.Sprintf("(%s*1)", args[1])
++	} else if args[2] != "" {
++		args[1] = fmt.Sprintf("(%s)", args[2])
++	} else if args[0] != "" {
++		args[1] = ""
++	}
++	if args[0] != "" && args[1] != "" {
++		args[0] = fmt.Sprintf("%s%s", args[0], args[1])
++	} else if args[0] != "" {
++		args[0] = fmt.Sprintf("$%s", args[0])
++	} else if args[1] != "" {
++		args[0] = fmt.Sprintf("%s", args[1])
++	} else {
++		args[0] = ""
++	}
++	return args[0]
++}
++
++// This function parses memory operand of type D(L,B)
++func mem_operandl(args []string) (string, string) {
++	if args[0] != "" && args[2] != "" {
++		args[0] = fmt.Sprintf("%s(%s)", args[0], args[2])
++	} else if args[2] != "" {
++		args[0] = fmt.Sprintf("(%s)", args[2])
++	} else {
++		args[0] = fmt.Sprintf("%s", args[0])
++	}
++	return args[0], args[1]
++}
++
++// plan9Arg formats arg (which is the argIndex's arg in inst) according to Plan 9 rules.
++// NOTE: because Plan9Syntax is the only caller of this func, and it receives a copy
++// of inst, it's ok to modify inst.Args here.
++func plan9Arg(inst *Inst, pc uint64, symname func(uint64) (string, uint64), arg Arg) string {
++	switch arg.(type) {
++	case Reg:
++		if arg == R13 {
++			return "g"
++		}
++		return strings.ToUpper(arg.String(pc)[1:])
++	case Base:
++		if arg == R13 {
++			return "g"
++		}
++		s := arg.String(pc)
++		if s != "" {
++			return strings.ToUpper(s[1 : len(s)-1])
++		}
++		return "R0"
++	case Index:
++		if arg == R13 {
++			return "g"
++		}
++		s := arg.String(pc)
++		if s != "" {
++			return strings.ToUpper(s[1:])
++		}
++		return ""
++	case VReg:
++		return strings.ToUpper(arg.String(pc)[1:])
++	case Disp20, Disp12:
++		numstr := arg.String(pc)
++		num, err := strconv.Atoi(numstr[:len(numstr)])
++		if err != nil {
++			return fmt.Sprintf("plan9Arg: error in converting Atoi:%s", err)
++		}
++		if num == 0 {
++			return ""
++		} else {
++			return strconv.Itoa(num)
++		}
++	case RegIm12, RegIm16, RegIm24, RegIm32:
++		addr, err := strconv.ParseUint(arg.String(pc)[2:], 16, 64)
++		if err != nil {
++			return fmt.Sprintf("plan9Arg: error in converting ParseUint:%s", err)
++		}
++		off := int(addr - pc)
++		s, base := symname(addr)
++		if s != "" && addr == base {
++			return fmt.Sprintf("%s(SB)", s)
++		}
++		off = off / inst.Len
++		return fmt.Sprintf("%v(PC)", off)
++	case Imm, Sign8, Sign16, Sign32:
++		numImm := arg.String(pc)
++		switch arg.(type) {
++		case Sign32, Sign16, Imm:
++			num, err := strconv.ParseInt(numImm, 10, 64)
++			if err != nil {
++				return fmt.Sprintf("plan9Arg: error in converting ParseInt:%s", err)
++			}
++			switch inst.Op {
++			case LLIHF:
++				num = num << 32
++			case LLILH:
++				num = num << 16
++			case NILH:
++				num = (num << 16) | int64(0xFFFF)
++			case OILH:
++				num = num << 16
++			}
++			numImm = fmt.Sprintf("%d", num)
++		}
++		return fmt.Sprintf("$%s", numImm)
++	case Mask, Len:
++		num := arg.String(pc)
++		return fmt.Sprintf("$%s", num)
++	}
++	return fmt.Sprintf("???(%v)", arg)
++}
++
++// It checks any 2 args of given instructions to swap or not
++func reverseOperandOrder(op Op) bool {
++	switch op {
++	case LOCR, MLGR:
++		return true
++	case LTEBR, LTDBR:
++		return true
++	case VLEIB, VLEIH, VLEIF, VLEIG, VPDI:
++		return true
++	case VSLDB:
++		return true
++	}
++	return false
++}
++
++// It checks whether to reverse all the args of given mnemonic or not
++func reverseAllOperands(op Op) bool {
++	switch op {
++	case VLVGP: //3-operand list
++		return true
++	case VSEL, VPERM: //4-Operand list
++		return true
++	}
++	return false
++}
+diff --git a/src/cmd/vendor/golang.org/x/arch/s390x/s390xasm/tables.go b/src/cmd/vendor/golang.org/x/arch/s390x/s390xasm/tables.go
+index f0db5e9085..5a66c1fe5b 100644
+--- a/src/cmd/vendor/golang.org/x/arch/s390x/s390xasm/tables.go
++++ b/src/cmd/vendor/golang.org/x/arch/s390x/s390xasm/tables.go
+@@ -2518,8 +2518,6 @@ var (
+ 	ap_ImmUnsigned_16_47   = &argField{Type: TypeImmUnsigned, flags: 0x0, BitField: BitField{16, 32}}
+ 	ap_FPReg_12_15         = &argField{Type: TypeFPReg, flags: 0x2, BitField: BitField{12, 4}}
+ 	ap_Len_8_15            = &argField{Type: TypeLen, flags: 0x10, BitField: BitField{8, 8}}
+-	ap_ImmUnsigned_8_15    = &argField{Type: TypeImmUnsigned, flags: 0x0, BitField: BitField{8, 8}}
+-	ap_ImmUnsigned_16_31   = &argField{Type: TypeImmUnsigned, flags: 0x0, BitField: BitField{16, 16}}
+ 	ap_Mask_8_11           = &argField{Type: TypeMask, flags: 0x800, BitField: BitField{8, 4}}
+ 	ap_RegImSigned16_32_47 = &argField{Type: TypeRegImSigned16, flags: 0x80, BitField: BitField{32, 16}}
+ 	ap_RegImSigned12_12_23 = &argField{Type: TypeRegImSigned12, flags: 0x80, BitField: BitField{12, 12}}
+@@ -2531,8 +2529,10 @@ var (
+ 	ap_ImmSigned16_32_47   = &argField{Type: TypeImmSigned16, flags: 0x0, BitField: BitField{32, 16}}
+ 	ap_ImmSigned8_32_39    = &argField{Type: TypeImmSigned8, flags: 0x0, BitField: BitField{32, 8}}
+ 	ap_Mask_12_15          = &argField{Type: TypeMask, flags: 0x800, BitField: BitField{12, 4}}
++	ap_ImmUnsigned_8_15    = &argField{Type: TypeImmUnsigned, flags: 0x0, BitField: BitField{8, 8}}
+ 	ap_ImmUnsigned_32_47   = &argField{Type: TypeImmUnsigned, flags: 0x0, BitField: BitField{32, 16}}
+ 	ap_ImmUnsigned_32_39   = &argField{Type: TypeImmUnsigned, flags: 0x0, BitField: BitField{32, 8}}
++	ap_ImmUnsigned_16_31   = &argField{Type: TypeImmUnsigned, flags: 0x0, BitField: BitField{16, 16}}
+ 	ap_FPReg_32_35         = &argField{Type: TypeFPReg, flags: 0x2, BitField: BitField{32, 4}}
+ 	ap_Mask_36_39          = &argField{Type: TypeMask, flags: 0x800, BitField: BitField{36, 4}}
+ 	ap_ACReg_24_27         = &argField{Type: TypeACReg, flags: 0x3, BitField: BitField{24, 4}}
+@@ -2546,6 +2546,7 @@ var (
+ 	ap_ACReg_12_15         = &argField{Type: TypeACReg, flags: 0x3, BitField: BitField{12, 4}}
+ 	ap_CReg_8_11           = &argField{Type: TypeCReg, flags: 0x4, BitField: BitField{8, 4}}
+ 	ap_CReg_12_15          = &argField{Type: TypeCReg, flags: 0x4, BitField: BitField{12, 4}}
++	ap_ImmSigned32_16_31   = &argField{Type: TypeImmSigned32, flags: 0x0, BitField: BitField{16, 16}}
+ 	ap_ImmUnsigned_24_27   = &argField{Type: TypeImmUnsigned, flags: 0x0, BitField: BitField{24, 4}}
+ 	ap_ImmUnsigned_28_31   = &argField{Type: TypeImmUnsigned, flags: 0x0, BitField: BitField{28, 4}}
+ 	ap_ImmUnsigned_16_23   = &argField{Type: TypeImmUnsigned, flags: 0x0, BitField: BitField{16, 8}}
+@@ -2706,21 +2707,21 @@ var instFormats = [...]instFormat{
+ 	{NC, 0xff00000000000000, 0xd400000000000000, 0x0, // AND (character) (NC D1(L1,B1),D2(B2))
+ 		[8]*argField{ap_DispUnsigned_20_31, ap_Len_8_15, ap_BaseReg_16_19, ap_DispUnsigned_36_47, ap_BaseReg_32_35}},
+ 	{NI, 0xff00000000000000, 0x9400000000000000, 0x0, // AND (immediate) (NI D1(B1),I2)
+-		[8]*argField{ap_DispUnsigned_20_31, ap_BaseReg_16_19, ap_ImmUnsigned_8_15}},
++		[8]*argField{ap_DispUnsigned_20_31, ap_BaseReg_16_19, ap_ImmSigned8_8_15}},
+ 	{NIY, 0xff00000000ff0000, 0xeb00000000540000, 0x0, // AND (immediate) (NIY D1(B1),I2)
+-		[8]*argField{ap_DispSigned20_20_39, ap_BaseReg_16_19, ap_ImmUnsigned_8_15}},
++		[8]*argField{ap_DispSigned20_20_39, ap_BaseReg_16_19, ap_ImmSigned8_8_15}},
+ 	{NIHH, 0xff0f000000000000, 0xa504000000000000, 0x0, // AND IMMEDIATE (high high) (NIHH R1,I2)
+-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_31}},
++		[8]*argField{ap_Reg_8_11, ap_ImmSigned16_16_31}},
+ 	{NIHL, 0xff0f000000000000, 0xa505000000000000, 0x0, // AND IMMEDIATE (high low) (NIHL R1,I2)
+-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_31}},
++		[8]*argField{ap_Reg_8_11, ap_ImmSigned16_16_31}},
+ 	{NIHF, 0xff0f000000000000, 0xc00a000000000000, 0x0, // AND IMMEDIATE (high) (NIHF R1,I2)
+-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_47}},
++		[8]*argField{ap_Reg_8_11, ap_ImmSigned32_16_47}},
+ 	{NILH, 0xff0f000000000000, 0xa506000000000000, 0x0, // AND IMMEDIATE (low high) (NILH R1,I2)
+-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_31}},
++		[8]*argField{ap_Reg_8_11, ap_ImmSigned16_16_31}},
+ 	{NILL, 0xff0f000000000000, 0xa507000000000000, 0x0, // AND IMMEDIATE (low low) (NILL R1,I2)
+-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_31}},
++		[8]*argField{ap_Reg_8_11, ap_ImmSigned16_16_31}},
+ 	{NILF, 0xff0f000000000000, 0xc00b000000000000, 0x0, // AND IMMEDIATE (low) (NILF R1,I2)
+-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_47}},
++		[8]*argField{ap_Reg_8_11, ap_ImmSigned32_16_47}},
+ 	{NCRK, 0xffff000000000000, 0xb9f5000000000000, 0xf0000000000, // AND WITH COMPLEMENT(32) (NCRK R1,R2,R3)
+ 		[8]*argField{ap_Reg_24_27, ap_Reg_28_31, ap_Reg_16_19}},
+ 	{NCGRK, 0xffff000000000000, 0xb9e5000000000000, 0xf0000000000, // AND WITH COMPLEMENT(64) (NCGRK R1,R2,R3)
+@@ -3338,13 +3339,13 @@ var instFormats = [...]instFormat{
+ 	{XC, 0xff00000000000000, 0xd700000000000000, 0x0, // EXCLUSIVE OR (character) (XC D1(L1,B1),D2(B2))
+ 		[8]*argField{ap_DispUnsigned_20_31, ap_Len_8_15, ap_BaseReg_16_19, ap_DispUnsigned_36_47, ap_BaseReg_32_35}},
+ 	{XI, 0xff00000000000000, 0x9700000000000000, 0x0, // EXCLUSIVE OR (immediate) (XI D1(B1),I2)
+-		[8]*argField{ap_DispUnsigned_20_31, ap_BaseReg_16_19, ap_ImmUnsigned_8_15}},
++		[8]*argField{ap_DispUnsigned_20_31, ap_BaseReg_16_19, ap_ImmSigned8_8_15}},
+ 	{XIY, 0xff00000000ff0000, 0xeb00000000570000, 0x0, // EXCLUSIVE OR (immediate) (XIY D1(B1),I2)
+-		[8]*argField{ap_DispSigned20_20_39, ap_BaseReg_16_19, ap_ImmUnsigned_8_15}},
++		[8]*argField{ap_DispSigned20_20_39, ap_BaseReg_16_19, ap_ImmSigned8_8_15}},
+ 	{XIHF, 0xff0f000000000000, 0xc006000000000000, 0x0, // EXCLUSIVE OR IMMEDIATE (high) (XIHF R1,I2)
+-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_47}},
++		[8]*argField{ap_Reg_8_11, ap_ImmSigned32_16_47}},
+ 	{XILF, 0xff0f000000000000, 0xc007000000000000, 0x0, // EXCLUSIVE OR IMMEDIATE (low) (XILF R1,I2)
+-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_47}},
++		[8]*argField{ap_Reg_8_11, ap_ImmSigned32_16_47}},
+ 	{EX, 0xff00000000000000, 0x4400000000000000, 0x0, // EXECUTE (EX R1,D2(X2,B2))
+ 		[8]*argField{ap_Reg_8_11, ap_DispUnsigned_20_31, ap_IndexReg_12_15, ap_BaseReg_16_19}},
+ 	{EXRL, 0xff0f000000000000, 0xc600000000000000, 0x0, // EXECUTE RELATIVE LONG (EXRL R1,RI2)
+@@ -3642,7 +3643,7 @@ var instFormats = [...]instFormat{
+ 	{LOCFHR, 0xffff000000000000, 0xb9e0000000000000, 0xf0000000000, // LOAD HIGH ON CONDITION (32) (LOCFHR R1,R2,M3)
+ 		[8]*argField{ap_Reg_24_27, ap_Reg_28_31, ap_Mask_16_19}},
+ 	{LGFI, 0xff0f000000000000, 0xc001000000000000, 0x0, // LOAD IMMEDIATE (64→32) (LGFI R1,I2)
+-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_47}},
++		[8]*argField{ap_Reg_8_11, ap_ImmSigned32_16_47}},
+ 	{LXDB, 0xff00000000ff0000, 0xed00000000050000, 0xff000000, // LOAD LENGTHENED (long to extended BFP) (LXDB R1,D2(X2,B2))
+ 		[8]*argField{ap_FPReg_8_11, ap_DispUnsigned_20_31, ap_IndexReg_12_15, ap_BaseReg_16_19}},
+ 	{LXDBR, 0xffff000000000000, 0xb305000000000000, 0xff0000000000, // LOAD LENGTHENED (long to extended BFP) (LXDBR R1,R2)
+@@ -3706,17 +3707,17 @@ var instFormats = [...]instFormat{
+ 	{LLGHRL, 0xff0f000000000000, 0xc406000000000000, 0x0, // LOAD LOGICAL HALFWORD RELATIVE LONG(64→16) (LLGHRL R1,RI2)
+ 		[8]*argField{ap_Reg_8_11, ap_RegImSigned32_16_47}},
+ 	{LLIHH, 0xff0f000000000000, 0xa50c000000000000, 0x0, // LOAD LOGICAL IMMEDIATE (high high) (LLIHH R1,I2)
+-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_31}},
++		[8]*argField{ap_Reg_8_11, ap_ImmSigned16_16_31}},
+ 	{LLIHL, 0xff0f000000000000, 0xa50d000000000000, 0x0, // LOAD LOGICAL IMMEDIATE (high low) (LLIHL R1,I2)
+-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_31}},
++		[8]*argField{ap_Reg_8_11, ap_ImmSigned16_16_31}},
+ 	{LLIHF, 0xff0f000000000000, 0xc00e000000000000, 0x0, // LOAD LOGICAL IMMEDIATE (high) (LLIHF R1,I2)
+-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_47}},
++		[8]*argField{ap_Reg_8_11, ap_ImmSigned32_16_47}},
+ 	{LLILH, 0xff0f000000000000, 0xa50e000000000000, 0x0, // LOAD LOGICAL IMMEDIATE (low high) (LLILH R1,I2)
+-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_31}},
++		[8]*argField{ap_Reg_8_11, ap_ImmSigned16_16_31}},
+ 	{LLILL, 0xff0f000000000000, 0xa50f000000000000, 0x0, // LOAD LOGICAL IMMEDIATE (low low) (LLILL R1,I2)
+-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_31}},
++		[8]*argField{ap_Reg_8_11, ap_ImmSigned16_16_31}},
+ 	{LLILF, 0xff0f000000000000, 0xc00f000000000000, 0x0, // LOAD LOGICAL IMMEDIATE (low) (LLILF R1,I2)
+-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_47}},
++		[8]*argField{ap_Reg_8_11, ap_ImmSigned32_16_47}},
+ 	{LLGFRL, 0xff0f000000000000, 0xc40e000000000000, 0x0, // LOAD LOGICAL RELATIVE LONG (64→32) (LLGFRL R1,RI2)
+ 		[8]*argField{ap_Reg_8_11, ap_RegImSigned32_16_47}},
+ 	{LLGT, 0xff00000000ff0000, 0xe300000000170000, 0x0, // LOAD LOGICAL THIRTY ONE BITS (64→31) (LLGT R1,D2(X2,B2))
+@@ -4016,9 +4017,9 @@ var instFormats = [...]instFormat{
+ 	{MGH, 0xff00000000ff0000, 0xe3000000003c0000, 0x0, // MULTIPLY HALFWORD (64→16) (MGH R1,D2(X2,B2))
+ 		[8]*argField{ap_Reg_8_11, ap_DispSigned20_20_39, ap_IndexReg_12_15, ap_BaseReg_16_19}},
+ 	{MHI, 0xff0f000000000000, 0xa70c000000000000, 0x0, // MULTIPLY HALFWORD IMMEDIATE (32→16) (MHI R1,I2)
+-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_31}},
++		[8]*argField{ap_Reg_8_11, ap_ImmSigned32_16_31}},
+ 	{MGHI, 0xff0f000000000000, 0xa70d000000000000, 0x0, // MULTIPLY HALFWORD IMMEDIATE (64→16) (MGHI R1,I2)
+-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_31}},
++		[8]*argField{ap_Reg_8_11, ap_ImmSigned32_16_31}},
+ 	{MLG, 0xff00000000ff0000, 0xe300000000860000, 0x0, // MULTIPLY LOGICAL (128→64) (MLG R1,D2(X2,B2))
+ 		[8]*argField{ap_Reg_8_11, ap_DispSigned20_20_39, ap_IndexReg_12_15, ap_BaseReg_16_19}},
+ 	{MLGR, 0xffff000000000000, 0xb986000000000000, 0xff0000000000, // MULTIPLY LOGICAL (128→64) (MLGR R1,R2)
+@@ -4050,9 +4051,9 @@ var instFormats = [...]instFormat{
+ 	{MSGFR, 0xffff000000000000, 0xb91c000000000000, 0xff0000000000, // MULTIPLY SINGLE (64←32) (MSGFR R1,R2)
+ 		[8]*argField{ap_Reg_24_27, ap_Reg_28_31}},
+ 	{MSFI, 0xff0f000000000000, 0xc201000000000000, 0x0, // MULTIPLY SINGLE IMMEDIATE (32) (MSFI R1,I2)
+-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_47}},
++		[8]*argField{ap_Reg_8_11, ap_ImmSigned32_16_47}},
+ 	{MSGFI, 0xff0f000000000000, 0xc200000000000000, 0x0, // MULTIPLY SINGLE IMMEDIATE (64←32) (MSGFI R1,I2)
+-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_47}},
++		[8]*argField{ap_Reg_8_11, ap_ImmSigned32_16_47}},
+ 	{MYH, 0xff00000000ff0000, 0xed000000003d0000, 0xf000000, // MULTIPLY UNNORM. (long to ext. high HFP) (MYH R1,R3,D2(X2,B2))
+ 		[8]*argField{ap_FPReg_32_35, ap_FPReg_8_11, ap_DispUnsigned_20_31, ap_IndexReg_12_15, ap_BaseReg_16_19}},
+ 	{MYHR, 0xffff000000000000, 0xb33d000000000000, 0xf0000000000, // MULTIPLY UNNORM. (long to ext. high HFP) (MYHR R1,R3,R2)
+@@ -4100,21 +4101,21 @@ var instFormats = [...]instFormat{
+ 	{OC, 0xff00000000000000, 0xd600000000000000, 0x0, // OR (character) (OC D1(L1,B1),D2(B2))
+ 		[8]*argField{ap_DispUnsigned_20_31, ap_Len_8_15, ap_BaseReg_16_19, ap_DispUnsigned_36_47, ap_BaseReg_32_35}},
+ 	{OI, 0xff00000000000000, 0x9600000000000000, 0x0, // OR (immediate) (OI D1(B1),I2)
+-		[8]*argField{ap_DispUnsigned_20_31, ap_BaseReg_16_19, ap_ImmUnsigned_8_15}},
++		[8]*argField{ap_DispUnsigned_20_31, ap_BaseReg_16_19, ap_ImmSigned8_8_15}},
+ 	{OIY, 0xff00000000ff0000, 0xeb00000000560000, 0x0, // OR (immediate) (OIY D1(B1),I2)
+-		[8]*argField{ap_DispSigned20_20_39, ap_BaseReg_16_19, ap_ImmUnsigned_8_15}},
++		[8]*argField{ap_DispSigned20_20_39, ap_BaseReg_16_19, ap_ImmSigned8_8_15}},
+ 	{OIHH, 0xff0f000000000000, 0xa508000000000000, 0x0, // OR IMMEDIATE (high high) (OIHH R1,I2)
+-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_31}},
++		[8]*argField{ap_Reg_8_11, ap_ImmSigned16_16_31}},
+ 	{OIHL, 0xff0f000000000000, 0xa509000000000000, 0x0, // OR IMMEDIATE (high low) (OIHL R1,I2)
+-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_31}},
++		[8]*argField{ap_Reg_8_11, ap_ImmSigned16_16_31}},
+ 	{OIHF, 0xff0f000000000000, 0xc00c000000000000, 0x0, // OR IMMEDIATE (high) (OIHF R1,I2)
+-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_47}},
++		[8]*argField{ap_Reg_8_11, ap_ImmSigned32_16_47}},
+ 	{OILH, 0xff0f000000000000, 0xa50a000000000000, 0x0, // OR IMMEDIATE (low high) (OILH R1,I2)
+-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_31}},
++		[8]*argField{ap_Reg_8_11, ap_ImmSigned16_16_31}},
+ 	{OILL, 0xff0f000000000000, 0xa50b000000000000, 0x0, // OR IMMEDIATE (low low) (OILL R1,I2)
+-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_31}},
++		[8]*argField{ap_Reg_8_11, ap_ImmSigned16_16_31}},
+ 	{OILF, 0xff0f000000000000, 0xc00d000000000000, 0x0, // OR IMMEDIATE (low) (OILF R1,I2)
+-		[8]*argField{ap_Reg_8_11, ap_ImmUnsigned_16_47}},
++		[8]*argField{ap_Reg_8_11, ap_ImmSigned32_16_47}},
+ 	{OCRK, 0xffff000000000000, 0xb975000000000000, 0xf0000000000, // OR WITH COMPLEMENT (32) (OCRK R1,R2,R3)
+ 		[8]*argField{ap_Reg_24_27, ap_Reg_28_31, ap_Reg_16_19}},
+ 	{OCGRK, 0xffff000000000000, 0xb965000000000000, 0xf0000000000, // OR WITH COMPLEMENT (64) (OCGRK R1,R2,R3)
+@@ -4830,13 +4831,13 @@ var instFormats = [...]instFormat{
+ 	{VLEB, 0xff00000000ff0000, 0xe700000000000000, 0x0, // VECTOR LOAD ELEMENT (8) (VLEB V1,D2(X2,B2),M3)
+ 		[8]*argField{ap_VecReg_8_11, ap_DispUnsigned_20_31, ap_IndexReg_12_15, ap_BaseReg_16_19, ap_Mask_32_35, ap_ImmUnsigned_36_39}},
+ 	{VLEIH, 0xff00000000ff0000, 0xe700000000410000, 0xf000000000000, // VECTOR LOAD ELEMENT IMMEDIATE (16) (VLEIH V1,I2,M3)
+-		[8]*argField{ap_VecReg_8_11, ap_ImmUnsigned_16_31, ap_Mask_32_35, ap_ImmUnsigned_36_39}},
++		[8]*argField{ap_VecReg_8_11, ap_ImmSigned16_16_31, ap_Mask_32_35, ap_ImmUnsigned_36_39}},
+ 	{VLEIF, 0xff00000000ff0000, 0xe700000000430000, 0xf000000000000, // VECTOR LOAD ELEMENT IMMEDIATE (32) (VLEIF V1,I2,M3)
+-		[8]*argField{ap_VecReg_8_11, ap_ImmUnsigned_16_31, ap_Mask_32_35, ap_ImmUnsigned_36_39}},
++		[8]*argField{ap_VecReg_8_11, ap_ImmSigned16_16_31, ap_Mask_32_35, ap_ImmUnsigned_36_39}},
+ 	{VLEIG, 0xff00000000ff0000, 0xe700000000420000, 0xf000000000000, // VECTOR LOAD ELEMENT IMMEDIATE (64) (VLEIG V1,I2,M3)
+-		[8]*argField{ap_VecReg_8_11, ap_ImmUnsigned_16_31, ap_Mask_32_35, ap_ImmUnsigned_36_39}},
++		[8]*argField{ap_VecReg_8_11, ap_ImmSigned16_16_31, ap_Mask_32_35, ap_ImmUnsigned_36_39}},
+ 	{VLEIB, 0xff00000000ff0000, 0xe700000000400000, 0xf000000000000, // VECTOR LOAD ELEMENT IMMEDIATE (8) (VLEIB V1,I2,M3)
+-		[8]*argField{ap_VecReg_8_11, ap_ImmUnsigned_16_31, ap_Mask_32_35, ap_ImmUnsigned_36_39}},
++		[8]*argField{ap_VecReg_8_11, ap_ImmSigned16_16_31, ap_Mask_32_35, ap_ImmUnsigned_36_39}},
+ 	{VLER, 0xff00000000ff0000, 0xe600000000070000, 0x0, // VECTOR LOAD ELEMENTS REVERSED (VLER V1,D2(X2,B2),M3)
+ 		[8]*argField{ap_VecReg_8_11, ap_DispUnsigned_20_31, ap_IndexReg_12_15, ap_BaseReg_16_19, ap_Mask_32_35, ap_ImmUnsigned_36_39}},
+ 	{VFI, 0xff00000000ff0000, 0xe700000000c70000, 0xff0000000000, // VECTOR LOAD FP INTEGER (VFI V1,V2,M3,M4,M5)
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 16236baaea..019b7229d9 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -16,7 +16,7 @@ github.com/google/pprof/third_party/svgpan
+ # github.com/ianlancetaylor/demangle v0.0.0-20240312041847-bd984b5ce465
+ ## explicit; go 1.13
+ github.com/ianlancetaylor/demangle
+-# golang.org/x/arch v0.10.1-0.20240910142527-7874f23b9c06
++# golang.org/x/arch v0.11.1-0.20241106162200-f977c2e4e3f4
+ ## explicit; go 1.18
+ golang.org/x/arch/arm/armasm
+ golang.org/x/arch/arm64/arm64asm

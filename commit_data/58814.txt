@@ -17,9 +17,108 @@ Date:   Thu Dec 14 13:07:50 2023 -0800
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/arm.s |  8 ++++++++
  src/cmd/internal/obj/arm/asm5.go        |  8 ++++++++
  test/fixedbugs/issue64715.go            | 25 +++++++++++++++++++++++++
  test/fixedbugs/issue64715.out           |  1 +
  4 files changed, 42 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm.s b/src/cmd/asm/internal/asm/testdata/arm.s
+index 2ba22c71de..2b8cadbed8 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm.s
++++ b/src/cmd/asm/internal/asm/testdata/arm.s
+@@ -870,10 +870,13 @@ jmp_label_3:
+ 	BIC.S	R0@>R1, R2           // 7021d2e1
+ 
+ // SRL
++	SRL	$0, R5, R6           // 0560a0e1
++	SRL	$1, R5, R6           // a560a0e1
+ 	SRL	$14, R5, R6          // 2567a0e1
+ 	SRL	$15, R5, R6          // a567a0e1
+ 	SRL	$30, R5, R6          // 256fa0e1
+ 	SRL	$31, R5, R6          // a56fa0e1
++	SRL	$32, R5, R6          // 2560a0e1
+ 	SRL.S	$14, R5, R6          // 2567b0e1
+ 	SRL.S	$15, R5, R6          // a567b0e1
+ 	SRL.S	$30, R5, R6          // 256fb0e1
+@@ -892,10 +895,13 @@ jmp_label_3:
+ 	SRL.S	R5, R7               // 3775b0e1
+ 
+ // SRA
++	SRA	$0, R5, R6           // 0560a0e1
++	SRA	$1, R5, R6           // c560a0e1
+ 	SRA	$14, R5, R6          // 4567a0e1
+ 	SRA	$15, R5, R6          // c567a0e1
+ 	SRA	$30, R5, R6          // 456fa0e1
+ 	SRA	$31, R5, R6          // c56fa0e1
++	SRA	$32, R5, R6          // 4560a0e1
+ 	SRA.S	$14, R5, R6          // 4567b0e1
+ 	SRA.S	$15, R5, R6          // c567b0e1
+ 	SRA.S	$30, R5, R6          // 456fb0e1
+@@ -914,6 +920,8 @@ jmp_label_3:
+ 	SRA.S	R5, R7               // 5775b0e1
+ 
+ // SLL
++	SLL	$0, R5, R6           // 0560a0e1
++	SLL	$1, R5, R6           // 8560a0e1
+ 	SLL	$14, R5, R6          // 0567a0e1
+ 	SLL	$15, R5, R6          // 8567a0e1
+ 	SLL	$30, R5, R6          // 056fa0e1
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 24b9bdd980..9731bd4151 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -1099,6 +1099,14 @@ func (c *ctxt5) oplook(p *obj.Prog) *Optab {
+ 		fmt.Printf("\t\t%d %d\n", p.From.Type, p.To.Type)
+ 	}
+ 
++	if (p.As == ASRL || p.As == ASRA) && p.From.Type == obj.TYPE_CONST && p.From.Offset == 0 {
++		// Right shifts are weird - a shift that looks like "shift by constant 0" actually
++		// means "shift by constant 32". Use left shift in this situation instead.
++		// See issue 64715.
++		// TODO: rotate by 0? Not currently supported, but if we ever do then include it here.
++		p.As = ASLL
++	}
++
+ 	ops := oprange[p.As&obj.AMask]
+ 	c1 := &xcmp[a1]
+ 	c3 := &xcmp[a3]
+diff --git a/test/fixedbugs/issue64715.go b/test/fixedbugs/issue64715.go
+new file mode 100644
+index 0000000000..bf117165b7
+--- /dev/null
++++ b/test/fixedbugs/issue64715.go
+@@ -0,0 +1,25 @@
++// run
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func boolInt32(b bool) int32 {
++	if b {
++		return 1
++	}
++
++	return 0
++}
++
++func f(left uint16, right int32) (r uint16) {
++	return left >> right
++}
++
++var n = uint16(65535)
++
++func main() {
++	println(f(n, boolInt32(int64(n^n) > 1)))
++}
+diff --git a/test/fixedbugs/issue64715.out b/test/fixedbugs/issue64715.out
+new file mode 100644
+index 0000000000..7a53b35687
+--- /dev/null
++++ b/test/fixedbugs/issue64715.out
+@@ -0,0 +1 @@
++65535

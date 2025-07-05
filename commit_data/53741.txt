@@ -35,8 +35,54 @@ Date:   Wed Aug 31 14:25:11 2022 +0100
     Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/flags/flags.go | 3 +--
  src/cmd/cgo/main.go                 | 3 +--
  src/cmd/go/internal/work/exec.go    | 4 ++--
  3 files changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/asm/internal/flags/flags.go b/src/cmd/asm/internal/flags/flags.go
+index 1c8b908860..d5e818223b 100644
+--- a/src/cmd/asm/internal/flags/flags.go
++++ b/src/cmd/asm/internal/flags/flags.go
+@@ -73,8 +73,7 @@ func Usage() {
+ }
+ 
+ func Parse() {
+-	flag.Usage = Usage
+-	flag.Parse()
++	objabi.Flagparse(Usage)
+ 	if flag.NArg() == 0 {
+ 		flag.Usage()
+ 	}
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 4f94d77c0a..55515a677f 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -252,8 +252,7 @@ var gccBaseCmd []string
+ 
+ func main() {
+ 	objabi.AddVersionFlag() // -V
+-	flag.Usage = usage
+-	flag.Parse()
++	objabi.Flagparse(usage)
+ 
+ 	if *dynobj != "" {
+ 		// cgo -dynimport is essentially a separate helper command
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 497d7fda3a..bba6e452ed 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -3407,10 +3407,10 @@ func passLongArgsInResponseFiles(cmd *exec.Cmd) (cleanup func()) {
+ func useResponseFile(path string, argLen int) bool {
+ 	// Unless the program uses objabi.Flagparse, which understands
+ 	// response files, don't use response files.
+-	// TODO: do we need more commands? asm? cgo? For now, no.
++	// TODO: Note that other toolchains like CC are missing here for now.
+ 	prog := strings.TrimSuffix(filepath.Base(path), ".exe")
+ 	switch prog {
+-	case "compile", "link":
++	case "compile", "link", "cgo", "asm":
+ 	default:
+ 		return false
+ 	}

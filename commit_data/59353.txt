@@ -14,9 +14,85 @@ Date:   Wed Feb 1 15:58:43 2023 +0000
     Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Damien Neil <dneil@google.com>
-
+---
  src/net/ip_test.go          | 5 ++++-
  src/net/netip/netip.go      | 4 ++++
  src/net/netip/netip_test.go | 5 ++++-
  src/net/netip/slow_test.go  | 3 +++
  4 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/ip_test.go b/src/net/ip_test.go
+index acc2310be1..11c0b75246 100644
+--- a/src/net/ip_test.go
++++ b/src/net/ip_test.go
+@@ -21,7 +21,6 @@ var parseIPTests = []struct {
+ 	{"::ffff:127.1.2.3", IPv4(127, 1, 2, 3)},
+ 	{"::ffff:7f01:0203", IPv4(127, 1, 2, 3)},
+ 	{"0:0:0:0:0000:ffff:127.1.2.3", IPv4(127, 1, 2, 3)},
+-	{"0:0:0:0:000000:ffff:127.1.2.3", IPv4(127, 1, 2, 3)},
+ 	{"0:0:0:0::ffff:127.1.2.3", IPv4(127, 1, 2, 3)},
+ 
+ 	{"2001:4860:0:2001::68", IP{0x20, 0x01, 0x48, 0x60, 0, 0, 0x20, 0x01, 0, 0, 0, 0, 0, 0, 0x00, 0x68}},
+@@ -37,6 +36,10 @@ var parseIPTests = []struct {
+ 	{"fe80::1%lo0", nil},
+ 	{"fe80::1%911", nil},
+ 	{"", nil},
++	//6 zeroes in one group
++	{"0:0:0:0:000000:ffff:127.1.2.3", nil},
++	//5 zeroes in one group edge case
++	{"0:0:0:0:00000:ffff:127.1.2.3", nil},
+ 	{"a1:a2:a3:a4::b1:b2:b3:b4", nil}, // Issue 6628
+ 	{"127.001.002.003", nil},
+ 	{"::ffff:127.001.002.003", nil},
+diff --git a/src/net/netip/netip.go b/src/net/netip/netip.go
+index 7d816b3c64..d709c56dfa 100644
+--- a/src/net/netip/netip.go
++++ b/src/net/netip/netip.go
+@@ -251,6 +251,10 @@ func parseIPv6(in string) (Addr, error) {
+ 			} else {
+ 				break
+ 			}
++			if off > 3 {
++				//more than 4 digits in group, fail.
++				return Addr{}, parseAddrError{in: in, msg: "each group must have 4 or less digits", at: s}
++			}
+ 			if acc > math.MaxUint16 {
+ 				// Overflow, fail.
+ 				return Addr{}, parseAddrError{in: in, msg: "IPv6 field has value >=2^16", at: s}
+diff --git a/src/net/netip/netip_test.go b/src/net/netip/netip_test.go
+index a4ba533343..e75f07d8c2 100644
+--- a/src/net/netip/netip_test.go
++++ b/src/net/netip/netip_test.go
+@@ -274,6 +274,10 @@ func TestParseAddr(t *testing.T) {
+ 		"fe80:1?:1",
+ 		// IPv6 with truncated bytes after single colon.
+ 		"fe80:",
++		// IPv6 with 5 zeros in last group
++		"0:0:0:0:0:ffff:0:00000",
++		// IPv6 with 5 zeros in one group and embedded IPv4
++		"0:0:0:0:00000:ffff:127.1.2.3",
+ 	}
+ 
+ 	for _, s := range invalidIPs {
+@@ -1247,7 +1251,6 @@ func TestIs4In6(t *testing.T) {
+ 		{mustIP("::ffff:127.1.2.3"), true, mustIP("127.1.2.3")},
+ 		{mustIP("::ffff:7f01:0203"), true, mustIP("127.1.2.3")},
+ 		{mustIP("0:0:0:0:0000:ffff:127.1.2.3"), true, mustIP("127.1.2.3")},
+-		{mustIP("0:0:0:0:000000:ffff:127.1.2.3"), true, mustIP("127.1.2.3")},
+ 		{mustIP("0:0:0:0::ffff:127.1.2.3"), true, mustIP("127.1.2.3")},
+ 		{mustIP("::1"), false, mustIP("::1")},
+ 		{mustIP("1.2.3.4"), false, mustIP("1.2.3.4")},
+diff --git a/src/net/netip/slow_test.go b/src/net/netip/slow_test.go
+index d7c8025164..a05f39de74 100644
+--- a/src/net/netip/slow_test.go
++++ b/src/net/netip/slow_test.go
+@@ -182,6 +182,9 @@ func parseIPv4Slow(s string) (Addr, error) {
+ // parseWord converts a 16-bit hex string into its corresponding
+ // two-byte value.
+ func parseWord(s string) (byte, byte, error) {
++	if(len(s) > 4) {
++		return 0, 0, fmt.Errorf("parseWord(%q): invalid word", s)
++	}
+ 	ret, err := strconv.ParseUint(s, 16, 16)
+ 	if err != nil {
+ 		return 0, 0, err

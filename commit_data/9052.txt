@@ -12,7 +12,7 @@ Date:   Wed Jul 13 11:22:41 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4673055
-
+---
  src/pkg/runtime/386/asm.s      |  6 ++++++
  src/pkg/runtime/386/atomic.c   |  7 +++++++
  src/pkg/runtime/amd64/asm.s    |  6 ++++++
@@ -21,3 +21,139 @@ Date:   Wed Jul 13 11:22:41 2011 -0700
  src/pkg/runtime/iface.c        |  9 +++++----
  src/pkg/runtime/runtime.h      |  4 +++-
  7 files changed, 54 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/runtime/386/asm.s b/src/pkg/runtime/386/asm.s
+index e2cabef146..3aa5bdee55 100644
+--- a/src/pkg/runtime/386/asm.s
++++ b/src/pkg/runtime/386/asm.s
+@@ -318,6 +318,12 @@ TEXT runtime·casp(SB), 7, $0
+ 	MOVL	$1, AX
+ 	RET
+ 
++TEXT runtime·atomicstorep(SB), 7, $0
++	MOVL	4(SP), BX
++	MOVL	8(SP), AX
++	XCHGL	AX, 0(BX)
++	RET
++
+ // void jmpdefer(fn, sp);
+ // called from deferreturn.
+ // 1. pop the caller
+diff --git a/src/pkg/runtime/386/atomic.c b/src/pkg/runtime/386/atomic.c
+index c031cc4f69..a4f2a114fc 100644
+--- a/src/pkg/runtime/386/atomic.c
++++ b/src/pkg/runtime/386/atomic.c
+@@ -10,3 +10,10 @@ runtime·atomicload(uint32 volatile* addr)
+ {
+ 	return *addr;
+ }
++
++#pragma textflag 7
++void*
++runtime·atomicloadp(void* volatile* addr)
++{
++	return *addr;
++}
+diff --git a/src/pkg/runtime/amd64/asm.s b/src/pkg/runtime/amd64/asm.s
+index 46d82e3657..e03c9ebfdf 100644
+--- a/src/pkg/runtime/amd64/asm.s
++++ b/src/pkg/runtime/amd64/asm.s
+@@ -364,6 +364,12 @@ TEXT runtime·casp(SB), 7, $0
+ 	MOVL	$1, AX
+ 	RET
+ 
++TEXT runtime·atomicstorep(SB), 7, $0
++	MOVQ	8(SP), BX
++	MOVQ	16(SP), AX
++	XCHGQ	AX, 0(BX)
++	RET
++
+ // void jmpdefer(fn, sp);
+ // called from deferreturn.
+ // 1. pop the caller
+diff --git a/src/pkg/runtime/amd64/atomic.c b/src/pkg/runtime/amd64/atomic.c
+index c031cc4f69..a4f2a114fc 100644
+--- a/src/pkg/runtime/amd64/atomic.c
++++ b/src/pkg/runtime/amd64/atomic.c
+@@ -10,3 +10,10 @@ runtime·atomicload(uint32 volatile* addr)
+ {
+ 	return *addr;
+ }
++
++#pragma textflag 7
++void*
++runtime·atomicloadp(void* volatile* addr)
++{
++	return *addr;
++}
+diff --git a/src/pkg/runtime/arm/atomic.c b/src/pkg/runtime/arm/atomic.c
+index 9fd47bae7b..186ffcfd48 100644
+--- a/src/pkg/runtime/arm/atomic.c
++++ b/src/pkg/runtime/arm/atomic.c
+@@ -10,3 +10,23 @@ runtime·atomicload(uint32 volatile* addr)
+ {
+ 	return runtime·xadd(addr, 0);
+ }
++
++#pragma textflag 7
++void*
++runtime·atomicloadp(void* volatile* addr)
++{
++	return (void*)runtime·xadd((uint32 volatile*)addr, 0);
++}
++
++#pragma textflag 7
++void
++runtime·atomicstorep(void* volatile* addr, void* v)
++{
++	void *old;
++
++	for(;;) {
++		old = *addr;
++		if(runtime·casp(addr, old, v))
++			return;
++	}
++}
+diff --git a/src/pkg/runtime/iface.c b/src/pkg/runtime/iface.c
+index b1015f695f..75417cc25c 100644
+--- a/src/pkg/runtime/iface.c
++++ b/src/pkg/runtime/iface.c
+@@ -81,7 +81,7 @@ itab(InterfaceType *inter, Type *type, int32 canfail)
+ 	for(locked=0; locked<2; locked++) {
+ 		if(locked)
+ 			runtime·lock(&ifacelock);
+-		for(m=hash[h]; m!=nil; m=m->link) {
++		for(m=runtime·atomicloadp(&hash[h]); m!=nil; m=m->link) {
+ 			if(m->inter == inter && m->type == type) {
+ 				if(m->bad) {
+ 					m = nil;
+@@ -145,10 +145,11 @@ search:
+ 	}
+ 
+ out:
++	if(!locked)
++		runtime·panicstring("invalid itab locking");
+ 	m->link = hash[h];
+-	hash[h] = m;
+-	if(locked)
+-		runtime·unlock(&ifacelock);
++	runtime·atomicstorep(&hash[h], m);
++	runtime·unlock(&ifacelock);
+ 	if(m->bad)
+ 		return nil;
+ 	return m;
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index ef17b72d69..ef0cc00f94 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -425,7 +425,9 @@ bool	runtime·casp(void**, void*, void*);
+ // Don't confuse with XADD x86 instruction,
+ // this one is actually 'addx', that is, add-and-fetch.
+ uint32	runtime·xadd(uint32 volatile*, int32);
+-uint32  runtime·atomicload(uint32 volatile*);
++uint32	runtime·atomicload(uint32 volatile*);
++void*	runtime·atomicloadp(void* volatile*);
++void	runtime·atomicstorep(void* volatile*, void*);
+ void	runtime·jmpdefer(byte*, void*);
+ void	runtime·exit1(int32);
+ void	runtime·ready(G*);

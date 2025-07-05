@@ -16,7 +16,7 @@ Date:   Mon Feb 6 17:06:02 2017 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/amd64/prog.go  |  1 -
  src/cmd/compile/internal/arm/prog.go    |  1 -
  src/cmd/compile/internal/arm64/prog.go  |  1 -
@@ -34,3 +34,275 @@ Date:   Mon Feb 6 17:06:02 2017 -0800
  src/cmd/internal/obj/util.go            |  1 -
  src/cmd/internal/obj/x86/asm6.go        |  1 -
  16 files changed, 31 insertions(+), 53 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/prog.go b/src/cmd/compile/internal/amd64/prog.go
+index bd95f46a4c..6dff09329b 100644
+--- a/src/cmd/compile/internal/amd64/prog.go
++++ b/src/cmd/compile/internal/amd64/prog.go
+@@ -23,7 +23,6 @@ const (
+ // As an exception to that rule, we typically write down all the
+ // size variants of an operation even if we just use a subset.
+ var progtable = [x86.ALAST & obj.AMask]gc.ProgInfo{
+-	obj.ATYPE:     {Flags: gc.Pseudo | gc.Skip},
+ 	obj.ATEXT:     {Flags: gc.Pseudo},
+ 	obj.AFUNCDATA: {Flags: gc.Pseudo},
+ 	obj.APCDATA:   {Flags: gc.Pseudo},
+diff --git a/src/cmd/compile/internal/arm/prog.go b/src/cmd/compile/internal/arm/prog.go
+index 1dd7c98e38..1b80ddefd0 100644
+--- a/src/cmd/compile/internal/arm/prog.go
++++ b/src/cmd/compile/internal/arm/prog.go
+@@ -22,7 +22,6 @@ const (
+ // As an exception to that rule, we typically write down all the
+ // size variants of an operation even if we just use a subset.
+ var progtable = [arm.ALAST & obj.AMask]gc.ProgInfo{
+-	obj.ATYPE:     {Flags: gc.Pseudo | gc.Skip},
+ 	obj.ATEXT:     {Flags: gc.Pseudo},
+ 	obj.AFUNCDATA: {Flags: gc.Pseudo},
+ 	obj.APCDATA:   {Flags: gc.Pseudo},
+diff --git a/src/cmd/compile/internal/arm64/prog.go b/src/cmd/compile/internal/arm64/prog.go
+index 5d3ec67bc8..7cb7517534 100644
+--- a/src/cmd/compile/internal/arm64/prog.go
++++ b/src/cmd/compile/internal/arm64/prog.go
+@@ -25,7 +25,6 @@ const (
+ //
+ // The table is formatted for 8-space tabs.
+ var progtable = [arm64.ALAST & obj.AMask]gc.ProgInfo{
+-	obj.ATYPE:     {Flags: gc.Pseudo | gc.Skip},
+ 	obj.ATEXT:     {Flags: gc.Pseudo},
+ 	obj.AFUNCDATA: {Flags: gc.Pseudo},
+ 	obj.APCDATA:   {Flags: gc.Pseudo},
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index e0127afe89..3719ccbd55 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -299,7 +299,7 @@ func Patch(p *obj.Prog, to *obj.Prog) {
+ // Gins inserts instruction as. f is from, t is to.
+ func Gins(as obj.As, f, t *Node) *obj.Prog {
+ 	switch as {
+-	case obj.AVARKILL, obj.AVARLIVE, obj.AVARDEF, obj.ATYPE,
++	case obj.AVARKILL, obj.AVARLIVE, obj.AVARDEF,
+ 		obj.ATEXT, obj.AFUNCDATA, obj.AUSEFIELD:
+ 	default:
+ 		Fatalf("unhandled gins op %v", as)
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 64f61b4352..5ec253667b 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -422,29 +422,45 @@ func compile(fn *Node) {
+ 		}
+ 	}
+ 
+-	for _, n := range fn.Func.Dcl {
++	gendebug(ptxt.From.Sym, fn.Func.Dcl)
++
++	genssa(ssafn, ptxt, gcargs, gclocals)
++	ssafn.Free()
++}
++
++func gendebug(fn *obj.LSym, decls []*Node) {
++	if fn == nil {
++		return
++	}
++
++	for _, n := range decls {
+ 		if n.Op != ONAME { // might be OTYPE or OLITERAL
+ 			continue
+ 		}
++
++		var name int16
+ 		switch n.Class {
+ 		case PAUTO:
+ 			if !n.Used {
+ 				continue
+ 			}
+-			fallthrough
++			name = obj.NAME_AUTO
+ 		case PPARAM, PPARAMOUT:
+-			// The symbol is excluded later from debugging info if its name begins ".autotmp_", but the type is still necessary.
+-			// See bugs #17644 and #17830 and cmd/internal/dwarf/dwarf.go
+-			p := Gins(obj.ATYPE, n, nil)
+-			p.From.Sym = obj.Linklookup(Ctxt, n.Sym.Name, 0)
+-			p.To.Type = obj.TYPE_MEM
+-			p.To.Name = obj.NAME_EXTERN
+-			p.To.Sym = Linksym(ngotype(n))
++			name = obj.NAME_PARAM
++		default:
++			continue
+ 		}
+-	}
+ 
+-	genssa(ssafn, ptxt, gcargs, gclocals)
+-	ssafn.Free()
++		a := &obj.Auto{
++			Asym:    obj.Linklookup(Ctxt, n.Sym.Name, 0),
++			Aoffset: int32(n.Xoffset),
++			Name:    name,
++			Gotype:  Linksym(ngotype(n)),
++		}
++
++		a.Link = fn.Autom
++		fn.Autom = a
++	}
+ }
+ 
+ type symByName []*Sym
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index a0d56aec41..2a65eac5e9 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -910,9 +910,7 @@ func checkptxt(fn *Node, firstp *obj.Prog) {
+ 		if false {
+ 			fmt.Printf("analyzing '%v'\n", p)
+ 		}
+-		if p.As != obj.ATYPE {
+-			checkprog(fn, p)
+-		}
++		checkprog(fn, p)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/mips/prog.go b/src/cmd/compile/internal/mips/prog.go
+index 32805f0777..2113bb7e12 100644
+--- a/src/cmd/compile/internal/mips/prog.go
++++ b/src/cmd/compile/internal/mips/prog.go
+@@ -25,7 +25,6 @@ const (
+ //
+ // The table is formatted for 8-space tabs.
+ var progtable = [mips.ALAST & obj.AMask]gc.ProgInfo{
+-	obj.ATYPE:     {Flags: gc.Pseudo | gc.Skip},
+ 	obj.ATEXT:     {Flags: gc.Pseudo},
+ 	obj.AFUNCDATA: {Flags: gc.Pseudo},
+ 	obj.APCDATA:   {Flags: gc.Pseudo},
+diff --git a/src/cmd/compile/internal/mips64/prog.go b/src/cmd/compile/internal/mips64/prog.go
+index 74c735c587..9c2c94a37f 100644
+--- a/src/cmd/compile/internal/mips64/prog.go
++++ b/src/cmd/compile/internal/mips64/prog.go
+@@ -25,7 +25,6 @@ const (
+ //
+ // The table is formatted for 8-space tabs.
+ var progtable = [mips.ALAST & obj.AMask]gc.ProgInfo{
+-	obj.ATYPE:     {Flags: gc.Pseudo | gc.Skip},
+ 	obj.ATEXT:     {Flags: gc.Pseudo},
+ 	obj.AFUNCDATA: {Flags: gc.Pseudo},
+ 	obj.APCDATA:   {Flags: gc.Pseudo},
+diff --git a/src/cmd/compile/internal/ppc64/prog.go b/src/cmd/compile/internal/ppc64/prog.go
+index 59cbaa1c6b..ff5fde36e6 100644
+--- a/src/cmd/compile/internal/ppc64/prog.go
++++ b/src/cmd/compile/internal/ppc64/prog.go
+@@ -25,7 +25,6 @@ const (
+ //
+ // The table is formatted for 8-space tabs.
+ var progtable = [ppc64.ALAST & obj.AMask]gc.ProgInfo{
+-	obj.ATYPE:     {Flags: gc.Pseudo | gc.Skip},
+ 	obj.ATEXT:     {Flags: gc.Pseudo},
+ 	obj.AFUNCDATA: {Flags: gc.Pseudo},
+ 	obj.APCDATA:   {Flags: gc.Pseudo},
+diff --git a/src/cmd/compile/internal/s390x/prog.go b/src/cmd/compile/internal/s390x/prog.go
+index f356617d00..fbe9291a24 100644
+--- a/src/cmd/compile/internal/s390x/prog.go
++++ b/src/cmd/compile/internal/s390x/prog.go
+@@ -18,7 +18,6 @@ import (
+ // As an exception to that rule, we typically write down all the
+ // size variants of an operation even if we just use a subset.
+ var progtable = [s390x.ALAST & obj.AMask]gc.ProgInfo{
+-	obj.ATYPE & obj.AMask:     {Flags: gc.Pseudo | gc.Skip},
+ 	obj.ATEXT & obj.AMask:     {Flags: gc.Pseudo},
+ 	obj.AFUNCDATA & obj.AMask: {Flags: gc.Pseudo},
+ 	obj.APCDATA & obj.AMask:   {Flags: gc.Pseudo},
+diff --git a/src/cmd/compile/internal/x86/prog.go b/src/cmd/compile/internal/x86/prog.go
+index e46bdb7f23..33ea29d420 100644
+--- a/src/cmd/compile/internal/x86/prog.go
++++ b/src/cmd/compile/internal/x86/prog.go
+@@ -25,7 +25,6 @@ const (
+ //
+ // The table is formatted for 8-space tabs.
+ var progtable = [x86.ALAST & obj.AMask]gc.ProgInfo{
+-	obj.ATYPE:     {Flags: gc.Pseudo | gc.Skip},
+ 	obj.ATEXT:     {Flags: gc.Pseudo},
+ 	obj.AFUNCDATA: {Flags: gc.Pseudo},
+ 	obj.APCDATA:   {Flags: gc.Pseudo},
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index a7217e2e6d..1fd1a1ce14 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -1411,8 +1411,7 @@ func buildop(ctxt *obj.Link) {
+ 			AMOVM,
+ 			ARFE,
+ 			obj.ATEXT,
+-			obj.AUSEFIELD,
+-			obj.ATYPE:
++			obj.AUSEFIELD:
+ 			break
+ 
+ 		case AADDF:
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 1d2d03593d..f81e1e2ef6 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -290,7 +290,6 @@ const (
+ 	APCDATA
+ 	ARET
+ 	ATEXT
+-	ATYPE
+ 	AUNDEF
+ 	AUSEFIELD
+ 	AVARDEF
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 643f9d02c0..27a24ef100 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -50,30 +50,6 @@ func flushplist(ctxt *Link, freeProgs bool) {
+ 			case AEND:
+ 				continue
+ 
+-			case ATYPE:
+-				// Assume each TYPE instruction describes
+-				// a different local variable or parameter,
+-				// so no dedup.
+-				// Using only the TYPE instructions means
+-				// that we discard location information about local variables
+-				// in C and assembly functions; that information is inferred
+-				// from ordinary references, because there are no TYPE
+-				// instructions there. Without the type information, gdb can't
+-				// use the locations, so we don't bother to save them.
+-				// If something else could use them, we could arrange to
+-				// preserve them.
+-				if curtext == nil {
+-					continue
+-				}
+-				a := new(Auto)
+-				a.Asym = p.From.Sym
+-				a.Aoffset = int32(p.From.Offset)
+-				a.Name = int16(p.From.Name)
+-				a.Gotype = p.To.Sym
+-				a.Link = curtext.Autom
+-				curtext.Autom = a
+-				continue
+-
+ 			case ATEXT:
+ 				s := p.From.Sym
+ 				if s == nil {
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index ec6899e67f..5880577655 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -474,7 +474,6 @@ var Anames = []string{
+ 	"PCDATA",
+ 	"RET",
+ 	"TEXT",
+-	"TYPE",
+ 	"UNDEF",
+ 	"USEFIELD",
+ 	"VARDEF",
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index bf67822822..466fb9cc8f 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -1699,7 +1699,6 @@ var optab =
+ 	{AXTEST, ynone, Px, [23]uint8{0x0f, 01, 0xd6}},
+ 	{AXGETBV, ynone, Pm, [23]uint8{01, 0xd0}},
+ 	{obj.AUSEFIELD, ynop, Px, [23]uint8{0, 0}},
+-	{obj.ATYPE, nil, 0, [23]uint8{}},
+ 	{obj.AFUNCDATA, yfuncdata, Px, [23]uint8{0, 0}},
+ 	{obj.APCDATA, ypcdata, Px, [23]uint8{0, 0}},
+ 	{obj.AVARDEF, nil, 0, [23]uint8{}},

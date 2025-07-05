@@ -13,7 +13,40 @@ Date:   Thu Sep 29 21:03:15 2022 +0800
     Run-TryBot: xie cui <523516579@qq.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/trace/annotations.go | 4 +---
  src/cmd/trace/trace.go       | 6 ++----
  2 files changed, 3 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/trace/annotations.go b/src/cmd/trace/annotations.go
+index a276d7b642..be515880e6 100644
+--- a/src/cmd/trace/annotations.go
++++ b/src/cmd/trace/annotations.go
+@@ -446,9 +446,7 @@ func (task *taskDesc) descendants() []*taskDesc {
+ 	res := []*taskDesc{task}
+ 	for i := 0; len(res[i:]) > 0; i++ {
+ 		t := res[i]
+-		for _, c := range t.children {
+-			res = append(res, c)
+-		}
++		res = append(res, t.children...)
+ 	}
+ 	return res
+ }
+diff --git a/src/cmd/trace/trace.go b/src/cmd/trace/trace.go
+index e6c4cca72e..253b5dafe5 100644
+--- a/src/cmd/trace/trace.go
++++ b/src/cmd/trace/trace.go
+@@ -765,10 +765,8 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
+ 	// Display task and its regions if we are in task-oriented presentation mode.
+ 	if ctx.mode&modeTaskOriented != 0 {
+ 		// sort tasks based on the task start time.
+-		sortedTask := make([]*taskDesc, 0, len(ctx.tasks))
+-		for _, task := range ctx.tasks {
+-			sortedTask = append(sortedTask, task)
+-		}
++		sortedTask := make([]*taskDesc, len(ctx.tasks))
++		copy(sortedTask, ctx.tasks)
+ 		sort.SliceStable(sortedTask, func(i, j int) bool {
+ 			ti, tj := sortedTask[i], sortedTask[j]
+ 			if ti.firstTimestamp() == tj.firstTimestamp() {

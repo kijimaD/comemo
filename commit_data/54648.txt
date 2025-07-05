@@ -12,10 +12,85 @@ Date:   Thu Nov 3 15:39:41 2022 +0800
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/internal/sys/intrinsics_common.go | 2 +-
  src/runtime/os_openbsd_syscall2.go            | 2 +-
  src/runtime/stack.go                          | 2 +-
  src/runtime/stubs2.go                         | 2 +-
  src/runtime/traceback.go                      | 4 ++--
  5 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/internal/sys/intrinsics_common.go b/src/runtime/internal/sys/intrinsics_common.go
+index 709ec23f9d..1461551dda 100644
+--- a/src/runtime/internal/sys/intrinsics_common.go
++++ b/src/runtime/internal/sys/intrinsics_common.go
+@@ -24,7 +24,7 @@ const len8tab = "" +
+ 	"\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08" +
+ 	"\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08\x08"
+ 
+-// len64 returns the minimum number of bits required to represent x; the result is 0 for x == 0.
++// Len64 returns the minimum number of bits required to represent x; the result is 0 for x == 0.
+ //
+ // nosplit because this is used in src/runtime/histogram.go, which make run in sensitive contexts.
+ //
+diff --git a/src/runtime/os_openbsd_syscall2.go b/src/runtime/os_openbsd_syscall2.go
+index ab6b181828..2fed794d7a 100644
+--- a/src/runtime/os_openbsd_syscall2.go
++++ b/src/runtime/os_openbsd_syscall2.go
+@@ -38,7 +38,7 @@ func usleep_no_g(usec uint32) {
+ 	usleep(usec)
+ }
+ 
+-// write calls the write system call.
++// write1 calls the write system call.
+ // It returns a non-negative number of bytes written or a negative errno value.
+ //
+ //go:noescape
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 87d8e519bd..546f997881 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -564,7 +564,7 @@ type adjustinfo struct {
+ 	sghi uintptr
+ }
+ 
+-// Adjustpointer checks whether *vpp is in the old stack described by adjinfo.
++// adjustpointer checks whether *vpp is in the old stack described by adjinfo.
+ // If so, it rewrites *vpp to point into the new stack.
+ func adjustpointer(adjinfo *adjustinfo, vpp unsafe.Pointer) {
+ 	pp := (*uintptr)(vpp)
+diff --git a/src/runtime/stubs2.go b/src/runtime/stubs2.go
+index d2ad8d4ec8..c245c9c1a1 100644
+--- a/src/runtime/stubs2.go
++++ b/src/runtime/stubs2.go
+@@ -25,7 +25,7 @@ func usleep_no_g(usec uint32) {
+ 	usleep(usec)
+ }
+ 
+-// write calls the write system call.
++// write1 calls the write system call.
+ // It returns a non-negative number of bytes written or a negative errno value.
+ //
+ //go:noescape
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 794ea10407..37f35d5637 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -810,7 +810,7 @@ func printAncestorTraceback(ancestor ancestorInfo) {
+ 	}
+ }
+ 
+-// printAncestorTraceback prints the given function info at a given pc
++// printAncestorTracebackFuncInfo prints the given function info at a given pc
+ // within an ancestor traceback. The precision of this info is reduced
+ // due to only have access to the pcs at the time of the caller
+ // goroutine being created.
+@@ -1282,7 +1282,7 @@ type cgoSymbolizerArg struct {
+ 	data     uintptr
+ }
+ 
+-// cgoTraceback prints a traceback of callers.
++// printCgoTraceback prints a traceback of callers.
+ func printCgoTraceback(callers *cgoCallers) {
+ 	if cgoSymbolizer == nil {
+ 		for _, c := range callers {

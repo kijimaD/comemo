@@ -9,7 +9,7 @@ Date:   Tue Nov 17 23:58:51 2009 -0800
     
     R=rsc
     https://golang.org/cl/157055
-
+---
  src/cmd/8l/asm.c                        |  22 +-
  src/cmd/8l/obj.c                        |  14 +-
  src/cmd/make.bash                       |   0
@@ -31,3 +31,2798 @@ Date:   Tue Nov 17 23:58:51 2009 -0800
  src/pkg/syscall/zsysnum_freebsd_386.go  | 320 ++++++++++++++++
  src/pkg/syscall/ztypes_freebsd_386.go   | 224 +++++++++++
  20 files changed, 2538 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 7f101b74ea..e496672e56 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -36,6 +36,7 @@
+ #define	Dbufslop	100
+ 
+ char linuxdynld[] = "/lib/ld-linux.so.2";
++char freebsddynld[] = "/usr/libexec/ld-elf.so.1";
+ uint32 symdatva = 0x99<<24;
+ 
+ int32
+@@ -273,7 +274,7 @@ doelf(void)
+ 	Sym *s, *shstrtab, *dynamic, *dynstr, *d;
+ 	int h, nsym, t;
+ 
+-	if(HEADTYPE != 7 && HEADTYPE != 8)
++	if(HEADTYPE != 7 && HEADTYPE != 8 && HEADTYPE != 9)
+ 		return;
+ 
+ 	/* predefine strings we need for section headers */
+@@ -303,7 +304,14 @@ doelf(void)
+ 		s = lookup(".interp", 0);
+ 		s->reachable = 1;
+ 		s->type = SDATA;	// TODO: rodata
+-		addstring(lookup(".interp", 0), linuxdynld);
++		switch(HEADTYPE) {
++		case 7:
++			addstring(lookup(".interp", 0), linuxdynld);
++			break;
++		case 9:
++			addstring(lookup(".interp", 0), freebsddynld);
++			break;
++		}
+ 
+ 		/*
+ 		 * hash table - empty for now.
+@@ -527,6 +535,7 @@ asmb(void)
+ 		break;
+ 	case 7:
+ 	case 8:
++	case 9:
+ 		v = rnd(HEADR+textsize, INITRND);
+ 		seek(cout, v, 0);
+ 		break;
+@@ -583,6 +592,7 @@ asmb(void)
+ 			break;
+ 		case 7:
+ 		case 8:
++		case 9:
+ 			symo = rnd(HEADR+textsize, INITRND)+datsize;
+ 			symo = rnd(symo, INITRND);
+ 			break;
+@@ -752,6 +762,7 @@ asmb(void)
+ 
+ 	case 7:
+ 	case 8:
++	case 9:
+ 		/* elf 386 */
+ 		if(HEADTYPE == 8)
+ 			debug['d'] = 1;
+@@ -975,10 +986,15 @@ asmb(void)
+ 		eh->ident[EI_CLASS] = ELFCLASS32;
+ 		eh->ident[EI_DATA] = ELFDATA2LSB;
+ 		eh->ident[EI_VERSION] = EV_CURRENT;
+-		if(HEADTYPE == 8) {
++		switch(HEADTYPE) {
++		case 8:
+ 			eh->ident[EI_OSABI] = ELFOSABI_NACL;
+ 			eh->ident[EI_ABIVERSION] = 6;
+ 			eh->flags = 0x200000;	// aligned mod 32
++			break;
++		case 9:
++			eh->ident[EI_OSABI] = 9;
++			break;
+ 		}
+ 
+ 		eh->type = ET_EXEC;
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 88925e691d..1bfeff5bc2 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -49,6 +49,10 @@ char	*thestring 	= "386";
+  *	-H2 -T4128 -R4096		is plan9 format
+  *	-H3 -Tx -Rx			is MS-DOS .COM
+  *	-H4 -Tx -Rx			is fake MS-DOS .EXE
++ *	-H6 -Tx -Rx			is Apple Mach-O
++ *	-H7 -Tx -Rx			is Linux ELF32
++ *	-H8 -Tx -Rx			is Google Native Client
++ *	-H9 -Tx -Rx			is FreeBSD ELF32
+  */
+ 
+ static int
+@@ -154,6 +158,10 @@ main(int argc, char *argv[])
+ 		if(strcmp(goos, "nacl") == 0)
+ 			HEADTYPE = 8;
+ 		else
++		if(strcmp(goos, "freebsd") == 0) {
++			debug['d'] = 1; /* no dynamic syms for now */
++			HEADTYPE = 9;
++		} else
+ 			print("goos is not known: %sn", goos);
+ 	}
+ 
+@@ -226,13 +234,17 @@ main(int argc, char *argv[])
+ 			INITRND = 4096;
+ 		break;
+ 	case 7:	/* elf32 executable */
++	case 9:
+ 		/*
+ 		 * Linux ELF uses TLS offsets negative from %gs.
+ 		 * Translate 0(GS) and 4(GS) into -8(GS) and -4(GS).
+ 		 * Also known to ../../pkg/runtime/linux/386/sys.s
+ 		 * and ../../libcgo/linux_386.c.
+ 		 */
+-		tlsoffset = -8;
++		if (HEADTYPE == 7)
++			tlsoffset = -8;
++		else
++			tlsoffset = 0;
+ 		elfinit();
+ 		HEADR = ELFRESERVE;
+ 		if(INITTEXT == -1)
+diff --git a/src/cmd/make.bash b/src/cmd/make.bash
+old mode 100644
+new mode 100755
+diff --git a/src/libcgo/freebsd_386.c b/src/libcgo/freebsd_386.c
+new file mode 100644
+index 0000000000..1f596f861b
+--- /dev/null
++++ b/src/libcgo/freebsd_386.c
+@@ -0,0 +1,59 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <pthread.h>
++#include "libcgo.h"
++
++static void* threadentry(void*);
++static pthread_key_t k1, k2;
++
++/* gccism: arrange for inittls to be called at dynamic load time */
++static void inittls(void) __attribute__((constructor));
++
++static void
++inittls(void)
++{
++	/* unimplemented for now */
++}
++
++void
++initcgo(void)
++{
++}
++
++void
++libcgo_sys_thread_start(ThreadStart *ts)
++{
++	pthread_attr_t attr;
++	pthread_t p;
++	size_t size;
++
++	pthread_attr_init(&attr);
++	pthread_attr_getstacksize(&attr, &size);
++	ts->g->stackguard = size;
++	pthread_create(&p, &attr, threadentry, ts);
++}
++
++static void*
++threadentry(void *v)
++{
++	ThreadStart ts;
++
++	ts = *(ThreadStart*)v;
++	free(v);
++
++	ts.g->stackbase = (uintptr)&ts;
++
++	/*
++	 * libcgo_sys_thread_start set stackguard to stack size;
++	 * change to actual guard pointer.
++	 */
++	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
++
++	pthread_setspecific(k1, (void*)ts.g);
++	pthread_setspecific(k2, (void*)ts.m);
++
++	crosscall_386(ts.fn);
++	return nil;
++}
+diff --git a/src/pkg/debug/proc/regs_freebsd_386.go b/src/pkg/debug/proc/regs_freebsd_386.go
+new file mode 100644
+index 0000000000..60c9ac719e
+--- /dev/null
++++ b/src/pkg/debug/proc/regs_freebsd_386.go
+@@ -0,0 +1,5 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package proc
+diff --git a/src/pkg/runtime/freebsd/386/defs.h b/src/pkg/runtime/freebsd/386/defs.h
+new file mode 100644
+index 0000000000..a49749311b
+--- /dev/null
++++ b/src/pkg/runtime/freebsd/386/defs.h
+@@ -0,0 +1,160 @@
++// godefs freebsd/defs.c
++
++// MACHINE GENERATED - DO NOT EDIT.
++
++// Constants
++enum {
++	PROT_NONE = 0,
++	PROT_READ = 0x1,
++	PROT_WRITE = 0x2,
++	PROT_EXEC = 0x4,
++	MAP_ANON = 0x1000,
++	MAP_PRIVATE = 0x2,
++	SA_SIGINFO = 0x40,
++	SA_RESTART = 0x2,
++	SA_ONSTACK = 0x1,
++	UMTX_OP_WAIT = 0x2,
++	UMTX_OP_WAKE = 0x3,
++	EINTR = 0x4,
++};
++
++// Types
++#pragma pack on
++
++typedef struct Rtprio Rtprio;
++struct Rtprio {
++	uint16 type;
++	uint16 prio;
++};
++
++typedef struct ThrParam ThrParam;
++struct ThrParam {
++	void *start_func;
++	void *arg;
++	int8 *stack_base;
++	uint32 stack_size;
++	int8 *tls_base;
++	uint32 tls_size;
++	int32 *child_tid;
++	int32 *parent_tid;
++	int32 flags;
++	Rtprio *rtp;
++	void* spare[3];
++};
++
++typedef struct Sigaltstack Sigaltstack;
++struct Sigaltstack {
++	int8 *ss_sp;
++	uint32 ss_size;
++	int32 ss_flags;
++};
++
++typedef struct Sigset Sigset;
++struct Sigset {
++	uint32 __bits[4];
++};
++
++typedef union Sigval Sigval;
++union Sigval {
++	int32 sival_int;
++	void *sival_ptr;
++	int32 sigval_int;
++	void *sigval_ptr;
++};
++
++typedef struct StackT StackT;
++struct StackT {
++	int8 *ss_sp;
++	uint32 ss_size;
++	int32 ss_flags;
++};
++
++typedef struct Siginfo Siginfo;
++struct Siginfo {
++	int32 si_signo;
++	int32 si_errno;
++	int32 si_code;
++	int32 si_pid;
++	uint32 si_uid;
++	int32 si_status;
++	void *si_addr;
++	Sigval si_value;
++	byte _reason[32];
++};
++
++typedef struct Mcontext Mcontext;
++struct Mcontext {
++	int32 mc_onstack;
++	int32 mc_gs;
++	int32 mc_fs;
++	int32 mc_es;
++	int32 mc_ds;
++	int32 mc_edi;
++	int32 mc_esi;
++	int32 mc_ebp;
++	int32 mc_isp;
++	int32 mc_ebx;
++	int32 mc_edx;
++	int32 mc_ecx;
++	int32 mc_eax;
++	int32 mc_trapno;
++	int32 mc_err;
++	int32 mc_eip;
++	int32 mc_cs;
++	int32 mc_eflags;
++	int32 mc_esp;
++	int32 mc_ss;
++	int32 mc_len;
++	int32 mc_fpformat;
++	int32 mc_ownedfp;
++	int32 mc_spare1[1];
++	int32 mc_fpstate[128];
++	int32 mc_fsbase;
++	int32 mc_gsbase;
++	int32 mc_spare2[6];
++};
++
++typedef struct Ucontext Ucontext;
++struct Ucontext {
++	Sigset uc_sigmask;
++	Mcontext uc_mcontext;
++	Ucontext *uc_link;
++	StackT uc_stack;
++	int32 uc_flags;
++	int32 __spare__[4];
++	byte pad0[12];
++};
++
++typedef struct Sigcontext Sigcontext;
++struct Sigcontext {
++	Sigset sc_mask;
++	int32 sc_onstack;
++	int32 sc_gs;
++	int32 sc_fs;
++	int32 sc_es;
++	int32 sc_ds;
++	int32 sc_edi;
++	int32 sc_esi;
++	int32 sc_ebp;
++	int32 sc_isp;
++	int32 sc_ebx;
++	int32 sc_edx;
++	int32 sc_ecx;
++	int32 sc_eax;
++	int32 sc_trapno;
++	int32 sc_err;
++	int32 sc_eip;
++	int32 sc_cs;
++	int32 sc_efl;
++	int32 sc_esp;
++	int32 sc_ss;
++	int32 sc_len;
++	int32 sc_fpformat;
++	int32 sc_ownedfp;
++	int32 sc_spare1[1];
++	int32 sc_fpstate[128];
++	int32 sc_fsbase;
++	int32 sc_gsbase;
++	int32 sc_spare2[6];
++};
++#pragma pack off
+diff --git a/src/pkg/runtime/freebsd/386/rt0.s b/src/pkg/runtime/freebsd/386/rt0.s
+new file mode 100755
+index 0000000000..67c5f912cc
+--- /dev/null
++++ b/src/pkg/runtime/freebsd/386/rt0.s
+@@ -0,0 +1,9 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Darwin and Linux use the same linkage to main
++
++TEXT	_rt0_386_freebsd(SB),7,$0
++	JMP	_rt0_386(SB)
++
+diff --git a/src/pkg/runtime/freebsd/386/signal.c b/src/pkg/runtime/freebsd/386/signal.c
+new file mode 100644
+index 0000000000..ac0e84f13b
+--- /dev/null
++++ b/src/pkg/runtime/freebsd/386/signal.c
+@@ -0,0 +1,109 @@
++#include "runtime.h"
++#include "defs.h"
++#include "signals.h"
++#include "os.h"
++
++extern void sigtramp(void);
++
++typedef struct sigaction {
++	union {
++		void    (*__sa_handler)(int32);
++		void    (*__sa_sigaction)(int32, Siginfo*, void *);
++	} __sigaction_u;		/* signal handler */
++	int32	sa_flags;		/* see signal options below */
++	int64	sa_mask;		/* signal mask to apply */
++} Sigaction;
++
++void
++dumpregs(Sigcontext *r)
++{
++	printf("eax     %x\n", r->sc_eax);
++	printf("ebx     %x\n", r->sc_ebx);
++	printf("ecx     %x\n", r->sc_ecx);
++	printf("edx     %x\n", r->sc_edx);
++	printf("edi     %x\n", r->sc_edi);
++	printf("esi     %x\n", r->sc_esi);
++	printf("ebp     %x\n", r->sc_ebp);
++	printf("esp     %x\n", r->sc_esp);
++	printf("eip     %x\n", r->sc_eip);
++	printf("eflags  %x\n", r->sc_efl);
++	printf("cs      %x\n", r->sc_cs);
++	printf("fs      %x\n", r->sc_fsbase);
++	printf("gs      %x\n", r->sc_gsbase);
++}
++
++void
++sighandler(int32 sig, Siginfo* info, void* context)
++{
++	Ucontext *uc;
++	Mcontext *mc;
++	Sigcontext *sc;
++
++	if(panicking)	// traceback already printed
++		exit(2);
++	panicking = 1;
++
++	uc = context;
++	mc = &uc->uc_mcontext;
++	sc = (Sigcontext*)mc;	// same layout, more conveient names
++
++	if(sig < 0 || sig >= NSIG)
++		printf("Signal %d\n", sig);
++	else
++		printf("%s\n", sigtab[sig].name);
++
++	printf("Faulting address: %p\n", info->si_addr);
++	printf("PC=%X\n", sc->sc_eip);
++	printf("\n");
++
++	if(gotraceback()){
++		traceback((void*)sc->sc_eip, (void*)sc->sc_esp, m->curg);
++		tracebackothers(m->curg);
++		dumpregs(sc);
++	}
++
++	breakpoint();
++	exit(2);
++}
++
++void
++sigignore(void)
++{
++}
++
++void
++signalstack(byte *p, int32 n)
++{
++	Sigaltstack st;
++
++	st.ss_sp = (int8*)p;
++	st.ss_size = n;
++	st.ss_flags = 0;
++	sigaltstack(&st, nil);
++}
++
++void
++initsig(void)
++{
++	static Sigaction sa;
++
++	int32 i;
++	sa.sa_flags |= SA_ONSTACK | SA_SIGINFO;
++	sa.sa_mask = ~0x0ull;
++	
++	for(i = 0; i < NSIG; i++) {
++		if(sigtab[i].flags) {
++			if(sigtab[i].flags & SigCatch)
++				sa.__sigaction_u.__sa_handler = (void*) sigtramp;
++			else
++				sa.__sigaction_u.__sa_handler = (void*) sigignore;
++
++			if(sigtab[i].flags & SigRestart)
++				sa.sa_flags |= SA_RESTART;
++			else
++				sa.sa_flags &= ~SA_RESTART;
++
++			sigaction(i, &sa, nil);
++		}
++	}
++}
+diff --git a/src/pkg/runtime/freebsd/386/sys.s b/src/pkg/runtime/freebsd/386/sys.s
+new file mode 100644
+index 0000000000..1048fea14e
+--- /dev/null
++++ b/src/pkg/runtime/freebsd/386/sys.s
+@@ -0,0 +1,180 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++//
++// System calls and other sys.stuff for 386, FreeBSD
++// /usr/src/sys/kern/syscalls.master for syscall numbers.
++//
++
++#include "386/asm.h"
++	
++TEXT sys_umtx_op(SB),7,$-4
++	MOVL $454, AX
++	INT $0x80
++	RET
++
++TEXT thr_new(SB),7,$-4
++	MOVL $455, AX
++	INT $0x80
++	RET
++
++TEXT thr_start(SB),7,$0
++	MOVL mm+0(FP), AX
++	MOVL m_g0(AX), BX
++	LEAL	m_tls(AX), BP
++	MOVL	0(BP), DI
++	ADDL	$7, DI
++	PUSHAL
++	PUSHL	$32
++	PUSHL	BP
++	PUSHL	DI
++	CALL	setldt(SB)
++	POPL	AX
++	POPL	AX
++	POPL	AX
++	POPAL
++	MOVL BX, g
++	MOVL AX, m
++	CALL mstart(SB)
++	MOVL 0, AX			// crash (not reached)
++
++// Exit the entire program (like C exit)
++TEXT exit(SB),7,$-4
++	MOVL	$1, AX
++	INT	$0x80
++	CALL	notok(SB)
++	RET
++
++TEXT exit1(SB),7,$-4
++	MOVL	$431, AX
++	INT	$0x80
++	JAE	2(PC)
++	CALL	notok(SB)
++	RET
++
++TEXT write(SB),7,$-4
++	MOVL	$4, AX
++	INT	$0x80
++	JAE	2(PC)
++	CALL	notok(SB)
++	RET
++
++TEXT	notok(SB),7,$0
++	MOVL	$0xf1, 0xf1
++	RET
++
++TEXT runtime·mmap(SB),7,$-4
++	MOVL	$477, AX
++	INT	$0x80
++	JAE	2(PC)
++	CALL	notok(SB)
++	RET
++
++TEXT sigaction(SB),7,$-4
++	MOVL	$416, AX
++	INT	$0x80
++	JAE	2(PC)
++	CALL	notok(SB)
++	RET
++
++TEXT sigtramp(SB),7,$40
++	// g = m->gsignal
++	MOVL	m, BP
++	MOVL	m_gsignal(BP), BP
++	MOVL	BP, g
++
++	MOVL	signo+0(FP), AX
++	MOVL	siginfo+4(FP), BX
++	MOVL	context+8(FP), CX
++
++	MOVL	AX, 0(SP)
++	MOVL	BX, 4(SP)
++	MOVL	CX, 8(SP)
++	CALL	sighandler(SB)
++
++	// g = m->curg
++	MOVL	m, BP
++	MOVL	m_curg(BP), BP
++	MOVL	BP, g
++
++	MOVL	context+8(FP), AX
++
++	MOVL	$0, 0(SP)	// syscall gap
++	MOVL	AX, 4(SP)
++	MOVL	$417, AX	// sigreturn(ucontext)
++	INT	$0x80
++	CALL	notok(SB)
++	RET
++
++TEXT sigaltstack(SB),7,$0
++	MOVL	$53, AX
++	INT	$0x80
++	JAE	2(PC)
++	CALL	notok(SB)
++	RET
++
++/*
++descriptor entry format for system call
++is the native machine format, ugly as it is:
++
++	2-byte limit
++	3-byte base
++	1-byte: 0x80=present, 0x60=dpl<<5, 0x1F=type
++	1-byte: 0x80=limit is *4k, 0x40=32-bit operand size,
++		0x0F=4 more bits of limit
++	1 byte: 8 more bits of base
++
++int i386_get_ldt(int, union ldt_entry *, int);
++int i386_set_ldt(int, const union ldt_entry *, int);
++
++*/
++
++// setldt(int entry, int address, int limit)
++TEXT setldt(SB),7,$32
++	MOVL	address+4(FP), BX	// aka base
++	MOVL	limit+8(FP), CX
++
++	// set up data_desc
++	LEAL	16(SP), AX	// struct data_desc
++	MOVL	$0, 0(AX)
++	MOVL	$0, 4(AX)
++
++	MOVW	BX, 2(AX)
++	SHRL	$16, BX
++	MOVB	BX, 4(AX)
++	SHRL	$8, BX
++	MOVB	BX, 7(AX)
++
++	MOVW	CX, 0(AX)
++	SHRL	$16, CX
++	ANDL	$0x0F, CX
++	ORL	$0x40, CX		// 32-bit operand size
++	MOVB	CX, 6(AX)
++
++	MOVB	$0xF2, 5(AX)	// r/w data descriptor, dpl=3, present
++
++	// call i386_set_ldt(entry, desc, 1)
++	MOVL	$0xffffffff, 0(SP)	// auto-allocate entry and return in AX
++	MOVL	AX, 4(SP)
++	MOVL	$1, 8(SP)
++	CALL	i386_set_ldt(SB)
++
++	// compute segment selector - (entry*8+7)
++	SHLL	$3, AX
++	ADDL	$7, AX
++	MOVW	AX, GS
++	RET
++
++TEXT i386_set_ldt(SB),7,$16
++	LEAL	args+0(FP), AX	// 0(FP) == 4(SP) before SP got moved
++	MOVL	$0, 0(SP)	// syscall gap
++	MOVL	$1, 4(SP)
++	MOVL	AX, 8(SP)
++	MOVL	$165, AX
++	INT	$0x80
++	CMPL	AX, $0xfffff001
++	JLS	2(PC)
++	INT	$3
++	RET
++
++GLOBL tlsoffset(SB),$4
+diff --git a/src/pkg/runtime/freebsd/amd64/defs.h b/src/pkg/runtime/freebsd/amd64/defs.h
+index 06efcc27ae..83fd40b1c9 100644
+--- a/src/pkg/runtime/freebsd/amd64/defs.h
++++ b/src/pkg/runtime/freebsd/amd64/defs.h
+@@ -1,4 +1,4 @@
+-// godefs -f -m64 freebsd/defs.c
++// godefs -f -m64 defs.c
+ 
+ // MACHINE GENERATED - DO NOT EDIT.
+ 
+@@ -21,6 +21,28 @@ enum {
+ // Types
+ #pragma pack on
+ 
++typedef struct Rtprio Rtprio;
++struct Rtprio {
++	uint16 type;
++	uint16 prio;
++};
++
++typedef struct ThrParam ThrParam;
++struct ThrParam {
++	void *start_func;
++	void *arg;
++	int8 *stack_base;
++	uint64 stack_size;
++	int8 *tls_base;
++	uint64 tls_size;
++	int64 *child_tid;
++	int64 *parent_tid;
++	int32 flags;
++	byte pad0[4];
++	Rtprio *rtp;
++	void* spare[3];
++};
++
+ typedef struct Sigaltstack Sigaltstack;
+ struct Sigaltstack {
+ 	int8 *ss_sp;
+diff --git a/src/pkg/runtime/freebsd/defs.c b/src/pkg/runtime/freebsd/defs.c
+index 414e7cd765..93f3f9d159 100644
+--- a/src/pkg/runtime/freebsd/defs.c
++++ b/src/pkg/runtime/freebsd/defs.c
+@@ -16,6 +16,8 @@
+ #include <sys/mman.h>
+ #include <sys/ucontext.h>
+ #include <sys/umtx.h>
++#include <sys/rtprio.h>
++#include <sys/thr.h>
+ #include <sys/_sigset.h>
+ 
+ enum {
+@@ -37,6 +39,8 @@ enum {
+ 	$EINTR = EINTR,
+ };
+ 
++typedef struct rtprio	$Rtprio;
++typedef struct thr_param $ThrParam;
+ typedef struct sigaltstack $Sigaltstack;
+ typedef struct __sigset $Sigset;
+ typedef union sigval $Sigval;
+diff --git a/src/pkg/runtime/freebsd/os.h b/src/pkg/runtime/freebsd/os.h
+index ec91500b7b..441737865b 100644
+--- a/src/pkg/runtime/freebsd/os.h
++++ b/src/pkg/runtime/freebsd/os.h
+@@ -1,19 +1 @@
+-// FreeBSD-specific system calls
+-int32 ksem_init(uint64 *, uint32);
+-int32 ksem_wait(uint32);
+-int32 ksem_destroy(uint32);
+-int32 ksem_post(uint32);
+-
+-struct thr_param {
+-    void	(*start_func)(void *);	/* thread entry function. */
+-    void	*arg;			/* argument for entry function. */
+-    byte	*stack_base;		/* stack base address. */
+-    int64	stack_size;		/* stack size. */
+-    byte	*tls_base;		/* tls base address. */
+-    int64	tls_size;		/* tls size. */
+-    int64	*child_tid;		/* address to store new TID. */
+-    int64	*parent_tid;		/* parent accesses the new TID here. */
+-    int32		flags;			/* thread flags. */
+-    void	*spare[4];		/* TODO: cpu affinity mask etc. */
+-};
+-int32 thr_new(struct thr_param*, uint64);
++int32 thr_new(ThrParam*, int32);
+diff --git a/src/pkg/runtime/freebsd/thread.c b/src/pkg/runtime/freebsd/thread.c
+index e7cd707d03..a4e1e13e51 100644
+--- a/src/pkg/runtime/freebsd/thread.c
++++ b/src/pkg/runtime/freebsd/thread.c
+@@ -125,7 +125,7 @@ void thr_start(void*);
+ void
+ newosproc(M *m, G *g, void *stk, void (*fn)(void))
+ {
+-	struct thr_param param;
++	ThrParam param;
+ 
+ 	USED(fn);	// thr_start assumes fn == mstart
+ 	USED(g);	// thr_start assumes g == m->g0
+@@ -141,8 +141,12 @@ newosproc(M *m, G *g, void *stk, void (*fn)(void))
+ 	param.arg = m;
+ 	param.stack_base = stk;
+ 	param.stack_size = g->stackbase - g->stackguard + 256;
+-	param.child_tid = (int64*)&m->procid;
++	param.child_tid = (int32*)&m->procid;
+ 	param.parent_tid = nil;
++	param.tls_base = (int8*)&m->tls[0];
++	param.tls_size = sizeof m->tls;
++
++	m->tls[0] = m->id;	// so 386 asm can find it
+ 
+ 	thr_new(&param, sizeof param);
+ }
+diff --git a/src/pkg/syscall/asm_freebsd_386.s b/src/pkg/syscall/asm_freebsd_386.s
+new file mode 100644
+index 0000000000..3ca582f7d5
+--- /dev/null
++++ b/src/pkg/syscall/asm_freebsd_386.s
+@@ -0,0 +1,83 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//
++// System call support for 386, FreeBSD
++//
++
++// func Syscall(trap int32, a1, a2, a3 int32) (r1, r2, err int32);
++// func Syscall6(trap int32, a1, a2, a3, a4, a5, a6 int32) (r1, r2, err int32);
++// Trap # in AX, args on stack above caller pc.
++
++TEXT	syscall·Syscall(SB),7,$0
++	CALL	runtime·entersyscall(SB)
++	MOVL	4(SP), AX	// syscall entry
++	// slide args down on top of system call number
++	LEAL		8(SP), SI
++	LEAL		4(SP), DI
++	CLD
++	MOVSL
++	MOVSL
++	MOVSL
++	INT	$0x80
++	JAE	ok
++	MOVL	$-1, 20(SP)	// r1
++	MOVL	$-1, 24(SP)	// r2
++	MOVL	AX, 28(SP)		// errno
++	CALL	runtime·exitsyscall(SB)
++	RET
++ok:
++	MOVL	AX, 20(SP)	// r1
++	MOVL	DX, 24(SP)	// r2
++	MOVL	$0, 28(SP)	// errno
++	CALL	runtime·exitsyscall(SB)
++	RET
++
++TEXT	syscall·Syscall6(SB),7,$0
++	CALL	runtime·entersyscall(SB)
++	MOVL	4(SP), AX	// syscall entry
++	// slide args down on top of system call number
++	LEAL		8(SP), SI
++	LEAL		4(SP), DI
++	CLD
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	INT	$0x80
++	JAE	ok6
++	MOVL	$-1, 32(SP)	// r1
++	MOVL	$-1, 36(SP)	// r2
++	MOVL	AX, 40(SP)		// errno
++	CALL	runtime·exitsyscall(SB)
++	RET
++ok6:
++	MOVL	AX, 32(SP)	// r1
++	MOVL	DX, 36(SP)	// r2
++	MOVL	$0, 40(SP)	// errno
++	CALL	runtime·exitsyscall(SB)
++	RET
++
++TEXT syscall·RawSyscall(SB),7,$0
++	MOVL	4(SP), AX	// syscall entry
++	// slide args down on top of system call number
++	LEAL		8(SP), SI
++	LEAL		4(SP), DI
++	CLD
++	MOVSL
++	MOVSL
++	MOVSL
++	INT	$0x80
++	JAE	ok1
++	MOVL	$-1, 20(SP)	// r1
++	MOVL	$-1, 24(SP)	// r2
++	MOVL	AX, 28(SP)		// errno
++	RET
++ok1:
++	MOVL	AX, 20(SP)	// r1
++	MOVL	DX, 24(SP)	// r2
++	MOVL	$0, 28(SP)	// errno
++	RET
+diff --git a/src/pkg/syscall/mkall.sh b/src/pkg/syscall/mkall.sh
+index 390392e6f8..cfefc67198 100755
+--- a/src/pkg/syscall/mkall.sh
++++ b/src/pkg/syscall/mkall.sh
+@@ -99,6 +99,11 @@ _* | *_ | _)
+ 	echo 'undefined $GOOS_$GOARCH:' "$GOOSARCH" 1>&2
+ 	exit 1
+ 	;;
++freebsd_386)
++	mksyscall="mksyscall.sh -l32"
++	mksysnum="mksysnum_freebsd.sh /usr/src/sys/kern/syscalls.master"
++	mktypes="godefs -gsyscall -f-m32"
++	;;
+ freebsd_amd64)
+ 	mksysnum="mksysnum_freebsd.sh /usr/src/sys/kern/syscalls.master"
+ 	mktypes="godefs -gsyscall -f-m64"
+diff --git a/src/pkg/syscall/syscall_freebsd_386.go b/src/pkg/syscall/syscall_freebsd_386.go
+new file mode 100644
+index 0000000000..a85950508e
+--- /dev/null
++++ b/src/pkg/syscall/syscall_freebsd_386.go
+@@ -0,0 +1,30 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++func Getpagesize() int	{ return 4096 }
++
++func TimespecToNsec(ts Timespec) int64	{ return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
++
++func NsecToTimespec(nsec int64) (ts Timespec) {
++	ts.Sec = int32(nsec / 1e9);
++	ts.Nsec = int32(nsec % 1e9);
++	return;
++}
++
++func TimevalToNsec(tv Timeval) int64	{ return int64(tv.Sec)*1e9 + int64(tv.Usec)*1e3 }
++
++func NsecToTimeval(nsec int64) (tv Timeval) {
++	nsec += 999;	// round up to microsecond
++	tv.Usec = int32(nsec % 1e9 / 1e3);
++	tv.Sec = int32(nsec / 1e9);
++	return;
++}
++
++func SetKevent(k *Kevent_t, fd, mode, flags int) {
++	k.Ident = uint32(fd);
++	k.Filter = int16(mode);
++	k.Flags = uint16(flags);
++}
+diff --git a/src/pkg/syscall/zerrors_freebsd_386.go b/src/pkg/syscall/zerrors_freebsd_386.go
+new file mode 100644
+index 0000000000..dc1ee39fae
+--- /dev/null
++++ b/src/pkg/syscall/zerrors_freebsd_386.go
+@@ -0,0 +1,628 @@
++// mkerrors.sh
++// MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
++
++// godefs -gsyscall _const.c
++
++// MACHINE GENERATED - DO NOT EDIT.
++
++package syscall
++
++// Constants
++const (
++	AF_APPLETALK			= 0x10;
++	AF_ARP				= 0x23;
++	AF_ATM				= 0x1e;
++	AF_BLUETOOTH			= 0x24;
++	AF_CCITT			= 0xa;
++	AF_CHAOS			= 0x5;
++	AF_CNT				= 0x15;
++	AF_COIP				= 0x14;
++	AF_DATAKIT			= 0x9;
++	AF_DECnet			= 0xc;
++	AF_DLI				= 0xd;
++	AF_E164				= 0x1a;
++	AF_ECMA				= 0x8;
++	AF_HYLINK			= 0xf;
++	AF_IEEE80211			= 0x25;
++	AF_IMPLINK			= 0x3;
++	AF_INET				= 0x2;
++	AF_INET6			= 0x1c;
++	AF_IPX				= 0x17;
++	AF_ISDN				= 0x1a;
++	AF_ISO				= 0x7;
++	AF_LAT				= 0xe;
++	AF_LINK				= 0x12;
++	AF_LOCAL			= 0x1;
++	AF_MAX				= 0x26;
++	AF_NATM				= 0x1d;
++	AF_NETBIOS			= 0x6;
++	AF_NETGRAPH			= 0x20;
++	AF_OSI				= 0x7;
++	AF_PUP				= 0x4;
++	AF_ROUTE			= 0x11;
++	AF_SCLUSTER			= 0x22;
++	AF_SIP				= 0x18;
++	AF_SLOW				= 0x21;
++	AF_SNA				= 0xb;
++	AF_UNIX				= 0x1;
++	AF_UNSPEC			= 0;
++	AF_VENDOR00			= 0x27;
++	AF_VENDOR01			= 0x29;
++	AF_VENDOR02			= 0x2b;
++	AF_VENDOR03			= 0x2d;
++	AF_VENDOR04			= 0x2f;
++	AF_VENDOR05			= 0x31;
++	AF_VENDOR06			= 0x33;
++	AF_VENDOR07			= 0x35;
++	AF_VENDOR08			= 0x37;
++	AF_VENDOR09			= 0x39;
++	AF_VENDOR10			= 0x3b;
++	AF_VENDOR11			= 0x3d;
++	AF_VENDOR12			= 0x3f;
++	AF_VENDOR13			= 0x41;
++	AF_VENDOR14			= 0x43;
++	AF_VENDOR15			= 0x45;
++	AF_VENDOR16			= 0x47;
++	AF_VENDOR17			= 0x49;
++	AF_VENDOR18			= 0x4b;
++	AF_VENDOR19			= 0x4d;
++	AF_VENDOR20			= 0x4f;
++	AF_VENDOR21			= 0x51;
++	AF_VENDOR22			= 0x53;
++	AF_VENDOR23			= 0x55;
++	AF_VENDOR24			= 0x57;
++	AF_VENDOR25			= 0x59;
++	AF_VENDOR26			= 0x5b;
++	AF_VENDOR27			= 0x5d;
++	AF_VENDOR28			= 0x5f;
++	AF_VENDOR29			= 0x61;
++	AF_VENDOR30			= 0x63;
++	AF_VENDOR31			= 0x65;
++	AF_VENDOR32			= 0x67;
++	AF_VENDOR33			= 0x69;
++	AF_VENDOR34			= 0x6b;
++	AF_VENDOR35			= 0x6d;
++	AF_VENDOR36			= 0x6f;
++	AF_VENDOR37			= 0x71;
++	AF_VENDOR38			= 0x73;
++	AF_VENDOR39			= 0x75;
++	AF_VENDOR40			= 0x77;
++	AF_VENDOR41			= 0x79;
++	AF_VENDOR42			= 0x7b;
++	AF_VENDOR43			= 0x7d;
++	AF_VENDOR44			= 0x7f;
++	AF_VENDOR45			= 0x81;
++	AF_VENDOR46			= 0x83;
++	AF_VENDOR47			= 0x85;
++	E2BIG				= 0x7;
++	EACCES				= 0xd;
++	EADDRINUSE			= 0x30;
++	EADDRNOTAVAIL			= 0x31;
++	EAFNOSUPPORT			= 0x2f;
++	EAGAIN				= 0x23;
++	EALREADY			= 0x25;
++	EAUTH				= 0x50;
++	EBADF				= 0x9;
++	EBADMSG				= 0x59;
++	EBADRPC				= 0x48;
++	EBUSY				= 0x10;
++	ECANCELED			= 0x55;
++	ECHILD				= 0xa;
++	ECONNABORTED			= 0x35;
++	ECONNREFUSED			= 0x3d;
++	ECONNRESET			= 0x36;
++	EDEADLK				= 0xb;
++	EDESTADDRREQ			= 0x27;
++	EDOM				= 0x21;
++	EDOOFUS				= 0x58;
++	EDQUOT				= 0x45;
++	EEXIST				= 0x11;
++	EFAULT				= 0xe;
++	EFBIG				= 0x1b;
++	EFTYPE				= 0x4f;
++	EHOSTDOWN			= 0x40;
++	EHOSTUNREACH			= 0x41;
++	EIDRM				= 0x52;
++	EILSEQ				= 0x56;
++	EINPROGRESS			= 0x24;
++	EINTR				= 0x4;
++	EINVAL				= 0x16;
++	EIO				= 0x5;
++	EISCONN				= 0x38;
++	EISDIR				= 0x15;
++	ELAST				= 0x5c;
++	ELOOP				= 0x3e;
++	EMFILE				= 0x18;
++	EMLINK				= 0x1f;
++	EMSGSIZE			= 0x28;
++	EMULTIHOP			= 0x5a;
++	ENAMETOOLONG			= 0x3f;
++	ENEEDAUTH			= 0x51;
++	ENETDOWN			= 0x32;
++	ENETRESET			= 0x34;
++	ENETUNREACH			= 0x33;
++	ENFILE				= 0x17;
++	ENOATTR				= 0x57;
++	ENOBUFS				= 0x37;
++	ENODEV				= 0x13;
++	ENOENT				= 0x2;
++	ENOEXEC				= 0x8;
++	ENOLCK				= 0x4d;
++	ENOLINK				= 0x5b;
++	ENOMEM				= 0xc;
++	ENOMSG				= 0x53;
++	ENOPROTOOPT			= 0x2a;
++	ENOSPC				= 0x1c;
++	ENOSYS				= 0x4e;
++	ENOTBLK				= 0xf;
++	ENOTCONN			= 0x39;
++	ENOTDIR				= 0x14;
++	ENOTEMPTY			= 0x42;
++	ENOTSOCK			= 0x26;
++	ENOTSUP				= 0x2d;
++	ENOTTY				= 0x19;
++	ENXIO				= 0x6;
++	EOPNOTSUPP			= 0x2d;
++	EOVERFLOW			= 0x54;
++	EPERM				= 0x1;
++	EPFNOSUPPORT			= 0x2e;
++	EPIPE				= 0x20;
++	EPROCLIM			= 0x43;
++	EPROCUNAVAIL			= 0x4c;
++	EPROGMISMATCH			= 0x4b;
++	EPROGUNAVAIL			= 0x4a;
++	EPROTO				= 0x5c;
++	EPROTONOSUPPORT			= 0x2b;
++	EPROTOTYPE			= 0x29;
++	ERANGE				= 0x22;
++	EREMOTE				= 0x47;
++	EROFS				= 0x1e;
++	ERPCMISMATCH			= 0x49;
++	ESHUTDOWN			= 0x3a;
++	ESOCKTNOSUPPORT			= 0x2c;
++	ESPIPE				= 0x1d;
++	ESRCH				= 0x3;
++	ESTALE				= 0x46;
++	ETIMEDOUT			= 0x3c;
++	ETOOMANYREFS			= 0x3b;
++	ETXTBSY				= 0x1a;
++	EUSERS				= 0x44;
++	EVFILT_AIO			= -0x3;
++	EVFILT_FS			= -0x9;
++	EVFILT_LIO			= -0xa;
++	EVFILT_NETDEV			= -0x8;
++	EVFILT_PROC			= -0x5;
++	EVFILT_READ			= -0x1;
++	EVFILT_SIGNAL			= -0x6;
++	EVFILT_SYSCOUNT			= 0xa;
++	EVFILT_TIMER			= -0x7;
++	EVFILT_VNODE			= -0x4;
++	EVFILT_WRITE			= -0x2;
++	EV_ADD				= 0x1;
++	EV_CLEAR			= 0x20;
++	EV_DELETE			= 0x2;
++	EV_DISABLE			= 0x8;
++	EV_ENABLE			= 0x4;
++	EV_EOF				= 0x8000;
++	EV_ERROR			= 0x4000;
++	EV_FLAG1			= 0x2000;
++	EV_ONESHOT			= 0x10;
++	EV_SYSFLAGS			= 0xf000;
++	EWOULDBLOCK			= 0x23;
++	EXDEV				= 0x12;
++	FD_CLOEXEC			= 0x1;
++	FD_SETSIZE			= 0x400;
++	F_CANCEL			= 0x5;
++	F_DUP2FD			= 0xa;
++	F_DUPFD				= 0;
++	F_GETFD				= 0x1;
++	F_GETFL				= 0x3;
++	F_GETLK				= 0xb;
++	F_GETOWN			= 0x5;
++	F_OGETLK			= 0x7;
++	F_OSETLK			= 0x8;
++	F_OSETLKW			= 0x9;
++	F_RDLCK				= 0x1;
++	F_SETFD				= 0x2;
++	F_SETFL				= 0x4;
++	F_SETLK				= 0xc;
++	F_SETLKW			= 0xd;
++	F_SETLK_REMOTE			= 0xe;
++	F_SETOWN			= 0x6;
++	F_UNLCK				= 0x2;
++	F_UNLCKSYS			= 0x4;
++	F_WRLCK				= 0x3;
++	IPPROTO_3PC			= 0x22;
++	IPPROTO_ADFS			= 0x44;
++	IPPROTO_AH			= 0x33;
++	IPPROTO_AHIP			= 0x3d;
++	IPPROTO_APES			= 0x63;
++	IPPROTO_ARGUS			= 0xd;
++	IPPROTO_AX25			= 0x5d;
++	IPPROTO_BHA			= 0x31;
++	IPPROTO_BLT			= 0x1e;
++	IPPROTO_BRSATMON		= 0x4c;
++	IPPROTO_CARP			= 0x70;
++	IPPROTO_CFTP			= 0x3e;
++	IPPROTO_CHAOS			= 0x10;
++	IPPROTO_CMTP			= 0x26;
++	IPPROTO_CPHB			= 0x49;
++	IPPROTO_CPNX			= 0x48;
++	IPPROTO_DDP			= 0x25;
++	IPPROTO_DGP			= 0x56;
++	IPPROTO_DIVERT			= 0x102;
++	IPPROTO_DONE			= 0x101;
++	IPPROTO_DSTOPTS			= 0x3c;
++	IPPROTO_EGP			= 0x8;
++	IPPROTO_EMCON			= 0xe;
++	IPPROTO_ENCAP			= 0x62;
++	IPPROTO_EON			= 0x50;
++	IPPROTO_ESP			= 0x32;
++	IPPROTO_ETHERIP			= 0x61;
++	IPPROTO_FRAGMENT		= 0x2c;
++	IPPROTO_GGP			= 0x3;
++	IPPROTO_GMTP			= 0x64;
++	IPPROTO_GRE			= 0x2f;
++	IPPROTO_HELLO			= 0x3f;
++	IPPROTO_HMP			= 0x14;
++	IPPROTO_HOPOPTS			= 0;
++	IPPROTO_ICMP			= 0x1;
++	IPPROTO_ICMPV6			= 0x3a;
++	IPPROTO_IDP			= 0x16;
++	IPPROTO_IDPR			= 0x23;
++	IPPROTO_IDRP			= 0x2d;
++	IPPROTO_IGMP			= 0x2;
++	IPPROTO_IGP			= 0x55;
++	IPPROTO_IGRP			= 0x58;
++	IPPROTO_IL			= 0x28;
++	IPPROTO_INLSP			= 0x34;
++	IPPROTO_INP			= 0x20;
++	IPPROTO_IP			= 0;
++	IPPROTO_IPCOMP			= 0x6c;
++	IPPROTO_IPCV			= 0x47;
++	IPPROTO_IPEIP			= 0x5e;
++	IPPROTO_IPIP			= 0x4;
++	IPPROTO_IPPC			= 0x43;
++	IPPROTO_IPV4			= 0x4;
++	IPPROTO_IPV6			= 0x29;
++	IPPROTO_IRTP			= 0x1c;
++	IPPROTO_KRYPTOLAN		= 0x41;
++	IPPROTO_LARP			= 0x5b;
++	IPPROTO_LEAF1			= 0x19;
++	IPPROTO_LEAF2			= 0x1a;
++	IPPROTO_MAX			= 0x100;
++	IPPROTO_MAXID			= 0x34;
++	IPPROTO_MEAS			= 0x13;
++	IPPROTO_MHRP			= 0x30;
++	IPPROTO_MICP			= 0x5f;
++	IPPROTO_MOBILE			= 0x37;
++	IPPROTO_MTP			= 0x5c;
++	IPPROTO_MUX			= 0x12;
++	IPPROTO_ND			= 0x4d;
++	IPPROTO_NHRP			= 0x36;
++	IPPROTO_NONE			= 0x3b;
++	IPPROTO_NSP			= 0x1f;
++	IPPROTO_NVPII			= 0xb;
++	IPPROTO_OLD_DIVERT		= 0xfe;
++	IPPROTO_OSPFIGP			= 0x59;
++	IPPROTO_PFSYNC			= 0xf0;
++	IPPROTO_PGM			= 0x71;
++	IPPROTO_PIGP			= 0x9;
++	IPPROTO_PIM			= 0x67;
++	IPPROTO_PRM			= 0x15;
++	IPPROTO_PUP			= 0xc;
++	IPPROTO_PVP			= 0x4b;
++	IPPROTO_RAW			= 0xff;
++	IPPROTO_RCCMON			= 0xa;
++	IPPROTO_RDP			= 0x1b;
++	IPPROTO_ROUTING			= 0x2b;
++	IPPROTO_RSVP			= 0x2e;
++	IPPROTO_RVD			= 0x42;
++	IPPROTO_SATEXPAK		= 0x40;
++	IPPROTO_SATMON			= 0x45;
++	IPPROTO_SCCSP			= 0x60;
++	IPPROTO_SCTP			= 0x84;
++	IPPROTO_SDRP			= 0x2a;
++	IPPROTO_SEP			= 0x21;
++	IPPROTO_SKIP			= 0x39;
++	IPPROTO_SPACER			= 0x7fff;
++	IPPROTO_SRPC			= 0x5a;
++	IPPROTO_ST			= 0x7;
++	IPPROTO_SVMTP			= 0x52;
++	IPPROTO_SWIPE			= 0x35;
++	IPPROTO_TCF			= 0x57;
++	IPPROTO_TCP			= 0x6;
++	IPPROTO_TLSP			= 0x38;
++	IPPROTO_TP			= 0x1d;
++	IPPROTO_TPXX			= 0x27;
++	IPPROTO_TRUNK1			= 0x17;
++	IPPROTO_TRUNK2			= 0x18;
++	IPPROTO_TTP			= 0x54;
++	IPPROTO_UDP			= 0x11;
++	IPPROTO_VINES			= 0x53;
++	IPPROTO_VISA			= 0x46;
++	IPPROTO_VMTP			= 0x51;
++	IPPROTO_WBEXPAK			= 0x4f;
++	IPPROTO_WBMON			= 0x4e;
++	IPPROTO_WSN			= 0x4a;
++	IPPROTO_XNET			= 0xf;
++	IPPROTO_XTP			= 0x24;
++	IP_ADD_MEMBERSHIP		= 0xc;
++	IP_ADD_SOURCE_MEMBERSHIP	= 0x46;
++	IP_BINDANY			= 0x18;
++	IP_BLOCK_SOURCE			= 0x48;
++	IP_DEFAULT_MULTICAST_LOOP	= 0x1;
++	IP_DEFAULT_MULTICAST_TTL	= 0x1;
++	IP_DONTFRAG			= 0x43;
++	IP_DROP_MEMBERSHIP		= 0xd;
++	IP_DROP_SOURCE_MEMBERSHIP	= 0x47;
++	IP_DUMMYNET_CONFIGURE		= 0x3c;
++	IP_DUMMYNET_DEL			= 0x3d;
++	IP_DUMMYNET_FLUSH		= 0x3e;
++	IP_DUMMYNET_GET			= 0x40;
++	IP_FAITH			= 0x16;
++	IP_FW_ADD			= 0x32;
++	IP_FW_DEL			= 0x33;
++	IP_FW_FLUSH			= 0x34;
++	IP_FW_GET			= 0x36;
++	IP_FW_NAT_CFG			= 0x38;
++	IP_FW_NAT_DEL			= 0x39;
++	IP_FW_NAT_GET_CONFIG		= 0x3a;
++	IP_FW_NAT_GET_LOG		= 0x3b;
++	IP_FW_RESETLOG			= 0x37;
++	IP_FW_TABLE_ADD			= 0x28;
++	IP_FW_TABLE_DEL			= 0x29;
++	IP_FW_TABLE_FLUSH		= 0x2a;
++	IP_FW_TABLE_GETSIZE		= 0x2b;
++	IP_FW_TABLE_LIST		= 0x2c;
++	IP_FW_ZERO			= 0x35;
++	IP_HDRINCL			= 0x2;
++	IP_IPSEC_POLICY			= 0x15;
++	IP_MAX_GROUP_SRC_FILTER		= 0x200;
++	IP_MAX_MEMBERSHIPS		= 0xfff;
++	IP_MAX_SOCK_MUTE_FILTER		= 0x80;
++	IP_MAX_SOCK_SRC_FILTER		= 0x80;
++	IP_MAX_SOURCE_FILTER		= 0x400;
++	IP_MINTTL			= 0x42;
++	IP_MIN_MEMBERSHIPS		= 0x1f;
++	IP_MSFILTER			= 0x4a;
++	IP_MULTICAST_IF			= 0x9;
++	IP_MULTICAST_LOOP		= 0xb;
++	IP_MULTICAST_TTL		= 0xa;
++	IP_MULTICAST_VIF		= 0xe;
++	IP_ONESBCAST			= 0x17;
++	IP_OPTIONS			= 0x1;
++	IP_PORTRANGE			= 0x13;
++	IP_PORTRANGE_DEFAULT		= 0;
++	IP_PORTRANGE_HIGH		= 0x1;
++	IP_PORTRANGE_LOW		= 0x2;
++	IP_RECVDSTADDR			= 0x7;
++	IP_RECVIF			= 0x14;
++	IP_RECVOPTS			= 0x5;
++	IP_RECVRETOPTS			= 0x6;
++	IP_RECVTTL			= 0x41;
++	IP_RETOPTS			= 0x8;
++	IP_RSVP_OFF			= 0x10;
++	IP_RSVP_ON			= 0xf;
++	IP_RSVP_VIF_OFF			= 0x12;
++	IP_RSVP_VIF_ON			= 0x11;
++	IP_SENDSRCADDR			= 0x7;
++	IP_TOS				= 0x3;
++	IP_TTL				= 0x4;
++	IP_UNBLOCK_SOURCE		= 0x49;
++	O_ACCMODE			= 0x3;
++	O_APPEND			= 0x8;
++	O_ASYNC				= 0x40;
++	O_CREAT				= 0x200;
++	O_DIRECT			= 0x10000;
++	O_DIRECTORY			= 0x20000;
++	O_EXCL				= 0x800;
++	O_EXEC				= 0x40000;
++	O_EXLOCK			= 0x20;
++	O_FSYNC				= 0x80;
++	O_NDELAY			= 0x4;
++	O_NOCTTY			= 0x8000;
++	O_NOFOLLOW			= 0x100;
++	O_NONBLOCK			= 0x4;
++	O_RDONLY			= 0;
++	O_RDWR				= 0x2;
++	O_SHLOCK			= 0x10;
++	O_SYNC				= 0x80;
++	O_TRUNC				= 0x400;
++	O_TTY_INIT			= 0x80000;
++	O_WRONLY			= 0x1;
++	SIGABRT				= 0x6;
++	SIGALRM				= 0xe;
++	SIGBUS				= 0xa;
++	SIGCHLD				= 0x14;
++	SIGCONT				= 0x13;
++	SIGEMT				= 0x7;
++	SIGFPE				= 0x8;
++	SIGHUP				= 0x1;
++	SIGILL				= 0x4;
++	SIGINFO				= 0x1d;
++	SIGINT				= 0x2;
++	SIGIO				= 0x17;
++	SIGIOT				= 0x6;
++	SIGKILL				= 0x9;
++	SIGLWP				= 0x20;
++	SIGPIPE				= 0xd;
++	SIGPROF				= 0x1b;
++	SIGQUIT				= 0x3;
++	SIGSEGV				= 0xb;
++	SIGSTOP				= 0x11;
++	SIGSYS				= 0xc;
++	SIGTERM				= 0xf;
++	SIGTHR				= 0x20;
++	SIGTRAP				= 0x5;
++	SIGTSTP				= 0x12;
++	SIGTTIN				= 0x15;
++	SIGTTOU				= 0x16;
++	SIGURG				= 0x10;
++	SIGUSR1				= 0x1e;
++	SIGUSR2				= 0x1f;
++	SIGVTALRM			= 0x1a;
++	SIGWINCH			= 0x1c;
++	SIGXCPU				= 0x18;
++	SIGXFSZ				= 0x19;
++	SOCK_DGRAM			= 0x2;
++	SOCK_MAXADDRLEN			= 0xff;
++	SOCK_RAW			= 0x3;
++	SOCK_RDM			= 0x4;
++	SOCK_SEQPACKET			= 0x5;
++	SOCK_STREAM			= 0x1;
++	SOL_SOCKET			= 0xffff;
++	SOMAXCONN			= 0x80;
++	SO_ACCEPTCONN			= 0x2;
++	SO_ACCEPTFILTER			= 0x1000;
++	SO_BINTIME			= 0x2000;
++	SO_BROADCAST			= 0x20;
++	SO_DEBUG			= 0x1;
++	SO_DONTROUTE			= 0x10;
++	SO_ERROR			= 0x1007;
++	SO_KEEPALIVE			= 0x8;
++	SO_LABEL			= 0x1009;
++	SO_LINGER			= 0x80;
++	SO_LISTENINCQLEN		= 0x1013;
++	SO_LISTENQLEN			= 0x1012;
++	SO_LISTENQLIMIT			= 0x1011;
++	SO_NOSIGPIPE			= 0x800;
++	SO_NO_DDP			= 0x8000;
++	SO_NO_OFFLOAD			= 0x4000;
++	SO_OOBINLINE			= 0x100;
++	SO_PEERLABEL			= 0x1010;
++	SO_RCVBUF			= 0x1002;
++	SO_RCVLOWAT			= 0x1004;
++	SO_RCVTIMEO			= 0x1006;
++	SO_REUSEADDR			= 0x4;
++	SO_REUSEPORT			= 0x200;
++	SO_SETFIB			= 0x1014;
++	SO_SNDBUF			= 0x1001;
++	SO_SNDLOWAT			= 0x1003;
++	SO_SNDTIMEO			= 0x1005;
++	SO_TIMESTAMP			= 0x400;
++	SO_TYPE				= 0x1008;
++	SO_USELOOPBACK			= 0x40;
++	TCP_CA_NAME_MAX			= 0x10;
++	TCP_CONGESTION			= 0x40;
++	TCP_INFO			= 0x20;
++	TCP_MAXBURST			= 0x4;
++	TCP_MAXHLEN			= 0x3c;
++	TCP_MAXOLEN			= 0x28;
++	TCP_MAXSEG			= 0x2;
++	TCP_MAXWIN			= 0xffff;
++	TCP_MAX_SACK			= 0x4;
++	TCP_MAX_WINSHIFT		= 0xe;
++	TCP_MD5SIG			= 0x10;
++	TCP_MINMSS			= 0xd8;
++	TCP_MSS				= 0x200;
++	TCP_NODELAY			= 0x1;
++	TCP_NOOPT			= 0x8;
++	TCP_NOPUSH			= 0x4;
++	WCONTINUED			= 0x4;
++	WCOREFLAG			= 0x80;
++	WLINUXCLONE			= 0x80000000;
++	WNOHANG				= 0x1;
++	WNOWAIT				= 0x8;
++	WSTOPPED			= 0x2;
++	WUNTRACED			= 0x2;
++)
++
++// Types
++
++
++// Error table
++var errors = [...]string{
++	90: "multihop attempted",
++	47: "address family not supported by protocol family",
++	13: "permission denied",
++	39: "destination address required",
++	86: "illegal byte sequence",
++	29: "illegal seek",
++	31: "too many links",
++	74: "RPC prog. not avail",
++	25: "inappropriate ioctl for device",
++	9: "bad file descriptor",
++	34: "result too large",
++	85: "operation canceled",
++	26: "text file busy",
++	12: "cannot allocate memory",
++	36: "operation now in progress",
++	66: "directory not empty",
++	15: "block device required",
++	41: "protocol wrong type for socket",
++	83: "no message of desired type",
++	73: "RPC version wrong",
++	37: "operation already in progress",
++	60: "operation timed out",
++	81: "need authenticator",
++	4: "interrupted system call",
++	91: "link has been severed",
++	1: "operation not permitted",
++	50: "network is down",
++	70: "stale NFS file handle",
++	38: "socket operation on non-socket",
++	80: "authentication error",
++	10: "no child processes",
++	32: "broken pipe",
++	87: "attribute not found",
++	89: "bad message",
++	71: "too many levels of remote in path",
++	59: "too many references: can't splice",
++	46: "protocol family not supported",
++	76: "bad procedure for program",
++	48: "address already in use",
++	52: "network dropped connection on reset",
++	21: "is a directory",
++	82: "identifier removed",
++	88: "programming error",
++	22: "invalid argument",
++	58: "can't send after socket shutdown",
++	84: "value too large to be stored in data type",
++	16: "device busy",
++	67: "too many processes",
++	92: "protocol error",
++	19: "operation not supported by device",
++	30: "read-only file system",
++	7: "argument list too long",
++	11: "resource deadlock avoided",
++	20: "not a directory",
++	54: "connection reset by peer",
++	6: "device not configured",
++	72: "RPC struct is bad",
++	63: "file name too long",
++	44: "socket type not supported",
++	49: "can't assign requested address",
++	43: "protocol not supported",
++	5: "input/output error",
++	51: "network is unreachable",
++	18: "cross-device link",
++	69: "disc quota exceeded",
++	28: "no space left on device",
++	8: "exec format error",
++	40: "message too long",
++	79: "inappropriate file type or format",
++	33: "numerical argument out of domain",
++	27: "file too large",
++	3: "no such process",
++	64: "host is down",
++	77: "no locks available",
++	23: "too many open files in system",
++	78: "function not implemented",
++	57: "socket is not connected",
++	45: "operation not supported",
++	53: "software caused connection abort",
++	56: "socket is already connected",
++	68: "too many users",
++	42: "protocol not available",
++	24: "too many open files",
++	62: "too many levels of symbolic links",
++	55: "no buffer space available",
++	14: "bad address",
++	35: "resource temporarily unavailable",
++	61: "connection refused",
++	17: "file exists",
++	75: "program version wrong",
++	2: "no such file or directory",
++	65: "no route to host",
++}
+diff --git a/src/pkg/syscall/zsyscall_freebsd_386.go b/src/pkg/syscall/zsyscall_freebsd_386.go
+new file mode 100644
+index 0000000000..ff96ebe4f7
+--- /dev/null
++++ b/src/pkg/syscall/zsyscall_freebsd_386.go
+@@ -0,0 +1,660 @@
++// mksyscall.sh -l32 syscall_freebsd.go syscall_freebsd_386.go
++// MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
++
++package syscall
++
++import "unsafe"
++
++func getgroups(ngid int, gid *_Gid_t) (n int, errno int) {
++	r0, _, e1 := Syscall(SYS_GETGROUPS, uintptr(ngid), uintptr(unsafe.Pointer(gid)), 0);
++	n = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func setgroups(ngid int, gid *_Gid_t) (errno int) {
++	_, _, e1 := Syscall(SYS_SETGROUPS, uintptr(ngid), uintptr(unsafe.Pointer(gid)), 0);
++	errno = int(e1);
++	return;
++}
++
++func wait4(pid int, wstatus *_C_int, options int, rusage *Rusage) (wpid int, errno int) {
++	r0, _, e1 := Syscall6(SYS_WAIT4, uintptr(pid), uintptr(unsafe.Pointer(wstatus)), uintptr(options), uintptr(unsafe.Pointer(rusage)), 0, 0);
++	wpid = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func pipe() (r int, w int, errno int) {
++	r0, r1, e1 := Syscall(SYS_PIPE, 0, 0, 0);
++	r = int(r0);
++	w = int(r1);
++	errno = int(e1);
++	return;
++}
++
++func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int) {
++	r0, _, e1 := Syscall(SYS_ACCEPT, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)));
++	fd = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func bind(s int, addr uintptr, addrlen _Socklen) (errno int) {
++	_, _, e1 := Syscall(SYS_BIND, uintptr(s), uintptr(addr), uintptr(addrlen));
++	errno = int(e1);
++	return;
++}
++
++func connect(s int, addr uintptr, addrlen _Socklen) (errno int) {
++	_, _, e1 := Syscall(SYS_CONNECT, uintptr(s), uintptr(addr), uintptr(addrlen));
++	errno = int(e1);
++	return;
++}
++
++func socket(domain int, typ int, proto int) (fd int, errno int) {
++	r0, _, e1 := Syscall(SYS_SOCKET, uintptr(domain), uintptr(typ), uintptr(proto));
++	fd = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int) {
++	_, _, e1 := Syscall6(SYS_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0);
++	errno = int(e1);
++	return;
++}
++
++func getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
++	_, _, e1 := Syscall(SYS_GETPEERNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)));
++	errno = int(e1);
++	return;
++}
++
++func getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
++	_, _, e1 := Syscall(SYS_GETSOCKNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)));
++	errno = int(e1);
++	return;
++}
++
++func recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int) {
++	var _p0 *byte;
++	if len(p) > 0 {
++		_p0 = &p[0]
++	}
++	r0, _, e1 := Syscall6(SYS_RECVFROM, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(flags), uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(fromlen)));
++	n = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno int) {
++	var _p0 *byte;
++	if len(buf) > 0 {
++		_p0 = &buf[0]
++	}
++	_, _, e1 := Syscall6(SYS_SENDTO, uintptr(s), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(flags), uintptr(to), uintptr(addrlen));
++	errno = int(e1);
++	return;
++}
++
++func kevent(kq int, change uintptr, nchange int, event uintptr, nevent int, timeout *Timespec) (n int, errno int) {
++	r0, _, e1 := Syscall6(SYS_KEVENT, uintptr(kq), uintptr(change), uintptr(nchange), uintptr(event), uintptr(nevent), uintptr(unsafe.Pointer(timeout)));
++	n = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (errno int) {
++	var _p0 *_C_int;
++	if len(mib) > 0 {
++		_p0 = &mib[0]
++	}
++	_, _, e1 := Syscall6(SYS___SYSCTL, uintptr(unsafe.Pointer(_p0)), uintptr(len(mib)), uintptr(unsafe.Pointer(old)), uintptr(unsafe.Pointer(oldlen)), uintptr(unsafe.Pointer(new)), uintptr(newlen));
++	errno = int(e1);
++	return;
++}
++
++func fcntl(fd int, cmd int, arg int) (val int, errno int) {
++	r0, _, e1 := Syscall(SYS_FCNTL, uintptr(fd), uintptr(cmd), uintptr(arg));
++	val = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func Access(path string, flags int) (errno int) {
++	_, _, e1 := Syscall(SYS_ACCESS, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(flags), 0);
++	errno = int(e1);
++	return;
++}
++
++func Adjtime(delta *Timeval, olddelta *Timeval) (errno int) {
++	_, _, e1 := Syscall(SYS_ADJTIME, uintptr(unsafe.Pointer(delta)), uintptr(unsafe.Pointer(olddelta)), 0);
++	errno = int(e1);
++	return;
++}
++
++func Chdir(path string) (errno int) {
++	_, _, e1 := Syscall(SYS_CHDIR, uintptr(unsafe.Pointer(StringBytePtr(path))), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Chflags(path string, flags int) (errno int) {
++	_, _, e1 := Syscall(SYS_CHFLAGS, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(flags), 0);
++	errno = int(e1);
++	return;
++}
++
++func Chmod(path string, mode int) (errno int) {
++	_, _, e1 := Syscall(SYS_CHMOD, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0);
++	errno = int(e1);
++	return;
++}
++
++func Chown(path string, uid int, gid int) (errno int) {
++	_, _, e1 := Syscall(SYS_CHOWN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(uid), uintptr(gid));
++	errno = int(e1);
++	return;
++}
++
++func Chroot(path string) (errno int) {
++	_, _, e1 := Syscall(SYS_CHROOT, uintptr(unsafe.Pointer(StringBytePtr(path))), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Close(fd int) (errno int) {
++	_, _, e1 := Syscall(SYS_CLOSE, uintptr(fd), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Dup(fd int) (nfd int, errno int) {
++	r0, _, e1 := Syscall(SYS_DUP, uintptr(fd), 0, 0);
++	nfd = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func Dup2(from int, to int) (errno int) {
++	_, _, e1 := Syscall(SYS_DUP2, uintptr(from), uintptr(to), 0);
++	errno = int(e1);
++	return;
++}
++
++func Exit(code int) {
++	Syscall(SYS_EXIT, uintptr(code), 0, 0);
++	return;
++}
++
++func Fchdir(fd int) (errno int) {
++	_, _, e1 := Syscall(SYS_FCHDIR, uintptr(fd), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Fchflags(path string, flags int) (errno int) {
++	_, _, e1 := Syscall(SYS_FCHFLAGS, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(flags), 0);
++	errno = int(e1);
++	return;
++}
++
++func Fchmod(fd int, mode int) (errno int) {
++	_, _, e1 := Syscall(SYS_FCHMOD, uintptr(fd), uintptr(mode), 0);
++	errno = int(e1);
++	return;
++}
++
++func Fchown(fd int, uid int, gid int) (errno int) {
++	_, _, e1 := Syscall(SYS_FCHOWN, uintptr(fd), uintptr(uid), uintptr(gid));
++	errno = int(e1);
++	return;
++}
++
++func Flock(fd int, how int) (errno int) {
++	_, _, e1 := Syscall(SYS_FLOCK, uintptr(fd), uintptr(how), 0);
++	errno = int(e1);
++	return;
++}
++
++func Fpathconf(fd int, name int) (val int, errno int) {
++	r0, _, e1 := Syscall(SYS_FPATHCONF, uintptr(fd), uintptr(name), 0);
++	val = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func Fstat(fd int, stat *Stat_t) (errno int) {
++	_, _, e1 := Syscall(SYS_FSTAT, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0);
++	errno = int(e1);
++	return;
++}
++
++func Fstatfs(fd int, stat *Statfs_t) (errno int) {
++	_, _, e1 := Syscall(SYS_FSTATFS, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0);
++	errno = int(e1);
++	return;
++}
++
++func Fsync(fd int) (errno int) {
++	_, _, e1 := Syscall(SYS_FSYNC, uintptr(fd), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Ftruncate(fd int, length int64) (errno int) {
++	_, _, e1 := Syscall(SYS_FTRUNCATE, uintptr(fd), uintptr(length), uintptr(length>>32));
++	errno = int(e1);
++	return;
++}
++
++func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, errno int) {
++	var _p0 *byte;
++	if len(buf) > 0 {
++		_p0 = &buf[0]
++	}
++	r0, _, e1 := Syscall6(SYS_GETDIRENTRIES, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(unsafe.Pointer(basep)), 0, 0);
++	n = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func Getdtablesize() (size int) {
++	r0, _, _ := Syscall(SYS_GETDTABLESIZE, 0, 0, 0);
++	size = int(r0);
++	return;
++}
++
++func Getegid() (egid int) {
++	r0, _, _ := Syscall(SYS_GETEGID, 0, 0, 0);
++	egid = int(r0);
++	return;
++}
++
++func Geteuid() (uid int) {
++	r0, _, _ := Syscall(SYS_GETEUID, 0, 0, 0);
++	uid = int(r0);
++	return;
++}
++
++func Getfsstat(buf []Statfs_t, flags int) (n int, errno int) {
++	var _p0 *Statfs_t;
++	if len(buf) > 0 {
++		_p0 = &buf[0]
++	}
++	r0, _, e1 := Syscall(SYS_GETFSSTAT, uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(flags));
++	n = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func Getgid() (gid int) {
++	r0, _, _ := Syscall(SYS_GETGID, 0, 0, 0);
++	gid = int(r0);
++	return;
++}
++
++func Getpgid(pid int) (pgid int, errno int) {
++	r0, _, e1 := Syscall(SYS_GETPGID, uintptr(pid), 0, 0);
++	pgid = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func Getpgrp() (pgrp int) {
++	r0, _, _ := Syscall(SYS_GETPGRP, 0, 0, 0);
++	pgrp = int(r0);
++	return;
++}
++
++func Getpid() (pid int) {
++	r0, _, _ := Syscall(SYS_GETPID, 0, 0, 0);
++	pid = int(r0);
++	return;
++}
++
++func Getppid() (ppid int) {
++	r0, _, _ := Syscall(SYS_GETPPID, 0, 0, 0);
++	ppid = int(r0);
++	return;
++}
++
++func Getpriority(which int, who int) (prio int, errno int) {
++	r0, _, e1 := Syscall(SYS_GETPRIORITY, uintptr(which), uintptr(who), 0);
++	prio = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func Getrlimit(which int, lim *Rlimit) (errno int) {
++	_, _, e1 := Syscall(SYS_GETRLIMIT, uintptr(which), uintptr(unsafe.Pointer(lim)), 0);
++	errno = int(e1);
++	return;
++}
++
++func Getrusage(who int, rusage *Rusage) (errno int) {
++	_, _, e1 := Syscall(SYS_GETRUSAGE, uintptr(who), uintptr(unsafe.Pointer(rusage)), 0);
++	errno = int(e1);
++	return;
++}
++
++func Getsid(pid int) (sid int, errno int) {
++	r0, _, e1 := Syscall(SYS_GETSID, uintptr(pid), 0, 0);
++	sid = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func Gettimeofday(tv *Timeval) (errno int) {
++	_, _, e1 := Syscall(SYS_GETTIMEOFDAY, uintptr(unsafe.Pointer(tv)), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Getuid() (uid int) {
++	r0, _, _ := Syscall(SYS_GETUID, 0, 0, 0);
++	uid = int(r0);
++	return;
++}
++
++func Issetugid() (tainted bool) {
++	r0, _, _ := Syscall(SYS_ISSETUGID, 0, 0, 0);
++	tainted = bool(r0 != 0);
++	return;
++}
++
++func Kill(pid int, signum int, posix int) (errno int) {
++	_, _, e1 := Syscall(SYS_KILL, uintptr(pid), uintptr(signum), uintptr(posix));
++	errno = int(e1);
++	return;
++}
++
++func Kqueue() (fd int, errno int) {
++	r0, _, e1 := Syscall(SYS_KQUEUE, 0, 0, 0);
++	fd = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func Lchown(path string, uid int, gid int) (errno int) {
++	_, _, e1 := Syscall(SYS_LCHOWN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(uid), uintptr(gid));
++	errno = int(e1);
++	return;
++}
++
++func Link(path string, link string) (errno int) {
++	_, _, e1 := Syscall(SYS_LINK, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(StringBytePtr(link))), 0);
++	errno = int(e1);
++	return;
++}
++
++func Listen(s int, backlog int) (errno int) {
++	_, _, e1 := Syscall(SYS_LISTEN, uintptr(s), uintptr(backlog), 0);
++	errno = int(e1);
++	return;
++}
++
++func Lstat(path string, stat *Stat_t) (errno int) {
++	_, _, e1 := Syscall(SYS_LSTAT, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(stat)), 0);
++	errno = int(e1);
++	return;
++}
++
++func Mkdir(path string, mode int) (errno int) {
++	_, _, e1 := Syscall(SYS_MKDIR, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0);
++	errno = int(e1);
++	return;
++}
++
++func Mkfifo(path string, mode int) (errno int) {
++	_, _, e1 := Syscall(SYS_MKFIFO, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0);
++	errno = int(e1);
++	return;
++}
++
++func Mknod(path string, mode int, dev int) (errno int) {
++	_, _, e1 := Syscall(SYS_MKNOD, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(dev));
++	errno = int(e1);
++	return;
++}
++
++func Open(path string, mode int, perm int) (fd int, errno int) {
++	r0, _, e1 := Syscall(SYS_OPEN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(perm));
++	fd = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func Pathconf(path string, name int) (val int, errno int) {
++	r0, _, e1 := Syscall(SYS_PATHCONF, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(name), 0);
++	val = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func Pread(fd int, p []byte, offset int64) (n int, errno int) {
++	var _p0 *byte;
++	if len(p) > 0 {
++		_p0 = &p[0]
++	}
++	r0, _, e1 := Syscall6(SYS_PREAD, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), uintptr(offset>>32), 0);
++	n = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func Pwrite(fd int, p []byte, offset int64) (n int, errno int) {
++	var _p0 *byte;
++	if len(p) > 0 {
++		_p0 = &p[0]
++	}
++	r0, _, e1 := Syscall6(SYS_PWRITE, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), uintptr(offset>>32), 0);
++	n = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func Read(fd int, p []byte) (n int, errno int) {
++	var _p0 *byte;
++	if len(p) > 0 {
++		_p0 = &p[0]
++	}
++	r0, _, e1 := Syscall(SYS_READ, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)));
++	n = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func Readlink(path string, buf []byte) (n int, errno int) {
++	var _p0 *byte;
++	if len(buf) > 0 {
++		_p0 = &buf[0]
++	}
++	r0, _, e1 := Syscall(SYS_READLINK, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)));
++	n = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func Rename(from string, to string) (errno int) {
++	_, _, e1 := Syscall(SYS_RENAME, uintptr(unsafe.Pointer(StringBytePtr(from))), uintptr(unsafe.Pointer(StringBytePtr(to))), 0);
++	errno = int(e1);
++	return;
++}
++
++func Revoke(path string) (errno int) {
++	_, _, e1 := Syscall(SYS_REVOKE, uintptr(unsafe.Pointer(StringBytePtr(path))), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Rmdir(path string) (errno int) {
++	_, _, e1 := Syscall(SYS_RMDIR, uintptr(unsafe.Pointer(StringBytePtr(path))), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Seek(fd int, offset int64, whence int) (newoffset int64, errno int) {
++	r0, r1, _ := Syscall6(SYS_LSEEK, uintptr(fd), uintptr(offset), uintptr(offset>>32), uintptr(whence), 0, 0);
++	newoffset = int64(int64(r1)<<32 | int64(r0));
++	return;
++}
++
++func Select(n int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (errno int) {
++	_, _, e1 := Syscall6(SYS_SELECT, uintptr(n), uintptr(unsafe.Pointer(r)), uintptr(unsafe.Pointer(w)), uintptr(unsafe.Pointer(e)), uintptr(unsafe.Pointer(timeout)), 0);
++	errno = int(e1);
++	return;
++}
++
++func Setegid(egid int) (errno int) {
++	_, _, e1 := Syscall(SYS_SETEGID, uintptr(egid), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Seteuid(euid int) (errno int) {
++	_, _, e1 := Syscall(SYS_SETEUID, uintptr(euid), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Setgid(gid int) (errno int) {
++	_, _, e1 := Syscall(SYS_SETGID, uintptr(gid), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Setlogin(name string) (errno int) {
++	_, _, e1 := Syscall(SYS_SETLOGIN, uintptr(unsafe.Pointer(StringBytePtr(name))), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Setpgid(pid int, pgid int) (errno int) {
++	_, _, e1 := Syscall(SYS_SETPGID, uintptr(pid), uintptr(pgid), 0);
++	errno = int(e1);
++	return;
++}
++
++func Setpriority(which int, who int, prio int) (errno int) {
++	_, _, e1 := Syscall(SYS_SETPRIORITY, uintptr(which), uintptr(who), uintptr(prio));
++	errno = int(e1);
++	return;
++}
++
++func Setregid(rgid int, egid int) (errno int) {
++	_, _, e1 := Syscall(SYS_SETREGID, uintptr(rgid), uintptr(egid), 0);
++	errno = int(e1);
++	return;
++}
++
++func Setreuid(ruid int, euid int) (errno int) {
++	_, _, e1 := Syscall(SYS_SETREUID, uintptr(ruid), uintptr(euid), 0);
++	errno = int(e1);
++	return;
++}
++
++func Setrlimit(which int, lim *Rlimit) (errno int) {
++	_, _, e1 := Syscall(SYS_SETRLIMIT, uintptr(which), uintptr(unsafe.Pointer(lim)), 0);
++	errno = int(e1);
++	return;
++}
++
++func Setsid() (pid int, errno int) {
++	r0, _, e1 := Syscall(SYS_SETSID, 0, 0, 0);
++	pid = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func Settimeofday(tp *Timeval) (errno int) {
++	_, _, e1 := Syscall(SYS_SETTIMEOFDAY, uintptr(unsafe.Pointer(tp)), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Setuid(uid int) (errno int) {
++	_, _, e1 := Syscall(SYS_SETUID, uintptr(uid), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Stat(path string, stat *Stat_t) (errno int) {
++	_, _, e1 := Syscall(SYS_STAT, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(stat)), 0);
++	errno = int(e1);
++	return;
++}
++
++func Statfs(path string, stat *Statfs_t) (errno int) {
++	_, _, e1 := Syscall(SYS_STATFS, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(stat)), 0);
++	errno = int(e1);
++	return;
++}
++
++func Symlink(path string, link string) (errno int) {
++	_, _, e1 := Syscall(SYS_SYMLINK, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(StringBytePtr(link))), 0);
++	errno = int(e1);
++	return;
++}
++
++func Sync() (errno int) {
++	_, _, e1 := Syscall(SYS_SYNC, 0, 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Truncate(path string, length int64) (errno int) {
++	_, _, e1 := Syscall(SYS_TRUNCATE, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(length), uintptr(length>>32));
++	errno = int(e1);
++	return;
++}
++
++func Umask(newmask int) (errno int) {
++	_, _, e1 := Syscall(SYS_UMASK, uintptr(newmask), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Undelete(path string) (errno int) {
++	_, _, e1 := Syscall(SYS_UNDELETE, uintptr(unsafe.Pointer(StringBytePtr(path))), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Unlink(path string) (errno int) {
++	_, _, e1 := Syscall(SYS_UNLINK, uintptr(unsafe.Pointer(StringBytePtr(path))), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func Unmount(path string, flags int) (errno int) {
++	_, _, e1 := Syscall(SYS_UNMOUNT, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(flags), 0);
++	errno = int(e1);
++	return;
++}
++
++func Write(fd int, p []byte) (n int, errno int) {
++	var _p0 *byte;
++	if len(p) > 0 {
++		_p0 = &p[0]
++	}
++	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)));
++	n = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func read(fd int, buf *byte, nbuf int) (n int, errno int) {
++	r0, _, e1 := Syscall(SYS_READ, uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf));
++	n = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func write(fd int, buf *byte, nbuf int) (n int, errno int) {
++	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf));
++	n = int(r0);
++	errno = int(e1);
++	return;
++}
+diff --git a/src/pkg/syscall/zsysnum_freebsd_386.go b/src/pkg/syscall/zsysnum_freebsd_386.go
+new file mode 100644
+index 0000000000..71d35cb618
+--- /dev/null
++++ b/src/pkg/syscall/zsysnum_freebsd_386.go
+@@ -0,0 +1,320 @@
++// mksysnum_freebsd.sh /usr/src/sys/kern/syscalls.master
++// MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
++
++package syscall
++
++const (
++	// SYS_NOSYS = 0;  // { int nosys(void); } syscall nosys_args int
++	SYS_EXIT			= 1;	// { void sys_exit(int rval); } exit \
++	SYS_FORK			= 2;	// { int fork(void); }
++	SYS_READ			= 3;	// { ssize_t read(int fd, void *buf, \
++	SYS_WRITE			= 4;	// { ssize_t write(int fd, const void *buf, \
++	SYS_OPEN			= 5;	// { int open(char *path, int flags, int mode); }
++	SYS_CLOSE			= 6;	// { int close(int fd); }
++	SYS_WAIT4			= 7;	// { int wait4(int pid, int *status, \
++	SYS_LINK			= 9;	// { int link(char *path, char *link); }
++	SYS_UNLINK			= 10;	// { int unlink(char *path); }
++	SYS_CHDIR			= 12;	// { int chdir(char *path); }
++	SYS_FCHDIR			= 13;	// { int fchdir(int fd); }
++	SYS_MKNOD			= 14;	// { int mknod(char *path, int mode, int dev); }
++	SYS_CHMOD			= 15;	// { int chmod(char *path, int mode); }
++	SYS_CHOWN			= 16;	// { int chown(char *path, int uid, int gid); }
++	SYS_OBREAK			= 17;	// { int obreak(char *nsize); } break \
++	SYS_GETPID			= 20;	// { pid_t getpid(void); }
++	SYS_MOUNT			= 21;	// { int mount(char *type, char *path, \
++	SYS_UNMOUNT			= 22;	// { int unmount(char *path, int flags); }
++	SYS_SETUID			= 23;	// { int setuid(uid_t uid); }
++	SYS_GETUID			= 24;	// { uid_t getuid(void); }
++	SYS_GETEUID			= 25;	// { uid_t geteuid(void); }
++	SYS_PTRACE			= 26;	// { int ptrace(int req, pid_t pid, \
++	SYS_RECVMSG			= 27;	// { int recvmsg(int s, struct msghdr *msg, \
++	SYS_SENDMSG			= 28;	// { int sendmsg(int s, struct msghdr *msg, \
++	SYS_RECVFROM			= 29;	// { int recvfrom(int s, caddr_t buf, \
++	SYS_ACCEPT			= 30;	// { int accept(int s, \
++	SYS_GETPEERNAME			= 31;	// { int getpeername(int fdes, \
++	SYS_GETSOCKNAME			= 32;	// { int getsockname(int fdes, \
++	SYS_ACCESS			= 33;	// { int access(char *path, int flags); }
++	SYS_CHFLAGS			= 34;	// { int chflags(char *path, int flags); }
++	SYS_FCHFLAGS			= 35;	// { int fchflags(int fd, int flags); }
++	SYS_SYNC			= 36;	// { int sync(void); }
++	SYS_KILL			= 37;	// { int kill(int pid, int signum); }
++	SYS_GETPPID			= 39;	// { pid_t getppid(void); }
++	SYS_DUP				= 41;	// { int dup(u_int fd); }
++	SYS_PIPE			= 42;	// { int pipe(void); }
++	SYS_GETEGID			= 43;	// { gid_t getegid(void); }
++	SYS_PROFIL			= 44;	// { int profil(caddr_t samples, size_t size, \
++	SYS_KTRACE			= 45;	// { int ktrace(const char *fname, int ops, \
++	SYS_GETGID			= 47;	// { gid_t getgid(void); }
++	SYS_GETLOGIN			= 49;	// { int getlogin(char *namebuf, u_int \
++	SYS_SETLOGIN			= 50;	// { int setlogin(char *namebuf); }
++	SYS_ACCT			= 51;	// { int acct(char *path); }
++	SYS_SIGALTSTACK			= 53;	// { int sigaltstack(stack_t *ss, \
++	SYS_IOCTL			= 54;	// { int ioctl(int fd, u_long com, \
++	SYS_REBOOT			= 55;	// { int reboot(int opt); }
++	SYS_REVOKE			= 56;	// { int revoke(char *path); }
++	SYS_SYMLINK			= 57;	// { int symlink(char *path, char *link); }
++	SYS_READLINK			= 58;	// { ssize_t readlink(char *path, char *buf, \
++	SYS_EXECVE			= 59;	// { int execve(char *fname, char **argv, \
++	SYS_UMASK			= 60;	// { int umask(int newmask); } umask umask_args \
++	SYS_CHROOT			= 61;	// { int chroot(char *path); }
++	SYS_MSYNC			= 65;	// { int msync(void *addr, size_t len, \
++	SYS_VFORK			= 66;	// { int vfork(void); }
++	SYS_SBRK			= 69;	// { int sbrk(int incr); }
++	SYS_SSTK			= 70;	// { int sstk(int incr); }
++	SYS_OVADVISE			= 72;	// { int ovadvise(int anom); } vadvise \
++	SYS_MUNMAP			= 73;	// { int munmap(void *addr, size_t len); }
++	SYS_MPROTECT			= 74;	// { int mprotect(const void *addr, size_t len, \
++	SYS_MADVISE			= 75;	// { int madvise(void *addr, size_t len, \
++	SYS_MINCORE			= 78;	// { int mincore(const void *addr, size_t len, \
++	SYS_GETGROUPS			= 79;	// { int getgroups(u_int gidsetsize, \
++	SYS_SETGROUPS			= 80;	// { int setgroups(u_int gidsetsize, \
++	SYS_GETPGRP			= 81;	// { int getpgrp(void); }
++	SYS_SETPGID			= 82;	// { int setpgid(int pid, int pgid); }
++	SYS_SETITIMER			= 83;	// { int setitimer(u_int which, struct \
++	SYS_SWAPON			= 85;	// { int swapon(char *name); }
++	SYS_GETITIMER			= 86;	// { int getitimer(u_int which, \
++	SYS_GETDTABLESIZE		= 89;	// { int getdtablesize(void); }
++	SYS_DUP2			= 90;	// { int dup2(u_int from, u_int to); }
++	SYS_FCNTL			= 92;	// { int fcntl(int fd, int cmd, long arg); }
++	SYS_SELECT			= 93;	// { int select(int nd, fd_set *in, fd_set *ou, \
++	SYS_FSYNC			= 95;	// { int fsync(int fd); }
++	SYS_SETPRIORITY			= 96;	// { int setpriority(int which, int who, \
++	SYS_SOCKET			= 97;	// { int socket(int domain, int type, \
++	SYS_CONNECT			= 98;	// { int connect(int s, caddr_t name, \
++	SYS_GETPRIORITY			= 100;	// { int getpriority(int which, int who); }
++	SYS_BIND			= 104;	// { int bind(int s, caddr_t name, \
++	SYS_SETSOCKOPT			= 105;	// { int setsockopt(int s, int level, int name, \
++	SYS_LISTEN			= 106;	// { int listen(int s, int backlog); }
++	SYS_GETTIMEOFDAY		= 116;	// { int gettimeofday(struct timeval *tp, \
++	SYS_GETRUSAGE			= 117;	// { int getrusage(int who, \
++	SYS_GETSOCKOPT			= 118;	// { int getsockopt(int s, int level, int name, \
++	SYS_READV			= 120;	// { int readv(int fd, struct iovec *iovp, \
++	SYS_WRITEV			= 121;	// { int writev(int fd, struct iovec *iovp, \
++	SYS_SETTIMEOFDAY		= 122;	// { int settimeofday(struct timeval *tv, \
++	SYS_FCHOWN			= 123;	// { int fchown(int fd, int uid, int gid); }
++	SYS_FCHMOD			= 124;	// { int fchmod(int fd, int mode); }
++	SYS_SETREUID			= 126;	// { int setreuid(int ruid, int euid); }
++	SYS_SETREGID			= 127;	// { int setregid(int rgid, int egid); }
++	SYS_RENAME			= 128;	// { int rename(char *from, char *to); }
++	SYS_FLOCK			= 131;	// { int flock(int fd, int how); }
++	SYS_MKFIFO			= 132;	// { int mkfifo(char *path, int mode); }
++	SYS_SENDTO			= 133;	// { int sendto(int s, caddr_t buf, size_t len, \
++	SYS_SHUTDOWN			= 134;	// { int shutdown(int s, int how); }
++	SYS_SOCKETPAIR			= 135;	// { int socketpair(int domain, int type, \
++	SYS_MKDIR			= 136;	// { int mkdir(char *path, int mode); }
++	SYS_RMDIR			= 137;	// { int rmdir(char *path); }
++	SYS_UTIMES			= 138;	// { int utimes(char *path, \
++	SYS_ADJTIME			= 140;	// { int adjtime(struct timeval *delta, \
++	SYS_SETSID			= 147;	// { int setsid(void); }
++	SYS_QUOTACTL			= 148;	// { int quotactl(char *path, int cmd, int uid, \
++	SYS_LGETFH			= 160;	// { int lgetfh(char *fname, \
++	SYS_GETFH			= 161;	// { int getfh(char *fname, \
++	SYS_SYSARCH			= 165;	// { int sysarch(int op, char *parms); }
++	SYS_RTPRIO			= 166;	// { int rtprio(int function, pid_t pid, \
++	SYS_FREEBSD6_PREAD		= 173;	// { ssize_t freebsd6_pread(int fd, void *buf, \
++	SYS_FREEBSD6_PWRITE		= 174;	// { ssize_t freebsd6_pwrite(int fd, \
++	SYS_SETFIB			= 175;	// { int setfib(int fibnum); }
++	SYS_NTP_ADJTIME			= 176;	// { int ntp_adjtime(struct timex *tp); }
++	SYS_SETGID			= 181;	// { int setgid(gid_t gid); }
++	SYS_SETEGID			= 182;	// { int setegid(gid_t egid); }
++	SYS_SETEUID			= 183;	// { int seteuid(uid_t euid); }
++	SYS_STAT			= 188;	// { int stat(char *path, struct stat *ub); }
++	SYS_FSTAT			= 189;	// { int fstat(int fd, struct stat *sb); }
++	SYS_LSTAT			= 190;	// { int lstat(char *path, struct stat *ub); }
++	SYS_PATHCONF			= 191;	// { int pathconf(char *path, int name); }
++	SYS_FPATHCONF			= 192;	// { int fpathconf(int fd, int name); }
++	SYS_GETRLIMIT			= 194;	// { int getrlimit(u_int which, \
++	SYS_SETRLIMIT			= 195;	// { int setrlimit(u_int which, \
++	SYS_GETDIRENTRIES		= 196;	// { int getdirentries(int fd, char *buf, \
++	SYS_FREEBSD6_MMAP		= 197;	// { caddr_t freebsd6_mmap(caddr_t addr, \
++	SYS_FREEBSD6_LSEEK		= 199;	// { off_t freebsd6_lseek(int fd, int pad, \
++	SYS_FREEBSD6_TRUNCATE		= 200;	// { int freebsd6_truncate(char *path, int pad, \
++	SYS_FREEBSD6_FTRUNCATE		= 201;	// { int freebsd6_ftruncate(int fd, int pad, \
++	SYS___SYSCTL			= 202;	// { int __sysctl(int *name, u_int namelen, \
++	SYS_MLOCK			= 203;	// { int mlock(const void *addr, size_t len); }
++	SYS_MUNLOCK			= 204;	// { int munlock(const void *addr, size_t len); }
++	SYS_UNDELETE			= 205;	// { int undelete(char *path); }
++	SYS_FUTIMES			= 206;	// { int futimes(int fd, struct timeval *tptr); }
++	SYS_GETPGID			= 207;	// { int getpgid(pid_t pid); }
++	SYS_POLL			= 209;	// { int poll(struct pollfd *fds, u_int nfds, \
++	SYS_CLOCK_GETTIME		= 232;	// { int clock_gettime(clockid_t clock_id, \
++	SYS_CLOCK_SETTIME		= 233;	// { int clock_settime( \
++	SYS_CLOCK_GETRES		= 234;	// { int clock_getres(clockid_t clock_id, \
++	SYS_KTIMER_CREATE		= 235;	// { int ktimer_create(clockid_t clock_id, \
++	SYS_KTIMER_DELETE		= 236;	// { int ktimer_delete(int timerid); }
++	SYS_KTIMER_SETTIME		= 237;	// { int ktimer_settime(int timerid, int flags, \
++	SYS_KTIMER_GETTIME		= 238;	// { int ktimer_gettime(int timerid, struct \
++	SYS_KTIMER_GETOVERRUN		= 239;	// { int ktimer_getoverrun(int timerid); }
++	SYS_NANOSLEEP			= 240;	// { int nanosleep(const struct timespec *rqtp, \
++	SYS_NTP_GETTIME			= 248;	// { int ntp_gettime(struct ntptimeval *ntvp); }
++	SYS_MINHERIT			= 250;	// { int minherit(void *addr, size_t len, \
++	SYS_RFORK			= 251;	// { int rfork(int flags); }
++	SYS_OPENBSD_POLL		= 252;	// { int openbsd_poll(struct pollfd *fds, \
++	SYS_ISSETUGID			= 253;	// { int issetugid(void); }
++	SYS_LCHOWN			= 254;	// { int lchown(char *path, int uid, int gid); }
++	SYS_GETDENTS			= 272;	// { int getdents(int fd, char *buf, \
++	SYS_LCHMOD			= 274;	// { int lchmod(char *path, mode_t mode); }
++	SYS_LUTIMES			= 276;	// { int lutimes(char *path, \
++	SYS_NSTAT			= 278;	// { int nstat(char *path, struct nstat *ub); }
++	SYS_NFSTAT			= 279;	// { int nfstat(int fd, struct nstat *sb); }
++	SYS_NLSTAT			= 280;	// { int nlstat(char *path, struct nstat *ub); }
++	SYS_PREADV			= 289;	// { ssize_t preadv(int fd, struct iovec *iovp, \
++	SYS_PWRITEV			= 290;	// { ssize_t pwritev(int fd, struct iovec *iovp, \
++	SYS_FHOPEN			= 298;	// { int fhopen(const struct fhandle *u_fhp, \
++	SYS_FHSTAT			= 299;	// { int fhstat(const struct fhandle *u_fhp, \
++	SYS_MODNEXT			= 300;	// { int modnext(int modid); }
++	SYS_MODSTAT			= 301;	// { int modstat(int modid, \
++	SYS_MODFNEXT			= 302;	// { int modfnext(int modid); }
++	SYS_MODFIND			= 303;	// { int modfind(const char *name); }
++	SYS_KLDLOAD			= 304;	// { int kldload(const char *file); }
++	SYS_KLDUNLOAD			= 305;	// { int kldunload(int fileid); }
++	SYS_KLDFIND			= 306;	// { int kldfind(const char *file); }
++	SYS_KLDNEXT			= 307;	// { int kldnext(int fileid); }
++	SYS_KLDSTAT			= 308;	// { int kldstat(int fileid, struct \
++	SYS_KLDFIRSTMOD			= 309;	// { int kldfirstmod(int fileid); }
++	SYS_GETSID			= 310;	// { int getsid(pid_t pid); }
++	SYS_SETRESUID			= 311;	// { int setresuid(uid_t ruid, uid_t euid, \
++	SYS_SETRESGID			= 312;	// { int setresgid(gid_t rgid, gid_t egid, \
++	SYS_YIELD			= 321;	// { int yield(void); }
++	SYS_MLOCKALL			= 324;	// { int mlockall(int how); }
++	SYS_MUNLOCKALL			= 325;	// { int munlockall(void); }
++	SYS___GETCWD			= 326;	// { int __getcwd(u_char *buf, u_int buflen); }
++	SYS_SCHED_SETPARAM		= 327;	// { int sched_setparam (pid_t pid, \
++	SYS_SCHED_GETPARAM		= 328;	// { int sched_getparam (pid_t pid, struct \
++	SYS_SCHED_SETSCHEDULER		= 329;	// { int sched_setscheduler (pid_t pid, int \
++	SYS_SCHED_GETSCHEDULER		= 330;	// { int sched_getscheduler (pid_t pid); }
++	SYS_SCHED_YIELD			= 331;	// { int sched_yield (void); }
++	SYS_SCHED_GET_PRIORITY_MAX	= 332;	// { int sched_get_priority_max (int policy); }
++	SYS_SCHED_GET_PRIORITY_MIN	= 333;	// { int sched_get_priority_min (int policy); }
++	SYS_SCHED_RR_GET_INTERVAL	= 334;	// { int sched_rr_get_interval (pid_t pid, \
++	SYS_UTRACE			= 335;	// { int utrace(const void *addr, size_t len); }
++	SYS_KLDSYM			= 337;	// { int kldsym(int fileid, int cmd, \
++	SYS_JAIL			= 338;	// { int jail(struct jail *jail); }
++	SYS_SIGPROCMASK			= 340;	// { int sigprocmask(int how, \
++	SYS_SIGSUSPEND			= 341;	// { int sigsuspend(const sigset_t *sigmask); }
++	SYS_SIGPENDING			= 343;	// { int sigpending(sigset_t *set); }
++	SYS_SIGTIMEDWAIT		= 345;	// { int sigtimedwait(const sigset_t *set, \
++	SYS_SIGWAITINFO			= 346;	// { int sigwaitinfo(const sigset_t *set, \
++	SYS___ACL_GET_FILE		= 347;	// { int __acl_get_file(const char *path, \
++	SYS___ACL_SET_FILE		= 348;	// { int __acl_set_file(const char *path, \
++	SYS___ACL_GET_FD		= 349;	// { int __acl_get_fd(int filedes, \
++	SYS___ACL_SET_FD		= 350;	// { int __acl_set_fd(int filedes, \
++	SYS___ACL_DELETE_FILE		= 351;	// { int __acl_delete_file(const char *path, \
++	SYS___ACL_DELETE_FD		= 352;	// { int __acl_delete_fd(int filedes, \
++	SYS___ACL_ACLCHECK_FILE		= 353;	// { int __acl_aclcheck_file(const char *path, \
++	SYS___ACL_ACLCHECK_FD		= 354;	// { int __acl_aclcheck_fd(int filedes, \
++	SYS_EXTATTRCTL			= 355;	// { int extattrctl(const char *path, int cmd, \
++	SYS_EXTATTR_SET_FILE		= 356;	// { int extattr_set_file( \
++	SYS_EXTATTR_GET_FILE		= 357;	// { ssize_t extattr_get_file( \
++	SYS_EXTATTR_DELETE_FILE		= 358;	// { int extattr_delete_file(const char *path, \
++	SYS_GETRESUID			= 360;	// { int getresuid(uid_t *ruid, uid_t *euid, \
++	SYS_GETRESGID			= 361;	// { int getresgid(gid_t *rgid, gid_t *egid, \
++	SYS_KQUEUE			= 362;	// { int kqueue(void); }
++	SYS_KEVENT			= 363;	// { int kevent(int fd, \
++	SYS_EXTATTR_SET_FD		= 371;	// { int extattr_set_fd(int fd, \
++	SYS_EXTATTR_GET_FD		= 372;	// { ssize_t extattr_get_fd(int fd, \
++	SYS_EXTATTR_DELETE_FD		= 373;	// { int extattr_delete_fd(int fd, \
++	SYS___SETUGID			= 374;	// { int __setugid(int flag); }
++	SYS_EACCESS			= 376;	// { int eaccess(char *path, int flags); }
++	SYS_NMOUNT			= 378;	// { int nmount(struct iovec *iovp, \
++	SYS___MAC_GET_PROC		= 384;	// { int __mac_get_proc(struct mac *mac_p); }
++	SYS___MAC_SET_PROC		= 385;	// { int __mac_set_proc(struct mac *mac_p); }
++	SYS___MAC_GET_FD		= 386;	// { int __mac_get_fd(int fd, \
++	SYS___MAC_GET_FILE		= 387;	// { int __mac_get_file(const char *path_p, \
++	SYS___MAC_SET_FD		= 388;	// { int __mac_set_fd(int fd, \
++	SYS___MAC_SET_FILE		= 389;	// { int __mac_set_file(const char *path_p, \
++	SYS_KENV			= 390;	// { int kenv(int what, const char *name, \
++	SYS_LCHFLAGS			= 391;	// { int lchflags(const char *path, int flags); }
++	SYS_UUIDGEN			= 392;	// { int uuidgen(struct uuid *store, \
++	SYS_SENDFILE			= 393;	// { int sendfile(int fd, int s, off_t offset, \
++	SYS_MAC_SYSCALL			= 394;	// { int mac_syscall(const char *policy, \
++	SYS_GETFSSTAT			= 395;	// { int getfsstat(struct statfs *buf, \
++	SYS_STATFS			= 396;	// { int statfs(char *path, \
++	SYS_FSTATFS			= 397;	// { int fstatfs(int fd, struct statfs *buf); }
++	SYS_FHSTATFS			= 398;	// { int fhstatfs(const struct fhandle *u_fhp, \
++	SYS___MAC_GET_PID		= 409;	// { int __mac_get_pid(pid_t pid, \
++	SYS___MAC_GET_LINK		= 410;	// { int __mac_get_link(const char *path_p, \
++	SYS___MAC_SET_LINK		= 411;	// { int __mac_set_link(const char *path_p, \
++	SYS_EXTATTR_SET_LINK		= 412;	// { int extattr_set_link( \
++	SYS_EXTATTR_GET_LINK		= 413;	// { ssize_t extattr_get_link( \
++	SYS_EXTATTR_DELETE_LINK		= 414;	// { int extattr_delete_link( \
++	SYS___MAC_EXECVE		= 415;	// { int __mac_execve(char *fname, char **argv, \
++	SYS_SIGACTION			= 416;	// { int sigaction(int sig, \
++	SYS_SIGRETURN			= 417;	// { int sigreturn( \
++	SYS_GETCONTEXT			= 421;	// { int getcontext(struct __ucontext *ucp); }
++	SYS_SETCONTEXT			= 422;	// { int setcontext( \
++	SYS_SWAPCONTEXT			= 423;	// { int swapcontext(struct __ucontext *oucp, \
++	SYS_SWAPOFF			= 424;	// { int swapoff(const char *name); }
++	SYS___ACL_GET_LINK		= 425;	// { int __acl_get_link(const char *path, \
++	SYS___ACL_SET_LINK		= 426;	// { int __acl_set_link(const char *path, \
++	SYS___ACL_DELETE_LINK		= 427;	// { int __acl_delete_link(const char *path, \
++	SYS___ACL_ACLCHECK_LINK		= 428;	// { int __acl_aclcheck_link(const char *path, \
++	SYS_SIGWAIT			= 429;	// { int sigwait(const sigset_t *set, \
++	SYS_THR_CREATE			= 430;	// { int thr_create(ucontext_t *ctx, long *id, \
++	SYS_THR_EXIT			= 431;	// { void thr_exit(long *state); }
++	SYS_THR_SELF			= 432;	// { int thr_self(long *id); }
++	SYS_THR_KILL			= 433;	// { int thr_kill(long id, int sig); }
++	SYS__UMTX_LOCK			= 434;	// { int _umtx_lock(struct umtx *umtx); }
++	SYS__UMTX_UNLOCK		= 435;	// { int _umtx_unlock(struct umtx *umtx); }
++	SYS_JAIL_ATTACH			= 436;	// { int jail_attach(int jid); }
++	SYS_EXTATTR_LIST_FD		= 437;	// { ssize_t extattr_list_fd(int fd, \
++	SYS_EXTATTR_LIST_FILE		= 438;	// { ssize_t extattr_list_file( \
++	SYS_EXTATTR_LIST_LINK		= 439;	// { ssize_t extattr_list_link( \
++	SYS_THR_SUSPEND			= 442;	// { int thr_suspend( \
++	SYS_THR_WAKE			= 443;	// { int thr_wake(long id); }
++	SYS_KLDUNLOADF			= 444;	// { int kldunloadf(int fileid, int flags); }
++	SYS_AUDIT			= 445;	// { int audit(const void *record, \
++	SYS_AUDITON			= 446;	// { int auditon(int cmd, void *data, \
++	SYS_GETAUID			= 447;	// { int getauid(uid_t *auid); }
++	SYS_SETAUID			= 448;	// { int setauid(uid_t *auid); }
++	SYS_GETAUDIT			= 449;	// { int getaudit(struct auditinfo *auditinfo); }
++	SYS_SETAUDIT			= 450;	// { int setaudit(struct auditinfo *auditinfo); }
++	SYS_GETAUDIT_ADDR		= 451;	// { int getaudit_addr( \
++	SYS_SETAUDIT_ADDR		= 452;	// { int setaudit_addr( \
++	SYS_AUDITCTL			= 453;	// { int auditctl(char *path); }
++	SYS__UMTX_OP			= 454;	// { int _umtx_op(void *obj, int op, \
++	SYS_THR_NEW			= 455;	// { int thr_new(struct thr_param *param, \
++	SYS_SIGQUEUE			= 456;	// { int sigqueue(pid_t pid, int signum, void *value); }
++	SYS_ABORT2			= 463;	// { int abort2(const char *why, int nargs, void **args); }
++	SYS_THR_SET_NAME		= 464;	// { int thr_set_name(long id, const char *name); }
++	SYS_RTPRIO_THREAD		= 466;	// { int rtprio_thread(int function, \
++	SYS_SCTP_PEELOFF		= 471;	// { int sctp_peeloff(int sd, uint32_t name); }
++	SYS_SCTP_GENERIC_SENDMSG	= 472;	// { int sctp_generic_sendmsg(int sd, caddr_t msg, int mlen, \
++	SYS_SCTP_GENERIC_SENDMSG_IOV	= 473;	// { int sctp_generic_sendmsg_iov(int sd, struct iovec *iov, int iovlen, \
++	SYS_SCTP_GENERIC_RECVMSG	= 474;	// { int sctp_generic_recvmsg(int sd, struct iovec *iov, int iovlen, \
++	SYS_PREAD			= 475;	// { ssize_t pread(int fd, void *buf, \
++	SYS_PWRITE			= 476;	// { ssize_t pwrite(int fd, const void *buf, \
++	SYS_MMAP			= 477;	// { caddr_t mmap(caddr_t addr, size_t len, \
++	SYS_LSEEK			= 478;	// { off_t lseek(int fd, off_t offset, \
++	SYS_TRUNCATE			= 479;	// { int truncate(char *path, off_t length); }
++	SYS_FTRUNCATE			= 480;	// { int ftruncate(int fd, off_t length); }
++	SYS_THR_KILL2			= 481;	// { int thr_kill2(pid_t pid, long id, int sig); }
++	SYS_SHM_OPEN			= 482;	// { int shm_open(const char *path, int flags, \
++	SYS_SHM_UNLINK			= 483;	// { int shm_unlink(const char *path); }
++	SYS_CPUSET			= 484;	// { int cpuset(cpusetid_t *setid); }
++	SYS_CPUSET_SETID		= 485;	// { int cpuset_setid(cpuwhich_t which, id_t id, \
++	SYS_CPUSET_GETID		= 486;	// { int cpuset_getid(cpulevel_t level, \
++	SYS_CPUSET_GETAFFINITY		= 487;	// { int cpuset_getaffinity(cpulevel_t level, \
++	SYS_CPUSET_SETAFFINITY		= 488;	// { int cpuset_setaffinity(cpulevel_t level, \
++	SYS_FACCESSAT			= 489;	// { int faccessat(int fd, char *path, int mode, \
++	SYS_FCHMODAT			= 490;	// { int fchmodat(int fd, char *path, mode_t mode, \
++	SYS_FCHOWNAT			= 491;	// { int fchownat(int fd, char *path, uid_t uid, \
++	SYS_FEXECVE			= 492;	// { int fexecve(int fd, char **argv, \
++	SYS_FSTATAT			= 493;	// { int fstatat(int fd, char *path, \
++	SYS_FUTIMESAT			= 494;	// { int futimesat(int fd, char *path, \
++	SYS_LINKAT			= 495;	// { int linkat(int fd1, char *path1, int fd2, \
++	SYS_MKDIRAT			= 496;	// { int mkdirat(int fd, char *path, mode_t mode); }
++	SYS_MKFIFOAT			= 497;	// { int mkfifoat(int fd, char *path, mode_t mode); }
++	SYS_MKNODAT			= 498;	// { int mknodat(int fd, char *path, mode_t mode, \
++	SYS_OPENAT			= 499;	// { int openat(int fd, char *path, int flag, \
++	SYS_READLINKAT			= 500;	// { int readlinkat(int fd, char *path, char *buf, \
++	SYS_RENAMEAT			= 501;	// { int renameat(int oldfd, char *old, int newfd, \
++	SYS_SYMLINKAT			= 502;	// { int symlinkat(char *path1, int fd, \
++	SYS_UNLINKAT			= 503;	// { int unlinkat(int fd, char *path, int flag); }
++	SYS_POSIX_OPENPT		= 504;	// { int posix_openpt(int flags); }
++	SYS_JAIL_GET			= 506;	// { int jail_get(struct iovec *iovp, \
++	SYS_JAIL_SET			= 507;	// { int jail_set(struct iovec *iovp, \
++	SYS_JAIL_REMOVE			= 508;	// { int jail_remove(int jid); }
++	SYS_CLOSEFROM			= 509;	// { int closefrom(int lowfd); }
++	SYS_LPATHCONF			= 513;	// { int lpathconf(char *path, int name); }
++)
+diff --git a/src/pkg/syscall/ztypes_freebsd_386.go b/src/pkg/syscall/ztypes_freebsd_386.go
+new file mode 100644
+index 0000000000..5a67a9fc74
+--- /dev/null
++++ b/src/pkg/syscall/ztypes_freebsd_386.go
+@@ -0,0 +1,224 @@
++// godefs -gsyscall -f-m32 types_freebsd.c
++
++// MACHINE GENERATED - DO NOT EDIT.
++
++package syscall
++
++// Constants
++const (
++	sizeofPtr		= 0x4;
++	sizeofShort		= 0x2;
++	sizeofInt		= 0x4;
++	sizeofLong		= 0x4;
++	sizeofLongLong		= 0x8;
++	O_CLOEXEC		= 0;
++	S_IFMT			= 0xf000;
++	S_IFIFO			= 0x1000;
++	S_IFCHR			= 0x2000;
++	S_IFDIR			= 0x4000;
++	S_IFBLK			= 0x6000;
++	S_IFREG			= 0x8000;
++	S_IFLNK			= 0xa000;
++	S_IFSOCK		= 0xc000;
++	S_ISUID			= 0x800;
++	S_ISGID			= 0x400;
++	S_ISVTX			= 0x200;
++	S_IRUSR			= 0x100;
++	S_IWUSR			= 0x80;
++	S_IXUSR			= 0x40;
++	SizeofSockaddrInet4	= 0x10;
++	SizeofSockaddrInet6	= 0x1c;
++	SizeofSockaddrAny	= 0x6c;
++	SizeofSockaddrUnix	= 0x6a;
++	SizeofLinger		= 0x8;
++	SizeofMsghdr		= 0x1c;
++	SizeofCmsghdr		= 0xc;
++	PTRACE_TRACEME		= 0;
++	PTRACE_CONT		= 0x7;
++	PTRACE_KILL		= 0x8;
++)
++
++// Types
++
++type _C_short int16
++
++type _C_int int32
++
++type _C_long int32
++
++type _C_long_long int64
++
++type Timespec struct {
++	Sec	int32;
++	Nsec	int32;
++}
++
++type Timeval struct {
++	Sec	int32;
++	Usec	int32;
++}
++
++type Rusage struct {
++	Utime		Timeval;
++	Stime		Timeval;
++	Maxrss		int32;
++	Ixrss		int32;
++	Idrss		int32;
++	Isrss		int32;
++	Minflt		int32;
++	Majflt		int32;
++	Nswap		int32;
++	Inblock		int32;
++	Oublock		int32;
++	Msgsnd		int32;
++	Msgrcv		int32;
++	Nsignals	int32;
++	Nvcsw		int32;
++	Nivcsw		int32;
++}
++
++type Rlimit struct {
++	Cur	int64;
++	Max	int64;
++}
++
++type _Gid_t uint32
++
++type Stat_t struct {
++	Dev		uint32;
++	Ino		uint32;
++	Mode		uint16;
++	Nlink		uint16;
++	Uid		uint32;
++	Gid		uint32;
++	Rdev		uint32;
++	Atimespec	Timespec;
++	Mtimespec	Timespec;
++	Ctimespec	Timespec;
++	Size		int64;
++	Blocks		int64;
++	Blksize		uint32;
++	Flags		uint32;
++	Gen		uint32;
++	Lspare		int32;
++	Birthtimespec	Timespec;
++	Pad0		uint32;
++	Pad1		uint32;
++}
++
++type Statfs_t struct {
++	Version		uint32;
++	Type		uint32;
++	Flags		uint64;
++	Bsize		uint64;
++	Iosize		uint64;
++	Blocks		uint64;
++	Bfree		uint64;
++	Bavail		int64;
++	Files		uint64;
++	Ffree		int64;
++	Syncwrites	uint64;
++	Asyncwrites	uint64;
++	Syncreads	uint64;
++	Asyncreads	uint64;
++	Spare		[10]uint64;
++	Namemax		uint32;
++	Owner		uint32;
++	Fsid		[8]byte;	/* fsid */
++	Charspare	[80]int8;
++	Fstypename	[16]int8;
++	Mntfromname	[88]int8;
++	Mntonname	[88]int8;
++}
++
++type Flock_t struct {
++	Start	int64;
++	Len	int64;
++	Pid	int32;
++	Type	int16;
++	Whence	int16;
++	Sysid	int32;
++}
++
++type Dirent struct {
++	Fileno	uint32;
++	Reclen	uint16;
++	Type	uint8;
++	Namlen	uint8;
++	Name	[256]int8;
++}
++
++type RawSockaddrInet4 struct {
++	Len	uint8;
++	Family	uint8;
++	Port	uint16;
++	Addr	[4]byte;	/* in_addr */
++	Zero	[8]int8;
++}
++
++type RawSockaddrInet6 struct {
++	Len		uint8;
++	Family		uint8;
++	Port		uint16;
++	Flowinfo	uint32;
++	Addr		[16]byte;	/* in6_addr */
++	Scope_id	uint32;
++}
++
++type RawSockaddrUnix struct {
++	Len	uint8;
++	Family	uint8;
++	Path	[104]int8;
++}
++
++type RawSockaddr struct {
++	Len	uint8;
++	Family	uint8;
++	Data	[14]int8;
++}
++
++type RawSockaddrAny struct {
++	Addr	RawSockaddr;
++	Pad	[92]int8;
++}
++
++type _Socklen uint32
++
++type Linger struct {
++	Onoff	int32;
++	Linger	int32;
++}
++
++type Iovec struct {
++	Base	*byte;
++	Len	uint32;
++}
++
++type Msghdr struct {
++	Name		*byte;
++	Namelen		uint32;
++	Iov		*Iovec;
++	Iovlen		int32;
++	Control		*byte;
++	Controllen	uint32;
++	Flags		int32;
++}
++
++type Cmsghdr struct {
++	Len	uint32;
++	Level	int32;
++	Type	int32;
++}
++
++type Kevent_t struct {
++	Ident	uint32;
++	Filter	int16;
++	Flags	uint16;
++	Fflags	uint32;
++	Data	int32;
++	Udata	*byte;
++}
++
++type FdSet struct {
++	X__fds_bits [32]uint32;
++}

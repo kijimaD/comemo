@@ -9,7 +9,37 @@ Date:   Thu Feb 19 12:57:33 2015 -0800
     Change-Id: I0189e3bef6b67c6ba390c75a48a8d9d8f39b7636
     Reviewed-on: https://go-review.googlesource.com/5286
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/asm/internal/lex/input.go    | 2 +-
  src/cmd/asm/internal/lex/lex_test.go | 5 +++++
  2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/lex/input.go b/src/cmd/asm/internal/lex/input.go
+index 737b12e134..730042b149 100644
+--- a/src/cmd/asm/internal/lex/input.go
++++ b/src/cmd/asm/internal/lex/input.go
+@@ -206,7 +206,7 @@ func (in *Input) macroDefinition(name string) ([]string, []Token) {
+ 	prevCol := in.Stack.Col()
+ 	tok := in.Stack.Next()
+ 	if tok == '\n' || tok == scanner.EOF {
+-		in.Error("no definition for macro:", name)
++		return nil, nil // No definition for macro
+ 	}
+ 	var args []string
+ 	// The C preprocessor treats
+diff --git a/src/cmd/asm/internal/lex/lex_test.go b/src/cmd/asm/internal/lex/lex_test.go
+index 59e01c6699..f034d69c36 100644
+--- a/src/cmd/asm/internal/lex/lex_test.go
++++ b/src/cmd/asm/internal/lex/lex_test.go
+@@ -36,6 +36,11 @@ var lexTests = []lexTest{
+ 		),
+ 		"1234.\n",
+ 	},
++	{
++		"define without value",
++		"#define A",
++		"",
++	},
+ 	{
+ 		"macro without arguments",
+ 		"#define A() 1234\n" + "A()\n",

@@ -13,6 +13,20 @@ Date:   Mon Mar 11 16:50:44 2013 -0400
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/7707044
-
+---
  src/cmd/dist/build.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index bac7439e61..30e8b3a550 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -939,6 +939,8 @@ install(char *dir)
+ 			}
+ 			vadd(&compile, "-I");
+ 			vadd(&compile, workdir);
++			vadd(&compile, "-I");
++			vadd(&compile, bprintf(&b, "%s/pkg/%s_%s", goroot, goos, goarch));
+ 			vadd(&compile, "-D");
+ 			vadd(&compile, bprintf(&b, "GOOS_%s", goos));
+ 			vadd(&compile, "-D");

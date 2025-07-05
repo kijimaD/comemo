@@ -11,10 +11,95 @@ Date:   Wed Nov 22 09:43:52 2017 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/dcl.go | 10 ++++++----
  src/go/types/check_test.go         |  1 +
  src/go/types/resolver.go           |  7 +++++++
  src/go/types/testdata/decls5.src   | 10 ++++++++++
  test/fixedbugs/issue21256.go       |  9 +++++++++
  5 files changed, 33 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index b39bdb5aa0..7d96386457 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -85,12 +85,14 @@ func declare(n *Node, ctxt Class) {
+ 		yyerror("cannot declare name %v", s)
+ 	}
+ 
+-	if ctxt == PEXTERN && s.Name == "init" {
+-		yyerror("cannot declare init - must be func")
+-	}
+-
+ 	gen := 0
+ 	if ctxt == PEXTERN {
++		if s.Name == "init" {
++			yyerror("cannot declare init - must be func")
++		}
++		if s.Name == "main" && localpkg.Name == "main" {
++			yyerror("cannot declare main - must be func")
++		}
+ 		externdcl = append(externdcl, n)
+ 	} else {
+ 		if Curfn == nil && ctxt == PAUTO {
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index 24b3365717..97e224f870 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -69,6 +69,7 @@ var tests = [][]string{
+ 	{"testdata/decls2a.src", "testdata/decls2b.src"},
+ 	{"testdata/decls3.src"},
+ 	{"testdata/decls4.src"},
++	{"testdata/decls5.src"},
+ 	{"testdata/const0.src"},
+ 	{"testdata/const1.src"},
+ 	{"testdata/constdecl.src"},
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index ba75a0dc23..7bcfaabcde 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -111,6 +111,13 @@ func (check *Checker) declarePkgObj(ident *ast.Ident, obj Object, d *declInfo) {
+ 		return
+ 	}
+ 
++	// spec: "The main package must have package name main and declare
++	// a function main that takes no arguments and returns no value."
++	if ident.Name == "main" && check.pkg.name == "main" {
++		check.errorf(ident.Pos(), "cannot declare main - must be func")
++		return
++	}
++
+ 	check.declare(check.pkg.scope, ident, obj, token.NoPos)
+ 	check.objMap[obj] = d
+ 	obj.setOrder(uint32(len(check.objMap)))
+diff --git a/src/go/types/testdata/decls5.src b/src/go/types/testdata/decls5.src
+new file mode 100644
+index 0000000000..88d31946da
+--- /dev/null
++++ b/src/go/types/testdata/decls5.src
+@@ -0,0 +1,10 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// declarations of main
++const _, main /* ERROR "cannot declare main" */ , _ = 0, 1, 2
++type main /* ERROR "cannot declare main" */ struct{}
++var _, main /* ERROR "cannot declare main" */ int
+diff --git a/test/fixedbugs/issue21256.go b/test/fixedbugs/issue21256.go
+new file mode 100644
+index 0000000000..3d3612478d
+--- /dev/null
++++ b/test/fixedbugs/issue21256.go
+@@ -0,0 +1,9 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var main = func() {} // ERROR "must be func"

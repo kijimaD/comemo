@@ -22,8 +22,86 @@ Date:   Thu Apr 27 21:39:57 2023 -0700
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/internal/testenv/testenv.go         |  2 +-
  src/internal/testenv/testenv_notunix.go |  3 ++-
  src/internal/testenv/testenv_notwin.go  | 28 +++++++++++++++++++++++++++-
  3 files changed, 30 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index aeda1f964f..d03bb0550a 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -387,7 +387,7 @@ func HasSymlink() bool {
+ func MustHaveSymlink(t testing.TB) {
+ 	ok, reason := hasSymlink()
+ 	if !ok {
+-		t.Skipf("skipping test: cannot make symlinks on %s/%s%s", runtime.GOOS, runtime.GOARCH, reason)
++		t.Skipf("skipping test: cannot make symlinks on %s/%s: %s", runtime.GOOS, runtime.GOARCH, reason)
+ 	}
+ }
+ 
+diff --git a/src/internal/testenv/testenv_notunix.go b/src/internal/testenv/testenv_notunix.go
+index 31abe8d092..a7df5f5ddc 100644
+--- a/src/internal/testenv/testenv_notunix.go
++++ b/src/internal/testenv/testenv_notunix.go
+@@ -8,6 +8,7 @@ package testenv
+ 
+ import (
+ 	"errors"
++	"io/fs"
+ 	"os"
+ )
+ 
+@@ -16,5 +17,5 @@ import (
+ var Sigquit = os.Kill
+ 
+ func syscallIsNotSupported(err error) bool {
+-	return errors.Is(err, errors.ErrUnsupported)
++	return errors.Is(err, fs.ErrPermission) || errors.Is(err, errors.ErrUnsupported)
+ }
+diff --git a/src/internal/testenv/testenv_notwin.go b/src/internal/testenv/testenv_notwin.go
+index 81171fd193..30e159a6ec 100644
+--- a/src/internal/testenv/testenv_notwin.go
++++ b/src/internal/testenv/testenv_notwin.go
+@@ -7,13 +7,39 @@
+ package testenv
+ 
+ import (
++	"fmt"
++	"os"
++	"path/filepath"
+ 	"runtime"
+ )
+ 
+ func hasSymlink() (ok bool, reason string) {
+ 	switch runtime.GOOS {
+-	case "android", "plan9":
++	case "plan9":
+ 		return false, ""
++	case "android", "wasip1":
++		// For wasip1, some runtimes forbid absolute symlinks,
++		// or symlinks that escape the current working directory.
++		// Perform a simple test to see whether the runtime
++		// supports symlinks or not. If we get a permission
++		// error, the runtime does not support symlinks.
++		dir, err := os.MkdirTemp("", "")
++		if err != nil {
++			return false, ""
++		}
++		defer func() {
++			_ = os.RemoveAll(dir)
++		}()
++		fpath := filepath.Join(dir, "testfile.txt")
++		if err := os.WriteFile(fpath, nil, 0644); err != nil {
++			return false, ""
++		}
++		if err := os.Symlink(fpath, filepath.Join(dir, "testlink")); err != nil {
++			if SyscallIsNotSupported(err) {
++				return false, fmt.Sprintf("symlinks unsupported: %s", err.Error())
++			}
++			return false, ""
++		}
+ 	}
+ 
+ 	return true, ""

@@ -35,7 +35,56 @@ Date:   Tue Feb 25 13:01:59 2020 -0500
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/omithttp2.go |  2 +-
  src/net/http/transport.go | 14 ++++++++------
  2 files changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/src/net/http/omithttp2.go b/src/net/http/omithttp2.go
+index 307d93a3b1..7e2f492579 100644
+--- a/src/net/http/omithttp2.go
++++ b/src/net/http/omithttp2.go
+@@ -32,7 +32,7 @@ type http2Transport struct {
+ func (*http2Transport) RoundTrip(*Request) (*Response, error) { panic(noHTTP2) }
+ func (*http2Transport) CloseIdleConnections()                 {}
+ 
+-type http2erringRoundTripper struct{}
++type http2erringRoundTripper struct{ err error }
+ 
+ func (http2erringRoundTripper) RoundTrip(*Request) (*Response, error) { panic(noHTTP2) }
+ 
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index d0bfdb412c..15feeaf41f 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -569,14 +569,11 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
+ 		}
+ 
+ 		// Failed. Clean up and determine whether to retry.
+-
+-		_, isH2DialError := pconn.alt.(http2erringRoundTripper)
+-		if http2isNoCachedConnError(err) || isH2DialError {
++		if http2isNoCachedConnError(err) {
+ 			if t.removeIdleConn(pconn) {
+ 				t.decConnsPerHost(pconn.cacheKey)
+ 			}
+-		}
+-		if !pconn.shouldRetryRequest(req, err) {
++		} else if !pconn.shouldRetryRequest(req, err) {
+ 			// Issue 16465: return underlying net.Conn.Read error from peek,
+ 			// as we've historically done.
+ 			if e, ok := err.(transportReadFromServerError); ok {
+@@ -1637,7 +1634,12 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
+ 
+ 	if s := pconn.tlsState; s != nil && s.NegotiatedProtocolIsMutual && s.NegotiatedProtocol != "" {
+ 		if next, ok := t.TLSNextProto[s.NegotiatedProtocol]; ok {
+-			return &persistConn{t: t, cacheKey: pconn.cacheKey, alt: next(cm.targetAddr, pconn.conn.(*tls.Conn))}, nil
++			alt := next(cm.targetAddr, pconn.conn.(*tls.Conn))
++			if e, ok := alt.(http2erringRoundTripper); ok {
++				// pconn.conn was closed by next (http2configureTransport.upgradeFn).
++				return nil, e.err
++			}
++			return &persistConn{t: t, cacheKey: pconn.cacheKey, alt: alt}, nil
+ 		}
+ 	}
+ 

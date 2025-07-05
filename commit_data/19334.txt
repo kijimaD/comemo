@@ -14,7 +14,7 @@ Date:   Mon May 12 16:52:55 2014 -0400
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/96290043
-
+---
  src/cmd/go/pkg.go                               |  2 +-
  src/cmd/go/test.bash                            | 13 ++++++++++
  src/cmd/go/test.go                              | 33 ++++++++++++++++++++++++-
@@ -24,3 +24,164 @@ Date:   Mon May 12 16:52:55 2014 -0400
  src/cmd/go/testdata/src/testcycle/p3/p3.go      |  5 ++++
  src/cmd/go/testdata/src/testcycle/p3/p3_test.go | 10 ++++++++
  8 files changed, 81 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 7c78f8e667..16a99f382d 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -144,7 +144,7 @@ type PackageError struct {
+ func (p *PackageError) Error() string {
+ 	// Import cycles deserve special treatment.
+ 	if p.isImportCycle {
+-		return fmt.Sprintf("%s: %s\npackage %s\n", p.Pos, p.Err, strings.Join(p.ImportStack, "\n\timports "))
++		return fmt.Sprintf("%s\npackage %s\n", p.Err, strings.Join(p.ImportStack, "\n\timports "))
+ 	}
+ 	if p.Pos != "" {
+ 		// Omit import stack.  The full path to the file where the error
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index bc6c36683a..07114fe863 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -770,6 +770,19 @@ elif ! grep 'no buildable Go' testdata/err.out >/dev/null; then
+ fi
+ rm -f testdata/err.out
+ 
++TEST 'go test detects test-only import cycles'
++export GOPATH=$(pwd)/testdata
++if ./testgo test -c testcycle/p3 2>testdata/err.out; then
++	echo "go test testcycle/p3 succeeded, should have failed"
++	ok=false
++elif ! grep 'import cycle not allowed in test' testdata/err.out >/dev/null; then
++	echo "go test testcycle/p3 produced unexpected error:"
++	cat testdata/err.out
++	ok=false
++fi
++rm -f testdata/err.out
++unset GOPATH
++
+ # clean up
+ if $started; then stop; fi
+ rm -rf testdata/bin testdata/bin1
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 2f96ae2943..6a499b80e1 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -538,14 +538,27 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 
+ 	var imports, ximports []*Package
+ 	var stk importStack
+-	stk.push(p.ImportPath + "_test")
++	stk.push(p.ImportPath + " (test)")
+ 	for _, path := range p.TestImports {
+ 		p1 := loadImport(path, p.Dir, &stk, p.build.TestImportPos[path])
+ 		if p1.Error != nil {
+ 			return nil, nil, nil, p1.Error
+ 		}
++		if contains(p1.Deps, p.ImportPath) {
++			// Same error that loadPackage returns (via reusePackage) in pkg.go.
++			// Can't change that code, because that code is only for loading the
++			// non-test copy of a package.
++			err := &PackageError{
++				ImportStack:   testImportStack(stk[0], p1, p.ImportPath),
++				Err:           "import cycle not allowed in test",
++				isImportCycle: true,
++			}
++			return nil, nil, nil, err
++		}
+ 		imports = append(imports, p1)
+ 	}
++	stk.pop()
++	stk.push(p.ImportPath + "_test")
+ 	for _, path := range p.XTestImports {
+ 		if path == p.ImportPath {
+ 			continue
+@@ -777,6 +790,24 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 	return pmainAction, runAction, printAction, nil
+ }
+ 
++func testImportStack(top string, p *Package, target string) []string {
++	stk := []string{top, p.ImportPath}
++Search:
++	for p.ImportPath != target {
++		for _, p1 := range p.imports {
++			if p1.ImportPath == target || contains(p1.Deps, target) {
++				stk = append(stk, p1.ImportPath)
++				p = p1
++				continue Search
++			}
++		}
++		// Can't happen, but in case it does...
++		stk = append(stk, "<lost path to cycle>")
++		break
++	}
++	return stk
++}
++
+ func recompileForTest(pmain, preal, ptest *Package, testDir string) {
+ 	// The "test copy" of preal is ptest.
+ 	// For each package that depends on preal, make a "test copy"
+diff --git a/src/cmd/go/testdata/src/testcycle/p1/p1.go b/src/cmd/go/testdata/src/testcycle/p1/p1.go
+new file mode 100644
+index 0000000000..65ab76d4e1
+--- /dev/null
++++ b/src/cmd/go/testdata/src/testcycle/p1/p1.go
+@@ -0,0 +1,7 @@
++package p1
++
++import _ "testcycle/p2"
++
++func init() {
++	println("p1 init")
++}
+diff --git a/src/cmd/go/testdata/src/testcycle/p1/p1_test.go b/src/cmd/go/testdata/src/testcycle/p1/p1_test.go
+new file mode 100644
+index 0000000000..75abb13e6d
+--- /dev/null
++++ b/src/cmd/go/testdata/src/testcycle/p1/p1_test.go
+@@ -0,0 +1,6 @@
++package p1
++
++import "testing"
++
++func Test(t *testing.T) {
++}
+diff --git a/src/cmd/go/testdata/src/testcycle/p2/p2.go b/src/cmd/go/testdata/src/testcycle/p2/p2.go
+new file mode 100644
+index 0000000000..7e26cdf19c
+--- /dev/null
++++ b/src/cmd/go/testdata/src/testcycle/p2/p2.go
+@@ -0,0 +1,7 @@
++package p2
++
++import _ "testcycle/p3"
++
++func init() {
++	println("p2 init")
++}
+diff --git a/src/cmd/go/testdata/src/testcycle/p3/p3.go b/src/cmd/go/testdata/src/testcycle/p3/p3.go
+new file mode 100644
+index 0000000000..bb0a2f4f65
+--- /dev/null
++++ b/src/cmd/go/testdata/src/testcycle/p3/p3.go
+@@ -0,0 +1,5 @@
++package p3
++
++func init() {
++	println("p3 init")
++}
+diff --git a/src/cmd/go/testdata/src/testcycle/p3/p3_test.go b/src/cmd/go/testdata/src/testcycle/p3/p3_test.go
+new file mode 100644
+index 0000000000..9b4b0757f8
+--- /dev/null
++++ b/src/cmd/go/testdata/src/testcycle/p3/p3_test.go
+@@ -0,0 +1,10 @@
++package p3
++
++import (
++	"testing"
++
++	_ "testcycle/p1"
++)
++
++func Test(t *testing.T) {
++}

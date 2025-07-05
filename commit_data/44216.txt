@@ -11,6 +11,20 @@ Date:   Thu May 28 12:23:50 2020 -0400
     Change-Id: I1e96e58b701f1758d64c79881dfa0b1109836b83
     Reviewed-on: https://go-review.googlesource.com/c/go/+/235580
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  doc/go1.15.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index 79b18a3720..ba68c65463 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -26,7 +26,7 @@ Do not send CLs removing the interior tags from such phrases.
+ <h2 id="language">Changes to the language</h2>
+ 
+ <p>
+-TODO
++  There are no changes to the language.
+ </p>
+ 
+ <h2 id="ports">Ports</h2>

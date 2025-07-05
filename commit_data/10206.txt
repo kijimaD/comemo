@@ -30,7 +30,7 @@ Date:   Wed Nov 2 16:42:01 2011 +0300
     R=rsc, jsing, hectorchu
     CC=golang-dev
     https://golang.org/cl/5140043
-
+---
  src/pkg/runtime/Makefile         |  16 +++++
  src/pkg/runtime/chan.c           |  10 ---
  src/pkg/runtime/darwin/thread.c  | 118 ++--------------------------------
@@ -43,3 +43,1224 @@ Date:   Wed Nov 2 16:42:01 2011 +0300
  src/pkg/runtime/runtime.h        |  39 ++++-------
  src/pkg/runtime/windows/thread.c |  93 ++-------------------------
  11 files changed, 333 insertions(+), 637 deletions(-)
+
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 725c2b07e2..2d7b51b894 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -30,8 +30,24 @@ GOFILES=\
+ 
+ CLEANFILES+=version.go version_*.go
+ 
++OFILES_darwin=\
++	lock_sema.$O\
++
++OFILES_freebsd=\
++	lock_futex.$O\
++
++OFILES_linux=\
++	lock_futex.$O\
++
++OFILES_openbsd=\
++	lock_sema.$O\
++
++OFILES_plan9=\
++	lock_sema.$O\
++
+ OFILES_windows=\
+ 	callback.$O\
++	lock_sema.$O\
+ 	syscall.$O\
+ 
+ # 386-specific object files
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 475da233c1..e128accbec 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -104,9 +104,6 @@ runtime·makechan_c(ChanType *t, int64 hint)
+ 
+ 	// allocate memory in one call
+ 	c = (Hchan*)runtime·mal(n + hint*elem->size);
+-	if(runtime·destroylock)
+-		runtime·addfinalizer(c, (void*)destroychan, 0);
+-
+ 	c->elemsize = elem->size;
+ 	c->elemalg = &runtime·algarray[elem->alg];
+ 	c->elemalign = elem->align;
+@@ -128,13 +125,6 @@ reflect·makechan(ChanType *t, uint32 size, Hchan *c)
+ 	FLUSH(&c);
+ }
+ 
+-static void
+-destroychan(Hchan *c)
+-{
+-	runtime·destroylock(&c->Lock);
+-}
+-
+-
+ // makechan(t *ChanType, hint int64) (hchan *chan any);
+ void
+ runtime·makechan(ChanType *t, int64 hint, Hchan *ret)
+diff --git a/src/pkg/runtime/darwin/thread.c b/src/pkg/runtime/darwin/thread.c
+index b35dae02fe..92cc051e3f 100644
+--- a/src/pkg/runtime/darwin/thread.c
++++ b/src/pkg/runtime/darwin/thread.c
+@@ -17,127 +17,24 @@ unimplemented(int8 *name)
+ 	*(int32*)1231 = 1231;
+ }
+ 
+-// Thread-safe allocation of a semaphore.
+-// Psema points at a kernel semaphore key.
+-// It starts out zero, meaning no semaphore.
+-// Fill it in, being careful of others calling initsema
+-// simultaneously.
+-static void
+-initsema(uint32 *psema)
+-{
+-	uint32 sema;
+-
+-	if(*psema != 0)	// already have one
+-		return;
+-
+-	sema = runtime·mach_semcreate();
+-	if(!runtime·cas(psema, 0, sema)){
+-		// Someone else filled it in.  Use theirs.
+-		runtime·mach_semdestroy(sema);
+-		return;
+-	}
+-}
+-
+-
+-// Blocking locks.
+-
+-// Implement Locks, using semaphores.
+-// l->key is the number of threads who want the lock.
+-// In a race, one thread increments l->key from 0 to 1
+-// and the others increment it from >0 to >1.  The thread
+-// who does the 0->1 increment gets the lock, and the
+-// others wait on the semaphore.  When the 0->1 thread
+-// releases the lock by decrementing l->key, l->key will
+-// be >0, so it will increment the semaphore to wake up
+-// one of the others.  This is the same algorithm used
+-// in Plan 9's user-level locks.
+-
+-void
+-runtime·lock(Lock *l)
+-{
+-	if(m->locks < 0)
+-		runtime·throw("lock count");
+-	m->locks++;
+-
+-	if(runtime·xadd(&l->key, 1) > 1) {	// someone else has it; wait
+-		// Allocate semaphore if needed.
+-		if(l->sema == 0)
+-			initsema(&l->sema);
+-		runtime·mach_semacquire(l->sema);
+-	}
+-}
+-
+-void
+-runtime·unlock(Lock *l)
+-{
+-	m->locks--;
+-	if(m->locks < 0)
+-		runtime·throw("lock count");
+-
+-	if(runtime·xadd(&l->key, -1) > 0) {	// someone else is waiting
+-		// Allocate semaphore if needed.
+-		if(l->sema == 0)
+-			initsema(&l->sema);
+-		runtime·mach_semrelease(l->sema);
+-	}
+-}
+-
+-static void
+-destroylock(Lock *l)
+-{
+-	if(l->sema != 0) {
+-		runtime·mach_semdestroy(l->sema);
+-		l->sema = 0;
+-	}
+-}
+-
+-// User-level semaphore implementation:
+-// try to do the operations in user space on u,
+-// but when it's time to block, fall back on the kernel semaphore k.
+-// This is the same algorithm used in Plan 9.
+ void
+-runtime·usemacquire(Usema *s)
++runtime·semasleep(void)
+ {
+-	if((int32)runtime·xadd(&s->u, -1) < 0) {
+-		if(s->k == 0)
+-			initsema(&s->k);
+-		runtime·mach_semacquire(s->k);
+-	}
++	runtime·mach_semacquire(m->waitsema);
+ }
+ 
+ void
+-runtime·usemrelease(Usema *s)
++runtime·semawakeup(M *mp)
+ {
+-	if((int32)runtime·xadd(&s->u, 1) <= 0) {
+-		if(s->k == 0)
+-			initsema(&s->k);
+-		runtime·mach_semrelease(s->k);
+-	}
++	runtime·mach_semrelease(mp->waitsema);
+ }
+ 
+-
+-// Event notifications.
+-void
+-runtime·noteclear(Note *n)
++uintptr
++runtime·semacreate(void)
+ {
+-	n->wakeup = 0;
++	return runtime·mach_semcreate();
+ }
+ 
+-void
+-runtime·notesleep(Note *n)
+-{
+-	while(!n->wakeup)
+-		runtime·usemacquire(&n->sema);
+-}
+-
+-void
+-runtime·notewakeup(Note *n)
+-{
+-	n->wakeup = 1;
+-	runtime·usemrelease(&n->sema);
+-}
+-
+-
+ // BSD interface for threading.
+ void
+ runtime·osinit(void)
+@@ -147,7 +44,6 @@ runtime·osinit(void)
+ 	// to let the C pthread libary install its own thread-creation callback.
+ 	if(!runtime·iscgo)
+ 		runtime·bsdthread_register();
+-	runtime·destroylock = destroylock;
+ 
+ 	// Use sysctl to fetch hw.ncpu.
+ 	uint32 mib[2];
+diff --git a/src/pkg/runtime/freebsd/thread.c b/src/pkg/runtime/freebsd/thread.c
+index 3c7d7bc393..8e60a11d0b 100644
+--- a/src/pkg/runtime/freebsd/thread.c
++++ b/src/pkg/runtime/freebsd/thread.c
+@@ -12,8 +12,8 @@ extern int32 runtime·sys_umtx_op(uint32*, int32, uint32, void*, void*);
+ // FreeBSD's umtx_op syscall is effectively the same as Linux's futex, and
+ // thus the code is largely similar. See linux/thread.c for comments.
+ 
+-static void
+-umtx_wait(uint32 *addr, uint32 val)
++void
++runtime·futexsleep(uint32 *addr, uint32 val)
+ {
+ 	int32 ret;
+ 
+@@ -25,12 +25,12 @@ umtx_wait(uint32 *addr, uint32 val)
+ 	*(int32*)0x1005 = 0x1005;
+ }
+ 
+-static void
+-umtx_wake(uint32 *addr)
++void
++runtime·futexwakeup(uint32 *addr, uint32 cnt)
+ {
+ 	int32 ret;
+ 
+-	ret = runtime·sys_umtx_op(addr, UMTX_OP_WAKE, 1, nil, nil);
++	ret = runtime·sys_umtx_op(addr, UMTX_OP_WAKE, cnt, nil, nil);
+ 	if(ret >= 0)
+ 		return;
+ 
+@@ -38,91 +38,6 @@ umtx_wake(uint32 *addr)
+ 	*(int32*)0x1006 = 0x1006;
+ }
+ 
+-// See linux/thread.c for comments about the algorithm.
+-static void
+-umtx_lock(Lock *l)
+-{
+-	uint32 v;
+-
+-again:
+-	v = l->key;
+-	if((v&1) == 0){
+-		if(runtime·cas(&l->key, v, v|1))
+-			return;
+-		goto again;
+-	}
+-
+-	if(!runtime·cas(&l->key, v, v+2))
+-		goto again;
+-
+-	umtx_wait(&l->key, v+2);
+-
+-	for(;;){
+-		v = l->key;
+-		if(v < 2)
+-			runtime·throw("bad lock key");
+-		if(runtime·cas(&l->key, v, v-2))
+-			break;
+-	}
+-
+-	goto again;
+-}
+-
+-static void
+-umtx_unlock(Lock *l)
+-{
+-	uint32 v;
+-
+-again:
+-	v = l->key;
+-	if((v&1) == 0)
+-		runtime·throw("unlock of unlocked lock");
+-	if(!runtime·cas(&l->key, v, v&~1))
+-		goto again;
+-
+-	if(v&~1)
+-		umtx_wake(&l->key);
+-}
+-
+-void
+-runtime·lock(Lock *l)
+-{
+-	if(m->locks < 0)
+-		runtime·throw("lock count");
+-	m->locks++;
+-	umtx_lock(l);
+-}
+-
+-void 
+-runtime·unlock(Lock *l)
+-{
+-	m->locks--;
+-	if(m->locks < 0)
+-		runtime·throw("lock count");
+-	umtx_unlock(l);
+-}
+-
+-// Event notifications.
+-void
+-runtime·noteclear(Note *n)
+-{
+-	n->lock.key = 0;
+-	umtx_lock(&n->lock);
+-}
+-
+-void
+-runtime·notesleep(Note *n)
+-{
+-	umtx_lock(&n->lock);
+-	umtx_unlock(&n->lock);
+-}
+-
+-void
+-runtime·notewakeup(Note *n)
+-{
+-	umtx_unlock(&n->lock);
+-}
+-
+ void runtime·thr_start(void*);
+ 
+ void
+diff --git a/src/pkg/runtime/linux/thread.c b/src/pkg/runtime/linux/thread.c
+index bf3b0947d6..b24aa4f453 100644
+--- a/src/pkg/runtime/linux/thread.c
++++ b/src/pkg/runtime/linux/thread.c
+@@ -24,14 +24,6 @@ int32 runtime·read(int32, void*, int32);
+ 
+ enum
+ {
+-	MUTEX_UNLOCKED = 0,
+-	MUTEX_LOCKED = 1,
+-	MUTEX_SLEEPING = 2,
+-
+-	ACTIVE_SPIN = 4,
+-	ACTIVE_SPIN_CNT = 30,
+-	PASSIVE_SPIN = 1,
+-
+ 	FUTEX_WAIT = 0,
+ 	FUTEX_WAKE = 1,
+ 
+@@ -39,34 +31,23 @@ enum
+ 	EAGAIN = 11,
+ };
+ 
+-// TODO(rsc): I tried using 1<<40 here but futex woke up (-ETIMEDOUT).
+-// I wonder if the timespec that gets to the kernel
+-// actually has two 32-bit numbers in it, so that
+-// a 64-bit 1<<40 ends up being 0 seconds,
+-// 1<<8 nanoseconds.
+-static Timespec longtime =
+-{
+-	1<<30,	// 34 years
+-	0
+-};
+-
+ // Atomically,
+ //	if(*addr == val) sleep
+ // Might be woken up spuriously; that's allowed.
+-static void
+-futexsleep(uint32 *addr, uint32 val)
++void
++runtime·futexsleep(uint32 *addr, uint32 val)
+ {
+ 	// Some Linux kernels have a bug where futex of
+ 	// FUTEX_WAIT returns an internal error code
+ 	// as an errno.  Libpthread ignores the return value
+ 	// here, and so can we: as it says a few lines up,
+ 	// spurious wakeups are allowed.
+-	runtime·futex(addr, FUTEX_WAIT, val, &longtime, nil, 0);
++	runtime·futex(addr, FUTEX_WAIT, val, nil, nil, 0);
+ }
+ 
+ // If any procs are sleeping on addr, wake up at most cnt.
+-static void
+-futexwakeup(uint32 *addr, uint32 cnt)
++void
++runtime·futexwakeup(uint32 *addr, uint32 cnt)
+ {
+ 	int64 ret;
+ 
+@@ -112,112 +93,6 @@ getproccount(void)
+ 	return cnt ? cnt : 1;
+ }
+ 
+-// Possible lock states are MUTEX_UNLOCKED, MUTEX_LOCKED and MUTEX_SLEEPING.
+-// MUTEX_SLEEPING means that there is presumably at least one sleeping thread.
+-// Note that there can be spinning threads during all states - they do not
+-// affect mutex's state.
+-static void
+-futexlock(Lock *l)
+-{
+-	uint32 i, v, wait, spin;
+-
+-	// Speculative grab for lock.
+-	v = runtime·xchg(&l->key, MUTEX_LOCKED);
+-	if(v == MUTEX_UNLOCKED)
+-		return;
+-
+-	// wait is either MUTEX_LOCKED or MUTEX_SLEEPING
+-	// depending on whether there is a thread sleeping
+-	// on this mutex.  If we ever change l->key from
+-	// MUTEX_SLEEPING to some other value, we must be
+-	// careful to change it back to MUTEX_SLEEPING before
+-	// returning, to ensure that the sleeping thread gets
+-	// its wakeup call.
+-	wait = v;
+-
+-	// On uniprocessor's, no point spinning.
+-	// On multiprocessors, spin for ACTIVE_SPIN attempts.
+-	spin = 0;
+-	if(runtime·ncpu > 1)
+-		spin = ACTIVE_SPIN;
+-
+-	for(;;) {
+-		// Try for lock, spinning.
+-		for(i = 0; i < spin; i++) {
+-			while(l->key == MUTEX_UNLOCKED)
+-				if(runtime·cas(&l->key, MUTEX_UNLOCKED, wait))
+-						return;
+-			runtime·procyield(ACTIVE_SPIN_CNT);
+-		}
+-
+-		// Try for lock, rescheduling.
+-		for(i=0; i < PASSIVE_SPIN; i++) {
+-			while(l->key == MUTEX_UNLOCKED)
+-				if(runtime·cas(&l->key, MUTEX_UNLOCKED, wait))
+-					return;
+-			runtime·osyield();
+-		}
+-
+-		// Sleep.
+-		v = runtime·xchg(&l->key, MUTEX_SLEEPING);
+-		if(v == MUTEX_UNLOCKED)
+-			return;
+-		wait = MUTEX_SLEEPING;
+-		futexsleep(&l->key, MUTEX_SLEEPING);
+-	}
+-}
+-
+-static void
+-futexunlock(Lock *l)
+-{
+-	uint32 v;
+-
+-	v = runtime·xchg(&l->key, MUTEX_UNLOCKED);
+-	if(v == MUTEX_UNLOCKED)
+-		runtime·throw("unlock of unlocked lock");
+-	if(v == MUTEX_SLEEPING)
+-		futexwakeup(&l->key, 1);
+-}
+-
+-void
+-runtime·lock(Lock *l)
+-{
+-	if(m->locks++ < 0)
+-		runtime·throw("runtime·lock: lock count");
+-	futexlock(l);
+-}
+-
+-void
+-runtime·unlock(Lock *l)
+-{
+-	if(--m->locks < 0)
+-		runtime·throw("runtime·unlock: lock count");
+-	futexunlock(l);
+-}
+-
+-
+-// One-time notifications.
+-void
+-runtime·noteclear(Note *n)
+-{
+-	n->state = 0;
+-}
+-
+-void
+-runtime·notewakeup(Note *n)
+-{
+-	runtime·xchg(&n->state, 1);
+-	futexwakeup(&n->state, 1<<30);
+-}
+-
+-void
+-runtime·notesleep(Note *n)
+-{
+-	while(runtime·atomicload(&n->state) == 0)
+-		futexsleep(&n->state, 0);
+-}
+-
+-
+ // Clone, the Linux rfork.
+ enum
+ {
+diff --git a/src/pkg/runtime/lock_futex.c b/src/pkg/runtime/lock_futex.c
+new file mode 100644
+index 0000000000..e4d6c6aedf
+--- /dev/null
++++ b/src/pkg/runtime/lock_futex.c
+@@ -0,0 +1,118 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++
++enum
++{
++	MUTEX_UNLOCKED = 0,
++	MUTEX_LOCKED = 1,
++	MUTEX_SLEEPING = 2,
++	
++	ACTIVE_SPIN = 4,
++	ACTIVE_SPIN_CNT = 30,
++	PASSIVE_SPIN = 1,
++};
++
++// Atomically,
++//	if(*addr == val) sleep
++// Might be woken up spuriously; that's allowed.
++void	runtime·futexsleep(uint32 *addr, uint32 val);
++
++// If any procs are sleeping on addr, wake up at most cnt.
++void	runtime·futexwakeup(uint32 *addr, uint32 cnt);
++
++// Possible lock states are MUTEX_UNLOCKED, MUTEX_LOCKED and MUTEX_SLEEPING.
++// MUTEX_SLEEPING means that there is presumably at least one sleeping thread.
++// Note that there can be spinning threads during all states - they do not
++// affect mutex's state.
++void
++runtime·lock(Lock *l)
++{
++	uint32 i, v, wait, spin;
++
++	if(m->locks++ < 0)
++		runtime·throw("runtime·lock: lock count");
++
++	// Speculative grab for lock.
++	v = runtime·xchg(&l->key, MUTEX_LOCKED);
++	if(v == MUTEX_UNLOCKED)
++		return;
++	
++	// wait is either MUTEX_LOCKED or MUTEX_SLEEPING
++	// depending on whether there is a thread sleeping
++	// on this mutex.  If we ever change l->key from
++	// MUTEX_SLEEPING to some other value, we must be
++	// careful to change it back to MUTEX_SLEEPING before
++	// returning, to ensure that the sleeping thread gets
++	// its wakeup call.
++	wait = v;
++	
++	// On uniprocessor's, no point spinning.
++	// On multiprocessors, spin for ACTIVE_SPIN attempts.
++	spin = 0;
++	if(runtime·ncpu > 1)
++		spin = ACTIVE_SPIN;
++	
++	for(;;) {
++		// Try for lock, spinning.
++		for(i = 0; i < spin; i++) {
++			while(l->key == MUTEX_UNLOCKED)
++				if(runtime·cas(&l->key, MUTEX_UNLOCKED, wait))
++					return;
++			runtime·procyield(ACTIVE_SPIN_CNT);
++		}
++		
++		// Try for lock, rescheduling.
++		for(i=0; i < PASSIVE_SPIN; i++) {
++			while(l->key == MUTEX_UNLOCKED)
++				if(runtime·cas(&l->key, MUTEX_UNLOCKED, wait))
++					return;
++			runtime·osyield();
++		}
++		
++		// Sleep.
++		v = runtime·xchg(&l->key, MUTEX_SLEEPING);
++		if(v == MUTEX_UNLOCKED)
++			return;
++		wait = MUTEX_SLEEPING;
++		runtime·futexsleep(&l->key, MUTEX_SLEEPING);
++	}
++}
++
++void
++runtime·unlock(Lock *l)
++{
++	uint32 v;
++
++	if(--m->locks < 0)
++		runtime·throw("runtime·unlock: lock count");
++
++	v = runtime·xchg(&l->key, MUTEX_UNLOCKED);
++	if(v == MUTEX_UNLOCKED)
++		runtime·throw("unlock of unlocked lock");
++	if(v == MUTEX_SLEEPING)
++		runtime·futexwakeup(&l->key, 1);
++}
++
++// One-time notifications.
++void
++runtime·noteclear(Note *n)
++{
++	n->key = 0;
++}
++
++void
++runtime·notewakeup(Note *n)
++{
++	runtime·xchg(&n->key, 1);
++	runtime·futexwakeup(&n->key, 1);
++}
++
++void
++runtime·notesleep(Note *n)
++{
++	while(runtime·atomicload(&n->key) == 0)
++		runtime·futexsleep(&n->key, 0);
++}
+diff --git a/src/pkg/runtime/lock_sema.c b/src/pkg/runtime/lock_sema.c
+new file mode 100644
+index 0000000000..c8f8b05ce9
+--- /dev/null
++++ b/src/pkg/runtime/lock_sema.c
+@@ -0,0 +1,128 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++
++enum
++{
++	LOCKED = 1,
++
++	ACTIVE_SPIN = 4,
++	ACTIVE_SPIN_CNT = 30,
++	PASSIVE_SPIN = 1,
++};
++
++// creates per-M semaphore (must not return 0)
++uintptr	runtime·semacreate(void);
++// acquires per-M semaphore 
++void	runtime·semasleep(void);
++// releases mp's per-M semaphore
++void	runtime·semawakeup(M *mp);
++
++void
++runtime·lock(Lock *l)
++{
++	uintptr v;
++	uint32 i, spin;
++
++	if(m->locks++ < 0)
++		runtime·throw("runtime·lock: lock count");
++
++	// Speculative grab for lock.
++	if(runtime·casp(&l->waitm, nil, (void*)LOCKED))
++		return;
++
++	if(m->waitsema == 0)
++		m->waitsema = runtime·semacreate();
++	
++	// On uniprocessor's, no point spinning.
++	// On multiprocessors, spin for ACTIVE_SPIN attempts.
++	spin = 0;
++	if(runtime·ncpu > 1)
++		spin = ACTIVE_SPIN;
++	
++	for(i=0;; i++) {
++		v = (uintptr)runtime·atomicloadp(&l->waitm);
++		if((v&LOCKED) == 0) {
++unlocked:
++			if(runtime·casp(&l->waitm, (void*)v, (void*)(v|LOCKED)))
++				return;
++			i = 0;
++		}
++		if(i<spin)
++			runtime·procyield(ACTIVE_SPIN_CNT);
++		else if(i<spin+PASSIVE_SPIN)
++			runtime·osyield();
++		else {
++			// Someone else has it.
++			// l->waitm points to a linked list of M's waiting
++			// for this lock, chained through m->nextwaitm.
++			// Queue this M.
++			for(;;) {
++				m->nextwaitm = (void*)(v&~LOCKED);
++				if(runtime·casp(&l->waitm, (void*)v, (void*)((uintptr)m|LOCKED)))
++					break;
++				v = (uintptr)runtime·atomicloadp(&l->waitm);
++				if((v&LOCKED) == 0)
++					goto unlocked;
++			}
++			if(v&LOCKED) {
++				// Wait.
++				runtime·semasleep();
++				i = 0;
++			}
++		}			
++	}
++}
++
++void
++runtime·unlock(Lock *l)
++{
++	uintptr v;
++	M *mp;
++
++	if(--m->locks < 0)
++		runtime·throw("runtime·unlock: lock count");
++
++	for(;;) {
++		v = (uintptr)runtime·atomicloadp(&l->waitm);
++		if(v == LOCKED) {
++			if(runtime·casp(&l->waitm, (void*)LOCKED, nil))
++				break;
++		} else {
++			// Other M's are waiting for the lock.
++			// Dequeue an M.
++			mp = (void*)(v&~LOCKED);
++			if(runtime·casp(&l->waitm, (void*)v, mp->nextwaitm)) {
++				// Wake that M.
++				runtime·semawakeup(mp);
++				break;
++			}
++		}
++	}
++}
++
++// One-time notifications.
++void
++runtime·noteclear(Note *n)
++{
++	n->waitm = nil;
++}
++
++void
++runtime·notewakeup(Note *n)
++{
++	if(runtime·casp(&n->waitm, nil, (void*)LOCKED))
++		return;
++	runtime·semawakeup(n->waitm);
++}
++
++void
++runtime·notesleep(Note *n)
++{
++	if(m->waitsema == 0)
++		m->waitsema = runtime·semacreate();
++	if(runtime·casp(&n->waitm, nil, m))
++		runtime·semasleep();
++}
+diff --git a/src/pkg/runtime/openbsd/thread.c b/src/pkg/runtime/openbsd/thread.c
+index 48e02b6a77..e6419bf86a 100644
+--- a/src/pkg/runtime/openbsd/thread.c
++++ b/src/pkg/runtime/openbsd/thread.c
+@@ -50,126 +50,43 @@ getncpu(void)
+ 		return 1;
+ }
+ 
+-// Possible lock states are MUTEX_UNLOCKED, MUTEX_LOCKED and MUTEX_SLEEPING.
+-// MUTEX_SLEEPING means that there is potentially at least one sleeping thread.
+-// Note that there can be spinning threads during all states - they do not
+-// affect the mutex's state.
+-static void
+-lock(Lock *l)
++uintptr
++runtime·semacreate(void)
+ {
+-	uint32 i, v, wait, spin;
+-	int32 ret;
+-
+-	// Speculative grab for lock.
+-	v = runtime·xchg(&l->key, MUTEX_LOCKED);
+-	if(v == MUTEX_UNLOCKED)
+-		return;
+-
+-	// If we ever change the lock from MUTEX_SLEEPING to some other value,
+-	// we must be careful to change it back to MUTEX_SLEEPING before
+-	// returning, to ensure that the sleeping thread gets its wakeup call.
+-	wait = v;
+-
+-	// No point spinning unless there are multiple processors.
+-	spin = 0;
+-	if(runtime·ncpu > 1)
+-		spin = ACTIVE_SPIN;
+-
+-	for(;;) {
+-		// Try for lock, spinning.
+-		for(i = 0; i < spin; i++) {
+-			while(l->key == MUTEX_UNLOCKED)
+-				if(runtime·cas(&l->key, MUTEX_UNLOCKED, wait))
+-					return;
+-			runtime·procyield(ACTIVE_SPIN_CNT);
+-		}
+-
+-		// Try for lock, rescheduling.
+-		for(i = 0; i < PASSIVE_SPIN; i++) {
+-			while(l->key == MUTEX_UNLOCKED)
+-				if(runtime·cas(&l->key, MUTEX_UNLOCKED, wait))
+-					return;
+-			runtime·osyield();
+-		}
+-
+-		// Grab a lock on sema and sleep - sema will be unlocked by
+-		// thrsleep() and we'll get woken by another thread.
+-		// Note that thrsleep unlocks on a _spinlock_lock_t which is
+-		// an int on amd64, so we need to be careful here.
+-		while (!runtime·cas(&l->sema, MUTEX_UNLOCKED, MUTEX_LOCKED))
+-			runtime·osyield();
+-		v = runtime·xchg(&l->key, MUTEX_SLEEPING);
+-		if(v == MUTEX_UNLOCKED) {
+-			l->sema = MUTEX_UNLOCKED;
+-			return;
+-		}
+-		wait = v;
+-		ret = runtime·thrsleep(&l->key, 0, 0, &l->sema);
+-		if (ret != 0) {
+-			runtime·printf("thrsleep addr=%p sema=%d ret=%d\n",
+-				&l->key, l->sema, ret);
+-			l->sema = MUTEX_UNLOCKED;
+-		}
+-	}
++	return 1;
+ }
+ 
+-static void
+-unlock(Lock *l)
++void
++runtime·semasleep(void)
+ {
+-	uint32 v, ret;
+-
+-	while (!runtime·cas(&l->sema, MUTEX_UNLOCKED, MUTEX_LOCKED))
++retry:
++	// spin-mutex lock
++	while(runtime·xchg(&m->waitsemalock, 1))
+ 		runtime·osyield();
+-	v = runtime·xchg(&l->key, MUTEX_UNLOCKED);
+-	l->sema = MUTEX_UNLOCKED;
+-	if(v == MUTEX_UNLOCKED)
+-		runtime·throw("unlock of unlocked lock");
+-	if(v == MUTEX_SLEEPING) {
+-		ret = runtime·thrwakeup(&l->key, 0);
+-		if (ret != 0 && ret != ESRCH) {
+-			runtime·printf("thrwakeup addr=%p sem=%d ret=%d\n",
+-				&l->key, l->sema, ret);
+-		}
++	if(m->waitsemacount == 0) {
++		// the function unlocks the spinlock
++		runtime·thrsleep(&m->waitsemacount, 0, 0, &m->waitsemalock);
++		goto retry;
+ 	}
++	m->waitsemacount--;
++	// spin-mutex unlock
++	runtime·atomicstore(&m->waitsemalock, 0);
+ }
+ 
+ void
+-runtime·lock(Lock *l)
++runtime·semawakeup(M *mp)
+ {
+-	if(m->locks < 0)
+-		runtime·throw("lock count");
+-	m->locks++;
+-	lock(l);
+-}
++	uint32 ret;
+ 
+-void 
+-runtime·unlock(Lock *l)
+-{
+-	m->locks--;
+-	if(m->locks < 0)
+-		runtime·throw("lock count");
+-	unlock(l);
+-}
+-
+-// Event notifications.
+-void
+-runtime·noteclear(Note *n)
+-{
+-	n->lock.key = 0;
+-	lock(&n->lock);
+-}
+-
+-void
+-runtime·notesleep(Note *n)
+-{
+-	lock(&n->lock);
+-	unlock(&n->lock);
+-}
+-
+-void
+-runtime·notewakeup(Note *n)
+-{
+-	unlock(&n->lock);
++	// spin-mutex lock
++	while(runtime·xchg(&mp->waitsemalock, 1))
++		runtime·osyield();
++	mp->waitsemacount++;
++	ret = runtime·thrwakeup(&mp->waitsemacount, 1);
++	if(ret != 0 && ret != ESRCH)
++		runtime·printf("thrwakeup addr=%p sem=%d ret=%d\n", &mp->waitsemacount, mp->waitsemacount, ret);
++	// spin-mutex unlock
++	runtime·atomicstore(&mp->waitsemalock, 0);
+ }
+ 
+ // From OpenBSD's sys/param.h
+diff --git a/src/pkg/runtime/plan9/thread.c b/src/pkg/runtime/plan9/thread.c
+index 0334ccc053..29ac5f2dc7 100644
+--- a/src/pkg/runtime/plan9/thread.c
++++ b/src/pkg/runtime/plan9/thread.c
+@@ -4,6 +4,7 @@
+ 
+ #include "runtime.h"
+ #include "os.h"
++#include "arch.h"
+ 
+ int8 *goos = "plan9";
+ 
+@@ -113,88 +114,24 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
+ 		runtime·throw("newosproc: rfork failed");
+ }
+ 
+-// Blocking locks.
+-
+-// Implement Locks, using semaphores.
+-// l->key is the number of threads who want the lock.
+-// In a race, one thread increments l->key from 0 to 1
+-// and the others increment it from >0 to >1.  The thread
+-// who does the 0->1 increment gets the lock, and the
+-// others wait on the semaphore.  When the 0->1 thread
+-// releases the lock by decrementing l->key, l->key will
+-// be >0, so it will increment the semaphore to wake up
+-// one of the others.  This is the same algorithm used
+-// in Plan 9's user-level locks.
+-
+-void
+-runtime·lock(Lock *l)
++uintptr
++runtime·semacreate(void)
+ {
+-	if(m->locks < 0)
+-		runtime·throw("lock count");
+-	m->locks++;
+-	
+-	if(runtime·xadd(&l->key, 1) == 1)
+-		return; // changed from 0 -> 1; we hold lock
+-	// otherwise wait in kernel
+-	while(runtime·plan9_semacquire(&l->sema, 1) < 0) {
+-		/* interrupted; try again */
+-	}
++	return 1;
+ }
+ 
+ void
+-runtime·unlock(Lock *l)
++runtime·semasleep(void)
+ {
+-	m->locks--;
+-	if(m->locks < 0)
+-		runtime·throw("lock count");
+-
+-	if(runtime·xadd(&l->key, -1) == 0)
+-		return; // changed from 1 -> 0: no contention
+-	
+-	runtime·plan9_semrelease(&l->sema, 1);
+-}
+-
+-
+-// User-level semaphore implementation:
+-// try to do the operations in user space on u,
+-// but when it's time to block, fall back on the kernel semaphore k.
+-// This is the same algorithm used in Plan 9.
+-void
+-runtime·usemacquire(Usema *s)
+-{
+-	if((int32)runtime·xadd(&s->u, -1) < 0)
+-		while(runtime·plan9_semacquire(&s->k, 1) < 0) {
+-			/* interrupted; try again */
+-		}
+-}
+-
+-void
+-runtime·usemrelease(Usema *s)
+-{
+-	if((int32)runtime·xadd(&s->u, 1) <= 0)
+-		runtime·plan9_semrelease(&s->k, 1);
+-}
+-
+-
+-// Event notifications.
+-void
+-runtime·noteclear(Note *n)
+-{
+-	n->wakeup = 0;
+-}
+-
+-void
+-runtime·notesleep(Note *n)
+-{
+-	while(!n->wakeup)
+-		runtime·usemacquire(&n->sema);
++	while(runtime·plan9_semacquire(&m->waitsemacount, 1) < 0) {
++		/* interrupted; try again */
++	}
+ }
+ 
+ void
+-runtime·notewakeup(Note *n)
++runtime·semawakeup(M *mp)
+ {
+-	n->wakeup = 1;
+-	runtime·usemrelease(&n->sema);
++	runtime·plan9_semrelease(&mp->waitsemacount, 1);
+ }
+ 
+ void
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index e45808f8e0..685725a41c 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -47,14 +47,13 @@ typedef	struct	Alg		Alg;
+ typedef	struct	Func		Func;
+ typedef	struct	G		G;
+ typedef	struct	Gobuf		Gobuf;
+-typedef	struct	Lock		Lock;
++typedef	union	Lock		Lock;
+ typedef	struct	M		M;
+ typedef	struct	Mem		Mem;
+ typedef	union	Note		Note;
+ typedef	struct	Slice		Slice;
+ typedef	struct	Stktop		Stktop;
+ typedef	struct	String		String;
+-typedef	struct	Usema		Usema;
+ typedef	struct	SigTab		SigTab;
+ typedef	struct	MCache		MCache;
+ typedef	struct	FixAlloc	FixAlloc;
+@@ -117,32 +116,15 @@ enum
+ /*
+  * structures
+  */
+-struct	Lock
++union	Lock
+ {
+-#ifdef __WINDOWS__
+-	M*	waitm;	// linked list of waiting M's
+-#else
+-	uint32	key;
+-	uint32	sema;	// for OS X
+-#endif
+-};
+-struct	Usema
+-{
+-	uint32	u;
+-	uint32	k;
++	uint32	key;	// futex-based impl
++	M*	waitm;	// linked list of waiting M's (sema-based impl)
+ };
+ union	Note
+ {
+-	struct {	// Linux
+-		uint32	state;
+-	};
+-	struct {	// Windows
+-		Lock lock;
+-	};
+-	struct {	// OS X
+-		int32	wakeup;
+-		Usema	sema;
+-	};
++	uint32	key;	// futex-based impl
++	M*	waitm;	// waiting M (sema-based impl)
+ };
+ struct String
+ {
+@@ -253,11 +235,13 @@ struct	M
+ 	uint32	freglo[16];	// D[i] lsb and F[i]
+ 	uint32	freghi[16];	// D[i] msb and F[i+16]
+ 	uint32	fflag;		// floating point compare flags
+-
++	M*	nextwaitm;	// next M waiting for lock
++	uintptr	waitsema;	// semaphore for parking on locks
++	uint32	waitsemacount;
++	uint32	waitsemalock;
++	
+ #ifdef __WINDOWS__
+ 	void*	thread;		// thread handle
+-	void*	event;		// event for signalling
+-	M*	nextwaitm;	// next M waiting for lock
+ #endif
+ 	uintptr	end[];
+ };
+@@ -409,7 +393,6 @@ extern	int32	runtime·gcwaiting;		// gc is waiting to run
+ int8*	runtime·goos;
+ int32	runtime·ncpu;
+ extern	bool	runtime·iscgo;
+-extern	void	(*runtime·destroylock)(Lock*);
+ 
+ /*
+  * common functions and data
+diff --git a/src/pkg/runtime/windows/thread.c b/src/pkg/runtime/windows/thread.c
+index 946dea38af..0498c76af1 100644
+--- a/src/pkg/runtime/windows/thread.c
++++ b/src/pkg/runtime/windows/thread.c
+@@ -155,101 +155,22 @@ runtime·usleep(uint32 us)
+ 	runtime·stdcall(runtime·Sleep, 1, (uintptr)us);
+ }
+ 
+-// Thread-safe allocation of an event.
+-static void
+-initevent(void **pevent)
+-{
+-	void *event;
+-
+-	event = runtime·stdcall(runtime·CreateEvent, 4, (uintptr)0, (uintptr)0, (uintptr)0, (uintptr)0);
+-	if(!runtime·casp(pevent, 0, event)) {
+-		// Someone else filled it in.  Use theirs.
+-		runtime·stdcall(runtime·CloseHandle, 1, event);
+-	}
+-}
+-
+-#define LOCK_HELD ((M*)-1)
+-
+-static void
+-eventlock(Lock *l)
+-{
+-	// Allocate event if needed.
+-	if(m->event == nil)
+-		initevent(&m->event);
+-
+-	for(;;) {
+-		m->nextwaitm = runtime·atomicloadp(&l->waitm);
+-		if(m->nextwaitm == nil) {
+-			if(runtime·casp(&l->waitm, nil, LOCK_HELD))
+-				return;
+-		// Someone else has it.
+-		// l->waitm points to a linked list of M's waiting
+-		// for this lock, chained through m->nextwaitm.
+-		// Queue this M.
+-		} else if(runtime·casp(&l->waitm, m->nextwaitm, m))
+-			break;
+-	}
+-
+-	// Wait.
+-	runtime·stdcall(runtime·WaitForSingleObject, 2, m->event, (uintptr)-1);
+-}
+-
+-static void
+-eventunlock(Lock *l)
+-{
+-	M *mp;
+-
+-	for(;;) {
+-		mp = runtime·atomicloadp(&l->waitm);
+-		if(mp == LOCK_HELD) {
+-			if(runtime·casp(&l->waitm, LOCK_HELD, nil))
+-				return;
+-		// Other M's are waiting for the lock.
+-		// Dequeue a M.
+-		} else if(runtime·casp(&l->waitm, mp, mp->nextwaitm))
+-			break;
+-	}
+-
+-	// Wake that M.
+-	runtime·stdcall(runtime·SetEvent, 1, mp->event);
+-}
+-
+-void
+-runtime·lock(Lock *l)
+-{
+-	if(m->locks < 0)
+-		runtime·throw("lock count");
+-	m->locks++;
+-	eventlock(l);
+-}
+-
+-void
+-runtime·unlock(Lock *l)
+-{
+-	m->locks--;
+-	if(m->locks < 0)
+-		runtime·throw("lock count");
+-	eventunlock(l);
+-}
+-
+ void
+-runtime·noteclear(Note *n)
++runtime·semasleep(void)
+ {
+-	n->lock.waitm = nil;
+-	eventlock(&n->lock);
++	runtime·stdcall(runtime·WaitForSingleObject, 2, m->waitsema, (uintptr)-1);
+ }
+ 
+ void
+-runtime·notewakeup(Note *n)
++runtime·semawakeup(M *mp)
+ {
+-	eventunlock(&n->lock);
++	runtime·stdcall(runtime·SetEvent, 1, mp->waitsema);
+ }
+ 
+-void
+-runtime·notesleep(Note *n)
++uintptr
++runtime·semacreate(void)
+ {
+-	eventlock(&n->lock);
+-	eventunlock(&n->lock);	// Let other sleepers find out too.
++	return (uintptr)runtime·stdcall(runtime·CreateEvent, 4, (uintptr)0, (uintptr)0, (uintptr)0, (uintptr)0);
+ }
+ 
+ void

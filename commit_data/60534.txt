@@ -20,7 +20,108 @@ Date:   Thu Jun 27 14:54:06 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/internal/dwarf/dwarf.go   | 24 ++++++++++++++++++++++++
  src/cmd/link/internal/ld/dwarf.go | 10 ++++++----
  2 files changed, 30 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index 40ec8a6ec2..6d4e78fb26 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -338,6 +338,7 @@ const (
+ 	DW_ABRV_LEXICAL_BLOCK_SIMPLE
+ 	DW_ABRV_STRUCTFIELD
+ 	DW_ABRV_FUNCTYPEPARAM
++	DW_ABRV_FUNCTYPEOUTPARAM
+ 	DW_ABRV_DOTDOTDOT
+ 	DW_ABRV_ARRAYRANGE
+ 	DW_ABRV_NULLTYPE
+@@ -572,6 +573,8 @@ var abbrevs = []dwAbbrev{
+ 	{
+ 		DW_TAG_member,
+ 		DW_CHILDREN_no,
++		// This abbrev is special-cased by the linker (unlike other DIEs
++		// we don't want a loader.Sym created for this DIE).
+ 		[]dwAttrForm{
+ 			{DW_AT_name, DW_FORM_string},
+ 			{DW_AT_data_member_location, DW_FORM_udata},
+@@ -586,15 +589,34 @@ var abbrevs = []dwAbbrev{
+ 		DW_CHILDREN_no,
+ 
+ 		// No name!
++		// This abbrev is special-cased by the linker (unlike other DIEs
++		// we don't want a loader.Sym created for this DIE).
+ 		[]dwAttrForm{
+ 			{DW_AT_type, DW_FORM_ref_addr},
+ 		},
+ 	},
+ 
++	/* FUNCTYPEOUTPARAM */
++	{
++		DW_TAG_formal_parameter,
++		DW_CHILDREN_no,
++
++		// No name!
++		// This abbrev is special-cased by the linker (unlike other DIEs
++		// we don't want a loader.Sym created for this DIE).
++		[]dwAttrForm{
++			{DW_AT_variable_parameter, DW_FORM_flag},
++			{DW_AT_type, DW_FORM_ref_addr},
++		},
++	},
++
+ 	/* DOTDOTDOT */
+ 	{
+ 		DW_TAG_unspecified_parameters,
+ 		DW_CHILDREN_no,
++		// No name.
++		// This abbrev is special-cased by the linker (unlike other DIEs
++		// we don't want a loader.Sym created for this DIE).
+ 		[]dwAttrForm{},
+ 	},
+ 
+@@ -604,6 +626,8 @@ var abbrevs = []dwAbbrev{
+ 		DW_CHILDREN_no,
+ 
+ 		// No name!
++		// This abbrev is special-cased by the linker (unlike other DIEs
++		// we don't want a loader.Sym created for this DIE).
+ 		[]dwAttrForm{
+ 			{DW_AT_type, DW_FORM_ref_addr},
+ 			{DW_AT_count, DW_FORM_udata},
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 886c1ff672..1dc31c2565 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -286,7 +286,7 @@ func (d *dwctxt) newdie(parent *dwarf.DWDie, abbrev int, name string) *dwarf.DWD
+ 
+ 	var st sym.SymKind
+ 	switch abbrev {
+-	case dwarf.DW_ABRV_FUNCTYPEPARAM, dwarf.DW_ABRV_DOTDOTDOT, dwarf.DW_ABRV_STRUCTFIELD, dwarf.DW_ABRV_ARRAYRANGE:
++	case dwarf.DW_ABRV_FUNCTYPEPARAM, dwarf.DW_ABRV_FUNCTYPEOUTPARAM, dwarf.DW_ABRV_DOTDOTDOT, dwarf.DW_ABRV_STRUCTFIELD, dwarf.DW_ABRV_ARRAYRANGE:
+ 		// There are no relocations against these dies, and their names
+ 		// are not unique, so don't create a symbol.
+ 		return die
+@@ -622,8 +622,9 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
+ 		for i := 0; i < nfields; i++ {
+ 			s := decodetypeFuncOutType(d.ldr, d.arch, gotype, &relocs, i)
+ 			sn := d.ldr.SymName(s)
+-			fld := d.newdie(die, dwarf.DW_ABRV_FUNCTYPEPARAM, sn[5:])
+-			d.newrefattr(fld, dwarf.DW_AT_type, d.defptrto(d.defgotype(s)))
++			fld := d.newdie(die, dwarf.DW_ABRV_FUNCTYPEOUTPARAM, sn[5:])
++			newattr(fld, dwarf.DW_AT_variable_parameter, dwarf.DW_CLS_FLAG, 1, 0)
++			d.newrefattr(fld, dwarf.DW_AT_type, d.defgotype(s))
+ 		}
+ 
+ 	case abi.Interface:
+@@ -2096,7 +2097,8 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
+ 	seen := loader.MakeBitmap(d.ldr.NSym())
+ 	for _, s := range infoSec.syms {
+ 		if seen.Has(s) {
+-			log.Fatalf("symbol %s listed multiple times", d.ldr.SymName(s))
++			log.Fatalf("dwarf symbol %s listed multiple times",
++				d.ldr.SymName(s))
+ 		}
+ 		seen.Set(s)
+ 	}

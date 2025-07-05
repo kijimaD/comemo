@@ -30,7 +30,118 @@ Date:   Fri Apr 2 18:58:56 2021 +0000
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/reflect/abi.go      | 10 ----------
  src/reflect/abi_test.go | 47 +++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 47 insertions(+), 10 deletions(-)
+
+diff --git a/src/reflect/abi.go b/src/reflect/abi.go
+index 8b1aaa56b3..6a422d06d1 100644
+--- a/src/reflect/abi.go
++++ b/src/reflect/abi.go
+@@ -233,19 +233,9 @@ func (a *abiSeq) regAssign(t *rtype, offset uintptr) bool {
+ 			return false
+ 		}
+ 	case Struct:
+-		if t.size == 0 {
+-			// There's nothing to assign, so don't modify
+-			// a.steps but succeed so the caller doesn't
+-			// try to stack-assign this value.
+-			return true
+-		}
+ 		st := (*structType)(unsafe.Pointer(t))
+ 		for i := range st.fields {
+ 			f := &st.fields[i]
+-			if f.typ.Size() == 0 {
+-				// Ignore zero-sized fields.
+-				continue
+-			}
+ 			if !a.regAssign(f.typ, offset+f.offset()) {
+ 				return false
+ 			}
+diff --git a/src/reflect/abi_test.go b/src/reflect/abi_test.go
+index 998faee0de..62f6bd2e3e 100644
+--- a/src/reflect/abi_test.go
++++ b/src/reflect/abi_test.go
+@@ -300,6 +300,8 @@ var abiCallTestCases = []interface{}{
+ 	passStruct11,
+ 	passStruct12,
+ 	passStruct13,
++	passStruct14,
++	passStruct15,
+ 	pass2Struct1,
+ 	passEmptyStruct,
+ 	passStruct10AndSmall,
+@@ -521,6 +523,18 @@ func passStruct13(a Struct13) Struct13 {
+ 	return a
+ }
+ 
++//go:registerparams
++//go:noinline
++func passStruct14(a Struct14) Struct14 {
++	return a
++}
++
++//go:registerparams
++//go:noinline
++func passStruct15(a Struct15) Struct15 {
++	return a
++}
++
+ //go:registerparams
+ //go:noinline
+ func pass2Struct1(a, b Struct1) (x, y Struct1) {
+@@ -581,6 +595,8 @@ var abiMakeFuncTestCases = []interface{}{
+ 	callArgsStruct11,
+ 	callArgsStruct12,
+ 	callArgsStruct13,
++	callArgsStruct14,
++	callArgsStruct15,
+ 	callArgs2Struct1,
+ 	callArgsEmptyStruct,
+ }
+@@ -801,6 +817,18 @@ func callArgsStruct13(f func(Struct13, MagicLastTypeNameForTestingRegisterABI) S
+ 	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
+ }
+ 
++//go:registerparams
++//go:noinline
++func callArgsStruct14(f func(Struct14, MagicLastTypeNameForTestingRegisterABI) Struct14, a0 Struct14) Struct14 {
++	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
++}
++
++//go:registerparams
++//go:noinline
++func callArgsStruct15(f func(Struct15, MagicLastTypeNameForTestingRegisterABI) Struct15, a0 Struct15) Struct15 {
++	return f(a0, MagicLastTypeNameForTestingRegisterABI{})
++}
++
+ //go:registerparams
+ //go:noinline
+ func callArgs2Struct1(f func(Struct1, Struct1, MagicLastTypeNameForTestingRegisterABI) (Struct1, Struct1), a0, a1 Struct1) (r0, r1 Struct1) {
+@@ -904,6 +932,25 @@ type Struct13 struct {
+ 	B int
+ }
+ 
++// Struct14 tests a non-zero-sized (and otherwise register-assignable)
++// struct with a field that is a non-zero length array with zero-sized members.
++type Struct14 struct {
++	A uintptr
++	X [3]struct{}
++	B float64
++}
++
++// Struct15 tests a non-zero-sized (and otherwise register-assignable)
++// struct with a struct field that is zero-sized but contains a
++// non-zero length array with zero-sized members.
++type Struct15 struct {
++	A uintptr
++	X struct {
++		Y [3]struct{}
++	}
++	B float64
++}
++
+ const genValueRandSeed = 0
+ 
+ // genValue generates a pseudorandom reflect.Value with type t.

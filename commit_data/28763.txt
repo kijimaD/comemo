@@ -23,7 +23,7 @@ Date:   Thu Jul 7 10:49:43 2016 -0400
     Change-Id: I9262693ec6756b89ca29d3ae4e52a96fe5403b02
     Reviewed-on: https://go-review.googlesource.com/24859
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go         |  7 +----
  src/cmd/compile/internal/ssa/config.go     | 17 +++++++++--
  src/cmd/compile/internal/ssa/gen/ARM.rules | 24 +++++++--------
@@ -35,3 +35,401 @@ Date:   Thu Jul 7 10:49:43 2016 -0400
  test/nilptr3_ssa.go                        |  2 +-
  test/sliceopt.go                           |  2 +-
  10 files changed, 60 insertions(+), 49 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 088018f6c0..874cb71ba2 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -37,12 +37,7 @@ func shouldssa(fn *Node) bool {
+ 		if os.Getenv("SSATEST") == "" {
+ 			return false
+ 		}
+-	case "arm":
+-		// nacl/arm doesn't work yet
+-		if obj.Getgoos() == "nacl" && os.Getenv("SSATEST") == "" {
+-			return false
+-		}
+-	case "amd64":
++	case "amd64", "arm":
+ 		// Generally available.
+ 	}
+ 	if !ssaEnabled {
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index b7535cb4e9..9c1daa9c7b 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -30,6 +30,7 @@ type Config struct {
+ 	ctxt            *obj.Link                  // Generic arch information
+ 	optimize        bool                       // Do optimization
+ 	noDuffDevice    bool                       // Don't use Duff's device
++	nacl            bool                       // GOOS=nacl
+ 	sparsePhiCutoff uint64                     // Sparse phi location algorithm used above this #blocks*#variables score
+ 	curFunc         *Func
+ 
+@@ -175,13 +176,25 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config
+ 	}
+ 	c.ctxt = ctxt
+ 	c.optimize = optimize
++	c.nacl = obj.Getgoos() == "nacl"
+ 
+-	// Don't use Duff's device on Plan 9, because floating
++	// Don't use Duff's device on Plan 9 AMD64, because floating
+ 	// point operations are not allowed in note handler.
+-	if obj.Getgoos() == "plan9" {
++	if obj.Getgoos() == "plan9" && arch == "amd64" {
+ 		c.noDuffDevice = true
+ 	}
+ 
++	if c.nacl {
++		c.noDuffDevice = true // Don't use Duff's device on NaCl
++
++		// ARM assembler rewrites DIV/MOD to runtime calls, which
++		// clobber R12 on nacl
++		opcodeTable[OpARMDIV].reg.clobbers |= 1 << 12  // R12
++		opcodeTable[OpARMDIVU].reg.clobbers |= 1 << 12 // R12
++		opcodeTable[OpARMMOD].reg.clobbers |= 1 << 12  // R12
++		opcodeTable[OpARMMODU].reg.clobbers |= 1 << 12 // R12
++	}
++
+ 	// Assign IDs to preallocated values/blocks.
+ 	for i := range c.values {
+ 		c.values[i].ID = ID(i)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index 0002e8ea07..94b23585ff 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -298,12 +298,12 @@
+ // 4 and 128 are magic constants, see runtime/mkduff.go
+ (Zero [s] ptr mem)
+ 	&& SizeAndAlign(s).Size()%4 == 0 && SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Size() <= 512
+-	&& SizeAndAlign(s).Align()%4 == 0 ->
++	&& SizeAndAlign(s).Align()%4 == 0 && !config.noDuffDevice ->
+ 	(DUFFZERO [4 * (128 - int64(SizeAndAlign(s).Size()/4))] ptr (MOVWconst [0]) mem)
+ 
+ // Large zeroing uses a loop
+ (Zero [s] ptr mem)
+-	&& SizeAndAlign(s).Size()%4 == 0 && SizeAndAlign(s).Size() > 512
++	&& SizeAndAlign(s).Size()%4 == 0 && (SizeAndAlign(s).Size() > 512 || config.noDuffDevice)
+ 	&& SizeAndAlign(s).Align()%4 == 0 ->
+ 	(LoweredZero ptr (ADDconst <ptr.Type> ptr [SizeAndAlign(s).Size()]) (MOVWconst [0]) mem)
+ 
+@@ -339,12 +339,12 @@
+ // 8 and 128 are magic constants, see runtime/mkduff.go
+ (Move [s] dst src mem)
+ 	&& SizeAndAlign(s).Size()%4 == 0 && SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Size() <= 512
+-	&& SizeAndAlign(s).Align()%4 == 0 ->
++	&& SizeAndAlign(s).Align()%4 == 0 && !config.noDuffDevice ->
+ 	(DUFFCOPY [8 * (128 - int64(SizeAndAlign(s).Size()/4))] dst src mem)
+ 
+ // Large move uses a loop
+ (Move [s] dst src mem)
+-	&& SizeAndAlign(s).Size()%4 == 0 && SizeAndAlign(s).Size() > 512
++	&& SizeAndAlign(s).Size()%4 == 0 && (SizeAndAlign(s).Size() > 512 || config.noDuffDevice)
+ 	&& SizeAndAlign(s).Align()%4 == 0 ->
+ 	(LoweredMove dst src (ADDconst <src.Type> src [SizeAndAlign(s).Size()]) mem)
+ 
+@@ -1128,14 +1128,14 @@
+ (CMPshiftRAreg x y (MOVWconst [c])) -> (CMPshiftRA x y [c])
+ 
+ // use indexed loads and stores
+-(MOVWload [0] {sym} (ADD ptr idx) mem) && sym == nil -> (MOVWloadidx ptr idx mem)
+-(MOVWstore [0] {sym} (ADD ptr idx) val mem) && sym == nil -> (MOVWstoreidx ptr idx val mem)
+-(MOVWload [0] {sym} (ADDshiftLL ptr idx [c]) mem) && sym == nil -> (MOVWloadshiftLL ptr idx [c] mem)
+-(MOVWload [0] {sym} (ADDshiftRL ptr idx [c]) mem) && sym == nil -> (MOVWloadshiftRL ptr idx [c] mem)
+-(MOVWload [0] {sym} (ADDshiftRA ptr idx [c]) mem) && sym == nil -> (MOVWloadshiftRA ptr idx [c] mem)
+-(MOVWstore [0] {sym} (ADDshiftLL ptr idx [c]) val mem) && sym == nil -> (MOVWstoreshiftLL ptr idx [c] val mem)
+-(MOVWstore [0] {sym} (ADDshiftRL ptr idx [c]) val mem) && sym == nil -> (MOVWstoreshiftRL ptr idx [c] val mem)
+-(MOVWstore [0] {sym} (ADDshiftRA ptr idx [c]) val mem) && sym == nil -> (MOVWstoreshiftRA ptr idx [c] val mem)
++(MOVWload [0] {sym} (ADD ptr idx) mem) && sym == nil && !config.nacl -> (MOVWloadidx ptr idx mem)
++(MOVWstore [0] {sym} (ADD ptr idx) val mem) && sym == nil && !config.nacl -> (MOVWstoreidx ptr idx val mem)
++(MOVWload [0] {sym} (ADDshiftLL ptr idx [c]) mem) && sym == nil && !config.nacl -> (MOVWloadshiftLL ptr idx [c] mem)
++(MOVWload [0] {sym} (ADDshiftRL ptr idx [c]) mem) && sym == nil && !config.nacl -> (MOVWloadshiftRL ptr idx [c] mem)
++(MOVWload [0] {sym} (ADDshiftRA ptr idx [c]) mem) && sym == nil && !config.nacl -> (MOVWloadshiftRA ptr idx [c] mem)
++(MOVWstore [0] {sym} (ADDshiftLL ptr idx [c]) val mem) && sym == nil && !config.nacl -> (MOVWstoreshiftLL ptr idx [c] val mem)
++(MOVWstore [0] {sym} (ADDshiftRL ptr idx [c]) val mem) && sym == nil && !config.nacl -> (MOVWstoreshiftRL ptr idx [c] val mem)
++(MOVWstore [0] {sym} (ADDshiftRA ptr idx [c]) val mem) && sym == nil && !config.nacl -> (MOVWstoreshiftRA ptr idx [c] val mem)
+ 
+ // constant folding in indexed loads and stores
+ (MOVWloadidx ptr (MOVWconst [c]) mem) -> (MOVWload [c] ptr mem)
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index eba90fd051..53fc3ec06f 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -490,6 +490,9 @@ func (s *regAllocState) init(f *Func) {
+ 			s.f.Config.fe.Unimplementedf(0, "arch %s not implemented", s.f.Config.arch)
+ 		}
+ 	}
++	if s.f.Config.nacl && s.f.Config.arch == "arm" {
++		s.allocatable &^= 1 << 9 // R9 is "thread pointer" on nacl/arm
++	}
+ 
+ 	s.regs = make([]regState, s.numRegs)
+ 	s.values = make([]valState, f.NumValues())
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 87eaea265f..c9be4a7720 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -8382,7 +8382,7 @@ func rewriteValueARM_OpARMMOVWload(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (MOVWload [0] {sym} (ADD ptr idx) mem)
+-	// cond: sym == nil
++	// cond: sym == nil && !config.nacl
+ 	// result: (MOVWloadidx ptr idx mem)
+ 	for {
+ 		if v.AuxInt != 0 {
+@@ -8396,7 +8396,7 @@ func rewriteValueARM_OpARMMOVWload(v *Value, config *Config) bool {
+ 		ptr := v_0.Args[0]
+ 		idx := v_0.Args[1]
+ 		mem := v.Args[1]
+-		if !(sym == nil) {
++		if !(sym == nil && !config.nacl) {
+ 			break
+ 		}
+ 		v.reset(OpARMMOVWloadidx)
+@@ -8406,7 +8406,7 @@ func rewriteValueARM_OpARMMOVWload(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (MOVWload [0] {sym} (ADDshiftLL ptr idx [c]) mem)
+-	// cond: sym == nil
++	// cond: sym == nil && !config.nacl
+ 	// result: (MOVWloadshiftLL ptr idx [c] mem)
+ 	for {
+ 		if v.AuxInt != 0 {
+@@ -8421,7 +8421,7 @@ func rewriteValueARM_OpARMMOVWload(v *Value, config *Config) bool {
+ 		idx := v_0.Args[1]
+ 		c := v_0.AuxInt
+ 		mem := v.Args[1]
+-		if !(sym == nil) {
++		if !(sym == nil && !config.nacl) {
+ 			break
+ 		}
+ 		v.reset(OpARMMOVWloadshiftLL)
+@@ -8432,7 +8432,7 @@ func rewriteValueARM_OpARMMOVWload(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (MOVWload [0] {sym} (ADDshiftRL ptr idx [c]) mem)
+-	// cond: sym == nil
++	// cond: sym == nil && !config.nacl
+ 	// result: (MOVWloadshiftRL ptr idx [c] mem)
+ 	for {
+ 		if v.AuxInt != 0 {
+@@ -8447,7 +8447,7 @@ func rewriteValueARM_OpARMMOVWload(v *Value, config *Config) bool {
+ 		idx := v_0.Args[1]
+ 		c := v_0.AuxInt
+ 		mem := v.Args[1]
+-		if !(sym == nil) {
++		if !(sym == nil && !config.nacl) {
+ 			break
+ 		}
+ 		v.reset(OpARMMOVWloadshiftRL)
+@@ -8458,7 +8458,7 @@ func rewriteValueARM_OpARMMOVWload(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (MOVWload [0] {sym} (ADDshiftRA ptr idx [c]) mem)
+-	// cond: sym == nil
++	// cond: sym == nil && !config.nacl
+ 	// result: (MOVWloadshiftRA ptr idx [c] mem)
+ 	for {
+ 		if v.AuxInt != 0 {
+@@ -8473,7 +8473,7 @@ func rewriteValueARM_OpARMMOVWload(v *Value, config *Config) bool {
+ 		idx := v_0.Args[1]
+ 		c := v_0.AuxInt
+ 		mem := v.Args[1]
+-		if !(sym == nil) {
++		if !(sym == nil && !config.nacl) {
+ 			break
+ 		}
+ 		v.reset(OpARMMOVWloadshiftRA)
+@@ -8875,7 +8875,7 @@ func rewriteValueARM_OpARMMOVWstore(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (MOVWstore [0] {sym} (ADD ptr idx) val mem)
+-	// cond: sym == nil
++	// cond: sym == nil && !config.nacl
+ 	// result: (MOVWstoreidx ptr idx val mem)
+ 	for {
+ 		if v.AuxInt != 0 {
+@@ -8890,7 +8890,7 @@ func rewriteValueARM_OpARMMOVWstore(v *Value, config *Config) bool {
+ 		idx := v_0.Args[1]
+ 		val := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(sym == nil) {
++		if !(sym == nil && !config.nacl) {
+ 			break
+ 		}
+ 		v.reset(OpARMMOVWstoreidx)
+@@ -8901,7 +8901,7 @@ func rewriteValueARM_OpARMMOVWstore(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (MOVWstore [0] {sym} (ADDshiftLL ptr idx [c]) val mem)
+-	// cond: sym == nil
++	// cond: sym == nil && !config.nacl
+ 	// result: (MOVWstoreshiftLL ptr idx [c] val mem)
+ 	for {
+ 		if v.AuxInt != 0 {
+@@ -8917,7 +8917,7 @@ func rewriteValueARM_OpARMMOVWstore(v *Value, config *Config) bool {
+ 		c := v_0.AuxInt
+ 		val := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(sym == nil) {
++		if !(sym == nil && !config.nacl) {
+ 			break
+ 		}
+ 		v.reset(OpARMMOVWstoreshiftLL)
+@@ -8929,7 +8929,7 @@ func rewriteValueARM_OpARMMOVWstore(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (MOVWstore [0] {sym} (ADDshiftRL ptr idx [c]) val mem)
+-	// cond: sym == nil
++	// cond: sym == nil && !config.nacl
+ 	// result: (MOVWstoreshiftRL ptr idx [c] val mem)
+ 	for {
+ 		if v.AuxInt != 0 {
+@@ -8945,7 +8945,7 @@ func rewriteValueARM_OpARMMOVWstore(v *Value, config *Config) bool {
+ 		c := v_0.AuxInt
+ 		val := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(sym == nil) {
++		if !(sym == nil && !config.nacl) {
+ 			break
+ 		}
+ 		v.reset(OpARMMOVWstoreshiftRL)
+@@ -8957,7 +8957,7 @@ func rewriteValueARM_OpARMMOVWstore(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (MOVWstore [0] {sym} (ADDshiftRA ptr idx [c]) val mem)
+-	// cond: sym == nil
++	// cond: sym == nil && !config.nacl
+ 	// result: (MOVWstoreshiftRA ptr idx [c] val mem)
+ 	for {
+ 		if v.AuxInt != 0 {
+@@ -8973,7 +8973,7 @@ func rewriteValueARM_OpARMMOVWstore(v *Value, config *Config) bool {
+ 		c := v_0.AuxInt
+ 		val := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(sym == nil) {
++		if !(sym == nil && !config.nacl) {
+ 			break
+ 		}
+ 		v.reset(OpARMMOVWstoreshiftRA)
+@@ -10670,14 +10670,14 @@ func rewriteValueARM_OpMove(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (Move [s] dst src mem)
+-	// cond: SizeAndAlign(s).Size()%4 == 0 && SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Size() <= 512 	&& SizeAndAlign(s).Align()%4 == 0
++	// cond: SizeAndAlign(s).Size()%4 == 0 && SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Size() <= 512 	&& SizeAndAlign(s).Align()%4 == 0 && !config.noDuffDevice
+ 	// result: (DUFFCOPY [8 * (128 - int64(SizeAndAlign(s).Size()/4))] dst src mem)
+ 	for {
+ 		s := v.AuxInt
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(SizeAndAlign(s).Size()%4 == 0 && SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Size() <= 512 && SizeAndAlign(s).Align()%4 == 0) {
++		if !(SizeAndAlign(s).Size()%4 == 0 && SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Size() <= 512 && SizeAndAlign(s).Align()%4 == 0 && !config.noDuffDevice) {
+ 			break
+ 		}
+ 		v.reset(OpARMDUFFCOPY)
+@@ -10688,14 +10688,14 @@ func rewriteValueARM_OpMove(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (Move [s] dst src mem)
+-	// cond: SizeAndAlign(s).Size()%4 == 0 && SizeAndAlign(s).Size() > 512 	&& SizeAndAlign(s).Align()%4 == 0
++	// cond: SizeAndAlign(s).Size()%4 == 0 && (SizeAndAlign(s).Size() > 512 || config.noDuffDevice) 	&& SizeAndAlign(s).Align()%4 == 0
+ 	// result: (LoweredMove dst src (ADDconst <src.Type> src [SizeAndAlign(s).Size()]) mem)
+ 	for {
+ 		s := v.AuxInt
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(SizeAndAlign(s).Size()%4 == 0 && SizeAndAlign(s).Size() > 512 && SizeAndAlign(s).Align()%4 == 0) {
++		if !(SizeAndAlign(s).Size()%4 == 0 && (SizeAndAlign(s).Size() > 512 || config.noDuffDevice) && SizeAndAlign(s).Align()%4 == 0) {
+ 			break
+ 		}
+ 		v.reset(OpARMLoweredMove)
+@@ -16786,13 +16786,13 @@ func rewriteValueARM_OpZero(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (Zero [s] ptr mem)
+-	// cond: SizeAndAlign(s).Size()%4 == 0 && SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Size() <= 512 	&& SizeAndAlign(s).Align()%4 == 0
++	// cond: SizeAndAlign(s).Size()%4 == 0 && SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Size() <= 512 	&& SizeAndAlign(s).Align()%4 == 0 && !config.noDuffDevice
+ 	// result: (DUFFZERO [4 * (128 - int64(SizeAndAlign(s).Size()/4))] ptr (MOVWconst [0]) mem)
+ 	for {
+ 		s := v.AuxInt
+ 		ptr := v.Args[0]
+ 		mem := v.Args[1]
+-		if !(SizeAndAlign(s).Size()%4 == 0 && SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Size() <= 512 && SizeAndAlign(s).Align()%4 == 0) {
++		if !(SizeAndAlign(s).Size()%4 == 0 && SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Size() <= 512 && SizeAndAlign(s).Align()%4 == 0 && !config.noDuffDevice) {
+ 			break
+ 		}
+ 		v.reset(OpARMDUFFZERO)
+@@ -16805,13 +16805,13 @@ func rewriteValueARM_OpZero(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (Zero [s] ptr mem)
+-	// cond: SizeAndAlign(s).Size()%4 == 0 && SizeAndAlign(s).Size() > 512 	&& SizeAndAlign(s).Align()%4 == 0
++	// cond: SizeAndAlign(s).Size()%4 == 0 && (SizeAndAlign(s).Size() > 512 || config.noDuffDevice) 	&& SizeAndAlign(s).Align()%4 == 0
+ 	// result: (LoweredZero ptr (ADDconst <ptr.Type> ptr [SizeAndAlign(s).Size()]) (MOVWconst [0]) mem)
+ 	for {
+ 		s := v.AuxInt
+ 		ptr := v.Args[0]
+ 		mem := v.Args[1]
+-		if !(SizeAndAlign(s).Size()%4 == 0 && SizeAndAlign(s).Size() > 512 && SizeAndAlign(s).Align()%4 == 0) {
++		if !(SizeAndAlign(s).Size()%4 == 0 && (SizeAndAlign(s).Size() > 512 || config.noDuffDevice) && SizeAndAlign(s).Align()%4 == 0) {
+ 			break
+ 		}
+ 		v.reset(OpARMLoweredZero)
+diff --git a/test/live.go b/test/live.go
+index a8e1f28c13..f336ad783a 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -1,4 +1,4 @@
+-// +build !amd64,!arm nacl,arm
++// +build !amd64,!arm
+ // errorcheck -0 -l -live -wb=0
+ 
+ // Copyright 2014 The Go Authors. All rights reserved.
+diff --git a/test/live_ssa.go b/test/live_ssa.go
+index 91bad0c8b9..35eb035fb1 100644
+--- a/test/live_ssa.go
++++ b/test/live_ssa.go
+@@ -1,4 +1,4 @@
+-// +build amd64 arm,!nacl
++// +build amd64 arm
+ // errorcheck -0 -l -live -wb=0
+ 
+ // Copyright 2014 The Go Authors. All rights reserved.
+diff --git a/test/nilptr3.go b/test/nilptr3.go
+index 75f5a10bd0..4615b90845 100644
+--- a/test/nilptr3.go
++++ b/test/nilptr3.go
+@@ -2,7 +2,7 @@
+ // Fails on ppc64x because of incomplete optimization.
+ // See issues 9058.
+ // Same reason for mips64x and s390x.
+-// +build !ppc64,!ppc64le,!mips64,!mips64le,!amd64,!s390x,!arm nacl,arm
++// +build !ppc64,!ppc64le,!mips64,!mips64le,!amd64,!s390x,!arm
+ 
+ // Copyright 2013 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/nilptr3_ssa.go b/test/nilptr3_ssa.go
+index 8482175139..39c102d51c 100644
+--- a/test/nilptr3_ssa.go
++++ b/test/nilptr3_ssa.go
+@@ -1,5 +1,5 @@
+ // errorcheck -0 -d=nil
+-// +build amd64 arm,!nacl
++// +build amd64 arm
+ 
+ // Copyright 2013 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/sliceopt.go b/test/sliceopt.go
+index e60516571b..d11c51eaf9 100644
+--- a/test/sliceopt.go
++++ b/test/sliceopt.go
+@@ -1,4 +1,4 @@
+-// +build !amd64,!arm nacl,arm
++// +build !amd64,!arm
+ // errorcheck -0 -d=append,slice
+ 
+ // Copyright 2015 The Go Authors. All rights reserved.

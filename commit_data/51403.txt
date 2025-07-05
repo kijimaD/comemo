@@ -24,7 +24,7 @@ Date:   Fri Jan 14 17:42:20 2022 -0800
     Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  .../internal/types2/testdata/check/issues.go2      |   4 +-
  .../internal/types2/testdata/check/typeinst.go2    |   2 +-
  .../types2/testdata/fixedbugs/issue39634.go2       |   2 +-
@@ -47,3 +47,838 @@ Date:   Fri Jan 14 17:42:20 2022 -0800
  test/typeparam/issue48962.dir/b.go                 |  51 ++++++++++
  test/typeparam/issue48962.go                       |  14 +--
  21 files changed, 316 insertions(+), 137 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/testdata/check/issues.go2 b/src/cmd/compile/internal/types2/testdata/check/issues.go2
+index 5b6eebd4fd..0b80939653 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/issues.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/issues.go2
+@@ -145,8 +145,8 @@ type List3[TElem any] struct {
+ }
+ 
+ // Infinite generic type declarations must lead to an error.
+-type inf1 /* ERROR illegal cycle */ [T any] struct{ _ inf1[T] }
+-type inf2 /* ERROR illegal cycle */ [T any] struct{ inf2[T] }
++type inf1[T any] struct{ _ inf1 /* ERROR illegal cycle */ [T] }
++type inf2[T any] struct{ inf2 /* ERROR illegal cycle */ [T] }
+ 
+ // The implementation of conversions T(x) between integers and floating-point
+ // numbers checks that both T and x have either integer or floating-point
+diff --git a/src/cmd/compile/internal/types2/testdata/check/typeinst.go2 b/src/cmd/compile/internal/types2/testdata/check/typeinst.go2
+index a3d1b5e28f..0e6dc0a98f 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/typeinst.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/typeinst.go2
+@@ -58,5 +58,5 @@ var _ T3[int] = T3[int](List[int]{1, 2, 3})
+ 
+ // Self-recursive generic types are not permitted
+ 
+-type self1 /* ERROR illegal cycle */ [P any] self1[P]
++type self1[P any] self1 /* ERROR illegal cycle */ [P]
+ type self2[P any] *self2[P] // this is ok
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39634.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39634.go2
+index c56f23918d..b408dd7003 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39634.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39634.go2
+@@ -37,7 +37,7 @@ func main7() { var _ foo7 = x7[int]{} }
+ // func main8() {}
+ 
+ // crash 9
+-type foo9 /* ERROR illegal cycle */ [A any] interface { foo9[A] }
++type foo9[A any] interface { foo9 /* ERROR illegal cycle */ [A] }
+ func _() { var _ = new(foo9[int]) }
+ 
+ // crash 12
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39938.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39938.go2
+index 114646786d..6bc9284849 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39938.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39938.go2
+@@ -2,22 +2,20 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Check "infinite expansion" cycle errors across instantiated types.
+-// We can't detect these errors anymore at the moment. See #48962 for
+-// details.
+-
+ package p
+ 
++// All but E2 and E5 provide an "indirection" and break infinite expansion of a type.
+ type E0[P any] []P
+ type E1[P any] *P
+ type E2[P any] struct{ _ P }
+ type E3[P any] struct{ _ *P }
++type E5[P any] struct{ _ [10]P }
+ 
+-type T0 /* illegal cycle */ struct {
++type T0 struct {
+         _ E0[T0]
+ }
+ 
+-type T0_ /* illegal cycle */ struct {
++type T0_ struct {
+         E0[T0_]
+ }
+ 
+@@ -25,7 +23,7 @@ type T1 struct {
+         _ E1[T1]
+ }
+ 
+-type T2 /* illegal cycle */ struct {
++type T2 /* ERROR illegal cycle */ struct {
+         _ E2[T2]
+ }
+ 
+@@ -33,20 +31,24 @@ type T3 struct {
+         _ E3[T3]
+ }
+ 
+-// some more complex cases
+-
+-type T4 /* illegal cycle */ struct {
+-	_ E0[E2[T4]]
+-}
++type T4 /* ERROR illegal cycle */ [10]E5[T4]
+ 
+ type T5 struct {
+-	_ E0[E2[E0[E1[E2[[10]T5]]]]]
++	_ E0[E2[T5]]
+ }
+ 
+-type T6 /* illegal cycle */ struct {
+-	_ E0[[10]E2[E0[E2[E2[T6]]]]]
++type T6 struct {
++	_ E0[E2[E0[E1[E2[[10]T6]]]]]
+ }
+ 
+ type T7 struct {
+-	_ E0[[]E2[E0[E2[E2[T6]]]]]
++	_ E0[[10]E2[E0[E2[E2[T7]]]]]
+ }
++
++type T8 struct {
++	_ E0[[]E2[E0[E2[E2[T8]]]]]
++}
++
++type T9 /* ERROR illegal cycle */ [10]E2[E5[E2[T9]]]
++
++type T10 [10]E2[E5[E2[func(T10)]]]
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48951.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48951.go2
+index cf02cc130a..a9365281ee 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48951.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48951.go2
+@@ -5,17 +5,17 @@
+ package p
+ 
+ type (
+-        A1 /* ERROR illegal cycle */ [P any] [10]A1[P]
+-        A2 /* ERROR illegal cycle */ [P any] [10]A2[*P]
++        A1[P any] [10]A1 /* ERROR illegal cycle */ [P]
++        A2[P any] [10]A2 /* ERROR illegal cycle */ [*P]
+         A3[P any] [10]*A3[P]
+ 
+         L1[P any] []L1[P]
+ 
+-        S1 /* ERROR illegal cycle */ [P any] struct{ f S1[P] }
+-        S2 /* ERROR illegal cycle */ [P any] struct{ f S2[*P] } // like example in issue
++        S1[P any] struct{ f S1 /* ERROR illegal cycle */ [P] }
++        S2[P any] struct{ f S2 /* ERROR illegal cycle */ [*P] } // like example in issue
+         S3[P any] struct{ f *S3[P] }
+ 
+-        I1 /* ERROR illegal cycle */ [P any] interface{ I1[P] }
+-        I2 /* ERROR illegal cycle */ [P any] interface{ I2[*P] }
++        I1[P any] interface{ I1 /* ERROR illegal cycle */ [P] }
++        I2[P any] interface{ I2 /* ERROR illegal cycle */ [*P] }
+         I3[P any] interface{ *I3 /* ERROR interface contains type constraints */ [P] }
+ )
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48962.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48962.go2
+new file mode 100644
+index 0000000000..4270da1c73
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48962.go2
+@@ -0,0 +1,13 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T0[P any] struct {
++	f P
++}
++
++type T1 /* ERROR illegal cycle */ struct {
++	_ T0[T1]
++}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49043.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49043.go2
+index c37b0f1267..a360457d9f 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49043.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49043.go2
+@@ -6,13 +6,13 @@ package p
+ 
+ // The example from the issue.
+ type (
+-	N /* ERROR illegal cycle */ [P any] M[P]
+-	M[P any] N[P]
++	N[P any] M /* ERROR illegal cycle */ [P]
++	M[P any] N /* ERROR illegal cycle */ [P]
+ )
+ 
+ // A slightly more complicated case.
+ type (
+-	A /* ERROR illegal cycle */ [P any] B[P]
++	A[P any] B /* ERROR illegal cycle */ [P]
+ 	B[P any] C[P]
+ 	C[P any] A[P]
+ )
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 580b53d3c7..0c7bd62643 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -440,7 +440,8 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
+ 	// validation below. Ensure that the validation (and resulting errors) runs
+ 	// for each instantiated type in the source.
+ 	if inst == nil {
+-		tname := NewTypeName(x.Pos(), orig.obj.pkg, orig.obj.name, nil)
++		// x may be a selector for an imported type; use its start pos rather than x.Pos().
++		tname := NewTypeName(syntax.StartPos(x), orig.obj.pkg, orig.obj.name, nil)
+ 		inst = check.newNamed(tname, orig, nil, nil, nil) // underlying, methods and tparams are set when named is resolved
+ 		inst.targs = newTypeList(targs)
+ 		inst = ctxt.update(h, orig, targs, inst).(*Named)
+diff --git a/src/cmd/compile/internal/types2/validtype.go b/src/cmd/compile/internal/types2/validtype.go
+index 101a8b3945..c508eadc7c 100644
+--- a/src/cmd/compile/internal/types2/validtype.go
++++ b/src/cmd/compile/internal/types2/validtype.go
+@@ -10,12 +10,17 @@ package types2
+ // (Cycles involving alias types, as in "type A = [10]A" are detected
+ // earlier, via the objDecl cycle detection mechanism.)
+ func (check *Checker) validType(typ *Named) {
+-	check.validType0(typ, nil)
++	check.validType0(typ, nil, nil)
+ }
+ 
+ type typeInfo uint
+ 
+-func (check *Checker) validType0(typ Type, path []Object) typeInfo {
++// validType0 checks if the given type is valid. If typ is a type parameter
++// its value is looked up in the provided environment. The environment is
++// nil if typ is not part of (the RHS of) an instantiated type, in that case
++// any type parameter encountered must be from an enclosing function and can
++// be ignored. The path is the list of type names that lead to the current typ.
++func (check *Checker) validType0(typ Type, env *tparamEnv, path []Object) typeInfo {
+ 	const (
+ 		unknown typeInfo = iota
+ 		marked
+@@ -24,43 +29,39 @@ func (check *Checker) validType0(typ Type, path []Object) typeInfo {
+ 	)
+ 
+ 	switch t := typ.(type) {
++	case nil:
++		// We should never see a nil type but be conservative and panic
++		// only in debug mode.
++		if debug {
++			panic("validType0(nil)")
++		}
++
+ 	case *Array:
+-		return check.validType0(t.elem, path)
++		return check.validType0(t.elem, env, path)
+ 
+ 	case *Struct:
+ 		for _, f := range t.fields {
+-			if check.validType0(f.typ, path) == invalid {
++			if check.validType0(f.typ, env, path) == invalid {
+ 				return invalid
+ 			}
+ 		}
+ 
+ 	case *Union:
+ 		for _, t := range t.terms {
+-			if check.validType0(t.typ, path) == invalid {
++			if check.validType0(t.typ, env, path) == invalid {
+ 				return invalid
+ 			}
+ 		}
+ 
+ 	case *Interface:
+ 		for _, etyp := range t.embeddeds {
+-			if check.validType0(etyp, path) == invalid {
++			if check.validType0(etyp, env, path) == invalid {
+ 				return invalid
+ 			}
+ 		}
+ 
+ 	case *Named:
+-		// If t is parameterized, we should be considering the instantiated (expanded)
+-		// form of t, but in general we can't with this algorithm: if t is an invalid
+-		// type it may be so because it infinitely expands through a type parameter.
+-		// Instantiating such a type would lead to an infinite sequence of instantiations.
+-		// In general, we need "type flow analysis" to recognize those cases.
+-		// Example: type A[T any] struct{ x A[*T] } (issue #48951)
+-		// In this algorithm we always only consider the original, uninstantiated type.
+-		// This won't recognize some invalid cases with parameterized types, but it
+-		// will terminate.
+-		t = t.orig
+-
+-		// don't report a 2nd error if we already know the type is invalid
++		// Don't report a 2nd error if we already know the type is invalid
+ 		// (e.g., if a cycle was detected earlier, via under).
+ 		if t.underlying == Typ[Invalid] {
+ 			check.infoMap[t] = invalid
+@@ -70,32 +71,77 @@ func (check *Checker) validType0(typ Type, path []Object) typeInfo {
+ 		switch check.infoMap[t] {
+ 		case unknown:
+ 			check.infoMap[t] = marked
+-			check.infoMap[t] = check.validType0(t.fromRHS, append(path, t.obj))
++			check.infoMap[t] = check.validType0(t.orig.fromRHS, env.push(t), append(path, t.obj))
+ 		case marked:
+-			// cycle detected
++			// We have seen type t before and thus must have a cycle.
++			check.infoMap[t] = invalid
++			// t cannot be in an imported package otherwise that package
++			// would have reported a type cycle and couldn't have been
++			// imported in the first place.
++			assert(t.obj.pkg == check.pkg)
++			t.underlying = Typ[Invalid] // t is in the current package (no race possibilty)
++			// Find the starting point of the cycle and report it.
+ 			for i, tn := range path {
+-				// Even though validType now can hande cycles through external
+-				// types, we can't have cycles through external types because
+-				// no such types are detected yet.
+-				// TODO(gri) Remove this check once we can detect such cycles,
+-				//           and adjust cycleError accordingly.
+-				if t.obj.pkg != check.pkg {
+-					panic("type cycle via package-external type")
+-				}
+ 				if tn == t.obj {
+ 					check.cycleError(path[i:])
+-					check.infoMap[t] = invalid
+-					// don't modify imported types (leads to race condition, see #35049)
+-					if t.obj.pkg == check.pkg {
+-						t.underlying = Typ[Invalid]
+-					}
+ 					return invalid
+ 				}
+ 			}
+ 			panic("cycle start not found")
+ 		}
+ 		return check.infoMap[t]
++
++	case *TypeParam:
++		// A type parameter stands for the type (argument) it was instantiated with.
++		// Check the corresponding type argument for validity if we have one.
++		if env != nil {
++			if targ := env.tmap[t]; targ != nil {
++				// Type arguments found in targ must be looked
++				// up in the enclosing environment env.link.
++				return check.validType0(targ, env.link, path)
++			}
++		}
+ 	}
+ 
+ 	return valid
+ }
++
++// A tparamEnv provides the environment for looking up the type arguments
++// with which type parameters for a given instance were instantiated.
++// If we don't have an instance, the corresponding tparamEnv is nil.
++type tparamEnv struct {
++	tmap substMap
++	link *tparamEnv
++}
++
++func (env *tparamEnv) push(typ *Named) *tparamEnv {
++	// If typ is not an instantiated type there are no typ-specific
++	// type parameters to look up and we don't need an environment.
++	targs := typ.TypeArgs()
++	if targs == nil {
++		return nil // no instance => nil environment
++	}
++
++	// Populate tmap: remember the type argument for each type parameter.
++	// We cannot use makeSubstMap because the number of type parameters
++	// and arguments may not match due to errors in the source (too many
++	// or too few type arguments). Populate tmap "manually".
++	tparams := typ.TypeParams()
++	n, m := targs.Len(), tparams.Len()
++	if n > m {
++		n = m // too many targs
++	}
++	tmap := make(substMap, n)
++	for i := 0; i < n; i++ {
++		tmap[tparams.At(i)] = targs.At(i)
++	}
++
++	return &tparamEnv{tmap: tmap, link: env}
++}
++
++// TODO(gri) Alternative implementation:
++//           We may not need to build a stack of environments to
++//           look up the type arguments for type parameters. The
++//           same information should be available via the path:
++//           We should be able to just walk the path backwards
++//           and find the type arguments in the instance objects.
+diff --git a/src/go/types/testdata/check/issues.go2 b/src/go/types/testdata/check/issues.go2
+index cec1ccb0cc..a11bcaac4b 100644
+--- a/src/go/types/testdata/check/issues.go2
++++ b/src/go/types/testdata/check/issues.go2
+@@ -145,8 +145,8 @@ type List3[TElem any] struct {
+ }
+ 
+ // Infinite generic type declarations must lead to an error.
+-type inf1 /* ERROR illegal cycle */ [T any] struct{ _ inf1[T] }
+-type inf2 /* ERROR illegal cycle */ [T any] struct{ inf2[T] }
++type inf1[T any] struct{ _ inf1 /* ERROR illegal cycle */ [T] }
++type inf2[T any] struct{ inf2 /* ERROR illegal cycle */ [T] }
+ 
+ // The implementation of conversions T(x) between integers and floating-point
+ // numbers checks that both T and x have either integer or floating-point
+diff --git a/src/go/types/testdata/check/typeinst.go2 b/src/go/types/testdata/check/typeinst.go2
+index 65481202e4..6423cb801f 100644
+--- a/src/go/types/testdata/check/typeinst.go2
++++ b/src/go/types/testdata/check/typeinst.go2
+@@ -58,5 +58,5 @@ var _ T3[int] = T3[int](List[int]{1, 2, 3})
+ 
+ // Self-recursive generic types are not permitted
+ 
+-type self1 /* ERROR illegal cycle */ [P any] self1[P]
++type self1[P any] self1 /* ERROR illegal cycle */ [P]
+ type self2[P any] *self2[P] // this is ok
+diff --git a/src/go/types/testdata/fixedbugs/issue39634.go2 b/src/go/types/testdata/fixedbugs/issue39634.go2
+index 2de2f4378a..34ab654f1c 100644
+--- a/src/go/types/testdata/fixedbugs/issue39634.go2
++++ b/src/go/types/testdata/fixedbugs/issue39634.go2
+@@ -37,7 +37,7 @@ func main7() { var _ foo7 = x7[int]{} }
+ // func main8() {}
+ 
+ // crash 9
+-type foo9 /* ERROR illegal cycle */ [A any] interface { foo9[A] }
++type foo9[A any] interface { foo9 /* ERROR illegal cycle */ [A] }
+ func _() { var _ = new(foo9[int]) }
+ 
+ // crash 12
+diff --git a/src/go/types/testdata/fixedbugs/issue39938.go2 b/src/go/types/testdata/fixedbugs/issue39938.go2
+index 114646786d..6bc9284849 100644
+--- a/src/go/types/testdata/fixedbugs/issue39938.go2
++++ b/src/go/types/testdata/fixedbugs/issue39938.go2
+@@ -2,22 +2,20 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Check "infinite expansion" cycle errors across instantiated types.
+-// We can't detect these errors anymore at the moment. See #48962 for
+-// details.
+-
+ package p
+ 
++// All but E2 and E5 provide an "indirection" and break infinite expansion of a type.
+ type E0[P any] []P
+ type E1[P any] *P
+ type E2[P any] struct{ _ P }
+ type E3[P any] struct{ _ *P }
++type E5[P any] struct{ _ [10]P }
+ 
+-type T0 /* illegal cycle */ struct {
++type T0 struct {
+         _ E0[T0]
+ }
+ 
+-type T0_ /* illegal cycle */ struct {
++type T0_ struct {
+         E0[T0_]
+ }
+ 
+@@ -25,7 +23,7 @@ type T1 struct {
+         _ E1[T1]
+ }
+ 
+-type T2 /* illegal cycle */ struct {
++type T2 /* ERROR illegal cycle */ struct {
+         _ E2[T2]
+ }
+ 
+@@ -33,20 +31,24 @@ type T3 struct {
+         _ E3[T3]
+ }
+ 
+-// some more complex cases
+-
+-type T4 /* illegal cycle */ struct {
+-	_ E0[E2[T4]]
+-}
++type T4 /* ERROR illegal cycle */ [10]E5[T4]
+ 
+ type T5 struct {
+-	_ E0[E2[E0[E1[E2[[10]T5]]]]]
++	_ E0[E2[T5]]
+ }
+ 
+-type T6 /* illegal cycle */ struct {
+-	_ E0[[10]E2[E0[E2[E2[T6]]]]]
++type T6 struct {
++	_ E0[E2[E0[E1[E2[[10]T6]]]]]
+ }
+ 
+ type T7 struct {
+-	_ E0[[]E2[E0[E2[E2[T6]]]]]
++	_ E0[[10]E2[E0[E2[E2[T7]]]]]
+ }
++
++type T8 struct {
++	_ E0[[]E2[E0[E2[E2[T8]]]]]
++}
++
++type T9 /* ERROR illegal cycle */ [10]E2[E5[E2[T9]]]
++
++type T10 [10]E2[E5[E2[func(T10)]]]
+diff --git a/src/go/types/testdata/fixedbugs/issue48951.go2 b/src/go/types/testdata/fixedbugs/issue48951.go2
+index cf02cc130a..a9365281ee 100644
+--- a/src/go/types/testdata/fixedbugs/issue48951.go2
++++ b/src/go/types/testdata/fixedbugs/issue48951.go2
+@@ -5,17 +5,17 @@
+ package p
+ 
+ type (
+-        A1 /* ERROR illegal cycle */ [P any] [10]A1[P]
+-        A2 /* ERROR illegal cycle */ [P any] [10]A2[*P]
++        A1[P any] [10]A1 /* ERROR illegal cycle */ [P]
++        A2[P any] [10]A2 /* ERROR illegal cycle */ [*P]
+         A3[P any] [10]*A3[P]
+ 
+         L1[P any] []L1[P]
+ 
+-        S1 /* ERROR illegal cycle */ [P any] struct{ f S1[P] }
+-        S2 /* ERROR illegal cycle */ [P any] struct{ f S2[*P] } // like example in issue
++        S1[P any] struct{ f S1 /* ERROR illegal cycle */ [P] }
++        S2[P any] struct{ f S2 /* ERROR illegal cycle */ [*P] } // like example in issue
+         S3[P any] struct{ f *S3[P] }
+ 
+-        I1 /* ERROR illegal cycle */ [P any] interface{ I1[P] }
+-        I2 /* ERROR illegal cycle */ [P any] interface{ I2[*P] }
++        I1[P any] interface{ I1 /* ERROR illegal cycle */ [P] }
++        I2[P any] interface{ I2 /* ERROR illegal cycle */ [*P] }
+         I3[P any] interface{ *I3 /* ERROR interface contains type constraints */ [P] }
+ )
+diff --git a/src/go/types/testdata/fixedbugs/issue48962.go2 b/src/go/types/testdata/fixedbugs/issue48962.go2
+new file mode 100644
+index 0000000000..4270da1c73
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue48962.go2
+@@ -0,0 +1,13 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T0[P any] struct {
++	f P
++}
++
++type T1 /* ERROR illegal cycle */ struct {
++	_ T0[T1]
++}
+diff --git a/src/go/types/testdata/fixedbugs/issue49043.go2 b/src/go/types/testdata/fixedbugs/issue49043.go2
+index c37b0f1267..a360457d9f 100644
+--- a/src/go/types/testdata/fixedbugs/issue49043.go2
++++ b/src/go/types/testdata/fixedbugs/issue49043.go2
+@@ -6,13 +6,13 @@ package p
+ 
+ // The example from the issue.
+ type (
+-	N /* ERROR illegal cycle */ [P any] M[P]
+-	M[P any] N[P]
++	N[P any] M /* ERROR illegal cycle */ [P]
++	M[P any] N /* ERROR illegal cycle */ [P]
+ )
+ 
+ // A slightly more complicated case.
+ type (
+-	A /* ERROR illegal cycle */ [P any] B[P]
++	A[P any] B /* ERROR illegal cycle */ [P]
+ 	B[P any] C[P]
+ 	C[P any] A[P]
+ )
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 82de90b67a..1e629e3fdb 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -425,7 +425,8 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
+ 	// validation below. Ensure that the validation (and resulting errors) runs
+ 	// for each instantiated type in the source.
+ 	if inst == nil {
+-		tname := NewTypeName(ix.X.Pos(), orig.obj.pkg, orig.obj.name, nil)
++		// x may be a selector for an imported type; use its start pos rather than x.Pos().
++		tname := NewTypeName(ix.Pos(), orig.obj.pkg, orig.obj.name, nil)
+ 		inst = check.newNamed(tname, orig, nil, nil, nil) // underlying, methods and tparams are set when named is resolved
+ 		inst.targs = newTypeList(targs)
+ 		inst = ctxt.update(h, orig, targs, inst).(*Named)
+diff --git a/src/go/types/validtype.go b/src/go/types/validtype.go
+index 865dc9528f..c4ec2f2e0a 100644
+--- a/src/go/types/validtype.go
++++ b/src/go/types/validtype.go
+@@ -10,12 +10,17 @@ package types
+ // (Cycles involving alias types, as in "type A = [10]A" are detected
+ // earlier, via the objDecl cycle detection mechanism.)
+ func (check *Checker) validType(typ *Named) {
+-	check.validType0(typ, nil)
++	check.validType0(typ, nil, nil)
+ }
+ 
+ type typeInfo uint
+ 
+-func (check *Checker) validType0(typ Type, path []Object) typeInfo {
++// validType0 checks if the given type is valid. If typ is a type parameter
++// its value is looked up in the provided environment. The environment is
++// nil if typ is not part of (the RHS of) an instantiated type, in that case
++// any type parameter encountered must be from an enclosing function and can
++// be ignored. The path is the list of type names that lead to the current typ.
++func (check *Checker) validType0(typ Type, env *tparamEnv, path []Object) typeInfo {
+ 	const (
+ 		unknown typeInfo = iota
+ 		marked
+@@ -24,43 +29,39 @@ func (check *Checker) validType0(typ Type, path []Object) typeInfo {
+ 	)
+ 
+ 	switch t := typ.(type) {
++	case nil:
++		// We should never see a nil type but be conservative and panic
++		// only in debug mode.
++		if debug {
++			panic("validType0(nil)")
++		}
++
+ 	case *Array:
+-		return check.validType0(t.elem, path)
++		return check.validType0(t.elem, env, path)
+ 
+ 	case *Struct:
+ 		for _, f := range t.fields {
+-			if check.validType0(f.typ, path) == invalid {
++			if check.validType0(f.typ, env, path) == invalid {
+ 				return invalid
+ 			}
+ 		}
+ 
+ 	case *Union:
+ 		for _, t := range t.terms {
+-			if check.validType0(t.typ, path) == invalid {
++			if check.validType0(t.typ, env, path) == invalid {
+ 				return invalid
+ 			}
+ 		}
+ 
+ 	case *Interface:
+ 		for _, etyp := range t.embeddeds {
+-			if check.validType0(etyp, path) == invalid {
++			if check.validType0(etyp, env, path) == invalid {
+ 				return invalid
+ 			}
+ 		}
+ 
+ 	case *Named:
+-		// If t is parameterized, we should be considering the instantiated (expanded)
+-		// form of t, but in general we can't with this algorithm: if t is an invalid
+-		// type it may be so because it infinitely expands through a type parameter.
+-		// Instantiating such a type would lead to an infinite sequence of instantiations.
+-		// In general, we need "type flow analysis" to recognize those cases.
+-		// Example: type A[T any] struct{ x A[*T] } (issue #48951)
+-		// In this algorithm we always only consider the original, uninstantiated type.
+-		// This won't recognize some invalid cases with parameterized types, but it
+-		// will terminate.
+-		t = t.orig
+-
+-		// don't report a 2nd error if we already know the type is invalid
++		// Don't report a 2nd error if we already know the type is invalid
+ 		// (e.g., if a cycle was detected earlier, via under).
+ 		if t.underlying == Typ[Invalid] {
+ 			check.infoMap[t] = invalid
+@@ -70,32 +71,77 @@ func (check *Checker) validType0(typ Type, path []Object) typeInfo {
+ 		switch check.infoMap[t] {
+ 		case unknown:
+ 			check.infoMap[t] = marked
+-			check.infoMap[t] = check.validType0(t.fromRHS, append(path, t.obj))
++			check.infoMap[t] = check.validType0(t.orig.fromRHS, env.push(t), append(path, t.obj))
+ 		case marked:
+-			// cycle detected
++			// We have seen type t before and thus must have a cycle.
++			check.infoMap[t] = invalid
++			// t cannot be in an imported package otherwise that package
++			// would have reported a type cycle and couldn't have been
++			// imported in the first place.
++			assert(t.obj.pkg == check.pkg)
++			t.underlying = Typ[Invalid] // t is in the current package (no race possibilty)
++			// Find the starting point of the cycle and report it.
+ 			for i, tn := range path {
+-				// Even though validType now can hande cycles through external
+-				// types, we can't have cycles through external types because
+-				// no such types are detected yet.
+-				// TODO(gri) Remove this check once we can detect such cycles,
+-				//           and adjust cycleError accordingly.
+-				if t.obj.pkg != check.pkg {
+-					panic("type cycle via package-external type")
+-				}
+ 				if tn == t.obj {
+ 					check.cycleError(path[i:])
+-					check.infoMap[t] = invalid
+-					// don't modify imported types (leads to race condition, see #35049)
+-					if t.obj.pkg == check.pkg {
+-						t.underlying = Typ[Invalid]
+-					}
+ 					return invalid
+ 				}
+ 			}
+ 			panic("cycle start not found")
+ 		}
+ 		return check.infoMap[t]
++
++	case *TypeParam:
++		// A type parameter stands for the type (argument) it was instantiated with.
++		// Check the corresponding type argument for validity if we have one.
++		if env != nil {
++			if targ := env.tmap[t]; targ != nil {
++				// Type arguments found in targ must be looked
++				// up in the enclosing environment env.link.
++				return check.validType0(targ, env.link, path)
++			}
++		}
+ 	}
+ 
+ 	return valid
+ }
++
++// A tparamEnv provides the environment for looking up the type arguments
++// with which type parameters for a given instance were instantiated.
++// If we don't have an instance, the corresponding tparamEnv is nil.
++type tparamEnv struct {
++	tmap substMap
++	link *tparamEnv
++}
++
++func (env *tparamEnv) push(typ *Named) *tparamEnv {
++	// If typ is not an instantiated type there are no typ-specific
++	// type parameters to look up and we don't need an environment.
++	targs := typ.TypeArgs()
++	if targs == nil {
++		return nil // no instance => nil environment
++	}
++
++	// Populate tmap: remember the type argument for each type parameter.
++	// We cannot use makeSubstMap because the number of type parameters
++	// and arguments may not match due to errors in the source (too many
++	// or too few type arguments). Populate tmap "manually".
++	tparams := typ.TypeParams()
++	n, m := targs.Len(), tparams.Len()
++	if n > m {
++		n = m // too many targs
++	}
++	tmap := make(substMap, n)
++	for i := 0; i < n; i++ {
++		tmap[tparams.At(i)] = targs.At(i)
++	}
++
++	return &tparamEnv{tmap: tmap, link: env}
++}
++
++// TODO(gri) Alternative implementation:
++//           We may not need to build a stack of environments to
++//           look up the type arguments for type parameters. The
++//           same information should be available via the path:
++//           We should be able to just walk the path backwards
++//           and find the type arguments in the instance objects.
+diff --git a/test/typeparam/issue48962.dir/a.go b/test/typeparam/issue48962.dir/a.go
+new file mode 100644
+index 0000000000..a6d273476e
+--- /dev/null
++++ b/test/typeparam/issue48962.dir/a.go
+@@ -0,0 +1,12 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type (
++	A[P any]               [10]P
++	S[P any]               struct{ f P }
++	P[P any]               *P
++	M[K comparable, V any] map[K]V
++)
+diff --git a/test/typeparam/issue48962.dir/b.go b/test/typeparam/issue48962.dir/b.go
+new file mode 100644
+index 0000000000..a49f55de8d
+--- /dev/null
++++ b/test/typeparam/issue48962.dir/b.go
+@@ -0,0 +1,51 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "a"
++
++type (
++	lA[P any]               [10]P
++	lS[P any]               struct{ f P }
++	lP[P any]               *P
++	lM[K comparable, V any] map[K]V
++)
++
++// local cycles
++type (
++	A  lA[A]            // ERROR "invalid recursive type"
++	S  lS[S]            // ERROR "invalid recursive type"
++	P  lP[P]            // ok (indirection through lP)
++	M1 lM[int, M1]      // ok (indirection through lM)
++	M2 lM[lA[byte], M2] // ok (indirection through lM)
++
++	A2 lA[lS[lP[A2]]] // ok (indirection through lP)
++	A3 lA[lS[lS[A3]]] // ERROR "invalid recursive type"
++)
++
++// cycles through imported types
++type (
++	Ai  a.A[Ai]             // ERROR "invalid recursive type"
++	Si  a.S[Si]             // ERROR "invalid recursive type"
++	Pi  a.P[Pi]             // ok (indirection through a.P)
++	M1i a.M[int, M1i]       // ok (indirection through a.M)
++	M2i a.M[a.A[byte], M2i] // ok (indirection through a.M)
++
++	A2i a.A[a.S[a.P[A2i]]] // ok (indirection through a.P)
++	A3i a.A[a.S[a.S[A3i]]] // ERROR "invalid recursive type"
++
++	T2 a.S[T0[T2]] // ERROR "invalid recursive type"
++	T3 T0[Ai]      // no follow-on error here
++)
++
++// test case from issue
++
++type T0[P any] struct {
++	f P
++}
++
++type T1 struct { // ERROR "invalid recursive type"
++	_ T0[T1]
++}
+diff --git a/test/typeparam/issue48962.go b/test/typeparam/issue48962.go
+index de9a23cdd2..326d67b49a 100644
+--- a/test/typeparam/issue48962.go
++++ b/test/typeparam/issue48962.go
+@@ -1,15 +1,7 @@
+-// errorcheck -G=3
++// errorcheckdir -G=3
+ 
+-// Copyright 2021 The Go Authors. All rights reserved.
++// Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package p
+-
+-type T0[P any] struct { // ERROR "invalid recursive type"
+-	f P
+-}
+-
+-type T1 struct {
+-	_ T0[T1]
+-}
++package ignored

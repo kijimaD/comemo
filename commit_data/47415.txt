@@ -10,10 +10,210 @@ Date:   Tue Mar 16 13:31:20 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/debug/dwarf/entry.go              |  66 +++++++++++++++++++++++++++++++---
  src/debug/dwarf/entry_test.go         |  13 +++++++
  src/debug/dwarf/line_test.go          |  23 ++++++++++++
  src/debug/dwarf/testdata/rnglistx.c   |  19 ++++++++++
  src/debug/dwarf/testdata/rnglistx.elf | Bin 0 -> 11024 bytes
  5 files changed, 116 insertions(+), 5 deletions(-)
+
+diff --git a/src/debug/dwarf/entry.go b/src/debug/dwarf/entry.go
+index 3fc73b8ead..9f5ac57080 100644
+--- a/src/debug/dwarf/entry.go
++++ b/src/debug/dwarf/entry.go
+@@ -317,7 +317,7 @@ const (
+ 	// the "mac" section.
+ 	ClassMacPtr
+ 
+-	// ClassMacPtr represents values that are an int64 offset into
++	// ClassRangeListPtr represents values that are an int64 offset into
+ 	// the "rangelist" section.
+ 	ClassRangeListPtr
+ 
+@@ -355,7 +355,7 @@ const (
+ 	// into the "loclists" section.
+ 	ClassLocList
+ 
+-	// ClassRngList represents values that are an int64 offset
++	// ClassRngList represents values that are a uint64 offset
+ 	// from the base of the "rnglists" section.
+ 	ClassRngList
+ 
+@@ -464,6 +464,35 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry
+ 		return val
+ 	}
+ 
++	resolveRnglistx := func(rnglistsBase, off uint64) uint64 {
++		is64, _ := b.format.dwarf64()
++		if is64 {
++			off *= 8
++		} else {
++			off *= 4
++		}
++		off += rnglistsBase
++		if uint64(int(off)) != off {
++			b.error("DW_FORM_rnglistx offset out of range")
++		}
++
++		b1 := makeBuf(b.dwarf, b.format, "rnglists", 0, b.dwarf.rngLists)
++		b1.skip(int(off))
++		if is64 {
++			off = b1.uint64()
++		} else {
++			off = uint64(b1.uint32())
++		}
++		if b1.err != nil {
++			b.err = b1.err
++			return 0
++		}
++		if uint64(int(off)) != off {
++			b.error("DW_FORM_rnglistx indirect offset out of range")
++		}
++		return rnglistsBase + off
++	}
++
+ 	for i := range e.Field {
+ 		e.Field[i].Attr = a.field[i].attr
+ 		e.Field[i].Class = a.field[i].class
+@@ -709,7 +738,21 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry
+ 
+ 		// rnglist
+ 		case formRnglistx:
+-			val = b.uint()
++			off := b.uint()
++
++			// We have to adjust by the rnglists_base of
++			// the compilation unit. This won't work if
++			// the program uses Reader.Seek to skip over
++			// the unit. Not much we can do about that.
++			var rnglistsBase int64
++			if cu != nil {
++				rnglistsBase, _ = cu.Val(AttrRnglistsBase).(int64)
++			} else if a.tag == TagCompileUnit {
++				delay = append(delay, delayed{i, off, formRnglistx})
++				break
++			}
++
++			val = resolveRnglistx(uint64(rnglistsBase), off)
+ 		}
+ 
+ 		e.Field[i].Val = val
+@@ -734,6 +777,12 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry
+ 			if b.err != nil {
+ 				return nil
+ 			}
++		case formRnglistx:
++			rnglistsBase, _ := e.Val(AttrRnglistsBase).(int64)
++			e.Field[del.idx].Val = resolveRnglistx(uint64(rnglistsBase), del.off)
++			if b.err != nil {
++				return nil
++			}
+ 		}
+ 	}
+ 
+@@ -993,8 +1042,15 @@ func (d *Data) Ranges(e *Entry) ([][2]uint64, error) {
+ 			return d.dwarf5Ranges(u, cu, base, ranges, ret)
+ 
+ 		case ClassRngList:
+-			// TODO: support DW_FORM_rnglistx
+-			return ret, nil
++			rnglist, ok := field.Val.(uint64)
++			if !ok {
++				return ret, nil
++			}
++			cu, base, err := d.baseAddressForEntry(e)
++			if err != nil {
++				return nil, err
++			}
++			return d.dwarf5Ranges(u, cu, base, int64(rnglist), ret)
+ 
+ 		default:
+ 			return ret, nil
+diff --git a/src/debug/dwarf/entry_test.go b/src/debug/dwarf/entry_test.go
+index b54f8b4f8d..1f41d742ea 100644
+--- a/src/debug/dwarf/entry_test.go
++++ b/src/debug/dwarf/entry_test.go
+@@ -84,6 +84,19 @@ func TestRangesSection(t *testing.T) {
+ 	testRanges(t, "testdata/ranges.elf", want)
+ }
+ 
++func TestRangesRnglistx(t *testing.T) {
++	want := []wantRange{
++		{0x401000, [][2]uint64{{0x401020, 0x40102c}, {0x401000, 0x40101d}}},
++		{0x40101c, [][2]uint64{{0x401020, 0x40102c}, {0x401000, 0x40101d}}},
++		{0x40101d, nil},
++		{0x40101f, nil},
++		{0x401020, [][2]uint64{{0x401020, 0x40102c}, {0x401000, 0x40101d}}},
++		{0x40102b, [][2]uint64{{0x401020, 0x40102c}, {0x401000, 0x40101d}}},
++		{0x40102c, nil},
++	}
++	testRanges(t, "testdata/rnglistx.elf", want)
++}
++
+ func testRanges(t *testing.T, name string, want []wantRange) {
+ 	d := elfData(t, name)
+ 	r := d.Reader()
+diff --git a/src/debug/dwarf/line_test.go b/src/debug/dwarf/line_test.go
+index b13818e8b5..9c6b6ff5b0 100644
+--- a/src/debug/dwarf/line_test.go
++++ b/src/debug/dwarf/line_test.go
+@@ -117,6 +117,29 @@ func TestLineELFClang(t *testing.T) {
+ 	testLineTable(t, want, files, elfData(t, "testdata/line-clang.elf"))
+ }
+ 
++func TestLineRnglists(t *testing.T) {
++	// Test a newer file, generated by clang.
++	file := &LineFile{Name: "/usr/local/google/home/iant/foo.c"}
++	want := []LineEntry{
++		{Address: 0x401020, File: file, Line: 12, IsStmt: true},
++		{Address: 0x401020, File: file, Line: 13, Column: 12, IsStmt: true, PrologueEnd: true},
++		{Address: 0x401022, File: file, Line: 13, Column: 7},
++		{Address: 0x401024, File: file, Line: 17, Column: 1, IsStmt: true},
++		{Address: 0x401027, File: file, Line: 16, Column: 10, IsStmt: true},
++		{Address: 0x40102c, EndSequence: true},
++		{Address: 0x401000, File: file, Line: 2, IsStmt: true},
++		{Address: 0x401000, File: file, Line: 6, Column: 17, IsStmt: true, PrologueEnd: true},
++		{Address: 0x401002, File: file, Line: 6, Column: 3},
++		{Address: 0x401019, File: file, Line: 9, Column: 3, IsStmt: true},
++		{Address: 0x40101a, File: file, Line: 0, Column: 3},
++		{Address: 0x40101c, File: file, Line: 9, Column: 3},
++		{Address: 0x40101d, EndSequence: true},
++	}
++	files := [][]*LineFile{{file}}
++
++	testLineTable(t, want, files, elfData(t, "testdata/rnglistx.elf"))
++}
++
+ func TestLineSeek(t *testing.T) {
+ 	d := elfData(t, "testdata/line-gcc.elf")
+ 
+diff --git a/src/debug/dwarf/testdata/rnglistx.c b/src/debug/dwarf/testdata/rnglistx.c
+new file mode 100644
+index 0000000000..877043584d
+--- /dev/null
++++ b/src/debug/dwarf/testdata/rnglistx.c
+@@ -0,0 +1,19 @@
++// clang -gdwarf-5 -O2 -nostdlib
++
++__attribute__((noinline, cold))
++static int sum(int i) {
++  int j, s;
++
++  s = 0;
++  for (j = 0; j < i; j++) {
++    s += j * i;
++  }
++  return s;
++}
++
++int main(int argc, char** argv) {
++  if (argc == 0) {
++    return 0;
++  }
++  return sum(argc);
++}
+diff --git a/src/debug/dwarf/testdata/rnglistx.elf b/src/debug/dwarf/testdata/rnglistx.elf
+new file mode 100755
+index 0000000000..c2d7f55479
+Binary files /dev/null and b/src/debug/dwarf/testdata/rnglistx.elf differ

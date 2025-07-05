@@ -14,7 +14,216 @@ Date:   Thu Mar 8 12:37:01 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/os_solaris.go | 119 ++++++++++++++++++++++++++++++++++++++++++++++
  src/runtime/proc.go       |   2 +-
  2 files changed, 120 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/os_solaris.go b/src/runtime/os_solaris.go
+index 0c3971576c..d698e09e7d 100644
+--- a/src/runtime/os_solaris.go
++++ b/src/runtime/os_solaris.go
+@@ -31,71 +31,190 @@ var asmsysvicall6 libcFunc
+ 
+ //go:nosplit
+ func sysvicall0(fn *libcFunc) uintptr {
++	// Leave caller's PC/SP around for traceback.
++	gp := getg()
++	var mp *m
++	if gp != nil {
++		mp = gp.m
++	}
++	if mp != nil {
++		mp.libcallg.set(gp)
++		mp.libcallpc = getcallerpc()
++		// sp must be the last, because once async cpu profiler finds
++		// all three values to be non-zero, it will use them
++		mp.libcallsp = getcallersp(unsafe.Pointer(&fn))
++	}
++
+ 	var libcall libcall
+ 	libcall.fn = uintptr(unsafe.Pointer(fn))
+ 	libcall.n = 0
+ 	libcall.args = uintptr(unsafe.Pointer(fn)) // it's unused but must be non-nil, otherwise crashes
+ 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&libcall))
++	if mp != nil {
++		mp.libcallsp = 0
++	}
+ 	return libcall.r1
+ }
+ 
+ //go:nosplit
+ func sysvicall1(fn *libcFunc, a1 uintptr) uintptr {
++	// Leave caller's PC/SP around for traceback.
++	gp := getg()
++	var mp *m
++	if gp != nil {
++		mp = gp.m
++	}
++	if mp != nil {
++		mp.libcallg.set(gp)
++		mp.libcallpc = getcallerpc()
++		// sp must be the last, because once async cpu profiler finds
++		// all three values to be non-zero, it will use them
++		mp.libcallsp = getcallersp(unsafe.Pointer(&fn))
++	}
++
+ 	var libcall libcall
+ 	libcall.fn = uintptr(unsafe.Pointer(fn))
+ 	libcall.n = 1
+ 	// TODO(rsc): Why is noescape necessary here and below?
+ 	libcall.args = uintptr(noescape(unsafe.Pointer(&a1)))
+ 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&libcall))
++	if mp != nil {
++		mp.libcallsp = 0
++	}
+ 	return libcall.r1
+ }
+ 
+ //go:nosplit
+ func sysvicall2(fn *libcFunc, a1, a2 uintptr) uintptr {
++	// Leave caller's PC/SP around for traceback.
++	gp := getg()
++	var mp *m
++	if gp != nil {
++		mp = gp.m
++	}
++	if mp != nil {
++		mp.libcallg.set(gp)
++		mp.libcallpc = getcallerpc()
++		// sp must be the last, because once async cpu profiler finds
++		// all three values to be non-zero, it will use them
++		mp.libcallsp = getcallersp(unsafe.Pointer(&fn))
++	}
++
+ 	var libcall libcall
+ 	libcall.fn = uintptr(unsafe.Pointer(fn))
+ 	libcall.n = 2
+ 	libcall.args = uintptr(noescape(unsafe.Pointer(&a1)))
+ 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&libcall))
++	if mp != nil {
++		mp.libcallsp = 0
++	}
+ 	return libcall.r1
+ }
+ 
+ //go:nosplit
+ func sysvicall3(fn *libcFunc, a1, a2, a3 uintptr) uintptr {
++	// Leave caller's PC/SP around for traceback.
++	gp := getg()
++	var mp *m
++	if gp != nil {
++		mp = gp.m
++	}
++	if mp != nil {
++		mp.libcallg.set(gp)
++		mp.libcallpc = getcallerpc()
++		// sp must be the last, because once async cpu profiler finds
++		// all three values to be non-zero, it will use them
++		mp.libcallsp = getcallersp(unsafe.Pointer(&fn))
++	}
++
+ 	var libcall libcall
+ 	libcall.fn = uintptr(unsafe.Pointer(fn))
+ 	libcall.n = 3
+ 	libcall.args = uintptr(noescape(unsafe.Pointer(&a1)))
+ 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&libcall))
++	if mp != nil {
++		mp.libcallsp = 0
++	}
+ 	return libcall.r1
+ }
+ 
+ //go:nosplit
+ func sysvicall4(fn *libcFunc, a1, a2, a3, a4 uintptr) uintptr {
++	// Leave caller's PC/SP around for traceback.
++	gp := getg()
++	var mp *m
++	if gp != nil {
++		mp = gp.m
++	}
++	if mp != nil {
++		mp.libcallg.set(gp)
++		mp.libcallpc = getcallerpc()
++		// sp must be the last, because once async cpu profiler finds
++		// all three values to be non-zero, it will use them
++		mp.libcallsp = getcallersp(unsafe.Pointer(&fn))
++	}
++
+ 	var libcall libcall
+ 	libcall.fn = uintptr(unsafe.Pointer(fn))
+ 	libcall.n = 4
+ 	libcall.args = uintptr(noescape(unsafe.Pointer(&a1)))
+ 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&libcall))
++	if mp != nil {
++		mp.libcallsp = 0
++	}
+ 	return libcall.r1
+ }
+ 
+ //go:nosplit
+ func sysvicall5(fn *libcFunc, a1, a2, a3, a4, a5 uintptr) uintptr {
++	// Leave caller's PC/SP around for traceback.
++	gp := getg()
++	var mp *m
++	if gp != nil {
++		mp = gp.m
++	}
++	if mp != nil {
++		mp.libcallg.set(gp)
++		mp.libcallpc = getcallerpc()
++		// sp must be the last, because once async cpu profiler finds
++		// all three values to be non-zero, it will use them
++		mp.libcallsp = getcallersp(unsafe.Pointer(&fn))
++	}
++
+ 	var libcall libcall
+ 	libcall.fn = uintptr(unsafe.Pointer(fn))
+ 	libcall.n = 5
+ 	libcall.args = uintptr(noescape(unsafe.Pointer(&a1)))
+ 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&libcall))
++	if mp != nil {
++		mp.libcallsp = 0
++	}
+ 	return libcall.r1
+ }
+ 
+ //go:nosplit
+ func sysvicall6(fn *libcFunc, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
++	// Leave caller's PC/SP around for traceback.
++	gp := getg()
++	var mp *m
++	if gp != nil {
++		mp = gp.m
++	}
++	if mp != nil {
++		mp.libcallg.set(gp)
++		mp.libcallpc = getcallerpc()
++		// sp must be the last, because once async cpu profiler finds
++		// all three values to be non-zero, it will use them
++		mp.libcallsp = getcallersp(unsafe.Pointer(&fn))
++	}
++
+ 	var libcall libcall
+ 	libcall.fn = uintptr(unsafe.Pointer(fn))
+ 	libcall.n = 6
+ 	libcall.args = uintptr(noescape(unsafe.Pointer(&a1)))
+ 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&libcall))
++	if mp != nil {
++		mp.libcallsp = 0
++	}
+ 	return libcall.r1
+ }
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 9ed8c14e7a..008bd244e0 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3697,7 +3697,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+ 		// Normal traceback is impossible or has failed.
+ 		// See if it falls into several common cases.
+ 		n = 0
+-		if GOOS == "windows" && mp.libcallg != 0 && mp.libcallpc != 0 && mp.libcallsp != 0 {
++		if (GOOS == "windows" || GOOS == "solaris") && mp.libcallg != 0 && mp.libcallpc != 0 && mp.libcallsp != 0 {
+ 			// Libcall, i.e. runtime syscall on windows.
+ 			// Collect Go stack that leads to the call.
+ 			n = gentraceback(mp.libcallpc, mp.libcallsp, 0, mp.libcallg.ptr(), 0, &stk[0], len(stk), nil, nil, 0)

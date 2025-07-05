@@ -10,7 +10,37 @@ Date:   Mon May 18 13:03:22 2015 +1200
     Reviewed-on: https://go-review.googlesource.com/10192
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/build.go | 4 ++--
  src/cmd/go/pkg.go   | 3 ++-
  2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index fda126b008..738f748391 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -782,8 +782,8 @@ func (b *builder) action1(mode buildMode, depMode buildMode, p *Package, looksha
+ 			b.actionCache[key] = a
+ 			return a
+ 		}
+-		pkgs := readpkglist(filepath.Join(p.build.PkgTargetRoot, shlib))
+-		a = b.libaction(shlib, pkgs, modeInstall, depMode)
++		pkgs := readpkglist(shlib)
++		a = b.libaction(filepath.Base(shlib), pkgs, modeInstall, depMode)
+ 		b.actionCache[key2] = a
+ 		b.actionCache[key] = a
+ 		return a
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 9466aad6a6..f9cf14fd2c 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -536,7 +536,8 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 			shlibnamefile := p.target[:len(p.target)-2] + ".shlibname"
+ 			shlib, err := ioutil.ReadFile(shlibnamefile)
+ 			if err == nil {
+-				p.Shlib = strings.TrimSpace(string(shlib))
++				libname := strings.TrimSpace(string(shlib))
++				p.Shlib = filepath.Join(p.build.PkgTargetRoot, libname)
+ 			} else if !os.IsNotExist(err) {
+ 				fatalf("unexpected error reading %s: %v", shlibnamefile, err)
+ 			}

@@ -7,7 +7,49 @@ Date:   Wed Dec 15 13:58:57 2010 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3685041
-
+---
  src/pkg/crypto/tls/cipher_suites.go | 10 ++++++----
  src/pkg/crypto/tls/common.go        |  2 +-
  2 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/cipher_suites.go b/src/pkg/crypto/tls/cipher_suites.go
+index c376c58898..87a9f836bf 100644
+--- a/src/pkg/crypto/tls/cipher_suites.go
++++ b/src/pkg/crypto/tls/cipher_suites.go
+@@ -16,9 +16,11 @@ import (
+ // function. All cipher suites currently assume RSA key agreement.
+ type cipherSuite struct {
+ 	// the lengths, in bytes, of the key material needed for each component.
+-	keyLen, macLen, ivLen int
+-	cipher                func(key, iv []byte, isRead bool) interface{}
+-	mac                   func(macKey []byte) hash.Hash
++	keyLen int
++	macLen int
++	ivLen  int
++	cipher func(key, iv []byte, isRead bool) interface{}
++	mac    func(macKey []byte) hash.Hash
+ }
+ 
+ var cipherSuites = map[uint16]*cipherSuite{
+@@ -47,7 +49,7 @@ func hmacSHA1(key []byte) hash.Hash {
+ // ciphersuites and the id requested by the peer.
+ func mutualCipherSuite(have []uint16, want uint16) (suite *cipherSuite, id uint16) {
+ 	for _, id := range have {
+-		if want == id {
++		if id == want {
+ 			return cipherSuites[id], id
+ 		}
+ 	}
+diff --git a/src/pkg/crypto/tls/common.go b/src/pkg/crypto/tls/common.go
+index 1cb2d850cc..6df4264a21 100644
+--- a/src/pkg/crypto/tls/common.go
++++ b/src/pkg/crypto/tls/common.go
+@@ -147,7 +147,7 @@ func (c *Config) rootCAs() *CASet {
+ 
+ func (c *Config) cipherSuites() []uint16 {
+ 	s := c.CipherSuites
+-	if len(s) == 0 {
++	if s == nil {
+ 		s = defaultCipherSuites()
+ 	}
+ 	return s

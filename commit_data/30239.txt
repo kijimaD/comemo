@@ -11,8 +11,83 @@ Date:   Wed Oct 26 20:13:33 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Quentin Smith <quentin@golang.org>
-
+---
  src/net/unixsock.go       |  8 +++++---
  src/net/unixsock_posix.go |  9 ++++++---
  src/net/unixsock_test.go  | 12 ++++++++++++
  3 files changed, 23 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/unixsock.go b/src/net/unixsock.go
+index fffcb87550..b25d492f59 100644
+--- a/src/net/unixsock.go
++++ b/src/net/unixsock.go
+@@ -7,6 +7,7 @@ package net
+ import (
+ 	"context"
+ 	"os"
++	"sync"
+ 	"syscall"
+ 	"time"
+ )
+@@ -206,9 +207,10 @@ func DialUnix(net string, laddr, raddr *UnixAddr) (*UnixConn, error) {
+ // typically use variables of type Listener instead of assuming Unix
+ // domain sockets.
+ type UnixListener struct {
+-	fd     *netFD
+-	path   string
+-	unlink bool
++	fd         *netFD
++	path       string
++	unlink     bool
++	unlinkOnce sync.Once
+ }
+ 
+ func (ln *UnixListener) ok() bool { return ln != nil && ln.fd != nil }
+diff --git a/src/net/unixsock_posix.go b/src/net/unixsock_posix.go
+index 5f0999c4c2..7e70c8f8ed 100644
+--- a/src/net/unixsock_posix.go
++++ b/src/net/unixsock_posix.go
+@@ -173,9 +173,12 @@ func (ln *UnixListener) close() error {
+ 	// is at least compatible with the auto-remove
+ 	// sequence in ListenUnix. It's only non-Go
+ 	// programs that can mess us up.
+-	if ln.path[0] != '@' && ln.unlink {
+-		syscall.Unlink(ln.path)
+-	}
++	// Even if there are racy calls to Close, we want to unlink only for the first one.
++	ln.unlinkOnce.Do(func() {
++		if ln.path[0] != '@' && ln.unlink {
++			syscall.Unlink(ln.path)
++		}
++	})
+ 	return ln.fd.Close()
+ }
+ 
+diff --git a/src/net/unixsock_test.go b/src/net/unixsock_test.go
+index f0f88ed37b..015036770b 100644
+--- a/src/net/unixsock_test.go
++++ b/src/net/unixsock_test.go
+@@ -9,6 +9,7 @@ package net
+ import (
+ 	"bytes"
+ 	"internal/testenv"
++	"io/ioutil"
+ 	"os"
+ 	"reflect"
+ 	"runtime"
+@@ -443,4 +444,15 @@ func TestUnixUnlink(t *testing.T) {
+ 	if _, err := os.Stat(name); err == nil {
+ 		t.Fatal("closing unix listener did not remove unix socket")
+ 	}
++	if err := ioutil.WriteFile(name, []byte("hello world"), 0666); err != nil {
++		t.Fatalf("cannot recreate socket file: %v", err)
++	}
++	if _, err := os.Stat(name); err != nil {
++		t.Fatal("recreating unix listener as file failed: %v", err)
++	}
++	l.Close()
++	if _, err := os.Stat(name); err != nil {
++		t.Fatalf("second close of unix socket did second remove: %v", err)
++	}
++	os.Remove(name)
+ }

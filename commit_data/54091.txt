@@ -13,6 +13,19 @@ Date:   Fri Sep 23 11:36:26 2022 +0200
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ir/mknode.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/ir/mknode.go b/src/cmd/compile/internal/ir/mknode.go
+index 4630a7a5b8..68d8999f83 100644
+--- a/src/cmd/compile/internal/ir/mknode.go
++++ b/src/cmd/compile/internal/ir/mknode.go
+@@ -19,6 +19,7 @@ import (
+ 	"go/token"
+ 	"io/fs"
+ 	"log"
++	"os"
+ 	"sort"
+ 	"strings"
+ )

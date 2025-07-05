@@ -7,6 +7,20 @@ Date:   Thu Sep 1 02:49:27 2016 -0700
     Change-Id: I63af8f0a19ec91f4a2001aa7a2eadcd2232a47df
     Reviewed-on: https://go-review.googlesource.com/28348
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/gccgo_contribute.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/gccgo_contribute.html b/doc/gccgo_contribute.html
+index dd1327ad1f..1286fcc2be 100644
+--- a/doc/gccgo_contribute.html
++++ b/doc/gccgo_contribute.html
+@@ -12,7 +12,7 @@ information on building gccgo for yourself,
+ see <a href="/doc/gccgo_install.html">Setting up and using gccgo</a>.
+ For more of the gritty details on the process of doing development
+ with the gccgo frontend,
+-see <a href="https://code.google.com/p/gofrontend/source/browse/HACKING">the
++see <a href="https://go.googlesource.com/gofrontend/+/master/HACKING">the
+ file HACKING</a> in the gofrontend repository.
+ </p>
+ 

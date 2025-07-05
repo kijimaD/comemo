@@ -7,6 +7,42 @@ Date:   Tue Nov 1 21:45:37 2011 -0400
     R=adg
     CC=golang-dev
     https://golang.org/cl/5316070
-
+---
  src/pkg/http/request_test.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/http/request_test.go b/src/pkg/http/request_test.go
+index 175d6f170b..9be9efcc87 100644
+--- a/src/pkg/http/request_test.go
++++ b/src/pkg/http/request_test.go
+@@ -49,7 +49,7 @@ func TestPostQuery(t *testing.T) {
+ type stringMap map[string][]string
+ type parseContentTypeTest struct {
+ 	contentType stringMap
+-	error       bool
++	err         bool
+ }
+ 
+ var parseContentTypeTests = []parseContentTypeTest{
+@@ -58,7 +58,7 @@ var parseContentTypeTests = []parseContentTypeTest{
+ 	{contentType: stringMap{"Content-Type": {"text/plain; boundary="}}},
+ 	{
+ 		contentType: stringMap{"Content-Type": {"application/unknown"}},
+-		error:       true,
++		err:         true,
+ 	},
+ }
+ 
+@@ -70,10 +70,10 @@ func TestPostContentTypeParsing(t *testing.T) {
+ 			Body:   ioutil.NopCloser(bytes.NewBufferString("body")),
+ 		}
+ 		err := req.ParseForm()
+-		if !test.error && err != nil {
++		if !test.err && err != nil {
+ 			t.Errorf("test %d: Unexpected error: %v", i, err)
+ 		}
+-		if test.error && err == nil {
++		if test.err && err == nil {
+ 			t.Errorf("test %d should have returned error", i)
+ 		}
+ 	}

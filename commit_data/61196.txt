@@ -21,6 +21,21 @@ Date:   Fri Oct 18 02:37:57 2024 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/syscall/syscall_linux_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/syscall/syscall_linux_test.go b/src/syscall/syscall_linux_test.go
+index f5d6bb8a12..c719be5222 100644
+--- a/src/syscall/syscall_linux_test.go
++++ b/src/syscall/syscall_linux_test.go
+@@ -499,6 +499,9 @@ func TestSetuidEtc(t *testing.T) {
+ 	if syscall.Getuid() != 0 {
+ 		t.Skip("skipping root only test")
+ 	}
++	if syscall.Getgid() != 0 {
++		t.Skip("skipping the test when root's gid is not default value 0")
++	}
+ 	if testing.Short() && testenv.Builder() != "" && os.Getenv("USER") == "swarming" {
+ 		// The Go build system's swarming user is known not to be root.
+ 		// Unfortunately, it sometimes appears as root due the current

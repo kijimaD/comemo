@@ -16,7 +16,34 @@ Date:   Mon Feb 6 15:33:43 2017 -0200
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/cmd/internal/obj/ppc64/asm9.go | 2 +-
  src/cmd/link/internal/ppc64/l.go   | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 8bfc667cff..53cdb5f92b 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -53,7 +53,7 @@ type ctxt9 struct {
+ // Instruction layout.
+ 
+ const (
+-	funcAlign = 8
++	funcAlign = 16
+ )
+ 
+ const (
+diff --git a/src/cmd/link/internal/ppc64/l.go b/src/cmd/link/internal/ppc64/l.go
+index f7ae33dd25..c78535be58 100644
+--- a/src/cmd/link/internal/ppc64/l.go
++++ b/src/cmd/link/internal/ppc64/l.go
+@@ -64,7 +64,7 @@ package ppc64
+ const (
+ 	maxAlign  = 32 // max data alignment
+ 	minAlign  = 1  // min data alignment
+-	funcAlign = 8
++	funcAlign = 16
+ )
+ 
+ /* Used by ../internal/ld/dwarf.go */

@@ -11,6 +11,25 @@ Date:   Sat Nov 15 13:27:05 2014 +1100
     R=minux, austin, rsc
     CC=golang-codereviews
     https://golang.org/cl/174160043
-
+---
  src/runtime/softfloat_arm.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/softfloat_arm.go b/src/runtime/softfloat_arm.go
+index 746b9ea216..efee31c4c7 100644
+--- a/src/runtime/softfloat_arm.go
++++ b/src/runtime/softfloat_arm.go
+@@ -605,10 +605,11 @@ done:
+ }
+ 
+ //go:nosplit
+-func _sfloat2(pc uint32, regs *[15]uint32) {
++func _sfloat2(pc uint32, regs [15]uint32) (newpc uint32) {
+ 	systemstack(func() {
+-		pc = sfloat2(pc, regs)
++		newpc = sfloat2(pc, &regs)
+ 	})
++	return
+ }
+ 
+ func _sfloatpanic()

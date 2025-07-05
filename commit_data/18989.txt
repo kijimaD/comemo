@@ -10,8 +10,53 @@ Date:   Sat Mar 29 15:45:40 2014 +0100
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/82180043
-
+---
  src/cmd/gc/typecheck.c      |  3 ++-
  test/fixedbugs/bug176.go    |  2 +-
  test/fixedbugs/issue7153.go | 11 +++++++++++
  3 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index f6e77acebd..5a025a15b6 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -2525,8 +2525,9 @@ typecheckcomplit(Node **np)
+ 			typecheck(&l->left, Erv);
+ 			evconst(l->left);
+ 			i = nonnegconst(l->left);
+-			if(i < 0) {
++			if(i < 0 && !l->left->diag) {
+ 				yyerror("array index must be non-negative integer constant");
++				l->left->diag = 1;
+ 				i = -(1<<30);	// stay negative for a while
+ 			}
+ 			if(i >= 0)
+diff --git a/test/fixedbugs/bug176.go b/test/fixedbugs/bug176.go
+index 82f8dba0ad..ea3a909747 100644
+--- a/test/fixedbugs/bug176.go
++++ b/test/fixedbugs/bug176.go
+@@ -9,6 +9,6 @@ package main
+ var x int
+ 
+ var a = []int{ x: 1}	// ERROR "constant"
+-var b = [...]int{ x : 1}	// ERROR "constant"
++var b = [...]int{x: 1}
+ var c = map[int]int{ x: 1}
+ 
+diff --git a/test/fixedbugs/issue7153.go b/test/fixedbugs/issue7153.go
+new file mode 100644
+index 0000000000..d70d8582a5
+--- /dev/null
++++ b/test/fixedbugs/issue7153.go
+@@ -0,0 +1,11 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 7153: array invalid index error duplicated on successive bad values
++
++package p
++
++var _ = []int{a: true, true} // ERROR "undefined: a" "cannot use true \(type bool\) as type int in array element"

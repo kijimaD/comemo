@@ -13,8 +13,53 @@ Date:   Thu Apr 10 14:02:24 2014 +1000
     R=golang-codereviews, r, adg
     CC=golang-codereviews
     https://golang.org/cl/84300043
-
+---
  src/cmd/go/test.bash                    | 8 ++++++++
  src/cmd/go/test.go                      | 2 +-
  src/cmd/go/testdata/src/notest/hello.go | 6 ++++++
  3 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index 45215de4de..4bde166110 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -700,6 +700,14 @@ if ! ./testgo list -f "GOARCH: {{context.GOARCH}}"; then
+ 	ok=false
+ fi
+ 
++TEST 'Issue 7108: cmd/go: "go test" should fail if package does not build'
++export GOPATH=$(pwd)/testdata
++if ./testgo test notest >/dev/null 2>&1; then
++	echo 'go test notest succeeded, but should fail'
++	ok=false
++fi
++unset GOPATH
++
+ # clean up
+ if $started; then stop; fi
+ rm -rf testdata/bin testdata/bin1
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 20a9e74af1..a5497e71a3 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -524,7 +524,7 @@ func contains(x []string, s string) bool {
+ 
+ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action, err error) {
+ 	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
+-		build := &action{p: p}
++		build := b.action(modeBuild, modeBuild, p)
+ 		run := &action{p: p, deps: []*action{build}}
+ 		print := &action{f: (*builder).notest, p: p, deps: []*action{run}}
+ 		return build, run, print, nil
+diff --git a/src/cmd/go/testdata/src/notest/hello.go b/src/cmd/go/testdata/src/notest/hello.go
+new file mode 100644
+index 0000000000..7c42c32fb0
+--- /dev/null
++++ b/src/cmd/go/testdata/src/notest/hello.go
+@@ -0,0 +1,6 @@
++package notest
++
++func hello() {
++	println("hello world")
++}
++Hello world

@@ -6,6 +6,19 @@ Date:   Tue Nov 10 15:05:15 2009 -0800
     
     R=rsc
     http://go/go-review/1025037
-
+---
  src/pkg/os/file.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index f68a33cc48..edc228c53b 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -62,6 +62,7 @@ const (
+ 	O_NDELAY	= O_NONBLOCK;		// synonym for O_NONBLOCK
+ 	O_SYNC		= syscall.O_SYNC;	// open for synchronous I/O.
+ 	O_TRUNC		= syscall.O_TRUNC;	// if possible, truncate file when opened.
++	O_CREATE	= O_CREAT;		// create a new file if none exists.
+ )
+ 
+ // Open opens the named file with specified flag (O_RDONLY etc.) and perm, (0666 etc.)

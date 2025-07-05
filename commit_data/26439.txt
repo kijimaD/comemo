@@ -17,7 +17,7 @@ Date:   Fri Jan 22 22:25:15 2016 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/amd64enc.s | 288 ++++++++++-----------
  src/cmd/internal/obj/x86/a.out.go            |   7 +-
  src/cmd/internal/obj/x86/anames.go           |   7 +-
@@ -25,3 +25,1060 @@ Date:   Fri Jan 22 22:25:15 2016 -0500
  src/runtime/asm_amd64.s                      |  48 ++--
  src/runtime/memclr_amd64.s                   |  36 +--
  6 files changed, 415 insertions(+), 333 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64enc.s b/src/cmd/asm/internal/asm/testdata/amd64enc.s
+index ae743afe44..36b3101232 100644
+--- a/src/cmd/asm/internal/asm/testdata/amd64enc.s
++++ b/src/cmd/asm/internal/asm/testdata/amd64enc.s
+@@ -7658,54 +7658,54 @@ TEXT asmtest(SB),7,$0
+ 	//TODO: VMOVDDUP (R11), Y11             // c4417f121b
+ 	//TODO: VMOVDDUP Y2, Y11                // c4617f12da or c57f12da
+ 	//TODO: VMOVDDUP Y11, Y11               // c4417f12db
+-	//TODO: VMOVDQA (BX), X2                // c4e1796f13 or c5f96f13
+-	//TODO: VMOVDQA (R11), X2               // c4c1796f13
+-	//TODO: VMOVDQA X2, X2                  // c4e1796fd2 or c5f96fd2 or c4e1797fd2 or c5f97fd2
+-	//TODO: VMOVDQA X11, X2                 // c4c1796fd3 or c461797fda or c5797fda
+-	//TODO: VMOVDQA (BX), X11               // c461796f1b or c5796f1b
+-	//TODO: VMOVDQA (R11), X11              // c441796f1b
+-	//TODO: VMOVDQA X2, X11                 // c461796fda or c5796fda or c4c1797fd3
+-	//TODO: VMOVDQA X11, X11                // c441796fdb or c441797fdb
+-	//TODO: VMOVDQA X2, (BX)                // c4e1797f13 or c5f97f13
+-	//TODO: VMOVDQA X11, (BX)               // c461797f1b or c5797f1b
+-	//TODO: VMOVDQA X2, (R11)               // c4c1797f13
+-	//TODO: VMOVDQA X11, (R11)              // c441797f1b
+-	//TODO: VMOVDQA (BX), Y2                // c4e17d6f13 or c5fd6f13
+-	//TODO: VMOVDQA (R11), Y2               // c4c17d6f13
+-	//TODO: VMOVDQA Y2, Y2                  // c4e17d6fd2 or c5fd6fd2 or c4e17d7fd2 or c5fd7fd2
+-	//TODO: VMOVDQA Y11, Y2                 // c4c17d6fd3 or c4617d7fda or c57d7fda
+-	//TODO: VMOVDQA (BX), Y11               // c4617d6f1b or c57d6f1b
+-	//TODO: VMOVDQA (R11), Y11              // c4417d6f1b
+-	//TODO: VMOVDQA Y2, Y11                 // c4617d6fda or c57d6fda or c4c17d7fd3
+-	//TODO: VMOVDQA Y11, Y11                // c4417d6fdb or c4417d7fdb
+-	//TODO: VMOVDQA Y2, (BX)                // c4e17d7f13 or c5fd7f13
+-	//TODO: VMOVDQA Y11, (BX)               // c4617d7f1b or c57d7f1b
+-	//TODO: VMOVDQA Y2, (R11)               // c4c17d7f13
+-	//TODO: VMOVDQA Y11, (R11)              // c4417d7f1b
+-	//TODO: VMOVDQU (BX), X2                // c4e17a6f13 or c5fa6f13
+-	//TODO: VMOVDQU (R11), X2               // c4c17a6f13
+-	//TODO: VMOVDQU X2, X2                  // c4e17a6fd2 or c5fa6fd2 or c4e17a7fd2 or c5fa7fd2
+-	//TODO: VMOVDQU X11, X2                 // c4c17a6fd3 or c4617a7fda or c57a7fda
+-	//TODO: VMOVDQU (BX), X11               // c4617a6f1b or c57a6f1b
+-	//TODO: VMOVDQU (R11), X11              // c4417a6f1b
+-	//TODO: VMOVDQU X2, X11                 // c4617a6fda or c57a6fda or c4c17a7fd3
+-	//TODO: VMOVDQU X11, X11                // c4417a6fdb or c4417a7fdb
+-	//TODO: VMOVDQU X2, (BX)                // c4e17a7f13 or c5fa7f13
+-	//TODO: VMOVDQU X11, (BX)               // c4617a7f1b or c57a7f1b
+-	//TODO: VMOVDQU X2, (R11)               // c4c17a7f13
+-	//TODO: VMOVDQU X11, (R11)              // c4417a7f1b
+-	//TODO: VMOVDQU (BX), Y2                // c4e17e6f13 or c5fe6f13
+-	//TODO: VMOVDQU (R11), Y2               // c4c17e6f13
+-	//TODO: VMOVDQU Y2, Y2                  // c4e17e6fd2 or c5fe6fd2 or c4e17e7fd2 or c5fe7fd2
+-	//TODO: VMOVDQU Y11, Y2                 // c4c17e6fd3 or c4617e7fda or c57e7fda
+-	//TODO: VMOVDQU (BX), Y11               // c4617e6f1b or c57e6f1b
+-	//TODO: VMOVDQU (R11), Y11              // c4417e6f1b
+-	//TODO: VMOVDQU Y2, Y11                 // c4617e6fda or c57e6fda or c4c17e7fd3
+-	//TODO: VMOVDQU Y11, Y11                // c4417e6fdb or c4417e7fdb
+-	//TODO: VMOVDQU Y2, (BX)                // c4e17e7f13 or c5fe7f13
+-	//TODO: VMOVDQU Y11, (BX)               // c4617e7f1b or c57e7f1b
+-	//TODO: VMOVDQU Y2, (R11)               // c4c17e7f13
+-	//TODO: VMOVDQU Y11, (R11)              // c4417e7f1b
++	VMOVDQA (BX), X2                        // c4e1796f13 or c5f96f13
++	VMOVDQA (R11), X2                       // c4c1796f13
++	VMOVDQA X2, X2                          // c4e1796fd2 or c5f96fd2 or c4e1797fd2 or c5f97fd2
++	VMOVDQA X11, X2                         // c4c1796fd3 or c461797fda or c5797fda
++	VMOVDQA (BX), X11                       // c461796f1b or c5796f1b
++	VMOVDQA (R11), X11                      // c441796f1b
++	VMOVDQA X2, X11                         // c461796fda or c5796fda or c4c1797fd3
++	VMOVDQA X11, X11                        // c441796fdb or c441797fdb
++	VMOVDQA X2, (BX)                        // c4e1797f13 or c5f97f13
++	VMOVDQA X11, (BX)                       // c461797f1b or c5797f1b
++	VMOVDQA X2, (R11)                       // c4c1797f13
++	VMOVDQA X11, (R11)                      // c441797f1b
++	VMOVDQA (BX), Y2                        // c4e17d6f13 or c5fd6f13
++	VMOVDQA (R11), Y2                       // c4c17d6f13
++	VMOVDQA Y2, Y2                          // c4e17d6fd2 or c5fd6fd2 or c4e17d7fd2 or c5fd7fd2
++	VMOVDQA Y11, Y2                         // c4c17d6fd3 or c4617d7fda or c57d7fda
++	VMOVDQA (BX), Y11                       // c4617d6f1b or c57d6f1b
++	VMOVDQA (R11), Y11                      // c4417d6f1b
++	VMOVDQA Y2, Y11                         // c4617d6fda or c57d6fda or c4c17d7fd3
++	VMOVDQA Y11, Y11                        // c4417d6fdb or c4417d7fdb
++	VMOVDQA Y2, (BX)                        // c4e17d7f13 or c5fd7f13
++	VMOVDQA Y11, (BX)                       // c4617d7f1b or c57d7f1b
++	VMOVDQA Y2, (R11)                       // c4c17d7f13
++	VMOVDQA Y11, (R11)                      // c4417d7f1b
++	VMOVDQU (BX), X2                        // c4e17a6f13 or c5fa6f13
++	VMOVDQU (R11), X2                       // c4c17a6f13
++	VMOVDQU X2, X2                          // c4e17a6fd2 or c5fa6fd2 or c4e17a7fd2 or c5fa7fd2
++	VMOVDQU X11, X2                         // c4c17a6fd3 or c4617a7fda or c57a7fda
++	VMOVDQU (BX), X11                       // c4617a6f1b or c57a6f1b
++	VMOVDQU (R11), X11                      // c4417a6f1b
++	VMOVDQU X2, X11                         // c4617a6fda or c57a6fda or c4c17a7fd3
++	VMOVDQU X11, X11                        // c4417a6fdb or c4417a7fdb
++	VMOVDQU X2, (BX)                        // c4e17a7f13 or c5fa7f13
++	VMOVDQU X11, (BX)                       // c4617a7f1b or c57a7f1b
++	VMOVDQU X2, (R11)                       // c4c17a7f13
++	VMOVDQU X11, (R11)                      // c4417a7f1b
++	VMOVDQU (BX), Y2                        // c4e17e6f13 or c5fe6f13
++	VMOVDQU (R11), Y2                       // c4c17e6f13
++	VMOVDQU Y2, Y2                          // c4e17e6fd2 or c5fe6fd2 or c4e17e7fd2 or c5fe7fd2
++	VMOVDQU Y11, Y2                         // c4c17e6fd3 or c4617e7fda or c57e7fda
++	VMOVDQU (BX), Y11                       // c4617e6f1b or c57e6f1b
++	VMOVDQU (R11), Y11                      // c4417e6f1b
++	VMOVDQU Y2, Y11                         // c4617e6fda or c57e6fda or c4c17e7fd3
++	VMOVDQU Y11, Y11                        // c4417e6fdb or c4417e7fdb
++	VMOVDQU Y2, (BX)                        // c4e17e7f13 or c5fe7f13
++	VMOVDQU Y11, (BX)                       // c4617e7f1b or c57e7f1b
++	VMOVDQU Y2, (R11)                       // c4c17e7f13
++	VMOVDQU Y11, (R11)                      // c4417e7f1b
+ 	//TODO: VMOVHLPS X2, X9, X2             // c4e13012d2 or c5b012d2
+ 	//TODO: VMOVHLPS X11, X9, X2            // c4c13012d3
+ 	//TODO: VMOVHLPS X2, X9, X11            // c4613012da or c53012da
+@@ -7762,14 +7762,14 @@ TEXT asmtest(SB),7,$0
+ 	//TODO: VMOVMSKPS Y11, DX               // c4c17c50d3
+ 	//TODO: VMOVMSKPS Y2, R11               // c4617c50da or c57c50da
+ 	//TODO: VMOVMSKPS Y11, R11              // c4417c50db
+-	//TODO: VMOVNTDQ X2, (BX)               // c4e179e713 or c5f9e713
+-	//TODO: VMOVNTDQ X11, (BX)              // c46179e71b or c579e71b
+-	//TODO: VMOVNTDQ X2, (R11)              // c4c179e713
+-	//TODO: VMOVNTDQ X11, (R11)             // c44179e71b
+-	//TODO: VMOVNTDQ Y2, (BX)               // c4e17de713 or c5fde713
+-	//TODO: VMOVNTDQ Y11, (BX)              // c4617de71b or c57de71b
+-	//TODO: VMOVNTDQ Y2, (R11)              // c4c17de713
+-	//TODO: VMOVNTDQ Y11, (R11)             // c4417de71b
++	VMOVNTDQ X2, (BX)                       // c4e179e713 or c5f9e713
++	VMOVNTDQ X11, (BX)                      // c46179e71b or c579e71b
++	VMOVNTDQ X2, (R11)                      // c4c179e713
++	VMOVNTDQ X11, (R11)                     // c44179e71b
++	VMOVNTDQ Y2, (BX)                       // c4e17de713 or c5fde713
++	VMOVNTDQ Y11, (BX)                      // c4617de71b or c57de71b
++	VMOVNTDQ Y2, (R11)                      // c4c17de713
++	VMOVNTDQ Y11, (R11)                     // c4417de71b
+ 	//TODO: VMOVNTDQA (BX), X2              // c4e2792a13
+ 	//TODO: VMOVNTDQA (R11), X2             // c4c2792a13
+ 	//TODO: VMOVNTDQA (BX), X11             // c462792a1b
+@@ -8270,22 +8270,22 @@ TEXT asmtest(SB),7,$0
+ 	//TODO: VPALIGNR $7, (R11), Y15, Y11    // c443050f1b07
+ 	//TODO: VPALIGNR $7, Y2, Y15, Y11       // c463050fda07
+ 	//TODO: VPALIGNR $7, Y11, Y15, Y11      // c443050fdb07
+-	//TODO: VPAND (BX), X9, X2              // c4e131db13 or c5b1db13
+-	//TODO: VPAND (R11), X9, X2             // c4c131db13
+-	//TODO: VPAND X2, X9, X2                // c4e131dbd2 or c5b1dbd2
+-	//TODO: VPAND X11, X9, X2               // c4c131dbd3
+-	//TODO: VPAND (BX), X9, X11             // c46131db1b or c531db1b
+-	//TODO: VPAND (R11), X9, X11            // c44131db1b
+-	//TODO: VPAND X2, X9, X11               // c46131dbda or c531dbda
+-	//TODO: VPAND X11, X9, X11              // c44131dbdb
+-	//TODO: VPAND (BX), Y15, Y2             // c4e105db13 or c585db13
+-	//TODO: VPAND (R11), Y15, Y2            // c4c105db13
+-	//TODO: VPAND Y2, Y15, Y2               // c4e105dbd2 or c585dbd2
+-	//TODO: VPAND Y11, Y15, Y2              // c4c105dbd3
+-	//TODO: VPAND (BX), Y15, Y11            // c46105db1b or c505db1b
+-	//TODO: VPAND (R11), Y15, Y11           // c44105db1b
+-	//TODO: VPAND Y2, Y15, Y11              // c46105dbda or c505dbda
+-	//TODO: VPAND Y11, Y15, Y11             // c44105dbdb
++	VPAND (BX), X9, X2                      // c4e131db13 or c5b1db13
++	VPAND (R11), X9, X2                     // c4c131db13
++	VPAND X2, X9, X2                        // c4e131dbd2 or c5b1dbd2
++	VPAND X11, X9, X2                       // c4c131dbd3
++	VPAND (BX), X9, X11                     // c46131db1b or c531db1b
++	VPAND (R11), X9, X11                    // c44131db1b
++	VPAND X2, X9, X11                       // c46131dbda or c531dbda
++	VPAND X11, X9, X11                      // c44131dbdb
++	VPAND (BX), Y15, Y2                     // c4e105db13 or c585db13
++	VPAND (R11), Y15, Y2                    // c4c105db13
++	VPAND Y2, Y15, Y2                       // c4e105dbd2 or c585dbd2
++	VPAND Y11, Y15, Y2                      // c4c105dbd3
++	VPAND (BX), Y15, Y11                    // c46105db1b or c505db1b
++	VPAND (R11), Y15, Y11                   // c44105db1b
++	VPAND Y2, Y15, Y11                      // c46105dbda or c505dbda
++	VPAND Y11, Y15, Y11                     // c44105dbdb
+ 	//TODO: VPANDN (BX), X9, X2             // c4e131df13 or c5b1df13
+ 	//TODO: VPANDN (R11), X9, X2            // c4c131df13
+ 	//TODO: VPANDN X2, X9, X2               // c4e131dfd2 or c5b1dfd2
+@@ -8382,22 +8382,22 @@ TEXT asmtest(SB),7,$0
+ 	//TODO: VPBLENDW $7, (R11), Y15, Y11    // c443050e1b07
+ 	//TODO: VPBLENDW $7, Y2, Y15, Y11       // c463050eda07
+ 	//TODO: VPBLENDW $7, Y11, Y15, Y11      // c443050edb07
+-	//TODO: VPBROADCASTB (BX), X2           // c4e2797813
+-	//TODO: VPBROADCASTB (R11), X2          // c4c2797813
+-	//TODO: VPBROADCASTB X2, X2             // c4e27978d2
+-	//TODO: VPBROADCASTB X11, X2            // c4c27978d3
+-	//TODO: VPBROADCASTB (BX), X11          // c46279781b
+-	//TODO: VPBROADCASTB (R11), X11         // c44279781b
+-	//TODO: VPBROADCASTB X2, X11            // c4627978da
+-	//TODO: VPBROADCASTB X11, X11           // c4427978db
+-	//TODO: VPBROADCASTB (BX), Y2           // c4e27d7813
+-	//TODO: VPBROADCASTB (R11), Y2          // c4c27d7813
+-	//TODO: VPBROADCASTB X2, Y2             // c4e27d78d2
+-	//TODO: VPBROADCASTB X11, Y2            // c4c27d78d3
+-	//TODO: VPBROADCASTB (BX), Y11          // c4627d781b
+-	//TODO: VPBROADCASTB (R11), Y11         // c4427d781b
+-	//TODO: VPBROADCASTB X2, Y11            // c4627d78da
+-	//TODO: VPBROADCASTB X11, Y11           // c4427d78db
++	VPBROADCASTB (BX), X2                   // c4e2797813
++	VPBROADCASTB (R11), X2                  // c4c2797813
++	VPBROADCASTB X2, X2                     // c4e27978d2
++	VPBROADCASTB X11, X2                    // c4c27978d3
++	VPBROADCASTB (BX), X11                  // c46279781b
++	VPBROADCASTB (R11), X11                 // c44279781b
++	VPBROADCASTB X2, X11                    // c4627978da
++	VPBROADCASTB X11, X11                   // c4427978db
++	VPBROADCASTB (BX), Y2                   // c4e27d7813
++	VPBROADCASTB (R11), Y2                  // c4c27d7813
++	VPBROADCASTB X2, Y2                     // c4e27d78d2
++	VPBROADCASTB X11, Y2                    // c4c27d78d3
++	VPBROADCASTB (BX), Y11                  // c4627d781b
++	VPBROADCASTB (R11), Y11                 // c4427d781b
++	VPBROADCASTB X2, Y11                    // c4627d78da
++	VPBROADCASTB X11, Y11                   // c4427d78db
+ 	//TODO: VPBROADCASTD (BX), X2           // c4e2795813
+ 	//TODO: VPBROADCASTD (R11), X2          // c4c2795813
+ 	//TODO: VPBROADCASTD X2, X2             // c4e27958d2
+@@ -8454,22 +8454,22 @@ TEXT asmtest(SB),7,$0
+ 	//TODO: VPCLMULQDQ $7, (R11), X9, X11   // c44331441b07
+ 	//TODO: VPCLMULQDQ $7, X2, X9, X11      // c4633144da07
+ 	//TODO: VPCLMULQDQ $7, X11, X9, X11     // c4433144db07
+-	//TODO: VPCMPEQB (BX), X9, X2           // c4e1317413 or c5b17413
+-	//TODO: VPCMPEQB (R11), X9, X2          // c4c1317413
+-	//TODO: VPCMPEQB X2, X9, X2             // c4e13174d2 or c5b174d2
+-	//TODO: VPCMPEQB X11, X9, X2            // c4c13174d3
+-	//TODO: VPCMPEQB (BX), X9, X11          // c46131741b or c531741b
+-	//TODO: VPCMPEQB (R11), X9, X11         // c44131741b
+-	//TODO: VPCMPEQB X2, X9, X11            // c4613174da or c53174da
+-	//TODO: VPCMPEQB X11, X9, X11           // c4413174db
+-	//TODO: VPCMPEQB (BX), Y15, Y2          // c4e1057413 or c5857413
+-	//TODO: VPCMPEQB (R11), Y15, Y2         // c4c1057413
+-	//TODO: VPCMPEQB Y2, Y15, Y2            // c4e10574d2 or c58574d2
+-	//TODO: VPCMPEQB Y11, Y15, Y2           // c4c10574d3
+-	//TODO: VPCMPEQB (BX), Y15, Y11         // c46105741b or c505741b
+-	//TODO: VPCMPEQB (R11), Y15, Y11        // c44105741b
+-	//TODO: VPCMPEQB Y2, Y15, Y11           // c4610574da or c50574da
+-	//TODO: VPCMPEQB Y11, Y15, Y11          // c4410574db
++	VPCMPEQB (BX), X9, X2                   // c4e1317413 or c5b17413
++	VPCMPEQB (R11), X9, X2                  // c4c1317413
++	VPCMPEQB X2, X9, X2                     // c4e13174d2 or c5b174d2
++	VPCMPEQB X11, X9, X2                    // c4c13174d3
++	VPCMPEQB (BX), X9, X11                  // c46131741b or c531741b
++	VPCMPEQB (R11), X9, X11                 // c44131741b
++	VPCMPEQB X2, X9, X11                    // c4613174da or c53174da
++	VPCMPEQB X11, X9, X11                   // c4413174db
++	VPCMPEQB (BX), Y15, Y2                  // c4e1057413 or c5857413
++	VPCMPEQB (R11), Y15, Y2                 // c4c1057413
++	VPCMPEQB Y2, Y15, Y2                    // c4e10574d2 or c58574d2
++	VPCMPEQB Y11, Y15, Y2                   // c4c10574d3
++	VPCMPEQB (BX), Y15, Y11                 // c46105741b or c505741b
++	VPCMPEQB (R11), Y15, Y11                // c44105741b
++	VPCMPEQB Y2, Y15, Y11                   // c4610574da or c50574da
++	VPCMPEQB Y11, Y15, Y11                  // c4410574db
+ 	//TODO: VPCMPEQD (BX), X9, X2           // c4e1317613 or c5b17613
+ 	//TODO: VPCMPEQD (R11), X9, X2          // c4c1317613
+ 	//TODO: VPCMPEQD X2, X9, X2             // c4e13176d2 or c5b176d2
+@@ -9150,14 +9150,14 @@ TEXT asmtest(SB),7,$0
+ 	//TODO: VPMINUW (R11), Y15, Y11         // c442053a1b
+ 	//TODO: VPMINUW Y2, Y15, Y11            // c462053ada
+ 	//TODO: VPMINUW Y11, Y15, Y11           // c442053adb
+-	//TODO: VPMOVMSKB X2, DX                // c4e179d7d2 or c5f9d7d2
+-	//TODO: VPMOVMSKB X11, DX               // c4c179d7d3
+-	//TODO: VPMOVMSKB X2, R11               // c46179d7da or c579d7da
+-	//TODO: VPMOVMSKB X11, R11              // c44179d7db
+-	//TODO: VPMOVMSKB Y2, DX                // c4e17dd7d2 or c5fdd7d2
+-	//TODO: VPMOVMSKB Y11, DX               // c4c17dd7d3
+-	//TODO: VPMOVMSKB Y2, R11               // c4617dd7da or c57dd7da
+-	//TODO: VPMOVMSKB Y11, R11              // c4417dd7db
++	VPMOVMSKB X2, DX                        // c4e179d7d2 or c5f9d7d2
++	VPMOVMSKB X11, DX                       // c4c179d7d3
++	VPMOVMSKB X2, R11                       // c46179d7da or c579d7da
++	VPMOVMSKB X11, R11                      // c44179d7db
++	VPMOVMSKB Y2, DX                        // c4e17dd7d2 or c5fdd7d2
++	VPMOVMSKB Y11, DX                       // c4c17dd7d3
++	VPMOVMSKB Y2, R11                       // c4617dd7da or c57dd7da
++	VPMOVMSKB Y11, R11                      // c4417dd7db
+ 	//TODO: VPMOVSXBD (BX), X2              // c4e2792113
+ 	//TODO: VPMOVSXBD (R11), X2             // c4c2792113
+ 	//TODO: VPMOVSXBD X2, X2                // c4e27921d2
+@@ -9942,22 +9942,22 @@ TEXT asmtest(SB),7,$0
+ 	//TODO: VPSUBW (R11), Y15, Y11          // c44105f91b
+ 	//TODO: VPSUBW Y2, Y15, Y11             // c46105f9da or c505f9da
+ 	//TODO: VPSUBW Y11, Y15, Y11            // c44105f9db
+-	//TODO: VPTEST (BX), X2                 // c4e2791713
+-	//TODO: VPTEST (R11), X2                // c4c2791713
+-	//TODO: VPTEST X2, X2                   // c4e27917d2
+-	//TODO: VPTEST X11, X2                  // c4c27917d3
+-	//TODO: VPTEST (BX), X11                // c46279171b
+-	//TODO: VPTEST (R11), X11               // c44279171b
+-	//TODO: VPTEST X2, X11                  // c4627917da
+-	//TODO: VPTEST X11, X11                 // c4427917db
+-	//TODO: VPTEST (BX), Y2                 // c4e27d1713
+-	//TODO: VPTEST (R11), Y2                // c4c27d1713
+-	//TODO: VPTEST Y2, Y2                   // c4e27d17d2
+-	//TODO: VPTEST Y11, Y2                  // c4c27d17d3
+-	//TODO: VPTEST (BX), Y11                // c4627d171b
+-	//TODO: VPTEST (R11), Y11               // c4427d171b
+-	//TODO: VPTEST Y2, Y11                  // c4627d17da
+-	//TODO: VPTEST Y11, Y11                 // c4427d17db
++	VPTEST (BX), X2                         // c4e2791713
++	VPTEST (R11), X2                        // c4c2791713
++	VPTEST X2, X2                           // c4e27917d2
++	VPTEST X11, X2                          // c4c27917d3
++	VPTEST (BX), X11                        // c46279171b
++	VPTEST (R11), X11                       // c44279171b
++	VPTEST X2, X11                          // c4627917da
++	VPTEST X11, X11                         // c4427917db
++	VPTEST (BX), Y2                         // c4e27d1713
++	VPTEST (R11), Y2                        // c4c27d1713
++	VPTEST Y2, Y2                           // c4e27d17d2
++	VPTEST Y11, Y2                          // c4c27d17d3
++	VPTEST (BX), Y11                        // c4627d171b
++	VPTEST (R11), Y11                       // c4427d171b
++	VPTEST Y2, Y11                          // c4627d17da
++	VPTEST Y11, Y11                         // c4427d17db
+ 	//TODO: VPUNPCKHBW (BX), X9, X2         // c4e1316813 or c5b16813
+ 	//TODO: VPUNPCKHBW (R11), X9, X2        // c4c1316813
+ 	//TODO: VPUNPCKHBW X2, X9, X2           // c4e13168d2 or c5b168d2
+@@ -10086,22 +10086,22 @@ TEXT asmtest(SB),7,$0
+ 	//TODO: VPUNPCKLWD (R11), Y15, Y11      // c44105611b
+ 	//TODO: VPUNPCKLWD Y2, Y15, Y11         // c4610561da or c50561da
+ 	//TODO: VPUNPCKLWD Y11, Y15, Y11        // c4410561db
+-	//TODO: VPXOR (BX), X9, X2              // c4e131ef13 or c5b1ef13
+-	//TODO: VPXOR (R11), X9, X2             // c4c131ef13
+-	//TODO: VPXOR X2, X9, X2                // c4e131efd2 or c5b1efd2
+-	//TODO: VPXOR X11, X9, X2               // c4c131efd3
+-	//TODO: VPXOR (BX), X9, X11             // c46131ef1b or c531ef1b
+-	//TODO: VPXOR (R11), X9, X11            // c44131ef1b
+-	//TODO: VPXOR X2, X9, X11               // c46131efda or c531efda
+-	//TODO: VPXOR X11, X9, X11              // c44131efdb
+-	//TODO: VPXOR (BX), Y15, Y2             // c4e105ef13 or c585ef13
+-	//TODO: VPXOR (R11), Y15, Y2            // c4c105ef13
+-	//TODO: VPXOR Y2, Y15, Y2               // c4e105efd2 or c585efd2
+-	//TODO: VPXOR Y11, Y15, Y2              // c4c105efd3
+-	//TODO: VPXOR (BX), Y15, Y11            // c46105ef1b or c505ef1b
+-	//TODO: VPXOR (R11), Y15, Y11           // c44105ef1b
+-	//TODO: VPXOR Y2, Y15, Y11              // c46105efda or c505efda
+-	//TODO: VPXOR Y11, Y15, Y11             // c44105efdb
++	VPXOR (BX), X9, X2                      // c4e131ef13 or c5b1ef13
++	VPXOR (R11), X9, X2                     // c4c131ef13
++	VPXOR X2, X9, X2                        // c4e131efd2 or c5b1efd2
++	VPXOR X11, X9, X2                       // c4c131efd3
++	VPXOR (BX), X9, X11                     // c46131ef1b or c531ef1b
++	VPXOR (R11), X9, X11                    // c44131ef1b
++	VPXOR X2, X9, X11                       // c46131efda or c531efda
++	VPXOR X11, X9, X11                      // c44131efdb
++	VPXOR (BX), Y15, Y2                     // c4e105ef13 or c585ef13
++	VPXOR (R11), Y15, Y2                    // c4c105ef13
++	VPXOR Y2, Y15, Y2                       // c4e105efd2 or c585efd2
++	VPXOR Y11, Y15, Y2                      // c4c105efd3
++	VPXOR (BX), Y15, Y11                    // c46105ef1b or c505ef1b
++	VPXOR (R11), Y15, Y11                   // c44105ef1b
++	VPXOR Y2, Y15, Y11                      // c46105efda or c505efda
++	VPXOR Y11, Y15, Y11                     // c44105efdb
+ 	//TODO: VRCPPS (BX), X2                 // c4e1785313 or c5f85313
+ 	//TODO: VRCPPS (R11), X2                // c4c1785313
+ 	//TODO: VRCPPS X2, X2                   // c4e17853d2 or c5f853d2
+diff --git a/src/cmd/internal/obj/x86/a.out.go b/src/cmd/internal/obj/x86/a.out.go
+index d2bc73ea8f..6c7eaa12e6 100644
+--- a/src/cmd/internal/obj/x86/a.out.go
++++ b/src/cmd/internal/obj/x86/a.out.go
+@@ -551,6 +551,7 @@ const (
+ 	AFXRSTOR64
+ 	AFXSAVE
+ 	AFXSAVE64
++	ALDDQU
+ 	ALDMXCSR
+ 	AMASKMOVOU
+ 	AMASKMOVQ
+@@ -751,9 +752,9 @@ const (
+ 	APCLMULQDQ
+ 
+ 	AVZEROUPPER
+-	AMOVHDU
+-	AMOVNTHD
+-	AMOVHDA
++	AVMOVDQU
++	AVMOVNTDQ
++	AVMOVDQA
+ 	AVPCMPEQB
+ 	AVPXOR
+ 	AVPMOVMSKB
+diff --git a/src/cmd/internal/obj/x86/anames.go b/src/cmd/internal/obj/x86/anames.go
+index 15e7202006..70ac5d9763 100644
+--- a/src/cmd/internal/obj/x86/anames.go
++++ b/src/cmd/internal/obj/x86/anames.go
+@@ -500,6 +500,7 @@ var Anames = []string{
+ 	"FXRSTOR64",
+ 	"FXSAVE",
+ 	"FXSAVE64",
++	"LDDQU",
+ 	"LDMXCSR",
+ 	"MASKMOVOU",
+ 	"MASKMOVQ",
+@@ -692,9 +693,9 @@ var Anames = []string{
+ 	"PSHUFD",
+ 	"PCLMULQDQ",
+ 	"VZEROUPPER",
+-	"MOVHDU",
+-	"MOVNTHD",
+-	"MOVHDA",
++	"VMOVDQU",
++	"VMOVNTDQ",
++	"VMOVDQA",
+ 	"VPCMPEQB",
+ 	"VPXOR",
+ 	"VPMOVMSKB",
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 2ffceceba9..c19c03826c 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -148,6 +148,8 @@ const (
+ 	Ymm
+ 	Yxr
+ 	Yxm
++	Yyr
++	Yym
+ 	Ytls
+ 	Ytextsize
+ 	Yindir
+@@ -181,7 +183,6 @@ const (
+ 	Zm_r
+ 	Zm2_r
+ 	Zm_r_xm
+-	Zm_r_xm_vex
+ 	Zm_r_i_xm
+ 	Zm_r_3d
+ 	Zm_r_xm_nr
+@@ -195,8 +196,6 @@ const (
+ 	Zpseudo
+ 	Zr_m
+ 	Zr_m_xm
+-	Zr_m_xm_vex
+-	Zr_r_r_vex
+ 	Zrp_
+ 	Z_ib
+ 	Z_il
+@@ -206,30 +205,30 @@ const (
+ 	Zil_rr
+ 	Zclr
+ 	Zbyte
++	Zvex_rm_v_r
++	Zvex_r_v_rm
+ 	Zmax
+ )
+ 
+ const (
+-	Px    = 0
+-	Px1   = 1    // symbolic; exact value doesn't matter
+-	P32   = 0x32 /* 32-bit only */
+-	Pe    = 0x66 /* operand escape */
+-	Pm    = 0x0f /* 2byte opcode escape */
+-	Pq    = 0xff /* both escapes: 66 0f */
+-	Pb    = 0xfe /* byte operands */
+-	Pf2   = 0xf2 /* xmm escape 1: f2 0f */
+-	Pf3   = 0xf3 /* xmm escape 2: f3 0f */
+-	Pef3  = 0xf5 /* xmm escape 2 with 16-bit prefix: 66 f3 0f */
+-	Pq3   = 0x67 /* xmm escape 3: 66 48 0f */
+-	Pfw   = 0xf4 /* Pf3 with Rex.w: f3 48 0f */
+-	Pvex1 = 0xc5 /* 66.0f escape, vex encoding */
+-	Pvex2 = 0xc6 /* f3.0f escape, vex encoding */
+-	Pvex3 = 0xc7 /* 66.0f38 escape, vex encoding */
+-	Pw    = 0x48 /* Rex.w */
+-	Pw8   = 0x90 // symbolic; exact value doesn't matter
+-	Py    = 0x80 /* defaults to 64-bit mode */
+-	Py1   = 0x81 // symbolic; exact value doesn't matter
+-	Py3   = 0x83 // symbolic; exact value doesn't matter
++	Px   = 0
++	Px1  = 1    // symbolic; exact value doesn't matter
++	P32  = 0x32 /* 32-bit only */
++	Pe   = 0x66 /* operand escape */
++	Pm   = 0x0f /* 2byte opcode escape */
++	Pq   = 0xff /* both escapes: 66 0f */
++	Pb   = 0xfe /* byte operands */
++	Pf2  = 0xf2 /* xmm escape 1: f2 0f */
++	Pf3  = 0xf3 /* xmm escape 2: f3 0f */
++	Pef3 = 0xf5 /* xmm escape 2 with 16-bit prefix: 66 f3 0f */
++	Pq3  = 0x67 /* xmm escape 3: 66 48 0f */
++	Pfw  = 0xf4 /* Pf3 with Rex.w: f3 48 0f */
++	Pw   = 0x48 /* Rex.w */
++	Pw8  = 0x90 // symbolic; exact value doesn't matter
++	Py   = 0x80 /* defaults to 64-bit mode */
++	Py1  = 0x81 // symbolic; exact value doesn't matter
++	Py3  = 0x83 // symbolic; exact value doesn't matter
++	Pvex = 0x84 // symbolic: exact value doesn't matter
+ 
+ 	Rxw = 1 << 3 /* =1, 64-bit operand size */
+ 	Rxr = 1 << 2 /* extend modrm reg */
+@@ -237,6 +236,75 @@ const (
+ 	Rxb = 1 << 0 /* extend modrm r/m, sib base, or opcode reg */
+ )
+ 
++const (
++	// Encoding for VEX prefix in tables.
++	// The P, L, and W fields are chosen to match
++	// their eventual locations in the VEX prefix bytes.
++
++	// P field - 2 bits
++	vex66 = 1 << 0
++	vexF3 = 2 << 0
++	vexF2 = 3 << 0
++	// L field - 1 bit
++	vexLZ  = 0 << 2
++	vexLIG = 0 << 2
++	vex128 = 0 << 2
++	vex256 = 1 << 2
++	// W field - 1 bit
++	vexWIG = 0 << 7
++	vexW0  = 0 << 7
++	vexW1  = 1 << 7
++	// M field - 5 bits, but mostly reserved; we can store up to 4
++	vex0F   = 1 << 3
++	vex0F38 = 2 << 3
++	vex0F3A = 3 << 3
++
++	// Combinations used in the manual.
++	VEX_128_0F_WIG      = vex128 | vex0F | vexWIG
++	VEX_128_66_0F_W0    = vex128 | vex66 | vex0F | vexW0
++	VEX_128_66_0F_W1    = vex128 | vex66 | vex0F | vexW1
++	VEX_128_66_0F_WIG   = vex128 | vex66 | vex0F | vexWIG
++	VEX_128_66_0F38_W0  = vex128 | vex66 | vex0F38 | vexW0
++	VEX_128_66_0F38_W1  = vex128 | vex66 | vex0F38 | vexW1
++	VEX_128_66_0F38_WIG = vex128 | vex66 | vex0F38 | vexWIG
++	VEX_128_66_0F3A_W0  = vex128 | vex66 | vex0F3A | vexW0
++	VEX_128_66_0F3A_W1  = vex128 | vex66 | vex0F3A | vexW1
++	VEX_128_66_0F3A_WIG = vex128 | vex66 | vex0F3A | vexWIG
++	VEX_128_F2_0F_WIG   = vex128 | vexF2 | vex0F | vexWIG
++	VEX_128_F3_0F_WIG   = vex128 | vexF3 | vex0F | vexWIG
++	VEX_256_66_0F_WIG   = vex256 | vex66 | vex0F | vexWIG
++	VEX_256_66_0F38_W0  = vex256 | vex66 | vex0F38 | vexW0
++	VEX_256_66_0F38_W1  = vex256 | vex66 | vex0F38 | vexW1
++	VEX_256_66_0F38_WIG = vex256 | vex66 | vex0F38 | vexWIG
++	VEX_256_66_0F3A_W0  = vex256 | vex66 | vex0F3A | vexW0
++	VEX_256_66_0F3A_W1  = vex256 | vex66 | vex0F3A | vexW1
++	VEX_256_66_0F3A_WIG = vex256 | vex66 | vex0F3A | vexWIG
++	VEX_256_F2_0F_WIG   = vex256 | vexF2 | vex0F | vexWIG
++	VEX_256_F3_0F_WIG   = vex256 | vexF3 | vex0F | vexWIG
++	VEX_LIG_0F_WIG      = vexLIG | vex0F | vexWIG
++	VEX_LIG_66_0F_WIG   = vexLIG | vex66 | vex0F | vexWIG
++	VEX_LIG_66_0F38_W0  = vexLIG | vex66 | vex0F38 | vexW0
++	VEX_LIG_66_0F38_W1  = vexLIG | vex66 | vex0F38 | vexW1
++	VEX_LIG_66_0F3A_WIG = vexLIG | vex66 | vex0F3A | vexWIG
++	VEX_LIG_F2_0F_W0    = vexLIG | vexF2 | vex0F | vexW0
++	VEX_LIG_F2_0F_W1    = vexLIG | vexF2 | vex0F | vexW1
++	VEX_LIG_F2_0F_WIG   = vexLIG | vexF2 | vex0F | vexWIG
++	VEX_LIG_F3_0F_W0    = vexLIG | vexF3 | vex0F | vexW0
++	VEX_LIG_F3_0F_W1    = vexLIG | vexF3 | vex0F | vexW1
++	VEX_LIG_F3_0F_WIG   = vexLIG | vexF3 | vex0F | vexWIG
++	VEX_LZ_0F_WIG       = vexLZ | vex0F | vexWIG
++	VEX_LZ_0F38_W0      = vexLZ | vex0F38 | vexW0
++	VEX_LZ_0F38_W1      = vexLZ | vex0F38 | vexW1
++	VEX_LZ_66_0F38_W0   = vexLZ | vex66 | vex0F38 | vexW0
++	VEX_LZ_66_0F38_W1   = vexLZ | vex66 | vex0F38 | vexW1
++	VEX_LZ_F2_0F38_W0   = vexLZ | vexF2 | vex0F38 | vexW0
++	VEX_LZ_F2_0F38_W1   = vexLZ | vexF2 | vex0F38 | vexW1
++	VEX_LZ_F2_0F3A_W0   = vexLZ | vexF2 | vex0F3A | vexW0
++	VEX_LZ_F2_0F3A_W1   = vexLZ | vexF2 | vex0F3A | vexW1
++	VEX_LZ_F3_0F38_W0   = vexLZ | vexF3 | vex0F38 | vexW0
++	VEX_LZ_F3_0F38_W1   = vexLZ | vexF3 | vex0F38 | vexW1
++)
++
+ var ycover [Ymax * Ymax]uint8
+ 
+ var reg [MAXREG]int
+@@ -631,20 +699,6 @@ var yxr_ml = []ytab{
+ 	{Yxr, Ynone, Yml, Zr_m_xm, 1},
+ }
+ 
+-var yxr_ml_vex = []ytab{
+-	{Yxr, Ynone, Yml, Zr_m_xm_vex, 1},
+-}
+-
+-var yml_xr_vex = []ytab{
+-	{Yml, Ynone, Yxr, Zm_r_xm_vex, 1},
+-	{Yxr, Ynone, Yxr, Zm_r_xm_vex, 1},
+-}
+-
+-var yxm_xm_xm = []ytab{
+-	{Yxr, Yxr, Yxr, Zr_r_r_vex, 1},
+-	{Yxm, Yxr, Yxr, Zr_r_r_vex, 1},
+-}
+-
+ var ymr = []ytab{
+ 	{Ymr, Ynone, Ymr, Zm_r, 1},
+ }
+@@ -661,11 +715,6 @@ var yxcmpi = []ytab{
+ 	{Yxm, Yxr, Yi8, Zm_r_i_xm, 2},
+ }
+ 
+-var yxmov_vex = []ytab{
+-	{Yxm, Ynone, Yxr, Zm_r_xm_vex, 1},
+-	{Yxr, Ynone, Yxm, Zr_m_xm_vex, 1},
+-}
+-
+ var yxmov = []ytab{
+ 	{Yxm, Ynone, Yxr, Zm_r_xm, 1},
+ 	{Yxr, Ynone, Yxm, Zr_m_xm, 1},
+@@ -744,10 +793,6 @@ var ymskb = []ytab{
+ 	{Ymr, Ynone, Yrl, Zm_r_xm, 1},
+ }
+ 
+-var ymskb_vex = []ytab{
+-	{Yxr, Ynone, Yrl, Zm_r_xm_vex, 2},
+-}
+-
+ var ycrc32l = []ytab{
+ 	{Yml, Ynone, Yrl, Zlitm_r, 0},
+ }
+@@ -772,6 +817,62 @@ var yxabort = []ytab{
+ 	{Yu8, Ynone, Ynone, Zib_, 1},
+ }
+ 
++// VEX instructions that come in two forms:
++//	VTHING xmm2/m128, xmmV, xmm1
++//	VTHING ymm2/m256, ymmV, ymm1
++// The opcode array in the corresponding Optab entry
++// should contain the (VEX prefixes, opcode byte) pair
++// for each of the two forms.
++// For example, the entries for VPXOR are:
++//
++//	VPXOR xmm2/m128, xmmV, xmm1
++//	VEX.NDS.128.66.0F.WIG EF /r
++//
++//	VPXOR ymm2/m256, ymmV, ymm1
++//	VEX.NDS.256.66.0F.WIG EF /r
++//
++// The NDS/NDD/DDS part can be dropped, producing this
++// Optab entry:
++//
++//	{AVPXOR, yvex_xy3, Pvex, [23]uint8{VEX_128_66_0F_WIG, 0xEF, VEX_256_66_0F_WIG, 0xEF}}
++//
++var yvex_xy3 = []ytab{
++	{Yxm, Yxr, Yxr, Zvex_rm_v_r, 2},
++	{Yym, Yyr, Yyr, Zvex_rm_v_r, 2},
++}
++
++var yvex_xy2 = []ytab{
++	{Yxm, Ynone, Yxr, Zvex_rm_v_r, 2},
++	{Yym, Ynone, Yyr, Zvex_rm_v_r, 2},
++}
++
++var yvex_xyr2 = []ytab{
++	{Yxr, Ynone, Yrl, Zvex_rm_v_r, 2},
++	{Yyr, Ynone, Yrl, Zvex_rm_v_r, 2},
++}
++
++var yvex_vmovdqa = []ytab{
++	{Yxm, Ynone, Yxr, Zvex_rm_v_r, 2},
++	{Yxr, Ynone, Yxm, Zvex_r_v_rm, 2},
++	{Yym, Ynone, Yyr, Zvex_rm_v_r, 2},
++	{Yyr, Ynone, Yym, Zvex_r_v_rm, 2},
++}
++
++var yvex_vmovntdq = []ytab{
++	{Yxr, Ynone, Ym, Zvex_r_v_rm, 2},
++	{Yyr, Ynone, Ym, Zvex_r_v_rm, 2},
++}
++
++var yvex_vpbroadcast = []ytab{
++	{Yxm, Ynone, Yxr, Zvex_rm_v_r, 2},
++	{Yxm, Ynone, Yyr, Zvex_rm_v_r, 2},
++}
++
++var yvex_xxmyxm = []ytab{
++	{Yxr, Ynone, Yxm, Zvex_r_v_rm, 2},
++	{Yyr, Ynone, Yxm, Zvex_r_v_rm, 2},
++}
++
+ /*
+  * You are doasm, holding in your hand a Prog* with p->as set to, say, ACRC32,
+  * and p->from and p->to as operands (Addr*).  The linker scans optab to find
+@@ -1531,16 +1632,18 @@ var optab =
+ 	{AROUNDSS, yaes2, Pq, [23]uint8{0x3a, 0x0a, 0}},
+ 	{APSHUFD, yxshuf, Pq, [23]uint8{0x70, 0}},
+ 	{APCLMULQDQ, yxshuf, Pq, [23]uint8{0x3a, 0x44, 0}},
++
+ 	{AVZEROUPPER, ynone, Px, [23]uint8{0xc5, 0xf8, 0x77}},
+-	{AMOVHDU, yxmov_vex, Pvex2, [23]uint8{0x6f, 0x7f}},
+-	{AMOVNTHD, yxr_ml_vex, Pvex1, [23]uint8{0xe7}},
+-	{AMOVHDA, yxmov_vex, Pvex1, [23]uint8{0x6f, 0x7f}},
+-	{AVPCMPEQB, yxm_xm_xm, Pvex1, [23]uint8{0x74, 0x74}},
+-	{AVPXOR, yxm_xm_xm, Pvex1, [23]uint8{0xef, 0xef}},
+-	{AVPMOVMSKB, ymskb_vex, Pvex1, [23]uint8{0xd7}},
+-	{AVPAND, yxm_xm_xm, Pvex1, [23]uint8{0xdb, 0xdb}},
+-	{AVPBROADCASTB, yml_xr_vex, Pvex3, [23]uint8{0x78, 0x78}},
+-	{AVPTEST, yml_xr_vex, Pvex3, [23]uint8{0x17, 0x17}},
++	{AVMOVDQU, yvex_vmovdqa, Pvex, [23]uint8{VEX_128_F3_0F_WIG, 0x6F, VEX_128_F3_0F_WIG, 0x7F, VEX_256_F3_0F_WIG, 0x6F, VEX_256_F3_0F_WIG, 0x7F}},
++	{AVMOVDQA, yvex_vmovdqa, Pvex, [23]uint8{VEX_128_66_0F_WIG, 0x6F, VEX_128_66_0F_WIG, 0x7F, VEX_256_66_0F_WIG, 0x6F, VEX_256_66_0F_WIG, 0x7F}},
++	{AVMOVNTDQ, yvex_vmovntdq, Pvex, [23]uint8{VEX_128_66_0F_WIG, 0xE7, VEX_256_66_0F_WIG, 0xE7}},
++	{AVPCMPEQB, yvex_xy3, Pvex, [23]uint8{VEX_128_66_0F_WIG, 0x74, VEX_256_66_0F_WIG, 0x74}},
++	{AVPXOR, yvex_xy3, Pvex, [23]uint8{VEX_128_66_0F_WIG, 0xEF, VEX_256_66_0F_WIG, 0xEF}},
++	{AVPMOVMSKB, yvex_xyr2, Pvex, [23]uint8{VEX_128_66_0F_WIG, 0xD7, VEX_256_66_0F_WIG, 0xD7}},
++	{AVPAND, yvex_xy3, Pvex, [23]uint8{VEX_128_66_0F_WIG, 0xDB, VEX_256_66_0F_WIG, 0xDB}},
++	{AVPBROADCASTB, yvex_vpbroadcast, Pvex, [23]uint8{VEX_128_66_0F38_W0, 0x78, VEX_256_66_0F38_W0, 0x78}},
++	{AVPTEST, yvex_xy2, Pvex, [23]uint8{VEX_128_66_0F38_WIG, 0x17, VEX_256_66_0F38_WIG, 0x17}},
++
+ 	{AXACQUIRE, ynone, Px, [23]uint8{0xf2}},
+ 	{AXRELEASE, ynone, Px, [23]uint8{0xf3}},
+ 	{AXBEGIN, yxbegin, Px, [23]uint8{0xc7, 0xf8}},
+@@ -1931,6 +2034,9 @@ func instinit() {
+ 	ycover[Ym*Ymax+Yxm] = 1
+ 	ycover[Yxr*Ymax+Yxm] = 1
+ 
++	ycover[Ym*Ymax+Yym] = 1
++	ycover[Yyr*Ymax+Yym] = 1
++
+ 	for i := 0; i < MAXREG; i++ {
+ 		reg[i] = -1
+ 		if i >= REG_AL && i <= REG_R15B {
+@@ -1965,6 +2071,12 @@ func instinit() {
+ 				regrex[i] = Rxr | Rxx | Rxb
+ 			}
+ 		}
++		if i >= REG_Y0 && i <= REG_Y0+15 {
++			reg[i] = (i - REG_Y0) & 7
++			if i >= REG_Y0+8 {
++				regrex[i] = Rxr | Rxx | Rxb
++			}
++		}
+ 
+ 		if i >= REG_CR+8 && i <= REG_CR+15 {
+ 			regrex[i] = Rxr
+@@ -2297,6 +2409,24 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+ 		REG_X0 + 15:
+ 		return Yxr
+ 
++	case REG_Y0 + 0,
++		REG_Y0 + 1,
++		REG_Y0 + 2,
++		REG_Y0 + 3,
++		REG_Y0 + 4,
++		REG_Y0 + 5,
++		REG_Y0 + 6,
++		REG_Y0 + 7,
++		REG_Y0 + 8,
++		REG_Y0 + 9,
++		REG_Y0 + 10,
++		REG_Y0 + 11,
++		REG_Y0 + 12,
++		REG_Y0 + 13,
++		REG_Y0 + 14,
++		REG_Y0 + 15:
++		return Yyr
++
+ 	case REG_CS:
+ 		return Ycs
+ 	case REG_SS:
+@@ -2597,7 +2727,7 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
+ 		goto bad
+ 
+ 	case obj.TYPE_REG:
+-		if a.Reg < REG_AL || REG_X0+15 < a.Reg {
++		if a.Reg < REG_AL || REG_Y0+15 < a.Reg {
+ 			goto bad
+ 		}
+ 		if v != 0 {
+@@ -3025,77 +3155,40 @@ var bpduff2 = []byte{
+ 	0x48, 0x8b, 0x6d, 0x00, // MOVQ 0(BP), BP
+ }
+ 
+-// Assemble vex prefix, from 3 operands and prefix.
++// Emit VEX prefix and opcode byte.
++// The three addresses are the r/m, vvvv, and reg fields.
++// The reg and rm arguments appear in the same order as the
++// arguments to asmand, which typically follows the call to asmvex.
++// The final two arguments are the VEX prefix (see encoding above)
++// and the opcode byte.
+ // For details about vex prefix see:
+ // https://en.wikipedia.org/wiki/VEX_prefix#Technical_description
+-func vexprefix(ctxt *obj.Link, to *obj.Addr, from *obj.Addr, from3 *obj.Addr, pref uint8) {
+-	rexR := regrex[to.Reg]
+-	rexB := regrex[from.Reg]
+-	rexX := regrex[from.Index]
+-	var prefBit uint8
+-	// This will go into VEX.PP field.
+-	if pref == Pvex1 || pref == Pvex3 {
+-		prefBit = 1
+-	} else if pref == Pvex2 {
+-		prefBit = 2
+-	} // TODO add Pvex0
+-
+-	if rexX == 0 && rexB == 0 && pref != Pvex3 { // 2-byte vex prefix
+-		// In 2-byte case, first byte is always C5
++func asmvex(ctxt *obj.Link, rm, v, r *obj.Addr, vex, opcode uint8) {
++	ctxt.Vexflag = 1
++	rexR := regrex[r.Reg] & Rxr
++	rexB := regrex[rm.Reg] & Rxb
++	rexX := regrex[rm.Index] & Rxx
++	vexM := (vex >> 3) & 0xF
++	vexWLP := vex & 0x87
++	vexV := byte(0)
++	if v != nil {
++		vexV = byte(reg[v.Reg]|(regrex[v.Reg]&Rxr)<<1) & 0xF
++	}
++	vexV ^= 0xF
++	if vexM == 1 && (rexX|rexB) == 0 && vex&vexW1 == 0 {
++		// Can use 2-byte encoding.
+ 		ctxt.Andptr[0] = 0xc5
+-		ctxt.Andptr = ctxt.Andptr[1:]
+-
+-		if from3 == nil {
+-			// If this is a 2-operand instruction fill VEX.VVVV with 1111
+-			// We are also interested only in 256-bit version, so VEX.L=1
+-			ctxt.Andptr[0] = 0x7c
+-		} else {
+-			// VEX.L=1
+-			ctxt.Andptr[0] = 0x4
+-			// VEX.VVVV (bits 3:6) is a inversed register number
+-			ctxt.Andptr[0] |= byte((^(from3.Reg - REG_X0))<<3) & 0x78
+-		}
+-
+-		// VEX encodes REX.R as inversed upper bit
+-		if rexR == 0 {
+-			ctxt.Andptr[0] |= 0x80
+-		}
+-		ctxt.Andptr[0] |= prefBit
+-		ctxt.Andptr = ctxt.Andptr[1:]
+-	} else { // 3-byte case
+-		// First byte is always C$
++		ctxt.Andptr[1] = byte(rexR<<5) ^ 0x80 | vexV<<3 | vexWLP
++		ctxt.Andptr = ctxt.Andptr[2:]
++	} else {
++		// Must use 3-byte encoding.
+ 		ctxt.Andptr[0] = 0xc4
+-		ctxt.Andptr = ctxt.Andptr[1:]
+-
+-		// Encode VEX.mmmmm with prefix value, assume 0F,
+-		// which encodes as 1, unless 0F38 was specified with pvex3.
+-		ctxt.Andptr[0] = 0x1 // TODO handle 0F3A
+-		if pref == Pvex3 {
+-			ctxt.Andptr[0] = 0x2
+-		}
+-
+-		// REX.[RXB] are inverted and encoded in 3 upper bits
+-		if rexR == 0 {
+-			ctxt.Andptr[0] |= 0x80
+-		}
+-		if rexX == 0 {
+-			ctxt.Andptr[0] |= 0x40
+-		}
+-		if rexB == 0 {
+-			ctxt.Andptr[0] |= 0x20
+-		}
+-		ctxt.Andptr = ctxt.Andptr[1:]
+-
+-		// Fill VEX.VVVV, same as 2-operand VEX instruction.
+-		if from3 == nil {
+-			ctxt.Andptr[0] = 0x7c
+-		} else {
+-			ctxt.Andptr[0] = 0x4
+-			ctxt.Andptr[0] |= byte((^(from3.Reg - REG_X0))<<3) & 0x78
+-		}
+-		ctxt.Andptr[0] |= prefBit
+-		ctxt.Andptr = ctxt.Andptr[1:]
++		ctxt.Andptr[1] = (byte(rexR|rexX|rexB) << 5) ^ 0xE0 | vexM
++		ctxt.Andptr[2] = vexV<<3 | vexWLP
++		ctxt.Andptr = ctxt.Andptr[3:]
+ 	}
++	ctxt.Andptr[0] = opcode
++	ctxt.Andptr = ctxt.Andptr[1:]
+ }
+ 
+ func doasm(ctxt *obj.Link, p *obj.Prog) {
+@@ -3344,13 +3437,6 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 				mediaop(ctxt, o, op, int(yt.zoffset), z)
+ 				asmand(ctxt, p, &p.From, &p.To)
+ 
+-			case Zm_r_xm_vex:
+-				ctxt.Vexflag = 1
+-				vexprefix(ctxt, &p.To, &p.From, nil, o.prefix)
+-				ctxt.Andptr[0] = byte(op)
+-				ctxt.Andptr = ctxt.Andptr[1:]
+-				asmand(ctxt, p, &p.From, &p.To)
+-
+ 			case Zm_r_xm_nr:
+ 				ctxt.Rexflag = 0
+ 				mediaop(ctxt, o, op, int(yt.zoffset), z)
+@@ -3410,20 +3496,14 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 				ctxt.Andptr = ctxt.Andptr[1:]
+ 				asmand(ctxt, p, &p.To, &p.From)
+ 
+-			case Zr_m_xm_vex:
+-				ctxt.Vexflag = 1
+-				vexprefix(ctxt, &p.From, &p.To, nil, o.prefix)
+-				ctxt.Andptr[0] = byte(op)
+-				ctxt.Andptr = ctxt.Andptr[1:]
+-				asmand(ctxt, p, &p.To, &p.From)
+-
+-			case Zr_r_r_vex:
+-				ctxt.Vexflag = 1
+-				vexprefix(ctxt, &p.To, &p.From, p.From3, o.prefix)
+-				ctxt.Andptr[0] = byte(op)
+-				ctxt.Andptr = ctxt.Andptr[1:]
++			case Zvex_rm_v_r:
++				asmvex(ctxt, &p.From, p.From3, &p.To, o.op[z], o.op[z+1])
+ 				asmand(ctxt, p, &p.From, &p.To)
+ 
++			case Zvex_r_v_rm:
++				asmvex(ctxt, &p.To, p.From3, &p.From, o.op[z], o.op[z+1])
++				asmand(ctxt, p, &p.To, &p.From)
++
+ 			case Zr_m_xm:
+ 				mediaop(ctxt, o, op, int(yt.zoffset), z)
+ 				asmand(ctxt, p, &p.To, &p.From)
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index cac032c370..5094812a05 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1350,14 +1350,14 @@ hugeloop:
+ hugeloop_avx2:
+ 	CMPQ	BX, $64
+ 	JB	bigloop_avx2
+-	MOVHDU	(SI), X0
+-	MOVHDU	(DI), X1
+-	MOVHDU	32(SI), X2
+-	MOVHDU	32(DI), X3
+-	VPCMPEQB	X1, X0, X4
+-	VPCMPEQB	X2, X3, X5
+-	VPAND	X4, X5, X6
+-	VPMOVMSKB X6, DX
++	VMOVDQU	(SI), Y0
++	VMOVDQU	(DI), Y1
++	VMOVDQU	32(SI), Y2
++	VMOVDQU	32(DI), Y3
++	VPCMPEQB	Y1, Y0, Y4
++	VPCMPEQB	Y2, Y3, Y5
++	VPAND	Y4, Y5, Y6
++	VPMOVMSKB Y6, DX
+ 	ADDQ	$64, SI
+ 	ADDQ	$64, DI
+ 	SUBQ	$64, BX
+@@ -1614,16 +1614,16 @@ big_loop:
+ 	// Compare 64-bytes per loop iteration.
+ 	// Loop is unrolled and uses AVX2.
+ big_loop_avx2:
+-	MOVHDU	(SI), X2
+-	MOVHDU	(DI), X3
+-	MOVHDU	32(SI), X4
+-	MOVHDU	32(DI), X5
+-	VPCMPEQB X2, X3, X0
+-	VPMOVMSKB X0, AX
++	VMOVDQU	(SI), Y2
++	VMOVDQU	(DI), Y3
++	VMOVDQU	32(SI), Y4
++	VMOVDQU	32(DI), Y5
++	VPCMPEQB Y2, Y3, Y0
++	VPMOVMSKB Y0, AX
+ 	XORL	$0xffffffff, AX
+ 	JNE	diff32_avx2
+-	VPCMPEQB X4, X5, X6
+-	VPMOVMSKB X6, AX
++	VPCMPEQB Y4, Y5, Y6
++	VPMOVMSKB Y6, AX
+ 	XORL	$0xffffffff, AX
+ 	JNE	diff64_avx2
+ 
+@@ -1908,26 +1908,26 @@ avx2:
+ 	JNE no_avx2
+ 	MOVD AX, X0
+ 	LEAQ -32(SI)(BX*1), R11
+-	VPBROADCASTB  X0, X1
++	VPBROADCASTB  X0, Y1
+ avx2_loop:
+-	MOVHDU (DI), X2
+-	VPCMPEQB X1, X2, X3
+-	VPTEST X3, X3
++	VMOVDQU (DI), Y2
++	VPCMPEQB Y1, Y2, Y3
++	VPTEST Y3, Y3
+ 	JNZ avx2success
+ 	ADDQ $32, DI
+ 	CMPQ DI, R11
+ 	JLT avx2_loop
+ 	MOVQ R11, DI
+-	MOVHDU (DI), X2
+-	VPCMPEQB X1, X2, X3
+-	VPTEST X3, X3
++	VMOVDQU (DI), Y2
++	VPCMPEQB Y1, Y2, Y3
++	VPTEST Y3, Y3
+ 	JNZ avx2success
+ 	VZEROUPPER
+ 	MOVQ $-1, (R8)
+ 	RET
+ 
+ avx2success:
+-	VPMOVMSKB X3, DX
++	VPMOVMSKB Y3, DX
+ 	BSFL DX, DX
+ 	SUBQ SI, DI
+ 	ADDQ DI, DX
+diff --git a/src/runtime/memclr_amd64.s b/src/runtime/memclr_amd64.s
+index 5e78037df6..c257d59b30 100644
+--- a/src/runtime/memclr_amd64.s
++++ b/src/runtime/memclr_amd64.s
+@@ -65,40 +65,40 @@ loop:
+ 	JMP	tail
+ 
+ loop_preheader_avx2:
+-	VPXOR X0, X0, X0
++	VPXOR Y0, Y0, Y0
+ 	// For smaller sizes MOVNTDQ may be faster or slower depending on hardware.
+ 	// For larger sizes it is always faster, even on dual Xeons with 30M cache.
+ 	// TODO take into account actual LLC size. E. g. glibc uses LLC size/2.
+ 	CMPQ    BX, $0x2000000
+ 	JAE     loop_preheader_avx2_huge
+ loop_avx2:
+-	MOVHDU	X0, 0(DI)
+-	MOVHDU	X0, 32(DI)
+-	MOVHDU	X0, 64(DI)
+-	MOVHDU	X0, 96(DI)
++	VMOVDQU	Y0, 0(DI)
++	VMOVDQU	Y0, 32(DI)
++	VMOVDQU	Y0, 64(DI)
++	VMOVDQU	Y0, 96(DI)
+ 	SUBQ	$128, BX
+ 	ADDQ	$128, DI
+ 	CMPQ	BX, $128
+ 	JAE	loop_avx2
+-	MOVHDU  X0, -32(DI)(BX*1)
+-	MOVHDU  X0, -64(DI)(BX*1)
+-	MOVHDU  X0, -96(DI)(BX*1)
+-	MOVHDU  X0, -128(DI)(BX*1)
++	VMOVDQU  Y0, -32(DI)(BX*1)
++	VMOVDQU  Y0, -64(DI)(BX*1)
++	VMOVDQU  Y0, -96(DI)(BX*1)
++	VMOVDQU  Y0, -128(DI)(BX*1)
+ 	VZEROUPPER
+ 	RET
+ loop_preheader_avx2_huge:
+ 	// Align to 32 byte boundary
+-	MOVHDU  X0, 0(DI)
++	VMOVDQU  Y0, 0(DI)
+ 	MOVQ	DI, SI
+ 	ADDQ	$32, DI
+ 	ANDQ	$~31, DI
+ 	SUBQ	DI, SI
+ 	ADDQ	SI, BX
+ loop_avx2_huge:
+-	MOVNTHD	X0, 0(DI)
+-	MOVNTHD	X0, 32(DI)
+-	MOVNTHD	X0, 64(DI)
+-	MOVNTHD	X0, 96(DI)
++	VMOVNTDQ	Y0, 0(DI)
++	VMOVNTDQ	Y0, 32(DI)
++	VMOVNTDQ	Y0, 64(DI)
++	VMOVNTDQ	Y0, 96(DI)
+ 	SUBQ	$128, BX
+ 	ADDQ	$128, DI
+ 	CMPQ	BX, $128
+@@ -108,10 +108,10 @@ loop_avx2_huge:
+ 	// should be used in conjunction with MOVNTDQ instructions..."
+ 	// [1] 64-ia-32-architectures-software-developer-manual-325462.pdf
+ 	SFENCE
+-	MOVHDU  X0, -32(DI)(BX*1)
+-	MOVHDU  X0, -64(DI)(BX*1)
+-	MOVHDU  X0, -96(DI)(BX*1)
+-	MOVHDU  X0, -128(DI)(BX*1)
++	VMOVDQU  Y0, -32(DI)(BX*1)
++	VMOVDQU  Y0, -64(DI)(BX*1)
++	VMOVDQU  Y0, -96(DI)(BX*1)
++	VMOVDQU  Y0, -128(DI)(BX*1)
+ 	VZEROUPPER
+ 	RET
+ 

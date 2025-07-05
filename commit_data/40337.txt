@@ -12,7 +12,58 @@ Date:   Sun May 5 23:20:26 2019 +0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/errors/wrap.go      |  4 +++-
  src/errors/wrap_test.go | 19 +++++++++++++++++++
  2 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/src/errors/wrap.go b/src/errors/wrap.go
+index 04ddf79ba3..69dd9464ec 100644
+--- a/src/errors/wrap.go
++++ b/src/errors/wrap.go
+@@ -51,8 +51,10 @@ func Is(err, target error) bool {
+ 	if target == nil {
+ 		return err == target
+ 	}
++
++	isComparable := target == nil || reflectlite.TypeOf(target).Comparable()
+ 	for {
+-		if err == target {
++		if isComparable && err == target {
+ 			return true
+ 		}
+ 		if x, ok := err.(interface{ Is(error) bool }); ok && x.Is(target) {
+diff --git a/src/errors/wrap_test.go b/src/errors/wrap_test.go
+index 022f429c0c..f8e907cff7 100644
+--- a/src/errors/wrap_test.go
++++ b/src/errors/wrap_test.go
+@@ -47,6 +47,12 @@ func TestIs(t *testing.T) {
+ 		{poser, errb, false},
+ 		{poser, erro, false},
+ 		{poser, errco, false},
++		{errorUncomparable{}, errorUncomparable{}, true},
++		{errorUncomparable{}, &errorUncomparable{}, false},
++		{&errorUncomparable{}, errorUncomparable{}, true},
++		{&errorUncomparable{}, &errorUncomparable{}, false},
++		{errorUncomparable{}, err1, false},
++		{&errorUncomparable{}, err1, false},
+ 	}
+ 	for _, tc := range testCases {
+ 		t.Run("", func(t *testing.T) {
+@@ -260,3 +266,16 @@ type printer struct {
+ }
+ 
+ func (p *printer) Print(args ...interface{}) { fmt.Fprint(&p.buf, args...) }
++
++type errorUncomparable struct {
++	f []string
++}
++
++func (errorUncomparable) Error() string {
++	return "uncomparable error"
++}
++
++func (errorUncomparable) Is(target error) bool {
++	_, ok := target.(errorUncomparable)
++	return ok
++}

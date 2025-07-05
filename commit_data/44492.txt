@@ -7,9 +7,79 @@ Date:   Fri Jul 17 17:05:22 2020 -0400
     Change-Id: I17ff3ac82c8ac313f3a3c8e8129800ec9c05b991
     Reviewed-on: https://go-review.googlesource.com/c/go/+/243643
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/asmb.go   | 2 +-
  src/cmd/link/internal/ld/data.go   | 6 +++---
  src/cmd/link/internal/ld/elf.go    | 2 +-
  src/cmd/link/internal/ld/target.go | 5 +++++
  4 files changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/asmb.go b/src/cmd/link/internal/ld/asmb.go
+index a7b3237b3e..f3e898bec5 100644
+--- a/src/cmd/link/internal/ld/asmb.go
++++ b/src/cmd/link/internal/ld/asmb.go
+@@ -19,7 +19,7 @@ import (
+ // This function handles the first part.
+ func asmb(ctxt *Link) {
+ 	ctxt.loader.InitOutData()
+-	if ctxt.IsExternal() && !(ctxt.IsAMD64() && ctxt.IsELF) {
++	if ctxt.IsExternal() && !ctxt.StreamExtRelocs() {
+ 		ctxt.loader.InitExtRelocs()
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 8a21f55862..d5034ae01c 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -159,7 +159,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 	target := st.target
+ 	syms := st.syms
+ 	var extRelocs []loader.ExtReloc
+-	if target.IsExternal() && !(target.IsAMD64() && target.IsELF) {
++	if target.IsExternal() && !target.StreamExtRelocs() {
+ 		// preallocate a slice conservatively assuming that all
+ 		// relocs will require an external reloc
+ 		extRelocs = st.preallocExtRelocSlice(relocs.Count())
+@@ -592,14 +592,14 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 
+ 	addExtReloc:
+ 		if needExtReloc {
+-			if target.IsAMD64() && target.IsELF {
++			if target.StreamExtRelocs() {
+ 				extraExtReloc++
+ 			} else {
+ 				extRelocs = append(extRelocs, rr)
+ 			}
+ 		}
+ 	}
+-	if target.IsExternal() && target.IsAMD64() && target.IsELF {
++	if target.IsExternal() && target.StreamExtRelocs() {
+ 		// On AMD64 ELF, we'll stream out the external relocations in elfrelocsect
+ 		// and we only need the count here.
+ 		// TODO: just count, but not compute the external relocations. For now it
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 2ba618ed0b..6a531cb333 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1372,7 +1372,7 @@ func elfrelocsect(ctxt *Link, out *OutBuf, sect *sym.Section, syms []loader.Sym)
+ 			break
+ 		}
+ 
+-		if ctxt.IsAMD64() {
++		if ctxt.StreamExtRelocs() {
+ 			// Compute external relocations on the go, and pass to Elfreloc1
+ 			// to stream out.
+ 			relocs := ldr.Relocs(s)
+diff --git a/src/cmd/link/internal/ld/target.go b/src/cmd/link/internal/ld/target.go
+index 102b6c5436..8702db121e 100644
+--- a/src/cmd/link/internal/ld/target.go
++++ b/src/cmd/link/internal/ld/target.go
+@@ -181,3 +181,8 @@ func (t *Target) mustSetHeadType() {
+ func (t *Target) IsBigEndian() bool {
+ 	return t.Arch.ByteOrder == binary.BigEndian
+ }
++
++// Temporary helper.
++func (t *Target) StreamExtRelocs() bool {
++	return t.IsELF && (t.IsAMD64() || t.Is386())
++}

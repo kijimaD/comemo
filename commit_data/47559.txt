@@ -15,8 +15,67 @@ Date:   Thu Mar 25 12:23:44 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/decl.go    | 17 +++++++++++++++--
  src/cmd/compile/internal/noder/expr.go    |  1 -
  src/cmd/compile/internal/noder/helpers.go |  4 ----
  3 files changed, 15 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/decl.go b/src/cmd/compile/internal/noder/decl.go
+index f0cdcbfc2e..4ca2eb4740 100644
+--- a/src/cmd/compile/internal/noder/decl.go
++++ b/src/cmd/compile/internal/noder/decl.go
+@@ -211,11 +211,24 @@ func (g *irgen) varDecl(out *ir.Nodes, decl *syntax.VarDecl) {
+ 			} else if ir.CurFunc == nil {
+ 				name.Defn = as
+ 			}
+-			out.Append(typecheck.Stmt(as))
++			lhs := []ir.Node{as.X}
++			rhs := []ir.Node{}
++			if as.Y != nil {
++				rhs = []ir.Node{as.Y}
++			}
++			transformAssign(as, lhs, rhs)
++			as.X = lhs[0]
++			if as.Y != nil {
++				as.Y = rhs[0]
++			}
++			as.SetTypecheck(1)
++			out.Append(as)
+ 		}
+ 	}
+ 	if as2 != nil {
+-		out.Append(typecheck.Stmt(as2))
++		transformAssign(as2, as2.Lhs, as2.Rhs)
++		as2.SetTypecheck(1)
++		out.Append(as2)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index effc63c09a..9db03a9005 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -15,7 +15,6 @@ import (
+ )
+ 
+ func (g *irgen) expr(expr syntax.Expr) ir.Node {
+-	// TODO(mdempsky): Change callers to not call on nil?
+ 	if expr == nil {
+ 		return nil
+ 	}
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index 9ebf17aae6..cb8052c0cb 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -18,10 +18,6 @@ import (
+ //
+ // TODO(mdempsky): Move into their own package so they can be easily
+ // reused by iimport and frontend optimizations.
+-//
+-// TODO(mdempsky): Update to consistently return already typechecked
+-// results, rather than leaving the caller responsible for using
+-// typecheck.Expr or typecheck.Stmt.
+ 
+ type ImplicitNode interface {
+ 	ir.Node

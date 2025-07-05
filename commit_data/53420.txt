@@ -14,9 +14,88 @@ Date:   Mon Aug 15 15:37:22 2022 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/expr.go                  |  6 ++++++
  .../internal/types2/testdata/fixedbugs/issue54405.go     | 16 ++++++++++++++++
  src/go/types/expr.go                                     |  6 ++++++
  src/go/types/testdata/fixedbugs/issue54405.go            | 16 ++++++++++++++++
  4 files changed, 44 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index b11cd1e9d8..ee0792e61c 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -783,6 +783,12 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
+ 
+ // If switchCase is true, the operator op is ignored.
+ func (check *Checker) comparison(x, y *operand, op syntax.Operator, switchCase bool) {
++	// Avoid spurious errors if any of the operands has an invalid type (issue #54405).
++	if x.typ == Typ[Invalid] || y.typ == Typ[Invalid] {
++		x.mode = invalid
++		return
++	}
++
+ 	if switchCase {
+ 		op = syntax.Eql
+ 	}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue54405.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue54405.go
+new file mode 100644
+index 0000000000..e89d5e1b80
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue54405.go
+@@ -0,0 +1,16 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that we don't see spurious errors for ==
++// for values with invalid types due to prior errors.
++
++package p
++
++var x struct {
++	f *NotAType /* ERROR undeclared name */
++}
++var _ = x.f == nil // no error expected here
++
++var y *NotAType  /* ERROR undeclared name */
++var _ = y == nil // no error expected here
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 0e8dca3247..4b60123499 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -736,6 +736,12 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
+ 
+ // If switchCase is true, the operator op is ignored.
+ func (check *Checker) comparison(x, y *operand, op token.Token, switchCase bool) {
++	// Avoid spurious errors if any of the operands has an invalid type (issue #54405).
++	if x.typ == Typ[Invalid] || y.typ == Typ[Invalid] {
++		x.mode = invalid
++		return
++	}
++
+ 	if switchCase {
+ 		op = token.EQL
+ 	}
+diff --git a/src/go/types/testdata/fixedbugs/issue54405.go b/src/go/types/testdata/fixedbugs/issue54405.go
+new file mode 100644
+index 0000000000..e89d5e1b80
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue54405.go
+@@ -0,0 +1,16 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that we don't see spurious errors for ==
++// for values with invalid types due to prior errors.
++
++package p
++
++var x struct {
++	f *NotAType /* ERROR undeclared name */
++}
++var _ = x.f == nil // no error expected here
++
++var y *NotAType  /* ERROR undeclared name */
++var _ = y == nil // no error expected here

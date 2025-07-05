@@ -8,6 +8,2223 @@ Date:   Mon Feb 23 19:26:07 2009 -0800
     R=gri
     OCL=25353
     CL=25353
-
+---
  doc/go_spec.html | 1883 +++++++++++++++++++++++++++---------------------------
  1 file changed, 942 insertions(+), 941 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index f3a52b970a..32ac34e3db 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -538,1269 +538,1270 @@ literal.
+ </p>
+ <hr/>
+ 
+-<h2>Declarations and Scope</h2>
++<h2>Types</h2>
+ 
++A type specifies the set of values that variables of that type may assume
++and the operators that are applicable.
+ <p>
+-A declaration binds an identifier to a language entity such as
+-a variable or function and specifies properties such as its type.
+-Every identifier in a program must be declared.
+-</p>
++A type may be specified by a type name (§Type declarations) or a type literal.
++A type literal is a syntactic construct that explicitly specifies the
++composition of a new type in terms of other (already declared) types.
+ 
+ <pre class="grammar">
+-Declaration = ConstDecl | TypeDecl | VarDecl | FunctionDecl | MethodDecl .
++Type = TypeName | TypeLit | "(" Type ")" .
++TypeName = QualifiedIdent.
++TypeLit =
++	ArrayType | StructType | PointerType | FunctionType | InterfaceType |
++	SliceType | MapType | ChannelType .
+ </pre>
+-		
++
++Some types are predeclared and denoted by their type names; these are called
++``basic types''. Generally (except for strings) they are not composed of more
++elementary types; instead they model elementary machine data types.
+ <p>
+-The <i>scope</i> of an identifier is the extent of source text within which the
+-identifier denotes the bound entity. No identifier may be declared twice in a
+-single scope, but inner blocks can declare a new entity with the same
+-identifier, in which case the scope created by the outer declaration excludes
+-that created by the inner.
+-</p>
++All other types are called ``composite types'; they are composed from other
++(basic or composite) types and denoted by their type names or by type literals.
++There are arrays, structs, pointers, functions, interfaces, slices, maps, and
++channels.
+ <p>
+-There are levels of scoping in effect before each source file is compiled.
+-In order from outermost to innermost:
+-</p>
+-<ol>
+-	<li>The <i>universe</i> scope contains all predeclared identifiers.</li>
+-	<li>An implicit scope contains only the package name.</li>
+-	<li>The <i>package-level</i> scope surrounds all declarations at the
+-	    top level of the file, that is, outside the body of any
+-	    function or method.  That scope is shared across all
+-	    source files within the package (§Packages), allowing
+-	    package-level identifiers to be shared between source
+-	    files.</li>
+-</ol>
++At a given point in the source code, a type may be ``complete'' or
++''incomplete''. Array and struct types are complete when they are fully declared.
++All other types are always complete (although their components, such as the base
++type of a pointer type, may be incomplete). Incomplete types are subject to usage
++restrictions; for instance the type of a variable must be complete where the
++variable is declared.
+ 
++The ``interface'' of a type is the set of methods bound to it
++(§Method declarations). The interface of a pointer type is the interface
++of the pointer base type (§Pointer types). All types have an interface;
++if they have no methods associated with them, their interface is
++called the ``empty'' interface.
+ <p>
+-The scope of an identifier depends on the entity declared:
+-</p>
+-
+-<ol>
+-	<li> The scope of predeclared identifiers is the universe scope.</li>
+-
+-	<li> The scope of an (identifier denoting a) type, function or package
+-	     extends from the point of the identifier in the declaration
+-	     to the end of the innermost surrounding block.</li>
++The ``static type'' (or simply ``type'') of a variable is the type defined by
++the variable's declaration. The ``dynamic type'' of a variable is the actual
++type of the value stored in a variable at run-time. Except for variables of
++interface type, the dynamic type of a variable is always its static type.
++<p>
++Variables of interface type may hold values with different dynamic types
++during execution. However, its dynamic type is always compatible with
++the static type of the interface variable (§Interface types).
++	
+ 
+-	<li> The scope of a constant or variable extends textually from
+-	     the end of the declaration to the end of the innermost
+-	     surrounding block. If the variable is declared in the
+-	     <i>init</i> statement of an <code>if </code>,  <code>for</code>,
+-	     or  <code>switch </code> statement, the
+-	     innermost surrounding block is the block associated
+-	     with that statement.</li>
++<h3>Basic types</h3>
+ 
+-	<li> The scope of a parameter or result is the body of the
+-	     corresponding function.</li>
++Go defines a number of basic types, referred to by their predeclared
++type names.  These include traditional arithmetic types, booleans,
++and strings.
+ 
+-	<li> The scope of a field or method is selectors for the
+-	     corresponding type containing the field or method (§Selectors).</li>
+ 
+-	<li> The scope of a label is a unique scope emcompassing
+-	     the body of the innermost surrounding function, excluding
+-	     nested functions.  Labels do not conflict with variables.</li>
+-</ol>
++<h3>Arithmetic types</h3>
+ 
+-<h3>Predeclared identifiers</h3>
++The following list enumerates all platform-independent numeric types:
+ 
+-<p>
+-The following identifiers are implicitly declared in the outermost scope:
+-</p>
+ <pre class="grammar">
+-Basic types:
+-	bool byte float32 float64 int8 int16 int32 int64 string uint8 uint16 uint32 uint64
+-
+-Platform-specific convenience types:
+-	float int uint uintptr
++byte     same as uint8 (for convenience)
+ 
+-Constants:
+-	true false iota nil
++uint8    the set of all unsigned  8-bit integers (0 to 255)
++uint16   the set of all unsigned 16-bit integers (0 to 65535)
++uint32   the set of all unsigned 32-bit integers (0 to 4294967295)
++uint64   the set of all unsigned 64-bit integers (0 to 18446744073709551615)
+ 
+-Functions:
+-	cap convert len make new panic panicln print println typeof (TODO: typeof??)
++int8     the set of all signed  8-bit integers (-128 to 127)
++int16    the set of all signed 16-bit integers (-32768 to 32767)
++int32    the set of all signed 32-bit integers (-2147483648 to 2147483647)
++int64    the set of all signed 64-bit integers (-9223372036854775808 to 9223372036854775807)
+ 
+-Packages:
+-	sys unsafe  (TODO: does sys endure?)
++float32  the set of all valid IEEE-754 32-bit floating point numbers
++float64  the set of all valid IEEE-754 64-bit floating point numbers
+ </pre>
+ 
++Integer types are represented in the usual binary format; the value of
++an n-bit integer is n bits wide. A negative signed integer is represented
++as the two's complement of its absolute value.
+ 
+-<h3>Exported identifiers</h3>
++<!--
++The representation of signed integers and their exact range is
++implementation-specific, but the set of all positive values (including zero)
++of a signed integer type is always a subset of the corresponding unsigned
++integer type (thus, a positive signed integer can always be converted into
++its corresponding unsigned type without loss).
++-->
+ 
+-<p>
+-By default, identifiers are visible only within the package in which they are declared.
+-Some identifiers are <i>exported</i> and can be referenced using
+-<i>qualified identifiers</i> in other packages (§Qualified identifiers).
+-If an identifier satisfies these two conditions:
+-</p>
+-<ol>
+-<li>the first character of the identifier's name is a Unicode upper case letter;
+-<li>the identifier is declared at the package level or is a field or method of a type
+-declared at the top level;
+-</ol>
+-<p>
+-it will be exported automatically.
+-</p>
++Additionally, Go declares a set of platform-specific numeric types for
++convenience:
+ 
+-<h3>Const declarations</h3>
++<pre class="grammar">
++uint     at least 32 bits, at most the size of the largest uint type
++int      at least 32 bits, at most the size of the largest int type
++float    at least 32 bits, at most the size of the largest float type
++uintptr  smallest uint type large enough to store the uninterpreted
++		 bits of a pointer value
++</pre>
+ 
++For instance, int might have the same size as int32 on a 32-bit
++architecture, or int64 on a 64-bit architecture.
+ <p>
+-A constant declaration binds a list of identifiers (the names of
+-the constants) to the values of a list of constant expressions
+-(§Constant expressions).  The number of identifiers must be equal
+-to the number of expressions, and the n<sup>th</sup> identifier on
+-the left is bound to value of the n<sup>th</sup> expression on the
+-right.
+-</p>
++Except for "byte", which is an alias for "uint8", all numeric types
++are different from each other to avoid portability issues. Conversions
++are required when different numeric types are mixed in an expression or assignment.
++For instance, "int32" and "int" are not the same type even though they may have
++the same size on a particular platform.
+ 
+-<pre class="grammar">
+-ConstDecl      = "const" ( ConstSpec | "(" [ ConstSpecList ] ")" ) .
+-ConstSpecList  = ConstSpec { ";" ConstSpec } [ ";" ] .
+-ConstSpec      = IdentifierList [ CompleteType ] [ "=" ExpressionList ] .
+ 
+-IdentifierList = identifier { "," identifier } .
+-ExpressionList = Expression { "," Expression } .
++<h3>Booleans</h3>
+ 
+-CompleteType = Type .
+-</pre>
++The type "bool" comprises the truth values true and false, which are
++available through the two predeclared constants, "true" and "false".
+ 
+-<p>
+-If the type (CompleteType) is omitted, the constants take the
+-individual types of the corresponding expressions, which may be
+-``ideal integer'' or ``ideal float'' (§Ideal number).  If the type
+-is present, all constants take the type specified, and the types
+-of all the expressions must be assignment-compatible
+-with that type.
+-</p>
+ 
+-<pre>
+-const Pi float64 = 3.14159265358979323846
+-const E = 2.718281828
+-const (
+-	size int64 = 1024;
+-	eof = -1;
+-)
+-const a, b, c = 3, 4, "foo"  // a = 3, b = 4, c = "foo"
+-const u, v float = 0, 3      // u = 0.0, v = 3.0
+-</pre>
++<h3>Strings</h3>
+ 
+ <p>
+-Within a parenthesized <code>const</code> declaration list the
+-expression list may be omitted from any but the first declaration.
+-Such an empty list is equivalent to the textual substitution of the
+-first preceding non-empty expression list.  Omitting the list of
+-expressions is therefore equivalent to repeating the previous list.
+-The number of identifiers must be equal to the number of expressions
+-in the previous list.  Together with the <code>iota</code> constant generator
+-(§Iota) this mechanism permits light-weight declaration of sequential values:
++The "string" type represents the set of string values (strings).
++Strings behave like arrays of bytes, with the following properties:
+ </p>
++<ul>
++<li>They are immutable: after creation, it is not possible to change the
++contents of a string.
++<li>No internal pointers: it is illegal to create a pointer to an inner
++element of a string.
++<li>They can be indexed: given string "s1", "s1[i]" is a byte value.
++<li>They can be concatenated: given strings "s1" and "s2", "s1 + s2" is a value
++combining the elements of "s1" and "s2" in sequence.
++<li>Known length: the length of a string "s1" can be obtained by calling
++"len(s1)".  The length of a string is the number
++of bytes within. Unlike in C, there is no terminal NUL byte.
++<li>Creation 1: a string can be created from an integer value by a conversion;
++the result is a string containing the UTF-8 encoding of that code point
++(§Conversions).
++"string('x')" yields "x"; "string(0x1234)" yields the equivalent of "\u1234"
+ 
++<li>Creation 2: a string can by created from an array of integer values (maybe
++just array of bytes) by a conversion (§Conversions):
+ <pre>
+-const (
+-	Sunday = iota;
+-	Monday;
+-	Tuesday;
+-	Wednesday;
+-	Thursday;
+-	Friday;
+-	Partyday;
+-	numberOfDays;  // this constant is not exported
+-)
++a [3]byte; a[0] = 'a'; a[1] = 'b'; a[2] = 'c';  string(a) == "abc";
+ </pre>
++</ul>
+ 
+ 
+-<h3>Iota</h3>
++<h3>Array types</h3>
+ 
+-<p>
+-Within a constant declaration, the predeclared pseudo-constant
+-<code>iota</code> represents successive integers. It is reset to 0
+-whenever the reserved word <code>const</code> appears in the source
+-and increments with each semicolon. It can be used to construct a
+-set of related constants:
+-</p>
++An array is a composite type consisting of a number of elements all of the
++same type, called the element type. The element type must be a complete type
++(§Types). The number of elements of an array is called its length; it is never
++negative. The elements of an array are designated by indices
++which are integers from 0 through the length - 1.
+ 
+-<pre>
+-const (            // iota is reset to 0
+-	c0 = iota;  // c0 == 0
+-	c1 = iota;  // c1 == 1
+-	c2 = iota   // c2 == 2
+-)
+-
+-const (
+-	a = 1 << iota;  // a == 1 (iota has been reset)
+-	b = 1 << iota;  // b == 2
+-	c = 1 << iota;  // c == 4
+-)
++<pre class="grammar">
++ArrayType = "[" ArrayLength "]" ElementType .
++ArrayLength = Expression .
++ElementType = CompleteType .
++</pre>
+ 
+-const (
+-	u       = iota * 42;  // u == 0     (ideal integer)
+-	v float = iota * 42;  // v == 42.0  (float)
+-	w       = iota * 42;  // w == 84    (ideal integer)
+-)
++The array length and its value are part of the array type. The array length
++must be a constant expression (§Constant expressions) that evaluates to an
++integer value >= 0.
++<p>
++The number of elements of an array "a" can be discovered using the built-in
++function
+ 
+-const x = iota;  // x == 0 (iota has been reset)
+-const y = iota;  // y == 0 (iota has been reset)
++<pre>
++len(a)
+ </pre>
+ 
+-<p>
+-Within an ExpressionList, the value of each <code>iota</code> is the same because
+-it is only incremented at a semicolon:
+-</p>
++The length of arrays is known at compile-time, and the result of a call to
++"len(a)" is a compile-time constant.
+ 
+ <pre>
+-const (
+-	bit0, mask0 = 1 << iota, 1 << iota - 1;  // bit0 == 1, mask0 == 0
+-	bit1, mask1;                             // bit1 == 2, mask1 == 1
+-	bit2, mask2;                             // bit2 == 4, mask2 == 3
+-)
++[32]byte
++[2*N] struct { x, y int32 }
++[1000]*float64
+ </pre>
+ 
+-<p>
+-This last example exploits the implicit repetition of the
+-last non-empty expression list.
+-</p>
++Assignment compatibility: Arrays can be assigned to variables of equal type
++and to slice variables with equal element type. When assigning to a slice
++variable, the array is not copied but a slice comprising the entire array
++is created.
+ 
+ 
+-<h3>Type declarations</h3>
++<h3>Struct types</h3>
+ 
+-<p>
+-A type declaration binds an identifier, the <i>type name</i>,
+-to a new type.  <font color=red>TODO: what exactly is a "new type"?</font>
+-</p>
++A struct is a composite type consisting of a fixed number of elements,
++called fields, with possibly different types. A struct type declares
++an identifier and type for each field. Within a struct type no field
++identifier may be declared twice and all field types must be complete
++types (§Types).
+ 
+ <pre class="grammar">
+-TypeDecl     = "type" ( TypeSpec | "(" [ TypeSpecList ] ")" ) .
+-TypeSpecList = TypeSpec { ";" TypeSpec } [ ";" ] .
+-TypeSpec     = identifier Type .
++StructType = "struct" [ "{" [ FieldDeclList ] "}" ] .
++FieldDeclList = FieldDecl { ";" FieldDecl } [ ";" ] .
++FieldDecl = (IdentifierList CompleteType | [ "*" ] TypeName) [ Tag ] .
++Tag = StringLit .
+ </pre>
+ 
+ <pre>
+-type IntArray [16] int
+-
+-type (
+-	Point struct { x, y float };
+-	Polar Point
+-)
+-
+-type TreeNode struct {
+-	left, right *TreeNode;
+-	value Point;
+-}
++// An empty struct.
++struct {}
+ 
+-type Comparable interface {
+-	cmp(Comparable) int
++// A struct with 5 fields.
++struct {
++	x, y int;
++	u float;
++	A *[]int;
++	F func();
+ }
+ </pre>
+ 
+-<h3>Variable declarations</h3>
++A struct may contain ``anonymous fields'', which are declared with a type
++but no explicit field identifier. An anonymous field type must be specified as
++a type name "T", or as a pointer to a type name ``*T'', and T itself may not be
++a pointer or interface type. The unqualified type name acts as the field identifier.
+ 
+-<p>
+-A variable declaration creates a variable, binds an identifier to it and
+-gives it a type and optionally an initial value.
+-The variable type must be a complete type (§Types).
+-</p>
+-<pre class="grammar">
+-VarDecl     = "var" ( VarSpec | "(" [ VarSpecList ] ")" ) .
+-VarSpecList = VarSpec { ";" VarSpec } [ ";" ] .
+-VarSpec     = IdentifierList ( CompleteType [ "=" ExpressionList ] | "=" ExpressionList ) .
++<pre>
++// A struct with four anonymous fields of type T1, *T2, P.T3 and *P.T4
++struct {
++	T1;        // the field name is T1
++	*T2;       // the field name is T2
++	P.T3;      // the field name is the unqualified type name T3
++	*P.T4;     // the field name is the unqualified type name T4
++	x, y int;  
++}
+ </pre>
+ 
++The unqualified type name of an anonymous field must not conflict with the
++field identifier (or unqualified type name for an anonymous field) of any
++other field within the struct. The following declaration is illegal:
++
+ <pre>
+-var i int
+-var U, V, W float
+-var k = 0
+-var x, y float = -1.0, -2.0
+-var (
+-	i int;
+-	u, v, s = 2.0, 3.0, "bar"
+-)
++struct {
++	T;         // conflicts with anonymous field *T and *P.T
++	*T;        // conflicts with anonymous field T and *P.T
++	*P.T;      // conflicts with anonymous field T and *T
++}
+ </pre>
+ 
++Fields and methods (§Method declarations) of an anonymous field become directly
++accessible as fields and methods of the struct without the need to provide the
++type name of the respective anonymous field (§Selectors).
+ <p>
+-If there are expressions, their number must be equal
+-to the number of identifiers, and the n<sup>th</sup> variable
+-is initialized to the value of the n<sup>th</sup> expression.
+-Otherwise, each variable is initialized to the <i>zero</i>
+-of the type (§Program initialization and execution).
+-The expressions can be general expressions; they need not be constants.
+-</p>
+-<p>
+-Either the type or the expression list must be present.  If the
+-type is present, it sets the type of each variable and the expressions
+-(if any) must be assignment-compatible to that type.  If the type
+-is absent, the variables take the types of the corresponding
+-expressions.
+-</p>
+-<p>
+-If the type is absent and the corresponding expression is a constant
+-expression of ideal integer or ideal float type, the type of the
+-declared variable is <code>int</code> or <code>float</code>
+-respectively:
+-</p>
++A field declaration may be followed by an optional string literal tag which
++becomes an ``attribute'' for all the identifiers in the corresponding
++field declaration. The tags are available via the reflection library but
++are ignored otherwise. A tag may contain arbitrary application-specific
++information.
+ 
+ <pre>
+-var i = 0       // i has type int
+-var f = 3.1415  // f has type float
++// A struct corresponding to the EventIdMessage protocol buffer.
++// The tag strings contain the protocol buffer field tags.
++struct {
++	time_usec uint64 "1";
++	server_ip uint32 "2";
++	process_id uint32 "3";
++}
+ </pre>
+ 
+-<h3>Short variable declarations</h3>
++Assignment compatibility: Structs are assignment compatible to variables of
++equal type only.
+ 
+-A <i>short variable declaration</i> uses the syntax
+ 
+-<pre class="grammar">
+-SimpleVarDecl = IdentifierList ":=" ExpressionList .
+-</pre>
++<h3>Pointer types</h3>
+ 
+-and is shorthand for the declaration syntax
++A pointer type denotes the set of all pointers to variables of a given
++type, called the ``base type'' of the pointer, and the value "nil".
+ 
+ <pre class="grammar">
+-"var" IdentifierList = ExpressionList .
++PointerType = "*" BaseType .
++BaseType = Type .
+ </pre>
+ 
+ <pre>
+-i, j := 0, 10;
+-f := func() int { return 7; }
+-ch := new(chan int);
++*int
++map[string] chan
+ </pre>
+ 
+-<p>
+-Unlike regular variable declarations, short variable declarations
+-can be used, by analogy with tuple assignment (§Assignments), to
+-receive the individual elements of a multi-valued expression such
+-as a call to a multi-valued function.  In this form, the ExpressionLIst
+-must be a single such multi-valued expression, the number of
+-identifiers must equal the number of values, and the declared
+-variables will be assigned the corresponding values.
+-</p>
++The pointer base type may be denoted by an identifier referring to an
++incomplete type (§Types), possibly declared via a forward declaration.
++This allows the construction of recursive and mutually recursive types
++such as:
+ 
+ <pre>
+-count, error := os.Close(fd);  // os.Close()  returns two values
++type S struct { s *S }
++
++type S2 struct // forward declaration of S2
++type S1 struct { s2 *S2 }
++type S2 struct { s1 *S1 }
+ </pre>
+ 
++Assignment compatibility: A pointer is assignment compatible to a variable
++of pointer type, only if both types are equal.
+ <p>
+-Short variable declarations may appear only inside functions.
+-In some contexts such as the initializers for <code>if</code>,
+-<code>for</code>, or <code>switch</code> statements,
+-they can be used to declare local temporary variables (§Statements).
+-</p>
+-
+-<h3>Function declarations</h3>
+-
++Comparisons: A variable of pointer type can be compared against "nil" with the
++operators "==" and "!=" (§Comparison operators). The variable is
++"nil" only if "nil" is assigned explicitly to the variable (§Assignments), or
++if the variable has not been modified since creation (§Program initialization
++and execution).
+ <p>
+-A function declaration binds an identifier to a function (§Function types).
+-</p>
++Two variables of equal pointer type can be tested for equality with the
++operators "==" and "!=" (§Comparison operators). The pointers are equal
++if they point to the same location.
+ 
+-<pre class="grammar">
+-FunctionDecl = "func" identifier Signature [ Block ] .
+-</pre>
++Pointer arithmetic of any kind is not permitted.
+ 
+-<pre>
+-func min(x int, y int) int {
+-	if x &lt; y {
+-		return x;
+-	}
+-	return y;
+-}
+-</pre>
+ 
+-<p>
+-A function must be declared or forward-declared before it can be invoked (§Forward declarations).
+-Implementation restriction: Functions can only be declared at the package level.
+-</p>
++<h3>Function types</h3>
+ 
+-<h3>Method declarations</h3>
++A function type denotes the set of all functions with the same parameter
++and result types, and the value "nil".
+ 
+-<p>
+-A method declaration binds an identifier to a method,
+-which is a function with a <i>receiver</i>.
+-</p>
+ <pre class="grammar">
+-MethodDecl = "func" Receiver identifier Signature [ Block ] .
+-Receiver = "(" [ identifier ] [ "*" ] TypeName ")" .
++FunctionType = "func" Signature .
++Signature = "(" [ ParameterList ] ")" [ Result ] .
++ParameterList = ParameterDecl { "," ParameterDecl } .
++ParameterDecl = [ IdentifierList ] ( Type | "..." ) .
++Result = Type | "(" ParameterList ")" .
+ </pre>
+ 
++In ParameterList, the parameter names (IdentifierList) either must all be
++present, or all be absent. If the parameters are named, each name stands
++for one parameter of the specified type. If the parameters are unnamed, each
++type stands for one parameter of that type.
+ <p>
+-The receiver type must be a type name or a pointer to a type name,
+-and that name is called the <i>receiver base type</i> or just <i>base type</i>.
+-The base type must not be a pointer type and must be
+-declared in the same source file as the method.
+-The method is said to be <i>bound</i> to the base type
+-and is visible only within selectors for that type
+-(§Type declarations, §Selectors).
+-</p>
+-
+-<p>
+-All methods bound to a base type must have the same receiver type,
+-either all pointers to the base type or all the base type itself.
+-Given type <code>Point</code>, the declarations
+-</p>
++For the last incoming parameter only, instead of a parameter type one
++may write "...". The ellipsis indicates that the last parameter stands
++for an arbitrary number of additional arguments of any type (including
++no additional arguments). If the parameters are named, the identifier
++list immediately preceding "..." must contain only one identifier (the
++name of the last parameter).
+ 
+ <pre>
+-func (p *Point) Length() float {
+-	return Math.sqrt(p.x * p.x + p.y * p.y);
+-}
++func ()
++func (x int)
++func () int
++func (string, float, ...)
++func (a, b int, z float) bool
++func (a, b int, z float) (bool)
++func (a, b int, z float, opt ...) (success bool)
++func (int, int, float) (float, *[]int)
++</pre>
+ 
+-func (p *Point) Scale(factor float) {
+-	p.x = p.x * factor;
+-	p.y = p.y * factor;
+-}
++If the result type of a function is itself a function type, the result type
++must be parenthesized to resolve a parsing ambiguity:
++
++<pre>
++func (n int) (func (p* T))
+ </pre>
+ 
++Assignment compatibility: A function can be assigned to a function
++variable only if both function types are equal.
+ <p>
+-bind the methods <code>Length</code> and <code>Scale</code>
+-to the base type <code>Point</code>.
+-</p>
+-
++Comparisons: A variable of function type can be compared against "nil" with the
++operators "==" and "!=" (§Comparison operators). The variable is
++"nil" only if "nil" is assigned explicitly to the variable (§Assignments), or
++if the variable has not been modified since creation (§Program initialization
++and execution).
+ <p>
+-If the
+-receiver's value is not referenced inside the the body of the method,
+-its identifier may be omitted in the declaration. The same applies in
+-general to parameters of functions and methods.
+-</p>
++Two variables of equal function type can be tested for equality with the
++operators "==" and "!=" (§Comparison operators). The variables are equal
++if they refer to the same function.
+ 
+-<p>
+-Methods can be declared
+-only after their base type is declared or forward-declared, and invoked
+-only after their own declaration or forward-declaration (§Forward declarations).
+-Implementation restriction: They can only be declared at package level.
+-</p>
+ 
+-<h3>Forward declarations</h3>
++<h3>Interface types</h3>
+ 
+-<p>
+-Mutually-recursive types struct or interface types require that one be
+-<i>forward declared</i> so that it may be named in the other.
+-A forward declaration of a type omits the block containing the fields
+-or methods of the type.
+-</p>
++Type interfaces may be specified explicitly by interface types.
++An interface type denotes the set of all types that implement at least
++the set of methods specified by the interface type, and the value "nil".
++
++<pre class="grammar">
++InterfaceType = "interface" [ "{" [ MethodSpecList ] "}" ] .
++MethodSpecList = MethodSpec { ";" MethodSpec } [ ";" ] .
++MethodSpec = IdentifierList Signature | TypeName .
++</pre>
+ 
+ <pre>
+-type List struct  // forward declaration of List
+-type Item struct {
+-	value int;
+-	next *List;
+-}
+-type List struct {
+-	head, tail *Item
++// An interface specifying a basic File type.
++interface {
++	Read, Write	(b Buffer) bool;
++	Close		();
+ }
+ </pre>
+-<p>
+-A forward-declared type is incomplete (§Types)
+-until it is fully declared. The full declaration must follow
+-before the end of the block containing the forward declaration.
+-</p>
+-<p>
+-Functions and methods may similarly be forward-declared by omitting their body.
+-</p>
++
++Any type (including interface types) whose interface has, possibly as a
++subset, the complete set of methods of an interface I is said to implement
++interface I. For instance, if two types S1 and S2 have the methods
++
+ <pre>
+-func F(a int) int  // forward declaration of F
+-func G(a, b int) int {
+-	return F(a) + F(b)
+-}
+-func F(a int) int {
+-	if a <= 0 { return 0 }
+-	return G(a-1, b+1)
+-}
++func (p T) Read(b Buffer) bool { return ... }
++func (p T) Write(b Buffer) bool { return ... }
++func (p T) Close() { ... }
+ </pre>
+ 
+-<hr/>
++(where T stands for either S1 or S2) then the File interface is
++implemented by both S1 and S2, regardless of what other methods
++S1 and S2 may have or share.
+ 
+-<h2>Types</h2>
++All types implement the empty interface:
+ 
+-A type specifies the set of values that variables of that type may assume
+-and the operators that are applicable.
+-<p>
+-A type may be specified by a type name (§Type declarations) or a type literal.
+-A type literal is a syntactic construct that explicitly specifies the
+-composition of a new type in terms of other (already declared) types.
++<pre>
++interface {}
++</pre>
+ 
+-<pre class="grammar">
+-Type = TypeName | TypeLit | "(" Type ")" .
+-TypeName = QualifiedIdent.
+-TypeLit =
+-	ArrayType | StructType | PointerType | FunctionType | InterfaceType |
+-	SliceType | MapType | ChannelType .
++In general, a type implements an arbitrary number of interfaces.
++For instance, consider the interface
++
++<pre>
++type Lock interface {
++	Lock, Unlock	();
++}
+ </pre>
+ 
+-Some types are predeclared and denoted by their type names; these are called
+-``basic types''. Generally (except for strings) they are not composed of more
+-elementary types; instead they model elementary machine data types.
+-<p>
+-All other types are called ``composite types'; they are composed from other
+-(basic or composite) types and denoted by their type names or by type literals.
+-There are arrays, structs, pointers, functions, interfaces, slices, maps, and
+-channels.
+-<p>
+-At a given point in the source code, a type may be ``complete'' or
+-''incomplete''. Array and struct types are complete when they are fully declared.
+-All other types are always complete (although their components, such as the base
+-type of a pointer type, may be incomplete). Incomplete types are subject to usage
+-restrictions; for instance the type of a variable must be complete where the
+-variable is declared.
++If S1 and S2 also implement
+ 
+-The ``interface'' of a type is the set of methods bound to it
+-(§Method declarations). The interface of a pointer type is the interface
+-of the pointer base type (§Pointer types). All types have an interface;
+-if they have no methods associated with them, their interface is
+-called the ``empty'' interface.
+-<p>
+-The ``static type'' (or simply ``type'') of a variable is the type defined by
+-the variable's declaration. The ``dynamic type'' of a variable is the actual
+-type of the value stored in a variable at run-time. Except for variables of
+-interface type, the dynamic type of a variable is always its static type.
++<pre>
++func (p T) Lock() { ... }
++func (p T) Unlock() { ... }
++</pre>
++
++they implement the Lock interface as well as the File interface.
+ <p>
+-Variables of interface type may hold values with different dynamic types
+-during execution. However, its dynamic type is always compatible with
+-the static type of the interface variable (§Interface types).
+-	
++An interface may contain a type name T in place of a method specification.
++T must denote another, complete (and not forward-declared) interface type.
++Using this notation is equivalent to enumerating the methods of T explicitly
++in the interface containing T.
+ 
+-<h3>Basic types</h3>
++<pre>
++type ReadWrite interface {
++	Read, Write	(b Buffer) bool;
++}
+ 
+-Go defines a number of basic types, referred to by their predeclared
+-type names.  These include traditional arithmetic types, booleans,
+-and strings.
++type File interface {
++	ReadWrite;  // same as enumerating the methods in ReadWrite
++	Lock;       // same as enumerating the methods in Lock
++	Close();
++}
++</pre>
+ 
++Forward declaration:
++A interface type consisting of only the reserved word "interface" may be used in
++a type declaration; it declares an incomplete interface type (§Type declarations).
++This allows the construction of mutually recursive types such as:
+ 
+-<h3>Arithmetic types</h3>
++<pre>
++type T2 interface
++type T1 interface {
++	foo(T2) int;
++}
++type T2 interface {
++	bar(T1) int;
++}
++</pre>
+ 
+-The following list enumerates all platform-independent numeric types:
++Assignment compatibility: A value can be assigned to an interface variable
++if the static type of the value implements the interface or if the value is "nil".
++<p>
++Comparisons: A variable of interface type can be compared against "nil" with the
++operators "==" and "!=" (§Comparison operators). The variable is
++"nil" only if "nil" is assigned explicitly to the variable (§Assignments), or
++if the variable has not been modified since creation (§Program initialization
++and execution).
++<p>
++Two variables of interface type can be tested for equality with the
++operators "==" and "!=" (§Comparison operators) if both variables have the
++same static type. They are equal if both their dynamic types and values are
++equal. If the dynamic types are equal but the values do not support comparison,
++a run-time error occurs.
+ 
+-<pre class="grammar">
+-byte     same as uint8 (for convenience)
+ 
+-uint8    the set of all unsigned  8-bit integers (0 to 255)
+-uint16   the set of all unsigned 16-bit integers (0 to 65535)
+-uint32   the set of all unsigned 32-bit integers (0 to 4294967295)
+-uint64   the set of all unsigned 64-bit integers (0 to 18446744073709551615)
++<h3>Slice types</h3>
+ 
+-int8     the set of all signed  8-bit integers (-128 to 127)
+-int16    the set of all signed 16-bit integers (-32768 to 32767)
+-int32    the set of all signed 32-bit integers (-2147483648 to 2147483647)
+-int64    the set of all signed 64-bit integers (-9223372036854775808 to 9223372036854775807)
++A slice type denotes the set of all slices (segments) of arrays
++(§Array types) of a given element type, and the value "nil".
++The number of elements of a slice is called its length; it is never negative.
++The elements of a slice are designated by indices which are
++integers from 0 through the length - 1.
+ 
+-float32  the set of all valid IEEE-754 32-bit floating point numbers
+-float64  the set of all valid IEEE-754 64-bit floating point numbers
++<pre class="grammar">
++SliceType = "[" "]" ElementType .
+ </pre>
+ 
+-Integer types are represented in the usual binary format; the value of
+-an n-bit integer is n bits wide. A negative signed integer is represented
+-as the two's complement of its absolute value.
++Syntactically and semantically, arrays and slices look and behave very
++similarly, but with one important difference: A slice is a descriptor
++of an array segment; in particular, different variables of a slice type may
++refer to different (and possibly overlapping) segments of the same underlying
++array. Thus, with respect to the underlying array, slices behave like
++references. In contrast, two different variables of array type always
++denote two different arrays.
++<p>
++For slices, the actual array underlying the slice may extend past the current
++slice length; the maximum length a slice may assume is called its capacity.
++The capacity of any slice "a" can be discovered using the built-in function
+ 
+-<!--
+-The representation of signed integers and their exact range is
+-implementation-specific, but the set of all positive values (including zero)
+-of a signed integer type is always a subset of the corresponding unsigned
+-integer type (thus, a positive signed integer can always be converted into
+-its corresponding unsigned type without loss).
+--->
++<pre>
++cap(a)
++</pre>
+ 
+-Additionally, Go declares a set of platform-specific numeric types for
+-convenience:
++and the following relationship between "len()" and "cap()" holds:
+ 
+-<pre class="grammar">
+-uint     at least 32 bits, at most the size of the largest uint type
+-int      at least 32 bits, at most the size of the largest int type
+-float    at least 32 bits, at most the size of the largest float type
+-uintptr  smallest uint type large enough to store the uninterpreted
+-		 bits of a pointer value
++<pre>
++0 <= len(a) <= cap(a)
+ </pre>
+ 
+-For instance, int might have the same size as int32 on a 32-bit
+-architecture, or int64 on a 64-bit architecture.
+-<p>
+-Except for "byte", which is an alias for "uint8", all numeric types
+-are different from each other to avoid portability issues. Conversions
+-are required when different numeric types are mixed in an expression or assignment.
+-For instance, "int32" and "int" are not the same type even though they may have
+-the same size on a particular platform.
++The value of an uninitialized slice is "nil", and its length and capacity
++are 0. A new, initialized slice value for a given element type T is
++made using the built-in function "make", which takes a slice type
++and parameters specifying the length and optionally the capacity:
++
++<pre>
++make([]T, length)
++make([]T, length, capacity)
++</pre>
++	
++The "make()" call allocates a new underlying array to which the returned
++slice value refers. More precisely, calling "make"
+ 
++<pre>
++make([]T, length, capacity)
++</pre>
+ 
+-<h3>Booleans</h3>
++is effectively the same as allocating an array and slicing it
+ 
+-The type "bool" comprises the truth values true and false, which are
+-available through the two predeclared constants, "true" and "false".
++<pre>
++new([capacity]T)[0 : length]
++</pre>
+ 
++Assignment compatibility: Slices are assignment compatible to variables
++of the same type.
++<p>
++Indexing: Given a (pointer to) a slice variable "a", a slice element is
++specified with an index operation:
+ 
+-<h3>Strings</h3>
++<pre>
++a[i]
++</pre>
+ 
++This denotes the slice element at index "i". "i" must be within bounds,
++that is "0 &lt;= i &lt; len(a)".
+ <p>
+-The "string" type represents the set of string values (strings).
+-Strings behave like arrays of bytes, with the following properties:
+-</p>
+-<ul>
+-<li>They are immutable: after creation, it is not possible to change the
+-contents of a string.
+-<li>No internal pointers: it is illegal to create a pointer to an inner
+-element of a string.
+-<li>They can be indexed: given string "s1", "s1[i]" is a byte value.
+-<li>They can be concatenated: given strings "s1" and "s2", "s1 + s2" is a value
+-combining the elements of "s1" and "s2" in sequence.
+-<li>Known length: the length of a string "s1" can be obtained by calling
+-"len(s1)".  The length of a string is the number
+-of bytes within. Unlike in C, there is no terminal NUL byte.
+-<li>Creation 1: a string can be created from an integer value by a conversion;
+-the result is a string containing the UTF-8 encoding of that code point
+-(§Conversions).
+-"string('x')" yields "x"; "string(0x1234)" yields the equivalent of "\u1234"
++Slicing: Given a a slice variable "a", a sub-slice is created with a slice
++operation:
+ 
+-<li>Creation 2: a string can by created from an array of integer values (maybe
+-just array of bytes) by a conversion (§Conversions):
+ <pre>
+-a [3]byte; a[0] = 'a'; a[1] = 'b'; a[2] = 'c';  string(a) == "abc";
++a[i : j]
+ </pre>
+-</ul>
++
++This creates the sub-slice consisting of the elements "a[i]" through "a[j - 1]"
++(that is, excluding "a[j]"). The values "i" and "j" must satisfy the condition
++"0 &lt;= i &lt;= j &lt;= cap(a)". The length of the new slice is "j - i". The capacity of
++the slice is "cap(a) - i"; thus if "i" is 0, the slice capacity does not change
++as a result of a slice operation. The type of a sub-slice is the same as the
++type of the slice. Unlike the capacity, the length of a sub-slice may be larger
++than the length of the original slice.
++<p>
++Comparisons: A variable of slice type can be compared against "nil" with the
++operators "==" and "!=" (§Comparison operators). The variable is
++"nil" only if "nil" is assigned explicitly to the variable (§Assignments), or
++if the variable has not been modified since creation (§Program initialization
++and execution).
+ 
+ 
+-<h3>Array types</h3>
++<h3>Map types</h3>
+ 
+-An array is a composite type consisting of a number of elements all of the
+-same type, called the element type. The element type must be a complete type
+-(§Types). The number of elements of an array is called its length; it is never
+-negative. The elements of an array are designated by indices
+-which are integers from 0 through the length - 1.
++A map is a composite type consisting of a variable number of entries
++called (key, value) pairs. For a given map, the keys and values must
++each be of a specific complete type (§Types) called the key and value type,
++respectively. The number of entries in a map is called its length; it is never
++negative.
+ 
+ <pre class="grammar">
+-ArrayType = "[" ArrayLength "]" ElementType .
+-ArrayLength = Expression .
+-ElementType = CompleteType .
++MapType = "map" "[" KeyType "]" ValueType .
++KeyType = CompleteType .
++ValueType = CompleteType .
+ </pre>
+ 
+-The array length and its value are part of the array type. The array length
+-must be a constant expression (§Constant expressions) that evaluates to an
+-integer value >= 0.
++The comparison operators "==" and "!=" (§Comparison operators) must be defined
++for operands of the key type; thus the key type must be a basic, pointer,
++interface, or channel type. If the key type is an interface type,
++the dynamic key types must support these comparison operators. In this case,
++inserting a map value with a key that does not support testing for equality
++is a run-time error.
+ <p>
+-The number of elements of an array "a" can be discovered using the built-in
+-function
++Upon creation, a map is empty and values may be added and removed
++during execution.
+ 
+ <pre>
+-len(a)
++map [string] int
++map [*T] struct { x, y float }
++map [string] interface {}
+ </pre>
+ 
+-The length of arrays is known at compile-time, and the result of a call to
+-"len(a)" is a compile-time constant.
++The length of a map "m" can be discovered using the built-in function
+ 
+ <pre>
+-[32]byte
+-[2*N] struct { x, y int32 }
+-[1000]*float64
++len(m)
+ </pre>
+ 
+-Assignment compatibility: Arrays can be assigned to variables of equal type
+-and to slice variables with equal element type. When assigning to a slice
+-variable, the array is not copied but a slice comprising the entire array
+-is created.
++The value of an uninitialized map is "nil". A new, empty map value for given
++map type M is made using the built-in function "make" which takes the map type
++and an optional capacity as arguments:
+ 
++<pre>
++my_map := make(M, 100);
++</pre>
+ 
+-<h3>Struct types</h3>
++The map capacity is an allocation hint for more efficient incremental growth
++of the map.
++<p>
++Assignment compatibility: A map type is assignment compatible to a variable of
++map type only if both types are equal.
++<p>
++Comparisons: A variable of map type can be compared against "nil" with the
++operators "==" and "!=" (§Comparison operators). The variable is
++"nil" only if "nil" is assigned explicitly to the variable (§Assignments), or
++if the variable has not been modified since creation (§Program initialization
++and execution).
+ 
+-A struct is a composite type consisting of a fixed number of elements,
+-called fields, with possibly different types. A struct type declares
+-an identifier and type for each field. Within a struct type no field
+-identifier may be declared twice and all field types must be complete
+-types (§Types).
+ 
+-<pre class="grammar">
+-StructType = "struct" [ "{" [ FieldDeclList ] "}" ] .
+-FieldDeclList = FieldDecl { ";" FieldDecl } [ ";" ] .
+-FieldDecl = (IdentifierList CompleteType | [ "*" ] TypeName) [ Tag ] .
+-Tag = StringLit .
+-</pre>
++<h3>Channel types</h3>
+ 
+-<pre>
+-// An empty struct.
+-struct {}
++A channel provides a mechanism for two concurrently executing functions
++to synchronize execution and exchange values of a specified type. This
++type must be a complete type (§Types). <font color=red>(TODO could it be incomplete?)</font>
+ 
+-// A struct with 5 fields.
+-struct {
+-	x, y int;
+-	u float;
+-	A *[]int;
+-	F func();
+-}
++<pre class="grammar">
++ChannelType = Channel | SendChannel | RecvChannel .
++Channel = "chan" ValueType .
++SendChannel = "chan" "&lt;-" ValueType .
++RecvChannel = "&lt;-" "chan" ValueType .
+ </pre>
+ 
+-A struct may contain ``anonymous fields'', which are declared with a type
+-but no explicit field identifier. An anonymous field type must be specified as
+-a type name "T", or as a pointer to a type name ``*T'', and T itself may not be
+-a pointer or interface type. The unqualified type name acts as the field identifier.
++Upon creation, a channel can be used both to send and to receive.
++By conversion or assignment, a channel may be constrained only to send or
++to receive. This constraint is called a channel's ``direction''; either
++bi-directional (unconstrained), send, or receive.
+ 
+ <pre>
+-// A struct with four anonymous fields of type T1, *T2, P.T3 and *P.T4
+-struct {
+-	T1;        // the field name is T1
+-	*T2;       // the field name is T2
+-	P.T3;      // the field name is the unqualified type name T3
+-	*P.T4;     // the field name is the unqualified type name T4
+-	x, y int;  
+-}
++chan T         // can send and receive values of type T
++chan &lt;- float  // can only be used to send floats
++&lt;-chan int     // can only receive ints
+ </pre>
+ 
+-The unqualified type name of an anonymous field must not conflict with the
+-field identifier (or unqualified type name for an anonymous field) of any
+-other field within the struct. The following declaration is illegal:
++The value of an uninitialized channel is "nil". A new, initialized channel
++value for a given element type T is made using the built-in function "make",
++which takes the channel type and an optional capacity as arguments:
+ 
+ <pre>
+-struct {
+-	T;         // conflicts with anonymous field *T and *P.T
+-	*T;        // conflicts with anonymous field T and *P.T
+-	*P.T;      // conflicts with anonymous field T and *T
+-}
++my_chan = make(chan int, 100);
+ </pre>
+ 
+-Fields and methods (§Method declarations) of an anonymous field become directly
+-accessible as fields and methods of the struct without the need to provide the
+-type name of the respective anonymous field (§Selectors).
++The capacity sets the size of the buffer in the communication channel. If the
++capacity is greater than zero, the channel is asynchronous and, provided the
++buffer is not full, sends can succeed without blocking. If the capacity is zero,
++the communication succeeds only when both a sender and receiver are ready.
+ <p>
+-A field declaration may be followed by an optional string literal tag which
+-becomes an ``attribute'' for all the identifiers in the corresponding
+-field declaration. The tags are available via the reflection library but
+-are ignored otherwise. A tag may contain arbitrary application-specific
+-information.
++Assignment compatibility: A value of type channel can be assigned to a variable
++of type channel only if a) both types are equal (§Type equality), or b) both
++have equal channel value types and the value is a bidirectional channel.
++<p>
++Comparisons: A variable of channel type can be compared against "nil" with the
++operators "==" and "!=" (§Comparison operators). The variable is
++"nil" only if "nil" is assigned explicitly to the variable (§Assignments), or
++if the variable has not been modified since creation (§Program initialization
++and execution).
++<p>
++Two variables of channel type can be tested for equality with the
++operators "==" and "!=" (§Comparison operators) if both variables have
++the same ValueType. They are equal if both values were created by the same
++"make" call (§Making slices, maps, and channels).
+ 
+-<pre>
+-// A struct corresponding to the EventIdMessage protocol buffer.
+-// The tag strings contain the protocol buffer field tags.
+-struct {
+-	time_usec uint64 "1";
+-	server_ip uint32 "2";
+-	process_id uint32 "3";
+-}
+-</pre>
+ 
+-Assignment compatibility: Structs are assignment compatible to variables of
+-equal type only.
++<h3>Type equality</h3>
++
++<p>
++Types may be ``different'', ``structurally equal'', or ``identical''.
++Go is a type-safe language; generally different types cannot be mixed
++in binary operations, and values cannot be assigned to variables of different
++types. However, values may be assigned to variables of structurally
++equal types. Finally, type guards succeed only if the dynamic type
++is identical to or implements the type tested against (§Type guards).
++<p>
++Structural type equality (equality for short) is defined by these rules:
++<p>
++Two type names denote equal types if the types in the corresponding declarations
++are equal. Two type literals specify equal types if they have the same
++literal structure and corresponding components have equal types. Loosely
++speaking, two types are equal if their values have the same layout in memory.
++More precisely:
++</p>
++<ul>
++	<li>Two array types are equal if they have equal element types and if they
++	  have the same array length.
+ 
++	<li>Two struct types are equal if they have the same number of fields in the
++	  same order, corresponding fields either have both the same name or
++	  are both anonymous, and corresponding field types are identical.
+ 
+-<h3>Pointer types</h3>
++	<li>Two pointer types are equal if they have equal base types.
+ 
+-A pointer type denotes the set of all pointers to variables of a given
+-type, called the ``base type'' of the pointer, and the value "nil".
++	<li>Two function types are equal if they have the same number of parameters
++	  and result values and if corresponding parameter and result types are
++	  equal (a "..." parameter is equal to another "..." parameter).
++	  Note that parameter and result names do not have to match.
+ 
+-<pre class="grammar">
+-PointerType = "*" BaseType .
+-BaseType = Type .
+-</pre>
++	<li>Two slice types are equal if they have equal element types.
+ 
+-<pre>
+-*int
+-map[string] chan
+-</pre>
++	<li>Two channel types are equal if they have equal value types and
++	  the same direction.
+ 
+-The pointer base type may be denoted by an identifier referring to an
+-incomplete type (§Types), possibly declared via a forward declaration.
+-This allows the construction of recursive and mutually recursive types
+-such as:
++	<li>Two map types are equal if they have equal key and value types.
+ 
+-<pre>
+-type S struct { s *S }
++	<li>Two interface types are equal if they have the same set of methods
++	  with the same names and equal function types. Note that the order
++	  of the methods in the respective type declarations is irrelevant.
++</ul>
++
++<p>
++Type identity is defined by these rules:
++</p>
++<p>
++Two type names denote identical types if they originate in the same
++type declaration. Two type literals specify identical types if they have the
++same literal structure and corresponding components have identical types.
++More precisely:
++</p>
++<ul>
++	<li>Two array types are identical if they have identical element types and if
++	  they have the same array length.
++
++	<li>Two struct types are identical if they have the same number of fields in
++	  the same order, corresponding fields either have both the same name or
++	  are both anonymous, and corresponding field types are identical.
++
++	<li>Two pointer types are identical if they have identical base types.
+ 
+-type S2 struct // forward declaration of S2
+-type S1 struct { s2 *S2 }
+-type S2 struct { s1 *S1 }
+-</pre>
++	<li>Two function types are identical if they have the same number of
++	  parameters and result values both with the same (or absent) names, and
++	  if corresponding parameter and result types are identical (a "..."
++	  parameter is identical to another "..." parameter with the same name).
+ 
+-Assignment compatibility: A pointer is assignment compatible to a variable
+-of pointer type, only if both types are equal.
+-<p>
+-Comparisons: A variable of pointer type can be compared against "nil" with the
+-operators "==" and "!=" (§Comparison operators). The variable is
+-"nil" only if "nil" is assigned explicitly to the variable (§Assignments), or
+-if the variable has not been modified since creation (§Program initialization
+-and execution).
+-<p>
+-Two variables of equal pointer type can be tested for equality with the
+-operators "==" and "!=" (§Comparison operators). The pointers are equal
+-if they point to the same location.
++	<li>Two slice types are identical if they have identical element types.
+ 
+-Pointer arithmetic of any kind is not permitted.
++	<li>Two channel types are identical if they have identical value types and
++	  the same direction.
+ 
++	<li>Two map types are identical if they have identical key and value types.
+ 
+-<h3>Function types</h3>
++	<li>Two interface types are identical if they have the same set of methods
++	  with the same names and identical function types. Note that the order
++	  of the methods in the respective type declarations is irrelevant.
++</ul>
+ 
+-A function type denotes the set of all functions with the same parameter
+-and result types, and the value "nil".
++Note that the type denoted by a type name is identical only to the type literal
++in the type name's declaration.
++<p>
++Finally, two types are different if they are not structurally equal.
++(By definition, they cannot be identical, either).
+ 
+-<pre class="grammar">
+-FunctionType = "func" Signature .
+-Signature = "(" [ ParameterList ] ")" [ Result ] .
+-ParameterList = ParameterDecl { "," ParameterDecl } .
+-ParameterDecl = [ IdentifierList ] ( Type | "..." ) .
+-Result = Type | "(" ParameterList ")" .
++For instance, given the declarations
++
++<pre>
++type (
++	T0 []string;
++	T1 []string
++	T2 struct { a, b int };
++	T3 struct { a, c int };
++	T4 func (int, float) *T0
++	T5 func (x int, y float) *[]string
++)
+ </pre>
+ 
+-In ParameterList, the parameter names (IdentifierList) either must all be
+-present, or all be absent. If the parameters are named, each name stands
+-for one parameter of the specified type. If the parameters are unnamed, each
+-type stands for one parameter of that type.
+-<p>
+-For the last incoming parameter only, instead of a parameter type one
+-may write "...". The ellipsis indicates that the last parameter stands
+-for an arbitrary number of additional arguments of any type (including
+-no additional arguments). If the parameters are named, the identifier
+-list immediately preceding "..." must contain only one identifier (the
+-name of the last parameter).
++these are some types that are equal
+ 
+ <pre>
+-func ()
+-func (x int)
+-func () int
+-func (string, float, ...)
+-func (a, b int, z float) bool
+-func (a, b int, z float) (bool)
+-func (a, b int, z float, opt ...) (success bool)
+-func (int, int, float) (float, *[]int)
++T0 and T0
++T0 and []string
++T2 and T3
++T4 and T5
++T3 and struct { a int; int }
+ </pre>
+ 
+-If the result type of a function is itself a function type, the result type
+-must be parenthesized to resolve a parsing ambiguity:
++and these are some types that are identical
+ 
+ <pre>
+-func (n int) (func (p* T))
++T0 and T0
++[]int and []int
++struct { a, b *T5 } and struct { a, b *T5 }
+ </pre>
+ 
+-Assignment compatibility: A function can be assigned to a function
+-variable only if both function types are equal.
+-<p>
+-Comparisons: A variable of function type can be compared against "nil" with the
+-operators "==" and "!=" (§Comparison operators). The variable is
+-"nil" only if "nil" is assigned explicitly to the variable (§Assignments), or
+-if the variable has not been modified since creation (§Program initialization
+-and execution).
+-<p>
+-Two variables of equal function type can be tested for equality with the
+-operators "==" and "!=" (§Comparison operators). The variables are equal
+-if they refer to the same function.
++As an example, "T0" and "T1" are equal but not identical because they have
++different declarations.
+ 
++<hr/>
+ 
+-<h3>Interface types</h3>
+ 
+-Type interfaces may be specified explicitly by interface types.
+-An interface type denotes the set of all types that implement at least
+-the set of methods specified by the interface type, and the value "nil".
++<h2>Declarations and Scope</h2>
++
++<p>
++A declaration binds an identifier to a language entity such as
++a variable or function and specifies properties such as its type.
++Every identifier in a program must be declared.
++</p>
+ 
+ <pre class="grammar">
+-InterfaceType = "interface" [ "{" [ MethodSpecList ] "}" ] .
+-MethodSpecList = MethodSpec { ";" MethodSpec } [ ";" ] .
+-MethodSpec = IdentifierList Signature | TypeName .
++Declaration = ConstDecl | TypeDecl | VarDecl | FunctionDecl | MethodDecl .
+ </pre>
++		
++<p>
++The <i>scope</i> of an identifier is the extent of source text within which the
++identifier denotes the bound entity. No identifier may be declared twice in a
++single scope, but inner blocks can declare a new entity with the same
++identifier, in which case the scope created by the outer declaration excludes
++that created by the inner.
++</p>
++<p>
++There are levels of scoping in effect before each source file is compiled.
++In order from outermost to innermost:
++</p>
++<ol>
++	<li>The <i>universe</i> scope contains all predeclared identifiers.</li>
++	<li>An implicit scope contains only the package name.</li>
++	<li>The <i>package-level</i> scope surrounds all declarations at the
++	    top level of the file, that is, outside the body of any
++	    function or method.  That scope is shared across all
++	    source files within the package (§Packages), allowing
++	    package-level identifiers to be shared between source
++	    files.</li>
++</ol>
+ 
+-<pre>
+-// An interface specifying a basic File type.
+-interface {
+-	Read, Write	(b Buffer) bool;
+-	Close		();
+-}
+-</pre>
++<p>
++The scope of an identifier depends on the entity declared:
++</p>
+ 
+-Any type (including interface types) whose interface has, possibly as a
+-subset, the complete set of methods of an interface I is said to implement
+-interface I. For instance, if two types S1 and S2 have the methods
++<ol>
++	<li> The scope of predeclared identifiers is the universe scope.</li>
+ 
+-<pre>
+-func (p T) Read(b Buffer) bool { return ... }
+-func (p T) Write(b Buffer) bool { return ... }
+-func (p T) Close() { ... }
+-</pre>
++	<li> The scope of an (identifier denoting a) type, function or package
++	     extends from the point of the identifier in the declaration
++	     to the end of the innermost surrounding block.</li>
+ 
+-(where T stands for either S1 or S2) then the File interface is
+-implemented by both S1 and S2, regardless of what other methods
+-S1 and S2 may have or share.
++	<li> The scope of a constant or variable extends textually from
++	     the end of the declaration to the end of the innermost
++	     surrounding block. If the variable is declared in the
++	     <i>init</i> statement of an <code>if </code>,  <code>for</code>,
++	     or  <code>switch </code> statement, the
++	     innermost surrounding block is the block associated
++	     with that statement.</li>
+ 
+-All types implement the empty interface:
++	<li> The scope of a parameter or result is the body of the
++	     corresponding function.</li>
+ 
+-<pre>
+-interface {}
+-</pre>
++	<li> The scope of a field or method is selectors for the
++	     corresponding type containing the field or method (§Selectors).</li>
+ 
+-In general, a type implements an arbitrary number of interfaces.
+-For instance, consider the interface
++	<li> The scope of a label is a unique scope emcompassing
++	     the body of the innermost surrounding function, excluding
++	     nested functions.  Labels do not conflict with variables.</li>
++</ol>
+ 
+-<pre>
+-type Lock interface {
+-	Lock, Unlock	();
+-}
+-</pre>
++<h3>Predeclared identifiers</h3>
+ 
+-If S1 and S2 also implement
++<p>
++The following identifiers are implicitly declared in the outermost scope:
++</p>
++<pre class="grammar">
++Basic types:
++	bool byte float32 float64 int8 int16 int32 int64 string uint8 uint16 uint32 uint64
+ 
+-<pre>
+-func (p T) Lock() { ... }
+-func (p T) Unlock() { ... }
+-</pre>
++Platform-specific convenience types:
++	float int uint uintptr
+ 
+-they implement the Lock interface as well as the File interface.
+-<p>
+-An interface may contain a type name T in place of a method specification.
+-T must denote another, complete (and not forward-declared) interface type.
+-Using this notation is equivalent to enumerating the methods of T explicitly
+-in the interface containing T.
++Constants:
++	true false iota nil
+ 
+-<pre>
+-type ReadWrite interface {
+-	Read, Write	(b Buffer) bool;
+-}
++Functions:
++	cap convert len make new panic panicln print println typeof (TODO: typeof??)
+ 
+-type File interface {
+-	ReadWrite;  // same as enumerating the methods in ReadWrite
+-	Lock;       // same as enumerating the methods in Lock
+-	Close();
+-}
++Packages:
++	sys unsafe  (TODO: does sys endure?)
+ </pre>
+ 
+-Forward declaration:
+-A interface type consisting of only the reserved word "interface" may be used in
+-a type declaration; it declares an incomplete interface type (§Type declarations).
+-This allows the construction of mutually recursive types such as:
+ 
+-<pre>
+-type T2 interface
+-type T1 interface {
+-	foo(T2) int;
+-}
+-type T2 interface {
+-	bar(T1) int;
+-}
+-</pre>
++<h3>Exported identifiers</h3>
+ 
+-Assignment compatibility: A value can be assigned to an interface variable
+-if the static type of the value implements the interface or if the value is "nil".
+ <p>
+-Comparisons: A variable of interface type can be compared against "nil" with the
+-operators "==" and "!=" (§Comparison operators). The variable is
+-"nil" only if "nil" is assigned explicitly to the variable (§Assignments), or
+-if the variable has not been modified since creation (§Program initialization
+-and execution).
++By default, identifiers are visible only within the package in which they are declared.
++Some identifiers are <i>exported</i> and can be referenced using
++<i>qualified identifiers</i> in other packages (§Qualified identifiers).
++If an identifier satisfies these two conditions:
++</p>
++<ol>
++<li>the first character of the identifier's name is a Unicode upper case letter;
++<li>the identifier is declared at the package level or is a field or method of a type
++declared at the top level;
++</ol>
+ <p>
+-Two variables of interface type can be tested for equality with the
+-operators "==" and "!=" (§Comparison operators) if both variables have the
+-same static type. They are equal if both their dynamic types and values are
+-equal. If the dynamic types are equal but the values do not support comparison,
+-a run-time error occurs.
+-
++it will be exported automatically.
++</p>
+ 
+-<h3>Slice types</h3>
++<h3>Const declarations</h3>
+ 
+-A slice type denotes the set of all slices (segments) of arrays
+-(§Array types) of a given element type, and the value "nil".
+-The number of elements of a slice is called its length; it is never negative.
+-The elements of a slice are designated by indices which are
+-integers from 0 through the length - 1.
++<p>
++A constant declaration binds a list of identifiers (the names of
++the constants) to the values of a list of constant expressions
++(§Constant expressions).  The number of identifiers must be equal
++to the number of expressions, and the n<sup>th</sup> identifier on
++the left is bound to value of the n<sup>th</sup> expression on the
++right.
++</p>
+ 
+ <pre class="grammar">
+-SliceType = "[" "]" ElementType .
+-</pre>
++ConstDecl      = "const" ( ConstSpec | "(" [ ConstSpecList ] ")" ) .
++ConstSpecList  = ConstSpec { ";" ConstSpec } [ ";" ] .
++ConstSpec      = IdentifierList [ CompleteType ] [ "=" ExpressionList ] .
+ 
+-Syntactically and semantically, arrays and slices look and behave very
+-similarly, but with one important difference: A slice is a descriptor
+-of an array segment; in particular, different variables of a slice type may
+-refer to different (and possibly overlapping) segments of the same underlying
+-array. Thus, with respect to the underlying array, slices behave like
+-references. In contrast, two different variables of array type always
+-denote two different arrays.
+-<p>
+-For slices, the actual array underlying the slice may extend past the current
+-slice length; the maximum length a slice may assume is called its capacity.
+-The capacity of any slice "a" can be discovered using the built-in function
++IdentifierList = identifier { "," identifier } .
++ExpressionList = Expression { "," Expression } .
+ 
+-<pre>
+-cap(a)
++CompleteType = Type .
+ </pre>
+ 
+-and the following relationship between "len()" and "cap()" holds:
++<p>
++If the type (CompleteType) is omitted, the constants take the
++individual types of the corresponding expressions, which may be
++``ideal integer'' or ``ideal float'' (§Ideal number).  If the type
++is present, all constants take the type specified, and the types
++of all the expressions must be assignment-compatible
++with that type.
++</p>
+ 
+ <pre>
+-0 <= len(a) <= cap(a)
++const Pi float64 = 3.14159265358979323846
++const E = 2.718281828
++const (
++	size int64 = 1024;
++	eof = -1;
++)
++const a, b, c = 3, 4, "foo"  // a = 3, b = 4, c = "foo"
++const u, v float = 0, 3      // u = 0.0, v = 3.0
+ </pre>
+ 
+-The value of an uninitialized slice is "nil", and its length and capacity
+-are 0. A new, initialized slice value for a given element type T is
+-made using the built-in function "make", which takes a slice type
+-and parameters specifying the length and optionally the capacity:
+-
+-<pre>
+-make([]T, length)
+-make([]T, length, capacity)
+-</pre>
+-	
+-The "make()" call allocates a new underlying array to which the returned
+-slice value refers. More precisely, calling "make"
++<p>
++Within a parenthesized <code>const</code> declaration list the
++expression list may be omitted from any but the first declaration.
++Such an empty list is equivalent to the textual substitution of the
++first preceding non-empty expression list.  Omitting the list of
++expressions is therefore equivalent to repeating the previous list.
++The number of identifiers must be equal to the number of expressions
++in the previous list.  Together with the <code>iota</code> constant generator
++(§Iota) this mechanism permits light-weight declaration of sequential values:
++</p>
+ 
+ <pre>
+-make([]T, length, capacity)
++const (
++	Sunday = iota;
++	Monday;
++	Tuesday;
++	Wednesday;
++	Thursday;
++	Friday;
++	Partyday;
++	numberOfDays;  // this constant is not exported
++)
+ </pre>
+ 
+-is effectively the same as allocating an array and slicing it
+ 
+-<pre>
+-new([capacity]T)[0 : length]
+-</pre>
++<h3>Iota</h3>
+ 
+-Assignment compatibility: Slices are assignment compatible to variables
+-of the same type.
+ <p>
+-Indexing: Given a (pointer to) a slice variable "a", a slice element is
+-specified with an index operation:
++Within a constant declaration, the predeclared pseudo-constant
++<code>iota</code> represents successive integers. It is reset to 0
++whenever the reserved word <code>const</code> appears in the source
++and increments with each semicolon. It can be used to construct a
++set of related constants:
++</p>
+ 
+ <pre>
+-a[i]
++const (            // iota is reset to 0
++	c0 = iota;  // c0 == 0
++	c1 = iota;  // c1 == 1
++	c2 = iota   // c2 == 2
++)
++
++const (
++	a = 1 << iota;  // a == 1 (iota has been reset)
++	b = 1 << iota;  // b == 2
++	c = 1 << iota;  // c == 4
++)
++
++const (
++	u       = iota * 42;  // u == 0     (ideal integer)
++	v float = iota * 42;  // v == 42.0  (float)
++	w       = iota * 42;  // w == 84    (ideal integer)
++)
++
++const x = iota;  // x == 0 (iota has been reset)
++const y = iota;  // y == 0 (iota has been reset)
+ </pre>
+ 
+-This denotes the slice element at index "i". "i" must be within bounds,
+-that is "0 &lt;= i &lt; len(a)".
+ <p>
+-Slicing: Given a a slice variable "a", a sub-slice is created with a slice
+-operation:
++Within an ExpressionList, the value of each <code>iota</code> is the same because
++it is only incremented at a semicolon:
++</p>
+ 
+ <pre>
+-a[i : j]
++const (
++	bit0, mask0 = 1 << iota, 1 << iota - 1;  // bit0 == 1, mask0 == 0
++	bit1, mask1;                             // bit1 == 2, mask1 == 1
++	bit2, mask2;                             // bit2 == 4, mask2 == 3
++)
+ </pre>
+ 
+-This creates the sub-slice consisting of the elements "a[i]" through "a[j - 1]"
+-(that is, excluding "a[j]"). The values "i" and "j" must satisfy the condition
+-"0 &lt;= i &lt;= j &lt;= cap(a)". The length of the new slice is "j - i". The capacity of
+-the slice is "cap(a) - i"; thus if "i" is 0, the slice capacity does not change
+-as a result of a slice operation. The type of a sub-slice is the same as the
+-type of the slice. Unlike the capacity, the length of a sub-slice may be larger
+-than the length of the original slice.
+ <p>
+-Comparisons: A variable of slice type can be compared against "nil" with the
+-operators "==" and "!=" (§Comparison operators). The variable is
+-"nil" only if "nil" is assigned explicitly to the variable (§Assignments), or
+-if the variable has not been modified since creation (§Program initialization
+-and execution).
++This last example exploits the implicit repetition of the
++last non-empty expression list.
++</p>
+ 
+ 
+-<h3>Map types</h3>
++<h3>Type declarations</h3>
+ 
+-A map is a composite type consisting of a variable number of entries
+-called (key, value) pairs. For a given map, the keys and values must
+-each be of a specific complete type (§Types) called the key and value type,
+-respectively. The number of entries in a map is called its length; it is never
+-negative.
++<p>
++A type declaration binds an identifier, the <i>type name</i>,
++to a new type.  <font color=red>TODO: what exactly is a "new type"?</font>
++</p>
+ 
+ <pre class="grammar">
+-MapType = "map" "[" KeyType "]" ValueType .
+-KeyType = CompleteType .
+-ValueType = CompleteType .
++TypeDecl     = "type" ( TypeSpec | "(" [ TypeSpecList ] ")" ) .
++TypeSpecList = TypeSpec { ";" TypeSpec } [ ";" ] .
++TypeSpec     = identifier Type .
+ </pre>
+ 
+-The comparison operators "==" and "!=" (§Comparison operators) must be defined
+-for operands of the key type; thus the key type must be a basic, pointer,
+-interface, or channel type. If the key type is an interface type,
+-the dynamic key types must support these comparison operators. In this case,
+-inserting a map value with a key that does not support testing for equality
+-is a run-time error.
+-<p>
+-Upon creation, a map is empty and values may be added and removed
+-during execution.
+-
+ <pre>
+-map [string] int
+-map [*T] struct { x, y float }
+-map [string] interface {}
+-</pre>
++type IntArray [16] int
+ 
+-The length of a map "m" can be discovered using the built-in function
++type (
++	Point struct { x, y float };
++	Polar Point
++)
+ 
+-<pre>
+-len(m)
++type TreeNode struct {
++	left, right *TreeNode;
++	value Point;
++}
++
++type Comparable interface {
++	cmp(Comparable) int
++}
+ </pre>
+ 
+-The value of an uninitialized map is "nil". A new, empty map value for given
+-map type M is made using the built-in function "make" which takes the map type
+-and an optional capacity as arguments:
++<h3>Variable declarations</h3>
++
++<p>
++A variable declaration creates a variable, binds an identifier to it and
++gives it a type and optionally an initial value.
++The variable type must be a complete type (§Types).
++</p>
++<pre class="grammar">
++VarDecl     = "var" ( VarSpec | "(" [ VarSpecList ] ")" ) .
++VarSpecList = VarSpec { ";" VarSpec } [ ";" ] .
++VarSpec     = IdentifierList ( CompleteType [ "=" ExpressionList ] | "=" ExpressionList ) .
++</pre>
+ 
+ <pre>
+-my_map := make(M, 100);
++var i int
++var U, V, W float
++var k = 0
++var x, y float = -1.0, -2.0
++var (
++	i int;
++	u, v, s = 2.0, 3.0, "bar"
++)
+ </pre>
+ 
+-The map capacity is an allocation hint for more efficient incremental growth
+-of the map.
+ <p>
+-Assignment compatibility: A map type is assignment compatible to a variable of
+-map type only if both types are equal.
++If there are expressions, their number must be equal
++to the number of identifiers, and the n<sup>th</sup> variable
++is initialized to the value of the n<sup>th</sup> expression.
++Otherwise, each variable is initialized to the <i>zero</i>
++of the type (§Program initialization and execution).
++The expressions can be general expressions; they need not be constants.
++</p>
+ <p>
+-Comparisons: A variable of map type can be compared against "nil" with the
+-operators "==" and "!=" (§Comparison operators). The variable is
+-"nil" only if "nil" is assigned explicitly to the variable (§Assignments), or
+-if the variable has not been modified since creation (§Program initialization
+-and execution).
++Either the type or the expression list must be present.  If the
++type is present, it sets the type of each variable and the expressions
++(if any) must be assignment-compatible to that type.  If the type
++is absent, the variables take the types of the corresponding
++expressions.
++</p>
++<p>
++If the type is absent and the corresponding expression is a constant
++expression of ideal integer or ideal float type, the type of the
++declared variable is <code>int</code> or <code>float</code>
++respectively:
++</p>
+ 
++<pre>
++var i = 0       // i has type int
++var f = 3.1415  // f has type float
++</pre>
+ 
+-<h3>Channel types</h3>
++<h3>Short variable declarations</h3>
+ 
+-A channel provides a mechanism for two concurrently executing functions
+-to synchronize execution and exchange values of a specified type. This
+-type must be a complete type (§Types). <font color=red>(TODO could it be incomplete?)</font>
++A <i>short variable declaration</i> uses the syntax
+ 
+ <pre class="grammar">
+-ChannelType = Channel | SendChannel | RecvChannel .
+-Channel = "chan" ValueType .
+-SendChannel = "chan" "&lt;-" ValueType .
+-RecvChannel = "&lt;-" "chan" ValueType .
++SimpleVarDecl = IdentifierList ":=" ExpressionList .
+ </pre>
+ 
+-Upon creation, a channel can be used both to send and to receive.
+-By conversion or assignment, a channel may be constrained only to send or
+-to receive. This constraint is called a channel's ``direction''; either
+-bi-directional (unconstrained), send, or receive.
++and is shorthand for the declaration syntax
+ 
+-<pre>
+-chan T         // can send and receive values of type T
+-chan &lt;- float  // can only be used to send floats
+-&lt;-chan int     // can only receive ints
++<pre class="grammar">
++"var" IdentifierList = ExpressionList .
+ </pre>
+ 
+-The value of an uninitialized channel is "nil". A new, initialized channel
+-value for a given element type T is made using the built-in function "make",
+-which takes the channel type and an optional capacity as arguments:
+-
+ <pre>
+-my_chan = make(chan int, 100);
++i, j := 0, 10;
++f := func() int { return 7; }
++ch := new(chan int);
+ </pre>
+ 
+-The capacity sets the size of the buffer in the communication channel. If the
+-capacity is greater than zero, the channel is asynchronous and, provided the
+-buffer is not full, sends can succeed without blocking. If the capacity is zero,
+-the communication succeeds only when both a sender and receiver are ready.
+-<p>
+-Assignment compatibility: A value of type channel can be assigned to a variable
+-of type channel only if a) both types are equal (§Type equality), or b) both
+-have equal channel value types and the value is a bidirectional channel.
+-<p>
+-Comparisons: A variable of channel type can be compared against "nil" with the
+-operators "==" and "!=" (§Comparison operators). The variable is
+-"nil" only if "nil" is assigned explicitly to the variable (§Assignments), or
+-if the variable has not been modified since creation (§Program initialization
+-and execution).
+ <p>
+-Two variables of channel type can be tested for equality with the
+-operators "==" and "!=" (§Comparison operators) if both variables have
+-the same ValueType. They are equal if both values were created by the same
+-"make" call (§Making slices, maps, and channels).
+-
++Unlike regular variable declarations, short variable declarations
++can be used, by analogy with tuple assignment (§Assignments), to
++receive the individual elements of a multi-valued expression such
++as a call to a multi-valued function.  In this form, the ExpressionLIst
++must be a single such multi-valued expression, the number of
++identifiers must equal the number of values, and the declared
++variables will be assigned the corresponding values.
++</p>
+ 
+-<h3>Type equality</h3>
++<pre>
++count, error := os.Close(fd);  // os.Close()  returns two values
++</pre>
+ 
+ <p>
+-Types may be ``different'', ``structurally equal'', or ``identical''.
+-Go is a type-safe language; generally different types cannot be mixed
+-in binary operations, and values cannot be assigned to variables of different
+-types. However, values may be assigned to variables of structurally
+-equal types. Finally, type guards succeed only if the dynamic type
+-is identical to or implements the type tested against (§Type guards).
+-<p>
+-Structural type equality (equality for short) is defined by these rules:
+-<p>
+-Two type names denote equal types if the types in the corresponding declarations
+-are equal. Two type literals specify equal types if they have the same
+-literal structure and corresponding components have equal types. Loosely
+-speaking, two types are equal if their values have the same layout in memory.
+-More precisely:
++Short variable declarations may appear only inside functions.
++In some contexts such as the initializers for <code>if</code>,
++<code>for</code>, or <code>switch</code> statements,
++they can be used to declare local temporary variables (§Statements).
+ </p>
+-<ul>
+-	<li>Two array types are equal if they have equal element types and if they
+-	  have the same array length.
+ 
+-	<li>Two struct types are equal if they have the same number of fields in the
+-	  same order, corresponding fields either have both the same name or
+-	  are both anonymous, and corresponding field types are identical.
+-
+-	<li>Two pointer types are equal if they have equal base types.
++<h3>Function declarations</h3>
+ 
+-	<li>Two function types are equal if they have the same number of parameters
+-	  and result values and if corresponding parameter and result types are
+-	  equal (a "..." parameter is equal to another "..." parameter).
+-	  Note that parameter and result names do not have to match.
++<p>
++A function declaration binds an identifier to a function (§Function types).
++</p>
+ 
+-	<li>Two slice types are equal if they have equal element types.
++<pre class="grammar">
++FunctionDecl = "func" identifier Signature [ Block ] .
++</pre>
+ 
+-	<li>Two channel types are equal if they have equal value types and
+-	  the same direction.
++<pre>
++func min(x int, y int) int {
++	if x &lt; y {
++		return x;
++	}
++	return y;
++}
++</pre>
+ 
+-	<li>Two map types are equal if they have equal key and value types.
++<p>
++A function must be declared or forward-declared before it can be invoked (§Forward declarations).
++Implementation restriction: Functions can only be declared at the package level.
++</p>
+ 
+-	<li>Two interface types are equal if they have the same set of methods
+-	  with the same names and equal function types. Note that the order
+-	  of the methods in the respective type declarations is irrelevant.
+-</ul>
++<h3>Method declarations</h3>
+ 
+ <p>
+-Type identity is defined by these rules:
++A method declaration binds an identifier to a method,
++which is a function with a <i>receiver</i>.
+ </p>
++<pre class="grammar">
++MethodDecl = "func" Receiver identifier Signature [ Block ] .
++Receiver = "(" [ identifier ] [ "*" ] TypeName ")" .
++</pre>
++
+ <p>
+-Two type names denote identical types if they originate in the same
+-type declaration. Two type literals specify identical types if they have the
+-same literal structure and corresponding components have identical types.
+-More precisely:
++The receiver type must be a type name or a pointer to a type name,
++and that name is called the <i>receiver base type</i> or just <i>base type</i>.
++The base type must not be a pointer type and must be
++declared in the same source file as the method.
++The method is said to be <i>bound</i> to the base type
++and is visible only within selectors for that type
++(§Type declarations, §Selectors).
+ </p>
+-<ul>
+-	<li>Two array types are identical if they have identical element types and if
+-	  they have the same array length.
+-
+-	<li>Two struct types are identical if they have the same number of fields in
+-	  the same order, corresponding fields either have both the same name or
+-	  are both anonymous, and corresponding field types are identical.
+-
+-	<li>Two pointer types are identical if they have identical base types.
+-
+-	<li>Two function types are identical if they have the same number of
+-	  parameters and result values both with the same (or absent) names, and
+-	  if corresponding parameter and result types are identical (a "..."
+-	  parameter is identical to another "..." parameter with the same name).
+ 
+-	<li>Two slice types are identical if they have identical element types.
++<p>
++All methods bound to a base type must have the same receiver type,
++either all pointers to the base type or all the base type itself.
++Given type <code>Point</code>, the declarations
++</p>
+ 
+-	<li>Two channel types are identical if they have identical value types and
+-	  the same direction.
++<pre>
++func (p *Point) Length() float {
++	return Math.sqrt(p.x * p.x + p.y * p.y);
++}
+ 
+-	<li>Two map types are identical if they have identical key and value types.
++func (p *Point) Scale(factor float) {
++	p.x = p.x * factor;
++	p.y = p.y * factor;
++}
++</pre>
+ 
+-	<li>Two interface types are identical if they have the same set of methods
+-	  with the same names and identical function types. Note that the order
+-	  of the methods in the respective type declarations is irrelevant.
+-</ul>
++<p>
++bind the methods <code>Length</code> and <code>Scale</code>
++to the base type <code>Point</code>.
++</p>
+ 
+-Note that the type denoted by a type name is identical only to the type literal
+-in the type name's declaration.
+ <p>
+-Finally, two types are different if they are not structurally equal.
+-(By definition, they cannot be identical, either).
++If the
++receiver's value is not referenced inside the the body of the method,
++its identifier may be omitted in the declaration. The same applies in
++general to parameters of functions and methods.
++</p>
+ 
+-For instance, given the declarations
++<p>
++Methods can be declared
++only after their base type is declared or forward-declared, and invoked
++only after their own declaration or forward-declaration (§Forward declarations).
++Implementation restriction: They can only be declared at package level.
++</p>
+ 
+-<pre>
+-type (
+-	T0 []string;
+-	T1 []string
+-	T2 struct { a, b int };
+-	T3 struct { a, c int };
+-	T4 func (int, float) *T0
+-	T5 func (x int, y float) *[]string
+-)
+-</pre>
++<h3>Forward declarations</h3>
+ 
+-these are some types that are equal
++<p>
++Mutually-recursive types struct or interface types require that one be
++<i>forward declared</i> so that it may be named in the other.
++A forward declaration of a type omits the block containing the fields
++or methods of the type.
++</p>
+ 
+ <pre>
+-T0 and T0
+-T0 and []string
+-T2 and T3
+-T4 and T5
+-T3 and struct { a int; int }
++type List struct  // forward declaration of List
++type Item struct {
++	value int;
++	next *List;
++}
++type List struct {
++	head, tail *Item
++}
+ </pre>
+-
+-and these are some types that are identical
+-
++<p>
++A forward-declared type is incomplete (§Types)
++until it is fully declared. The full declaration must follow
++before the end of the block containing the forward declaration.
++</p>
++<p>
++Functions and methods may similarly be forward-declared by omitting their body.
++</p>
+ <pre>
+-T0 and T0
+-[]int and []int
+-struct { a, b *T5 } and struct { a, b *T5 }
++func F(a int) int  // forward declaration of F
++func G(a, b int) int {
++	return F(a) + F(b)
++}
++func F(a int) int {
++	if a <= 0 { return 0 }
++	return G(a-1, b+1)
++}
+ </pre>
+ 
+-As an example, "T0" and "T1" are equal but not identical because they have
+-different declarations.
+-
+ <hr/>
+ 
+ <h2>Expressions</h2>

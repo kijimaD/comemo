@@ -9,7 +9,56 @@ Date:   Tue Apr 1 20:24:53 2014 -0400
     TBR=khr
     CC=golang-codereviews
     https://golang.org/cl/83070046
-
+---
  src/cmd/5g/ggen.c | 12 ++++++------
  src/cmd/8g/ggen.c | 12 ++++++------
  2 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index c85f680cda..b5173a2137 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -472,13 +472,13 @@ cgen_ret(Node *n)
+ {
+ 	Prog *p;
+ 
+-	genlist(n->list);		// copy out args
+-	if(hasdefer || curfn->exit) {
+-		gjmp(retpc);
+-		return;
+-	}
++	if(n != N)
++		genlist(n->list);		// copy out args
++	if(hasdefer)
++		ginscall(deferreturn, 0);
++	genlist(curfn->exit);
+ 	p = gins(ARET, N, N);
+-	if(n->op == ORETJMP) {
++	if(n != N && n->op == ORETJMP) {
+ 		p->to.name = D_EXTERN;
+ 		p->to.type = D_CONST;
+ 		p->to.sym = linksym(n->left->sym);
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 2ece188128..8388e64bd5 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -462,13 +462,13 @@ cgen_ret(Node *n)
+ {
+ 	Prog *p;
+ 
+-	genlist(n->list);		// copy out args
+-	if(retpc) {
+-		gjmp(retpc);
+-		return;
+-	}
++	if(n != N)
++		genlist(n->list);		// copy out args
++	if(hasdefer)
++		ginscall(deferreturn, 0);
++	genlist(curfn->exit);
+ 	p = gins(ARET, N, N);
+-	if(n->op == ORETJMP) {
++	if(n != N && n->op == ORETJMP) {
+ 		p->to.type = D_EXTERN;
+ 		p->to.sym = linksym(n->left->sym);
+ 	}

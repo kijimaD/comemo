@@ -17,6 +17,17 @@ Date:   Wed Nov 16 00:02:14 2022 -0500
     Auto-Submit: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  test/noinit.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/test/noinit.go b/test/noinit.go
+index 8bcda1a5ce..ed8e572e51 100644
+--- a/test/noinit.go
++++ b/test/noinit.go
+@@ -1,4 +1,5 @@
+ // run
++//go:build !gcflags_noopt
+ 
+ // Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

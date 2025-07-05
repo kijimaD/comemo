@@ -7,6 +7,20 @@ Date:   Fri Apr 15 00:01:29 2011 -0400
     R=iant, r2
     CC=golang-dev
     https://golang.org/cl/4427042
-
+---
  src/pkg/os/file_posix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/file_posix.go b/src/pkg/os/file_posix.go
+index 5151df4987..7d96818b7f 100644
+--- a/src/pkg/os/file_posix.go
++++ b/src/pkg/os/file_posix.go
+@@ -14,7 +14,7 @@ func epipecheck(file *File, e int) {
+ 	if e == syscall.EPIPE {
+ 		file.nepipe++
+ 		if file.nepipe >= 10 {
+-			Exit(syscall.EPIPE)
++			panic("os.File Write: caller keeps writing after too many EPIPE errors")
+ 		}
+ 	} else {
+ 		file.nepipe = 0

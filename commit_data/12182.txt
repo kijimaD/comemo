@@ -7,7 +7,7 @@ Date:   Fri Feb 24 11:48:19 2012 +1100
     R=golang-dev, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/5700056
-
+---
  test/named1.go      |  1 +
  test/shift1.go      |  2 ++
  test/shift2.go      |  2 ++
@@ -35,3 +35,482 @@ Date:   Fri Feb 24 11:48:19 2012 +1100
  test/varerr.go      |  3 ++
  test/varinit.go     |  2 ++
  26 files changed, 67 insertions(+), 120 deletions(-)
+
+diff --git a/test/named1.go b/test/named1.go
+index 5ff6930f7d..62b874c5cb 100644
+--- a/test/named1.go
++++ b/test/named1.go
+@@ -6,6 +6,7 @@
+ 
+ // Test that basic operations on named types are valid
+ // and preserve the type.
++// Does not compile.
+ 
+ package main
+ 
+diff --git a/test/shift1.go b/test/shift1.go
+index 393e79ee22..b33d22ff8e 100644
+--- a/test/shift1.go
++++ b/test/shift1.go
+@@ -4,7 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test illegal shifts.
+ // Issue 1708, illegal cases.
++// Does not compile.
+ 
+ package p
+ 
+diff --git a/test/shift2.go b/test/shift2.go
+index cf0a45fdbf..88ef3c40f5 100644
+--- a/test/shift2.go
++++ b/test/shift2.go
+@@ -4,7 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test legal shifts.
+ // Issue 1708, legal cases.
++// Compiles but does not run.
+ 
+ package p
+ 
+diff --git a/test/sieve.go b/test/sieve.go
+index 31c4ed5c05..0cd120c548 100644
+--- a/test/sieve.go
++++ b/test/sieve.go
+@@ -1,11 +1,12 @@
+ // build
+ 
+-// don't run it - goes forever
+-
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test basic concurrency: the classic prime sieve.
++// Do not run - loops forever.
++
+ package main
+ 
+ // Send the sequence 2, 3, 4, ... to channel 'ch'.
+diff --git a/test/sigchld.go b/test/sigchld.go
+index e7c3d5abb4..25625a6f41 100644
+--- a/test/sigchld.go
++++ b/test/sigchld.go
+@@ -5,6 +5,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test that a program can survive SIGCHLD.
++
+ package main
+ 
+ import "syscall"
+diff --git a/test/simassign.go b/test/simassign.go
+index 349895152c..6ba5c783e9 100644
+--- a/test/simassign.go
++++ b/test/simassign.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test simultaneous assignment.
++
+ package main
+ 
+ var a, b, c, d, e, f, g, h, i int
+diff --git a/test/sinit.go b/test/sinit.go
+index 5cd3a4567b..1bc2810376 100644
+--- a/test/sinit.go
++++ b/test/sinit.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test that many initializations can be done at link time and
++// generate no executable init functions.
++
+ package p
+ 
+ // Should be no init func in the assembly.
+diff --git a/test/sizeof.go b/test/sizeof.go
+index 292f73ae4d..a6abdd5c65 100644
+--- a/test/sizeof.go
++++ b/test/sizeof.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test unsafe.Sizeof, unsafe.Alignof, and unsafe.Offsetof all return uintptr.
++
+ package main
+ 
+ import "unsafe"
+diff --git a/test/solitaire.go b/test/solitaire.go
+index 99c194f5bb..ac54cec0ac 100644
+--- a/test/solitaire.go
++++ b/test/solitaire.go
+@@ -1,11 +1,13 @@
+ // build
+ 
+-// don't run it - produces too much output
+-
+ // Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test general operation by solving a peg solitaire game.
++// A version of this is in the Go playground.
++// Don't run it - produces too much output.
++
+ // This program solves the (English) peg solitaire board game.
+ // See also: http://en.wikipedia.org/wiki/Peg_solitaire
+ 
+diff --git a/test/stack.go b/test/stack.go
+index 2a7ce21f33..b62febd48d 100644
+--- a/test/stack.go
++++ b/test/stack.go
+@@ -4,6 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test stack splitting code.
+ // Try to tickle stack splitting bugs by doing
+ // go, defer, and closure calls at different stack depths.
+ 
+diff --git a/test/string_lit.go b/test/string_lit.go
+index 7f1ca35bc9..956330038e 100644
+--- a/test/string_lit.go
++++ b/test/string_lit.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test string literal syntax.
++
+ package main
+ 
+ import "os"
+diff --git a/test/stringrange.go b/test/stringrange.go
+index a1534c49cb..daaba91c69 100644
+--- a/test/stringrange.go
++++ b/test/stringrange.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test range over strings.
++
+ package main
+ 
+ import (
+diff --git a/test/struct0.go b/test/struct0.go
+index 490d389739..e29eb30f54 100644
+--- a/test/struct0.go
++++ b/test/struct0.go
+@@ -4,9 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// zero length structs.
+-// used to not be evaluated.
+-// issue 2232.
++// Test zero length structs.
++// Used to not be evaluated.
++// Issue 2232.
+ 
+ package main
+ 
+diff --git a/test/switch.go b/test/switch.go
+index 68bd117f0b..09bf4341a0 100644
+--- a/test/switch.go
++++ b/test/switch.go
+@@ -4,8 +4,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test switch statements.
++
+ package main
+ 
++import "os"
++
+ func assert(cond bool, msg string) {
+ 	if !cond {
+ 		print("assertion fail: ", msg, "\n")
+@@ -279,4 +283,13 @@ func main() {
+ 		assert(false, "m should not be nil")
+ 	default:
+ 	}
++
++	i := 0
++	switch x := 5; {
++		case i < x:
++			os.Exit(0)
++		case i == x:
++		case i > x:
++			os.Exit(1)
++	}
+ }
+diff --git a/test/switch1.go b/test/switch1.go
+deleted file mode 100644
+index 484a5c3afa..0000000000
+--- a/test/switch1.go
++++ /dev/null
+@@ -1,20 +0,0 @@
+-// run
+-
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "os"
+-
+-func main() {
+-	i := 0
+-	switch x := 5; {
+-		case i < x:
+-			os.Exit(0)
+-		case i == x:
+-		case i > x:
+-			os.Exit(1)
+-	}
+-}
+diff --git a/test/switch3.go b/test/switch3.go
+index 404b62e391..dcb6fff208 100644
+--- a/test/switch3.go
++++ b/test/switch3.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Verify that erroneous switch statements are detected by the compiler.
++// Does not compile.
++
+ package main
+ 
+ type I interface {
+diff --git a/test/test0.go b/test/test0.go
+deleted file mode 100644
+index ba88b1dbd4..0000000000
+--- a/test/test0.go
++++ /dev/null
+@@ -1,92 +0,0 @@
+-// run
+-
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-const a_const = 0
+-
+-const (
+-	pi    = /* the usual */ 3.14159265358979323
+-	e     = 2.718281828
+-	mask1 int = 1 << iota
+-	mask2 = 1 << iota
+-	mask3 = 1 << iota
+-	mask4 = 1 << iota
+-)
+-
+-type (
+-	Empty interface{}
+-	Point struct {
+-		x, y int
+-	}
+-	Point2 Point
+-)
+-
+-func (p *Point) Initialize(x, y int) *Point {
+-	p.x, p.y = x, y
+-	return p
+-}
+-
+-func (p *Point) Distance() int {
+-	return p.x*p.x + p.y*p.y
+-}
+-
+-var (
+-	x1      int
+-	x2      int
+-	u, v, w float32
+-)
+-
+-func foo() {}
+-
+-func min(x, y int) int {
+-	if x < y {
+-		return x
+-	}
+-	return y
+-}
+-
+-func swap(x, y int) (u, v int) {
+-	u = y
+-	v = x
+-	return
+-}
+-
+-func control_structs() {
+-	var p *Point = new(Point).Initialize(2, 3)
+-	i := p.Distance()
+-	var f float32 = 0.3
+-	_ = f
+-	for {
+-	}
+-	for {
+-	}
+-	for j := 0; j < i; j++ {
+-		if i == 0 {
+-		} else {
+-			i = 0
+-		}
+-		var x float32
+-		_ = x
+-	}
+-foo: // a label
+-	var j int
+-	switch y := 0; true {
+-	case i < y:
+-		fallthrough
+-	case i < j:
+-	case i == 0, i == 1, i == j:
+-		i++
+-		i++
+-		goto foo
+-	default:
+-		i = -+-+i
+-		break
+-	}
+-}
+-
+-func main() {
+-}
+diff --git a/test/turing.go b/test/turing.go
+index f5a2be2321..acbe85b646 100644
+--- a/test/turing.go
++++ b/test/turing.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test simulating a Turing machine, sort of.
++
+ package main
+ 
+ // brainfuck
+diff --git a/test/typeswitch.go b/test/typeswitch.go
+index 1f864db9f7..30a4b4975f 100644
+--- a/test/typeswitch.go
++++ b/test/typeswitch.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test simple type switches, including chans, maps etc.
++
+ package main
+ 
+ import "os"
+diff --git a/test/typeswitch1.go b/test/typeswitch1.go
+index 8b33d39bc0..a980ce4c07 100644
+--- a/test/typeswitch1.go
++++ b/test/typeswitch1.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test simple type switches on basic types.
++
+ package main
+ 
+ import "fmt"
+diff --git a/test/typeswitch2.go b/test/typeswitch2.go
+index 69088e0d4f..6c703076a6 100644
+--- a/test/typeswitch2.go
++++ b/test/typeswitch2.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Verify that various erroneous type switches are caught be the compiler.
++// Does not compile.
++
+ package main
+ 
+ import "io"
+diff --git a/test/typeswitch3.go b/test/typeswitch3.go
+index 69a2fca8b1..5475a8a6d3 100644
+--- a/test/typeswitch3.go
++++ b/test/typeswitch3.go
+@@ -4,6 +4,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Verify that erroneous type switches are caught be the compiler.
++// Issue 2700, among other things.
++// Does not compile.
++
+ package main
+ 
+ import (
+diff --git a/test/undef.go b/test/undef.go
+index 461006d2cb..0a77e59370 100644
+--- a/test/undef.go
++++ b/test/undef.go
+@@ -4,7 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Check line numbers in error messages.
++// Test line numbers in error messages.
++// Does not compile.
+ 
+ package main
+ 
+diff --git a/test/utf.go b/test/utf.go
+index 0a3a1c0d6b..3ac79447e6 100644
+--- a/test/utf.go
++++ b/test/utf.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test UTF-8 in strings and character constants.
++
+ package main
+ 
+ import "unicode/utf8"
+diff --git a/test/varerr.go b/test/varerr.go
+index 4056c16d03..22aa9324f9 100644
+--- a/test/varerr.go
++++ b/test/varerr.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Verify that a couple of illegal variable declarations are caught by the compiler.
++// Does not compile.
++
+ package main
+ 
+ func main() {
+diff --git a/test/varinit.go b/test/varinit.go
+index 5614783e04..84a4a1aa55 100644
+--- a/test/varinit.go
++++ b/test/varinit.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test var x = x + 1 works.
++
+ package main
+ 
+ func main() {

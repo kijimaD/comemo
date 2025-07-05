@@ -16,9 +16,397 @@ Date:   Thu Mar 3 14:11:17 2016 -0800
     Change-Id: I872cbfe45bc5f432595737c1f6da641c502b1ab6
     Reviewed-on: https://go-review.googlesource.com/20194
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go   | 42 +++++--------------
  src/cmd/compile/internal/gc/bimport.go   | 69 ++++++++++++++----------------
  src/cmd/compile/internal/gc/syntax.go    | 72 +++++++++++++++++++++++++++++++-
  src/cmd/compile/internal/gc/typecheck.go |  2 +-
  4 files changed, 114 insertions(+), 71 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 702fb6d693..6dd8204e58 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -335,7 +335,7 @@ func Export(out *obj.Biobuf, trace bool) int {
+ 		if p.trace {
+ 			p.tracef("{ %s }\n", Hconvslice(f.Inl.Slice(), obj.FmtSharp))
+ 		}
+-		p.nodeSlice(f.Inl.Slice())
++		p.nodeList(f.Inl)
+ 		if p.trace {
+ 			p.tracef("\n")
+ 		}
+@@ -806,45 +806,25 @@ func (p *exporter) inlinedBody(n *Node) {
+ 	p.int(index)
+ }
+ 
+-func (p *exporter) nodeSlice(list []*Node) {
++func (p *exporter) nodeList(list nodesOrNodeList) {
++	it := nodeSeqIterate(list)
+ 	if p.trace {
+ 		p.tracef("[ ")
+ 	}
+-	p.int(len(list))
++	p.int(it.Len())
+ 	if p.trace {
+-		if len(list) == 0 {
++		if it.Len() == 0 {
+ 			p.tracef("] {}")
+ 		} else {
+ 			p.tracef("] {>")
+ 			defer p.tracef("<\n}")
+ 		}
+ 	}
+-	for _, n := range list {
++	for ; !it.Done(); it.Next() {
+ 		if p.trace {
+ 			p.tracef("\n")
+ 		}
+-		p.node(n)
+-	}
+-}
+-
+-func (p *exporter) nodeList(list *NodeList) {
+-	if p.trace {
+-		p.tracef("[ ")
+-	}
+-	p.int(count(list))
+-	if p.trace {
+-		if list == nil {
+-			p.tracef("] {}")
+-		} else {
+-			p.tracef("] {>")
+-			defer p.tracef("<\n}")
+-		}
+-	}
+-	for q := list; q != nil; q = q.Next {
+-		if p.trace {
+-			p.tracef("\n")
+-		}
+-		p.node(q.N)
++		p.node(it.N())
+ 	}
+ }
+ 
+@@ -982,20 +962,20 @@ func (p *exporter) node(n *Node) {
+ 	case OIF:
+ 		p.nodeList(n.Ninit)
+ 		p.node(n.Left)
+-		p.nodeSlice(n.Nbody.Slice())
++		p.nodeList(n.Nbody)
+ 		p.nodeList(n.Rlist)
+ 
+ 	case OFOR:
+ 		p.nodeList(n.Ninit)
+ 		p.nodesOrNil(n.Left, n.Right)
+-		p.nodeSlice(n.Nbody.Slice())
++		p.nodeList(n.Nbody)
+ 
+ 	case ORANGE:
+ 		if p.bool(n.List != nil) {
+ 			p.nodeList(n.List)
+ 		}
+ 		p.node(n.Right)
+-		p.nodeSlice(n.Nbody.Slice())
++		p.nodeList(n.Nbody)
+ 
+ 	case OSELECT, OSWITCH:
+ 		p.nodeList(n.Ninit)
+@@ -1006,7 +986,7 @@ func (p *exporter) node(n *Node) {
+ 		if p.bool(n.List != nil) {
+ 			p.nodeList(n.List)
+ 		}
+-		p.nodeSlice(n.Nbody.Slice())
++		p.nodeList(n.Nbody)
+ 
+ 	case OBREAK, OCONTINUE, OGOTO, OFALL, OXFALL:
+ 		p.nodesOrNil(n.Left, nil)
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 6cdf04a733..f2ef0053f6 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -113,7 +113,7 @@ func Import(in *obj.Biobuf) {
+ 	// read inlined functions bodies
+ 	n := p.int()
+ 	for i := 0; i < n; i++ {
+-		body := p.nodeSlice()
++		body := p.nodeList()
+ 		const hookup = false // TODO(gri) enable and remove this condition
+ 		if hookup {
+ 			p.inlined[i].Inl.Set(body)
+@@ -550,20 +550,13 @@ func (p *importer) float(x *Mpflt) {
+ // Inlined function bodies
+ 
+ // go.y:stmt_list
+-func (p *importer) nodeSlice() []*Node {
+-	var l []*Node
+-	for i := p.int(); i > 0; i-- {
+-		l = append(l, p.node())
+-	}
+-	return l
+-}
+-
+-func (p *importer) nodeList() *NodeList {
+-	var l *NodeList
+-	for i := p.int(); i > 0; i-- {
+-		l = list(l, p.node())
++func (p *importer) nodeList() []*Node {
++	c := p.int()
++	s := make([]*Node, 0, c)
++	for i := 0; i < c; i++ {
++		s = append(s, p.node())
+ 	}
+-	return l
++	return s
+ }
+ 
+ func (p *importer) node() *Node {
+@@ -597,7 +590,7 @@ func (p *importer) node() *Node {
+ 	// expressions
+ 	case OMAKEMAP, OMAKECHAN, OMAKESLICE:
+ 		if p.bool() {
+-			n.List = p.nodeList()
++			setNodeSeq(&n.List, p.nodeList())
+ 		}
+ 		n.Left, n.Right = p.nodesOrNil()
+ 		n.Type = p.typ()
+@@ -612,19 +605,19 @@ func (p *importer) node() *Node {
+ 		n.Right = p.node()
+ 
+ 	case OADDSTR:
+-		n.List = p.nodeList()
++		setNodeSeq(&n.List, p.nodeList())
+ 
+ 	case OPTRLIT:
+ 		n.Left = p.node()
+ 
+ 	case OSTRUCTLIT:
+ 		n.Type = p.typ()
+-		n.List = p.nodeList()
++		setNodeSeq(&n.List, p.nodeList())
+ 		n.Implicit = p.bool()
+ 
+ 	case OARRAYLIT, OMAPLIT:
+ 		n.Type = p.typ()
+-		n.List = p.nodeList()
++		setNodeSeq(&n.List, p.nodeList())
+ 		n.Implicit = p.bool()
+ 
+ 	case OKEY:
+@@ -639,13 +632,13 @@ func (p *importer) node() *Node {
+ 		// if p.bool() {
+ 		// 	n.Left = p.node()
+ 		// } else {
+-		// 	n.List = p.nodeList()
++		// 	setNodeSeq(&n.List, p.nodeList())
+ 		// }
+ 		x := Nod(OCALL, p.typ().Nod, nil)
+ 		if p.bool() {
+ 			x.List = list1(p.node())
+ 		} else {
+-			x.List = p.nodeList()
++			setNodeSeq(&x.List, p.nodeList())
+ 		}
+ 		return x
+ 
+@@ -675,12 +668,12 @@ func (p *importer) node() *Node {
+ 	case OREAL, OIMAG, OAPPEND, OCAP, OCLOSE, ODELETE, OLEN, OMAKE, ONEW, OPANIC,
+ 		ORECOVER, OPRINT, OPRINTN:
+ 		n.Left, _ = p.nodesOrNil()
+-		n.List = p.nodeList()
++		setNodeSeq(&n.List, p.nodeList())
+ 		n.Isddd = p.bool()
+ 
+ 	case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER, OGETG:
+ 		n.Left = p.node()
+-		n.List = p.nodeList()
++		setNodeSeq(&n.List, p.nodeList())
+ 		n.Isddd = p.bool()
+ 
+ 	case OCMPSTR, OCMPIFACE:
+@@ -706,47 +699,47 @@ func (p *importer) node() *Node {
+ 		n.Etype = EType(p.int())
+ 
+ 	case OAS2, OASWB:
+-		n.List = p.nodeList()
+-		n.Rlist = p.nodeList()
++		setNodeSeq(&n.List, p.nodeList())
++		setNodeSeq(&n.Rlist, p.nodeList())
+ 
+ 	case OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
+-		n.List = p.nodeList()
+-		n.Rlist = p.nodeList()
++		setNodeSeq(&n.List, p.nodeList())
++		setNodeSeq(&n.Rlist, p.nodeList())
+ 
+ 	case ORETURN:
+-		n.List = p.nodeList()
++		setNodeSeq(&n.List, p.nodeList())
+ 
+ 	case OPROC, ODEFER:
+ 		n.Left = p.node()
+ 
+ 	case OIF:
+-		n.Ninit = p.nodeList()
++		setNodeSeq(&n.Ninit, p.nodeList())
+ 		n.Left = p.node()
+-		n.Nbody.Set(p.nodeSlice())
+-		n.Rlist = p.nodeList()
++		n.Nbody.Set(p.nodeList())
++		setNodeSeq(&n.Rlist, p.nodeList())
+ 
+ 	case OFOR:
+-		n.Ninit = p.nodeList()
++		setNodeSeq(&n.Ninit, p.nodeList())
+ 		n.Left, n.Right = p.nodesOrNil()
+-		n.Nbody.Set(p.nodeSlice())
++		n.Nbody.Set(p.nodeList())
+ 
+ 	case ORANGE:
+ 		if p.bool() {
+-			n.List = p.nodeList()
++			setNodeSeq(&n.List, p.nodeList())
+ 		}
+ 		n.Right = p.node()
+-		n.Nbody.Set(p.nodeSlice())
++		n.Nbody.Set(p.nodeList())
+ 
+ 	case OSELECT, OSWITCH:
+-		n.Ninit = p.nodeList()
++		setNodeSeq(&n.Ninit, p.nodeList())
+ 		n.Left, _ = p.nodesOrNil()
+-		n.List = p.nodeList()
++		setNodeSeq(&n.List, p.nodeList())
+ 
+ 	case OCASE, OXCASE:
+ 		if p.bool() {
+-			n.List = p.nodeList()
++			setNodeSeq(&n.List, p.nodeList())
+ 		}
+-		n.Nbody.Set(p.nodeSlice())
++		n.Nbody.Set(p.nodeList())
+ 
+ 	case OBREAK, OCONTINUE, OGOTO, OFALL, OXFALL:
+ 		n.Left, _ = p.nodesOrNil()
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 70d79d8713..39a3d95322 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -495,6 +495,18 @@ func (n *Nodes) AppendNodeList(l *NodeList) {
+ 	}
+ }
+ 
++// nodesOrNodeList must be either type Nodes or type *NodeList, or, in
++// some cases, []*Node. It exists during the transition from NodeList
++// to Nodes only and then should be deleted. See nodeSeqIterate to
++// return an iterator from a nodesOrNodeList.
++type nodesOrNodeList interface{}
++
++// nodesOrNodeListPtr must be type *Nodes or type **NodeList, or, in
++// some cases, *[]*Node. It exists during the transition from NodeList
++// to Nodes only, and then should be deleted. See setNodeSeq to assign
++// to a generic value.
++type nodesOrNodeListPtr interface{}
++
+ // nodeSeqIterator is an interface used to iterate over a sequence of nodes.
+ // TODO(iant): Remove after conversion from NodeList to Nodes is complete.
+ type nodeSeqIterator interface {
+@@ -506,6 +518,8 @@ type nodeSeqIterator interface {
+ 	N() *Node
+ 	// Return the address of the current node.
+ 	P() **Node
++	// Return the number of items remaining in the iteration.
++	Len() int
+ }
+ 
+ // nodeListIterator is a type that implements nodeSeqIterator using a
+@@ -530,6 +544,10 @@ func (nli *nodeListIterator) P() **Node {
+ 	return &nli.l.N
+ }
+ 
++func (nli *nodeListIterator) Len() int {
++	return count(nli.l)
++}
++
+ // nodesIterator implements nodeSeqIterator using a Nodes.
+ type nodesIterator struct {
+ 	n Nodes
+@@ -552,8 +570,12 @@ func (ni *nodesIterator) P() **Node {
+ 	return &ni.n.Slice()[ni.i]
+ }
+ 
++func (ni *nodesIterator) Len() int {
++	return len(ni.n.Slice())
++}
++
+ // nodeSeqIterate returns an iterator over either a *Nodelist or a *Nodes.
+-func nodeSeqIterate(ns interface{}) nodeSeqIterator {
++func nodeSeqIterate(ns nodesOrNodeList) nodeSeqIterator {
+ 	switch ns := ns.(type) {
+ 	case *NodeList:
+ 		return &nodeListIterator{ns}
+@@ -563,3 +585,51 @@ func nodeSeqIterate(ns interface{}) nodeSeqIterator {
+ 		panic("can't happen")
+ 	}
+ }
++
++// setNodeSeq implements *a = b.
++// a must have type **NodeList, *Nodes, or *[]*Node.
++// b must have type *NodeList, Nodes, or []*Node.
++// This is an interim function during the transition from NodeList to Nodes.
++// TODO(iant): Remove when transition is complete.
++func setNodeSeq(a nodesOrNodeListPtr, b nodesOrNodeList) {
++	// Simplify b to either *Nodelist or []*Node.
++	if n, ok := b.(Nodes); ok {
++		b = n.Slice()
++	}
++
++	if l, ok := a.(**NodeList); ok {
++		switch b := b.(type) {
++		case *NodeList:
++			*l = b
++		case []*Node:
++			var ll *NodeList
++			for _, n := range b {
++				ll = list(ll, n)
++			}
++			*l = ll
++		default:
++			panic("can't happen")
++		}
++	} else {
++		var s []*Node
++		switch b := b.(type) {
++		case *NodeList:
++			for l := b; l != nil; l = l.Next {
++				s = append(s, l.N)
++			}
++		case []*Node:
++			s = b
++		default:
++			panic("can't happen")
++		}
++
++		switch a := a.(type) {
++		case *Nodes:
++			a.Set(s)
++		case *[]*Node:
++			*a = s
++		default:
++			panic("can't happen")
++		}
++	}
++}
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 760ee8fc17..ec3229400b 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -34,7 +34,7 @@ func resolve(n *Node) *Node {
+ 	return n
+ }
+ 
+-func typechecklist(l interface{}, top int) {
++func typechecklist(l nodesOrNodeList, top int) {
+ 	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+ 		typecheck(it.P(), top)
+ 	}

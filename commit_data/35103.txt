@@ -14,9 +14,140 @@ Date:   Wed Dec 13 21:46:03 2017 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go                               | 12 ++++++++++++
  src/cmd/go/testdata/src/multimain/multimain_test.go | 16 ++++++++++++++++
  src/testing/internal/testdeps/deps.go               | 18 +++++++++++++-----
  src/testing/testing.go                              | 19 ++++++++++++++++++-
  4 files changed, 59 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 11bd044545..d5875d9106 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2982,6 +2982,18 @@ func TestGoTestMainAsNormalTest(t *testing.T) {
+ 	tg.grepBoth(okPattern, "go test did not say ok")
+ }
+ 
++func TestGoTestMainTwice(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.makeTempdir()
++	tg.setenv("GOCACHE", tg.tempdir)
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++	tg.run("test", "-v", "multimain")
++	if strings.Count(tg.getStdout(), "notwithstanding") != 2 {
++		t.Fatal("tests did not run twice")
++	}
++}
++
+ func TestGoTestFlagsAfterPackage(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/testdata/src/multimain/multimain_test.go b/src/cmd/go/testdata/src/multimain/multimain_test.go
+new file mode 100644
+index 0000000000..007a86a5da
+--- /dev/null
++++ b/src/cmd/go/testdata/src/multimain/multimain_test.go
+@@ -0,0 +1,16 @@
++package multimain_test
++
++import "testing"
++
++func TestMain(m *testing.M) {
++	// Some users run m.Run multiple times, changing
++	// some kind of global state between runs.
++	// This used to work so I guess now it has to keep working.
++	// See golang.org/issue/23129.
++	m.Run()
++	m.Run()
++}
++
++func Test(t *testing.T) {
++	t.Log("notwithstanding")
++}
+diff --git a/src/testing/internal/testdeps/deps.go b/src/testing/internal/testdeps/deps.go
+index 8c0b3fded1..4986898a8e 100644
+--- a/src/testing/internal/testdeps/deps.go
++++ b/src/testing/internal/testdeps/deps.go
+@@ -63,8 +63,9 @@ func (TestDeps) ImportPath() string {
+ 
+ // testLog implements testlog.Interface, logging actions by package os.
+ type testLog struct {
+-	mu sync.Mutex
+-	w  *bufio.Writer
++	mu  sync.Mutex
++	w   *bufio.Writer
++	set bool
+ }
+ 
+ func (l *testLog) Getenv(key string) {
+@@ -101,14 +102,21 @@ func (l *testLog) add(op, name string) {
+ }
+ 
+ var log testLog
++var didSetLogger bool
+ 
+ func (TestDeps) StartTestLog(w io.Writer) {
+ 	log.mu.Lock()
+ 	log.w = bufio.NewWriter(w)
+-	log.w.WriteString("# test log\n") // known to cmd/go/internal/test/test.go
++	if !log.set {
++		// Tests that define TestMain and then run m.Run multiple times
++		// will call StartTestLog/StopTestLog multiple times.
++		// Checking log.set avoids calling testlog.SetLogger multiple times
++		// (which will panic) and also avoids writing the header multiple times.
++		log.set = true
++		testlog.SetLogger(&log)
++		log.w.WriteString("# test log\n") // known to cmd/go/internal/test/test.go
++	}
+ 	log.mu.Unlock()
+-
+-	testlog.SetLogger(&log)
+ }
+ 
+ func (TestDeps) StopTestLog() error {
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 13937b6ad4..3a4e256b49 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -914,6 +914,8 @@ type M struct {
+ 
+ 	timer     *time.Timer
+ 	afterOnce sync.Once
++
++	numRun int
+ }
+ 
+ // testDeps is an internal interface of functionality that is
+@@ -945,6 +947,12 @@ func MainStart(deps testDeps, tests []InternalTest, benchmarks []InternalBenchma
+ 
+ // Run runs the tests. It returns an exit code to pass to os.Exit.
+ func (m *M) Run() int {
++	// Count the number of calls to m.Run.
++	// We only ever expected 1, but we didn't enforce that,
++	// and now there are tests in the wild that call m.Run multiple times.
++	// Sigh. golang.org/issue/23129.
++	m.numRun++
++
+ 	// TestMain may have already called flag.Parse.
+ 	if !flag.Parsed() {
+ 		flag.Parse()
+@@ -1110,7 +1118,16 @@ func (m *M) before() {
+ 	if *testlog != "" {
+ 		// Note: Not using toOutputDir.
+ 		// This file is for use by cmd/go, not users.
+-		f, err := os.Create(*testlog)
++		var f *os.File
++		var err error
++		if m.numRun == 1 {
++			f, err = os.Create(*testlog)
++		} else {
++			f, err = os.OpenFile(*testlog, os.O_WRONLY, 0)
++			if err == nil {
++				f.Seek(0, io.SeekEnd)
++			}
++		}
+ 		if err != nil {
+ 			fmt.Fprintf(os.Stderr, "testing: %s\n", err)
+ 			os.Exit(2)

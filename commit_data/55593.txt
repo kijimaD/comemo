@@ -11,7 +11,89 @@ Date:   Fri Feb 24 00:07:19 2023 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/net/lookup_test.go   | 10 +++++-----
  src/net/platform_test.go | 10 +---------
  2 files changed, 6 insertions(+), 14 deletions(-)
+
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index fa1a706c78..0868b1f083 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -74,7 +74,7 @@ func TestLookupGoogleSRV(t *testing.T) {
+ 	t.Parallel()
+ 	mustHaveExternalNetwork(t)
+ 
+-	if iOS() {
++	if runtime.GOOS == "ios" {
+ 		t.Skip("no resolv.conf on iOS")
+ 	}
+ 
+@@ -123,7 +123,7 @@ func TestLookupGmailMX(t *testing.T) {
+ 	t.Parallel()
+ 	mustHaveExternalNetwork(t)
+ 
+-	if iOS() {
++	if runtime.GOOS == "ios" {
+ 		t.Skip("no resolv.conf on iOS")
+ 	}
+ 
+@@ -169,7 +169,7 @@ func TestLookupGmailNS(t *testing.T) {
+ 	t.Parallel()
+ 	mustHaveExternalNetwork(t)
+ 
+-	if iOS() {
++	if runtime.GOOS == "ios" {
+ 		t.Skip("no resolv.conf on iOS")
+ 	}
+ 
+@@ -218,7 +218,7 @@ func TestLookupGmailTXT(t *testing.T) {
+ 	t.Parallel()
+ 	mustHaveExternalNetwork(t)
+ 
+-	if iOS() {
++	if runtime.GOOS == "ios" {
+ 		t.Skip("no resolv.conf on iOS")
+ 	}
+ 
+@@ -643,7 +643,7 @@ func TestLookupDotsWithRemoteSource(t *testing.T) {
+ 		t.Skip("IPv4 is required")
+ 	}
+ 
+-	if iOS() {
++	if runtime.GOOS == "ios" {
+ 		t.Skip("no resolv.conf on iOS")
+ 	}
+ 
+diff --git a/src/net/platform_test.go b/src/net/platform_test.go
+index c522ba2829..12be367b1a 100644
+--- a/src/net/platform_test.go
++++ b/src/net/platform_test.go
+@@ -48,15 +48,11 @@ func testableNetwork(network string) bool {
+ 		}
+ 	case "unix", "unixgram":
+ 		switch runtime.GOOS {
+-		case "android", "plan9", "windows":
++		case "android", "ios", "plan9", "windows":
+ 			return false
+ 		case "aix":
+ 			return unixEnabledOnAIX
+ 		}
+-		// iOS does not support unix, unixgram.
+-		if iOS() {
+-			return false
+-		}
+ 	case "unixpacket":
+ 		switch runtime.GOOS {
+ 		case "aix", "android", "darwin", "ios", "plan9", "windows":
+@@ -81,10 +77,6 @@ func testableNetwork(network string) bool {
+ 	return true
+ }
+ 
+-func iOS() bool {
+-	return runtime.GOOS == "ios"
+-}
+-
+ // testableAddress reports whether address of network is testable on
+ // the current platform configuration.
+ func testableAddress(network, address string) bool {

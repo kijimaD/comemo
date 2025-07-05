@@ -21,7 +21,7 @@ Date:   Thu Jul 21 10:37:59 2016 -0700
     Change-Id: Ic4d4402104d32bcfb1fd612f5bb6539f9acb8ae0
     Reviewed-on: https://go-review.googlesource.com/25119
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/builtin.go         | 17 +++---
  src/cmd/compile/internal/gc/builtin/runtime.go |  2 +
  src/cmd/compile/internal/gc/ssa.go             |  2 +-
@@ -33,3 +33,357 @@ Date:   Thu Jul 21 10:37:59 2016 -0700
  src/cmd/compile/internal/ssa/schedule.go       |  2 +-
  src/runtime/asm_386.s                          | 45 ++++++++++++++++
  10 files changed, 168 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index c1a641874e..9520870514 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -95,14 +95,15 @@ const runtimeimport = "" +
+ 	"4div\x00\x03\n\x00\n\x00\x01\n\x00\t\x11uint64div\x00\x03\x14\x00\x14\x00\x01\x14\x00\t\x0fint64" +
+ 	"mod\x00\x03\n\x00\n\x00\x01\n\x00\t\x11uint64mod\x00\x03\x14\x00\x14\x00\x01\x14\x00\t\x1bfloat6" +
+ 	"4toint64\x00\x01\x1a\x00\x01\n\x00\t\x1dfloat64touint64\x00\x01\x1a\x00\x01\x14\x00\t" +
+-	"\x1bint64tofloat64\x00\x01\n\x00\x01\x1a\x00\t\x1duint64tofloat64\x00" +
+-	"\x01\x14\x00\x01\x1a\x00\t\x19complex128div\x00\x04\x1e\vnum·2\x00\x00\x1e\vden·" +
+-	"3\x00\x00\x02\x1e\vquo·1\x00\x00\t\x19racefuncenter\x00\x01\x16d\x00\t\x17race" +
+-	"funcexit\x00\x00\x00\t\x0fraceread\x00\x01\x16d\x00\t\x11racewrite\x00\x01\x16" +
+-	"d\x00\t\x19racereadrange\x00\x04\x16\raddr·1\x00d\x16\rsize·2\x00" +
+-	"d\x00\t\x1bracewriterange\x00\x04\x16\x94\x03\x00d\x16\x96\x03\x00d\x00\t\x0fmsanrea" +
+-	"d\x00\x04\x16\x94\x03\x00d\x16\x96\x03\x00d\x00\t\x11msanwrite\x00\x04\x16\x94\x03\x00d\x16\x96\x03\x00d\x00\v\xf4" +
+-	"\x01\x02\v\x00\x01\x00\n$$\n"
++	"\x1dfloat64touint32\x00\x01\x1a\x00\x01\x12\x00\t\x1bint64tofloat64\x00" +
++	"\x01\n\x00\x01\x1a\x00\t\x1duint64tofloat64\x00\x01\x14\x00\x01\x1a\x00\t\x1duint32to" +
++	"float64\x00\x01\x12\x00\x01\x1a\x00\t\x19complex128div\x00\x04\x1e\vnum·2\x00" +
++	"\x00\x1e\vden·3\x00\x00\x02\x1e\vquo·1\x00\x00\t\x19racefuncenter\x00\x01\x16" +
++	"d\x00\t\x17racefuncexit\x00\x00\x00\t\x0fraceread\x00\x01\x16d\x00\t\x11race" +
++	"write\x00\x01\x16d\x00\t\x19racereadrange\x00\x04\x16\raddr·1\x00d\x16\r" +
++	"size·2\x00d\x00\t\x1bracewriterange\x00\x04\x16\x98\x03\x00d\x16\x9a\x03\x00d\x00\t" +
++	"\x0fmsanread\x00\x04\x16\x98\x03\x00d\x16\x9a\x03\x00d\x00\t\x11msanwrite\x00\x04\x16\x98\x03\x00d" +
++	"\x16\x9a\x03\x00d\x00\v\xf8\x01\x02\v\x00\x01\x00\n$$\n"
+ 
+ const unsafeimport = "" +
+ 	"cn\x00\x03v1\x01\vunsafe\x00\x05\r\rPointer\x00\x16\x00\t\x0fOffsetof\x00\x01" +
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index e9316cb313..ef7e408959 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -150,8 +150,10 @@ func int64mod(int64, int64) int64
+ func uint64mod(uint64, uint64) uint64
+ func float64toint64(float64) int64
+ func float64touint64(float64) uint64
++func float64touint32(float64) uint32
+ func int64tofloat64(int64) float64
+ func uint64tofloat64(uint64) float64
++func uint32tofloat64(uint32) float64
+ 
+ func complex128div(num complex128, den complex128) (quo complex128)
+ 
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 64a504a680..43dbcf54ca 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4323,7 +4323,7 @@ func CheckLoweredPhi(v *ssa.Value) {
+ func CheckLoweredGetClosurePtr(v *ssa.Value) {
+ 	entry := v.Block.Func.Entry
+ 	if entry != v.Block || entry.Values[0] != v {
+-		Fatalf("badly placed LoweredGetClosurePtr: %v %v", v.Block, v)
++		Fatalf("in %s, badly placed LoweredGetClosurePtr: %v %v", v.Block.Func.Name, v.Block, v)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index f2d27f207c..c6aeddb172 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1105,6 +1105,39 @@ opswitch:
+ 			}
+ 		}
+ 
++		if Thearch.LinkArch.Family == sys.I386 {
++			if n.Left.Type.IsFloat() {
++				if n.Type.Etype == TINT64 {
++					n = mkcall("float64toint64", n.Type, init, conv(n.Left, Types[TFLOAT64]))
++					break
++				}
++
++				if n.Type.Etype == TUINT64 {
++					n = mkcall("float64touint64", n.Type, init, conv(n.Left, Types[TFLOAT64]))
++					break
++				}
++				if n.Type.Etype == TUINT32 || n.Type.Etype == TUINTPTR {
++					n = mkcall("float64touint32", n.Type, init, conv(n.Left, Types[TFLOAT64]))
++					break
++				}
++			}
++			if n.Type.IsFloat() {
++				if n.Left.Type.Etype == TINT64 {
++					n = conv(mkcall("int64tofloat64", Types[TFLOAT64], init, conv(n.Left, Types[TINT64])), n.Type)
++					break
++				}
++
++				if n.Left.Type.Etype == TUINT64 {
++					n = conv(mkcall("uint64tofloat64", Types[TFLOAT64], init, conv(n.Left, Types[TUINT64])), n.Type)
++					break
++				}
++				if n.Left.Type.Etype == TUINT32 || n.Left.Type.Etype == TUINTPTR {
++					n = conv(mkcall("uint32tofloat64", Types[TFLOAT64], init, conv(n.Left, Types[TUINT32])), n.Type)
++					break
++				}
++			}
++		}
++
+ 		n.Left = walkexpr(n.Left, init)
+ 
+ 	case OANDNOT:
+diff --git a/src/cmd/compile/internal/ssa/gen/386.rules b/src/cmd/compile/internal/ssa/gen/386.rules
+index 0587be4367..46edb6f66f 100644
+--- a/src/cmd/compile/internal/ssa/gen/386.rules
++++ b/src/cmd/compile/internal/ssa/gen/386.rules
+@@ -99,7 +99,7 @@
+ (ZeroExt16to32 x) -> (MOVWLZX x)
+ 
+ (Signmask x) -> (SARLconst x [31])
+-(Zeromask x) -> (SBBLcarrymask (CMPL (MOVLconst [0]) x))
++(Zeromask <t> x) -> (XORLconst [-1] (SBBLcarrymask <t> (CMPL x (MOVLconst [1]))))
+ 
+ // Lowering truncation
+ // Because we ignore high parts of registers, truncates are just copies.
+@@ -183,6 +183,11 @@
+ (Lsh8x64 _ (Const64 [c])) && uint64(c) >= 8 -> (Const8 [0])
+ (Rsh8Ux64 _ (Const64 [c])) && uint64(c) >= 8 -> (Const8 [0])
+ 
++// large constant signed right shift, we leave the sign bit
++(Rsh32x64 x (Const64 [c])) && uint64(c) >= 32 -> (SARLconst x [31])
++(Rsh16x64 x (Const64 [c])) && uint64(c) >= 16 -> (SARWconst x [15])
++(Rsh8x64 x (Const64 [c])) && uint64(c) >= 8 -> (SARBconst x [7])
++
+ // Lowering comparisons
+ (Less32  x y) -> (SETL (CMPL x y))
+ (Less16  x y) -> (SETL (CMPW x y))
+diff --git a/src/cmd/compile/internal/ssa/gen/dec64.rules b/src/cmd/compile/internal/ssa/gen/dec64.rules
+index 8b2fd27669..e419c741b6 100644
+--- a/src/cmd/compile/internal/ssa/gen/dec64.rules
++++ b/src/cmd/compile/internal/ssa/gen/dec64.rules
+@@ -336,9 +336,9 @@
+ (Lrot64 (Int64Make hi lo) [c]) && c > 32 -> (Lrot64 (Int64Make lo hi) [c-32])
+ 
+ (Const64 <t> [c]) && t.IsSigned() ->
+-	(Int64Make (Const32 <config.fe.TypeInt32()> [c>>32]) (Const32 <config.fe.TypeUInt32()> [c&0xffffffff]))
++	(Int64Make (Const32 <config.fe.TypeInt32()> [c>>32]) (Const32 <config.fe.TypeUInt32()> [int64(int32(c))]))
+ (Const64 <t> [c]) && !t.IsSigned() ->
+-	(Int64Make (Const32 <config.fe.TypeUInt32()> [c>>32]) (Const32 <config.fe.TypeUInt32()> [c&0xffffffff]))
++	(Int64Make (Const32 <config.fe.TypeUInt32()> [c>>32]) (Const32 <config.fe.TypeUInt32()> [int64(int32(c))]))
+ 
+ (Eq64 x y) ->
+ 	(AndB
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index 5d571c588f..a6ded59452 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -10432,6 +10432,24 @@ func rewriteValue386_OpRsh16x64(v *Value, config *Config) bool {
+ 		v.AuxInt = c
+ 		return true
+ 	}
++	// match: (Rsh16x64 x (Const64 [c]))
++	// cond: uint64(c) >= 16
++	// result: (SARWconst x [15])
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		c := v_1.AuxInt
++		if !(uint64(c) >= 16) {
++			break
++		}
++		v.reset(Op386SARWconst)
++		v.AddArg(x)
++		v.AuxInt = 15
++		return true
++	}
+ 	return false
+ }
+ func rewriteValue386_OpRsh16x8(v *Value, config *Config) bool {
+@@ -10647,6 +10665,24 @@ func rewriteValue386_OpRsh32x64(v *Value, config *Config) bool {
+ 		v.AuxInt = c
+ 		return true
+ 	}
++	// match: (Rsh32x64 x (Const64 [c]))
++	// cond: uint64(c) >= 32
++	// result: (SARLconst x [31])
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		c := v_1.AuxInt
++		if !(uint64(c) >= 32) {
++			break
++		}
++		v.reset(Op386SARLconst)
++		v.AddArg(x)
++		v.AuxInt = 31
++		return true
++	}
+ 	return false
+ }
+ func rewriteValue386_OpRsh32x8(v *Value, config *Config) bool {
+@@ -10862,6 +10898,24 @@ func rewriteValue386_OpRsh8x64(v *Value, config *Config) bool {
+ 		v.AuxInt = c
+ 		return true
+ 	}
++	// match: (Rsh8x64 x (Const64 [c]))
++	// cond: uint64(c) >= 8
++	// result: (SARBconst x [7])
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		c := v_1.AuxInt
++		if !(uint64(c) >= 8) {
++			break
++		}
++		v.reset(Op386SARBconst)
++		v.AddArg(x)
++		v.AuxInt = 7
++		return true
++	}
+ 	return false
+ }
+ func rewriteValue386_OpRsh8x8(v *Value, config *Config) bool {
+@@ -13015,17 +13069,21 @@ func rewriteValue386_OpZeroExt8to32(v *Value, config *Config) bool {
+ func rewriteValue386_OpZeromask(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (Zeromask x)
++	// match: (Zeromask <t> x)
+ 	// cond:
+-	// result: (SBBLcarrymask (CMPL (MOVLconst [0]) x))
++	// result: (XORLconst [-1] (SBBLcarrymask <t> (CMPL x (MOVLconst [1]))))
+ 	for {
++		t := v.Type
+ 		x := v.Args[0]
+-		v.reset(Op386SBBLcarrymask)
+-		v0 := b.NewValue0(v.Line, Op386CMPL, TypeFlags)
+-		v1 := b.NewValue0(v.Line, Op386MOVLconst, config.fe.TypeUInt32())
+-		v1.AuxInt = 0
++		v.reset(Op386XORLconst)
++		v.AuxInt = -1
++		v0 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
++		v1 := b.NewValue0(v.Line, Op386CMPL, TypeFlags)
++		v1.AddArg(x)
++		v2 := b.NewValue0(v.Line, Op386MOVLconst, config.fe.TypeUInt32())
++		v2.AuxInt = 1
++		v1.AddArg(v2)
+ 		v0.AddArg(v1)
+-		v0.AddArg(x)
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/rewritedec64.go b/src/cmd/compile/internal/ssa/rewritedec64.go
+index ecd39b1f5e..d2fbfb9f10 100644
+--- a/src/cmd/compile/internal/ssa/rewritedec64.go
++++ b/src/cmd/compile/internal/ssa/rewritedec64.go
+@@ -263,7 +263,7 @@ func rewriteValuedec64_OpConst64(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Const64 <t> [c])
+ 	// cond: t.IsSigned()
+-	// result: (Int64Make (Const32 <config.fe.TypeInt32()> [c>>32]) (Const32 <config.fe.TypeUInt32()> [c&0xffffffff]))
++	// result: (Int64Make (Const32 <config.fe.TypeInt32()> [c>>32]) (Const32 <config.fe.TypeUInt32()> [int64(int32(c))]))
+ 	for {
+ 		t := v.Type
+ 		c := v.AuxInt
+@@ -275,13 +275,13 @@ func rewriteValuedec64_OpConst64(v *Value, config *Config) bool {
+ 		v0.AuxInt = c >> 32
+ 		v.AddArg(v0)
+ 		v1 := b.NewValue0(v.Line, OpConst32, config.fe.TypeUInt32())
+-		v1.AuxInt = c & 0xffffffff
++		v1.AuxInt = int64(int32(c))
+ 		v.AddArg(v1)
+ 		return true
+ 	}
+ 	// match: (Const64 <t> [c])
+ 	// cond: !t.IsSigned()
+-	// result: (Int64Make (Const32 <config.fe.TypeUInt32()> [c>>32]) (Const32 <config.fe.TypeUInt32()> [c&0xffffffff]))
++	// result: (Int64Make (Const32 <config.fe.TypeUInt32()> [c>>32]) (Const32 <config.fe.TypeUInt32()> [int64(int32(c))]))
+ 	for {
+ 		t := v.Type
+ 		c := v.AuxInt
+@@ -293,7 +293,7 @@ func rewriteValuedec64_OpConst64(v *Value, config *Config) bool {
+ 		v0.AuxInt = c >> 32
+ 		v.AddArg(v0)
+ 		v1 := b.NewValue0(v.Line, OpConst32, config.fe.TypeUInt32())
+-		v1.AuxInt = c & 0xffffffff
++		v1.AuxInt = int64(int32(c))
+ 		v.AddArg(v1)
+ 		return true
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index 4fa5f613f1..5dab018117 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -84,7 +84,7 @@ func schedule(f *Func) {
+ 		// Compute score. Larger numbers are scheduled closer to the end of the block.
+ 		for _, v := range b.Values {
+ 			switch {
+-			case v.Op == OpAMD64LoweredGetClosurePtr || v.Op == OpARMLoweredGetClosurePtr:
++			case v.Op == OpAMD64LoweredGetClosurePtr || v.Op == OpARMLoweredGetClosurePtr || v.Op == Op386LoweredGetClosurePtr:
+ 				// We also score GetLoweredClosurePtr as early as possible to ensure that the
+ 				// context register is not stomped. GetLoweredClosurePtr should only appear
+ 				// in the entry block where there are no phi functions, so there is no
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index ea11b2b2fb..1c1a4938de 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -1637,3 +1637,48 @@ TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
+        MOVL    AX, moduledata_next(DX)
+        MOVL    AX, runtime·lastmoduledatap(SB)
+        RET
++
++TEXT runtime·uint32tofloat64(SB),NOSPLIT,$0-12
++	// TODO: condition on GO386 env var.
++	MOVL	a+0(FP), AX
++
++	// Check size.
++	CMPL	AX, $0x80000000
++	JAE	large
++
++	// Less than 2**31, convert directly.
++	CVTSL2SD	AX, X0
++	MOVSD	X0, ret+4(FP)
++	RET
++large:
++	// >= 2**31.  Subtract 2**31 (uint32), convert, then add 2**31 (float64).
++	SUBL	$0x80000000, AX
++	CVTSL2SD	AX, X0
++	ADDSD	twotothe31<>(SB), X0
++	MOVSD	X0, ret+4(FP)
++	RET
++
++TEXT runtime·float64touint32(SB),NOSPLIT,$0-12
++	// TODO: condition on GO386 env var.
++	MOVSD	a+0(FP), X0
++
++	// Check size.
++	MOVSD	twotothe31<>(SB), X1
++	UCOMISD	X1, X0 //note: args swapped relative to CMPL
++	JAE	large
++
++	// Less than 2**31, convert directly.
++	CVTTSD2SL X0, AX
++	MOVL	AX, ret+8(FP)
++	RET
++large:
++	// >= 2**31.  Subtract 2**31 (float64), convert, then add 2**31 (uint32).
++	SUBSD	X1, X0
++	CVTTSD2SL	X0, AX
++	ADDL	$0x80000000, AX
++	MOVL	AX, ret+8(FP)
++	RET
++
++// 2**31 as a float64.
++DATA	twotothe31<>+0x00(SB)/8, $0x41e0000000000000
++GLOBL	twotothe31<>(SB),RODATA,$8

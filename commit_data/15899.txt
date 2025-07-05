@@ -9,7 +9,7 @@ Date:   Fri Mar 22 15:14:40 2013 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/7531045
-
+---
  src/cmd/go/pkg.go       |   7 +
  src/cmd/go/vet.go       |   2 +-
  src/cmd/vet/Makefile    |   4 +-
@@ -22,3 +22,1449 @@ Date:   Fri Mar 22 15:14:40 2013 -0400
  src/cmd/vet/test_asm3.s | 168 +++++++++++++++
  test/errchk             |   2 +-
  11 files changed, 1273 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 7fc61fd862..b33d800bfb 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -72,6 +72,7 @@ type Package struct {
+ 	imports      []*Package
+ 	deps         []*Package
+ 	gofiles      []string // GoFiles+CgoFiles+TestGoFiles+XTestGoFiles files, absolute paths
++	sfiles       []string
+ 	allgofiles   []string // gofiles + IgnoredGoFiles, absolute paths
+ 	target       string   // installed file for this package (may be executable)
+ 	fake         bool     // synthesized package
+@@ -366,6 +367,12 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 	}
+ 	sort.Strings(p.gofiles)
+ 
++	p.sfiles = stringList(p.SFiles)
++	for i := range p.sfiles {
++		p.sfiles[i] = filepath.Join(p.Dir, p.sfiles[i])
++	}
++	sort.Strings(p.sfiles)
++
+ 	p.allgofiles = stringList(p.IgnoredGoFiles)
+ 	for i := range p.allgofiles {
+ 		p.allgofiles[i] = filepath.Join(p.Dir, p.allgofiles[i])
+diff --git a/src/cmd/go/vet.go b/src/cmd/go/vet.go
+index eb0b89ccad..503e16362c 100644
+--- a/src/cmd/go/vet.go
++++ b/src/cmd/go/vet.go
+@@ -32,6 +32,6 @@ func runVet(cmd *Command, args []string) {
+ 		// Use pkg.gofiles instead of pkg.Dir so that
+ 		// the command only applies to this package,
+ 		// not to packages in subdirectories.
+-		run(tool("vet"), relPaths(pkg.gofiles))
++		run(tool("vet"), relPaths(stringList(pkg.gofiles, pkg.sfiles)))
+ 	}
+ }
+diff --git a/src/cmd/vet/Makefile b/src/cmd/vet/Makefile
+index 6b1e90fb07..45bd29170c 100644
+--- a/src/cmd/vet/Makefile
++++ b/src/cmd/vet/Makefile
+@@ -5,8 +5,8 @@
+ # Assumes go/types is installed
+ test testshort:
+ 	go build -tags 'vet_test gotypes'
+-	../../../test/errchk ./vet -printfuncs='Warn:1,Warnf:1' *.go
++	../../../test/errchk ./vet -printfuncs='Warn:1,Warnf:1' *.go *.s
+ 
+ test_notypes:
+ 	go build -tags 'vet_test'
+-	../../../test/errchk ./vet -printfuncs='Warn:1,Warnf:1' *.go
++	../../../test/errchk ./vet -printfuncs='Warn:1,Warnf:1' *.go *.s
+diff --git a/src/cmd/vet/asmdecl.go b/src/cmd/vet/asmdecl.go
+new file mode 100644
+index 0000000000..2cfaa938fc
+--- /dev/null
++++ b/src/cmd/vet/asmdecl.go
+@@ -0,0 +1,532 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Identify mismatches between assembly files and Go func declarations.
++
++package main
++
++import (
++	"bytes"
++	"fmt"
++	"go/ast"
++	"go/token"
++	"regexp"
++	"strconv"
++	"strings"
++)
++
++// 'kind' is a kind of assembly variable.
++// The kinds 1, 2, 4, 8 stand for values of that size.
++type asmKind int
++
++// These special kinds are not valid sizes.
++const (
++	asmString asmKind = 100 + iota
++	asmSlice
++	asmInterface
++	asmEmptyInterface
++)
++
++// An asmArch describes assembly parameters for an architecture
++type asmArch struct {
++	name      string
++	ptrSize   int
++	intSize   int
++	bigEndian bool
++}
++
++// An asmFunc describes the expected variables for a function on a given architecture.
++type asmFunc struct {
++	arch        *asmArch
++	size        int // size of all arguments
++	vars        map[string]*asmVar
++	varByOffset map[int]*asmVar
++}
++
++// An asmVar describes a single assembly variable.
++type asmVar struct {
++	name  string
++	kind  asmKind
++	typ   string
++	off   int
++	size  int
++	inner []*asmVar
++}
++
++var (
++	asmArch386   = asmArch{"386", 4, 4, false}
++	asmArchArm   = asmArch{"arm", 4, 4, false}
++	asmArchAmd64 = asmArch{"amd64", 8, 8, false}
++
++	arches = []*asmArch{
++		&asmArch386,
++		&asmArchArm,
++		&asmArchAmd64,
++	}
++)
++
++var (
++	re           = regexp.MustCompile
++	asmPlusBuild = re(`//\s+\+build\s+([^\n]+)`)
++	asmTEXT      = re(`\bTEXT\b.*·([^\(]+)\(SB\)(?:\s*,\s*([0-9]+))?(?:\s*,\s*\$([0-9]+)(?:-([0-9]+))?)?`)
++	asmDATA      = re(`\b(DATA|GLOBL)\b`)
++	asmNamedFP   = re(`([a-zA-Z0-9_\xFF-\x{10FFFF}]+)(?:\+([0-9]+))\(FP\)`)
++	asmUnnamedFP = re(`[^+\-0-9]](([0-9]+)\(FP\))`)
++	asmOpcode    = re(`^\s*(?:[A-Z0-9a-z_]+:)?\s*([A-Z]+)\s*([^,]*)(?:,\s*(.*))?`)
++)
++
++func asmCheck(pkg *Package) {
++	if !vet("asmdecl") {
++		return
++	}
++
++	// No work if no assembly files.
++	if !pkg.hasFileWithSuffix(".s") {
++		return
++	}
++
++	// Gather declarations. knownFunc[name][arch] is func description.
++	knownFunc := make(map[string]map[string]*asmFunc)
++
++	for _, f := range pkg.files {
++		if f.file != nil {
++			for _, decl := range f.file.Decls {
++				if decl, ok := decl.(*ast.FuncDecl); ok && decl.Body == nil {
++					knownFunc[decl.Name.Name] = f.asmParseDecl(decl)
++				}
++			}
++		}
++	}
++
++	var fn *asmFunc
++	for _, f := range pkg.files {
++		if !strings.HasSuffix(f.name, ".s") {
++			continue
++		}
++
++		// Determine architecture from file name if possible.
++		var arch string
++		for _, a := range arches {
++			if strings.HasSuffix(f.name, "_"+a.name+".s") {
++				arch = a.name
++				break
++			}
++		}
++
++		lines := strings.SplitAfter(string(f.content), "\n")
++		for lineno, line := range lines {
++			lineno++
++
++			warnf := func(format string, args ...interface{}) {
++				f.Warnf(token.NoPos, "%s:%d: [%s] %s", f.name, lineno, arch, fmt.Sprintf(format, args...))
++			}
++
++			if arch == "" {
++				// Determine architecture from +build line if possible.
++				if m := asmPlusBuild.FindStringSubmatch(line); m != nil {
++				Fields:
++					for _, fld := range strings.Fields(m[1]) {
++						for _, a := range arches {
++							if a.name == fld {
++								arch = a.name
++								break Fields
++							}
++						}
++					}
++				}
++			}
++
++			if m := asmTEXT.FindStringSubmatch(line); m != nil {
++				if arch == "" {
++					f.Warnf(token.NoPos, "%s: cannot determine architecture for assembly file", f.name)
++					return
++				}
++				fn = knownFunc[m[1]][arch]
++				if fn != nil {
++					size, _ := strconv.Atoi(m[4])
++					if size != fn.size && (m[2] != "7" || size != 0) {
++						warnf("wrong argument size %d; expected $...-%d", size, fn.size)
++					}
++				}
++				continue
++			} else if strings.Contains(line, "TEXT") && strings.Contains(line, "SB") {
++				// function, but not visible from Go (didn't match asmTEXT), so stop checking
++				fn = nil
++				continue
++			}
++
++			if asmDATA.FindStringSubmatch(line) != nil {
++				fn = nil
++			}
++			if fn == nil {
++				continue
++			}
++
++			for _, m := range asmUnnamedFP.FindAllStringSubmatch(line, -1) {
++				warnf("use of unnamed argument %s", m[1])
++			}
++
++			for _, m := range asmNamedFP.FindAllStringSubmatch(line, -1) {
++				name := m[1]
++				off := 0
++				if m[2] != "" {
++					off, _ = strconv.Atoi(m[2])
++				}
++				v := fn.vars[name]
++				if v == nil {
++					// Allow argframe+0(FP).
++					if name == "argframe" && off == 0 {
++						continue
++					}
++					v = fn.varByOffset[off]
++					if v != nil {
++						warnf("unknown variable %s; offset %d is %s+%d(FP)", name, off, v.name, v.off)
++					} else {
++						warnf("unknown variable %s", name)
++					}
++					continue
++				}
++				asmCheckVar(warnf, fn, line, m[0], off, v)
++			}
++		}
++	}
++}
++
++// asmParseDecl parses a function decl for expected assembly variables.
++func (f *File) asmParseDecl(decl *ast.FuncDecl) map[string]*asmFunc {
++	var (
++		arch   *asmArch
++		fn     *asmFunc
++		offset int
++		failed bool
++	)
++
++	addVar := func(outer string, v asmVar) {
++		if vo := fn.vars[outer]; vo != nil {
++			vo.inner = append(vo.inner, &v)
++		}
++		fn.vars[v.name] = &v
++		for i := 0; i < v.size; i++ {
++			fn.varByOffset[v.off+i] = &v
++		}
++	}
++
++	addParams := func(list []*ast.Field) {
++		for i, fld := range list {
++			// Determine alignment, size, and kind of type in declaration.
++			var align, size int
++			var kind asmKind
++			names := fld.Names
++			typ := f.gofmt(fld.Type)
++			switch t := fld.Type.(type) {
++			default:
++				switch typ {
++				default:
++					f.Warnf(fld.Type.Pos(), "unknown assembly argument type %s", typ)
++					failed = true
++					return
++				case "int8", "uint8", "byte", "bool":
++					size = 1
++				case "int16", "uint16":
++					size = 2
++				case "int32", "uint32", "float32":
++					size = 4
++				case "int64", "uint64", "float64":
++					align = arch.ptrSize
++					size = 8
++				case "int", "uint":
++					size = arch.intSize
++				case "uintptr", "iword", "Word", "Errno", "unsafe.Pointer":
++					size = arch.ptrSize
++				case "string":
++					size = arch.ptrSize * 2
++					align = arch.ptrSize
++					kind = asmString
++				}
++			case *ast.ChanType, *ast.FuncType, *ast.MapType, *ast.StarExpr:
++				size = arch.ptrSize
++			case *ast.InterfaceType:
++				align = arch.ptrSize
++				size = 2 * arch.ptrSize
++				if len(t.Methods.List) > 0 {
++					kind = asmInterface
++				} else {
++					kind = asmEmptyInterface
++				}
++			case *ast.ArrayType:
++				if t.Len == nil {
++					size = arch.ptrSize + 2*arch.intSize
++					align = arch.ptrSize
++					kind = asmSlice
++					break
++				}
++				f.Warnf(fld.Type.Pos(), "unsupported assembly argument type %s", typ)
++				failed = true
++			case *ast.StructType:
++				f.Warnf(fld.Type.Pos(), "unsupported assembly argument type %s", typ)
++				failed = true
++			}
++			if align == 0 {
++				align = size
++			}
++			if kind == 0 {
++				kind = asmKind(size)
++			}
++			offset += -offset & (align - 1)
++
++			// Create variable for each name being declared with this type.
++			if len(names) == 0 {
++				name := "unnamed"
++				if decl.Type.Results != nil && len(decl.Type.Results.List) > 0 && &list[0] == &decl.Type.Results.List[0] && i == 0 {
++					// Assume assembly will refer to single unnamed result as r.
++					name = "ret"
++				}
++				names = []*ast.Ident{{Name: name}}
++			}
++			for _, id := range names {
++				name := id.Name
++				addVar("", asmVar{
++					name: name,
++					kind: kind,
++					typ:  typ,
++					off:  offset,
++					size: size,
++				})
++				switch kind {
++				case 8:
++					if arch.ptrSize == 4 {
++						w1, w2 := "lo", "hi"
++						if arch.bigEndian {
++							w1, w2 = w2, w1
++						}
++						addVar(name, asmVar{
++							name: name + "_" + w1,
++							kind: 4,
++							typ:  "half " + typ,
++							off:  offset,
++							size: 4,
++						})
++						addVar(name, asmVar{
++							name: name + "_" + w2,
++							kind: 4,
++							typ:  "half " + typ,
++							off:  offset + 4,
++							size: 4,
++						})
++					}
++
++				case asmEmptyInterface:
++					addVar(name, asmVar{
++						name: name + "_type",
++						kind: asmKind(arch.ptrSize),
++						typ:  "interface type",
++						off:  offset,
++						size: arch.ptrSize,
++					})
++					addVar(name, asmVar{
++						name: name + "_data",
++						kind: asmKind(arch.ptrSize),
++						typ:  "interface data",
++						off:  offset + arch.ptrSize,
++						size: arch.ptrSize,
++					})
++
++				case asmInterface:
++					addVar(name, asmVar{
++						name: name + "_itable",
++						kind: asmKind(arch.ptrSize),
++						typ:  "interface itable",
++						off:  offset,
++						size: arch.ptrSize,
++					})
++					addVar(name, asmVar{
++						name: name + "_data",
++						kind: asmKind(arch.ptrSize),
++						typ:  "interface data",
++						off:  offset + arch.ptrSize,
++						size: arch.ptrSize,
++					})
++
++				case asmSlice:
++					addVar(name, asmVar{
++						name: name + "_base",
++						kind: asmKind(arch.ptrSize),
++						typ:  "slice base",
++						off:  offset,
++						size: arch.ptrSize,
++					})
++					addVar(name, asmVar{
++						name: name + "_len",
++						kind: asmKind(arch.intSize),
++						typ:  "slice len",
++						off:  offset + arch.ptrSize,
++						size: arch.intSize,
++					})
++					addVar(name, asmVar{
++						name: name + "_cap",
++						kind: asmKind(arch.intSize),
++						typ:  "slice cap",
++						off:  offset + arch.ptrSize + arch.intSize,
++						size: arch.intSize,
++					})
++
++				case asmString:
++					addVar(name, asmVar{
++						name: name + "_base",
++						kind: asmKind(arch.ptrSize),
++						typ:  "string base",
++						off:  offset,
++						size: arch.ptrSize,
++					})
++					addVar(name, asmVar{
++						name: name + "_len",
++						kind: asmKind(arch.intSize),
++						typ:  "string len",
++						off:  offset + arch.ptrSize,
++						size: arch.intSize,
++					})
++				}
++				offset += size
++			}
++		}
++	}
++
++	m := make(map[string]*asmFunc)
++	for _, arch = range arches {
++		fn = &asmFunc{
++			arch:        arch,
++			vars:        make(map[string]*asmVar),
++			varByOffset: make(map[int]*asmVar),
++		}
++		offset = 0
++		addParams(decl.Type.Params.List)
++		if decl.Type.Results != nil && len(decl.Type.Results.List) > 0 {
++			offset += -offset & (arch.ptrSize - 1)
++			addParams(decl.Type.Results.List)
++		}
++		fn.size = offset
++		m[arch.name] = fn
++	}
++
++	if failed {
++		return nil
++	}
++	return m
++}
++
++// asmCheckVar checks a single variable reference.
++func asmCheckVar(warnf func(string, ...interface{}), fn *asmFunc, line, expr string, off int, v *asmVar) {
++	m := asmOpcode.FindStringSubmatch(line)
++	if m == nil {
++		warnf("cannot find assembly opcode")
++	}
++
++	// Determine operand sizes from instruction.
++	// Typically the suffix suffices, but there are exceptions.
++	var src, dst, kind asmKind
++	op := m[1]
++	switch fn.arch.name + "." + op {
++	case "386.FMOVLP":
++		src, dst = 8, 4
++	case "arm.MOVD":
++		src = 8
++	case "arm.MOVW":
++		src = 4
++	case "arm.MOVH", "arm.MOVHU":
++		src = 2
++	case "arm.MOVB", "arm.MOVBU":
++		src = 1
++	default:
++		if fn.arch.name == "386" || fn.arch.name == "amd64" {
++			if strings.HasPrefix(op, "F") && (strings.HasSuffix(op, "D") || strings.HasSuffix(op, "DP")) {
++				// FMOVDP, FXCHD, etc
++				src = 8
++				break
++			}
++			if strings.HasPrefix(op, "F") && (strings.HasSuffix(op, "F") || strings.HasSuffix(op, "FP")) {
++				// FMOVFP, FXCHF, etc
++				src = 4
++				break
++			}
++			if strings.HasSuffix(op, "SD") {
++				// MOVSD, SQRTSD, etc
++				src = 8
++				break
++			}
++			if strings.HasSuffix(op, "SS") {
++				// MOVSS, SQRTSS, etc
++				src = 4
++				break
++			}
++			if strings.HasPrefix(op, "SET") {
++				// SETEQ, etc
++				src = 1
++				break
++			}
++			switch op[len(op)-1] {
++			case 'B':
++				src = 1
++			case 'W':
++				src = 2
++			case 'L':
++				src = 4
++			case 'D', 'Q':
++				src = 8
++			}
++		}
++	}
++	if dst == 0 {
++		dst = src
++	}
++
++	// Determine whether the match we're holding
++	// is the first or second argument.
++	if strings.Index(line, expr) > strings.Index(line, ",") {
++		kind = dst
++	} else {
++		kind = src
++	}
++
++	vk := v.kind
++	vt := v.typ
++	switch vk {
++	case asmInterface, asmEmptyInterface, asmString, asmSlice:
++		// allow reference to first word (pointer)
++		vk = v.inner[0].kind
++		vt = v.inner[0].typ
++	}
++
++	if off != v.off {
++		var inner bytes.Buffer
++		for i, vi := range v.inner {
++			if len(v.inner) > 1 {
++				fmt.Fprintf(&inner, ",")
++			}
++			fmt.Fprintf(&inner, " ")
++			if i == len(v.inner)-1 {
++				fmt.Fprintf(&inner, "or ")
++			}
++			fmt.Fprintf(&inner, "%s+%d(FP)", vi.name, vi.off)
++		}
++		warnf("invalid offset %s; expected %s+%d(FP)%s", expr, v.name, v.off, inner.String())
++		return
++	}
++	if kind != 0 && kind != vk {
++		var inner bytes.Buffer
++		if len(v.inner) > 0 {
++			fmt.Fprintf(&inner, " containing")
++			for i, vi := range v.inner {
++				if i > 0 && len(v.inner) > 2 {
++					fmt.Fprintf(&inner, ",")
++				}
++				fmt.Fprintf(&inner, " ")
++				if i > 0 && i == len(v.inner)-1 {
++					fmt.Fprintf(&inner, "and ")
++				}
++				fmt.Fprintf(&inner, "%s+%d(FP)", vi.name, vi.off)
++			}
++		}
++		warnf("invalid %s of %s; %s is %d-byte value%s", op, expr, vt, vk, inner.String())
++	}
++}
+diff --git a/src/cmd/vet/buildtag.go b/src/cmd/vet/buildtag.go
+index 4b7580457b..0ab13cb8a0 100644
+--- a/src/cmd/vet/buildtag.go
++++ b/src/cmd/vet/buildtag.go
+@@ -72,7 +72,7 @@ func checkBuildTag(name string, data []byte) {
+ 						elem = elem[1:]
+ 					}
+ 					for _, c := range elem {
+-						if !unicode.IsLetter(c) && !unicode.IsDigit(c) && c != '_' {
++						if !unicode.IsLetter(c) && !unicode.IsDigit(c) && c != '_' && c != '.' {
+ 							fmt.Fprintf(os.Stderr, "%s:%d: invalid non-alphanumeric build constraint: %s\n", name, i+1, arg)
+ 							setExit(1)
+ 							break Args
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index 952b80a95f..8ae829f853 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -29,6 +29,7 @@ var exitCode = 0
+ // a flag is set explicitly.
+ var report = map[string]*bool{
+ 	"all":        flag.Bool("all", true, "check everything; disabled if any explicit check is requested"),
++	"asmdecl":    flag.Bool("asmdecl", false, "check assembly against Go declarations"),
+ 	"assign":     flag.Bool("assign", false, "check for useless assignments"),
+ 	"atomic":     flag.Bool("atomic", false, "check for common mistaken usages of the sync/atomic package"),
+ 	"buildtags":  flag.Bool("buildtags", false, "check that +build tags are valid"),
+@@ -64,11 +65,12 @@ func Usage() {
+ // File is a wrapper for the state of a file used in the parser.
+ // The parse tree walkers are all methods of this type.
+ type File struct {
+-	pkg  *Package
+-	fset *token.FileSet
+-	name string
+-	file *ast.File
+-	b    bytes.Buffer // for use by methods
++	pkg     *Package
++	fset    *token.FileSet
++	name    string
++	content []byte
++	file    *ast.File
++	b       bytes.Buffer // for use by methods
+ }
+ 
+ func main() {
+@@ -163,6 +165,7 @@ func doPackageDir(directory string) {
+ 	names = append(names, pkg.GoFiles...)
+ 	names = append(names, pkg.CgoFiles...)
+ 	names = append(names, pkg.TestGoFiles...) // These are also in the "foo" package.
++	names = append(names, pkg.SFiles...)
+ 	prefixDirectory(directory, names)
+ 	doPackage(names)
+ 	// Is there also a "foo_test" package? If so, do that one as well.
+@@ -176,6 +179,7 @@ func doPackageDir(directory string) {
+ type Package struct {
+ 	types  map[ast.Expr]Type
+ 	values map[ast.Expr]interface{}
++	files  []*File
+ }
+ 
+ // doPackage analyzes the single package constructed from the named files.
+@@ -197,15 +201,19 @@ func doPackage(names []string) {
+ 			return
+ 		}
+ 		checkBuildTag(name, data)
+-		parsedFile, err := parser.ParseFile(fs, name, bytes.NewReader(data), 0)
+-		if err != nil {
+-			warnf("%s: %s", name, err)
+-			return
++		var parsedFile *ast.File
++		if strings.HasSuffix(name, ".go") {
++			parsedFile, err = parser.ParseFile(fs, name, bytes.NewReader(data), 0)
++			if err != nil {
++				warnf("%s: %s", name, err)
++				return
++			}
++			astFiles = append(astFiles, parsedFile)
+ 		}
+-		files = append(files, &File{fset: fs, name: name, file: parsedFile})
+-		astFiles = append(astFiles, parsedFile)
++		files = append(files, &File{fset: fs, content: data, name: name, file: parsedFile})
+ 	}
+ 	pkg := new(Package)
++	pkg.files = files
+ 	// Type check the package.
+ 	err := pkg.check(fs, astFiles)
+ 	if err != nil && *verbose {
+@@ -213,8 +221,11 @@ func doPackage(names []string) {
+ 	}
+ 	for _, file := range files {
+ 		file.pkg = pkg
+-		file.walkFile(file.name, file.file)
++		if file.file != nil {
++			file.walkFile(file.name, file.file)
++		}
+ 	}
++	asmCheck(pkg)
+ }
+ 
+ func visit(path string, f os.FileInfo, err error) error {
+@@ -230,6 +241,15 @@ func visit(path string, f os.FileInfo, err error) error {
+ 	return nil
+ }
+ 
++func (pkg *Package) hasFileWithSuffix(suffix string) bool {
++	for _, f := range pkg.files {
++		if strings.HasSuffix(f.name, suffix) {
++			return true
++		}
++	}
++	return false
++}
++
+ // walkDir recursively walks the tree looking for Go packages.
+ func walkDir(root string) {
+ 	filepath.Walk(root, visit)
+@@ -278,6 +298,9 @@ func (f *File) Badf(pos token.Pos, format string, args ...interface{}) {
+ }
+ 
+ func (f *File) loc(pos token.Pos) string {
++	if pos == token.NoPos {
++		return ""
++	}
+ 	// Do not print columns. Because the pos often points to the start of an
+ 	// expression instead of the inner part with the actual error, the
+ 	// precision can mislead.
+diff --git a/src/cmd/vet/test_asm.go b/src/cmd/vet/test_asm.go
+new file mode 100644
+index 0000000000..098bdd15c6
+--- /dev/null
++++ b/src/cmd/vet/test_asm.go
+@@ -0,0 +1,24 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ignore
++
++// This file contains declarations to test the assembly in test_asm.s.
++
++package main
++
++func arg1(x int8, y uint8)
++func arg2(x int16, y uint16)
++func arg4(x int32, y uint32)
++func arg8(x int64, y uint64)
++func argint(x int, y uint)
++func argptr(x *byte, y *byte, c chan int, m map[int]int, f func())
++func argstring(x, y string)
++func argslice(x, y []string)
++func argiface(x interface{}, y interface {
++	m()
++})
++func returnint() int
++func returnbyte(x int) byte
++func returnnamed(x byte) (r1 int, r2 int16, r3 string, r4 byte)
+diff --git a/src/cmd/vet/test_asm1.s b/src/cmd/vet/test_asm1.s
+new file mode 100644
+index 0000000000..2fe31963a4
+--- /dev/null
++++ b/src/cmd/vet/test_asm1.s
+@@ -0,0 +1,249 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build amd64
++// +build ignore
++
++package main
++
++TEXT ·arg1(SB),0,$0-2
++	MOVB	x+0(FP), AX
++	MOVB	y+1(FP), BX
++	MOVW	x+0(FP), AX // ERROR "\[amd64\] invalid MOVW of x\+0\(FP\); int8 is 1-byte value"
++	MOVW	y+1(FP), AX // ERROR "invalid MOVW of y\+1\(FP\); uint8 is 1-byte value"
++	MOVL	x+0(FP), AX // ERROR "invalid MOVL of x\+0\(FP\); int8 is 1-byte value"
++	MOVL	y+1(FP), AX // ERROR "invalid MOVL of y\+1\(FP\); uint8 is 1-byte value"
++	MOVQ	x+0(FP), AX // ERROR "invalid MOVQ of x\+0\(FP\); int8 is 1-byte value"
++	MOVQ	y+1(FP), AX // ERROR "invalid MOVQ of y\+1\(FP\); uint8 is 1-byte value"
++	MOVB	x+1(FP), AX // ERROR "invalid offset x\+1\(FP\); expected x\+0\(FP\)"
++	MOVB	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+1\(FP\)"
++	TESTB	x+0(FP), AX
++	TESTB	y+1(FP), BX
++	TESTW	x+0(FP), AX // ERROR "invalid TESTW of x\+0\(FP\); int8 is 1-byte value"
++	TESTW	y+1(FP), AX // ERROR "invalid TESTW of y\+1\(FP\); uint8 is 1-byte value"
++	TESTL	x+0(FP), AX // ERROR "invalid TESTL of x\+0\(FP\); int8 is 1-byte value"
++	TESTL	y+1(FP), AX // ERROR "invalid TESTL of y\+1\(FP\); uint8 is 1-byte value"
++	TESTQ	x+0(FP), AX // ERROR "invalid TESTQ of x\+0\(FP\); int8 is 1-byte value"
++	TESTQ	y+1(FP), AX // ERROR "invalid TESTQ of y\+1\(FP\); uint8 is 1-byte value"
++	TESTB	x+1(FP), AX // ERROR "invalid offset x\+1\(FP\); expected x\+0\(FP\)"
++	TESTB	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+1\(FP\)"
++	RET
++
++TEXT ·arg2(SB),0,$0-4
++	MOVB	x+0(FP), AX // ERROR "invalid MOVB of x\+0\(FP\); int16 is 2-byte value"
++	MOVB	y+2(FP), AX // ERROR "invalid MOVB of y\+2\(FP\); uint16 is 2-byte value"
++	MOVW	x+0(FP), AX
++	MOVW	y+2(FP), BX
++	MOVL	x+0(FP), AX // ERROR "invalid MOVL of x\+0\(FP\); int16 is 2-byte value"
++	MOVL	y+2(FP), AX // ERROR "invalid MOVL of y\+2\(FP\); uint16 is 2-byte value"
++	MOVQ	x+0(FP), AX // ERROR "invalid MOVQ of x\+0\(FP\); int16 is 2-byte value"
++	MOVQ	y+2(FP), AX // ERROR "invalid MOVQ of y\+2\(FP\); uint16 is 2-byte value"
++	MOVW	x+2(FP), AX // ERROR "invalid offset x\+2\(FP\); expected x\+0\(FP\)"
++	MOVW	y+0(FP), AX // ERROR "invalid offset y\+0\(FP\); expected y\+2\(FP\)"
++	TESTB	x+0(FP), AX // ERROR "invalid TESTB of x\+0\(FP\); int16 is 2-byte value"
++	TESTB	y+2(FP), AX // ERROR "invalid TESTB of y\+2\(FP\); uint16 is 2-byte value"
++	TESTW	x+0(FP), AX
++	TESTW	y+2(FP), BX
++	TESTL	x+0(FP), AX // ERROR "invalid TESTL of x\+0\(FP\); int16 is 2-byte value"
++	TESTL	y+2(FP), AX // ERROR "invalid TESTL of y\+2\(FP\); uint16 is 2-byte value"
++	TESTQ	x+0(FP), AX // ERROR "invalid TESTQ of x\+0\(FP\); int16 is 2-byte value"
++	TESTQ	y+2(FP), AX // ERROR "invalid TESTQ of y\+2\(FP\); uint16 is 2-byte value"
++	TESTW	x+2(FP), AX // ERROR "invalid offset x\+2\(FP\); expected x\+0\(FP\)"
++	TESTW	y+0(FP), AX // ERROR "invalid offset y\+0\(FP\); expected y\+2\(FP\)"
++	RET
++
++TEXT ·arg4(SB),0,$0-2 // ERROR "wrong argument size 2; expected \$\.\.\.-8"
++	MOVB	x+0(FP), AX // ERROR "invalid MOVB of x\+0\(FP\); int32 is 4-byte value"
++	MOVB	y+4(FP), BX // ERROR "invalid MOVB of y\+4\(FP\); uint32 is 4-byte value"
++	MOVW	x+0(FP), AX // ERROR "invalid MOVW of x\+0\(FP\); int32 is 4-byte value"
++	MOVW	y+4(FP), AX // ERROR "invalid MOVW of y\+4\(FP\); uint32 is 4-byte value"
++	MOVL	x+0(FP), AX
++	MOVL	y+4(FP), AX
++	MOVQ	x+0(FP), AX // ERROR "invalid MOVQ of x\+0\(FP\); int32 is 4-byte value"
++	MOVQ	y+4(FP), AX // ERROR "invalid MOVQ of y\+4\(FP\); uint32 is 4-byte value"
++	MOVL	x+4(FP), AX // ERROR "invalid offset x\+4\(FP\); expected x\+0\(FP\)"
++	MOVL	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+4\(FP\)"
++	TESTB	x+0(FP), AX // ERROR "invalid TESTB of x\+0\(FP\); int32 is 4-byte value"
++	TESTB	y+4(FP), BX // ERROR "invalid TESTB of y\+4\(FP\); uint32 is 4-byte value"
++	TESTW	x+0(FP), AX // ERROR "invalid TESTW of x\+0\(FP\); int32 is 4-byte value"
++	TESTW	y+4(FP), AX // ERROR "invalid TESTW of y\+4\(FP\); uint32 is 4-byte value"
++	TESTL	x+0(FP), AX
++	TESTL	y+4(FP), AX
++	TESTQ	x+0(FP), AX // ERROR "invalid TESTQ of x\+0\(FP\); int32 is 4-byte value"
++	TESTQ	y+4(FP), AX // ERROR "invalid TESTQ of y\+4\(FP\); uint32 is 4-byte value"
++	TESTL	x+4(FP), AX // ERROR "invalid offset x\+4\(FP\); expected x\+0\(FP\)"
++	TESTL	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+4\(FP\)"
++	RET
++
++TEXT ·arg8(SB),7,$0-2 // ERROR "wrong argument size 2; expected \$\.\.\.-16"
++	MOVB	x+0(FP), AX // ERROR "invalid MOVB of x\+0\(FP\); int64 is 8-byte value"
++	MOVB	y+8(FP), BX // ERROR "invalid MOVB of y\+8\(FP\); uint64 is 8-byte value"
++	MOVW	x+0(FP), AX // ERROR "invalid MOVW of x\+0\(FP\); int64 is 8-byte value"
++	MOVW	y+8(FP), AX // ERROR "invalid MOVW of y\+8\(FP\); uint64 is 8-byte value"
++	MOVL	x+0(FP), AX // ERROR "invalid MOVL of x\+0\(FP\); int64 is 8-byte value"
++	MOVL	y+8(FP), AX // ERROR "invalid MOVL of y\+8\(FP\); uint64 is 8-byte value"
++	MOVQ	x+0(FP), AX
++	MOVQ	y+8(FP), AX
++	MOVQ	x+8(FP), AX // ERROR "invalid offset x\+8\(FP\); expected x\+0\(FP\)"
++	MOVQ	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+8\(FP\)"
++	TESTB	x+0(FP), AX // ERROR "invalid TESTB of x\+0\(FP\); int64 is 8-byte value"
++	TESTB	y+8(FP), BX // ERROR "invalid TESTB of y\+8\(FP\); uint64 is 8-byte value"
++	TESTW	x+0(FP), AX // ERROR "invalid TESTW of x\+0\(FP\); int64 is 8-byte value"
++	TESTW	y+8(FP), AX // ERROR "invalid TESTW of y\+8\(FP\); uint64 is 8-byte value"
++	TESTL	x+0(FP), AX // ERROR "invalid TESTL of x\+0\(FP\); int64 is 8-byte value"
++	TESTL	y+8(FP), AX // ERROR "invalid TESTL of y\+8\(FP\); uint64 is 8-byte value"
++	TESTQ	x+0(FP), AX
++	TESTQ	y+8(FP), AX
++	TESTQ	x+8(FP), AX // ERROR "invalid offset x\+8\(FP\); expected x\+0\(FP\)"
++	TESTQ	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+8\(FP\)"
++	RET
++
++TEXT ·argint(SB),0,$0-2 // ERROR "wrong argument size 2; expected \$\.\.\.-16"
++	MOVB	x+0(FP), AX // ERROR "invalid MOVB of x\+0\(FP\); int is 8-byte value"
++	MOVB	y+8(FP), BX // ERROR "invalid MOVB of y\+8\(FP\); uint is 8-byte value"
++	MOVW	x+0(FP), AX // ERROR "invalid MOVW of x\+0\(FP\); int is 8-byte value"
++	MOVW	y+8(FP), AX // ERROR "invalid MOVW of y\+8\(FP\); uint is 8-byte value"
++	MOVL	x+0(FP), AX // ERROR "invalid MOVL of x\+0\(FP\); int is 8-byte value"
++	MOVL	y+8(FP), AX // ERROR "invalid MOVL of y\+8\(FP\); uint is 8-byte value"
++	MOVQ	x+0(FP), AX
++	MOVQ	y+8(FP), AX
++	MOVQ	x+8(FP), AX // ERROR "invalid offset x\+8\(FP\); expected x\+0\(FP\)"
++	MOVQ	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+8\(FP\)"
++	TESTB	x+0(FP), AX // ERROR "invalid TESTB of x\+0\(FP\); int is 8-byte value"
++	TESTB	y+8(FP), BX // ERROR "invalid TESTB of y\+8\(FP\); uint is 8-byte value"
++	TESTW	x+0(FP), AX // ERROR "invalid TESTW of x\+0\(FP\); int is 8-byte value"
++	TESTW	y+8(FP), AX // ERROR "invalid TESTW of y\+8\(FP\); uint is 8-byte value"
++	TESTL	x+0(FP), AX // ERROR "invalid TESTL of x\+0\(FP\); int is 8-byte value"
++	TESTL	y+8(FP), AX // ERROR "invalid TESTL of y\+8\(FP\); uint is 8-byte value"
++	TESTQ	x+0(FP), AX
++	TESTQ	y+8(FP), AX
++	TESTQ	x+8(FP), AX // ERROR "invalid offset x\+8\(FP\); expected x\+0\(FP\)"
++	TESTQ	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+8\(FP\)"
++	RET
++
++TEXT ·argptr(SB),7,$0-2 // ERROR "wrong argument size 2; expected \$\.\.\.-40"
++	MOVB	x+0(FP), AX // ERROR "invalid MOVB of x\+0\(FP\); \*byte is 8-byte value"
++	MOVB	y+8(FP), BX // ERROR "invalid MOVB of y\+8\(FP\); \*byte is 8-byte value"
++	MOVW	x+0(FP), AX // ERROR "invalid MOVW of x\+0\(FP\); \*byte is 8-byte value"
++	MOVW	y+8(FP), AX // ERROR "invalid MOVW of y\+8\(FP\); \*byte is 8-byte value"
++	MOVL	x+0(FP), AX // ERROR "invalid MOVL of x\+0\(FP\); \*byte is 8-byte value"
++	MOVL	y+8(FP), AX // ERROR "invalid MOVL of y\+8\(FP\); \*byte is 8-byte value"
++	MOVQ	x+0(FP), AX
++	MOVQ	y+8(FP), AX
++	MOVQ	x+8(FP), AX // ERROR "invalid offset x\+8\(FP\); expected x\+0\(FP\)"
++	MOVQ	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+8\(FP\)"
++	TESTB	x+0(FP), AX // ERROR "invalid TESTB of x\+0\(FP\); \*byte is 8-byte value"
++	TESTB	y+8(FP), BX // ERROR "invalid TESTB of y\+8\(FP\); \*byte is 8-byte value"
++	TESTW	x+0(FP), AX // ERROR "invalid TESTW of x\+0\(FP\); \*byte is 8-byte value"
++	TESTW	y+8(FP), AX // ERROR "invalid TESTW of y\+8\(FP\); \*byte is 8-byte value"
++	TESTL	x+0(FP), AX // ERROR "invalid TESTL of x\+0\(FP\); \*byte is 8-byte value"
++	TESTL	y+8(FP), AX // ERROR "invalid TESTL of y\+8\(FP\); \*byte is 8-byte value"
++	TESTQ	x+0(FP), AX
++	TESTQ	y+8(FP), AX
++	TESTQ	x+8(FP), AX // ERROR "invalid offset x\+8\(FP\); expected x\+0\(FP\)"
++	TESTQ	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+8\(FP\)"
++	MOVL	c+16(FP), AX // ERROR "invalid MOVL of c\+16\(FP\); chan int is 8-byte value"
++	MOVL	m+24(FP), AX // ERROR "invalid MOVL of m\+24\(FP\); map\[int\]int is 8-byte value"
++	MOVL	f+32(FP), AX // ERROR "invalid MOVL of f\+32\(FP\); func\(\) is 8-byte value"
++	RET
++
++TEXT ·argstring(SB),0,$32 // ERROR "wrong argument size 0; expected \$\.\.\.-32"
++	MOVW	x+0(FP), AX // ERROR "invalid MOVW of x\+0\(FP\); string base is 8-byte value"
++	MOVL	x+0(FP), AX // ERROR "invalid MOVL of x\+0\(FP\); string base is 8-byte value"
++	MOVQ	x+0(FP), AX
++	MOVW	x_base+0(FP), AX // ERROR "invalid MOVW of x_base\+0\(FP\); string base is 8-byte value"
++	MOVL	x_base+0(FP), AX // ERROR "invalid MOVL of x_base\+0\(FP\); string base is 8-byte value"
++	MOVQ	x_base+0(FP), AX
++	MOVW	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+8\(FP\)"
++	MOVL	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+8\(FP\)"
++	MOVQ	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+8\(FP\)"
++	MOVW	x_len+8(FP), AX // ERROR "invalid MOVW of x_len\+8\(FP\); string len is 8-byte value"
++	MOVL	x_len+8(FP), AX // ERROR "invalid MOVL of x_len\+8\(FP\); string len is 8-byte value"
++	MOVQ	x_len+8(FP), AX
++	MOVQ	y+0(FP), AX // ERROR "invalid offset y\+0\(FP\); expected y\+16\(FP\)"
++	MOVQ	y_len+8(FP), AX // ERROR "invalid offset y_len\+8\(FP\); expected y_len\+24\(FP\)"
++	RET
++
++TEXT ·argslice(SB),0,$48 // ERROR "wrong argument size 0; expected \$\.\.\.-48"
++	MOVW	x+0(FP), AX // ERROR "invalid MOVW of x\+0\(FP\); slice base is 8-byte value"
++	MOVL	x+0(FP), AX // ERROR "invalid MOVL of x\+0\(FP\); slice base is 8-byte value"
++	MOVQ	x+0(FP), AX
++	MOVW	x_base+0(FP), AX // ERROR "invalid MOVW of x_base\+0\(FP\); slice base is 8-byte value"
++	MOVL	x_base+0(FP), AX // ERROR "invalid MOVL of x_base\+0\(FP\); slice base is 8-byte value"
++	MOVQ	x_base+0(FP), AX
++	MOVW	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+8\(FP\)"
++	MOVL	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+8\(FP\)"
++	MOVQ	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+8\(FP\)"
++	MOVW	x_len+8(FP), AX // ERROR "invalid MOVW of x_len\+8\(FP\); slice len is 8-byte value"
++	MOVL	x_len+8(FP), AX // ERROR "invalid MOVL of x_len\+8\(FP\); slice len is 8-byte value"
++	MOVQ	x_len+8(FP), AX
++	MOVW	x_cap+0(FP), AX // ERROR "invalid offset x_cap\+0\(FP\); expected x_cap\+16\(FP\)"
++	MOVL	x_cap+0(FP), AX // ERROR "invalid offset x_cap\+0\(FP\); expected x_cap\+16\(FP\)"
++	MOVQ	x_cap+0(FP), AX // ERROR "invalid offset x_cap\+0\(FP\); expected x_cap\+16\(FP\)"
++	MOVW	x_cap+16(FP), AX // ERROR "invalid MOVW of x_cap\+16\(FP\); slice cap is 8-byte value"
++	MOVL	x_cap+16(FP), AX // ERROR "invalid MOVL of x_cap\+16\(FP\); slice cap is 8-byte value"
++	MOVQ	x_cap+16(FP), AX
++	MOVQ	y+0(FP), AX // ERROR "invalid offset y\+0\(FP\); expected y\+24\(FP\)"
++	MOVQ	y_len+8(FP), AX // ERROR "invalid offset y_len\+8\(FP\); expected y_len\+32\(FP\)"
++	MOVQ	y_cap+16(FP), AX // ERROR "invalid offset y_cap\+16\(FP\); expected y_cap\+40\(FP\)"
++	RET
++
++TEXT ·argiface(SB),0,$0-32
++	MOVW	x+0(FP), AX // ERROR "invalid MOVW of x\+0\(FP\); interface type is 8-byte value"
++	MOVL	x+0(FP), AX // ERROR "invalid MOVL of x\+0\(FP\); interface type is 8-byte value"
++	MOVQ	x+0(FP), AX
++	MOVW	x_type+0(FP), AX // ERROR "invalid MOVW of x_type\+0\(FP\); interface type is 8-byte value"
++	MOVL	x_type+0(FP), AX // ERROR "invalid MOVL of x_type\+0\(FP\); interface type is 8-byte value"
++	MOVQ	x_type+0(FP), AX
++	MOVQ	x_itable+0(FP), AX // ERROR "unknown variable x_itable; offset 0 is x_type\+0\(FP\)"
++	MOVQ	x_itable+1(FP), AX // ERROR "unknown variable x_itable; offset 1 is x_type\+0\(FP\)"
++	MOVW	x_data+0(FP), AX // ERROR "invalid offset x_data\+0\(FP\); expected x_data\+8\(FP\)"
++	MOVL	x_data+0(FP), AX // ERROR "invalid offset x_data\+0\(FP\); expected x_data\+8\(FP\)"
++	MOVQ	x_data+0(FP), AX // ERROR "invalid offset x_data\+0\(FP\); expected x_data\+8\(FP\)"
++	MOVW	x_data+8(FP), AX // ERROR "invalid MOVW of x_data\+8\(FP\); interface data is 8-byte value"
++	MOVL	x_data+8(FP), AX // ERROR "invalid MOVL of x_data\+8\(FP\); interface data is 8-byte value"
++	MOVQ	x_data+8(FP), AX
++	MOVW	y+16(FP), AX // ERROR "invalid MOVW of y\+16\(FP\); interface itable is 8-byte value"
++	MOVL	y+16(FP), AX // ERROR "invalid MOVL of y\+16\(FP\); interface itable is 8-byte value"
++	MOVQ	y+16(FP), AX
++	MOVW	y_itable+16(FP), AX // ERROR "invalid MOVW of y_itable\+16\(FP\); interface itable is 8-byte value"
++	MOVL	y_itable+16(FP), AX // ERROR "invalid MOVL of y_itable\+16\(FP\); interface itable is 8-byte value"
++	MOVQ	y_itable+16(FP), AX
++	MOVQ	y_type+16(FP), AX // ERROR "unknown variable y_type; offset 16 is y_itable\+16\(FP\)"
++	MOVW	y_data+16(FP), AX // ERROR "invalid offset y_data\+16\(FP\); expected y_data\+24\(FP\)"
++	MOVL	y_data+16(FP), AX // ERROR "invalid offset y_data\+16\(FP\); expected y_data\+24\(FP\)"
++	MOVQ	y_data+16(FP), AX // ERROR "invalid offset y_data\+16\(FP\); expected y_data\+24\(FP\)"
++	MOVW	y_data+24(FP), AX // ERROR "invalid MOVW of y_data\+24\(FP\); interface data is 8-byte value"
++	MOVL	y_data+24(FP), AX // ERROR "invalid MOVL of y_data\+24\(FP\); interface data is 8-byte value"
++	MOVQ	y_data+24(FP), AX
++	RET
++
++TEXT ·returnint(SB),0,$0-8
++	MOVB	AX, ret+0(FP) // ERROR "invalid MOVB of ret\+0\(FP\); int is 8-byte value"
++	MOVW	AX, ret+0(FP) // ERROR "invalid MOVW of ret\+0\(FP\); int is 8-byte value"
++	MOVL	AX, ret+0(FP) // ERROR "invalid MOVL of ret\+0\(FP\); int is 8-byte value"
++	MOVQ	AX, ret+0(FP)
++	MOVQ	AX, ret+1(FP) // ERROR "invalid offset ret\+1\(FP\); expected ret\+0\(FP\)"
++	MOVQ	AX, r+0(FP) // ERROR "unknown variable r; offset 0 is ret\+0\(FP\)"
++	RET
++
++TEXT ·returnbyte(SB),0,$0-9
++	MOVQ	x+0(FP), AX
++	MOVB	AX, ret+8(FP)
++	MOVW	AX, ret+8(FP) // ERROR "invalid MOVW of ret\+8\(FP\); byte is 1-byte value"
++	MOVL	AX, ret+8(FP) // ERROR "invalid MOVL of ret\+8\(FP\); byte is 1-byte value"
++	MOVQ	AX, ret+8(FP) // ERROR "invalid MOVQ of ret\+8\(FP\); byte is 1-byte value"
++	MOVB	AX, ret+7(FP) // ERROR "invalid offset ret\+7\(FP\); expected ret\+8\(FP\)"
++	RET
++
++TEXT ·returnnamed(SB),0,$0-41
++	MOVB	x+0(FP), AX
++	MOVQ	AX, r1+8(FP)
++	MOVW	AX, r2+16(FP)
++	MOVQ	AX, r3+24(FP)
++	MOVQ	AX, r3_base+24(FP)
++	MOVQ	AX, r3_len+32(FP)
++	MOVB	AX, r4+40(FP)
++	MOVL	AX, r1+8(FP) // ERROR "invalid MOVL of r1\+8\(FP\); int is 8-byte value"
++	RET
+diff --git a/src/cmd/vet/test_asm2.s b/src/cmd/vet/test_asm2.s
+new file mode 100644
+index 0000000000..73a4ad4be5
+--- /dev/null
++++ b/src/cmd/vet/test_asm2.s
+@@ -0,0 +1,253 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build 386
++// +build ignore
++
++package main
++
++TEXT ·arg1(SB),0,$0-2
++	MOVB	x+0(FP), AX
++	MOVB	y+1(FP), BX
++	MOVW	x+0(FP), AX // ERROR "\[386\] invalid MOVW of x\+0\(FP\); int8 is 1-byte value"
++	MOVW	y+1(FP), AX // ERROR "invalid MOVW of y\+1\(FP\); uint8 is 1-byte value"
++	MOVL	x+0(FP), AX // ERROR "invalid MOVL of x\+0\(FP\); int8 is 1-byte value"
++	MOVL	y+1(FP), AX // ERROR "invalid MOVL of y\+1\(FP\); uint8 is 1-byte value"
++	MOVQ	x+0(FP), AX // ERROR "invalid MOVQ of x\+0\(FP\); int8 is 1-byte value"
++	MOVQ	y+1(FP), AX // ERROR "invalid MOVQ of y\+1\(FP\); uint8 is 1-byte value"
++	MOVB	x+1(FP), AX // ERROR "invalid offset x\+1\(FP\); expected x\+0\(FP\)"
++	MOVB	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+1\(FP\)"
++	TESTB	x+0(FP), AX
++	TESTB	y+1(FP), BX
++	TESTW	x+0(FP), AX // ERROR "invalid TESTW of x\+0\(FP\); int8 is 1-byte value"
++	TESTW	y+1(FP), AX // ERROR "invalid TESTW of y\+1\(FP\); uint8 is 1-byte value"
++	TESTL	x+0(FP), AX // ERROR "invalid TESTL of x\+0\(FP\); int8 is 1-byte value"
++	TESTL	y+1(FP), AX // ERROR "invalid TESTL of y\+1\(FP\); uint8 is 1-byte value"
++	TESTQ	x+0(FP), AX // ERROR "invalid TESTQ of x\+0\(FP\); int8 is 1-byte value"
++	TESTQ	y+1(FP), AX // ERROR "invalid TESTQ of y\+1\(FP\); uint8 is 1-byte value"
++	TESTB	x+1(FP), AX // ERROR "invalid offset x\+1\(FP\); expected x\+0\(FP\)"
++	TESTB	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+1\(FP\)"
++	RET
++
++TEXT ·arg2(SB),0,$0-4
++	MOVB	x+0(FP), AX // ERROR "invalid MOVB of x\+0\(FP\); int16 is 2-byte value"
++	MOVB	y+2(FP), AX // ERROR "invalid MOVB of y\+2\(FP\); uint16 is 2-byte value"
++	MOVW	x+0(FP), AX
++	MOVW	y+2(FP), BX
++	MOVL	x+0(FP), AX // ERROR "invalid MOVL of x\+0\(FP\); int16 is 2-byte value"
++	MOVL	y+2(FP), AX // ERROR "invalid MOVL of y\+2\(FP\); uint16 is 2-byte value"
++	MOVQ	x+0(FP), AX // ERROR "invalid MOVQ of x\+0\(FP\); int16 is 2-byte value"
++	MOVQ	y+2(FP), AX // ERROR "invalid MOVQ of y\+2\(FP\); uint16 is 2-byte value"
++	MOVW	x+2(FP), AX // ERROR "invalid offset x\+2\(FP\); expected x\+0\(FP\)"
++	MOVW	y+0(FP), AX // ERROR "invalid offset y\+0\(FP\); expected y\+2\(FP\)"
++	TESTB	x+0(FP), AX // ERROR "invalid TESTB of x\+0\(FP\); int16 is 2-byte value"
++	TESTB	y+2(FP), AX // ERROR "invalid TESTB of y\+2\(FP\); uint16 is 2-byte value"
++	TESTW	x+0(FP), AX
++	TESTW	y+2(FP), BX
++	TESTL	x+0(FP), AX // ERROR "invalid TESTL of x\+0\(FP\); int16 is 2-byte value"
++	TESTL	y+2(FP), AX // ERROR "invalid TESTL of y\+2\(FP\); uint16 is 2-byte value"
++	TESTQ	x+0(FP), AX // ERROR "invalid TESTQ of x\+0\(FP\); int16 is 2-byte value"
++	TESTQ	y+2(FP), AX // ERROR "invalid TESTQ of y\+2\(FP\); uint16 is 2-byte value"
++	TESTW	x+2(FP), AX // ERROR "invalid offset x\+2\(FP\); expected x\+0\(FP\)"
++	TESTW	y+0(FP), AX // ERROR "invalid offset y\+0\(FP\); expected y\+2\(FP\)"
++	RET
++
++TEXT ·arg4(SB),0,$0-2 // ERROR "wrong argument size 2; expected \$\.\.\.-8"
++	MOVB	x+0(FP), AX // ERROR "invalid MOVB of x\+0\(FP\); int32 is 4-byte value"
++	MOVB	y+4(FP), BX // ERROR "invalid MOVB of y\+4\(FP\); uint32 is 4-byte value"
++	MOVW	x+0(FP), AX // ERROR "invalid MOVW of x\+0\(FP\); int32 is 4-byte value"
++	MOVW	y+4(FP), AX // ERROR "invalid MOVW of y\+4\(FP\); uint32 is 4-byte value"
++	MOVL	x+0(FP), AX
++	MOVL	y+4(FP), AX
++	MOVQ	x+0(FP), AX // ERROR "invalid MOVQ of x\+0\(FP\); int32 is 4-byte value"
++	MOVQ	y+4(FP), AX // ERROR "invalid MOVQ of y\+4\(FP\); uint32 is 4-byte value"
++	MOVL	x+4(FP), AX // ERROR "invalid offset x\+4\(FP\); expected x\+0\(FP\)"
++	MOVL	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+4\(FP\)"
++	TESTB	x+0(FP), AX // ERROR "invalid TESTB of x\+0\(FP\); int32 is 4-byte value"
++	TESTB	y+4(FP), BX // ERROR "invalid TESTB of y\+4\(FP\); uint32 is 4-byte value"
++	TESTW	x+0(FP), AX // ERROR "invalid TESTW of x\+0\(FP\); int32 is 4-byte value"
++	TESTW	y+4(FP), AX // ERROR "invalid TESTW of y\+4\(FP\); uint32 is 4-byte value"
++	TESTL	x+0(FP), AX
++	TESTL	y+4(FP), AX
++	TESTQ	x+0(FP), AX // ERROR "invalid TESTQ of x\+0\(FP\); int32 is 4-byte value"
++	TESTQ	y+4(FP), AX // ERROR "invalid TESTQ of y\+4\(FP\); uint32 is 4-byte value"
++	TESTL	x+4(FP), AX // ERROR "invalid offset x\+4\(FP\); expected x\+0\(FP\)"
++	TESTL	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+4\(FP\)"
++	RET
++
++TEXT ·arg8(SB),7,$0-2 // ERROR "wrong argument size 2; expected \$\.\.\.-16"
++	MOVB	x+0(FP), AX // ERROR "invalid MOVB of x\+0\(FP\); int64 is 8-byte value"
++	MOVB	y+8(FP), BX // ERROR "invalid MOVB of y\+8\(FP\); uint64 is 8-byte value"
++	MOVW	x+0(FP), AX // ERROR "invalid MOVW of x\+0\(FP\); int64 is 8-byte value"
++	MOVW	y+8(FP), AX // ERROR "invalid MOVW of y\+8\(FP\); uint64 is 8-byte value"
++	MOVL	x+0(FP), AX // ERROR "invalid MOVL of x\+0\(FP\); int64 is 8-byte value containing x_lo\+0\(FP\) and x_hi\+4\(FP\)"
++	MOVL	x_lo+0(FP), AX
++	MOVL	x_hi+4(FP), AX
++	MOVL	y+8(FP), AX // ERROR "invalid MOVL of y\+8\(FP\); uint64 is 8-byte value containing y_lo\+8\(FP\) and y_hi\+12\(FP\)"
++	MOVL	y_lo+8(FP), AX
++	MOVL	y_hi+12(FP), AX
++	MOVQ	x+0(FP), AX
++	MOVQ	y+8(FP), AX
++	MOVQ	x+8(FP), AX // ERROR "invalid offset x\+8\(FP\); expected x\+0\(FP\)"
++	MOVQ	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+8\(FP\)"
++	TESTB	x+0(FP), AX // ERROR "invalid TESTB of x\+0\(FP\); int64 is 8-byte value"
++	TESTB	y+8(FP), BX // ERROR "invalid TESTB of y\+8\(FP\); uint64 is 8-byte value"
++	TESTW	x+0(FP), AX // ERROR "invalid TESTW of x\+0\(FP\); int64 is 8-byte value"
++	TESTW	y+8(FP), AX // ERROR "invalid TESTW of y\+8\(FP\); uint64 is 8-byte value"
++	TESTL	x+0(FP), AX // ERROR "invalid TESTL of x\+0\(FP\); int64 is 8-byte value containing x_lo\+0\(FP\) and x_hi\+4\(FP\)"
++	TESTL	y+8(FP), AX // ERROR "invalid TESTL of y\+8\(FP\); uint64 is 8-byte value containing y_lo\+8\(FP\) and y_hi\+12\(FP\)"
++	TESTQ	x+0(FP), AX
++	TESTQ	y+8(FP), AX
++	TESTQ	x+8(FP), AX // ERROR "invalid offset x\+8\(FP\); expected x\+0\(FP\)"
++	TESTQ	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+8\(FP\)"
++	RET
++
++TEXT ·argint(SB),0,$0-2 // ERROR "wrong argument size 2; expected \$\.\.\.-8"
++	MOVB	x+0(FP), AX // ERROR "invalid MOVB of x\+0\(FP\); int is 4-byte value"
++	MOVB	y+4(FP), BX // ERROR "invalid MOVB of y\+4\(FP\); uint is 4-byte value"
++	MOVW	x+0(FP), AX // ERROR "invalid MOVW of x\+0\(FP\); int is 4-byte value"
++	MOVW	y+4(FP), AX // ERROR "invalid MOVW of y\+4\(FP\); uint is 4-byte value"
++	MOVL	x+0(FP), AX
++	MOVL	y+4(FP), AX
++	MOVQ	x+0(FP), AX // ERROR "invalid MOVQ of x\+0\(FP\); int is 4-byte value"
++	MOVQ	y+4(FP), AX // ERROR "invalid MOVQ of y\+4\(FP\); uint is 4-byte value"
++	MOVQ	x+4(FP), AX // ERROR "invalid offset x\+4\(FP\); expected x\+0\(FP\)"
++	MOVQ	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+4\(FP\)"
++	TESTB	x+0(FP), AX // ERROR "invalid TESTB of x\+0\(FP\); int is 4-byte value"
++	TESTB	y+4(FP), BX // ERROR "invalid TESTB of y\+4\(FP\); uint is 4-byte value"
++	TESTW	x+0(FP), AX // ERROR "invalid TESTW of x\+0\(FP\); int is 4-byte value"
++	TESTW	y+4(FP), AX // ERROR "invalid TESTW of y\+4\(FP\); uint is 4-byte value"
++	TESTL	x+0(FP), AX
++	TESTL	y+4(FP), AX
++	TESTQ	x+0(FP), AX // ERROR "invalid TESTQ of x\+0\(FP\); int is 4-byte value"
++	TESTQ	y+4(FP), AX // ERROR "invalid TESTQ of y\+4\(FP\); uint is 4-byte value"
++	TESTQ	x+4(FP), AX // ERROR "invalid offset x\+4\(FP\); expected x\+0\(FP\)"
++	TESTQ	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+4\(FP\)"
++	RET
++
++TEXT ·argptr(SB),7,$0-2 // ERROR "wrong argument size 2; expected \$\.\.\.-20"
++	MOVB	x+0(FP), AX // ERROR "invalid MOVB of x\+0\(FP\); \*byte is 4-byte value"
++	MOVB	y+4(FP), BX // ERROR "invalid MOVB of y\+4\(FP\); \*byte is 4-byte value"
++	MOVW	x+0(FP), AX // ERROR "invalid MOVW of x\+0\(FP\); \*byte is 4-byte value"
++	MOVW	y+4(FP), AX // ERROR "invalid MOVW of y\+4\(FP\); \*byte is 4-byte value"
++	MOVL	x+0(FP), AX
++	MOVL	y+4(FP), AX
++	MOVQ	x+0(FP), AX // ERROR "invalid MOVQ of x\+0\(FP\); \*byte is 4-byte value"
++	MOVQ	y+4(FP), AX // ERROR "invalid MOVQ of y\+4\(FP\); \*byte is 4-byte value"
++	MOVQ	x+4(FP), AX // ERROR "invalid offset x\+4\(FP\); expected x\+0\(FP\)"
++	MOVQ	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+4\(FP\)"
++	TESTB	x+0(FP), AX // ERROR "invalid TESTB of x\+0\(FP\); \*byte is 4-byte value"
++	TESTB	y+4(FP), BX // ERROR "invalid TESTB of y\+4\(FP\); \*byte is 4-byte value"
++	TESTW	x+0(FP), AX // ERROR "invalid TESTW of x\+0\(FP\); \*byte is 4-byte value"
++	TESTW	y+4(FP), AX // ERROR "invalid TESTW of y\+4\(FP\); \*byte is 4-byte value"
++	TESTL	x+0(FP), AX
++	TESTL	y+4(FP), AX
++	TESTQ	x+0(FP), AX // ERROR "invalid TESTQ of x\+0\(FP\); \*byte is 4-byte value"
++	TESTQ	y+4(FP), AX // ERROR "invalid TESTQ of y\+4\(FP\); \*byte is 4-byte value"
++	TESTQ	x+4(FP), AX // ERROR "invalid offset x\+4\(FP\); expected x\+0\(FP\)"
++	TESTQ	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+4\(FP\)"
++	MOVW	c+8(FP), AX // ERROR "invalid MOVW of c\+8\(FP\); chan int is 4-byte value"
++	MOVW	m+12(FP), AX // ERROR "invalid MOVW of m\+12\(FP\); map\[int\]int is 4-byte value"
++	MOVW	f+16(FP), AX // ERROR "invalid MOVW of f\+16\(FP\); func\(\) is 4-byte value"
++	RET
++
++TEXT ·argstring(SB),0,$16 // ERROR "wrong argument size 0; expected \$\.\.\.-16"
++	MOVW	x+0(FP), AX // ERROR "invalid MOVW of x\+0\(FP\); string base is 4-byte value"
++	MOVL	x+0(FP), AX
++	MOVQ	x+0(FP), AX // ERROR "invalid MOVQ of x\+0\(FP\); string base is 4-byte value"
++	MOVW	x_base+0(FP), AX // ERROR "invalid MOVW of x_base\+0\(FP\); string base is 4-byte value"
++	MOVL	x_base+0(FP), AX
++	MOVQ	x_base+0(FP), AX // ERROR "invalid MOVQ of x_base\+0\(FP\); string base is 4-byte value"
++	MOVW	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+4\(FP\)"
++	MOVL	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+4\(FP\)"
++	MOVQ	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+4\(FP\)"
++	MOVW	x_len+4(FP), AX // ERROR "invalid MOVW of x_len\+4\(FP\); string len is 4-byte value"
++	MOVL	x_len+4(FP), AX
++	MOVQ	x_len+4(FP), AX // ERROR "invalid MOVQ of x_len\+4\(FP\); string len is 4-byte value"
++	MOVQ	y+0(FP), AX // ERROR "invalid offset y\+0\(FP\); expected y\+8\(FP\)"
++	MOVQ	y_len+4(FP), AX // ERROR "invalid offset y_len\+4\(FP\); expected y_len\+12\(FP\)"
++	RET
++
++TEXT ·argslice(SB),0,$24 // ERROR "wrong argument size 0; expected \$\.\.\.-24"
++	MOVW	x+0(FP), AX // ERROR "invalid MOVW of x\+0\(FP\); slice base is 4-byte value"
++	MOVL	x+0(FP), AX
++	MOVQ	x+0(FP), AX // ERROR "invalid MOVQ of x\+0\(FP\); slice base is 4-byte value"
++	MOVW	x_base+0(FP), AX // ERROR "invalid MOVW of x_base\+0\(FP\); slice base is 4-byte value"
++	MOVL	x_base+0(FP), AX
++	MOVQ	x_base+0(FP), AX // ERROR "invalid MOVQ of x_base\+0\(FP\); slice base is 4-byte value"
++	MOVW	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+4\(FP\)"
++	MOVL	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+4\(FP\)"
++	MOVQ	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+4\(FP\)"
++	MOVW	x_len+4(FP), AX // ERROR "invalid MOVW of x_len\+4\(FP\); slice len is 4-byte value"
++	MOVL	x_len+4(FP), AX
++	MOVQ	x_len+4(FP), AX // ERROR "invalid MOVQ of x_len\+4\(FP\); slice len is 4-byte value"
++	MOVW	x_cap+0(FP), AX // ERROR "invalid offset x_cap\+0\(FP\); expected x_cap\+8\(FP\)"
++	MOVL	x_cap+0(FP), AX // ERROR "invalid offset x_cap\+0\(FP\); expected x_cap\+8\(FP\)"
++	MOVQ	x_cap+0(FP), AX // ERROR "invalid offset x_cap\+0\(FP\); expected x_cap\+8\(FP\)"
++	MOVW	x_cap+8(FP), AX // ERROR "invalid MOVW of x_cap\+8\(FP\); slice cap is 4-byte value"
++	MOVL	x_cap+8(FP), AX
++	MOVQ	x_cap+8(FP), AX // ERROR "invalid MOVQ of x_cap\+8\(FP\); slice cap is 4-byte value"
++	MOVQ	y+0(FP), AX // ERROR "invalid offset y\+0\(FP\); expected y\+12\(FP\)"
++	MOVQ	y_len+4(FP), AX // ERROR "invalid offset y_len\+4\(FP\); expected y_len\+16\(FP\)"
++	MOVQ	y_cap+8(FP), AX // ERROR "invalid offset y_cap\+8\(FP\); expected y_cap\+20\(FP\)"
++	RET
++
++TEXT ·argiface(SB),0,$0-16
++	MOVW	x+0(FP), AX // ERROR "invalid MOVW of x\+0\(FP\); interface type is 4-byte value"
++	MOVL	x+0(FP), AX
++	MOVQ	x+0(FP), AX // ERROR "invalid MOVQ of x\+0\(FP\); interface type is 4-byte value"
++	MOVW	x_type+0(FP), AX // ERROR "invalid MOVW of x_type\+0\(FP\); interface type is 4-byte value"
++	MOVL	x_type+0(FP), AX
++	MOVQ	x_type+0(FP), AX // ERROR "invalid MOVQ of x_type\+0\(FP\); interface type is 4-byte value"
++	MOVQ	x_itable+0(FP), AX // ERROR "unknown variable x_itable; offset 0 is x_type\+0\(FP\)"
++	MOVQ	x_itable+1(FP), AX // ERROR "unknown variable x_itable; offset 1 is x_type\+0\(FP\)"
++	MOVW	x_data+0(FP), AX // ERROR "invalid offset x_data\+0\(FP\); expected x_data\+4\(FP\)"
++	MOVL	x_data+0(FP), AX // ERROR "invalid offset x_data\+0\(FP\); expected x_data\+4\(FP\)"
++	MOVQ	x_data+0(FP), AX // ERROR "invalid offset x_data\+0\(FP\); expected x_data\+4\(FP\)"
++	MOVW	x_data+4(FP), AX // ERROR "invalid MOVW of x_data\+4\(FP\); interface data is 4-byte value"
++	MOVL	x_data+4(FP), AX
++	MOVQ	x_data+4(FP), AX // ERROR "invalid MOVQ of x_data\+4\(FP\); interface data is 4-byte value"
++	MOVW	y+8(FP), AX // ERROR "invalid MOVW of y\+8\(FP\); interface itable is 4-byte value"
++	MOVL	y+8(FP), AX
++	MOVQ	y+8(FP), AX // ERROR "invalid MOVQ of y\+8\(FP\); interface itable is 4-byte value"
++	MOVW	y_itable+8(FP), AX // ERROR "invalid MOVW of y_itable\+8\(FP\); interface itable is 4-byte value"
++	MOVL	y_itable+8(FP), AX
++	MOVQ	y_itable+8(FP), AX // ERROR "invalid MOVQ of y_itable\+8\(FP\); interface itable is 4-byte value"
++	MOVQ	y_type+8(FP), AX // ERROR "unknown variable y_type; offset 8 is y_itable\+8\(FP\)"
++	MOVW	y_data+8(FP), AX // ERROR "invalid offset y_data\+8\(FP\); expected y_data\+12\(FP\)"
++	MOVL	y_data+8(FP), AX // ERROR "invalid offset y_data\+8\(FP\); expected y_data\+12\(FP\)"
++	MOVQ	y_data+8(FP), AX // ERROR "invalid offset y_data\+8\(FP\); expected y_data\+12\(FP\)"
++	MOVW	y_data+12(FP), AX // ERROR "invalid MOVW of y_data\+12\(FP\); interface data is 4-byte value"
++	MOVL	y_data+12(FP), AX
++	MOVQ	y_data+12(FP), AX // ERROR "invalid MOVQ of y_data\+12\(FP\); interface data is 4-byte value"
++	RET
++
++TEXT ·returnint(SB),0,$0-4
++	MOVB	AX, ret+0(FP) // ERROR "invalid MOVB of ret\+0\(FP\); int is 4-byte value"
++	MOVW	AX, ret+0(FP) // ERROR "invalid MOVW of ret\+0\(FP\); int is 4-byte value"
++	MOVL	AX, ret+0(FP)
++	MOVQ	AX, ret+0(FP) // ERROR "invalid MOVQ of ret\+0\(FP\); int is 4-byte value"
++	MOVQ	AX, ret+1(FP) // ERROR "invalid offset ret\+1\(FP\); expected ret\+0\(FP\)"
++	MOVQ	AX, r+0(FP) // ERROR "unknown variable r; offset 0 is ret\+0\(FP\)"
++	RET
++
++TEXT ·returnbyte(SB),0,$0-5
++	MOVL	x+0(FP), AX
++	MOVB	AX, ret+4(FP)
++	MOVW	AX, ret+4(FP) // ERROR "invalid MOVW of ret\+4\(FP\); byte is 1-byte value"
++	MOVL	AX, ret+4(FP) // ERROR "invalid MOVL of ret\+4\(FP\); byte is 1-byte value"
++	MOVQ	AX, ret+4(FP) // ERROR "invalid MOVQ of ret\+4\(FP\); byte is 1-byte value"
++	MOVB	AX, ret+3(FP) // ERROR "invalid offset ret\+3\(FP\); expected ret\+4\(FP\)"
++	RET
++
++TEXT ·returnnamed(SB),0,$0-21
++	MOVB	x+0(FP), AX
++	MOVL	AX, r1+4(FP)
++	MOVW	AX, r2+8(FP)
++	MOVL	AX, r3+12(FP)
++	MOVL	AX, r3_base+12(FP)
++	MOVL	AX, r3_len+16(FP)
++	MOVB	AX, r4+20(FP)
++	MOVQ	AX, r1+4(FP) // ERROR "invalid MOVQ of r1\+4\(FP\); int is 4-byte value"
++	RET
+diff --git a/src/cmd/vet/test_asm3.s b/src/cmd/vet/test_asm3.s
+new file mode 100644
+index 0000000000..2c1a54f3ea
+--- /dev/null
++++ b/src/cmd/vet/test_asm3.s
+@@ -0,0 +1,168 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build arm
++// +build ignore
++
++package main
++
++TEXT ·arg1(SB),0,$0-2
++	MOVB	x+0(FP), AX
++	MOVB	y+1(FP), BX
++	MOVH	x+0(FP), AX // ERROR "\[arm\] invalid MOVH of x\+0\(FP\); int8 is 1-byte value"
++	MOVH	y+1(FP), AX // ERROR "invalid MOVH of y\+1\(FP\); uint8 is 1-byte value"
++	MOVW	x+0(FP), AX // ERROR "invalid MOVW of x\+0\(FP\); int8 is 1-byte value"
++	MOVW	y+1(FP), AX // ERROR "invalid MOVW of y\+1\(FP\); uint8 is 1-byte value"
++	MOVB	x+1(FP), AX // ERROR "invalid offset x\+1\(FP\); expected x\+0\(FP\)"
++	MOVB	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+1\(FP\)"
++	RET
++
++TEXT ·arg2(SB),0,$0-4
++	MOVB	x+0(FP), AX // ERROR "invalid MOVB of x\+0\(FP\); int16 is 2-byte value"
++	MOVB	y+2(FP), AX // ERROR "invalid MOVB of y\+2\(FP\); uint16 is 2-byte value"
++	MOVH	x+0(FP), AX
++	MOVH	y+2(FP), BX
++	MOVW	x+0(FP), AX // ERROR "invalid MOVW of x\+0\(FP\); int16 is 2-byte value"
++	MOVW	y+2(FP), AX // ERROR "invalid MOVW of y\+2\(FP\); uint16 is 2-byte value"
++	MOVH	x+2(FP), AX // ERROR "invalid offset x\+2\(FP\); expected x\+0\(FP\)"
++	MOVH	y+0(FP), AX // ERROR "invalid offset y\+0\(FP\); expected y\+2\(FP\)"
++	RET
++
++TEXT ·arg4(SB),0,$0-2 // ERROR "wrong argument size 2; expected \$\.\.\.-8"
++	MOVB	x+0(FP), AX // ERROR "invalid MOVB of x\+0\(FP\); int32 is 4-byte value"
++	MOVB	y+4(FP), BX // ERROR "invalid MOVB of y\+4\(FP\); uint32 is 4-byte value"
++	MOVH	x+0(FP), AX // ERROR "invalid MOVH of x\+0\(FP\); int32 is 4-byte value"
++	MOVH	y+4(FP), AX // ERROR "invalid MOVH of y\+4\(FP\); uint32 is 4-byte value"
++	MOVW	x+0(FP), AX
++	MOVW	y+4(FP), AX
++	MOVW	x+4(FP), AX // ERROR "invalid offset x\+4\(FP\); expected x\+0\(FP\)"
++	MOVW	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+4\(FP\)"
++	RET
++
++TEXT ·arg8(SB),7,$0-2 // ERROR "wrong argument size 2; expected \$\.\.\.-16"
++	MOVB	x+0(FP), AX // ERROR "invalid MOVB of x\+0\(FP\); int64 is 8-byte value"
++	MOVB	y+8(FP), BX // ERROR "invalid MOVB of y\+8\(FP\); uint64 is 8-byte value"
++	MOVH	x+0(FP), AX // ERROR "invalid MOVH of x\+0\(FP\); int64 is 8-byte value"
++	MOVH	y+8(FP), AX // ERROR "invalid MOVH of y\+8\(FP\); uint64 is 8-byte value"
++	MOVW	x+0(FP), AX // ERROR "invalid MOVW of x\+0\(FP\); int64 is 8-byte value containing x_lo\+0\(FP\) and x_hi\+4\(FP\)"
++	MOVW	x_lo+0(FP), AX
++	MOVW	x_hi+4(FP), AX
++	MOVW	y+8(FP), AX // ERROR "invalid MOVW of y\+8\(FP\); uint64 is 8-byte value containing y_lo\+8\(FP\) and y_hi\+12\(FP\)"
++	MOVW	y_lo+8(FP), AX
++	MOVW	y_hi+12(FP), AX
++	MOVQ	x+0(FP), AX
++	MOVQ	y+8(FP), AX
++	MOVQ	x+8(FP), AX // ERROR "invalid offset x\+8\(FP\); expected x\+0\(FP\)"
++	MOVQ	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+8\(FP\)"
++	RET
++
++TEXT ·argint(SB),0,$0-2 // ERROR "wrong argument size 2; expected \$\.\.\.-8"
++	MOVB	x+0(FP), AX // ERROR "invalid MOVB of x\+0\(FP\); int is 4-byte value"
++	MOVB	y+4(FP), BX // ERROR "invalid MOVB of y\+4\(FP\); uint is 4-byte value"
++	MOVH	x+0(FP), AX // ERROR "invalid MOVH of x\+0\(FP\); int is 4-byte value"
++	MOVH	y+4(FP), AX // ERROR "invalid MOVH of y\+4\(FP\); uint is 4-byte value"
++	MOVW	x+0(FP), AX
++	MOVW	y+4(FP), AX
++	MOVQ	x+4(FP), AX // ERROR "invalid offset x\+4\(FP\); expected x\+0\(FP\)"
++	MOVQ	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+4\(FP\)"
++	RET
++
++TEXT ·argptr(SB),7,$0-2 // ERROR "wrong argument size 2; expected \$\.\.\.-20"
++	MOVB	x+0(FP), AX // ERROR "invalid MOVB of x\+0\(FP\); \*byte is 4-byte value"
++	MOVB	y+4(FP), BX // ERROR "invalid MOVB of y\+4\(FP\); \*byte is 4-byte value"
++	MOVH	x+0(FP), AX // ERROR "invalid MOVH of x\+0\(FP\); \*byte is 4-byte value"
++	MOVH	y+4(FP), AX // ERROR "invalid MOVH of y\+4\(FP\); \*byte is 4-byte value"
++	MOVW	x+0(FP), AX
++	MOVW	y+4(FP), AX
++	MOVQ	x+4(FP), AX // ERROR "invalid offset x\+4\(FP\); expected x\+0\(FP\)"
++	MOVQ	y+2(FP), AX // ERROR "invalid offset y\+2\(FP\); expected y\+4\(FP\)"
++	MOVH	c+8(FP), AX // ERROR "invalid MOVH of c\+8\(FP\); chan int is 4-byte value"
++	MOVH	m+12(FP), AX // ERROR "invalid MOVH of m\+12\(FP\); map\[int\]int is 4-byte value"
++	MOVH	f+16(FP), AX // ERROR "invalid MOVH of f\+16\(FP\); func\(\) is 4-byte value"
++	RET
++
++TEXT ·argstring(SB),0,$16 // ERROR "wrong argument size 0; expected \$\.\.\.-16"
++	MOVH	x+0(FP), AX // ERROR "invalid MOVH of x\+0\(FP\); string base is 4-byte value"
++	MOVW	x+0(FP), AX
++	MOVH	x_base+0(FP), AX // ERROR "invalid MOVH of x_base\+0\(FP\); string base is 4-byte value"
++	MOVW	x_base+0(FP), AX
++	MOVH	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+4\(FP\)"
++	MOVW	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+4\(FP\)"
++	MOVQ	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+4\(FP\)"
++	MOVH	x_len+4(FP), AX // ERROR "invalid MOVH of x_len\+4\(FP\); string len is 4-byte value"
++	MOVW	x_len+4(FP), AX
++	MOVQ	y+0(FP), AX // ERROR "invalid offset y\+0\(FP\); expected y\+8\(FP\)"
++	MOVQ	y_len+4(FP), AX // ERROR "invalid offset y_len\+4\(FP\); expected y_len\+12\(FP\)"
++	RET
++
++TEXT ·argslice(SB),0,$24 // ERROR "wrong argument size 0; expected \$\.\.\.-24"
++	MOVH	x+0(FP), AX // ERROR "invalid MOVH of x\+0\(FP\); slice base is 4-byte value"
++	MOVW	x+0(FP), AX
++	MOVH	x_base+0(FP), AX // ERROR "invalid MOVH of x_base\+0\(FP\); slice base is 4-byte value"
++	MOVW	x_base+0(FP), AX
++	MOVH	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+4\(FP\)"
++	MOVW	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+4\(FP\)"
++	MOVQ	x_len+0(FP), AX // ERROR "invalid offset x_len\+0\(FP\); expected x_len\+4\(FP\)"
++	MOVH	x_len+4(FP), AX // ERROR "invalid MOVH of x_len\+4\(FP\); slice len is 4-byte value"
++	MOVW	x_len+4(FP), AX
++	MOVH	x_cap+0(FP), AX // ERROR "invalid offset x_cap\+0\(FP\); expected x_cap\+8\(FP\)"
++	MOVW	x_cap+0(FP), AX // ERROR "invalid offset x_cap\+0\(FP\); expected x_cap\+8\(FP\)"
++	MOVQ	x_cap+0(FP), AX // ERROR "invalid offset x_cap\+0\(FP\); expected x_cap\+8\(FP\)"
++	MOVH	x_cap+8(FP), AX // ERROR "invalid MOVH of x_cap\+8\(FP\); slice cap is 4-byte value"
++	MOVW	x_cap+8(FP), AX
++	MOVQ	y+0(FP), AX // ERROR "invalid offset y\+0\(FP\); expected y\+12\(FP\)"
++	MOVQ	y_len+4(FP), AX // ERROR "invalid offset y_len\+4\(FP\); expected y_len\+16\(FP\)"
++	MOVQ	y_cap+8(FP), AX // ERROR "invalid offset y_cap\+8\(FP\); expected y_cap\+20\(FP\)"
++	RET
++
++TEXT ·argiface(SB),0,$0-16
++	MOVH	x+0(FP), AX // ERROR "invalid MOVH of x\+0\(FP\); interface type is 4-byte value"
++	MOVW	x+0(FP), AX
++	MOVH	x_type+0(FP), AX // ERROR "invalid MOVH of x_type\+0\(FP\); interface type is 4-byte value"
++	MOVW	x_type+0(FP), AX
++	MOVQ	x_itable+0(FP), AX // ERROR "unknown variable x_itable; offset 0 is x_type\+0\(FP\)"
++	MOVQ	x_itable+1(FP), AX // ERROR "unknown variable x_itable; offset 1 is x_type\+0\(FP\)"
++	MOVH	x_data+0(FP), AX // ERROR "invalid offset x_data\+0\(FP\); expected x_data\+4\(FP\)"
++	MOVW	x_data+0(FP), AX // ERROR "invalid offset x_data\+0\(FP\); expected x_data\+4\(FP\)"
++	MOVQ	x_data+0(FP), AX // ERROR "invalid offset x_data\+0\(FP\); expected x_data\+4\(FP\)"
++	MOVH	x_data+4(FP), AX // ERROR "invalid MOVH of x_data\+4\(FP\); interface data is 4-byte value"
++	MOVW	x_data+4(FP), AX
++	MOVH	y+8(FP), AX // ERROR "invalid MOVH of y\+8\(FP\); interface itable is 4-byte value"
++	MOVW	y+8(FP), AX
++	MOVH	y_itable+8(FP), AX // ERROR "invalid MOVH of y_itable\+8\(FP\); interface itable is 4-byte value"
++	MOVW	y_itable+8(FP), AX
++	MOVQ	y_type+8(FP), AX // ERROR "unknown variable y_type; offset 8 is y_itable\+8\(FP\)"
++	MOVH	y_data+8(FP), AX // ERROR "invalid offset y_data\+8\(FP\); expected y_data\+12\(FP\)"
++	MOVW	y_data+8(FP), AX // ERROR "invalid offset y_data\+8\(FP\); expected y_data\+12\(FP\)"
++	MOVQ	y_data+8(FP), AX // ERROR "invalid offset y_data\+8\(FP\); expected y_data\+12\(FP\)"
++	MOVH	y_data+12(FP), AX // ERROR "invalid MOVH of y_data\+12\(FP\); interface data is 4-byte value"
++	MOVW	y_data+12(FP), AX
++	RET
++
++TEXT ·returnint(SB),0,$0-4
++	MOVB	AX, ret+0(FP) // ERROR "invalid MOVB of ret\+0\(FP\); int is 4-byte value"
++	MOVH	AX, ret+0(FP) // ERROR "invalid MOVH of ret\+0\(FP\); int is 4-byte value"
++	MOVW	AX, ret+0(FP)
++	MOVQ	AX, ret+1(FP) // ERROR "invalid offset ret\+1\(FP\); expected ret\+0\(FP\)"
++	MOVQ	AX, r+0(FP) // ERROR "unknown variable r; offset 0 is ret\+0\(FP\)"
++	RET
++
++TEXT ·returnbyte(SB),0,$0-5
++	MOVW	x+0(FP), AX
++	MOVB	AX, ret+4(FP)
++	MOVH	AX, ret+4(FP) // ERROR "invalid MOVH of ret\+4\(FP\); byte is 1-byte value"
++	MOVW	AX, ret+4(FP) // ERROR "invalid MOVW of ret\+4\(FP\); byte is 1-byte value"
++	MOVB	AX, ret+3(FP) // ERROR "invalid offset ret\+3\(FP\); expected ret\+4\(FP\)"
++	RET
++
++TEXT ·returnnamed(SB),0,$0-21
++	MOVB	x+0(FP), AX
++	MOVW	AX, r1+4(FP)
++	MOVH	AX, r2+8(FP)
++	MOVW	AX, r3+12(FP)
++	MOVW	AX, r3_base+12(FP)
++	MOVW	AX, r3_len+16(FP)
++	MOVB	AX, r4+20(FP)
++	MOVB	AX, r1+4(FP) // ERROR "invalid MOVB of r1\+4\(FP\); int is 4-byte value"
++	RET
+diff --git a/test/errchk b/test/errchk
+index 6b00570bde..b8b312a923 100755
+--- a/test/errchk
++++ b/test/errchk
+@@ -31,7 +31,7 @@ if(@ARGV < 1) {
+ 
+ # Grab SOURCEFILES
+ foreach(reverse 0 .. @ARGV-1) {
+-	unless($ARGV[$_] =~ /\.go$/) {
++	unless($ARGV[$_] =~ /\.(go|s)$/) {
+ 		@file = @ARGV[$_+1 .. @ARGV-1];
+ 		last;
+ 	}

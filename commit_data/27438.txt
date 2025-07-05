@@ -19,7 +19,7 @@ Date:   Sun Mar 27 10:06:12 2016 +0300
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/ldelf.go   |  2 +-
  src/cmd/link/internal/ld/ldmacho.go |  2 +-
  src/cmd/link/internal/ld/ldpe.go    |  2 +-
@@ -27,3 +27,184 @@ Date:   Sun Mar 27 10:06:12 2016 +0300
  src/cmd/link/internal/ld/objfile.go |  2 +-
  src/cmd/link/internal/ld/sym.go     | 59 +++++++++++--------------------------
  6 files changed, 28 insertions(+), 51 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/ldelf.go b/src/cmd/link/internal/ld/ldelf.go
+index b04b32bf27..a68c473a38 100644
+--- a/src/cmd/link/internal/ld/ldelf.go
++++ b/src/cmd/link/internal/ld/ldelf.go
+@@ -450,7 +450,7 @@ func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
+ 		fmt.Fprintf(&Bso, "%5.2f ldelf %s\n", obj.Cputime(), pn)
+ 	}
+ 
+-	Ctxt.Version++
++	Ctxt.IncVersion()
+ 	base := int32(obj.Boffset(f))
+ 
+ 	var add uint64
+diff --git a/src/cmd/link/internal/ld/ldmacho.go b/src/cmd/link/internal/ld/ldmacho.go
+index 9c9eb2ca29..c4c13f13b9 100644
+--- a/src/cmd/link/internal/ld/ldmacho.go
++++ b/src/cmd/link/internal/ld/ldmacho.go
+@@ -429,7 +429,7 @@ func ldmacho(f *obj.Biobuf, pkg string, length int64, pn string) {
+ 	var rp *Reloc
+ 	var name string
+ 
+-	Ctxt.Version++
++	Ctxt.IncVersion()
+ 	base := obj.Boffset(f)
+ 	if obj.Bread(f, hdr[:]) != len(hdr) {
+ 		goto bad
+diff --git a/src/cmd/link/internal/ld/ldpe.go b/src/cmd/link/internal/ld/ldpe.go
+index 0ead95e452..5c3e99c44f 100644
+--- a/src/cmd/link/internal/ld/ldpe.go
++++ b/src/cmd/link/internal/ld/ldpe.go
+@@ -133,7 +133,7 @@ func ldpe(f *obj.Biobuf, pkg string, length int64, pn string) {
+ 	}
+ 
+ 	var sect *PeSect
+-	Ctxt.Version++
++	Ctxt.IncVersion()
+ 	base := int32(obj.Boffset(f))
+ 
+ 	peobj := new(PeObj)
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 54ebab9ebb..16605352ec 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -171,11 +171,8 @@ type Link struct {
+ 	Windows   int32
+ 	Goroot    string
+ 
+-	// Map for fast access of symbols based on name.
+-	HashName map[string]*LSym
+-	// Fallback map based also on version, for symbols
+-	// with more than one version (see func _lookup).
+-	HashVersion map[symVer]*LSym
++	// Symbol lookup based on name and indexed by version.
++	Hash []map[string]*LSym
+ 
+ 	Allsym     []*LSym
+ 	Tlsg       *LSym
+@@ -212,6 +209,11 @@ func (ctxt *Link) FixedFrameSize() int64 {
+ 	}
+ }
+ 
++func (l *Link) IncVersion() {
++	l.Version++
++	l.Hash = append(l.Hash, make(map[string]*LSym))
++}
++
+ type LinkArch struct {
+ 	ByteOrder binary.ByteOrder
+ 	Name      string
+diff --git a/src/cmd/link/internal/ld/objfile.go b/src/cmd/link/internal/ld/objfile.go
+index 34ef61be82..2e8f01099c 100644
+--- a/src/cmd/link/internal/ld/objfile.go
++++ b/src/cmd/link/internal/ld/objfile.go
+@@ -116,7 +116,7 @@ const (
+ 
+ func ldobjfile(ctxt *Link, f *obj.Biobuf, pkg string, length int64, pn string) {
+ 	start := obj.Boffset(f)
+-	ctxt.Version++
++	ctxt.IncVersion()
+ 	var buf [8]uint8
+ 	obj.Bread(f, buf[:])
+ 	if string(buf[:]) != startmagic {
+diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
+index 3c4dc5587f..486b881520 100644
+--- a/src/cmd/link/internal/ld/sym.go
++++ b/src/cmd/link/internal/ld/sym.go
+@@ -58,12 +58,14 @@ var headers = []struct {
+ 
+ func linknew(arch *LinkArch) *Link {
+ 	ctxt := &Link{
+-		HashName:    make(map[string]*LSym, 100000), // preallocate about 2mb for hash
+-		HashVersion: make(map[symVer]*LSym),
+-		Allsym:      make([]*LSym, 0, 100000),
+-		Arch:        arch,
+-		Version:     obj.HistVersion,
+-		Goroot:      obj.Getgoroot(),
++		Hash: []map[string]*LSym{
++			// preallocate about 2mb for hash of
++			// non static symbols
++			make(map[string]*LSym, 100000),
++		},
++		Allsym: make([]*LSym, 0, 100000),
++		Arch:   arch,
++		Goroot: obj.Getgoroot(),
+ 	}
+ 
+ 	p := obj.Getgoarch()
+@@ -158,7 +160,7 @@ func linknew(arch *LinkArch) *Link {
+ 	return ctxt
+ }
+ 
+-func linknewsym(ctxt *Link, symb string, v int) *LSym {
++func linknewsym(ctxt *Link, name string, v int) *LSym {
+ 	batch := ctxt.LSymBatch
+ 	if len(batch) == 0 {
+ 		batch = make([]LSym, 1000)
+@@ -169,55 +171,28 @@ func linknewsym(ctxt *Link, symb string, v int) *LSym {
+ 	s.Dynid = -1
+ 	s.Plt = -1
+ 	s.Got = -1
+-	s.Name = symb
++	s.Name = name
+ 	s.Version = int16(v)
+ 	ctxt.Allsym = append(ctxt.Allsym, s)
+ 
+ 	return s
+ }
+ 
+-type symVer struct {
+-	sym string
+-	ver int
+-}
+-
+-func _lookup(ctxt *Link, symb string, v int, creat int) *LSym {
+-	// Most symbols have only a single version, and a string key
+-	// is faster to search for. So we store the first symbol in HashName,
+-	// keyed only by symbol name. If there are name collisions, the
+-	// alternate versions are stored in the spill over map
+-	// HashVersion.
+-	s, exist := ctxt.HashName[symb]
++func Linklookup(ctxt *Link, name string, v int) *LSym {
++	m := ctxt.Hash[v]
++	s := m[name]
+ 	if s != nil {
+-		if int(s.Version) == v {
+-			return s
+-		}
+-		s = ctxt.HashVersion[symVer{symb, v}]
+-		if s != nil {
+-			return s
+-		}
+-	}
+-	if creat == 0 {
+-		return nil
++		return s
+ 	}
+-
+-	s = linknewsym(ctxt, symb, v)
++	s = linknewsym(ctxt, name, v)
+ 	s.Extname = s.Name
+-	if exist {
+-		ctxt.HashVersion[symVer{symb, v}] = s
+-	} else {
+-		ctxt.HashName[symb] = s
+-	}
++	m[name] = s
+ 	return s
+ }
+ 
+-func Linklookup(ctxt *Link, name string, v int) *LSym {
+-	return _lookup(ctxt, name, v, 1)
+-}
+-
+ // read-only lookup
+ func Linkrlookup(ctxt *Link, name string, v int) *LSym {
+-	return _lookup(ctxt, name, v, 0)
++	return ctxt.Hash[v][name]
+ }
+ 
+ func Headstr(v int) string {

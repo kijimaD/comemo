@@ -30,7 +30,7 @@ Date:   Tue Feb 26 22:38:14 2013 -0500
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/7403054
-
+---
  src/cmd/ld/data.c             |   1 -
  src/cmd/ld/lib.c              |  34 ++++++++--
  src/cmd/ld/symtab.c           | 108 ++++++++++++++++++------------
@@ -41,3 +41,820 @@ Date:   Tue Feb 26 22:38:14 2013 -0500
  src/pkg/runtime/arch_arm.h    |   1 +
  src/pkg/runtime/symtab.c      | 151 ++++++++++++++++++++++++++++++++++--------
  9 files changed, 442 insertions(+), 126 deletions(-)
+
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 99385fdcc2..e4d16fdc1f 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -1163,7 +1163,6 @@ dodata(void)
+ 	sect->vaddr = 0;
+ 	lookup("rodata", 0)->sect = sect;
+ 	lookup("erodata", 0)->sect = sect;
+-	lookup("reloffset", 0)->sect = sect;
+ 	datsize = 0;
+ 	s = datap;
+ 	for(; s != nil && s->type < STYPELINK; s = s->next) {
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 4f0b87466b..26fa4f2ac7 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -1564,6 +1564,7 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+ {
+ 	Auto *a;
+ 	Sym *s;
++	int32 off;
+ 
+ 	// These symbols won't show up in the first loop below because we
+ 	// skip STEXT symbols. Normal STEXT symbols are emitted by walking textp.
+@@ -1627,16 +1628,37 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+ 		put(s, s->name, 'T', s->value, s->size, s->version, s->gotype);
+ 
+ 		/* frame, locals, args, auto and param after */
+-		put(nil, ".frame", 'm', s->text->to.offset+PtrSize, 0, 0, 0);
++		put(nil, ".frame", 'm', (uint32)s->text->to.offset+PtrSize, 0, 0, 0);
+ 		put(nil, ".locals", 'm', s->locals, 0, 0, 0);
+ 		put(nil, ".args", 'm', s->args, 0, 0, 0);
+ 
+-		for(a=s->autom; a; a=a->link)
+-			if(a->type == D_AUTO)
+-				put(nil, a->asym->name, 'a', -a->aoffset, 0, 0, a->gotype);
+-			else
++		for(a=s->autom; a; a=a->link) {
++			// Emit a or p according to actual offset, even if label is wrong.
++			// This avoids negative offsets, which cannot be encoded.
++			if(a->type != D_AUTO && a->type != D_PARAM)
++				continue;
++			
++			// compute offset relative to FP
+ 			if(a->type == D_PARAM)
+-				put(nil, a->asym->name, 'p', a->aoffset, 0, 0, a->gotype);
++				off = a->aoffset;
++			else
++				off = a->aoffset - PtrSize;
++			
++			// FP
++			if(off >= 0) {
++				put(nil, a->asym->name, 'p', off, 0, 0, a->gotype);
++				continue;
++			}
++			
++			// SP
++			if(off <= -PtrSize) {
++				put(nil, a->asym->name, 'a', -(off+PtrSize), 0, 0, a->gotype);
++				continue;
++			}
++			
++			// Otherwise, off is addressing the saved program counter.
++			// Something underhanded is going on. Say nothing.
++		}
+ 	}
+ 	if(debug['v'] || debug['n'])
+ 		Bprint(&bso, "symsize = %ud\n", symsize);
+diff --git a/src/cmd/ld/symtab.c b/src/cmd/ld/symtab.c
+index 42e367291d..144f82a3ba 100644
+--- a/src/cmd/ld/symtab.c
++++ b/src/cmd/ld/symtab.c
+@@ -295,41 +295,76 @@ vputl(uint64 v)
+ 	lputl(v >> 32);
+ }
+ 
++// Emit symbol table entry.
++// The table format is described at the top of ../../pkg/runtime/symtab.c.
+ void
+ putsymb(Sym *s, char *name, int t, vlong v, vlong size, int ver, Sym *typ)
+ {
+-	int i, f, l;
++	int i, f, c;
++	vlong v1;
+ 	Reloc *rel;
+ 
+ 	USED(size);
+-	if(t == 'f')
+-		name++;
+-	l = 4;
+-//	if(!debug['8'])
+-//		l = 8;
++	
++	// type byte
++	if('A' <= t && t <= 'Z')
++		c = t - 'A';
++	else if('a' <= t && t <= 'z')
++		c = t - 'a' + 26;
++	else {
++		diag("invalid symbol table type %c", t);
++		errorexit();
++		return;
++	}
++	
++	if(s != nil)
++		c |= 0x40; // wide value
++	if(typ != nil)
++		c |= 0x80; // has go type
++	scput(c);
++
++	// value
+ 	if(s != nil) {
++		// full width
+ 		rel = addrel(symt);
+-		rel->siz = l;
++		rel->siz = PtrSize;
+ 		rel->sym = s;
+ 		rel->type = D_ADDR;
+ 		rel->off = symt->size;
+-		v = 0;
+-	}
+-
+-	if(l == 8) {
+-		if(slput == slputl) {
+-			slputl(v);
+-			slputl(v>>32);
+-		} else {
+-			slputb(v>>32);
+-			slputb(v);
++		if(PtrSize == 8)
++			slput(0);
++		slput(0);
++	} else {
++		// varint
++		if(v < 0) {
++			diag("negative value in symbol table: %s %lld", name, v);
++			errorexit();
+ 		}
+-	} else
+-		slput(v);
++		v1 = v;
++		while(v1 >= 0x80) {
++			scput(v1 | 0x80);
++			v1 >>= 7;
++		}
++		scput(v1);
++	}
+ 
+-	if(ver)
+-		t += 'a' - 'A';
+-	scput(t+0x80);			/* 0x80 is variable length */
++	// go type if present
++	if(typ != nil) {
++		if(!typ->reachable)
++			diag("unreachable type %s", typ->name);
++		rel = addrel(symt);
++		rel->siz = PtrSize;
++		rel->sym = typ;
++		rel->type = D_ADDR;
++		rel->off = symt->size;
++		if(PtrSize == 8)
++			slput(0);
++		slput(0);
++	}
++	
++	// name	
++	if(t == 'f')
++		name++;
+ 
+ 	if(t == 'Z' || t == 'z') {
+ 		scput(name[0]);
+@@ -339,24 +374,11 @@ putsymb(Sym *s, char *name, int t, vlong v, vlong size, int ver, Sym *typ)
+ 		}
+ 		scput(0);
+ 		scput(0);
+-	}
+-	else {
++	} else {
+ 		for(i=0; name[i]; i++)
+ 			scput(name[i]);
+ 		scput(0);
+ 	}
+-	if(typ) {
+-		if(!typ->reachable)
+-			diag("unreachable type %s", typ->name);
+-		rel = addrel(symt);
+-		rel->siz = l;
+-		rel->sym = typ;
+-		rel->type = D_ADDR;
+-		rel->off = symt->size;
+-	}
+-	if(l == 8)
+-		slput(0);
+-	slput(0);
+ 
+ 	if(debug['n']) {
+ 		if(t == 'z' || t == 'Z') {
+@@ -389,7 +411,6 @@ symtab(void)
+ 	xdefine("etypelink", SRODATA, 0);
+ 	xdefine("rodata", SRODATA, 0);
+ 	xdefine("erodata", SRODATA, 0);
+-	xdefine("reloffset", SRODATA, 0);
+ 	if(flag_shared) {
+ 		xdefine("datarelro", SDATARELRO, 0);
+ 		xdefine("edatarelro", SDATARELRO, 0);
+@@ -464,17 +485,20 @@ symtab(void)
+ 	case '5':
+ 	case '6':
+ 	case '8':
+-		// magic entry to denote little-endian symbol table
+-		slputl(0xfffffffe);
+-		scput(0);
+-		scput(0);
++		// little-endian symbol table
+ 		slput = slputl;
+ 		break;
+ 	case 'v':
+-		// big-endian (in case one comes along)
++		// big-endian symbol table
+ 		slput = slputb;
+ 		break;
+ 	}
++	// new symbol table header.
++	slput(0xfffffffd);
++	scput(0);
++	scput(0);
++	scput(0);
++	scput(PtrSize);
+ 
+ 	genasmsym(putsymb);
+ }
+diff --git a/src/libmach/sym.c b/src/libmach/sym.c
+index 3ac020b428..345bcd18b8 100644
+--- a/src/libmach/sym.c
++++ b/src/libmach/sym.c
+@@ -110,12 +110,12 @@ syminit(int fd, Fhdr *fp)
+ {
+ 	Sym *p;
+ 	int32 i, l, size;
+-	vlong vl;
++	vlong vl, off;
+ 	Biobuf b;
+-	int svalsz;
++	int svalsz, newformat, shift;
+ 	uvlong (*swav)(uvlong);
+ 	uint32 (*swal)(uint32);
+-	uchar buf[6];
++	uchar buf[8], c;
+ 
+ 	if(fp->symsz == 0)
+ 		return 0;
+@@ -137,47 +137,127 @@ syminit(int fd, Fhdr *fp)
+ 	Bseek(&b, fp->symoff, 0);
+ 	memset(buf, 0, sizeof buf);
+ 	Bread(&b, buf, sizeof buf);
+-	if(memcmp(buf, "\xfe\xff\xff\xff\x00\x00", 6) == 0) {
++	newformat = 0;
++	if(memcmp(buf, "\xfd\xff\xff\xff\x00\x00\x00", 7) == 0) {
+ 		swav = leswav;
+ 		swal = leswal;
++		newformat = 1;
++	} else if(memcmp(buf, "\xff\xff\xff\xfd\x00\x00\x00", 7) == 0) {
++		newformat = 1;
++	} else if(memcmp(buf, "\xfe\xff\xff\xff\x00\x00", 6) == 0) {
++		// Table format used between Go 1.0 and Go 1.1:
++		// little-endian but otherwise same as the old Go 1.0 table.
++		// Not likely to be seen much in practice, but easy to handle.
++		swav = leswav;
++		swal = leswal;
++		Bseek(&b, fp->symoff+6, 0);
+ 	} else {
+ 		Bseek(&b, fp->symoff, 0);
+ 	}
++	svalsz = 0;
++	if(newformat) {
++		svalsz = buf[7];
++		if(svalsz != 4 && svalsz != 8) {
++			werrstr("invalid word size %d bytes", svalsz);
++			return -1;
++		}
++	}
+ 
+ 	nsym = 0;
+ 	size = 0;
+ 	for(p = symbols; size < fp->symsz; p++, nsym++) {
+-		if(fp->_magic && (fp->magic & HDR_MAGIC)){
+-			svalsz = 8;
+-			if(Bread(&b, &vl, 8) != 8)
+-				return symerrmsg(8, "symbol");
+-			p->value = swav(vl);
+-		}
+-		else{
+-			svalsz = 4;
+-			if(Bread(&b, &l, 4) != 4)
+-				return symerrmsg(4, "symbol");
+-			p->value = (u32int)swal(l);
+-		}
+-		if(Bread(&b, &p->type, sizeof(p->type)) != sizeof(p->type))
+-			return symerrmsg(sizeof(p->value), "symbol");
+-
+-		i = decodename(&b, p);
+-		if(i < 0)
+-			return -1;
+-		size += i+svalsz+sizeof(p->type);
+-
+-		if(svalsz == 8){
+-			if(Bread(&b, &vl, 8) != 8)
+-				return symerrmsg(8, "symbol");
+-			p->gotype = swav(vl);
+-		}
+-		else{
+-			if(Bread(&b, &l, 4) != 4)
+-				return symerrmsg(4, "symbol");
+-			p->gotype = (u32int)swal(l);
++		if(newformat) {
++			off = Boffset(&b);
++			// Go 1.1 format. See comment at top of ../pkg/runtime/symtab.c.
++			if(Bread(&b, &c, 1) != 1)
++				return symerrmsg(1, "symbol");
++			if((c&0x3F) < 26)
++				p->type = (c&0x3F)+ 'A';
++			else
++				p->type = (c&0x3F) - 26 + 'a';
++			size++;
++
++			if(c&0x40) {
++				// Fixed-width address.
++				if(svalsz == 8) {
++					if(Bread(&b, &vl, 8) != 8)
++						return symerrmsg(8, "symbol");
++					p->value = swav(vl);
++				} else {
++					if(Bread(&b, &l, 4) != 4)
++						return symerrmsg(4, "symbol");
++					p->value = (u32int)swal(l);
++				}
++				size += svalsz;
++			} else {
++				// Varint address.
++				shift = 0;
++				p->value = 0;
++				for(;;) {
++					if(Bread(&b, buf, 1) != 1)
++						return symerrmsg(1, "symbol");
++					p->value |= (uint64)(buf[0]&0x7F)<<shift;
++					shift += 7;
++					size++;
++					if((buf[0]&0x80) == 0)
++						break;
++				}
++			}
++			p->gotype = 0;
++			if(c&0x80) {
++				// Has Go type. Fixed-width address.
++				if(svalsz == 8) {
++					if(Bread(&b, &vl, 8) != 8)
++						return symerrmsg(8, "symbol");
++					p->gotype = swav(vl);
++				} else {
++					if(Bread(&b, &l, 4) != 4)
++						return symerrmsg(4, "symbol");
++					p->gotype = (u32int)swal(l);
++				}
++				size += svalsz;
++			}
++			
++			// Name.
++			p->type |= 0x80; // for decodename
++			i = decodename(&b, p);
++			if(i < 0)
++				return -1;
++			size += i;
++		} else {
++			// Go 1.0 format: Plan 9 format + go type symbol.
++			if(fp->_magic && (fp->magic & HDR_MAGIC)){
++				svalsz = 8;
++				if(Bread(&b, &vl, 8) != 8)
++					return symerrmsg(8, "symbol");
++				p->value = swav(vl);
++			}
++			else{
++				svalsz = 4;
++				if(Bread(&b, &l, 4) != 4)
++					return symerrmsg(4, "symbol");
++				p->value = (u32int)swal(l);
++			}
++			if(Bread(&b, &p->type, sizeof(p->type)) != sizeof(p->type))
++				return symerrmsg(sizeof(p->value), "symbol");
++	
++			i = decodename(&b, p);
++			if(i < 0)
++				return -1;
++			size += i+svalsz+sizeof(p->type);
++	
++			if(svalsz == 8){
++				if(Bread(&b, &vl, 8) != 8)
++					return symerrmsg(8, "symbol");
++				p->gotype = swav(vl);
++			}
++			else{
++				if(Bread(&b, &l, 4) != 4)
++					return symerrmsg(4, "symbol");
++				p->gotype = (u32int)swal(l);
++			}
++			size += svalsz;
+ 		}
+-		size += svalsz;
+ 
+ 		/* count global & auto vars, text symbols, and file names */
+ 		switch (p->type) {
+diff --git a/src/pkg/debug/gosym/symtab.go b/src/pkg/debug/gosym/symtab.go
+index cc01e0b9d6..81ed4fb27d 100644
+--- a/src/pkg/debug/gosym/symtab.go
++++ b/src/pkg/debug/gosym/symtab.go
+@@ -99,31 +99,116 @@ type Table struct {
+ }
+ 
+ type sym struct {
+-	value  uint32
+-	gotype uint32
++	value  uint64
++	gotype uint64
+ 	typ    byte
+ 	name   []byte
+ }
+ 
+-var littleEndianSymtab = []byte{0xFE, 0xFF, 0xFF, 0xFF, 0x00, 0x00}
++var littleEndianSymtab = []byte{0xFD, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}
++var bigEndianSymtab = []byte{0xFF, 0xFF, 0xFF, 0xFD, 0x00, 0x00, 0x00}
++
++var oldLittleEndianSymtab = []byte{0xFE, 0xFF, 0xFF, 0xFF, 0x00, 0x00}
+ 
+ func walksymtab(data []byte, fn func(sym) error) error {
+ 	var order binary.ByteOrder = binary.BigEndian
+-	if bytes.HasPrefix(data, littleEndianSymtab) {
++	newTable := false
++	switch {
++	case bytes.HasPrefix(data, oldLittleEndianSymtab):
++		// Same as Go 1.0, but little endian.
++		// Format was used during interim development between Go 1.0 and Go 1.1.
++		// Should not be widespread, but easy to support.
+ 		data = data[6:]
+ 		order = binary.LittleEndian
++	case bytes.HasPrefix(data, bigEndianSymtab):
++		newTable = true
++	case bytes.HasPrefix(data, littleEndianSymtab):
++		newTable = true
++		order = binary.LittleEndian
++	}
++	var ptrsz int
++	if newTable {
++		if len(data) < 8 {
++			return &DecodingError{len(data), "unexpected EOF", nil}
++		}
++		ptrsz = int(data[7])
++		if ptrsz != 4 && ptrsz != 8 {
++			return &DecodingError{7, "invalid pointer size", ptrsz}
++		}
++		data = data[8:]
+ 	}
+ 	var s sym
+ 	p := data
+-	for len(p) >= 6 {
+-		s.value = order.Uint32(p[0:4])
+-		typ := p[4]
+-		if typ&0x80 == 0 {
+-			return &DecodingError{len(data) - len(p) + 4, "bad symbol type", typ}
++	for len(p) >= 4 {
++		var typ byte
++		if newTable {
++			// Symbol type, value, Go type.
++			typ = p[0] & 0x3F
++			wideValue := p[0]&0x40 != 0
++			goType := p[0]&0x80 != 0
++			if typ < 26 {
++				typ += 'A'
++			} else {
++				typ += 'a' - 26
++			}
++			s.typ = typ
++			p = p[1:]
++			if wideValue {
++				if len(p) < ptrsz {
++					return &DecodingError{len(data), "unexpected EOF", nil}
++				}
++				// fixed-width value
++				if ptrsz == 8 {
++					s.value = order.Uint64(p[0:8])
++					p = p[8:]
++				} else {
++					s.value = uint64(order.Uint32(p[0:4]))
++					p = p[4:]
++				}
++			} else {
++				// varint value
++				s.value = 0
++				shift := uint(0)
++				for len(p) > 0 && p[0]&0x80 != 0 {
++					s.value |= uint64(p[0]&0x7F) << shift
++					shift += 7
++					p = p[1:]
++				}
++				if len(p) == 0 {
++					return &DecodingError{len(data), "unexpected EOF", nil}
++				}
++				s.value |= uint64(p[0]) << shift
++				p = p[1:]
++			}
++			if goType {
++				if len(p) < ptrsz {
++					return &DecodingError{len(data), "unexpected EOF", nil}
++				}
++				// fixed-width go type
++				if ptrsz == 8 {
++					s.gotype = order.Uint64(p[0:8])
++					p = p[8:]
++				} else {
++					s.gotype = uint64(order.Uint32(p[0:4]))
++					p = p[4:]
++				}
++			}
++		} else {
++			// Value, symbol type.
++			s.value = uint64(order.Uint32(p[0:4]))
++			if len(p) < 5 {
++				return &DecodingError{len(data), "unexpected EOF", nil}
++			}
++			typ = p[4]
++			if typ&0x80 == 0 {
++				return &DecodingError{len(data) - len(p) + 4, "bad symbol type", typ}
++			}
++			typ &^= 0x80
++			s.typ = typ
++			p = p[5:]
+ 		}
+-		typ &^= 0x80
+-		s.typ = typ
+-		p = p[5:]
++
++		// Name.
+ 		var i int
+ 		var nnul int
+ 		for i = 0; i < len(p); i++ {
+@@ -142,13 +227,21 @@ func walksymtab(data []byte, fn func(sym) error) error {
+ 				}
+ 			}
+ 		}
+-		if i+nnul+4 > len(p) {
++		if len(p) < i+nnul {
+ 			return &DecodingError{len(data), "unexpected EOF", nil}
+ 		}
+ 		s.name = p[0:i]
+ 		i += nnul
+-		s.gotype = order.Uint32(p[i : i+4])
+-		p = p[i+4:]
++		p = p[i:]
++
++		if !newTable {
++			if len(p) < 4 {
++				return &DecodingError{len(data), "unexpected EOF", nil}
++			}
++			// Go type.
++			s.gotype = uint64(order.Uint32(p[:4]))
++			p = p[4:]
++		}
+ 		fn(s)
+ 	}
+ 	return nil
+diff --git a/src/pkg/runtime/arch_386.h b/src/pkg/runtime/arch_386.h
+index a0798f99e9..cb9d64a70c 100644
+--- a/src/pkg/runtime/arch_386.h
++++ b/src/pkg/runtime/arch_386.h
+@@ -1,4 +1,5 @@
+ enum {
+ 	thechar = '8',
++	BigEndian = 0,
+ 	CacheLineSize = 64
+ };
+diff --git a/src/pkg/runtime/arch_amd64.h b/src/pkg/runtime/arch_amd64.h
+index dd1cfc18d1..35ed1560a2 100644
+--- a/src/pkg/runtime/arch_amd64.h
++++ b/src/pkg/runtime/arch_amd64.h
+@@ -1,4 +1,5 @@
+ enum {
+ 	thechar = '6',
++	BigEndian = 0,
+ 	CacheLineSize = 64
+ };
+diff --git a/src/pkg/runtime/arch_arm.h b/src/pkg/runtime/arch_arm.h
+index c1a7a0f379..21dc1a692c 100644
+--- a/src/pkg/runtime/arch_arm.h
++++ b/src/pkg/runtime/arch_arm.h
+@@ -1,4 +1,5 @@
+ enum {
+ 	thechar = '5',
++	BigEndian = 0,
+ 	CacheLineSize = 32
+ };
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index 85a1096d10..2485586855 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -2,15 +2,53 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Runtime symbol table access.  Work in progress.
+-// The Plan 9 symbol table is not in a particularly convenient form.
+-// The routines here massage it into a more usable form; eventually
+-// we'll change 6l to do this for us, but it is easier to experiment
+-// here than to change 6l and all the other tools.
++// Runtime symbol table parsing.
+ //
+-// The symbol table also needs to be better integrated with the type
+-// strings table in the future.  This is just a quick way to get started
+-// and figure out exactly what we want.
++// The Go tools use a symbol table derived from the Plan 9 symbol table
++// format. The symbol table is kept in its own section treated as
++// read-only memory when the binary is running: the binary consults the
++// table.
++// 
++// The format used by Go 1.0 was basically the Plan 9 format. Each entry
++// is variable sized but had this format:
++// 
++// 	4-byte value, big endian
++// 	1-byte type ([A-Za-z] + 0x80)
++// 	name, NUL terminated (or for 'z' and 'Z' entries, double-NUL terminated)
++// 	4-byte Go type address, big endian (new in Go)
++// 
++// In order to support greater interoperation with standard toolchains,
++// Go 1.1 uses a more flexible yet smaller encoding of the entries.
++// The overall structure is unchanged from Go 1.0 and, for that matter,
++// from Plan 9.
++// 
++// The Go 1.1 table is a re-encoding of the data in a Go 1.0 table.
++// To identify a new table as new, it begins one of two eight-byte
++// sequences:
++// 
++// 	FF FF FF FD 00 00 00 xx - big endian new table
++// 	FD FF FF FF 00 00 00 xx - little endian new table
++// 
++// This sequence was chosen because old tables stop at an entry with type
++// 0, so old code reading a new table will see only an empty table. The
++// first four bytes are the target-endian encoding of 0xfffffffd. The
++// final xx gives AddrSize, the width of a full-width address.
++// 
++// After that header, each entry is encoded as follows.
++// 
++// 	1-byte type (0-51 + two flag bits)
++// 	AddrSize-byte value, host-endian OR varint-encoded value
++// 	AddrSize-byte Go type address OR nothing
++// 	[n] name, terminated as before
++// 
++// The type byte comes first, but 'A' encodes as 0 and 'a' as 26, so that
++// the type itself is only in the low 6 bits. The upper two bits specify
++// the format of the next two fields. If the 0x40 bit is set, the value
++// is encoded as an full-width 4- or 8-byte target-endian word. Otherwise
++// the value is a varint-encoded number. If the 0x80 bit is set, the Go
++// type is present, again as a 4- or 8-byte target-endian word. If not,
++// there is no Go type in this entry. The NUL-terminated name ends the
++// entry.
+ 
+ #include "runtime.h"
+ #include "defs_GOOS_GOARCH.h"
+@@ -29,42 +67,100 @@ struct Sym
+ //	byte *gotype;
+ };
+ 
++static uintptr mainoffset;
++
+ // A dynamically allocated string containing multiple substrings.
+ // Individual strings are slices of hugestring.
+ static String hugestring;
+ static int32 hugestring_len;
+ 
++extern void main·main(void);
++
++static uintptr
++readword(byte **pp, byte *ep)
++{
++	byte *p; 
++
++	p = *pp;
++	if(ep - p < sizeof(void*)) {
++		*pp = ep;
++		return 0;
++	}
++	*pp = p + sizeof(void*);
++
++	// Hairy, but only one of these four cases gets compiled.
++	if(sizeof(void*) == 8) {
++		if(BigEndian) {
++			return ((uint64)p[0]<<56) | ((uint64)p[1]<<48) | ((uint64)p[2]<<40) | ((uint64)p[3]<<32) |
++				((uint64)p[4]<<24) | ((uint64)p[5]<<16) | ((uint64)p[6]<<8) | ((uint64)p[7]);
++		}
++		return ((uint64)p[7]<<56) | ((uint64)p[6]<<48) | ((uint64)p[5]<<40) | ((uint64)p[4]<<32) |
++			((uint64)p[3]<<24) | ((uint64)p[2]<<16) | ((uint64)p[1]<<8) | ((uint64)p[0]);
++	}
++	if(BigEndian) {
++		return ((uint32)p[0]<<24) | ((uint32)p[1]<<16) | ((uint32)p[2]<<8) | ((uint32)p[3]);
++	}
++	return ((uint32)p[3]<<24) | ((uint32)p[2]<<16) | ((uint32)p[1]<<8) | ((uint32)p[0]);
++}
++
+ // Walk over symtab, calling fn(&s) for each symbol.
+ static void
+ walksymtab(void (*fn)(Sym*))
+ {
+ 	byte *p, *ep, *q;
+ 	Sym s;
+-	int32 bigend;
++	int32 widevalue, havetype, shift;
+ 
+ 	p = symtab;
+ 	ep = esymtab;
+ 
+-	// Default is big-endian value encoding.
+-	// If table begins fe ff ff ff 00 00, little-endian.
+-	bigend = 1;
+-	if(symtab[0] == 0xfe && symtab[1] == 0xff && symtab[2] == 0xff && symtab[3] == 0xff && symtab[4] == 0x00 && symtab[5] == 0x00) {
+-		p += 6;
+-		bigend = 0;
++	// Table must begin with correct magic number.
++	if(ep - p < 8 || p[4] != 0x00 || p[5] != 0x00 || p[6] != 0x00 || p[7] != sizeof(void*))
++		return;
++	if(BigEndian) {
++		if(p[0] != 0xff || p[1] != 0xff || p[2] != 0xff || p[3] != 0xfd)
++			return;
++	} else {
++		if(p[0] != 0xfd || p[1] != 0xff || p[2] != 0xff || p[3] != 0xff)
++			return;
+ 	}
+-	while(p < ep) {
+-		if(p + 7 > ep)
+-			break;
++	p += 8;
+ 
+-		if(bigend)
+-			s.value = ((uint32)p[0]<<24) | ((uint32)p[1]<<16) | ((uint32)p[2]<<8) | ((uint32)p[3]);
++	while(p < ep) {
++		s.symtype = p[0]&0x3F;
++		widevalue = p[0]&0x40;
++		havetype = p[0]&0x80;
++		if(s.symtype < 26)
++			s.symtype += 'A';
+ 		else
+-			s.value = ((uint32)p[3]<<24) | ((uint32)p[2]<<16) | ((uint32)p[1]<<8) | ((uint32)p[0]);
++			s.symtype += 'a' - 26;
++		p++;
+ 
+-		if(!(p[4]&0x80))
++		// Value, either full-width or varint-encoded.
++		if(widevalue) {
++			s.value = readword(&p, ep);
++		} else {
++			s.value = 0;
++			shift = 0;
++			while(p < ep && (p[0]&0x80) != 0) {
++				s.value |= (uintptr)(p[0]&0x7F)<<shift;
++				shift += 7;
++				p++;
++			}
++			if(p >= ep)
++				break;
++			s.value |= (uintptr)p[0]<<shift;
++			p++;
++		}
++		
++		// Go type, if present. Ignored but must skip over.
++		if(havetype)
++			readword(&p, ep);
++
++		// Name.
++		if(ep - p < 2)
+ 			break;
+-		s.symtype = p[4] & ~0x80;
+-		p += 5;
++
+ 		s.name = p;
+ 		if(s.symtype == 'z' || s.symtype == 'Z') {
+ 			// path reference string - skip first byte,
+@@ -84,7 +180,7 @@ walksymtab(void (*fn)(Sym*))
+ 				break;
+ 			p = q+1;
+ 		}
+-		p += 4;	// go type
++	
+ 		fn(&s);
+ 	}
+ }
+@@ -93,7 +189,6 @@ walksymtab(void (*fn)(Sym*))
+ 
+ static Func *func;
+ static int32 nfunc;
+-extern byte reloffset[];
+ 
+ static byte **fname;
+ static int32 nfname;
+@@ -119,7 +214,7 @@ dofunc(Sym *sym)
+ 		}
+ 		f = &func[nfunc++];
+ 		f->name = runtime·gostringnocopy(sym->name);
+-		f->entry = sym->value + (uint64)reloffset;
++		f->entry = sym->value;
+ 		if(sym->symtype == 'L' || sym->symtype == 'l')
+ 			f->frame = -sizeof(uintptr);
+ 		break;
+@@ -141,7 +236,7 @@ dofunc(Sym *sym)
+ 		if(fname == nil) {
+ 			if(sym->value >= nfname) {
+ 				if(sym->value >= 0x10000) {
+-					runtime·printf("invalid symbol file index %p\n", sym->value);
++					runtime·printf("runtime: invalid symbol file index %p\n", sym->value);
+ 					runtime·throw("mangled symbol table");
+ 				}
+ 				nfname = sym->value+1;

@@ -9,8 +9,78 @@ Date:   Fri Apr 17 16:42:16 2015 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/testcarchive/main.c             |  3 +++
  misc/cgo/testcarchive/src/libgo/libgo.go | 15 ++++++++++++++-
  misc/cgo/testcarchive/test.bash          |  4 ++--
  3 files changed, 19 insertions(+), 3 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/main.c b/misc/cgo/testcarchive/main.c
+index f4d59f7636..6e39d84924 100644
+--- a/misc/cgo/testcarchive/main.c
++++ b/misc/cgo/testcarchive/main.c
+@@ -8,6 +8,7 @@
+ extern signed char DidInitRun();
+ extern signed char DidMainRun();
+ extern int32_t FromPkg();
++extern void CheckArgs();
+ 
+ int main(void) {
+ 	int32_t res;
+@@ -28,5 +29,7 @@ int main(void) {
+ 		return 2;
+ 	}
+ 
++	CheckArgs();
++
+ 	return 0;
+ }
+diff --git a/misc/cgo/testcarchive/src/libgo/libgo.go b/misc/cgo/testcarchive/src/libgo/libgo.go
+index 87cb79cabe..8116b31282 100644
+--- a/misc/cgo/testcarchive/src/libgo/libgo.go
++++ b/misc/cgo/testcarchive/src/libgo/libgo.go
+@@ -5,9 +5,13 @@
+ package main
+ 
+ import (
+-	_ "p"
++	"fmt"
++	"os"
++	"reflect"
+ 	"syscall"
+ 	"time"
++
++	_ "p"
+ )
+ 
+ import "C"
+@@ -40,3 +44,12 @@ func DidInitRun() bool {
+ 
+ //export DidMainRun
+ func DidMainRun() bool { return ranMain }
++
++//export CheckArgs
++func CheckArgs() {
++	want := []string{"./testp", "arg1", "arg2"}
++	if !reflect.DeepEqual(want, os.Args) {
++		fmt.Printf("CheckArgs: want %v, got: %v\n", want, os.Args)
++		os.Exit(2)
++	}
++}
+diff --git a/misc/cgo/testcarchive/test.bash b/misc/cgo/testcarchive/test.bash
+index 7c10c00b7c..5705725818 100755
+--- a/misc/cgo/testcarchive/test.bash
++++ b/misc/cgo/testcarchive/test.bash
+@@ -22,10 +22,10 @@ fi
+ 
+ GOPATH=$(pwd) go build -buildmode=c-archive src/libgo/libgo.go
+ $(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main.c libgo.a
+-$bin
++$bin arg1 arg2
+ rm libgo.a testp
+ 
+ GOPATH=$(pwd) go build -buildmode=c-archive -o libgo.a libgo
+ $(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main.c libgo.a
+-$bin
++$bin arg1 arg2
+ rm libgo.a testp

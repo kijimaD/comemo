@@ -17,7 +17,55 @@ Date:   Fri May 11 06:19:58 2018 +0000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/arm.s | 12 ++++++++----
  src/cmd/internal/obj/arm/asm5.go        | 10 ----------
  2 files changed, 8 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm.s b/src/cmd/asm/internal/asm/testdata/arm.s
+index 0b3363e17e..cc8e25ef7c 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm.s
++++ b/src/cmd/asm/internal/asm/testdata/arm.s
+@@ -951,13 +951,17 @@ jmp_label_3:
+ 
+ // MUL
+ 	MUL	R2, R3, R4           // 930204e0
+-	MUL	R2, R4               // 920404e0
++	MUL	R2, R4               // 940204e0
++	MUL	R2, R4, R4           // 940204e0
+ 	MUL.S	R2, R3, R4           // 930214e0
+-	MUL.S	R2, R4               // 920414e0
++	MUL.S	R2, R4               // 940214e0
++	MUL.S	R2, R4, R4           // 940214e0
+ 	MULU	R5, R6, R7           // 960507e0
+-	MULU	R5, R7               // 950707e0
++	MULU	R5, R7               // 970507e0
++	MULU	R5, R7, R7           // 970507e0
+ 	MULU.S	R5, R6, R7           // 960517e0
+-	MULU.S	R5, R7               // 950717e0
++	MULU.S	R5, R7               // 970517e0
++	MULU.S	R5, R7, R7           // 970517e0
+ 	MULLU	R1, R2, (R4, R3)     // 923184e0
+ 	MULLU.S	R1, R2, (R4, R3)     // 923194e0
+ 	MULL	R1, R2, (R4, R3)     // 9231c4e0
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 96f6b90e8d..3427ea9161 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -2046,16 +2046,6 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		if r == 0 {
+ 			r = rt
+ 		}
+-		if rt == r {
+-			r = rf
+-			rf = rt
+-		}
+-
+-		if false {
+-			if rt == r || rf == REGPC&15 || r == REGPC&15 || rt == REGPC&15 {
+-				c.ctxt.Diag("%v: bad registers in MUL", p)
+-			}
+-		}
+ 
+ 		o1 |= (uint32(rf)&15)<<8 | (uint32(r)&15)<<0 | (uint32(rt)&15)<<16
+ 

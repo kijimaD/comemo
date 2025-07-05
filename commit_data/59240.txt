@@ -21,6 +21,22 @@ Date:   Mon Feb 5 14:20:10 2024 -0500
     Auto-Submit: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/race_arm64.s | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/race_arm64.s b/src/runtime/race_arm64.s
+index c818345852..ae0030cf10 100644
+--- a/src/runtime/race_arm64.s
++++ b/src/runtime/race_arm64.s
+@@ -419,6 +419,10 @@ TEXT	racecall<>(SB), NOSPLIT|NOFRAME, $0-0
+ 	MOVD	(g_sched+gobuf_sp)(R11), R12
+ 	MOVD	R12, RSP
+ call:
++	// Decrement SP past where the frame pointer is saved in the Go arm64
++	// ABI (one word below the stack pointer) so the race detector library
++	// code doesn't clobber it
++	SUB	$16, RSP
+ 	BL	R9
+ 	MOVD	R19, RSP
+ 	JMP	(R20)

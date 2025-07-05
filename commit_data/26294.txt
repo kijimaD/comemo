@@ -9,6 +9,19 @@ Date:   Thu Jan 7 18:48:42 2016 -0800
     Change-Id: I6c0a6c64369681840df60f63036c2eece27de8b8
     Reviewed-on: https://go-review.googlesource.com/18394
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/encoding/json/decode.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index 099d7f6da5..539d952ad6 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -37,6 +37,7 @@ import (
+ // To unmarshal JSON into a struct, Unmarshal matches incoming object
+ // keys to the keys used by Marshal (either the struct field name or its tag),
+ // preferring an exact match but also accepting a case-insensitive match.
++// Unmarshal will only set exported fields of the struct.
+ //
+ // To unmarshal JSON into an interface value,
+ // Unmarshal stores one of these in the interface value:

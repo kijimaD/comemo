@@ -9,8 +9,134 @@ Date:   Tue Aug 4 14:07:17 2009 -0700
     DELTA=78  (68 added, 0 deleted, 10 changed)
     OCL=32729
     CL=32732
-
+---
  test/bench/fasta.go   | 22 ++++++++++++++++++++--
  test/bench/timing.log | 31 +++++++++++++++++++++++--------
  test/bench/timing.sh  | 38 ++++++++++++++++++++++++++++++++++++++
  3 files changed, 81 insertions(+), 10 deletions(-)
+
+diff --git a/test/bench/fasta.go b/test/bench/fasta.go
+index fd31400c81..7919f72045 100644
+--- a/test/bench/fasta.go
++++ b/test/bench/fasta.go
+@@ -66,7 +66,7 @@ type AminoAcid struct {
+ var	lastrandom uint32 = 42
+ 
+ // Random number between 0.0 and 1.0
+-func myrandom() float {
++func Zmyrandom() float {
+ 	const (
+ 		IM = 139968;
+ 		IA = 3877;
+@@ -74,7 +74,25 @@ func myrandom() float {
+ 	)
+ 	lastrandom = (lastrandom * IA + IC) % IM;
+ 	// Integer to float conversions are faster if the integer is signed.
+-	return float(lastrandom) / IM;
++	return float(int32(lastrandom)) / IM;
++}
++
++// TODO: delete this when compiler does the reduction for us
++func
++myrandom() float
++{
++	const (
++		IM = 139968;
++		IA = 3877;
++		IC = 29573;
++		S = 46;
++		IM1 = ((1<<S) + IM) / IM;
++	)
++
++	n := (lastrandom * IA + IC);
++	q := uint32((uint64(n) * IM1) >> S);
++	lastrandom = n - q*IM;
++	return float(int32(lastrandom)) / IM;
+ }
+ 
+ func AccumulateProbabilities(genelist []AminoAcid) {
+diff --git a/test/bench/timing.log b/test/bench/timing.log
+index 71be82ca5d..9f25b573c9 100644
+--- a/test/bench/timing.log
++++ b/test/bench/timing.log
+@@ -6,13 +6,28 @@ First version of fasta. Translation of fasta.c, fetched from
+ 	http://shootout.alioth.debian.org/u32q/benchmark.php?test=fasta&lang=gpp&id=4
+ 
+ fasta -n 25000000
+-	[gcc -O2 fasta.c	5.98u 0.00s 6.01r]
+-	gccgo -O2	8.82u 0.02s 8.85r
+-	6g	13.50u 0.02s 13.53r
+-	6g -B	12.99u 0.02s 13.02r
++	gcc -O2 fasta.c	5.98u 0.00s 6.01r
++	gccgo -O2 fasta.go	8.82u 0.02s 8.85r
++	6g fasta.go	13.50u 0.02s 13.53r
++	6g -B fata.go	12.99u 0.02s 13.02r
++
++Aug 4 2009
++[added timing.sh]
++
++# myrandom:
++#   hand-written optimization of integer division
++#   use int32->float conversion
++fasta -n 25000000
++	gcc -O2 fasta.c	5.99u 0.00s 6.00r 
++	gccgo -O2 fasta.go	8.82u 0.02s 8.85r
++	gc fasta	10.70u 0.00s 10.77r
++	gc_B fasta	10.09u 0.03s 10.12r
+ 
+ reverse-complement < output-of-fasta-25000000
+-	[gcc -O2 reverse-complement.c	2.03u 0.84s 13.04r]
+-	gccgo -O2	6.47u 1.14s 15.58r
+-	6g	6.55u 1.21s 15.45r
+-	6g -B	6.19u 1.26s 15.64r
++	gcc -O2 reverse-complement.c	2.04u 0.94s 10.54r
++	gccgo -O2 reverse-complement.go	6.54u 0.63s 7.17r
++	gc reverse-complement	6.55u 0.70s 7.26r
++	gc_B reverse-complement	6.32u 0.70s 7.10r
++
++nbody -n 50000000
++	gcc -O2 nbody.c	21.33u 0.00s 21.34r
+diff --git a/test/bench/timing.sh b/test/bench/timing.sh
+new file mode 100755
+index 0000000000..f80f247a46
+--- /dev/null
++++ b/test/bench/timing.sh
+@@ -0,0 +1,38 @@
++#!/bin/sh
++# Copyright 2009 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++set -e
++. $GOROOT/src/Make.$GOARCH
++
++gc() {
++	$GC $1.go; $LD $1.$O
++}
++
++gc_B() {
++	$GC -B $1.go; $LD $1.$O
++}
++
++run() {
++	echo -n '	'$1'	'
++	$1
++	shift
++	(/home/r/plan9/bin/time $* 2>&1 >/dev/null) |  sed 's/r.*/r/'
++}
++
++echo 'fasta -n 25000000'
++run 'gcc -O2 fasta.c' a.out 25000000
++#run 'gccgo -O2 fasta.go' a.out -n 25000000	#commented out until WriteString is in bufio
++run 'gc fasta' $O.out -n 25000000
++run 'gc_B fasta' $O.out -n 25000000
++
++echo
++6.out -n 25000000 > x
++echo 'reverse-complement < output-of-fasta-25000000'
++run 'gcc -O2 reverse-complement.c' a.out 25000000 < x
++run 'gccgo -O2 reverse-complement.go' a.out -n 25000000 < x
++run 'gc reverse-complement' $O.out -n 25000000 < x
++run 'gc_B reverse-complement' $O.out -n 25000000 < x
++rm x
++

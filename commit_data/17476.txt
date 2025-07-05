@@ -15,6 +15,50 @@ Date:   Thu Sep 5 23:06:34 2013 -0400
     R=golang-dev, r, bradfitz
     CC=golang-dev
     https://golang.org/cl/13255049
-
+---
  test/nilptr.go | 28 ++++++++++++++++++++++++++++
  1 file changed, 28 insertions(+)
+
+diff --git a/test/nilptr.go b/test/nilptr.go
+index 793e996736..9631d1618b 100644
+--- a/test/nilptr.go
++++ b/test/nilptr.go
+@@ -40,6 +40,10 @@ func main() {
+ 	shouldPanic(p10)
+ 	shouldPanic(p11)
+ 	shouldPanic(p12)
++	shouldPanic(p13)
++	shouldPanic(p14)
++	shouldPanic(p15)
++	shouldPanic(p16)
+ }
+ 
+ func shouldPanic(f func()) {
+@@ -152,3 +156,27 @@ func p12() {
+ 	var p *T = nil
+ 	println(*(&((*p).i)))
+ }
++
++// Tests suggested in golang.org/issue/6080.
++
++func p13() {
++	var x *[10]int
++	y := x[:]
++	_ = y
++}
++
++func p14() {
++	println((*[1]int)(nil)[:])
++}
++
++func p15() {
++	for i := range (*[1]int)(nil)[:] {
++		_ = i
++	}
++}
++
++func p16() {
++	for i, v := range (*[1]int)(nil)[:] {
++		_ = i + v
++	}
++}

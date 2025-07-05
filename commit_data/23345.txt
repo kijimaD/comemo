@@ -13,7 +13,77 @@ Date:   Wed May 6 15:58:20 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/9814
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgc.go      | 17 ++++++++++++++++-
  src/runtime/runtime1.go | 12 ------------
  2 files changed, 16 insertions(+), 13 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 90d5a12e93..9bd36d1a5e 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -130,6 +130,9 @@ const (
+ // heapminimum is the minimum number of bytes in the heap.
+ // This cleans up the corner case of where we have a very small live set but a lot
+ // of allocations and collecting every GOGC * live set is expensive.
++// heapminimum is adjust by multiplying it by GOGC/100. In
++// the special case of GOGC==0 this will set heapminimum to 0 resulting
++// collecting at every allocation even when the heap size is small.
+ var heapminimum = uint64(4 << 20)
+ 
+ // Initialized from $GOGC.  GOGC=off means no GC.
+@@ -141,7 +144,7 @@ func gcinit() {
+ 	}
+ 
+ 	work.markfor = parforalloc(_MaxGcproc)
+-	gcpercent = readgogc()
++	_ = setGCPercent(readgogc())
+ 	for datap := &firstmoduledata; datap != nil; datap = datap.next {
+ 		datap.gcdatamask = unrollglobgcprog((*byte)(unsafe.Pointer(datap.gcdata)), datap.edata-datap.data)
+ 		datap.gcbssmask = unrollglobgcprog((*byte)(unsafe.Pointer(datap.gcbss)), datap.ebss-datap.bss)
+@@ -149,6 +152,17 @@ func gcinit() {
+ 	memstats.next_gc = heapminimum
+ }
+ 
++func readgogc() int32 {
++	p := gogetenv("GOGC")
++	if p == "" {
++		return 100
++	}
++	if p == "off" {
++		return -1
++	}
++	return int32(atoi(p))
++}
++
+ // gcenable is called after the bulk of the runtime initialization,
+ // just before we're about to start letting user code run.
+ // It kicks off the background sweeper goroutine and enables GC.
+@@ -166,6 +180,7 @@ func setGCPercent(in int32) (out int32) {
+ 		in = -1
+ 	}
+ 	gcpercent = in
++	heapminimum = heapminimum * uint64(gcpercent) / 100
+ 	unlock(&mheap_.lock)
+ 	return out
+ }
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 2151be59f9..ea3883018b 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -432,15 +432,3 @@ func reflect_typelinks() [][]*_type {
+ 	}
+ 	return ret
+ }
+-
+-// TODO: move back into mgc.go
+-func readgogc() int32 {
+-	p := gogetenv("GOGC")
+-	if p == "" {
+-		return 100
+-	}
+-	if p == "off" {
+-		return -1
+-	}
+-	return int32(atoi(p))
+-}

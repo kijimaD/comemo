@@ -12,6 +12,18 @@ Date:   Wed Nov 14 15:25:59 2018 +0100
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Run-TryBot: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/vet_asm.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/testdata/script/vet_asm.txt b/src/cmd/go/testdata/script/vet_asm.txt
+index a066058c70..b7e1874b8c 100644
+--- a/src/cmd/go/testdata/script/vet_asm.txt
++++ b/src/cmd/go/testdata/script/vet_asm.txt
+@@ -1,5 +1,6 @@
+ # Issue 27665. Verify that "go vet" analyzes non-Go files.
+ 
++env GOOS=linux
+ env GOARCH=amd64
+ ! go vet -asmdecl a
+ stderr 'f: invalid MOVW of x'

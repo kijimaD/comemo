@@ -22,7 +22,49 @@ Date:   Tue Dec 4 06:41:39 2018 -0500
     Reviewed-on: https://go-review.googlesource.com/c/152417
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/noder.go |  6 +++++-
  test/fixedbugs/issue28450.go         | 18 ++++++++++++++++++
  2 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 23c9539b0a..89e9ddb668 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -548,7 +548,11 @@ func (p *noder) param(param *syntax.Field, dddOk, final bool) *Node {
+ 		if !dddOk {
+ 			yyerror("cannot use ... in receiver or result parameter list")
+ 		} else if !final {
+-			yyerror("can only use ... with final parameter in list")
++			if param.Name == nil {
++				yyerror("cannot use ... with non-final parameter")
++			} else {
++				p.yyerrorpos(param.Name.Pos(), "cannot use ... with non-final parameter %s", param.Name.Value)
++			}
+ 		}
+ 		typ.Op = OTARRAY
+ 		typ.Right = typ.Left
+diff --git a/test/fixedbugs/issue28450.go b/test/fixedbugs/issue28450.go
+new file mode 100644
+index 0000000000..21e5e0c5f1
+--- /dev/null
++++ b/test/fixedbugs/issue28450.go
+@@ -0,0 +1,18 @@
++// errorcheck
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f(a, b, c, d ...int)       {} // ERROR "non-final parameter a" "non-final parameter b" "non-final parameter c"
++func g(a ...int, b ...int)      {} // ERROR "non-final parameter a"
++func h(...int, ...int, float32) {} // ERROR "non-final parameter"
++
++type a func(...float32, ...interface{}) // ERROR "non-final parameter"
++type b interface {
++	f(...int, ...int)                // ERROR "non-final parameter"
++	g(a ...int, b ...int, c float32) // ERROR "non-final parameter a" "non-final parameter b"
++	valid(...int)
++}

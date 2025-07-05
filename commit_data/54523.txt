@@ -27,6 +27,30 @@ Date:   Wed Oct 26 11:41:27 2022 +0000
     Run-TryBot: Meng Zhuo <mzh@golangcn.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/debug/elf/file.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/debug/elf/file.go b/src/debug/elf/file.go
+index 7c5ac86c0a..88b957657b 100644
+--- a/src/debug/elf/file.go
++++ b/src/debug/elf/file.go
+@@ -1570,12 +1570,16 @@ func (f *File) gnuVersionInit(str []byte) bool {
+ // gnuVersion adds Library and Version information to sym,
+ // which came from offset i of the symbol table.
+ func (f *File) gnuVersion(i int) (library string, version string) {
+-	// Each entry is two bytes.
++	// Each entry is two bytes; skip undef entry at beginning.
+ 	i = (i + 1) * 2
+ 	if i >= len(f.gnuVersym) {
+ 		return
+ 	}
+-	j := int(f.ByteOrder.Uint16(f.gnuVersym[i:]))
++	s := f.gnuVersym[i:]
++	if len(s) < 2 {
++		return
++	}
++	j := int(f.ByteOrder.Uint16(s))
+ 	if j < 2 || j >= len(f.gnuNeed) {
+ 		return
+ 	}

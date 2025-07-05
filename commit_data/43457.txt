@@ -16,6 +16,21 @@ Date:   Mon Apr 6 11:41:23 2020 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/dwarf_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/dwarf_test.go b/src/cmd/link/dwarf_test.go
+index d4bb30399d..8a1b489300 100644
+--- a/src/cmd/link/dwarf_test.go
++++ b/src/cmd/link/dwarf_test.go
+@@ -71,8 +71,8 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string)
+ 			}
+ 			cmd.Args = append(cmd.Args, dir)
+ 			if env != nil {
+-				env = append(env, "CGO_CFLAGS=") // ensure CGO_CFLAGS does not contain any flags. Issue #35459
+ 				cmd.Env = append(os.Environ(), env...)
++				cmd.Env = append(cmd.Env, "CGO_CFLAGS=") // ensure CGO_CFLAGS does not contain any flags. Issue #35459
+ 			}
+ 			out, err := cmd.CombinedOutput()
+ 			if err != nil {

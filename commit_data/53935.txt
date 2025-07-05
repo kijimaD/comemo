@@ -13,7 +13,7 @@ Date:   Wed Sep 7 11:57:26 2022 -0700
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/api_test.go     |  3 ++-
  src/cmd/compile/internal/types2/conversions.go  | 22 ++++++++++++++++---
  src/go/types/api_test.go                        |  3 ++-
@@ -22,3 +22,183 @@ Date:   Wed Sep 7 11:57:26 2022 -0700
  src/internal/types/testdata/spec/conversions.go |  6 ++----
  test/convert2.go                                |  4 ++--
  7 files changed, 67 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index ac81d31fb2..9a3e76a07d 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -1876,8 +1876,9 @@ func TestConvertibleTo(t *testing.T) {
+ 		{newDefined(new(Struct)), new(Struct), true},
+ 		{newDefined(Typ[Int]), new(Struct), false},
+ 		{Typ[UntypedInt], Typ[Int], true},
++		{NewSlice(Typ[Int]), NewArray(Typ[Int], 10), true},
++		{NewSlice(Typ[Int]), NewArray(Typ[Uint], 10), false},
+ 		{NewSlice(Typ[Int]), NewPointer(NewArray(Typ[Int], 10)), true},
+-		{NewSlice(Typ[Int]), NewArray(Typ[Int], 10), false},
+ 		{NewSlice(Typ[Int]), NewPointer(NewArray(Typ[Uint], 10)), false},
+ 		// Untyped string values are not permitted by the spec, so the behavior below is undefined.
+ 		{Typ[UntypedString], Typ[String], true},
+diff --git a/src/cmd/compile/internal/types2/conversions.go b/src/cmd/compile/internal/types2/conversions.go
+index a86645a547..d15645499b 100644
+--- a/src/cmd/compile/internal/types2/conversions.go
++++ b/src/cmd/compile/internal/types2/conversions.go
+@@ -188,11 +188,27 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 		return true
+ 	}
+ 
+-	// "V a slice, T is a pointer-to-array type,
++	// "V is a slice, T is an array or pointer-to-array type,
+ 	// and the slice and array types have identical element types."
+ 	if s, _ := Vu.(*Slice); s != nil {
+-		if p, _ := Tu.(*Pointer); p != nil {
+-			if a, _ := under(p.Elem()).(*Array); a != nil {
++		switch a := Tu.(type) {
++		case *Array:
++			if Identical(s.Elem(), a.Elem()) {
++				if check == nil || check.allowVersion(check.pkg, 1, 20) {
++					return true
++				}
++				// check != nil
++				if cause != nil {
++					// TODO(gri) consider restructuring versionErrorf so we can use it here and below
++					*cause = "conversion of slices to arrays requires go1.20 or later"
++					if check.conf.CompilerErrorMessages {
++						*cause += fmt.Sprintf(" (-lang was set to %s; check go.mod)", check.conf.GoVersion)
++					}
++				}
++				return false
++			}
++		case *Pointer:
++			if a, _ := under(a.Elem()).(*Array); a != nil {
+ 				if Identical(s.Elem(), a.Elem()) {
+ 					if check == nil || check.allowVersion(check.pkg, 1, 17) {
+ 						return true
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 2367f3ab93..b204025b54 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -1873,8 +1873,9 @@ func TestConvertibleTo(t *testing.T) {
+ 		{newDefined(new(Struct)), new(Struct), true},
+ 		{newDefined(Typ[Int]), new(Struct), false},
+ 		{Typ[UntypedInt], Typ[Int], true},
++		{NewSlice(Typ[Int]), NewArray(Typ[Int], 10), true},
++		{NewSlice(Typ[Int]), NewArray(Typ[Uint], 10), false},
+ 		{NewSlice(Typ[Int]), NewPointer(NewArray(Typ[Int], 10)), true},
+-		{NewSlice(Typ[Int]), NewArray(Typ[Int], 10), false},
+ 		{NewSlice(Typ[Int]), NewPointer(NewArray(Typ[Uint], 10)), false},
+ 		// Untyped string values are not permitted by the spec, so the behavior below is undefined.
+ 		{Typ[UntypedString], Typ[String], true},
+diff --git a/src/go/types/conversions.go b/src/go/types/conversions.go
+index 3ad94c8eff..926a79cf5e 100644
+--- a/src/go/types/conversions.go
++++ b/src/go/types/conversions.go
+@@ -7,6 +7,7 @@
+ package types
+ 
+ import (
++	"fmt"
+ 	"go/constant"
+ 	"go/token"
+ 	"unicode"
+@@ -187,18 +188,39 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 		return true
+ 	}
+ 
+-	// "V a slice, T is a pointer-to-array type,
++	// "V is a slice, T is an array or pointer-to-array type,
+ 	// and the slice and array types have identical element types."
+ 	if s, _ := Vu.(*Slice); s != nil {
+-		if p, _ := Tu.(*Pointer); p != nil {
+-			if a, _ := under(p.Elem()).(*Array); a != nil {
++		switch a := Tu.(type) {
++		case *Array:
++			if Identical(s.Elem(), a.Elem()) {
++				if check == nil || check.allowVersion(check.pkg, 1, 20) {
++					return true
++				}
++				// check != nil
++				if cause != nil {
++					// TODO(gri) consider restructuring versionErrorf so we can use it here and below
++					*cause = "conversion of slices to arrays requires go1.20 or later"
++					if compilerErrorMessages {
++						*cause += fmt.Sprintf(" (-lang was set to %s; check go.mod)", check.conf.GoVersion)
++					}
++				}
++				return false
++			}
++		case *Pointer:
++			if a, _ := under(a.Elem()).(*Array); a != nil {
+ 				if Identical(s.Elem(), a.Elem()) {
+ 					if check == nil || check.allowVersion(check.pkg, 1, 17) {
+ 						return true
+ 					}
++					// check != nil
+ 					if cause != nil {
+ 						*cause = "conversion of slices to array pointers requires go1.17 or later"
++						if compilerErrorMessages {
++							*cause += fmt.Sprintf(" (-lang was set to %s; check go.mod)", check.conf.GoVersion)
++						}
+ 					}
++					return false
+ 				}
+ 			}
+ 		}
+diff --git a/src/internal/types/testdata/check/go1_19.go b/src/internal/types/testdata/check/go1_19.go
+new file mode 100644
+index 0000000000..f899d93733
+--- /dev/null
++++ b/src/internal/types/testdata/check/go1_19.go
+@@ -0,0 +1,15 @@
++// -lang=go1.19
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check Go language version-specific errors.
++
++package p
++
++type Slice []byte
++type Array [8]byte
++
++var s Slice
++var p = (Array)(s /* ERROR requires go1.20 or later */)
+diff --git a/src/internal/types/testdata/spec/conversions.go b/src/internal/types/testdata/spec/conversions.go
+index f20705c4b2..e8fa4c5300 100644
+--- a/src/internal/types/testdata/spec/conversions.go
++++ b/src/internal/types/testdata/spec/conversions.go
+@@ -176,13 +176,11 @@ func _[X unsafe.Pointer](x X) int64 {
+ 	return int64(x /* ERROR cannot convert x \(variable of type X constrained by unsafe\.Pointer\) to int64\n\tcannot convert unsafe\.Pointer \(in X\) to int64 */)
+ }
+ 
+-// "x is a slice, T is a pointer-to-array type,
++// "x is a slice, T is an array or pointer-to-array type,
+ // and the slice and array types have identical element types."
+ 
++func _[X ~[]E, T ~[10]E, E any](x X) T  { return T(x) }
+ func _[X ~[]E, T ~*[10]E, E any](x X) T { return T(x) }
+-func _[X ~[]E, T ~[10]E, E any](x X) T {
+-	return T(x /* ERROR cannot convert x \(variable of type X constrained by ~\[\]E\) to T\n\tcannot convert \[\]E \(in X\) to \[10\]E \(in T\) */)
+-}
+ 
+ // ----------------------------------------------------------------------------
+ // The following declarations can be replaced by the exported types of the
+diff --git a/test/convert2.go b/test/convert2.go
+index 8e43967aaa..ef93fe1f9b 100644
+--- a/test/convert2.go
++++ b/test/convert2.go
+@@ -316,11 +316,11 @@ func _() {
+ 
+ func _() {
+ 	var s []byte
+-	_ = ([4]byte)(s) // ERROR "cannot convert"
++	_ = ([4]byte)(s)
+ 	_ = (*[4]byte)(s)
+ 
+ 	type A [4]byte
+-	_ = (A)(s) // ERROR "cannot convert"
++	_ = (A)(s)
+ 	_ = (*A)(s)
+ 
+ 	type P *[4]byte

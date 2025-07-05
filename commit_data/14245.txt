@@ -7,6 +7,26 @@ Date:   Tue Oct 30 09:42:43 2012 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/6822051
-
+---
  src/pkg/exp/gotype/gotype_test.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/exp/gotype/gotype_test.go b/src/pkg/exp/gotype/gotype_test.go
+index 8732d4c5aa..42d716d81f 100644
+--- a/src/pkg/exp/gotype/gotype_test.go
++++ b/src/pkg/exp/gotype/gotype_test.go
+@@ -35,10 +35,12 @@ var tests = []struct {
+ 
+ 	// directories
+ 	{filepath.Join(runtime.GOROOT(), "src/pkg/go/ast"), "ast"},
++	{filepath.Join(runtime.GOROOT(), "src/pkg/go/build"), "build"},
+ 	{filepath.Join(runtime.GOROOT(), "src/pkg/go/doc"), "doc"},
+-	{filepath.Join(runtime.GOROOT(), "src/pkg/go/token"), "scanner"},
+-	{filepath.Join(runtime.GOROOT(), "src/pkg/go/scanner"), "scanner"},
+ 	{filepath.Join(runtime.GOROOT(), "src/pkg/go/parser"), "parser"},
++	{filepath.Join(runtime.GOROOT(), "src/pkg/go/printer"), "printer"},
++	{filepath.Join(runtime.GOROOT(), "src/pkg/go/scanner"), "scanner"},
++	{filepath.Join(runtime.GOROOT(), "src/pkg/go/token"), "token"},
+ 	{filepath.Join(runtime.GOROOT(), "src/pkg/exp/types"), "types"},
+ }
+ 

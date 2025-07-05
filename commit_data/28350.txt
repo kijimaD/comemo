@@ -11,6 +11,20 @@ Date:   Wed May 18 01:00:32 2016 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/regexp/syntax/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/regexp/syntax/doc.go b/src/regexp/syntax/doc.go
+index e6c2ce5940..efc0b43571 100644
+--- a/src/regexp/syntax/doc.go
++++ b/src/regexp/syntax/doc.go
+@@ -66,7 +66,7 @@ Grouping:
+ 
+ Empty strings:
+   ^              at beginning of text or line (flag m=true)
+-  $              at end of text (like \z not \Z) or line (flag m=true)
++  $              at end of text (like \z not Perl's \Z) or line (flag m=true)
+   \A             at beginning of text
+   \b             at ASCII word boundary (\w on one side and \W, \A, or \z on the other)
+   \B             not at ASCII word boundary

@@ -18,8 +18,110 @@ Date:   Fri Jun 30 17:11:31 2023 -0400
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
-
+---
  src/cmd/asm/main.go                   |  2 +-
  src/cmd/internal/objabi/path.go       | 24 -----------------
  src/cmd/internal/objabi/pkgspecial.go | 50 +++++++++++++++++++++++++++++++++++
  3 files changed, 51 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index e75aa8664b..84e9388cef 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -35,7 +35,7 @@ func main() {
+ 	if architecture == nil {
+ 		log.Fatalf("unrecognized architecture %s", GOARCH)
+ 	}
+-	compilingRuntime := objabi.IsRuntimePackagePath(*flags.Importpath)
++	compilingRuntime := objabi.LookupPkgSpecial(*flags.Importpath).AllowAsmABI
+ 
+ 	ctxt := obj.Linknew(architecture.LinkArch)
+ 	ctxt.Debugasm = flags.PrintOut
+diff --git a/src/cmd/internal/objabi/path.go b/src/cmd/internal/objabi/path.go
+index cb06dbe58e..2a42179a36 100644
+--- a/src/cmd/internal/objabi/path.go
++++ b/src/cmd/internal/objabi/path.go
+@@ -39,27 +39,3 @@ func PathToPrefix(s string) string {
+ 
+ 	return string(p)
+ }
+-
+-// IsRuntimePackagePath examines 'pkgpath' and returns TRUE if it
+-// belongs to the collection of "runtime-related" packages, including
+-// "runtime" itself, "reflect", "syscall", and the
+-// "runtime/internal/*" packages. The compiler and/or assembler in
+-// some cases need to be aware of when they are building such a
+-// package, for example to enable features such as ABI selectors in
+-// assembly sources.
+-func IsRuntimePackagePath(pkgpath string) bool {
+-	rval := false
+-	switch pkgpath {
+-	case "runtime":
+-		rval = true
+-	case "reflect":
+-		rval = true
+-	case "syscall":
+-		rval = true
+-	case "internal/bytealg":
+-		rval = true
+-	default:
+-		rval = strings.HasPrefix(pkgpath, "runtime/internal")
+-	}
+-	return rval
+-}
+diff --git a/src/cmd/internal/objabi/pkgspecial.go b/src/cmd/internal/objabi/pkgspecial.go
+new file mode 100644
+index 0000000000..ac38c1b52e
+--- /dev/null
++++ b/src/cmd/internal/objabi/pkgspecial.go
+@@ -0,0 +1,50 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package objabi
++
++import "sync"
++
++// PkgSpecial indicates special build properties of a given runtime-related
++// package.
++type PkgSpecial struct {
++	// AllowAsmABI indicates that assembly in this package is allowed to use ABI
++	// selectors in symbol names. Generally this is needed for packages that
++	// interact closely with the runtime package or have performance-critical
++	// assembly.
++	AllowAsmABI bool
++}
++
++var allowAsmABIPkgs = []string{
++	"runtime",
++	"reflect",
++	"syscall",
++	"internal/bytealg",
++	"runtime/internal/syscall",
++	"runtime/internal/startlinetest",
++}
++
++var (
++	pkgSpecials     map[string]PkgSpecial
++	pkgSpecialsOnce sync.Once
++)
++
++// LookupPkgSpecial returns special build properties for the given package path.
++func LookupPkgSpecial(pkgPath string) PkgSpecial {
++	pkgSpecialsOnce.Do(func() {
++		// Construct pkgSpecials from various package lists. This lets us use
++		// more flexible logic, while keeping the final map simple, and avoids
++		// the init-time cost of a map.
++		pkgSpecials = make(map[string]PkgSpecial)
++		set := func(elt string, f func(*PkgSpecial)) {
++			s := pkgSpecials[elt]
++			f(&s)
++			pkgSpecials[elt] = s
++		}
++		for _, pkg := range allowAsmABIPkgs {
++			set(pkg, func(ps *PkgSpecial) { ps.AllowAsmABI = true })
++		}
++	})
++	return pkgSpecials[pkgPath]
++}

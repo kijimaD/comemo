@@ -13,7 +13,77 @@ Date:   Fri Feb 17 11:55:42 2017 -0500
     Change-Id: Idaab2390914a2bed8c2c12b14dfb6d68233fdfec
     Reviewed-on: https://go-review.googlesource.com/37147
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/encoding/pem/pem.go      | 10 ++++++++--
  src/encoding/pem/pem_test.go | 18 ++++++++++++++++++
  2 files changed, 26 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/pem/pem.go b/src/encoding/pem/pem.go
+index fbf49997d5..5e1ab90cff 100644
+--- a/src/encoding/pem/pem.go
++++ b/src/encoding/pem/pem.go
+@@ -135,20 +135,26 @@ func Decode(data []byte) (p *Block, rest []byte) {
+ 		return decodeError(data, rest)
+ 	}
+ 
+-	// After the "-----" of the ending line should be the same type and a
+-	// final five dashes.
++	// After the "-----" of the ending line, there should be the same type
++	// and then a final five dashes.
+ 	endTrailer := rest[endTrailerIndex:]
+ 	endTrailerLen := len(typeLine) + len(pemEndOfLine)
+ 	if len(endTrailer) < endTrailerLen {
+ 		return decodeError(data, rest)
+ 	}
+ 
++	restOfEndLine := endTrailer[endTrailerLen:]
+ 	endTrailer = endTrailer[:endTrailerLen]
+ 	if !bytes.HasPrefix(endTrailer, typeLine) ||
+ 		!bytes.HasSuffix(endTrailer, pemEndOfLine) {
+ 		return decodeError(data, rest)
+ 	}
+ 
++	// The line must end with only whitespace.
++	if s, _ := getLine(restOfEndLine); len(s) != 0 {
++		return decodeError(data, rest)
++	}
++
+ 	base64Data := removeWhitespace(rest[:endIndex])
+ 	p.Bytes = make([]byte, base64.StdEncoding.DecodedLen(len(base64Data)))
+ 	n, err := base64.StdEncoding.Decode(p.Bytes, base64Data)
+diff --git a/src/encoding/pem/pem_test.go b/src/encoding/pem/pem_test.go
+index 6321dec382..6a85a60431 100644
+--- a/src/encoding/pem/pem_test.go
++++ b/src/encoding/pem/pem_test.go
+@@ -83,6 +83,16 @@ const pemTooFewEndingDashes = `
+ dGVzdA==
+ -----END FOO----`
+ 
++const pemTooManyEndingDashes = `
++-----BEGIN FOO-----
++dGVzdA==
++-----END FOO------`
++
++const pemTrailingNonWhitespace = `
++-----BEGIN FOO-----
++dGVzdA==
++-----END FOO----- .`
++
+ const pemWrongEndingType = `
+ -----BEGIN FOO-----
+ dGVzdA==
+@@ -101,6 +111,14 @@ var badPEMTests = []struct {
+ 		"too few trailing dashes",
+ 		pemTooFewEndingDashes,
+ 	},
++	{
++		"too many trailing dashes",
++		pemTooManyEndingDashes,
++	},
++	{
++		"trailing non-whitespace",
++		pemTrailingNonWhitespace,
++	},
+ 	{
+ 		"incorrect ending type",
+ 		pemWrongEndingType,

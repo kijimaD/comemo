@@ -9,6 +9,36 @@ Date:   Sat Mar 2 11:14:29 2019 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/exec/bench_test.go | 23 +++++++++++++++++++++++
  1 file changed, 23 insertions(+)
+
+diff --git a/src/os/exec/bench_test.go b/src/os/exec/bench_test.go
+new file mode 100644
+index 0000000000..e8cf73bef7
+--- /dev/null
++++ b/src/os/exec/bench_test.go
+@@ -0,0 +1,23 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package exec
++
++import (
++	"testing"
++)
++
++func BenchmarkExecEcho(b *testing.B) {
++	b.ReportAllocs()
++	path, err := LookPath("echo")
++	if err != nil {
++		b.Fatalf("could not find echo: %v", err)
++	}
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		if err := Command(path).Run(); err != nil {
++			b.Fatalf("echo: %v", err)
++		}
++	}
++}

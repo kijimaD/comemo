@@ -19,6 +19,21 @@ Date:   Fri Sep 8 17:59:02 2023 -0400
     Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/os_netbsd.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index c5d7b4b978..7cbba48194 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -316,7 +316,8 @@ func minit() {
+ //go:nosplit
+ func unminit() {
+ 	unminitSignals()
+-	getg().m.procid = 0
++	// Don't clear procid, it is used by locking (semawake), and locking
++	// must continue working after unminit.
+ }
+ 
+ // Called from exitm, but not from drop, to undo the effect of thread-owned

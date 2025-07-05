@@ -7,6 +7,20 @@ Date:   Mon May 30 12:20:00 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4548072
-
+---
  misc/vim/ftplugin/go/fmt.vim | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/vim/ftplugin/go/fmt.vim b/misc/vim/ftplugin/go/fmt.vim
+index 18a2156f5f..a299dfcee7 100644
+--- a/misc/vim/ftplugin/go/fmt.vim
++++ b/misc/vim/ftplugin/go/fmt.vim
+@@ -13,7 +13,7 @@
+ "       replacing the buffer with stderr output.
+ "
+ 
+-command! Fmt call s:GoFormat()
++command! -buffer Fmt call s:GoFormat()
+ 
+ function! s:GoFormat()
+     let view = winsaveview()

@@ -12,6 +12,28 @@ Date:   Fri Jul 31 10:49:01 2015 -0700
     Change-Id: Id1c2828cd2540391e16b422bf51674ba6ff084b0
     Reviewed-on: https://go-review.googlesource.com/13005
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/objdump/objdump_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index 54e26552e0..b6c339b9ef 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -5,6 +5,7 @@
+ package main
+ 
+ import (
++	"go/build"
+ 	"internal/testenv"
+ 	"io/ioutil"
+ 	"os"
+@@ -123,5 +124,8 @@ func TestDisasmExtld(t *testing.T) {
+ 	if runtime.GOOS == "openbsd" && runtime.GOARCH == "arm" {
+ 		t.Skip("skipping on openbsd/arm, no support for external linking, issue 10619")
+ 	}
++	if !build.Default.CgoEnabled {
++		t.Skip("skipping because cgo is not enabled")
++	}
+ 	testDisasm(t, "-ldflags=-linkmode=external")
+ }

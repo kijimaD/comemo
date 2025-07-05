@@ -9,6 +9,20 @@ Date:   Tue May 2 11:17:57 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/walk.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 494b7c5970..7798a4f364 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3298,7 +3298,7 @@ func walkcompare(n *Node, init *Nodes) *Node {
+ 		// We can compare several elements at once with 2/4/8 byte integer compares
+ 		inline = t.NumElem() <= 1 || (issimple[t.Elem().Etype] && (t.NumElem() <= 4 || t.Elem().Width*t.NumElem() <= maxcmpsize))
+ 	case TSTRUCT:
+-		inline = t.NumFields() <= 4
++		inline = t.NumComponents() <= 4
+ 	}
+ 
+ 	cmpl := n.Left

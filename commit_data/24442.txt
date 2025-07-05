@@ -34,7 +34,58 @@ Date:   Tue Jul 28 14:33:39 2015 -0400
     Change-Id: Ie89614a6238bb9c6a5b1190499b0b48ec759eaf7
     Reviewed-on: https://go-review.googlesource.com/12748
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/proc1.go    | 12 ++++++++++++
  src/runtime/runtime2.go |  1 +
  2 files changed, 13 insertions(+)
+
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index fccc2ac70f..788f4fd3b4 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -414,7 +414,13 @@ func scang(gp *g) {
+ 			// the goroutine until we're done.
+ 			if castogscanstatus(gp, s, s|_Gscan) {
+ 				if !gp.gcscandone {
++					// Coordinate with traceback
++					// in sigprof.
++					for !cas(&gp.stackLock, 0, 1) {
++						osyield()
++					}
+ 					scanstack(gp)
++					atomicstore(&gp.stackLock, 0)
+ 					gp.gcscandone = true
+ 				}
+ 				restartg(gp)
+@@ -2477,6 +2483,11 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+ 	// Profiling runs concurrently with GC, so it must not allocate.
+ 	mp.mallocing++
+ 
++	// Coordinate with stack barrier insertion in scanstack.
++	for !cas(&gp.stackLock, 0, 1) {
++		osyield()
++	}
++
+ 	// Define that a "user g" is a user-created goroutine, and a "system g"
+ 	// is one that is m->g0 or m->gsignal.
+ 	//
+@@ -2580,6 +2591,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+ 			}
+ 		}
+ 	}
++	atomicstore(&gp.stackLock, 0)
+ 
+ 	if prof.hz != 0 {
+ 		// Simple cas-lock to coordinate with setcpuprofilerate.
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 0132766dd0..dc600ae578 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -230,6 +230,7 @@ type g struct {
+ 	stkbarPos      uintptr        // index of lowest stack barrier not hit
+ 	param          unsafe.Pointer // passed parameter on wakeup
+ 	atomicstatus   uint32
++	stackLock      uint32 // sigprof/scang lock; TODO: fold in to atomicstatus
+ 	goid           int64
+ 	waitsince      int64  // approx time when the g become blocked
+ 	waitreason     string // if status==Gwaiting

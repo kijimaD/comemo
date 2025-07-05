@@ -9,6 +9,24 @@ Date:   Thu Sep 20 00:58:34 2012 +0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6525049
-
+---
  src/all.bat | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/all.bat b/src/all.bat
+index 386867947a..8929f77273 100644
+--- a/src/all.bat
++++ b/src/all.bat
+@@ -16,8 +16,11 @@ call make.bat --no-banner --no-local
+ if %GOBUILDFAIL%==1 goto end
+ call run.bat --no-rebuild --no-local
+ if %GOBUILDFAIL%==1 goto end
+-go tool dist banner
++:: we must restore %PATH% before running "dist banner" so that the latter
++:: can get the original %PATH% and give suggestion to add %GOROOT%/bin
++:: to %PATH% if necessary.
+ set PATH=%OLDPATH%
++%GOTOOLDIR%/dist banner
+ 
+ :end
+ if x%GOBUILDEXIT%==x1 exit %GOBUILDFAIL%

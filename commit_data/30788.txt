@@ -17,9 +17,181 @@ Date:   Sat Dec 3 19:17:16 2016 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/export_test.go       |  9 +++-
  src/cmd/compile/internal/ssa/type_test.go         |  2 +-
  src/cmd/compile/internal/ssa/writebarrier.go      | 58 ++++++++++++++++++-----
  src/cmd/compile/internal/ssa/writebarrier_test.go | 29 ++++++++++++
  4 files changed, 82 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index 010c4d7680..3a9357dfae 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -6,6 +6,7 @@ package ssa
+ 
+ import (
+ 	"cmd/internal/obj"
++	"cmd/internal/obj/x86"
+ 	"testing"
+ )
+ 
+@@ -16,7 +17,7 @@ var Deadcode = deadcode
+ var Copyelim = copyelim
+ 
+ func testConfig(t testing.TB) *Config {
+-	testCtxt := &obj.Link{}
++	testCtxt := &obj.Link{Arch: &x86.Linkamd64}
+ 	return NewConfig("amd64", DummyFrontend{t}, testCtxt, true)
+ }
+ 
+@@ -67,7 +68,7 @@ func (DummyFrontend) Line(line int32) string {
+ func (DummyFrontend) AllocFrame(f *Func) {
+ }
+ func (DummyFrontend) Syslook(s string) interface{} {
+-	return nil
++	return DummySym(s)
+ }
+ 
+ func (d DummyFrontend) Logf(msg string, args ...interface{}) { d.t.Logf(msg, args...) }
+@@ -98,3 +99,7 @@ func (d DummyFrontend) CanSSA(t Type) bool {
+ 	// There are no un-SSAable types in dummy land.
+ 	return true
+ }
++
++type DummySym string
++
++func (s DummySym) String() string { return string(s) }
+diff --git a/src/cmd/compile/internal/ssa/type_test.go b/src/cmd/compile/internal/ssa/type_test.go
+index a76a0651bb..2f917288de 100644
+--- a/src/cmd/compile/internal/ssa/type_test.go
++++ b/src/cmd/compile/internal/ssa/type_test.go
+@@ -44,7 +44,7 @@ func (t *TypeImpl) IsVoid() bool           { return false }
+ func (t *TypeImpl) String() string         { return t.Name }
+ func (t *TypeImpl) SimpleString() string   { return t.Name }
+ func (t *TypeImpl) ElemType() Type         { return t.Elem_ }
+-func (t *TypeImpl) PtrTo() Type            { panic("not implemented") }
++func (t *TypeImpl) PtrTo() Type            { return TypeBytePtr }
+ func (t *TypeImpl) NumFields() int         { panic("not implemented") }
+ func (t *TypeImpl) FieldType(i int) Type   { panic("not implemented") }
+ func (t *TypeImpl) FieldOff(i int) int64   { panic("not implemented") }
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index b914154b48..1eb4d7bb1a 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -78,7 +78,6 @@ func writebarrier(f *Func) {
+ 					defer f.retSparseSet(wbs)
+ 				}
+ 
+-				mem := v.Args[2]
+ 				line := v.Line
+ 
+ 				// there may be a sequence of WB stores in the current block. find them.
+@@ -106,6 +105,20 @@ func writebarrier(f *Func) {
+ 					}
+ 				}
+ 
++				// find the memory before the WB stores
++				// this memory is not a WB store but it is used in a WB store.
++				var mem *Value
++				for _, w := range storeWBs {
++					a := w.Args[len(w.Args)-1]
++					if wbs.contains(a.ID) {
++						continue
++					}
++					if mem != nil {
++						b.Fatalf("two stores live simultaneously: %s, %s", mem, a)
++					}
++					mem = a
++				}
++
+ 				b.Values = append(b.Values[:i], others...) // move WB ops out of this block
+ 
+ 				bThen := f.NewBlock(BlockPlain)
+@@ -177,20 +190,39 @@ func writebarrier(f *Func) {
+ 				// which may be used in subsequent blocks. Other memories in the
+ 				// sequence must be dead after this block since there can be only
+ 				// one memory live.
+-				v = storeWBs[len(storeWBs)-1]
+-				bEnd.Values = append(bEnd.Values, v)
+-				v.Block = bEnd
+-				v.reset(OpPhi)
+-				v.Type = TypeMem
+-				v.AddArg(memThen)
+-				v.AddArg(memElse)
+-				for _, w := range storeWBs[:len(storeWBs)-1] {
+-					for _, a := range w.Args {
+-						a.Uses--
++				last := storeWBs[0]
++				if len(storeWBs) > 1 {
++					// find the last store
++					last = nil
++					wbs.clear() // we reuse wbs to record WB stores that is used in another WB store
++					for _, w := range storeWBs {
++						wbs.add(w.Args[len(w.Args)-1].ID)
++					}
++					for _, w := range storeWBs {
++						if wbs.contains(w.ID) {
++							continue
++						}
++						if last != nil {
++							b.Fatalf("two stores live simultaneously: %s, %s", last, w)
++						}
++						last = w
+ 					}
+ 				}
+-				for _, w := range storeWBs[:len(storeWBs)-1] {
+-					f.freeValue(w)
++				bEnd.Values = append(bEnd.Values, last)
++				last.Block = bEnd
++				last.reset(OpPhi)
++				last.Type = TypeMem
++				last.AddArg(memThen)
++				last.AddArg(memElse)
++				for _, w := range storeWBs {
++					if w != last {
++						w.resetArgs()
++					}
++				}
++				for _, w := range storeWBs {
++					if w != last {
++						f.freeValue(w)
++					}
+ 				}
+ 
+ 				if f.Config.fe.Debug_wb() {
+diff --git a/src/cmd/compile/internal/ssa/writebarrier_test.go b/src/cmd/compile/internal/ssa/writebarrier_test.go
+new file mode 100644
+index 0000000000..c2ba695971
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/writebarrier_test.go
+@@ -0,0 +1,29 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++import "testing"
++
++func TestWriteBarrierStoreOrder(t *testing.T) {
++	// Make sure writebarrier phase works even StoreWB ops are not in dependency order
++	c := testConfig(t)
++	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
++	fun := Fun(c, "entry",
++		Bloc("entry",
++			Valu("start", OpInitMem, TypeMem, 0, nil),
++			Valu("sb", OpSB, TypeInvalid, 0, nil),
++			Valu("sp", OpSP, TypeInvalid, 0, nil),
++			Valu("v", OpConstNil, ptrType, 0, nil),
++			Valu("addr1", OpAddr, ptrType, 0, nil, "sb"),
++			Valu("wb2", OpStoreWB, TypeMem, 8, nil, "addr1", "v", "wb1"),
++			Valu("wb1", OpStoreWB, TypeMem, 8, nil, "addr1", "v", "start"), // wb1 and wb2 are out of order
++			Goto("exit")),
++		Bloc("exit",
++			Exit("wb2")))
++
++	CheckFunc(fun.f)
++	writebarrier(fun.f)
++	CheckFunc(fun.f)
++}

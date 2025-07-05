@@ -24,7 +24,51 @@ Date:   Mon Jul 6 16:29:28 2009 -0700
     R=ken
     OCL=31221
     CL=31221
-
+---
  src/cmd/gc/go.y  | 12 +++++++++++-
  src/cmd/gc/swt.c |  2 +-
  2 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index fa6e1c752f..9c9d6441d0 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -468,6 +468,7 @@ case:
+ 		// done in casebody()
+ 		poptodcl();
+ 		if(typeswvar != N && typeswvar->right != N) {
++			int e;
+ 			if($2->op == OLITERAL && $2->val.ctype == CTNIL) {
+ 				// this version in type switch case nil
+ 				$$ = nod(OTYPESW, N, N);
+@@ -481,7 +482,16 @@ case:
+ 				addtotop($$);
+ 				break;
+ 			}
+-			yyerror("non-type case in type switch");
++			e = nerrors;
++			gettype($2, N);
++			// maybe gettype found problems that keep
++			// e from being valid even outside a type switch.
++			// only complain if gettype didn't print new errors.
++			if(nerrors == e)
++				yyerror("non-type case in type switch");
++			$$ = nod(OXCASE, N, N);
++			$$->diag = 1;
++			break;
+ 		}
+ 		$$ = nod(OXCASE, $2, N);
+ 	}
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index b320475ec9..6ea8c96288 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -326,7 +326,7 @@ loop:
+ 	if(n->op != OCASE)
+ 		fatal("walkcases: not case %O\n", n->op);
+ 
+-	if(n->left != N) {
++	if(n->left != N && !n->diag) {
+ 		setlineno(n);
+ 		place = call(n->left, place, arg);
+ 	}

@@ -15,6 +15,24 @@ Date:   Tue Apr 12 15:51:24 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/rdebug.go | 7 +++----
  1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/rdebug.go b/src/runtime/rdebug.go
+index d966734813..1b213f1934 100644
+--- a/src/runtime/rdebug.go
++++ b/src/runtime/rdebug.go
+@@ -15,9 +15,8 @@ func setMaxStack(in int) (out int) {
+ 
+ //go:linkname setPanicOnFault runtime/debug.setPanicOnFault
+ func setPanicOnFault(new bool) (old bool) {
+-	mp := acquirem()
+-	old = mp.curg.paniconfault
+-	mp.curg.paniconfault = new
+-	releasem(mp)
++	_g_ := getg()
++	old = _g_.paniconfault
++	_g_.paniconfault = new
+ 	return old
+ }

@@ -7,6 +7,20 @@ Date:   Sun Feb 21 19:49:43 2010 -0800
     R=rsc, adg
     CC=golang-dev
     https://golang.org/cl/217071
-
+---
  src/pkg/http/request.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index d077224026..89a5d837cd 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -167,7 +167,7 @@ func (req *Request) Write(w io.Writer) os.Error {
+ 		host = req.URL.Host
+ 	}
+ 
+-	uri := urlEscape(req.URL.Path, false)
++	uri := valueOrDefault(urlEscape(req.URL.Path, false), "/")
+ 	if req.URL.RawQuery != "" {
+ 		uri += "?" + req.URL.RawQuery
+ 	}

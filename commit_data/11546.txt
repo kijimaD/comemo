@@ -9,9 +9,44 @@ Date:   Thu Feb 2 09:08:50 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5609048
-
+---
  doc/go1.html                              | 2 +-
  doc/go1.tmpl                              | 2 +-
  src/pkg/{os => exp}/signal/signal.go      | 0
  src/pkg/{os => exp}/signal/signal_test.go | 0
  4 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index 4c118e0a9b..38a0faa398 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -558,7 +558,7 @@ Several packages have moved under <code>exp</code> at the time of Go 1's release
+ <ul>
+ <li><code>ebnf</code></li>
+ <li><code>go/types</code></li>
+-<li><code>http/spdy</code></li>
++<li><code>os/signal</code></li>
+ </ul>
+ 
+ <p>
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index 940f2d75c0..1e317446bf 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -482,7 +482,7 @@ Several packages have moved under <code>exp</code> at the time of Go 1's release
+ <ul>
+ <li><code>ebnf</code></li>
+ <li><code>go/types</code></li>
+-<li><code>http/spdy</code></li>
++<li><code>os/signal</code></li>
+ </ul>
+ 
+ <p>
+diff --git a/src/pkg/os/signal/signal.go b/src/pkg/exp/signal/signal.go
+similarity index 100%
+rename from src/pkg/os/signal/signal.go
+rename to src/pkg/exp/signal/signal.go
+diff --git a/src/pkg/os/signal/signal_test.go b/src/pkg/exp/signal/signal_test.go
+similarity index 100%
+rename from src/pkg/os/signal/signal_test.go
+rename to src/pkg/exp/signal/signal_test.go

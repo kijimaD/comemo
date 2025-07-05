@@ -15,6 +15,20 @@ Date:   Fri Oct 1 09:05:13 2021 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/net/http/pprof/pprof.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/pprof/pprof.go b/src/net/http/pprof/pprof.go
+index 888ea35c9a..dc855c8a6d 100644
+--- a/src/net/http/pprof/pprof.go
++++ b/src/net/http/pprof/pprof.go
+@@ -44,7 +44,7 @@
+ // The package also exports a handler that serves execution trace data
+ // for the "go tool trace" command. To collect a 5-second execution trace:
+ //
+-//	wget -O trace.out http://localhost:6060/debug/pprof/trace?seconds=5
++//	curl -o trace.out http://localhost:6060/debug/pprof/trace?seconds=5
+ //	go tool trace trace.out
+ //
+ // To view all available profiles, open http://localhost:6060/debug/pprof/

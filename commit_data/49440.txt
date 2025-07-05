@@ -29,7 +29,7 @@ Date:   Fri Aug 13 15:52:12 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/importer/iimport.go   |   8 +-
  src/cmd/compile/internal/noder/reader2.go      |   3 +-
  src/cmd/compile/internal/types2/api.go         |  12 ++
@@ -40,3 +40,484 @@ Date:   Fri Aug 13 15:52:12 2021 -0400
  src/cmd/compile/internal/types2/subst.go       |  11 +-
  src/cmd/compile/internal/types2/typexpr.go     |   2 +-
  9 files changed, 207 insertions(+), 129 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/iimport.go b/src/cmd/compile/internal/importer/iimport.go
+index a317dfc34a..ac5ec7c8f2 100644
+--- a/src/cmd/compile/internal/importer/iimport.go
++++ b/src/cmd/compile/internal/importer/iimport.go
+@@ -652,7 +652,9 @@ func (r *importReader) doType(base *types2.Named) types2.Type {
+ 		if r.p.exportVersion < iexportVersionGenerics {
+ 			errorf("unexpected instantiation type")
+ 		}
+-		pos := r.pos()
++		// pos does not matter for instances: they are positioned on the original
++		// type.
++		_ = r.pos()
+ 		len := r.uint64()
+ 		targs := make([]types2.Type, len)
+ 		for i := range targs {
+@@ -661,8 +663,8 @@ func (r *importReader) doType(base *types2.Named) types2.Type {
+ 		baseType := r.typ()
+ 		// The imported instantiated type doesn't include any methods, so
+ 		// we must always use the methods of the base (orig) type.
+-		var check *types2.Checker // TODO provide a non-nil *Checker
+-		t := check.Instantiate(pos, baseType, targs, nil, false)
++		// TODO provide a non-nil *Checker
++		t, _ := types2.Instantiate(nil, baseType, targs, false)
+ 		return t
+ 
+ 	case unionType:
+diff --git a/src/cmd/compile/internal/noder/reader2.go b/src/cmd/compile/internal/noder/reader2.go
+index 97ea4fcb76..22c742ab25 100644
+--- a/src/cmd/compile/internal/noder/reader2.go
++++ b/src/cmd/compile/internal/noder/reader2.go
+@@ -229,7 +229,8 @@ func (r *reader2) doTyp() (res types2.Type) {
+ 		obj, targs := r.obj()
+ 		name := obj.(*types2.TypeName)
+ 		if len(targs) != 0 {
+-			return r.p.check.Instantiate(syntax.Pos{}, name.Type(), targs, nil, false)
++			t, _ := types2.Instantiate(r.p.check, name.Type(), targs, false)
++			return t
+ 		}
+ 		return name.Type()
+ 
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index ae4fb6ad10..f268508825 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -55,6 +55,18 @@ func (err Error) FullError() string {
+ 	return fmt.Sprintf("%s: %s", err.Pos, err.Full)
+ }
+ 
++// An ArgumentError holds an error that is associated with an argument.
++type ArgumentError struct {
++	index int
++	error
++}
++
++// Index returns the positional index of the argument associated with the
++// error.
++func (e ArgumentError) Index() int {
++	return e.index
++}
++
+ // An Importer resolves import paths to Packages.
+ //
+ // CAUTION: This interface does not support the import of locally
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index be05d06fd0..d6a2eb4eb3 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -1871,8 +1871,10 @@ func TestInstantiate(t *testing.T) {
+ 
+ 	// instantiation should succeed (no endless recursion)
+ 	// even with a nil *Checker
+-	var check *Checker
+-	res := check.Instantiate(nopos, T, []Type{Typ[Int]}, nil, false)
++	res, err := Instantiate(nil, T, []Type{Typ[Int]}, false)
++	if err != nil {
++		t.Fatal(err)
++	}
+ 
+ 	// instantiated type should point to itself
+ 	if p := res.Underlying().(*Pointer).Elem(); p != res {
+@@ -1880,6 +1882,39 @@ func TestInstantiate(t *testing.T) {
+ 	}
+ }
+ 
++func TestInstantiateErrors(t *testing.T) {
++	tests := []struct {
++		src    string // by convention, T must be the type being instantiated
++		targs  []Type
++		wantAt int // -1 indicates no error
++	}{
++		{"type T[P interface{~string}] int", []Type{Typ[Int]}, 0},
++		{"type T[P1 interface{int}, P2 interface{~string}] int", []Type{Typ[Int], Typ[Int]}, 1},
++		{"type T[P1 any, P2 interface{~[]P1}] int", []Type{Typ[Int], NewSlice(Typ[String])}, 1},
++		{"type T[P1 interface{~[]P2}, P2 any] int", []Type{NewSlice(Typ[String]), Typ[Int]}, 0},
++	}
++
++	for _, test := range tests {
++		src := genericPkg + "p; " + test.src
++		pkg, err := pkgFor(".", src, nil)
++		if err != nil {
++			t.Fatal(err)
++		}
++
++		T := pkg.Scope().Lookup("T").Type().(*Named)
++
++		_, err = Instantiate(nil, T, test.targs, true)
++		if err == nil {
++			t.Fatalf("Instantiate(%v, %v) returned nil error, want non-nil", T, test.targs)
++		}
++
++		gotAt := err.(ArgumentError).Index()
++		if gotAt != test.wantAt {
++			t.Errorf("Instantate(%v, %v): error at index %d, want index %d", T, test.targs, gotAt, test.wantAt)
++		}
++	}
++}
++
+ func TestInstanceIdentity(t *testing.T) {
+ 	imports := make(testImporter)
+ 	conf := Config{Importer: imports}
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 94bcc4870b..538fdc0fb7 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -56,7 +56,7 @@ func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
+ 	}
+ 
+ 	// instantiate function signature
+-	res := check.Instantiate(x.Pos(), sig, targs, poslist, true).(*Signature)
++	res := check.instantiate(x.Pos(), sig, targs, poslist).(*Signature)
+ 	assert(res.TParams().Len() == 0) // signature is not generic anymore
+ 	if inferred {
+ 		check.recordInferred(inst, targs, res)
+@@ -326,7 +326,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
+ 		}
+ 
+ 		// compute result signature
+-		rsig = check.Instantiate(call.Pos(), sig, targs, nil, true).(*Signature)
++		rsig = check.instantiate(call.Pos(), sig, targs, nil).(*Signature)
+ 		assert(rsig.TParams().Len() == 0) // signature is not generic anymore
+ 		check.recordInferred(call, targs, rsig)
+ 
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index ab51d062c5..e0d889aa85 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -13,26 +13,124 @@ import (
+ 	"fmt"
+ )
+ 
+-// Instantiate instantiates the type typ with the given type arguments
+-// targs. To check type constraint satisfaction, verify must be set.
+-// pos and posList correspond to the instantiation and type argument
+-// positions respectively; posList may be nil or shorter than the number
+-// of type arguments provided.
+-// typ must be a *Named or a *Signature type, and its number of type
+-// parameters must match the number of provided type arguments.
+-// The receiver (check) may be nil if and only if verify is not set.
+-// The result is a new, instantiated (not generic) type of the same kind
+-// (either a *Named or a *Signature).
+-// Any methods attached to a *Named are simply copied; they are not
+-// instantiated.
+-func (check *Checker) Instantiate(pos syntax.Pos, typ Type, targs []Type, posList []syntax.Pos, verify bool) (res Type) {
++// Instantiate instantiates the type typ with the given type arguments targs.
++// typ must be a *Named or a *Signature type, and its number of type parameters
++// must match the number of provided type arguments. The result is a new,
++// instantiated (not parameterized) type of the same kind (either a *Named or a
++// *Signature). Any methods attached to a *Named are simply copied; they are
++// not instantiated.
++//
++// If check is non-nil, it will be used to de-dupe the instance against
++// previous instances with the same identity.
++//
++// If verify is set and constraint satisfaction fails, the returned error may
++// be of dynamic type ArgumentError indicating which type argument did not
++// satisfy its corresponding type parameter constraint, and why.
++//
++// TODO(rfindley): change this function to also return an error if lengths of
++// tparams and targs do not match.
++func Instantiate(check *Checker, typ Type, targs []Type, validate bool) (Type, error) {
++	inst := check.instance(nopos, typ, targs)
++
++	var err error
++	if validate {
++		var tparams []*TypeName
++		switch t := typ.(type) {
++		case *Named:
++			tparams = t.TParams().list()
++		case *Signature:
++			tparams = t.TParams().list()
++		}
++		if i, err := check.verify(nopos, tparams, targs); err != nil {
++			return inst, ArgumentError{i, err}
++		}
++	}
++
++	return inst, err
++}
++
++// instantiate creates an instance and defers verification of constraints to
++// later in the type checking pass. For Named types the resulting instance will
++// be unexpanded.
++func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, posList []syntax.Pos) (res Type) {
++	if check != nil && check.conf.Trace {
++		check.trace(pos, "-- instantiating %s with %s", typ, typeListString(targs))
++		check.indent++
++		defer func() {
++			check.indent--
++			var under Type
++			if res != nil {
++				// Calling under() here may lead to endless instantiations.
++				// Test case: type T[P any] T[P]
++				// TODO(gri) investigate if that's a bug or to be expected.
++				under = safeUnderlying(res)
++			}
++			check.trace(pos, "=> %s (under = %s)", res, under)
++		}()
++	}
++
++	assert(check != nil)
++	inst := check.instance(pos, typ, targs)
++
++	assert(len(posList) <= len(targs))
++	check.later(func() {
++		// Collect tparams again because lazily loaded *Named types may not have
++		// had tparams set up above.
++		var tparams []*TypeName
++		switch t := typ.(type) {
++		case *Named:
++			tparams = t.TParams().list()
++		case *Signature:
++			tparams = t.TParams().list()
++		}
++		// Avoid duplicate errors; instantiate will have complained if tparams
++		// and targs do not have the same length.
++		if len(tparams) == len(targs) {
++			if i, err := check.verify(pos, tparams, targs); err != nil {
++				// best position for error reporting
++				pos := pos
++				if i < len(posList) {
++					pos = posList[i]
++				}
++				check.softErrorf(pos, err.Error())
++			}
++		}
++	})
++	return inst
++}
++
++// instance creates a type or function instance using the given original type
++// typ and arguments targs. For Named types the resulting instance will be
++// unexpanded.
++func (check *Checker) instance(pos syntax.Pos, typ Type, targs []Type) (res Type) {
+ 	// TODO(gri) What is better here: work with TypeParams, or work with TypeNames?
+-	var inst Type
+ 	switch t := typ.(type) {
+ 	case *Named:
+-		inst = check.instantiateLazy(pos, t, targs)
++		h := instantiatedHash(t, targs)
++		if check != nil {
++			// typ may already have been instantiated with identical type arguments. In
++			// that case, re-use the existing instance.
++			if named := check.typMap[h]; named != nil {
++				return named
++			}
++		}
++
++		tname := NewTypeName(pos, t.obj.pkg, t.obj.name, nil)
++		named := check.newNamed(tname, t, nil, nil, nil) // methods and tparams are set when named is loaded
++		named.targs = targs
++		named.instance = &instance{pos}
++		if check != nil {
++			check.typMap[h] = named
++		}
++		res = named
+ 	case *Signature:
+-		tparams := t.TParams().list()
++		tparams := t.TParams()
++		if !check.validateTArgLen(pos, tparams, targs) {
++			return Typ[Invalid]
++		}
++		if tparams.Len() == 0 {
++			return typ // nothing to do (minor optimization)
++		}
+ 		defer func() {
+ 			// If we had an unexpected failure somewhere don't panic below when
+ 			// asserting res.(*Signature). Check for *Signature in case Typ[Invalid]
+@@ -51,100 +149,27 @@ func (check *Checker) Instantiate(pos syntax.Pos, typ Type, targs []Type, posLis
+ 			// anymore; we need to set tparams to nil.
+ 			res.(*Signature).tparams = nil
+ 		}()
+-		inst = check.instantiate(pos, typ, tparams, targs, nil)
++		res = check.subst(pos, typ, makeSubstMap(tparams.list(), targs), nil)
+ 	default:
+ 		// only types and functions can be generic
+ 		panic(fmt.Sprintf("%v: cannot instantiate %v", pos, typ))
+ 	}
+-
+-	if verify {
+-		if check == nil {
+-			panic("cannot have nil Checker if verifying constraints")
+-		}
+-		assert(len(posList) <= len(targs))
+-		check.later(func() {
+-			// Collect tparams again because lazily loaded *Named types may not have
+-			// had tparams set up above.
+-			var tparams []*TypeName
+-			switch t := typ.(type) {
+-			case *Named:
+-				tparams = t.TParams().list()
+-			case *Signature:
+-				tparams = t.TParams().list()
+-			}
+-			// Avoid duplicate errors; instantiate will have complained if tparams
+-			// and targs do not have the same length.
+-			if len(tparams) == len(targs) {
+-				if i, err := check.verify(pos, tparams, targs); err != nil {
+-					// best position for error reporting
+-					pos := pos
+-					if i < len(posList) {
+-						pos = posList[i]
+-					}
+-					check.softErrorf(pos, err.Error())
+-				}
+-			}
+-		})
+-	}
+-
+-	return inst
++	return res
+ }
+ 
+-func (check *Checker) instantiate(pos syntax.Pos, typ Type, tparams []*TypeName, targs []Type, typMap map[string]*Named) (res Type) {
+-	// the number of supplied types must match the number of type parameters
+-	if len(targs) != len(tparams) {
++// validateTArgLen verifies that the length of targs and tparams matches,
++// reporting an error if not. If validation fails and check is nil,
++// validateTArgLen panics.
++func (check *Checker) validateTArgLen(pos syntax.Pos, tparams *TParamList, targs []Type) bool {
++	if len(targs) != tparams.Len() {
+ 		// TODO(gri) provide better error message
+ 		if check != nil {
+-			check.errorf(pos, "got %d arguments but %d type parameters", len(targs), len(tparams))
+-			return Typ[Invalid]
+-		}
+-		panic(fmt.Sprintf("%v: got %d arguments but %d type parameters", pos, len(targs), len(tparams)))
+-	}
+-
+-	if check != nil && check.conf.Trace {
+-		check.trace(pos, "-- instantiating %s with %s", typ, typeListString(targs))
+-		check.indent++
+-		defer func() {
+-			check.indent--
+-			var under Type
+-			if res != nil {
+-				// Calling under() here may lead to endless instantiations.
+-				// Test case: type T[P any] T[P]
+-				// TODO(gri) investigate if that's a bug or to be expected.
+-				under = safeUnderlying(res)
+-			}
+-			check.trace(pos, "=> %s (under = %s)", res, under)
+-		}()
+-	}
+-
+-	if len(tparams) == 0 {
+-		return typ // nothing to do (minor optimization)
+-	}
+-
+-	return check.subst(pos, typ, makeSubstMap(tparams, targs), typMap)
+-}
+-
+-// instantiateLazy avoids actually instantiating the type until needed. typ
+-// must be a *Named type.
+-func (check *Checker) instantiateLazy(pos syntax.Pos, orig *Named, targs []Type) Type {
+-	h := instantiatedHash(orig, targs)
+-	if check != nil {
+-		// typ may already have been instantiated with identical type arguments. In
+-		// that case, re-use the existing instance.
+-		if named := check.typMap[h]; named != nil {
+-			return named
++			check.errorf(pos, "got %d arguments but %d type parameters", len(targs), tparams.Len())
++			return false
+ 		}
++		panic(fmt.Sprintf("%v: got %d arguments but %d type parameters", pos, len(targs), tparams.Len()))
+ 	}
+-
+-	tname := NewTypeName(pos, orig.obj.pkg, orig.obj.name, nil)
+-	named := check.newNamed(tname, orig, nil, nil, nil) // methods and tparams are set when named is loaded
+-	named.targs = targs
+-	named.instance = &instance{pos}
+-	if check != nil {
+-		check.typMap[h] = named
+-	}
+-
+-	return named
++	return true
+ }
+ 
+ func (check *Checker) verify(pos syntax.Pos, tparams []*TypeName, targs []Type) (int, error) {
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index 97239414f6..87b5716f7c 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -258,22 +258,26 @@ func (n *Named) expand(typMap map[string]*Named) *Named {
+ 		// tparams. This is done implicitly by the call to n.TParams, but making it
+ 		// explicit is harmless: load is idempotent.
+ 		n.load()
+-		if typMap == nil {
+-			if n.check != nil {
+-				typMap = n.check.typMap
+-			} else {
+-				// If we're instantiating lazily, we might be outside the scope of a
+-				// type-checking pass. In that case we won't have a pre-existing
+-				// typMap, but don't want to create a duplicate of the current instance
+-				// in the process of expansion.
+-				h := instantiatedHash(n.orig, n.targs)
+-				typMap = map[string]*Named{h: n}
++		var u Type
++		if n.check.validateTArgLen(n.instance.pos, n.tparams, n.targs) {
++			if typMap == nil {
++				if n.check != nil {
++					typMap = n.check.typMap
++				} else {
++					// If we're instantiating lazily, we might be outside the scope of a
++					// type-checking pass. In that case we won't have a pre-existing
++					// typMap, but don't want to create a duplicate of the current instance
++					// in the process of expansion.
++					h := instantiatedHash(n.orig, n.targs)
++					typMap = map[string]*Named{h: n}
++				}
+ 			}
++			u = n.check.subst(n.instance.pos, n.orig.underlying, makeSubstMap(n.TParams().list(), n.targs), typMap)
++		} else {
++			u = Typ[Invalid]
+ 		}
+-
+-		inst := n.check.instantiate(n.instance.pos, n.orig.underlying, n.TParams().list(), n.targs, typMap)
+-		n.underlying = inst
+-		n.fromRHS = inst
++		n.underlying = u
++		n.fromRHS = u
+ 		n.instance = nil
+ 	}
+ 	return n
+diff --git a/src/cmd/compile/internal/types2/subst.go b/src/cmd/compile/internal/types2/subst.go
+index 2c0fc6e391..edbbdb4758 100644
+--- a/src/cmd/compile/internal/types2/subst.go
++++ b/src/cmd/compile/internal/types2/subst.go
+@@ -35,13 +35,12 @@ func (m substMap) lookup(tpar *TypeParam) Type {
+ 	return tpar
+ }
+ 
+-// subst returns the type typ with its type parameters tpars replaced by
+-// the corresponding type arguments targs, recursively.
+-// subst is functional in the sense that it doesn't modify the incoming
+-// type. If a substitution took place, the result type is different from
+-// from the incoming type.
++// subst returns the type typ with its type parameters tpars replaced by the
++// corresponding type arguments targs, recursively. subst doesn't modify the
++// incoming type. If a substitution took place, the result type is different
++// from from the incoming type.
+ //
+-// If the given typMap is nil and check is non-nil, check.typMap is used.
++// If the given typMap is non-nil, it is used in lieu of check.typMap.
+ func (check *Checker) subst(pos syntax.Pos, typ Type, smap substMap, typMap map[string]*Named) Type {
+ 	if smap.empty() {
+ 		return typ
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 4df8ab68a1..241c6d35fe 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -444,7 +444,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, targsx []syntax.Expr, def
+ 		posList[i] = syntax.StartPos(arg)
+ 	}
+ 
+-	typ := check.Instantiate(x.Pos(), base, targs, posList, true)
++	typ := check.instantiate(x.Pos(), base, targs, posList)
+ 	def.setUnderlying(typ)
+ 
+ 	// make sure we check instantiation works at least once

@@ -26,6 +26,20 @@ Date:   Wed Dec 16 20:28:43 2020 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/hash/maphash/maphash.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/hash/maphash/maphash.go b/src/hash/maphash/maphash.go
+index 5cc0c581c7..d022d746a7 100644
+--- a/src/hash/maphash/maphash.go
++++ b/src/hash/maphash/maphash.go
+@@ -68,7 +68,7 @@ type Hash struct {
+ // The buffer ensures that writes depend only on the sequence of bytes,
+ // not the sequence of WriteByte/Write/WriteString calls,
+ // by always calling rthash with a full buffer (except for the tail).
+-const bufSize = 64
++const bufSize = 128
+ 
+ // initSeed seeds the hash if necessary.
+ // initSeed is called lazily before any operation that actually uses h.seed/h.state.

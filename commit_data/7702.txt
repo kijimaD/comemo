@@ -9,6 +9,20 @@ Date:   Tue Mar 8 15:02:02 2011 -0300
     R=golang-dev, rsc1
     CC=golang-dev
     https://golang.org/cl/4266050
-
+---
  src/Make.cmd | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/Make.cmd b/src/Make.cmd
+index 2b9aba4a5a..5e9f504bf7 100644
+--- a/src/Make.cmd
++++ b/src/Make.cmd
+@@ -23,7 +23,7 @@ install: $(QUOTED_GOBIN)/$(TARG)
+ $(QUOTED_GOBIN)/$(TARG): $(TARG)
+ 	cp -f $(TARG) $(QUOTED_GOBIN)
+ 
+-CLEANFILES+=$(TARG)
++CLEANFILES+=$(TARG) _test _testmain.go
+ 
+ nuke: clean
+ 	rm -f $(QUOTED_GOBIN)/$(TARG)

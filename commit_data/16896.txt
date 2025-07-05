@@ -9,7 +9,7 @@ Date:   Mon Jul 29 01:25:51 2013 +0200
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/11992043
-
+---
  src/pkg/crypto/des/des_test.go      | 18 ------------------
  src/pkg/crypto/des/example_test.go  | 25 +++++++++++++++++++++++++
  src/pkg/crypto/md5/example_test.go  | 19 +++++++++++++++++++
@@ -17,3 +17,150 @@ Date:   Mon Jul 29 01:25:51 2013 +0200
  src/pkg/crypto/sha1/example_test.go | 18 ++++++++++++++++++
  src/pkg/crypto/sha1/sha1_test.go    |  7 -------
  6 files changed, 62 insertions(+), 33 deletions(-)
+
+diff --git a/src/pkg/crypto/des/des_test.go b/src/pkg/crypto/des/des_test.go
+index 5a9308a8d2..a08cbabb25 100644
+--- a/src/pkg/crypto/des/des_test.go
++++ b/src/pkg/crypto/des/des_test.go
+@@ -1504,24 +1504,6 @@ func TestSubstitutionTableKnownAnswerDecrypt(t *testing.T) {
+ 	}
+ }
+ 
+-func ExampleNewTripleDESCipher() {
+-	// NewTripleDESCipher can also be used when EDE2 is required by
+-	// duplicating the first 8 bytes of the 16-byte key.
+-	ede2Key := []byte("example key 1234")
+-
+-	var tripleDESKey []byte
+-	tripleDESKey = append(tripleDESKey, ede2Key[:16]...)
+-	tripleDESKey = append(tripleDESKey, ede2Key[:8]...)
+-
+-	_, err := NewTripleDESCipher(tripleDESKey)
+-	if err != nil {
+-		panic(err)
+-	}
+-
+-	// See crypto/cipher for how to use a cipher.Block for encryption and
+-	// decryption.
+-}
+-
+ func BenchmarkEncrypt(b *testing.B) {
+ 	tt := encryptDESTests[0]
+ 	c, err := NewCipher(tt.key)
+diff --git a/src/pkg/crypto/des/example_test.go b/src/pkg/crypto/des/example_test.go
+new file mode 100644
+index 0000000000..336b593756
+--- /dev/null
++++ b/src/pkg/crypto/des/example_test.go
+@@ -0,0 +1,25 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package des_test
++
++import "crypto/des"
++
++func ExampleNewTripleDESCipher() {
++	// NewTripleDESCipher can also be used when EDE2 is required by
++	// duplicating the first 8 bytes of the 16-byte key.
++	ede2Key := []byte("example key 1234")
++
++	var tripleDESKey []byte
++	tripleDESKey = append(tripleDESKey, ede2Key[:16]...)
++	tripleDESKey = append(tripleDESKey, ede2Key[:8]...)
++
++	_, err := des.NewTripleDESCipher(tripleDESKey)
++	if err != nil {
++		panic(err)
++	}
++
++	// See crypto/cipher for how to use a cipher.Block for encryption and
++	// decryption.
++}
+diff --git a/src/pkg/crypto/md5/example_test.go b/src/pkg/crypto/md5/example_test.go
+new file mode 100644
+index 0000000000..28be770a7a
+--- /dev/null
++++ b/src/pkg/crypto/md5/example_test.go
+@@ -0,0 +1,19 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package md5_test
++
++import (
++	"crypto/md5"
++	"fmt"
++	"io"
++)
++
++func ExampleNew() {
++	h := md5.New()
++	io.WriteString(h, "The fog is getting thicker!")
++	io.WriteString(h, "And Leon's getting laaarger!")
++	fmt.Printf("%x", h.Sum(nil))
++	// Output: e2c569be17396eca2a2e3c11578123ed
++}
+diff --git a/src/pkg/crypto/md5/md5_test.go b/src/pkg/crypto/md5/md5_test.go
+index b51e304417..a8b7a1a525 100644
+--- a/src/pkg/crypto/md5/md5_test.go
++++ b/src/pkg/crypto/md5/md5_test.go
+@@ -105,14 +105,6 @@ func TestLarge(t *testing.T) {
+ 	}
+ }
+ 
+-func ExampleNew() {
+-	h := New()
+-	io.WriteString(h, "The fog is getting thicker!")
+-	io.WriteString(h, "And Leon's getting laaarger!")
+-	fmt.Printf("%x", h.Sum(nil))
+-	// Output: e2c569be17396eca2a2e3c11578123ed
+-}
+-
+ var bench = New()
+ var buf = make([]byte, 8192+1)
+ var sum = make([]byte, bench.Size())
+diff --git a/src/pkg/crypto/sha1/example_test.go b/src/pkg/crypto/sha1/example_test.go
+new file mode 100644
+index 0000000000..25fe5f3085
+--- /dev/null
++++ b/src/pkg/crypto/sha1/example_test.go
+@@ -0,0 +1,18 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sha1_test
++
++import (
++	"crypto/sha1"
++	"fmt"
++	"io"
++)
++
++func ExampleNew() {
++	h := sha1.New()
++	io.WriteString(h, "His money is twice tainted: 'taint yours and 'taint mine.")
++	fmt.Printf("% x", h.Sum(nil))
++	// Output: 59 7f 6a 54 00 10 f9 4c 15 d7 18 06 a9 9a 2c 87 10 e7 47 bd
++}
+diff --git a/src/pkg/crypto/sha1/sha1_test.go b/src/pkg/crypto/sha1/sha1_test.go
+index 61ece671f4..c3868d702a 100644
+--- a/src/pkg/crypto/sha1/sha1_test.go
++++ b/src/pkg/crypto/sha1/sha1_test.go
+@@ -76,13 +76,6 @@ func TestGolden(t *testing.T) {
+ 	}
+ }
+ 
+-func ExampleNew() {
+-	h := New()
+-	io.WriteString(h, "His money is twice tainted: 'taint yours and 'taint mine.")
+-	fmt.Printf("% x", h.Sum(nil))
+-	// Output: 59 7f 6a 54 00 10 f9 4c 15 d7 18 06 a9 9a 2c 87 10 e7 47 bd
+-}
+-
+ var bench = New()
+ var buf = make([]byte, 8192)
+ 

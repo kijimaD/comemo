@@ -14,6 +14,19 @@ Date:   Tue Jun 1 13:47:42 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/cgo_lto_issue43830.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/testdata/script/cgo_lto_issue43830.txt b/src/cmd/go/testdata/script/cgo_lto_issue43830.txt
+index 06ab2f34c9..8bc7d8a540 100644
+--- a/src/cmd/go/testdata/script/cgo_lto_issue43830.txt
++++ b/src/cmd/go/testdata/script/cgo_lto_issue43830.txt
+@@ -15,6 +15,7 @@ go build main.go add.go
+ package main
+ 
+ /*
++extern int myadd(int, int);
+ int c_add(int a, int b) {
+ 	return myadd(a, b);
+ }

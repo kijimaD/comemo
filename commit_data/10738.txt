@@ -23,7 +23,7 @@ Date:   Mon Dec 12 22:22:09 2011 -0500
     R=ken, mpimenov
     CC=golang-dev
     https://golang.org/cl/5451105
-
+---
  src/cmd/5g/gg.h           |   2 +
  src/cmd/5l/obj.c          |  11 +-
  src/cmd/6g/gg.h           |   2 +
@@ -49,3 +49,1931 @@ Date:   Mon Dec 12 22:22:09 2011 -0500
  test/map1.go              |   4 +-
  test/recover2.go          |   1 +
  24 files changed, 1174 insertions(+), 163 deletions(-)
+
+diff --git a/src/cmd/5g/gg.h b/src/cmd/5g/gg.h
+index c826d26528..757ac20b2e 100644
+--- a/src/cmd/5g/gg.h
++++ b/src/cmd/5g/gg.h
+@@ -43,6 +43,8 @@ struct	Prog
+ 	uchar	scond;
+ };
+ 
++#define TEXTFLAG reg
++
+ #define REGALLOC_R0 0
+ #define REGALLOC_RMAX REGEXT
+ #define REGALLOC_F0 (REGALLOC_RMAX+1)
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index fc5806aac5..b93dc63fc9 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -585,6 +585,10 @@ loop:
+ 			errorexit();
+ 		}
+ 		cursym = s;
++		if(s->type != 0 && s->type != SXREF && (p->reg & DUPOK)) {
++			skip = 1;
++			goto casedef;
++		}
+ 		if(ntext++ == 0 && s->type != 0 && s->type != SXREF) {
+ 			/* redefinition, so file has probably been seen before */
+ 			if(debug['v'])
+@@ -592,13 +596,8 @@ loop:
+ 			return;
+ 		}
+ 		skip = 0;
+-		if(s->type != 0 && s->type != SXREF) {
+-			if(p->reg & DUPOK) {
+-				skip = 1;
+-				goto casedef;
+-			}
++		if(s->type != 0 && s->type != SXREF)
+ 			diag("redefinition: %s\n%P", s->name, p);
+-		}
+ 		if(etextp)
+ 			etextp->next = s;
+ 		else
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 8a80ee9fb5..0930ebd608 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -41,6 +41,8 @@ struct	Prog
+ 	void*	reg;		// pointer to containing Reg struct
+ };
+ 
++#define TEXTFLAG from.scale
++
+ EXTERN	int32	dynloc;
+ EXTERN	uchar	reg[D_NONE];
+ EXTERN	int32	pcloc;		// instruction counter
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index de96468445..c8a46fc2bf 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -592,6 +592,10 @@ loop:
+ 	case ATEXT:
+ 		s = p->from.sym;
+ 		if(s->text != nil) {
++			if(p->from.scale & DUPOK) {
++				skip = 1;
++				goto casdef;
++			}
+ 			diag("%s: %s: redefinition", pn, s->name);
+ 			return;
+ 		}
+diff --git a/src/cmd/8g/gg.h b/src/cmd/8g/gg.h
+index e23ee9e270..021a943377 100644
+--- a/src/cmd/8g/gg.h
++++ b/src/cmd/8g/gg.h
+@@ -43,6 +43,8 @@ struct	Prog
+ 	void*	reg;		// pointer to containing Reg struct
+ };
+ 
++#define TEXTFLAG from.scale
++
+ // foptoas flags
+ enum
+ {
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index e17b667681..58349c6f89 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -600,6 +600,10 @@ loop:
+ 	case ATEXT:
+ 		s = p->from.sym;
+ 		if(s->text != nil) {
++			if(p->from.scale & DUPOK) {
++				skip = 1;
++				goto casdef;
++			}
+ 			diag("%s: %s: redefinition", pn, s->name);
+ 			return;
+ 		}
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index 9766e088c6..623006f806 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -497,6 +497,7 @@ typeinit(void)
+ 	okforeq[TMAP] = 1;	// nil only; refined in typecheck
+ 	okforeq[TFUNC] = 1;	// nil only; refined in typecheck
+ 	okforeq[TARRAY] = 1;	// nil slice only; refined in typecheck
++	okforeq[TSTRUCT] = 1;	// it's complicated; refined in typecheck
+ 
+ 	okforcmp[TSTRING] = 1;
+ 
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index ea73c0ea31..f2c81b71e5 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -1,7 +1,8 @@
+ char *runtimeimport =
+ 	"package runtime\n"
+ 	"import runtime \"runtime\"\n"
+-	"func @\"\".new(typ *byte) *any\n"
++	"import unsafe \"unsafe\"\n"
++	"func @\"\".new(@\"\".typ *byte) *any\n"
+ 	"func @\"\".panicindex()\n"
+ 	"func @\"\".panicslice()\n"
+ 	"func @\"\".throwreturn()\n"
+@@ -24,8 +25,8 @@ char *runtimeimport =
+ 	"func @\"\".goprintf()\n"
+ 	"func @\"\".concatstring()\n"
+ 	"func @\"\".append()\n"
+-	"func @\"\".appendslice(typ *byte, x any, y []any) any\n"
+-	"func @\"\".appendstr(typ *byte, x []byte, y string) []byte\n"
++	"func @\"\".appendslice(@\"\".typ *byte, @\"\".x any, @\"\".y []any) any\n"
++	"func @\"\".appendstr(@\"\".typ *byte, @\"\".x []byte, @\"\".y string) []byte\n"
+ 	"func @\"\".cmpstring(? string, ? string) int\n"
+ 	"func @\"\".slicestring(? string, ? int, ? int) string\n"
+ 	"func @\"\".slicestring1(? string, ? int) string\n"
+@@ -35,60 +36,67 @@ char *runtimeimport =
+ 	"func @\"\".stringtoslicebyte(? string) []byte\n"
+ 	"func @\"\".stringtoslicerune(? string) []rune\n"
+ 	"func @\"\".stringiter(? string, ? int) int\n"
+-	"func @\"\".stringiter2(? string, ? int) (retk int, retv rune)\n"
+-	"func @\"\".copy(to any, fr any, wid uint32) int\n"
+-	"func @\"\".slicestringcopy(to any, fr any) int\n"
+-	"func @\"\".convI2E(elem any) any\n"
+-	"func @\"\".convI2I(typ *byte, elem any) any\n"
+-	"func @\"\".convT2E(typ *byte, elem any) any\n"
+-	"func @\"\".convT2I(typ *byte, typ2 *byte, elem any) any\n"
+-	"func @\"\".assertE2E(typ *byte, iface any) any\n"
+-	"func @\"\".assertE2E2(typ *byte, iface any) (ret any, ok bool)\n"
+-	"func @\"\".assertE2I(typ *byte, iface any) any\n"
+-	"func @\"\".assertE2I2(typ *byte, iface any) (ret any, ok bool)\n"
+-	"func @\"\".assertE2T(typ *byte, iface any) any\n"
+-	"func @\"\".assertE2T2(typ *byte, iface any) (ret any, ok bool)\n"
+-	"func @\"\".assertI2E(typ *byte, iface any) any\n"
+-	"func @\"\".assertI2E2(typ *byte, iface any) (ret any, ok bool)\n"
+-	"func @\"\".assertI2I(typ *byte, iface any) any\n"
+-	"func @\"\".assertI2I2(typ *byte, iface any) (ret any, ok bool)\n"
+-	"func @\"\".assertI2T(typ *byte, iface any) any\n"
+-	"func @\"\".assertI2T2(typ *byte, iface any) (ret any, ok bool)\n"
+-	"func @\"\".ifaceeq(i1 any, i2 any) bool\n"
+-	"func @\"\".efaceeq(i1 any, i2 any) bool\n"
+-	"func @\"\".ifacethash(i1 any) uint32\n"
+-	"func @\"\".efacethash(i1 any) uint32\n"
+-	"func @\"\".makemap(mapType *byte, hint int64) map[any]any\n"
+-	"func @\"\".mapaccess1(mapType *byte, hmap map[any]any, key any) any\n"
+-	"func @\"\".mapaccess2(mapType *byte, hmap map[any]any, key any) (val any, pres bool)\n"
+-	"func @\"\".mapassign1(mapType *byte, hmap map[any]any, key any, val any)\n"
+-	"func @\"\".mapassign2(mapType *byte, hmap map[any]any, key any, val any, pres bool)\n"
+-	"func @\"\".mapiterinit(mapType *byte, hmap map[any]any, hiter *any)\n"
+-	"func @\"\".mapdelete(mapType *byte, hmap map[any]any, key any)\n"
+-	"func @\"\".mapiternext(hiter *any)\n"
+-	"func @\"\".mapiter1(hiter *any) any\n"
+-	"func @\"\".mapiter2(hiter *any) (key any, val any)\n"
+-	"func @\"\".makechan(chanType *byte, hint int64) chan any\n"
+-	"func @\"\".chanrecv1(chanType *byte, hchan <-chan any) any\n"
+-	"func @\"\".chanrecv2(chanType *byte, hchan <-chan any) (elem any, received bool)\n"
+-	"func @\"\".chansend1(chanType *byte, hchan chan<- any, elem any)\n"
+-	"func @\"\".closechan(hchan any)\n"
+-	"func @\"\".selectnbsend(chanType *byte, hchan chan<- any, elem any) bool\n"
+-	"func @\"\".selectnbrecv(chanType *byte, elem *any, hchan <-chan any) bool\n"
+-	"func @\"\".selectnbrecv2(chanType *byte, elem *any, received *bool, hchan <-chan any) bool\n"
+-	"func @\"\".newselect(size int) *byte\n"
+-	"func @\"\".selectsend(sel *byte, hchan chan<- any, elem *any) bool\n"
+-	"func @\"\".selectrecv(sel *byte, hchan <-chan any, elem *any) bool\n"
+-	"func @\"\".selectrecv2(sel *byte, hchan <-chan any, elem *any, received *bool) bool\n"
+-	"func @\"\".selectdefault(sel *byte) bool\n"
+-	"func @\"\".selectgo(sel *byte)\n"
++	"func @\"\".stringiter2(? string, ? int) (@\"\".retk int, @\"\".retv rune)\n"
++	"func @\"\".copy(@\"\".to any, @\"\".fr any, @\"\".wid uint32) int\n"
++	"func @\"\".slicestringcopy(@\"\".to any, @\"\".fr any) int\n"
++	"func @\"\".convI2E(@\"\".elem any) any\n"
++	"func @\"\".convI2I(@\"\".typ *byte, @\"\".elem any) any\n"
++	"func @\"\".convT2E(@\"\".typ *byte, @\"\".elem any) any\n"
++	"func @\"\".convT2I(@\"\".typ *byte, @\"\".typ2 *byte, @\"\".elem any) any\n"
++	"func @\"\".assertE2E(@\"\".typ *byte, @\"\".iface any) any\n"
++	"func @\"\".assertE2E2(@\"\".typ *byte, @\"\".iface any) (@\"\".ret any, @\"\".ok bool)\n"
++	"func @\"\".assertE2I(@\"\".typ *byte, @\"\".iface any) any\n"
++	"func @\"\".assertE2I2(@\"\".typ *byte, @\"\".iface any) (@\"\".ret any, @\"\".ok bool)\n"
++	"func @\"\".assertE2T(@\"\".typ *byte, @\"\".iface any) any\n"
++	"func @\"\".assertE2T2(@\"\".typ *byte, @\"\".iface any) (@\"\".ret any, @\"\".ok bool)\n"
++	"func @\"\".assertI2E(@\"\".typ *byte, @\"\".iface any) any\n"
++	"func @\"\".assertI2E2(@\"\".typ *byte, @\"\".iface any) (@\"\".ret any, @\"\".ok bool)\n"
++	"func @\"\".assertI2I(@\"\".typ *byte, @\"\".iface any) any\n"
++	"func @\"\".assertI2I2(@\"\".typ *byte, @\"\".iface any) (@\"\".ret any, @\"\".ok bool)\n"
++	"func @\"\".assertI2T(@\"\".typ *byte, @\"\".iface any) any\n"
++	"func @\"\".assertI2T2(@\"\".typ *byte, @\"\".iface any) (@\"\".ret any, @\"\".ok bool)\n"
++	"func @\"\".ifaceeq(@\"\".i1 any, @\"\".i2 any) bool\n"
++	"func @\"\".efaceeq(@\"\".i1 any, @\"\".i2 any) bool\n"
++	"func @\"\".ifacethash(@\"\".i1 any) uint32\n"
++	"func @\"\".efacethash(@\"\".i1 any) uint32\n"
++	"func @\"\".equal(@\"\".typ *byte, @\"\".x1 any, @\"\".x2 any) bool\n"
++	"func @\"\".makemap(@\"\".mapType *byte, @\"\".hint int64) map[any]any\n"
++	"func @\"\".mapaccess1(@\"\".mapType *byte, @\"\".hmap map[any]any, @\"\".key any) any\n"
++	"func @\"\".mapaccess2(@\"\".mapType *byte, @\"\".hmap map[any]any, @\"\".key any) (@\"\".val any, @\"\".pres bool)\n"
++	"func @\"\".mapassign1(@\"\".mapType *byte, @\"\".hmap map[any]any, @\"\".key any, @\"\".val any)\n"
++	"func @\"\".mapassign2(@\"\".mapType *byte, @\"\".hmap map[any]any, @\"\".key any, @\"\".val any, @\"\".pres bool)\n"
++	"func @\"\".mapiterinit(@\"\".mapType *byte, @\"\".hmap map[any]any, @\"\".hiter *any)\n"
++	"func @\"\".mapdelete(@\"\".mapType *byte, @\"\".hmap map[any]any, @\"\".key any)\n"
++	"func @\"\".mapiternext(@\"\".hiter *any)\n"
++	"func @\"\".mapiter1(@\"\".hiter *any) any\n"
++	"func @\"\".mapiter2(@\"\".hiter *any) (@\"\".key any, @\"\".val any)\n"
++	"func @\"\".makechan(@\"\".chanType *byte, @\"\".hint int64) chan any\n"
++	"func @\"\".chanrecv1(@\"\".chanType *byte, @\"\".hchan <-chan any) any\n"
++	"func @\"\".chanrecv2(@\"\".chanType *byte, @\"\".hchan <-chan any) (@\"\".elem any, @\"\".received bool)\n"
++	"func @\"\".chansend1(@\"\".chanType *byte, @\"\".hchan chan<- any, @\"\".elem any)\n"
++	"func @\"\".closechan(@\"\".hchan any)\n"
++	"func @\"\".selectnbsend(@\"\".chanType *byte, @\"\".hchan chan<- any, @\"\".elem any) bool\n"
++	"func @\"\".selectnbrecv(@\"\".chanType *byte, @\"\".elem *any, @\"\".hchan <-chan any) bool\n"
++	"func @\"\".selectnbrecv2(@\"\".chanType *byte, @\"\".elem *any, @\"\".received *bool, @\"\".hchan <-chan any) bool\n"
++	"func @\"\".newselect(@\"\".size int) *byte\n"
++	"func @\"\".selectsend(@\"\".sel *byte, @\"\".hchan chan<- any, @\"\".elem *any) bool\n"
++	"func @\"\".selectrecv(@\"\".sel *byte, @\"\".hchan <-chan any, @\"\".elem *any) bool\n"
++	"func @\"\".selectrecv2(@\"\".sel *byte, @\"\".hchan <-chan any, @\"\".elem *any, @\"\".received *bool) bool\n"
++	"func @\"\".selectdefault(@\"\".sel *byte) bool\n"
++	"func @\"\".selectgo(@\"\".sel *byte)\n"
+ 	"func @\"\".block()\n"
+-	"func @\"\".makeslice(typ *byte, nel int64, cap int64) []any\n"
+-	"func @\"\".growslice(typ *byte, old []any, n int64) []any\n"
+-	"func @\"\".sliceslice1(old []any, lb uint64, width uint64) []any\n"
+-	"func @\"\".sliceslice(old []any, lb uint64, hb uint64, width uint64) []any\n"
+-	"func @\"\".slicearray(old *any, nel uint64, lb uint64, hb uint64, width uint64) []any\n"
++	"func @\"\".makeslice(@\"\".typ *byte, @\"\".nel int64, @\"\".cap int64) []any\n"
++	"func @\"\".growslice(@\"\".typ *byte, @\"\".old []any, @\"\".n int64) []any\n"
++	"func @\"\".sliceslice1(@\"\".old []any, @\"\".lb uint64, @\"\".width uint64) []any\n"
++	"func @\"\".sliceslice(@\"\".old []any, @\"\".lb uint64, @\"\".hb uint64, @\"\".width uint64) []any\n"
++	"func @\"\".slicearray(@\"\".old *any, @\"\".nel uint64, @\"\".lb uint64, @\"\".hb uint64, @\"\".width uint64) []any\n"
+ 	"func @\"\".closure()\n"
++	"func @\"\".memequal(@\"\".eq *bool, @\"\".size uintptr, @\"\".x @\"unsafe\".Pointer, @\"\".y @\"unsafe\".Pointer)\n"
++	"func @\"\".memequal8(@\"\".eq *bool, @\"\".size uintptr, @\"\".x @\"unsafe\".Pointer, @\"\".y @\"unsafe\".Pointer)\n"
++	"func @\"\".memequal16(@\"\".eq *bool, @\"\".size uintptr, @\"\".x @\"unsafe\".Pointer, @\"\".y @\"unsafe\".Pointer)\n"
++	"func @\"\".memequal32(@\"\".eq *bool, @\"\".size uintptr, @\"\".x @\"unsafe\".Pointer, @\"\".y @\"unsafe\".Pointer)\n"
++	"func @\"\".memequal64(@\"\".eq *bool, @\"\".size uintptr, @\"\".x @\"unsafe\".Pointer, @\"\".y @\"unsafe\".Pointer)\n"
++	"func @\"\".memequal128(@\"\".eq *bool, @\"\".size uintptr, @\"\".x @\"unsafe\".Pointer, @\"\".y @\"unsafe\".Pointer)\n"
+ 	"func @\"\".int64div(? int64, ? int64) int64\n"
+ 	"func @\"\".uint64div(? uint64, ? uint64) uint64\n"
+ 	"func @\"\".int64mod(? int64, ? int64) int64\n"
+@@ -97,7 +105,7 @@ char *runtimeimport =
+ 	"func @\"\".float64touint64(? float64) uint64\n"
+ 	"func @\"\".int64tofloat64(? int64) float64\n"
+ 	"func @\"\".uint64tofloat64(? uint64) float64\n"
+-	"func @\"\".complex128div(num complex128, den complex128) complex128\n"
++	"func @\"\".complex128div(@\"\".num complex128, @\"\".den complex128) complex128\n"
+ 	"\n"
+ 	"$$\n";
+ char *unsafeimport =
+@@ -107,10 +115,10 @@ char *unsafeimport =
+ 	"func @\"\".Offsetof(? any) uintptr\n"
+ 	"func @\"\".Sizeof(? any) uintptr\n"
+ 	"func @\"\".Alignof(? any) uintptr\n"
+-	"func @\"\".Typeof(i interface {}) interface {}\n"
+-	"func @\"\".Reflect(i interface {}) (typ interface {}, addr @\"\".Pointer)\n"
+-	"func @\"\".Unreflect(typ interface {}, addr @\"\".Pointer) interface {}\n"
+-	"func @\"\".New(typ interface {}) @\"\".Pointer\n"
+-	"func @\"\".NewArray(typ interface {}, n int) @\"\".Pointer\n"
++	"func @\"\".Typeof(@\"\".i interface {}) interface {}\n"
++	"func @\"\".Reflect(@\"\".i interface {}) (@\"\".typ interface {}, @\"\".addr @\"\".Pointer)\n"
++	"func @\"\".Unreflect(@\"\".typ interface {}, @\"\".addr @\"\".Pointer) interface {}\n"
++	"func @\"\".New(@\"\".typ interface {}) @\"\".Pointer\n"
++	"func @\"\".NewArray(@\"\".typ interface {}, @\"\".n int) @\"\".Pointer\n"
+ 	"\n"
+ 	"$$\n";
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 78b0eaeb1e..6d16ea739b 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -37,23 +37,24 @@ enum
+ 
+ 	AUNK		= 100,
+ 
+-	// these values are known by runtime
++	// These values are known by runtime.
++	// The MEMx and NOEQx values must run in parallel.  See algtype.
+ 	AMEM		= 0,
+-	ANOEQ,
+-	ASTRING,
+-	AINTER,
+-	ANILINTER,
+-	ASLICE,
+ 	AMEM8,
+ 	AMEM16,
+ 	AMEM32,
+ 	AMEM64,
+ 	AMEM128,
++	ANOEQ,
+ 	ANOEQ8,
+ 	ANOEQ16,
+ 	ANOEQ32,
+ 	ANOEQ64,
+ 	ANOEQ128,
++	ASTRING,
++	AINTER,
++	ANILINTER,
++	ASLICE,
+ 
+ 	BADWIDTH	= -1000000000,
+ };
+@@ -245,6 +246,7 @@ struct	Node
+ 	uchar	readonly;
+ 	uchar	implicit;	// don't show in printout
+ 	uchar	addrtaken;	// address taken, even if not moved to heap
++	uchar	dupok;	// duplicate definitions ok (for func)
+ 
+ 	// most nodes
+ 	Type*	type;
+@@ -1085,6 +1087,7 @@ void	dumptypestructs(void);
+ Type*	methodfunc(Type *f, Type*);
+ Node*	typename(Type *t);
+ Sym*	typesym(Type *t);
++Sym*	typesymprefix(char *prefix, Type *t);
+ int	haspointers(Type *t);
+ 
+ /*
+@@ -1109,6 +1112,7 @@ Node*	adddot(Node *n);
+ int	adddot1(Sym *s, Type *t, int d, Type **save, int ignorecase);
+ Type*	aindex(Node *b, Type *t);
+ int	algtype(Type *t);
++int	algtype1(Type *t, Type **bad);
+ void	argtype(Node *on, Type *t);
+ Node*	assignconv(Node *n, Type *t, char *context);
+ int	assignop(Type *src, Type *dst, char **why);
+@@ -1129,6 +1133,8 @@ void	frame(int context);
+ Type*	funcfirst(Iter *s, Type *t);
+ Type*	funcnext(Iter *s);
+ void	genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface);
++void	genhash(Sym *sym, Type *t);
++void	geneq(Sym *sym, Type *t);
+ Type**	getinarg(Type *t);
+ Type*	getinargx(Type *t);
+ Type**	getoutarg(Type *t);
+@@ -1237,6 +1243,7 @@ void	walkexprlist(NodeList *l, NodeList **init);
+ void	walkexprlistsafe(NodeList *l, NodeList **init);
+ void	walkstmt(Node **np);
+ void	walkstmtlist(NodeList *l);
++Node*	conv(Node*, Type*);
+ 
+ /*
+  *	arch-specific ggen.c/gsubr.c/gobj.c/pgen.c
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index d16481b666..034270360c 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -7,6 +7,8 @@
+ #include	"gg.h"
+ #include	"opt.h"
+ 
++#define	DUPOK	(1<<1)  /* same in all architectures */
++
+ static void allocauto(Prog* p);
+ 
+ void
+@@ -70,6 +72,8 @@ compile(Node *fn)
+ 
+ 	nodconst(&nod1, types[TINT32], 0);
+ 	ptxt = gins(ATEXT, isblank(curfn->nname) ? N : curfn->nname, &nod1);
++	if(fn->dupok)
++		ptxt->TEXTFLAG = DUPOK;
+ 	afunclit(&ptxt->from);
+ 
+ 	ginit();
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index e765ad6e5b..f31053a1be 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -13,6 +13,7 @@
+ static	NodeList*	signatlist;
+ static	Sym*	dtypesym(Type*);
+ static	Sym*	weaktypesym(Type*);
++static	Sym*	dalgsym(Type*);
+ 
+ static int
+ sigcmp(Sig *a, Sig *b)
+@@ -553,17 +554,20 @@ haspointers(Type *t)
+ static int
+ dcommontype(Sym *s, int ot, Type *t)
+ {
+-	int i, sizeofAlg;
+-	Sym *sptr;
++	int i, alg, sizeofAlg;
++	Sym *sptr, *algsym;
+ 	static Sym *algarray;
+ 	char *p;
+ 
+ 	sizeofAlg = 4*widthptr;
+ 	if(algarray == nil)
+ 		algarray = pkglookup("algarray", runtimepkg);
++	alg = algtype(t);
++	algsym = S;
++	if(alg < 0)
++		algsym = dalgsym(t);
+ 
+ 	dowidth(t);
+-	
+ 	if(t->sym != nil && !isptr[t->etype])
+ 		sptr = dtypesym(ptrto(t));
+ 	else
+@@ -600,7 +604,10 @@ dcommontype(Sym *s, int ot, Type *t)
+ 	if(!haspointers(t))
+ 		i |= KindNoPointers;
+ 	ot = duint8(s, ot, i);  // kind
+-	ot = dsymptr(s, ot, algarray, algtype(t)*sizeofAlg);
++	if(alg >= 0)
++		ot = dsymptr(s, ot, algarray, alg*sizeofAlg);
++	else
++		ot = dsymptr(s, ot, algsym, 0);
+ 	p = smprint("%-uT", t);
+ 	//print("dcommontype: %s\n", p);
+ 	ot = dgostringptr(s, ot, p);	// string
+@@ -629,6 +636,19 @@ typesym(Type *t)
+ 	return s;
+ }
+ 
++Sym*
++typesymprefix(char *prefix, Type *t)
++{
++	char *p;
++	Sym *s;
++
++	p = smprint("%s.%-T", prefix, t);
++	s = pkglookup(p, typepkg);
++	//print("algsym: %s -> %+S\n", p, s);
++	free(p);
++	return s;
++}
++
+ Node*
+ typename(Type *t)
+ {
+@@ -930,3 +950,43 @@ dumptypestructs(void)
+ 		dimportpath(mkpkg(strlit("main")));
+ 	}
+ }
++
++Sym*
++dalgsym(Type *t)
++{
++	int ot;
++	Sym *s, *hash, *eq;
++	char buf[100];
++
++	// dalgsym is only called for a type that needs an algorithm table,
++	// which implies that the type is comparable (or else it would use ANOEQ).
++
++	s = typesymprefix(".alg", t);
++	hash = typesymprefix(".hash", t);
++	genhash(hash, t);
++	eq = typesymprefix(".eq", t);
++	geneq(eq, t);
++
++	// ../../pkg/runtime/runtime.h:/Alg
++	ot = 0;
++	ot = dsymptr(s, ot, hash, 0);
++	ot = dsymptr(s, ot, eq, 0);
++	ot = dsymptr(s, ot, pkglookup("memprint", runtimepkg), 0);
++	switch(t->width) {
++	default:
++		ot = dsymptr(s, ot, pkglookup("memcopy", runtimepkg), 0);
++		break;
++	case 1:
++	case 2:
++	case 4:
++	case 8:
++	case 16:
++		snprint(buf, sizeof buf, "memcopy%d", (int)t->width*8);
++		ot = dsymptr(s, ot, pkglookup(buf, runtimepkg), 0);
++		break;
++	}
++
++	ggloblsym(s, ot, 1);
++	return s;
++}
++
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 96539c42bc..b53c124981 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -8,6 +8,8 @@
+ 
+ package PACKAGE
+ 
++import "unsafe"
++
+ // emitted by compiler, not referred to by go programs
+ 
+ func new(typ *byte) *any
+@@ -80,6 +82,8 @@ func efaceeq(i1 any, i2 any) (ret bool)
+ func ifacethash(i1 any) (ret uint32)
+ func efacethash(i1 any) (ret uint32)
+ 
++func equal(typ *byte, x1, x2 any) (ret bool)
++
+ // *byte is really *runtime.Type
+ func makemap(mapType *byte, hint int64) (hmap map[any]any)
+ func mapaccess1(mapType *byte, hmap map[any]any, key any) (val any)
+@@ -119,6 +123,13 @@ func slicearray(old *any, nel uint64, lb uint64, hb uint64, width uint64) (ary [
+ 
+ func closure() // has args, but compiler fills in
+ 
++func memequal(eq *bool, size uintptr, x, y unsafe.Pointer)
++func memequal8(eq *bool, size uintptr, x, y unsafe.Pointer)
++func memequal16(eq *bool, size uintptr, x, y unsafe.Pointer)
++func memequal32(eq *bool, size uintptr, x, y unsafe.Pointer)
++func memequal64(eq *bool, size uintptr, x, y unsafe.Pointer)
++func memequal128(eq *bool, size uintptr, x, y unsafe.Pointer)
++
+ // only used on 32-bit
+ func int64div(int64, int64) int64
+ func uint64div(uint64, uint64) uint64
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 7c28cfd176..d95036204b 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -494,45 +494,109 @@ nod(int op, Node *nleft, Node *nright)
+ 	return n;
+ }
+ 
++int
++algtype1(Type *t, Type **bad)
++{
++	int a, ret;
++	Type *t1;
++	
++	if(bad)
++		*bad = T;
++
++	switch(t->etype) {
++	case TINT8:
++	case TUINT8:
++	case TINT16:
++	case TUINT16:
++	case TINT32:
++	case TUINT32:
++	case TINT64:
++	case TUINT64:
++	case TINT:
++	case TUINT:
++	case TUINTPTR:
++	case TCOMPLEX64:
++	case TCOMPLEX128:
++	case TFLOAT32:
++	case TFLOAT64:
++	case TBOOL:
++	case TPTR32:
++	case TPTR64:
++	case TCHAN:
++	case TUNSAFEPTR:
++		return AMEM;
++	
++	case TFUNC:
++	case TMAP:
++		if(bad)
++			*bad = t;
++		return ANOEQ;
++
++	case TSTRING:
++		return ASTRING;
++	
++	case TINTER:
++		if(isnilinter(t))
++			return ANILINTER;
++		return AINTER;
++	
++	case TARRAY:
++		if(isslice(t)) {
++			if(bad)
++				*bad = t;
++			return ANOEQ;
++		}
++		if(t->bound == 0)
++			return AMEM;
++		a = algtype1(t->type, bad);
++		if(a == ANOEQ || a == AMEM) {
++			if(a == ANOEQ && bad)
++				*bad = t;
++			return a;
++		}
++		return -1;  // needs special compare
++
++	case TSTRUCT:
++		if(t->type != T && t->type->down == T) {
++			// One-field struct is same as that one field alone.
++			return algtype1(t->type->type, bad);
++		}
++		ret = AMEM;
++		for(t1=t->type; t1!=T; t1=t1->down) {
++			a = algtype1(t1->type, bad);
++			if(a == ANOEQ)
++				return ANOEQ;  // not comparable
++			if(a != AMEM)
++				ret = -1;  // needs special compare
++		}
++		return ret;
++	}
++
++	fatal("algtype1: unexpected type %T", t);
++	return 0;
++}
++
+ int
+ algtype(Type *t)
+ {
+ 	int a;
+-
+-	if(issimple[t->etype] || isptr[t->etype] || t->etype == TCHAN) {
+-		if(t->width == 1)
+-			a = AMEM8;
+-		else if(t->width == 2)
+-			a = AMEM16;
+-		else if(t->width == 4)
+-			a = AMEM32;
+-		else if(t->width == 8)
+-			a = AMEM64;
+-		else if(t->width == 16)
+-			a = AMEM128;
+-		else
+-			a = AMEM;	// just bytes (int, ptr, etc)
+-	} else if(t->etype == TSTRING)
+-		a = ASTRING;	// string
+-	else if(isnilinter(t))
+-		a = ANILINTER;	// nil interface
+-	else if(t->etype == TINTER)
+-		a = AINTER;	// interface
+-	else if(isslice(t))
+-		a = ASLICE;	// slice
+-	else {
+-		if(t->width == 1)
+-			a = ANOEQ8;
+-		else if(t->width == 2)
+-			a = ANOEQ16;
+-		else if(t->width == 4)
+-			a = ANOEQ32;
+-		else if(t->width == 8)
+-			a = ANOEQ64;
+-		else if(t->width == 16)
+-			a = ANOEQ128;
+-		else
+-			a = ANOEQ;	// just bytes, but no hash/eq
++	
++	a = algtype1(t, nil);
++	if(a == AMEM || a == ANOEQ) {
++		if(isslice(t))
++			return ASLICE;
++		switch(t->width) {
++		case 1:
++			return a + AMEM8 - AMEM;
++		case 2:
++			return a + AMEM16 - AMEM;
++		case 4:
++			return a + AMEM32 - AMEM;
++		case 8:
++			return a + AMEM64 - AMEM;
++		case 16:
++			return a + AMEM128 - AMEM;
++		}
+ 	}
+ 	return a;
+ }
+@@ -544,11 +608,12 @@ maptype(Type *key, Type *val)
+ 
+ 	if(key != nil) {
+ 		switch(key->etype) {
+-		case TARRAY:
+-		case TSTRUCT:
+-		case TMAP:
+-		case TFUNC:
+-			yyerror("invalid map key type %T", key);
++		default:
++			if(algtype1(key, nil) == ANOEQ)
++				yyerror("invalid map key type %T", key);
++			break;
++		case TANY:
++			// will be resolved later.
+ 			break;
+ 		case TFORW:
+ 			// map[key] used during definition of key.
+@@ -2358,6 +2423,391 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
+ 	funccompile(fn, 0);
+ }
+ 
++static Node*
++hashmem(Type *t, vlong width)
++{
++	Node *tfn, *n;
++	Sym *sym;
++	
++	sym = pkglookup("memhash", runtimepkg);
++
++	n = newname(sym);
++	n->class = PFUNC;
++	tfn = nod(OTFUNC, N, N);
++	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(ptrto(types[TUINTPTR]))));
++	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
++	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(ptrto(t))));
++	typecheck(&tfn, Etype);
++	n->type = tfn->type;
++	return n;
++}
++
++static Node*
++hashfor(Type *t)
++{
++	int a;
++	Sym *sym;
++	Node *tfn, *n;
++
++	a = algtype1(t, nil);
++	switch(a) {
++	case AMEM:
++		return hashmem(t, t->width);
++	case AINTER:
++		sym = pkglookup("interhash", runtimepkg);
++		break;
++	case ANILINTER:
++		sym = pkglookup("nilinterhash", runtimepkg);
++		break;
++	case ASTRING:
++		sym = pkglookup("strhash", runtimepkg);
++		break;
++	default:
++		sym = typesymprefix(".hash", t);
++		break;
++	}
++
++	n = newname(sym);
++	n->class = PFUNC;
++	tfn = nod(OTFUNC, N, N);
++	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(ptrto(types[TUINTPTR]))));
++	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
++	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(ptrto(t))));
++	typecheck(&tfn, Etype);
++	n->type = tfn->type;
++	return n;
++}
++
++/*
++ * Generate a helper function to compute the hash of a value of type t.
++ */
++void
++genhash(Sym *sym, Type *t)
++{
++	Node *n, *fn, *np, *nh, *ni, *call, *nx, *na, *tfn;
++	Node *hashel;
++	Type *first, *t1;
++	int64 size;
++
++	if(debug['r'])
++		print("genhash %S %T\n", sym, t);
++
++	lineno = 1;  // less confusing than end of input
++	dclcontext = PEXTERN;
++	markdcl();
++
++	// func sym(h *uintptr, s uintptr, p *T)
++	fn = nod(ODCLFUNC, N, N);
++	fn->nname = newname(sym);
++	fn->nname->class = PFUNC;
++	tfn = nod(OTFUNC, N, N);
++	fn->nname->ntype = tfn;
++
++	n = nod(ODCLFIELD, newname(lookup("h")), typenod(ptrto(types[TUINTPTR])));
++	tfn->list = list(tfn->list, n);
++	nh = n->left;
++	n = nod(ODCLFIELD, newname(lookup("s")), typenod(types[TUINTPTR]));
++	tfn->list = list(tfn->list, n);
++	n = nod(ODCLFIELD, newname(lookup("p")), typenod(ptrto(t)));
++	tfn->list = list(tfn->list, n);
++	np = n->left;
++
++	funchdr(fn);
++	typecheck(&fn->nname->ntype, Etype);
++
++	// genhash is only called for types that have equality but
++	// cannot be handled by the standard algorithms,
++	// so t must be either an array or a struct.
++	switch(t->etype) {
++	default:
++		fatal("genhash %T", t);
++	case TARRAY:
++		if(isslice(t))
++			fatal("genhash %T", t);
++		// An array of pure memory would be handled by the
++		// standard algorithm, so the element type must not be
++		// pure memory.
++		hashel = hashfor(t->type);
++		n = nod(ORANGE, N, nod(OIND, np, N));
++		ni = newname(lookup("i"));
++		ni->type = types[TINT];
++		n->list = list1(ni);
++		n->colas = 1;
++		colasdefn(n->list, n);
++		ni = n->list->n;
++
++		// *h = *h<<3 | *h>>61
++		n->nbody = list(n->nbody,
++			nod(OAS,
++				nod(OIND, nh, N),
++				nod(OOR,
++					nod(OLSH, nod(OIND, nh, N), nodintconst(3)),
++					nod(ORSH, nod(OIND, nh, N), nodintconst(widthptr*8-3)))));
++
++		// hashel(h, sizeof(p[i]), &p[i])
++		call = nod(OCALL, hashel, N);
++		call->list = list(call->list, nh);
++		call->list = list(call->list, nodintconst(t->type->width));
++		nx = nod(OINDEX, np, ni);
++		nx->etype = 1;  // no bounds check
++		na = nod(OADDR, nx, N);
++		na->etype = 1;  // no escape to heap
++		call->list = list(call->list, na);
++		n->nbody = list(n->nbody, call);
++
++		fn->nbody = list(fn->nbody, n);
++		break;
++
++	case TSTRUCT:
++		// Walk the struct using memhash for runs of AMEM
++		// and calling specific hash functions for the others.
++		first = T;
++		for(t1=t->type;; t1=t1->down) {
++			if(t1 != T && algtype1(t1->type, nil) == AMEM) {
++				if(first == T)
++					first = t1;
++				continue;
++			}
++			// Run memhash for fields up to this one.
++			if(first != T) {
++				if(first->down == t1)
++					size = first->type->width;
++				else if(t1 == T)
++					size = t->width - first->width;  // first->width is offset
++				else
++					size = t1->width - first->width;  // both are offsets
++				hashel = hashmem(first->type, size);
++				// hashel(h, size, &p.first)
++				call = nod(OCALL, hashel, N);
++				call->list = list(call->list, nh);
++				call->list = list(call->list, nodintconst(size));
++				nx = nod(OXDOT, np, newname(first->sym));  // TODO: fields from other packages?
++				na = nod(OADDR, nx, N);
++				na->etype = 1;  // no escape to heap
++				call->list = list(call->list, na);
++				fn->nbody = list(fn->nbody, call);
++
++				first = T;
++			}
++			if(t1 == T)
++				break;
++
++			// Run hash for this field.
++			hashel = hashfor(t1->type);
++			// hashel(h, size, &p.t1)
++			call = nod(OCALL, hashel, N);
++			call->list = list(call->list, nh);
++			call->list = list(call->list, nodintconst(t1->type->width));
++			nx = nod(OXDOT, np, newname(t1->sym));  // TODO: fields from other packages?
++			na = nod(OADDR, nx, N);
++			na->etype = 1;  // no escape to heap
++			call->list = list(call->list, na);
++			fn->nbody = list(fn->nbody, call);
++		}
++		break;
++	}
++
++	if(debug['r'])
++		dumplist("genhash body", fn->nbody);
++
++	funcbody(fn);
++	curfn = fn;
++	fn->dupok = 1;
++	typecheck(&fn, Etop);
++	typechecklist(fn->nbody, Etop);
++	curfn = nil;
++	funccompile(fn, 0);
++}
++
++// Return node for
++//	if p.field != q.field { *eq = false; return }
++static Node*
++eqfield(Node *p, Node *q, Node *field, Node *eq)
++{
++	Node *nif, *nx, *ny;
++
++	nx = nod(OXDOT, p, field);
++	ny = nod(OXDOT, q, field);
++	nif = nod(OIF, N, N);
++	nif->ntest = nod(ONE, nx, ny);
++	nif->nbody = list(nif->nbody, nod(OAS, nod(OIND, eq, N), nodbool(0)));
++	nif->nbody = list(nif->nbody, nod(ORETURN, N, N));
++	return nif;
++}
++
++static Node*
++eqmemfunc(vlong size)
++{
++	char buf[30];
++
++	switch(size) {
++	case 1:
++	case 2:
++	case 4:
++	case 8:
++	case 16:
++		snprint(buf, sizeof buf, "memequal%d", (int)size*8);
++		return syslook(buf, 0);
++	}
++	return syslook("memequal", 0);
++}
++
++// Return node for
++//	if memequal(size, &p.field, &q.field, eq); !*eq { return }
++static Node*
++eqmem(Node *p, Node *q, Node *field, vlong size, Node *eq)
++{
++	Node *nif, *nx, *ny, *call;
++
++	nx = nod(OADDR, nod(OXDOT, p, field), N);
++	nx->etype = 1;  // does not escape
++	ny = nod(OADDR, nod(OXDOT, q, field), N);
++	ny->etype = 1;  // does not escape
++
++	call = nod(OCALL, eqmemfunc(size), N);
++	call->list = list(call->list, eq);
++	call->list = list(call->list, nodintconst(size));
++	call->list = list(call->list, conv(nx, types[TUNSAFEPTR]));
++	call->list = list(call->list, conv(ny, types[TUNSAFEPTR]));
++
++	nif = nod(OIF, N, N);
++	nif->ninit = list(nif->ninit, call);
++	nif->ntest = nod(ONOT, nod(OIND, eq, N), N);
++	nif->nbody = list(nif->nbody, nod(ORETURN, N, N));
++	return nif;
++}
++
++/*
++ * Generate a helper function to check equality of two values of type t.
++ */
++void
++geneq(Sym *sym, Type *t)
++{
++	Node *n, *fn, *np, *neq, *nq, *tfn, *nif, *ni, *nx, *ny, *nrange;
++	Type *t1, *first;
++	int64 size;
++
++	if(debug['r'])
++		print("geneq %S %T\n", sym, t);
++
++	lineno = 1;  // less confusing than end of input
++	dclcontext = PEXTERN;
++	markdcl();
++
++	// func sym(eq *bool, s uintptr, p, q *T)
++	fn = nod(ODCLFUNC, N, N);
++	fn->nname = newname(sym);
++	fn->nname->class = PFUNC;
++	tfn = nod(OTFUNC, N, N);
++	fn->nname->ntype = tfn;
++
++	n = nod(ODCLFIELD, newname(lookup("eq")), typenod(ptrto(types[TBOOL])));
++	tfn->list = list(tfn->list, n);
++	neq = n->left;
++	n = nod(ODCLFIELD, newname(lookup("s")), typenod(types[TUINTPTR]));
++	tfn->list = list(tfn->list, n);
++	n = nod(ODCLFIELD, newname(lookup("p")), typenod(ptrto(t)));
++	tfn->list = list(tfn->list, n);
++	np = n->left;
++	n = nod(ODCLFIELD, newname(lookup("q")), typenod(ptrto(t)));
++	tfn->list = list(tfn->list, n);
++	nq = n->left;
++
++	funchdr(fn);
++
++	// geneq is only called for types that have equality but
++	// cannot be handled by the standard algorithms,
++	// so t must be either an array or a struct.
++	switch(t->etype) {
++	default:
++		fatal("geneq %T", t);
++	case TARRAY:
++		if(isslice(t))
++			fatal("geneq %T", t);
++		// An array of pure memory would be handled by the
++		// standard memequal, so the element type must not be
++		// pure memory.  Even if we unrolled the range loop,
++		// each iteration would be a function call, so don't bother
++		// unrolling.
++		nrange = nod(ORANGE, N, nod(OIND, np, N));
++		ni = newname(lookup("i"));
++		ni->type = types[TINT];
++		nrange->list = list1(ni);
++		nrange->colas = 1;
++		colasdefn(nrange->list, nrange);
++		ni = nrange->list->n;
++		
++		// if p[i] != q[i] { *eq = false; return }
++		nx = nod(OINDEX, np, ni);
++		nx->etype = 1;  // no bounds check
++		ny = nod(OINDEX, nq, ni);
++		ny->etype = 1;  // no bounds check
++
++		nif = nod(OIF, N, N);
++		nif->ntest = nod(ONE, nx, ny);
++		nif->nbody = list(nif->nbody, nod(OAS, nod(OIND, neq, N), nodbool(0)));
++		nif->nbody = list(nif->nbody, nod(ORETURN, N, N));
++		nrange->nbody = list(nrange->nbody, nif);
++		fn->nbody = list(fn->nbody, nrange);
++
++		// *eq = true;
++		fn->nbody = list(fn->nbody, nod(OAS, nod(OIND, neq, N), nodbool(1)));
++		break;
++
++	case TSTRUCT:
++		// Walk the struct using memequal for runs of AMEM
++		// and calling specific equality tests for the others.
++		first = T;
++		for(t1=t->type;; t1=t1->down) {
++			if(t1 != T && algtype1(t1->type, nil) == AMEM) {
++				if(first == T)
++					first = t1;
++				continue;
++			}
++			// Run memequal for fields up to this one.
++			// TODO(rsc): All the calls to newname are wrong for
++			// cross-package unexported fields.
++			if(first != T) {
++				if(first->down == t1) {
++					fn->nbody = list(fn->nbody, eqfield(np, nq, newname(first->sym), neq));
++				} else if(first->down->down == t1) {
++					fn->nbody = list(fn->nbody, eqfield(np, nq, newname(first->sym), neq));
++					first = first->down;
++					fn->nbody = list(fn->nbody, eqfield(np, nq, newname(first->sym), neq));
++				} else {
++					// More than two fields: use memequal.
++					if(t1 == T)
++						size = t->width - first->width;  // first->width is offset
++					else
++						size = t1->width - first->width;  // both are offsets
++					fn->nbody = list(fn->nbody, eqmem(np, nq, newname(first->sym), size, neq));
++				}
++				first = T;
++			}
++			if(t1 == T)
++				break;
++
++			// Check this field, which is not just memory.
++			fn->nbody = list(fn->nbody, eqfield(np, nq, newname(t1->sym), neq));
++		}
++
++		// *eq = true;
++		fn->nbody = list(fn->nbody, nod(OAS, nod(OIND, neq, N), nodbool(1)));
++		break;
++	}
++
++	if(debug['r'])
++		dumplist("geneq body", fn->nbody);
++
++	funcbody(fn);
++	curfn = fn;
++	fn->dupok = 1;
++	typecheck(&fn, Etop);
++	typechecklist(fn->nbody, Etop);
++	curfn = nil;
++	funccompile(fn, 0);
++}
++
+ static Type*
+ ifacelookdot(Sym *s, Type *t, int *followptr, int ignorecase)
+ {
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 5527bc342c..077f9bbb6f 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -90,11 +90,15 @@ static char* _typekind[] = {
+ };
+ 
+ static char*
+-typekind(int et)
++typekind(Type *t)
+ {
++	int et;
+ 	static char buf[50];
+ 	char *s;
+ 	
++	if(isslice(t))
++		return "slice";
++	et = t->etype;
+ 	if(0 <= et && et < nelem(_typekind) && (s=_typekind[et]) != nil)
+ 		return s;
+ 	snprint(buf, sizeof buf, "etype=%d", et);
+@@ -113,7 +117,7 @@ typecheck(Node **np, int top)
+ 	Node *n, *l, *r;
+ 	NodeList *args;
+ 	int lno, ok, ntop;
+-	Type *t, *tp, *ft, *missing, *have;
++	Type *t, *tp, *ft, *missing, *have, *badtype;
+ 	Val v;
+ 	char *why;
+ 
+@@ -419,15 +423,25 @@ reswitch:
+ 		if(iscmp[n->op] && t->etype != TIDEAL && !eqtype(l->type, r->type)) {
+ 			// comparison is okay as long as one side is
+ 			// assignable to the other.  convert so they have
+-			// the same type.  (the only conversion that isn't
+-			// a no-op is concrete == interface.)
++			// the same type.
++			//
++			// the only conversion that isn't a no-op is concrete == interface.
++			// in that case, check comparability of the concrete type.
+ 			if(r->type->etype != TBLANK && (aop = assignop(l->type, r->type, nil)) != 0) {
++				if(isinter(r->type) && !isinter(l->type) && algtype1(l->type, nil) == ANOEQ) {
++					yyerror("invalid operation: %N (operator %O not defined on %s)", n, op, typekind(l->type));
++					goto error;
++				}
+ 				l = nod(aop, l, N);
+ 				l->type = r->type;
+ 				l->typecheck = 1;
+ 				n->left = l;
+ 				t = l->type;
+ 			} else if(l->type->etype != TBLANK && (aop = assignop(r->type, l->type, nil)) != 0) {
++				if(isinter(l->type) && !isinter(r->type) && algtype1(r->type, nil) == ANOEQ) {
++					yyerror("invalid operation: %N (operator %O not defined on %s)", n, op, typekind(r->type));
++					goto error;
++				}
+ 				r = nod(aop, r, N);
+ 				r->type = l->type;
+ 				r->typecheck = 1;
+@@ -442,16 +456,15 @@ reswitch:
+ 			goto error;
+ 		}
+ 		if(!okfor[op][et]) {
+-		notokfor:
+-			yyerror("invalid operation: %N (operator %O not defined on %s)", n, op, typekind(et));
++			yyerror("invalid operation: %N (operator %O not defined on %s)", n, op, typekind(t));
+ 			goto error;
+ 		}
+ 		// okfor allows any array == array, map == map, func == func.
+ 		// restrict to slice/map/func == nil and nil == slice/map/func.
+-		if(l->type->etype == TARRAY && !isslice(l->type))
+-			goto notokfor;
+-		if(r->type->etype == TARRAY && !isslice(r->type))
+-			goto notokfor;
++		if(isfixedarray(l->type) && algtype1(l->type, nil) == ANOEQ) {
++			yyerror("invalid operation: %N (%T cannot be compared)", n, l->type);
++			goto error;
++		}
+ 		if(isslice(l->type) && !isnil(l) && !isnil(r)) {
+ 			yyerror("invalid operation: %N (slice can only be compared to nil)", n);
+ 			goto error;
+@@ -464,6 +477,10 @@ reswitch:
+ 			yyerror("invalid operation: %N (func can only be compared to nil)", n);
+ 			goto error;
+ 		}
++		if(l->type->etype == TSTRUCT && algtype1(l->type, &badtype) == ANOEQ) {
++			yyerror("invalid operation: %N (struct containing %T cannot be compared)", n, badtype);
++			goto error;
++		}
+ 		
+ 		t = l->type;
+ 		if(iscmp[n->op]) {
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 3e2160a94f..f94a937b11 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -7,7 +7,6 @@
+ #include	"go.h"
+ 
+ static	Node*	walkprint(Node*, NodeList**, int);
+-static	Node*	conv(Node*, Type*);
+ static	Node*	mapfn(char*, Type*);
+ static	Node*	mapfndel(char*, Type*);
+ static	Node*	ascompatee1(int, Node*, Node*, NodeList**);
+@@ -22,6 +21,7 @@ static	NodeList*	reorder3(NodeList*);
+ static	Node*	addstr(Node*, NodeList**);
+ static	Node*	appendslice(Node*, NodeList**);
+ static	Node*	append(Node*, NodeList**);
++static	void	walkcompare(Node**, NodeList**);
+ 
+ // can this code branch reach the end
+ // without an unconditional RETURN
+@@ -456,8 +456,6 @@ walkexpr(Node **np, NodeList **init)
+ 	case OXOR:
+ 	case OSUB:
+ 	case OMUL:
+-	case OEQ:
+-	case ONE:
+ 	case OLT:
+ 	case OLE:
+ 	case OGE:
+@@ -468,6 +466,13 @@ walkexpr(Node **np, NodeList **init)
+ 		walkexpr(&n->right, init);
+ 		goto ret;
+ 
++	case OEQ:
++	case ONE:
++		walkexpr(&n->left, init);
++		walkexpr(&n->right, init);
++		walkcompare(&n, init);
++		goto ret;
++
+ 	case OANDAND:
+ 	case OOROR:
+ 		walkexpr(&n->left, init);
+@@ -2212,7 +2217,7 @@ mkcall1(Node *fn, Type *t, NodeList **init, ...)
+ 	return r;
+ }
+ 
+-static Node*
++Node*
+ conv(Node *n, Type *t)
+ {
+ 	if(eqtype(n->type, t))
+@@ -2386,3 +2391,182 @@ append(Node *n, NodeList **init)
+ 	*init = concat(*init, l);
+ 	return ns;
+ }
++
++static Node*
++eqfor(Type *t)
++{
++	int a;
++	Node *n;
++	Node *ntype;
++	Sym *sym;
++
++	// Should only arrive here with large memory or
++	// a struct/array containing a non-memory field/element.
++	// Small memory is handled inline, and single non-memory
++	// is handled during type check (OCMPSTR etc).
++	a = algtype1(t, nil);
++	if(a != AMEM && a != -1)
++		fatal("eqfor %T", t);
++
++	if(a == AMEM)
++		return syslook("memequal", 0);
++
++	sym = typesymprefix(".eq", t);
++	n = newname(sym);
++	n->class = PFUNC;
++	ntype = nod(OTFUNC, N, N);
++	ntype->list = list(ntype->list, nod(ODCLFIELD, N, typenod(ptrto(types[TBOOL]))));
++	ntype->list = list(ntype->list, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
++	ntype->list = list(ntype->list, nod(ODCLFIELD, N, typenod(types[TUNSAFEPTR])));
++	ntype->list = list(ntype->list, nod(ODCLFIELD, N, typenod(types[TUNSAFEPTR])));
++	typecheck(&ntype, Etype);
++	n->type = ntype->type;
++	return n;
++}
++
++static int
++countfield(Type *t)
++{
++	Type *t1;
++	int n;
++	
++	n = 0;
++	for(t1=t->type; t1!=T; t1=t1->down)
++		n++;
++	return n;
++}
++
++static void
++walkcompare(Node **np, NodeList **init)
++{
++	Node *n, *l, *r, *fn, *call, *a, *li, *ri, *expr;
++	int andor, i;
++	Type *t, *t1;
++	static Node *tempbool;
++	
++	n = *np;
++	
++	// Must be comparison of array or struct.
++	// Otherwise back end handles it.
++	t = n->left->type;
++	switch(t->etype) {
++	default:
++		return;
++	case TARRAY:
++		if(isslice(t))
++			return;
++		break;
++	case TSTRUCT:
++		break;
++	}
++	
++	if(!islvalue(n->left) || !islvalue(n->right))
++		goto hard;
++
++	l = temp(ptrto(t));
++	a = nod(OAS, l, nod(OADDR, n->left, N));
++	a->right->etype = 1;  // addr does not escape
++	typecheck(&a, Etop);
++	*init = list(*init, a);
++
++	r = temp(ptrto(t));
++	a = nod(OAS, r, nod(OADDR, n->right, N));
++	a->right->etype = 1;  // addr does not escape
++	typecheck(&a, Etop);
++	*init = list(*init, a);
++
++	expr = N;
++	andor = OANDAND;
++	if(n->op == ONE)
++		andor = OOROR;
++
++	if(t->etype == TARRAY &&
++		t->bound <= 4 &&
++		issimple[t->type->etype]) {
++		// Four or fewer elements of a basic type.
++		// Unroll comparisons.
++		for(i=0; i<t->bound; i++) {
++			li = nod(OINDEX, l, nodintconst(i));
++			ri = nod(OINDEX, r, nodintconst(i));
++			a = nod(n->op, li, ri);
++			if(expr == N)
++				expr = a;
++			else
++				expr = nod(andor, expr, a);
++		}
++		if(expr == N)
++			expr = nodbool(n->op == OEQ);
++		typecheck(&expr, Erv);
++		walkexpr(&expr, init);
++		*np = expr;
++		return;
++	}
++	
++	if(t->etype == TSTRUCT && countfield(t) <= 4) {
++		// Struct of four or fewer fields.
++		// Inline comparisons.
++		for(t1=t->type; t1; t1=t1->down) {
++			li = nod(OXDOT, l, newname(t1->sym));
++			ri = nod(OXDOT, r, newname(t1->sym));
++			a = nod(n->op, li, ri);
++			if(expr == N)
++				expr = a;
++			else
++				expr = nod(andor, expr, a);
++		}
++		if(expr == N)
++			expr = nodbool(n->op == OEQ);
++		typecheck(&expr, Erv);
++		walkexpr(&expr, init);
++		*np = expr;
++		return;
++	}
++	
++	// Chose not to inline, but still have addresses.
++	// Call equality function directly.
++	// The equality function requires a bool pointer for
++	// storing its address, because it has to be callable
++	// from C, and C can't access an ordinary Go return value.
++	// To avoid creating many temporaries, cache one per function.
++	if(tempbool == N || tempbool->curfn != curfn)
++		tempbool = temp(types[TBOOL]);
++	
++	call = nod(OCALL, eqfor(t), N);
++	a = nod(OADDR, tempbool, N);
++	a->etype = 1;  // does not escape
++	call->list = list(call->list, a);
++	call->list = list(call->list, nodintconst(t->width));
++	call->list = list(call->list, conv(l, types[TUNSAFEPTR]));
++	call->list = list(call->list, conv(r, types[TUNSAFEPTR]));
++	typecheck(&call, Etop);
++	walkstmt(&call);
++	*init = list(*init, call);
++	
++	if(n->op == OEQ)
++		r = tempbool;
++	else
++		r = nod(ONOT, tempbool, N);
++	typecheck(&r, Erv);
++	walkexpr(&r, init);
++	*np = r;
++	return;
++
++hard:
++	// Cannot take address of one or both of the operands.
++	// Instead, pass directly to runtime helper function.
++	// Easier on the stack than passing the address
++	// of temporary variables, because we are better at reusing
++	// the argument space than temporary variable space.
++	fn = syslook("equal", 1);
++	l = n->left;
++	r = n->right;
++	argtype(fn, n->left->type);
++	argtype(fn, n->left->type);
++	r = mkcall1(fn, n->type, init, typename(n->left->type), l, r);
++	if(n->op == ONE) {
++		r = nod(ONOT, r, N);
++		typecheck(&r, Erv);
++	}
++	*np = r;
++	return;
++}
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index cbd4522039..d0ecabf8ac 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -1439,7 +1439,7 @@ defdwsymb(Sym* sym, char *s, int t, vlong v, vlong size, int ver, Sym *gotype)
+ 	if (strncmp(s, "go.string.", 10) == 0)
+ 		return;
+ 
+-	if (strncmp(s, "type.", 5) == 0 && strcmp(s, "type.*") != 0) {
++	if (strncmp(s, "type.", 5) == 0 && strcmp(s, "type.*") != 0 && strncmp(s, "type..", 6) != 0) {
+ 		defgotype(sym);
+ 		return;
+ 	}
+diff --git a/src/pkg/runtime/alg.c b/src/pkg/runtime/alg.c
+index e995b0f5a7..8d6fffcfaa 100644
+--- a/src/pkg/runtime/alg.c
++++ b/src/pkg/runtime/alg.c
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
++#include "type.h"
+ 
+ /*
+  * map and chan helpers for
+@@ -68,7 +69,7 @@ runtime·memprint(uintptr s, void *a)
+ 		v = *(uint16*)a;
+ 		break;
+ 	case 4:
+-		v = *(uintptr*)a;
++		v = *(uint32*)a;
+ 		break;
+ 	case 8:
+ 		v = *(uint64*)a;
+@@ -343,3 +344,18 @@ runtime·algarray[] =
+ [ANOEQ128]	{ runtime·nohash, runtime·noequal, runtime·memprint, runtime·memcopy128 },
+ };
+ 
++// Runtime helpers.
++
++// func equal(t *Type, x T, y T) (ret bool)
++#pragma textflag 7
++void
++runtime·equal(Type *t, ...)
++{
++	byte *x, *y;
++	bool *ret;
++	
++	x = (byte*)(&t+1);
++	y = x + t->size;
++	ret = (bool*)(y + t->size);
++	t->alg->equal(ret, t->size, x, y);
++}
+diff --git a/src/pkg/runtime/hashmap.h b/src/pkg/runtime/hashmap.h
+index 218cfc7d71..4c10cf6efd 100644
+--- a/src/pkg/runtime/hashmap.h
++++ b/src/pkg/runtime/hashmap.h
+@@ -66,7 +66,7 @@
+ #define	malloc		runtime·mal
+ #define	memset(a,b,c)	runtime·memclr((byte*)(a), (uint32)(c))
+ #define	memcpy(a,b,c)	runtime·memmove((byte*)(a),(byte*)(b),(uint32)(c))
+-#define	assert(a)	if(!(a)) runtime·throw("assert")
++#define	assert(a)	if(!(a)) runtime·throw("hashmap assert")
+ #define free(x)	runtime·free(x)
+ #define memmove(a,b,c)	runtime·memmove(a, b, c)
+ 
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 4aade25fe7..3bcb0cd008 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -358,21 +358,21 @@ enum {
+ enum
+ {
+ 	AMEM,
+-	ANOEQ,
+-	ASTRING,
+-	AINTER,
+-	ANILINTER,
+-	ASLICE,
+ 	AMEM8,
+ 	AMEM16,
+ 	AMEM32,
+ 	AMEM64,
+ 	AMEM128,
++	ANOEQ,
+ 	ANOEQ8,
+ 	ANOEQ16,
+ 	ANOEQ32,
+ 	ANOEQ64,
+ 	ANOEQ128,
++	ASTRING,
++	AINTER,
++	ANILINTER,
++	ASLICE,
+ 	Amax
+ };
+ typedef	struct	Alg		Alg;
+diff --git a/test/cmp.go b/test/cmp.go
+index 570487db6a..f079c5d560 100644
+--- a/test/cmp.go
++++ b/test/cmp.go
+@@ -57,18 +57,26 @@ func main() {
+ 	isfalse(ib == id)
+ 	istrue(ic == id)
+ 	istrue(ie == ie)
+-	
+-	// these are okay because one side of the
+-	// comparison need only be assignable to the other.
+-	isfalse(a == ib)
+-	isfalse(a == ic)
+-	isfalse(a == id)
+-	isfalse(b == ic)
+-	isfalse(b == id)
++
++	istrue(ia != ib)
++	istrue(ia != ic)
++	istrue(ia != id)
++	istrue(ib != ic)
++	istrue(ib != id)
++	isfalse(ic != id)
++	isfalse(ie != ie)
++
++	// these are not okay, because there is no comparison on slices or maps.
++	//isfalse(a == ib)
++	//isfalse(a == ic)
++	//isfalse(a == id)
++	//isfalse(b == ic)
++	//isfalse(b == id)
++
+ 	istrue(c == id)
+ 	istrue(e == ie)
+ 
+-	isfalse(ia == b)
++	//isfalse(ia == b)
+ 	isfalse(ia == c)
+ 	isfalse(ia == d)
+ 	isfalse(ib == c)
+@@ -76,24 +84,40 @@ func main() {
+ 	istrue(ic == d)
+ 	istrue(ie == e)
+ 
++	//istrue(a != ib)
++	//istrue(a != ic)
++	//istrue(a != id)
++	//istrue(b != ic)
++	//istrue(b != id)
++	isfalse(c != id)
++	isfalse(e != ie)
++
++	//istrue(ia != b)
++	istrue(ia != c)
++	istrue(ia != d)
++	istrue(ib != c)
++	istrue(ib != d)
++	isfalse(ic != d)
++	isfalse(ie != e)
++
+ 	// 6g used to let this go through as true.
+ 	var g uint64 = 123
+ 	var h int64 = 123
+ 	var ig interface{} = g
+ 	var ih interface{} = h
+ 	isfalse(ig == ih)
++	istrue(ig != ih)
+ 
+ 	// map of interface should use == on interface values,
+ 	// not memory.
+-	// TODO: should m[c], m[d] be valid here?
+ 	var m = make(map[interface{}]int)
+ 	m[ic] = 1
+ 	m[id] = 2
+-	if m[ic] != 2 {
+-		println("m[ic] = ", m[ic])
+-		panic("bad m[ic]")
++	if m[c] != 2 {
++		println("m[c] = ", m[c])
++		panic("bad m[c]")
+ 	}
+-	
++
+ 	// non-interface comparisons
+ 	{
+ 		c := make(chan int)
+@@ -103,7 +127,12 @@ func main() {
+ 		istrue(c == c2)
+ 		istrue(c1 == c)
+ 		istrue(c2 == c)
+-		
++
++		isfalse(c != c1)
++		isfalse(c != c2)
++		isfalse(c1 != c)
++		isfalse(c2 != c)
++
+ 		d := make(chan int)
+ 		isfalse(c == d)
+ 		isfalse(d == c)
+@@ -111,6 +140,13 @@ func main() {
+ 		isfalse(d == c2)
+ 		isfalse(c1 == d)
+ 		isfalse(c2 == d)
++
++		istrue(c != d)
++		istrue(d != c)
++		istrue(d != c1)
++		istrue(d != c2)
++		istrue(c1 != d)
++		istrue(c2 != d)
+ 	}
+ 
+ 	// named types vs not
+@@ -118,7 +154,7 @@ func main() {
+ 		var x = new(int)
+ 		var y T
+ 		var z T = x
+-		
++
+ 		isfalse(x == y)
+ 		istrue(x == z)
+ 		isfalse(y == z)
+@@ -126,8 +162,201 @@ func main() {
+ 		isfalse(y == x)
+ 		istrue(z == x)
+ 		isfalse(z == y)
++
++		istrue(x != y)
++		isfalse(x != z)
++		istrue(y != z)
++
++		istrue(y != x)
++		isfalse(z != x)
++		istrue(z != y)
++	}
++
++	// structs
++	{
++		var x = struct {
++			x int
++			y string
++		}{1, "hi"}
++		var y = struct {
++			x int
++			y string
++		}{2, "bye"}
++		var z = struct {
++			x int
++			y string
++		}{1, "hi"}
++
++		isfalse(x == y)
++		isfalse(y == x)
++		isfalse(y == z)
++		isfalse(z == y)
++		istrue(x == z)
++		istrue(z == x)
++
++		istrue(x != y)
++		istrue(y != x)
++		istrue(y != z)
++		istrue(z != y)
++		isfalse(x != z)
++		isfalse(z != x)
++
++		var m = make(map[struct {
++			x int
++			y string
++		}]int)
++		m[x] = 10
++		m[y] = 20
++		m[z] = 30
++		istrue(m[x] == 30)
++		istrue(m[y] == 20)
++		istrue(m[z] == 30)
++		istrue(m[x] != 10)
++		isfalse(m[x] != 30)
++		isfalse(m[y] != 20)
++		isfalse(m[z] != 30)
++		isfalse(m[x] == 10)
++
++		var m1 = make(map[struct {
++			x int
++			y string
++		}]struct {
++			x int
++			y string
++		})
++		m1[x] = x
++		m1[y] = y
++		m1[z] = z
++		istrue(m1[x] == z)
++		istrue(m1[y] == y)
++		istrue(m1[z] == z)
++		istrue(m1[x] == x)
++		isfalse(m1[x] != z)
++		isfalse(m1[y] != y)
++		isfalse(m1[z] != z)
++		isfalse(m1[x] != x)
++
++		var ix, iy, iz interface{} = x, y, z
++
++		isfalse(ix == iy)
++		isfalse(iy == ix)
++		isfalse(iy == iz)
++		isfalse(iz == iy)
++		istrue(ix == iz)
++		istrue(iz == ix)
++
++		isfalse(x == iy)
++		isfalse(y == ix)
++		isfalse(y == iz)
++		isfalse(z == iy)
++		istrue(x == iz)
++		istrue(z == ix)
++
++		isfalse(ix == y)
++		isfalse(iy == x)
++		isfalse(iy == z)
++		isfalse(iz == y)
++		istrue(ix == z)
++		istrue(iz == x)
++
++		istrue(ix != iy)
++		istrue(iy != ix)
++		istrue(iy != iz)
++		istrue(iz != iy)
++		isfalse(ix != iz)
++		isfalse(iz != ix)
++
++		istrue(x != iy)
++		istrue(y != ix)
++		istrue(y != iz)
++		istrue(z != iy)
++		isfalse(x != iz)
++		isfalse(z != ix)
++
++		istrue(ix != y)
++		istrue(iy != x)
++		istrue(iy != z)
++		istrue(iz != y)
++		isfalse(ix != z)
++		isfalse(iz != x)
++	}
++
++	// arrays
++	{
++		var x = [2]string{"1", "hi"}
++		var y = [2]string{"2", "bye"}
++		var z = [2]string{"1", "hi"}
++
++		isfalse(x == y)
++		isfalse(y == x)
++		isfalse(y == z)
++		isfalse(z == y)
++		istrue(x == z)
++		istrue(z == x)
++
++		istrue(x != y)
++		istrue(y != x)
++		istrue(y != z)
++		istrue(z != y)
++		isfalse(x != z)
++		isfalse(z != x)
++
++		var m = make(map[[2]string]int)
++		m[x] = 10
++		m[y] = 20
++		m[z] = 30
++		istrue(m[x] == 30)
++		istrue(m[y] == 20)
++		istrue(m[z] == 30)
++		isfalse(m[x] != 30)
++		isfalse(m[y] != 20)
++		isfalse(m[z] != 30)
++
++		var ix, iy, iz interface{} = x, y, z
++
++		isfalse(ix == iy)
++		isfalse(iy == ix)
++		isfalse(iy == iz)
++		isfalse(iz == iy)
++		istrue(ix == iz)
++		istrue(iz == ix)
++
++		isfalse(x == iy)
++		isfalse(y == ix)
++		isfalse(y == iz)
++		isfalse(z == iy)
++		istrue(x == iz)
++		istrue(z == ix)
++
++		isfalse(ix == y)
++		isfalse(iy == x)
++		isfalse(iy == z)
++		isfalse(iz == y)
++		istrue(ix == z)
++		istrue(iz == x)
++
++		istrue(ix != iy)
++		istrue(iy != ix)
++		istrue(iy != iz)
++		istrue(iz != iy)
++		isfalse(ix != iz)
++		isfalse(iz != ix)
++
++		istrue(x != iy)
++		istrue(y != ix)
++		istrue(y != iz)
++		istrue(z != iy)
++		isfalse(x != iz)
++		isfalse(z != ix)
++
++		istrue(ix != y)
++		istrue(iy != x)
++		istrue(iy != z)
++		istrue(iz != y)
++		isfalse(ix != z)
++		isfalse(iz != x)
+ 	}
+-	
++
+ 	shouldPanic(p1)
+ 	shouldPanic(p2)
+ 	shouldPanic(p3)
+@@ -149,14 +378,14 @@ func p2() {
+ func p3() {
+ 	var a []int
+ 	var ia interface{} = a
+-	var m = make(map[interface{}] int)
++	var m = make(map[interface{}]int)
+ 	m[ia] = 1
+ }
+ 
+ func p4() {
+ 	var b []int
+ 	var ib interface{} = b
+-	var m = make(map[interface{}] int)
++	var m = make(map[interface{}]int)
+ 	m[ib] = 1
+ }
+ 
+diff --git a/test/cmp6.go b/test/cmp6.go
+index 6b13cac236..0113a69ddb 100644
+--- a/test/cmp6.go
++++ b/test/cmp6.go
+@@ -11,7 +11,7 @@ func use(bool) {}
+ type T1 *int
+ type T2 *int
+ 
+-type T3 struct{}
++type T3 struct{ z []int }
+ 
+ var t3 T3
+ 
+@@ -54,4 +54,14 @@ func main() {
+ 	use(x == x) // ERROR "slice can only be compared to nil"
+ 	use(f == f) // ERROR "func can only be compared to nil"
+ 	use(m == m) // ERROR "map can only be compared to nil"
++
++	// Comparison with interface that cannot return true
++	// (would panic).
++	var i interface{}
++	use(i == x) // ERROR "invalid operation"
++	use(x == i) // ERROR "invalid operation"
++	use(i == f) // ERROR "invalid operation"
++	use(f == i) // ERROR "invalid operation"
++	use(i == m) // ERROR "invalid operation"
++	use(m == i) // ERROR "invalid operation"
+ }
+diff --git a/test/interface/noeq.go b/test/interface/noeq.go
+index be368218d7..3c2ea5975a 100644
+--- a/test/interface/noeq.go
++++ b/test/interface/noeq.go
+@@ -10,10 +10,10 @@ package main
+ 
+ func main() {
+ 	cmp(1)
+-	
++
+ 	var (
+ 		m map[int]int
+-		s struct{}
++		s struct{ x []int }
+ 		f func()
+ 	)
+ 	noCmp(m)
+diff --git a/test/map1.go b/test/map1.go
+index 923e27e672..6af10565cd 100644
+--- a/test/map1.go
++++ b/test/map1.go
+@@ -31,11 +31,11 @@ var (
+ 	_ map[string]v
+ 	_ map[chan int]v
+ 	_ map[*int]v
++	_ map[struct{}]v
++	_ map[[10]int]v
+ 
+ 	// invalid
+-	_ map[struct{}]v    // ERROR "invalid map key"
+ 	_ map[[]int]v       // ERROR "invalid map key"
+-	_ map[[10]int]v     // ERROR "invalid map key"
+ 	_ map[func()]v      // ERROR "invalid map key"
+ 	_ map[map[int]int]v // ERROR "invalid map key"
+ )
+diff --git a/test/recover2.go b/test/recover2.go
+index ccaf8ced16..b5db6f0d1c 100644
+--- a/test/recover2.go
++++ b/test/recover2.go
+@@ -60,6 +60,7 @@ func test4() {
+ 
+ type T struct {
+ 	a, b int
++	c    []int
+ }
+ 
+ func test5() {

@@ -10,10 +10,232 @@ Date:   Tue Mar 30 16:49:51 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/860041
-
+---
  src/pkg/go/printer/nodes.go                    | 12 +++----
  src/pkg/go/printer/printer.go                  | 10 +++---
  src/pkg/go/printer/testdata/expressions.golden | 21 ++++++++++++
  src/pkg/go/printer/testdata/expressions.input  | 46 +++++++++++++++++++-------
  src/pkg/go/printer/testdata/expressions.raw    | 21 ++++++++++++
  5 files changed, 87 insertions(+), 23 deletions(-)
+
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index c13382bde9..b020060d79 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -260,7 +260,7 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, depth int, mode
+ 			} else if mode&periodSep == 0 {
+ 				p.print(blank)
+ 			}
+-			// period-separadet list elements don't need a blank
++			// period-separated list elements don't need a blank
+ 		}
+ 
+ 		if isPair && size > 0 && len(list) > 1 {
+@@ -676,8 +676,6 @@ func isBinary(expr ast.Expr) bool {
+ // type assertions, all of which may be found in selector chains, to make them
+ // parts of the chain.
+ func splitSelector(expr ast.Expr) (body, suffix ast.Expr) {
+-	// Rewrite call and index expressions to be a part of the selector chain so
+-	// that their multiline arguments get indented correctly.
+ 	switch x := expr.(type) {
+ 	case *ast.SelectorExpr:
+ 		body, suffix = x.X, x.Sel
+@@ -714,7 +712,8 @@ func splitSelector(expr ast.Expr) (body, suffix ast.Expr) {
+ 
+ // Convert an expression into an expression list split at the periods of
+ // selector expressions.
+-func selectorExprList(expr ast.Expr) (result []ast.Expr) {
++func selectorExprList(expr ast.Expr) []ast.Expr {
++	// split expression
+ 	var list vector.Vector
+ 	for expr != nil {
+ 		var suffix ast.Expr
+@@ -722,13 +721,14 @@ func selectorExprList(expr ast.Expr) (result []ast.Expr) {
+ 		list.Push(suffix)
+ 	}
+ 
+-	result = make([]ast.Expr, len(list))
++	// convert expression list
++	result := make([]ast.Expr, len(list))
+ 	i := len(result)
+ 	for _, x := range list {
+ 		i--
+ 		result[i] = x.(ast.Expr)
+ 	}
+-	return
++	return result
+ }
+ 
+ 
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 2316a459bb..745ecd4cc5 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -472,7 +472,7 @@ func stripCommonPrefix(lines [][]byte) {
+ 		for i, line := range lines[1 : len(lines)-1] {
+ 			switch {
+ 			case isBlank(line):
+-				lines[i+1] = nil
++				lines[1+i] = nil // range starts at line 1
+ 			case prefix == nil:
+ 				prefix = commonPrefix(line, line)
+ 			default:
+@@ -521,7 +521,7 @@ func stripCommonPrefix(lines [][]byte) {
+ 		} else {
+ 			// comment text on the first line
+ 			suffix := make([]byte, len(first))
+-			n := 2
++			n := 2 // start after opening /*
+ 			for n < len(first) && first[n] <= ' ' {
+ 				suffix[n] = first[n]
+ 				n++
+@@ -563,9 +563,9 @@ func stripCommonPrefix(lines [][]byte) {
+ 	}
+ 
+ 	// Remove the common prefix from all but the first and empty lines.
+-	for i, line := range lines {
+-		if i > 0 && len(line) != 0 {
+-			lines[i] = line[len(prefix):]
++	for i, line := range lines[1:] {
++		if len(line) != 0 {
++			lines[1+i] = line[len(prefix):] // range starts at line 1
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/go/printer/testdata/expressions.golden b/src/pkg/go/printer/testdata/expressions.golden
+index e1b50b7f86..95e5502d36 100644
+--- a/src/pkg/go/printer/testdata/expressions.golden
++++ b/src/pkg/go/printer/testdata/expressions.golden
+@@ -473,4 +473,25 @@ func _() {
+ 		Method(1, 2,
+ 			3).
+ 		Thingy
++
++	_ = a.b.c
++	_ = a.
++		b.
++		c
++	_ = a.b().c
++	_ = a.
++		b().
++		c
++	_ = a.b[0].c
++	_ = a.
++		b[0].
++		c
++	_ = a.b[0:].c
++	_ = a.
++		b[0:].
++		c
++	_ = a.b.(T).c
++	_ = a.
++		b.(T).
++		c
+ }
+diff --git a/src/pkg/go/printer/testdata/expressions.input b/src/pkg/go/printer/testdata/expressions.input
+index 8974ca5703..13891d9711 100644
+--- a/src/pkg/go/printer/testdata/expressions.input
++++ b/src/pkg/go/printer/testdata/expressions.input
+@@ -423,19 +423,19 @@ func _() {
+ 		1).foo(2)
+ 
+ 	_ = Array[3 +
+-		4]
++4]
+ 
+ 	_ = Method(1, 2,
+ 		3)
+ 
+ 	_ = new(T).
+-	foo().
+-	bar().(*Type)
++   foo().
++   bar() . (*Type)
+ 
+ 	_ = new(T).
+-	foo().
+-	bar().(*Type).
+-	baz()
++foo().
++bar().(*Type).
++baz()
+ 
+ 	_ = new(T).
+ 	foo().
+@@ -443,7 +443,7 @@ func _() {
+ 
+ 	_ = new(T).
+ 	foo().
+-	bar()["idx"].
++	bar()["idx"]	.
+ 	baz()
+ 
+ 	_ = new(T).
+@@ -459,10 +459,32 @@ func _() {
+ 		Field.
+ 		Array[3+
+        		4].
+-		Table["foo"].
+-		Blob.(*Type).
+-		Slices[1:4].
+-		Method(1, 2,
+-		3).
++		Table ["foo"].
++		Blob. (*Type).
++	Slices[1:4].
++	Method(1, 2,
++	3).
+ 		Thingy
++
++	_ = a.b.c
++	_ = a.
++	b.
++	c
++	_ = a.b().c
++	_ = a.
++	b().
++	c
++	_ = a.b[0].c
++	_ = a.
++	b[0].
++	c
++	_ = a.b[0:].c
++	_ = a.
++	b[0:].
++	c
++	_ = a.b.(T).c
++	_ = a.
++	b.
++	(T).
++	c
+ }
+diff --git a/src/pkg/go/printer/testdata/expressions.raw b/src/pkg/go/printer/testdata/expressions.raw
+index 8c0f2ba78f..dccc8d122b 100644
+--- a/src/pkg/go/printer/testdata/expressions.raw
++++ b/src/pkg/go/printer/testdata/expressions.raw
+@@ -473,4 +473,25 @@ func _() {
+ 		Method(1, 2,
+ 			3).
+ 		Thingy
++
++	_ = a.b.c
++	_ = a.
++		b.
++		c
++	_ = a.b().c
++	_ = a.
++		b().
++		c
++	_ = a.b[0].c
++	_ = a.
++		b[0].
++		c
++	_ = a.b[0:].c
++	_ = a.
++		b[0:].
++		c
++	_ = a.b.(T).c
++	_ = a.
++		b.(T).
++		c
+ }

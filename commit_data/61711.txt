@@ -11,7 +11,7 @@ Date:   Tue Nov 12 17:16:10 2024 +0100
     Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  api/next/67002.txt                               |  1 +
  src/internal/syscall/unix/at_wasip1.go           | 26 +++++++
  src/internal/syscall/windows/at_windows.go       | 70 ++++++++++++++++++
@@ -29,3 +29,584 @@ Date:   Tue Nov 12 17:16:10 2024 +0100
  src/os/root_windows.go                           |  4 ++
  src/os/root_windows_test.go                      |  7 ++
  16 files changed, 331 insertions(+), 4 deletions(-)
+
+diff --git a/api/next/67002.txt b/api/next/67002.txt
+index 861ffe9516..00248e1070 100644
+--- a/api/next/67002.txt
++++ b/api/next/67002.txt
+@@ -6,4 +6,5 @@ pkg os, method (*Root) Name() string #67002
+ pkg os, method (*Root) Open(string) (*File, error) #67002
+ pkg os, method (*Root) OpenFile(string, int, fs.FileMode) (*File, error) #67002
+ pkg os, method (*Root) OpenRoot(string) (*Root, error) #67002
++pkg os, method (*Root) Remove(string) error #67002
+ pkg os, type Root struct #67002
+diff --git a/src/internal/syscall/unix/at_wasip1.go b/src/internal/syscall/unix/at_wasip1.go
+index 45ae22afcc..2be7ef3630 100644
+--- a/src/internal/syscall/unix/at_wasip1.go
++++ b/src/internal/syscall/unix/at_wasip1.go
+@@ -17,8 +17,34 @@ const (
+ 	// to avoid changing AccessTime or ModifiedTime.
+ 	// Its value must match syscall/fs_wasip1.go
+ 	UTIME_OMIT = -0x2
++
++	AT_REMOVEDIR = 0x200
+ )
+ 
++func Unlinkat(dirfd int, path string, flags int) error {
++	if flags&AT_REMOVEDIR == 0 {
++		return errnoErr(path_unlink_file(
++			int32(dirfd),
++			unsafe.StringData(path),
++			size(len(path)),
++		))
++	} else {
++		return errnoErr(path_remove_directory(
++			int32(dirfd),
++			unsafe.StringData(path),
++			size(len(path)),
++		))
++	}
++}
++
++//go:wasmimport wasi_snapshot_preview1 path_unlink_file
++//go:noescape
++func path_unlink_file(fd int32, path *byte, pathLen size) syscall.Errno
++
++//go:wasmimport wasi_snapshot_preview1 path_remove_directory
++//go:noescape
++func path_remove_directory(fd int32, path *byte, pathLen size) syscall.Errno
++
+ func Openat(dirfd int, path string, flags int, perm uint32) (int, error) {
+ 	return syscall.Openat(dirfd, path, flags, perm)
+ }
+diff --git a/src/internal/syscall/windows/at_windows.go b/src/internal/syscall/windows/at_windows.go
+index af8167dd06..72780139a0 100644
+--- a/src/internal/syscall/windows/at_windows.go
++++ b/src/internal/syscall/windows/at_windows.go
+@@ -6,6 +6,7 @@ package windows
+ 
+ import (
+ 	"syscall"
++	"unsafe"
+ )
+ 
+ // Openat flags not supported by syscall.Open.
+@@ -171,3 +172,72 @@ func Mkdirat(dirfd syscall.Handle, name string, mode uint32) error {
+ 	syscall.CloseHandle(h)
+ 	return nil
+ }
++
++func Deleteat(dirfd syscall.Handle, name string) error {
++	objAttrs := &OBJECT_ATTRIBUTES{}
++	if err := objAttrs.init(dirfd, name); err != nil {
++		return err
++	}
++	var h syscall.Handle
++	err := NtOpenFile(
++		&h,
++		DELETE,
++		objAttrs,
++		&IO_STATUS_BLOCK{},
++		FILE_SHARE_DELETE|FILE_SHARE_READ|FILE_SHARE_WRITE,
++		FILE_OPEN_REPARSE_POINT|FILE_OPEN_FOR_BACKUP_INTENT,
++	)
++	if err != nil {
++		return ntCreateFileError(err, 0)
++	}
++	defer syscall.CloseHandle(h)
++
++	const (
++		FileDispositionInformation   = 13
++		FileDispositionInformationEx = 64
++	)
++
++	// First, attempt to delete the file using POSIX semantics
++	// (which permit a file to be deleted while it is still open).
++	// This matches the behavior of DeleteFileW.
++	err = NtSetInformationFile(
++		h,
++		&IO_STATUS_BLOCK{},
++		uintptr(unsafe.Pointer(&FILE_DISPOSITION_INFORMATION_EX{
++			Flags: FILE_DISPOSITION_DELETE |
++				FILE_DISPOSITION_FORCE_IMAGE_SECTION_CHECK |
++				FILE_DISPOSITION_POSIX_SEMANTICS |
++				// This differs from DeleteFileW, but matches os.Remove's
++				// behavior on Unix platforms of permitting deletion of
++				// read-only files.
++				FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE,
++		})),
++		uint32(unsafe.Sizeof(FILE_DISPOSITION_INFORMATION_EX{})),
++		FileDispositionInformationEx,
++	)
++	switch err {
++	case nil:
++		return nil
++	case STATUS_CANNOT_DELETE, STATUS_DIRECTORY_NOT_EMPTY:
++		return err.(NTStatus).Errno()
++	}
++
++	// If the prior deletion failed, the filesystem either doesn't support
++	// POSIX semantics (for example, FAT), or hasn't implemented
++	// FILE_DISPOSITION_INFORMATION_EX.
++	//
++	// Try again.
++	err = NtSetInformationFile(
++		h,
++		&IO_STATUS_BLOCK{},
++		uintptr(unsafe.Pointer(&FILE_DISPOSITION_INFORMATION{
++			DeleteFile: true,
++		})),
++		uint32(unsafe.Sizeof(FILE_DISPOSITION_INFORMATION{})),
++		FileDispositionInformation,
++	)
++	if st, ok := err.(NTStatus); ok {
++		return st.Errno()
++	}
++	return err
++}
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index 924f4951e7..f6fbf199bf 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -523,10 +523,14 @@ func (s NTStatus) Error() string {
+ // If this list starts getting long, we should consider generating the full set.
+ const (
+ 	STATUS_FILE_IS_A_DIRECTORY       NTStatus = 0xC00000BA
++	STATUS_DIRECTORY_NOT_EMPTY       NTStatus = 0xC0000101
+ 	STATUS_NOT_A_DIRECTORY           NTStatus = 0xC0000103
++	STATUS_CANNOT_DELETE             NTStatus = 0xC0000121
+ 	STATUS_REPARSE_POINT_ENCOUNTERED NTStatus = 0xC000050B
+ )
+ 
+ // NT Native APIs
+ //sys   NtCreateFile(handle *syscall.Handle, access uint32, oa *OBJECT_ATTRIBUTES, iosb *IO_STATUS_BLOCK, allocationSize *int64, attributes uint32, share uint32, disposition uint32, options uint32, eabuffer uintptr, ealength uint32) (ntstatus error) = ntdll.NtCreateFile
++//sys   NtOpenFile(handle *syscall.Handle, access uint32, oa *OBJECT_ATTRIBUTES, iosb *IO_STATUS_BLOCK, share uint32, options uint32) (ntstatus error) = ntdll.NtOpenFile
+ //sys   rtlNtStatusToDosErrorNoTeb(ntstatus NTStatus) (ret syscall.Errno) = ntdll.RtlNtStatusToDosErrorNoTeb
++//sys   NtSetInformationFile(handle syscall.Handle, iosb *IO_STATUS_BLOCK, inBuffer uintptr, inBufferLen uint32, class uint32) (ntstatus error) = ntdll.NtSetInformationFile
+diff --git a/src/internal/syscall/windows/types_windows.go b/src/internal/syscall/windows/types_windows.go
+index 514feafae4..6ae37afff8 100644
+--- a/src/internal/syscall/windows/types_windows.go
++++ b/src/internal/syscall/windows/types_windows.go
+@@ -196,3 +196,23 @@ const (
+ 	FILE_OPEN_NO_RECALL            = 0x00400000
+ 	FILE_OPEN_FOR_FREE_SPACE_QUERY = 0x00800000
+ )
++
++// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_file_disposition_information
++type FILE_DISPOSITION_INFORMATION struct {
++	DeleteFile bool
++}
++
++// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_file_disposition_information_ex
++type FILE_DISPOSITION_INFORMATION_EX struct {
++	Flags uint32
++}
++
++// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_file_disposition_information_ex
++const (
++	FILE_DISPOSITION_DO_NOT_DELETE             = 0x00000000
++	FILE_DISPOSITION_DELETE                    = 0x00000001
++	FILE_DISPOSITION_POSIX_SEMANTICS           = 0x00000002
++	FILE_DISPOSITION_FORCE_IMAGE_SECTION_CHECK = 0x00000004
++	FILE_DISPOSITION_ON_CLOSE                  = 0x00000008
++	FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE = 0x00000010
++)
+diff --git a/src/internal/syscall/windows/zsyscall_windows.go b/src/internal/syscall/windows/zsyscall_windows.go
+index c81bc399ff..6a6ea7bdc0 100644
+--- a/src/internal/syscall/windows/zsyscall_windows.go
++++ b/src/internal/syscall/windows/zsyscall_windows.go
+@@ -93,6 +93,8 @@ var (
+ 	procNetUserDel                        = modnetapi32.NewProc("NetUserDel")
+ 	procNetUserGetLocalGroups             = modnetapi32.NewProc("NetUserGetLocalGroups")
+ 	procNtCreateFile                      = modntdll.NewProc("NtCreateFile")
++	procNtOpenFile                        = modntdll.NewProc("NtOpenFile")
++	procNtSetInformationFile              = modntdll.NewProc("NtSetInformationFile")
+ 	procRtlGetVersion                     = modntdll.NewProc("RtlGetVersion")
+ 	procRtlNtStatusToDosErrorNoTeb        = modntdll.NewProc("RtlNtStatusToDosErrorNoTeb")
+ 	procGetProcessMemoryInfo              = modpsapi.NewProc("GetProcessMemoryInfo")
+@@ -477,6 +479,22 @@ func NtCreateFile(handle *syscall.Handle, access uint32, oa *OBJECT_ATTRIBUTES,
+ 	return
+ }
+ 
++func NtOpenFile(handle *syscall.Handle, access uint32, oa *OBJECT_ATTRIBUTES, iosb *IO_STATUS_BLOCK, share uint32, options uint32) (ntstatus error) {
++	r0, _, _ := syscall.Syscall6(procNtOpenFile.Addr(), 6, uintptr(unsafe.Pointer(handle)), uintptr(access), uintptr(unsafe.Pointer(oa)), uintptr(unsafe.Pointer(iosb)), uintptr(share), uintptr(options))
++	if r0 != 0 {
++		ntstatus = NTStatus(r0)
++	}
++	return
++}
++
++func NtSetInformationFile(handle syscall.Handle, iosb *IO_STATUS_BLOCK, inBuffer uintptr, inBufferLen uint32, class uint32) (ntstatus error) {
++	r0, _, _ := syscall.Syscall6(procNtSetInformationFile.Addr(), 5, uintptr(handle), uintptr(unsafe.Pointer(iosb)), uintptr(inBuffer), uintptr(inBufferLen), uintptr(class), 0)
++	if r0 != 0 {
++		ntstatus = NTStatus(r0)
++	}
++	return
++}
++
+ func rtlGetVersion(info *_OSVERSIONINFOW) {
+ 	syscall.Syscall(procRtlGetVersion.Addr(), 1, uintptr(unsafe.Pointer(info)), 0, 0)
+ 	return
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index e891c1a422..c646ca8246 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -3815,3 +3815,23 @@ func TestAppendDoesntOverwrite(t *testing.T) {
+ 		}
+ 	})
+ }
++
++func TestRemoveReadOnlyFile(t *testing.T) {
++	testMaybeRooted(t, func(t *testing.T, r *Root) {
++		if err := WriteFile("file", []byte("1"), 0); err != nil {
++			t.Fatal(err)
++		}
++		var err error
++		if r == nil {
++			err = Remove("file")
++		} else {
++			err = r.Remove("file")
++		}
++		if err != nil {
++			t.Fatalf("Remove read-only file: %v", err)
++		}
++		if _, err := Stat("file"); !IsNotExist(err) {
++			t.Fatalf("Stat read-only file after removal: %v (want IsNotExist)", err)
++		}
++	})
++}
+diff --git a/src/os/root.go b/src/os/root.go
+index 1574817098..55455d2c94 100644
+--- a/src/os/root.go
++++ b/src/os/root.go
+@@ -120,6 +120,12 @@ func (r *Root) Mkdir(name string, perm FileMode) error {
+ 	return rootMkdir(r, name, perm)
+ }
+ 
++// Remove removes the named file or (empty) directory in the root.
++// See [Remove] for more details.
++func (r *Root) Remove(name string) error {
++	return rootRemove(r, name)
++}
++
+ func (r *Root) logOpen(name string) {
+ 	if log := testlog.Logger(); log != nil {
+ 		// This won't be right if r's name has changed since it was opened,
+diff --git a/src/os/root_js.go b/src/os/root_js.go
+index 72138d1e89..70aa5f9ccd 100644
+--- a/src/os/root_js.go
++++ b/src/os/root_js.go
+@@ -12,7 +12,24 @@ import (
+ 	"syscall"
+ )
+ 
++// checkPathEscapes reports whether name escapes the root.
++//
++// Due to the lack of openat, checkPathEscapes is subject to TOCTOU races
++// when symlinks change during the resolution process.
+ func checkPathEscapes(r *Root, name string) error {
++	return checkPathEscapesInternal(r, name, false)
++}
++
++// checkPathEscapesLstat reports whether name escapes the root.
++// It does not resolve symlinks in the final path component.
++//
++// Due to the lack of openat, checkPathEscapes is subject to TOCTOU races
++// when symlinks change during the resolution process.
++func checkPathEscapesLstat(r *Root, name string) error {
++	return checkPathEscapesInternal(r, name, true)
++}
++
++func checkPathEscapesInternal(r *Root, name string, lstat bool) error {
+ 	if r.root.closed.Load() {
+ 		return ErrClosed
+ 	}
+@@ -44,6 +61,10 @@ func checkPathEscapes(r *Root, name string) error {
+ 			continue
+ 		}
+ 
++		if lstat && i == len(parts)-1 {
++			break
++		}
++
+ 		next := joinPath(base, parts[i])
+ 		fi, err := Lstat(next)
+ 		if err != nil {
+diff --git a/src/os/root_noopenat.go b/src/os/root_noopenat.go
+index be7f5507eb..d59720a7b7 100644
+--- a/src/os/root_noopenat.go
++++ b/src/os/root_noopenat.go
+@@ -84,3 +84,13 @@ func rootMkdir(r *Root, name string, perm FileMode) error {
+ 	}
+ 	return nil
+ }
++
++func rootRemove(r *Root, name string) error {
++	if err := checkPathEscapesLstat(r, name); err != nil {
++		return &PathError{Op: "removeat", Path: name, Err: err}
++	}
++	if err := Remove(joinPath(r.root.name, name)); err != nil {
++		return &PathError{Op: "removeat", Path: name, Err: underlyingError(err)}
++	}
++	return nil
++}
+diff --git a/src/os/root_openat.go b/src/os/root_openat.go
+index 7f6619bab4..a03208b4c1 100644
+--- a/src/os/root_openat.go
++++ b/src/os/root_openat.go
+@@ -74,6 +74,16 @@ func rootMkdir(r *Root, name string, perm FileMode) error {
+ 	return err
+ }
+ 
++func rootRemove(r *Root, name string) error {
++	_, err := doInRoot(r, name, func(parent sysfdType, name string) (struct{}, error) {
++		return struct{}{}, removeat(parent, name)
++	})
++	if err != nil {
++		return &PathError{Op: "removeat", Path: name, Err: err}
++	}
++	return err
++}
++
+ // doInRoot performs an operation on a path in a Root.
+ //
+ // It opens the directory containing the final element of the path,
+diff --git a/src/os/root_plan9.go b/src/os/root_plan9.go
+index 0a26e7352a..08005accb5 100644
+--- a/src/os/root_plan9.go
++++ b/src/os/root_plan9.go
+@@ -19,3 +19,7 @@ func checkPathEscapes(r *Root, name string) error {
+ 	}
+ 	return nil
+ }
++
++func checkPathEscapesLstat(r *Root, name string) error {
++	return checkPathEscapes(r, name)
++}
+diff --git a/src/os/root_test.go b/src/os/root_test.go
+index 1edccf362c..70c378cef8 100644
+--- a/src/os/root_test.go
++++ b/src/os/root_test.go
+@@ -105,6 +105,13 @@ type rootTest struct {
+ 	// the target is the filename that should not have been opened.
+ 	target string
+ 
++	// ltarget is the filename that we expect to accessed, after resolving all symlinks
++	// except the last one. This is the file we expect to be removed by Remove or statted
++	// by Lstat.
++	//
++	// If the last path component in open is not a symlink, ltarget should be "".
++	ltarget string
++
+ 	// wantError is true if accessing the file should fail.
+ 	wantError bool
+ 
+@@ -176,8 +183,9 @@ var rootTestCases = []rootTest{{
+ 	fs: []string{
+ 		"link => target",
+ 	},
+-	open:   "link",
+-	target: "target",
++	open:    "link",
++	target:  "target",
++	ltarget: "link",
+ }, {
+ 	name: "symlink chain",
+ 	fs: []string{
+@@ -188,8 +196,9 @@ var rootTestCases = []rootTest{{
+ 		"g/h/i => ..",
+ 		"g/c/",
+ 	},
+-	open:   "link",
+-	target: "g/c/target",
++	open:    "link",
++	target:  "g/c/target",
++	ltarget: "link",
+ }, {
+ 	name: "path with dot",
+ 	fs: []string{
+@@ -251,6 +260,7 @@ var rootTestCases = []rootTest{{
+ 		"a => a",
+ 	},
+ 	open:        "a",
++	ltarget:     "a",
+ 	wantError:   true,
+ 	alwaysFails: true,
+ }, {
+@@ -273,6 +283,7 @@ var rootTestCases = []rootTest{{
+ 		"link => $ABS/target",
+ 	},
+ 	open:      "link",
++	ltarget:   "link",
+ 	target:    "target",
+ 	wantError: true,
+ }, {
+@@ -282,6 +293,7 @@ var rootTestCases = []rootTest{{
+ 	},
+ 	open:      "link",
+ 	target:    "target",
++	ltarget:   "link",
+ 	wantError: true,
+ }, {
+ 	name: "symlink chain escapes",
+@@ -293,6 +305,7 @@ var rootTestCases = []rootTest{{
+ 	},
+ 	open:      "link",
+ 	target:    "c/target",
++	ltarget:   "link",
+ 	wantError: true,
+ }}
+ 
+@@ -421,6 +434,60 @@ func TestRootOpenRoot(t *testing.T) {
+ 	}
+ }
+ 
++func TestRootRemoveFile(t *testing.T) {
++	for _, test := range rootTestCases {
++		test.run(t, func(t *testing.T, target string, root *os.Root) {
++			wantError := test.wantError
++			if test.ltarget != "" {
++				// Remove doesn't follow symlinks in the final path component,
++				// so it will successfully remove ltarget.
++				wantError = false
++				target = filepath.Join(root.Name(), test.ltarget)
++			} else if target != "" {
++				if err := os.WriteFile(target, nil, 0o666); err != nil {
++					t.Fatal(err)
++				}
++			}
++
++			err := root.Remove(test.open)
++			if errEndsTest(t, err, wantError, "root.Remove(%q)", test.open) {
++				return
++			}
++			_, err = os.Lstat(target)
++			if !errors.Is(err, os.ErrNotExist) {
++				t.Fatalf(`stat file removed with Root.Remove(%q): %v, want ErrNotExist`, test.open, err)
++			}
++		})
++	}
++}
++
++func TestRootRemoveDirectory(t *testing.T) {
++	for _, test := range rootTestCases {
++		test.run(t, func(t *testing.T, target string, root *os.Root) {
++			wantError := test.wantError
++			if test.ltarget != "" {
++				// Remove doesn't follow symlinks in the final path component,
++				// so it will successfully remove ltarget.
++				wantError = false
++				target = filepath.Join(root.Name(), test.ltarget)
++			} else if target != "" {
++				if err := os.Mkdir(target, 0o777); err != nil {
++					t.Fatal(err)
++				}
++			}
++
++			err := root.Remove(test.open)
++			if errEndsTest(t, err, wantError, "root.Remove(%q)", test.open) {
++				return
++			}
++			_, err = os.Lstat(target)
++			if !errors.Is(err, os.ErrNotExist) {
++				t.Fatalf(`stat file removed with Root.Remove(%q): %v, want ErrNotExist`, test.open, err)
++			}
++		})
++	}
++}
++
+ func TestRootOpenFileAsRoot(t *testing.T) {
+ 	dir := t.TempDir()
+ 	target := filepath.Join(dir, "target")
+@@ -733,6 +800,23 @@ func TestRootConsistencyMkdir(t *testing.T) {
+ 	}
+ }
+ 
++func TestRootConsistencyRemove(t *testing.T) {
++	for _, test := range rootConsistencyTestCases {
++		if test.open == "." || test.open == "./" {
++			continue // can't remove the root itself
++		}
++		test.run(t, func(t *testing.T, path string, r *os.Root) (string, error) {
++			var err error
++			if r == nil {
++				err = os.Remove(path)
++			} else {
++				err = r.Remove(path)
++			}
++			return "", err
++		})
++	}
++}
++
+ func TestRootRenameAfterOpen(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "windows":
+diff --git a/src/os/root_unix.go b/src/os/root_unix.go
+index 496a11903b..6f8f9c8e3e 100644
+--- a/src/os/root_unix.go
++++ b/src/os/root_unix.go
+@@ -119,6 +119,28 @@ func mkdirat(fd int, name string, perm FileMode) error {
+ 	})
+ }
+ 
++func removeat(fd int, name string) error {
++	// The system call interface forces us to know whether
++	// we are removing a file or directory. Try both.
++	e := ignoringEINTR(func() error {
++		return unix.Unlinkat(fd, name, 0)
++	})
++	if e == nil {
++		return nil
++	}
++	e1 := ignoringEINTR(func() error {
++		return unix.Unlinkat(fd, name, unix.AT_REMOVEDIR)
++	})
++	if e1 == nil {
++		return nil
++	}
++	// Both failed. See comment in Remove for how we decide which error to return.
++	if e1 != syscall.ENOTDIR {
++		return e1
++	}
++	return e
++}
++
+ // checkSymlink resolves the symlink name in parent,
+ // and returns errSymlink with the link contents.
+ //
+diff --git a/src/os/root_windows.go b/src/os/root_windows.go
+index 685737ea44..68f938de93 100644
+--- a/src/os/root_windows.go
++++ b/src/os/root_windows.go
+@@ -201,3 +201,7 @@ func rootOpenDir(parent syscall.Handle, name string) (syscall.Handle, error) {
+ func mkdirat(dirfd syscall.Handle, name string, perm FileMode) error {
+ 	return windows.Mkdirat(dirfd, name, syscallMode(perm))
+ }
++
++func removeat(dirfd syscall.Handle, name string) error {
++	return windows.Deleteat(dirfd, name)
++}
+diff --git a/src/os/root_windows_test.go b/src/os/root_windows_test.go
+index f9bddc0d67..62e2097123 100644
+--- a/src/os/root_windows_test.go
++++ b/src/os/root_windows_test.go
+@@ -7,6 +7,7 @@
+ package os_test
+ 
+ import (
++	"errors"
+ 	"os"
+ 	"path/filepath"
+ 	"testing"
+@@ -43,4 +44,10 @@ func TestRootWindowsCaseInsensitivity(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	f.Close()
++	if err := r.Remove("FILE"); err != nil {
++		t.Fatal(err)
++	}
++	if _, err := os.Stat(filepath.Join(dir, "file")); !errors.Is(err, os.ErrNotExist) {
++		t.Fatalf("os.Stat(file) after deletion: %v, want ErrNotFound", err)
++	}
+ }

@@ -10,7 +10,7 @@ Date:   Thu Apr 5 18:47:43 2012 +0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5985047
-
+---
  src/pkg/runtime/arch_386.h     |  4 +++
  src/pkg/runtime/arch_amd64.h   |  4 +++
  src/pkg/runtime/arch_arm.h     |  2 ++
@@ -22,3 +22,384 @@ Date:   Thu Apr 5 18:47:43 2012 +0400
  src/pkg/runtime/runtime.c      | 30 ++++++++++++++++++++
  src/pkg/runtime/runtime.h      |  4 +++
  10 files changed, 234 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/arch_386.h b/src/pkg/runtime/arch_386.h
+index a0798f99e9..68931aed3f 100644
+--- a/src/pkg/runtime/arch_386.h
++++ b/src/pkg/runtime/arch_386.h
+@@ -2,3 +2,7 @@ enum {
+ 	thechar = '8',
+ 	CacheLineSize = 64
+ };
++
++// prefetches *addr into processor's cache
++#define PREFETCH(addr) runtime·prefetch(addr)
++void	runtime·prefetch(void*);
+diff --git a/src/pkg/runtime/arch_amd64.h b/src/pkg/runtime/arch_amd64.h
+index dd1cfc18d1..d2800fc17d 100644
+--- a/src/pkg/runtime/arch_amd64.h
++++ b/src/pkg/runtime/arch_amd64.h
+@@ -2,3 +2,7 @@ enum {
+ 	thechar = '6',
+ 	CacheLineSize = 64
+ };
++
++// prefetches *addr into processor's cache
++#define PREFETCH(addr) runtime·prefetch(addr)
++void	runtime·prefetch(void*);
+diff --git a/src/pkg/runtime/arch_arm.h b/src/pkg/runtime/arch_arm.h
+index c1a7a0f379..d4ab74d585 100644
+--- a/src/pkg/runtime/arch_arm.h
++++ b/src/pkg/runtime/arch_arm.h
+@@ -2,3 +2,5 @@ enum {
+ 	thechar = '5',
+ 	CacheLineSize = 32
+ };
++
++#define PREFETCH(addr) USED(addr)
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 21bd293ab0..124fd2766b 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -299,6 +299,33 @@ TEXT runtime·cas(SB), 7, $0
+ 	MOVL	$1, AX
+ 	RET
+ 
++// bool runtime·cas64(uint64 *val, uint64 *old, uint64 new)
++// Atomically:
++//	if(*val == *old){
++//		*val = new;
++//		return 1;
++//	} else {
++//		*old = *val
++//		return 0;
++//	}
++TEXT runtime·cas64(SB), 7, $0
++	MOVL	4(SP), BP
++	MOVL	8(SP), SI
++	MOVL	0(SI), AX
++	MOVL	4(SI), DX
++	MOVL	12(SP), BX
++	MOVL	16(SP), CX
++	LOCK
++	CMPXCHG8B	0(BP)
++	JNZ	cas64_fail
++	MOVL	$1, AX
++	RET
++cas64_fail:
++	MOVL	AX, 0(SI)
++	MOVL	DX, 4(SI)
++	XORL	AX, AX
++	RET
++
+ // bool casp(void **p, void *old, void *new)
+ // Atomically:
+ //	if(*p == old){
+@@ -357,6 +384,43 @@ TEXT runtime·atomicstore(SB), 7, $0
+ 	XCHGL	AX, 0(BX)
+ 	RET
+ 
++// uint64 atomicload64(uint64 volatile* addr);
++// so actually
++// void atomicload64(uint64 *res, uint64 volatile *addr);
++TEXT runtime·atomicload64(SB), 7, $0
++	MOVL    4(SP), BX
++	MOVL	8(SP), AX
++	// MOVQ (%EAX), %MM0
++	BYTE $0x0f; BYTE $0x6f; BYTE $0x00
++	// MOVQ %MM0, 0(%EBX)
++	BYTE $0x0f; BYTE $0x7f; BYTE $0x03
++	// EMMS
++	BYTE $0x0F; BYTE $0x77
++	RET
++
++// void runtime·atomicstore64(uint64 volatile* addr, uint64 v);
++TEXT runtime·atomicstore64(SB), 7, $0
++	MOVL	4(SP), AX
++	// MOVQ and EMMS were introduced on the Pentium MMX.
++	// MOVQ 0x8(%ESP), %MM0
++	BYTE $0x0f; BYTE $0x6f; BYTE $0x44; BYTE $0x24; BYTE $0x08
++	// MOVQ %MM0, (%EAX)
++	BYTE $0x0f; BYTE $0x7f; BYTE $0x00 
++	// EMMS
++	BYTE $0x0F; BYTE $0x77
++	// This is essentially a no-op, but it provides required memory fencing.
++	// It can be replaced with MFENCE, but MFENCE was introduced only on the Pentium4 (SSE2).
++	MOVL	$0, AX
++	LOCK
++	XADDL	AX, (SP)
++	RET
++
++TEXT runtime·prefetch(SB), 7, $0
++	MOVL    4(SP), AX
++	// PREFETCHNTA (AX)
++	BYTE $0x0f; BYTE $0x18; BYTE $0x00
++	RET
++
+ // void jmpdefer(fn, sp);
+ // called from deferreturn.
+ // 1. pop the caller
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index d41ab96d02..7a5dd830b8 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -344,6 +344,30 @@ TEXT runtime·cas(SB), 7, $0
+ 	MOVL	$1, AX
+ 	RET
+ 
++// bool	runtime·cas64(uint64 *val, uint64 *old, uint64 new)
++// Atomically:
++//	if(*val == *old){
++//		*val = new;
++//		return 1;
++//	} else {
++//		*old = *val
++//		return 0;
++//	}
++TEXT runtime·cas64(SB), 7, $0
++	MOVQ	8(SP), BX
++	MOVQ	16(SP), BP
++	MOVQ	0(BP), AX
++	MOVQ	24(SP), CX
++	LOCK
++	CMPXCHGQ	CX, 0(BX)
++	JNZ	cas64_fail
++	MOVL	$1, AX
++	RET
++cas64_fail:
++	MOVQ	AX, 0(BP)
++	MOVL	$0, AX
++	RET
++
+ // bool casp(void **val, void *old, void *new)
+ // Atomically:
+ //	if(*val == old){
+@@ -376,6 +400,15 @@ TEXT runtime·xadd(SB), 7, $0
+ 	ADDL	CX, AX
+ 	RET
+ 
++TEXT runtime·xadd64(SB), 7, $0
++	MOVQ	8(SP), BX
++	MOVQ	16(SP), AX
++	MOVQ	AX, CX
++	LOCK
++	XADDQ	AX, 0(BX)
++	ADDQ	CX, AX
++	RET
++
+ TEXT runtime·xchg(SB), 7, $0
+ 	MOVQ	8(SP), BX
+ 	MOVL	16(SP), AX
+@@ -402,6 +435,18 @@ TEXT runtime·atomicstore(SB), 7, $0
+ 	XCHGL	AX, 0(BX)
+ 	RET
+ 
++TEXT runtime·atomicstore64(SB), 7, $0
++	MOVQ	8(SP), BX
++	MOVQ	16(SP), AX
++	XCHGQ	AX, 0(BX)
++	RET
++
++TEXT runtime·prefetch(SB), 7, $0
++	MOVQ    8(SP), AX
++	// PREFETCHNTA (AX)
++	BYTE $0x0f; BYTE $0x18; BYTE $0x00
++	RET
++
+ // void jmpdefer(fn, sp);
+ // called from deferreturn.
+ // 1. pop the caller
+diff --git a/src/pkg/runtime/atomic_386.c b/src/pkg/runtime/atomic_386.c
+index a4f2a114fc..79b7cbf96d 100644
+--- a/src/pkg/runtime/atomic_386.c
++++ b/src/pkg/runtime/atomic_386.c
+@@ -17,3 +17,16 @@ runtime·atomicloadp(void* volatile* addr)
+ {
+ 	return *addr;
+ }
++
++#pragma textflag 7
++uint64
++runtime·xadd64(uint64 volatile* addr, int64 v)
++{
++	uint64 old;
++
++	old = *addr;
++	while(!runtime·cas64(addr, &old, old+v)) {
++		// nothing
++	}
++	return old+v;
++}
+diff --git a/src/pkg/runtime/atomic_amd64.c b/src/pkg/runtime/atomic_amd64.c
+index a4f2a114fc..e92d8ec212 100644
+--- a/src/pkg/runtime/atomic_amd64.c
++++ b/src/pkg/runtime/atomic_amd64.c
+@@ -11,6 +11,13 @@ runtime·atomicload(uint32 volatile* addr)
+ 	return *addr;
+ }
+ 
++#pragma textflag 7
++uint64
++runtime·atomicload64(uint64 volatile* addr)
++{
++	return *addr;
++}
++
+ #pragma textflag 7
+ void*
+ runtime·atomicloadp(void* volatile* addr)
+diff --git a/src/pkg/runtime/atomic_arm.c b/src/pkg/runtime/atomic_arm.c
+index 52e4059ae2..0b54840cc9 100644
+--- a/src/pkg/runtime/atomic_arm.c
++++ b/src/pkg/runtime/atomic_arm.c
+@@ -3,6 +3,14 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
++#include "arch_GOARCH.h"
++
++static union {
++	Lock l;
++	byte pad [CacheLineSize];
++} locktab[57];
++
++#define LOCK(addr) (&locktab[((uintptr)(addr)>>3)%nelem(locktab)].l)
+ 
+ // Atomic add and return new value.
+ #pragma textflag 7
+@@ -80,4 +88,56 @@ runtime·atomicstore(uint32 volatile* addr, uint32 v)
+ 		if(runtime·cas(addr, old, v))
+ 			return;
+ 	}
+-}
+\ No newline at end of file
++}
++
++#pragma textflag 7
++bool
++runtime·cas64(uint64 volatile *addr, uint64 *old, uint64 new)
++{
++	bool res;
++	
++	runtime·lock(LOCK(addr));
++	if(*addr == *old) {
++		*addr = new;
++		res = true;
++	} else {
++		*old = *addr;
++		res = false;
++	}
++	runtime·unlock(LOCK(addr));
++	return res;
++}
++
++#pragma textflag 7
++uint64
++runtime·xadd64(uint64 volatile *addr, int64 delta)
++{
++	uint64 res;
++	
++	runtime·lock(LOCK(addr));
++	res = *addr + delta;
++	*addr = res;
++	runtime·unlock(LOCK(addr));
++	return res;
++}
++
++#pragma textflag 7
++uint64
++runtime·atomicload64(uint64 volatile *addr)
++{
++	uint64 res;
++	
++	runtime·lock(LOCK(addr));
++	res = *addr;
++	runtime·unlock(LOCK(addr));
++	return res;
++}
++
++#pragma textflag 7
++void
++runtime·atomicstore64(uint64 volatile *addr, uint64 v)
++{
++	runtime·lock(LOCK(addr));
++	*addr = v;
++	runtime·unlock(LOCK(addr));
++}
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index ebb5544fba..2cb3501dd1 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -4,6 +4,7 @@
+ 
+ #include "runtime.h"
+ #include "stack.h"
++#include "arch_GOARCH.h"
+ 
+ enum {
+ 	maxround = sizeof(uintptr),
+@@ -267,6 +268,33 @@ runtime·atoi(byte *p)
+ 	return n;
+ }
+ 
++static void
++TestAtomic64(void)
++{
++	uint64 z64, x64;
++
++	z64 = 42;
++	x64 = 0;
++	PREFETCH(&z64);
++	if(runtime·cas64(&z64, &x64, 1))
++		runtime·throw("cas64 failed");
++	if(x64 != 42)
++		runtime·throw("cas64 failed");
++	if(!runtime·cas64(&z64, &x64, 1))
++		runtime·throw("cas64 failed");
++	if(x64 != 42 || z64 != 1)
++		runtime·throw("cas64 failed");
++	if(runtime·atomicload64(&z64) != 1)
++		runtime·throw("load64 failed");
++	runtime·atomicstore64(&z64, (1ull<<40)+1);
++	if(runtime·atomicload64(&z64) != (1ull<<40)+1)
++		runtime·throw("store64 failed");
++	if(runtime·xadd64(&z64, (1ull<<40)+1) != (2ull<<40)+2)
++		runtime·throw("xadd64 failed");
++	if(runtime·atomicload64(&z64) != (2ull<<40)+2)
++		runtime·throw("xadd64 failed");
++}
++
+ void
+ runtime·check(void)
+ {
+@@ -342,6 +370,8 @@ runtime·check(void)
+ 		runtime·throw("float32nan2");
+ 	if(!(i != i1))
+ 		runtime·throw("float32nan3");
++
++	TestAtomic64();
+ }
+ 
+ void
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 6f5aea11db..177de6c05f 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -512,13 +512,17 @@ void	runtime·tracebackothers(G*);
+ int32	runtime·write(int32, void*, int32);
+ int32	runtime·mincore(void*, uintptr, byte*);
+ bool	runtime·cas(uint32*, uint32, uint32);
++bool	runtime·cas64(uint64*, uint64*, uint64);
+ bool	runtime·casp(void**, void*, void*);
+ // Don't confuse with XADD x86 instruction,
+ // this one is actually 'addx', that is, add-and-fetch.
+ uint32	runtime·xadd(uint32 volatile*, int32);
++uint64	runtime·xadd64(uint64 volatile*, int64);
+ uint32	runtime·xchg(uint32 volatile*, uint32);
+ uint32	runtime·atomicload(uint32 volatile*);
+ void	runtime·atomicstore(uint32 volatile*, uint32);
++void	runtime·atomicstore64(uint64 volatile*, uint64);
++uint64	runtime·atomicload64(uint64 volatile*);
+ void*	runtime·atomicloadp(void* volatile*);
+ void	runtime·atomicstorep(void* volatile*, void*);
+ void	runtime·jmpdefer(byte*, void*);

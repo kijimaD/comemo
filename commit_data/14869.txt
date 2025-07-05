@@ -9,6 +9,29 @@ Date:   Fri Jan 11 15:11:08 2013 -0800
     R=golang-dev, alex.brainman, minux.ma
     CC=golang-dev
     https://golang.org/cl/7105047
-
+---
  src/pkg/net/http/cgi/host_test.go | 11 ++++++++++-
  1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/cgi/host_test.go b/src/pkg/net/http/cgi/host_test.go
+index 0dc16c2990..811525900b 100644
+--- a/src/pkg/net/http/cgi/host_test.go
++++ b/src/pkg/net/http/cgi/host_test.go
+@@ -63,7 +63,16 @@ readlines:
+ 	}
+ 
+ 	for key, expected := range expectedMap {
+-		if got := m[key]; got != expected {
++		got := m[key]
++		if key == "cwd" {
++			// For Windows. golang.org/issue/4645.
++			fi1, _ := os.Stat(got)
++			fi2, _ := os.Stat(expected)
++			if os.SameFile(fi1, fi2) {
++				got = expected
++			}
++		}
++		if got != expected {
+ 			t.Errorf("for key %q got %q; expected %q", key, got, expected)
+ 		}
+ 	}

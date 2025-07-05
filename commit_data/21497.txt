@@ -12,9 +12,62 @@ Date:   Thu Jan 8 15:30:22 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/2582
     Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/os1_darwin.go  | 2 +-
  src/runtime/os1_freebsd.go | 2 +-
  src/runtime/os1_linux.go   | 2 +-
  src/runtime/os3_solaris.go | 2 +-
  4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/os1_darwin.go b/src/runtime/os1_darwin.go
+index 3a5ed7c9a0..6a60314494 100644
+--- a/src/runtime/os1_darwin.go
++++ b/src/runtime/os1_darwin.go
+@@ -45,7 +45,7 @@ func osinit() {
+ 	}
+ }
+ 
+-var urandom_dev = []byte("/dev/random\x00")
++var urandom_dev = []byte("/dev/urandom\x00")
+ 
+ //go:nosplit
+ func getRandomData(r []byte) {
+diff --git a/src/runtime/os1_freebsd.go b/src/runtime/os1_freebsd.go
+index 5a5c3862d3..f49f28edff 100644
+--- a/src/runtime/os1_freebsd.go
++++ b/src/runtime/os1_freebsd.go
+@@ -96,7 +96,7 @@ func osinit() {
+ 	ncpu = getncpu()
+ }
+ 
+-var urandom_dev = []byte("/dev/random\x00")
++var urandom_dev = []byte("/dev/urandom\x00")
+ 
+ //go:nosplit
+ func getRandomData(r []byte) {
+diff --git a/src/runtime/os1_linux.go b/src/runtime/os1_linux.go
+index a10e4e9aa1..44da57ab0b 100644
+--- a/src/runtime/os1_linux.go
++++ b/src/runtime/os1_linux.go
+@@ -145,7 +145,7 @@ func osinit() {
+ 	ncpu = getproccount()
+ }
+ 
+-var urandom_dev = []byte("/dev/random\x00")
++var urandom_dev = []byte("/dev/urandom\x00")
+ 
+ func getRandomData(r []byte) {
+ 	if startupRandomData != nil {
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index f045346c07..cd7dc83866 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -165,7 +165,7 @@ func newosproc(mp *m, _ unsafe.Pointer) {
+ 	}
+ }
+ 
+-var urandom_dev = []byte("/dev/random\x00")
++var urandom_dev = []byte("/dev/urandom\x00")
+ 
+ //go:nosplit
+ func getRandomData(r []byte) {

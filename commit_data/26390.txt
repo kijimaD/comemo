@@ -9,6 +9,20 @@ Date:   Sun Jan 17 09:04:58 2016 +0900
     Change-Id: Id8f3cd56a81a7a993cea5c757e619407da491fed
     Reviewed-on: https://go-review.googlesource.com/18710
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/net_windows_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/net/net_windows_test.go b/src/net/net_windows_test.go
+index 2e9a0aea3c..e59dcd52d3 100644
+--- a/src/net/net_windows_test.go
++++ b/src/net/net_windows_test.go
+@@ -380,6 +380,8 @@ func netshInterfaceIPv6ShowAddress(name string) ([]string, error) {
+ }
+ 
+ func TestInterfaceAddrsWithNetsh(t *testing.T) {
++	t.Skip("see https://golang.org/issue/13981")
++
+ 	if isWindowsXP(t) {
+ 		t.Skip("Windows XP netsh command does not provide required functionality")
+ 	}

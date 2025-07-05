@@ -20,7 +20,87 @@ Date:   Tue Feb 9 20:05:10 2016 +0000
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/transport.go      | 16 ++++++++++++++++
  src/net/http/transport_test.go | 37 ++++++++++++++++++++++++-------------
  2 files changed, 40 insertions(+), 13 deletions(-)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 41df906cf2..baf71d5e85 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -163,6 +163,22 @@ func (t *Transport) onceSetNextProtoDefaults() {
+ 		return
+ 	}
+ 	if t.TLSNextProto != nil {
++		// This is the documented way to disable http2 on a
++		// Transport.
++		return
++	}
++	if t.TLSClientConfig != nil {
++		// Be conservative for now (for Go 1.6) at least and
++		// don't automatically enable http2 if they've
++		// specified a custom TLS config. Let them opt-in
++		// themselves via http2.ConfigureTransport so we don't
++		// surprise them by modifying their tls.Config.
++		// Issue 14275.
++		return
++	}
++	if t.ExpectContinueTimeout != 0 {
++		// Unsupported in http2, so disable http2 for now.
++		// Issue 13851.
+ 		return
+ 	}
+ 	t2, err := http2configureTransport(t)
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 8cb89a4220..0c901b30a4 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -2885,23 +2885,34 @@ func TestTransportPrefersResponseOverWriteError(t *testing.T) {
+ }
+ 
+ func TestTransportAutomaticHTTP2(t *testing.T) {
+-	tr := &Transport{}
+-	_, err := tr.RoundTrip(new(Request))
+-	if err == nil {
+-		t.Error("expected error from RoundTrip")
+-	}
+-	if tr.TLSNextProto["h2"] == nil {
+-		t.Errorf("HTTP/2 not registered.")
+-	}
++	testTransportAutoHTTP(t, &Transport{}, true)
++}
+ 
+-	// Now with TLSNextProto set:
+-	tr = &Transport{TLSNextProto: make(map[string]func(string, *tls.Conn) RoundTripper)}
+-	_, err = tr.RoundTrip(new(Request))
++func TestTransportAutomaticHTTP2_TLSNextProto(t *testing.T) {
++	testTransportAutoHTTP(t, &Transport{
++		TLSNextProto: make(map[string]func(string, *tls.Conn) RoundTripper),
++	}, false)
++}
++
++func TestTransportAutomaticHTTP2_TLSConfig(t *testing.T) {
++	testTransportAutoHTTP(t, &Transport{
++		TLSClientConfig: new(tls.Config),
++	}, false)
++}
++
++func TestTransportAutomaticHTTP2_ExpectContinueTimeout(t *testing.T) {
++	testTransportAutoHTTP(t, &Transport{
++		ExpectContinueTimeout: 1 * time.Second,
++	}, false)
++}
++
++func testTransportAutoHTTP(t *testing.T, tr *Transport, wantH2 bool) {
++	_, err := tr.RoundTrip(new(Request))
+ 	if err == nil {
+ 		t.Error("expected error from RoundTrip")
+ 	}
+-	if tr.TLSNextProto["h2"] != nil {
+-		t.Errorf("HTTP/2 registered, despite non-nil TLSNextProto field")
++	if reg := tr.TLSNextProto["h2"] != nil; reg != wantH2 {
++		t.Errorf("HTTP/2 registered = %v; want %v", reg, wantH2)
+ 	}
+ }
+ 

@@ -18,7 +18,7 @@ Date:   Fri Jan 29 13:46:34 2021 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/amd64/ggen.go       |   4 +-
  src/cmd/compile/internal/amd64/ssa.go        |  43 +++-
  src/cmd/compile/internal/ssa/config.go       |   1 +
@@ -33,3 +33,1702 @@ Date:   Fri Jan 29 13:46:34 2021 -0500
  src/runtime/mkduff.go                        |  14 +-
  test/codegen/structs.go                      |   4 +-
  13 files changed, 347 insertions(+), 315 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ggen.go b/src/cmd/compile/internal/amd64/ggen.go
+index dacdb07a38..aefdb14a69 100644
+--- a/src/cmd/compile/internal/amd64/ggen.go
++++ b/src/cmd/compile/internal/amd64/ggen.go
+@@ -22,8 +22,8 @@ var isPlan9 = objabi.GOOS == "plan9"
+ const (
+ 	dzBlocks    = 16 // number of MOV/ADD blocks
+ 	dzBlockLen  = 4  // number of clears per block
+-	dzBlockSize = 19 // size of instructions in a single block
+-	dzMovSize   = 4  // size of single MOV instruction w/ offset
++	dzBlockSize = 23 // size of instructions in a single block
++	dzMovSize   = 5  // size of single MOV instruction w/ offset
+ 	dzLeaqSize  = 4  // size of single LEAQ instruction
+ 	dzClearStep = 16 // number of bytes cleared by each MOV instruction
+ 
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index da355c49d1..d9c97183fd 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -813,6 +813,20 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Reg = v.Args[0].Reg()
+ 		ssagen.AddAux2(&p.To, v, sc.Off())
++	case ssa.OpAMD64MOVOstorezero:
++		if s.ABI != obj.ABIInternal {
++			v.Fatalf("MOVOstorezero can be only used in ABIInternal functions")
++		}
++		if !base.Flag.ABIWrap {
++			// zeroing X15 manually if wrappers are not used
++			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
++		}
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = x86.REG_X15
++		p.To.Type = obj.TYPE_MEM
++		p.To.Reg = v.Args[0].Reg()
++		ssagen.AddAux(&p.To, v)
+ 	case ssa.OpAMD64MOVQstoreconstidx1, ssa.OpAMD64MOVQstoreconstidx8, ssa.OpAMD64MOVLstoreconstidx1, ssa.OpAMD64MOVLstoreconstidx4, ssa.OpAMD64MOVWstoreconstidx1, ssa.OpAMD64MOVWstoreconstidx2, ssa.OpAMD64MOVBstoreconstidx1,
+ 		ssa.OpAMD64ADDLconstmodifyidx1, ssa.OpAMD64ADDLconstmodifyidx4, ssa.OpAMD64ADDLconstmodifyidx8, ssa.OpAMD64ADDQconstmodifyidx1, ssa.OpAMD64ADDQconstmodifyidx8,
+ 		ssa.OpAMD64ANDLconstmodifyidx1, ssa.OpAMD64ANDLconstmodifyidx4, ssa.OpAMD64ANDLconstmodifyidx8, ssa.OpAMD64ANDQconstmodifyidx1, ssa.OpAMD64ANDQconstmodifyidx8,
+@@ -900,6 +914,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+ 		}
+ 	case ssa.OpAMD64DUFFZERO:
++		if s.ABI != obj.ABIInternal {
++			v.Fatalf("MOVOconst can be only used in ABIInternal functions")
++		}
++		if !base.Flag.ABIWrap {
++			// zeroing X15 manually if wrappers are not used
++			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
++		}
+ 		off := duffStart(v.AuxInt)
+ 		adj := duffAdj(v.AuxInt)
+ 		var p *obj.Prog
+@@ -915,12 +936,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_ADDR
+ 		p.To.Sym = ir.Syms.Duffzero
+ 		p.To.Offset = off
+-	case ssa.OpAMD64MOVOconst:
+-		if v.AuxInt != 0 {
+-			v.Fatalf("MOVOconst can only do constant=0")
+-		}
+-		r := v.Reg()
+-		opregreg(s, x86.AXORPS, r, r)
+ 	case ssa.OpAMD64DUFFCOPY:
+ 		p := s.Prog(obj.ADUFFCOPY)
+ 		p.To.Type = obj.TYPE_ADDR
+@@ -1000,7 +1015,17 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 			q.To.Type = obj.TYPE_REG
+ 			q.To.Reg = r
+ 		}
+-	case ssa.OpAMD64CALLstatic, ssa.OpAMD64CALLclosure, ssa.OpAMD64CALLinter:
++	case ssa.OpAMD64CALLstatic:
++		if s.ABI == obj.ABI0 && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABIInternal {
++			// zeroing X15 when entering ABIInternal from ABI0
++			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
++		}
++		s.Call(v)
++		if s.ABI == obj.ABIInternal && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABI0 {
++			// zeroing X15 when entering ABIInternal from ABI0
++			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
++		}
++	case ssa.OpAMD64CALLclosure, ssa.OpAMD64CALLinter:
+ 		s.Call(v)
+ 
+ 	case ssa.OpAMD64LoweredGetCallerPC:
+@@ -1297,6 +1322,10 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
+ 	case ssa.BlockRet:
+ 		s.Prog(obj.ARET)
+ 	case ssa.BlockRetJmp:
++		if s.ABI == obj.ABI0 && b.Aux.(*obj.LSym).ABI() == obj.ABIInternal {
++			// zeroing X15 when entering ABIInternal from ABI0
++			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
++		}
+ 		p := s.Prog(obj.ARET)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index e952c73d9b..32cfd7e61e 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -194,6 +194,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config
+ 		c.registers = registersAMD64[:]
+ 		c.gpRegMask = gpRegMaskAMD64
+ 		c.fpRegMask = fpRegMaskAMD64
++		c.specialRegMask = specialRegMaskAMD64
+ 		c.FPReg = framepointerRegAMD64
+ 		c.LinkReg = linkRegAMD64
+ 		c.hasGReg = false
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 7d46266411..706336289e 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -361,31 +361,31 @@
+ // Adjust zeros to be a multiple of 16 bytes.
+ (Zero [s] destptr mem) && s%16 != 0 && s > 16 && s%16 > 8 && config.useSSE =>
+ 	(Zero [s-s%16] (OffPtr <destptr.Type> destptr [s%16])
+-		(MOVOstore destptr (MOVOconst [0]) mem))
++		(MOVOstorezero destptr mem))
+ 
+ (Zero [s] destptr mem) && s%16 != 0 && s > 16 && s%16 <= 8 && config.useSSE =>
+ 	(Zero [s-s%16] (OffPtr <destptr.Type> destptr [s%16])
+ 		(MOVQstoreconst [makeValAndOff32(0,0)] destptr mem))
+ 
+ (Zero [16] destptr mem) && config.useSSE =>
+-	(MOVOstore destptr (MOVOconst [0]) mem)
++	(MOVOstorezero destptr mem)
+ (Zero [32] destptr mem) && config.useSSE =>
+-	(MOVOstore (OffPtr <destptr.Type> destptr [16]) (MOVOconst [0])
+-		(MOVOstore destptr (MOVOconst [0]) mem))
++	(MOVOstorezero (OffPtr <destptr.Type> destptr [16])
++		(MOVOstorezero destptr mem))
+ (Zero [48] destptr mem) && config.useSSE =>
+-	(MOVOstore (OffPtr <destptr.Type> destptr [32]) (MOVOconst [0])
+-		(MOVOstore (OffPtr <destptr.Type> destptr [16]) (MOVOconst [0])
+-			(MOVOstore destptr (MOVOconst [0]) mem)))
++	(MOVOstorezero (OffPtr <destptr.Type> destptr [32])
++		(MOVOstorezero (OffPtr <destptr.Type> destptr [16])
++			(MOVOstorezero destptr mem)))
+ (Zero [64] destptr mem) && config.useSSE =>
+-	(MOVOstore (OffPtr <destptr.Type> destptr [48]) (MOVOconst [0])
+-		(MOVOstore (OffPtr <destptr.Type> destptr [32]) (MOVOconst [0])
+-			(MOVOstore (OffPtr <destptr.Type> destptr [16]) (MOVOconst [0])
+-				(MOVOstore destptr (MOVOconst [0]) mem))))
++	(MOVOstorezero (OffPtr <destptr.Type> destptr [48])
++		(MOVOstorezero (OffPtr <destptr.Type> destptr [32])
++			(MOVOstorezero (OffPtr <destptr.Type> destptr [16])
++				(MOVOstorezero destptr mem))))
+ 
+ // Medium zeroing uses a duff device.
+ (Zero [s] destptr mem)
+ 	&& s > 64 && s <= 1024 && s%16 == 0 && !config.noDuffDevice =>
+-	(DUFFZERO [s] destptr (MOVOconst [0]) mem)
++	(DUFFZERO [s] destptr mem)
+ 
+ // Large zeroing uses REP STOSQ.
+ (Zero [s] destptr mem)
+@@ -1900,7 +1900,7 @@
+   && c.Val() == 0
+   && c2.Val() == 0
+   && clobber(x)
+-  => (MOVOstore [c2.Off32()] {s} p (MOVOconst [0]) mem)
++  => (MOVOstorezero [c2.Off32()] {s} p mem)
+ 
+ // Combine stores into larger (unaligned) stores. Little endian.
+ (MOVBstore [i] {s} p (SHR(W|L|Q)const [8] w) x:(MOVBstore [i-1] {s} p w mem))
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index de5372670b..0a411bbdca 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -61,7 +61,7 @@ var regNamesAMD64 = []string{
+ 	"X12",
+ 	"X13",
+ 	"X14",
+-	"X15",
++	"X15", // constant 0 in ABIInternal
+ 
+ 	// If you add registers, update asyncPreempt in runtime
+ 
+@@ -97,7 +97,8 @@ func init() {
+ 		dx         = buildReg("DX")
+ 		bx         = buildReg("BX")
+ 		gp         = buildReg("AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15")
+-		fp         = buildReg("X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15")
++		fp         = buildReg("X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14")
++		x15        = buildReg("X15")
+ 		gpsp       = gp | buildReg("SP")
+ 		gpspsb     = gpsp | buildReg("SB")
+ 		callerSave = gp | fp
+@@ -684,19 +685,20 @@ func init() {
+ 		// Note: LEAx{1,2,4,8} must not have OpSB as either argument.
+ 
+ 		// auxint+aux == add auxint and the offset of the symbol in aux (if any) to the effective address
+-		{name: "MOVBload", argLength: 2, reg: gpload, asm: "MOVBLZX", aux: "SymOff", typ: "UInt8", faultOnNilArg0: true, symEffect: "Read"},  // load byte from arg0+auxint+aux. arg1=mem.  Zero extend.
+-		{name: "MOVBQSXload", argLength: 2, reg: gpload, asm: "MOVBQSX", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},             // ditto, sign extend to int64
+-		{name: "MOVWload", argLength: 2, reg: gpload, asm: "MOVWLZX", aux: "SymOff", typ: "UInt16", faultOnNilArg0: true, symEffect: "Read"}, // load 2 bytes from arg0+auxint+aux. arg1=mem.  Zero extend.
+-		{name: "MOVWQSXload", argLength: 2, reg: gpload, asm: "MOVWQSX", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},             // ditto, sign extend to int64
+-		{name: "MOVLload", argLength: 2, reg: gpload, asm: "MOVL", aux: "SymOff", typ: "UInt32", faultOnNilArg0: true, symEffect: "Read"},    // load 4 bytes from arg0+auxint+aux. arg1=mem.  Zero extend.
+-		{name: "MOVLQSXload", argLength: 2, reg: gpload, asm: "MOVLQSX", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},             // ditto, sign extend to int64
+-		{name: "MOVQload", argLength: 2, reg: gpload, asm: "MOVQ", aux: "SymOff", typ: "UInt64", faultOnNilArg0: true, symEffect: "Read"},    // load 8 bytes from arg0+auxint+aux. arg1=mem
+-		{name: "MOVBstore", argLength: 3, reg: gpstore, asm: "MOVB", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},    // store byte in arg1 to arg0+auxint+aux. arg2=mem
+-		{name: "MOVWstore", argLength: 3, reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},    // store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem
+-		{name: "MOVLstore", argLength: 3, reg: gpstore, asm: "MOVL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},    // store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem
+-		{name: "MOVQstore", argLength: 3, reg: gpstore, asm: "MOVQ", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},    // store 8 bytes in arg1 to arg0+auxint+aux. arg2=mem
+-		{name: "MOVOload", argLength: 2, reg: fpload, asm: "MOVUPS", aux: "SymOff", typ: "Int128", faultOnNilArg0: true, symEffect: "Read"},  // load 16 bytes from arg0+auxint+aux. arg1=mem
+-		{name: "MOVOstore", argLength: 3, reg: fpstore, asm: "MOVUPS", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},  // store 16 bytes in arg1 to arg0+auxint+aux. arg2=mem
++		{name: "MOVBload", argLength: 2, reg: gpload, asm: "MOVBLZX", aux: "SymOff", typ: "UInt8", faultOnNilArg0: true, symEffect: "Read"},                                   // load byte from arg0+auxint+aux. arg1=mem.  Zero extend.
++		{name: "MOVBQSXload", argLength: 2, reg: gpload, asm: "MOVBQSX", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},                                              // ditto, sign extend to int64
++		{name: "MOVWload", argLength: 2, reg: gpload, asm: "MOVWLZX", aux: "SymOff", typ: "UInt16", faultOnNilArg0: true, symEffect: "Read"},                                  // load 2 bytes from arg0+auxint+aux. arg1=mem.  Zero extend.
++		{name: "MOVWQSXload", argLength: 2, reg: gpload, asm: "MOVWQSX", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},                                              // ditto, sign extend to int64
++		{name: "MOVLload", argLength: 2, reg: gpload, asm: "MOVL", aux: "SymOff", typ: "UInt32", faultOnNilArg0: true, symEffect: "Read"},                                     // load 4 bytes from arg0+auxint+aux. arg1=mem.  Zero extend.
++		{name: "MOVLQSXload", argLength: 2, reg: gpload, asm: "MOVLQSX", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},                                              // ditto, sign extend to int64
++		{name: "MOVQload", argLength: 2, reg: gpload, asm: "MOVQ", aux: "SymOff", typ: "UInt64", faultOnNilArg0: true, symEffect: "Read"},                                     // load 8 bytes from arg0+auxint+aux. arg1=mem
++		{name: "MOVBstore", argLength: 3, reg: gpstore, asm: "MOVB", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},                                     // store byte in arg1 to arg0+auxint+aux. arg2=mem
++		{name: "MOVWstore", argLength: 3, reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},                                     // store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem
++		{name: "MOVLstore", argLength: 3, reg: gpstore, asm: "MOVL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},                                     // store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem
++		{name: "MOVQstore", argLength: 3, reg: gpstore, asm: "MOVQ", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},                                     // store 8 bytes in arg1 to arg0+auxint+aux. arg2=mem
++		{name: "MOVOload", argLength: 2, reg: fpload, asm: "MOVUPS", aux: "SymOff", typ: "Int128", faultOnNilArg0: true, symEffect: "Read"},                                   // load 16 bytes from arg0+auxint+aux. arg1=mem
++		{name: "MOVOstore", argLength: 3, reg: fpstore, asm: "MOVUPS", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},                                   // store 16 bytes in arg1 to arg0+auxint+aux. arg2=mem
++		{name: "MOVOstorezero", argLength: 2, reg: regInfo{inputs: []regMask{gpspsb, 0}}, asm: "MOVUPS", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 16 bytes of zero to arg0+auxint+aux. arg1=mem
+ 
+ 		// indexed loads/stores
+ 		{name: "MOVBloadidx1", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVBLZX", scale: 1, aux: "SymOff", typ: "UInt8", symEffect: "Read"},  // load a byte from arg0+arg1+auxint+aux. arg2=mem
+@@ -735,22 +737,20 @@ func init() {
+ 		{name: "MOVQstoreconstidx8", argLength: 3, reg: gpstoreconstidx, asm: "MOVQ", scale: 8, aux: "SymValAndOff", typ: "Mem", symEffect: "Write"},                    // store 8 bytes of ... 8*arg1 ...
+ 
+ 		// arg0 = pointer to start of memory to zero
+-		// arg1 = value to store (will always be zero)
+-		// arg2 = mem
++		// arg1 = mem
+ 		// auxint = # of bytes to zero
+ 		// returns mem
+ 		{
+ 			name:      "DUFFZERO",
+ 			aux:       "Int64",
+-			argLength: 3,
++			argLength: 2,
+ 			reg: regInfo{
+-				inputs:   []regMask{buildReg("DI"), buildReg("X0")},
++				inputs:   []regMask{buildReg("DI")},
+ 				clobbers: buildReg("DI"),
+ 			},
+ 			faultOnNilArg0: true,
+ 			unsafePoint:    true, // FP maintenance around DUFFCOPY can be clobbered by interrupts
+ 		},
+-		{name: "MOVOconst", reg: regInfo{nil, 0, []regMask{fp}}, typ: "Int128", aux: "Int128", rematerializeable: true},
+ 
+ 		// arg0 = address of memory to zero
+ 		// arg1 = # of 8-byte words to zero
+@@ -935,6 +935,7 @@ func init() {
+ 		regnames:        regNamesAMD64,
+ 		gpregmask:       gp,
+ 		fpregmask:       fp,
++		specialregmask:  x15,
+ 		framepointerreg: int8(num["BP"]),
+ 		linkreg:         -1, // not used
+ 	})
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index c64b145107..f41d014d41 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -202,9 +202,9 @@ func ClosureAuxCall(args []Param, results []Param) *AuxCall {
+ func (*AuxCall) CanBeAnSSAAux() {}
+ 
+ // OwnAuxCall returns a function's own AuxCall
+-func OwnAuxCall(args []Param, results []Param) *AuxCall {
++func OwnAuxCall(fn *obj.LSym, args []Param, results []Param) *AuxCall {
+ 	// TODO if this remains identical to ClosureAuxCall above after new ABI is done, should deduplicate.
+-	return &AuxCall{Fn: nil, args: args, results: results}
++	return &AuxCall{Fn: fn, args: args, results: results}
+ }
+ 
+ const (
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index e590f6ba5d..9ad4c2f305 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -970,6 +970,7 @@ const (
+ 	OpAMD64MOVQstore
+ 	OpAMD64MOVOload
+ 	OpAMD64MOVOstore
++	OpAMD64MOVOstorezero
+ 	OpAMD64MOVBloadidx1
+ 	OpAMD64MOVWloadidx1
+ 	OpAMD64MOVWloadidx2
+@@ -998,7 +999,6 @@ const (
+ 	OpAMD64MOVQstoreconstidx1
+ 	OpAMD64MOVQstoreconstidx8
+ 	OpAMD64DUFFZERO
+-	OpAMD64MOVOconst
+ 	OpAMD64REPSTOSQ
+ 	OpAMD64CALLstatic
+ 	OpAMD64CALLclosure
+@@ -6162,11 +6162,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:          x86.AADDSS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+-				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6178,11 +6178,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:          x86.AADDSD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+-				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6193,11 +6193,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:          x86.ASUBSS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+-				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6208,11 +6208,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:          x86.ASUBSD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+-				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6224,11 +6224,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:          x86.AMULSS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+-				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6240,11 +6240,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:          x86.AMULSD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+-				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6255,11 +6255,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:          x86.ADIVSS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+-				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6270,11 +6270,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:          x86.ADIVSD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+-				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6290,7 +6290,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6306,7 +6306,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6318,7 +6318,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:               x86.AMOVSS,
+ 		reg: regInfo{
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6330,7 +6330,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:               x86.AMOVSD,
+ 		reg: regInfo{
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6347,7 +6347,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6364,7 +6364,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6381,7 +6381,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6398,7 +6398,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6411,7 +6411,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:            x86.AMOVSS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 		},
+@@ -6425,7 +6425,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:            x86.AMOVSD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 		},
+@@ -6439,8 +6439,8 @@ var opcodeTable = [...]opInfo{
+ 		scale:     1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
++				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+-				{2, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+ 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 		},
+@@ -6454,8 +6454,8 @@ var opcodeTable = [...]opInfo{
+ 		scale:     4,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
++				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+-				{2, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+ 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 		},
+@@ -6469,8 +6469,8 @@ var opcodeTable = [...]opInfo{
+ 		scale:     1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
++				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+-				{2, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+ 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 		},
+@@ -6484,8 +6484,8 @@ var opcodeTable = [...]opInfo{
+ 		scale:     8,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
++				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+-				{2, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+ 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 		},
+@@ -6500,11 +6500,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:            x86.AADDSS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6518,11 +6518,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:            x86.AADDSD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6536,11 +6536,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:            x86.ASUBSS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6554,11 +6554,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:            x86.ASUBSD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6572,11 +6572,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:            x86.AMULSS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6590,11 +6590,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:            x86.AMULSD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6608,11 +6608,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:            x86.ADIVSS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6626,11 +6626,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:            x86.ADIVSD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6644,12 +6644,12 @@ var opcodeTable = [...]opInfo{
+ 		scale:        1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6663,12 +6663,12 @@ var opcodeTable = [...]opInfo{
+ 		scale:        4,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6682,12 +6682,12 @@ var opcodeTable = [...]opInfo{
+ 		scale:        1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6701,12 +6701,12 @@ var opcodeTable = [...]opInfo{
+ 		scale:        8,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6720,12 +6720,12 @@ var opcodeTable = [...]opInfo{
+ 		scale:        1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6739,12 +6739,12 @@ var opcodeTable = [...]opInfo{
+ 		scale:        4,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6758,12 +6758,12 @@ var opcodeTable = [...]opInfo{
+ 		scale:        1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6777,12 +6777,12 @@ var opcodeTable = [...]opInfo{
+ 		scale:        8,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6796,12 +6796,12 @@ var opcodeTable = [...]opInfo{
+ 		scale:        1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6815,12 +6815,12 @@ var opcodeTable = [...]opInfo{
+ 		scale:        4,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6834,12 +6834,12 @@ var opcodeTable = [...]opInfo{
+ 		scale:        1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6853,12 +6853,12 @@ var opcodeTable = [...]opInfo{
+ 		scale:        8,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6872,12 +6872,12 @@ var opcodeTable = [...]opInfo{
+ 		scale:        1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6891,12 +6891,12 @@ var opcodeTable = [...]opInfo{
+ 		scale:        4,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6910,12 +6910,12 @@ var opcodeTable = [...]opInfo{
+ 		scale:        1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -6929,12 +6929,12 @@ var opcodeTable = [...]opInfo{
+ 		scale:        8,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -8245,8 +8245,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:    x86.AUCOMISS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+-				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -8256,8 +8256,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:    x86.AUCOMISD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+-				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -11628,10 +11628,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:    x86.ASQRTSD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -11642,10 +11642,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:     x86.AROUNDSD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -11656,12 +11656,12 @@ var opcodeTable = [...]opInfo{
+ 		asm:          x86.AVFMADD231SD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+-				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+-				{2, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -12097,7 +12097,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:    x86.ACVTTSD2SL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+@@ -12110,7 +12110,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:    x86.ACVTTSD2SQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+@@ -12123,7 +12123,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:    x86.ACVTTSS2SL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+@@ -12136,7 +12136,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:    x86.ACVTTSS2SQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+@@ -12152,7 +12152,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -12165,7 +12165,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -12178,7 +12178,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -12191,7 +12191,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -12201,10 +12201,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:    x86.ACVTSD2SS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -12214,10 +12214,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:    x86.ACVTSS2SD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -12229,7 +12229,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -12238,7 +12238,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+@@ -12253,7 +12253,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -12262,7 +12262,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+@@ -12277,11 +12277,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:          x86.APXOR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+-				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -12720,7 +12720,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 			},
+ 		},
+ 	},
+@@ -12733,7 +12733,20 @@ var opcodeTable = [...]opInfo{
+ 		asm:            x86.AMOVUPS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:           "MOVOstorezero",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		symEffect:      SymWrite,
++		asm:            x86.AMOVUPS,
++		reg: regInfo{
++			inputs: []inputInfo{
+ 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+ 			},
+ 		},
+@@ -13159,28 +13172,16 @@ var opcodeTable = [...]opInfo{
+ 	{
+ 		name:           "DUFFZERO",
+ 		auxType:        auxInt64,
+-		argLen:         3,
++		argLen:         2,
+ 		faultOnNilArg0: true,
+ 		unsafePoint:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 128},   // DI
+-				{1, 65536}, // X0
++				{0, 128}, // DI
+ 			},
+ 			clobbers: 128, // DI
+ 		},
+ 	},
+-	{
+-		name:              "MOVOconst",
+-		auxType:           auxInt128,
+-		argLen:            0,
+-		rematerializeable: true,
+-		reg: regInfo{
+-			outputs: []outputInfo{
+-				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+-			},
+-		},
+-	},
+ 	{
+ 		name:           "REPSTOSQ",
+ 		argLen:         4,
+@@ -13201,7 +13202,7 @@ var opcodeTable = [...]opInfo{
+ 		clobberFlags: true,
+ 		call:         true,
+ 		reg: regInfo{
+-			clobbers: 4294967279, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++			clobbers: 2147483631, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 		},
+ 	},
+ 	{
+@@ -13215,7 +13216,7 @@ var opcodeTable = [...]opInfo{
+ 				{1, 4},     // DX
+ 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+ 			},
+-			clobbers: 4294967279, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++			clobbers: 2147483631, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 		},
+ 	},
+ 	{
+@@ -13228,7 +13229,7 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+ 			},
+-			clobbers: 4294967279, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++			clobbers: 2147483631, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 		},
+ 	},
+ 	{
+@@ -13328,7 +13329,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 128}, // DI
+ 				{1, 879}, // AX CX DX BX BP SI R8 R9
+ 			},
+-			clobbers: 4294901760, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++			clobbers: 2147418112, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+ 		},
+ 	},
+ 	{
+@@ -36193,8 +36194,8 @@ var registersAMD64 = [...]Register{
+ 	{32, 0, -1, "SB"},
+ }
+ var gpRegMaskAMD64 = regMask(65519)
+-var fpRegMaskAMD64 = regMask(4294901760)
+-var specialRegMaskAMD64 = regMask(0)
++var fpRegMaskAMD64 = regMask(2147418112)
++var specialRegMaskAMD64 = regMask(2147483648)
+ var framepointerRegAMD64 = int8(5)
+ var linkRegAMD64 = int8(-1)
+ var registersARM = [...]Register{
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index db2dc7a004..6087874fa9 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -14226,7 +14226,7 @@ func rewriteValueAMD64_OpAMD64MOVQstoreconst(v *Value) bool {
+ 	}
+ 	// match: (MOVQstoreconst [c] {s} p x:(MOVQstoreconst [c2] {s} p mem))
+ 	// cond: config.useSSE && x.Uses == 1 && c2.Off() + 8 == c.Off() && c.Val() == 0 && c2.Val() == 0 && clobber(x)
+-	// result: (MOVOstore [c2.Off32()] {s} p (MOVOconst [0]) mem)
++	// result: (MOVOstorezero [c2.Off32()] {s} p mem)
+ 	for {
+ 		c := auxIntToValAndOff(v.AuxInt)
+ 		s := auxToSym(v.Aux)
+@@ -14243,12 +14243,10 @@ func rewriteValueAMD64_OpAMD64MOVQstoreconst(v *Value) bool {
+ 		if p != x.Args[0] || !(config.useSSE && x.Uses == 1 && c2.Off()+8 == c.Off() && c.Val() == 0 && c2.Val() == 0 && clobber(x)) {
+ 			break
+ 		}
+-		v.reset(OpAMD64MOVOstore)
++		v.reset(OpAMD64MOVOstorezero)
+ 		v.AuxInt = int32ToAuxInt(c2.Off32())
+ 		v.Aux = symToAux(s)
+-		v0 := b.NewValue0(x.Pos, OpAMD64MOVOconst, types.TypeInt128)
+-		v0.AuxInt = int128ToAuxInt(0)
+-		v.AddArg3(p, v0, mem)
++		v.AddArg2(p, mem)
+ 		return true
+ 	}
+ 	// match: (MOVQstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem)
+@@ -34163,7 +34161,7 @@ func rewriteValueAMD64_OpZero(v *Value) bool {
+ 	}
+ 	// match: (Zero [s] destptr mem)
+ 	// cond: s%16 != 0 && s > 16 && s%16 > 8 && config.useSSE
+-	// result: (Zero [s-s%16] (OffPtr <destptr.Type> destptr [s%16]) (MOVOstore destptr (MOVOconst [0]) mem))
++	// result: (Zero [s-s%16] (OffPtr <destptr.Type> destptr [s%16]) (MOVOstorezero destptr mem))
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		destptr := v_0
+@@ -34176,10 +34174,8 @@ func rewriteValueAMD64_OpZero(v *Value) bool {
+ 		v0 := b.NewValue0(v.Pos, OpOffPtr, destptr.Type)
+ 		v0.AuxInt = int64ToAuxInt(s % 16)
+ 		v0.AddArg(destptr)
+-		v1 := b.NewValue0(v.Pos, OpAMD64MOVOstore, types.TypeMem)
+-		v2 := b.NewValue0(v.Pos, OpAMD64MOVOconst, types.TypeInt128)
+-		v2.AuxInt = int128ToAuxInt(0)
+-		v1.AddArg3(destptr, v2, mem)
++		v1 := b.NewValue0(v.Pos, OpAMD64MOVOstorezero, types.TypeMem)
++		v1.AddArg2(destptr, mem)
+ 		v.AddArg2(v0, v1)
+ 		return true
+ 	}
+@@ -34206,7 +34202,7 @@ func rewriteValueAMD64_OpZero(v *Value) bool {
+ 	}
+ 	// match: (Zero [16] destptr mem)
+ 	// cond: config.useSSE
+-	// result: (MOVOstore destptr (MOVOconst [0]) mem)
++	// result: (MOVOstorezero destptr mem)
+ 	for {
+ 		if auxIntToInt64(v.AuxInt) != 16 {
+ 			break
+@@ -34216,15 +34212,13 @@ func rewriteValueAMD64_OpZero(v *Value) bool {
+ 		if !(config.useSSE) {
+ 			break
+ 		}
+-		v.reset(OpAMD64MOVOstore)
+-		v0 := b.NewValue0(v.Pos, OpAMD64MOVOconst, types.TypeInt128)
+-		v0.AuxInt = int128ToAuxInt(0)
+-		v.AddArg3(destptr, v0, mem)
++		v.reset(OpAMD64MOVOstorezero)
++		v.AddArg2(destptr, mem)
+ 		return true
+ 	}
+ 	// match: (Zero [32] destptr mem)
+ 	// cond: config.useSSE
+-	// result: (MOVOstore (OffPtr <destptr.Type> destptr [16]) (MOVOconst [0]) (MOVOstore destptr (MOVOconst [0]) mem))
++	// result: (MOVOstorezero (OffPtr <destptr.Type> destptr [16]) (MOVOstorezero destptr mem))
+ 	for {
+ 		if auxIntToInt64(v.AuxInt) != 32 {
+ 			break
+@@ -34234,20 +34228,18 @@ func rewriteValueAMD64_OpZero(v *Value) bool {
+ 		if !(config.useSSE) {
+ 			break
+ 		}
+-		v.reset(OpAMD64MOVOstore)
++		v.reset(OpAMD64MOVOstorezero)
+ 		v0 := b.NewValue0(v.Pos, OpOffPtr, destptr.Type)
+ 		v0.AuxInt = int64ToAuxInt(16)
+ 		v0.AddArg(destptr)
+-		v1 := b.NewValue0(v.Pos, OpAMD64MOVOconst, types.TypeInt128)
+-		v1.AuxInt = int128ToAuxInt(0)
+-		v2 := b.NewValue0(v.Pos, OpAMD64MOVOstore, types.TypeMem)
+-		v2.AddArg3(destptr, v1, mem)
+-		v.AddArg3(v0, v1, v2)
++		v1 := b.NewValue0(v.Pos, OpAMD64MOVOstorezero, types.TypeMem)
++		v1.AddArg2(destptr, mem)
++		v.AddArg2(v0, v1)
+ 		return true
+ 	}
+ 	// match: (Zero [48] destptr mem)
+ 	// cond: config.useSSE
+-	// result: (MOVOstore (OffPtr <destptr.Type> destptr [32]) (MOVOconst [0]) (MOVOstore (OffPtr <destptr.Type> destptr [16]) (MOVOconst [0]) (MOVOstore destptr (MOVOconst [0]) mem)))
++	// result: (MOVOstorezero (OffPtr <destptr.Type> destptr [32]) (MOVOstorezero (OffPtr <destptr.Type> destptr [16]) (MOVOstorezero destptr mem)))
+ 	for {
+ 		if auxIntToInt64(v.AuxInt) != 48 {
+ 			break
+@@ -34257,25 +34249,23 @@ func rewriteValueAMD64_OpZero(v *Value) bool {
+ 		if !(config.useSSE) {
+ 			break
+ 		}
+-		v.reset(OpAMD64MOVOstore)
++		v.reset(OpAMD64MOVOstorezero)
+ 		v0 := b.NewValue0(v.Pos, OpOffPtr, destptr.Type)
+ 		v0.AuxInt = int64ToAuxInt(32)
+ 		v0.AddArg(destptr)
+-		v1 := b.NewValue0(v.Pos, OpAMD64MOVOconst, types.TypeInt128)
+-		v1.AuxInt = int128ToAuxInt(0)
+-		v2 := b.NewValue0(v.Pos, OpAMD64MOVOstore, types.TypeMem)
+-		v3 := b.NewValue0(v.Pos, OpOffPtr, destptr.Type)
+-		v3.AuxInt = int64ToAuxInt(16)
+-		v3.AddArg(destptr)
+-		v4 := b.NewValue0(v.Pos, OpAMD64MOVOstore, types.TypeMem)
+-		v4.AddArg3(destptr, v1, mem)
+-		v2.AddArg3(v3, v1, v4)
+-		v.AddArg3(v0, v1, v2)
++		v1 := b.NewValue0(v.Pos, OpAMD64MOVOstorezero, types.TypeMem)
++		v2 := b.NewValue0(v.Pos, OpOffPtr, destptr.Type)
++		v2.AuxInt = int64ToAuxInt(16)
++		v2.AddArg(destptr)
++		v3 := b.NewValue0(v.Pos, OpAMD64MOVOstorezero, types.TypeMem)
++		v3.AddArg2(destptr, mem)
++		v1.AddArg2(v2, v3)
++		v.AddArg2(v0, v1)
+ 		return true
+ 	}
+ 	// match: (Zero [64] destptr mem)
+ 	// cond: config.useSSE
+-	// result: (MOVOstore (OffPtr <destptr.Type> destptr [48]) (MOVOconst [0]) (MOVOstore (OffPtr <destptr.Type> destptr [32]) (MOVOconst [0]) (MOVOstore (OffPtr <destptr.Type> destptr [16]) (MOVOconst [0]) (MOVOstore destptr (MOVOconst [0]) mem))))
++	// result: (MOVOstorezero (OffPtr <destptr.Type> destptr [48]) (MOVOstorezero (OffPtr <destptr.Type> destptr [32]) (MOVOstorezero (OffPtr <destptr.Type> destptr [16]) (MOVOstorezero destptr mem))))
+ 	for {
+ 		if auxIntToInt64(v.AuxInt) != 64 {
+ 			break
+@@ -34285,30 +34275,28 @@ func rewriteValueAMD64_OpZero(v *Value) bool {
+ 		if !(config.useSSE) {
+ 			break
+ 		}
+-		v.reset(OpAMD64MOVOstore)
++		v.reset(OpAMD64MOVOstorezero)
+ 		v0 := b.NewValue0(v.Pos, OpOffPtr, destptr.Type)
+ 		v0.AuxInt = int64ToAuxInt(48)
+ 		v0.AddArg(destptr)
+-		v1 := b.NewValue0(v.Pos, OpAMD64MOVOconst, types.TypeInt128)
+-		v1.AuxInt = int128ToAuxInt(0)
+-		v2 := b.NewValue0(v.Pos, OpAMD64MOVOstore, types.TypeMem)
+-		v3 := b.NewValue0(v.Pos, OpOffPtr, destptr.Type)
+-		v3.AuxInt = int64ToAuxInt(32)
+-		v3.AddArg(destptr)
+-		v4 := b.NewValue0(v.Pos, OpAMD64MOVOstore, types.TypeMem)
+-		v5 := b.NewValue0(v.Pos, OpOffPtr, destptr.Type)
+-		v5.AuxInt = int64ToAuxInt(16)
+-		v5.AddArg(destptr)
+-		v6 := b.NewValue0(v.Pos, OpAMD64MOVOstore, types.TypeMem)
+-		v6.AddArg3(destptr, v1, mem)
+-		v4.AddArg3(v5, v1, v6)
+-		v2.AddArg3(v3, v1, v4)
+-		v.AddArg3(v0, v1, v2)
++		v1 := b.NewValue0(v.Pos, OpAMD64MOVOstorezero, types.TypeMem)
++		v2 := b.NewValue0(v.Pos, OpOffPtr, destptr.Type)
++		v2.AuxInt = int64ToAuxInt(32)
++		v2.AddArg(destptr)
++		v3 := b.NewValue0(v.Pos, OpAMD64MOVOstorezero, types.TypeMem)
++		v4 := b.NewValue0(v.Pos, OpOffPtr, destptr.Type)
++		v4.AuxInt = int64ToAuxInt(16)
++		v4.AddArg(destptr)
++		v5 := b.NewValue0(v.Pos, OpAMD64MOVOstorezero, types.TypeMem)
++		v5.AddArg2(destptr, mem)
++		v3.AddArg2(v4, v5)
++		v1.AddArg2(v2, v3)
++		v.AddArg2(v0, v1)
+ 		return true
+ 	}
+ 	// match: (Zero [s] destptr mem)
+ 	// cond: s > 64 && s <= 1024 && s%16 == 0 && !config.noDuffDevice
+-	// result: (DUFFZERO [s] destptr (MOVOconst [0]) mem)
++	// result: (DUFFZERO [s] destptr mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		destptr := v_0
+@@ -34318,9 +34306,7 @@ func rewriteValueAMD64_OpZero(v *Value) bool {
+ 		}
+ 		v.reset(OpAMD64DUFFZERO)
+ 		v.AuxInt = int64ToAuxInt(s)
+-		v0 := b.NewValue0(v.Pos, OpAMD64MOVOconst, types.TypeInt128)
+-		v0.AuxInt = int128ToAuxInt(0)
+-		v.AddArg3(destptr, v0, mem)
++		v.AddArg2(destptr, mem)
+ 		return true
+ 	}
+ 	// match: (Zero [s] destptr mem)
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index 5bebce1db5..7180b3816c 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -300,9 +300,20 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
+ 	// to allocate any stack space). Doing this will require some
+ 	// extra work in typecheck/walk/ssa, might want to add a new node
+ 	// OTAILCALL or something to this effect.
+-	var tail ir.Node
+-	if tfn.Type().NumResults() == 0 && tfn.Type().NumParams() == 0 && tfn.Type().NumRecvs() == 0 && !(base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) {
++	tailcall := tfn.Type().NumResults() == 0 && tfn.Type().NumParams() == 0 && tfn.Type().NumRecvs() == 0
++	if base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink {
++		// cannot tailcall on PPC64 with dynamic linking, as we need
++		// to restore R2 after call.
++		tailcall = false
++	}
++	if base.Ctxt.Arch.Name == "amd64" && wrapperABI == obj.ABIInternal {
++		// cannot tailcall from ABIInternal to ABI0 on AMD64, as we need
++		// to special registers (X15) when returning to ABIInternal.
++		tailcall = false
++	}
+ 
++	var tail ir.Node
++	if tailcall {
+ 		tail = ir.NewTailCallStmt(base.Pos, f.Nname)
+ 	} else {
+ 		call := ir.NewCallExpr(base.Pos, ir.OCALL, f.Nname, nil)
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index b042c132d5..6b1ddebd32 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -468,7 +468,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 			s.Fatalf("local variable with class %v unimplemented", n.Class)
+ 		}
+ 	}
+-	s.f.OwnAux = ssa.OwnAuxCall(args, results)
++	s.f.OwnAux = ssa.OwnAuxCall(fn.LSym, args, results)
+ 
+ 	// Populate SSAable arguments.
+ 	for _, n := range fn.Dcl {
+@@ -6266,6 +6266,8 @@ type Branch struct {
+ 
+ // State contains state needed during Prog generation.
+ type State struct {
++	ABI obj.ABI
++
+ 	pp *objw.Progs
+ 
+ 	// Branches remembers all the branch instructions we've seen
+@@ -6361,6 +6363,7 @@ func (s *State) DebugFriendlySetPosFrom(v *ssa.Value) {
+ // genssa appends entries to pp for each instruction in f.
+ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 	var s State
++	s.ABI = f.OwnAux.Fn.ABI()
+ 
+ 	e := f.Frontend().(*ssafn)
+ 
+diff --git a/src/runtime/duff_amd64.s b/src/runtime/duff_amd64.s
+index 2ff5bf6dbc..df010f5853 100644
+--- a/src/runtime/duff_amd64.s
++++ b/src/runtime/duff_amd64.s
+@@ -5,100 +5,100 @@
+ #include "textflag.h"
+ 
+ TEXT runtime·duffzero<ABIInternal>(SB), NOSPLIT, $0-0
+-	MOVUPS	X0,(DI)
+-	MOVUPS	X0,16(DI)
+-	MOVUPS	X0,32(DI)
+-	MOVUPS	X0,48(DI)
++	MOVUPS	X15,(DI)
++	MOVUPS	X15,16(DI)
++	MOVUPS	X15,32(DI)
++	MOVUPS	X15,48(DI)
+ 	LEAQ	64(DI),DI
+ 
+-	MOVUPS	X0,(DI)
+-	MOVUPS	X0,16(DI)
+-	MOVUPS	X0,32(DI)
+-	MOVUPS	X0,48(DI)
++	MOVUPS	X15,(DI)
++	MOVUPS	X15,16(DI)
++	MOVUPS	X15,32(DI)
++	MOVUPS	X15,48(DI)
+ 	LEAQ	64(DI),DI
+ 
+-	MOVUPS	X0,(DI)
+-	MOVUPS	X0,16(DI)
+-	MOVUPS	X0,32(DI)
+-	MOVUPS	X0,48(DI)
++	MOVUPS	X15,(DI)
++	MOVUPS	X15,16(DI)
++	MOVUPS	X15,32(DI)
++	MOVUPS	X15,48(DI)
+ 	LEAQ	64(DI),DI
+ 
+-	MOVUPS	X0,(DI)
+-	MOVUPS	X0,16(DI)
+-	MOVUPS	X0,32(DI)
+-	MOVUPS	X0,48(DI)
++	MOVUPS	X15,(DI)
++	MOVUPS	X15,16(DI)
++	MOVUPS	X15,32(DI)
++	MOVUPS	X15,48(DI)
+ 	LEAQ	64(DI),DI
+ 
+-	MOVUPS	X0,(DI)
+-	MOVUPS	X0,16(DI)
+-	MOVUPS	X0,32(DI)
+-	MOVUPS	X0,48(DI)
++	MOVUPS	X15,(DI)
++	MOVUPS	X15,16(DI)
++	MOVUPS	X15,32(DI)
++	MOVUPS	X15,48(DI)
+ 	LEAQ	64(DI),DI
+ 
+-	MOVUPS	X0,(DI)
+-	MOVUPS	X0,16(DI)
+-	MOVUPS	X0,32(DI)
+-	MOVUPS	X0,48(DI)
++	MOVUPS	X15,(DI)
++	MOVUPS	X15,16(DI)
++	MOVUPS	X15,32(DI)
++	MOVUPS	X15,48(DI)
+ 	LEAQ	64(DI),DI
+ 
+-	MOVUPS	X0,(DI)
+-	MOVUPS	X0,16(DI)
+-	MOVUPS	X0,32(DI)
+-	MOVUPS	X0,48(DI)
++	MOVUPS	X15,(DI)
++	MOVUPS	X15,16(DI)
++	MOVUPS	X15,32(DI)
++	MOVUPS	X15,48(DI)
+ 	LEAQ	64(DI),DI
+ 
+-	MOVUPS	X0,(DI)
+-	MOVUPS	X0,16(DI)
+-	MOVUPS	X0,32(DI)
+-	MOVUPS	X0,48(DI)
++	MOVUPS	X15,(DI)
++	MOVUPS	X15,16(DI)
++	MOVUPS	X15,32(DI)
++	MOVUPS	X15,48(DI)
+ 	LEAQ	64(DI),DI
+ 
+-	MOVUPS	X0,(DI)
+-	MOVUPS	X0,16(DI)
+-	MOVUPS	X0,32(DI)
+-	MOVUPS	X0,48(DI)
++	MOVUPS	X15,(DI)
++	MOVUPS	X15,16(DI)
++	MOVUPS	X15,32(DI)
++	MOVUPS	X15,48(DI)
+ 	LEAQ	64(DI),DI
+ 
+-	MOVUPS	X0,(DI)
+-	MOVUPS	X0,16(DI)
+-	MOVUPS	X0,32(DI)
+-	MOVUPS	X0,48(DI)
++	MOVUPS	X15,(DI)
++	MOVUPS	X15,16(DI)
++	MOVUPS	X15,32(DI)
++	MOVUPS	X15,48(DI)
+ 	LEAQ	64(DI),DI
+ 
+-	MOVUPS	X0,(DI)
+-	MOVUPS	X0,16(DI)
+-	MOVUPS	X0,32(DI)
+-	MOVUPS	X0,48(DI)
++	MOVUPS	X15,(DI)
++	MOVUPS	X15,16(DI)
++	MOVUPS	X15,32(DI)
++	MOVUPS	X15,48(DI)
+ 	LEAQ	64(DI),DI
+ 
+-	MOVUPS	X0,(DI)
+-	MOVUPS	X0,16(DI)
+-	MOVUPS	X0,32(DI)
+-	MOVUPS	X0,48(DI)
++	MOVUPS	X15,(DI)
++	MOVUPS	X15,16(DI)
++	MOVUPS	X15,32(DI)
++	MOVUPS	X15,48(DI)
+ 	LEAQ	64(DI),DI
+ 
+-	MOVUPS	X0,(DI)
+-	MOVUPS	X0,16(DI)
+-	MOVUPS	X0,32(DI)
+-	MOVUPS	X0,48(DI)
++	MOVUPS	X15,(DI)
++	MOVUPS	X15,16(DI)
++	MOVUPS	X15,32(DI)
++	MOVUPS	X15,48(DI)
+ 	LEAQ	64(DI),DI
+ 
+-	MOVUPS	X0,(DI)
+-	MOVUPS	X0,16(DI)
+-	MOVUPS	X0,32(DI)
+-	MOVUPS	X0,48(DI)
++	MOVUPS	X15,(DI)
++	MOVUPS	X15,16(DI)
++	MOVUPS	X15,32(DI)
++	MOVUPS	X15,48(DI)
+ 	LEAQ	64(DI),DI
+ 
+-	MOVUPS	X0,(DI)
+-	MOVUPS	X0,16(DI)
+-	MOVUPS	X0,32(DI)
+-	MOVUPS	X0,48(DI)
++	MOVUPS	X15,(DI)
++	MOVUPS	X15,16(DI)
++	MOVUPS	X15,32(DI)
++	MOVUPS	X15,48(DI)
+ 	LEAQ	64(DI),DI
+ 
+-	MOVUPS	X0,(DI)
+-	MOVUPS	X0,16(DI)
+-	MOVUPS	X0,32(DI)
+-	MOVUPS	X0,48(DI)
++	MOVUPS	X15,(DI)
++	MOVUPS	X15,16(DI)
++	MOVUPS	X15,32(DI)
++	MOVUPS	X15,48(DI)
+ 	LEAQ	64(DI),DI
+ 
+ 	RET
+diff --git a/src/runtime/mkduff.go b/src/runtime/mkduff.go
+index 94ae75fbfe..ef297f073e 100644
+--- a/src/runtime/mkduff.go
++++ b/src/runtime/mkduff.go
+@@ -62,15 +62,15 @@ func gen(arch string, tags, zero, copy func(io.Writer)) {
+ func notags(w io.Writer) { fmt.Fprintln(w) }
+ 
+ func zeroAMD64(w io.Writer) {
+-	// X0: zero
++	// X15: zero
+ 	// DI: ptr to memory to be zeroed
+ 	// DI is updated as a side effect.
+-	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT, $0-0")
++	fmt.Fprintln(w, "TEXT runtime·duffzero<ABIInternal>(SB), NOSPLIT, $0-0")
+ 	for i := 0; i < 16; i++ {
+-		fmt.Fprintln(w, "\tMOVUPS\tX0,(DI)")
+-		fmt.Fprintln(w, "\tMOVUPS\tX0,16(DI)")
+-		fmt.Fprintln(w, "\tMOVUPS\tX0,32(DI)")
+-		fmt.Fprintln(w, "\tMOVUPS\tX0,48(DI)")
++		fmt.Fprintln(w, "\tMOVUPS\tX15,(DI)")
++		fmt.Fprintln(w, "\tMOVUPS\tX15,16(DI)")
++		fmt.Fprintln(w, "\tMOVUPS\tX15,32(DI)")
++		fmt.Fprintln(w, "\tMOVUPS\tX15,48(DI)")
+ 		fmt.Fprintln(w, "\tLEAQ\t64(DI),DI") // We use lea instead of add, to avoid clobbering flags
+ 		fmt.Fprintln(w)
+ 	}
+@@ -84,7 +84,7 @@ func copyAMD64(w io.Writer) {
+ 	//
+ 	// This is equivalent to a sequence of MOVSQ but
+ 	// for some reason that is 3.5x slower than this code.
+-	fmt.Fprintln(w, "TEXT runtime·duffcopy(SB), NOSPLIT, $0-0")
++	fmt.Fprintln(w, "TEXT runtime·duffcopy<ABIInternal>(SB), NOSPLIT, $0-0")
+ 	for i := 0; i < 64; i++ {
+ 		fmt.Fprintln(w, "\tMOVUPS\t(SI), X0")
+ 		fmt.Fprintln(w, "\tADDQ\t$16, SI")
+diff --git a/test/codegen/structs.go b/test/codegen/structs.go
+index 9eddc5b16e..c4bcb55c63 100644
+--- a/test/codegen/structs.go
++++ b/test/codegen/structs.go
+@@ -18,7 +18,7 @@ type Z1 struct {
+ }
+ 
+ func Zero1(t *Z1) { // Issue #18370
+-	// amd64:`XORPS\tX., X`,`MOVUPS\tX., \(.*\)`,`MOVQ\t\$0, 16\(.*\)`
++	// amd64:`MOVUPS\tX[0-9]+, \(.*\)`,`MOVQ\t\$0, 16\(.*\)`
+ 	*t = Z1{}
+ }
+ 
+@@ -27,7 +27,7 @@ type Z2 struct {
+ }
+ 
+ func Zero2(t *Z2) {
+-	// amd64:`XORPS\tX., X`,`MOVUPS\tX., \(.*\)`,`MOVQ\t\$0, 16\(.*\)`
++	// amd64:`MOVUPS\tX[0-9]+, \(.*\)`,`MOVQ\t\$0, 16\(.*\)`
+ 	// amd64:`.*runtime[.]gcWriteBarrier.*\(SB\)`
+ 	*t = Z2{}
+ }

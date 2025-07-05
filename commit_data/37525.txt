@@ -13,7 +13,57 @@ Date:   Thu Aug 9 16:16:43 2018 -0400
     Change-Id: Ie79f2103dc16d0b7fe0c884e77ba726c7e04f2e4
     Reviewed-on: https://go-review.googlesource.com/128899
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/init.go             |  5 ++++-
  src/cmd/go/testdata/script/mod_vendor_build.txt | 27 +++++++++++++++++++++++++
  2 files changed, 31 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 8ce0c32fd5..5e9db0f9ea 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -521,7 +521,10 @@ func MinReqs() mvs.Reqs {
+ 
+ // WriteGoMod writes the current build list back to go.mod.
+ func WriteGoMod() {
+-	if !allowWriteGoMod {
++	// If we're using -mod=vendor we basically ignored
++	// go.mod, so definitely don't try to write back our
++	// incomplete view of the world.
++	if !allowWriteGoMod || cfg.BuildMod == "vendor" {
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/go/testdata/script/mod_vendor_build.txt b/src/cmd/go/testdata/script/mod_vendor_build.txt
+new file mode 100644
+index 0000000000..7b304dbb70
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_vendor_build.txt
+@@ -0,0 +1,27 @@
++env GO111MODULE=on
++
++# initial conditions: using sampler v1.3.0, not listed in go.mod.
++go list -deps
++stdout rsc.io/sampler
++! grep 'rsc.io/sampler v1.3.0' go.mod
++
++# update to v1.3.1, now indirect in go.mod.
++go get rsc.io/sampler@v1.3.1
++grep 'rsc.io/sampler v1.3.1 // indirect' go.mod
++cp go.mod go.mod.good
++
++# vendoring can but should not need to make changes.
++go mod vendor
++cmp go.mod go.mod.good
++
++# go list -mod=vendor (or go build -mod=vendor) must not modify go.mod.
++# golang.org/issue/26704
++go list -mod=vendor
++cmp go.mod go.mod.good
++
++-- go.mod --
++module m
++
++-- x.go --
++package x
++import _ "rsc.io/quote"

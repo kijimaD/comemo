@@ -11,9 +11,81 @@ Date:   Tue Mar 3 23:28:00 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/6750
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Chris Manghane <cmang@golang.org>
-
+---
  src/cmd/internal/gc/fmt.go         | 13 +++++++++----
  test/fixedbugs/issue10066.dir/a.go | 11 +++++++++++
  test/fixedbugs/issue10066.dir/b.go |  7 +++++++
  test/fixedbugs/issue10066.go       | 10 ++++++++++
  4 files changed, 37 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/internal/gc/fmt.go b/src/cmd/internal/gc/fmt.go
+index 99aad0c785..46b02f7b1f 100644
+--- a/src/cmd/internal/gc/fmt.go
++++ b/src/cmd/internal/gc/fmt.go
+@@ -1143,11 +1143,16 @@ func exprfmt(n *Node, prec int) string {
+ 		return f
+ 
+ 	case OLITERAL: // this is a bit of a mess
+-		if n.Orig != nil && n.Orig != n {
+-			return exprfmt(n.Orig, prec)
++		if fmtmode == FErr {
++			if n.Orig != nil && n.Orig != n {
++				return exprfmt(n.Orig, prec)
++			}
++			if n.Sym != nil {
++				return fmt.Sprintf("%v", Sconv(n.Sym, 0))
++			}
+ 		}
+-		if fmtmode == FErr && n.Sym != nil {
+-			return fmt.Sprintf("%v", Sconv(n.Sym, 0))
++		if n.Val.Ctype == CTNIL && n.Orig != nil && n.Orig != n {
++			return exprfmt(n.Orig, prec)
+ 		}
+ 		if n.Type != nil && n.Type != Types[n.Type.Etype] && n.Type != idealbool && n.Type != idealstring {
+ 			// Need parens when type begins with what might
+diff --git a/test/fixedbugs/issue10066.dir/a.go b/test/fixedbugs/issue10066.dir/a.go
+new file mode 100644
+index 0000000000..8bb3b303ea
+--- /dev/null
++++ b/test/fixedbugs/issue10066.dir/a.go
+@@ -0,0 +1,11 @@
++package a
++
++import "log"
++
++func Do() {
++	Do2()
++}
++
++func Do2() {
++	println(log.Ldate | log.Ltime | log.Lshortfile)
++}
+diff --git a/test/fixedbugs/issue10066.dir/b.go b/test/fixedbugs/issue10066.dir/b.go
+new file mode 100644
+index 0000000000..46d2f55fed
+--- /dev/null
++++ b/test/fixedbugs/issue10066.dir/b.go
+@@ -0,0 +1,7 @@
++package b
++
++import "./a"
++
++func test() {
++	a.Do()
++}
+diff --git a/test/fixedbugs/issue10066.go b/test/fixedbugs/issue10066.go
+new file mode 100644
+index 0000000000..3ea552f9fe
+--- /dev/null
++++ b/test/fixedbugs/issue10066.go
+@@ -0,0 +1,10 @@
++// compiledir
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 10066: constants are printed in the original form
++// in export data. This is the opposite of issue 9076.
++
++package ignored

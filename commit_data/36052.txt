@@ -18,8 +18,126 @@ Date:   Fri Mar 23 04:14:25 2018 -0400
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  2 +
  src/cmd/compile/internal/ssa/rewritegeneric.go | 59 ++++++++++++++++++++++++++
  test/fixedbugs/issue24503.go                   | 28 ++++++++++++
  3 files changed, 89 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 24fb52c892..06f32490d2 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -1244,6 +1244,8 @@
+ // Address comparison shows up in type assertions.
+ (EqPtr x x) -> (ConstBool [1])
+ (EqPtr (Addr {a} x) (Addr {b} x)) -> (ConstBool [b2i(a == b)])
++(NeqPtr x x) -> (ConstBool [0])
++(NeqPtr (Addr {a} x) (Addr {b} x)) -> (ConstBool [b2i(a != b)])
+ 
+ // Inline small runtime.memmove calls with constant length.
+ (StaticCall {sym} s1:(Store _ (Const64 [sz]) s2:(Store  _ src s3:(Store {t} _ dst mem))))
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 542c669848..add2f0d97b 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -18048,6 +18048,65 @@ func rewriteValuegeneric_OpNeqPtr_0(v *Value) bool {
+ 		v.AddArg(p)
+ 		return true
+ 	}
++	// match: (NeqPtr x x)
++	// cond:
++	// result: (ConstBool [0])
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		if x != v.Args[1] {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = 0
++		return true
++	}
++	// match: (NeqPtr (Addr {a} x) (Addr {b} x))
++	// cond:
++	// result: (ConstBool [b2i(a != b)])
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpAddr {
++			break
++		}
++		a := v_0.Aux
++		x := v_0.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpAddr {
++			break
++		}
++		b := v_1.Aux
++		if x != v_1.Args[0] {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = b2i(a != b)
++		return true
++	}
++	// match: (NeqPtr (Addr {b} x) (Addr {a} x))
++	// cond:
++	// result: (ConstBool [b2i(a != b)])
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpAddr {
++			break
++		}
++		b := v_0.Aux
++		x := v_0.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpAddr {
++			break
++		}
++		a := v_1.Aux
++		if x != v_1.Args[0] {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = b2i(a != b)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpNeqSlice_0(v *Value) bool {
+diff --git a/test/fixedbugs/issue24503.go b/test/fixedbugs/issue24503.go
+new file mode 100644
+index 0000000000..933ce70dbd
+--- /dev/null
++++ b/test/fixedbugs/issue24503.go
+@@ -0,0 +1,28 @@
++// run
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 24503: Handle == and != of addresses taken of symbols consistently.
++
++package main
++
++func test() string {
++	type test struct{}
++	o1 := test{}
++	o2 := test{}
++	if &o1 == &o2 {
++		return "equal"
++	}
++	if &o1 != &o2 {
++		return "unequal"
++	}
++	return "failed"
++}
++
++func main() {
++	if test() == "failed" {
++		panic("expected either 'equal' or 'unequal'")
++	}
++}

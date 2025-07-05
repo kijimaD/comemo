@@ -5,7 +5,44 @@ Date:   Thu Jul 3 17:41:05 2008 -0700
             a,b := fun()
     
     SVN=125998
-
+---
  src/cmd/gc/subr.c | 2 --
  src/cmd/gc/walk.c | 3 +--
  2 files changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 6bf97911e4..72ff4b8f1e 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1231,10 +1231,8 @@ eqtype(Type *t1, Type *t2, int d)
+ 		return 1;
+ 	if(t1 == T || t2 == T)
+ 		return 0;
+-
+ 	if(t1->etype != t2->etype)
+ 		return 0;
+-
+ 	switch(t1->etype) {
+ 	case TINTER:
+ 	case TSTRUCT:
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 258a087f73..0110fe4073 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -224,7 +224,6 @@ loop:
+ 
+ 		l = n->left;
+ 		r = n->right;
+-
+ 		walktype(l, Elv);
+ 		if(l == N || r == N)
+ 			goto ret;
+@@ -1749,7 +1748,7 @@ multi:
+ 		l = listfirst(&savel, &nl);
+ 		t = structfirst(&saver, getoutarg(t));
+ 		while(l != N) {
+-			a = old2new(l, t);
++			a = old2new(l, t->type);
+ 			if(n == N)
+ 				n = a;
+ 			else

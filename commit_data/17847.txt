@@ -10,6 +10,20 @@ Date:   Tue Oct 29 11:50:18 2013 -0400
     R=golang-dev, jsing, iant
     CC=golang-dev
     https://golang.org/cl/19160043
-
+---
  src/cmd/gc/mkbuiltin1.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/mkbuiltin1.c b/src/cmd/gc/mkbuiltin1.c
+index f8f61c278f..69027fdf5d 100644
+--- a/src/cmd/gc/mkbuiltin1.c
++++ b/src/cmd/gc/mkbuiltin1.c
+@@ -62,7 +62,7 @@ begin:
+ 		// sys.go claims to be in package PACKAGE to avoid
+ 		// conflicts during "6g sys.go".  rename PACKAGE to $2.
+ 		printf("\t\"");
+-		while(q = strstr(p, "PACKAGE")) {
++		while((q = strstr(p, "PACKAGE")) != NULL) {
+ 			*q = 0;
+ 			esc(p);	// up to the substitution
+ 			printf("%s", name);	// the sub name

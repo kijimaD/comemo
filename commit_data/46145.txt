@@ -12,7 +12,7 @@ Date:   Wed Dec 9 12:28:15 2020 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/decl.go     |   6 +-
  src/cmd/compile/internal/types2/expr.go     |  18 ++-
  src/cmd/compile/internal/types2/resolver.go |  18 ++-
@@ -61,3 +61,1043 @@ Date:   Wed Dec 9 12:28:15 2020 -0800
  test/fixedbugs/issue4909a.go                |   4 +-
  test/run.go                                 | 206 +++++++++++-----------------
  47 files changed, 226 insertions(+), 242 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index bc3e665b71..de6f4df73e 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -364,7 +364,11 @@ func (check *Checker) cycleError(cycle []Object) {
+ 	//           cycle? That would be more consistent with other error messages.
+ 	i := firstInSrc(cycle)
+ 	obj := cycle[i]
+-	check.errorf(obj.Pos(), "illegal cycle in declaration of %s", obj.Name())
++	if check.conf.CompilerErrorMessages {
++		check.errorf(obj.Pos(), "invalid recursive type %s", obj.Name())
++	} else {
++		check.errorf(obj.Pos(), "illegal cycle in declaration of %s", obj.Name())
++	}
+ 	for range cycle {
+ 		check.errorf(obj.Pos(), "\t%s refers to", obj.Name()) // secondary error, \t indented
+ 		i++
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index bede0c639d..2fabd9694e 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -69,7 +69,11 @@ var unaryOpPredicates = opPredicates{
+ func (check *Checker) op(m opPredicates, x *operand, op syntax.Operator) bool {
+ 	if pred := m[op]; pred != nil {
+ 		if !pred(x.typ) {
+-			check.invalidOpf(x, "operator %s not defined for %s", op, x)
++			if check.conf.CompilerErrorMessages {
++				check.invalidOpf(x, "operator %s not defined on %s", op, x)
++			} else {
++				check.invalidOpf(x, "operator %s not defined for %s", op, x)
++			}
+ 			return false
+ 		}
+ 	} else {
+@@ -729,7 +733,11 @@ func (check *Checker) comparison(x, y *operand, op syntax.Operator) {
+ 			if x.isNil() {
+ 				typ = y.typ
+ 			}
+-			err = check.sprintf("operator %s not defined for %s", op, typ)
++			if check.conf.CompilerErrorMessages {
++				err = check.sprintf("operator %s not defined on %s", op, typ)
++			} else {
++				err = check.sprintf("operator %s not defined for %s", op, typ)
++			}
+ 		}
+ 	} else {
+ 		err = check.sprintf("mismatched types %s and %s", x.typ, y.typ)
+@@ -1268,7 +1276,11 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 					}
+ 					i := fieldIndex(utyp.fields, check.pkg, key.Value)
+ 					if i < 0 {
+-						check.errorf(kv, "unknown field %s in struct literal", key.Value)
++						if check.conf.CompilerErrorMessages {
++							check.errorf(kv, "unknown field '%s' in struct literal of type %s", key.Value, base)
++						} else {
++							check.errorf(kv, "unknown field %s in struct literal", key.Value)
++						}
+ 						continue
+ 					}
+ 					fld := fields[i]
+diff --git a/src/cmd/compile/internal/types2/resolver.go b/src/cmd/compile/internal/types2/resolver.go
+index cf9893ca87..5cd0a3e198 100644
+--- a/src/cmd/compile/internal/types2/resolver.go
++++ b/src/cmd/compile/internal/types2/resolver.go
+@@ -677,9 +677,17 @@ func (check *Checker) unusedImports() {
+ 					path := obj.imported.path
+ 					base := pkgName(path)
+ 					if obj.name == base {
+-						check.softErrorf(obj.pos, "%q imported but not used", path)
++						if check.conf.CompilerErrorMessages {
++							check.softErrorf(obj.pos, "%q imported and not used", path)
++						} else {
++							check.softErrorf(obj.pos, "%q imported but not used", path)
++						}
+ 					} else {
+-						check.softErrorf(obj.pos, "%q imported but not used as %s", path, obj.name)
++						if check.conf.CompilerErrorMessages {
++							check.softErrorf(obj.pos, "%q imported and not used as %s", path, obj.name)
++						} else {
++							check.softErrorf(obj.pos, "%q imported but not used as %s", path, obj.name)
++						}
+ 					}
+ 				}
+ 			}
+@@ -689,7 +697,11 @@ func (check *Checker) unusedImports() {
+ 	// check use of dot-imported packages
+ 	for _, unusedDotImports := range check.unusedDotImports {
+ 		for pkg, pos := range unusedDotImports {
+-			check.softErrorf(pos, "%q imported but not used", pkg.path)
++			if check.conf.CompilerErrorMessages {
++				check.softErrorf(pos, "%q imported and not used", pkg.path)
++			} else {
++				check.softErrorf(pos, "%q imported but not used", pkg.path)
++			}
+ 		}
+ 	}
+ }
+diff --git a/test/fixedbugs/issue13480.go b/test/fixedbugs/issue13480.go
+index 8c2fc44922..7e859c56c5 100644
+--- a/test/fixedbugs/issue13480.go
++++ b/test/fixedbugs/issue13480.go
+@@ -18,21 +18,21 @@ func bug() {
+ 	var m M
+ 	var f F
+ 
+-	_ = s == S(nil) // ERROR "compare.*to nil|operator \=\= not defined for ."
+-	_ = S(nil) == s // ERROR "compare.*to nil|operator \=\= not defined for ."
++	_ = s == S(nil) // ERROR "compare.*to nil|operator \=\= not defined for .|cannot compare"
++	_ = S(nil) == s // ERROR "compare.*to nil|operator \=\= not defined for .|cannot compare"
+ 	switch s {
+-	case S(nil): // ERROR "compare.*to nil|operator \=\= not defined for ."
++	case S(nil): // ERROR "compare.*to nil|operator \=\= not defined for .|cannot compare"
+ 	}
+ 
+-	_ = m == M(nil) // ERROR "compare.*to nil|operator \=\= not defined for ."
+-	_ = M(nil) == m // ERROR "compare.*to nil|operator \=\= not defined for ."
++	_ = m == M(nil) // ERROR "compare.*to nil|operator \=\= not defined for .|cannot compare"
++	_ = M(nil) == m // ERROR "compare.*to nil|operator \=\= not defined for .|cannot compare"
+ 	switch m {
+-	case M(nil): // ERROR "compare.*to nil|operator \=\= not defined for ."
++	case M(nil): // ERROR "compare.*to nil|operator \=\= not defined for .|cannot compare"
+ 	}
+ 
+-	_ = f == F(nil) // ERROR "compare.*to nil|operator \=\= not defined for ."
+-	_ = F(nil) == f // ERROR "compare.*to nil|operator \=\= not defined for ."
++	_ = f == F(nil) // ERROR "compare.*to nil|operator \=\= not defined for .|cannot compare"
++	_ = F(nil) == f // ERROR "compare.*to nil|operator \=\= not defined for .|cannot compare"
+ 	switch f {
+-	case F(nil): // ERROR "compare.*to nil|operator \=\= not defined for ."
++	case F(nil): // ERROR "compare.*to nil|operator \=\= not defined for .|cannot compare"
+ 	}
+ }
+diff --git a/test/fixedbugs/issue17588.go b/test/fixedbugs/issue17588.go
+index 1be57c6292..77efaf7ef1 100644
+--- a/test/fixedbugs/issue17588.go
++++ b/test/fixedbugs/issue17588.go
+@@ -11,7 +11,7 @@
+ 
+ package p
+ 
+-type F func(b T)  // ERROR "T is not a type"
++type F func(b T)  // ERROR "T .*is not a type"
+ 
+ func T(fn F) {
+     func() {
+diff --git a/test/fixedbugs/issue18392.go b/test/fixedbugs/issue18392.go
+index 053a337867..e0640ed2ee 100644
+--- a/test/fixedbugs/issue18392.go
++++ b/test/fixedbugs/issue18392.go
+@@ -10,5 +10,5 @@ type A interface {
+ 	// TODO(mdempsky): This should be an error, but this error is
+ 	// nonsense. The error should actually mention that there's a
+ 	// type loop.
+-	Fn(A.Fn) // ERROR "type A has no method Fn"
++	Fn(A.Fn) // ERROR "type A has no method Fn|A.Fn undefined"
+ }
+diff --git a/test/fixedbugs/issue19323.go b/test/fixedbugs/issue19323.go
+index f90af660d5..a225d157b2 100644
+--- a/test/fixedbugs/issue19323.go
++++ b/test/fixedbugs/issue19323.go
+@@ -9,11 +9,11 @@ package p
+ func g() {}
+ 
+ func f() {
+-	g()[:] // ERROR "g.. used as value"
++	g()[:] // ERROR "g.* used as value"
+ }
+ 
+ func g2() ([]byte, []byte) { return nil, nil }
+ 
+ func f2() {
+-	g2()[:] // ERROR "multiple-value g2.. in single-value context"
++	g2()[:] // ERROR "multiple-value g2.. in single-value context|2-valued g"
+ }
+diff --git a/test/fixedbugs/issue19482.go b/test/fixedbugs/issue19482.go
+index 97497a434c..d2a0edd0a9 100644
+--- a/test/fixedbugs/issue19482.go
++++ b/test/fixedbugs/issue19482.go
+@@ -22,13 +22,13 @@ func ok() {
+ 
+ var (
+ 	y = T{"stare"}
+-	w = T{_: "look"} // ERROR "invalid field name _ in struct initializer"
++	w = T{_: "look"} // ERROR "invalid field name _ in struct initializer|unknown field '_' in struct literal of type T"
+ 	_ = T{"page"}
+-	_ = T{_: "out"} // ERROR "invalid field name _ in struct initializer"
++	_ = T{_: "out"} // ERROR "invalid field name _ in struct initializer|unknown field '_' in struct literal of type T"
+ )
+ 
+ func bad() {
+-	var z = T{_: "verse"} // ERROR "invalid field name _ in struct initializer"
++	var z = T{_: "verse"} // ERROR "invalid field name _ in struct initializer|unknown field '_' in struct literal of type T"
+ 	_ = z
+-	_ = T{_: "itinerary"} // ERROR "invalid field name _ in struct initializer"
++	_ = T{_: "itinerary"} // ERROR "invalid field name _ in struct initializer|unknown field '_' in struct literal of type T"
+ }
+diff --git a/test/fixedbugs/issue19699b.go b/test/fixedbugs/issue19699b.go
+index 4afc0ca833..32ed30fd2b 100644
+--- a/test/fixedbugs/issue19699b.go
++++ b/test/fixedbugs/issue19699b.go
+@@ -11,4 +11,4 @@ func f() bool {
+ 	} else {
+ 		return true
+ 	}
+-} // ERROR "missing return at end of function"
++} // ERROR "missing return( at end of function)?"
+diff --git a/test/fixedbugs/issue19880.go b/test/fixedbugs/issue19880.go
+index 629c95d960..c2d81e6631 100644
+--- a/test/fixedbugs/issue19880.go
++++ b/test/fixedbugs/issue19880.go
+@@ -11,7 +11,7 @@ type T struct {
+ }
+ 
+ func a() {
+-	_ = T // ERROR "type T is not an expression"
++	_ = T // ERROR "type T is not an expression|T \(type\) is not an expression"
+ }
+ 
+ func b() {
+diff --git a/test/fixedbugs/issue19947.go b/test/fixedbugs/issue19947.go
+index 3233469e39..752cfc6bf6 100644
+--- a/test/fixedbugs/issue19947.go
++++ b/test/fixedbugs/issue19947.go
+@@ -8,8 +8,8 @@
+ 
+ package issue19947
+ 
+-var _ = float32(1) * 1e200 // ERROR "constant 1e\+200 overflows float32"
+-var _ = float64(1) * 1e500 // ERROR "constant 1e\+500 overflows float64"
++var _ = float32(1) * 1e200 // ERROR "constant 1e\+200 overflows float32|1e200 .* overflows float32"
++var _ = float64(1) * 1e500 // ERROR "constant 1e\+500 overflows float64|1e500 .* overflows float64"
+ 
+-var _ = complex64(1) * 1e200  // ERROR "constant 1e\+200 overflows complex64"
+-var _ = complex128(1) * 1e500 // ERROR "constant 1e\+500 overflows complex128"
++var _ = complex64(1) * 1e200  // ERROR "constant 1e\+200 overflows complex64|1e200 .* overflows complex64"
++var _ = complex128(1) * 1e500 // ERROR "constant 1e\+500 overflows complex128|1e500 .* overflows complex128"
+diff --git a/test/fixedbugs/issue20185.go b/test/fixedbugs/issue20185.go
+index 2cbb143ed0..86fe0ef8c6 100644
+--- a/test/fixedbugs/issue20185.go
++++ b/test/fixedbugs/issue20185.go
+@@ -10,7 +10,7 @@
+ package p
+ 
+ func F() {
+-	switch t := nil.(type) { // ERROR "cannot type switch on non-interface value nil"
++	switch t := nil.(type) { // ERROR "cannot type switch on non-interface value nil|not an interface"
+ 	default:
+ 		_ = t
+ 	}
+@@ -19,7 +19,7 @@ func F() {
+ const x = 1
+ 
+ func G() {
+-	switch t := x.(type) { // ERROR "cannot type switch on non-interface value x \(type untyped int\)"
++	switch t := x.(type) { // ERROR "cannot type switch on non-interface value x \(type untyped int\)|not an interface"
+ 	default:
+ 	}
+ }
+diff --git a/test/fixedbugs/issue20227.go b/test/fixedbugs/issue20227.go
+index 4448eb5438..983203cd48 100644
+--- a/test/fixedbugs/issue20227.go
++++ b/test/fixedbugs/issue20227.go
+@@ -8,9 +8,9 @@
+ 
+ package p
+ 
+-var _ = 1 / 1e-600000000i  // ERROR "complex division by zero"
+-var _ = 1i / 1e-600000000  // ERROR "complex division by zero"
+-var _ = 1i / 1e-600000000i // ERROR "complex division by zero"
++var _ = 1 / 1e-600000000i  // ERROR "(complex )?division by zero"
++var _ = 1i / 1e-600000000  // ERROR "(complex )?division by zero"
++var _ = 1i / 1e-600000000i // ERROR "(complex )?division by zero"
+ 
+-var _ = 1 / (1e-600000000 + 1e-600000000i)  // ERROR "complex division by zero"
+-var _ = 1i / (1e-600000000 + 1e-600000000i) // ERROR "complex division by zero"
++var _ = 1 / (1e-600000000 + 1e-600000000i)  // ERROR "(complex )?division by zero"
++var _ = 1i / (1e-600000000 + 1e-600000000i) // ERROR "(complex )?division by zero"
+diff --git a/test/fixedbugs/issue20415.go b/test/fixedbugs/issue20415.go
+index 6f2c342ce4..8a4b528a89 100644
+--- a/test/fixedbugs/issue20415.go
++++ b/test/fixedbugs/issue20415.go
+@@ -11,7 +11,7 @@ package p
+ // 1
+ var f byte
+ 
+-var f interface{} // ERROR "previous declaration at issue20415.go:12"
++var f interface{} // ERROR "previous declaration at issue20415.go:12|f redeclared"
+ 
+ func _(f int) {
+ }
+@@ -22,7 +22,7 @@ var g byte
+ func _(g int) {
+ }
+ 
+-var g interface{} // ERROR "previous declaration at issue20415.go:20"
++var g interface{} // ERROR "previous declaration at issue20415.go:20|g redeclared"
+ 
+ // 3
+ func _(h int) {
+@@ -30,4 +30,4 @@ func _(h int) {
+ 
+ var h byte
+ 
+-var h interface{} // ERROR "previous declaration at issue20415.go:31"
++var h interface{} // ERROR "previous declaration at issue20415.go:31|h redeclared"
+diff --git a/test/fixedbugs/issue20749.go b/test/fixedbugs/issue20749.go
+index af9ff3fbed..a670d6ffcd 100644
+--- a/test/fixedbugs/issue20749.go
++++ b/test/fixedbugs/issue20749.go
+@@ -9,7 +9,7 @@ package p
+ // Verify that the compiler complains even if the array
+ // has length 0.
+ var a [0]int
+-var _ = a[2:] // ERROR "invalid slice index 2"
++var _ = a[2:] // ERROR "invalid slice index 2|index 2 out of bounds"
+ 
+ var b [1]int
+-var _ = b[2:] // ERROR "invalid slice index 2"
++var _ = b[2:] // ERROR "invalid slice index 2|index 2 out of bounds"
+diff --git a/test/fixedbugs/issue22389.go b/test/fixedbugs/issue22389.go
+index 706b44941c..75dc285403 100644
+--- a/test/fixedbugs/issue22389.go
++++ b/test/fixedbugs/issue22389.go
+@@ -14,5 +14,5 @@ func (f *Foo) Call(cb func(*Foo)) {
+ 
+ func main() {
+ 	f := &Foo{}
+-	f.Call(func(f) {}) // ERROR "f is not a type"
++	f.Call(func(f) {}) // ERROR "f .*is not a type"
+ }
+diff --git a/test/fixedbugs/issue22794.go b/test/fixedbugs/issue22794.go
+index c7e9eb1224..0c10208d81 100644
+--- a/test/fixedbugs/issue22794.go
++++ b/test/fixedbugs/issue22794.go
+@@ -15,6 +15,7 @@ func main() {
+ 	i1 := it{Floats: true}
+ 	if i1.floats { // ERROR "(type it .* field or method floats, but does have Floats)"
+ 	}
+-	i2 := &it{floats: false} // ERROR "(but does have Floats)"
+-	_ = &it{InneR: "foo"}    // ERROR "(but does have inner)"
++	i2 := &it{floats: false} // ERROR "(but does have Floats)|unknown field"
++	_ = &it{InneR: "foo"}    // ERROR "(but does have inner)|unknown field"
++	_ = i2
+ }
+diff --git a/test/fixedbugs/issue22822.go b/test/fixedbugs/issue22822.go
+index e449ddb186..554b534503 100644
+--- a/test/fixedbugs/issue22822.go
++++ b/test/fixedbugs/issue22822.go
+@@ -12,5 +12,6 @@ package main
+ func F() {
+ 	slice := []int{1, 2, 3}
+ 	len := int(2)
+-	println(len(slice)) // ERROR "cannot call non-function len .type int., declared at"
++	println(len(slice)) // ERROR "cannot call non-function len .type int., declared at|cannot call non-function len"
++	_ = slice
+ }
+diff --git a/test/fixedbugs/issue22921.go b/test/fixedbugs/issue22921.go
+index 04f78b2c08..d5bb1ed122 100644
+--- a/test/fixedbugs/issue22921.go
++++ b/test/fixedbugs/issue22921.go
+@@ -8,11 +8,11 @@ package main
+ 
+ import "bytes"
+ 
+-type _ struct{ bytes.nonexist } // ERROR "unexported"
++type _ struct{ bytes.nonexist } // ERROR "unexported|undefined"
+ 
+-type _ interface{ bytes.nonexist } // ERROR "unexported"
++type _ interface{ bytes.nonexist } // ERROR "unexported|undefined"
+ 
+ func main() {
+ 	var _ bytes.Buffer
+-	var _ bytes.buffer // ERROR "unexported"
++	var _ bytes.buffer // ERROR "unexported|undefined"
+ }
+diff --git a/test/fixedbugs/issue23094.go b/test/fixedbugs/issue23094.go
+index 415556f300..853b19b92f 100644
+--- a/test/fixedbugs/issue23094.go
++++ b/test/fixedbugs/issue23094.go
+@@ -8,4 +8,4 @@
+ 
+ package p
+ 
+-var a [len(a)]int // ERROR "\[len\(a\)\]int"
++var a [len(a)]int // ERROR "\[len\(a\)\]int|initialization loop"
+diff --git a/test/fixedbugs/issue23609.go b/test/fixedbugs/issue23609.go
+index 7c17a98d32..9130e8dd16 100644
+--- a/test/fixedbugs/issue23609.go
++++ b/test/fixedbugs/issue23609.go
+@@ -21,7 +21,7 @@ type t3 struct {
+ }
+ 
+ var (
+-	_ = t2{t1f1: 600} // ERROR "cannot use promoted field t1.t1f1 in struct literal of type t2"
+-	_ = t3{t1f2: 800} // ERROR "cannot use promoted field t2.t1.t1f2 in struct literal of type t3"
+-	_ = t3{t2f1: 900} // ERROR "cannot use promoted field t2.t2f1 in struct literal of type t3"
++	_ = t2{t1f1: 600} // ERROR "cannot use promoted field t1.t1f1 in struct literal of type t2|unknown field"
++	_ = t3{t1f2: 800} // ERROR "cannot use promoted field t2.t1.t1f2 in struct literal of type t3|unknown field"
++	_ = t3{t2f1: 900} // ERROR "cannot use promoted field t2.t2f1 in struct literal of type t3|unknown field"
+ )
+diff --git a/test/fixedbugs/issue23823.go b/test/fixedbugs/issue23823.go
+index fe6cef1fb4..4e3cd163b6 100644
+--- a/test/fixedbugs/issue23823.go
++++ b/test/fixedbugs/issue23823.go
+@@ -11,6 +11,6 @@ type I1 = interface {
+ }
+ 
+ // BAD: type loop should mention I1; see also #41669
+-type I2 interface { // ERROR "invalid recursive type I2\n\tLINE: I2 refers to\n\tLINE: I2$"
++type I2 interface { // ERROR "invalid recursive type I2\n\tLINE: I2 refers to\n\tLINE: I2$|invalid recursive type"
+ 	I1
+ }
+diff --git a/test/fixedbugs/issue24470.go b/test/fixedbugs/issue24470.go
+index d0e5e23fa9..2805998cca 100644
+--- a/test/fixedbugs/issue24470.go
++++ b/test/fixedbugs/issue24470.go
+@@ -11,5 +11,6 @@ package p
+ 
+ func f(i interface{}) {
+ 	if x, ok := i.(type); ok { // ERROR "outside type switch"
++		_ = x
+ 	}
+ }
+diff --git a/test/fixedbugs/issue25727.go b/test/fixedbugs/issue25727.go
+index da7c94cc12..9e4da6ddba 100644
+--- a/test/fixedbugs/issue25727.go
++++ b/test/fixedbugs/issue25727.go
+@@ -9,13 +9,13 @@ package main
+ import "net/http"
+ 
+ var s = http.Server{}
+-var _ = s.doneChan                  // ERROR "s.doneChan undefined .cannot refer to unexported field or method doneChan.$"
++var _ = s.doneChan                  // ERROR "s.doneChan undefined .cannot refer to unexported field or method doneChan.$|s.doneChan undefined"
+ var _ = s.DoneChan                  // ERROR "s.DoneChan undefined .type http.Server has no field or method DoneChan.$"
+-var _ = http.Server{tlsConfig: nil} // ERROR "unknown field 'tlsConfig' in struct literal.+ .but does have TLSConfig.$"
++var _ = http.Server{tlsConfig: nil} // ERROR "unknown field 'tlsConfig' in struct literal.+ .but does have TLSConfig.$|unknown field 'tlsConfig'"
+ var _ = http.Server{DoneChan: nil}  // ERROR "unknown field 'DoneChan' in struct literal of type http.Server$"
+ 
+ type foo struct {
+ 	bar int
+ }
+ 
+-var _ = &foo{bAr: 10} // ERROR "unknown field 'bAr' in struct literal.+ .but does have bar.$"
++var _ = &foo{bAr: 10} // ERROR "unknown field 'bAr' in struct literal.+ .but does have bar.$|unknown field 'bAr'"
+diff --git a/test/fixedbugs/issue26416.go b/test/fixedbugs/issue26416.go
+index bc37fd9d3a..44a4fc73b7 100644
+--- a/test/fixedbugs/issue26416.go
++++ b/test/fixedbugs/issue26416.go
+@@ -21,7 +21,7 @@ type t3 struct {
+ }
+ 
+ var (
+-	_ = t2{t1f1: 600} // ERROR "cannot use promoted field t1.t1f1 in struct literal of type t2"
+-	_ = t3{t1f2: 800} // ERROR "cannot use promoted field t2.t1.t1f2 in struct literal of type t3"
+-	_ = t3{t2f1: 900} // ERROR "cannot use promoted field t2.t2f1 in struct literal of type t3"
++	_ = t2{t1f1: 600} // ERROR "cannot use promoted field t1.t1f1 in struct literal of type t2|unknown field"
++	_ = t3{t1f2: 800} // ERROR "cannot use promoted field t2.t1.t1f2 in struct literal of type t3|unknown field"
++	_ = t3{t2f1: 900} // ERROR "cannot use promoted field t2.t2f1 in struct literal of type t3|unknown field"
+ )
+diff --git a/test/fixedbugs/issue26616.go b/test/fixedbugs/issue26616.go
+index e5565b68ca..d20d4518c0 100644
+--- a/test/fixedbugs/issue26616.go
++++ b/test/fixedbugs/issue26616.go
+@@ -6,13 +6,13 @@
+ 
+ package p
+ 
+-var x int = three() // ERROR "assignment mismatch: 1 variable but three returns 3 values"
++var x int = three() // ERROR "assignment mismatch: 1 variable but three returns 3 values|3\-valued"
+ 
+ func f() {
+-	var _ int = three() // ERROR "assignment mismatch: 1 variable but three returns 3 values"
+-	var a int = three() // ERROR "assignment mismatch: 1 variable but three returns 3 values"
+-	a = three()         // ERROR "assignment mismatch: 1 variable but three returns 3 values"
+-	b := three()        // ERROR "assignment mismatch: 1 variable but three returns 3 values"
++	var _ int = three() // ERROR "assignment mismatch: 1 variable but three returns 3 values|3\-valued"
++	var a int = three() // ERROR "assignment mismatch: 1 variable but three returns 3 values|3\-valued"
++	a = three()         // ERROR "assignment mismatch: 1 variable but three returns 3 values|cannot assign"
++	b := three()        // ERROR "assignment mismatch: 1 variable but three returns 3 values|cannot initialize"
+ 
+ 	_, _ = a, b
+ }
+diff --git a/test/fixedbugs/issue27595.go b/test/fixedbugs/issue27595.go
+index af5c7a10d9..8277145769 100644
+--- a/test/fixedbugs/issue27595.go
++++ b/test/fixedbugs/issue27595.go
+@@ -6,9 +6,9 @@
+ 
+ package main
+ 
+-var a = twoResults()       // ERROR "assignment mismatch: 1 variable but twoResults returns 2 values"
+-var b, c, d = twoResults() // ERROR "assignment mismatch: 3 variables but twoResults returns 2 values"
+-var e, f = oneResult()     // ERROR "assignment mismatch: 2 variables but oneResult returns 1 values"
++var a = twoResults()       // ERROR "assignment mismatch: 1 variable but twoResults returns 2 values|2\-valued"
++var b, c, d = twoResults() // ERROR "assignment mismatch: 3 variables but twoResults returns 2 values|cannot initialize"
++var e, f = oneResult()     // ERROR "assignment mismatch: 2 variables but oneResult returns 1 values|cannot initialize"
+ 
+ func twoResults() (int, int) {
+ 	return 1, 2
+diff --git a/test/fixedbugs/issue28079c.go b/test/fixedbugs/issue28079c.go
+index bea1898304..ec650848ae 100644
+--- a/test/fixedbugs/issue28079c.go
++++ b/test/fixedbugs/issue28079c.go
+@@ -11,5 +11,5 @@ package p
+ import "unsafe"
+ 
+ func f() {
+-	_ = complex(1<<uintptr(unsafe.Pointer(nil)), 0) // ERROR "invalid operation: .*shift of type float64.*"
++	_ = complex(1<<uintptr(unsafe.Pointer(nil)), 0) // ERROR "invalid operation: .*shift of type float64.*|shifted operand .* must be integer"
+ }
+diff --git a/test/fixedbugs/issue28450.go b/test/fixedbugs/issue28450.go
+index 1a1183b291..1fae40ad08 100644
+--- a/test/fixedbugs/issue28450.go
++++ b/test/fixedbugs/issue28450.go
+@@ -6,13 +6,13 @@
+ 
+ package p
+ 
+-func f(a, b, c, d ...int)       {} // ERROR "non-final parameter a"
+-func g(a ...int, b ...int)      {} // ERROR "non-final parameter a"
+-func h(...int, ...int, float32) {} // ERROR "non-final parameter"
++func f(a, b, c, d ...int)       {} // ERROR "non-final parameter a|can only use ... with final parameter"
++func g(a ...int, b ...int)      {} // ERROR "non-final parameter a|can only use ... with final parameter"
++func h(...int, ...int, float32) {} // ERROR "non-final parameter|can only use ... with final parameter"
+ 
+-type a func(...float32, ...interface{}) // ERROR "non-final parameter"
++type a func(...float32, ...interface{}) // ERROR "non-final parameter|can only use ... with final parameter"
+ type b interface {
+-	f(...int, ...int)                // ERROR "non-final parameter"
+-	g(a ...int, b ...int, c float32) // ERROR "non-final parameter a"
++	f(...int, ...int)                // ERROR "non-final parameter|can only use ... with final parameter"
++	g(a ...int, b ...int, c float32) // ERROR "non-final parameter a|can only use ... with final parameter"
+ 	valid(...int)
+ }
+diff --git a/test/fixedbugs/issue30085.go b/test/fixedbugs/issue30085.go
+index 8223c855cd..ae977e65f9 100644
+--- a/test/fixedbugs/issue30085.go
++++ b/test/fixedbugs/issue30085.go
+@@ -7,6 +7,7 @@
+ package main
+ 
+ func main() {
+-	var c, d = 1, 2, 3 // ERROR "assignment mismatch: 2 variables but 3 values"
+-	var e, f, g = 1, 2 // ERROR "assignment mismatch: 3 variables but 2 values"
++	var c, d = 1, 2, 3 // ERROR "assignment mismatch: 2 variables but 3 values|extra init expr"
++	var e, f, g = 1, 2 // ERROR "assignment mismatch: 3 variables but 2 values|missing init expr"
++	_, _, _, _ = c, d, e, f
+ }
+diff --git a/test/fixedbugs/issue30087.go b/test/fixedbugs/issue30087.go
+index dc12364d80..c9280b689f 100644
+--- a/test/fixedbugs/issue30087.go
++++ b/test/fixedbugs/issue30087.go
+@@ -7,8 +7,9 @@
+ package main
+ 
+ func main() {
+-	var a, b = 1    // ERROR "assignment mismatch: 2 variables but 1 values"
+-	_ = 1, 2        // ERROR "assignment mismatch: 1 variables but 2 values"
+-	c, d := 1       // ERROR "assignment mismatch: 2 variables but 1 values"
+-	e, f := 1, 2, 3 // ERROR "assignment mismatch: 2 variables but 3 values"
++	var a, b = 1    // ERROR "assignment mismatch: 2 variables but 1 values|cannot initialize"
++	_ = 1, 2        // ERROR "assignment mismatch: 1 variables but 2 values|cannot assign"
++	c, d := 1       // ERROR "assignment mismatch: 2 variables but 1 values|cannot initialize"
++	e, f := 1, 2, 3 // ERROR "assignment mismatch: 2 variables but 3 values|cannot initialize"
++	_, _, _, _ = c, d, e, f
+ }
+diff --git a/test/fixedbugs/issue35291.go b/test/fixedbugs/issue35291.go
+index 3cbdbf962a..eb6c4ce807 100644
+--- a/test/fixedbugs/issue35291.go
++++ b/test/fixedbugs/issue35291.go
+@@ -10,5 +10,5 @@ package p
+ 
+ var s = []string{
+ 	1: "dup",
+-	1: "dup", // ERROR "duplicate index in slice literal: 1"
++	1: "dup", // ERROR "duplicate index in slice literal: 1|duplicate index 1 in array or slice literal"
+ }
+diff --git a/test/fixedbugs/issue38117.go b/test/fixedbugs/issue38117.go
+index 11edef7f25..c0707ef6dc 100644
+--- a/test/fixedbugs/issue38117.go
++++ b/test/fixedbugs/issue38117.go
+@@ -13,5 +13,5 @@ const (
+ 	_ = int(complex64(int(0)))
+ 	_ = float64(complex128(float64(0)))
+ 
+-	_ = int8(complex128(1000)) // ERROR "overflow"
++	_ = int8(complex128(1000)) // ERROR "overflow|cannot convert"
+ )
+diff --git a/test/fixedbugs/issue38745.go b/test/fixedbugs/issue38745.go
+index 83a3bc6fad..78a9165354 100644
+--- a/test/fixedbugs/issue38745.go
++++ b/test/fixedbugs/issue38745.go
+@@ -10,7 +10,7 @@ type t struct{ x int }
+ 
+ func f1() {
+ 	t{}.M()     // ERROR "t{}.M undefined \(type t has no field or method M\)"
+-	t{x: 1}.M() // ERROR "t{...}.M undefined \(type t has no field or method M\)"
++	t{x: 1}.M() // ERROR "t{(...|…)}.M undefined \(type t has no field or method M\)"
+ }
+ 
+ func f2() (*t, error) {
+diff --git a/test/fixedbugs/issue3925.go b/test/fixedbugs/issue3925.go
+index 628c222685..f0851878ec 100644
+--- a/test/fixedbugs/issue3925.go
++++ b/test/fixedbugs/issue3925.go
+@@ -18,6 +18,6 @@ var _ = map[string]string{
+ var _ = []string{
+ 	"foo",
+ 	"bar",
+-	20, // ERROR "cannot use|incompatible type"
++	20, // ERROR "cannot use|incompatible type|cannot convert"
+ }
+ 
+diff --git a/test/fixedbugs/issue4085a.go b/test/fixedbugs/issue4085a.go
+index 200290a081..bf97c9e449 100644
+--- a/test/fixedbugs/issue4085a.go
++++ b/test/fixedbugs/issue4085a.go
+@@ -10,9 +10,9 @@ type T []int
+ 
+ func main() {
+ 	_ = make(T, -1)    // ERROR "negative"
+-	_ = make(T, 0.5)   // ERROR "constant 0.5 truncated to integer|non-integer len argument"
++	_ = make(T, 0.5)   // ERROR "constant 0.5 truncated to integer|non-integer len argument|truncated to int"
+ 	_ = make(T, 1.0)   // ok
+-	_ = make(T, 1<<63) // ERROR "len argument too large"
+-	_ = make(T, 0, -1) // ERROR "negative cap"
+-	_ = make(T, 10, 0) // ERROR "len larger than cap"
++	_ = make(T, 1<<63) // ERROR "len argument too large|overflows int"
++	_ = make(T, 0, -1) // ERROR "negative cap|must not be negative"
++	_ = make(T, 10, 0) // ERROR "len larger than cap|length and capacity swapped"
+ }
+diff --git a/test/fixedbugs/issue41247.go b/test/fixedbugs/issue41247.go
+index b8bd81274f..b501be2fbe 100644
+--- a/test/fixedbugs/issue41247.go
++++ b/test/fixedbugs/issue41247.go
+@@ -7,5 +7,5 @@
+ package p
+ 
+ func f() [2]int {
+-	return [...]int{2: 0} // ERROR "cannot use \[\.\.\.\]int{...} \(type \[3\]int\)"
++	return [...]int{2: 0} // ERROR "cannot use \[\.\.\.\]int{...} \(type \[3\]int\)|cannot use"
+ }
+diff --git a/test/fixedbugs/issue41440.go b/test/fixedbugs/issue41440.go
+index 2b441db803..51646540b7 100644
+--- a/test/fixedbugs/issue41440.go
++++ b/test/fixedbugs/issue41440.go
+@@ -10,5 +10,5 @@ func f(...int) {}
+ 
+ func g() {
+ 	var x []int
+-	f(x, x...) // ERROR "have \(\[\]int, \.\.\.int\)"
++	f(x, x...) // ERROR "have \(\[\]int, \.\.\.int\)|too many arguments in call to f"
+ }
+diff --git a/test/fixedbugs/issue41500.go b/test/fixedbugs/issue41500.go
+index d1e4efc8fd..bd51de29be 100644
+--- a/test/fixedbugs/issue41500.go
++++ b/test/fixedbugs/issue41500.go
+@@ -13,8 +13,8 @@ type s struct {
+ func f() {
+ 	var x *s
+ 
+-	_ = x == nil || len(x.slice) // ERROR "invalid operation: .+ \(operator \|\| not defined on int\)"
+-	_ = len(x.slice) || x == nil // ERROR "invalid operation: .+ \(operator \|\| not defined on int\)"
+-	_ = x == nil && len(x.slice) // ERROR "invalid operation: .+ \(operator && not defined on int\)"
+-	_ = len(x.slice) && x == nil // ERROR "invalid operation: .+ \(operator && not defined on int\)"
++	_ = x == nil || len(x.slice) // ERROR "invalid operation: .+ \(operator \|\| not defined on int\)|cannot convert x == nil"
++	_ = len(x.slice) || x == nil // ERROR "invalid operation: .+ \(operator \|\| not defined on int\)|cannot convert x == nil"
++	_ = x == nil && len(x.slice) // ERROR "invalid operation: .+ \(operator && not defined on int\)|cannot convert x == nil"
++	_ = len(x.slice) && x == nil // ERROR "invalid operation: .+ \(operator && not defined on int\)|cannot convert x == nil"
+ }
+diff --git a/test/fixedbugs/issue4215.go b/test/fixedbugs/issue4215.go
+index 795d48d7f5..df986c179d 100644
+--- a/test/fixedbugs/issue4215.go
++++ b/test/fixedbugs/issue4215.go
+@@ -7,28 +7,28 @@
+ package main
+ 
+ func foo() (int, int) {
+-	return 2.3 // ERROR "not enough arguments to return\n\thave \(number\)\n\twant \(int, int\)"
++	return 2.3 // ERROR "not enough arguments to return\n\thave \(number\)\n\twant \(int, int\)|wrong number of return values"
+ }
+ 
+ func foo2() {
+-	return int(2), 2 // ERROR "too many arguments to return\n\thave \(int, number\)\n\twant \(\)"
++	return int(2), 2 // ERROR "too many arguments to return\n\thave \(int, number\)\n\twant \(\)|no result values expected"
+ }
+ 
+ func foo3(v int) (a, b, c, d int) {
+ 	if v >= 0 {
+-		return 1 // ERROR "not enough arguments to return\n\thave \(number\)\n\twant \(int, int, int, int\)"
++		return 1 // ERROR "not enough arguments to return\n\thave \(number\)\n\twant \(int, int, int, int\)|wrong number of return values"
+ 	}
+-	return 2, 3 // ERROR "not enough arguments to return\n\thave \(number, number\)\n\twant \(int, int, int, int\)"
++	return 2, 3 // ERROR "not enough arguments to return\n\thave \(number, number\)\n\twant \(int, int, int, int\)|wrong number of return values"
+ }
+ 
+ func foo4(name string) (string, int) {
+ 	switch name {
+ 	case "cow":
+-		return "moo" // ERROR "not enough arguments to return\n\thave \(string\)\n\twant \(string, int\)"
++		return "moo" // ERROR "not enough arguments to return\n\thave \(string\)\n\twant \(string, int\)|wrong number of return values"
+ 	case "dog":
+-		return "dog", 10, true // ERROR "too many arguments to return\n\thave \(string, number, bool\)\n\twant \(string, int\)"
++		return "dog", 10, true // ERROR "too many arguments to return\n\thave \(string, number, bool\)\n\twant \(string, int\)|wrong number of return values"
+ 	case "fish":
+-		return "" // ERROR "not enough arguments to return\n\thave \(string\)\n\twant \(string, int\)"
++		return "" // ERROR "not enough arguments to return\n\thave \(string\)\n\twant \(string, int\)|wrong number of return values"
+ 	default:
+ 		return "lizard", 10
+ 	}
+@@ -40,14 +40,14 @@ type U float64
+ 
+ func foo5() (S, T, U) {
+ 	if false {
+-		return "" // ERROR "not enough arguments to return\n\thave \(string\)\n\twant \(S, T, U\)"
++		return "" // ERROR "not enough arguments to return\n\thave \(string\)\n\twant \(S, T, U\)|wrong number of return values"
+ 	} else {
+ 		ptr := new(T)
+-		return ptr // ERROR "not enough arguments to return\n\thave \(\*T\)\n\twant \(S, T, U\)"
++		return ptr // ERROR "not enough arguments to return\n\thave \(\*T\)\n\twant \(S, T, U\)|wrong number of return values"
+ 	}
+-	return new(S), 12.34, 1 + 0i, 'r', true // ERROR "too many arguments to return\n\thave \(\*S, number, number, number, bool\)\n\twant \(S, T, U\)"
++	return new(S), 12.34, 1 + 0i, 'r', true // ERROR "too many arguments to return\n\thave \(\*S, number, number, number, bool\)\n\twant \(S, T, U\)|wrong number of return values"
+ }
+ 
+ func foo6() (T, string) {
+-	return "T", true, true // ERROR "too many arguments to return\n\thave \(string, bool, bool\)\n\twant \(T, string\)"
++	return "T", true, true // ERROR "too many arguments to return\n\thave \(string, bool, bool\)\n\twant \(T, string\)|wrong number of return values"
+ }
+diff --git a/test/fixedbugs/issue4251.go b/test/fixedbugs/issue4251.go
+index d11ce51b97..81e3edf5e3 100644
+--- a/test/fixedbugs/issue4251.go
++++ b/test/fixedbugs/issue4251.go
+@@ -9,13 +9,13 @@
+ package p
+ 
+ func F1(s []byte) []byte {
+-	return s[2:1]		// ERROR "invalid slice index|inverted slice range"
++	return s[2:1]		// ERROR "invalid slice index|inverted slice range|invalid slice indices"
+ }
+ 
+ func F2(a [10]byte) []byte {
+-	return a[2:1]		// ERROR "invalid slice index|inverted slice range"
++	return a[2:1]		// ERROR "invalid slice index|inverted slice range|invalid slice indices"
+ }
+ 
+ func F3(s string) string {
+-	return s[2:1]		// ERROR "invalid slice index|inverted slice range"
++	return s[2:1]		// ERROR "invalid slice index|inverted slice range|invalid slice indices"
+ }
+diff --git a/test/fixedbugs/issue4429.go b/test/fixedbugs/issue4429.go
+index 9eb2e0f9c2..3af6f9761b 100644
+--- a/test/fixedbugs/issue4429.go
++++ b/test/fixedbugs/issue4429.go
+@@ -12,5 +12,5 @@ type a struct {
+ 
+ func main() {
+   av := a{};
+-  _ = *a(av); // ERROR "invalid indirect|expected pointer"
++  _ = *a(av); // ERROR "invalid indirect|expected pointer|cannot indirect"
+ }
+diff --git a/test/fixedbugs/issue4458.go b/test/fixedbugs/issue4458.go
+index 98ffea79dc..3ae9910d9e 100644
+--- a/test/fixedbugs/issue4458.go
++++ b/test/fixedbugs/issue4458.go
+@@ -16,5 +16,5 @@ func (T) foo() {}
+ func main() {
+ 	av := T{}
+ 	pav := &av
+-	(**T).foo(&pav) // ERROR "no method foo|requires named type or pointer to named"
++	(**T).foo(&pav) // ERROR "no method foo|requires named type or pointer to named|undefined"
+ }
+diff --git a/test/fixedbugs/issue4470.go b/test/fixedbugs/issue4470.go
+index d922478455..1dc556380e 100644
+--- a/test/fixedbugs/issue4470.go
++++ b/test/fixedbugs/issue4470.go
+@@ -13,4 +13,5 @@ func main() {
+ 	switch (i.(type)) { // ERROR "outside type switch"
+ 	default:
+ 	}
++	_ = i
+ }
+diff --git a/test/fixedbugs/issue4517d.go b/test/fixedbugs/issue4517d.go
+index 197c225c6f..d732e1fa1d 100644
+--- a/test/fixedbugs/issue4517d.go
++++ b/test/fixedbugs/issue4517d.go
+@@ -6,4 +6,4 @@
+ 
+ package p
+ 
+-import init "fmt" // ERROR "cannot import package as init"
++import init "fmt" // ERROR "cannot import package as init|cannot declare init"
+diff --git a/test/fixedbugs/issue4909a.go b/test/fixedbugs/issue4909a.go
+index 09e1b85099..27ae29438f 100644
+--- a/test/fixedbugs/issue4909a.go
++++ b/test/fixedbugs/issue4909a.go
+@@ -27,8 +27,8 @@ type B struct {
+ var t T
+ var p *T
+ 
+-const N1 = unsafe.Offsetof(t.X)      // ERROR "indirection"
+-const N2 = unsafe.Offsetof(p.X)      // ERROR "indirection"
++const N1 = unsafe.Offsetof(t.X)      // ERROR "indirection|field X is embedded via a pointer in T"
++const N2 = unsafe.Offsetof(p.X)      // ERROR "indirection|field X is embedded via a pointer in T"
+ const N3 = unsafe.Offsetof(t.B.X)    // valid
+ const N4 = unsafe.Offsetof(p.B.X)    // valid
+ const N5 = unsafe.Offsetof(t.Method) // ERROR "method value"
+diff --git a/test/run.go b/test/run.go
+index 8e1b06974c..1932c9e610 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -769,8 +769,10 @@ func (t *test) run() {
+ 			for _, pattern := range []string{
+ 				"-+",
+ 				"-0",
++				"-e=0",
+ 				"-m",
+ 				"-live",
++				"-std",
+ 				"wb",
+ 				"append",
+ 				"slice",
+@@ -1942,140 +1944,88 @@ var excluded = map[string]bool{
+ 	"switch7.go":      true,
+ 	"typecheck.go":    true, // invalid function is not causing errors when called
+ 
+-	"fixedbugs/bug163.go":      true,
+-	"fixedbugs/bug176.go":      true,
+-	"fixedbugs/bug192.go":      true,
+-	"fixedbugs/bug193.go":      true,
+-	"fixedbugs/bug195.go":      true,
+-	"fixedbugs/bug213.go":      true,
+-	"fixedbugs/bug228.go":      true,
+-	"fixedbugs/bug229.go":      true,
+-	"fixedbugs/bug231.go":      true,
+-	"fixedbugs/bug251.go":      true,
+-	"fixedbugs/bug255.go":      true,
+-	"fixedbugs/bug256.go":      true,
+-	"fixedbugs/bug325.go":      true,
+-	"fixedbugs/bug326.go":      true,
+-	"fixedbugs/bug340.go":      true,
+-	"fixedbugs/bug342.go":      true,
+-	"fixedbugs/bug350.go":      true,
+-	"fixedbugs/bug351.go":      true,
+-	"fixedbugs/bug353.go":      true,
+-	"fixedbugs/bug357.go":      true,
+-	"fixedbugs/bug362.go":      true,
+-	"fixedbugs/bug371.go":      true,
+-	"fixedbugs/bug374.go":      true,
+-	"fixedbugs/bug379.go":      true,
+-	"fixedbugs/bug383.go":      true,
+-	"fixedbugs/bug385_64.go":   true,
+-	"fixedbugs/bug386.go":      true,
+-	"fixedbugs/bug388.go":      true,
+-	"fixedbugs/bug389.go":      true,
+-	"fixedbugs/bug390.go":      true,
+-	"fixedbugs/bug397.go":      true,
+-	"fixedbugs/bug412.go":      true,
+-	"fixedbugs/bug413.go":      true,
+-	"fixedbugs/bug416.go":      true,
+-	"fixedbugs/bug418.go":      true,
+-	"fixedbugs/bug459.go":      true,
+-	"fixedbugs/bug462.go":      true,
+-	"fixedbugs/bug463.go":      true,
+-	"fixedbugs/bug487.go":      true,
+-	"fixedbugs/issue11362.go":  true,
+-	"fixedbugs/issue11590.go":  true,
+-	"fixedbugs/issue11610.go":  true,
++	"fixedbugs/bug163.go":    true,
++	"fixedbugs/bug176.go":    true,
++	"fixedbugs/bug192.go":    true,
++	"fixedbugs/bug193.go":    true,
++	"fixedbugs/bug195.go":    true,
++	"fixedbugs/bug213.go":    true,
++	"fixedbugs/bug228.go":    true,
++	"fixedbugs/bug229.go":    true,
++	"fixedbugs/bug231.go":    true,
++	"fixedbugs/bug251.go":    true,
++	"fixedbugs/bug255.go":    true,
++	"fixedbugs/bug256.go":    true,
++	"fixedbugs/bug325.go":    true,
++	"fixedbugs/bug326.go":    true,
++	"fixedbugs/bug340.go":    true,
++	"fixedbugs/bug342.go":    true,
++	"fixedbugs/bug350.go":    true,
++	"fixedbugs/bug351.go":    true,
++	"fixedbugs/bug353.go":    true,
++	"fixedbugs/bug357.go":    true,
++	"fixedbugs/bug362.go":    true,
++	"fixedbugs/bug371.go":    true,
++	"fixedbugs/bug374.go":    true,
++	"fixedbugs/bug379.go":    true,
++	"fixedbugs/bug383.go":    true,
++	"fixedbugs/bug385_64.go": true,
++	"fixedbugs/bug386.go":    true,
++	"fixedbugs/bug388.go":    true,
++	"fixedbugs/bug389.go":    true,
++	"fixedbugs/bug390.go":    true,
++	"fixedbugs/bug397.go":    true,
++	"fixedbugs/bug412.go":    true,
++	"fixedbugs/bug413.go":    true,
++	"fixedbugs/bug416.go":    true,
++	"fixedbugs/bug418.go":    true,
++	"fixedbugs/bug459.go":    true,
++	"fixedbugs/bug462.go":    true,
++	"fixedbugs/bug463.go":    true,
++	"fixedbugs/bug487.go":    true,
++
++	"fixedbugs/issue11362.go":  true, // types2 import path handling
++	"fixedbugs/issue11590.go":  true, // types2 doesn't report a follow-on error (pref: types2)
++	"fixedbugs/issue11610.go":  true, // types2 not run after syntax errors
+ 	"fixedbugs/issue11614.go":  true, // types2 reports an extra error
+ 	"fixedbugs/issue13415.go":  true, // declared but not used conflict
+ 	"fixedbugs/issue14520.go":  true, // missing import path error by types2
+ 	"fixedbugs/issue14540.go":  true, // types2 is missing a fallthrough error
+ 	"fixedbugs/issue16428.go":  true, // types2 reports two instead of one error
+-	"fixedbugs/issue17038.go":  true,
+-	"fixedbugs/issue17588.go":  true,
+-	"fixedbugs/issue17631.go":  true,
+-	"fixedbugs/issue17645.go":  true,
+-	"fixedbugs/issue18331.go":  true,
+-	"fixedbugs/issue18392.go":  true,
+-	"fixedbugs/issue18393.go":  true,
+-	"fixedbugs/issue19012.go":  true,
+-	"fixedbugs/issue19323.go":  true,
+-	"fixedbugs/issue19482.go":  true,
+-	"fixedbugs/issue19699b.go": true,
+-	"fixedbugs/issue19880.go":  true,
+-	"fixedbugs/issue19947.go":  true,
+-	"fixedbugs/issue20185.go":  true,
+-	"fixedbugs/issue20227.go":  true,
+-	"fixedbugs/issue20233.go":  true,
+-	"fixedbugs/issue20245.go":  true,
+-	"fixedbugs/issue20298.go":  true,
+-	"fixedbugs/issue20415.go":  true,
+-	"fixedbugs/issue20529.go":  true,
+-	"fixedbugs/issue20749.go":  true,
+-	"fixedbugs/issue20780.go":  true,
+-	"fixedbugs/issue21273.go":  true,
+-	"fixedbugs/issue21882.go":  true,
+-	"fixedbugs/issue21979.go":  true,
+-	"fixedbugs/issue22200.go":  true,
+-	"fixedbugs/issue22200b.go": true,
+-	"fixedbugs/issue22389.go":  true,
+-	"fixedbugs/issue22794.go":  true,
+-	"fixedbugs/issue22822.go":  true,
+-	"fixedbugs/issue22904.go":  true,
+-	"fixedbugs/issue22921.go":  true,
+-	"fixedbugs/issue23093.go":  true,
+-	"fixedbugs/issue23094.go":  true,
+-	"fixedbugs/issue23609.go":  true,
+-	"fixedbugs/issue23732.go":  true,
+-	"fixedbugs/issue23823.go":  true,
+-	"fixedbugs/issue24339.go":  true,
+-	"fixedbugs/issue24470.go":  true,
+-	"fixedbugs/issue25507.go":  true,
+-	"fixedbugs/issue25727.go":  true,
+-	"fixedbugs/issue25958.go":  true,
+-	"fixedbugs/issue26416.go":  true,
+-	"fixedbugs/issue26616.go":  true,
+-	"fixedbugs/issue27595.go":  true,
+-	"fixedbugs/issue28079b.go": true,
+-	"fixedbugs/issue28079c.go": true,
+-	"fixedbugs/issue28268.go":  true,
+-	"fixedbugs/issue28450.go":  true,
+-	"fixedbugs/issue29855.go":  true,
+-	"fixedbugs/issue30085.go":  true,
+-	"fixedbugs/issue30087.go":  true,
+-	"fixedbugs/issue31747.go":  true,
+-	"fixedbugs/issue32133.go":  true,
+-	"fixedbugs/issue32723.go":  true,
+-	"fixedbugs/issue33460.go":  true,
+-	"fixedbugs/issue34329.go":  true,
+-	"fixedbugs/issue35291.go":  true,
+-	"fixedbugs/issue38117.go":  true,
+-	"fixedbugs/issue38745.go":  true,
+-	"fixedbugs/issue3925.go":   true,
+-	"fixedbugs/issue4085a.go":  true,
+-	"fixedbugs/issue41247.go":  true,
+-	"fixedbugs/issue41440.go":  true,
+-	"fixedbugs/issue41500.go":  true,
+-	"fixedbugs/issue41575.go":  true,
+-	"fixedbugs/issue42058a.go": true,
+-	"fixedbugs/issue42058b.go": true,
+-	"fixedbugs/issue42075.go":  true,
+-	"fixedbugs/issue4215.go":   true,
+-	"fixedbugs/issue4232.go":   true,
+-	"fixedbugs/issue4251.go":   true,
+-	"fixedbugs/issue4429.go":   true,
+-	"fixedbugs/issue4452.go":   true,
+-	"fixedbugs/issue4458.go":   true,
+-	"fixedbugs/issue4470.go":   true,
+-	"fixedbugs/issue4517d.go":  true,
+-	"fixedbugs/issue4847.go":   true,
+-	"fixedbugs/issue4909a.go":  true,
++	"fixedbugs/issue17038.go":  true, // types2 doesn't report a follow-on error (pref: types2)
++	"fixedbugs/issue17645.go":  true, // multiple errors on same line
++	"fixedbugs/issue18393.go":  true, // types2 not run after syntax errors
++	"fixedbugs/issue19012.go":  true, // multiple errors on same line
++	"fixedbugs/issue20233.go":  true, // types2 reports two instead of one error (pref: compiler)
++	"fixedbugs/issue20245.go":  true, // types2 reports two instead of one error (pref: compiler)
++	"fixedbugs/issue20529.go":  true, // types2 doesn't produce "stack frame too large" error
++	"fixedbugs/issue20780.go":  true, // types2 doesn't produce "stack frame too large" error
++	"fixedbugs/issue21979.go":  true, // types2 doesn't report a follow-on error (pref: types2)
++	"fixedbugs/issue22200.go":  true, // types2 doesn't produce "stack frame too large" error
++	"fixedbugs/issue22200b.go": true, // types2 doesn't produce "stack frame too large" error
++	"fixedbugs/issue23732.go":  true, // types2 reports different (but ok) line numbers
++	"fixedbugs/issue24339.go":  true, // types2 reports wrong line number
++	"fixedbugs/issue25507.go":  true, // types2 doesn't produce "stack frame too large" error
++	"fixedbugs/issue25958.go":  true, // types2 doesn't report a follow-on error (pref: types2)
++	"fixedbugs/issue28079b.go": true, // types2 reports follow-on errors
++	"fixedbugs/issue28268.go":  true, // types2 reports follow-on errors
++	"fixedbugs/issue31747.go":  true, // types2 is missing support for -lang flag
++	"fixedbugs/issue32133.go":  true, // types2 line numbers off?
++	"fixedbugs/issue33460.go":  true, // types2 reports alternative positions in separate error
++	"fixedbugs/issue34329.go":  true, // types2 is missing support for -lang flag
++	"fixedbugs/issue41575.go":  true, // types2 reports alternative positions in separate error
++	"fixedbugs/issue42058a.go": true, // types2 doesn't report "channel element type too large"
++	"fixedbugs/issue42058b.go": true, // types2 doesn't report "channel element type too large"
++	"fixedbugs/issue4232.go":   true, // types2 reports (correct) extra errors
++	"fixedbugs/issue4452.go":   true, // types2 reports (correct) extra errors
+ 	"fixedbugs/issue5609.go":   true, // types2 needs a better error message
+ 	"fixedbugs/issue6500.go":   true, // compiler -G is not reporting an error (but types2 does)
+ 	"fixedbugs/issue6889.go":   true, // types2 can handle this without constant overflow
+-	"fixedbugs/issue7525.go":   true, // init cycle error on different line - ok otherwise
+-	"fixedbugs/issue7525b.go":  true, // init cycle error on different line - ok otherwise
+-	"fixedbugs/issue7525c.go":  true, // init cycle error on different line - ok otherwise
+-	"fixedbugs/issue7525d.go":  true, // init cycle error on different line - ok otherwise
+-	"fixedbugs/issue7525e.go":  true, // init cycle error on different line - ok otherwise
+-	"fixedbugs/issue7742.go":   true, // type-checking doesn't terminate
+-	"fixedbugs/issue7746.go":   true, // type-checking doesn't terminate
++	"fixedbugs/issue7525.go":   true, // types2 reports init cycle error on different line - ok otherwise
++	"fixedbugs/issue7525b.go":  true, // types2 reports init cycle error on different line - ok otherwise
++	"fixedbugs/issue7525c.go":  true, // types2 reports init cycle error on different line - ok otherwise
++	"fixedbugs/issue7525d.go":  true, // types2 reports init cycle error on different line - ok otherwise
++	"fixedbugs/issue7525e.go":  true, // types2 reports init cycle error on different line - ok otherwise
++	"fixedbugs/issue7742.go":   true, // types2 type-checking doesn't terminate
++	"fixedbugs/issue7746.go":   true, // types2 type-checking doesn't terminate
+ }

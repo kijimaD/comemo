@@ -12,6 +12,37 @@ Date:   Tue Dec 4 13:09:02 2012 -0800
     R=rsc, iant, r, ken
     CC=golang-dev
     https://golang.org/cl/6868062
-
+---
  doc/go_spec.html | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index f33147a445..4061c780fb 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of December 3, 2012",
++	"Subtitle": "Version of December 4, 2012",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -1013,7 +1013,7 @@ promoted methods are included in the method set of the struct as follows:
+ A field declaration may be followed by an optional string literal <i>tag</i>,
+ which becomes an attribute for all the fields in the corresponding
+ field declaration. The tags are made
+-visible through a <a href="#Package_unsafe">reflection interface</a>
++visible through a <a href="/pkg/reflect/#StructTag">reflection interface</a>
+ but are otherwise ignored.
+ </p>
+ 
+@@ -4831,7 +4831,7 @@ they cannot be used as function values.
+ 
+ <pre class="ebnf">
+ BuiltinCall = identifier "(" [ BuiltinArgs [ "," ] ] ")" .
+-BuiltinArgs = Type [ "," ExpressionList ] | ExpressionList .
++BuiltinArgs = Type [ "," ArgumentList ] | ArgumentList .
+ </pre>
+ 
+ <h3 id="Close">Close</h3>

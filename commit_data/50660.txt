@@ -14,7 +14,7 @@ Date:   Wed Nov 3 16:28:47 2021 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/poll/fd_unix.go                |  8 ++++----
  src/internal/poll/fd_windows.go             | 30 ++++++++++++-----------------
  src/internal/syscall/unix/net.go            |  8 ++++----
@@ -26,3 +26,421 @@ Date:   Wed Nov 3 16:28:47 2021 -0700
  src/syscall/syscall_unix.go                 |  8 ++++----
  src/syscall/syscall_windows.go              |  4 ++--
  10 files changed, 46 insertions(+), 52 deletions(-)
+
+diff --git a/src/internal/poll/fd_unix.go b/src/internal/poll/fd_unix.go
+index 45d4ce07b2..85971a16cd 100644
+--- a/src/internal/poll/fd_unix.go
++++ b/src/internal/poll/fd_unix.go
+@@ -436,7 +436,7 @@ func (fd *FD) Pwrite(p []byte, off int64) (int, error) {
+ }
+ 
+ // WriteToInet4 wraps the sendto network call for IPv4 addresses.
+-func (fd *FD) WriteToInet4(p []byte, sa syscall.SockaddrInet4) (int, error) {
++func (fd *FD) WriteToInet4(p []byte, sa *syscall.SockaddrInet4) (int, error) {
+ 	if err := fd.writeLock(); err != nil {
+ 		return 0, err
+ 	}
+@@ -462,7 +462,7 @@ func (fd *FD) WriteToInet4(p []byte, sa syscall.SockaddrInet4) (int, error) {
+ }
+ 
+ // WriteToInet6 wraps the sendto network call for IPv6 addresses.
+-func (fd *FD) WriteToInet6(p []byte, sa syscall.SockaddrInet6) (int, error) {
++func (fd *FD) WriteToInet6(p []byte, sa *syscall.SockaddrInet6) (int, error) {
+ 	if err := fd.writeLock(); err != nil {
+ 		return 0, err
+ 	}
+@@ -540,7 +540,7 @@ func (fd *FD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (int, int, err
+ }
+ 
+ // WriteMsgInet4 is WriteMsg specialized for syscall.SockaddrInet4.
+-func (fd *FD) WriteMsgInet4(p []byte, oob []byte, sa syscall.SockaddrInet4) (int, int, error) {
++func (fd *FD) WriteMsgInet4(p []byte, oob []byte, sa *syscall.SockaddrInet4) (int, int, error) {
+ 	if err := fd.writeLock(); err != nil {
+ 		return 0, 0, err
+ 	}
+@@ -566,7 +566,7 @@ func (fd *FD) WriteMsgInet4(p []byte, oob []byte, sa syscall.SockaddrInet4) (int
+ }
+ 
+ // WriteMsgInet6 is WriteMsg specialized for syscall.SockaddrInet6.
+-func (fd *FD) WriteMsgInet6(p []byte, oob []byte, sa syscall.SockaddrInet6) (int, int, error) {
++func (fd *FD) WriteMsgInet6(p []byte, oob []byte, sa *syscall.SockaddrInet6) (int, int, error) {
+ 	if err := fd.writeLock(); err != nil {
+ 		return 0, 0, err
+ 	}
+diff --git a/src/internal/poll/fd_windows.go b/src/internal/poll/fd_windows.go
+index 4dd5986efd..94cdfca601 100644
+--- a/src/internal/poll/fd_windows.go
++++ b/src/internal/poll/fd_windows.go
+@@ -79,8 +79,6 @@ type operation struct {
+ 	buf    syscall.WSABuf
+ 	msg    windows.WSAMsg
+ 	sa     syscall.Sockaddr
+-	sa4    syscall.SockaddrInet4
+-	sa6    syscall.SockaddrInet6
+ 	rsa    *syscall.RawSockaddrAny
+ 	rsan   int32
+ 	handle syscall.Handle
+@@ -852,7 +850,7 @@ func (fd *FD) WriteTo(buf []byte, sa syscall.Sockaddr) (int, error) {
+ }
+ 
+ // WriteToInet4 is WriteTo, specialized for syscall.SockaddrInet4.
+-func (fd *FD) WriteToInet4(buf []byte, sa4 syscall.SockaddrInet4) (int, error) {
++func (fd *FD) WriteToInet4(buf []byte, sa4 *syscall.SockaddrInet4) (int, error) {
+ 	if err := fd.writeLock(); err != nil {
+ 		return 0, err
+ 	}
+@@ -862,9 +860,8 @@ func (fd *FD) WriteToInet4(buf []byte, sa4 syscall.SockaddrInet4) (int, error) {
+ 		// handle zero-byte payload
+ 		o := &fd.wop
+ 		o.InitBuf(buf)
+-		o.sa4 = sa4
+ 		n, err := execIO(o, func(o *operation) error {
+-			return windows.WSASendtoInet4(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, o.sa4, &o.o, nil)
++			return windows.WSASendtoInet4(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, sa4, &o.o, nil)
+ 		})
+ 		return n, err
+ 	}
+@@ -877,9 +874,8 @@ func (fd *FD) WriteToInet4(buf []byte, sa4 syscall.SockaddrInet4) (int, error) {
+ 		}
+ 		o := &fd.wop
+ 		o.InitBuf(b)
+-		o.sa4 = sa4
+ 		n, err := execIO(o, func(o *operation) error {
+-			return windows.WSASendtoInet4(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, o.sa4, &o.o, nil)
++			return windows.WSASendtoInet4(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, sa4, &o.o, nil)
+ 		})
+ 		ntotal += int(n)
+ 		if err != nil {
+@@ -891,7 +887,7 @@ func (fd *FD) WriteToInet4(buf []byte, sa4 syscall.SockaddrInet4) (int, error) {
+ }
+ 
+ // WriteToInet6 is WriteTo, specialized for syscall.SockaddrInet6.
+-func (fd *FD) WriteToInet6(buf []byte, sa6 syscall.SockaddrInet6) (int, error) {
++func (fd *FD) WriteToInet6(buf []byte, sa6 *syscall.SockaddrInet6) (int, error) {
+ 	if err := fd.writeLock(); err != nil {
+ 		return 0, err
+ 	}
+@@ -901,9 +897,8 @@ func (fd *FD) WriteToInet6(buf []byte, sa6 syscall.SockaddrInet6) (int, error) {
+ 		// handle zero-byte payload
+ 		o := &fd.wop
+ 		o.InitBuf(buf)
+-		o.sa6 = sa6
+ 		n, err := execIO(o, func(o *operation) error {
+-			return windows.WSASendtoInet6(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, o.sa6, &o.o, nil)
++			return windows.WSASendtoInet6(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, sa6, &o.o, nil)
+ 		})
+ 		return n, err
+ 	}
+@@ -916,9 +911,8 @@ func (fd *FD) WriteToInet6(buf []byte, sa6 syscall.SockaddrInet6) (int, error) {
+ 		}
+ 		o := &fd.wop
+ 		o.InitBuf(b)
+-		o.sa6 = sa6
+ 		n, err := execIO(o, func(o *operation) error {
+-			return windows.WSASendtoInet6(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, o.sa6, &o.o, nil)
++			return windows.WSASendtoInet6(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, sa6, &o.o, nil)
+ 		})
+ 		ntotal += int(n)
+ 		if err != nil {
+@@ -1122,7 +1116,7 @@ func (fd *FD) RawWrite(f func(uintptr) bool) error {
+ 	return syscall.EWINDOWS
+ }
+ 
+-func sockaddrInet4ToRaw(sa syscall.SockaddrInet4) (unsafe.Pointer, int32) {
++func sockaddrInet4ToRaw(sa *syscall.SockaddrInet4) (unsafe.Pointer, int32) {
+ 	var raw syscall.RawSockaddrInet4
+ 	raw.Family = syscall.AF_INET
+ 	p := (*[2]byte)(unsafe.Pointer(&raw.Port))
+@@ -1132,7 +1126,7 @@ func sockaddrInet4ToRaw(sa syscall.SockaddrInet4) (unsafe.Pointer, int32) {
+ 	return unsafe.Pointer(&raw), int32(unsafe.Sizeof(raw))
+ }
+ 
+-func sockaddrInet6ToRaw(sa syscall.SockaddrInet6) (unsafe.Pointer, int32) {
++func sockaddrInet6ToRaw(sa *syscall.SockaddrInet6) (unsafe.Pointer, int32) {
+ 	var raw syscall.RawSockaddrInet6
+ 	raw.Family = syscall.AF_INET6
+ 	p := (*[2]byte)(unsafe.Pointer(&raw.Port))
+@@ -1161,10 +1155,10 @@ func rawToSockaddrInet6(rsa *syscall.RawSockaddrAny, sa *syscall.SockaddrInet6)
+ func sockaddrToRaw(sa syscall.Sockaddr) (unsafe.Pointer, int32, error) {
+ 	switch sa := sa.(type) {
+ 	case *syscall.SockaddrInet4:
+-		ptr, sz := sockaddrInet4ToRaw(*sa)
++		ptr, sz := sockaddrInet4ToRaw(sa)
+ 		return ptr, sz, nil
+ 	case *syscall.SockaddrInet6:
+-		ptr, sz := sockaddrInet6ToRaw(*sa)
++		ptr, sz := sockaddrInet6ToRaw(sa)
+ 		return ptr, sz, nil
+ 	default:
+ 		return nil, 0, syscall.EWINDOWS
+@@ -1281,7 +1275,7 @@ func (fd *FD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (int, int, err
+ }
+ 
+ // WriteMsgInet4 is WriteMsg specialized for syscall.SockaddrInet4.
+-func (fd *FD) WriteMsgInet4(p []byte, oob []byte, sa syscall.SockaddrInet4) (int, int, error) {
++func (fd *FD) WriteMsgInet4(p []byte, oob []byte, sa *syscall.SockaddrInet4) (int, int, error) {
+ 	if len(p) > maxRW {
+ 		return 0, 0, errors.New("packet is too large (only 1GB is allowed)")
+ 	}
+@@ -1303,7 +1297,7 @@ func (fd *FD) WriteMsgInet4(p []byte, oob []byte, sa syscall.SockaddrInet4) (int
+ }
+ 
+ // WriteMsgInet6 is WriteMsg specialized for syscall.SockaddrInet6.
+-func (fd *FD) WriteMsgInet6(p []byte, oob []byte, sa syscall.SockaddrInet6) (int, int, error) {
++func (fd *FD) WriteMsgInet6(p []byte, oob []byte, sa *syscall.SockaddrInet6) (int, int, error) {
+ 	if len(p) > maxRW {
+ 		return 0, 0, errors.New("packet is too large (only 1GB is allowed)")
+ 	}
+diff --git a/src/internal/syscall/unix/net.go b/src/internal/syscall/unix/net.go
+index 87ce89b57f..85632e1c03 100644
+--- a/src/internal/syscall/unix/net.go
++++ b/src/internal/syscall/unix/net.go
+@@ -21,19 +21,19 @@ func RecvfromInet6(fd int, p []byte, flags int, from *syscall.SockaddrInet6) (n
+ 
+ //go:linkname SendtoInet4 syscall.sendtoInet4
+ //go:noescape
+-func SendtoInet4(fd int, p []byte, flags int, to syscall.SockaddrInet4) (err error)
++func SendtoInet4(fd int, p []byte, flags int, to *syscall.SockaddrInet4) (err error)
+ 
+ //go:linkname SendtoInet6 syscall.sendtoInet6
+ //go:noescape
+-func SendtoInet6(fd int, p []byte, flags int, to syscall.SockaddrInet6) (err error)
++func SendtoInet6(fd int, p []byte, flags int, to *syscall.SockaddrInet6) (err error)
+ 
+ //go:linkname SendmsgNInet4 syscall.sendmsgNInet4
+ //go:noescape
+-func SendmsgNInet4(fd int, p, oob []byte, to syscall.SockaddrInet4, flags int) (n int, err error)
++func SendmsgNInet4(fd int, p, oob []byte, to *syscall.SockaddrInet4, flags int) (n int, err error)
+ 
+ //go:linkname SendmsgNInet6 syscall.sendmsgNInet6
+ //go:noescape
+-func SendmsgNInet6(fd int, p, oob []byte, to syscall.SockaddrInet6, flags int) (n int, err error)
++func SendmsgNInet6(fd int, p, oob []byte, to *syscall.SockaddrInet6, flags int) (n int, err error)
+ 
+ //go:linkname RecvmsgInet4 syscall.recvmsgInet4
+ //go:noescape
+diff --git a/src/internal/syscall/unix/net_js.go b/src/internal/syscall/unix/net_js.go
+index defc3f6fb2..622fc8eb14 100644
+--- a/src/internal/syscall/unix/net_js.go
++++ b/src/internal/syscall/unix/net_js.go
+@@ -19,19 +19,19 @@ func RecvfromInet6(fd int, p []byte, flags int, from *syscall.SockaddrInet6) (n
+ 	return 0, syscall.ENOSYS
+ }
+ 
+-func SendtoInet4(fd int, p []byte, flags int, to syscall.SockaddrInet4) (err error) {
++func SendtoInet4(fd int, p []byte, flags int, to *syscall.SockaddrInet4) (err error) {
+ 	return syscall.ENOSYS
+ }
+ 
+-func SendtoInet6(fd int, p []byte, flags int, to syscall.SockaddrInet6) (err error) {
++func SendtoInet6(fd int, p []byte, flags int, to *syscall.SockaddrInet6) (err error) {
+ 	return syscall.ENOSYS
+ }
+ 
+-func SendmsgNInet4(fd int, p, oob []byte, to syscall.SockaddrInet4, flags int) (n int, err error) {
++func SendmsgNInet4(fd int, p, oob []byte, to *syscall.SockaddrInet4, flags int) (n int, err error) {
+ 	return 0, syscall.ENOSYS
+ }
+ 
+-func SendmsgNInet6(fd int, p, oob []byte, to syscall.SockaddrInet6, flags int) (n int, err error) {
++func SendmsgNInet6(fd int, p, oob []byte, to *syscall.SockaddrInet6, flags int) (n int, err error) {
+ 	return 0, syscall.ENOSYS
+ }
+ 
+diff --git a/src/internal/syscall/windows/net_windows.go b/src/internal/syscall/windows/net_windows.go
+index 1fccd55e4b..3d3df7161c 100644
+--- a/src/internal/syscall/windows/net_windows.go
++++ b/src/internal/syscall/windows/net_windows.go
+@@ -11,8 +11,8 @@ import (
+ 
+ //go:linkname WSASendtoInet4 syscall.wsaSendtoInet4
+ //go:noescape
+-func WSASendtoInet4(s syscall.Handle, bufs *syscall.WSABuf, bufcnt uint32, sent *uint32, flags uint32, to syscall.SockaddrInet4, overlapped *syscall.Overlapped, croutine *byte) (err error)
++func WSASendtoInet4(s syscall.Handle, bufs *syscall.WSABuf, bufcnt uint32, sent *uint32, flags uint32, to *syscall.SockaddrInet4, overlapped *syscall.Overlapped, croutine *byte) (err error)
+ 
+ //go:linkname WSASendtoInet6 syscall.wsaSendtoInet6
+ //go:noescape
+-func WSASendtoInet6(s syscall.Handle, bufs *syscall.WSABuf, bufcnt uint32, sent *uint32, flags uint32, to syscall.SockaddrInet6, overlapped *syscall.Overlapped, croutine *byte) (err error)
++func WSASendtoInet6(s syscall.Handle, bufs *syscall.WSABuf, bufcnt uint32, sent *uint32, flags uint32, to *syscall.SockaddrInet6, overlapped *syscall.Overlapped, croutine *byte) (err error)
+diff --git a/src/net/fd_posix.go b/src/net/fd_posix.go
+index d12dbeebd2..1845c173bb 100644
+--- a/src/net/fd_posix.go
++++ b/src/net/fd_posix.go
+@@ -104,13 +104,13 @@ func (fd *netFD) writeTo(p []byte, sa syscall.Sockaddr) (n int, err error) {
+ 	return n, wrapSyscallError(writeToSyscallName, err)
+ }
+ 
+-func (fd *netFD) writeToInet4(p []byte, sa syscall.SockaddrInet4) (n int, err error) {
++func (fd *netFD) writeToInet4(p []byte, sa *syscall.SockaddrInet4) (n int, err error) {
+ 	n, err = fd.pfd.WriteToInet4(p, sa)
+ 	runtime.KeepAlive(fd)
+ 	return n, wrapSyscallError(writeToSyscallName, err)
+ }
+ 
+-func (fd *netFD) writeToInet6(p []byte, sa syscall.SockaddrInet6) (n int, err error) {
++func (fd *netFD) writeToInet6(p []byte, sa *syscall.SockaddrInet6) (n int, err error) {
+ 	n, err = fd.pfd.WriteToInet6(p, sa)
+ 	runtime.KeepAlive(fd)
+ 	return n, wrapSyscallError(writeToSyscallName, err)
+@@ -122,13 +122,13 @@ func (fd *netFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oob
+ 	return n, oobn, wrapSyscallError(writeMsgSyscallName, err)
+ }
+ 
+-func (fd *netFD) writeMsgInet4(p []byte, oob []byte, sa syscall.SockaddrInet4) (n int, oobn int, err error) {
++func (fd *netFD) writeMsgInet4(p []byte, oob []byte, sa *syscall.SockaddrInet4) (n int, oobn int, err error) {
+ 	n, oobn, err = fd.pfd.WriteMsgInet4(p, oob, sa)
+ 	runtime.KeepAlive(fd)
+ 	return n, oobn, wrapSyscallError(writeMsgSyscallName, err)
+ }
+ 
+-func (fd *netFD) writeMsgInet6(p []byte, oob []byte, sa syscall.SockaddrInet6) (n int, oobn int, err error) {
++func (fd *netFD) writeMsgInet6(p []byte, oob []byte, sa *syscall.SockaddrInet6) (n int, oobn int, err error) {
+ 	n, oobn, err = fd.pfd.WriteMsgInet6(p, oob, sa)
+ 	runtime.KeepAlive(fd)
+ 	return n, oobn, wrapSyscallError(writeMsgSyscallName, err)
+diff --git a/src/net/net_fake.go b/src/net/net_fake.go
+index 8da9d15bb2..ee5644c67f 100644
+--- a/src/net/net_fake.go
++++ b/src/net/net_fake.go
+@@ -287,11 +287,11 @@ func (fd *netFD) readMsgInet6(p []byte, oob []byte, flags int, sa *syscall.Socka
+ 	return 0, 0, 0, syscall.ENOSYS
+ }
+ 
+-func (fd *netFD) writeMsgInet4(p []byte, oob []byte, sa syscall.SockaddrInet4) (n int, oobn int, err error) {
++func (fd *netFD) writeMsgInet4(p []byte, oob []byte, sa *syscall.SockaddrInet4) (n int, oobn int, err error) {
+ 	return 0, 0, syscall.ENOSYS
+ }
+ 
+-func (fd *netFD) writeMsgInet6(p []byte, oob []byte, sa syscall.SockaddrInet6) (n int, oobn int, err error) {
++func (fd *netFD) writeMsgInet6(p []byte, oob []byte, sa *syscall.SockaddrInet6) (n int, oobn int, err error) {
+ 	return 0, 0, syscall.ENOSYS
+ }
+ 
+@@ -299,11 +299,11 @@ func (fd *netFD) writeTo(p []byte, sa syscall.Sockaddr) (n int, err error) {
+ 	return 0, syscall.ENOSYS
+ }
+ 
+-func (fd *netFD) writeToInet4(p []byte, sa syscall.SockaddrInet4) (n int, err error) {
++func (fd *netFD) writeToInet4(p []byte, sa *syscall.SockaddrInet4) (n int, err error) {
+ 	return 0, syscall.ENOSYS
+ }
+ 
+-func (fd *netFD) writeToInet6(p []byte, sa syscall.SockaddrInet6) (n int, err error) {
++func (fd *netFD) writeToInet6(p []byte, sa *syscall.SockaddrInet6) (n int, err error) {
+ 	return 0, syscall.ENOSYS
+ }
+ 
+diff --git a/src/net/udpsock_posix.go b/src/net/udpsock_posix.go
+index 2bf6568a95..6544397673 100644
+--- a/src/net/udpsock_posix.go
++++ b/src/net/udpsock_posix.go
+@@ -124,13 +124,13 @@ func (c *UDPConn) writeTo(b []byte, addr *UDPAddr) (int, error) {
+ 		if err != nil {
+ 			return 0, err
+ 		}
+-		return c.fd.writeToInet4(b, sa)
++		return c.fd.writeToInet4(b, &sa)
+ 	case syscall.AF_INET6:
+ 		sa, err := ipToSockaddrInet6(addr.IP, addr.Port, addr.Zone)
+ 		if err != nil {
+ 			return 0, err
+ 		}
+-		return c.fd.writeToInet6(b, sa)
++		return c.fd.writeToInet6(b, &sa)
+ 	default:
+ 		return 0, &AddrError{Err: "invalid address family", Addr: addr.IP.String()}
+ 	}
+@@ -150,13 +150,13 @@ func (c *UDPConn) writeToAddrPort(b []byte, addr netip.AddrPort) (int, error) {
+ 		if err != nil {
+ 			return 0, err
+ 		}
+-		return c.fd.writeToInet4(b, sa)
++		return c.fd.writeToInet4(b, &sa)
+ 	case syscall.AF_INET6:
+ 		sa, err := addrPortToSockaddrInet6(addr)
+ 		if err != nil {
+ 			return 0, err
+ 		}
+-		return c.fd.writeToInet6(b, sa)
++		return c.fd.writeToInet6(b, &sa)
+ 	default:
+ 		return 0, &AddrError{Err: "invalid address family", Addr: addr.Addr().String()}
+ 	}
+@@ -190,13 +190,13 @@ func (c *UDPConn) writeMsgAddrPort(b, oob []byte, addr netip.AddrPort) (n, oobn
+ 		if err != nil {
+ 			return 0, 0, err
+ 		}
+-		return c.fd.writeMsgInet4(b, oob, sa)
++		return c.fd.writeMsgInet4(b, oob, &sa)
+ 	case syscall.AF_INET6:
+ 		sa, err := addrPortToSockaddrInet6(addr)
+ 		if err != nil {
+ 			return 0, 0, err
+ 		}
+-		return c.fd.writeMsgInet6(b, oob, sa)
++		return c.fd.writeMsgInet6(b, oob, &sa)
+ 	default:
+ 		return 0, 0, &AddrError{Err: "invalid address family", Addr: addr.Addr().String()}
+ 	}
+diff --git a/src/syscall/syscall_unix.go b/src/syscall/syscall_unix.go
+index 56d3cad1d0..5ee938115d 100644
+--- a/src/syscall/syscall_unix.go
++++ b/src/syscall/syscall_unix.go
+@@ -378,7 +378,7 @@ func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error)
+ 	return sendmsgN(fd, p, oob, ptr, salen, flags)
+ }
+ 
+-func sendmsgNInet4(fd int, p, oob []byte, to SockaddrInet4, flags int) (n int, err error) {
++func sendmsgNInet4(fd int, p, oob []byte, to *SockaddrInet4, flags int) (n int, err error) {
+ 	ptr, salen, err := to.sockaddr()
+ 	if err != nil {
+ 		return 0, err
+@@ -386,7 +386,7 @@ func sendmsgNInet4(fd int, p, oob []byte, to SockaddrInet4, flags int) (n int, e
+ 	return sendmsgN(fd, p, oob, ptr, salen, flags)
+ }
+ 
+-func sendmsgNInet6(fd int, p, oob []byte, to SockaddrInet6, flags int) (n int, err error) {
++func sendmsgNInet6(fd int, p, oob []byte, to *SockaddrInet6, flags int) (n int, err error) {
+ 	ptr, salen, err := to.sockaddr()
+ 	if err != nil {
+ 		return 0, err
+@@ -394,7 +394,7 @@ func sendmsgNInet6(fd int, p, oob []byte, to SockaddrInet6, flags int) (n int, e
+ 	return sendmsgN(fd, p, oob, ptr, salen, flags)
+ }
+ 
+-func sendtoInet4(fd int, p []byte, flags int, to SockaddrInet4) (err error) {
++func sendtoInet4(fd int, p []byte, flags int, to *SockaddrInet4) (err error) {
+ 	ptr, n, err := to.sockaddr()
+ 	if err != nil {
+ 		return err
+@@ -402,7 +402,7 @@ func sendtoInet4(fd int, p []byte, flags int, to SockaddrInet4) (err error) {
+ 	return sendto(fd, p, flags, ptr, n)
+ }
+ 
+-func sendtoInet6(fd int, p []byte, flags int, to SockaddrInet6) (err error) {
++func sendtoInet6(fd int, p []byte, flags int, to *SockaddrInet6) (err error) {
+ 	ptr, n, err := to.sockaddr()
+ 	if err != nil {
+ 		return err
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 69e163e00f..ecb1eeecf6 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -922,7 +922,7 @@ func WSASendto(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32
+ 	return err
+ }
+ 
+-func wsaSendtoInet4(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, to SockaddrInet4, overlapped *Overlapped, croutine *byte) (err error) {
++func wsaSendtoInet4(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, to *SockaddrInet4, overlapped *Overlapped, croutine *byte) (err error) {
+ 	rsa, len, err := to.sockaddr()
+ 	if err != nil {
+ 		return err
+@@ -938,7 +938,7 @@ func wsaSendtoInet4(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags u
+ 	return err
+ }
+ 
+-func wsaSendtoInet6(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, to SockaddrInet6, overlapped *Overlapped, croutine *byte) (err error) {
++func wsaSendtoInet6(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, to *SockaddrInet6, overlapped *Overlapped, croutine *byte) (err error) {
+ 	rsa, len, err := to.sockaddr()
+ 	if err != nil {
+ 		return err

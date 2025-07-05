@@ -18,7 +18,7 @@ Date:   Wed Dec 27 22:01:19 2023 +0100
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/internal/trace/v2/base.go                      |  9 ++++-
  src/internal/trace/v2/batchcursor.go               |  8 +++-
  src/internal/trace/v2/order.go                     | 23 ++++++++++-
@@ -39,3 +39,329 @@ Date:   Wed Dec 27 22:01:19 2023 +0100
  .../trace/v2/testdata/fuzz/FuzzReader/large-id     |  2 +
  .../testdata/fuzz/FuzzReader/malformed-timestamp   |  2 +
  19 files changed, 113 insertions(+), 5 deletions(-)
+
+diff --git a/src/internal/trace/v2/base.go b/src/internal/trace/v2/base.go
+index e7cee29a88..57e5802902 100644
+--- a/src/internal/trace/v2/base.go
++++ b/src/internal/trace/v2/base.go
+@@ -9,6 +9,7 @@ package trace
+ 
+ import (
+ 	"fmt"
++	"math"
+ 	"strings"
+ 
+ 	"internal/trace/v2/event"
+@@ -123,8 +124,12 @@ func (d *dataTable[EI, E]) compactify() {
+ 			minID = id
+ 		}
+ 	}
++	if maxID >= math.MaxInt {
++		// We can't create a slice big enough to hold maxID elements
++		return
++	}
+ 	// We're willing to waste at most 2x memory.
+-	if int(maxID-minID) > 2*len(d.sparse) {
++	if int(maxID-minID) > max(len(d.sparse), 2*len(d.sparse)) {
+ 		return
+ 	}
+ 	if int(minID) > len(d.sparse) {
+@@ -146,7 +151,7 @@ func (d *dataTable[EI, E]) get(id EI) (E, bool) {
+ 	if id == 0 {
+ 		return *new(E), true
+ 	}
+-	if int(id) < len(d.dense) {
++	if uint64(id) < uint64(len(d.dense)) {
+ 		if d.present[id/8]&(uint8(1)<<(id%8)) != 0 {
+ 			return d.dense[id], true
+ 		}
+diff --git a/src/internal/trace/v2/batchcursor.go b/src/internal/trace/v2/batchcursor.go
+index fe6275074a..8dc34fd22f 100644
+--- a/src/internal/trace/v2/batchcursor.go
++++ b/src/internal/trace/v2/batchcursor.go
+@@ -68,7 +68,7 @@ func readTimedBaseEvent(b []byte, e *baseEvent) (int, timestamp, error) {
+ 	// Get the event type.
+ 	typ := event.Type(b[0])
+ 	specs := go122.Specs()
+-	if int(typ) > len(specs) {
++	if int(typ) >= len(specs) {
+ 		return 0, 0, fmt.Errorf("found invalid event type: %v", typ)
+ 	}
+ 	e.typ = typ
+@@ -82,11 +82,17 @@ func readTimedBaseEvent(b []byte, e *baseEvent) (int, timestamp, error) {
+ 
+ 	// Read timestamp diff.
+ 	ts, nb := binary.Uvarint(b[n:])
++	if nb <= 0 {
++		return 0, 0, fmt.Errorf("found invalid uvarint for timestamp")
++	}
+ 	n += nb
+ 
+ 	// Read the rest of the arguments.
+ 	for i := 0; i < len(spec.Args)-1; i++ {
+ 		arg, nb := binary.Uvarint(b[n:])
++		if nb <= 0 {
++			return 0, 0, fmt.Errorf("found invalid uvarint")
++		}
+ 		e.args[i] = arg
+ 		n += nb
+ 	}
+diff --git a/src/internal/trace/v2/order.go b/src/internal/trace/v2/order.go
+index e1abddca6c..2cc7f26d29 100644
+--- a/src/internal/trace/v2/order.go
++++ b/src/internal/trace/v2/order.go
+@@ -92,6 +92,9 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64)
+ 	case go122.EvProcStatus:
+ 		pid := ProcID(ev.args[0])
+ 		status := go122.ProcStatus(ev.args[1])
++		if int(status) >= len(go122ProcStatus2ProcState) {
++			return curCtx, false, fmt.Errorf("invalid status for proc %d: %d", pid, status)
++		}
+ 		oldState := go122ProcStatus2ProcState[status]
+ 		if s, ok := o.pStates[pid]; ok {
+ 			if status == go122.ProcSyscallAbandoned && s.status == go122.ProcSyscall {
+@@ -268,6 +271,10 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64)
+ 		gid := GoID(ev.args[0])
+ 		mid := ThreadID(ev.args[1])
+ 		status := go122.GoStatus(ev.args[2])
++
++		if int(status) >= len(go122GoStatus2GoState) {
++			return curCtx, false, fmt.Errorf("invalid status for goroutine %d: %d", gid, status)
++		}
+ 		oldState := go122GoStatus2GoState[status]
+ 		if s, ok := o.gStates[gid]; ok {
+ 			if s.status != status {
+@@ -758,7 +765,11 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64)
+ 		// ever reference curCtx.P. However, be lenient about this like we are with
+ 		// GCMarkAssistActive; there's no reason the runtime couldn't change to block
+ 		// in the middle of a sweep.
+-		if err := o.pStates[pid].activeRange(makeRangeType(typ, 0), gen == o.initialGen); err != nil {
++		pState, ok := o.pStates[pid]
++		if !ok {
++			return curCtx, false, fmt.Errorf("encountered GCSweepActive for unknown proc %d", pid)
++		}
++		if err := pState.activeRange(makeRangeType(typ, 0), gen == o.initialGen); err != nil {
+ 			return curCtx, false, err
+ 		}
+ 		return curCtx, true, nil
+@@ -790,7 +801,11 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64)
+ 		// N.B. Like GoStatus, this can happen at any time, because it can
+ 		// reference a non-running goroutine. Don't check anything about the
+ 		// current scheduler context.
+-		if err := o.gStates[gid].activeRange(makeRangeType(typ, 0), gen == o.initialGen); err != nil {
++		gState, ok := o.gStates[gid]
++		if !ok {
++			return curCtx, false, fmt.Errorf("uninitialized goroutine %d found during %s", gid, go122.EventString(typ))
++		}
++		if err := gState.activeRange(makeRangeType(typ, 0), gen == o.initialGen); err != nil {
+ 			return curCtx, false, err
+ 		}
+ 		return curCtx, true, nil
+@@ -917,6 +932,10 @@ func (s *gState) beginRegion(r userRegion) error {
+ 
+ // endRegion ends a user region on the goroutine.
+ func (s *gState) endRegion(r userRegion) error {
++	if len(s.regions) == 0 {
++		// We do not know about regions that began before tracing started.
++		return nil
++	}
+ 	if next := s.regions[len(s.regions)-1]; next != r {
+ 		return fmt.Errorf("misuse of region in goroutine %v: region end %v when the inner-most active region start event is %v", s.id, r, next)
+ 	}
+diff --git a/src/internal/trace/v2/reader.go b/src/internal/trace/v2/reader.go
+index 446b2add30..824ca23df3 100644
+--- a/src/internal/trace/v2/reader.go
++++ b/src/internal/trace/v2/reader.go
+@@ -157,6 +157,9 @@ func (r *Reader) ReadEvent() (e Event, err error) {
+ 	}
+ 	// Try to advance the head of the frontier, which should have the minimum timestamp.
+ 	// This should be by far the most common case
++	if len(r.frontier) == 0 {
++		return Event{}, fmt.Errorf("broken trace: frontier is empty:\n[gen=%d]\n\n%s\n%s\n", r.gen.gen, dumpFrontier(r.frontier), dumpOrdering(&r.order))
++	}
+ 	bc := r.frontier[0]
+ 	if ctx, ok, err := r.order.advance(&bc.ev, r.gen.evTable, bc.m, r.gen.gen); err != nil {
+ 		return Event{}, err
+diff --git a/src/internal/trace/v2/reader_test.go b/src/internal/trace/v2/reader_test.go
+index 4f00002e37..393e1c80b0 100644
+--- a/src/internal/trace/v2/reader_test.go
++++ b/src/internal/trace/v2/reader_test.go
+@@ -46,6 +46,53 @@ func TestReaderGolden(t *testing.T) {
+ 	}
+ }
+ 
++func FuzzReader(f *testing.F) {
++	// Currently disabled because the parser doesn't do much validation and most
++	// getters can be made to panic. Turn this on once the parser is meant to
++	// reject invalid traces.
++	const testGetters = false
++
++	f.Fuzz(func(t *testing.T, b []byte) {
++		r, err := trace.NewReader(bytes.NewReader(b))
++		if err != nil {
++			return
++		}
++		for {
++			ev, err := r.ReadEvent()
++			if err != nil {
++				break
++			}
++
++			if !testGetters {
++				continue
++			}
++			// Make sure getters don't do anything that panics
++			switch ev.Kind() {
++			case trace.EventLabel:
++				ev.Label()
++			case trace.EventLog:
++				ev.Log()
++			case trace.EventMetric:
++				ev.Metric()
++			case trace.EventRangeActive, trace.EventRangeBegin:
++				ev.Range()
++			case trace.EventRangeEnd:
++				ev.Range()
++				ev.RangeAttributes()
++			case trace.EventStateTransition:
++				ev.StateTransition()
++			case trace.EventRegionBegin, trace.EventRegionEnd:
++				ev.Region()
++			case trace.EventTaskBegin, trace.EventTaskEnd:
++				ev.Task()
++			case trace.EventSync:
++			case trace.EventStackSample:
++			case trace.EventBad:
++			}
++		}
++	})
++}
++
+ func testReader(t *testing.T, tr io.Reader, exp *testtrace.Expectation) {
+ 	r, err := trace.NewReader(tr)
+ 	if err != nil {
+diff --git a/src/internal/trace/v2/testdata/fuzz/FuzzReader/0cb1786dee0f090b b/src/internal/trace/v2/testdata/fuzz/FuzzReader/0cb1786dee0f090b
+new file mode 100644
+index 0000000000..326ebe1c6e
+--- /dev/null
++++ b/src/internal/trace/v2/testdata/fuzz/FuzzReader/0cb1786dee0f090b
+@@ -0,0 +1,2 @@
++go test fuzz v1
++[]byte("go 1.22 trace\x00\x00\x00\x01\x0100\x85\x00\x190000\x01\x0100\x88\x00\b0000000")
+\ No newline at end of file
+diff --git a/src/internal/trace/v2/testdata/fuzz/FuzzReader/1e45307d5b2ec36d b/src/internal/trace/v2/testdata/fuzz/FuzzReader/1e45307d5b2ec36d
+new file mode 100644
+index 0000000000..406af9caa6
+--- /dev/null
++++ b/src/internal/trace/v2/testdata/fuzz/FuzzReader/1e45307d5b2ec36d
+@@ -0,0 +1,2 @@
++go test fuzz v1
++[]byte("go 1.22 trace\x00\x00\x00\x01000\x85\x00\b0001")
+\ No newline at end of file
+diff --git a/src/internal/trace/v2/testdata/fuzz/FuzzReader/2b05796f9b2fc48d b/src/internal/trace/v2/testdata/fuzz/FuzzReader/2b05796f9b2fc48d
+new file mode 100644
+index 0000000000..50fdccda6b
+--- /dev/null
++++ b/src/internal/trace/v2/testdata/fuzz/FuzzReader/2b05796f9b2fc48d
+@@ -0,0 +1,2 @@
++go test fuzz v1
++[]byte("go 1.22 trace\x00\x00\x00\x01\x0100\x85\x00-0000\x01\x0100\x88\x00\b0000000")
+\ No newline at end of file
+diff --git a/src/internal/trace/v2/testdata/fuzz/FuzzReader/2b9be9aebe08d511 b/src/internal/trace/v2/testdata/fuzz/FuzzReader/2b9be9aebe08d511
+new file mode 100644
+index 0000000000..6bcb99adfc
+--- /dev/null
++++ b/src/internal/trace/v2/testdata/fuzz/FuzzReader/2b9be9aebe08d511
+@@ -0,0 +1,2 @@
++go test fuzz v1
++[]byte("go 1.22 trace\x00\x00\x00\x01\x0100\x85\x00\x0f00\x120\x01\x0100\x88\x00\b0000000")
+\ No newline at end of file
+diff --git a/src/internal/trace/v2/testdata/fuzz/FuzzReader/344331b314da0b08 b/src/internal/trace/v2/testdata/fuzz/FuzzReader/344331b314da0b08
+new file mode 100644
+index 0000000000..de6e4694be
+--- /dev/null
++++ b/src/internal/trace/v2/testdata/fuzz/FuzzReader/344331b314da0b08
+@@ -0,0 +1,2 @@
++go test fuzz v1
++[]byte("go 1.22 trace\x00\x00\x00\x01\x0100\x85\x00\b0000\x01\x01\xff00\xb8\x00\x1900\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\x04\x1900\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\x04\x1900\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\x04\x1901\xff\xff\xff\xff\xff\xff\xff\xff0\x800")
+\ No newline at end of file
+diff --git a/src/internal/trace/v2/testdata/fuzz/FuzzReader/365d7b5b633b3f97 b/src/internal/trace/v2/testdata/fuzz/FuzzReader/365d7b5b633b3f97
+new file mode 100644
+index 0000000000..8dc370f383
+--- /dev/null
++++ b/src/internal/trace/v2/testdata/fuzz/FuzzReader/365d7b5b633b3f97
+@@ -0,0 +1,2 @@
++go test fuzz v1
++[]byte("go 1.22 trace\x00\x00\x00\x0100\x8c0\x85\x00\b0000")
+\ No newline at end of file
+diff --git a/src/internal/trace/v2/testdata/fuzz/FuzzReader/56f073e57903588c b/src/internal/trace/v2/testdata/fuzz/FuzzReader/56f073e57903588c
+new file mode 100644
+index 0000000000..d34fe3f06c
+--- /dev/null
++++ b/src/internal/trace/v2/testdata/fuzz/FuzzReader/56f073e57903588c
+@@ -0,0 +1,2 @@
++go test fuzz v1
++[]byte("go 1.22 trace\x00\x00\x00\x01\x0100\x85\x00\x1f0000\x01\x0100\x88\x00\b0000000")
+\ No newline at end of file
+diff --git a/src/internal/trace/v2/testdata/fuzz/FuzzReader/aeb749b6bc317b66 b/src/internal/trace/v2/testdata/fuzz/FuzzReader/aeb749b6bc317b66
+new file mode 100644
+index 0000000000..f93b5a90da
+--- /dev/null
++++ b/src/internal/trace/v2/testdata/fuzz/FuzzReader/aeb749b6bc317b66
+@@ -0,0 +1,2 @@
++go test fuzz v1
++[]byte("go 1.22 trace\x00\x00\x00\x01000\x85\x00\b0000")
+\ No newline at end of file
+diff --git a/src/internal/trace/v2/testdata/fuzz/FuzzReader/closing-unknown-region b/src/internal/trace/v2/testdata/fuzz/FuzzReader/closing-unknown-region
+new file mode 100644
+index 0000000000..7433214030
+--- /dev/null
++++ b/src/internal/trace/v2/testdata/fuzz/FuzzReader/closing-unknown-region
+@@ -0,0 +1,2 @@
++go test fuzz v1
++[]byte("go 1.22 trace\x00\x00\x00\x01\x01\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\x87ߕ\xb4\x99\xb2\x06\x05\b\xa8ֹ\a\x01\x01\xf6\x9f\n\x9fÕ\xb4\x99\xb2\x06\x11\r\xa7\x02\x00\x01\x19\x05\x01\xf6\x9f\n\x02+\x04\x01\x00\x00")
+\ No newline at end of file
+diff --git a/src/internal/trace/v2/testdata/fuzz/FuzzReader/d478e18d2d6756b7 b/src/internal/trace/v2/testdata/fuzz/FuzzReader/d478e18d2d6756b7
+new file mode 100644
+index 0000000000..3e5fda833a
+--- /dev/null
++++ b/src/internal/trace/v2/testdata/fuzz/FuzzReader/d478e18d2d6756b7
+@@ -0,0 +1,2 @@
++go test fuzz v1
++[]byte("go 1.22 trace\x00\x00\x00\x01\x0100\x85\x00\"0000\x01\x0100\x88\x00\b0000000")
+\ No newline at end of file
+diff --git a/src/internal/trace/v2/testdata/fuzz/FuzzReader/d91203cd397aa0bc b/src/internal/trace/v2/testdata/fuzz/FuzzReader/d91203cd397aa0bc
+new file mode 100644
+index 0000000000..d24b94ac97
+--- /dev/null
++++ b/src/internal/trace/v2/testdata/fuzz/FuzzReader/d91203cd397aa0bc
+@@ -0,0 +1,2 @@
++go test fuzz v1
++[]byte("go 1.22 trace\x00\x00\x00\x01001\x85\x00\b0000")
+\ No newline at end of file
+diff --git a/src/internal/trace/v2/testdata/fuzz/FuzzReader/invalid-proc-state b/src/internal/trace/v2/testdata/fuzz/FuzzReader/invalid-proc-state
+new file mode 100644
+index 0000000000..e5d3258111
+--- /dev/null
++++ b/src/internal/trace/v2/testdata/fuzz/FuzzReader/invalid-proc-state
+@@ -0,0 +1,2 @@
++go test fuzz v1
++[]byte("go 1.22 trace\x00\x00\x00\x01\x01\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\x87ߕ\xb4\x99\xb2\x06\x05\b\xa8ֹ\a\x01\x01\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\x94镴\x99\xb2\x06\x05\r\xa7\x02\x00E")
+\ No newline at end of file
+diff --git a/src/internal/trace/v2/testdata/fuzz/FuzzReader/large-id b/src/internal/trace/v2/testdata/fuzz/FuzzReader/large-id
+new file mode 100644
+index 0000000000..0fb6273b44
+--- /dev/null
++++ b/src/internal/trace/v2/testdata/fuzz/FuzzReader/large-id
+@@ -0,0 +1,2 @@
++go test fuzz v1
++[]byte("go 1.22 trace\x00\x00\x00\x01\x01\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\x87ߕ\xb4\x99\xb2\x06\x05\b\xa8ֹ\a\x01\x01\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\x94镴\x99\xb2\x06\f\x02\x03\xff\xff\xff\xff\xff\xff\xff\x9f\x1d\x00")
+\ No newline at end of file
+diff --git a/src/internal/trace/v2/testdata/fuzz/FuzzReader/malformed-timestamp b/src/internal/trace/v2/testdata/fuzz/FuzzReader/malformed-timestamp
+new file mode 100644
+index 0000000000..850ca50f87
+--- /dev/null
++++ b/src/internal/trace/v2/testdata/fuzz/FuzzReader/malformed-timestamp
+@@ -0,0 +1,2 @@
++go test fuzz v1
++[]byte("go 1.22 trace\x00\x00\x00\x01\x01\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\x87ߕ\xb4\x99\xb2\x06\x05\b\xa8ֹ\a\x01\x01\xfa\x9f\n\xa5ѕ\xb4\x99\xb2\x06\x0e\n\x97\x96\x96\x96\x96\x96\x96\x96\x96\x96\x01\x01\x01")

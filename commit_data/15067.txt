@@ -9,10 +9,205 @@ Date:   Thu Jan 31 13:52:27 2013 -0800
     R=golang-dev, bradfitz, minux.ma, cookieo9
     CC=golang-dev
     https://golang.org/cl/7251044
-
+---
  src/cmd/vet/Makefile        |  3 +-
  src/cmd/vet/buildtag.go     | 96 +++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/vet/buildtag_bad.go | 11 ++++++
  src/cmd/vet/main.go         | 23 +++++++++--
  src/cmd/vet/taglit.go       |  2 +-
  5 files changed, 130 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/vet/Makefile b/src/cmd/vet/Makefile
+index 2be9f66426..2cdf96261f 100644
+--- a/src/cmd/vet/Makefile
++++ b/src/cmd/vet/Makefile
+@@ -4,4 +4,5 @@
+ 
+ test testshort:
+ 	go build
+-	../../../test/errchk ./vet -printfuncs='Warn:1,Warnf:1' print.go rangeloop.go atomic.go
++	../../../test/errchk ./vet -printfuncs='Warn:1,Warnf:1' *.go
++
+diff --git a/src/cmd/vet/buildtag.go b/src/cmd/vet/buildtag.go
+new file mode 100644
+index 0000000000..2fd6625de9
+--- /dev/null
++++ b/src/cmd/vet/buildtag.go
+@@ -0,0 +1,96 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +builder // ERROR "possible malformed \+build comment"
++// +build !ignore
++
++package main
++
++// +build toolate // ERROR "build comment appears too late in file"
++
++import (
++	"bytes"
++	"fmt"
++	"os"
++	"strings"
++	"unicode"
++)
++
++var (
++	nl         = []byte("\n")
++	slashSlash = []byte("//")
++	plusBuild  = []byte("+build")
++)
++
++// checkBuildTag checks that build tags are in the correct location and well-formed.
++func checkBuildTag(name string, data []byte) {
++	if !*vetBuildTags && !*vetAll {
++		return
++	}
++	lines := bytes.SplitAfter(data, nl)
++
++	// Determine cutpoint where +build comments are no longer valid.
++	// They are valid in leading // comments in the file followed by
++	// a blank line.
++	var cutoff int
++	for i, line := range lines {
++		line = bytes.TrimSpace(line)
++		if len(line) == 0 {
++			cutoff = i
++			continue
++		}
++		if bytes.HasPrefix(line, slashSlash) {
++			continue
++		}
++		break
++	}
++
++	for i, line := range lines {
++		line = bytes.TrimSpace(line)
++		if !bytes.HasPrefix(line, slashSlash) {
++			continue
++		}
++		text := bytes.TrimSpace(line[2:])
++		if bytes.HasPrefix(text, plusBuild) {
++			fields := bytes.Fields(text)
++			if !bytes.Equal(fields[0], plusBuild) {
++				// Comment is something like +buildasdf not +build.
++				fmt.Fprintf(os.Stderr, "%s:%d: possible malformed +build comment\n", name, i+1)
++				continue
++			}
++			if i >= cutoff {
++				fmt.Fprintf(os.Stderr, "%s:%d: +build comment appears too late in file\n", name, i+1)
++				setExit(1)
++				continue
++			}
++			// Check arguments.
++		Args:
++			for _, arg := range fields[1:] {
++				for _, elem := range strings.Split(string(arg), ",") {
++					if strings.HasPrefix(elem, "!!") {
++						fmt.Fprintf(os.Stderr, "%s:%d: invalid double negative in build constraint: %s\n", name, i+1, arg)
++						setExit(1)
++						break Args
++					}
++					if strings.HasPrefix(elem, "!") {
++						elem = elem[1:]
++					}
++					for _, c := range elem {
++						if !unicode.IsLetter(c) && !unicode.IsDigit(c) && c != '_' {
++							fmt.Fprintf(os.Stderr, "%s:%d: invalid non-alphanumeric build constraint: %s\n", name, i+1, arg)
++							setExit(1)
++							break Args
++						}
++					}
++				}
++			}
++			continue
++		}
++		// Comment with +build but not at beginning.
++		if bytes.Contains(line, plusBuild) && i < cutoff {
++			fmt.Fprintf(os.Stderr, "%s:%d: possible malformed +build comment\n", name, i+1)
++			continue
++		}
++	}
++}
+diff --git a/src/cmd/vet/buildtag_bad.go b/src/cmd/vet/buildtag_bad.go
+new file mode 100644
+index 0000000000..4dca6a443d
+--- /dev/null
++++ b/src/cmd/vet/buildtag_bad.go
+@@ -0,0 +1,11 @@
++// This file contains misplaced or malformed build constraints.
++// The Go tool will skip it, because the constraints are invalid.
++// It serves only to test the tag checker during make test.
++
++// Mention +build // ERROR "possible malformed \+build comment"
++
++// +build !!bang // ERROR "invalid double negative in build constraint"
++// +build @#$ // ERROR "invalid non-alphanumeric build constraint"
++
++// +build toolate // ERROR "build comment appears too late in file"
++package main
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index bfab526268..2f254f3e08 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -15,6 +15,7 @@ import (
+ 	"go/printer"
+ 	"go/token"
+ 	"io"
++	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+ 	"strconv"
+@@ -27,12 +28,13 @@ var exitCode = 0
+ // Flags to control which checks to perform
+ var (
+ 	vetAll             = flag.Bool("all", true, "check everything; disabled if any explicit check is requested")
++	vetAtomic          = flag.Bool("atomic", false, "check for common mistaken usages of the sync/atomic package")
++	vetBuildTags       = flag.Bool("buildtags", false, "check that +build tags are valid")
+ 	vetMethods         = flag.Bool("methods", false, "check that canonically named methods are canonically defined")
+ 	vetPrintf          = flag.Bool("printf", false, "check printf-like invocations")
+ 	vetStructTags      = flag.Bool("structtags", false, "check that struct field tags have canonical format")
+-	vetUntaggedLiteral = flag.Bool("composites", false, "check that composite literals used type-tagged elements")
+ 	vetRangeLoops      = flag.Bool("rangeloops", false, "check that range loop variables are used correctly")
+-	vetAtomic          = flag.Bool("atomic", false, "check for common mistaken usages of the sync/atomic package")
++	vetUntaggedLiteral = flag.Bool("composites", false, "check that composite literals used type-tagged elements")
+ )
+ 
+ // setExit sets the value for os.Exit when it is called, later.  It
+@@ -108,8 +110,23 @@ func main() {
+ // doFile analyzes one file.  If the reader is nil, the source code is read from the
+ // named file.
+ func doFile(name string, reader io.Reader) {
++	if reader == nil {
++		f, err := os.Open(name)
++		if err != nil {
++			errorf("%s: %s", name, err)
++			return
++		}
++		defer f.Close()
++		reader = f
++	}
++	data, err := ioutil.ReadAll(reader)
++	if err != nil {
++		errorf("%s: %s", name, err)
++		return
++	}
++	checkBuildTag(name, data)
+ 	fs := token.NewFileSet()
+-	parsedFile, err := parser.ParseFile(fs, name, reader, 0)
++	parsedFile, err := parser.ParseFile(fs, name, bytes.NewReader(data), 0)
+ 	if err != nil {
+ 		errorf("%s: %s", name, err)
+ 		return
+diff --git a/src/cmd/vet/taglit.go b/src/cmd/vet/taglit.go
+index b136e05e20..ccc78cc353 100644
+--- a/src/cmd/vet/taglit.go
++++ b/src/cmd/vet/taglit.go
+@@ -124,5 +124,5 @@ var untaggedLiteralWhitelist = map[string]bool{
+ }
+ 
+ type BadTag struct {
+-	S string `this is a bad tag`
++	S string `this is a bad tag` // ERROR "not compatible with reflect.StructTag.Get"
+ }

@@ -16,7 +16,57 @@ Date:   Mon Mar 6 23:17:58 2017 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/x509/pkcs1.go | 12 ++++++------
  src/crypto/x509/x509.go  |  4 ++--
  2 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/crypto/x509/pkcs1.go b/src/crypto/x509/pkcs1.go
+index df20a44204..73bc7623a5 100644
+--- a/src/crypto/x509/pkcs1.go
++++ b/src/crypto/x509/pkcs1.go
+@@ -35,6 +35,12 @@ type pkcs1AdditionalRSAPrime struct {
+ 	Coeff *big.Int
+ }
+ 
++// pkcs1PublicKey reflects the ASN.1 structure of a PKCS#1 public key.
++type pkcs1PublicKey struct {
++	N *big.Int
++	E int
++}
++
+ // ParsePKCS1PrivateKey returns an RSA private key from its ASN.1 PKCS#1 DER encoded form.
+ func ParsePKCS1PrivateKey(der []byte) (*rsa.PrivateKey, error) {
+ 	var priv pkcs1PrivateKey
+@@ -113,9 +119,3 @@ func MarshalPKCS1PrivateKey(key *rsa.PrivateKey) []byte {
+ 	b, _ := asn1.Marshal(priv)
+ 	return b
+ }
+-
+-// rsaPublicKey reflects the ASN.1 structure of a PKCS#1 public key.
+-type rsaPublicKey struct {
+-	N *big.Int
+-	E int
+-}
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 2934168c74..f572e7f2e9 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -59,7 +59,7 @@ func ParsePKIXPublicKey(derBytes []byte) (pub interface{}, err error) {
+ func marshalPublicKey(pub interface{}) (publicKeyBytes []byte, publicKeyAlgorithm pkix.AlgorithmIdentifier, err error) {
+ 	switch pub := pub.(type) {
+ 	case *rsa.PublicKey:
+-		publicKeyBytes, err = asn1.Marshal(rsaPublicKey{
++		publicKeyBytes, err = asn1.Marshal(pkcs1PublicKey{
+ 			N: pub.N,
+ 			E: pub.E,
+ 		})
+@@ -941,7 +941,7 @@ func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{
+ 			return nil, errors.New("x509: RSA key missing NULL parameters")
+ 		}
+ 
+-		p := new(rsaPublicKey)
++		p := new(pkcs1PublicKey)
+ 		rest, err := asn1.Unmarshal(asn1Data, p)
+ 		if err != nil {
+ 			return nil, err

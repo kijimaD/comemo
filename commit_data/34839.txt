@@ -7,6 +7,20 @@ Date:   Sat Nov 18 20:48:08 2017 +0100
     Change-Id: I6e814182d89c3e7ff184141af097af0afb844d00
     Reviewed-on: https://go-review.googlesource.com/78620
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/pprof/pprof.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index 81681be721..f76dde28d4 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -18,7 +18,7 @@
+ // To add equivalent profiling support to a standalone program, add
+ // code like the following to your main function:
+ //
+-//    var cpuprofile = flag.String("cpuprofile", "", "write cpu profile `file`")
++//    var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
+ //    var memprofile = flag.String("memprofile", "", "write memory profile to `file`")
+ //
+ //    func main() {

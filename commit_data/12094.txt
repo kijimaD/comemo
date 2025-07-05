@@ -10,7 +10,7 @@ Date:   Tue Feb 21 14:10:34 2012 +1100
     R=golang-dev, bradfitz, bradfitz, r, dsymonds, rsc, iant, iant
     CC=golang-dev
     https://golang.org/cl/5673077
-
+---
  src/cmd/cgo/util.go        |  4 +--
  src/cmd/godoc/main.go      |  8 +++--
  src/pkg/os/exec/exec.go    | 16 +++++-----
@@ -20,3 +20,421 @@ Date:   Tue Feb 21 14:10:34 2012 +1100
  src/pkg/os/exec_windows.go | 19 ++++++++++--
  src/pkg/os/os_test.go      |  8 ++---
  8 files changed, 162 insertions(+), 62 deletions(-)
+
+diff --git a/src/cmd/cgo/util.go b/src/cmd/cgo/util.go
+index 155c65904f..cd7cde2b6e 100644
+--- a/src/cmd/cgo/util.go
++++ b/src/cmd/cgo/util.go
+@@ -56,11 +56,11 @@ func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
+ 	<-c
+ 	<-c
+ 
+-	w, err := p.Wait()
++	state, err := p.Wait()
+ 	if err != nil {
+ 		fatalf("%s", err)
+ 	}
+-	ok = w.Exited() && w.ExitStatus() == 0
++	ok = state.Success()
+ 	return
+ }
+ 
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 80cf618778..8d592200e9 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -109,10 +109,10 @@ func exec(rw http.ResponseWriter, args []string) (status int) {
+ 		log.Printf("os.Wait(%d, 0): %v", p.Pid, err)
+ 		return 2
+ 	}
+-	status = wait.ExitStatus()
+-	if !wait.Exited() || status > 1 {
++	if !wait.Success() {
+ 		os.Stderr.Write(buf.Bytes())
+-		log.Printf("executing %v failed (exit status = %d)", args, status)
++		log.Printf("executing %v failed", args)
++		status = 1 // See comment in default case in dosync.
+ 		return
+ 	}
+ 
+@@ -143,6 +143,8 @@ func dosync(w http.ResponseWriter, r *http.Request) {
+ 		// don't change the package tree
+ 		syncDelay.set(time.Duration(*syncMin) * time.Minute) //  revert to regular sync schedule
+ 	default:
++		// TODO(r): this cannot happen now, since Wait has a boolean exit condition,
++		// not an integer.
+ 		// sync failed because of an error - back off exponentially, but try at least once a day
+ 		syncDelay.backoff(24 * time.Hour)
+ 	}
+diff --git a/src/pkg/os/exec/exec.go b/src/pkg/os/exec/exec.go
+index 248d97d458..ebe92a9fba 100644
+--- a/src/pkg/os/exec/exec.go
++++ b/src/pkg/os/exec/exec.go
+@@ -79,9 +79,9 @@ type Cmd struct {
+ 	// Process is the underlying process, once started.
+ 	Process *os.Process
+ 
+-	// Waitmsg contains information about an exited process,
++	// ProcessState contains information about an exited process,
+ 	// available after a call to Wait or Run.
+-	Waitmsg *os.Waitmsg
++	ProcessState *os.ProcessState
+ 
+ 	err             error // last error (from LookPath, stdin, stdout, stderr)
+ 	finished        bool  // when Wait was called
+@@ -266,11 +266,11 @@ func (c *Cmd) Start() error {
+ 
+ // An ExitError reports an unsuccessful exit by a command.
+ type ExitError struct {
+-	*os.Waitmsg
++	*os.ProcessState
+ }
+ 
+ func (e *ExitError) Error() string {
+-	return e.Waitmsg.String()
++	return e.ProcessState.String()
+ }
+ 
+ // Wait waits for the command to exit.
+@@ -291,8 +291,8 @@ func (c *Cmd) Wait() error {
+ 		return errors.New("exec: Wait was already called")
+ 	}
+ 	c.finished = true
+-	msg, err := c.Process.Wait()
+-	c.Waitmsg = msg
++	state, err := c.Process.Wait()
++	c.ProcessState = state
+ 
+ 	var copyError error
+ 	for _ = range c.goroutine {
+@@ -307,8 +307,8 @@ func (c *Cmd) Wait() error {
+ 
+ 	if err != nil {
+ 		return err
+-	} else if !msg.Exited() || msg.ExitStatus() != 0 {
+-		return &ExitError{msg}
++	} else if !state.Success() {
++		return &ExitError{state}
+ 	}
+ 
+ 	return copyError
+diff --git a/src/pkg/os/exec_plan9.go b/src/pkg/os/exec_plan9.go
+index 92126c1dd8..9da86e2639 100644
+--- a/src/pkg/os/exec_plan9.go
++++ b/src/pkg/os/exec_plan9.go
+@@ -8,6 +8,7 @@ import (
+ 	"errors"
+ 	"runtime"
+ 	"syscall"
++	"time"
+ )
+ 
+ // StartProcess starts a new process with the program, arguments and attributes
+@@ -64,14 +65,9 @@ func (p *Process) Kill() error {
+ 	return e
+ }
+ 
+-// Waitmsg stores the information about an exited process as reported by Wait.
+-type Waitmsg struct {
+-	syscall.Waitmsg
+-}
+-
+ // Wait waits for the Process to exit or stop, and then returns a
+ // Waitmsg describing its status and an error, if any.
+-func (p *Process) Wait() (w *Waitmsg, err error) {
++func (p *Process) Wait() (ps *ProcessState, err error) {
+ 	var waitmsg syscall.Waitmsg
+ 
+ 	if p.Pid == -1 {
+@@ -91,7 +87,11 @@ func (p *Process) Wait() (w *Waitmsg, err error) {
+ 		}
+ 	}
+ 
+-	return &Waitmsg{waitmsg}, nil
++	ps = &ProcessState{
++		pid:    waitmsg.Pid,
++		status: waitmsg,
++	}
++	return ps, nil
+ }
+ 
+ // Release releases any resources associated with the Process.
+@@ -108,9 +108,57 @@ func findProcess(pid int) (p *Process, err error) {
+ 	return newProcess(pid, 0), nil
+ }
+ 
+-func (w *Waitmsg) String() string {
+-	if w == nil {
++// ProcessState stores information about process as reported by Wait.
++type ProcessState struct {
++	pid    int             // The process's id.
++	status syscall.Waitmsg // System-dependent status info.
++}
++
++// Pid returns the process id of the exited process.
++func (p *ProcessState) Pid() int {
++	return p.pid
++}
++
++// Exited returns whether the program has exited.
++func (p *ProcessState) Exited() bool {
++	return p.status.Exited()
++}
++
++// Success reports whether the program exited successfully,
++// such as with exit status 0 on Unix.
++func (p *ProcessState) Success() bool {
++	return p.status.ExitStatus() == 0
++}
++
++// Sys returns system-dependent exit information about
++// the process.  Convert it to the appropriate underlying
++// type, such as *syscall.Waitmsg on Plan 9, to access its contents.
++func (p *ProcessState) Sys() interface{} {
++	return &p.status
++}
++
++// SysUsage returns system-dependent resource usage information about
++// the exited process.  Convert it to the appropriate underlying
++// type, such as *syscall.Waitmsg on Unix, to access its contents.
++func (p *ProcessState) SysUsage() interface{} {
++	return &p.status
++}
++
++// UserTime returns the user CPU time of the exited process and its children.
++// It is always reported as 0 on Windows.
++func (p *ProcessState) UserTime() time.Duration {
++	return time.Duration(p.status.Time[0]) * time.Millisecond
++}
++
++// SystemTime returns the system CPU time of the exited process and its children.
++// It is always reported as 0 on Windows.
++func (p *ProcessState) SystemTime() time.Duration {
++	return time.Duration(p.status.Time[1]) * time.Millisecond
++}
++
++func (p *ProcessState) String() string {
++	if p == nil {
+ 		return "<nil>"
+ 	}
+-	return "exit status: " + w.Msg
++	return "exit status: " + p.status.Msg
+ }
+diff --git a/src/pkg/os/exec_posix.go b/src/pkg/os/exec_posix.go
+index 03c7f0e82f..2b8d2b2b2b 100644
+--- a/src/pkg/os/exec_posix.go
++++ b/src/pkg/os/exec_posix.go
+@@ -42,18 +42,41 @@ func (p *Process) Kill() error {
+ 	return p.Signal(Kill)
+ }
+ 
+-// TODO(rsc): Should os implement its own syscall.WaitStatus
+-// wrapper with the methods, or is exposing the underlying one enough?
+-//
+-// TODO(rsc): Certainly need to have Rusage struct,
+-// since syscall one might have different field types across
+-// different OS.
+-
+-// Waitmsg stores the information about an exited process as reported by Wait.
+-type Waitmsg struct {
+-	Pid                int             // The process's id.
+-	syscall.WaitStatus                 // System-dependent status info.
+-	Rusage             *syscall.Rusage // System-dependent resource usage info.
++// ProcessState stores information about process as reported by Wait.
++type ProcessState struct {
++	pid    int                 // The process's id.
++	status *syscall.WaitStatus // System-dependent status info.
++	rusage *syscall.Rusage
++}
++
++// Pid returns the process id of the exited process.
++func (p *ProcessState) Pid() int {
++	return p.pid
++}
++
++// Exited returns whether the program has exited.
++func (p *ProcessState) Exited() bool {
++	return p.status.Exited()
++}
++
++// Success reports whether the program exited successfully,
++// such as with exit status 0 on Unix.
++func (p *ProcessState) Success() bool {
++	return p.status.ExitStatus() == 0
++}
++
++// Sys returns system-dependent exit information about
++// the process.  Convert it to the appropriate underlying
++// type, such as *syscall.WaitStatus on Unix, to access its contents.
++func (p *ProcessState) Sys() interface{} {
++	return p.status
++}
++
++// SysUsage returns system-dependent resource usage information about
++// the exited process.  Convert it to the appropriate underlying
++// type, such as *syscall.Rusage on Unix, to access its contents.
++func (p *ProcessState) SysUsage() interface{} {
++	return p.rusage
+ }
+ 
+ // Convert i to decimal string.
+@@ -83,26 +106,26 @@ func itod(i int) string {
+ 	return string(b[bp:])
+ }
+ 
+-func (w *Waitmsg) String() string {
+-	if w == nil {
++func (p *ProcessState) String() string {
++	if p == nil {
+ 		return "<nil>"
+ 	}
+-	// TODO(austin) Use signal names when possible?
++	status := p.Sys().(*syscall.WaitStatus)
+ 	res := ""
+ 	switch {
+-	case w.Exited():
+-		res = "exit status " + itod(w.ExitStatus())
+-	case w.Signaled():
+-		res = "signal " + itod(int(w.Signal()))
+-	case w.Stopped():
+-		res = "stop signal " + itod(int(w.StopSignal()))
+-		if w.StopSignal() == syscall.SIGTRAP && w.TrapCause() != 0 {
+-			res += " (trap " + itod(w.TrapCause()) + ")"
++	case status.Exited():
++		res = "exit status " + itod(status.ExitStatus())
++	case status.Signaled():
++		res = "signal " + itod(int(status.Signal()))
++	case status.Stopped():
++		res = "stop signal " + itod(int(status.StopSignal()))
++		if status.StopSignal() == syscall.SIGTRAP && status.TrapCause() != 0 {
++			res += " (trap " + itod(status.TrapCause()) + ")"
+ 		}
+-	case w.Continued():
++	case status.Continued():
+ 		res = "continued"
+ 	}
+-	if w.CoreDump() {
++	if status.CoreDump() {
+ 		res += " (core dumped)"
+ 	}
+ 	return res
+diff --git a/src/pkg/os/exec_unix.go b/src/pkg/os/exec_unix.go
+index b9880ff796..e5905f06af 100644
+--- a/src/pkg/os/exec_unix.go
++++ b/src/pkg/os/exec_unix.go
+@@ -10,26 +10,30 @@ import (
+ 	"errors"
+ 	"runtime"
+ 	"syscall"
++	"time"
+ )
+ 
+ // Wait waits for the Process to exit or stop, and then returns a
+-// Waitmsg describing its status and an error, if any.
+-func (p *Process) Wait() (w *Waitmsg, err error) {
++// ProcessState describing its status and an error, if any.
++func (p *Process) Wait() (ps *ProcessState, err error) {
+ 	if p.Pid == -1 {
+ 		return nil, syscall.EINVAL
+ 	}
+ 	var status syscall.WaitStatus
+-	pid1, e := syscall.Wait4(p.Pid, &status, 0, nil)
++	var rusage syscall.Rusage
++	pid1, e := syscall.Wait4(p.Pid, &status, 0, &rusage)
+ 	if e != nil {
+ 		return nil, NewSyscallError("wait", e)
+ 	}
+ 	if pid1 != 0 {
+ 		p.done = true
+ 	}
+-	w = new(Waitmsg)
+-	w.Pid = pid1
+-	w.WaitStatus = status
+-	return w, nil
++	ps = &ProcessState{
++		pid:    pid1,
++		status: &status,
++		rusage: &rusage,
++	}
++	return ps, nil
+ }
+ 
+ // Signal sends a signal to the Process.
+@@ -60,3 +64,13 @@ func findProcess(pid int) (p *Process, err error) {
+ 	// NOOP for unix.
+ 	return newProcess(pid, 0), nil
+ }
++
++// UserTime returns the user CPU time of the exited process and its children.
++func (p *ProcessState) UserTime() time.Duration {
++	return time.Duration(p.rusage.Utime.Nano()) * time.Nanosecond
++}
++
++// SystemTime returns the system CPU time of the exited process and its children.
++func (p *ProcessState) SystemTime() time.Duration {
++	return time.Duration(p.rusage.Stime.Nano()) * time.Nanosecond
++}
+diff --git a/src/pkg/os/exec_windows.go b/src/pkg/os/exec_windows.go
+index 7d46c89d83..8887ba4ee3 100644
+--- a/src/pkg/os/exec_windows.go
++++ b/src/pkg/os/exec_windows.go
+@@ -8,12 +8,13 @@ import (
+ 	"errors"
+ 	"runtime"
+ 	"syscall"
++	"time"
+ 	"unsafe"
+ )
+ 
+ // Wait waits for the Process to exit or stop, and then returns a
+-// Waitmsg describing its status and an error, if any.
+-func (p *Process) Wait() (w *Waitmsg, err error) {
++// ProcessState describing its status and an error, if any.
++func (p *Process) Wait() (ps *ProcessState, err error) {
+ 	s, e := syscall.WaitForSingleObject(syscall.Handle(p.handle), syscall.INFINITE)
+ 	switch s {
+ 	case syscall.WAIT_OBJECT_0:
+@@ -29,7 +30,7 @@ func (p *Process) Wait() (w *Waitmsg, err error) {
+ 		return nil, NewSyscallError("GetExitCodeProcess", e)
+ 	}
+ 	p.done = true
+-	return &Waitmsg{p.Pid, syscall.WaitStatus{Status: s, ExitCode: ec}, new(syscall.Rusage)}, nil
++	return &ProcessState{p.Pid, &syscall.WaitStatus{Status: s, ExitCode: ec}, new(syscall.Rusage)}, nil
+ }
+ 
+ // Signal sends a signal to the Process.
+@@ -83,3 +84,15 @@ func init() {
+ 		Args[i] = string(syscall.UTF16ToString((*v)[:]))
+ 	}
+ }
++
++// UserTime returns the user CPU time of the exited process and its children.
++// For now, it is always reported as 0 on Windows.
++func (p *ProcessState) UserTime() time.Duration {
++	return 0
++}
++
++// SystemTime returns the system CPU time of the exited process and its children.
++// For now, it is always reported as 0 on Windows.
++func (p *ProcessState) SystemTime() time.Duration {
++	return 0
++}
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 976d64bdd6..21e2f374ca 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -1007,10 +1007,10 @@ func TestStatDirWithTrailingSlash(t *testing.T) {
+ 	}
+ }
+ 
+-func TestNilWaitmsgString(t *testing.T) {
+-	var w *Waitmsg
+-	s := w.String()
++func TestNilProcessStateString(t *testing.T) {
++	var ps *ProcessState
++	s := ps.String()
+ 	if s != "<nil>" {
+-		t.Errorf("(*Waitmsg)(nil).String() = %q, want %q", s, "<nil>")
++		t.Errorf("(*ProcessState)(nil).String() = %q, want %q", s, "<nil>")
+ 	}
+ }

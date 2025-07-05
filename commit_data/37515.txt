@@ -9,7 +9,34 @@ Date:   Thu Aug 9 16:14:27 2018 -0400
     Change-Id: If7f381c3f3a41bd62c5f8bcf4f92720badcaf5c6
     Reviewed-on: https://go-review.googlesource.com/128878
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/modload/load.go        | 2 +-
  src/cmd/go/testdata/script/mod_replace.txt | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 63a17257b9..4e761af21c 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -140,7 +140,7 @@ func ImportPaths(args []string) []string {
+ 		if prev, ok := firstPath[src]; !ok {
+ 			firstPath[src] = mod.Path
+ 		} else if prev != mod.Path {
+-			base.Errorf("go: %s@%s used for two different module paths (%s and %s)", mod.Path, mod.Version, prev, mod.Path)
++			base.Errorf("go: %s@%s used for two different module paths (%s and %s)", src.Path, src.Version, prev, mod.Path)
+ 		}
+ 	}
+ 	base.ExitIfErrors()
+diff --git a/src/cmd/go/testdata/script/mod_replace.txt b/src/cmd/go/testdata/script/mod_replace.txt
+index 799a7e82e9..5894ed69f3 100644
+--- a/src/cmd/go/testdata/script/mod_replace.txt
++++ b/src/cmd/go/testdata/script/mod_replace.txt
+@@ -20,7 +20,7 @@ stdout 'Clear is better than clever.'
+ # However, the same module can't be used as two different paths.
+ go mod edit -dropreplace=rsc.io/quote/v3 -replace=not-rsc.io/quote/v3@v3.0.0=rsc.io/quote/v3@v3.0.0 -require=not-rsc.io/quote/v3@v3.0.0
+ ! go build -o a4.exe .
+-
++stderr 'rsc.io/quote/v3@v3.0.0 used for two different module paths \(not-rsc.io/quote/v3 and rsc.io/quote/v3\)'
+ 
+ -- go.mod --
+ module quoter

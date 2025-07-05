@@ -9,8 +9,72 @@ Date:   Tue Jan 5 17:06:41 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/183047
-
+---
  src/cmd/8a/lex.c   | 4 ++++
  src/cmd/8l/8.out.h | 4 ++++
  src/cmd/8l/optab.c | 6 +++++-
  3 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/8a/lex.c b/src/cmd/8a/lex.c
+index d4c61af07d..a426713427 100644
+--- a/src/cmd/8a/lex.c
++++ b/src/cmd/8a/lex.c
+@@ -568,11 +568,15 @@ struct
+ 	"FCOMDPP",	LTYPE3, AFCOMDPP,
+ 	"FCOMF",	LTYPE3, AFCOMF,
+ 	"FCOMFP",	LTYPE3, AFCOMFP,
++	"FCOMI",	LTYPE3, AFCOMI,
++	"FCOMIP",	LTYPE3, AFCOMIP,
+ 	"FCOML",	LTYPE3, AFCOML,
+ 	"FCOMLP",	LTYPE3, AFCOMLP,
+ 	"FCOMW",	LTYPE3, AFCOMW,
+ 	"FCOMWP",	LTYPE3, AFCOMWP,
+ 	"FUCOM",	LTYPE3, AFUCOM,
++	"FUCOMI",	LTYPE3, AFUCOMI,
++	"FUCOMIP",	LTYPE3, AFUCOMIP,
+ 	"FUCOMP",	LTYPE3, AFUCOMP,
+ 	"FUCOMPP",	LTYPE3, AFUCOMPP,
+ 	"FADDW",	LTYPE3, AFADDW,
+diff --git a/src/cmd/8l/8.out.h b/src/cmd/8l/8.out.h
+index e9554fa4fd..a62c4a5747 100644
+--- a/src/cmd/8l/8.out.h
++++ b/src/cmd/8l/8.out.h
+@@ -291,11 +291,15 @@ enum	as
+ 	AFCOMDPP,
+ 	AFCOMF,
+ 	AFCOMFP,
++	AFCOMI,
++	AFCOMIP,
+ 	AFCOML,
+ 	AFCOMLP,
+ 	AFCOMW,
+ 	AFCOMWP,
+ 	AFUCOM,
++	AFUCOMI,
++	AFUCOMIP,
+ 	AFUCOMP,
+ 	AFUCOMPP,
+ 
+diff --git a/src/cmd/8l/optab.c b/src/cmd/8l/optab.c
+index 0e36599348..09b2623b4a 100644
+--- a/src/cmd/8l/optab.c
++++ b/src/cmd/8l/optab.c
+@@ -602,13 +602,17 @@ Optab optab[] =
+ 	{ AFCOMDPP,	ycompp,	Px, 0xde,(03) },
+ 	{ AFCOMF,	yfmvx,	Px, 0xd8,(02) },
+ 	{ AFCOMFP,	yfmvx,	Px, 0xd8,(03) },
++	{ AFCOMI,	yfmvx,	Px, 0xdb,(06) },
++	{ AFCOMIP,	yfmvx,	Px, 0xdf,(06) },
+ 	{ AFCOML,	yfmvx,	Px, 0xda,(02) },
+ 	{ AFCOMLP,	yfmvx,	Px, 0xda,(03) },
+ 	{ AFCOMW,	yfmvx,	Px, 0xde,(02) },
+ 	{ AFCOMWP,	yfmvx,	Px, 0xde,(03) },
+ 
+ 	{ AFUCOM,	ycompp,	Px, 0xdd,(04) },
+-	{ AFUCOMP,	ycompp, Px, 0xdd,(05) },
++	{ AFUCOMI,	ycompp,	Px, 0xdb,(05) },
++	{ AFUCOMIP,	ycompp,	Px, 0xdf,(05) },
++	{ AFUCOMP,	ycompp,	Px, 0xdd,(05) },
+ 	{ AFUCOMPP,	ycompp,	Px, 0xda,(13) },
+ 
+ 	{ AFADDDP,	yfaddp,	Px, 0xde,(00) },

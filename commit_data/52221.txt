@@ -22,7 +22,58 @@ Date:   Fri Apr 8 17:59:05 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/noder/stencil.go |  1 +
  src/runtime/callers_test.go               | 30 ++++++++++++++++++++++++++++++
  2 files changed, 31 insertions(+)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index eeac8d8de7..41435a7afe 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -741,6 +741,7 @@ func (g *genInst) genericSubst(newsym *types.Sym, nameNode *ir.Name, tparams []*
+ 	// Pos of the instantiated function is same as the generic function
+ 	newf := ir.NewFunc(gf.Pos())
+ 	newf.Pragma = gf.Pragma // copy over pragmas from generic function to stenciled implementation.
++	newf.Endlineno = gf.Endlineno
+ 	newf.Nname = ir.NewNameAt(gf.Pos(), newsym)
+ 	newf.Nname.Func = newf
+ 	newf.Nname.Defn = newf
+diff --git a/src/runtime/callers_test.go b/src/runtime/callers_test.go
+index 3cf3fbe5ac..d245cbd2d2 100644
+--- a/src/runtime/callers_test.go
++++ b/src/runtime/callers_test.go
+@@ -309,3 +309,33 @@ func TestCallersDeferNilFuncPanicWithLoop(t *testing.T) {
+ 	// function exit, rather than at the defer statement.
+ 	state = 2
+ }
++
++// issue #51988
++// Func.Endlineno was lost when instantiating generic functions, leading to incorrect
++// stack trace positions.
++func TestCallersEndlineno(t *testing.T) {
++	testNormalEndlineno(t)
++	testGenericEndlineno[int](t)
++}
++
++func testNormalEndlineno(t *testing.T) {
++	defer testCallerLine(t, callerLine(t, 0)+1)
++}
++
++func testGenericEndlineno[_ any](t *testing.T) {
++	defer testCallerLine(t, callerLine(t, 0)+1)
++}
++
++func testCallerLine(t *testing.T, want int) {
++	if have := callerLine(t, 1); have != want {
++		t.Errorf("callerLine(1) returned %d, but want %d\n", have, want)
++	}
++}
++
++func callerLine(t *testing.T, skip int) int {
++	_, _, line, ok := runtime.Caller(skip + 1)
++	if !ok {
++		t.Fatalf("runtime.Caller(%d) failed", skip+1)
++	}
++	return line
++}

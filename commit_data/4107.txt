@@ -6,6 +6,22 @@ Date:   Tue Nov 17 16:52:36 2009 -0800
     
     R=r
     https://golang.org/cl/157053
-
+---
  lib/codereview/codereview.py | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 3376f07364..bed002b9f7 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -1351,7 +1351,9 @@ def DownloadCL(ui, repo, clname):
+ 
+ 	# The author is just a nickname: get the real email address.
+ 	try:
+-		data = MySend("/user_popup/" + nick, force_auth=False)
++		# want URL-encoded nick, but without a=, and rietveld rejects + for %20.
++		url = "/user_popup/" + urllib.urlencode({"a": nick})[2:].replace("+", "%20")
++		data = MySend(url, force_auth=False)
+ 	except:
+ 		ui.warn("error looking up %s: %s\n" % (nick, ExceptionDetail()))
+ 		cl.original_author = nick+"@needtofix"

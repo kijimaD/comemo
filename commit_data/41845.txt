@@ -13,7 +13,47 @@ Date:   Sat Oct 26 20:01:47 2019 +0200
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/removeall_noat.go | 8 ++++++++
  src/os/removeall_test.go | 2 +-
  2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/removeall_noat.go b/src/os/removeall_noat.go
+index 32673c0ab0..953c4a2715 100644
+--- a/src/os/removeall_noat.go
++++ b/src/os/removeall_noat.go
+@@ -8,6 +8,7 @@ package os
+ 
+ import (
+ 	"io"
++	"runtime"
+ 	"syscall"
+ )
+ 
+@@ -127,6 +128,13 @@ func removeAll(path string) error {
+ 	if err1 == nil || IsNotExist(err1) {
+ 		return nil
+ 	}
++	if runtime.GOOS == "windows" && IsPermission(err1) {
++		if fs, err := Stat(path); err == nil {
++			if err = Chmod(path, FileMode(0200 | int(fs.Mode()))); err == nil {
++				err1 = Remove(path)
++			}
++		}
++	}
+ 	if err == nil {
+ 		err = err1
+ 	}
+diff --git a/src/os/removeall_test.go b/src/os/removeall_test.go
+index 1fa0dcdd33..0bf35751ce 100644
+--- a/src/os/removeall_test.go
++++ b/src/os/removeall_test.go
+@@ -378,7 +378,7 @@ func TestRemoveAllButReadOnlyAndPathError(t *testing.T) {
+ 
+ func TestRemoveUnreadableDir(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "js", "windows":
++	case "js":
+ 		t.Skipf("skipping test on %s", runtime.GOOS)
+ 	}
+ 

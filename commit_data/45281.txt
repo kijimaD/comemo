@@ -12,6 +12,19 @@ Date:   Thu Oct 15 14:19:10 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/syscall/exec_unix_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/syscall/exec_unix_test.go b/src/syscall/exec_unix_test.go
+index d005bba610..4431f7fc90 100644
+--- a/src/syscall/exec_unix_test.go
++++ b/src/syscall/exec_unix_test.go
+@@ -247,6 +247,7 @@ func TestInvalidExec(t *testing.T) {
+ 
+ // TestExec is for issue #41702.
+ func TestExec(t *testing.T) {
++	testenv.MustHaveExec(t)
+ 	cmd := exec.Command(os.Args[0], "-test.run=TestExecHelper")
+ 	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=2")
+ 	o, err := cmd.CombinedOutput()

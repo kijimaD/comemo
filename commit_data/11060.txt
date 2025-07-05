@@ -9,7 +9,41 @@ Date:   Mon Jan 9 12:52:03 2012 -0800
     R=golang-dev, rogpeppe, r, r
     CC=golang-dev, r, rogpeppe
     https://golang.org/cl/5515050
-
+---
  src/pkg/encoding/gob/decode.go       | 6 +++---
  src/pkg/encoding/gob/encoder_test.go | 8 ++++++++
  2 files changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/encoding/gob/decode.go b/src/pkg/encoding/gob/decode.go
+index ba1f2eb813..4d1325d176 100644
+--- a/src/pkg/encoding/gob/decode.go
++++ b/src/pkg/encoding/gob/decode.go
+@@ -1039,9 +1039,9 @@ func (dec *Decoder) compatibleType(fr reflect.Type, fw typeId, inProgress map[re
+ 		// Extract and compare element types.
+ 		var sw *sliceType
+ 		if tt, ok := builtinIdToType[fw]; ok {
+-			sw = tt.(*sliceType)
+-		} else {
+-			sw = dec.wireType[fw].SliceT
++			sw, _ = tt.(*sliceType)
++		} else if wire != nil {
++			sw = wire.SliceT
+ 		}
+ 		elem := userType(t.Elem()).base
+ 		return sw != nil && dec.compatibleType(elem, sw.Elem, inProgress)
+diff --git a/src/pkg/encoding/gob/encoder_test.go b/src/pkg/encoding/gob/encoder_test.go
+index cd1500d077..7a30f9107e 100644
+--- a/src/pkg/encoding/gob/encoder_test.go
++++ b/src/pkg/encoding/gob/encoder_test.go
+@@ -678,3 +678,11 @@ func TestUnexportedChan(t *testing.T) {
+ 		t.Fatalf("error encoding unexported channel: %s", err)
+ 	}
+ }
++
++func TestSliceIncompatibility(t *testing.T) {
++	var in = []byte{1, 2, 3}
++	var out []int
++	if err := encAndDec(in, &out); err == nil {
++		t.Error("expected compatibility error")
++	}
++}

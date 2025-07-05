@@ -7,7 +7,35 @@ Date:   Fri Apr 30 12:46:46 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/962046
-
+---
  src/pkg/syscall/syscall_windows.go     | 4 ++++
  src/pkg/syscall/zerrors_windows_386.go | 1 +
  2 files changed, 5 insertions(+)
+
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index ec889f9e60..401b0a51a2 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -184,6 +184,10 @@ func Open(path string, mode int, perm int) (fd int, errno int) {
+ func Read(fd int, p []byte) (n int, errno int) {
+ 	var done uint32
+ 	if ok, e := ReadFile(int32(fd), p, &done, nil); !ok {
++		if e == ERROR_BROKEN_PIPE {
++			// BUG(brainman): work around ERROR_BROKEN_PIPE is returned on reading EOF from stdin
++			return 0, 0
++		}
+ 		return 0, e
+ 	}
+ 	return int(done), 0
+diff --git a/src/pkg/syscall/zerrors_windows_386.go b/src/pkg/syscall/zerrors_windows_386.go
+index d8b22846c7..e96c817037 100644
+--- a/src/pkg/syscall/zerrors_windows_386.go
++++ b/src/pkg/syscall/zerrors_windows_386.go
+@@ -8,6 +8,7 @@ package syscall
+ const (
+ 	ERROR_FILE_NOT_FOUND      = 2
+ 	ERROR_NO_MORE_FILES       = 18
++	ERROR_BROKEN_PIPE         = 109
+ 	ERROR_INSUFFICIENT_BUFFER = 122
+ 	ERROR_MOD_NOT_FOUND       = 126
+ 	ERROR_PROC_NOT_FOUND      = 127

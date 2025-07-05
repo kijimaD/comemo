@@ -16,7 +16,103 @@ Date:   Fri Feb 10 14:36:59 2017 -0800
     Run-TryBot: Chris Manghane <cmang@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/work/build.go      |  9 ++++++
  src/cmd/go/internal/work/build_test.go | 56 ++++++++++++++++++++++++++++++++++
  2 files changed, 65 insertions(+)
+
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index a395176986..463206354b 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -1655,6 +1655,15 @@ func (b *Builder) moveOrCopyFile(a *Action, dst, src string, perm os.FileMode, f
+ 	// If we can update the mode and rename to the dst, do it.
+ 	// Otherwise fall back to standard copy.
+ 
++	// If the destination directory has the group sticky bit set,
++	// we have to copy the file to retain the correct permissions.
++	// https://golang.org/issue/18878
++	if fi, err := os.Stat(filepath.Dir(dst)); err == nil {
++		if fi.IsDir() && (fi.Mode()&os.ModeSetgid) != 0 {
++			return b.copyFile(a, dst, src, perm, force)
++		}
++	}
++
+ 	// The perm argument is meant to be adjusted according to umask,
+ 	// but we don't know what the umask is.
+ 	// Create a dummy file to find out.
+diff --git a/src/cmd/go/internal/work/build_test.go b/src/cmd/go/internal/work/build_test.go
+index 9101ef1d1b..2bfb6cb814 100644
+--- a/src/cmd/go/internal/work/build_test.go
++++ b/src/cmd/go/internal/work/build_test.go
+@@ -5,10 +5,15 @@
+ package work
+ 
+ import (
++	"bytes"
++	"fmt"
+ 	"io/ioutil"
+ 	"os"
++	"path"
+ 	"path/filepath"
+ 	"reflect"
++	"runtime"
++	"strings"
+ 	"testing"
+ 
+ 	"cmd/go/internal/base"
+@@ -165,3 +170,54 @@ func pkgImportPath(pkgpath string) *load.Package {
+ 		},
+ 	}
+ }
++
++// When installing packages, the installed package directory should
++// respect the group sticky bit and group name of the destination
++// directory.
++// See https://golang.org/issue/18878.
++func TestRespectGroupSticky(t *testing.T) {
++	if runtime.GOOS == "nacl" {
++		t.Skip("can't set group sticky bit with chmod on nacl")
++	}
++
++	var b Builder
++	b.Init()
++
++	// Check that `cp` is called instead of `mv` by looking at the output
++	// of `(*Builder).ShowCmd` afterwards as a sanity check.
++	cfg.BuildX = true
++	var cmdBuf bytes.Buffer
++	b.Print = func(a ...interface{}) (int, error) {
++		return cmdBuf.WriteString(fmt.Sprint(a...))
++	}
++
++	stickydir := path.Join(os.TempDir(), "GroupSticky")
++	if err := os.Mkdir(stickydir, 0755); err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(stickydir)
++
++	// Mkdir doesn't always correctly set the group sticky bit.
++	// Change stickydir's permissions to include group sticky bit.
++	if err := os.Chmod(stickydir, 0755|os.ModeSetgid); err != nil {
++		t.Fatal(err)
++	}
++
++	pkgfile, err := ioutil.TempFile(b.WorkDir, "")
++	if err != nil {
++		t.Fatalf("ioutil.TempFile(%q): %v", b.WorkDir, err)
++	}
++	defer os.Remove(pkgfile.Name())
++	defer pkgfile.Close()
++
++	stickyFile := filepath.Join(stickydir, "sticky")
++	if err := b.moveOrCopyFile(nil, stickyFile, pkgfile.Name(), 0666, true); err != nil {
++		t.Fatalf("moveOrCopyFile: %v", err)
++	}
++
++	got := strings.TrimSpace(cmdBuf.String())
++	want := b.fmtcmd("", "cp %s %s", pkgfile.Name(), stickyFile)
++	if got != want {
++		t.Fatalf("moveOrCopyFile(%q, %q): want %q, got %q", stickyFile, pkgfile.Name(), want, got)
++	}
++}

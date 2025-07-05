@@ -41,7 +41,7 @@ Date:   Sat Nov 2 14:30:31 2024 +0800
     Reviewed-by: abner chenc <chenguoqi@loongson.cn>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  src/cmd/compile/internal/loong64/ssa.go            |  3 ++
  src/cmd/compile/internal/ssa/_gen/LOONG64.rules    |  1 +
  src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go    |  4 +++
@@ -51,3 +51,209 @@ Date:   Sat Nov 2 14:30:31 2024 +0800
  src/cmd/compile/internal/ssagen/intrinsics_test.go |  5 +++
  test/codegen/mathbits.go                           |  4 +++
  8 files changed, 74 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/loong64/ssa.go b/src/cmd/compile/internal/loong64/ssa.go
+index f709d2728b..2dadda8860 100644
+--- a/src/cmd/compile/internal/loong64/ssa.go
++++ b/src/cmd/compile/internal/loong64/ssa.go
+@@ -487,6 +487,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssa.OpLOONG64CLZV,
+ 		ssa.OpLOONG64SQRTD,
+ 		ssa.OpLOONG64SQRTF,
++		ssa.OpLOONG64REVB2H,
++		ssa.OpLOONG64REVB2W,
++		ssa.OpLOONG64REVBV,
+ 		ssa.OpLOONG64ABSD:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+index dbb1c2c649..7d78e3afa9 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+@@ -147,6 +147,7 @@
+ 
+ (BitLen64 <t> x) => (NEGV <t> (SUBVconst <t> [64] (CLZV <t> x)))
+ (BitLen32 <t> x) => (NEGV <t> (SUBVconst <t> [32] (CLZW <t> x)))
++(Bswap(16|32|64) ...) => (REVB(2H|2W|V) ...)
+ 
+ // math package intrinsics
+ (Sqrt ...) => (SQRTD ...)
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+index cfedb64676..4a7e67786b 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+@@ -202,6 +202,10 @@ func init() {
+ 		{name: "CLZW", argLength: 1, reg: gp11, asm: "CLZW"}, // Count leading (high order) zeroes (returns 0-32)
+ 		{name: "CLZV", argLength: 1, reg: gp11, asm: "CLZV"}, // Count leading (high order) zeroes (returns 0-64)
+ 
++		{name: "REVB2H", argLength: 1, reg: gp11, asm: "REVB2H"}, // Swap bytes: 0x11223344 -> 0x22114433 (sign extends to 64 bits)
++		{name: "REVB2W", argLength: 1, reg: gp11, asm: "REVB2W"}, // Swap bytes: 0x1122334455667788 -> 0x4433221188776655
++		{name: "REVBV", argLength: 1, reg: gp11, asm: "REVBV"},   // Swap bytes: 0x1122334455667788 -> 0x8877665544332211
++
+ 		{name: "FMINF", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMINF", commutative: true, typ: "Float32"}, // min(arg0, arg1), float32
+ 		{name: "FMIND", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMIND", commutative: true, typ: "Float64"}, // min(arg0, arg1), float64
+ 		{name: "FMAXF", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMAXF", commutative: true, typ: "Float32"}, // max(arg0, arg1), float32
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 7a822f65fa..93b96462a5 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1790,6 +1790,9 @@ const (
+ 	OpLOONG64SQRTF
+ 	OpLOONG64CLZW
+ 	OpLOONG64CLZV
++	OpLOONG64REVB2H
++	OpLOONG64REVB2W
++	OpLOONG64REVBV
+ 	OpLOONG64FMINF
+ 	OpLOONG64FMIND
+ 	OpLOONG64FMAXF
+@@ -24012,6 +24015,45 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "REVB2H",
++		argLen: 1,
++		asm:    loong64.AREVB2H,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++			},
++			outputs: []outputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
++	{
++		name:   "REVB2W",
++		argLen: 1,
++		asm:    loong64.AREVB2W,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++			},
++			outputs: []outputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
++	{
++		name:   "REVBV",
++		argLen: 1,
++		asm:    loong64.AREVBV,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++			},
++			outputs: []outputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
+ 	{
+ 		name:            "FMINF",
+ 		argLen:          2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteLOONG64.go b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+index 31a67b6f16..97f94729e7 100644
+--- a/src/cmd/compile/internal/ssa/rewriteLOONG64.go
++++ b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+@@ -94,6 +94,15 @@ func rewriteValueLOONG64(v *Value) bool {
+ 		return rewriteValueLOONG64_OpBitLen32(v)
+ 	case OpBitLen64:
+ 		return rewriteValueLOONG64_OpBitLen64(v)
++	case OpBswap16:
++		v.Op = OpLOONG64REVB2H
++		return true
++	case OpBswap32:
++		v.Op = OpLOONG64REVB2W
++		return true
++	case OpBswap64:
++		v.Op = OpLOONG64REVBV
++		return true
+ 	case OpClosureCall:
+ 		v.Op = OpLOONG64CALLclosure
+ 		return true
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics.go b/src/cmd/compile/internal/ssagen/intrinsics.go
+index 4faa30b13b..81caf0dfdf 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics.go
+@@ -183,7 +183,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 		},
+ 		all...)
+ 
+-	brev_arch := []sys.ArchFamily{sys.AMD64, sys.I386, sys.ARM64, sys.ARM, sys.S390X}
++	brev_arch := []sys.ArchFamily{sys.AMD64, sys.I386, sys.ARM64, sys.ARM, sys.Loong64, sys.S390X}
+ 	if cfg.goppc64 >= 10 {
+ 		// Use only on Power10 as the new byte reverse instructions that Power10 provide
+ 		// make it worthwhile as an intrinsic
+@@ -804,6 +804,11 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 		sys.S390X)
+ 	alias("math/bits", "ReverseBytes64", "internal/runtime/sys", "Bswap64", all...)
+ 	alias("math/bits", "ReverseBytes32", "internal/runtime/sys", "Bswap32", all...)
++	addF("math/bits", "ReverseBytes16",
++		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++			return s.newValue1(ssa.OpBswap16, types.Types[types.TUINT16], args[0])
++		},
++		sys.Loong64)
+ 	// ReverseBytes inlines correctly, no need to intrinsify it.
+ 	// Nothing special is needed for targets where ReverseBytes16 lowers to a rotate
+ 	// On Power10, 16-bit rotate is not available so use BRH instruction
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics_test.go b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+index d07ab154d8..5e71639a29 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics_test.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+@@ -390,6 +390,8 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"loong64", "internal/runtime/math", "Add64"}:              struct{}{},
+ 	{"loong64", "internal/runtime/math", "Mul64"}:              struct{}{},
+ 	{"loong64", "internal/runtime/math", "MulUintptr"}:         struct{}{},
++	{"loong64", "internal/runtime/sys", "Bswap32"}:             struct{}{},
++	{"loong64", "internal/runtime/sys", "Bswap64"}:             struct{}{},
+ 	{"loong64", "internal/runtime/sys", "GetCallerPC"}:         struct{}{},
+ 	{"loong64", "internal/runtime/sys", "GetCallerSP"}:         struct{}{},
+ 	{"loong64", "internal/runtime/sys", "GetClosurePtr"}:       struct{}{},
+@@ -411,6 +413,9 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"loong64", "math/bits", "RotateLeft"}:                     struct{}{},
+ 	{"loong64", "math/bits", "RotateLeft32"}:                   struct{}{},
+ 	{"loong64", "math/bits", "RotateLeft64"}:                   struct{}{},
++	{"loong64", "math/bits", "ReverseBytes16"}:                 struct{}{},
++	{"loong64", "math/bits", "ReverseBytes32"}:                 struct{}{},
++	{"loong64", "math/bits", "ReverseBytes64"}:                 struct{}{},
+ 	{"loong64", "math/bits", "Sub"}:                            struct{}{},
+ 	{"loong64", "math/bits", "Sub64"}:                          struct{}{},
+ 	{"loong64", "runtime", "KeepAlive"}:                        struct{}{},
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 4519d8bd6c..715f67a3c8 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -208,6 +208,7 @@ func ReverseBytes(n uint) uint {
+ 	// 386:"BSWAPL"
+ 	// s390x:"MOVDBR"
+ 	// arm64:"REV"
++	// loong64:"REVBV"
+ 	return bits.ReverseBytes(n)
+ }
+ 
+@@ -217,6 +218,7 @@ func ReverseBytes64(n uint64) uint64 {
+ 	// s390x:"MOVDBR"
+ 	// arm64:"REV"
+ 	// ppc64x/power10: "BRD"
++	// loong64:"REVBV"
+ 	return bits.ReverseBytes64(n)
+ }
+ 
+@@ -225,6 +227,7 @@ func ReverseBytes32(n uint32) uint32 {
+ 	// 386:"BSWAPL"
+ 	// s390x:"MOVWBR"
+ 	// arm64:"REVW"
++	// loong64:"REVB2W"
+ 	// ppc64x/power10: "BRW"
+ 	return bits.ReverseBytes32(n)
+ }
+@@ -235,6 +238,7 @@ func ReverseBytes16(n uint16) uint16 {
+ 	// arm/5:"SLL","SRL","ORR"
+ 	// arm/6:"REV16"
+ 	// arm/7:"REV16"
++	// loong64:"REVB2H"
+ 	// ppc64x/power10: "BRH"
+ 	return bits.ReverseBytes16(n)
+ }

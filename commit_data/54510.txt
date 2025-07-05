@@ -14,7 +14,7 @@ Date:   Mon Oct 3 01:32:11 2022 +0000
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: hopehook <hopehook@golangcn.org>
-
+---
  src/runtime/env_plan9.go    |  8 ++++----
  src/runtime/float.go        | 10 +++++-----
  src/runtime/mbarrier.go     |  2 +-
@@ -29,3 +29,231 @@ Date:   Mon Oct 3 01:32:11 2022 +0000
  src/runtime/os_netbsd.go    |  2 +-
  src/runtime/os_openbsd.go   |  2 +-
  13 files changed, 21 insertions(+), 21 deletions(-)
+
+diff --git a/src/runtime/env_plan9.go b/src/runtime/env_plan9.go
+index 65480c8217..d206c5dbba 100644
+--- a/src/runtime/env_plan9.go
++++ b/src/runtime/env_plan9.go
+@@ -17,7 +17,7 @@ const (
+ 	nameOffset = 39
+ )
+ 
+-// Goenvs caches the Plan 9 environment variables at start of execution into
++// goenvs caches the Plan 9 environment variables at start of execution into
+ // string array envs, to supply the initial contents for os.Environ.
+ // Subsequent calls to os.Setenv will change this cache, without writing back
+ // to the (possibly shared) Plan 9 environment, so that Setenv and Getenv
+@@ -70,7 +70,7 @@ func goenvs() {
+ 	})
+ }
+ 
+-// Dofiles reads the directory opened with file descriptor fd, applying function f
++// dofiles reads the directory opened with file descriptor fd, applying function f
+ // to each filename in it.
+ //
+ //go:nosplit
+@@ -95,7 +95,7 @@ func dofiles(dirfd int32, f func([]byte)) {
+ 	}
+ }
+ 
+-// Gdirname returns the first filename from a buffer of directory entries,
++// gdirname returns the first filename from a buffer of directory entries,
+ // and a slice containing the remaining directory entries.
+ // If the buffer doesn't start with a valid directory entry, the returned name is nil.
+ //
+@@ -117,7 +117,7 @@ func gdirname(buf []byte) (name []byte, rest []byte) {
+ 	return
+ }
+ 
+-// Gbit16 reads a 16-bit little-endian binary number from b and returns it
++// gbit16 reads a 16-bit little-endian binary number from b and returns it
+ // with the remaining slice of b.
+ //
+ //go:nosplit
+diff --git a/src/runtime/float.go b/src/runtime/float.go
+index c80c8b7abf..9f281c4045 100644
+--- a/src/runtime/float.go
++++ b/src/runtime/float.go
+@@ -24,12 +24,12 @@ func isInf(f float64) bool {
+ 	return !isNaN(f) && !isFinite(f)
+ }
+ 
+-// Abs returns the absolute value of x.
++// abs returns the absolute value of x.
+ //
+ // Special cases are:
+ //
+-//	Abs(±Inf) = +Inf
+-//	Abs(NaN) = NaN
++//	abs(±Inf) = +Inf
++//	abs(NaN) = NaN
+ func abs(x float64) float64 {
+ 	const sign = 1 << 63
+ 	return float64frombits(float64bits(x) &^ sign)
+@@ -42,12 +42,12 @@ func copysign(x, y float64) float64 {
+ 	return float64frombits(float64bits(x)&^sign | float64bits(y)&sign)
+ }
+ 
+-// Float64bits returns the IEEE 754 binary representation of f.
++// float64bits returns the IEEE 754 binary representation of f.
+ func float64bits(f float64) uint64 {
+ 	return *(*uint64)(unsafe.Pointer(&f))
+ }
+ 
+-// Float64frombits returns the floating point number corresponding
++// float64frombits returns the floating point number corresponding
+ // the IEEE 754 binary representation b.
+ func float64frombits(b uint64) float64 {
+ 	return *(*float64)(unsafe.Pointer(&b))
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index efe6c4f2d6..46ef42f74d 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -196,7 +196,7 @@ func reflectlite_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ 	reflect_typedmemmove(typ, dst, src)
+ }
+ 
+-// typedmemmovepartial is like typedmemmove but assumes that
++// reflect_typedmemmovepartial is like typedmemmove but assumes that
+ // dst and src point off bytes into the value and only copies size bytes.
+ // off must be a multiple of goarch.PtrSize.
+ //
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 7cc22309f1..dc99ba768b 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -364,7 +364,7 @@ func findObject(p, refBase, refOff uintptr) (base uintptr, s *mspan, objIndex ui
+ 	return
+ }
+ 
+-// verifyNotInHeapPtr reports whether converting the not-in-heap pointer into a unsafe.Pointer is ok.
++// reflect_verifyNotInHeapPtr reports whether converting the not-in-heap pointer into a unsafe.Pointer is ok.
+ //
+ //go:linkname reflect_verifyNotInHeapPtr reflect.verifyNotInHeapPtr
+ func reflect_verifyNotInHeapPtr(p uintptr) bool {
+@@ -1409,7 +1409,7 @@ func getgcmaskcb(frame *stkframe, ctxt unsafe.Pointer) bool {
+ 	return true
+ }
+ 
+-// gcbits returns the GC type info for x, for testing.
++// reflect_gcbits returns the GC type info for x, for testing.
+ // The result is the bitmap entries (0 or 1), one entry per byte.
+ //
+ //go:linkname reflect_gcbits reflect.gcbits
+diff --git a/src/runtime/mpagealloc.go b/src/runtime/mpagealloc.go
+index a8bfc62a80..35b2a019a3 100644
+--- a/src/runtime/mpagealloc.go
++++ b/src/runtime/mpagealloc.go
+@@ -106,7 +106,7 @@ func chunkIndex(p uintptr) chunkIdx {
+ 	return chunkIdx((p - arenaBaseOffset) / pallocChunkBytes)
+ }
+ 
+-// chunkIndex returns the base address of the palloc chunk at index ci.
++// chunkBase returns the base address of the palloc chunk at index ci.
+ func chunkBase(ci chunkIdx) uintptr {
+ 	return uintptr(ci)*pallocChunkBytes + arenaBaseOffset
+ }
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index dcdfe666ac..3bc23e17be 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -268,7 +268,7 @@ func getsig(i uint32) uintptr {
+ 	return *((*uintptr)(unsafe.Pointer(&sa._funcptr)))
+ }
+ 
+-// setSignaltstackSP sets the ss_sp field of a stackt.
++// setSignalstackSP sets the ss_sp field of a stackt.
+ //
+ //go:nosplit
+ func setSignalstackSP(s *stackt, sp uintptr) {
+diff --git a/src/runtime/os_aix.go b/src/runtime/os_aix.go
+index 104c397e8c..2b19ed6d96 100644
+--- a/src/runtime/os_aix.go
++++ b/src/runtime/os_aix.go
+@@ -297,7 +297,7 @@ func getsig(i uint32) uintptr {
+ 	return sa.sa_handler
+ }
+ 
+-// setSignaltstackSP sets the ss_sp field of a stackt.
++// setSignalstackSP sets the ss_sp field of a stackt.
+ //
+ //go:nosplit
+ func setSignalstackSP(s *stackt, sp uintptr) {
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index 8562d7d906..52f44c90e9 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -412,7 +412,7 @@ func getsig(i uint32) uintptr {
+ 	return *(*uintptr)(unsafe.Pointer(&sa.__sigaction_u))
+ }
+ 
+-// setSignaltstackSP sets the ss_sp field of a stackt.
++// setSignalstackSP sets the ss_sp field of a stackt.
+ //
+ //go:nosplit
+ func setSignalstackSP(s *stackt, sp uintptr) {
+diff --git a/src/runtime/os_dragonfly.go b/src/runtime/os_dragonfly.go
+index 83478143b9..979a7d1642 100644
+--- a/src/runtime/os_dragonfly.go
++++ b/src/runtime/os_dragonfly.go
+@@ -248,7 +248,7 @@ func getsig(i uint32) uintptr {
+ 	return sa.sa_sigaction
+ }
+ 
+-// setSignaltstackSP sets the ss_sp field of a stackt.
++// setSignalstackSP sets the ss_sp field of a stackt.
+ //
+ //go:nosplit
+ func setSignalstackSP(s *stackt, sp uintptr) {
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index 23efd1a46e..278a2fd20a 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -362,7 +362,7 @@ func getsig(i uint32) uintptr {
+ 	return sa.sa_handler
+ }
+ 
+-// setSignaltstackSP sets the ss_sp field of a stackt.
++// setSignalstackSP sets the ss_sp field of a stackt.
+ //
+ //go:nosplit
+ func setSignalstackSP(s *stackt, sp uintptr) {
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 53629ec90b..d6be99f4c3 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -504,7 +504,7 @@ func getsig(i uint32) uintptr {
+ 	return sa.sa_handler
+ }
+ 
+-// setSignaltstackSP sets the ss_sp field of a stackt.
++// setSignalstackSP sets the ss_sp field of a stackt.
+ //
+ //go:nosplit
+ func setSignalstackSP(s *stackt, sp uintptr) {
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index bb23adff07..0273d33c05 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -352,7 +352,7 @@ func getsig(i uint32) uintptr {
+ 	return sa.sa_sigaction
+ }
+ 
+-// setSignaltstackSP sets the ss_sp field of a stackt.
++// setSignalstackSP sets the ss_sp field of a stackt.
+ //
+ //go:nosplit
+ func setSignalstackSP(s *stackt, sp uintptr) {
+diff --git a/src/runtime/os_openbsd.go b/src/runtime/os_openbsd.go
+index 7af6c4afe7..500286ab98 100644
+--- a/src/runtime/os_openbsd.go
++++ b/src/runtime/os_openbsd.go
+@@ -229,7 +229,7 @@ func getsig(i uint32) uintptr {
+ 	return sa.sa_sigaction
+ }
+ 
+-// setSignaltstackSP sets the ss_sp field of a stackt.
++// setSignalstackSP sets the ss_sp field of a stackt.
+ //
+ //go:nosplit
+ func setSignalstackSP(s *stackt, sp uintptr) {

@@ -21,10 +21,223 @@ Date:   Mon Oct 3 19:07:39 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go                         |  2 +
  src/cmd/go/internal/load/pkg.go               | 55 ++++++++++++++++++++-
  src/cmd/go/internal/work/build.go             |  2 +
  src/cmd/go/internal/work/init.go              | 20 --------
  src/cmd/go/testdata/script/build_pgo_auto.txt | 69 +++++++++++++++++++++++++++
  5 files changed, 127 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index d493ecc726..9079fa5f7b 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -202,6 +202,8 @@
+ //		run through go run and go test respectively.
+ //	-pgo file
+ //		specify the file path of a profile for profile-guided optimization (PGO).
++//		Special name "auto" lets the go command select a file named
++//		"default.pgo" in the main package's directory if that file exists.
+ //		Special name "off" turns off PGO.
+ //	-pkgdir dir
+ //		install and load all packages from dir instead of the usual locations.
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index b43b9d493b..56a4e5eaed 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -2807,7 +2807,9 @@ func PackagesAndErrors(ctx context.Context, opts PackageOpts, patterns []string)
+ 			// We need to test whether the path is an actual Go file and not a
+ 			// package path or pattern ending in '.go' (see golang.org/issue/34653).
+ 			if fi, err := fsys.Stat(p); err == nil && !fi.IsDir() {
+-				return []*Package{GoFilesPackage(ctx, opts, patterns)}
++				pkgs := []*Package{GoFilesPackage(ctx, opts, patterns)}
++				setPGOProfilePath(pkgs)
++				return pkgs
+ 			}
+ 		}
+ 	}
+@@ -2886,9 +2888,60 @@ func PackagesAndErrors(ctx context.Context, opts PackageOpts, patterns []string)
+ 	// their dependencies).
+ 	setToolFlags(pkgs...)
+ 
++	setPGOProfilePath(pkgs)
++
+ 	return pkgs
+ }
+ 
++// setPGOProfilePath sets cfg.BuildPGOFile to the PGO profile path.
++// In -pgo=auto mode, it finds the default PGO profile.
++func setPGOProfilePath(pkgs []*Package) {
++	switch cfg.BuildPGO {
++	case "":
++		fallthrough // default to "off"
++	case "off":
++		return
++
++	case "auto":
++		// Locate PGO profile from the main package.
++
++		setError := func(p *Package) {
++			if p.Error == nil {
++				p.Error = &PackageError{Err: errors.New("-pgo=auto requires exactly one main package")}
++			}
++		}
++
++		var mainpkg *Package
++		for _, p := range pkgs {
++			if p.Name == "main" {
++				if mainpkg != nil {
++					setError(p)
++					setError(mainpkg)
++					continue
++				}
++				mainpkg = p
++			}
++		}
++		if mainpkg == nil {
++			// No main package, no default.pgo to look for.
++			return
++		}
++		file := filepath.Join(mainpkg.Dir, "default.pgo")
++		if fi, err := os.Stat(file); err == nil && !fi.IsDir() {
++			cfg.BuildPGOFile = file
++		}
++
++	default:
++		// Profile specified from the command line.
++		// Make it absolute path, as the compiler runs on various directories.
++		if p, err := filepath.Abs(cfg.BuildPGO); err != nil {
++			base.Fatalf("fail to get absolute path of PGO file %s: %v", cfg.BuildPGO, err)
++		} else {
++			cfg.BuildPGOFile = p
++		}
++	}
++}
++
+ // CheckPackageErrors prints errors encountered loading pkgs and their
+ // dependencies, then exits with a non-zero status if any errors were found.
+ func CheckPackageErrors(pkgs []*Package) {
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 848f07029f..27fa090f83 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -159,6 +159,8 @@ and test commands:
+ 		run through go run and go test respectively.
+ 	-pgo file
+ 		specify the file path of a profile for profile-guided optimization (PGO).
++		Special name "auto" lets the go command select a file named
++		"default.pgo" in the main package's directory if that file exists.
+ 		Special name "off" turns off PGO.
+ 	-pkgdir dir
+ 		install and load all packages from dir instead of the usual locations.
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index 48c91d54b3..cd99a33a21 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -84,8 +84,6 @@ func BuildInit() {
+ 	if cfg.BuildRace && cfg.BuildCoverMode != "atomic" {
+ 		base.Fatalf(`-covermode must be "atomic", not %q, when -race is enabled`, cfg.BuildCoverMode)
+ 	}
+-
+-	setPGOProfilePath()
+ }
+ 
+ // fuzzInstrumentFlags returns compiler flags that enable fuzzing instrumation
+@@ -442,21 +440,3 @@ func compilerRequiredAsanVersion() error {
+ 	}
+ 	return nil
+ }
+-
+-func setPGOProfilePath() {
+-	switch cfg.BuildPGO {
+-	case "":
+-		fallthrough // default to "auto"
+-	case "off":
+-		// Nothing to do.
+-	case "auto":
+-		base.Fatalf("-pgo=auto is not implemented")
+-	default:
+-		// make it absolute path, as the compiler runs on various directories.
+-		if p, err := filepath.Abs(cfg.BuildPGO); err != nil {
+-			base.Fatalf("fail to get absolute path of PGO file %s: %v", cfg.BuildPGO, err)
+-		} else {
+-			cfg.BuildPGOFile = p
+-		}
+-	}
+-}
+diff --git a/src/cmd/go/testdata/script/build_pgo_auto.txt b/src/cmd/go/testdata/script/build_pgo_auto.txt
+new file mode 100644
+index 0000000000..b78137dbf9
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_pgo_auto.txt
+@@ -0,0 +1,69 @@
++# Test go build -pgo=auto flag.
++
++# use default.pgo for a single main package
++go build -n -pgo=auto ./a/a1
++stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'
++
++# check that pgo applied to dependencies
++stderr 'compile.*-p test/dep.*-pgoprofile=.*default\.pgo'
++
++# use default.pgo for ... with a single main package
++go build -n -pgo=auto ./a/...
++stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'
++
++# error with multiple packages
++! go build -n -pgo=auto ./b/...
++stderr '-pgo=auto requires exactly one main package'
++
++# build succeeds without PGO when default.pgo file is absent
++go build -n -pgo=auto -o nopgo.exe ./nopgo
++stderr 'compile.*nopgo.go'
++! stderr '-pgoprofile'
++
++# other build-related commands
++go install -n -pgo=auto ./a/a1
++stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'
++
++go run -n -pgo=auto ./a/a1
++stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'
++
++go test -n -pgo=auto ./a/a1
++stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go.*a1_test.go'
++stderr 'compile.*-pgoprofile=.*default\.pgo.*external_test.go'
++
++# go list commands should succeed as usual
++go list -pgo=auto ./a/a1
++
++go list -test -pgo=auto ./a/a1
++
++go list -deps -pgo=auto ./a/a1
++
++-- go.mod --
++module test
++go 1.20
++-- a/a1/a1.go --
++package main
++import _ "test/dep"
++func main() {}
++-- a/a1/a1_test.go --
++package main
++import "testing"
++func TestA(*testing.T) {}
++-- a/a1/external_test.go --
++package main_test
++import "testing"
++func TestExternal(*testing.T) {}
++-- a/a1/default.pgo --
++-- b/b1/b1.go --
++package main
++func main() {}
++-- b/b1/default.pgo --
++-- b/b2/b2.go --
++package main
++func main() {}
++-- b/b2/default.pgo --
++-- nopgo/nopgo.go --
++package main
++func main() {}
++-- dep/dep.go --
++package dep

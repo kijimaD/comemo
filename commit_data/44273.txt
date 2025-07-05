@@ -13,9 +13,113 @@ Date:   Mon Jun 1 12:55:40 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/go.go       | 15 ---------------
  src/cmd/link/internal/ld/lib.go      | 15 ---------------
  src/cmd/link/internal/ld/main.go     |  1 -
  src/cmd/link/internal/sym/library.go |  1 -
  4 files changed, 32 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 2131c039e5..6d05c59b81 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -39,18 +39,12 @@ func ldpkg(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, filename s
+ 
+ 	if int64(int(length)) != length {
+ 		fmt.Fprintf(os.Stderr, "%s: too much pkg data in %s\n", os.Args[0], filename)
+-		if *flagU {
+-			errorexit()
+-		}
+ 		return
+ 	}
+ 
+ 	bdata := make([]byte, length)
+ 	if _, err := io.ReadFull(f, bdata); err != nil {
+ 		fmt.Fprintf(os.Stderr, "%s: short pkg read %s\n", os.Args[0], filename)
+-		if *flagU {
+-			errorexit()
+-		}
+ 		return
+ 	}
+ 	data := string(bdata)
+@@ -63,9 +57,6 @@ func ldpkg(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, filename s
+ 		} else {
+ 			line, data = data, ""
+ 		}
+-		if line == "safe" {
+-			lib.Safe = true
+-		}
+ 		if line == "main" {
+ 			lib.Main = true
+ 		}
+@@ -82,9 +73,6 @@ func ldpkg(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, filename s
+ 		i := strings.IndexByte(data[p0+1:], '\n')
+ 		if i < 0 {
+ 			fmt.Fprintf(os.Stderr, "%s: found $$ // cgo but no newline in %s\n", os.Args[0], filename)
+-			if *flagU {
+-				errorexit()
+-			}
+ 			return
+ 		}
+ 		p0 += 1 + i
+@@ -95,9 +83,6 @@ func ldpkg(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, filename s
+ 		}
+ 		if p1 < 0 {
+ 			fmt.Fprintf(os.Stderr, "%s: cannot find end of // cgo section in %s\n", os.Args[0], filename)
+-			if *flagU {
+-				errorexit()
+-			}
+ 			return
+ 		}
+ 		p1 += p0
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index c4f3e0aedb..93524f0955 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -995,21 +995,6 @@ func loadobjfile(ctxt *Link, lib *sym.Library) {
+ 		if pkg == "main" && !lib.Main {
+ 			Exitf("%s: not package main", lib.File)
+ 		}
+-
+-		// Ideally, we'd check that *all* object files within
+-		// the archive were marked safe, but here we settle
+-		// for *any*.
+-		//
+-		// Historically, cmd/link only checked the __.PKGDEF
+-		// file, which in turn came from the first object
+-		// file, typically produced by cmd/compile. The
+-		// remaining object files are normally produced by
+-		// cmd/asm, which doesn't support marking files as
+-		// safe anyway. So at least in practice, this matches
+-		// how safe mode has always worked.
+-		if *flagU && !lib.Safe {
+-			Exitf("%s: load of unsafe package %s", lib.File, pkg)
+-		}
+ 	}()
+ 
+ 	for i := 0; i < len(ARMAG); i++ {
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 1c9f33d68f..3404ba766a 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -82,7 +82,6 @@ var (
+ 	flagH           = flag.Bool("h", false, "halt on error")
+ 	flagN           = flag.Bool("n", false, "dump symbol table")
+ 	FlagS           = flag.Bool("s", false, "disable symbol table")
+-	flagU           = flag.Bool("u", false, "reject unsafe packages")
+ 	FlagW           = flag.Bool("w", false, "disable DWARF generation")
+ 	flag8           bool // use 64-bit addresses in symbol table
+ 	flagInterpreter = flag.String("I", "", "use `linker` as ELF dynamic linker")
+diff --git a/src/cmd/link/internal/sym/library.go b/src/cmd/link/internal/sym/library.go
+index 915510fb04..18e1380a68 100644
+--- a/src/cmd/link/internal/sym/library.go
++++ b/src/cmd/link/internal/sym/library.go
+@@ -17,7 +17,6 @@ type Library struct {
+ 	Autolib     []goobj2.ImportedPkg
+ 	Imports     []*Library
+ 	Main        bool
+-	Safe        bool
+ 	Units       []*CompilationUnit
+ 
+ 	Textp       []LoaderSym // text syms defined in this library

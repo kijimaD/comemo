@@ -10,8 +10,136 @@ Date:   Fri Oct 11 13:58:43 2019 -0400
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go            | 25 ++++++++++++++------
  src/cmd/link/internal/loadmacho/ldmacho.go | 37 ++++++++++++++++++++++++++----
  src/cmd/link/internal/objfile/objfile2.go  |  4 ++--
  3 files changed, 52 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index d030340cc0..dd759a0ab1 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1621,15 +1621,26 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 	}
+ 
+ 	if magic&^1 == 0xfeedface || magic&^0x01000000 == 0xcefaedfe {
+-		ldmacho := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+-			textp, err := loadmacho.Load(ctxt.Arch, ctxt.Syms, f, pkg, length, pn)
+-			if err != nil {
+-				Errorf(nil, "%v", err)
+-				return
++		if *flagNewobj {
++			ldmacho := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
++				err := loadmacho.Load(ctxt.loader, ctxt.Arch, ctxt.Syms, f, pkg, length, pn)
++				if err != nil {
++					Errorf(nil, "%v", err)
++					return
++				}
+ 			}
+-			ctxt.Textp = append(ctxt.Textp, textp...)
++			return ldhostobj(ldmacho, ctxt.HeadType, f, pkg, length, pn, file)
++		} else {
++			ldmacho := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
++				textp, err := loadmacho.LoadOld(ctxt.Arch, ctxt.Syms, f, pkg, length, pn)
++				if err != nil {
++					Errorf(nil, "%v", err)
++					return
++				}
++				ctxt.Textp = append(ctxt.Textp, textp...)
++			}
++			return ldhostobj(ldmacho, ctxt.HeadType, f, pkg, length, pn, file)
+ 		}
+-		return ldhostobj(ldmacho, ctxt.HeadType, f, pkg, length, pn, file)
+ 	}
+ 
+ 	if c1 == 0x4c && c2 == 0x01 || c1 == 0x64 && c2 == 0x86 {
+diff --git a/src/cmd/link/internal/loadmacho/ldmacho.go b/src/cmd/link/internal/loadmacho/ldmacho.go
+index c303752992..7a0e18fe71 100644
+--- a/src/cmd/link/internal/loadmacho/ldmacho.go
++++ b/src/cmd/link/internal/loadmacho/ldmacho.go
+@@ -10,6 +10,7 @@ import (
+ 	"cmd/internal/bio"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
++	"cmd/link/internal/objfile"
+ 	"cmd/link/internal/sym"
+ 	"encoding/binary"
+ 	"fmt"
+@@ -423,14 +424,40 @@ func macholoadsym(m *ldMachoObj, symtab *ldMachoSymtab) int {
+ 	return 0
+ }
+ 
+-// Load loads the Mach-O file pn from f.
++func Load(l *objfile.Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string) error {
++	lookup := func(name string, version int) *sym.Symbol {
++		// Check to see if we've already defined the symbol.
++		if i := l.Lookup(name, version); i != 0 {
++			return l.Syms[i]
++		}
++		// Not defined, let's make one.
++		if s := l.AddExtSym(name, version); s == 0 {
++			panic("AddExtSym returned bad index")
++		} else if int(s) != len(l.Syms) {
++			panic("unexpected length of loaded symbols")
++		}
++		newSym := syms.Newsym(name, version)
++		l.Syms = append(l.Syms, newSym)
++		return newSym
++	}
++	_, err := load(arch, syms.IncVersion(), lookup, f, pkg, length, pn)
++	return err
++}
++
++func LoadOld(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, err error) {
++	lookup := func(name string, version int) *sym.Symbol {
++		return syms.Lookup(name, version)
++	}
++	return load(arch, syms.IncVersion(), lookup, f, pkg, length, pn)
++}
++
++// load the Mach-O file pn from f.
+ // Symbols are written into syms, and a slice of the text symbols is returned.
+-func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, err error) {
++func load(arch *sys.Arch, localSymVersion int, lookup func(string, int) *sym.Symbol, f *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, err error) {
+ 	errorf := func(str string, args ...interface{}) ([]*sym.Symbol, error) {
+ 		return nil, fmt.Errorf("loadmacho: %v: %v", pn, fmt.Sprintf(str, args...))
+ 	}
+ 
+-	localSymVersion := syms.IncVersion()
+ 	base := f.Offset()
+ 
+ 	var hdr [7 * 4]uint8
+@@ -562,7 +589,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
+ 			continue
+ 		}
+ 		name := fmt.Sprintf("%s(%s/%s)", pkg, sect.segname, sect.name)
+-		s := syms.Lookup(name, localSymVersion)
++		s := lookup(name, localSymVersion)
+ 		if s.Type != 0 {
+ 			return errorf("duplicate %s/%s", sect.segname, sect.name)
+ 		}
+@@ -610,7 +637,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
+ 		if machsym.type_&N_EXT == 0 {
+ 			v = localSymVersion
+ 		}
+-		s := syms.Lookup(name, v)
++		s := lookup(name, v)
+ 		if machsym.type_&N_EXT == 0 {
+ 			s.Attr |= sym.AttrDuplicateOK
+ 		}
+diff --git a/src/cmd/link/internal/objfile/objfile2.go b/src/cmd/link/internal/objfile/objfile2.go
+index ad3ea8577d..8208125cba 100644
+--- a/src/cmd/link/internal/objfile/objfile2.go
++++ b/src/cmd/link/internal/objfile/objfile2.go
+@@ -477,8 +477,8 @@ func loadObjReloc(l *Loader, r *oReader) {
+ 		}
+ 
+ 		if s.Type != 0 && s.Type != sym.SXREF {
+-			fmt.Println("symbol already processed:", lib, i, s)
+-			panic("symbol already processed")
++			// We've already seen this symbol, it likely came from a host object.
++			continue
+ 		}
+ 
+ 		t := sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)]

@@ -10,9 +10,225 @@ Date:   Fri Jun 3 07:48:06 2011 +1000
     R=alex.brainman, rsc, r, mattn.jp
     CC=golang-dev
     https://golang.org/cl/4530096
-
+---
  src/pkg/exec/exec.go       | 23 ++++++++++++-----------
  src/pkg/exec/lp_test.go    |  6 +++---
  src/pkg/exec/lp_unix.go    | 21 ++++++++++++++-------
  src/pkg/exec/lp_windows.go | 38 ++++++++++++++++++++++----------------
  4 files changed, 51 insertions(+), 37 deletions(-)
+
+diff --git a/src/pkg/exec/exec.go b/src/pkg/exec/exec.go
+index 958245832d..c6a5e06bb2 100644
+--- a/src/pkg/exec/exec.go
++++ b/src/pkg/exec/exec.go
+@@ -14,14 +14,15 @@ import (
+ 	"strconv"
+ )
+ 
+-// PathError records the name of a binary that was not
+-// found on the current $PATH.
+-type PathError struct {
+-	Name string
++// Error records the name of a binary that failed to be be executed
++// and the reason it failed.
++type Error struct {
++	Name  string
++	Error os.Error
+ }
+ 
+-func (e *PathError) String() string {
+-	return "command " + strconv.Quote(e.Name) + " not found in $PATH"
++func (e *Error) String() string {
++	return "exec: " + strconv.Quote(e.Name) + ": " + e.Error.String()
+ }
+ 
+ // Cmd represents an external command being prepared or run.
+@@ -32,8 +33,8 @@ type Cmd struct {
+ 	// value.
+ 	Path string
+ 
+-	// Args is the command line arguments, including the command as Args[0].
+-	// If Args is empty, Run uses {Path}.
++	// Args holds command line arguments, including the command as Args[0].
++	// If the Args field is empty or nil, Run uses {Path}.
+ 	// 
+ 	// In typical use, both Path and Args are set by calling Command.
+ 	Args []string
+@@ -44,7 +45,7 @@ type Cmd struct {
+ 
+ 	// Dir specifies the working directory of the command.
+ 	// If Dir is the empty string, Run runs the command in the
+-	// process's current directory.
++	// calling process's current directory.
+ 	Dir string
+ 
+ 	// Stdin specifies the process's standard input.
+@@ -81,7 +82,7 @@ type Cmd struct {
+ // resolve the path to a complete name if possible. Otherwise it uses
+ // name directly.
+ //
+-// The returned Cmd's Args is constructed from the command name
++// The returned Cmd's Args field is constructed from the command name
+ // followed by the elements of arg, so arg should not include the
+ // command name itself. For example, Command("echo", "hello")
+ func Command(name string, arg ...string) *Cmd {
+@@ -97,7 +98,7 @@ func Command(name string, arg ...string) *Cmd {
+ }
+ 
+ // interfaceEqual protects against panics from doing equality tests on
+-// two interface with non-comparable underlying types
++// two interfaces with non-comparable underlying types
+ func interfaceEqual(a, b interface{}) bool {
+ 	defer func() {
+ 		recover()
+diff --git a/src/pkg/exec/lp_test.go b/src/pkg/exec/lp_test.go
+index 54081771ec..77d8e848c7 100644
+--- a/src/pkg/exec/lp_test.go
++++ b/src/pkg/exec/lp_test.go
+@@ -22,12 +22,12 @@ func TestLookPathNotFound(t *testing.T) {
+ 		if path != "" {
+ 			t.Fatalf("LookPath path == %q when err != nil", path)
+ 		}
+-		perr, ok := err.(*PathError)
++		perr, ok := err.(*Error)
+ 		if !ok {
+-			t.Fatal("LookPath error is not a PathError")
++			t.Fatal("LookPath error is not an exec.Error")
+ 		}
+ 		if perr.Name != name {
+-			t.Fatalf("want PathError name %q, got %q", name, perr.Name)
++			t.Fatalf("want Error name %q, got %q", name, perr.Name)
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/exec/lp_unix.go b/src/pkg/exec/lp_unix.go
+index 44f84347b9..3fc3be8324 100644
+--- a/src/pkg/exec/lp_unix.go
++++ b/src/pkg/exec/lp_unix.go
+@@ -9,12 +9,18 @@ import (
+ 	"strings"
+ )
+ 
+-func canExec(file string) bool {
++// ErrNotFound is the error resulting if a path search failed to find an executable file.
++var ErrNotFound = os.ErrorString("executable file not found in $PATH")
++
++func findExecutable(file string) os.Error {
+ 	d, err := os.Stat(file)
+ 	if err != nil {
+-		return false
++		return err
++	}
++	if d.IsRegular() && d.Permission()&0111 != 0 {
++		return nil
+ 	}
+-	return d.IsRegular() && d.Permission()&0111 != 0
++	return os.EPERM
+ }
+ 
+ // LookPath searches for an executable binary named file
+@@ -26,10 +32,11 @@ func LookPath(file string) (string, os.Error) {
+ 	// but that would not match all the Unix shells.
+ 
+ 	if strings.Contains(file, "/") {
+-		if canExec(file) {
++		err := findExecutable(file)
++		if err == nil {
+ 			return file, nil
+ 		}
+-		return "", &PathError{file}
++		return "", &Error{file, err}
+ 	}
+ 	pathenv := os.Getenv("PATH")
+ 	for _, dir := range strings.Split(pathenv, ":", -1) {
+@@ -37,9 +44,9 @@ func LookPath(file string) (string, os.Error) {
+ 			// Unix shell semantics: path element "" means "."
+ 			dir = "."
+ 		}
+-		if canExec(dir + "/" + file) {
++		if err := findExecutable(dir + "/" + file); err == nil {
+ 			return dir + "/" + file, nil
+ 		}
+ 	}
+-	return "", &PathError{file}
++	return "", &Error{file, ErrNotFound}
+ }
+diff --git a/src/pkg/exec/lp_windows.go b/src/pkg/exec/lp_windows.go
+index d357575fdb..7588610214 100644
+--- a/src/pkg/exec/lp_windows.go
++++ b/src/pkg/exec/lp_windows.go
+@@ -9,15 +9,21 @@ import (
+ 	"strings"
+ )
+ 
+-func chkStat(file string) bool {
++// ErrNotFound is the error resulting if a path search failed to find an executable file.
++var ErrNotFound = os.ErrorString("executable file not found in %PATH%")
++
++func chkStat(file string) os.Error {
+ 	d, err := os.Stat(file)
+ 	if err != nil {
+-		return false
++		return err
++	}
++	if d.IsRegular() {
++		return nil
+ 	}
+-	return d.IsRegular()
++	return os.EPERM
+ }
+ 
+-func canExec(file string, exts []string) (string, bool) {
++func findExecutable(file string, exts []string) (string, os.Error) {
+ 	if len(exts) == 0 {
+ 		return file, chkStat(file)
+ 	}
+@@ -28,14 +34,14 @@ func canExec(file string, exts []string) (string, bool) {
+ 		}
+ 	}
+ 	for _, e := range exts {
+-		if f := file + e; chkStat(f) {
+-			return f, true
++		if f := file + e; chkStat(f) == nil {
++			return f, nil
+ 		}
+ 	}
+-	return ``, false
++	return ``, ErrNotFound
+ }
+ 
+-func LookPath(file string) (string, os.Error) {
++func LookPath(file string) (f string, err os.Error) {
+ 	exts := []string{}
+ 	if x := os.Getenv(`PATHEXT`); x != `` {
+ 		exts = strings.Split(strings.ToLower(x), `;`, -1)
+@@ -46,21 +52,21 @@ func LookPath(file string) (string, os.Error) {
+ 		}
+ 	}
+ 	if strings.Contains(file, `\`) || strings.Contains(file, `/`) {
+-		if f, ok := canExec(file, exts); ok {
+-			return f, nil
++		if f, err = findExecutable(file, exts); err == nil {
++			return
+ 		}
+-		return ``, &PathError{file}
++		return ``, &Error{file, err}
+ 	}
+ 	if pathenv := os.Getenv(`PATH`); pathenv == `` {
+-		if f, ok := canExec(`.\`+file, exts); ok {
+-			return f, nil
++		if f, err = findExecutable(`.\`+file, exts); err == nil {
++			return
+ 		}
+ 	} else {
+ 		for _, dir := range strings.Split(pathenv, `;`, -1) {
+-			if f, ok := canExec(dir+`\`+file, exts); ok {
+-				return f, nil
++			if f, err = findExecutable(dir+`\`+file, exts); err == nil {
++				return
+ 			}
+ 		}
+ 	}
+-	return ``, &PathError{file}
++	return ``, &Error{file, ErrNotFound}
+ }

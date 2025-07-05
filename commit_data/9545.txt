@@ -7,7 +7,34 @@ Date:   Mon Aug 29 15:38:12 2011 -0400
     R=rsc
     CC=alex.brainman, golang-dev, vcc.163
     https://golang.org/cl/4965050
-
+---
  doc/progs/file_windows.go | 2 +-
  doc/progs/run             | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/progs/file_windows.go b/doc/progs/file_windows.go
+index 03003a3f71..bfbac75ad0 100644
+--- a/doc/progs/file_windows.go
++++ b/doc/progs/file_windows.go
+@@ -15,7 +15,7 @@ type File struct {
+ }
+ 
+ func newFile(fd syscall.Handle, name string) *File {
+-	if fd < 0 {
++	if fd == ^syscall.Handle(0) {
+ 		return nil
+ 	}
+ 	return &File{fd, name}
+diff --git a/doc/progs/run b/doc/progs/run
+index 7bff2ccf4f..9d56049a88 100755
+--- a/doc/progs/run
++++ b/doc/progs/run
+@@ -15,7 +15,7 @@ fi
+ rm -f *.$O
+ 
+ if [ "$GOOS" = "windows" ];then
+-	$GC -o file.8 file_windows.go
++	$GC -o file.$O file_windows.go
+ else
+ 	$GC file.go
+ fi

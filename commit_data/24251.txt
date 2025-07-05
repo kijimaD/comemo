@@ -12,6 +12,19 @@ Date:   Tue Jan 13 21:41:23 2015 +0100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/bufio/bufio.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/bufio/bufio.go b/src/bufio/bufio.go
+index dbbe80e4c2..3bbb933df3 100644
+--- a/src/bufio/bufio.go
++++ b/src/bufio/bufio.go
+@@ -400,7 +400,6 @@ func (b *Reader) ReadBytes(delim byte) (line []byte, err error) {
+ 	// accumulating full buffers.
+ 	var frag []byte
+ 	var full [][]byte
+-	err = nil
+ 
+ 	for {
+ 		var e error

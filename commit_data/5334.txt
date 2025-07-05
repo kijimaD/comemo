@@ -9,6 +9,20 @@ Date:   Thu Apr 22 10:14:53 2010 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/961042
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 7bc175adc1..26fc749690 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -4972,7 +4972,7 @@ Implementation restriction: The compiler assumes package <code>main</code>
+ is not imported by any other package.
+ </p>
+ 
+-<h2 id="Run_time_errors">Run-time panics</h2>
++<h2 id="Run_time_panics">Run-time panics</h2>
+ 
+ <p>
+ Execution errors such as attempting to index an array out

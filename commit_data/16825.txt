@@ -8,6 +8,19 @@ Date:   Fri Jul 19 12:31:42 2013 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/11596043
-
+---
  src/pkg/debug/gosym/pclntab_test.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/debug/gosym/pclntab_test.go b/src/pkg/debug/gosym/pclntab_test.go
+index 6ec2b63847..35502e8c39 100644
+--- a/src/pkg/debug/gosym/pclntab_test.go
++++ b/src/pkg/debug/gosym/pclntab_test.go
+@@ -49,7 +49,6 @@ func dotest(self bool) bool {
+ 	// the resulting binary looks like it was built from pclinetest.s,
+ 	// but we have renamed it to keep it away from the go tool.
+ 	pclinetestBinary = filepath.Join(pclineTempDir, "pclinetest")
+-	pclinetestBinary = "pclinetest"
+ 	command := fmt.Sprintf("go tool 6a -o %s.6 pclinetest.asm && go tool 6l -H linux -E main -o %s %s.6",
+ 		pclinetestBinary, pclinetestBinary, pclinetestBinary)
+ 	cmd := exec.Command("sh", "-c", command)

@@ -17,7 +17,34 @@ Date:   Mon Oct 16 15:39:48 2023 +0700
     Reviewed-by: Mark Pictor <mark.pictor@contrastsecurity.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/go/alldocs.go               | 2 +-
  src/cmd/go/internal/help/helpdoc.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 392a21148b..a5148ad486 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1926,7 +1926,7 @@
+ //
+ // Constraints may appear in any kind of source file (not just Go), but
+ // they must appear near the top of the file, preceded
+-// only by blank lines and other line comments. These rules mean that in Go
++// only by blank lines and other comments. These rules mean that in Go
+ // files a build constraint must appear before the package clause.
+ //
+ // To distinguish build constraints from package documentation,
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 68ac4d229d..93613ac65e 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -829,7 +829,7 @@ line comment that begins
+ 
+ Constraints may appear in any kind of source file (not just Go), but
+ they must appear near the top of the file, preceded
+-only by blank lines and other line comments. These rules mean that in Go
++only by blank lines and other comments. These rules mean that in Go
+ files a build constraint must appear before the package clause.
+ 
+ To distinguish build constraints from package documentation,

@@ -18,7 +18,44 @@ Date:   Thu Apr 4 06:59:50 2024 +0000
     Reviewed-by: Keith Randall <khr@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/expvar/expvar.go      | 1 +
  src/expvar/expvar_test.go | 6 ++++++
  2 files changed, 7 insertions(+)
+
+diff --git a/src/expvar/expvar.go b/src/expvar/expvar.go
+index a30963c5a8..ffe35d62f9 100644
+--- a/src/expvar/expvar.go
++++ b/src/expvar/expvar.go
+@@ -249,6 +249,7 @@ func (v *Map) Delete(key string) {
+ 	i, found := slices.BinarySearch(v.keys, key)
+ 	if found {
+ 		v.keys = slices.Delete(v.keys, i, i+1)
++		v.m.Delete(key)
+ 	}
+ }
+ 
+diff --git a/src/expvar/expvar_test.go b/src/expvar/expvar_test.go
+index b827c4d621..def8417953 100644
+--- a/src/expvar/expvar_test.go
++++ b/src/expvar/expvar_test.go
+@@ -199,6 +199,9 @@ func TestMapDelete(t *testing.T) {
+ 	}
+ 
+ 	colors.Delete("red")
++	if v := colors.Get("red"); v != nil {
++		t.Errorf("removed red, Get should return nil; got %v", v)
++	}
+ 	n = 0
+ 	colors.Do(func(KeyValue) { n++ })
+ 	if n != 1 {
+@@ -214,6 +217,9 @@ func TestMapDelete(t *testing.T) {
+ 
+ 	colors.Delete("blue")
+ 	colors.Delete("blue")
++	if v := colors.Get("blue"); v != nil {
++		t.Errorf("removed blue, Get should return nil; got %v", v)
++	}
+ 	n = 0
+ 	colors.Do(func(KeyValue) { n++ })
+ 	if n != 0 {

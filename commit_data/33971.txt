@@ -13,9 +13,151 @@ Date:   Tue Sep 12 22:51:17 2017 +0200
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/reflect.go   | 20 +++++++++-----------
  src/cmd/compile/internal/gc/subr.go      |  4 ++--
  src/cmd/compile/internal/gc/typecheck.go |  6 +++---
  src/cmd/compile/internal/gc/walk.go      | 13 +++++--------
  4 files changed, 19 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index d268c89e69..0023f65a10 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1165,19 +1165,17 @@ func dtypesym(t *types.Type) *types.Sym {
+ 		dupok = obj.DUPOK
+ 	}
+ 
+-	if myimportpath == "runtime" && (tbase == types.Types[tbase.Etype] || tbase == types.Bytetype || tbase == types.Runetype || tbase == types.Errortype) { // int, float, etc
+-		goto ok
+-	}
+-
+-	// named types from other files are defined only by those files
+-	if tbase.Sym != nil && !tbase.Local() {
+-		return s
+-	}
+-	if isforw[tbase.Etype] {
+-		return s
++	if myimportpath != "runtime" || (tbase != types.Types[tbase.Etype] && tbase != types.Bytetype && tbase != types.Runetype && tbase != types.Errortype) { // int, float, etc
++		// named types from other files are defined only by those files
++		if tbase.Sym != nil && !tbase.Local() {
++			return s
++		}
++		// TODO(mdempsky): Investigate whether this can happen.
++		if isforw[tbase.Etype] {
++			return s
++		}
+ 	}
+ 
+-ok:
+ 	ot := 0
+ 	lsym := s.Linksym()
+ 	switch t.Etype {
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 647694d68a..08658af603 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1847,11 +1847,12 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool
+ 	// and then do one loop.
+ 
+ 	if t.IsInterface() {
++	Outer:
+ 		for _, im := range iface.Fields().Slice() {
+ 			for _, tm := range t.Fields().Slice() {
+ 				if tm.Sym == im.Sym {
+ 					if eqtype(tm.Type, im.Type) {
+-						goto found
++						continue Outer
+ 					}
+ 					*m = im
+ 					*samename = tm
+@@ -1864,7 +1865,6 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool
+ 			*samename = nil
+ 			*ptr = 0
+ 			return false
+-		found:
+ 		}
+ 
+ 		return true
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 23fdb3486e..af4e33d2fb 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -621,6 +621,7 @@ func typecheck1(n *Node, top int) *Node {
+ 			// the only conversion that isn't a no-op is concrete == interface.
+ 			// in that case, check comparability of the concrete type.
+ 			// The conversion allocates, so only do it if the concrete type is huge.
++			converted := false
+ 			if r.Type.Etype != TBLANK {
+ 				aop = assignop(l.Type, r.Type, nil)
+ 				if aop != 0 {
+@@ -639,11 +640,11 @@ func typecheck1(n *Node, top int) *Node {
+ 					}
+ 
+ 					t = r.Type
+-					goto converted
++					converted = true
+ 				}
+ 			}
+ 
+-			if l.Type.Etype != TBLANK {
++			if !converted && l.Type.Etype != TBLANK {
+ 				aop = assignop(r.Type, l.Type, nil)
+ 				if aop != 0 {
+ 					if l.Type.IsInterface() && !r.Type.IsInterface() && !IsComparable(r.Type) {
+@@ -664,7 +665,6 @@ func typecheck1(n *Node, top int) *Node {
+ 				}
+ 			}
+ 
+-		converted:
+ 			et = t.Etype
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index b0c98eea83..393842d676 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1999,8 +1999,6 @@ func mkdotargslice(typ *types.Type, args []*Node, init *Nodes, ddd *Node) *Node
+ //	return expr-list
+ //	func(expr-list)
+ func ascompatte(call *Node, isddd bool, lhs *types.Type, rhs []*Node, fp int, init *Nodes) []*Node {
+-	var nn []*Node
+-
+ 	// f(g()) where g has multiple return values
+ 	if len(rhs) == 1 && rhs[0].Type.IsFuncArgStruct() {
+ 		// optimization - can do block copy
+@@ -2008,8 +2006,9 @@ func ascompatte(call *Node, isddd bool, lhs *types.Type, rhs []*Node, fp int, in
+ 			nl := nodarg(lhs, fp)
+ 			nr := nod(OCONVNOP, rhs[0], nil)
+ 			nr.Type = nl.Type
+-			nn = []*Node{convas(nod(OAS, nl, nr), init)}
+-			goto ret
++			n := convas(nod(OAS, nl, nr), init)
++			n.SetTypecheck(1)
++			return []*Node{n}
+ 		}
+ 
+ 		// conversions involved.
+@@ -2033,6 +2032,7 @@ func ascompatte(call *Node, isddd bool, lhs *types.Type, rhs []*Node, fp int, in
+ 	// If there's a ... parameter (which is only valid as the final
+ 	// parameter) and this is not a ... call expression,
+ 	// then assign the remaining arguments as a slice.
++	var nn []*Node
+ 	for i, nl := range lhs.FieldSlice() {
+ 		var nr *Node
+ 		if nl.Isddd() && !isddd {
+@@ -2043,13 +2043,10 @@ func ascompatte(call *Node, isddd bool, lhs *types.Type, rhs []*Node, fp int, in
+ 
+ 		a := nod(OAS, nodarg(nl, fp), nr)
+ 		a = convas(a, init)
++		a.SetTypecheck(1)
+ 		nn = append(nn, a)
+ 	}
+ 
+-ret:
+-	for _, n := range nn {
+-		n.SetTypecheck(1)
+-	}
+ 	return nn
+ }
+ 

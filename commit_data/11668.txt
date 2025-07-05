@@ -7,6 +7,31 @@ Date:   Mon Feb 6 17:54:20 2012 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/5644044
-
+---
  src/cmd/godoc/index.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/godoc/index.go b/src/cmd/godoc/index.go
+index f5b531b054..6c36e6f4f6 100644
+--- a/src/cmd/godoc/index.go
++++ b/src/cmd/godoc/index.go
+@@ -896,14 +896,14 @@ func (x *Index) Read(r io.Reader) error {
+ 	x.snippets = fx.Snippets
+ 	if fx.Fulltext {
+ 		x.fset = token.NewFileSet()
+-		if err := x.fset.Read(r); err != nil {
+-			return err
+-		}
+-		x.suffixes = new(suffixarray.Index)
+ 		decode := func(x interface{}) error {
+ 			return gob.NewDecoder(r).Decode(x)
+ 		}
+-		if err := x.suffixes.Read(decode); err != nil {
++		if err := x.fset.Read(decode); err != nil {
++			return err
++		}
++		x.suffixes = new(suffixarray.Index)
++		if err := x.suffixes.Read(r); err != nil {
+ 			return err
+ 		}
+ 	}

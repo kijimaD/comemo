@@ -18,10 +18,109 @@ Date:   Wed Feb 7 22:51:00 2024 +0000
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/go/build/deps_test.go   |  1 +
  src/internal/asan/asan.go   | 19 +++++++++++++++++++
  src/internal/asan/doc.go    | 10 ++++++++++
  src/internal/asan/noasan.go | 19 +++++++++++++++++++
  src/runtime/asan.go         |  2 ++
  5 files changed, 51 insertions(+)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 47a0f3a0b4..34b0522812 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -75,6 +75,7 @@ var depsRules = `
+ 	< runtime
+ 	< sync/atomic
+ 	< internal/race
++	< internal/asan
+ 	< sync
+ 	< internal/bisect
+ 	< internal/godebug
+diff --git a/src/internal/asan/asan.go b/src/internal/asan/asan.go
+new file mode 100644
+index 0000000000..0a8148e5b9
+--- /dev/null
++++ b/src/internal/asan/asan.go
+@@ -0,0 +1,19 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build asan
++
++package asan
++
++import (
++	"unsafe"
++)
++
++const Enabled = true
++
++//go:linkname Read runtime.asanread
++func Read(addr unsafe.Pointer, len int)
++
++//go:linkname Write runtime.asanwrite
++func Write(addr unsafe.Pointer, len int)
+diff --git a/src/internal/asan/doc.go b/src/internal/asan/doc.go
+new file mode 100644
+index 0000000000..21b1bc945b
+--- /dev/null
++++ b/src/internal/asan/doc.go
+@@ -0,0 +1,10 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package asan contains helper functions for manually instrumenting
++// code for the address sanitizer.
++// The runtime package intentionally exports these functions only in the
++// asan build; this package exports them unconditionally but without the
++// "asan" build tag they are no-ops.
++package asan
+diff --git a/src/internal/asan/noasan.go b/src/internal/asan/noasan.go
+new file mode 100644
+index 0000000000..e01b46a104
+--- /dev/null
++++ b/src/internal/asan/noasan.go
+@@ -0,0 +1,19 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !asan
++
++package asan
++
++import (
++	"unsafe"
++)
++
++const Enabled = false
++
++func Read(addr unsafe.Pointer, len int) {
++}
++
++func Write(addr unsafe.Pointer, len int) {
++}
+diff --git a/src/runtime/asan.go b/src/runtime/asan.go
+index 25b83277e6..d79637a334 100644
+--- a/src/runtime/asan.go
++++ b/src/runtime/asan.go
+@@ -29,6 +29,7 @@ const asanenabled = true
+ // asan{read,write} are nosplit because they may be called between
+ // fork and exec, when the stack must not grow. See issue #50391.
+ 
++//go:linkname asanread
+ //go:nosplit
+ func asanread(addr unsafe.Pointer, sz uintptr) {
+ 	sp := getcallersp()
+@@ -36,6 +37,7 @@ func asanread(addr unsafe.Pointer, sz uintptr) {
+ 	doasanread(addr, sz, sp, pc)
+ }
+ 
++//go:linkname asanwrite
+ //go:nosplit
+ func asanwrite(addr unsafe.Pointer, sz uintptr) {
+ 	sp := getcallersp()

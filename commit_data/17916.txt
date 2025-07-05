@@ -11,10 +11,110 @@ Date:   Fri Dec 6 14:40:45 2013 -0800
     R=golang-dev, dave, daniel.morsing, dvyukov, rsc, iant, cshapiro
     CC=golang-dev
     https://golang.org/cl/22060046
-
+---
  src/pkg/runtime/extern.go  | 14 +++++++++-----
  src/pkg/runtime/malloc.goc |  7 +++++--
  src/pkg/runtime/mgc0.c     |  5 ++++-
  src/pkg/runtime/runtime.c  |  1 +
  src/pkg/runtime/runtime.h  |  1 +
  5 files changed, 20 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index b76c47fca2..c96dc10384 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -24,20 +24,24 @@ percentage at run time. See http://golang.org/pkg/runtime/debug/#SetGCPercent.
+ The GODEBUG variable controls debug output from the runtime. GODEBUG value is
+ a comma-separated list of name=val pairs. Supported names are:
+ 
++	allocfreetrace: setting allocfreetrace=1 causes every allocation to be
++	profiled and a stack trace printed on each object's allocation and free.
++
++	efence: setting efence=1 causes the allocator to run in a mode
++	where each object is allocated on a unique page and addresses are
++	never recycled.
++
+ 	gctrace: setting gctrace=1 causes the garbage collector to emit a single line to standard
+ 	error at each collection, summarizing the amount of memory collected and the
+ 	length of the pause. Setting gctrace=2 emits the same summary but also
+ 	repeats each collection.
+ 
+-	schedtrace: setting schedtrace=X causes the scheduler to emit a single line to standard
+-	error every X milliseconds, summarizing the scheduler state.
+-
+ 	scheddetail: setting schedtrace=X and scheddetail=1 causes the scheduler to emit
+ 	detailed multiline info every X milliseconds, describing state of the scheduler,
+ 	processors, threads and goroutines.
+ 
+-	allocfreetrace: setting allocfreetrace=1 causes every allocation to be
+-	profiled and a stack trace printed on each object's allocation and free.
++	schedtrace: setting schedtrace=X causes the scheduler to emit a single line to standard
++	error every X milliseconds, summarizing the scheduler state.
+ 
+ The GOMAXPROCS variable limits the number of operating system threads that
+ can execute user-level Go code simultaneously. There is no limit to the number of threads
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 46d6450c06..cd124f0f71 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -58,7 +58,7 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
+ 		size += sizeof(uintptr);
+ 
+ 	c = m->mcache;
+-	if(size <= MaxSmallSize) {
++	if(!runtime·debug.efence && size <= MaxSmallSize) {
+ 		// Allocate from mcache free lists.
+ 		// Inlined version of SizeToClass().
+ 		if(size <= 1024-8)
+@@ -196,7 +196,10 @@ runtime·free(void *v)
+ 		// they might coalesce v into other spans and change the bitmap further.
+ 		runtime·markfreed(v, size);
+ 		runtime·unmarkspan(v, 1<<PageShift);
+-		runtime·MHeap_Free(&runtime·mheap, s, 1);
++		if(runtime·debug.efence)
++			runtime·SysFree((void*)(s->start<<PageShift), size, &mstats.heap_sys);
++		else
++			runtime·MHeap_Free(&runtime·mheap, s, 1);
+ 		c->local_nlargefree++;
+ 		c->local_largefree += size;
+ 	} else {
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index f0ac6dcb88..a69154a79d 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1797,7 +1797,10 @@ sweepspan(ParFor *desc, uint32 idx)
+ 			// Free large span.
+ 			runtime·unmarkspan(p, 1<<PageShift);
+ 			*(uintptr*)p = (uintptr)0xdeaddeaddeaddeadll;	// needs zeroing
+-			runtime·MHeap_Free(&runtime·mheap, s, 1);
++			if(runtime·debug.efence)
++				runtime·SysFree(p, size, &mstats.gc_sys);
++			else
++				runtime·MHeap_Free(&runtime·mheap, s, 1);
+ 			c->local_nlargefree++;
+ 			c->local_largefree += size;
+ 		} else {
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index 63b78eb55f..9a8eb0e340 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -388,6 +388,7 @@ static struct {
+ 	int32*	value;
+ } dbgvar[] = {
+ 	{"allocfreetrace", &runtime·debug.allocfreetrace},
++	{"efence", &runtime·debug.efence},
+ 	{"gctrace", &runtime·debug.gctrace},
+ 	{"scheddetail", &runtime·debug.scheddetail},
+ 	{"schedtrace", &runtime·debug.schedtrace},
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 8183e7c810..eba26081d6 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -534,6 +534,7 @@ struct CgoMal
+ struct DebugVars
+ {
+ 	int32	allocfreetrace;
++	int32	efence;
+ 	int32	gctrace;
+ 	int32	scheddetail;
+ 	int32	schedtrace;

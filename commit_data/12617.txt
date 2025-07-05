@@ -21,9 +21,93 @@ Date:   Tue Mar 13 16:15:58 2012 -0700
     R=dsymonds, rsc
     CC=golang-dev
     https://golang.org/cl/5820044
-
+---
  src/cmd/godoc/godoc.go                          |  2 +-
  src/pkg/go/printer/nodes.go                     |  2 +-
  src/pkg/go/printer/testdata/declarations.golden | 15 +++++++++++++--
  src/pkg/go/printer/testdata/declarations.input  | 10 ++++++++++
  4 files changed, 25 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index f689b4a840..5faba2b181 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -67,7 +67,7 @@ var (
+ 	// search index
+ 	indexEnabled = flag.Bool("index", false, "enable search index")
+ 	indexFiles   = flag.String("index_files", "", "glob pattern specifying index files;"+
+-			"if not empty, the index is read from these files in sorted order")
++		"if not empty, the index is read from these files in sorted order")
+ 	maxResults    = flag.Int("maxresults", 10000, "maximum number of full text search results shown")
+ 	indexThrottle = flag.Float64("index_throttle", 0.75, "index throttle value; 0.0 = no time allocated, 1.0 = full throttle")
+ 
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 6be3c09382..727d2a3714 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -365,7 +365,7 @@ func (p *printer) setLineComment(text string) {
+ }
+ 
+ func (p *printer) isMultiLine(n ast.Node) bool {
+-	return p.lineFor(n.End())-p.lineFor(n.Pos()) > 1
++	return p.lineFor(n.End())-p.lineFor(n.Pos()) > 0
+ }
+ 
+ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) {
+diff --git a/src/pkg/go/printer/testdata/declarations.golden b/src/pkg/go/printer/testdata/declarations.golden
+index 7ed7cb61ae..71ed32ed14 100644
+--- a/src/pkg/go/printer/testdata/declarations.golden
++++ b/src/pkg/go/printer/testdata/declarations.golden
+@@ -500,7 +500,7 @@ type _ struct {
+ 
+ type _ struct {
+ 	a, b,
+-	c, d		int	// this line should be indented
++	c, d	int	// this line should be indented
+ 	u, v, w, x	float	// this line should be indented
+ 	p, q,
+ 	r, s	float	// this line should be indented
+@@ -562,10 +562,21 @@ var a2, b2,
+ 
+ var (
+ 	a3, b3,
+-	c3, d3		int	// this line should be indented
++	c3, d3	int	// this line should be indented
+ 	a4, b4, c4	int	// this line should be indented
+ )
+ 
++// Test case from issue 3304: multi-line declarations must end
++// a formatting section and not influence indentation of the
++// next line.
++var (
++	minRefreshTimeSec	= flag.Int64("min_refresh_time_sec", 604800,
++		"minimum time window between two refreshes for a given user.")
++	x	= flag.Int64("refresh_user_rollout_percent", 100,
++		"temporary flag to ramp up the refresh user rpc")
++	aVeryLongVariableName	= stats.GetVarInt("refresh-user-count")
++)
++
+ func _() {
+ 	var privateKey2 = &Block{Type:	"RSA PRIVATE KEY",
+ 		Headers:	map[string]string{},
+diff --git a/src/pkg/go/printer/testdata/declarations.input b/src/pkg/go/printer/testdata/declarations.input
+index df8c2b167e..d74cff25d1 100644
+--- a/src/pkg/go/printer/testdata/declarations.input
++++ b/src/pkg/go/printer/testdata/declarations.input
+@@ -577,6 +577,16 @@ c3, d3 int  // this line should be indented
+ a4, b4, c4 int  // this line should be indented
+ )
+ 
++// Test case from issue 3304: multi-line declarations must end
++// a formatting section and not influence indentation of the
++// next line.
++var (
++	minRefreshTimeSec = flag.Int64("min_refresh_time_sec", 604800,
++		"minimum time window between two refreshes for a given user.")
++	x = flag.Int64("refresh_user_rollout_percent", 100,
++		"temporary flag to ramp up the refresh user rpc")
++	aVeryLongVariableName = stats.GetVarInt("refresh-user-count")
++)
+ 
+ func _() {
+ 	var privateKey2 = &Block{Type: "RSA PRIVATE KEY",

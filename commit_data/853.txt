@@ -7,6 +7,19 @@ Date:   Tue Oct 14 12:48:14 2008 -0700
     R=r
     OCL=17096
     CL=17096
-
+---
  src/cmd/gc/const.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index c44a2a6b74..d97304633a 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -30,6 +30,7 @@ convlit(Node *n, Type *t)
+ 	case TFUNC:
+ 	case TCHAN:
+ 	case TMAP:
++	case TSTRUCT:
+ //	case TPTR32:
+ //	case TPTR64:
+ 		return;

@@ -9,7 +9,7 @@ Date:   Wed Sep 2 14:11:40 2009 -0700
     DELTA=59  (8 added, 7 deleted, 44 changed)
     OCL=34266
     CL=34266
-
+---
  usr/austin/eval/abort.go     | 38 +++++++++++++++++---------------------
  usr/austin/eval/expr.go      | 20 ++++++++++----------
  usr/austin/eval/expr1.go     | 10 +++++-----
@@ -18,3 +18,268 @@ Date:   Wed Sep 2 14:11:40 2009 -0700
  usr/austin/eval/stmt.go      |  2 +-
  usr/austin/eval/stmt_test.go |  2 +-
  7 files changed, 46 insertions(+), 45 deletions(-)
+
+diff --git a/usr/austin/eval/abort.go b/usr/austin/eval/abort.go
+index 521e51652b..53747f3e1b 100644
+--- a/usr/austin/eval/abort.go
++++ b/usr/austin/eval/abort.go
+@@ -10,33 +10,29 @@ import (
+ 	"runtime";
+ )
+ 
+-// TODO(austin) This is not thread-safe.  We could include the abort
+-// channel in the Frame structure, but then the Value methods need to
+-// take the Frame.  However, passing something to the Value methods
+-// might be necessary to generate back traces.
+-var abortChan = make(chan os.Error)
+-
+-// Abort aborts the current computation.  If this is called within the
+-// extent of a Try call, this immediately returns to the Try with the
+-// given error.  If not, then this panic's.
+-func Abort(e os.Error) {
+-	if abortChan == nil {
+-		panic("Abort: " + e.String());
++// Abort aborts the thread's current computation,
++// causing the innermost Try to return err.
++func (t *Thread) Abort(err os.Error) {
++	if t.abort == nil {
++		panicln("abort:", err.String());
+ 	}
+-	abortChan <- e;
++	t.abort <- err;
+ 	runtime.Goexit();
+ }
+ 
+-// Try executes a computation with the ability to Abort.
+-func Try(f func()) os.Error {
+-	abortChan = make(chan os.Error);
++// Try executes a computation; if the computation
++// Aborts, Try returns the error passed to abort.
++func (t *Thread) Try(f func(t *Thread)) os.Error {
++	oc := t.abort;
++	c := make(chan os.Error);
++	t.abort = c;
+ 	go func() {
+-		f();
+-		abortChan <- nil;
++		f(t);
++		c <- nil;
+ 	}();
+-	res := <-abortChan;
+-	abortChan = nil;
+-	return res;
++	err := <-c;
++	t.abort = oc;
++	return err;
+ }
+ 
+ type DivByZeroError struct {}
+diff --git a/usr/austin/eval/expr.go b/usr/austin/eval/expr.go
+index 4415c84ed2..cacfc61e12 100644
+--- a/usr/austin/eval/expr.go
++++ b/usr/austin/eval/expr.go
+@@ -967,7 +967,7 @@ func (a *exprInfo) compileIndexExpr(l, r *expr) *expr {
+ 		expr.genValue(func(t *Thread) Value {
+ 			l, r := lf(t), rf(t);
+ 			if r < 0 || r >= bound {
+-				Abort(IndexError{r, bound});
++				t.Abort(IndexError{r, bound});
+ 			}
+ 			return l.Elem(r);
+ 		});
+@@ -978,10 +978,10 @@ func (a *exprInfo) compileIndexExpr(l, r *expr) *expr {
+ 		expr.genValue(func(t *Thread) Value {
+ 			l, r := lf(t), rf(t);
+ 			if l.Base == nil {
+-				Abort(NilPointerError{});
++				t.Abort(NilPointerError{});
+ 			}
+ 			if r < 0 || r >= l.Len {
+-				Abort(IndexError{r, l.Len});
++				t.Abort(IndexError{r, l.Len});
+ 			}
+ 			return l.Base.Elem(r);
+ 		});
+@@ -994,7 +994,7 @@ func (a *exprInfo) compileIndexExpr(l, r *expr) *expr {
+ 		expr.eval = func(t *Thread) uint64 {
+ 			l, r := lf(t), rf(t);
+ 			if r < 0 || r >= int64(len(l)) {
+-				Abort(IndexError{r, int64(len(l))});
++				t.Abort(IndexError{r, int64(len(l))});
+ 			}
+ 			return uint64(l[r]);
+ 		}
+@@ -1006,11 +1006,11 @@ func (a *exprInfo) compileIndexExpr(l, r *expr) *expr {
+ 			m := lf(t);
+ 			k := rf(t);
+ 			if m == nil {
+-				Abort(NilPointerError{});
++				t.Abort(NilPointerError{});
+ 			}
+ 			e := m.Elem(k);
+ 			if e == nil {
+-				Abort(KeyError{k});
++				t.Abort(KeyError{k});
+ 			}
+ 			return e;
+ 		});
+@@ -1228,13 +1228,13 @@ func (a *exprInfo) compileBuiltinCallExpr(b *block, ft *FuncType, as []*expr) *e
+ 				// XXX(Spec) What if len or cap is
+ 				// negative?  The runtime panics.
+ 				if l < 0 {
+-					Abort(NegativeLengthError{l});
++					t.Abort(NegativeLengthError{l});
+ 				}
+ 				c := l;
+ 				if capf != nil {
+ 					c = capf(t);
+ 					if c < 0 {
+-						Abort(NegativeCapacityError{c});
++						t.Abort(NegativeCapacityError{c});
+ 					}
+ 					// XXX(Spec) What happens if
+ 					// len > cap?  The runtime
+@@ -1293,7 +1293,7 @@ func (a *exprInfo) compileStarExpr(v *expr) *expr {
+ 		expr.genValue(func(t *Thread) Value {
+ 			v := vf(t);
+ 			if v == nil {
+-				Abort(NilPointerError{});
++				t.Abort(NilPointerError{});
+ 			}
+ 			return v;
+ 		});
+@@ -1863,7 +1863,7 @@ func (expr *Expr) Eval(f *Frame) (Value, os.Error) {
+ 	}
+ 	v := expr.e.t.Zero();
+ 	eval := genAssign(expr.e.t, expr.e);
+-	err := Try(func() {eval(v, t)});
++	err := t.Try(func(t *Thread){eval(v, t)});
+ 	return v, err;
+ }
+ 
+diff --git a/usr/austin/eval/expr1.go b/usr/austin/eval/expr1.go
+index dce004f40f..e07ce86f39 100644
+--- a/usr/austin/eval/expr1.go
++++ b/usr/austin/eval/expr1.go
+@@ -379,11 +379,11 @@ func (a *expr) genBinOpQuo(l, r *expr) {
+ 	case *uintType:
+ 		lf := l.asUint();
+ 		rf := r.asUint();
+-		a.eval = func(t *Thread) uint64 { l, r := lf(t), rf(t); if r == 0 { Abort(DivByZeroError{}) } return l / r }
++		a.eval = func(t *Thread) uint64 { l, r := lf(t), rf(t); if r == 0 { t.Abort(DivByZeroError{}) } return l / r }
+ 	case *intType:
+ 		lf := l.asInt();
+ 		rf := r.asInt();
+-		a.eval = func(t *Thread) int64 { l, r := lf(t), rf(t); if r == 0 { Abort(DivByZeroError{}) } return l / r }
++		a.eval = func(t *Thread) int64 { l, r := lf(t), rf(t); if r == 0 { t.Abort(DivByZeroError{}) } return l / r }
+ 	case *idealIntType:
+ 		l := l.asIdealInt()();
+ 		r := r.asIdealInt()();
+@@ -392,7 +392,7 @@ func (a *expr) genBinOpQuo(l, r *expr) {
+ 	case *floatType:
+ 		lf := l.asFloat();
+ 		rf := r.asFloat();
+-		a.eval = func(t *Thread) float64 { l, r := lf(t), rf(t); if r == 0 { Abort(DivByZeroError{}) } return l / r }
++		a.eval = func(t *Thread) float64 { l, r := lf(t), rf(t); if r == 0 { t.Abort(DivByZeroError{}) } return l / r }
+ 	case *idealFloatType:
+ 		l := l.asIdealFloat()();
+ 		r := r.asIdealFloat()();
+@@ -408,11 +408,11 @@ func (a *expr) genBinOpRem(l, r *expr) {
+ 	case *uintType:
+ 		lf := l.asUint();
+ 		rf := r.asUint();
+-		a.eval = func(t *Thread) uint64 { l, r := lf(t), rf(t); if r == 0 { Abort(DivByZeroError{}) } return l % r }
++		a.eval = func(t *Thread) uint64 { l, r := lf(t), rf(t); if r == 0 { t.Abort(DivByZeroError{}) } return l % r }
+ 	case *intType:
+ 		lf := l.asInt();
+ 		rf := r.asInt();
+-		a.eval = func(t *Thread) int64 { l, r := lf(t), rf(t); if r == 0 { Abort(DivByZeroError{}) } return l % r }
++		a.eval = func(t *Thread) int64 { l, r := lf(t), rf(t); if r == 0 { t.Abort(DivByZeroError{}) } return l % r }
+ 	case *idealIntType:
+ 		l := l.asIdealInt()();
+ 		r := r.asIdealInt()();
+diff --git a/usr/austin/eval/func.go b/usr/austin/eval/func.go
+index d13fbbed40..3bf52871dc 100644
+--- a/usr/austin/eval/func.go
++++ b/usr/austin/eval/func.go
+@@ -4,11 +4,14 @@
+ 
+ package eval
+ 
++import "os"
++
+ /*
+  * Virtual machine
+  */
+ 
+ type Thread struct {
++	abort chan os.Error;
+ 	pc uint;
+ 	// The execution frame of this function.  This remains the
+ 	// same throughout a function invocation.
+@@ -18,13 +21,15 @@ type Thread struct {
+ type code []func(*Thread)
+ 
+ func (i code) exec(t *Thread) {
+-	v := Thread{0, t.f};	// TODO: reuse t
++	opc := t.pc;
++	t.pc = 0;
+ 	l := uint(len(i));
+-	for v.pc < l {
+-		pc := v.pc;
+-		v.pc++;
+-		i[pc](&v);
++	for t.pc < l {
++		pc := t.pc;
++		t.pc++;
++		i[pc](t);
+ 	}
++	t.pc = opc;
+ }
+ 
+ /*
+diff --git a/usr/austin/eval/gen.go b/usr/austin/eval/gen.go
+index a9d088db8c..a09ecfa70a 100644
+--- a/usr/austin/eval/gen.go
++++ b/usr/austin/eval/gen.go
+@@ -91,12 +91,12 @@ var binOps = []Op{
+ 	Op{ Name: "Sub", Expr: "l - r", ConstExpr: "l.Sub(r)", Types: numbers },
+ 	Op{ Name: "Mul", Expr: "l * r", ConstExpr: "l.Mul(r)", Types: numbers },
+ 	Op{ Name: "Quo",
+-		Body: "if r == 0 { Abort(DivByZeroError{}) } return l / r",
++		Body: "if r == 0 { t.Abort(DivByZeroError{}) } return l / r",
+ 		ConstExpr: "l.Quo(r)",
+ 		Types: numbers,
+ 	},
+ 	Op{ Name: "Rem",
+-		Body: "if r == 0 { Abort(DivByZeroError{}) } return l % r",
++		Body: "if r == 0 { t.Abort(DivByZeroError{}) } return l % r",
+ 		ConstExpr: "l.Rem(r)",
+ 		Types: integers,
+ 	},
+diff --git a/usr/austin/eval/stmt.go b/usr/austin/eval/stmt.go
+index 50a776e35e..e0d6ebeb30 100644
+--- a/usr/austin/eval/stmt.go
++++ b/usr/austin/eval/stmt.go
+@@ -1281,7 +1281,7 @@ type Stmt struct {
+ func (s *Stmt) Exec(f *Frame) os.Error {
+ 	t := new(Thread);
+ 	t.f = f;
+-	return Try(func() {s.code.exec(t)});
++	return t.Try(func(t *Thread){s.code.exec(t)});
+ }
+ 
+ func CompileStmts(scope *Scope, stmts []ast.Stmt) (*Stmt, os.Error) {
+diff --git a/usr/austin/eval/stmt_test.go b/usr/austin/eval/stmt_test.go
+index f701d27f7a..9a62b2e0f3 100644
+--- a/usr/austin/eval/stmt_test.go
++++ b/usr/austin/eval/stmt_test.go
+@@ -302,7 +302,7 @@ var stmtTests = []test {
+ 	SErr("type T struct { x int }; type U struct { x int }; var y struct { T; U }; y.x = 42", "ambiguous.*\tT\\.x\n\tU\\.x"),
+ 	SErr("type T struct { *T }; var x T; x.foo", "no field"),
+ 
+-	//Val1("fib := func(int) int{return 0;}; fib = func(v int) int { if v < 2 { return 1 } return fib(v-1)+fib(v-2) }; i = fib(20)", "i", 0),
++	Val1("fib := func(int) int{return 0;}; fib = func(v int) int { if v < 2 { return 1 } return fib(v-1)+fib(v-2) }; i = fib(20)", "i", 10946),
+ 
+ 	// Make slice
+ 	Val2("x := make([]int, 2); x[0] = 42; i, i2 = x[0], x[1]", "i", 42, "i2", 0),

@@ -18,7 +18,85 @@ Date:   Fri Jul 1 13:52:26 2016 -0700
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/copylock.go               | 22 ++++++++++++++--------
  src/cmd/vet/testdata/copylock_func.go | 12 ++++++++++--
  2 files changed, 24 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/vet/copylock.go b/src/cmd/vet/copylock.go
+index 35b120c558..65337688bc 100644
+--- a/src/cmd/vet/copylock.go
++++ b/src/cmd/vet/copylock.go
+@@ -125,14 +125,10 @@ func checkCopyLocksFunc(f *File, name string, recv *ast.FieldList, typ *ast.Func
+ 		}
+ 	}
+ 
+-	if typ.Results != nil {
+-		for _, field := range typ.Results.List {
+-			expr := field.Type
+-			if path := lockPath(f.pkg.typesPkg, f.pkg.types[expr].Type); path != nil {
+-				f.Badf(expr.Pos(), "%s returns lock by value: %v", name, path)
+-			}
+-		}
+-	}
++	// Don't check typ.Results. If T has a Lock field it's OK to write
++	//     return T{}
++	// because that is returning the zero value. Leave result checking
++	// to the return statement.
+ }
+ 
+ // checkCopyLocksRange checks whether a range statement
+@@ -194,6 +190,16 @@ func lockPathRhs(f *File, x ast.Expr) typePath {
+ 	if _, ok := x.(*ast.CompositeLit); ok {
+ 		return nil
+ 	}
++	if _, ok := x.(*ast.CallExpr); ok {
++		// A call may return a zero value.
++		return nil
++	}
++	if star, ok := x.(*ast.StarExpr); ok {
++		if _, ok := star.X.(*ast.CallExpr); ok {
++			// A call may return a pointer to a zero value.
++			return nil
++		}
++	}
+ 	return lockPath(f.pkg.typesPkg, f.pkg.types[x].Type)
+ }
+ 
+diff --git a/src/cmd/vet/testdata/copylock_func.go b/src/cmd/vet/testdata/copylock_func.go
+index 3209eaedf8..bfafa124fa 100644
+--- a/src/cmd/vet/testdata/copylock_func.go
++++ b/src/cmd/vet/testdata/copylock_func.go
+@@ -12,7 +12,7 @@ import "sync"
+ func OkFunc(*sync.Mutex) {}
+ func BadFunc(sync.Mutex) {} // ERROR "BadFunc passes lock by value: sync.Mutex"
+ func OkRet() *sync.Mutex {}
+-func BadRet() sync.Mutex {} // ERROR "BadRet returns lock by value: sync.Mutex"
++func BadRet() sync.Mutex {} // Don't warn about results
+ 
+ var (
+ 	OkClosure  = func(*sync.Mutex) {}
+@@ -28,7 +28,7 @@ func (EmbeddedRWMutex) BadMeth() {} // ERROR "BadMeth passes lock by value: test
+ func OkFunc(e *EmbeddedRWMutex)  {}
+ func BadFunc(EmbeddedRWMutex)    {} // ERROR "BadFunc passes lock by value: testdata.EmbeddedRWMutex"
+ func OkRet() *EmbeddedRWMutex    {}
+-func BadRet() EmbeddedRWMutex    {} // ERROR "BadRet returns lock by value: testdata.EmbeddedRWMutex"
++func BadRet() EmbeddedRWMutex    {} // Don't warn about results
+ 
+ type FieldMutex struct {
+ 	s sync.Mutex
+@@ -107,6 +107,14 @@ func ReturnViaInterface(x int) (int, interface{}) {
+ 	}
+ }
+ 
++// Some cases that we don't warn about.
++
++func AcceptedCases() {
++	x := EmbeddedRwMutex{} // composite literal on RHS is OK (#16227)
++	x = BadRet()           // function call on RHS is OK (#16227)
++	x = *OKRet()           // indirection of function call on RHS is OK (#16227)
++}
++
+ // TODO: Unfortunate cases
+ 
+ // Non-ideal error message:

@@ -49,3 +49,73 @@ Date:   Fri Nov 14 12:09:42 2014 -0500
  test/live.go                    |    2 +-
  test/nilptr3.go                 |    2 +
  33 files changed, 1544 insertions(+), 312 deletions(-)
+
+diff --cc include/link.h
+index c80f467580,06f3ebb489..80f3f4d82e
+--- a/include/link.h
++++ b/include/link.h
+@@@ -89,10 -89,13 +89,13 @@@ struct	Pro
+  	int32	lineno;
+  	Prog*	link;
+  	short	as;
+- 	uchar	reg; // arm, power64 only
+ -	uchar	scond; // arm only; condition codes
+ +	uchar	scond; // arm only
++ 
++ 	// operands
+  	Addr	from;
+- 	Addr	from3; // power64 only, fma and rlwm
++ 	uchar	reg; // arm, power64 only (e.g., ADD from, reg, to);
++ 		     // also used for ADATA width on arm, power64
++ 	Addr	from3; // power64 only (e.g., RLWM/FMADD from, reg, from3, to)
+  	Addr	to;
+  	
+  	// for 5g, 6g, 8g internal use
+diff --cc src/runtime/asm_power64x.s
+index fd0c6be161,a75bb8ce1e..ba900c2b3f
+--- a/src/runtime/asm_power64x.s
++++ b/src/runtime/asm_power64x.s
+@@@ -472,10 -472,10 +472,10 @@@ TEXT runtime·atomicstoreuintptr(SB), N
+  //		return 1;
+  //	} else
+  //		return 0;
+ -TEXT runtime·casp(SB), NOSPLIT, $0-25
+ +TEXT runtime·casp1(SB), NOSPLIT, $0-25
+  	BR runtime·cas64(SB)
+  
+- // uint32 xadd(uint32 volatile *val, int32 delta)
++ // uint32 xadd(uint32 volatile *ptr, int32 delta)
+  // Atomically:
+  //	*val += delta;
+  //	return *val;
+diff --cc src/runtime/mgc0.c
+index 3248b0f49a,897dc1415c..f37c01af05
+--- a/src/runtime/mgc0.c
++++ b/src/runtime/mgc0.c
+@@@ -122,8 -64,10 +122,9 @@@
+  
+  enum {
+  	Debug		= 0,
++ 	DebugPtrs	= 0, // if 1, print trace of every pointer load during GC
+ -	ConcurrentSweep	= 0,
+ +	ConcurrentSweep	= 1,
+  
+ -	WorkbufSize	= 4*1024,
+  	FinBlockSize	= 4*1024,
+  	RootData	= 0,
+  	RootBss		= 1,
+diff --cc test/live.go
+index 55a1bd35d1,f69d0a4c1e..62c6a0b0e5
+--- a/test/live.go
++++ b/test/live.go
+@@@ -634,8 -614,8 +634,8 @@@ func newT40() *T40 
+  
+  func bad40() {
+  	t := newT40()
+- 	printnl()
+  	_ = t
+ -	println()
+++	printnl()
+  }
+  
+  func good40() {

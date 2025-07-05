@@ -48,7 +48,7 @@ Date:   Tue Dec 18 22:57:25 2012 +0800
     R=jsing, dave, rsc
     CC=golang-dev
     https://golang.org/cl/6820120
-
+---
  doc/go1.1.html                      |  8 ++++----
  src/pkg/runtime/sys_freebsd_386.s   | 24 +++++++++++-------------
  src/pkg/runtime/sys_freebsd_amd64.s | 22 ++++++++++------------
@@ -60,3 +60,500 @@ Date:   Tue Dec 18 22:57:25 2012 +0800
  src/pkg/runtime/sys_openbsd_386.s   | 24 +++++++++++-------------
  src/pkg/runtime/sys_openbsd_amd64.s | 26 ++++++++++++--------------
  10 files changed, 99 insertions(+), 119 deletions(-)
+
+diff --git a/doc/go1.1.html b/doc/go1.1.html
+index d350303386..47a25b678f 100644
+--- a/doc/go1.1.html
++++ b/doc/go1.1.html
+@@ -94,10 +94,10 @@ the <code>UnixConn</code>.
+ 
+ <h3 id="time">time</h3>
+ <p>
+-On Linux, previous versions of the time package returned times with
+-microsecond precision. The Go 1.1 implementation of time on Linux now returns times with
+-nanosecond precision. Code may exist that expects to be able to store
+-such a time in an external format with only microsecond precision,
++On FreeBSD, Linux, NetBSD, OS X and OpenBSD, previous versions of the time package
++returned times with microsecond precision. The Go 1.1 implementation of time on these
++systems now returns times with nanosecond precision. Code may exist that expects to be
++able to store such a time in an external format with only microsecond precision,
+ read it back, and recover exactly the same time instant.
+ In Go 1.1 the same time will not be recovered, since the external storage
+ will have discarded nanoseconds.
+diff --git a/src/pkg/runtime/sys_freebsd_386.s b/src/pkg/runtime/sys_freebsd_386.s
+index 9049f1e75b..a30c7ba01f 100644
+--- a/src/pkg/runtime/sys_freebsd_386.s
++++ b/src/pkg/runtime/sys_freebsd_386.s
+@@ -116,40 +116,38 @@ TEXT runtime·setitimer(SB), 7, $-4
+ 
+ // func now() (sec int64, nsec int32)
+ TEXT time·now(SB), 7, $32
+-	MOVL	$116, AX
++	MOVL	$232, AX
+ 	LEAL	12(SP), BX
+-	MOVL	BX, 4(SP)
+-	MOVL	$0, 8(SP)
++	MOVL	$0, 4(SP)
++	MOVL	BX, 8(SP)
+ 	INT	$0x80
+ 	MOVL	12(SP), AX	// sec
+-	MOVL	16(SP), BX	// usec
++	MOVL	16(SP), BX	// nsec
+ 
+-	// sec is in AX, usec in BX
++	// sec is in AX, nsec in BX
+ 	MOVL	AX, sec+0(FP)
+ 	MOVL	$0, sec+4(FP)
+-	IMULL	$1000, BX
+ 	MOVL	BX, nsec+8(FP)
+ 	RET
+ 
+ // int64 nanotime(void) so really
+ // void nanotime(int64 *nsec)
+ TEXT runtime·nanotime(SB), 7, $32
+-	MOVL	$116, AX
++	MOVL	$232, AX
+ 	LEAL	12(SP), BX
+-	MOVL	BX, 4(SP)
+-	MOVL	$0, 8(SP)
++	MOVL	$0, 4(SP)
++	MOVL	BX, 8(SP)
+ 	INT	$0x80
+ 	MOVL	12(SP), AX	// sec
+-	MOVL	16(SP), BX	// usec
++	MOVL	16(SP), BX	// nsec
+ 
+-	// sec is in AX, usec in BX
++	// sec is in AX, nsec in BX
+ 	// convert to DX:AX nsec
+ 	MOVL	$1000000000, CX
+ 	MULL	CX
+-	IMULL	$1000, BX
+ 	ADDL	BX, AX
+ 	ADCL	$0, DX
+-	
++
+ 	MOVL	ret+0(FP), DI
+ 	MOVL	AX, 0(DI)
+ 	MOVL	DX, 4(DI)
+diff --git a/src/pkg/runtime/sys_freebsd_amd64.s b/src/pkg/runtime/sys_freebsd_amd64.s
+index 6c52dfa15e..7b1359167b 100644
+--- a/src/pkg/runtime/sys_freebsd_amd64.s
++++ b/src/pkg/runtime/sys_freebsd_amd64.s
+@@ -94,31 +94,29 @@ TEXT runtime·setitimer(SB), 7, $-8
+ 
+ // func now() (sec int64, nsec int32)
+ TEXT time·now(SB), 7, $32
+-	MOVL	$116, AX
+-	LEAQ	8(SP), DI
+-	MOVQ	$0, SI
++	MOVL	$232, AX
++	MOVQ	$0, DI
++	LEAQ	8(SP), SI
+ 	SYSCALL
+ 	MOVQ	8(SP), AX	// sec
+-	MOVL	16(SP), DX	// usec
++	MOVQ	16(SP), DX	// nsec
+ 
+-	// sec is in AX, usec in DX
++	// sec is in AX, nsec in DX
+ 	MOVQ	AX, sec+0(FP)
+-	IMULQ	$1000, DX
+ 	MOVL	DX, nsec+8(FP)
+ 	RET
+ 
+ TEXT runtime·nanotime(SB), 7, $32
+-	MOVL	$116, AX
+-	LEAQ	8(SP), DI
+-	MOVQ	$0, SI
++	MOVL	$232, AX
++	MOVQ	$0, DI
++	LEAQ	8(SP), SI
+ 	SYSCALL
+ 	MOVQ	8(SP), AX	// sec
+-	MOVL	16(SP), DX	// usec
++	MOVQ	16(SP), DX	// nsec
+ 
+-	// sec is in AX, usec in DX
++	// sec is in AX, nsec in DX
+ 	// return nsec in AX
+ 	IMULQ	$1000000000, AX
+-	IMULQ	$1000, DX
+ 	ADDQ	DX, AX
+ 	RET
+ 
+diff --git a/src/pkg/runtime/sys_freebsd_arm.s b/src/pkg/runtime/sys_freebsd_arm.s
+index 1edf8071bb..ec8134e4c5 100644
+--- a/src/pkg/runtime/sys_freebsd_arm.s
++++ b/src/pkg/runtime/sys_freebsd_arm.s
+@@ -86,39 +86,36 @@ TEXT runtime·setitimer(SB), 7, $-8
+ 
+ // func now() (sec int64, nsec int32)
+ TEXT time·now(SB), 7, $32
+-	MOVW $8(R13), R0
+-	MOVW $0, R1
+-	SWI $116 // gettimeofday
++	MOVW $0, R0 // CLOCK_REALTIME
++	MOVW $8(R13), R1
++	SWI $232 // clock_gettime
+ 
+ 	MOVW 8(R13), R0 // sec.low
+-	MOVW 16(R13), R2 // usec
++	MOVW 12(R13), R1 // sec.high
++	MOVW 16(R13), R2 // nsec
+ 
+ 	MOVW R0, 0(FP)
+-	MOVW $0, R1
+ 	MOVW R1, 4(FP)
+-	MOVW $1000, R3
+-	MUL R3, R2
+ 	MOVW R2, 8(FP)
+ 	RET
+ 
+ // int64 nanotime(void) so really
+ // void nanotime(int64 *nsec)
+ TEXT runtime·nanotime(SB), 7, $32
+-	MOVW $8(R13), R0
+-	MOVW $0, R1
+-	SWI $116 // gettimeofday
++	MOVW $0, R0 // CLOCK_REALTIME
++	MOVW $8(R13), R1
++	SWI $232 // clock_gettime
+ 
+ 	MOVW 8(R13), R0 // sec.low
+-	MOVW 16(R13), R2 // usec
++	MOVW 12(R13), R4 // sec.high
++	MOVW 16(R13), R2 // nsec
+ 
+ 	MOVW $1000000000, R3
+ 	MULLU R0, R3, (R1, R0)
+-	MOVW $1000, R3
+-	MOVW $0, R4
+-	MUL R3, R2
++	MUL R3, R4
+ 	ADD.S R2, R0
+ 	ADC R4, R1
+-	
++
+ 	MOVW 0(FP), R3
+ 	MOVW R0, 0(R3)
+ 	MOVW R1, 4(R3)
+diff --git a/src/pkg/runtime/sys_linux_386.s b/src/pkg/runtime/sys_linux_386.s
+index 28ae37b8d9..b212f806c1 100644
+--- a/src/pkg/runtime/sys_linux_386.s
++++ b/src/pkg/runtime/sys_linux_386.s
+@@ -104,40 +104,38 @@ TEXT runtime·mincore(SB),7,$0-24
+ 
+ // func now() (sec int64, nsec int32)
+ TEXT time·now(SB), 7, $32
+-	MOVL	$78, AX			// syscall - gettimeofday
+-	LEAL	8(SP), BX
+-	MOVL	$0, CX
++	MOVL	$265, AX			// syscall - clock_gettime
++	MOVL	$0, BX
++	LEAL	8(SP), CX
+ 	MOVL	$0, DX
+ 	CALL	*runtime·_vdso(SB)
+ 	MOVL	8(SP), AX	// sec
+-	MOVL	12(SP), BX	// usec
++	MOVL	12(SP), BX	// nsec
+ 
+-	// sec is in AX, usec in BX
++	// sec is in AX, nsec in BX
+ 	MOVL	AX, sec+0(FP)
+ 	MOVL	$0, sec+4(FP)
+-	IMULL	$1000, BX
+ 	MOVL	BX, nsec+8(FP)
+ 	RET
+ 
+ // int64 nanotime(void) so really
+ // void nanotime(int64 *nsec)
+ TEXT runtime·nanotime(SB), 7, $32
+-	MOVL	$78, AX			// syscall - gettimeofday
+-	LEAL	8(SP), BX
+-	MOVL	$0, CX
++	MOVL	$265, AX			// syscall - clock_gettime
++	MOVL	$0, BX
++	LEAL	8(SP), CX
+ 	MOVL	$0, DX
+ 	CALL	*runtime·_vdso(SB)
+ 	MOVL	8(SP), AX	// sec
+-	MOVL	12(SP), BX	// usec
++	MOVL	12(SP), BX	// nsec
+ 
+-	// sec is in AX, usec in BX
++	// sec is in AX, nsec in BX
+ 	// convert to DX:AX nsec
+ 	MOVL	$1000000000, CX
+ 	MULL	CX
+-	IMULL	$1000, BX
+ 	ADDL	BX, AX
+ 	ADCL	$0, DX
+-	
++
+ 	MOVL	ret+0(FP), DI
+ 	MOVL	AX, 0(DI)
+ 	MOVL	DX, 4(DI)
+diff --git a/src/pkg/runtime/sys_linux_arm.s b/src/pkg/runtime/sys_linux_arm.s
+index 38bcebfa1a..ec5b0ca135 100644
+--- a/src/pkg/runtime/sys_linux_arm.s
++++ b/src/pkg/runtime/sys_linux_arm.s
+@@ -35,6 +35,7 @@
+ #define SYS_select (SYS_BASE + 142) // newselect
+ #define SYS_ugetrlimit (SYS_BASE + 191)
+ #define SYS_sched_getaffinity (SYS_BASE + 242)
++#define SYS_clock_gettime (SYS_BASE + 263)
+ 
+ #define ARM_BASE (SYS_BASE + 0x0f0000)
+ #define SYS_ARM_cacheflush (ARM_BASE + 2)
+@@ -155,41 +156,37 @@ TEXT runtime·mincore(SB),7,$0
+ 	RET
+ 
+ TEXT time·now(SB), 7, $32
+-	MOVW	$8(R13), R0  // timeval
+-	MOVW	$0, R1  // zone
+-	MOVW	$SYS_gettimeofday, R7
++	MOVW	$0, R0  // CLOCK_REALTIME
++	MOVW	$8(R13), R1  // timespec
++	MOVW	$SYS_clock_gettime, R7
+ 	SWI	$0
+ 	
+ 	MOVW	8(R13), R0  // sec
+-	MOVW	12(R13), R2  // usec
++	MOVW	12(R13), R2  // nsec
+ 	
+ 	MOVW	R0, 0(FP)
+ 	MOVW	$0, R1
+ 	MOVW	R1, 4(FP)
+-	MOVW	$1000, R3
+-	MUL	R3, R2
+ 	MOVW	R2, 8(FP)
+ 	RET	
+ 
+ // int64 nanotime(void) so really
+ // void nanotime(int64 *nsec)
+ TEXT runtime·nanotime(SB),7,$32
+-	MOVW	$8(R13), R0  // timeval
+-	MOVW	$0, R1  // zone
+-	MOVW	$SYS_gettimeofday, R7
++	MOVW	$0, R0  // CLOCK_REALTIME
++	MOVW	$8(R13), R1  // timespec
++	MOVW	$SYS_clock_gettime, R7
+ 	SWI	$0
+ 	
+ 	MOVW	8(R13), R0  // sec
+-	MOVW	12(R13), R2  // usec
++	MOVW	12(R13), R2  // nsec
+ 	
+ 	MOVW	$1000000000, R3
+ 	MULLU	R0, R3, (R1, R0)
+-	MOVW	$1000, R3
+ 	MOVW	$0, R4
+-	MUL	R3, R2
+ 	ADD.S	R2, R0
+ 	ADC	R4, R1
+-	
++
+ 	MOVW	0(FP), R3
+ 	MOVW	R0, 0(R3)
+ 	MOVW	R1, 4(R3)
+diff --git a/src/pkg/runtime/sys_netbsd_386.s b/src/pkg/runtime/sys_netbsd_386.s
+index 9c88b14487..1a4ff95b6d 100644
+--- a/src/pkg/runtime/sys_netbsd_386.s
++++ b/src/pkg/runtime/sys_netbsd_386.s
+@@ -98,9 +98,9 @@ TEXT runtime·setitimer(SB),7,$-4
+ // func now() (sec int64, nsec int32)
+ TEXT time·now(SB), 7, $32
+ 	LEAL	12(SP), BX
+-	MOVL	BX, 4(SP)		// arg 1 - tp
+-	MOVL	$0, 8(SP)		// arg 2 - tzp
+-	MOVL	$418, AX		// sys_gettimeofday
++	MOVL	$0, 4(SP)		// arg 1 - clock_id
++	MOVL	BX, 8(SP)		// arg 2 - tp
++	MOVL	$427, AX		// sys_clock_gettime
+ 	INT	$0x80
+ 
+ 	MOVL	12(SP), AX		// sec - l32
+@@ -108,8 +108,7 @@ TEXT time·now(SB), 7, $32
+ 	MOVL	16(SP), AX		// sec - h32
+ 	MOVL	AX, sec+4(FP)
+ 
+-	MOVL	20(SP), BX		// usec - should not exceed 999999
+-	IMULL	$1000, BX
++	MOVL	20(SP), BX		// nsec
+ 	MOVL	BX, nsec+8(FP)
+ 	RET
+ 
+@@ -117,9 +116,9 @@ TEXT time·now(SB), 7, $32
+ // void nanotime(int64 *nsec)
+ TEXT runtime·nanotime(SB),7,$32
+ 	LEAL	12(SP), BX
+-	MOVL	BX, 4(SP)		// arg 1 - tp
+-	MOVL	$0, 8(SP)		// arg 2 - tzp
+-	MOVL	$418, AX		// sys_gettimeofday
++	MOVL	$0, 4(SP)		// arg 1 - clock_id
++	MOVL	BX, 8(SP)		// arg 2 - tp
++	MOVL	$427, AX		// sys_clock_gettime
+ 	INT	$0x80
+ 
+ 	MOVL	16(SP), CX		// sec - h32
+@@ -129,8 +128,7 @@ TEXT runtime·nanotime(SB),7,$32
+ 	MOVL	$1000000000, BX
+ 	MULL	BX			// result in dx:ax
+ 
+-	MOVL	20(SP), BX		// usec
+-	IMULL	$1000, BX
++	MOVL	20(SP), BX		// nsec
+ 	ADDL	BX, AX
+ 	ADCL	CX, DX			// add high bits with carry
+ 
+diff --git a/src/pkg/runtime/sys_netbsd_amd64.s b/src/pkg/runtime/sys_netbsd_amd64.s
+index e00c727ccb..fc5f28ca79 100644
+--- a/src/pkg/runtime/sys_netbsd_amd64.s
++++ b/src/pkg/runtime/sys_netbsd_amd64.s
+@@ -122,31 +122,29 @@ TEXT runtime·setitimer(SB),7,$-8
+ 
+ // func now() (sec int64, nsec int32)
+ TEXT time·now(SB), 7, $32
+-	LEAQ	8(SP), DI		// arg 1 - tp
+-	MOVQ	$0, SI			// arg 2 - tzp
+-	MOVL	$418, AX		// sys_gettimeofday
++	MOVQ	$0, DI			// arg 1 - clock_id
++	LEAQ	8(SP), SI		// arg 2 - tp
++	MOVL	$427, AX		// sys_clock_gettime
+ 	SYSCALL
+ 	MOVQ	8(SP), AX		// sec
+-	MOVL	16(SP), DX		// usec
++	MOVL	16(SP), DX		// nsec
+ 
+-	// sec is in AX, usec in DX
++	// sec is in AX, nsec in DX
+ 	MOVQ	AX, sec+0(FP)
+-	IMULQ	$1000, DX
+ 	MOVL	DX, nsec+8(FP)
+ 	RET
+ 
+ TEXT runtime·nanotime(SB),7,$32
+-	LEAQ	8(SP), DI		// arg 1 - tp
+-	MOVQ	$0, SI			// arg 2 - tzp
+-	MOVL	$418, AX		// sys_gettimeofday
++	MOVQ	$0, DI			// arg 1 - clock_id
++	LEAQ	8(SP), SI		// arg 2 - tp
++	MOVL	$427, AX		// sys_clock_gettime
+ 	SYSCALL
+ 	MOVQ	8(SP), AX		// sec
+-	MOVL	16(SP), DX		// usec
++	MOVL	16(SP), DX		// nsec
+ 
+-	// sec is in AX, usec in DX
++	// sec is in AX, nsec in DX
+ 	// return nsec in AX
+ 	IMULQ	$1000000000, AX
+-	IMULQ	$1000, DX
+ 	ADDQ	DX, AX
+ 	RET
+ 
+diff --git a/src/pkg/runtime/sys_openbsd_386.s b/src/pkg/runtime/sys_openbsd_386.s
+index f002f8eafb..f7921552cf 100644
+--- a/src/pkg/runtime/sys_openbsd_386.s
++++ b/src/pkg/runtime/sys_openbsd_386.s
+@@ -98,40 +98,38 @@ TEXT runtime·setitimer(SB),7,$-4
+ 
+ // func now() (sec int64, nsec int32)
+ TEXT time·now(SB), 7, $32
+-	MOVL	$116, AX
++	MOVL	$232, AX
+ 	LEAL	12(SP), BX
+-	MOVL	BX, 4(SP)
+-	MOVL	$0, 8(SP)
++	MOVL	$0, 4(SP)
++	MOVL	BX, 8(SP)
+ 	INT	$0x80
+ 	MOVL	12(SP), AX		// sec
+-	MOVL	16(SP), BX		// usec
++	MOVL	16(SP), BX		// nsec
+ 
+-	// sec is in AX, usec in BX
++	// sec is in AX, nsec in BX
+ 	MOVL	AX, sec+0(FP)
+ 	MOVL	$0, sec+4(FP)
+-	IMULL	$1000, BX
+ 	MOVL	BX, nsec+8(FP)
+ 	RET
+ 
+ // int64 nanotime(void) so really
+ // void nanotime(int64 *nsec)
+ TEXT runtime·nanotime(SB),7,$32
+-	MOVL	$116, AX
++	MOVL	$232, AX
+ 	LEAL	12(SP), BX
+-	MOVL	BX, 4(SP)
+-	MOVL	$0, 8(SP)
++	MOVL	$0, 4(SP)
++	MOVL	BX, 8(SP)
+ 	INT	$0x80
+ 	MOVL	12(SP), AX		// sec
+-	MOVL	16(SP), BX		// usec
++	MOVL	16(SP), BX		// nsec
+ 
+-	// sec is in AX, usec in BX
++	// sec is in AX, nsec in BX
+ 	// convert to DX:AX nsec
+ 	MOVL	$1000000000, CX
+ 	MULL	CX
+-	IMULL	$1000, BX
+ 	ADDL	BX, AX
+ 	ADCL	$0, DX
+-	
++
+ 	MOVL	ret+0(FP), DI
+ 	MOVL	AX, 0(DI)
+ 	MOVL	DX, 4(DI)
+diff --git a/src/pkg/runtime/sys_openbsd_amd64.s b/src/pkg/runtime/sys_openbsd_amd64.s
+index 6b674a51ac..e569becfa1 100644
+--- a/src/pkg/runtime/sys_openbsd_amd64.s
++++ b/src/pkg/runtime/sys_openbsd_amd64.s
+@@ -130,31 +130,29 @@ TEXT runtime·setitimer(SB),7,$-8
+ 
+ // func now() (sec int64, nsec int32)
+ TEXT time·now(SB), 7, $32
+-	LEAQ	8(SP), DI		// arg 1 - tp
+-	MOVQ	$0, SI			// arg 2 - tzp
+-	MOVL	$116, AX		// sys_gettimeofday
++	MOVQ	$0, DI			// arg 1 - clock_id
++	LEAQ	8(SP), SI		// arg 2 - tp
++	MOVL	$232, AX		// sys_clock_gettime
+ 	SYSCALL
+-	MOVQ	8(SP), AX		// sec
+-	MOVL	16(SP), DX		// usec
++	MOVL	8(SP), AX		// sec
++	MOVQ	16(SP), DX		// nsec
+ 
+-	// sec is in AX, usec in DX
++	// sec is in AX, nsec in DX
+ 	MOVQ	AX, sec+0(FP)
+-	IMULQ	$1000, DX
+ 	MOVL	DX, nsec+8(FP)
+ 	RET
+ 
+ TEXT runtime·nanotime(SB),7,$32
+-	LEAQ	8(SP), DI		// arg 1 - tp
+-	MOVQ	$0, SI			// arg 2 - tzp
+-	MOVL	$116, AX		// sys_gettimeofday
++	MOVQ	$0, DI			// arg 1 - clock_id
++	LEAQ	8(SP), SI		// arg 2 - tp
++	MOVL	$232, AX		// sys_clock_gettime
+ 	SYSCALL
+-	MOVQ	8(SP), AX		// sec
+-	MOVL	16(SP), DX		// usec
++	MOVL	8(SP), AX		// sec
++	MOVQ	16(SP), DX		// nsec
+ 
+-	// sec is in AX, usec in DX
++	// sec is in AX, nsec in DX
+ 	// return nsec in AX
+ 	IMULQ	$1000000000, AX
+-	IMULQ	$1000, DX
+ 	ADDQ	DX, AX
+ 	RET
+ 

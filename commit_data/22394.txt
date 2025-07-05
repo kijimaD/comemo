@@ -10,7 +10,54 @@ Date:   Wed Mar 11 12:07:50 2015 -0400
     Signed-off-by: Shenghou Ma <minux@golang.org>
     Reviewed-on: https://go-review.googlesource.com/7400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/slice.go         |  4 +++-
  test/fixedbugs/issue10135.go | 25 +++++++++++++++++++++++++
  2 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index 7a2eb624b7..ae46d9c1ac 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -50,7 +50,9 @@ func growslice(t *slicetype, old sliceStruct, n int) sliceStruct {
+ 
+ 	et := t.elem
+ 	if et.size == 0 {
+-		return sliceStruct{old.array, old.len, cap}
++		// append should not create a slice with nil pointer but non-zero len.
++		// We assume that append doesn't need to preserve old.array in this case.
++		return sliceStruct{unsafe.Pointer(&zerobase), old.len, cap}
+ 	}
+ 
+ 	newcap := old.cap
+diff --git a/test/fixedbugs/issue10135.go b/test/fixedbugs/issue10135.go
+new file mode 100644
+index 0000000000..9985e5a0ee
+--- /dev/null
++++ b/test/fixedbugs/issue10135.go
+@@ -0,0 +1,25 @@
++// run
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 10135: append a slice with zero-sized element used
++// to always return a slice with the same data pointer as the
++// old slice, even if it's nil, so this program used to panic
++// with nil pointer dereference because after append, s is a
++// slice with nil data pointer but non-zero len and cap.
++
++package main
++
++type empty struct{}
++
++func main() {
++	var s []empty
++
++	s = append(s, empty{})
++
++	for _, v := range s {
++		_ = v
++	}
++}

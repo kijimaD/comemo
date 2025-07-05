@@ -7,8 +7,153 @@ Date:   Tue Aug 10 12:25:08 2010 +1000
     R=nigeltao_golang, r
     CC=golang-dev
     https://golang.org/cl/1897049
-
+---
  src/pkg/image/png/reader.go      | 18 +++++++++++++++---
  src/pkg/image/png/reader_test.go |  9 ++++++++-
  src/pkg/image/png/writer.go      | 20 +++++++++++++++++---
  3 files changed, 40 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/image/png/reader.go b/src/pkg/image/png/reader.go
+index b23aa7071a..97d03e108c 100644
+--- a/src/pkg/image/png/reader.go
++++ b/src/pkg/image/png/reader.go
+@@ -124,6 +124,8 @@ func (d *decoder) parseIHDR(r io.Reader, crc hash.Hash32, length uint32) os.Erro
+ 	}
+ 	d.colorType = d.tmp[9]
+ 	switch d.colorType {
++	case ctGrayscale:
++		d.image = image.NewGray(int(w), int(h))
+ 	case ctTrueColor:
+ 		d.image = image.NewRGBA(int(w), int(h))
+ 	case ctPaletted:
+@@ -154,7 +156,7 @@ func (d *decoder) parsePLTE(r io.Reader, crc hash.Hash32, length uint32) os.Erro
+ 			palette[i] = image.RGBAColor{d.tmp[3*i+0], d.tmp[3*i+1], d.tmp[3*i+2], 0xff}
+ 		}
+ 		d.image.(*image.Paletted).Palette = image.PalettedColorModel(palette)
+-	case ctTrueColor, ctTrueColorAlpha:
++	case ctGrayscale, ctTrueColor, ctTrueColorAlpha:
+ 		// As per the PNG spec, a PLTE chunk is optional (and for practical purposes,
+ 		// ignorable) for the ctTrueColor and ctTrueColorAlpha color types (section 4.1.2).
+ 		return nil
+@@ -174,8 +176,10 @@ func (d *decoder) parsetRNS(r io.Reader, crc hash.Hash32, length uint32) os.Erro
+ 	}
+ 	crc.Write(d.tmp[0:n])
+ 	switch d.colorType {
++	case ctGrayscale:
++		return UnsupportedError("grayscale transparency")
+ 	case ctTrueColor:
+-		return UnsupportedError("TrueColor transparency")
++		return UnsupportedError("truecolor transparency")
+ 	case ctPaletted:
+ 		p := d.image.(*image.Paletted).Palette
+ 		if n > len(p) {
+@@ -214,11 +218,15 @@ func (d *decoder) idatReader(idat io.Reader) os.Error {
+ 	bpp := 0 // Bytes per pixel.
+ 	maxPalette := uint8(0)
+ 	var (
++		gray     *image.Gray
+ 		rgba     *image.RGBA
+-		nrgba    *image.NRGBA
+ 		paletted *image.Paletted
++		nrgba    *image.NRGBA
+ 	)
+ 	switch d.colorType {
++	case ctGrayscale:
++		bpp = 1
++		gray = d.image.(*image.Gray)
+ 	case ctTrueColor:
+ 		bpp = 3
+ 		rgba = d.image.(*image.RGBA)
+@@ -276,6 +284,10 @@ func (d *decoder) idatReader(idat io.Reader) os.Error {
+ 
+ 		// Convert from bytes to colors.
+ 		switch d.colorType {
++		case ctGrayscale:
++			for x := 0; x < d.width; x++ {
++				gray.Set(x, y, image.GrayColor{cdat[x]})
++			}
+ 		case ctTrueColor:
+ 			for x := 0; x < d.width; x++ {
+ 				rgba.Set(x, y, image.RGBAColor{cdat[3*x+0], cdat[3*x+1], cdat[3*x+2], 0xff})
+diff --git a/src/pkg/image/png/reader_test.go b/src/pkg/image/png/reader_test.go
+index f53d114e03..4f6415c591 100644
+--- a/src/pkg/image/png/reader_test.go
++++ b/src/pkg/image/png/reader_test.go
+@@ -19,7 +19,7 @@ var filenames = []string{
+ 	//"basn0g01",	// bit depth is not 8
+ 	//"basn0g02",	// bit depth is not 8
+ 	//"basn0g04",	// bit depth is not 8
+-	//"basn0g08",	// grayscale color model
++	"basn0g08",
+ 	//"basn0g16",	// bit depth is not 8
+ 	"basn2c08",
+ 	//"basn2c16",	// bit depth is not 8
+@@ -56,6 +56,8 @@ func sng(w io.WriteCloser, filename string, png image.Image) {
+ 	var paletted *image.Paletted
+ 	cpm, _ := cm.(image.PalettedColorModel)
+ 	switch {
++	case cm == image.GrayColorModel:
++		io.WriteString(w, "    using grayscale;\n")
+ 	case cm == image.RGBAColorModel:
+ 		io.WriteString(w, "    using color;\n")
+ 	case cm == image.NRGBAColorModel:
+@@ -89,6 +91,11 @@ func sng(w io.WriteCloser, filename string, png image.Image) {
+ 	io.WriteString(w, "IMAGE {\n    pixels hex\n")
+ 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+ 		switch {
++		case cm == image.GrayColorModel:
++			for x := bounds.Min.X; x < bounds.Max.X; x++ {
++				gray := png.At(x, y).(image.GrayColor)
++				fmt.Fprintf(w, "%02x", gray.Y)
++			}
+ 		case cm == image.RGBAColorModel:
+ 			for x := bounds.Min.X; x < bounds.Max.X; x++ {
+ 				rgba := png.At(x, y).(image.RGBAColor)
+diff --git a/src/pkg/image/png/writer.go b/src/pkg/image/png/writer.go
+index 3ce30c8788..f5d4a9991f 100644
+--- a/src/pkg/image/png/writer.go
++++ b/src/pkg/image/png/writer.go
+@@ -243,6 +243,8 @@ func writeImage(w io.Writer, m image.Image, ct uint8) os.Error {
+ 	bpp := 0 // Bytes per pixel.
+ 	var paletted *image.Paletted
+ 	switch ct {
++	case ctGrayscale:
++		bpp = 1
+ 	case ctTrueColor:
+ 		bpp = 3
+ 	case ctPaletted:
+@@ -267,6 +269,11 @@ func writeImage(w io.Writer, m image.Image, ct uint8) os.Error {
+ 	for y := b.Min.Y; y < b.Max.Y; y++ {
+ 		// Convert from colors to bytes.
+ 		switch ct {
++		case ctGrayscale:
++			for x := b.Min.X; x < b.Max.X; x++ {
++				c := image.GrayColorModel.Convert(m.At(x, y)).(image.GrayColor)
++				cr[0][x+1] = c.Y
++			}
+ 		case ctTrueColor:
+ 			for x := b.Min.X; x < b.Max.X; x++ {
+ 				// We have previously verified that the alpha value is fully opaque.
+@@ -338,12 +345,19 @@ func Encode(w io.Writer, m image.Image) os.Error {
+ 	var e encoder
+ 	e.w = w
+ 	e.m = m
+-	e.colorType = uint8(ctTrueColorAlpha)
++	e.colorType = ctTrueColorAlpha
+ 	pal, _ := m.(*image.Paletted)
+ 	if pal != nil {
+ 		e.colorType = ctPaletted
+-	} else if opaque(m) {
+-		e.colorType = ctTrueColor
++	} else {
++		switch m.ColorModel() {
++		case image.GrayColorModel:
++			e.colorType = ctGrayscale
++		default:
++			if opaque(m) {
++				e.colorType = ctTrueColor
++			}
++		}
+ 	}
+ 
+ 	_, e.err = io.WriteString(w, pngHeader)

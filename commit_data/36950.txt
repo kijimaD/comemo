@@ -12,8 +12,46 @@ Date:   Tue Jun 12 23:22:03 2018 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/internal/sys/arch.go      | 2 +-
  src/runtime/internal/sys/arch_wasm.go | 2 +-
  src/runtime/stack.go                  | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/internal/sys/arch.go b/src/runtime/internal/sys/arch.go
+index d9debaeef7..75beb7872f 100644
+--- a/src/runtime/internal/sys/arch.go
++++ b/src/runtime/internal/sys/arch.go
+@@ -15,5 +15,5 @@ const (
+ 	MIPS64
+ 	PPC64
+ 	S390X
+-	Wasm
++	WASM
+ )
+diff --git a/src/runtime/internal/sys/arch_wasm.go b/src/runtime/internal/sys/arch_wasm.go
+index 54fcd1e92e..5463f934d6 100644
+--- a/src/runtime/internal/sys/arch_wasm.go
++++ b/src/runtime/internal/sys/arch_wasm.go
+@@ -5,7 +5,7 @@
+ package sys
+ 
+ const (
+-	ArchFamily          = Wasm
++	ArchFamily          = WASM
+ 	BigEndian           = false
+ 	CacheLineSize       = 64
+ 	DefaultPhysPageSize = 65536
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index d83e9d6722..648603db35 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -940,7 +940,7 @@ func newstack() {
+ 		throw("missing stack in newstack")
+ 	}
+ 	sp := gp.sched.sp
+-	if sys.ArchFamily == sys.AMD64 || sys.ArchFamily == sys.I386 || sys.ArchFamily == sys.Wasm {
++	if sys.ArchFamily == sys.AMD64 || sys.ArchFamily == sys.I386 || sys.ArchFamily == sys.WASM {
+ 		// The call to morestack cost a word.
+ 		sp -= sys.PtrSize
+ 	}

@@ -6,6 +6,20 @@ Date:   Wed Nov 4 20:42:40 2009 -0800
     
     R=r
     http://go/go-review/1017034
-
+---
  src/pkg/os/error.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/error.go b/src/pkg/os/error.go
+index 89c06d59dd..809116cff0 100644
+--- a/src/pkg/os/error.go
++++ b/src/pkg/os/error.go
+@@ -74,7 +74,7 @@ var (
+ 	EADDRINUSE	Error	= Errno(syscall.EADDRINUSE);
+ 	ECONNREFUSED	Error	= Errno(syscall.ECONNREFUSED);
+ 	ENAMETOOLONG	Error	= Errno(syscall.ENAMETOOLONG);
+-	EAFNOSUPPORT	Error = Errno(syscall.EAFNOSUPPORT);
++	EAFNOSUPPORT	Error	= Errno(syscall.EAFNOSUPPORT);
+ )
+ 
+ // PathError records an error and the operation and file path that caused it.

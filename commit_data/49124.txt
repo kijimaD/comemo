@@ -16,8 +16,71 @@ Date:   Tue Jul 20 13:28:12 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/base/print.go     | 21 +++++++++++++++++++++
  src/cmd/compile/internal/noder/stencil.go  |  4 +---
  src/cmd/compile/internal/typecheck/subr.go |  4 +---
  3 files changed, 23 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/print.go b/src/cmd/compile/internal/base/print.go
+index b095fd704d..4afe2eb9ee 100644
+--- a/src/cmd/compile/internal/base/print.go
++++ b/src/cmd/compile/internal/base/print.go
+@@ -233,6 +233,27 @@ func FatalfAt(pos src.XPos, format string, args ...interface{}) {
+ 	ErrorExit()
+ }
+ 
++// Assert reports "assertion failed" with Fatalf, unless b is true.
++func Assert(b bool) {
++	if !b {
++		Fatalf("assertion failed")
++	}
++}
++
++// Assertf reports a fatal error with Fatalf, unless b is true.
++func Assertf(b bool, format string, args ...interface{}) {
++	if !b {
++		Fatalf(format, args...)
++	}
++}
++
++// AssertfAt reports a fatal error with FatalfAt, unless b is true.
++func AssertfAt(b bool, pos src.XPos, format string, args ...interface{}) {
++	if !b {
++		FatalfAt(pos, format, args...)
++	}
++}
++
+ // hcrash crashes the compiler when -h is set, to find out where a message is generated.
+ func hcrash() {
+ 	if Flag.LowerH != 0 {
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 7eac8573c9..72ecd80cf5 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -23,9 +23,7 @@ import (
+ )
+ 
+ func assert(p bool) {
+-	if !p {
+-		panic("assertion failed")
+-	}
++	base.Assert(p)
+ }
+ 
+ // Temporary - for outputting information on derived types, dictionaries, sub-dictionaries.
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index d9e6612dfc..a795524b2b 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -981,9 +981,7 @@ func MakeDictName(gf *types.Sym, targs []*types.Type, hasBrackets bool) *types.S
+ }
+ 
+ func assert(p bool) {
+-	if !p {
+-		panic("assertion failed")
+-	}
++	base.Assert(p)
+ }
+ 
+ // General type substituter, for replacing typeparams with type args.

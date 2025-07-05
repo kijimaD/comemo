@@ -12,7 +12,107 @@ Date:   Thu Jul 3 11:36:05 2014 +1000
     R=minux.ma, rsc
     CC=dave, golang-codereviews
     https://golang.org/cl/102620044
-
+---
  src/pkg/runtime/os_solaris.c        | 18 ++++++++++---
  src/pkg/runtime/sys_solaris_amd64.s | 52 +++++++++++++++++++++++++++++++++++++
  2 files changed, 67 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/os_solaris.c b/src/pkg/runtime/os_solaris.c
+index 4ef17f9021..fe218cdb81 100644
+--- a/src/pkg/runtime/os_solaris.c
++++ b/src/pkg/runtime/os_solaris.c
+@@ -568,10 +568,13 @@ runtime·sysconf(int32 name)
+ 	return runtime·sysvicall6(libc·sysconf, 1, (uintptr)name);
+ }
+ 
++extern void runtime·usleep1(uint32);
++
++#pragma textflag NOSPLIT
+ void
+-runtime·usleep(uint32 us)
++runtime·usleep(uint32 µs)
+ {
+-	runtime·sysvicall6(libc·usleep, 1, (uintptr)us);
++	runtime·usleep1(µs);
+ }
+ 
+ int32
+@@ -580,8 +583,17 @@ runtime·write(uintptr fd, void* buf, int32 nbyte)
+ 	return runtime·sysvicall6(libc·write, 3, (uintptr)fd, (uintptr)buf, (uintptr)nbyte);
+ }
+ 
++extern void runtime·osyield1(void);
++
++#pragma textflag NOSPLIT
+ void
+ runtime·osyield(void)
+ {
+-	runtime·sysvicall6(libc·sched_yield, 0);
++	// Check the validity of m because we might be called in cgo callback
++	// path early enough where there isn't a m available yet.
++	if(g && g->m != nil) {
++		runtime·sysvicall6(libc·sched_yield, 0);
++		return;
++	}
++	runtime·osyield1();
+ }
+diff --git a/src/pkg/runtime/sys_solaris_amd64.s b/src/pkg/runtime/sys_solaris_amd64.s
+index 83e8dfac56..1b18c8d9eb 100644
+--- a/src/pkg/runtime/sys_solaris_amd64.s
++++ b/src/pkg/runtime/sys_solaris_amd64.s
+@@ -270,3 +270,55 @@ exit:
+ 
+ 	ADDQ    $184, SP
+ 	RET
++
++// Called from runtime·usleep (Go). Can be called on Go stack, on OS stack,
++// can also be called in cgo callback path without a g->m.
++TEXT runtime·usleep1(SB),NOSPLIT,$0
++	MOVL	us+0(FP), DI
++	MOVQ	$runtime·usleep2(SB), AX // to hide from 6l
++
++	// Execute call on m->g0.
++	get_tls(R15)
++	CMPQ	R15, $0
++	JE	usleep1_noswitch
++
++	MOVQ	g(R15), R13
++	CMPQ	R13, $0
++	JE	usleep1_noswitch
++	MOVQ	g_m(R13), R13
++	CMPQ	R13, $0
++	JE	usleep1_noswitch
++	// TODO(aram): do something about the cpu profiler here.
++
++	MOVQ	m_g0(R13), R14
++	CMPQ	g(R15), R14
++	JNE	usleep1_switch
++	// executing on m->g0 already
++	CALL	AX
++	RET
++
++usleep1_switch:
++	// Switch to m->g0 stack and back.
++	MOVQ	(g_sched+gobuf_sp)(R14), R14
++	MOVQ	SP, -8(R14)
++	LEAQ	-8(R14), SP
++	CALL	AX
++	MOVQ	0(SP), SP
++	RET
++
++usleep1_noswitch:
++	// Not a Go-managed thread. Do not switch stack.
++	CALL	AX
++	RET
++
++// Runs on OS stack. duration (in µs units) is in DI.
++TEXT runtime·usleep2(SB),NOSPLIT,$0
++	MOVQ	libc·usleep(SB), AX
++	CALL	AX
++	RET
++
++// Runs on OS stack, called from runtime·osyield.
++TEXT runtime·osyield1(SB),NOSPLIT,$0
++	MOVQ	libc·sched_yield(SB), AX
++	CALL	AX
++	RET

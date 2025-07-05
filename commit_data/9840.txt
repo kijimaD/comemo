@@ -8,6 +8,21 @@ Date:   Fri Sep 30 10:52:36 2011 -0700
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/5149049
-
+---
  src/pkg/runtime/darwin/thread.c | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/pkg/runtime/darwin/thread.c b/src/pkg/runtime/darwin/thread.c
+index c5d8ba4d3e..b35dae02fe 100644
+--- a/src/pkg/runtime/darwin/thread.c
++++ b/src/pkg/runtime/darwin/thread.c
+@@ -496,3 +496,9 @@ runtime·sigpanic(void)
+ 	}
+ 	runtime·panicstring(runtime·sigtab[g->sig].name);
+ }
++
++// TODO(rsc): place holder to fix build.
++void
++runtime·osyield(void)
++{
++}

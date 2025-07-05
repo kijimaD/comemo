@@ -10,8 +10,189 @@ Date:   Mon Apr 4 13:09:34 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4346044
-
+---
  src/cmd/gotest/gotest.go            |  7 +++++--
  src/pkg/path/filepath/match.go      | 36 +++++++++++++++++++++-------------
  src/pkg/path/filepath/match_test.go | 39 ++++++++++++++++++++++++-------------
  3 files changed, 53 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/gotest/gotest.go b/src/cmd/gotest/gotest.go
+index f69c7286fc..a041230f1e 100644
+--- a/src/cmd/gotest/gotest.go
++++ b/src/cmd/gotest/gotest.go
+@@ -145,11 +145,14 @@ func setEnvironment() {
+ }
+ 
+ // getTestFileNames gets the set of files we're looking at.
+-// If gotest has no arguments, it scans the current directory for _test.go files.
++// If gotest has no arguments, it scans the current directory for *_test.go files.
+ func getTestFileNames() {
+ 	names := fileNames
+ 	if len(names) == 0 {
+-		names = filepath.Glob("[^.]*_test.go")
++		names, err = filepath.Glob("[^.]*_test.go")
++		if err != nil {
++			Fatalf("Glob pattern error: %s", err)
++		}
+ 		if len(names) == 0 {
+ 			Fatalf(`no test files found: no match for "*_test.go"`)
+ 		}
+diff --git a/src/pkg/path/filepath/match.go b/src/pkg/path/filepath/match.go
+index d1ea82b06d..3b36d18ef7 100644
+--- a/src/pkg/path/filepath/match.go
++++ b/src/pkg/path/filepath/match.go
+@@ -32,7 +32,7 @@ var ErrBadPattern = os.NewError("syntax error in pattern")
+ //		lo '-' hi   matches character c for lo <= c <= hi
+ //
+ // Match requires pattern to match all of name, not just a substring.
+-// The only possible error return is when pattern is malformed.
++// The only possible error return occurs when the pattern is malformed.
+ //
+ func Match(pattern, name string) (matched bool, err os.Error) {
+ Pattern:
+@@ -211,13 +211,14 @@ func getEsc(chunk string) (r int, nchunk string, err os.Error) {
+ // if there is no matching file. The syntax of patterns is the same
+ // as in Match. The pattern may describe hierarchical names such as
+ // /usr/*/bin/ed (assuming the Separator is '/').
++// The only possible error return occurs when the pattern is malformed.
+ //
+-func Glob(pattern string) (matches []string) {
++func Glob(pattern string) (matches []string, err os.Error) {
+ 	if !hasMeta(pattern) {
+-		if _, err := os.Stat(pattern); err == nil {
+-			return []string{pattern}
++		if _, err = os.Stat(pattern); err != nil {
++			return
+ 		}
+-		return nil
++		return []string{pattern}, nil
+ 	}
+ 
+ 	dir, file := Split(pattern)
+@@ -230,21 +231,30 @@ func Glob(pattern string) (matches []string) {
+ 		dir = dir[0 : len(dir)-1] // chop off trailing separator
+ 	}
+ 
+-	if hasMeta(dir) {
+-		for _, d := range Glob(dir) {
+-			matches = glob(d, file, matches)
+-		}
+-	} else {
++	if !hasMeta(dir) {
+ 		return glob(dir, file, nil)
+ 	}
+-	return matches
++
++	var m []string
++	m, err = Glob(dir)
++	if err != nil {
++		return
++	}
++	for _, d := range m {
++		matches, err = glob(d, file, matches)
++		if err != nil {
++			return
++		}
++	}
++	return
+ }
+ 
+ // glob searches for files matching pattern in the directory dir
+ // and appends them to matches. If the directory cannot be
+ // opened, it returns the existing matches. New matches are
+ // added in lexicographical order.
+-func glob(dir, pattern string, matches []string) (m []string) {
++// The only possible error return occurs when the pattern is malformed.
++func glob(dir, pattern string, matches []string) (m []string, e os.Error) {
+ 	m = matches
+ 	fi, err := os.Stat(dir)
+ 	if err != nil {
+@@ -268,7 +278,7 @@ func glob(dir, pattern string, matches []string) (m []string) {
+ 	for _, n := range names {
+ 		matched, err := Match(pattern, n)
+ 		if err != nil {
+-			break
++			return m, err
+ 		}
+ 		if matched {
+ 			m = append(m, Join(dir, n))
+diff --git a/src/pkg/path/filepath/match_test.go b/src/pkg/path/filepath/match_test.go
+index 554cc60f44..43e1c1cc2f 100644
+--- a/src/pkg/path/filepath/match_test.go
++++ b/src/pkg/path/filepath/match_test.go
+@@ -6,7 +6,7 @@ package filepath_test
+ 
+ import (
+ 	"os"
+-	"path/filepath"
++	. "path/filepath"
+ 	"testing"
+ 	"runtime"
+ )
+@@ -56,16 +56,16 @@ var matchTests = []MatchTest{
+ 	{"[\\-x]", "x", true, nil},
+ 	{"[\\-x]", "-", true, nil},
+ 	{"[\\-x]", "a", false, nil},
+-	{"[]a]", "]", false, filepath.ErrBadPattern},
+-	{"[-]", "-", false, filepath.ErrBadPattern},
+-	{"[x-]", "x", false, filepath.ErrBadPattern},
+-	{"[x-]", "-", false, filepath.ErrBadPattern},
+-	{"[x-]", "z", false, filepath.ErrBadPattern},
+-	{"[-x]", "x", false, filepath.ErrBadPattern},
+-	{"[-x]", "-", false, filepath.ErrBadPattern},
+-	{"[-x]", "a", false, filepath.ErrBadPattern},
+-	{"\\", "a", false, filepath.ErrBadPattern},
+-	{"[a-b-c]", "a", false, filepath.ErrBadPattern},
++	{"[]a]", "]", false, ErrBadPattern},
++	{"[-]", "-", false, ErrBadPattern},
++	{"[x-]", "x", false, ErrBadPattern},
++	{"[x-]", "-", false, ErrBadPattern},
++	{"[x-]", "z", false, ErrBadPattern},
++	{"[-x]", "x", false, ErrBadPattern},
++	{"[-x]", "-", false, ErrBadPattern},
++	{"[-x]", "a", false, ErrBadPattern},
++	{"\\", "a", false, ErrBadPattern},
++	{"[a-b-c]", "a", false, ErrBadPattern},
+ 	{"*x", "xxx", true, nil},
+ }
+ 
+@@ -75,7 +75,7 @@ func TestMatch(t *testing.T) {
+ 		return
+ 	}
+ 	for _, tt := range matchTests {
+-		ok, err := filepath.Match(tt.pattern, tt.s)
++		ok, err := Match(tt.pattern, tt.s)
+ 		if ok != tt.match || err != tt.err {
+ 			t.Errorf("Match(%#q, %#q) = %v, %v want %v, nil", tt.pattern, tt.s, ok, err, tt.match)
+ 		}
+@@ -84,7 +84,7 @@ func TestMatch(t *testing.T) {
+ 
+ // contains returns true if vector contains the string s.
+ func contains(vector []string, s string) bool {
+-	s = filepath.ToSlash(s)
++	s = ToSlash(s)
+ 	for _, elem := range vector {
+ 		if elem == s {
+ 			return true
+@@ -108,9 +108,20 @@ func TestGlob(t *testing.T) {
+ 		return
+ 	}
+ 	for _, tt := range globTests {
+-		matches := filepath.Glob(tt.pattern)
++		matches, err := Glob(tt.pattern)
++		if err != nil {
++			t.Errorf("Glob error for %q: %s", tt.pattern, err)
++			continue
++		}
+ 		if !contains(matches, tt.result) {
+ 			t.Errorf("Glob(%#q) = %#v want %v", tt.pattern, matches, tt.result)
+ 		}
+ 	}
+ }
++
++func TestGlobError(t *testing.T) {
++	_, err := Glob("[7]")
++	if err != nil {
++		t.Error("expected error for bad pattern; got none")
++	}
++}

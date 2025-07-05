@@ -21,6 +21,21 @@ Date:   Sat Jun 13 19:04:15 2020 +0100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/237698
     Run-TryBot: David du Colombier <0intro@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/netpoll_stub.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/netpoll_stub.go b/src/runtime/netpoll_stub.go
+index f86f2f6174..3599f2d01b 100644
+--- a/src/runtime/netpoll_stub.go
++++ b/src/runtime/netpoll_stub.go
+@@ -49,6 +49,9 @@ func netpoll(delay int64) gList {
+ 
+ 		notetsleep(&netpollNote, delay)
+ 		unlock(&netpollStubLock)
++		// Guard against starvation in case the lock is contended
++		// (eg when running TestNetpollBreak).
++		osyield()
+ 	}
+ 	return gList{}
+ }

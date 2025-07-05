@@ -13,7 +13,7 @@ Date:   Fri Aug 21 13:08:11 2009 -0700
     DELTA=1928  (1237 added, 635 deleted, 56 changed)
     OCL=33642
     CL=33658
-
+---
  src/cmd/6l/6.out.h            |   2 +-
  src/cmd/6l/Makefile           |   6 +-
  src/cmd/6l/asm.c              | 533 ++++++++++++++++++++++-----------
@@ -29,3 +29,2206 @@ Date:   Fri Aug 21 13:08:11 2009 -0700
  src/cmd/ld/elf64.h            | 292 -------------------
  src/cmd/ld/go.c               |   2 +
  14 files changed, 1149 insertions(+), 582 deletions(-)
+
+diff --git a/src/cmd/6l/6.out.h b/src/cmd/6l/6.out.h
+index 9ea12da08c..ca5e485c09 100644
+--- a/src/cmd/6l/6.out.h
++++ b/src/cmd/6l/6.out.h
+@@ -822,7 +822,7 @@ enum
+ 
+ 	D_INDIR,	/* additive */
+ 
+-	D_SBIG = D_INDIR + D_INDIR,
++	D_SIZE = D_INDIR + D_INDIR,	/* 6l internal */
+ 
+ 	T_TYPE		= 1<<0,
+ 	T_INDEX		= 1<<1,
+diff --git a/src/cmd/6l/Makefile b/src/cmd/6l/Makefile
+index 1044611b76..7952f754d7 100644
+--- a/src/cmd/6l/Makefile
++++ b/src/cmd/6l/Makefile
+@@ -10,7 +10,7 @@ TARG=\
+ OFILES=\
+ 	asm.$O\
+ 	compat.$O\
+-	elf64.$O\
++	elf.$O\
+ 	enam.$O\
+ 	go.$O\
+ 	list.$O\
+@@ -22,7 +22,7 @@ OFILES=\
+ HFILES=\
+ 	l.h\
+ 	../6l/6.out.h\
+-	../ld/elf64.h\
++	../ld/elf.h\
+ 	../6l/compat.h\
+ 
+ 
+@@ -42,4 +42,4 @@ install: $(TARG)
+ 
+ go.o: ../ld/go.c
+ 
+-elf64.o: ../ld/elf64.c
++elf.o: ../ld/elf.c
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index fb0f361de7..9977a0d15a 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -29,7 +29,7 @@
+ // THE SOFTWARE.
+ 
+ #include	"l.h"
+-#include	"../ld/elf64.h"
++#include	"../ld/elf.h"
+ 
+ #define	Dbufslop	100
+ 
+@@ -121,18 +121,276 @@ strnput(char *s, int n)
+ 	}
+ }
+ 
++vlong
++addstring(Sym *s, char *str)
++{
++	int n, m;
++	vlong r;
++	Prog *p;
++
++	if(s->type == 0)
++		s->type = SDATA;
++	s->reachable = 1;
++	r = s->value;
++	n = strlen(str)+1;
++	while(n > 0) {
++		m = n;
++		if(m > sizeof(p->to.scon))
++			m = sizeof(p->to.scon);
++		p = newdata(s, s->value, m, D_EXTERN);
++		p->to.type = D_SCONST;
++		memmove(p->to.scon, str, m);
++		s->value += m;
++		str += m;
++		n -= m;
++	}
++	return r;
++}
++
++vlong
++adduint32(Sym *s, uint32 v)
++{
++	vlong r;
++	Prog *p;
++
++	if(s->type == 0)
++		s->type = SDATA;
++	s->reachable = 1;
++	r = s->value;
++	p = newdata(s, s->value, 4, D_EXTERN);
++	s->value += 4;
++	p->to.type = D_CONST;
++	p->to.offset = v;
++	return r;
++}
++
++vlong
++adduint64(Sym *s, uint64 v)
++{
++	vlong r;
++	Prog *p;
++
++	if(s->type == 0)
++		s->type = SDATA;
++	s->reachable = 1;
++	r = s->value;
++	p = newdata(s, s->value, 8, D_EXTERN);
++	s->value += 8;
++	p->to.type = D_CONST;
++	p->to.offset = v;
++	return r;
++}
++
++vlong
++addaddr(Sym *s, Sym *t)
++{
++	vlong r;
++	Prog *p;
++	enum { Ptrsize = 8 };
++
++	if(s->type == 0)
++		s->type = SDATA;
++	s->reachable = 1;
++	r = s->value;
++	p = newdata(s, s->value, Ptrsize, D_EXTERN);
++	s->value += Ptrsize;
++	p->to.type = D_ADDR;
++	p->to.index = D_EXTERN;
++	p->to.offset = 0;
++	p->to.sym = t;
++	return r;
++}
++
++vlong
++addsize(Sym *s, Sym *t)
++{
++	vlong r;
++	Prog *p;
++	enum { Ptrsize = 8 };
++
++	if(s->type == 0)
++		s->type = SDATA;
++	s->reachable = 1;
++	r = s->value;
++	p = newdata(s, s->value, Ptrsize, D_EXTERN);
++	s->value += Ptrsize;
++	p->to.type = D_SIZE;
++	p->to.index = D_EXTERN;
++	p->to.offset = 0;
++	p->to.sym = t;
++	return r;
++}
++
++vlong
++datoff(vlong addr)
++{
++	if(addr >= INITDAT)
++		return addr - INITDAT + rnd(HEADR+textsize, INITRND);
++	diag("datoff %#llx", addr);
++	return 0;
++}
++
++int nrela;
++
++enum {
++	ElfStrEmpty,
++	ElfStrInterp,
++	ElfStrHash,
++	ElfStrGot,
++	ElfStrGotPlt,
++	ElfStrDynamic,
++	ElfStrDynsym,
++	ElfStrDynstr,
++	ElfStrRela,
++	ElfStrText,
++	ElfStrData,
++	ElfStrBss,
++	ElfStrGosymtab,
++	ElfStrGopclntab,
++	ElfStrShstrtab,
++	NElfStr
++};
++
++vlong elfstr[NElfStr];
++
++void
++doelf(void)
++{
++	Sym *s, *shstrtab;
++
++	if(HEADTYPE != 7)
++		return;
++
++	/* predefine strings we need for section headers */
++	shstrtab = lookup(".shstrtab", 0);
++	elfstr[ElfStrEmpty] = addstring(shstrtab, "");
++	elfstr[ElfStrText] = addstring(shstrtab, ".text");
++	elfstr[ElfStrData] = addstring(shstrtab, ".data");
++	elfstr[ElfStrBss] = addstring(shstrtab, ".bss");
++	if(!debug['s']) {
++		elfstr[ElfStrGosymtab] = addstring(shstrtab, ".gosymtab");
++		elfstr[ElfStrGopclntab] = addstring(shstrtab, ".gopclntab");
++	}
++	elfstr[ElfStrShstrtab] = addstring(shstrtab, ".shstrtab");
++
++	if(!debug['d']) {	/* -d suppresses dynamic loader format */
++		elfstr[ElfStrInterp] = addstring(shstrtab, ".interp");
++		elfstr[ElfStrHash] = addstring(shstrtab, ".hash");
++		elfstr[ElfStrGot] = addstring(shstrtab, ".got");
++		elfstr[ElfStrGotPlt] = addstring(shstrtab, ".got.plt");
++		elfstr[ElfStrDynamic] = addstring(shstrtab, ".dynamic");
++		elfstr[ElfStrDynsym] = addstring(shstrtab, ".dynsym");
++		elfstr[ElfStrDynstr] = addstring(shstrtab, ".dynstr");
++		elfstr[ElfStrRela] = addstring(shstrtab, ".rela");
++
++		/* interpreter string */
++		s = lookup(".interp", 0);
++		s->reachable = 1;
++		s->type = SDATA;	// TODO: rodata
++		addstring(lookup(".interp", 0), linuxdynld);
++
++		/* hash table - empty for now */
++		s = lookup(".hash", 0);
++		s->type = SDATA;	// TODO: rodata
++		s->reachable = 1;
++		s->value += 8;	// two leading zeros
++
++		/* dynamic symbol table - first entry all zeros */
++		s = lookup(".dynsym", 0);
++		s->type = SDATA;
++		s->reachable = 1;
++		s->value += ELF64SYMSIZE;
++
++		/* dynamic string table */
++		s = lookup(".dynstr", 0);
++		addstring(s, "");
++
++		/* relocation table */
++		s = lookup(".rela", 0);
++		s->reachable = 1;
++		s->type = SDATA;
++
++		/* global offset table */
++		s = lookup(".got", 0);
++		s->reachable = 1;
++		s->type = SDATA;
++
++		/* got.plt - ??? */
++		s = lookup(".got.plt", 0);
++		s->reachable = 1;
++		s->type = SDATA;
++
++		/* define dynamic elf table */
++		s = lookup(".dynamic", 0);
++		elfwritedynentsym(s, DT_HASH, lookup(".hash", 0));
++		elfwritedynentsym(s, DT_SYMTAB, lookup(".dynsym", 0));
++		elfwritedynent(s, DT_SYMENT, ELF64SYMSIZE);
++		elfwritedynentsym(s, DT_STRTAB, lookup(".dynstr", 0));
++		elfwritedynentsymsize(s, DT_STRSZ, lookup(".dynstr", 0));
++		elfwritedynentsym(s, DT_RELA, lookup(".rela", 0));
++		elfwritedynentsymsize(s, DT_RELASZ, lookup(".rela", 0));
++		elfwritedynent(s, DT_RELAENT, ELF64RELASIZE);
++		elfwritedynent(s, DT_NULL, 0);
++	}
++
++/*
++	putc = lookup("main·putc", 0);
++	if(putc->type != SDATA && putc->type != SBSS)
++		return;
++
++	// smash main.putc with putc
++	s = lookup(".elfrela", 0);
++	s->type = SDATA;
++	s->value = 24;
++	p = newdata(s, 0, 8, D_EXTERN);	// r_offset
++	p->to.type = D_ADDR;
++	p->to.index = D_EXTERN;
++	p->to.sym = putc;
++
++	p = newdata(s, 8, 8, D_EXTERN);	// r_info
++	p->to.type = D_CONST;
++	p->to.offset = ELF64_R_INFO(0, 1);	// use 0 as symbol value; 1 is S+A calculation
++
++	p = newdata(s, 16, 8, D_EXTERN);	// r_addend
++	p->to.type = D_CONST;
++	p->to.offset = 1000;
++
++	nrela = 1;
++*/
++
++}
++
++void
++shsym(Elf64_Shdr *sh, Sym *s)
++{
++	sh->addr = symaddr(s);
++	sh->off = datoff(sh->addr);
++	sh->size = s->size;
++}
++
++void
++phsh(Elf64_Phdr *ph, Elf64_Shdr *sh)
++{
++	ph->vaddr = sh->addr;
++	ph->paddr = ph->vaddr;
++	ph->off = sh->off;
++	ph->filesz = sh->size;
++	ph->memsz = sh->size;
++	ph->align = sh->addralign;
++}
++
+ void
+ asmb(void)
+ {
+ 	Prog *p;
+ 	int32 v, magic;
+-	int a, nl;
++	int a, nl, dynsym;
+ 	uchar *op1;
+-	vlong vl, va, startva, fo, w, symo, hashoff, dstrtab, off;
++	vlong vl, va, startva, fo, w, symo;
+ 	vlong symdatva = 0x99LL<<32;
+-	Elf64Hdr *eh;
+-	Elf64PHdr *ph, *pph;
+-	Elf64SHdr *sh;
++	Elf64_Ehdr *eh;
++	Elf64_Phdr *ph, *pph;
++	Elf64_Shdr *sh;
+ 
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f asmb\n", cputime());
+@@ -200,7 +458,6 @@ asmb(void)
+ 		debug['8'] = 1;	/* 64-bit addresses */
+ 		v = rnd(HEADR+textsize, INITRND);
+ 		seek(cout, v, 0);
+-		elf64init();
+ 		break;
+ 	}
+ 
+@@ -422,143 +679,53 @@ asmb(void)
+ 	case 7:
+ 		/* elf amd-64 */
+ 
++		eh = getElf64_Ehdr();
+ 		fo = 0;
+ 		startva = INITTEXT - HEADR;
+ 		va = startva;
+ 		w = HEADR+textsize;
+ 
+ 		/* This null SHdr must appear before all others */
+-		sh = newElf64SHdr("");
+-
+-		pph = nil;	/* silence compiler */
+-		dstrtab = 0;
+-
+-		/* Dynamic linking sections */
+-		if (!debug['d']) {	/* -d suppresses dynamic loader format */
+-
+-			/* P headers */
+-			/* program header info */
+-			pph = newElf64PHdr();
+-			pph->type = PT_PHDR;
+-			pph->flags = PF_R + PF_X;
+-			pph->off = ELF64HDRSIZE;
+-			pph->vaddr = startva + pph->off;
+-			pph->paddr = startva + pph->off;
+-			pph->align = INITRND;
+-
++		sh = newElf64_Shdr(elfstr[ElfStrEmpty]);
++
++		/* program header info */
++		pph = newElf64_Phdr();
++		pph->type = PT_PHDR;
++		pph->flags = PF_R + PF_X;
++		pph->off = eh->ehsize;
++		pph->vaddr = startva + pph->off;
++		pph->paddr = startva + pph->off;
++		pph->align = INITRND;
++
++		if(!debug['d']) {
+ 			/* interpreter */
+-			ph = newElf64PHdr();
+-			ph->type = PT_INTERP;
+-			ph->flags = PF_R;
+-			ph->off = startelf();
+-			ph->vaddr = startva + ph->off;
+-			ph->paddr = startva + ph->off;
+-			write(cout, linuxdynld, sizeof linuxdynld);
+-			ph->filesz = endelf() - ph->off;
+-			ph->align = 1;
+-
+-			/* S header for interpreter */
+-			sh = newElf64SHdr(".interp");
++			sh = newElf64_Shdr(elfstr[ElfStrInterp]);
+ 			sh->type = SHT_PROGBITS;
+ 			sh->flags = SHF_ALLOC;
+-			sh->off = ph->off;
+-			sh->addr = startva + sh->off;
+-			sh->size = ph->filesz;
+ 			sh->addralign = 1;
++			shsym(sh, lookup(".interp", 0));
+ 
+-			/* S headers inside dynamic load section */
+-			sh = newElf64SHdr(".hash");
+-			sh->type = SHT_HASH;
+-			sh->flags = SHF_ALLOC;
+-			sh->entsize = 4;
+-			sh->off = startelf();
+-			hashoff = sh->off;
+-			sh->addr = startva + sh->off;
+-			/* temporary hack: 8 zeroes means 0 buckets, 0 chains */
+-			write(cout, zeroes, 8);
+-			sh->size = endelf() - sh->off;
+-			sh->addralign = 8;
+-
+-			sh = newElf64SHdr(".got");
+-			sh->type = SHT_PROGBITS;
+-			sh->flags = SHF_ALLOC+SHF_WRITE;
+-			sh->entsize = 8;
+-			sh->off = startelf();
+-			sh->addr = startva + sh->off;
+-			sh->size = endelf() - sh->off;
+-			sh->addralign = 8;
+-
+-			sh = newElf64SHdr(".got.plt");
+-			sh->type = SHT_PROGBITS;
+-			sh->flags = SHF_ALLOC+SHF_WRITE;
+-			sh->entsize = 8;
+-			sh->off = startelf();
+-			sh->addr = startva + sh->off;
+-			sh->size = endelf() - sh->off;
+-			sh->addralign = 8;
+-
+-			sh = newElf64SHdr(".dynamic");
+-			sh->type = SHT_DYNAMIC;
+-			sh->flags = SHF_ALLOC+SHF_WRITE;
+-			sh->entsize = 16;
+-			sh->addr = startva + sh->off;
+-			sh->off = startelf();
+-			elf64writedynent(DT_HASH, startva+hashoff);
+-			elf64writedynent(DT_SYMTAB, startva);
+-			elf64writedynent(DT_RELA, startva);
+-			elf64writedynent(DT_RELASZ, 0);	// size of the whole rela in bytes
+-			elf64writedynent(DT_RELAENT, ELF64RELASIZE);
+-			elf64writedynent(DT_SYMENT, 0);
+-//			elf64writedynent(DT_NEEDED, elf64addstr("libc.so.6"));
+-
+-			/* make space for these now but fill them in later */
+-			cflush();
+-			dstrtab = seek(cout, 0, 1);
+-			elf64writedynent(DT_STRTAB, -1);
+-			elf64writedynent(DT_STRSZ, -1);
+-
+-			elf64writedynent(DT_NULL, 0);
+-			sh->size = endelf() - sh->off;
+-			sh->addralign = 8;
+-
+-			/* PT_DYNAMIC for .dynamic section */
+-			ph = newElf64PHdr();
+-			ph->type = PT_DYNAMIC;
+-			ph->flags = PF_R + PF_W;
+-			ph->off = sh->off;
+-			ph->vaddr = startva + ph->off;
+-			ph->paddr = startva + ph->off;
+-			ph->filesz = sh->size;
+-			ph->memsz = sh->size;
+-			ph->align = 8;
+-
+-			/* PT_LOAD for all dynamic sections */
+-			ph = newElf64PHdr();
+-			ph->type = PT_LOAD;
+-			ph->flags = PF_R + PF_W;
+-			ph->off = 0;
+-			ph->vaddr = startva + ph->off;
+-			ph->paddr = startva + ph->off;
+-			ph->filesz = sh->off + sh->size - ph->off;
+-			ph->memsz = ph->filesz;
+-			ph->align = INITRND;
++			ph = newElf64_Phdr();
++			ph->type = PT_INTERP;
++			ph->flags = PF_R;
++			phsh(ph, sh);
+ 		}
+ 
+-		ph = newElf64PHdr();
++		ph = newElf64_Phdr();
+ 		ph->type = PT_LOAD;
+ 		ph->flags = PF_X+PF_R;
+-		ph->vaddr = va + ELF64RESERVE;
+-		ph->paddr = va + ELF64RESERVE;
+-		ph->off = ELF64RESERVE;
+-		ph->filesz = w - ELF64RESERVE;
+-		ph->memsz = w - ELF64RESERVE;
++		ph->vaddr = va;
++		ph->paddr = va;
++		ph->off = 0;
++		ph->filesz = w;
++		ph->memsz = w;
+ 		ph->align = INITRND;
+ 
+ 		fo = rnd(fo+w, INITRND);
+ 		va = rnd(va+w, INITRND);
+ 		w = datsize;
+ 
+-		ph = newElf64PHdr();
++		ph = newElf64_Phdr();
+ 		ph->type = PT_LOAD;
+ 		ph->flags = PF_W+PF_R;
+ 		ph->off = fo;
+@@ -569,7 +736,7 @@ asmb(void)
+ 		ph->align = INITRND;
+ 
+ 		if(!debug['s']) {
+-			ph = newElf64PHdr();
++			ph = newElf64_Phdr();
+ 			ph->type = PT_LOAD;
+ 			ph->flags = PF_W+PF_R;
+ 			ph->off = symo;
+@@ -580,16 +747,78 @@ asmb(void)
+ 			ph->align = INITRND;
+ 		}
+ 
+-		ph = newElf64PHdr();
++		/* Dynamic linking sections */
++		if (!debug['d']) {	/* -d suppresses dynamic loader format */
++			/* S headers for dynamic linking */
++			sh = newElf64_Shdr(elfstr[ElfStrHash]);
++			sh->type = SHT_HASH;
++			sh->flags = SHF_ALLOC;
++			sh->entsize = 4;
++			sh->addralign = 8;
++			// sh->link = xxx;
++			shsym(sh, lookup(".hash", 0));
++
++			sh = newElf64_Shdr(elfstr[ElfStrGot]);
++			sh->type = SHT_PROGBITS;
++			sh->flags = SHF_ALLOC+SHF_WRITE;
++			sh->entsize = 8;
++			sh->addralign = 8;
++			shsym(sh, lookup(".got", 0));
++
++			sh = newElf64_Shdr(elfstr[ElfStrGotPlt]);
++			sh->type = SHT_PROGBITS;
++			sh->flags = SHF_ALLOC+SHF_WRITE;
++			sh->entsize = 8;
++			sh->addralign = 8;
++			shsym(sh, lookup(".got.plt", 0));
++
++			dynsym = eh->shnum;
++			sh = newElf64_Shdr(elfstr[ElfStrDynsym]);
++			sh->type = SHT_DYNSYM;
++			sh->flags = SHF_ALLOC;
++			sh->entsize = 1;
++			sh->addralign = 8;
++			sh->link = dynsym+1;	// dynstr
++			// sh->info = index of first non-local symbol (number of local symbols)
++			shsym(sh, lookup(".dynsym", 0));
++
++			sh = newElf64_Shdr(elfstr[ElfStrDynstr]);
++			sh->type = SHT_STRTAB;
++			sh->flags = SHF_ALLOC;
++			sh->addralign = 1;
++			shsym(sh, lookup(".dynstr", 0));
++
++			sh = newElf64_Shdr(elfstr[ElfStrRela]);
++			sh->type = SHT_RELA;
++			sh->flags = SHF_ALLOC;
++			sh->addralign = 8;
++			sh->link = dynsym;
++			shsym(sh, lookup(".rela", 0));
++
++			/* sh and PT_DYNAMIC for .dynamic section */
++			sh = newElf64_Shdr(elfstr[ElfStrDynamic]);
++			sh->type = SHT_DYNAMIC;
++			sh->flags = SHF_ALLOC+SHF_WRITE;
++			sh->entsize = 16;
++			sh->addralign = 8;
++			sh->link = dynsym+1;	// dynstr
++			shsym(sh, lookup(".dynamic", 0));
++			ph = newElf64_Phdr();
++			ph->type = PT_DYNAMIC;
++			ph->flags = PF_R + PF_W;
++			phsh(ph, sh);
++		}
++
++		ph = newElf64_Phdr();
+ 		ph->type = 0x6474e551; 	/* GNU_STACK */
+ 		ph->flags = PF_W+PF_R;
+ 		ph->align = 8;
+ 
+-		fo = ELF64RESERVE;
++		fo = ELFRESERVE;
+ 		va = startva + fo;
+ 		w = textsize;
+ 
+-		sh = newElf64SHdr(".text");
++		sh = newElf64_Shdr(elfstr[ElfStrText]);
+ 		sh->type = SHT_PROGBITS;
+ 		sh->flags = SHF_ALLOC+SHF_EXECINSTR;
+ 		sh->addr = va;
+@@ -601,7 +830,7 @@ asmb(void)
+ 		va = rnd(va+w, INITRND);
+ 		w = datsize;
+ 
+-		sh = newElf64SHdr(".data");
++		sh = newElf64_Shdr(elfstr[ElfStrData]);
+ 		sh->type = SHT_PROGBITS;
+ 		sh->flags = SHF_WRITE+SHF_ALLOC;
+ 		sh->addr = va;
+@@ -613,7 +842,7 @@ asmb(void)
+ 		va += w;
+ 		w = bsssize;
+ 
+-		sh = newElf64SHdr(".bss");
++		sh = newElf64_Shdr(elfstr[ElfStrBss]);
+ 		sh->type = SHT_NOBITS;
+ 		sh->flags = SHF_WRITE+SHF_ALLOC;
+ 		sh->addr = va;
+@@ -625,7 +854,7 @@ asmb(void)
+ 			fo = symo+8;
+ 			w = symsize;
+ 
+-			sh = newElf64SHdr(".gosymtab");
++			sh = newElf64_Shdr(elfstr[ElfStrGosymtab]);
+ 			sh->type = SHT_PROGBITS;
+ 			sh->off = fo;
+ 			sh->size = w;
+@@ -635,7 +864,7 @@ asmb(void)
+ 			fo += w;
+ 			w = lcsize;
+ 
+-			sh = newElf64SHdr(".gopclntab");
++			sh = newElf64_Shdr(elfstr[ElfStrGopclntab]);
+ 			sh->type = SHT_PROGBITS;
+ 			sh->off = fo;
+ 			sh->size = w;
+@@ -643,27 +872,12 @@ asmb(void)
+ 			sh->entsize = 24;
+ 		}
+ 
+-		sh = newElf64SHdr(".shstrtab");
++		sh = newElf64_Shstrtab(elfstr[ElfStrShstrtab]);
+ 		sh->type = SHT_STRTAB;
+-		sh->off = startelf();
+-		sh->addr = sh->off + startva;
+ 		sh->addralign = 1;
+-		elf64writestrtable();
+-		sh->size = endelf() - sh->off;
+-
+-		if(dstrtab != 0) {
+-			// update DT_STRTAB entry
+-			cflush();
+-			off = seek(cout, 0, 1);
+-			seek(cout, dstrtab, 0);
+-			elf64writedynent(DT_STRTAB, sh->addr);
+-			elf64writedynent(DT_STRSZ, sh->size);
+-			cflush();
+-			seek(cout, off, 0);
+-		}
++		shsym(sh, lookup(".shstrtab", 0));
+ 
+ 		/* Main header */
+-		eh = getElf64Hdr();
+ 		eh->ident[EI_MAG0] = '\177';
+ 		eh->ident[EI_MAG1] = 'E';
+ 		eh->ident[EI_MAG2] = 'L';
+@@ -677,18 +891,16 @@ asmb(void)
+ 		eh->version = EV_CURRENT;
+ 		eh->entry = entryvalue();
+ 
+-		if (!debug['d']) {
+-			pph->filesz = eh->phnum * ELF64PHDRSIZE;
+-			pph->memsz = pph->filesz;
+-		}
++		pph->filesz = eh->phnum * eh->phentsize;
++		pph->memsz = pph->filesz;
+ 
+ 		seek(cout, 0, 0);
+ 		a = 0;
+ 		a += elf64writehdr();
+ 		a += elf64writephdrs();
+ 		a += elf64writeshdrs();
+-		if (a > ELF64FULLHDRSIZE) {
+-			diag("ELF64FULLHDRSIZE too small:", a);
++		if (a > ELFRESERVE) {
++			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
+ 		}
+ 		cflush();
+ 
+@@ -739,7 +951,7 @@ datblk(int32 s, int32 n)
+ 	for(p = datap; p != P; p = p->link) {
+ 		curp = p;
+ 		if(!p->from.sym->reachable)
+-			sysfatal("unreachable symbol in datblk - %s", p->from.sym->name);
++			diag("unreachable symbol in datblk - %s", p->from.sym->name);
+ 		l = p->from.sym->value + p->from.offset - s;
+ 		c = p->from.scale;
+ 		i = 0;
+@@ -795,17 +1007,10 @@ datblk(int32 s, int32 n)
+ 			}
+ 			break;
+ 
+-		case D_SBIG:
+-			if(debug['a'] && i == 0)
+-				outa(c, (uchar*)p->to.sbig, nil, l+s+INITDAT);
+-			for(; i<c; i++) {
+-				buf.dbuf[l] = p->to.sbig[i];
+-				l++;
+-			}
+-			break;
+-
+ 		default:
+ 			o = p->to.offset;
++			if(p->to.type == D_SIZE)
++				o += p->to.sym->size;
+ 			if(p->to.type == D_ADDR) {
+ 				if(p->to.index != D_STATIC && p->to.index != D_EXTERN)
+ 					diag("DADDR type%P", p);
+diff --git a/src/cmd/6l/elf64.c b/src/cmd/6l/elf.c
+similarity index 87%
+rename from src/cmd/6l/elf64.c
+rename to src/cmd/6l/elf.c
+index 20e502fb9a..e8ff543aae 100644
+--- a/src/cmd/6l/elf64.c
++++ b/src/cmd/6l/elf.c
+@@ -3,4 +3,4 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "l.h"
+-#include "../ld/elf64.c"
++#include "../ld/elf.c"
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 0490bc1db1..271ea412dc 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -120,6 +120,7 @@ struct	Sym
+ 	uchar	dupok;
+ 	uchar	reachable;
+ 	vlong	value;
++	vlong	size;
+ 	int32	sig;
+ 	Sym*	link;
+ 	Prog*	text;
+@@ -358,6 +359,7 @@ EXTERN	char*	EXPTAB;
+ EXTERN	Prog	undefp;
+ EXTERN	vlong	textstksiz;
+ EXTERN	vlong	textarg;
++extern	char	thechar;
+ 
+ #define	UP	(&undefp)
+ 
+@@ -373,6 +375,11 @@ int	Sconv(Fmt*);
+ void	addhist(int32, int);
+ void	addstackmark(void);
+ Prog*	appendp(Prog*);
++vlong	addstring(Sym*, char*);
++vlong	adduint32(Sym*, uint32);
++vlong	adduint64(Sym*, uint64);
++vlong	addaddr(Sym*, Sym*);
++vlong	addsize(Sym*, Sym*);
+ void	asmb(void);
+ void	asmdyn(void);
+ void	asmins(Prog*);
+@@ -392,6 +399,7 @@ void	deadcode(void);
+ void	diag(char*, ...);
+ void	dobss(void);
+ void	dodata(void);
++void	doelf(void);
+ void	doinit(void);
+ void	doprof1(void);
+ void	doprof2(void);
+@@ -438,6 +446,7 @@ void	strnput(char*, int);
+ void	undef(void);
+ void	undefsym(Sym*);
+ vlong	vaddr(Adr*);
++vlong	symaddr(Sym*);
+ void	vputl(uint64);
+ void	wputb(uint16);
+ void	wputl(uint16);
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 1deee18f59..4c115b1809 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -30,7 +30,7 @@
+ 
+ #define	EXTERN
+ #include	"l.h"
+-#include	"../ld/elf64.h"
++#include	"../ld/elf.h"
+ #include	<ar.h>
+ 
+ char	*noname		= "<none>";
+@@ -197,7 +197,8 @@ main(int argc, char *argv[])
+ 			INITRND = 4096;
+ 		break;
+ 	case 7:	/* elf64 executable */
+-		HEADR = ELF64RESERVE;
++		elfinit();
++		HEADR = ELFRESERVE;
+ 		if(INITTEXT == -1)
+ 			INITTEXT = (1<<22)+HEADR;
+ 		if(INITDAT == -1)
+@@ -389,6 +390,7 @@ main(int argc, char *argv[])
+ 
+ 	patch();
+ 	follow();
++	doelf();
+ 	dodata();
+ 	dobss();
+ 	dostkoff();
+@@ -438,7 +440,6 @@ loop:
+ void
+ errorexit(void)
+ {
+-
+ 	if(nerrors) {
+ 		if(cout >= 0)
+ 			remove(outfile);
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index fcce23971a..913ff728b6 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -73,7 +73,7 @@ dodata(void)
+ 		if(s->type != SBSS)
+ 			continue;
+ 		t = s->value;
+-		if(t == 0) {
++		if(t == 0 && s->name[0] != '.') {
+ 			diag("%s: no size", s->name);
+ 			t = 1;
+ 		}
+@@ -83,6 +83,7 @@ dodata(void)
+ 			continue;
+ 		if(t >= 8)
+ 			datsize = rnd(datsize, 8);
++		s->size = t;
+ 		s->value = datsize;
+ 		datsize += t;
+ 		s->type = SDATA1;
+@@ -101,6 +102,7 @@ dodata(void)
+ 		t = s->value;
+ 		if(t >= 8)
+ 			datsize = rnd(datsize, 8);
++		s->size = t;
+ 		s->value = datsize;
+ 		datsize += t;
+ 	}
+@@ -124,6 +126,7 @@ dodata(void)
+ 			if(t > u)
+ 				continue;
+ 			u -= t;
++			s->size = t;
+ 			s->value = datsize;
+ 			s->type = SDATA;
+ 			datsize += t;
+@@ -148,6 +151,7 @@ dobss(void)
+ 		if(s->type != SBSS)
+ 			continue;
+ 		t = s->value;
++		s->size = t;
+ 		if(t >= 8)
+ 			bsssize = rnd(bsssize, 8);
+ 		s->value = bsssize + datsize;
+diff --git a/src/cmd/6l/span.c b/src/cmd/6l/span.c
+index f8f6f445f5..9c24874da4 100644
+--- a/src/cmd/6l/span.c
++++ b/src/cmd/6l/span.c
+@@ -185,7 +185,7 @@ putsymb(char *s, int t, vlong v, int ver, Sym *go)
+ 	gv = 0;
+ 	if(go) {
+ 		if(!go->reachable)
+-			sysfatal("unreachable type %s", go->name);
++			diag("unreachable type %s", go->name);
+ 		gv = go->value+INITDAT;
+ 	}
+ 	if(l == 8)
+@@ -268,7 +268,6 @@ asmsym(void)
+ 		/* frame, auto and param after */
+ 		putsymb(".frame", 'm', p->to.offset+8, 0, 0);
+ 
+-		/* TODO(rsc): Add types for D_AUTO and D_PARAM */
+ 		for(a=p->to.autom; a; a=a->link)
+ 			if(a->type == D_AUTO)
+ 				putsymb(a->asym->name, 'a', -a->aoffset, 0, a->gotype);
+@@ -673,6 +672,18 @@ put8(vlong v)
+ 	andptr += 8;
+ }
+ 
++vlong
++symaddr(Sym *s)
++{
++	Adr a;
++
++	a.type = D_ADDR;
++	a.index = D_EXTERN;
++	a.offset = 0;
++	a.sym = s;
++	return vaddr(&a);
++}
++
+ vlong
+ vaddr(Adr *a)
+ {
+@@ -697,14 +708,14 @@ vaddr(Adr *a)
+ 			case STEXT:
+ 			case SCONST:
+ 				if(!s->reachable)
+-					sysfatal("unreachable symbol in vaddr - %s", s->name);
++					diag("unreachable symbol in vaddr - %s", s->name);
+ 				if((uvlong)s->value < (uvlong)INITTEXT)
+ 					v += INITTEXT;	/* TO DO */
+ 				v += s->value;
+ 				break;
+ 			default:
+ 				if(!s->reachable)
+-					sysfatal("unreachable symbol in vaddr - %s", s->name);
++					diag("unreachable symbol in vaddr - %s", s->name);
+ 				v += INITDAT + s->value;
+ 			}
+ 		}
+diff --git a/src/cmd/8l/8.out.h b/src/cmd/8l/8.out.h
+index fc16e434b5..c47439843b 100644
+--- a/src/cmd/8l/8.out.h
++++ b/src/cmd/8l/8.out.h
+@@ -449,8 +449,7 @@ enum
+ 
+ 	D_INDIR,	/* additive */
+ 
+-	D_SBIG = D_INDIR + D_INDIR,
+-	D_CONST2,
++	D_CONST2 = D_INDIR+D_INDIR,
+ 
+ 	T_TYPE		= 1<<0,
+ 	T_INDEX		= 1<<1,
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index cba1b4ee73..e0cd435290 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -700,7 +700,7 @@ datblk(int32 s, int32 n)
+ 	for(p = datap; p != P; p = p->link) {
+ 		curp = p;
+ 		if(!p->from.sym->reachable)
+-			sysfatal("unreachable symbol in datblk - %s", p->from.sym->name);
++			diag("unreachable symbol in datblk - %s", p->from.sym->name);
+ 		l = p->from.sym->value + p->from.offset - s;
+ 		c = p->from.scale;
+ 		i = 0;
+@@ -769,19 +769,6 @@ datblk(int32 s, int32 n)
+ 			}
+ 			break;
+ 
+-		case D_SBIG:
+-			if(debug['a'] && i == 0) {
+-				Bprint(&bso, pcstr, l+s+INITDAT);
+-				for(j=0; j<c; j++)
+-					Bprint(&bso, "%.2ux", p->to.scon[j] & 0xff);
+-				Bprint(&bso, "\t%P\n", curp);
+-			}
+-			for(; i<c; i++) {
+-				buf.dbuf[l] = p->to.sbig[i];
+-				l++;
+-			}
+-			break;
+-
+ 		default:
+ 			fl = p->to.offset;
+ 			if(p->to.type == D_ADDR) {
+diff --git a/src/cmd/ld/elf64.c b/src/cmd/ld/elf.c
+similarity index 50%
+rename from src/cmd/ld/elf64.c
+rename to src/cmd/ld/elf.c
+index d6a2f7f3c2..1784fd50c2 100644
+--- a/src/cmd/ld/elf64.c
++++ b/src/cmd/ld/elf.c
+@@ -2,35 +2,52 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Support for 64-bit Elf binaries
+-
+-#include "../ld/elf64.h"
++#include "../ld/elf.h"
+ 
++/*
++ * We use the 64-bit data structures on both 32- and 64-bit machines
++ * in order to write the code just once.  The 64-bit data structure is
++ * written in the 32-bit format on the 32-bit machines.
++ */
+ #define	NSECT	16
+-static	int	numstr;
+-static	int	stroffset;
+-static	Elf64Hdr	hdr;
+-static	Elf64PHdr	*phdr[NSECT];
+-static	Elf64SHdr	*shdr[NSECT];
++
++static	int	elf64;
++static	Elf64_Ehdr	hdr;
++static	Elf64_Phdr	*phdr[NSECT];
++static	Elf64_Shdr	*shdr[NSECT];
+ static	char	*sname[NSECT];
+-static	char	*str[20];
+ 
+ /*
+  Initialize the global variable that describes the ELF header. It will be updated as
+  we write section and prog headers.
+  */
+ void
+-elf64init(void)
+-{
+-	hdr.phoff = ELF64HDRSIZE;	/* Must be be ELF64HDRSIZE: first PHdr must follow ELF header */
+-	hdr.shoff = ELF64HDRSIZE;	/* Will move as we add PHeaders */
+-	hdr.ehsize = ELF64HDRSIZE;	/* Must be ELF64HDRSIZE */
+-	hdr.phentsize = ELF64PHDRSIZE;	/* Must be ELF64PHDRSIZE */
+-	hdr.shentsize = ELF64SHDRSIZE;	/* Must be ELF64SHDRSIZE */
++elfinit(void)
++{
++	switch(thechar) {
++	// 64-bit architectures
++	case '6':
++		elf64 = 1;
++		hdr.phoff = ELF64HDRSIZE;	/* Must be be ELF64HDRSIZE: first PHdr must follow ELF header */
++		hdr.shoff = ELF64HDRSIZE;	/* Will move as we add PHeaders */
++		hdr.ehsize = ELF64HDRSIZE;	/* Must be ELF64HDRSIZE */
++		hdr.phentsize = ELF64PHDRSIZE;	/* Must be ELF64PHDRSIZE */
++		hdr.shentsize = ELF64SHDRSIZE;	/* Must be ELF64SHDRSIZE */
++		break;
++
++	// 32-bit architectures
++	default:
++		hdr.phoff = ELF32HDRSIZE;	/* Must be be ELF32HDRSIZE: first PHdr must follow ELF header */
++		hdr.shoff = ELF32HDRSIZE;	/* Will move as we add PHeaders */
++		hdr.ehsize = ELF32HDRSIZE;	/* Must be ELF32HDRSIZE */
++		hdr.phentsize = ELF32PHDRSIZE;	/* Must be ELF32PHDRSIZE */
++		hdr.shentsize = ELF32SHDRSIZE;	/* Must be ELF32SHDRSIZE */
++
++	}
+ }
+ 
+ void
+-elf64phdr(Elf64PHdr *e)
++elf64phdr(Elf64_Phdr *e)
+ {
+ 	LPUT(e->type);
+ 	LPUT(e->flags);
+@@ -43,7 +60,7 @@ elf64phdr(Elf64PHdr *e)
+ }
+ 
+ void
+-elf64shdr(char *name, Elf64SHdr *e)
++elf64shdr(char *name, Elf64_Shdr *e)
+ {
+ 	LPUT(e->name);
+ 	LPUT(e->type);
+@@ -57,44 +74,6 @@ elf64shdr(char *name, Elf64SHdr *e)
+ 	VPUT(e->entsize);
+ }
+ 
+-int
+-putelf64strtab(char* name)
+-{
+-	int w;
+-
+-	w = strlen(name)+1;
+-	strnput(name, w);
+-	return w;
+-}
+-
+-void
+-elf64writestrtable(void)
+-{
+-	int i;
+-	uint32 size;
+-
+-	size = 0;
+-	for (i = 0; i < numstr; i++)
+-		size += putelf64strtab(str[i]);
+-	if (size > STRTABSIZE)
+-		diag("elf64 string table overflow");
+-}
+-
+-uint32
+-elf64addstr(char *name)
+-{
+-	int r;
+-
+-	if (numstr >= nelem(str)) {
+-		diag("too many elf strings");
+-		return 0;
+-	}
+-	str[numstr++] = strdup(name);
+-	r = stroffset;
+-	stroffset += strlen(name)+1;
+-	return r;
+-}
+-
+ uint32
+ elf64writeshdrs(void)
+ {
+@@ -115,10 +94,10 @@ elf64writephdrs(void)
+ 	return hdr.phnum * ELF64PHDRSIZE;
+ }
+ 
+-Elf64PHdr*
+-newElf64PHdr(void)
++Elf64_Phdr*
++newElf64_Phdr(void)
+ {
+-	Elf64PHdr *e;
++	Elf64_Phdr *e;
+ 
+ 	e = malloc(sizeof *e);
+ 	memset(e, 0, sizeof *e);
+@@ -130,16 +109,21 @@ newElf64PHdr(void)
+ 	return e;
+ }
+ 
+-Elf64SHdr*
+-newElf64SHdr(char *name)
++Elf64_Shdr*
++newElf64_Shstrtab(vlong name)
+ {
+-	Elf64SHdr *e;
++	hdr.shstrndx = hdr.shnum;
++	return newElf64_Shdr(name);
++}
++
++Elf64_Shdr*
++newElf64_Shdr(vlong name)
++{
++	Elf64_Shdr *e;
+ 
+-	if (strcmp(name, ".shstrtab") == 0)
+-		hdr.shstrndx = hdr.shnum;
+ 	e = malloc(sizeof *e);
+ 	memset(e, 0, sizeof *e);
+-	e->name = elf64addstr(name);
++	e->name = name;
+ 	if (hdr.shnum >= NSECT) {
+ 		diag("too many shdrs");
+ 	} else {
+@@ -148,8 +132,8 @@ newElf64SHdr(char *name)
+ 	return e;
+ }
+ 
+-Elf64Hdr*
+-getElf64Hdr(void)
++Elf64_Ehdr*
++getElf64_Ehdr(void)
+ {
+ 	return &hdr;
+ }
+@@ -192,41 +176,33 @@ elf64_hash(uchar *name)
+ }
+ 
+ void
+-elf64writedynent(int tag, uint64 val)
++elfwritedynent(Sym *s, int tag, uint64 val)
+ {
+-	VPUT(tag);
+-	VPUT(val);
++	if(elf64) {
++		adduint64(s, tag);
++		adduint64(s, val);
++	} else {
++		adduint32(s, tag);
++		adduint32(s, val);
++	}
+ }
+ 
+-/* Where to write the next piece of data attached to an SHeader */
+-uint64	elfaddr = ELF64FULLHDRSIZE;
+-
+-/* Mark a start location in the SHeader data */
+-uint64
+-startelf(void)
++void
++elfwritedynentsym(Sym *s, int tag, Sym *t)
+ {
+-	seek(cout, elfaddr, 0);
+-	return elfaddr;
++	if(elf64)
++		adduint64(s, tag);
++	else
++		adduint32(s, tag);
++	addaddr(s, t);
+ }
+ 
+-/* Mark the end of a location in the SHeader data */
+-uint64
+-endelf(void)
++void
++elfwritedynentsymsize(Sym *s, int tag, Sym *t)
+ {
+-	uint64 p;
+-
+-	cflush();
+-	p = seek(cout, 0, 1);
+-	if (p < elfaddr) {
+-		diag("endelf before elfaddr");
+-	}
+-	if ((p & 7) != 0) {
+-		p = (p + 7) & ~7LL;
+-		seek(cout, p, 0);
+-	}
+-	elfaddr = p;
+-	if (p > ELF64RESERVE) {
+-		diag("endelf overflows reserve %lld\n", p);
+-	}
+-	return elfaddr;
++	if(elf64)
++		adduint64(s, tag);
++	else
++		adduint32(s, tag);
++	addsize(s, t);
+ }
+diff --git a/src/cmd/ld/elf.h b/src/cmd/ld/elf.h
+new file mode 100644
+index 0000000000..1897030823
+--- /dev/null
++++ b/src/cmd/ld/elf.h
+@@ -0,0 +1,665 @@
++/*
++ * Derived from:
++ * $FreeBSD: src/sys/sys/elf32.h,v 1.8.14.1 2005/12/30 22:13:58 marcel Exp $
++ * $FreeBSD: src/sys/sys/elf64.h,v 1.10.14.1 2005/12/30 22:13:58 marcel Exp $
++ * $FreeBSD: src/sys/sys/elf_common.h,v 1.15.8.1 2005/12/30 22:13:58 marcel Exp $
++ *
++ * Copyright (c) 1996-1998 John D. Polstra.  All rights reserved.
++ * Portions Copyright 2009 The Go Authors.  All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
++ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
++ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++ * SUCH DAMAGE.
++ *
++ */
++
++/*
++ * ELF definitions that are independent of architecture or word size.
++ */
++
++/*
++ * Note header.  The ".note" section contains an array of notes.  Each
++ * begins with this header, aligned to a word boundary.  Immediately
++ * following the note header is n_namesz bytes of name, padded to the
++ * next word boundary.  Then comes n_descsz bytes of descriptor, again
++ * padded to a word boundary.  The values of n_namesz and n_descsz do
++ * not include the padding.
++ */
++
++typedef struct {
++	uint32	n_namesz;	/* Length of name. */
++	uint32	n_descsz;	/* Length of descriptor. */
++	uint32	n_type;		/* Type of this note. */
++} Elf_Note;
++
++/* Indexes into the e_ident array.  Keep synced with
++   http://www.sco.com/developer/gabi/ch4.eheader.html */
++#define EI_MAG0		0	/* Magic number, byte 0. */
++#define EI_MAG1		1	/* Magic number, byte 1. */
++#define EI_MAG2		2	/* Magic number, byte 2. */
++#define EI_MAG3		3	/* Magic number, byte 3. */
++#define EI_CLASS	4	/* Class of machine. */
++#define EI_DATA		5	/* Data format. */
++#define EI_VERSION	6	/* ELF format version. */
++#define EI_OSABI	7	/* Operating system / ABI identification */
++#define EI_ABIVERSION	8	/* ABI version */
++#define OLD_EI_BRAND	8	/* Start of architecture identification. */
++#define EI_PAD		9	/* Start of padding (per SVR4 ABI). */
++#define EI_NIDENT	16	/* Size of e_ident array. */
++
++/* Values for the magic number bytes. */
++#define ELFMAG0		0x7f
++#define ELFMAG1		'E'
++#define ELFMAG2		'L'
++#define ELFMAG3		'F'
++#define ELFMAG		"\177ELF"	/* magic string */
++#define SELFMAG		4		/* magic string size */
++
++/* Values for e_ident[EI_VERSION] and e_version. */
++#define EV_NONE		0
++#define EV_CURRENT	1
++
++/* Values for e_ident[EI_CLASS]. */
++#define ELFCLASSNONE	0	/* Unknown class. */
++#define ELFCLASS32	1	/* 32-bit architecture. */
++#define ELFCLASS64	2	/* 64-bit architecture. */
++
++/* Values for e_ident[EI_DATA]. */
++#define ELFDATANONE	0	/* Unknown data format. */
++#define ELFDATA2LSB	1	/* 2's complement little-endian. */
++#define ELFDATA2MSB	2	/* 2's complement big-endian. */
++
++/* Values for e_ident[EI_OSABI]. */
++#define ELFOSABI_NONE		0	/* UNIX System V ABI */
++#define ELFOSABI_HPUX		1	/* HP-UX operating system */
++#define ELFOSABI_NETBSD		2	/* NetBSD */
++#define ELFOSABI_LINUX		3	/* GNU/Linux */
++#define ELFOSABI_HURD		4	/* GNU/Hurd */
++#define ELFOSABI_86OPEN		5	/* 86Open common IA32 ABI */
++#define ELFOSABI_SOLARIS	6	/* Solaris */
++#define ELFOSABI_AIX		7	/* AIX */
++#define ELFOSABI_IRIX		8	/* IRIX */
++#define ELFOSABI_FREEBSD	9	/* FreeBSD */
++#define ELFOSABI_TRU64		10	/* TRU64 UNIX */
++#define ELFOSABI_MODESTO	11	/* Novell Modesto */
++#define ELFOSABI_OPENBSD	12	/* OpenBSD */
++#define ELFOSABI_OPENVMS	13	/* Open VMS */
++#define ELFOSABI_NSK		14	/* HP Non-Stop Kernel */
++#define ELFOSABI_ARM		97	/* ARM */
++#define ELFOSABI_STANDALONE	255	/* Standalone (embedded) application */
++
++#define ELFOSABI_SYSV		ELFOSABI_NONE	/* symbol used in old spec */
++#define ELFOSABI_MONTEREY	ELFOSABI_AIX	/* Monterey */
++
++/* e_ident */
++#define IS_ELF(ehdr)	((ehdr).e_ident[EI_MAG0] == ELFMAG0 && \
++			 (ehdr).e_ident[EI_MAG1] == ELFMAG1 && \
++			 (ehdr).e_ident[EI_MAG2] == ELFMAG2 && \
++			 (ehdr).e_ident[EI_MAG3] == ELFMAG3)
++
++/* Values for e_type. */
++#define ET_NONE		0	/* Unknown type. */
++#define ET_REL		1	/* Relocatable. */
++#define ET_EXEC		2	/* Executable. */
++#define ET_DYN		3	/* Shared object. */
++#define ET_CORE		4	/* Core file. */
++#define ET_LOOS		0xfe00	/* First operating system specific. */
++#define ET_HIOS		0xfeff	/* Last operating system-specific. */
++#define ET_LOPROC	0xff00	/* First processor-specific. */
++#define ET_HIPROC	0xffff	/* Last processor-specific. */
++
++/* Values for e_machine. */
++#define EM_NONE		0	/* Unknown machine. */
++#define EM_M32		1	/* AT&T WE32100. */
++#define EM_SPARC	2	/* Sun SPARC. */
++#define EM_386		3	/* Intel i386. */
++#define EM_68K		4	/* Motorola 68000. */
++#define EM_88K		5	/* Motorola 88000. */
++#define EM_860		7	/* Intel i860. */
++#define EM_MIPS		8	/* MIPS R3000 Big-Endian only. */
++#define EM_S370		9	/* IBM System/370. */
++#define EM_MIPS_RS3_LE	10	/* MIPS R3000 Little-Endian. */
++#define EM_PARISC	15	/* HP PA-RISC. */
++#define EM_VPP500	17	/* Fujitsu VPP500. */
++#define EM_SPARC32PLUS	18	/* SPARC v8plus. */
++#define EM_960		19	/* Intel 80960. */
++#define EM_PPC		20	/* PowerPC 32-bit. */
++#define EM_PPC64	21	/* PowerPC 64-bit. */
++#define EM_S390		22	/* IBM System/390. */
++#define EM_V800		36	/* NEC V800. */
++#define EM_FR20		37	/* Fujitsu FR20. */
++#define EM_RH32		38	/* TRW RH-32. */
++#define EM_RCE		39	/* Motorola RCE. */
++#define EM_ARM		40	/* ARM. */
++#define EM_SH		42	/* Hitachi SH. */
++#define EM_SPARCV9	43	/* SPARC v9 64-bit. */
++#define EM_TRICORE	44	/* Siemens TriCore embedded processor. */
++#define EM_ARC		45	/* Argonaut RISC Core. */
++#define EM_H8_300	46	/* Hitachi H8/300. */
++#define EM_H8_300H	47	/* Hitachi H8/300H. */
++#define EM_H8S		48	/* Hitachi H8S. */
++#define EM_H8_500	49	/* Hitachi H8/500. */
++#define EM_IA_64	50	/* Intel IA-64 Processor. */
++#define EM_MIPS_X	51	/* Stanford MIPS-X. */
++#define EM_COLDFIRE	52	/* Motorola ColdFire. */
++#define EM_68HC12	53	/* Motorola M68HC12. */
++#define EM_MMA		54	/* Fujitsu MMA. */
++#define EM_PCP		55	/* Siemens PCP. */
++#define EM_NCPU		56	/* Sony nCPU. */
++#define EM_NDR1		57	/* Denso NDR1 microprocessor. */
++#define EM_STARCORE	58	/* Motorola Star*Core processor. */
++#define EM_ME16		59	/* Toyota ME16 processor. */
++#define EM_ST100	60	/* STMicroelectronics ST100 processor. */
++#define EM_TINYJ	61	/* Advanced Logic Corp. TinyJ processor. */
++#define EM_X86_64	62	/* Advanced Micro Devices x86-64 */
++
++/* Non-standard or deprecated. */
++#define EM_486		6	/* Intel i486. */
++#define EM_MIPS_RS4_BE	10	/* MIPS R4000 Big-Endian */
++#define EM_ALPHA_STD	41	/* Digital Alpha (standard value). */
++#define EM_ALPHA	0x9026	/* Alpha (written in the absence of an ABI) */
++
++/* Special section indexes. */
++#define SHN_UNDEF	     0		/* Undefined, missing, irrelevant. */
++#define SHN_LORESERVE	0xff00		/* First of reserved range. */
++#define SHN_LOPROC	0xff00		/* First processor-specific. */
++#define SHN_HIPROC	0xff1f		/* Last processor-specific. */
++#define SHN_LOOS	0xff20		/* First operating system-specific. */
++#define SHN_HIOS	0xff3f		/* Last operating system-specific. */
++#define SHN_ABS		0xfff1		/* Absolute values. */
++#define SHN_COMMON	0xfff2		/* Common data. */
++#define SHN_XINDEX	0xffff		/* Escape -- index stored elsewhere. */
++#define SHN_HIRESERVE	0xffff		/* Last of reserved range. */
++
++/* sh_type */
++#define SHT_NULL		0	/* inactive */
++#define SHT_PROGBITS		1	/* program defined information */
++#define SHT_SYMTAB		2	/* symbol table section */
++#define SHT_STRTAB		3	/* string table section */
++#define SHT_RELA		4	/* relocation section with addends */
++#define SHT_HASH		5	/* symbol hash table section */
++#define SHT_DYNAMIC		6	/* dynamic section */
++#define SHT_NOTE		7	/* note section */
++#define SHT_NOBITS		8	/* no space section */
++#define SHT_REL			9	/* relocation section - no addends */
++#define SHT_SHLIB		10	/* reserved - purpose unknown */
++#define SHT_DYNSYM		11	/* dynamic symbol table section */
++#define SHT_INIT_ARRAY		14	/* Initialization function pointers. */
++#define SHT_FINI_ARRAY		15	/* Termination function pointers. */
++#define SHT_PREINIT_ARRAY	16	/* Pre-initialization function ptrs. */
++#define SHT_GROUP		17	/* Section group. */
++#define SHT_SYMTAB_SHNDX	18	/* Section indexes (see SHN_XINDEX). */
++#define SHT_LOOS	0x60000000	/* First of OS specific semantics */
++#define SHT_HIOS	0x6fffffff	/* Last of OS specific semantics */
++#define SHT_LOPROC	0x70000000	/* reserved range for processor */
++#define SHT_HIPROC	0x7fffffff	/* specific section header types */
++#define SHT_LOUSER	0x80000000	/* reserved range for application */
++#define SHT_HIUSER	0xffffffff	/* specific indexes */
++
++/* Flags for sh_flags. */
++#define SHF_WRITE		0x1	/* Section contains writable data. */
++#define SHF_ALLOC		0x2	/* Section occupies memory. */
++#define SHF_EXECINSTR		0x4	/* Section contains instructions. */
++#define SHF_MERGE		0x10	/* Section may be merged. */
++#define SHF_STRINGS		0x20	/* Section contains strings. */
++#define SHF_INFO_LINK		0x40	/* sh_info holds section index. */
++#define SHF_LINK_ORDER		0x80	/* Special ordering requirements. */
++#define SHF_OS_NONCONFORMING	0x100	/* OS-specific processing required. */
++#define SHF_GROUP		0x200	/* Member of section group. */
++#define SHF_TLS			0x400	/* Section contains TLS data. */
++#define SHF_MASKOS	0x0ff00000	/* OS-specific semantics. */
++#define SHF_MASKPROC	0xf0000000	/* Processor-specific semantics. */
++
++/* Values for p_type. */
++#define PT_NULL		0	/* Unused entry. */
++#define PT_LOAD		1	/* Loadable segment. */
++#define PT_DYNAMIC	2	/* Dynamic linking information segment. */
++#define PT_INTERP	3	/* Pathname of interpreter. */
++#define PT_NOTE		4	/* Auxiliary information. */
++#define PT_SHLIB	5	/* Reserved (not used). */
++#define PT_PHDR		6	/* Location of program header itself. */
++#define	PT_TLS		7	/* Thread local storage segment */
++#define PT_LOOS		0x60000000	/* First OS-specific. */
++#define PT_HIOS		0x6fffffff	/* Last OS-specific. */
++#define PT_LOPROC	0x70000000	/* First processor-specific type. */
++#define PT_HIPROC	0x7fffffff	/* Last processor-specific type. */
++
++/* Values for p_flags. */
++#define PF_X		0x1		/* Executable. */
++#define PF_W		0x2		/* Writable. */
++#define PF_R		0x4		/* Readable. */
++#define PF_MASKOS	0x0ff00000	/* Operating system-specific. */
++#define PF_MASKPROC	0xf0000000	/* Processor-specific. */
++
++/* Values for d_tag. */
++#define DT_NULL		0	/* Terminating entry. */
++#define DT_NEEDED	1	/* String table offset of a needed shared
++				   library. */
++#define DT_PLTRELSZ	2	/* Total size in bytes of PLT relocations. */
++#define DT_PLTGOT	3	/* Processor-dependent address. */
++#define DT_HASH		4	/* Address of symbol hash table. */
++#define DT_STRTAB	5	/* Address of string table. */
++#define DT_SYMTAB	6	/* Address of symbol table. */
++#define DT_RELA		7	/* Address of ElfNN_Rela relocations. */
++#define DT_RELASZ	8	/* Total size of ElfNN_Rela relocations. */
++#define DT_RELAENT	9	/* Size of each ElfNN_Rela relocation entry. */
++#define DT_STRSZ	10	/* Size of string table. */
++#define DT_SYMENT	11	/* Size of each symbol table entry. */
++#define DT_INIT		12	/* Address of initialization function. */
++#define DT_FINI		13	/* Address of finalization function. */
++#define DT_SONAME	14	/* String table offset of shared object
++				   name. */
++#define DT_RPATH	15	/* String table offset of library path. [sup] */
++#define DT_SYMBOLIC	16	/* Indicates "symbolic" linking. [sup] */
++#define DT_REL		17	/* Address of ElfNN_Rel relocations. */
++#define DT_RELSZ	18	/* Total size of ElfNN_Rel relocations. */
++#define DT_RELENT	19	/* Size of each ElfNN_Rel relocation. */
++#define DT_PLTREL	20	/* Type of relocation used for PLT. */
++#define DT_DEBUG	21	/* Reserved (not used). */
++#define DT_TEXTREL	22	/* Indicates there may be relocations in
++				   non-writable segments. [sup] */
++#define DT_JMPREL	23	/* Address of PLT relocations. */
++#define	DT_BIND_NOW	24	/* [sup] */
++#define	DT_INIT_ARRAY	25	/* Address of the array of pointers to
++				   initialization functions */
++#define	DT_FINI_ARRAY	26	/* Address of the array of pointers to
++				   termination functions */
++#define	DT_INIT_ARRAYSZ	27	/* Size in bytes of the array of
++				   initialization functions. */
++#define	DT_FINI_ARRAYSZ	28	/* Size in bytes of the array of
++				   terminationfunctions. */
++#define	DT_RUNPATH	29	/* String table offset of a null-terminated
++				   library search path string. */
++#define	DT_FLAGS	30	/* Object specific flag values. */
++#define	DT_ENCODING	32	/* Values greater than or equal to DT_ENCODING
++				   and less than DT_LOOS follow the rules for
++				   the interpretation of the d_un union
++				   as follows: even == 'd_ptr', even == 'd_val'
++				   or none */
++#define	DT_PREINIT_ARRAY 32	/* Address of the array of pointers to
++				   pre-initialization functions. */
++#define	DT_PREINIT_ARRAYSZ 33	/* Size in bytes of the array of
++				   pre-initialization functions. */
++#define	DT_LOOS		0x6000000d	/* First OS-specific */
++#define	DT_HIOS		0x6ffff000	/* Last OS-specific */
++#define	DT_LOPROC	0x70000000	/* First processor-specific type. */
++#define	DT_HIPROC	0x7fffffff	/* Last processor-specific type. */
++
++/* Values for DT_FLAGS */
++#define	DF_ORIGIN	0x0001	/* Indicates that the object being loaded may
++				   make reference to the $ORIGIN substitution
++				   string */
++#define	DF_SYMBOLIC	0x0002	/* Indicates "symbolic" linking. */
++#define	DF_TEXTREL	0x0004	/* Indicates there may be relocations in
++				   non-writable segments. */
++#define	DF_BIND_NOW	0x0008	/* Indicates that the dynamic linker should
++				   process all relocations for the object
++				   containing this entry before transferring
++				   control to the program. */
++#define	DF_STATIC_TLS	0x0010	/* Indicates that the shared object or
++				   executable contains code using a static
++				   thread-local storage scheme. */
++
++/* Values for n_type.  Used in core files. */
++#define NT_PRSTATUS	1	/* Process status. */
++#define NT_FPREGSET	2	/* Floating point registers. */
++#define NT_PRPSINFO	3	/* Process state info. */
++
++/* Symbol Binding - ELFNN_ST_BIND - st_info */
++#define STB_LOCAL	0	/* Local symbol */
++#define STB_GLOBAL	1	/* Global symbol */
++#define STB_WEAK	2	/* like global - lower precedence */
++#define STB_LOOS	10	/* Reserved range for operating system */
++#define STB_HIOS	12	/*   specific semantics. */
++#define STB_LOPROC	13	/* reserved range for processor */
++#define STB_HIPROC	15	/*   specific semantics. */
++
++/* Symbol type - ELFNN_ST_TYPE - st_info */
++#define STT_NOTYPE	0	/* Unspecified type. */
++#define STT_OBJECT	1	/* Data object. */
++#define STT_FUNC	2	/* Function. */
++#define STT_SECTION	3	/* Section. */
++#define STT_FILE	4	/* Source file. */
++#define STT_COMMON	5	/* Uninitialized common block. */
++#define STT_TLS		6	/* TLS object. */
++#define STT_LOOS	10	/* Reserved range for operating system */
++#define STT_HIOS	12	/*   specific semantics. */
++#define STT_LOPROC	13	/* reserved range for processor */
++#define STT_HIPROC	15	/*   specific semantics. */
++
++/* Symbol visibility - ELFNN_ST_VISIBILITY - st_other */
++#define STV_DEFAULT	0x0	/* Default visibility (see binding). */
++#define STV_INTERNAL	0x1	/* Special meaning in relocatable objects. */
++#define STV_HIDDEN	0x2	/* Not visible. */
++#define STV_PROTECTED	0x3	/* Visible but not preemptible. */
++
++/* Special symbol table indexes. */
++#define STN_UNDEF	0	/* Undefined symbol index. */
++
++/*
++ * ELF definitions common to all 32-bit architectures.
++ */
++
++typedef uint32	Elf32_Addr;
++typedef uint16	Elf32_Half;
++typedef uint32	Elf32_Off;
++typedef int32		Elf32_Sword;
++typedef uint32	Elf32_Word;
++
++typedef Elf32_Word	Elf32_Hashelt;
++
++/* Non-standard class-dependent datatype used for abstraction. */
++typedef Elf32_Word	Elf32_Size;
++typedef Elf32_Sword	Elf32_Ssize;
++
++/*
++ * ELF header.
++ */
++
++typedef struct {
++	unsigned char	ident[EI_NIDENT];	/* File identification. */
++	Elf32_Half	type;		/* File type. */
++	Elf32_Half	machine;	/* Machine architecture. */
++	Elf32_Word	version;	/* ELF format version. */
++	Elf32_Addr	entry;	/* Entry point. */
++	Elf32_Off	phoff;	/* Program header file offset. */
++	Elf32_Off	shoff;	/* Section header file offset. */
++	Elf32_Word	flags;	/* Architecture-specific flags. */
++	Elf32_Half	ehsize;	/* Size of ELF header in bytes. */
++	Elf32_Half	phentsize;	/* Size of program header entry. */
++	Elf32_Half	phnum;	/* Number of program header entries. */
++	Elf32_Half	shentsize;	/* Size of section header entry. */
++	Elf32_Half	shnum;	/* Number of section header entries. */
++	Elf32_Half	shstrndx;	/* Section name strings section. */
++} Elf32_Ehdr;
++
++/*
++ * Section header.
++ */
++
++typedef struct {
++	Elf32_Word	name;	/* Section name (index into the
++					   section header string table). */
++	Elf32_Word	type;	/* Section type. */
++	Elf32_Word	flags;	/* Section flags. */
++	Elf32_Addr	vaddr;	/* Address in memory image. */
++	Elf32_Off	off;	/* Offset in file. */
++	Elf32_Word	size;	/* Size in bytes. */
++	Elf32_Word	link;	/* Index of a related section. */
++	Elf32_Word	info;	/* Depends on section type. */
++	Elf32_Word	addralign;	/* Alignment in bytes. */
++	Elf32_Word	entsize;	/* Size of each entry in section. */
++} Elf32_Shdr;
++
++/*
++ * Program header.
++ */
++
++typedef struct {
++	Elf32_Word	type;		/* Entry type. */
++	Elf32_Off	off;	/* File offset of contents. */
++	Elf32_Addr	vaddr;	/* Virtual address in memory image. */
++	Elf32_Addr	paddr;	/* Physical address (not used). */
++	Elf32_Word	filesz;	/* Size of contents in file. */
++	Elf32_Word	memsz;	/* Size of contents in memory. */
++	Elf32_Word	flags;	/* Access permission flags. */
++	Elf32_Word	align;	/* Alignment in memory and file. */
++} Elf32_Phdr;
++
++/*
++ * Dynamic structure.  The ".dynamic" section contains an array of them.
++ */
++
++typedef struct {
++	Elf32_Sword	d_tag;		/* Entry type. */
++	union {
++		Elf32_Word	d_val;	/* Integer value. */
++		Elf32_Addr	d_ptr;	/* Address value. */
++	} d_un;
++} Elf32_Dyn;
++
++/*
++ * Relocation entries.
++ */
++
++/* Relocations that don't need an addend field. */
++typedef struct {
++	Elf32_Addr	off;	/* Location to be relocated. */
++	Elf32_Word	info;		/* Relocation type and symbol index. */
++} Elf32_Rel;
++
++/* Relocations that need an addend field. */
++typedef struct {
++	Elf32_Addr	off;	/* Location to be relocated. */
++	Elf32_Word	info;		/* Relocation type and symbol index. */
++	Elf32_Sword	addend;	/* Addend. */
++} Elf32_Rela;
++
++/* Macros for accessing the fields of r_info. */
++#define ELF32_R_SYM(info)	((info) >> 8)
++#define ELF32_R_TYPE(info)	((unsigned char)(info))
++
++/* Macro for constructing r_info from field values. */
++#define ELF32_R_INFO(sym, type)	(((sym) << 8) + (unsigned char)(type))
++
++/*
++ * Symbol table entries.
++ */
++
++typedef struct {
++	Elf32_Word	name;	/* String table index of name. */
++	Elf32_Addr	value;	/* Symbol value. */
++	Elf32_Word	size;	/* Size of associated object. */
++	unsigned char	info;	/* Type and binding information. */
++	unsigned char	other;	/* Reserved (not used). */
++	Elf32_Half	shndx;	/* Section index of symbol. */
++} Elf32_Sym;
++
++/* Macros for accessing the fields of st_info. */
++#define ELF32_ST_BIND(info)		((info) >> 4)
++#define ELF32_ST_TYPE(info)		((info) & 0xf)
++
++/* Macro for constructing st_info from field values. */
++#define ELF32_ST_INFO(bind, type)	(((bind) << 4) + ((type) & 0xf))
++
++/* Macro for accessing the fields of st_other. */
++#define ELF32_ST_VISIBILITY(oth)	((oth) & 0x3)
++
++/*
++ * ELF definitions common to all 64-bit architectures.
++ */
++
++typedef uint64	Elf64_Addr;
++typedef uint16	Elf64_Half;
++typedef uint64	Elf64_Off;
++typedef int32		Elf64_Sword;
++typedef int64		Elf64_Sxword;
++typedef uint32	Elf64_Word;
++typedef uint64	Elf64_Xword;
++
++/*
++ * Types of dynamic symbol hash table bucket and chain elements.
++ *
++ * This is inconsistent among 64 bit architectures, so a machine dependent
++ * typedef is required.
++ */
++
++#ifdef __alpha__
++typedef Elf64_Off	Elf64_Hashelt;
++#else
++typedef Elf64_Word	Elf64_Hashelt;
++#endif
++
++/* Non-standard class-dependent datatype used for abstraction. */
++typedef Elf64_Xword	Elf64_Size;
++typedef Elf64_Sxword	Elf64_Ssize;
++
++/*
++ * ELF header.
++ */
++
++typedef struct {
++	unsigned char	ident[EI_NIDENT];	/* File identification. */
++	Elf64_Half	type;		/* File type. */
++	Elf64_Half	machine;	/* Machine architecture. */
++	Elf64_Word	version;	/* ELF format version. */
++	Elf64_Addr	entry;	/* Entry point. */
++	Elf64_Off	phoff;	/* Program header file offset. */
++	Elf64_Off	shoff;	/* Section header file offset. */
++	Elf64_Word	flags;	/* Architecture-specific flags. */
++	Elf64_Half	ehsize;	/* Size of ELF header in bytes. */
++	Elf64_Half	phentsize;	/* Size of program header entry. */
++	Elf64_Half	phnum;	/* Number of program header entries. */
++	Elf64_Half	shentsize;	/* Size of section header entry. */
++	Elf64_Half	shnum;	/* Number of section header entries. */
++	Elf64_Half	shstrndx;	/* Section name strings section. */
++} Elf64_Ehdr;
++
++/*
++ * Section header.
++ */
++
++typedef struct {
++	Elf64_Word	name;	/* Section name (index into the
++					   section header string table). */
++	Elf64_Word	type;	/* Section type. */
++	Elf64_Xword	flags;	/* Section flags. */
++	Elf64_Addr	addr;	/* Address in memory image. */
++	Elf64_Off	off;	/* Offset in file. */
++	Elf64_Xword	size;	/* Size in bytes. */
++	Elf64_Word	link;	/* Index of a related section. */
++	Elf64_Word	info;	/* Depends on section type. */
++	Elf64_Xword	addralign;	/* Alignment in bytes. */
++	Elf64_Xword	entsize;	/* Size of each entry in section. */
++} Elf64_Shdr;
++
++/*
++ * Program header.
++ */
++
++typedef struct {
++	Elf64_Word	type;		/* Entry type. */
++	Elf64_Word	flags;	/* Access permission flags. */
++	Elf64_Off	off;	/* File offset of contents. */
++	Elf64_Addr	vaddr;	/* Virtual address in memory image. */
++	Elf64_Addr	paddr;	/* Physical address (not used). */
++	Elf64_Xword	filesz;	/* Size of contents in file. */
++	Elf64_Xword	memsz;	/* Size of contents in memory. */
++	Elf64_Xword	align;	/* Alignment in memory and file. */
++} Elf64_Phdr;
++
++/*
++ * Dynamic structure.  The ".dynamic" section contains an array of them.
++ */
++
++typedef struct {
++	Elf64_Sxword	d_tag;		/* Entry type. */
++	union {
++		Elf64_Xword	d_val;	/* Integer value. */
++		Elf64_Addr	d_ptr;	/* Address value. */
++	} d_un;
++} Elf64_Dyn;
++
++/*
++ * Relocation entries.
++ */
++
++/* Relocations that don't need an addend field. */
++typedef struct {
++	Elf64_Addr	off;	/* Location to be relocated. */
++	Elf64_Xword	info;		/* Relocation type and symbol index. */
++} Elf64_Rel;
++
++/* Relocations that need an addend field. */
++typedef struct {
++	Elf64_Addr	off;	/* Location to be relocated. */
++	Elf64_Xword	info;		/* Relocation type and symbol index. */
++	Elf64_Sxword	addend;	/* Addend. */
++} Elf64_Rela;
++
++/* Macros for accessing the fields of r_info. */
++#define ELF64_R_SYM(info)	((info) >> 32)
++#define ELF64_R_TYPE(info)	((info) & 0xffffffffL)
++
++/* Macro for constructing r_info from field values. */
++#define ELF64_R_INFO(sym, type)	(((sym) << 32) + ((type) & 0xffffffffL))
++
++/*
++ * Symbol table entries.
++ */
++
++typedef struct {
++	Elf64_Word	name;	/* String table index of name. */
++	unsigned char	info;	/* Type and binding information. */
++	unsigned char	other;	/* Reserved (not used). */
++	Elf64_Half	shndx;	/* Section index of symbol. */
++	Elf64_Addr	value;	/* Symbol value. */
++	Elf64_Xword	size;	/* Size of associated object. */
++} Elf64_Sym;
++
++/* Macros for accessing the fields of st_info. */
++#define ELF64_ST_BIND(info)		((info) >> 4)
++#define ELF64_ST_TYPE(info)		((info) & 0xf)
++
++/* Macro for constructing st_info from field values. */
++#define ELF64_ST_INFO(bind, type)	(((bind) << 4) + ((type) & 0xf))
++
++/* Macro for accessing the fields of st_other. */
++#define ELF64_ST_VISIBILITY(oth)	((oth) & 0x3)
++
++/*
++ * Go linker interface
++ */
++
++#define	ELF64HDRSIZE	64
++#define	ELF64PHDRSIZE	56
++#define	ELF64SHDRSIZE	64
++#define	ELF64RELSIZE	16
++#define	ELF64RELASIZE	24
++#define	ELF64SYMSIZE	sizeof(Elf64_Sym)
++
++#define	ELF32HDRSIZE	sizeof(Elf32_Ehdr)
++#define	ELF32PHDRSIZE	sizeof(Elf32_Phdr)
++#define	ELF32SHDRSIZE	sizeof(Elf32_Shdr)
++
++void	elfinit(void);
++Elf64_Ehdr	*getElf64_Ehdr();
++Elf64_Shdr	*newElf64_Shstrtab(vlong);
++Elf64_Shdr	*newElf64_Shdr(vlong);
++Elf64_Phdr	*newElf64_Phdr();
++uint32	elf64writehdr(void);
++uint32	elf64writephdrs(void);
++uint32	elf64writeshdrs(void);
++void	elfwritedynent(Sym*, int, uint64);
++void	elfwritedynentsym(Sym*, int, Sym*);
++void	elfwritedynentsymsize(Sym*, int, Sym*);
++uint32	elf64_hash(uchar*);
++uint64	startelf(void);
++uint64	endelf(void);
++extern	int	nume64phdr;
++extern	int	nume64shdr;
++
++/*
++ * Total amount of ELF space to reserve at the start of the file
++ * for Header, PHeaders, and SHeaders.
++ * May waste some.
++ */
++#define	ELFRESERVE	2048
++
+diff --git a/src/cmd/ld/elf64.h b/src/cmd/ld/elf64.h
+deleted file mode 100644
+index bde6376783..0000000000
+--- a/src/cmd/ld/elf64.h
++++ /dev/null
+@@ -1,292 +0,0 @@
+-/*
+- * Derived from:
+- * $FreeBSD: src/sys/sys/elf32.h,v 1.8.14.1 2005/12/30 22:13:58 marcel Exp $
+- * $FreeBSD: src/sys/sys/elf64.h,v 1.10.14.1 2005/12/30 22:13:58 marcel Exp $
+- * $FreeBSD: src/sys/sys/elf_common.h,v 1.15.8.1 2005/12/30 22:13:58 marcel Exp $
+- * $FreeBSD: src/sys/alpha/include/elf.h,v 1.14 2003/09/25 01:10:22 peter Exp $
+- * $FreeBSD: src/sys/amd64/include/elf.h,v 1.18 2004/08/03 08:21:48 dfr Exp $
+- * $FreeBSD: src/sys/arm/include/elf.h,v 1.5.2.1 2006/06/30 21:42:52 cognet Exp $
+- * $FreeBSD: src/sys/i386/include/elf.h,v 1.16 2004/08/02 19:12:17 dfr Exp $
+- * $FreeBSD: src/sys/powerpc/include/elf.h,v 1.7 2004/11/02 09:47:01 ssouhlal Exp $
+- * $FreeBSD: src/sys/sparc64/include/elf.h,v 1.12 2003/09/25 01:10:26 peter Exp $
+- *
+- * Copyright (c) 1996-1998 John D. Polstra.  All rights reserved.
+- * Copyright (c) 2001 David E. O'Brien
+- * Portions Copyright 2009 The Go Authors.  All rights reserved.
+- *
+- * Redistribution and use in source and binary forms, with or without
+- * modification, are permitted provided that the following conditions
+- * are met:
+- * 1. Redistributions of source code must retain the above copyright
+- *    notice, this list of conditions and the following disclaimer.
+- * 2. Redistributions in binary form must reproduce the above copyright
+- *    notice, this list of conditions and the following disclaimer in the
+- *    documentation and/or other materials provided with the distribution.
+- *
+- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+- * SUCH DAMAGE.
+- *
+- */
+-
+-typedef uint64	Elf64_Addr;	/* Unsigned program address */
+-typedef uint64	Elf64_Off;	/* Unsigned file offset */
+-typedef uint16	Elf64_Half;	/* Unsigned medium integer */
+-typedef uint32	Elf64_Word;	/* Unsigned integer */
+-typedef int32	Elf64_Sword;	/* Signed integer */
+-typedef uint64	Elf64_Xword;	/* Unsigned long integer */
+-typedef int64	Elf64_Sxword; 	/* Signed long integer */
+-
+-typedef struct Elf64Hdr		Elf64Hdr;
+-typedef struct Elf64SHdr	Elf64SHdr;
+-typedef struct Elf64PHdr	Elf64PHdr;
+-
+-#define	EI_NIDENT	16
+-struct Elf64Hdr
+-{
+-	uchar ident[EI_NIDENT];	/* ELF identification */
+-	Elf64_Half	type;	/* Object file type */
+-	Elf64_Half	machine;	/* Machine type */
+-	Elf64_Word	version;	/* Object file version */
+-	Elf64_Addr	entry;	/* Entry point address */
+-	Elf64_Off	phoff;	/* Program header offset */
+-	Elf64_Off	shoff;	/* Section header offset */
+-	Elf64_Word	flags;	/* Processor-specific flags */
+-	Elf64_Half	ehsize;	/* ELF header size */
+-	Elf64_Half	phentsize;	/* Size of program header entry */
+-	Elf64_Half	phnum;	/* Number of program header entries */
+-	Elf64_Half	shentsize;	/* Size of section header entry */
+-	Elf64_Half	shnum;	/* Number of section header entries */
+-	Elf64_Half	shstrndx;	/* Section name string table index */
+-};
+-#define	ELF64HDRSIZE	64
+-
+-/* E ident indexes */
+-#define	EI_MAG0	0 	/* File identification */
+-#define	EI_MAG1	1
+-#define	EI_MAG2	2
+-#define	EI_MAG3	3
+-#define	EI_CLASS	4	/* File class */
+-#define	EI_DATA		5	/* Data encoding */
+-#define	EI_VERSION	6	/* File version */
+-#define	EI_OSABI	7	/* OS/ABI identification */
+-#define	EI_ABIVERSION	8	/* ABI version */
+-#define	EI_PAD	9	/*Start of padding bytes */
+-
+-/* E types */
+-#define	ET_NONE	0	/* No file type */
+-#define	ET_REL	1	/* Relocatable object file */
+-#define	ET_EXEC	2	/* Executable file */
+-#define	ET_DYN	3	/* Shared object file */
+-#define	ET_CORE	4	/* Core file */
+-#define	ET_LOOS 0xFE00	/* Environment-specific use */
+-#define	ET_HIOS 0xFEFF
+-#define	ET_LOPROC 0xFF00	/* Processor-specific use */
+-#define	ET_HIPROC 0xFFFF
+-
+-/* E classes */
+-#define	ELFCLASS32	1 	/* 32-bit objects */
+-#define	ELFCLASS64	2	/* 64-bit objects */
+-
+-/* E endians */
+-#define	ELFDATA2LSB	1	/* little-endian */
+-#define	ELFDATA2MSB	2	/* big-endian */
+-
+-#define	EV_CURRENT	1	/* current version of format */
+-
+-struct Elf64PHdr
+-{
+-	Elf64_Word	type;	/* Type of segment */
+-	Elf64_Word	flags;	/* Segment attributes */
+-	Elf64_Off	off;	/* Offset in file */
+-	Elf64_Addr	vaddr;	/* Virtual address in memory */
+-	Elf64_Addr	paddr;	/* Reserved */
+-	Elf64_Xword	filesz;	/* Size of segment in file */
+-	Elf64_Xword	memsz;	/* Size of segment in memory */
+-	Elf64_Xword	align;	/* Alignment of segment */
+-};
+-#define	ELF64PHDRSIZE	56
+-
+-/* P types */
+-#define	PT_NULL		0	/* Unused entry */
+-#define	PT_LOAD		1	/* Loadable segment */
+-#define	PT_DYNAMIC	2	/* Dynamic linking tables */
+-#define	PT_INTERP	3	/* Program interpreter path name */
+-#define	PT_NOTE		4	/* Note sections */
+-#define	PT_PHDR		6	/* Program header table */
+-
+-/* P flags */
+-#define	PF_X	0x1	/* Execute permission */
+-#define	PF_W	0x2	/* Write permission */
+-#define	PF_R	0x4	/* Read permission */
+-#define	PF_MASKOS	0x00FF0000 /* reserved for environment-specific use */
+-#define	PF_MASKPROC	0xFF000000 /*reserved for processor-specific use */
+-
+-struct Elf64SHdr
+-{
+-	Elf64_Word	name;	/* Section name */
+-	Elf64_Word	type;	/* Section type */
+-	Elf64_Xword	flags;	/* Section attributes */
+-	Elf64_Addr	addr;	/* Virtual address in memory */
+-	Elf64_Off	off;	/* Offset in file */
+-	Elf64_Xword	size;	/* Size of section */
+-	Elf64_Word	link;	/* Link to other section */
+-	Elf64_Word	info;	/* Miscellaneous information */
+-	Elf64_Xword	addralign;	/* Address alignment boundary */
+-	Elf64_Xword	entsize;	/* Size of entries, if section has table */
+-};
+-#define	ELF64SHDRSIZE	64
+-
+-/* S types */
+-#define SHT_NULL	0	/* Unused section header */
+-#define SHT_PROGBITS	1	/* Information defined by the program */
+-#define SHT_SYMTAB	2	/* Linker symbol table */
+-#define SHT_STRTAB	3	/* String table */
+-#define SHT_RELA	4 	/* "Rela" type relocation entries */
+-#define SHT_HASH	5	/* Symbol hash table */
+-#define SHT_DYNAMIC	6	/* Dynamic linking tables */
+-#define SHT_NOTE	7	/* Note information */
+-#define SHT_NOBITS	8	/* Uninitialized space; does not occupy any space in the file */
+-#define SHT_REL		9	/* "Rel" type relocation entries */
+-#define SHT_SHLIB	10	/* Reserved */
+-#define SHT_DYNSYM	11	/* A dynamic loader symbol table */
+-#define SHT_LOOS	0x60000000	/* Environment-specific use */
+-#define SHT_HIOS	0x6FFFFFFF
+-#define SHT_LOPROC	0x70000000	/* Processor-specific use */
+-#define SHT_HIPROC 0x7FFFFFFF
+-
+-/* S flags */
+-#define	SHF_WRITE	0x1 /* Writable data */
+-#define	SHF_ALLOC	0x2 /* Allocated in memory image of program */
+-#define	SHF_EXECINSTR	0x4 /* Executable instructions */
+-#define	SHF_MASKOS	0x0F000000	/* Environment-specific use */
+-#define	SHF_MASKPROC	0xF0000000	/* Processor-specific use */
+-
+-
+-typedef struct Elf64Dyn Elf64Dyn;
+-struct Elf64Dyn
+-{
+-	Elf64_Sxword d_tag;
+-	union {
+-		Elf64_Xword d_val;
+-		Elf64_Addr d_ptr;
+-	} d_un;
+-};
+-
+-/* Dyn table entries */
+-#define	DT_NULL		0	/* ignored: Marks the end of the dynamic array */
+-#define	DT_NEEDED	1	/* d_val: The string table offset of the name of
+-				   a needed library. */
+-#define	DT_PLTRELSZ	2	/* d_val: Total size, in bytes, of the relocation
+-				   entries associated with  the procedure linkage table. */
+-#define	DT_PLTGOT	3	/* d_ptr: Contains an address associated with the linkage
+-				   table. The specific meaning of this field is
+-				   processor-dependent. */
+-#define	DT_HASH		4	/* d_ptr: Address of the symbol hash table. */
+-#define	DT_STRTAB	5	/* d_ptr: Address of the dynamic string table. */
+-#define	DT_SYMTAB	6	/* d_ptr: Address of the dynamic symbol table. */
+-#define	DT_RELA		7	/* d_ptr Address of a relocation table with Elf64_Rela
+-				   entries. */
+-#define	DT_RELASZ	8	/* d_val: Total size, in bytes, of the DT_RELA relocation
+-				   table. */
+-#define	DT_RELAENT	9	/* d_val: Size, in bytes, of each DT_RELA relocation
+-				   entry. */
+-#define	DT_STRSZ	10	/* d_val: Total size, in bytes, of the string table. */
+-#define	DT_SYMENT	11	/* d_val: Size, in bytes, of each symbol table entry. */
+-#define	DT_INIT		12	/* d_ptr Address of the initialization function. */
+-#define	DT_FINI		13	/* d_ptr Address of the termination function. */
+-#define	DT_SONAME	14	/* d_val The string table offset of the name of this
+-				   shared object. */
+-#define	DT_RPATH	15	/* d_val The string table offset of a shared library
+-				   search path string. */
+-#define	DT_SYMBOLIC	16	/* ignored The presence of this dynamic table entry
+-				   modifies the symbol resolution algorithm for references
+-				   within the library. Symbols defined within the library
+-				   are used to resolve references before the dynamic
+-				   linker searches the usual search path. */
+-#define	DT_REL		17	/* d_ptr Address of a relocation table with Elf64_Rel
+-				   entries. */
+-#define	DT_RELSZ	18	/* d_val Total size, in bytes, of the DT_REL relocation
+-				   table. */
+-#define	DT_RELENT	19	/* d_val Size, in bytes, of each DT_REL relocation
+-				   entry. */
+-#define	DT_PLTREL	20	/* d_val Type of relocation entry used for the procedure
+-				   linkage table. The d_val member contains either DT_REL
+-				   or DT_RELA. */
+-#define	DT_DEBUG	21	/* d_ptr Reserved for debugger use. */
+-#define	DT_TEXTREL	22	/* ignored The presence of this dynamic table entry
+-				   signals that the relocation table contains relocations
+-				   for a non-writable segment. */
+-#define	DT_JMPREL	23	/* d_ptr Address of the relocations associated with the
+-				   procedure linkage table. */
+-#define	DT_BIND_NOW	24	/* ignored The presence of this dynamic table entry
+-				   signals that the dynamic loader should process all
+-				   relocations for this object before transferring
+-				   control to the program. */
+-#define	DT_INIT_ARRAY	25	/* d_ptr Pointer to an array of pointers to initialization
+-				   functions. */
+-#define	DT_FINI_ARRAY	26	/* d_ptr Pointer to an array of pointers to termination
+-				   functions. */
+-#define	DT_INIT_ARRAYSZ	27	/* d_val Size, in bytes, of the array of initialization
+-				   functions. */
+-#define	DT_FINI_ARRAYSZ	28	/* d_val Size, in bytes, of the array of termination
+-				   functions. */
+-#define	DT_LOOS	0x60000000	/* Defines a range of dynamic table tags that are reserved
+-				   for environment-specific use. */
+-#define	DT_HIOS		0x6FFFFFFF
+-#define	DT_LOPROC	0x70000000	/* Defines a range of dynamic table tags that are
+-					   reserved for processor-specific use. */
+-#define	DT_HIPROC	0x7FFFFFFF
+-
+-typedef struct Elf64_Rel Elf64_Rel;
+-struct Elf64_Rel
+-{
+-	Elf64_Addr r_offset;	/* Address of reference */
+-	Elf64_Xword r_info;	/* Symbol index and type of relocation */
+-};
+-#define ELF64RELSIZE 8
+-
+-typedef struct Elf64_Rela Elf64_Rela;
+-struct Elf64_Rela
+-{
+-	Elf64_Addr r_offset;	/* Address of reference */
+-	Elf64_Xword r_info;	/* Symbol index and type of relocation */
+-	Elf64_Sxword r_addend;	/* Constant part of expression */
+-};
+-#define ELF64RELASIZE 24
+-
+-#define	ELF64_R_SYM(i)	((i) >> 32)
+-#define	ELF64_R_TYPE(i)	((i) & 0xffffffffL)
+-#define	ELF64_R_INFO(s, t)	(((s) << 32) + ((t) & 0xffffffffL))
+-
+-void	elf64init(void);
+-Elf64Hdr	*getElf64Hdr();
+-Elf64SHdr	*newElf64SHdr(char*);
+-Elf64PHdr	*newElf64PHdr();
+-uint32	elf64writehdr(void);
+-uint32	elf64writephdrs(void);
+-uint32	elf64writeshdrs(void);
+-uint32	elf64addstr(char*);
+-void	elf64writestrtable(void);
+-void	elf64writedynent(int, uint64);
+-uint32	elf64_hash(uchar*);
+-uint64	startelf(void);
+-uint64	endelf(void);
+-extern	int	nume64phdr;
+-extern	int	nume64shdr;
+-
+-#define	STRTABSIZE	256
+-/* Amount of space available for Header, PHeaders and SHeaders */
+-#define	ELF64FULLHDRSIZE	2048
+-/* Space reserved after ELF64FULLHEADERSIZE for dynamic info */
+-#define	ELFDYNAMICSIZE	256
+-/* Total amount of ELF space to reserve at the start of the file; may waste some */
+-#define	ELF64RESERVE	4096
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index b739f6027f..0ced9a1ac9 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -325,6 +325,8 @@ marktext(Prog *p)
+ 	markdepth++;
+ 	if(debug['v'] > 1)
+ 		Bprint(&bso, "%d marktext %s\n", markdepth, p->from.sym->name);
++	for(a=p->to.autom; a; a=a->link)
++		mark(a->gotype);
+ 	for(p=p->link; p != P; p=p->link) {
+ 		if(p->as == ATEXT || p->as == ADATA || p->as == AGLOBL)
+ 			break;

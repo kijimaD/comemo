@@ -10,7 +10,7 @@ Date:   Tue Dec 20 10:36:25 2011 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5498045
-
+---
  src/pkg/bytes/bytes_test.go            | 17 ++++++-----------
  src/pkg/crypto/aes/aes_test.go         |  2 +-
  src/pkg/encoding/binary/binary_test.go |  4 ++--
@@ -30,3 +30,525 @@ Date:   Tue Dec 20 10:36:25 2011 -0800
  src/pkg/regexp/exec_test.go            |  2 +-
  src/pkg/strings/strings_test.go        |  7 +++----
  18 files changed, 54 insertions(+), 73 deletions(-)
+
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index a2a08c20db..2a1d41b910 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -289,8 +289,7 @@ func bmIndexByte(b *testing.B, index func([]byte, byte) int, n int) {
+ 	for i := 0; i < b.N; i++ {
+ 		j := index(buf, 'x')
+ 		if j != n-1 {
+-			println("bad index", j)
+-			panic("bad index")
++			b.Fatal("bad index", j)
+ 		}
+ 	}
+ 	buf[n-1] = '\x00'
+@@ -317,7 +316,7 @@ func bmEqual(b *testing.B, equal func([]byte, []byte) bool, n int) {
+ 	for i := 0; i < b.N; i++ {
+ 		eq := equal(buf1, buf2)
+ 		if !eq {
+-			panic("bad equal")
++			b.Fatal("bad equal")
+ 		}
+ 	}
+ 	buf1[n-1] = '\x00'
+@@ -339,8 +338,7 @@ func bmIndex(b *testing.B, index func([]byte, []byte) int, n int) {
+ 	for i := 0; i < b.N; i++ {
+ 		j := index(buf, buf[n-7:])
+ 		if j != n-7 {
+-			println("bad index", j)
+-			panic("bad index")
++			b.Fatal("bad index", j)
+ 		}
+ 	}
+ 	buf[n-1] = '\x00'
+@@ -362,8 +360,7 @@ func bmIndexEasy(b *testing.B, index func([]byte, []byte) int, n int) {
+ 	for i := 0; i < b.N; i++ {
+ 		j := index(buf, buf[n-7:])
+ 		if j != n-7 {
+-			println("bad index", j)
+-			panic("bad index")
++			b.Fatal("bad index", j)
+ 		}
+ 	}
+ 	buf[n-1] = '\x00'
+@@ -385,8 +382,7 @@ func bmCount(b *testing.B, count func([]byte, []byte) int, n int) {
+ 	for i := 0; i < b.N; i++ {
+ 		j := count(buf, buf[n-7:])
+ 		if j != 1 {
+-			println("bad count", j)
+-			panic("bad count")
++			b.Fatal("bad count", j)
+ 		}
+ 	}
+ 	buf[n-1] = '\x00'
+@@ -408,8 +404,7 @@ func bmCountEasy(b *testing.B, count func([]byte, []byte) int, n int) {
+ 	for i := 0; i < b.N; i++ {
+ 		j := count(buf, buf[n-7:])
+ 		if j != 1 {
+-			println("bad count", j)
+-			panic("bad count")
++			b.Fatal("bad count", j)
+ 		}
+ 	}
+ 	buf[n-1] = '\x00'
+diff --git a/src/pkg/crypto/aes/aes_test.go b/src/pkg/crypto/aes/aes_test.go
+index aa1d0df8e9..e500c666d9 100644
+--- a/src/pkg/crypto/aes/aes_test.go
++++ b/src/pkg/crypto/aes/aes_test.go
+@@ -356,7 +356,7 @@ func BenchmarkEncrypt(b *testing.B) {
+ 	tt := encryptTests[0]
+ 	c, err := NewCipher(tt.key)
+ 	if err != nil {
+-		panic("NewCipher")
++		b.Fatal("NewCipher:", err)
+ 	}
+ 	out := make([]byte, len(tt.in))
+ 	b.StartTimer()
+diff --git a/src/pkg/encoding/binary/binary_test.go b/src/pkg/encoding/binary/binary_test.go
+index 899505e0a5..3e7057ea22 100644
+--- a/src/pkg/encoding/binary/binary_test.go
++++ b/src/pkg/encoding/binary/binary_test.go
+@@ -197,7 +197,7 @@ func BenchmarkReadStruct(b *testing.B) {
+ 	}
+ 	b.StopTimer()
+ 	if !reflect.DeepEqual(s, t) {
+-		panic("no match")
++		b.Fatal("no match")
+ 	}
+ }
+ 
+@@ -251,6 +251,6 @@ func BenchmarkWriteInts(b *testing.B) {
+ 	}
+ 	b.StopTimer()
+ 	if !bytes.Equal(buf.Bytes(), big[:30]) {
+-		panic("first half doesn't match")
++		b.Fatalf("first half doesn't match: %x %x", buf.Bytes(), big[:30])
+ 	}
+ }
+diff --git a/src/pkg/encoding/gob/timing_test.go b/src/pkg/encoding/gob/timing_test.go
+index 47437a607f..1017eb7f51 100644
+--- a/src/pkg/encoding/gob/timing_test.go
++++ b/src/pkg/encoding/gob/timing_test.go
+@@ -39,7 +39,7 @@ func benchmarkEndToEnd(r io.Reader, w io.Writer, b *testing.B) {
+ func BenchmarkEndToEndPipe(b *testing.B) {
+ 	r, w, err := os.Pipe()
+ 	if err != nil {
+-		panic("can't get pipe:" + err.Error())
++		b.Fatal("can't get pipe:", err)
+ 	}
+ 	benchmarkEndToEnd(r, w, b)
+ }
+diff --git a/src/pkg/encoding/json/bench_test.go b/src/pkg/encoding/json/bench_test.go
+index f0c52011a1..333c1c0ce9 100644
+--- a/src/pkg/encoding/json/bench_test.go
++++ b/src/pkg/encoding/json/bench_test.go
+@@ -84,7 +84,7 @@ func BenchmarkCodeEncoder(b *testing.B) {
+ 	enc := NewEncoder(ioutil.Discard)
+ 	for i := 0; i < b.N; i++ {
+ 		if err := enc.Encode(&codeStruct); err != nil {
+-			panic(err)
++			b.Fatal("Encode:", err)
+ 		}
+ 	}
+ 	b.SetBytes(int64(len(codeJSON)))
+@@ -98,7 +98,7 @@ func BenchmarkCodeMarshal(b *testing.B) {
+ 	}
+ 	for i := 0; i < b.N; i++ {
+ 		if _, err := Marshal(&codeStruct); err != nil {
+-			panic(err)
++			b.Fatal("Marshal:", err)
+ 		}
+ 	}
+ 	b.SetBytes(int64(len(codeJSON)))
+@@ -120,7 +120,7 @@ func BenchmarkCodeDecoder(b *testing.B) {
+ 		buf.WriteByte('\n')
+ 		buf.WriteByte('\n')
+ 		if err := dec.Decode(&r); err != nil {
+-			panic(err)
++			b.Fatal("Decode:", err)
+ 		}
+ 	}
+ 	b.SetBytes(int64(len(codeJSON)))
+@@ -135,7 +135,7 @@ func BenchmarkCodeUnmarshal(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		var r codeResponse
+ 		if err := Unmarshal(codeJSON, &r); err != nil {
+-			panic(err)
++			b.Fatal("Unmmarshal:", err)
+ 		}
+ 	}
+ 	b.SetBytes(int64(len(codeJSON)))
+@@ -150,7 +150,7 @@ func BenchmarkCodeUnmarshalReuse(b *testing.B) {
+ 	var r codeResponse
+ 	for i := 0; i < b.N; i++ {
+ 		if err := Unmarshal(codeJSON, &r); err != nil {
+-			panic(err)
++			b.Fatal("Unmmarshal:", err)
+ 		}
+ 	}
+ 	b.SetBytes(int64(len(codeJSON)))
+diff --git a/src/pkg/html/template/error.go b/src/pkg/html/template/error.go
+index 9622d7e48e..dcac748967 100644
+--- a/src/pkg/html/template/error.go
++++ b/src/pkg/html/template/error.go
+@@ -183,11 +183,11 @@ const (
+ 
+ func (e *Error) Error() string {
+ 	if e.Line != 0 {
+-		return fmt.Sprintf("exp/template/html:%s:%d: %s", e.Name, e.Line, e.Description)
++		return fmt.Sprintf("html/template:%s:%d: %s", e.Name, e.Line, e.Description)
+ 	} else if e.Name != "" {
+-		return fmt.Sprintf("exp/template/html:%s: %s", e.Name, e.Description)
++		return fmt.Sprintf("html/template:%s: %s", e.Name, e.Description)
+ 	}
+-	return "exp/template/html: " + e.Description
++	return "html/template: " + e.Description
+ }
+ 
+ // errorf creates an error given a format string f and args.
+diff --git a/src/pkg/html/template/escape_test.go b/src/pkg/html/template/escape_test.go
+index 2d15c71844..7702300ffd 100644
+--- a/src/pkg/html/template/escape_test.go
++++ b/src/pkg/html/template/escape_test.go
+@@ -944,23 +944,23 @@ func TestErrors(t *testing.T) {
+ 		},
+ 		{
+ 			`<input type=button value=onclick=>`,
+-			`exp/template/html:z: "=" in unquoted attr: "onclick="`,
++			`html/template:z: "=" in unquoted attr: "onclick="`,
+ 		},
+ 		{
+ 			`<input type=button value= onclick=>`,
+-			`exp/template/html:z: "=" in unquoted attr: "onclick="`,
++			`html/template:z: "=" in unquoted attr: "onclick="`,
+ 		},
+ 		{
+ 			`<input type=button value= 1+1=2>`,
+-			`exp/template/html:z: "=" in unquoted attr: "1+1=2"`,
++			`html/template:z: "=" in unquoted attr: "1+1=2"`,
+ 		},
+ 		{
+ 			"<a class=`foo>",
+-			"exp/template/html:z: \"`\" in unquoted attr: \"`foo\"",
++			"html/template:z: \"`\" in unquoted attr: \"`foo\"",
+ 		},
+ 		{
+ 			`<a style=font:'Arial'>`,
+-			`exp/template/html:z: "'" in unquoted attr: "font:'Arial'"`,
++			`html/template:z: "'" in unquoted attr: "font:'Arial'"`,
+ 		},
+ 		{
+ 			`<a=foo>`,
+diff --git a/src/pkg/image/draw/bench_test.go b/src/pkg/image/draw/bench_test.go
+index 2be91185af..554a0d3fbc 100644
+--- a/src/pkg/image/draw/bench_test.go
++++ b/src/pkg/image/draw/bench_test.go
+@@ -51,7 +51,7 @@ func bench(b *testing.B, dcm, scm, mcm color.Model, op Op) {
+ 		}
+ 		dst = dst1
+ 	default:
+-		panic("unreachable")
++		b.Fatal("unknown destination color model", dcm)
+ 	}
+ 
+ 	var src image.Image
+@@ -116,7 +116,7 @@ func bench(b *testing.B, dcm, scm, mcm color.Model, op Op) {
+ 			Rect:           image.Rect(0, 0, srcw, srch),
+ 		}
+ 	default:
+-		panic("unreachable")
++		b.Fatal("unknown source color model", scm)
+ 	}
+ 
+ 	var mask image.Image
+@@ -137,7 +137,7 @@ func bench(b *testing.B, dcm, scm, mcm color.Model, op Op) {
+ 		}
+ 		mask = mask1
+ 	default:
+-		panic("unreachable")
++		b.Fatal("unknown mask color model", mcm)
+ 	}
+ 
+ 	b.StartTimer()
+diff --git a/src/pkg/image/jpeg/writer_test.go b/src/pkg/image/jpeg/writer_test.go
+index 28e8732136..e4b56d2884 100644
+--- a/src/pkg/image/jpeg/writer_test.go
++++ b/src/pkg/image/jpeg/writer_test.go
+@@ -105,7 +105,7 @@ func BenchmarkEncodeRGBOpaque(b *testing.B) {
+ 		}
+ 	}
+ 	if !img.Opaque() {
+-		panic("expected image to be opaque")
++		b.Fatal("expected image to be opaque")
+ 	}
+ 	b.SetBytes(640 * 480 * 4)
+ 	b.StartTimer()
+diff --git a/src/pkg/image/png/writer_test.go b/src/pkg/image/png/writer_test.go
+index 1757e14cad..228ecccfb4 100644
+--- a/src/pkg/image/png/writer_test.go
++++ b/src/pkg/image/png/writer_test.go
+@@ -125,7 +125,7 @@ func BenchmarkEncodeRGBOpaque(b *testing.B) {
+ 		}
+ 	}
+ 	if !img.Opaque() {
+-		panic("expected image to be opaque")
++		b.Fatal("expected image to be opaque")
+ 	}
+ 	b.SetBytes(640 * 480 * 4)
+ 	b.StartTimer()
+@@ -138,7 +138,7 @@ func BenchmarkEncodeRGBA(b *testing.B) {
+ 	b.StopTimer()
+ 	img := image.NewRGBA(image.Rect(0, 0, 640, 480))
+ 	if img.Opaque() {
+-		panic("expected image to not be opaque")
++		b.Fatal("expected image to not be opaque")
+ 	}
+ 	b.SetBytes(640 * 480 * 4)
+ 	b.StartTimer()
+diff --git a/src/pkg/image/tiff/reader_test.go b/src/pkg/image/tiff/reader_test.go
+index 1a3d23bbd7..ee5dafd996 100644
+--- a/src/pkg/image/tiff/reader_test.go
++++ b/src/pkg/image/tiff/reader_test.go
+@@ -113,7 +113,7 @@ func BenchmarkDecode(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		_, err := Decode(r)
+ 		if err != nil {
+-			panic(err)
++			b.Fatal("Decode:", err)
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/math/big/nat_test.go b/src/pkg/math/big/nat_test.go
+index e3c6552d9f..25e39273c0 100644
+--- a/src/pkg/math/big/nat_test.go
++++ b/src/pkg/math/big/nat_test.go
+@@ -5,7 +5,6 @@
+ package big
+ 
+ import (
+-	"fmt"
+ 	"io"
+ 	"strings"
+ 	"testing"
+@@ -402,7 +401,7 @@ func ScanHelper(b *testing.B, base int, x, y Word) {
+ 	var s string
+ 	s = z.string(lowercaseDigits[0:base])
+ 	if t := toString(z, lowercaseDigits[0:base]); t != s {
+-		panic(fmt.Sprintf("scanning: got %s; want %s", s, t))
++		b.Fatalf("scanning: got %s; want %s", s, t)
+ 	}
+ 	b.StartTimer()
+ 
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index c68e6614b1..24e6b50dab 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -1164,15 +1164,15 @@ func BenchmarkClientServer(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		res, err := Get(ts.URL)
+ 		if err != nil {
+-			panic("Get: " + err.Error())
++			b.Fatal("Get:", err)
+ 		}
+ 		all, err := ioutil.ReadAll(res.Body)
+ 		if err != nil {
+-			panic("ReadAll: " + err.Error())
++			b.Fatal("ReadAll:", err)
+ 		}
+ 		body := string(all)
+ 		if body != "Hello world.\n" {
+-			panic("Got body: " + body)
++			b.Fatal("Got body:", body)
+ 		}
+ 	}
+ 
+diff --git a/src/pkg/net/rpc/server_test.go b/src/pkg/net/rpc/server_test.go
+index a52a86e414..c1845fa507 100644
+--- a/src/pkg/net/rpc/server_test.go
++++ b/src/pkg/net/rpc/server_test.go
+@@ -516,12 +516,10 @@ func benchmarkEndToEnd(dial func() (*Client, error), b *testing.B) {
+ 			for atomic.AddInt32(&N, -1) >= 0 {
+ 				err = client.Call("Arith.Add", args, reply)
+ 				if err != nil {
+-					fmt.Printf("Add: expected no error but got string %q", err.Error())
+-					panic("rpc error")
++					b.Fatalf("rpc error: Add: expected no error but got string %q", err.Error())
+ 				}
+ 				if reply.C != args.A+args.B {
+-					fmt.Printf("Add: expected %d got %d", reply.C, args.A+args.B)
+-					panic("rpc error")
++					b.Fatalf("rpc error: Add: expected %d got %d", reply.C, args.A+args.B)
+ 				}
+ 			}
+ 			wg.Done()
+@@ -536,8 +534,7 @@ func benchmarkEndToEndAsync(dial func() (*Client, error), b *testing.B) {
+ 	once.Do(startServer)
+ 	client, err := dial()
+ 	if err != nil {
+-		fmt.Println("error dialing", err)
+-		return
++		b.Fatalf("error dialing:", err)
+ 	}
+ 
+ 	// Asynchronous calls
+@@ -561,12 +558,11 @@ func benchmarkEndToEndAsync(dial func() (*Client, error), b *testing.B) {
+ 		}()
+ 		go func() {
+ 			for call := range res {
+-				a := call.Args.(*Args).A
+-				b := call.Args.(*Args).B
+-				c := call.Reply.(*Reply).C
+-				if a+b != c {
+-					fmt.Printf("Add: expected %d got %d", a+b, c)
+-					panic("incorrect reply")
++				A := call.Args.(*Args).A
++				B := call.Args.(*Args).B
++				C := call.Reply.(*Reply).C
++				if A+B != C {
++					b.Fatalf("incorrect reply: Add: expected %d got %d", A+B, C)
+ 				}
+ 				<-gate
+ 				if atomic.AddInt32(&recv, -1) == 0 {
+diff --git a/src/pkg/old/regexp/all_test.go b/src/pkg/old/regexp/all_test.go
+index 9a04360dd1..180dac4d45 100644
+--- a/src/pkg/old/regexp/all_test.go
++++ b/src/pkg/old/regexp/all_test.go
+@@ -321,8 +321,7 @@ func BenchmarkLiteral(b *testing.B) {
+ 	b.StartTimer()
+ 	for i := 0; i < b.N; i++ {
+ 		if !re.MatchString(x) {
+-			println("no match!")
+-			break
++			b.Fatal("no match!")
+ 		}
+ 	}
+ }
+@@ -334,8 +333,7 @@ func BenchmarkNotLiteral(b *testing.B) {
+ 	b.StartTimer()
+ 	for i := 0; i < b.N; i++ {
+ 		if !re.MatchString(x) {
+-			println("no match!")
+-			break
++			b.Fatal("no match!")
+ 		}
+ 	}
+ }
+@@ -347,8 +345,7 @@ func BenchmarkMatchClass(b *testing.B) {
+ 	b.StartTimer()
+ 	for i := 0; i < b.N; i++ {
+ 		if !re.MatchString(x) {
+-			println("no match!")
+-			break
++			b.Fatal("no match!")
+ 		}
+ 	}
+ }
+@@ -362,8 +359,7 @@ func BenchmarkMatchClass_InRange(b *testing.B) {
+ 	b.StartTimer()
+ 	for i := 0; i < b.N; i++ {
+ 		if !re.MatchString(x) {
+-			println("no match!")
+-			break
++			b.Fatal("no match!")
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/regexp/all_test.go b/src/pkg/regexp/all_test.go
+index 8810796daf..e729510b51 100644
+--- a/src/pkg/regexp/all_test.go
++++ b/src/pkg/regexp/all_test.go
+@@ -324,8 +324,7 @@ func BenchmarkLiteral(b *testing.B) {
+ 	b.StartTimer()
+ 	for i := 0; i < b.N; i++ {
+ 		if !re.MatchString(x) {
+-			println("no match!")
+-			break
++			b.Fatalf("no match!")
+ 		}
+ 	}
+ }
+@@ -337,8 +336,7 @@ func BenchmarkNotLiteral(b *testing.B) {
+ 	b.StartTimer()
+ 	for i := 0; i < b.N; i++ {
+ 		if !re.MatchString(x) {
+-			println("no match!")
+-			break
++			b.Fatalf("no match!")
+ 		}
+ 	}
+ }
+@@ -350,8 +348,7 @@ func BenchmarkMatchClass(b *testing.B) {
+ 	b.StartTimer()
+ 	for i := 0; i < b.N; i++ {
+ 		if !re.MatchString(x) {
+-			println("no match!")
+-			break
++			b.Fatalf("no match!")
+ 		}
+ 	}
+ }
+@@ -365,8 +362,7 @@ func BenchmarkMatchClass_InRange(b *testing.B) {
+ 	b.StartTimer()
+ 	for i := 0; i < b.N; i++ {
+ 		if !re.MatchString(x) {
+-			println("no match!")
+-			break
++			b.Fatalf("no match!")
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/regexp/exec_test.go b/src/pkg/regexp/exec_test.go
+index 312bf0275f..e668574a51 100644
+--- a/src/pkg/regexp/exec_test.go
++++ b/src/pkg/regexp/exec_test.go
+@@ -673,7 +673,7 @@ func benchmark(b *testing.B, re string, n int) {
+ 	b.SetBytes(int64(n))
+ 	for i := 0; i < b.N; i++ {
+ 		if r.Match(t) {
+-			panic("match!")
++			b.Fatal("match!")
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/strings/strings_test.go b/src/pkg/strings/strings_test.go
+index 8866d220c0..54046d68aa 100644
+--- a/src/pkg/strings/strings_test.go
++++ b/src/pkg/strings/strings_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"io"
+ 	"reflect"
+-	"strconv"
+ 	. "strings"
+ 	"testing"
+ 	"unicode"
+@@ -143,7 +142,7 @@ const benchmarkString = "some_text=some☺value"
+ 
+ func BenchmarkIndexRune(b *testing.B) {
+ 	if got := IndexRune(benchmarkString, '☺'); got != 14 {
+-		panic("wrong index: got=" + strconv.Itoa(got))
++		b.Fatalf("wrong index: expected 14, got=%d", got)
+ 	}
+ 	for i := 0; i < b.N; i++ {
+ 		IndexRune(benchmarkString, '☺')
+@@ -152,7 +151,7 @@ func BenchmarkIndexRune(b *testing.B) {
+ 
+ func BenchmarkIndexRuneFastPath(b *testing.B) {
+ 	if got := IndexRune(benchmarkString, 'v'); got != 17 {
+-		panic("wrong index: got=" + strconv.Itoa(got))
++		b.Fatalf("wrong index: expected 17, got=%d", got)
+ 	}
+ 	for i := 0; i < b.N; i++ {
+ 		IndexRune(benchmarkString, 'v')
+@@ -161,7 +160,7 @@ func BenchmarkIndexRuneFastPath(b *testing.B) {
+ 
+ func BenchmarkIndex(b *testing.B) {
+ 	if got := Index(benchmarkString, "v"); got != 17 {
+-		panic("wrong index: got=" + strconv.Itoa(got))
++		b.Fatalf("wrong index: expected 17, got=%d", got)
+ 	}
+ 	for i := 0; i < b.N; i++ {
+ 		Index(benchmarkString, "v")

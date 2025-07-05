@@ -18,7 +18,92 @@ Date:   Mon Sep 14 10:24:59 2020 +0200
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  .../go/testdata/script/test_cleanup_failnow.txt    | 33 ++++++++++++++++++++++
  src/testing/testing.go                             | 12 +++++++-
  2 files changed, 44 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/test_cleanup_failnow.txt b/src/cmd/go/testdata/script/test_cleanup_failnow.txt
+new file mode 100644
+index 0000000000..5ad4185fc1
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_cleanup_failnow.txt
+@@ -0,0 +1,33 @@
++# For issue 41355
++[short] skip
++
++! go test -v cleanup_failnow/panic_nocleanup_test.go
++stdout '(?s)panic: die \[recovered\].*panic: die'
++! stdout '(?s)panic: die \[recovered\].*panic: die.*panic: die'
++
++! go test -v cleanup_failnow/panic_withcleanup_test.go
++stdout '(?s)panic: die \[recovered\].*panic: die'
++! stdout '(?s)panic: die \[recovered\].*panic: die.*panic: die'
++
++-- cleanup_failnow/panic_nocleanup_test.go --
++package panic_nocleanup_test
++import "testing"
++func TestX(t *testing.T) {
++	t.Run("x", func(t *testing.T) {
++		panic("die")
++	})
++}
++
++-- cleanup_failnow/panic_withcleanup_test.go --
++package panic_withcleanup_test
++import "testing"
++func TestCleanupWithFailNow(t *testing.T) {
++	t.Cleanup(func() {
++		t.FailNow()
++	})
++	t.Run("x", func(t *testing.T) {
++		t.Run("y", func(t *testing.T) {
++			panic("die")
++		})
++	})
++}
+\ No newline at end of file
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 66f296234a..d86354093a 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1075,6 +1075,7 @@ func tRunner(t *T, fn func(t *T)) {
+ 		// If the test panicked, print any test output before dying.
+ 		err := recover()
+ 		signal := true
++
+ 		if !t.finished && err == nil {
+ 			err = errNilPanicOrGoexit
+ 			for p := t.parent; p != nil; p = p.parent {
+@@ -1086,6 +1087,15 @@ func tRunner(t *T, fn func(t *T)) {
+ 				}
+ 			}
+ 		}
++		// Use a deferred call to ensure that we report that the test is
++		// complete even if a cleanup function calls t.FailNow. See issue 41355.
++		didPanic := false
++		defer func() {
++			t.signal <- signal
++			if err != nil && !didPanic {
++				panic(err)
++			}
++		}()
+ 
+ 		doPanic := func(err interface{}) {
+ 			t.Fail()
+@@ -1103,6 +1113,7 @@ func tRunner(t *T, fn func(t *T)) {
+ 					fmt.Fprintf(root.parent.w, "cleanup panicked with %v", r)
+ 				}
+ 			}
++			didPanic = true
+ 			panic(err)
+ 		}
+ 		if err != nil {
+@@ -1144,7 +1155,6 @@ func tRunner(t *T, fn func(t *T)) {
+ 		if t.parent != nil && atomic.LoadInt32(&t.hasSub) == 0 {
+ 			t.setRan()
+ 		}
+-		t.signal <- signal
+ 	}()
+ 	defer func() {
+ 		if len(t.sub) == 0 {

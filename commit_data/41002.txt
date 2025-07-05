@@ -16,7 +16,7 @@ Date:   Wed May 8 12:12:49 2019 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/syscall_linux.go           |  1 -
  src/syscall/syscall_linux_386.go       |  1 +
  src/syscall/syscall_linux_amd64.go     |  1 +
@@ -38,3 +38,750 @@ Date:   Wed May 8 12:12:49 2019 +0200
  src/syscall/zsyscall_linux_ppc64le.go  | 40 +++++++++++++++++-----------------
  src/syscall/zsyscall_linux_s390x.go    | 40 +++++++++++++++++-----------------
  20 files changed, 228 insertions(+), 221 deletions(-)
+
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index 21c509f8d4..ec3021cd23 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -947,7 +947,6 @@ func Getpgrp() (pid int) {
+ //sysnb prlimit(pid int, resource int, newlimit *Rlimit, old *Rlimit) (err error) = SYS_PRLIMIT64
+ //sys	read(fd int, p []byte) (n int, err error)
+ //sys	Removexattr(path string, attr string) (err error)
+-//sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
+ //sys	Setdomainname(p []byte) (err error)
+ //sys	Sethostname(p []byte) (err error)
+ //sysnb	Setpgid(pid int, pgid int) (err error)
+diff --git a/src/syscall/syscall_linux_386.go b/src/syscall/syscall_linux_386.go
+index 6e162ebb41..7a41ed8edf 100644
+--- a/src/syscall/syscall_linux_386.go
++++ b/src/syscall/syscall_linux_386.go
+@@ -64,6 +64,7 @@ func Pipe2(p []int, flags int) (err error) {
+ //sys	Iopl(level int) (err error)
+ //sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+ //sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
++//sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
+ //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) = SYS_SENDFILE64
+ //sys	Setfsgid(gid int) (err error) = SYS_SETFSGID32
+ //sys	Setfsuid(uid int) (err error) = SYS_SETFSUID32
+diff --git a/src/syscall/syscall_linux_amd64.go b/src/syscall/syscall_linux_amd64.go
+index f740ab4e72..447676946e 100644
+--- a/src/syscall/syscall_linux_amd64.go
++++ b/src/syscall/syscall_linux_amd64.go
+@@ -25,6 +25,7 @@ const (
+ //sys	Listen(s int, n int) (err error)
+ //sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+ //sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
++//sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
+ //sys	Seek(fd int, offset int64, whence int) (off int64, err error) = SYS_LSEEK
+ //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error)
+ //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
+diff --git a/src/syscall/syscall_linux_arm.go b/src/syscall/syscall_linux_arm.go
+index a7acd08033..9ba6eec11f 100644
+--- a/src/syscall/syscall_linux_arm.go
++++ b/src/syscall/syscall_linux_arm.go
+@@ -90,6 +90,7 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
+ //sysnb	Getuid() (uid int) = SYS_GETUID32
+ //sysnb	InotifyInit() (fd int, err error)
+ //sys	Listen(s int, n int) (err error)
++//sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
+ //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) = SYS_SENDFILE64
+ //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error) = SYS__NEWSELECT
+ //sys	Setfsgid(gid int) (err error) = SYS_SETFSGID32
+diff --git a/src/syscall/syscall_linux_arm64.go b/src/syscall/syscall_linux_arm64.go
+index 48ad0bb292..1ea48892ba 100644
+--- a/src/syscall/syscall_linux_arm64.go
++++ b/src/syscall/syscall_linux_arm64.go
+@@ -24,6 +24,7 @@ const (
+ //sys	Listen(s int, n int) (err error)
+ //sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+ //sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
++//sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
+ //sys	Seek(fd int, offset int64, whence int) (off int64, err error) = SYS_LSEEK
+ //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
+ //sys	Setfsgid(gid int) (err error)
+diff --git a/src/syscall/syscall_linux_mips64x.go b/src/syscall/syscall_linux_mips64x.go
+index a8e3a6907f..59add3f867 100644
+--- a/src/syscall/syscall_linux_mips64x.go
++++ b/src/syscall/syscall_linux_mips64x.go
+@@ -27,6 +27,7 @@ const (
+ //sys	Listen(s int, n int) (err error)
+ //sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+ //sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
++//sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
+ //sys	Seek(fd int, offset int64, whence int) (off int64, err error) = SYS_LSEEK
+ //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
+ //sys	Setfsgid(gid int) (err error)
+diff --git a/src/syscall/syscall_linux_mipsx.go b/src/syscall/syscall_linux_mipsx.go
+index a76107ffa0..070be3bd63 100644
+--- a/src/syscall/syscall_linux_mipsx.go
++++ b/src/syscall/syscall_linux_mipsx.go
+@@ -28,6 +28,7 @@ func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr,
+ //sys	Listen(s int, n int) (err error)
+ //sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+ //sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
++//sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
+ //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error) = SYS__NEWSELECT
+ //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) = SYS_SENDFILE64
+ //sys	Setfsgid(gid int) (err error)
+diff --git a/src/syscall/syscall_linux_ppc64x.go b/src/syscall/syscall_linux_ppc64x.go
+index 47d8820ba6..30956c4804 100644
+--- a/src/syscall/syscall_linux_ppc64x.go
++++ b/src/syscall/syscall_linux_ppc64x.go
+@@ -31,6 +31,7 @@ const (
+ //sys	Lstat(path string, stat *Stat_t) (err error)
+ //sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+ //sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
++//sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
+ //sys	Seek(fd int, offset int64, whence int) (off int64, err error) = SYS_LSEEK
+ //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error) = SYS__NEWSELECT
+ //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
+diff --git a/src/syscall/syscall_linux_s390x.go b/src/syscall/syscall_linux_s390x.go
+index c6d71c492a..1a9c952cdc 100644
+--- a/src/syscall/syscall_linux_s390x.go
++++ b/src/syscall/syscall_linux_s390x.go
+@@ -27,6 +27,7 @@ const (
+ //sys	Lstat(path string, stat *Stat_t) (err error)
+ //sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+ //sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
++//sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
+ //sys	Seek(fd int, offset int64, whence int) (off int64, err error) = SYS_LSEEK
+ //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error)
+ //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
+diff --git a/src/syscall/zsyscall_linux_386.go b/src/syscall/zsyscall_linux_386.go
+index 0882494c47..f25eb2512a 100644
+--- a/src/syscall/zsyscall_linux_386.go
++++ b/src/syscall/zsyscall_linux_386.go
+@@ -759,26 +759,6 @@ func Removexattr(path string, attr string) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(oldpath)
+-	if err != nil {
+-		return
+-	}
+-	var _p1 *byte
+-	_p1, err = BytePtrFromString(newpath)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall6(SYS_RENAMEAT, uintptr(olddirfd), uintptr(unsafe.Pointer(_p0)), uintptr(newdirfd), uintptr(unsafe.Pointer(_p1)), 0, 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Setdomainname(p []byte) (err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1310,6 +1290,26 @@ func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(oldpath)
++	if err != nil {
++		return
++	}
++	var _p1 *byte
++	_p1, err = BytePtrFromString(newpath)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(SYS_RENAMEAT, uintptr(olddirfd), uintptr(unsafe.Pointer(_p0)), uintptr(newdirfd), uintptr(unsafe.Pointer(_p1)), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+ 	r0, _, e1 := Syscall6(SYS_SENDFILE64, uintptr(outfd), uintptr(infd), uintptr(unsafe.Pointer(offset)), uintptr(count), 0, 0)
+ 	written = int(r0)
+diff --git a/src/syscall/zsyscall_linux_amd64.go b/src/syscall/zsyscall_linux_amd64.go
+index 9f2046bf93..a994b2397f 100644
+--- a/src/syscall/zsyscall_linux_amd64.go
++++ b/src/syscall/zsyscall_linux_amd64.go
+@@ -759,26 +759,6 @@ func Removexattr(path string, attr string) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(oldpath)
+-	if err != nil {
+-		return
+-	}
+-	var _p1 *byte
+-	_p1, err = BytePtrFromString(newpath)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall6(SYS_RENAMEAT, uintptr(olddirfd), uintptr(unsafe.Pointer(_p0)), uintptr(newdirfd), uintptr(unsafe.Pointer(_p1)), 0, 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Setdomainname(p []byte) (err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1305,6 +1285,26 @@ func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(oldpath)
++	if err != nil {
++		return
++	}
++	var _p1 *byte
++	_p1, err = BytePtrFromString(newpath)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(SYS_RENAMEAT, uintptr(olddirfd), uintptr(unsafe.Pointer(_p0)), uintptr(newdirfd), uintptr(unsafe.Pointer(_p1)), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Seek(fd int, offset int64, whence int) (off int64, err error) {
+ 	r0, _, e1 := Syscall(SYS_LSEEK, uintptr(fd), uintptr(offset), uintptr(whence))
+ 	off = int64(r0)
+diff --git a/src/syscall/zsyscall_linux_arm.go b/src/syscall/zsyscall_linux_arm.go
+index 3d01cd35d5..a7c978766c 100644
+--- a/src/syscall/zsyscall_linux_arm.go
++++ b/src/syscall/zsyscall_linux_arm.go
+@@ -759,26 +759,6 @@ func Removexattr(path string, attr string) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(oldpath)
+-	if err != nil {
+-		return
+-	}
+-	var _p1 *byte
+-	_p1, err = BytePtrFromString(newpath)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall6(SYS_RENAMEAT, uintptr(olddirfd), uintptr(unsafe.Pointer(_p0)), uintptr(newdirfd), uintptr(unsafe.Pointer(_p1)), 0, 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Setdomainname(p []byte) (err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1435,6 +1415,26 @@ func Listen(s int, n int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(oldpath)
++	if err != nil {
++		return
++	}
++	var _p1 *byte
++	_p1, err = BytePtrFromString(newpath)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(SYS_RENAMEAT, uintptr(olddirfd), uintptr(unsafe.Pointer(_p0)), uintptr(newdirfd), uintptr(unsafe.Pointer(_p1)), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+ 	r0, _, e1 := Syscall6(SYS_SENDFILE64, uintptr(outfd), uintptr(infd), uintptr(unsafe.Pointer(offset)), uintptr(count), 0, 0)
+ 	written = int(r0)
+diff --git a/src/syscall/zsyscall_linux_arm64.go b/src/syscall/zsyscall_linux_arm64.go
+index 28d7f16f70..17875dfb39 100644
+--- a/src/syscall/zsyscall_linux_arm64.go
++++ b/src/syscall/zsyscall_linux_arm64.go
+@@ -759,26 +759,6 @@ func Removexattr(path string, attr string) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(oldpath)
+-	if err != nil {
+-		return
+-	}
+-	var _p1 *byte
+-	_p1, err = BytePtrFromString(newpath)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall6(SYS_RENAMEAT, uintptr(olddirfd), uintptr(unsafe.Pointer(_p0)), uintptr(newdirfd), uintptr(unsafe.Pointer(_p1)), 0, 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Setdomainname(p []byte) (err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1311,6 +1291,26 @@ func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(oldpath)
++	if err != nil {
++		return
++	}
++	var _p1 *byte
++	_p1, err = BytePtrFromString(newpath)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(SYS_RENAMEAT, uintptr(olddirfd), uintptr(unsafe.Pointer(_p0)), uintptr(newdirfd), uintptr(unsafe.Pointer(_p1)), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Seek(fd int, offset int64, whence int) (off int64, err error) {
+ 	r0, _, e1 := Syscall(SYS_LSEEK, uintptr(fd), uintptr(offset), uintptr(whence))
+ 	off = int64(r0)
+diff --git a/src/syscall/zsyscall_linux_mips.go b/src/syscall/zsyscall_linux_mips.go
+index 420c349867..cb5ab684fc 100644
+--- a/src/syscall/zsyscall_linux_mips.go
++++ b/src/syscall/zsyscall_linux_mips.go
+@@ -759,26 +759,6 @@ func Removexattr(path string, attr string) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(oldpath)
+-	if err != nil {
+-		return
+-	}
+-	var _p1 *byte
+-	_p1, err = BytePtrFromString(newpath)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall6(SYS_RENAMEAT, uintptr(olddirfd), uintptr(unsafe.Pointer(_p0)), uintptr(newdirfd), uintptr(unsafe.Pointer(_p1)), 0, 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Setdomainname(p []byte) (err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1274,6 +1254,26 @@ func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(oldpath)
++	if err != nil {
++		return
++	}
++	var _p1 *byte
++	_p1, err = BytePtrFromString(newpath)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(SYS_RENAMEAT, uintptr(olddirfd), uintptr(unsafe.Pointer(_p0)), uintptr(newdirfd), uintptr(unsafe.Pointer(_p1)), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error) {
+ 	r0, _, e1 := Syscall6(SYS__NEWSELECT, uintptr(nfd), uintptr(unsafe.Pointer(r)), uintptr(unsafe.Pointer(w)), uintptr(unsafe.Pointer(e)), uintptr(unsafe.Pointer(timeout)), 0)
+ 	n = int(r0)
+diff --git a/src/syscall/zsyscall_linux_mips64.go b/src/syscall/zsyscall_linux_mips64.go
+index 049e64eb3f..b808c1e27c 100644
+--- a/src/syscall/zsyscall_linux_mips64.go
++++ b/src/syscall/zsyscall_linux_mips64.go
+@@ -759,26 +759,6 @@ func Removexattr(path string, attr string) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(oldpath)
+-	if err != nil {
+-		return
+-	}
+-	var _p1 *byte
+-	_p1, err = BytePtrFromString(newpath)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall6(SYS_RENAMEAT, uintptr(olddirfd), uintptr(unsafe.Pointer(_p0)), uintptr(newdirfd), uintptr(unsafe.Pointer(_p1)), 0, 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Setdomainname(p []byte) (err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1305,6 +1285,26 @@ func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(oldpath)
++	if err != nil {
++		return
++	}
++	var _p1 *byte
++	_p1, err = BytePtrFromString(newpath)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(SYS_RENAMEAT, uintptr(olddirfd), uintptr(unsafe.Pointer(_p0)), uintptr(newdirfd), uintptr(unsafe.Pointer(_p1)), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Seek(fd int, offset int64, whence int) (off int64, err error) {
+ 	r0, _, e1 := Syscall(SYS_LSEEK, uintptr(fd), uintptr(offset), uintptr(whence))
+ 	off = int64(r0)
+diff --git a/src/syscall/zsyscall_linux_mips64le.go b/src/syscall/zsyscall_linux_mips64le.go
+index 73ff68bc73..053c718ab7 100644
+--- a/src/syscall/zsyscall_linux_mips64le.go
++++ b/src/syscall/zsyscall_linux_mips64le.go
+@@ -759,26 +759,6 @@ func Removexattr(path string, attr string) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(oldpath)
+-	if err != nil {
+-		return
+-	}
+-	var _p1 *byte
+-	_p1, err = BytePtrFromString(newpath)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall6(SYS_RENAMEAT, uintptr(olddirfd), uintptr(unsafe.Pointer(_p0)), uintptr(newdirfd), uintptr(unsafe.Pointer(_p1)), 0, 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Setdomainname(p []byte) (err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1305,6 +1285,26 @@ func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(oldpath)
++	if err != nil {
++		return
++	}
++	var _p1 *byte
++	_p1, err = BytePtrFromString(newpath)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(SYS_RENAMEAT, uintptr(olddirfd), uintptr(unsafe.Pointer(_p0)), uintptr(newdirfd), uintptr(unsafe.Pointer(_p1)), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Seek(fd int, offset int64, whence int) (off int64, err error) {
+ 	r0, _, e1 := Syscall(SYS_LSEEK, uintptr(fd), uintptr(offset), uintptr(whence))
+ 	off = int64(r0)
+diff --git a/src/syscall/zsyscall_linux_mipsle.go b/src/syscall/zsyscall_linux_mipsle.go
+index 4b69b85c97..94a5327b63 100644
+--- a/src/syscall/zsyscall_linux_mipsle.go
++++ b/src/syscall/zsyscall_linux_mipsle.go
+@@ -759,26 +759,6 @@ func Removexattr(path string, attr string) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(oldpath)
+-	if err != nil {
+-		return
+-	}
+-	var _p1 *byte
+-	_p1, err = BytePtrFromString(newpath)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall6(SYS_RENAMEAT, uintptr(olddirfd), uintptr(unsafe.Pointer(_p0)), uintptr(newdirfd), uintptr(unsafe.Pointer(_p1)), 0, 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Setdomainname(p []byte) (err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1274,6 +1254,26 @@ func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(oldpath)
++	if err != nil {
++		return
++	}
++	var _p1 *byte
++	_p1, err = BytePtrFromString(newpath)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(SYS_RENAMEAT, uintptr(olddirfd), uintptr(unsafe.Pointer(_p0)), uintptr(newdirfd), uintptr(unsafe.Pointer(_p1)), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error) {
+ 	r0, _, e1 := Syscall6(SYS__NEWSELECT, uintptr(nfd), uintptr(unsafe.Pointer(r)), uintptr(unsafe.Pointer(w)), uintptr(unsafe.Pointer(e)), uintptr(unsafe.Pointer(timeout)), 0)
+ 	n = int(r0)
+diff --git a/src/syscall/zsyscall_linux_ppc64.go b/src/syscall/zsyscall_linux_ppc64.go
+index 74402250eb..b92e4d691a 100644
+--- a/src/syscall/zsyscall_linux_ppc64.go
++++ b/src/syscall/zsyscall_linux_ppc64.go
+@@ -759,26 +759,6 @@ func Removexattr(path string, attr string) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(oldpath)
+-	if err != nil {
+-		return
+-	}
+-	var _p1 *byte
+-	_p1, err = BytePtrFromString(newpath)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall6(SYS_RENAMEAT, uintptr(olddirfd), uintptr(unsafe.Pointer(_p0)), uintptr(newdirfd), uintptr(unsafe.Pointer(_p1)), 0, 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Setdomainname(p []byte) (err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1350,6 +1330,26 @@ func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(oldpath)
++	if err != nil {
++		return
++	}
++	var _p1 *byte
++	_p1, err = BytePtrFromString(newpath)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(SYS_RENAMEAT, uintptr(olddirfd), uintptr(unsafe.Pointer(_p0)), uintptr(newdirfd), uintptr(unsafe.Pointer(_p1)), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Seek(fd int, offset int64, whence int) (off int64, err error) {
+ 	r0, _, e1 := Syscall(SYS_LSEEK, uintptr(fd), uintptr(offset), uintptr(whence))
+ 	off = int64(r0)
+diff --git a/src/syscall/zsyscall_linux_ppc64le.go b/src/syscall/zsyscall_linux_ppc64le.go
+index 3b6c283c4b..add09e4705 100644
+--- a/src/syscall/zsyscall_linux_ppc64le.go
++++ b/src/syscall/zsyscall_linux_ppc64le.go
+@@ -759,26 +759,6 @@ func Removexattr(path string, attr string) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(oldpath)
+-	if err != nil {
+-		return
+-	}
+-	var _p1 *byte
+-	_p1, err = BytePtrFromString(newpath)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall6(SYS_RENAMEAT, uintptr(olddirfd), uintptr(unsafe.Pointer(_p0)), uintptr(newdirfd), uintptr(unsafe.Pointer(_p1)), 0, 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Setdomainname(p []byte) (err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1350,6 +1330,26 @@ func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(oldpath)
++	if err != nil {
++		return
++	}
++	var _p1 *byte
++	_p1, err = BytePtrFromString(newpath)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(SYS_RENAMEAT, uintptr(olddirfd), uintptr(unsafe.Pointer(_p0)), uintptr(newdirfd), uintptr(unsafe.Pointer(_p1)), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Seek(fd int, offset int64, whence int) (off int64, err error) {
+ 	r0, _, e1 := Syscall(SYS_LSEEK, uintptr(fd), uintptr(offset), uintptr(whence))
+ 	off = int64(r0)
+diff --git a/src/syscall/zsyscall_linux_s390x.go b/src/syscall/zsyscall_linux_s390x.go
+index 81c6d19c91..b91cb63da4 100644
+--- a/src/syscall/zsyscall_linux_s390x.go
++++ b/src/syscall/zsyscall_linux_s390x.go
+@@ -759,26 +759,6 @@ func Removexattr(path string, attr string) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(oldpath)
+-	if err != nil {
+-		return
+-	}
+-	var _p1 *byte
+-	_p1, err = BytePtrFromString(newpath)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall6(SYS_RENAMEAT, uintptr(olddirfd), uintptr(unsafe.Pointer(_p0)), uintptr(newdirfd), uintptr(unsafe.Pointer(_p1)), 0, 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Setdomainname(p []byte) (err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+@@ -1320,6 +1300,26 @@ func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(oldpath)
++	if err != nil {
++		return
++	}
++	var _p1 *byte
++	_p1, err = BytePtrFromString(newpath)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(SYS_RENAMEAT, uintptr(olddirfd), uintptr(unsafe.Pointer(_p0)), uintptr(newdirfd), uintptr(unsafe.Pointer(_p1)), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Seek(fd int, offset int64, whence int) (off int64, err error) {
+ 	r0, _, e1 := Syscall(SYS_LSEEK, uintptr(fd), uintptr(offset), uintptr(whence))
+ 	off = int64(r0)

@@ -24,7 +24,7 @@ Date:   Mon Jan 11 15:07:09 2021 -0800
     Reviewed-by: Dan Scales <danscales@google.com>
     Trust: Dan Scales <danscales@google.com>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/func.go             |   6 ++
  src/cmd/compile/internal/ir/name.go             |   8 +-
  src/cmd/compile/internal/typecheck/dcl.go       |  27 +------
@@ -36,3 +36,507 @@ Date:   Mon Jan 11 15:07:09 2021 -0800
  test/fixedbugs/issue43633.go                    |   7 ++
  test/fixedbugs/issue7921.go                     |   2 +-
  10 files changed, 171 insertions(+), 88 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 12ef083c19..d660fe3b40 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -61,8 +61,14 @@ type Func struct {
+ 	// memory for escaping parameters.
+ 	Enter Nodes
+ 	Exit  Nodes
++
+ 	// ONAME nodes for all params/locals for this func/closure, does NOT
+ 	// include closurevars until transformclosure runs.
++	// Names must be listed PPARAMs, PPARAMOUTs, then PAUTOs,
++	// with PPARAMs and PPARAMOUTs in order corresponding to the function signature.
++	// However, as anonymous or blank PPARAMs are not actually declared,
++	// they are omitted from Dcl.
++	// Anonymous and blank PPARAMOUTs are declared as ~rNN and ~bNN Names, respectively.
+ 	Dcl []*Name
+ 
+ 	ClosureType Ntype // closure representation type
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 2375eddb99..30f7e9b9e0 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -55,11 +55,9 @@ type Name struct {
+ 	// The function, method, or closure in which local variable or param is declared.
+ 	Curfn *Func
+ 
+-	// Unique number for ONAME nodes within a function. Function outputs
+-	// (results) are numbered starting at one, followed by function inputs
+-	// (parameters), and then local variables. Vargen is used to distinguish
+-	// local variables/params with the same name.
+-	Vargen int32
++	// Unique number for OTYPE names within a function.
++	// TODO(mdempsky): Remove completely.
++	Typegen int32
+ 
+ 	Ntype    Ntype
+ 	Heapaddr *Name // temp holding heap address of param
+diff --git a/src/cmd/compile/internal/typecheck/dcl.go b/src/cmd/compile/internal/typecheck/dcl.go
+index ffbf474a58..caa3e8203a 100644
+--- a/src/cmd/compile/internal/typecheck/dcl.go
++++ b/src/cmd/compile/internal/typecheck/dcl.go
+@@ -7,7 +7,6 @@ package typecheck
+ import (
+ 	"fmt"
+ 	"strconv"
+-	"strings"
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+@@ -47,7 +46,6 @@ func Declare(n *ir.Name, ctxt ir.Class) {
+ 		base.ErrorfAt(n.Pos(), "cannot declare name %v", s)
+ 	}
+ 
+-	gen := 0
+ 	if ctxt == ir.PEXTERN {
+ 		if s.Name == "init" {
+ 			base.ErrorfAt(n.Pos(), "cannot declare init - must be func")
+@@ -66,10 +64,7 @@ func Declare(n *ir.Name, ctxt ir.Class) {
+ 		}
+ 		if n.Op() == ir.OTYPE {
+ 			declare_typegen++
+-			gen = declare_typegen
+-		} else if n.Op() == ir.ONAME && ctxt == ir.PAUTO && !strings.Contains(s.Name, "·") {
+-			vargen++
+-			gen = vargen
++			n.Typegen = int32(declare_typegen)
+ 		}
+ 		types.Pushdcl(s)
+ 		n.Curfn = ir.CurFunc
+@@ -90,7 +85,6 @@ func Declare(n *ir.Name, ctxt ir.Class) {
+ 	s.Block = types.Block
+ 	s.Lastlineno = base.Pos
+ 	s.Def = n
+-	n.Vargen = int32(gen)
+ 	n.Class = ctxt
+ 	if ctxt == ir.PFUNC {
+ 		n.Sym().SetFunc(true)
+@@ -338,9 +332,6 @@ func funcarg(n *ir.Field, ctxt ir.Class) {
+ 	n.Decl = name
+ 	name.Ntype = n.Ntype
+ 	Declare(name, ctxt)
+-
+-	vargen++
+-	n.Decl.Vargen = int32(vargen)
+ }
+ 
+ func funcarg2(f *types.Field, ctxt ir.Class) {
+@@ -358,15 +349,6 @@ func funcargs(nt *ir.FuncType) {
+ 		base.Fatalf("funcargs %v", nt.Op())
+ 	}
+ 
+-	// re-start the variable generation number
+-	// we want to use small numbers for the return variables,
+-	// so let them have the chunk starting at 1.
+-	//
+-	// TODO(mdempsky): This is ugly, and only necessary because
+-	// esc.go uses Vargen to figure out result parameters' index
+-	// within the result tuple.
+-	vargen = len(nt.Results)
+-
+ 	// declare the receiver and in arguments.
+ 	if nt.Recv != nil {
+ 		funcarg(nt.Recv, ir.PPARAM)
+@@ -375,9 +357,6 @@ func funcargs(nt *ir.FuncType) {
+ 		funcarg(n, ir.PPARAM)
+ 	}
+ 
+-	oldvargen := vargen
+-	vargen = 0
+-
+ 	// declare the out arguments.
+ 	gen := len(nt.Params)
+ 	for _, n := range nt.Results {
+@@ -399,8 +378,6 @@ func funcargs(nt *ir.FuncType) {
+ 
+ 		funcarg(n, ir.PPARAMOUT)
+ 	}
+-
+-	vargen = oldvargen
+ }
+ 
+ // Same as funcargs, except run over an already constructed TFUNC.
+@@ -422,8 +399,6 @@ func funcargs2(t *types.Type) {
+ 	}
+ }
+ 
+-var vargen int
+-
+ func Temp(t *types.Type) *ir.Name {
+ 	return TempAt(base.Pos, ir.CurFunc, t)
+ }
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index a7927c39a3..4d48b80346 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -422,6 +422,10 @@ type exportWriter struct {
+ 	prevFile   string
+ 	prevLine   int64
+ 	prevColumn int64
++
++	// dclIndex maps function-scoped declarations to their index
++	// within their respective Func's Dcl list.
++	dclIndex map[*ir.Name]int
+ }
+ 
+ func (p *iexporter) doDecl(n *ir.Name) {
+@@ -529,7 +533,8 @@ func (p *iexporter) doInline(f *ir.Name) {
+ 	w := p.newWriter()
+ 	w.setPkg(fnpkg(f), false)
+ 
+-	w.stmtList(ir.Nodes(f.Func.Inl.Body))
++	w.dclIndex = make(map[*ir.Name]int, len(f.Func.Inl.Dcl))
++	w.funcBody(f.Func)
+ 
+ 	w.finish("inl", p.inlineIndex, f.Sym())
+ }
+@@ -756,7 +761,7 @@ func (w *exportWriter) paramList(fs []*types.Field) {
+ 
+ func (w *exportWriter) param(f *types.Field) {
+ 	w.pos(f.Pos)
+-	w.localIdent(types.OrigSym(f.Sym), 0)
++	w.localIdent(types.OrigSym(f.Sym))
+ 	w.typ(f.Type)
+ }
+ 
+@@ -1030,7 +1035,19 @@ func (w *exportWriter) typeExt(t *types.Type) {
+ 
+ // Inline bodies.
+ 
+-func (w *exportWriter) stmtList(list ir.Nodes) {
++func (w *exportWriter) funcBody(fn *ir.Func) {
++	w.int64(int64(len(fn.Inl.Dcl)))
++	for i, n := range fn.Inl.Dcl {
++		w.pos(n.Pos())
++		w.localIdent(n.Sym())
++		w.typ(n.Type())
++		w.dclIndex[n] = i
++	}
++
++	w.stmtList(fn.Inl.Body)
++}
++
++func (w *exportWriter) stmtList(list []ir.Node) {
+ 	for _, n := range list {
+ 		w.node(n)
+ 	}
+@@ -1070,10 +1087,11 @@ func (w *exportWriter) stmt(n ir.Node) {
+ 
+ 	case ir.ODCL:
+ 		n := n.(*ir.Decl)
++		if ir.IsBlank(n.X) {
++			return // blank declarations not useful to importers
++		}
+ 		w.op(ir.ODCL)
+-		w.pos(n.X.Pos())
+ 		w.localName(n.X)
+-		w.typ(n.X.Type())
+ 
+ 	case ir.OAS:
+ 		// Don't export "v = <N>" initializing statements, hope they're always
+@@ -1288,7 +1306,7 @@ func (w *exportWriter) expr(n ir.Node) {
+ 			}
+ 			s = n.Tag.Sym()
+ 		}
+-		w.localIdent(s, 0) // declared pseudo-variable, if any
++		w.localIdent(s) // declared pseudo-variable, if any
+ 		w.expr(n.X)
+ 
+ 	// case OTARRAY, OTMAP, OTCHAN, OTSTRUCT, OTINTER, OTFUNC:
+@@ -1518,22 +1536,19 @@ func (w *exportWriter) fieldList(list ir.Nodes) {
+ }
+ 
+ func (w *exportWriter) localName(n *ir.Name) {
+-	// Escape analysis happens after inline bodies are saved, but
+-	// we're using the same ONAME nodes, so we might still see
+-	// PAUTOHEAP here.
+-	//
+-	// Check for Stackcopy to identify PAUTOHEAP that came from
+-	// PPARAM/PPARAMOUT, because we only want to include vargen in
+-	// non-param names.
+-	var v int32
+-	if n.Class == ir.PAUTO || (n.Class == ir.PAUTOHEAP && n.Stackcopy == nil) {
+-		v = n.Vargen
++	if ir.IsBlank(n) {
++		w.int64(-1)
++		return
+ 	}
+ 
+-	w.localIdent(n.Sym(), v)
++	i, ok := w.dclIndex[n]
++	if !ok {
++		base.FatalfAt(n.Pos(), "missing from dclIndex: %+v", n)
++	}
++	w.int64(int64(i))
+ }
+ 
+-func (w *exportWriter) localIdent(s *types.Sym, v int32) {
++func (w *exportWriter) localIdent(s *types.Sym) {
+ 	if w.currPkg == nil {
+ 		base.Fatalf("missing currPkg")
+ 	}
+@@ -1555,13 +1570,6 @@ func (w *exportWriter) localIdent(s *types.Sym, v int32) {
+ 		base.Fatalf("unexpected dot in identifier: %v", name)
+ 	}
+ 
+-	if v > 0 {
+-		if strings.Contains(name, "·") {
+-			base.Fatalf("exporter: unexpected · in symbol name")
+-		}
+-		name = fmt.Sprintf("%s·%d", name, v)
+-	}
+-
+ 	if s.Pkg != w.currPkg {
+ 		base.Fatalf("weird package in name: %v => %v from %q, not %q", s, name, s.Pkg.Path, w.currPkg.Path)
+ 	}
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 15c57b2380..c9effabce0 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -262,6 +262,9 @@ type importReader struct {
+ 	prevBase   *src.PosBase
+ 	prevLine   int64
+ 	prevColumn int64
++
++	// curfn is the current function we're importing into.
++	curfn *ir.Func
+ }
+ 
+ func (p *iimporter) newReader(off uint64, pkg *types.Pkg) *importReader {
+@@ -715,19 +718,7 @@ func (r *importReader) doInline(fn *ir.Func) {
+ 		base.Fatalf("%v already has inline body", fn)
+ 	}
+ 
+-	StartFuncBody(fn)
+-	body := r.stmtList()
+-	FinishFuncBody()
+-	if body == nil {
+-		//
+-		// Make sure empty body is not interpreted as
+-		// no inlineable body (see also parser.fnbody)
+-		// (not doing so can cause significant performance
+-		// degradation due to unnecessary calls to empty
+-		// functions).
+-		body = []ir.Node{}
+-	}
+-	fn.Inl.Body = body
++	r.funcBody(fn)
+ 
+ 	importlist = append(importlist, fn)
+ 
+@@ -755,6 +746,68 @@ func (r *importReader) doInline(fn *ir.Func) {
+ // unrefined nodes (since this is what the importer uses). The respective case
+ // entries are unreachable in the importer.
+ 
++func (r *importReader) funcBody(fn *ir.Func) {
++	outerfn := r.curfn
++	r.curfn = fn
++
++	// Import local declarations.
++	dcls := make([]*ir.Name, r.int64())
++	for i := range dcls {
++		n := ir.NewDeclNameAt(r.pos(), ir.ONAME, r.localIdent())
++		n.Class = ir.PAUTO // overwritten below for parameters/results
++		n.Curfn = fn
++		n.SetType(r.typ())
++		dcls[i] = n
++	}
++	fn.Inl.Dcl = dcls
++
++	// Fixup parameter classes and associate with their
++	// signature's type fields.
++	i := 0
++	fix := func(f *types.Field, class ir.Class) {
++		if class == ir.PPARAM && (f.Sym == nil || f.Sym.Name == "_") {
++			return
++		}
++		n := dcls[i]
++		n.Class = class
++		f.Nname = n
++		i++
++	}
++
++	typ := fn.Type()
++	if recv := typ.Recv(); recv != nil {
++		fix(recv, ir.PPARAM)
++	}
++	for _, f := range typ.Params().FieldSlice() {
++		fix(f, ir.PPARAM)
++	}
++	for _, f := range typ.Results().FieldSlice() {
++		fix(f, ir.PPARAMOUT)
++	}
++
++	// Import function body.
++	body := r.stmtList()
++	if body == nil {
++		// Make sure empty body is not interpreted as
++		// no inlineable body (see also parser.fnbody)
++		// (not doing so can cause significant performance
++		// degradation due to unnecessary calls to empty
++		// functions).
++		body = []ir.Node{}
++	}
++	fn.Inl.Body = body
++
++	r.curfn = outerfn
++}
++
++func (r *importReader) localName() *ir.Name {
++	i := r.int64()
++	if i < 0 {
++		return ir.BlankNode.(*ir.Name)
++	}
++	return r.curfn.Inl.Dcl[i]
++}
++
+ func (r *importReader) stmtList() []ir.Node {
+ 	var list []ir.Node
+ 	for {
+@@ -784,13 +837,8 @@ func (r *importReader) caseList(switchExpr ir.Node) []*ir.CaseClause {
+ 		cas := ir.NewCaseStmt(r.pos(), nil, nil)
+ 		cas.List = r.stmtList()
+ 		if namedTypeSwitch {
+-			// Note: per-case variables will have distinct, dotted
+-			// names after import. That's okay: swt.go only needs
+-			// Sym for diagnostics anyway.
+-			caseVar := ir.NewNameAt(cas.Pos(), r.localIdent())
+-			Declare(caseVar, DeclContext)
+-			cas.Var = caseVar
+-			caseVar.Defn = switchExpr
++			cas.Var = r.localName()
++			cas.Var.Defn = switchExpr
+ 		}
+ 		cas.Body = r.stmtList()
+ 		cases[i] = cas
+@@ -854,7 +902,7 @@ func (r *importReader) node() ir.Node {
+ 		return r.qualifiedIdent()
+ 
+ 	case ir.ONAME:
+-		return r.localIdent().Def.(*ir.Name)
++		return r.localName()
+ 
+ 	// case OPACK, ONONAME:
+ 	// 	unreachable - should have been resolved by typechecking
+@@ -991,16 +1039,11 @@ func (r *importReader) node() ir.Node {
+ 	// --------------------------------------------------------------------
+ 	// statements
+ 	case ir.ODCL:
+-		pos := r.pos()
+-		lhs := ir.NewDeclNameAt(pos, ir.ONAME, r.localIdent())
+-		lhs.SetType(r.typ())
+-
+-		Declare(lhs, ir.PAUTO)
+-
+ 		var stmts ir.Nodes
+-		stmts.Append(ir.NewDecl(base.Pos, ir.ODCL, lhs))
+-		stmts.Append(ir.NewAssignStmt(base.Pos, lhs, nil))
+-		return ir.NewBlockStmt(pos, stmts)
++		n := r.localName()
++		stmts.Append(ir.NewDecl(n.Pos(), ir.ODCL, n))
++		stmts.Append(ir.NewAssignStmt(n.Pos(), n, nil))
++		return ir.NewBlockStmt(n.Pos(), stmts)
+ 
+ 	// case OAS, OASWB:
+ 	// 	unreachable - mapped to OAS case below by exporter
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 3160725e3c..431fb04bef 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -1687,7 +1687,7 @@ func typecheckdeftype(n *ir.Name) {
+ 	}
+ 
+ 	t := types.NewNamed(n)
+-	t.Vargen = n.Vargen
++	t.Vargen = n.Typegen
+ 	if n.Pragma()&ir.NotInHeap != 0 {
+ 		t.SetNotInHeap(true)
+ 	}
+diff --git a/test/fixedbugs/issue43633.dir/a.go b/test/fixedbugs/issue43633.dir/a.go
+new file mode 100644
+index 0000000000..946a37e87e
+--- /dev/null
++++ b/test/fixedbugs/issue43633.dir/a.go
+@@ -0,0 +1,28 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++func F() bool {
++	{
++		x := false
++		_ = x
++	}
++	if false {
++		_ = func(x bool) {}
++	}
++	x := true
++	return x
++}
++
++func G() func() bool {
++	x := true
++	return func() bool {
++		{
++			x := false
++			_ = x
++		}
++		return x
++	}
++}
+diff --git a/test/fixedbugs/issue43633.dir/main.go b/test/fixedbugs/issue43633.dir/main.go
+new file mode 100644
+index 0000000000..320e00013c
+--- /dev/null
++++ b/test/fixedbugs/issue43633.dir/main.go
+@@ -0,0 +1,18 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "./a"
++
++var g = a.G()
++
++func main() {
++	if !a.F() {
++		panic("FAIL")
++	}
++	if !g() {
++		panic("FAIL")
++	}
++}
+diff --git a/test/fixedbugs/issue43633.go b/test/fixedbugs/issue43633.go
+new file mode 100644
+index 0000000000..40df49f83b
+--- /dev/null
++++ b/test/fixedbugs/issue43633.go
+@@ -0,0 +1,7 @@
++// rundir
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored
+diff --git a/test/fixedbugs/issue7921.go b/test/fixedbugs/issue7921.go
+index 5dce557ca3..a4e7b246d4 100644
+--- a/test/fixedbugs/issue7921.go
++++ b/test/fixedbugs/issue7921.go
+@@ -41,7 +41,7 @@ func bufferNoEscape3(xs []string) string { // ERROR "xs does not escape$"
+ 
+ func bufferNoEscape4() []byte {
+ 	var b bytes.Buffer
+-	b.Grow(64) // ERROR "bufferNoEscape4 ignoring self-assignment in bytes.b.buf = bytes.b.buf\[:bytes.m·3\]$" "inlining call to bytes.\(\*Buffer\).Grow$"
++	b.Grow(64) // ERROR "bufferNoEscape4 ignoring self-assignment in bytes.b.buf = bytes.b.buf\[:bytes.m\]$" "inlining call to bytes.\(\*Buffer\).Grow$"
+ 	useBuffer(&b)
+ 	return b.Bytes() // ERROR "inlining call to bytes.\(\*Buffer\).Bytes$"
+ }

@@ -8,7 +8,32 @@ Date:   Tue Jun 24 16:33:32 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/101520043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index cafa927ac5..aac4f70895 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -391,6 +391,7 @@ Tad Glines <tad.glines@gmail.com>
+ Taj Khattra <taj.khattra@gmail.com>
+ Tarmigan Casebolt <tarmigan@gmail.com>
+ Taru Karttunen <taruti@taruti.net>
++Tetsuo Kiso <tetsuokiso9@gmail.com>
+ Thomas Alan Copeland <talan.copeland@gmail.com>
+ Thomas Kappler <tkappler@gmail.com>
+ Timo Savola <timo.savola@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index d59775de7d..3a18f7e225 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -538,6 +538,7 @@ Tad Glines <tad.glines@gmail.com>
+ Taj Khattra <taj.khattra@gmail.com>
+ Tarmigan Casebolt <tarmigan@gmail.com>
+ Taru Karttunen <taruti@taruti.net>
++Tetsuo Kiso <tetsuokiso9@gmail.com>
+ Thomas Alan Copeland <talan.copeland@gmail.com>
+ Thomas Habets <habets@google.com>
+ Thomas Kappler <tkappler@gmail.com>

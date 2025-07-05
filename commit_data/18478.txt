@@ -12,9 +12,100 @@ Date:   Wed Feb 12 13:31:05 2014 -0800
     R=agl
     CC=golang-codereviews
     https://golang.org/cl/62420043
-
+---
  src/pkg/crypto/md5/gen.go              |  4 +---
  src/pkg/crypto/md5/md5_test.go         | 13 +++++++++++++
  src/pkg/crypto/md5/md5block.go         |  4 +---
  src/pkg/crypto/md5/md5block_generic.go |  9 +++++++++
  4 files changed, 24 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/crypto/md5/gen.go b/src/pkg/crypto/md5/gen.go
+index 397e2647e4..75295e4fcb 100644
+--- a/src/pkg/crypto/md5/gen.go
++++ b/src/pkg/crypto/md5/gen.go
+@@ -167,8 +167,6 @@ var program = `// Copyright 2013 The Go Authors. All rights reserved.
+ // DO NOT EDIT.
+ // Generate with: go run gen.go{{if .Full}} -full{{end}} | gofmt >md5block.go
+ 
+-// +build !amd64,!386,!arm
+-
+ package md5
+ 
+ import (
+@@ -204,7 +202,7 @@ func init() {
+ 	littleEndian = *(*[4]byte)(unsafe.Pointer(&x)) == y
+ }
+ 
+-func block(dig *digest, p []byte) {
++func blockGeneric(dig *digest, p []byte) {
+ 	a := dig.s[0]
+ 	b := dig.s[1]
+ 	c := dig.s[2]
+diff --git a/src/pkg/crypto/md5/md5_test.go b/src/pkg/crypto/md5/md5_test.go
+index a8b7a1a525..e7faf4961e 100644
+--- a/src/pkg/crypto/md5/md5_test.go
++++ b/src/pkg/crypto/md5/md5_test.go
+@@ -5,6 +5,7 @@
+ package md5
+ 
+ import (
++	"crypto/rand"
+ 	"fmt"
+ 	"io"
+ 	"testing"
+@@ -105,6 +106,18 @@ func TestLarge(t *testing.T) {
+ 	}
+ }
+ 
++// Tests that blockGeneric (pure Go) and block (in assembly for amd64, 386, arm) match.
++func TestBlockGeneric(t *testing.T) {
++	gen, asm := New().(*digest), New().(*digest)
++	buf := make([]byte, BlockSize*20) // arbitrary factor
++	rand.Read(buf)
++	blockGeneric(gen, buf)
++	block(asm, buf)
++	if *gen != *asm {
++		t.Error("block and blockGeneric resulted in different states")
++	}
++}
++
+ var bench = New()
+ var buf = make([]byte, 8192+1)
+ var sum = make([]byte, bench.Size())
+diff --git a/src/pkg/crypto/md5/md5block.go b/src/pkg/crypto/md5/md5block.go
+index c1a87e4640..e2a1767775 100644
+--- a/src/pkg/crypto/md5/md5block.go
++++ b/src/pkg/crypto/md5/md5block.go
+@@ -5,8 +5,6 @@
+ // DO NOT EDIT.
+ // Generate with: go run gen.go -full | gofmt >md5block.go
+ 
+-// +build !amd64,!386,!arm
+-
+ package md5
+ 
+ import (
+@@ -24,7 +22,7 @@ func init() {
+ 	littleEndian = *(*[4]byte)(unsafe.Pointer(&x)) == y
+ }
+ 
+-func block(dig *digest, p []byte) {
++func blockGeneric(dig *digest, p []byte) {
+ 	a := dig.s[0]
+ 	b := dig.s[1]
+ 	c := dig.s[2]
+diff --git a/src/pkg/crypto/md5/md5block_generic.go b/src/pkg/crypto/md5/md5block_generic.go
+new file mode 100644
+index 0000000000..239bf4d215
+--- /dev/null
++++ b/src/pkg/crypto/md5/md5block_generic.go
+@@ -0,0 +1,9 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !amd64,!386,!arm
++
++package md5
++
++var block = blockGeneric

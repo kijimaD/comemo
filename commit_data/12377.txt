@@ -7,6 +7,21 @@ Date:   Mon Mar 5 13:34:12 2012 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5729068
-
+---
  src/pkg/encoding/csv/reader.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/encoding/csv/reader.go b/src/pkg/encoding/csv/reader.go
+index 9aa398e58b..db4d988526 100644
+--- a/src/pkg/encoding/csv/reader.go
++++ b/src/pkg/encoding/csv/reader.go
+@@ -92,7 +92,8 @@ var (
+ // If FieldsPerRecord is positive, Read requires each record to
+ // have the given number of fields.  If FieldsPerRecord is 0, Read sets it to
+ // the number of fields in the first record, so that future records must
+-// have the same field count.
++// have the same field count.  If FieldsPerRecord is negative, no check is
++// made and records may have a variable number of fields.
+ //
+ // If LazyQuotes is true, a quote may appear in an unquoted field and a
+ // non-doubled quote may appear in a quoted field.

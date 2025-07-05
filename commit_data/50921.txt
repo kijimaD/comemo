@@ -25,7 +25,225 @@ Date:   Mon Nov 15 17:47:15 2021 -0800
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/internal/fuzz/mutator.go | 39 +++++++++++++++------------------------
  src/internal/fuzz/worker.go  | 23 ++++++++++++++++++++---
  2 files changed, 35 insertions(+), 27 deletions(-)
+
+diff --git a/src/internal/fuzz/mutator.go b/src/internal/fuzz/mutator.go
+index da7200dcbe..a3161c04ea 100644
+--- a/src/internal/fuzz/mutator.go
++++ b/src/internal/fuzz/mutator.go
+@@ -125,15 +125,13 @@ func (m *mutator) mutate(vals []interface{}, maxBytes int) {
+ }
+ 
+ func (m *mutator) mutateInt(v, maxValue int64) int64 {
+-	numIters := 1 + m.r.exp2()
+ 	var max int64
+-	for iter := 0; iter < numIters; iter++ {
++	for {
+ 		max = 100
+ 		switch m.rand(2) {
+ 		case 0:
+ 			// Add a random number
+ 			if v >= maxValue {
+-				iter--
+ 				continue
+ 			}
+ 			if v > 0 && maxValue-v < max {
+@@ -141,10 +139,10 @@ func (m *mutator) mutateInt(v, maxValue int64) int64 {
+ 				max = maxValue - v
+ 			}
+ 			v += int64(1 + m.rand(int(max)))
++			return v
+ 		case 1:
+ 			// Subtract a random number
+ 			if v <= -maxValue {
+-				iter--
+ 				continue
+ 			}
+ 			if v < 0 && maxValue+v < max {
+@@ -152,21 +150,19 @@ func (m *mutator) mutateInt(v, maxValue int64) int64 {
+ 				max = maxValue + v
+ 			}
+ 			v -= int64(1 + m.rand(int(max)))
++			return v
+ 		}
+ 	}
+-	return v
+ }
+ 
+ func (m *mutator) mutateUInt(v, maxValue uint64) uint64 {
+-	numIters := 1 + m.r.exp2()
+ 	var max uint64
+-	for iter := 0; iter < numIters; iter++ {
++	for {
+ 		max = 100
+ 		switch m.rand(2) {
+ 		case 0:
+ 			// Add a random number
+ 			if v >= maxValue {
+-				iter--
+ 				continue
+ 			}
+ 			if v > 0 && maxValue-v < max {
+@@ -175,10 +171,10 @@ func (m *mutator) mutateUInt(v, maxValue uint64) uint64 {
+ 			}
+ 
+ 			v += uint64(1 + m.rand(int(max)))
++			return v
+ 		case 1:
+ 			// Subtract a random number
+ 			if v <= 0 {
+-				iter--
+ 				continue
+ 			}
+ 			if v < max {
+@@ -186,20 +182,18 @@ func (m *mutator) mutateUInt(v, maxValue uint64) uint64 {
+ 				max = v
+ 			}
+ 			v -= uint64(1 + m.rand(int(max)))
++			return v
+ 		}
+ 	}
+-	return v
+ }
+ 
+ func (m *mutator) mutateFloat(v, maxValue float64) float64 {
+-	numIters := 1 + m.r.exp2()
+ 	var max float64
+-	for iter := 0; iter < numIters; iter++ {
++	for {
+ 		switch m.rand(4) {
+ 		case 0:
+ 			// Add a random number
+ 			if v >= maxValue {
+-				iter--
+ 				continue
+ 			}
+ 			max = 100
+@@ -208,10 +202,10 @@ func (m *mutator) mutateFloat(v, maxValue float64) float64 {
+ 				max = maxValue - v
+ 			}
+ 			v += float64(1 + m.rand(int(max)))
++			return v
+ 		case 1:
+ 			// Subtract a random number
+ 			if v <= -maxValue {
+-				iter--
+ 				continue
+ 			}
+ 			max = 100
+@@ -220,11 +214,11 @@ func (m *mutator) mutateFloat(v, maxValue float64) float64 {
+ 				max = maxValue + v
+ 			}
+ 			v -= float64(1 + m.rand(int(max)))
++			return v
+ 		case 2:
+ 			// Multiply by a random number
+ 			absV := math.Abs(v)
+ 			if v == 0 || absV >= maxValue {
+-				iter--
+ 				continue
+ 			}
+ 			max = 10
+@@ -233,16 +227,16 @@ func (m *mutator) mutateFloat(v, maxValue float64) float64 {
+ 				max = maxValue / absV
+ 			}
+ 			v *= float64(1 + m.rand(int(max)))
++			return v
+ 		case 3:
+ 			// Divide by a random number
+ 			if v == 0 {
+-				iter--
+ 				continue
+ 			}
+ 			v /= float64(1 + m.rand(10))
++			return v
+ 		}
+ 	}
+-	return v
+ }
+ 
+ type byteSliceMutator func(*mutator, []byte) []byte
+@@ -279,15 +273,12 @@ func (m *mutator) mutateBytes(ptrB *[]byte) {
+ 		*ptrB = b
+ 	}()
+ 
+-	numIters := 1 + m.r.exp2()
+-	for iter := 0; iter < numIters; iter++ {
++	for {
+ 		mut := byteSliceMutators[m.rand(len(byteSliceMutators))]
+-		mutated := mut(m, b)
+-		if mutated == nil {
+-			iter--
+-			continue
++		if mutated := mut(m, b); mutated != nil {
++			b = mutated
++			return
+ 		}
+-		b = mutated
+ 	}
+ }
+ 
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index 48a3923112..e7d824bea1 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -661,6 +661,17 @@ func (ws *workerServer) serve(ctx context.Context) error {
+ 	}
+ }
+ 
++// chainedMutations is how many mutations are applied before the worker
++// resets the input to it's original state.
++// NOTE: this number was picked without much thought. It is low enough that
++// it seems to create a significant diversity in mutated inputs. We may want
++// to consider looking into this more closely once we have a proper performance
++// testing framework. Another option is to randomly pick the number of chained
++// mutations on each invocation of the workerServer.fuzz method (this appears to
++// be what libFuzzer does, although there seems to be no documentation which
++// explains why this choice was made.)
++const chainedMutations = 5
++
+ // fuzz runs the test function on random variations of the input value in shared
+ // memory for a limited duration or number of iterations.
+ //
+@@ -699,11 +710,13 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
+ 		return resp
+ 	}
+ 
+-	vals, err := unmarshalCorpusFile(mem.valueCopy())
++	originalVals, err := unmarshalCorpusFile(mem.valueCopy())
+ 	if err != nil {
+ 		resp.InternalErr = err.Error()
+ 		return resp
+ 	}
++	vals := make([]interface{}, len(originalVals))
++	copy(vals, originalVals)
+ 
+ 	shouldStop := func() bool {
+ 		return args.Limit > 0 && mem.header().count >= args.Limit
+@@ -742,9 +755,13 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
+ 		select {
+ 		case <-ctx.Done():
+ 			return resp
+-
+ 		default:
++			if mem.header().count%chainedMutations == 0 {
++				copy(vals, originalVals)
++				ws.m.r.save(&mem.header().randState, &mem.header().randInc)
++			}
+ 			ws.m.mutate(vals, cap(mem.valueRef()))
++
+ 			entry := CorpusEntry{Values: vals}
+ 			dur, cov, errMsg := fuzzOnce(entry)
+ 			if errMsg != "" {
+@@ -1094,7 +1111,7 @@ func (wc *workerClient) fuzz(ctx context.Context, entryIn CorpusEntry, args fuzz
+ 		wc.m.r.restore(mem.header().randState, mem.header().randInc)
+ 		if !args.Warmup {
+ 			// Only mutate the valuesOut if fuzzing actually occurred.
+-			for i := int64(0); i < resp.Count; i++ {
++			for i := int64(0); i < resp.Count%chainedMutations; i++ {
+ 				wc.m.mutate(valuesOut, cap(mem.valueRef()))
+ 			}
+ 		}

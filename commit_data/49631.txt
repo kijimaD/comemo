@@ -21,10 +21,109 @@ Date:   Wed Sep 1 10:13:41 2021 +0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Dan Scales <danscales@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/decl.go         |  4 ++++
  src/cmd/compile/internal/noder/irgen.go        | 22 ++++++++++++++++------
  src/cmd/compile/internal/types2/stdlib_test.go |  2 ++
  src/go/types/stdlib_test.go                    |  1 +
  test/fixedbugs/issue48097.go                   | 12 ++++++++++++
  5 files changed, 35 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/decl.go b/src/cmd/compile/internal/noder/decl.go
+index 87a8667003..de481fb5fc 100644
+--- a/src/cmd/compile/internal/noder/decl.go
++++ b/src/cmd/compile/internal/noder/decl.go
+@@ -113,6 +113,10 @@ func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
+ 		}
+ 	}
+ 
++	if decl.Body != nil && fn.Pragma&ir.Noescape != 0 {
++		base.ErrorfAt(fn.Pos(), "can only use //go:noescape with external func implementations")
++	}
++
+ 	if decl.Name.Value == "init" && decl.Recv == nil {
+ 		g.target.Inits = append(g.target.Inits, fn)
+ 	}
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index d53c254001..70f7991a8e 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -272,12 +272,6 @@ Outer:
+ 		}
+ 	}
+ 
+-	// Check for unusual case where noder2 encounters a type error that types2
+-	// doesn't check for (e.g. notinheap incompatibility).
+-	base.ExitIfErrors()
+-
+-	typecheck.DeclareUniverse()
+-
+ 	for _, p := range noders {
+ 		// Process linkname and cgo pragmas.
+ 		p.processPragmas()
+@@ -290,6 +284,22 @@ Outer:
+ 		})
+ 	}
+ 
++	if base.Flag.Complete {
++		for _, n := range g.target.Decls {
++			if fn, ok := n.(*ir.Func); ok {
++				if fn.Body == nil && fn.Nname.Sym().Linkname == "" {
++					base.ErrorfAt(fn.Pos(), "missing function body")
++				}
++			}
++		}
++	}
++
++	// Check for unusual case where noder2 encounters a type error that types2
++	// doesn't check for (e.g. notinheap incompatibility).
++	base.ExitIfErrors()
++
++	typecheck.DeclareUniverse()
++
+ 	// Create any needed stencils of generic functions
+ 	g.stencil()
+ 
+diff --git a/src/cmd/compile/internal/types2/stdlib_test.go b/src/cmd/compile/internal/types2/stdlib_test.go
+index cde35c17b6..5bf2982418 100644
+--- a/src/cmd/compile/internal/types2/stdlib_test.go
++++ b/src/cmd/compile/internal/types2/stdlib_test.go
+@@ -192,6 +192,8 @@ func TestStdFixed(t *testing.T) {
+ 		"issue20780.go",  // types2 does not have constraints on stack size
+ 		"issue42058a.go", // types2 does not have constraints on channel element size
+ 		"issue42058b.go", // types2 does not have constraints on channel element size
++		"issue48097.go",  // go/types doesn't check validity of //go:xxx directives, and non-init bodyless function
++
+ 	)
+ }
+ 
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 3eb7519a91..12ed9a54f2 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -194,6 +194,7 @@ func TestStdFixed(t *testing.T) {
+ 		"bug251.go",      // issue #34333 which was exposed with fix for #34151
+ 		"issue42058a.go", // go/types does not have constraints on channel element size
+ 		"issue42058b.go", // go/types does not have constraints on channel element size
++		"issue48097.go",  // go/types doesn't check validity of //go:xxx directives, and non-init bodyless function
+ 	)
+ }
+ 
+diff --git a/test/fixedbugs/issue48097.go b/test/fixedbugs/issue48097.go
+new file mode 100644
+index 0000000000..b08c2a2f52
+--- /dev/null
++++ b/test/fixedbugs/issue48097.go
+@@ -0,0 +1,12 @@
++// errorcheck -complete
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func F() // ERROR "missing function body"
++
++//go:noescape
++func f() {} // ERROR "can only use //go:noescape with external func implementations"

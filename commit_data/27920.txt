@@ -15,6 +15,20 @@ Date:   Wed Apr 20 09:08:28 2016 +0300
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/container/heap/heap_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/container/heap/heap_test.go b/src/container/heap/heap_test.go
+index b3d054c5f3..d41110422e 100644
+--- a/src/container/heap/heap_test.go
++++ b/src/container/heap/heap_test.go
+@@ -173,7 +173,7 @@ func TestRemove2(t *testing.T) {
+ 
+ func BenchmarkDup(b *testing.B) {
+ 	const n = 10000
+-	h := make(myHeap, n)
++	h := make(myHeap, 0, n)
+ 	for i := 0; i < b.N; i++ {
+ 		for j := 0; j < n; j++ {
+ 			Push(&h, 0) // all elements are the same

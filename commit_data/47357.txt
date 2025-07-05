@@ -13,7 +13,55 @@ Date:   Tue Mar 2 11:52:34 2021 -0800
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/encoding/gob/decoder.go      |  3 +++
  src/encoding/gob/encoder_test.go | 25 +++++++++++++++++++++++++
  2 files changed, 28 insertions(+)
+
+diff --git a/src/encoding/gob/decoder.go b/src/encoding/gob/decoder.go
+index b52aabe54b..7eb3093391 100644
+--- a/src/encoding/gob/decoder.go
++++ b/src/encoding/gob/decoder.go
+@@ -152,6 +152,9 @@ func (dec *Decoder) decodeTypeSequence(isInterface bool) typeId {
+ 		}
+ 		// Type definition for (-id) follows.
+ 		dec.recvType(-id)
++		if dec.err != nil {
++			break
++		}
+ 		// When decoding an interface, after a type there may be a
+ 		// DelimitedValue still in the buffer. Skip its count.
+ 		// (Alternatively, the buffer is empty and the byte count
+diff --git a/src/encoding/gob/encoder_test.go b/src/encoding/gob/encoder_test.go
+index fe2774948a..6183646f60 100644
+--- a/src/encoding/gob/encoder_test.go
++++ b/src/encoding/gob/encoder_test.go
+@@ -1127,3 +1127,28 @@ func TestBadData(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestDecodeErrorMultipleTypes(t *testing.T) {
++	type Test struct {
++		A string
++		B int
++	}
++	var b bytes.Buffer
++	NewEncoder(&b).Encode(Test{"one", 1})
++
++	var result, result2 Test
++	dec := NewDecoder(&b)
++	err := dec.Decode(&result)
++	if err != nil {
++		t.Errorf("decode: unexpected error %v", err)
++	}
++
++	b.Reset()
++	NewEncoder(&b).Encode(Test{"two", 2})
++	err = dec.Decode(&result2)
++	if err == nil {
++		t.Errorf("decode: expected duplicate type error, got nil")
++	} else if !strings.Contains(err.Error(), "duplicate type") {
++		t.Errorf("decode: expected duplicate type error, got %s", err.Error())
++	}
++}

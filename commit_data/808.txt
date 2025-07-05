@@ -7,7 +7,7 @@ Date:   Sat Oct 4 15:17:49 2008 -0700
     R=r
     OCL=16494
     CL=16494
-
+---
  src/cmd/6g/gen.c   | 117 -----------------------------------------------------
  src/cmd/6g/gg.h    |   3 --
  src/cmd/6g/gsubr.c |  14 -------
@@ -16,3 +16,342 @@ Date:   Sat Oct 4 15:17:49 2008 -0700
  src/cmd/gc/subr.c  |  20 ++++++++-
  src/cmd/gc/walk.c  |   8 ++--
  7 files changed, 35 insertions(+), 148 deletions(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index d96c4e6a3c..8a4e78a68a 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -358,123 +358,6 @@ ret:
+ 	lineno = lno;
+ }
+ 
+-void
+-agen_inter(Node *n, Node *res)
+-{
+-	Node nodo, nodr, nodt;
+-	Node *var;
+-	Sym *s;
+-	char *e;
+-	int32 o,lno;
+-
+-	lno = setlineno(n);
+-
+-	// stack offset
+-	memset(&nodo, 0, sizeof(nodo));
+-	nodo.op = OINDREG;
+-	nodo.val.u.reg = D_SP;
+-	nodo.addable = 1;
+-	nodo.type = types[tptr];
+-
+-	// pointer register
+-	regalloc(&nodr, types[tptr], res);
+-
+-	switch(n->op) {
+-	default:
+-		fatal("agen_inter %O\n", n->op);
+-
+-//	case OS2I:
+-		// ifaces2i(*sigi, *sigs, i.map, i.s)
+-		// i.s is input
+-		// (i.map, i.s) is output
+-
+-		cgen(n->left, &nodr);
+-		nodo.xoffset = 3*widthptr;
+-		cgen_as(&nodo, &nodr, 0);
+-
+-		nodtypesig(&nodt, n->type);
+-		agen(&nodt, &nodr);
+-		nodo.xoffset = 0*widthptr;
+-		cgen_as(&nodo, &nodr, 0);
+-
+-		nodtypesig(&nodt, n->left->type);
+-		agen(&nodt, &nodr);
+-		nodo.xoffset = 1*widthptr;
+-		cgen_as(&nodo, &nodr, 0);
+-
+-		e = "ifaces2i";
+-		if(maxarg < 4*widthptr)
+-			maxarg = 4*widthptr;
+-		o = 2*widthptr;
+-		break;
+-
+-//	case OI2I:
+-		// ifacei2i(*sigi, i.map, i.s)
+-		// (i.map, i.s) is input
+-		// (i.map, i.s) is output
+-
+-		nodo.xoffset = 1*widthptr;
+-		if(!n->left->addable) {
+-			var = nod(OXXX, N, N);
+-			tempname(var, n->left->type);
+-			cgen(n->left, var);
+-			cgen(var, &nodo);
+-		} else {
+-			cgen(n->left, &nodo);
+-		}
+-
+-		nodtypesig(&nodt, n->type);
+-		agen(&nodt, &nodr);
+-		nodo.xoffset = 0*widthptr;
+-		cgen_as(&nodo, &nodr, 0);
+-
+-		e = "ifacei2i";
+-		if(maxarg < 3*widthptr)
+-			maxarg = 3*widthptr;
+-		o = 1*widthptr;
+-		break;
+-
+-//	case OI2S:
+-		// ifacei2s(*sigs, i.map, i.s)
+-		// (i.map, i.s) is input
+-		// i.s is output
+-
+-		nodo.xoffset = 1*widthptr;
+-		if(!n->left->addable) {
+-			var = nod(OXXX, N, N);
+-			tempname(var, n->left->type);
+-			cgen(n->left, var);
+-			cgen(var, &nodo);
+-		} else {
+-			cgen(n->left, &nodo);
+-		}
+-
+-		nodtypesig(&nodt, n->type);
+-		agen(&nodt, &nodr);
+-		nodo.xoffset = 0*widthptr;
+-		cgen_as(&nodo, &nodr, 0);
+-
+-		e = "ifacei2s";
+-		if(maxarg < 3*widthptr)
+-			maxarg = 3*widthptr;
+-		o = 2*widthptr;
+-		break;
+-	}
+-
+-	s = pkglookup(e, "sys");
+-	if(s->oname == N) {
+-		s->oname = newname(s);
+-		s->oname->class = PEXTERN;
+-	}
+-	gins(ACALL, N, s->oname);
+-
+-	nodo.xoffset = o;
+-	gins(ALEAQ, &nodo, res);
+-
+-	regfree(&nodr);
+-	lineno = lno;
+-}
+-
+ void
+ swgen(Node *n)
+ {
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index e7fccd2d2d..a26ed819b1 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -129,7 +129,6 @@ void	swgen(Node*);
+ void	selgen(Node*);
+ Node*	lookdot(Node*, Node*, int);
+ void	inarggen(void);
+-void	agen_inter(Node*, Node*);
+ void	cgen_as(Node*, Node*, int);
+ void	cgen_asop(Node*);
+ void	cgen_ret(Node*);
+@@ -192,8 +191,6 @@ Node*	nodarg(Type*, int);
+ void	nodreg(Node*, Type*, int);
+ void	nodindreg(Node*, Type*, int);
+ void	nodconst(Node*, Type*, vlong);
+-Sym*	signame(Type*);
+-void	nodtypesig(Node*, Type*);
+ void	gconreg(int, vlong, int);
+ void	buildtxt(void);
+ void	stringpool(Node*);
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 36936e3df8..b5cb9fd229 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -294,20 +294,6 @@ nodconst(Node *n, Type *t, vlong v)
+ 	}
+ }
+ 
+-void
+-nodtypesig(Node *n, Type *t)
+-{
+-	memset(n, 0, sizeof(*n));
+-	n->op = ONAME;
+-	n->type = types[TUINT8];
+-	n->etype = TUINT8;
+-	n->xoffset = 0;
+-	n->sym = signame(t);
+-	n->class = PEXTERN;
+-	n->addable = 1;
+-	n->ullman = 0;
+-}
+-
+ void
+ gconreg(int as, vlong c, int reg)
+ {
+diff --git a/src/cmd/6g/obj.c b/src/cmd/6g/obj.c
+index ccbf29fb3c..28eb6b1c51 100644
+--- a/src/cmd/6g/obj.c
++++ b/src/cmd/6g/obj.c
+@@ -476,7 +476,7 @@ dumpsignatures(void)
+ 		if(t == T)
+ 			continue;
+ 
+-		s = signame(t);
++		s = signame(t, 0);
+ 		if(s == S)
+ 			continue;
+ 
+@@ -485,6 +485,7 @@ dumpsignatures(void)
+ 		x->dsym = d->dsym;
+ 		x->dtype = d->dtype;
+ 		x->forw = signatlist;
++		x->block = 0;
+ 		signatlist = x;
+ //print("SIG = %lS %lS %lT\n", d->dsym, s, t);
+ 	}
+@@ -531,11 +532,14 @@ dumpsignatures(void)
+ 			continue;
+ 
+ 		t = d->dtype;
+-		at.sym = signame(t);
++		at.sym = signame(t, d->block);
+ 		if(at.sym == S)
+ 			continue;
+-		if(!at.sym->local)
++
++		// make unique
++		if(at.sym->local != 1)
+ 			continue;
++		at.sym->local = 2;
+ 
+ //print("SIGNAME = %lS\n", at.sym);
+ 
+@@ -551,7 +555,6 @@ dumpsignatures(void)
+ 		if(strcmp(s->opackage, package) != 0)
+ 			continue;
+ 
+-
+ 		a = nil;
+ 		o = 0;
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index fc22c40472..2a0aa7f25c 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -200,8 +200,8 @@ struct	Node
+ 
+ struct	Sym
+ {
+-	ushort	tblock;
+-	ushort	vblock;
++	ushort	tblock;		// blocknumber for type
++	ushort	vblock;		// blocknumber for variable
+ 
+ 	uchar	undef;		// a diagnostic has been generated
+ 	uchar	export;		// marked as export
+@@ -227,10 +227,12 @@ typedef	struct	Dcl	Dcl;
+ struct	Dcl
+ {
+ 	uchar	op;
++	ushort	block;
++	int32	lineno;
++
+ 	Sym*	dsym;		// for printing only
+ 	Node*	dnode;		// oname
+ 	Type*	dtype;		// otype
+-	int32	lineno;
+ 
+ 	Dcl*	forw;
+ 	Dcl*	back;		// sentinel has pointer to last
+@@ -575,7 +577,7 @@ int	isptrarray(Type*);
+ int	isptrdarray(Type*);
+ int	isinter(Type*);
+ Type*	ismethod(Type*);
+-Sym*	signame(Type*);
++Sym*	signame(Type*, int);
+ int	bytearraysz(Type*);
+ int	eqtype(Type*, Type*, int);
+ void	argtype(Node*, Type*);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index df6ea8144c..01a2d62177 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1453,10 +1453,11 @@ out:
+ }
+ 
+ Sym*
+-signame(Type *t)
++signame(Type *t, int block)
+ {
+ 	Sym *s, *ss;
+ 	char *e;
++	Dcl *x;
+ 	char buf[NSYMB];
+ 
+ 	if(t == T)
+@@ -1478,7 +1479,22 @@ signame(Type *t)
+ 	if(t->etype == TINTER)
+ 		e = "sigi";
+ 
+-	snprint(buf, sizeof(buf), "%s_%s", e, s->name);
++	if(block == 0)
++		block = s->tblock;
++
++	if(block > 1) {
++		snprint(buf, sizeof(buf), "%s_%d%s", e, block, s->name);
++
++		// record internal type for signature generation
++		x = mal(sizeof(*x));
++		x->op = OTYPE;
++		x->dsym = s;
++		x->dtype = s->otype;
++		x->forw = signatlist;
++		x->block = block;
++		signatlist = x;
++	} else
++		snprint(buf, sizeof(buf), "%s_%s", e, s->name);
+ 	ss = pkglookup(buf, s->opackage);
+ 	if(ss->oname == N) {
+ 		ss->oname = newname(ss);
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 87b5e6f366..eee99ac00b 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -2491,7 +2491,7 @@ ifaceop(Type *tl, Node *n, int op)
+ 		a = n;				// interface
+ 		r = a;
+ 
+-		s = signame(tl);		// sigi
++		s = signame(tl, 0);		// sigi
+ 		if(s == S)
+ 			fatal("ifaceop: signame I2T");
+ 		a = s->oname;
+@@ -2510,14 +2510,14 @@ ifaceop(Type *tl, Node *n, int op)
+ 		a = n;				// elem
+ 		r = a;
+ 
+-		s = signame(tr);		// sigt
++		s = signame(tr, 0);		// sigt
+ 		if(s == S)
+ 			fatal("ifaceop: signame-1 T2I: %lT", tr);
+ 		a = s->oname;
+ 		a = nod(OADDR, a, N);
+ 		r = list(a, r);
+ 
+-		s = signame(tl);		// sigi
++		s = signame(tl, 0);		// sigi
+ 		if(s == S) {
+ 			fatal("ifaceop: signame-2 T2I: %lT", tl);
+ 		}
+@@ -2537,7 +2537,7 @@ ifaceop(Type *tl, Node *n, int op)
+ 		a = n;				// interface
+ 		r = a;
+ 
+-		s = signame(tl);		// sigi
++		s = signame(tl, 0);		// sigi
+ 		if(s == S)
+ 			fatal("ifaceop: signame I2I");
+ 		a = s->oname;

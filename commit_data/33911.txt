@@ -7,6 +7,22 @@ Date:   Mon Sep 18 16:51:15 2017 +0200
     Change-Id: I011486993b167e65c69da1c8390bbcc625ca58c3
     Reviewed-on: https://go-review.googlesource.com/64331
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/effective_go.html | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 731959e408..6d53eefbc3 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -1431,9 +1431,7 @@ func Append(slice, data []byte) []byte {
+         slice = newSlice
+     }
+     slice = slice[0:l+len(data)]
+-    for i, c := range data {
+-        slice[l+i] = c
+-    }
++    copy(slice[l:], data)
+     return slice
+ }
+ </pre>

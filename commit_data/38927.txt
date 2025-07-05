@@ -15,6 +15,20 @@ Date:   Mon Dec 10 15:32:17 2018 -0500
     Change-Id: I857b93eeec45996d6dc05dbf7532d1759bf4d447
     Reviewed-on: https://go-review.googlesource.com/c/153457
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/security.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/security.html b/doc/security.html
+index c305ae03c1..b334963222 100644
+--- a/doc/security.html
++++ b/doc/security.html
+@@ -70,7 +70,7 @@ This person coordinates the fix and release process.</li>
+ <li>Code is audited to find any potential similar problems.</li>
+ <li>If it is determined, in consultation with the submitter, that a CVE-ID is
+ required, the primary handler obtains one via email to
+-<a href="http://oss-security.openwall.org/wiki/mailing-lists/distros">oss-distros</a>.</li>
++<a href="https://oss-security.openwall.org/wiki/mailing-lists/distros">oss-distros</a>.</li>
+ <li>Fixes are prepared for the two most recent major releases and the head/master
+ revision. These fixes are not yet committed to the public repository.</li>
+ <li>A notification is sent to the

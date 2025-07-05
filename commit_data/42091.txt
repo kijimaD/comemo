@@ -51,7 +51,80 @@ Date:   Thu Oct 24 22:15:14 2019 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mgcmark.go     | 20 +++++++++++++-------
  src/runtime/mgcsweepbuf.go | 15 ++++++---------
  2 files changed, 19 insertions(+), 16 deletions(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 10b525b2bc..e02c874f66 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -315,15 +315,21 @@ func markrootSpans(gcw *gcWork, shard int) {
+ 	sg := mheap_.sweepgen
+ 	spans := mheap_.sweepSpans[mheap_.sweepgen/2%2].block(shard)
+ 	// Note that work.spans may not include spans that were
+-	// allocated between entering the scan phase and now. This is
+-	// okay because any objects with finalizers in those spans
+-	// must have been allocated and given finalizers after we
+-	// entered the scan phase, so addfinalizer will have ensured
+-	// the above invariants for them.
+-	for _, s := range spans {
++	// allocated between entering the scan phase and now. We may
++	// also race with spans being added into sweepSpans when they're
++	// just created, and as a result we may see nil pointers in the
++	// spans slice. This is okay because any objects with finalizers
++	// in those spans must have been allocated and given finalizers
++	// after we entered the scan phase, so addfinalizer will have
++	// ensured the above invariants for them.
++	for i := 0; i < len(spans); i++ {
++		// sweepBuf.block requires that we read pointers from the block atomically.
++		// It also requires that we ignore nil pointers.
++		s := (*mspan)(atomic.Loadp(unsafe.Pointer(&spans[i])))
++
+ 		// This is racing with spans being initialized, so
+ 		// check the state carefully.
+-		if s.state.get() != mSpanInUse {
++		if s == nil || s.state.get() != mSpanInUse {
+ 			continue
+ 		}
+ 		// Check that this span was swept (it may be cached or uncached).
+diff --git a/src/runtime/mgcsweepbuf.go b/src/runtime/mgcsweepbuf.go
+index 0491f7ccf6..78288229c8 100644
+--- a/src/runtime/mgcsweepbuf.go
++++ b/src/runtime/mgcsweepbuf.go
+@@ -111,8 +111,9 @@ retry:
+ 		unlock(&b.spineLock)
+ 	}
+ 
+-	// We have a block. Insert the span.
+-	block.spans[bottom] = s
++	// We have a block. Insert the span atomically, since there may be
++	// concurrent readers via the block API.
++	atomic.StorepNoWB(unsafe.Pointer(&block.spans[bottom]), unsafe.Pointer(s))
+ }
+ 
+ // pop removes and returns a span from buffer b, or nil if b is empty.
+@@ -147,7 +148,9 @@ func (b *gcSweepBuf) numBlocks() int {
+ }
+ 
+ // block returns the spans in the i'th block of buffer b. block is
+-// safe to call concurrently with push.
++// safe to call concurrently with push. The block may contain nil
++// pointers that must be ignored, and each entry in the block must be
++// loaded atomically.
+ func (b *gcSweepBuf) block(i int) []*mspan {
+ 	// Perform bounds check before loading spine address since
+ 	// push ensures the allocated length is at least spineLen.
+@@ -169,11 +172,5 @@ func (b *gcSweepBuf) block(i int) []*mspan {
+ 	} else {
+ 		spans = block.spans[:bottom]
+ 	}
+-
+-	// push may have reserved a slot but not filled it yet, so
+-	// trim away unused entries.
+-	for len(spans) > 0 && spans[len(spans)-1] == nil {
+-		spans = spans[:len(spans)-1]
+-	}
+ 	return spans
+ }

@@ -8,6 +8,20 @@ Date:   Tue Nov 18 09:55:15 2014 +1100
     R=rsc, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/180760043
-
+---
  src/runtime/stubs.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index fe8f9c9222..1282397adb 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -231,7 +231,7 @@ func setcallerpc(argp unsafe.Pointer, pc uintptr)
+ //
+ //	func f(arg1, arg2, arg3 int) {
+ //		pc := getcallerpc(unsafe.Pointer(&arg1))
+-//		sp := getcallerpc(unsafe.Pointer(&arg2))
++//		sp := getcallersp(unsafe.Pointer(&arg1))
+ //	}
+ //
+ // These two lines find the PC and SP immediately following

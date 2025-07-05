@@ -7,7 +7,49 @@ Date:   Wed Apr 8 01:57:37 2015 -0400
     Change-Id: Ied1582d8aabee2eb346e1c23bfd7781e4a091264
     Reviewed-on: https://go-review.googlesource.com/8621
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/internal/gcimporter/gcimporter.go      |  2 +-
  src/go/types/internal/gcimporter/gcimporter_test.go | 15 +++------------
  2 files changed, 4 insertions(+), 13 deletions(-)
+
+diff --git a/src/go/types/internal/gcimporter/gcimporter.go b/src/go/types/internal/gcimporter/gcimporter.go
+index f6ac95f633..c414bad73b 100644
+--- a/src/go/types/internal/gcimporter/gcimporter.go
++++ b/src/go/types/internal/gcimporter/gcimporter.go
+@@ -30,7 +30,7 @@ func init() {
+ 	types.DefaultImport = Import
+ }
+ 
+-var pkgExts = [...]string{".a", ".5", ".6", ".8"}
++var pkgExts = [...]string{".a", ".5", ".6", ".7", ".8", ".9"}
+ 
+ // FindPkg returns the filename and unique package id for an import
+ // path based on package information provided by build.Import (using
+diff --git a/src/go/types/internal/gcimporter/gcimporter_test.go b/src/go/types/internal/gcimporter/gcimporter_test.go
+index 31bfc4830e..318e32b98a 100644
+--- a/src/go/types/internal/gcimporter/gcimporter_test.go
++++ b/src/go/types/internal/gcimporter/gcimporter_test.go
+@@ -34,20 +34,11 @@ func skipSpecialPlatforms(t *testing.T) {
+ var gcPath string // Go compiler path
+ 
+ func init() {
+-	// determine compiler
+-	var gc string
+-	switch runtime.GOARCH {
+-	case "386":
+-		gc = "8g"
+-	case "amd64":
+-		gc = "6g"
+-	case "arm":
+-		gc = "5g"
+-	default:
+-		gcPath = "unknown-GOARCH-compiler"
++	if char, err := build.ArchChar(runtime.GOARCH); err == nil {
++		gcPath = filepath.Join(build.ToolDir, char+"g")
+ 		return
+ 	}
+-	gcPath = filepath.Join(build.ToolDir, gc)
++	gcPath = "unknown-GOARCH-compiler"
+ }
+ 
+ func compile(t *testing.T, dirname, filename string) string {

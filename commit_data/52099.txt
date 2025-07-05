@@ -15,6 +15,14 @@ Date:   Mon Apr 4 22:49:34 2022 -0400
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  api/next/46057.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/api/next/46057.txt b/api/next/46057.txt
+new file mode 100644
+index 0000000000..d971aa7ffd
+--- /dev/null
++++ b/api/next/46057.txt
+@@ -0,0 +1 @@
++pkg crypto/x509, method (*CertPool) Equal(*CertPool) bool #46057

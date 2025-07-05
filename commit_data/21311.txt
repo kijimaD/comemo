@@ -15,6 +15,20 @@ Date:   Mon Dec 15 12:55:00 2014 -0800
     Reviewed-by: Anthony Martin <ality@pbrane.org>
     Reviewed-by: David du Colombier <0intro@gmail.com>
     Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
-
+---
  src/runtime/os_plan9.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index 2dcdfc009a..5a038db497 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -18,7 +18,7 @@ func seek(fd int32, offset int64, whence int32) int64
+ func exits(msg *byte)
+ 
+ //go:noescape
+-func brk_(addr unsafe.Pointer) uintptr
++func brk_(addr unsafe.Pointer) int32
+ 
+ func sleep(ms int32) int32
+ 

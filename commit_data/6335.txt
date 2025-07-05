@@ -11,8 +11,75 @@ Date:   Wed Sep 22 13:12:25 2010 +1000
     R=r, PeterGo, rsc
     CC=golang-dev, skip.tavakkolian
     https://golang.org/cl/2256041
-
+---
  src/pkg/os/os_test.go                 | 30 ++++++++++++++++++++++++++++++
  src/pkg/syscall/syscall_windows.go    |  4 ++++
  src/pkg/syscall/ztypes_windows_386.go |  2 ++
  3 files changed, 36 insertions(+)
+
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 05af090dae..f8b2d010db 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -742,3 +742,33 @@ func TestWriteAt(t *testing.T) {
+ 		t.Fatalf("after write: have %q want %q", string(b), "hello, WORLD\n")
+ 	}
+ }
++
++func writeFile(t *testing.T, fname string, flag int, text string) string {
++	f, err := Open(fname, flag, 0666)
++	if err != nil {
++		t.Fatalf("Open: %v", err)
++	}
++	n, err := io.WriteString(f, text)
++	if err != nil {
++		t.Fatalf("WriteString: %d, %v", n, err)
++	}
++	f.Close()
++	data, err := ioutil.ReadFile(fname)
++	if err != nil {
++		t.Fatalf("ReadFile: %v", err)
++	}
++	return string(data)
++}
++
++func TestAppend(t *testing.T) {
++	const f = "append.txt"
++	defer Remove(f)
++	s := writeFile(t, f, O_CREAT|O_TRUNC|O_RDWR, "new")
++	if s != "new" {
++		t.Fatalf("writeFile: have %q want %q", s, "new")
++	}
++	s = writeFile(t, f, O_APPEND|O_RDWR, "|append")
++	if s != "new|append" {
++		t.Fatalf("writeFile: have %q want %q", s, "new|append")
++	}
++}
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 3eb0af16db..e2a29202ff 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -184,6 +184,10 @@ func Open(path string, mode int, perm uint32) (fd int, errno int) {
+ 	if mode&O_CREAT != 0 {
+ 		access |= GENERIC_WRITE
+ 	}
++	if mode&O_APPEND != 0 {
++		access &^= GENERIC_WRITE
++		access |= FILE_APPEND_DATA
++	}
+ 	sharemode := uint32(FILE_SHARE_READ | FILE_SHARE_WRITE)
+ 	var createmode uint32
+ 	switch {
+diff --git a/src/pkg/syscall/ztypes_windows_386.go b/src/pkg/syscall/ztypes_windows_386.go
+index 609b3801e9..6b1ac27aa0 100644
+--- a/src/pkg/syscall/ztypes_windows_386.go
++++ b/src/pkg/syscall/ztypes_windows_386.go
+@@ -56,6 +56,8 @@ const (
+ 	GENERIC_EXECUTE = 0x20000000
+ 	GENERIC_ALL     = 0x10000000
+ 
++	FILE_APPEND_DATA = 0x00000004
++
+ 	FILE_SHARE_READ          = 0x00000001
+ 	FILE_SHARE_WRITE         = 0x00000002
+ 	FILE_SHARE_DELETE        = 0x00000004

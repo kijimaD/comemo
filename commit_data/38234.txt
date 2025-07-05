@@ -11,8 +11,83 @@ Date:   Fri Oct 12 18:01:50 2018 +0200
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/internal/cpu/cpu.go          | 10 +++++-----
  src/internal/cpu/cpu_test.go     |  6 +++---
  src/internal/cpu/cpu_x86_test.go |  6 +++---
  3 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/internal/cpu/cpu.go b/src/internal/cpu/cpu.go
+index 54b100b1d4..fdda880af4 100644
+--- a/src/internal/cpu/cpu.go
++++ b/src/internal/cpu/cpu.go
+@@ -157,11 +157,11 @@ type option struct {
+ }
+ 
+ // processOptions disables CPU feature values based on the parsed env string.
+-// The env string is expected to be of the form feature1=0,feature2=0...
++// The env string is expected to be of the form feature1=off,feature2=off...
+ // where feature names is one of the architecture specifc list stored in the
+-// cpu packages options variable. If env contains all=0 then all capabilities
++// cpu packages options variable. If env contains all=off then all capabilities
+ // referenced through the options variable are disabled. Other feature
+-// names and values other than 0 are silently ignored.
++// names and values other than 'off' are silently ignored.
+ func processOptions(env string) {
+ field:
+ 	for env != "" {
+@@ -178,8 +178,8 @@ field:
+ 		}
+ 		key, value := field[:i], field[i+1:]
+ 
+-		// Only allow turning off CPU features by specifying '0'.
+-		if value == "0" {
++		// Only allow turning off CPU features by specifying 'off'.
++		if value == "off" {
+ 			if key == "all" {
+ 				for _, v := range options {
+ 					*v.Feature = false
+diff --git a/src/internal/cpu/cpu_test.go b/src/internal/cpu/cpu_test.go
+index 04ab9eeecb..6e7375fa7c 100644
+--- a/src/internal/cpu/cpu_test.go
++++ b/src/internal/cpu/cpu_test.go
+@@ -38,14 +38,14 @@ func runDebugOptionsTest(t *testing.T, test string, options string) {
+ }
+ 
+ func TestDisableAllCapabilities(t *testing.T) {
+-	runDebugOptionsTest(t, "TestAllCapabilitiesDisabled", "all=0")
++	runDebugOptionsTest(t, "TestAllCapabilitiesDisabled", "all=off")
+ }
+ 
+ func TestAllCapabilitiesDisabled(t *testing.T) {
+ 	MustHaveDebugOptionsSupport(t)
+ 
+-	if os.Getenv("GODEBUGCPU") != "all=0" {
+-		t.Skipf("skipping test: GODEBUGCPU=all=0 not set")
++	if os.Getenv("GODEBUGCPU") != "all=off" {
++		t.Skipf("skipping test: GODEBUGCPU=all=off not set")
+ 	}
+ 
+ 	for _, o := range Options {
+diff --git a/src/internal/cpu/cpu_x86_test.go b/src/internal/cpu/cpu_x86_test.go
+index c3ea7cb590..59c51770c5 100644
+--- a/src/internal/cpu/cpu_x86_test.go
++++ b/src/internal/cpu/cpu_x86_test.go
+@@ -30,14 +30,14 @@ func TestX86ifAVX2hasAVX(t *testing.T) {
+ }
+ 
+ func TestDisableSSE2(t *testing.T) {
+-	runDebugOptionsTest(t, "TestSSE2DebugOption", "sse2=0")
++	runDebugOptionsTest(t, "TestSSE2DebugOption", "sse2=off")
+ }
+ 
+ func TestSSE2DebugOption(t *testing.T) {
+ 	MustHaveDebugOptionsSupport(t)
+ 
+-	if os.Getenv("GODEBUGCPU") != "sse2=0" {
+-		t.Skipf("skipping test: GODEBUGCPU=sse2=0 not set")
++	if os.Getenv("GODEBUGCPU") != "sse2=off" {
++		t.Skipf("skipping test: GODEBUGCPU=sse2=off not set")
+ 	}
+ 
+ 	want := runtime.GOARCH != "386" // SSE2 can only be disabled on 386.

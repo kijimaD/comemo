@@ -19,8 +19,60 @@ Date:   Thu Jul 12 16:51:27 2018 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/test/issue24161e0/main.go | 6 ++++++
  misc/cgo/test/issue24161e1/main.go | 6 ++++++
  misc/cgo/test/issue24161e2/main.go | 6 ++++++
  3 files changed, 18 insertions(+)
+
+diff --git a/misc/cgo/test/issue24161e0/main.go b/misc/cgo/test/issue24161e0/main.go
+index ec5bea9662..4e2e4b01d3 100644
+--- a/misc/cgo/test/issue24161e0/main.go
++++ b/misc/cgo/test/issue24161e0/main.go
+@@ -11,6 +11,12 @@ package issue24161e0
+ #cgo LDFLAGS: -framework CoreFoundation -framework Security
+ #include <CoreFoundation/CoreFoundation.h>
+ #include <Security/Security.h>
++#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 101200
++  typedef CFStringRef SecKeyAlgorithm;
++  static CFDataRef SecKeyCreateSignature(SecKeyRef key, SecKeyAlgorithm algorithm, CFDataRef dataToSign, CFErrorRef *error){return NULL;}
++  #define kSecKeyAlgorithmECDSASignatureDigestX962SHA1 foo()
++  static SecKeyAlgorithm foo(void){return NULL;}
++#endif
+ */
+ import "C"
+ import "testing"
+diff --git a/misc/cgo/test/issue24161e1/main.go b/misc/cgo/test/issue24161e1/main.go
+index aea0ff50c5..3e2aba2742 100644
+--- a/misc/cgo/test/issue24161e1/main.go
++++ b/misc/cgo/test/issue24161e1/main.go
+@@ -11,6 +11,12 @@ package issue24161e1
+ #cgo LDFLAGS: -framework CoreFoundation -framework Security
+ #include <CoreFoundation/CoreFoundation.h>
+ #include <Security/Security.h>
++#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 101200
++  typedef CFStringRef SecKeyAlgorithm;
++  static CFDataRef SecKeyCreateSignature(SecKeyRef key, SecKeyAlgorithm algorithm, CFDataRef dataToSign, CFErrorRef *error){return NULL;}
++  #define kSecKeyAlgorithmECDSASignatureDigestX962SHA1 foo()
++  static SecKeyAlgorithm foo(void){return NULL;}
++#endif
+ */
+ import "C"
+ import (
+diff --git a/misc/cgo/test/issue24161e2/main.go b/misc/cgo/test/issue24161e2/main.go
+index c6675a7689..9e4053eba5 100644
+--- a/misc/cgo/test/issue24161e2/main.go
++++ b/misc/cgo/test/issue24161e2/main.go
+@@ -11,6 +11,12 @@ package issue24161e2
+ #cgo LDFLAGS: -framework CoreFoundation -framework Security
+ #include <CoreFoundation/CoreFoundation.h>
+ #include <Security/Security.h>
++#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 101200
++  typedef CFStringRef SecKeyAlgorithm;
++  static CFDataRef SecKeyCreateSignature(SecKeyRef key, SecKeyAlgorithm algorithm, CFDataRef dataToSign, CFErrorRef *error){return NULL;}
++  #define kSecKeyAlgorithmECDSASignatureDigestX962SHA1 foo()
++  static SecKeyAlgorithm foo(void){return NULL;}
++#endif
+ */
+ import "C"
+ import (

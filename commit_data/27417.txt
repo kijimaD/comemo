@@ -9,7 +9,33 @@ Date:   Mon Feb 15 11:56:18 2016 -0500
     Change-Id: Iccd6c65f9d4b1f4d17ee068dee4576a512ba8405
     Reviewed-on: https://go-review.googlesource.com/21154
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/tls/cipher_suites.go    | 2 +-
  src/crypto/tls/handshake_server.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/tls/cipher_suites.go b/src/crypto/tls/cipher_suites.go
+index d4d75cbff8..e69f5f966e 100644
+--- a/src/crypto/tls/cipher_suites.go
++++ b/src/crypto/tls/cipher_suites.go
+@@ -286,6 +286,6 @@ const (
+ 
+ 	// TLS_FALLBACK_SCSV isn't a standard cipher suite but an indicator
+ 	// that the client is doing version fallback. See
+-	// https://tools.ietf.org/html/draft-ietf-tls-downgrade-scsv-00.
++	// https://tools.ietf.org/html/rfc7507.
+ 	TLS_FALLBACK_SCSV uint16 = 0x5600
+ )
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index d910730794..a6cafd3d24 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -246,7 +246,7 @@ Curves:
+ 		return false, errors.New("tls: no cipher suite supported by both client and server")
+ 	}
+ 
+-	// See https://tools.ietf.org/html/draft-ietf-tls-downgrade-scsv-00.
++	// See https://tools.ietf.org/html/rfc7507.
+ 	for _, id := range hs.clientHello.cipherSuites {
+ 		if id == TLS_FALLBACK_SCSV {
+ 			// The client is doing a fallback connection.

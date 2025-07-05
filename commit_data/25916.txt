@@ -11,7 +11,49 @@ Date:   Thu Dec 3 18:58:05 2015 +0000
     Reviewed-by: Burcu Dogan <jbd@google.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/client.go      | 5 ++++-
  src/net/http/client_test.go | 7 +++++++
  2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index 47f145a0ca..3a8b284859 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -172,7 +172,7 @@ func (c *Client) send(req *Request) (*Response, error) {
+ //
+ // Generally Get, Post, or PostForm will be used instead of Do.
+ func (c *Client) Do(req *Request) (resp *Response, err error) {
+-	if req.Method == "GET" || req.Method == "HEAD" {
++	if req.Method == "" || req.Method == "GET" || req.Method == "HEAD" {
+ 		return c.doFollowingRedirects(req, shouldRedirectGet)
+ 	}
+ 	if req.Method == "POST" || req.Method == "PUT" {
+@@ -423,6 +423,9 @@ func (c *Client) doFollowingRedirects(ireq *Request, shouldRedirect func(int) bo
+ 	}
+ 
+ 	method := ireq.Method
++	if method == "" {
++		method = "GET"
++	}
+ 	urlErr := &url.Error{
+ 		Op:  method[0:1] + strings.ToLower(method[1:]),
+ 		URL: urlStr,
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index 40d5109862..e59ab2cd0e 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -230,6 +230,13 @@ func TestClientRedirects(t *testing.T) {
+ 		t.Errorf("with default client Do, expected error %q, got %q", e, g)
+ 	}
+ 
++	// Requests with an empty Method should also redirect (Issue 12705)
++	greq.Method = ""
++	_, err = c.Do(greq)
++	if e, g := "Get /?n=10: stopped after 10 redirects", fmt.Sprintf("%v", err); e != g {
++		t.Errorf("with default client Do and empty Method, expected error %q, got %q", e, g)
++	}
++
+ 	var checkErr error
+ 	var lastVia []*Request
+ 	c = &Client{CheckRedirect: func(_ *Request, via []*Request) error {

@@ -15,7 +15,382 @@ Date:   Tue Aug 30 14:59:34 2016 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  12 ++
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 300 +++++++++++++++++++++++++++
  2 files changed, 312 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index f4c44975a0..4c49d10924 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -738,11 +738,23 @@
+ // This prevents a single load from being split into multiple loads
+ // which then might return different values.  See test/atomicload.go.
+ (MOVBQSX x:(MOVBload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBQSXload <v.Type> [off] {sym} ptr mem)
++(MOVBQSX x:(MOVWload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBQSXload <v.Type> [off] {sym} ptr mem)
++(MOVBQSX x:(MOVLload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBQSXload <v.Type> [off] {sym} ptr mem)
++(MOVBQSX x:(MOVQload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBQSXload <v.Type> [off] {sym} ptr mem)
+ (MOVBQZX x:(MOVBload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBload <v.Type> [off] {sym} ptr mem)
++(MOVBQZX x:(MOVWload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBload <v.Type> [off] {sym} ptr mem)
++(MOVBQZX x:(MOVLload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBload <v.Type> [off] {sym} ptr mem)
++(MOVBQZX x:(MOVQload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBload <v.Type> [off] {sym} ptr mem)
+ (MOVWQSX x:(MOVWload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWQSXload <v.Type> [off] {sym} ptr mem)
++(MOVWQSX x:(MOVLload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWQSXload <v.Type> [off] {sym} ptr mem)
++(MOVWQSX x:(MOVQload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWQSXload <v.Type> [off] {sym} ptr mem)
+ (MOVWQZX x:(MOVWload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWload <v.Type> [off] {sym} ptr mem)
++(MOVWQZX x:(MOVLload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWload <v.Type> [off] {sym} ptr mem)
++(MOVWQZX x:(MOVQload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWload <v.Type> [off] {sym} ptr mem)
+ (MOVLQSX x:(MOVLload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVLQSXload <v.Type> [off] {sym} ptr mem)
++(MOVLQSX x:(MOVQload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVLQSXload <v.Type> [off] {sym} ptr mem)
+ (MOVLQZX x:(MOVLload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVLload <v.Type> [off] {sym} ptr mem)
++(MOVLQZX x:(MOVQload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVLload <v.Type> [off] {sym} ptr mem)
+ 
+ (MOVBQZX x:(MOVBloadidx1 [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBloadidx1 <v.Type> [off] {sym} ptr idx mem)
+ (MOVWQZX x:(MOVWloadidx1 [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWloadidx1 <v.Type> [off] {sym} ptr idx mem)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 0f3c636469..5c685ef25f 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -3263,6 +3263,81 @@ func rewriteValueAMD64_OpAMD64MOVBQSX(v *Value, config *Config) bool {
+ 		v0.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVBQSX x:(MOVWload [off] {sym} ptr mem))
++	// cond: x.Uses == 1 && clobber(x)
++	// result: @x.Block (MOVBQSXload <v.Type> [off] {sym} ptr mem)
++	for {
++		x := v.Args[0]
++		if x.Op != OpAMD64MOVWload {
++			break
++		}
++		off := x.AuxInt
++		sym := x.Aux
++		ptr := x.Args[0]
++		mem := x.Args[1]
++		if !(x.Uses == 1 && clobber(x)) {
++			break
++		}
++		b = x.Block
++		v0 := b.NewValue0(v.Line, OpAMD64MOVBQSXload, v.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (MOVBQSX x:(MOVLload [off] {sym} ptr mem))
++	// cond: x.Uses == 1 && clobber(x)
++	// result: @x.Block (MOVBQSXload <v.Type> [off] {sym} ptr mem)
++	for {
++		x := v.Args[0]
++		if x.Op != OpAMD64MOVLload {
++			break
++		}
++		off := x.AuxInt
++		sym := x.Aux
++		ptr := x.Args[0]
++		mem := x.Args[1]
++		if !(x.Uses == 1 && clobber(x)) {
++			break
++		}
++		b = x.Block
++		v0 := b.NewValue0(v.Line, OpAMD64MOVBQSXload, v.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (MOVBQSX x:(MOVQload [off] {sym} ptr mem))
++	// cond: x.Uses == 1 && clobber(x)
++	// result: @x.Block (MOVBQSXload <v.Type> [off] {sym} ptr mem)
++	for {
++		x := v.Args[0]
++		if x.Op != OpAMD64MOVQload {
++			break
++		}
++		off := x.AuxInt
++		sym := x.Aux
++		ptr := x.Args[0]
++		mem := x.Args[1]
++		if !(x.Uses == 1 && clobber(x)) {
++			break
++		}
++		b = x.Block
++		v0 := b.NewValue0(v.Line, OpAMD64MOVBQSXload, v.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
+ 	// match: (MOVBQSX (ANDLconst [c] x))
+ 	// cond: c & 0x80 == 0
+ 	// result: (ANDLconst [c & 0x7f] x)
+@@ -3340,6 +3415,81 @@ func rewriteValueAMD64_OpAMD64MOVBQZX(v *Value, config *Config) bool {
+ 		v0.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVBQZX x:(MOVWload [off] {sym} ptr mem))
++	// cond: x.Uses == 1 && clobber(x)
++	// result: @x.Block (MOVBload <v.Type> [off] {sym} ptr mem)
++	for {
++		x := v.Args[0]
++		if x.Op != OpAMD64MOVWload {
++			break
++		}
++		off := x.AuxInt
++		sym := x.Aux
++		ptr := x.Args[0]
++		mem := x.Args[1]
++		if !(x.Uses == 1 && clobber(x)) {
++			break
++		}
++		b = x.Block
++		v0 := b.NewValue0(v.Line, OpAMD64MOVBload, v.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (MOVBQZX x:(MOVLload [off] {sym} ptr mem))
++	// cond: x.Uses == 1 && clobber(x)
++	// result: @x.Block (MOVBload <v.Type> [off] {sym} ptr mem)
++	for {
++		x := v.Args[0]
++		if x.Op != OpAMD64MOVLload {
++			break
++		}
++		off := x.AuxInt
++		sym := x.Aux
++		ptr := x.Args[0]
++		mem := x.Args[1]
++		if !(x.Uses == 1 && clobber(x)) {
++			break
++		}
++		b = x.Block
++		v0 := b.NewValue0(v.Line, OpAMD64MOVBload, v.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (MOVBQZX x:(MOVQload [off] {sym} ptr mem))
++	// cond: x.Uses == 1 && clobber(x)
++	// result: @x.Block (MOVBload <v.Type> [off] {sym} ptr mem)
++	for {
++		x := v.Args[0]
++		if x.Op != OpAMD64MOVQload {
++			break
++		}
++		off := x.AuxInt
++		sym := x.Aux
++		ptr := x.Args[0]
++		mem := x.Args[1]
++		if !(x.Uses == 1 && clobber(x)) {
++			break
++		}
++		b = x.Block
++		v0 := b.NewValue0(v.Line, OpAMD64MOVBload, v.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
+ 	// match: (MOVBQZX x:(MOVBloadidx1 [off] {sym} ptr idx mem))
+ 	// cond: x.Uses == 1 && clobber(x)
+ 	// result: @x.Block (MOVBloadidx1 <v.Type> [off] {sym} ptr idx mem)
+@@ -4362,6 +4512,31 @@ func rewriteValueAMD64_OpAMD64MOVLQSX(v *Value, config *Config) bool {
+ 		v0.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVLQSX x:(MOVQload [off] {sym} ptr mem))
++	// cond: x.Uses == 1 && clobber(x)
++	// result: @x.Block (MOVLQSXload <v.Type> [off] {sym} ptr mem)
++	for {
++		x := v.Args[0]
++		if x.Op != OpAMD64MOVQload {
++			break
++		}
++		off := x.AuxInt
++		sym := x.Aux
++		ptr := x.Args[0]
++		mem := x.Args[1]
++		if !(x.Uses == 1 && clobber(x)) {
++			break
++		}
++		b = x.Block
++		v0 := b.NewValue0(v.Line, OpAMD64MOVLQSXload, v.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
+ 	// match: (MOVLQSX (ANDLconst [c] x))
+ 	// cond: c & 0x80000000 == 0
+ 	// result: (ANDLconst [c & 0x7fffffff] x)
+@@ -4439,6 +4614,31 @@ func rewriteValueAMD64_OpAMD64MOVLQZX(v *Value, config *Config) bool {
+ 		v0.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVLQZX x:(MOVQload [off] {sym} ptr mem))
++	// cond: x.Uses == 1 && clobber(x)
++	// result: @x.Block (MOVLload <v.Type> [off] {sym} ptr mem)
++	for {
++		x := v.Args[0]
++		if x.Op != OpAMD64MOVQload {
++			break
++		}
++		off := x.AuxInt
++		sym := x.Aux
++		ptr := x.Args[0]
++		mem := x.Args[1]
++		if !(x.Uses == 1 && clobber(x)) {
++			break
++		}
++		b = x.Block
++		v0 := b.NewValue0(v.Line, OpAMD64MOVLload, v.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
+ 	// match: (MOVLQZX x:(MOVLloadidx1 [off] {sym} ptr idx mem))
+ 	// cond: x.Uses == 1 && clobber(x)
+ 	// result: @x.Block (MOVLloadidx1 <v.Type> [off] {sym} ptr idx mem)
+@@ -8156,6 +8356,56 @@ func rewriteValueAMD64_OpAMD64MOVWQSX(v *Value, config *Config) bool {
+ 		v0.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVWQSX x:(MOVLload [off] {sym} ptr mem))
++	// cond: x.Uses == 1 && clobber(x)
++	// result: @x.Block (MOVWQSXload <v.Type> [off] {sym} ptr mem)
++	for {
++		x := v.Args[0]
++		if x.Op != OpAMD64MOVLload {
++			break
++		}
++		off := x.AuxInt
++		sym := x.Aux
++		ptr := x.Args[0]
++		mem := x.Args[1]
++		if !(x.Uses == 1 && clobber(x)) {
++			break
++		}
++		b = x.Block
++		v0 := b.NewValue0(v.Line, OpAMD64MOVWQSXload, v.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (MOVWQSX x:(MOVQload [off] {sym} ptr mem))
++	// cond: x.Uses == 1 && clobber(x)
++	// result: @x.Block (MOVWQSXload <v.Type> [off] {sym} ptr mem)
++	for {
++		x := v.Args[0]
++		if x.Op != OpAMD64MOVQload {
++			break
++		}
++		off := x.AuxInt
++		sym := x.Aux
++		ptr := x.Args[0]
++		mem := x.Args[1]
++		if !(x.Uses == 1 && clobber(x)) {
++			break
++		}
++		b = x.Block
++		v0 := b.NewValue0(v.Line, OpAMD64MOVWQSXload, v.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
+ 	// match: (MOVWQSX (ANDLconst [c] x))
+ 	// cond: c & 0x8000 == 0
+ 	// result: (ANDLconst [c & 0x7fff] x)
+@@ -8233,6 +8483,56 @@ func rewriteValueAMD64_OpAMD64MOVWQZX(v *Value, config *Config) bool {
+ 		v0.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVWQZX x:(MOVLload [off] {sym} ptr mem))
++	// cond: x.Uses == 1 && clobber(x)
++	// result: @x.Block (MOVWload <v.Type> [off] {sym} ptr mem)
++	for {
++		x := v.Args[0]
++		if x.Op != OpAMD64MOVLload {
++			break
++		}
++		off := x.AuxInt
++		sym := x.Aux
++		ptr := x.Args[0]
++		mem := x.Args[1]
++		if !(x.Uses == 1 && clobber(x)) {
++			break
++		}
++		b = x.Block
++		v0 := b.NewValue0(v.Line, OpAMD64MOVWload, v.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (MOVWQZX x:(MOVQload [off] {sym} ptr mem))
++	// cond: x.Uses == 1 && clobber(x)
++	// result: @x.Block (MOVWload <v.Type> [off] {sym} ptr mem)
++	for {
++		x := v.Args[0]
++		if x.Op != OpAMD64MOVQload {
++			break
++		}
++		off := x.AuxInt
++		sym := x.Aux
++		ptr := x.Args[0]
++		mem := x.Args[1]
++		if !(x.Uses == 1 && clobber(x)) {
++			break
++		}
++		b = x.Block
++		v0 := b.NewValue0(v.Line, OpAMD64MOVWload, v.Type)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
+ 	// match: (MOVWQZX x:(MOVWloadidx1 [off] {sym} ptr idx mem))
+ 	// cond: x.Uses == 1 && clobber(x)
+ 	// result: @x.Block (MOVWloadidx1 <v.Type> [off] {sym} ptr idx mem)

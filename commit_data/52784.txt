@@ -14,7 +14,57 @@ Date:   Tue May 17 12:28:28 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  doc/go1.19.html          | 16 ++++++++++++++++
  src/mime/type_windows.go | 11 +++++++++++
  2 files changed, 27 insertions(+)
+
+diff --git a/doc/go1.19.html b/doc/go1.19.html
+index a83a916c72..c809e10551 100644
+--- a/doc/go1.19.html
++++ b/doc/go1.19.html
+@@ -216,6 +216,22 @@ Do not send CLs removing the interior tags from such phrases.
+   </dd>
+ </dl><!-- io -->
+ 
++<dl id="mime"><dt><a href="/pkg/mime/">mime</a></dt>
++  <dd>
++    <p><!-- CL 406894 -->
++      On Windows only, the mime package now ignores a registry entry
++      recording that the extension <code>.js</code> should have MIME
++      type <code>text/plain</code>. This is a common unintentional
++      misconfiguration on Windows systems. The effect is
++      that <code>.js</code> will have the default MIME
++      type <code>text/javascript; charset=utf-8</code>.
++      Applications that expect <code>text/plain</code> on Windows must
++      now explicitly call
++      <a href="/pkg/mime#AddExtensionType"><code>AddExtensionType</code></a>.
++    </p>
++  </dd>
++</dl>
++
+ <dl id="net"><dt><a href="/pkg/net/">net</a></dt>
+   <dd>
+     <p><!-- CL 386016 -->
+diff --git a/src/mime/type_windows.go b/src/mime/type_windows.go
+index cee9c9db04..93802141c5 100644
+--- a/src/mime/type_windows.go
++++ b/src/mime/type_windows.go
+@@ -30,6 +30,17 @@ func initMimeWindows() {
+ 		if err != nil {
+ 			continue
+ 		}
++
++		// There is a long-standing problem on Windows: the
++		// registry sometimes records that the ".js" extension
++		// should be "text/plain". See issue #32350. While
++		// normally local configuration should override
++		// defaults, this problem is common enough that we
++		// handle it here by ignoring that registry setting.
++		if name == ".js" && (v == "text/plain" || v == "text/plain; charset=utf-8") {
++			continue
++		}
++
+ 		setExtensionType(name, v)
+ 	}
+ }

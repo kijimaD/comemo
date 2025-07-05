@@ -12,8 +12,127 @@ Date:   Wed Jun 4 00:04:26 2025 +0700
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/types2/stdlib_test.go |  1 +
  src/go/types/stdlib_test.go                    |  1 +
  test/fixedbugs/issue73309b.go                  | 88 ++++++++++++++++++++++++++
  3 files changed, 90 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/stdlib_test.go b/src/cmd/compile/internal/types2/stdlib_test.go
+index 4de698baaf..35e15d814d 100644
+--- a/src/cmd/compile/internal/types2/stdlib_test.go
++++ b/src/cmd/compile/internal/types2/stdlib_test.go
+@@ -333,6 +333,7 @@ func TestStdFixed(t *testing.T) {
+ 		"issue56103.go",  // anonymous interface cycles; will be a type checker error in 1.22
+ 		"issue52697.go",  // types2 does not have constraints on stack size
+ 		"issue73309.go",  // this test requires GODEBUG=gotypesalias=1
++		"issue73309b.go", // this test requires GODEBUG=gotypesalias=1
+ 
+ 		// These tests requires runtime/cgo.Incomplete, which is only available on some platforms.
+ 		// However, types2 does not know about build constraints.
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 633d7be84d..8e95d23ec3 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -335,6 +335,7 @@ func TestStdFixed(t *testing.T) {
+ 		"issue56103.go",  // anonymous interface cycles; will be a type checker error in 1.22
+ 		"issue52697.go",  // go/types does not have constraints on stack size
+ 		"issue73309.go",  // this test requires GODEBUG=gotypesalias=1
++		"issue73309b.go", // this test requires GODEBUG=gotypesalias=1
+ 
+ 		// These tests requires runtime/cgo.Incomplete, which is only available on some platforms.
+ 		// However, go/types does not know about build constraints.
+diff --git a/test/fixedbugs/issue73309b.go b/test/fixedbugs/issue73309b.go
+new file mode 100644
+index 0000000000..1e29781ba9
+--- /dev/null
++++ b/test/fixedbugs/issue73309b.go
+@@ -0,0 +1,88 @@
++// compile
++
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type Unsigned interface {
++	~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
++}
++
++// a Validator instance
++type Validator []Validable
++
++type Numeric interface {
++	~int | ~int8 | ~int16 | ~int32 | ~int64 | ~float32 | ~float64
++}
++
++func (v Validator) Valid() bool {
++	for _, field := range v {
++		if !field.Validate() {
++			return false
++		}
++	}
++	return true
++}
++
++type Validable interface {
++	Validate() bool
++}
++
++type FieldDef[T any] struct {
++	value T
++	rules []Rule[T]
++}
++
++func (f FieldDef[T]) Validate() bool {
++	for _, rule := range f.rules {
++		if !rule(f) {
++			return false
++		}
++	}
++	return true
++}
++
++type Rule[T any] = func(FieldDef[T]) bool
++
++func Field[T any](value T, rules ...Rule[T]) *FieldDef[T] {
++	return &FieldDef[T]{value: value, rules: rules}
++}
++
++type StringRule = Rule[string]
++
++type NumericRule[T Numeric] = Rule[T]
++
++type UnsignedRule[T Unsigned] = Rule[T]
++
++func MinS(n int) StringRule {
++	return func(fd FieldDef[string]) bool {
++		return len(fd.value) < n
++	}
++}
++
++func MinD[T Numeric](n T) NumericRule[T] {
++	return func(fd FieldDef[T]) bool {
++		return fd.value < n
++	}
++}
++
++func MinU[T Unsigned](n T) UnsignedRule[T] {
++	return func(fd FieldDef[T]) bool {
++		return fd.value < n
++	}
++}
++
++func main() {
++	v := Validator{
++		Field("test", MinS(5)),
++	}
++
++	if !v.Valid() {
++		println("invalid")
++		return
++	}
++
++	println("valid")
++}

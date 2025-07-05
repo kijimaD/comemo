@@ -21,7 +21,7 @@ Date:   Wed Aug 31 21:34:23 2022 +0000
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/export_test.go         |   8 +++
  src/runtime/metrics.go             |   6 ++
  src/runtime/metrics/description.go |   6 ++
@@ -30,3 +30,376 @@ Date:   Wed Aug 31 21:34:23 2022 +0000
  src/runtime/proc.go                |  80 ++++++++++++++++-------
  src/runtime/runtime2.go            |  12 +++-
  7 files changed, 221 insertions(+), 25 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 93cae48211..4aabf90fe7 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -525,6 +525,12 @@ func Getg() *G {
+ 	return getg()
+ }
+ 
++func GIsWaitingOnMutex(gp *G) bool {
++	return readgstatus(gp) == _Gwaiting && gp.waitreason.isMutexWait()
++}
++
++var CasGStatusAlwaysTrack = &casgstatusAlwaysTrack
++
+ //go:noinline
+ func PanicForTesting(b []byte, i int) byte {
+ 	return unexportedPanicForTesting(b, i)
+@@ -1617,3 +1623,5 @@ func (s *ScavengeIndex) Mark(base, limit uintptr) {
+ func (s *ScavengeIndex) Clear(ci ChunkIdx) {
+ 	s.i.clear(chunkIdx(ci))
+ }
++
++const GTrackingPeriod = gTrackingPeriod
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index 8e1c596852..0a255149e2 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -411,6 +411,12 @@ func initMetrics() {
+ 				hist.counts[len(hist.counts)-1] = sched.timeToRun.overflow.Load()
+ 			},
+ 		},
++		"/sync/mutex/wait/total:seconds": {
++			compute: func(_ *statAggregate, out *metricValue) {
++				out.kind = metricKindFloat64
++				out.scalar = float64bits(nsToSec(sched.totalMutexWaitTime.Load()))
++			},
++		},
+ 	}
+ 	metricsInit = true
+ }
+diff --git a/src/runtime/metrics/description.go b/src/runtime/metrics/description.go
+index abcdddd16c..dcfe01e67c 100644
+--- a/src/runtime/metrics/description.go
++++ b/src/runtime/metrics/description.go
+@@ -366,6 +366,12 @@ var allDesc = []Description{
+ 		Description: "Distribution of the time goroutines have spent in the scheduler in a runnable state before actually running.",
+ 		Kind:        KindFloat64Histogram,
+ 	},
++	{
++		Name:        "/sync/mutex/wait/total:seconds",
++		Description: "Approximate cumulative time goroutines have spent blocked on a sync.Mutex or sync.RWMutex. This metric is useful for identifying global changes in lock contention. Collect a mutex or block profile using the runtime/pprof package for more detailed contention data.",
++		Kind:        KindFloat64,
++		Cumulative:  true,
++	},
+ }
+ 
+ // All returns a slice of containing metric descriptions for all supported metrics.
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index bb7e96b3b5..b593d8d812 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -272,5 +272,12 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 	/sched/latencies:seconds
+ 		Distribution of the time goroutines have spent in the scheduler
+ 		in a runnable state before actually running.
++
++	/sync/mutex/wait/total:seconds
++		Approximate cumulative time goroutines have spent blocked on a
++		sync.Mutex or sync.RWMutex. This metric is useful for identifying
++		global changes in lock contention. Collect a mutex or block
++		profile using the runtime/pprof package for more detailed
++		contention data.
+ */
+ package metrics
+diff --git a/src/runtime/metrics_test.go b/src/runtime/metrics_test.go
+index 645d3a519b..b4d921b82e 100644
+--- a/src/runtime/metrics_test.go
++++ b/src/runtime/metrics_test.go
+@@ -5,6 +5,7 @@
+ package runtime_test
+ 
+ import (
++	"reflect"
+ 	"runtime"
+ 	"runtime/metrics"
+ 	"sort"
+@@ -156,7 +157,7 @@ func TestReadMetricsConsistency(t *testing.T) {
+ 	// Tests whether readMetrics produces consistent, sensible values.
+ 	// The values are read concurrently with the runtime doing other
+ 	// things (e.g. allocating) so what we read can't reasonably compared
+-	// to runtime values.
++	// to other runtime values (e.g. MemStats).
+ 
+ 	// Run a few GC cycles to get some of the stats to be non-zero.
+ 	runtime.GC()
+@@ -486,3 +487,127 @@ func TestReadMetricsCumulative(t *testing.T) {
+ func withinEpsilon(v1, v2, e float64) bool {
+ 	return v2-v2*e <= v1 && v1 <= v2+v2*e
+ }
++
++func TestMutexWaitTimeMetric(t *testing.T) {
++	var sample [1]metrics.Sample
++	sample[0].Name = "/sync/mutex/wait/total:seconds"
++
++	locks := []locker2{
++		new(mutex),
++		new(rwmutexWrite),
++		new(rwmutexReadWrite),
++		new(rwmutexWriteRead),
++	}
++	for _, lock := range locks {
++		t.Run(reflect.TypeOf(lock).Elem().Name(), func(t *testing.T) {
++			metrics.Read(sample[:])
++			before := time.Duration(sample[0].Value.Float64() * 1e9)
++
++			minMutexWaitTime := generateMutexWaitTime(lock)
++
++			metrics.Read(sample[:])
++			after := time.Duration(sample[0].Value.Float64() * 1e9)
++
++			if wt := after - before; wt < minMutexWaitTime {
++				t.Errorf("too little mutex wait time: got %s, want %s", wt, minMutexWaitTime)
++			}
++		})
++	}
++}
++
++// locker2 represents an API surface of two concurrent goroutines
++// locking the same resource, but through different APIs. It's intended
++// to abstract over the relationship of two Lock calls or an RLock
++// and a Lock call.
++type locker2 interface {
++	Lock1()
++	Unlock1()
++	Lock2()
++	Unlock2()
++}
++
++type mutex struct {
++	mu sync.Mutex
++}
++
++func (m *mutex) Lock1()   { m.mu.Lock() }
++func (m *mutex) Unlock1() { m.mu.Unlock() }
++func (m *mutex) Lock2()   { m.mu.Lock() }
++func (m *mutex) Unlock2() { m.mu.Unlock() }
++
++type rwmutexWrite struct {
++	mu sync.RWMutex
++}
++
++func (m *rwmutexWrite) Lock1()   { m.mu.Lock() }
++func (m *rwmutexWrite) Unlock1() { m.mu.Unlock() }
++func (m *rwmutexWrite) Lock2()   { m.mu.Lock() }
++func (m *rwmutexWrite) Unlock2() { m.mu.Unlock() }
++
++type rwmutexReadWrite struct {
++	mu sync.RWMutex
++}
++
++func (m *rwmutexReadWrite) Lock1()   { m.mu.RLock() }
++func (m *rwmutexReadWrite) Unlock1() { m.mu.RUnlock() }
++func (m *rwmutexReadWrite) Lock2()   { m.mu.Lock() }
++func (m *rwmutexReadWrite) Unlock2() { m.mu.Unlock() }
++
++type rwmutexWriteRead struct {
++	mu sync.RWMutex
++}
++
++func (m *rwmutexWriteRead) Lock1()   { m.mu.Lock() }
++func (m *rwmutexWriteRead) Unlock1() { m.mu.Unlock() }
++func (m *rwmutexWriteRead) Lock2()   { m.mu.RLock() }
++func (m *rwmutexWriteRead) Unlock2() { m.mu.RUnlock() }
++
++// generateMutexWaitTime causes a couple of goroutines
++// to block a whole bunch of times on a sync.Mutex, returning
++// the minimum amount of time that should be visible in the
++// /sync/mutex-wait:seconds metric.
++func generateMutexWaitTime(mu locker2) time.Duration {
++	// Set up the runtime to always track casgstatus transitions for metrics.
++	*runtime.CasGStatusAlwaysTrack = true
++
++	mu.Lock1()
++
++	// Start up a goroutine to wait on the lock.
++	gc := make(chan *runtime.G)
++	done := make(chan bool)
++	go func() {
++		gc <- runtime.Getg()
++
++		for {
++			mu.Lock2()
++			mu.Unlock2()
++			if <-done {
++				return
++			}
++		}
++	}()
++	gp := <-gc
++
++	// Set the block time high enough so that it will always show up, even
++	// on systems with coarse timer granularity.
++	const blockTime = 100 * time.Millisecond
++
++	// Make sure the goroutine spawned above actually blocks on the lock.
++	for {
++		if runtime.GIsWaitingOnMutex(gp) {
++			break
++		}
++		runtime.Gosched()
++	}
++
++	// Let some amount of time pass.
++	time.Sleep(blockTime)
++
++	// Let the other goroutine acquire the lock.
++	mu.Unlock1()
++	done <- true
++
++	// Reset flag.
++	*runtime.CasGStatusAlwaysTrack = false
++	return blockTime
++}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 0fed91c61e..d7a8049f37 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -954,6 +954,10 @@ func castogscanstatus(gp *g, oldval, newval uint32) bool {
+ 	panic("not reached")
+ }
+ 
++// casgstatusAlwaysTrack is a debug flag that causes casgstatus to always track
++// various latencies on every transition instead of sampling them.
++var casgstatusAlwaysTrack = false
++
+ // If asked to move to or from a Gscanstatus this will throw. Use the castogscanstatus
+ // and casfrom_Gscanstatus instead.
+ // casgstatus will loop if the g->atomicstatus is in a Gscan status until the routine that
+@@ -994,36 +998,65 @@ func casgstatus(gp *g, oldval, newval uint32) {
+ 		}
+ 	}
+ 
+-	// Handle tracking for scheduling latencies.
+ 	if oldval == _Grunning {
+-		// Track every 8th time a goroutine transitions out of running.
+-		if gp.trackingSeq%gTrackingPeriod == 0 {
++		// Track every gTrackingPeriod time a goroutine transitions out of running.
++		if casgstatusAlwaysTrack || gp.trackingSeq%gTrackingPeriod == 0 {
+ 			gp.tracking = true
+ 		}
+ 		gp.trackingSeq++
+ 	}
+-	if gp.tracking {
+-		if oldval == _Grunnable {
+-			// We transitioned out of runnable, so measure how much
+-			// time we spent in this state and add it to
+-			// runnableTime.
+-			now := nanotime()
+-			gp.runnableTime += now - gp.runnableStamp
+-			gp.runnableStamp = 0
++	if !gp.tracking {
++		return
++	}
++
++	// Handle various kinds of tracking.
++	//
++	// Currently:
++	// - Time spent in runnable.
++	// - Time spent blocked on a sync.Mutex or sync.RWMutex.
++	switch oldval {
++	case _Grunnable:
++		// We transitioned out of runnable, so measure how much
++		// time we spent in this state and add it to
++		// runnableTime.
++		now := nanotime()
++		gp.runnableTime += now - gp.trackingStamp
++		gp.trackingStamp = 0
++	case _Gwaiting:
++		if !gp.waitreason.isMutexWait() {
++			// Not blocking on a lock.
++			break
+ 		}
+-		if newval == _Grunnable {
+-			// We just transitioned into runnable, so record what
+-			// time that happened.
+-			now := nanotime()
+-			gp.runnableStamp = now
+-		} else if newval == _Grunning {
+-			// We're transitioning into running, so turn off
+-			// tracking and record how much time we spent in
+-			// runnable.
+-			gp.tracking = false
+-			sched.timeToRun.record(gp.runnableTime)
+-			gp.runnableTime = 0
++		// Blocking on a lock, measure it. Note that because we're
++		// sampling, we have to multiply by our sampling period to get
++		// a more representative estimate of the absolute value.
++		// gTrackingPeriod also represents an accurate sampling period
++		// because we can only enter this state from _Grunning.
++		now := nanotime()
++		sched.totalMutexWaitTime.Add((now - gp.trackingStamp) * gTrackingPeriod)
++		gp.trackingStamp = 0
++	}
++	switch newval {
++	case _Gwaiting:
++		if !gp.waitreason.isMutexWait() {
++			// Not blocking on a lock.
++			break
+ 		}
++		// Blocking on a lock. Write down the timestamp.
++		now := nanotime()
++		gp.trackingStamp = now
++	case _Grunnable:
++		// We just transitioned into runnable, so record what
++		// time that happened.
++		now := nanotime()
++		gp.trackingStamp = now
++	case _Grunning:
++		// We're transitioning into running, so turn off
++		// tracking and record how much time we spent in
++		// runnable.
++		gp.tracking = false
++		sched.timeToRun.record(gp.runnableTime)
++		gp.runnableTime = 0
+ 	}
+ }
+ 
+@@ -1031,6 +1064,7 @@ func casgstatus(gp *g, oldval, newval uint32) {
+ //
+ // Use this over casgstatus when possible to ensure that a waitreason is set.
+ func casGToWaiting(gp *g, old uint32, reason waitReason) {
++	// Set the wait reason before calling casgstatus, because casgstatus will use it.
+ 	gp.waitreason = reason
+ 	casgstatus(gp, old, _Gwaiting)
+ }
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 1d36126a03..284f9d395d 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -468,7 +468,7 @@ type g struct {
+ 	sysblocktraced bool     // StartTrace has emitted EvGoInSyscall about this goroutine
+ 	tracking       bool     // whether we're tracking this G for sched latency statistics
+ 	trackingSeq    uint8    // used to decide whether to track this G
+-	runnableStamp  int64    // timestamp of when the G last became runnable, only used when tracking
++	trackingStamp  int64    // timestamp of when the G last started being tracked
+ 	runnableTime   int64    // the amount of time spent runnable, cleared when running, only used when tracking
+ 	sysexitticks   int64    // cputicks when syscall has returned (for tracing)
+ 	traceseq       uint64   // trace event sequencer
+@@ -843,6 +843,10 @@ type schedt struct {
+ 	//
+ 	// Reset on each GC cycle.
+ 	idleTime atomic.Int64
++
++	// totalMutexWaitTime is the sum of time goroutines have spent in _Gwaiting
++	// with a waitreason of the form waitReasonSync{RW,}Mutex{R,}Lock.
++	totalMutexWaitTime atomic.Int64
+ }
+ 
+ // Values for the flags field of a sigTabT.
+@@ -1109,6 +1113,12 @@ func (w waitReason) String() string {
+ 	return waitReasonStrings[w]
+ }
+ 
++func (w waitReason) isMutexWait() bool {
++	return w == waitReasonSyncMutexLock ||
++		w == waitReasonSyncRWMutexRLock ||
++		w == waitReasonSyncRWMutexLock
++}
++
+ var (
+ 	allm       *m
+ 	gomaxprocs int32

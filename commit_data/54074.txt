@@ -26,8 +26,164 @@ Date:   Wed Aug 24 14:23:28 2022 -0400
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/bytes/bytes.go          | 30 +++++++++++++++++++++++++++
  src/strings/strings.go      | 49 ++++++++++++++++++++++++++++++++++++---------
  src/strings/strings_test.go | 33 +++++++++++++++++++++++++-----
  3 files changed, 97 insertions(+), 15 deletions(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index 7b28cf1efc..119b1f62b1 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -1134,6 +1134,36 @@ func ReplaceAll(s, old, new []byte) []byte {
+ // are equal under simple Unicode case-folding, which is a more general
+ // form of case-insensitivity.
+ func EqualFold(s, t []byte) bool {
++	// ASCII fast path
++	i := 0
++	for ; i < len(s) && i < len(t); i++ {
++		sr := s[i]
++		tr := t[i]
++		if sr|tr >= utf8.RuneSelf {
++			goto hasUnicode
++		}
++
++		// Easy case.
++		if tr == sr {
++			continue
++		}
++
++		// Make sr < tr to simplify what follows.
++		if tr < sr {
++			tr, sr = sr, tr
++		}
++		// ASCII only, sr/tr must be upper/lower case
++		if 'A' <= sr && sr <= 'Z' && tr == sr+'a'-'A' {
++			continue
++		}
++		return false
++	}
++	// Check if we've exhausted both strings.
++	return len(s) == len(t)
++
++hasUnicode:
++	s = s[i:]
++	t = t[i:]
+ 	for len(s) != 0 && len(t) != 0 {
+ 		// Extract first rune from each.
+ 		var sr, tr rune
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 7cf3686569..fee161e4cc 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -1067,15 +1067,44 @@ func ReplaceAll(s, old, new string) string {
+ // are equal under simple Unicode case-folding, which is a more general
+ // form of case-insensitivity.
+ func EqualFold(s, t string) bool {
+-	for s != "" && t != "" {
+-		// Extract first rune from each string.
+-		var sr, tr rune
+-		if s[0] < utf8.RuneSelf {
+-			sr, s = rune(s[0]), s[1:]
+-		} else {
+-			r, size := utf8.DecodeRuneInString(s)
+-			sr, s = r, s[size:]
++	// ASCII fast path
++	i := 0
++	for ; i < len(s) && i < len(t); i++ {
++		sr := s[i]
++		tr := t[i]
++		if sr|tr >= utf8.RuneSelf {
++			goto hasUnicode
+ 		}
++
++		// Easy case.
++		if tr == sr {
++			continue
++		}
++
++		// Make sr < tr to simplify what follows.
++		if tr < sr {
++			tr, sr = sr, tr
++		}
++		// ASCII only, sr/tr must be upper/lower case
++		if 'A' <= sr && sr <= 'Z' && tr == sr+'a'-'A' {
++			continue
++		}
++		return false
++	}
++	// Check if we've exhausted both strings.
++	return len(s) == len(t)
++
++hasUnicode:
++	s = s[i:]
++	t = t[i:]
++	for _, sr := range s {
++		// If t is exhausted the strings are not equal.
++		if len(t) == 0 {
++			return false
++		}
++
++		// Extract first rune from second string.
++		var tr rune
+ 		if t[0] < utf8.RuneSelf {
+ 			tr, t = rune(t[0]), t[1:]
+ 		} else {
+@@ -1115,8 +1144,8 @@ func EqualFold(s, t string) bool {
+ 		return false
+ 	}
+ 
+-	// One string is empty. Are both?
+-	return s == t
++	// First string is empty, so check if the second one is also empty.
++	return len(t) == 0
+ }
+ 
+ // Index returns the index of the first instance of substr in s, or -1 if substr is not present in s.
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index 9323ff988d..210bd9e44b 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -1556,13 +1556,36 @@ func TestEqualFold(t *testing.T) {
+ }
+ 
+ func BenchmarkEqualFold(b *testing.B) {
+-	for i := 0; i < b.N; i++ {
+-		for _, tt := range EqualFoldTests {
+-			if out := EqualFold(tt.s, tt.t); out != tt.out {
+-				b.Fatal("wrong result")
++	b.Run("Tests", func(b *testing.B) {
++		for i := 0; i < b.N; i++ {
++			for _, tt := range EqualFoldTests {
++				if out := EqualFold(tt.s, tt.t); out != tt.out {
++					b.Fatal("wrong result")
++				}
+ 			}
+ 		}
+-	}
++	})
++
++	const s1 = "abcdefghijKz"
++	const s2 = "abcDefGhijKz"
++
++	b.Run("ASCII", func(b *testing.B) {
++		for i := 0; i < b.N; i++ {
++			EqualFold(s1, s2)
++		}
++	})
++
++	b.Run("UnicodePrefix", func(b *testing.B) {
++		for i := 0; i < b.N; i++ {
++			EqualFold("αβδ"+s1, "ΑΒΔ"+s2)
++		}
++	})
++
++	b.Run("UnicodeSuffix", func(b *testing.B) {
++		for i := 0; i < b.N; i++ {
++			EqualFold(s1+"αβδ", s2+"ΑΒΔ")
++		}
++	})
+ }
+ 
+ var CountTests = []struct {

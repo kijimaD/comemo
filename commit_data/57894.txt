@@ -27,7 +27,7 @@ Date:   Tue Jul 11 12:42:12 2023 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/511563
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/inline/inlheur/analyze.go |  14 ++
  .../internal/inline/inlheur/analyze_func_flags.go  |   8 +-
  .../internal/inline/inlheur/analyze_func_params.go | 114 +++++++++++--
@@ -36,3 +36,610 @@ Date:   Tue Jul 11 12:42:12 2023 -0400
  .../inline/inlheur/testdata/props/acrosscall.go    | 189 +++++++++++++++++++++
  .../inline/inlheur/testdata/props/funcflags.go     |   9 +
  7 files changed, 398 insertions(+), 48 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze.go b/src/cmd/compile/internal/inline/inlheur/analyze.go
+index a52b7ba04b..3ae8a38eea 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze.go
+@@ -104,6 +104,17 @@ func runAnalyzersOnFunction(fn *ir.Func, analyzers []propAnalyzer) {
+ 	doNode(fn)
+ }
+ 
++func propsForFunc(fn *ir.Func) *FuncProps {
++	if fih, ok := fpmap[fn]; ok {
++		return fih.props
++	} else if fn.Inl != nil && fn.Inl.Properties != "" {
++		// FIXME: considering adding some sort of cache or table
++		// for deserialized properties of imported functions.
++		return DeserializeFromString(fn.Inl.Properties)
++	}
++	return nil
++}
++
+ func fnFileLine(fn *ir.Func) (string, uint) {
+ 	p := base.Ctxt.InnermostPos(fn.Pos())
+ 	return filepath.Base(p.Filename()), p.Line()
+@@ -176,6 +187,9 @@ func captureFuncDumpEntry(fn *ir.Func, canInline func(*ir.Func)) {
+ 	} else {
+ 		AnalyzeFunc(fn, canInline)
+ 		fih = fpmap[fn]
++		if fn.Inl != nil && fn.Inl.Properties == "" {
++			fn.Inl.Properties = fih.props.SerializeToString()
++		}
+ 	}
+ 	if dumpBuffer == nil {
+ 		dumpBuffer = make(map[*ir.Func]fnInlHeur)
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go b/src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go
+index 41c31a4607..4427653693 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go
+@@ -175,9 +175,11 @@ func isExitCall(n ir.Node) bool {
+ 		isWellKnownFunc(s, "runtime", "throw") {
+ 		return true
+ 	}
+-	// FIXME: consult results of flags computation for
+-	// previously analyzed Go functions, including props
+-	// read from export data for functions in other packages.
++	if fp := propsForFunc(name.Func); fp != nil {
++		if fp.Flags&FuncPropNeverReturns != 0 {
++			return true
++		}
++	}
+ 	return false
+ }
+ 
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze_func_params.go b/src/cmd/compile/internal/inline/inlheur/analyze_func_params.go
+index e5cbdf7cce..1fc24afe68 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze_func_params.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze_func_params.go
+@@ -106,21 +106,35 @@ func (pa *paramsAnalyzer) setResults(fp *FuncProps) {
+ 	fp.ParamFlags = pa.values
+ }
+ 
++func (pa *paramsAnalyzer) findParamIdx(n *ir.Name) int {
++	if n == nil {
++		panic("bad")
++	}
++	for i := range pa.params {
++		if pa.params[i] == n {
++			return i
++		}
++	}
++	return -1
++}
++
++type testfType func(x ir.Node, param *ir.Name, idx int) (bool, bool)
++
+ // paramsAnalyzer invokes function 'testf' on the specified expression
+ // 'x' for each parameter, and if the result is TRUE, or's 'flag' into
+ // the flags for that param.
+-func (pa *paramsAnalyzer) checkParams(x ir.Node, flag ParamPropBits, mayflag ParamPropBits, testf func(x ir.Node, param *ir.Name) bool) {
++func (pa *paramsAnalyzer) checkParams(x ir.Node, flag ParamPropBits, mayflag ParamPropBits, testf testfType) {
+ 	for idx, p := range pa.params {
+ 		if !pa.top[idx] && pa.values[idx] == ParamNoInfo {
+ 			continue
+ 		}
+-		result := testf(x, p)
++		result, may := testf(x, p, idx)
+ 		if debugTrace&debugTraceParams != 0 {
+ 			fmt.Fprintf(os.Stderr, "=-= test expr %v param %s result=%v flag=%s\n", x, p.Sym().Name, result, flag.String())
+ 		}
+ 		if result {
+ 			v := flag
+-			if pa.condLevel != 0 {
++			if pa.condLevel != 0 || may {
+ 				v = mayflag
+ 			}
+ 			pa.values[idx] |= v
+@@ -134,8 +148,8 @@ func (pa *paramsAnalyzer) checkParams(x ir.Node, flag ParamPropBits, mayflag Par
+ // specific parameter had a constant value.
+ func (pa *paramsAnalyzer) foldCheckParams(x ir.Node) {
+ 	pa.checkParams(x, ParamFeedsIfOrSwitch, ParamMayFeedIfOrSwitch,
+-		func(x ir.Node, p *ir.Name) bool {
+-			return ShouldFoldIfNameConstant(x, []*ir.Name{p})
++		func(x ir.Node, p *ir.Name, idx int) (bool, bool) {
++			return ShouldFoldIfNameConstant(x, []*ir.Name{p}), false
+ 		})
+ }
+ 
+@@ -158,9 +172,9 @@ func (pa *paramsAnalyzer) callCheckParams(ce *ir.CallExpr) {
+ 		}
+ 		pa.checkParams(r, ParamFeedsInterfaceMethodCall,
+ 			ParamMayFeedInterfaceMethodCall,
+-			func(x ir.Node, p *ir.Name) bool {
++			func(x ir.Node, p *ir.Name, idx int) (bool, bool) {
+ 				name := x.(*ir.Name)
+-				return name == p
++				return name == p, false
+ 			})
+ 	case ir.OCALLFUNC:
+ 		if ce.X.Op() != ir.ONAME {
+@@ -171,15 +185,89 @@ func (pa *paramsAnalyzer) callCheckParams(ce *ir.CallExpr) {
+ 			return
+ 		}
+ 		name := called.(*ir.Name)
++		if name.Class == ir.PPARAM {
++			pa.checkParams(called, ParamFeedsIndirectCall,
++				ParamMayFeedIndirectCall,
++				func(x ir.Node, p *ir.Name, idx int) (bool, bool) {
++					name := x.(*ir.Name)
++					return name == p, false
++				})
++		} else {
++			cname, isFunc, _ := isFuncName(called)
++			if isFunc {
++				pa.deriveFlagsFromCallee(ce, cname.Func)
++			}
++		}
++	}
++}
++
++// deriveFlagsFromCallee tries to derive flags for the current
++// function based on a call this function makes to some other
++// function. Example:
++//
++//	/* Simple */                /* Derived from callee */
++//	func foo(f func(int)) {     func foo(f func(int)) {
++//	  f(2)                        bar(32, f)
++//	}                           }
++//	                            func bar(x int, f func()) {
++//	                              f(x)
++//	                            }
++//
++// Here we can set the "param feeds indirect call" flag for
++// foo's param 'f' since we know that bar has that flag set for
++// its second param, and we're passing that param a function.
++func (pa *paramsAnalyzer) deriveFlagsFromCallee(ce *ir.CallExpr, callee *ir.Func) {
++	calleeProps := propsForFunc(callee)
++	if calleeProps == nil {
++		return
++	}
++	if debugTrace&debugTraceParams != 0 {
++		fmt.Fprintf(os.Stderr, "=-= callee props for %v:\n%s",
++			callee.Sym().Name, calleeProps.String())
++	}
++
++	must := []ParamPropBits{ParamFeedsInterfaceMethodCall, ParamFeedsIndirectCall, ParamFeedsIfOrSwitch}
++	may := []ParamPropBits{ParamMayFeedInterfaceMethodCall, ParamMayFeedIndirectCall, ParamMayFeedIfOrSwitch}
++
++	for pidx, arg := range ce.Args {
++		// Does the callee param have any interesting properties?
++		// If not we can skip this one.
++		pflag := calleeProps.ParamFlags[pidx]
++		if pflag == 0 {
++			continue
++		}
++		// See if one of the caller's parameters is flowing unmodified
++		// into this actual expression.
++		r := ir.StaticValue(arg)
++		if r.Op() != ir.ONAME {
++			return
++		}
++		name := r.(*ir.Name)
+ 		if name.Class != ir.PPARAM {
+ 			return
+ 		}
+-		pa.checkParams(called, ParamFeedsIndirectCall,
+-			ParamMayFeedIndirectCall,
+-			func(x ir.Node, p *ir.Name) bool {
+-				name := x.(*ir.Name)
+-				return name == p
+-			})
++		callerParamIdx := pa.findParamIdx(name)
++		if callerParamIdx == -1 || pa.params[callerParamIdx] == nil {
++			panic("something went wrong")
++		}
++		if !pa.top[callerParamIdx] &&
++			pa.values[callerParamIdx] == ParamNoInfo {
++			continue
++		}
++		if debugTrace&debugTraceParams != 0 {
++			fmt.Fprintf(os.Stderr, "=-= pflag for arg %d is %s\n",
++				pidx, pflag.String())
++		}
++		for i := range must {
++			mayv := may[i]
++			mustv := must[i]
++			if pflag&mustv != 0 && pa.condLevel == 0 {
++				pa.values[callerParamIdx] |= mustv
++			} else if pflag&(mustv|mayv) != 0 {
++				pa.values[callerParamIdx] |= mayv
++			}
++		}
++		pa.top[callerParamIdx] = false
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze_func_returns.go b/src/cmd/compile/internal/inline/inlheur/analyze_func_returns.go
+index d19c3793a2..c157e5cc48 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze_func_returns.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze_func_returns.go
+@@ -28,10 +28,11 @@ type returnsAnalyzer struct {
+ // the same function, etc. This container stores info on a the specific
+ // scenarios we're looking for.
+ type resultVal struct {
+-	lit   constant.Value
+-	fn    *ir.Name
+-	fnClo bool
+-	top   bool
++	lit     constant.Value
++	fn      *ir.Name
++	fnClo   bool
++	top     bool
++	derived bool // see deriveReturnFlagsFromCallee below
+ }
+ 
+ func makeResultsAnalyzer(fn *ir.Func, canInline func(*ir.Func)) *returnsAnalyzer {
+@@ -62,7 +63,7 @@ func makeResultsAnalyzer(fn *ir.Func, canInline func(*ir.Func)) *returnsAnalyzer
+ func (ra *returnsAnalyzer) setResults(fp *FuncProps) {
+ 	// Promote ResultAlwaysSameFunc to ResultAlwaysSameInlinableFunc
+ 	for i := range ra.values {
+-		if ra.props[i] == ResultAlwaysSameFunc {
++		if ra.props[i] == ResultAlwaysSameFunc && !ra.values[i].derived {
+ 			f := ra.values[i].fn.Func
+ 			// If the function being returns is a closure that hasn't
+ 			// yet been checked by CanInline, invoke it now. NB: this
+@@ -149,6 +150,7 @@ func (ra *returnsAnalyzer) analyzeResult(ii int, n ir.Node) {
+ 	lit, isConst := isLiteral(n)
+ 	rfunc, isFunc, isClo := isFuncName(n)
+ 	curp := ra.props[ii]
++	dprops, isDerivedFromCall := deriveReturnFlagsFromCallee(n)
+ 	newp := ResultNoInfo
+ 	var newlit constant.Value
+ 	var newfunc *ir.Name
+@@ -172,30 +174,35 @@ func (ra *returnsAnalyzer) analyzeResult(ii int, n ir.Node) {
+ 		case isConst:
+ 			newp = ResultAlwaysSameConstant
+ 			newlit = lit
++		case isDerivedFromCall:
++			newp = dprops
++			ra.values[ii].derived = true
+ 		}
+ 	} else {
+-		// this is not the first return we've seen; apply
+-		// what amounts of a "meet" operator to combine
+-		// the properties we see here with what we saw on
+-		// the previous returns.
+-		switch curp {
+-		case ResultIsAllocatedMem:
+-			if isAllocatedMem(n) {
+-				newp = ResultIsAllocatedMem
+-			}
+-		case ResultIsConcreteTypeConvertedToInterface:
+-			if isConcreteConvIface(n) {
+-				newp = ResultIsConcreteTypeConvertedToInterface
+-			}
+-		case ResultAlwaysSameConstant:
+-			if isConst && isSameLiteral(lit, ra.values[ii].lit) {
+-				newp = ResultAlwaysSameConstant
+-				newlit = lit
+-			}
+-		case ResultAlwaysSameFunc:
+-			if isFunc && isSameFuncName(rfunc, ra.values[ii].fn) {
+-				newp = ResultAlwaysSameFunc
+-				newfunc = rfunc
++		if !ra.values[ii].derived {
++			// this is not the first return we've seen; apply
++			// what amounts of a "meet" operator to combine
++			// the properties we see here with what we saw on
++			// the previous returns.
++			switch curp {
++			case ResultIsAllocatedMem:
++				if isAllocatedMem(n) {
++					newp = ResultIsAllocatedMem
++				}
++			case ResultIsConcreteTypeConvertedToInterface:
++				if isConcreteConvIface(n) {
++					newp = ResultIsConcreteTypeConvertedToInterface
++				}
++			case ResultAlwaysSameConstant:
++				if isConst && isSameLiteral(lit, ra.values[ii].lit) {
++					newp = ResultAlwaysSameConstant
++					newlit = lit
++				}
++			case ResultAlwaysSameFunc:
++				if isFunc && isSameFuncName(rfunc, ra.values[ii].fn) {
++					newp = ResultAlwaysSameFunc
++					newfunc = rfunc
++				}
+ 			}
+ 		}
+ 	}
+@@ -208,7 +215,6 @@ func (ra *returnsAnalyzer) analyzeResult(ii int, n ir.Node) {
+ 		fmt.Fprintf(os.Stderr, "=-= %v: analyzeResult newp=%s\n",
+ 			ir.Line(n), newp)
+ 	}
+-
+ }
+ 
+ func isAllocatedMem(n ir.Node) bool {
+@@ -220,6 +226,48 @@ func isAllocatedMem(n ir.Node) bool {
+ 	return false
+ }
+ 
++// deriveReturnFlagsFromCallee tries to set properties for a given
++// return result where we're returning call expression; return value
++// is a return property value and a boolean indicating whether the
++// prop is valid. Examples:
++//
++//	func foo() int { return bar() }
++//	func bar() int { return 42 }
++//	func blix() int { return 43 }
++//	func two(y int) int {
++//	  if y < 0 { return bar() } else { return blix() }
++//	}
++//
++// Since "foo" always returns the result of a call to "bar", we can
++// set foo's return property to that of bar. In the case of "two", however,
++// even though each return path returns a constant, we don't know
++// whether the constants are identical, hence we need to be conservative.
++func deriveReturnFlagsFromCallee(n ir.Node) (ResultPropBits, bool) {
++	if n.Op() != ir.OCALLFUNC {
++		return 0, false
++	}
++	ce := n.(*ir.CallExpr)
++	if ce.X.Op() != ir.ONAME {
++		return 0, false
++	}
++	called := ir.StaticValue(ce.X)
++	if called.Op() != ir.ONAME {
++		return 0, false
++	}
++	cname, isFunc, _ := isFuncName(called)
++	if !isFunc {
++		return 0, false
++	}
++	calleeProps := propsForFunc(cname.Func)
++	if calleeProps == nil {
++		return 0, false
++	}
++	if len(calleeProps.ResultFlags) != 1 {
++		return 0, false
++	}
++	return calleeProps.ResultFlags[0], true
++}
++
+ func isLiteral(n ir.Node) (constant.Value, bool) {
+ 	sv := ir.StaticValue(n)
+ 	switch sv.Op() {
+diff --git a/src/cmd/compile/internal/inline/inlheur/funcprops_test.go b/src/cmd/compile/internal/inline/inlheur/funcprops_test.go
+index 3f095e7566..d5fa07ec40 100644
+--- a/src/cmd/compile/internal/inline/inlheur/funcprops_test.go
++++ b/src/cmd/compile/internal/inline/inlheur/funcprops_test.go
+@@ -22,9 +22,9 @@ var remasterflag = flag.Bool("update-expected", false, "if true, generate update
+ 
+ func TestFuncProperties(t *testing.T) {
+ 	td := t.TempDir()
+-	//td = "/tmp/qqq"
+-	//os.RemoveAll(td)
+-	//os.Mkdir(td, 0777)
++	// td = "/tmp/qqq"
++	// os.RemoveAll(td)
++	// os.Mkdir(td, 0777)
+ 	testenv.MustHaveGoBuild(t)
+ 
+ 	// NOTE: this testpoint has the unfortunate characteristic that it
+@@ -35,7 +35,7 @@ func TestFuncProperties(t *testing.T) {
+ 	// to building a fresh compiler on the fly, or using some other
+ 	// scheme.
+ 
+-	testcases := []string{"funcflags", "returns", "params"}
++	testcases := []string{"funcflags", "returns", "params", "acrosscall"}
+ 
+ 	for _, tc := range testcases {
+ 		dumpfile, err := gatherPropsDumpForFile(t, tc, td)
+diff --git a/src/cmd/compile/internal/inline/inlheur/testdata/props/acrosscall.go b/src/cmd/compile/internal/inline/inlheur/testdata/props/acrosscall.go
+new file mode 100644
+index 0000000000..2296a086ca
+--- /dev/null
++++ b/src/cmd/compile/internal/inline/inlheur/testdata/props/acrosscall.go
+@@ -0,0 +1,189 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// DO NOT EDIT (use 'go test -v -update-expected' instead.)
++// See cmd/compile/internal/inline/inlheur/testdata/props/README.txt
++// for more information on the format of this file.
++// <endfilepreamble>
++package params
++
++// acrosscall.go T_feeds_indirect_call_via_call_toplevel 17 0 1
++// ParamFlags
++//   0 ParamFeedsIndirectCall
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":[8],"ResultFlags":[]}
++// <endfuncpreamble>
++func T_feeds_indirect_call_via_call_toplevel(f func(int)) {
++	callsparam(f)
++}
++
++// acrosscall.go T_feeds_indirect_call_via_call_conditional 27 0 1
++// ParamFlags
++//   0 ParamMayFeedIndirectCall
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":[16],"ResultFlags":[]}
++// <endfuncpreamble>
++func T_feeds_indirect_call_via_call_conditional(f func(int)) {
++	if G != 101 {
++		callsparam(f)
++	}
++}
++
++// acrosscall.go T_feeds_conditional_indirect_call_via_call_toplevel 39 0 1
++// ParamFlags
++//   0 ParamMayFeedIndirectCall
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":[16],"ResultFlags":[]}
++// <endfuncpreamble>
++func T_feeds_conditional_indirect_call_via_call_toplevel(f func(int)) {
++	callsparamconditional(f)
++}
++
++// acrosscall.go T_feeds_if_via_call 49 0 1
++// ParamFlags
++//   0 ParamFeedsIfOrSwitch
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":[32],"ResultFlags":[]}
++// <endfuncpreamble>
++func T_feeds_if_via_call(x int) {
++	feedsif(x)
++}
++
++// acrosscall.go T_feeds_if_via_call_conditional 59 0 1
++// ParamFlags
++//   0 ParamMayFeedIfOrSwitch
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":[64],"ResultFlags":[]}
++// <endfuncpreamble>
++func T_feeds_if_via_call_conditional(x int) {
++	if G != 101 {
++		feedsif(x)
++	}
++}
++
++// acrosscall.go T_feeds_conditional_if_via_call 71 0 1
++// ParamFlags
++//   0 ParamMayFeedIfOrSwitch
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":[64],"ResultFlags":[]}
++// <endfuncpreamble>
++func T_feeds_conditional_if_via_call(x int) {
++	feedsifconditional(x)
++}
++
++// acrosscall.go T_multifeeds 82 0 1
++// ParamFlags
++//   0 ParamFeedsIndirectCall|ParamMayFeedIndirectCall
++//   1 ParamFeedsIndirectCall
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":[24,8],"ResultFlags":[]}
++// <endfuncpreamble>
++func T_multifeeds(f1, f2 func(int)) {
++	callsparam(f1)
++	callsparamconditional(f1)
++	callsparam(f2)
++}
++
++// acrosscall.go T_acrosscall_returnsconstant 94 0 1
++// ResultFlags
++//   0 ResultAlwaysSameConstant
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":[],"ResultFlags":[8]}
++// <endfuncpreamble>
++func T_acrosscall_returnsconstant() int {
++	return returnsconstant()
++}
++
++// acrosscall.go T_acrosscall_returnsmem 104 0 1
++// ResultFlags
++//   0 ResultIsAllocatedMem
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":[],"ResultFlags":[2]}
++// <endfuncpreamble>
++func T_acrosscall_returnsmem() *int {
++	return returnsmem()
++}
++
++// acrosscall.go T_acrosscall_returnscci 114 0 1
++// ResultFlags
++//   0 ResultIsConcreteTypeConvertedToInterface
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":[],"ResultFlags":[4]}
++// <endfuncpreamble>
++func T_acrosscall_returnscci() I {
++	return returnscci()
++}
++
++// acrosscall.go T_acrosscall_multiret 122 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":[0],"ResultFlags":[0]}
++// <endfuncpreamble>
++func T_acrosscall_multiret(q int) int {
++	if q != G {
++		return returnsconstant()
++	}
++	return 0
++}
++
++// acrosscall.go T_acrosscall_multiret2 133 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":[0],"ResultFlags":[0]}
++// <endfuncpreamble>
++func T_acrosscall_multiret2(q int) int {
++	if q == G {
++		return returnsconstant()
++	} else {
++		return returnsconstant()
++	}
++}
++
++func callsparam(f func(int)) {
++	f(2)
++}
++
++func callsparamconditional(f func(int)) {
++	if G != 101 {
++		f(2)
++	}
++}
++
++func feedsif(x int) int {
++	if x != 101 {
++		return 42
++	}
++	return 43
++}
++
++func feedsifconditional(x int) int {
++	if G != 101 {
++		if x != 101 {
++			return 42
++		}
++	}
++	return 43
++}
++
++func returnsconstant() int {
++	return 42
++}
++
++func returnsmem() *int {
++	return new(int)
++}
++
++func returnscci() I {
++	var q Q
++	return q
++}
++
++type I interface {
++	Foo()
++}
++
++type Q int
++
++func (q Q) Foo() {
++}
++
++var G int
+diff --git a/src/cmd/compile/internal/inline/inlheur/testdata/props/funcflags.go b/src/cmd/compile/internal/inline/inlheur/testdata/props/funcflags.go
+index 772648ab6b..ae537b46e2 100644
+--- a/src/cmd/compile/internal/inline/inlheur/testdata/props/funcflags.go
++++ b/src/cmd/compile/internal/inline/inlheur/testdata/props/funcflags.go
+@@ -304,6 +304,15 @@ func T_select_mayreturn(chi chan int, chf chan float32, p *int) int {
+ 	panic("bad")
+ }
+ 
++// funcflags.go T_calls_callsexit 291 0 1
++// Flags FuncPropNeverReturns
++// <endpropsdump>
++// {"Flags":1,"ParamFlags":[0],"ResultFlags":[]}
++// <endfuncpreamble>
++func T_calls_callsexit(x int) {
++	exprcallsexit(x)
++}
++
+ func exprcallsexit(x int) int {
+ 	os.Exit(x)
+ 	return x

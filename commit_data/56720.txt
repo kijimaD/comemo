@@ -25,7 +25,7 @@ Date:   Sat May 20 16:53:13 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/go_test.go                              |   8 +-
  src/cmd/go/gotoolchain.go                          |  38 ++--
  src/cmd/go/gotoolchain_port.go                     | 117 -----------
@@ -50,3 +50,1471 @@ Date:   Sat May 20 16:53:13 2023 -0400
  .../go/testdata/script/mod_load_missing_std.txt    |   1 +
  src/cmd/go/testdata/script/mod_tidy_too_new.txt    |   2 +
  23 files changed, 662 insertions(+), 278 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index da7336da9e..e50144f7f0 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -33,6 +33,7 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cache"
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/gover"
+ 	"cmd/go/internal/robustio"
+ 	"cmd/go/internal/search"
+ 	"cmd/go/internal/vcs"
+@@ -109,7 +110,10 @@ func TestMain(m *testing.M) {
+ 		cfg.SetGOROOT(cfg.GOROOT, true)
+ 
+ 		if v := os.Getenv("TESTGO_VERSION"); v != "" {
+-			work.RuntimeVersion = v
++			gover.TestVersion = v
++		}
++		if v := os.Getenv("TESTGO_TOOLCHAIN_VERSION"); v != "" {
++			work.ToolchainVersion = v
+ 		}
+ 
+ 		if testGOROOT := os.Getenv("TESTGO_GOROOT"); testGOROOT != "" {
+@@ -2190,7 +2194,7 @@ func TestNeedVersion(t *testing.T) {
+ 	tg.parallel()
+ 	tg.tempFile("goversion.go", `package main; func main() {}`)
+ 	path := tg.path("goversion.go")
+-	tg.setenv("TESTGO_VERSION", "go1.testgo")
++	tg.setenv("TESTGO_TOOLCHAIN_VERSION", "go1.testgo")
+ 	tg.runFail("run", path)
+ 	tg.grepStderr("compile", "does not match go tool version")
+ }
+diff --git a/src/cmd/go/gotoolchain.go b/src/cmd/go/gotoolchain.go
+index b66561cadc..d43d854e36 100644
+--- a/src/cmd/go/gotoolchain.go
++++ b/src/cmd/go/gotoolchain.go
+@@ -7,12 +7,6 @@
+ package main
+ 
+ import (
+-	"bytes"
+-	"cmd/go/internal/base"
+-	"cmd/go/internal/cfg"
+-	"cmd/go/internal/modcmd"
+-	"cmd/go/internal/modload"
+-	"cmd/go/internal/work"
+ 	"context"
+ 	"fmt"
+ 	"internal/godebug"
+@@ -24,6 +18,12 @@ import (
+ 	"runtime"
+ 	"strings"
+ 	"syscall"
++
++	"cmd/go/internal/base"
++	"cmd/go/internal/cfg"
++	"cmd/go/internal/gover"
++	"cmd/go/internal/modcmd"
++	"cmd/go/internal/modload"
+ )
+ 
+ const (
+@@ -75,7 +75,7 @@ func switchGoToolchain() {
+ 			base.Fatalf("invalid GOTOOLCHAIN %q: invalid minimum version %q", gotoolchain, min)
+ 		}
+ 	} else {
+-		min = work.RuntimeVersion
++		min = "go" + gover.Local()
+ 	}
+ 
+ 	pathOnly := gotoolchain == "path"
+@@ -85,14 +85,16 @@ func switchGoToolchain() {
+ 		if toolchain != "" {
+ 			// toolchain line wins by itself
+ 			gotoolchain = toolchain
+-		} else if goVers != "" {
+-			gotoolchain = toolchainMax(min, "go"+goVers)
+ 		} else {
+-			gotoolchain = min
++			v := strings.TrimPrefix(min, "go")
++			if gover.Compare(v, goVers) < 0 {
++				v = goVers
++			}
++			gotoolchain = "go" + v
+ 		}
+ 	}
+ 
+-	if gotoolchain == "local" || gotoolchain == work.RuntimeVersion {
++	if gotoolchain == "local" || gotoolchain == "go"+gover.Local() {
+ 		// Let the current binary handle the command.
+ 		return
+ 	}
+@@ -250,16 +252,6 @@ func modGoToolchain() (goVers, toolchain string) {
+ 	if err != nil {
+ 		base.Fatalf("%v", err)
+ 	}
+-	for len(data) > 0 {
+-		var line []byte
+-		line, data, _ = bytes.Cut(data, nl)
+-		line = bytes.TrimSpace(line)
+-		if goVers == "" {
+-			goVers = parseKey(line, goKey)
+-		}
+-		if toolchain == "" {
+-			toolchain = parseKey(line, toolchainKey)
+-		}
+-	}
+-	return
++
++	return gover.GoModLookup(data, "go"), gover.GoModLookup(data, "toolchain")
+ }
+diff --git a/src/cmd/go/gotoolchain_port.go b/src/cmd/go/gotoolchain_port.go
+deleted file mode 100644
+index a530059a99..0000000000
+--- a/src/cmd/go/gotoolchain_port.go
++++ /dev/null
+@@ -1,117 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"bytes"
+-	"strings"
+-)
+-
+-var (
+-	nl           = []byte("\n")
+-	comment      = []byte("//")
+-	goKey        = []byte("go")
+-	toolchainKey = []byte("toolchain")
+-)
+-
+-// parseKey checks whether line begings with key ("go" or "toolchain").
+-// If so, it returns the remainder of the line (the argument).
+-func parseKey(line, key []byte) string {
+-	if !bytes.HasPrefix(line, key) {
+-		return ""
+-	}
+-	line = bytes.TrimPrefix(line, key)
+-	if len(line) == 0 || (line[0] != ' ' && line[0] != '\t') {
+-		return ""
+-	}
+-	line, _, _ = bytes.Cut(line, comment) // strip comments
+-	return string(bytes.TrimSpace(line))
+-}
+-
+-// toolchainMax returns the max of x and y as toolchain names
+-// like go1.19.4, comparing the versions.
+-func toolchainMax(x, y string) string {
+-	if toolchainCmp(x, y) >= 0 {
+-		return x
+-	}
+-	return y
+-}
+-
+-// toolchainCmp returns -1, 0, or +1 depending on whether
+-// x < y, x == y, or x > y, interpreted as toolchain versions.
+-func toolchainCmp(x, y string) int {
+-	if x == y {
+-		return 0
+-	}
+-	if y == "" {
+-		return +1
+-	}
+-	if x == "" {
+-		return -1
+-	}
+-	if !strings.HasPrefix(x, "go1") && !strings.HasPrefix(y, "go1") {
+-		return 0
+-	}
+-	if !strings.HasPrefix(x, "go1") {
+-		return +1
+-	}
+-	if !strings.HasPrefix(y, "go1") {
+-		return -1
+-	}
+-	x = strings.TrimPrefix(x, "go")
+-	y = strings.TrimPrefix(y, "go")
+-	for x != "" || y != "" {
+-		if x == y {
+-			return 0
+-		}
+-		xN, xRest := versionCut(x)
+-		yN, yRest := versionCut(y)
+-		if xN > yN {
+-			return +1
+-		}
+-		if xN < yN {
+-			return -1
+-		}
+-		x = xRest
+-		y = yRest
+-	}
+-	return 0
+-}
+-
+-// versionCut cuts the version x after the next dot or before the next non-digit,
+-// returning the leading decimal found and the remainder of the string.
+-func versionCut(x string) (int, string) {
+-	// Treat empty string as infinite source of .0.0.0...
+-	if x == "" {
+-		return 0, ""
+-	}
+-	i := 0
+-	v := 0
+-	for i < len(x) && '0' <= x[i] && x[i] <= '9' {
+-		v = v*10 + int(x[i]-'0')
+-		i++
+-	}
+-	// Treat non-empty non-number as -1 (for release candidates, etc),
+-	// but stop at next number.
+-	if i == 0 {
+-		for i < len(x) && (x[i] < '0' || '9' < x[i]) {
+-			i++
+-		}
+-		if i < len(x) && x[i] == '.' {
+-			i++
+-		}
+-		if strings.Contains(x[:i], "alpha") {
+-			return -3, x[i:]
+-		}
+-		if strings.Contains(x[:i], "beta") {
+-			return -2, x[i:]
+-		}
+-		return -1, x[i:]
+-	}
+-	if i < len(x) && x[i] == '.' {
+-		i++
+-	}
+-	return v, x[i:]
+-}
+diff --git a/src/cmd/go/gotoolchain_test.go b/src/cmd/go/gotoolchain_test.go
+deleted file mode 100644
+index 22c3958f28..0000000000
+--- a/src/cmd/go/gotoolchain_test.go
++++ /dev/null
+@@ -1,49 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import "testing"
+-
+-var toolchainCmpTests = []struct {
+-	x   string
+-	y   string
+-	out int
+-}{
+-	{"", "", 0},
+-	{"x", "x", 0},
+-	{"", "x", -1},
+-	{"go1.5", "go1.6", -1},
+-	{"go1.5", "go1.10", -1},
+-	{"go1.6", "go1.6.1", -1},
+-	{"go1.999", "devel go1.4", -1},
+-	{"devel go1.5", "devel go1.6", 0}, // devels are all +infinity
+-	{"go1.19", "go1.19.1", -1},
+-	{"go1.19rc1", "go1.19", -1},
+-	{"go1.19rc1", "go1.19.1", -1},
+-	{"go1.19rc1", "go1.19rc2", -1},
+-	{"go1.19.0", "go1.19.1", -1},
+-	{"go1.19rc1", "go1.19.0", -1},
+-	{"go1.19alpha3", "go1.19beta2", -1},
+-	{"go1.19beta2", "go1.19rc1", -1},
+-
+-	// Syntax we don't ever plan to use, but just in case we do.
+-	{"go1.19.0-rc.1", "go1.19.0-rc.2", -1},
+-	{"go1.19.0-rc.1", "go1.19.0", -1},
+-	{"go1.19.0-alpha.3", "go1.19.0-beta.2", -1},
+-	{"go1.19.0-beta.2", "go1.19.0-rc.1", -1},
+-}
+-
+-func TestToolchainCmp(t *testing.T) {
+-	for _, tt := range toolchainCmpTests {
+-		out := toolchainCmp(tt.x, tt.y)
+-		if out != tt.out {
+-			t.Errorf("toolchainCmp(%q, %q) = %d, want %d", tt.x, tt.y, out, tt.out)
+-		}
+-		out = toolchainCmp(tt.y, tt.x)
+-		if out != -tt.out {
+-			t.Errorf("toolchainCmp(%q, %q) = %d, want %d", tt.y, tt.x, out, -tt.out)
+-		}
+-	}
+-}
+diff --git a/src/cmd/go/internal/gover/gomod.go b/src/cmd/go/internal/gover/gomod.go
+new file mode 100644
+index 0000000000..4a4ae53029
+--- /dev/null
++++ b/src/cmd/go/internal/gover/gomod.go
+@@ -0,0 +1,43 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gover
++
++import (
++	"bytes"
++	"strings"
++)
++
++var nl = []byte("\n")
++
++// GoModLookup takes go.mod or go.work content,
++// finds the first line in the file starting with the given key,
++// and returns the value associated with that key.
++//
++// Lookup should only be used with non-factored verbs
++// such as "go" and "toolchain", usually to find versions
++// or version-like strings.
++func GoModLookup(gomod []byte, key string) string {
++	for len(gomod) > 0 {
++		var line []byte
++		line, gomod, _ = bytes.Cut(gomod, nl)
++		line = bytes.TrimSpace(line)
++		if v, ok := parseKey(line, key); ok {
++			return v
++		}
++	}
++	return ""
++}
++
++func parseKey(line []byte, key string) (string, bool) {
++	if !strings.HasPrefix(string(line), key) {
++		return "", false
++	}
++	s := strings.TrimPrefix(string(line), key)
++	if len(s) == 0 || (s[0] != ' ' && s[0] != '\t') {
++		return "", false
++	}
++	s, _, _ = strings.Cut(s, "//") // strip comments
++	return strings.TrimSpace(s), true
++}
+diff --git a/src/cmd/go/internal/gover/gover.go b/src/cmd/go/internal/gover/gover.go
+new file mode 100644
+index 0000000000..2c4dae7757
+--- /dev/null
++++ b/src/cmd/go/internal/gover/gover.go
+@@ -0,0 +1,225 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package gover implements support for Go toolchain versions like 1.21.0 and 1.21rc1.
++// (For historical reasons, Go does not use semver for its toolchains.)
++// This package provides the same basic analysis that golang.org/x/mod/semver does for semver.
++// It also provides some helpers for extracting versions from go.mod files
++// and for dealing with module.Versions that may use Go versions or semver
++// depending on the module path.
++package gover
++
++import "cmp"
++
++// A version is a parsed Go version: major[.minor[.patch]][kind[pre]]
++// The numbers are the original decimal strings to avoid integer overflows
++// and since there is very little actual math. (Probably overflow doesn't matter in practice,
++// but at the time this code was written, there was an existing test that used
++// go1.99999999999, which does not fit in an int on 32-bit platforms.
++// The "big decimal" representation avoids the problem entirely.)
++type version struct {
++	major string // decimal
++	minor string // decimal or ""
++	patch string // decimal or ""
++	kind  string // "", "alpha", "beta", "rc"
++	pre   string // decimal or ""
++}
++
++// Compare returns -1, 0, or +1 depending on whether
++// x < y, x == y, or x > y, interpreted as toolchain versions.
++// The versions x and y must not begin with a "go" prefix: just "1.21" not "go1.21".
++// Malformed versions compare less than well-formed versions and equal to each other.
++// The language version "1.21" compares less than the release candidate and eventual releases "1.21rc1" and "1.21.0".
++func Compare(x, y string) int {
++	vx := parse(x)
++	vy := parse(y)
++
++	if c := cmpInt(vx.major, vy.major); c != 0 {
++		return c
++	}
++	if c := cmpInt(vx.minor, vy.minor); c != 0 {
++		return c
++	}
++	if c := cmpInt(vx.patch, vy.patch); c != 0 {
++		return c
++	}
++	if c := cmp.Compare(vx.kind, vy.kind); c != 0 { // "" < alpha < beta < rc
++		return c
++	}
++	if c := cmpInt(vx.pre, vy.pre); c != 0 {
++		return c
++	}
++	return 0
++}
++
++// IsLang reports whether v denotes the overall Go language version
++// and not a specific release. Starting with the Go 1.21 release, "1.x" denotes
++// the overall language version; the first release is "1.x.0".
++// The distinction is important because the relative ordering is
++//
++//	1.21 < 1.21rc1 < 1.21.0
++//
++// meaning that Go 1.21rc1 and Go 1.21.0 will both handle go.mod files that
++// say "go 1.21", but Go 1.21rc1 will not handle files that say "go 1.21.0".
++func IsLang(x string) bool {
++	v := parse(x)
++	return v != version{} && v.patch == "" && v.kind == "" && v.pre == ""
++}
++
++// Lang returns the Go language version. For example, Lang("1.2.3") == "1.2".
++func Lang(x string) string {
++	v := parse(x)
++	if v.minor == "" {
++		return v.major
++	}
++	return v.major + "." + v.minor
++}
++
++// Prev returns the Go major release immediately preceding v,
++// or v itself if v is the first Go major release (1.0) or not a supported
++// Go version.
++//
++// Examples:
++//
++//	Prev("1.2") = "1.1"
++//	Prev("1.3rc4") = "1.2"
++//
++func Prev(x string) string {
++	v := parse(x)
++	if cmpInt(v.minor, "1") <= 0 {
++		return v.major
++	}
++	return v.major + "." + decInt(v.minor)
++}
++
++// IsValid reports whether the version x is valid.
++func IsValid(x string) bool {
++	return parse(x) != version{}
++}
++
++// parse parses the Go version string x into a version.
++// It returns the zero version if x is malformed.
++func parse(x string) version {
++	var v version
++
++	// Parse major version.
++	var ok bool
++	v.major, x, ok = cutInt(x)
++	if !ok {
++		return version{}
++	}
++	if x == "" {
++		// Interpret "1" as "1.0.0".
++		v.minor = "0"
++		v.patch = "0"
++		return v
++	}
++
++	// Parse . before minor version.
++	if x[0] != '.' {
++		return version{}
++	}
++
++	// Parse minor version.
++	v.minor, x, ok = cutInt(x[1:])
++	if !ok {
++		return version{}
++	}
++	if x == "" {
++		// Patch missing is same as "0" for older versions.
++		// Starting in Go 1.21, patch missing is different from explicit .0.
++		if cmpInt(v.minor, "21") < 0 {
++			v.patch = "0"
++		}
++		return v
++	}
++
++	// Parse patch if present.
++	if x[0] == '.' {
++		v.patch, x, ok = cutInt(x[1:])
++		if !ok || x != "" {
++			// Note that we are disallowing prereleases (alpha, beta, rc) for patch releases here (x != "").
++			// Allowing them would be a bit confusing because we already have:
++			//	1.21 < 1.21rc1
++			// But a prerelease of a patch would have the opposite effect:
++			//	1.21.3rc1 < 1.21.3
++			// We've never needed them before, so let's not start now.
++			return version{}
++		}
++		return v
++	}
++
++	// Parse prerelease.
++	i := 0
++	for i < len(x) && (x[i] < '0' || '9' < x[i]) {
++		i++
++	}
++	if i == 0 {
++		return version{}
++	}
++	v.kind, x = x[:i], x[i:]
++	if x == "" {
++		return v
++	}
++	v.pre, x, ok = cutInt(x)
++	if !ok || x != "" {
++		return version{}
++	}
++
++	return v
++}
++
++// cutInt scans the leading decimal number at the start of x to an integer
++// and returns that value and the rest of the string.
++func cutInt(x string) (n, rest string, ok bool) {
++	i := 0
++	for i < len(x) && '0' <= x[i] && x[i] <= '9' {
++		i++
++	}
++	if i == 0 || x[0] == '0' && i != 1 {
++		return "", "", false
++	}
++	return x[:i], x[i:], true
++}
++
++// cmpInt returns cmp.Compare(x, y) interpreting x and y as decimal numbers.
++// (Copied from golang.org/x/mod/semver's compareInt.)
++func cmpInt(x, y string) int {
++	if x == y {
++		return 0
++	}
++	if len(x) < len(y) {
++		return -1
++	}
++	if len(x) > len(y) {
++		return +1
++	}
++	if x < y {
++		return -1
++	} else {
++		return +1
++	}
++}
++
++// decInt returns the decimal string decremented by 1, or the empty string
++// if the decimal is all zeroes.
++// (Copied from golang.org/x/mod/module's decDecimal.)
++func decInt(decimal string) string {
++	// Scan right to left turning 0s to 9s until you find a digit to decrement.
++	digits := []byte(decimal)
++	i := len(digits) - 1
++	for ; i >= 0 && digits[i] == '0'; i-- {
++		digits[i] = '9'
++	}
++	if i < 0 {
++		// decimal is all zeros
++		return ""
++	}
++	if i == 0 && digits[i] == '1' && len(digits) > 1 {
++		digits = digits[1:]
++	} else {
++		digits[i]--
++	}
++	return string(digits)
++}
+diff --git a/src/cmd/go/internal/gover/gover_test.go b/src/cmd/go/internal/gover/gover_test.go
+new file mode 100644
+index 0000000000..b79e2a0f0c
+--- /dev/null
++++ b/src/cmd/go/internal/gover/gover_test.go
+@@ -0,0 +1,137 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gover
++
++import (
++	"reflect"
++	"testing"
++)
++
++func TestCompare(t *testing.T) { test2(t, compareTests, "Compare", Compare) }
++
++var compareTests = []testCase2[string, string, int]{
++	{"", "", 0},
++	{"x", "x", 0},
++	{"", "x", 0},
++	{"1", "1.1", -1},
++	{"1.5", "1.6", -1},
++	{"1.5", "1.10", -1},
++	{"1.6", "1.6.1", -1},
++	{"1.19", "1.19.0", 0},
++	{"1.19rc1", "1.19", -1},
++	{"1.20", "1.20.0", 0},
++	{"1.20rc1", "1.20", -1},
++	{"1.21", "1.21.0", -1},
++	{"1.21", "1.21rc1", -1},
++	{"1.21rc1", "1.21.0", -1},
++	{"1.6", "1.19", -1},
++	{"1.19", "1.19.1", -1},
++	{"1.19rc1", "1.19", -1},
++	{"1.19rc1", "1.19.1", -1},
++	{"1.19rc1", "1.19rc2", -1},
++	{"1.19.0", "1.19.1", -1},
++	{"1.19rc1", "1.19.0", -1},
++	{"1.19alpha3", "1.19beta2", -1},
++	{"1.19beta2", "1.19rc1", -1},
++	{"1.1", "1.99999999999999998", -1},
++	{"1.99999999999999998", "1.99999999999999999", -1},
++}
++
++func TestParse(t *testing.T) { test1(t, parseTests, "parse", parse) }
++
++var parseTests = []testCase1[string, version]{
++	{"1", version{"1", "0", "0", "", ""}},
++	{"1.2", version{"1", "2", "0", "", ""}},
++	{"1.2.3", version{"1", "2", "3", "", ""}},
++	{"1.2rc3", version{"1", "2", "", "rc", "3"}},
++	{"1.20", version{"1", "20", "0", "", ""}},
++	{"1.21", version{"1", "21", "", "", ""}},
++	{"1.21rc3", version{"1", "21", "", "rc", "3"}},
++	{"1.21.0", version{"1", "21", "0", "", ""}},
++	{"1.24", version{"1", "24", "", "", ""}},
++	{"1.24rc3", version{"1", "24", "", "rc", "3"}},
++	{"1.24.0", version{"1", "24", "0", "", ""}},
++	{"1.999testmod", version{"1", "999", "", "testmod", ""}},
++	{"1.99999999999999999", version{"1", "99999999999999999", "", "", ""}},
++}
++
++func TestLang(t *testing.T) { test1(t, langTests, "Lang", Lang) }
++
++var langTests = []testCase1[string, string]{
++	{"1.2rc3", "1.2"},
++	{"1.2.3", "1.2"},
++	{"1.2", "1.2"},
++	{"1", "1.0"},
++	{"1.999testmod", "1.999"},
++}
++
++func TestIsLang(t *testing.T) { test1(t, isLangTests, "IsLang", IsLang) }
++
++var isLangTests = []testCase1[string, bool]{
++	{"1.2rc3", false},
++	{"1.2.3", false},
++	{"1.999testmod", false},
++	{"1.22", true},
++	{"1.21", true},
++	{"1.20", false}, // == 1.20.0
++	{"1.19", false}, // == 1.20.0
++	{"1.2", false},  // == 1.2.0
++	{"1", false},    // == 1.0.0
++}
++
++func TestPrev(t *testing.T) { test1(t, prevTests, "Prev", Prev) }
++
++var prevTests = []testCase1[string, string]{
++	{"", ""},
++	{"0", "0"},
++	{"1.3rc4", "1.2"},
++	{"1.3.5", "1.2"},
++	{"1.3", "1.2"},
++	{"1", "1"},
++	{"1.99999999999999999", "1.99999999999999998"},
++	{"1.40000000000000000", "1.39999999999999999"},
++}
++
++type testCase1[In, Out any] struct {
++	in  In
++	out Out
++}
++
++type testCase2[In1, In2, Out any] struct {
++	in1 In1
++	in2 In2
++	out Out
++}
++
++type testCase3[In1, In2, In3, Out any] struct {
++	in1 In1
++	in2 In2
++	in3 In3
++	out Out
++}
++
++func test1[In, Out any](t *testing.T, tests []testCase1[In, Out], name string, f func(In) Out) {
++	for _, tt := range tests {
++		if out := f(tt.in); !reflect.DeepEqual(out, tt.out) {
++			t.Errorf("%s(%v) = %v, want %v", name, tt.in, out, tt.out)
++		}
++	}
++}
++
++func test2[In1, In2, Out any](t *testing.T, tests []testCase2[In1, In2, Out], name string, f func(In1, In2) Out) {
++	for _, tt := range tests {
++		if out := f(tt.in1, tt.in2); !reflect.DeepEqual(out, tt.out) {
++			t.Errorf("%s(%+v, %+v) = %+v, want %+v", name, tt.in1, tt.in2, out, tt.out)
++		}
++	}
++}
++
++func test3[In1, In2, In3, Out any](t *testing.T, tests []testCase3[In1, In2, In3, Out], name string, f func(In1, In2, In3) Out) {
++	for _, tt := range tests {
++		if out := f(tt.in1, tt.in2, tt.in3); !reflect.DeepEqual(out, tt.out) {
++			t.Errorf("%s(%+v, %+v, %+v) = %+v, want %+v", name, tt.in1, tt.in2, tt.in3, out, tt.out)
++		}
++	}
++}
+diff --git a/src/cmd/go/internal/gover/latest.go b/src/cmd/go/internal/gover/latest.go
+new file mode 100644
+index 0000000000..7cfce47aef
+--- /dev/null
++++ b/src/cmd/go/internal/gover/latest.go
+@@ -0,0 +1,30 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gover
++
++import (
++	"internal/goversion"
++	"runtime"
++	"strconv"
++	"strings"
++)
++
++// TestVersion is initialized in the go command test binary
++// to be $TESTGO_VERSION, to allow tests to override the
++// go command's idea of its own version as returned by Local.
++var TestVersion string
++
++// Local returns the local Go version, the one implemented by this go command.
++func Local() string {
++	v := runtime.Version()
++	if TestVersion != "" {
++		v = TestVersion
++	}
++	if strings.HasPrefix(v, "go") {
++		return strings.TrimPrefix(v, "go")
++	}
++	// Development branch. Use "Dev" version with just 1.N, no rc1 or .0 suffix.
++	return "1." + strconv.Itoa(goversion.Version)
++}
+diff --git a/src/cmd/go/internal/gover/mod.go b/src/cmd/go/internal/gover/mod.go
+new file mode 100644
+index 0000000000..4635b558a5
+--- /dev/null
++++ b/src/cmd/go/internal/gover/mod.go
+@@ -0,0 +1,75 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gover
++
++import (
++	"sort"
++	"strings"
++
++	"golang.org/x/mod/module"
++	"golang.org/x/mod/semver"
++)
++
++// IsToolchain reports whether the module path corresponds to the
++// virtual, non-downloadable module tracking go or toolchain directives in the go.mod file.
++//
++// Note that IsToolchain only matches "go" and "toolchain", not the
++// real, downloadable module "golang.org/toolchain" containing toolchain files.
++//
++//	IsToolchain("go") = true
++//	IsToolchain("toolchain") = true
++//	IsToolchain("golang.org/x/tools") = false
++//	IsToolchain("golang.org/toolchain") = false
++func IsToolchain(path string) bool {
++	return path == "go" || path == "toolchain"
++}
++
++// ModCompare returns the result of comparing the versions x and y
++// for the module with the given path.
++// The path is necessary because the "go" and "toolchain" modules
++// use a different version syntax and semantics (gover, this package)
++// than most modules (semver).
++func ModCompare(path string, x, y string) int {
++	if IsToolchain(path) {
++		return Compare(x, y)
++	}
++	return semver.Compare(x, y)
++}
++
++// ModSort is like module.Sort but understands the "go" and "toolchain"
++// modules and their version ordering.
++func ModSort(list []module.Version) {
++	sort.Slice(list, func(i, j int) bool {
++		mi := list[i]
++		mj := list[j]
++		if mi.Path != mj.Path {
++			return mi.Path < mj.Path
++		}
++		// To help go.sum formatting, allow version/file.
++		// Compare semver prefix by semver rules,
++		// file by string order.
++		vi := mi.Version
++		vj := mj.Version
++		var fi, fj string
++		if k := strings.Index(vi, "/"); k >= 0 {
++			vi, fi = vi[:k], vi[k:]
++		}
++		if k := strings.Index(vj, "/"); k >= 0 {
++			vj, fj = vj[:k], vj[k:]
++		}
++		if vi != vj {
++			return ModCompare(mi.Path, vi, vj) < 0
++		}
++		return fi < fj
++	})
++}
++
++// ModIsValid reports whether vers is a valid version syntax for the module with the given path.
++func ModIsValid(path, vers string) bool {
++	if IsToolchain(path) {
++		return parse(vers) != (version{})
++	}
++	return semver.IsValid(vers)
++}
+diff --git a/src/cmd/go/internal/gover/mod_test.go b/src/cmd/go/internal/gover/mod_test.go
+new file mode 100644
+index 0000000000..2de7f63e2e
+--- /dev/null
++++ b/src/cmd/go/internal/gover/mod_test.go
+@@ -0,0 +1,71 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gover
++
++import (
++	"slices"
++	"strings"
++	"testing"
++
++	"golang.org/x/mod/module"
++)
++
++func TestIsToolchain(t *testing.T) { test1(t, isToolchainTests, "IsToolchain", IsToolchain) }
++
++var isToolchainTests = []testCase1[string, bool]{
++	{"go", true},
++	{"toolchain", true},
++	{"anything", false},
++	{"golang.org/toolchain", false},
++}
++
++func TestModCompare(t *testing.T) { test3(t, modCompareTests, "ModCompare", ModCompare) }
++
++var modCompareTests = []testCase3[string, string, string, int]{
++	{"go", "1.2", "1.3", -1},
++	{"go", "v1.2", "v1.3", 0}, // equal because invalid
++	{"go", "1.2", "1.2", 0},
++	{"toolchain", "1.2", "1.3", -1},
++	{"toolchain", "1.2", "1.2", 0},
++	{"toolchain", "v1.2", "v1.3", 0}, // equal because invalid
++	{"rsc.io/quote", "v1.2", "v1.3", -1},
++	{"rsc.io/quote", "1.2", "1.3", 0}, // equal because invalid
++}
++
++func TestModIsValid(t *testing.T) { test2(t, modIsValidTests, "ModIsValid", ModIsValid) }
++
++var modIsValidTests = []testCase2[string, string, bool]{
++	{"go", "1.2", true},
++	{"go", "v1.2", false},
++	{"toolchain", "1.2", true},
++	{"toolchain", "v1.2", false},
++	{"rsc.io/quote", "v1.2", true},
++	{"rsc.io/quote", "1.2", false},
++}
++
++func TestModSort(t *testing.T) {
++	test1(t, modSortTests, "ModSort", func(list []module.Version) []module.Version {
++		out := slices.Clone(list)
++		ModSort(out)
++		return out
++	})
++}
++
++var modSortTests = []testCase1[[]module.Version, []module.Version]{
++	{
++		mvl(`z v1.1; a v1.2; a v1.1; go 1.3; toolchain 1.3; toolchain 1.2; go 1.2`),
++		mvl(`a v1.1; a v1.2; go 1.2; go 1.3; toolchain 1.2; toolchain 1.3; z v1.1`),
++	},
++}
++
++func mvl(s string) []module.Version {
++	var list []module.Version
++	for _, f := range strings.Split(s, ";") {
++		f = strings.TrimSpace(f)
++		path, vers, _ := strings.Cut(f, " ")
++		list = append(list, module.Version{Path: path, Version: vers})
++	}
++	return list
++}
+diff --git a/src/cmd/go/internal/modcmd/download.go b/src/cmd/go/internal/modcmd/download.go
+index 97fa8b8fda..9189240fa2 100644
+--- a/src/cmd/go/internal/modcmd/download.go
++++ b/src/cmd/go/internal/modcmd/download.go
+@@ -12,12 +12,12 @@ import (
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/gover"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modfetch/codehost"
+ 	"cmd/go/internal/modload"
+ 
+ 	"golang.org/x/mod/module"
+-	"golang.org/x/mod/semver"
+ )
+ 
+ var cmdDownload = &base.Command{
+@@ -135,7 +135,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ 		} else {
+ 			mainModule := modload.MainModules.Versions()[0]
+ 			modFile := modload.MainModules.ModFile(mainModule)
+-			if modFile.Go == nil || semver.Compare("v"+modFile.Go.Version, modload.ExplicitIndirectVersionV) < 0 {
++			if modFile.Go == nil || gover.Compare(modFile.Go.Version, modload.ExplicitIndirectVersion) < 0 {
+ 				if len(modFile.Require) > 0 {
+ 					args = []string{"all"}
+ 				}
+diff --git a/src/cmd/go/internal/modcmd/edit.go b/src/cmd/go/internal/modcmd/edit.go
+index 4f8d0bd3e0..2b63af5855 100644
+--- a/src/cmd/go/internal/modcmd/edit.go
++++ b/src/cmd/go/internal/modcmd/edit.go
+@@ -16,6 +16,7 @@ import (
+ 	"strings"
+ 
+ 	"cmd/go/internal/base"
++	"cmd/go/internal/gover"
+ 	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modload"
+@@ -199,7 +200,7 @@ func runEdit(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	if *editGo != "" {
+ 		if !modfile.GoVersionRE.MatchString(*editGo) {
+-			base.Fatalf(`go mod: invalid -go option; expecting something like "-go %s"`, modload.LatestGoVersion())
++			base.Fatalf(`go mod: invalid -go option; expecting something like "-go %s"`, gover.Local())
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/go/internal/modcmd/tidy.go b/src/cmd/go/internal/modcmd/tidy.go
+index 7e33ad2ded..842be72185 100644
+--- a/src/cmd/go/internal/modcmd/tidy.go
++++ b/src/cmd/go/internal/modcmd/tidy.go
+@@ -9,13 +9,13 @@ package modcmd
+ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/gover"
+ 	"cmd/go/internal/imports"
+ 	"cmd/go/internal/modload"
+ 	"context"
+ 	"fmt"
+ 
+ 	"golang.org/x/mod/modfile"
+-	"golang.org/x/mod/semver"
+ )
+ 
+ var cmdTidy = &base.Command{
+@@ -84,11 +84,11 @@ func (f *goVersionFlag) Get() any       { return f.v }
+ 
+ func (f *goVersionFlag) Set(s string) error {
+ 	if s != "" {
+-		latest := modload.LatestGoVersion()
++		latest := gover.Local()
+ 		if !modfile.GoVersionRE.MatchString(s) {
+ 			return fmt.Errorf("expecting a Go version like %q", latest)
+ 		}
+-		if semver.Compare("v"+s, "v"+latest) > 0 {
++		if gover.Compare(s, latest) > 0 {
+ 			return fmt.Errorf("maximum supported Go version is %s", latest)
+ 		}
+ 	}
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index 78f0e59b8b..1478bf21d0 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -21,13 +21,13 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/fsys"
++	"cmd/go/internal/gover"
+ 	"cmd/go/internal/imports"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/str"
+ 
+ 	"golang.org/x/mod/module"
+-	"golang.org/x/mod/semver"
+ )
+ 
+ var cmdVendor = &base.Command{
+@@ -108,7 +108,7 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
+ 	includeGoVersions := false
+ 	isExplicit := map[module.Version]bool{}
+ 	if gv := modload.ModFile().Go; gv != nil {
+-		if semver.Compare("v"+gv.Version, "v1.14") >= 0 {
++		if gover.Compare(gv.Version, "1.14") >= 0 {
+ 			// If the Go version is at least 1.14, annotate all explicit 'require' and
+ 			// 'replace' targets found in the go.mod file so that we can perform a
+ 			// stronger consistency check when -mod=vendor is set.
+@@ -117,7 +117,7 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
+ 			}
+ 			includeAllReplacements = true
+ 		}
+-		if semver.Compare("v"+gv.Version, "v1.17") >= 0 {
++		if gover.Compare(gv.Version, "1.17") >= 0 {
+ 			// If the Go version is at least 1.17, annotate all modules with their
+ 			// 'go' version directives.
+ 			includeGoVersions = true
+@@ -367,7 +367,7 @@ func matchPotentialSourceFile(dir string, info fs.DirEntry) bool {
+ 		return false
+ 	}
+ 	if info.Name() == "go.mod" || info.Name() == "go.sum" {
+-		if gv := modload.ModFile().Go; gv != nil && semver.Compare("v"+gv.Version, "v1.17") >= 0 {
++		if gv := modload.ModFile().Go; gv != nil && gover.Compare(gv.Version, "1.17") >= 0 {
+ 			// As of Go 1.17, we strip go.mod and go.sum files from dependency modules.
+ 			// Otherwise, 'go' commands invoked within the vendor subtree may misidentify
+ 			// an arbitrary directory within the vendor tree as a module root.
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 661a379d82..58baf654bf 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -10,7 +10,6 @@ import (
+ 	"encoding/json"
+ 	"errors"
+ 	"fmt"
+-	"go/build"
+ 	"internal/lazyregexp"
+ 	"os"
+ 	"path"
+@@ -22,6 +21,7 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/fsys"
++	"cmd/go/internal/gover"
+ 	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/modconv"
+ 	"cmd/go/internal/modfetch"
+@@ -730,7 +730,7 @@ func LoadModFile(ctx context.Context) *Requirements {
+ 		// any module.
+ 		mainModule := module.Version{Path: "command-line-arguments"}
+ 		MainModules = makeMainModules([]module.Version{mainModule}, []string{""}, []*modfile.File{nil}, []*modFileIndex{nil}, "", nil)
+-		goVersion := LatestGoVersion()
++		goVersion := gover.Local()
+ 		rawGoVersion.Store(mainModule, goVersion)
+ 		pruning := pruningForGoVersion(goVersion)
+ 		if inWorkspaceMode() {
+@@ -806,11 +806,11 @@ func LoadModFile(ctx context.Context) *Requirements {
+ 		}
+ 	}
+ 
+-	if MainModules.Index(mainModule).goVersionV == "" && rs.pruning != workspace {
++	if MainModules.Index(mainModule).goVersion == "" && rs.pruning != workspace {
+ 		// TODO(#45551): Do something more principled instead of checking
+ 		// cfg.CmdName directly here.
+ 		if cfg.BuildMod == "mod" && cfg.CmdName != "mod graph" && cfg.CmdName != "mod why" {
+-			addGoStmt(MainModules.ModFile(mainModule), mainModule, LatestGoVersion())
++			addGoStmt(MainModules.ModFile(mainModule), mainModule, gover.Local())
+ 
+ 			// We need to add a 'go' version to the go.mod file, but we must assume
+ 			// that its existing contents match something between Go 1.11 and 1.16.
+@@ -878,7 +878,7 @@ func CreateModFile(ctx context.Context, modPath string) {
+ 	modFile := new(modfile.File)
+ 	modFile.AddModuleStmt(modPath)
+ 	MainModules = makeMainModules([]module.Version{modFile.Module.Mod}, []string{modRoot}, []*modfile.File{modFile}, []*modFileIndex{nil}, "", nil)
+-	addGoStmt(modFile, modFile.Module.Mod, LatestGoVersion()) // Add the go directive before converted module requirements.
++	addGoStmt(modFile, modFile.Module.Mod, gover.Local()) // Add the go directive before converted module requirements.
+ 
+ 	convertedFrom, err := convertLegacyConfig(modFile, modRoot)
+ 	if convertedFrom != "" {
+@@ -928,7 +928,7 @@ func CreateWorkFile(ctx context.Context, workFile string, modDirs []string) {
+ 		base.Fatalf("go: %s already exists", workFile)
+ 	}
+ 
+-	goV := LatestGoVersion() // Use current Go version by default
++	goV := gover.Local() // Use current Go version by default
+ 	workF := new(modfile.WorkFile)
+ 	workF.Syntax = new(modfile.FileSyntax)
+ 	workF.AddGoStmt(goV)
+@@ -1194,15 +1194,15 @@ func setDefaultBuildMod() {
+ 		index := MainModules.GetSingleIndexOrNil()
+ 		if fi, err := fsys.Stat(filepath.Join(modRoots[0], "vendor")); err == nil && fi.IsDir() {
+ 			modGo := "unspecified"
+-			if index != nil && index.goVersionV != "" {
+-				if semver.Compare(index.goVersionV, "v1.14") >= 0 {
++			if index != nil && index.goVersion != "" {
++				if gover.Compare(index.goVersion, "1.14") >= 0 {
+ 					// The Go version is at least 1.14, and a vendor directory exists.
+ 					// Set -mod=vendor by default.
+ 					cfg.BuildMod = "vendor"
+ 					cfg.BuildModReason = "Go version in go.mod is at least 1.14 and vendor directory exists."
+ 					return
+ 				} else {
+-					modGo = index.goVersionV[1:]
++					modGo = index.goVersion
+ 				}
+ 			}
+ 
+@@ -1262,39 +1262,6 @@ func addGoStmt(modFile *modfile.File, mod module.Version, v string) {
+ 	rawGoVersion.Store(mod, v)
+ }
+ 
+-// LatestGoVersion returns the latest version of the Go language supported by
+-// this toolchain, like "1.17".
+-func LatestGoVersion() string {
+-	tags := build.Default.ReleaseTags
+-	version := tags[len(tags)-1]
+-	if !strings.HasPrefix(version, "go") || !modfile.GoVersionRE.MatchString(version[2:]) {
+-		base.Fatalf("go: internal error: unrecognized default version %q", version)
+-	}
+-	return version[2:]
+-}
+-
+-// priorGoVersion returns the Go major release immediately preceding v,
+-// or v itself if v is the first Go major release (1.0) or not a supported
+-// Go version.
+-func priorGoVersion(v string) string {
+-	vTag := "go" + v
+-	tags := build.Default.ReleaseTags
+-	for i, tag := range tags {
+-		if tag == vTag {
+-			if i == 0 {
+-				return v
+-			}
+-
+-			version := tags[i-1]
+-			if !strings.HasPrefix(version, "go") || !modfile.GoVersionRE.MatchString(version[2:]) {
+-				base.Fatalf("go: internal error: unrecognized version %q", version)
+-			}
+-			return version[2:]
+-		}
+-	}
+-	return v
+-}
+-
+ var altConfigs = []string{
+ 	"Gopkg.lock",
+ 
+@@ -1525,7 +1492,7 @@ func commitRequirements(ctx context.Context) (err error) {
+ 	if modFile.Go == nil || modFile.Go.Version == "" {
+ 		modFile.AddGoStmt(modFileGoVersion(modFile))
+ 	}
+-	if semver.Compare("v"+modFileGoVersion(modFile), separateIndirectVersionV) < 0 {
++	if gover.Compare(modFileGoVersion(modFile), separateIndirectVersion) < 0 {
+ 		modFile.SetRequire(list)
+ 	} else {
+ 		modFile.SetRequireSeparateIndirect(list)
+@@ -1641,7 +1608,7 @@ func keepSums(ctx context.Context, ld *loader, rs *Requirements, which whichSums
+ 			// However, we didn't do so before Go 1.21, and the bug is relatively
+ 			// minor, so we maintain the previous (buggy) behavior in 'go mod tidy' to
+ 			// avoid introducing unnecessary churn.
+-			if !ld.Tidy || semver.Compare("v"+ld.GoVersion, tidyGoModSumVersionV) >= 0 {
++			if !ld.Tidy || gover.Compare(ld.GoVersion, tidyGoModSumVersion) >= 0 {
+ 				r := resolveReplacement(pkg.mod)
+ 				keep[modkey(r)] = true
+ 			}
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 550f837da0..d917b5defe 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -113,6 +113,7 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/fsys"
++	"cmd/go/internal/gover"
+ 	"cmd/go/internal/imports"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modindex"
+@@ -122,7 +123,6 @@ import (
+ 	"cmd/go/internal/str"
+ 
+ 	"golang.org/x/mod/module"
+-	"golang.org/x/mod/semver"
+ )
+ 
+ // loaded is the most recently-used package loader.
+@@ -992,15 +992,15 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 	if ld.GoVersion == "" {
+ 		ld.GoVersion = MainModules.GoVersion()
+ 
+-		if ld.Tidy && versionLess(LatestGoVersion(), ld.GoVersion) {
+-			ld.errorf("go: go.mod file indicates go %s, but maximum version supported by tidy is %s\n", ld.GoVersion, LatestGoVersion())
++		if ld.Tidy && versionLess(gover.Local(), ld.GoVersion) {
++			ld.errorf("go: go.mod file indicates go %s, but maximum version supported by tidy is %s\n", ld.GoVersion, gover.Local())
+ 			base.ExitIfErrors()
+ 		}
+ 	}
+ 
+ 	if ld.Tidy {
+ 		if ld.TidyCompatibleVersion == "" {
+-			ld.TidyCompatibleVersion = priorGoVersion(ld.GoVersion)
++			ld.TidyCompatibleVersion = gover.Prev(ld.GoVersion)
+ 		} else if versionLess(ld.GoVersion, ld.TidyCompatibleVersion) {
+ 			// Each version of the Go toolchain knows how to interpret go.mod and
+ 			// go.sum files produced by all previous versions, so a compatibility
+@@ -1008,12 +1008,12 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 			ld.TidyCompatibleVersion = ld.GoVersion
+ 		}
+ 
+-		if semver.Compare("v"+ld.GoVersion, tidyGoModSumVersionV) < 0 {
++		if gover.Compare(ld.GoVersion, tidyGoModSumVersion) < 0 {
+ 			ld.skipImportModFiles = true
+ 		}
+ 	}
+ 
+-	if semver.Compare("v"+ld.GoVersion, narrowAllVersionV) < 0 && !ld.UseVendorAll {
++	if gover.Compare(ld.GoVersion, narrowAllVersion) < 0 && !ld.UseVendorAll {
+ 		// The module's go version explicitly predates the change in "all" for graph
+ 		// pruning, so continue to use the older interpretation.
+ 		ld.allClosesOverTests = true
+@@ -1201,7 +1201,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 			// Add importer go version information to import errors of standard
+ 			// library packages arising from newer releases.
+ 			if importer := pkg.stack; importer != nil {
+-				if v, ok := rawGoVersion.Load(importer.mod); ok && versionLess(LatestGoVersion(), v.(string)) {
++				if v, ok := rawGoVersion.Load(importer.mod); ok && versionLess(gover.Local(), v.(string)) {
+ 					stdErr.importerGoVersion = v.(string)
+ 				}
+ 			}
+@@ -1226,7 +1226,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ // versionLess returns whether a < b according to semantic version precedence.
+ // Both strings are interpreted as go version strings, e.g. "1.19".
+ func versionLess(a, b string) bool {
+-	return semver.Compare("v"+a, "v"+b) < 0
++	return gover.Compare(a, b) < 0
+ }
+ 
+ // updateRequirements ensures that ld.requirements is consistent with the
+@@ -1903,7 +1903,7 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements)
+ 		}
+ 
+ 		compatFlag := ""
+-		if ld.TidyCompatibleVersion != priorGoVersion(ld.GoVersion) {
++		if ld.TidyCompatibleVersion != gover.Prev(ld.GoVersion) {
+ 			compatFlag = " -compat=" + ld.TidyCompatibleVersion
+ 		}
+ 		if suggestUpgrade {
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 61dcabafb7..60e1f6498f 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -17,6 +17,7 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/fsys"
++	"cmd/go/internal/gover"
+ 	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/par"
+@@ -28,30 +29,30 @@ import (
+ )
+ 
+ const (
+-	// narrowAllVersionV is the Go version (plus leading "v") at which the
++	// narrowAllVersion is the Go version at which the
+ 	// module-module "all" pattern no longer closes over the dependencies of
+ 	// tests outside of the main module.
+-	narrowAllVersionV = "v1.16"
++	narrowAllVersion = "1.16"
+ 
+-	// ExplicitIndirectVersionV is the Go version (plus leading "v") at which a
++	// ExplicitIndirectVersion is the Go version at which a
+ 	// module's go.mod file is expected to list explicit requirements on every
+ 	// module that provides any package transitively imported by that module.
+ 	//
+ 	// Other indirect dependencies of such a module can be safely pruned out of
+ 	// the module graph; see https://golang.org/ref/mod#graph-pruning.
+-	ExplicitIndirectVersionV = "v1.17"
++	ExplicitIndirectVersion = "1.17"
+ 
+-	// separateIndirectVersionV is the Go version (plus leading "v") at which
++	// separateIndirectVersion is the Go version at which
+ 	// "// indirect" dependencies are added in a block separate from the direct
+ 	// ones. See https://golang.org/issue/45965.
+-	separateIndirectVersionV = "v1.17"
++	separateIndirectVersion = "1.17"
+ 
+-	// tidyGoModSumVersionV is the Go version (plus leading "v") at which
++	// tidyGoModSumVersion is the Go version at which
+ 	// 'go mod tidy' preserves go.mod checksums needed to build test dependencies
+ 	// of packages in "all", so that 'go test all' can be run without checksum
+ 	// errors.
+ 	// See https://go.dev/issue/56222.
+-	tidyGoModSumVersionV = "v1.21"
++	tidyGoModSumVersion = "1.21"
+ )
+ 
+ // ReadModFile reads and parses the mod file at gomod. ReadModFile properly applies the
+@@ -86,7 +87,7 @@ func ReadModFile(gomod string, fix modfile.VersionFixer) (data []byte, f *modfil
+ // in modFile are interpreted, or the latest Go version if modFile is nil.
+ func modFileGoVersion(modFile *modfile.File) string {
+ 	if modFile == nil {
+-		return LatestGoVersion()
++		return gover.Local()
+ 	}
+ 	if modFile.Go == nil || modFile.Go.Version == "" {
+ 		// The main module necessarily has a go.mod file, and that file lacks a
+@@ -109,7 +110,7 @@ type modFileIndex struct {
+ 	data         []byte
+ 	dataNeedsFix bool // true if fixVersion applied a change while parsing data
+ 	module       module.Version
+-	goVersionV   string // GoVersion with "v" prefix
++	goVersion    string // Go version (no "v" or "go" prefix)
+ 	require      map[module.Version]requireMeta
+ 	replace      map[module.Version]module.Version
+ 	exclude      map[module.Version]bool
+@@ -144,7 +145,7 @@ func (p modPruning) String() string {
+ }
+ 
+ func pruningForGoVersion(goVersion string) modPruning {
+-	if semver.Compare("v"+goVersion, ExplicitIndirectVersionV) < 0 {
++	if gover.Compare(goVersion, ExplicitIndirectVersion) < 0 {
+ 		// The go.mod file does not duplicate relevant information about transitive
+ 		// dependencies, so they cannot be pruned out.
+ 		return unpruned
+@@ -445,13 +446,11 @@ func indexModFile(data []byte, modFile *modfile.File, mod module.Version, needsF
+ 		i.module = modFile.Module.Mod
+ 	}
+ 
+-	i.goVersionV = ""
++	i.goVersion = ""
+ 	if modFile.Go == nil {
+ 		rawGoVersion.Store(mod, "")
+ 	} else {
+-		// We're going to use the semver package to compare Go versions, so go ahead
+-		// and add the "v" prefix it expects once instead of every time.
+-		i.goVersionV = "v" + modFile.Go.Version
++		i.goVersion = modFile.Go.Version
+ 		rawGoVersion.Store(mod, modFile.Go.Version)
+ 	}
+ 
+@@ -492,11 +491,11 @@ func (i *modFileIndex) modFileIsDirty(modFile *modfile.File) bool {
+ 	}
+ 
+ 	if modFile.Go == nil {
+-		if i.goVersionV != "" {
++		if i.goVersion != "" {
+ 			return true
+ 		}
+-	} else if "v"+modFile.Go.Version != i.goVersionV {
+-		if i.goVersionV == "" && cfg.BuildMod != "mod" {
++	} else if modFile.Go.Version != i.goVersion {
++		if i.goVersion == "" && cfg.BuildMod != "mod" {
+ 			// go.mod files did not always require a 'go' version, so do not error out
+ 			// if one is missing — we may be inside an older module in the module
+ 			// cache, and should bias toward providing useful behavior.
+diff --git a/src/cmd/go/internal/modload/vendor.go b/src/cmd/go/internal/modload/vendor.go
+index fea21e3285..6a8617286f 100644
+--- a/src/cmd/go/internal/modload/vendor.go
++++ b/src/cmd/go/internal/modload/vendor.go
+@@ -14,6 +14,7 @@ import (
+ 	"sync"
+ 
+ 	"cmd/go/internal/base"
++	"cmd/go/internal/gover"
+ 
+ 	"golang.org/x/mod/modfile"
+ 	"golang.org/x/mod/module"
+@@ -139,7 +140,7 @@ func checkVendorConsistency(index *modFileIndex, modFile *modfile.File) {
+ 	readVendorList(MainModules.mustGetSingleMainModule())
+ 
+ 	pre114 := false
+-	if semver.Compare(index.goVersionV, "v1.14") < 0 {
++	if gover.Compare(index.goVersion, "1.14") < 0 {
+ 		// Go versions before 1.14 did not include enough information in
+ 		// vendor/modules.txt to check for consistency.
+ 		// If we know that we're on an earlier version, relax the consistency check.
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 6ba66be9b6..1e6f5c9d76 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -445,8 +445,6 @@ func oneMainPkg(pkgs []*load.Package) []*load.Package {
+ 
+ var pkgsFilter = func(pkgs []*load.Package) []*load.Package { return pkgs }
+ 
+-var RuntimeVersion = runtime.Version()
+-
+ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
+ 	modload.InitWorkfile()
+ 	BuildInit()
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 4f6f18ee1d..480338bfb2 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -26,6 +26,9 @@ import (
+ 	"crypto/sha1"
+ )
+ 
++// Tests can override this by setting $TESTGO_TOOLCHAIN_VERSION.
++var ToolchainVersion = runtime.Version()
++
+ // The 'path' used for GOROOT_FINAL when -trimpath is specified
+ const trimPathGoRootFinal string = "$GOROOT"
+ 
+@@ -138,8 +141,8 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
+ 	if p.Internal.OmitDebug || cfg.Goos == "plan9" || cfg.Goarch == "wasm" {
+ 		defaultGcFlags = append(defaultGcFlags, "-dwarf=false")
+ 	}
+-	if strings.HasPrefix(RuntimeVersion, "go1") && !strings.Contains(os.Args[0], "go_bootstrap") {
+-		defaultGcFlags = append(defaultGcFlags, "-goversion", RuntimeVersion)
++	if strings.HasPrefix(ToolchainVersion, "go1") && !strings.Contains(os.Args[0], "go_bootstrap") {
++		defaultGcFlags = append(defaultGcFlags, "-goversion", ToolchainVersion)
+ 	}
+ 	if p.Internal.CoverageCfg != "" {
+ 		defaultGcFlags = append(defaultGcFlags, "-coveragecfg="+p.Internal.CoverageCfg)
+diff --git a/src/cmd/go/internal/workcmd/edit.go b/src/cmd/go/internal/workcmd/edit.go
+index f5e3304025..e4254782a8 100644
+--- a/src/cmd/go/internal/workcmd/edit.go
++++ b/src/cmd/go/internal/workcmd/edit.go
+@@ -8,6 +8,7 @@ package workcmd
+ 
+ import (
+ 	"cmd/go/internal/base"
++	"cmd/go/internal/gover"
+ 	"cmd/go/internal/modload"
+ 	"context"
+ 	"encoding/json"
+@@ -130,7 +131,7 @@ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	if *editGo != "" {
+ 		if !modfile.GoVersionRE.MatchString(*editGo) {
+-			base.Fatalf(`go mod: invalid -go option; expecting something like "-go %s"`, modload.LatestGoVersion())
++			base.Fatalf(`go mod: invalid -go option; expecting something like "-go %s"`, gover.Local())
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/go/testdata/script/mod_load_missing_std.txt b/src/cmd/go/testdata/script/mod_load_missing_std.txt
+index 10633e99e7..1784ea82f1 100644
+--- a/src/cmd/go/testdata/script/mod_load_missing_std.txt
++++ b/src/cmd/go/testdata/script/mod_load_missing_std.txt
+@@ -1,6 +1,7 @@
+ # Go should indicate the version the module requires when a standard library
+ # import is missing. See golang.org/issue/48966.
+ 
++env GOTOOLCHAIN=local
+ ! go build .
+ stderr '^main.go:3:8: package nonexistent is not in std \(.*\)$'
+ stderr '^note: imported by a module that requires go 1.99999$'
+diff --git a/src/cmd/go/testdata/script/mod_tidy_too_new.txt b/src/cmd/go/testdata/script/mod_tidy_too_new.txt
+index 8c34a997c9..875cb7f9af 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_too_new.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_too_new.txt
+@@ -1,6 +1,8 @@
+ # https://golang.org/issue/46142: 'go mod tidy' should error out if the version
+ # in the go.mod file is newer than the most recent supported version.
+ 
++env GOTOOLCHAIN=local
++
+ cp go.mod go.mod.orig
+ 
+ 

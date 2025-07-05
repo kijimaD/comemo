@@ -19,7 +19,70 @@ Date:   Tue Apr 2 15:00:54 2019 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/inl.go       |  2 +-
  src/cmd/compile/internal/ssa/deadcode.go | 31 +++++++++++++++++++++++++++++++
  2 files changed, 32 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 88c294173b..38be394bfb 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -1054,7 +1054,7 @@ func mkinlcall(n, fn *Node, maxCost int32) *Node {
+ 	// to put a breakpoint. Not sure if that's really necessary or not
+ 	// (in which case it could go at the end of the function instead).
+ 	inlMark := nod(OINLMARK, nil, nil)
+-	inlMark.Pos = n.Pos
++	inlMark.Pos = n.Pos.WithDefaultStmt()
+ 	inlMark.Xoffset = int64(newIndex)
+ 	ninit.Append(inlMark)
+ 
+diff --git a/src/cmd/compile/internal/ssa/deadcode.go b/src/cmd/compile/internal/ssa/deadcode.go
+index 3c0f8f858a..ceb2933766 100644
+--- a/src/cmd/compile/internal/ssa/deadcode.go
++++ b/src/cmd/compile/internal/ssa/deadcode.go
+@@ -76,6 +76,30 @@ func liveValues(f *Func, reachable []bool) (live []bool, liveOrderStmts []*Value
+ 		return
+ 	}
+ 
++	// Record all the inline indexes we need
++	var liveInlIdx map[int]bool
++	pt := f.Config.ctxt.PosTable
++	for _, b := range f.Blocks {
++		for _, v := range b.Values {
++			i := pt.Pos(v.Pos).Base().InliningIndex()
++			if i < 0 {
++				continue
++			}
++			if liveInlIdx == nil {
++				liveInlIdx = map[int]bool{}
++			}
++			liveInlIdx[i] = true
++		}
++		i := pt.Pos(b.Pos).Base().InliningIndex()
++		if i < 0 {
++			continue
++		}
++		if liveInlIdx == nil {
++			liveInlIdx = map[int]bool{}
++		}
++		liveInlIdx[i] = true
++	}
++
+ 	// Find all live values
+ 	q := f.Cache.deadcode.q[:0]
+ 	defer func() { f.Cache.deadcode.q = q }()
+@@ -103,6 +127,13 @@ func liveValues(f *Func, reachable []bool) (live []bool, liveOrderStmts []*Value
+ 			}
+ 			if v.Type.IsVoid() && !live[v.ID] {
+ 				// The only Void ops are nil checks and inline marks.  We must keep these.
++				if v.Op == OpInlMark && !liveInlIdx[int(v.AuxInt)] {
++					// We don't need marks for bodies that
++					// have been completely optimized away.
++					// TODO: save marks only for bodies which
++					// have a faulting instruction or a call?
++					continue
++				}
+ 				live[v.ID] = true
+ 				q = append(q, v)
+ 				if v.Pos.IsStmt() != src.PosNotStmt {

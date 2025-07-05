@@ -13,7 +13,7 @@ Date:   Fri Mar 3 14:27:24 2017 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/amd64/prog.go  |  1 -
  src/cmd/compile/internal/arm/prog.go    |  1 -
  src/cmd/compile/internal/arm64/prog.go  |  1 -
@@ -35,3 +35,449 @@ Date:   Fri Mar 3 14:27:24 2017 -0800
  src/cmd/internal/obj/util.go            |  1 -
  src/cmd/internal/obj/x86/asm6.go        |  1 -
  20 files changed, 44 insertions(+), 73 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/prog.go b/src/cmd/compile/internal/amd64/prog.go
+index 1a71cc56d7..372c1e6cb0 100644
+--- a/src/cmd/compile/internal/amd64/prog.go
++++ b/src/cmd/compile/internal/amd64/prog.go
+@@ -27,7 +27,6 @@ var progtable = [x86.ALAST & obj.AMask]gc.ProgInfo{
+ 	obj.AFUNCDATA: {Flags: gc.Pseudo},
+ 	obj.APCDATA:   {Flags: gc.Pseudo},
+ 	obj.AUNDEF:    {Flags: gc.Break},
+-	obj.AUSEFIELD: {Flags: gc.OK},
+ 	obj.AVARDEF:   {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARKILL:  {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARLIVE:  {Flags: gc.Pseudo | gc.LeftRead},
+diff --git a/src/cmd/compile/internal/arm/prog.go b/src/cmd/compile/internal/arm/prog.go
+index 1b80ddefd0..6a50336c0e 100644
+--- a/src/cmd/compile/internal/arm/prog.go
++++ b/src/cmd/compile/internal/arm/prog.go
+@@ -26,7 +26,6 @@ var progtable = [arm.ALAST & obj.AMask]gc.ProgInfo{
+ 	obj.AFUNCDATA: {Flags: gc.Pseudo},
+ 	obj.APCDATA:   {Flags: gc.Pseudo},
+ 	obj.AUNDEF:    {Flags: gc.Break},
+-	obj.AUSEFIELD: {Flags: gc.OK},
+ 	obj.AVARDEF:   {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARKILL:  {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARLIVE:  {Flags: gc.Pseudo | gc.LeftRead},
+diff --git a/src/cmd/compile/internal/arm64/prog.go b/src/cmd/compile/internal/arm64/prog.go
+index 7cb7517534..d3a86cb281 100644
+--- a/src/cmd/compile/internal/arm64/prog.go
++++ b/src/cmd/compile/internal/arm64/prog.go
+@@ -29,7 +29,6 @@ var progtable = [arm64.ALAST & obj.AMask]gc.ProgInfo{
+ 	obj.AFUNCDATA: {Flags: gc.Pseudo},
+ 	obj.APCDATA:   {Flags: gc.Pseudo},
+ 	obj.AUNDEF:    {Flags: gc.Break},
+-	obj.AUSEFIELD: {Flags: gc.OK},
+ 	obj.AVARDEF:   {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARKILL:  {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARLIVE:  {Flags: gc.Pseudo | gc.LeftRead},
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index bfa88eda11..f1d6673b86 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -97,13 +97,6 @@ func ggloblLSym(s *obj.LSym, width int32, flags int16) {
+ 	Ctxt.Globl(s, int64(width), int(flags))
+ }
+ 
+-func gtrack(s *Sym) {
+-	p := Gins(obj.AUSEFIELD, nil, nil)
+-	p.From.Type = obj.TYPE_MEM
+-	p.From.Name = obj.NAME_EXTERN
+-	p.From.Sym = Linksym(s)
+-}
+-
+ func isfat(t *Type) bool {
+ 	if t != nil {
+ 		switch t.Etype {
+@@ -289,8 +282,7 @@ func Patch(p *obj.Prog, to *obj.Prog) {
+ // Gins inserts instruction as. f is from, t is to.
+ func Gins(as obj.As, f, t *Node) *obj.Prog {
+ 	switch as {
+-	case obj.AVARKILL, obj.AVARLIVE, obj.AVARDEF,
+-		obj.ATEXT, obj.AFUNCDATA, obj.AUSEFIELD:
++	case obj.AVARKILL, obj.AVARLIVE, obj.AVARDEF, obj.ATEXT, obj.AFUNCDATA:
+ 	default:
+ 		Fatalf("unhandled gins op %v", as)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 2ec0baaff4..9719a8c406 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -380,6 +380,8 @@ func compile(fn *Node) {
+ 		nam = nil
+ 	}
+ 	ptxt := Gins(obj.ATEXT, nam, nil)
++	fnsym := ptxt.From.Sym
++
+ 	ptxt.From3 = new(obj.Addr)
+ 	if fn.Func.Dupok() {
+ 		ptxt.From3.Offset |= obj.DUPOK
+@@ -418,26 +420,19 @@ func compile(fn *Node) {
+ 	gcargs := makefuncdatasym("gcargs·", obj.FUNCDATA_ArgsPointerMaps)
+ 	gclocals := makefuncdatasym("gclocals·", obj.FUNCDATA_LocalsPointerMaps)
+ 
+-	if obj.Fieldtrack_enabled != 0 && len(Curfn.Func.FieldTrack) > 0 {
+-		trackSyms := make([]*Sym, 0, len(Curfn.Func.FieldTrack))
+-		for sym := range Curfn.Func.FieldTrack {
+-			trackSyms = append(trackSyms, sym)
+-		}
+-		sort.Sort(symByName(trackSyms))
+-		for _, sym := range trackSyms {
+-			gtrack(sym)
+-		}
+-	}
+-
+-	gendebug(ptxt.From.Sym, fn.Func.Dcl)
++	gendebug(fnsym, fn.Func.Dcl)
+ 
+ 	genssa(ssafn, ptxt, gcargs, gclocals)
+ 	ssafn.Free()
++
+ 	obj.Flushplist(Ctxt, plist) // convert from Prog list to machine code
++	ptxt = nil                  // nil to prevent misuse; Prog may have been freed by Flushplist
++
++	fieldtrack(fnsym, fn.Func.FieldTrack)
+ }
+ 
+-func gendebug(fn *obj.LSym, decls []*Node) {
+-	if fn == nil {
++func gendebug(fnsym *obj.LSym, decls []*Node) {
++	if fnsym == nil {
+ 		return
+ 	}
+ 
+@@ -466,8 +461,30 @@ func gendebug(fn *obj.LSym, decls []*Node) {
+ 			Gotype:  Linksym(ngotype(n)),
+ 		}
+ 
+-		a.Link = fn.Autom
+-		fn.Autom = a
++		a.Link = fnsym.Autom
++		fnsym.Autom = a
++	}
++}
++
++// fieldtrack adds R_USEFIELD relocations to fnsym to record any
++// struct fields that it used.
++func fieldtrack(fnsym *obj.LSym, tracked map[*Sym]struct{}) {
++	if fnsym == nil {
++		return
++	}
++	if obj.Fieldtrack_enabled == 0 || len(tracked) == 0 {
++		return
++	}
++
++	trackSyms := make([]*Sym, 0, len(tracked))
++	for sym := range tracked {
++		trackSyms = append(trackSyms, sym)
++	}
++	sort.Sort(symByName(trackSyms))
++	for _, sym := range trackSyms {
++		r := obj.Addrel(fnsym)
++		r.Sym = Linksym(sym)
++		r.Type = obj.R_USEFIELD
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/mips/prog.go b/src/cmd/compile/internal/mips/prog.go
+index 2113bb7e12..3061275f87 100644
+--- a/src/cmd/compile/internal/mips/prog.go
++++ b/src/cmd/compile/internal/mips/prog.go
+@@ -29,7 +29,6 @@ var progtable = [mips.ALAST & obj.AMask]gc.ProgInfo{
+ 	obj.AFUNCDATA: {Flags: gc.Pseudo},
+ 	obj.APCDATA:   {Flags: gc.Pseudo},
+ 	obj.AUNDEF:    {Flags: gc.Break},
+-	obj.AUSEFIELD: {Flags: gc.OK},
+ 	obj.AVARDEF:   {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARKILL:  {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARLIVE:  {Flags: gc.Pseudo | gc.LeftRead},
+diff --git a/src/cmd/compile/internal/mips64/prog.go b/src/cmd/compile/internal/mips64/prog.go
+index 9c2c94a37f..cc62d6a207 100644
+--- a/src/cmd/compile/internal/mips64/prog.go
++++ b/src/cmd/compile/internal/mips64/prog.go
+@@ -29,7 +29,6 @@ var progtable = [mips.ALAST & obj.AMask]gc.ProgInfo{
+ 	obj.AFUNCDATA: {Flags: gc.Pseudo},
+ 	obj.APCDATA:   {Flags: gc.Pseudo},
+ 	obj.AUNDEF:    {Flags: gc.Break},
+-	obj.AUSEFIELD: {Flags: gc.OK},
+ 	obj.AVARDEF:   {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARKILL:  {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARLIVE:  {Flags: gc.Pseudo | gc.LeftRead},
+diff --git a/src/cmd/compile/internal/ppc64/prog.go b/src/cmd/compile/internal/ppc64/prog.go
+index 6646cf7355..dc824ffda2 100644
+--- a/src/cmd/compile/internal/ppc64/prog.go
++++ b/src/cmd/compile/internal/ppc64/prog.go
+@@ -29,7 +29,6 @@ var progtable = [ppc64.ALAST & obj.AMask]gc.ProgInfo{
+ 	obj.AFUNCDATA: {Flags: gc.Pseudo},
+ 	obj.APCDATA:   {Flags: gc.Pseudo},
+ 	obj.AUNDEF:    {Flags: gc.Break},
+-	obj.AUSEFIELD: {Flags: gc.OK},
+ 	obj.AVARDEF:   {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARKILL:  {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARLIVE:  {Flags: gc.Pseudo | gc.LeftRead},
+diff --git a/src/cmd/compile/internal/s390x/prog.go b/src/cmd/compile/internal/s390x/prog.go
+index 07c1a45cd5..42a85ead31 100644
+--- a/src/cmd/compile/internal/s390x/prog.go
++++ b/src/cmd/compile/internal/s390x/prog.go
+@@ -22,7 +22,6 @@ var progtable = [s390x.ALAST & obj.AMask]gc.ProgInfo{
+ 	obj.AFUNCDATA & obj.AMask: {Flags: gc.Pseudo},
+ 	obj.APCDATA & obj.AMask:   {Flags: gc.Pseudo},
+ 	obj.AUNDEF & obj.AMask:    {Flags: gc.Break},
+-	obj.AUSEFIELD & obj.AMask: {Flags: gc.OK},
+ 	obj.AVARDEF & obj.AMask:   {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARKILL & obj.AMask:  {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARLIVE & obj.AMask:  {Flags: gc.Pseudo | gc.LeftRead},
+diff --git a/src/cmd/compile/internal/x86/prog.go b/src/cmd/compile/internal/x86/prog.go
+index 33ea29d420..70c55340ba 100644
+--- a/src/cmd/compile/internal/x86/prog.go
++++ b/src/cmd/compile/internal/x86/prog.go
+@@ -29,7 +29,6 @@ var progtable = [x86.ALAST & obj.AMask]gc.ProgInfo{
+ 	obj.AFUNCDATA: {Flags: gc.Pseudo},
+ 	obj.APCDATA:   {Flags: gc.Pseudo},
+ 	obj.AUNDEF:    {Flags: gc.Break},
+-	obj.AUSEFIELD: {Flags: gc.OK},
+ 	obj.AVARDEF:   {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARKILL:  {Flags: gc.Pseudo | gc.RightWrite},
+ 	obj.AVARLIVE:  {Flags: gc.Pseudo | gc.LeftRead},
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 1fd1a1ce14..89665b15e4 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -247,7 +247,6 @@ var optab = []Optab{
+ 	{ACLZ, C_REG, C_NONE, C_REG, 97, 4, 0, 0, 0},
+ 	{AMULWT, C_REG, C_REG, C_REG, 98, 4, 0, 0, 0},
+ 	{AMULAWT, C_REG, C_REG, C_REGREG2, 99, 4, 0, 0, 0},
+-	{obj.AUSEFIELD, C_ADDR, C_NONE, C_NONE, 0, 0, 0, 0, 0},
+ 	{obj.APCDATA, C_LCON, C_NONE, C_LCON, 0, 0, 0, 0, 0},
+ 	{obj.AFUNCDATA, C_LCON, C_NONE, C_ADDR, 0, 0, 0, 0, 0},
+ 	{obj.ANOP, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},
+@@ -609,7 +608,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
+ 			}
+ 		}
+ 
+-		if m == 0 && (p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != ADATABUNDLEEND && p.As != obj.ANOP && p.As != obj.AUSEFIELD) {
++		if m == 0 && (p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != ADATABUNDLEEND && p.As != obj.ANOP) {
+ 			ctxt.Diag("zero-width instruction\n%v", p)
+ 			continue
+ 		}
+@@ -705,7 +704,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
+ 			if m/4 > len(out) {
+ 				ctxt.Diag("instruction size too large: %d > %d", m/4, len(out))
+ 			}
+-			if m == 0 && (p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != ADATABUNDLEEND && p.As != obj.ANOP && p.As != obj.AUSEFIELD) {
++			if m == 0 && (p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != ADATABUNDLEEND && p.As != obj.ANOP) {
+ 				if p.As == obj.ATEXT {
+ 					ctxt.Autosize = int32(p.To.Offset + 4)
+ 					continue
+@@ -1410,8 +1409,7 @@ func buildop(ctxt *obj.Link) {
+ 			AWORD,
+ 			AMOVM,
+ 			ARFE,
+-			obj.ATEXT,
+-			obj.AUSEFIELD:
++			obj.ATEXT:
+ 			break
+ 
+ 		case AADDF:
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 1a0ca75703..c5fc023a6d 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -498,7 +498,6 @@ var optab = []Optab{
+ 	{ASHA1C, C_VREG, C_REG, C_VREG, 1, 4, 0, 0, 0},
+ 
+ 	{obj.AUNDEF, C_NONE, C_NONE, C_NONE, 90, 4, 0, 0, 0},
+-	{obj.AUSEFIELD, C_ADDR, C_NONE, C_NONE, 0, 0, 0, 0, 0},
+ 	{obj.APCDATA, C_VCON, C_NONE, C_VCON, 0, 0, 0, 0, 0},
+ 	{obj.AFUNCDATA, C_VCON, C_NONE, C_ADDR, 0, 0, 0, 0, 0},
+ 	{obj.ANOP, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},
+@@ -555,7 +554,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym) {
+ 		o = oplook(ctxt, p)
+ 		m = int(o.size)
+ 		if m == 0 {
+-			if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != obj.AUSEFIELD {
++			if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
+ 				ctxt.Diag("zero-width instruction\n%v", p)
+ 			}
+ 			continue
+@@ -623,7 +622,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym) {
+ 			m = int(o.size)
+ 
+ 			if m == 0 {
+-				if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != obj.AUSEFIELD {
++				if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
+ 					ctxt.Diag("zero-width instruction\n%v", p)
+ 				}
+ 				continue
+@@ -1875,7 +1874,6 @@ func buildop(ctxt *obj.Link) {
+ 
+ 		case obj.ANOP,
+ 			obj.AUNDEF,
+-			obj.AUSEFIELD,
+ 			obj.AFUNCDATA,
+ 			obj.APCDATA,
+ 			obj.ADUFFZERO,
+diff --git a/src/cmd/internal/obj/line.go b/src/cmd/internal/obj/line.go
+index 540d56460d..a601b00787 100644
+--- a/src/cmd/internal/obj/line.go
++++ b/src/cmd/internal/obj/line.go
+@@ -82,21 +82,3 @@ func linkgetlineFromPos(ctxt *Link, xpos src.XPos) (f *LSym, l int32) {
+ 	// TODO(gri) Should this use relative or absolute line number?
+ 	return Linklookup(ctxt, pos.SymFilename(), 0), int32(pos.RelLine())
+ }
+-
+-func fieldtrack(ctxt *Link, cursym *LSym) {
+-	p := cursym.Text
+-	if p == nil || p.Link == nil { // handle external functions and ELF section symbols
+-		return
+-	}
+-	ctxt.Cursym = cursym
+-
+-	for ; p != nil; p = p.Link {
+-		if p.As == AUSEFIELD {
+-			r := Addrel(ctxt.Cursym)
+-			r.Off = 0
+-			r.Siz = 0
+-			r.Sym = p.From.Sym
+-			r.Type = R_USEFIELD
+-		}
+-	}
+-}
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 296691b23a..a9881166a1 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -292,7 +292,6 @@ const (
+ 	ARET
+ 	ATEXT
+ 	AUNDEF
+-	AUSEFIELD
+ 	AVARDEF
+ 	AVARKILL
+ 	AVARLIVE
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index 48f2b7de40..eee37a9336 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -359,7 +359,6 @@ var optab = []Optab{
+ 	{ABREAK, C_NONE, C_NONE, C_NONE, 5, 4, 0, 0},
+ 
+ 	{obj.AUNDEF, C_NONE, C_NONE, C_NONE, 49, 4, 0, 0},
+-	{obj.AUSEFIELD, C_ADDR, C_NONE, C_NONE, 0, 0, 0, 0},
+ 	{obj.APCDATA, C_LCON, C_NONE, C_LCON, 0, 0, 0, 0},
+ 	{obj.AFUNCDATA, C_SCON, C_NONE, C_ADDR, 0, 0, 0, 0},
+ 	{obj.ANOP, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},
+@@ -396,7 +395,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym) {
+ 		o = oplook(ctxt, p)
+ 		m = int(o.size)
+ 		if m == 0 {
+-			if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != obj.AUSEFIELD {
++			if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
+ 				ctxt.Diag("zero-width instruction\n%v", p)
+ 			}
+ 			continue
+@@ -455,7 +454,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym) {
+ 
+ 			m = int(o.size)
+ 			if m == 0 {
+-				if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != obj.AUSEFIELD {
++				if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
+ 					ctxt.Diag("zero-width instruction\n%v", p)
+ 				}
+ 				continue
+@@ -988,7 +987,6 @@ func buildop(ctxt *obj.Link) {
+ 			obj.ANOP,
+ 			obj.ATEXT,
+ 			obj.AUNDEF,
+-			obj.AUSEFIELD,
+ 			obj.AFUNCDATA,
+ 			obj.APCDATA,
+ 			obj.ADUFFZERO,
+diff --git a/src/cmd/internal/obj/pcln.go b/src/cmd/internal/obj/pcln.go
+index 44be031dce..3ed146acea 100644
+--- a/src/cmd/internal/obj/pcln.go
++++ b/src/cmd/internal/obj/pcln.go
+@@ -127,7 +127,7 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
+ // Because p.Pos applies to p, phase == 0 (before p)
+ // takes care of the update.
+ func pctofileline(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg interface{}) int32 {
+-	if p.As == ATEXT || p.As == ANOP || p.As == AUSEFIELD || p.Pos.Line() == 0 || phase == 1 {
++	if p.As == ATEXT || p.As == ANOP || p.Pos.Line() == 0 || phase == 1 {
+ 		return oldval
+ 	}
+ 	f, l := linkgetlineFromPos(ctxt, p.Pos)
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index a74352cdba..8584020f04 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -124,7 +124,6 @@ func flushplist(ctxt *Link, plist *Plist, freeProgs bool) {
+ 		linkpatch(ctxt, s)
+ 		ctxt.Arch.Preprocess(ctxt, s)
+ 		ctxt.Arch.Assemble(ctxt, s)
+-		fieldtrack(ctxt, s)
+ 		linkpcln(ctxt, s)
+ 		if freeProgs {
+ 			s.Text = nil
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 771f8e5605..90b796dd67 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -539,7 +539,6 @@ var optab = []Optab{
+ 	{ALSW, C_ZOREG, C_NONE, C_NONE, C_REG, 45, 4, 0},
+ 	{ALSW, C_ZOREG, C_NONE, C_LCON, C_REG, 42, 4, 0},
+ 	{obj.AUNDEF, C_NONE, C_NONE, C_NONE, C_NONE, 78, 4, 0},
+-	{obj.AUSEFIELD, C_ADDR, C_NONE, C_NONE, C_NONE, 0, 0, 0},
+ 	{obj.APCDATA, C_LCON, C_NONE, C_NONE, C_LCON, 0, 0, 0},
+ 	{obj.AFUNCDATA, C_SCON, C_NONE, C_NONE, C_ADDR, 0, 0, 0},
+ 	{obj.ANOP, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0},
+@@ -576,7 +575,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym) {
+ 		o = oplook(ctxt, p)
+ 		m = int(o.size)
+ 		if m == 0 {
+-			if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != obj.AUSEFIELD {
++			if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
+ 				ctxt.Diag("zero-width instruction\n%v", p)
+ 			}
+ 			continue
+@@ -633,7 +632,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym) {
+ 
+ 			m = int(o.size)
+ 			if m == 0 {
+-				if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != obj.AUSEFIELD {
++				if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
+ 					ctxt.Diag("zero-width instruction\n%v", p)
+ 				}
+ 				continue
+@@ -1768,7 +1767,6 @@ func buildop(ctxt *obj.Link) {
+ 			obj.ANOP,
+ 			obj.ATEXT,
+ 			obj.AUNDEF,
+-			obj.AUSEFIELD,
+ 			obj.AFUNCDATA,
+ 			obj.APCDATA,
+ 			obj.ADUFFZERO,
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 1e48f80616..f1f832362b 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -492,7 +492,6 @@ var Anames = []string{
+ 	"RET",
+ 	"TEXT",
+ 	"UNDEF",
+-	"USEFIELD",
+ 	"VARDEF",
+ 	"VARKILL",
+ 	"VARLIVE",
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 466fb9cc8f..09c6b73789 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -1698,7 +1698,6 @@ var optab =
+ 	{AXEND, ynone, Px, [23]uint8{0x0f, 01, 0xd5}},
+ 	{AXTEST, ynone, Px, [23]uint8{0x0f, 01, 0xd6}},
+ 	{AXGETBV, ynone, Pm, [23]uint8{01, 0xd0}},
+-	{obj.AUSEFIELD, ynop, Px, [23]uint8{0, 0}},
+ 	{obj.AFUNCDATA, yfuncdata, Px, [23]uint8{0, 0}},
+ 	{obj.APCDATA, ypcdata, Px, [23]uint8{0, 0}},
+ 	{obj.AVARDEF, nil, 0, [23]uint8{}},

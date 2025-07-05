@@ -7,6 +7,20 @@ Date:   Sun Feb 17 02:06:59 2013 +1100
     R=golang-dev, jsing
     CC=golang-dev
     https://golang.org/cl/7312104
-
+---
  src/pkg/runtime/thread_openbsd.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/thread_openbsd.c b/src/pkg/runtime/thread_openbsd.c
+index 99c4db972c..2900f370b7 100644
+--- a/src/pkg/runtime/thread_openbsd.c
++++ b/src/pkg/runtime/thread_openbsd.c
+@@ -172,7 +172,7 @@ runtime·minit(void)
+ 	// Initialize signal handling
+ 	m->gsignal = runtime·malg(32*1024);
+ 	runtime·signalstack((byte*)m->gsignal->stackguard - StackGuard, 32*1024);
+-	runtime·sigprocmask(SIG_SETMASK, &sigset_none, nil, sizeof sigset_none);
++	runtime·sigprocmask(SIG_SETMASK, sigset_none);
+ }
+ 
+ void

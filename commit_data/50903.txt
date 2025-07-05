@@ -30,7 +30,7 @@ Date:   Mon Nov 15 13:50:39 2021 -0500
     Trust: Michael Pratt <mpratt@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/go/build/deps_test.go                     |   3 +
  src/os/exec/exec_test.go                      | 132 ++++----------------------
  src/os/exec/internal/fdtest/exists_js.go      |  18 ++++
@@ -40,3 +40,443 @@ Date:   Mon Nov 15 13:50:39 2021 -0500
  src/os/exec/internal/fdtest/exists_windows.go |  12 +++
  src/os/exec/read3.go                          |  92 ++++++++----------
  8 files changed, 154 insertions(+), 163 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 2f68cbcffc..7f25038d2d 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -545,6 +545,9 @@ var depsRules = `
+ 	NET, testing, math/rand
+ 	< golang.org/x/net/nettest;
+ 
++	syscall
++	< os/exec/internal/fdtest;
++
+ 	FMT, container/heap, math/rand
+ 	< internal/trace;
+ `
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 459ba39dff..6172c78dd4 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -21,7 +21,9 @@ import (
+ 	"net/http/httptest"
+ 	"os"
+ 	"os/exec"
++	"os/exec/internal/fdtest"
+ 	"path/filepath"
++	"reflect"
+ 	"runtime"
+ 	"strconv"
+ 	"strings"
+@@ -29,15 +31,10 @@ import (
+ 	"time"
+ )
+ 
+-// haveUnexpectedFDs is set at init time to report whether any
+-// file descriptors were open at program start.
++// haveUnexpectedFDs is set at init time to report whether any file descriptors
++// were open at program start.
+ var haveUnexpectedFDs bool
+ 
+-// unfinalizedFiles holds files that should not be finalized,
+-// because that would close the associated file descriptor,
+-// which we don't want to do.
+-var unfinalizedFiles []*os.File
+-
+ func init() {
+ 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+ 		return
+@@ -49,21 +46,10 @@ func init() {
+ 		if poll.IsPollDescriptor(fd) {
+ 			continue
+ 		}
+-		// We have no good portable way to check whether an FD is open.
+-		// We use NewFile to create a *os.File, which lets us
+-		// know whether it is open, but then we have to cope with
+-		// the finalizer on the *os.File.
+-		f := os.NewFile(fd, "")
+-		if _, err := f.Stat(); err != nil {
+-			// Close the file to clear the finalizer.
+-			// We expect the Close to fail.
+-			f.Close()
+-		} else {
+-			fmt.Printf("fd %d open at test start\n", fd)
++
++		if fdtest.Exists(fd) {
+ 			haveUnexpectedFDs = true
+-			// Use a global variable to avoid running
+-			// the finalizer, which would close the FD.
+-			unfinalizedFiles = append(unfinalizedFiles, f)
++			return
+ 		}
+ 	}
+ }
+@@ -377,50 +363,21 @@ func TestStdinCloseRace(t *testing.T) {
+ 
+ // Issue 5071
+ func TestPipeLookPathLeak(t *testing.T) {
+-	// If we are reading from /proc/self/fd we (should) get an exact result.
+-	tolerance := 0
+-
+-	// Reading /proc/self/fd is more reliable than calling lsof, so try that
+-	// first.
+-	numOpenFDs := func() (int, []byte, error) {
+-		fds, err := os.ReadDir("/proc/self/fd")
+-		if err != nil {
+-			return 0, nil, err
+-		}
+-		return len(fds), nil, nil
++	if runtime.GOOS == "windows" {
++		t.Skip("we don't currently suppore counting open handles on windows")
+ 	}
+-	want, before, err := numOpenFDs()
+-	if err != nil {
+-		// We encountered a problem reading /proc/self/fd (we might be on
+-		// a platform that doesn't have it). Fall back onto lsof.
+-		t.Logf("using lsof because: %v", err)
+-		numOpenFDs = func() (int, []byte, error) {
+-			// Android's stock lsof does not obey the -p option,
+-			// so extra filtering is needed.
+-			// https://golang.org/issue/10206
+-			if runtime.GOOS == "android" {
+-				// numOpenFDsAndroid handles errors itself and
+-				// might skip or fail the test.
+-				n, lsof := numOpenFDsAndroid(t)
+-				return n, lsof, nil
+-			}
+-			lsof, err := exec.Command("lsof", "-b", "-n", "-p", strconv.Itoa(os.Getpid())).Output()
+-			return bytes.Count(lsof, []byte("\n")), lsof, err
+-		}
+ 
+-		// lsof may see file descriptors associated with the fork itself,
+-		// so we allow some extra margin if we have to use it.
+-		// https://golang.org/issue/19243
+-		tolerance = 5
+-
+-		// Retry reading the number of open file descriptors.
+-		want, before, err = numOpenFDs()
+-		if err != nil {
+-			t.Log(err)
+-			t.Skipf("skipping test; error finding or running lsof")
++	openFDs := func() []uintptr {
++		var fds []uintptr
++		for i := uintptr(0); i < 100; i++ {
++			if fdtest.Exists(i) {
++				fds = append(fds, i)
++			}
+ 		}
++		return fds
+ 	}
+ 
++	want := openFDs()
+ 	for i := 0; i < 6; i++ {
+ 		cmd := exec.Command("something-that-does-not-exist-executable")
+ 		cmd.StdoutPipe()
+@@ -430,59 +387,10 @@ func TestPipeLookPathLeak(t *testing.T) {
+ 			t.Fatal("unexpected success")
+ 		}
+ 	}
+-	got, after, err := numOpenFDs()
+-	if err != nil {
+-		// numOpenFDs has already succeeded once, it should work here.
+-		t.Errorf("unexpected failure: %v", err)
+-	}
+-	if got-want > tolerance {
+-		t.Errorf("number of open file descriptors changed: got %v, want %v", got, want)
+-		if before != nil {
+-			t.Errorf("before:\n%v\n", before)
+-		}
+-		if after != nil {
+-			t.Errorf("after:\n%v\n", after)
+-		}
+-	}
+-}
+-
+-func numOpenFDsAndroid(t *testing.T) (n int, lsof []byte) {
+-	raw, err := exec.Command("lsof").Output()
+-	if err != nil {
+-		t.Skip("skipping test; error finding or running lsof")
+-	}
+-
+-	// First find the PID column index by parsing the first line, and
+-	// select lines containing pid in the column.
+-	pid := []byte(strconv.Itoa(os.Getpid()))
+-	pidCol := -1
+-
+-	s := bufio.NewScanner(bytes.NewReader(raw))
+-	for s.Scan() {
+-		line := s.Bytes()
+-		fields := bytes.Fields(line)
+-		if pidCol < 0 {
+-			for i, v := range fields {
+-				if bytes.Equal(v, []byte("PID")) {
+-					pidCol = i
+-					break
+-				}
+-			}
+-			lsof = append(lsof, line...)
+-			continue
+-		}
+-		if bytes.Equal(fields[pidCol], pid) {
+-			lsof = append(lsof, '\n')
+-			lsof = append(lsof, line...)
+-		}
+-	}
+-	if pidCol < 0 {
+-		t.Fatal("error processing lsof output: unexpected header format")
+-	}
+-	if err := s.Err(); err != nil {
+-		t.Fatalf("error processing lsof output: %v", err)
++	got := openFDs()
++	if !reflect.DeepEqual(got, want) {
++		t.Errorf("set of open file descriptors changed: got %v, want %v", got, want)
+ 	}
+-	return bytes.Count(lsof, []byte("\n")), lsof
+ }
+ 
+ func TestExtraFilesFDShuffle(t *testing.T) {
+diff --git a/src/os/exec/internal/fdtest/exists_js.go b/src/os/exec/internal/fdtest/exists_js.go
+new file mode 100644
+index 0000000000..a7ce33c74f
+--- /dev/null
++++ b/src/os/exec/internal/fdtest/exists_js.go
+@@ -0,0 +1,18 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build js
++
++package fdtest
++
++import (
++	"syscall"
++)
++
++// Exists returns true if fd is a valid file descriptor.
++func Exists(fd uintptr) bool {
++	var s syscall.Stat_t
++	err := syscall.Fstat(int(fd), &s)
++	return err != syscall.EBADF
++}
+diff --git a/src/os/exec/internal/fdtest/exists_plan9.go b/src/os/exec/internal/fdtest/exists_plan9.go
+new file mode 100644
+index 0000000000..8886e06027
+--- /dev/null
++++ b/src/os/exec/internal/fdtest/exists_plan9.go
+@@ -0,0 +1,20 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build plan9
++
++package fdtest
++
++import (
++	"syscall"
++)
++
++const errBadFd = syscall.ErrorString("fd out of range or not open")
++
++// Exists returns true if fd is a valid file descriptor.
++func Exists(fd uintptr) bool {
++	var buf [1]byte
++	_, err := syscall.Fstat(int(fd), buf[:])
++	return err != errBadFd
++}
+diff --git a/src/os/exec/internal/fdtest/exists_test.go b/src/os/exec/internal/fdtest/exists_test.go
+new file mode 100644
+index 0000000000..a02dddf7f7
+--- /dev/null
++++ b/src/os/exec/internal/fdtest/exists_test.go
+@@ -0,0 +1,21 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fdtest
++
++import (
++	"os"
++	"runtime"
++	"testing"
++)
++
++func TestExists(t *testing.T) {
++	if runtime.GOOS == "windows" {
++		t.Skip("Exists not implemented for windows")
++	}
++
++	if !Exists(os.Stdout.Fd()) {
++		t.Errorf("Exists(%d) got false want true", os.Stdout.Fd())
++	}
++}
+diff --git a/src/os/exec/internal/fdtest/exists_unix.go b/src/os/exec/internal/fdtest/exists_unix.go
+new file mode 100644
+index 0000000000..49f264cebd
+--- /dev/null
++++ b/src/os/exec/internal/fdtest/exists_unix.go
+@@ -0,0 +1,19 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
++
++// Package fdtest provides test helpers for working with file descriptors across exec.
++package fdtest
++
++import (
++	"syscall"
++)
++
++// Exists returns true if fd is a valid file descriptor.
++func Exists(fd uintptr) bool {
++	var s syscall.Stat_t
++	err := syscall.Fstat(int(fd), &s)
++	return err != syscall.EBADF
++}
+diff --git a/src/os/exec/internal/fdtest/exists_windows.go b/src/os/exec/internal/fdtest/exists_windows.go
+new file mode 100644
+index 0000000000..72b8ccfd23
+--- /dev/null
++++ b/src/os/exec/internal/fdtest/exists_windows.go
+@@ -0,0 +1,12 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build windows
++
++package fdtest
++
++// Exists is not implemented on windows and panics.
++func Exists(fd uintptr) bool {
++	panic("unimplemented")
++}
+diff --git a/src/os/exec/read3.go b/src/os/exec/read3.go
+index 8aae5735c4..10cbfbd54a 100644
+--- a/src/os/exec/read3.go
++++ b/src/os/exec/read3.go
+@@ -18,12 +18,15 @@ import (
+ 	"io"
+ 	"os"
+ 	"os/exec"
++	"os/exec/internal/fdtest"
+ 	"runtime"
+ 	"strings"
+ )
+ 
+ func main() {
+ 	fd3 := os.NewFile(3, "fd3")
++	defer fd3.Close()
++
+ 	bs, err := io.ReadAll(fd3)
+ 	if err != nil {
+ 		fmt.Printf("ReadAll from fd 3: %v\n", err)
+@@ -37,65 +40,52 @@ func main() {
+ 	// descriptor from parent == 3
+ 	// All descriptors 4 and up should be available,
+ 	// except for any used by the network poller.
+-	var files []*os.File
+-	for wantfd := uintptr(4); wantfd <= 100; wantfd++ {
+-		if poll.IsPollDescriptor(wantfd) {
++	for fd := uintptr(4); fd <= 100; fd++ {
++		if poll.IsPollDescriptor(fd) {
+ 			continue
+ 		}
+-		f, err := os.Open(os.Args[0])
+-		if err != nil {
+-			fmt.Printf("error opening file with expected fd %d: %v", wantfd, err)
+-			os.Exit(1)
++
++		if !fdtest.Exists(fd) {
++			continue
+ 		}
+-		if got := f.Fd(); got != wantfd {
+-			fmt.Printf("leaked parent file. fd = %d; want %d\n", got, wantfd)
+-			fdfile := fmt.Sprintf("/proc/self/fd/%d", wantfd)
+-			link, err := os.Readlink(fdfile)
+-			fmt.Printf("readlink(%q) = %q, %v\n", fdfile, link, err)
+-			var args []string
+-			switch runtime.GOOS {
+-			case "plan9":
+-				args = []string{fmt.Sprintf("/proc/%d/fd", os.Getpid())}
+-			case "aix", "solaris", "illumos":
+-				args = []string{fmt.Sprint(os.Getpid())}
+-			default:
+-				args = []string{"-p", fmt.Sprint(os.Getpid())}
+-			}
+ 
+-			// Determine which command to use to display open files.
+-			ofcmd := "lsof"
+-			switch runtime.GOOS {
+-			case "dragonfly", "freebsd", "netbsd", "openbsd":
+-				ofcmd = "fstat"
+-			case "plan9":
+-				ofcmd = "/bin/cat"
+-			case "aix":
+-				ofcmd = "procfiles"
+-			case "solaris", "illumos":
+-				ofcmd = "pfiles"
+-			}
++		fmt.Printf("leaked parent file. fdtest.Exists(%d) got true want false\n", fd)
++
++		fdfile := fmt.Sprintf("/proc/self/fd/%d", fd)
++		link, err := os.Readlink(fdfile)
++		fmt.Printf("readlink(%q) = %q, %v\n", fdfile, link, err)
+ 
+-			cmd := exec.Command(ofcmd, args...)
+-			out, err := cmd.CombinedOutput()
+-			if err != nil {
+-				fmt.Fprintf(os.Stderr, "%s failed: %v\n", strings.Join(cmd.Args, " "), err)
+-			}
+-			fmt.Printf("%s", out)
+-			os.Exit(1)
++		var args []string
++		switch runtime.GOOS {
++		case "plan9":
++			args = []string{fmt.Sprintf("/proc/%d/fd", os.Getpid())}
++		case "aix", "solaris", "illumos":
++			args = []string{fmt.Sprint(os.Getpid())}
++		default:
++			args = []string{"-p", fmt.Sprint(os.Getpid())}
+ 		}
+-		files = append(files, f)
+-	}
+ 
+-	for _, f := range files {
+-		f.Close()
+-	}
++		// Determine which command to use to display open files.
++		ofcmd := "lsof"
++		switch runtime.GOOS {
++		case "dragonfly", "freebsd", "netbsd", "openbsd":
++			ofcmd = "fstat"
++		case "plan9":
++			ofcmd = "/bin/cat"
++		case "aix":
++			ofcmd = "procfiles"
++		case "solaris", "illumos":
++			ofcmd = "pfiles"
++		}
+ 
+-	// Referring to fd3 here ensures that it is not
+-	// garbage collected, and therefore closed, while
+-	// executing the wantfd loop above. It doesn't matter
+-	// what we do with fd3 as long as we refer to it;
+-	// closing it is the easy choice.
+-	fd3.Close()
++		cmd := exec.Command(ofcmd, args...)
++		out, err := cmd.CombinedOutput()
++		if err != nil {
++			fmt.Fprintf(os.Stderr, "%s failed: %v\n", strings.Join(cmd.Args, " "), err)
++		}
++		fmt.Printf("%s", out)
++		os.Exit(1)
++	}
+ 
+ 	os.Stdout.Write(bs)
+ }

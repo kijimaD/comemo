@@ -6,8 +6,118 @@ Date:   Sat Jun 21 15:08:04 2008 -0700
     that are supposed to succeed
     
     SVN=124018
-
+---
  test/ken/simparray.go | 18 +++++++++---------
  test/ken/simpconv.go  | 12 ++++++------
  test/ken/string.go    | 20 ++++++++++----------
  3 files changed, 25 insertions(+), 25 deletions(-)
+
+diff --git a/test/ken/simparray.go b/test/ken/simparray.go
+index e1b41058f1..1cbde1bd47 100644
+--- a/test/ken/simparray.go
++++ b/test/ken/simparray.go
+@@ -17,33 +17,33 @@ main()
+ 		a[i] = float(i);
+ 	}
+ 
+-	s := float(0);
++	s1 := float(0);
+ 	for i:=5; i<10; i=i+1 {
+-		s = s + a[i];
++		s1 = s1 + a[i];
+ 	}
+ 
+-	if s != 35 { panic s; }
++	if s1 != 35 { panic s1; }
+ 
+ 	for i:=short(5); i<10; i=i+1 {
+ 		b[i] = float(i);
+ 	}
+ 
+-	s := float(0);
++	s2 := float(0);
+ 	for i:=5; i<10; i=i+1 {
+-		s = s + b[i];
++		s2 = s2 + b[i];
+ 	}
+ 
+-	if s != 35 { panic s; }
++	if s2 != 35 { panic s2; }
+ 
+ 	b := new([100]int);
+ 	for i:=0; i<100; i=i+1 {
+ 		b[i] = i;
+ 	}
+ 
+-	s := 0;
++	s3 := 0;
+ 	for i:=0; i<100; i=i+1 {
+-		s = s+b[i];
++		s3 = s3+b[i];
+ 	}
+ 
+-	if s != 4950 { panic s; }
++	if s3 != 4950 { panic s3; }
+ }
+diff --git a/test/ken/simpconv.go b/test/ken/simpconv.go
+index df8242ba35..895024e5bf 100644
+--- a/test/ken/simpconv.go
++++ b/test/ken/simpconv.go
+@@ -9,15 +9,15 @@ package main
+ func
+ main()
+ {
+-	s := vlong(0);
++	s1 := vlong(0);
+ 	for i:=short(0); i<10; i=i+1 {
+-		s = s + vlong(i);
++		s1 = s1 + vlong(i);
+ 	}
+-	if s != 45 { panic s; }
++	if s1 != 45 { panic s1; }
+ 
+-	s := float(0);
++	s2 := float(0);
+ 	for i:=0; i<10; i=i+1 {
+-		s = s + float(i);
++		s2 = s2 + float(i);
+ 	}
+-	if s != 45 { panic s; }
++	if s2 != 45 { panic s2; }
+ }
+diff --git a/test/ken/string.go b/test/ken/string.go
+index 85cb83a645..51da6a2301 100644
+--- a/test/ken/string.go
++++ b/test/ken/string.go
+@@ -82,21 +82,21 @@ main()
+ 	}
+ 
+ 	/* create string with byte array */
+-	var z [3]byte;
+-	z[0] = 'a';
+-	z[1] = 'b';
+-	z[2] = 'c';
+-	c = string(z);
++	var z1 [3]byte;
++	z1[0] = 'a';
++	z1[1] = 'b';
++	z1[2] = 'c';
++	c = string(z1);
+ 	if c != "abc" {
+ 		panic "create array ", c;
+ 	}
+ 
+ 	/* create string with byte array pointer */
+-	z := new([3]byte);
+-	z[0] = 'a';
+-	z[1] = 'b';
+-	z[2] = 'c';
+-	c = string(z);
++	z2 := new([3]byte);
++	z2[0] = 'a';
++	z2[1] = 'b';
++	z2[2] = 'c';
++	c = string(z2);
+ 	if c != "abc" {
+ 		panic "create array pointer ", c;
+ 	}

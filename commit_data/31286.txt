@@ -19,6 +19,27 @@ Date:   Thu Feb 9 14:34:38 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/36624
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/rpc/server_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/rpc/server_test.go b/src/net/rpc/server_test.go
+index 8369c9dec7..b94ea6f6ab 100644
+--- a/src/net/rpc/server_test.go
++++ b/src/net/rpc/server_test.go
+@@ -619,13 +619,13 @@ func TestErrorAfterClientClose(t *testing.T) {
+ 
+ // Tests the fix to issue 11221. Without the fix, this loops forever or crashes.
+ func TestAcceptExitAfterListenerClose(t *testing.T) {
+-	newServer = NewServer()
++	newServer := NewServer()
+ 	newServer.Register(new(Arith))
+ 	newServer.RegisterName("net.rpc.Arith", new(Arith))
+ 	newServer.RegisterName("newServer.Arith", new(Arith))
+ 
+ 	var l net.Listener
+-	l, newServerAddr = listenTCP()
++	l, _ = listenTCP()
+ 	l.Close()
+ 	newServer.Accept(l)
+ }

@@ -12,6 +12,43 @@ Date:   Sun Apr 1 18:22:56 2018 +0000
     Change-Id: Id227dad7069560dbb3ea978a1dcd77ce1979034e
     Reviewed-on: https://go-review.googlesource.com/104015
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/lookup_test.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 53f050bd7e..c2a6477e2e 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -63,7 +63,6 @@ var lookupGoogleSRVTests = []struct {
+ var backoffDuration = [...]time.Duration{time.Second, 5 * time.Second, 30 * time.Second}
+ 
+ func TestLookupGoogleSRV(t *testing.T) {
+-	t.Parallel()
+ 	if testenv.Builder() == "" {
+ 		testenv.MustHaveExternalNetwork(t)
+ 	}
+@@ -110,7 +109,6 @@ var lookupGmailMXTests = []struct {
+ }
+ 
+ func TestLookupGmailMX(t *testing.T) {
+-	t.Parallel()
+ 	if testenv.Builder() == "" {
+ 		testenv.MustHaveExternalNetwork(t)
+ 	}
+@@ -191,7 +189,6 @@ var lookupGmailTXTTests = []struct {
+ }
+ 
+ func TestLookupGmailTXT(t *testing.T) {
+-	t.Parallel()
+ 	if testenv.Builder() == "" {
+ 		testenv.MustHaveExternalNetwork(t)
+ 	}
+@@ -301,7 +298,6 @@ var lookupCNAMETests = []struct {
+ }
+ 
+ func TestLookupCNAME(t *testing.T) {
+-	t.Parallel()
+ 	if testenv.Builder() == "" {
+ 		testenv.MustHaveExternalNetwork(t)
+ 	}

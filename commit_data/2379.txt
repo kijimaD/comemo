@@ -8,6 +8,20 @@ Date:   Thu Jun 4 13:33:29 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=29881
     CL=29885
-
+---
  src/cmd/ld/go.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index 8ba7d12ce3..e20f10a147 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -59,7 +59,7 @@ ilookup(char *name)
+ 		if(x->name[0] == name[0] && strcmp(x->name, name) == 0)
+ 			return x;
+ 	x = mal(sizeof *x);
+-	x->name = name;
++	x->name = strdup(name);
+ 	x->hash = ihash[h];
+ 	ihash[h] = x;
+ 	nimport++;

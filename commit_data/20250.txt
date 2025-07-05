@@ -7,6 +7,20 @@ Date:   Wed Aug 27 22:03:32 2014 -0400
     TBR=minux
     CC=golang-codereviews
     https://golang.org/cl/137810043
-
+---
  src/pkg/runtime/asm_arm.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 93eb08d84b..f7b90a692e 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -691,7 +691,7 @@ casfail:
+ 	RET
+ 
+ TEXT runtime·casuintptr(SB), NOSPLIT, $0-13
+-	JMP	runtime·cas(SB)
++	B	runtime·cas(SB)
+ 
+ TEXT runtime·stackguard(SB),NOSPLIT,$0-8
+ 	MOVW	R13, R1

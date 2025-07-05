@@ -12,7 +12,120 @@ Date:   Fri Apr 1 00:54:13 2016 +0200
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  5 +++
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 64 ++++++++++++++++++++++++++++
  2 files changed, 69 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 65ffdbfc07..4ad0f883b0 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -475,6 +475,11 @@
+ (ANDB x (MOVBconst [c])) -> (ANDBconst [c] x)
+ (ANDB (MOVBconst [c]) x) -> (ANDBconst [c] x)
+ 
++(ANDBconst [c] (ANDBconst [d] x)) -> (ANDBconst [c & d] x)
++(ANDWconst [c] (ANDWconst [d] x)) -> (ANDWconst [c & d] x)
++(ANDLconst [c] (ANDLconst [d] x)) -> (ANDLconst [c & d] x)
++(ANDQconst [c] (ANDQconst [d] x)) -> (ANDQconst [c & d] x)
++
+ (ORQ x (MOVQconst [c])) && is32Bit(c) -> (ORQconst [c] x)
+ (ORQ (MOVQconst [c]) x) && is32Bit(c) -> (ORQconst [c] x)
+ (ORL x (MOVLconst [c])) -> (ORLconst [c] x)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index f7ede3b259..11c2de391c 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -1598,6 +1598,22 @@ func rewriteValueAMD64_OpAMD64ANDB(v *Value, config *Config) bool {
+ func rewriteValueAMD64_OpAMD64ANDBconst(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
++	// match: (ANDBconst [c] (ANDBconst [d] x))
++	// cond:
++	// result: (ANDBconst [c & d] x)
++	for {
++		c := v.AuxInt
++		v_0 := v.Args[0]
++		if v_0.Op != OpAMD64ANDBconst {
++			break
++		}
++		d := v_0.AuxInt
++		x := v_0.Args[0]
++		v.reset(OpAMD64ANDBconst)
++		v.AuxInt = c & d
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (ANDBconst [c] _)
+ 	// cond: int8(c)==0
+ 	// result: (MOVBconst [0])
+@@ -1691,6 +1707,22 @@ func rewriteValueAMD64_OpAMD64ANDL(v *Value, config *Config) bool {
+ func rewriteValueAMD64_OpAMD64ANDLconst(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
++	// match: (ANDLconst [c] (ANDLconst [d] x))
++	// cond:
++	// result: (ANDLconst [c & d] x)
++	for {
++		c := v.AuxInt
++		v_0 := v.Args[0]
++		if v_0.Op != OpAMD64ANDLconst {
++			break
++		}
++		d := v_0.AuxInt
++		x := v_0.Args[0]
++		v.reset(OpAMD64ANDLconst)
++		v.AuxInt = c & d
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (ANDLconst [c] _)
+ 	// cond: int32(c)==0
+ 	// result: (MOVLconst [0])
+@@ -1790,6 +1822,22 @@ func rewriteValueAMD64_OpAMD64ANDQ(v *Value, config *Config) bool {
+ func rewriteValueAMD64_OpAMD64ANDQconst(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
++	// match: (ANDQconst [c] (ANDQconst [d] x))
++	// cond:
++	// result: (ANDQconst [c & d] x)
++	for {
++		c := v.AuxInt
++		v_0 := v.Args[0]
++		if v_0.Op != OpAMD64ANDQconst {
++			break
++		}
++		d := v_0.AuxInt
++		x := v_0.Args[0]
++		v.reset(OpAMD64ANDQconst)
++		v.AuxInt = c & d
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (ANDQconst [0] _)
+ 	// cond:
+ 	// result: (MOVQconst [0])
+@@ -1911,6 +1959,22 @@ func rewriteValueAMD64_OpAMD64ANDW(v *Value, config *Config) bool {
+ func rewriteValueAMD64_OpAMD64ANDWconst(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
++	// match: (ANDWconst [c] (ANDWconst [d] x))
++	// cond:
++	// result: (ANDWconst [c & d] x)
++	for {
++		c := v.AuxInt
++		v_0 := v.Args[0]
++		if v_0.Op != OpAMD64ANDWconst {
++			break
++		}
++		d := v_0.AuxInt
++		x := v_0.Args[0]
++		v.reset(OpAMD64ANDWconst)
++		v.AuxInt = c & d
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (ANDWconst [c] _)
+ 	// cond: int16(c)==0
+ 	// result: (MOVWconst [0])

@@ -13,6 +13,21 @@ Date:   Wed Feb 17 17:12:03 2021 +1100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/315794
     Trust: Joel Sing <joel@sing.id.au>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/crash_unix_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/crash_unix_test.go b/src/runtime/crash_unix_test.go
+index 9469d5e6a6..694cc3d138 100644
+--- a/src/runtime/crash_unix_test.go
++++ b/src/runtime/crash_unix_test.go
+@@ -69,7 +69,8 @@ func TestCrashDumpsAllThreads(t *testing.T) {
+ 		t.Skipf("skipping; not supported on %v", runtime.GOOS)
+ 	}
+ 
+-	if runtime.GOOS == "openbsd" && runtime.GOARCH == "mips64" {
++	if runtime.GOOS == "openbsd" && (runtime.GOARCH == "arm" || runtime.GOARCH == "mips64") {
++		// This may be ncpu < 2 related...
+ 		t.Skipf("skipping; test fails on %s/%s - see issue #42464", runtime.GOOS, runtime.GOARCH)
+ 	}
+ 

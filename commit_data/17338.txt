@@ -9,10 +9,152 @@ Date:   Tue Aug 20 16:57:30 2013 +0900
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/12927047
-
+---
  src/pkg/runtime/defs_freebsd_arm.h | 23 +++++++++++++++++++++--
  src/pkg/runtime/netpoll.goc        |  2 +-
  src/pkg/runtime/netpoll_kqueue.c   |  2 +-
  src/pkg/runtime/netpoll_stub.c     |  2 +-
  src/pkg/runtime/sys_freebsd_arm.s  | 30 ++++++++++++++++++++++++++++++
  5 files changed, 54 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/runtime/defs_freebsd_arm.h b/src/pkg/runtime/defs_freebsd_arm.h
+index 334652eeca..d321f4249b 100644
+--- a/src/pkg/runtime/defs_freebsd_arm.h
++++ b/src/pkg/runtime/defs_freebsd_arm.h
+@@ -3,6 +3,9 @@
+ 
+ 
+ enum {
++	EINTR	= 0x4,
++	EFAULT  = 0xe,
++
+ 	PROT_NONE	= 0x0,
+ 	PROT_READ	= 0x1,
+ 	PROT_WRITE	= 0x2,
+@@ -21,8 +24,6 @@ enum {
+ 	UMTX_OP_WAIT_UINT	= 0xb,
+ 	UMTX_OP_WAKE		= 0x3,
+ 
+-	EINTR	= 0x4,
+-
+ 	SIGHUP		= 0x1,
+ 	SIGINT		= 0x2,
+ 	SIGQUIT		= 0x3,
+@@ -74,6 +75,14 @@ enum {
+ 	ITIMER_REAL	= 0x0,
+ 	ITIMER_VIRTUAL	= 0x1,
+ 	ITIMER_PROF	= 0x2,
++
++	EV_ADD          = 0x1,
++	EV_DELETE       = 0x2,
++	EV_CLEAR        = 0x20,
++	EV_RECEIPT      = 0x40,
++	EV_ERROR        = 0x4000,
++	EVFILT_READ     = -0x1,
++	EVFILT_WRITE    = -0x2,
+ };
+ 
+ typedef struct Rtprio Rtprio;
+@@ -87,6 +96,7 @@ typedef struct Ucontext Ucontext;
+ typedef struct Timespec Timespec;
+ typedef struct Timeval Timeval;
+ typedef struct Itimerval Itimerval;
++typedef struct Kevent Kevent;
+ 
+ #pragma pack on
+ 
+@@ -159,5 +169,14 @@ struct Itimerval {
+ 	Timeval	it_value;
+ };
+ 
++struct Kevent {
++	uint32  ident;
++	int16   filter;
++	uint16  flags;
++	uint32  fflags;
++	int32   data;
++	byte    *udata;
++};
++
+ 
+ #pragma pack off
+diff --git a/src/pkg/runtime/netpoll.goc b/src/pkg/runtime/netpoll.goc
+index 6e802134c9..9bf8ac56b7 100644
+--- a/src/pkg/runtime/netpoll.goc
++++ b/src/pkg/runtime/netpoll.goc
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd,amd64 freebsd,386 linux netbsd openbsd windows
++// +build darwin freebsd linux netbsd openbsd windows
+ 
+ package net
+ 
+diff --git a/src/pkg/runtime/netpoll_kqueue.c b/src/pkg/runtime/netpoll_kqueue.c
+index 4b895c8cf6..95fab40d5a 100644
+--- a/src/pkg/runtime/netpoll_kqueue.c
++++ b/src/pkg/runtime/netpoll_kqueue.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd,amd64 freebsd,386 netbsd openbsd
++// +build darwin freebsd netbsd openbsd
+ 
+ #include "runtime.h"
+ #include "defs_GOOS_GOARCH.h"
+diff --git a/src/pkg/runtime/netpoll_stub.c b/src/pkg/runtime/netpoll_stub.c
+index bdef4e0d93..b7a8f2944c 100644
+--- a/src/pkg/runtime/netpoll_stub.c
++++ b/src/pkg/runtime/netpoll_stub.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build freebsd,arm plan9
++// +build plan9
+ 
+ #include "runtime.h"
+ 
+diff --git a/src/pkg/runtime/sys_freebsd_arm.s b/src/pkg/runtime/sys_freebsd_arm.s
+index 5d31012092..9e262047ba 100644
+--- a/src/pkg/runtime/sys_freebsd_arm.s
++++ b/src/pkg/runtime/sys_freebsd_arm.s
+@@ -269,6 +269,36 @@ TEXT runtime·sigprocmask(SB),NOSPLIT,$0
+ 	MOVW.CS R8, (R8)
+ 	RET
+ 
++// int32 runtime·kqueue(void)
++TEXT runtime·kqueue(SB),NOSPLIT,$0
++	SWI $362	// sys_kqueue
++	RSB.CS $0, R0
++	RET
++
++// int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout)
++TEXT runtime·kevent(SB),NOSPLIT,$8
++	MOVW 0(FP), R0	// kq
++	MOVW 4(FP), R1	// changelist
++	MOVW 8(FP), R2	// nchanges
++	MOVW 12(FP), R3	// eventlist
++	MOVW 16(FP), R4	// nevents
++	MOVW R4, 4(R13)
++	MOVW 20(FP), R4	// timeout
++	MOVW R4, 8(R13)
++	ADD $4, R13	// pass arg 5 and 6 on stack
++	SWI $363	// sys_kevent
++	RSB.CS $0, R0
++	SUB $4, R13
++	RET
++
++// void runtime·closeonexec(int32 fd)
++TEXT runtime·closeonexec(SB),NOSPLIT,$0
++	MOVW 0(FP), R0	// fd
++	MOVW $2, R1	// F_SETFD
++	MOVW $1, R2	// FD_CLOEXEC
++	SWI $92		// sys_fcntl
++	RET
++
+ TEXT runtime·casp(SB),NOSPLIT,$0
+ 	B	runtime·cas(SB)
+ 

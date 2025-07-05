@@ -11,6 +11,22 @@ Date:   Wed Nov 1 15:34:27 2023 +0000
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/dwarf.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index e108048827..dcbe719c96 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1140,9 +1140,7 @@ func (d *dwctxt) importInfoSymbol(dsym loader.Sym) {
+ }
+ 
+ func expandFile(fname string) string {
+-	if strings.HasPrefix(fname, src.FileSymPrefix) {
+-		fname = fname[len(src.FileSymPrefix):]
+-	}
++	fname = strings.TrimPrefix(fname, src.FileSymPrefix)
+ 	return expandGoroot(fname)
+ }
+ 

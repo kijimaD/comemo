@@ -15,6 +15,19 @@ Date:   Tue Feb 21 12:48:45 2017 -0800
     Reviewed-by: Sameer Ajmani <sameer@golang.org>
     Run-TryBot: Sameer Ajmani <sameer@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/context/context.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/context/context.go b/src/context/context.go
+index c60d378818..cfd1c09fcc 100644
+--- a/src/context/context.go
++++ b/src/context/context.go
+@@ -100,6 +100,7 @@ type Context interface {
+ 	// Canceled if the context was canceled or DeadlineExceeded if the
+ 	// context's deadline passed. No other values for Err are defined.
+ 	// After Done is closed, successive calls to Err return the same value.
++	// Err's return value is unspecified before Done is closed.
+ 	Err() error
+ 
+ 	// Value returns the value associated with this context for key, or nil

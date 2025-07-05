@@ -17,7 +17,44 @@ Date:   Sun Dec 27 11:26:12 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/typecheck/iimport.go   | 5 +++++
  src/cmd/compile/internal/typecheck/typecheck.go | 8 +-------
  2 files changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index cf2cf87492..546ddcba79 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -71,7 +71,12 @@ func ImportBody(fn *ir.Func) {
+ 		base.Fatalf("missing import reader for %v", fn)
+ 	}
+ 
++	if inimport {
++		base.Fatalf("recursive inimport")
++	}
++	inimport = true
+ 	r.doInline(fn)
++	inimport = false
+ }
+ 
+ func importReaderFor(sym *types.Sym, importers map[*types.Sym]iimporterAndOffset) *importReader {
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index dabfee3bf9..e23c249ff2 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -251,13 +251,7 @@ func Resolve(n ir.Node) (res ir.Node) {
+ 			}
+ 		}
+ 
+-		if inimport {
+-			base.Fatalf("recursive inimport")
+-		}
+-		inimport = true
+-		n = expandDecl(n)
+-		inimport = false
+-		return n
++		return expandDecl(n)
+ 	}
+ 
+ 	r := ir.AsNode(n.Sym().Def)

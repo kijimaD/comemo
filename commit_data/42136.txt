@@ -28,7 +28,7 @@ Date:   Wed Oct 23 06:43:23 2019 -0700
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go           |  4 +-
  src/cmd/compile/internal/s390x/ssa.go        | 34 ++++++++++++++++
  src/cmd/compile/internal/ssa/gen/S390X.rules | 30 ++++++++++++++
@@ -39,3 +39,504 @@ Date:   Wed Oct 23 06:43:23 2019 -0700
  src/runtime/internal/atomic/asm_s390x.s      | 44 ++++++++-------------
  src/runtime/internal/atomic/bench_test.go    | 40 +++++++++++++++++++
  9 files changed, 305 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index bff038b39f..fa4fd058d7 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3490,13 +3490,13 @@ func init() {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicAnd8, types.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+ 		},
+-		sys.AMD64, sys.ARM64, sys.MIPS, sys.PPC64)
++		sys.AMD64, sys.ARM64, sys.MIPS, sys.PPC64, sys.S390X)
+ 	addF("runtime/internal/atomic", "Or8",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicOr8, types.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+ 		},
+-		sys.AMD64, sys.ARM64, sys.MIPS, sys.PPC64)
++		sys.AMD64, sys.ARM64, sys.MIPS, sys.PPC64, sys.S390X)
+ 
+ 	alias("runtime/internal/atomic", "Loadint64", "runtime/internal/atomic", "Load64", all...)
+ 	alias("runtime/internal/atomic", "Xaddint64", "runtime/internal/atomic", "Xadd64", all...)
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index 885c14b33a..f1725bdda4 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -173,6 +173,21 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if r != r1 {
+ 			p.Reg = r1
+ 		}
++	case ssa.OpS390XRXSBG:
++		r1 := v.Reg()
++		if r1 != v.Args[0].Reg() {
++			v.Fatalf("input[0] and output not in same register %s", v.LongString())
++		}
++		r2 := v.Args[1].Reg()
++		i := v.Aux.(s390x.RotateParams)
++		p := s.Prog(v.Op.Asm())
++		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: int64(i.Start)}
++		p.RestArgs = []obj.Addr{
++			{Type: obj.TYPE_CONST, Offset: int64(i.End)},
++			{Type: obj.TYPE_CONST, Offset: int64(i.Amount)},
++			{Type: obj.TYPE_REG, Reg: r2},
++		}
++		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: r1}
+ 	case ssa.OpS390XADD, ssa.OpS390XADDW,
+ 		ssa.OpS390XSUB, ssa.OpS390XSUBW,
+ 		ssa.OpS390XAND, ssa.OpS390XANDW,
+@@ -736,6 +751,25 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Reg = v.Args[0].Reg()
+ 		gc.AddAux(&p.To, v)
++	case ssa.OpS390XLANfloor, ssa.OpS390XLAOfloor:
++		r := v.Args[0].Reg() // clobbered, assumed R1 in comments
++
++		// Round ptr down to nearest multiple of 4.
++		// ANDW $~3, R1
++		ptr := s.Prog(s390x.AANDW)
++		ptr.From.Type = obj.TYPE_CONST
++		ptr.From.Offset = 0xfffffffc
++		ptr.To.Type = obj.TYPE_REG
++		ptr.To.Reg = r
++
++		// Redirect output of LA(N|O) into R1 since it is clobbered anyway.
++		// LA(N|O) Rx, R1, 0(R1)
++		op := s.Prog(v.Op.Asm())
++		op.From.Type = obj.TYPE_REG
++		op.From.Reg = v.Args[1].Reg()
++		op.Reg = r
++		op.To.Type = obj.TYPE_MEM
++		op.To.Reg = r
+ 	case ssa.OpS390XLAA, ssa.OpS390XLAAG:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.Reg = v.Reg0()
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index 3635aeb915..989b20e284 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -167,6 +167,36 @@
+ (AtomicCompareAndSwap32 ptr old new_ mem) -> (LoweredAtomicCas32 ptr old new_ mem)
+ (AtomicCompareAndSwap64 ptr old new_ mem) -> (LoweredAtomicCas64 ptr old new_ mem)
+ 
++// Atomic and: *(*uint8)(ptr) &= val
++//
++// Round pointer down to nearest word boundary and pad value with ones before
++// applying atomic AND operation to target word.
++//
++// *(*uint32)(ptr &^ 3) &= rotateleft(uint32(val) | 0xffffff00, ((3 << 3) ^ ((ptr & 3) << 3))
++//
++(AtomicAnd8 ptr val mem)
++  -> (LANfloor
++       ptr
++       (RLL <typ.UInt32>
++         (ORWconst <typ.UInt32> val [-1<<8])
++         (RXSBG <typ.UInt32> {s390x.NewRotateParams(59, 60, 3)} (MOVDconst [3<<3]) ptr))
++       mem)
++
++// Atomic or: *(*uint8)(ptr) |= val
++//
++// Round pointer down to nearest word boundary and pad value with zeros before
++// applying atomic OR operation to target word.
++//
++// *(*uint32)(ptr &^ 3) |= uint32(val) << ((3 << 3) ^ ((ptr & 3) << 3))
++//
++(AtomicOr8  ptr val mem)
++  -> (LAOfloor
++       ptr
++       (SLW <typ.UInt32>
++         (MOVBZreg <typ.UInt32> val)
++         (RXSBG <typ.UInt32> {s390x.NewRotateParams(59, 60, 3)} (MOVDconst [3<<3]) ptr))
++       mem)
++
+ // Lowering extension
+ // Note: we always extend to 64 bits even though some ops don't need that many result bits.
+ (SignExt8to(16|32|64)  x) -> (MOVBreg x)
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index dc9d328641..6517957fd4 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -170,6 +170,7 @@ func init() {
+ 		gpstoreidx   = regInfo{inputs: []regMask{ptrsp, ptrsp, gpsp, 0}}
+ 		gpstorebr    = regInfo{inputs: []regMask{ptrsp, gpsp, 0}}
+ 		gpstorelaa   = regInfo{inputs: []regMask{ptrspsb, gpsp, 0}, outputs: gponly}
++		gpstorelab   = regInfo{inputs: []regMask{r1, gpsp, 0}, clobbers: r1}
+ 
+ 		gpmvc = regInfo{inputs: []regMask{ptrsp, ptrsp, 0}}
+ 
+@@ -347,6 +348,27 @@ func init() {
+ 		{name: "RLLGconst", argLength: 1, reg: gp11, asm: "RLLG", aux: "Int8"}, // arg0 rotate left auxint, rotate amount 0-63
+ 		{name: "RLLconst", argLength: 1, reg: gp11, asm: "RLL", aux: "Int8"},   // arg0 rotate left auxint, rotate amount 0-31
+ 
++		// Rotate then (and|or|xor|insert) selected bits instructions.
++		//
++		// Aux is an s390x.RotateParams struct containing Start, End and rotation
++		// Amount fields.
++		//
++		// arg1 is rotated left by the rotation amount then the bits from the start
++		// bit to the end bit (inclusive) are combined with arg0 using the logical
++		// operation specified. Bit indices are specified from left to right - the
++		// MSB is 0 and the LSB is 63.
++		//
++		// Examples:
++		//               |          aux         |
++		// | instruction | start | end | amount |          arg0         |          arg1         |         result        |
++		// +-------------+-------+-----+--------+-----------------------+-----------------------+-----------------------+
++		// | RXSBG (XOR) |     0 |   1 |      0 | 0xffff_ffff_ffff_ffff | 0xffff_ffff_ffff_ffff | 0x3fff_ffff_ffff_ffff |
++		// | RXSBG (XOR) |    62 |  63 |      0 | 0xffff_ffff_ffff_ffff | 0xffff_ffff_ffff_ffff | 0xffff_ffff_ffff_fffc |
++		// | RXSBG (XOR) |     0 |  47 |     16 | 0xffff_ffff_ffff_ffff | 0x0000_0000_0000_ffff | 0xffff_ffff_0000_ffff |
++		// +-------------+-------+-----+--------+-----------------------+-----------------------+-----------------------+
++		//
++		{name: "RXSBG", argLength: 2, reg: gp21, asm: "RXSBG", resultInArg0: true, aux: "ArchSpecific", clobberFlags: true}, // rotate then xor selected bits
++
+ 		// unary ops
+ 		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG", clobberFlags: true},   // -arg0
+ 		{name: "NEGW", argLength: 1, reg: gp11, asm: "NEGW", clobberFlags: true}, // -arg0
+@@ -509,6 +531,12 @@ func init() {
+ 		{name: "AddTupleFirst32", argLength: 2}, // arg1=tuple <x,y>.  Returns <x+arg0,y>.
+ 		{name: "AddTupleFirst64", argLength: 2}, // arg1=tuple <x,y>.  Returns <x+arg0,y>.
+ 
++		// Atomic bitwise operations.
++		// Note: 'floor' operations round the pointer down to the nearest word boundary
++		// which reflects how they are used in the runtime.
++		{name: "LAOfloor", argLength: 3, reg: gpstorelab, asm: "LAO", typ: "Mem", clobberFlags: true, hasSideEffects: true}, // *(floor(arg0, 4)) |= arg1. arg2 = mem.
++		{name: "LANfloor", argLength: 3, reg: gpstorelab, asm: "LAN", typ: "Mem", clobberFlags: true, hasSideEffects: true}, // *(floor(arg0, 4)) &= arg1. arg2 = mem.
++
+ 		// Compare and swap.
+ 		// arg0 = pointer, arg1 = old value, arg2 = new value, arg3 = memory.
+ 		// if *(arg0+auxint+aux) == arg1 {
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 047a2a5573..a5951dd4e1 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1982,6 +1982,7 @@ const (
+ 	OpS390XRLL
+ 	OpS390XRLLGconst
+ 	OpS390XRLLconst
++	OpS390XRXSBG
+ 	OpS390XNEG
+ 	OpS390XNEGW
+ 	OpS390XNOT
+@@ -2081,6 +2082,8 @@ const (
+ 	OpS390XLAAG
+ 	OpS390XAddTupleFirst32
+ 	OpS390XAddTupleFirst64
++	OpS390XLAOfloor
++	OpS390XLANfloor
+ 	OpS390XLoweredAtomicCas32
+ 	OpS390XLoweredAtomicCas64
+ 	OpS390XLoweredAtomicExchange32
+@@ -26501,6 +26504,23 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:         "RXSBG",
++		auxType:      auxArchSpecific,
++		argLen:       2,
++		resultInArg0: true,
++		clobberFlags: true,
++		asm:          s390x.ARXSBG,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++			},
++			outputs: []outputInfo{
++				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++			},
++		},
++	},
+ 	{
+ 		name:         "NEG",
+ 		argLen:       1,
+@@ -27842,6 +27862,34 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 2,
+ 		reg:    regInfo{},
+ 	},
++	{
++		name:           "LAOfloor",
++		argLen:         3,
++		clobberFlags:   true,
++		hasSideEffects: true,
++		asm:            s390x.ALAO,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 2},     // R1
++				{1, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
++			},
++			clobbers: 2, // R1
++		},
++	},
++	{
++		name:           "LANfloor",
++		argLen:         3,
++		clobberFlags:   true,
++		hasSideEffects: true,
++		asm:            s390x.ALAN,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 2},     // R1
++				{1, 56319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
++			},
++			clobbers: 2, // R1
++		},
++	},
+ 	{
+ 		name:           "LoweredAtomicCas32",
+ 		auxType:        auxSymOff,
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 5c3be6118b..c85ffdecce 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -38,6 +38,8 @@ func rewriteValueS390X(v *Value) bool {
+ 		return rewriteValueS390X_OpAtomicAdd32_0(v)
+ 	case OpAtomicAdd64:
+ 		return rewriteValueS390X_OpAtomicAdd64_0(v)
++	case OpAtomicAnd8:
++		return rewriteValueS390X_OpAtomicAnd8_0(v)
+ 	case OpAtomicCompareAndSwap32:
+ 		return rewriteValueS390X_OpAtomicCompareAndSwap32_0(v)
+ 	case OpAtomicCompareAndSwap64:
+@@ -56,6 +58,8 @@ func rewriteValueS390X(v *Value) bool {
+ 		return rewriteValueS390X_OpAtomicLoadAcq32_0(v)
+ 	case OpAtomicLoadPtr:
+ 		return rewriteValueS390X_OpAtomicLoadPtr_0(v)
++	case OpAtomicOr8:
++		return rewriteValueS390X_OpAtomicOr8_0(v)
+ 	case OpAtomicStore32:
+ 		return rewriteValueS390X_OpAtomicStore32_0(v)
+ 	case OpAtomicStore64:
+@@ -1001,6 +1005,34 @@ func rewriteValueS390X_OpAtomicAdd64_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueS390X_OpAtomicAnd8_0(v *Value) bool {
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (AtomicAnd8 ptr val mem)
++	// result: (LANfloor ptr (RLL <typ.UInt32> (ORWconst <typ.UInt32> val [-1<<8]) (RXSBG <typ.UInt32> {s390x.NewRotateParams(59, 60, 3)} (MOVDconst [3<<3]) ptr)) mem)
++	for {
++		mem := v.Args[2]
++		ptr := v.Args[0]
++		val := v.Args[1]
++		v.reset(OpS390XLANfloor)
++		v.AddArg(ptr)
++		v0 := b.NewValue0(v.Pos, OpS390XRLL, typ.UInt32)
++		v1 := b.NewValue0(v.Pos, OpS390XORWconst, typ.UInt32)
++		v1.AuxInt = -1 << 8
++		v1.AddArg(val)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Pos, OpS390XRXSBG, typ.UInt32)
++		v2.Aux = s390x.NewRotateParams(59, 60, 3)
++		v3 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
++		v3.AuxInt = 3 << 3
++		v2.AddArg(v3)
++		v2.AddArg(ptr)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		v.AddArg(mem)
++		return true
++	}
++}
+ func rewriteValueS390X_OpAtomicCompareAndSwap32_0(v *Value) bool {
+ 	// match: (AtomicCompareAndSwap32 ptr old new_ mem)
+ 	// result: (LoweredAtomicCas32 ptr old new_ mem)
+@@ -1121,6 +1153,33 @@ func rewriteValueS390X_OpAtomicLoadPtr_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueS390X_OpAtomicOr8_0(v *Value) bool {
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (AtomicOr8 ptr val mem)
++	// result: (LAOfloor ptr (SLW <typ.UInt32> (MOVBZreg <typ.UInt32> val) (RXSBG <typ.UInt32> {s390x.NewRotateParams(59, 60, 3)} (MOVDconst [3<<3]) ptr)) mem)
++	for {
++		mem := v.Args[2]
++		ptr := v.Args[0]
++		val := v.Args[1]
++		v.reset(OpS390XLAOfloor)
++		v.AddArg(ptr)
++		v0 := b.NewValue0(v.Pos, OpS390XSLW, typ.UInt32)
++		v1 := b.NewValue0(v.Pos, OpS390XMOVBZreg, typ.UInt32)
++		v1.AddArg(val)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Pos, OpS390XRXSBG, typ.UInt32)
++		v2.Aux = s390x.NewRotateParams(59, 60, 3)
++		v3 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
++		v3.AuxInt = 3 << 3
++		v2.AddArg(v3)
++		v2.AddArg(ptr)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		v.AddArg(mem)
++		return true
++	}
++}
+ func rewriteValueS390X_OpAtomicStore32_0(v *Value) bool {
+ 	b := v.Block
+ 	// match: (AtomicStore32 ptr val mem)
+diff --git a/src/cmd/internal/obj/s390x/rotate.go b/src/cmd/internal/obj/s390x/rotate.go
+new file mode 100644
+index 0000000000..fd2d5482db
+--- /dev/null
++++ b/src/cmd/internal/obj/s390x/rotate.go
+@@ -0,0 +1,47 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package s390x
++
++// RotateParams represents the immediates required for a "rotate
++// then ... selected bits instruction".
++//
++// The Start and End values are the indexes that represent
++// the masked region. They are inclusive and are in big-
++// endian order (bit 0 is the MSB, bit 63 is the LSB). They
++// may wrap around.
++//
++// Some examples:
++//
++// Masked region             | Start | End
++// --------------------------+-------+----
++// 0x00_00_00_00_00_00_00_0f | 60    | 63
++// 0xf0_00_00_00_00_00_00_00 | 0     | 3
++// 0xf0_00_00_00_00_00_00_0f | 60    | 3
++//
++// The Amount value represents the amount to rotate the
++// input left by. Note that this rotation is performed
++// before the masked region is used.
++type RotateParams struct {
++	Start  uint8 // big-endian start bit index [0..63]
++	End    uint8 // big-endian end bit index [0..63]
++	Amount uint8 // amount to rotate left
++}
++
++func NewRotateParams(start, end, amount int64) RotateParams {
++	if start&^63 != 0 {
++		panic("start out of bounds")
++	}
++	if end&^63 != 0 {
++		panic("end out of bounds")
++	}
++	if amount&^63 != 0 {
++		panic("amount out of bounds")
++	}
++	return RotateParams{
++		Start:  uint8(start),
++		End:    uint8(end),
++		Amount: uint8(amount),
++	}
++}
+diff --git a/src/runtime/internal/atomic/asm_s390x.s b/src/runtime/internal/atomic/asm_s390x.s
+index 78abd48afa..9a19bc0ece 100644
+--- a/src/runtime/internal/atomic/asm_s390x.s
++++ b/src/runtime/internal/atomic/asm_s390x.s
+@@ -176,37 +176,27 @@ TEXT ·Xchguintptr(SB), NOSPLIT, $0-24
+ TEXT ·Or8(SB), NOSPLIT, $0-9
+ 	MOVD    ptr+0(FP), R3
+ 	MOVBZ   val+8(FP), R4
+-	// Calculate shift.
+-	MOVD	R3, R5
+-	AND	$3, R5
+-	XOR	$3, R5 // big endian - flip direction
+-	SLD	$3, R5 // MUL $8, R5
+-	SLD	R5, R4
+-	// Align ptr down to 4 bytes so we can use 32-bit load/store.
+-	AND	$-4, R3
+-	MOVWZ	0(R3), R6
+-again:
+-	OR	R4, R6, R7
+-	CS	R6, R7, 0(R3) // if R6==(R3) then (R3)=R7 else R6=(R3)
+-	BNE	again
++	// We don't have atomic operations that work on individual bytes so we
++	// need to align addr down to a word boundary and create a mask
++	// containing v to OR with the entire word atomically.
++	MOVD	$(3<<3), R5
++	RXSBG	$59, $60, $3, R3, R5 // R5 = 24 - ((addr % 4) * 8) = ((addr & 3) << 3) ^ (3 << 3)
++	ANDW	$~3, R3              // R3 = floor(addr, 4) = addr &^ 3
++	SLW	R5, R4               // R4 = uint32(v) << R5
++	LAO	R4, R6, 0(R3)        // R6 = *R3; *R3 |= R4; (atomic)
+ 	RET
+ 
+ // func And8(addr *uint8, v uint8)
+ TEXT ·And8(SB), NOSPLIT, $0-9
+ 	MOVD    ptr+0(FP), R3
+ 	MOVBZ   val+8(FP), R4
+-	// Calculate shift.
+-	MOVD	R3, R5
+-	AND	$3, R5
+-	XOR	$3, R5 // big endian - flip direction
+-	SLD	$3, R5 // MUL $8, R5
+-	OR	$-256, R4 // create 0xffffffffffffffxx
+-	RLLG	R5, R4
+-	// Align ptr down to 4 bytes so we can use 32-bit load/store.
+-	AND	$-4, R3
+-	MOVWZ	0(R3), R6
+-again:
+-	AND	R4, R6, R7
+-	CS	R6, R7, 0(R3) // if R6==(R3) then (R3)=R7 else R6=(R3)
+-	BNE	again
++	// We don't have atomic operations that work on individual bytes so we
++	// need to align addr down to a word boundary and create a mask
++	// containing v to AND with the entire word atomically.
++	ORW	$~0xff, R4           // R4 = uint32(v) | 0xffffff00
++	MOVD	$(3<<3), R5
++	RXSBG	$59, $60, $3, R3, R5 // R5 = 24 - ((addr % 4) * 8) = ((addr & 3) << 3) ^ (3 << 3)
++	ANDW	$~3, R3              // R3 = floor(addr, 4) = addr &^ 3
++	RLL	R5, R4, R4           // R4 = rotl(R4, R5)
++	LAN	R4, R6, 0(R3)        // R6 = *R3; *R3 &= R4; (atomic)
+ 	RET
+diff --git a/src/runtime/internal/atomic/bench_test.go b/src/runtime/internal/atomic/bench_test.go
+index 083a75cb07..de71b0f2c7 100644
+--- a/src/runtime/internal/atomic/bench_test.go
++++ b/src/runtime/internal/atomic/bench_test.go
+@@ -43,6 +43,46 @@ func BenchmarkAtomicStore(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkAnd8(b *testing.B) {
++	var x [512]uint8 // give byte its own cache line
++	sink = &x
++	for i := 0; i < b.N; i++ {
++		atomic.And8(&x[255], uint8(i))
++	}
++}
++
++func BenchmarkAnd8Parallel(b *testing.B) {
++	var x [512]uint8 // give byte its own cache line
++	sink = &x
++	b.RunParallel(func(pb *testing.PB) {
++		i := uint8(0)
++		for pb.Next() {
++			atomic.And8(&x[255], i)
++			i++
++		}
++	})
++}
++
++func BenchmarkOr8(b *testing.B) {
++	var x [512]uint8 // give byte its own cache line
++	sink = &x
++	for i := 0; i < b.N; i++ {
++		atomic.Or8(&x[255], uint8(i))
++	}
++}
++
++func BenchmarkOr8Parallel(b *testing.B) {
++	var x [512]uint8 // give byte its own cache line
++	sink = &x
++	b.RunParallel(func(pb *testing.PB) {
++		i := uint8(0)
++		for pb.Next() {
++			atomic.Or8(&x[255], i)
++			i++
++		}
++	})
++}
++
+ func BenchmarkXadd(b *testing.B) {
+ 	var x uint32
+ 	ptr := &x

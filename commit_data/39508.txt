@@ -34,6 +34,32 @@ Date:   Sun Mar 3 18:31:33 2019 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/exec/bench_test.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/os/exec/bench_test.go b/src/os/exec/bench_test.go
+index e8cf73bef7..9a94001e84 100644
+--- a/src/os/exec/bench_test.go
++++ b/src/os/exec/bench_test.go
+@@ -8,16 +8,16 @@ import (
+ 	"testing"
+ )
+ 
+-func BenchmarkExecEcho(b *testing.B) {
++func BenchmarkExecHostname(b *testing.B) {
+ 	b.ReportAllocs()
+-	path, err := LookPath("echo")
++	path, err := LookPath("hostname")
+ 	if err != nil {
+-		b.Fatalf("could not find echo: %v", err)
++		b.Fatalf("could not find hostname: %v", err)
+ 	}
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+ 		if err := Command(path).Run(); err != nil {
+-			b.Fatalf("echo: %v", err)
++			b.Fatalf("hostname: %v", err)
+ 		}
+ 	}
+ }

@@ -18,7 +18,41 @@ Date:   Wed Dec 9 12:53:28 2015 -0800
     Change-Id: Id39f747e4aa492c5830d14a47b161920bd4589ad
     Reviewed-on: https://go-review.googlesource.com/17690
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/parser.go |  1 -
  src/cmd/compile/internal/gc/subr.go   | 10 ----------
  2 files changed, 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index a3f3079393..c3f131fe76 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -142,7 +142,6 @@ func (p *parser) syntax_error(msg string) {
+ 	var tok string
+ 	switch p.tok {
+ 	case LLITERAL:
+-		// this is also done in Yyerror but it's cleaner to do it here
+ 		tok = litbuf
+ 	case LNAME:
+ 		if p.sym_ != nil && p.sym_.Name != "" {
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 163ecbc34c..0d25ddf2af 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -134,16 +134,6 @@ func Yyerror(format string, args ...interface{}) {
+ 			return
+ 		}
+ 
+-		// The grammar has { and LBRACE but both show up as {.
+-		// Rewrite syntax error referring to "{ or {" to say just "{".
+-		// The grammar has ? and @ but only for reading imports.
+-		// Silence them in ordinary errors.
+-		msg = strings.Replace(msg, "{ or {", "{", -1)
+-		msg = strings.Replace(msg, " or ?", "", -1)
+-		msg = strings.Replace(msg, " or @", "", -1)
+-
+-		msg = strings.Replace(msg, "LLITERAL", litbuf, -1)
+-
+ 		yyerrorl(int(lexlineno), "%s", msg)
+ 		return
+ 	}

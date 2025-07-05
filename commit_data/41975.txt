@@ -18,7 +18,7 @@ Date:   Fri Jun 28 16:44:07 2019 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/190618
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/inl_test.go |  3 ++-
  src/runtime/malloc.go                   | 22 +++++++++++-----------
  src/runtime/mem_linux.go                |  8 ++++----
@@ -30,3 +30,302 @@ Date:   Fri Jun 28 16:44:07 2019 +0000
  src/runtime/stubs.go                    |  9 +++++++--
  src/runtime/trace.go                    |  2 +-
  10 files changed, 40 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl_test.go b/src/cmd/compile/internal/gc/inl_test.go
+index 5446b13b8b..cfe7f6f546 100644
+--- a/src/cmd/compile/internal/gc/inl_test.go
++++ b/src/cmd/compile/internal/gc/inl_test.go
+@@ -37,6 +37,8 @@ func TestIntendedInlining(t *testing.T) {
+ 			"addb",
+ 			"adjustpanics",
+ 			"adjustpointer",
++			"alignDown",
++			"alignUp",
+ 			"bucketMask",
+ 			"bucketShift",
+ 			"chanbuf",
+@@ -56,7 +58,6 @@ func TestIntendedInlining(t *testing.T) {
+ 			"readUnaligned32",
+ 			"readUnaligned64",
+ 			"releasem",
+-			"round",
+ 			"roundupsize",
+ 			"stackmapdata",
+ 			"stringStructOf",
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index d768054198..854609220d 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -568,7 +568,7 @@ func mallocinit() {
+ 		if mheap_.heapArenaAlloc.next <= p && p < mheap_.heapArenaAlloc.end {
+ 			p = mheap_.heapArenaAlloc.end
+ 		}
+-		p = round(p+(256<<10), heapArenaBytes)
++		p = alignUp(p+(256<<10), heapArenaBytes)
+ 		// Because we're worried about fragmentation on
+ 		// 32-bit, we try to make a large initial reservation.
+ 		arenaSizes := []uintptr{
+@@ -601,7 +601,7 @@ func mallocinit() {
+ //
+ // h must be locked.
+ func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
+-	n = round(n, heapArenaBytes)
++	n = alignUp(n, heapArenaBytes)
+ 
+ 	// First, try the arena pre-reservation.
+ 	v = h.arena.alloc(n, heapArenaBytes, &memstats.heap_sys)
+@@ -784,7 +784,7 @@ retry:
+ 		// re-reserve the aligned sub-region. This may race,
+ 		// so we may have to try again.
+ 		sysFree(unsafe.Pointer(p), size+align, nil)
+-		p = round(p, align)
++		p = alignUp(p, align)
+ 		p2 := sysReserve(unsafe.Pointer(p), size)
+ 		if p != uintptr(p2) {
+ 			// Must have raced. Try again.
+@@ -798,7 +798,7 @@ retry:
+ 		return p2, size
+ 	default:
+ 		// Trim off the unaligned parts.
+-		pAligned := round(p, align)
++		pAligned := alignUp(p, align)
+ 		sysFree(unsafe.Pointer(p), pAligned-p, nil)
+ 		end := pAligned + size
+ 		endLen := (p + size + align) - end
+@@ -976,11 +976,11 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 			off := c.tinyoffset
+ 			// Align tiny pointer for required (conservative) alignment.
+ 			if size&7 == 0 {
+-				off = round(off, 8)
++				off = alignUp(off, 8)
+ 			} else if size&3 == 0 {
+-				off = round(off, 4)
++				off = alignUp(off, 4)
+ 			} else if size&1 == 0 {
+-				off = round(off, 2)
++				off = alignUp(off, 2)
+ 			}
+ 			if off+size <= maxTinySize && c.tiny != 0 {
+ 				// The object fits into existing tiny block.
+@@ -1313,7 +1313,7 @@ func persistentalloc1(size, align uintptr, sysStat *uint64) *notInHeap {
+ 		lock(&globalAlloc.mutex)
+ 		persistent = &globalAlloc.persistentAlloc
+ 	}
+-	persistent.off = round(persistent.off, align)
++	persistent.off = alignUp(persistent.off, align)
+ 	if persistent.off+size > persistentChunkSize || persistent.base == nil {
+ 		persistent.base = (*notInHeap)(sysAlloc(persistentChunkSize, &memstats.other_sys))
+ 		if persistent.base == nil {
+@@ -1331,7 +1331,7 @@ func persistentalloc1(size, align uintptr, sysStat *uint64) *notInHeap {
+ 				break
+ 			}
+ 		}
+-		persistent.off = round(sys.PtrSize, align)
++		persistent.off = alignUp(sys.PtrSize, align)
+ 	}
+ 	p := persistent.base.add(persistent.off)
+ 	persistent.off += size
+@@ -1377,12 +1377,12 @@ func (l *linearAlloc) init(base, size uintptr) {
+ }
+ 
+ func (l *linearAlloc) alloc(size, align uintptr, sysStat *uint64) unsafe.Pointer {
+-	p := round(l.next, align)
++	p := alignUp(l.next, align)
+ 	if p+size > l.end {
+ 		return nil
+ 	}
+ 	l.next = p + size
+-	if pEnd := round(l.next-1, physPageSize); pEnd > l.mapped {
++	if pEnd := alignUp(l.next-1, physPageSize); pEnd > l.mapped {
+ 		// Transition from Reserved to Prepared to Ready.
+ 		sysMap(unsafe.Pointer(l.mapped), pEnd-l.mapped, sysStat)
+ 		sysUsed(unsafe.Pointer(l.mapped), pEnd-l.mapped)
+diff --git a/src/runtime/mem_linux.go b/src/runtime/mem_linux.go
+index 524915fb31..59b0bca970 100644
+--- a/src/runtime/mem_linux.go
++++ b/src/runtime/mem_linux.go
+@@ -70,11 +70,11 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
+ 		var head, tail uintptr
+ 		if uintptr(v)&(physHugePageSize-1) != 0 {
+ 			// Compute huge page containing v.
+-			head = uintptr(v) &^ (physHugePageSize - 1)
++			head = alignDown(uintptr(v), physHugePageSize)
+ 		}
+ 		if (uintptr(v)+n)&(physHugePageSize-1) != 0 {
+ 			// Compute huge page containing v+n-1.
+-			tail = (uintptr(v) + n - 1) &^ (physHugePageSize - 1)
++			tail = alignDown(uintptr(v)+n-1, physHugePageSize)
+ 		}
+ 
+ 		// Note that madvise will return EINVAL if the flag is
+@@ -131,9 +131,9 @@ func sysUsed(v unsafe.Pointer, n uintptr) {
+ func sysHugePage(v unsafe.Pointer, n uintptr) {
+ 	if physHugePageSize != 0 {
+ 		// Round v up to a huge page boundary.
+-		beg := (uintptr(v) + (physHugePageSize - 1)) &^ (physHugePageSize - 1)
++		beg := alignUp(uintptr(v), physHugePageSize)
+ 		// Round v+n down to a huge page boundary.
+-		end := (uintptr(v) + n) &^ (physHugePageSize - 1)
++		end := alignDown(uintptr(v)+n, physHugePageSize)
+ 
+ 		if beg < end {
+ 			madvise(unsafe.Pointer(beg), end-beg, _MADV_HUGEPAGE)
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 37b2c381dd..d6c85a8b93 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -407,9 +407,9 @@ okarg:
+ 	// compute size needed for return parameters
+ 	nret := uintptr(0)
+ 	for _, t := range ft.out() {
+-		nret = round(nret, uintptr(t.align)) + uintptr(t.size)
++		nret = alignUp(nret, uintptr(t.align)) + uintptr(t.size)
+ 	}
+-	nret = round(nret, sys.PtrSize)
++	nret = alignUp(nret, sys.PtrSize)
+ 
+ 	// make sure we have a finalizer goroutine
+ 	createfing()
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 83ee310cda..c09ef0f57c 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -462,8 +462,8 @@ func (s *mspan) physPageBounds() (uintptr, uintptr) {
+ 	end := start + s.npages<<_PageShift
+ 	if physPageSize > _PageSize {
+ 		// Round start and end in.
+-		start = (start + physPageSize - 1) &^ (physPageSize - 1)
+-		end &^= physPageSize - 1
++		start = alignUp(start, physPageSize)
++		end = alignDown(end, physPageSize)
+ 	}
+ 	return start, end
+ }
+@@ -529,9 +529,9 @@ func (h *mheap) coalesce(s *mspan) {
+ 		// scavenged span.
+ 		boundary := b.startAddr
+ 		if a.scavenged {
+-			boundary &^= (physPageSize - 1)
++			boundary = alignDown(boundary, physPageSize)
+ 		} else {
+-			boundary = (boundary + physPageSize - 1) &^ (physPageSize - 1)
++			boundary = alignUp(boundary, physPageSize)
+ 		}
+ 		a.npages = (boundary - a.startAddr) / pageSize
+ 		b.npages = (b.startAddr + b.npages*pageSize - boundary) / pageSize
+@@ -595,8 +595,8 @@ func (s *mspan) hugePages() uintptr {
+ 	end := start + s.npages*pageSize
+ 	if physHugePageSize > pageSize {
+ 		// Round start and end in.
+-		start = (start + physHugePageSize - 1) &^ (physHugePageSize - 1)
+-		end &^= physHugePageSize - 1
++		start = alignUp(start, physHugePageSize)
++		end = alignDown(end, physHugePageSize)
+ 	}
+ 	if start < end {
+ 		return (end - start) >> physHugePageShift
+@@ -1307,7 +1307,7 @@ HaveSpan:
+ func (h *mheap) grow(npage uintptr) bool {
+ 	ask := npage << _PageShift
+ 
+-	nBase := round(h.curArena.base+ask, physPageSize)
++	nBase := alignUp(h.curArena.base+ask, physPageSize)
+ 	if nBase > h.curArena.end {
+ 		// Not enough room in the current arena. Allocate more
+ 		// arena space. This may not be contiguous with the
+@@ -1347,7 +1347,7 @@ func (h *mheap) grow(npage uintptr) bool {
+ 		memstats.heap_idle += uint64(asize)
+ 
+ 		// Recalculate nBase
+-		nBase = round(h.curArena.base+ask, physPageSize)
++		nBase = alignUp(h.curArena.base+ask, physPageSize)
+ 	}
+ 
+ 	// Grow into the current arena.
+@@ -1492,11 +1492,11 @@ func (h *mheap) scavengeSplit(t treapIter, size uintptr) *mspan {
+ 	if base <= start {
+ 		return nil
+ 	}
+-	if physHugePageSize > pageSize && base&^(physHugePageSize-1) >= start {
++	if physHugePageSize > pageSize && alignDown(base, physHugePageSize) >= start {
+ 		// We're in danger of breaking apart a huge page, so include the entire
+ 		// huge page in the bound by rounding down to the huge page size.
+ 		// base should still be aligned to pageSize.
+-		base &^= physHugePageSize - 1
++		base = alignDown(base, physHugePageSize)
+ 	}
+ 	if base == start {
+ 		// After all that we rounded base down to s.base(), so no need to split.
+diff --git a/src/runtime/msize.go b/src/runtime/msize.go
+index 0accb83eb8..11d06ce025 100644
+--- a/src/runtime/msize.go
++++ b/src/runtime/msize.go
+@@ -21,5 +21,5 @@ func roundupsize(size uintptr) uintptr {
+ 	if size+_PageSize < size {
+ 		return size
+ 	}
+-	return round(size, _PageSize)
++	return alignUp(size, _PageSize)
+ }
+diff --git a/src/runtime/race.go b/src/runtime/race.go
+index d11dc9b5bf..52c9bd8201 100644
+--- a/src/runtime/race.go
++++ b/src/runtime/race.go
+@@ -385,7 +385,7 @@ func raceinit() (gctx, pctx uintptr) {
+ 	if end < firstmoduledata.ebss {
+ 		end = firstmoduledata.ebss
+ 	}
+-	size := round(end-start, _PageSize)
++	size := alignUp(end-start, _PageSize)
+ 	racecall(&__tsan_map_shadow, start, size, 0, 0)
+ 	racedatastart = start
+ 	racedataend = start + size
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 463f3bf3fd..68b24432a4 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -337,7 +337,7 @@ func stackalloc(n uint32) stack {
+ 	}
+ 
+ 	if debug.efence != 0 || stackFromSystem != 0 {
+-		n = uint32(round(uintptr(n), physPageSize))
++		n = uint32(alignUp(uintptr(n), physPageSize))
+ 		v := sysAlloc(uintptr(n), &memstats.stacks_sys)
+ 		if v == nil {
+ 			throw("out of memory (stackalloc)")
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 26aaf2224d..a58f267e7f 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -290,11 +290,16 @@ func call1073741824(typ, fn, arg unsafe.Pointer, n, retoffset uint32)
+ 
+ func systemstack_switch()
+ 
+-// round n up to a multiple of a.  a must be a power of 2.
+-func round(n, a uintptr) uintptr {
++// alignUp rounds n up to a multiple of a. a must be a power of 2.
++func alignUp(n, a uintptr) uintptr {
+ 	return (n + a - 1) &^ (a - 1)
+ }
+ 
++// alignDown rounds n down to a multiple of a. a must be a power of 2.
++func alignDown(n, a uintptr) uintptr {
++	return n &^ (a - 1)
++}
++
+ // checkASM reports whether assembly runtime checks have passed.
+ func checkASM() bool
+ 
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index f919362be8..65d9a38052 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -932,7 +932,7 @@ func (p *traceAllocBlockPtr) set(x *traceAllocBlock) { *p = traceAllocBlockPtr(u
+ 
+ // alloc allocates n-byte block.
+ func (a *traceAlloc) alloc(n uintptr) unsafe.Pointer {
+-	n = round(n, sys.PtrSize)
++	n = alignUp(n, sys.PtrSize)
+ 	if a.head == 0 || a.off+n > uintptr(len(a.head.ptr().data)) {
+ 		if n > uintptr(len(a.head.ptr().data)) {
+ 			throw("trace: alloc too large")

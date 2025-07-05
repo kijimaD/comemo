@@ -14,9 +14,90 @@ Date:   Wed May 15 10:27:34 2013 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/9222045
-
+---
  src/pkg/crypto/rsa/pkcs1v15.go              |  6 +++++-
  src/pkg/crypto/rsa/pkcs1v15_test.go         |  8 ++++++++
  src/pkg/crypto/subtle/constant_time.go      |  8 ++++++++
  src/pkg/crypto/subtle/constant_time_test.go | 20 ++++++++++++++++++++
  4 files changed, 41 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/rsa/pkcs1v15.go b/src/pkg/crypto/rsa/pkcs1v15.go
+index 28ca5d73b3..1a055a3d62 100644
+--- a/src/pkg/crypto/rsa/pkcs1v15.go
++++ b/src/pkg/crypto/rsa/pkcs1v15.go
+@@ -124,7 +124,11 @@ func decryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (valid
+ 		lookingForIndex = subtle.ConstantTimeSelect(equals0, 0, lookingForIndex)
+ 	}
+ 
+-	valid = firstByteIsZero & secondByteIsTwo & (^lookingForIndex & 1)
++	// The PS padding must be at least 8 bytes long, and it starts two
++	// bytes into em.
++	validPS := subtle.ConstantTimeLessOrEq(2+8, index)
++
++	valid = firstByteIsZero & secondByteIsTwo & (^lookingForIndex & 1) & validPS
+ 	msg = em[index+1:]
+ 	return
+ }
+diff --git a/src/pkg/crypto/rsa/pkcs1v15_test.go b/src/pkg/crypto/rsa/pkcs1v15_test.go
+index bf9219bae1..70bb228899 100644
+--- a/src/pkg/crypto/rsa/pkcs1v15_test.go
++++ b/src/pkg/crypto/rsa/pkcs1v15_test.go
+@@ -197,6 +197,14 @@ func TestVerifyPKCS1v15(t *testing.T) {
+ 	}
+ }
+ 
++func TestOverlongMessagePKCS1v15(t *testing.T) {
++	ciphertext := decodeBase64("fjOVdirUzFoLlukv80dBllMLjXythIf22feqPrNo0YoIjzyzyoMFiLjAc/Y4krkeZ11XFThIrEvw\nkRiZcCq5ng==")
++	_, err := DecryptPKCS1v15(nil, rsaPrivateKey, ciphertext)
++	if err == nil {
++		t.Error("RSA decrypted a message that was too long.")
++	}
++}
++
+ // In order to generate new test vectors you'll need the PEM form of this key:
+ // -----BEGIN RSA PRIVATE KEY-----
+ // MIIBOgIBAAJBALKZD0nEffqM1ACuak0bijtqE2QrI/KLADv7l3kK3ppMyCuLKoF0
+diff --git a/src/pkg/crypto/subtle/constant_time.go b/src/pkg/crypto/subtle/constant_time.go
+index 57dbe9db55..dfb658465e 100644
+--- a/src/pkg/crypto/subtle/constant_time.go
++++ b/src/pkg/crypto/subtle/constant_time.go
+@@ -55,3 +55,11 @@ func ConstantTimeCopy(v int, x, y []byte) {
+ 	}
+ 	return
+ }
++
++// ConstantTimeLessOrEq returns 1 if x <= y and 0 otherwise.
++// Its behavior is undefined if x or y are negative or > 2**31 - 1.
++func ConstantTimeLessOrEq(x, y int) int {
++	x32 := int32(x)
++	y32 := int32(y)
++	return int(((x32 - y32 - 1) >> 31) & 1)
++}
+diff --git a/src/pkg/crypto/subtle/constant_time_test.go b/src/pkg/crypto/subtle/constant_time_test.go
+index adab8e2e8d..d8e321ec04 100644
+--- a/src/pkg/crypto/subtle/constant_time_test.go
++++ b/src/pkg/crypto/subtle/constant_time_test.go
+@@ -103,3 +103,23 @@ func TestConstantTimeCopy(t *testing.T) {
+ 		t.Error(err)
+ 	}
+ }
++
++var lessOrEqTests = []struct {
++	x, y, result int
++}{
++	{0, 0, 1},
++	{1, 0, 0},
++	{0, 1, 1},
++	{10, 20, 1},
++	{20, 10, 0},
++	{10, 10, 1},
++}
++
++func TestConstantTimeLessOrEq(t *testing.T) {
++	for i, test := range lessOrEqTests {
++		result := ConstantTimeLessOrEq(test.x, test.y)
++		if result != test.result {
++			t.Errorf("#%d: %d <= %d gave %d, expected %d", i, test.x, test.y, result, test.result)
++		}
++	}
++}

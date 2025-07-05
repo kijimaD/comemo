@@ -10,7 +10,32 @@ Date:   Wed Aug 15 14:44:17 2012 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6450142
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index a0a36dc946..564d9ab21f 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -21,6 +21,7 @@ Amir Mohammad Saied <amir@gluegadget.com>
+ Amrut Joshi <amrut.joshi@gmail.com>
+ Andrei Vieru <euvieru@gmail.com>
+ Andrew Balholm <andybalholm@gmail.com>
++Andrew Lutomirski <andy@luto.us>
+ Andrew Pritchard <awpritchard@gmail.com>
+ Andrew Skiba <skibaa@gmail.com>
+ Andrew Wilkins <axwalk@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 4cd94a9902..65cb56cba6 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -49,6 +49,7 @@ Andrea Spadaccini <spadaccio@google.com>
+ Andrei Vieru <euvieru@gmail.com>
+ Andrew Balholm <andybalholm@gmail.com>
+ Andrew Gerrand <adg@golang.org>
++Andrew Lutomirski <andy@luto.us>
+ Andrew Pritchard <awpritchard@gmail.com>
+ Andrew Skiba <skibaa@gmail.com>
+ Andrew Wilkins <axwalk@gmail.com>

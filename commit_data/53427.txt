@@ -19,8 +19,105 @@ Date:   Thu Jun 2 09:54:12 2022 -0400
     Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  api/next/53200.txt            |  1 +
  src/go/token/position.go      | 22 ++++++++++++++++++++++
  src/go/token/position_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
  3 files changed, 64 insertions(+)
+
+diff --git a/api/next/53200.txt b/api/next/53200.txt
+new file mode 100644
+index 0000000000..f1ecb17a21
+--- /dev/null
++++ b/api/next/53200.txt
+@@ -0,0 +1 @@
++pkg go/token, method (*FileSet) RemoveFile(*File) #53200
+diff --git a/src/go/token/position.go b/src/go/token/position.go
+index b5a380a280..5ca86a28e5 100644
+--- a/src/go/token/position.go
++++ b/src/go/token/position.go
+@@ -366,6 +366,9 @@ func (f *File) Position(p Pos) (pos Position) {
+ // recently added file, plus one. Unless there is a need to extend an
+ // interval later, using the FileSet.Base should be used as argument
+ // for FileSet.AddFile.
++//
++// A File may be removed from a FileSet when it is no longer needed.
++// This may reduce memory usage in a long-running application.
+ type FileSet struct {
+ 	mutex sync.RWMutex         // protects the file set
+ 	base  int                  // base offset for the next file
+@@ -433,6 +436,25 @@ func (s *FileSet) AddFile(filename string, base, size int) *File {
+ 	return f
+ }
+ 
++// RemoveFile removes a file from the FileSet so that subsequent
++// queries for its Pos interval yield a negative result.
++// This reduces the memory usage of a long-lived FileSet that
++// encounters an unbounded stream of files.
++//
++// Removing a file that does not belong to the set has no effect.
++func (s *FileSet) RemoveFile(file *File) {
++	s.last.CompareAndSwap(file, nil) // clear last file cache
++
++	s.mutex.Lock()
++	defer s.mutex.Unlock()
++
++	if i := searchFiles(s.files, file.base); i >= 0 && s.files[i] == file {
++		last := &s.files[len(s.files)-1]
++		s.files = append(s.files[:i], s.files[i+1:]...)
++		*last = nil // don't prolong lifetime when popping last element
++	}
++}
++
+ // Iterate calls f for the files in the file set in the order they were added
+ // until f returns false.
+ func (s *FileSet) Iterate(f func(*File) bool) {
+diff --git a/src/go/token/position_test.go b/src/go/token/position_test.go
+index 7d465dffa6..10831b2e20 100644
+--- a/src/go/token/position_test.go
++++ b/src/go/token/position_test.go
+@@ -339,3 +339,44 @@ func TestLineStart(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestRemoveFile(t *testing.T) {
++	contentA := []byte("this\nis\nfileA")
++	contentB := []byte("this\nis\nfileB")
++	fset := NewFileSet()
++	a := fset.AddFile("fileA", -1, len(contentA))
++	a.SetLinesForContent(contentA)
++	b := fset.AddFile("fileB", -1, len(contentB))
++	b.SetLinesForContent(contentB)
++
++	checkPos := func(pos Pos, want string) {
++		if got := fset.Position(pos).String(); got != want {
++			t.Errorf("Position(%d) = %s, want %s", pos, got, want)
++		}
++	}
++	checkNumFiles := func(want int) {
++		got := 0
++		fset.Iterate(func(*File) bool { got++; return true })
++		if got != want {
++			t.Errorf("Iterate called %d times, want %d", got, want)
++		}
++	}
++
++	apos3 := a.Pos(3)
++	bpos3 := b.Pos(3)
++	checkPos(apos3, "fileA:1:4")
++	checkPos(bpos3, "fileB:1:4")
++	checkNumFiles(2)
++
++	// After removal, queries on fileA fail.
++	fset.RemoveFile(a)
++	checkPos(apos3, "-")
++	checkPos(bpos3, "fileB:1:4")
++	checkNumFiles(1)
++
++	// idempotent / no effect
++	fset.RemoveFile(a)
++	checkPos(apos3, "-")
++	checkPos(bpos3, "fileB:1:4")
++	checkNumFiles(1)
++}

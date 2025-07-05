@@ -9,7 +9,7 @@ Date:   Mon Feb 1 00:25:59 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/197042
-
+---
  src/cmd/5g/gsubr.c             |   1 -
  src/cmd/6g/gsubr.c             |   1 -
  src/cmd/8g/gsubr.c             |   1 -
@@ -32,3 +32,991 @@ Date:   Mon Feb 1 00:25:59 2010 -0800
  test/ddd2.go                   |  16 +++++++
  test/ddd3.go                   |  24 ++++++++++
  21 files changed, 360 insertions(+), 109 deletions(-)
+
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 561d2ccceb..ad9cad67e0 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -178,7 +178,6 @@ isfat(Type *t)
+ 	case TARRAY:
+ 	case TSTRING:
+ 	case TINTER:	// maybe remove later
+-	case TDDD:	// maybe remove later
+ 		return 1;
+ 	}
+ 	return 0;
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 07471ffa7c..5549830e3f 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -174,7 +174,6 @@ isfat(Type *t)
+ 	case TARRAY:
+ 	case TSTRING:
+ 	case TINTER:	// maybe remove later
+-	case TDDD:	// maybe remove later
+ 		return 1;
+ 	}
+ 	return 0;
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index e09ba7b20d..07ad153e0c 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -176,7 +176,6 @@ isfat(Type *t)
+ 	case TARRAY:
+ 	case TSTRING:
+ 	case TINTER:	// maybe remove later
+-	case TDDD:	// maybe remove later
+ 		return 1;
+ 	}
+ 	return 0;
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index ba84c4377f..7a27a040c9 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -176,9 +176,6 @@ dowidth(Type *t)
+ 		w = 8;
+ 		checkwidth(t->type);
+ 		break;
+-	case TDDD:
+-		w = 2*widthptr;
+-		break;
+ 	case TINTER:		// implemented as 2 pointers
+ 		w = 2*widthptr;
+ 		offmod(t);
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 4639eda8d2..aeb3e3916a 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -877,6 +877,7 @@ stotype(NodeList *l, int et, Type **t)
+ 		f->type = n->type;
+ 		f->note = note;
+ 		f->width = BADWIDTH;
++		f->isddd = n->isddd;
+ 
+ 		if(n->left != N && n->left->op == ONAME) {
+ 			f->nname = n->left;
+@@ -1022,11 +1023,23 @@ checkarglist(NodeList *all, int input)
+ 		if(n != N)
+ 			n = newname(n->sym);
+ 		n = nod(ODCLFIELD, n, t);
+-		if(n->right != N && n->right->op == OTYPE && isddd(n->right->type)) {
++		if(n->right != N && n->right->op == ODDD) {
+ 			if(!input)
+ 				yyerror("cannot use ... in output argument list");
+ 			else if(l->next != nil)
+ 				yyerror("can only use ... as final argument in list");
++			if(n->right->left == N) {
++				// TODO(rsc): Delete with DDD cleanup.
++				n->right->op = OTYPE;
++				n->right->type = typ(TINTER);
++			} else {
++				n->right->op = OTARRAY;
++				n->right->right = n->right->left;
++				n->right->left = N;
++			}
++			n->isddd = 1;
++			if(n->left != N)
++				n->left->isddd = 1;
+ 		}
+ 		l->n = n;
+ 	}
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index e5715e895e..d634d0d3a9 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -147,6 +147,7 @@ struct	Type
+ 	uchar	local;		// created in this file
+ 	uchar	deferwidth;
+ 	uchar	broke;
++	uchar	isddd;	// TFIELD is ... argument
+ 
+ 	Node*	nod;		// canonical OTYPE node
+ 	int		lineno;
+@@ -205,6 +206,7 @@ struct	Node
+ 	uchar	dodata;		// compile literal assignment as data statement
+ 	uchar	used;
+ 	uchar	oldref;
++	uchar	isddd;
+ 
+ 	// most nodes
+ 	Node*	left;
+@@ -401,6 +403,9 @@ enum
+ 	OTINTER,
+ 	OTFUNC,
+ 	OTARRAY,
++	
++	// misc
++	ODDD,
+ 
+ 	// for back ends
+ 	OCMP, ODEC, OEXTEND, OINC, OREGISTER, OINDREG,
+@@ -425,21 +430,20 @@ enum
+ 
+ 	TPTR32, TPTR64,		// 16
+ 
+-	TDDD,			// 18
+-	TFUNC,
++	TFUNC,		// 18
+ 	TARRAY,
+ 	T_old_DARRAY,
+-	TSTRUCT,		// 22
++	TSTRUCT,		// 21
+ 	TCHAN,
+ 	TMAP,
+-	TINTER,			// 25
++	TINTER,			// 24
+ 	TFORW,
+ 	TFIELD,
+ 	TANY,
+ 	TSTRING,
+ 
+ 	// pseudo-types for literals
+-	TIDEAL,			// 30
++	TIDEAL,			// 29
+ 	TNIL,
+ 	TBLANK,
+ 	
+@@ -844,7 +848,6 @@ int	isfixedarray(Type*);
+ int	isslice(Type*);
+ int	isinter(Type*);
+ int	isnilinter(Type*);
+-int	isddd(Type*);
+ int	isideal(Type*);
+ int	isblank(Node*);
+ Type*	maptype(Type*, Type*);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index c309d0d017..f2a037710b 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -76,7 +76,7 @@
+ 
+ %type	<sym>	hidden_importsym hidden_pkg_importsym
+ 
+-%type	<node>	hidden_constant hidden_dcl hidden_interfacedcl hidden_structdcl
++%type	<node>	hidden_constant hidden_dcl hidden_interfacedcl hidden_structdcl hidden_opt_sym
+ 
+ %type	<list>	hidden_funres
+ %type	<list>	ohidden_funres
+@@ -896,10 +896,10 @@ convtype:
+ 		// array literal
+ 		$$ = nod(OTARRAY, $2, $4);
+ 	}
+-|	'[' dotdotdot ']' ntype
++|	'[' LDDD ']' ntype
+ 	{
+ 		// array literal of nelem
+-		$$ = nod(OTARRAY, $2, $4);
++		$$ = nod(OTARRAY, nod(ODDD, N, N), $4);
+ 	}
+ |	LMAP '[' ntype ']' ntype
+ 	{
+@@ -920,7 +920,11 @@ convtype:
+ dotdotdot:
+ 	LDDD
+ 	{
+-		$$ = typenod(typ(TDDD));
++		$$ = nod(ODDD, N, N);
++	}
++|	LDDD ntype
++	{
++		$$ = nod(ODDD, $2, N);
+ 	}
+ 
+ ntype:
+@@ -979,10 +983,10 @@ othertype:
+ 	{
+ 		$$ = nod(OTARRAY, $2, $4);
+ 	}
+-|	'[' dotdotdot ']' ntype
++|	'[' LDDD ']' ntype
+ 	{
+ 		// array literal of nelem
+-		$$ = nod(OTARRAY, $2, $4);
++		$$ = nod(OTARRAY, nod(ODDD, N, N), $4);
+ 	}
+ |	LCHAN non_recvchantype
+ 	{
+@@ -1651,10 +1655,6 @@ hidden_type_misc:
+ 		$$->type = $3;
+ 		$$->chan = Csend;
+ 	}
+-|	LDDD
+-	{
+-		$$ = typ(TDDD);
+-	}
+ 
+ hidden_type_recv_chan:
+ 	LCOMM LCHAN hidden_type
+@@ -1670,14 +1670,35 @@ hidden_type_func:
+ 		$$ = functype(nil, $3, $5);
+ 	}
+ 
++hidden_opt_sym:
++	sym
++	{
++		$$ = newname($1);
++	}
++|	'?'
++	{
++		$$ = N;
++	}
++
+ hidden_dcl:
+-	sym hidden_type
++	hidden_opt_sym hidden_type
+ 	{
+-		$$ = nod(ODCLFIELD, newname($1), typenod($2));
++		$$ = nod(ODCLFIELD, $1, typenod($2));
++	}
++|	hidden_opt_sym LDDD
++	{
++		$$ = nod(ODCLFIELD, $1, typenod(typ(TINTER)));
++		$$->isddd = 1;
+ 	}
+-|	'?' hidden_type
++|	hidden_opt_sym LDDD hidden_type
+ 	{
+-		$$ = nod(ODCLFIELD, N, typenod($2));
++		Type *t;
++		
++		t = typ(TARRAY);
++		t->bound = -1;
++		t->type = $3;
++		$$ = nod(ODCLFIELD, $1, typenod(t));
++		$$->isddd = 1;
+ 	}
+ 
+ hidden_structdcl:
+diff --git a/src/cmd/gc/print.c b/src/cmd/gc/print.c
+index 91f012d8b8..57ebe3f1cf 100644
+--- a/src/cmd/gc/print.c
++++ b/src/cmd/gc/print.c
+@@ -243,7 +243,19 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 		break;
+ 
+ 	case OCOMPLIT:
+-		fmtprint(f, "<compos>");
++		fmtprint(f, "composite literal");
++		break;
++	
++	case OARRAYLIT:
++		fmtprint(f, "slice literal");
++		break;
++	
++	case OMAPLIT:
++		fmtprint(f, "map literal");
++		break;
++	
++	case OSTRUCTLIT:
++		fmtprint(f, "struct literal");
+ 		break;
+ 
+ 	case ODOT:
+@@ -338,9 +350,6 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case OMAKEMAP:
+ 		fmtprint(f, "make(%#T)", n->type);
+ 		break;
+-
+-	case OMAPLIT:
+-		fmtprint(f, "map literal");
+ 	}
+ 
+ 	if(prec > nprec)
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index e1dba06b8c..3f90f68e93 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -391,7 +391,6 @@ enum {
+ 	KindFloat64,
+ 	KindArray,
+ 	KindChan,
+-	KindDotDotDot,
+ 	KindFunc,
+ 	KindInterface,
+ 	KindMap,
+@@ -423,7 +422,6 @@ kinds[] =
+ 	[TFLOAT64]	= KindFloat64,
+ 	[TBOOL]		= KindBool,
+ 	[TSTRING]		= KindString,
+-	[TDDD]		= KindDotDotDot,
+ 	[TPTR32]		= KindPtr,
+ 	[TPTR64]		= KindPtr,
+ 	[TSTRUCT]	= KindStruct,
+@@ -453,7 +451,6 @@ structnames[] =
+ 	[TFLOAT64]	= "*runtime.Float64Type",
+ 	[TBOOL]		= "*runtime.BoolType",
+ 	[TSTRING]		= "*runtime.StringType",
+-	[TDDD]		= "*runtime.DotDotDotType",
+ 
+ 	[TPTR32]		= "*runtime.PtrType",
+ 	[TPTR64]		= "*runtime.PtrType",
+@@ -518,7 +515,6 @@ haspointers(Type *t)
+ 				return 1;
+ 		return 0;
+ 	case TSTRING:
+-	case TDDD:
+ 	case TPTR32:
+ 	case TPTR64:
+ 	case TINTER:
+@@ -637,7 +633,7 @@ typename(Type *t)
+ static Sym*
+ dtypesym(Type *t)
+ {
+-	int ot, n;
++	int ot, n, isddd;
+ 	Sym *s, *s1, *s2;
+ 	Sig *a, *m;
+ 	Type *t1;
+@@ -709,14 +705,19 @@ ok:
+ 	case TFUNC:
+ 		for(t1=getthisx(t)->type; t1; t1=t1->down)
+ 			dtypesym(t1->type);
+-		for(t1=getinargx(t)->type; t1; t1=t1->down)
++		isddd = 0;
++		for(t1=getinargx(t)->type; t1; t1=t1->down) {
++			isddd = t1->isddd;
+ 			dtypesym(t1->type);
++		}
+ 		for(t1=getoutargx(t)->type; t1; t1=t1->down)
+ 			dtypesym(t1->type);
+ 
+ 		ot = dcommontype(s, ot, t);
++		ot = duint8(s, ot, isddd);
+ 
+ 		// two slice headers: in and out.
++		ot = rnd(ot, widthptr);
+ 		ot = dsymptr(s, ot, s, ot+2*(widthptr+2*4));
+ 		n = t->thistuple + t->intuple;
+ 		ot = duint32(s, ot, n);
+@@ -855,7 +856,6 @@ dumptypestructs(void)
+ 		for(i=1; i<=TBOOL; i++)
+ 			dtypesym(ptrto(types[i]));
+ 		dtypesym(ptrto(types[TSTRING]));
+-		dtypesym(typ(TDDD));
+ 		dtypesym(ptrto(pkglookup("Pointer", unsafepkg)->def->type));
+ 		
+ 		// add paths for runtime and main, which 6l imports implicitly.
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 9d0c84ac41..a938424704 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -941,7 +941,6 @@ etnames[] =
+ 	[TBOOL]		= "BOOL",
+ 	[TPTR32]	= "PTR32",
+ 	[TPTR64]	= "PTR64",
+-	[TDDD]		= "DDD",
+ 	[TFUNC]		= "FUNC",
+ 	[TARRAY]	= "ARRAY",
+ 	[TSTRUCT]	= "STRUCT",
+@@ -1088,7 +1087,6 @@ basicnames[] =
+ 	[TFLOAT64]	= "float64",
+ 	[TBOOL]		= "bool",
+ 	[TANY]		= "any",
+-	[TDDD]		= "...",
+ 	[TSTRING]		= "string",
+ 	[TNIL]		= "nil",
+ 	[TIDEAL]		= "ideal",
+@@ -1166,9 +1164,16 @@ Tpretty(Fmt *fp, Type *t)
+ 			fmtprint(fp, "func");
+ 		fmtprint(fp, "(");
+ 		for(t1=getinargx(t)->type; t1; t1=t1->down) {
+-			if(noargnames && t1->etype == TFIELD)
+-				fmtprint(fp, "%T", t1->type);
+-			else
++			if(noargnames && t1->etype == TFIELD) {
++				if(t1->isddd) {
++					// TODO(rsc): Delete with DDD cleanup.
++					if(t1->type->etype == TINTER)
++						fmtprint(fp, "...");
++					else
++						fmtprint(fp, "... %T", t1->type->type);
++				} else
++					fmtprint(fp, "%T", t1->type);
++			} else
+ 				fmtprint(fp, "%T", t1);
+ 			if(t1->down)
+ 				fmtprint(fp, ", ");
+@@ -1246,9 +1251,16 @@ Tpretty(Fmt *fp, Type *t)
+ 		if(t->sym == S || t->embedded) {
+ 			if(exporting)
+ 				fmtprint(fp, "? ");
+-			fmtprint(fp, "%T", t->type);
+ 		} else
+-			fmtprint(fp, "%hS %T", t->sym, t->type);
++			fmtprint(fp, "%hS ", t->sym);
++		if(t->isddd) {
++			// TODO(rsc): delete with DDD cleanup.
++			if(t->type->etype == TINTER)
++				fmtprint(fp, "...");
++			else
++				fmtprint(fp, "... %T", t->type->type);
++		} else
++			fmtprint(fp, "%T", t->type);
+ 		if(t->note)
+ 			fmtprint(fp, " \"%Z\"", t->note);
+ 		return 0;
+@@ -1608,13 +1620,7 @@ isselect(Node *n)
+ int
+ isinter(Type *t)
+ {
+-	if(t != T) {
+-		if(t->etype == TINTER)
+-			return 1;
+-		if(t->etype == TDDD)
+-			return 1;
+-	}
+-	return 0;
++	return t != T && t->etype == TINTER;
+ }
+ 
+ int
+@@ -1627,14 +1633,6 @@ isnilinter(Type *t)
+ 	return 1;
+ }
+ 
+-int
+-isddd(Type *t)
+-{
+-	if(t != T && t->etype == TDDD)
+-		return 1;
+-	return 0;
+-}
+-
+ int
+ isideal(Type *t)
+ {
+@@ -1756,7 +1754,7 @@ eqtype1(Type *t1, Type *t2, int d, int names)
+ 			while(ta != tb) {
+ 				if(ta == T || tb == T)
+ 					return 0;
+-				if(ta->etype != TFIELD || tb->etype != TFIELD)
++				if(ta->etype != TFIELD || tb->etype != TFIELD || ta->isddd != tb->isddd)
+ 					return 0;
+ 				if(!eqtype1(ta->type, tb->type, d+1, names))
+ 					return 0;
+@@ -2193,19 +2191,24 @@ out:
+ void
+ badtype(int o, Type *tl, Type *tr)
+ {
+-	yyerror("illegal types for operand: %O", o);
++	Fmt fmt;
++	char *s;
++	
++	fmtstrinit(&fmt);
+ 	if(tl != T)
+-		print("	%T\n", tl);
++		fmtprint(&fmt, "\n	%T", tl);
+ 	if(tr != T)
+-		print("	%T\n", tr);
++		fmtprint(&fmt, "\n	%T", tr);
+ 
+ 	// common mistake: *struct and *interface.
+ 	if(tl && tr && isptr[tl->etype] && isptr[tr->etype]) {
+ 		if(tl->type->etype == TSTRUCT && tr->type->etype == TINTER)
+-			print("	(*struct vs *interface)\n");
++			fmtprint(&fmt, "\n	(*struct vs *interface)");
+ 		else if(tl->type->etype == TINTER && tr->type->etype == TSTRUCT)
+-			print("	(*interface vs *struct)\n");
++			fmtprint(&fmt, "\n	(*interface vs *struct)");
+ 	}
++	s = fmtstrflush(&fmt);
++	yyerror("illegal types for operand: %O%s", o, s);
+ }
+ 
+ /*
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index e8ed1dc941..dfd67b71cb 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -140,6 +140,9 @@ reswitch:
+ 			n = n->right;
+ 		goto redo;
+ 
++	case ODDD:
++		break;
++
+ 	/*
+ 	 * types (OIND is with exprs)
+ 	 */
+@@ -157,7 +160,8 @@ reswitch:
+ 		if(l == nil) {
+ 			t->bound = -1;
+ 		} else {
+-			typecheck(&l, Erv | Etype);
++			if(l->op != ODDD)
++				typecheck(&l, Erv | Etype);
+ 			switch(l->op) {
+ 			default:
+ 				yyerror("invalid array bound %#N", l);
+@@ -173,13 +177,7 @@ reswitch:
+ 				}
+ 				break;
+ 
+-			case OTYPE:
+-				if(l->type == T)
+-					goto error;
+-				if(l->type->etype != TDDD) {
+-					yyerror("invalid array bound %T", l->type);
+-					goto error;
+-				}
++			case ODDD:
+ 				t->bound = -100;
+ 				break;
+ 			}
+@@ -1496,12 +1494,18 @@ typecheckaste(int op, Type *tstruct, NodeList *nl, char *desc)
+ 		tn = n->type->type;
+ 		for(tl=tstruct->type; tl; tl=tl->down) {
+ 			int xx, yy;
++			if(tl->isddd) {
++				// TODO(rsc): delete if (but not body) in DDD cleanup.
++				if(tl->type->etype != TINTER)
++					for(; tn; tn=tn->down)
++						if(checkconv(tn->type, tl->type->type, 0, &xx, &yy, desc) < 0)
++							yyerror("cannot use %T as type %T in %s", tn->type, tl->type->type, desc);
++				goto out;
++			}
+ 			if(tn == T) {
+ 				yyerror("not enough arguments to %#O", op);
+ 				goto out;
+ 			}
+-			if(isddd(tl->type))
+-				goto out;
+ 			if(checkconv(tn->type, tl->type, 0, &xx, &yy, desc) < 0)
+ 				yyerror("cannot use type %T as type %T in %s", tn->type, tl->type, desc);
+ 			tn = tn->down;
+@@ -1513,10 +1517,17 @@ typecheckaste(int op, Type *tstruct, NodeList *nl, char *desc)
+ 
+ 	for(tl=tstruct->type; tl; tl=tl->down) {
+ 		t = tl->type;
+-		if(isddd(t)) {
++		if(tl->isddd) {
++			if(nl != nil && nl->next == nil && nl->n->isddd && eqtype(nl->n->type, t))
++				goto out;
+ 			for(; nl; nl=nl->next) {
++				int xx, yy;
+ 				setlineno(nl->n);
+-				defaultlit(&nl->n, T);
++				defaultlit(&nl->n, t->type);
++				// TODO(rsc): drop first if in DDD cleanup
++				if(t->etype != TINTER)
++				if(checkconv(nl->n->type, t->type, 0, &xx, &yy, desc) < 0)
++					yyerror("cannot use %#N as type %T in %s", nl->n, t->type, desc);					
+ 			}
+ 			goto out;
+ 		}
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index e142814f7b..9a84acce36 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1368,6 +1368,31 @@ mkdotargs(NodeList *lr0, NodeList *nn, Type *l, int fp, NodeList **init)
+ 	return nn;
+ }
+ 
++ /*
++ * package all the arguments that match a ... T parameter into a []T.
++ */
++NodeList*
++mkdotargslice(NodeList *lr0, NodeList *nn, Type *l, int fp, NodeList **init)
++{
++	Node *a, *n;
++	Type *tslice;
++	
++	tslice = typ(TARRAY);
++	tslice->type = l->type->type;
++	tslice->bound = -1;
++	
++	n = nod(OCOMPLIT, N, typenod(tslice));
++	n->list = lr0;
++	typecheck(&n, Erv);
++	if(n->type == T)
++		fatal("mkdotargslice: typecheck failed");
++	walkexpr(&n, init);
++	
++	a = nod(OAS, nodarg(l, fp), n);
++	nn = list(nn, convas(a, init));
++	return nn;
++}
++
+ /*
+  * helpers for shape errors
+  */
+@@ -1466,7 +1491,7 @@ ascompatte(int op, Type **nl, NodeList *lr, int fp, NodeList **init)
+ 	}
+ 
+ loop:
+-	if(l != T && isddd(l->type)) {
++	if(l != T && l->isddd) {
+ 		// the ddd parameter must be last
+ 		ll = structnext(&savel);
+ 		if(ll != T)
+@@ -1476,7 +1501,7 @@ loop:
+ 		// only if we are assigning a single ddd
+ 		// argument to a ddd parameter then it is
+ 		// passed thru unencapsulated
+-		if(r != N && lr->next == nil && isddd(r->type)) {
++		if(r != N && lr->next == nil && r->isddd && eqtype(l->type, r->type)) {
+ 			a = nod(OAS, nodarg(l, fp), r);
+ 			a = convas(a, init);
+ 			nn = list(nn, a);
+@@ -1486,7 +1511,11 @@ loop:
+ 		// normal case -- make a structure of all
+ 		// remaining arguments and pass a pointer to
+ 		// it to the ddd parameter (empty interface)
+-		nn = mkdotargs(lr, nn, l, fp, init);
++		// TODO(rsc): delete in DDD cleanup.
++		if(l->type->etype == TINTER)
++			nn = mkdotargs(lr, nn, l, fp, init);
++		else
++			nn = mkdotargslice(lr, nn, l, fp, init);
+ 		goto ret;
+ 	}
+ 
+diff --git a/src/pkg/exp/datafmt/datafmt.go b/src/pkg/exp/datafmt/datafmt.go
+index 0a2354286b..cd9af2b6ac 100644
+--- a/src/pkg/exp/datafmt/datafmt.go
++++ b/src/pkg/exp/datafmt/datafmt.go
+@@ -415,8 +415,6 @@ func typename(typ reflect.Type) string {
+ 		return "array"
+ 	case *reflect.ChanType:
+ 		return "chan"
+-	case *reflect.DotDotDotType:
+-		return "ellipsis"
+ 	case *reflect.FuncType:
+ 		return "func"
+ 	case *reflect.InterfaceType:
+diff --git a/src/pkg/exp/eval/bridge.go b/src/pkg/exp/eval/bridge.go
+index 43a6fd30d6..d494421a43 100644
+--- a/src/pkg/exp/eval/bridge.go
++++ b/src/pkg/exp/eval/bridge.go
+@@ -75,12 +75,9 @@ func TypeFromNative(t reflect.Type) Type {
+ 	case *reflect.FuncType:
+ 		nin := t.NumIn()
+ 		// Variadic functions have DotDotDotType at the end
+-		varidic := false
+-		if nin > 0 {
+-			if _, ok := t.In(nin - 1).(*reflect.DotDotDotType); ok {
+-				varidic = true
+-				nin--
+-			}
++		variadic := t.DotDotDot()
++		if variadic {
++			nin--
+ 		}
+ 		in := make([]Type, nin)
+ 		for i := range in {
+@@ -90,7 +87,7 @@ func TypeFromNative(t reflect.Type) Type {
+ 		for i := range out {
+ 			out[i] = TypeFromNative(t.Out(i))
+ 		}
+-		et = NewFuncType(in, varidic, out)
++		et = NewFuncType(in, variadic, out)
+ 	case *reflect.InterfaceType:
+ 		log.Crashf("%T not implemented", t)
+ 	case *reflect.MapType:
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index cd838d7289..1e2772f66b 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -139,12 +139,6 @@ type UintptrType struct {
+ 	commonType
+ }
+ 
+-// DotDotDotType represents the ... that can
+-// be used as the type of the final function parameter.
+-type DotDotDotType struct {
+-	commonType
+-}
+-
+ // UnsafePointerType represents an unsafe.Pointer type.
+ type UnsafePointerType struct {
+ 	commonType
+@@ -176,8 +170,9 @@ type ChanType struct {
+ // FuncType represents a function type.
+ type FuncType struct {
+ 	commonType
+-	in  []*runtime.Type
+-	out []*runtime.Type
++	dotdotdot bool
++	in        []*runtime.Type
++	out       []*runtime.Type
+ }
+ 
+ // Method on interface type
+@@ -377,6 +372,19 @@ func (t *FuncType) In(i int) Type {
+ 	return toType(*t.in[i])
+ }
+ 
++// DotDotDot returns true if the final function input parameter
++// is a "..." parameter.  If so, the parameter's underlying static
++// type - either interface{} or []T - is returned by t.In(t.NumIn() - 1).
++//
++// For concreteness, if t is func(x int, y ... float), then
++//
++//	t.NumIn() == 2
++//	t.In(0) is the reflect.Type for "int"
++//	t.In(1) is the reflect.Type for "[]float"
++//	t.DotDotDot() == true
++//
++func (t *FuncType) DotDotDot() bool { return t.dotdotdot }
++
+ // NumIn returns the number of input parameters.
+ func (t *FuncType) NumIn() int { return len(t.in) }
+ 
+@@ -571,8 +579,6 @@ func toType(i interface{}) Type {
+ 		return nil
+ 	case *runtime.BoolType:
+ 		return (*BoolType)(unsafe.Pointer(v))
+-	case *runtime.DotDotDotType:
+-		return (*DotDotDotType)(unsafe.Pointer(v))
+ 	case *runtime.FloatType:
+ 		return (*FloatType)(unsafe.Pointer(v))
+ 	case *runtime.Float32Type:
+diff --git a/src/pkg/runtime/type.go b/src/pkg/runtime/type.go
+index bf757c7631..d76edeba4b 100644
+--- a/src/pkg/runtime/type.go
++++ b/src/pkg/runtime/type.go
+@@ -55,7 +55,6 @@ const (
+ 	kindFloat64
+ 	kindArray
+ 	kindChan
+-	kindDotDotDot
+ 	kindFunc
+ 	kindInterface
+ 	kindMap
+@@ -136,10 +135,6 @@ type StringType commonType
+ // UintptrType represents a uintptr type.
+ type UintptrType commonType
+ 
+-// DotDotDotType represents the ... that can
+-// be used as the type of the final function parameter.
+-type DotDotDotType commonType
+-
+ // UnsafePointerType represents an unsafe.Pointer type.
+ type UnsafePointerType commonType
+ 
+@@ -175,8 +170,9 @@ type ChanType struct {
+ // FuncType represents a function type.
+ type FuncType struct {
+ 	commonType
+-	in  []*Type // input parameter types
+-	out []*Type // output parameter types
++	dotdotdot bool    // last input parameter is ...
++	in        []*Type // input parameter types
++	out       []*Type // output parameter types
+ }
+ 
+ // Method on interface type
+diff --git a/src/pkg/runtime/type.h b/src/pkg/runtime/type.h
+index 9dc7881db5..36a3b6acf4 100644
+--- a/src/pkg/runtime/type.h
++++ b/src/pkg/runtime/type.h
+@@ -45,7 +45,6 @@ enum {
+ 	KindFloat64,
+ 	KindArray,
+ 	KindChan,
+-	KindDotDotDot,
+ 	KindFunc,
+ 	KindInterface,
+ 	KindMap,
+@@ -116,4 +115,3 @@ struct SliceType
+ 	Type;
+ 	Type *elem;
+ };
+-
+diff --git a/test/ddd.go b/test/ddd.go
+new file mode 100644
+index 0000000000..682f22ffe3
+--- /dev/null
++++ b/test/ddd.go
+@@ -0,0 +1,105 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func sum(args ...int) int {
++	s := 0
++	for _, v := range args {
++		s += v
++	}
++	return s
++}
++
++func sumA(args []int) int {
++	s := 0
++	for _, v := range args {
++		s += v
++	}
++	return s
++}
++
++func sum2(args ...int) int { return 2 * sum(args) }
++
++func sum3(args ...int) int { return 3 * sumA(args) }
++
++func intersum(args ...interface{}) int {
++	s := 0
++	for _, v := range args {
++		s += v.(int)
++	}
++	return s
++}
++
++type T []T
++
++func ln(args ...T) int { return len(args) }
++
++func ln2(args ...T) int { return 2 * ln(args) }
++
++func main() {
++	if x := sum(1, 2, 3); x != 6 {
++		panicln("sum 6", x)
++	}
++	if x := sum(); x != 0 {
++		panicln("sum 0", x)
++	}
++	if x := sum(10); x != 10 {
++		panicln("sum 10", x)
++	}
++	if x := sum(1, 8); x != 9 {
++		panicln("sum 9", x)
++	}
++	if x := sum2(1, 2, 3); x != 2*6 {
++		panicln("sum 6", x)
++	}
++	if x := sum2(); x != 2*0 {
++		panicln("sum 0", x)
++	}
++	if x := sum2(10); x != 2*10 {
++		panicln("sum 10", x)
++	}
++	if x := sum2(1, 8); x != 2*9 {
++		panicln("sum 9", x)
++	}
++	if x := sum3(1, 2, 3); x != 3*6 {
++		panicln("sum 6", x)
++	}
++	if x := sum3(); x != 3*0 {
++		panicln("sum 0", x)
++	}
++	if x := sum3(10); x != 3*10 {
++		panicln("sum 10", x)
++	}
++	if x := sum3(1, 8); x != 3*9 {
++		panicln("sum 9", x)
++	}
++	if x := intersum(1, 2, 3); x != 6 {
++		panicln("intersum 6", x)
++	}
++	if x := intersum(); x != 0 {
++		panicln("intersum 0", x)
++	}
++	if x := intersum(10); x != 10 {
++		panicln("intersum 10", x)
++	}
++	if x := intersum(1, 8); x != 9 {
++		panicln("intersum 9", x)
++	}
++
++	if x := ln(nil, nil, nil); x != 3 {
++		panicln("ln 3", x)
++	}
++	if x := ln([]T{}); x != 1 {
++		panicln("ln 1", x)
++	}
++	if x := ln2(nil, nil, nil); x != 2*3 {
++		panicln("ln2 3", x)
++	}
++	if x := ln2([]T{}); x != 2*1 {
++		panicln("ln2 1", x)
++	}
++}
+diff --git a/test/ddd1.go b/test/ddd1.go
+new file mode 100644
+index 0000000000..da03a70c9d
+--- /dev/null
++++ b/test/ddd1.go
+@@ -0,0 +1,28 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func sum(args ...int) int { return 0 }
++
++var (
++	_ = sum(1, 2, 3)
++	_ = sum()
++	_ = sum(1.0, 2.0)
++	_ = sum(1.5)      // ERROR "integer"
++	_ = sum("hello")  // ERROR "convert"
++	_ = sum([]int{1}) // ERROR "slice literal as type int"
++)
++
++type T []T
++
++func funny(args ...T) int { return 0 }
++
++var (
++	_ = funny(nil)
++	_ = funny(nil, nil)
++	_ = funny([]T{}) // ok because []T{} is a T; passes []T{[]T{}}
++)
+diff --git a/test/ddd2.go b/test/ddd2.go
+new file mode 100644
+index 0000000000..a06af0c065
+--- /dev/null
++++ b/test/ddd2.go
+@@ -0,0 +1,16 @@
++// true
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ddd
++
++func Sum(args ...int) int {
++	s := 0
++	for _, v := range args {
++		s += v
++	}
++	return s
++}
++
+diff --git a/test/ddd3.go b/test/ddd3.go
+new file mode 100644
+index 0000000000..f5f9952d3f
+--- /dev/null
++++ b/test/ddd3.go
+@@ -0,0 +1,24 @@
++// $G $D/ddd2.go && $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "./ddd2"
++
++func main() {
++	if x := ddd.Sum(1, 2, 3); x != 6 {
++		panicln("ddd.Sum 6", x)
++	}
++	if x := ddd.Sum(); x != 0 {
++		panicln("ddd.Sum 0", x)
++	}
++	if x := ddd.Sum(10); x != 10 {
++		panicln("ddd.Sum 10", x)
++	}
++	if x := ddd.Sum(1, 8); x != 9 {
++		panicln("ddd.Sum 9", x)
++	}
++}

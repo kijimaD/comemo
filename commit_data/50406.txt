@@ -20,6 +20,37 @@ Date:   Fri Oct 22 22:46:46 2021 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Trust: Brad Fitzpatrick <bradfitz@golang.org>
     Trust: David Crawshaw <crawshaw@golang.org>
-
+---
  src/net/http/roundtrip_js.go | 18 +++++++++++++++++-
  1 file changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/roundtrip_js.go b/src/net/http/roundtrip_js.go
+index 74c83a9172..362dbcbdde 100644
+--- a/src/net/http/roundtrip_js.go
++++ b/src/net/http/roundtrip_js.go
+@@ -131,8 +131,24 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+ 		}
+ 
+ 		contentLength := int64(0)
+-		if cl, err := strconv.ParseInt(header.Get("Content-Length"), 10, 64); err == nil {
++		clHeader := header.Get("Content-Length")
++		switch {
++		case clHeader != "":
++			cl, err := strconv.ParseInt(clHeader, 10, 64)
++			if err != nil {
++				errCh <- fmt.Errorf("net/http: ill-formed Content-Length header: %v", err)
++				return nil
++			}
++			if cl < 0 {
++				// Content-Length values less than 0 are invalid.
++				// See: https://datatracker.ietf.org/doc/html/rfc2616/#section-14.13
++				errCh <- fmt.Errorf("net/http: invalid Content-Length header: %q", clHeader)
++				return nil
++			}
+ 			contentLength = cl
++		default:
++			// If the response length is not declared, set it to -1.
++			contentLength = -1
+ 		}
+ 
+ 		b := result.Get("body")

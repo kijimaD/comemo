@@ -9,6 +9,19 @@ Date:   Sat May 14 16:54:49 2011 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4535066
-
+---
  src/pkg/unicode/Makefile | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/unicode/Makefile b/src/pkg/unicode/Makefile
+index 53f7229e7b..26e6e501f1 100644
+--- a/src/pkg/unicode/Makefile
++++ b/src/pkg/unicode/Makefile
+@@ -26,6 +26,7 @@ tables:	maketables
+ # Build (but do not run) maketables during testing,
+ # just to make sure it still compiles.
+ test: maketables
++testshort: maketables
+ 
+ # Downloads from www.unicode.org, so not part
+ # of standard test scripts.

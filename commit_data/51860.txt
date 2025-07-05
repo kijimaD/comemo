@@ -10,9 +10,94 @@ Date:   Thu Mar 10 23:40:10 2022 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/391811
     Reviewed-by: Russ Cox <rsc@golang.org>
     Trust: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/cfg/cfg.go                       |  5 ++++-
  src/cmd/go/main.go                                   |  4 ++++
  src/cmd/go/script_test.go                            | 12 ++++++++++++
  src/cmd/go/testdata/script/build_trimpath_goroot.txt |  9 +++++++--
  4 files changed, 27 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 61fd3ce4ef..a11a1a7655 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -370,7 +370,10 @@ func findGOROOT() string {
+ 	if env := Getenv("GOROOT"); env != "" {
+ 		return filepath.Clean(env)
+ 	}
+-	def := filepath.Clean(runtime.GOROOT())
++	def := ""
++	if r := runtime.GOROOT(); r != "" {
++		def = filepath.Clean(r)
++	}
+ 	if runtime.Compiler == "gccgo" {
+ 		// gccgo has no real GOROOT, and it certainly doesn't
+ 		// depend on the executable's location.
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index ed46ed822a..ee705e87e0 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -142,6 +142,10 @@ func main() {
+ 		}
+ 	}
+ 
++	if cfg.GOROOT == "" {
++		fmt.Fprintf(os.Stderr, "go: cannot find GOROOT directory: 'go' binary is trimmed and GOROOT is not set\n")
++		os.Exit(2)
++	}
+ 	if fi, err := os.Stat(cfg.GOROOT); err != nil || !fi.IsDir() {
+ 		fmt.Fprintf(os.Stderr, "go: cannot find GOROOT directory: %v\n", cfg.GOROOT)
+ 		os.Exit(2)
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 90ab3a6501..bffbe32220 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -22,6 +22,7 @@ import (
+ 	"path/filepath"
+ 	"regexp"
+ 	"runtime"
++	"runtime/debug"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+@@ -373,6 +374,17 @@ Script:
+ 				ok = testenv.HasSymlink()
+ 			case "case-sensitive":
+ 				ok = isCaseSensitive(ts.t)
++			case "trimpath":
++				if info, _ := debug.ReadBuildInfo(); info == nil {
++					ts.fatalf("missing build info")
++				} else {
++					for _, s := range info.Settings {
++						if s.Key == "-trimpath" && s.Value == "true" {
++							ok = true
++							break
++						}
++					}
++				}
+ 			default:
+ 				if strings.HasPrefix(cond.tag, "exec:") {
+ 					prog := cond.tag[len("exec:"):]
+diff --git a/src/cmd/go/testdata/script/build_trimpath_goroot.txt b/src/cmd/go/testdata/script/build_trimpath_goroot.txt
+index c0ce1f0457..7b870ab739 100644
+--- a/src/cmd/go/testdata/script/build_trimpath_goroot.txt
++++ b/src/cmd/go/testdata/script/build_trimpath_goroot.txt
+@@ -8,11 +8,16 @@
+ # TODO(#51483): when runtime.GOROOT() returns the empty string,
+ # go/build should default to 'go env GOROOT' instead.
+ 
+-[short] skip
+-
+ env GOROOT=
+ env GOROOT_FINAL=
+ 
++[trimpath] ! go env GOROOT
++[trimpath] stderr '^go: cannot find GOROOT directory: ''go'' binary is trimmed and GOROOT is not set$'
++[trimpath] stop
++
++
++[short] skip
++
+ go run .
+ stdout '^GOROOT '$TESTGO_GOROOT'$'
+ stdout '^runtime '$TESTGO_GOROOT${/}src${/}runtime'$'

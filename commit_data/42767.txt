@@ -13,8 +13,101 @@ Date:   Thu Jan 9 12:41:16 2020 -0500
     Change-Id: Ib1ccc72fc717df79214480b48dd98188d6061b46
     Reviewed-on: https://go-review.googlesource.com/c/go/+/214117
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                              | 49 ----------------------
  .../testdata/script/get_insecure_custom_domain.txt |  5 +++
  .../script/get_update_unknown_protocol.txt         | 13 ++++++
  3 files changed, 18 insertions(+), 49 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 71d311af30..b94441f66b 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2552,55 +2552,6 @@ func TestImportLocal(t *testing.T) {
+ 	tg.grepStderr("cannot import current directory", "did not diagnose import current directory")
+ }
+ 
+-func TestGoGetUpdateUnknownProtocol(t *testing.T) {
+-	testenv.MustHaveExternalNetwork(t)
+-	testenv.MustHaveExecPath(t, "git")
+-
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.makeTempdir()
+-	tg.setenv("GOPATH", tg.path("."))
+-
+-	const repo = "github.com/golang/example"
+-
+-	// Clone the repo via HTTPS manually.
+-	repoDir := tg.path("src/" + repo)
+-	cmd := exec.Command("git", "clone", "-q", "https://"+repo, repoDir)
+-	if out, err := cmd.CombinedOutput(); err != nil {
+-		t.Fatalf("cloning %v repo: %v\n%s", repo, err, out)
+-	}
+-
+-	// Configure the repo to use a protocol unknown to cmd/go
+-	// that still actually works.
+-	cmd = exec.Command("git", "remote", "set-url", "origin", "xyz://"+repo)
+-	cmd.Dir = repoDir
+-	if out, err := cmd.CombinedOutput(); err != nil {
+-		t.Fatalf("git remote set-url: %v\n%s", err, out)
+-	}
+-	cmd = exec.Command("git", "config", "--local", "url.https://github.com/.insteadOf", "xyz://github.com/")
+-	cmd.Dir = repoDir
+-	if out, err := cmd.CombinedOutput(); err != nil {
+-		t.Fatalf("git config: %v\n%s", err, out)
+-	}
+-
+-	// We need -f to ignore import comments.
+-	tg.run("get", "-d", "-u", "-f", repo+"/hello")
+-}
+-
+-func TestGoGetInsecureCustomDomain(t *testing.T) {
+-	testenv.MustHaveExternalNetwork(t)
+-	testenv.MustHaveExecPath(t, "git")
+-
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.makeTempdir()
+-	tg.setenv("GOPATH", tg.path("."))
+-
+-	const repo = "insecure.go-get-issue-15410.appspot.com/pkg/p"
+-	tg.runFail("get", "-d", repo)
+-	tg.run("get", "-d", "-insecure", repo)
+-}
+-
+ func TestGoRunDirs(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/testdata/script/get_insecure_custom_domain.txt b/src/cmd/go/testdata/script/get_insecure_custom_domain.txt
+new file mode 100644
+index 0000000000..c0439fb037
+--- /dev/null
++++ b/src/cmd/go/testdata/script/get_insecure_custom_domain.txt
+@@ -0,0 +1,5 @@
++[!net] skip
++[!exec:git] skip
++
++! go get -d insecure.go-get-issue-15410.appspot.com/pkg/p
++go get -d -insecure insecure.go-get-issue-15410.appspot.com/pkg/p
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/get_update_unknown_protocol.txt b/src/cmd/go/testdata/script/get_update_unknown_protocol.txt
+new file mode 100644
+index 0000000000..85c2e24bc8
+--- /dev/null
++++ b/src/cmd/go/testdata/script/get_update_unknown_protocol.txt
+@@ -0,0 +1,13 @@
++[!net] skip
++[!exec:git] skip
++
++# Clone the repo via HTTPS manually.
++exec git clone -q https://github.com/golang/example github.com/golang/example
++
++# Configure the repo to use a protocol unknown to cmd/go
++# that still actually works.
++cd github.com/golang/example
++exec git remote set-url origin xyz://github.com/golang/example
++exec git config --local url.https://github.com/.insteadOf xyz://github.com/
++
++go get -d -u -f github.com/golang/example/hello
+\ No newline at end of file

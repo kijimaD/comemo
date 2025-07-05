@@ -18,7 +18,7 @@ Date:   Thu Jan 19 15:53:54 2023 -0800
     Reviewed-by: Robert Griesemer <gri@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/api_test.go      | 38 ++++++++++++------------
  src/cmd/compile/internal/types2/assignments.go   |  2 +-
  src/cmd/compile/internal/types2/builtins.go      |  4 +--
@@ -71,3 +71,1474 @@ Date:   Thu Jan 19 15:53:54 2023 -0800
  src/go/types/unify.go                            |  2 +-
  src/go/types/union.go                            |  2 +-
  51 files changed, 148 insertions(+), 148 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index 6d03935ca1..41ee641f59 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -131,8 +131,8 @@ func TestValuesInfo(t *testing.T) {
+ 		{`package f6b; var _            =  1e-2000i`, `1e-2000i`, `complex128`, `(0 + 0i)`},
+ 		{`package f7b; var _            = -1e-2000i`, `-1e-2000i`, `complex128`, `(0 + 0i)`},
+ 
+-		{`package g0; const (a = len([iota]int{}); b; c); const _ = c`, `c`, `int`, `2`}, // issue #22341
+-		{`package g1; var(j int32; s int; n = 1.0<<s == j)`, `1.0`, `int32`, `1`},        // issue #48422
++		{`package g0; const (a = len([iota]int{}); b; c); const _ = c`, `c`, `int`, `2`}, // go.dev/issue/22341
++		{`package g1; var(j int32; s int; n = 1.0<<s == j)`, `1.0`, `int32`, `1`},        // go.dev/issue/48422
+ 	}
+ 
+ 	for _, test := range tests {
+@@ -249,7 +249,7 @@ func TestTypesInfo(t *testing.T) {
+ 			`(string, bool)`,
+ 		},
+ 
+-		// issue 6796
++		// go.dev/issue/6796
+ 		{`package issue6796_a; var x interface{}; var _, _ = (x.(int))`,
+ 			`x.(int)`,
+ 			`(int, bool)`,
+@@ -271,7 +271,7 @@ func TestTypesInfo(t *testing.T) {
+ 			`(string, bool)`,
+ 		},
+ 
+-		// issue 7060
++		// go.dev/issue/7060
+ 		{`package issue7060_a; var ( m map[int]string; x, ok = m[0] )`,
+ 			`m[0]`,
+ 			`(string, bool)`,
+@@ -297,7 +297,7 @@ func TestTypesInfo(t *testing.T) {
+ 			`(string, bool)`,
+ 		},
+ 
+-		// issue 28277
++		// go.dev/issue/28277
+ 		{`package issue28277_a; func f(...int)`,
+ 			`...int`,
+ 			`[]int`,
+@@ -307,7 +307,7 @@ func TestTypesInfo(t *testing.T) {
+ 			`[][]struct{}`,
+ 		},
+ 
+-		// issue 47243
++		// go.dev/issue/47243
+ 		{`package issue47243_a; var x int32; var _ = x << 3`, `3`, `untyped int`},
+ 		{`package issue47243_b; var x int32; var _ = x << 3.`, `3.`, `untyped float`},
+ 		{`package issue47243_c; var x int32; var _ = 1 << x`, `1 << x`, `int`},
+@@ -345,13 +345,13 @@ func TestTypesInfo(t *testing.T) {
+ 		// instantiated types must be sanitized
+ 		{`package g0; type t[P any] int; var x struct{ f t[int] }; var _ = x.f`, `x.f`, `g0.t[int]`},
+ 
+-		// issue 45096
++		// go.dev/issue/45096
+ 		{`package issue45096; func _[T interface{ ~int8 | ~int16 | ~int32 }](x T) { _ = x < 0 }`, `0`, `T`},
+ 
+-		// issue 47895
++		// go.dev/issue/47895
+ 		{`package p; import "unsafe"; type S struct { f int }; var s S; var _ = unsafe.Offsetof(s.f)`, `s.f`, `int`},
+ 
+-		// issue 50093
++		// go.dev/issue/50093
+ 		{`package u0a; func _[_ interface{int}]() {}`, `int`, `int`},
+ 		{`package u1a; func _[_ interface{~int}]() {}`, `~int`, `~int`},
+ 		{`package u2a; func _[_ interface{int | string}]() {}`, `int | string`, `int | string`},
+@@ -1187,7 +1187,7 @@ func TestInitOrderInfo(t *testing.T) {
+ 		}`, []string{
+ 			"d = 3", "b = f()", "c = f()", "a = c + b",
+ 		}},
+-		// test case for issue 7131
++		// test case for go.dev/issue/7131
+ 		{`package main
+ 
+ 		var counter int
+@@ -1202,7 +1202,7 @@ func TestInitOrderInfo(t *testing.T) {
+ 		`, []string{
+ 			"a = next()", "b = next()", "c = next()", "d = next()", "e = next()", "f = next()", "_ = makeOrder()",
+ 		}},
+-		// test case for issue 10709
++		// test case for go.dev/issue/10709
+ 		{`package p13
+ 
+ 		var (
+@@ -1222,7 +1222,7 @@ func TestInitOrderInfo(t *testing.T) {
+ 		}`, []string{
+ 			"t = makeT(0)", "v = t.m()",
+ 		}},
+-		// test case for issue 10709: same as test before, but variable decls swapped
++		// test case for go.dev/issue/10709: same as test before, but variable decls swapped
+ 		{`package p14
+ 
+ 		var (
+@@ -1242,7 +1242,7 @@ func TestInitOrderInfo(t *testing.T) {
+ 		}`, []string{
+ 			"t = makeT(0)", "v = t.m()",
+ 		}},
+-		// another candidate possibly causing problems with issue 10709
++		// another candidate possibly causing problems with go.dev/issue/10709
+ 		{`package p15
+ 
+ 		var y1 = f1()
+@@ -1623,7 +1623,7 @@ func TestLookupFieldOrMethod(t *testing.T) {
+ 		// outside method set of a generic type
+ 		{"var x T[int]; type T[P any] struct{}; func (*T[P]) f() {}", false, nil, true},
+ 
+-		// recursive generic types; see golang/go#52715
++		// recursive generic types; see go.dev/issue/52715
+ 		{"var a T[int]; type ( T[P any] struct { *N[P] }; N[P any] struct { *T[P] } ); func (N[P]) f() {}", true, []int{0, 0}, true},
+ 		{"var a T[int]; type ( T[P any] struct { *N[P] }; N[P any] struct { *T[P] } ); func (T[P]) f() {}", true, []int{0}, false},
+ 	}
+@@ -1656,7 +1656,7 @@ func TestLookupFieldOrMethod(t *testing.T) {
+ 	}
+ }
+ 
+-// Test for golang/go#52715
++// Test for go.dev/issue/52715
+ func TestLookupFieldOrMethod_RecursiveGeneric(t *testing.T) {
+ 	const src = `
+ package pkg
+@@ -1899,7 +1899,7 @@ func TestIdentical(t *testing.T) {
+ 		{`func X(int) string { return "" }; func Y(int) {}`, false},
+ 
+ 		// Generic functions. Type parameters should be considered identical modulo
+-		// renaming. See also issue #49722.
++		// renaming. See also go.dev/issue/49722.
+ 		{`func X[P ~int](){}; func Y[Q ~int]() {}`, true},
+ 		{`func X[P1 any, P2 ~*P1](){}; func Y[Q1 any, Q2 ~*Q1]() {}`, true},
+ 		{`func X[P1 any, P2 ~[]P1](){}; func Y[Q1 any, Q2 ~*Q1]() {}`, false},
+@@ -2009,9 +2009,9 @@ func TestCompositeLitTypes(t *testing.T) {
+ 		lit, typ string
+ 	}{
+ 		{`[16]byte{}`, `[16]byte`},
+-		{`[...]byte{}`, `[0]byte`},                // test for issue #14092
+-		{`[...]int{1, 2, 3}`, `[3]int`},           // test for issue #14092
+-		{`[...]int{90: 0, 98: 1, 2}`, `[100]int`}, // test for issue #14092
++		{`[...]byte{}`, `[0]byte`},                // test for go.dev/issue/14092
++		{`[...]int{1, 2, 3}`, `[3]int`},           // test for go.dev/issue/14092
++		{`[...]int{90: 0, 98: 1, 2}`, `[100]int`}, // test for go.dev/issue/14092
+ 		{`[]int{}`, `[]int`},
+ 		{`map[string]bool{"foo": true}`, `map[string]bool`},
+ 		{`struct{}{}`, `struct{}`},
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index 73c126c027..ca8c04e1e2 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -27,7 +27,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
+ 	case constant_, variable, mapindex, value, nilvalue, commaok, commaerr:
+ 		// ok
+ 	default:
+-		// we may get here because of other problems (issue #39634, crash 12)
++		// we may get here because of other problems (go.dev/issue/39634, crash 12)
+ 		// TODO(gri) do we need a new "generic" error code here?
+ 		check.errorf(x, IncompatibleAssign, "cannot assign %s to %s in %s", x, T, context)
+ 		return
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 531e41dd7d..a5e7baa8f5 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -710,7 +710,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		// TODO(gri) Should we pass x.typ instead of base (and have indirect report if derefStructPtr indirected)?
+ 		check.recordSelection(selx, FieldVal, base, obj, index, false)
+ 
+-		// record the selector expression (was bug - issue #47895)
++		// record the selector expression (was bug - go.dev/issue/47895)
+ 		{
+ 			mode := value
+ 			if x.mode == variable || indirect {
+@@ -962,7 +962,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId)
+ 		default:
+ 			unreachable()
+ 		}
+-		check.softErrorf(x, code, "%s not supported as argument to %s for go1.18 (see issue #50937)", x, predeclaredFuncs[id].name)
++		check.softErrorf(x, code, "%s not supported as argument to %s for go1.18 (see go.dev/issue/50937)", x, predeclaredFuncs[id].name)
+ 
+ 		// Construct a suitable new type parameter for the result type.
+ 		// The type parameter is placed in the current package so export/import
+diff --git a/src/cmd/compile/internal/types2/builtins_test.go b/src/cmd/compile/internal/types2/builtins_test.go
+index c3647e69a4..347595e169 100644
+--- a/src/cmd/compile/internal/types2/builtins_test.go
++++ b/src/cmd/compile/internal/types2/builtins_test.go
+@@ -78,7 +78,7 @@ var builtinCalls = []struct {
+ 	{"make", `_ = make([]int, 10)`, `func([]int, int) []int`},
+ 	{"make", `type T []byte; _ = make(T, 10, 20)`, `func(p.T, int, int) p.T`},
+ 
+-	// issue #37349
++	// go.dev/issue/37349
+ 	{"make", `              _ = make([]int, 0   )`, `func([]int, int) []int`},
+ 	{"make", `var l    int; _ = make([]int, l   )`, `func([]int, int) []int`},
+ 	{"make", `              _ = make([]int, 0, 0)`, `func([]int, int, int) []int`},
+@@ -86,7 +86,7 @@ var builtinCalls = []struct {
+ 	{"make", `var    c int; _ = make([]int, 0, c)`, `func([]int, int, int) []int`},
+ 	{"make", `var l, c int; _ = make([]int, l, c)`, `func([]int, int, int) []int`},
+ 
+-	// issue #37393
++	// go.dev/issue/37393
+ 	{"make", `                _ = make([]int       , 0   )`, `func([]int, int) []int`},
+ 	{"make", `var l    byte ; _ = make([]int8      , l   )`, `func([]int8, byte) []int8`},
+ 	{"make", `                _ = make([]int16     , 0, 0)`, `func([]int16, int, int) []int16`},
+@@ -94,7 +94,7 @@ var builtinCalls = []struct {
+ 	{"make", `var    c int32; _ = make([]float64   , 0, c)`, `func([]float64, int, int32) []float64`},
+ 	{"make", `var l, c uint ; _ = make([]complex128, l, c)`, `func([]complex128, uint, uint) []complex128`},
+ 
+-	// issue #45667
++	// go.dev/issue/45667
+ 	{"make", `const l uint = 1; _ = make([]int, l)`, `func([]int, uint) []int`},
+ 
+ 	{"new", `_ = new(int)`, `func(int) *int`},
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index a331e501d7..3f5c12599a 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -76,7 +76,7 @@ func (check *Checker) instantiateSignature(pos syntax.Pos, typ *Signature, targs
+ 	inst := check.instance(pos, typ, targs, nil, check.context()).(*Signature)
+ 	assert(len(xlist) <= len(targs))
+ 
+-	// verify instantiation lazily (was issue #50450)
++	// verify instantiation lazily (was go.dev/issue/50450)
+ 	check.later(func() {
+ 		tparams := typ.TypeParams().list()
+ 		if i, err := check.verify(pos, tparams, targs, check.context()); err != nil {
+@@ -547,7 +547,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named, w
+ 	check.exprOrType(x, e.X, false)
+ 	switch x.mode {
+ 	case typexpr:
+-		// don't crash for "type T T.x" (was issue #51509)
++		// don't crash for "type T T.x" (was go.dev/issue/51509)
+ 		if def != nil && x.typ == def {
+ 			check.cycleError([]Object{def.obj})
+ 			goto Error
+@@ -569,7 +569,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named, w
+ 	// All codepaths below return a non-type expression. If we get here while
+ 	// expecting a type expression, it is an error.
+ 	//
+-	// See issue #57522 for more details.
++	// See go.dev/issue/57522 for more details.
+ 	//
+ 	// TODO(rfindley): We should do better by refusing to check selectors in all cases where
+ 	// x.typ is incomplete.
+@@ -580,7 +580,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named, w
+ 
+ 	obj, index, indirect = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
+ 	if obj == nil {
+-		// Don't report another error if the underlying type was invalid (issue #49541).
++		// Don't report another error if the underlying type was invalid (go.dev/issue/49541).
+ 		if under(x.typ) == Typ[Invalid] {
+ 			goto Error
+ 		}
+diff --git a/src/cmd/compile/internal/types2/conversions.go b/src/cmd/compile/internal/types2/conversions.go
+index 865b49c00f..a80857b203 100644
+--- a/src/cmd/compile/internal/types2/conversions.go
++++ b/src/cmd/compile/internal/types2/conversions.go
+@@ -113,7 +113,7 @@ func (check *Checker) conversion(x *operand, T Type) {
+ // the spec) is that we cannot shift a floating-point value: 1 in 1<<s should
+ // be converted to UntypedFloat because of the addition of 1.0. Fixing this
+ // is tricky because we'd have to run updateExprType on the argument first.
+-// (Issue #21982.)
++// (go.dev/issue/21982.)
+ 
+ // convertibleTo reports whether T(x) is valid. In the failure case, *cause
+ // may be set to the cause for the failure.
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 82fb727511..1544ee11f4 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -307,7 +307,7 @@ loop:
+ func (check *Checker) cycleError(cycle []Object) {
+ 	// name returns the (possibly qualified) object name.
+ 	// This is needed because with generic types, cycles
+-	// may refer to imported types. See issue #50788.
++	// may refer to imported types. See go.dev/issue/50788.
+ 	// TODO(gri) This functionality is used elsewhere. Factor it out.
+ 	name := func(obj Object) string {
+ 		return packagePrefix(obj.Pkg(), check.qualifier) + obj.Name()
+@@ -386,7 +386,7 @@ func (check *Checker) constDecl(obj *Const, typ, init syntax.Expr, inherited boo
+ 		t := check.typ(typ)
+ 		if !isConstType(t) {
+ 			// don't report an error if the type is an invalid C (defined) type
+-			// (issue #22090)
++			// (go.dev/issue/22090)
+ 			if under(t) != Typ[Invalid] {
+ 				check.errorf(typ, InvalidConstType, "invalid constant type %s", t)
+ 			}
+@@ -477,7 +477,7 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init syntax.Expr) {
+ 	// We have multiple variables on the lhs and one init expr.
+ 	// Make sure all variables have been given the same type if
+ 	// one was specified, otherwise they assume the type of the
+-	// init expression values (was issue #15755).
++	// init expression values (was go.dev/issue/15755).
+ 	if typ != nil {
+ 		for _, lhs := range lhs {
+ 			lhs.typ = obj.typ
+@@ -552,7 +552,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
+ 		named.underlying = Typ[Invalid]
+ 	}
+ 
+-	// Disallow a lone type parameter as the RHS of a type declaration (issue #45639).
++	// Disallow a lone type parameter as the RHS of a type declaration (go.dev/issue/45639).
+ 	// We don't need this restriction anymore if we make the underlying type of a type
+ 	// parameter its constraint interface: if the RHS is a lone type parameter, we will
+ 	// use its underlying type (like we do for any RHS in a type declaration), and its
+@@ -574,7 +574,7 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list []*syntax.Fiel
+ 	}
+ 
+ 	// Set the type parameters before collecting the type constraints because
+-	// the parameterized type may be used by the constraints (issue #47887).
++	// the parameterized type may be used by the constraints (go.dev/issue/47887).
+ 	// Example: type T[P T[P]] interface{}
+ 	*dst = bindTParams(tparams)
+ 
+@@ -661,7 +661,7 @@ func (check *Checker) collectMethods(obj *TypeName) {
+ 	if base != nil {
+ 		assert(base.TypeArgs().Len() == 0) // collectMethods should not be called on an instantiated type
+ 
+-		// See issue #52529: we must delay the expansion of underlying here, as
++		// See go.dev/issue/52529: we must delay the expansion of underlying here, as
+ 		// base may not be fully set-up.
+ 		check.later(func() {
+ 			check.checkFieldUniqueness(base)
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index a3abbb9532..0433f8af95 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -622,7 +622,7 @@ func (check *Checker) updateExprType0(parent, x syntax.Expr, typ Type, final boo
+ 		}
+ 		// Even if we have an integer, if the value is a constant we
+ 		// still must check that it is representable as the specific
+-		// int type requested (was issue #22969). Fall through here.
++		// int type requested (was go.dev/issue/22969). Fall through here.
+ 	}
+ 	if old.val != nil {
+ 		// If x is a constant, it must be representable as a value of typ.
+@@ -760,7 +760,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
+ 
+ // If switchCase is true, the operator op is ignored.
+ func (check *Checker) comparison(x, y *operand, op syntax.Operator, switchCase bool) {
+-	// Avoid spurious errors if any of the operands has an invalid type (issue #54405).
++	// Avoid spurious errors if any of the operands has an invalid type (go.dev/issue/54405).
+ 	if x.typ == Typ[Invalid] || y.typ == Typ[Invalid] {
+ 		x.mode = invalid
+ 		return
+@@ -942,7 +942,7 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
+ 	// or be an untyped constant representable by a value of type uint."
+ 
+ 	// Check that constants are representable by uint, but do not convert them
+-	// (see also issue #47243).
++	// (see also go.dev/issue/47243).
+ 	var yval constant.Value
+ 	if y.mode == constant_ {
+ 		// Provide a good error message for negative shift counts.
+@@ -998,7 +998,7 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
+ 				return
+ 			}
+ 			// rhs must be within reasonable bounds in constant shifts
+-			const shiftBound = 1023 - 1 + 52 // so we can express smallestFloat64 (see issue #44057)
++			const shiftBound = 1023 - 1 + 52 // so we can express smallestFloat64 (see go.dev/issue/44057)
+ 			s, ok := constant.Uint64Val(yval)
+ 			if !ok || s > shiftBound {
+ 				check.errorf(y, InvalidShiftCount, invalidOp+"invalid shift count %s", y)
+@@ -1039,7 +1039,7 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
+ 			// the same expr node still just leads to one entry for
+ 			// that node, and it can only be deleted once).
+ 			// Be cautious and check for presence of entry.
+-			// Example: var e, f = int(1<<""[f]) // issue 11347
++			// Example: var e, f = int(1<<""[f]) // go.dev/issue/11347
+ 			if info, found := check.untyped[x.expr]; found {
+ 				info.isLhs = true
+ 				check.untyped[x.expr] = info
+@@ -1190,7 +1190,7 @@ func (check *Checker) binary(x *operand, e syntax.Expr, lhs, rhs syntax.Expr, op
+ 			return
+ 		}
+ 
+-		// check for divisor underflow in complex division (see issue 20227)
++		// check for divisor underflow in complex division (see go.dev/issue/20227)
+ 		if x.mode == constant_ && y.mode == constant_ && isComplex(x.typ) {
+ 			re, im := constant.Real(y.val), constant.Imag(y.val)
+ 			re2, im2 := constant.BinaryOp(re, token.MUL, re), constant.BinaryOp(im, token.MUL, im)
+@@ -1288,7 +1288,7 @@ func (check *Checker) nonGeneric(x *operand) {
+ // Must only be called by rawExpr.
+ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKind {
+ 	// make sure x has a valid state in case of bailout
+-	// (was issue 5770)
++	// (was go.dev/issue/5770)
+ 	x.mode = invalid
+ 	x.typ = Typ[Invalid]
+ 
+@@ -1339,7 +1339,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 			check.errorf(e, InvalidConstVal, "malformed constant: %s", e.Value)
+ 			goto Error
+ 		}
+-		// Ensure that integer values don't overflow (issue #54280).
++		// Ensure that integer values don't overflow (go.dev/issue/54280).
+ 		x.expr = e // make sure that check.overflow below has an error position
+ 		check.overflow(x)
+ 
+@@ -1476,7 +1476,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 			}
+ 
+ 		case *Array:
+-			// Prevent crash if the array referred to is not yet set up. Was issue #18643.
++			// Prevent crash if the array referred to is not yet set up. Was go.dev/issue/18643.
+ 			// This is a stop-gap solution. Should use Checker.objPath to report entire
+ 			// path starting with earliest declaration in the source. TODO(gri) fix this.
+ 			if utyp.elem == nil {
+@@ -1491,7 +1491,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 			// length the same here because it makes sense to "guess" the length for
+ 			// the latter if we have a composite literal; e.g. for [n]int{1, 2, 3}
+ 			// where n is invalid for some reason, it seems fair to assume it should
+-			// be 3 (see also Checked.arrayLength and issue #27346).
++			// be 3 (see also Checked.arrayLength and go.dev/issue/27346).
+ 			if utyp.len < 0 {
+ 				utyp.len = n
+ 				// e.Type is missing if we have a composite literal element
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 9f57476c57..84279afedf 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -72,7 +72,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 	// named and unnamed types are passed to parameters with identical type, different types
+ 	// (named vs underlying) may be inferred depending on the order of the arguments.
+ 	// By ensuring that named types are seen first, order dependence is avoided and unification
+-	// succeeds where it can (issue #43056).
++	// succeeds where it can (go.dev/issue/43056).
+ 	const enableArgSorting = true
+ 	if m := len(args); m >= 2 && enableArgSorting {
+ 		// Determine indices of arguments with named and unnamed types.
+@@ -631,7 +631,7 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type,
+ 
+ 	// Once nothing changes anymore, we may still have type parameters left;
+ 	// e.g., a constraint with core type *P may match a type parameter Q but
+-	// we don't have any type arguments to fill in for *P or Q (issue #45548).
++	// we don't have any type arguments to fill in for *P or Q (go.dev/issue/45548).
+ 	// Don't let such inferences escape, instead nil them out.
+ 	for i, typ := range types {
+ 		if typ != nil && isParameterized(tparams, typ) {
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index 17cdc497bc..9f5eb268ac 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -168,7 +168,7 @@ func (check *Checker) validateTArgLen(pos syntax.Pos, ntparams, ntargs int) bool
+ func (check *Checker) verify(pos syntax.Pos, tparams []*TypeParam, targs []Type, ctxt *Context) (int, error) {
+ 	smap := makeSubstMap(tparams, targs)
+ 	for i, tpar := range tparams {
+-		// Ensure that we have a (possibly implicit) interface as type bound (issue #51048).
++		// Ensure that we have a (possibly implicit) interface as type bound (go.dev/issue/51048).
+ 		tpar.iface()
+ 		// The type parameter bound is parameterized with the same type parameters
+ 		// as the instantiated type; before we can use it for bounds checking we
+@@ -196,7 +196,7 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
+ 		return true // avoid follow-on errors
+ 	}
+ 	if p, _ := Vu.(*Pointer); p != nil && under(p.base) == Typ[Invalid] {
+-		return true // avoid follow-on errors (see issue #49541 for an example)
++		return true // avoid follow-on errors (see go.dev/issue/49541 for an example)
+ 	}
+ 
+ 	verb := "implement"
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index f66f2ef98e..96d87fe66a 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -52,7 +52,7 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 	// in the same package as the method.").
+ 	// Thus, if we have a named pointer type, proceed with the underlying
+ 	// pointer type but discard the result if it is a method since we would
+-	// not have found it for T (see also issue 8590).
++	// not have found it for T (see also go.dev/issue/8590).
+ 	if t, _ := T.(*Named); t != nil {
+ 		if p, _ := t.Underlying().(*Pointer); p != nil {
+ 			obj, index, indirect = lookupFieldOrMethod(p, false, pkg, name, false)
+@@ -69,7 +69,7 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 	// see if there is a matching field (but not a method, those need to be declared
+ 	// explicitly in the constraint). If the constraint is a named pointer type (see
+ 	// above), we are ok here because only fields are accepted as results.
+-	const enableTParamFieldLookup = false // see issue #51576
++	const enableTParamFieldLookup = false // see go.dev/issue/51576
+ 	if enableTParamFieldLookup && obj == nil && isTypeParam(T) {
+ 		if t := coreType(T); t != nil {
+ 			obj, index, indirect = lookupFieldOrMethod(t, addressable, pkg, name, false)
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index 2cf6d3871f..5408c7e77f 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -539,7 +539,7 @@ loop:
+ 	for n := range seen {
+ 		// We should never have to update the underlying type of an imported type;
+ 		// those underlying types should have been resolved during the import.
+-		// Also, doing so would lead to a race condition (was issue #31749).
++		// Also, doing so would lead to a race condition (was go.dev/issue/31749).
+ 		// Do this check always, not just in debug mode (it's cheap).
+ 		if n.obj.pkg != check.pkg {
+ 			panic("imported type with unresolved underlying type")
+diff --git a/src/cmd/compile/internal/types2/named_test.go b/src/cmd/compile/internal/types2/named_test.go
+index 7938904a93..0b1819bbf9 100644
+--- a/src/cmd/compile/internal/types2/named_test.go
++++ b/src/cmd/compile/internal/types2/named_test.go
+@@ -72,7 +72,7 @@ func mustInstantiate(tb testing.TB, orig Type, targs ...Type) Type {
+ 	return inst
+ }
+ 
+-// Test that types do not expand infinitely, as in golang/go#52715.
++// Test that types do not expand infinitely, as in go.dev/issue/52715.
+ func TestFiniteTypeExpansion(t *testing.T) {
+ 	const src = `
+ package p
+diff --git a/src/cmd/compile/internal/types2/object_test.go b/src/cmd/compile/internal/types2/object_test.go
+index ce47003474..85b9e697ee 100644
+--- a/src/cmd/compile/internal/types2/object_test.go
++++ b/src/cmd/compile/internal/types2/object_test.go
+@@ -53,7 +53,7 @@ func TestIsAlias(t *testing.T) {
+ }
+ 
+ // TestEmbeddedMethod checks that an embedded method is represented by
+-// the same Func Object as the original method. See also issue #34421.
++// the same Func Object as the original method. See also go.dev/issue/34421.
+ func TestEmbeddedMethod(t *testing.T) {
+ 	const src = `package p; type I interface { error }`
+ 	pkg := mustTypecheck("p", src, nil, nil)
+diff --git a/src/cmd/compile/internal/types2/resolver.go b/src/cmd/compile/internal/types2/resolver.go
+index cb29f720b2..8aeafceadb 100644
+--- a/src/cmd/compile/internal/types2/resolver.go
++++ b/src/cmd/compile/internal/types2/resolver.go
+@@ -312,7 +312,7 @@ func (check *Checker) collectObjects() {
+ 							// (Do not use check.declare because it modifies the object
+ 							// via Object.setScopePos, which leads to a race condition;
+ 							// the object may be imported into more than one file scope
+-							// concurrently. See issue #32154.)
++							// concurrently. See go.dev/issue/32154.)
+ 							if alt := fileScope.Lookup(name); alt != nil {
+ 								var err error_
+ 								err.code = DuplicateDecl
+@@ -658,7 +658,7 @@ func (check *Checker) packageObjects() {
+ 	// We process non-alias type declarations first, followed by alias declarations,
+ 	// and then everything else. This appears to avoid most situations where the type
+ 	// of an alias is needed before it is available.
+-	// There may still be cases where this is not good enough (see also issue #25838).
++	// There may still be cases where this is not good enough (see also go.dev/issue/25838).
+ 	// In those cases Checker.ident will report an error ("invalid use of type alias").
+ 	var aliasList []*TypeName
+ 	var othersList []Object // everything that's not a type
+diff --git a/src/cmd/compile/internal/types2/return.go b/src/cmd/compile/internal/types2/return.go
+index 7cdea99e08..ab611ef9b2 100644
+--- a/src/cmd/compile/internal/types2/return.go
++++ b/src/cmd/compile/internal/types2/return.go
+@@ -64,7 +64,7 @@ func (check *Checker) isTerminating(s syntax.Stmt, label string) bool {
+ 	case *syntax.ForStmt:
+ 		if _, ok := s.Init.(*syntax.RangeClause); ok {
+ 			// Range clauses guarantee that the loop terminates,
+-			// so the loop is not a terminating statement. See issue 49003.
++			// so the loop is not a terminating statement. See go.dev/issue/49003.
+ 			break
+ 		}
+ 		if s.Cond == nil && !hasBreak(s.Body, label, true) {
+diff --git a/src/cmd/compile/internal/types2/sizes_test.go b/src/cmd/compile/internal/types2/sizes_test.go
+index 664eff3cf0..f2e4a87c71 100644
+--- a/src/cmd/compile/internal/types2/sizes_test.go
++++ b/src/cmd/compile/internal/types2/sizes_test.go
+@@ -30,7 +30,7 @@ func findStructTypeConfig(t *testing.T, src string, conf *types2.Config) *types2
+ 	return nil
+ }
+ 
+-// Issue 16316
++// go.dev/issue/16316
+ func TestMultipleSizeUse(t *testing.T) {
+ 	const src = `
+ package main
+@@ -53,7 +53,7 @@ type S struct {
+ 	}
+ }
+ 
+-// Issue 16464
++// go.dev/issue/16464
+ func TestAlignofNaclSlice(t *testing.T) {
+ 	const src = `
+ package main
+@@ -96,7 +96,7 @@ const _ = unsafe.Offsetof(struct{ x int64 }{}.x)
+ 	}
+ }
+ 
+-// Issue #53884.
++// go.dev/issue/53884.
+ func TestAtomicAlign(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t) // The Go command is needed for the importer to determine the locations of stdlib .a files.
+ 
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 01debc66c1..1ddaef39ab 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -887,7 +887,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 	}
+ 
+ 	// Open the for-statement block scope now, after the range clause.
+-	// Iteration variables declared with := need to go in this scope (was issue #51437).
++	// Iteration variables declared with := need to go in this scope (was go.dev/issue/51437).
+ 	check.openScope(s, "range")
+ 	defer check.closeScope()
+ 
+diff --git a/src/cmd/compile/internal/types2/struct.go b/src/cmd/compile/internal/types2/struct.go
+index 5e93cb9ea5..5de3fa8f42 100644
+--- a/src/cmd/compile/internal/types2/struct.go
++++ b/src/cmd/compile/internal/types2/struct.go
+@@ -100,7 +100,7 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
+ 	// addInvalid adds an embedded field of invalid type to the struct for
+ 	// fields with errors; this keeps the number of struct fields in sync
+ 	// with the source as long as the fields are _ or have different names
+-	// (issue #25627).
++	// (go.dev/issue/25627).
+ 	addInvalid := func(ident *syntax.Name, pos syntax.Pos) {
+ 		typ = Typ[Invalid]
+ 		tag = ""
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index 673cadca90..af5aa40949 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -204,7 +204,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
+ 	// the method m in an interface that embeds interface I. On the other hand,
+ 	// if a method is embedded via multiple overlapping embedded interfaces, we
+ 	// don't provide a guarantee which "original m" got chosen for the embedding
+-	// interface. See also issue #34421.
++	// interface. See also go.dev/issue/34421.
+ 	//
+ 	// If we don't care to provide this identity guarantee anymore, instead of
+ 	// reusing the original method in embeddings, we can clone the method's Func
+@@ -233,7 +233,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
+ 			check.report(&err)
+ 		default:
+ 			// We have a duplicate method name in an embedded (not explicitly declared) method.
+-			// Check method signatures after all types are computed (issue #33656).
++			// Check method signatures after all types are computed (go.dev/issue/33656).
+ 			// If we're pre-go1.14 (overlapping embeddings are not permitted), report that
+ 			// error here as well (even though we could do it eagerly) because it's the same
+ 			// error message.
+diff --git a/src/cmd/compile/internal/types2/typestring.go b/src/cmd/compile/internal/types2/typestring.go
+index 2307b6139d..ecabe013e3 100644
+--- a/src/cmd/compile/internal/types2/typestring.go
++++ b/src/cmd/compile/internal/types2/typestring.go
+@@ -160,7 +160,7 @@ func (w *typeWriter) typ(typ Type) {
+ 
+ 			// This doesn't do the right thing for embedded type
+ 			// aliases where we should print the alias name, not
+-			// the aliased type (see issue #44410).
++			// the aliased type (see go.dev/issue/44410).
+ 			if !f.embedded {
+ 				w.string(f.name)
+ 				w.byte(' ')
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 0f3106d70a..cddc7f070b 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -56,7 +56,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
+ 	// a cycle which needs to be reported). Otherwise we can skip the
+ 	// call and avoid a possible cycle error in favor of the more
+ 	// informative "not a type/value" error that this function's caller
+-	// will issue (see issue #25790).
++	// will issue (see go.dev/issue/25790).
+ 	typ := obj.Type()
+ 	if _, gotType := obj.(*TypeName); typ == nil || gotType && wantType {
+ 		check.objDecl(obj, def)
+@@ -96,7 +96,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
+ 
+ 	case *TypeName:
+ 		if check.isBrokenAlias(obj) {
+-			check.errorf(e, InvalidDeclCycle, "invalid use of type alias %s in recursive type (see issue #50729)", obj.name)
++			check.errorf(e, InvalidDeclCycle, "invalid use of type alias %s in recursive type (see go.dev/issue/50729)", obj.name)
+ 			return
+ 		}
+ 		x.mode = typexpr
+@@ -359,7 +359,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
+ 		// function, map, or slice."
+ 		//
+ 		// Delay this check because it requires fully setup types;
+-		// it is safe to continue in any case (was issue 6667).
++		// it is safe to continue in any case (was go.dev/issue/6667).
+ 		check.later(func() {
+ 			if !Comparable(typ.key) {
+ 				var why string
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index 7063789f3f..08508c0e60 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -357,7 +357,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
+ 
+ 	// If we get here and x or y is a type parameter, they are type parameters
+ 	// from outside our declaration list. Try to unify their core types, if any
+-	// (see issue #50755 for a test case).
++	// (see go.dev/issue/50755 for a test case).
+ 	if enableCoreTypeUnification && !u.exact {
+ 		if isTypeParam(x) && !hasName(y) {
+ 			// When considering the type parameter for unification
+diff --git a/src/cmd/compile/internal/types2/union.go b/src/cmd/compile/internal/types2/union.go
+index 1fafb052c1..8f354a708f 100644
+--- a/src/cmd/compile/internal/types2/union.go
++++ b/src/cmd/compile/internal/types2/union.go
+@@ -143,7 +143,7 @@ func parseTilde(check *Checker, tx syntax.Expr) *Term {
+ 		tilde = true
+ 	}
+ 	typ := check.typ(x)
+-	// Embedding stand-alone type parameters is not permitted (issue #47127).
++	// Embedding stand-alone type parameters is not permitted (go.dev/issue/47127).
+ 	// We don't need this restriction anymore if we make the underlying type of a type
+ 	// parameter its constraint interface: if we embed a lone type parameter, we will
+ 	// simply use its underlying type (like we do for other named, embedded interfaces),
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index b154ad5852..7cfad422e9 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -134,8 +134,8 @@ func TestValuesInfo(t *testing.T) {
+ 		{`package f6b; var _            =  1e-2000i`, `1e-2000i`, `complex128`, `(0 + 0i)`},
+ 		{`package f7b; var _            = -1e-2000i`, `-1e-2000i`, `complex128`, `(0 + 0i)`},
+ 
+-		{`package g0; const (a = len([iota]int{}); b; c); const _ = c`, `c`, `int`, `2`}, // issue #22341
+-		{`package g1; var(j int32; s int; n = 1.0<<s == j)`, `1.0`, `int32`, `1`},        // issue #48422
++		{`package g0; const (a = len([iota]int{}); b; c); const _ = c`, `c`, `int`, `2`}, // go.dev/issue/22341
++		{`package g1; var(j int32; s int; n = 1.0<<s == j)`, `1.0`, `int32`, `1`},        // go.dev/issue/48422
+ 	}
+ 
+ 	for _, test := range tests {
+@@ -248,7 +248,7 @@ func TestTypesInfo(t *testing.T) {
+ 			`(string, bool)`,
+ 		},
+ 
+-		// issue 6796
++		// go.dev/issue/6796
+ 		{`package issue6796_a; var x interface{}; var _, _ = (x.(int))`,
+ 			`x.(int)`,
+ 			`(int, bool)`,
+@@ -270,7 +270,7 @@ func TestTypesInfo(t *testing.T) {
+ 			`(string, bool)`,
+ 		},
+ 
+-		// issue 7060
++		// go.dev/issue/7060
+ 		{`package issue7060_a; var ( m map[int]string; x, ok = m[0] )`,
+ 			`m[0]`,
+ 			`(string, bool)`,
+@@ -296,7 +296,7 @@ func TestTypesInfo(t *testing.T) {
+ 			`(string, bool)`,
+ 		},
+ 
+-		// issue 28277
++		// go.dev/issue/28277
+ 		{`package issue28277_a; func f(...int)`,
+ 			`...int`,
+ 			`[]int`,
+@@ -306,7 +306,7 @@ func TestTypesInfo(t *testing.T) {
+ 			`[][]struct{}`,
+ 		},
+ 
+-		// issue 47243
++		// go.dev/issue/47243
+ 		{`package issue47243_a; var x int32; var _ = x << 3`, `3`, `untyped int`},
+ 		{`package issue47243_b; var x int32; var _ = x << 3.`, `3.`, `untyped float`},
+ 		{`package issue47243_c; var x int32; var _ = 1 << x`, `1 << x`, `int`},
+@@ -344,13 +344,13 @@ func TestTypesInfo(t *testing.T) {
+ 		// instantiated types must be sanitized
+ 		{`package g0; type t[P any] int; var x struct{ f t[int] }; var _ = x.f`, `x.f`, `g0.t[int]`},
+ 
+-		// issue 45096
++		// go.dev/issue/45096
+ 		{`package issue45096; func _[T interface{ ~int8 | ~int16 | ~int32  }](x T) { _ = x < 0 }`, `0`, `T`},
+ 
+-		// issue 47895
++		// go.dev/issue/47895
+ 		{`package p; import "unsafe"; type S struct { f int }; var s S; var _ = unsafe.Offsetof(s.f)`, `s.f`, `int`},
+ 
+-		// issue 50093
++		// go.dev/issue/50093
+ 		{`package u0a; func _[_ interface{int}]() {}`, `int`, `int`},
+ 		{`package u1a; func _[_ interface{~int}]() {}`, `~int`, `~int`},
+ 		{`package u2a; func _[_ interface{int | string}]() {}`, `int | string`, `int | string`},
+@@ -1188,7 +1188,7 @@ func TestInitOrderInfo(t *testing.T) {
+ 		}`, []string{
+ 			"d = 3", "b = f()", "c = f()", "a = c + b",
+ 		}},
+-		// test case for issue 7131
++		// test case for go.dev/issue/7131
+ 		{`package main
+ 
+ 		var counter int
+@@ -1203,7 +1203,7 @@ func TestInitOrderInfo(t *testing.T) {
+ 		`, []string{
+ 			"a = next()", "b = next()", "c = next()", "d = next()", "e = next()", "f = next()", "_ = makeOrder()",
+ 		}},
+-		// test case for issue 10709
++		// test case for go.dev/issue/10709
+ 		{`package p13
+ 
+ 		var (
+@@ -1223,7 +1223,7 @@ func TestInitOrderInfo(t *testing.T) {
+ 		}`, []string{
+ 			"t = makeT(0)", "v = t.m()",
+ 		}},
+-		// test case for issue 10709: same as test before, but variable decls swapped
++		// test case for go.dev/issue/10709: same as test before, but variable decls swapped
+ 		{`package p14
+ 
+ 		var (
+@@ -1243,7 +1243,7 @@ func TestInitOrderInfo(t *testing.T) {
+ 		}`, []string{
+ 			"t = makeT(0)", "v = t.m()",
+ 		}},
+-		// another candidate possibly causing problems with issue 10709
++		// another candidate possibly causing problems with go.dev/issue/10709
+ 		{`package p15
+ 
+ 		var y1 = f1()
+@@ -1623,7 +1623,7 @@ func TestLookupFieldOrMethod(t *testing.T) {
+ 		// outside method set of a generic type
+ 		{"var x T[int]; type T[P any] struct{}; func (*T[P]) f() {}", false, nil, true},
+ 
+-		// recursive generic types; see golang/go#52715
++		// recursive generic types; see go.dev/issue/52715
+ 		{"var a T[int]; type ( T[P any] struct { *N[P] }; N[P any] struct { *T[P] } ); func (N[P]) f() {}", true, []int{0, 0}, true},
+ 		{"var a T[int]; type ( T[P any] struct { *N[P] }; N[P any] struct { *T[P] } ); func (T[P]) f() {}", true, []int{0}, false},
+ 	}
+@@ -1656,7 +1656,7 @@ func TestLookupFieldOrMethod(t *testing.T) {
+ 	}
+ }
+ 
+-// Test for golang/go#52715
++// Test for go.dev/issue/52715
+ func TestLookupFieldOrMethod_RecursiveGeneric(t *testing.T) {
+ 	const src = `
+ package pkg
+@@ -1898,7 +1898,7 @@ func TestIdentical(t *testing.T) {
+ 		{`func X(int) string { return "" }; func Y(int) {}`, false},
+ 
+ 		// Generic functions. Type parameters should be considered identical modulo
+-		// renaming. See also issue #49722.
++		// renaming. See also go.dev/issue/49722.
+ 		{`func X[P ~int](){}; func Y[Q ~int]() {}`, true},
+ 		{`func X[P1 any, P2 ~*P1](){}; func Y[Q1 any, Q2 ~*Q1]() {}`, true},
+ 		{`func X[P1 any, P2 ~[]P1](){}; func Y[Q1 any, Q2 ~*Q1]() {}`, false},
+@@ -2009,9 +2009,9 @@ func TestCompositeLitTypes(t *testing.T) {
+ 		lit, typ string
+ 	}{
+ 		{`[16]byte{}`, `[16]byte`},
+-		{`[...]byte{}`, `[0]byte`},                // test for issue #14092
+-		{`[...]int{1, 2, 3}`, `[3]int`},           // test for issue #14092
+-		{`[...]int{90: 0, 98: 1, 2}`, `[100]int`}, // test for issue #14092
++		{`[...]byte{}`, `[0]byte`},                // test for go.dev/issue/14092
++		{`[...]int{1, 2, 3}`, `[3]int`},           // test for go.dev/issue/14092
++		{`[...]int{90: 0, 98: 1, 2}`, `[100]int`}, // test for go.dev/issue/14092
+ 		{`[]int{}`, `[]int`},
+ 		{`map[string]bool{"foo": true}`, `map[string]bool`},
+ 		{`struct{}{}`, `struct{}`},
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index ab24441844..a7a247b99f 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -27,7 +27,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
+ 	case constant_, variable, mapindex, value, commaok, commaerr:
+ 		// ok
+ 	default:
+-		// we may get here because of other problems (issue #39634, crash 12)
++		// we may get here because of other problems (go.dev/issue/39634, crash 12)
+ 		// TODO(gri) do we need a new "generic" error code here?
+ 		check.errorf(x, IncompatibleAssign, "cannot assign %s to %s in %s", x, T, context)
+ 		return
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index fb3be066a1..e7799731e8 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -711,7 +711,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		// TODO(gri) Should we pass x.typ instead of base (and have indirect report if derefStructPtr indirected)?
+ 		check.recordSelection(selx, FieldVal, base, obj, index, false)
+ 
+-		// record the selector expression (was bug - issue #47895)
++		// record the selector expression (was bug - go.dev/issue/47895)
+ 		{
+ 			mode := value
+ 			if x.mode == variable || indirect {
+@@ -963,7 +963,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId)
+ 		default:
+ 			unreachable()
+ 		}
+-		check.softErrorf(x, code, "%s not supported as argument to %s for go1.18 (see issue #50937)", x, predeclaredFuncs[id].name)
++		check.softErrorf(x, code, "%s not supported as argument to %s for go1.18 (see go.dev/issue/50937)", x, predeclaredFuncs[id].name)
+ 
+ 		// Construct a suitable new type parameter for the result type.
+ 		// The type parameter is placed in the current package so export/import
+diff --git a/src/go/types/builtins_test.go b/src/go/types/builtins_test.go
+index e15bb3242f..aadf4bc5b6 100644
+--- a/src/go/types/builtins_test.go
++++ b/src/go/types/builtins_test.go
+@@ -78,7 +78,7 @@ var builtinCalls = []struct {
+ 	{"make", `_ = make([]int, 10)`, `func([]int, int) []int`},
+ 	{"make", `type T []byte; _ = make(T, 10, 20)`, `func(p.T, int, int) p.T`},
+ 
+-	// issue #37349
++	// go.dev/issue/37349
+ 	{"make", `              _ = make([]int, 0   )`, `func([]int, int) []int`},
+ 	{"make", `var l    int; _ = make([]int, l   )`, `func([]int, int) []int`},
+ 	{"make", `              _ = make([]int, 0, 0)`, `func([]int, int, int) []int`},
+@@ -86,7 +86,7 @@ var builtinCalls = []struct {
+ 	{"make", `var    c int; _ = make([]int, 0, c)`, `func([]int, int, int) []int`},
+ 	{"make", `var l, c int; _ = make([]int, l, c)`, `func([]int, int, int) []int`},
+ 
+-	// issue #37393
++	// go.dev/issue/37393
+ 	{"make", `                _ = make([]int       , 0   )`, `func([]int, int) []int`},
+ 	{"make", `var l    byte ; _ = make([]int8      , l   )`, `func([]int8, byte) []int8`},
+ 	{"make", `                _ = make([]int16     , 0, 0)`, `func([]int16, int, int) []int16`},
+@@ -94,7 +94,7 @@ var builtinCalls = []struct {
+ 	{"make", `var    c int32; _ = make([]float64   , 0, c)`, `func([]float64, int, int32) []float64`},
+ 	{"make", `var l, c uint ; _ = make([]complex128, l, c)`, `func([]complex128, uint, uint) []complex128`},
+ 
+-	// issue #45667
++	// go.dev/issue/45667
+ 	{"make", `const l uint = 1; _ = make([]int, l)`, `func([]int, uint) []int`},
+ 
+ 	{"new", `_ = new(int)`, `func(int) *int`},
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index e44c025eac..dbb8411185 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -77,7 +77,7 @@ func (check *Checker) instantiateSignature(pos token.Pos, typ *Signature, targs
+ 	inst := check.instance(pos, typ, targs, nil, check.context()).(*Signature)
+ 	assert(len(xlist) <= len(targs))
+ 
+-	// verify instantiation lazily (was issue #50450)
++	// verify instantiation lazily (was go.dev/issue/50450)
+ 	check.later(func() {
+ 		tparams := typ.TypeParams().list()
+ 		if i, err := check.verify(pos, tparams, targs, check.context()); err != nil {
+@@ -550,7 +550,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *Named, want
+ 	check.exprOrType(x, e.X, false)
+ 	switch x.mode {
+ 	case typexpr:
+-		// don't crash for "type T T.x" (was issue #51509)
++		// don't crash for "type T T.x" (was go.dev/issue/51509)
+ 		if def != nil && x.typ == def {
+ 			check.cycleError([]Object{def.obj})
+ 			goto Error
+@@ -573,7 +573,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *Named, want
+ 	// All codepaths below return a non-type expression. If we get here while
+ 	// expecting a type expression, it is an error.
+ 	//
+-	// See issue #57522 for more details.
++	// See go.dev/issue/57522 for more details.
+ 	//
+ 	// TODO(rfindley): We should do better by refusing to check selectors in all cases where
+ 	// x.typ is incomplete.
+@@ -584,7 +584,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *Named, want
+ 
+ 	obj, index, indirect = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
+ 	if obj == nil {
+-		// Don't report another error if the underlying type was invalid (issue #49541).
++		// Don't report another error if the underlying type was invalid (go.dev/issue/49541).
+ 		if under(x.typ) == Typ[Invalid] {
+ 			goto Error
+ 		}
+diff --git a/src/go/types/conversions.go b/src/go/types/conversions.go
+index 3cdbedb8bc..984d0c69ca 100644
+--- a/src/go/types/conversions.go
++++ b/src/go/types/conversions.go
+@@ -111,7 +111,7 @@ func (check *Checker) conversion(x *operand, T Type) {
+ // the spec) is that we cannot shift a floating-point value: 1 in 1<<s should
+ // be converted to UntypedFloat because of the addition of 1.0. Fixing this
+ // is tricky because we'd have to run updateExprType on the argument first.
+-// (Issue #21982.)
++// (go.dev/issue/21982.)
+ 
+ // convertibleTo reports whether T(x) is valid. In the failure case, *cause
+ // may be set to the cause for the failure.
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 2493103b9f..7d9cc1757b 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -305,7 +305,7 @@ loop:
+ func (check *Checker) cycleError(cycle []Object) {
+ 	// name returns the (possibly qualified) object name.
+ 	// This is needed because with generic types, cycles
+-	// may refer to imported types. See issue #50788.
++	// may refer to imported types. See go.dev/issue/50788.
+ 	// TODO(gri) Thus functionality is used elsewhere. Factor it out.
+ 	name := func(obj Object) string {
+ 		return packagePrefix(obj.Pkg(), check.qualifier) + obj.Name()
+@@ -455,7 +455,7 @@ func (check *Checker) constDecl(obj *Const, typ, init ast.Expr, inherited bool)
+ 		t := check.typ(typ)
+ 		if !isConstType(t) {
+ 			// don't report an error if the type is an invalid C (defined) type
+-			// (issue #22090)
++			// (go.dev/issue/22090)
+ 			if under(t) != Typ[Invalid] {
+ 				check.errorf(typ, InvalidConstType, "invalid constant type %s", t)
+ 			}
+@@ -532,7 +532,7 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
+ 	// We have multiple variables on the lhs and one init expr.
+ 	// Make sure all variables have been given the same type if
+ 	// one was specified, otherwise they assume the type of the
+-	// init expression values (was issue #15755).
++	// init expression values (was go.dev/issue/15755).
+ 	if typ != nil {
+ 		for _, lhs := range lhs {
+ 			lhs.typ = obj.typ
+@@ -607,7 +607,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
+ 		named.underlying = Typ[Invalid]
+ 	}
+ 
+-	// Disallow a lone type parameter as the RHS of a type declaration (issue #45639).
++	// Disallow a lone type parameter as the RHS of a type declaration (go.dev/issue/45639).
+ 	// We don't need this restriction anymore if we make the underlying type of a type
+ 	// parameter its constraint interface: if the RHS is a lone type parameter, we will
+ 	// use its underlying type (like we do for any RHS in a type declaration), and its
+@@ -628,7 +628,7 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list *ast.FieldList
+ 	}
+ 
+ 	// Set the type parameters before collecting the type constraints because
+-	// the parameterized type may be used by the constraints (issue #47887).
++	// the parameterized type may be used by the constraints (go.dev/issue/47887).
+ 	// Example: type T[P T[P]] interface{}
+ 	*dst = bindTParams(tparams)
+ 
+@@ -735,7 +735,7 @@ func (check *Checker) collectMethods(obj *TypeName) {
+ 	if base != nil {
+ 		assert(base.TypeArgs().Len() == 0) // collectMethods should not be called on an instantiated type
+ 
+-		// See issue #52529: we must delay the expansion of underlying here, as
++		// See go.dev/issue/52529: we must delay the expansion of underlying here, as
+ 		// base may not be fully set-up.
+ 		check.later(func() {
+ 			check.checkFieldUniqueness(base)
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index bbbc5cc5a6..b85a2c7466 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -585,7 +585,7 @@ func (check *Checker) updateExprType0(parent, x ast.Expr, typ Type, final bool)
+ 		}
+ 		// Even if we have an integer, if the value is a constant we
+ 		// still must check that it is representable as the specific
+-		// int type requested (was issue #22969). Fall through here.
++		// int type requested (was go.dev/issue/22969). Fall through here.
+ 	}
+ 	if old.val != nil {
+ 		// If x is a constant, it must be representable as a value of typ.
+@@ -737,7 +737,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
+ 
+ // If switchCase is true, the operator op is ignored.
+ func (check *Checker) comparison(x, y *operand, op token.Token, switchCase bool) {
+-	// Avoid spurious errors if any of the operands has an invalid type (issue #54405).
++	// Avoid spurious errors if any of the operands has an invalid type (go.dev/issue/54405).
+ 	if x.typ == Typ[Invalid] || y.typ == Typ[Invalid] {
+ 		x.mode = invalid
+ 		return
+@@ -919,7 +919,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
+ 	// or be an untyped constant representable by a value of type uint."
+ 
+ 	// Check that constants are representable by uint, but do not convert them
+-	// (see also issue #47243).
++	// (see also go.dev/issue/47243).
+ 	var yval constant.Value
+ 	if y.mode == constant_ {
+ 		// Provide a good error message for negative shift counts.
+@@ -975,7 +975,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
+ 				return
+ 			}
+ 			// rhs must be within reasonable bounds in constant shifts
+-			const shiftBound = 1023 - 1 + 52 // so we can express smallestFloat64 (see issue #44057)
++			const shiftBound = 1023 - 1 + 52 // so we can express smallestFloat64 (see go.dev/issue/44057)
+ 			s, ok := constant.Uint64Val(yval)
+ 			if !ok || s > shiftBound {
+ 				check.errorf(y, InvalidShiftCount, invalidOp+"invalid shift count %s", y)
+@@ -1020,7 +1020,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
+ 			// the same expr node still just leads to one entry for
+ 			// that node, and it can only be deleted once).
+ 			// Be cautious and check for presence of entry.
+-			// Example: var e, f = int(1<<""[f]) // issue 11347
++			// Example: var e, f = int(1<<""[f]) // go.dev/issue/11347
+ 			if info, found := check.untyped[x.expr]; found {
+ 				info.isLhs = true
+ 				check.untyped[x.expr] = info
+@@ -1175,7 +1175,7 @@ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token
+ 			return
+ 		}
+ 
+-		// check for divisor underflow in complex division (see issue 20227)
++		// check for divisor underflow in complex division (see go.dev/issue/20227)
+ 		if x.mode == constant_ && y.mode == constant_ && isComplex(x.typ) {
+ 			re, im := constant.Real(y.val), constant.Imag(y.val)
+ 			re2, im2 := constant.BinaryOp(re, token.MUL, re), constant.BinaryOp(im, token.MUL, im)
+@@ -1272,7 +1272,7 @@ func (check *Checker) nonGeneric(x *operand) {
+ // Must only be called by rawExpr.
+ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 	// make sure x has a valid state in case of bailout
+-	// (was issue 5770)
++	// (was go.dev/issue/5770)
+ 	x.mode = invalid
+ 	x.typ = Typ[Invalid]
+ 
+@@ -1317,7 +1317,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 			check.errorf(e, InvalidConstVal, "malformed constant: %s", e.Value)
+ 			goto Error
+ 		}
+-		// Ensure that integer values don't overflow (issue #54280).
++		// Ensure that integer values don't overflow (go.dev/issue/54280).
+ 		check.overflow(x, e.Pos())
+ 
+ 	case *ast.FuncLit:
+@@ -1457,7 +1457,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 			}
+ 
+ 		case *Array:
+-			// Prevent crash if the array referred to is not yet set up. Was issue #18643.
++			// Prevent crash if the array referred to is not yet set up. Was go.dev/issue/18643.
+ 			// This is a stop-gap solution. Should use Checker.objPath to report entire
+ 			// path starting with earliest declaration in the source. TODO(gri) fix this.
+ 			if utyp.elem == nil {
+@@ -1472,7 +1472,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 			// length the same here because it makes sense to "guess" the length for
+ 			// the latter if we have a composite literal; e.g. for [n]int{1, 2, 3}
+ 			// where n is invalid for some reason, it seems fair to assume it should
+-			// be 3 (see also Checked.arrayLength and issue #27346).
++			// be 3 (see also Checked.arrayLength and go.dev/issue/27346).
+ 			if utyp.len < 0 {
+ 				utyp.len = n
+ 				// e.Type is missing if we have a composite literal element
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 2dc9ad17f9..ef14353540 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -74,7 +74,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 	// named and unnamed types are passed to parameters with identical type, different types
+ 	// (named vs underlying) may be inferred depending on the order of the arguments.
+ 	// By ensuring that named types are seen first, order dependence is avoided and unification
+-	// succeeds where it can (issue #43056).
++	// succeeds where it can (go.dev/issue/43056).
+ 	const enableArgSorting = true
+ 	if m := len(args); m >= 2 && enableArgSorting {
+ 		// Determine indices of arguments with named and unnamed types.
+@@ -633,7 +633,7 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type,
+ 
+ 	// Once nothing changes anymore, we may still have type parameters left;
+ 	// e.g., a constraint with core type *P may match a type parameter Q but
+-	// we don't have any type arguments to fill in for *P or Q (issue #45548).
++	// we don't have any type arguments to fill in for *P or Q (go.dev/issue/45548).
+ 	// Don't let such inferences escape, instead nil them out.
+ 	for i, typ := range types {
+ 		if typ != nil && isParameterized(tparams, typ) {
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index 726e84d7ab..ab3a9451c0 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -170,7 +170,7 @@ func (check *Checker) validateTArgLen(pos token.Pos, ntparams, ntargs int) bool
+ func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type, ctxt *Context) (int, error) {
+ 	smap := makeSubstMap(tparams, targs)
+ 	for i, tpar := range tparams {
+-		// Ensure that we have a (possibly implicit) interface as type bound (issue #51048).
++		// Ensure that we have a (possibly implicit) interface as type bound (go.dev/issue/51048).
+ 		tpar.iface()
+ 		// The type parameter bound is parameterized with the same type parameters
+ 		// as the instantiated type; before we can use it for bounds checking we
+@@ -198,7 +198,7 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
+ 		return true // avoid follow-on errors
+ 	}
+ 	if p, _ := Vu.(*Pointer); p != nil && under(p.base) == Typ[Invalid] {
+-		return true // avoid follow-on errors (see issue #49541 for an example)
++		return true // avoid follow-on errors (see go.dev/issue/49541 for an example)
+ 	}
+ 
+ 	verb := "implement"
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index 2b7618cbd0..888ca3cc70 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -578,7 +578,7 @@ import (
+ 	"html/template"
+ )
+ 
+-// Issue #46905: make sure template is not the first package qualified.
++// go.dev/issue/46905: make sure template is not the first package qualified.
+ var _ fmt.Stringer = 1 // ERRORx "cannot use 1.*as fmt\\.Stringer"
+ 
+ // Packages should be fully qualified when there is ambiguity in reachable
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 7ed367ee86..fa2b7b2f4b 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -54,7 +54,7 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 	// in the same package as the method.").
+ 	// Thus, if we have a named pointer type, proceed with the underlying
+ 	// pointer type but discard the result if it is a method since we would
+-	// not have found it for T (see also issue 8590).
++	// not have found it for T (see also go.dev/issue/8590).
+ 	if t, _ := T.(*Named); t != nil {
+ 		if p, _ := t.Underlying().(*Pointer); p != nil {
+ 			obj, index, indirect = lookupFieldOrMethod(p, false, pkg, name, false)
+@@ -71,7 +71,7 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 	// see if there is a matching field (but not a method, those need to be declared
+ 	// explicitly in the constraint). If the constraint is a named pointer type (see
+ 	// above), we are ok here because only fields are accepted as results.
+-	const enableTParamFieldLookup = false // see issue #51576
++	const enableTParamFieldLookup = false // see go.dev/issue/51576
+ 	if enableTParamFieldLookup && obj == nil && isTypeParam(T) {
+ 		if t := coreType(T); t != nil {
+ 			obj, index, indirect = lookupFieldOrMethod(t, addressable, pkg, name, false)
+diff --git a/src/go/types/methodset_test.go b/src/go/types/methodset_test.go
+index 13ccf9623e..3f8a0b1a10 100644
+--- a/src/go/types/methodset_test.go
++++ b/src/go/types/methodset_test.go
+@@ -65,7 +65,7 @@ func TestNewMethodSet(t *testing.T) {
+ 		"var a struct{ E1; *E2 }; type ( E1 interface{ f() }; E2 struct{ f int })":            {},
+ 		"var a struct{ E1; *E2 }; type ( E1 struct{ f int }; E2 struct{} ); func (E2) f() {}": {},
+ 
+-		// recursive generic types; see golang/go#52715
++		// recursive generic types; see go.dev/issue/52715
+ 		"var a T[int]; type ( T[P any] struct { *N[P] }; N[P any] struct { *T[P] } ); func (N[P]) m() {}": {{"m", []int{0, 0}, true}},
+ 		"var a T[int]; type ( T[P any] struct { *N[P] }; N[P any] struct { *T[P] } ); func (T[P]) m() {}": {{"m", []int{0}, false}},
+ 	}
+@@ -75,11 +75,11 @@ func TestNewMethodSet(t *testing.T) {
+ 		"type C interface{ f() }; func g[T C](a T){}":               {{"f", []int{0}, true}},
+ 		"type C interface{ f() }; func g[T C]() { var a T; _ = a }": {{"f", []int{0}, true}},
+ 
+-		// Issue #43621: We don't allow this anymore. Keep this code in case we
++		// go.dev/issue/43621: We don't allow this anymore. Keep this code in case we
+ 		// decide to revisit this decision.
+ 		// "type C interface{ f() }; func g[T C]() { var a struct{T}; _ = a }": {{"f", []int{0, 0}, true}},
+ 
+-		// Issue #45639: We also don't allow this anymore.
++		// go.dev/issue/45639: We also don't allow this anymore.
+ 		// "type C interface{ f() }; func g[T C]() { type Y T; var a Y; _ = a }": {},
+ 	}
+ 
+@@ -125,7 +125,7 @@ func TestNewMethodSet(t *testing.T) {
+ 	}
+ }
+ 
+-// Test for golang/go#52715
++// Test for go.dev/issue/52715
+ func TestNewMethodSet_RecursiveGeneric(t *testing.T) {
+ 	const src = `
+ package pkg
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index 586f1af880..f1b2685ec3 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -541,7 +541,7 @@ loop:
+ 	for n := range seen {
+ 		// We should never have to update the underlying type of an imported type;
+ 		// those underlying types should have been resolved during the import.
+-		// Also, doing so would lead to a race condition (was issue #31749).
++		// Also, doing so would lead to a race condition (was go.dev/issue/31749).
+ 		// Do this check always, not just in debug mode (it's cheap).
+ 		if n.obj.pkg != check.pkg {
+ 			panic("imported type with unresolved underlying type")
+diff --git a/src/go/types/named_test.go b/src/go/types/named_test.go
+index 3cbe1ef83b..55c0021398 100644
+--- a/src/go/types/named_test.go
++++ b/src/go/types/named_test.go
+@@ -86,7 +86,7 @@ func mustInstantiate(tb testing.TB, orig Type, targs ...Type) Type {
+ 	return inst
+ }
+ 
+-// Test that types do not expand infinitely, as in golang/go#52715.
++// Test that types do not expand infinitely, as in go.dev/issue/52715.
+ func TestFiniteTypeExpansion(t *testing.T) {
+ 	const src = `
+ package p
+diff --git a/src/go/types/object_test.go b/src/go/types/object_test.go
+index 912716b9e0..b0459260a1 100644
+--- a/src/go/types/object_test.go
++++ b/src/go/types/object_test.go
+@@ -55,7 +55,7 @@ func TestIsAlias(t *testing.T) {
+ }
+ 
+ // TestEmbeddedMethod checks that an embedded method is represented by
+-// the same Func Object as the original method. See also issue #34421.
++// the same Func Object as the original method. See also go.dev/issue/34421.
+ func TestEmbeddedMethod(t *testing.T) {
+ 	const src = `package p; type I interface { error }`
+ 	pkg := mustTypecheck("p", src, nil, nil)
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index f1038c151f..f7a78d2eb2 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -325,7 +325,7 @@ func (check *Checker) collectObjects() {
+ 							// (Do not use check.declare because it modifies the object
+ 							// via Object.setScopePos, which leads to a race condition;
+ 							// the object may be imported into more than one file scope
+-							// concurrently. See issue #32154.)
++							// concurrently. See go.dev/issue/32154.)
+ 							if alt := fileScope.Lookup(name); alt != nil {
+ 								check.errorf(d.spec.Name, DuplicateDecl, "%s redeclared in this block", alt.Name())
+ 								check.reportAltDecl(alt)
+@@ -637,7 +637,7 @@ func (check *Checker) packageObjects() {
+ 	// We process non-alias type declarations first, followed by alias declarations,
+ 	// and then everything else. This appears to avoid most situations where the type
+ 	// of an alias is needed before it is available.
+-	// There may still be cases where this is not good enough (see also issue #25838).
++	// There may still be cases where this is not good enough (see also go.dev/issue/25838).
+ 	// In those cases Checker.ident will report an error ("invalid use of type alias").
+ 	var aliasList []*TypeName
+ 	var othersList []Object // everything that's not a type
+diff --git a/src/go/types/sizes_test.go b/src/go/types/sizes_test.go
+index 7fbafd82c4..4964bf2cf9 100644
+--- a/src/go/types/sizes_test.go
++++ b/src/go/types/sizes_test.go
+@@ -31,7 +31,7 @@ func findStructTypeConfig(t *testing.T, src string, conf *types.Config) *types.S
+ 	return nil
+ }
+ 
+-// Issue 16316
++// go.dev/issue/16316
+ func TestMultipleSizeUse(t *testing.T) {
+ 	const src = `
+ package main
+@@ -54,7 +54,7 @@ type S struct {
+ 	}
+ }
+ 
+-// Issue 16464
++// go.dev/issue/16464
+ func TestAlignofNaclSlice(t *testing.T) {
+ 	const src = `
+ package main
+@@ -97,7 +97,7 @@ const _ = unsafe.Offsetof(struct{ x int64 }{}.x)
+ 	}
+ }
+ 
+-// Issue #53884.
++// go.dev/issue/53884.
+ func TestAtomicAlign(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t) // The Go command is needed for the importer to determine the locations of stdlib .a files.
+ 
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index c0c9fcf7dc..afc413c914 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -192,7 +192,7 @@ func TestStdFixed(t *testing.T) {
+ 		"issue22200b.go", // go/types does not have constraints on stack size
+ 		"issue25507.go",  // go/types does not have constraints on stack size
+ 		"issue20780.go",  // go/types does not have constraints on stack size
+-		"bug251.go",      // issue #34333 which was exposed with fix for #34151
++		"bug251.go",      // go.dev/issue/34333 which was exposed with fix for #34151
+ 		"issue42058a.go", // go/types does not have constraints on channel element size
+ 		"issue42058b.go", // go/types does not have constraints on channel element size
+ 		"issue48097.go",  // go/types doesn't check validity of //go:xxx directives, and non-init bodyless function
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 2a8cf6757f..3571ca0245 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -862,7 +862,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 		}
+ 
+ 		// Open the for-statement block scope now, after the range clause.
+-		// Iteration variables declared with := need to go in this scope (was issue #51437).
++		// Iteration variables declared with := need to go in this scope (was go.dev/issue/51437).
+ 		check.openScope(s, "range")
+ 		defer check.closeScope()
+ 
+diff --git a/src/go/types/struct.go b/src/go/types/struct.go
+index 2ed0e6d89a..89aea02cca 100644
+--- a/src/go/types/struct.go
++++ b/src/go/types/struct.go
+@@ -102,7 +102,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
+ 	// addInvalid adds an embedded field of invalid type to the struct for
+ 	// fields with errors; this keeps the number of struct fields in sync
+ 	// with the source as long as the fields are _ or have different names
+-	// (issue #25627).
++	// (go.dev/issue/25627).
+ 	addInvalid := func(ident *ast.Ident, pos token.Pos) {
+ 		typ = Typ[Invalid]
+ 		tag = ""
+diff --git a/src/go/types/testdata/local/shifts.go b/src/go/types/testdata/local/shifts.go
+index cf847d3e44..a9b50035d7 100644
+--- a/src/go/types/testdata/local/shifts.go
++++ b/src/go/types/testdata/local/shifts.go
+@@ -4,7 +4,7 @@
+ 
+ // The following shift tests are disabled in the shared
+ // testdata/check/shifts.go file because they don't work
+-// correctly with types2 at the moment. See issue #52080.
++// correctly with types2 at the moment. See go.dev/issue/52080.
+ // Make sure we keep testing them with go/types.
+ //
+ // TODO(gri) Once #52080 is fixed, this file can be
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index f86e73849d..926bb86677 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -208,7 +208,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 	// the method m in an interface that embeds interface I. On the other hand,
+ 	// if a method is embedded via multiple overlapping embedded interfaces, we
+ 	// don't provide a guarantee which "original m" got chosen for the embedding
+-	// interface. See also issue #34421.
++	// interface. See also go.dev/issue/34421.
+ 	//
+ 	// If we don't care to provide this identity guarantee anymore, instead of
+ 	// reusing the original method in embeddings, we can clone the method's Func
+@@ -234,7 +234,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 			check.errorf(atPos(mpos[other.(*Func)]), DuplicateDecl, "\tother declaration of %s", m.name) // secondary error, \t indented
+ 		default:
+ 			// We have a duplicate method name in an embedded (not explicitly declared) method.
+-			// Check method signatures after all types are computed (issue #33656).
++			// Check method signatures after all types are computed (go.dev/issue/33656).
+ 			// If we're pre-go1.14 (overlapping embeddings are not permitted), report that
+ 			// error here as well (even though we could do it eagerly) because it's the same
+ 			// error message.
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index cfeb7eb404..9683a0ad1d 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -161,7 +161,7 @@ func (w *typeWriter) typ(typ Type) {
+ 
+ 			// This doesn't do the right thing for embedded type
+ 			// aliases where we should print the alias name, not
+-			// the aliased type (see issue #44410).
++			// the aliased type (see go.dev/issue/44410).
+ 			if !f.embedded {
+ 				w.string(f.name)
+ 				w.byte(' ')
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 57ac3b6d48..861290098d 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -57,7 +57,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
+ 	// a cycle which needs to be reported). Otherwise we can skip the
+ 	// call and avoid a possible cycle error in favor of the more
+ 	// informative "not a type/value" error that this function's caller
+-	// will issue (see issue #25790).
++	// will issue (see go.dev/issue/25790).
+ 	typ := obj.Type()
+ 	if _, gotType := obj.(*TypeName); typ == nil || gotType && wantType {
+ 		check.objDecl(obj, def)
+@@ -97,7 +97,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
+ 
+ 	case *TypeName:
+ 		if check.isBrokenAlias(obj) {
+-			check.errorf(e, InvalidDeclCycle, "invalid use of type alias %s in recursive type (see issue #50729)", obj.name)
++			check.errorf(e, InvalidDeclCycle, "invalid use of type alias %s in recursive type (see go.dev/issue/50729)", obj.name)
+ 			return
+ 		}
+ 		x.mode = typexpr
+@@ -350,7 +350,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
+ 		// function, map, or slice."
+ 		//
+ 		// Delay this check because it requires fully setup types;
+-		// it is safe to continue in any case (was issue 6667).
++		// it is safe to continue in any case (was go.dev/issue/6667).
+ 		check.later(func() {
+ 			if !Comparable(typ.key) {
+ 				var why string
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index 58f2eedf8a..9db63ca9ec 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -359,7 +359,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
+ 
+ 	// If we get here and x or y is a type parameter, they are type parameters
+ 	// from outside our declaration list. Try to unify their core types, if any
+-	// (see issue #50755 for a test case).
++	// (see go.dev/issue/50755 for a test case).
+ 	if enableCoreTypeUnification && !u.exact {
+ 		if isTypeParam(x) && !hasName(y) {
+ 			// When considering the type parameter for unification
+diff --git a/src/go/types/union.go b/src/go/types/union.go
+index 9509afe7a4..085f507ad3 100644
+--- a/src/go/types/union.go
++++ b/src/go/types/union.go
+@@ -144,7 +144,7 @@ func parseTilde(check *Checker, tx ast.Expr) *Term {
+ 		tilde = true
+ 	}
+ 	typ := check.typ(x)
+-	// Embedding stand-alone type parameters is not permitted (issue #47127).
++	// Embedding stand-alone type parameters is not permitted (go.dev/issue/47127).
+ 	// We don't need this restriction anymore if we make the underlying type of a type
+ 	// parameter its constraint interface: if we embed a lone type parameter, we will
+ 	// simply use its underlying type (like we do for other named, embedded interfaces),

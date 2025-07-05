@@ -9,7 +9,32 @@ Date:   Tue Jun 19 20:27:08 2018 +0530
     Change-Id: I1401ecc54af26eeeee648bb8eeb5d2d3566fa60c
     Reviewed-on: https://go-review.googlesource.com/119695
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/alldocs.go               | 1 +
  src/cmd/go/internal/help/helpdoc.go | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index e7fbca2541..fd281460b1 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1012,6 +1012,7 @@
+ // in the standard user cache directory for the current operating system.
+ // Setting the GOCACHE environment variable overrides this default,
+ // and running 'go env GOCACHE' prints the current cache directory.
++// You can set the variable to 'off' to disable the cache.
+ //
+ // The go command periodically deletes cached data that has not been
+ // used recently. Running 'go clean -cache' deletes all cached data.
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index a90d19e976..ce19796558 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -658,6 +658,7 @@ The default location for cache data is a subdirectory named go-build
+ in the standard user cache directory for the current operating system.
+ Setting the GOCACHE environment variable overrides this default,
+ and running 'go env GOCACHE' prints the current cache directory.
++You can set the variable to 'off' to disable the cache.
+ 
+ The go command periodically deletes cached data that has not been
+ used recently. Running 'go clean -cache' deletes all cached data.

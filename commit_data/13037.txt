@@ -7,6 +7,29 @@ Date:   Fri May 4 13:14:09 2012 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6196047
-
+---
  test/fixedbugs/bug438.go | 16 ++++++++++++++++
  1 file changed, 16 insertions(+)
+
+diff --git a/test/fixedbugs/bug438.go b/test/fixedbugs/bug438.go
+new file mode 100644
+index 0000000000..15d3fdab89
+--- /dev/null
++++ b/test/fixedbugs/bug438.go
+@@ -0,0 +1,16 @@
++// compile
++
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Gccgo used to incorrectly give an error when compiling this.
++
++package p
++
++func F() (i int) {
++	for first := true; first; first = false {
++		i++
++	}
++	return
++}

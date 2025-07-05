@@ -9,7 +9,7 @@ Date:   Sat Aug 24 01:18:04 2013 +1000
     R=devon.odell, bradfitz
     CC=golang-dev
     https://golang.org/cl/12796050
-
+---
  src/cmd/6l/asm.c              |  4 +++
  src/cmd/6l/obj.c              | 21 ++++++++-------
  src/cmd/6l/pass.c             |  5 ++--
@@ -26,3 +26,360 @@ Date:   Sat Aug 24 01:18:04 2013 +1000
  src/pkg/go/build/deps_test.go |  2 +-
  src/pkg/go/build/syslist.go   |  2 +-
  15 files changed, 98 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 88fa67d993..31c6b83b3a 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -43,6 +43,7 @@ char linuxdynld[] = "/lib64/ld-linux-x86-64.so.2";
+ char freebsddynld[] = "/libexec/ld-elf.so.1";
+ char openbsddynld[] = "/usr/libexec/ld.so";
+ char netbsddynld[] = "/libexec/ld.elf_so";
++char dragonflydynld[] = "/libexec/ld-elf.so.2";
+ 
+ char	zeroes[32];
+ 
+@@ -672,6 +673,7 @@ asmb(void)
+ 	case Hfreebsd:
+ 	case Hnetbsd:
+ 	case Hopenbsd:
++	case Hdragonfly:
+ 		debug['8'] = 1;	/* 64-bit addresses */
+ 		break;
+ 	case Hwindows:
+@@ -700,6 +702,7 @@ asmb(void)
+ 		case Hfreebsd:
+ 		case Hnetbsd:
+ 		case Hopenbsd:
++		case Hdragonfly:
+ 			symo = rnd(HEADR+segtext.len, INITRND)+rnd(segrodata.len, INITRND)+segdata.filelen;
+ 			symo = rnd(symo, INITRND);
+ 			break;
+@@ -790,6 +793,7 @@ asmb(void)
+ 	case Hfreebsd:
+ 	case Hnetbsd:
+ 	case Hopenbsd:
++	case Hdragonfly:
+ 		asmbelf(symo);
+ 		break;
+ 	case Hwindows:
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 30775e04b1..5337ecace9 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -48,6 +48,7 @@ Header headers[] = {
+ 	"plan9", Hplan9x64,
+ 	"elf", Helf,
+ 	"darwin", Hdarwin,
++	"dragonfly", Hdragonfly,
+ 	"linux", Hlinux,
+ 	"freebsd", Hfreebsd,
+ 	"netbsd", Hnetbsd,
+@@ -62,6 +63,7 @@ Header headers[] = {
+  *	-Hplan9 -T0x200028 -R0x200000	is plan9 64-bit format
+  *	-Helf -T0x80110000 -R4096	is ELF32
+  *	-Hdarwin -Tx -Rx		is apple MH-exec
++ *	-Hdragonfly -Tx -Rx		is DragonFly elf-exec
+  *	-Hlinux -Tx -Rx			is linux elf-exec
+  *	-Hfreebsd -Tx -Rx		is FreeBSD elf-exec
+  *	-Hnetbsd -Tx -Rx		is NetBSD elf-exec
+@@ -170,7 +172,7 @@ main(int argc, char *argv[])
+ 	default:
+ 		diag("unknown -H option");
+ 		errorexit();
+-	case Hplan9x32:	/* plan 9 */
++	case Hplan9x32:		/* plan 9 */
+ 		HEADR = 32L;
+ 		if(INITTEXT == -1)
+ 			INITTEXT = 4096+HEADR;
+@@ -179,7 +181,7 @@ main(int argc, char *argv[])
+ 		if(INITRND == -1)
+ 			INITRND = 4096;
+ 		break;
+-	case Hplan9x64:	/* plan 9 */
++	case Hplan9x64:		/* plan 9 */
+ 		HEADR = 32L + 8L;
+ 		if(INITTEXT == -1)
+ 			INITTEXT = 0x200000+HEADR;
+@@ -188,7 +190,7 @@ main(int argc, char *argv[])
+ 		if(INITRND == -1)
+ 			INITRND = 0x200000;
+ 		break;
+-	case Helf:	/* elf32 executable */
++	case Helf:		/* elf32 executable */
+ 		HEADR = rnd(52L+3*32L, 16);
+ 		if(INITTEXT == -1)
+ 			INITTEXT = 0x80110000L;
+@@ -197,7 +199,7 @@ main(int argc, char *argv[])
+ 		if(INITRND == -1)
+ 			INITRND = 4096;
+ 		break;
+-	case Hdarwin:	/* apple MACH */
++	case Hdarwin:		/* apple MACH */
+ 		/*
+ 		 * OS X system constant - offset from 0(GS) to our TLS.
+ 		 * Explained in ../../pkg/runtime/cgo/gcc_darwin_amd64.c.
+@@ -212,10 +214,11 @@ main(int argc, char *argv[])
+ 		if(INITDAT == -1)
+ 			INITDAT = 0;
+ 		break;
+-	case Hlinux:	/* elf64 executable */
+-	case Hfreebsd:	/* freebsd */
+-	case Hnetbsd:	/* netbsd */
+-	case Hopenbsd:	/* openbsd */
++	case Hlinux:		/* elf64 executable */
++	case Hfreebsd:		/* freebsd */
++	case Hnetbsd:		/* netbsd */
++	case Hopenbsd:		/* openbsd */
++	case Hdragonfly:	/* dragonfly */
+ 		/*
+ 		 * ELF uses TLS offset negative from FS.
+ 		 * Translate 0(FS) and 8(FS) into -16(FS) and -8(FS).
+@@ -232,7 +235,7 @@ main(int argc, char *argv[])
+ 		if(INITRND == -1)
+ 			INITRND = 4096;
+ 		break;
+-	case Hwindows: /* PE executable */
++	case Hwindows:		/* PE executable */
+ 		peinit();
+ 		HEADR = PEFILEHEADR;
+ 		if(INITTEXT == -1)
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index 65e8127875..be1bc4f070 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -322,7 +322,7 @@ patch(void)
+ 		}
+ 		if(HEADTYPE == Hlinux || HEADTYPE == Hfreebsd
+ 		|| HEADTYPE == Hopenbsd || HEADTYPE == Hnetbsd
+-		|| HEADTYPE == Hplan9x64) {
++		|| HEADTYPE == Hplan9x64 || HEADTYPE == Hdragonfly) {
+ 			// ELF uses FS instead of GS.
+ 			if(p->from.type == D_INDIR+D_GS)
+ 				p->from.type = D_INDIR+D_FS;
+@@ -522,7 +522,8 @@ dostkoff(void)
+ 			p->as = AMOVQ;
+ 			if(HEADTYPE == Hlinux || HEADTYPE == Hfreebsd
+ 			|| HEADTYPE == Hopenbsd || HEADTYPE == Hnetbsd
+-			|| HEADTYPE == Hplan9x64)	// ELF uses FS
++			|| HEADTYPE == Hplan9x64 || HEADTYPE == Hdragonfly)
++				// ELF uses FS
+ 				p->from.type = D_INDIR+D_FS;
+ 			else
+ 				p->from.type = D_INDIR+D_GS;
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index fa43c77e50..0a74ce8bbe 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -48,6 +48,7 @@ static char *okgoarch[] = {
+ // The known operating systems.
+ static char *okgoos[] = {
+ 	"darwin",
++	"dragonfly",
+ 	"linux",
+ 	"freebsd",
+ 	"netbsd",
+diff --git a/src/cmd/dist/unix.c b/src/cmd/dist/unix.c
+index 0011e2f278..fa388e0587 100644
+--- a/src/cmd/dist/unix.c
++++ b/src/cmd/dist/unix.c
+@@ -674,6 +674,8 @@ main(int argc, char **argv)
+ 		gohostarch = "amd64";
+ #elif defined(__linux__)
+ 	gohostos = "linux";
++#elif defined(__DragonFly__)
++	gohostos = "dragonfly";
+ #elif defined(__FreeBSD__)
+ 	gohostos = "freebsd";
+ #elif defined(__FreeBSD_kernel__)
+diff --git a/src/cmd/go/signal_unix.go b/src/cmd/go/signal_unix.go
+index 124f356bf8..00c71657f5 100644
+--- a/src/cmd/go/signal_unix.go
++++ b/src/cmd/go/signal_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ package main
+ 
+diff --git a/src/cmd/ld/doc.go b/src/cmd/ld/doc.go
+index 5f7c2565ef..06b4116247 100644
+--- a/src/cmd/ld/doc.go
++++ b/src/cmd/ld/doc.go
+@@ -33,6 +33,8 @@ Options new in this version:
+ 		linker. This flag cannot be used when $GOOS is windows.
+ 	-H darwin     (only in 6l/8l)
+ 		Write Apple Mach-O binaries (default when $GOOS is darwin)
++	-H dragonfly  (only in 6l)
++		Write DragonFly ELF binaries (default when $GOOS is dragonfly)
+ 	-H linux
+ 		Write Linux ELF binaries (default when $GOOS is linux)
+ 	-H freebsd
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index 52bf333bd7..6b3638ec56 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -1189,6 +1189,9 @@ asmbelf(vlong symo)
+ 			case Hopenbsd:
+ 				interpreter = openbsddynld;
+ 				break;
++			case Hdragonfly:
++				interpreter = dragonflydynld;
++				break;
+ 			}
+ 		}
+ 		resoff -= elfinterp(sh, startva, resoff, interpreter);
+@@ -1461,6 +1464,8 @@ elfobj:
+ 		eh->ident[EI_OSABI] = ELFOSABI_NETBSD;
+ 	else if(HEADTYPE == Hopenbsd)
+ 		eh->ident[EI_OSABI] = ELFOSABI_OPENBSD;
++	else if(HEADTYPE == Hdragonfly)
++		eh->ident[EI_OSABI] = ELFOSABI_NONE;
+ 	if(PtrSize == 8)
+ 		eh->ident[EI_CLASS] = ELFCLASS64;
+ 	else
+diff --git a/src/cmd/ld/elf.h b/src/cmd/ld/elf.h
+index dee5a63835..5b2ff041a3 100644
+--- a/src/cmd/ld/elf.h
++++ b/src/cmd/ld/elf.h
+@@ -1009,6 +1009,7 @@ extern char linuxdynld[];
+ extern char freebsddynld[];
+ extern char netbsddynld[];
+ extern char openbsddynld[];
++extern char dragonflydynld[];
+ int	elfreloc1(Reloc*, vlong sectoff);
+ void	putelfsectionsyms(void);
+ 
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 0ba5203d14..7ad630e1f0 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -344,6 +344,7 @@ enum {
+ 	Hfreebsd,	// FreeBSD ELF
+ 	Hwindows,	// MS Windows PE
+ 	Hopenbsd,	// OpenBSD ELF
++	Hdragonfly,	// DragonFly ELF
+ };
+ 
+ typedef struct Header Header;
+diff --git a/src/lib9/run_unix.c b/src/lib9/run_unix.c
+index c26cf0afb7..3db33c76ef 100644
+--- a/src/lib9/run_unix.c
++++ b/src/lib9/run_unix.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ #include <u.h>
+ #include <errno.h>
+diff --git a/src/lib9/tempdir_unix.c b/src/lib9/tempdir_unix.c
+index 99a7092b68..3ce87751b2 100644
+--- a/src/lib9/tempdir_unix.c
++++ b/src/lib9/tempdir_unix.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ #include <u.h>
+ #include <dirent.h>
+diff --git a/src/libmach/dragonfly.c b/src/libmach/dragonfly.c
+new file mode 100644
+index 0000000000..43dd005e9f
+--- /dev/null
++++ b/src/libmach/dragonfly.c
+@@ -0,0 +1,62 @@
++// This is stubbed out for the moment. Will revisit when the time comes.
++#include <u.h>
++#include <libc.h>
++#include <bio.h>
++#include <mach.h>
++
++int
++ctlproc(int pid, char *msg)
++{
++	USED(pid);
++	USED(msg);
++
++	sysfatal("ctlproc unimplemented in DragonFly");
++	return -1;
++}
++
++char*
++proctextfile(int pid)
++{
++	USED(pid);
++	
++	sysfatal("proctextfile unimplemented in DragonFly");
++	return nil;
++}
++
++char*
++procstatus(int pid)
++{
++	USED(pid);
++
++	sysfatal("procstatus unimplemented in DragonFly");
++	return nil;
++}
++
++Map*
++attachproc(int pid, Fhdr *fp)
++{
++	USED(pid);
++	USED(fp);
++
++	sysfatal("attachproc unimplemented in DragonFly");
++	return nil;
++}
++
++void
++detachproc(Map *m)
++{
++	USED(m);
++
++	sysfatal("detachproc unimplemented in DragonFly");
++}
++
++int
++procthreadpids(int pid, int *p, int np)
++{
++	USED(pid);
++	USED(p);
++	USED(np);
++
++	sysfatal("procthreadpids unimplemented in DragonFly");
++	return -1;
++}
+diff --git a/src/pkg/go/build/deps_test.go b/src/pkg/go/build/deps_test.go
+index 1a8564136f..65c5efb5c5 100644
+--- a/src/pkg/go/build/deps_test.go
++++ b/src/pkg/go/build/deps_test.go
+@@ -356,7 +356,7 @@ func allowed(pkg string) map[string]bool {
+ }
+ 
+ var bools = []bool{false, true}
+-var geese = []string{"darwin", "freebsd", "linux", "netbsd", "openbsd", "plan9", "windows"}
++var geese = []string{"darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "plan9", "windows"}
+ var goarches = []string{"386", "amd64", "arm"}
+ 
+ type osPkg struct {
+diff --git a/src/pkg/go/build/syslist.go b/src/pkg/go/build/syslist.go
+index ea21f3c74b..e1fbf6330b 100644
+--- a/src/pkg/go/build/syslist.go
++++ b/src/pkg/go/build/syslist.go
+@@ -4,5 +4,5 @@
+ 
+ package build
+ 
+-const goosList = "darwin freebsd linux netbsd openbsd plan9 windows "
++const goosList = "darwin dragonfly freebsd linux netbsd openbsd plan9 windows "
+ const goarchList = "386 amd64 arm "

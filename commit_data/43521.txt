@@ -13,10 +13,166 @@ Date:   Fri Apr 10 10:45:58 2020 +0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/netpoll_aix.go     | 6 +++---
  src/runtime/netpoll_epoll.go   | 6 +++---
  src/runtime/netpoll_kqueue.go  | 6 +++---
  src/runtime/netpoll_solaris.go | 6 +++---
  src/runtime/netpoll_windows.go | 6 +++---
  5 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/runtime/netpoll_aix.go b/src/runtime/netpoll_aix.go
+index 3c1f70874d..4590ed81a6 100644
+--- a/src/runtime/netpoll_aix.go
++++ b/src/runtime/netpoll_aix.go
+@@ -45,7 +45,7 @@ var (
+ 	wrwake         int32
+ 	pendingUpdates int32
+ 
+-	netpollWakeSig uintptr // used to avoid duplicate calls of netpollBreak
++	netpollWakeSig uint32 // used to avoid duplicate calls of netpollBreak
+ )
+ 
+ func netpollinit() {
+@@ -135,7 +135,7 @@ func netpollarm(pd *pollDesc, mode int) {
+ 
+ // netpollBreak interrupts a poll.
+ func netpollBreak() {
+-	if atomic.Casuintptr(&netpollWakeSig, 0, 1) {
++	if atomic.Cas(&netpollWakeSig, 0, 1) {
+ 		b := [1]byte{0}
+ 		write(uintptr(wrwake), unsafe.Pointer(&b[0]), 1)
+ 	}
+@@ -192,7 +192,7 @@ retry:
+ 			var b [1]byte
+ 			for read(rdwake, unsafe.Pointer(&b[0]), 1) == 1 {
+ 			}
+-			atomic.Storeuintptr(&netpollWakeSig, 0)
++			atomic.Store(&netpollWakeSig, 0)
+ 		}
+ 		// Still look at the other fds even if the mode may have
+ 		// changed, as netpollBreak might have been called.
+diff --git a/src/runtime/netpoll_epoll.go b/src/runtime/netpoll_epoll.go
+index cc4c36f796..58f4fa8754 100644
+--- a/src/runtime/netpoll_epoll.go
++++ b/src/runtime/netpoll_epoll.go
+@@ -26,7 +26,7 @@ var (
+ 
+ 	netpollBreakRd, netpollBreakWr uintptr // for netpollBreak
+ 
+-	netpollWakeSig uintptr // used to avoid duplicate calls of netpollBreak
++	netpollWakeSig uint32 // used to avoid duplicate calls of netpollBreak
+ )
+ 
+ func netpollinit() {
+@@ -79,7 +79,7 @@ func netpollarm(pd *pollDesc, mode int) {
+ 
+ // netpollBreak interrupts an epollwait.
+ func netpollBreak() {
+-	if atomic.Casuintptr(&netpollWakeSig, 0, 1) {
++	if atomic.Cas(&netpollWakeSig, 0, 1) {
+ 		for {
+ 			var b byte
+ 			n := write(netpollBreakWr, unsafe.Pointer(&b), 1)
+@@ -154,7 +154,7 @@ retry:
+ 				// if blocking.
+ 				var tmp [16]byte
+ 				read(int32(netpollBreakRd), noescape(unsafe.Pointer(&tmp[0])), int32(len(tmp)))
+-				atomic.Storeuintptr(&netpollWakeSig, 0)
++				atomic.Store(&netpollWakeSig, 0)
+ 			}
+ 			continue
+ 		}
+diff --git a/src/runtime/netpoll_kqueue.go b/src/runtime/netpoll_kqueue.go
+index 2ff21d8fcb..3bd93c1f20 100644
+--- a/src/runtime/netpoll_kqueue.go
++++ b/src/runtime/netpoll_kqueue.go
+@@ -18,7 +18,7 @@ var (
+ 
+ 	netpollBreakRd, netpollBreakWr uintptr // for netpollBreak
+ 
+-	netpollWakeSig uintptr // used to avoid duplicate calls of netpollBreak
++	netpollWakeSig uint32 // used to avoid duplicate calls of netpollBreak
+ )
+ 
+ func netpollinit() {
+@@ -83,7 +83,7 @@ func netpollarm(pd *pollDesc, mode int) {
+ 
+ // netpollBreak interrupts a kevent.
+ func netpollBreak() {
+-	if atomic.Casuintptr(&netpollWakeSig, 0, 1) {
++	if atomic.Cas(&netpollWakeSig, 0, 1) {
+ 		for {
+ 			var b byte
+ 			n := write(netpollBreakWr, unsafe.Pointer(&b), 1)
+@@ -152,7 +152,7 @@ retry:
+ 				// if blocking.
+ 				var tmp [16]byte
+ 				read(int32(netpollBreakRd), noescape(unsafe.Pointer(&tmp[0])), int32(len(tmp)))
+-				atomic.Storeuintptr(&netpollWakeSig, 0)
++				atomic.Store(&netpollWakeSig, 0)
+ 			}
+ 			continue
+ 		}
+diff --git a/src/runtime/netpoll_solaris.go b/src/runtime/netpoll_solaris.go
+index 34b3ee9308..d217d5b160 100644
+--- a/src/runtime/netpoll_solaris.go
++++ b/src/runtime/netpoll_solaris.go
+@@ -88,7 +88,7 @@ var (
+ 	libc_port_dissociate,
+ 	libc_port_getn,
+ 	libc_port_alert libcFunc
+-	netpollWakeSig uintptr // used to avoid duplicate calls of netpollBreak
++	netpollWakeSig uint32 // used to avoid duplicate calls of netpollBreak
+ )
+ 
+ func errno() int32 {
+@@ -191,7 +191,7 @@ func netpollarm(pd *pollDesc, mode int) {
+ 
+ // netpollBreak interrupts a port_getn wait.
+ func netpollBreak() {
+-	if atomic.Casuintptr(&netpollWakeSig, 0, 1) {
++	if atomic.Cas(&netpollWakeSig, 0, 1) {
+ 		// Use port_alert to put portfd into alert mode.
+ 		// This will wake up all threads sleeping in port_getn on portfd,
+ 		// and cause their calls to port_getn to return immediately.
+@@ -274,7 +274,7 @@ retry:
+ 					println("runtime: port_alert failed with", e)
+ 					throw("runtime: netpoll: port_alert failed")
+ 				}
+-				atomic.Storeuintptr(&netpollWakeSig, 0)
++				atomic.Store(&netpollWakeSig, 0)
+ 			}
+ 			continue
+ 		}
+diff --git a/src/runtime/netpoll_windows.go b/src/runtime/netpoll_windows.go
+index 56a0798559..4c1cd2633a 100644
+--- a/src/runtime/netpoll_windows.go
++++ b/src/runtime/netpoll_windows.go
+@@ -35,7 +35,7 @@ type overlappedEntry struct {
+ var (
+ 	iocphandle uintptr = _INVALID_HANDLE_VALUE // completion port io handle
+ 
+-	netpollWakeSig uintptr // used to avoid duplicate calls of netpollBreak
++	netpollWakeSig uint32 // used to avoid duplicate calls of netpollBreak
+ )
+ 
+ func netpollinit() {
+@@ -67,7 +67,7 @@ func netpollarm(pd *pollDesc, mode int) {
+ }
+ 
+ func netpollBreak() {
+-	if atomic.Casuintptr(&netpollWakeSig, 0, 1) {
++	if atomic.Cas(&netpollWakeSig, 0, 1) {
+ 		if stdcall4(_PostQueuedCompletionStatus, iocphandle, 0, 0, 0) == 0 {
+ 			println("runtime: netpoll: PostQueuedCompletionStatus failed (errno=", getlasterror(), ")")
+ 			throw("runtime: netpoll: PostQueuedCompletionStatus failed")
+@@ -133,7 +133,7 @@ func netpoll(delay int64) gList {
+ 			}
+ 			handlecompletion(&toRun, op, errno, qty)
+ 		} else {
+-			atomic.Storeuintptr(&netpollWakeSig, 0)
++			atomic.Store(&netpollWakeSig, 0)
+ 			if delay == 0 {
+ 				// Forward the notification to the
+ 				// blocked poller.

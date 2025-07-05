@@ -7,6 +7,28 @@ Date:   Thu Oct 3 12:46:02 2013 -0700
     R=golang-dev, mirtchovski, r
     CC=golang-dev
     https://golang.org/cl/14227043
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 7b74e8ffb5..59bf493622 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of Sep 16, 2013",
++	"Subtitle": "Version of Oct 3, 2013",
+ 	"Path": "/doc/spec"
+ }-->
+ 
+@@ -2671,7 +2671,7 @@ sliced operand:
+ </p>
+ 
+ <pre>
+-a[2:]  // same a[2 : len(a)]
++a[2:]  // same as a[2 : len(a)]
+ a[:3]  // same as a[0 : 3]
+ a[:]   // same as a[0 : len(a)]
+ </pre>

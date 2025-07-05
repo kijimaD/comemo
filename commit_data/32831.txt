@@ -18,7 +18,7 @@ Date:   Tue Jun 6 15:08:59 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/45016
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/cgo/gcc_mmap.c    | 14 ++++++++++++++
  src/runtime/cgo/mmap.go       |  9 +++++++++
  src/runtime/cgo_mmap.go       | 20 ++++++++++++++++++++
@@ -26,3 +26,153 @@ Date:   Tue Jun 6 15:08:59 2017 -0700
  src/runtime/stubs2.go         |  2 --
  src/runtime/sys_linux_amd64.s | 15 ++++++++++++++-
  6 files changed, 60 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/cgo/gcc_mmap.c b/src/runtime/cgo/gcc_mmap.c
+index 088bcb291e..29acd3c185 100644
+--- a/src/runtime/cgo/gcc_mmap.c
++++ b/src/runtime/cgo/gcc_mmap.c
+@@ -6,6 +6,7 @@
+ 
+ #include <errno.h>
+ #include <stdint.h>
++#include <stdlib.h>
+ #include <sys/mman.h>
+ 
+ #include "libcgo.h"
+@@ -23,3 +24,16 @@ x_cgo_mmap(void *addr, uintptr_t length, int32_t prot, int32_t flags, int32_t fd
+ 	}
+ 	return p;
+ }
++
++void
++x_cgo_munmap(void *addr, uintptr_t length) {
++	int r;
++
++	_cgo_tsan_acquire();
++	r = munmap(addr, length);
++	_cgo_tsan_release();
++	if (r < 0) {
++		/* The Go runtime is not prepared for munmap to fail.  */
++		abort();
++	}
++}
+diff --git a/src/runtime/cgo/mmap.go b/src/runtime/cgo/mmap.go
+index ff983599be..ad5f6df70a 100644
+--- a/src/runtime/cgo/mmap.go
++++ b/src/runtime/cgo/mmap.go
+@@ -15,8 +15,17 @@ import _ "unsafe"
+ // C/C++ code; this permits that code to see the Go code as normal
+ // program addresses that have been initialized.
+ 
++// To support interceptors that look for both mmap and munmap,
++// also call the C library for munmap.
++
+ //go:cgo_import_static x_cgo_mmap
+ //go:linkname x_cgo_mmap x_cgo_mmap
+ //go:linkname _cgo_mmap _cgo_mmap
+ var x_cgo_mmap byte
+ var _cgo_mmap = &x_cgo_mmap
++
++//go:cgo_import_static x_cgo_munmap
++//go:linkname x_cgo_munmap x_cgo_munmap
++//go:linkname _cgo_munmap _cgo_munmap
++var x_cgo_munmap byte
++var _cgo_munmap = &x_cgo_munmap
+diff --git a/src/runtime/cgo_mmap.go b/src/runtime/cgo_mmap.go
+index 5a2a1a2c37..aa531b9020 100644
+--- a/src/runtime/cgo_mmap.go
++++ b/src/runtime/cgo_mmap.go
+@@ -15,6 +15,11 @@ import "unsafe"
+ //go:linkname _cgo_mmap _cgo_mmap
+ var _cgo_mmap unsafe.Pointer
+ 
++// _cgo_munmap is filled in by runtime/cgo when it is linked into the
++// program, so it is only non-nil when using cgo.
++//go:linkname _cgo_munmap _cgo_munmap
++var _cgo_munmap unsafe.Pointer
++
+ func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer {
+ 	if _cgo_mmap != nil {
+ 		// Make ret a uintptr so that writing to it in the
+@@ -32,9 +37,24 @@ func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) uns
+ 	return sysMmap(addr, n, prot, flags, fd, off)
+ }
+ 
++func munmap(addr unsafe.Pointer, n uintptr) {
++	if _cgo_munmap != nil {
++		systemstack(func() { callCgoMunmap(addr, n) })
++		return
++	}
++	sysMunmap(addr, n)
++}
++
+ // sysMmap calls the mmap system call. It is implemented in assembly.
+ func sysMmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer
+ 
+ // callCgoMmap calls the mmap function in the runtime/cgo package
+ // using the GCC calling convention. It is implemented in assembly.
+ func callCgoMmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) uintptr
++
++// sysMunmap calls the munmap system call. It is implemented in assembly.
++func sysMunmap(addr unsafe.Pointer, n uintptr)
++
++// callCgoMunmap calls the munmap function in the runtime/cgo package
++// using the GCC calling convention. It is implemented in assembly.
++func callCgoMunmap(addr unsafe.Pointer, n uintptr)
+diff --git a/src/runtime/mmap.go b/src/runtime/mmap.go
+index 53617e41e4..62f3780db8 100644
+--- a/src/runtime/mmap.go
++++ b/src/runtime/mmap.go
+@@ -17,3 +17,6 @@ import "unsafe"
+ // assembly routine; the higher bits (if required), should be provided
+ // by the assembly routine as 0.
+ func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer
++
++// munmap calls the munmap system call. It is implemented in assembly.
++func munmap(addr unsafe.Pointer, n uintptr)
+diff --git a/src/runtime/stubs2.go b/src/runtime/stubs2.go
+index 95db924d5a..8390d8fca9 100644
+--- a/src/runtime/stubs2.go
++++ b/src/runtime/stubs2.go
+@@ -18,8 +18,6 @@ func exit(code int32)
+ func nanotime() int64
+ func usleep(usec uint32)
+ 
+-func munmap(addr unsafe.Pointer, n uintptr)
+-
+ //go:noescape
+ func write(fd uintptr, p unsafe.Pointer, n int32) int32
+ 
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index bf539aa0da..e0dc3e1264 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -393,7 +393,7 @@ TEXT runtime·callCgoMmap(SB),NOSPLIT,$16
+ 	MOVQ	AX, ret+32(FP)
+ 	RET
+ 
+-TEXT runtime·munmap(SB),NOSPLIT,$0
++TEXT runtime·sysMunmap(SB),NOSPLIT,$0
+ 	MOVQ	addr+0(FP), DI
+ 	MOVQ	n+8(FP), SI
+ 	MOVQ	$11, AX	// munmap
+@@ -403,6 +403,19 @@ TEXT runtime·munmap(SB),NOSPLIT,$0
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
++// Call the function stored in _cgo_munmap using the GCC calling convention.
++// This must be called on the system stack.
++TEXT runtime·callCgoMunmap(SB),NOSPLIT,$16-16
++	MOVQ	addr+0(FP), DI
++	MOVQ	n+8(FP), SI
++	MOVQ	_cgo_munmap(SB), AX
++	MOVQ	SP, BX
++	ANDQ	$~15, SP	// alignment as per amd64 psABI
++	MOVQ	BX, 0(SP)
++	CALL	AX
++	MOVQ	0(SP), SP
++	RET
++
+ TEXT runtime·madvise(SB),NOSPLIT,$0
+ 	MOVQ	addr+0(FP), DI
+ 	MOVQ	n+8(FP), SI

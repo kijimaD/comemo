@@ -55,7 +55,7 @@ Date:   Tue Oct 26 10:06:55 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/assignments.go |  2 +-
  src/cmd/compile/internal/types2/builtins.go    | 30 ++++++++-
  src/cmd/compile/internal/types2/call.go        |  2 +-
@@ -72,3 +72,590 @@ Date:   Tue Oct 26 10:06:55 2021 -0700
  src/cmd/compile/internal/types2/typeset.go     |  4 ++
  src/cmd/compile/internal/types2/typexpr.go     | 11 +++-
  15 files changed, 226 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index da7f7dfa5c..a3d32093d6 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -43,7 +43,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
+ 				x.mode = invalid
+ 				return
+ 			}
+-		} else if T == nil || IsInterface(T) {
++		} else if T == nil || IsInterface(T) && !isTypeParam(T) {
+ 			target = Default(x.typ)
+ 		}
+ 		newType, val, code := check.implicitTypeAndValue(x, target)
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 99fe440340..c4b897e80f 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -178,7 +178,28 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 				mode = value
+ 			}
+ 
++		case *Interface:
++			if tparamIsIface && isTypeParam(x.typ) {
++				if t.typeSet().underIs(func(t Type) bool {
++					switch t := arrayPtrDeref(t).(type) {
++					case *Basic:
++						if isString(t) && id == _Len {
++							return true
++						}
++					case *Array, *Slice, *Chan:
++						return true
++					case *Map:
++						if id == _Len {
++							return true
++						}
++					}
++					return false
++				}) {
++					mode = value
++				}
++			}
+ 		case *TypeParam:
++			assert(!tparamIsIface)
+ 			if t.underIs(func(t Type) bool {
+ 				switch t := arrayPtrDeref(t).(type) {
+ 				case *Basic:
+@@ -788,16 +809,19 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ // hasVarSize reports if the size of type t is variable due to type parameters.
+ func hasVarSize(t Type) bool {
+-	switch t := under(t).(type) {
++	switch u := under(t).(type) {
+ 	case *Array:
+-		return hasVarSize(t.elem)
++		return hasVarSize(u.elem)
+ 	case *Struct:
+-		for _, f := range t.fields {
++		for _, f := range u.fields {
+ 			if hasVarSize(f.typ) {
+ 				return true
+ 			}
+ 		}
++	case *Interface:
++		return isTypeParam(t)
+ 	case *TypeParam:
++		assert(!tparamIsIface)
+ 		return true
+ 	case *Named, *Union:
+ 		unreachable()
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index b778d54b32..fef493b2ae 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -132,7 +132,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
+ 		case 1:
+ 			check.expr(x, call.ArgList[0])
+ 			if x.mode != invalid {
+-				if t, _ := under(T).(*Interface); t != nil {
++				if t, _ := under(T).(*Interface); t != nil && !isTypeParam(T) {
+ 					if !t.IsMethodSet() {
+ 						check.errorf(call, "cannot use interface %s in conversion (contains specific type constraints or is comparable)", T)
+ 						break
+diff --git a/src/cmd/compile/internal/types2/conversions.go b/src/cmd/compile/internal/types2/conversions.go
+index cc7b52099c..47f9ac0a5a 100644
+--- a/src/cmd/compile/internal/types2/conversions.go
++++ b/src/cmd/compile/internal/types2/conversions.go
+@@ -102,7 +102,7 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 		//   (See also the TODO below.)
+ 		if x.typ == Typ[UntypedNil] {
+ 			// ok
+-		} else if IsInterface(T) || constArg && !isConstType(T) {
++		} else if IsInterface(T) && !isTypeParam(T) || constArg && !isConstType(T) {
+ 			final = Default(x.typ)
+ 		} else if isInteger(x.typ) && allString(T) {
+ 			final = x.typ
+@@ -133,19 +133,23 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 		return true
+ 	}
+ 
+-	// "V and T have identical underlying types if tags are ignored"
++	// "V and T have identical underlying types if tags are ignored
++	// and V and T are not type parameters"
+ 	V := x.typ
+ 	Vu := under(V)
+ 	Tu := under(T)
+-	if IdenticalIgnoreTags(Vu, Tu) {
++	Vp, _ := V.(*TypeParam)
++	Tp, _ := T.(*TypeParam)
++	if IdenticalIgnoreTags(Vu, Tu) && Vp == nil && Tp == nil {
+ 		return true
+ 	}
+ 
+ 	// "V and T are unnamed pointer types and their pointer base types
+-	// have identical underlying types if tags are ignored"
++	// have identical underlying types if tags are ignored
++	// and their pointer base types are not type parameters"
+ 	if V, ok := V.(*Pointer); ok {
+ 		if T, ok := T.(*Pointer); ok {
+-			if IdenticalIgnoreTags(under(V.base), under(T.base)) {
++			if IdenticalIgnoreTags(under(V.base), under(T.base)) && !isTypeParam(V.base) && !isTypeParam(T.base) {
+ 				return true
+ 			}
+ 		}
+@@ -204,8 +208,6 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 	}
+ 
+ 	// optimization: if we don't have type parameters, we're done
+-	Vp, _ := V.(*TypeParam)
+-	Tp, _ := T.(*TypeParam)
+ 	if Vp == nil && Tp == nil {
+ 		return false
+ 	}
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 77e497b9cc..d72ee8c340 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -658,7 +658,11 @@ func (check *Checker) updateExprVal(x syntax.Expr, val constant.Value) {
+ func (check *Checker) convertUntyped(x *operand, target Type) {
+ 	newType, val, code := check.implicitTypeAndValue(x, target)
+ 	if code != 0 {
+-		check.invalidConversion(code, x, safeUnderlying(target))
++		t := target
++		if !tparamIsIface || !isTypeParam(target) {
++			t = safeUnderlying(target)
++		}
++		check.invalidConversion(code, x, t)
+ 		x.mode = invalid
+ 		return
+ 	}
+@@ -739,6 +743,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
+ 		}
+ 	case *TypeParam:
+ 		// TODO(gri) review this code - doesn't look quite right
++		assert(!tparamIsIface)
+ 		ok := u.underIs(func(t Type) bool {
+ 			if t == nil {
+ 				return false
+@@ -750,6 +755,20 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
+ 			return nil, nil, _InvalidUntypedConversion
+ 		}
+ 	case *Interface:
++		if tparamIsIface && isTypeParam(target) {
++			// TODO(gri) review this code - doesn't look quite right
++			ok := u.typeSet().underIs(func(t Type) bool {
++				if t == nil {
++					return false
++				}
++				target, _, _ := check.implicitTypeAndValue(x, t)
++				return target != nil
++			})
++			if !ok {
++				return nil, nil, _InvalidUntypedConversion
++			}
++			break
++		}
+ 		// Update operand types to the default type rather than the target
+ 		// (interface) type: values must have concrete dynamic types.
+ 		// Untyped nil was handled upfront.
+@@ -989,8 +1008,9 @@ func (check *Checker) binary(x *operand, e syntax.Expr, lhs, rhs syntax.Expr, op
+ 		return
+ 	}
+ 
++	// TODO(gri) make canMix more efficient - called for each binary operation
+ 	canMix := func(x, y *operand) bool {
+-		if IsInterface(x.typ) || IsInterface(y.typ) {
++		if IsInterface(x.typ) && !isTypeParam(x.typ) || IsInterface(y.typ) && !isTypeParam(y.typ) {
+ 			return true
+ 		}
+ 		if allBoolean(x.typ) != allBoolean(y.typ) {
+@@ -1248,7 +1268,11 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 		case hint != nil:
+ 			// no composite literal type present - use hint (element type of enclosing type)
+ 			typ = hint
+-			base, _ = deref(under(typ)) // *T implies &T{}
++			base = typ
++			if !isTypeParam(typ) {
++				base = under(typ)
++			}
++			base, _ = deref(base) // *T implies &T{}
+ 
+ 		default:
+ 			// TODO(gri) provide better error messages depending on context
+diff --git a/src/cmd/compile/internal/types2/index.go b/src/cmd/compile/internal/types2/index.go
+index 10fb57c321..97d153dfe4 100644
+--- a/src/cmd/compile/internal/types2/index.go
++++ b/src/cmd/compile/internal/types2/index.go
+@@ -99,8 +99,94 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
+ 		x.expr = e
+ 		return false
+ 
++	case *Interface:
++		// Note: The body of this 'if' statement is the same as the body
++		//       of the case for type parameters below. If we keep both
++		//       these branches we should factor out the code.
++		if tparamIsIface && isTypeParam(x.typ) {
++			// TODO(gri) report detailed failure cause for better error messages
++			var key, elem Type // key != nil: we must have all maps
++			mode := variable   // non-maps result mode
++			// TODO(gri) factor out closure and use it for non-typeparam cases as well
++			if typ.typeSet().underIs(func(u Type) bool {
++				l := int64(-1) // valid if >= 0
++				var k, e Type  // k is only set for maps
++				switch t := u.(type) {
++				case *Basic:
++					if isString(t) {
++						e = universeByte
++						mode = value
++					}
++				case *Array:
++					l = t.len
++					e = t.elem
++					if x.mode != variable {
++						mode = value
++					}
++				case *Pointer:
++					if t, _ := under(t.base).(*Array); t != nil {
++						l = t.len
++						e = t.elem
++					}
++				case *Slice:
++					e = t.elem
++				case *Map:
++					k = t.key
++					e = t.elem
++				}
++				if e == nil {
++					return false
++				}
++				if elem == nil {
++					// first type
++					length = l
++					key, elem = k, e
++					return true
++				}
++				// all map keys must be identical (incl. all nil)
++				// (that is, we cannot mix maps with other types)
++				if !Identical(key, k) {
++					return false
++				}
++				// all element types must be identical
++				if !Identical(elem, e) {
++					return false
++				}
++				// track the minimal length for arrays, if any
++				if l >= 0 && l < length {
++					length = l
++				}
++				return true
++			}) {
++				// For maps, the index expression must be assignable to the map key type.
++				if key != nil {
++					index := check.singleIndex(e)
++					if index == nil {
++						x.mode = invalid
++						return false
++					}
++					var k operand
++					check.expr(&k, index)
++					check.assignment(&k, key, "map index")
++					// ok to continue even if indexing failed - map element type is known
++					x.mode = mapindex
++					x.typ = elem
++					x.expr = e
++					return false
++				}
++
++				// no maps
++				valid = true
++				x.mode = mode
++				x.typ = elem
++			}
++		}
+ 	case *TypeParam:
++		// Note: The body of this case is the same as the body of the 'if'
++		//       statement in the interface case above. If we keep both
++		//       these branches we should factor out the code.
+ 		// TODO(gri) report detailed failure cause for better error messages
++		assert(!tparamIsIface)
+ 		var key, elem Type // key != nil: we must have all maps
+ 		mode := variable   // non-maps result mode
+ 		// TODO(gri) factor out closure and use it for non-typeparam cases as well
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 8ed5ca837a..cf6c6c7111 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -451,11 +451,11 @@ func (check *Checker) missingMethodReason(V, T Type, m, wrongType *Func) string
+ 		// an extra formatting option for types2.Type that doesn't print out
+ 		// 'func'.
+ 		r = strings.Replace(r, "^^func", "", -1)
+-	} else if IsInterface(T) {
++	} else if IsInterface(T) && !isTypeParam(T) {
+ 		if isInterfacePtr(V) {
+ 			r = fmt.Sprintf("(%s is pointer to interface, not interface)", V)
+ 		}
+-	} else if isInterfacePtr(T) {
++	} else if isInterfacePtr(T) && !isTypeParam(T) {
+ 		r = fmt.Sprintf("(%s is pointer to interface, not interface)", T)
+ 	}
+ 	if r == "" {
+@@ -466,7 +466,7 @@ func (check *Checker) missingMethodReason(V, T Type, m, wrongType *Func) string
+ 
+ func isInterfacePtr(T Type) bool {
+ 	p, _ := under(T).(*Pointer)
+-	return p != nil && IsInterface(p.base)
++	return p != nil && IsInterface(p.base) && !isTypeParam(p.base)
+ }
+ 
+ // assertableTo reports whether a value of type V can be asserted to have type T.
+diff --git a/src/cmd/compile/internal/types2/operand.go b/src/cmd/compile/internal/types2/operand.go
+index fee154a6bb..8a905f3fd0 100644
+--- a/src/cmd/compile/internal/types2/operand.go
++++ b/src/cmd/compile/internal/types2/operand.go
+@@ -282,13 +282,14 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 	// Vu is typed
+ 
+ 	// x's type V and T have identical underlying types
+-	// and at least one of V or T is not a named type.
+-	if Identical(Vu, Tu) && (!hasName(V) || !hasName(T)) {
++	// and at least one of V or T is not a named type
++	// and neither V nor T is a type parameter.
++	if Identical(Vu, Tu) && (!hasName(V) || !hasName(T)) && Vp == nil && Tp == nil {
+ 		return true, 0
+ 	}
+ 
+ 	// T is an interface type and x implements T and T is not a type parameter
+-	if Ti, ok := Tu.(*Interface); ok {
++	if Ti, ok := Tu.(*Interface); ok && Tp == nil {
+ 		if m, wrongType := check.missingMethod(V, Ti, true); m != nil /* !Implements(V, Ti) */ {
+ 			if reason != nil {
+ 				if check.conf.CompilerErrorMessages {
+@@ -318,7 +319,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 			*reason = check.sprintf("%s does not implement %s (%s is pointer to interface, not interface)", x.typ, T, T)
+ 			return false, _InvalidIfaceAssign
+ 		}
+-		if Vi, _ := Vu.(*Interface); Vi != nil {
++		if Vi, _ := Vu.(*Interface); Vi != nil && Vp == nil {
+ 			if m, _ := check.missingMethod(T, Vi, true); m == nil {
+ 				// T implements Vi, so give hint about type assertion.
+ 				if reason != nil {
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index ab490372fc..62db3861ed 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -47,13 +47,10 @@ func allNumericOrString(t Type) bool { return allBasic(t, IsNumeric|IsString) }
+ // for all specific types of the type parameter's type set.
+ // allBasic(t, info) is an optimized version of isBasic(structuralType(t), info).
+ func allBasic(t Type, info BasicInfo) bool {
+-	switch u := under(t).(type) {
+-	case *Basic:
+-		return u.info&info != 0
+-	case *TypeParam:
+-		return u.is(func(t *term) bool { return t != nil && isBasic(t.typ, info) })
++	if tpar, _ := t.(*TypeParam); tpar != nil {
++		return tpar.is(func(t *term) bool { return t != nil && isBasic(t.typ, info) })
+ 	}
+-	return false
++	return isBasic(t, info)
+ }
+ 
+ // hasName reports whether t has a name. This includes
+@@ -122,7 +119,7 @@ func comparable(T Type, seen map[Type]bool) bool {
+ 		// assume invalid types to be comparable
+ 		// to avoid follow-up errors
+ 		return t.kind != UntypedNil
+-	case *Pointer, *Interface, *Chan:
++	case *Pointer, *Chan:
+ 		return true
+ 	case *Struct:
+ 		for _, f := range t.fields {
+@@ -133,7 +130,13 @@ func comparable(T Type, seen map[Type]bool) bool {
+ 		return true
+ 	case *Array:
+ 		return comparable(t.elem, seen)
++	case *Interface:
++		if tparamIsIface && isTypeParam(T) {
++			return t.IsComparable()
++		}
++		return true
+ 	case *TypeParam:
++		assert(!tparamIsIface)
+ 		return t.iface().IsComparable()
+ 	}
+ 	return false
+@@ -144,9 +147,17 @@ func hasNil(t Type) bool {
+ 	switch u := under(t).(type) {
+ 	case *Basic:
+ 		return u.kind == UnsafePointer
+-	case *Slice, *Pointer, *Signature, *Interface, *Map, *Chan:
++	case *Slice, *Pointer, *Signature, *Map, *Chan:
++		return true
++	case *Interface:
++		if tparamIsIface && isTypeParam(t) {
++			return u.typeSet().underIs(func(u Type) bool {
++				return u != nil && hasNil(u)
++			})
++		}
+ 		return true
+ 	case *TypeParam:
++		assert(!tparamIsIface)
+ 		return u.underIs(func(u Type) bool {
+ 			return u != nil && hasNil(u)
+ 		})
+diff --git a/src/cmd/compile/internal/types2/sizes.go b/src/cmd/compile/internal/types2/sizes.go
+index 609b6f585e..b23cec435d 100644
+--- a/src/cmd/compile/internal/types2/sizes.go
++++ b/src/cmd/compile/internal/types2/sizes.go
+@@ -67,6 +67,7 @@ func (s *StdSizes) Alignof(T Type) int64 {
+ 	case *Slice, *Interface:
+ 		// Multiword data structures are effectively structs
+ 		// in which each element has size WordSize.
++		assert(!tparamIsIface || !isTypeParam(T))
+ 		return s.WordSize
+ 	case *Basic:
+ 		// Strings are like slices and interfaces.
+diff --git a/src/cmd/compile/internal/types2/struct.go b/src/cmd/compile/internal/types2/struct.go
+index 8c39f5e3c4..3e271039d1 100644
+--- a/src/cmd/compile/internal/types2/struct.go
++++ b/src/cmd/compile/internal/types2/struct.go
+@@ -144,21 +144,26 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
+ 			embeddedPos := pos
+ 			check.later(func() {
+ 				t, isPtr := deref(embeddedTyp)
+-				switch t := under(t).(type) {
++				switch u := under(t).(type) {
+ 				case *Basic:
+ 					if t == Typ[Invalid] {
+ 						// error was reported before
+ 						return
+ 					}
+ 					// unsafe.Pointer is treated like a regular pointer
+-					if t.kind == UnsafePointer {
++					if u.kind == UnsafePointer {
+ 						check.error(embeddedPos, "embedded field type cannot be unsafe.Pointer")
+ 					}
+ 				case *Pointer:
+ 					check.error(embeddedPos, "embedded field type cannot be a pointer")
+ 				case *TypeParam:
++					assert(!tparamIsIface)
+ 					check.error(embeddedPos, "embedded field type cannot be a (pointer to a) type parameter")
+ 				case *Interface:
++					if tparamIsIface && isTypeParam(t) {
++						check.error(embeddedPos, "embedded field type cannot be a (pointer to a) type parameter")
++						break
++					}
+ 					if isPtr {
+ 						check.error(embeddedPos, "embedded field type cannot be a pointer to an interface")
+ 					}
+diff --git a/src/cmd/compile/internal/types2/type.go b/src/cmd/compile/internal/types2/type.go
+index ba260d2b7d..77dc7db896 100644
+--- a/src/cmd/compile/internal/types2/type.go
++++ b/src/cmd/compile/internal/types2/type.go
+@@ -21,8 +21,13 @@ type Type interface {
+ // under must only be called when a type is known
+ // to be fully set up.
+ func under(t Type) Type {
+-	if n := asNamed(t); n != nil {
+-		return n.under()
++	switch t := t.(type) {
++	case *Named:
++		return t.under()
++	case *TypeParam:
++		if tparamIsIface {
++			return t.iface()
++		}
+ 	}
+ 	return t
+ }
+diff --git a/src/cmd/compile/internal/types2/typeparam.go b/src/cmd/compile/internal/types2/typeparam.go
+index 099bc429c3..e430319476 100644
+--- a/src/cmd/compile/internal/types2/typeparam.go
++++ b/src/cmd/compile/internal/types2/typeparam.go
+@@ -6,6 +6,12 @@ package types2
+ 
+ import "sync/atomic"
+ 
++// If set, the underlying type of a type parameter is
++// is the underlying type of its type constraint, i.e.,
++// an interface. With that, a type parameter satisfies
++// isInterface.
++const tparamIsIface = false
++
+ // Note: This is a uint32 rather than a uint64 because the
+ // respective 64 bit atomic instructions are not available
+ // on all platforms.
+@@ -69,13 +75,21 @@ func (t *TypeParam) SetConstraint(bound Type) {
+ 	t.bound = bound
+ }
+ 
+-func (t *TypeParam) Underlying() Type { return t }
+-func (t *TypeParam) String() string   { return TypeString(t, nil) }
++func (t *TypeParam) Underlying() Type {
++	if tparamIsIface {
++		return t.iface()
++	}
++	return t
++}
++
++func (t *TypeParam) String() string { return TypeString(t, nil) }
+ 
+ // ----------------------------------------------------------------------------
+ // Implementation
+ 
+ // iface returns the constraint interface of t.
++// TODO(gri) If we make tparamIsIface the default, this should be renamed to under
++//           (similar to Named.under).
+ func (t *TypeParam) iface() *Interface {
+ 	bound := t.bound
+ 
+@@ -88,8 +102,13 @@ func (t *TypeParam) iface() *Interface {
+ 			return &emptyInterface
+ 		}
+ 	case *Interface:
++		if tparamIsIface && isTypeParam(bound) {
++			// error is reported in Checker.collectTypeParams
++			return &emptyInterface
++		}
+ 		ityp = u
+ 	case *TypeParam:
++		assert(!tparamIsIface)
+ 		// error is reported in Checker.collectTypeParams
+ 		return &emptyInterface
+ 	}
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index 882f387c3c..54a8266838 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -268,6 +268,8 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
+ 		var terms termlist
+ 		switch u := under(typ).(type) {
+ 		case *Interface:
++			// For now we don't permit type parameters as constraints.
++			assert(!isTypeParam(typ))
+ 			tset := computeInterfaceTypeSet(check, pos, u)
+ 			// If typ is local, an error was already reported where typ is specified/defined.
+ 			if check != nil && check.isImportedConstraint(typ) && !check.allowVersion(check.pkg, 1, 18) {
+@@ -367,6 +369,8 @@ func computeUnionTypeSet(check *Checker, pos syntax.Pos, utyp *Union) *_TypeSet
+ 		var terms termlist
+ 		switch u := under(t.typ).(type) {
+ 		case *Interface:
++			// For now we don't permit type parameters as constraints.
++			assert(!isTypeParam(t.typ))
+ 			terms = computeInterfaceTypeSet(check, pos, u).terms
+ 		default:
+ 			if t.typ == Typ[Invalid] {
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index a2585179ee..e22b1ff0a0 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -144,9 +144,14 @@ func (check *Checker) typ(e syntax.Expr) Type {
+ func (check *Checker) varType(e syntax.Expr) Type {
+ 	typ := check.definedType(e, nil)
+ 
+-	// We don't want to call under() (via toInterface) or complete interfaces while we
+-	// are in the middle of type-checking parameter declarations that might belong to
+-	// interface methods. Delay this check to the end of type-checking.
++	// If we have a type parameter there's nothing to do.
++	if isTypeParam(typ) {
++		return typ
++	}
++
++	// We don't want to call under() or complete interfaces while we are in
++	// the middle of type-checking parameter declarations that might belong
++	// to interface methods. Delay this check to the end of type-checking.
+ 	check.later(func() {
+ 		if t, _ := under(typ).(*Interface); t != nil {
+ 			pos := syntax.StartPos(e)

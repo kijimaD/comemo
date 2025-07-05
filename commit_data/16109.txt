@@ -13,9 +13,354 @@ Date:   Fri Apr 5 21:24:07 2013 +0200
     R=nigeltao, ality, daniel.morsing, iant, gri, r
     CC=golang-dev
     https://golang.org/cl/8287043
-
+---
  src/cmd/gc/unsafe.c          |  40 +++++++++++--
  test/fixedbugs/issue4909a.go |  35 +++++++++++
  test/fixedbugs/issue4909b.go |  80 +++++++++++++++++++++++++
  test/sizeof.go               | 137 ++++++++++++++++++++++++++++++++++++++++++-
  4 files changed, 286 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/gc/unsafe.c b/src/cmd/gc/unsafe.c
+index 95200ad415..6b26cde266 100644
+--- a/src/cmd/gc/unsafe.c
++++ b/src/cmd/gc/unsafe.c
+@@ -16,7 +16,7 @@
+ Node*
+ unsafenmagic(Node *nn)
+ {
+-	Node *r, *n;
++	Node *r, *n, *base, *r1;
+ 	Sym *s;
+ 	Type *t, *tr;
+ 	long v;
+@@ -49,11 +49,43 @@ unsafenmagic(Node *nn)
+ 		goto yes;
+ 	}
+ 	if(strcmp(s->name, "Offsetof") == 0) {
+-		typecheck(&r, Erv);
+-		if(r->op != ODOT && r->op != ODOTPTR)
++		// must be a selector.
++		if(r->op != OXDOT)
+ 			goto bad;
++		// Remember base of selector to find it back after dot insertion.
++		// Since r->left may be mutated by typechecking, check it explicitly
++		// first to track it correctly.
++		typecheck(&r->left, Erv);
++		base = r->left;
+ 		typecheck(&r, Erv);
+-		v = r->xoffset;
++		switch(r->op) {
++		case ODOT:
++		case ODOTPTR:
++			break;
++		case OCALLPART:
++			yyerror("invalid expression %N: argument is a method value", nn);
++			v = 0;
++			goto ret;
++		default:
++			goto bad;
++		}
++		v = 0;
++		// add offsets for inserted dots.
++		for(r1=r; r1->left!=base; r1=r1->left) {
++			switch(r1->op) {
++			case ODOT:
++				v += r1->xoffset;
++				break;
++			case ODOTPTR:
++				yyerror("invalid expression %N: selector implies indirection of embedded %N", nn, r1->left);
++				goto ret;
++			default:
++				dump("unsafenmagic", r);
++				fatal("impossible %#O node after dot insertion", r1->op);
++				goto bad;
++			}
++		}
++		v += r1->xoffset;
+ 		goto yes;
+ 	}
+ 	if(strcmp(s->name, "Alignof") == 0) {
+diff --git a/test/fixedbugs/issue4909a.go b/test/fixedbugs/issue4909a.go
+new file mode 100644
+index 0000000000..aefe2d6455
+--- /dev/null
++++ b/test/fixedbugs/issue4909a.go
+@@ -0,0 +1,35 @@
++// errorcheck
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 4909: compiler incorrectly accepts unsafe.Offsetof(t.x)
++// where x is a field of an embedded pointer field.
++
++package p
++
++import (
++	"unsafe"
++)
++
++type T struct {
++	A int
++	*B
++}
++
++func (t T) Method() {}
++
++type B struct {
++	X, Y int
++}
++
++var t T
++var p *T
++
++const N1 = unsafe.Offsetof(t.X)      // ERROR "indirection"
++const N2 = unsafe.Offsetof(p.X)      // ERROR "indirection"
++const N3 = unsafe.Offsetof(t.B.X)    // valid
++const N4 = unsafe.Offsetof(p.B.X)    // valid
++const N5 = unsafe.Offsetof(t.Method) // ERROR "method value"
++const N6 = unsafe.Offsetof(p.Method) // ERROR "method value"
+diff --git a/test/fixedbugs/issue4909b.go b/test/fixedbugs/issue4909b.go
+new file mode 100644
+index 0000000000..0f594e3db6
+--- /dev/null
++++ b/test/fixedbugs/issue4909b.go
+@@ -0,0 +1,80 @@
++// errorcheckoutput
++
++package main
++
++import "fmt"
++
++// We are going to define 256 types T(n),
++// such that T(n) embeds T(2n) and *T(2n+1).
++
++func main() {
++	fmt.Printf("// errorcheck\n\n")
++	fmt.Printf("package p\n\n")
++	fmt.Println(`import "unsafe"`)
++
++	// Dump types.
++	for n := 1; n < 256; n++ {
++		writeStruct(n)
++	}
++	// Dump leaves
++	for n := 256; n < 512; n++ {
++		fmt.Printf("type T%d int\n", n)
++	}
++
++	fmt.Printf("var t T1\n")
++	fmt.Printf("var p *T1\n")
++
++	// Simple selectors
++	for n := 2; n < 256; n++ {
++		writeDot(n)
++	}
++
++	// Double selectors
++	for n := 128; n < 256; n++ {
++		writeDot(n/16, n)
++	}
++
++	// Triple selectors
++	for n := 128; n < 256; n++ {
++		writeDot(n/64, n/8, n)
++	}
++}
++
++const structTpl = `
++type T%d struct {
++	A%d int
++	T%d
++	*T%d
++}
++`
++
++func writeStruct(n int) {
++	fmt.Printf(structTpl, n, n, 2*n, 2*n+1)
++}
++
++func writeDot(ns ...int) {
++	for _, root := range []string{"t", "p"} {
++		fmt.Printf("const _ = unsafe.Offsetof(%s", root)
++		for _, n := range ns {
++			fmt.Printf(".T%d", n)
++		}
++		// Does it involve an indirection?
++		nlast := ns[len(ns)-1]
++		nprev := 1
++		if len(ns) > 1 {
++			nprev = ns[len(ns)-2]
++		}
++		isIndirect := false
++		for n := nlast / 2; n > nprev; n /= 2 {
++			if n%2 == 1 {
++				isIndirect = true
++				break
++			}
++		}
++		fmt.Print(")")
++		if isIndirect {
++			fmt.Print(` // ERROR "indirection"`)
++		}
++		fmt.Print("\n")
++	}
++}
+diff --git a/test/sizeof.go b/test/sizeof.go
+index a6abdd5c65..9aa95677d4 100644
+--- a/test/sizeof.go
++++ b/test/sizeof.go
+@@ -4,8 +4,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Test unsafe.Sizeof, unsafe.Alignof, and unsafe.Offsetof all return uintptr.
+-
+ package main
+ 
+ import "unsafe"
+@@ -18,8 +16,143 @@ var t T
+ 
+ func isUintptr(uintptr) {}
+ 
++type T2 struct {
++	A int32
++	U2
++}
++
++type U2 struct {
++	B int32
++	C int32
++}
++
++var t2 T2
++var p2 *T2
++
+ func main() {
++	// Test unsafe.Sizeof, unsafe.Alignof, and unsafe.Offsetof all return uintptr.
+ 	isUintptr(unsafe.Sizeof(t))
+ 	isUintptr(unsafe.Alignof(t))
+ 	isUintptr(unsafe.Offsetof(t.X))
++
++	// Test correctness of Offsetof with respect to embedded fields (issue 4909).
++	if unsafe.Offsetof(t2.C) != 8 {
++		println(unsafe.Offsetof(t2.C), "!= 8")
++		panic("unsafe.Offsetof(t2.C) != 8")
++	}
++	if unsafe.Offsetof(p2.C) != 8 {
++		println(unsafe.Offsetof(p2.C), "!= 8")
++		panic("unsafe.Offsetof(p2.C) != 8")
++	}
++	if unsafe.Offsetof(t2.U2.C) != 4 {
++		println(unsafe.Offsetof(t2.U2.C), "!= 4")
++		panic("unsafe.Offsetof(t2.U2.C) != 4")
++	}
++	if unsafe.Offsetof(p2.U2.C) != 4 {
++		println(unsafe.Offsetof(p2.U2.C), "!= 4")
++		panic("unsafe.Offsetof(p2.U2.C) != 4")
++	}
++	testDeep()
++	testNotEmbedded()
++}
++
++type (
++	S1 struct {
++		A int32
++		S2
++	}
++	S2 struct {
++		B int32
++		S3
++	}
++	S3 struct {
++		C int32
++		S4
++	}
++	S4 struct {
++		D int32
++		S5
++	}
++	S5 struct {
++		E int32
++		S6
++	}
++	S6 struct {
++		F int32
++		S7
++	}
++	S7 struct {
++		G int32
++		S8
++	}
++	S8 struct {
++		H int32
++		*S1
++	}
++)
++
++func testDeep() {
++	var s1 S1
++	switch {
++	case unsafe.Offsetof(s1.A) != 0:
++		panic("unsafe.Offsetof(s1.A) != 0")
++	case unsafe.Offsetof(s1.B) != 4:
++		panic("unsafe.Offsetof(s1.B) != 4")
++	case unsafe.Offsetof(s1.C) != 8:
++		panic("unsafe.Offsetof(s1.C) != 8")
++	case unsafe.Offsetof(s1.D) != 12:
++		panic("unsafe.Offsetof(s1.D) != 12")
++	case unsafe.Offsetof(s1.E) != 16:
++		panic("unsafe.Offsetof(s1.E) != 16")
++	case unsafe.Offsetof(s1.F) != 20:
++		panic("unsafe.Offsetof(s1.F) != 20")
++	case unsafe.Offsetof(s1.G) != 24:
++		panic("unsafe.Offsetof(s1.G) != 24")
++	case unsafe.Offsetof(s1.H) != 28:
++		panic("unsafe.Offsetof(s1.H) != 28")
++	case unsafe.Offsetof(s1.S1) != 32:
++		panic("unsafe.Offsetof(s1.S1) != 32")
++	case unsafe.Offsetof(s1.S1.S2.S3.S4.S5.S6.S7.S8.S1.S2) != 4:
++		panic("unsafe.Offsetof(s1.S1.S2.S3.S4.S5.S6.S7.S8.S1.S2) != 4")
++	}
++}
++
++func testNotEmbedded() {
++	type T2 struct {
++		B int32
++		C int32
++	}
++	type T1 struct {
++		A int32
++		T2
++	}
++	type T struct {
++		Dummy int32
++		F     T1
++		P     *T1
++	}
++
++	var t T
++	var p *T
++	switch {
++	case unsafe.Offsetof(t.F.B) != 4:
++		panic("unsafe.Offsetof(t.F.B) != 4")
++	case unsafe.Offsetof(t.F.C) != 8:
++		panic("unsafe.Offsetof(t.F.C) != 8")
++
++	case unsafe.Offsetof(t.P.B) != 4:
++		panic("unsafe.Offsetof(t.P.B) != 4")
++	case unsafe.Offsetof(t.P.C) != 8:
++		panic("unsafe.Offsetof(t.P.C) != 8")
++
++	case unsafe.Offsetof(p.F.B) != 4:
++		panic("unsafe.Offsetof(p.F.B) != 4")
++	case unsafe.Offsetof(p.F.C) != 8:
++		panic("unsafe.Offsetof(p.F.C) != 8")
++
++	case unsafe.Offsetof(p.P.B) != 4:
++		panic("unsafe.Offsetof(p.P.B) != 4")
++	case unsafe.Offsetof(p.P.C) != 8:
++		panic("unsafe.Offsetof(p.P.C) != 8")
++	}
+ }

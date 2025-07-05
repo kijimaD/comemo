@@ -7,6 +7,36 @@ Date:   Mon Dec 12 19:32:58 2016 -0800
     Change-Id: I5c8df05a25421489ec5122de85dbda756483c536
     Reviewed-on: https://go-review.googlesource.com/34289
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/help.html | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/doc/help.html b/doc/help.html
+index 644819106d..62d9a4a6b6 100644
+--- a/doc/help.html
++++ b/doc/help.html
+@@ -11,6 +11,9 @@
+ 
+ <h3 id="mailinglist"><a href="https://groups.google.com/group/golang-nuts">Go Nuts Mailing List</a></h3>
+ <p>
++Get help from Go users, and share your work on the official mailing list.
++</p>
++<p>
+ Search the <a href="https://groups.google.com/group/golang-nuts">golang-nuts</a>
+ archives and consult the <a href="/doc/go_faq.html">FAQ</a> and
+ <a href="//golang.org/wiki">wiki</a> before posting.
+@@ -18,12 +21,12 @@ archives and consult the <a href="/doc/go_faq.html">FAQ</a> and
+ 
+ <h3 id="forum"><a href="https://forum.golangbridge.org/">Go Forum</a></h3>
+ <p>
+-The <a href="https://forum.golangbridge.org/">Go Forum</a> is an alternate discussion
++The <a href="https://forum.golangbridge.org/">Go Forum</a> is a discussion
+ forum for Go programmers.
+ </p>
+ 
+ <h3 id="slack"><a href="https://blog.gopheracademy.com/gophers-slack-community/">Gopher Slack</a></h3>
+-<p>Get live support from the official Go slack channel.</p>
++<p>Get live support from other users in the Go slack channel.</p>
+ 
+ <h3 id="irc"><a href="irc:irc.freenode.net/go-nuts">Go IRC Channel</a></h3>
+ <p>Get live support at <b>#go-nuts</b> on <b>irc.freenode.net</b>, the official

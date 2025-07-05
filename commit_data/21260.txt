@@ -7,6 +7,22 @@ Date:   Sun Dec 14 16:17:48 2014 +0800
     Change-Id: I5cc4740a858c40d820eeb7c00cf0508b20807c90
     Reviewed-on: https://go-review.googlesource.com/1533
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  doc/devel/release.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 5b5d6ab5e9..acd7fe9ae2 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -8,8 +8,8 @@ The <a href="//golang.org/change">change log</a> has the full details.</p>
+ <p>To update to a specific release, use:</p>
+ 
+ <pre>
+-hg pull
+-hg update <i>tag</i>
++git pull
++git checkout <i>release-branch</i>
+ </pre>
+ 
+ <h2 id="go1.4">go1.4 (released 2014/12/10)</h2>

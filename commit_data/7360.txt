@@ -7,6 +7,19 @@ Date:   Thu Feb 3 11:55:33 2011 -0800
     R=rsc, gri
     CC=golang-dev
     https://golang.org/cl/4130044
-
+---
  src/pkg/fmt/doc.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/fmt/doc.go b/src/pkg/fmt/doc.go
+index 03800aa47a..b717b7f279 100644
+--- a/src/pkg/fmt/doc.go
++++ b/src/pkg/fmt/doc.go
+@@ -16,6 +16,7 @@
+ 			when printing structs, the plus flag (%+v) adds field names
+ 		%#v	a Go-syntax representation of the value
+ 		%T	a Go-syntax representation of the type of the value
++		%%	a literal percent sign; consumes no value
+ 
+ 	Boolean:
+ 		%t	the word true or false

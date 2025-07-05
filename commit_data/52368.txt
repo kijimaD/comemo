@@ -15,7 +15,7 @@ Date:   Wed Apr 27 09:02:53 2022 -0400
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/crypto/ed25519/ed25519_test.go                 |   7 +-
  .../internal/edwards25519/edwards25519_test.go     |   1 -
  src/crypto/internal/boring/boring.go               |  12 ++
@@ -30,3 +30,716 @@ Date:   Wed Apr 27 09:02:53 2022 -0400
  src/crypto/sha512/sha512.go                        |  15 +-
  src/crypto/sha512/sha512_test.go                   |  32 +++-
  13 files changed, 265 insertions(+), 103 deletions(-)
+
+diff --git a/src/crypto/ed25519/ed25519_test.go b/src/crypto/ed25519/ed25519_test.go
+index 84fdc3ca8b..7c5181788f 100644
+--- a/src/crypto/ed25519/ed25519_test.go
++++ b/src/crypto/ed25519/ed25519_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"bytes"
+ 	"compress/gzip"
+ 	"crypto"
++	"crypto/internal/boring"
+ 	"crypto/rand"
+ 	"encoding/hex"
+ 	"os"
+@@ -186,7 +187,9 @@ func TestMalleability(t *testing.T) {
+ }
+ 
+ func TestAllocations(t *testing.T) {
+-	t.Skip("skipping allocations test on Go+BoringCrypto, as cgo causes allocations")
++	if boring.Enabled {
++		t.Skip("skipping allocations test with BoringCrypto")
++	}
+ 	if strings.HasSuffix(os.Getenv("GO_BUILDER_NAME"), "-noopt") {
+ 		t.Skip("skipping allocations test without relevant optimizations")
+ 	}
+@@ -200,7 +203,7 @@ func TestAllocations(t *testing.T) {
+ 			t.Fatal("signature didn't verify")
+ 		}
+ 	}); allocs > 0 {
+-		t.Errorf("expected zero allocations, got %0.1v", allocs)
++		t.Errorf("expected zero allocations, got %0.1f", allocs)
+ 	}
+ }
+ 
+diff --git a/src/crypto/ed25519/internal/edwards25519/edwards25519_test.go b/src/crypto/ed25519/internal/edwards25519/edwards25519_test.go
+index 69fdcfea7a..8031256525 100644
+--- a/src/crypto/ed25519/internal/edwards25519/edwards25519_test.go
++++ b/src/crypto/ed25519/internal/edwards25519/edwards25519_test.go
+@@ -281,7 +281,6 @@ func TestNonCanonicalPoints(t *testing.T) {
+ var testAllocationsSink byte
+ 
+ func TestAllocations(t *testing.T) {
+-	t.Skip("skipping allocations test on Go+BoringCrypto, as cgo causes allocations")
+ 	if strings.HasSuffix(os.Getenv("GO_BUILDER_NAME"), "-noopt") {
+ 		t.Skip("skipping allocations test without relevant optimizations")
+ 	}
+diff --git a/src/crypto/internal/boring/boring.go b/src/crypto/internal/boring/boring.go
+index 7c6a730e0b..dd9eac569b 100644
+--- a/src/crypto/internal/boring/boring.go
++++ b/src/crypto/internal/boring/boring.go
+@@ -97,3 +97,15 @@ func bigToBn(bnp **C.GO_BIGNUM, b *big.Int) bool {
+ 	*bnp = bn
+ 	return true
+ }
++
++// noescape hides a pointer from escape analysis.  noescape is
++// the identity function but escape analysis doesn't think the
++// output depends on the input.  noescape is inlined and currently
++// compiles down to zero instructions.
++// USE CAREFULLY!
++//
++//go:nosplit
++func noescape(p unsafe.Pointer) unsafe.Pointer {
++	x := uintptr(p)
++	return unsafe.Pointer(x ^ 0)
++}
+diff --git a/src/crypto/internal/boring/notboring.go b/src/crypto/internal/boring/notboring.go
+index be1dd4b8fc..df16588584 100644
+--- a/src/crypto/internal/boring/notboring.go
++++ b/src/crypto/internal/boring/notboring.go
+@@ -42,6 +42,12 @@ func NewSHA256() hash.Hash { panic("boringcrypto: not available") }
+ func NewSHA384() hash.Hash { panic("boringcrypto: not available") }
+ func NewSHA512() hash.Hash { panic("boringcrypto: not available") }
+ 
++func SHA1([]byte) [20]byte   { panic("boringcrypto: not available") }
++func SHA224([]byte) [28]byte { panic("boringcrypto: not available") }
++func SHA256([]byte) [32]byte { panic("boringcrypto: not available") }
++func SHA384([]byte) [48]byte { panic("boringcrypto: not available") }
++func SHA512([]byte) [64]byte { panic("boringcrypto: not available") }
++
+ func NewHMAC(h func() hash.Hash, key []byte) hash.Hash { panic("boringcrypto: not available") }
+ 
+ func NewAESCipher(key []byte) (cipher.Block, error) { panic("boringcrypto: not available") }
+diff --git a/src/crypto/internal/boring/sha.go b/src/crypto/internal/boring/sha.go
+index ba0cc29034..5fa3db57f8 100644
+--- a/src/crypto/internal/boring/sha.go
++++ b/src/crypto/internal/boring/sha.go
+@@ -7,7 +7,55 @@
+ 
+ package boring
+ 
+-// #include "goboringcrypto.h"
++/*
++#include "goboringcrypto.h"
++
++int
++_goboringcrypto_gosha1(void *p, size_t n, void *out)
++{
++	GO_SHA_CTX ctx;
++	_goboringcrypto_SHA1_Init(&ctx);
++	return _goboringcrypto_SHA1_Update(&ctx, p, n) &&
++		_goboringcrypto_SHA1_Final(out, &ctx);
++}
++
++int
++_goboringcrypto_gosha224(void *p, size_t n, void *out)
++{
++	GO_SHA256_CTX ctx;
++	_goboringcrypto_SHA224_Init(&ctx);
++	return _goboringcrypto_SHA224_Update(&ctx, p, n) &&
++		_goboringcrypto_SHA224_Final(out, &ctx);
++}
++
++int
++_goboringcrypto_gosha256(void *p, size_t n, void *out)
++{
++	GO_SHA256_CTX ctx;
++	_goboringcrypto_SHA256_Init(&ctx);
++	return _goboringcrypto_SHA256_Update(&ctx, p, n) &&
++		_goboringcrypto_SHA256_Final(out, &ctx);
++}
++
++int
++_goboringcrypto_gosha384(void *p, size_t n, void *out)
++{
++	GO_SHA512_CTX ctx;
++	_goboringcrypto_SHA384_Init(&ctx);
++	return _goboringcrypto_SHA384_Update(&ctx, p, n) &&
++		_goboringcrypto_SHA384_Final(out, &ctx);
++}
++
++int
++_goboringcrypto_gosha512(void *p, size_t n, void *out)
++{
++	GO_SHA512_CTX ctx;
++	_goboringcrypto_SHA512_Init(&ctx);
++	return _goboringcrypto_SHA512_Update(&ctx, p, n) &&
++		_goboringcrypto_SHA512_Final(out, &ctx);
++}
++
++*/
+ import "C"
+ import (
+ 	"errors"
+@@ -15,6 +63,48 @@ import (
+ 	"unsafe"
+ )
+ 
++func addr(p []byte) unsafe.Pointer {
++	if len(p) == 0 {
++		return nil
++	}
++	return unsafe.Pointer(&p[0])
++}
++
++func SHA1(p []byte) (sum [20]byte) {
++	if C._goboringcrypto_gosha1(noescape(addr(p)), C.size_t(len(p)), noescape(unsafe.Pointer(&sum[0]))) == 0 {
++		panic("boringcrypto: SHA1 failed")
++	}
++	return
++}
++
++func SHA224(p []byte) (sum [28]byte) {
++	if C._goboringcrypto_gosha224(noescape(addr(p)), C.size_t(len(p)), noescape(unsafe.Pointer(&sum[0]))) == 0 {
++		panic("boringcrypto: SHA224 failed")
++	}
++	return
++}
++
++func SHA256(p []byte) (sum [32]byte) {
++	if C._goboringcrypto_gosha256(noescape(addr(p)), C.size_t(len(p)), noescape(unsafe.Pointer(&sum[0]))) == 0 {
++		panic("boringcrypto: SHA256 failed")
++	}
++	return
++}
++
++func SHA384(p []byte) (sum [48]byte) {
++	if C._goboringcrypto_gosha384(noescape(addr(p)), C.size_t(len(p)), noescape(unsafe.Pointer(&sum[0]))) == 0 {
++		panic("boringcrypto: SHA384 failed")
++	}
++	return
++}
++
++func SHA512(p []byte) (sum [64]byte) {
++	if C._goboringcrypto_gosha512(noescape(addr(p)), C.size_t(len(p)), noescape(unsafe.Pointer(&sum[0]))) == 0 {
++		panic("boringcrypto: SHA512 failed")
++	}
++	return
++}
++
+ // NewSHA1 returns a new SHA1 hash.
+ func NewSHA1() hash.Hash {
+ 	h := new(sha1Hash)
+@@ -34,24 +124,31 @@ type sha1Ctx struct {
+ 	nx     uint32
+ }
+ 
+-func (h *sha1Hash) Reset()               { C._goboringcrypto_SHA1_Init(&h.ctx) }
+-func (h *sha1Hash) Size() int            { return 20 }
+-func (h *sha1Hash) BlockSize() int       { return 64 }
+-func (h *sha1Hash) Sum(in []byte) []byte { return append(in, h.sum()...) }
++func (h *sha1Hash) noescapeCtx() *C.GO_SHA_CTX {
++	return (*C.GO_SHA_CTX)(noescape(unsafe.Pointer(&h.ctx)))
++}
++
++func (h *sha1Hash) Reset() {
++	C._goboringcrypto_SHA1_Init(h.noescapeCtx())
++}
++
++func (h *sha1Hash) Size() int             { return 20 }
++func (h *sha1Hash) BlockSize() int        { return 64 }
++func (h *sha1Hash) Sum(dst []byte) []byte { return h.sum(dst) }
+ 
+ func (h *sha1Hash) Write(p []byte) (int, error) {
+-	if len(p) > 0 && C._goboringcrypto_SHA1_Update(&h.ctx, unsafe.Pointer(&p[0]), C.size_t(len(p))) == 0 {
++	if len(p) > 0 && C._goboringcrypto_SHA1_Update(h.noescapeCtx(), noescape(addr(p)), C.size_t(len(p))) == 0 {
+ 		panic("boringcrypto: SHA1_Update failed")
+ 	}
+ 	return len(p), nil
+ }
+ 
+-func (h0 *sha1Hash) sum() []byte {
++func (h0 *sha1Hash) sum(dst []byte) []byte {
+ 	h := *h0 // make copy so future Write+Sum is valid
+-	if C._goboringcrypto_SHA1_Final((*C.uint8_t)(unsafe.Pointer(&h.out[0])), &h.ctx) == 0 {
++	if C._goboringcrypto_SHA1_Final((*C.uint8_t)(noescape(unsafe.Pointer(&h.out[0]))), h.noescapeCtx()) == 0 {
+ 		panic("boringcrypto: SHA1_Final failed")
+ 	}
+-	return h.out[:]
++	return append(dst, h.out[:]...)
+ }
+ 
+ const (
+@@ -108,24 +205,30 @@ type sha224Hash struct {
+ 	out [224 / 8]byte
+ }
+ 
+-func (h *sha224Hash) Reset()               { C._goboringcrypto_SHA224_Init(&h.ctx) }
+-func (h *sha224Hash) Size() int            { return 224 / 8 }
+-func (h *sha224Hash) BlockSize() int       { return 64 }
+-func (h *sha224Hash) Sum(in []byte) []byte { return append(in, h.sum()...) }
++func (h *sha224Hash) noescapeCtx() *C.GO_SHA256_CTX {
++	return (*C.GO_SHA256_CTX)(noescape(unsafe.Pointer(&h.ctx)))
++}
++
++func (h *sha224Hash) Reset() {
++	C._goboringcrypto_SHA224_Init(h.noescapeCtx())
++}
++func (h *sha224Hash) Size() int             { return 224 / 8 }
++func (h *sha224Hash) BlockSize() int        { return 64 }
++func (h *sha224Hash) Sum(dst []byte) []byte { return h.sum(dst) }
+ 
+ func (h *sha224Hash) Write(p []byte) (int, error) {
+-	if len(p) > 0 && C._goboringcrypto_SHA224_Update(&h.ctx, unsafe.Pointer(&p[0]), C.size_t(len(p))) == 0 {
++	if len(p) > 0 && C._goboringcrypto_SHA224_Update(h.noescapeCtx(), noescape(addr(p)), C.size_t(len(p))) == 0 {
+ 		panic("boringcrypto: SHA224_Update failed")
+ 	}
+ 	return len(p), nil
+ }
+ 
+-func (h0 *sha224Hash) sum() []byte {
++func (h0 *sha224Hash) sum(dst []byte) []byte {
+ 	h := *h0 // make copy so future Write+Sum is valid
+-	if C._goboringcrypto_SHA224_Final((*C.uint8_t)(unsafe.Pointer(&h.out[0])), &h.ctx) == 0 {
++	if C._goboringcrypto_SHA224_Final((*C.uint8_t)(noescape(unsafe.Pointer(&h.out[0]))), h.noescapeCtx()) == 0 {
+ 		panic("boringcrypto: SHA224_Final failed")
+ 	}
+-	return h.out[:]
++	return append(dst, h.out[:]...)
+ }
+ 
+ // NewSHA256 returns a new SHA256 hash.
+@@ -140,24 +243,30 @@ type sha256Hash struct {
+ 	out [256 / 8]byte
+ }
+ 
+-func (h *sha256Hash) Reset()               { C._goboringcrypto_SHA256_Init(&h.ctx) }
+-func (h *sha256Hash) Size() int            { return 256 / 8 }
+-func (h *sha256Hash) BlockSize() int       { return 64 }
+-func (h *sha256Hash) Sum(in []byte) []byte { return append(in, h.sum()...) }
++func (h *sha256Hash) noescapeCtx() *C.GO_SHA256_CTX {
++	return (*C.GO_SHA256_CTX)(noescape(unsafe.Pointer(&h.ctx)))
++}
++
++func (h *sha256Hash) Reset() {
++	C._goboringcrypto_SHA256_Init(h.noescapeCtx())
++}
++func (h *sha256Hash) Size() int             { return 256 / 8 }
++func (h *sha256Hash) BlockSize() int        { return 64 }
++func (h *sha256Hash) Sum(dst []byte) []byte { return h.sum(dst) }
+ 
+ func (h *sha256Hash) Write(p []byte) (int, error) {
+-	if len(p) > 0 && C._goboringcrypto_SHA256_Update(&h.ctx, unsafe.Pointer(&p[0]), C.size_t(len(p))) == 0 {
++	if len(p) > 0 && C._goboringcrypto_SHA256_Update(h.noescapeCtx(), noescape(addr(p)), C.size_t(len(p))) == 0 {
+ 		panic("boringcrypto: SHA256_Update failed")
+ 	}
+ 	return len(p), nil
+ }
+ 
+-func (h0 *sha256Hash) sum() []byte {
++func (h0 *sha256Hash) sum(dst []byte) []byte {
+ 	h := *h0 // make copy so future Write+Sum is valid
+-	if C._goboringcrypto_SHA256_Final((*C.uint8_t)(unsafe.Pointer(&h.out[0])), &h.ctx) == 0 {
++	if C._goboringcrypto_SHA256_Final((*C.uint8_t)(noescape(unsafe.Pointer(&h.out[0]))), h.noescapeCtx()) == 0 {
+ 		panic("boringcrypto: SHA256_Final failed")
+ 	}
+-	return h.out[:]
++	return append(dst, h.out[:]...)
+ }
+ 
+ const (
+@@ -271,24 +380,30 @@ type sha384Hash struct {
+ 	out [384 / 8]byte
+ }
+ 
+-func (h *sha384Hash) Reset()               { C._goboringcrypto_SHA384_Init(&h.ctx) }
+-func (h *sha384Hash) Size() int            { return 384 / 8 }
+-func (h *sha384Hash) BlockSize() int       { return 128 }
+-func (h *sha384Hash) Sum(in []byte) []byte { return append(in, h.sum()...) }
++func (h *sha384Hash) noescapeCtx() *C.GO_SHA512_CTX {
++	return (*C.GO_SHA512_CTX)(noescape(unsafe.Pointer(&h.ctx)))
++}
++
++func (h *sha384Hash) Reset() {
++	C._goboringcrypto_SHA384_Init(h.noescapeCtx())
++}
++func (h *sha384Hash) Size() int             { return 384 / 8 }
++func (h *sha384Hash) BlockSize() int        { return 128 }
++func (h *sha384Hash) Sum(dst []byte) []byte { return h.sum(dst) }
+ 
+ func (h *sha384Hash) Write(p []byte) (int, error) {
+-	if len(p) > 0 && C._goboringcrypto_SHA384_Update(&h.ctx, unsafe.Pointer(&p[0]), C.size_t(len(p))) == 0 {
++	if len(p) > 0 && C._goboringcrypto_SHA384_Update(h.noescapeCtx(), noescape(addr(p)), C.size_t(len(p))) == 0 {
+ 		panic("boringcrypto: SHA384_Update failed")
+ 	}
+ 	return len(p), nil
+ }
+ 
+-func (h0 *sha384Hash) sum() []byte {
++func (h0 *sha384Hash) sum(dst []byte) []byte {
+ 	h := *h0 // make copy so future Write+Sum is valid
+-	if C._goboringcrypto_SHA384_Final((*C.uint8_t)(unsafe.Pointer(&h.out[0])), &h.ctx) == 0 {
++	if C._goboringcrypto_SHA384_Final((*C.uint8_t)(noescape(unsafe.Pointer(&h.out[0]))), h.noescapeCtx()) == 0 {
+ 		panic("boringcrypto: SHA384_Final failed")
+ 	}
+-	return h.out[:]
++	return append(dst, h.out[:]...)
+ }
+ 
+ // NewSHA512 returns a new SHA512 hash.
+@@ -303,24 +418,30 @@ type sha512Hash struct {
+ 	out [512 / 8]byte
+ }
+ 
+-func (h *sha512Hash) Reset()               { C._goboringcrypto_SHA512_Init(&h.ctx) }
+-func (h *sha512Hash) Size() int            { return 512 / 8 }
+-func (h *sha512Hash) BlockSize() int       { return 128 }
+-func (h *sha512Hash) Sum(in []byte) []byte { return append(in, h.sum()...) }
++func (h *sha512Hash) noescapeCtx() *C.GO_SHA512_CTX {
++	return (*C.GO_SHA512_CTX)(noescape(unsafe.Pointer(&h.ctx)))
++}
++
++func (h *sha512Hash) Reset() {
++	C._goboringcrypto_SHA512_Init(h.noescapeCtx())
++}
++func (h *sha512Hash) Size() int             { return 512 / 8 }
++func (h *sha512Hash) BlockSize() int        { return 128 }
++func (h *sha512Hash) Sum(dst []byte) []byte { return h.sum(dst) }
+ 
+ func (h *sha512Hash) Write(p []byte) (int, error) {
+-	if len(p) > 0 && C._goboringcrypto_SHA512_Update(&h.ctx, unsafe.Pointer(&p[0]), C.size_t(len(p))) == 0 {
++	if len(p) > 0 && C._goboringcrypto_SHA512_Update(h.noescapeCtx(), noescape(addr(p)), C.size_t(len(p))) == 0 {
+ 		panic("boringcrypto: SHA512_Update failed")
+ 	}
+ 	return len(p), nil
+ }
+ 
+-func (h0 *sha512Hash) sum() []byte {
++func (h0 *sha512Hash) sum(dst []byte) []byte {
+ 	h := *h0 // make copy so future Write+Sum is valid
+-	if C._goboringcrypto_SHA512_Final((*C.uint8_t)(unsafe.Pointer(&h.out[0])), &h.ctx) == 0 {
++	if C._goboringcrypto_SHA512_Final((*C.uint8_t)(noescape(unsafe.Pointer(&h.out[0]))), h.noescapeCtx()) == 0 {
+ 		panic("boringcrypto: SHA512_Final failed")
+ 	}
+-	return h.out[:]
++	return append(dst, h.out[:]...)
+ }
+ 
+ type sha512Ctx struct {
+@@ -338,8 +459,6 @@ const (
+ 	marshaledSize512 = len(magic512) + 8*8 + 128 + 8
+ )
+ 
+-var zero [128]byte
+-
+ func (h *sha384Hash) MarshalBinary() ([]byte, error) {
+ 	d := (*sha512Ctx)(unsafe.Pointer(&h.ctx))
+ 	b := make([]byte, 0, marshaledSize512)
+diff --git a/src/crypto/sha1/boring.go b/src/crypto/sha1/boring.go
+index 1cacf93f9b..b5786d1bf4 100644
+--- a/src/crypto/sha1/boring.go
++++ b/src/crypto/sha1/boring.go
+@@ -6,8 +6,8 @@
+ // cmd/internal/boring is not even imported, so that we don't
+ // have to maintain changes to cmd/dist's deps graph.
+ 
+-//go:build !cmd_go_bootstrap
+-// +build !cmd_go_bootstrap
++//go:build !cmd_go_bootstrap && cgo
++// +build !cmd_go_bootstrap,cgo
+ 
+ package sha1
+ 
+@@ -21,3 +21,5 @@ const boringEnabled = boring.Enabled
+ func boringNewSHA1() hash.Hash { return boring.NewSHA1() }
+ 
+ func boringUnreachable() { boring.Unreachable() }
++
++func boringSHA1(p []byte) [20]byte { return boring.SHA1(p) }
+diff --git a/src/crypto/sha1/notboring.go b/src/crypto/sha1/notboring.go
+index 2412c9062d..42ef87937f 100644
+--- a/src/crypto/sha1/notboring.go
++++ b/src/crypto/sha1/notboring.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build cmd_go_bootstrap
+-// +build cmd_go_bootstrap
++//go:build cmd_go_bootstrap || !cgo
++// +build cmd_go_bootstrap !cgo
+ 
+ package sha1
+ 
+@@ -16,3 +16,5 @@ const boringEnabled = false
+ func boringNewSHA1() hash.Hash { panic("boringcrypto: not available") }
+ 
+ func boringUnreachable() {}
++
++func boringSHA1([]byte) [20]byte { panic("boringcrypto: not available") }
+diff --git a/src/crypto/sha1/sha1.go b/src/crypto/sha1/sha1.go
+index 329435f282..271852d21b 100644
+--- a/src/crypto/sha1/sha1.go
++++ b/src/crypto/sha1/sha1.go
+@@ -265,11 +265,7 @@ func (d *digest) constSum() [Size]byte {
+ // Sum returns the SHA-1 checksum of the data.
+ func Sum(data []byte) [Size]byte {
+ 	if boringEnabled {
+-		h := New()
+-		h.Write(data)
+-		var ret [Size]byte
+-		h.Sum(ret[:0])
+-		return ret
++		return boringSHA1(data)
+ 	}
+ 	var d digest
+ 	d.Reset()
+diff --git a/src/crypto/sha1/sha1_test.go b/src/crypto/sha1/sha1_test.go
+index f1a5448dd2..85ed126091 100644
+--- a/src/crypto/sha1/sha1_test.go
++++ b/src/crypto/sha1/sha1_test.go
+@@ -8,6 +8,7 @@ package sha1
+ 
+ import (
+ 	"bytes"
++	"crypto/internal/boring"
+ 	"crypto/rand"
+ 	"encoding"
+ 	"fmt"
+@@ -16,8 +17,6 @@ import (
+ 	"testing"
+ )
+ 
+-import "crypto/internal/boring"
+-
+ type sha1Test struct {
+ 	out       string
+ 	in        string
+@@ -239,13 +238,23 @@ var bench = New()
+ var buf = make([]byte, 8192)
+ 
+ func benchmarkSize(b *testing.B, size int) {
+-	b.SetBytes(int64(size))
+ 	sum := make([]byte, bench.Size())
+-	for i := 0; i < b.N; i++ {
+-		bench.Reset()
+-		bench.Write(buf[:size])
+-		bench.Sum(sum[:0])
+-	}
++	b.Run("New", func(b *testing.B) {
++		b.ReportAllocs()
++		b.SetBytes(int64(size))
++		for i := 0; i < b.N; i++ {
++			bench.Reset()
++			bench.Write(buf[:size])
++			bench.Sum(sum[:0])
++		}
++	})
++	b.Run("Sum", func(b *testing.B) {
++		b.ReportAllocs()
++		b.SetBytes(int64(size))
++		for i := 0; i < b.N; i++ {
++			Sum(buf[:size])
++		}
++	})
+ }
+ 
+ func BenchmarkHash8Bytes(b *testing.B) {
+diff --git a/src/crypto/sha256/sha256.go b/src/crypto/sha256/sha256.go
+index 465d00e0e6..e3c15e66ca 100644
+--- a/src/crypto/sha256/sha256.go
++++ b/src/crypto/sha256/sha256.go
+@@ -8,13 +8,12 @@ package sha256
+ 
+ import (
+ 	"crypto"
++	"crypto/internal/boring"
+ 	"encoding/binary"
+ 	"errors"
+ 	"hash"
+ )
+ 
+-import "crypto/internal/boring"
+-
+ func init() {
+ 	crypto.RegisterHash(crypto.SHA224, New224)
+ 	crypto.RegisterHash(crypto.SHA256, New)
+@@ -263,11 +262,7 @@ func (d *digest) checkSum() [Size]byte {
+ // Sum256 returns the SHA256 checksum of the data.
+ func Sum256(data []byte) [Size]byte {
+ 	if boring.Enabled {
+-		h := New()
+-		h.Write(data)
+-		var ret [Size]byte
+-		h.Sum(ret[:0])
+-		return ret
++		return boring.SHA256(data)
+ 	}
+ 	var d digest
+ 	d.Reset()
+@@ -278,11 +273,7 @@ func Sum256(data []byte) [Size]byte {
+ // Sum224 returns the SHA224 checksum of the data.
+ func Sum224(data []byte) [Size224]byte {
+ 	if boring.Enabled {
+-		h := New224()
+-		h.Write(data)
+-		var ret [Size224]byte
+-		h.Sum(ret[:0])
+-		return ret
++		return boring.SHA224(data)
+ 	}
+ 	var d digest
+ 	d.is224 = true
+diff --git a/src/crypto/sha256/sha256_test.go b/src/crypto/sha256/sha256_test.go
+index a762afc4d9..de807c9b07 100644
+--- a/src/crypto/sha256/sha256_test.go
++++ b/src/crypto/sha256/sha256_test.go
+@@ -8,6 +8,7 @@ package sha256
+ 
+ import (
+ 	"bytes"
++	"crypto/internal/boring"
+ 	"crypto/rand"
+ 	"encoding"
+ 	"fmt"
+@@ -16,8 +17,6 @@ import (
+ 	"testing"
+ )
+ 
+-import "crypto/internal/boring"
+-
+ type sha256Test struct {
+ 	out       string
+ 	in        string
+@@ -315,13 +314,30 @@ var bench = New()
+ var buf = make([]byte, 8192)
+ 
+ func benchmarkSize(b *testing.B, size int) {
+-	b.SetBytes(int64(size))
+ 	sum := make([]byte, bench.Size())
+-	for i := 0; i < b.N; i++ {
+-		bench.Reset()
+-		bench.Write(buf[:size])
+-		bench.Sum(sum[:0])
+-	}
++	b.Run("New", func(b *testing.B) {
++		b.ReportAllocs()
++		b.SetBytes(int64(size))
++		for i := 0; i < b.N; i++ {
++			bench.Reset()
++			bench.Write(buf[:size])
++			bench.Sum(sum[:0])
++		}
++	})
++	b.Run("Sum224", func(b *testing.B) {
++		b.ReportAllocs()
++		b.SetBytes(int64(size))
++		for i := 0; i < b.N; i++ {
++			Sum224(buf[:size])
++		}
++	})
++	b.Run("Sum256", func(b *testing.B) {
++		b.ReportAllocs()
++		b.SetBytes(int64(size))
++		for i := 0; i < b.N; i++ {
++			Sum256(buf[:size])
++		}
++	})
+ }
+ 
+ func BenchmarkHash8Bytes(b *testing.B) {
+diff --git a/src/crypto/sha512/sha512.go b/src/crypto/sha512/sha512.go
+index 1285cca7ee..c800a294a2 100644
+--- a/src/crypto/sha512/sha512.go
++++ b/src/crypto/sha512/sha512.go
+@@ -12,13 +12,12 @@ package sha512
+ 
+ import (
+ 	"crypto"
++	"crypto/internal/boring"
+ 	"encoding/binary"
+ 	"errors"
+ 	"hash"
+ )
+ 
+-import "crypto/internal/boring"
+-
+ func init() {
+ 	crypto.RegisterHash(crypto.SHA384, New384)
+ 	crypto.RegisterHash(crypto.SHA512, New)
+@@ -345,11 +344,7 @@ func (d *digest) checkSum() [Size]byte {
+ // Sum512 returns the SHA512 checksum of the data.
+ func Sum512(data []byte) [Size]byte {
+ 	if boring.Enabled {
+-		h := New()
+-		h.Write(data)
+-		var ret [Size]byte
+-		h.Sum(ret[:0])
+-		return ret
++		return boring.SHA512(data)
+ 	}
+ 	d := digest{function: crypto.SHA512}
+ 	d.Reset()
+@@ -360,11 +355,7 @@ func Sum512(data []byte) [Size]byte {
+ // Sum384 returns the SHA384 checksum of the data.
+ func Sum384(data []byte) [Size384]byte {
+ 	if boring.Enabled {
+-		h := New384()
+-		h.Write(data)
+-		var ret [Size384]byte
+-		h.Sum(ret[:0])
+-		return ret
++		return boring.SHA384(data)
+ 	}
+ 	d := digest{function: crypto.SHA384}
+ 	d.Reset()
+diff --git a/src/crypto/sha512/sha512_test.go b/src/crypto/sha512/sha512_test.go
+index 99d1423527..921cdbb7bb 100644
+--- a/src/crypto/sha512/sha512_test.go
++++ b/src/crypto/sha512/sha512_test.go
+@@ -8,6 +8,7 @@ package sha512
+ 
+ import (
+ 	"bytes"
++	"crypto/internal/boring"
+ 	"crypto/rand"
+ 	"encoding"
+ 	"encoding/hex"
+@@ -17,8 +18,6 @@ import (
+ 	"testing"
+ )
+ 
+-import "crypto/internal/boring"
+-
+ type sha512Test struct {
+ 	out       string
+ 	in        string
+@@ -914,13 +913,30 @@ var bench = New()
+ var buf = make([]byte, 8192)
+ 
+ func benchmarkSize(b *testing.B, size int) {
+-	b.SetBytes(int64(size))
+ 	sum := make([]byte, bench.Size())
+-	for i := 0; i < b.N; i++ {
+-		bench.Reset()
+-		bench.Write(buf[:size])
+-		bench.Sum(sum[:0])
+-	}
++	b.Run("New", func(b *testing.B) {
++		b.ReportAllocs()
++		b.SetBytes(int64(size))
++		for i := 0; i < b.N; i++ {
++			bench.Reset()
++			bench.Write(buf[:size])
++			bench.Sum(sum[:0])
++		}
++	})
++	b.Run("Sum384", func(b *testing.B) {
++		b.ReportAllocs()
++		b.SetBytes(int64(size))
++		for i := 0; i < b.N; i++ {
++			Sum384(buf[:size])
++		}
++	})
++	b.Run("Sum512", func(b *testing.B) {
++		b.ReportAllocs()
++		b.SetBytes(int64(size))
++		for i := 0; i < b.N; i++ {
++			Sum512(buf[:size])
++		}
++	})
+ }
+ 
+ func BenchmarkHash8Bytes(b *testing.B) {

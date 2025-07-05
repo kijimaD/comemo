@@ -14,6 +14,32 @@ Date:   Wed Dec 2 16:13:45 2020 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Than McIntosh <thanm@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/types/type.go | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index e968a799e3..4d1d30133c 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1335,6 +1335,20 @@ func (t *Type) IsEmptyInterface() bool {
+ 	return t.IsInterface() && t.NumFields() == 0
+ }
+ 
++// IsScalar reports whether 't' is a scalar Go type, e.g.
++// bool/int/float/complex. Note that struct and array types consisting
++// of a single scalar element are not considered scalar, likewise
++// pointer types are also not considered scalar.
++func (t *Type) IsScalar() bool {
++	switch t.kind {
++	case TBOOL, TINT8, TUINT8, TINT16, TUINT16, TINT32,
++		TUINT32, TINT64, TUINT64, TINT, TUINT,
++		TUINTPTR, TCOMPLEX64, TCOMPLEX128, TFLOAT32, TFLOAT64:
++		return true
++	}
++	return false
++}
++
+ func (t *Type) PtrTo() *Type {
+ 	return NewPtr(t)
+ }

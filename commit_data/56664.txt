@@ -18,8 +18,150 @@ Date:   Wed May 17 18:21:04 2023 +0200
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/internal/syscall/windows/net_windows.go | 22 +++++++++++++
  src/net/dial_test.go                        | 48 +++++++++++++++++++++++++++++
  src/net/fd_windows.go                       | 27 ++++++++++++++++
  3 files changed, 97 insertions(+)
+
+diff --git a/src/internal/syscall/windows/net_windows.go b/src/internal/syscall/windows/net_windows.go
+index 3d3df7161c..42c600c144 100644
+--- a/src/internal/syscall/windows/net_windows.go
++++ b/src/internal/syscall/windows/net_windows.go
+@@ -5,6 +5,7 @@
+ package windows
+ 
+ import (
++	"sync"
+ 	"syscall"
+ 	_ "unsafe"
+ )
+@@ -16,3 +17,24 @@ func WSASendtoInet4(s syscall.Handle, bufs *syscall.WSABuf, bufcnt uint32, sent
+ //go:linkname WSASendtoInet6 syscall.wsaSendtoInet6
+ //go:noescape
+ func WSASendtoInet6(s syscall.Handle, bufs *syscall.WSABuf, bufcnt uint32, sent *uint32, flags uint32, to *syscall.SockaddrInet6, overlapped *syscall.Overlapped, croutine *byte) (err error)
++
++const (
++	SIO_TCP_INITIAL_RTO                    = syscall.IOC_IN | syscall.IOC_VENDOR | 17
++	TCP_INITIAL_RTO_UNSPECIFIED_RTT        = ^uint16(0)
++	TCP_INITIAL_RTO_NO_SYN_RETRANSMISSIONS = ^uint8(1)
++)
++
++type TCP_INITIAL_RTO_PARAMETERS struct {
++	Rtt                   uint16
++	MaxSynRetransmissions uint8
++}
++
++var Support_TCP_INITIAL_RTO_NO_SYN_RETRANSMISSIONS = sync.OnceValue(func() bool {
++	var maj, min, build uint32
++	rtlGetNtVersionNumbers(&maj, &min, &build)
++	return maj >= 10 && build&0xffff >= 16299
++})
++
++//go:linkname rtlGetNtVersionNumbers syscall.rtlGetNtVersionNumbers
++//go:noescape
++func rtlGetNtVersionNumbers(majorVersion *uint32, minorVersion *uint32, buildNumber *uint32)
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index d4db405e37..2eea66a097 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -878,6 +878,54 @@ func TestCancelAfterDial(t *testing.T) {
+ 	}
+ }
+ 
++func TestDialClosedPortFailFast(t *testing.T) {
++	if runtime.GOOS != "windows" {
++		// Reported by go.dev/issues/23366.
++		t.Skip("skipping windows only test")
++	}
++	for _, network := range []string{"tcp", "tcp4", "tcp6"} {
++		t.Run(network, func(t *testing.T) {
++			if !testableNetwork(network) {
++				t.Skipf("skipping: can't listen on %s", network)
++			}
++			// Reserve a local port till the end of the
++			// test by opening a listener and connecting to
++			// it using Dial.
++			ln := newLocalListener(t, network)
++			addr := ln.Addr().String()
++			conn1, err := Dial(network, addr)
++			if err != nil {
++				ln.Close()
++				t.Fatal(err)
++			}
++			defer conn1.Close()
++			// Now close the listener so the next Dial fails
++			// keeping conn1 alive so the port is not made
++			// available.
++			ln.Close()
++
++			maxElapsed := time.Second
++			// The host can be heavy-loaded and take
++			// longer than configured. Retry until
++			// Dial takes less than maxElapsed or
++			// the test times out.
++			for {
++				startTime := time.Now()
++				conn2, err := Dial(network, addr)
++				if err == nil {
++					conn2.Close()
++					t.Fatal("error expected")
++				}
++				elapsed := time.Since(startTime)
++				if elapsed < maxElapsed {
++					break
++				}
++				t.Logf("got %v; want < %v", elapsed, maxElapsed)
++			}
++		})
++	}
++}
++
+ // Issue 18806: it should always be possible to net.Dial a
+ // net.Listener().Addr().String when the listen address was ":n", even
+ // if the machine has halfway configured IPv6 such that it can bind on
+diff --git a/src/net/fd_windows.go b/src/net/fd_windows.go
+index 030b6a15fb..eeb994dfd9 100644
+--- a/src/net/fd_windows.go
++++ b/src/net/fd_windows.go
+@@ -7,6 +7,7 @@ package net
+ import (
+ 	"context"
+ 	"internal/poll"
++	"internal/syscall/windows"
+ 	"os"
+ 	"runtime"
+ 	"syscall"
+@@ -86,6 +87,32 @@ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (syscall.
+ 		}
+ 	}
+ 
++	var isloopback bool
++	switch ra := ra.(type) {
++	case *syscall.SockaddrInet4:
++		isloopback = ra.Addr[0] == 127
++	case *syscall.SockaddrInet6:
++		isloopback = ra.Addr == [16]byte(IPv6loopback)
++	default:
++		panic("unexpected type in connect")
++	}
++	if isloopback {
++		// This makes ConnectEx() fails faster if the target port on the localhost
++		// is not reachable, instead of waiting for 2s.
++		params := windows.TCP_INITIAL_RTO_PARAMETERS{
++			Rtt:                   windows.TCP_INITIAL_RTO_UNSPECIFIED_RTT, // use the default or overridden by the Administrator
++			MaxSynRetransmissions: 1,                                       // minimum possible value before Windows 10.0.16299
++		}
++		if windows.Support_TCP_INITIAL_RTO_NO_SYN_RETRANSMISSIONS() {
++			// In Windows 10.0.16299 TCP_INITIAL_RTO_NO_SYN_RETRANSMISSIONS makes ConnectEx() fails instantly.
++			params.MaxSynRetransmissions = windows.TCP_INITIAL_RTO_NO_SYN_RETRANSMISSIONS
++		}
++		var out uint32
++		// Don't abort the connection if WSAIoctl fails, as it is only an optimization.
++		// If it fails reliably, we expect TestDialClosedPortFailFast to detect it.
++		_ = fd.pfd.WSAIoctl(windows.SIO_TCP_INITIAL_RTO, (*byte)(unsafe.Pointer(&params)), uint32(unsafe.Sizeof(params)), nil, 0, &out, nil, 0)
++	}
++
+ 	// Wait for the goroutine converting context.Done into a write timeout
+ 	// to exist, otherwise our caller might cancel the context and
+ 	// cause fd.setWriteDeadline(aLongTimeAgo) to cancel a successful dial.

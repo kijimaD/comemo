@@ -10,9 +10,205 @@ Date:   Mon Nov 15 15:21:42 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/364154
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/context.go     | 42 ++++++++++++++++----------
  src/cmd/compile/internal/types2/instantiate.go | 25 ++++++++-------
  src/cmd/compile/internal/types2/named.go       |  2 +-
  src/cmd/compile/internal/types2/typexpr.go     |  4 +--
  4 files changed, 41 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/context.go b/src/cmd/compile/internal/types2/context.go
+index 8833b8097e..b6fd9822b2 100644
+--- a/src/cmd/compile/internal/types2/context.go
++++ b/src/cmd/compile/internal/types2/context.go
+@@ -17,15 +17,21 @@ import (
+ // It is safe for concurrent use.
+ type Context struct {
+ 	mu      sync.Mutex
+-	typeMap map[string][]*Named // type hash -> instances
+-	nextID  int                 // next unique ID
+-	seen    map[*Named]int      // assigned unique IDs
++	typeMap map[string][]ctxtEntry // type hash -> instances entries
++	nextID  int                    // next unique ID
++	seen    map[*Named]int         // assigned unique IDs
++}
++
++type ctxtEntry struct {
++	orig     Type
++	targs    []Type
++	instance Type // = orig[targs]
+ }
+ 
+ // NewContext creates a new Context.
+ func NewContext() *Context {
+ 	return &Context{
+-		typeMap: make(map[string][]*Named),
++		typeMap: make(map[string][]ctxtEntry),
+ 		seen:    make(map[*Named]int),
+ 	}
+ }
+@@ -59,17 +65,17 @@ func (ctxt *Context) typeHash(typ Type, targs []Type) string {
+ 
+ // lookup returns an existing instantiation of orig with targs, if it exists.
+ // Otherwise, it returns nil.
+-func (ctxt *Context) lookup(h string, orig *Named, targs []Type) *Named {
++func (ctxt *Context) lookup(h string, orig *Named, targs []Type) Type {
+ 	ctxt.mu.Lock()
+ 	defer ctxt.mu.Unlock()
+ 
+ 	for _, e := range ctxt.typeMap[h] {
+-		if identicalInstance(orig, targs, e.orig, e.TypeArgs().list()) {
+-			return e
++		if identicalInstance(orig, targs, e.orig, e.targs) {
++			return e.instance
+ 		}
+ 		if debug {
+ 			// Panic during development to surface any imperfections in our hash.
+-			panic(fmt.Sprintf("non-identical instances: (orig: %s, targs: %v) and %s", orig, targs, e))
++			panic(fmt.Sprintf("non-identical instances: (orig: %s, targs: %v) and %s", orig, targs, e.instance))
+ 		}
+ 	}
+ 
+@@ -80,24 +86,28 @@ func (ctxt *Context) lookup(h string, orig *Named, targs []Type) *Named {
+ // identical type is found with the type hash h, the previously seen type is
+ // returned. Otherwise, n is returned, and recorded in the Context for the hash
+ // h.
+-func (ctxt *Context) update(h string, n *Named) *Named {
+-	assert(n != nil)
+-
++func (ctxt *Context) update(h string, orig Type, targs []Type, inst Type) Type {
++	assert(inst != nil)
+ 	ctxt.mu.Lock()
+ 	defer ctxt.mu.Unlock()
+ 
+ 	for _, e := range ctxt.typeMap[h] {
+-		if n == nil || Identical(n, e) {
+-			return e
++		if inst == nil || Identical(inst, e.instance) {
++			return e.instance
+ 		}
+ 		if debug {
+ 			// Panic during development to surface any imperfections in our hash.
+-			panic(fmt.Sprintf("%s and %s are not identical", n, e))
++			panic(fmt.Sprintf("%s and %s are not identical", inst, e.instance))
+ 		}
+ 	}
+ 
+-	ctxt.typeMap[h] = append(ctxt.typeMap[h], n)
+-	return n
++	ctxt.typeMap[h] = append(ctxt.typeMap[h], ctxtEntry{
++		orig:     orig,
++		targs:    targs,
++		instance: inst,
++	})
++
++	return inst
+ }
+ 
+ // idForType returns a unique ID for the pointer n.
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index 65ed25ddff..9408fa43d9 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -52,20 +52,20 @@ func Instantiate(ctxt *Context, typ Type, targs []Type, validate bool) (Type, er
+ // instance creates a type or function instance using the given original type
+ // typ and arguments targs. For Named types the resulting instance will be
+ // unexpanded.
+-func (check *Checker) instance(pos syntax.Pos, typ Type, targs []Type, ctxt *Context) Type {
+-	switch t := typ.(type) {
++func (check *Checker) instance(pos syntax.Pos, orig Type, targs []Type, ctxt *Context) Type {
++	switch orig := orig.(type) {
+ 	case *Named:
+ 		var h string
+ 		if ctxt != nil {
+-			h = ctxt.typeHash(t, targs)
++			h = ctxt.typeHash(orig, targs)
+ 			// typ may already have been instantiated with identical type arguments. In
+ 			// that case, re-use the existing instance.
+-			if named := ctxt.lookup(h, t, targs); named != nil {
++			if named := ctxt.lookup(h, orig, targs); named != nil {
+ 				return named
+ 			}
+ 		}
+-		tname := NewTypeName(pos, t.obj.pkg, t.obj.name, nil)
+-		named := check.newNamed(tname, t, nil, nil, nil) // underlying, tparams, and methods are set when named is resolved
++		tname := NewTypeName(pos, orig.obj.pkg, orig.obj.name, nil)
++		named := check.newNamed(tname, orig, nil, nil, nil) // underlying, tparams, and methods are set when named is resolved
+ 		named.targs = NewTypeList(targs)
+ 		named.resolver = func(ctxt *Context, n *Named) (*TypeParamList, Type, []*Func) {
+ 			return expandNamed(ctxt, n, pos)
+@@ -73,23 +73,23 @@ func (check *Checker) instance(pos syntax.Pos, typ Type, targs []Type, ctxt *Con
+ 		if ctxt != nil {
+ 			// It's possible that we've lost a race to add named to the context.
+ 			// In this case, use whichever instance is recorded in the context.
+-			named = ctxt.update(h, named)
++			named = ctxt.update(h, orig, targs, named).(*Named)
+ 		}
+ 		return named
+ 
+ 	case *Signature:
+-		tparams := t.TypeParams()
++		tparams := orig.TypeParams()
+ 		if !check.validateTArgLen(pos, tparams.Len(), len(targs)) {
+ 			return Typ[Invalid]
+ 		}
+ 		if tparams.Len() == 0 {
+-			return typ // nothing to do (minor optimization)
++			return orig // nothing to do (minor optimization)
+ 		}
+-		sig := check.subst(pos, typ, makeSubstMap(tparams.list(), targs), ctxt).(*Signature)
++		sig := check.subst(pos, orig, makeSubstMap(tparams.list(), targs), ctxt).(*Signature)
+ 		// If the signature doesn't use its type parameters, subst
+ 		// will not make a copy. In that case, make a copy now (so
+ 		// we can set tparams to nil w/o causing side-effects).
+-		if sig == t {
++		if sig == orig {
+ 			copy := *sig
+ 			sig = &copy
+ 		}
+@@ -98,9 +98,8 @@ func (check *Checker) instance(pos syntax.Pos, typ Type, targs []Type, ctxt *Con
+ 		sig.tparams = nil
+ 		return sig
+ 	}
+-
+ 	// only types and functions can be generic
+-	panic(fmt.Sprintf("%v: cannot instantiate %v", pos, typ))
++	panic(fmt.Sprintf("%v: cannot instantiate %v", pos, orig))
+ }
+ 
+ // validateTArgLen verifies that the length of targs and tparams matches,
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index 78c6803d99..e90c301a0d 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -253,7 +253,7 @@ func expandNamed(ctxt *Context, n *Named, instPos syntax.Pos) (tparams *TypePara
+ 		ctxt = check.bestContext(ctxt)
+ 		h := ctxt.typeHash(n.orig, n.targs.list())
+ 		// ensure that an instance is recorded for h to avoid infinite recursion.
+-		ctxt.update(h, n)
++		ctxt.update(h, n.orig, n.TypeArgs().list(), n)
+ 
+ 		smap := makeSubstMap(n.orig.tparams.list(), n.targs.list())
+ 		underlying = n.check.subst(instPos, n.orig.underlying, smap, ctxt)
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 05481a9a64..4ba21fa9a0 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -439,7 +439,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, targsx []syntax.Expr, def
+ 	// create the instance
+ 	h := check.conf.Context.typeHash(orig, targs)
+ 	// targs may be incomplete, and require inference. In any case we should de-duplicate.
+-	inst := check.conf.Context.lookup(h, orig, targs)
++	inst, _ := check.conf.Context.lookup(h, orig, targs).(*Named)
+ 	// If inst is non-nil, we can't just return here. Inst may have been
+ 	// constructed via recursive substitution, in which case we wouldn't do the
+ 	// validation below. Ensure that the validation (and resulting errors) runs
+@@ -448,7 +448,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, targsx []syntax.Expr, def
+ 		tname := NewTypeName(x.Pos(), orig.obj.pkg, orig.obj.name, nil)
+ 		inst = check.newNamed(tname, orig, nil, nil, nil) // underlying, methods and tparams are set when named is resolved
+ 		inst.targs = NewTypeList(targs)
+-		inst = check.conf.Context.update(h, inst)
++		inst = check.conf.Context.update(h, orig, targs, inst).(*Named)
+ 	}
+ 	def.setUnderlying(inst)
+ 

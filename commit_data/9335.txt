@@ -10,6 +10,19 @@ Date:   Wed Aug 10 21:36:59 2011 -0400
     R=r, bradfitz
     CC=golang-dev
     https://golang.org/cl/4847053
-
+---
  lib/codereview/codereview.py | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index adaff3287d..63f67fff97 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -1722,6 +1722,7 @@ def submit(ui, repo, *pats, **opts):
+ 		print Indent('\n'.join(cl.files), "\t")
+ 		return "dry run; not submitted"
+ 
++	set_status("pushing " + cl.name + " to remote server")
+ 	m = match.exact(repo.root, repo.getcwd(), cl.files)
+ 	node = repo.commit(ustr(opts['message']), ustr(userline), opts.get('date'), m)
+ 	if not node:

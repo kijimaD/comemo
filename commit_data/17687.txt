@@ -9,6 +9,23 @@ Date:   Tue Sep 24 10:49:54 2013 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/13761046
-
+---
  src/pkg/reflect/value.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 20fc459e59..5acb69efa6 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -971,10 +971,7 @@ func (v Value) CanInterface() bool {
+ // Interface returns v's current value as an interface{}.
+ // It is equivalent to:
+ //	var i interface{} = (v's underlying value)
+-// If v is a method obtained by invoking Value.Method
+-// (as opposed to Type.Method), Interface cannot return an
+-// interface value, so it panics.
+-// It also panics if the Value was obtained by accessing
++// It panics if the Value was obtained by accessing
+ // unexported struct fields.
+ func (v Value) Interface() (i interface{}) {
+ 	return valueInterface(v, true)

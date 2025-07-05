@@ -7,7 +7,98 @@ Date:   Wed Mar 20 14:34:26 2013 -0700
     R=rsc, minux.ma, khr
     CC=golang-dev
     https://golang.org/cl/7763050
-
+---
  src/pkg/runtime/asm_386.s   | 20 ++++++++------------
  src/pkg/runtime/asm_amd64.s | 20 ++++++++------------
  2 files changed, 16 insertions(+), 24 deletions(-)
+
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 10f655bfe2..e4b841cfa5 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -742,8 +742,8 @@ TEXT runtime·aeshashstr(SB),7,$0
+ TEXT runtime·aeshashbody(SB),7,$0
+ 	MOVL	(DX), X0	// seed to low 32 bits of xmm0
+ 	PINSRD	$1, CX, X0	// size to next 32 bits of xmm0
+-	MOVOU	runtime·aeskeysched+0(SB), X2
+-	MOVOU	runtime·aeskeysched+16(SB), X3
++	MOVO	runtime·aeskeysched+0(SB), X2
++	MOVO	runtime·aeskeysched+16(SB), X3
+ aesloop:
+ 	CMPL	CX, $16
+ 	JB	aesloopend
+@@ -791,11 +791,9 @@ TEXT runtime·aeshash32(SB),7,$0
+ 	MOVL	12(SP), AX	// ptr to data
+ 	MOVL	(DX), X0	// seed
+ 	PINSRD	$1, (AX), X0	// data
+-	MOVOU	runtime·aeskeysched+0(SB), X2
+-	MOVOU	runtime·aeskeysched+16(SB), X3
+-	AESENC	X2, X0
+-	AESENC	X3, X0
+-	AESENC	X2, X0
++	AESENC	runtime·aeskeysched+0(SB), X0
++	AESENC	runtime·aeskeysched+16(SB), X0
++	AESENC	runtime·aeskeysched+0(SB), X0
+ 	MOVL	X0, (DX)
+ 	RET
+ 
+@@ -804,11 +802,9 @@ TEXT runtime·aeshash64(SB),7,$0
+ 	MOVL	12(SP), AX	// ptr to data
+ 	MOVQ	(AX), X0	// data
+ 	PINSRD	$2, (DX), X0	// seed
+-	MOVOU	runtime·aeskeysched+0(SB), X2
+-	MOVOU	runtime·aeskeysched+16(SB), X3
+-	AESENC	X2, X0
+-	AESENC	X3, X0
+-	AESENC	X2, X0
++	AESENC	runtime·aeskeysched+0(SB), X0
++	AESENC	runtime·aeskeysched+16(SB), X0
++	AESENC	runtime·aeskeysched+0(SB), X0
+ 	MOVL	X0, (DX)
+ 	RET
+ 
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index f31508de18..709bc48d8d 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -762,8 +762,8 @@ TEXT runtime·aeshashstr(SB),7,$0
+ TEXT runtime·aeshashbody(SB),7,$0
+ 	MOVQ	(DX), X0	// seed to low 64 bits of xmm0
+ 	PINSRQ	$1, CX, X0	// size to high 64 bits of xmm0
+-	MOVOU	runtime·aeskeysched+0(SB), X2
+-	MOVOU	runtime·aeskeysched+16(SB), X3
++	MOVO	runtime·aeskeysched+0(SB), X2
++	MOVO	runtime·aeskeysched+16(SB), X3
+ aesloop:
+ 	CMPQ	CX, $16
+ 	JB	aesloopend
+@@ -811,11 +811,9 @@ TEXT runtime·aeshash32(SB),7,$0
+ 	MOVQ	24(SP), AX	// ptr to data
+ 	MOVQ	(DX), X0	// seed
+ 	PINSRD	$2, (AX), X0	// data
+-	MOVOU	runtime·aeskeysched+0(SB), X2
+-	MOVOU	runtime·aeskeysched+16(SB), X3
+-	AESENC	X2, X0
+-	AESENC	X3, X0
+-	AESENC	X2, X0
++	AESENC	runtime·aeskeysched+0(SB), X0
++	AESENC	runtime·aeskeysched+16(SB), X0
++	AESENC	runtime·aeskeysched+0(SB), X0
+ 	MOVQ	X0, (DX)
+ 	RET
+ 
+@@ -824,11 +822,9 @@ TEXT runtime·aeshash64(SB),7,$0
+ 	MOVQ	24(SP), AX	// ptr to data
+ 	MOVQ	(DX), X0	// seed
+ 	PINSRQ	$1, (AX), X0	// data
+-	MOVOU	runtime·aeskeysched+0(SB), X2
+-	MOVOU	runtime·aeskeysched+16(SB), X3
+-	AESENC	X2, X0
+-	AESENC	X3, X0
+-	AESENC	X2, X0
++	AESENC	runtime·aeskeysched+0(SB), X0
++	AESENC	runtime·aeskeysched+16(SB), X0
++	AESENC	runtime·aeskeysched+0(SB), X0
+ 	MOVQ	X0, (DX)
+ 	RET
+ 

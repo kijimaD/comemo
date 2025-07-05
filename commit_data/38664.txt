@@ -15,8 +15,210 @@ Date:   Mon Nov 12 13:42:46 2018 -0500
     Change-Id: I4884fe9b4f823f50705f8c2d357a04a8e567734f
     Reviewed-on: https://go-review.googlesource.com/c/148904
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/work/exec.go       | 51 ++++++++++++++++++++++++----------
  src/cmd/go/testdata/script/vet_asm.txt | 15 ++++++++++
  src/cmd/vet/main.go                    |  8 +++++-
  3 files changed, 58 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index d31f96591b..d6f9021c35 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -377,7 +377,7 @@ func (b *Builder) build(a *Action) (err error) {
+ 			if b.NeedExport {
+ 				p.Export = a.built
+ 			}
+-			if need&needCompiledGoFiles != 0 && b.loadCachedGoFiles(a) {
++			if need&needCompiledGoFiles != 0 && b.loadCachedSrcFiles(a) {
+ 				need &^= needCompiledGoFiles
+ 			}
+ 			// Otherwise, we need to write files to a.Objdir (needVet, needCgoHdr).
+@@ -575,7 +575,13 @@ func (b *Builder) build(a *Action) (err error) {
+ 			b.cacheCgoHdr(a)
+ 		}
+ 	}
+-	b.cacheGofiles(a, gofiles)
++
++	var srcfiles []string // .go and non-.go
++	srcfiles = append(srcfiles, gofiles...)
++	srcfiles = append(srcfiles, sfiles...)
++	srcfiles = append(srcfiles, cfiles...)
++	srcfiles = append(srcfiles, cxxfiles...)
++	b.cacheSrcFiles(a, srcfiles)
+ 
+ 	// Running cgo generated the cgo header.
+ 	need &^= needCgoHdr
+@@ -587,11 +593,11 @@ func (b *Builder) build(a *Action) (err error) {
+ 
+ 	// Prepare Go vet config if needed.
+ 	if need&needVet != 0 {
+-		buildVetConfig(a, gofiles)
++		buildVetConfig(a, srcfiles)
+ 		need &^= needVet
+ 	}
+ 	if need&needCompiledGoFiles != 0 {
+-		if !b.loadCachedGoFiles(a) {
++		if !b.loadCachedSrcFiles(a) {
+ 			return fmt.Errorf("failed to cache compiled Go files")
+ 		}
+ 		need &^= needCompiledGoFiles
+@@ -794,13 +800,13 @@ func (b *Builder) loadCachedCgoHdr(a *Action) bool {
+ 	return err == nil
+ }
+ 
+-func (b *Builder) cacheGofiles(a *Action, gofiles []string) {
++func (b *Builder) cacheSrcFiles(a *Action, srcfiles []string) {
+ 	c := cache.Default()
+ 	if c == nil {
+ 		return
+ 	}
+ 	var buf bytes.Buffer
+-	for _, file := range gofiles {
++	for _, file := range srcfiles {
+ 		if !strings.HasPrefix(file, a.Objdir) {
+ 			// not generated
+ 			buf.WriteString("./")
+@@ -815,7 +821,7 @@ func (b *Builder) cacheGofiles(a *Action, gofiles []string) {
+ 			return
+ 		}
+ 	}
+-	c.PutBytes(cache.Subkey(a.actionID, "gofiles"), buf.Bytes())
++	c.PutBytes(cache.Subkey(a.actionID, "srcfiles"), buf.Bytes())
+ }
+ 
+ func (b *Builder) loadCachedVet(a *Action) bool {
+@@ -823,34 +829,34 @@ func (b *Builder) loadCachedVet(a *Action) bool {
+ 	if c == nil {
+ 		return false
+ 	}
+-	list, _, err := c.GetBytes(cache.Subkey(a.actionID, "gofiles"))
++	list, _, err := c.GetBytes(cache.Subkey(a.actionID, "srcfiles"))
+ 	if err != nil {
+ 		return false
+ 	}
+-	var gofiles []string
++	var srcfiles []string
+ 	for _, name := range strings.Split(string(list), "\n") {
+ 		if name == "" { // end of list
+ 			continue
+ 		}
+ 		if strings.HasPrefix(name, "./") {
+-			gofiles = append(gofiles, name[2:])
++			srcfiles = append(srcfiles, name[2:])
+ 			continue
+ 		}
+ 		if err := b.loadCachedObjdirFile(a, c, name); err != nil {
+ 			return false
+ 		}
+-		gofiles = append(gofiles, a.Objdir+name)
++		srcfiles = append(srcfiles, a.Objdir+name)
+ 	}
+-	buildVetConfig(a, gofiles)
++	buildVetConfig(a, srcfiles)
+ 	return true
+ }
+ 
+-func (b *Builder) loadCachedGoFiles(a *Action) bool {
++func (b *Builder) loadCachedSrcFiles(a *Action) bool {
+ 	c := cache.Default()
+ 	if c == nil {
+ 		return false
+ 	}
+-	list, _, err := c.GetBytes(cache.Subkey(a.actionID, "gofiles"))
++	list, _, err := c.GetBytes(cache.Subkey(a.actionID, "srcfiles"))
+ 	if err != nil {
+ 		return false
+ 	}
+@@ -879,6 +885,7 @@ type vetConfig struct {
+ 	Dir        string   // directory containing package
+ 	ImportPath string   // canonical import path ("package path")
+ 	GoFiles    []string // absolute paths to package source files
++	NonGoFiles []string // absolute paths to package non-Go files
+ 
+ 	ImportMap   map[string]string // map import path in source code to package path
+ 	PackageFile map[string]string // map package path to .a file with export data
+@@ -890,7 +897,18 @@ type vetConfig struct {
+ 	SucceedOnTypecheckFailure bool // awful hack; see #18395 and below
+ }
+ 
+-func buildVetConfig(a *Action, gofiles []string) {
++func buildVetConfig(a *Action, srcfiles []string) {
++	// Classify files based on .go extension.
++	// srcfiles does not include raw cgo files.
++	var gofiles, nongofiles []string
++	for _, name := range srcfiles {
++		if strings.HasSuffix(name, ".go") {
++			gofiles = append(gofiles, name)
++		} else {
++			nongofiles = append(nongofiles, name)
++		}
++	}
++
+ 	// Pass list of absolute paths to vet,
+ 	// so that vet's error messages will use absolute paths,
+ 	// so that we can reformat them relative to the directory
+@@ -899,6 +917,7 @@ func buildVetConfig(a *Action, gofiles []string) {
+ 		Compiler:    cfg.BuildToolchainName,
+ 		Dir:         a.Package.Dir,
+ 		GoFiles:     mkAbsFiles(a.Package.Dir, gofiles),
++		NonGoFiles:  mkAbsFiles(a.Package.Dir, nongofiles),
+ 		ImportPath:  a.Package.ImportPath,
+ 		ImportMap:   make(map[string]string),
+ 		PackageFile: make(map[string]string),
+@@ -995,6 +1014,8 @@ func (b *Builder) vet(a *Action) error {
+ 		}
+ 	}
+ 
++	// TODO(adonovan): delete this when we use the new vet printf checker.
++	// https://github.com/golang/go/issues/28756
+ 	if vcfg.ImportMap["fmt"] == "" {
+ 		a1 := a.Deps[1]
+ 		vcfg.ImportMap["fmt"] = "fmt"
+diff --git a/src/cmd/go/testdata/script/vet_asm.txt b/src/cmd/go/testdata/script/vet_asm.txt
+new file mode 100644
+index 0000000000..a066058c70
+--- /dev/null
++++ b/src/cmd/go/testdata/script/vet_asm.txt
+@@ -0,0 +1,15 @@
++# Issue 27665. Verify that "go vet" analyzes non-Go files.
++
++env GOARCH=amd64
++! go vet -asmdecl a
++stderr 'f: invalid MOVW of x'
++
++-- a/a.go --
++package a
++
++func f(x int8)
++
++-- a/asm.s --
++TEXT ·f(SB),0,$0-1
++	MOVW	x+0(FP), AX
++	RET
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index cf91e4d596..799f0bfb64 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -365,6 +365,7 @@ type vetConfig struct {
+ 	Dir         string
+ 	ImportPath  string
+ 	GoFiles     []string
++	NonGoFiles  []string
+ 	ImportMap   map[string]string
+ 	PackageFile map[string]string
+ 	Standard    map[string]bool
+@@ -430,7 +431,12 @@ func doPackageCfg(cfgFile string) {
+ 	stdImporter = &vcfg
+ 	inittypes()
+ 	mustTypecheck = true
+-	doPackage(vcfg.GoFiles, nil)
++
++	var allFiles []string
++	allFiles = append(allFiles, vcfg.GoFiles...)
++	allFiles = append(allFiles, vcfg.NonGoFiles...)
++
++	doPackage(allFiles, nil)
+ 	if vcfg.VetxOutput != "" {
+ 		out := make([]vetxExport, 0, len(exporters))
+ 		for name, fn := range exporters {

@@ -14,7 +14,7 @@ Date:   Thu Oct 17 17:42:15 2019 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/export_test.go |  59 ++++++++++++++++++++++-
  src/runtime/gc_test.go     |   4 ++
  src/runtime/malloc.go      |   3 ++
@@ -22,3 +22,359 @@ Date:   Thu Oct 17 17:42:15 2019 +0000
  src/runtime/mgcscavenge.go |  22 +++++++--
  src/runtime/mheap.go       | 113 ++++++++++++++++++++++++++++++++++++++++-----
  6 files changed, 199 insertions(+), 19 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 10066115b4..fa0a77e43b 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -12,6 +12,8 @@ import (
+ 	"unsafe"
+ )
+ 
++const OldPageAllocator = oldPageAllocator
++
+ var Fadd64 = fadd64
+ var Fsub64 = fsub64
+ var Fmul64 = fmul64
+@@ -354,8 +356,15 @@ func ReadMemStatsSlow() (base, slow MemStats) {
+ 			slow.BySize[i].Frees = bySize[i].Frees
+ 		}
+ 
+-		for i := mheap_.free.start(0, 0); i.valid(); i = i.next() {
+-			slow.HeapReleased += uint64(i.span().released())
++		if oldPageAllocator {
++			for i := mheap_.free.start(0, 0); i.valid(); i = i.next() {
++				slow.HeapReleased += uint64(i.span().released())
++			}
++		} else {
++			for i := mheap_.pages.start; i < mheap_.pages.end; i++ {
++				pg := mheap_.pages.chunks[i].scavenged.popcntRange(0, pallocChunkPages)
++				slow.HeapReleased += uint64(pg) * pageSize
++			}
+ 		}
+ 
+ 		// Unused space in the current arena also counts as released space.
+@@ -974,3 +983,49 @@ var BaseChunkIdx = ChunkIdx(chunkIndex((0xc000*pageAlloc64Bit + 0x200*pageAlloc3
+ func PageBase(c ChunkIdx, pageIdx uint) uintptr {
+ 	return chunkBase(chunkIdx(c)) + uintptr(pageIdx)*pageSize
+ }
++
++type BitsMismatch struct {
++	Base      uintptr
++	Got, Want uint64
++}
++
++func CheckScavengedBitsCleared(mismatches []BitsMismatch) (n int, ok bool) {
++	ok = true
++
++	// Run on the system stack to avoid stack growth allocation.
++	systemstack(func() {
++		getg().m.mallocing++
++
++		// Lock so that we can safely access the bitmap.
++		lock(&mheap_.lock)
++	chunkLoop:
++		for i := mheap_.pages.start; i < mheap_.pages.end; i++ {
++			chunk := &mheap_.pages.chunks[i]
++			for j := 0; j < pallocChunkPages/64; j++ {
++				// Run over each 64-bit bitmap section and ensure
++				// scavenged is being cleared properly on allocation.
++				// If a used bit and scavenged bit are both set, that's
++				// an error, and could indicate a larger problem, or
++				// an accounting problem.
++				want := chunk.scavenged[j] &^ chunk.pallocBits[j]
++				got := chunk.scavenged[j]
++				if want != got {
++					ok = false
++					if n >= len(mismatches) {
++						break chunkLoop
++					}
++					mismatches[n] = BitsMismatch{
++						Base: chunkBase(i) + uintptr(j)*64*pageSize,
++						Got:  got,
++						Want: want,
++					}
++					n++
++				}
++			}
++		}
++		unlock(&mheap_.lock)
++
++		getg().m.mallocing--
++	})
++	return
++}
+diff --git a/src/runtime/gc_test.go b/src/runtime/gc_test.go
+index ee80021301..efabc05a43 100644
+--- a/src/runtime/gc_test.go
++++ b/src/runtime/gc_test.go
+@@ -465,6 +465,10 @@ func TestReadMemStats(t *testing.T) {
+ }
+ 
+ func TestUnscavHugePages(t *testing.T) {
++	if !runtime.OldPageAllocator {
++		// This test is only relevant for the old page allocator.
++		return
++	}
+ 	// Allocate 20 MiB and immediately free it a few times to increase
+ 	// the chance that unscavHugePages isn't zero and that some kind of
+ 	// accounting had to happen in the runtime.
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index bae981ce0c..2fd71fab2d 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -322,6 +322,9 @@ const (
+ 	//
+ 	// This should agree with minZeroPage in the compiler.
+ 	minLegalPointer uintptr = 4096
++
++	// Whether to use the old page allocator or not.
++	oldPageAllocator = true
+ )
+ 
+ // physPageSize is the size in bytes of the OS's physical pages.
+diff --git a/src/runtime/malloc_test.go b/src/runtime/malloc_test.go
+index a2d5864d3d..9831dbe079 100644
+--- a/src/runtime/malloc_test.go
++++ b/src/runtime/malloc_test.go
+@@ -176,6 +176,23 @@ func TestPhysicalMemoryUtilization(t *testing.T) {
+ 	}
+ }
+ 
++func TestScavengedBitsCleared(t *testing.T) {
++	if OldPageAllocator {
++		// This test is only relevant for the new page allocator.
++		return
++	}
++	var mismatches [128]BitsMismatch
++	if n, ok := CheckScavengedBitsCleared(mismatches[:]); !ok {
++		t.Errorf("uncleared scavenged bits")
++		for _, m := range mismatches[:n] {
++			t.Logf("\t@ address 0x%x", m.Base)
++			t.Logf("\t|  got: %064b", m.Got)
++			t.Logf("\t| want: %064b", m.Want)
++		}
++		t.FailNow()
++	}
++}
++
+ type acLink struct {
+ 	x [1 << 20]byte
+ }
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 3320ee536a..3190cec219 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -136,6 +136,9 @@ func gcPaceScavenger() {
+ 		return
+ 	}
+ 	mheap_.scavengeGoal = retainedGoal
++	if !oldPageAllocator {
++		mheap_.pages.resetScavengeAddr()
++	}
+ }
+ 
+ // Sleep/wait state of the background scavenger.
+@@ -250,12 +253,21 @@ func bgscavenge(c chan int) {
+ 				return
+ 			}
+ 
+-			// Scavenge one page, and measure the amount of time spent scavenging.
+-			start := nanotime()
+-			released = mheap_.scavengeLocked(physPageSize)
+-			crit = nanotime() - start
++			if oldPageAllocator {
++				// Scavenge one page, and measure the amount of time spent scavenging.
++				start := nanotime()
++				released = mheap_.scavengeLocked(physPageSize)
++				crit = nanotime() - start
+ 
+-			unlock(&mheap_.lock)
++				unlock(&mheap_.lock)
++			} else {
++				unlock(&mheap_.lock)
++
++				// Scavenge one page, and measure the amount of time spent scavenging.
++				start := nanotime()
++				released = mheap_.pages.scavengeOne(physPageSize, false)
++				crit = nanotime() - start
++			}
+ 		})
+ 
+ 		if debug.gctrace > 0 {
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index dfa4b4bfc6..caf9638222 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -32,10 +32,11 @@ type mheap struct {
+ 	// lock must only be acquired on the system stack, otherwise a g
+ 	// could self-deadlock if its stack grows with the lock held.
+ 	lock      mutex
+-	free      mTreap // free spans
+-	sweepgen  uint32 // sweep generation, see comment in mspan
+-	sweepdone uint32 // all spans are swept
+-	sweepers  uint32 // number of active sweepone calls
++	free      mTreap    // free spans
++	pages     pageAlloc // page allocation data structure
++	sweepgen  uint32    // sweep generation, see comment in mspan
++	sweepdone uint32    // all spans are swept
++	sweepers  uint32    // number of active sweepone calls
+ 
+ 	// allspans is a slice of all mspans ever created. Each mspan
+ 	// appears exactly once.
+@@ -852,6 +853,10 @@ func (h *mheap) init() {
+ 	for i := range h.central {
+ 		h.central[i].mcentral.init(spanClass(i))
+ 	}
++
++	if !oldPageAllocator {
++		h.pages.init(&h.lock, &memstats.gc_sys)
++	}
+ }
+ 
+ // reclaim sweeps and reclaims at least npage pages into the heap.
+@@ -1208,6 +1213,47 @@ func (h *mheap) setSpans(base, npage uintptr, s *mspan) {
+ // The returned span has been removed from the
+ // free structures, but its state is still mSpanFree.
+ func (h *mheap) allocSpanLocked(npage uintptr, stat *uint64) *mspan {
++	if oldPageAllocator {
++		return h.allocSpanLockedOld(npage, stat)
++	}
++	base, scav := h.pages.alloc(npage)
++	if base != 0 {
++		goto HaveBase
++	}
++	if !h.grow(npage) {
++		return nil
++	}
++	base, scav = h.pages.alloc(npage)
++	if base != 0 {
++		goto HaveBase
++	}
++	throw("grew heap, but no adequate free space found")
++
++HaveBase:
++	if scav != 0 {
++		// sysUsed all the pages that are actually available
++		// in the span.
++		sysUsed(unsafe.Pointer(base), npage*pageSize)
++		memstats.heap_released -= uint64(scav)
++	}
++
++	s := (*mspan)(h.spanalloc.alloc())
++	s.init(base, npage)
++	// TODO(mknyszek): Add code to compute whether the newly-allocated
++	// region needs to be zeroed.
++	s.needzero = 1
++	h.setSpans(s.base(), npage, s)
++
++	*stat += uint64(npage << _PageShift)
++	memstats.heap_idle -= uint64(npage << _PageShift)
++
++	return s
++}
++
++// Allocates a span of the given size.  h must be locked.
++// The returned span has been removed from the
++// free structures, but its state is still mSpanFree.
++func (h *mheap) allocSpanLockedOld(npage uintptr, stat *uint64) *mspan {
+ 	t := h.free.find(npage)
+ 	if t.valid() {
+ 		goto HaveSpan
+@@ -1291,7 +1337,12 @@ HaveSpan:
+ // h must be locked.
+ func (h *mheap) grow(npage uintptr) bool {
+ 	ask := npage << _PageShift
++	if !oldPageAllocator {
++		// We must grow the heap in whole palloc chunks.
++		ask = alignUp(ask, pallocChunkBytes)
++	}
+ 
++	totalGrowth := uintptr(0)
+ 	nBase := alignUp(h.curArena.base+ask, physPageSize)
+ 	if nBase > h.curArena.end {
+ 		// Not enough room in the current arena. Allocate more
+@@ -1312,7 +1363,12 @@ func (h *mheap) grow(npage uintptr) bool {
+ 			// remains of the current space and switch to
+ 			// the new space. This should be rare.
+ 			if size := h.curArena.end - h.curArena.base; size != 0 {
+-				h.growAddSpan(unsafe.Pointer(h.curArena.base), size)
++				if oldPageAllocator {
++					h.growAddSpan(unsafe.Pointer(h.curArena.base), size)
++				} else {
++					h.pages.grow(h.curArena.base, size)
++				}
++				totalGrowth += size
+ 			}
+ 			// Switch to the new space.
+ 			h.curArena.base = uintptr(av)
+@@ -1338,7 +1394,24 @@ func (h *mheap) grow(npage uintptr) bool {
+ 	// Grow into the current arena.
+ 	v := h.curArena.base
+ 	h.curArena.base = nBase
+-	h.growAddSpan(unsafe.Pointer(v), nBase-v)
++	if oldPageAllocator {
++		h.growAddSpan(unsafe.Pointer(v), nBase-v)
++	} else {
++		h.pages.grow(v, nBase-v)
++		totalGrowth += nBase - v
++
++		// We just caused a heap growth, so scavenge down what will soon be used.
++		// By scavenging inline we deal with the failure to allocate out of
++		// memory fragments by scavenging the memory fragments that are least
++		// likely to be re-used.
++		if retained := heapRetained(); retained+uint64(totalGrowth) > h.scavengeGoal {
++			todo := totalGrowth
++			if overage := uintptr(retained + uint64(totalGrowth) - h.scavengeGoal); todo > overage {
++				todo = overage
++			}
++			h.pages.scavenge(todo, true)
++		}
++	}
+ 	return true
+ }
+ 
+@@ -1442,13 +1515,24 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool) {
+ 	if acctidle {
+ 		memstats.heap_idle += uint64(s.npages << _PageShift)
+ 	}
+-	s.state.set(mSpanFree)
+ 
+-	// Coalesce span with neighbors.
+-	h.coalesce(s)
++	if oldPageAllocator {
++		s.state.set(mSpanFree)
+ 
+-	// Insert s into the treap.
+-	h.free.insert(s)
++		// Coalesce span with neighbors.
++		h.coalesce(s)
++
++		// Insert s into the treap.
++		h.free.insert(s)
++		return
++	}
++
++	// Mark the space as free.
++	h.pages.free(s.base(), s.npages)
++
++	// Free the span structure. We no longer have a use for it.
++	s.state.set(mSpanDead)
++	h.spanalloc.free(unsafe.Pointer(s))
+ }
+ 
+ // scavengeSplit takes t.span() and attempts to split off a span containing size
+@@ -1573,7 +1657,12 @@ func (h *mheap) scavengeAll() {
+ 	gp := getg()
+ 	gp.m.mallocing++
+ 	lock(&h.lock)
+-	released := h.scavengeLocked(^uintptr(0))
++	var released uintptr
++	if oldPageAllocator {
++		released = h.scavengeLocked(^uintptr(0))
++	} else {
++		released = h.pages.scavenge(^uintptr(0), true)
++	}
+ 	unlock(&h.lock)
+ 	gp.m.mallocing--
+ 

@@ -21,6 +21,51 @@ Date:   Tue Apr 15 21:17:18 2014 -0400
     R=golang-codereviews, bradfitz
     CC=golang-codereviews, iant, r
     https://golang.org/cl/87870048
-
+---
  src/cmd/ld/dwarf.c | 26 +++++++++++++-------------
  1 file changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index ff67223ad2..fdbf932b59 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -1393,26 +1393,26 @@ movetomodule(DWDie *parent)
+ 	die->link = parent->child;
+ }
+ 
+-// if the histfile stack contains ..../runtime/runtime_defs.go
+-// use that to set gdbscript
++// If the pcln table contains runtime/zruntime_defs_*.go, use that to set gdbscript path.
+ static void
+ finddebugruntimepath(LSym *s)
+ {
+-	USED(s);
+-
+-/* TODO
+-	int i, l;
+-	char *c;
++	int i;
++	char *p;
++	LSym *f;
++	
++	if(gdbscript[0] != '\0')
++		return;
+ 
+-	for (i = 1; i < histfilesize; i++) {
+-		if ((c = strstr(histfile[i], "runtime/zruntime_defs")) != nil) {
+-			l = c - histfile[i];
+-			memmove(gdbscript, histfile[i], l);
+-			memmove(gdbscript + l, "runtime/runtime-gdb.py", strlen("runtime/runtime-gdb.py") + 1);
++	for(i=0; i<s->pcln->nfile; i++) {
++		f = s->pcln->file[i];
++		if((p = strstr(f->name, "runtime/string.goc")) != nil) {
++			*p = '\0';
++			snprint(gdbscript, sizeof gdbscript, "%sruntime/runtime-gdb.py", f->name);
++			*p = 'r';
+ 			break;
+ 		}
+ 	}
+-*/
+ }
+ 
+ /*

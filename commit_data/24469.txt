@@ -14,6 +14,25 @@ Date:   Thu Jul 30 12:37:05 2015 -0400
     Change-Id: I0e739a4dd2897adbe110aa400d720d8fa02ae65f
     Reviewed-on: https://go-review.googlesource.com/12920
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/sync/atomic/atomic_test.go | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/src/sync/atomic/atomic_test.go b/src/sync/atomic/atomic_test.go
+index d340ef5dee..e2c63b95e8 100644
+--- a/src/sync/atomic/atomic_test.go
++++ b/src/sync/atomic/atomic_test.go
+@@ -1403,13 +1403,6 @@ func TestUnaligned64(t *testing.T) {
+ }
+ 
+ func TestNilDeref(t *testing.T) {
+-	switch runtime.GOOS {
+-	case "darwin", "freebsd", "netbsd":
+-		switch runtime.GOARCH {
+-		case "arm", "arm64":
+-			t.Skipf("issue 7338: skipping test on %s/%s", runtime.GOOS, runtime.GOARCH)
+-		}
+-	}
+ 	funcs := [...]func(){
+ 		func() { CompareAndSwapInt32(nil, 0, 0) },
+ 		func() { CompareAndSwapInt64(nil, 0, 0) },

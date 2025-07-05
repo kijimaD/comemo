@@ -10,7 +10,71 @@ Date:   Wed Apr 4 09:45:22 2012 -0400
     R=rsc, golang-dev
     CC=golang-dev
     https://golang.org/cl/5972058
-
+---
  src/pkg/math/all_test.go |  4 ++--
  src/pkg/math/gamma.go    | 25 ++++++++++++++++++++-----
  2 files changed, 22 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/math/all_test.go b/src/pkg/math/all_test.go
+index ed66a42fb0..8cbead1ab7 100644
+--- a/src/pkg/math/all_test.go
++++ b/src/pkg/math/all_test.go
+@@ -1128,11 +1128,11 @@ var vfgammaSC = []float64{
+ 	NaN(),
+ }
+ var gammaSC = []float64{
++	NaN(),
++	NaN(),
+ 	Inf(-1),
+ 	Inf(1),
+ 	Inf(1),
+-	Inf(1),
+-	Inf(1),
+ 	NaN(),
+ }
+ 
+diff --git a/src/pkg/math/gamma.go b/src/pkg/math/gamma.go
+index 7c6f421bad..8b053cb85f 100644
+--- a/src/pkg/math/gamma.go
++++ b/src/pkg/math/gamma.go
+@@ -113,16 +113,23 @@ func stirling(x float64) float64 {
+ // Gamma(x) returns the Gamma function of x.
+ //
+ // Special cases are:
+-//	Gamma(±Inf) = ±Inf
++//	Gamma(+Inf) = +Inf
++//	Gamma(+0) = +Inf
++//	Gamma(-0) = -Inf
++//	Gamma(x) = NaN for integer x < 0
++//	Gamma(-Inf) = NaN
+ //	Gamma(NaN) = NaN
+-// Large values overflow to +Inf.
+-// Zero and negative integer arguments return ±Inf.
+ func Gamma(x float64) float64 {
+ 	const Euler = 0.57721566490153286060651209008240243104215933593992 // A001620
+ 	// special cases
+ 	switch {
+-	case IsInf(x, -1) || IsNaN(x):
+-		return x
++	case isNegInt(x) || IsInf(x, -1) || IsNaN(x):
++		return NaN()
++	case x == 0:
++		if Signbit(x) {
++			return Inf(-1)
++		}
++		return Inf(1)
+ 	case x < -170.5674972726612 || x > 171.61447887182298:
+ 		return Inf(1)
+ 	}
+@@ -185,3 +192,11 @@ small:
+ 	}
+ 	return z / ((1 + Euler*x) * x)
+ }
++
++func isNegInt(x float64) bool {
++	if x < 0 {
++		_, xf := Modf(x)
++		return xf == 0
++	}
++	return false
++}

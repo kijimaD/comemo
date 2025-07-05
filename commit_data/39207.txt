@@ -21,6 +21,22 @@ Date:   Tue Jan 22 16:02:41 2019 -0500
     Reviewed-by: Julie Qiu <julieqiu@google.com>
     Reviewed-on: https://go-review.googlesource.com/c/159218
     Reviewed-by: Julie Qiu <julie@golang.org>
-
+---
  src/crypto/elliptic/elliptic.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/elliptic/elliptic.go b/src/crypto/elliptic/elliptic.go
+index 4fc2b5e521..c84657c5e3 100644
+--- a/src/crypto/elliptic/elliptic.go
++++ b/src/crypto/elliptic/elliptic.go
+@@ -210,8 +210,9 @@ func (curve *CurveParams) doubleJacobian(x, y, z *big.Int) (*big.Int, *big.Int,
+ 
+ 	x3 := new(big.Int).Mul(alpha, alpha)
+ 	beta8 := new(big.Int).Lsh(beta, 3)
++	beta8.Mod(beta8, curve.P)
+ 	x3.Sub(x3, beta8)
+-	for x3.Sign() == -1 {
++	if x3.Sign() == -1 {
+ 		x3.Add(x3, curve.P)
+ 	}
+ 	x3.Mod(x3, curve.P)

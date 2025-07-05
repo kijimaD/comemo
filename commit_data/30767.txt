@@ -7,6 +7,20 @@ Date:   Thu Dec 1 13:27:32 2016 -0800
     Change-Id: I853da2666ed2b5f8b80bd9438f8c352f233b9c89
     Reviewed-on: https://go-review.googlesource.com/33800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.8.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.8.html b/doc/go1.8.html
+index 96d325e34a..c05e70a586 100644
+--- a/doc/go1.8.html
++++ b/doc/go1.8.html
+@@ -950,7 +950,7 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
+     <p> <!-- CL 30944 -->
+ 
+       In previous versions of Go, unmarshaling a JSON <code>null</code> into an
+-      of <a href="/pkg/encoding/json/#Unmarshaler"><code>Unmarshaler</code></a>
++      <a href="/pkg/encoding/json/#Unmarshaler"><code>Unmarshaler</code></a>
+       was considered a no-op; now the <code>Unmarshaler</code>'s
+       <code>UnmarshalJSON</code> method is called with the JSON literal
+       <code>null</code> and can define the semantics of that case.

@@ -15,7 +15,59 @@ Date:   Tue Nov 7 20:37:26 2023 +0000
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Run-TryBot: Jes Cok <xigua67damn@gmail.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/slices/slices.go      |  5 ++++-
  src/slices/slices_test.go | 20 ++++++++++++++++++++
  2 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/src/slices/slices.go b/src/slices/slices.go
+index 465af14f8e..fe50a91d48 100644
+--- a/src/slices/slices.go
++++ b/src/slices/slices.go
+@@ -130,11 +130,14 @@ func ContainsFunc[S ~[]E, E any](s S, f func(E) bool) bool {
+ // Insert panics if i is out of range.
+ // This function is O(len(s) + len(v)).
+ func Insert[S ~[]E, E any](s S, i int, v ...E) S {
++	n := len(s)
+ 	m := len(v)
+ 	if m == 0 {
++		// Panic if i is not in the range [0:n] inclusive.
++		// See issue 63913.
++		_ = s[:n:n][i:]
+ 		return s
+ 	}
+-	n := len(s)
+ 	if i == n {
+ 		return append(s, v...)
+ 	}
+diff --git a/src/slices/slices_test.go b/src/slices/slices_test.go
+index ac779f5bd9..7d4fc34b2e 100644
+--- a/src/slices/slices_test.go
++++ b/src/slices/slices_test.go
+@@ -536,6 +536,26 @@ func TestInsertOverlap(t *testing.T) {
+ 	}
+ }
+ 
++func TestInsertPanics(t *testing.T) {
++	a := [3]int{}
++	for _, test := range []struct {
++		name string
++		s    []int
++		i    int
++		v    []int
++	}{
++		// There are no values.
++		{"with negative index", a[:1:1], -1, nil},
++		{"with out-of-bounds index and > cap", a[:1:1], 2, nil},
++		{"with out-of-bounds index and = cap", a[:1:2], 2, nil},
++		{"with out-of-bounds index and < cap", a[:1:3], 2, nil},
++	} {
++		if !panics(func() { Insert(test.s, test.i, test.v...) }) {
++			t.Errorf("Insert %s: got no panic, want panic", test.name)
++		}
++	}
++}
++
+ var deleteTests = []struct {
+ 	s    []int
+ 	i, j int

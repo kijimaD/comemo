@@ -11,7 +11,37 @@ Date:   Fri Dec 4 23:03:58 2015 -0500
     Change-Id: I03b512ab944577c56085aea06df8ff5e1acc16d7
     Reviewed-on: https://go-review.googlesource.com/17455
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/vet/composite.go                          | 2 +-
  src/cmd/vet/{ => internal}/whitelist/whitelist.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/vet/composite.go b/src/cmd/vet/composite.go
+index 80b45e2064..731c793eac 100644
+--- a/src/cmd/vet/composite.go
++++ b/src/cmd/vet/composite.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ import (
+-	"cmd/vet/whitelist"
++	"cmd/vet/internal/whitelist"
+ 	"flag"
+ 	"go/ast"
+ 	"strings"
+diff --git a/src/cmd/vet/whitelist/whitelist.go b/src/cmd/vet/internal/whitelist/whitelist.go
+similarity index 97%
+rename from src/cmd/vet/whitelist/whitelist.go
+rename to src/cmd/vet/internal/whitelist/whitelist.go
+index bf4b4bf48a..b6c85850f3 100644
+--- a/src/cmd/vet/whitelist/whitelist.go
++++ b/src/cmd/vet/internal/whitelist/whitelist.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package whitelist defines exceptions for the vet tool.
+-package whitelist // import "cmd/vet/whitelist"
++package whitelist
+ 
+ // UnkeyedLiteral are types that are actually slices, but
+ // syntactically, we cannot tell whether the Typ in pkg.Typ{1, 2, 3}

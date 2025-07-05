@@ -7,6 +7,19 @@ Date:   Thu Mar 1 03:11:37 2012 +0800
     R=rsc, bsiegert
     CC=golang-dev
     https://golang.org/cl/5709060
-
+---
  src/pkg/runtime/pprof/pprof_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/runtime/pprof/pprof_test.go b/src/pkg/runtime/pprof/pprof_test.go
+index 994ec9dde4..2dc7aef7e9 100644
+--- a/src/pkg/runtime/pprof/pprof_test.go
++++ b/src/pkg/runtime/pprof/pprof_test.go
+@@ -26,6 +26,7 @@ func TestCPUProfile(t *testing.T) {
+ 		t.Logf("uname -a: %v", vers)
+ 		if strings.Contains(vers, "Darwin Kernel Version 10.8.0") && strings.Contains(vers, "root:xnu-1504.15.3~1/RELEASE_X86_64") {
+ 			t.Logf("skipping test on known-broken kernel (64-bit Snow Leopard)")
++			return
+ 		}
+ 	case "plan9":
+ 		// unimplemented

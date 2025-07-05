@@ -13,7 +13,39 @@ Date:   Mon Sep 11 21:51:38 2017 +0200
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/path/filepath/path_windows.go | 4 +---
  src/text/template/exec.go         | 5 +----
  2 files changed, 2 insertions(+), 7 deletions(-)
+
+diff --git a/src/path/filepath/path_windows.go b/src/path/filepath/path_windows.go
+index 0d8b62015c..03542559f8 100644
+--- a/src/path/filepath/path_windows.go
++++ b/src/path/filepath/path_windows.go
+@@ -100,9 +100,7 @@ func splitList(path string) []string {
+ 
+ 	// Remove quotes.
+ 	for i, s := range list {
+-		if strings.Contains(s, `"`) {
+-			list[i] = strings.Replace(s, `"`, ``, -1)
+-		}
++		list[i] = strings.Replace(s, `"`, ``, -1)
+ 	}
+ 
+ 	return list
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index e54a579afd..1c361ed13e 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -79,10 +79,7 @@ func (s *state) at(node parse.Node) {
+ // doublePercent returns the string with %'s replaced by %%, if necessary,
+ // so it can be used safely inside a Printf format string.
+ func doublePercent(str string) string {
+-	if strings.Contains(str, "%") {
+-		str = strings.Replace(str, "%", "%%", -1)
+-	}
+-	return str
++	return strings.Replace(str, "%", "%%", -1)
+ }
+ 
+ // TODO: It would be nice if ExecError was more broken down, but

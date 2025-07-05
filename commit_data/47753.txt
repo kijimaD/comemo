@@ -12,7 +12,7 @@ Date:   Wed Apr 7 21:27:27 2021 +0200
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/os/error_test.go        |  8 +------
  src/os/fifo_test.go         |  7 +-----
  src/os/os_test.go           | 38 ++++++--------------------------
@@ -22,3 +22,509 @@ Date:   Wed Apr 7 21:27:27 2021 +0200
  src/os/removeall_test.go    | 53 ++++++++-------------------------------------
  src/os/stat_test.go         | 45 ++++++++++----------------------------
  8 files changed, 45 insertions(+), 175 deletions(-)
+
+diff --git a/src/os/error_test.go b/src/os/error_test.go
+index 6264ccc966..58b3f391d1 100644
+--- a/src/os/error_test.go
++++ b/src/os/error_test.go
+@@ -54,13 +54,7 @@ func testErrNotExist(name string) string {
+ }
+ 
+ func TestErrIsNotExist(t *testing.T) {
+-	tmpDir, err := os.MkdirTemp("", "_Go_ErrIsNotExist")
+-	if err != nil {
+-		t.Fatalf("create ErrIsNotExist tempdir: %s", err)
+-		return
+-	}
+-	defer os.RemoveAll(tmpDir)
+-
++	tmpDir := t.TempDir()
+ 	name := filepath.Join(tmpDir, "NotExists")
+ 	if s := testErrNotExist(name); s != "" {
+ 		t.Fatal(s)
+diff --git a/src/os/fifo_test.go b/src/os/fifo_test.go
+index c3607344ec..9b262f8205 100644
+--- a/src/os/fifo_test.go
++++ b/src/os/fifo_test.go
+@@ -31,12 +31,7 @@ func TestFifoEOF(t *testing.T) {
+ 		t.Skip("skipping on OpenBSD; issue 25877")
+ 	}
+ 
+-	dir, err := os.MkdirTemp("", "TestFifoEOF")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(dir)
+-
++	dir := t.TempDir()
+ 	fifoName := filepath.Join(dir, "fifo")
+ 	if err := syscall.Mkfifo(fifoName, 0600); err != nil {
+ 		t.Fatal(err)
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index f27c796c05..506f1fb0ee 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -617,11 +617,7 @@ func TestReaddirNValues(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("test.short; skipping")
+ 	}
+-	dir, err := os.MkdirTemp("", "")
+-	if err != nil {
+-		t.Fatalf("TempDir: %v", err)
+-	}
+-	defer RemoveAll(dir)
++	dir := t.TempDir()
+ 	for i := 1; i <= 105; i++ {
+ 		f, err := Create(filepath.Join(dir, fmt.Sprintf("%d", i)))
+ 		if err != nil {
+@@ -716,11 +712,7 @@ func TestReaddirStatFailures(t *testing.T) {
+ 		// testing it wouldn't work.
+ 		t.Skipf("skipping test on %v", runtime.GOOS)
+ 	}
+-	dir, err := os.MkdirTemp("", "")
+-	if err != nil {
+-		t.Fatalf("TempDir: %v", err)
+-	}
+-	defer RemoveAll(dir)
++	dir := t.TempDir()
+ 	touch(t, filepath.Join(dir, "good1"))
+ 	touch(t, filepath.Join(dir, "x")) // will disappear or have an error
+ 	touch(t, filepath.Join(dir, "good2"))
+@@ -1949,22 +1941,16 @@ func TestAppend(t *testing.T) {
+ 
+ func TestStatDirWithTrailingSlash(t *testing.T) {
+ 	// Create new temporary directory and arrange to clean it up.
+-	path, err := os.MkdirTemp("", "_TestStatDirWithSlash_")
+-	if err != nil {
+-		t.Fatalf("TempDir: %s", err)
+-	}
+-	defer RemoveAll(path)
++	path := t.TempDir()
+ 
+ 	// Stat of path should succeed.
+-	_, err = Stat(path)
+-	if err != nil {
++	if _, err := Stat(path); err != nil {
+ 		t.Fatalf("stat %s failed: %s", path, err)
+ 	}
+ 
+ 	// Stat of path+"/" should succeed too.
+ 	path += "/"
+-	_, err = Stat(path)
+-	if err != nil {
++	if _, err := Stat(path); err != nil {
+ 		t.Fatalf("stat %s failed: %s", path, err)
+ 	}
+ }
+@@ -2091,12 +2077,7 @@ func TestLargeWriteToConsole(t *testing.T) {
+ func TestStatDirModeExec(t *testing.T) {
+ 	const mode = 0111
+ 
+-	path, err := os.MkdirTemp("", "go-build")
+-	if err != nil {
+-		t.Fatalf("Failed to create temp directory: %v", err)
+-	}
+-	defer RemoveAll(path)
+-
++	path := t.TempDir()
+ 	if err := Chmod(path, 0777); err != nil {
+ 		t.Fatalf("Chmod %q 0777: %v", path, err)
+ 	}
+@@ -2160,12 +2141,7 @@ func TestStatStdin(t *testing.T) {
+ func TestStatRelativeSymlink(t *testing.T) {
+ 	testenv.MustHaveSymlink(t)
+ 
+-	tmpdir, err := os.MkdirTemp("", "TestStatRelativeSymlink")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer RemoveAll(tmpdir)
+-
++	tmpdir := t.TempDir()
+ 	target := filepath.Join(tmpdir, "target")
+ 	f, err := Create(target)
+ 	if err != nil {
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index f310a75f39..195c30f50e 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -626,11 +626,7 @@ func TestOpenVolumeName(t *testing.T) {
+ }
+ 
+ func TestDeleteReadOnly(t *testing.T) {
+-	tmpdir, err := os.MkdirTemp("", "TestDeleteReadOnly")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 	p := filepath.Join(tmpdir, "a")
+ 	// This sets FILE_ATTRIBUTE_READONLY.
+ 	f, err := os.OpenFile(p, os.O_CREATE, 0400)
+@@ -796,11 +792,7 @@ func compareCommandLineToArgvWithSyscall(t *testing.T, cmd string) {
+ }
+ 
+ func TestCmdArgs(t *testing.T) {
+-	tmpdir, err := os.MkdirTemp("", "TestCmdArgs")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 
+ 	const prog = `
+ package main
+@@ -815,8 +807,7 @@ func main() {
+ }
+ `
+ 	src := filepath.Join(tmpdir, "main.go")
+-	err = os.WriteFile(src, []byte(prog), 0666)
+-	if err != nil {
++	if err := os.WriteFile(src, []byte(prog), 0666); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+@@ -963,21 +954,14 @@ func TestSymlinkCreation(t *testing.T) {
+ 	}
+ 	t.Parallel()
+ 
+-	temp, err := os.MkdirTemp("", "TestSymlinkCreation")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(temp)
+-
++	temp := t.TempDir()
+ 	dummyFile := filepath.Join(temp, "file")
+-	err = os.WriteFile(dummyFile, []byte(""), 0644)
+-	if err != nil {
++	if err := os.WriteFile(dummyFile, []byte(""), 0644); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+ 	linkFile := filepath.Join(temp, "link")
+-	err = os.Symlink(dummyFile, linkFile)
+-	if err != nil {
++	if err := os.Symlink(dummyFile, linkFile); err != nil {
+ 		t.Fatal(err)
+ 	}
+ }
+diff --git a/src/os/path_test.go b/src/os/path_test.go
+index b79d958711..4535abbc52 100644
+--- a/src/os/path_test.go
++++ b/src/os/path_test.go
+@@ -6,7 +6,6 @@ package os_test
+ 
+ import (
+ 	"internal/testenv"
+-	"os"
+ 	. "os"
+ 	"path/filepath"
+ 	"runtime"
+@@ -78,27 +77,19 @@ func TestMkdirAll(t *testing.T) {
+ func TestMkdirAllWithSymlink(t *testing.T) {
+ 	testenv.MustHaveSymlink(t)
+ 
+-	tmpDir, err := os.MkdirTemp("", "TestMkdirAllWithSymlink-")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer RemoveAll(tmpDir)
+-
++	tmpDir := t.TempDir()
+ 	dir := tmpDir + "/dir"
+-	err = Mkdir(dir, 0755)
+-	if err != nil {
++	if err := Mkdir(dir, 0755); err != nil {
+ 		t.Fatalf("Mkdir %s: %s", dir, err)
+ 	}
+ 
+ 	link := tmpDir + "/link"
+-	err = Symlink("dir", link)
+-	if err != nil {
++	if err := Symlink("dir", link); err != nil {
+ 		t.Fatalf("Symlink %s: %s", link, err)
+ 	}
+ 
+ 	path := link + "/foo"
+-	err = MkdirAll(path, 0755)
+-	if err != nil {
++	if err := MkdirAll(path, 0755); err != nil {
+ 		t.Errorf("MkdirAll %q: %s", path, err)
+ 	}
+ }
+diff --git a/src/os/path_windows_test.go b/src/os/path_windows_test.go
+index a23a079f77..e960bcb19c 100644
+--- a/src/os/path_windows_test.go
++++ b/src/os/path_windows_test.go
+@@ -50,31 +50,21 @@ func TestFixLongPath(t *testing.T) {
+ }
+ 
+ func TestMkdirAllLongPath(t *testing.T) {
+-	tmpDir, err := os.MkdirTemp("", "TestMkdirAllLongPath")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpDir)
++	tmpDir := t.TempDir()
+ 	path := tmpDir
+ 	for i := 0; i < 100; i++ {
+ 		path += `\another-path-component`
+ 	}
+-	err = os.MkdirAll(path, 0777)
+-	if err != nil {
++	if err := os.MkdirAll(path, 0777); err != nil {
+ 		t.Fatalf("MkdirAll(%q) failed; %v", path, err)
+ 	}
+-	err = os.RemoveAll(tmpDir)
+-	if err != nil {
++	if err := os.RemoveAll(tmpDir); err != nil {
+ 		t.Fatalf("RemoveAll(%q) failed; %v", tmpDir, err)
+ 	}
+ }
+ 
+ func TestMkdirAllExtendedLength(t *testing.T) {
+-	tmpDir, err := os.MkdirTemp("", "TestMkdirAllExtendedLength")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpDir)
++	tmpDir := t.TempDir()
+ 
+ 	const prefix = `\\?\`
+ 	if len(tmpDir) < 4 || tmpDir[:4] != prefix {
+@@ -85,14 +75,12 @@ func TestMkdirAllExtendedLength(t *testing.T) {
+ 		tmpDir = prefix + fullPath
+ 	}
+ 	path := tmpDir + `\dir\`
+-	err = os.MkdirAll(path, 0777)
+-	if err != nil {
++	if err := os.MkdirAll(path, 0777); err != nil {
+ 		t.Fatalf("MkdirAll(%q) failed: %v", path, err)
+ 	}
+ 
+ 	path = path + `.\dir2`
+-	err = os.MkdirAll(path, 0777)
+-	if err == nil {
++	if err := os.MkdirAll(path, 0777); err == nil {
+ 		t.Fatalf("MkdirAll(%q) should have failed, but did not", path)
+ 	}
+ }
+diff --git a/src/os/removeall_test.go b/src/os/removeall_test.go
+index 3a2f6e3759..08dfdd8ec0 100644
+--- a/src/os/removeall_test.go
++++ b/src/os/removeall_test.go
+@@ -15,12 +15,7 @@ import (
+ )
+ 
+ func TestRemoveAll(t *testing.T) {
+-	tmpDir, err := os.MkdirTemp("", "TestRemoveAll-")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer RemoveAll(tmpDir)
+-
++	tmpDir := t.TempDir()
+ 	if err := RemoveAll(""); err != nil {
+ 		t.Errorf("RemoveAll(\"\"): %v; want nil", err)
+ 	}
+@@ -128,12 +123,7 @@ func TestRemoveAllLarge(t *testing.T) {
+ 		t.Skip("skipping in short mode")
+ 	}
+ 
+-	tmpDir, err := os.MkdirTemp("", "TestRemoveAll-")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer RemoveAll(tmpDir)
+-
++	tmpDir := t.TempDir()
+ 	path := filepath.Join(tmpDir, "_TestRemoveAllLarge_")
+ 
+ 	// Make directory with 1000 files and remove.
+@@ -236,12 +226,7 @@ func TestRemoveAllDot(t *testing.T) {
+ func TestRemoveAllDotDot(t *testing.T) {
+ 	t.Parallel()
+ 
+-	tempDir, err := os.MkdirTemp("", "TestRemoveAllDotDot-")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer RemoveAll(tempDir)
+-
++	tempDir := t.TempDir()
+ 	subdir := filepath.Join(tempDir, "x")
+ 	subsubdir := filepath.Join(subdir, "y")
+ 	if err := MkdirAll(subsubdir, 0777); err != nil {
+@@ -261,12 +246,7 @@ func TestRemoveAllDotDot(t *testing.T) {
+ func TestRemoveReadOnlyDir(t *testing.T) {
+ 	t.Parallel()
+ 
+-	tempDir, err := os.MkdirTemp("", "TestRemoveReadOnlyDir-")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer RemoveAll(tempDir)
+-
++	tempDir := t.TempDir()
+ 	subdir := filepath.Join(tempDir, "x")
+ 	if err := Mkdir(subdir, 0); err != nil {
+ 		t.Fatal(err)
+@@ -298,12 +278,7 @@ func TestRemoveAllButReadOnlyAndPathError(t *testing.T) {
+ 
+ 	t.Parallel()
+ 
+-	tempDir, err := os.MkdirTemp("", "TestRemoveAllButReadOnly-")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer RemoveAll(tempDir)
+-
++	tempDir := t.TempDir()
+ 	dirs := []string{
+ 		"a",
+ 		"a/x",
+@@ -347,7 +322,7 @@ func TestRemoveAllButReadOnlyAndPathError(t *testing.T) {
+ 		defer Chmod(d, 0777)
+ 	}
+ 
+-	err = RemoveAll(tempDir)
++	err := RemoveAll(tempDir)
+ 	if err == nil {
+ 		t.Fatal("RemoveAll succeeded unexpectedly")
+ 	}
+@@ -389,12 +364,7 @@ func TestRemoveUnreadableDir(t *testing.T) {
+ 
+ 	t.Parallel()
+ 
+-	tempDir, err := os.MkdirTemp("", "TestRemoveAllButReadOnly-")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer RemoveAll(tempDir)
+-
++	tempDir := t.TempDir()
+ 	target := filepath.Join(tempDir, "d0", "d1", "d2")
+ 	if err := MkdirAll(target, 0755); err != nil {
+ 		t.Fatal(err)
+@@ -413,12 +383,7 @@ func TestRemoveAllWithMoreErrorThanReqSize(t *testing.T) {
+ 		t.Skip("skipping in short mode")
+ 	}
+ 
+-	tmpDir, err := os.MkdirTemp("", "TestRemoveAll-")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer RemoveAll(tmpDir)
+-
++	tmpDir := t.TempDir()
+ 	path := filepath.Join(tmpDir, "_TestRemoveAllWithMoreErrorThanReqSize_")
+ 
+ 	// Make directory with 1025 read-only files.
+@@ -443,7 +408,7 @@ func TestRemoveAllWithMoreErrorThanReqSize(t *testing.T) {
+ 
+ 	// This call should not hang, even on a platform that disallows file deletion
+ 	// from read-only directories.
+-	err = RemoveAll(path)
++	err := RemoveAll(path)
+ 
+ 	if Getuid() == 0 {
+ 		// On many platforms, root can remove files from read-only directories.
+diff --git a/src/os/stat_test.go b/src/os/stat_test.go
+index c409f0ff18..8d99f64609 100644
+--- a/src/os/stat_test.go
++++ b/src/os/stat_test.go
+@@ -185,30 +185,22 @@ func testSymlinkSameFile(t *testing.T, path, link string) {
+ func TestDirAndSymlinkStats(t *testing.T) {
+ 	testenv.MustHaveSymlink(t)
+ 
+-	tmpdir, err := os.MkdirTemp("", "TestDirAndSymlinkStats")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpdir)
+-
++	tmpdir := t.TempDir()
+ 	dir := filepath.Join(tmpdir, "dir")
+-	err = os.Mkdir(dir, 0777)
+-	if err != nil {
++	if err := os.Mkdir(dir, 0777); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	testDirStats(t, dir)
+ 
+ 	dirlink := filepath.Join(tmpdir, "link")
+-	err = os.Symlink(dir, dirlink)
+-	if err != nil {
++	if err := os.Symlink(dir, dirlink); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	testSymlinkStats(t, dirlink, true)
+ 	testSymlinkSameFile(t, dir, dirlink)
+ 
+ 	linklink := filepath.Join(tmpdir, "linklink")
+-	err = os.Symlink(dirlink, linklink)
+-	if err != nil {
++	if err := os.Symlink(dirlink, linklink); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	testSymlinkStats(t, linklink, true)
+@@ -218,30 +210,22 @@ func TestDirAndSymlinkStats(t *testing.T) {
+ func TestFileAndSymlinkStats(t *testing.T) {
+ 	testenv.MustHaveSymlink(t)
+ 
+-	tmpdir, err := os.MkdirTemp("", "TestFileAndSymlinkStats")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpdir)
+-
++	tmpdir := t.TempDir()
+ 	file := filepath.Join(tmpdir, "file")
+-	err = os.WriteFile(file, []byte(""), 0644)
+-	if err != nil {
++	if err := os.WriteFile(file, []byte(""), 0644); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	testFileStats(t, file)
+ 
+ 	filelink := filepath.Join(tmpdir, "link")
+-	err = os.Symlink(file, filelink)
+-	if err != nil {
++	if err := os.Symlink(file, filelink); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	testSymlinkStats(t, filelink, false)
+ 	testSymlinkSameFile(t, file, filelink)
+ 
+ 	linklink := filepath.Join(tmpdir, "linklink")
+-	err = os.Symlink(filelink, linklink)
+-	if err != nil {
++	if err := os.Symlink(filelink, linklink); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	testSymlinkStats(t, linklink, false)
+@@ -252,20 +236,13 @@ func TestFileAndSymlinkStats(t *testing.T) {
+ func TestSymlinkWithTrailingSlash(t *testing.T) {
+ 	testenv.MustHaveSymlink(t)
+ 
+-	tmpdir, err := os.MkdirTemp("", "TestSymlinkWithTrailingSlash")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpdir)
+-
++	tmpdir := t.TempDir()
+ 	dir := filepath.Join(tmpdir, "dir")
+-	err = os.Mkdir(dir, 0777)
+-	if err != nil {
++	if err := os.Mkdir(dir, 0777); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	dirlink := filepath.Join(tmpdir, "link")
+-	err = os.Symlink(dir, dirlink)
+-	if err != nil {
++	if err := os.Symlink(dir, dirlink); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	dirlinkWithSlash := dirlink + string(os.PathSeparator)

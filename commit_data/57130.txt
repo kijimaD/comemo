@@ -16,7 +16,78 @@ Date:   Fri Jun 23 14:23:31 2023 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/slices/sort.go      |  6 ++++--
  src/slices/sort_test.go | 28 ++++++++++++++++++++++++++++
  2 files changed, 32 insertions(+), 2 deletions(-)
+
+diff --git a/src/slices/sort.go b/src/slices/sort.go
+index 24fc6e26b6..af1d51ecd4 100644
+--- a/src/slices/sort.go
++++ b/src/slices/sort.go
+@@ -70,7 +70,8 @@ func Min[S ~[]E, E cmp.Ordered](x S) E {
+ }
+ 
+ // MinFunc returns the minimal value in x, using cmp to compare elements.
+-// It panics if x is empty.
++// It panics if x is empty. If there is more than one minimal element
++// according to the cmp function, MinFunc returns the first one.
+ func MinFunc[S ~[]E, E any](x S, cmp func(a, b E) int) E {
+ 	if len(x) < 1 {
+ 		panic("slices.MinFunc: empty list")
+@@ -99,7 +100,8 @@ func Max[S ~[]E, E cmp.Ordered](x S) E {
+ }
+ 
+ // MaxFunc returns the maximal value in x, using cmp to compare elements.
+-// It panics if x is empty.
++// It panics if x is empty. If there is more than one maximal element
++// according to the cmp function, MaxFunc returns the first one.
+ func MaxFunc[S ~[]E, E any](x S, cmp func(a, b E) int) E {
+ 	if len(x) < 1 {
+ 		panic("slices.MaxFunc: empty list")
+diff --git a/src/slices/sort_test.go b/src/slices/sort_test.go
+index 0e9df92b63..af0585935d 100644
+--- a/src/slices/sort_test.go
++++ b/src/slices/sort_test.go
+@@ -173,6 +173,15 @@ func TestStability(t *testing.T) {
+ 	}
+ }
+ 
++type S struct {
++	a int
++	b string
++}
++
++func cmpS(s1, s2 S) int {
++	return cmp.Compare(s1.a, s2.a)
++}
++
+ func TestMinMax(t *testing.T) {
+ 	intCmp := func(a, b int) int { return a - b }
+ 
+@@ -214,6 +223,25 @@ func TestMinMax(t *testing.T) {
+ 			}
+ 		})
+ 	}
++
++	svals := []S{
++		{1, "a"},
++		{2, "a"},
++		{1, "b"},
++		{2, "b"},
++	}
++
++	gotMin := MinFunc(svals, cmpS)
++	wantMin := S{1, "a"}
++	if gotMin != wantMin {
++		t.Errorf("MinFunc(%v) = %v, want %v", svals, gotMin, wantMin)
++	}
++
++	gotMax := MaxFunc(svals, cmpS)
++	wantMax := S{2, "a"}
++	if gotMax != wantMax {
++		t.Errorf("MaxFunc(%v) = %v, want %v", svals, gotMax, wantMax)
++	}
+ }
+ 
+ func TestMinMaxNaNs(t *testing.T) {

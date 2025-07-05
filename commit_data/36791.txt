@@ -15,8 +15,70 @@ Date:   Tue May 29 09:30:12 2018 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/pgen.go |  3 ++-
  src/go/types/stdlib_test.go         |  1 +
  test/fixedbugs/issue25507.go        | 29 +++++++++++++++++++++++++++++
  3 files changed, 32 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 9747a0299e..8f3947b0a6 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -257,7 +257,8 @@ const maxStackSize = 1 << 30
+ // worker indicates which of the backend workers is doing the processing.
+ func compileSSA(fn *Node, worker int) {
+ 	f := buildssa(fn, worker)
+-	if f.Frontend().(*ssafn).stksize >= maxStackSize {
++	// Note: check arg size to fix issue 25507.
++	if f.Frontend().(*ssafn).stksize >= maxStackSize || fn.Type.ArgWidth() >= maxStackSize {
+ 		largeStackFramesMu.Lock()
+ 		largeStackFrames = append(largeStackFrames, fn.Pos)
+ 		largeStackFramesMu.Unlock()
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index ad4c51f74d..dd1510d37e 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -174,6 +174,7 @@ func TestStdFixed(t *testing.T) {
+ 		"issue20529.go",  // go/types does not have constraints on stack size
+ 		"issue22200.go",  // go/types does not have constraints on stack size
+ 		"issue22200b.go", // go/types does not have constraints on stack size
++		"issue25507.go",  // go/types does not have constraints on stack size
+ 	)
+ }
+ 
+diff --git a/test/fixedbugs/issue25507.go b/test/fixedbugs/issue25507.go
+new file mode 100644
+index 0000000000..8dcbae16ab
+--- /dev/null
++++ b/test/fixedbugs/issue25507.go
+@@ -0,0 +1,29 @@
++// errorcheck
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// We have a limit of 1GB for stack frames.
++// Test that we extend that limit to include large argument/return areas.
++// Argument/return areas are part of the parent frame, not the frame itself,
++// so they need to be handled separately.
++
++package main
++
++// >1GB to trigger failure, <2GB to work on 32-bit platforms.
++type large struct {
++	b [1500000000]byte
++}
++
++func (x large) f1() int { // ERROR "stack frame too large"
++	return 5
++}
++
++func f2(x large) int { // ERROR "stack frame too large"
++	return 5
++}
++
++func f3() (x large, i int) { // ERROR "stack frame too large"
++	return
++}

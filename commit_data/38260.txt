@@ -16,8 +16,226 @@ Date:   Sat Oct 6 14:31:08 2018 -0700
     Change-Id: Ic58520fa50c90639393ff78f33d3c831d5c4acb9
     Reviewed-on: https://go-review.googlesource.com/c/140306
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/closure.go | 72 ++++++++++++++++++++--------------
  src/cmd/compile/internal/gc/order.go   | 19 ++++-----
  test/live.go                           | 17 ++++++--
  3 files changed, 66 insertions(+), 42 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 834cdc41eb..dcea567a14 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -337,18 +337,10 @@ func closuredebugruntimecheck(clo *Node) {
+ 	}
+ }
+ 
+-func walkclosure(clo *Node, init *Nodes) *Node {
+-	xfunc := clo.Func.Closure
+-
+-	// If no closure vars, don't bother wrapping.
+-	if hasemptycvars(clo) {
+-		if Debug_closure > 0 {
+-			Warnl(clo.Pos, "closure converted to global")
+-		}
+-		return xfunc.Func.Nname
+-	}
+-	closuredebugruntimecheck(clo)
+-
++// closureType returns the struct type used to hold all the information
++// needed in the closure for clo (clo must be a OCLOSURE node).
++// The address of a variable of the returned type can be cast to a func.
++func closureType(clo *Node) *types.Type {
+ 	// Create closure in the form of a composite literal.
+ 	// supposing the closure captures an int i and a string s
+ 	// and has one float64 argument and no results,
+@@ -362,11 +354,10 @@ func walkclosure(clo *Node, init *Nodes) *Node {
+ 	// The information appears in the binary in the form of type descriptors;
+ 	// the struct is unnamed so that closures in multiple packages with the
+ 	// same struct type can share the descriptor.
+-
+ 	fields := []*Node{
+ 		namedfield(".F", types.Types[TUINTPTR]),
+ 	}
+-	for _, v := range xfunc.Func.Cvars.Slice() {
++	for _, v := range clo.Func.Closure.Func.Cvars.Slice() {
+ 		typ := v.Type
+ 		if !v.Name.Byval() {
+ 			typ = types.NewPtr(typ)
+@@ -375,6 +366,22 @@ func walkclosure(clo *Node, init *Nodes) *Node {
+ 	}
+ 	typ := tostruct(fields)
+ 	typ.SetNoalg(true)
++	return typ
++}
++
++func walkclosure(clo *Node, init *Nodes) *Node {
++	xfunc := clo.Func.Closure
++
++	// If no closure vars, don't bother wrapping.
++	if hasemptycvars(clo) {
++		if Debug_closure > 0 {
++			Warnl(clo.Pos, "closure converted to global")
++		}
++		return xfunc.Func.Nname
++	}
++	closuredebugruntimecheck(clo)
++
++	typ := closureType(clo)
+ 
+ 	clos := nod(OCOMPLIT, nil, nod(OIND, typenod(typ), nil))
+ 	clos.Esc = clo.Esc
+@@ -389,10 +396,10 @@ func walkclosure(clo *Node, init *Nodes) *Node {
+ 	clos.Left.Esc = clo.Esc
+ 
+ 	// non-escaping temp to use, if any.
+-	// orderexpr did not compute the type; fill it in now.
+ 	if x := prealloc[clo]; x != nil {
+-		x.Type = clos.Left.Left.Type
+-		x.Orig.Type = x.Type
++		if !eqtype(typ, x.Type) {
++			panic("closure type does not match order's assigned type")
++		}
+ 		clos.Left.Right = x
+ 		delete(prealloc, clo)
+ 	}
+@@ -479,6 +486,18 @@ func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
+ 	return xfunc
+ }
+ 
++// partialCallType returns the struct type used to hold all the information
++// needed in the closure for n (n must be a OCALLPART node).
++// The address of a variable of the returned type can be cast to a func.
++func partialCallType(n *Node) *types.Type {
++	t := tostruct([]*Node{
++		namedfield("F", types.Types[TUINTPTR]),
++		namedfield("R", n.Left.Type),
++	})
++	t.SetNoalg(true)
++	return t
++}
++
+ func walkpartialcall(n *Node, init *Nodes) *Node {
+ 	// Create closure in the form of a composite literal.
+ 	// For x.M with receiver (x) type T, the generated code looks like:
+@@ -495,30 +514,25 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
+ 		checknil(n.Left, init)
+ 	}
+ 
+-	typ := tostruct([]*Node{
+-		namedfield("F", types.Types[TUINTPTR]),
+-		namedfield("R", n.Left.Type),
+-	})
+-	typ.SetNoalg(true)
++	typ := partialCallType(n)
+ 
+ 	clos := nod(OCOMPLIT, nil, nod(OIND, typenod(typ), nil))
+ 	clos.Esc = n.Esc
+ 	clos.Right.SetImplicit(true)
+-	clos.List.Set1(nod(OCFUNC, n.Func.Nname, nil))
+-	clos.List.Append(n.Left)
++	clos.List.Set2(nod(OCFUNC, n.Func.Nname, nil), n.Left)
+ 
+ 	// Force type conversion from *struct to the func type.
+ 	clos = convnop(clos, n.Type)
+ 
+-	// typecheck will insert a PTRLIT node under CONVNOP,
+-	// tag it with escape analysis result.
++	// The typecheck inside convnop will insert a PTRLIT node under CONVNOP.
++	// Tag it with escape analysis result.
+ 	clos.Left.Esc = n.Esc
+ 
+ 	// non-escaping temp to use, if any.
+-	// orderexpr did not compute the type; fill it in now.
+ 	if x := prealloc[n]; x != nil {
+-		x.Type = clos.Left.Left.Type
+-		x.Orig.Type = x.Type
++		if !eqtype(typ, x.Type) {
++			panic("partial call type does not match order's assigned type")
++		}
+ 		clos.Left.Right = x
+ 		delete(prealloc, n)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index f33689298f..694f8fbd34 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -244,12 +244,6 @@ func (o *Order) markTemp() ordermarker {
+ // which must have been returned by marktemp.
+ func (o *Order) popTemp(mark ordermarker) {
+ 	for _, n := range o.temp[mark:] {
+-		if n.Type.Etype == types.TUINT8 {
+-			// Don't recycle temps of this type. TUINT8 is used
+-			// as a placeholder for a type to be determined later.
+-			// TODO: fix
+-			continue
+-		}
+ 		key := n.Type.LongString()
+ 		o.free[key] = append(o.free[key], n)
+ 	}
+@@ -1170,16 +1164,23 @@ func (o *Order) expr(n, lhs *Node) *Node {
+ 
+ 	case OCLOSURE:
+ 		if n.Noescape() && n.Func.Closure.Func.Cvars.Len() > 0 {
+-			prealloc[n] = o.newTemp(types.Types[TUINT8], false) // walk will fill in correct type
++			prealloc[n] = o.newTemp(closureType(n), false)
+ 		}
+ 
+-	case OARRAYLIT, OSLICELIT, OCALLPART:
++	case OSLICELIT, OCALLPART:
+ 		n.Left = o.expr(n.Left, nil)
+ 		n.Right = o.expr(n.Right, nil)
+ 		o.exprList(n.List)
+ 		o.exprList(n.Rlist)
+ 		if n.Noescape() {
+-			prealloc[n] = o.newTemp(types.Types[TUINT8], false) // walk will fill in correct type
++			var t *types.Type
++			switch n.Op {
++			case OSLICELIT:
++				t = types.NewArray(n.Type.Elem(), n.Right.Int64())
++			case OCALLPART:
++				t = partialCallType(n)
++			}
++			prealloc[n] = o.newTemp(t, false)
+ 		}
+ 
+ 	case ODDDARG:
+diff --git a/test/live.go b/test/live.go
+index 6367cab96f..a508947afc 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -404,8 +404,8 @@ func f27(b bool) {
+ 	if b {
+ 		call27(func() { x++ }) // ERROR "stack object .autotmp_[0-9]+ struct \{"
+ 	}
+-	call27(func() { x++ }) // ERROR "stack object .autotmp_[0-9]+ struct \{"
+-	call27(func() { x++ }) // ERROR "stack object .autotmp_[0-9]+ struct \{"
++	call27(func() { x++ })
++	call27(func() { x++ })
+ 	printnl()
+ }
+ 
+@@ -521,8 +521,8 @@ func f32(b bool) {
+ 	if b {
+ 		call32(t32.Inc) // ERROR "stack object .autotmp_[0-9]+ struct \{"
+ 	}
+-	call32(t32.Inc) // ERROR "stack object .autotmp_[0-9]+ struct \{"
+-	call32(t32.Inc) // ERROR "stack object .autotmp_[0-9]+ struct \{"
++	call32(t32.Inc)
++	call32(t32.Inc)
+ }
+ 
+ //go:noescape
+@@ -694,3 +694,12 @@ func f41(p, q *int) (r *int) { // ERROR "live at entry to f41: p q$"
+ 	r = q
+ 	return // ERROR "live at call to deferreturn: r$"
+ }
++
++func f42() {
++	var p, q, r int
++	f43([]*int{&p,&q,&r}) // ERROR "stack object .autotmp_[0-9]+ \[3\]\*int$"
++	f43([]*int{&p,&r,&q})
++	f43([]*int{&q,&p,&r})
++}
++//go:noescape
++func f43(a []*int)

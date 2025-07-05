@@ -7,6 +7,20 @@ Date:   Mon Jan 19 21:13:13 2015 +0900
     Change-Id: Ia8d4459a39425583027f00410fe17b9686b768db
     Reviewed-on: https://go-review.googlesource.com/3026
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/request_test.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index 759ea4e8b5..671841ff70 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -402,8 +402,6 @@ type getBasicAuthTest struct {
+ 	ok                 bool
+ }
+ 
+-type parseBasicAuthTest getBasicAuthTest
+-
+ type basicAuthCredentialsTest struct {
+ 	username, password string
+ }

@@ -13,6 +13,22 @@ Date:   Tue May 2 12:43:04 2023 -0400
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/scriptreadme_test.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/cmd/go/scriptreadme_test.go b/src/cmd/go/scriptreadme_test.go
+index fde1e8e9f8..2a842fbc0f 100644
+--- a/src/cmd/go/scriptreadme_test.go
++++ b/src/cmd/go/scriptreadme_test.go
+@@ -37,10 +37,6 @@ func checkScriptReadme(t *testing.T, engine *script.Engine, env []string) {
+ 	}
+ 	args.Conditions = conds.String()
+ 
+-	if !testenv.HasExec() {
+-		t.Skipf("updating script README requires os/exec")
+-	}
+-
+ 	doc := new(strings.Builder)
+ 	cmd := testenv.Command(t, testGo, "doc", "cmd/go/internal/script")
+ 	cmd.Env = env

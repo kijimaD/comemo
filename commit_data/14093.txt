@@ -8,6 +8,50 @@ Date:   Tue Oct 9 09:55:57 2012 +0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6619068
-
+---
  src/pkg/encoding/gob/type_test.go | 28 ++++++++++++++++++++++++++++
  1 file changed, 28 insertions(+)
+
+diff --git a/src/pkg/encoding/gob/type_test.go b/src/pkg/encoding/gob/type_test.go
+index e55fba98d5..e230d22d43 100644
+--- a/src/pkg/encoding/gob/type_test.go
++++ b/src/pkg/encoding/gob/type_test.go
+@@ -5,6 +5,7 @@
+ package gob
+ 
+ import (
++	"bytes"
+ 	"reflect"
+ 	"testing"
+ )
+@@ -192,3 +193,30 @@ func TestRegistrationNaming(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestStressParallel(t *testing.T) {
++	type T2 struct{ A int }
++	c := make(chan bool)
++	const N = 10
++	for i := 0; i < N; i++ {
++		go func() {
++			p := new(T2)
++			Register(p)
++			b := new(bytes.Buffer)
++			enc := NewEncoder(b)
++			err := enc.Encode(p)
++			if err != nil {
++				t.Error("encoder fail:", err)
++			}
++			dec := NewDecoder(b)
++			err = dec.Decode(p)
++			if err != nil {
++				t.Error("decoder fail:", err)
++			}
++			c <- true
++		}()
++	}
++	for i := 0; i < N; i++ {
++		<-c
++	}
++}

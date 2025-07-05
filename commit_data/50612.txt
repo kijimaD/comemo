@@ -20,7 +20,59 @@ Date:   Wed Nov 3 09:40:32 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/typecheck/subr.go |  4 +++-
  test/typeparam/issue49295.go               | 30 ++++++++++++++++++++++++++++++
  2 files changed, 33 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 96e120fe03..1986845f64 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -1421,7 +1421,9 @@ func Shapify(t *types.Type, index int) *types.Type {
+ 
+ 	// All pointers have the same shape.
+ 	// TODO: Make unsafe.Pointer the same shape as normal pointers.
+-	if u.Kind() == types.TPTR {
++	// Note: pointers to arrays are special because of slice-to-array-pointer
++	// conversions. See issue 49295.
++	if u.Kind() == types.TPTR && u.Elem().Kind() != types.TARRAY {
+ 		u = types.Types[types.TUINT8].PtrTo()
+ 	}
+ 
+diff --git a/test/typeparam/issue49295.go b/test/typeparam/issue49295.go
+new file mode 100644
+index 0000000000..435b44d10c
+--- /dev/null
++++ b/test/typeparam/issue49295.go
+@@ -0,0 +1,30 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "io"
++
++type Reader struct {
++	buf []byte
++}
++type Token *[16]byte
++
++func Read[T interface{ ~*[16]byte }](r *Reader) (t T, err error) {
++	if n := len(t); len(r.buf) >= n {
++		t = T(r.buf[:n])
++		r.buf = r.buf[n:]
++		return
++	}
++	err = io.EOF
++	return
++}
++
++func main() {
++	r := &Reader{buf: []byte("0123456789abcdef")}
++	token, err := Read[Token](r)
++	_, _ = token, err
++}

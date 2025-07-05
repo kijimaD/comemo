@@ -25,8 +25,76 @@ Date:   Sun Jul 28 15:19:43 2019 +0200
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/gofmt/rewrite.go                |  6 ++++++
  src/cmd/gofmt/testdata/rewrite10.golden | 19 +++++++++++++++++++
  src/cmd/gofmt/testdata/rewrite10.input  | 19 +++++++++++++++++++
  3 files changed, 44 insertions(+)
+
+diff --git a/src/cmd/gofmt/rewrite.go b/src/cmd/gofmt/rewrite.go
+index 79b7858a5a..bab22e04cd 100644
+--- a/src/cmd/gofmt/rewrite.go
++++ b/src/cmd/gofmt/rewrite.go
+@@ -271,6 +271,12 @@ func subst(m map[string]reflect.Value, pattern reflect.Value, pos reflect.Value)
+ 	// Otherwise copy.
+ 	switch p := pattern; p.Kind() {
+ 	case reflect.Slice:
++		if p.IsNil() {
++			// Do not turn nil slices into empty slices. go/ast
++			// guarantees that certain lists will be nil if not
++			// populated.
++			return reflect.Zero(p.Type())
++		}
+ 		v := reflect.MakeSlice(p.Type(), p.Len(), p.Len())
+ 		for i := 0; i < p.Len(); i++ {
+ 			v.Index(i).Set(subst(m, p.Index(i), pos))
+diff --git a/src/cmd/gofmt/testdata/rewrite10.golden b/src/cmd/gofmt/testdata/rewrite10.golden
+new file mode 100644
+index 0000000000..1dd781fbb0
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/rewrite10.golden
+@@ -0,0 +1,19 @@
++//gofmt -r=a->a
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 33103, 33104, and 33105.
++
++package pkg
++
++func fn() {
++	_ = func() {
++		switch {
++		default:
++		}
++	}
++	_ = func() string {}
++	_ = func() { var ptr *string; println(ptr) }
++}
+diff --git a/src/cmd/gofmt/testdata/rewrite10.input b/src/cmd/gofmt/testdata/rewrite10.input
+new file mode 100644
+index 0000000000..1dd781fbb0
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/rewrite10.input
+@@ -0,0 +1,19 @@
++//gofmt -r=a->a
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 33103, 33104, and 33105.
++
++package pkg
++
++func fn() {
++	_ = func() {
++		switch {
++		default:
++		}
++	}
++	_ = func() string {}
++	_ = func() { var ptr *string; println(ptr) }
++}

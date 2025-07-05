@@ -15,7 +15,7 @@ Date:   Mon Jan 30 12:09:33 2023 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/amd64/obj.go   |  6 +++---
  src/cmd/link/internal/arm/obj.go     |  6 +++---
  src/cmd/link/internal/arm64/obj.go   |  6 +++---
@@ -29,3 +29,242 @@ Date:   Mon Jan 30 12:09:33 2023 -0800
  src/cmd/link/internal/s390x/obj.go   |  6 +++---
  src/cmd/link/internal/x86/obj.go     |  6 +++---
  12 files changed, 39 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
+index 3bc0fef196..b99cdbc356 100644
+--- a/src/cmd/link/internal/amd64/obj.go
++++ b/src/cmd/link/internal/amd64/obj.go
+@@ -70,9 +70,9 @@ func Init() (*sys.Arch, ld.Arch) {
+ 			Dragonflydynld: "/usr/libexec/ld-elf.so.2",
+ 			Solarisdynld:   "/lib/amd64/ld.so.1",
+ 
+-			Elfreloc1:    elfreloc1,
+-			ElfrelocSize: 24,
+-			Elfsetupplt:  elfsetupplt,
++			Reloc1:    elfreloc1,
++			RelocSize: 24,
++			SetupPLT:  elfsetupplt,
+ 		},
+ 	}
+ 
+diff --git a/src/cmd/link/internal/arm/obj.go b/src/cmd/link/internal/arm/obj.go
+index cb1a269c0f..52fd5b6523 100644
+--- a/src/cmd/link/internal/arm/obj.go
++++ b/src/cmd/link/internal/arm/obj.go
+@@ -68,9 +68,9 @@ func Init() (*sys.Arch, ld.Arch) {
+ 			Dragonflydynld: "XXX",
+ 			Solarisdynld:   "XXX",
+ 
+-			Elfreloc1:    elfreloc1,
+-			ElfrelocSize: 8,
+-			Elfsetupplt:  elfsetupplt,
++			Reloc1:    elfreloc1,
++			RelocSize: 8,
++			SetupPLT:  elfsetupplt,
+ 		},
+ 	}
+ 
+diff --git a/src/cmd/link/internal/arm64/obj.go b/src/cmd/link/internal/arm64/obj.go
+index d068f8ef80..34b693ed6c 100644
+--- a/src/cmd/link/internal/arm64/obj.go
++++ b/src/cmd/link/internal/arm64/obj.go
+@@ -70,9 +70,9 @@ func Init() (*sys.Arch, ld.Arch) {
+ 			Dragonflydynld: "XXX",
+ 			Solarisdynld:   "XXX",
+ 
+-			Elfreloc1:    elfreloc1,
+-			ElfrelocSize: 24,
+-			Elfsetupplt:  elfsetupplt,
++			Reloc1:    elfreloc1,
++			RelocSize: 24,
++			SetupPLT:  elfsetupplt,
+ 		},
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 2c6ea643fc..954aaaff16 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -206,9 +206,9 @@ type ELFArch struct {
+ 	Dragonflydynld string
+ 	Solarisdynld   string
+ 
+-	Elfreloc1    func(*Link, *OutBuf, *loader.Loader, loader.Sym, loader.ExtReloc, int, int64) bool
+-	ElfrelocSize uint32 // size of an ELF relocation record, must match Elfreloc1.
+-	Elfsetupplt  func(ctxt *Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym)
++	Reloc1    func(*Link, *OutBuf, *loader.Loader, loader.Sym, loader.ExtReloc, int, int64) bool
++	RelocSize uint32 // size of an ELF relocation record, must match Reloc1.
++	SetupPLT  func(ctxt *Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym)
+ 
+ 	// DynamicReadOnly can be set to true to make the .dynamic
+ 	// section read-only. By default it is writable.
+@@ -1289,8 +1289,8 @@ func elfrelocsect(ctxt *Link, out *OutBuf, sect *sym.Section, syms []loader.Sym)
+ 			break
+ 		}
+ 
+-		// Compute external relocations on the go, and pass to Elfreloc1
+-		// to stream out.
++		// Compute external relocations on the go, and pass to
++		// ELF.Reloc1 to stream out.
+ 		relocs := ldr.Relocs(s)
+ 		for ri := 0; ri < relocs.Count(); ri++ {
+ 			r := relocs.At(ri)
+@@ -1309,7 +1309,7 @@ func elfrelocsect(ctxt *Link, out *OutBuf, sect *sym.Section, syms []loader.Sym)
+ 			if !ldr.AttrReachable(rr.Xsym) {
+ 				ldr.Errorf(s, "unreachable reloc %d (%s) target %v", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.SymName(rr.Xsym))
+ 			}
+-			if !thearch.ELF.Elfreloc1(ctxt, out, ldr, s, rr, ri, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-sect.Vaddr)) {
++			if !thearch.ELF.Reloc1(ctxt, out, ldr, s, rr, ri, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-sect.Vaddr)) {
+ 				ldr.Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), r.Siz(), ldr.SymName(r.Sym()))
+ 			}
+ 		}
+@@ -1326,7 +1326,7 @@ func elfEmitReloc(ctxt *Link) {
+ 		ctxt.Out.Write8(0)
+ 	}
+ 
+-	sizeExtRelocs(ctxt, thearch.ELF.ElfrelocSize)
++	sizeExtRelocs(ctxt, thearch.ELF.RelocSize)
+ 	relocSect, wg := relocSectFn(ctxt, elfrelocsect)
+ 
+ 	for _, sect := range Segtext.Sections {
+@@ -1578,7 +1578,7 @@ func (ctxt *Link) doelf() {
+ 			// S390X uses .got instead of .got.plt
+ 			gotplt = got
+ 		}
+-		thearch.ELF.Elfsetupplt(ctxt, plt, gotplt, dynamic.Sym())
++		thearch.ELF.SetupPLT(ctxt, plt, gotplt, dynamic.Sym())
+ 
+ 		/*
+ 		 * .dynamic table
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 17df56f4d5..ffa2d83505 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -200,7 +200,7 @@ type Arch struct {
+ 	// is the contents of the to-be-relocated data item (from sym.P). Return
+ 	// value is the appropriately relocated value (to be written back to the
+ 	// same spot in sym.P), number of external _host_ relocations needed (i.e.
+-	// ELF/Mach-O/etc. relocations, not Go relocations, this must match Elfreloc1,
++	// ELF/Mach-O/etc. relocations, not Go relocations, this must match ELF.Reloc1,
+ 	// etc.), and a boolean indicating success/failure (a failing value indicates
+ 	// a fatal error).
+ 	Archreloc func(*Target, *loader.Loader, *ArchSyms, loader.Reloc, loader.Sym,
+diff --git a/src/cmd/link/internal/loong64/obj.go b/src/cmd/link/internal/loong64/obj.go
+index e99dbe5c8d..0f2ca2ebc7 100644
+--- a/src/cmd/link/internal/loong64/obj.go
++++ b/src/cmd/link/internal/loong64/obj.go
+@@ -36,9 +36,9 @@ func Init() (*sys.Arch, ld.Arch) {
+ 			Dragonflydynld: "XXX",
+ 			Solarisdynld:   "XXX",
+ 
+-			Elfreloc1:    elfreloc1,
+-			ElfrelocSize: 24,
+-			Elfsetupplt:  elfsetupplt,
++			Reloc1:    elfreloc1,
++			RelocSize: 24,
++			SetupPLT:  elfsetupplt,
+ 		},
+ 	}
+ 
+diff --git a/src/cmd/link/internal/mips/obj.go b/src/cmd/link/internal/mips/obj.go
+index 61c22d986f..0139d541df 100644
+--- a/src/cmd/link/internal/mips/obj.go
++++ b/src/cmd/link/internal/mips/obj.go
+@@ -69,9 +69,9 @@ func Init() (*sys.Arch, ld.Arch) {
+ 			Dragonflydynld: "XXX",
+ 			Solarisdynld:   "XXX",
+ 
+-			Elfreloc1:    elfreloc1,
+-			ElfrelocSize: 8,
+-			Elfsetupplt:  elfsetupplt,
++			Reloc1:    elfreloc1,
++			RelocSize: 8,
++			SetupPLT:  elfsetupplt,
+ 
+ 			// Historically GNU ld creates a read-only
+ 			// .dynamic section.
+diff --git a/src/cmd/link/internal/mips64/obj.go b/src/cmd/link/internal/mips64/obj.go
+index ce4494c61d..59afb25095 100644
+--- a/src/cmd/link/internal/mips64/obj.go
++++ b/src/cmd/link/internal/mips64/obj.go
+@@ -67,9 +67,9 @@ func Init() (*sys.Arch, ld.Arch) {
+ 			Dragonflydynld: "XXX",
+ 			Solarisdynld:   "XXX",
+ 
+-			Elfreloc1:    elfreloc1,
+-			ElfrelocSize: 24,
+-			Elfsetupplt:  elfsetupplt,
++			Reloc1:    elfreloc1,
++			RelocSize: 24,
++			SetupPLT:  elfsetupplt,
+ 
+ 			// Historically GNU ld creates a read-only
+ 			// .dynamic section.
+diff --git a/src/cmd/link/internal/ppc64/obj.go b/src/cmd/link/internal/ppc64/obj.go
+index 16cd4fc20c..3fc6622bff 100644
+--- a/src/cmd/link/internal/ppc64/obj.go
++++ b/src/cmd/link/internal/ppc64/obj.go
+@@ -76,9 +76,9 @@ func Init() (*sys.Arch, ld.Arch) {
+ 			Dragonflydynld: "XXX",
+ 			Solarisdynld:   "XXX",
+ 
+-			Elfreloc1:    elfreloc1,
+-			ElfrelocSize: 24,
+-			Elfsetupplt:  elfsetupplt,
++			Reloc1:    elfreloc1,
++			RelocSize: 24,
++			SetupPLT:  elfsetupplt,
+ 		},
+ 	}
+ 
+diff --git a/src/cmd/link/internal/riscv64/obj.go b/src/cmd/link/internal/riscv64/obj.go
+index 28fa7747d6..6230bd69af 100644
+--- a/src/cmd/link/internal/riscv64/obj.go
++++ b/src/cmd/link/internal/riscv64/obj.go
+@@ -45,9 +45,9 @@ func Init() (*sys.Arch, ld.Arch) {
+ 			Dragonflydynld: "XXX",
+ 			Solarisdynld:   "XXX",
+ 
+-			Elfreloc1:    elfreloc1,
+-			ElfrelocSize: 24,
+-			Elfsetupplt:  elfsetupplt,
++			Reloc1:    elfreloc1,
++			RelocSize: 24,
++			SetupPLT:  elfsetupplt,
+ 		},
+ 	}
+ 
+diff --git a/src/cmd/link/internal/s390x/obj.go b/src/cmd/link/internal/s390x/obj.go
+index df06b952bc..c2386fb9e9 100644
+--- a/src/cmd/link/internal/s390x/obj.go
++++ b/src/cmd/link/internal/s390x/obj.go
+@@ -64,9 +64,9 @@ func Init() (*sys.Arch, ld.Arch) {
+ 			Dragonflydynld: "XXX",
+ 			Solarisdynld:   "XXX",
+ 
+-			Elfreloc1:    elfreloc1,
+-			ElfrelocSize: 24,
+-			Elfsetupplt:  elfsetupplt,
++			Reloc1:    elfreloc1,
++			RelocSize: 24,
++			SetupPLT:  elfsetupplt,
+ 		},
+ 	}
+ 
+diff --git a/src/cmd/link/internal/x86/obj.go b/src/cmd/link/internal/x86/obj.go
+index 9c62bd7633..6ccb8e093f 100644
+--- a/src/cmd/link/internal/x86/obj.go
++++ b/src/cmd/link/internal/x86/obj.go
+@@ -66,9 +66,9 @@ func Init() (*sys.Arch, ld.Arch) {
+ 			Netbsddynld:    "/usr/libexec/ld.elf_so",
+ 			Solarisdynld:   "/lib/ld.so.1",
+ 
+-			Elfreloc1:    elfreloc1,
+-			ElfrelocSize: 8,
+-			Elfsetupplt:  elfsetupplt,
++			Reloc1:    elfreloc1,
++			RelocSize: 8,
++			SetupPLT:  elfsetupplt,
+ 		},
+ 	}
+ 

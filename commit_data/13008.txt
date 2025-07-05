@@ -7,7 +7,7 @@ Date:   Tue May 1 22:32:46 2012 -0700
     R=rsc, iant, iant, seed
     CC=golang-dev
     https://golang.org/cl/5608059
-
+---
  src/all.rc                  |  13 +
  src/clean.rc                |  14 +
  src/cmd/dist/a.h            |   2 +
@@ -20,3 +20,1252 @@ Date:   Tue May 1 22:32:46 2012 -0700
  src/make.rc                 |  91 ++++++
  src/run.rc                  |  50 +++
  11 files changed, 998 insertions(+), 32 deletions(-)
+
+diff --git a/src/all.rc b/src/all.rc
+new file mode 100755
+index 0000000000..04d4b255c0
+--- /dev/null
++++ b/src/all.rc
+@@ -0,0 +1,13 @@
++#!/bin/rc -e
++# Copyright 2012 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++if(! test -f make.rc){
++	echo 'all.rc must be run from $GOROOT/src' >[1=2]
++	exit wrongdir
++}
++
++. ./make.rc --no-banner
++./run.rc --no-rebuild
++$GOTOOLDIR/dist banner  # print build info
+diff --git a/src/clean.rc b/src/clean.rc
+new file mode 100755
+index 0000000000..41cab613e3
+--- /dev/null
++++ b/src/clean.rc
+@@ -0,0 +1,14 @@
++#!/bin/rc -e
++# Copyright 2012 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++eval `{go tool dist env -9}
++
++if(! test -x $GOTOOLDIR/dist){
++	echo 'cannot find $GOTOOLDIR/dist; nothing to clean' >[1=2]
++	exit noclean
++}
++
++$GOBIN/go clean -i std
++$GOTOOLDIR/dist clean
+diff --git a/src/cmd/dist/a.h b/src/cmd/dist/a.h
+index c19b1f4685..f417d5ffeb 100644
+--- a/src/cmd/dist/a.h
++++ b/src/cmd/dist/a.h
+@@ -10,7 +10,9 @@ typedef long long Time;
+ 
+ #define nil ((void*)0)
+ #define nelem(x) (sizeof(x)/sizeof((x)[0]))
++#ifndef PLAN9
+ #define USED(x) ((void)(x))
++#endif
+ 
+ // A Buf is a byte buffer, like Go's []byte.
+ typedef struct Buf Buf;
+diff --git a/src/cmd/dist/arg.h b/src/cmd/dist/arg.h
+index 6eef0353be..9819765b17 100644
+--- a/src/cmd/dist/arg.h
++++ b/src/cmd/dist/arg.h
+@@ -28,7 +28,7 @@ THE SOFTWARE.
+ 
+ /* command line */
+ extern char	*argv0;
+-#define	ARGBEGIN	for((argv0?0:(argv0=(*argv))),argv++,argc--;\
++#define	ARGBEGIN	for((argv0=(argv0?argv0:*argv)),argv++,argc--;\
+ 			    argv[0] && argv[0][0]=='-' && argv[0][1];\
+ 			    argc--, argv++) {\
+ 				char *_args, *_argt;\
+@@ -37,7 +37,6 @@ extern char	*argv0;
+ 				if(_args[0]=='-' && _args[1]==0){\
+ 					argc--; argv++; break;\
+ 				}\
+-				_argc = 0;\
+ 				while((_argc = *_args++) != 0)\
+ 				switch(_argc)
+ #define	ARGEND		_argt=0;USED(_argt);USED(_argc);USED(_args);}USED(argv);USED(argc);
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 3ef65f85d5..b8a135515a 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -539,7 +539,7 @@ install(char *dir)
+ 	Buf b, b1, path;
+ 	Vec compile, files, link, go, missing, clean, lib, extra;
+ 	Time ttarg, t;
+-	int i, j, k, n, doclean, targ;
++	int i, j, k, n, doclean, targ, usecpp;
+ 
+ 	if(vflag) {
+ 		if(!streq(goos, gohostos) || !streq(goarch, gohostarch))
+@@ -560,6 +560,7 @@ install(char *dir)
+ 	vinit(&lib);
+ 	vinit(&extra);
+ 
++
+ 	// path = full path to dir.
+ 	bpathf(&path, "%s/src/%s", goroot, dir);
+ 	name = lastelem(dir);
+@@ -605,7 +606,10 @@ install(char *dir)
+ 	if(islib) {
+ 		// C library.
+ 		vadd(&link, "ar");
+-		vadd(&link, "rsc");
++		if(streq(gohostos, "plan9"))
++			vadd(&link, "rc");
++		else
++			vadd(&link, "rsc");
+ 		prefix = "";
+ 		if(!hasprefix(name, "lib"))
+ 			prefix = "lib";
+@@ -631,14 +635,21 @@ install(char *dir)
+ 		vadd(&link, bpathf(&b, "%s/%s%s", tooldir, elem, exe));
+ 	} else {
+ 		// C command. Use gccargs.
+-		vcopy(&link, gccargs.p, gccargs.len);
+-		vadd(&link, "-o");
+-		targ = link.len;
+-		vadd(&link, bpathf(&b, "%s/%s%s", tooldir, name, exe));
+-		if(streq(gohostarch, "amd64"))
+-			vadd(&link, "-m64");
+-		else if(streq(gohostarch, "386"))
+-			vadd(&link, "-m32");
++		if(streq(gohostos, "plan9")) {
++			vadd(&link, bprintf(&b, "%sl", gohostchar));
++			vadd(&link, "-o");
++			targ = link.len;
++			vadd(&link, bpathf(&b, "%s/%s", tooldir, name));
++		} else {
++			vcopy(&link, gccargs.p, gccargs.len);
++			vadd(&link, "-o");
++			targ = link.len;
++			vadd(&link, bpathf(&b, "%s/%s%s", tooldir, name, exe));
++			if(streq(gohostarch, "amd64"))
++				vadd(&link, "-m64");
++			else if(streq(gohostarch, "386"))
++				vadd(&link, "-m32");
++		}
+ 	}
+ 	ttarg = mtime(link.p[targ]);
+ 
+@@ -672,6 +683,8 @@ install(char *dir)
+ 				bsubst(&b1, "$GOARCH", goarch);
+ 				p = bstr(&b1);
+ 				if(hassuffix(p, ".a")) {
++					if(streq(gohostos, "plan9") && hassuffix(p, "libbio.a"))
++						continue;
+ 					vadd(&lib, bpathf(&b, "%s", p));
+ 					continue;
+ 				}
+@@ -741,6 +754,10 @@ install(char *dir)
+ 	}
+ 	files.len = n;
+ 
++	// If there are no files to compile, we're done.
++	if(files.len == 0)
++		goto out;
++	
+ 	for(i=0; i<lib.len && !stale; i++)
+ 		if(mtime(lib.p[i]) > ttarg)
+ 			stale = 1;
+@@ -799,10 +816,10 @@ install(char *dir)
+ 			p = files.p[i];
+ 			if(!hassuffix(p, ".goc"))
+ 				continue;
+-			// b = path/zp but with _goarch.c instead of .goc
++			// b = path/zp but with _goos_goarch.c instead of .goc
+ 			bprintf(&b, "%s%sz%s", bstr(&path), slash, lastelem(p));
+ 			b.len -= 4;
+-			bwritef(&b, "_%s.c", goarch);
++			bwritef(&b, "_%s_%s.c", goos, goarch);
+ 			goc2c(p, bstr(&b));
+ 			vadd(&files, bstr(&b));
+ 		}
+@@ -816,6 +833,20 @@ install(char *dir)
+ 		goto nobuild;
+ 	}
+ 
++	// The files generated by GNU Bison use macros that aren't
++	// supported by the Plan 9 compilers so we have to use the
++	// external preprocessor when compiling.
++	usecpp = 0;
++	if(streq(gohostos, "plan9")) {
++		for(i=0; i<files.len; i++) {
++			p = files.p[i];
++			if(hassuffix(p, "y.tab.c") || hassuffix(p, "y.tab.h")){
++				usecpp = 1;
++				break;
++			}
++		}
++	}
++
+ 	// Compile the files.
+ 	for(i=0; i<files.len; i++) {
+ 		if(!hassuffix(files.p[i], ".c") && !hassuffix(files.p[i], ".s"))
+@@ -825,17 +856,26 @@ install(char *dir)
+ 		vreset(&compile);
+ 		if(!isgo) {
+ 			// C library or tool.
+-			vcopy(&compile, gccargs.p, gccargs.len);
+-			vadd(&compile, "-c");
+-			if(streq(gohostarch, "amd64"))
+-				vadd(&compile, "-m64");
+-			else if(streq(gohostarch, "386"))
+-				vadd(&compile, "-m32");
+-			if(streq(dir, "lib9"))
+-				vadd(&compile, "-DPLAN9PORT");
+-
+-			vadd(&compile, "-I");
+-			vadd(&compile, bpathf(&b, "%s/include", goroot));
++			if(streq(gohostos, "plan9")) {
++				vadd(&compile, bprintf(&b, "%sc", gohostchar));
++				vadd(&compile, "-FTVw");
++				if(usecpp)
++					vadd(&compile, "-Bp+");
++				vadd(&compile, bpathf(&b, "-I%s/include/plan9", goroot));
++				vadd(&compile, bpathf(&b, "-I%s/include/plan9/%s", goroot, gohostarch));
++			} else {
++				vcopy(&compile, gccargs.p, gccargs.len);
++				vadd(&compile, "-c");
++				if(streq(gohostarch, "amd64"))
++					vadd(&compile, "-m64");
++				else if(streq(gohostarch, "386"))
++					vadd(&compile, "-m32");
++				if(streq(dir, "lib9"))
++					vadd(&compile, "-DPLAN9PORT");
++	
++				vadd(&compile, "-I");
++				vadd(&compile, bpathf(&b, "%s/include", goroot));
++			}
+ 
+ 			vadd(&compile, "-I");
+ 			vadd(&compile, bstr(&path));
+@@ -882,7 +922,11 @@ install(char *dir)
+ 			doclean = 0;
+ 		}
+ 
+-		b.p[b.len-1] = 'o';  // was c or s
++		// Change the last character of the output file (which was c or s).
++		if(streq(gohostos, "plan9"))
++			b.p[b.len-1] = gohostchar[0];
++		else
++			b.p[b.len-1] = 'o';
+ 		vadd(&compile, "-o");
+ 		vadd(&compile, bstr(&b));
+ 		vadd(&compile, files.p[i]);
+@@ -923,7 +967,8 @@ install(char *dir)
+ 	if(!islib && !isgo) {
+ 		// C binaries need the libraries explicitly, and -lm.
+ 		vcopy(&link, lib.p, lib.len);
+-		vadd(&link, "-lm");
++		if(!streq(gohostos, "plan9"))
++			vadd(&link, "-lm");
+ 	}
+ 
+ 	// Remove target before writing it.
+@@ -981,6 +1026,16 @@ shouldbuild(char *file, char *dir)
+ 	Buf b;
+ 	Vec lines, fields;
+ 
++	// On Plan 9, most of the libraries are already present.
++	// The main exception is libmach which has been modified
++	// in various places to support Go object files.
++	if(streq(gohostos, "plan9")) {
++		if(streq(dir, "lib9") && !hassuffix(file, "lib9/goos.c"))
++			return 0;
++		if(streq(dir, "libbio"))
++			return 0;
++	}
++	
+ 	// Check file name for GOOS or GOARCH.
+ 	name = lastelem(file);
+ 	for(i=0; i<nelem(okgoos); i++)
+@@ -1285,6 +1340,9 @@ cmdenv(int argc, char **argv)
+ 	format = "%s=\"%s\"\n";
+ 	pflag = 0;
+ 	ARGBEGIN{
++	case '9':
++		format = "%s='%s'\n";
++		break;
+ 	case 'p':
+ 		pflag = 1;
+ 		break;
+diff --git a/src/cmd/dist/buildgc.c b/src/cmd/dist/buildgc.c
+index da38760c66..03a797f2cf 100644
+--- a/src/cmd/dist/buildgc.c
++++ b/src/cmd/dist/buildgc.c
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "a.h"
+-#include <stdio.h>
+ 
+ /*
+  * Helpers for building cmd/gc.
+diff --git a/src/cmd/dist/buildruntime.c b/src/cmd/dist/buildruntime.c
+index a0c62010d6..5bf6047cbf 100644
+--- a/src/cmd/dist/buildruntime.c
++++ b/src/cmd/dist/buildruntime.c
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "a.h"
+-#include <stdio.h>
+ 
+ /*
+  * Helpers for building pkg/runtime.
+@@ -20,6 +19,8 @@ mkzversion(char *dir, char *file)
+ {
+ 	Buf b, out;
+ 	
++	USED(dir);
++
+ 	binit(&b);
+ 	binit(&out);
+ 	
+@@ -46,6 +47,8 @@ void
+ mkzgoarch(char *dir, char *file)
+ {
+ 	Buf b, out;
++
++	USED(dir);
+ 	
+ 	binit(&b);
+ 	binit(&out);
+@@ -72,6 +75,8 @@ void
+ mkzgoos(char *dir, char *file)
+ {
+ 	Buf b, out;
++
++	USED(dir);
+ 	
+ 	binit(&b);
+ 	binit(&out);
+diff --git a/src/cmd/dist/goc2c.c b/src/cmd/dist/goc2c.c
+index 22f72f8b50..c64ede9589 100644
+--- a/src/cmd/dist/goc2c.c
++++ b/src/cmd/dist/goc2c.c
+@@ -111,7 +111,7 @@ static struct {
+ 	{"int64",	8},
+ 	{"uint64",	8},
+ 
+-	{nil},
++	{nil, 0},
+ };
+ 
+ /* Fixed structure alignment (non-gcc only) */
+@@ -570,8 +570,9 @@ write_gcc_func_header(char *package, char *name, struct params *params,
+ static void
+ write_gcc_func_trailer(char *package, char *name, struct params *rets)
+ {
+-	if (rets == nil)
+-		;
++	if (rets == nil) {
++		// nothing to do
++	}
+ 	else if (rets->next == nil)
+ 		bwritef(output, "return %s;\n", rets->name);
+ 	else {
+diff --git a/src/cmd/dist/plan9.c b/src/cmd/dist/plan9.c
+new file mode 100644
+index 0000000000..d012102da0
+--- /dev/null
++++ b/src/cmd/dist/plan9.c
+@@ -0,0 +1,734 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// These #ifdefs are being used as a substitute for
++// build configuration, so that on any system, this
++// tool can be built with the local equivalent of
++//	cc *.c
++//
++#ifdef PLAN9
++
++#include <u.h>
++#include <libc.h>
++#include <stdio.h>
++#undef nil
++#undef nelem
++#include "a.h"
++
++// bprintf replaces the buffer with the result of the printf formatting
++// and returns a pointer to the NUL-terminated buffer contents.
++char*
++bprintf(Buf *b, char *fmt, ...)
++{
++	va_list arg;
++	char buf[4096];
++	
++	breset(b);
++	va_start(arg, fmt);
++	vsnprintf(buf, sizeof buf, fmt, arg);
++	va_end(arg);
++	bwritestr(b, buf);
++	return bstr(b);
++}
++
++// bpathf is the same as bprintf (on windows it turns / into \ after the printf).
++// It returns a pointer to the NUL-terminated buffer contents.
++char*
++bpathf(Buf *b, char *fmt, ...)
++{
++	va_list arg;
++	char buf[4096];
++	
++	breset(b);
++	va_start(arg, fmt);
++	vsnprintf(buf, sizeof buf, fmt, arg);
++	va_end(arg);
++	bwritestr(b, buf);
++	return bstr(b);
++}
++
++// bwritef is like bprintf but does not reset the buffer
++// and does not return the NUL-terminated string.
++void
++bwritef(Buf *b, char *fmt, ...)
++{
++	va_list arg;
++	char buf[4096];
++	
++	va_start(arg, fmt);
++	vsnprintf(buf, sizeof buf, fmt, arg);
++	va_end(arg);
++	bwritestr(b, buf);
++}
++
++// breadfrom appends to b all the data that can be read from fd.
++static void
++breadfrom(Buf *b, int fd)
++{
++	int n;
++
++	for(;;) {
++		bgrow(b, 4096);
++		n = read(fd, b->p+b->len, 4096);
++		if(n < 0)
++			fatal("read");
++		if(n == 0)
++			break;
++		b->len += n;
++	}
++}
++
++// xgetenv replaces b with the value of the named environment variable.
++void
++xgetenv(Buf *b, char *name)
++{
++	char *p;
++	
++	breset(b);
++	p = getenv(name);
++	if(p != nil)
++		bwritestr(b, p);
++}
++
++static void genrun(Buf *b, char *dir, int mode, Vec *argv, int bg);
++
++// run runs the command named by cmd.
++// If b is not nil, run replaces b with the output of the command.
++// If dir is not nil, run runs the command in that directory.
++// If mode is CheckExit, run calls fatal if the command is not successful.
++void
++run(Buf *b, char *dir, int mode, char *cmd, ...)
++{
++	va_list arg;
++	Vec argv;
++	char *p;
++	
++	vinit(&argv);
++	vadd(&argv, cmd);
++	va_start(arg, cmd);
++	while((p = va_arg(arg, char*)) != nil)
++		vadd(&argv, p);
++	va_end(arg);
++	
++	runv(b, dir, mode, &argv);
++	
++	vfree(&argv);
++}
++
++// runv is like run but takes a vector.
++void
++runv(Buf *b, char *dir, int mode, Vec *argv)
++{
++	genrun(b, dir, mode, argv, 1);
++}
++
++// bgrunv is like run but runs the command in the background.
++// bgwait waits for pending bgrunv to finish.
++void
++bgrunv(char *dir, int mode, Vec *argv)
++{
++	genrun(nil, dir, mode, argv, 0);
++}
++
++#define MAXBG 4 /* maximum number of jobs to run at once */
++
++static struct {
++	int pid;
++	int mode;
++	char *cmd;
++	Buf *b;
++} bg[MAXBG];
++static int nbg;
++static int maxnbg = nelem(bg);
++
++static void bgwait1(void);
++
++// genrun is the generic run implementation.
++static void
++genrun(Buf *b, char *dir, int mode, Vec *argv, int wait)
++{
++	int i, p[2], pid;
++	Buf b1, cmd;
++	char *q;
++
++	while(nbg >= maxnbg)
++		bgwait1();
++
++	binit(&b1);
++	binit(&cmd);
++
++	if(!isabs(argv->p[0])) {
++		bpathf(&b1, "/bin/%s", argv->p[0]);
++		free(argv->p[0]);
++		argv->p[0] = xstrdup(bstr(&b1));
++	}
++
++	// Generate a copy of the command to show in a log.
++	// Substitute $WORK for the work directory.
++	for(i=0; i<argv->len; i++) {
++		if(i > 0)
++			bwritestr(&cmd, " ");
++		q = argv->p[i];
++		if(workdir != nil && hasprefix(q, workdir)) {
++			bwritestr(&cmd, "$WORK");
++			q += strlen(workdir);
++		}
++		bwritestr(&cmd, q);
++	}
++	if(vflag > 1)
++		xprintf("%s\n", bstr(&cmd));
++
++	if(b != nil) {
++		breset(b);
++		if(pipe(p) < 0)
++			fatal("pipe");
++	}
++
++	switch(pid = fork()) {
++	case -1:
++		fatal("fork");
++	case 0:
++		if(b != nil) {
++			close(0);
++			close(p[0]);
++			dup(p[1], 1);
++			dup(p[1], 2);
++			if(p[1] > 2)
++				close(p[1]);
++		}
++		if(dir != nil) {
++			if(chdir(dir) < 0) {
++				fprint(2, "chdir: %r\n");
++				_exits("chdir");
++			}
++		}
++		vadd(argv, nil);
++		exec(argv->p[0], argv->p);
++		fprint(2, "%s\n", bstr(&cmd));
++		fprint(2, "exec: %r\n");
++		_exits("exec");
++	}
++	if(b != nil) {
++		close(p[1]);
++		breadfrom(b, p[0]);
++		close(p[0]);
++	}
++
++	if(nbg < 0)
++		fatal("bad bookkeeping");
++	bg[nbg].pid = pid;
++	bg[nbg].mode = mode;
++	bg[nbg].cmd = btake(&cmd);
++	bg[nbg].b = b;
++	nbg++;
++	
++	if(wait)
++		bgwait();
++
++	bfree(&cmd);
++	bfree(&b1);
++}
++
++// bgwait1 waits for a single background job.
++static void
++bgwait1(void)
++{
++	Waitmsg *w;
++	int i, mode;
++	char *cmd;
++	Buf *b;
++
++	w = wait();
++	if(w == nil)
++		fatal("wait");
++		
++	for(i=0; i<nbg; i++)
++		if(bg[i].pid == w->pid)
++			goto ok;
++	fatal("wait: unexpected pid");
++
++ok:
++	cmd = bg[i].cmd;
++	mode = bg[i].mode;
++	bg[i].pid = 0;
++	b = bg[i].b;
++	bg[i].b = nil;
++	bg[i] = bg[--nbg];
++	
++	if(mode == CheckExit && w->msg[0]) {
++		if(b != nil)
++			xprintf("%s\n", bstr(b));
++		fatal("FAILED: %s", cmd);
++	}
++	xfree(cmd);
++}
++
++// bgwait waits for all the background jobs.
++void
++bgwait(void)
++{
++	while(nbg > 0)
++		bgwait1();
++}
++
++// xgetwd replaces b with the current directory.
++void
++xgetwd(Buf *b)
++{
++	char buf[4096];
++	
++	breset(b);
++	if(getwd(buf, sizeof buf) == nil)
++		fatal("getwd");
++	bwritestr(b, buf);
++}
++
++// xrealwd replaces b with the 'real' name for the given path.
++// real is defined as what getcwd returns in that directory.
++void
++xrealwd(Buf *b, char *path)
++{
++	char buf[4096];
++	int fd;
++
++	fd = open(path, OREAD);
++	if(fd2path(fd, buf, sizeof buf) < 0)
++		fatal("fd2path");
++	close(fd);
++	breset(b);
++	bwritestr(b, buf);
++}
++
++// isdir reports whether p names an existing directory.
++bool
++isdir(char *p)
++{
++	Dir *d;
++	ulong mode;
++
++	d = dirstat(p);
++	if(d == nil)
++		return 0;
++	mode = d->mode;
++	free(d);
++	return (mode & DMDIR) == DMDIR;
++}
++
++// isfile reports whether p names an existing file.
++bool
++isfile(char *p)
++{
++	Dir *d;
++	ulong mode;
++
++	d = dirstat(p);
++	if(d == nil)
++		return 0;
++	mode = d->mode;
++	free(d);
++	return (mode & DMDIR) == 0;
++}
++
++// mtime returns the modification time of the file p.
++Time
++mtime(char *p)
++{
++	Dir *d;
++	ulong t;
++
++	d = dirstat(p);
++	if(d == nil)
++		return 0;
++	t = d->mtime;
++	free(d);
++	return (Time)t;
++}
++
++// isabs reports whether p is an absolute path.
++bool
++isabs(char *p)
++{
++	return hasprefix(p, "/");
++}
++
++// readfile replaces b with the content of the named file.
++void
++readfile(Buf *b, char *file)
++{
++	int fd;
++
++	breset(b);
++	fd = open(file, OREAD);
++	if(fd < 0)
++		fatal("open %s", file);
++	breadfrom(b, fd);
++	close(fd);
++}
++
++// writefile writes b to the named file, creating it if needed.
++void
++writefile(Buf *b, char *file, int exec)
++{
++	int fd;
++	Dir d;
++	
++	fd = create(file, ORDWR, 0666);
++	if(fd < 0)
++		fatal("create %s", file);
++	if(write(fd, b->p, b->len) != b->len)
++		fatal("short write");
++	if(exec) {
++		nulldir(&d);
++		d.mode = 0755;
++		dirfwstat(fd, &d);
++	}
++	close(fd);
++}
++
++// xmkdir creates the directory p.
++void
++xmkdir(char *p)
++{
++	int fd;
++
++	if(isdir(p))
++		return;
++	fd = create(p, OREAD, 0777|DMDIR);
++	close(fd);
++	if(fd < 0)
++		fatal("mkdir %s", p);
++}
++
++// xmkdirall creates the directory p and its parents, as needed.
++void
++xmkdirall(char *p)
++{
++	char *q;
++
++	if(isdir(p))
++		return;
++	q = strrchr(p, '/');
++	if(q != nil) {
++		*q = '\0';
++		xmkdirall(p);
++		*q = '/';
++	}
++	xmkdir(p);
++}
++
++// xremove removes the file p.
++void
++xremove(char *p)
++{
++	if(vflag > 2)
++		xprintf("rm %s\n", p);
++	remove(p);
++}
++
++// xremoveall removes the file or directory tree rooted at p.
++void
++xremoveall(char *p)
++{
++	int i;
++	Buf b;
++	Vec dir;
++
++	binit(&b);
++	vinit(&dir);
++
++	if(isdir(p)) {
++		xreaddir(&dir, p);
++		for(i=0; i<dir.len; i++) {
++			bprintf(&b, "%s/%s", p, dir.p[i]);
++			xremoveall(bstr(&b));
++		}
++	}
++	if(vflag > 2)
++		xprintf("rm %s\n", p);
++	remove(p);
++	
++	bfree(&b);
++	vfree(&dir);	
++}
++
++// xreaddir replaces dst with a list of the names of the files in dir.
++// The names are relative to dir; they are not full paths.
++void
++xreaddir(Vec *dst, char *dir)
++{
++	Dir *d;
++	int fd, i, n;
++
++	vreset(dst);
++
++	fd = open(dir, OREAD);
++	if(fd < 0)
++		fatal("open %s", dir);
++	n = dirreadall(fd, &d);
++	for(i=0; i<n; i++)
++		vadd(dst, d[i].name);
++	free(d);
++	close(fd);
++}
++
++// xworkdir creates a new temporary directory to hold object files
++// and returns the name of that directory.
++char*
++xworkdir(void)
++{
++	Buf b;
++	char *p;
++	int fd, tries;
++
++	binit(&b);
++
++	fd = 0;
++	for(tries=0; tries<1000; tries++) {
++		bprintf(&b, "/tmp/go-cbuild-%06x", nrand((1<<24)-1));
++		fd = create(bstr(&b), OREAD|OEXCL, 0700|DMDIR);
++		if(fd >= 0)
++			goto done;
++	}
++	fatal("xworkdir create");
++
++done:
++	close(fd);
++	p = btake(&b);
++
++	bfree(&b);
++	return p;
++}
++
++// fatal prints an error message to standard error and exits.
++void
++fatal(char *msg, ...)
++{
++	char buf[ERRMAX];
++	va_list arg;
++	
++	rerrstr(buf, sizeof buf);
++
++	fflush(stdout);
++	fprintf(stderr, "go tool dist: ");
++	va_start(arg, msg);
++	vfprintf(stderr, msg, arg);
++	va_end(arg);
++
++	if(buf[0])
++		fprintf(stderr, ": %s", buf);
++	fprintf(stderr, "\n");
++
++	bgwait();
++	exits(msg);
++}
++
++// xmalloc returns a newly allocated zeroed block of n bytes of memory.
++// It calls fatal if it runs out of memory.
++void*
++xmalloc(int n)
++{
++	void *p;
++	
++	p = malloc(n);
++	if(p == nil)
++		fatal("out of memory");
++	memset(p, 0, n);
++	return p;
++}
++
++// xstrdup returns a newly allocated copy of p.
++// It calls fatal if it runs out of memory.
++char*
++xstrdup(char *p)
++{
++	p = strdup(p);
++	if(p == nil)
++		fatal("out of memory");
++	return p;
++}
++
++// xrealloc grows the allocation p to n bytes and
++// returns the new (possibly moved) pointer.
++// It calls fatal if it runs out of memory.
++void*
++xrealloc(void *p, int n)
++{
++	p = realloc(p, n);
++	if(p == nil)
++		fatal("out of memory");
++	return p;
++}
++
++// xfree frees the result returned by xmalloc, xstrdup, or xrealloc.
++void
++xfree(void *p)
++{
++	free(p);
++}
++
++// hassuffix reports whether p ends with suffix.
++bool
++hassuffix(char *p, char *suffix)
++{
++	int np, ns;
++	
++	np = strlen(p);
++	ns = strlen(suffix);
++	return np >= ns && strcmp(p+np-ns, suffix) == 0;
++}
++
++// hasprefix reports whether p begins wtih prefix.
++bool
++hasprefix(char *p, char *prefix)
++{
++	return strncmp(p, prefix, strlen(prefix)) == 0;
++}
++
++// contains reports whether sep appears in p.
++bool
++contains(char *p, char *sep)
++{
++	return strstr(p, sep) != nil;
++}
++
++// streq reports whether p and q are the same string.
++bool
++streq(char *p, char *q)
++{
++	return strcmp(p, q) == 0;
++}
++
++// lastelem returns the final path element in p.
++char*
++lastelem(char *p)
++{
++	char *out;
++
++	out = p;
++	for(; *p; p++)
++		if(*p == '/')
++			out = p+1;
++	return out;
++}
++
++// xmemmove copies n bytes from src to dst.
++void
++xmemmove(void *dst, void *src, int n)
++{
++	memmove(dst, src, n);
++}
++
++// xmemcmp compares the n-byte regions starting at a and at b.
++int
++xmemcmp(void *a, void *b, int n)
++{
++	return memcmp(a, b, n);
++}
++
++// xstrlen returns the length of the NUL-terminated string at p.
++int
++xstrlen(char *p)
++{
++	return strlen(p);
++}
++
++// xexit exits the process with return code n.
++void
++xexit(int n)
++{
++	char buf[32];
++
++	snprintf(buf, sizeof buf, "%d", n);
++	exits(buf);
++}
++
++// xatexit schedules the exit-handler f to be run when the program exits.
++void
++xatexit(void (*f)(void))
++{
++	atexit(f);
++}
++
++// xprintf prints a message to standard output.
++void
++xprintf(char *fmt, ...)
++{
++	va_list arg;
++	
++	va_start(arg, fmt);
++	vprintf(fmt, arg);
++	va_end(arg);
++}
++
++// xsetenv sets the environment variable $name to the given value.
++void
++xsetenv(char *name, char *value)
++{
++	putenv(name, value);
++}
++
++// main takes care of OS-specific startup and dispatches to xmain.
++void
++main(int argc, char **argv)
++{
++	Buf b;
++
++	setvbuf(stdout, nil, _IOLBF, BUFSIZ);
++	setvbuf(stderr, nil, _IOLBF, BUFSIZ);
++
++	binit(&b);
++
++	rfork(RFENVG);
++
++	slash = "/";
++	gohostos = "plan9";
++
++	xgetenv(&b, "objtype");
++	if(b.len == 0)
++		fatal("$objtype is unset");
++	gohostarch = btake(&b);
++
++	xgetenv(&b, "GOBIN");
++	if(b.len == 0){
++		bpathf(&b, "/%s/bin", gohostarch);
++		xsetenv("GOBIN", bstr(&b));
++	}
++
++	srand(time(0)+getpid());
++	init();
++	xmain(argc, argv);
++
++	bfree(&b);
++	exits(nil);
++}
++
++// xqsort is a wrapper for the C standard qsort.
++void
++xqsort(void *data, int n, int elemsize, int (*cmp)(const void*, const void*))
++{
++	qsort(data, n, elemsize, cmp);
++}
++
++// xstrcmp compares the NUL-terminated strings a and b.
++int
++xstrcmp(char *a, char *b)
++{
++	return strcmp(a, b);
++}
++
++// xstrstr returns a pointer to the first occurrence of b in a.
++char*
++xstrstr(char *a, char *b)
++{
++	return strstr(a, b);
++}
++
++// xstrrchr returns a pointer to the final occurrence of c in p.
++char*
++xstrrchr(char *p, int c)
++{
++	return strrchr(p, c);
++}
++
++#endif // PLAN9
+diff --git a/src/make.rc b/src/make.rc
+new file mode 100755
+index 0000000000..986ce85460
+--- /dev/null
++++ b/src/make.rc
+@@ -0,0 +1,91 @@
++#!/bin/rc -e
++# Copyright 2012 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# Environment variables that control make.rc:
++#
++# GOROOT_FINAL: The expected final Go root, baked into binaries.
++# The default is the location of the Go tree during the build.
++#
++# GOHOSTARCH: The architecture for host tools (compilers and
++# binaries).  Binaries of this type must be executable on the current
++# system, so the only common reason to set this is to set
++# GOHOSTARCH=386 on an amd64 machine.
++#
++# GOARCH: The target architecture for installed packages and tools.
++#
++# GOOS: The target operating system for installed packages and tools.
++#
++# GO_GCFLAGS: Additional 5g/6g/8g arguments to use when
++# building the packages and commands.
++#
++# GO_LDFLAGS: Additional 5l/6l/8l arguments to use when
++# building the commands.
++#
++# CGO_ENABLED: Setting this to 0 disables the use of cgo
++# in the built and installed packages and tools.
++
++rfork e
++if(! test -f run.bash){
++	echo 'make.rc must be run from $GOROOT/src' >[1=2]
++	exit wrongdir
++}
++
++# Clean old generated file that will cause problems in the build.
++rm -rf ./pkg/runtime/runtime_defs.go
++
++# Determine the host compiler toolchain.
++eval `{grep '^(CC|LD|O)=' /$objtype/mkfile}
++
++echo '# Building C bootstrap tool.'
++echo cmd/dist
++GOROOT = `{cd .. && pwd}
++if(! ~ $#GOROOT_FINAL 1)
++	GOROOT_FINAL = $GOROOT
++DEFGOROOT='-DGOROOT_FINAL="'$GOROOT_FINAL'"'
++
++for(i in cmd/dist/*.c)
++	$CC -FTVwp+ -DPLAN9 $DEFGOROOT $i
++$LD -o cmd/dist/dist *.$O
++rm *.$O
++
++eval `{./cmd/dist/dist env -9}
++echo
++
++if(~ $1 --dist-tool){
++	# Stop after building dist tool.
++	mkdir -p $GOTOOLDIR
++	if(! ~ $2 '')
++		cp cmd/dist/dist $2
++	mv cmd/dist/dist $GOTOOLDIR/dist
++	exit
++}
++
++echo '# Building compilers and Go bootstrap tool for host,' $GOHOSTOS/$GOHOSTARCH^.
++buildall = -a
++if(~ $1 --no-clean)
++	buildall = ()
++./cmd/dist/dist bootstrap $buildall -v # builds go_bootstrap
++# Delay move of dist tool to now, because bootstrap may clear tool directory.
++mv cmd/dist/dist $GOTOOLDIR/dist
++$GOTOOLDIR/go_bootstrap clean -i std
++echo
++
++# TODO(ality): remove the -p flag once the exec/await/RFNOTEG race is fixed.
++
++if(! ~ $GOHOSTARCH $GOARCH || ! ~ $GOHOSTOS $GOOS){
++	echo '# Building packages and commands for host,' $GOHOSTOS/$GOHOSTARCH^.
++	GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH \
++		$GOTOOLDIR/go_bootstrap install -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v -p 1 std
++	echo
++}
++
++echo '# Building packages and commands for' $GOOS/$GOARCH^.
++$GOTOOLDIR/go_bootstrap install -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v -p 1 std
++echo
++
++rm -f $GOTOOLDIR/go_bootstrap
++
++if(! ~ $1 --no-banner)
++	$GOTOOLDIR/dist banner
+diff --git a/src/run.rc b/src/run.rc
+new file mode 100755
+index 0000000000..af49297766
+--- /dev/null
++++ b/src/run.rc
+@@ -0,0 +1,50 @@
++#!/bin/rc -e
++# Copyright 2012 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++eval `{go env -9}
++
++# allow all.rc to avoid double-build of everything
++rebuild = true
++if(~ $1 --no-rebuild)
++	shift
++if not {
++	echo '# Building packages and commands.'
++	time go install -a -v -p 1 std
++	echo
++}
++
++echo '# Testing packages.'
++time go test std -short -timeout 120s
++echo
++
++echo '# GOMAXPROCS=2 runtime -cpu=1,2,4'
++GOMAXPROCS=2 go test runtime -short -timeout 120s -cpu 1,2,4
++echo
++
++echo '# sync -cpu=10'
++go test sync -short -timeout 120s -cpu 10
++echo
++
++fn xcd {
++	echo
++	echo '#' $1
++	cd $"GOROOT/src/$1
++}
++
++echo
++echo '#' ../misc/dashboard/builder ../misc/goplay
++go build ../misc/dashboard/builder ../misc/gplay
++
++echo
++echo '#' ../test/bench/go1
++go test ../test/bench/go1
++
++@{
++	xcd ../test
++	time go run run.go
++}
++
++echo
++echo ALL TESTS PASSED

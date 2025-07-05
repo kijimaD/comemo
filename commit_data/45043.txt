@@ -18,7 +18,45 @@ Date:   Sat Sep 26 09:42:59 2020 +0200
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-
+---
  src/cmd/compile/internal/gc/escape.go |  2 +-
  test/fixedbugs/issue41635.go          | 18 ++++++++++++++++++
  2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index f435d8ff6a..d79d32ec48 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -1053,7 +1053,7 @@ func (e *Escape) newLoc(n *Node, transient bool) *EscLocation {
+ 
+ 		if mustHeapAlloc(n) {
+ 			why := "too large for stack"
+-			if n.Op == OMAKESLICE && (!Isconst(n.Left, CTINT) || !Isconst(n.Right, CTINT)) {
++			if n.Op == OMAKESLICE && (!Isconst(n.Left, CTINT) || (n.Right != nil && !Isconst(n.Right, CTINT))) {
+ 				why = "non-constant size"
+ 			}
+ 			e.flow(e.heapHole().addr(n, why), loc)
+diff --git a/test/fixedbugs/issue41635.go b/test/fixedbugs/issue41635.go
+new file mode 100644
+index 0000000000..b33c1a07e7
+--- /dev/null
++++ b/test/fixedbugs/issue41635.go
+@@ -0,0 +1,18 @@
++//errorcheck -0 -m -m
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f() { // ERROR ""
++	b1 := make([]byte, 1<<17)      // ERROR "too large for stack" ""
++	b2 := make([]byte, 100, 1<<17) // ERROR "too large for stack" ""
++
++	n, m := 100, 200
++	b1 = make([]byte, n)      // ERROR "non-constant size" ""
++	b2 = make([]byte, 100, m) // ERROR "non-constant size" ""
++
++	_, _ = b1, b2
++}

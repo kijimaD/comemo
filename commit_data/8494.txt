@@ -7,8 +7,125 @@ Date:   Wed May 25 10:26:06 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4548058
-
+---
  test/golden.out | 15 +++++++++++++++
  test/shift1.go  | 36 ++++++++++++++++++++++++++++++++++++
  test/shift2.go  | 42 ++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 93 insertions(+)
+
+diff --git a/test/golden.out b/test/golden.out
+index 4400e41dd1..ba60fbfed1 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -40,6 +40,21 @@ hello, world
+ -9223372036854775808
+ 9223372036854775807
+ 
++=========== ./shift1.go
++BUG: errchk: ./shift1.go:33: error message does not match 'overflow'
++errchk: ./shift1.go:34: error message does not match 'overflow'
++errchk: ./shift1.go:35: error message does not match 'overflow'
++
++=========== ./shift2.go
++./shift2.go:22: illegal constant expression: ideal LSH uint
++./shift2.go:35: illegal constant expression: ideal LSH uint
++./shift2.go:36: illegal constant expression: ideal LSH uint
++./shift2.go:36: invalid operation: 2 << c (shift of type float64)
++./shift2.go:39: illegal constant expression: ideal LSH uint
++./shift2.go:40: illegal constant expression: ideal LSH uint
++./shift2.go:40: invalid operation: 2 << c (shift of type float64)
++./shift2.go:40: cannot use 2 << c as type interface { } in function argument
++
+ =========== ./sigchld.go
+ survived SIGCHLD
+ 
+diff --git a/test/shift1.go b/test/shift1.go
+new file mode 100644
+index 0000000000..8fa48a03cf
+--- /dev/null
++++ b/test/shift1.go
+@@ -0,0 +1,36 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 1708, illegal cases.
++
++package p
++
++func f(x int) int         { return 0 }
++func g(x interface{}) int { return 0 }
++func h(x float64) int     { return 0 }
++
++// from the spec
++var (
++	s uint    = 33
++	u         = 1.0 << s // ERROR "invalid operation"
++	v float32 = 1 << s   // ERROR "invalid operation"
++)
++
++// non-constant shift expressions
++var (
++	e1       = g(2.0 << s) // ERROR "invalid operation"
++	f1       = h(2 << s)   // ERROR "invalid operation"
++	g1 int64 = 1.1 << s    // ERROR "truncated"
++)
++
++// constant shift expressions
++const c uint = 65
++
++var (
++	a2 int = 1.0 << c    // ERROR "overflow"
++	b2     = 1.0 << c    // ERROR "overflow"
++	d2     = f(1.0 << c) // ERROR "overflow"
++)
+diff --git a/test/shift2.go b/test/shift2.go
+new file mode 100644
+index 0000000000..b08b37b7f9
+--- /dev/null
++++ b/test/shift2.go
+@@ -0,0 +1,42 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 1708, legal cases.
++
++package p
++
++func f(x int) int         { return 0 }
++func g(x interface{}) int { return 0 }
++func h(x float64) int     { return 0 }
++
++// from the spec
++var (
++	s uint  = 33
++	i       = 1 << s         // 1 has type int
++	j int32 = 1 << s         // 1 has type int32; j == 0
++	k       = uint64(1 << s) // 1 has type uint64; k == 1<<33
++	m int   = 1.0 << s       // legal: 1.0 has type int
++	w int64 = 1.0 << 33      // legal: 1.0<<33 is a constant shift expression
++)
++
++// non-constant shift expressions
++var (
++	a1 int = 2.0 << s    // typeof(2.0) is int in this context => legal shift
++	d1     = f(2.0 << s) // typeof(2.0) is int in this context => legal shift
++)
++
++// constant shift expressions
++const c uint = 5
++
++var (
++	a2 int     = 2.0 << c    // a2 == 64 (type int)
++	b2         = 2.0 << c    // b2 == 64 (untyped integer)
++	_          = f(b2)       // verify b2 has type int
++	c2 float64 = 2 << c      // c2 == 64.0 (type float64)
++	d2         = f(2.0 << c) // == f(64)
++	e2         = g(2.0 << c) // == g(int(64))
++	f2         = h(2 << c)   // == h(float64(64.0))
++)

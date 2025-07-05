@@ -10,6 +10,30 @@ Date:   Wed Feb 13 21:45:58 2019 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  test/fixedbugs/gcc89321.go | 17 +++++++++++++++++
  1 file changed, 17 insertions(+)
+
+diff --git a/test/fixedbugs/gcc89321.go b/test/fixedbugs/gcc89321.go
+new file mode 100644
+index 0000000000..93ca6b40a5
+--- /dev/null
++++ b/test/fixedbugs/gcc89321.go
+@@ -0,0 +1,17 @@
++// compile
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// https://gcc.gnu.org/PR89321
++// gccgo compiler crash building map literals with a zero-sized value type.
++
++package p
++
++type M map[byte]struct{}
++
++var (
++	M1 = M{1: {}, 2: {}, 3: {}}
++	M2 = M{1: {}, 2: {}}
++)

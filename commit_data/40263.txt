@@ -11,6 +11,20 @@ Date:   Tue Apr 30 16:15:41 2019 +0000
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/dist/build.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index ecb2e9e188..4c5f1c925e 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1478,7 +1478,7 @@ func checkNotStale(goBinary string, targets ...string) {
+ // by 'go tool dist list'.
+ var cgoEnabled = map[string]bool{
+ 	"aix/ppc64":       true,
+-	"darwin/386":      true,
++	"darwin/386":      false, // Issue 31751
+ 	"darwin/amd64":    true,
+ 	"darwin/arm":      true,
+ 	"darwin/arm64":    true,

@@ -17,7 +17,7 @@ Date:   Tue Feb 7 17:43:34 2023 -0500
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/link/internal/ld/dwarf.go      |  2 +-
  src/cmd/link/internal/ld/dwarf_test.go |  4 ++--
  src/internal/reflectlite/type.go       | 11 +++--------
@@ -31,3 +31,390 @@ Date:   Tue Feb 7 17:43:34 2023 -0500
  src/runtime/syscall_windows.go         |  4 ++--
  src/runtime/type.go                    |  9 ++-------
  12 files changed, 49 insertions(+), 64 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 4f3d18e146..5b5660ffc9 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1803,7 +1803,7 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
+ 	// Needed by the prettyprinter code for interface inspection.
+ 	for _, typ := range []string{
+ 		"type:runtime._type",
+-		"type:runtime.arraytype",
++		"type:internal/abi.ArrayType",
+ 		"type:runtime.chantype",
+ 		"type:runtime.functype",
+ 		"type:runtime.maptype",
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index 997275a56a..808bd644cd 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -56,8 +56,8 @@ func TestRuntimeTypesPresent(t *testing.T) {
+ 	}
+ 
+ 	want := map[string]bool{
+-		"runtime._type":         true,
+-		"runtime.arraytype":     true,
++		"runtime._type": true,
++		// "runtime.arraytype":     true,
+ 		"runtime.chantype":      true,
+ 		"runtime.functype":      true,
+ 		"runtime.maptype":       true,
+diff --git a/src/internal/reflectlite/type.go b/src/internal/reflectlite/type.go
+index e706e2f136..5796b8f168 100644
+--- a/src/internal/reflectlite/type.go
++++ b/src/internal/reflectlite/type.go
+@@ -131,12 +131,7 @@ const (
+ )
+ 
+ // arrayType represents a fixed array type.
+-type arrayType struct {
+-	rtype
+-	elem  *rtype // array element type
+-	slice *rtype // slice type
+-	len   uintptr
+-}
++type arrayType = abi.ArrayType
+ 
+ // chanType represents a channel type.
+ type chanType struct {
+@@ -507,7 +502,7 @@ func (t *rtype) Elem() Type {
+ 	switch t.Kind() {
+ 	case Array:
+ 		tt := (*arrayType)(unsafe.Pointer(t))
+-		return toType(tt.elem)
++		return toType((*rtype)(tt.Elem))
+ 	case Chan:
+ 		tt := (*chanType)(unsafe.Pointer(t))
+ 		return toType(tt.elem)
+@@ -545,7 +540,7 @@ func (t *rtype) Len() int {
+ 		panic("reflect: Len of non-array type")
+ 	}
+ 	tt := (*arrayType)(unsafe.Pointer(t))
+-	return int(tt.len)
++	return int(tt.Len)
+ }
+ 
+ func (t *rtype) NumField() int {
+diff --git a/src/internal/reflectlite/value.go b/src/internal/reflectlite/value.go
+index ca31889cfc..c5b9596617 100644
+--- a/src/internal/reflectlite/value.go
++++ b/src/internal/reflectlite/value.go
+@@ -331,7 +331,7 @@ func (v Value) Len() int {
+ 	switch k {
+ 	case Array:
+ 		tt := (*arrayType)(unsafe.Pointer(v.typ))
+-		return int(tt.len)
++		return int(tt.Len)
+ 	case Chan:
+ 		return chanlen(v.pointer())
+ 	case Map:
+diff --git a/src/reflect/abi.go b/src/reflect/abi.go
+index c292a842c0..849b0f4da0 100644
+--- a/src/reflect/abi.go
++++ b/src/reflect/abi.go
+@@ -222,14 +222,14 @@ func (a *abiSeq) regAssign(t *rtype, offset uintptr) bool {
+ 		return a.assignIntN(offset, goarch.PtrSize, 3, 0b001)
+ 	case Array:
+ 		tt := (*arrayType)(unsafe.Pointer(t))
+-		switch tt.len {
++		switch tt.Len {
+ 		case 0:
+ 			// There's nothing to assign, so don't modify
+ 			// a.steps but succeed so the caller doesn't
+ 			// try to stack-assign this value.
+ 			return true
+ 		case 1:
+-			return a.regAssign(tt.elem, offset)
++			return a.regAssign((*rtype)(tt.Elem), offset)
+ 		default:
+ 			return false
+ 		}
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 53eed5ac00..193465e032 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -297,12 +297,7 @@ const (
+ )
+ 
+ // arrayType represents a fixed array type.
+-type arrayType struct {
+-	rtype
+-	elem  *rtype // array element type
+-	slice *rtype // slice type
+-	len   uintptr
+-}
++type arrayType = abi.ArrayType
+ 
+ // chanType represents a channel type.
+ type chanType struct {
+@@ -875,7 +870,7 @@ func (t *rtype) Elem() Type {
+ 	switch t.Kind() {
+ 	case Array:
+ 		tt := (*arrayType)(unsafe.Pointer(t))
+-		return toType(tt.elem)
++		return toType((*rtype)(tt.Elem))
+ 	case Chan:
+ 		tt := (*chanType)(unsafe.Pointer(t))
+ 		return toType(tt.elem)
+@@ -945,7 +940,7 @@ func (t *rtype) Len() int {
+ 		panic("reflect: Len of non-array type " + t.String())
+ 	}
+ 	tt := (*arrayType)(unsafe.Pointer(t))
+-	return int(tt.len)
++	return int(tt.Len)
+ }
+ 
+ func (t *rtype) NumField() int {
+@@ -2071,7 +2066,7 @@ func isReflexive(t *rtype) bool {
+ 		return false
+ 	case Array:
+ 		tt := (*arrayType)(unsafe.Pointer(t))
+-		return isReflexive(tt.elem)
++		return isReflexive((*rtype)(tt.Elem))
+ 	case Struct:
+ 		tt := (*structType)(unsafe.Pointer(t))
+ 		for _, f := range tt.fields {
+@@ -2098,7 +2093,7 @@ func needKeyUpdate(t *rtype) bool {
+ 		return true
+ 	case Array:
+ 		tt := (*arrayType)(unsafe.Pointer(t))
+-		return needKeyUpdate(tt.elem)
++		return needKeyUpdate((*rtype)(tt.Elem))
+ 	case Struct:
+ 		tt := (*structType)(unsafe.Pointer(t))
+ 		for _, f := range tt.fields {
+@@ -2120,7 +2115,7 @@ func hashMightPanic(t *rtype) bool {
+ 		return true
+ 	case Array:
+ 		tt := (*arrayType)(unsafe.Pointer(t))
+-		return hashMightPanic(tt.elem)
++		return hashMightPanic((*rtype)(tt.Elem))
+ 	case Struct:
+ 		tt := (*structType)(unsafe.Pointer(t))
+ 		for _, f := range tt.fields {
+@@ -2826,7 +2821,7 @@ func ArrayOf(length int, elem Type) Type {
+ 	s := "[" + strconv.Itoa(length) + "]" + typ.String()
+ 	for _, tt := range typesByString(s) {
+ 		array := (*arrayType)(unsafe.Pointer(tt))
+-		if array.elem == typ {
++		if (*rtype)(array.Elem) == typ {
+ 			ti, _ := lookupCache.LoadOrStore(ckey, tt)
+ 			return ti.(Type)
+ 		}
+@@ -2843,7 +2838,7 @@ func ArrayOf(length int, elem Type) Type {
+ 		array.Hash = fnv1(array.Hash, byte(n))
+ 	}
+ 	array.Hash = fnv1(array.Hash, ']')
+-	array.elem = typ
++	array.Elem = (*abi.Type)(typ)
+ 	array.PtrToThis = 0
+ 	if typ.Size_ > 0 {
+ 		max := ^uintptr(0) / typ.Size_
+@@ -2857,8 +2852,8 @@ func ArrayOf(length int, elem Type) Type {
+ 	}
+ 	array.Align_ = typ.Align_
+ 	array.FieldAlign_ = typ.FieldAlign_
+-	array.len = uintptr(length)
+-	array.slice = SliceOf(elem).(*rtype)
++	array.Len = uintptr(length)
++	array.Slice = (*abi.Type)(SliceOf(elem).(*rtype))
+ 
+ 	switch {
+ 	case typ.PtrBytes == 0 || array.Size_ == 0:
+@@ -2880,7 +2875,7 @@ func ArrayOf(length int, elem Type) Type {
+ 		// Runtime needs pointer masks to be a multiple of uintptr in size.
+ 		n = (n + goarch.PtrSize - 1) &^ (goarch.PtrSize - 1)
+ 		mask := make([]byte, n)
+-		emitGCMask(mask, 0, typ, array.len)
++		emitGCMask(mask, 0, typ, array.Len)
+ 		array.GCData = &mask[0]
+ 
+ 	default:
+@@ -2940,7 +2935,7 @@ func ArrayOf(length int, elem Type) Type {
+ 		array.Kind_ &^= kindDirectIface
+ 	}
+ 
+-	ti, _ := lookupCache.LoadOrStore(ckey, &array.rtype)
++	ti, _ := lookupCache.LoadOrStore(ckey, (*rtype)(&array.Type))
+ 	return ti.(Type)
+ }
+ 
+@@ -3084,8 +3079,8 @@ func addTypeBits(bv *bitVector, offset uintptr, t *rtype) {
+ 	case Array:
+ 		// repeat inner type
+ 		tt := (*arrayType)(unsafe.Pointer(t))
+-		for i := 0; i < int(tt.len); i++ {
+-			addTypeBits(bv, offset+uintptr(i)*tt.elem.Size_, tt.elem)
++		for i := 0; i < int(tt.Len); i++ {
++			addTypeBits(bv, offset+uintptr(i)*tt.Elem.Size_, (*rtype)(tt.Elem))
+ 		}
+ 
+ 	case Struct:
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 1cab35b6cd..98778c9f67 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -321,7 +321,7 @@ func (v Value) bytesSlow() []byte {
+ 			panic("reflect.Value.Bytes of unaddressable byte array")
+ 		}
+ 		p := (*byte)(v.ptr)
+-		n := int((*arrayType)(unsafe.Pointer(v.typ)).len)
++		n := int((*arrayType)(unsafe.Pointer(v.typ)).Len)
+ 		return unsafe.Slice(p, n)
+ 	}
+ 	panic(&ValueError{"reflect.Value.Bytes", v.kind()})
+@@ -1391,10 +1391,10 @@ func (v Value) Index(i int) Value {
+ 	switch v.kind() {
+ 	case Array:
+ 		tt := (*arrayType)(unsafe.Pointer(v.typ))
+-		if uint(i) >= uint(tt.len) {
++		if uint(i) >= uint(tt.Len) {
+ 			panic("reflect: array index out of range")
+ 		}
+-		typ := tt.elem
++		typ := (*rtype)(tt.Elem)
+ 		offset := uintptr(i) * typ.Size_
+ 
+ 		// Either flagIndir is set and v.ptr points at array,
+@@ -1697,7 +1697,7 @@ func (v Value) lenNonSlice() int {
+ 	switch k := v.kind(); k {
+ 	case Array:
+ 		tt := (*arrayType)(unsafe.Pointer(v.typ))
+-		return int(tt.len)
++		return int(tt.Len)
+ 	case Chan:
+ 		return chanlen(v.pointer())
+ 	case Map:
+@@ -2457,8 +2457,8 @@ func (v Value) Slice(i, j int) Value {
+ 			panic("reflect.Value.Slice: slice of unaddressable array")
+ 		}
+ 		tt := (*arrayType)(unsafe.Pointer(v.typ))
+-		cap = int(tt.len)
+-		typ = (*sliceType)(unsafe.Pointer(tt.slice))
++		cap = int(tt.Len)
++		typ = (*sliceType)(unsafe.Pointer(tt.Slice))
+ 		base = v.ptr
+ 
+ 	case Slice:
+@@ -2519,8 +2519,8 @@ func (v Value) Slice3(i, j, k int) Value {
+ 			panic("reflect.Value.Slice3: slice of unaddressable array")
+ 		}
+ 		tt := (*arrayType)(unsafe.Pointer(v.typ))
+-		cap = int(tt.len)
+-		typ = (*sliceType)(unsafe.Pointer(tt.slice))
++		cap = int(tt.Len)
++		typ = (*sliceType)(unsafe.Pointer(tt.Slice))
+ 		base = v.ptr
+ 
+ 	case Slice:
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index 3e30e7ca77..4619abf4f5 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -173,8 +173,8 @@ func typehash(t *_type, p unsafe.Pointer, h uintptr) uintptr {
+ 		return interhash(p, h)
+ 	case kindArray:
+ 		a := (*arraytype)(unsafe.Pointer(t))
+-		for i := uintptr(0); i < a.len; i++ {
+-			h = typehash(a.elem, add(p, i*a.elem.Size_), h)
++		for i := uintptr(0); i < a.Len; i++ {
++			h = typehash((*_type)(a.Elem), add(p, i*a.Elem.Size_), h)
+ 		}
+ 		return h
+ 	case kindStruct:
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index c0b0f4fe85..e92b7e4fed 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -463,15 +463,15 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
+ 	case kindArray:
+ 		at := (*arraytype)(unsafe.Pointer(t))
+ 		if !indir {
+-			if at.len != 1 {
++			if at.Len != 1 {
+ 				throw("can't happen")
+ 			}
+-			cgoCheckArg(at.elem, p, at.elem.Kind_&kindDirectIface == 0, top, msg)
++			cgoCheckArg((*_type)(at.Elem), p, at.Elem.Kind_&kindDirectIface == 0, top, msg)
+ 			return
+ 		}
+-		for i := uintptr(0); i < at.len; i++ {
+-			cgoCheckArg(at.elem, p, true, top, msg)
+-			p = add(p, at.elem.Size_)
++		for i := uintptr(0); i < at.Len; i++ {
++			cgoCheckArg((*_type)(at.Elem), p, true, top, msg)
++			p = add(p, at.Elem.Size_)
+ 		}
+ 	case kindChan, kindMap:
+ 		// These types contain internal pointers that will
+diff --git a/src/runtime/cgocheck.go b/src/runtime/cgocheck.go
+index 4d5683b54f..cc11ef0469 100644
+--- a/src/runtime/cgocheck.go
++++ b/src/runtime/cgocheck.go
+@@ -247,16 +247,16 @@ func cgoCheckUsingType(typ *_type, src unsafe.Pointer, off, size uintptr) {
+ 		throw("can't happen")
+ 	case kindArray:
+ 		at := (*arraytype)(unsafe.Pointer(typ))
+-		for i := uintptr(0); i < at.len; i++ {
+-			if off < at.elem.Size_ {
+-				cgoCheckUsingType(at.elem, src, off, size)
++		for i := uintptr(0); i < at.Len; i++ {
++			if off < at.Elem.Size_ {
++				cgoCheckUsingType((*_type)(at.Elem), src, off, size)
+ 			}
+-			src = add(src, at.elem.Size_)
++			src = add(src, at.Elem.Size_)
+ 			skipped := off
+-			if skipped > at.elem.Size_ {
+-				skipped = at.elem.Size_
++			if skipped > at.Elem.Size_ {
++				skipped = at.Elem.Size_
+ 			}
+-			checked := at.elem.Size_ - skipped
++			checked := at.Elem.Size_ - skipped
+ 			off -= skipped
+ 			if size <= checked {
+ 				return
+diff --git a/src/runtime/syscall_windows.go b/src/runtime/syscall_windows.go
+index 1c112be9d4..5177f614c8 100644
+--- a/src/runtime/syscall_windows.go
++++ b/src/runtime/syscall_windows.go
+@@ -185,8 +185,8 @@ func (p *abiDesc) tryRegAssignArg(t *_type, offset uintptr) bool {
+ 		}
+ 	case kindArray:
+ 		at := (*arraytype)(unsafe.Pointer(t))
+-		if at.len == 1 {
+-			return p.tryRegAssignArg(at.elem, offset)
++		if at.Len == 1 {
++			return p.tryRegAssignArg((*_type)(at.Elem), offset)
+ 		}
+ 	case kindStruct:
+ 		st := (*structtype)(unsafe.Pointer(t))
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index cba2349859..85d576379c 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -332,12 +332,7 @@ func (mt *maptype) hashMightPanic() bool { // true if hash function might panic
+ 	return mt.flags&16 != 0
+ }
+ 
+-type arraytype struct {
+-	typ   _type
+-	elem  *_type
+-	slice *_type
+-	len   uintptr
+-}
++type arraytype = abi.ArrayType
+ 
+ type chantype struct {
+ 	typ  _type
+@@ -559,7 +554,7 @@ func typesEqual(t, v *_type, seen map[_typePair]struct{}) bool {
+ 	case kindArray:
+ 		at := (*arraytype)(unsafe.Pointer(t))
+ 		av := (*arraytype)(unsafe.Pointer(v))
+-		return typesEqual(at.elem, av.elem, seen) && at.len == av.len
++		return typesEqual((*_type)(at.Elem), (*_type)(av.Elem), seen) && at.Len == av.Len
+ 	case kindChan:
+ 		ct := (*chantype)(unsafe.Pointer(t))
+ 		cv := (*chantype)(unsafe.Pointer(v))

@@ -12,7 +12,7 @@ Date:   Thu Nov 17 22:53:23 2011 -0800
     R=golang-dev, rsc, r
     CC=golang-dev
     https://golang.org/cl/5393049
-
+---
  src/pkg/text/template/exec_test.go        |  6 ++-
  src/pkg/text/template/parse.go            | 14 ++----
  src/pkg/text/template/parse/parse.go      | 75 +++++++++++++++++++++++--------
@@ -20,3 +20,249 @@ Date:   Thu Nov 17 22:53:23 2011 -0800
  src/pkg/text/template/parse/set.go        | 38 +---------------
  src/pkg/text/template/set.go              |  1 +
  6 files changed, 70 insertions(+), 66 deletions(-)
+
+diff --git a/src/pkg/text/template/exec_test.go b/src/pkg/text/template/exec_test.go
+index 5721667641..67b9416cd7 100644
+--- a/src/pkg/text/template/exec_test.go
++++ b/src/pkg/text/template/exec_test.go
+@@ -487,7 +487,11 @@ func testExecute(execTests []execTest, set *Set, t *testing.T) {
+ 	}
+ 	for _, test := range execTests {
+ 		tmpl := New(test.name).Funcs(funcs)
+-		_, err := tmpl.ParseInSet(test.input, set)
++		theSet := set
++		if theSet == nil {
++			theSet = new(Set)
++		}
++		_, err := tmpl.ParseInSet(test.input, theSet)
+ 		if err != nil {
+ 			t.Errorf("%s: parse error: %s", test.name, err)
+ 			continue
+diff --git a/src/pkg/text/template/parse.go b/src/pkg/text/template/parse.go
+index fa562141c2..7075f2ac20 100644
+--- a/src/pkg/text/template/parse.go
++++ b/src/pkg/text/template/parse.go
+@@ -62,7 +62,7 @@ func (t *Template) Funcs(funcMap FuncMap) *Template {
+ // Parse parses the template definition string to construct an internal
+ // representation of the template for execution.
+ func (t *Template) Parse(s string) (tmpl *Template, err error) {
+-	t.Tree, err = parse.New(t.name).Parse(s, t.leftDelim, t.rightDelim, t.parseFuncs, builtins)
++	t.Tree, err = parse.New(t.name).Parse(s, t.leftDelim, t.rightDelim, nil, t.parseFuncs, builtins)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -71,19 +71,13 @@ func (t *Template) Parse(s string) (tmpl *Template, err error) {
+ 
+ // ParseInSet parses the template definition string to construct an internal
+ // representation of the template for execution. It also adds the template
+-// to the set. It is an error if s is already defined in the set.
++// to the set, which must not be nil. It is an error if s is already defined in the set.
+ // Function bindings are checked against those in the set.
+ func (t *Template) ParseInSet(s string, set *Set) (tmpl *Template, err error) {
+-	var setFuncs FuncMap
+-	if set != nil {
+-		setFuncs = set.parseFuncs
+-	}
+-	t.Tree, err = parse.New(t.name).Parse(s, t.leftDelim, t.rightDelim, t.parseFuncs, setFuncs, builtins)
++	t.Tree, err = parse.New(t.name).Parse(s, t.leftDelim, t.rightDelim, set.trees, t.parseFuncs, set.parseFuncs, builtins)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	if set != nil {
+-		err = set.add(t)
+-	}
++	err = set.add(t)
+ 	return t, err
+ }
+diff --git a/src/pkg/text/template/parse/parse.go b/src/pkg/text/template/parse/parse.go
+index 1b6ab3af4f..e906ee83aa 100644
+--- a/src/pkg/text/template/parse/parse.go
++++ b/src/pkg/text/template/parse/parse.go
+@@ -146,29 +146,70 @@ func (t *Tree) atEOF() bool {
+ // Parse parses the template definition string to construct an internal
+ // representation of the template for execution. If either action delimiter
+ // string is empty, the default ("{{" or "}}") is used.
+-func (t *Tree) Parse(s, leftDelim, rightDelim string, funcs ...map[string]interface{}) (tree *Tree, err error) {
++func (t *Tree) Parse(s, leftDelim, rightDelim string, treeSet map[string]*Tree, funcs ...map[string]interface{}) (tree *Tree, err error) {
+ 	defer t.recover(&err)
+ 	t.startParse(funcs, lex(t.Name, s, leftDelim, rightDelim))
+-	t.parse(true)
++	t.parse(treeSet)
+ 	t.stopParse()
+ 	return t, nil
+ }
+ 
+-// parse is the helper for Parse.
+-// It triggers an error if we expect EOF but don't reach it.
+-func (t *Tree) parse(toEOF bool) (next Node) {
+-	t.Root, next = t.itemList(true)
+-	if toEOF && next != nil {
+-		t.errorf("unexpected %s", next)
++// parse is the top-level parser for a template, essentially the same
++// as itemList except it also parses {{define}} actions.
++// It runs to EOF.
++func (t *Tree) parse(treeSet map[string]*Tree) (next Node) {
++	t.Root = newList()
++	for t.peek().typ != itemEOF {
++		if t.peek().typ == itemLeftDelim {
++			delim := t.next()
++			if t.next().typ == itemDefine {
++				newT := New("new definition") // name will be updated once we know it.
++				newT.startParse(t.funcs, t.lex)
++				newT.parseDefinition(treeSet)
++				continue
++			}
++			t.backup2(delim)
++		}
++		n := t.textOrAction()
++		if n.Type() == nodeEnd {
++			t.errorf("unexpected %s", n)
++		}
++		t.Root.append(n)
+ 	}
+-	return next
++	return nil
++}
++
++// parseDefinition parses a {{define}} ...  {{end}} template definition and
++// installs the definition in the treeSet map.  The "define" keyword has already
++// been scanned.
++func (t *Tree) parseDefinition(treeSet map[string]*Tree) {
++	if treeSet == nil {
++		t.errorf("no set specified for template definition")
++	}
++	const context = "define clause"
++	name := t.expect(itemString, context)
++	var err error
++	t.Name, err = strconv.Unquote(name.val)
++	if err != nil {
++		t.error(err)
++	}
++	t.expect(itemRightDelim, context)
++	var end Node
++	t.Root, end = t.itemList()
++	if end.Type() != nodeEnd {
++		t.errorf("unexpected %s in %s", end, context)
++	}
++	t.stopParse()
++	if _, present := treeSet[t.Name]; present {
++		t.errorf("template: %q multiply defined", name)
++	}
++	treeSet[t.Name] = t
+ }
+ 
+ // itemList:
+ //	textOrAction*
+-// Terminates at EOF and at {{end}} or {{else}}, which is returned separately.
+-// The toEOF flag tells whether we expect to reach EOF.
+-func (t *Tree) itemList(toEOF bool) (list *ListNode, next Node) {
++// Terminates at {{end}} or {{else}}, returned separately.
++func (t *Tree) itemList() (list *ListNode, next Node) {
+ 	list = newList()
+ 	for t.peek().typ != itemEOF {
+ 		n := t.textOrAction()
+@@ -178,10 +219,8 @@ func (t *Tree) itemList(toEOF bool) (list *ListNode, next Node) {
+ 		}
+ 		list.append(n)
+ 	}
+-	if !toEOF {
+-		t.unexpected(t.next(), "input")
+-	}
+-	return list, nil
++	t.errorf("unexpected EOF")
++	return
+ }
+ 
+ // textOrAction:
+@@ -276,11 +315,11 @@ func (t *Tree) parseControl(context string) (lineNum int, pipe *PipeNode, list,
+ 	defer t.popVars(len(t.vars))
+ 	pipe = t.pipeline(context)
+ 	var next Node
+-	list, next = t.itemList(false)
++	list, next = t.itemList()
+ 	switch next.Type() {
+ 	case nodeEnd: //done
+ 	case nodeElse:
+-		elseList, next = t.itemList(false)
++		elseList, next = t.itemList()
+ 		if next.Type() != nodeEnd {
+ 			t.errorf("expected end; found %s", next)
+ 		}
+diff --git a/src/pkg/text/template/parse/parse_test.go b/src/pkg/text/template/parse/parse_test.go
+index f05f6e3874..5c10086cc7 100644
+--- a/src/pkg/text/template/parse/parse_test.go
++++ b/src/pkg/text/template/parse/parse_test.go
+@@ -236,7 +236,7 @@ var builtins = map[string]interface{}{
+ 
+ func TestParse(t *testing.T) {
+ 	for _, test := range parseTests {
+-		tmpl, err := New(test.name).Parse(test.input, "", "", builtins)
++		tmpl, err := New(test.name).Parse(test.input, "", "", nil, builtins)
+ 		switch {
+ 		case err == nil && !test.ok:
+ 			t.Errorf("%q: expected error; got none", test.name)
+diff --git a/src/pkg/text/template/parse/set.go b/src/pkg/text/template/parse/set.go
+index d363eeff08..55f3ceb3d5 100644
+--- a/src/pkg/text/template/parse/set.go
++++ b/src/pkg/text/template/parse/set.go
+@@ -4,46 +4,12 @@
+ 
+ package parse
+ 
+-import (
+-	"fmt"
+-	"strconv"
+-)
+-
+ // Set returns a slice of Trees created by parsing the template set
+ // definition in the argument string. If an error is encountered,
+ // parsing stops and an empty slice is returned with the error.
+ func Set(text, leftDelim, rightDelim string, funcs ...map[string]interface{}) (tree map[string]*Tree, err error) {
+ 	tree = make(map[string]*Tree)
+-	defer (*Tree)(nil).recover(&err)
+-	lex := lex("set", text, leftDelim, rightDelim)
+-	const context = "define clause"
+-	for {
+-		t := New("set") // name will be updated once we know it.
+-		t.startParse(funcs, lex)
+-		// Expect EOF or "{{ define name }}".
+-		if t.atEOF() {
+-			break
+-		}
+-		t.expect(itemLeftDelim, context)
+-		t.expect(itemDefine, context)
+-		name := t.expect(itemString, context)
+-		t.Name, err = strconv.Unquote(name.val)
+-		if err != nil {
+-			t.error(err)
+-		}
+-		t.expect(itemRightDelim, context)
+-		end := t.parse(false)
+-		if end == nil {
+-			t.errorf("unexpected EOF in %s", context)
+-		}
+-		if end.Type() != nodeEnd {
+-			t.errorf("unexpected %s in %s", end, context)
+-		}
+-		t.stopParse()
+-		if _, present := tree[t.Name]; present {
+-			return nil, fmt.Errorf("template: %q multiply defined", name)
+-		}
+-		tree[t.Name] = t
+-	}
++	// Top-level template name is needed but unused. TODO: clean this up.
++	_, err = New("ROOT").Parse(text, leftDelim, rightDelim, tree, funcs...)
+ 	return
+ }
+diff --git a/src/pkg/text/template/set.go b/src/pkg/text/template/set.go
+index 747cc7802b..48417044e7 100644
+--- a/src/pkg/text/template/set.go
++++ b/src/pkg/text/template/set.go
+@@ -16,6 +16,7 @@ import (
+ // A template may be a member of multiple sets.
+ type Set struct {
+ 	tmpl       map[string]*Template
++	trees      map[string]*parse.Tree // maintained by parse package
+ 	leftDelim  string
+ 	rightDelim string
+ 	parseFuncs FuncMap

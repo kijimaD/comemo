@@ -16,7 +16,58 @@ Date:   Fri Feb 15 12:15:11 2019 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/debug/pe/file.go      |  4 ++++
  src/debug/pe/file_test.go | 20 ++++++++++++++++++++
  2 files changed, 24 insertions(+)
+
+diff --git a/src/debug/pe/file.go b/src/debug/pe/file.go
+index 1c308b3dc3..1d714bf6e7 100644
+--- a/src/debug/pe/file.go
++++ b/src/debug/pe/file.go
+@@ -324,6 +324,10 @@ type ImportDirectory struct {
+ // satisfied by other libraries at dynamic load time.
+ // It does not return weak symbols.
+ func (f *File) ImportedSymbols() ([]string, error) {
++	if f.OptionalHeader == nil {
++		return nil, nil
++	}
++
+ 	pe64 := f.Machine == IMAGE_FILE_MACHINE_AMD64
+ 
+ 	// grab the number of data directory entries
+diff --git a/src/debug/pe/file_test.go b/src/debug/pe/file_test.go
+index 9613af3a3c..f4b24f7253 100644
+--- a/src/debug/pe/file_test.go
++++ b/src/debug/pe/file_test.go
+@@ -5,6 +5,7 @@
+ package pe
+ 
+ import (
++	"bytes"
+ 	"debug/dwarf"
+ 	"internal/testenv"
+ 	"io/ioutil"
+@@ -627,3 +628,22 @@ func TestImportTableInUnknownSection(t *testing.T) {
+ 		t.Fatalf("unable to locate any imported symbols within file %q.", path)
+ 	}
+ }
++
++func TestInvalidFormat(t *testing.T) {
++	crashers := [][]byte{
++		// https://golang.org/issue/30250
++		[]byte("\x00\x00\x00\x0000000\x00\x00\x00\x00\x00\x00\x000000" +
++			"00000000000000000000" +
++			"000000000\x00\x00\x0000000000" +
++			"00000000000000000000" +
++			"0000000000000000"),
++	}
++
++	for _, data := range crashers {
++		f, err := NewFile(bytes.NewReader(data))
++		if err != nil {
++			t.Error(err)
++		}
++		f.ImportedSymbols()
++	}
++}

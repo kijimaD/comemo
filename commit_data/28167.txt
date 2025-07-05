@@ -15,7 +15,61 @@ Date:   Mon May 2 14:46:40 2016 +1200
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cgo/main.go |  6 ++++++
  src/cmd/cgo/out.go  | 13 ++++++-------
  2 files changed, 12 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 2dc36c20db..cbdeb0f9ca 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -227,6 +227,12 @@ func main() {
+ 
+ 	goFiles := args[i:]
+ 
++	for _, arg := range args[:i] {
++		if arg == "-fsanitize=thread" {
++			tsanProlog = yesTsanProlog
++		}
++	}
++
+ 	p := newPackage(args[:i])
+ 
+ 	// Record CGO_LDFLAGS from the environment for external linking.
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index e91abe6e9d..5eab3a71b4 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -1303,14 +1303,12 @@ extern char* _cgo_topofstack(void);
+ `
+ 
+ // Prologue defining TSAN functions in C.
+-const tsanProlog = `
++const noTsanProlog = `
+ #define _cgo_tsan_acquire()
+ #define _cgo_tsan_release()
+-#if defined(__has_feature)
+-#if __has_feature(thread_sanitizer)
+-#undef _cgo_tsan_acquire
+-#undef _cgo_tsan_release
++`
+ 
++const yesTsanProlog = `
+ long long _cgo_sync __attribute__ ((common));
+ 
+ extern void __tsan_acquire(void*);
+@@ -1323,10 +1321,11 @@ static void _cgo_tsan_acquire() {
+ static void _cgo_tsan_release() {
+ 	__tsan_release(&_cgo_sync);
+ }
+-#endif
+-#endif
+ `
+ 
++// Set to yesTsanProlog if we see -fsanitize=thread in the flags for gcc.
++var tsanProlog = noTsanProlog
++
+ const builtinProlog = `
+ #include <stddef.h> /* for ptrdiff_t and size_t below */
+ 

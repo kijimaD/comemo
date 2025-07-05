@@ -9,9 +9,65 @@ Date:   Mon Dec 14 14:07:21 2015 -0500
     Change-Id: I72012f55615fcf5f4a16c054706c9bcd82e49ccd
     Reviewed-on: https://go-review.googlesource.com/17817
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/fmt.go | 2 +-
  test/fixedbugs/issue12677.dir/p.go | 8 ++++++++
  test/fixedbugs/issue12677.dir/q.go | 7 +++++++
  test/fixedbugs/issue12677.go       | 9 +++++++++
  4 files changed, 25 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 5f108724e0..1cbaf17f38 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -1120,7 +1120,7 @@ func exprfmt(n *Node, prec int) string {
+ 		if n.Val().Ctype() == CTNIL && n.Orig != nil && n.Orig != n {
+ 			return exprfmt(n.Orig, prec)
+ 		}
+-		if n.Type != nil && n.Type != Types[n.Type.Etype] && n.Type != idealbool && n.Type != idealstring {
++		if n.Type != nil && n.Type.Etype != TIDEAL && n.Type.Etype != TNIL && n.Type != idealbool && n.Type != idealstring {
+ 			// Need parens when type begins with what might
+ 			// be misinterpreted as a unary operator: * or <-.
+ 			if Isptr[n.Type.Etype] || (n.Type.Etype == TCHAN && n.Type.Chan == Crecv) {
+diff --git a/test/fixedbugs/issue12677.dir/p.go b/test/fixedbugs/issue12677.dir/p.go
+new file mode 100644
+index 0000000000..e395071f8d
+--- /dev/null
++++ b/test/fixedbugs/issue12677.dir/p.go
+@@ -0,0 +1,8 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++func Baz(f int) float64 {
++    return 1 / float64(int(1)<<(uint(f)))
++}
+diff --git a/test/fixedbugs/issue12677.dir/q.go b/test/fixedbugs/issue12677.dir/q.go
+new file mode 100644
+index 0000000000..fd39c8a9ca
+--- /dev/null
++++ b/test/fixedbugs/issue12677.dir/q.go
+@@ -0,0 +1,7 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package q
++import "./p"
++func f() { println(p.Baz(2)) }
+diff --git a/test/fixedbugs/issue12677.go b/test/fixedbugs/issue12677.go
+new file mode 100644
+index 0000000000..6ad7161b2a
+--- /dev/null
++++ b/test/fixedbugs/issue12677.go
+@@ -0,0 +1,9 @@
++// compiledir
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 12677: Type loss during export/import of inlined function body.
++
++package ignored

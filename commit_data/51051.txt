@@ -19,8 +19,57 @@ Date:   Tue Nov 30 16:58:36 2021 +0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/types/identity.go |  3 ++-
  src/cmd/compile/internal/types/type.go     |  3 ++-
  test/typeparam/issue49875.go               | 14 ++++++++++++++
  3 files changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types/identity.go b/src/cmd/compile/internal/types/identity.go
+index 89343b8419..f99e50a1c3 100644
+--- a/src/cmd/compile/internal/types/identity.go
++++ b/src/cmd/compile/internal/types/identity.go
+@@ -59,7 +59,8 @@ func identical(t1, t2 *Type, flags int, assumedEqual map[typePair]struct{}) bool
+ 		case TINT32:
+ 			return (t1 == Types[TINT32] || t1 == RuneType) && (t2 == Types[TINT32] || t2 == RuneType)
+ 		case TINTER:
+-			return (t1 == Types[TINTER] || t1 == AnyType) && (t2 == Types[TINTER] || t2 == AnyType)
++			// Make sure named any type matches any empty interface.
++			return t1 == AnyType && t2.IsEmptyInterface() || t2 == AnyType && t1.IsEmptyInterface()
+ 		default:
+ 			return false
+ 		}
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index b1194fa196..7d22e2da23 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1211,7 +1211,8 @@ func (t *Type) cmp(x *Type) Cmp {
+ 			}
+ 
+ 		case TINTER:
+-			if (t == Types[AnyType.kind] || t == AnyType) && (x == Types[AnyType.kind] || x == AnyType) {
++			// Make sure named any type matches any empty interface.
++			if t == AnyType && x.IsEmptyInterface() || x == AnyType && t.IsEmptyInterface() {
+ 				return CMPeq
+ 			}
+ 		}
+diff --git a/test/typeparam/issue49875.go b/test/typeparam/issue49875.go
+new file mode 100644
+index 0000000000..aece7deab1
+--- /dev/null
++++ b/test/typeparam/issue49875.go
+@@ -0,0 +1,14 @@
++// compile -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f(args ...interface{}) {}
++
++func g() {
++	var args []any
++	f(args...)
++}

@@ -24,9 +24,109 @@ Date:   Tue Sep 10 14:53:41 2013 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/13241050
-
+---
  src/cmd/6l/l.h     |  2 +-
  src/cmd/6l/optab.c |  6 +++---
  src/cmd/8l/l.h     |  2 +-
  src/cmd/8l/optab.c | 17 ++++++++++++++---
  4 files changed, 19 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 265a6947e8..ecab867e43 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -193,7 +193,7 @@ struct	Optab
+ 	short	as;
+ 	uchar*	ytab;
+ 	uchar	prefix;
+-	uchar	op[22];
++	uchar	op[23];
+ };
+ struct	Movtab
+ {
+diff --git a/src/cmd/6l/optab.c b/src/cmd/6l/optab.c
+index c354967b98..46603ad451 100644
+--- a/src/cmd/6l/optab.c
++++ b/src/cmd/6l/optab.c
+@@ -913,7 +913,7 @@ Optab optab[] =
+ 	{ AMOVHLPS,	yxr,	Pm, 0x12 },
+ 	{ AMOVHPD,	yxmov,	Pe, 0x16,0x17 },
+ 	{ AMOVHPS,	yxmov,	Pm, 0x16,0x17 },
+-	{ AMOVL,	ymovl,	Px, 0x89,0x8b,0x31,0xb8,0xc7,(00),0x6e,0x7e,Pe,0x6e,Pe,0x7e },
++	{ AMOVL,	ymovl,	Px, 0x89,0x8b,0x31,0xb8,0xc7,(00),0x6e,0x7e,Pe,0x6e,Pe,0x7e,0 },
+ 	{ AMOVLHPS,	yxr,	Pm, 0x16 },
+ 	{ AMOVLPD,	yxmov,	Pe, 0x12,0x13 },
+ 	{ AMOVLPS,	yxmov,	Pm, 0x12,0x13 },
+@@ -925,7 +925,7 @@ Optab optab[] =
+ 	{ AMOVNTPD,	yxr_ml,	Pe, 0x2b },
+ 	{ AMOVNTPS,	yxr_ml,	Pm, 0x2b },
+ 	{ AMOVNTQ,	ymr_ml,	Pm, 0xe7 },
+-	{ AMOVQ,	ymovq,	Pw, 0x89, 0x8b, 0x31, 0xc7,(00), 0xb8, 0xc7,(00), 0x6f, 0x7f, 0x6e, 0x7e, Pf2,0xd6, Pf3,0x7e, Pe,0xd6, Pe,0x6e, Pe,0x7e },
++	{ AMOVQ,	ymovq,	Pw, 0x89, 0x8b, 0x31, 0xc7,(00), 0xb8, 0xc7,(00), 0x6f, 0x7f, 0x6e, 0x7e, Pf2,0xd6, Pf3,0x7e, Pe,0xd6, Pe,0x6e, Pe,0x7e,0 },
+ 	{ AMOVQOZX,	ymrxr,	Pf3, 0xd6,0x7e },
+ 	{ AMOVSB,	ynone,	Pb, 0xa4 },
+ 	{ AMOVSD,	yxmov,	Pf2, 0x10,0x11 },
+@@ -935,7 +935,7 @@ Optab optab[] =
+ 	{ AMOVSW,	ynone,	Pe, 0xa5 },
+ 	{ AMOVUPD,	yxmov,	Pe, 0x10,0x11 },
+ 	{ AMOVUPS,	yxmov,	Pm, 0x10,0x11 },
+-	{ AMOVW,	ymovw,	Pe, 0x89,0x8b,0x31,0xb8,0xc7,(00) },
++	{ AMOVW,	ymovw,	Pe, 0x89,0x8b,0x31,0xb8,0xc7,(00),0 },
+ 	{ AMOVWLSX,	yml_rl,	Pm, 0xbf },
+ 	{ AMOVWLZX,	yml_rl,	Pm, 0xb7 },
+ 	{ AMOVWQSX,	yml_rl,	Pw, 0x0f,0xbf },
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index 2167ccb003..814aa14582 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -175,7 +175,7 @@ struct	Optab
+ 	short	as;
+ 	uchar*	ytab;
+ 	uchar	prefix;
+-	uchar	op[12];
++	uchar	op[13];
+ };
+ 
+ enum
+diff --git a/src/cmd/8l/optab.c b/src/cmd/8l/optab.c
+index 78fe45238e..a4c40e8e37 100644
+--- a/src/cmd/8l/optab.c
++++ b/src/cmd/8l/optab.c
+@@ -152,6 +152,17 @@ uchar	ymovb[] =
+ 	Yi32,	Ymb,	Zibo_m,	2,
+ 	0
+ };
++uchar	ymovw[] =
++{
++	Yrl,	Yml,	Zr_m,	1,
++	Yml,	Yrl,	Zm_r,	1,
++	Yi0,	Yrl,	Zclr,	1+2,
++//	Yi0,	Yml,	Zibo_m,	2,	// shorter but slower AND $0,dst
++	Yi32,	Yrl,	Zil_rp,	1,
++	Yi32,	Yml,	Zilo_m,	2,
++	Yiauto,	Yrl,	Zaut_r,	1,
++	0
++};
+ uchar	ymovl[] =
+ {
+ 	Yrl,	Yml,	Zr_m,	1,
+@@ -162,7 +173,7 @@ uchar	ymovl[] =
+ 	Yi32,	Yml,	Zilo_m,	2,
+ 	Yml,	Yxr,	Zm_r_xm,	2,	// XMM MOVD (32 bit)
+ 	Yxr,	Yml,	Zr_m_xm,	2,	// XMM MOVD (32 bit)
+-	Yiauto,	Yrl,	Zaut_r,	2,
++	Yiauto,	Yrl,	Zaut_r,	1,
+ 	0
+ };
+ uchar	ymovq[] =
+@@ -592,8 +603,8 @@ Optab optab[] =
+ 	{ ALSLL,	yml_rl,	Pm, 0x03  },
+ 	{ ALSLW,	yml_rl,	Pq, 0x03  },
+ 	{ AMOVB,	ymovb,	Pb, 0x88,0x8a,0xb0,0xc6,(00) },
+-	{ AMOVL,	ymovl,	Px, 0x89,0x8b,0x31,0x83,(04),0xb8,0xc7,(00),Pe,0x6e,Pe,0x7e },
+-	{ AMOVW,	ymovl,	Pe, 0x89,0x8b,0x31,0x83,(04),0xb8,0xc7,(00) },
++	{ AMOVL,	ymovl,	Px, 0x89,0x8b,0x31,0x83,(04),0xb8,0xc7,(00),Pe,0x6e,Pe,0x7e,0 },
++	{ AMOVW,	ymovw,	Pe, 0x89,0x8b,0x31,0x83,(04),0xb8,0xc7,(00),0 },
+ 	{ AMOVQ,	ymovq,	Pf3, 0x7e },
+ 	{ AMOVBLSX,	ymb_rl,	Pm, 0xbe },
+ 	{ AMOVBLZX,	ymb_rl,	Pm, 0xb6 },

@@ -8,7 +8,56 @@ Date:   Thu Feb 25 19:16:18 2016 +0100
     Reviewed-on: https://go-review.googlesource.com/19897
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/race/output_test.go | 17 +++++++++++++++++
  src/runtime/string.go           |  4 ++--
  2 files changed, 19 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/race/output_test.go b/src/runtime/race/output_test.go
+index 0c71a019dd..27d9efb687 100644
+--- a/src/runtime/race/output_test.go
++++ b/src/runtime/race/output_test.go
+@@ -180,4 +180,21 @@ func TestFail(t *testing.T) {
+ PASS
+ Found 1 data race\(s\)
+ FAIL`},
++
++	{"slicebytetostring_pc", "run", "atexit_sleep_ms=0", `
++package main
++func main() {
++	done := make(chan string)
++	data := make([]byte, 10)
++	go func() {
++		done <- string(data)
++	}()
++	data[0] = 1
++	<-done
++}
++`, `
++  runtime\.slicebytetostring\(\)
++      .*/runtime/string\.go:.*
++  main\.main\.func1\(\)
++      .*/main.go:7`},
+ }
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index dd04bda04b..5dc7e0295a 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -84,7 +84,7 @@ func slicebytetostring(buf *tmpBuf, b []byte) string {
+ 	if raceenabled && l > 0 {
+ 		racereadrangepc(unsafe.Pointer(&b[0]),
+ 			uintptr(l),
+-			getcallerpc(unsafe.Pointer(&b)),
++			getcallerpc(unsafe.Pointer(&buf)),
+ 			funcPC(slicebytetostring))
+ 	}
+ 	if msanenabled && l > 0 {
+@@ -189,7 +189,7 @@ func slicerunetostring(buf *tmpBuf, a []rune) string {
+ 	if raceenabled && len(a) > 0 {
+ 		racereadrangepc(unsafe.Pointer(&a[0]),
+ 			uintptr(len(a))*unsafe.Sizeof(a[0]),
+-			getcallerpc(unsafe.Pointer(&a)),
++			getcallerpc(unsafe.Pointer(&buf)),
+ 			funcPC(slicerunetostring))
+ 	}
+ 	if msanenabled && len(a) > 0 {

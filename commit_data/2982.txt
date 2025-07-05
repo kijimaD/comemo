@@ -11,7 +11,62 @@ Date:   Fri Aug 14 11:09:53 2009 -0700
     DELTA=12  (6 added, 6 deleted, 0 changed)
     OCL=33255
     CL=33279
-
+---
  src/pkg/runtime/386/traceback.c   | 6 +++---
  src/pkg/runtime/amd64/traceback.c | 6 +++---
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/runtime/386/traceback.c b/src/pkg/runtime/386/traceback.c
+index e4eb0c0841..c143ede3dc 100644
+--- a/src/pkg/runtime/386/traceback.c
++++ b/src/pkg/runtime/386/traceback.c
+@@ -34,10 +34,12 @@ traceback(byte *pc0, byte *sp, G *g)
+ 			sp = stk->gobuf.sp;
+ 			stk = (Stktop*)stk->stackbase;
+ 		}
++                p = (byte*)pc;
++		if(n > 0 && pc != (uint64)goexit)
++			pc--;	// get to CALL instruction
+ 		f = findfunc(pc);
+ 		if(f == nil) {
+ 			// dangerous, but poke around to see if it is a closure
+-			p = (byte*)pc;
+ 			// ADDL $xxx, SP; RET
+ 			if(p != 0 && p[0] == 0x81 && p[1] == 0xc4 && p[6] == 0xc3) {
+ 				sp += *(uint32*)(p+2) + 8;
+@@ -60,8 +62,6 @@ traceback(byte *pc0, byte *sp, G *g)
+ 		printf("%S", f->name);
+ 		if(pc > f->entry)
+ 			printf("+%p", (uintptr)(pc - f->entry));
+-		if(n > 0)
+-			pc--;	// get to CALL instruction
+ 		printf(" %S:%d\n", f->src, funcline(f, pc));
+ 		printf("\t%S(", f->name);
+ 		for(i = 0; i < f->args; i++) {
+diff --git a/src/pkg/runtime/amd64/traceback.c b/src/pkg/runtime/amd64/traceback.c
+index 81310396f2..f8820c523f 100644
+--- a/src/pkg/runtime/amd64/traceback.c
++++ b/src/pkg/runtime/amd64/traceback.c
+@@ -31,10 +31,12 @@ traceback(byte *pc0, byte *sp, G *g)
+ 			sp = stk->gobuf.sp;
+ 			stk = (Stktop*)stk->stackbase;
+ 		}
++                p = (byte*)pc;
++		if(n > 0 && pc != (uint64)goexit)
++			pc--;	// get to CALL instruction
+ 		f = findfunc(pc);
+ 		if(f == nil) {
+ 			// dangerous, but poke around to see if it is a closure
+-			p = (byte*)pc;
+ 			// ADDQ $xxx, SP; RET
+ 			if(p[0] == 0x48 && p[1] == 0x81 && p[2] == 0xc4 && p[7] == 0xc3) {
+ 				sp += *(uint32*)(p+3) + 8;
+@@ -57,8 +59,6 @@ traceback(byte *pc0, byte *sp, G *g)
+ 		printf("%S", f->name);
+ 		if(pc > f->entry)
+ 			printf("+%p", (uintptr)(pc - f->entry));
+-		if(n > 0)
+-			pc--;	// get to CALL instruction
+ 		printf(" %S:%d\n", f->src, funcline(f, pc));
+ 		printf("\t%S(", f->name);
+ 		for(i = 0; i < f->args; i++) {

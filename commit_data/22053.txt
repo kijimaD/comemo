@@ -9,6 +9,49 @@ Date:   Thu Feb 19 16:21:00 2015 -0500
     Change-Id: I71a7f21d777e69c1924e3b534c507476daa4dfdd
     Reviewed-on: https://go-review.googlesource.com/5332
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mgc.go | 24 ++++++++++--------------
  1 file changed, 10 insertions(+), 14 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 079856ed70..4adc0f4fbe 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -362,20 +362,9 @@ func gc(mode int) {
+ 	// the root set down a bit (g0 stacks are not scanned, and
+ 	// we don't need to scan gc's internal state).  We also
+ 	// need to switch to g0 so we can shrink the stack.
+-	n := 1
+-	if debug.gctrace > 1 {
+-		n = 2
+-	}
+-	for i := 0; i < n; i++ {
+-		if i > 0 {
+-			// refresh start time if doing a second GC
+-			startTime = nanotime()
+-		}
+-		// switch to g0, call gc, then switch back
+-		systemstack(func() {
+-			gc_m(startTime, mode == gcForceBlockMode)
+-		})
+-	}
++	systemstack(func() {
++		gc_m(startTime, mode == gcForceBlockMode)
++	})
+ 
+ 	systemstack(func() {
+ 		// Called from malloc.go using systemstack.
+@@ -397,6 +386,13 @@ func gc(mode int) {
+ 		gc_m(startTime, mode == gcForceBlockMode) // turns off checkmarkphase + calls clearcheckmarkbits
+ 	})
+ 
++	if debug.gctrace > 1 {
++		startTime = nanotime()
++		systemstack(func() {
++			gc_m(startTime, mode == gcForceBlockMode)
++		})
++	}
++
+ 	if trace.enabled {
+ 		traceGCDone()
+ 		traceGoStart()

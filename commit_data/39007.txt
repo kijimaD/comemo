@@ -11,6 +11,21 @@ Date:   Fri Dec 14 16:11:03 2018 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/nm/nm_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/nm/nm_test.go b/src/cmd/nm/nm_test.go
+index 53c39f2f89..1b5bd21ad5 100644
+--- a/src/cmd/nm/nm_test.go
++++ b/src/cmd/nm/nm_test.go
+@@ -151,6 +151,9 @@ func testGoExec(t *testing.T, iscgo, isexternallinker bool) {
+ 				return true
+ 			}
+ 		}
++		if runtime.GOOS == "windows" && runtime.GOARCH == "arm" {
++			return true
++		}
+ 		return false
+ 	}
+ 

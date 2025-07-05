@@ -7,9 +7,339 @@ Date:   Thu Apr 28 13:14:35 2011 +1000
     R=brad_danga_com, rsc, dfc, r, dchest, bradfitz
     CC=golang-dev
     https://golang.org/cl/4439075
-
+---
  src/pkg/mime/multipart/Makefile         |   1 +
  src/pkg/mime/multipart/formdata.go      | 169 ++++++++++++++++++++++++++++++++
  src/pkg/mime/multipart/formdata_test.go |  87 ++++++++++++++++
  src/pkg/mime/multipart/multipart.go     |  18 +++-
  4 files changed, 272 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/mime/multipart/Makefile b/src/pkg/mime/multipart/Makefile
+index 5a7b98d034..5051f0df1c 100644
+--- a/src/pkg/mime/multipart/Makefile
++++ b/src/pkg/mime/multipart/Makefile
+@@ -6,6 +6,7 @@ include ../../../Make.inc
+ 
+ TARG=mime/multipart
+ GOFILES=\
++	formdata.go\
+ 	multipart.go\
+ 
+ include ../../../Make.pkg
+diff --git a/src/pkg/mime/multipart/formdata.go b/src/pkg/mime/multipart/formdata.go
+new file mode 100644
+index 0000000000..2879385571
+--- /dev/null
++++ b/src/pkg/mime/multipart/formdata.go
+@@ -0,0 +1,169 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package multipart
++
++import (
++	"bytes"
++	"io"
++	"io/ioutil"
++	"net/textproto"
++	"os"
++)
++
++// TODO(adg,bradfitz): find a way to unify the DoS-prevention strategy here
++// with that of the http package's ParseForm.
++
++// ReadForm parses an entire multipart message whose parts have
++// a Content-Disposition of "form-data".
++// It stores up to maxMemory bytes of the file parts in memory
++// and the remainder on disk in temporary files.
++func (r *multiReader) ReadForm(maxMemory int64) (f *Form, err os.Error) {
++	form := &Form{make(map[string][]string), make(map[string][]*FileHeader)}
++	defer func() {
++		if err != nil {
++			form.RemoveAll()
++		}
++	}()
++
++	maxValueBytes := int64(10 << 20) // 10 MB is a lot of text.
++	for {
++		p, err := r.NextPart()
++		if err != nil {
++			return nil, err
++		}
++		if p == nil {
++			break
++		}
++
++		name := p.FormName()
++		if name == "" {
++			continue
++		}
++		var filename string
++		if p.dispositionParams != nil {
++			filename = p.dispositionParams["filename"]
++		}
++
++		var b bytes.Buffer
++
++		if filename == "" {
++			// value, store as string in memory
++			n, err := io.Copyn(&b, p, maxValueBytes)
++			if err != nil && err != os.EOF {
++				return nil, err
++			}
++			maxValueBytes -= n
++			if maxValueBytes == 0 {
++				return nil, os.NewError("multipart: message too large")
++			}
++			form.Value[name] = append(form.Value[name], b.String())
++			continue
++		}
++
++		// file, store in memory or on disk
++		fh := &FileHeader{
++			Filename: filename,
++			Header:   p.Header,
++		}
++		n, err := io.Copyn(&b, p, maxMemory+1)
++		if err != nil && err != os.EOF {
++			return nil, err
++		}
++		if n > maxMemory {
++			// too big, write to disk and flush buffer
++			file, err := ioutil.TempFile("", "multipart-")
++			if err != nil {
++				return nil, err
++			}
++			defer file.Close()
++			_, err = io.Copy(file, io.MultiReader(&b, p))
++			if err != nil {
++				os.Remove(file.Name())
++				return nil, err
++			}
++			fh.tmpfile = file.Name()
++		} else {
++			fh.content = b.Bytes()
++			maxMemory -= n
++		}
++		form.File[name] = append(form.File[name], fh)
++	}
++
++	return form, nil
++}
++
++// Form is a parsed multipart form.
++// Its File parts are stored either in memory or on disk,
++// and are accessible via the *FileHeader's Open method.
++// Its Value parts are stored as strings.
++// Both are keyed by field name.
++type Form struct {
++	Value map[string][]string
++	File  map[string][]*FileHeader
++}
++
++// RemoveAll removes any temporary files associated with a Form.
++func (f *Form) RemoveAll() os.Error {
++	var err os.Error
++	for _, fhs := range f.File {
++		for _, fh := range fhs {
++			if fh.tmpfile != "" {
++				e := os.Remove(fh.tmpfile)
++				if e != nil && err == nil {
++					err = e
++				}
++			}
++		}
++	}
++	return err
++}
++
++// A FileHeader describes a file part of a multipart request.
++type FileHeader struct {
++	Filename string
++	Header   textproto.MIMEHeader
++
++	content []byte
++	tmpfile string
++}
++
++// Open opens and returns the FileHeader's associated File.
++func (fh *FileHeader) Open() (File, os.Error) {
++	if b := fh.content; b != nil {
++		r := io.NewSectionReader(sliceReaderAt(b), 0, int64(len(b)))
++		return sectionReadCloser{r}, nil
++	}
++	return os.Open(fh.tmpfile)
++}
++
++// File is an interface to access the file part of a multipart message.
++// Its contents may be either stored in memory or on disk.
++// If stored on disk, the File's underlying concrete type will be an *os.File.
++type File interface {
++	io.Reader
++	io.ReaderAt
++	io.Seeker
++	io.Closer
++}
++
++// helper types to turn a []byte into a File
++
++type sectionReadCloser struct {
++	*io.SectionReader
++}
++
++func (rc sectionReadCloser) Close() os.Error {
++	return nil
++}
++
++type sliceReaderAt []byte
++
++func (r sliceReaderAt) ReadAt(b []byte, off int64) (int, os.Error) {
++	if int(off) >= len(r) || off < 0 {
++		return 0, os.EINVAL
++	}
++	n := copy(b, r[int(off):])
++	return n, nil
++}
+diff --git a/src/pkg/mime/multipart/formdata_test.go b/src/pkg/mime/multipart/formdata_test.go
+new file mode 100644
+index 0000000000..b56e2a430e
+--- /dev/null
++++ b/src/pkg/mime/multipart/formdata_test.go
+@@ -0,0 +1,87 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package multipart
++
++import (
++	"bytes"
++	"io"
++	"os"
++	"regexp"
++	"testing"
++)
++
++func TestReadForm(t *testing.T) {
++	testBody := regexp.MustCompile("\n").ReplaceAllString(message, "\r\n")
++	b := bytes.NewBufferString(testBody)
++	r := NewReader(b, boundary)
++	f, err := r.ReadForm(25)
++	if err != nil {
++		t.Fatal("ReadForm:", err)
++	}
++	defer f.RemoveAll()
++	if g, e := f.Value["texta"][0], textaValue; g != e {
++		t.Errorf("texta value = %q, want %q", g, e)
++	}
++	if g, e := f.Value["textb"][0], textbValue; g != e {
++		t.Errorf("texta value = %q, want %q", g, e)
++	}
++	fd := testFile(t, f.File["filea"][0], "filea.txt", fileaContents)
++	if _, ok := fd.(*os.File); ok {
++		t.Error("file is *os.File, should not be")
++	}
++	fd = testFile(t, f.File["fileb"][0], "fileb.txt", filebContents)
++	if _, ok := fd.(*os.File); !ok {
++		t.Error("file has unexpected underlying type %T", fd)
++	}
++}
++
++func testFile(t *testing.T, fh *FileHeader, efn, econtent string) File {
++	if fh.Filename != efn {
++		t.Errorf("filename = %q, want %q", fh.Filename, efn)
++	}
++	f, err := fh.Open()
++	if err != nil {
++		t.Fatal("opening file:", err)
++	}
++	b := new(bytes.Buffer)
++	_, err = io.Copy(b, f)
++	if err != nil {
++		t.Fatal("copying contents:", err)
++	}
++	if g := b.String(); g != econtent {
++		t.Errorf("contents = %q, want %q", g, econtent)
++	}
++	return f
++}
++
++const (
++	fileaContents = "This is a test file."
++	filebContents = "Another test file."
++	textaValue    = "foo"
++	textbValue    = "bar"
++	boundary      = `MyBoundary`
++)
++
++const message = `
++--MyBoundary
++Content-Disposition: form-data; name="filea"; filename="filea.txt"
++Content-Type: text/plain
++
++` + fileaContents + `
++--MyBoundary
++Content-Disposition: form-data; name="fileb"; filename="fileb.txt"
++Content-Type: text/plain
++
++` + filebContents + `
++--MyBoundary
++Content-Disposition: form-data; name="texta"
++
++` + textaValue + `
++--MyBoundary
++Content-Disposition: form-data; name="textb"
++
++` + textbValue + `
++--MyBoundary--
++`
+diff --git a/src/pkg/mime/multipart/multipart.go b/src/pkg/mime/multipart/multipart.go
+index f857db1a08..e0b747c3fb 100644
+--- a/src/pkg/mime/multipart/multipart.go
++++ b/src/pkg/mime/multipart/multipart.go
+@@ -35,6 +35,12 @@ type Reader interface {
+ 	// reports errors, or on truncated or otherwise malformed
+ 	// input.
+ 	NextPart() (*Part, os.Error)
++
++	// ReadForm parses an entire multipart message whose parts have
++	// a Content-Disposition of "form-data".
++	// It stores up to maxMemory bytes of the file parts in memory
++	// and the remainder on disk in temporary files.
++	ReadForm(maxMemory int64) (*Form, os.Error)
+ }
+ 
+ // A Part represents a single part in a multipart body.
+@@ -46,6 +52,8 @@ type Part struct {
+ 
+ 	buffer *bytes.Buffer
+ 	mr     *multiReader
++
++	dispositionParams map[string]string
+ }
+ 
+ // FormName returns the name parameter if p has a Content-Disposition
+@@ -53,15 +61,19 @@ type Part struct {
+ func (p *Part) FormName() string {
+ 	// See http://tools.ietf.org/html/rfc2183 section 2 for EBNF
+ 	// of Content-Disposition value format.
++	if p.dispositionParams != nil {
++		return p.dispositionParams["name"]
++	}
+ 	v := p.Header.Get("Content-Disposition")
+ 	if v == "" {
+ 		return ""
+ 	}
+-	d, params := mime.ParseMediaType(v)
+-	if d != "form-data" {
++	if d, params := mime.ParseMediaType(v); d != "form-data" {
+ 		return ""
++	} else {
++		p.dispositionParams = params
+ 	}
+-	return params["name"]
++	return p.dispositionParams["name"]
+ }
+ 
+ // NewReader creates a new multipart Reader reading from r using the

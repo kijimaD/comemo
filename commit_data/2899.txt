@@ -10,6 +10,40 @@ Date:   Thu Aug 6 13:54:13 2009 -0700
     DELTA=11  (0 added, 0 deleted, 11 changed)
     OCL=32839
     CL=32841
-
+---
  usr/austin/ptrace/ptrace_linux.go | 22 +++++++++++-----------
  1 file changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/usr/austin/ptrace/ptrace_linux.go b/usr/austin/ptrace/ptrace_linux.go
+index b1e1b3da93..489c8d43c0 100644
+--- a/usr/austin/ptrace/ptrace_linux.go
++++ b/usr/austin/ptrace/ptrace_linux.go
+@@ -61,17 +61,17 @@ const (
+ type threadState string;
+ 
+ const (
+-	running threadState = "Running";
+-	singleStepping      = "SingleStepping";	// Transient
+-	stopping            = "Stopping";	// Transient
+-	stopped             = "Stopped";
+-	stoppedBreakpoint   = "StoppedBreakpoint";
+-	stoppedSignal       = "StoppedSignal";
+-	stoppedThreadCreate = "StoppedThreadCreate";
+-	stoppedExiting      = "StoppedExiting";
+-	exiting             = "Exiting";	// Transient (except main thread)
+-	exited              = "Exited";
+-	detached            = "Detached";
++	running             threadState = "Running";
++	singleStepping      threadState = "SingleStepping";	// Transient
++	stopping            threadState = "Stopping";	// Transient
++	stopped             threadState = "Stopped";
++	stoppedBreakpoint   threadState = "StoppedBreakpoint";
++	stoppedSignal       threadState = "StoppedSignal";
++	stoppedThreadCreate threadState = "StoppedThreadCreate";
++	stoppedExiting      threadState = "StoppedExiting";
++	exiting             threadState = "Exiting";	// Transient (except main thread)
++	exited              threadState = "Exited";
++	detached            threadState = "Detached";
+ )
+ 
+ func (ts threadState) isRunning() bool {

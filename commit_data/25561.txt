@@ -10,6 +10,23 @@ Date:   Tue Nov 10 11:32:26 2015 -0800
     Change-Id: I48f366466538b0bd26a851e01258725025babaff
     Reviewed-on: https://go-review.googlesource.com/16777
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/mparith3.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/mparith3.go b/src/cmd/compile/internal/gc/mparith3.go
+index 4aa283fe33..889c461cc9 100644
+--- a/src/cmd/compile/internal/gc/mparith3.go
++++ b/src/cmd/compile/internal/gc/mparith3.go
+@@ -207,6 +207,11 @@ func Fconv(fvp *Mpflt, flag int) string {
+ 		sign = "+"
+ 	}
+ 
++	// Don't try to convert infinities (will not terminate).
++	if f.IsInf() {
++		return sign + "Inf"
++	}
++
+ 	// Use fmt formatting if in float64 range (common case).
+ 	if x, _ := f.Float64(); !math.IsInf(x, 0) {
+ 		return fmt.Sprintf("%s%.6g", sign, x)

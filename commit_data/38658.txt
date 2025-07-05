@@ -12,6 +12,21 @@ Date:   Mon Nov 12 22:20:17 2018 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/build/doc.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/go/build/doc.go b/src/go/build/doc.go
+index 682315cbd6..8e3858feea 100644
+--- a/src/go/build/doc.go
++++ b/src/go/build/doc.go
+@@ -111,8 +111,7 @@
+ //	- "go1.12", from Go version 1.12 onward
+ //	- any additional words listed in ctxt.BuildTags
+ //
+-// There are no build tags for beta or minor releases. Programs that need the
+-// minor release number can call runtime.Version.
++// There are no build tags for beta or minor releases.
+ //
+ // If a file's name, after stripping the extension and a possible _test suffix,
+ // matches any of the following patterns:

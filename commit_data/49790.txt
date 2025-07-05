@@ -12,8 +12,92 @@ Date:   Fri Sep 10 13:16:32 2021 -0400
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/testdata/script/test_fuzz_minimize.txt | 26 +++++++++++++++++++++++
  src/testing/benchmark.go                          |  9 ++++----
  src/testing/fuzz.go                               |  2 +-
  3 files changed, 32 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_minimize.txt b/src/cmd/go/testdata/script/test_fuzz_minimize.txt
+index 002aca009b..ea1ee76474 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_minimize.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_minimize.txt
+@@ -6,6 +6,32 @@
+ # We clean the fuzz cache during this test. Don't clean the user's cache.
+ env GOCACHE=$WORK/gocache
+ 
++# Test that fuzzminimizetime can be zero seconds
++! go test -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -fuzztime=10000x -fuzzminimizetime=0s minimizer_test.go
++! stdout '^ok'
++stdout 'contains a non-zero byte'
++stdout FAIL
++
++# Test that fuzzminimizetime can be zero times
++! go test -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -fuzztime=10000x -fuzzminimizetime=0x minimizer_test.go
++! stdout '^ok'
++stdout 'contains a non-zero byte'
++stdout FAIL
++
++# Test that fuzzminimizetime cannot be negative seconds
++! go test -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -fuzztime=10000x -fuzzminimizetime=-1ms minimizer_test.go
++! stdout '^ok'
++! stdout 'contains a non-zero byte'
++stdout 'invalid duration'
++stdout FAIL
++
++# Test that fuzzminimizetime cannot be negative times
++! go test -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -fuzztime=10000x -fuzzminimizetime=-1x minimizer_test.go
++! stdout '^ok'
++! stdout 'contains a non-zero byte'
++stdout 'invalid count'
++stdout FAIL
++
+ # Test that minimization is working for recoverable errors.
+ ! go test -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -fuzztime=10000x minimizer_test.go
+ ! stdout '^ok'
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index c8571a5f5a..30fa106dd4 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -36,8 +36,9 @@ var (
+ )
+ 
+ type durationOrCountFlag struct {
+-	d time.Duration
+-	n int
++	d         time.Duration
++	n         int
++	allowZero bool
+ }
+ 
+ func (f *durationOrCountFlag) String() string {
+@@ -50,14 +51,14 @@ func (f *durationOrCountFlag) String() string {
+ func (f *durationOrCountFlag) Set(s string) error {
+ 	if strings.HasSuffix(s, "x") {
+ 		n, err := strconv.ParseInt(s[:len(s)-1], 10, 0)
+-		if err != nil || n <= 0 {
++		if err != nil || n < 0 || (!f.allowZero && n == 0) {
+ 			return fmt.Errorf("invalid count")
+ 		}
+ 		*f = durationOrCountFlag{n: int(n)}
+ 		return nil
+ 	}
+ 	d, err := time.ParseDuration(s)
+-	if err != nil || d <= 0 {
++	if err != nil || d < 0 || (!f.allowZero && d == 0) {
+ 		return fmt.Errorf("invalid duration")
+ 	}
+ 	*f = durationOrCountFlag{d: d}
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index 975aa87eab..d94ec35dc7 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -28,7 +28,7 @@ func initFuzzFlags() {
+ var (
+ 	matchFuzz        *string
+ 	fuzzDuration     durationOrCountFlag
+-	minimizeDuration = durationOrCountFlag{d: 60 * time.Second}
++	minimizeDuration = durationOrCountFlag{d: 60 * time.Second, allowZero: true}
+ 	fuzzCacheDir     *string
+ 	isFuzzWorker     *bool
+ 

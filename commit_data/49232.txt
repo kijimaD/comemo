@@ -13,9 +13,87 @@ Date:   Fri Jul 30 14:00:27 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/typecheck/subr.go |  6 ++++++
  src/cmd/compile/internal/types/identity.go |  2 +-
  test/typeparam/shape1.go                   | 19 ++++++++++++++++++-
  test/typeparam/shape1.out                  |  2 ++
  4 files changed, 27 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index e2f0a57e71..5ee4152e1c 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -1351,6 +1351,12 @@ func Shapify(t *types.Type) *types.Type {
+ 	// Map all types with the same underlying type to the same shape.
+ 	u := t.Underlying()
+ 
++	// All pointers have the same shape.
++	// TODO: Make unsafe.Pointer the same shape as normal pointers.
++	if u.Kind() == types.TPTR {
++		u = types.Types[types.TUINT8].PtrTo()
++	}
++
+ 	if s := shaped[u]; s != nil {
+ 		return s //TODO: keep?
+ 	}
+diff --git a/src/cmd/compile/internal/types/identity.go b/src/cmd/compile/internal/types/identity.go
+index 0a78092f07..dc39acced8 100644
+--- a/src/cmd/compile/internal/types/identity.go
++++ b/src/cmd/compile/internal/types/identity.go
+@@ -31,7 +31,7 @@ func identical(t1, t2 *Type, cmpTags bool, assumedEqual map[typePair]struct{}) b
+ 	if t1.sym != nil || t2.sym != nil {
+ 		if t1.HasShape() || t2.HasShape() {
+ 			switch t1.kind {
+-			case TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32, TINT64, TUINT64, TINT, TUINT, TUINTPTR, TCOMPLEX64, TCOMPLEX128, TFLOAT32, TFLOAT64, TBOOL, TSTRING, TUNSAFEPTR:
++			case TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32, TINT64, TUINT64, TINT, TUINT, TUINTPTR, TCOMPLEX64, TCOMPLEX128, TFLOAT32, TFLOAT64, TBOOL, TSTRING, TPTR, TUNSAFEPTR:
+ 				return true
+ 			}
+ 			// fall through to unnamed type comparison for complex types.
+diff --git a/test/typeparam/shape1.go b/test/typeparam/shape1.go
+index 3c9e71ea63..de1ea65ed2 100644
+--- a/test/typeparam/shape1.go
++++ b/test/typeparam/shape1.go
+@@ -10,7 +10,8 @@ type I interface {
+ 	foo() int
+ }
+ 
+-// There should be a single instantiation of f in this program.
++// There should be one instantiation of f for both squarer and doubler.
++// Similarly, there should be one instantiation of f for both *incrementer and *decrementer.
+ func f[T I](x T) int {
+ 	return x.foo()
+ }
+@@ -27,7 +28,23 @@ func (x doubler) foo() int {
+ 	return int(2*x)
+ }
+ 
++type incrementer int16
++
++func (x *incrementer) foo() int {
++	return int(*x+1)
++}
++
++type decrementer int32
++
++func (x *decrementer) foo() int{
++	return int(*x-1)
++}
++
+ func main() {
+ 	println(f(squarer(5)))
+ 	println(f(doubler(5)))
++	var i incrementer = 5
++	println(f(&i))
++	var d decrementer = 5
++	println(f(&d))
+ }
+diff --git a/test/typeparam/shape1.out b/test/typeparam/shape1.out
+index 28391fde66..da9a12ded5 100644
+--- a/test/typeparam/shape1.out
++++ b/test/typeparam/shape1.out
+@@ -1,2 +1,4 @@
+ 25
+ 10
++6
++4

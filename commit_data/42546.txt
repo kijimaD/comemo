@@ -15,6 +15,20 @@ Date:   Fri Jan 10 10:10:32 2020 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/time.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index d64bea814f..e0dfd6a5cd 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -669,6 +669,8 @@ func adjusttimers(pp *p) {
+ 						return
+ 					}
+ 				}
++				// Look at this heap position again.
++				i--
+ 			}
+ 		case timerNoStatus, timerRunning, timerRemoving, timerRemoved, timerMoving:
+ 			badTimer()

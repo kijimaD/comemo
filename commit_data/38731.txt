@@ -11,10 +11,266 @@ Date:   Mon Nov 19 14:18:04 2018 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  .../go/analysis/passes/composite/composite.go      |   2 +-
  .../go/analysis/passes/lostcancel/lostcancel.go    | 109 +++++++++++----------
  .../go/analysis/passes/stdmethods/stdmethods.go    |   8 +-
  .../go/analysis/passes/unsafeptr/unsafeptr.go      |  44 ++++-----
  .../x/tools/go/analysis/unitchecker/unitchecker.go |   2 +-
  5 files changed, 87 insertions(+), 78 deletions(-)
+
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/composite.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/composite.go
+index b7cfe8a95d..9cca7781d0 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/composite.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/composite.go
+@@ -16,7 +16,7 @@ import (
+ 	"golang.org/x/tools/go/ast/inspector"
+ )
+ 
+-const Doc = `checked for unkeyed composite literals
++const Doc = `check for unkeyed composite literals
+ 
+ This analyzer reports a diagnostic for composite literals of struct
+ types imported from another package that do not use the field-keyed
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go
+index 996ecc4dd1..b5161836a5 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go
+@@ -93,32 +93,32 @@ func runFunc(pass *analysis.Pass, node ast.Node) {
+ 		//   ctx, cancel     = context.WithCancel(...)
+ 		//   var ctx, cancel = context.WithCancel(...)
+ 		//
+-		if isContextWithCancel(pass.TypesInfo, n) && isCall(stack[len(stack)-2]) {
+-			var id *ast.Ident // id of cancel var
+-			stmt := stack[len(stack)-3]
+-			switch stmt := stmt.(type) {
+-			case *ast.ValueSpec:
+-				if len(stmt.Names) > 1 {
+-					id = stmt.Names[1]
+-				}
+-			case *ast.AssignStmt:
+-				if len(stmt.Lhs) > 1 {
+-					id, _ = stmt.Lhs[1].(*ast.Ident)
+-				}
++		if !isContextWithCancel(pass.TypesInfo, n) || !isCall(stack[len(stack)-2]) {
++			return true
++		}
++		var id *ast.Ident // id of cancel var
++		stmt := stack[len(stack)-3]
++		switch stmt := stmt.(type) {
++		case *ast.ValueSpec:
++			if len(stmt.Names) > 1 {
++				id = stmt.Names[1]
+ 			}
+-			if id != nil {
+-				if id.Name == "_" {
+-					pass.Reportf(id.Pos(),
+-						"the cancel function returned by context.%s should be called, not discarded, to avoid a context leak",
+-						n.(*ast.SelectorExpr).Sel.Name)
+-				} else if v, ok := pass.TypesInfo.Uses[id].(*types.Var); ok {
+-					cancelvars[v] = stmt
+-				} else if v, ok := pass.TypesInfo.Defs[id].(*types.Var); ok {
+-					cancelvars[v] = stmt
+-				}
++		case *ast.AssignStmt:
++			if len(stmt.Lhs) > 1 {
++				id, _ = stmt.Lhs[1].(*ast.Ident)
++			}
++		}
++		if id != nil {
++			if id.Name == "_" {
++				pass.Reportf(id.Pos(),
++					"the cancel function returned by context.%s should be called, not discarded, to avoid a context leak",
++					n.(*ast.SelectorExpr).Sel.Name)
++			} else if v, ok := pass.TypesInfo.Uses[id].(*types.Var); ok {
++				cancelvars[v] = stmt
++			} else if v, ok := pass.TypesInfo.Defs[id].(*types.Var); ok {
++				cancelvars[v] = stmt
+ 			}
+ 		}
+-
+ 		return true
+ 	})
+ 
+@@ -179,18 +179,22 @@ func hasImport(pkg *types.Package, path string) bool {
+ // isContextWithCancel reports whether n is one of the qualified identifiers
+ // context.With{Cancel,Timeout,Deadline}.
+ func isContextWithCancel(info *types.Info, n ast.Node) bool {
+-	if sel, ok := n.(*ast.SelectorExpr); ok {
+-		switch sel.Sel.Name {
+-		case "WithCancel", "WithTimeout", "WithDeadline":
+-			if x, ok := sel.X.(*ast.Ident); ok {
+-				if pkgname, ok := info.Uses[x].(*types.PkgName); ok {
+-					return pkgname.Imported().Path() == contextPackage
+-				}
+-				// Import failed, so we can't check package path.
+-				// Just check the local package name (heuristic).
+-				return x.Name == "context"
+-			}
++	sel, ok := n.(*ast.SelectorExpr)
++	if !ok {
++		return false
++	}
++	switch sel.Sel.Name {
++	case "WithCancel", "WithTimeout", "WithDeadline":
++	default:
++		return false
++	}
++	if x, ok := sel.X.(*ast.Ident); ok {
++		if pkgname, ok := info.Uses[x].(*types.PkgName); ok {
++			return pkgname.Imported().Path() == contextPackage
+ 		}
++		// Import failed, so we can't check package path.
++		// Just check the local package name (heuristic).
++		return x.Name == "context"
+ 	}
+ 	return false
+ }
+@@ -270,29 +274,30 @@ outer:
+ 	var search func(blocks []*cfg.Block) *ast.ReturnStmt
+ 	search = func(blocks []*cfg.Block) *ast.ReturnStmt {
+ 		for _, b := range blocks {
+-			if !seen[b] {
+-				seen[b] = true
++			if seen[b] {
++				continue
++			}
++			seen[b] = true
+ 
+-				// Prune the search if the block uses v.
+-				if blockUses(pass, v, b) {
+-					continue
+-				}
++			// Prune the search if the block uses v.
++			if blockUses(pass, v, b) {
++				continue
++			}
+ 
+-				// Found path to return statement?
+-				if ret := b.Return(); ret != nil {
+-					if debug {
+-						fmt.Printf("found path to return in block %s\n", b)
+-					}
+-					return ret // found
++			// Found path to return statement?
++			if ret := b.Return(); ret != nil {
++				if debug {
++					fmt.Printf("found path to return in block %s\n", b)
+ 				}
++				return ret // found
++			}
+ 
+-				// Recur
+-				if ret := search(b.Succs); ret != nil {
+-					if debug {
+-						fmt.Printf(" from block %s\n", b)
+-					}
+-					return ret
++			// Recur
++			if ret := search(b.Succs); ret != nil {
++				if debug {
++					fmt.Printf(" from block %s\n", b)
+ 				}
++				return ret
+ 			}
+ 		}
+ 		return nil
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go
+index b61c32208b..8349511224 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go
+@@ -131,7 +131,7 @@ func canonicalMethod(pass *analysis.Pass, id *ast.Ident) {
+ 			expectFmt += " (" + argjoin(expect.results) + ")"
+ 		}
+ 
+-		actual := types.TypeString(sign, (*types.Package).Name)
++		actual := typeString(sign)
+ 		actual = strings.TrimPrefix(actual, "func")
+ 		actual = id.Name + actual
+ 
+@@ -139,6 +139,10 @@ func canonicalMethod(pass *analysis.Pass, id *ast.Ident) {
+ 	}
+ }
+ 
++func typeString(typ types.Type) string {
++	return types.TypeString(typ, (*types.Package).Name)
++}
++
+ func argjoin(x []string) string {
+ 	y := make([]string, len(x))
+ 	for i, s := range x {
+@@ -178,5 +182,5 @@ func matchParamType(fset *token.FileSet, pkg *types.Package, expect string, actu
+ 	}
+ 
+ 	// Overkill but easy.
+-	return actual.String() == expect
++	return typeString(actual) == expect
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unsafeptr/unsafeptr.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unsafeptr/unsafeptr.go
+index 116d622b36..308bfc69cb 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unsafeptr/unsafeptr.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unsafeptr/unsafeptr.go
+@@ -62,28 +62,28 @@ func isSafeUintptr(info *types.Info, x ast.Expr) bool {
+ 		return isSafeUintptr(info, x.X)
+ 
+ 	case *ast.SelectorExpr:
+-		switch x.Sel.Name {
+-		case "Data":
+-			// reflect.SliceHeader and reflect.StringHeader are okay,
+-			// but only if they are pointing at a real slice or string.
+-			// It's not okay to do:
+-			//	var x SliceHeader
+-			//	x.Data = uintptr(unsafe.Pointer(...))
+-			//	... use x ...
+-			//	p := unsafe.Pointer(x.Data)
+-			// because in the middle the garbage collector doesn't
+-			// see x.Data as a pointer and so x.Data may be dangling
+-			// by the time we get to the conversion at the end.
+-			// For now approximate by saying that *Header is okay
+-			// but Header is not.
+-			pt, ok := info.Types[x.X].Type.(*types.Pointer)
+-			if ok {
+-				t, ok := pt.Elem().(*types.Named)
+-				if ok && t.Obj().Pkg().Path() == "reflect" {
+-					switch t.Obj().Name() {
+-					case "StringHeader", "SliceHeader":
+-						return true
+-					}
++		if x.Sel.Name != "Data" {
++			break
++		}
++		// reflect.SliceHeader and reflect.StringHeader are okay,
++		// but only if they are pointing at a real slice or string.
++		// It's not okay to do:
++		//	var x SliceHeader
++		//	x.Data = uintptr(unsafe.Pointer(...))
++		//	... use x ...
++		//	p := unsafe.Pointer(x.Data)
++		// because in the middle the garbage collector doesn't
++		// see x.Data as a pointer and so x.Data may be dangling
++		// by the time we get to the conversion at the end.
++		// For now approximate by saying that *Header is okay
++		// but Header is not.
++		pt, ok := info.Types[x.X].Type.(*types.Pointer)
++		if ok {
++			t, ok := pt.Elem().(*types.Named)
++			if ok && t.Obj().Pkg().Path() == "reflect" {
++				switch t.Obj().Name() {
++				case "StringHeader", "SliceHeader":
++					return true
+ 				}
+ 			}
+ 		}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+index 7b8fec9db2..59489f92da 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+@@ -95,7 +95,7 @@ func Main(analyzers ...*analysis.Analyzer) {
+ 
+ Usage of %[1]s:
+ 	%.16[1]s unit.cfg	# execute analysis specified by config file
+-	%.16[1]s help		# general help
++	%.16[1]s help    	# general help
+ 	%.16[1]s help name	# help on specific analyzer and its flags
+ `, progname)
+ 		os.Exit(1)

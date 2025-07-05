@@ -9,6 +9,31 @@ Date:   Tue Jul 7 15:06:29 2009 -0700
     DELTA=10  (4 added, 1 deleted, 5 changed)
     OCL=31305
     CL=31305
-
+---
  src/pkg/unsafe/unsafe.go | 15 +++++++++------
  1 file changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/unsafe/unsafe.go b/src/pkg/unsafe/unsafe.go
+index b19af405b6..b2d9a5ab7c 100644
+--- a/src/pkg/unsafe/unsafe.go
++++ b/src/pkg/unsafe/unsafe.go
+@@ -35,10 +35,13 @@ func	Offsetof(v ArbitraryType) int
+ // If v is of the form obj.f, it returns the alignment of field f within struct object obj.
+ func	Alignof(v ArbitraryType) int
+ 
+-// Reflect unpacks an interface value into its internal value word and its type string.
+-// The boolean indir is true if the value is a pointer to the real value.
+-func	Reflect(i interface {}) (value uint64, typestring string, indir bool)
++// Typeof returns the type of an interface value, a runtime.Type.
++func	Typeof(i interface {}) (typ interface {})
+ 
+-// Unreflect inverts Reflect: Given a value word, a type string, and the indirect bit,
+-// it returns an empty interface value with those contents.
+-func	Unreflect(value uint64, typestring string, indir bool) (ret interface {})
++// Reflect unpacks an interface value into its type and the address of a copy of the
++// internal value.
++func	Reflect(i interface {}) (typ interface {}, addr uintptr)
++
++// Unreflect inverts Reflect: Given a type and a pointer, it returns an empty interface value
++// with those contents.
++func	Unreflect(typ interface {}, addr uintptr) (ret interface {})

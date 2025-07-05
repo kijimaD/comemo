@@ -11,7 +11,7 @@ Date:   Wed May 27 07:31:56 2015 -0400
     Change-Id: If624a2d72ec04ef30a1bc7ce76c0d61a526d8a37
     Reviewed-on: https://go-review.googlesource.com/10532
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/closure.go |  8 ++--
  src/cmd/compile/internal/gc/dcl.go     |  4 +-
  src/cmd/compile/internal/gc/esc.go     | 86 +++++++++++++++-------------------
@@ -24,3 +24,601 @@ Date:   Wed May 27 07:31:56 2015 -0400
  test/escape2.go                        | 12 ++---
  test/escape2n.go                       | 12 ++---
  11 files changed, 72 insertions(+), 78 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 1fe7c44d19..78be31e45a 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -262,8 +262,8 @@ func capturevars(xfunc *Node) {
+ 
+ 		if Debug['m'] > 1 {
+ 			var name *Sym
+-			if v.Curfn != nil && v.Curfn.Nname != nil {
+-				name = v.Curfn.Nname.Sym
++			if v.Name.Curfn != nil && v.Name.Curfn.Nname != nil {
++				name = v.Name.Curfn.Nname.Sym
+ 			}
+ 			how := "ref"
+ 			if v.Name.Byval {
+@@ -398,7 +398,7 @@ func transformclosure(xfunc *Node) {
+ 				addr.Name.Param.Ntype = Nod(OIND, typenod(v.Type), nil)
+ 				addr.Class = PAUTO
+ 				addr.Used = true
+-				addr.Curfn = xfunc
++				addr.Name.Curfn = xfunc
+ 				xfunc.Func.Dcl = list(xfunc.Func.Dcl, addr)
+ 				v.Name.Heapaddr = addr
+ 				if v.Name.Byval {
+@@ -602,7 +602,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
+ 	ptr.Addable = true
+ 	ptr.Ullman = 1
+ 	ptr.Used = true
+-	ptr.Curfn = xfunc
++	ptr.Name.Curfn = xfunc
+ 	xfunc.Func.Dcl = list(xfunc.Func.Dcl, ptr)
+ 	var body *NodeList
+ 	if Isptr[rcvrtype.Etype] || Isinter(rcvrtype) {
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 3d593323e1..c1c1b36e98 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -211,7 +211,7 @@ func declare(n *Node, ctxt uint8) {
+ 			gen = vargen
+ 		}
+ 		pushdcl(s)
+-		n.Curfn = Curfn
++		n.Name.Curfn = Curfn
+ 	}
+ 
+ 	if ctxt == PAUTO {
+@@ -383,6 +383,7 @@ func newname(s *Sym) *Node {
+ func newfuncname(s *Sym) *Node {
+ 	n := newname(s)
+ 	n.Func = new(Func)
++	n.Func.FCurfn = Curfn
+ 	return n
+ }
+ 
+@@ -555,6 +556,7 @@ func ifacedcl(n *Node) {
+ 	}
+ 
+ 	n.Func = new(Func)
++	n.Func.FCurfn = Curfn
+ 	dclcontext = PPARAM
+ 	markdcl()
+ 	Funcdepth++
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index e4e04ad60b..a6e6c73d6d 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -58,7 +58,7 @@ func visitBottomUp(list *NodeList, analyze func(list *NodeList, recursive bool))
+ 	v.analyze = analyze
+ 	v.nodeID = make(map[*Node]uint32)
+ 	for l := list; l != nil; l = l.Next {
+-		if l.N.Op == ODCLFUNC && l.N.Curfn == nil {
++		if l.N.Op == ODCLFUNC && l.N.Func.FCurfn == nil {
+ 			v.visit(l.N)
+ 		}
+ 	}
+@@ -81,7 +81,7 @@ func (v *bottomUpVisitor) visit(n *Node) uint32 {
+ 	l.N = n
+ 	v.stack = l
+ 	min = v.visitcodelist(n.Nbody, min)
+-	if (min == id || min == id+1) && n.Curfn == nil {
++	if (min == id || min == id+1) && n.Func.FCurfn == nil {
+ 		// This node is the root of a strongly connected component.
+ 
+ 		// The original min passed to visitcodelist was n->walkgen+1.
+@@ -310,6 +310,7 @@ func (l Level) guaranteedDereference() int {
+ }
+ 
+ type NodeEscState struct {
++	Curfn        *Node
+ 	Escflowsrc   *NodeList // flow(this, src)
+ 	Escretval    *NodeList // on OCALLxxx, list of dummy return values
+ 	Escloopdepth int32     // -1: global, 0: return variables, 1:function top level, increased inside function for every loop or label to mark scopes
+@@ -325,11 +326,22 @@ func (e *EscState) nodeEscState(n *Node) *NodeEscState {
+ 		Fatal("nodeEscState: opt in use (%T)", n.Opt)
+ 	}
+ 	nE := new(NodeEscState)
++	nE.Curfn = Curfn
+ 	n.Opt = nE
+ 	e.opts = append(e.opts, n)
+ 	return nE
+ }
+ 
++func (e *EscState) track(n *Node) {
++	if Curfn == nil {
++		Fatal("EscState.track: Curfn nil")
++	}
++	n.Esc = EscNone // until proven otherwise
++	nE := e.nodeEscState(n)
++	nE.Escloopdepth = e.loopdepth
++	e.noesc = list(e.noesc, n)
++}
++
+ // Escape constants are numbered in order of increasing "escapiness"
+ // to help make inferences be monotonic.  With the exception of
+ // EscNever which is sticky, eX < eY means that eY is more exposed
+@@ -408,8 +420,9 @@ func funcSym(n *Node) *Sym {
+ }
+ 
+ // curfnSym returns n.Curfn.Nname.Sym if no nils are encountered along the way.
+-func curfnSym(n *Node) *Sym {
+-	return funcSym(n.Curfn)
++func (e *EscState) curfnSym(n *Node) *Sym {
++	nE := e.nodeEscState(n)
++	return funcSym(nE.Curfn)
+ }
+ 
+ func escAnalyze(all *NodeList, recursive bool) {
+@@ -453,7 +466,7 @@ func escAnalyze(all *NodeList, recursive bool) {
+ 	if Debug['m'] != 0 {
+ 		for l := e.noesc; l != nil; l = l.Next {
+ 			if l.N.Esc == EscNone {
+-				Warnl(int(l.N.Lineno), "%v %v does not escape", curfnSym(l.N), Nconv(l.N, obj.FmtShort))
++				Warnl(int(l.N.Lineno), "%v %v does not escape", e.curfnSym(l.N), Nconv(l.N, obj.FmtShort))
+ 			}
+ 		}
+ 	}
+@@ -600,7 +613,6 @@ func esc(e *EscState, n *Node, up *Node) {
+ 
+ 	// Big stuff escapes unconditionally
+ 	// "Big" conditions that were scattered around in walk have been gathered here
+-	nE := e.nodeEscState(n)
+ 	if n.Esc != EscHeap && n.Type != nil && (n.Type.Width > MaxStackVarSize ||
+ 		n.Op == ONEW && n.Type.Type.Width >= 1<<16 ||
+ 		n.Op == OMAKESLICE && !isSmallMakeSlice(n)) {
+@@ -698,7 +710,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 			// b escapes as well. If we ignore such OSLICEARR, we will conclude
+ 			// that b does not escape when b contents do.
+ 			if Debug['m'] != 0 {
+-				Warnl(int(n.Lineno), "%v ignoring self-assignment to %v", curfnSym(n), Nconv(n.Left, obj.FmtShort))
++				Warnl(int(n.Lineno), "%v ignoring self-assignment to %v", e.curfnSym(n), Nconv(n.Left, obj.FmtShort))
+ 			}
+ 
+ 			break
+@@ -790,7 +802,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 			slice2 := n.List.Next.N
+ 			escassign(e, &e.theSink, e.addDereference(slice2)) // lose track of assign of dereference
+ 			if Debug['m'] > 2 {
+-				Warnl(int(n.Lineno), "%v special treatment of append(slice1, slice2...) %v", curfnSym(n), Nconv(n, obj.FmtShort))
++				Warnl(int(n.Lineno), "%v special treatment of append(slice1, slice2...) %v", e.curfnSym(n), Nconv(n, obj.FmtShort))
+ 			}
+ 		}
+ 		escassign(e, &e.theSink, e.addDereference(n.List.N)) // The original elements are now leaked, too
+@@ -799,17 +811,13 @@ func esc(e *EscState, n *Node, up *Node) {
+ 		escassign(e, n, n.Left)
+ 
+ 	case OCONVIFACE:
+-		n.Esc = EscNone // until proven otherwise
+-		e.noesc = list(e.noesc, n)
+-		nE.Escloopdepth = e.loopdepth
++		e.track(n)
+ 		escassign(e, n, n.Left)
+ 
+ 	case OARRAYLIT:
+ 		if Isslice(n.Type) {
+ 			// Slice itself is not leaked until proven otherwise
+-			n.Esc = EscNone
+-			e.noesc = list(e.noesc, n)
+-			nE.Escloopdepth = e.loopdepth
++			e.track(n)
+ 		}
+ 
+ 		// Link values to array/slice
+@@ -824,25 +832,19 @@ func esc(e *EscState, n *Node, up *Node) {
+ 		}
+ 
+ 	case OPTRLIT:
+-		n.Esc = EscNone // until proven otherwise
+-		e.noesc = list(e.noesc, n)
+-		nE.Escloopdepth = e.loopdepth
++		e.track(n)
+ 
+ 		// Link OSTRUCTLIT to OPTRLIT; if OPTRLIT escapes, OSTRUCTLIT elements do too.
+ 		escassign(e, n, n.Left)
+ 
+ 	case OCALLPART:
+-		n.Esc = EscNone // until proven otherwise
+-		e.noesc = list(e.noesc, n)
+-		nE.Escloopdepth = e.loopdepth
++		e.track(n)
+ 
+ 		// Contents make it to memory, lose track.
+ 		escassign(e, &e.theSink, n.Left)
+ 
+ 	case OMAPLIT:
+-		n.Esc = EscNone // until proven otherwise
+-		e.noesc = list(e.noesc, n)
+-		nE.Escloopdepth = e.loopdepth
++		e.track(n)
+ 
+ 		// Keys and values make it to memory, lose track.
+ 		for ll := n.List; ll != nil; ll = ll.Next {
+@@ -880,25 +882,16 @@ func esc(e *EscState, n *Node, up *Node) {
+ 		OSTRARRAYRUNE,
+ 		OSTRARRAYBYTE,
+ 		ORUNESTR:
+-		nE.Escloopdepth = e.loopdepth
+-
+-		n.Esc = EscNone // until proven otherwise
+-		e.noesc = list(e.noesc, n)
++		e.track(n)
+ 
+ 	case OADDSTR:
+-		nE.Escloopdepth = e.loopdepth
+-		n.Esc = EscNone // until proven otherwise
+-		e.noesc = list(e.noesc, n)
+-
+-	// Arguments of OADDSTR do not escape.
++		e.track(n)
++		// Arguments of OADDSTR do not escape.
+ 
+ 	case OADDR:
+-		n.Esc = EscNone // until proven otherwise
+-		e.noesc = list(e.noesc, n)
+-
+ 		// current loop depth is an upper bound on actual loop depth
+ 		// of addressed value.
+-		nE.Escloopdepth = e.loopdepth
++		e.track(n)
+ 
+ 		// for &x, use loop depth of x if known.
+ 		// it should always be known, but if not, be conservative
+@@ -906,6 +899,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 		if n.Left.Op == ONAME {
+ 			switch n.Left.Class {
+ 			case PAUTO:
++				nE := e.nodeEscState(n)
+ 				leftE := e.nodeEscState(n.Left)
+ 				if leftE.Escloopdepth != 0 {
+ 					nE.Escloopdepth = leftE.Escloopdepth
+@@ -918,6 +912,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 			// to another (or the same) result makes the
+ 			// first result move to the heap.
+ 			case PPARAM, PPARAMOUT:
++				nE := e.nodeEscState(n)
+ 				nE.Escloopdepth = 1
+ 			}
+ 		}
+@@ -1304,7 +1299,7 @@ func initEscretval(e *EscState, n *Node, fntype *Type) {
+ 		src.Sym = Lookup(buf)
+ 		src.Type = t.Type
+ 		src.Class = PAUTO
+-		src.Curfn = Curfn
++		src.Name.Curfn = Curfn
+ 		e.nodeEscState(src).Escloopdepth = e.loopdepth
+ 		src.Used = true
+ 		src.Lineno = n.Lineno
+@@ -1403,16 +1398,12 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 			if lr.N.Isddd && !n.Isddd {
+ 				// Introduce ODDDARG node to represent ... allocation.
+ 				src = Nod(ODDDARG, nil, nil)
+-
+ 				src.Type = typ(TARRAY)
+ 				src.Type.Type = lr.N.Type.Type
+ 				src.Type.Bound = int64(count(ll))
+ 				src.Type = Ptrto(src.Type) // make pointer so it will be tracked
+-				srcE := e.nodeEscState(src)
+-				srcE.Escloopdepth = e.loopdepth
+ 				src.Lineno = n.Lineno
+-				src.Esc = EscNone // until we find otherwise
+-				e.noesc = list(e.noesc, src)
++				e.track(src)
+ 				n.Right = src
+ 			}
+ 
+@@ -1463,15 +1454,12 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 		if t.Isddd && !n.Isddd {
+ 			// Introduce ODDDARG node to represent ... allocation.
+ 			src = Nod(ODDDARG, nil, nil)
+-			srcE := e.nodeEscState(src)
+-			srcE.Escloopdepth = e.loopdepth
+ 			src.Lineno = n.Lineno
+ 			src.Type = typ(TARRAY)
+ 			src.Type.Type = t.Type.Type
+ 			src.Type.Bound = int64(count(ll))
+ 			src.Type = Ptrto(src.Type) // make pointer so it will be tracked
+-			src.Esc = EscNone          // until we find otherwise
+-			e.noesc = list(e.noesc, src)
++			e.track(src)
+ 			n.Right = src
+ 		}
+ 
+@@ -1564,7 +1552,7 @@ func escflood(e *EscState, dst *Node) {
+ 
+ 	dstE := e.nodeEscState(dst)
+ 	if Debug['m'] > 1 {
+-		fmt.Printf("\nescflood:%d: dst %v scope:%v[%d]\n", e.walkgen, Nconv(dst, obj.FmtShort), curfnSym(dst), dstE.Escloopdepth)
++		fmt.Printf("\nescflood:%d: dst %v scope:%v[%d]\n", e.walkgen, Nconv(dst, obj.FmtShort), e.curfnSym(dst), dstE.Escloopdepth)
+ 	}
+ 
+ 	for l := dstE.Escflowsrc; l != nil; l = l.Next {
+@@ -1577,7 +1565,7 @@ func escflood(e *EscState, dst *Node) {
+ func funcOutputAndInput(dst, src *Node) bool {
+ 	// Note if dst is marked as escaping, then "returned" is too weak.
+ 	return dst.Op == ONAME && dst.Class == PPARAMOUT &&
+-		src.Op == ONAME && src.Class == PPARAM && src.Curfn == dst.Curfn
++		src.Op == ONAME && src.Class == PPARAM && src.Name.Curfn == dst.Name.Curfn
+ }
+ 
+ func escwalk(e *EscState, level Level, dst *Node, src *Node) {
+@@ -1597,7 +1585,7 @@ func escwalk(e *EscState, level Level, dst *Node, src *Node) {
+ 
+ 	if Debug['m'] > 1 {
+ 		fmt.Printf("escwalk: level:%d depth:%d %.*s op=%v %v(%v) scope:%v[%d]\n",
+-			level, e.pdepth, e.pdepth, "\t\t\t\t\t\t\t\t\t\t", Oconv(int(src.Op), 0), Nconv(src, obj.FmtShort), Jconv(src, obj.FmtShort), curfnSym(src), srcE.Escloopdepth)
++			level, e.pdepth, e.pdepth, "\t\t\t\t\t\t\t\t\t\t", Oconv(int(src.Op), 0), Nconv(src, obj.FmtShort), Jconv(src, obj.FmtShort), e.curfnSym(src), srcE.Escloopdepth)
+ 	}
+ 
+ 	e.pdepth++
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 6c9b44c576..b9da51a063 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -77,7 +77,7 @@ func addrescapes(n *Node) {
+ 			// create stack variable to hold pointer to heap
+ 			oldfn := Curfn
+ 
+-			Curfn = n.Curfn
++			Curfn = n.Name.Curfn
+ 			n.Name.Heapaddr = temp(Ptrto(n.Type))
+ 			buf := fmt.Sprintf("&%v", n.Sym)
+ 			n.Name.Heapaddr.Sym = Lookup(buf)
+@@ -627,7 +627,7 @@ func Tempname(nn *Node, t *Type) {
+ 	n.Addable = true
+ 	n.Ullman = 1
+ 	n.Esc = EscNever
+-	n.Curfn = Curfn
++	n.Name.Curfn = Curfn
+ 	Curfn.Func.Dcl = list(Curfn.Func.Dcl, n)
+ 
+ 	dowidth(t)
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 0b77175f0b..3c6ceaf9a4 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -828,7 +828,7 @@ func inlvar(var_ *Node) *Node {
+ 	n.Type = var_.Type
+ 	n.Class = PAUTO
+ 	n.Used = true
+-	n.Curfn = Curfn // the calling function, not the called one
++	n.Name.Curfn = Curfn // the calling function, not the called one
+ 	n.Addrtaken = var_.Addrtaken
+ 
+ 	// Esc pass wont run if we're inlining into a iface wrapper.
+@@ -850,7 +850,7 @@ func retvar(t *Type, i int) *Node {
+ 	n.Type = t.Type
+ 	n.Class = PAUTO
+ 	n.Used = true
+-	n.Curfn = Curfn // the calling function, not the called one
++	n.Name.Curfn = Curfn // the calling function, not the called one
+ 	Curfn.Func.Dcl = list(Curfn.Func.Dcl, n)
+ 	return n
+ }
+@@ -862,7 +862,7 @@ func argvar(t *Type, i int) *Node {
+ 	n.Type = t.Type
+ 	n.Class = PAUTO
+ 	n.Used = true
+-	n.Curfn = Curfn // the calling function, not the called one
++	n.Name.Curfn = Curfn // the calling function, not the called one
+ 	Curfn.Func.Dcl = list(Curfn.Func.Dcl, n)
+ 	return n
+ }
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index b4d0699d1f..b74a37a146 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -240,7 +240,7 @@ func getvariables(fn *Node) []*Node {
+ 				continue
+ 			}
+ 
+-			ll.N.Curfn = Curfn
++			ll.N.Name.Curfn = Curfn
+ 			switch ll.N.Class {
+ 			case PAUTO:
+ 				if haspointers(ll.N.Type) {
+@@ -618,7 +618,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar Bvec, varkill Bvec, avarini
+ 
+ 	if prog.Info.Flags&(LeftRead|LeftWrite|LeftAddr) != 0 {
+ 		from := &prog.From
+-		if from.Node != nil && from.Sym != nil && ((from.Node).(*Node)).Curfn == Curfn {
++		if from.Node != nil && from.Sym != nil && ((from.Node).(*Node)).Name.Curfn == Curfn {
+ 			switch ((from.Node).(*Node)).Class &^ PHEAP {
+ 			case PAUTO, PPARAM, PPARAMOUT:
+ 				pos, ok := from.Node.(*Node).Opt.(int32) // index in vars
+@@ -647,7 +647,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar Bvec, varkill Bvec, avarini
+ Next:
+ 	if prog.Info.Flags&(RightRead|RightWrite|RightAddr) != 0 {
+ 		to := &prog.To
+-		if to.Node != nil && to.Sym != nil && ((to.Node).(*Node)).Curfn == Curfn {
++		if to.Node != nil && to.Sym != nil && ((to.Node).(*Node)).Name.Curfn == Curfn {
+ 			switch ((to.Node).(*Node)).Class &^ PHEAP {
+ 			case PAUTO, PPARAM, PPARAMOUT:
+ 				pos, ok := to.Node.(*Node).Opt.(int32) // index in vars
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 3ff6b2f151..53867d90f4 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -47,7 +47,7 @@ func init1(n *Node, out **NodeList) {
+ 		break
+ 
+ 	default:
+-		if isblank(n) && n.Curfn == nil && n.Name.Defn != nil && n.Name.Defn.Initorder == InitNotStarted {
++		if isblank(n) && n.Name.Curfn == nil && n.Name.Defn != nil && n.Name.Defn.Initorder == InitNotStarted {
+ 			// blank names initialization is part of init() but not
+ 			// when they are inside a function.
+ 			break
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 179739884b..61afb05473 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -370,10 +370,10 @@ func Nod(op int, nleft *Node, nright *Node) *Node {
+ 	n.Lineno = int32(parserline())
+ 	n.Xoffset = BADWIDTH
+ 	n.Orig = n
+-	n.Curfn = Curfn
+ 	switch op {
+ 	case OCLOSURE, ODCLFUNC:
+ 		n.Func = new(Func)
++		n.Func.FCurfn = Curfn
+ 	case ONAME:
+ 		n.Name = new(Name)
+ 		n.Name.Param = new(Param)
+@@ -387,6 +387,9 @@ func Nod(op int, nleft *Node, nright *Node) *Node {
+ 			n.Name.Param = new(Param)
+ 		}
+ 	}
++	if n.Name != nil {
++		n.Name.Curfn = Curfn
++	}
+ 	return n
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index a985e80226..630200ace0 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -29,8 +29,7 @@ type Node struct {
+ 	Func *Func
+ 
+ 	// ONAME
+-	Name  *Name
+-	Curfn *Node // function for local variables
++	Name *Name
+ 
+ 	Sym *Sym // various
+ 
+@@ -80,6 +79,7 @@ type Name struct {
+ 	Heapaddr *Node // temp holding heap address of param
+ 	Inlvar   *Node // ONAME substitute while inlining
+ 	Defn     *Node // initializing assignment
++	Curfn    *Node // function for local variables
+ 	*Param
+ 	Decldepth int32 // declaration loop depth, increased for every loop or label
+ 	Vargen    int32 // unique name for OTYPE/ONAME within a function.  Function outputs are numbered starting at one.
+@@ -122,6 +122,7 @@ type Func struct {
+ 	Ntype      *Node // signature
+ 	Top        int   // top context (Ecall, Eproc, etc)
+ 	Closure    *Node // OCLOSURE <-> ODCLFUNC
++	FCurfn     *Node
+ 
+ 	Inl     *NodeList // copy of the body for use in inlining
+ 	InlCost int32
+diff --git a/test/escape2.go b/test/escape2.go
+index dfc37ed45f..c048f1b7aa 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -606,7 +606,7 @@ func foo74c() {
+ 		vv := v // ERROR "moved to heap: vv$"
+ 		// actually just escapes its scope
+ 		array[i] = func() { // ERROR "func literal escapes to heap$"
+-			println(&vv) // ERROR "&vv escapes to heap$" "<S> &vv does not escape$"
++			println(&vv) // ERROR "&vv escapes to heap$" "foo74c.func1 &vv does not escape$"
+ 		}
+ 	}
+ }
+@@ -1235,7 +1235,7 @@ func foo129() {
+ 	p := &i   // ERROR "&i escapes to heap$"
+ 	func() {  // ERROR "foo129 func literal does not escape$"
+ 		q := p   // ERROR "leaking closure reference p$"
+-		func() { // ERROR "<S> func literal does not escape$"
++		func() { // ERROR "foo129.func1 func literal does not escape$"
+ 			r := q // ERROR "leaking closure reference q$"
+ 			px = r
+ 		}()
+@@ -1277,7 +1277,7 @@ func foo134() {
+ 	p := &i  // ERROR "foo134 &i does not escape$"
+ 	func() { // ERROR "foo134 func literal does not escape$"
+ 		q := p
+-		func() { // ERROR "<S> func literal does not escape$"
++		func() { // ERROR "foo134.func1 func literal does not escape$"
+ 			r := q
+ 			_ = r
+ 		}()
+@@ -1289,7 +1289,7 @@ func foo135() {
+ 	p := &i     // ERROR "&i escapes to heap$"
+ 	go func() { // ERROR "func literal escapes to heap$"
+ 		q := p
+-		func() { // ERROR "<S> func literal does not escape$"
++		func() { // ERROR "foo135.func1 func literal does not escape$"
+ 			r := q
+ 			_ = r
+ 		}()
+@@ -1301,7 +1301,7 @@ func foo136() {
+ 	p := &i     // ERROR "&i escapes to heap$"
+ 	go func() { // ERROR "func literal escapes to heap$"
+ 		q := p   // ERROR "leaking closure reference p$"
+-		func() { // ERROR "<S> func literal does not escape$"
++		func() { // ERROR "foo136.func1 func literal does not escape$"
+ 			r := q // ERROR "leaking closure reference q$"
+ 			px = r
+ 		}()
+@@ -1408,7 +1408,7 @@ func foo143() {
+ 		func() { // ERROR "foo143 func literal does not escape$"
+ 			for i := 0; i < 1; i++ {
+ 				var t Tm
+-				t.M() // ERROR "<S> t does not escape$"
++				t.M() // ERROR "foo143.func1 t does not escape$"
+ 			}
+ 		}()
+ 	}
+diff --git a/test/escape2n.go b/test/escape2n.go
+index 56f05eba30..f1481c1a36 100644
+--- a/test/escape2n.go
++++ b/test/escape2n.go
+@@ -606,7 +606,7 @@ func foo74c() {
+ 		vv := v // ERROR "moved to heap: vv$"
+ 		// actually just escapes its scope
+ 		array[i] = func() { // ERROR "func literal escapes to heap$"
+-			println(&vv) // ERROR "&vv escapes to heap$" "<S> &vv does not escape$"
++			println(&vv) // ERROR "&vv escapes to heap$" "foo74c.func1 &vv does not escape$"
+ 		}
+ 	}
+ }
+@@ -1235,7 +1235,7 @@ func foo129() {
+ 	p := &i   // ERROR "&i escapes to heap$"
+ 	func() {  // ERROR "foo129 func literal does not escape$"
+ 		q := p   // ERROR "leaking closure reference p$"
+-		func() { // ERROR "<S> func literal does not escape$"
++		func() { // ERROR "foo129.func1 func literal does not escape$"
+ 			r := q // ERROR "leaking closure reference q$"
+ 			px = r
+ 		}()
+@@ -1277,7 +1277,7 @@ func foo134() {
+ 	p := &i  // ERROR "foo134 &i does not escape$"
+ 	func() { // ERROR "foo134 func literal does not escape$"
+ 		q := p
+-		func() { // ERROR "<S> func literal does not escape$"
++		func() { // ERROR "foo134.func1 func literal does not escape$"
+ 			r := q
+ 			_ = r
+ 		}()
+@@ -1289,7 +1289,7 @@ func foo135() {
+ 	p := &i     // ERROR "&i escapes to heap$"
+ 	go func() { // ERROR "func literal escapes to heap$"
+ 		q := p
+-		func() { // ERROR "<S> func literal does not escape$"
++		func() { // ERROR "foo135.func1 func literal does not escape$"
+ 			r := q
+ 			_ = r
+ 		}()
+@@ -1301,7 +1301,7 @@ func foo136() {
+ 	p := &i     // ERROR "&i escapes to heap$"
+ 	go func() { // ERROR "func literal escapes to heap$"
+ 		q := p   // ERROR "leaking closure reference p$"
+-		func() { // ERROR "<S> func literal does not escape$"
++		func() { // ERROR "foo136.func1 func literal does not escape$"
+ 			r := q // ERROR "leaking closure reference q$"
+ 			px = r
+ 		}()
+@@ -1408,7 +1408,7 @@ func foo143() {
+ 		func() { // ERROR "foo143 func literal does not escape$"
+ 			for i := 0; i < 1; i++ {
+ 				var t Tm
+-				t.M() // ERROR "<S> t does not escape$"
++				t.M() // ERROR "foo143.func1 t does not escape$"
+ 			}
+ 		}()
+ 	}

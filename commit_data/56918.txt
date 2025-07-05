@@ -14,7 +14,52 @@ Date:   Mon May 22 11:20:35 2023 -0500
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Paul Murphy <murp@ibm.com>
-
+---
  src/cmd/link/internal/loadelf/ldelf.go | 1 +
  src/cmd/link/internal/ppc64/asm.go     | 9 +++++++--
  2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/loadelf/ldelf.go b/src/cmd/link/internal/loadelf/ldelf.go
+index 77247b47f4..942d54c06c 100644
+--- a/src/cmd/link/internal/loadelf/ldelf.go
++++ b/src/cmd/link/internal/loadelf/ldelf.go
+@@ -1066,6 +1066,7 @@ func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, uint8, error) {
+ 		I386 | uint32(elf.R_386_GOT32X)<<16,
+ 		PPC64 | uint32(elf.R_PPC64_REL24)<<16,
+ 		PPC64 | uint32(elf.R_PPC64_REL24_NOTOC)<<16,
++		PPC64 | uint32(elf.R_PPC64_REL24_P9NOTOC)<<16,
+ 		PPC64 | uint32(elf.R_PPC_REL32)<<16,
+ 		S390X | uint32(elf.R_390_32)<<16,
+ 		S390X | uint32(elf.R_390_PC32)<<16,
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 8bdcf5d3eb..d537bc533c 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -304,6 +304,10 @@ func genstubs(ctxt *ld.Link, ldr *loader.Loader) {
+ 					}
+ 				}
+ 
++			case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_REL24_P9NOTOC):
++				// This can be treated identically to R_PPC64_REL24_NOTOC, as stubs are determined by
++				// GOPPC64 and -buildmode.
++				fallthrough
+ 			case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_REL24_NOTOC):
+ 				switch ldr.SymType(r.Sym()) {
+ 				case sym.SDYNIMPORT:
+@@ -602,13 +606,14 @@ func addelfdynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s lo
+ 		}
+ 
+ 		// Handle relocations found in ELF object files.
+-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_REL24_NOTOC):
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_REL24_NOTOC),
++		objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_REL24_P9NOTOC):
+ 		su := ldr.MakeSymbolUpdater(s)
+ 		su.SetRelocType(rIdx, objabi.R_CALLPOWER)
+ 
+ 		if targType == sym.SDYNIMPORT {
+ 			// Should have been handled in elfsetupplt
+-			ldr.Errorf(s, "unexpected R_PPC64_REL24_NOTOC for dyn import")
++			ldr.Errorf(s, "unexpected R_PPC64_REL24_NOTOC/R_PPC64_REL24_P9NOTOC for dyn import")
+ 		}
+ 		return true
+ 

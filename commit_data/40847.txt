@@ -12,6 +12,21 @@ Date:   Sat Jul 27 11:55:54 2019 -0700
     Change-Id: I885cee0f532a4069d1a17ea27365d54965ecca22
     Reviewed-on: https://go-review.googlesource.com/c/go/+/187818
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  doc/contribute.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index 471eeef536..14839a6831 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -238,7 +238,8 @@ $ git codereview help
+ </pre>
+ 
+ <p>
+-prints help text, not an error.
++prints help text, not an error. If it prints an error, make sure that $GOPATH/bin
++is in your $PATH.
+ </p>
+ 
+ <p>

@@ -12,9 +12,63 @@ Date:   Fri Jul 6 09:14:30 2018 +0930
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/testshared/src/depBase/asm.s    | 2 +-
  misc/cgo/testshared/src/depBase/dep.go   | 4 ++++
  misc/cgo/testshared/src/depBase/gccgo.go | 6 +++++-
  misc/cgo/testshared/src/depBase/stubs.go | 6 +++++-
  4 files changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/misc/cgo/testshared/src/depBase/asm.s b/misc/cgo/testshared/src/depBase/asm.s
+index f203f8b030..a8acf77f0b 100644
+--- a/misc/cgo/testshared/src/depBase/asm.s
++++ b/misc/cgo/testshared/src/depBase/asm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//+build !gccgo
++// +build !gccgo
+ 
+ #include "textflag.h"
+ 
+diff --git a/misc/cgo/testshared/src/depBase/dep.go b/misc/cgo/testshared/src/depBase/dep.go
+index 569c210aa1..e7cc7c81eb 100644
+--- a/misc/cgo/testshared/src/depBase/dep.go
++++ b/misc/cgo/testshared/src/depBase/dep.go
+@@ -1,3 +1,7 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package depBase
+ 
+ import (
+diff --git a/misc/cgo/testshared/src/depBase/gccgo.go b/misc/cgo/testshared/src/depBase/gccgo.go
+index 3e2b69b50b..2b02a1e83b 100644
+--- a/misc/cgo/testshared/src/depBase/gccgo.go
++++ b/misc/cgo/testshared/src/depBase/gccgo.go
+@@ -1,4 +1,8 @@
+-//+build gccgo
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build gccgo
+ 
+ package depBase
+ 
+diff --git a/misc/cgo/testshared/src/depBase/stubs.go b/misc/cgo/testshared/src/depBase/stubs.go
+index 96573c12ec..04534f38dd 100644
+--- a/misc/cgo/testshared/src/depBase/stubs.go
++++ b/misc/cgo/testshared/src/depBase/stubs.go
+@@ -1,4 +1,8 @@
+-//+build !gccgo
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !gccgo
+ 
+ package depBase
+ 

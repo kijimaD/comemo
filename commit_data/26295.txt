@@ -12,8 +12,72 @@ Date:   Mon Dec 21 16:16:06 2015 +1100
     Reviewed-on: https://go-review.googlesource.com/17997
     Reviewed-by: Yasuhiro MATSUMOTO <mattn.jp@gmail.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/internal/syscall/windows/syscall_windows.go  |  4 ++--
  src/internal/syscall/windows/zsyscall_windows.go | 21 +++++++--------------
  src/os/file_windows.go                           |  5 +----
  3 files changed, 10 insertions(+), 20 deletions(-)
+
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index e5c1cd600c..165e8945ec 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -139,5 +139,5 @@ func Rename(oldpath, newpath string) error {
+ 	return MoveFileEx(from, to, MOVEFILE_REPLACE_EXISTING)
+ }
+ 
+-//sys	GetACP() (acp uint, err error) = kernel32.GetACP
+-//sys	MultiByteToWideChar(codePage uint, dwFlags uint32, str *byte, nstr int32, wchar *uint16, nwchar int32) (nwrite int, err error) = kernel32.MultiByteToWideChar
++//sys	GetACP() (acp uint32) = kernel32.GetACP
++//sys	MultiByteToWideChar(codePage uint32, dwFlags uint32, str *byte, nstr int32, wchar *uint16, nwchar int32) (nwrite int32, err error) = kernel32.MultiByteToWideChar
+diff --git a/src/internal/syscall/windows/zsyscall_windows.go b/src/internal/syscall/windows/zsyscall_windows.go
+index fd614f8897..de41786c76 100644
+--- a/src/internal/syscall/windows/zsyscall_windows.go
++++ b/src/internal/syscall/windows/zsyscall_windows.go
+@@ -50,23 +50,16 @@ func MoveFileEx(from *uint16, to *uint16, flags uint32) (err error) {
+ 	return
+ }
+ 
+-func MultiByteToWideChar(codePage uint, dwFlags uint32, str *byte, nstr int32, wchar *uint16, nwchar int32) (nwrite int, err error) {
+-	r0, _, e1 := syscall.Syscall6(procMultiByteToWideChar.Addr(), 6, uintptr(codePage), uintptr(dwFlags), uintptr(unsafe.Pointer(str)), uintptr(nstr), uintptr(unsafe.Pointer(wchar)), uintptr(nwchar))
+-	nwrite = int(r0)
+-	if nwrite == 0 {
+-		if e1 != 0 {
+-			err = error(e1)
+-		} else {
+-			err = syscall.EINVAL
+-		}
+-	}
++func GetACP() (acp uint32) {
++	r0, _, _ := syscall.Syscall(procGetACP.Addr(), 0, 0, 0, 0)
++	acp = uint32(r0)
+ 	return
+ }
+ 
+-func GetACP() (acp uint, err error) {
+-	r0, _, e1 := syscall.Syscall(procGetACP.Addr(), 0, 0, 0, 0)
+-	acp = uint(r0)
+-	if acp == 0 {
++func MultiByteToWideChar(codePage uint32, dwFlags uint32, str *byte, nstr int32, wchar *uint16, nwchar int32) (nwrite int32, err error) {
++	r0, _, e1 := syscall.Syscall6(procMultiByteToWideChar.Addr(), 6, uintptr(codePage), uintptr(dwFlags), uintptr(unsafe.Pointer(str)), uintptr(nstr), uintptr(unsafe.Pointer(wchar)), uintptr(nwchar))
++	nwrite = int32(r0)
++	if nwrite == 0 {
+ 		if e1 != 0 {
+ 			err = error(e1)
+ 		} else {
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index bda495ec8c..9b0458552c 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -279,10 +279,7 @@ func (f *File) readConsole(b []byte) (n int, err error) {
+ 			if len(b) > 0 {
+ 				pmb = &mbytes[0]
+ 			}
+-			acp, err := windows.GetACP()
+-			if err != nil {
+-				return 0, err
+-			}
++			acp := windows.GetACP()
+ 			nwc, err := windows.MultiByteToWideChar(acp, 2, pmb, int32(nmb), nil, 0)
+ 			if err != nil {
+ 				return 0, err

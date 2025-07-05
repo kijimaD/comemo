@@ -22,7 +22,157 @@ Date:   Wed Jun 3 12:51:56 2015 +0900
     Reviewed-by: Rob Pike <r@golang.org>
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/text/template/multi_test.go | 67 +++++++++++++++++++++++++++++++++++++++++
  src/text/template/template.go   | 41 +++++++++++--------------
  2 files changed, 85 insertions(+), 23 deletions(-)
+
+diff --git a/src/text/template/multi_test.go b/src/text/template/multi_test.go
+index d79c20dc1a..ea01875e9c 100644
+--- a/src/text/template/multi_test.go
++++ b/src/text/template/multi_test.go
+@@ -296,3 +296,70 @@ func TestEmptyTemplateCloneCrash(t *testing.T) {
+ 	t1 := New("base")
+ 	t1.Clone() // used to panic
+ }
++
++// Issue 10910, 10926
++func TestTemplateLookUp(t *testing.T) {
++	t1 := New("foo")
++	if t1.Lookup("foo") != nil {
++		t.Error("Lookup returned non-nil value for undefined template foo")
++	}
++	t1.New("bar")
++	if t1.Lookup("bar") != nil {
++		t.Error("Lookup returned non-nil value for undefined template bar")
++	}
++	t1.Parse(`{{define "foo"}}test{{end}}`)
++	if t1.Lookup("foo") == nil {
++		t.Error("Lookup returned nil value for defined template")
++	}
++}
++
++func TestNew(t *testing.T) {
++	// template with same name already exists
++	t1, _ := New("test").Parse(`{{define "test"}}foo{{end}}`)
++	t2 := t1.New("test")
++
++	if t1.common != t2.common {
++		t.Errorf("t1 & t2 didn't share common struct; got %v != %v", t1.common, t2.common)
++	}
++	if t1.Tree == nil {
++		t.Error("defined template got nil Tree")
++	}
++	if t2.Tree != nil {
++		t.Error("undefined template got non-nil Tree")
++	}
++
++	containsT1 := false
++	for _, tmpl := range t1.Templates() {
++		if tmpl == t2 {
++			t.Error("Templates included undefined template")
++		}
++		if tmpl == t1 {
++			containsT1 = true
++		}
++	}
++	if !containsT1 {
++		t.Error("Templates didn't include defined template")
++	}
++}
++
++func TestParse(t *testing.T) {
++	// In multiple calls to Parse with the same receiver template, only one call
++	// can contain text other than space, comments, and template definitions
++	var err error
++	t1 := New("test")
++	if _, err := t1.Parse(`{{define "test"}}{{end}}`); err != nil {
++		t.Fatalf("parsing test: %s", err)
++	}
++	if _, err := t1.Parse(`{{define "test"}}{{/* this is a comment */}}{{end}}`); err != nil {
++		t.Fatalf("parsing test: %s", err)
++	}
++	if _, err := t1.Parse(`{{define "test"}}foo{{end}}`); err != nil {
++		t.Fatalf("parsing test: %s", err)
++	}
++	if _, err = t1.Parse(`{{define "test"}}foo{{end}}`); err == nil {
++		t.Fatal("no error from redefining a template")
++	}
++	if !strings.Contains(err.Error(), "redefinition") {
++		t.Fatalf("expected redefinition error; got %v", err)
++	}
++}
+diff --git a/src/text/template/template.go b/src/text/template/template.go
+index f435cb6cca..de03a2e8a1 100644
+--- a/src/text/template/template.go
++++ b/src/text/template/template.go
+@@ -81,9 +81,9 @@ func (t *Template) init() {
+ func (t *Template) Clone() (*Template, error) {
+ 	nt := t.copy(nil)
+ 	nt.init()
+-	nt.tmpl[t.name] = nt
+ 	for k, v := range t.tmpl {
+-		if k == t.name { // Already installed.
++		if k == t.name {
++			nt.tmpl[t.name] = nt
+ 			continue
+ 		}
+ 		// The associated templates share nt's common structure.
+@@ -111,20 +111,26 @@ func (t *Template) copy(c *common) *Template {
+ 	return nt
+ }
+ 
+-// AddParseTree creates a new template with the name and parse tree
+-// and associates it with t.
++// AddParseTree adds parse tree for template with given name and associates it with t.
++// If the template does not already exist, it will create a new one.
++// It is an error to reuse a name except to overwrite an empty template.
+ func (t *Template) AddParseTree(name string, tree *parse.Tree) (*Template, error) {
+-	if t.tmpl[name] != nil {
+-		return nil, fmt.Errorf("template: redefinition of template %q", name)
++	// If the name is the name of this template, overwrite this template.
++	// The associate method checks it's not a redefinition.
++	nt := t
++	if name != t.name {
++		nt = t.New(name)
++	}
++	// Even if nt == t, we need to install it in the common.tmpl map.
++	if replace, err := t.associate(nt, tree); err != nil {
++		return nil, err
++	} else if replace {
++		nt.Tree = tree
+ 	}
+-	nt := t.New(name)
+-	nt.Tree = tree
+-	t.tmpl[name] = nt
+ 	return nt, nil
+ }
+ 
+-// Templates returns a slice of the templates associated with t, including t
+-// itself.
++// Templates returns a slice of defined templates associated with t.
+ func (t *Template) Templates() []*Template {
+ 	// Return a slice so we don't expose the map.
+ 	m := make([]*Template, 0, len(t.tmpl))
+@@ -179,20 +185,9 @@ func (t *Template) Parse(text string) (*Template, error) {
+ 	}
+ 	// Add the newly parsed trees, including the one for t, into our common structure.
+ 	for name, tree := range trees {
+-		// If the name we parsed is the name of this template, overwrite this template.
+-		// The associate method checks it's not a redefinition.
+-		tmpl := t
+-		if name != t.name {
+-			tmpl = t.New(name)
+-		}
+-		// Even if t == tmpl, we need to install it in the common.tmpl map.
+-		if replace, err := t.associate(tmpl, tree); err != nil {
++		if _, err := t.AddParseTree(name, tree); err != nil {
+ 			return nil, err
+-		} else if replace {
+-			tmpl.Tree = tree
+ 		}
+-		tmpl.leftDelim = t.leftDelim
+-		tmpl.rightDelim = t.rightDelim
+ 	}
+ 	return t, nil
+ }

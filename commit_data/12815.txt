@@ -8,6 +8,20 @@ Date:   Mon Apr 2 13:05:09 2012 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5966047
-
+---
  doc/code.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/code.html b/doc/code.html
+index 422c4ee0fe..517d1a4954 100644
+--- a/doc/code.html
++++ b/doc/code.html
+@@ -236,7 +236,7 @@ are built and installed correctly.
+ <p>
+ As a convenience, the <code>go</code> command will assume the current directory
+ if no import path is specified on the command line. This sequence of commands
+-has the same affect as the one above:
++has the same effect as the one above:
+ </p>
+ 
+ <pre>

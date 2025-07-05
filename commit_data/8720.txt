@@ -7,6 +7,37 @@ Date:   Tue Jun 14 11:46:05 2011 -0400
     R=golang-dev, mattn.jp
     CC=golang-dev
     https://golang.org/cl/4559062
-
+---
  src/pkg/exec/lp_windows.go | 17 +++++++++++------
  1 file changed, 11 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/exec/lp_windows.go b/src/pkg/exec/lp_windows.go
+index 7588610214..1b3acc42bf 100644
+--- a/src/pkg/exec/lp_windows.go
++++ b/src/pkg/exec/lp_windows.go
+@@ -42,14 +42,19 @@ func findExecutable(file string, exts []string) (string, os.Error) {
+ }
+ 
+ func LookPath(file string) (f string, err os.Error) {
++	x := os.Getenv(`PATHEXT`)
++	if x == `` {
++		x = `.COM;.EXE;.BAT;.CMD`
++	}
+ 	exts := []string{}
+-	if x := os.Getenv(`PATHEXT`); x != `` {
+-		exts = strings.Split(strings.ToLower(x), `;`, -1)
+-		for i, e := range exts {
+-			if e == `` || e[0] != '.' {
+-				exts[i] = `.` + e
+-			}
++	for _, e := range strings.Split(strings.ToLower(x), `;`, -1) {
++		if e == "" {
++			continue
++		}
++		if e[0] != '.' {
++			e = "." + e
+ 		}
++		exts = append(exts, e)
+ 	}
+ 	if strings.Contains(file, `\`) || strings.Contains(file, `/`) {
+ 		if f, err = findExecutable(file, exts); err == nil {

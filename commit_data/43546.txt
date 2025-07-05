@@ -21,6 +21,39 @@ Date:   Fri Apr 10 22:11:51 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/data.go | 14 +++++++++++++-
  1 file changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index b7833af78b..44eea8429e 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -820,6 +820,10 @@ func writeBlocks(out *OutBuf, sem chan int, syms []*sym.Symbol, addr, size int64
+ 		// Find the last symbol we'd write.
+ 		idx := -1
+ 		for i, s := range syms {
++			if s.Attr.SubSymbol() {
++				continue
++			}
++
+ 			// If the next symbol's size would put us out of bounds on the total length,
+ 			// stop looking.
+ 			if s.Value+s.Size > lastAddr {
+@@ -847,7 +851,15 @@ func writeBlocks(out *OutBuf, sem chan int, syms []*sym.Symbol, addr, size int64
+ 		// blocks or at the end.
+ 		length := int64(0)
+ 		if idx+1 < len(syms) {
+-			length = syms[idx+1].Value - addr
++			// Find the next top-level symbol.
++			// Skip over sub symbols so we won't split a containter symbol
++			// into two blocks.
++			next := syms[idx+1]
++			for next.Attr.SubSymbol() {
++				idx++
++				next = syms[idx+1]
++			}
++			length = next.Value - addr
+ 		}
+ 		if length == 0 || length > lastAddr-addr {
+ 			length = lastAddr - addr

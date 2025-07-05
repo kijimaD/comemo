@@ -12,6 +12,20 @@ Date:   Sat Feb 25 17:24:42 2023 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/cmd/go/internal/list/list.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index ec23024ac8..7f3090872b 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -446,7 +446,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 				// Clear all non-requested fields.
+ 				for i := 0; i < v.NumField(); i++ {
+ 					if !listJsonFields.needAny(v.Type().Field(i).Name) {
+-						v.Field(i).Set(reflect.Zero(v.Type().Field(i).Type))
++						v.Field(i).SetZero()
+ 					}
+ 				}
+ 			}

@@ -14,6 +14,33 @@ Date:   Mon Nov 28 19:53:20 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/mgc.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index f630577914..7c7d1449a2 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1104,9 +1104,21 @@ func gcMarkTermination() {
+ 	// mcache before allocating, but idle Ps may not. Since this
+ 	// is necessary to sweep all spans, we need to ensure all
+ 	// mcaches are flushed before we start the next GC cycle.
++	//
++	// While we're here, flush the page cache for idle Ps to avoid
++	// having pages get stuck on them. These pages are hidden from
++	// the scavenger, so in small idle heaps a significant amount
++	// of additional memory might be held onto.
+ 	systemstack(func() {
+ 		forEachP(func(pp *p) {
+ 			pp.mcache.prepareForSweep()
++			if pp.status == _Pidle {
++				systemstack(func() {
++					lock(&mheap_.lock)
++					pp.pcache.flush(&mheap_.pages)
++					unlock(&mheap_.lock)
++				})
++			}
+ 		})
+ 	})
+ 	// Now that we've swept stale spans in mcaches, they don't

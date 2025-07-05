@@ -8,7 +8,16 @@ Date:   Mon Nov 3 15:52:34 2008 -0800
     DELTA=124  (62 added, 62 deleted, 0 changed)
     OCL=18389
     CL=18394
-
+---
  test/{bugs => fixedbugs}/bug097.go | 0
  test/{bugs => fixedbugs}/bug109.go | 0
  2 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/test/bugs/bug097.go b/test/fixedbugs/bug097.go
+similarity index 100%
+rename from test/bugs/bug097.go
+rename to test/fixedbugs/bug097.go
+diff --git a/test/bugs/bug109.go b/test/fixedbugs/bug109.go
+similarity index 100%
+rename from test/bugs/bug109.go
+rename to test/fixedbugs/bug109.go

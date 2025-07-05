@@ -10,6 +10,20 @@ Date:   Tue Jul 29 14:38:08 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/120910043
-
+---
  src/cmd/gc/walk.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 41d49f57b3..eb9ce11316 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -2356,6 +2356,8 @@ paramstoheap(Type **argin, int out)
+ 			continue;
+ 
+ 		// generate allocation & copying code
++		if(compiling_runtime)
++			fatal("%N escapes to heap, not allowed in runtime.", v);
+ 		if(v->alloc == nil)
+ 			v->alloc = callnew(v->type);
+ 		nn = list(nn, nod(OAS, v->heapaddr, v->alloc));

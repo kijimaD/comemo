@@ -10,7 +10,7 @@ Date:   Thu Aug 25 16:08:13 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4958044
-
+---
  src/cmd/6g/gobj.c        |  2 ++
  src/cmd/6g/gsubr.c       |  2 ++
  src/cmd/cov/main.c       |  3 +++
@@ -27,3 +27,313 @@ Date:   Thu Aug 25 16:08:13 2011 -0400
  src/libmach/linux.c      |  4 ++++
  src/libmach/map.c        |  2 ++
  15 files changed, 68 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/6g/gobj.c b/src/cmd/6g/gobj.c
+index ba8a4870ec..5e57568c3e 100644
+--- a/src/cmd/6g/gobj.c
++++ b/src/cmd/6g/gobj.c
+@@ -537,6 +537,8 @@ genembedtramp(Type *rcvr, Type *method, Sym *newnam, int iface)
+ 	int c, d, o, mov, add, loaded;
+ 	Prog *p;
+ 	Type *f;
++	
++	USED(iface);
+ 
+ 	if(debug['r'])
+ 		print("genembedtramp %T %T %S\n", rcvr, method, newnam);
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index d0d6d0c96d..88c7b132a1 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -79,6 +79,8 @@ Prog*
+ gbranch(int as, Type *t)
+ {
+ 	Prog *p;
++	
++	USED(t);
+ 
+ 	p = prog(as);
+ 	p->to.type = D_BRANCH;
+diff --git a/src/cmd/cov/main.c b/src/cmd/cov/main.c
+index 5ff22c00a3..ecbabf371e 100644
+--- a/src/cmd/cov/main.c
++++ b/src/cmd/cov/main.c
+@@ -337,6 +337,9 @@ cover(void)
+ uvlong
+ rgetzero(Map *map, char *reg)
+ {
++	USED(map);
++	USED(reg);
++
+ 	return 0;
+ }
+ 
+diff --git a/src/cmd/gc/closure.c b/src/cmd/gc/closure.c
+index 1261eefb7d..7b21bf3ab1 100644
+--- a/src/cmd/gc/closure.c
++++ b/src/cmd/gc/closure.c
+@@ -129,6 +129,8 @@ makeclosure(Node *func, NodeList **init, int nowrap)
+ 	static int closgen;
+ 	char *p;
+ 
++	USED(init);
++
+ 	/*
+ 	 * wrap body in external function
+ 	 * with extra closure parameters.
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 5f1ff63cfe..0c593dac45 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -115,6 +115,8 @@ dumpdcl(char *st)
+ 	Sym *s, *d;
+ 	int i;
+ 
++	USED(st);
++
+ 	i = 0;
+ 	for(d=dclstack; d!=S; d=d->link) {
+ 		i++;
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 18ca55d82e..77667579fb 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -92,6 +92,8 @@ usage(void)
+ void
+ fault(int s)
+ {
++	USED(s);
++
+ 	// If we've already complained about things
+ 	// in the program, don't bother complaining
+ 	// about the seg fault too; let the user clean up
+@@ -446,6 +448,8 @@ importfile(Val *f, int line)
+ 	Strlit *path;
+ 	char *cleanbuf;
+ 
++	USED(line);
++
+ 	// TODO(rsc): don't bother reloading imports more than once?
+ 
+ 	if(f->ctype != CTSTR) {
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 9cd4ee919c..3a26b3988a 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1201,6 +1201,8 @@ makenewvar(Type *t, NodeList **init, Node **nstar)
+ static Node*
+ ascompatee1(int op, Node *l, Node *r, NodeList **init)
+ {
++	USED(op);
++
+ 	return convas(nod(OAS, l, r), init);
+ }
+ 
+@@ -1257,6 +1259,8 @@ ascompatet(int op, NodeList *nl, Type **nr, int fp, NodeList **init)
+ 	int ucount;
+ 	NodeList *nn, *mm;
+ 
++	USED(op);
++
+ 	/*
+ 	 * check assign type list to
+ 	 * a expression list. called in
+diff --git a/src/cmd/godefs/main.c b/src/cmd/godefs/main.c
+index 6a86301795..38b2962fac 100644
+--- a/src/cmd/godefs/main.c
++++ b/src/cmd/godefs/main.c
+@@ -98,7 +98,10 @@ waitfor(int pid)
+ int
+ spawn(char *prog, char **argv)
+ {
+-	int pid = fork();
++	int pid;
++	
++	USED(prog);
++	pid = fork();
+ 	if(pid < 0)
+ 		sysfatal("fork: %r");
+ 	if(pid == 0) {
+diff --git a/src/cmd/gopack/ar.c b/src/cmd/gopack/ar.c
+index 0b5e608c74..96f36605fd 100644
+--- a/src/cmd/gopack/ar.c
++++ b/src/cmd/gopack/ar.c
+@@ -1532,6 +1532,8 @@ arwrite(int fd, Armember *bp)
+ int
+ page(Arfile *ap)
+ {
++	USED(ap);
++
+ 	sysfatal("page");
+ 	return 1;
+ }
+diff --git a/src/cmd/prof/main.c b/src/cmd/prof/main.c
+index f36759cd32..f0acaf1c07 100644
+--- a/src/cmd/prof/main.c
++++ b/src/cmd/prof/main.c
+@@ -386,6 +386,8 @@ addtohistogram(uvlong pc, uvlong callerpc, uvlong sp)
+ {
+ 	int h;
+ 	PC *x;
++	
++	USED(sp);
+ 
+ 	h = (pc + callerpc*101) % Ncounters;
+ 	for(x = counters[h]; x != NULL; x = x->next) {
+@@ -437,6 +439,8 @@ uvlong nextpc;
+ void
+ xptrace(Map *map, uvlong pc, uvlong sp, Symbol *sym)
+ {
++	USED(map);
++
+ 	char buf[1024];
+ 	if(sym == nil){
+ 		fprint(2, "syms\n");
+diff --git a/src/lib9/exitcode.c b/src/lib9/exitcode.c
+index 234492acfc..a952b2da29 100644
+--- a/src/lib9/exitcode.c
++++ b/src/lib9/exitcode.c
+@@ -29,6 +29,7 @@ THE SOFTWARE.
+ int
+ exitcode(char *s)
+ {
++	USED(s);
+ 	return 1;
+ }
+ 
+diff --git a/src/libmach/executable.c b/src/libmach/executable.c
+index e903344381..1ad6e3b5d2 100644
+--- a/src/libmach/executable.c
++++ b/src/libmach/executable.c
+@@ -502,6 +502,8 @@ commonllp64(int unused, Fhdr *fp, ExecHdr *hp)
+ 	int32 pgsize;
+ 	uvlong entry;
+ 
++	USED(unused);
++
+ 	hswal(&hp->e, sizeof(Exec)/sizeof(int32), beswal);
+ 	if(!(hp->e.exechdr.magic & HDR_MAGIC))
+ 		return 0;
+@@ -542,6 +544,10 @@ commonllp64(int unused, Fhdr *fp, ExecHdr *hp)
+ static int
+ mipsboot(int fd, Fhdr *fp, ExecHdr *hp)
+ {
++	USED(fd);
++	USED(fp);
++	USED(hp);
++
+ abort();
+ #ifdef unused
+ 	USED(fd);
+@@ -573,6 +579,10 @@ abort();
+ static int
+ mips4kboot(int fd, Fhdr *fp, ExecHdr *hp)
+ {
++	USED(fd);
++	USED(fp);
++	USED(hp);
++
+ abort();
+ #ifdef unused
+ 	USED(fd);
+@@ -604,6 +614,10 @@ abort();
+ static int
+ sparcboot(int fd, Fhdr *fp, ExecHdr *hp)
+ {
++	USED(fd);
++	USED(fp);
++	USED(hp);
++
+ abort();
+ #ifdef unused
+ 	USED(fd);
+@@ -624,6 +638,10 @@ abort();
+ static int
+ nextboot(int fd, Fhdr *fp, ExecHdr *hp)
+ {
++	USED(fd);
++	USED(fp);
++	USED(hp);
++
+ abort();
+ #ifdef unused
+ 	USED(fd);
+@@ -645,7 +663,6 @@ abort();
+ static int
+ elf64dotout(int fd, Fhdr *fp, ExecHdr *hp)
+ {
+-
+ 	uvlong (*swav)(uvlong);
+ 	uint32 (*swal)(uint32);
+ 	ushort (*swab)(ushort);
+diff --git a/src/libmach/fakeobj.c b/src/libmach/fakeobj.c
+index ea7ef012cf..a4a897cfe7 100644
+--- a/src/libmach/fakeobj.c
++++ b/src/libmach/fakeobj.c
+@@ -13,17 +13,17 @@
+ #include <mach.h>
+ #include "obj.h"
+ 
+-int _is2(char* x) { return 0; }
+-int _is7(char* x) { return 0; }
+-int _is9(char* x) { return 0; }
+-int _isk(char* x) { return 0; }
+-int _isq(char* x) { return 0; }
+-int _isv(char* x) { return 0; }
+-int _isu(char* x) { return 0; }
+-int _read2(Biobuf* b, Prog* p) { return 0; }
+-int _read7(Biobuf* b, Prog* p) { return 0; }
+-int _read9(Biobuf* b, Prog* p) { return 0; }
+-int _readk(Biobuf* b, Prog* p) { return 0; }
+-int _readq(Biobuf* b, Prog* p) { return 0; }
+-int _readv(Biobuf* b, Prog* p) { return 0; }
+-int _readu(Biobuf* b, Prog* p) { return 0; }
++int _is2(char* x) { USED(x); return 0; }
++int _is7(char* x) { USED(x); return 0; }
++int _is9(char* x) { USED(x); return 0; }
++int _isk(char* x) { USED(x); return 0; }
++int _isq(char* x) { USED(x); return 0; }
++int _isv(char* x) { USED(x); return 0; }
++int _isu(char* x) { USED(x); return 0; }
++int _read2(Biobuf* b, Prog* p) { USED(b); USED(p); return 0; }
++int _read7(Biobuf* b, Prog* p) { USED(b); USED(p); return 0; }
++int _read9(Biobuf* b, Prog* p) { USED(b); USED(p); return 0; }
++int _readk(Biobuf* b, Prog* p) { USED(b); USED(p); return 0; }
++int _readq(Biobuf* b, Prog* p) { USED(b); USED(p); return 0; }
++int _readv(Biobuf* b, Prog* p) { USED(b); USED(p); return 0; }
++int _readu(Biobuf* b, Prog* p) { USED(b); USED(p); return 0; }
+diff --git a/src/libmach/linux.c b/src/libmach/linux.c
+index 6ce18957fa..2c143266a8 100644
+--- a/src/libmach/linux.c
++++ b/src/libmach/linux.c
+@@ -807,6 +807,8 @@ ptraceerr:
+ static int
+ ptracesegrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
+ {
++	USED(seg);
++
+ 	return ptracerw(isr ? PTRACE_PEEKDATA : PTRACE_POKEDATA, PTRACE_PEEKDATA,
+ 		isr, map->pid, addr, v, n);
+ }
+@@ -937,6 +939,8 @@ ptraceregrw(Map *map, Seg *seg, uvlong addr, void *v, uint n, int isr)
+ {
+ 	int laddr;
+ 	uvlong u;
++	
++	USED(seg);
+ 
+ 	if((laddr = go2linux(addr)) < 0){
+ 		if(isr){
+diff --git a/src/libmach/map.c b/src/libmach/map.c
+index ebfe037027..cd5ef0985b 100644
+--- a/src/libmach/map.c
++++ b/src/libmach/map.c
+@@ -137,6 +137,8 @@ int
+ fdrw(Map *map, Seg *s, uvlong addr, void *v, uint n, int isread)
+ {
+ 	int tot, m;
++	
++	USED(map);
+ 
+ 	for(tot=0; tot<n; tot+=m){
+ 		if(isread)

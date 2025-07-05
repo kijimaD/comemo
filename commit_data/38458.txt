@@ -53,10 +53,318 @@ Date:   Sat Jul 21 04:18:08 2018 +0800
     Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/cipher/export_test.go             |  8 ++++
  src/crypto/cipher/xor_amd64.go               | 27 +++++++++++
  src/crypto/cipher/xor_amd64.s                | 54 ++++++++++++++++++++++
  src/crypto/cipher/{xor.go => xor_generic.go} | 62 +++++++++++++------------
  src/crypto/cipher/xor_test.go                | 68 +++++++++++++++++++++++-----
  5 files changed, 177 insertions(+), 42 deletions(-)
+
+diff --git a/src/crypto/cipher/export_test.go b/src/crypto/cipher/export_test.go
+new file mode 100644
+index 0000000000..cf8007ab49
+--- /dev/null
++++ b/src/crypto/cipher/export_test.go
+@@ -0,0 +1,8 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cipher
++
++// Export internal functions for testing.
++var XorBytes = xorBytes
+diff --git a/src/crypto/cipher/xor_amd64.go b/src/crypto/cipher/xor_amd64.go
+new file mode 100644
+index 0000000000..a595acc017
+--- /dev/null
++++ b/src/crypto/cipher/xor_amd64.go
+@@ -0,0 +1,27 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cipher
++
++// xorBytes xors the bytes in a and b. The destination should have enough
++// space, otherwise xorBytes will panic. Returns the number of bytes xor'd.
++func xorBytes(dst, a, b []byte) int {
++	n := len(a)
++	if len(b) < n {
++		n = len(b)
++	}
++	if n == 0 {
++		return 0
++	}
++	_ = dst[n-1]
++	xorBytesSSE2(&dst[0], &a[0], &b[0], n) // amd64 must have SSE2
++	return n
++}
++
++func xorWords(dst, a, b []byte) {
++	xorBytes(dst, a, b)
++}
++
++//go:noescape
++func xorBytesSSE2(dst, a, b *byte, n int)
+diff --git a/src/crypto/cipher/xor_amd64.s b/src/crypto/cipher/xor_amd64.s
+new file mode 100644
+index 0000000000..780d37a06e
+--- /dev/null
++++ b/src/crypto/cipher/xor_amd64.s
+@@ -0,0 +1,54 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// func xorBytesSSE2(dst, a, b *byte, n int)
++TEXT ·xorBytesSSE2(SB), NOSPLIT, $0
++	MOVQ  dst+0(FP), BX
++	MOVQ  a+8(FP), SI
++	MOVQ  b+16(FP), CX
++	MOVQ  n+24(FP), DX
++	TESTQ $15, DX            // AND 15 & len, if not zero jump to not_aligned.
++	JNZ   not_aligned
++
++aligned:
++	MOVQ $0, AX // position in slices
++
++loop16b:
++	MOVOU (SI)(AX*1), X0   // XOR 16byte forwards.
++	MOVOU (CX)(AX*1), X1
++	PXOR  X1, X0
++	MOVOU X0, (BX)(AX*1)
++	ADDQ  $16, AX
++	CMPQ  DX, AX
++	JNE   loop16b
++	RET
++
++loop_1b:
++	SUBQ  $1, DX           // XOR 1byte backwards.
++	MOVB  (SI)(DX*1), DI
++	MOVB  (CX)(DX*1), AX
++	XORB  AX, DI
++	MOVB  DI, (BX)(DX*1)
++	TESTQ $7, DX           // AND 7 & len, if not zero jump to loop_1b.
++	JNZ   loop_1b
++	CMPQ  DX, $0           // if len is 0, ret.
++	JE    ret
++	TESTQ $15, DX          // AND 15 & len, if zero jump to aligned.
++	JZ    aligned
++
++not_aligned:
++	TESTQ $7, DX           // AND $7 & len, if not zero jump to loop_1b.
++	JNE   loop_1b
++	SUBQ  $8, DX           // XOR 8bytes backwards.
++	MOVQ  (SI)(DX*1), DI
++	MOVQ  (CX)(DX*1), AX
++	XORQ  AX, DI
++	MOVQ  DI, (BX)(DX*1)
++	CMPQ  DX, $16          // if len is greater or equal 16 here, it must be aligned.
++	JGE   aligned
++
++ret:
++	RET
+diff --git a/src/crypto/cipher/xor.go b/src/crypto/cipher/xor_generic.go
+similarity index 75%
+rename from src/crypto/cipher/xor.go
+rename to src/crypto/cipher/xor_generic.go
+index 5b26eace09..4d660b0a75 100644
+--- a/src/crypto/cipher/xor.go
++++ b/src/crypto/cipher/xor_generic.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !amd64
++
+ package cipher
+ 
+ import (
+@@ -9,12 +11,9 @@ import (
+ 	"unsafe"
+ )
+ 
+-const wordSize = int(unsafe.Sizeof(uintptr(0)))
+-const supportsUnaligned = runtime.GOARCH == "386" || runtime.GOARCH == "amd64" || runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" || runtime.GOARCH == "s390x"
+-
+-// fastXORBytes xors in bulk. It only works on architectures that
+-// support unaligned read/writes.
+-func fastXORBytes(dst, a, b []byte) int {
++// xorBytes xors the bytes in a and b. The destination should have enough
++// space, otherwise xorBytes will panic. Returns the number of bytes xor'd.
++func xorBytes(dst, a, b []byte) int {
+ 	n := len(a)
+ 	if len(b) < n {
+ 		n = len(b)
+@@ -22,6 +21,28 @@ func fastXORBytes(dst, a, b []byte) int {
+ 	if n == 0 {
+ 		return 0
+ 	}
++
++	switch {
++	case supportsUnaligned:
++		fastXORBytes(dst, a, b, n)
++	default:
++		// TODO(hanwen): if (dst, a, b) have common alignment
++		// we could still try fastXORBytes. It is not clear
++		// how often this happens, and it's only worth it if
++		// the block encryption itself is hardware
++		// accelerated.
++		safeXORBytes(dst, a, b, n)
++	}
++	return n
++}
++
++const wordSize = int(unsafe.Sizeof(uintptr(0)))
++const supportsUnaligned = runtime.GOARCH == "386" || runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" || runtime.GOARCH == "s390x"
++
++// fastXORBytes xors in bulk. It only works on architectures that
++// support unaligned read/writes.
++// n needs to be smaller or equal than the length of a and b.
++func fastXORBytes(dst, a, b []byte, n int) {
+ 	// Assert dst has enough space
+ 	_ = dst[n-1]
+ 
+@@ -38,34 +59,13 @@ func fastXORBytes(dst, a, b []byte) int {
+ 	for i := (n - n%wordSize); i < n; i++ {
+ 		dst[i] = a[i] ^ b[i]
+ 	}
+-
+-	return n
+ }
+ 
+-func safeXORBytes(dst, a, b []byte) int {
+-	n := len(a)
+-	if len(b) < n {
+-		n = len(b)
+-	}
++// n needs to be smaller or equal than the length of a and b.
++func safeXORBytes(dst, a, b []byte, n int) {
+ 	for i := 0; i < n; i++ {
+ 		dst[i] = a[i] ^ b[i]
+ 	}
+-	return n
+-}
+-
+-// xorBytes xors the bytes in a and b. The destination should have enough
+-// space, otherwise xorBytes will panic. Returns the number of bytes xor'd.
+-func xorBytes(dst, a, b []byte) int {
+-	if supportsUnaligned {
+-		return fastXORBytes(dst, a, b)
+-	} else {
+-		// TODO(hanwen): if (dst, a, b) have common alignment
+-		// we could still try fastXORBytes. It is not clear
+-		// how often this happens, and it's only worth it if
+-		// the block encryption itself is hardware
+-		// accelerated.
+-		return safeXORBytes(dst, a, b)
+-	}
+ }
+ 
+ // fastXORWords XORs multiples of 4 or 8 bytes (depending on architecture.)
+@@ -80,10 +80,12 @@ func fastXORWords(dst, a, b []byte) {
+ 	}
+ }
+ 
++// fastXORWords XORs multiples of 4 or 8 bytes (depending on architecture.)
++// The slice arguments a and b are assumed to be of equal length.
+ func xorWords(dst, a, b []byte) {
+ 	if supportsUnaligned {
+ 		fastXORWords(dst, a, b)
+ 	} else {
+-		safeXORBytes(dst, a, b)
++		safeXORBytes(dst, a, b, len(b))
+ 	}
+ }
+diff --git a/src/crypto/cipher/xor_test.go b/src/crypto/cipher/xor_test.go
+index d9187eb726..24877efc36 100644
+--- a/src/crypto/cipher/xor_test.go
++++ b/src/crypto/cipher/xor_test.go
+@@ -2,27 +2,71 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package cipher
++package cipher_test
+ 
+ import (
+ 	"bytes"
++	"crypto/cipher"
++	"crypto/rand"
++	"fmt"
++	"io"
+ 	"testing"
+ )
+ 
+ func TestXOR(t *testing.T) {
+-	for alignP := 0; alignP < 2; alignP++ {
+-		for alignQ := 0; alignQ < 2; alignQ++ {
+-			for alignD := 0; alignD < 2; alignD++ {
+-				p := make([]byte, 1024)[alignP:]
+-				q := make([]byte, 1024)[alignQ:]
+-				d1 := make([]byte, 1024+alignD)[alignD:]
+-				d2 := make([]byte, 1024+alignD)[alignD:]
+-				xorBytes(d1, p, q)
+-				safeXORBytes(d2, p, q)
+-				if !bytes.Equal(d1, d2) {
+-					t.Error("not equal")
++	for j := 1; j <= 1024; j++ {
++		for alignP := 0; alignP < 2; alignP++ {
++			for alignQ := 0; alignQ < 2; alignQ++ {
++				for alignD := 0; alignD < 2; alignD++ {
++					p := make([]byte, j)[alignP:]
++					q := make([]byte, j)[alignQ:]
++					d1 := make([]byte, j+alignD)[alignD:]
++					d2 := make([]byte, j+alignD)[alignD:]
++					if _, err := io.ReadFull(rand.Reader, p); err != nil {
++						t.Fatal(err)
++					}
++					if _, err := io.ReadFull(rand.Reader, q); err != nil {
++						t.Fatal(err)
++					}
++					cipher.XorBytes(d1, p, q)
++					n := min(p, q)
++					for i := 0; i < n; i++ {
++						d2[i] = p[i] ^ q[i]
++					}
++					if !bytes.Equal(d1, d2) {
++						t.Logf("p: %#v", p)
++						t.Logf("q: %#v", q)
++						t.Logf("expect: %#v", d2)
++						t.Logf("result: %#v", d1)
++						t.Fatal("not equal")
++					}
+ 				}
+ 			}
+ 		}
+ 	}
+ }
++
++func min(a, b []byte) int {
++	n := len(a)
++	if len(b) < n {
++		n = len(b)
++	}
++	return n
++}
++
++func BenchmarkXORBytes(b *testing.B) {
++	dst := make([]byte, 1<<15)
++	data0 := make([]byte, 1<<15)
++	data1 := make([]byte, 1<<15)
++	sizes := []int64{1 << 3, 1 << 7, 1 << 11, 1 << 15}
++	for _, size := range sizes {
++		b.Run(fmt.Sprintf("%dBytes", size), func(b *testing.B) {
++			s0 := data0[:size]
++			s1 := data1[:size]
++			b.SetBytes(int64(size))
++			for i := 0; i < b.N; i++ {
++				cipher.XorBytes(dst, s0, s1)
++			}
++		})
++	}
++}

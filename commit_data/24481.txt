@@ -12,7 +12,88 @@ Date:   Thu Jul 30 12:33:36 2015 +0200
     Change-Id: I5a68aa028f5ed597bc1d62cedbef3620753dfe82
     Reviewed-on: https://go-review.googlesource.com/12901
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go                | 11 ++++++++++-
  src/cmd/compile/internal/gc/testdata/arith_ssa.go | 17 ++++++++++++++++-
  2 files changed, 26 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index b9113b2733..c292e4e014 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -763,6 +763,15 @@ var opToSSA = map[opAndType]ssa.Op{
+ 	opAndType{OOR, TINT64}:  ssa.OpOr64,
+ 	opAndType{OOR, TUINT64}: ssa.OpOr64,
+ 
++	opAndType{OXOR, TINT8}:   ssa.OpXor8,
++	opAndType{OXOR, TUINT8}:  ssa.OpXor8,
++	opAndType{OXOR, TINT16}:  ssa.OpXor16,
++	opAndType{OXOR, TUINT16}: ssa.OpXor16,
++	opAndType{OXOR, TINT32}:  ssa.OpXor32,
++	opAndType{OXOR, TUINT32}: ssa.OpXor32,
++	opAndType{OXOR, TINT64}:  ssa.OpXor64,
++	opAndType{OXOR, TUINT64}: ssa.OpXor64,
++
+ 	opAndType{OEQ, TBOOL}:      ssa.OpEq8,
+ 	opAndType{OEQ, TINT8}:      ssa.OpEq8,
+ 	opAndType{OEQ, TUINT8}:     ssa.OpEq8,
+@@ -1123,7 +1132,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		a := s.expr(n.Left)
+ 		b := s.expr(n.Right)
+ 		return s.newValue2(s.ssaOp(n.Op, n.Left.Type), ssa.TypeBool, a, b)
+-	case OADD, OSUB, OMUL, OAND, OOR:
++	case OADD, OAND, OMUL, OOR, OSUB, OXOR:
+ 		a := s.expr(n.Left)
+ 		b := s.expr(n.Right)
+ 		return s.newValue2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
+diff --git a/src/cmd/compile/internal/gc/testdata/arith_ssa.go b/src/cmd/compile/internal/gc/testdata/arith_ssa.go
+index 3fd2fad457..0a2290ef7b 100644
+--- a/src/cmd/compile/internal/gc/testdata/arith_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/arith_ssa.go
+@@ -57,9 +57,15 @@ func testBitwiseLogic() {
+ 	a, b := uint32(57623283), uint32(1314713839)
+ 	if want, got := uint32(38551779), testBitwiseAnd_ssa(a, b); want != got {
+ 		println("testBitwiseAnd failed, wanted", want, "got", got)
++		failed = true
+ 	}
+ 	if want, got := uint32(1333785343), testBitwiseOr_ssa(a, b); want != got {
+-		println("testBitwiseAnd failed, wanted", want, "got", got)
++		println("testBitwiseOr failed, wanted", want, "got", got)
++		failed = true
++	}
++	if want, got := uint32(1295233564), testBitwiseXor_ssa(a, b); want != got {
++		println("testBitwiseXor failed, wanted", want, "got", got)
++		failed = true
+ 	}
+ }
+ 
+@@ -75,6 +81,12 @@ func testBitwiseOr_ssa(a, b uint32) uint32 {
+ 	return a | b
+ }
+ 
++func testBitwiseXor_ssa(a, b uint32) uint32 {
++	switch { // prevent inlining
++	}
++	return a ^ b
++}
++
+ // testSubqToNegq ensures that the SUBQ -> NEGQ translation works correctly.
+ func testSubqToNegq(a, b, c, d, e, f, g, h, i, j, k int64) {
+ 	want := a + 8207351403619448057 - b - 1779494519303207690 + c*8810076340510052032*d - 4465874067674546219 - e*4361839741470334295 - f + 8688847565426072650*g*8065564729145417479
+@@ -83,6 +95,7 @@ func testSubqToNegq(a, b, c, d, e, f, g, h, i, j, k int64) {
+ 		failed = true
+ 	}
+ }
++
+ func testSubqToNegq_ssa(a, b, c, d, e, f, g, h, i, j, k int64) int64 {
+ 	switch { // prevent inlining
+ 	}
+@@ -97,6 +110,8 @@ func main() {
+ 	test64BitConstAdd(1, 2)
+ 	testRegallocCVSpill(1, 2, 3, 4)
+ 	testSubqToNegq(1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2)
++	testBitwiseLogic()
++
+ 	if failed {
+ 		panic("failed")
+ 	}

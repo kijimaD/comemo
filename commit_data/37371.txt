@@ -13,6 +13,19 @@ Date:   Thu Jul 19 16:59:50 2018 -0400
     Reviewed-on: https://go-review.googlesource.com/125115
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/testdata/script/list_test_e.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/list_test_e.txt b/src/cmd/go/testdata/script/list_test_e.txt
+index 3e84de6b07..f1473322c6 100644
+--- a/src/cmd/go/testdata/script/list_test_e.txt
++++ b/src/cmd/go/testdata/script/list_test_e.txt
+@@ -1,6 +1,6 @@
+ # issue 25980: crash in go list -e -test
+ go list -e -test -f '{{.Error}}' p
+-stdout '^p/d_test.go:2:8: cannot find package "d" in any of:'
++stdout '^p[/\\]d_test.go:2:8: cannot find package "d" in any of:'
+ 
+ -- p/d.go --
+ package d

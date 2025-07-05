@@ -24,6 +24,29 @@ Date:   Wed Aug 23 09:05:29 2017 +0200
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/slice.go | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index daaf24e721..84db7ebc3a 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -105,9 +105,16 @@ func growslice(et *_type, old slice, cap int) slice {
+ 		if old.len < 1024 {
+ 			newcap = doublecap
+ 		} else {
+-			for newcap < cap {
++			// Check 0 < newcap to detect overflow
++			// and prevent an infinite loop.
++			for 0 < newcap && newcap < cap {
+ 				newcap += newcap / 4
+ 			}
++			// Set newcap to the requested cap when
++			// the newcap calculation overflowed.
++			if newcap <= 0 {
++				newcap = cap
++			}
+ 		}
+ 	}
+ 

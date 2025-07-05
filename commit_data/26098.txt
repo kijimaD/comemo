@@ -11,7 +11,42 @@ Date:   Wed Dec 16 22:52:00 2015 -0500
     Change-Id: I2b9e670c0ecf6aa01e5bf4d7a402619e93cc4f4a
     Reviewed-on: https://go-review.googlesource.com/17942
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go | 10 ++++++++++
  src/cmd/go/main.go    |  2 +-
  2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 167b6c2fc2..49fdd53230 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -781,6 +781,16 @@ func TestGoInstallDetectsRemovedFiles(t *testing.T) {
+ 	tg.wantStale("mypkg", "./testgo list mypkg claims mypkg is NOT stale after removing y.go; should be stale")
+ }
+ 
++func TestGoListWithTags(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.tempFile("src/mypkg/x.go", "// +build thetag\n\npackage mypkg\n")
++	tg.setenv("GOPATH", tg.path("."))
++	tg.cd(tg.path("./src"))
++	tg.run("list", "-tags=thetag", "./my...")
++	tg.grepStdout("mypkg", "did not find mypkg")
++}
++
+ func TestGoInstallErrorOnCrossCompileToBin(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("don't install into GOROOT in short mode")
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index ca0ce82082..43a51404e6 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -674,7 +674,7 @@ func matchPackagesInFS(pattern string) []string {
+ 		if !match(name) {
+ 			return nil
+ 		}
+-		if _, err = build.ImportDir(path, 0); err != nil {
++		if _, err = buildContext.ImportDir(path, 0); err != nil {
+ 			if _, noGo := err.(*build.NoGoError); !noGo {
+ 				log.Print(err)
+ 			}

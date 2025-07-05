@@ -7,7 +7,49 @@ Date:   Fri Feb 11 17:47:17 2011 -0500
     R=r, adg
     CC=golang-dev
     https://golang.org/cl/4180044
-
+---
  src/pkg/sync/mutex.go      |  7 ++++++-
  src/pkg/sync/mutex_test.go | 13 +++++++++++++
  2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/sync/mutex.go b/src/pkg/sync/mutex.go
+index 6c8a5d51d4..2a1270b9c4 100644
+--- a/src/pkg/sync/mutex.go
++++ b/src/pkg/sync/mutex.go
+@@ -53,9 +53,14 @@ func (m *Mutex) Lock() {
+ // It is allowed for one goroutine to lock a Mutex and then
+ // arrange for another goroutine to unlock it.
+ func (m *Mutex) Unlock() {
+-	if xadd(&m.key, -1) == 0 {
++	switch v := xadd(&m.key, -1); {
++	case v == 0:
+ 		// changed from 1 to 0; no contention
+ 		return
++	case int32(v) == -1:
++		// changed from 0 to -1: wasn't locked
++		// (or there are 4 billion goroutines waiting)
++		panic("sync: unlock of unlocked mutex")
+ 	}
+ 	runtime.Semrelease(&m.sema)
+ }
+diff --git a/src/pkg/sync/mutex_test.go b/src/pkg/sync/mutex_test.go
+index d0e048ed7a..f5c20ca49b 100644
+--- a/src/pkg/sync/mutex_test.go
++++ b/src/pkg/sync/mutex_test.go
+@@ -89,3 +89,16 @@ func BenchmarkContendedMutex(b *testing.B) {
+ 	<-c
+ 	<-c
+ }
++
++func TestMutexPanic(t *testing.T) {
++	defer func() {
++		if recover() == nil {
++			t.Fatalf("unlock of unlocked mutex did not panic")
++		}
++	}()
++
++	var mu Mutex
++	mu.Lock()
++	mu.Unlock()
++	mu.Unlock()
++}

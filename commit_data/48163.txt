@@ -22,7 +22,102 @@ Date:   Tue Apr 27 10:57:09 2021 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/314452
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/arm64/asm.go | 10 +++++++++-
  src/cmd/link/internal/ld/data.go   | 26 +++++++++++++++++++++++---
  2 files changed, 32 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index fad709d314..c10bdc4120 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -441,6 +441,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 		r2.SetOff(r.Off() + 4)
+ 		r2.SetSym(syms.GOT)
+ 		r2.SetAdd(int64(ldr.SymGot(targ)))
++		return true
+ 	}
+ 	return false
+ }
+@@ -1187,7 +1188,14 @@ func offsetLabelName(ldr *loader.Loader, s loader.Sym, off int64) string {
+ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
+ 	relocs := ldr.Relocs(s)
+ 	r := relocs.At(ri)
++	const pcrel = 1
+ 	switch r.Type() {
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_CALL26),
++		objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_JUMP26),
++		objabi.MachoRelocOffset + ld.MACHO_ARM64_RELOC_BRANCH26*2 + pcrel:
++		// Host object relocations that will be turned into a PLT call.
++		// The PLT may be too far. Insert a trampoline for them.
++		fallthrough
+ 	case objabi.R_CALLARM64:
+ 		var t int64
+ 		// ldr.SymValue(rs) == 0 indicates a cross-package jump to a function that is not yet
+@@ -1196,7 +1204,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
+ 		if ldr.SymValue(rs) != 0 {
+ 			t = ldr.SymValue(rs) + r.Add() - (ldr.SymValue(s) + int64(r.Off()))
+ 		}
+-		if t >= 1<<27 || t < -1<<27 || ldr.SymValue(rs) == 0 || (*ld.FlagDebugTramp > 1 && ldr.SymPkg(s) != ldr.SymPkg(rs)) {
++		if t >= 1<<27 || t < -1<<27 || ldr.SymValue(rs) == 0 || (*ld.FlagDebugTramp > 1 && (ldr.SymPkg(s) == "" || ldr.SymPkg(s) != ldr.SymPkg(rs))) {
+ 			// direct call too far, need to insert trampoline.
+ 			// look up existing trampolines first. if we found one within the range
+ 			// of direct call, we can reuse it. otherwise create a new one.
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index a5e6d37f29..1b5eb2f7e3 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -39,6 +39,7 @@ import (
+ 	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
+ 	"compress/zlib"
++	"debug/elf"
+ 	"encoding/binary"
+ 	"fmt"
+ 	"log"
+@@ -98,7 +99,8 @@ func trampoline(ctxt *Link, s loader.Sym) {
+ 	relocs := ldr.Relocs(s)
+ 	for ri := 0; ri < relocs.Count(); ri++ {
+ 		r := relocs.At(ri)
+-		if !r.Type().IsDirectCallOrJump() {
++		rt := r.Type()
++		if !rt.IsDirectCallOrJump() && !isPLTCall(rt) {
+ 			continue
+ 		}
+ 		rs := r.Sym()
+@@ -107,8 +109,11 @@ func trampoline(ctxt *Link, s loader.Sym) {
+ 		}
+ 		rs = ldr.ResolveABIAlias(rs)
+ 		if ldr.SymValue(rs) == 0 && (ldr.SymType(rs) != sym.SDYNIMPORT && ldr.SymType(rs) != sym.SUNDEFEXT) {
+-			if ldr.SymPkg(rs) == ldr.SymPkg(s) {
+-				continue // symbols in the same package are laid out together
++			if ldr.SymPkg(s) != "" && ldr.SymPkg(rs) == ldr.SymPkg(s) {
++				// Symbols in the same package are laid out together.
++				// Except that if SymPkg(s) == "", it is a host object symbol
++				// which may call an external symbol via PLT.
++				continue
+ 			}
+ 			if isRuntimeDepPkg(ldr.SymPkg(s)) && isRuntimeDepPkg(ldr.SymPkg(rs)) {
+ 				continue // runtime packages are laid out together
+@@ -119,6 +124,21 @@ func trampoline(ctxt *Link, s loader.Sym) {
+ 	}
+ }
+ 
++// whether rt is a (host object) relocation that will be turned into
++// a call to PLT.
++func isPLTCall(rt objabi.RelocType) bool {
++	const pcrel = 1
++	switch rt {
++	// ARM64
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_CALL26),
++		objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_JUMP26),
++		objabi.MachoRelocOffset + MACHO_ARM64_RELOC_BRANCH26*2 + pcrel:
++		return true
++	}
++	// TODO: other architectures.
++	return false
++}
++
+ // FoldSubSymbolOffset computes the offset of symbol s to its top-level outer
+ // symbol. Returns the top-level symbol and the offset.
+ // This is used in generating external relocations.

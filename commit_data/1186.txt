@@ -14,8 +14,80 @@ Date:   Wed Nov 19 12:54:44 2008 -0800
     DELTA=38  (36 added, 0 deleted, 2 changed)
     OCL=17493
     CL=19599
-
+---
  src/Make.conf     |  4 ++--
  src/make.bash     |  3 +++
  src/quietgcc.bash | 36 ++++++++++++++++++++++++++++++++++++
  3 files changed, 41 insertions(+), 2 deletions(-)
+
+diff --git a/src/Make.conf b/src/Make.conf
+index ddf4b97220..3542b70eef 100644
+--- a/src/Make.conf
++++ b/src/Make.conf
+@@ -2,8 +2,8 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-CC=cc
+-LD=cc
++CC=quietgcc
++LD=quietgcc
+ CFLAGS=-ggdb -I$(GOROOT)/include
+ BIN=$(HOME)/bin
+ O=o
+diff --git a/src/make.bash b/src/make.bash
+index 8d284d88e7..0c9475f4d0 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -14,6 +14,9 @@ fi
+ 
+ bash clean.bash
+ 
++cp quietgcc.bash $HOME/bin/quietgcc
++chmod +x $HOME/bin/quietgcc
++
+ for i in lib9 libbio libmach_amd64 libregexp cmd runtime lib
+ do
+ 	echo; echo; echo %%%% making $i %%%%; echo
+diff --git a/src/quietgcc.bash b/src/quietgcc.bash
+new file mode 100755
+index 0000000000..560b628c5d
+--- /dev/null
++++ b/src/quietgcc.bash
+@@ -0,0 +1,36 @@
++#!/bin/bash
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++# The master for this file is $GOROOT/src/quietgcc.bash
++# Changes made to $HOME/bin/quietgcc will be overridden.
++
++# Gcc output that we don't care to see.
++ignore=': error: .Each undeclared identifier'
++ignore=$ignore'|: error: for each function it appears'
++ignore=$ignore'|is dangerous, better use'
++ignore=$ignore'|is almost always misused'
++ignore=$ignore'|: In function '
++ignore=$ignore'|: At top level: '
++ignore=$ignore'|In file included from'
++ignore=$ignore'|        from'
++
++# Figure out which cc to run.
++# Can use plain cc on real 64-bit machines
++# and on OS X, but have to use crosstool on
++# mixed64-32 machines like thresher.
++gcc=gcc
++case "`uname -a`" in
++*mixed64-32*)
++	gcc=/usr/crosstool/v10/gcc-4.2.1-glibc-2.3.2/x86_64-unknown-linux-gnu/x86_64-unknown-linux-gnu/bin/gcc
++esac
++
++# Run gcc, save error status, redisplay output without noise, exit with gcc status.
++tmp=/tmp/qcc.$$.$USER.out
++$gcc -m64 -Wall -Wno-sign-compare -Wno-missing-braces \
++	-Wno-parentheses -Wno-unknown-pragmas -Wno-switch -Wno-comment \
++	"$@" >$tmp 2>&1
++status=$?
++egrep -v "$ignore" $tmp | uniq
++rm -f $tmp
++exit $status

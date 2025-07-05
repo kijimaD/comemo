@@ -9,6 +9,20 @@ Date:   Tue Mar 10 09:39:04 2015 -0700
     Change-Id: I99032912650cef8e5bf124bda0a60d5899760103
     Reviewed-on: https://go-review.googlesource.com/7320
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/ast/scope.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/ast/scope.go b/src/go/ast/scope.go
+index df1529d181..1ce5e2e84b 100644
+--- a/src/go/ast/scope.go
++++ b/src/go/ast/scope.go
+@@ -38,7 +38,7 @@ func (s *Scope) Lookup(name string) *Object {
+ // Insert attempts to insert a named object obj into the scope s.
+ // If the scope already contains an object alt with the same name,
+ // Insert leaves the scope unchanged and returns alt. Otherwise
+-// it inserts obj and returns nil."
++// it inserts obj and returns nil.
+ //
+ func (s *Scope) Insert(obj *Object) (alt *Object) {
+ 	if alt = s.Objects[obj.Name]; alt == nil {

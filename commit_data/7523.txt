@@ -7,6 +7,24 @@ Date:   Tue Feb 22 11:16:25 2011 +1100
     R=r
     CC=golang-dev
     https://golang.org/cl/4169065
-
+---
  src/pkg/http/server.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index 0be270ad30..d16cadb3b5 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -657,10 +657,12 @@ func (mux *ServeMux) HandleFunc(pattern string, handler func(ResponseWriter, *Re
+ 
+ // Handle registers the handler for the given pattern
+ // in the DefaultServeMux.
++// The documentation for ServeMux explains how patterns are matched.
+ func Handle(pattern string, handler Handler) { DefaultServeMux.Handle(pattern, handler) }
+ 
+ // HandleFunc registers the handler function for the given pattern
+ // in the DefaultServeMux.
++// The documentation for ServeMux explains how patterns are matched.
+ func HandleFunc(pattern string, handler func(ResponseWriter, *Request)) {
+ 	DefaultServeMux.HandleFunc(pattern, handler)
+ }

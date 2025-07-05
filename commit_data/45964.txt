@@ -12,6 +12,23 @@ Date:   Tue Dec 1 14:03:54 2020 +0100
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.16.html | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index 3545632ea4..0c1fe5b381 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -663,7 +663,10 @@ Do not send CLs removing the interior tags from such phrases.
+ <dl id="runtime/debug"><dt><a href="/pkg/runtime/debug/">runtime/debug</a></dt>
+   <dd>
+     <p><!-- CL 249677 -->
+-      TODO: <a href="https://golang.org/cl/249677">https://golang.org/cl/249677</a>: provide Addr method for errors from SetPanicOnFault
++      The <a href="/pkg/runtime#Error"><code>runtime.Error</code> values
++      used when <code>SetPanicOnFault</code> is enabled may now have an
++      <code>Addr</code> method. If that method exists, it returns the memory
++      address that triggered the fault.
+     </p>
+   </dd>
+ </dl><!-- runtime/debug -->

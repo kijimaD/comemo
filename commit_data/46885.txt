@@ -9,6 +9,27 @@ Date:   Sun Feb 7 23:49:39 2021 +0100
     Trust: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  misc/boring/merge.sh | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/misc/boring/merge.sh b/misc/boring/merge.sh
+index 9e13e14800..b897a5ba66 100755
+--- a/misc/boring/merge.sh
++++ b/misc/boring/merge.sh
+@@ -19,12 +19,14 @@ git worktree add --track -b "$BRANCH" "$WORKTREE" "origin/$TARGET"
+ 
+ cd "$WORKTREE"
+ export GIT_GOFMT_HOOK=off
+-git merge --no-commit "$SOURCE" || echo "Ignoring conflict..."
++git merge --no-commit --no-stat "$SOURCE" || echo "Ignoring conflict..."
+ [[ -f VERSION ]] && git rm -f VERSION
++git checkout --ours codereview.cfg && git add codereview.cfg
+ git commit -m "all: merge $SOURCE into $TARGET"
+ 
+ if ! git log --format=%B -n 1 | grep "\[$TARGET\] "; then
+     echo "The commit does not seem to be targeting the BoringCrypto branch."
++    echo "(Or you are missing the git-codereview hooks.)"
+     exit 1
+ fi
+ 

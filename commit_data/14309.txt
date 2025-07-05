@@ -13,6 +13,50 @@ Date:   Sat Nov 3 00:11:06 2012 +0100
     R=golang-dev, rsc, dvyukov
     CC=golang-dev
     https://golang.org/cl/6821068
-
+---
  src/cmd/gc/racewalk.c | 25 +++++++++++++++++++++++--
  1 file changed, 23 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/racewalk.c b/src/cmd/gc/racewalk.c
+index 9e942498ba..647b54b713 100644
+--- a/src/cmd/gc/racewalk.c
++++ b/src/cmd/gc/racewalk.c
+@@ -88,6 +88,7 @@ static void
+ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ {
+ 	Node *n, *n1;
++	NodeList *fini;
+ 
+ 	n = *np;
+ 
+@@ -116,8 +117,28 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 		goto ret;
+ 
+ 	case OBLOCK:
+-		// leads to crashes.
+-		//racewalklist(n->list, nil);
++		if(n->list == nil)
++			goto ret;
++
++		switch(n->list->n->op) {
++		case OCALLFUNC:
++		case OCALLMETH:
++		case OCALLINTER:
++			// Blocks are used for multiple return function calls.
++			// x, y := f() becomes BLOCK{CALL f, AS x [SP+0], AS y [SP+n]}
++			// We don't want to instrument between the statements because it will
++			// smash the results.
++			racewalknode(&n->list->n, &n->ninit, 0, 0);
++			fini = nil;
++			racewalklist(n->list->next, &fini);
++			n->list = concat(n->list, fini);
++			break;
++
++		default:
++			// Ordinary block, for loop initialization or inlined bodies.
++			racewalklist(n->list, nil);
++			break;
++		}
+ 		goto ret;
+ 
+ 	case ODEFER:

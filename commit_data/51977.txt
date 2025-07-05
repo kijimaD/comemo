@@ -10,8 +10,52 @@ Date:   Mon Mar 28 15:30:37 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/396296
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/index.go | 6 +-----
  src/go/types/index.go                    | 2 +-
  test/fixedbugs/issue13365.go             | 2 +-
  3 files changed, 3 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/index.go b/src/cmd/compile/internal/types2/index.go
+index 61009c121e..37db50333c 100644
+--- a/src/cmd/compile/internal/types2/index.go
++++ b/src/cmd/compile/internal/types2/index.go
+@@ -368,11 +368,7 @@ func (check *Checker) index(index syntax.Expr, max int64) (typ Type, val int64)
+ 	v, ok := constant.Int64Val(x.val)
+ 	assert(ok)
+ 	if max >= 0 && v >= max {
+-		if check.conf.CompilerErrorMessages {
+-			check.errorf(&x, invalidArg+"array index %s out of bounds [0:%d]", x.val.String(), max)
+-		} else {
+-			check.errorf(&x, invalidArg+"index %s is out of bounds", &x)
+-		}
++		check.errorf(&x, invalidArg+"index %s out of bounds [0:%d]", x.val.String(), max)
+ 		return
+ 	}
+ 
+diff --git a/src/go/types/index.go b/src/go/types/index.go
+index 33075edaf1..670c95d621 100644
+--- a/src/go/types/index.go
++++ b/src/go/types/index.go
+@@ -365,7 +365,7 @@ func (check *Checker) index(index ast.Expr, max int64) (typ Type, val int64) {
+ 	v, ok := constant.Int64Val(x.val)
+ 	assert(ok)
+ 	if max >= 0 && v >= max {
+-		check.invalidArg(&x, _InvalidIndex, "index %s is out of bounds", &x)
++		check.invalidArg(&x, _InvalidIndex, "index %s out of bounds [0:%d]", x.val.String(), max)
+ 		return
+ 	}
+ 
+diff --git a/test/fixedbugs/issue13365.go b/test/fixedbugs/issue13365.go
+index b22fa0fb4e..02c6e03698 100644
+--- a/test/fixedbugs/issue13365.go
++++ b/test/fixedbugs/issue13365.go
+@@ -16,7 +16,7 @@ func main() {
+ 	_ = [...]int{-1: 0} // ERROR "index must be non\-negative integer constant|index expression is negative|must not be negative"
+ 
+ 	_ = []int{100: 0}
+-	_ = [10]int{100: 0} // ERROR "array index 100 out of bounds|out of range"
++	_ = [10]int{100: 0} // ERROR "index 100 out of bounds|out of range"
+ 	_ = [...]int{100: 0}
+ 
+ 	_ = []int{t}    // ERROR "cannot use .* as (type )?int( in slice literal)?|incompatible type"

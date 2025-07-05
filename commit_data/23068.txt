@@ -19,7 +19,7 @@ Date:   Wed Apr 22 11:25:29 2015 -0400
     Change-Id: I45153688d9d8afa8384fb15229b0124c686059b4
     Reviewed-on: https://go-review.googlesource.com/9242
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/go/build/deps_test.go                               | 6 +++---
  src/go/{exact => constants}/go13.go                     | 2 +-
  src/go/{exact => constants}/go14.go                     | 2 +-
@@ -41,3 +41,295 @@ Date:   Wed Apr 22 11:25:29 2015 -0400
  src/go/types/typexpr.go                                 | 2 +-
  src/go/types/universe.go                                | 2 +-
  20 files changed, 27 insertions(+), 23 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 6d082418cf..3097a3289e 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -340,11 +340,11 @@ var pkgDeps = map[string][]string{
+ 	// dependencies.  Do not simply update them in situ.
+ 	"container/heap":           {"sort"},
+ 	"debug/plan9obj":           {"encoding/binary", "errors", "fmt", "io", "os"},
+-	"go/exact":                 {"fmt", "go/token", "math/big", "strconv"},
++	"go/constants":             {"fmt", "go/token", "math/big", "strconv"},
+ 	"go/format":                {"bytes", "fmt", "go/ast", "go/parser", "go/printer", "go/token", "internal/format", "io"},
+ 	"go/importer":              {"go/internal/gcimporter", "go/types", "io", "runtime"},
+-	"go/internal/gcimporter":   {"bufio", "errors", "fmt", "go/build", "go/exact", "go/token", "go/types", "io", "os", "path/filepath", "strconv", "strings", "text/scanner"},
+-	"go/types":                 {"bytes", "container/heap", "fmt", "go/ast", "go/exact", "go/parser", "go/token", "io", "math", "path", "sort", "strconv", "strings", "sync", "unicode"},
++	"go/internal/gcimporter":   {"bufio", "errors", "fmt", "go/build", "go/constants", "go/token", "go/types", "io", "os", "path/filepath", "strconv", "strings", "text/scanner"},
++	"go/types":                 {"bytes", "container/heap", "fmt", "go/ast", "go/constants", "go/parser", "go/token", "io", "math", "path", "sort", "strconv", "strings", "sync", "unicode"},
+ 	"image/internal/imageutil": {"image"},
+ 	"internal/format":          {"bytes", "go/ast", "go/parser", "go/printer", "go/token", "strings"},
+ 	"internal/mime":            {"bytes", "encoding/base64", "errors", "fmt", "io", "io/ioutil", "strconv", "strings", "unicode"},
+diff --git a/src/go/exact/go13.go b/src/go/constants/go13.go
+similarity index 96%
+rename from src/go/exact/go13.go
+rename to src/go/constants/go13.go
+index 1016c14150..f445b82154 100644
+--- a/src/go/exact/go13.go
++++ b/src/go/constants/go13.go
+@@ -4,7 +4,7 @@
+ 
+ // +build !go1.4
+ 
+-package exact
++package constants
+ 
+ import (
+ 	"math"
+diff --git a/src/go/exact/go14.go b/src/go/constants/go14.go
+similarity index 93%
+rename from src/go/exact/go14.go
+rename to src/go/constants/go14.go
+index b86e5d2609..c698fa6de9 100644
+--- a/src/go/exact/go14.go
++++ b/src/go/constants/go14.go
+@@ -4,7 +4,7 @@
+ 
+ // +build go1.4
+ 
+-package exact
++package constants
+ 
+ import "math/big"
+ 
+diff --git a/src/go/exact/exact.go b/src/go/constants/value.go
+similarity index 99%
+rename from src/go/exact/exact.go
+rename to src/go/constants/value.go
+index f0510ce669..ad4533c900 100644
+--- a/src/go/exact/exact.go
++++ b/src/go/constants/value.go
+@@ -2,16 +2,16 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package exact implements Values representing untyped
++// Package constants implements Values representing untyped
+ // Go constants and the corresponding operations. Values
+-// and operations have unlimited precision.
++// and operations may have arbitrary or unlimited precision.
+ //
+ // A special Unknown value may be used when a value
+ // is unknown due to an error. Operations on unknown
+ // values produce unknown values unless specified
+ // otherwise.
+ //
+-package exact // import "go/exact"
++package constants // import "go/constants"
+ 
+ import (
+ 	"fmt"
+diff --git a/src/go/exact/exact_test.go b/src/go/constants/value_test.go
+similarity index 99%
+rename from src/go/exact/exact_test.go
+rename to src/go/constants/value_test.go
+index 0f170145e2..6a74e2d13c 100644
+--- a/src/go/exact/exact_test.go
++++ b/src/go/constants/value_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package exact
++package constants
+ 
+ import (
+ 	"go/token"
+diff --git a/src/go/internal/gcimporter/gcimporter.go b/src/go/internal/gcimporter/gcimporter.go
+index 523edb0bce..ee83a725fa 100644
+--- a/src/go/internal/gcimporter/gcimporter.go
++++ b/src/go/internal/gcimporter/gcimporter.go
+@@ -18,7 +18,7 @@ import (
+ 	"strings"
+ 	"text/scanner"
+ 
+-	"go/exact"
++	exact "go/constants"
+ 	"go/types"
+ )
+ 
+diff --git a/src/go/types.bash b/src/go/types.bash
+index a3bfb7e640..1a384d410a 100644
+--- a/src/go/types.bash
++++ b/src/go/types.bash
+@@ -9,6 +9,10 @@
+ # original sources in x/tools. Imports are renamed as needed.
+ #
+ # Delete this script once go/exact and go/types don't exist anymore in x/tools.
++#
++# NOTE(adonovan): the standard packages have intentionally diverged
++# from x/tools, so this script is a unlikely to be useful.  Upstream
++# changes should be cherry-picked in to the standard library.
+ 
+ set -e
+ 
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index 85160c4838..a2a55e31e7 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -28,7 +28,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"go/ast"
+-	"go/exact"
++	exact "go/constants" // Renamed to reduce diffs from x/tools.  TODO: remove
+ 	"go/token"
+ )
+ 
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 55dcb7a6e4..203a9c196d 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -8,7 +8,7 @@ package types
+ 
+ import (
+ 	"go/ast"
+-	"go/exact"
++	exact "go/constants" // Renamed to reduce diffs from x/tools.  TODO: remove
+ 	"go/token"
+ )
+ 
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 7a33c3cbcb..b4c356a6ed 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -8,7 +8,7 @@ package types
+ 
+ import (
+ 	"go/ast"
+-	"go/exact"
++	exact "go/constants" // Renamed to reduce diffs from x/tools.  TODO: remove
+ 	"go/token"
+ )
+ 
+diff --git a/src/go/types/conversions.go b/src/go/types/conversions.go
+index 256aabe9c7..0cf9953c4f 100644
+--- a/src/go/types/conversions.go
++++ b/src/go/types/conversions.go
+@@ -6,7 +6,7 @@
+ 
+ package types
+ 
+-import "go/exact"
++import exact "go/constants" // Renamed to reduce diffs from x/tools.  TODO: remove
+ 
+ // Conversion type-checks the conversion T(x).
+ // The result is in x.
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 968ec06ecb..c2c18ecd06 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -6,7 +6,7 @@ package types
+ 
+ import (
+ 	"go/ast"
+-	"go/exact"
++	exact "go/constants" // Renamed to reduce diffs from x/tools.  TODO: remove
+ 	"go/token"
+ )
+ 
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 14674a9539..f91d89e8b8 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -9,7 +9,7 @@ package types
+ import (
+ 	"fmt"
+ 	"go/ast"
+-	"go/exact"
++	exact "go/constants" // Renamed to reduce diffs from x/tools.  TODO: remove
+ 	"go/token"
+ 	"math"
+ )
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index 79f30157bf..2404753b36 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -8,7 +8,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"go/ast"
+-	"go/exact"
++	exact "go/constants" // Renamed to reduce diffs from x/tools.  TODO: remove
+ 	"go/token"
+ )
+ 
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index 2714c382a2..88c387058e 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -9,7 +9,7 @@ package types
+ import (
+ 	"bytes"
+ 	"go/ast"
+-	"go/exact"
++	exact "go/constants" // Renamed to reduce diffs from x/tools.  TODO: remove
+ 	"go/token"
+ )
+ 
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index fcf8c851b2..be46b59f11 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -7,7 +7,7 @@ package types
+ import (
+ 	"fmt"
+ 	"go/ast"
+-	"go/exact"
++	exact "go/constants" // Renamed to reduce diffs from x/tools.  TODO: remove
+ 	"go/token"
+ 	pathLib "path"
+ 	"strconv"
+diff --git a/src/go/types/self_test.go b/src/go/types/self_test.go
+index d17eabbae5..85dc6ae0ec 100644
+--- a/src/go/types/self_test.go
++++ b/src/go/types/self_test.go
+@@ -31,7 +31,7 @@ func TestSelf(t *testing.T) {
+ 	conf := Config{Importer: importer.Default()}
+ 	_, err = conf.Check("go/types", fset, files, nil)
+ 	if err != nil {
+-		// Importing go.tools/go/exact doensn't work in the
++		// Importing go/constants doesn't work in the
+ 		// build dashboard environment. Don't report an error
+ 		// for now so that the build remains green.
+ 		// TODO(gri) fix this
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 53a99be5ad..8b59df3eb6 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -9,7 +9,7 @@ package types
+ import (
+ 	"fmt"
+ 	"go/ast"
+-	"go/exact"
++	exact "go/constants" // Renamed to reduce diffs from x/tools.  TODO: remove
+ 	"go/token"
+ )
+ 
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 36bf12b4e5..afd1dabc06 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -8,7 +8,7 @@ package types
+ 
+ import (
+ 	"go/ast"
+-	"go/exact"
++	exact "go/constants" // Renamed to reduce diffs from x/tools.  TODO: remove
+ 	"go/token"
+ 	"sort"
+ 	"strconv"
+diff --git a/src/go/types/universe.go b/src/go/types/universe.go
+index 3c5a46d08a..c02543e951 100644
+--- a/src/go/types/universe.go
++++ b/src/go/types/universe.go
+@@ -7,7 +7,7 @@
+ package types
+ 
+ import (
+-	"go/exact"
++	exact "go/constants" // Renamed to reduce diffs from x/tools.  TODO: remove
+ 	"go/token"
+ 	"strings"
+ )

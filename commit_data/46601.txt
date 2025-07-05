@@ -13,7 +13,60 @@ Date:   Thu Jan 14 12:00:23 2021 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/test_exit.txt | 17 +++++++++++++++++
  src/cmd/test2json/main.go                |  6 +++++-
  2 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/test_exit.txt b/src/cmd/go/testdata/script/test_exit.txt
+index 23a2429d1e..3703ba53d3 100644
+--- a/src/cmd/go/testdata/script/test_exit.txt
++++ b/src/cmd/go/testdata/script/test_exit.txt
+@@ -54,6 +54,23 @@ go test -list=. ./main_zero
+ stdout 'skipping all tests'
+ ! stdout TestNotListed
+ 
++# Running the test directly still fails, if we pass the flag.
++go test -c -o ./zero.exe ./zero
++! exec ./zero.exe -test.paniconexit0
++
++# Using -json doesn't affect the exit status.
++! go test -json ./zero
++! stdout '"Output":"ok'
++! stdout 'exit status'
++stdout 'panic'
++stdout '"Output":"FAIL'
++
++# Running the test via test2json also fails.
++! go tool test2json ./zero.exe -test.v -test.paniconexit0
++! stdout '"Output":"ok'
++! stdout 'exit status'
++stdout 'panic'
++
+ -- go.mod --
+ module m
+ 
+diff --git a/src/cmd/test2json/main.go b/src/cmd/test2json/main.go
+index 57a874193e..e40881ab3f 100644
+--- a/src/cmd/test2json/main.go
++++ b/src/cmd/test2json/main.go
+@@ -6,7 +6,7 @@
+ //
+ // Usage:
+ //
+-//	go tool test2json [-p pkg] [-t] [./pkg.test -test.v]
++//	go tool test2json [-p pkg] [-t] [./pkg.test -test.v [-test.paniconexit0]]
+ //
+ // Test2json runs the given test command and converts its output to JSON;
+ // with no command specified, test2json expects test output on standard input.
+@@ -18,6 +18,10 @@
+ //
+ // The -t flag requests that time stamps be added to each test event.
+ //
++// The test must be invoked with -test.v. Additionally passing
++// -test.paniconexit0 will cause test2json to exit with a non-zero
++// status if one of the tests being run calls os.Exit(0).
++//
+ // Note that test2json is only intended for converting a single test
+ // binary's output. To convert the output of a "go test" command,
+ // use "go test -json" instead of invoking test2json directly.

@@ -13,7 +13,78 @@ Date:   Fri Jan 10 17:58:20 2020 -0500
     Change-Id: I2170f427c238e9fe8c029b43b346621d82c5e8fc
     Reviewed-on: https://go-review.googlesource.com/c/go/+/214388
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                              | 23 -----------------
  .../script/build_patterns_outside_gopath.txt       | 29 ++++++++++++++++++++++
  2 files changed, 29 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 918fd6fcec..2f50d7d83d 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2404,29 +2404,6 @@ GLOBL ·constants<>(SB),8,$8
+ 	tg.run("build", "p")
+ }
+ 
+-// Issue 18778.
+-func TestDotDotDotOutsideGOPATH(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-
+-	tg.tempFile("pkgs/a.go", `package x`)
+-	tg.tempFile("pkgs/a_test.go", `package x_test
+-import "testing"
+-func TestX(t *testing.T) {}`)
+-
+-	tg.tempFile("pkgs/a/a.go", `package a`)
+-	tg.tempFile("pkgs/a/a_test.go", `package a_test
+-import "testing"
+-func TestA(t *testing.T) {}`)
+-
+-	tg.cd(tg.path("pkgs"))
+-	tg.run("build", "./...")
+-	tg.run("test", "./...")
+-	tg.run("list", "./...")
+-	tg.grepStdout("pkgs$", "expected package not listed")
+-	tg.grepStdout("pkgs/a", "expected package not listed")
+-}
+-
+ // Issue 18975.
+ func TestFFLAGS(t *testing.T) {
+ 	if !canCgo {
+diff --git a/src/cmd/go/testdata/script/build_patterns_outside_gopath.txt b/src/cmd/go/testdata/script/build_patterns_outside_gopath.txt
+new file mode 100644
+index 0000000000..f36e90fea6
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_patterns_outside_gopath.txt
+@@ -0,0 +1,29 @@
++# Tests issue #18778
++
++cd pkgs
++go build ./...
++! stdout .
++go test ./...
++stdout '^ok'
++go list ./...
++stdout 'pkgs$'
++stdout 'pkgs/a'
++
++-- pkgs/a.go --
++package x
++-- pkgs/a_test.go --
++package x_test
++
++import "testing"
++
++func TestX(t *testing.T) {
++}
++-- pkgs/a/a.go --
++package a
++-- pkgs/a/a_test.go --
++package a_test
++
++import "testing"
++
++func TestA(t *testing.T) {
++}
+\ No newline at end of file

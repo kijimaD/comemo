@@ -11,6 +11,22 @@ Date:   Sun Apr 10 10:43:04 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/hashmap.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index 9e18192cd8..d549ce4194 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -790,7 +790,9 @@ next:
+ 				}
+ 			}
+ 			it.bucket = bucket
+-			it.bptr = b
++			if it.bptr != b { // avoid unnecessary write barrier; see issue 14921
++				it.bptr = b
++			}
+ 			it.i = i + 1
+ 			it.checkBucket = checkBucket
+ 			return

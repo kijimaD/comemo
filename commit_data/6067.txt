@@ -8,6 +8,17 @@ Date:   Tue Aug 24 10:38:52 2010 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/1958048
-
+---
  src/pkg/os/types.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/types.go b/src/pkg/os/types.go
+index 0e76e90be0..79f6e9d497 100644
+--- a/src/pkg/os/types.go
++++ b/src/pkg/os/types.go
+@@ -53,4 +53,4 @@ func (f *FileInfo) IsSymlink() bool { return (f.Mode & syscall.S_IFMT) == syscal
+ func (f *FileInfo) IsSocket() bool { return (f.Mode & syscall.S_IFMT) == syscall.S_IFSOCK }
+ 
+ // Permission returns the file permission bits.
+-func (f *FileInfo) Permission() int { return int(f.Mode & 0777) }
++func (f *FileInfo) Permission() uint32 { return f.Mode & 0777 }

@@ -8,7 +8,54 @@ Date:   Wed Jul 16 12:19:33 2014 +0400
     R=golang-codereviews, rsc
     CC=golang-codereviews, khr
     https://golang.org/cl/117810043
-
+---
  src/pkg/runtime/crash_test.go | 15 +++++++++++++++
  src/pkg/runtime/proc.c        |  4 ++++
  2 files changed, 19 insertions(+)
+
+diff --git a/src/pkg/runtime/crash_test.go b/src/pkg/runtime/crash_test.go
+index 8552d2fe66..c61fa162f0 100644
+--- a/src/pkg/runtime/crash_test.go
++++ b/src/pkg/runtime/crash_test.go
+@@ -167,6 +167,14 @@ func TestGoNil(t *testing.T) {
+ 	}
+ }
+ 
++func TestMainGoroutineId(t *testing.T) {
++	output := executeTest(t, mainGoroutineIdSource, nil)
++	want := "panic: test\n\ngoroutine 1 [running]:\n"
++	if !strings.HasPrefix(output, want) {
++		t.Fatalf("output does not start with %q:\n%s", want, output)
++	}
++}
++
+ const crashSource = `
+ package main
+ 
+@@ -365,3 +373,10 @@ func main() {
+ 	select{}
+ }
+ `
++
++const mainGoroutineIdSource = `
++package main
++func main() {
++	panic("test")
++}
++`
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 22ddce5bd4..0b75415aca 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1882,7 +1882,11 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
+ 	newg->gopc = (uintptr)callerpc;
+ 	newg->status = Grunnable;
+ 	if(p->goidcache == p->goidcacheend) {
++		// Sched.goidgen is the last allocated id,
++		// this batch must be [sched.goidgen+1, sched.goidgen+GoidCacheBatch].
++		// At startup sched.goidgen=0, so main goroutine receives goid=1.
+ 		p->goidcache = runtime·xadd64(&runtime·sched.goidgen, GoidCacheBatch);
++		p->goidcache -= GoidCacheBatch - 1;
+ 		p->goidcacheend = p->goidcache + GoidCacheBatch;
+ 	}
+ 	newg->goid = p->goidcache++;

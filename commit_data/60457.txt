@@ -22,7 +22,7 @@ Date:   Tue Jul 23 17:38:32 2024 -0400
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/go.mod                                     |  2 +-
  src/cmd/go.sum                                     |  4 ++--
  .../google/pprof/internal/driver/html/common.css   | 10 +++++----
@@ -33,3 +33,259 @@ Date:   Tue Jul 23 17:38:32 2024 -0400
  .../google/pprof/internal/report/stacks.go         |  7 +++++++
  src/cmd/vendor/modules.txt                         |  2 +-
  9 files changed, 48 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index d30c2604d4..44ff904657 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -3,7 +3,7 @@ module cmd
+ go 1.24
+ 
+ require (
+-	github.com/google/pprof v0.0.0-20240528025155-186aa0362fba
++	github.com/google/pprof v0.0.0-20240722153945-304e4f0156b8
+ 	golang.org/x/arch v0.8.1-0.20240716161256-b863392466ea
+ 	golang.org/x/build v0.0.0-20240722200705-b9910f320300
+ 	golang.org/x/mod v0.19.1-0.20240718175220-b56a28f8bd83
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 293d2459ab..15be5526ff 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -1,7 +1,7 @@
+ github.com/google/go-cmp v0.6.0 h1:ofyhxvXcZhMsU5ulbFiLKl/XBFqE1GSq7atu8tAmTRI=
+ github.com/google/go-cmp v0.6.0/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
+-github.com/google/pprof v0.0.0-20240528025155-186aa0362fba h1:ql1qNgCyOB7iAEk8JTNM+zJrgIbnyCKX/wdlyPufP5g=
+-github.com/google/pprof v0.0.0-20240528025155-186aa0362fba/go.mod h1:K1liHPHnj73Fdn/EKuT8nrFqBihUSKXoLYU0BuatOYo=
++github.com/google/pprof v0.0.0-20240722153945-304e4f0156b8 h1:ssNFCCVmib/GQSzx3uCWyfMgOamLGWuGqlMS77Y1m3Y=
++github.com/google/pprof v0.0.0-20240722153945-304e4f0156b8/go.mod h1:K1liHPHnj73Fdn/EKuT8nrFqBihUSKXoLYU0BuatOYo=
+ github.com/ianlancetaylor/demangle v0.0.0-20240312041847-bd984b5ce465 h1:KwWnWVWCNtNq/ewIX7HIKnELmEx2nDP42yskD/pi7QE=
+ github.com/ianlancetaylor/demangle v0.0.0-20240312041847-bd984b5ce465/go.mod h1:gx7rwoVhcfuVKG5uya9Hs3Sxj7EIvldVofAWIUtGouw=
+ github.com/yuin/goldmark v1.6.0 h1:boZcn2GTjpsynOsC0iJHnBWa4Bi0qzfJjthwauItG68=
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/common.css b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/common.css
+index e0de53c1e1..14f836ff10 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/common.css
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/common.css
+@@ -52,7 +52,6 @@ a {
+ }
+ #detailsbox {
+   display: none;
+-  z-index: 1;
+   position: fixed;
+   top: 40px;
+   right: 20px;
+@@ -107,7 +106,6 @@ a {
+ }
+ .submenu {
+   display: none;
+-  z-index: 1;
+   margin-top: -4px;
+   min-width: 10em;
+   position: absolute;
+@@ -169,8 +167,6 @@ a {
+   top: 60px;
+   left: 50%;
+   transform: translateX(-50%);
+-
+-  z-index: 3;
+   font-size: 125%;
+   background-color: #ffffff;
+   box-shadow: 0 1px 5px rgba(0,0,0,.3);
+@@ -271,3 +267,9 @@ table tr td {
+   background-color: #ebf5fb;
+   font-weight: bold;
+ }
++/* stacking order */
++.boxtext         { z-index: 2; }  /* flame graph box text */
++#current-details { z-index: 2; }  /* flame graph current box info */
++#detailsbox      { z-index: 3; }  /* profile details */
++.submenu         { z-index: 4; }
++.dialog          { z-index: 5; }
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.css b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.css
+index f5aeb9857a..34c54ebb49 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.css
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.css
+@@ -19,7 +19,6 @@ body {
+   position: absolute;
+   top: 5px;
+   right: 5px;
+-  z-index: 2;
+   font-size: 12pt;
+ }
+ /* Background of a single flame-graph frame */
+@@ -57,8 +56,6 @@ body {
+   font-size: 12pt;
+   font-weight: bold;
+ }
+-/* Ensure that pprof menu is above boxes */
+-.submenu { z-index: 3; }
+ /* Right-click menu */
+ #action-menu {
+   max-width: 15em;
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.js b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.js
+index df0f0649b9..ced7151e8e 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.js
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.js
+@@ -436,13 +436,29 @@ function stackViewer(stacks, nodes) {
+       r.appendChild(t);
+     }
+ 
+-    r.addEventListener('click', () => { switchPivots(pprofQuoteMeta(src.UniqueName)); });
++    onClick(r, () => { switchPivots(pprofQuoteMeta(src.UniqueName)); });
+     r.addEventListener('mouseenter', () => { handleEnter(box, r); });
+     r.addEventListener('mouseleave', () => { handleLeave(box); });
+     r.addEventListener('contextmenu', (e) => { showActionMenu(e, box); });
+     return r;
+   }
+ 
++  // Handle clicks, but only if the mouse did not move during the click.
++  function onClick(target, handler) {
++    // Disable click if mouse moves more than threshold pixels since mousedown.
++    const threshold = 3;
++    let [x, y] = [-1, -1];
++    target.addEventListener('mousedown', (e) => {
++      [x, y] = [e.clientX, e.clientY];
++    });
++    target.addEventListener('click', (e) => {
++      if (Math.abs(e.clientX - x) <= threshold &&
++          Math.abs(e.clientY - y) <= threshold) {
++        handler();
++      }
++    });
++  }
++
+   function drawSep(y, posTotal, negTotal) {
+     const m = document.createElement('div');
+     m.innerText = summary(posTotal, negTotal);
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/stacks.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/stacks.go
+index 355b8f2e2a..a7936107d1 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/stacks.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/stacks.go
+@@ -20,7 +20,6 @@ import (
+ 	"net/http"
+ 
+ 	"github.com/google/pprof/internal/measurement"
+-	"github.com/google/pprof/internal/report"
+ )
+ 
+ // stackView generates the flamegraph view.
+@@ -51,8 +50,7 @@ func (ui *webInterface) stackView(w http.ResponseWriter, req *http.Request) {
+ 	}
+ 	nodes[0] = "" // root is not a real node
+ 
+-	_, legend := report.TextItems(rpt)
+-	ui.render(w, req, "stacks", rpt, errList, legend, webArgs{
++	ui.render(w, req, "stacks", rpt, errList, stacks.Legend(), webArgs{
+ 		Stacks:   template.JS(b),
+ 		Nodes:    nodes,
+ 		UnitDefs: measurement.UnitTypes,
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/report/report.go b/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
+index d72ebe914f..e21ce859d4 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
+@@ -781,7 +781,7 @@ type TextItem struct {
+ func TextItems(rpt *Report) ([]TextItem, []string) {
+ 	g, origCount, droppedNodes, _ := rpt.newTrimmedGraph()
+ 	rpt.selectOutputUnit(g)
+-	labels := reportLabels(rpt, g, origCount, droppedNodes, 0, false)
++	labels := reportLabels(rpt, graphTotal(g), len(g.Nodes), origCount, droppedNodes, 0, false)
+ 
+ 	var items []TextItem
+ 	var flatSum int64
+@@ -1064,7 +1064,7 @@ func printTree(w io.Writer, rpt *Report) error {
+ 	g, origCount, droppedNodes, _ := rpt.newTrimmedGraph()
+ 	rpt.selectOutputUnit(g)
+ 
+-	fmt.Fprintln(w, strings.Join(reportLabels(rpt, g, origCount, droppedNodes, 0, false), "\n"))
++	fmt.Fprintln(w, strings.Join(reportLabels(rpt, graphTotal(g), len(g.Nodes), origCount, droppedNodes, 0, false), "\n"))
+ 
+ 	fmt.Fprintln(w, separator)
+ 	fmt.Fprintln(w, legend)
+@@ -1128,7 +1128,7 @@ func printTree(w io.Writer, rpt *Report) error {
+ func GetDOT(rpt *Report) (*graph.Graph, *graph.DotConfig) {
+ 	g, origCount, droppedNodes, droppedEdges := rpt.newTrimmedGraph()
+ 	rpt.selectOutputUnit(g)
+-	labels := reportLabels(rpt, g, origCount, droppedNodes, droppedEdges, true)
++	labels := reportLabels(rpt, graphTotal(g), len(g.Nodes), origCount, droppedNodes, droppedEdges, true)
+ 
+ 	c := &graph.DotConfig{
+ 		Title:       rpt.options.Title,
+@@ -1184,12 +1184,19 @@ func ProfileLabels(rpt *Report) []string {
+ 	return label
+ }
+ 
++func graphTotal(g *graph.Graph) int64 {
++	var total int64
++	for _, n := range g.Nodes {
++		total += n.FlatValue()
++	}
++	return total
++}
++
+ // reportLabels returns printable labels for a report. Includes
+ // profileLabels.
+-func reportLabels(rpt *Report, g *graph.Graph, origCount, droppedNodes, droppedEdges int, fullHeaders bool) []string {
++func reportLabels(rpt *Report, shownTotal int64, nodeCount, origCount, droppedNodes, droppedEdges int, fullHeaders bool) []string {
+ 	nodeFraction := rpt.options.NodeFraction
+ 	edgeFraction := rpt.options.EdgeFraction
+-	nodeCount := len(g.Nodes)
+ 
+ 	var label []string
+ 	if len(rpt.options.ProfileLabels) > 0 {
+@@ -1198,17 +1205,12 @@ func reportLabels(rpt *Report, g *graph.Graph, origCount, droppedNodes, droppedE
+ 		label = ProfileLabels(rpt)
+ 	}
+ 
+-	var flatSum int64
+-	for _, n := range g.Nodes {
+-		flatSum = flatSum + n.FlatValue()
+-	}
+-
+ 	if len(rpt.options.ActiveFilters) > 0 {
+ 		activeFilters := legendActiveFilters(rpt.options.ActiveFilters)
+ 		label = append(label, activeFilters...)
+ 	}
+ 
+-	label = append(label, fmt.Sprintf("Showing nodes accounting for %s, %s of %s total", rpt.formatValue(flatSum), strings.TrimSpace(measurement.Percentage(flatSum, rpt.total)), rpt.formatValue(rpt.total)))
++	label = append(label, fmt.Sprintf("Showing nodes accounting for %s, %s of %s total", rpt.formatValue(shownTotal), strings.TrimSpace(measurement.Percentage(shownTotal, rpt.total)), rpt.formatValue(rpt.total)))
+ 
+ 	if rpt.total != 0 {
+ 		if droppedNodes > 0 {
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/report/stacks.go b/src/cmd/vendor/github.com/google/pprof/internal/report/stacks.go
+index aa3bf80f2d..c6b07b86de 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/report/stacks.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/report/stacks.go
+@@ -34,6 +34,7 @@ type StackSet struct {
+ 	Unit    string        // One of "B", "s", "GCU", or "" (if unknown)
+ 	Stacks  []Stack       // List of stored stacks
+ 	Sources []StackSource // Mapping from source index to info
++	report  *Report
+ }
+ 
+ // Stack holds a single stack instance.
+@@ -94,6 +95,7 @@ func (rpt *Report) Stacks() StackSet {
+ 		Unit:    unit,
+ 		Stacks:  []Stack{},       // Ensure non-nil
+ 		Sources: []StackSource{}, // Ensure non-nil
++		report:  rpt,
+ 	}
+ 	s.makeInitialStacks(rpt)
+ 	s.fillPlaces()
+@@ -187,3 +189,8 @@ func (s *StackSet) assignColors() {
+ 		s.Sources[i].Color = int(index % numColors)
+ 	}
+ }
++
++// Legend returns the list of lines to display as the legend.
++func (s *StackSet) Legend() []string {
++	return reportLabels(s.report, s.report.total, len(s.Sources), len(s.Sources), 0, 0, false)
++}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index aaed6b9114..3d3a226686 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -1,4 +1,4 @@
+-# github.com/google/pprof v0.0.0-20240528025155-186aa0362fba
++# github.com/google/pprof v0.0.0-20240722153945-304e4f0156b8
+ ## explicit; go 1.19
+ github.com/google/pprof/driver
+ github.com/google/pprof/internal/binutils

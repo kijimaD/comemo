@@ -7,6 +7,25 @@ Date:   Mon May 24 16:53:23 2010 -0700
     R=rsc
     CC=golang-dev, r
     https://golang.org/cl/1271041
-
+---
  src/pkg/net/udpsock.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/pkg/net/udpsock.go b/src/pkg/net/udpsock.go
+index 6de69a9c9b..5e22c778d9 100644
+--- a/src/pkg/net/udpsock.go
++++ b/src/pkg/net/udpsock.go
+@@ -259,3 +259,13 @@ func ListenUDP(net string, laddr *UDPAddr) (c *UDPConn, err os.Error) {
+ 	}
+ 	return newUDPConn(fd), nil
+ }
++
++// BindToDevice binds a UDPConn to a network interface.
++func (c *UDPConn) BindToDevice(device string) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	c.fd.incref()
++	defer c.fd.decref()
++	return os.NewSyscallError("setsockopt", syscall.BindToDevice(c.fd.sysfd, device))
++}

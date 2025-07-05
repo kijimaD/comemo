@@ -8,6 +8,35 @@ Date:   Thu Aug 14 14:34:48 2014 -0400
     R=minux
     CC=golang-codereviews
     https://golang.org/cl/125300043
-
+---
  src/cmd/dist/goc2c.c | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/dist/goc2c.c b/src/cmd/dist/goc2c.c
+index 38627657ec..72cbc1be62 100644
+--- a/src/cmd/dist/goc2c.c
++++ b/src/cmd/dist/goc2c.c
+@@ -786,7 +786,11 @@ goc2c(char *goc, char *c)
+ 	// TODO: set gcc=1 when using gcc
+ 
+ 	if(!gcc) {
+-		if(streq(goarch, "amd64")) {
++		if(contains(goarch, "64p32")) {
++			type_table[Uintptr].size = 4;
++			type_table[Int].size = 4;
++			structround = 8;
++		} else if(contains(goarch, "64")) {
+ 			type_table[Uintptr].size = 8;
+ 			if(use64bitint) {
+ 				type_table[Int].size = 8;
+@@ -794,10 +798,6 @@ goc2c(char *goc, char *c)
+ 				type_table[Int].size = 4;
+ 			}
+ 			structround = 8;
+-		} else if(streq(goarch, "amd64p32")) {
+-			type_table[Uintptr].size = 4;
+-			type_table[Int].size = 4;
+-			structround = 8;
+ 		} else {
+ 			// NOTE: These are set in the initializer,
+ 			// but they might have been changed by a

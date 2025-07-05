@@ -13,6 +13,25 @@ Date:   Sat Aug 1 12:55:47 2020 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/race/syso_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/race/syso_test.go b/src/runtime/race/syso_test.go
+index e959c8d0bd..db846c5d2a 100644
+--- a/src/runtime/race/syso_test.go
++++ b/src/runtime/race/syso_test.go
+@@ -2,10 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !android,!js
++// +build !android,!js,!ppc64le
+ 
+-// Note: we don't run on Android because if there is any non-race test
+-// file in this package, Android tries to link the .syso file into the
++// Note: we don't run on Android or ppc64 because if there is any non-race test
++// file in this package, the OS tries to link the .syso file into the
+ // test (even when we're not in race mode), which fails. I'm not sure
+ // why, but easiest to just punt - as long as a single builder runs
+ // this test, we're good.

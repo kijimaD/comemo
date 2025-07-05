@@ -21,7 +21,71 @@ Date:   Fri Sep 9 17:29:12 2022 -0400
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  misc/reboot/reboot_test.go      | 24 ++++++++++++++++++++----
  src/cmd/go/internal/load/pkg.go |  6 ++++++
  2 files changed, 26 insertions(+), 4 deletions(-)
+
+diff --git a/misc/reboot/reboot_test.go b/misc/reboot/reboot_test.go
+index a134affbc2..a1b513b432 100644
+--- a/misc/reboot/reboot_test.go
++++ b/misc/reboot/reboot_test.go
+@@ -20,11 +20,27 @@ func TestRepeatBootstrap(t *testing.T) {
+ 		t.Skipf("skipping test that rebuilds the entire toolchain")
+ 	}
+ 
+-	goroot := t.TempDir()
++	realGoroot, err := filepath.Abs(filepath.Join("..", ".."))
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	// To ensure that bootstrapping doesn't unexpectedly depend
++	// on the Go repo's git metadata, add a fake (unreadable) git
++	// directory above the simulated GOROOT.
++	// This mimics the configuration one much have when
++	// building from distro-packaged source code
++	// (see https://go.dev/issue/54852).
++	parent := t.TempDir()
++	dotGit := filepath.Join(parent, ".git")
++	if err := os.Mkdir(dotGit, 000); err != nil {
++		t.Fatal(err)
++	}
++	goroot := filepath.Join(parent, "goroot")
+ 
+ 	gorootSrc := filepath.Join(goroot, "src")
+ 	overlayStart := time.Now()
+-	if err := overlayDir(gorootSrc, filepath.Join(runtime.GOROOT(), "src")); err != nil {
++	if err := overlayDir(gorootSrc, filepath.Join(realGoroot, "src")); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	t.Logf("GOROOT/src overlay set up in %s", time.Since(overlayStart))
+@@ -43,9 +59,9 @@ func TestRepeatBootstrap(t *testing.T) {
+ 		makeScript = "make.bash"
+ 	}
+ 
+-	cmd := exec.Command(filepath.Join(runtime.GOROOT(), "src", makeScript))
++	cmd := exec.Command(filepath.Join(goroot, "src", makeScript))
+ 	cmd.Dir = gorootSrc
+-	cmd.Env = append(os.Environ(), "GOROOT=", "GOROOT_BOOTSTRAP="+runtime.GOROOT())
++	cmd.Env = append(cmd.Environ(), "GOROOT=", "GOROOT_BOOTSTRAP="+realGoroot)
+ 	cmd.Stderr = os.Stderr
+ 	cmd.Stdout = os.Stdout
+ 	if err := cmd.Run(); err != nil {
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index b1e4549d71..a6e380b89f 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -2441,6 +2441,12 @@ func (p *Package) setBuildInfo(autoVCS bool) {
+ 	}
+ 
+ 	if wantVCS && p.Module != nil && p.Module.Version == "" && !p.Standard {
++		if p.Module.Path == "bootstrap" && cfg.GOROOT == os.Getenv("GOROOT_BOOTSTRAP") {
++			// During bootstrapping, the bootstrap toolchain is built in module
++			// "bootstrap" (instead of "std"), with GOROOT set to GOROOT_BOOTSTRAP
++			// (so the bootstrap toolchain packages don't even appear to be in GOROOT).
++			goto omitVCS
++		}
+ 		repoDir, vcsCmd, err = vcs.FromDir(base.Cwd(), "", allowNesting)
+ 		if err != nil && !errors.Is(err, os.ErrNotExist) {
+ 			setVCSError(err)

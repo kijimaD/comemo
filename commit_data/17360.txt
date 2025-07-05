@@ -17,7 +17,58 @@ Date:   Thu Aug 22 10:33:06 2013 +0900
     R=golang-dev, dave, bradfitz
     CC=golang-dev
     https://golang.org/cl/13092043
-
+---
  src/pkg/net/udpsock_posix.go  | 8 ++++----
  src/pkg/net/unixsock_posix.go | 8 ++++----
  2 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/net/udpsock_posix.go b/src/pkg/net/udpsock_posix.go
+index 1eee64f0c8..3f9230b283 100644
+--- a/src/pkg/net/udpsock_posix.go
++++ b/src/pkg/net/udpsock_posix.go
+@@ -170,10 +170,6 @@ func (c *UDPConn) WriteMsgUDP(b, oob []byte, addr *UDPAddr) (n, oobn int, err er
+ // which must be "udp", "udp4", or "udp6".  If laddr is not nil, it is
+ // used as the local address for the connection.
+ func DialUDP(net string, laddr, raddr *UDPAddr) (*UDPConn, error) {
+-	return dialUDP(net, laddr, raddr, noDeadline)
+-}
+-
+-func dialUDP(net string, laddr, raddr *UDPAddr, deadline time.Time) (*UDPConn, error) {
+ 	switch net {
+ 	case "udp", "udp4", "udp6":
+ 	default:
+@@ -182,6 +178,10 @@ func dialUDP(net string, laddr, raddr *UDPAddr, deadline time.Time) (*UDPConn, e
+ 	if raddr == nil {
+ 		return nil, &OpError{"dial", net, nil, errMissingAddress}
+ 	}
++	return dialUDP(net, laddr, raddr, noDeadline)
++}
++
++func dialUDP(net string, laddr, raddr *UDPAddr, deadline time.Time) (*UDPConn, error) {
+ 	fd, err := internetSocket(net, laddr, raddr, deadline, syscall.SOCK_DGRAM, 0, "dial", sockaddrToUDP)
+ 	if err != nil {
+ 		return nil, err
+diff --git a/src/pkg/net/unixsock_posix.go b/src/pkg/net/unixsock_posix.go
+index 2ae92a0233..94296b92c7 100644
+--- a/src/pkg/net/unixsock_posix.go
++++ b/src/pkg/net/unixsock_posix.go
+@@ -247,15 +247,15 @@ func (c *UnixConn) CloseWrite() error {
+ // which must be "unix", "unixgram" or "unixpacket".  If laddr is not
+ // nil, it is used as the local address for the connection.
+ func DialUnix(net string, laddr, raddr *UnixAddr) (*UnixConn, error) {
+-	return dialUnix(net, laddr, raddr, noDeadline)
+-}
+-
+-func dialUnix(net string, laddr, raddr *UnixAddr, deadline time.Time) (*UnixConn, error) {
+ 	switch net {
+ 	case "unix", "unixgram", "unixpacket":
+ 	default:
+ 		return nil, UnknownNetworkError(net)
+ 	}
++	return dialUnix(net, laddr, raddr, noDeadline)
++}
++
++func dialUnix(net string, laddr, raddr *UnixAddr, deadline time.Time) (*UnixConn, error) {
+ 	fd, err := unixSocket(net, laddr, raddr, "dial", deadline)
+ 	if err != nil {
+ 		return nil, err

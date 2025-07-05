@@ -7,6 +7,20 @@ Date:   Sat Jun 17 02:07:44 2017 -0400
     Change-Id: Ia5c8fcff000bf3d369d42407342c470ea92e18da
     Reviewed-on: https://go-review.googlesource.com/46006
     Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
-
+---
  doc/go1.9.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.9.html b/doc/go1.9.html
+index 5c877bc4c9..8b10218ca7 100644
+--- a/doc/go1.9.html
++++ b/doc/go1.9.html
+@@ -259,7 +259,7 @@ CL 40331: https://golang.org/cl/40331: cmd/link,runtime/cgo: enable PT_TLS gener
+ <p> <!-- CL 38796 -->
+   The
+   new <a href="/pkg/testing/#T.Helper"><code>(*T).Helper</code></a>
+-  an <a href="/pkg/testing/#B.Helper"><code>(*B).Helper</code></a>
++  and <a href="/pkg/testing/#B.Helper"><code>(*B).Helper</code></a>
+   methods mark the calling function as a test helper function.  When
+   printing file and line information, that function will be skipped.
+   This permits writing test helper functions while still having useful

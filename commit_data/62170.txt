@@ -14,8 +14,115 @@ Date:   Fri Dec 13 14:17:48 2024 -0500
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  .../internal/fips140test/acvp_capabilities.json    |  3 +-
  .../internal/fips140test/acvp_test.config.json     |  4 +-
  src/crypto/internal/fips140test/acvp_test.go       | 55 ++++++++++++++++++++++
  3 files changed, 60 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/internal/fips140test/acvp_capabilities.json b/src/crypto/internal/fips140test/acvp_capabilities.json
+index 68d8e3bd2a..117bd9e30b 100644
+--- a/src/crypto/internal/fips140test/acvp_capabilities.json
++++ b/src/crypto/internal/fips140test/acvp_capabilities.json
+@@ -53,5 +53,6 @@
+   {"algorithm":"ACVP-AES-CBC","direction":["encrypt","decrypt"],"keyLen":[128,192,256],"revision":"1.0"},
+   {"algorithm":"ACVP-AES-CTR","direction":["encrypt","decrypt"],"keyLen":[128,192,256],"payloadLen":[{"min":8,"max":128,"increment":8}],"incrementalCounter":true,"overflowCounter":true,"performCounterTests":true,"revision":"1.0"},
+   {"algorithm":"ACVP-AES-GCM","direction":["encrypt","decrypt"],"keyLen":[128,192,256],"payloadLen":[{"min":0,"max":65536,"increment":8}],"aadLen":[{"min":0,"max":65536,"increment":8}],"tagLen":[96,104,112,120,128],"ivLen":[96],"ivGen":"external","revision":"1.0"},
+-  {"algorithm":"ACVP-AES-GCM","direction":["encrypt","decrypt"],"keyLen":[128,192,256],"payloadLen":[{"min":0,"max":65536,"increment":8}],"aadLen":[{"min":0,"max":65536,"increment":8}],"tagLen":[128],"ivLen":[96],"ivGen":"internal","ivGenMode":"8.2.2","revision":"1.0"}
++  {"algorithm":"ACVP-AES-GCM","direction":["encrypt","decrypt"],"keyLen":[128,192,256],"payloadLen":[{"min":0,"max":65536,"increment":8}],"aadLen":[{"min":0,"max":65536,"increment":8}],"tagLen":[128],"ivLen":[96],"ivGen":"internal","ivGenMode":"8.2.2","revision":"1.0"},
++  {"algorithm":"CMAC-AES","capabilities":[{"direction":["gen","ver"],"msgLen":[{"min":0,"max":524288,"increment":8}],"keyLen":[128,256],"macLen":[{"min":8,"max":128,"increment":8}]}],"revision":"1.0"}
+ ]
+diff --git a/src/crypto/internal/fips140test/acvp_test.config.json b/src/crypto/internal/fips140test/acvp_test.config.json
+index d994f5b7c5..c2bb9fc662 100644
+--- a/src/crypto/internal/fips140test/acvp_test.config.json
++++ b/src/crypto/internal/fips140test/acvp_test.config.json
+@@ -35,5 +35,7 @@
+ 
+   {"Wrapper": "go", "In": "vectors/ACVP-AES-CBC.bz2", "Out": "expected/ACVP-AES-CBC.bz2"},
+   {"Wrapper": "go", "In": "vectors/ACVP-AES-CTR.bz2", "Out": "expected/ACVP-AES-CTR.bz2"},
+-  {"Wrapper": "go", "In": "vectors/ACVP-AES-GCM.bz2", "Out": "expected/ACVP-AES-GCM.bz2"}
++  {"Wrapper": "go", "In": "vectors/ACVP-AES-GCM.bz2", "Out": "expected/ACVP-AES-GCM.bz2"},
++
++  {"Wrapper": "go", "In": "vectors/CMAC-AES.bz2", "Out": "expected/CMAC-AES.bz2"}
+ ]
+\ No newline at end of file
+diff --git a/src/crypto/internal/fips140test/acvp_test.go b/src/crypto/internal/fips140test/acvp_test.go
+index 2637ccc3e4..2f425effd5 100644
+--- a/src/crypto/internal/fips140test/acvp_test.go
++++ b/src/crypto/internal/fips140test/acvp_test.go
+@@ -35,6 +35,7 @@ import (
+ 	"crypto/internal/fips140/sha256"
+ 	"crypto/internal/fips140/sha3"
+ 	"crypto/internal/fips140/sha512"
++	"crypto/internal/fips140/subtle"
+ 	"crypto/rand"
+ 	_ "embed"
+ 	"encoding/binary"
+@@ -189,6 +190,9 @@ var (
+ 		"AES-GCM/open":           cmdAesGcmOpen(false),
+ 		"AES-GCM-randnonce/seal": cmdAesGcmSeal(true),
+ 		"AES-GCM-randnonce/open": cmdAesGcmOpen(true),
++
++		"CMAC-AES":        cmdCmacAesAft(),
++		"CMAC-AES/verify": cmdCmacAesVerifyAft(),
+ 	}
+ )
+ 
+@@ -1154,6 +1158,57 @@ func cmdAesGcmOpen(randNonce bool) command {
+ 	}
+ }
+ 
++func cmdCmacAesAft() command {
++	return command{
++		requiredArgs: 3, // Number of output bytes, key, message
++		handler: func(args [][]byte) ([][]byte, error) {
++			// safe to truncate to int based on our capabilities describing a max MAC output len of 128 bits.
++			outputLen := int(binary.LittleEndian.Uint32(args[0]))
++			key := args[1]
++			message := args[2]
++
++			blockCipher, err := aes.New(key)
++			if err != nil {
++				return nil, fmt.Errorf("creating AES block cipher with key len %d: %w", len(key), err)
++			}
++
++			cmac := gcm.NewCMAC(blockCipher)
++			tag := cmac.MAC(message)
++
++			if outputLen > len(tag) {
++				return nil, fmt.Errorf("invalid output length: expected %d, got %d", outputLen, len(tag))
++			}
++
++			return [][]byte{tag[:outputLen]}, nil
++		},
++	}
++}
++
++func cmdCmacAesVerifyAft() command {
++	return command{
++		requiredArgs: 3, // Key, message, claimed MAC
++		handler: func(args [][]byte) ([][]byte, error) {
++			key := args[0]
++			message := args[1]
++			claimedMAC := args[2]
++
++			blockCipher, err := aes.New(key)
++			if err != nil {
++				return nil, fmt.Errorf("creating AES block cipher with key len %d: %w", len(key), err)
++			}
++
++			cmac := gcm.NewCMAC(blockCipher)
++			tag := cmac.MAC(message)
++
++			if subtle.ConstantTimeCompare(tag[:len(claimedMAC)], claimedMAC) != 1 {
++				return [][]byte{{0}}, nil
++			}
++
++			return [][]byte{{1}}, nil
++		},
++	}
++}
++
+ func TestACVP(t *testing.T) {
+ 	testenv.SkipIfShortAndSlow(t)
+ 

@@ -18,7 +18,95 @@ Date:   Wed Aug 4 02:47:57 2021 +0000
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/encoding/gob/encode.go       | 10 ++++----
  src/encoding/gob/encoder_test.go | 50 ++++++++++++++++++++++++++++++++++++++++
  2 files changed, 55 insertions(+), 5 deletions(-)
+
+diff --git a/src/encoding/gob/encode.go b/src/encoding/gob/encode.go
+index 8f8f170c16..f1f5f3862d 100644
+--- a/src/encoding/gob/encode.go
++++ b/src/encoding/gob/encode.go
+@@ -368,11 +368,11 @@ func (enc *Encoder) encodeMap(b *encBuffer, mv reflect.Value, keyOp, elemOp encO
+ 	state := enc.newEncoderState(b)
+ 	state.fieldnum = -1
+ 	state.sendZero = true
+-	keys := mv.MapKeys()
+-	state.encodeUint(uint64(len(keys)))
+-	for _, key := range keys {
+-		encodeReflectValue(state, key, keyOp, keyIndir)
+-		encodeReflectValue(state, mv.MapIndex(key), elemOp, elemIndir)
++	state.encodeUint(uint64(mv.Len()))
++	mi := mv.MapRange()
++	for mi.Next() {
++		encodeReflectValue(state, mi.Key(), keyOp, keyIndir)
++		encodeReflectValue(state, mi.Value(), elemOp, elemIndir)
+ 	}
+ 	enc.freeEncoderState(state)
+ }
+diff --git a/src/encoding/gob/encoder_test.go b/src/encoding/gob/encoder_test.go
+index 6183646f60..6d50b82573 100644
+--- a/src/encoding/gob/encoder_test.go
++++ b/src/encoding/gob/encoder_test.go
+@@ -9,7 +9,9 @@ import (
+ 	"encoding/hex"
+ 	"fmt"
+ 	"io"
++	"math"
+ 	"reflect"
++	"sort"
+ 	"strings"
+ 	"testing"
+ )
+@@ -1152,3 +1154,51 @@ func TestDecodeErrorMultipleTypes(t *testing.T) {
+ 		t.Errorf("decode: expected duplicate type error, got %s", err.Error())
+ 	}
+ }
++
++// Issue 24075
++func TestMarshalFloatMap(t *testing.T) {
++	nan1 := math.NaN()
++	nan2 := math.Float64frombits(math.Float64bits(nan1) ^ 1) // A different NaN in the same class.
++
++	in := map[float64]string{
++		nan1: "a",
++		nan1: "b",
++		nan2: "c",
++	}
++
++	var b bytes.Buffer
++	enc := NewEncoder(&b)
++	if err := enc.Encode(in); err != nil {
++		t.Errorf("Encode : %v", err)
++	}
++
++	out := map[float64]string{}
++	dec := NewDecoder(&b)
++	if err := dec.Decode(&out); err != nil {
++		t.Fatalf("Decode : %v", err)
++	}
++
++	type mapEntry struct {
++		keyBits uint64
++		value   string
++	}
++	readMap := func(m map[float64]string) (entries []mapEntry) {
++		for k, v := range m {
++			entries = append(entries, mapEntry{math.Float64bits(k), v})
++		}
++		sort.Slice(entries, func(i, j int) bool {
++			ei, ej := entries[i], entries[j]
++			if ei.keyBits != ej.keyBits {
++				return ei.keyBits < ej.keyBits
++			}
++			return ei.value < ej.value
++		})
++		return entries
++	}
++
++	got := readMap(out)
++	want := readMap(in)
++	if !reflect.DeepEqual(got, want) {
++		t.Fatalf("\nEncode: %v\nDecode: %v", want, got)
++	}
++}

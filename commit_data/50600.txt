@@ -16,7 +16,7 @@ Date:   Tue Nov 2 18:25:21 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/conversions.go                    | 41 +++++++++++++++++++-------
  src/go/types/expr.go                           |  1 +
  src/go/types/predicates.go                     |  6 ++++
@@ -24,3 +24,180 @@ Date:   Tue Nov 2 18:25:21 2021 -0400
  src/go/types/testdata/fixedbugs/issue49296.go2 | 21 +++++++++++++
  src/go/types/testdata/spec/conversions.go2     | 21 +++++++++++++
  6 files changed, 100 insertions(+), 10 deletions(-)
+
+diff --git a/src/go/types/conversions.go b/src/go/types/conversions.go
+index f8af12b68f..9baad98e09 100644
+--- a/src/go/types/conversions.go
++++ b/src/go/types/conversions.go
+@@ -16,26 +16,47 @@ import (
+ func (check *Checker) conversion(x *operand, T Type) {
+ 	constArg := x.mode == constant_
+ 
+-	var ok bool
+-	var cause string
+-	switch {
+-	case constArg && isConstType(T):
+-		// constant conversion (T cannot be a type parameter)
++	constConvertibleTo := func(T Type, val *constant.Value) bool {
+ 		switch t := asBasic(T); {
+-		case representableConst(x.val, check, t, &x.val):
+-			ok = true
++		case t == nil:
++			// nothing to do
++		case representableConst(x.val, check, t, val):
++			return true
+ 		case isInteger(x.typ) && isString(t):
+ 			codepoint := unicode.ReplacementChar
+ 			if i, ok := constant.Uint64Val(x.val); ok && i <= unicode.MaxRune {
+ 				codepoint = rune(i)
+ 			}
+-			x.val = constant.MakeString(string(codepoint))
+-			ok = true
++			if val != nil {
++				*val = constant.MakeString(string(codepoint))
++			}
++			return true
+ 		}
++		return false
++	}
++
++	var ok bool
++	var cause string
++	switch {
++	case constArg && isConstType(T):
++		// constant conversion
++		ok = constConvertibleTo(T, &x.val)
++	case constArg && isTypeParam(T):
++		// x is convertible to T if it is convertible
++		// to each specific type in the type set of T.
++		// If T's type set is empty, or if it doesn't
++		// have specific types, constant x cannot be
++		// converted.
++		ok = under(T).(*TypeParam).underIs(func(u Type) bool {
++			// t is nil if there are no specific type terms
++			// TODO(gri) add a cause in case of failure
++			return u != nil && constConvertibleTo(u, nil)
++		})
++		x.mode = value // type parameters are not constants
+ 	case x.convertibleTo(check, T, &cause):
+ 		// non-constant conversion
+-		x.mode = value
+ 		ok = true
++		x.mode = value
+ 	}
+ 
+ 	if !ok {
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 612f0da210..d4de212e06 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -681,6 +681,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
+ 			return nil, nil, _InvalidUntypedConversion
+ 		}
+ 	case *TypeParam:
++		// TODO(gri) review this code - doesn't look quite right
+ 		ok := t.underIs(func(t Type) bool {
+ 			target, _, _ := check.implicitTypeAndValue(x, t)
+ 			return target != nil
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 2f74397d41..3c76d15c79 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -82,6 +82,12 @@ func IsInterface(typ Type) bool {
+ 	return asInterface(typ) != nil
+ }
+ 
++// isTypeParam reports whether typ is a type parameter.
++func isTypeParam(typ Type) bool {
++	_, ok := under(typ).(*TypeParam)
++	return ok
++}
++
+ // Comparable reports whether values of type T are comparable.
+ func Comparable(T Type) bool {
+ 	return comparable(T, nil)
+diff --git a/src/go/types/testdata/fixedbugs/issue49247.go2 b/src/go/types/testdata/fixedbugs/issue49247.go2
+new file mode 100644
+index 0000000000..3f25e0ee35
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue49247.go2
+@@ -0,0 +1,20 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type integer interface {
++	~int | ~int8 | ~int16 | ~int32 | ~int64 |
++		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
++}
++
++func Add1024[T integer](s []T) {
++	for i, v := range s {
++		s[i] = v + 1024 // ERROR cannot convert 1024 \(untyped int constant\) to T
++	}
++}
++
++func f[T interface{ int8 }]() {
++	println(T(1024 /* ERROR cannot convert 1024 \(untyped int value\) to T */))
++}
+diff --git a/src/go/types/testdata/fixedbugs/issue49296.go2 b/src/go/types/testdata/fixedbugs/issue49296.go2
+new file mode 100644
+index 0000000000..8c6d0b678d
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue49296.go2
+@@ -0,0 +1,21 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _[
++        T0 any,
++        T1 []int,
++        T2 ~float64 | ~complex128 | chan int,
++]() {
++	// TODO(rfindley): the types2 error here is clearer.
++        _ = T0(nil /* ERROR cannot convert nil \(untyped nil value\) to T0 */ )
++        _ = T1(1 /* ERROR cannot convert 1 .* to T1 */ )
++        _ = T2(2 /* ERROR cannot convert 2 .* to T2 */ )
++}
++
++// test case from issue
++func f[T interface{[]int}]() {
++	_ = T(1 /* ERROR cannot convert */ )
++}
+diff --git a/src/go/types/testdata/spec/conversions.go2 b/src/go/types/testdata/spec/conversions.go2
+index eb988ffed1..47b1f07d87 100644
+--- a/src/go/types/testdata/spec/conversions.go2
++++ b/src/go/types/testdata/spec/conversions.go2
+@@ -6,6 +6,27 @@ package conversions
+ 
+ import "unsafe"
+ 
++// constant conversions
++
++func _[T ~byte]() T { return 255 }
++func _[T ~byte]() T { return 256 /* ERROR cannot use 256 .* as T value */ }
++
++func _[T ~byte]() {
++	const _ = T /* ERROR T\(0\) .* is not constant */ (0)
++	var _ T = 255
++	var _ T = 256 // ERROR cannot use 256 .* as T value
++}
++
++func _[T ~string]() T { return T('a') }
++func _[T ~int | ~string]() T { return T('a') }
++func _[T ~byte | ~int | ~string]() T { return T(256 /* ERROR cannot convert 256 .* to T */ ) }
++
++// implicit conversions never convert to string
++func _[T ~string]() {
++	var _ string = 0 // ERROR cannot use .* as string value
++	var _ T = 0 // ERROR cannot use .* as T value
++}
++
+ // "x is assignable to T"
+ // - tested via assignability tests
+ 

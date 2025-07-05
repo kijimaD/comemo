@@ -8,7 +8,71 @@ Date:   Tue Oct 13 18:01:24 2009 -0700
     DELTA=30  (0 added, 22 deleted, 8 changed)
     OCL=35694
     CL=35697
-
+---
  doc/go_tutorial.html | 20 +++-----------------
  doc/go_tutorial.txt  | 14 +++-----------
  2 files changed, 6 insertions(+), 28 deletions(-)
+
+diff --git a/doc/go_tutorial.html b/doc/go_tutorial.html
+index a54bcc606b..f966ef936a 100644
+--- a/doc/go_tutorial.html
++++ b/doc/go_tutorial.html
+@@ -4,27 +4,13 @@
+ <p>
+ This document is a tutorial introduction to the basics of the Go systems programming
+ language, intended for programmers familiar with C or C++. It is not a comprehensive
+-guide to the language; at the moment the document closest to that is the draft
+-specification:
++guide to the language; at the moment the document closest to that is the
++<a href=/doc/go_spec.html>language specification.</a>
+ <p>
+-<pre>
+-    http://go/go/doc/go_spec.html
+-
+-</pre>
+-To check out the compiler and tools and be ready to run Go programs, see
+-<p>
+-<pre>
+-    http://go/go/doc/go_setup.html
+-
+-</pre>
+ The presentation proceeds through a series of modest programs to illustrate
+ key features of the language.  All the programs work (at time of writing) and are
+-checked in at
++checked into the repository in the directory <a href=/doc/progs><code>/doc/progs</code></a>.
+ <p>
+-<pre>
+-    //depot2/go/doc/progs
+-
+-</pre>
+ Program snippets are annotated with the line number in the original file; for
+ cleanliness, blank lines remain blank.
+ <p>
+diff --git a/doc/go_tutorial.txt b/doc/go_tutorial.txt
+index 3d808da93f..15e29281b5 100644
+--- a/doc/go_tutorial.txt
++++ b/doc/go_tutorial.txt
+@@ -3,20 +3,12 @@ Let's Go
+ 
+ This document is a tutorial introduction to the basics of the Go systems programming
+ language, intended for programmers familiar with C or C++. It is not a comprehensive
+-guide to the language; at the moment the document closest to that is the draft
+-specification:
+-
+-	http://go/go/doc/go_spec.html
+-
+-To check out the compiler and tools and be ready to run Go programs, see
+-
+-	http://go/go/doc/go_setup.html
++guide to the language; at the moment the document closest to that is the
++<a href=/doc/go_spec.html>language specification.</a>
+ 
+ The presentation proceeds through a series of modest programs to illustrate
+ key features of the language.  All the programs work (at time of writing) and are
+-checked in at
+-
+-	//depot2/go/doc/progs
++checked into the repository in the directory <a href=/doc/progs>"/doc/progs"</a>.
+ 
+ Program snippets are annotated with the line number in the original file; for
+ cleanliness, blank lines remain blank.

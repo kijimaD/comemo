@@ -17,7 +17,7 @@ Date:   Thu Aug 4 08:31:03 2011 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4841041
-
+---
  src/pkg/runtime/chan.c           |  8 +++-----
  src/pkg/runtime/chan_test.go     | 22 ++++++++++++++++++++++
  src/pkg/runtime/darwin/thread.c  |  5 +++--
@@ -28,3 +28,194 @@ Date:   Thu Aug 4 08:31:03 2011 -0400
  src/pkg/runtime/runtime.h        |  2 +-
  src/pkg/runtime/windows/thread.c |  6 ++++--
  9 files changed, 34 insertions(+), 26 deletions(-)
+
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index b77e51b60d..65feacb78b 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -85,7 +85,6 @@ runtime·makechan_c(Type *elem, int64 hint)
+ {
+ 	Hchan *c;
+ 	int32 n;
+-	byte *by;
+ 
+ 	if(hint < 0 || (int32)hint != hint || (elem->size > 0 && hint > ((uintptr)-1) / elem->size))
+ 		runtime·panicstring("makechan: size out of range");
+@@ -101,10 +100,9 @@ runtime·makechan_c(Type *elem, int64 hint)
+ 		n++;
+ 
+ 	// allocate memory in one call
+-	by = runtime·mal(n + hint*elem->size);
+-
+-	c = (Hchan*)by;
+-	runtime·addfinalizer(c, destroychan, 0);
++	c = (Hchan*)runtime·mal(n + hint*elem->size);
++	if(runtime·destroylock)
++		runtime·addfinalizer(c, destroychan, 0);
+ 
+ 	c->elemsize = elem->size;
+ 	c->elemalg = &runtime·algarray[elem->alg];
+diff --git a/src/pkg/runtime/chan_test.go b/src/pkg/runtime/chan_test.go
+index c5ffe93acc..71c9e2fd78 100644
+--- a/src/pkg/runtime/chan_test.go
++++ b/src/pkg/runtime/chan_test.go
+@@ -265,3 +265,25 @@ func BenchmarkChanProdConsWork10(b *testing.B) {
+ func BenchmarkChanProdConsWork100(b *testing.B) {
+ 	benchmarkChanProdCons(b, 100, 100)
+ }
++
++func BenchmarkChanCreation(b *testing.B) {
++	const CallsPerSched = 1000
++	procs := runtime.GOMAXPROCS(-1)
++	N := int32(b.N / CallsPerSched)
++	c := make(chan bool, procs)
++	for p := 0; p < procs; p++ {
++		go func() {
++			for atomic.AddInt32(&N, -1) >= 0 {
++				for g := 0; g < CallsPerSched; g++ {
++					myc := make(chan int, 1)
++					myc <- 0
++					<-myc
++				}
++			}
++			c <- true
++		}()
++	}
++	for p := 0; p < procs; p++ {
++		<-c
++	}
++}
+diff --git a/src/pkg/runtime/darwin/thread.c b/src/pkg/runtime/darwin/thread.c
+index 235d69abfc..6733e815e8 100644
+--- a/src/pkg/runtime/darwin/thread.c
++++ b/src/pkg/runtime/darwin/thread.c
+@@ -82,8 +82,8 @@ runtime·unlock(Lock *l)
+ 	}
+ }
+ 
+-void
+-runtime·destroylock(Lock *l)
++static void
++destroylock(Lock *l)
+ {
+ 	if(l->sema != 0) {
+ 		runtime·mach_semdestroy(l->sema);
+@@ -147,6 +147,7 @@ runtime·osinit(void)
+ 	// to let the C pthread libary install its own thread-creation callback.
+ 	if(!runtime·iscgo)
+ 		runtime·bsdthread_register();
++	runtime·destroylock = destroylock;
+ }
+ 
+ void
+diff --git a/src/pkg/runtime/freebsd/thread.c b/src/pkg/runtime/freebsd/thread.c
+index 569098aa21..f8c550f578 100644
+--- a/src/pkg/runtime/freebsd/thread.c
++++ b/src/pkg/runtime/freebsd/thread.c
+@@ -102,11 +102,6 @@ runtime·unlock(Lock *l)
+ 	umtx_unlock(l);
+ }
+ 
+-void
+-runtime·destroylock(Lock*)
+-{
+-}
+-
+ // Event notifications.
+ void
+ runtime·noteclear(Note *n)
+diff --git a/src/pkg/runtime/linux/thread.c b/src/pkg/runtime/linux/thread.c
+index 8efba2b98b..4878a00f25 100644
+--- a/src/pkg/runtime/linux/thread.c
++++ b/src/pkg/runtime/linux/thread.c
+@@ -199,11 +199,6 @@ runtime·unlock(Lock *l)
+ 	futexunlock(l);
+ }
+ 
+-void
+-runtime·destroylock(Lock*)
+-{
+-}
+-
+ 
+ // One-time notifications.
+ void
+diff --git a/src/pkg/runtime/plan9/thread.c b/src/pkg/runtime/plan9/thread.c
+index b091c59788..776989242d 100644
+--- a/src/pkg/runtime/plan9/thread.c
++++ b/src/pkg/runtime/plan9/thread.c
+@@ -114,12 +114,6 @@ runtime·unlock(Lock *l)
+ }
+ 
+ 
+-void 
+-runtime·destroylock(Lock *l)
+-{
+-	// nothing
+-}
+-
+ // User-level semaphore implementation:
+ // try to do the operations in user space on u,
+ // but when it's time to block, fall back on the kernel semaphore k.
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index c572897d2c..57c0873306 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -10,6 +10,7 @@ enum {
+ };
+ 
+ uint32	runtime·panicking;
++void	(*runtime·destroylock)(Lock*);
+ 
+ /*
+  * We assume that all architectures turn faults and the like
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 434c82b95d..d2e4378b59 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -380,6 +380,7 @@ extern	uint32	runtime·panicking;
+ extern	int32	runtime·gcwaiting;		// gc is waiting to run
+ int8*	runtime·goos;
+ extern	bool	runtime·iscgo;
++extern	void	(*runtime·destroylock)(Lock*);
+ 
+ /*
+  * common functions and data
+@@ -515,7 +516,6 @@ void	runtime·starttheworld(void);
+  */
+ void	runtime·lock(Lock*);
+ void	runtime·unlock(Lock*);
+-void	runtime·destroylock(Lock*);
+ 
+ /*
+  * sleep and wakeup on one-time events.
+diff --git a/src/pkg/runtime/windows/thread.c b/src/pkg/runtime/windows/thread.c
+index 5644fd5dd7..4ab043e887 100644
+--- a/src/pkg/runtime/windows/thread.c
++++ b/src/pkg/runtime/windows/thread.c
+@@ -40,12 +40,14 @@ extern void *runtime·WaitForSingleObject;
+ extern void *runtime·WriteFile;
+ 
+ static int64 timerfreq;
++static void destroylock(Lock *l);
+ 
+ void
+ runtime·osinit(void)
+ {
+ 	runtime·stdcall(runtime·QueryPerformanceFrequency, 1, &timerfreq);
+ 	runtime·stdcall(runtime·SetConsoleCtrlHandler, 2, runtime·ctrlhandler, (uintptr)1);
++	runtime·destroylock = destroylock;
+ }
+ 
+ void
+@@ -154,8 +156,8 @@ runtime·unlock(Lock *l)
+ 	eventunlock(l);
+ }
+ 
+-void
+-runtime·destroylock(Lock *l)
++static void
++destroylock(Lock *l)
+ {
+ 	if(l->event != 0)
+ 		runtime·stdcall(runtime·CloseHandle, 1, l->event);

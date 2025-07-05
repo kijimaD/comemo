@@ -7,6 +7,23 @@ Date:   Tue Mar 27 13:35:01 2012 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5920043
-
+---
  lib/godoc/godoc.html | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/lib/godoc/godoc.html b/lib/godoc/godoc.html
+index 627db079b6..5e18193523 100644
+--- a/lib/godoc/godoc.html
++++ b/lib/godoc/godoc.html
+@@ -52,8 +52,9 @@
+ 
+ <div id="footer">
+ Build version {{html .Version}}.<br>
+-Except as noted, this content is licensed under a
+-Creative Commons Attribution 3.0 License.<br>
++Except as <a href="http://code.google.com/policies.html#restrictions">noted</a>,
++the content of this page is licensed under the Creative Commons Attribution 3.0 License,<br>
++and code samples are licensed under a <a href="/LICENSE">BSD-style license</a>.<br>
+ <a href="/doc/tos.html">Terms of Service</a>
+ </div>
+ 

@@ -13,8 +13,61 @@ Date:   Tue Jul 26 21:55:26 2022 +0800
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modload/init.go              |  3 +++
  src/cmd/go/testdata/script/work_issue54048.txt   | 19 +++++++++++++++++++
  src/cmd/go/testdata/script/work_sum_mismatch.txt |  2 +-
  3 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index f960edd251..69a3bc8bfe 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -993,6 +993,9 @@ func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile
+ 	}
+ 	mainModulePaths := make(map[string]bool)
+ 	for _, m := range ms {
++		if mainModulePaths[m.Path] {
++			base.Errorf("go: module %s appears multiple times in workspace", m.Path)
++		}
+ 		mainModulePaths[m.Path] = true
+ 	}
+ 	replacedByWorkFile := make(map[string]bool)
+diff --git a/src/cmd/go/testdata/script/work_issue54048.txt b/src/cmd/go/testdata/script/work_issue54048.txt
+new file mode 100644
+index 0000000000..ced3d9074a
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_issue54048.txt
+@@ -0,0 +1,19 @@
++! go list -m -json all
++stderr 'go: module example.com/foo appears multiple times in workspace'
++
++-- go.work --
++go 1.18
++
++use (
++        ./a
++        ./b
++)
++-- a/go.mod --
++module example.com/foo
++
++go 1.18
++
++-- b/go.mod --
++module example.com/foo
++
++go 1.18
+diff --git a/src/cmd/go/testdata/script/work_sum_mismatch.txt b/src/cmd/go/testdata/script/work_sum_mismatch.txt
+index 9e9474304e..ca5d71dc5e 100644
+--- a/src/cmd/go/testdata/script/work_sum_mismatch.txt
++++ b/src/cmd/go/testdata/script/work_sum_mismatch.txt
+@@ -42,7 +42,7 @@ func main() {
+ -- b/go.mod --
+ go 1.18
+ 
+-module example.com/hi
++module example.com/hi2
+ 
+ require "rsc.io/quote" v1.5.2
+ -- b/go.sum --

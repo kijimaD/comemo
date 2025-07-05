@@ -39,7 +39,355 @@ Date:   Thu Oct 20 17:33:45 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/bimport.go | 95 +++++++++++++++++++---------------
  src/cmd/compile/internal/gc/dcl.go     | 80 ++++++++++++++++++++++------
  2 files changed, 117 insertions(+), 58 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 562f31b82b..d898cae4f1 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -330,7 +330,7 @@ func (p *importer) obj(tag int) {
+ 		params := p.paramList()
+ 		result := p.paramList()
+ 
+-		sig := functype(nil, params, result)
++		sig := functypefield(nil, params, result)
+ 		importsym(sym, ONAME)
+ 		if sym.Def != nil && sym.Def.Op == ONAME {
+ 			// function was imported before (via another import)
+@@ -465,8 +465,15 @@ func (p *importer) typ() *Type {
+ 			result := p.paramList()
+ 			nointerface := p.bool()
+ 
+-			n := methodname(newname(sym), recv[0].Right)
+-			n.Type = functype(recv[0], params, result)
++			base := recv[0].Type
++			star := false
++			if base.IsPtr() {
++				base = base.Elem()
++				star = true
++			}
++
++			n := methodname0(sym, star, base.Sym)
++			n.Type = functypefield(recv[0], params, result)
+ 			checkwidth(n.Type)
+ 			addmethod(sym, n.Type, false, nointerface)
+ 			p.funcList = append(p.funcList, n)
+@@ -506,7 +513,8 @@ func (p *importer) typ() *Type {
+ 
+ 	case structTag:
+ 		t = p.newtyp(TSTRUCT)
+-		tostruct0(t, p.fieldList())
++		t.SetFields(p.fieldList())
++		checkwidth(t)
+ 
+ 	case pointerTag:
+ 		t = p.newtyp(Tptr)
+@@ -516,14 +524,15 @@ func (p *importer) typ() *Type {
+ 		t = p.newtyp(TFUNC)
+ 		params := p.paramList()
+ 		result := p.paramList()
+-		functype0(t, nil, params, result)
++		functypefield0(t, nil, params, result)
+ 
+ 	case interfaceTag:
+ 		t = p.newtyp(TINTER)
+ 		if p.int() != 0 {
+ 			formatErrorf("unexpected embedded interface")
+ 		}
+-		tointerface0(t, p.methodList())
++		t.SetFields(p.methodList())
++		checkwidth(t)
+ 
+ 	case mapTag:
+ 		t = p.newtyp(TMAP)
+@@ -555,9 +564,9 @@ func (p *importer) qualifiedName() *Sym {
+ }
+ 
+ // parser.go:hidden_structdcl_list
+-func (p *importer) fieldList() (fields []*Node) {
++func (p *importer) fieldList() (fields []*Field) {
+ 	if n := p.int(); n > 0 {
+-		fields = make([]*Node, n)
++		fields = make([]*Field, n)
+ 		for i := range fields {
+ 			fields[i] = p.field()
+ 		}
+@@ -566,37 +575,35 @@ func (p *importer) fieldList() (fields []*Node) {
+ }
+ 
+ // parser.go:hidden_structdcl
+-func (p *importer) field() *Node {
++func (p *importer) field() *Field {
+ 	p.pos()
+ 	sym := p.fieldName()
+ 	typ := p.typ()
+ 	note := p.string()
+ 
+-	var n *Node
+-	if sym.Name != "" {
+-		n = nod(ODCLFIELD, newname(sym), typenod(typ))
+-	} else {
++	f := newField()
++	if sym.Name == "" {
+ 		// anonymous field - typ must be T or *T and T must be a type name
+ 		s := typ.Sym
+ 		if s == nil && typ.IsPtr() {
+ 			s = typ.Elem().Sym // deref
+ 		}
+-		pkg := importpkg
+-		if sym != nil {
+-			pkg = sym.Pkg
+-		}
+-		n = embedded(s, pkg)
+-		n.Right = typenod(typ)
++		sym = sym.Pkg.Lookup(s.Name)
++		f.Embedded = 1
+ 	}
+-	n.SetVal(Val{U: note})
+ 
+-	return n
++	f.Sym = sym
++	f.Nname = newname(sym)
++	f.Type = typ
++	f.Note = note
++
++	return f
+ }
+ 
+ // parser.go:hidden_interfacedcl_list
+-func (p *importer) methodList() (methods []*Node) {
++func (p *importer) methodList() (methods []*Field) {
+ 	if n := p.int(); n > 0 {
+-		methods = make([]*Node, n)
++		methods = make([]*Field, n)
+ 		for i := range methods {
+ 			methods[i] = p.method()
+ 		}
+@@ -605,12 +612,17 @@ func (p *importer) methodList() (methods []*Node) {
+ }
+ 
+ // parser.go:hidden_interfacedcl
+-func (p *importer) method() *Node {
++func (p *importer) method() *Field {
+ 	p.pos()
+ 	sym := p.fieldName()
+ 	params := p.paramList()
+ 	result := p.paramList()
+-	return nod(ODCLFIELD, newname(sym), typenod(functype(fakethis(), params, result)))
++
++	f := newField()
++	f.Sym = sym
++	f.Nname = newname(sym)
++	f.Type = functypefield(fakethisfield(), params, result)
++	return f
+ }
+ 
+ // parser.go:sym,hidden_importsym
+@@ -632,7 +644,7 @@ func (p *importer) fieldName() *Sym {
+ }
+ 
+ // parser.go:ohidden_funarg_list
+-func (p *importer) paramList() []*Node {
++func (p *importer) paramList() []*Field {
+ 	i := p.int()
+ 	if i == 0 {
+ 		return nil
+@@ -644,27 +656,23 @@ func (p *importer) paramList() []*Node {
+ 		named = false
+ 	}
+ 	// i > 0
+-	n := make([]*Node, i)
+-	for i := range n {
+-		n[i] = p.param(named)
++	fs := make([]*Field, i)
++	for i := range fs {
++		fs[i] = p.param(named)
+ 	}
+-	return n
++	return fs
+ }
+ 
+ // parser.go:hidden_funarg
+-func (p *importer) param(named bool) *Node {
+-	typ := p.typ()
+-
+-	isddd := false
+-	if typ.Etype == TDDDFIELD {
++func (p *importer) param(named bool) *Field {
++	f := newField()
++	f.Type = p.typ()
++	if f.Type.Etype == TDDDFIELD {
+ 		// TDDDFIELD indicates wrapped ... slice type
+-		typ = typSlice(typ.DDDField())
+-		isddd = true
++		f.Type = typSlice(f.Type.DDDField())
++		f.Isddd = true
+ 	}
+ 
+-	n := nod(ODCLFIELD, nil, typenod(typ))
+-	n.Isddd = isddd
+-
+ 	if named {
+ 		name := p.string()
+ 		if name == "" {
+@@ -676,14 +684,15 @@ func (p *importer) param(named bool) *Node {
+ 		if name != "_" {
+ 			pkg = p.pkg()
+ 		}
+-		n.Left = newname(pkg.Lookup(name))
++		f.Sym = pkg.Lookup(name)
++		f.Nname = newname(f.Sym)
+ 	}
+ 
+ 	// TODO(gri) This is compiler-specific (escape info).
+ 	// Move into compiler-specific section eventually?
+-	n.SetVal(Val{U: p.string()})
++	f.Note = p.string()
+ 
+-	return n
++	return f
+ }
+ 
+ func (p *importer) value(typ *Type) (x Val) {
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index ad5c1b0ab7..ff485c8377 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -853,6 +853,22 @@ func tofunargs(l []*Node, funarg Funarg) *Type {
+ 	return t
+ }
+ 
++func tofunargsfield(fields []*Field, funarg Funarg) *Type {
++	t := typ(TSTRUCT)
++	t.StructType().Funarg = funarg
++
++	for _, f := range fields {
++		f.Funarg = funarg
++
++		// esc.go needs to find f given a PPARAM to add the tag.
++		if f.Nname != nil && f.Nname.Class == PPARAM {
++			f.Nname.Name.Param.Field = f
++		}
++	}
++	t.SetFields(fields)
++	return t
++}
++
+ func interfacefield(n *Node) *Field {
+ 	lno := lineno
+ 	lineno = n.Lineno
+@@ -994,6 +1010,12 @@ func fakethis() *Node {
+ 	return n
+ }
+ 
++func fakethisfield() *Field {
++	f := newField()
++	f.Type = ptrto(typ(TSTRUCT))
++	return f
++}
++
+ // Is this field a method on an interface?
+ // Those methods have an anonymous *struct{} as the receiver.
+ // (See fakethis above.)
+@@ -1048,6 +1070,30 @@ func functype0(t *Type, this *Node, in, out []*Node) {
+ 	}
+ }
+ 
++func functypefield(this *Field, in, out []*Field) *Type {
++	t := typ(TFUNC)
++	functypefield0(t, this, in, out)
++	return t
++}
++
++func functypefield0(t *Type, this *Field, in, out []*Field) {
++	var rcvr []*Field
++	if this != nil {
++		rcvr = []*Field{this}
++	}
++	t.FuncType().Receiver = tofunargsfield(rcvr, FunargRcvr)
++	t.FuncType().Results = tofunargsfield(out, FunargRcvr)
++	t.FuncType().Params = tofunargsfield(in, FunargRcvr)
++
++	t.FuncType().Outnamed = false
++	if len(out) > 0 && out[0].Nname != nil && out[0].Nname.Orig != nil {
++		s := out[0].Nname.Orig.Sym
++		if s != nil && (s.Name[0] != '~' || s.Name[1] != 'r') { // ~r%d is the name invented for an unnamed result
++			t.FuncType().Outnamed = true
++		}
++	}
++}
++
+ var methodsym_toppkg *Pkg
+ 
+ func methodsym(nsym *Sym, t0 *Type, iface int) *Sym {
+@@ -1119,30 +1165,34 @@ bad:
+ }
+ 
+ func methodname(n *Node, t *Node) *Node {
+-	star := ""
++	star := false
+ 	if t.Op == OIND {
+-		star = "*"
++		star = true
+ 		t = t.Left
+ 	}
+ 
+-	if t.Sym == nil || isblank(n) {
+-		return newfuncname(n.Sym)
++	return methodname0(n.Sym, star, t.Sym)
++}
++
++func methodname0(s *Sym, star bool, tsym *Sym) *Node {
++	if tsym == nil || isblanksym(s) {
++		return newfuncname(s)
+ 	}
+ 
+ 	var p string
+-	if star != "" {
+-		p = fmt.Sprintf("(%s%v).%v", star, t.Sym, n.Sym)
++	if star {
++		p = fmt.Sprintf("(*%v).%v", tsym, s)
+ 	} else {
+-		p = fmt.Sprintf("%v.%v", t.Sym, n.Sym)
++		p = fmt.Sprintf("%v.%v", tsym, s)
+ 	}
+ 
+-	if exportname(t.Sym.Name) {
+-		n = newfuncname(lookup(p))
++	if exportname(tsym.Name) {
++		s = lookup(p)
+ 	} else {
+-		n = newfuncname(Pkglookup(p, t.Sym.Pkg))
++		s = Pkglookup(p, tsym.Pkg)
+ 	}
+ 
+-	return n
++	return newfuncname(s)
+ }
+ 
+ // Add a method, declared as a function.
+@@ -1208,9 +1258,6 @@ func addmethod(msym *Sym, t *Type, local, nointerface bool) {
+ 		}
+ 	}
+ 
+-	n := nod(ODCLFIELD, newname(msym), nil)
+-	n.Type = t
+-
+ 	for _, f := range mt.Methods().Slice() {
+ 		if msym.Name != f.Sym.Name {
+ 			continue
+@@ -1223,7 +1270,10 @@ func addmethod(msym *Sym, t *Type, local, nointerface bool) {
+ 		return
+ 	}
+ 
+-	f := structfield(n)
++	f := newField()
++	f.Sym = msym
++	f.Nname = newname(msym)
++	f.Type = t
+ 	f.Nointerface = nointerface
+ 
+ 	mt.Methods().Append(f)

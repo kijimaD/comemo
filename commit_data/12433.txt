@@ -10,8 +10,78 @@ Date:   Tue Mar 6 14:10:58 2012 -0800
     R=golang-dev, blake.mizerany
     CC=golang-dev
     https://golang.org/cl/5754057
-
+---
  src/pkg/database/sql/fakedb_test.go |  2 ++
  src/pkg/database/sql/sql.go         |  2 +-
  src/pkg/database/sql/sql_test.go    | 15 ++++++++++++++-
  3 files changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/database/sql/fakedb_test.go b/src/pkg/database/sql/fakedb_test.go
+index fc63f03740..3bbbb430b4 100644
+--- a/src/pkg/database/sql/fakedb_test.go
++++ b/src/pkg/database/sql/fakedb_test.go
+@@ -82,6 +82,7 @@ type fakeConn struct {
+ 	mu          sync.Mutex
+ 	stmtsMade   int
+ 	stmtsClosed int
++	numPrepare  int
+ }
+ 
+ func (c *fakeConn) incrStat(v *int) {
+@@ -339,6 +340,7 @@ func (c *fakeConn) prepareInsert(stmt *fakeStmt, parts []string) (driver.Stmt, e
+ }
+ 
+ func (c *fakeConn) Prepare(query string) (driver.Stmt, error) {
++	c.numPrepare++
+ 	if c.db == nil {
+ 		panic("nil c.db; conn = " + fmt.Sprintf("%#v", c))
+ 	}
+diff --git a/src/pkg/database/sql/sql.go b/src/pkg/database/sql/sql.go
+index 62b551d89b..f50daa11a1 100644
+--- a/src/pkg/database/sql/sql.go
++++ b/src/pkg/database/sql/sql.go
+@@ -700,7 +700,7 @@ func (s *Stmt) connStmt() (ci driver.Conn, releaseConn func(), si driver.Stmt, e
+ 	for _, v := range s.css {
+ 		// TODO(bradfitz): lazily clean up entries in this
+ 		// list with dead conns while enumerating
+-		if _, match = s.db.connIfFree(cs.ci); match {
++		if _, match = s.db.connIfFree(v.ci); match {
+ 			cs = v
+ 			break
+ 		}
+diff --git a/src/pkg/database/sql/sql_test.go b/src/pkg/database/sql/sql_test.go
+index c985a10bee..e6b92a941b 100644
+--- a/src/pkg/database/sql/sql_test.go
++++ b/src/pkg/database/sql/sql_test.go
+@@ -47,9 +47,19 @@ func closeDB(t *testing.T, db *DB) {
+ 	}
+ }
+ 
++// numPrepares assumes that db has exactly 1 idle conn and returns
++// its count of calls to Prepare
++func numPrepares(t *testing.T, db *DB) int {
++	if n := len(db.freeConn); n != 1 {
++		t.Fatalf("free conns = %d; want 1", n)
++	}
++	return db.freeConn[0].(*fakeConn).numPrepare
++}
++
+ func TestQuery(t *testing.T) {
+ 	db := newTestDB(t, "people")
+ 	defer closeDB(t, db)
++	prepares0 := numPrepares(t, db)
+ 	rows, err := db.Query("SELECT|people|age,name|")
+ 	if err != nil {
+ 		t.Fatalf("Query: %v", err)
+@@ -83,7 +93,10 @@ func TestQuery(t *testing.T) {
+ 	// And verify that the final rows.Next() call, which hit EOF,
+ 	// also closed the rows connection.
+ 	if n := len(db.freeConn); n != 1 {
+-		t.Errorf("free conns after query hitting EOF = %d; want 1", n)
++		t.Fatalf("free conns after query hitting EOF = %d; want 1", n)
++	}
++	if prepares := numPrepares(t, db) - prepares0; prepares != 1 {
++		t.Errorf("executed %d Prepare statements; want 1", prepares)
+ 	}
+ }
+ 

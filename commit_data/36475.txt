@@ -12,7 +12,7 @@ Date:   Mon Apr 30 07:50:10 2018 -0700
     Change-Id: Iccf58049d545515d9b1d090b161f420e40ffd244
     Reviewed-on: https://go-review.googlesource.com/110215
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/asm_386.s          |  4 ++
  src/runtime/asm_amd64.s        |  4 ++
  src/runtime/os_darwin.go       | 16 +++----
@@ -21,3 +21,397 @@ Date:   Mon Apr 30 07:50:10 2018 -0700
  src/runtime/sys_darwin_386.s   | 97 +++++++++---------------------------------
  src/runtime/sys_darwin_amd64.s | 56 ++++++++----------------
  7 files changed, 62 insertions(+), 132 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 28d045e416..63fa17af62 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -228,6 +228,10 @@ needtls:
+ 	// skip runtime·ldt0setup(SB) and tls test on Plan 9 in all cases
+ 	JMP	ok
+ #endif
++#ifdef GOOS_darwin
++	// skip runtime·ldt0setup(SB) on Darwin
++	JMP	ok
++#endif
+ 
+ 	// set up %gs
+ 	CALL	runtime·ldt0setup(SB)
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index bfec6ef410..21126931f3 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -188,6 +188,10 @@ needtls:
+ 	// skip TLS setup on Solaris
+ 	JMP ok
+ #endif
++#ifdef GOOS_darwin
++	// skip TLS setup on Darwin
++	JMP ok
++#endif
+ 
+ 	LEAQ	runtime·m0+m_tls(SB), DI
+ 	CALL	runtime·settls(SB)
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index 9d3139b2ad..067b7debfa 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -135,11 +135,14 @@ func newosproc(mp *m) {
+ 		exit(1)
+ 	}
+ 
+-	// Set the stack we want to use.
+-	if pthread_attr_setstack(&attr, unsafe.Pointer(mp.g0.stack.lo), mp.g0.stack.hi-mp.g0.stack.lo) != 0 {
++	// Set the stack size we want to use.  64KB for now.
++	// TODO: just use OS default size?
++	const stackSize = 1 << 16
++	if pthread_attr_setstacksize(&attr, stackSize) != 0 {
+ 		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+ 		exit(1)
+ 	}
++	//mSysStatInc(&memstats.stacks_sys, stackSize) //TODO: do this?
+ 
+ 	// Tell the pthread library we won't join with this thread.
+ 	if pthread_attr_setdetachstate(&attr, _PTHREAD_CREATE_DETACHED) != 0 {
+@@ -169,12 +172,6 @@ func mstart_stub()
+ //
+ //go:nosplit
+ func newosproc0(stacksize uintptr, fn uintptr) {
+-	stack := sysAlloc(stacksize, &memstats.stacks_sys)
+-	if stack == nil {
+-		write(2, unsafe.Pointer(&failallocatestack[0]), int32(len(failallocatestack)))
+-		exit(1)
+-	}
+-
+ 	// Initialize an attribute object.
+ 	var attr pthreadattr
+ 	var err int32
+@@ -185,10 +182,11 @@ func newosproc0(stacksize uintptr, fn uintptr) {
+ 	}
+ 
+ 	// Set the stack we want to use.
+-	if pthread_attr_setstack_trampoline(&attr, stack, stacksize) != 0 {
++	if pthread_attr_setstacksize_trampoline(&attr, stacksize) != 0 {
+ 		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+ 		exit(1)
+ 	}
++	mSysStatInc(&memstats.stacks_sys, stacksize)
+ 
+ 	// Tell the pthread library we won't join with this thread.
+ 	if pthread_attr_setdetachstate_trampoline(&attr, _PTHREAD_CREATE_DETACHED) != 0 {
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 1ac0ffd086..3f9efbdace 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1195,8 +1195,8 @@ func mstart() {
+ 	mstart1()
+ 
+ 	// Exit this thread.
+-	if GOOS == "windows" || GOOS == "solaris" || GOOS == "plan9" {
+-		// Window, Solaris and Plan 9 always system-allocate
++	if GOOS == "windows" || GOOS == "solaris" || GOOS == "plan9" || (GOOS == "darwin" && (GOARCH == "amd64" || GOARCH == "386")) {
++		// Window, Solaris, Darwin and Plan 9 always system-allocate
+ 		// the stack, but put it in _g_.stack before mstart,
+ 		// so the logic above hasn't set osStack yet.
+ 		osStack = true
+@@ -1517,9 +1517,9 @@ func allocm(_p_ *p, fn func()) *m {
+ 	mp.mstartfn = fn
+ 	mcommoninit(mp)
+ 
+-	// In case of cgo or Solaris, pthread_create will make us a stack.
++	// In case of cgo or Solaris or Darwin, pthread_create will make us a stack.
+ 	// Windows and Plan 9 will layout sched stack on OS stack.
+-	if iscgo || GOOS == "solaris" || GOOS == "windows" || GOOS == "plan9" {
++	if iscgo || GOOS == "solaris" || GOOS == "windows" || GOOS == "plan9" || (GOOS == "darwin" && (GOARCH == "386" || GOARCH == "amd64")) {
+ 		mp.g0 = malg(-1)
+ 	} else {
+ 		mp.g0 = malg(8192 * sys.StackGuardMultiplier)
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index 674a698286..afb2afccca 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -21,15 +21,15 @@ func pthread_attr_init(attr *pthreadattr) (errno int32) {
+ func pthread_attr_init_trampoline(attr *pthreadattr) int32
+ 
+ //go:nowritebarrier
+-func pthread_attr_setstack(attr *pthreadattr, addr unsafe.Pointer, size uintptr) (errno int32) {
++func pthread_attr_setstacksize(attr *pthreadattr, size uintptr) (errno int32) {
+ 	systemstack(func() {
+-		errno = pthread_attr_setstack_trampoline(attr, addr, size)
++		errno = pthread_attr_setstacksize_trampoline(attr, size)
+ 	})
+ 	return
+ }
+ 
+ //go:noescape
+-func pthread_attr_setstack_trampoline(attr *pthreadattr, addr unsafe.Pointer, size uintptr) int32
++func pthread_attr_setstacksize_trampoline(attr *pthreadattr, size uintptr) int32
+ 
+ //go:nowritebarrier
+ func pthread_attr_setdetachstate(attr *pthreadattr, state int) (errno int32) {
+@@ -57,9 +57,10 @@ func pthread_create_trampoline(t *pthread, attr *pthreadattr, start uintptr, arg
+ // in a system library, with the libc_ prefix missing.
+ 
+ //go:cgo_import_dynamic libc_pthread_attr_init pthread_attr_init "/usr/lib/libSystem.B.dylib"
+-//go:cgo_import_dynamic libc_pthread_attr_setstack pthread_attr_setstack "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_pthread_attr_setstacksize pthread_attr_setstacksize "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_pthread_attr_setdetachstate pthread_attr_setdetachstate "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_pthread_create pthread_create "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_exit exit "/usr/lib/libSystem.B.dylib"
+ 
+ // Magic incantation to get libSystem actually dynamically linked.
+ // TODO: Why does the code require this?  See cmd/compile/internal/ld/go.go:210
+diff --git a/src/runtime/sys_darwin_386.s b/src/runtime/sys_darwin_386.s
+index e1a6338748..319bcfc43c 100644
+--- a/src/runtime/sys_darwin_386.s
++++ b/src/runtime/sys_darwin_386.s
+@@ -11,46 +11,23 @@
+ #include "textflag.h"
+ 
+ // Exit the entire program (like C exit)
+-TEXT runtime·exit(SB),NOSPLIT,$0
+-	MOVL	$1, AX
+-	INT	$0x80
+-	MOVL	$0xf1, 0xf1  // crash
+-	RET
+-
+-// Exit this OS thread (like pthread_exit, which eventually
+-// calls __bsdthread_terminate).
+-TEXT exit1<>(SB),NOSPLIT,$16-0
+-	// __bsdthread_terminate takes 4 word-size arguments.
+-	// Set them all to 0. (None are an exit status.)
+-	MOVL	$0, 0(SP)
+-	MOVL	$0, 4(SP)
+-	MOVL	$0, 8(SP)
+-	MOVL	$0, 12(SP)
+-	MOVL	$361, AX
+-	INT	$0x80
+-	JAE 2(PC)
++TEXT runtime·exit(SB),NOSPLIT,$0-4
++	MOVL	code+0(FP), AX
++	PUSHL	BP
++	MOVL	SP, BP
++	SUBL	$4, SP   // allocate space for callee args
++	ANDL	$~15, SP // align stack
++	MOVL	AX, 0(SP)
++	CALL	libc_exit(SB)
+ 	MOVL	$0xf1, 0xf1  // crash
++	MOVL	BP, SP
++	POPL	BP
+ 	RET
+ 
+-GLOBL exitStack<>(SB),RODATA,$(4*4)
+-DATA exitStack<>+0x00(SB)/4, $0
+-DATA exitStack<>+0x04(SB)/4, $0
+-DATA exitStack<>+0x08(SB)/4, $0
+-DATA exitStack<>+0x0c(SB)/4, $0
+-
+-// func exitThread(wait *uint32)
++// Not used on Darwin.
+ TEXT runtime·exitThread(SB),NOSPLIT,$0-4
+-	MOVL	wait+0(FP), AX
+-	// We're done using the stack.
+-	MOVL	$0, (AX)
+-	// __bsdthread_terminate takes 4 arguments, which it expects
+-	// on the stack. They should all be 0, so switch over to a
+-	// fake stack of 0s. It won't write to the stack.
+-	MOVL	$exitStack<>(SB), SP
+-	MOVL	$361, AX	// __bsdthread_terminate
+-	INT	$0x80
+ 	MOVL	$0xf1, 0xf1  // crash
+-	JMP	0(PC)
++	RET
+ 
+ TEXT runtime·open(SB),NOSPLIT,$0
+ 	MOVL	$5, AX
+@@ -437,38 +414,8 @@ TEXT runtime·mach_semaphore_signal_all(SB),NOSPLIT,$0
+ 	RET
+ 
+ // func setldt(entry int, address int, limit int)
+-// entry and limit are ignored.
+ TEXT runtime·setldt(SB),NOSPLIT,$32
+-	MOVL	address+4(FP), BX	// aka base
+-
+-	/*
+-	 * When linking against the system libraries,
+-	 * we use its pthread_create and let it set up %gs
+-	 * for us.  When we do that, the private storage
+-	 * we get is not at 0(GS) but at 0x18(GS).
+-	 * The linker rewrites 0(TLS) into 0x18(GS) for us.
+-	 * To accommodate that rewrite, we translate the
+-	 * address here so that 0x18(GS) maps to 0(address).
+-	 *
+-	 * Constant must match the one in cmd/link/internal/ld/sym.go.
+-	 */
+-	SUBL	$0x18, BX
+-
+-	/*
+-	 * Must set up as USER_CTHREAD segment because
+-	 * Darwin forces that value into %gs for signal handlers,
+-	 * and if we don't set one up, we'll get a recursive
+-	 * fault trying to get into the signal handler.
+-	 * Since we have to set one up anyway, it might as
+-	 * well be the value we want.  So don't bother with
+-	 * i386_set_ldt.
+-	 */
+-	MOVL	BX, 4(SP)
+-	MOVL	$3, AX	// thread_fast_set_cthread_self - machdep call #3
+-	INT	$0x82	// sic: 0x82, not 0x80, for machdep call
+-
+-	XORL	AX, AX
+-	MOVW	GS, AX
++	// Nothing to do on Darwin, pthread already set thread-local storage up.
+ 	RET
+ 
+ TEXT runtime·sysctl(SB),NOSPLIT,$0
+@@ -531,11 +478,11 @@ TEXT runtime·mstart_stub(SB),NOSPLIT,$0
+ 	// Someday the convention will be D is always cleared.
+ 	CLD
+ 
+-	CALL	runtime·stackcheck(SB) // just in case
+ 	CALL	runtime·mstart(SB)
+ 
+-	// mstart shouldn't ever return, and if it does, we shouldn't ever join to this thread
+-	// to get its return status. But tell pthread everything is ok, just in case.
++	// Go is all done with this OS thread.
++	// Tell pthread everything is ok (we never join with this thread, so
++	// the value here doesn't really matter).
+ 	XORL	AX, AX
+ 	RET
+ 
+@@ -565,26 +512,24 @@ TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0-8
+ 	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+-TEXT runtime·pthread_attr_setstack_trampoline(SB),NOSPLIT,$0-16
++TEXT runtime·pthread_attr_setstacksize_trampoline(SB),NOSPLIT,$0-12
+ 	MOVL	attr+0(FP), AX
+-	MOVL	addr+4(FP), CX
+-	MOVL	size+8(FP), DX
++	MOVL	size+4(FP), CX
+ 
+ 	PUSHL	BP
+ 	MOVL	SP, BP
+ 
+-	SUBL	$12, SP
++	SUBL	$8, SP
+ 	ANDL	$~15, SP
+ 
+ 	MOVL	AX, 0(SP)
+ 	MOVL	CX, 4(SP)
+-	MOVL	DX, 8(SP)
+-	CALL	libc_pthread_attr_setstack(SB)
++	CALL	libc_pthread_attr_setstacksize(SB)
+ 
+ 	MOVL	BP, SP
+ 	POPL	BP
+ 
+-	MOVL	AX, ret+12(FP)
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+ TEXT runtime·pthread_attr_setdetachstate_trampoline(SB),NOSPLIT,$0-12
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index 54478571a0..e17de9e035 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -16,35 +16,22 @@
+ #include "textflag.h"
+ 
+ // Exit the entire program (like C exit)
+-TEXT runtime·exit(SB),NOSPLIT,$0
++TEXT runtime·exit(SB),NOSPLIT,$0-4
+ 	MOVL	code+0(FP), DI		// arg 1 exit status
+-	MOVL	$(0x2000000+1), AX	// syscall entry
+-	SYSCALL
++	PUSHQ	BP
++	MOVQ	SP, BP
++	ANDQ	$~15, SP // align stack
++	CALL	libc_exit(SB)
+ 	MOVL	$0xf1, 0xf1  // crash
++	MOVQ	BP, SP
++	POPQ	BP
+ 	RET
+ 
+-// Exit this OS thread (like pthread_exit, which eventually
+-// calls __bsdthread_terminate).
+-TEXT exit1<>(SB),NOSPLIT,$0
+-	// Because of exitThread below, this must not use the stack.
+-	// __bsdthread_terminate takes 4 word-size arguments.
+-	// Set them all to 0. (None are an exit status.)
+-	MOVL	$0, DI
+-	MOVL	$0, SI
+-	MOVL	$0, DX
+-	MOVL	$0, R10
+-	MOVL	$(0x2000000+361), AX	// syscall entry
+-	SYSCALL
++// Not used on Darwin.
++TEXT runtime·exitThread(SB),NOSPLIT,$0-8
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-// func exitThread(wait *uint32)
+-TEXT runtime·exitThread(SB),NOSPLIT,$0-8
+-	MOVQ	wait+0(FP), AX
+-	// We're done using the stack.
+-	MOVL	$0, (AX)
+-	JMP	exit1<>(SB)
+-
+ TEXT runtime·open(SB),NOSPLIT,$0
+ 	MOVQ	name+0(FP), DI		// arg 1 pathname
+ 	MOVL	mode+8(FP), SI		// arg 2 flags
+@@ -490,16 +477,8 @@ TEXT runtime·mach_semaphore_signal_all(SB),NOSPLIT,$0
+ 	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+-// set tls base to DI
+ TEXT runtime·settls(SB),NOSPLIT,$32
+-	/*
+-	 * Same as in sys_darwin_386.s, but a different constant.
+-	 * Constant must match the one in cmd/link/internal/ld/sym.go.
+-	 */
+-	SUBQ $0x30, DI
+-
+-	MOVL	$(0x3000000+3), AX	// thread_fast_set_cthread_self - machdep call #3
+-	SYSCALL
++	// Nothing to do on Darwin, pthread already set thread-local storage up.
+ 	RET
+ 
+ TEXT runtime·sysctl(SB),NOSPLIT,$0
+@@ -571,11 +550,11 @@ TEXT runtime·mstart_stub(SB),NOSPLIT,$0
+ 	// Someday the convention will be D is always cleared.
+ 	CLD
+ 
+-	CALL	runtime·stackcheck(SB) // just in case
+ 	CALL	runtime·mstart(SB)
+ 
+-	// mstart shouldn't ever return, and if it does, we shouldn't ever join to this thread
+-	// to get its return status. But tell pthread everything is ok, just in case.
++	// Go is all done with this OS thread.
++	// Tell pthread everything is ok (we never join with this thread, so
++	// the value here doesn't really matter).
+ 	XORL	AX, AX
+ 	RET
+ 
+@@ -591,17 +570,16 @@ TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0-12
+ 	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime·pthread_attr_setstack_trampoline(SB),NOSPLIT,$0-28
++TEXT runtime·pthread_attr_setstacksize_trampoline(SB),NOSPLIT,$0-20
+ 	MOVQ	attr+0(FP), DI
+-	MOVQ	addr+8(FP), SI
+-	MOVQ	size+16(FP), DX
++	MOVQ	size+8(FP), SI
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	ANDQ	$~15, SP
+-	CALL	libc_pthread_attr_setstack(SB)
++	CALL	libc_pthread_attr_setstacksize(SB)
+ 	MOVQ	BP, SP
+ 	POPQ	BP
+-	MOVL	AX, ret+24(FP)
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+ TEXT runtime·pthread_attr_setdetachstate_trampoline(SB),NOSPLIT,$0-20

@@ -13,6 +13,29 @@ Date:   Wed Nov 27 16:35:49 2024 +0000
     Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Veronica Silina <veronicasilina@google.com>
-
+---
  src/cmd/preprofile/main.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/preprofile/main.go b/src/cmd/preprofile/main.go
+index 68e8dc716e..b229f85163 100644
+--- a/src/cmd/preprofile/main.go
++++ b/src/cmd/preprofile/main.go
+@@ -8,7 +8,7 @@
+ //
+ // Usage:
+ //
+-//	go tool preprofile [-v] [-o output] -i input
++//	go tool preprofile [-V] [-o output] -i input
+ package main
+ 
+ import (
+@@ -23,7 +23,7 @@ import (
+ )
+ 
+ func usage() {
+-	fmt.Fprintf(os.Stderr, "usage: go tool preprofile [-v] [-o output] -i input\n\n")
++	fmt.Fprintf(os.Stderr, "usage: go tool preprofile [-V] [-o output] -i input\n\n")
+ 	flag.PrintDefaults()
+ 	os.Exit(2)
+ }

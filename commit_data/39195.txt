@@ -9,6 +9,20 @@ Date:   Sun Jan 20 07:46:18 2019 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/cgo/out.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 0985a7e72e..00e2f9769c 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -1255,7 +1255,7 @@ func determineGccgoManglingScheme() bool {
+ 	cmd := exec.Command(gccgocmd, "-S", "-o", "-", gofilename)
+ 	buf, cerr := cmd.CombinedOutput()
+ 	if cerr != nil {
+-		fatalf("%s", err)
++		fatalf("%s", cerr)
+ 	}
+ 
+ 	// New mangling: expect go.l..u00e4ufer.Run

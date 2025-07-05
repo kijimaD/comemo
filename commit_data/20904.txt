@@ -8,8 +8,47 @@ Date:   Mon Oct 27 15:57:07 2014 -0400
     R=rlh, dvyukov
     CC=golang-codereviews
     https://golang.org/cl/157430044
-
+---
  src/runtime/export_test.go  | 2 +-
  src/runtime/lfstack_test.go | 2 +-
  src/runtime/runtime.h       | 1 +
  3 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index be352557fb..65e918e846 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -26,7 +26,7 @@ var Exitsyscall = exitsyscall
+ var LockedOSThread = lockedOSThread
+ 
+ type LFNode struct {
+-	Next    *LFNode
++	Next    uint64
+ 	Pushcnt uintptr
+ }
+ 
+diff --git a/src/runtime/lfstack_test.go b/src/runtime/lfstack_test.go
+index e518777045..68f221d6ef 100644
+--- a/src/runtime/lfstack_test.go
++++ b/src/runtime/lfstack_test.go
+@@ -121,7 +121,7 @@ func TestLFStackStress(t *testing.T) {
+ 			}
+ 			cnt++
+ 			sum2 += node.data
+-			node.Next = nil
++			node.Next = 0
+ 		}
+ 	}
+ 	if cnt != K {
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index cbbf6b3fc0..c1bba423a1 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -571,6 +571,7 @@ enum {
+ #endif
+ 
+ // Lock-free stack node.
++// Also known to export_test.go.
+ struct LFNode
+ {
+ 	uint64	next;

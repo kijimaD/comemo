@@ -10,7 +10,204 @@ Date:   Fri Nov 16 19:33:59 2012 +1100
     R=agl
     CC=golang-dev
     https://golang.org/cl/6776043
-
+---
  src/pkg/crypto/tls/tls.go      | 72 ++++++++++++++++++++++++++++++------------
  src/pkg/crypto/tls/tls_test.go | 64 +++++++++++++++++++++++++++++++------
  2 files changed, 107 insertions(+), 29 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/tls.go b/src/pkg/crypto/tls/tls.go
+index 80f852edf7..182506c59e 100644
+--- a/src/pkg/crypto/tls/tls.go
++++ b/src/pkg/crypto/tls/tls.go
+@@ -6,6 +6,8 @@
+ package tls
+ 
+ import (
++	"crypto"
++	"crypto/ecdsa"
+ 	"crypto/rsa"
+ 	"crypto/x509"
+ 	"encoding/pem"
+@@ -153,30 +155,16 @@ func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (cert Certificate, err error)
+ 			err = errors.New("crypto/tls: failed to parse key PEM data")
+ 			return
+ 		}
+-		if keyDERBlock.Type != "CERTIFICATE" {
++		if strings.HasSuffix(keyDERBlock.Type, " PRIVATE KEY") {
+ 			break
+ 		}
+ 	}
+ 
+-	// OpenSSL 0.9.8 generates PKCS#1 private keys by default, while
+-	// OpenSSL 1.0.0 generates PKCS#8 keys. We try both.
+-	var key *rsa.PrivateKey
+-	if key, err = x509.ParsePKCS1PrivateKey(keyDERBlock.Bytes); err != nil {
+-		var privKey interface{}
+-		if privKey, err = x509.ParsePKCS8PrivateKey(keyDERBlock.Bytes); err != nil {
+-			err = errors.New("crypto/tls: failed to parse key: " + err.Error())
+-			return
+-		}
+-
+-		var ok bool
+-		if key, ok = privKey.(*rsa.PrivateKey); !ok {
+-			err = errors.New("crypto/tls: found non-RSA private key in PKCS#8 wrapping")
+-			return
+-		}
++	cert.PrivateKey, err = parsePrivateKey(keyDERBlock.Bytes)
++	if err != nil {
++		return
+ 	}
+ 
+-	cert.PrivateKey = key
+-
+ 	// We don't need to parse the public key for TLS, but we so do anyway
+ 	// to check that it looks sane and matches the private key.
+ 	x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
+@@ -184,10 +172,54 @@ func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (cert Certificate, err error)
+ 		return
+ 	}
+ 
+-	if x509Cert.PublicKeyAlgorithm != x509.RSA || x509Cert.PublicKey.(*rsa.PublicKey).N.Cmp(key.PublicKey.N) != 0 {
+-		err = errors.New("crypto/tls: private key does not match public key")
++	switch pub := x509Cert.PublicKey.(type) {
++	case *rsa.PublicKey:
++		priv, ok := cert.PrivateKey.(*rsa.PrivateKey)
++		if !ok {
++			err = errors.New("crypto/tls: private key type does not match public key type")
++			return
++		}
++		if pub.N.Cmp(priv.N) != 0 {
++			err = errors.New("crypto/tls: private key does not match public key")
++			return
++		}
++	case *ecdsa.PublicKey:
++		priv, ok := cert.PrivateKey.(*ecdsa.PrivateKey)
++		if !ok {
++			err = errors.New("crypto/tls: private key type does not match public key type")
++			return
++
++		}
++		if pub.X.Cmp(priv.X) != 0 || pub.Y.Cmp(priv.Y) != 0 {
++			err = errors.New("crypto/tls: private key does not match public key")
++			return
++		}
++	default:
++		err = errors.New("crypto/tls: unknown public key algorithm")
+ 		return
+ 	}
+ 
+ 	return
+ }
++
++// Attempt to parse the given private key DER block. OpenSSL 0.9.8 generates
++// PKCS#1 private keys by default, while OpenSSL 1.0.0 generates PKCS#8 keys.
++// OpenSSL ecparam generates SEC1 EC private keys for ECDSA. We try all three.
++func parsePrivateKey(der []byte) (crypto.PrivateKey, error) {
++	if key, err := x509.ParsePKCS1PrivateKey(der); err == nil {
++		return key, nil
++	}
++	if key, err := x509.ParsePKCS8PrivateKey(der); err == nil {
++		switch key := key.(type) {
++		case *rsa.PrivateKey, *ecdsa.PrivateKey:
++			return key, nil
++		default:
++			return nil, errors.New("crypto/tls: found unknown private key type in PKCS#8 wrapping")
++		}
++	}
++	if key, err := x509.ParseECPrivateKey(der); err == nil {
++		return key, nil
++	}
++
++	return nil, errors.New("crypto/tls: failed to parse private key")
++}
+diff --git a/src/pkg/crypto/tls/tls_test.go b/src/pkg/crypto/tls/tls_test.go
+index 5df43c385f..31b858d832 100644
+--- a/src/pkg/crypto/tls/tls_test.go
++++ b/src/pkg/crypto/tls/tls_test.go
+@@ -8,7 +8,7 @@ import (
+ 	"testing"
+ )
+ 
+-var certPEM = `-----BEGIN CERTIFICATE-----
++var rsaCertPEM = `-----BEGIN CERTIFICATE-----
+ MIIB0zCCAX2gAwIBAgIJAI/M7BYjwB+uMA0GCSqGSIb3DQEBBQUAMEUxCzAJBgNV
+ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
+ aWRnaXRzIFB0eSBMdGQwHhcNMTIwOTEyMjE1MjAyWhcNMTUwOTEyMjE1MjAyWjBF
+@@ -22,7 +22,7 @@ r5QuVbpQhH6u+0UgcW0jp9QwpxoPTLTWGXEWBBBurxFwiCBhkQ+V
+ -----END CERTIFICATE-----
+ `
+ 
+-var keyPEM = `-----BEGIN RSA PRIVATE KEY-----
++var rsaKeyPEM = `-----BEGIN RSA PRIVATE KEY-----
+ MIIBOwIBAAJBANLJhPHhITqQbPklG3ibCVxwGMRfp/v4XqhfdQHdcVfHap6NQ5Wo
+ k/4xIA+ui35/MmNartNuC+BdZ1tMuVCPFZcCAwEAAQJAEJ2N+zsR0Xn8/Q6twa4G
+ 6OB1M1WO+k+ztnX/1SvNeWu8D6GImtupLTYgjZcHufykj09jiHmjHx8u8ZZB/o1N
+@@ -33,15 +33,61 @@ D2lWusoe2/nEqfDVVWGWlyJ7yOmqaVm/iNUN9B2N2g==
+ -----END RSA PRIVATE KEY-----
+ `
+ 
++var ecdsaCertPEM = `-----BEGIN CERTIFICATE-----
++MIIB/jCCAWICCQDscdUxw16XFDAJBgcqhkjOPQQBMEUxCzAJBgNVBAYTAkFVMRMw
++EQYDVQQIEwpTb21lLVN0YXRlMSEwHwYDVQQKExhJbnRlcm5ldCBXaWRnaXRzIFB0
++eSBMdGQwHhcNMTIxMTE0MTI0MDQ4WhcNMTUxMTE0MTI0MDQ4WjBFMQswCQYDVQQG
++EwJBVTETMBEGA1UECBMKU29tZS1TdGF0ZTEhMB8GA1UEChMYSW50ZXJuZXQgV2lk
++Z2l0cyBQdHkgTHRkMIGbMBAGByqGSM49AgEGBSuBBAAjA4GGAAQBY9+my9OoeSUR
++lDQdV/x8LsOuLilthhiS1Tz4aGDHIPwC1mlvnf7fg5lecYpMCrLLhauAc1UJXcgl
++01xoLuzgtAEAgv2P/jgytzRSpUYvgLBt1UA0leLYBy6mQQbrNEuqT3INapKIcUv8
++XxYP0xMEUksLPq6Ca+CRSqTtrd/23uTnapkwCQYHKoZIzj0EAQOBigAwgYYCQXJo
++A7Sl2nLVf+4Iu/tAX/IF4MavARKC4PPHK3zfuGfPR3oCCcsAoz3kAzOeijvd0iXb
++H5jBImIxPL4WxQNiBTexAkF8D1EtpYuWdlVQ80/h/f4pBcGiXPqX5h2PQSQY7hP1
+++jwM1FGS4fREIOvlBYr/SzzQRtwrvrzGYxDEDbsC0ZGRnA==
++-----END CERTIFICATE-----
++`
++
++var ecdsaKeyPEM = `-----BEGIN EC PARAMETERS-----
++BgUrgQQAIw==
++-----END EC PARAMETERS-----
++-----BEGIN EC PRIVATE KEY-----
++MIHcAgEBBEIBrsoKp0oqcv6/JovJJDoDVSGWdirrkgCWxrprGlzB9o0X8fV675X0
++NwuBenXFfeZvVcwluO7/Q9wkYoPd/t3jGImgBwYFK4EEACOhgYkDgYYABAFj36bL
++06h5JRGUNB1X/Hwuw64uKW2GGJLVPPhoYMcg/ALWaW+d/t+DmV5xikwKssuFq4Bz
++VQldyCXTXGgu7OC0AQCC/Y/+ODK3NFKlRi+AsG3VQDSV4tgHLqZBBus0S6pPcg1q
++kohxS/xfFg/TEwRSSws+roJr4JFKpO2t3/be5OdqmQ==
++-----END EC PRIVATE KEY-----
++`
++
++var keyPairTests = []struct {
++	algo string
++	cert *string
++	key  *string
++}{
++	{"ECDSA", &ecdsaCertPEM, &ecdsaKeyPEM},
++	{"RSA", &rsaCertPEM, &rsaKeyPEM},
++}
++
+ func TestX509KeyPair(t *testing.T) {
+-	_, err := X509KeyPair([]byte(keyPEM+certPEM), []byte(keyPEM+certPEM))
+-	if err != nil {
+-		t.Errorf("Failed to load key followed by cert: %s", err)
++	var pem []byte
++	for _, test := range keyPairTests {
++		pem = []byte(*test.cert + *test.key)
++		if _, err := X509KeyPair(pem, pem); err != nil {
++			t.Errorf("Failed to load %s cert followed by %s key: %s", test.algo, test.algo, err)
++		}
++		pem = []byte(*test.key + *test.cert)
++		if _, err := X509KeyPair(pem, pem); err != nil {
++			t.Errorf("Failed to load %s key followed by %s cert: %s", test.algo, test.algo, err)
++		}
+ 	}
++}
+ 
+-	_, err = X509KeyPair([]byte(certPEM+keyPEM), []byte(certPEM+keyPEM))
+-	if err != nil {
+-		t.Errorf("Failed to load cert followed by key: %s", err)
+-		println(err.Error())
++func TestX509MixedKeyPair(t *testing.T) {
++	if _, err := X509KeyPair([]byte(rsaCertPEM), []byte(ecdsaKeyPEM)); err == nil {
++		t.Error("Load of RSA certificate succeeded with ECDSA private key")
++	}
++	if _, err := X509KeyPair([]byte(ecdsaCertPEM), []byte(rsaKeyPEM)); err == nil {
++		t.Error("Load of ECDSA certificate succeeded with RSA private key")
+ 	}
+ }

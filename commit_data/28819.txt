@@ -17,8 +17,61 @@ Date:   Mon Aug 1 20:04:25 2016 -0700
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     Reviewed-by: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/doc/doc_test.go     | 8 +++++---
  src/cmd/doc/pkg.go          | 4 +++-
  src/cmd/doc/testdata/pkg.go | 3 +++
  3 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/doc/doc_test.go b/src/cmd/doc/doc_test.go
+index bfb9099dd2..453a3d53aa 100644
+--- a/src/cmd/doc/doc_test.go
++++ b/src/cmd/doc/doc_test.go
+@@ -61,6 +61,7 @@ var tests = []test{
+ 			`var ExportedVariable = 1`,                              // Simple variable.
+ 			`var VarOne = 1`,                                        // First entry in variable block.
+ 			`func ExportedFunc\(a int\) bool`,                       // Function.
++			`func ReturnUnexported\(\) unexportedType`,              // Function with unexported return type.
+ 			`type ExportedType struct { ... }`,                      // Exported type.
+ 			`const ExportedTypedConstant ExportedType = iota`,       // Typed constant.
+ 			`const ExportedTypedConstant_unexported unexportedType`, // Typed constant, exported for unexported type.
+@@ -89,9 +90,10 @@ var tests = []test{
+ 		"full package with u",
+ 		[]string{`-u`, p},
+ 		[]string{
+-			`const ExportedConstant = 1`,      // Simple constant.
+-			`const internalConstant = 2`,      // Internal constants.
+-			`func internalFunc\(a int\) bool`, // Internal functions.
++			`const ExportedConstant = 1`,               // Simple constant.
++			`const internalConstant = 2`,               // Internal constants.
++			`func internalFunc\(a int\) bool`,          // Internal functions.
++			`func ReturnUnexported\(\) unexportedType`, // Function with unexported return type.
+ 		},
+ 		[]string{
+ 			`Comment about exported constant`,  // No comment for simple constant.
+diff --git a/src/cmd/doc/pkg.go b/src/cmd/doc/pkg.go
+index eec9f1e803..defddfd74a 100644
+--- a/src/cmd/doc/pkg.go
++++ b/src/cmd/doc/pkg.go
+@@ -317,7 +317,9 @@ func (pkg *Package) funcSummary(funcs []*doc.Func, showConstructors bool) {
+ 		isConstructor = make(map[*doc.Func]bool)
+ 		for _, typ := range pkg.doc.Types {
+ 			for _, constructor := range typ.Funcs {
+-				isConstructor[constructor] = true
++				if isExported(typ.Name) {
++					isConstructor[constructor] = true
++				}
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/doc/testdata/pkg.go b/src/cmd/doc/testdata/pkg.go
+index 9c5cf8f557..6a52ac2f65 100644
+--- a/src/cmd/doc/testdata/pkg.go
++++ b/src/cmd/doc/testdata/pkg.go
+@@ -123,3 +123,6 @@ const unexportedTypedConstant unexportedType = 1 // In a separate section to tes
+ // For case matching.
+ const CaseMatch = 1
+ const Casematch = 2
++
++func ReturnUnexported() unexportedType { return 0 }
++func ReturnExported() ExportedType     { return ExportedType{} }

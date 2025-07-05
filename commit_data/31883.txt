@@ -69,7 +69,128 @@ Date:   Thu Mar 16 19:19:29 2017 +0200
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/strconv/itoa.go      | 36 ++++++++++++++++++++++++++----------
  src/strconv/itoa_test.go | 47 +++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 73 insertions(+), 10 deletions(-)
+
+diff --git a/src/strconv/itoa.go b/src/strconv/itoa.go
+index 76ca676c5f..78527c8ae6 100644
+--- a/src/strconv/itoa.go
++++ b/src/strconv/itoa.go
+@@ -121,11 +121,19 @@ func formatBits(dst []byte, u uint64, base int, neg, append_ bool) (d []byte, s
+ 				// are calculated by runtime functions on 32bit machines.
+ 				q := u / 1e9
+ 				us := uint(u - q*1e9) // u % 1e9 fits into a uint
+-				for j := 9; j > 0; j-- {
+-					i--
+-					a[i] = byte(us%10 + '0')
+-					us /= 10
++				for j := 4; j > 0; j-- {
++					is := us % 100 * 2
++					us /= 100
++					i -= 2
++					a[i+1] = smallsString[is+1]
++					a[i+0] = smallsString[is+0]
+ 				}
++
++				// us < 10, since it contains the last digit
++				// from the initial 9-digit us.
++				i--
++				a[i] = smallsString[us*2+1]
++
+ 				u = q
+ 			}
+ 			// u < 1e9
+@@ -133,14 +141,22 @@ func formatBits(dst []byte, u uint64, base int, neg, append_ bool) (d []byte, s
+ 
+ 		// u guaranteed to fit into a uint
+ 		us := uint(u)
+-		for us >= 10 {
+-			i--
+-			a[i] = byte(us%10 + '0')
+-			us /= 10
++		for us >= 100 {
++			is := us % 100 * 2
++			us /= 100
++			i -= 2
++			a[i+1] = smallsString[is+1]
++			a[i+0] = smallsString[is+0]
+ 		}
+-		// us < 10
++
++		// us < 100
++		is := us * 2
+ 		i--
+-		a[i] = byte(us + '0')
++		a[i] = smallsString[is+1]
++		if us >= 10 {
++			i--
++			a[i] = smallsString[is]
++		}
+ 
+ 	} else if s := shifts[base]; s > 0 {
+ 		// base is power of 2: use shifts and masks instead of / and %
+diff --git a/src/strconv/itoa_test.go b/src/strconv/itoa_test.go
+index 7823cf4673..89c2de6941 100644
+--- a/src/strconv/itoa_test.go
++++ b/src/strconv/itoa_test.go
+@@ -126,6 +126,41 @@ func TestUitoa(t *testing.T) {
+ 	}
+ }
+ 
++var varlenUints = []struct {
++	in  uint64
++	out string
++}{
++	{1, "1"},
++	{12, "12"},
++	{123, "123"},
++	{1234, "1234"},
++	{12345, "12345"},
++	{123456, "123456"},
++	{1234567, "1234567"},
++	{12345678, "12345678"},
++	{123456789, "123456789"},
++	{1234567890, "1234567890"},
++	{12345678901, "12345678901"},
++	{123456789012, "123456789012"},
++	{1234567890123, "1234567890123"},
++	{12345678901234, "12345678901234"},
++	{123456789012345, "123456789012345"},
++	{1234567890123456, "1234567890123456"},
++	{12345678901234567, "12345678901234567"},
++	{123456789012345678, "123456789012345678"},
++	{1234567890123456789, "1234567890123456789"},
++	{12345678901234567890, "12345678901234567890"},
++}
++
++func TestFormatUintVarlen(t *testing.T) {
++	for _, test := range varlenUints {
++		s := FormatUint(test.in, 10)
++		if s != test.out {
++			t.Errorf("FormatUint(%v, 10) = %v want %v", test.in, s, test.out)
++		}
++	}
++}
++
+ func BenchmarkFormatInt(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		for _, test := range itob64tests {
+@@ -181,4 +216,16 @@ func BenchmarkAppendIntSmall(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkAppendUintVarlen(b *testing.B) {
++	for _, test := range varlenUints {
++		b.Run(test.out, func(b *testing.B) {
++			dst := make([]byte, 0, 30)
++			for j := 0; j < b.N; j++ {
++				dst = AppendUint(dst[:0], test.in, 10)
++				BenchSink += len(dst)
++			}
++		})
++	}
++}
++
+ var BenchSink int // make sure compiler cannot optimize away benchmarks

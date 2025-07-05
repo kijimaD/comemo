@@ -15,8 +15,102 @@ Date:   Sun Mar 25 12:20:57 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/genericOps.go |  2 --
  src/cmd/compile/internal/ssa/prove.go          | 14 ++------------
  src/cmd/compile/internal/ssa/value.go          | 23 +++++++++++++++++++++++
  3 files changed, 25 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 49160ab7c4..c077b0bfcf 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -17,8 +17,6 @@ package main
+ // all args take signed inputs, or don't care whether their inputs
+ // are signed or unsigned.
+ 
+-// Unused portions of AuxInt are filled by sign-extending the used portion.
+-// Users of AuxInt which interpret AuxInt as unsigned (e.g. shifts) must be careful.
+ var genericOps = []opData{
+ 	// 2-input arithmetic
+ 	// Types must be consistent with Go typing. Add, for example, must take two values
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index cf0118ac3c..d05f6088a5 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -234,7 +234,6 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
+ 		r = reverseBits[r]
+ 	}
+ 	if v != nil && w.isGenericIntConst() {
+-		c := w.AuxInt
+ 		// Note: all the +1/-1 below could overflow/underflow. Either will
+ 		// still generate correct results, it will just lead to imprecision.
+ 		// In fact if there is overflow/underflow, the corresponding
+@@ -247,6 +246,7 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
+ 		lim := noLimit
+ 		switch d {
+ 		case signed:
++			c := w.AuxInt
+ 			switch r {
+ 			case lt:
+ 				lim.max = c - 1
+@@ -279,17 +279,7 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
+ 				lim.umax = uint64(lim.max)
+ 			}
+ 		case unsigned:
+-			var uc uint64
+-			switch w.Op {
+-			case OpConst64:
+-				uc = uint64(c)
+-			case OpConst32:
+-				uc = uint64(uint32(c))
+-			case OpConst16:
+-				uc = uint64(uint16(c))
+-			case OpConst8:
+-				uc = uint64(uint8(c))
+-			}
++			uc := w.AuxUnsigned()
+ 			switch r {
+ 			case lt:
+ 				lim.umax = uc - 1
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index ecf7b80115..9a79a99f54 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -31,6 +31,10 @@ type Value struct {
+ 	// Auxiliary info for this value. The type of this information depends on the opcode and type.
+ 	// AuxInt is used for integer values, Aux is used for other values.
+ 	// Floats are stored in AuxInt using math.Float64bits(f).
++	// Unused portions of AuxInt are filled by sign-extending the used portion,
++	// even if the represented value is unsigned.
++	// Users of AuxInt which interpret AuxInt as unsigned (e.g. shifts) must be careful.
++	// Use Value.AuxUnsigned to get the zero-extended value of AuxInt.
+ 	AuxInt int64
+ 	Aux    interface{}
+ 
+@@ -86,6 +90,25 @@ func (v *Value) AuxInt32() int32 {
+ 	return int32(v.AuxInt)
+ }
+ 
++// AuxUnsigned returns v.AuxInt as an unsigned value for OpConst*.
++// v.AuxInt is always sign-extended to 64 bits, even if the
++// represented value is unsigned. This undoes that sign extension.
++func (v *Value) AuxUnsigned() uint64 {
++	c := v.AuxInt
++	switch v.Op {
++	case OpConst64:
++		return uint64(c)
++	case OpConst32:
++		return uint64(uint32(c))
++	case OpConst16:
++		return uint64(uint16(c))
++	case OpConst8:
++		return uint64(uint8(c))
++	}
++	v.Fatalf("op %s isn't OpConst*", v.Op)
++	return 0
++}
++
+ func (v *Value) AuxFloat() float64 {
+ 	if opcodeTable[v.Op].auxType != auxFloat32 && opcodeTable[v.Op].auxType != auxFloat64 {
+ 		v.Fatalf("op %s doesn't have a float aux field", v.Op)

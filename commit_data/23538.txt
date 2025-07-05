@@ -15,6 +15,20 @@ Date:   Fri May 22 12:55:47 2015 +1000
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
     Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/mockserver_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/mockserver_test.go b/src/net/mockserver_test.go
+index 62bcfa4022..dd6f4df3b9 100644
+--- a/src/net/mockserver_test.go
++++ b/src/net/mockserver_test.go
+@@ -186,7 +186,7 @@ func newDualStackServer(lns []streamListener) (*dualStackServer, error) {
+ 	for i := range dss.lns {
+ 		ln, err := Listen(dss.lns[i].network, JoinHostPort(dss.lns[i].address, dss.port))
+ 		if err != nil {
+-			for _, ln := range dss.lns {
++			for _, ln := range dss.lns[:i] {
+ 				ln.Listener.Close()
+ 			}
+ 			return nil, err

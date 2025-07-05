@@ -7,10 +7,137 @@ Date:   Thu Dec 18 22:17:05 2008 -0800
     R=r
     OCL=21570
     CL=21570
-
+---
  src/cmd/gc/sys.go      |  1 +
  src/cmd/gc/sysimport.c |  1 +
  src/cmd/gc/walk.c      |  5 +++++
  src/runtime/array.c    | 20 ++++++++++----------
  src/runtime/runtime.h  |  2 +-
  5 files changed, 18 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/gc/sys.go b/src/cmd/gc/sys.go
+index e8216981ba..930e8097ef 100644
+--- a/src/cmd/gc/sys.go
++++ b/src/cmd/gc/sys.go
+@@ -17,6 +17,7 @@ export func	printint(int64);
+ export func	printstring(string);
+ export func	printpointer(*any);
+ export func	printinter(any);
++export func	printarray(any);
+ export func	printnl();
+ export func	printsp();
+ 
+diff --git a/src/cmd/gc/sysimport.c b/src/cmd/gc/sysimport.c
+index 2df5299643..7727798149 100644
+--- a/src/cmd/gc/sysimport.c
++++ b/src/cmd/gc/sysimport.c
+@@ -11,6 +11,7 @@ char *sysimport =
+ 	"export func sys.printstring (? string)\n"
+ 	"export func sys.printpointer (? *any)\n"
+ 	"export func sys.printinter (? any)\n"
++	"export func sys.printarray (? any)\n"
+ 	"export func sys.printnl ()\n"
+ 	"export func sys.printsp ()\n"
+ 	"export func sys.catstring (? string, ? string) (? string)\n"
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 8460a82d78..710e143782 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1936,6 +1936,11 @@ loop:
+ 			argtype(on, l->type->type);	// any-1
+ 			break;
+ 		}
++		if(isdarray(l->type)) {
++			on = syslook("printarray", 1);
++			argtype(on, l->type);	// any-1
++			break;
++		}
+ 		badtype(n->op, l->type, T);
+ 		l = listnext(&save);
+ 		goto loop;
+diff --git a/src/runtime/array.c b/src/runtime/array.c
+index f431794d39..bbd57b03e1 100644
+--- a/src/runtime/array.c
++++ b/src/runtime/array.c
+@@ -30,7 +30,7 @@ sys·newarray(uint32 nel, uint32 cap, uint32 width, Array ret)
+ 		prints("; width=");
+ 		sys·printint(width);
+ 		prints("; ret=");
+-		sys·printarray(&ret);
++		sys·printarray(ret);
+ 		prints("\n");
+ 	}
+ }
+@@ -56,7 +56,7 @@ sys·arraysliced(Array old, uint32 lb, uint32 hb, uint32 width, Array ret)
+ 	if(hb > old.cap || lb > hb) {
+ 		if(debug) {
+ 			prints("sys·arraysliced: old=");
+-			sys·printarray(&old);
++			sys·printarray(old);
+ 			prints("; lb=");
+ 			sys·printint(lb);
+ 			prints("; hb=");
+@@ -83,7 +83,7 @@ sys·arraysliced(Array old, uint32 lb, uint32 hb, uint32 width, Array ret)
+ 
+ 	if(debug) {
+ 		prints("sys·arraysliced: old=");
+-		sys·printarray(&old);
++		sys·printarray(old);
+ 		prints("; lb=");
+ 		sys·printint(lb);
+ 		prints("; hb=");
+@@ -91,7 +91,7 @@ sys·arraysliced(Array old, uint32 lb, uint32 hb, uint32 width, Array ret)
+ 		prints("; width=");
+ 		sys·printint(width);
+ 		prints("; ret=");
+-		sys·printarray(&ret);
++		sys·printarray(ret);
+ 		prints("\n");
+ 	}
+ }
+@@ -137,7 +137,7 @@ sys·arrayslices(byte* old, uint32 nel, uint32 lb, uint32 hb, uint32 width, Arra
+ 		prints("; width=");
+ 		sys·printint(width);
+ 		prints("; ret=");
+-		sys·printarray(&ret);
++		sys·printarray(ret);
+ 		prints("\n");
+ 	}
+ }
+@@ -158,18 +158,18 @@ sys·arrays2d(byte* old, uint32 nel, Array ret)
+ 		prints("sys·arrays2d: old=");
+ 		sys·printpointer(old);
+ 		prints("; ret=");
+-		sys·printarray(&ret);
++		sys·printarray(ret);
+ 		prints("\n");
+ 	}
+ }
+ 
+ void
+-sys·printarray(Array *a)
++sys·printarray(Array a)
+ {
+ 	prints("[");
+-	sys·printint(a->nel);
++	sys·printint(a.nel);
+ 	prints("/");
+-	sys·printint(a->cap);
++	sys·printint(a.cap);
+ 	prints("]");
+-	sys·printpointer(a->array);
++	sys·printpointer(a.array);
+ }
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 335301ddf3..a8d40f84ff 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -350,7 +350,7 @@ void	sys·printpc(void*);
+ void	sys·printpointer(void*);
+ void	sys·printuint(uint64);
+ void	sys·printhex(uint64);
+-void	sys·printarray(Array*);
++void	sys·printarray(Array);
+ void	sys·catstring(string, string, string);
+ void	sys·cmpstring(string, string, int32);
+ void	sys·slicestring(string, int32, int32, string);

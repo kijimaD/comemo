@@ -16,10 +16,1755 @@ Date:   Thu Mar 10 13:05:56 2016 -0800
     Change-Id: I4d81785240c9368e4dc75107b45c959d200df8e6
     Reviewed-on: https://go-review.googlesource.com/20488
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 200 +++----
  src/cmd/compile/internal/ssa/gen/main.go     |   4 +
  src/cmd/compile/internal/ssa/op.go           |   1 +
  src/cmd/compile/internal/ssa/opGen.go        | 762 ++++++++++++++++-----------
  src/cmd/compile/internal/ssa/regalloc.go     |  20 +-
  5 files changed, 562 insertions(+), 425 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index f3c66bf328..04b9d61727 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -144,14 +144,14 @@ func init() {
+ 	// TODO: 2-address instructions. Mark ops as needing matching input/output regs.
+ 	var AMD64ops = []opData{
+ 		// fp ops
+-		{name: "ADDSS", argLength: 2, reg: fp21, asm: "ADDSS"},    // fp32 add
+-		{name: "ADDSD", argLength: 2, reg: fp21, asm: "ADDSD"},    // fp64 add
+-		{name: "SUBSS", argLength: 2, reg: fp21x15, asm: "SUBSS"}, // fp32 sub
+-		{name: "SUBSD", argLength: 2, reg: fp21x15, asm: "SUBSD"}, // fp64 sub
+-		{name: "MULSS", argLength: 2, reg: fp21, asm: "MULSS"},    // fp32 mul
+-		{name: "MULSD", argLength: 2, reg: fp21, asm: "MULSD"},    // fp64 mul
+-		{name: "DIVSS", argLength: 2, reg: fp21x15, asm: "DIVSS"}, // fp32 div
+-		{name: "DIVSD", argLength: 2, reg: fp21x15, asm: "DIVSD"}, // fp64 div
++		{name: "ADDSS", argLength: 2, reg: fp21, asm: "ADDSS", commutative: true, resultInArg0: true}, // fp32 add
++		{name: "ADDSD", argLength: 2, reg: fp21, asm: "ADDSD", commutative: true, resultInArg0: true}, // fp64 add
++		{name: "SUBSS", argLength: 2, reg: fp21x15, asm: "SUBSS", resultInArg0: true},                 // fp32 sub
++		{name: "SUBSD", argLength: 2, reg: fp21x15, asm: "SUBSD", resultInArg0: true},                 // fp64 sub
++		{name: "MULSS", argLength: 2, reg: fp21, asm: "MULSS", commutative: true, resultInArg0: true}, // fp32 mul
++		{name: "MULSD", argLength: 2, reg: fp21, asm: "MULSD", commutative: true, resultInArg0: true}, // fp64 mul
++		{name: "DIVSS", argLength: 2, reg: fp21x15, asm: "DIVSS", resultInArg0: true},                 // fp32 div
++		{name: "DIVSD", argLength: 2, reg: fp21x15, asm: "DIVSD", resultInArg0: true},                 // fp64 div
+ 
+ 		{name: "MOVSSload", argLength: 2, reg: fpload, asm: "MOVSS", aux: "SymOff"},          // fp32 load
+ 		{name: "MOVSDload", argLength: 2, reg: fpload, asm: "MOVSD", aux: "SymOff"},          // fp64 load
+@@ -166,32 +166,32 @@ func init() {
+ 		{name: "MOVSDstoreidx8", argLength: 4, reg: fpstoreidx, asm: "MOVSD", aux: "SymOff"}, // fp64 indexed by 8i store
+ 
+ 		// binary ops
+-		{name: "ADDQ", argLength: 2, reg: gp21, asm: "ADDQ"},                                   // arg0 + arg1
+-		{name: "ADDL", argLength: 2, reg: gp21, asm: "ADDL"},                                   // arg0 + arg1
+-		{name: "ADDW", argLength: 2, reg: gp21, asm: "ADDL"},                                   // arg0 + arg1
+-		{name: "ADDB", argLength: 2, reg: gp21, asm: "ADDL"},                                   // arg0 + arg1
+-		{name: "ADDQconst", argLength: 1, reg: gp11, asm: "ADDQ", aux: "Int64", typ: "UInt64"}, // arg0 + auxint
+-		{name: "ADDLconst", argLength: 1, reg: gp11, asm: "ADDL", aux: "Int32"},                // arg0 + auxint
+-		{name: "ADDWconst", argLength: 1, reg: gp11, asm: "ADDL", aux: "Int16"},                // arg0 + auxint
+-		{name: "ADDBconst", argLength: 1, reg: gp11, asm: "ADDL", aux: "Int8"},                 // arg0 + auxint
+-
+-		{name: "SUBQ", argLength: 2, reg: gp21, asm: "SUBQ"},                    // arg0 - arg1
+-		{name: "SUBL", argLength: 2, reg: gp21, asm: "SUBL"},                    // arg0 - arg1
+-		{name: "SUBW", argLength: 2, reg: gp21, asm: "SUBL"},                    // arg0 - arg1
+-		{name: "SUBB", argLength: 2, reg: gp21, asm: "SUBL"},                    // arg0 - arg1
+-		{name: "SUBQconst", argLength: 1, reg: gp11, asm: "SUBQ", aux: "Int64"}, // arg0 - auxint
+-		{name: "SUBLconst", argLength: 1, reg: gp11, asm: "SUBL", aux: "Int32"}, // arg0 - auxint
+-		{name: "SUBWconst", argLength: 1, reg: gp11, asm: "SUBL", aux: "Int16"}, // arg0 - auxint
+-		{name: "SUBBconst", argLength: 1, reg: gp11, asm: "SUBL", aux: "Int8"},  // arg0 - auxint
+-
+-		{name: "MULQ", argLength: 2, reg: gp21, asm: "IMULQ"},                    // arg0 * arg1
+-		{name: "MULL", argLength: 2, reg: gp21, asm: "IMULL"},                    // arg0 * arg1
+-		{name: "MULW", argLength: 2, reg: gp21, asm: "IMULW"},                    // arg0 * arg1
+-		{name: "MULB", argLength: 2, reg: gp21, asm: "IMULW"},                    // arg0 * arg1
+-		{name: "MULQconst", argLength: 1, reg: gp11, asm: "IMULQ", aux: "Int64"}, // arg0 * auxint
+-		{name: "MULLconst", argLength: 1, reg: gp11, asm: "IMULL", aux: "Int32"}, // arg0 * auxint
+-		{name: "MULWconst", argLength: 1, reg: gp11, asm: "IMULW", aux: "Int16"}, // arg0 * auxint
+-		{name: "MULBconst", argLength: 1, reg: gp11, asm: "IMULW", aux: "Int8"},  // arg0 * auxint
++		{name: "ADDQ", argLength: 2, reg: gp21, asm: "ADDQ", commutative: true, resultInArg0: true},                // arg0 + arg1
++		{name: "ADDL", argLength: 2, reg: gp21, asm: "ADDL", commutative: true, resultInArg0: true},                // arg0 + arg1
++		{name: "ADDW", argLength: 2, reg: gp21, asm: "ADDL", commutative: true, resultInArg0: true},                // arg0 + arg1
++		{name: "ADDB", argLength: 2, reg: gp21, asm: "ADDL", commutative: true, resultInArg0: true},                // arg0 + arg1
++		{name: "ADDQconst", argLength: 1, reg: gp11, asm: "ADDQ", aux: "Int64", resultInArg0: true, typ: "UInt64"}, // arg0 + auxint
++		{name: "ADDLconst", argLength: 1, reg: gp11, asm: "ADDL", aux: "Int32", resultInArg0: true},                // arg0 + auxint
++		{name: "ADDWconst", argLength: 1, reg: gp11, asm: "ADDL", aux: "Int16", resultInArg0: true},                // arg0 + auxint
++		{name: "ADDBconst", argLength: 1, reg: gp11, asm: "ADDL", aux: "Int8", resultInArg0: true},                 // arg0 + auxint
++
++		{name: "SUBQ", argLength: 2, reg: gp21, asm: "SUBQ", resultInArg0: true},                    // arg0 - arg1
++		{name: "SUBL", argLength: 2, reg: gp21, asm: "SUBL", resultInArg0: true},                    // arg0 - arg1
++		{name: "SUBW", argLength: 2, reg: gp21, asm: "SUBL", resultInArg0: true},                    // arg0 - arg1
++		{name: "SUBB", argLength: 2, reg: gp21, asm: "SUBL", resultInArg0: true},                    // arg0 - arg1
++		{name: "SUBQconst", argLength: 1, reg: gp11, asm: "SUBQ", aux: "Int64", resultInArg0: true}, // arg0 - auxint
++		{name: "SUBLconst", argLength: 1, reg: gp11, asm: "SUBL", aux: "Int32", resultInArg0: true}, // arg0 - auxint
++		{name: "SUBWconst", argLength: 1, reg: gp11, asm: "SUBL", aux: "Int16", resultInArg0: true}, // arg0 - auxint
++		{name: "SUBBconst", argLength: 1, reg: gp11, asm: "SUBL", aux: "Int8", resultInArg0: true},  // arg0 - auxint
++
++		{name: "MULQ", argLength: 2, reg: gp21, asm: "IMULQ", commutative: true, resultInArg0: true}, // arg0 * arg1
++		{name: "MULL", argLength: 2, reg: gp21, asm: "IMULL", commutative: true, resultInArg0: true}, // arg0 * arg1
++		{name: "MULW", argLength: 2, reg: gp21, asm: "IMULW", commutative: true, resultInArg0: true}, // arg0 * arg1
++		{name: "MULB", argLength: 2, reg: gp21, asm: "IMULW", commutative: true, resultInArg0: true}, // arg0 * arg1
++		{name: "MULQconst", argLength: 1, reg: gp11, asm: "IMULQ", aux: "Int64", resultInArg0: true}, // arg0 * auxint
++		{name: "MULLconst", argLength: 1, reg: gp11, asm: "IMULL", aux: "Int32", resultInArg0: true}, // arg0 * auxint
++		{name: "MULWconst", argLength: 1, reg: gp11, asm: "IMULW", aux: "Int16", resultInArg0: true}, // arg0 * auxint
++		{name: "MULBconst", argLength: 1, reg: gp11, asm: "IMULW", aux: "Int8", resultInArg0: true},  // arg0 * auxint
+ 
+ 		{name: "HMULQ", argLength: 2, reg: gp11hmul, asm: "IMULQ"}, // (arg0 * arg1) >> width
+ 		{name: "HMULL", argLength: 2, reg: gp11hmul, asm: "IMULL"}, // (arg0 * arg1) >> width
+@@ -202,7 +202,7 @@ func init() {
+ 		{name: "HMULWU", argLength: 2, reg: gp11hmul, asm: "MULW"}, // (arg0 * arg1) >> width
+ 		{name: "HMULBU", argLength: 2, reg: gp11hmul, asm: "MULB"}, // (arg0 * arg1) >> width
+ 
+-		{name: "AVGQU", argLength: 2, reg: gp21}, // (arg0 + arg1) / 2 as unsigned, all 64 result bits
++		{name: "AVGQU", argLength: 2, reg: gp21, commutative: true, resultInArg0: true}, // (arg0 + arg1) / 2 as unsigned, all 64 result bits
+ 
+ 		{name: "DIVQ", argLength: 2, reg: gp11div, asm: "IDIVQ"}, // arg0 / arg1
+ 		{name: "DIVL", argLength: 2, reg: gp11div, asm: "IDIVL"}, // arg0 / arg1
+@@ -218,32 +218,32 @@ func init() {
+ 		{name: "MODLU", argLength: 2, reg: gp11mod, asm: "DIVL"}, // arg0 % arg1
+ 		{name: "MODWU", argLength: 2, reg: gp11mod, asm: "DIVW"}, // arg0 % arg1
+ 
+-		{name: "ANDQ", argLength: 2, reg: gp21, asm: "ANDQ"},                    // arg0 & arg1
+-		{name: "ANDL", argLength: 2, reg: gp21, asm: "ANDL"},                    // arg0 & arg1
+-		{name: "ANDW", argLength: 2, reg: gp21, asm: "ANDL"},                    // arg0 & arg1
+-		{name: "ANDB", argLength: 2, reg: gp21, asm: "ANDL"},                    // arg0 & arg1
+-		{name: "ANDQconst", argLength: 1, reg: gp11, asm: "ANDQ", aux: "Int64"}, // arg0 & auxint
+-		{name: "ANDLconst", argLength: 1, reg: gp11, asm: "ANDL", aux: "Int32"}, // arg0 & auxint
+-		{name: "ANDWconst", argLength: 1, reg: gp11, asm: "ANDL", aux: "Int16"}, // arg0 & auxint
+-		{name: "ANDBconst", argLength: 1, reg: gp11, asm: "ANDL", aux: "Int8"},  // arg0 & auxint
+-
+-		{name: "ORQ", argLength: 2, reg: gp21, asm: "ORQ"},                    // arg0 | arg1
+-		{name: "ORL", argLength: 2, reg: gp21, asm: "ORL"},                    // arg0 | arg1
+-		{name: "ORW", argLength: 2, reg: gp21, asm: "ORL"},                    // arg0 | arg1
+-		{name: "ORB", argLength: 2, reg: gp21, asm: "ORL"},                    // arg0 | arg1
+-		{name: "ORQconst", argLength: 1, reg: gp11, asm: "ORQ", aux: "Int64"}, // arg0 | auxint
+-		{name: "ORLconst", argLength: 1, reg: gp11, asm: "ORL", aux: "Int32"}, // arg0 | auxint
+-		{name: "ORWconst", argLength: 1, reg: gp11, asm: "ORL", aux: "Int16"}, // arg0 | auxint
+-		{name: "ORBconst", argLength: 1, reg: gp11, asm: "ORL", aux: "Int8"},  // arg0 | auxint
+-
+-		{name: "XORQ", argLength: 2, reg: gp21, asm: "XORQ"},                    // arg0 ^ arg1
+-		{name: "XORL", argLength: 2, reg: gp21, asm: "XORL"},                    // arg0 ^ arg1
+-		{name: "XORW", argLength: 2, reg: gp21, asm: "XORL"},                    // arg0 ^ arg1
+-		{name: "XORB", argLength: 2, reg: gp21, asm: "XORL"},                    // arg0 ^ arg1
+-		{name: "XORQconst", argLength: 1, reg: gp11, asm: "XORQ", aux: "Int64"}, // arg0 ^ auxint
+-		{name: "XORLconst", argLength: 1, reg: gp11, asm: "XORL", aux: "Int32"}, // arg0 ^ auxint
+-		{name: "XORWconst", argLength: 1, reg: gp11, asm: "XORL", aux: "Int16"}, // arg0 ^ auxint
+-		{name: "XORBconst", argLength: 1, reg: gp11, asm: "XORL", aux: "Int8"},  // arg0 ^ auxint
++		{name: "ANDQ", argLength: 2, reg: gp21, asm: "ANDQ", commutative: true, resultInArg0: true}, // arg0 & arg1
++		{name: "ANDL", argLength: 2, reg: gp21, asm: "ANDL", commutative: true, resultInArg0: true}, // arg0 & arg1
++		{name: "ANDW", argLength: 2, reg: gp21, asm: "ANDL", commutative: true, resultInArg0: true}, // arg0 & arg1
++		{name: "ANDB", argLength: 2, reg: gp21, asm: "ANDL", commutative: true, resultInArg0: true}, // arg0 & arg1
++		{name: "ANDQconst", argLength: 1, reg: gp11, asm: "ANDQ", aux: "Int64", resultInArg0: true}, // arg0 & auxint
++		{name: "ANDLconst", argLength: 1, reg: gp11, asm: "ANDL", aux: "Int32", resultInArg0: true}, // arg0 & auxint
++		{name: "ANDWconst", argLength: 1, reg: gp11, asm: "ANDL", aux: "Int16", resultInArg0: true}, // arg0 & auxint
++		{name: "ANDBconst", argLength: 1, reg: gp11, asm: "ANDL", aux: "Int8", resultInArg0: true},  // arg0 & auxint
++
++		{name: "ORQ", argLength: 2, reg: gp21, asm: "ORQ", commutative: true, resultInArg0: true}, // arg0 | arg1
++		{name: "ORL", argLength: 2, reg: gp21, asm: "ORL", commutative: true, resultInArg0: true}, // arg0 | arg1
++		{name: "ORW", argLength: 2, reg: gp21, asm: "ORL", commutative: true, resultInArg0: true}, // arg0 | arg1
++		{name: "ORB", argLength: 2, reg: gp21, asm: "ORL", commutative: true, resultInArg0: true}, // arg0 | arg1
++		{name: "ORQconst", argLength: 1, reg: gp11, asm: "ORQ", aux: "Int64", resultInArg0: true}, // arg0 | auxint
++		{name: "ORLconst", argLength: 1, reg: gp11, asm: "ORL", aux: "Int32", resultInArg0: true}, // arg0 | auxint
++		{name: "ORWconst", argLength: 1, reg: gp11, asm: "ORL", aux: "Int16", resultInArg0: true}, // arg0 | auxint
++		{name: "ORBconst", argLength: 1, reg: gp11, asm: "ORL", aux: "Int8", resultInArg0: true},  // arg0 | auxint
++
++		{name: "XORQ", argLength: 2, reg: gp21, asm: "XORQ", commutative: true, resultInArg0: true}, // arg0 ^ arg1
++		{name: "XORL", argLength: 2, reg: gp21, asm: "XORL", commutative: true, resultInArg0: true}, // arg0 ^ arg1
++		{name: "XORW", argLength: 2, reg: gp21, asm: "XORL", commutative: true, resultInArg0: true}, // arg0 ^ arg1
++		{name: "XORB", argLength: 2, reg: gp21, asm: "XORL", commutative: true, resultInArg0: true}, // arg0 ^ arg1
++		{name: "XORQconst", argLength: 1, reg: gp11, asm: "XORQ", aux: "Int64", resultInArg0: true}, // arg0 ^ auxint
++		{name: "XORLconst", argLength: 1, reg: gp11, asm: "XORL", aux: "Int32", resultInArg0: true}, // arg0 ^ auxint
++		{name: "XORWconst", argLength: 1, reg: gp11, asm: "XORL", aux: "Int16", resultInArg0: true}, // arg0 ^ auxint
++		{name: "XORBconst", argLength: 1, reg: gp11, asm: "XORL", aux: "Int8", resultInArg0: true},  // arg0 ^ auxint
+ 
+ 		{name: "CMPQ", argLength: 2, reg: gp2flags, asm: "CMPQ", typ: "Flags"},                    // arg0 compare to arg1
+ 		{name: "CMPL", argLength: 2, reg: gp2flags, asm: "CMPL", typ: "Flags"},                    // arg0 compare to arg1
+@@ -266,49 +266,49 @@ func init() {
+ 		{name: "TESTWconst", argLength: 1, reg: gp1flags, asm: "TESTW", typ: "Flags", aux: "Int16"}, // (arg0 & auxint) compare to 0
+ 		{name: "TESTBconst", argLength: 1, reg: gp1flags, asm: "TESTB", typ: "Flags", aux: "Int8"},  // (arg0 & auxint) compare to 0
+ 
+-		{name: "SHLQ", argLength: 2, reg: gp21shift, asm: "SHLQ"},               // arg0 << arg1, shift amount is mod 64
+-		{name: "SHLL", argLength: 2, reg: gp21shift, asm: "SHLL"},               // arg0 << arg1, shift amount is mod 32
+-		{name: "SHLW", argLength: 2, reg: gp21shift, asm: "SHLL"},               // arg0 << arg1, shift amount is mod 32
+-		{name: "SHLB", argLength: 2, reg: gp21shift, asm: "SHLL"},               // arg0 << arg1, shift amount is mod 32
+-		{name: "SHLQconst", argLength: 1, reg: gp11, asm: "SHLQ", aux: "Int64"}, // arg0 << auxint, shift amount 0-63
+-		{name: "SHLLconst", argLength: 1, reg: gp11, asm: "SHLL", aux: "Int32"}, // arg0 << auxint, shift amount 0-31
+-		{name: "SHLWconst", argLength: 1, reg: gp11, asm: "SHLL", aux: "Int16"}, // arg0 << auxint, shift amount 0-31
+-		{name: "SHLBconst", argLength: 1, reg: gp11, asm: "SHLL", aux: "Int8"},  // arg0 << auxint, shift amount 0-31
++		{name: "SHLQ", argLength: 2, reg: gp21shift, asm: "SHLQ", resultInArg0: true},               // arg0 << arg1, shift amount is mod 64
++		{name: "SHLL", argLength: 2, reg: gp21shift, asm: "SHLL", resultInArg0: true},               // arg0 << arg1, shift amount is mod 32
++		{name: "SHLW", argLength: 2, reg: gp21shift, asm: "SHLL", resultInArg0: true},               // arg0 << arg1, shift amount is mod 32
++		{name: "SHLB", argLength: 2, reg: gp21shift, asm: "SHLL", resultInArg0: true},               // arg0 << arg1, shift amount is mod 32
++		{name: "SHLQconst", argLength: 1, reg: gp11, asm: "SHLQ", aux: "Int64", resultInArg0: true}, // arg0 << auxint, shift amount 0-63
++		{name: "SHLLconst", argLength: 1, reg: gp11, asm: "SHLL", aux: "Int32", resultInArg0: true}, // arg0 << auxint, shift amount 0-31
++		{name: "SHLWconst", argLength: 1, reg: gp11, asm: "SHLL", aux: "Int16", resultInArg0: true}, // arg0 << auxint, shift amount 0-31
++		{name: "SHLBconst", argLength: 1, reg: gp11, asm: "SHLL", aux: "Int8", resultInArg0: true},  // arg0 << auxint, shift amount 0-31
+ 		// Note: x86 is weird, the 16 and 8 byte shifts still use all 5 bits of shift amount!
+ 
+-		{name: "SHRQ", argLength: 2, reg: gp21shift, asm: "SHRQ"},               // unsigned arg0 >> arg1, shift amount is mod 64
+-		{name: "SHRL", argLength: 2, reg: gp21shift, asm: "SHRL"},               // unsigned arg0 >> arg1, shift amount is mod 32
+-		{name: "SHRW", argLength: 2, reg: gp21shift, asm: "SHRW"},               // unsigned arg0 >> arg1, shift amount is mod 32
+-		{name: "SHRB", argLength: 2, reg: gp21shift, asm: "SHRB"},               // unsigned arg0 >> arg1, shift amount is mod 32
+-		{name: "SHRQconst", argLength: 1, reg: gp11, asm: "SHRQ", aux: "Int64"}, // unsigned arg0 >> auxint, shift amount 0-63
+-		{name: "SHRLconst", argLength: 1, reg: gp11, asm: "SHRL", aux: "Int32"}, // unsigned arg0 >> auxint, shift amount 0-31
+-		{name: "SHRWconst", argLength: 1, reg: gp11, asm: "SHRW", aux: "Int16"}, // unsigned arg0 >> auxint, shift amount 0-31
+-		{name: "SHRBconst", argLength: 1, reg: gp11, asm: "SHRB", aux: "Int8"},  // unsigned arg0 >> auxint, shift amount 0-31
+-
+-		{name: "SARQ", argLength: 2, reg: gp21shift, asm: "SARQ"},               // signed arg0 >> arg1, shift amount is mod 64
+-		{name: "SARL", argLength: 2, reg: gp21shift, asm: "SARL"},               // signed arg0 >> arg1, shift amount is mod 32
+-		{name: "SARW", argLength: 2, reg: gp21shift, asm: "SARW"},               // signed arg0 >> arg1, shift amount is mod 32
+-		{name: "SARB", argLength: 2, reg: gp21shift, asm: "SARB"},               // signed arg0 >> arg1, shift amount is mod 32
+-		{name: "SARQconst", argLength: 1, reg: gp11, asm: "SARQ", aux: "Int64"}, // signed arg0 >> auxint, shift amount 0-63
+-		{name: "SARLconst", argLength: 1, reg: gp11, asm: "SARL", aux: "Int32"}, // signed arg0 >> auxint, shift amount 0-31
+-		{name: "SARWconst", argLength: 1, reg: gp11, asm: "SARW", aux: "Int16"}, // signed arg0 >> auxint, shift amount 0-31
+-		{name: "SARBconst", argLength: 1, reg: gp11, asm: "SARB", aux: "Int8"},  // signed arg0 >> auxint, shift amount 0-31
+-
+-		{name: "ROLQconst", argLength: 1, reg: gp11, asm: "ROLQ", aux: "Int64"}, // arg0 rotate left auxint, rotate amount 0-63
+-		{name: "ROLLconst", argLength: 1, reg: gp11, asm: "ROLL", aux: "Int32"}, // arg0 rotate left auxint, rotate amount 0-31
+-		{name: "ROLWconst", argLength: 1, reg: gp11, asm: "ROLW", aux: "Int16"}, // arg0 rotate left auxint, rotate amount 0-15
+-		{name: "ROLBconst", argLength: 1, reg: gp11, asm: "ROLB", aux: "Int8"},  // arg0 rotate left auxint, rotate amount 0-7
++		{name: "SHRQ", argLength: 2, reg: gp21shift, asm: "SHRQ", resultInArg0: true},               // unsigned arg0 >> arg1, shift amount is mod 64
++		{name: "SHRL", argLength: 2, reg: gp21shift, asm: "SHRL", resultInArg0: true},               // unsigned arg0 >> arg1, shift amount is mod 32
++		{name: "SHRW", argLength: 2, reg: gp21shift, asm: "SHRW", resultInArg0: true},               // unsigned arg0 >> arg1, shift amount is mod 32
++		{name: "SHRB", argLength: 2, reg: gp21shift, asm: "SHRB", resultInArg0: true},               // unsigned arg0 >> arg1, shift amount is mod 32
++		{name: "SHRQconst", argLength: 1, reg: gp11, asm: "SHRQ", aux: "Int64", resultInArg0: true}, // unsigned arg0 >> auxint, shift amount 0-63
++		{name: "SHRLconst", argLength: 1, reg: gp11, asm: "SHRL", aux: "Int32", resultInArg0: true}, // unsigned arg0 >> auxint, shift amount 0-31
++		{name: "SHRWconst", argLength: 1, reg: gp11, asm: "SHRW", aux: "Int16", resultInArg0: true}, // unsigned arg0 >> auxint, shift amount 0-31
++		{name: "SHRBconst", argLength: 1, reg: gp11, asm: "SHRB", aux: "Int8", resultInArg0: true},  // unsigned arg0 >> auxint, shift amount 0-31
++
++		{name: "SARQ", argLength: 2, reg: gp21shift, asm: "SARQ", resultInArg0: true},               // signed arg0 >> arg1, shift amount is mod 64
++		{name: "SARL", argLength: 2, reg: gp21shift, asm: "SARL", resultInArg0: true},               // signed arg0 >> arg1, shift amount is mod 32
++		{name: "SARW", argLength: 2, reg: gp21shift, asm: "SARW", resultInArg0: true},               // signed arg0 >> arg1, shift amount is mod 32
++		{name: "SARB", argLength: 2, reg: gp21shift, asm: "SARB", resultInArg0: true},               // signed arg0 >> arg1, shift amount is mod 32
++		{name: "SARQconst", argLength: 1, reg: gp11, asm: "SARQ", aux: "Int64", resultInArg0: true}, // signed arg0 >> auxint, shift amount 0-63
++		{name: "SARLconst", argLength: 1, reg: gp11, asm: "SARL", aux: "Int32", resultInArg0: true}, // signed arg0 >> auxint, shift amount 0-31
++		{name: "SARWconst", argLength: 1, reg: gp11, asm: "SARW", aux: "Int16", resultInArg0: true}, // signed arg0 >> auxint, shift amount 0-31
++		{name: "SARBconst", argLength: 1, reg: gp11, asm: "SARB", aux: "Int8", resultInArg0: true},  // signed arg0 >> auxint, shift amount 0-31
++
++		{name: "ROLQconst", argLength: 1, reg: gp11, asm: "ROLQ", aux: "Int64", resultInArg0: true}, // arg0 rotate left auxint, rotate amount 0-63
++		{name: "ROLLconst", argLength: 1, reg: gp11, asm: "ROLL", aux: "Int32", resultInArg0: true}, // arg0 rotate left auxint, rotate amount 0-31
++		{name: "ROLWconst", argLength: 1, reg: gp11, asm: "ROLW", aux: "Int16", resultInArg0: true}, // arg0 rotate left auxint, rotate amount 0-15
++		{name: "ROLBconst", argLength: 1, reg: gp11, asm: "ROLB", aux: "Int8", resultInArg0: true},  // arg0 rotate left auxint, rotate amount 0-7
+ 
+ 		// unary ops
+-		{name: "NEGQ", argLength: 1, reg: gp11, asm: "NEGQ"}, // -arg0
+-		{name: "NEGL", argLength: 1, reg: gp11, asm: "NEGL"}, // -arg0
+-		{name: "NEGW", argLength: 1, reg: gp11, asm: "NEGL"}, // -arg0
+-		{name: "NEGB", argLength: 1, reg: gp11, asm: "NEGL"}, // -arg0
++		{name: "NEGQ", argLength: 1, reg: gp11, asm: "NEGQ", resultInArg0: true}, // -arg0
++		{name: "NEGL", argLength: 1, reg: gp11, asm: "NEGL", resultInArg0: true}, // -arg0
++		{name: "NEGW", argLength: 1, reg: gp11, asm: "NEGL", resultInArg0: true}, // -arg0
++		{name: "NEGB", argLength: 1, reg: gp11, asm: "NEGL", resultInArg0: true}, // -arg0
+ 
+-		{name: "NOTQ", argLength: 1, reg: gp11, asm: "NOTQ"}, // ^arg0
+-		{name: "NOTL", argLength: 1, reg: gp11, asm: "NOTL"}, // ^arg0
+-		{name: "NOTW", argLength: 1, reg: gp11, asm: "NOTL"}, // ^arg0
+-		{name: "NOTB", argLength: 1, reg: gp11, asm: "NOTL"}, // ^arg0
++		{name: "NOTQ", argLength: 1, reg: gp11, asm: "NOTQ", resultInArg0: true}, // ^arg0
++		{name: "NOTL", argLength: 1, reg: gp11, asm: "NOTL", resultInArg0: true}, // ^arg0
++		{name: "NOTW", argLength: 1, reg: gp11, asm: "NOTL", resultInArg0: true}, // ^arg0
++		{name: "NOTB", argLength: 1, reg: gp11, asm: "NOTL", resultInArg0: true}, // ^arg0
+ 
+ 		{name: "SQRTSD", argLength: 1, reg: fp11, asm: "SQRTSD"}, // sqrt(arg0)
+ 
+@@ -360,7 +360,7 @@ func init() {
+ 		{name: "CVTSD2SS", argLength: 1, reg: fp11, asm: "CVTSD2SS"},   // convert float64 to float32
+ 		{name: "CVTSS2SD", argLength: 1, reg: fp11, asm: "CVTSS2SD"},   // convert float32 to float64
+ 
+-		{name: "PXOR", argLength: 2, reg: fp21, asm: "PXOR"}, // exclusive or, applied to X regs for float negation.
++		{name: "PXOR", argLength: 2, reg: fp21, asm: "PXOR", commutative: true, resultInArg0: true}, // exclusive or, applied to X regs for float negation.
+ 
+ 		{name: "LEAQ", argLength: 1, reg: gp11sb, aux: "SymOff", rematerializeable: true}, // arg0 + auxint + offset encoded in aux
+ 		{name: "LEAQ1", argLength: 2, reg: gp21sb, aux: "SymOff"},                         // arg0 + arg1 + auxint + aux
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/gen/main.go
+index 087633cf23..ef9760e0b6 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/gen/main.go
+@@ -34,6 +34,7 @@ type opData struct {
+ 	rematerializeable bool
+ 	argLength         int32 // number of arguments, if -1, then this operation has a variable number of arguments
+ 	commutative       bool  // this operation is commutative (e.g. addition)
++	resultInArg0      bool  // prefer v and v.Args[0] to be allocated to the same register
+ }
+ 
+ type blockData struct {
+@@ -141,6 +142,9 @@ func genOp() {
+ 			if v.commutative {
+ 				fmt.Fprintln(w, "commutative: true,")
+ 			}
++			if v.resultInArg0 {
++				fmt.Fprintln(w, "resultInArg0: true,")
++			}
+ 			if a.name == "generic" {
+ 				fmt.Fprintln(w, "generic:true,")
+ 				fmt.Fprintln(w, "},") // close op
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index daba6f4431..b2ee82c41e 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -26,6 +26,7 @@ type opInfo struct {
+ 	generic           bool // this is a generic (arch-independent) opcode
+ 	rematerializeable bool // this op is rematerializeable
+ 	commutative       bool // this operation is commutative (e.g. addition)
++	resultInArg0      bool // prefer v and v.Args[0] to be allocated to the same register
+ }
+ 
+ type inputInfo struct {
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 3b5e14e6ab..7454e51aeb 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -591,9 +591,11 @@ var opcodeTable = [...]opInfo{
+ 	{name: "OpInvalid"},
+ 
+ 	{
+-		name:   "ADDSS",
+-		argLen: 2,
+-		asm:    x86.AADDSS,
++		name:         "ADDSS",
++		argLen:       2,
++		commutative:  true,
++		resultInArg0: true,
++		asm:          x86.AADDSS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+@@ -605,9 +607,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "ADDSD",
+-		argLen: 2,
+-		asm:    x86.AADDSD,
++		name:         "ADDSD",
++		argLen:       2,
++		commutative:  true,
++		resultInArg0: true,
++		asm:          x86.AADDSD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+@@ -619,9 +623,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "SUBSS",
+-		argLen: 2,
+-		asm:    x86.ASUBSS,
++		name:         "SUBSS",
++		argLen:       2,
++		resultInArg0: true,
++		asm:          x86.ASUBSS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2147418112}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14
+@@ -634,9 +639,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "SUBSD",
+-		argLen: 2,
+-		asm:    x86.ASUBSD,
++		name:         "SUBSD",
++		argLen:       2,
++		resultInArg0: true,
++		asm:          x86.ASUBSD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2147418112}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14
+@@ -649,9 +655,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "MULSS",
+-		argLen: 2,
+-		asm:    x86.AMULSS,
++		name:         "MULSS",
++		argLen:       2,
++		commutative:  true,
++		resultInArg0: true,
++		asm:          x86.AMULSS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+@@ -663,9 +671,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "MULSD",
+-		argLen: 2,
+-		asm:    x86.AMULSD,
++		name:         "MULSD",
++		argLen:       2,
++		commutative:  true,
++		resultInArg0: true,
++		asm:          x86.AMULSD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+@@ -677,9 +687,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "DIVSS",
+-		argLen: 2,
+-		asm:    x86.ADIVSS,
++		name:         "DIVSS",
++		argLen:       2,
++		resultInArg0: true,
++		asm:          x86.ADIVSS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2147418112}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14
+@@ -692,9 +703,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "DIVSD",
+-		argLen: 2,
+-		asm:    x86.ADIVSD,
++		name:         "DIVSD",
++		argLen:       2,
++		resultInArg0: true,
++		asm:          x86.ADIVSD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2147418112}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14
+@@ -839,9 +851,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "ADDQ",
+-		argLen: 2,
+-		asm:    x86.AADDQ,
++		name:         "ADDQ",
++		argLen:       2,
++		commutative:  true,
++		resultInArg0: true,
++		asm:          x86.AADDQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -854,9 +868,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "ADDL",
+-		argLen: 2,
+-		asm:    x86.AADDL,
++		name:         "ADDL",
++		argLen:       2,
++		commutative:  true,
++		resultInArg0: true,
++		asm:          x86.AADDL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -869,9 +885,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "ADDW",
+-		argLen: 2,
+-		asm:    x86.AADDL,
++		name:         "ADDW",
++		argLen:       2,
++		commutative:  true,
++		resultInArg0: true,
++		asm:          x86.AADDL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -884,9 +902,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "ADDB",
+-		argLen: 2,
+-		asm:    x86.AADDL,
++		name:         "ADDB",
++		argLen:       2,
++		commutative:  true,
++		resultInArg0: true,
++		asm:          x86.AADDL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -899,10 +919,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "ADDQconst",
+-		auxType: auxInt64,
+-		argLen:  1,
+-		asm:     x86.AADDQ,
++		name:         "ADDQconst",
++		auxType:      auxInt64,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.AADDQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -914,10 +935,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "ADDLconst",
+-		auxType: auxInt32,
+-		argLen:  1,
+-		asm:     x86.AADDL,
++		name:         "ADDLconst",
++		auxType:      auxInt32,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.AADDL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -929,10 +951,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "ADDWconst",
+-		auxType: auxInt16,
+-		argLen:  1,
+-		asm:     x86.AADDL,
++		name:         "ADDWconst",
++		auxType:      auxInt16,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.AADDL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -944,10 +967,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "ADDBconst",
+-		auxType: auxInt8,
+-		argLen:  1,
+-		asm:     x86.AADDL,
++		name:         "ADDBconst",
++		auxType:      auxInt8,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.AADDL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -959,9 +983,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "SUBQ",
+-		argLen: 2,
+-		asm:    x86.ASUBQ,
++		name:         "SUBQ",
++		argLen:       2,
++		resultInArg0: true,
++		asm:          x86.ASUBQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -974,9 +999,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "SUBL",
+-		argLen: 2,
+-		asm:    x86.ASUBL,
++		name:         "SUBL",
++		argLen:       2,
++		resultInArg0: true,
++		asm:          x86.ASUBL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -989,9 +1015,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "SUBW",
+-		argLen: 2,
+-		asm:    x86.ASUBL,
++		name:         "SUBW",
++		argLen:       2,
++		resultInArg0: true,
++		asm:          x86.ASUBL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1004,9 +1031,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "SUBB",
+-		argLen: 2,
+-		asm:    x86.ASUBL,
++		name:         "SUBB",
++		argLen:       2,
++		resultInArg0: true,
++		asm:          x86.ASUBL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1019,10 +1047,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "SUBQconst",
+-		auxType: auxInt64,
+-		argLen:  1,
+-		asm:     x86.ASUBQ,
++		name:         "SUBQconst",
++		auxType:      auxInt64,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.ASUBQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1034,10 +1063,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "SUBLconst",
+-		auxType: auxInt32,
+-		argLen:  1,
+-		asm:     x86.ASUBL,
++		name:         "SUBLconst",
++		auxType:      auxInt32,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.ASUBL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1049,10 +1079,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "SUBWconst",
+-		auxType: auxInt16,
+-		argLen:  1,
+-		asm:     x86.ASUBL,
++		name:         "SUBWconst",
++		auxType:      auxInt16,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.ASUBL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1064,10 +1095,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "SUBBconst",
+-		auxType: auxInt8,
+-		argLen:  1,
+-		asm:     x86.ASUBL,
++		name:         "SUBBconst",
++		auxType:      auxInt8,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.ASUBL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1079,9 +1111,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "MULQ",
+-		argLen: 2,
+-		asm:    x86.AIMULQ,
++		name:         "MULQ",
++		argLen:       2,
++		commutative:  true,
++		resultInArg0: true,
++		asm:          x86.AIMULQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1094,9 +1128,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "MULL",
+-		argLen: 2,
+-		asm:    x86.AIMULL,
++		name:         "MULL",
++		argLen:       2,
++		commutative:  true,
++		resultInArg0: true,
++		asm:          x86.AIMULL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1109,9 +1145,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "MULW",
+-		argLen: 2,
+-		asm:    x86.AIMULW,
++		name:         "MULW",
++		argLen:       2,
++		commutative:  true,
++		resultInArg0: true,
++		asm:          x86.AIMULW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1124,9 +1162,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "MULB",
+-		argLen: 2,
+-		asm:    x86.AIMULW,
++		name:         "MULB",
++		argLen:       2,
++		commutative:  true,
++		resultInArg0: true,
++		asm:          x86.AIMULW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1139,10 +1179,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MULQconst",
+-		auxType: auxInt64,
+-		argLen:  1,
+-		asm:     x86.AIMULQ,
++		name:         "MULQconst",
++		auxType:      auxInt64,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.AIMULQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1154,10 +1195,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MULLconst",
+-		auxType: auxInt32,
+-		argLen:  1,
+-		asm:     x86.AIMULL,
++		name:         "MULLconst",
++		auxType:      auxInt32,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.AIMULL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1169,10 +1211,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MULWconst",
+-		auxType: auxInt16,
+-		argLen:  1,
+-		asm:     x86.AIMULW,
++		name:         "MULWconst",
++		auxType:      auxInt16,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.AIMULW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1184,10 +1227,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "MULBconst",
+-		auxType: auxInt8,
+-		argLen:  1,
+-		asm:     x86.AIMULW,
++		name:         "MULBconst",
++		auxType:      auxInt8,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.AIMULW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1319,8 +1363,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "AVGQU",
+-		argLen: 2,
++		name:         "AVGQU",
++		argLen:       2,
++		commutative:  true,
++		resultInArg0: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1513,9 +1559,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "ANDQ",
+-		argLen: 2,
+-		asm:    x86.AANDQ,
++		name:         "ANDQ",
++		argLen:       2,
++		commutative:  true,
++		resultInArg0: true,
++		asm:          x86.AANDQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1528,9 +1576,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "ANDL",
+-		argLen: 2,
+-		asm:    x86.AANDL,
++		name:         "ANDL",
++		argLen:       2,
++		commutative:  true,
++		resultInArg0: true,
++		asm:          x86.AANDL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1543,9 +1593,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "ANDW",
+-		argLen: 2,
+-		asm:    x86.AANDL,
++		name:         "ANDW",
++		argLen:       2,
++		commutative:  true,
++		resultInArg0: true,
++		asm:          x86.AANDL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1558,9 +1610,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "ANDB",
+-		argLen: 2,
+-		asm:    x86.AANDL,
++		name:         "ANDB",
++		argLen:       2,
++		commutative:  true,
++		resultInArg0: true,
++		asm:          x86.AANDL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1573,10 +1627,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "ANDQconst",
+-		auxType: auxInt64,
+-		argLen:  1,
+-		asm:     x86.AANDQ,
++		name:         "ANDQconst",
++		auxType:      auxInt64,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.AANDQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1588,10 +1643,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "ANDLconst",
+-		auxType: auxInt32,
+-		argLen:  1,
+-		asm:     x86.AANDL,
++		name:         "ANDLconst",
++		auxType:      auxInt32,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.AANDL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1603,10 +1659,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "ANDWconst",
+-		auxType: auxInt16,
+-		argLen:  1,
+-		asm:     x86.AANDL,
++		name:         "ANDWconst",
++		auxType:      auxInt16,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.AANDL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1618,10 +1675,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "ANDBconst",
+-		auxType: auxInt8,
+-		argLen:  1,
+-		asm:     x86.AANDL,
++		name:         "ANDBconst",
++		auxType:      auxInt8,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.AANDL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1633,9 +1691,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "ORQ",
+-		argLen: 2,
+-		asm:    x86.AORQ,
++		name:         "ORQ",
++		argLen:       2,
++		commutative:  true,
++		resultInArg0: true,
++		asm:          x86.AORQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1648,9 +1708,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "ORL",
+-		argLen: 2,
+-		asm:    x86.AORL,
++		name:         "ORL",
++		argLen:       2,
++		commutative:  true,
++		resultInArg0: true,
++		asm:          x86.AORL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1663,9 +1725,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "ORW",
+-		argLen: 2,
+-		asm:    x86.AORL,
++		name:         "ORW",
++		argLen:       2,
++		commutative:  true,
++		resultInArg0: true,
++		asm:          x86.AORL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1678,9 +1742,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "ORB",
+-		argLen: 2,
+-		asm:    x86.AORL,
++		name:         "ORB",
++		argLen:       2,
++		commutative:  true,
++		resultInArg0: true,
++		asm:          x86.AORL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1693,10 +1759,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "ORQconst",
+-		auxType: auxInt64,
+-		argLen:  1,
+-		asm:     x86.AORQ,
++		name:         "ORQconst",
++		auxType:      auxInt64,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.AORQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1708,10 +1775,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "ORLconst",
+-		auxType: auxInt32,
+-		argLen:  1,
+-		asm:     x86.AORL,
++		name:         "ORLconst",
++		auxType:      auxInt32,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.AORL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1723,10 +1791,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "ORWconst",
+-		auxType: auxInt16,
+-		argLen:  1,
+-		asm:     x86.AORL,
++		name:         "ORWconst",
++		auxType:      auxInt16,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.AORL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1738,10 +1807,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "ORBconst",
+-		auxType: auxInt8,
+-		argLen:  1,
+-		asm:     x86.AORL,
++		name:         "ORBconst",
++		auxType:      auxInt8,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.AORL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1753,9 +1823,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "XORQ",
+-		argLen: 2,
+-		asm:    x86.AXORQ,
++		name:         "XORQ",
++		argLen:       2,
++		commutative:  true,
++		resultInArg0: true,
++		asm:          x86.AXORQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1768,9 +1840,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "XORL",
+-		argLen: 2,
+-		asm:    x86.AXORL,
++		name:         "XORL",
++		argLen:       2,
++		commutative:  true,
++		resultInArg0: true,
++		asm:          x86.AXORL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1783,9 +1857,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "XORW",
+-		argLen: 2,
+-		asm:    x86.AXORL,
++		name:         "XORW",
++		argLen:       2,
++		commutative:  true,
++		resultInArg0: true,
++		asm:          x86.AXORL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1798,9 +1874,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "XORB",
+-		argLen: 2,
+-		asm:    x86.AXORL,
++		name:         "XORB",
++		argLen:       2,
++		commutative:  true,
++		resultInArg0: true,
++		asm:          x86.AXORL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1813,10 +1891,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "XORQconst",
+-		auxType: auxInt64,
+-		argLen:  1,
+-		asm:     x86.AXORQ,
++		name:         "XORQconst",
++		auxType:      auxInt64,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.AXORQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1828,10 +1907,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "XORLconst",
+-		auxType: auxInt32,
+-		argLen:  1,
+-		asm:     x86.AXORL,
++		name:         "XORLconst",
++		auxType:      auxInt32,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.AXORL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1843,10 +1923,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "XORWconst",
+-		auxType: auxInt16,
+-		argLen:  1,
+-		asm:     x86.AXORL,
++		name:         "XORWconst",
++		auxType:      auxInt16,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.AXORL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1858,10 +1939,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "XORBconst",
+-		auxType: auxInt8,
+-		argLen:  1,
+-		asm:     x86.AXORL,
++		name:         "XORBconst",
++		auxType:      auxInt8,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.AXORL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2125,9 +2207,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "SHLQ",
+-		argLen: 2,
+-		asm:    x86.ASHLQ,
++		name:         "SHLQ",
++		argLen:       2,
++		resultInArg0: true,
++		asm:          x86.ASHLQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 2},     // .CX
+@@ -2140,9 +2223,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "SHLL",
+-		argLen: 2,
+-		asm:    x86.ASHLL,
++		name:         "SHLL",
++		argLen:       2,
++		resultInArg0: true,
++		asm:          x86.ASHLL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 2},     // .CX
+@@ -2155,9 +2239,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "SHLW",
+-		argLen: 2,
+-		asm:    x86.ASHLL,
++		name:         "SHLW",
++		argLen:       2,
++		resultInArg0: true,
++		asm:          x86.ASHLL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 2},     // .CX
+@@ -2170,9 +2255,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "SHLB",
+-		argLen: 2,
+-		asm:    x86.ASHLL,
++		name:         "SHLB",
++		argLen:       2,
++		resultInArg0: true,
++		asm:          x86.ASHLL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 2},     // .CX
+@@ -2185,10 +2271,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "SHLQconst",
+-		auxType: auxInt64,
+-		argLen:  1,
+-		asm:     x86.ASHLQ,
++		name:         "SHLQconst",
++		auxType:      auxInt64,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.ASHLQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2200,10 +2287,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "SHLLconst",
+-		auxType: auxInt32,
+-		argLen:  1,
+-		asm:     x86.ASHLL,
++		name:         "SHLLconst",
++		auxType:      auxInt32,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.ASHLL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2215,10 +2303,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "SHLWconst",
+-		auxType: auxInt16,
+-		argLen:  1,
+-		asm:     x86.ASHLL,
++		name:         "SHLWconst",
++		auxType:      auxInt16,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.ASHLL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2230,10 +2319,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "SHLBconst",
+-		auxType: auxInt8,
+-		argLen:  1,
+-		asm:     x86.ASHLL,
++		name:         "SHLBconst",
++		auxType:      auxInt8,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.ASHLL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2245,9 +2335,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "SHRQ",
+-		argLen: 2,
+-		asm:    x86.ASHRQ,
++		name:         "SHRQ",
++		argLen:       2,
++		resultInArg0: true,
++		asm:          x86.ASHRQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 2},     // .CX
+@@ -2260,9 +2351,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "SHRL",
+-		argLen: 2,
+-		asm:    x86.ASHRL,
++		name:         "SHRL",
++		argLen:       2,
++		resultInArg0: true,
++		asm:          x86.ASHRL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 2},     // .CX
+@@ -2275,9 +2367,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "SHRW",
+-		argLen: 2,
+-		asm:    x86.ASHRW,
++		name:         "SHRW",
++		argLen:       2,
++		resultInArg0: true,
++		asm:          x86.ASHRW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 2},     // .CX
+@@ -2290,9 +2383,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "SHRB",
+-		argLen: 2,
+-		asm:    x86.ASHRB,
++		name:         "SHRB",
++		argLen:       2,
++		resultInArg0: true,
++		asm:          x86.ASHRB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 2},     // .CX
+@@ -2305,10 +2399,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "SHRQconst",
+-		auxType: auxInt64,
+-		argLen:  1,
+-		asm:     x86.ASHRQ,
++		name:         "SHRQconst",
++		auxType:      auxInt64,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.ASHRQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2320,10 +2415,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "SHRLconst",
+-		auxType: auxInt32,
+-		argLen:  1,
+-		asm:     x86.ASHRL,
++		name:         "SHRLconst",
++		auxType:      auxInt32,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.ASHRL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2335,10 +2431,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "SHRWconst",
+-		auxType: auxInt16,
+-		argLen:  1,
+-		asm:     x86.ASHRW,
++		name:         "SHRWconst",
++		auxType:      auxInt16,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.ASHRW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2350,10 +2447,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "SHRBconst",
+-		auxType: auxInt8,
+-		argLen:  1,
+-		asm:     x86.ASHRB,
++		name:         "SHRBconst",
++		auxType:      auxInt8,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.ASHRB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2365,9 +2463,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "SARQ",
+-		argLen: 2,
+-		asm:    x86.ASARQ,
++		name:         "SARQ",
++		argLen:       2,
++		resultInArg0: true,
++		asm:          x86.ASARQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 2},     // .CX
+@@ -2380,9 +2479,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "SARL",
+-		argLen: 2,
+-		asm:    x86.ASARL,
++		name:         "SARL",
++		argLen:       2,
++		resultInArg0: true,
++		asm:          x86.ASARL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 2},     // .CX
+@@ -2395,9 +2495,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "SARW",
+-		argLen: 2,
+-		asm:    x86.ASARW,
++		name:         "SARW",
++		argLen:       2,
++		resultInArg0: true,
++		asm:          x86.ASARW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 2},     // .CX
+@@ -2410,9 +2511,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "SARB",
+-		argLen: 2,
+-		asm:    x86.ASARB,
++		name:         "SARB",
++		argLen:       2,
++		resultInArg0: true,
++		asm:          x86.ASARB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 2},     // .CX
+@@ -2425,10 +2527,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "SARQconst",
+-		auxType: auxInt64,
+-		argLen:  1,
+-		asm:     x86.ASARQ,
++		name:         "SARQconst",
++		auxType:      auxInt64,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.ASARQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2440,10 +2543,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "SARLconst",
+-		auxType: auxInt32,
+-		argLen:  1,
+-		asm:     x86.ASARL,
++		name:         "SARLconst",
++		auxType:      auxInt32,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.ASARL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2455,10 +2559,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "SARWconst",
+-		auxType: auxInt16,
+-		argLen:  1,
+-		asm:     x86.ASARW,
++		name:         "SARWconst",
++		auxType:      auxInt16,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.ASARW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2470,10 +2575,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "SARBconst",
+-		auxType: auxInt8,
+-		argLen:  1,
+-		asm:     x86.ASARB,
++		name:         "SARBconst",
++		auxType:      auxInt8,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.ASARB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2485,10 +2591,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "ROLQconst",
+-		auxType: auxInt64,
+-		argLen:  1,
+-		asm:     x86.AROLQ,
++		name:         "ROLQconst",
++		auxType:      auxInt64,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.AROLQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2500,10 +2607,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "ROLLconst",
+-		auxType: auxInt32,
+-		argLen:  1,
+-		asm:     x86.AROLL,
++		name:         "ROLLconst",
++		auxType:      auxInt32,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.AROLL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2515,10 +2623,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "ROLWconst",
+-		auxType: auxInt16,
+-		argLen:  1,
+-		asm:     x86.AROLW,
++		name:         "ROLWconst",
++		auxType:      auxInt16,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.AROLW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2530,10 +2639,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:    "ROLBconst",
+-		auxType: auxInt8,
+-		argLen:  1,
+-		asm:     x86.AROLB,
++		name:         "ROLBconst",
++		auxType:      auxInt8,
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.AROLB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2545,9 +2655,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "NEGQ",
+-		argLen: 1,
+-		asm:    x86.ANEGQ,
++		name:         "NEGQ",
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.ANEGQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2559,9 +2670,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "NEGL",
+-		argLen: 1,
+-		asm:    x86.ANEGL,
++		name:         "NEGL",
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.ANEGL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2573,9 +2685,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "NEGW",
+-		argLen: 1,
+-		asm:    x86.ANEGL,
++		name:         "NEGW",
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.ANEGL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2587,9 +2700,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "NEGB",
+-		argLen: 1,
+-		asm:    x86.ANEGL,
++		name:         "NEGB",
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.ANEGL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2601,9 +2715,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "NOTQ",
+-		argLen: 1,
+-		asm:    x86.ANOTQ,
++		name:         "NOTQ",
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.ANOTQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2615,9 +2730,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "NOTL",
+-		argLen: 1,
+-		asm:    x86.ANOTL,
++		name:         "NOTL",
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.ANOTL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2629,9 +2745,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "NOTW",
+-		argLen: 1,
+-		asm:    x86.ANOTL,
++		name:         "NOTW",
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.ANOTL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2643,9 +2760,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "NOTB",
+-		argLen: 1,
+-		asm:    x86.ANOTL,
++		name:         "NOTB",
++		argLen:       1,
++		resultInArg0: true,
++		asm:          x86.ANOTL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -3162,9 +3280,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "PXOR",
+-		argLen: 2,
+-		asm:    x86.APXOR,
++		name:         "PXOR",
++		argLen:       2,
++		commutative:  true,
++		resultInArg0: true,
++		asm:          x86.APXOR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 4c6a3a4d6c..68b4974884 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -923,14 +923,26 @@ func (s *regAllocState) regalloc(f *Func) {
+ 			s.freeRegs(regspec.clobbers)
+ 
+ 			// Pick register for output.
+-			var mask regMask
+ 			if s.values[v.ID].needReg {
+-				mask = regspec.outputs[0] &^ s.reserved()
++				mask := regspec.outputs[0] &^ s.reserved()
+ 				if mask>>33&1 != 0 {
+ 					s.f.Fatalf("bad mask %s\n", v.LongString())
+ 				}
+-			}
+-			if mask != 0 {
++				if opcodeTable[v.Op].resultInArg0 {
++					r := register(s.f.getHome(args[0].ID).(*Register).Num)
++					if (mask&^s.used)>>r&1 != 0 {
++						mask = regMask(1) << r
++					}
++					if opcodeTable[v.Op].commutative {
++						r := register(s.f.getHome(args[1].ID).(*Register).Num)
++						if (mask&^s.used)>>r&1 != 0 {
++							mask = regMask(1) << r
++						}
++					}
++					// TODO: enforce resultInArg0 always, instead of treating it
++					// as a hint.  Then we don't need the special cases adding
++					// moves all throughout ssa.go:genValue.
++				}
+ 				r := s.allocReg(v, mask)
+ 				s.assignReg(r, v, v)
+ 			}

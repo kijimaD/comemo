@@ -16,6 +16,20 @@ Date:   Thu Apr 30 19:13:41 2020 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/runtime/lockrank.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/lockrank.go b/src/runtime/lockrank.go
+index c2f061169a..05fff95797 100644
+--- a/src/runtime/lockrank.go
++++ b/src/runtime/lockrank.go
+@@ -201,7 +201,7 @@ var lockPartialOrder [][]lockRank = [][]lockRank{
+ 	lockRankHchan:         {lockRankScavenge, lockRankSweep, lockRankHchan},
+ 	lockRankFin:           {lockRankSched, lockRankAllg, lockRankTimers, lockRankHchan},
+ 	lockRankNotifyList:    {},
+-	lockRankTraceBuf:      {},
++	lockRankTraceBuf:      {lockRankScavenge},
+ 	lockRankTraceStrings:  {lockRankTraceBuf},
+ 	lockRankMspanSpecial:  {lockRankScavenge, lockRankCpuprof, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankItab, lockRankReflectOffs, lockRankHchan, lockRankNotifyList, lockRankTraceBuf, lockRankTraceStrings},
+ 	lockRankProf:          {lockRankScavenge, lockRankAssistQueue, lockRankCpuprof, lockRankSweep, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankItab, lockRankReflectOffs, lockRankNotifyList, lockRankTraceBuf, lockRankTraceStrings, lockRankHchan},

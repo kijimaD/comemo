@@ -10,9 +10,83 @@ Date:   Wed May 7 18:49:13 2014 +0400
     R=golang-codereviews, crawshaw
     CC=golang-codereviews
     https://golang.org/cl/100200043
-
+---
  doc/effective_go.html | 4 ++--
  doc/go1.3.html        | 2 +-
  doc/go_faq.html       | 6 +++---
  doc/go_spec.html      | 2 +-
  4 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index c522b9ffb7..aee1c14597 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -214,7 +214,7 @@ not be used.
+ One adjustment <code>godoc</code> does do is to display indented
+ text in a fixed-width font, suitable for program snippets.
+ The package comment for the
+-<a href="http://golang.org/pkg/fmt/"><code>fmt</code> package</a> uses this to good effect.
++<a href="/pkg/fmt/"><code>fmt</code> package</a> uses this to good effect.
+ </p>
+ 
+ <p>
+@@ -710,7 +710,7 @@ Erroneous encodings consume one byte and produce the
+ replacement rune U+FFFD.
+ (The name (with associated builtin type) <code>rune</code> is Go terminology for a
+ single Unicode code point.
+-See <a href="http://golang.org/ref/spec#Rune_literals">the language specification</a>
++See <a href="/ref/spec#Rune_literals">the language specification</a>
+ for details.)
+ The loop
+ </p>
+diff --git a/doc/go1.3.html b/doc/go1.3.html
+index a3d8be47de..62a5c0e1e6 100644
+--- a/doc/go1.3.html
++++ b/doc/go1.3.html
+@@ -233,7 +233,7 @@ The cumulative effect can be a 50-70% reduction in collector pause time.
+ </li>
+ 
+ <li>
+-The race detector (see <a href="http://golang.org/doc/articles/race_detector.html">this guide</a>)
++The race detector (see <a href="/doc/articles/race_detector.html">this guide</a>)
+ is now about 40% faster.
+ </li>
+ 
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index 9606213b1f..b1945dda83 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -940,9 +940,9 @@ How are libraries documented?</h3>
+ There is a program, <code>godoc</code>, written in Go, that extracts
+ package documentation from the source code. It can be used on the
+ command line or on the web. An instance is running at
+-<a href="http://golang.org/pkg/">http://golang.org/pkg/</a>.
++<a href="/pkg/">http://golang.org/pkg/</a>.
+ In fact, <code>godoc</code> implements the full site at
+-<a href="http://golang.org/">http://golang.org/</a>.
++<a href="/">http://golang.org/</a>.
+ </p>
+ 
+ <h3 id="Is_there_a_Go_programming_style_guide">
+@@ -1437,7 +1437,7 @@ each closure shares that single variable. When the closure runs, it prints the
+ value of <code>v</code> at the time <code>fmt.Println</code> is executed,
+ but <code>v</code> may have been modified since the goroutine was launched.
+ To help detect this and other problems before they happen, run
+-<a href="http://golang.org/cmd/go/#hdr-Run_go_tool_vet_on_packages"><code>go vet</code></a>.
++<a href="/cmd/go/#hdr-Run_go_tool_vet_on_packages"><code>go vet</code></a>.
+ </p>
+ 
+ <p>
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 968db440f2..e6831e9091 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -23,7 +23,7 @@ TODO
+ 
+ <p>
+ This is a reference manual for the Go programming language. For
+-more information and other documents, see <a href="http://golang.org/">http://golang.org</a>.
++more information and other documents, see <a href="/">http://golang.org</a>.
+ </p>
+ 
+ <p>

@@ -16,7 +16,7 @@ Date:   Fri May 1 11:51:47 2015 +1000
     Reviewed-on: https://go-review.googlesource.com/9527
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/8g/galign.go                      |  2 +-
  src/cmd/asm/internal/asm/endtoend_test.go |  2 +-
  src/cmd/asm/main.go                       |  4 ++--
@@ -30,3 +30,258 @@ Date:   Fri May 1 11:51:47 2015 +1000
  src/cmd/internal/obj/ppc64/obj9.go        |  4 ++--
  src/cmd/internal/obj/util.go              |  8 --------
  12 files changed, 22 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/8g/galign.go b/src/cmd/8g/galign.go
+index 9125356691..e96b628dcc 100644
+--- a/src/cmd/8g/galign.go
++++ b/src/cmd/8g/galign.go
+@@ -61,7 +61,7 @@ func main() {
+ 		gc.Thearch.FREGMAX = x86.REG_X7
+ 	default:
+ 		fmt.Fprintf(os.Stderr, "unsupported setting GO386=%s\n", v)
+-		os.Exit(1)
++		gc.Exit(1)
+ 	}
+ 	gc.Thearch.MAXWIDTH = MAXWIDTH
+ 	gc.Thearch.ReservedRegs = resvd
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index 43f11caca0..abe4e4efbc 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -33,7 +33,7 @@ func testEndToEnd(t *testing.T, goarch string) {
+ 	var ok bool
+ 	testOut = new(bytes.Buffer) // The assembler writes -S output to this buffer.
+ 	ctxt.Bso = obj.Binitw(os.Stdout)
+-	defer obj.Bflush(ctxt.Bso)
++	defer ctxt.Bso.Flush()
+ 	ctxt.Diag = log.Fatalf
+ 	obj.Binitw(ioutil.Discard)
+ 	pList.Firstpc, ok = parser.Parse()
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index 48315d08ce..32bdee6624 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -46,7 +46,7 @@ func main() {
+ 		ctxt.Flag_shared = 1
+ 	}
+ 	ctxt.Bso = obj.Binitw(os.Stdout)
+-	defer obj.Bflush(ctxt.Bso)
++	defer ctxt.Bso.Flush()
+ 	ctxt.Diag = log.Fatalf
+ 	output := obj.Binitw(fd)
+ 	fmt.Fprintf(output, "go object %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion())
+@@ -63,5 +63,5 @@ func main() {
+ 		os.Exit(1)
+ 	}
+ 	obj.Writeobjdirect(ctxt, output)
+-	obj.Bflush(output)
++	output.Flush()
+ }
+diff --git a/src/cmd/internal/asm/asm.go b/src/cmd/internal/asm/asm.go
+index 90a4781e7b..b96c2cbb2a 100644
+--- a/src/cmd/internal/asm/asm.go
++++ b/src/cmd/internal/asm/asm.go
+@@ -209,7 +209,7 @@ func Main() {
+ 	if assemble(flag.Arg(0)) != 0 {
+ 		errorexit()
+ 	}
+-	obj.Bflush(&bstdout)
++	bstdout.Flush()
+ 	if nerrors > 0 {
+ 		errorexit()
+ 	}
+@@ -244,7 +244,7 @@ func assemble(file string) int {
+ 	}
+ 
+ 	obj.Writeobjdirect(Ctxt, &obuf)
+-	obj.Bflush(&obuf)
++	obuf.Flush()
+ 	return 0
+ }
+ 
+diff --git a/src/cmd/internal/asm/lexbody.go b/src/cmd/internal/asm/lexbody.go
+index 7943cba039..b5e5d1eee2 100644
+--- a/src/cmd/internal/asm/lexbody.go
++++ b/src/cmd/internal/asm/lexbody.go
+@@ -98,7 +98,7 @@ func setinclude(p string) {
+ }
+ 
+ func errorexit() {
+-	obj.Bflush(&bstdout)
++	bstdout.Flush()
+ 	if outfile != "" {
+ 		os.Remove(outfile)
+ 	}
+diff --git a/src/cmd/internal/gc/obj.go b/src/cmd/internal/gc/obj.go
+index 891f5548f7..05c5b1a811 100644
+--- a/src/cmd/internal/gc/obj.go
++++ b/src/cmd/internal/gc/obj.go
+@@ -35,7 +35,7 @@ func dumpobj() {
+ 	if writearchive != 0 {
+ 		obj.Bwritestring(bout, "!<arch>\n")
+ 		arhdr = [ArhdrSize]byte{}
+-		obj.Bwrite(bout, arhdr[:])
++		bout.Write(arhdr[:])
+ 		startobj = obj.Boffset(bout)
+ 	}
+ 
+@@ -43,19 +43,19 @@ func dumpobj() {
+ 	dumpexport()
+ 
+ 	if writearchive != 0 {
+-		obj.Bflush(bout)
++		bout.Flush()
+ 		size := obj.Boffset(bout) - startobj
+ 		if size&1 != 0 {
+ 			obj.Bputc(bout, 0)
+ 		}
+ 		obj.Bseek(bout, startobj-ArhdrSize, 0)
+ 		formathdr(arhdr[:], "__.PKGDEF", size)
+-		obj.Bwrite(bout, arhdr[:])
+-		obj.Bflush(bout)
++		bout.Write(arhdr[:])
++		bout.Flush()
+ 
+ 		obj.Bseek(bout, startobj+size+(size&1), 0)
+ 		arhdr = [ArhdrSize]byte{}
+-		obj.Bwrite(bout, arhdr[:])
++		bout.Write(arhdr[:])
+ 		startobj = obj.Boffset(bout)
+ 		fmt.Fprintf(bout, "go object %s %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion(), obj.Expstring())
+ 	}
+@@ -96,7 +96,7 @@ func dumpobj() {
+ 	obj.Writeobjdirect(Ctxt, bout)
+ 
+ 	if writearchive != 0 {
+-		obj.Bflush(bout)
++		bout.Flush()
+ 		size := obj.Boffset(bout) - startobj
+ 		if size&1 != 0 {
+ 			obj.Bputc(bout, 0)
+@@ -104,7 +104,7 @@ func dumpobj() {
+ 		obj.Bseek(bout, startobj-ArhdrSize, 0)
+ 		name := fmt.Sprintf("_go_.%c", Thearch.Thechar)
+ 		formathdr(arhdr[:], name, size)
+-		obj.Bwrite(bout, arhdr[:])
++		bout.Write(arhdr[:])
+ 	}
+ 
+ 	obj.Bterm(bout)
+diff --git a/src/cmd/internal/gc/subr.go b/src/cmd/internal/gc/subr.go
+index 8cc140a004..06ceff5844 100644
+--- a/src/cmd/internal/gc/subr.go
++++ b/src/cmd/internal/gc/subr.go
+@@ -82,7 +82,7 @@ func (x errcmp) Less(i, j int) bool {
+ }
+ 
+ func Flusherrors() {
+-	obj.Bflush(&bstdout)
++	bstdout.Flush()
+ 	if len(errors) == 0 {
+ 		return
+ 	}
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index 847fce6490..c73c146404 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -338,7 +338,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			if autosize == 0 && cursym.Text.Mark&LEAF == 0 {
+ 				if ctxt.Debugvlog != 0 {
+ 					fmt.Fprintf(ctxt.Bso, "save suppressed in: %s\n", cursym.Name)
+-					obj.Bflush(ctxt.Bso)
++					ctxt.Bso.Flush()
+ 				}
+ 
+ 				cursym.Text.Mark |= LEAF
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index 6fe13ea3cb..b8d930b419 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -485,7 +485,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 	 * strip NOPs
+ 	 * expand RET
+ 	 */
+-	obj.Bflush(ctxt.Bso)
++	ctxt.Bso.Flush()
+ 	q := (*obj.Prog)(nil)
+ 	var q1 *obj.Prog
+ 	for p := cursym.Text; p != nil; p = p.Link {
+@@ -575,7 +575,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 				if ctxt.Debugvlog != 0 {
+ 					fmt.Fprintf(ctxt.Bso, "save suppressed in: %s\n", cursym.Text.From.Sym.Name)
+ 				}
+-				obj.Bflush(ctxt.Bso)
++				ctxt.Bso.Flush()
+ 				cursym.Text.Mark |= LEAF
+ 			}
+ 
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 473a4bffe2..35a9ef626f 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -481,7 +481,7 @@ func wrint(b *Biobuf, sval int64) {
+ 	}
+ 	p[0] = uint8(v)
+ 	p = p[1:]
+-	Bwrite(b, varintbuf[:len(varintbuf)-len(p)])
++	b.Write(varintbuf[:len(varintbuf)-len(p)])
+ }
+ 
+ func wrstring(b *Biobuf, s string) {
+@@ -497,7 +497,7 @@ func wrpath(ctxt *Link, b *Biobuf, p string) {
+ 
+ func wrdata(b *Biobuf, v []byte) {
+ 	wrint(b, int64(len(v)))
+-	Bwrite(b, v)
++	b.Write(v)
+ }
+ 
+ func wrpathsym(ctxt *Link, b *Biobuf, s *LSym) {
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 4de04a7406..6d7db4245e 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -137,7 +137,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 	if ctxt.Debugvlog != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "%5.2f noops\n", obj.Cputime())
+ 	}
+-	obj.Bflush(ctxt.Bso)
++	ctxt.Bso.Flush()
+ 
+ 	var q *obj.Prog
+ 	var q1 *obj.Prog
+@@ -346,7 +346,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			} else if cursym.Text.Mark&LEAF == 0 {
+ 				if ctxt.Debugvlog != 0 {
+ 					fmt.Fprintf(ctxt.Bso, "save suppressed in: %s\n", cursym.Name)
+-					obj.Bflush(ctxt.Bso)
++					ctxt.Bso.Flush()
+ 				}
+ 
+ 				cursym.Text.Mark |= LEAF
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 03e6ad9116..71587954f4 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -99,10 +99,6 @@ func (b *Biobuf) Flush() error {
+ 	return b.w.Flush()
+ }
+ 
+-func Bwrite(b *Biobuf, p []byte) (int, error) {
+-	return b.w.Write(p)
+-}
+-
+ func Bputc(b *Biobuf, c byte) {
+ 	b.w.WriteByte(c)
+ }
+@@ -189,10 +185,6 @@ func Bungetc(b *Biobuf) {
+ 	b.numUnget++
+ }
+ 
+-func Bflush(b *Biobuf) error {
+-	return b.w.Flush()
+-}
+-
+ func Bterm(b *Biobuf) error {
+ 	var err error
+ 	if b.w != nil {

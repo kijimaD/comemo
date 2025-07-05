@@ -19,7 +19,57 @@ Date:   Wed Nov 24 16:33:14 2021 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/archive/zip/reader.go      |  3 +++
  src/archive/zip/reader_test.go | 27 +++++++++++++++++++++++++++
  2 files changed, 30 insertions(+)
+
+diff --git a/src/archive/zip/reader.go b/src/archive/zip/reader.go
+index 92fd6f6a92..b4f6a8d714 100644
+--- a/src/archive/zip/reader.go
++++ b/src/archive/zip/reader.go
+@@ -229,6 +229,9 @@ func (r *checksumReader) Read(b []byte) (n int, err error) {
+ 	n, err = r.rc.Read(b)
+ 	r.hash.Write(b[:n])
+ 	r.nread += uint64(n)
++	if r.nread > r.f.UncompressedSize64 {
++		return 0, ErrFormat
++	}
+ 	if err == nil {
+ 		return
+ 	}
+diff --git a/src/archive/zip/reader_test.go b/src/archive/zip/reader_test.go
+index 9bc23642c0..fd0a171304 100644
+--- a/src/archive/zip/reader_test.go
++++ b/src/archive/zip/reader_test.go
+@@ -1407,3 +1407,30 @@ func TestCVE202141772(t *testing.T) {
+ 		t.Errorf("Inconsistent name in info entry: %v", name)
+ 	}
+ }
++
++func TestUnderSize(t *testing.T) {
++	z, err := OpenReader("testdata/readme.zip")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer z.Close()
++
++	for _, f := range z.File {
++		f.UncompressedSize64 = 1
++	}
++
++	for _, f := range z.File {
++		t.Run(f.Name, func(t *testing.T) {
++			rd, err := f.Open()
++			if err != nil {
++				t.Fatal(err)
++			}
++			defer rd.Close()
++
++			_, err = io.Copy(io.Discard, rd)
++			if err != ErrFormat {
++				t.Fatalf("Error mismatch\n\tGot:  %v\n\tWant: %v", err, ErrFormat)
++			}
++		})
++	}
++}

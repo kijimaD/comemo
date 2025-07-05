@@ -6786,3 +6786,258 @@ Date:   Tue Jul 6 10:59:05 2021 -0700
  test/used.go                                       |   145 +
  test/varerr.go                                     |     2 +-
  4213 files changed, 256693 insertions(+), 161050 deletions(-)
+
+diff --cc misc/android/go_android_exec.go
+index 7aa7fe56fc,3af2bee583..168ebe88a2
+--- a/misc/android/go_android_exec.go
++++ b/misc/android/go_android_exec.go
+@@@ -2,6 -2,6 +2,7 @@@
+  // Use of this source code is governed by a BSD-style
+  // license that can be found in the LICENSE file.
+  
+++//go:build ignore
+  // +build ignore
+  
+  // This program can be used as go_android_GOARCH_exec by the Go tool.
+diff --cc misc/cgo/test/issue1435.go
+index a1c7cacde7,92c6b99846..91db155c90
+--- a/misc/cgo/test/issue1435.go
++++ b/misc/cgo/test/issue1435.go
+@@@ -2,6 -2,6 +2,7 @@@
+  // Use of this source code is governed by a BSD-style
+  // license that can be found in the LICENSE file.
+  
+++//go:build linux && cgo
+  // +build linux,cgo
+  
+  package cgotest
+diff --cc misc/cgo/test/issue6997_linux.go
+index 0c98ea0794,f19afb8b7a..4acc8c1a07
+--- a/misc/cgo/test/issue6997_linux.go
++++ b/misc/cgo/test/issue6997_linux.go
+@@@ -2,6 -2,6 +2,7 @@@
+  // Use of this source code is governed by a BSD-style
+  // license that can be found in the LICENSE file.
+  
+++//go:build !android
+  // +build !android
+  
+  // Test that pthread_cancel works as expected
+diff --cc misc/cgo/testso/so_test.go
+index 57f0fd34f7,2023c51f11..6d14e32dc6
+--- a/misc/cgo/testso/so_test.go
++++ b/misc/cgo/testso/so_test.go
+@@@ -2,6 -2,6 +2,7 @@@
+  // Use of this source code is governed by a BSD-style
+  // license that can be found in the LICENSE file.
+  
+++//go:build cgo
+  // +build cgo
+  
+  package so_test
+diff --cc misc/cgo/testsovar/so_test.go
+index 57f0fd34f7,2023c51f11..6d14e32dc6
+--- a/misc/cgo/testsovar/so_test.go
++++ b/misc/cgo/testsovar/so_test.go
+@@@ -2,6 -2,6 +2,7 @@@
+  // Use of this source code is governed by a BSD-style
+  // license that can be found in the LICENSE file.
+  
+++//go:build cgo
+  // +build cgo
+  
+  package so_test
+diff --cc misc/ios/detect.go
+index d32bcc3202,cde5723892..1cb8ae5ff7
+--- a/misc/ios/detect.go
++++ b/misc/ios/detect.go
+@@@ -2,6 -2,6 +2,7 @@@
+  // Use of this source code is governed by a BSD-style
+  // license that can be found in the LICENSE file.
+  
+++//go:build ignore
+  // +build ignore
+  
+  // detect attempts to autodetect the correct
+diff --cc misc/reboot/experiment_toolid_test.go
+index eabf06b19e,4f40284d80..87a828e32f
+--- a/misc/reboot/experiment_toolid_test.go
++++ b/misc/reboot/experiment_toolid_test.go
+@@@ -2,6 -2,6 +2,7 @@@
+  // Use of this source code is governed by a BSD-style
+  // license that can be found in the LICENSE file.
+  
+++//go:build explicit
+  // +build explicit
+  
+  // Package experiment_toolid_test verifies that GOEXPERIMENT settings built
+diff --cc src/cmd/compile/internal/ssa/gen/386Ops.go
+index 737b99c371,c4b49fbb23..91f33c8374
+--- a/src/cmd/compile/internal/ssa/gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/386Ops.go
+@@@ -2,6 -2,6 +2,7 @@@
+  // Use of this source code is governed by a BSD-style
+  // license that can be found in the LICENSE file.
+  
+++//go:build ignore
+  // +build ignore
+  
+  package main
+diff --cc src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+index e1e3933502,77f251c0d3..a18cd4289d
+--- a/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+@@@ -2,6 -2,6 +2,7 @@@
+  // Use of this source code is governed by a BSD-style
+  // license that can be found in the LICENSE file.
+  
+++//go:build ignore
+  // +build ignore
+  
+  package main
+diff --cc src/cmd/compile/internal/ssa/gen/MIPSOps.go
+index 75ab99ea26,b92e8cb9f1..8177c7e2d1
+--- a/src/cmd/compile/internal/ssa/gen/MIPSOps.go
++++ b/src/cmd/compile/internal/ssa/gen/MIPSOps.go
+@@@ -2,6 -2,6 +2,7 @@@
+  // Use of this source code is governed by a BSD-style
+  // license that can be found in the LICENSE file.
+  
+++//go:build ignore
+  // +build ignore
+  
+  package main
+diff --cc src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+index f64319230b,0ac9c5f62a..0774d4c654
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+@@@ -2,6 -2,6 +2,7 @@@
+  // Use of this source code is governed by a BSD-style
+  // license that can be found in the LICENSE file.
+  
+++//go:build ignore
+  // +build ignore
+  
+  package main
+diff --cc src/cmd/compile/internal/ssa/gen/S390XOps.go
+index b24fd61942,5b33ba710e..00fce8e0e5
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@@ -2,6 -2,6 +2,7 @@@
+  // Use of this source code is governed by a BSD-style
+  // license that can be found in the LICENSE file.
+  
+++//go:build ignore
+  // +build ignore
+  
+  package main
+diff --cc src/cmd/compile/internal/ssa/gen/WasmOps.go
+index 36c53bc78c,c92878ca73..7f7ae5e837
+--- a/src/cmd/compile/internal/ssa/gen/WasmOps.go
++++ b/src/cmd/compile/internal/ssa/gen/WasmOps.go
+@@@ -2,6 -2,6 +2,7 @@@
+  // Use of this source code is governed by a BSD-style
+  // license that can be found in the LICENSE file.
+  
+++//go:build ignore
+  // +build ignore
+  
+  package main
+diff --cc src/crypto/ed25519/internal/edwards25519/field/fe_amd64.go
+index 0000000000,44dc8e8caf..8fe583939f
+mode 000000,100644..100644
+--- a/src/crypto/ed25519/internal/edwards25519/field/fe_amd64.go
++++ b/src/crypto/ed25519/internal/edwards25519/field/fe_amd64.go
+@@@ -1,0 -1,13 +1,14 @@@
++ // Code generated by command: go run fe_amd64_asm.go -out ../fe_amd64.s -stubs ../fe_amd64.go -pkg field. DO NOT EDIT.
++ 
+++//go:build amd64 && gc && !purego
++ // +build amd64,gc,!purego
++ 
++ package field
++ 
++ // feMul sets out = a * b. It works like feMulGeneric.
++ //go:noescape
++ func feMul(out *Element, a *Element, b *Element)
++ 
++ // feSquare sets out = a * a. It works like feSquareGeneric.
++ //go:noescape
++ func feSquare(out *Element, a *Element)
+diff --cc src/runtime/export_debug_regabiargs_off_test.go
+index 0000000000,fce37ab4d1..5009003d27
+mode 000000,100644..100644
+--- a/src/runtime/export_debug_regabiargs_off_test.go
++++ b/src/runtime/export_debug_regabiargs_off_test.go
+@@@ -1,0 -1,17 +1,16 @@@
++ // Copyright 2021 The Go Authors. All rights reserved.
++ // Use of this source code is governed by a BSD-style
++ // license that can be found in the LICENSE file.
++ 
++ //go:build amd64 && linux && !goexperiment.regabiargs
+ -// +build amd64,linux
+ -// +build !goexperiment.regabiargs
+++// +build amd64,linux,!goexperiment.regabiargs
++ 
++ package runtime
++ 
++ import "internal/abi"
++ 
++ func storeRegArgs(dst *sigcontext, src *abi.RegArgs) {
++ }
++ 
++ func loadRegArgs(dst *abi.RegArgs, src *sigcontext) {
++ }
+diff --cc src/runtime/export_debug_regabiargs_on_test.go
+index 0000000000,3c65127e56..e1b72efd0f
+mode 000000,100644..100644
+--- a/src/runtime/export_debug_regabiargs_on_test.go
++++ b/src/runtime/export_debug_regabiargs_on_test.go
+@@@ -1,0 -1,47 +1,46 @@@
++ // Copyright 2021 The Go Authors. All rights reserved.
++ // Use of this source code is governed by a BSD-style
++ // license that can be found in the LICENSE file.
++ 
++ //go:build amd64 && linux && goexperiment.regabiargs
+ -// +build amd64,linux
+ -// +build goexperiment.regabiargs
+++// +build amd64,linux,goexperiment.regabiargs
++ 
++ package runtime
++ 
++ import "internal/abi"
++ 
++ // storeRegArgs sets up argument registers in the signal
++ // context state from an abi.RegArgs.
++ //
++ // Both src and dst must be non-nil.
++ func storeRegArgs(dst *sigcontext, src *abi.RegArgs) {
++ 	dst.rax = uint64(src.Ints[0])
++ 	dst.rbx = uint64(src.Ints[1])
++ 	dst.rcx = uint64(src.Ints[2])
++ 	dst.rdi = uint64(src.Ints[3])
++ 	dst.rsi = uint64(src.Ints[4])
++ 	dst.r8 = uint64(src.Ints[5])
++ 	dst.r9 = uint64(src.Ints[6])
++ 	dst.r10 = uint64(src.Ints[7])
++ 	dst.r11 = uint64(src.Ints[8])
++ 	for i := range src.Floats {
++ 		dst.fpstate._xmm[i].element[0] = uint32(src.Floats[i] >> 0)
++ 		dst.fpstate._xmm[i].element[1] = uint32(src.Floats[i] >> 32)
++ 	}
++ }
++ 
++ func loadRegArgs(dst *abi.RegArgs, src *sigcontext) {
++ 	dst.Ints[0] = uintptr(src.rax)
++ 	dst.Ints[1] = uintptr(src.rbx)
++ 	dst.Ints[2] = uintptr(src.rcx)
++ 	dst.Ints[3] = uintptr(src.rdi)
++ 	dst.Ints[4] = uintptr(src.rsi)
++ 	dst.Ints[5] = uintptr(src.r8)
++ 	dst.Ints[6] = uintptr(src.r9)
++ 	dst.Ints[7] = uintptr(src.r10)
++ 	dst.Ints[8] = uintptr(src.r11)
++ 	for i := range dst.Floats {
++ 		dst.Floats[i] = uint64(src.fpstate._xmm[i].element[0]) << 0
++ 		dst.Floats[i] |= uint64(src.fpstate._xmm[i].element[1]) << 32
++ 	}
++ }

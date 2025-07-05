@@ -15,6 +15,33 @@ Date:   Fri Oct 7 18:11:10 2022 -0400
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/reflect/value.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index b2b3fd1e3d..616da6a5c7 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -1598,7 +1598,10 @@ func (v Value) IsZero() bool {
+ 			if v.flag&flagIndir == 0 {
+ 				return v.ptr == nil
+ 			}
+-			return v.typ().Equal(v.ptr, unsafe.Pointer(&zeroVal[0]))
++			// v.ptr doesn't escape, as Equal functions are compiler generated
++			// and never escape. The escape analysis doesn't know, as it is a
++			// function pointer call.
++			return v.typ().Equal(noescape(v.ptr), unsafe.Pointer(&zeroVal[0]))
+ 		}
+ 
+ 		n := v.Len()
+@@ -1618,7 +1621,8 @@ func (v Value) IsZero() bool {
+ 			if v.flag&flagIndir == 0 {
+ 				return v.ptr == nil
+ 			}
+-			return v.typ().Equal(v.ptr, unsafe.Pointer(&zeroVal[0]))
++			// See noescape justification above.
++			return v.typ().Equal(noescape(v.ptr), unsafe.Pointer(&zeroVal[0]))
+ 		}
+ 
+ 		n := v.NumField()

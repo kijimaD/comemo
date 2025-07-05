@@ -16,7 +16,76 @@ Date:   Thu May 12 09:01:50 2011 -0700
     R=rsc, bradfitz
     CC=golang-dev
     https://golang.org/cl/4529054
-
+---
  src/pkg/go/printer/nodes.go            |  4 ++--
  src/pkg/go/printer/testdata/comments.x | 10 +++++-----
  2 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 572c9bd28f..3b504bd2c5 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -439,7 +439,7 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool)
+ 				p.print(formfeed)
+ 			}
+ 			p.flush(p.fset.Position(rbrace), token.RBRACE) // make sure we don't loose the last line comment
+-			p.setLineComment("// contains unexported fields")
++			p.setLineComment("// contains filtered or unexported fields")
+ 		}
+ 
+ 	} else { // interface
+@@ -466,7 +466,7 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool)
+ 				p.print(formfeed)
+ 			}
+ 			p.flush(p.fset.Position(rbrace), token.RBRACE) // make sure we don't loose the last line comment
+-			p.setLineComment("// contains unexported methods")
++			p.setLineComment("// contains filtered or unexported methods")
+ 		}
+ 
+ 	}
+diff --git a/src/pkg/go/printer/testdata/comments.x b/src/pkg/go/printer/testdata/comments.x
+index 4d7a928ae0..30a182f490 100644
+--- a/src/pkg/go/printer/testdata/comments.x
++++ b/src/pkg/go/printer/testdata/comments.x
+@@ -8,7 +8,7 @@ type SZ struct{}
+ 
+ // The S0 struct; no field is exported.
+ type S0 struct {
+-	// contains unexported fields
++	// contains filtered or unexported fields
+ }
+ 
+ // The S1 struct; some fields are not exported.
+@@ -16,7 +16,7 @@ type S1 struct {
+ 	S0
+ 	A, B, C	float	// 3 exported fields
+ 	D	int	// 2 unexported fields
+-	// contains unexported fields
++	// contains filtered or unexported fields
+ }
+ 
+ // The S2 struct; all fields are exported.
+@@ -30,14 +30,14 @@ type SZ interface{}
+ 
+ // The I0 interface; no method is exported.
+ type I0 interface {
+-	// contains unexported methods
++	// contains filtered or unexported methods
+ }
+ 
+ // The I1 interface; some methods are not exported.
+ type I1 interface {
+ 	I0
+ 	F(x float) float	// exported methods
+-	// contains unexported methods
++	// contains filtered or unexported methods
+ }
+ 
+ // The I2 interface; all methods are exported.
+@@ -53,5 +53,5 @@ type S3 struct {
+ 	F1	int	// line comment for F1
+ 	// lead comment for F2
+ 	F2	int	// line comment for F2
+-	// contains unexported fields
++	// contains filtered or unexported fields
+ }

@@ -13,6 +13,24 @@ Date:   Mon Sep 24 08:30:28 2012 +1000
     R=rsc, rminnich, dave, r
     CC=golang-dev
     https://golang.org/cl/6558046
-
+---
  src/pkg/go/ast/print.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/go/ast/print.go b/src/pkg/go/ast/print.go
+index 2de9af299e..4a1ce480f4 100644
+--- a/src/pkg/go/ast/print.go
++++ b/src/pkg/go/ast/print.go
+@@ -108,8 +108,10 @@ func (p *printer) Write(data []byte) (n int, err error) {
+ 		}
+ 		p.last = b
+ 	}
+-	m, err = p.output.Write(data[n:])
+-	n += m
++	if len(data) > n {
++		m, err = p.output.Write(data[n:])
++		n += m
++	}
+ 	return
+ }
+ 

@@ -17,6 +17,28 @@ Date:   Thu May 13 13:13:26 2021 -0400
     Trust: Jay Conrod <jayconrod@google.com>
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/cmd/go/testdata/script/test_fuzz_cache.txt | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_cache.txt b/src/cmd/go/testdata/script/test_fuzz_cache.txt
+index cb344a7158..a6c9cafada 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_cache.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_cache.txt
+@@ -39,7 +39,15 @@ import "testing"
+ 
+ func FuzzY(f *testing.F) {
+ 	f.Add([]byte("y"))
+-	f.Fuzz(func(t *testing.T, b []byte) {})
++	f.Fuzz(func(t *testing.T, b []byte) { Y(b) })
++}
++-- y.go --
++package y
++
++import "bytes"
++
++func Y(b []byte) bool {
++	return bytes.Equal(b, []byte("y"))
+ }
+ -- empty/empty.go --
+ package empty

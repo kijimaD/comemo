@@ -13,7 +13,67 @@ Date:   Sun Aug 29 00:53:00 2021 +0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/345436
     Trust: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/inline/inl.go |  2 ++
  test/fixedbugs/issue48033.go           | 40 ++++++++++++++++++++++++++++++++++
  2 files changed, 42 insertions(+)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 45a533fcaf..d50d8b3516 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -1061,6 +1061,8 @@ func (subst *inlsubst) clovar(n *ir.Name) *ir.Name {
+ 		m.Defn = &subst.defnMarker
+ 	case *ir.TypeSwitchGuard:
+ 		// TODO(mdempsky): Set m.Defn properly. See discussion on #45743.
++	case *ir.RangeStmt:
++		// TODO: Set m.Defn properly if we support inlining range statement in the future.
+ 	default:
+ 		base.FatalfAt(n.Pos(), "unexpected Defn: %+v", defn)
+ 	}
+diff --git a/test/fixedbugs/issue48033.go b/test/fixedbugs/issue48033.go
+new file mode 100644
+index 0000000000..044b98c9bc
+--- /dev/null
++++ b/test/fixedbugs/issue48033.go
+@@ -0,0 +1,40 @@
++// compile
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"strings"
++)
++
++type app struct {
++	Name string
++}
++
++func bug() func() {
++	return func() {
++
++		// the issue is this if true block
++		if true {
++			return
++		}
++
++		var xx = []app{}
++		var gapp app
++		for _, app := range xx {
++			if strings.ToUpper("") == app.Name {
++				fmt.Printf("%v\n", app)
++				gapp = app
++			}
++		}
++		fmt.Println(gapp)
++	}
++}
++
++func main() {
++	bug()
++}

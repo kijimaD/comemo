@@ -13,7 +13,7 @@ Date:   Thu Apr 15 23:05:49 2021 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  .gitignore                                         |   1 +
  src/cmd/asm/internal/asm/endtoend_test.go          |   6 +-
  src/cmd/asm/internal/asm/operand_test.go           |   6 +-
@@ -109,3 +109,4284 @@ Date:   Thu Apr 15 23:05:49 2021 -0400
  .../internal/objabi => internal/buildcfg}/exp.go   |  10 +-
  src/internal/goexperiment/flags.go                 |  11 +-
  94 files changed, 674 insertions(+), 549 deletions(-)
+
+diff --git a/.gitignore b/.gitignore
+index 39723909c7..aa62a9fad7 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -37,6 +37,7 @@ _testmain.go
+ /src/cmd/internal/objabi/zbootstrap.go
+ /src/go/build/zcgo.go
+ /src/go/doc/headscan
++/src/internal/buildcfg/zbootstrap.go
+ /src/runtime/internal/sys/zversion.go
+ /src/unicode/maketables
+ /test.out
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index ee2982df39..ead8b27b01 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"fmt"
++	"internal/buildcfg"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -19,7 +20,6 @@ import (
+ 
+ 	"cmd/asm/internal/lex"
+ 	"cmd/internal/obj"
+-	"cmd/internal/objabi"
+ )
+ 
+ // An end-to-end test for the assembler: Do we print what we parse?
+@@ -368,10 +368,10 @@ func Test386EndToEnd(t *testing.T) {
+ }
+ 
+ func TestARMEndToEnd(t *testing.T) {
+-	defer func(old int) { objabi.GOARM = old }(objabi.GOARM)
++	defer func(old int) { buildcfg.GOARM = old }(buildcfg.GOARM)
+ 	for _, goarm := range []int{5, 6, 7} {
+ 		t.Logf("GOARM=%d", goarm)
+-		objabi.GOARM = goarm
++		buildcfg.GOARM = goarm
+ 		testEndToEnd(t, "arm", "arm")
+ 		if goarm == 6 {
+ 			testEndToEnd(t, "arm", "armv6")
+diff --git a/src/cmd/asm/internal/asm/operand_test.go b/src/cmd/asm/internal/asm/operand_test.go
+index c6def15e20..8ef02b1a0e 100644
+--- a/src/cmd/asm/internal/asm/operand_test.go
++++ b/src/cmd/asm/internal/asm/operand_test.go
+@@ -5,20 +5,20 @@
+ package asm
+ 
+ import (
++	"internal/buildcfg"
+ 	"strings"
+ 	"testing"
+ 
+ 	"cmd/asm/internal/arch"
+ 	"cmd/asm/internal/lex"
+ 	"cmd/internal/obj"
+-	"cmd/internal/objabi"
+ )
+ 
+ // A simple in-out test: Do we print what we parse?
+ 
+ func setArch(goarch string) (*arch.Arch, *obj.Link) {
+-	objabi.GOOS = "linux" // obj can handle this OS for all architectures.
+-	objabi.GOARCH = goarch
++	buildcfg.GOOS = "linux" // obj can handle this OS for all architectures.
++	buildcfg.GOARCH = goarch
+ 	architecture := arch.Set(goarch)
+ 	if architecture == nil {
+ 		panic("asm: unrecognized architecture " + goarch)
+diff --git a/src/cmd/asm/internal/lex/input.go b/src/cmd/asm/internal/lex/input.go
+index aa03759c7d..e373ae817e 100644
+--- a/src/cmd/asm/internal/lex/input.go
++++ b/src/cmd/asm/internal/lex/input.go
+@@ -6,6 +6,7 @@ package lex
+ 
+ import (
+ 	"fmt"
++	"internal/buildcfg"
+ 	"os"
+ 	"path/filepath"
+ 	"strconv"
+@@ -49,7 +50,7 @@ func predefine(defines flags.MultiFlag) map[string]*Macro {
+ 	// Set macros for GOEXPERIMENTs so we can easily switch
+ 	// runtime assembly code based on them.
+ 	if *flags.CompilingRuntime {
+-		for _, exp := range objabi.EnabledExperiments() {
++		for _, exp := range buildcfg.EnabledExperiments() {
+ 			// Define macro.
+ 			name := "GOEXPERIMENT_" + exp
+ 			macros[name] = &Macro{
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index 98618a67ef..e5a9ee565e 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -8,6 +8,7 @@ import (
+ 	"bufio"
+ 	"flag"
+ 	"fmt"
++	"internal/buildcfg"
+ 	"log"
+ 	"os"
+ 
+@@ -18,14 +19,14 @@ import (
+ 
+ 	"cmd/internal/bio"
+ 	"cmd/internal/obj"
+-	"cmd/internal/objabi"
+ )
+ 
+ func main() {
+ 	log.SetFlags(0)
+ 	log.SetPrefix("asm: ")
+ 
+-	GOARCH := objabi.GOARCH
++	buildcfg.Check()
++	GOARCH := buildcfg.GOARCH
+ 
+ 	architecture := arch.Set(GOARCH)
+ 	if architecture == nil {
+@@ -68,7 +69,7 @@ func main() {
+ 	defer buf.Close()
+ 
+ 	if !*flags.SymABIs {
+-		fmt.Fprintf(buf, "go object %s %s %s\n", objabi.GOOS, objabi.GOARCH, objabi.Version)
++		fmt.Fprintf(buf, "go object %s %s %s\n", buildcfg.GOOS, buildcfg.GOARCH, buildcfg.Version)
+ 		fmt.Fprintf(buf, "!\n")
+ 	}
+ 
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 77ac5e0d3a..03a662e689 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -17,6 +17,7 @@ import (
+ 	"go/ast"
+ 	"go/printer"
+ 	"go/token"
++	"internal/buildcfg"
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
+@@ -414,8 +415,9 @@ func newPackage(args []string) *Package {
+ 	if s := os.Getenv("GOOS"); s != "" {
+ 		goos = s
+ 	}
+-	gomips = objabi.GOMIPS
+-	gomips64 = objabi.GOMIPS64
++	buildcfg.Check()
++	gomips = buildcfg.GOMIPS
++	gomips64 = buildcfg.GOMIPS64
+ 	ptrSize := ptrSizeMap[goarch]
+ 	if ptrSize == 0 {
+ 		fatalf("unknown ptrSize for $GOARCH %q", goarch)
+diff --git a/src/cmd/compile/internal/amd64/ggen.go b/src/cmd/compile/internal/amd64/ggen.go
+index b5847d48b9..1484ad5404 100644
+--- a/src/cmd/compile/internal/amd64/ggen.go
++++ b/src/cmd/compile/internal/amd64/ggen.go
+@@ -11,11 +11,11 @@ import (
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/x86"
+-	"cmd/internal/objabi"
++	"internal/buildcfg"
+ )
+ 
+ // no floating point in note handlers on Plan 9
+-var isPlan9 = objabi.GOOS == "plan9"
++var isPlan9 = buildcfg.GOOS == "plan9"
+ 
+ // DUFFZERO consists of repeated blocks of 4 MOVUPSs + LEAQ,
+ // See runtime/mkduff.go.
+@@ -85,7 +85,7 @@ func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.
+ 		}
+ 		p = pp.Append(p, x86.AMOVQ, obj.TYPE_REG, x86.REG_R13, 0, obj.TYPE_MEM, x86.REG_SP, off)
+ 	} else if !isPlan9 && cnt <= int64(8*types.RegSize) {
+-		if !objabi.Experiment.RegabiG && *state&x15 == 0 {
++		if !buildcfg.Experiment.RegabiG && *state&x15 == 0 {
+ 			p = pp.Append(p, x86.AXORPS, obj.TYPE_REG, x86.REG_X15, 0, obj.TYPE_REG, x86.REG_X15, 0)
+ 			*state |= x15
+ 		}
+@@ -98,7 +98,7 @@ func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.
+ 			p = pp.Append(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X15, 0, obj.TYPE_MEM, x86.REG_SP, off+cnt-int64(16))
+ 		}
+ 	} else if !isPlan9 && (cnt <= int64(128*types.RegSize)) {
+-		if !objabi.Experiment.RegabiG && *state&x15 == 0 {
++		if !buildcfg.Experiment.RegabiG && *state&x15 == 0 {
+ 			p = pp.Append(p, x86.AXORPS, obj.TYPE_REG, x86.REG_X15, 0, obj.TYPE_REG, x86.REG_X15, 0)
+ 			*state |= x15
+ 		}
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index fce3c6b820..42c12953f9 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -6,6 +6,7 @@ package amd64
+ 
+ import (
+ 	"fmt"
++	"internal/buildcfg"
+ 	"math"
+ 
+ 	"cmd/compile/internal/base"
+@@ -17,7 +18,6 @@ import (
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/x86"
+-	"cmd/internal/objabi"
+ )
+ 
+ // markMoves marks any MOVXconst ops that need to avoid clobbering flags.
+@@ -825,7 +825,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Reg = v.Args[0].Reg()
+ 		ssagen.AddAux2(&p.To, v, sc.Off64())
+ 	case ssa.OpAMD64MOVOstorezero:
+-		if !objabi.Experiment.RegabiG || s.ABI != obj.ABIInternal {
++		if !buildcfg.Experiment.RegabiG || s.ABI != obj.ABIInternal {
+ 			// zero X15 manually
+ 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+ 		}
+@@ -916,7 +916,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 	case ssa.OpAMD64DUFFZERO:
+-		if !objabi.Experiment.RegabiG || s.ABI != obj.ABIInternal {
++		if !buildcfg.Experiment.RegabiG || s.ABI != obj.ABIInternal {
+ 			// zero X15 manually
+ 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+ 		}
+@@ -999,20 +999,20 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		// Closure pointer is DX.
+ 		ssagen.CheckLoweredGetClosurePtr(v)
+ 	case ssa.OpAMD64LoweredGetG:
+-		if objabi.Experiment.RegabiG && s.ABI == obj.ABIInternal {
++		if buildcfg.Experiment.RegabiG && s.ABI == obj.ABIInternal {
+ 			v.Fatalf("LoweredGetG should not appear in ABIInternal")
+ 		}
+ 		r := v.Reg()
+ 		getgFromTLS(s, r)
+ 	case ssa.OpAMD64CALLstatic:
+-		if objabi.Experiment.RegabiG && s.ABI == obj.ABI0 && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABIInternal {
++		if buildcfg.Experiment.RegabiG && s.ABI == obj.ABI0 && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABIInternal {
+ 			// zeroing X15 when entering ABIInternal from ABI0
+ 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+ 			// set G register from TLS
+ 			getgFromTLS(s, x86.REG_R14)
+ 		}
+ 		s.Call(v)
+-		if objabi.Experiment.RegabiG && s.ABI == obj.ABIInternal && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABI0 {
++		if buildcfg.Experiment.RegabiG && s.ABI == obj.ABIInternal && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABI0 {
+ 			// zeroing X15 when entering ABIInternal from ABI0
+ 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+ 			// set G register from TLS
+@@ -1306,7 +1306,7 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
+ 	case ssa.BlockRet:
+ 		s.Prog(obj.ARET)
+ 	case ssa.BlockRetJmp:
+-		if objabi.Experiment.RegabiG && s.ABI == obj.ABI0 && b.Aux.(*obj.LSym).ABI() == obj.ABIInternal {
++		if buildcfg.Experiment.RegabiG && s.ABI == obj.ABI0 && b.Aux.(*obj.LSym).ABI() == obj.ABIInternal {
+ 			// zeroing X15 when entering ABIInternal from ABI0
+ 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+ 			// set G register from TLS
+diff --git a/src/cmd/compile/internal/arm/galign.go b/src/cmd/compile/internal/arm/galign.go
+index 81959ae0ab..d68500280d 100644
+--- a/src/cmd/compile/internal/arm/galign.go
++++ b/src/cmd/compile/internal/arm/galign.go
+@@ -8,14 +8,14 @@ import (
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/ssagen"
+ 	"cmd/internal/obj/arm"
+-	"cmd/internal/objabi"
++	"internal/buildcfg"
+ )
+ 
+ func Init(arch *ssagen.ArchInfo) {
+ 	arch.LinkArch = &arm.Linkarm
+ 	arch.REGSP = arm.REGSP
+ 	arch.MAXWIDTH = (1 << 32) - 1
+-	arch.SoftFloat = objabi.GOARM == 5
++	arch.SoftFloat = buildcfg.GOARM == 5
+ 	arch.ZeroRange = zerorange
+ 	arch.Ginsnop = ginsnop
+ 	arch.Ginsnopdefer = ginsnop
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 832f940c26..4b083cec46 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -6,6 +6,7 @@ package arm
+ 
+ import (
+ 	"fmt"
++	"internal/buildcfg"
+ 	"math"
+ 	"math/bits"
+ 
+@@ -17,7 +18,6 @@ import (
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm"
+-	"cmd/internal/objabi"
+ )
+ 
+ // loadByType returns the load instruction of the given type.
+@@ -286,7 +286,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 	case ssa.OpARMANDconst, ssa.OpARMBICconst:
+ 		// try to optimize ANDconst and BICconst to BFC, which saves bytes and ticks
+ 		// BFC is only available on ARMv7, and its result and source are in the same register
+-		if objabi.GOARM == 7 && v.Reg() == v.Args[0].Reg() {
++		if buildcfg.GOARM == 7 && v.Reg() == v.Args[0].Reg() {
+ 			var val uint32
+ 			if v.Op == ssa.OpARMANDconst {
+ 				val = ^uint32(v.AuxInt)
+@@ -643,7 +643,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 			default:
+ 			}
+ 		}
+-		if objabi.GOARM >= 6 {
++		if buildcfg.GOARM >= 6 {
+ 			// generate more efficient "MOVB/MOVBU/MOVH/MOVHU Reg@>0, Reg" on ARMv6 & ARMv7
+ 			genshift(s, v.Op.Asm(), 0, v.Args[0].Reg(), v.Reg(), arm.SHIFT_RR, 0)
+ 			return
+diff --git a/src/cmd/compile/internal/arm64/ggen.go b/src/cmd/compile/internal/arm64/ggen.go
+index 8364535f63..89be496461 100644
+--- a/src/cmd/compile/internal/arm64/ggen.go
++++ b/src/cmd/compile/internal/arm64/ggen.go
+@@ -10,10 +10,10 @@ import (
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm64"
+-	"cmd/internal/objabi"
++	"internal/buildcfg"
+ )
+ 
+-var darwin = objabi.GOOS == "darwin" || objabi.GOOS == "ios"
++var darwin = buildcfg.GOOS == "darwin" || buildcfg.GOOS == "ios"
+ 
+ func padframe(frame int64) int64 {
+ 	// arm64 requires that the frame size (not counting saved FP&LR)
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index 4b7ef155a1..42c0c1b94b 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -8,6 +8,7 @@ import (
+ 	"encoding/json"
+ 	"flag"
+ 	"fmt"
++	"internal/buildcfg"
+ 	"io/ioutil"
+ 	"log"
+ 	"os"
+@@ -146,7 +147,7 @@ func ParseFlags() {
+ 	Flag.LowerP = &Ctxt.Pkgpath
+ 	Flag.LowerV = &Ctxt.Debugvlog
+ 
+-	Flag.Dwarf = objabi.GOARCH != "wasm"
++	Flag.Dwarf = buildcfg.GOARCH != "wasm"
+ 	Flag.DwarfBASEntries = &Ctxt.UseBASEntries
+ 	Flag.DwarfLocationLists = &Ctxt.Flag_locationlists
+ 	*Flag.DwarfLocationLists = true
+@@ -168,14 +169,14 @@ func ParseFlags() {
+ 	registerFlags()
+ 	objabi.Flagparse(usage)
+ 
+-	if Flag.MSan && !sys.MSanSupported(objabi.GOOS, objabi.GOARCH) {
+-		log.Fatalf("%s/%s does not support -msan", objabi.GOOS, objabi.GOARCH)
++	if Flag.MSan && !sys.MSanSupported(buildcfg.GOOS, buildcfg.GOARCH) {
++		log.Fatalf("%s/%s does not support -msan", buildcfg.GOOS, buildcfg.GOARCH)
+ 	}
+-	if Flag.Race && !sys.RaceDetectorSupported(objabi.GOOS, objabi.GOARCH) {
+-		log.Fatalf("%s/%s does not support -race", objabi.GOOS, objabi.GOARCH)
++	if Flag.Race && !sys.RaceDetectorSupported(buildcfg.GOOS, buildcfg.GOARCH) {
++		log.Fatalf("%s/%s does not support -race", buildcfg.GOOS, buildcfg.GOARCH)
+ 	}
+ 	if (*Flag.Shared || *Flag.Dynlink || *Flag.LinkShared) && !Ctxt.Arch.InFamily(sys.AMD64, sys.ARM, sys.ARM64, sys.I386, sys.PPC64, sys.RISCV64, sys.S390X) {
+-		log.Fatalf("%s/%s does not support -shared", objabi.GOOS, objabi.GOARCH)
++		log.Fatalf("%s/%s does not support -shared", buildcfg.GOOS, buildcfg.GOARCH)
+ 	}
+ 	parseSpectre(Flag.Spectre) // left as string for RecordFlags
+ 
+@@ -347,7 +348,7 @@ func concurrentBackendAllowed() bool {
+ 		return false
+ 	}
+ 	// TODO: Test and delete this condition.
+-	if objabi.Experiment.FieldTrack {
++	if buildcfg.Experiment.FieldTrack {
+ 		return false
+ 	}
+ 	// TODO: fix races and enable the following flags
+@@ -458,11 +459,11 @@ func parseSpectre(s string) {
+ 	}
+ 
+ 	if Flag.Cfg.SpectreIndex {
+-		switch objabi.GOARCH {
++		switch buildcfg.GOARCH {
+ 		case "amd64":
+ 			// ok
+ 		default:
+-			log.Fatalf("GOARCH=%s does not support -spectre=index", objabi.GOARCH)
++			log.Fatalf("GOARCH=%s does not support -spectre=index", buildcfg.GOARCH)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/base/print.go b/src/cmd/compile/internal/base/print.go
+index 668c600d31..b095fd704d 100644
+--- a/src/cmd/compile/internal/base/print.go
++++ b/src/cmd/compile/internal/base/print.go
+@@ -6,12 +6,12 @@ package base
+ 
+ import (
+ 	"fmt"
++	"internal/buildcfg"
+ 	"os"
+ 	"runtime/debug"
+ 	"sort"
+ 	"strings"
+ 
+-	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ )
+ 
+@@ -217,7 +217,7 @@ func FatalfAt(pos src.XPos, format string, args ...interface{}) {
+ 		fmt.Printf("\n")
+ 
+ 		// If this is a released compiler version, ask for a bug report.
+-		if strings.HasPrefix(objabi.Version, "go") {
++		if strings.HasPrefix(buildcfg.Version, "go") {
+ 			fmt.Printf("\n")
+ 			fmt.Printf("Please file a bug report including a short program that triggers the error.\n")
+ 			fmt.Printf("https://golang.org/issue/new\n")
+diff --git a/src/cmd/compile/internal/dwarfgen/dwarf.go b/src/cmd/compile/internal/dwarfgen/dwarf.go
+index 7b5863bbc6..0754a8810c 100644
+--- a/src/cmd/compile/internal/dwarfgen/dwarf.go
++++ b/src/cmd/compile/internal/dwarfgen/dwarf.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"flag"
+ 	"fmt"
++	"internal/buildcfg"
+ 	"sort"
+ 
+ 	"cmd/compile/internal/base"
+@@ -278,7 +279,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
+ 		if base.Ctxt.FixedFrameSize() == 0 {
+ 			offs -= int64(types.PtrSize)
+ 		}
+-		if objabi.FramePointerEnabled {
++		if buildcfg.FramePointerEnabled {
+ 			offs -= int64(types.PtrSize)
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 68506c7a7b..ce50cbb4c2 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -28,6 +28,7 @@ import (
+ 	"cmd/internal/src"
+ 	"flag"
+ 	"fmt"
++	"internal/buildcfg"
+ 	"log"
+ 	"os"
+ 	"runtime"
+@@ -158,7 +159,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 		dwarf.EnableLogging(base.Debug.DwarfInl != 0)
+ 	}
+ 	if base.Debug.SoftFloat != 0 {
+-		if objabi.Experiment.RegabiArgs {
++		if buildcfg.Experiment.RegabiArgs {
+ 			log.Fatalf("softfloat mode with GOEXPERIMENT=regabiargs not implemented ")
+ 		}
+ 		ssagen.Arch.SoftFloat = true
+@@ -335,7 +336,7 @@ func writebench(filename string) error {
+ 	}
+ 
+ 	var buf bytes.Buffer
+-	fmt.Fprintln(&buf, "commit:", objabi.Version)
++	fmt.Fprintln(&buf, "commit:", buildcfg.Version)
+ 	fmt.Fprintln(&buf, "goos:", runtime.GOOS)
+ 	fmt.Fprintln(&buf, "goarch:", runtime.GOARCH)
+ 	base.Timer.Write(&buf, "BenchmarkCompile:"+base.Ctxt.Pkgpath+":")
+diff --git a/src/cmd/compile/internal/logopt/log_opts.go b/src/cmd/compile/internal/logopt/log_opts.go
+index 37a049d640..97ebf56944 100644
+--- a/src/cmd/compile/internal/logopt/log_opts.go
++++ b/src/cmd/compile/internal/logopt/log_opts.go
+@@ -6,10 +6,10 @@ package logopt
+ 
+ import (
+ 	"cmd/internal/obj"
+-	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ 	"encoding/json"
+ 	"fmt"
++	"internal/buildcfg"
+ 	"io"
+ 	"log"
+ 	"net/url"
+@@ -408,7 +408,7 @@ func uprootedPath(filename string) string {
+ 	if !strings.HasPrefix(filename, "$GOROOT/") {
+ 		return filename
+ 	}
+-	return objabi.GOROOT + filename[len("$GOROOT"):]
++	return buildcfg.GOROOT + filename[len("$GOROOT"):]
+ }
+ 
+ // FlushLoggedOpts flushes all the accumulated optimization log entries.
+@@ -448,7 +448,7 @@ func FlushLoggedOpts(ctxt *obj.Link, slashPkgPath string) {
+ 				currentFile = p0f
+ 				w = writerForLSP(subdirpath, currentFile)
+ 				encoder = json.NewEncoder(w)
+-				encoder.Encode(VersionHeader{Version: 0, Package: slashPkgPath, Goos: objabi.GOOS, Goarch: objabi.GOARCH, GcVersion: objabi.Version, File: currentFile})
++				encoder.Encode(VersionHeader{Version: 0, Package: slashPkgPath, Goos: buildcfg.GOOS, Goarch: buildcfg.GOARCH, GcVersion: buildcfg.Version, File: currentFile})
+ 			}
+ 
+ 			// The first "target" is the most important one.
+diff --git a/src/cmd/compile/internal/mips/galign.go b/src/cmd/compile/internal/mips/galign.go
+index 599163550b..f892923ba0 100644
+--- a/src/cmd/compile/internal/mips/galign.go
++++ b/src/cmd/compile/internal/mips/galign.go
+@@ -8,17 +8,17 @@ import (
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/ssagen"
+ 	"cmd/internal/obj/mips"
+-	"cmd/internal/objabi"
++	"internal/buildcfg"
+ )
+ 
+ func Init(arch *ssagen.ArchInfo) {
+ 	arch.LinkArch = &mips.Linkmips
+-	if objabi.GOARCH == "mipsle" {
++	if buildcfg.GOARCH == "mipsle" {
+ 		arch.LinkArch = &mips.Linkmipsle
+ 	}
+ 	arch.REGSP = mips.REGSP
+ 	arch.MAXWIDTH = (1 << 31) - 1
+-	arch.SoftFloat = (objabi.GOMIPS == "softfloat")
++	arch.SoftFloat = (buildcfg.GOMIPS == "softfloat")
+ 	arch.ZeroRange = zerorange
+ 	arch.Ginsnop = ginsnop
+ 	arch.Ginsnopdefer = ginsnop
+diff --git a/src/cmd/compile/internal/mips64/galign.go b/src/cmd/compile/internal/mips64/galign.go
+index fc0a34228c..af81366e51 100644
+--- a/src/cmd/compile/internal/mips64/galign.go
++++ b/src/cmd/compile/internal/mips64/galign.go
+@@ -8,17 +8,17 @@ import (
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/ssagen"
+ 	"cmd/internal/obj/mips"
+-	"cmd/internal/objabi"
++	"internal/buildcfg"
+ )
+ 
+ func Init(arch *ssagen.ArchInfo) {
+ 	arch.LinkArch = &mips.Linkmips64
+-	if objabi.GOARCH == "mips64le" {
++	if buildcfg.GOARCH == "mips64le" {
+ 		arch.LinkArch = &mips.Linkmips64le
+ 	}
+ 	arch.REGSP = mips.REGSP
+ 	arch.MAXWIDTH = 1 << 50
+-	arch.SoftFloat = objabi.GOMIPS64 == "softfloat"
++	arch.SoftFloat = buildcfg.GOMIPS64 == "softfloat"
+ 	arch.ZeroRange = zerorange
+ 	arch.Ginsnop = ginsnop
+ 	arch.Ginsnopdefer = ginsnop
+diff --git a/src/cmd/compile/internal/noder/import.go b/src/cmd/compile/internal/noder/import.go
+index e6e3fe1834..701e9001c8 100644
+--- a/src/cmd/compile/internal/noder/import.go
++++ b/src/cmd/compile/internal/noder/import.go
+@@ -7,6 +7,7 @@ package noder
+ import (
+ 	"errors"
+ 	"fmt"
++	"internal/buildcfg"
+ 	"io"
+ 	"os"
+ 	pathpkg "path"
+@@ -108,7 +109,7 @@ func openPackage(path string) (*os.File, error) {
+ 		}
+ 	}
+ 
+-	if objabi.GOROOT != "" {
++	if buildcfg.GOROOT != "" {
+ 		suffix := ""
+ 		if base.Flag.InstallSuffix != "" {
+ 			suffix = "_" + base.Flag.InstallSuffix
+@@ -118,10 +119,10 @@ func openPackage(path string) (*os.File, error) {
+ 			suffix = "_msan"
+ 		}
+ 
+-		if file, err := os.Open(fmt.Sprintf("%s/pkg/%s_%s%s/%s.a", objabi.GOROOT, objabi.GOOS, objabi.GOARCH, suffix, path)); err == nil {
++		if file, err := os.Open(fmt.Sprintf("%s/pkg/%s_%s%s/%s.a", buildcfg.GOROOT, buildcfg.GOOS, buildcfg.GOARCH, suffix, path)); err == nil {
+ 			return file, nil
+ 		}
+-		if file, err := os.Open(fmt.Sprintf("%s/pkg/%s_%s%s/%s.o", objabi.GOROOT, objabi.GOOS, objabi.GOARCH, suffix, path)); err == nil {
++		if file, err := os.Open(fmt.Sprintf("%s/pkg/%s_%s%s/%s.o", buildcfg.GOROOT, buildcfg.GOOS, buildcfg.GOARCH, suffix, path)); err == nil {
+ 			return file, nil
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/noder/lex.go b/src/cmd/compile/internal/noder/lex.go
+index 60b724d154..66a56a50ec 100644
+--- a/src/cmd/compile/internal/noder/lex.go
++++ b/src/cmd/compile/internal/noder/lex.go
+@@ -6,11 +6,11 @@ package noder
+ 
+ import (
+ 	"fmt"
++	"internal/buildcfg"
+ 	"strings"
+ 
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/syntax"
+-	"cmd/internal/objabi"
+ )
+ 
+ func isSpace(c rune) bool {
+@@ -44,7 +44,7 @@ func pragmaFlag(verb string) ir.PragmaFlag {
+ 	case "go:build":
+ 		return ir.GoBuildPragma
+ 	case "go:nointerface":
+-		if objabi.Experiment.FieldTrack {
++		if buildcfg.Experiment.FieldTrack {
+ 			return ir.Nointerface
+ 		}
+ 	case "go:noescape":
+@@ -110,7 +110,7 @@ func (p *noder) pragcgo(pos syntax.Pos, text string) {
+ 		case len(f) == 3 && !isQuoted(f[1]) && !isQuoted(f[2]):
+ 		case len(f) == 4 && !isQuoted(f[1]) && !isQuoted(f[2]) && isQuoted(f[3]):
+ 			f[3] = strings.Trim(f[3], `"`)
+-			if objabi.GOOS == "aix" && f[3] != "" {
++			if buildcfg.GOOS == "aix" && f[3] != "" {
+ 				// On Aix, library pattern must be "lib.a/object.o"
+ 				// or "lib.a/libname.so.X"
+ 				n := strings.Split(f[3], "/")
+diff --git a/src/cmd/compile/internal/ppc64/galign.go b/src/cmd/compile/internal/ppc64/galign.go
+index c72d1aa834..590290fa37 100644
+--- a/src/cmd/compile/internal/ppc64/galign.go
++++ b/src/cmd/compile/internal/ppc64/galign.go
+@@ -7,12 +7,12 @@ package ppc64
+ import (
+ 	"cmd/compile/internal/ssagen"
+ 	"cmd/internal/obj/ppc64"
+-	"cmd/internal/objabi"
++	"internal/buildcfg"
+ )
+ 
+ func Init(arch *ssagen.ArchInfo) {
+ 	arch.LinkArch = &ppc64.Linkppc64
+-	if objabi.GOARCH == "ppc64le" {
++	if buildcfg.GOARCH == "ppc64le" {
+ 		arch.LinkArch = &ppc64.Linkppc64le
+ 	}
+ 	arch.REGSP = ppc64.REGSP
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index a0ad69a68d..11226f65a0 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -13,7 +13,7 @@ import (
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/ppc64"
+-	"cmd/internal/objabi"
++	"internal/buildcfg"
+ 	"math"
+ 	"strings"
+ )
+@@ -1873,7 +1873,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		s.UseArgs(16) // space used in callee args area by assembly stubs
+ 
+ 	case ssa.OpPPC64LoweredNilCheck:
+-		if objabi.GOOS == "aix" {
++		if buildcfg.GOOS == "aix" {
+ 			// CMP Rarg0, R0
+ 			// BNE 2(PC)
+ 			// STW R0, 0(R0)
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 379735e86b..f0a60998a1 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -6,6 +6,7 @@ package reflectdata
+ 
+ import (
+ 	"fmt"
++	"internal/buildcfg"
+ 	"os"
+ 	"sort"
+ 	"strings"
+@@ -1774,7 +1775,7 @@ func methodWrapper(rcvr *types.Type, method *types.Field) *obj.LSym {
+ 	// Disable tailcall for RegabiArgs for now. The IR does not connect the
+ 	// arguments with the OTAILCALL node, and the arguments are not marshaled
+ 	// correctly.
+-	if !base.Flag.Cfg.Instrumenting && rcvr.IsPtr() && methodrcvr.IsPtr() && method.Embedded != 0 && !types.IsInterfaceMethod(method.Type) && !(base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) && !objabi.Experiment.RegabiArgs {
++	if !base.Flag.Cfg.Instrumenting && rcvr.IsPtr() && methodrcvr.IsPtr() && method.Embedded != 0 && !types.IsInterfaceMethod(method.Type) && !(base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) && !buildcfg.Experiment.RegabiArgs {
+ 		// generate tail call: adjust pointer receiver and jump to embedded method.
+ 		left := dot.X // skip final .M
+ 		if !left.Type().IsPtr() {
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index b1bcd4566e..8aae04f2ec 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -6,10 +6,10 @@ package ssa
+ 
+ import (
+ 	"bytes"
+-	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ 	"fmt"
+ 	"hash/crc32"
++	"internal/buildcfg"
+ 	"log"
+ 	"math/rand"
+ 	"os"
+@@ -454,7 +454,7 @@ var passes = [...]pass{
+ 	{name: "dse", fn: dse},
+ 	{name: "writebarrier", fn: writebarrier, required: true}, // expand write barrier ops
+ 	{name: "insert resched checks", fn: insertLoopReschedChecks,
+-		disabled: !objabi.Experiment.PreemptibleLoops}, // insert resched checks in loops.
++		disabled: !buildcfg.Experiment.PreemptibleLoops}, // insert resched checks in loops.
+ 	{name: "lower", fn: lower, required: true},
+ 	{name: "addressing modes", fn: addressingModes, required: false},
+ 	{name: "lowered deadcode for cse", fn: deadcode}, // deadcode immediately before CSE avoids CSE making dead values live again
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 75fa71ce35..4ffa047096 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -9,8 +9,8 @@ import (
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+-	"cmd/internal/objabi"
+ 	"cmd/internal/src"
++	"internal/buildcfg"
+ )
+ 
+ // A Config holds readonly compilation information.
+@@ -203,7 +203,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config
+ 		c.floatParamRegs = paramFloatRegAMD64
+ 		c.FPReg = framepointerRegAMD64
+ 		c.LinkReg = linkRegAMD64
+-		c.hasGReg = objabi.Experiment.RegabiG
++		c.hasGReg = buildcfg.Experiment.RegabiG
+ 	case "386":
+ 		c.PtrSize = 4
+ 		c.RegSize = 4
+@@ -238,7 +238,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config
+ 		c.FPReg = framepointerRegARM64
+ 		c.LinkReg = linkRegARM64
+ 		c.hasGReg = true
+-		c.noDuffDevice = objabi.GOOS == "darwin" || objabi.GOOS == "ios" // darwin linker cannot handle BR26 reloc with non-zero addend
++		c.noDuffDevice = buildcfg.GOOS == "darwin" || buildcfg.GOOS == "ios" // darwin linker cannot handle BR26 reloc with non-zero addend
+ 	case "ppc64":
+ 		c.BigEndian = true
+ 		fallthrough
+@@ -336,7 +336,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config
+ 	c.ABI1 = abi.NewABIConfig(len(c.intParamRegs), len(c.floatParamRegs), ctxt.FixedFrameSize())
+ 
+ 	// On Plan 9, floating point operations are not allowed in note handler.
+-	if objabi.GOOS == "plan9" {
++	if buildcfg.GOOS == "plan9" {
+ 		// Don't use FMA on Plan 9
+ 		c.UseFMA = false
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 839d4a330e..7a88a488c0 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -460,7 +460,7 @@
+ (IsInBounds idx len) => (SETB (CMPQ idx len))
+ (IsSliceInBounds idx len) => (SETBE (CMPQ idx len))
+ (NilCheck ...) => (LoweredNilCheck ...)
+-(GetG mem) && !(objabi.Experiment.RegabiG && v.Block.Func.OwnAux.Fn.ABI() == obj.ABIInternal) => (LoweredGetG mem) // only lower in old ABI. in new ABI we have a G register.
++(GetG mem) && !(buildcfg.Experiment.RegabiG && v.Block.Func.OwnAux.Fn.ABI() == obj.ABIInternal) => (LoweredGetG mem) // only lower in old ABI. in new ABI we have a G register.
+ (GetClosurePtr ...) => (LoweredGetClosurePtr ...)
+ (GetCallerPC ...) => (LoweredGetCallerPC ...)
+ (GetCallerSP ...) => (LoweredGetCallerSP ...)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index 5c6438a986..bcacbafe3a 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -66,17 +66,17 @@
+ 
+ // count trailing zero for ARMv5 and ARMv6
+ // 32 - CLZ(x&-x - 1)
+-(Ctz32 <t> x) && objabi.GOARM<=6 =>
++(Ctz32 <t> x) && buildcfg.GOARM<=6 =>
+ 	(RSBconst [32] (CLZ <t> (SUBconst <t> (AND <t> x (RSBconst <t> [0] x)) [1])))
+-(Ctz16 <t> x) && objabi.GOARM<=6 =>
++(Ctz16 <t> x) && buildcfg.GOARM<=6 =>
+ 	(RSBconst [32] (CLZ <t> (SUBconst <typ.UInt32> (AND <typ.UInt32> (ORconst <typ.UInt32> [0x10000] x) (RSBconst <typ.UInt32> [0] (ORconst <typ.UInt32> [0x10000] x))) [1])))
+-(Ctz8 <t> x) && objabi.GOARM<=6 =>
++(Ctz8 <t> x) && buildcfg.GOARM<=6 =>
+ 	(RSBconst [32] (CLZ <t> (SUBconst <typ.UInt32> (AND <typ.UInt32> (ORconst <typ.UInt32> [0x100] x) (RSBconst <typ.UInt32> [0] (ORconst <typ.UInt32> [0x100] x))) [1])))
+ 
+ // count trailing zero for ARMv7
+-(Ctz32 <t> x) && objabi.GOARM==7 => (CLZ <t> (RBIT <t> x))
+-(Ctz16 <t> x) && objabi.GOARM==7 => (CLZ <t> (RBIT <typ.UInt32> (ORconst <typ.UInt32> [0x10000] x)))
+-(Ctz8 <t> x) && objabi.GOARM==7 => (CLZ <t> (RBIT <typ.UInt32> (ORconst <typ.UInt32> [0x100] x)))
++(Ctz32 <t> x) && buildcfg.GOARM==7 => (CLZ <t> (RBIT <t> x))
++(Ctz16 <t> x) && buildcfg.GOARM==7 => (CLZ <t> (RBIT <typ.UInt32> (ORconst <typ.UInt32> [0x10000] x)))
++(Ctz8 <t> x) && buildcfg.GOARM==7 => (CLZ <t> (RBIT <typ.UInt32> (ORconst <typ.UInt32> [0x100] x)))
+ 
+ // bit length
+ (BitLen32 <t> x) => (RSBconst [32] (CLZ <t> x))
+@@ -90,13 +90,13 @@
+ // t5 = x right rotate 8 bits  -- (d,   a,   b,   c  )
+ // result = t4 ^ t5            -- (d,   c,   b,   a  )
+ // using shifted ops this can be done in 4 instructions.
+-(Bswap32 <t> x) && objabi.GOARM==5 =>
++(Bswap32 <t> x) && buildcfg.GOARM==5 =>
+ 	(XOR <t>
+ 		(SRLconst <t> (BICconst <t> (XOR <t> x (SRRconst <t> [16] x)) [0xff0000]) [8])
+ 		(SRRconst <t> x [8]))
+ 
+ // byte swap for ARMv6 and above
+-(Bswap32 x) && objabi.GOARM>=6 => (REV x)
++(Bswap32 x) && buildcfg.GOARM>=6 => (REV x)
+ 
+ // boolean ops -- booleans are represented with 0=false, 1=true
+ (AndB ...) => (AND ...)
+@@ -737,10 +737,10 @@
+ (SUBconst [c] x) && !isARMImmRot(uint32(c)) && isARMImmRot(uint32(-c)) => (ADDconst [-c] x)
+ (ANDconst [c] x) && !isARMImmRot(uint32(c)) && isARMImmRot(^uint32(c)) => (BICconst [int32(^uint32(c))] x)
+ (BICconst [c] x) && !isARMImmRot(uint32(c)) && isARMImmRot(^uint32(c)) => (ANDconst [int32(^uint32(c))] x)
+-(ADDconst [c] x) && objabi.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && uint32(-c)<=0xffff => (SUBconst [-c] x)
+-(SUBconst [c] x) && objabi.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && uint32(-c)<=0xffff => (ADDconst [-c] x)
+-(ANDconst [c] x) && objabi.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && ^uint32(c)<=0xffff => (BICconst [int32(^uint32(c))] x)
+-(BICconst [c] x) && objabi.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && ^uint32(c)<=0xffff => (ANDconst [int32(^uint32(c))] x)
++(ADDconst [c] x) && buildcfg.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && uint32(-c)<=0xffff => (SUBconst [-c] x)
++(SUBconst [c] x) && buildcfg.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && uint32(-c)<=0xffff => (ADDconst [-c] x)
++(ANDconst [c] x) && buildcfg.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && ^uint32(c)<=0xffff => (BICconst [int32(^uint32(c))] x)
++(BICconst [c] x) && buildcfg.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && ^uint32(c)<=0xffff => (ANDconst [int32(^uint32(c))] x)
+ (ADDconst [c] (MOVWconst [d])) => (MOVWconst [c+d])
+ (ADDconst [c] (ADDconst [d] x)) => (ADDconst [c+d] x)
+ (ADDconst [c] (SUBconst [d] x)) => (ADDconst [c-d] x)
+@@ -1144,7 +1144,7 @@
+ // UBFX instruction is supported by ARMv6T2, ARMv7 and above versions, REV16 is supported by
+ // ARMv6 and above versions. So for ARMv6, we need to match SLLconst, SRLconst and ORshiftLL.
+ ((ADDshiftLL|ORshiftLL|XORshiftLL) <typ.UInt16> [8] (BFXU <typ.UInt16> [int32(armBFAuxInt(8, 8))] x) x) => (REV16 x)
+-((ADDshiftLL|ORshiftLL|XORshiftLL) <typ.UInt16> [8] (SRLconst <typ.UInt16> [24] (SLLconst [16] x)) x) && objabi.GOARM>=6 => (REV16 x)
++((ADDshiftLL|ORshiftLL|XORshiftLL) <typ.UInt16> [8] (SRLconst <typ.UInt16> [24] (SLLconst [16] x)) x) && buildcfg.GOARM>=6 => (REV16 x)
+ 
+ // use indexed loads and stores
+ (MOVWload [0] {sym} (ADD ptr idx) mem) && sym == nil => (MOVWloadidx ptr idx mem)
+@@ -1214,25 +1214,25 @@
+ (BIC x x) => (MOVWconst [0])
+ 
+ (ADD (MUL x y) a) => (MULA x y a)
+-(SUB a (MUL x y)) && objabi.GOARM == 7 => (MULS x y a)
+-(RSB (MUL x y) a) && objabi.GOARM == 7 => (MULS x y a)
++(SUB a (MUL x y)) && buildcfg.GOARM == 7 => (MULS x y a)
++(RSB (MUL x y) a) && buildcfg.GOARM == 7 => (MULS x y a)
+ 
+-(NEGF (MULF x y)) && objabi.GOARM >= 6 => (NMULF x y)
+-(NEGD (MULD x y)) && objabi.GOARM >= 6 => (NMULD x y)
+-(MULF (NEGF x) y) && objabi.GOARM >= 6 => (NMULF x y)
+-(MULD (NEGD x) y) && objabi.GOARM >= 6 => (NMULD x y)
++(NEGF (MULF x y)) && buildcfg.GOARM >= 6 => (NMULF x y)
++(NEGD (MULD x y)) && buildcfg.GOARM >= 6 => (NMULD x y)
++(MULF (NEGF x) y) && buildcfg.GOARM >= 6 => (NMULF x y)
++(MULD (NEGD x) y) && buildcfg.GOARM >= 6 => (NMULD x y)
+ (NMULF (NEGF x) y) => (MULF x y)
+ (NMULD (NEGD x) y) => (MULD x y)
+ 
+ // the result will overwrite the addend, since they are in the same register
+-(ADDF a (MULF x y)) && a.Uses == 1 && objabi.GOARM >= 6 => (MULAF a x y)
+-(ADDF a (NMULF x y)) && a.Uses == 1 && objabi.GOARM >= 6 => (MULSF a x y)
+-(ADDD a (MULD x y)) && a.Uses == 1 && objabi.GOARM >= 6 => (MULAD a x y)
+-(ADDD a (NMULD x y)) && a.Uses == 1 && objabi.GOARM >= 6 => (MULSD a x y)
+-(SUBF a (MULF x y)) && a.Uses == 1 && objabi.GOARM >= 6 => (MULSF a x y)
+-(SUBF a (NMULF x y)) && a.Uses == 1 && objabi.GOARM >= 6 => (MULAF a x y)
+-(SUBD a (MULD x y)) && a.Uses == 1 && objabi.GOARM >= 6 => (MULSD a x y)
+-(SUBD a (NMULD x y)) && a.Uses == 1 && objabi.GOARM >= 6 => (MULAD a x y)
++(ADDF a (MULF x y)) && a.Uses == 1 && buildcfg.GOARM >= 6 => (MULAF a x y)
++(ADDF a (NMULF x y)) && a.Uses == 1 && buildcfg.GOARM >= 6 => (MULSF a x y)
++(ADDD a (MULD x y)) && a.Uses == 1 && buildcfg.GOARM >= 6 => (MULAD a x y)
++(ADDD a (NMULD x y)) && a.Uses == 1 && buildcfg.GOARM >= 6 => (MULSD a x y)
++(SUBF a (MULF x y)) && a.Uses == 1 && buildcfg.GOARM >= 6 => (MULSF a x y)
++(SUBF a (NMULF x y)) && a.Uses == 1 && buildcfg.GOARM >= 6 => (MULAF a x y)
++(SUBD a (MULD x y)) && a.Uses == 1 && buildcfg.GOARM >= 6 => (MULSD a x y)
++(SUBD a (NMULD x y)) && a.Uses == 1 && buildcfg.GOARM >= 6 => (MULAD a x y)
+ 
+ (AND x (MVN y)) => (BIC x y)
+ 
+@@ -1264,8 +1264,8 @@
+ (CMPD x (MOVDconst [0])) => (CMPD0 x)
+ 
+ // bit extraction
+-(SRAconst (SLLconst x [c]) [d]) && objabi.GOARM==7 && uint64(d)>=uint64(c) && uint64(d)<=31 => (BFX [(d-c)|(32-d)<<8] x)
+-(SRLconst (SLLconst x [c]) [d]) && objabi.GOARM==7 && uint64(d)>=uint64(c) && uint64(d)<=31 => (BFXU [(d-c)|(32-d)<<8] x)
++(SRAconst (SLLconst x [c]) [d]) && buildcfg.GOARM==7 && uint64(d)>=uint64(c) && uint64(d)<=31 => (BFX [(d-c)|(32-d)<<8] x)
++(SRLconst (SLLconst x [c]) [d]) && buildcfg.GOARM==7 && uint64(d)>=uint64(c) && uint64(d)<=31 => (BFXU [(d-c)|(32-d)<<8] x)
+ 
+ // comparison simplification
+ ((LT|LE|EQ|NE|GE|GT) (CMP x (RSBconst [0] y))) => ((LT|LE|EQ|NE|GE|GT) (CMN x y)) // sense of carry bit not preserved
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index f83ff75761..ce4b324b5e 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -12,20 +12,20 @@
+ (Sub64F ...) => (FSUB ...)
+ 
+ // Combine 64 bit integer multiply and adds
+-(ADD l:(MULLD x y) z) && objabi.GOPPC64 >= 9 && l.Uses == 1 && clobber(l) => (MADDLD x y z)
++(ADD l:(MULLD x y) z) && buildcfg.GOPPC64 >= 9 && l.Uses == 1 && clobber(l) => (MADDLD x y z)
+ 
+ (Mod16 x y) => (Mod32 (SignExt16to32 x) (SignExt16to32 y))
+ (Mod16u x y) => (Mod32u (ZeroExt16to32 x) (ZeroExt16to32 y))
+ (Mod8 x y) => (Mod32 (SignExt8to32 x) (SignExt8to32 y))
+ (Mod8u x y) => (Mod32u (ZeroExt8to32 x) (ZeroExt8to32 y))
+-(Mod64 x y) && objabi.GOPPC64 >=9 => (MODSD x y)
+-(Mod64 x y) && objabi.GOPPC64 <=8 => (SUB x (MULLD y (DIVD x y)))
+-(Mod64u x y) && objabi.GOPPC64 >= 9 => (MODUD x y)
+-(Mod64u x y) && objabi.GOPPC64 <= 8 => (SUB x (MULLD y (DIVDU x y)))
+-(Mod32 x y) && objabi.GOPPC64 >= 9 => (MODSW x y)
+-(Mod32 x y) && objabi.GOPPC64 <= 8 => (SUB x (MULLW y (DIVW x y)))
+-(Mod32u x y) && objabi.GOPPC64 >= 9 => (MODUW x y)
+-(Mod32u x y) && objabi.GOPPC64 <= 8 => (SUB x (MULLW y (DIVWU x y)))
++(Mod64 x y) && buildcfg.GOPPC64 >=9 => (MODSD x y)
++(Mod64 x y) && buildcfg.GOPPC64 <=8 => (SUB x (MULLD y (DIVD x y)))
++(Mod64u x y) && buildcfg.GOPPC64 >= 9 => (MODUD x y)
++(Mod64u x y) && buildcfg.GOPPC64 <= 8 => (SUB x (MULLD y (DIVDU x y)))
++(Mod32 x y) && buildcfg.GOPPC64 >= 9 => (MODSW x y)
++(Mod32 x y) && buildcfg.GOPPC64 <= 8 => (SUB x (MULLW y (DIVW x y)))
++(Mod32u x y) && buildcfg.GOPPC64 >= 9 => (MODUW x y)
++(Mod32u x y) && buildcfg.GOPPC64 <= 8 => (SUB x (MULLW y (DIVWU x y)))
+ 
+ // (x + y) / 2 with x>=y => (x - y) / 2 + y
+ (Avg64u <t> x y) => (ADD (SRDconst <t> (SUB <t> x y) [1]) y)
+@@ -351,9 +351,9 @@
+ (Ctz32NonZero ...) => (Ctz32 ...)
+ (Ctz64NonZero ...) => (Ctz64 ...)
+ 
+-(Ctz64 x) && objabi.GOPPC64<=8 => (POPCNTD (ANDN <typ.Int64> (ADDconst <typ.Int64> [-1] x) x))
++(Ctz64 x) && buildcfg.GOPPC64<=8 => (POPCNTD (ANDN <typ.Int64> (ADDconst <typ.Int64> [-1] x) x))
+ (Ctz64 x) => (CNTTZD x)
+-(Ctz32 x) && objabi.GOPPC64<=8 => (POPCNTW (MOVWZreg (ANDN <typ.Int> (ADDconst <typ.Int> [-1] x) x)))
++(Ctz32 x) && buildcfg.GOPPC64<=8 => (POPCNTW (MOVWZreg (ANDN <typ.Int> (ADDconst <typ.Int> [-1] x) x)))
+ (Ctz32 x) => (CNTTZW (MOVWZreg x))
+ (Ctz16 x) => (POPCNTW (MOVHZreg (ANDN <typ.Int16> (ADDconst <typ.Int16> [-1] x) x)))
+ (Ctz8 x)  => (POPCNTB (MOVBZreg (ANDN <typ.UInt8> (ADDconst <typ.UInt8> [-1] x) x)))
+@@ -627,10 +627,10 @@
+ // Handle cases not handled above
+ // Lowered Short cases do not generate loops, and as a result don't clobber
+ // the address registers or flags.
+-(Zero [s] ptr mem) && objabi.GOPPC64 <= 8 && s < 64 => (LoweredZeroShort [s] ptr mem)
+-(Zero [s] ptr mem) && objabi.GOPPC64 <= 8 => (LoweredZero [s] ptr mem)
+-(Zero [s] ptr mem) && s < 128 && objabi.GOPPC64 >= 9 => (LoweredQuadZeroShort [s] ptr mem)
+-(Zero [s] ptr mem) && objabi.GOPPC64 >= 9 => (LoweredQuadZero [s] ptr mem)
++(Zero [s] ptr mem) && buildcfg.GOPPC64 <= 8 && s < 64 => (LoweredZeroShort [s] ptr mem)
++(Zero [s] ptr mem) && buildcfg.GOPPC64 <= 8 => (LoweredZero [s] ptr mem)
++(Zero [s] ptr mem) && s < 128 && buildcfg.GOPPC64 >= 9 => (LoweredQuadZeroShort [s] ptr mem)
++(Zero [s] ptr mem) && buildcfg.GOPPC64 >= 9 => (LoweredQuadZero [s] ptr mem)
+ 
+ // moves
+ (Move [0] _ _ mem) => mem
+@@ -658,11 +658,11 @@
+ 
+ // Large move uses a loop. Since the address is computed and the
+ // offset is zero, any alignment can be used.
+-(Move [s] dst src mem) && s > 8 && objabi.GOPPC64 <= 8 && logLargeCopy(v, s) =>
++(Move [s] dst src mem) && s > 8 && buildcfg.GOPPC64 <= 8 && logLargeCopy(v, s) =>
+         (LoweredMove [s] dst src mem)
+-(Move [s] dst src mem) && s > 8 && s <= 64 && objabi.GOPPC64 >= 9 =>
++(Move [s] dst src mem) && s > 8 && s <= 64 && buildcfg.GOPPC64 >= 9 =>
+         (LoweredQuadMoveShort [s] dst src mem)
+-(Move [s] dst src mem) && s > 8 && objabi.GOPPC64 >= 9 && logLargeCopy(v, s) =>
++(Move [s] dst src mem) && s > 8 && buildcfg.GOPPC64 >= 9 && logLargeCopy(v, s) =>
+         (LoweredQuadMove [s] dst src mem)
+ 
+ // Calls
+@@ -1048,7 +1048,7 @@
+ (SLWconst [c] z:(ANDconst [d] x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) && c<=(32-getPPC64ShiftMaskLength(d)) => (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
+ (SLWconst [c] z:(AND (MOVDconst [d]) x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) && c<=(32-getPPC64ShiftMaskLength(d)) => (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
+ // special case for power9
+-(SL(W|D)const [c] z:(MOVWreg x)) && c < 32 && objabi.GOPPC64 >= 9 => (EXTSWSLconst [c] x)
++(SL(W|D)const [c] z:(MOVWreg x)) && c < 32 && buildcfg.GOPPC64 >= 9 => (EXTSWSLconst [c] x)
+ 
+ // Lose widening ops fed to stores
+ (MOVBstore [off] {sym} ptr (MOV(B|BZ|H|HZ|W|WZ)reg x) mem) => (MOVBstore [off] {sym} ptr x mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/Wasm.rules b/src/cmd/compile/internal/ssa/gen/Wasm.rules
+index 7cda16b4b5..7ad3d1c72e 100644
+--- a/src/cmd/compile/internal/ssa/gen/Wasm.rules
++++ b/src/cmd/compile/internal/ssa/gen/Wasm.rules
+@@ -55,9 +55,9 @@
+ (ZeroExt32to64        x:(I64Load32U _ _)) => x
+ (ZeroExt16to(64|32)   x:(I64Load16U _ _)) => x
+ (ZeroExt8to(64|32|16) x:(I64Load8U  _ _)) => x
+-(SignExt32to64        x) && objabi.GOWASM.SignExt => (I64Extend32S x)
+-(SignExt8to(64|32|16) x) && objabi.GOWASM.SignExt => (I64Extend8S x)
+-(SignExt16to(64|32)   x) && objabi.GOWASM.SignExt => (I64Extend16S x)
++(SignExt32to64        x) && buildcfg.GOWASM.SignExt => (I64Extend32S x)
++(SignExt8to(64|32|16) x) && buildcfg.GOWASM.SignExt => (I64Extend8S x)
++(SignExt16to(64|32)   x) && buildcfg.GOWASM.SignExt => (I64Extend16S x)
+ (SignExt32to64        x) => (I64ShrS (I64Shl x (I64Const [32])) (I64Const [32]))
+ (SignExt16to(64|32)   x) => (I64ShrS (I64Shl x (I64Const [48])) (I64Const [48]))
+ (SignExt8to(64|32|16) x) => (I64ShrS (I64Shl x (I64Const [56])) (I64Const [56]))
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index fd672b2f74..fe8db4ed1f 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -584,9 +584,9 @@ func fprint(w io.Writer, n Node) {
+ 		fmt.Fprintf(w, "\npackage ssa\n")
+ 		for _, path := range append([]string{
+ 			"fmt",
++			"internal/buildcfg",
+ 			"math",
+ 			"cmd/internal/obj",
+-			"cmd/internal/objabi",
+ 			"cmd/compile/internal/base",
+ 			"cmd/compile/internal/types",
+ 		}, n.Arch.imports...) {
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index bae50657c9..14f511a5f1 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -6,8 +6,8 @@ package ssa
+ 
+ import (
+ 	"cmd/compile/internal/ir"
+-	"cmd/internal/objabi"
+ 	"cmd/internal/src"
++	"internal/buildcfg"
+ )
+ 
+ // nilcheckelim eliminates unnecessary nil checks.
+@@ -192,7 +192,7 @@ func nilcheckelim(f *Func) {
+ const minZeroPage = 4096
+ 
+ // faultOnLoad is true if a load to an address below minZeroPage will trigger a SIGSEGV.
+-var faultOnLoad = objabi.GOOS != "aix"
++var faultOnLoad = buildcfg.GOOS != "aix"
+ 
+ // nilcheckelim2 eliminates unnecessary nil checks.
+ // Runs after lowering and scheduling.
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 1baff184b0..336cd3d737 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -117,10 +117,10 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/types"
+-	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ 	"cmd/internal/sys"
+ 	"fmt"
++	"internal/buildcfg"
+ 	"math/bits"
+ 	"unsafe"
+ )
+@@ -609,7 +609,7 @@ func (s *regAllocState) init(f *Func) {
+ 	if s.f.Config.hasGReg {
+ 		s.allocatable &^= 1 << s.GReg
+ 	}
+-	if objabi.FramePointerEnabled && s.f.Config.FPReg >= 0 {
++	if buildcfg.FramePointerEnabled && s.f.Config.FPReg >= 0 {
+ 		s.allocatable &^= 1 << uint(s.f.Config.FPReg)
+ 	}
+ 	if s.f.Config.LinkReg != -1 {
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index 1ec2d26f75..93b258afac 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -3,8 +3,10 @@
+ 
+ package ssa
+ 
+-import "math"
+-import "cmd/compile/internal/types"
++import (
++	"cmd/compile/internal/types"
++	"math"
++)
+ 
+ func rewriteValue386(v *Value) bool {
+ 	switch v.Op {
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 1f56b70816..dd92b41c20 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -3,10 +3,12 @@
+ 
+ package ssa
+ 
+-import "math"
+-import "cmd/internal/obj"
+-import "cmd/internal/objabi"
+-import "cmd/compile/internal/types"
++import (
++	"cmd/compile/internal/types"
++	"cmd/internal/obj"
++	"internal/buildcfg"
++	"math"
++)
+ 
+ func rewriteValueAMD64(v *Value) bool {
+ 	switch v.Op {
+@@ -30466,11 +30468,11 @@ func rewriteValueAMD64_OpFloor(v *Value) bool {
+ func rewriteValueAMD64_OpGetG(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (GetG mem)
+-	// cond: !(objabi.Experiment.RegabiG && v.Block.Func.OwnAux.Fn.ABI() == obj.ABIInternal)
++	// cond: !(buildcfg.Experiment.RegabiG && v.Block.Func.OwnAux.Fn.ABI() == obj.ABIInternal)
+ 	// result: (LoweredGetG mem)
+ 	for {
+ 		mem := v_0
+-		if !(!(objabi.Experiment.RegabiG && v.Block.Func.OwnAux.Fn.ABI() == obj.ABIInternal)) {
++		if !(!(buildcfg.Experiment.RegabiG && v.Block.Func.OwnAux.Fn.ABI() == obj.ABIInternal)) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64LoweredGetG)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 175bbc3e7e..25db5b9fba 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -3,8 +3,10 @@
+ 
+ package ssa
+ 
+-import "cmd/internal/objabi"
+-import "cmd/compile/internal/types"
++import (
++	"cmd/compile/internal/types"
++	"internal/buildcfg"
++)
+ 
+ func rewriteValueARM(v *Value) bool {
+ 	switch v.Op {
+@@ -1475,7 +1477,7 @@ func rewriteValueARM_OpARMADDD(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (ADDD a (MULD x y))
+-	// cond: a.Uses == 1 && objabi.GOARM >= 6
++	// cond: a.Uses == 1 && buildcfg.GOARM >= 6
+ 	// result: (MULAD a x y)
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+@@ -1485,7 +1487,7 @@ func rewriteValueARM_OpARMADDD(v *Value) bool {
+ 			}
+ 			y := v_1.Args[1]
+ 			x := v_1.Args[0]
+-			if !(a.Uses == 1 && objabi.GOARM >= 6) {
++			if !(a.Uses == 1 && buildcfg.GOARM >= 6) {
+ 				continue
+ 			}
+ 			v.reset(OpARMMULAD)
+@@ -1495,7 +1497,7 @@ func rewriteValueARM_OpARMADDD(v *Value) bool {
+ 		break
+ 	}
+ 	// match: (ADDD a (NMULD x y))
+-	// cond: a.Uses == 1 && objabi.GOARM >= 6
++	// cond: a.Uses == 1 && buildcfg.GOARM >= 6
+ 	// result: (MULSD a x y)
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+@@ -1505,7 +1507,7 @@ func rewriteValueARM_OpARMADDD(v *Value) bool {
+ 			}
+ 			y := v_1.Args[1]
+ 			x := v_1.Args[0]
+-			if !(a.Uses == 1 && objabi.GOARM >= 6) {
++			if !(a.Uses == 1 && buildcfg.GOARM >= 6) {
+ 				continue
+ 			}
+ 			v.reset(OpARMMULSD)
+@@ -1520,7 +1522,7 @@ func rewriteValueARM_OpARMADDF(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (ADDF a (MULF x y))
+-	// cond: a.Uses == 1 && objabi.GOARM >= 6
++	// cond: a.Uses == 1 && buildcfg.GOARM >= 6
+ 	// result: (MULAF a x y)
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+@@ -1530,7 +1532,7 @@ func rewriteValueARM_OpARMADDF(v *Value) bool {
+ 			}
+ 			y := v_1.Args[1]
+ 			x := v_1.Args[0]
+-			if !(a.Uses == 1 && objabi.GOARM >= 6) {
++			if !(a.Uses == 1 && buildcfg.GOARM >= 6) {
+ 				continue
+ 			}
+ 			v.reset(OpARMMULAF)
+@@ -1540,7 +1542,7 @@ func rewriteValueARM_OpARMADDF(v *Value) bool {
+ 		break
+ 	}
+ 	// match: (ADDF a (NMULF x y))
+-	// cond: a.Uses == 1 && objabi.GOARM >= 6
++	// cond: a.Uses == 1 && buildcfg.GOARM >= 6
+ 	// result: (MULSF a x y)
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+@@ -1550,7 +1552,7 @@ func rewriteValueARM_OpARMADDF(v *Value) bool {
+ 			}
+ 			y := v_1.Args[1]
+ 			x := v_1.Args[0]
+-			if !(a.Uses == 1 && objabi.GOARM >= 6) {
++			if !(a.Uses == 1 && buildcfg.GOARM >= 6) {
+ 				continue
+ 			}
+ 			v.reset(OpARMMULSF)
+@@ -1946,12 +1948,12 @@ func rewriteValueARM_OpARMADDconst(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (ADDconst [c] x)
+-	// cond: objabi.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && uint32(-c)<=0xffff
++	// cond: buildcfg.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && uint32(-c)<=0xffff
+ 	// result: (SUBconst [-c] x)
+ 	for {
+ 		c := auxIntToInt32(v.AuxInt)
+ 		x := v_0
+-		if !(objabi.GOARM == 7 && !isARMImmRot(uint32(c)) && uint32(c) > 0xffff && uint32(-c) <= 0xffff) {
++		if !(buildcfg.GOARM == 7 && !isARMImmRot(uint32(c)) && uint32(c) > 0xffff && uint32(-c) <= 0xffff) {
+ 			break
+ 		}
+ 		v.reset(OpARMSUBconst)
+@@ -2082,7 +2084,7 @@ func rewriteValueARM_OpARMADDshiftLL(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (ADDshiftLL <typ.UInt16> [8] (SRLconst <typ.UInt16> [24] (SLLconst [16] x)) x)
+-	// cond: objabi.GOARM>=6
++	// cond: buildcfg.GOARM>=6
+ 	// result: (REV16 x)
+ 	for {
+ 		if v.Type != typ.UInt16 || auxIntToInt32(v.AuxInt) != 8 || v_0.Op != OpARMSRLconst || v_0.Type != typ.UInt16 || auxIntToInt32(v_0.AuxInt) != 24 {
+@@ -2093,7 +2095,7 @@ func rewriteValueARM_OpARMADDshiftLL(v *Value) bool {
+ 			break
+ 		}
+ 		x := v_0_0.Args[0]
+-		if x != v_1 || !(objabi.GOARM >= 6) {
++		if x != v_1 || !(buildcfg.GOARM >= 6) {
+ 			break
+ 		}
+ 		v.reset(OpARMREV16)
+@@ -2538,12 +2540,12 @@ func rewriteValueARM_OpARMANDconst(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (ANDconst [c] x)
+-	// cond: objabi.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && ^uint32(c)<=0xffff
++	// cond: buildcfg.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && ^uint32(c)<=0xffff
+ 	// result: (BICconst [int32(^uint32(c))] x)
+ 	for {
+ 		c := auxIntToInt32(v.AuxInt)
+ 		x := v_0
+-		if !(objabi.GOARM == 7 && !isARMImmRot(uint32(c)) && uint32(c) > 0xffff && ^uint32(c) <= 0xffff) {
++		if !(buildcfg.GOARM == 7 && !isARMImmRot(uint32(c)) && uint32(c) > 0xffff && ^uint32(c) <= 0xffff) {
+ 			break
+ 		}
+ 		v.reset(OpARMBICconst)
+@@ -3033,12 +3035,12 @@ func rewriteValueARM_OpARMBICconst(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (BICconst [c] x)
+-	// cond: objabi.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && ^uint32(c)<=0xffff
++	// cond: buildcfg.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && ^uint32(c)<=0xffff
+ 	// result: (ANDconst [int32(^uint32(c))] x)
+ 	for {
+ 		c := auxIntToInt32(v.AuxInt)
+ 		x := v_0
+-		if !(objabi.GOARM == 7 && !isARMImmRot(uint32(c)) && uint32(c) > 0xffff && ^uint32(c) <= 0xffff) {
++		if !(buildcfg.GOARM == 7 && !isARMImmRot(uint32(c)) && uint32(c) > 0xffff && ^uint32(c) <= 0xffff) {
+ 			break
+ 		}
+ 		v.reset(OpARMANDconst)
+@@ -7541,7 +7543,7 @@ func rewriteValueARM_OpARMMULD(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (MULD (NEGD x) y)
+-	// cond: objabi.GOARM >= 6
++	// cond: buildcfg.GOARM >= 6
+ 	// result: (NMULD x y)
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+@@ -7550,7 +7552,7 @@ func rewriteValueARM_OpARMMULD(v *Value) bool {
+ 			}
+ 			x := v_0.Args[0]
+ 			y := v_1
+-			if !(objabi.GOARM >= 6) {
++			if !(buildcfg.GOARM >= 6) {
+ 				continue
+ 			}
+ 			v.reset(OpARMNMULD)
+@@ -7565,7 +7567,7 @@ func rewriteValueARM_OpARMMULF(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (MULF (NEGF x) y)
+-	// cond: objabi.GOARM >= 6
++	// cond: buildcfg.GOARM >= 6
+ 	// result: (NMULF x y)
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+@@ -7574,7 +7576,7 @@ func rewriteValueARM_OpARMMULF(v *Value) bool {
+ 			}
+ 			x := v_0.Args[0]
+ 			y := v_1
+-			if !(objabi.GOARM >= 6) {
++			if !(buildcfg.GOARM >= 6) {
+ 				continue
+ 			}
+ 			v.reset(OpARMNMULF)
+@@ -8186,7 +8188,7 @@ func rewriteValueARM_OpARMMVNshiftRLreg(v *Value) bool {
+ func rewriteValueARM_OpARMNEGD(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (NEGD (MULD x y))
+-	// cond: objabi.GOARM >= 6
++	// cond: buildcfg.GOARM >= 6
+ 	// result: (NMULD x y)
+ 	for {
+ 		if v_0.Op != OpARMMULD {
+@@ -8194,7 +8196,7 @@ func rewriteValueARM_OpARMNEGD(v *Value) bool {
+ 		}
+ 		y := v_0.Args[1]
+ 		x := v_0.Args[0]
+-		if !(objabi.GOARM >= 6) {
++		if !(buildcfg.GOARM >= 6) {
+ 			break
+ 		}
+ 		v.reset(OpARMNMULD)
+@@ -8206,7 +8208,7 @@ func rewriteValueARM_OpARMNEGD(v *Value) bool {
+ func rewriteValueARM_OpARMNEGF(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (NEGF (MULF x y))
+-	// cond: objabi.GOARM >= 6
++	// cond: buildcfg.GOARM >= 6
+ 	// result: (NMULF x y)
+ 	for {
+ 		if v_0.Op != OpARMMULF {
+@@ -8214,7 +8216,7 @@ func rewriteValueARM_OpARMNEGF(v *Value) bool {
+ 		}
+ 		y := v_0.Args[1]
+ 		x := v_0.Args[0]
+-		if !(objabi.GOARM >= 6) {
++		if !(buildcfg.GOARM >= 6) {
+ 			break
+ 		}
+ 		v.reset(OpARMNMULF)
+@@ -8538,7 +8540,7 @@ func rewriteValueARM_OpARMORshiftLL(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (ORshiftLL <typ.UInt16> [8] (SRLconst <typ.UInt16> [24] (SLLconst [16] x)) x)
+-	// cond: objabi.GOARM>=6
++	// cond: buildcfg.GOARM>=6
+ 	// result: (REV16 x)
+ 	for {
+ 		if v.Type != typ.UInt16 || auxIntToInt32(v.AuxInt) != 8 || v_0.Op != OpARMSRLconst || v_0.Type != typ.UInt16 || auxIntToInt32(v_0.AuxInt) != 24 {
+@@ -8549,7 +8551,7 @@ func rewriteValueARM_OpARMORshiftLL(v *Value) bool {
+ 			break
+ 		}
+ 		x := v_0_0.Args[0]
+-		if x != v_1 || !(objabi.GOARM >= 6) {
++		if x != v_1 || !(buildcfg.GOARM >= 6) {
+ 			break
+ 		}
+ 		v.reset(OpARMREV16)
+@@ -9013,7 +9015,7 @@ func rewriteValueARM_OpARMRSB(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (RSB (MUL x y) a)
+-	// cond: objabi.GOARM == 7
++	// cond: buildcfg.GOARM == 7
+ 	// result: (MULS x y a)
+ 	for {
+ 		if v_0.Op != OpARMMUL {
+@@ -9022,7 +9024,7 @@ func rewriteValueARM_OpARMRSB(v *Value) bool {
+ 		y := v_0.Args[1]
+ 		x := v_0.Args[0]
+ 		a := v_1
+-		if !(objabi.GOARM == 7) {
++		if !(buildcfg.GOARM == 7) {
+ 			break
+ 		}
+ 		v.reset(OpARMMULS)
+@@ -10449,7 +10451,7 @@ func rewriteValueARM_OpARMSRAconst(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SRAconst (SLLconst x [c]) [d])
+-	// cond: objabi.GOARM==7 && uint64(d)>=uint64(c) && uint64(d)<=31
++	// cond: buildcfg.GOARM==7 && uint64(d)>=uint64(c) && uint64(d)<=31
+ 	// result: (BFX [(d-c)|(32-d)<<8] x)
+ 	for {
+ 		d := auxIntToInt32(v.AuxInt)
+@@ -10458,7 +10460,7 @@ func rewriteValueARM_OpARMSRAconst(v *Value) bool {
+ 		}
+ 		c := auxIntToInt32(v_0.AuxInt)
+ 		x := v_0.Args[0]
+-		if !(objabi.GOARM == 7 && uint64(d) >= uint64(c) && uint64(d) <= 31) {
++		if !(buildcfg.GOARM == 7 && uint64(d) >= uint64(c) && uint64(d) <= 31) {
+ 			break
+ 		}
+ 		v.reset(OpARMBFX)
+@@ -10501,7 +10503,7 @@ func rewriteValueARM_OpARMSRLconst(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SRLconst (SLLconst x [c]) [d])
+-	// cond: objabi.GOARM==7 && uint64(d)>=uint64(c) && uint64(d)<=31
++	// cond: buildcfg.GOARM==7 && uint64(d)>=uint64(c) && uint64(d)<=31
+ 	// result: (BFXU [(d-c)|(32-d)<<8] x)
+ 	for {
+ 		d := auxIntToInt32(v.AuxInt)
+@@ -10510,7 +10512,7 @@ func rewriteValueARM_OpARMSRLconst(v *Value) bool {
+ 		}
+ 		c := auxIntToInt32(v_0.AuxInt)
+ 		x := v_0.Args[0]
+-		if !(objabi.GOARM == 7 && uint64(d) >= uint64(c) && uint64(d) <= 31) {
++		if !(buildcfg.GOARM == 7 && uint64(d) >= uint64(c) && uint64(d) <= 31) {
+ 			break
+ 		}
+ 		v.reset(OpARMBFXU)
+@@ -10723,7 +10725,7 @@ func rewriteValueARM_OpARMSUB(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SUB a (MUL x y))
+-	// cond: objabi.GOARM == 7
++	// cond: buildcfg.GOARM == 7
+ 	// result: (MULS x y a)
+ 	for {
+ 		a := v_0
+@@ -10732,7 +10734,7 @@ func rewriteValueARM_OpARMSUB(v *Value) bool {
+ 		}
+ 		y := v_1.Args[1]
+ 		x := v_1.Args[0]
+-		if !(objabi.GOARM == 7) {
++		if !(buildcfg.GOARM == 7) {
+ 			break
+ 		}
+ 		v.reset(OpARMMULS)
+@@ -10745,7 +10747,7 @@ func rewriteValueARM_OpARMSUBD(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (SUBD a (MULD x y))
+-	// cond: a.Uses == 1 && objabi.GOARM >= 6
++	// cond: a.Uses == 1 && buildcfg.GOARM >= 6
+ 	// result: (MULSD a x y)
+ 	for {
+ 		a := v_0
+@@ -10754,7 +10756,7 @@ func rewriteValueARM_OpARMSUBD(v *Value) bool {
+ 		}
+ 		y := v_1.Args[1]
+ 		x := v_1.Args[0]
+-		if !(a.Uses == 1 && objabi.GOARM >= 6) {
++		if !(a.Uses == 1 && buildcfg.GOARM >= 6) {
+ 			break
+ 		}
+ 		v.reset(OpARMMULSD)
+@@ -10762,7 +10764,7 @@ func rewriteValueARM_OpARMSUBD(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SUBD a (NMULD x y))
+-	// cond: a.Uses == 1 && objabi.GOARM >= 6
++	// cond: a.Uses == 1 && buildcfg.GOARM >= 6
+ 	// result: (MULAD a x y)
+ 	for {
+ 		a := v_0
+@@ -10771,7 +10773,7 @@ func rewriteValueARM_OpARMSUBD(v *Value) bool {
+ 		}
+ 		y := v_1.Args[1]
+ 		x := v_1.Args[0]
+-		if !(a.Uses == 1 && objabi.GOARM >= 6) {
++		if !(a.Uses == 1 && buildcfg.GOARM >= 6) {
+ 			break
+ 		}
+ 		v.reset(OpARMMULAD)
+@@ -10784,7 +10786,7 @@ func rewriteValueARM_OpARMSUBF(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (SUBF a (MULF x y))
+-	// cond: a.Uses == 1 && objabi.GOARM >= 6
++	// cond: a.Uses == 1 && buildcfg.GOARM >= 6
+ 	// result: (MULSF a x y)
+ 	for {
+ 		a := v_0
+@@ -10793,7 +10795,7 @@ func rewriteValueARM_OpARMSUBF(v *Value) bool {
+ 		}
+ 		y := v_1.Args[1]
+ 		x := v_1.Args[0]
+-		if !(a.Uses == 1 && objabi.GOARM >= 6) {
++		if !(a.Uses == 1 && buildcfg.GOARM >= 6) {
+ 			break
+ 		}
+ 		v.reset(OpARMMULSF)
+@@ -10801,7 +10803,7 @@ func rewriteValueARM_OpARMSUBF(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SUBF a (NMULF x y))
+-	// cond: a.Uses == 1 && objabi.GOARM >= 6
++	// cond: a.Uses == 1 && buildcfg.GOARM >= 6
+ 	// result: (MULAF a x y)
+ 	for {
+ 		a := v_0
+@@ -10810,7 +10812,7 @@ func rewriteValueARM_OpARMSUBF(v *Value) bool {
+ 		}
+ 		y := v_1.Args[1]
+ 		x := v_1.Args[0]
+-		if !(a.Uses == 1 && objabi.GOARM >= 6) {
++		if !(a.Uses == 1 && buildcfg.GOARM >= 6) {
+ 			break
+ 		}
+ 		v.reset(OpARMMULAF)
+@@ -11264,12 +11266,12 @@ func rewriteValueARM_OpARMSUBconst(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SUBconst [c] x)
+-	// cond: objabi.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && uint32(-c)<=0xffff
++	// cond: buildcfg.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && uint32(-c)<=0xffff
+ 	// result: (ADDconst [-c] x)
+ 	for {
+ 		c := auxIntToInt32(v.AuxInt)
+ 		x := v_0
+-		if !(objabi.GOARM == 7 && !isARMImmRot(uint32(c)) && uint32(c) > 0xffff && uint32(-c) <= 0xffff) {
++		if !(buildcfg.GOARM == 7 && !isARMImmRot(uint32(c)) && uint32(c) > 0xffff && uint32(-c) <= 0xffff) {
+ 			break
+ 		}
+ 		v.reset(OpARMADDconst)
+@@ -12577,7 +12579,7 @@ func rewriteValueARM_OpARMXORshiftLL(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (XORshiftLL <typ.UInt16> [8] (SRLconst <typ.UInt16> [24] (SLLconst [16] x)) x)
+-	// cond: objabi.GOARM>=6
++	// cond: buildcfg.GOARM>=6
+ 	// result: (REV16 x)
+ 	for {
+ 		if v.Type != typ.UInt16 || auxIntToInt32(v.AuxInt) != 8 || v_0.Op != OpARMSRLconst || v_0.Type != typ.UInt16 || auxIntToInt32(v_0.AuxInt) != 24 {
+@@ -12588,7 +12590,7 @@ func rewriteValueARM_OpARMXORshiftLL(v *Value) bool {
+ 			break
+ 		}
+ 		x := v_0_0.Args[0]
+-		if x != v_1 || !(objabi.GOARM >= 6) {
++		if x != v_1 || !(buildcfg.GOARM >= 6) {
+ 			break
+ 		}
+ 		v.reset(OpARMREV16)
+@@ -12939,12 +12941,12 @@ func rewriteValueARM_OpBswap32(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	// match: (Bswap32 <t> x)
+-	// cond: objabi.GOARM==5
++	// cond: buildcfg.GOARM==5
+ 	// result: (XOR <t> (SRLconst <t> (BICconst <t> (XOR <t> x (SRRconst <t> [16] x)) [0xff0000]) [8]) (SRRconst <t> x [8]))
+ 	for {
+ 		t := v.Type
+ 		x := v_0
+-		if !(objabi.GOARM == 5) {
++		if !(buildcfg.GOARM == 5) {
+ 			break
+ 		}
+ 		v.reset(OpARMXOR)
+@@ -12967,11 +12969,11 @@ func rewriteValueARM_OpBswap32(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Bswap32 x)
+-	// cond: objabi.GOARM>=6
++	// cond: buildcfg.GOARM>=6
+ 	// result: (REV x)
+ 	for {
+ 		x := v_0
+-		if !(objabi.GOARM >= 6) {
++		if !(buildcfg.GOARM >= 6) {
+ 			break
+ 		}
+ 		v.reset(OpARMREV)
+@@ -13054,12 +13056,12 @@ func rewriteValueARM_OpCtz16(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (Ctz16 <t> x)
+-	// cond: objabi.GOARM<=6
++	// cond: buildcfg.GOARM<=6
+ 	// result: (RSBconst [32] (CLZ <t> (SUBconst <typ.UInt32> (AND <typ.UInt32> (ORconst <typ.UInt32> [0x10000] x) (RSBconst <typ.UInt32> [0] (ORconst <typ.UInt32> [0x10000] x))) [1])))
+ 	for {
+ 		t := v.Type
+ 		x := v_0
+-		if !(objabi.GOARM <= 6) {
++		if !(buildcfg.GOARM <= 6) {
+ 			break
+ 		}
+ 		v.reset(OpARMRSBconst)
+@@ -13081,12 +13083,12 @@ func rewriteValueARM_OpCtz16(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Ctz16 <t> x)
+-	// cond: objabi.GOARM==7
++	// cond: buildcfg.GOARM==7
+ 	// result: (CLZ <t> (RBIT <typ.UInt32> (ORconst <typ.UInt32> [0x10000] x)))
+ 	for {
+ 		t := v.Type
+ 		x := v_0
+-		if !(objabi.GOARM == 7) {
++		if !(buildcfg.GOARM == 7) {
+ 			break
+ 		}
+ 		v.reset(OpARMCLZ)
+@@ -13105,12 +13107,12 @@ func rewriteValueARM_OpCtz32(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	// match: (Ctz32 <t> x)
+-	// cond: objabi.GOARM<=6
++	// cond: buildcfg.GOARM<=6
+ 	// result: (RSBconst [32] (CLZ <t> (SUBconst <t> (AND <t> x (RSBconst <t> [0] x)) [1])))
+ 	for {
+ 		t := v.Type
+ 		x := v_0
+-		if !(objabi.GOARM <= 6) {
++		if !(buildcfg.GOARM <= 6) {
+ 			break
+ 		}
+ 		v.reset(OpARMRSBconst)
+@@ -13129,12 +13131,12 @@ func rewriteValueARM_OpCtz32(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Ctz32 <t> x)
+-	// cond: objabi.GOARM==7
++	// cond: buildcfg.GOARM==7
+ 	// result: (CLZ <t> (RBIT <t> x))
+ 	for {
+ 		t := v.Type
+ 		x := v_0
+-		if !(objabi.GOARM == 7) {
++		if !(buildcfg.GOARM == 7) {
+ 			break
+ 		}
+ 		v.reset(OpARMCLZ)
+@@ -13151,12 +13153,12 @@ func rewriteValueARM_OpCtz8(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (Ctz8 <t> x)
+-	// cond: objabi.GOARM<=6
++	// cond: buildcfg.GOARM<=6
+ 	// result: (RSBconst [32] (CLZ <t> (SUBconst <typ.UInt32> (AND <typ.UInt32> (ORconst <typ.UInt32> [0x100] x) (RSBconst <typ.UInt32> [0] (ORconst <typ.UInt32> [0x100] x))) [1])))
+ 	for {
+ 		t := v.Type
+ 		x := v_0
+-		if !(objabi.GOARM <= 6) {
++		if !(buildcfg.GOARM <= 6) {
+ 			break
+ 		}
+ 		v.reset(OpARMRSBconst)
+@@ -13178,12 +13180,12 @@ func rewriteValueARM_OpCtz8(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Ctz8 <t> x)
+-	// cond: objabi.GOARM==7
++	// cond: buildcfg.GOARM==7
+ 	// result: (CLZ <t> (RBIT <typ.UInt32> (ORconst <typ.UInt32> [0x100] x)))
+ 	for {
+ 		t := v.Type
+ 		x := v_0
+-		if !(objabi.GOARM == 7) {
++		if !(buildcfg.GOARM == 7) {
+ 			break
+ 		}
+ 		v.reset(OpARMCLZ)
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index f181d433cc..fe7620c218 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -3,9 +3,11 @@
+ 
+ package ssa
+ 
+-import "math"
+-import "cmd/internal/objabi"
+-import "cmd/compile/internal/types"
++import (
++	"cmd/compile/internal/types"
++	"internal/buildcfg"
++	"math"
++)
+ 
+ func rewriteValuePPC64(v *Value) bool {
+ 	switch v.Op {
+@@ -1290,11 +1292,11 @@ func rewriteValuePPC64_OpCtz32(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (Ctz32 x)
+-	// cond: objabi.GOPPC64<=8
++	// cond: buildcfg.GOPPC64<=8
+ 	// result: (POPCNTW (MOVWZreg (ANDN <typ.Int> (ADDconst <typ.Int> [-1] x) x)))
+ 	for {
+ 		x := v_0
+-		if !(objabi.GOPPC64 <= 8) {
++		if !(buildcfg.GOPPC64 <= 8) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64POPCNTW)
+@@ -1324,11 +1326,11 @@ func rewriteValuePPC64_OpCtz64(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (Ctz64 x)
+-	// cond: objabi.GOPPC64<=8
++	// cond: buildcfg.GOPPC64<=8
+ 	// result: (POPCNTD (ANDN <typ.Int64> (ADDconst <typ.Int64> [-1] x) x))
+ 	for {
+ 		x := v_0
+-		if !(objabi.GOPPC64 <= 8) {
++		if !(buildcfg.GOPPC64 <= 8) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64POPCNTD)
+@@ -3286,12 +3288,12 @@ func rewriteValuePPC64_OpMod32(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (Mod32 x y)
+-	// cond: objabi.GOPPC64 >= 9
++	// cond: buildcfg.GOPPC64 >= 9
+ 	// result: (MODSW x y)
+ 	for {
+ 		x := v_0
+ 		y := v_1
+-		if !(objabi.GOPPC64 >= 9) {
++		if !(buildcfg.GOPPC64 >= 9) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MODSW)
+@@ -3299,12 +3301,12 @@ func rewriteValuePPC64_OpMod32(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Mod32 x y)
+-	// cond: objabi.GOPPC64 <= 8
++	// cond: buildcfg.GOPPC64 <= 8
+ 	// result: (SUB x (MULLW y (DIVW x y)))
+ 	for {
+ 		x := v_0
+ 		y := v_1
+-		if !(objabi.GOPPC64 <= 8) {
++		if !(buildcfg.GOPPC64 <= 8) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64SUB)
+@@ -3323,12 +3325,12 @@ func rewriteValuePPC64_OpMod32u(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (Mod32u x y)
+-	// cond: objabi.GOPPC64 >= 9
++	// cond: buildcfg.GOPPC64 >= 9
+ 	// result: (MODUW x y)
+ 	for {
+ 		x := v_0
+ 		y := v_1
+-		if !(objabi.GOPPC64 >= 9) {
++		if !(buildcfg.GOPPC64 >= 9) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MODUW)
+@@ -3336,12 +3338,12 @@ func rewriteValuePPC64_OpMod32u(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Mod32u x y)
+-	// cond: objabi.GOPPC64 <= 8
++	// cond: buildcfg.GOPPC64 <= 8
+ 	// result: (SUB x (MULLW y (DIVWU x y)))
+ 	for {
+ 		x := v_0
+ 		y := v_1
+-		if !(objabi.GOPPC64 <= 8) {
++		if !(buildcfg.GOPPC64 <= 8) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64SUB)
+@@ -3360,12 +3362,12 @@ func rewriteValuePPC64_OpMod64(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (Mod64 x y)
+-	// cond: objabi.GOPPC64 >=9
++	// cond: buildcfg.GOPPC64 >=9
+ 	// result: (MODSD x y)
+ 	for {
+ 		x := v_0
+ 		y := v_1
+-		if !(objabi.GOPPC64 >= 9) {
++		if !(buildcfg.GOPPC64 >= 9) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MODSD)
+@@ -3373,12 +3375,12 @@ func rewriteValuePPC64_OpMod64(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Mod64 x y)
+-	// cond: objabi.GOPPC64 <=8
++	// cond: buildcfg.GOPPC64 <=8
+ 	// result: (SUB x (MULLD y (DIVD x y)))
+ 	for {
+ 		x := v_0
+ 		y := v_1
+-		if !(objabi.GOPPC64 <= 8) {
++		if !(buildcfg.GOPPC64 <= 8) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64SUB)
+@@ -3397,12 +3399,12 @@ func rewriteValuePPC64_OpMod64u(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (Mod64u x y)
+-	// cond: objabi.GOPPC64 >= 9
++	// cond: buildcfg.GOPPC64 >= 9
+ 	// result: (MODUD x y)
+ 	for {
+ 		x := v_0
+ 		y := v_1
+-		if !(objabi.GOPPC64 >= 9) {
++		if !(buildcfg.GOPPC64 >= 9) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MODUD)
+@@ -3410,12 +3412,12 @@ func rewriteValuePPC64_OpMod64u(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Mod64u x y)
+-	// cond: objabi.GOPPC64 <= 8
++	// cond: buildcfg.GOPPC64 <= 8
+ 	// result: (SUB x (MULLD y (DIVDU x y)))
+ 	for {
+ 		x := v_0
+ 		y := v_1
+-		if !(objabi.GOPPC64 <= 8) {
++		if !(buildcfg.GOPPC64 <= 8) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64SUB)
+@@ -3633,14 +3635,14 @@ func rewriteValuePPC64_OpMove(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Move [s] dst src mem)
+-	// cond: s > 8 && objabi.GOPPC64 <= 8 && logLargeCopy(v, s)
++	// cond: s > 8 && buildcfg.GOPPC64 <= 8 && logLargeCopy(v, s)
+ 	// result: (LoweredMove [s] dst src mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		dst := v_0
+ 		src := v_1
+ 		mem := v_2
+-		if !(s > 8 && objabi.GOPPC64 <= 8 && logLargeCopy(v, s)) {
++		if !(s > 8 && buildcfg.GOPPC64 <= 8 && logLargeCopy(v, s)) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64LoweredMove)
+@@ -3649,14 +3651,14 @@ func rewriteValuePPC64_OpMove(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Move [s] dst src mem)
+-	// cond: s > 8 && s <= 64 && objabi.GOPPC64 >= 9
++	// cond: s > 8 && s <= 64 && buildcfg.GOPPC64 >= 9
+ 	// result: (LoweredQuadMoveShort [s] dst src mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		dst := v_0
+ 		src := v_1
+ 		mem := v_2
+-		if !(s > 8 && s <= 64 && objabi.GOPPC64 >= 9) {
++		if !(s > 8 && s <= 64 && buildcfg.GOPPC64 >= 9) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64LoweredQuadMoveShort)
+@@ -3665,14 +3667,14 @@ func rewriteValuePPC64_OpMove(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Move [s] dst src mem)
+-	// cond: s > 8 && objabi.GOPPC64 >= 9 && logLargeCopy(v, s)
++	// cond: s > 8 && buildcfg.GOPPC64 >= 9 && logLargeCopy(v, s)
+ 	// result: (LoweredQuadMove [s] dst src mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		dst := v_0
+ 		src := v_1
+ 		mem := v_2
+-		if !(s > 8 && objabi.GOPPC64 >= 9 && logLargeCopy(v, s)) {
++		if !(s > 8 && buildcfg.GOPPC64 >= 9 && logLargeCopy(v, s)) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64LoweredQuadMove)
+@@ -3882,7 +3884,7 @@ func rewriteValuePPC64_OpPPC64ADD(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (ADD l:(MULLD x y) z)
+-	// cond: objabi.GOPPC64 >= 9 && l.Uses == 1 && clobber(l)
++	// cond: buildcfg.GOPPC64 >= 9 && l.Uses == 1 && clobber(l)
+ 	// result: (MADDLD x y z)
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+@@ -3893,7 +3895,7 @@ func rewriteValuePPC64_OpPPC64ADD(v *Value) bool {
+ 			y := l.Args[1]
+ 			x := l.Args[0]
+ 			z := v_1
+-			if !(objabi.GOPPC64 >= 9 && l.Uses == 1 && clobber(l)) {
++			if !(buildcfg.GOPPC64 >= 9 && l.Uses == 1 && clobber(l)) {
+ 				continue
+ 			}
+ 			v.reset(OpPPC64MADDLD)
+@@ -13241,7 +13243,7 @@ func rewriteValuePPC64_OpPPC64SLDconst(v *Value) bool {
+ 		break
+ 	}
+ 	// match: (SLDconst [c] z:(MOVWreg x))
+-	// cond: c < 32 && objabi.GOPPC64 >= 9
++	// cond: c < 32 && buildcfg.GOPPC64 >= 9
+ 	// result: (EXTSWSLconst [c] x)
+ 	for {
+ 		c := auxIntToInt64(v.AuxInt)
+@@ -13250,7 +13252,7 @@ func rewriteValuePPC64_OpPPC64SLDconst(v *Value) bool {
+ 			break
+ 		}
+ 		x := z.Args[0]
+-		if !(c < 32 && objabi.GOPPC64 >= 9) {
++		if !(c < 32 && buildcfg.GOPPC64 >= 9) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64EXTSWSLconst)
+@@ -13364,7 +13366,7 @@ func rewriteValuePPC64_OpPPC64SLWconst(v *Value) bool {
+ 		break
+ 	}
+ 	// match: (SLWconst [c] z:(MOVWreg x))
+-	// cond: c < 32 && objabi.GOPPC64 >= 9
++	// cond: c < 32 && buildcfg.GOPPC64 >= 9
+ 	// result: (EXTSWSLconst [c] x)
+ 	for {
+ 		c := auxIntToInt64(v.AuxInt)
+@@ -13373,7 +13375,7 @@ func rewriteValuePPC64_OpPPC64SLWconst(v *Value) bool {
+ 			break
+ 		}
+ 		x := z.Args[0]
+-		if !(c < 32 && objabi.GOPPC64 >= 9) {
++		if !(c < 32 && buildcfg.GOPPC64 >= 9) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64EXTSWSLconst)
+@@ -16906,13 +16908,13 @@ func rewriteValuePPC64_OpZero(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Zero [s] ptr mem)
+-	// cond: objabi.GOPPC64 <= 8 && s < 64
++	// cond: buildcfg.GOPPC64 <= 8 && s < 64
+ 	// result: (LoweredZeroShort [s] ptr mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(objabi.GOPPC64 <= 8 && s < 64) {
++		if !(buildcfg.GOPPC64 <= 8 && s < 64) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64LoweredZeroShort)
+@@ -16921,13 +16923,13 @@ func rewriteValuePPC64_OpZero(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Zero [s] ptr mem)
+-	// cond: objabi.GOPPC64 <= 8
++	// cond: buildcfg.GOPPC64 <= 8
+ 	// result: (LoweredZero [s] ptr mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(objabi.GOPPC64 <= 8) {
++		if !(buildcfg.GOPPC64 <= 8) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64LoweredZero)
+@@ -16936,13 +16938,13 @@ func rewriteValuePPC64_OpZero(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Zero [s] ptr mem)
+-	// cond: s < 128 && objabi.GOPPC64 >= 9
++	// cond: s < 128 && buildcfg.GOPPC64 >= 9
+ 	// result: (LoweredQuadZeroShort [s] ptr mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(s < 128 && objabi.GOPPC64 >= 9) {
++		if !(s < 128 && buildcfg.GOPPC64 >= 9) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64LoweredQuadZeroShort)
+@@ -16951,13 +16953,13 @@ func rewriteValuePPC64_OpZero(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Zero [s] ptr mem)
+-	// cond: objabi.GOPPC64 >= 9
++	// cond: buildcfg.GOPPC64 >= 9
+ 	// result: (LoweredQuadZero [s] ptr mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(objabi.GOPPC64 >= 9) {
++		if !(buildcfg.GOPPC64 >= 9) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64LoweredQuadZero)
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index 431fb1aaf6..bc4b18e0cd 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -3,8 +3,10 @@
+ 
+ package ssa
+ 
+-import "math"
+-import "cmd/compile/internal/types"
++import (
++	"cmd/compile/internal/types"
++	"math"
++)
+ 
+ func rewriteValueRISCV64(v *Value) bool {
+ 	switch v.Op {
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 8b41d62c31..49c5898704 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -3,9 +3,11 @@
+ 
+ package ssa
+ 
+-import "math"
+-import "cmd/compile/internal/types"
+-import "cmd/internal/obj/s390x"
++import (
++	"cmd/compile/internal/types"
++	"cmd/internal/obj/s390x"
++	"math"
++)
+ 
+ func rewriteValueS390X(v *Value) bool {
+ 	switch v.Op {
+diff --git a/src/cmd/compile/internal/ssa/rewriteWasm.go b/src/cmd/compile/internal/ssa/rewriteWasm.go
+index 6efcdfe371..ed23ae032a 100644
+--- a/src/cmd/compile/internal/ssa/rewriteWasm.go
++++ b/src/cmd/compile/internal/ssa/rewriteWasm.go
+@@ -3,9 +3,11 @@
+ 
+ package ssa
+ 
+-import "math"
+-import "cmd/internal/objabi"
+-import "cmd/compile/internal/types"
++import (
++	"cmd/compile/internal/types"
++	"internal/buildcfg"
++	"math"
++)
+ 
+ func rewriteValueWasm(v *Value) bool {
+ 	switch v.Op {
+@@ -3193,11 +3195,11 @@ func rewriteValueWasm_OpSignExt16to32(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SignExt16to32 x)
+-	// cond: objabi.GOWASM.SignExt
++	// cond: buildcfg.GOWASM.SignExt
+ 	// result: (I64Extend16S x)
+ 	for {
+ 		x := v_0
+-		if !(objabi.GOWASM.SignExt) {
++		if !(buildcfg.GOWASM.SignExt) {
+ 			break
+ 		}
+ 		v.reset(OpWasmI64Extend16S)
+@@ -3232,11 +3234,11 @@ func rewriteValueWasm_OpSignExt16to64(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SignExt16to64 x)
+-	// cond: objabi.GOWASM.SignExt
++	// cond: buildcfg.GOWASM.SignExt
+ 	// result: (I64Extend16S x)
+ 	for {
+ 		x := v_0
+-		if !(objabi.GOWASM.SignExt) {
++		if !(buildcfg.GOWASM.SignExt) {
+ 			break
+ 		}
+ 		v.reset(OpWasmI64Extend16S)
+@@ -3271,11 +3273,11 @@ func rewriteValueWasm_OpSignExt32to64(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SignExt32to64 x)
+-	// cond: objabi.GOWASM.SignExt
++	// cond: buildcfg.GOWASM.SignExt
+ 	// result: (I64Extend32S x)
+ 	for {
+ 		x := v_0
+-		if !(objabi.GOWASM.SignExt) {
++		if !(buildcfg.GOWASM.SignExt) {
+ 			break
+ 		}
+ 		v.reset(OpWasmI64Extend32S)
+@@ -3310,11 +3312,11 @@ func rewriteValueWasm_OpSignExt8to16(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SignExt8to16 x)
+-	// cond: objabi.GOWASM.SignExt
++	// cond: buildcfg.GOWASM.SignExt
+ 	// result: (I64Extend8S x)
+ 	for {
+ 		x := v_0
+-		if !(objabi.GOWASM.SignExt) {
++		if !(buildcfg.GOWASM.SignExt) {
+ 			break
+ 		}
+ 		v.reset(OpWasmI64Extend8S)
+@@ -3349,11 +3351,11 @@ func rewriteValueWasm_OpSignExt8to32(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SignExt8to32 x)
+-	// cond: objabi.GOWASM.SignExt
++	// cond: buildcfg.GOWASM.SignExt
+ 	// result: (I64Extend8S x)
+ 	for {
+ 		x := v_0
+-		if !(objabi.GOWASM.SignExt) {
++		if !(buildcfg.GOWASM.SignExt) {
+ 			break
+ 		}
+ 		v.reset(OpWasmI64Extend8S)
+@@ -3388,11 +3390,11 @@ func rewriteValueWasm_OpSignExt8to64(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SignExt8to64 x)
+-	// cond: objabi.GOWASM.SignExt
++	// cond: buildcfg.GOWASM.SignExt
+ 	// result: (I64Extend8S x)
+ 	for {
+ 		x := v_0
+-		if !(objabi.GOWASM.SignExt) {
++		if !(buildcfg.GOWASM.SignExt) {
+ 			break
+ 		}
+ 		v.reset(OpWasmI64Extend8S)
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 52258201ca..0e5f49491e 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -3,8 +3,10 @@
+ 
+ package ssa
+ 
+-import "math"
+-import "cmd/compile/internal/types"
++import (
++	"cmd/compile/internal/types"
++	"math"
++)
+ 
+ func rewriteValuegeneric(v *Value) bool {
+ 	switch v.Op {
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index 8103b08ce5..7d56362302 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -6,6 +6,7 @@ package ssagen
+ 
+ import (
+ 	"fmt"
++	"internal/buildcfg"
+ 	"io/ioutil"
+ 	"log"
+ 	"os"
+@@ -213,7 +214,7 @@ func (s *SymABIs) GenABIWrappers() {
+ 			base.Fatalf("cgo exported function %s cannot have ABI wrappers", fn)
+ 		}
+ 
+-		if !objabi.Experiment.RegabiWrappers {
++		if !buildcfg.Experiment.RegabiWrappers {
+ 			// We'll generate ABI aliases instead of
+ 			// wrappers once we have LSyms in InitLSym.
+ 			continue
+@@ -241,7 +242,7 @@ func InitLSym(f *ir.Func, hasBody bool) {
+ 		if f.Pragma&ir.Systemstack != 0 {
+ 			f.LSym.Set(obj.AttrCFunc, true)
+ 		}
+-		if f.ABI == obj.ABIInternal || !objabi.Experiment.RegabiWrappers {
++		if f.ABI == obj.ABIInternal || !buildcfg.Experiment.RegabiWrappers {
+ 			// Function values can only point to
+ 			// ABIInternal entry points. This will create
+ 			// the funcsym for either the defining
+@@ -253,7 +254,7 @@ func InitLSym(f *ir.Func, hasBody bool) {
+ 			// when we see that.
+ 			staticdata.NeedFuncSym(f)
+ 		}
+-		if !objabi.Experiment.RegabiWrappers {
++		if !buildcfg.Experiment.RegabiWrappers {
+ 			// Create ABI aliases instead of wrappers.
+ 			forEachWrapperABI(f, makeABIAlias)
+ 		}
+diff --git a/src/cmd/compile/internal/ssagen/pgen.go b/src/cmd/compile/internal/ssagen/pgen.go
+index 92f6f562f3..62567535d7 100644
+--- a/src/cmd/compile/internal/ssagen/pgen.go
++++ b/src/cmd/compile/internal/ssagen/pgen.go
+@@ -5,6 +5,7 @@
+ package ssagen
+ 
+ import (
++	"internal/buildcfg"
+ 	"internal/race"
+ 	"math/rand"
+ 	"sort"
+@@ -215,7 +216,7 @@ func StackOffset(slot ssa.LocalSlot) int32 {
+ 		if base.Ctxt.FixedFrameSize() == 0 {
+ 			off -= int64(types.PtrSize)
+ 		}
+-		if objabi.FramePointerEnabled {
++		if buildcfg.FramePointerEnabled {
+ 			off -= int64(types.PtrSize)
+ 		}
+ 	}
+@@ -228,7 +229,7 @@ func fieldtrack(fnsym *obj.LSym, tracked map[*obj.LSym]struct{}) {
+ 	if fnsym == nil {
+ 		return
+ 	}
+-	if !objabi.Experiment.FieldTrack || len(tracked) == 0 {
++	if !buildcfg.Experiment.FieldTrack || len(tracked) == 0 {
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 61f23a9c40..f0bce0756a 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -12,6 +12,7 @@ import (
+ 	"fmt"
+ 	"go/constant"
+ 	"html"
++	"internal/buildcfg"
+ 	"os"
+ 	"path/filepath"
+ 	"sort"
+@@ -227,7 +228,7 @@ const magicLastTypeName = "MagicLastTypeNameForTestingRegisterABI"
+ // abiForFunc implements ABI policy for a function, but does not return a copy of the ABI.
+ // Passing a nil function returns the default ABI based on experiment configuration.
+ func abiForFunc(fn *ir.Func, abi0, abi1 *abi.ABIConfig) *abi.ABIConfig {
+-	if objabi.Experiment.RegabiArgs {
++	if buildcfg.Experiment.RegabiArgs {
+ 		// Select the ABI based on the function's defining ABI.
+ 		if fn == nil {
+ 			return abi1
+@@ -4646,7 +4647,7 @@ func (s *state) openDeferRecord(n *ir.CallExpr) {
+ 	var args []*ssa.Value
+ 	var argNodes []*ir.Name
+ 
+-	if objabi.Experiment.RegabiDefer && (len(n.Args) != 0 || n.Op() == ir.OCALLINTER || n.X.Type().NumResults() != 0) {
++	if buildcfg.Experiment.RegabiDefer && (len(n.Args) != 0 || n.Op() == ir.OCALLINTER || n.X.Type().NumResults() != 0) {
+ 		s.Fatalf("defer call with arguments or results: %v", n)
+ 	}
+ 
+@@ -4883,7 +4884,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 
+ 	callABI := s.f.ABIDefault
+ 
+-	if !objabi.Experiment.RegabiArgs {
++	if !buildcfg.Experiment.RegabiArgs {
+ 		var magicFnNameSym *types.Sym
+ 		if fn.Name() != nil {
+ 			magicFnNameSym = fn.Name().Sym()
+@@ -4901,7 +4902,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 		}
+ 	}
+ 
+-	if objabi.Experiment.RegabiDefer && k != callNormal && (len(n.Args) != 0 || n.Op() == ir.OCALLINTER || n.X.Type().NumResults() != 0) {
++	if buildcfg.Experiment.RegabiDefer && k != callNormal && (len(n.Args) != 0 || n.Op() == ir.OCALLINTER || n.X.Type().NumResults() != 0) {
+ 		s.Fatalf("go/defer call with arguments: %v", n)
+ 	}
+ 
+@@ -4910,7 +4911,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 		if k == callNormal && fn.Op() == ir.ONAME && fn.(*ir.Name).Class == ir.PFUNC {
+ 			fn := fn.(*ir.Name)
+ 			callee = fn
+-			if objabi.Experiment.RegabiArgs {
++			if buildcfg.Experiment.RegabiArgs {
+ 				// This is a static call, so it may be
+ 				// a direct call to a non-ABIInternal
+ 				// function. fn.Func may be nil for
+@@ -4951,7 +4952,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 		}
+ 	}
+ 
+-	if !objabi.Experiment.RegabiArgs {
++	if !buildcfg.Experiment.RegabiArgs {
+ 		if regAbiForFuncType(n.X.Type().FuncType()) {
+ 			// Magic last type in input args to call
+ 			callABI = s.f.ABI1
+@@ -5135,7 +5136,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ // maybeNilCheckClosure checks if a nil check of a closure is needed in some
+ // architecture-dependent situations and, if so, emits the nil check.
+ func (s *state) maybeNilCheckClosure(closure *ssa.Value, k callKind) {
+-	if Arch.LinkArch.Family == sys.Wasm || objabi.GOOS == "aix" && k != callGo {
++	if Arch.LinkArch.Family == sys.Wasm || buildcfg.GOOS == "aix" && k != callGo {
+ 		// On AIX, the closure needs to be verified as fn can be nil, except if it's a call go. This needs to be handled by the runtime to have the "go of nil func value" error.
+ 		// TODO(neelance): On other architectures this should be eliminated by the optimization steps
+ 		s.nilCheck(closure)
+@@ -6881,7 +6882,7 @@ func defframe(s *State, e *ssafn, f *ssa.Func) {
+ 	// and not address-taken (for non-SSA-able or address-taken arguments we always
+ 	// spill upfront).
+ 	// TODO(register args) Make liveness more fine-grained to that partial spilling is okay.
+-	if objabi.Experiment.RegabiArgs {
++	if buildcfg.Experiment.RegabiArgs {
+ 		// First, see if it is already spilled before it may be live. Look for a spill
+ 		// in the entry block up to the first safepoint.
+ 		type nameOff struct {
+diff --git a/src/cmd/compile/internal/staticdata/data.go b/src/cmd/compile/internal/staticdata/data.go
+index 7ca05d3bf4..b5206c2442 100644
+--- a/src/cmd/compile/internal/staticdata/data.go
++++ b/src/cmd/compile/internal/staticdata/data.go
+@@ -8,6 +8,7 @@ import (
+ 	"crypto/sha256"
+ 	"fmt"
+ 	"go/constant"
++	"internal/buildcfg"
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
+@@ -269,7 +270,7 @@ func NeedFuncSym(fn *ir.Func) {
+ 		// funcsymsmu, like in FuncSym.
+ 		base.Fatalf("NeedFuncSym must be called in serial")
+ 	}
+-	if fn.ABI != obj.ABIInternal && objabi.Experiment.RegabiWrappers {
++	if fn.ABI != obj.ABIInternal && buildcfg.Experiment.RegabiWrappers {
+ 		// Function values must always reference ABIInternal
+ 		// entry points, so it doesn't make sense to create a
+ 		// funcsym for other ABIs.
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 0995c1314d..d8160d971c 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -7,6 +7,7 @@ package walk
+ import (
+ 	"fmt"
+ 	"go/constant"
++	"internal/buildcfg"
+ 	"strings"
+ 
+ 	"cmd/compile/internal/base"
+@@ -16,7 +17,6 @@ import (
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+-	"cmd/internal/objabi"
+ )
+ 
+ // The result of walkExpr MUST be assigned back to n, e.g.
+@@ -927,7 +927,7 @@ func usemethod(n *ir.CallExpr) {
+ }
+ 
+ func usefield(n *ir.SelectorExpr) {
+-	if !objabi.Experiment.FieldTrack {
++	if !buildcfg.Experiment.FieldTrack {
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 42d9d58971..7b69f34e85 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -7,6 +7,7 @@ package walk
+ import (
+ 	"fmt"
+ 	"go/constant"
++	"internal/buildcfg"
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/escape"
+@@ -15,7 +16,6 @@ import (
+ 	"cmd/compile/internal/staticinit"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+-	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ )
+ 
+@@ -780,7 +780,7 @@ func (o *orderState) stmt(n ir.Node) {
+ 			n.Call = walkRecover(n.Call.(*ir.CallExpr), &init)
+ 			o.stmtList(init)
+ 		}
+-		if objabi.Experiment.RegabiDefer {
++		if buildcfg.Experiment.RegabiDefer {
+ 			o.wrapGoDefer(n)
+ 		}
+ 		o.out = append(o.out, n)
+diff --git a/src/cmd/compile/internal/walk/range.go b/src/cmd/compile/internal/walk/range.go
+index 80bd8750fa..3384bc826e 100644
+--- a/src/cmd/compile/internal/walk/range.go
++++ b/src/cmd/compile/internal/walk/range.go
+@@ -170,7 +170,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
+ 		th := hit.Type()
+ 		// depends on layout of iterator struct.
+ 		// See cmd/compile/internal/reflectdata/reflect.go:MapIterType
+-		keysym := th.Field(0).Sym  
++		keysym := th.Field(0).Sym
+ 		elemsym := th.Field(1).Sym // ditto
+ 
+ 		fn := typecheck.LookupRuntime("mapiterinit")
+diff --git a/src/cmd/compile/internal/wasm/ssa.go b/src/cmd/compile/internal/wasm/ssa.go
+index 904871b15f..31b09016eb 100644
+--- a/src/cmd/compile/internal/wasm/ssa.go
++++ b/src/cmd/compile/internal/wasm/ssa.go
+@@ -14,7 +14,7 @@ import (
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/wasm"
+-	"cmd/internal/objabi"
++	"internal/buildcfg"
+ )
+ 
+ func Init(arch *ssagen.ArchInfo) {
+@@ -325,7 +325,7 @@ func ssaGenValueOnStack(s *ssagen.State, v *ssa.Value, extend bool) {
+ 
+ 	case ssa.OpWasmI64TruncSatF32S, ssa.OpWasmI64TruncSatF64S:
+ 		getValue64(s, v.Args[0])
+-		if objabi.GOWASM.SatConv {
++		if buildcfg.GOWASM.SatConv {
+ 			s.Prog(v.Op.Asm())
+ 		} else {
+ 			if v.Op == ssa.OpWasmI64TruncSatF32S {
+@@ -337,7 +337,7 @@ func ssaGenValueOnStack(s *ssagen.State, v *ssa.Value, extend bool) {
+ 
+ 	case ssa.OpWasmI64TruncSatF32U, ssa.OpWasmI64TruncSatF64U:
+ 		getValue64(s, v.Args[0])
+-		if objabi.GOWASM.SatConv {
++		if buildcfg.GOWASM.SatConv {
+ 			s.Prog(v.Op.Asm())
+ 		} else {
+ 			if v.Op == ssa.OpWasmI64TruncSatF32U {
+diff --git a/src/cmd/compile/internal/x86/galign.go b/src/cmd/compile/internal/x86/galign.go
+index fc806f9119..00a20e429f 100644
+--- a/src/cmd/compile/internal/x86/galign.go
++++ b/src/cmd/compile/internal/x86/galign.go
+@@ -8,8 +8,8 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ssagen"
+ 	"cmd/internal/obj/x86"
+-	"cmd/internal/objabi"
+ 	"fmt"
++	"internal/buildcfg"
+ 	"os"
+ )
+ 
+@@ -19,7 +19,7 @@ func Init(arch *ssagen.ArchInfo) {
+ 	arch.SSAGenValue = ssaGenValue
+ 	arch.SSAGenBlock = ssaGenBlock
+ 	arch.MAXWIDTH = (1 << 32) - 1
+-	switch v := objabi.GO386; v {
++	switch v := buildcfg.GO386; v {
+ 	case "sse2":
+ 	case "softfloat":
+ 		arch.SoftFloat = true
+diff --git a/src/cmd/compile/main.go b/src/cmd/compile/main.go
+index cb2f4e8cf4..3af1e1fafd 100644
+--- a/src/cmd/compile/main.go
++++ b/src/cmd/compile/main.go
+@@ -18,8 +18,8 @@ import (
+ 	"cmd/compile/internal/ssagen"
+ 	"cmd/compile/internal/wasm"
+ 	"cmd/compile/internal/x86"
+-	"cmd/internal/objabi"
+ 	"fmt"
++	"internal/buildcfg"
+ 	"log"
+ 	"os"
+ )
+@@ -45,9 +45,10 @@ func main() {
+ 	log.SetFlags(0)
+ 	log.SetPrefix("compile: ")
+ 
+-	archInit, ok := archInits[objabi.GOARCH]
++	buildcfg.Check()
++	archInit, ok := archInits[buildcfg.GOARCH]
+ 	if !ok {
+-		fmt.Fprintf(os.Stderr, "compile: unknown architecture %q\n", objabi.GOARCH)
++		fmt.Fprintf(os.Stderr, "compile: unknown architecture %q\n", buildcfg.GOARCH)
+ 		os.Exit(2)
+ 	}
+ 
+diff --git a/src/cmd/dist/buildruntime.go b/src/cmd/dist/buildruntime.go
+index 3ef551e187..54e935ad3b 100644
+--- a/src/cmd/dist/buildruntime.go
++++ b/src/cmd/dist/buildruntime.go
+@@ -32,22 +32,15 @@ func mkzversion(dir, file string) {
+ 	writefile(buf.String(), file, writeSkipSame)
+ }
+ 
+-// mkzbootstrap writes cmd/internal/objabi/zbootstrap.go:
++// mkbuildcfg writes internal/buildcfg/zbootstrap.go:
+ //
+-//	package objabi
++//	package buildcfg
+ //
+ //	const defaultGOROOT = <goroot>
+ //	const defaultGO386 = <go386>
+-//	const defaultGOARM = <goarm>
+-//	const defaultGOMIPS = <gomips>
+-//	const defaultGOMIPS64 = <gomips64>
+-//	const defaultGOPPC64 = <goppc64>
++//	...
+ //	const defaultGOOS = runtime.GOOS
+ //	const defaultGOARCH = runtime.GOARCH
+-//	const defaultGOEXPERIMENT = <goexperiment>
+-//	const defaultGO_EXTLINK_ENABLED = <goextlinkenabled>
+-//	const version = <version>
+-//	const stackGuardMultiplierDefault = <multiplier value>
+ //
+ // The use of runtime.GOOS and runtime.GOARCH makes sure that
+ // a cross-compiled compiler expects to compile for its own target
+@@ -58,11 +51,11 @@ func mkzversion(dir, file string) {
+ // the resulting compiler will default to generating linux/ppc64 object files.
+ // This is more useful than having it default to generating objects for the
+ // original target (in this example, a Mac).
+-func mkzbootstrap(file string) {
++func mkbuildcfg(file string) {
+ 	var buf bytes.Buffer
+ 	fmt.Fprintf(&buf, "// Code generated by go tool dist; DO NOT EDIT.\n")
+ 	fmt.Fprintln(&buf)
+-	fmt.Fprintf(&buf, "package objabi\n")
++	fmt.Fprintf(&buf, "package buildcfg\n")
+ 	fmt.Fprintln(&buf)
+ 	fmt.Fprintf(&buf, "import \"runtime\"\n")
+ 	fmt.Fprintln(&buf)
+@@ -71,12 +64,28 @@ func mkzbootstrap(file string) {
+ 	fmt.Fprintf(&buf, "const defaultGOMIPS = `%s`\n", gomips)
+ 	fmt.Fprintf(&buf, "const defaultGOMIPS64 = `%s`\n", gomips64)
+ 	fmt.Fprintf(&buf, "const defaultGOPPC64 = `%s`\n", goppc64)
+-	fmt.Fprintf(&buf, "const defaultGOOS = runtime.GOOS\n")
+-	fmt.Fprintf(&buf, "const defaultGOARCH = runtime.GOARCH\n")
+ 	fmt.Fprintf(&buf, "const defaultGOEXPERIMENT = `%s`\n", goexperiment)
+ 	fmt.Fprintf(&buf, "const defaultGO_EXTLINK_ENABLED = `%s`\n", goextlinkenabled)
+ 	fmt.Fprintf(&buf, "const defaultGO_LDSO = `%s`\n", defaultldso)
+ 	fmt.Fprintf(&buf, "const version = `%s`\n", findgoversion())
++	fmt.Fprintf(&buf, "const defaultGOOS = runtime.GOOS\n")
++	fmt.Fprintf(&buf, "const defaultGOARCH = runtime.GOARCH\n")
++
++	writefile(buf.String(), file, writeSkipSame)
++}
++
++// mkobjabi writes cmd/internal/objabi/zbootstrap.go:
++//
++//	package objabi
++//
++//	const stackGuardMultiplierDefault = <multiplier value>
++//
++func mkobjabi(file string) {
++	var buf bytes.Buffer
++	fmt.Fprintf(&buf, "// Code generated by go tool dist; DO NOT EDIT.\n")
++	fmt.Fprintln(&buf)
++	fmt.Fprintf(&buf, "package objabi\n")
++	fmt.Fprintln(&buf)
+ 	fmt.Fprintf(&buf, "const stackGuardMultiplierDefault = %d\n", stackGuardMultiplierDefault())
+ 
+ 	writefile(buf.String(), file, writeSkipSame)
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 44b1886968..26b33e389f 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -58,6 +58,7 @@ var bootstrapDirs = []string{
+ 	"debug/macho",
+ 	"debug/pe",
+ 	"go/constant",
++	"internal/buildcfg",
+ 	"internal/goexperiment",
+ 	"internal/goversion",
+ 	"internal/race",
+@@ -98,7 +99,8 @@ func bootstrapBuildTools() {
+ 	}
+ 	xprintf("Building Go toolchain1 using %s.\n", goroot_bootstrap)
+ 
+-	mkzbootstrap(pathf("%s/src/cmd/internal/objabi/zbootstrap.go", goroot))
++	mkbuildcfg(pathf("%s/src/internal/buildcfg/zbootstrap.go", goroot))
++	mkobjabi(pathf("%s/src/cmd/internal/objabi/zbootstrap.go", goroot))
+ 
+ 	// Use $GOROOT/pkg/bootstrap as the bootstrap workspace root.
+ 	// We use a subdirectory of $GOROOT/pkg because that's the
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 810189c15d..b47eb812b5 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -10,6 +10,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"go/build"
++	"internal/buildcfg"
+ 	"internal/cfg"
+ 	"io"
+ 	"os"
+@@ -19,8 +20,6 @@ import (
+ 	"sync"
+ 
+ 	"cmd/go/internal/fsys"
+-
+-	"cmd/internal/objabi"
+ )
+ 
+ // These are general "build flags" used by build and other commands.
+@@ -252,12 +251,12 @@ var (
+ 	GOMODCACHE   = envOr("GOMODCACHE", gopathDir("pkg/mod"))
+ 
+ 	// Used in envcmd.MkEnv and build ID computations.
+-	GOARM    = envOr("GOARM", fmt.Sprint(objabi.GOARM))
+-	GO386    = envOr("GO386", objabi.GO386)
+-	GOMIPS   = envOr("GOMIPS", objabi.GOMIPS)
+-	GOMIPS64 = envOr("GOMIPS64", objabi.GOMIPS64)
+-	GOPPC64  = envOr("GOPPC64", fmt.Sprintf("%s%d", "power", objabi.GOPPC64))
+-	GOWASM   = envOr("GOWASM", fmt.Sprint(objabi.GOWASM))
++	GOARM    = envOr("GOARM", fmt.Sprint(buildcfg.GOARM))
++	GO386    = envOr("GO386", buildcfg.GO386)
++	GOMIPS   = envOr("GOMIPS", buildcfg.GOMIPS)
++	GOMIPS64 = envOr("GOMIPS64", buildcfg.GOMIPS64)
++	GOPPC64  = envOr("GOPPC64", fmt.Sprintf("%s%d", "power", buildcfg.GOPPC64))
++	GOWASM   = envOr("GOWASM", fmt.Sprint(buildcfg.GOWASM))
+ 
+ 	GOPROXY    = envOr("GOPROXY", "https://proxy.golang.org,direct")
+ 	GOSUMDB    = envOr("GOSUMDB", "sum.golang.org")
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index e1916007a6..a68bdd6d29 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -12,6 +12,7 @@ import (
+ 	"encoding/json"
+ 	"errors"
+ 	"fmt"
++	"internal/buildcfg"
+ 	exec "internal/execabs"
+ 	"internal/lazyregexp"
+ 	"io"
+@@ -35,7 +36,6 @@ import (
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/str"
+ 	"cmd/go/internal/trace"
+-	"cmd/internal/objabi"
+ )
+ 
+ // actionList returns the list of actions in the dag rooted at root
+@@ -277,7 +277,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
+ 		key, val := cfg.GetArchEnv()
+ 		fmt.Fprintf(h, "%s=%s\n", key, val)
+ 
+-		if goexperiment := objabi.GOEXPERIMENT(); goexperiment != "" {
++		if goexperiment := buildcfg.GOEXPERIMENT(); goexperiment != "" {
+ 			fmt.Fprintf(h, "GOEXPERIMENT=%q\n", goexperiment)
+ 		}
+ 
+@@ -1251,7 +1251,7 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
+ 		key, val := cfg.GetArchEnv()
+ 		fmt.Fprintf(h, "%s=%s\n", key, val)
+ 
+-		if goexperiment := objabi.GOEXPERIMENT(); goexperiment != "" {
++		if goexperiment := buildcfg.GOEXPERIMENT(); goexperiment != "" {
+ 			fmt.Fprintf(h, "GOEXPERIMENT=%q\n", goexperiment)
+ 		}
+ 
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 60d0b29a21..9adcf3035f 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -8,6 +8,7 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"fmt"
++	"internal/buildcfg"
+ 	"io"
+ 	"log"
+ 	"os"
+@@ -231,7 +232,7 @@ CheckFlags:
+ 	}
+ 
+ 	// TODO: Test and delete these conditions.
+-	if objabi.Experiment.FieldTrack || objabi.Experiment.PreemptibleLoops {
++	if buildcfg.Experiment.FieldTrack || buildcfg.Experiment.PreemptibleLoops {
+ 		canDashC = false
+ 	}
+ 
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index 1e1494998a..66e1ca7d80 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -11,10 +11,10 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/modload"
+-	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"flag"
+ 	"fmt"
++	"internal/buildcfg"
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
+@@ -52,7 +52,7 @@ func BuildInit() {
+ 	// used for compiling alternative files for the experiment. This allows
+ 	// changes for the experiment, like extra struct fields in the runtime,
+ 	// without affecting the base non-experiment code at all.
+-	for _, expt := range objabi.EnabledExperiments() {
++	for _, expt := range buildcfg.EnabledExperiments() {
+ 		cfg.BuildContext.BuildTags = append(cfg.BuildContext.BuildTags, "goexperiment."+expt)
+ 	}
+ }
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 9cc44da84d..02174a56ff 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -10,6 +10,7 @@ import (
+ 	"context"
+ 	"flag"
+ 	"fmt"
++	"internal/buildcfg"
+ 	"log"
+ 	"os"
+ 	"path/filepath"
+@@ -144,6 +145,11 @@ func main() {
+ 		os.Exit(2)
+ 	}
+ 
++	if err := buildcfg.Error; err != nil {
++		fmt.Fprintf(os.Stderr, "go: %v\n", buildcfg.Error)
++		os.Exit(2)
++	}
++
+ 	// Set environment (GOOS, GOARCH, etc) explicitly.
+ 	// In theory all the commands we invoke should have
+ 	// the same default computation of these as we do,
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 20d0f956a7..87b5971aa7 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"go/build"
++	"internal/buildcfg"
+ 	"internal/testenv"
+ 	"io/fs"
+ 	"os"
+@@ -32,7 +33,6 @@ import (
+ 	"cmd/go/internal/robustio"
+ 	"cmd/go/internal/txtar"
+ 	"cmd/go/internal/work"
+-	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ )
+ 
+@@ -165,7 +165,7 @@ func (ts *testScript) setup() {
+ 		"GOCACHE=" + testGOCACHE,
+ 		"GODEBUG=" + os.Getenv("GODEBUG"),
+ 		"GOEXE=" + cfg.ExeSuffix,
+-		"GOEXPERIMENT=" + objabi.GOEXPERIMENT(),
++		"GOEXPERIMENT=" + buildcfg.GOEXPERIMENT(),
+ 		"GOOS=" + runtime.GOOS,
+ 		"GOPATH=" + filepath.Join(ts.workdir, "gopath"),
+ 		"GOPROXY=" + proxyURL,
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index c48e1723c8..ec441c2bcb 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -9,13 +9,15 @@ package dwarf
+ 
+ import (
+ 	"bytes"
+-	"cmd/internal/objabi"
+ 	"errors"
+ 	"fmt"
++	"internal/buildcfg"
+ 	exec "internal/execabs"
+ 	"sort"
+ 	"strconv"
+ 	"strings"
++
++	"cmd/internal/objabi"
+ )
+ 
+ // InfoPrefix is the prefix for all the symbols containing DWARF info entries.
+@@ -381,7 +383,7 @@ func expandPseudoForm(form uint8) uint8 {
+ 		return form
+ 	}
+ 	expandedForm := DW_FORM_udata
+-	if objabi.GOOS == "darwin" || objabi.GOOS == "ios" {
++	if buildcfg.GOOS == "darwin" || buildcfg.GOOS == "ios" {
+ 		expandedForm = DW_FORM_data4
+ 	}
+ 	return uint8(expandedForm)
+diff --git a/src/cmd/internal/goobj/objfile_test.go b/src/cmd/internal/goobj/objfile_test.go
+index ad80ede0f3..ed942aa934 100644
+--- a/src/cmd/internal/goobj/objfile_test.go
++++ b/src/cmd/internal/goobj/objfile_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"cmd/internal/bio"
+ 	"cmd/internal/objabi"
+ 	"fmt"
++	"internal/buildcfg"
+ 	"internal/testenv"
+ 	"io/ioutil"
+ 	"os"
+@@ -91,8 +92,8 @@ func main() {
+ `
+ 
+ func TestIssue41621LargeNumberOfRelocations(t *testing.T) {
+-	if testing.Short() || (objabi.GOARCH != "amd64") {
+-		t.Skipf("Skipping large number of relocations test in short mode or on %s", objabi.GOARCH)
++	if testing.Short() || (buildcfg.GOARCH != "amd64") {
++		t.Skipf("Skipping large number of relocations test in short mode or on %s", buildcfg.GOARCH)
+ 	}
+ 	testenv.MustHaveGoBuild(t)
+ 
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index ebb98b4859..ccf5f9e7f8 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -34,6 +34,7 @@ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"fmt"
++	"internal/buildcfg"
+ 	"log"
+ 	"math"
+ 	"sort"
+@@ -976,7 +977,7 @@ func (c *ctxt5) aclass(a *obj.Addr) int {
+ 			if immrot(^uint32(c.instoffset)) != 0 {
+ 				return C_NCON
+ 			}
+-			if uint32(c.instoffset) <= 0xffff && objabi.GOARM == 7 {
++			if uint32(c.instoffset) <= 0xffff && buildcfg.GOARM == 7 {
+ 				return C_SCON
+ 			}
+ 			if x, y := immrot2a(uint32(c.instoffset)); x != 0 && y != 0 {
+@@ -3044,7 +3045,7 @@ func (c *ctxt5) omvl(p *obj.Prog, a *obj.Addr, dr int) uint32 {
+ 
+ func (c *ctxt5) chipzero5(e float64) int {
+ 	// We use GOARM=7 to gate the use of VFPv3 vmov (imm) instructions.
+-	if objabi.GOARM < 7 || math.Float64bits(e) != 0 {
++	if buildcfg.GOARM < 7 || math.Float64bits(e) != 0 {
+ 		return -1
+ 	}
+ 	return 0
+@@ -3052,7 +3053,7 @@ func (c *ctxt5) chipzero5(e float64) int {
+ 
+ func (c *ctxt5) chipfloat5(e float64) int {
+ 	// We use GOARM=7 to gate the use of VFPv3 vmov (imm) instructions.
+-	if objabi.GOARM < 7 {
++	if buildcfg.GOARM < 7 {
+ 		return -1
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index edb384806b..1454d8a7c9 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -34,6 +34,7 @@ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
++	"internal/buildcfg"
+ 	"log"
+ )
+ 
+@@ -64,7 +65,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 				ctxt.Diag("%v: TLS MRC instruction must write to R0 as it might get translated into a BL instruction", p.Line())
+ 			}
+ 
+-			if objabi.GOARM < 7 {
++			if buildcfg.GOARM < 7 {
+ 				// Replace it with BL runtime.read_tls_fallback(SB) for ARM CPUs that lack the tls extension.
+ 				if progedit_tlsfallback == nil {
+ 					progedit_tlsfallback = ctxt.Lookup("runtime.read_tls_fallback")
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index 514991e340..e41fb3bb75 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -35,6 +35,7 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ 	"cmd/internal/sys"
++	"internal/buildcfg"
+ 	"log"
+ 	"math"
+ )
+@@ -576,7 +577,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				q1.To.Reg = REGSP
+ 				q1.Spadj = c.autosize
+ 
+-				if objabi.GOOS == "ios" {
++				if buildcfg.GOOS == "ios" {
+ 					// iOS does not support SA_ONSTACK. We will run the signal handler
+ 					// on the G stack. If we write below SP, it may be clobbered by
+ 					// the signal handler. So we save LR after decrementing SP.
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 98c7364e2a..9e8b4dd790 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -35,6 +35,7 @@ import (
+ 	"cmd/internal/goobj"
+ 	"cmd/internal/objabi"
+ 	"fmt"
++	"internal/buildcfg"
+ 	"log"
+ 	"math"
+ 	"sort"
+@@ -49,8 +50,8 @@ func Linknew(arch *LinkArch) *Link {
+ 	ctxt.Arch = arch
+ 	ctxt.Pathname = objabi.WorkingDir()
+ 
+-	if err := ctxt.Headtype.Set(objabi.GOOS); err != nil {
+-		log.Fatalf("unknown goos %s", objabi.GOOS)
++	if err := ctxt.Headtype.Set(buildcfg.GOOS); err != nil {
++		log.Fatalf("unknown goos %s", buildcfg.GOOS)
+ 	}
+ 
+ 	ctxt.Flag_optimize = true
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 1c34b4e833..e8441a6969 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"cmd/internal/objabi"
+ 	"fmt"
++	"internal/buildcfg"
+ 	"io"
+ 	"strings"
+ )
+@@ -83,7 +84,7 @@ func CConv(s uint8) string {
+ 	}
+ 	for i := range opSuffixSpace {
+ 		sset := &opSuffixSpace[i]
+-		if sset.arch == objabi.GOARCH {
++		if sset.arch == buildcfg.GOARCH {
+ 			return sset.cconv(s)
+ 		}
+ 	}
+@@ -330,7 +331,7 @@ func writeDconv(w io.Writer, p *Prog, a *Addr, abiDetail bool) {
+ 	case TYPE_SHIFT:
+ 		v := int(a.Offset)
+ 		ops := "<<>>->@>"
+-		switch objabi.GOARCH {
++		switch buildcfg.GOARCH {
+ 		case "arm":
+ 			op := ops[((v>>5)&3)<<1:]
+ 			if v&(1<<4) != 0 {
+@@ -346,7 +347,7 @@ func writeDconv(w io.Writer, p *Prog, a *Addr, abiDetail bool) {
+ 			r := (v >> 16) & 31
+ 			fmt.Fprintf(w, "%s%c%c%d", Rconv(r+RBaseARM64), op[0], op[1], (v>>10)&63)
+ 		default:
+-			panic("TYPE_SHIFT is not supported on " + objabi.GOARCH)
++			panic("TYPE_SHIFT is not supported on " + buildcfg.GOARCH)
+ 		}
+ 
+ 	case TYPE_REGREG:
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 52ac567a36..17fa76727e 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -36,6 +36,7 @@ import (
+ 	"cmd/internal/sys"
+ 	"encoding/binary"
+ 	"fmt"
++	"internal/buildcfg"
+ 	"log"
+ 	"strings"
+ )
+@@ -2460,7 +2461,7 @@ func instinit(ctxt *obj.Link) {
+ 	}
+ }
+ 
+-var isAndroid = objabi.GOOS == "android"
++var isAndroid = buildcfg.GOOS == "android"
+ 
+ func prefixof(ctxt *obj.Link, a *obj.Addr) int {
+ 	if a.Reg < REG_CS && a.Index < REG_CS { // fast path
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 06736d43bd..e2732d53e3 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -35,6 +35,7 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ 	"cmd/internal/sys"
++	"internal/buildcfg"
+ 	"log"
+ 	"math"
+ 	"path"
+@@ -646,13 +647,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 
+ 	var regg int16
+ 	if !p.From.Sym.NoSplit() || p.From.Sym.Wrapper() {
+-		if ctxt.Arch.Family == sys.AMD64 && objabi.Experiment.RegabiG && cursym.ABI() == obj.ABIInternal {
++		if ctxt.Arch.Family == sys.AMD64 && buildcfg.Experiment.RegabiG && cursym.ABI() == obj.ABIInternal {
+ 			regg = REGG // use the g register directly in ABIInternal
+ 		} else {
+ 			p = obj.Appendp(p, newprog)
+ 			regg = REG_CX
+ 			if ctxt.Arch.Family == sys.AMD64 {
+-				// Using this register means that stacksplit works w/ //go:registerparams even when !objabi.Experiment.RegabiG
++				// Using this register means that stacksplit works w/ //go:registerparams even when !buildcfg.Experiment.RegabiG
+ 				regg = REGG // == REG_R14
+ 			}
+ 			p = load_g(ctxt, p, newprog, regg) // load g into regg
+diff --git a/src/cmd/internal/objabi/flag.go b/src/cmd/internal/objabi/flag.go
+index 9fcab4cc85..e41fc570b0 100644
+--- a/src/cmd/internal/objabi/flag.go
++++ b/src/cmd/internal/objabi/flag.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"flag"
+ 	"fmt"
++	"internal/buildcfg"
+ 	"io"
+ 	"io/ioutil"
+ 	"log"
+@@ -96,11 +97,11 @@ func (versionFlag) Set(s string) error {
+ 	if s == "goexperiment" {
+ 		// test/run.go uses this to discover the full set of
+ 		// experiment tags. Report everything.
+-		p = " X:" + strings.Join(expList(&Experiment, nil, true), ",")
++		p = " X:" + strings.Join(buildcfg.AllExperiments(), ",")
+ 	} else {
+ 		// If the enabled experiments differ from the defaults,
+ 		// include that difference.
+-		if goexperiment := GOEXPERIMENT(); goexperiment != "" {
++		if goexperiment := buildcfg.GOEXPERIMENT(); goexperiment != "" {
+ 			p = " X:" + goexperiment
+ 		}
+ 	}
+@@ -111,12 +112,12 @@ func (versionFlag) Set(s string) error {
+ 	// build ID of the binary, so that if the compiler is changed and
+ 	// rebuilt, we notice and rebuild all packages.
+ 	if s == "full" {
+-		if strings.HasPrefix(Version, "devel") {
++		if strings.HasPrefix(buildcfg.Version, "devel") {
+ 			p += " buildID=" + buildID
+ 		}
+ 	}
+ 
+-	fmt.Printf("%s version %s%s\n", name, Version, p)
++	fmt.Printf("%s version %s%s\n", name, buildcfg.Version, p)
+ 	os.Exit(0)
+ 	return nil
+ }
+diff --git a/src/cmd/internal/objabi/line.go b/src/cmd/internal/objabi/line.go
+index 0733b65138..0b1e0bb181 100644
+--- a/src/cmd/internal/objabi/line.go
++++ b/src/cmd/internal/objabi/line.go
+@@ -5,6 +5,7 @@
+ package objabi
+ 
+ import (
++	"internal/buildcfg"
+ 	"os"
+ 	"path/filepath"
+ 	"strings"
+@@ -38,8 +39,8 @@ func AbsFile(dir, file, rewrites string) string {
+ 	}
+ 
+ 	abs, rewritten := ApplyRewrites(abs, rewrites)
+-	if !rewritten && hasPathPrefix(abs, GOROOT) {
+-		abs = "$GOROOT" + abs[len(GOROOT):]
++	if !rewritten && hasPathPrefix(abs, buildcfg.GOROOT) {
++		abs = "$GOROOT" + abs[len(buildcfg.GOROOT):]
+ 	}
+ 
+ 	if abs == "" {
+diff --git a/src/cmd/internal/objabi/stack.go b/src/cmd/internal/objabi/stack.go
+index 1f531176cc..0c82a7c6dd 100644
+--- a/src/cmd/internal/objabi/stack.go
++++ b/src/cmd/internal/objabi/stack.go
+@@ -4,6 +4,8 @@
+ 
+ package objabi
+ 
++import "internal/buildcfg"
++
+ // For the linkers. Must match Go definitions.
+ 
+ const (
+@@ -22,7 +24,7 @@ var StackLimit = StackGuard - StackSystem - StackSmall
+ // builds that have larger stack frames or for specific targets.
+ func stackGuardMultiplier() int {
+ 	// On AIX, a larger stack is needed for syscalls.
+-	if GOOS == "aix" {
++	if buildcfg.GOOS == "aix" {
+ 		return 2
+ 	}
+ 	return stackGuardMultiplierDefault
+diff --git a/src/cmd/internal/objabi/util.go b/src/cmd/internal/objabi/util.go
+index 5a7a74cfde..63640950d9 100644
+--- a/src/cmd/internal/objabi/util.go
++++ b/src/cmd/internal/objabi/util.go
+@@ -6,32 +6,9 @@ package objabi
+ 
+ import (
+ 	"fmt"
+-	"log"
+-	"os"
+ 	"strings"
+-)
+-
+-func envOr(key, value string) string {
+-	if x := os.Getenv(key); x != "" {
+-		return x
+-	}
+-	return value
+-}
+ 
+-var (
+-	defaultGOROOT string // set by linker
+-
+-	GOROOT   = envOr("GOROOT", defaultGOROOT)
+-	GOARCH   = envOr("GOARCH", defaultGOARCH)
+-	GOOS     = envOr("GOOS", defaultGOOS)
+-	GO386    = envOr("GO386", defaultGO386)
+-	GOARM    = goarm()
+-	GOMIPS   = gomips()
+-	GOMIPS64 = gomips64()
+-	GOPPC64  = goppc64()
+-	GOWASM   = gowasm()
+-	GO_LDSO  = defaultGO_LDSO
+-	Version  = version
++	"internal/buildcfg"
+ )
+ 
+ const (
+@@ -39,94 +16,10 @@ const (
+ 	MachoRelocOffset = 2048 // reserve enough space for ELF relocations
+ )
+ 
+-func goarm() int {
+-	def := defaultGOARM
+-	if GOOS == "android" && GOARCH == "arm" {
+-		// Android arm devices always support GOARM=7.
+-		def = "7"
+-	}
+-	switch v := envOr("GOARM", def); v {
+-	case "5":
+-		return 5
+-	case "6":
+-		return 6
+-	case "7":
+-		return 7
+-	}
+-	// Fail here, rather than validate at multiple call sites.
+-	log.Fatalf("Invalid GOARM value. Must be 5, 6, or 7.")
+-	panic("unreachable")
+-}
+-
+-func gomips() string {
+-	switch v := envOr("GOMIPS", defaultGOMIPS); v {
+-	case "hardfloat", "softfloat":
+-		return v
+-	}
+-	log.Fatalf("Invalid GOMIPS value. Must be hardfloat or softfloat.")
+-	panic("unreachable")
+-}
+-
+-func gomips64() string {
+-	switch v := envOr("GOMIPS64", defaultGOMIPS64); v {
+-	case "hardfloat", "softfloat":
+-		return v
+-	}
+-	log.Fatalf("Invalid GOMIPS64 value. Must be hardfloat or softfloat.")
+-	panic("unreachable")
+-}
+-
+-func goppc64() int {
+-	switch v := envOr("GOPPC64", defaultGOPPC64); v {
+-	case "power8":
+-		return 8
+-	case "power9":
+-		return 9
+-	}
+-	log.Fatalf("Invalid GOPPC64 value. Must be power8 or power9.")
+-	panic("unreachable")
+-}
+-
+-type gowasmFeatures struct {
+-	SignExt bool
+-	SatConv bool
+-}
+-
+-func (f gowasmFeatures) String() string {
+-	var flags []string
+-	if f.SatConv {
+-		flags = append(flags, "satconv")
+-	}
+-	if f.SignExt {
+-		flags = append(flags, "signext")
+-	}
+-	return strings.Join(flags, ",")
+-}
+-
+-func gowasm() (f gowasmFeatures) {
+-	for _, opt := range strings.Split(envOr("GOWASM", ""), ",") {
+-		switch opt {
+-		case "satconv":
+-			f.SatConv = true
+-		case "signext":
+-			f.SignExt = true
+-		case "":
+-			// ignore
+-		default:
+-			log.Fatalf("Invalid GOWASM value. No such feature: " + opt)
+-		}
+-	}
+-	return
+-}
+-
+-func Getgoextlinkenabled() string {
+-	return envOr("GO_EXTLINK_ENABLED", defaultGO_EXTLINK_ENABLED)
+-}
+-
+ // HeaderString returns the toolchain configuration string written in
+ // Go object headers. This string ensures we don't attempt to import
+ // or link object files that are incompatible with each other. This
+ // string always starts with "go object ".
+ func HeaderString() string {
+-	return fmt.Sprintf("go object %s %s %s X:%s\n", GOOS, GOARCH, Version, strings.Join(EnabledExperiments(), ","))
++	return fmt.Sprintf("go object %s %s %s X:%s\n", buildcfg.GOOS, buildcfg.GOARCH, buildcfg.Version, strings.Join(buildcfg.EnabledExperiments(), ","))
+ }
+diff --git a/src/cmd/link/internal/ld/ar.go b/src/cmd/link/internal/ld/ar.go
+index e4fd591676..22f53a4df2 100644
+--- a/src/cmd/link/internal/ld/ar.go
++++ b/src/cmd/link/internal/ld/ar.go
+@@ -32,10 +32,10 @@ package ld
+ 
+ import (
+ 	"cmd/internal/bio"
+-	"cmd/internal/objabi"
+ 	"cmd/link/internal/sym"
+ 	"encoding/binary"
+ 	"fmt"
++	"internal/buildcfg"
+ 	"io"
+ 	"os"
+ )
+@@ -170,7 +170,7 @@ func readArmap(filename string, f *bio.Reader, arhdr ArHdr) archiveMap {
+ 
+ 		// For Mach-O and PE/386 files we strip a leading
+ 		// underscore from the symbol name.
+-		if objabi.GOOS == "darwin" || objabi.GOOS == "ios" || (objabi.GOOS == "windows" && objabi.GOARCH == "386") {
++		if buildcfg.GOOS == "darwin" || buildcfg.GOOS == "ios" || (buildcfg.GOOS == "windows" && buildcfg.GOARCH == "386") {
+ 			if name[0] == '_' && len(name) > 1 {
+ 				name = name[1:]
+ 			}
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index 9228962fb3..75fddc6a38 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -5,9 +5,9 @@
+ package ld
+ 
+ import (
+-	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"fmt"
++	"internal/buildcfg"
+ )
+ 
+ // A BuildMode indicates the sort of object we are building.
+@@ -28,23 +28,23 @@ const (
+ 
+ func (mode *BuildMode) Set(s string) error {
+ 	badmode := func() error {
+-		return fmt.Errorf("buildmode %s not supported on %s/%s", s, objabi.GOOS, objabi.GOARCH)
++		return fmt.Errorf("buildmode %s not supported on %s/%s", s, buildcfg.GOOS, buildcfg.GOARCH)
+ 	}
+ 	switch s {
+ 	default:
+ 		return fmt.Errorf("invalid buildmode: %q", s)
+ 	case "exe":
+-		switch objabi.GOOS + "/" + objabi.GOARCH {
++		switch buildcfg.GOOS + "/" + buildcfg.GOARCH {
+ 		case "darwin/arm64", "windows/arm", "windows/arm64": // On these platforms, everything is PIE
+ 			*mode = BuildModePIE
+ 		default:
+ 			*mode = BuildModeExe
+ 		}
+ 	case "pie":
+-		switch objabi.GOOS {
++		switch buildcfg.GOOS {
+ 		case "aix", "android", "linux", "windows", "darwin", "ios":
+ 		case "freebsd":
+-			switch objabi.GOARCH {
++			switch buildcfg.GOARCH {
+ 			case "amd64":
+ 			default:
+ 				return badmode()
+@@ -54,16 +54,16 @@ func (mode *BuildMode) Set(s string) error {
+ 		}
+ 		*mode = BuildModePIE
+ 	case "c-archive":
+-		switch objabi.GOOS {
++		switch buildcfg.GOOS {
+ 		case "aix", "darwin", "ios", "linux":
+ 		case "freebsd":
+-			switch objabi.GOARCH {
++			switch buildcfg.GOARCH {
+ 			case "amd64":
+ 			default:
+ 				return badmode()
+ 			}
+ 		case "windows":
+-			switch objabi.GOARCH {
++			switch buildcfg.GOARCH {
+ 			case "amd64", "386", "arm", "arm64":
+ 			default:
+ 				return badmode()
+@@ -73,16 +73,16 @@ func (mode *BuildMode) Set(s string) error {
+ 		}
+ 		*mode = BuildModeCArchive
+ 	case "c-shared":
+-		switch objabi.GOARCH {
++		switch buildcfg.GOARCH {
+ 		case "386", "amd64", "arm", "arm64", "ppc64le", "s390x":
+ 		default:
+ 			return badmode()
+ 		}
+ 		*mode = BuildModeCShared
+ 	case "shared":
+-		switch objabi.GOOS {
++		switch buildcfg.GOOS {
+ 		case "linux":
+-			switch objabi.GOARCH {
++			switch buildcfg.GOARCH {
+ 			case "386", "amd64", "arm", "arm64", "ppc64le", "s390x":
+ 			default:
+ 				return badmode()
+@@ -92,21 +92,21 @@ func (mode *BuildMode) Set(s string) error {
+ 		}
+ 		*mode = BuildModeShared
+ 	case "plugin":
+-		switch objabi.GOOS {
++		switch buildcfg.GOOS {
+ 		case "linux":
+-			switch objabi.GOARCH {
++			switch buildcfg.GOARCH {
+ 			case "386", "amd64", "arm", "arm64", "s390x", "ppc64le":
+ 			default:
+ 				return badmode()
+ 			}
+ 		case "darwin":
+-			switch objabi.GOARCH {
++			switch buildcfg.GOARCH {
+ 			case "amd64", "arm64":
+ 			default:
+ 				return badmode()
+ 			}
+ 		case "freebsd":
+-			switch objabi.GOARCH {
++			switch buildcfg.GOARCH {
+ 			case "amd64":
+ 			default:
+ 				return badmode()
+@@ -185,8 +185,8 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
+ 		}()
+ 	}
+ 
+-	if sys.MustLinkExternal(objabi.GOOS, objabi.GOARCH) {
+-		return true, fmt.Sprintf("%s/%s requires external linking", objabi.GOOS, objabi.GOARCH)
++	if sys.MustLinkExternal(buildcfg.GOOS, buildcfg.GOARCH) {
++		return true, fmt.Sprintf("%s/%s requires external linking", buildcfg.GOOS, buildcfg.GOARCH)
+ 	}
+ 
+ 	if *flagMsan {
+@@ -197,20 +197,20 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
+ 	// https://golang.org/issue/14449
+ 	// https://golang.org/issue/21961
+ 	if iscgo && ctxt.Arch.InFamily(sys.MIPS64, sys.MIPS, sys.PPC64, sys.RISCV64) {
+-		return true, objabi.GOARCH + " does not support internal cgo"
++		return true, buildcfg.GOARCH + " does not support internal cgo"
+ 	}
+-	if iscgo && (objabi.GOOS == "android" || objabi.GOOS == "dragonfly") {
++	if iscgo && (buildcfg.GOOS == "android" || buildcfg.GOOS == "dragonfly") {
+ 		// It seems that on Dragonfly thread local storage is
+ 		// set up by the dynamic linker, so internal cgo linking
+ 		// doesn't work. Test case is "go test runtime/cgo".
+-		return true, objabi.GOOS + " does not support internal cgo"
++		return true, buildcfg.GOOS + " does not support internal cgo"
+ 	}
+ 
+ 	// When the race flag is set, the LLVM tsan relocatable file is linked
+ 	// into the final binary, which means external linking is required because
+ 	// internal linking does not support it.
+ 	if *flagRace && ctxt.Arch.InFamily(sys.PPC64) {
+-		return true, "race on " + objabi.GOARCH
++		return true, "race on " + buildcfg.GOARCH
+ 	}
+ 
+ 	// Some build modes require work the internal linker cannot do (yet).
+@@ -220,7 +220,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
+ 	case BuildModeCShared:
+ 		return true, "buildmode=c-shared"
+ 	case BuildModePIE:
+-		switch objabi.GOOS + "/" + objabi.GOARCH {
++		switch buildcfg.GOOS + "/" + buildcfg.GOARCH {
+ 		case "linux/amd64", "linux/arm64", "android/arm64":
+ 		case "windows/386", "windows/amd64", "windows/arm", "windows/arm64":
+ 		case "darwin/amd64", "darwin/arm64":
+@@ -254,7 +254,7 @@ func determineLinkMode(ctxt *Link) {
+ 		// default value of -linkmode. If it is not set when the
+ 		// linker is called we take the value it was set to when
+ 		// cmd/link was compiled. (See make.bash.)
+-		switch objabi.Getgoextlinkenabled() {
++		switch buildcfg.Getgoextlinkenabled() {
+ 		case "0":
+ 			ctxt.LinkMode = LinkInternal
+ 			via = "via GO_EXTLINK_ENABLED "
+@@ -277,8 +277,8 @@ func determineLinkMode(ctxt *Link) {
+ 		}
+ 	case LinkExternal:
+ 		switch {
+-		case objabi.GOARCH == "ppc64" && objabi.GOOS != "aix":
+-			Exitf("external linking not supported for %s/ppc64", objabi.GOOS)
++		case buildcfg.GOARCH == "ppc64" && buildcfg.GOOS != "aix":
++			Exitf("external linking not supported for %s/ppc64", buildcfg.GOOS)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/link/internal/ld/data_test.go b/src/cmd/link/internal/ld/data_test.go
+index 7c46307bd8..f91493bc41 100644
+--- a/src/cmd/link/internal/ld/data_test.go
++++ b/src/cmd/link/internal/ld/data_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/loader"
++	"internal/buildcfg"
+ 	"testing"
+ )
+ 
+@@ -63,14 +64,14 @@ func TestAddGotSym(t *testing.T) {
+ 	}
+ 
+ 	// Save the architecture as we're going to set it on each test run.
+-	origArch := objabi.GOARCH
++	origArch := buildcfg.GOARCH
+ 	defer func() {
+-		objabi.GOARCH = origArch
++		buildcfg.GOARCH = origArch
+ 	}()
+ 
+ 	for i, test := range tests {
+ 		iself := len(test.rel) != 0
+-		objabi.GOARCH = test.arch.Name
++		buildcfg.GOARCH = test.arch.Name
+ 		ctxt := setUpContext(test.arch, iself, test.ht, test.bm, test.lm)
+ 		foo := ctxt.loader.CreateSymForUpdate("foo", 0)
+ 		ctxt.loader.CreateExtSym("bar", 0)
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 741a72cad8..1ed5598c99 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -11,6 +11,7 @@ import (
+ 	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
+ 	"fmt"
++	"internal/buildcfg"
+ 	"unicode"
+ )
+ 
+@@ -32,7 +33,7 @@ type deadcodePass struct {
+ func (d *deadcodePass) init() {
+ 	d.ldr.InitReachable()
+ 	d.ifaceMethod = make(map[methodsig]bool)
+-	if objabi.Experiment.FieldTrack {
++	if buildcfg.Experiment.FieldTrack {
+ 		d.ldr.Reachparent = make([]loader.Sym, d.ldr.NSym())
+ 	}
+ 	d.dynlink = d.ctxt.DynlinkingGo()
+@@ -258,7 +259,7 @@ func (d *deadcodePass) mark(symIdx, parent loader.Sym) {
+ 	if symIdx != 0 && !d.ldr.AttrReachable(symIdx) {
+ 		d.wq.push(symIdx)
+ 		d.ldr.SetAttrReachable(symIdx, true)
+-		if objabi.Experiment.FieldTrack && d.ldr.Reachparent[symIdx] == 0 {
++		if buildcfg.Experiment.FieldTrack && d.ldr.Reachparent[symIdx] == 0 {
+ 			d.ldr.Reachparent[symIdx] = parent
+ 		}
+ 		if *flagDumpDep {
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 2f19c3eaa2..c53d2408cb 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -22,6 +22,7 @@ import (
+ 	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
+ 	"fmt"
++	"internal/buildcfg"
+ 	"log"
+ 	"path"
+ 	"runtime"
+@@ -1843,7 +1844,7 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
+ 			if producerExtra := d.ldr.Lookup(dwarf.CUInfoPrefix+"producer."+unit.Lib.Pkg, 0); producerExtra != 0 {
+ 				peData = d.ldr.Data(producerExtra)
+ 			}
+-			producer := "Go cmd/compile " + objabi.Version
++			producer := "Go cmd/compile " + buildcfg.Version
+ 			if len(peData) > 0 {
+ 				// We put a semicolon before the flags to clearly
+ 				// separate them from the version, which can be long
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 3ba9f329ee..87d88dd957 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -14,6 +14,7 @@ import (
+ 	"encoding/binary"
+ 	"encoding/hex"
+ 	"fmt"
++	"internal/buildcfg"
+ 	"path/filepath"
+ 	"sort"
+ 	"strings"
+@@ -584,7 +585,7 @@ func elfWriteMipsAbiFlags(ctxt *Link) int {
+ 	ctxt.Out.Write8(1)  // gprSize
+ 	ctxt.Out.Write8(1)  // cpr1Size
+ 	ctxt.Out.Write8(0)  // cpr2Size
+-	if objabi.GOMIPS == "softfloat" {
++	if buildcfg.GOMIPS == "softfloat" {
+ 		ctxt.Out.Write8(MIPS_FPABI_SOFT) // fpAbi
+ 	} else {
+ 		// Go cannot make sure non odd-number-fpr is used (ie, in load a double from memory).
+@@ -1557,7 +1558,7 @@ func (ctxt *Link) doelf() {
+ 		gnuattributes.AddUint8(1)                 // 1:file, 2: section, 3: symbol, 1 here
+ 		gnuattributes.AddUint32(ctxt.Arch, 7)     // tag length, including tag, 7 here
+ 		gnuattributes.AddUint8(4)                 // 4 for FP, 8 for MSA
+-		if objabi.GOMIPS == "softfloat" {
++		if buildcfg.GOMIPS == "softfloat" {
+ 			gnuattributes.AddUint8(MIPS_FPABI_SOFT)
+ 		} else {
+ 			// Note: MIPS_FPABI_ANY is bad naming: in fact it is MIPS I style FPR usage.
+@@ -1743,14 +1744,14 @@ func asmbElf(ctxt *Link) {
+ 		sh.Flags = uint64(elf.SHF_ALLOC)
+ 		sh.Addralign = 1
+ 
+-		if interpreter == "" && objabi.GO_LDSO != "" {
+-			interpreter = objabi.GO_LDSO
++		if interpreter == "" && buildcfg.GO_LDSO != "" {
++			interpreter = buildcfg.GO_LDSO
+ 		}
+ 
+ 		if interpreter == "" {
+ 			switch ctxt.HeadType {
+ 			case objabi.Hlinux:
+-				if objabi.GOOS == "android" {
++				if buildcfg.GOOS == "android" {
+ 					interpreter = thearch.Androiddynld
+ 					if interpreter == "" {
+ 						Exitf("ELF interpreter not set")
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index b709569103..b814a277e6 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -49,6 +49,7 @@ import (
+ 	"encoding/base64"
+ 	"encoding/binary"
+ 	"fmt"
++	"internal/buildcfg"
+ 	exec "internal/execabs"
+ 	"io"
+ 	"io/ioutil"
+@@ -379,7 +380,7 @@ func libinit(ctxt *Link) {
+ 		suffix = "msan"
+ 	}
+ 
+-	Lflag(ctxt, filepath.Join(objabi.GOROOT, "pkg", fmt.Sprintf("%s_%s%s%s", objabi.GOOS, objabi.GOARCH, suffixsep, suffix)))
++	Lflag(ctxt, filepath.Join(buildcfg.GOROOT, "pkg", fmt.Sprintf("%s_%s%s%s", buildcfg.GOOS, buildcfg.GOARCH, suffixsep, suffix)))
+ 
+ 	mayberemoveoutfile()
+ 
+@@ -390,9 +391,9 @@ func libinit(ctxt *Link) {
+ 	if *flagEntrySymbol == "" {
+ 		switch ctxt.BuildMode {
+ 		case BuildModeCShared, BuildModeCArchive:
+-			*flagEntrySymbol = fmt.Sprintf("_rt0_%s_%s_lib", objabi.GOARCH, objabi.GOOS)
++			*flagEntrySymbol = fmt.Sprintf("_rt0_%s_%s_lib", buildcfg.GOARCH, buildcfg.GOOS)
+ 		case BuildModeExe, BuildModePIE:
+-			*flagEntrySymbol = fmt.Sprintf("_rt0_%s_%s", objabi.GOARCH, objabi.GOOS)
++			*flagEntrySymbol = fmt.Sprintf("_rt0_%s_%s", buildcfg.GOARCH, buildcfg.GOOS)
+ 		case BuildModeShared, BuildModePlugin:
+ 			// No *flagEntrySymbol for -buildmode=shared and plugin
+ 		default:
+@@ -495,7 +496,7 @@ func (ctxt *Link) loadlib() {
+ 	default:
+ 		log.Fatalf("invalid -strictdups flag value %d", *FlagStrictDups)
+ 	}
+-	if !objabi.Experiment.RegabiWrappers || ctxt.linkShared {
++	if !buildcfg.Experiment.RegabiWrappers || ctxt.linkShared {
+ 		// Use ABI aliases if ABI wrappers are not used.
+ 		// TODO: for now we still use ABI aliases in shared linkage, even if
+ 		// the wrapper is enabled.
+@@ -543,7 +544,7 @@ func (ctxt *Link) loadlib() {
+ 	// We now have enough information to determine the link mode.
+ 	determineLinkMode(ctxt)
+ 
+-	if ctxt.LinkMode == LinkExternal && !iscgo && !(objabi.GOOS == "darwin" && ctxt.BuildMode != BuildModePlugin && ctxt.Arch.Family == sys.AMD64) {
++	if ctxt.LinkMode == LinkExternal && !iscgo && !(buildcfg.GOOS == "darwin" && ctxt.BuildMode != BuildModePlugin && ctxt.Arch.Family == sys.AMD64) {
+ 		// This indicates a user requested -linkmode=external.
+ 		// The startup code uses an import of runtime/cgo to decide
+ 		// whether to initialize the TLS.  So give it one. This could
+@@ -705,7 +706,7 @@ func (ctxt *Link) linksetup() {
+ 		}
+ 	}
+ 
+-	if ctxt.LinkMode == LinkExternal && ctxt.Arch.Family == sys.PPC64 && objabi.GOOS != "aix" {
++	if ctxt.LinkMode == LinkExternal && ctxt.Arch.Family == sys.PPC64 && buildcfg.GOOS != "aix" {
+ 		toc := ctxt.loader.LookupOrCreateSym(".TOC.", 0)
+ 		sb := ctxt.loader.MakeSymbolUpdater(toc)
+ 		sb.SetType(sym.SDYNIMPORT)
+@@ -714,7 +715,7 @@ func (ctxt *Link) linksetup() {
+ 	// The Android Q linker started to complain about underalignment of the our TLS
+ 	// section. We don't actually use the section on android, so don't
+ 	// generate it.
+-	if objabi.GOOS != "android" {
++	if buildcfg.GOOS != "android" {
+ 		tlsg := ctxt.loader.LookupOrCreateSym("runtime.tlsg", 0)
+ 		sb := ctxt.loader.MakeSymbolUpdater(tlsg)
+ 
+@@ -755,7 +756,7 @@ func (ctxt *Link) linksetup() {
+ 			sb := ctxt.loader.MakeSymbolUpdater(goarm)
+ 			sb.SetType(sym.SDATA)
+ 			sb.SetSize(0)
+-			sb.AddUint8(uint8(objabi.GOARM))
++			sb.AddUint8(uint8(buildcfg.GOARM))
+ 		}
+ 
+ 		// Set runtime.disableMemoryProfiling bool if
+@@ -1248,7 +1249,7 @@ func (ctxt *Link) hostlink() {
+ 			// -headerpad is incompatible with -fembed-bitcode.
+ 			argv = append(argv, "-Wl,-headerpad,1144")
+ 		}
+-		if ctxt.DynlinkingGo() && objabi.GOOS != "ios" {
++		if ctxt.DynlinkingGo() && buildcfg.GOOS != "ios" {
+ 			// -flat_namespace is deprecated on iOS.
+ 			// It is useful for supporting plugins. We don't support plugins on iOS.
+ 			argv = append(argv, "-Wl,-flat_namespace")
+@@ -1366,12 +1367,12 @@ func (ctxt *Link) hostlink() {
+ 		// from the beginning of the section (like sym.STYPE).
+ 		argv = append(argv, "-Wl,-znocopyreloc")
+ 
+-		if objabi.GOOS == "android" {
++		if buildcfg.GOOS == "android" {
+ 			// Use lld to avoid errors from default linker (issue #38838)
+ 			altLinker = "lld"
+ 		}
+ 
+-		if ctxt.Arch.InFamily(sys.ARM, sys.ARM64) && objabi.GOOS == "linux" {
++		if ctxt.Arch.InFamily(sys.ARM, sys.ARM64) && buildcfg.GOOS == "linux" {
+ 			// On ARM, the GNU linker will generate COPY relocations
+ 			// even with -znocopyreloc set.
+ 			// https://sourceware.org/bugzilla/show_bug.cgi?id=19962
+@@ -1393,7 +1394,7 @@ func (ctxt *Link) hostlink() {
+ 			}
+ 		}
+ 	}
+-	if ctxt.Arch.Family == sys.ARM64 && objabi.GOOS == "freebsd" {
++	if ctxt.Arch.Family == sys.ARM64 && buildcfg.GOOS == "freebsd" {
+ 		// Switch to ld.bfd on freebsd/arm64.
+ 		altLinker = "bfd"
+ 
+@@ -1420,7 +1421,7 @@ func (ctxt *Link) hostlink() {
+ 	// only want to do this when producing a Windows output file
+ 	// on a Windows host.
+ 	outopt := *flagOutfile
+-	if objabi.GOOS == "windows" && runtime.GOOS == "windows" && filepath.Ext(outopt) == "" {
++	if buildcfg.GOOS == "windows" && runtime.GOOS == "windows" && filepath.Ext(outopt) == "" {
+ 		outopt += "."
+ 	}
+ 	argv = append(argv, "-o")
+@@ -1737,7 +1738,7 @@ func hostlinkArchArgs(arch *sys.Arch) []string {
+ 	case sys.I386:
+ 		return []string{"-m32"}
+ 	case sys.AMD64:
+-		if objabi.GOOS == "darwin" {
++		if buildcfg.GOOS == "darwin" {
+ 			return []string{"-arch", "x86_64", "-m64"}
+ 		}
+ 		return []string{"-m64"}
+@@ -1746,7 +1747,7 @@ func hostlinkArchArgs(arch *sys.Arch) []string {
+ 	case sys.ARM:
+ 		return []string{"-marm"}
+ 	case sys.ARM64:
+-		if objabi.GOOS == "darwin" {
++		if buildcfg.GOOS == "darwin" {
+ 			return []string{"-arch", "arm64"}
+ 		}
+ 	case sys.MIPS64:
+@@ -1754,7 +1755,7 @@ func hostlinkArchArgs(arch *sys.Arch) []string {
+ 	case sys.MIPS:
+ 		return []string{"-mabi=32"}
+ 	case sys.PPC64:
+-		if objabi.GOOS == "aix" {
++		if buildcfg.GOOS == "aix" {
+ 			return []string{"-maix64"}
+ 		} else {
+ 			return []string{"-m64"}
+@@ -1862,7 +1863,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 	}
+ 
+ 	// First, check that the basic GOOS, GOARCH, and Version match.
+-	t := fmt.Sprintf("%s %s %s ", objabi.GOOS, objabi.GOARCH, objabi.Version)
++	t := fmt.Sprintf("%s %s %s ", buildcfg.GOOS, buildcfg.GOARCH, buildcfg.Version)
+ 
+ 	line = strings.TrimRight(line, "\n")
+ 	if !strings.HasPrefix(line[10:]+" ", t) && !*flagF {
+@@ -2084,7 +2085,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 
+ 	// collect text symbol ABI versions.
+ 	symabi := make(map[string]int) // map (unmangled) symbol name to version
+-	if objabi.Experiment.RegabiWrappers {
++	if buildcfg.Experiment.RegabiWrappers {
+ 		for _, elfsym := range syms {
+ 			if elf.ST_TYPE(elfsym.Info) != elf.STT_FUNC {
+ 				continue
+@@ -2112,7 +2113,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 		symname := elfsym.Name // (unmangled) symbol name
+ 		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && strings.HasPrefix(elfsym.Name, "type.") {
+ 			ver = sym.SymVerABIInternal
+-		} else if objabi.Experiment.RegabiWrappers && elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC {
++		} else if buildcfg.Experiment.RegabiWrappers && elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC {
+ 			if strings.HasSuffix(elfsym.Name, ".abiinternal") {
+ 				ver = sym.SymVerABIInternal
+ 				symname = strings.TrimSuffix(elfsym.Name, ".abiinternal")
+@@ -2162,7 +2163,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 		// mangle Go function names in the .so to include the
+ 		// ABI.
+ 		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && ver == 0 {
+-			if objabi.Experiment.RegabiWrappers {
++			if buildcfg.Experiment.RegabiWrappers {
+ 				if _, ok := symabi[symname]; ok {
+ 					continue // only use alias for functions w/o ABI wrappers
+ 				}
+@@ -2234,7 +2235,7 @@ func (ctxt *Link) dostkcheck() {
+ 	// of non-splitting functions.
+ 	var ch chain
+ 	ch.limit = objabi.StackLimit - callsize(ctxt)
+-	if objabi.GOARCH == "arm64" {
++	if buildcfg.GOARCH == "arm64" {
+ 		// need extra 8 bytes below SP to save FP
+ 		ch.limit -= 8
+ 	}
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 4c55c5761f..98c9a32f4d 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -15,6 +15,7 @@ import (
+ 	"debug/macho"
+ 	"encoding/binary"
+ 	"fmt"
++	"internal/buildcfg"
+ 	"io"
+ 	"os"
+ 	"sort"
+@@ -945,12 +946,12 @@ func collectmachosyms(ctxt *Link) {
+ 			if machoPlatform == PLATFORM_MACOS {
+ 				switch n := ldr.SymExtname(s); n {
+ 				case "fdopendir":
+-					switch objabi.GOARCH {
++					switch buildcfg.GOARCH {
+ 					case "amd64":
+ 						ldr.SetSymExtname(s, n+"$INODE64")
+ 					}
+ 				case "readdir_r", "getfsstat":
+-					switch objabi.GOARCH {
++					switch buildcfg.GOARCH {
+ 					case "amd64":
+ 						ldr.SetSymExtname(s, n+"$INODE64")
+ 					}
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 1e3c3bdff7..7ab9ca7d10 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -37,6 +37,7 @@ import (
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/benchmark"
+ 	"flag"
++	"internal/buildcfg"
+ 	"log"
+ 	"os"
+ 	"runtime"
+@@ -118,14 +119,14 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	addstrdata1(ctxt, "runtime.defaultGOROOT="+final)
+ 	addstrdata1(ctxt, "cmd/internal/objabi.defaultGOROOT="+final)
+ 
+-	buildVersion := objabi.Version
+-	if goexperiment := objabi.GOEXPERIMENT(); goexperiment != "" {
++	buildVersion := buildcfg.Version
++	if goexperiment := buildcfg.GOEXPERIMENT(); goexperiment != "" {
+ 		buildVersion += " X:" + goexperiment
+ 	}
+ 	addstrdata1(ctxt, "runtime.buildVersion="+buildVersion)
+ 
+ 	// TODO(matloob): define these above and then check flag values here
+-	if ctxt.Arch.Family == sys.AMD64 && objabi.GOOS == "plan9" {
++	if ctxt.Arch.Family == sys.AMD64 && buildcfg.GOOS == "plan9" {
+ 		flag.BoolVar(&flag8, "8", false, "use 64-bit addresses in symbol table")
+ 	}
+ 	flagHeadType := flag.String("H", "", "set header `type`")
+@@ -159,7 +160,7 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 		}
+ 	}
+ 	if ctxt.HeadType == objabi.Hunknown {
+-		ctxt.HeadType.Set(objabi.GOOS)
++		ctxt.HeadType.Set(buildcfg.GOOS)
+ 	}
+ 
+ 	if !*flagAslr && ctxt.BuildMode != BuildModeCShared {
+@@ -255,7 +256,7 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 
+ 	bench.Start("dostrdata")
+ 	ctxt.dostrdata()
+-	if objabi.Experiment.FieldTrack {
++	if buildcfg.Experiment.FieldTrack {
+ 		bench.Start("fieldtrack")
+ 		fieldtrack(ctxt.Arch, ctxt.loader)
+ 	}
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 61b64f4f5a..79ad9d73e9 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -11,6 +11,7 @@ import (
+ 	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
+ 	"fmt"
++	"internal/buildcfg"
+ 	"os"
+ 	"path/filepath"
+ )
+@@ -879,7 +880,7 @@ func (ctxt *Link) pclntab(container loader.Bitmap) *pclntab {
+ }
+ 
+ func gorootFinal() string {
+-	root := objabi.GOROOT
++	root := buildcfg.GOROOT
+ 	if final := os.Getenv("GOROOT_FINAL"); final != "" {
+ 		root = final
+ 	}
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 3ed8943828..729b6b2443 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -15,6 +15,7 @@ import (
+ 	"debug/pe"
+ 	"encoding/binary"
+ 	"fmt"
++	"internal/buildcfg"
+ 	"sort"
+ 	"strconv"
+ 	"strings"
+@@ -481,9 +482,9 @@ func (f *peFile) addInitArray(ctxt *Link) *peSection {
+ 	// that this will need to grow in the future.
+ 	var size int
+ 	var alignment uint32
+-	switch objabi.GOARCH {
++	switch buildcfg.GOARCH {
+ 	default:
+-		Exitf("peFile.addInitArray: unsupported GOARCH=%q\n", objabi.GOARCH)
++		Exitf("peFile.addInitArray: unsupported GOARCH=%q\n", buildcfg.GOARCH)
+ 	case "386", "arm":
+ 		size = 4
+ 		alignment = IMAGE_SCN_ALIGN_4BYTES
+@@ -499,7 +500,7 @@ func (f *peFile) addInitArray(ctxt *Link) *peSection {
+ 
+ 	init_entry := ctxt.loader.Lookup(*flagEntrySymbol, 0)
+ 	addr := uint64(ctxt.loader.SymValue(init_entry)) - ctxt.loader.SymSect(init_entry).Vaddr
+-	switch objabi.GOARCH {
++	switch buildcfg.GOARCH {
+ 	case "386", "arm":
+ 		ctxt.Out.Write32(uint32(addr))
+ 	case "amd64", "arm64":
+@@ -610,9 +611,9 @@ dwarfLoop:
+ 		dottext := ldr.Lookup(".text", 0)
+ 		ctxt.Out.Write32(0)
+ 		ctxt.Out.Write32(uint32(ldr.SymDynid(dottext)))
+-		switch objabi.GOARCH {
++		switch buildcfg.GOARCH {
+ 		default:
+-			ctxt.Errorf(dottext, "unknown architecture for PE: %q\n", objabi.GOARCH)
++			ctxt.Errorf(dottext, "unknown architecture for PE: %q\n", buildcfg.GOARCH)
+ 		case "386":
+ 			ctxt.Out.Write16(IMAGE_REL_I386_DIR32)
+ 		case "amd64":
+diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
+index 75489720cc..72639962e2 100644
+--- a/src/cmd/link/internal/ld/sym.go
++++ b/src/cmd/link/internal/ld/sym.go
+@@ -36,6 +36,7 @@ import (
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
++	"internal/buildcfg"
+ 	"log"
+ 	"runtime"
+ )
+@@ -53,8 +54,8 @@ func linknew(arch *sys.Arch) *Link {
+ 		generatorSyms: make(map[loader.Sym]generatorFunc),
+ 	}
+ 
+-	if objabi.GOARCH != arch.Name {
+-		log.Fatalf("invalid objabi.GOARCH %s (want %s)", objabi.GOARCH, arch.Name)
++	if buildcfg.GOARCH != arch.Name {
++		log.Fatalf("invalid buildcfg.GOARCH %s (want %s)", buildcfg.GOARCH, arch.Name)
+ 	}
+ 
+ 	AtExit(func() {
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index dcb9d7eb48..013f7b55b6 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -37,6 +37,7 @@ import (
+ 	"cmd/link/internal/sym"
+ 	"debug/elf"
+ 	"fmt"
++	"internal/buildcfg"
+ 	"path/filepath"
+ 	"strings"
+ )
+@@ -844,7 +845,7 @@ func mangleABIName(ldr *loader.Loader, x loader.Sym, name string) string {
+ 	// TODO: avoid the ldr.Lookup calls below by instead using an aux
+ 	// sym or marker relocation to associate the wrapper with the
+ 	// wrapped function.
+-	if !objabi.Experiment.RegabiWrappers {
++	if !buildcfg.Experiment.RegabiWrappers {
+ 		return name
+ 	}
+ 
+diff --git a/src/cmd/link/internal/mips/obj.go b/src/cmd/link/internal/mips/obj.go
+index f20597c0f5..5ca7582529 100644
+--- a/src/cmd/link/internal/mips/obj.go
++++ b/src/cmd/link/internal/mips/obj.go
+@@ -34,11 +34,12 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/ld"
++	"internal/buildcfg"
+ )
+ 
+ func Init() (*sys.Arch, ld.Arch) {
+ 	arch := sys.ArchMIPS
+-	if objabi.GOARCH == "mipsle" {
++	if buildcfg.GOARCH == "mipsle" {
+ 		arch = sys.ArchMIPSLE
+ 	}
+ 
+diff --git a/src/cmd/link/internal/mips64/obj.go b/src/cmd/link/internal/mips64/obj.go
+index 01d89a209c..544e1ef7be 100644
+--- a/src/cmd/link/internal/mips64/obj.go
++++ b/src/cmd/link/internal/mips64/obj.go
+@@ -34,11 +34,12 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/ld"
++	"internal/buildcfg"
+ )
+ 
+ func Init() (*sys.Arch, ld.Arch) {
+ 	arch := sys.ArchMIPS64
+-	if objabi.GOARCH == "mips64le" {
++	if buildcfg.GOARCH == "mips64le" {
+ 		arch = sys.ArchMIPS64LE
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ppc64/obj.go b/src/cmd/link/internal/ppc64/obj.go
+index ef4393f489..54d4606487 100644
+--- a/src/cmd/link/internal/ppc64/obj.go
++++ b/src/cmd/link/internal/ppc64/obj.go
+@@ -34,11 +34,12 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/ld"
++	"internal/buildcfg"
+ )
+ 
+ func Init() (*sys.Arch, ld.Arch) {
+ 	arch := sys.ArchPPC64
+-	if objabi.GOARCH == "ppc64le" {
++	if buildcfg.GOARCH == "ppc64le" {
+ 		arch = sys.ArchPPC64LE
+ 	}
+ 
+diff --git a/src/cmd/link/internal/wasm/asm.go b/src/cmd/link/internal/wasm/asm.go
+index 31851fbb56..5bdfdbaee6 100644
+--- a/src/cmd/link/internal/wasm/asm.go
++++ b/src/cmd/link/internal/wasm/asm.go
+@@ -10,6 +10,7 @@ import (
+ 	"cmd/link/internal/ld"
+ 	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
++	"internal/buildcfg"
+ 	"io"
+ 	"regexp"
+ )
+@@ -506,15 +507,15 @@ func writeProducerSec(ctxt *ld.Link) {
+ 
+ 	writeUleb128(ctxt.Out, 2) // number of fields
+ 
+-	writeName(ctxt.Out, "language")     // field name
+-	writeUleb128(ctxt.Out, 1)           // number of values
+-	writeName(ctxt.Out, "Go")           // value: name
+-	writeName(ctxt.Out, objabi.Version) // value: version
++	writeName(ctxt.Out, "language")       // field name
++	writeUleb128(ctxt.Out, 1)             // number of values
++	writeName(ctxt.Out, "Go")             // value: name
++	writeName(ctxt.Out, buildcfg.Version) // value: version
+ 
+ 	writeName(ctxt.Out, "processed-by")   // field name
+ 	writeUleb128(ctxt.Out, 1)             // number of values
+ 	writeName(ctxt.Out, "Go cmd/compile") // value: name
+-	writeName(ctxt.Out, objabi.Version)   // value: version
++	writeName(ctxt.Out, buildcfg.Version) // value: version
+ 
+ 	writeSecSize(ctxt, sizeOffset)
+ }
+diff --git a/src/cmd/link/linkbig_test.go b/src/cmd/link/linkbig_test.go
+index 917bd9e8a3..9a4430c162 100644
+--- a/src/cmd/link/linkbig_test.go
++++ b/src/cmd/link/linkbig_test.go
+@@ -10,8 +10,8 @@ package main
+ 
+ import (
+ 	"bytes"
+-	"cmd/internal/objabi"
+ 	"fmt"
++	"internal/buildcfg"
+ 	"internal/testenv"
+ 	"io/ioutil"
+ 	"os/exec"
+@@ -19,8 +19,8 @@ import (
+ )
+ 
+ func TestLargeText(t *testing.T) {
+-	if testing.Short() || (objabi.GOARCH != "ppc64le" && objabi.GOARCH != "ppc64" && objabi.GOARCH != "arm") {
+-		t.Skipf("Skipping large text section test in short mode or on %s", objabi.GOARCH)
++	if testing.Short() || (buildcfg.GOARCH != "ppc64le" && buildcfg.GOARCH != "ppc64" && buildcfg.GOARCH != "arm") {
++		t.Skipf("Skipping large text section test in short mode or on %s", buildcfg.GOARCH)
+ 	}
+ 	testenv.MustHaveGoBuild(t)
+ 
+@@ -42,7 +42,7 @@ func TestLargeText(t *testing.T) {
+ 		"ppc64le": "\tMOVD\tR0,R3\n",
+ 		"arm":     "\tMOVW\tR0,R1\n",
+ 	}
+-	inst := instOnArch[objabi.GOARCH]
++	inst := instOnArch[buildcfg.GOARCH]
+ 	for j := 0; j < FN; j++ {
+ 		testname := fmt.Sprintf("bigfn%d", j)
+ 		fmt.Fprintf(&w, "TEXT ·%s(SB),$0\n", testname)
+diff --git a/src/cmd/link/main.go b/src/cmd/link/main.go
+index 6b4ca9706d..d92478e61e 100644
+--- a/src/cmd/link/main.go
++++ b/src/cmd/link/main.go
+@@ -5,7 +5,6 @@
+ package main
+ 
+ import (
+-	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/amd64"
+ 	"cmd/link/internal/arm"
+@@ -19,6 +18,7 @@ import (
+ 	"cmd/link/internal/wasm"
+ 	"cmd/link/internal/x86"
+ 	"fmt"
++	"internal/buildcfg"
+ 	"os"
+ )
+ 
+@@ -40,9 +40,10 @@ func main() {
+ 	var arch *sys.Arch
+ 	var theArch ld.Arch
+ 
+-	switch objabi.GOARCH {
++	buildcfg.Check()
++	switch buildcfg.GOARCH {
+ 	default:
+-		fmt.Fprintf(os.Stderr, "link: unknown architecture %q\n", objabi.GOARCH)
++		fmt.Fprintf(os.Stderr, "link: unknown architecture %q\n", buildcfg.GOARCH)
+ 		os.Exit(2)
+ 	case "386":
+ 		arch, theArch = x86.Init()
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index a1ed834c71..1b93348edb 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -297,7 +297,10 @@ var depsRules = `
+ 	container/heap, go/constant, go/parser, regexp
+ 	< go/types;
+ 
+-	go/build/constraint, go/doc, go/parser, internal/goroot, internal/goversion
++	FMT, internal/goexperiment
++	< internal/buildcfg;
++
++	go/build/constraint, go/doc, go/parser, internal/buildcfg, internal/goroot, internal/goversion
+ 	< go/build;
+ 
+ 	DEBUG, go/build, go/types, text/scanner
+diff --git a/src/internal/buildcfg/cfg.go b/src/internal/buildcfg/cfg.go
+new file mode 100644
+index 0000000000..9fe7f211fb
+--- /dev/null
++++ b/src/internal/buildcfg/cfg.go
+@@ -0,0 +1,136 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package buildcfg provides access to the build configuration
++// described by the current environment. It is for use by build tools
++// such as cmd/go or cmd/compile and for setting up go/build's Default context.
++//
++// Note that it does NOT provide access to the build configuration used to
++// build the currently-running binary. For that, use runtime.GOOS etc
++// as well as internal/goexperiment.
++package buildcfg
++
++import (
++	"fmt"
++	"os"
++	"path/filepath"
++	"strings"
++)
++
++var (
++	defaultGOROOT string // set by linker
++
++	GOROOT   = envOr("GOROOT", defaultGOROOT)
++	GOARCH   = envOr("GOARCH", defaultGOARCH)
++	GOOS     = envOr("GOOS", defaultGOOS)
++	GO386    = envOr("GO386", defaultGO386)
++	GOARM    = goarm()
++	GOMIPS   = gomips()
++	GOMIPS64 = gomips64()
++	GOPPC64  = goppc64()
++	GOWASM   = gowasm()
++	GO_LDSO  = defaultGO_LDSO
++	Version  = version
++)
++
++// Error is one of the errors found (if any) in the build configuration.
++var Error error
++
++// Check exits the program with a fatal error if Error is non-nil.
++func Check() {
++	if Error != nil {
++		fmt.Fprintf(os.Stderr, "%s: %v\n", filepath.Base(os.Args[0]), Error)
++		os.Exit(2)
++	}
++}
++
++func envOr(key, value string) string {
++	if x := os.Getenv(key); x != "" {
++		return x
++	}
++	return value
++}
++
++func goarm() int {
++	def := defaultGOARM
++	if GOOS == "android" && GOARCH == "arm" {
++		// Android arm devices always support GOARM=7.
++		def = "7"
++	}
++	switch v := envOr("GOARM", def); v {
++	case "5":
++		return 5
++	case "6":
++		return 6
++	case "7":
++		return 7
++	}
++	Error = fmt.Errorf("invalid GOARM: must be 5, 6, 7")
++	return int(def[0] - '0')
++}
++
++func gomips() string {
++	switch v := envOr("GOMIPS", defaultGOMIPS); v {
++	case "hardfloat", "softfloat":
++		return v
++	}
++	Error = fmt.Errorf("invalid GOMIPS: must be hardfloat, softfloat")
++	return defaultGOMIPS
++}
++
++func gomips64() string {
++	switch v := envOr("GOMIPS64", defaultGOMIPS64); v {
++	case "hardfloat", "softfloat":
++		return v
++	}
++	Error = fmt.Errorf("invalid GOMIPS64: must be hardfloat, softfloat")
++	return defaultGOMIPS64
++}
++
++func goppc64() int {
++	switch v := envOr("GOPPC64", defaultGOPPC64); v {
++	case "power8":
++		return 8
++	case "power9":
++		return 9
++	}
++	Error = fmt.Errorf("invalid GOPPC64: must be power8, power9")
++	return int(defaultGOPPC64[len("power")] - '0')
++}
++
++type gowasmFeatures struct {
++	SignExt bool
++	SatConv bool
++}
++
++func (f gowasmFeatures) String() string {
++	var flags []string
++	if f.SatConv {
++		flags = append(flags, "satconv")
++	}
++	if f.SignExt {
++		flags = append(flags, "signext")
++	}
++	return strings.Join(flags, ",")
++}
++
++func gowasm() (f gowasmFeatures) {
++	for _, opt := range strings.Split(envOr("GOWASM", ""), ",") {
++		switch opt {
++		case "satconv":
++			f.SatConv = true
++		case "signext":
++			f.SignExt = true
++		case "":
++			// ignore
++		default:
++			Error = fmt.Errorf("invalid GOWASM: no such feature %q", opt)
++		}
++	}
++	return
++}
++
++func Getgoextlinkenabled() string {
++	return envOr("GO_EXTLINK_ENABLED", defaultGO_EXTLINK_ENABLED)
++}
+diff --git a/src/cmd/internal/objabi/exp.go b/src/internal/buildcfg/exp.go
+similarity index 94%
+rename from src/cmd/internal/objabi/exp.go
+rename to src/internal/buildcfg/exp.go
+index 3371c6c8f8..dc0adb0963 100644
+--- a/src/cmd/internal/objabi/exp.go
++++ b/src/internal/buildcfg/exp.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package objabi
++package buildcfg
+ 
+ import (
+ 	"fmt"
+@@ -23,7 +23,7 @@ var Experiment goexperiment.Flags = parseExperiments()
+ // experimentBaseline specifies the experiment flags that are enabled by
+ // default in the current toolchain. This is, in effect, the "control"
+ // configuration and any variation from this is an experiment.
+-var experimentBaseline goexperiment.Flags
++var experimentBaseline = goexperiment.Flags{}
+ 
+ // FramePointerEnabled enables the use of platform conventions for
+ // saving frame pointers.
+@@ -149,3 +149,9 @@ func GOEXPERIMENT() string {
+ func EnabledExperiments() []string {
+ 	return expList(&Experiment, nil, false)
+ }
++
++// AllExperiments returns a list of all experiment settings.
++// Disabled experiments appear in the list prefixed by "no".
++func AllExperiments() []string {
++	return expList(&Experiment, nil, true)
++}
+diff --git a/src/internal/goexperiment/flags.go b/src/internal/goexperiment/flags.go
+index 932df10ded..e77734caa4 100644
+--- a/src/internal/goexperiment/flags.go
++++ b/src/internal/goexperiment/flags.go
+@@ -30,7 +30,16 @@
+ // and "go version <binary>" if it differs from the default experiments.
+ //
+ // For the set of experiments supported by the current toolchain, see
+-// go doc internal/experiment.Flags.
++// "go doc goexperiment.Flags".
++//
++// Note that this package defines the set of experiments (in Flags)
++// and records the experiments that were enabled when the package
++// was compiled (as boolean and integer constants).
++//
++// Note especially that this package does not itself change behavior
++// at run time based on the GOEXPERIMENT variable.
++// The code used in builds to interpret the GOEXPERIMENT variable
++// is in the separate package internal/buildcfg.
+ package goexperiment
+ 
+ //go:generate go run mkconsts.go

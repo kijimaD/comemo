@@ -8,6 +8,20 @@ Date:   Thu Mar 20 22:21:10 2014 +0100
     R=iant, khr, rsc, dave
     CC=golang-codereviews
     https://golang.org/cl/77960044
-
+---
  src/cmd/6g/ggen.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 6dcf263035..e051939b21 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -31,7 +31,7 @@ defframe(Prog *ptxt)
+ 	// when it looks for pointers.
+ 	p = ptxt;
+ 	if(stkzerosize % widthreg != 0)
+-		fatal("zero size not a multiple of ptr size");
++		fatal("zero size not a multiple of reg size");
+ 	if(stkzerosize == 0) {
+ 		// nothing
+ 	} else if(stkzerosize <= 2*widthreg) {

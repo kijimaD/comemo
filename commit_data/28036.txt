@@ -29,7 +29,34 @@ Date:   Fri Mar 11 14:08:10 2016 -0500
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/proc.go  | 3 ---
  src/runtime/stack.go | 1 +
  2 files changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index d5acbee0a7..dcdc7bedb8 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -681,9 +681,6 @@ func casfrom_Gscanstatus(gp *g, oldval, newval uint32) {
+ 		dumpgstatus(gp)
+ 		throw("casfrom_Gscanstatus: gp->status is not in scan state")
+ 	}
+-	if newval == _Grunning {
+-		gp.gcscanvalid = false
+-	}
+ }
+ 
+ // This will return false if the gp is not in the expected status and the cas fails.
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index dcb1b06dbd..c4b1fb862e 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -1016,6 +1016,7 @@ func newstack() {
+ 			gp.preemptscan = false
+ 			gp.preempt = false
+ 			casfrom_Gscanstatus(gp, _Gscanwaiting, _Gwaiting)
++			// This clears gcscanvalid.
+ 			casgstatus(gp, _Gwaiting, _Grunning)
+ 			gp.stackguard0 = gp.stack.lo + _StackGuard
+ 			gogo(&gp.sched) // never return

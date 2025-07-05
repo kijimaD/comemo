@@ -16,6 +16,22 @@ Date:   Tue Sep 11 08:47:30 2012 +1000
     R=rsc
     CC=dvyukov, gobot, golang-dev, r
     https://golang.org/cl/6489075
-
+---
  doc/go_mem.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_mem.html b/doc/go_mem.html
+index ece230638e..0b73e43c4a 100644
+--- a/doc/go_mem.html
++++ b/doc/go_mem.html
+@@ -270,8 +270,8 @@ before the <code>print</code>.
+ <p>
+ If the channel were buffered (e.g., <code>c = make(chan int, 1)</code>)
+ then the program would not be guaranteed to print
+-<code>"hello, world"</code>.  (It might print the empty string;
+-it cannot print <code>"goodbye, universe"</code>, nor can it crash.)
++<code>"hello, world"</code>.  (It might print the empty string,
++crash, or do something else.)
+ </p>
+ 
+ <h3>Locks</h3>

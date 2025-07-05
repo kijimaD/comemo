@@ -12,7 +12,7 @@ Date:   Mon Aug 26 19:37:15 2024 +0200
     Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  doc/godebug.md                     |  5 +++++
  src/crypto/rand/rand.go            |  7 +++++++
  src/crypto/rand/rand_linux_test.go | 12 +++++-------
@@ -20,3 +20,168 @@ Date:   Mon Aug 26 19:37:15 2024 +0200
  src/internal/godebugs/table.go     |  1 +
  src/runtime/metrics/doc.go         |  4 ++++
  6 files changed, 62 insertions(+), 7 deletions(-)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index 7b5fd3e48b..a97d8234fe 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -168,6 +168,11 @@ For Go 1.24, it now defaults to multipathtcp="2", thus
+ enabled by default on listerners. Using multipathtcp="0" reverts to the
+ pre-Go 1.24 behavior.
+ 
++Go 1.24 changed [`crypto/rand.Read`](/pkg/crypto/rand/#Read) to crash the
++program on any error. This setting is controlled by the `randcrash` setting.
++For Go 1.24 it defaults to `randcrash=1`.
++Using `randcrash=0` reverts to the pre-Go 1.24 behavior.
++
+ ### Go 1.23
+ 
+ Go 1.23 changed the channels created by package time to be unbuffered
+diff --git a/src/crypto/rand/rand.go b/src/crypto/rand/rand.go
+index b3d0a7368f..7c18d595c2 100644
+--- a/src/crypto/rand/rand.go
++++ b/src/crypto/rand/rand.go
+@@ -8,6 +8,7 @@ package rand
+ 
+ import (
+ 	"crypto/internal/boring"
++	"internal/godebug"
+ 	"io"
+ 	"os"
+ 	"sync"
+@@ -64,6 +65,8 @@ func (r *reader) Read(b []byte) (n int, err error) {
+ //go:linkname fatal
+ func fatal(string)
+ 
++var randcrash = godebug.New("randcrash")
++
+ // Read fills b with cryptographically secure random bytes. It never returns an
+ // error, and always fills b entirely.
+ //
+@@ -83,6 +86,10 @@ func Read(b []byte) (n int, err error) {
+ 		copy(b, bb)
+ 	}
+ 	if err != nil {
++		if randcrash.Value() == "0" {
++			randcrash.IncNonDefault()
++			return 0, err
++		}
+ 		fatal("crypto/rand: failed to read random data (see https://go.dev/issue/66821): " + err.Error())
+ 		panic("unreachable") // To be sure.
+ 	}
+diff --git a/src/crypto/rand/rand_linux_test.go b/src/crypto/rand/rand_linux_test.go
+index 7516008208..5238b458e5 100644
+--- a/src/crypto/rand/rand_linux_test.go
++++ b/src/crypto/rand/rand_linux_test.go
+@@ -48,20 +48,18 @@ func TestNoGetrandom(t *testing.T) {
+ 			return
+ 		}
+ 
+-		buf := &bytes.Buffer{}
+ 		cmd := testenv.Command(t, os.Args[0], "-test.v")
+-		cmd.Stdout = buf
+-		cmd.Stderr = buf
+ 		cmd.Env = append(os.Environ(), "GO_GETRANDOM_DISABLED=1")
+-		if err := cmd.Run(); err != nil {
+-			t.Errorf("subprocess failed: %v\n%s", err, buf.Bytes())
++		out, err := cmd.CombinedOutput()
++		if err != nil {
++			t.Errorf("subprocess failed: %v\n%s", err, out)
+ 			return
+ 		}
+ 
+-		if !bytes.Contains(buf.Bytes(), []byte("GetRandom returned ENOSYS")) {
++		if !bytes.Contains(out, []byte("GetRandom returned ENOSYS")) {
+ 			t.Errorf("subprocess did not disable getrandom")
+ 		}
+-		if !bytes.Contains(buf.Bytes(), []byte("TestRead")) {
++		if !bytes.Contains(out, []byte("TestRead")) {
+ 			t.Errorf("subprocess did not run TestRead")
+ 		}
+ 	}()
+diff --git a/src/crypto/rand/rand_test.go b/src/crypto/rand/rand_test.go
+index f201cf0ff3..0743a2dd04 100644
+--- a/src/crypto/rand/rand_test.go
++++ b/src/crypto/rand/rand_test.go
+@@ -8,7 +8,9 @@ import (
+ 	"bytes"
+ 	"compress/flate"
+ 	"crypto/internal/boring"
++	"errors"
+ 	"internal/race"
++	"internal/testenv"
+ 	"io"
+ 	"os"
+ 	"runtime"
+@@ -189,6 +191,44 @@ func TestNoUrandomFallback(t *testing.T) {
+ 	}
+ }
+ 
++func TestReadError(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping test in short mode")
++	}
++	testenv.MustHaveExec(t)
++
++	// We run this test in a subprocess because it's expected to crash the
++	// program unless the GODEBUG is set.
++	if os.Getenv("GO_TEST_READ_ERROR") == "1" {
++		defer func(r io.Reader) { Reader = r }(Reader)
++		Reader = readerFunc(func([]byte) (int, error) {
++			return 0, errors.New("error")
++		})
++		if _, err := Read(make([]byte, 32)); err == nil {
++			t.Error("Read did not return error")
++		}
++		return
++	}
++
++	cmd := testenv.Command(t, os.Args[0], "-test.run=TestReadError")
++	cmd.Env = append(os.Environ(), "GO_TEST_READ_ERROR=1")
++	out, err := cmd.CombinedOutput()
++	if err == nil {
++		t.Error("subprocess succeeded unexpectedly")
++	}
++	exp := "fatal error: crypto/rand: failed to read random data"
++	if !bytes.Contains(out, []byte(exp)) {
++		t.Errorf("subprocess output does not contain %q: %s", exp, out)
++	}
++
++	cmd = testenv.Command(t, os.Args[0], "-test.run=TestReadError")
++	cmd.Env = append(os.Environ(), "GO_TEST_READ_ERROR=1", "GODEBUG=randcrash=0")
++	out, err = cmd.CombinedOutput()
++	if err != nil {
++		t.Errorf("subprocess failed: %v\n%s", err, out)
++	}
++}
++
+ func BenchmarkRead(b *testing.B) {
+ 	b.Run("4", func(b *testing.B) {
+ 		benchmarkRead(b, 4)
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index 59d4fa7d5b..3af86d070a 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -47,6 +47,7 @@ var All = []Info{
+ 	{Name: "netedns0", Package: "net", Changed: 19, Old: "0"},
+ 	{Name: "panicnil", Package: "runtime", Changed: 21, Old: "1"},
+ 	{Name: "randautoseed", Package: "math/rand"},
++	{Name: "randcrash", Package: "crypto/rand", Changed: 24, Old: "0"},
+ 	{Name: "randseednop", Package: "math/rand", Changed: 24, Old: "0"},
+ 	{Name: "tarinsecurepath", Package: "archive/tar"},
+ 	{Name: "tls10server", Package: "crypto/tls", Changed: 22, Old: "1"},
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index 906abb4102..3d2cc6159f 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -306,6 +306,10 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		The number of non-default behaviors executed by the math/rand
+ 		package due to a non-default GODEBUG=randautoseed=... setting.
+ 
++	/godebug/non-default-behavior/randcrash:events
++		The number of non-default behaviors executed by the crypto/rand
++		package due to a non-default GODEBUG=randcrash=... setting.
++
+ 	/godebug/non-default-behavior/randseednop:events
+ 		The number of non-default behaviors executed by the math/rand
+ 		package due to a non-default GODEBUG=randseednop=... setting.

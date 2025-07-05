@@ -29,8 +29,77 @@ Date:   Tue Jan 24 20:19:36 2017 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testshared/src/depBase/dep.go |  2 ++
  misc/cgo/testshared/src/exe/exe.go     |  9 +++++++++
  src/runtime/symtab.go                  | 19 +++++++++++++++++++
  3 files changed, 30 insertions(+)
+
+diff --git a/misc/cgo/testshared/src/depBase/dep.go b/misc/cgo/testshared/src/depBase/dep.go
+index a518b4efe2..9f86710db0 100644
+--- a/misc/cgo/testshared/src/depBase/dep.go
++++ b/misc/cgo/testshared/src/depBase/dep.go
+@@ -5,6 +5,8 @@ import (
+ 	"reflect"
+ )
+ 
++var SlicePtr interface{} = &[]int{}
++
+ var V int = 1
+ 
+ var HasMask []string = []string{"hi"}
+diff --git a/misc/cgo/testshared/src/exe/exe.go b/misc/cgo/testshared/src/exe/exe.go
+index 433727112b..84302a811f 100644
+--- a/misc/cgo/testshared/src/exe/exe.go
++++ b/misc/cgo/testshared/src/exe/exe.go
+@@ -19,6 +19,8 @@ func F() *C {
+ 	return nil
+ }
+ 
++var slicePtr interface{} = &[]int{}
++
+ func main() {
+ 	defer depBase.ImplementedInAsm()
+ 	// This code below causes various go.itab.* symbols to be generated in
+@@ -32,4 +34,11 @@ func main() {
+ 	if reflect.TypeOf(F).Out(0) != reflect.TypeOf(c) {
+ 		panic("bad reflection results, see golang.org/issue/18252")
+ 	}
++
++	sp := reflect.New(reflect.TypeOf(slicePtr).Elem())
++	s := sp.Interface()
++
++	if reflect.TypeOf(s) != reflect.TypeOf(slicePtr) {
++		panic("bad reflection results, see golang.org/issue/18729")
++	}
+ }
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index f52190661c..ed82783ca9 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -285,6 +285,25 @@ func modulesinit() {
+ 			md.gcbssmask = progToPointerMask((*byte)(unsafe.Pointer(md.gcbss)), md.ebss-md.bss)
+ 		}
+ 	}
++
++	// Modules appear in the moduledata linked list in the order they are
++	// loaded by the dynamic loader, with one exception: the
++	// firstmoduledata itself the module that contains the runtime. This
++	// is not always the first module (when using -buildmode=shared, it
++	// is typically libstd.so, the second module). The order matters for
++	// typelinksinit, so we swap the first module with whatever module
++	// contains the main function.
++	//
++	// See Issue #18729.
++	mainText := funcPC(main_main)
++	for i, md := range *modules {
++		if md.text <= mainText && mainText <= md.etext {
++			(*modules)[0] = md
++			(*modules)[i] = &firstmoduledata
++			break
++		}
++	}
++
+ 	atomicstorep(unsafe.Pointer(&modulesSlice), unsafe.Pointer(modules))
+ }
+ 

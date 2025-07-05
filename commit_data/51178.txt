@@ -17,6 +17,27 @@ Date:   Fri Dec 10 16:58:43 2021 -0600
     Run-TryBot: Paul Murphy <murp@ibm.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Trust: Paul Murphy <murp@ibm.com>
-
+---
  src/cmd/internal/obj/ppc64/obj9.go | 9 +++++++--
  1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 7ac6465a72..c986c0d2b6 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -884,8 +884,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				q = c.newprog()
+ 				q.As = ABR
+ 				q.Pos = p.Pos
+-				q.To.Type = obj.TYPE_REG
+-				q.To.Reg = REG_LR
++				if retTarget == nil {
++					q.To.Type = obj.TYPE_REG
++					q.To.Reg = REG_LR
++				} else {
++					q.To.Type = obj.TYPE_BRANCH
++					q.To.Sym = retTarget
++				}
+ 				q.Mark |= BRANCH
+ 				q.Spadj = +autosize
+ 

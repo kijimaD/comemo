@@ -13,10 +13,142 @@ Date:   Wed Jan 6 23:00:08 2016 -0500
     Change-Id: I998c2499f7f12b338e607282a325b045f1f4f690
     Reviewed-on: https://go-review.googlesource.com/18347
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/signal_darwin.go       |  2 ++
  src/runtime/signal_darwin_386.go   | 22 ++++++++++++++++++++++
  src/runtime/signal_darwin_amd64.go | 22 ++++++++++++++++++++++
  src/runtime/signal_darwin_arm.go   | 21 +++++++++++++++++++++
  src/runtime/signal_darwin_arm64.go | 21 +++++++++++++++++++++
  5 files changed, 88 insertions(+)
+
+diff --git a/src/runtime/signal_darwin.go b/src/runtime/signal_darwin.go
+index 4a26f3eb08..542169c9f8 100644
+--- a/src/runtime/signal_darwin.go
++++ b/src/runtime/signal_darwin.go
+@@ -85,6 +85,8 @@ func sigtrampgo(fn uintptr, infostyle, sig uint32, info *siginfo, ctx unsafe.Poi
+ 	}
+ 
+ 	setg(g.m.gsignal)
++	c := &sigctxt{info, ctx}
++	c.fixsigcode(sig)
+ 	sighandler(sig, info, ctx, g)
+ 	setg(g)
+ 	sigreturn(ctx, infostyle)
+diff --git a/src/runtime/signal_darwin_386.go b/src/runtime/signal_darwin_386.go
+index 302b3aafc9..7f7c22ad18 100644
+--- a/src/runtime/signal_darwin_386.go
++++ b/src/runtime/signal_darwin_386.go
+@@ -32,3 +32,25 @@ func (c *sigctxt) set_eip(x uint32)     { c.regs().eip = x }
+ func (c *sigctxt) set_esp(x uint32)     { c.regs().esp = x }
+ func (c *sigctxt) set_sigcode(x uint32) { c.info.si_code = int32(x) }
+ func (c *sigctxt) set_sigaddr(x uint32) { c.info.si_addr = x }
++
++func (c *sigctxt) fixsigcode(sig uint32) {
++	switch sig {
++	case _SIGTRAP:
++		// OS X sets c.sigcode() == TRAP_BRKPT unconditionally for all SIGTRAPs,
++		// leaving no way to distinguish a breakpoint-induced SIGTRAP
++		// from an asynchronous signal SIGTRAP.
++		// They all look breakpoint-induced by default.
++		// Try looking at the code to see if it's a breakpoint.
++		// The assumption is that we're very unlikely to get an
++		// asynchronous SIGTRAP at just the moment that the
++		// PC started to point at unmapped memory.
++		pc := uintptr(c.eip())
++		// OS X will leave the pc just after the INT 3 instruction.
++		// INT 3 is usually 1 byte, but there is a 2-byte form.
++		code := (*[2]byte)(unsafe.Pointer(pc - 2))
++		if code[1] != 0xCC && (code[0] != 0xCD || code[1] != 3) {
++			// SIGTRAP on something other than INT 3.
++			c.set_sigcode(_SI_USER)
++		}
++	}
++}
+diff --git a/src/runtime/signal_darwin_amd64.go b/src/runtime/signal_darwin_amd64.go
+index dbf044814c..c9ac293b63 100644
+--- a/src/runtime/signal_darwin_amd64.go
++++ b/src/runtime/signal_darwin_amd64.go
+@@ -40,3 +40,25 @@ func (c *sigctxt) set_rip(x uint64)     { c.regs().rip = x }
+ func (c *sigctxt) set_rsp(x uint64)     { c.regs().rsp = x }
+ func (c *sigctxt) set_sigcode(x uint64) { c.info.si_code = int32(x) }
+ func (c *sigctxt) set_sigaddr(x uint64) { c.info.si_addr = x }
++
++func (c *sigctxt) fixsigcode(sig uint32) {
++	switch sig {
++	case _SIGTRAP:
++		// OS X sets c.sigcode() == TRAP_BRKPT unconditionally for all SIGTRAPs,
++		// leaving no way to distinguish a breakpoint-induced SIGTRAP
++		// from an asynchronous signal SIGTRAP.
++		// They all look breakpoint-induced by default.
++		// Try looking at the code to see if it's a breakpoint.
++		// The assumption is that we're very unlikely to get an
++		// asynchronous SIGTRAP at just the moment that the
++		// PC started to point at unmapped memory.
++		pc := uintptr(c.rip())
++		// OS X will leave the pc just after the INT 3 instruction.
++		// INT 3 is usually 1 byte, but there is a 2-byte form.
++		code := (*[2]byte)(unsafe.Pointer(pc - 2))
++		if code[1] != 0xCC && (code[0] != 0xCD || code[1] != 3) {
++			// SIGTRAP on something other than INT 3.
++			c.set_sigcode(_SI_USER)
++		}
++	}
++}
+diff --git a/src/runtime/signal_darwin_arm.go b/src/runtime/signal_darwin_arm.go
+index 0f10971931..24c5f5abf6 100644
+--- a/src/runtime/signal_darwin_arm.go
++++ b/src/runtime/signal_darwin_arm.go
+@@ -42,3 +42,24 @@ func (c *sigctxt) set_r10(x uint32) { c.regs().r[10] = x }
+ 
+ func (c *sigctxt) set_sigcode(x uint32) { c.info.si_code = int32(x) }
+ func (c *sigctxt) set_sigaddr(x uint32) { c.info.si_addr = x }
++
++func (c *sigctxt) fixsigcode(sig uint32) {
++	switch sig {
++	case _SIGTRAP:
++		// OS X sets c.sigcode() == TRAP_BRKPT unconditionally for all SIGTRAPs,
++		// leaving no way to distinguish a breakpoint-induced SIGTRAP
++		// from an asynchronous signal SIGTRAP.
++		// They all look breakpoint-induced by default.
++		// Try looking at the code to see if it's a breakpoint.
++		// The assumption is that we're very unlikely to get an
++		// asynchronous SIGTRAP at just the moment that the
++		// PC started to point at unmapped memory.
++		pc := uintptr(c.pc())
++		// OS X will leave the pc just after the instruction.
++		code := (*uint32)(unsafe.Pointer(pc - 4))
++		if *code != 0xe7f001f0 {
++			// SIGTRAP on something other than breakpoint.
++			c.set_sigcode(_SI_USER)
++		}
++	}
++}
+diff --git a/src/runtime/signal_darwin_arm64.go b/src/runtime/signal_darwin_arm64.go
+index 2df4229626..8be0f4f9dc 100644
+--- a/src/runtime/signal_darwin_arm64.go
++++ b/src/runtime/signal_darwin_arm64.go
+@@ -58,3 +58,24 @@ func (c *sigctxt) set_r28(x uint64) { c.regs().x[28] = x }
+ func (c *sigctxt) set_sigaddr(x uint64) {
+ 	c.info.si_addr = (*byte)(unsafe.Pointer(uintptr(x)))
+ }
++
++func (c *sigctxt) fixsigcode(sig uint32) {
++	switch sig {
++	case _SIGTRAP:
++		// OS X sets c.sigcode() == TRAP_BRKPT unconditionally for all SIGTRAPs,
++		// leaving no way to distinguish a breakpoint-induced SIGTRAP
++		// from an asynchronous signal SIGTRAP.
++		// They all look breakpoint-induced by default.
++		// Try looking at the code to see if it's a breakpoint.
++		// The assumption is that we're very unlikely to get an
++		// asynchronous SIGTRAP at just the moment that the
++		// PC started to point at unmapped memory.
++		pc := uintptr(c.pc())
++		// OS X will leave the pc just after the instruction.
++		code := (*uint32)(unsafe.Pointer(pc - 4))
++		if *code != 0xd4200000 {
++			// SIGTRAP on something other than breakpoint.
++			c.set_sigcode(_SI_USER)
++		}
++	}
++}

@@ -21,7 +21,49 @@ Date:   Thu Feb 4 11:21:31 2016 -0800
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/obj/x86/obj6.go      | 7 ++++---
  src/cmd/internal/obj/x86/obj6_test.go | 4 ++--
  2 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index e545374828..1955aa560d 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -377,7 +377,7 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
+ 	}
+ 	if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
+ 		// $MOV $sym, Rx becomes $MOV sym@GOT, Rx
+-		// $MOV $sym+<off>, Rx becomes $MOV sym@GOT, Rx; $ADD <off>, Rx
++		// $MOV $sym+<off>, Rx becomes $MOV sym@GOT, Rx; $LEA <off>(Rx), Rx
+ 		// On 386 only, more complicated things like PUSHL $sym become $MOV sym@GOT, CX; PUSHL CX
+ 		cmplxdest := false
+ 		pAs := p.As
+@@ -399,8 +399,9 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
+ 		q := p
+ 		if p.From.Offset != 0 {
+ 			q = obj.Appendp(ctxt, p)
+-			q.As = add
+-			q.From.Type = obj.TYPE_CONST
++			q.As = lea
++			q.From.Type = obj.TYPE_MEM
++			q.From.Reg = p.To.Reg
+ 			q.From.Offset = p.From.Offset
+ 			q.To = p.To
+ 			p.From.Offset = 0
+diff --git a/src/cmd/internal/obj/x86/obj6_test.go b/src/cmd/internal/obj/x86/obj6_test.go
+index 4387db696d..d83ab24ab8 100644
+--- a/src/cmd/internal/obj/x86/obj6_test.go
++++ b/src/cmd/internal/obj/x86/obj6_test.go
+@@ -20,9 +20,9 @@ const testdata = `
+ MOVQ AX, AX -> MOVQ AX, AX
+ 
+ LEAQ name(SB), AX -> MOVQ name@GOT(SB), AX
+-LEAQ name+10(SB), AX -> MOVQ name@GOT(SB), AX; ADDQ $10, AX
++LEAQ name+10(SB), AX -> MOVQ name@GOT(SB), AX; LEAQ 10(AX), AX
+ MOVQ $name(SB), AX -> MOVQ name@GOT(SB), AX
+-MOVQ $name+10(SB), AX -> MOVQ name@GOT(SB), AX; ADDQ $10, AX
++MOVQ $name+10(SB), AX -> MOVQ name@GOT(SB), AX; LEAQ 10(AX), AX
+ 
+ MOVQ name(SB), AX -> NOP; MOVQ name@GOT(SB), R15; MOVQ (R15), AX
+ MOVQ name+10(SB), AX -> NOP; MOVQ name@GOT(SB), R15; MOVQ 10(R15), AX

@@ -13,7 +13,42 @@ Date:   Sun Mar 12 10:34:04 2023 +0800
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/go/alldocs.go               | 6 +++---
  src/cmd/go/internal/help/helpdoc.go | 6 +++---
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 8bcbd3f764..455a0f7536 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -2098,9 +2098,9 @@
+ // # Environment variables
+ //
+ // The go command and the tools it invokes consult environment variables
+-// for configuration. If an environment variable is unset, the go command
+-// uses a sensible default setting. To see the effective setting of the
+-// variable <NAME>, run 'go env <NAME>'. To change the default setting,
++// for configuration. If an environment variable is unset or empty, the go
++// command uses a sensible default setting. To see the effective setting of
++// the variable <NAME>, run 'go env <NAME>'. To change the default setting,
+ // run 'go env -w <NAME>=<VALUE>'. Defaults changed using 'go env -w'
+ // are recorded in a Go environment configuration file stored in the
+ // per-user configuration directory, as reported by os.UserConfigDir.
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index cf932136b3..03cda98bbf 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -471,9 +471,9 @@ var HelpEnvironment = &base.Command{
+ 	Long: `
+ 
+ The go command and the tools it invokes consult environment variables
+-for configuration. If an environment variable is unset, the go command
+-uses a sensible default setting. To see the effective setting of the
+-variable <NAME>, run 'go env <NAME>'. To change the default setting,
++for configuration. If an environment variable is unset or empty, the go
++command uses a sensible default setting. To see the effective setting of
++the variable <NAME>, run 'go env <NAME>'. To change the default setting,
+ run 'go env -w <NAME>=<VALUE>'. Defaults changed using 'go env -w'
+ are recorded in a Go environment configuration file stored in the
+ per-user configuration directory, as reported by os.UserConfigDir.

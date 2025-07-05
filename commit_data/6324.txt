@@ -8,6 +8,28 @@ Date:   Tue Sep 21 16:13:19 2010 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/2256042
-
+---
  src/pkg/exp/nacl/av/image.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/nacl/av/image.go b/src/pkg/exp/nacl/av/image.go
+index 4c4c558c1c..2ff4bb69c1 100644
+--- a/src/pkg/exp/nacl/av/image.go
++++ b/src/pkg/exp/nacl/av/image.go
+@@ -36,6 +36,7 @@ func (m *Image) At(x, y int) image.Color { return m.Pixel[y][x] }
+ func (m *Image) Set(x, y int, color image.Color) {
+ 	if c, ok := color.(Color); ok {
+ 		m.Pixel[y][x] = c
++		return
+ 	}
+ 	m.Pixel[y][x] = makeColor(color.RGBA())
+ }
+@@ -69,7 +70,7 @@ func (p Color) RGBA() (r, g, b, a uint32) {
+ }
+ 
+ func makeColor(r, g, b, a uint32) Color {
+-	return Color(a>>24<<24 | r>>24<<16 | g>>24<<8 | b>>24)
++	return Color(a>>8<<24 | r>>8<<16 | g>>8<<8 | b>>8)
+ }
+ 
+ func toColor(color image.Color) image.Color {

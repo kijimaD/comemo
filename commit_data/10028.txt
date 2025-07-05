@@ -25,10 +25,215 @@ Date:   Tue Oct 18 12:54:48 2011 -0400
     R=golang-dev, agl, rsc
     CC=golang-dev
     https://golang.org/cl/5285044
-
+---
  src/pkg/exp/ssh/common.go       | 14 ++++++-------
  src/pkg/exp/ssh/messages.go     |  9 +++++++++
  src/pkg/exp/ssh/server.go       |  4 ++--
  src/pkg/exp/ssh/server_shell.go |  3 ++-
  src/pkg/exp/ssh/transport.go    | 44 +++++++++++++++++++++++++++--------------
  5 files changed, 49 insertions(+), 25 deletions(-)
+
+diff --git a/src/pkg/exp/ssh/common.go b/src/pkg/exp/ssh/common.go
+index 441c5b17d3..739bd2f9c5 100644
+--- a/src/pkg/exp/ssh/common.go
++++ b/src/pkg/exp/ssh/common.go
+@@ -83,7 +83,7 @@ func findCommonAlgorithm(clientAlgos []string, serverAlgos []string) (commonAlgo
+ 	return
+ }
+ 
+-func findAgreedAlgorithms(clientToServer, serverToClient *transport, clientKexInit, serverKexInit *kexInitMsg) (kexAlgo, hostKeyAlgo string, ok bool) {
++func findAgreedAlgorithms(transport *transport, clientKexInit, serverKexInit *kexInitMsg) (kexAlgo, hostKeyAlgo string, ok bool) {
+ 	kexAlgo, ok = findCommonAlgorithm(clientKexInit.KexAlgos, serverKexInit.KexAlgos)
+ 	if !ok {
+ 		return
+@@ -94,32 +94,32 @@ func findAgreedAlgorithms(clientToServer, serverToClient *transport, clientKexIn
+ 		return
+ 	}
+ 
+-	clientToServer.cipherAlgo, ok = findCommonAlgorithm(clientKexInit.CiphersClientServer, serverKexInit.CiphersClientServer)
++	transport.writer.cipherAlgo, ok = findCommonAlgorithm(clientKexInit.CiphersClientServer, serverKexInit.CiphersClientServer)
+ 	if !ok {
+ 		return
+ 	}
+ 
+-	serverToClient.cipherAlgo, ok = findCommonAlgorithm(clientKexInit.CiphersServerClient, serverKexInit.CiphersServerClient)
++	transport.reader.cipherAlgo, ok = findCommonAlgorithm(clientKexInit.CiphersServerClient, serverKexInit.CiphersServerClient)
+ 	if !ok {
+ 		return
+ 	}
+ 
+-	clientToServer.macAlgo, ok = findCommonAlgorithm(clientKexInit.MACsClientServer, serverKexInit.MACsClientServer)
++	transport.writer.macAlgo, ok = findCommonAlgorithm(clientKexInit.MACsClientServer, serverKexInit.MACsClientServer)
+ 	if !ok {
+ 		return
+ 	}
+ 
+-	serverToClient.macAlgo, ok = findCommonAlgorithm(clientKexInit.MACsServerClient, serverKexInit.MACsServerClient)
++	transport.reader.macAlgo, ok = findCommonAlgorithm(clientKexInit.MACsServerClient, serverKexInit.MACsServerClient)
+ 	if !ok {
+ 		return
+ 	}
+ 
+-	clientToServer.compressionAlgo, ok = findCommonAlgorithm(clientKexInit.CompressionClientServer, serverKexInit.CompressionClientServer)
++	transport.writer.compressionAlgo, ok = findCommonAlgorithm(clientKexInit.CompressionClientServer, serverKexInit.CompressionClientServer)
+ 	if !ok {
+ 		return
+ 	}
+ 
+-	serverToClient.compressionAlgo, ok = findCommonAlgorithm(clientKexInit.CompressionServerClient, serverKexInit.CompressionServerClient)
++	transport.reader.compressionAlgo, ok = findCommonAlgorithm(clientKexInit.CompressionServerClient, serverKexInit.CompressionServerClient)
+ 	if !ok {
+ 		return
+ 	}
+diff --git a/src/pkg/exp/ssh/messages.go b/src/pkg/exp/ssh/messages.go
+index 851c89747d..1d0bc57742 100644
+--- a/src/pkg/exp/ssh/messages.go
++++ b/src/pkg/exp/ssh/messages.go
+@@ -150,6 +150,13 @@ type channelData struct {
+ 	Payload []byte `ssh:"rest"`
+ }
+ 
++// See RFC 4254, section 5.2.
++type channelExtendedData struct {
++	PeersId  uint32
++	Datatype uint32
++	Data     string
++}
++
+ type channelRequestMsg struct {
+ 	PeersId             uint32
+ 	Request             string
+@@ -607,6 +614,8 @@ func decode(packet []byte) interface{} {
+ 		msg = new(windowAdjustMsg)
+ 	case msgChannelData:
+ 		msg = new(channelData)
++	case msgChannelExtendedData:
++		msg = new(channelExtendedData)
+ 	case msgChannelEOF:
+ 		msg = new(channelEOFMsg)
+ 	case msgChannelClose:
+diff --git a/src/pkg/exp/ssh/server.go b/src/pkg/exp/ssh/server.go
+index 9e7a255ae3..410cafc44c 100644
+--- a/src/pkg/exp/ssh/server.go
++++ b/src/pkg/exp/ssh/server.go
+@@ -260,7 +260,7 @@ func buildDataSignedForAuth(sessionId []byte, req userAuthRequestMsg, algo, pubK
+ // Handshake performs an SSH transport and client authentication on the given ServerConnection.
+ func (s *ServerConnection) Handshake(conn net.Conn) os.Error {
+ 	var magics handshakeMagics
+-	s.transport = newTransport(conn)
++	s.transport = newTransport(conn, rand.Reader)
+ 
+ 	if _, err := conn.Write(serverVersion); err != nil {
+ 		return err
+@@ -302,7 +302,7 @@ func (s *ServerConnection) Handshake(conn net.Conn) os.Error {
+ 		return err
+ 	}
+ 
+-	kexAlgo, hostKeyAlgo, ok := findAgreedAlgorithms(s.transport, s.transport, &clientKexInit, &serverKexInit)
++	kexAlgo, hostKeyAlgo, ok := findAgreedAlgorithms(s.transport, &clientKexInit, &serverKexInit)
+ 	if !ok {
+ 		return os.NewError("ssh: no common algorithms")
+ 	}
+diff --git a/src/pkg/exp/ssh/server_shell.go b/src/pkg/exp/ssh/server_shell.go
+index 53a3241f5e..0e9967a909 100644
+--- a/src/pkg/exp/ssh/server_shell.go
++++ b/src/pkg/exp/ssh/server_shell.go
+@@ -340,7 +340,8 @@ func (ss *ServerShell) ReadLine() (line string, err os.Error) {
+ 		// ss.remainder is a slice at the beginning of ss.inBuf
+ 		// containing a partial key sequence
+ 		readBuf := ss.inBuf[len(ss.remainder):]
+-		n, err := ss.c.Read(readBuf)
++		var n int
++		n, err = ss.c.Read(readBuf)
+ 		if err == nil {
+ 			ss.remainder = ss.inBuf[:n+len(ss.remainder)]
+ 			rest := ss.remainder
+diff --git a/src/pkg/exp/ssh/transport.go b/src/pkg/exp/ssh/transport.go
+index 77660a2657..5994004d86 100644
+--- a/src/pkg/exp/ssh/transport.go
++++ b/src/pkg/exp/ssh/transport.go
+@@ -10,7 +10,6 @@ import (
+ 	"crypto/aes"
+ 	"crypto/cipher"
+ 	"crypto/hmac"
+-	"crypto/rand"
+ 	"crypto/subtle"
+ 	"hash"
+ 	"io"
+@@ -23,17 +22,33 @@ const (
+ 	paddingMultiple = 16 // TODO(dfc) does this need to be configurable?
+ )
+ 
++// filteredConn reduces the set of methods exposed when embeddeding
++// a net.Conn inside ssh.transport.
++// TODO(dfc) suggestions for a better name will be warmly received.
++type filteredConn interface {
++	// Close closes the connection.
++	Close() os.Error
++
++	// LocalAddr returns the local network address.
++	LocalAddr() net.Addr
++
++	// RemoteAddr returns the remote network address.
++	RemoteAddr() net.Addr
++}
++
++// Types implementing packetWriter provide the ability to send packets to
++// an SSH peer.
++type packetWriter interface {
++	// Encrypt and send a packet of data to the remote peer.
++	writePacket(packet []byte) os.Error
++}
++
+ // transport represents the SSH connection to the remote peer.
+ type transport struct {
+ 	reader
+ 	writer
+ 
+-	cipherAlgo      string
+-	macAlgo         string
+-	compressionAlgo string
+-
+-	Close      func() os.Error
+-	RemoteAddr func() net.Addr
++	filteredConn
+ }
+ 
+ // reader represents the incoming connection state.
+@@ -57,6 +72,10 @@ type common struct {
+ 	seqNum uint32
+ 	mac    hash.Hash
+ 	cipher cipher.Stream
++
++	cipherAlgo      string
++	macAlgo         string
++	compressionAlgo string
+ }
+ 
+ // Read and decrypt a single packet from the remote peer.
+@@ -204,22 +223,17 @@ func (t *transport) sendMessage(typ uint8, msg interface{}) os.Error {
+ 	return t.writePacket(packet)
+ }
+ 
+-func newTransport(conn net.Conn) *transport {
++func newTransport(conn net.Conn, rand io.Reader) *transport {
+ 	return &transport{
+ 		reader: reader{
+ 			Reader: bufio.NewReader(conn),
+ 		},
+ 		writer: writer{
+ 			Writer: bufio.NewWriter(conn),
+-			rand:   rand.Reader,
++			rand:   rand,
+ 			Mutex:  new(sync.Mutex),
+ 		},
+-		Close: func() os.Error {
+-			return conn.Close()
+-		},
+-		RemoteAddr: func() net.Addr {
+-			return conn.RemoteAddr()
+-		},
++		filteredConn: conn,
+ 	}
+ }
+ 

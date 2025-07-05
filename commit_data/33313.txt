@@ -28,6 +28,34 @@ Date:   Sat Aug 12 00:53:45 2017 +0530
     Change-Id: I828ddbafad2e5d937f0cf5f777b512638344acfc
     Reviewed-on: https://go-review.googlesource.com/55210
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  src/archive/tar/strconv.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/archive/tar/strconv.go b/src/archive/tar/strconv.go
+index 7629c43c65..929770c25c 100644
+--- a/src/archive/tar/strconv.go
++++ b/src/archive/tar/strconv.go
+@@ -6,7 +6,6 @@ package tar
+ 
+ import (
+ 	"bytes"
+-	"fmt"
+ 	"strconv"
+ 	"strings"
+ 	"time"
+@@ -266,12 +265,12 @@ func formatPAXRecord(k, v string) (string, error) {
+ 	const padding = 3 // Extra padding for ' ', '=', and '\n'
+ 	size := len(k) + len(v) + padding
+ 	size += len(strconv.Itoa(size))
+-	record := fmt.Sprintf("%d %s=%s\n", size, k, v)
++	record := strconv.Itoa(size) + " " + k + "=" + v + "\n"
+ 
+ 	// Final adjustment if adding size field increased the record size.
+ 	if len(record) != size {
+ 		size = len(record)
+-		record = fmt.Sprintf("%d %s=%s\n", size, k, v)
++		record = strconv.Itoa(size) + " " + k + "=" + v + "\n"
+ 	}
+ 	return record, nil
+ }

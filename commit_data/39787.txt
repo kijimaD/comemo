@@ -12,7 +12,7 @@ Date:   Wed Mar 20 16:17:56 2019 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go.mod                                     |   6 +-
  src/cmd/go.sum                                     |  17 +-
  .../x/crypto/ssh/terminal/util_windows.go          |   6 +-
@@ -83,3 +83,4185 @@ Date:   Wed Mar 20 16:17:56 2019 +0000
  src/cmd/vendor/modules.txt                         |   6 +-
  src/cmd/vet/all/whitelist/all.txt                  |  10 +-
  69 files changed, 2078 insertions(+), 197 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index dd5dccd826..e0ac8cf6eb 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -6,7 +6,7 @@ require (
+ 	github.com/google/pprof v0.0.0-20181206194817-3ea8567a2e57
+ 	github.com/ianlancetaylor/demangle v0.0.0-20180524225900-fc6590592b44 // indirect
+ 	golang.org/x/arch v0.0.0-20181203225421-5a4828bb7045
+-	golang.org/x/crypto v0.0.0-20190211182817-74369b46fc67
+-	golang.org/x/sys v0.0.0-20190225065934-cc5685c2db12 // indirect
+-	golang.org/x/tools v0.0.0-20190307163923-6a08e3108db3
++	golang.org/x/crypto v0.0.0-20190313024323-a1f597ede03a
++	golang.org/x/sys v0.0.0-20190318195719-6c81ef8f67ca // indirect
++	golang.org/x/tools v0.0.0-20190320160634-b6b7807791df
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 4492808399..57bb4fa012 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -4,10 +4,13 @@ github.com/ianlancetaylor/demangle v0.0.0-20180524225900-fc6590592b44 h1:pKqc8lA
+ github.com/ianlancetaylor/demangle v0.0.0-20180524225900-fc6590592b44/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
+ golang.org/x/arch v0.0.0-20181203225421-5a4828bb7045 h1:Pn8fQdvx+z1avAi7fdM2kRYWQNxGlavNDSyzrQg2SsU=
+ golang.org/x/arch v0.0.0-20181203225421-5a4828bb7045/go.mod h1:cYlCBUl1MsqxdiKgmc4uh7TxZfWSFLOGSRR090WDxt8=
+-golang.org/x/crypto v0.0.0-20190211182817-74369b46fc67 h1:ng3VDlRp5/DHpSWl02R4rM9I+8M2rhmsuLwAMmkLQWE=
+-golang.org/x/crypto v0.0.0-20190211182817-74369b46fc67/go.mod h1:6SG95UA2DQfeDnfUPMdvaQW0Q7yPrPDi9nlGo2tz2b4=
+-golang.org/x/net v0.0.0-20190213061140-3a22650c66bd/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
+-golang.org/x/sys v0.0.0-20190225065934-cc5685c2db12 h1:Zw7eRv6INHGfu15LVRN1vrrwusJbnfJjAZn3D1VkQIE=
+-golang.org/x/sys v0.0.0-20190225065934-cc5685c2db12/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+-golang.org/x/tools v0.0.0-20190307163923-6a08e3108db3 h1:2oZsfYnKfYzL4I57uYiRFsUf0bqlLkiuw8nnj3+voUA=
+-golang.org/x/tools v0.0.0-20190307163923-6a08e3108db3/go.mod h1:25r3+/G6/xytQM8iWZKq3Hn0kr0rgFKPUNVEL/dr3z4=
++golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
++golang.org/x/crypto v0.0.0-20190313024323-a1f597ede03a h1:YX8ljsm6wXlHZO+aRz9Exqr0evNhKRNe5K/gi+zKh4U=
++golang.org/x/crypto v0.0.0-20190313024323-a1f597ede03a/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
++golang.org/x/net v0.0.0-20190311183353-d8887717615a/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
++golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
++golang.org/x/sys v0.0.0-20190318195719-6c81ef8f67ca h1:o2TLx1bGN3W+Ei0EMU5fShLupLmTOU95KvJJmfYhAzM=
++golang.org/x/sys v0.0.0-20190318195719-6c81ef8f67ca/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
++golang.org/x/tools v0.0.0-20190320160634-b6b7807791df h1:taFQs++Xc5kswn4bzUZyWI+ShGK1r9pFxQAiVZaRfto=
++golang.org/x/tools v0.0.0-20190320160634-b6b7807791df/go.mod h1:LCzVGOaR6xXOjkQ3onu1FJEFr0SW1gC7cKk1uF8kGRs=
+diff --git a/src/cmd/vendor/golang.org/x/crypto/ssh/terminal/util_windows.go b/src/cmd/vendor/golang.org/x/crypto/ssh/terminal/util_windows.go
+index 6cb8a95038..5cfdf8f3f0 100644
+--- a/src/cmd/vendor/golang.org/x/crypto/ssh/terminal/util_windows.go
++++ b/src/cmd/vendor/golang.org/x/crypto/ssh/terminal/util_windows.go
+@@ -64,13 +64,15 @@ func Restore(fd int, state *State) error {
+ 	return windows.SetConsoleMode(windows.Handle(fd), state.mode)
+ }
+ 
+-// GetSize returns the dimensions of the given terminal.
++// GetSize returns the visible dimensions of the given terminal.
++//
++// These dimensions don't include any scrollback buffer height.
+ func GetSize(fd int) (width, height int, err error) {
+ 	var info windows.ConsoleScreenBufferInfo
+ 	if err := windows.GetConsoleScreenBufferInfo(windows.Handle(fd), &info); err != nil {
+ 		return 0, 0, err
+ 	}
+-	return int(info.Size.X), int(info.Size.Y), nil
++	return int(info.Window.Right - info.Window.Left + 1), int(info.Window.Bottom - info.Window.Top + 1), nil
+ }
+ 
+ // ReadPassword reads a line of input from a terminal without local echo.  This
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/mkall.sh b/src/cmd/vendor/golang.org/x/sys/unix/mkall.sh
+index 75152f99b2..1e5c59d0dd 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/mkall.sh
++++ b/src/cmd/vendor/golang.org/x/sys/unix/mkall.sh
+@@ -207,8 +207,6 @@ esac
+ 	esac
+ 	if [ -n "$mksysctl" ]; then echo "$mksysctl |gofmt >$zsysctl"; fi
+ 	if [ -n "$mksysnum" ]; then echo "$mksysnum |gofmt >zsysnum_$GOOSARCH.go"; fi
+-	if [ -n "$mktypes" ]; then
+-		echo "$mktypes types_$GOOS.go | go run mkpost.go > ztypes_$GOOSARCH.go";
++	if [ -n "$mktypes" ]; then echo "$mktypes types_$GOOS.go | go run mkpost.go > ztypes_$GOOSARCH.go"; fi
+ 	if [ -n "$mkasm" ]; then echo "$mkasm $GOARCH"; fi
+-	fi
+ ) | $run
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh b/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
+index 6a23484e5b..cfb61ba049 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
++++ b/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
+@@ -192,6 +192,7 @@ struct ltchars {
+ #include <linux/if_packet.h>
+ #include <linux/if_addr.h>
+ #include <linux/falloc.h>
++#include <linux/fanotify.h>
+ #include <linux/filter.h>
+ #include <linux/fs.h>
+ #include <linux/kexec.h>
+@@ -501,6 +502,7 @@ ccflags="$@"
+ 		$2 !~ "WMESGLEN" &&
+ 		$2 ~ /^W[A-Z0-9]+$/ ||
+ 		$2 ~/^PPPIOC/ ||
++		$2 ~ /^FAN_|FANOTIFY_/ ||
+ 		$2 ~ /^BLK[A-Z]*(GET$|SET$|BUF$|PART$|SIZE)/ {printf("\t%s = C.%s\n", $2, $2)}
+ 		$2 ~ /^__WCOREFLAG$/ {next}
+ 		$2 ~ /^__W[A-Z0-9]+$/ {printf("\t%s = C.%s\n", substr($2,3), $2)}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/mksyscall.go b/src/cmd/vendor/golang.org/x/sys/unix/mksyscall.go
+index e06e4253ea..bed93d4890 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/mksyscall.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/mksyscall.go
+@@ -228,7 +228,7 @@ func main() {
+ 					} else {
+ 						args = append(args, fmt.Sprintf("uintptr(%s)", p.Name))
+ 					}
+-				} else if p.Type == "int64" && endianness != "" {
++				} else if (p.Type == "int64" || p.Type == "uint64") && endianness != "" {
+ 					if len(args)%2 == 1 && *arm {
+ 						// arm abi specifies 64-bit argument uses
+ 						// (even, odd) pair
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/sockcmsg_unix.go b/src/cmd/vendor/golang.org/x/sys/unix/sockcmsg_unix.go
+index 5f9ae233a7..26e8b36cfc 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/sockcmsg_unix.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/sockcmsg_unix.go
+@@ -25,8 +25,8 @@ func cmsgAlignOf(salen int) int {
+ 		if SizeofPtr == 8 {
+ 			salign = 4
+ 		}
+-	case "openbsd":
+-		// OpenBSD armv7 requires 64-bit alignment.
++	case "netbsd", "openbsd":
++		// NetBSD and OpenBSD armv7 require 64-bit alignment.
+ 		if runtime.GOARCH == "arm" {
+ 			salign = 8
+ 		}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_aix.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_aix.go
+index a76826f443..fd83d87509 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_aix.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_aix.go
+@@ -545,3 +545,5 @@ func Poll(fds []PollFd, timeout int) (n int, err error) {
+ //sys	gettimeofday(tv *Timeval, tzp *Timezone) (err error)
+ //sysnb	Time(t *Time_t) (tt Time_t, err error)
+ //sys	Utime(path string, buf *Utimbuf) (err error)
++
++//sys	Getsystemcfg(label int) (n uint64)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
+index 4bb86aa0fe..7e429ab2f9 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
+@@ -39,6 +39,20 @@ func Creat(path string, mode uint32) (fd int, err error) {
+ 	return Open(path, O_CREAT|O_WRONLY|O_TRUNC, mode)
+ }
+ 
++//sys	FanotifyInit(flags uint, event_f_flags uint) (fd int, err error)
++//sys	fanotifyMark(fd int, flags uint, mask uint64, dirFd int, pathname *byte) (err error)
++
++func FanotifyMark(fd int, flags uint, mask uint64, dirFd int, pathname string) (err error) {
++	if pathname == "" {
++		return fanotifyMark(fd, flags, mask, dirFd, nil)
++	}
++	p, err := BytePtrFromString(pathname)
++	if err != nil {
++		return err
++	}
++	return fanotifyMark(fd, flags, mask, dirFd, p)
++}
++
+ //sys	fchmodat(dirfd int, path string, mode uint32) (err error)
+ 
+ func Fchmodat(dirfd int, path string, mode uint32, flags int) (err error) {
+@@ -990,10 +1004,28 @@ func GetsockoptString(fd, level, opt int) (string, error) {
+ 	return string(buf[:vallen-1]), nil
+ }
+ 
++func GetsockoptTpacketStats(fd, level, opt int) (*TpacketStats, error) {
++	var value TpacketStats
++	vallen := _Socklen(SizeofTpacketStats)
++	err := getsockopt(fd, level, opt, unsafe.Pointer(&value), &vallen)
++	return &value, err
++}
++
++func GetsockoptTpacketStatsV3(fd, level, opt int) (*TpacketStatsV3, error) {
++	var value TpacketStatsV3
++	vallen := _Socklen(SizeofTpacketStatsV3)
++	err := getsockopt(fd, level, opt, unsafe.Pointer(&value), &vallen)
++	return &value, err
++}
++
+ func SetsockoptIPMreqn(fd, level, opt int, mreq *IPMreqn) (err error) {
+ 	return setsockopt(fd, level, opt, unsafe.Pointer(mreq), unsafe.Sizeof(*mreq))
+ }
+ 
++func SetsockoptPacketMreq(fd, level, opt int, mreq *PacketMreq) error {
++	return setsockopt(fd, level, opt, unsafe.Pointer(mreq), unsafe.Sizeof(*mreq))
++}
++
+ // SetsockoptSockFprog attaches a classic BPF or an extended BPF program to a
+ // socket to filter incoming packets.  See 'man 7 socket' for usage information.
+ func SetsockoptSockFprog(fd, level, opt int, fprog *SockFprog) error {
+@@ -1008,6 +1040,14 @@ func SetsockoptCanRawFilter(fd, level, opt int, filter []CanFilter) error {
+ 	return setsockopt(fd, level, opt, p, uintptr(len(filter)*SizeofCanFilter))
+ }
+ 
++func SetsockoptTpacketReq(fd, level, opt int, tp *TpacketReq) error {
++	return setsockopt(fd, level, opt, unsafe.Pointer(tp), unsafe.Sizeof(*tp))
++}
++
++func SetsockoptTpacketReq3(fd, level, opt int, tp *TpacketReq3) error {
++	return setsockopt(fd, level, opt, unsafe.Pointer(tp), unsafe.Sizeof(*tp))
++}
++
+ // Keyctl Commands (http://man7.org/linux/man-pages/man2/keyctl.2.html)
+ 
+ // KeyctlInt calls keyctl commands in which each argument is an int.
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_arm.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_arm.go
+index cda3559419..3a3c37b4c8 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_arm.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_arm.go
+@@ -19,12 +19,18 @@ func setTimeval(sec, usec int64) Timeval {
+ 	return Timeval{Sec: int32(sec), Usec: int32(usec)}
+ }
+ 
++//sysnb	pipe(p *[2]_C_int) (err error)
++
+ func Pipe(p []int) (err error) {
+ 	if len(p) != 2 {
+ 		return EINVAL
+ 	}
+ 	var pp [2]_C_int
++	// Try pipe2 first for Android O, then try pipe for kernel 2.6.23.
+ 	err = pipe2(&pp, 0)
++	if err == ENOSYS {
++		err = pipe(&pp)
++	}
+ 	p[0] = int(pp[0])
+ 	p[1] = int(pp[1])
+ 	return
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_arm64.go
+index 6d56722401..cb20b15d5d 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_arm64.go
+@@ -208,3 +208,16 @@ func Poll(fds []PollFd, timeout int) (n int, err error) {
+ 	}
+ 	return ppoll(&fds[0], len(fds), ts, nil)
+ }
++
++//sys	kexecFileLoad(kernelFd int, initrdFd int, cmdlineLen int, cmdline string, flags int) (err error)
++
++func KexecFileLoad(kernelFd int, initrdFd int, cmdline string, flags int) error {
++	cmdlineLen := len(cmdline)
++	if cmdlineLen > 0 {
++		// Account for the additional NULL byte added by
++		// BytePtrFromString in kexecFileLoad. The kexec_file_load
++		// syscall expects a NULL-terminated string.
++		cmdlineLen++
++	}
++	return kexecFileLoad(kernelFd, initrdFd, cmdlineLen, cmdline, flags)
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_riscv64.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_riscv64.go
+index f23ca451c7..6230f64052 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_riscv64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_riscv64.go
+@@ -211,3 +211,16 @@ func Poll(fds []PollFd, timeout int) (n int, err error) {
+ func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error) {
+ 	return Renameat2(olddirfd, oldpath, newdirfd, newpath, 0)
+ }
++
++//sys	kexecFileLoad(kernelFd int, initrdFd int, cmdlineLen int, cmdline string, flags int) (err error)
++
++func KexecFileLoad(kernelFd int, initrdFd int, cmdline string, flags int) error {
++	cmdlineLen := len(cmdline)
++	if cmdlineLen > 0 {
++		// Account for the additional NULL byte added by
++		// BytePtrFromString in kexecFileLoad. The kexec_file_load
++		// syscall expects a NULL-terminated string.
++		cmdlineLen++
++	}
++	return kexecFileLoad(kernelFd, initrdFd, cmdlineLen, cmdline, flags)
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_openbsd.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_openbsd.go
+index 687999549c..c8648ec026 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_openbsd.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_openbsd.go
+@@ -43,6 +43,23 @@ func nametomib(name string) (mib []_C_int, err error) {
+ 	return nil, EINVAL
+ }
+ 
++func SysctlClockinfo(name string) (*Clockinfo, error) {
++	mib, err := sysctlmib(name)
++	if err != nil {
++		return nil, err
++	}
++
++	n := uintptr(SizeofClockinfo)
++	var ci Clockinfo
++	if err := sysctl(mib, (*byte)(unsafe.Pointer(&ci)), &n, nil, 0); err != nil {
++		return nil, err
++	}
++	if n != SizeofClockinfo {
++		return nil, EIO
++	}
++	return &ci, nil
++}
++
+ func SysctlUvmexp(name string) (*Uvmexp, error) {
+ 	mib, err := sysctlmib(name)
+ 	if err != nil {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_unix.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_unix.go
+index 33583a22b6..ae59fba0c1 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_unix.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_unix.go
+@@ -28,6 +28,11 @@ var (
+ 	errENOENT error = syscall.ENOENT
+ )
+ 
++var (
++	signalNameMapOnce sync.Once
++	signalNameMap     map[string]syscall.Signal
++)
++
+ // errnoErr returns common boxed Errno values, to prevent
+ // allocations at runtime.
+ func errnoErr(e syscall.Errno) error {
+@@ -66,6 +71,19 @@ func SignalName(s syscall.Signal) string {
+ 	return ""
+ }
+ 
++// SignalNum returns the syscall.Signal for signal named s,
++// or 0 if a signal with such name is not found.
++// The signal name should start with "SIG".
++func SignalNum(s string) syscall.Signal {
++	signalNameMapOnce.Do(func() {
++		signalNameMap = make(map[string]syscall.Signal)
++		for _, signal := range signalList {
++			signalNameMap[signal.name] = signal.num
++		}
++	})
++	return signalNameMap[s]
++}
++
+ // clen returns the index of the first NULL byte in n or len(n) if n contains no NULL byte.
+ func clen(n []byte) int {
+ 	i := bytes.IndexByte(n, 0)
+@@ -377,3 +395,22 @@ func SetNonblock(fd int, nonblocking bool) (err error) {
+ func Exec(argv0 string, argv []string, envv []string) error {
+ 	return syscall.Exec(argv0, argv, envv)
+ }
++
++// Lutimes sets the access and modification times tv on path. If path refers to
++// a symlink, it is not dereferenced and the timestamps are set on the symlink.
++// If tv is nil, the access and modification times are set to the current time.
++// Otherwise tv must contain exactly 2 elements, with access time as the first
++// element and modification time as the second element.
++func Lutimes(path string, tv []Timeval) error {
++	if tv == nil {
++		return UtimesNanoAt(AT_FDCWD, path, nil, AT_SYMLINK_NOFOLLOW)
++	}
++	if len(tv) != 2 {
++		return EINVAL
++	}
++	ts := []Timespec{
++		NsecToTimespec(TimevalToNsec(tv[0])),
++		NsecToTimespec(TimevalToNsec(tv[1])),
++	}
++	return UtimesNanoAt(AT_FDCWD, path, ts, AT_SYMLINK_NOFOLLOW)
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/types_openbsd.go b/src/cmd/vendor/golang.org/x/sys/unix/types_openbsd.go
+index 4e5e57f9a6..8aafbe4469 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/types_openbsd.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/types_openbsd.go
+@@ -274,3 +274,9 @@ type Utsname C.struct_utsname
+ const SizeofUvmexp = C.sizeof_struct_uvmexp
+ 
+ type Uvmexp C.struct_uvmexp
++
++// Clockinfo
++
++const SizeofClockinfo = C.sizeof_struct_clockinfo
++
++type Clockinfo C.struct_clockinfo
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go
+index cb89df8f54..9e99d67cb8 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go
+@@ -174,6 +174,7 @@ const (
+ 	B9600                                = 0xd
+ 	BALLOON_KVM_MAGIC                    = 0x13661366
+ 	BDEVFS_MAGIC                         = 0x62646576
++	BINDERFS_SUPER_MAGIC                 = 0x6c6f6f70
+ 	BINFMTFS_MAGIC                       = 0x42494e4d
+ 	BLKBSZGET                            = 0x80041270
+ 	BLKBSZSET                            = 0x40041271
+@@ -486,6 +487,50 @@ const (
+ 	FALLOC_FL_PUNCH_HOLE                 = 0x2
+ 	FALLOC_FL_UNSHARE_RANGE              = 0x40
+ 	FALLOC_FL_ZERO_RANGE                 = 0x10
++	FANOTIFY_METADATA_VERSION            = 0x3
++	FAN_ACCESS                           = 0x1
++	FAN_ACCESS_PERM                      = 0x20000
++	FAN_ALLOW                            = 0x1
++	FAN_ALL_CLASS_BITS                   = 0xc
++	FAN_ALL_EVENTS                       = 0x3b
++	FAN_ALL_INIT_FLAGS                   = 0x3f
++	FAN_ALL_MARK_FLAGS                   = 0xff
++	FAN_ALL_OUTGOING_EVENTS              = 0x3403b
++	FAN_ALL_PERM_EVENTS                  = 0x30000
++	FAN_AUDIT                            = 0x10
++	FAN_CLASS_CONTENT                    = 0x4
++	FAN_CLASS_NOTIF                      = 0x0
++	FAN_CLASS_PRE_CONTENT                = 0x8
++	FAN_CLOEXEC                          = 0x1
++	FAN_CLOSE                            = 0x18
++	FAN_CLOSE_NOWRITE                    = 0x10
++	FAN_CLOSE_WRITE                      = 0x8
++	FAN_DENY                             = 0x2
++	FAN_ENABLE_AUDIT                     = 0x40
++	FAN_EVENT_METADATA_LEN               = 0x18
++	FAN_EVENT_ON_CHILD                   = 0x8000000
++	FAN_MARK_ADD                         = 0x1
++	FAN_MARK_DONT_FOLLOW                 = 0x4
++	FAN_MARK_FILESYSTEM                  = 0x100
++	FAN_MARK_FLUSH                       = 0x80
++	FAN_MARK_IGNORED_MASK                = 0x20
++	FAN_MARK_IGNORED_SURV_MODIFY         = 0x40
++	FAN_MARK_INODE                       = 0x0
++	FAN_MARK_MOUNT                       = 0x10
++	FAN_MARK_ONLYDIR                     = 0x8
++	FAN_MARK_REMOVE                      = 0x2
++	FAN_MODIFY                           = 0x2
++	FAN_NOFD                             = -0x1
++	FAN_NONBLOCK                         = 0x2
++	FAN_ONDIR                            = 0x40000000
++	FAN_OPEN                             = 0x20
++	FAN_OPEN_EXEC                        = 0x1000
++	FAN_OPEN_EXEC_PERM                   = 0x40000
++	FAN_OPEN_PERM                        = 0x10000
++	FAN_Q_OVERFLOW                       = 0x4000
++	FAN_REPORT_TID                       = 0x100
++	FAN_UNLIMITED_MARKS                  = 0x20
++	FAN_UNLIMITED_QUEUE                  = 0x10
+ 	FD_CLOEXEC                           = 0x1
+ 	FD_SETSIZE                           = 0x400
+ 	FF0                                  = 0x0
+@@ -493,6 +538,7 @@ const (
+ 	FFDLY                                = 0x8000
+ 	FLUSHO                               = 0x1000
+ 	FP_XSTATE_MAGIC2                     = 0x46505845
++	FS_ENCRYPTION_MODE_ADIANTUM          = 0x9
+ 	FS_ENCRYPTION_MODE_AES_128_CBC       = 0x5
+ 	FS_ENCRYPTION_MODE_AES_128_CTS       = 0x6
+ 	FS_ENCRYPTION_MODE_AES_256_CBC       = 0x3
+@@ -514,7 +560,7 @@ const (
+ 	FS_POLICY_FLAGS_PAD_4                = 0x0
+ 	FS_POLICY_FLAGS_PAD_8                = 0x1
+ 	FS_POLICY_FLAGS_PAD_MASK             = 0x3
+-	FS_POLICY_FLAGS_VALID                = 0x3
++	FS_POLICY_FLAGS_VALID                = 0x7
+ 	FUTEXFS_SUPER_MAGIC                  = 0xbad1dea
+ 	F_ADD_SEALS                          = 0x409
+ 	F_DUPFD                              = 0x0
+@@ -1134,7 +1180,7 @@ const (
+ 	NETLINK_UNUSED                       = 0x1
+ 	NETLINK_USERSOCK                     = 0x2
+ 	NETLINK_XFRM                         = 0x6
+-	NETNSA_MAX                           = 0x3
++	NETNSA_MAX                           = 0x5
+ 	NETNSA_NSID_NOT_ASSIGNED             = -0x1
+ 	NFNETLINK_V0                         = 0x0
+ 	NFNLGRP_ACCT_QUOTA                   = 0x8
+@@ -1398,6 +1444,12 @@ const (
+ 	PR_MCE_KILL_SET                      = 0x1
+ 	PR_MPX_DISABLE_MANAGEMENT            = 0x2c
+ 	PR_MPX_ENABLE_MANAGEMENT             = 0x2b
++	PR_PAC_APDAKEY                       = 0x4
++	PR_PAC_APDBKEY                       = 0x8
++	PR_PAC_APGAKEY                       = 0x10
++	PR_PAC_APIAKEY                       = 0x1
++	PR_PAC_APIBKEY                       = 0x2
++	PR_PAC_RESET_KEYS                    = 0x36
+ 	PR_SET_CHILD_SUBREAPER               = 0x24
+ 	PR_SET_DUMPABLE                      = 0x4
+ 	PR_SET_ENDIAN                        = 0x14
+@@ -2232,6 +2284,7 @@ const (
+ 	TUNGETVNETBE                         = 0x800454df
+ 	TUNGETVNETHDRSZ                      = 0x800454d7
+ 	TUNGETVNETLE                         = 0x800454dd
++	TUNSETCARRIER                        = 0x400454e2
+ 	TUNSETDEBUG                          = 0x400454c9
+ 	TUNSETFILTEREBPF                     = 0x800454e1
+ 	TUNSETGROUP                          = 0x400454ce
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go
+index 73c9b88ca7..e3091f1e30 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go
+@@ -174,6 +174,7 @@ const (
+ 	B9600                                = 0xd
+ 	BALLOON_KVM_MAGIC                    = 0x13661366
+ 	BDEVFS_MAGIC                         = 0x62646576
++	BINDERFS_SUPER_MAGIC                 = 0x6c6f6f70
+ 	BINFMTFS_MAGIC                       = 0x42494e4d
+ 	BLKBSZGET                            = 0x80081270
+ 	BLKBSZSET                            = 0x40081271
+@@ -486,6 +487,50 @@ const (
+ 	FALLOC_FL_PUNCH_HOLE                 = 0x2
+ 	FALLOC_FL_UNSHARE_RANGE              = 0x40
+ 	FALLOC_FL_ZERO_RANGE                 = 0x10
++	FANOTIFY_METADATA_VERSION            = 0x3
++	FAN_ACCESS                           = 0x1
++	FAN_ACCESS_PERM                      = 0x20000
++	FAN_ALLOW                            = 0x1
++	FAN_ALL_CLASS_BITS                   = 0xc
++	FAN_ALL_EVENTS                       = 0x3b
++	FAN_ALL_INIT_FLAGS                   = 0x3f
++	FAN_ALL_MARK_FLAGS                   = 0xff
++	FAN_ALL_OUTGOING_EVENTS              = 0x3403b
++	FAN_ALL_PERM_EVENTS                  = 0x30000
++	FAN_AUDIT                            = 0x10
++	FAN_CLASS_CONTENT                    = 0x4
++	FAN_CLASS_NOTIF                      = 0x0
++	FAN_CLASS_PRE_CONTENT                = 0x8
++	FAN_CLOEXEC                          = 0x1
++	FAN_CLOSE                            = 0x18
++	FAN_CLOSE_NOWRITE                    = 0x10
++	FAN_CLOSE_WRITE                      = 0x8
++	FAN_DENY                             = 0x2
++	FAN_ENABLE_AUDIT                     = 0x40
++	FAN_EVENT_METADATA_LEN               = 0x18
++	FAN_EVENT_ON_CHILD                   = 0x8000000
++	FAN_MARK_ADD                         = 0x1
++	FAN_MARK_DONT_FOLLOW                 = 0x4
++	FAN_MARK_FILESYSTEM                  = 0x100
++	FAN_MARK_FLUSH                       = 0x80
++	FAN_MARK_IGNORED_MASK                = 0x20
++	FAN_MARK_IGNORED_SURV_MODIFY         = 0x40
++	FAN_MARK_INODE                       = 0x0
++	FAN_MARK_MOUNT                       = 0x10
++	FAN_MARK_ONLYDIR                     = 0x8
++	FAN_MARK_REMOVE                      = 0x2
++	FAN_MODIFY                           = 0x2
++	FAN_NOFD                             = -0x1
++	FAN_NONBLOCK                         = 0x2
++	FAN_ONDIR                            = 0x40000000
++	FAN_OPEN                             = 0x20
++	FAN_OPEN_EXEC                        = 0x1000
++	FAN_OPEN_EXEC_PERM                   = 0x40000
++	FAN_OPEN_PERM                        = 0x10000
++	FAN_Q_OVERFLOW                       = 0x4000
++	FAN_REPORT_TID                       = 0x100
++	FAN_UNLIMITED_MARKS                  = 0x20
++	FAN_UNLIMITED_QUEUE                  = 0x10
+ 	FD_CLOEXEC                           = 0x1
+ 	FD_SETSIZE                           = 0x400
+ 	FF0                                  = 0x0
+@@ -493,6 +538,7 @@ const (
+ 	FFDLY                                = 0x8000
+ 	FLUSHO                               = 0x1000
+ 	FP_XSTATE_MAGIC2                     = 0x46505845
++	FS_ENCRYPTION_MODE_ADIANTUM          = 0x9
+ 	FS_ENCRYPTION_MODE_AES_128_CBC       = 0x5
+ 	FS_ENCRYPTION_MODE_AES_128_CTS       = 0x6
+ 	FS_ENCRYPTION_MODE_AES_256_CBC       = 0x3
+@@ -514,7 +560,7 @@ const (
+ 	FS_POLICY_FLAGS_PAD_4                = 0x0
+ 	FS_POLICY_FLAGS_PAD_8                = 0x1
+ 	FS_POLICY_FLAGS_PAD_MASK             = 0x3
+-	FS_POLICY_FLAGS_VALID                = 0x3
++	FS_POLICY_FLAGS_VALID                = 0x7
+ 	FUTEXFS_SUPER_MAGIC                  = 0xbad1dea
+ 	F_ADD_SEALS                          = 0x409
+ 	F_DUPFD                              = 0x0
+@@ -1134,7 +1180,7 @@ const (
+ 	NETLINK_UNUSED                       = 0x1
+ 	NETLINK_USERSOCK                     = 0x2
+ 	NETLINK_XFRM                         = 0x6
+-	NETNSA_MAX                           = 0x3
++	NETNSA_MAX                           = 0x5
+ 	NETNSA_NSID_NOT_ASSIGNED             = -0x1
+ 	NFNETLINK_V0                         = 0x0
+ 	NFNLGRP_ACCT_QUOTA                   = 0x8
+@@ -1398,6 +1444,12 @@ const (
+ 	PR_MCE_KILL_SET                      = 0x1
+ 	PR_MPX_DISABLE_MANAGEMENT            = 0x2c
+ 	PR_MPX_ENABLE_MANAGEMENT             = 0x2b
++	PR_PAC_APDAKEY                       = 0x4
++	PR_PAC_APDBKEY                       = 0x8
++	PR_PAC_APGAKEY                       = 0x10
++	PR_PAC_APIAKEY                       = 0x1
++	PR_PAC_APIBKEY                       = 0x2
++	PR_PAC_RESET_KEYS                    = 0x36
+ 	PR_SET_CHILD_SUBREAPER               = 0x24
+ 	PR_SET_DUMPABLE                      = 0x4
+ 	PR_SET_ENDIAN                        = 0x14
+@@ -2233,6 +2285,7 @@ const (
+ 	TUNGETVNETBE                         = 0x800454df
+ 	TUNGETVNETHDRSZ                      = 0x800454d7
+ 	TUNGETVNETLE                         = 0x800454dd
++	TUNSETCARRIER                        = 0x400454e2
+ 	TUNSETDEBUG                          = 0x400454c9
+ 	TUNSETFILTEREBPF                     = 0x800454e1
+ 	TUNSETGROUP                          = 0x400454ce
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm.go
+index f1ef82f57e..a75dfebcc4 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm.go
+@@ -174,6 +174,7 @@ const (
+ 	B9600                                = 0xd
+ 	BALLOON_KVM_MAGIC                    = 0x13661366
+ 	BDEVFS_MAGIC                         = 0x62646576
++	BINDERFS_SUPER_MAGIC                 = 0x6c6f6f70
+ 	BINFMTFS_MAGIC                       = 0x42494e4d
+ 	BLKBSZGET                            = 0x80041270
+ 	BLKBSZSET                            = 0x40041271
+@@ -486,12 +487,57 @@ const (
+ 	FALLOC_FL_PUNCH_HOLE                 = 0x2
+ 	FALLOC_FL_UNSHARE_RANGE              = 0x40
+ 	FALLOC_FL_ZERO_RANGE                 = 0x10
++	FANOTIFY_METADATA_VERSION            = 0x3
++	FAN_ACCESS                           = 0x1
++	FAN_ACCESS_PERM                      = 0x20000
++	FAN_ALLOW                            = 0x1
++	FAN_ALL_CLASS_BITS                   = 0xc
++	FAN_ALL_EVENTS                       = 0x3b
++	FAN_ALL_INIT_FLAGS                   = 0x3f
++	FAN_ALL_MARK_FLAGS                   = 0xff
++	FAN_ALL_OUTGOING_EVENTS              = 0x3403b
++	FAN_ALL_PERM_EVENTS                  = 0x30000
++	FAN_AUDIT                            = 0x10
++	FAN_CLASS_CONTENT                    = 0x4
++	FAN_CLASS_NOTIF                      = 0x0
++	FAN_CLASS_PRE_CONTENT                = 0x8
++	FAN_CLOEXEC                          = 0x1
++	FAN_CLOSE                            = 0x18
++	FAN_CLOSE_NOWRITE                    = 0x10
++	FAN_CLOSE_WRITE                      = 0x8
++	FAN_DENY                             = 0x2
++	FAN_ENABLE_AUDIT                     = 0x40
++	FAN_EVENT_METADATA_LEN               = 0x18
++	FAN_EVENT_ON_CHILD                   = 0x8000000
++	FAN_MARK_ADD                         = 0x1
++	FAN_MARK_DONT_FOLLOW                 = 0x4
++	FAN_MARK_FILESYSTEM                  = 0x100
++	FAN_MARK_FLUSH                       = 0x80
++	FAN_MARK_IGNORED_MASK                = 0x20
++	FAN_MARK_IGNORED_SURV_MODIFY         = 0x40
++	FAN_MARK_INODE                       = 0x0
++	FAN_MARK_MOUNT                       = 0x10
++	FAN_MARK_ONLYDIR                     = 0x8
++	FAN_MARK_REMOVE                      = 0x2
++	FAN_MODIFY                           = 0x2
++	FAN_NOFD                             = -0x1
++	FAN_NONBLOCK                         = 0x2
++	FAN_ONDIR                            = 0x40000000
++	FAN_OPEN                             = 0x20
++	FAN_OPEN_EXEC                        = 0x1000
++	FAN_OPEN_EXEC_PERM                   = 0x40000
++	FAN_OPEN_PERM                        = 0x10000
++	FAN_Q_OVERFLOW                       = 0x4000
++	FAN_REPORT_TID                       = 0x100
++	FAN_UNLIMITED_MARKS                  = 0x20
++	FAN_UNLIMITED_QUEUE                  = 0x10
+ 	FD_CLOEXEC                           = 0x1
+ 	FD_SETSIZE                           = 0x400
+ 	FF0                                  = 0x0
+ 	FF1                                  = 0x8000
+ 	FFDLY                                = 0x8000
+ 	FLUSHO                               = 0x1000
++	FS_ENCRYPTION_MODE_ADIANTUM          = 0x9
+ 	FS_ENCRYPTION_MODE_AES_128_CBC       = 0x5
+ 	FS_ENCRYPTION_MODE_AES_128_CTS       = 0x6
+ 	FS_ENCRYPTION_MODE_AES_256_CBC       = 0x3
+@@ -513,7 +559,7 @@ const (
+ 	FS_POLICY_FLAGS_PAD_4                = 0x0
+ 	FS_POLICY_FLAGS_PAD_8                = 0x1
+ 	FS_POLICY_FLAGS_PAD_MASK             = 0x3
+-	FS_POLICY_FLAGS_VALID                = 0x3
++	FS_POLICY_FLAGS_VALID                = 0x7
+ 	FUTEXFS_SUPER_MAGIC                  = 0xbad1dea
+ 	F_ADD_SEALS                          = 0x409
+ 	F_DUPFD                              = 0x0
+@@ -1132,7 +1178,7 @@ const (
+ 	NETLINK_UNUSED                       = 0x1
+ 	NETLINK_USERSOCK                     = 0x2
+ 	NETLINK_XFRM                         = 0x6
+-	NETNSA_MAX                           = 0x3
++	NETNSA_MAX                           = 0x5
+ 	NETNSA_NSID_NOT_ASSIGNED             = -0x1
+ 	NFNETLINK_V0                         = 0x0
+ 	NFNLGRP_ACCT_QUOTA                   = 0x8
+@@ -1396,6 +1442,12 @@ const (
+ 	PR_MCE_KILL_SET                      = 0x1
+ 	PR_MPX_DISABLE_MANAGEMENT            = 0x2c
+ 	PR_MPX_ENABLE_MANAGEMENT             = 0x2b
++	PR_PAC_APDAKEY                       = 0x4
++	PR_PAC_APDBKEY                       = 0x8
++	PR_PAC_APGAKEY                       = 0x10
++	PR_PAC_APIAKEY                       = 0x1
++	PR_PAC_APIBKEY                       = 0x2
++	PR_PAC_RESET_KEYS                    = 0x36
+ 	PR_SET_CHILD_SUBREAPER               = 0x24
+ 	PR_SET_DUMPABLE                      = 0x4
+ 	PR_SET_ENDIAN                        = 0x14
+@@ -2239,6 +2291,7 @@ const (
+ 	TUNGETVNETBE                         = 0x800454df
+ 	TUNGETVNETHDRSZ                      = 0x800454d7
+ 	TUNGETVNETLE                         = 0x800454dd
++	TUNSETCARRIER                        = 0x400454e2
+ 	TUNSETDEBUG                          = 0x400454c9
+ 	TUNSETFILTEREBPF                     = 0x800454e1
+ 	TUNSETGROUP                          = 0x400454ce
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go
+index cf17c99069..393ad7c91b 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go
+@@ -174,6 +174,7 @@ const (
+ 	B9600                                = 0xd
+ 	BALLOON_KVM_MAGIC                    = 0x13661366
+ 	BDEVFS_MAGIC                         = 0x62646576
++	BINDERFS_SUPER_MAGIC                 = 0x6c6f6f70
+ 	BINFMTFS_MAGIC                       = 0x42494e4d
+ 	BLKBSZGET                            = 0x80081270
+ 	BLKBSZSET                            = 0x40081271
+@@ -488,6 +489,50 @@ const (
+ 	FALLOC_FL_PUNCH_HOLE                 = 0x2
+ 	FALLOC_FL_UNSHARE_RANGE              = 0x40
+ 	FALLOC_FL_ZERO_RANGE                 = 0x10
++	FANOTIFY_METADATA_VERSION            = 0x3
++	FAN_ACCESS                           = 0x1
++	FAN_ACCESS_PERM                      = 0x20000
++	FAN_ALLOW                            = 0x1
++	FAN_ALL_CLASS_BITS                   = 0xc
++	FAN_ALL_EVENTS                       = 0x3b
++	FAN_ALL_INIT_FLAGS                   = 0x3f
++	FAN_ALL_MARK_FLAGS                   = 0xff
++	FAN_ALL_OUTGOING_EVENTS              = 0x3403b
++	FAN_ALL_PERM_EVENTS                  = 0x30000
++	FAN_AUDIT                            = 0x10
++	FAN_CLASS_CONTENT                    = 0x4
++	FAN_CLASS_NOTIF                      = 0x0
++	FAN_CLASS_PRE_CONTENT                = 0x8
++	FAN_CLOEXEC                          = 0x1
++	FAN_CLOSE                            = 0x18
++	FAN_CLOSE_NOWRITE                    = 0x10
++	FAN_CLOSE_WRITE                      = 0x8
++	FAN_DENY                             = 0x2
++	FAN_ENABLE_AUDIT                     = 0x40
++	FAN_EVENT_METADATA_LEN               = 0x18
++	FAN_EVENT_ON_CHILD                   = 0x8000000
++	FAN_MARK_ADD                         = 0x1
++	FAN_MARK_DONT_FOLLOW                 = 0x4
++	FAN_MARK_FILESYSTEM                  = 0x100
++	FAN_MARK_FLUSH                       = 0x80
++	FAN_MARK_IGNORED_MASK                = 0x20
++	FAN_MARK_IGNORED_SURV_MODIFY         = 0x40
++	FAN_MARK_INODE                       = 0x0
++	FAN_MARK_MOUNT                       = 0x10
++	FAN_MARK_ONLYDIR                     = 0x8
++	FAN_MARK_REMOVE                      = 0x2
++	FAN_MODIFY                           = 0x2
++	FAN_NOFD                             = -0x1
++	FAN_NONBLOCK                         = 0x2
++	FAN_ONDIR                            = 0x40000000
++	FAN_OPEN                             = 0x20
++	FAN_OPEN_EXEC                        = 0x1000
++	FAN_OPEN_EXEC_PERM                   = 0x40000
++	FAN_OPEN_PERM                        = 0x10000
++	FAN_Q_OVERFLOW                       = 0x4000
++	FAN_REPORT_TID                       = 0x100
++	FAN_UNLIMITED_MARKS                  = 0x20
++	FAN_UNLIMITED_QUEUE                  = 0x10
+ 	FD_CLOEXEC                           = 0x1
+ 	FD_SETSIZE                           = 0x400
+ 	FF0                                  = 0x0
+@@ -495,6 +540,7 @@ const (
+ 	FFDLY                                = 0x8000
+ 	FLUSHO                               = 0x1000
+ 	FPSIMD_MAGIC                         = 0x46508001
++	FS_ENCRYPTION_MODE_ADIANTUM          = 0x9
+ 	FS_ENCRYPTION_MODE_AES_128_CBC       = 0x5
+ 	FS_ENCRYPTION_MODE_AES_128_CTS       = 0x6
+ 	FS_ENCRYPTION_MODE_AES_256_CBC       = 0x3
+@@ -516,7 +562,7 @@ const (
+ 	FS_POLICY_FLAGS_PAD_4                = 0x0
+ 	FS_POLICY_FLAGS_PAD_8                = 0x1
+ 	FS_POLICY_FLAGS_PAD_MASK             = 0x3
+-	FS_POLICY_FLAGS_VALID                = 0x3
++	FS_POLICY_FLAGS_VALID                = 0x7
+ 	FUTEXFS_SUPER_MAGIC                  = 0xbad1dea
+ 	F_ADD_SEALS                          = 0x409
+ 	F_DUPFD                              = 0x0
+@@ -1135,7 +1181,7 @@ const (
+ 	NETLINK_UNUSED                       = 0x1
+ 	NETLINK_USERSOCK                     = 0x2
+ 	NETLINK_XFRM                         = 0x6
+-	NETNSA_MAX                           = 0x3
++	NETNSA_MAX                           = 0x5
+ 	NETNSA_NSID_NOT_ASSIGNED             = -0x1
+ 	NFNETLINK_V0                         = 0x0
+ 	NFNLGRP_ACCT_QUOTA                   = 0x8
+@@ -1399,6 +1445,12 @@ const (
+ 	PR_MCE_KILL_SET                      = 0x1
+ 	PR_MPX_DISABLE_MANAGEMENT            = 0x2c
+ 	PR_MPX_ENABLE_MANAGEMENT             = 0x2b
++	PR_PAC_APDAKEY                       = 0x4
++	PR_PAC_APDBKEY                       = 0x8
++	PR_PAC_APGAKEY                       = 0x10
++	PR_PAC_APIAKEY                       = 0x1
++	PR_PAC_APIBKEY                       = 0x2
++	PR_PAC_RESET_KEYS                    = 0x36
+ 	PR_SET_CHILD_SUBREAPER               = 0x24
+ 	PR_SET_DUMPABLE                      = 0x4
+ 	PR_SET_ENDIAN                        = 0x14
+@@ -2224,6 +2276,7 @@ const (
+ 	TUNGETVNETBE                         = 0x800454df
+ 	TUNGETVNETHDRSZ                      = 0x800454d7
+ 	TUNGETVNETLE                         = 0x800454dd
++	TUNSETCARRIER                        = 0x400454e2
+ 	TUNSETDEBUG                          = 0x400454c9
+ 	TUNSETFILTEREBPF                     = 0x800454e1
+ 	TUNSETGROUP                          = 0x400454ce
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips.go
+index 380913c4fc..ba1beb9093 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips.go
+@@ -174,6 +174,7 @@ const (
+ 	B9600                                = 0xd
+ 	BALLOON_KVM_MAGIC                    = 0x13661366
+ 	BDEVFS_MAGIC                         = 0x62646576
++	BINDERFS_SUPER_MAGIC                 = 0x6c6f6f70
+ 	BINFMTFS_MAGIC                       = 0x42494e4d
+ 	BLKBSZGET                            = 0x40041270
+ 	BLKBSZSET                            = 0x80041271
+@@ -486,12 +487,57 @@ const (
+ 	FALLOC_FL_PUNCH_HOLE                 = 0x2
+ 	FALLOC_FL_UNSHARE_RANGE              = 0x40
+ 	FALLOC_FL_ZERO_RANGE                 = 0x10
++	FANOTIFY_METADATA_VERSION            = 0x3
++	FAN_ACCESS                           = 0x1
++	FAN_ACCESS_PERM                      = 0x20000
++	FAN_ALLOW                            = 0x1
++	FAN_ALL_CLASS_BITS                   = 0xc
++	FAN_ALL_EVENTS                       = 0x3b
++	FAN_ALL_INIT_FLAGS                   = 0x3f
++	FAN_ALL_MARK_FLAGS                   = 0xff
++	FAN_ALL_OUTGOING_EVENTS              = 0x3403b
++	FAN_ALL_PERM_EVENTS                  = 0x30000
++	FAN_AUDIT                            = 0x10
++	FAN_CLASS_CONTENT                    = 0x4
++	FAN_CLASS_NOTIF                      = 0x0
++	FAN_CLASS_PRE_CONTENT                = 0x8
++	FAN_CLOEXEC                          = 0x1
++	FAN_CLOSE                            = 0x18
++	FAN_CLOSE_NOWRITE                    = 0x10
++	FAN_CLOSE_WRITE                      = 0x8
++	FAN_DENY                             = 0x2
++	FAN_ENABLE_AUDIT                     = 0x40
++	FAN_EVENT_METADATA_LEN               = 0x18
++	FAN_EVENT_ON_CHILD                   = 0x8000000
++	FAN_MARK_ADD                         = 0x1
++	FAN_MARK_DONT_FOLLOW                 = 0x4
++	FAN_MARK_FILESYSTEM                  = 0x100
++	FAN_MARK_FLUSH                       = 0x80
++	FAN_MARK_IGNORED_MASK                = 0x20
++	FAN_MARK_IGNORED_SURV_MODIFY         = 0x40
++	FAN_MARK_INODE                       = 0x0
++	FAN_MARK_MOUNT                       = 0x10
++	FAN_MARK_ONLYDIR                     = 0x8
++	FAN_MARK_REMOVE                      = 0x2
++	FAN_MODIFY                           = 0x2
++	FAN_NOFD                             = -0x1
++	FAN_NONBLOCK                         = 0x2
++	FAN_ONDIR                            = 0x40000000
++	FAN_OPEN                             = 0x20
++	FAN_OPEN_EXEC                        = 0x1000
++	FAN_OPEN_EXEC_PERM                   = 0x40000
++	FAN_OPEN_PERM                        = 0x10000
++	FAN_Q_OVERFLOW                       = 0x4000
++	FAN_REPORT_TID                       = 0x100
++	FAN_UNLIMITED_MARKS                  = 0x20
++	FAN_UNLIMITED_QUEUE                  = 0x10
+ 	FD_CLOEXEC                           = 0x1
+ 	FD_SETSIZE                           = 0x400
+ 	FF0                                  = 0x0
+ 	FF1                                  = 0x8000
+ 	FFDLY                                = 0x8000
+ 	FLUSHO                               = 0x2000
++	FS_ENCRYPTION_MODE_ADIANTUM          = 0x9
+ 	FS_ENCRYPTION_MODE_AES_128_CBC       = 0x5
+ 	FS_ENCRYPTION_MODE_AES_128_CTS       = 0x6
+ 	FS_ENCRYPTION_MODE_AES_256_CBC       = 0x3
+@@ -513,7 +559,7 @@ const (
+ 	FS_POLICY_FLAGS_PAD_4                = 0x0
+ 	FS_POLICY_FLAGS_PAD_8                = 0x1
+ 	FS_POLICY_FLAGS_PAD_MASK             = 0x3
+-	FS_POLICY_FLAGS_VALID                = 0x3
++	FS_POLICY_FLAGS_VALID                = 0x7
+ 	FUTEXFS_SUPER_MAGIC                  = 0xbad1dea
+ 	F_ADD_SEALS                          = 0x409
+ 	F_DUPFD                              = 0x0
+@@ -1132,7 +1178,7 @@ const (
+ 	NETLINK_UNUSED                       = 0x1
+ 	NETLINK_USERSOCK                     = 0x2
+ 	NETLINK_XFRM                         = 0x6
+-	NETNSA_MAX                           = 0x3
++	NETNSA_MAX                           = 0x5
+ 	NETNSA_NSID_NOT_ASSIGNED             = -0x1
+ 	NFNETLINK_V0                         = 0x0
+ 	NFNLGRP_ACCT_QUOTA                   = 0x8
+@@ -1396,6 +1442,12 @@ const (
+ 	PR_MCE_KILL_SET                      = 0x1
+ 	PR_MPX_DISABLE_MANAGEMENT            = 0x2c
+ 	PR_MPX_ENABLE_MANAGEMENT             = 0x2b
++	PR_PAC_APDAKEY                       = 0x4
++	PR_PAC_APDBKEY                       = 0x8
++	PR_PAC_APGAKEY                       = 0x10
++	PR_PAC_APIAKEY                       = 0x1
++	PR_PAC_APIBKEY                       = 0x2
++	PR_PAC_RESET_KEYS                    = 0x36
+ 	PR_SET_CHILD_SUBREAPER               = 0x24
+ 	PR_SET_DUMPABLE                      = 0x4
+ 	PR_SET_ENDIAN                        = 0x14
+@@ -2234,6 +2286,7 @@ const (
+ 	TUNGETVNETBE                         = 0x400454df
+ 	TUNGETVNETHDRSZ                      = 0x400454d7
+ 	TUNGETVNETLE                         = 0x400454dd
++	TUNSETCARRIER                        = 0x800454e2
+ 	TUNSETDEBUG                          = 0x800454c9
+ 	TUNSETFILTEREBPF                     = 0x400454e1
+ 	TUNSETGROUP                          = 0x800454ce
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64.go
+index fb82529ac9..efba3e5c9d 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64.go
+@@ -174,6 +174,7 @@ const (
+ 	B9600                                = 0xd
+ 	BALLOON_KVM_MAGIC                    = 0x13661366
+ 	BDEVFS_MAGIC                         = 0x62646576
++	BINDERFS_SUPER_MAGIC                 = 0x6c6f6f70
+ 	BINFMTFS_MAGIC                       = 0x42494e4d
+ 	BLKBSZGET                            = 0x40081270
+ 	BLKBSZSET                            = 0x80081271
+@@ -486,12 +487,57 @@ const (
+ 	FALLOC_FL_PUNCH_HOLE                 = 0x2
+ 	FALLOC_FL_UNSHARE_RANGE              = 0x40
+ 	FALLOC_FL_ZERO_RANGE                 = 0x10
++	FANOTIFY_METADATA_VERSION            = 0x3
++	FAN_ACCESS                           = 0x1
++	FAN_ACCESS_PERM                      = 0x20000
++	FAN_ALLOW                            = 0x1
++	FAN_ALL_CLASS_BITS                   = 0xc
++	FAN_ALL_EVENTS                       = 0x3b
++	FAN_ALL_INIT_FLAGS                   = 0x3f
++	FAN_ALL_MARK_FLAGS                   = 0xff
++	FAN_ALL_OUTGOING_EVENTS              = 0x3403b
++	FAN_ALL_PERM_EVENTS                  = 0x30000
++	FAN_AUDIT                            = 0x10
++	FAN_CLASS_CONTENT                    = 0x4
++	FAN_CLASS_NOTIF                      = 0x0
++	FAN_CLASS_PRE_CONTENT                = 0x8
++	FAN_CLOEXEC                          = 0x1
++	FAN_CLOSE                            = 0x18
++	FAN_CLOSE_NOWRITE                    = 0x10
++	FAN_CLOSE_WRITE                      = 0x8
++	FAN_DENY                             = 0x2
++	FAN_ENABLE_AUDIT                     = 0x40
++	FAN_EVENT_METADATA_LEN               = 0x18
++	FAN_EVENT_ON_CHILD                   = 0x8000000
++	FAN_MARK_ADD                         = 0x1
++	FAN_MARK_DONT_FOLLOW                 = 0x4
++	FAN_MARK_FILESYSTEM                  = 0x100
++	FAN_MARK_FLUSH                       = 0x80
++	FAN_MARK_IGNORED_MASK                = 0x20
++	FAN_MARK_IGNORED_SURV_MODIFY         = 0x40
++	FAN_MARK_INODE                       = 0x0
++	FAN_MARK_MOUNT                       = 0x10
++	FAN_MARK_ONLYDIR                     = 0x8
++	FAN_MARK_REMOVE                      = 0x2
++	FAN_MODIFY                           = 0x2
++	FAN_NOFD                             = -0x1
++	FAN_NONBLOCK                         = 0x2
++	FAN_ONDIR                            = 0x40000000
++	FAN_OPEN                             = 0x20
++	FAN_OPEN_EXEC                        = 0x1000
++	FAN_OPEN_EXEC_PERM                   = 0x40000
++	FAN_OPEN_PERM                        = 0x10000
++	FAN_Q_OVERFLOW                       = 0x4000
++	FAN_REPORT_TID                       = 0x100
++	FAN_UNLIMITED_MARKS                  = 0x20
++	FAN_UNLIMITED_QUEUE                  = 0x10
+ 	FD_CLOEXEC                           = 0x1
+ 	FD_SETSIZE                           = 0x400
+ 	FF0                                  = 0x0
+ 	FF1                                  = 0x8000
+ 	FFDLY                                = 0x8000
+ 	FLUSHO                               = 0x2000
++	FS_ENCRYPTION_MODE_ADIANTUM          = 0x9
+ 	FS_ENCRYPTION_MODE_AES_128_CBC       = 0x5
+ 	FS_ENCRYPTION_MODE_AES_128_CTS       = 0x6
+ 	FS_ENCRYPTION_MODE_AES_256_CBC       = 0x3
+@@ -513,7 +559,7 @@ const (
+ 	FS_POLICY_FLAGS_PAD_4                = 0x0
+ 	FS_POLICY_FLAGS_PAD_8                = 0x1
+ 	FS_POLICY_FLAGS_PAD_MASK             = 0x3
+-	FS_POLICY_FLAGS_VALID                = 0x3
++	FS_POLICY_FLAGS_VALID                = 0x7
+ 	FUTEXFS_SUPER_MAGIC                  = 0xbad1dea
+ 	F_ADD_SEALS                          = 0x409
+ 	F_DUPFD                              = 0x0
+@@ -1132,7 +1178,7 @@ const (
+ 	NETLINK_UNUSED                       = 0x1
+ 	NETLINK_USERSOCK                     = 0x2
+ 	NETLINK_XFRM                         = 0x6
+-	NETNSA_MAX                           = 0x3
++	NETNSA_MAX                           = 0x5
+ 	NETNSA_NSID_NOT_ASSIGNED             = -0x1
+ 	NFNETLINK_V0                         = 0x0
+ 	NFNLGRP_ACCT_QUOTA                   = 0x8
+@@ -1396,6 +1442,12 @@ const (
+ 	PR_MCE_KILL_SET                      = 0x1
+ 	PR_MPX_DISABLE_MANAGEMENT            = 0x2c
+ 	PR_MPX_ENABLE_MANAGEMENT             = 0x2b
++	PR_PAC_APDAKEY                       = 0x4
++	PR_PAC_APDBKEY                       = 0x8
++	PR_PAC_APGAKEY                       = 0x10
++	PR_PAC_APIAKEY                       = 0x1
++	PR_PAC_APIBKEY                       = 0x2
++	PR_PAC_RESET_KEYS                    = 0x36
+ 	PR_SET_CHILD_SUBREAPER               = 0x24
+ 	PR_SET_DUMPABLE                      = 0x4
+ 	PR_SET_ENDIAN                        = 0x14
+@@ -2234,6 +2286,7 @@ const (
+ 	TUNGETVNETBE                         = 0x400454df
+ 	TUNGETVNETHDRSZ                      = 0x400454d7
+ 	TUNGETVNETLE                         = 0x400454dd
++	TUNSETCARRIER                        = 0x800454e2
+ 	TUNSETDEBUG                          = 0x800454c9
+ 	TUNSETFILTEREBPF                     = 0x400454e1
+ 	TUNSETGROUP                          = 0x800454ce
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64le.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64le.go
+index 677d904562..d3f6e90652 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64le.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64le.go
+@@ -174,6 +174,7 @@ const (
+ 	B9600                                = 0xd
+ 	BALLOON_KVM_MAGIC                    = 0x13661366
+ 	BDEVFS_MAGIC                         = 0x62646576
++	BINDERFS_SUPER_MAGIC                 = 0x6c6f6f70
+ 	BINFMTFS_MAGIC                       = 0x42494e4d
+ 	BLKBSZGET                            = 0x40081270
+ 	BLKBSZSET                            = 0x80081271
+@@ -486,12 +487,57 @@ const (
+ 	FALLOC_FL_PUNCH_HOLE                 = 0x2
+ 	FALLOC_FL_UNSHARE_RANGE              = 0x40
+ 	FALLOC_FL_ZERO_RANGE                 = 0x10
++	FANOTIFY_METADATA_VERSION            = 0x3
++	FAN_ACCESS                           = 0x1
++	FAN_ACCESS_PERM                      = 0x20000
++	FAN_ALLOW                            = 0x1
++	FAN_ALL_CLASS_BITS                   = 0xc
++	FAN_ALL_EVENTS                       = 0x3b
++	FAN_ALL_INIT_FLAGS                   = 0x3f
++	FAN_ALL_MARK_FLAGS                   = 0xff
++	FAN_ALL_OUTGOING_EVENTS              = 0x3403b
++	FAN_ALL_PERM_EVENTS                  = 0x30000
++	FAN_AUDIT                            = 0x10
++	FAN_CLASS_CONTENT                    = 0x4
++	FAN_CLASS_NOTIF                      = 0x0
++	FAN_CLASS_PRE_CONTENT                = 0x8
++	FAN_CLOEXEC                          = 0x1
++	FAN_CLOSE                            = 0x18
++	FAN_CLOSE_NOWRITE                    = 0x10
++	FAN_CLOSE_WRITE                      = 0x8
++	FAN_DENY                             = 0x2
++	FAN_ENABLE_AUDIT                     = 0x40
++	FAN_EVENT_METADATA_LEN               = 0x18
++	FAN_EVENT_ON_CHILD                   = 0x8000000
++	FAN_MARK_ADD                         = 0x1
++	FAN_MARK_DONT_FOLLOW                 = 0x4
++	FAN_MARK_FILESYSTEM                  = 0x100
++	FAN_MARK_FLUSH                       = 0x80
++	FAN_MARK_IGNORED_MASK                = 0x20
++	FAN_MARK_IGNORED_SURV_MODIFY         = 0x40
++	FAN_MARK_INODE                       = 0x0
++	FAN_MARK_MOUNT                       = 0x10
++	FAN_MARK_ONLYDIR                     = 0x8
++	FAN_MARK_REMOVE                      = 0x2
++	FAN_MODIFY                           = 0x2
++	FAN_NOFD                             = -0x1
++	FAN_NONBLOCK                         = 0x2
++	FAN_ONDIR                            = 0x40000000
++	FAN_OPEN                             = 0x20
++	FAN_OPEN_EXEC                        = 0x1000
++	FAN_OPEN_EXEC_PERM                   = 0x40000
++	FAN_OPEN_PERM                        = 0x10000
++	FAN_Q_OVERFLOW                       = 0x4000
++	FAN_REPORT_TID                       = 0x100
++	FAN_UNLIMITED_MARKS                  = 0x20
++	FAN_UNLIMITED_QUEUE                  = 0x10
+ 	FD_CLOEXEC                           = 0x1
+ 	FD_SETSIZE                           = 0x400
+ 	FF0                                  = 0x0
+ 	FF1                                  = 0x8000
+ 	FFDLY                                = 0x8000
+ 	FLUSHO                               = 0x2000
++	FS_ENCRYPTION_MODE_ADIANTUM          = 0x9
+ 	FS_ENCRYPTION_MODE_AES_128_CBC       = 0x5
+ 	FS_ENCRYPTION_MODE_AES_128_CTS       = 0x6
+ 	FS_ENCRYPTION_MODE_AES_256_CBC       = 0x3
+@@ -513,7 +559,7 @@ const (
+ 	FS_POLICY_FLAGS_PAD_4                = 0x0
+ 	FS_POLICY_FLAGS_PAD_8                = 0x1
+ 	FS_POLICY_FLAGS_PAD_MASK             = 0x3
+-	FS_POLICY_FLAGS_VALID                = 0x3
++	FS_POLICY_FLAGS_VALID                = 0x7
+ 	FUTEXFS_SUPER_MAGIC                  = 0xbad1dea
+ 	F_ADD_SEALS                          = 0x409
+ 	F_DUPFD                              = 0x0
+@@ -1132,7 +1178,7 @@ const (
+ 	NETLINK_UNUSED                       = 0x1
+ 	NETLINK_USERSOCK                     = 0x2
+ 	NETLINK_XFRM                         = 0x6
+-	NETNSA_MAX                           = 0x3
++	NETNSA_MAX                           = 0x5
+ 	NETNSA_NSID_NOT_ASSIGNED             = -0x1
+ 	NFNETLINK_V0                         = 0x0
+ 	NFNLGRP_ACCT_QUOTA                   = 0x8
+@@ -1396,6 +1442,12 @@ const (
+ 	PR_MCE_KILL_SET                      = 0x1
+ 	PR_MPX_DISABLE_MANAGEMENT            = 0x2c
+ 	PR_MPX_ENABLE_MANAGEMENT             = 0x2b
++	PR_PAC_APDAKEY                       = 0x4
++	PR_PAC_APDBKEY                       = 0x8
++	PR_PAC_APGAKEY                       = 0x10
++	PR_PAC_APIAKEY                       = 0x1
++	PR_PAC_APIBKEY                       = 0x2
++	PR_PAC_RESET_KEYS                    = 0x36
+ 	PR_SET_CHILD_SUBREAPER               = 0x24
+ 	PR_SET_DUMPABLE                      = 0x4
+ 	PR_SET_ENDIAN                        = 0x14
+@@ -2234,6 +2286,7 @@ const (
+ 	TUNGETVNETBE                         = 0x400454df
+ 	TUNGETVNETHDRSZ                      = 0x400454d7
+ 	TUNGETVNETLE                         = 0x400454dd
++	TUNSETCARRIER                        = 0x800454e2
+ 	TUNSETDEBUG                          = 0x800454c9
+ 	TUNSETFILTEREBPF                     = 0x400454e1
+ 	TUNSETGROUP                          = 0x800454ce
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mipsle.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mipsle.go
+index 7ddd09d782..7275cd876b 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mipsle.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mipsle.go
+@@ -174,6 +174,7 @@ const (
+ 	B9600                                = 0xd
+ 	BALLOON_KVM_MAGIC                    = 0x13661366
+ 	BDEVFS_MAGIC                         = 0x62646576
++	BINDERFS_SUPER_MAGIC                 = 0x6c6f6f70
+ 	BINFMTFS_MAGIC                       = 0x42494e4d
+ 	BLKBSZGET                            = 0x40041270
+ 	BLKBSZSET                            = 0x80041271
+@@ -486,12 +487,57 @@ const (
+ 	FALLOC_FL_PUNCH_HOLE                 = 0x2
+ 	FALLOC_FL_UNSHARE_RANGE              = 0x40
+ 	FALLOC_FL_ZERO_RANGE                 = 0x10
++	FANOTIFY_METADATA_VERSION            = 0x3
++	FAN_ACCESS                           = 0x1
++	FAN_ACCESS_PERM                      = 0x20000
++	FAN_ALLOW                            = 0x1
++	FAN_ALL_CLASS_BITS                   = 0xc
++	FAN_ALL_EVENTS                       = 0x3b
++	FAN_ALL_INIT_FLAGS                   = 0x3f
++	FAN_ALL_MARK_FLAGS                   = 0xff
++	FAN_ALL_OUTGOING_EVENTS              = 0x3403b
++	FAN_ALL_PERM_EVENTS                  = 0x30000
++	FAN_AUDIT                            = 0x10
++	FAN_CLASS_CONTENT                    = 0x4
++	FAN_CLASS_NOTIF                      = 0x0
++	FAN_CLASS_PRE_CONTENT                = 0x8
++	FAN_CLOEXEC                          = 0x1
++	FAN_CLOSE                            = 0x18
++	FAN_CLOSE_NOWRITE                    = 0x10
++	FAN_CLOSE_WRITE                      = 0x8
++	FAN_DENY                             = 0x2
++	FAN_ENABLE_AUDIT                     = 0x40
++	FAN_EVENT_METADATA_LEN               = 0x18
++	FAN_EVENT_ON_CHILD                   = 0x8000000
++	FAN_MARK_ADD                         = 0x1
++	FAN_MARK_DONT_FOLLOW                 = 0x4
++	FAN_MARK_FILESYSTEM                  = 0x100
++	FAN_MARK_FLUSH                       = 0x80
++	FAN_MARK_IGNORED_MASK                = 0x20
++	FAN_MARK_IGNORED_SURV_MODIFY         = 0x40
++	FAN_MARK_INODE                       = 0x0
++	FAN_MARK_MOUNT                       = 0x10
++	FAN_MARK_ONLYDIR                     = 0x8
++	FAN_MARK_REMOVE                      = 0x2
++	FAN_MODIFY                           = 0x2
++	FAN_NOFD                             = -0x1
++	FAN_NONBLOCK                         = 0x2
++	FAN_ONDIR                            = 0x40000000
++	FAN_OPEN                             = 0x20
++	FAN_OPEN_EXEC                        = 0x1000
++	FAN_OPEN_EXEC_PERM                   = 0x40000
++	FAN_OPEN_PERM                        = 0x10000
++	FAN_Q_OVERFLOW                       = 0x4000
++	FAN_REPORT_TID                       = 0x100
++	FAN_UNLIMITED_MARKS                  = 0x20
++	FAN_UNLIMITED_QUEUE                  = 0x10
+ 	FD_CLOEXEC                           = 0x1
+ 	FD_SETSIZE                           = 0x400
+ 	FF0                                  = 0x0
+ 	FF1                                  = 0x8000
+ 	FFDLY                                = 0x8000
+ 	FLUSHO                               = 0x2000
++	FS_ENCRYPTION_MODE_ADIANTUM          = 0x9
+ 	FS_ENCRYPTION_MODE_AES_128_CBC       = 0x5
+ 	FS_ENCRYPTION_MODE_AES_128_CTS       = 0x6
+ 	FS_ENCRYPTION_MODE_AES_256_CBC       = 0x3
+@@ -513,7 +559,7 @@ const (
+ 	FS_POLICY_FLAGS_PAD_4                = 0x0
+ 	FS_POLICY_FLAGS_PAD_8                = 0x1
+ 	FS_POLICY_FLAGS_PAD_MASK             = 0x3
+-	FS_POLICY_FLAGS_VALID                = 0x3
++	FS_POLICY_FLAGS_VALID                = 0x7
+ 	FUTEXFS_SUPER_MAGIC                  = 0xbad1dea
+ 	F_ADD_SEALS                          = 0x409
+ 	F_DUPFD                              = 0x0
+@@ -1132,7 +1178,7 @@ const (
+ 	NETLINK_UNUSED                       = 0x1
+ 	NETLINK_USERSOCK                     = 0x2
+ 	NETLINK_XFRM                         = 0x6
+-	NETNSA_MAX                           = 0x3
++	NETNSA_MAX                           = 0x5
+ 	NETNSA_NSID_NOT_ASSIGNED             = -0x1
+ 	NFNETLINK_V0                         = 0x0
+ 	NFNLGRP_ACCT_QUOTA                   = 0x8
+@@ -1396,6 +1442,12 @@ const (
+ 	PR_MCE_KILL_SET                      = 0x1
+ 	PR_MPX_DISABLE_MANAGEMENT            = 0x2c
+ 	PR_MPX_ENABLE_MANAGEMENT             = 0x2b
++	PR_PAC_APDAKEY                       = 0x4
++	PR_PAC_APDBKEY                       = 0x8
++	PR_PAC_APGAKEY                       = 0x10
++	PR_PAC_APIAKEY                       = 0x1
++	PR_PAC_APIBKEY                       = 0x2
++	PR_PAC_RESET_KEYS                    = 0x36
+ 	PR_SET_CHILD_SUBREAPER               = 0x24
+ 	PR_SET_DUMPABLE                      = 0x4
+ 	PR_SET_ENDIAN                        = 0x14
+@@ -2234,6 +2286,7 @@ const (
+ 	TUNGETVNETBE                         = 0x400454df
+ 	TUNGETVNETHDRSZ                      = 0x400454d7
+ 	TUNGETVNETLE                         = 0x400454dd
++	TUNSETCARRIER                        = 0x800454e2
+ 	TUNSETDEBUG                          = 0x800454c9
+ 	TUNSETFILTEREBPF                     = 0x400454e1
+ 	TUNSETGROUP                          = 0x800454ce
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64.go
+index ebaca417b4..7586a134ef 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64.go
+@@ -174,6 +174,7 @@ const (
+ 	B9600                                = 0xd
+ 	BALLOON_KVM_MAGIC                    = 0x13661366
+ 	BDEVFS_MAGIC                         = 0x62646576
++	BINDERFS_SUPER_MAGIC                 = 0x6c6f6f70
+ 	BINFMTFS_MAGIC                       = 0x42494e4d
+ 	BLKBSZGET                            = 0x40081270
+ 	BLKBSZSET                            = 0x80081271
+@@ -486,12 +487,57 @@ const (
+ 	FALLOC_FL_PUNCH_HOLE                 = 0x2
+ 	FALLOC_FL_UNSHARE_RANGE              = 0x40
+ 	FALLOC_FL_ZERO_RANGE                 = 0x10
++	FANOTIFY_METADATA_VERSION            = 0x3
++	FAN_ACCESS                           = 0x1
++	FAN_ACCESS_PERM                      = 0x20000
++	FAN_ALLOW                            = 0x1
++	FAN_ALL_CLASS_BITS                   = 0xc
++	FAN_ALL_EVENTS                       = 0x3b
++	FAN_ALL_INIT_FLAGS                   = 0x3f
++	FAN_ALL_MARK_FLAGS                   = 0xff
++	FAN_ALL_OUTGOING_EVENTS              = 0x3403b
++	FAN_ALL_PERM_EVENTS                  = 0x30000
++	FAN_AUDIT                            = 0x10
++	FAN_CLASS_CONTENT                    = 0x4
++	FAN_CLASS_NOTIF                      = 0x0
++	FAN_CLASS_PRE_CONTENT                = 0x8
++	FAN_CLOEXEC                          = 0x1
++	FAN_CLOSE                            = 0x18
++	FAN_CLOSE_NOWRITE                    = 0x10
++	FAN_CLOSE_WRITE                      = 0x8
++	FAN_DENY                             = 0x2
++	FAN_ENABLE_AUDIT                     = 0x40
++	FAN_EVENT_METADATA_LEN               = 0x18
++	FAN_EVENT_ON_CHILD                   = 0x8000000
++	FAN_MARK_ADD                         = 0x1
++	FAN_MARK_DONT_FOLLOW                 = 0x4
++	FAN_MARK_FILESYSTEM                  = 0x100
++	FAN_MARK_FLUSH                       = 0x80
++	FAN_MARK_IGNORED_MASK                = 0x20
++	FAN_MARK_IGNORED_SURV_MODIFY         = 0x40
++	FAN_MARK_INODE                       = 0x0
++	FAN_MARK_MOUNT                       = 0x10
++	FAN_MARK_ONLYDIR                     = 0x8
++	FAN_MARK_REMOVE                      = 0x2
++	FAN_MODIFY                           = 0x2
++	FAN_NOFD                             = -0x1
++	FAN_NONBLOCK                         = 0x2
++	FAN_ONDIR                            = 0x40000000
++	FAN_OPEN                             = 0x20
++	FAN_OPEN_EXEC                        = 0x1000
++	FAN_OPEN_EXEC_PERM                   = 0x40000
++	FAN_OPEN_PERM                        = 0x10000
++	FAN_Q_OVERFLOW                       = 0x4000
++	FAN_REPORT_TID                       = 0x100
++	FAN_UNLIMITED_MARKS                  = 0x20
++	FAN_UNLIMITED_QUEUE                  = 0x10
+ 	FD_CLOEXEC                           = 0x1
+ 	FD_SETSIZE                           = 0x400
+ 	FF0                                  = 0x0
+ 	FF1                                  = 0x4000
+ 	FFDLY                                = 0x4000
+ 	FLUSHO                               = 0x800000
++	FS_ENCRYPTION_MODE_ADIANTUM          = 0x9
+ 	FS_ENCRYPTION_MODE_AES_128_CBC       = 0x5
+ 	FS_ENCRYPTION_MODE_AES_128_CTS       = 0x6
+ 	FS_ENCRYPTION_MODE_AES_256_CBC       = 0x3
+@@ -513,7 +559,7 @@ const (
+ 	FS_POLICY_FLAGS_PAD_4                = 0x0
+ 	FS_POLICY_FLAGS_PAD_8                = 0x1
+ 	FS_POLICY_FLAGS_PAD_MASK             = 0x3
+-	FS_POLICY_FLAGS_VALID                = 0x3
++	FS_POLICY_FLAGS_VALID                = 0x7
+ 	FUTEXFS_SUPER_MAGIC                  = 0xbad1dea
+ 	F_ADD_SEALS                          = 0x409
+ 	F_DUPFD                              = 0x0
+@@ -1131,7 +1177,7 @@ const (
+ 	NETLINK_UNUSED                       = 0x1
+ 	NETLINK_USERSOCK                     = 0x2
+ 	NETLINK_XFRM                         = 0x6
+-	NETNSA_MAX                           = 0x3
++	NETNSA_MAX                           = 0x5
+ 	NETNSA_NSID_NOT_ASSIGNED             = -0x1
+ 	NFNETLINK_V0                         = 0x0
+ 	NFNLGRP_ACCT_QUOTA                   = 0x8
+@@ -1398,6 +1444,12 @@ const (
+ 	PR_MCE_KILL_SET                      = 0x1
+ 	PR_MPX_DISABLE_MANAGEMENT            = 0x2c
+ 	PR_MPX_ENABLE_MANAGEMENT             = 0x2b
++	PR_PAC_APDAKEY                       = 0x4
++	PR_PAC_APDBKEY                       = 0x8
++	PR_PAC_APGAKEY                       = 0x10
++	PR_PAC_APIAKEY                       = 0x1
++	PR_PAC_APIBKEY                       = 0x2
++	PR_PAC_RESET_KEYS                    = 0x36
+ 	PR_SET_CHILD_SUBREAPER               = 0x24
+ 	PR_SET_DUMPABLE                      = 0x4
+ 	PR_SET_ENDIAN                        = 0x14
+@@ -2294,6 +2346,7 @@ const (
+ 	TUNGETVNETBE                         = 0x400454df
+ 	TUNGETVNETHDRSZ                      = 0x400454d7
+ 	TUNGETVNETLE                         = 0x400454dd
++	TUNSETCARRIER                        = 0x800454e2
+ 	TUNSETDEBUG                          = 0x800454c9
+ 	TUNSETFILTEREBPF                     = 0x400454e1
+ 	TUNSETGROUP                          = 0x800454ce
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64le.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64le.go
+index 02938cb6ed..b861ec7834 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64le.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64le.go
+@@ -174,6 +174,7 @@ const (
+ 	B9600                                = 0xd
+ 	BALLOON_KVM_MAGIC                    = 0x13661366
+ 	BDEVFS_MAGIC                         = 0x62646576
++	BINDERFS_SUPER_MAGIC                 = 0x6c6f6f70
+ 	BINFMTFS_MAGIC                       = 0x42494e4d
+ 	BLKBSZGET                            = 0x40081270
+ 	BLKBSZSET                            = 0x80081271
+@@ -486,12 +487,57 @@ const (
+ 	FALLOC_FL_PUNCH_HOLE                 = 0x2
+ 	FALLOC_FL_UNSHARE_RANGE              = 0x40
+ 	FALLOC_FL_ZERO_RANGE                 = 0x10
++	FANOTIFY_METADATA_VERSION            = 0x3
++	FAN_ACCESS                           = 0x1
++	FAN_ACCESS_PERM                      = 0x20000
++	FAN_ALLOW                            = 0x1
++	FAN_ALL_CLASS_BITS                   = 0xc
++	FAN_ALL_EVENTS                       = 0x3b
++	FAN_ALL_INIT_FLAGS                   = 0x3f
++	FAN_ALL_MARK_FLAGS                   = 0xff
++	FAN_ALL_OUTGOING_EVENTS              = 0x3403b
++	FAN_ALL_PERM_EVENTS                  = 0x30000
++	FAN_AUDIT                            = 0x10
++	FAN_CLASS_CONTENT                    = 0x4
++	FAN_CLASS_NOTIF                      = 0x0
++	FAN_CLASS_PRE_CONTENT                = 0x8
++	FAN_CLOEXEC                          = 0x1
++	FAN_CLOSE                            = 0x18
++	FAN_CLOSE_NOWRITE                    = 0x10
++	FAN_CLOSE_WRITE                      = 0x8
++	FAN_DENY                             = 0x2
++	FAN_ENABLE_AUDIT                     = 0x40
++	FAN_EVENT_METADATA_LEN               = 0x18
++	FAN_EVENT_ON_CHILD                   = 0x8000000
++	FAN_MARK_ADD                         = 0x1
++	FAN_MARK_DONT_FOLLOW                 = 0x4
++	FAN_MARK_FILESYSTEM                  = 0x100
++	FAN_MARK_FLUSH                       = 0x80
++	FAN_MARK_IGNORED_MASK                = 0x20
++	FAN_MARK_IGNORED_SURV_MODIFY         = 0x40
++	FAN_MARK_INODE                       = 0x0
++	FAN_MARK_MOUNT                       = 0x10
++	FAN_MARK_ONLYDIR                     = 0x8
++	FAN_MARK_REMOVE                      = 0x2
++	FAN_MODIFY                           = 0x2
++	FAN_NOFD                             = -0x1
++	FAN_NONBLOCK                         = 0x2
++	FAN_ONDIR                            = 0x40000000
++	FAN_OPEN                             = 0x20
++	FAN_OPEN_EXEC                        = 0x1000
++	FAN_OPEN_EXEC_PERM                   = 0x40000
++	FAN_OPEN_PERM                        = 0x10000
++	FAN_Q_OVERFLOW                       = 0x4000
++	FAN_REPORT_TID                       = 0x100
++	FAN_UNLIMITED_MARKS                  = 0x20
++	FAN_UNLIMITED_QUEUE                  = 0x10
+ 	FD_CLOEXEC                           = 0x1
+ 	FD_SETSIZE                           = 0x400
+ 	FF0                                  = 0x0
+ 	FF1                                  = 0x4000
+ 	FFDLY                                = 0x4000
+ 	FLUSHO                               = 0x800000
++	FS_ENCRYPTION_MODE_ADIANTUM          = 0x9
+ 	FS_ENCRYPTION_MODE_AES_128_CBC       = 0x5
+ 	FS_ENCRYPTION_MODE_AES_128_CTS       = 0x6
+ 	FS_ENCRYPTION_MODE_AES_256_CBC       = 0x3
+@@ -513,7 +559,7 @@ const (
+ 	FS_POLICY_FLAGS_PAD_4                = 0x0
+ 	FS_POLICY_FLAGS_PAD_8                = 0x1
+ 	FS_POLICY_FLAGS_PAD_MASK             = 0x3
+-	FS_POLICY_FLAGS_VALID                = 0x3
++	FS_POLICY_FLAGS_VALID                = 0x7
+ 	FUTEXFS_SUPER_MAGIC                  = 0xbad1dea
+ 	F_ADD_SEALS                          = 0x409
+ 	F_DUPFD                              = 0x0
+@@ -1131,7 +1177,7 @@ const (
+ 	NETLINK_UNUSED                       = 0x1
+ 	NETLINK_USERSOCK                     = 0x2
+ 	NETLINK_XFRM                         = 0x6
+-	NETNSA_MAX                           = 0x3
++	NETNSA_MAX                           = 0x5
+ 	NETNSA_NSID_NOT_ASSIGNED             = -0x1
+ 	NFNETLINK_V0                         = 0x0
+ 	NFNLGRP_ACCT_QUOTA                   = 0x8
+@@ -1398,6 +1444,12 @@ const (
+ 	PR_MCE_KILL_SET                      = 0x1
+ 	PR_MPX_DISABLE_MANAGEMENT            = 0x2c
+ 	PR_MPX_ENABLE_MANAGEMENT             = 0x2b
++	PR_PAC_APDAKEY                       = 0x4
++	PR_PAC_APDBKEY                       = 0x8
++	PR_PAC_APGAKEY                       = 0x10
++	PR_PAC_APIAKEY                       = 0x1
++	PR_PAC_APIBKEY                       = 0x2
++	PR_PAC_RESET_KEYS                    = 0x36
+ 	PR_SET_CHILD_SUBREAPER               = 0x24
+ 	PR_SET_DUMPABLE                      = 0x4
+ 	PR_SET_ENDIAN                        = 0x14
+@@ -2294,6 +2346,7 @@ const (
+ 	TUNGETVNETBE                         = 0x400454df
+ 	TUNGETVNETHDRSZ                      = 0x400454d7
+ 	TUNGETVNETLE                         = 0x400454dd
++	TUNSETCARRIER                        = 0x800454e2
+ 	TUNSETDEBUG                          = 0x800454c9
+ 	TUNSETFILTEREBPF                     = 0x400454e1
+ 	TUNSETGROUP                          = 0x800454ce
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go
+index 5aea4b9093..a321ec23f4 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go
+@@ -174,6 +174,7 @@ const (
+ 	B9600                                = 0xd
+ 	BALLOON_KVM_MAGIC                    = 0x13661366
+ 	BDEVFS_MAGIC                         = 0x62646576
++	BINDERFS_SUPER_MAGIC                 = 0x6c6f6f70
+ 	BINFMTFS_MAGIC                       = 0x42494e4d
+ 	BLKBSZGET                            = 0x80081270
+ 	BLKBSZSET                            = 0x40081271
+@@ -486,12 +487,57 @@ const (
+ 	FALLOC_FL_PUNCH_HOLE                 = 0x2
+ 	FALLOC_FL_UNSHARE_RANGE              = 0x40
+ 	FALLOC_FL_ZERO_RANGE                 = 0x10
++	FANOTIFY_METADATA_VERSION            = 0x3
++	FAN_ACCESS                           = 0x1
++	FAN_ACCESS_PERM                      = 0x20000
++	FAN_ALLOW                            = 0x1
++	FAN_ALL_CLASS_BITS                   = 0xc
++	FAN_ALL_EVENTS                       = 0x3b
++	FAN_ALL_INIT_FLAGS                   = 0x3f
++	FAN_ALL_MARK_FLAGS                   = 0xff
++	FAN_ALL_OUTGOING_EVENTS              = 0x3403b
++	FAN_ALL_PERM_EVENTS                  = 0x30000
++	FAN_AUDIT                            = 0x10
++	FAN_CLASS_CONTENT                    = 0x4
++	FAN_CLASS_NOTIF                      = 0x0
++	FAN_CLASS_PRE_CONTENT                = 0x8
++	FAN_CLOEXEC                          = 0x1
++	FAN_CLOSE                            = 0x18
++	FAN_CLOSE_NOWRITE                    = 0x10
++	FAN_CLOSE_WRITE                      = 0x8
++	FAN_DENY                             = 0x2
++	FAN_ENABLE_AUDIT                     = 0x40
++	FAN_EVENT_METADATA_LEN               = 0x18
++	FAN_EVENT_ON_CHILD                   = 0x8000000
++	FAN_MARK_ADD                         = 0x1
++	FAN_MARK_DONT_FOLLOW                 = 0x4
++	FAN_MARK_FILESYSTEM                  = 0x100
++	FAN_MARK_FLUSH                       = 0x80
++	FAN_MARK_IGNORED_MASK                = 0x20
++	FAN_MARK_IGNORED_SURV_MODIFY         = 0x40
++	FAN_MARK_INODE                       = 0x0
++	FAN_MARK_MOUNT                       = 0x10
++	FAN_MARK_ONLYDIR                     = 0x8
++	FAN_MARK_REMOVE                      = 0x2
++	FAN_MODIFY                           = 0x2
++	FAN_NOFD                             = -0x1
++	FAN_NONBLOCK                         = 0x2
++	FAN_ONDIR                            = 0x40000000
++	FAN_OPEN                             = 0x20
++	FAN_OPEN_EXEC                        = 0x1000
++	FAN_OPEN_EXEC_PERM                   = 0x40000
++	FAN_OPEN_PERM                        = 0x10000
++	FAN_Q_OVERFLOW                       = 0x4000
++	FAN_REPORT_TID                       = 0x100
++	FAN_UNLIMITED_MARKS                  = 0x20
++	FAN_UNLIMITED_QUEUE                  = 0x10
+ 	FD_CLOEXEC                           = 0x1
+ 	FD_SETSIZE                           = 0x400
+ 	FF0                                  = 0x0
+ 	FF1                                  = 0x8000
+ 	FFDLY                                = 0x8000
+ 	FLUSHO                               = 0x1000
++	FS_ENCRYPTION_MODE_ADIANTUM          = 0x9
+ 	FS_ENCRYPTION_MODE_AES_128_CBC       = 0x5
+ 	FS_ENCRYPTION_MODE_AES_128_CTS       = 0x6
+ 	FS_ENCRYPTION_MODE_AES_256_CBC       = 0x3
+@@ -513,7 +559,7 @@ const (
+ 	FS_POLICY_FLAGS_PAD_4                = 0x0
+ 	FS_POLICY_FLAGS_PAD_8                = 0x1
+ 	FS_POLICY_FLAGS_PAD_MASK             = 0x3
+-	FS_POLICY_FLAGS_VALID                = 0x3
++	FS_POLICY_FLAGS_VALID                = 0x7
+ 	FUTEXFS_SUPER_MAGIC                  = 0xbad1dea
+ 	F_ADD_SEALS                          = 0x409
+ 	F_DUPFD                              = 0x0
+@@ -1132,7 +1178,7 @@ const (
+ 	NETLINK_UNUSED                       = 0x1
+ 	NETLINK_USERSOCK                     = 0x2
+ 	NETLINK_XFRM                         = 0x6
+-	NETNSA_MAX                           = 0x3
++	NETNSA_MAX                           = 0x5
+ 	NETNSA_NSID_NOT_ASSIGNED             = -0x1
+ 	NFNETLINK_V0                         = 0x0
+ 	NFNLGRP_ACCT_QUOTA                   = 0x8
+@@ -1396,6 +1442,12 @@ const (
+ 	PR_MCE_KILL_SET                      = 0x1
+ 	PR_MPX_DISABLE_MANAGEMENT            = 0x2c
+ 	PR_MPX_ENABLE_MANAGEMENT             = 0x2b
++	PR_PAC_APDAKEY                       = 0x4
++	PR_PAC_APDBKEY                       = 0x8
++	PR_PAC_APGAKEY                       = 0x10
++	PR_PAC_APIAKEY                       = 0x1
++	PR_PAC_APIBKEY                       = 0x2
++	PR_PAC_RESET_KEYS                    = 0x36
+ 	PR_SET_CHILD_SUBREAPER               = 0x24
+ 	PR_SET_DUMPABLE                      = 0x4
+ 	PR_SET_ENDIAN                        = 0x14
+@@ -2220,6 +2272,7 @@ const (
+ 	TUNGETVNETBE                         = 0x800454df
+ 	TUNGETVNETHDRSZ                      = 0x800454d7
+ 	TUNGETVNETLE                         = 0x800454dd
++	TUNSETCARRIER                        = 0x400454e2
+ 	TUNSETDEBUG                          = 0x400454c9
+ 	TUNSETFILTEREBPF                     = 0x800454e1
+ 	TUNSETGROUP                          = 0x400454ce
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_s390x.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_s390x.go
+index 7f7c2e3e2f..f6c99164ff 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_s390x.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_s390x.go
+@@ -174,6 +174,7 @@ const (
+ 	B9600                                = 0xd
+ 	BALLOON_KVM_MAGIC                    = 0x13661366
+ 	BDEVFS_MAGIC                         = 0x62646576
++	BINDERFS_SUPER_MAGIC                 = 0x6c6f6f70
+ 	BINFMTFS_MAGIC                       = 0x42494e4d
+ 	BLKBSZGET                            = 0x80081270
+ 	BLKBSZSET                            = 0x40081271
+@@ -486,12 +487,57 @@ const (
+ 	FALLOC_FL_PUNCH_HOLE                 = 0x2
+ 	FALLOC_FL_UNSHARE_RANGE              = 0x40
+ 	FALLOC_FL_ZERO_RANGE                 = 0x10
++	FANOTIFY_METADATA_VERSION            = 0x3
++	FAN_ACCESS                           = 0x1
++	FAN_ACCESS_PERM                      = 0x20000
++	FAN_ALLOW                            = 0x1
++	FAN_ALL_CLASS_BITS                   = 0xc
++	FAN_ALL_EVENTS                       = 0x3b
++	FAN_ALL_INIT_FLAGS                   = 0x3f
++	FAN_ALL_MARK_FLAGS                   = 0xff
++	FAN_ALL_OUTGOING_EVENTS              = 0x3403b
++	FAN_ALL_PERM_EVENTS                  = 0x30000
++	FAN_AUDIT                            = 0x10
++	FAN_CLASS_CONTENT                    = 0x4
++	FAN_CLASS_NOTIF                      = 0x0
++	FAN_CLASS_PRE_CONTENT                = 0x8
++	FAN_CLOEXEC                          = 0x1
++	FAN_CLOSE                            = 0x18
++	FAN_CLOSE_NOWRITE                    = 0x10
++	FAN_CLOSE_WRITE                      = 0x8
++	FAN_DENY                             = 0x2
++	FAN_ENABLE_AUDIT                     = 0x40
++	FAN_EVENT_METADATA_LEN               = 0x18
++	FAN_EVENT_ON_CHILD                   = 0x8000000
++	FAN_MARK_ADD                         = 0x1
++	FAN_MARK_DONT_FOLLOW                 = 0x4
++	FAN_MARK_FILESYSTEM                  = 0x100
++	FAN_MARK_FLUSH                       = 0x80
++	FAN_MARK_IGNORED_MASK                = 0x20
++	FAN_MARK_IGNORED_SURV_MODIFY         = 0x40
++	FAN_MARK_INODE                       = 0x0
++	FAN_MARK_MOUNT                       = 0x10
++	FAN_MARK_ONLYDIR                     = 0x8
++	FAN_MARK_REMOVE                      = 0x2
++	FAN_MODIFY                           = 0x2
++	FAN_NOFD                             = -0x1
++	FAN_NONBLOCK                         = 0x2
++	FAN_ONDIR                            = 0x40000000
++	FAN_OPEN                             = 0x20
++	FAN_OPEN_EXEC                        = 0x1000
++	FAN_OPEN_EXEC_PERM                   = 0x40000
++	FAN_OPEN_PERM                        = 0x10000
++	FAN_Q_OVERFLOW                       = 0x4000
++	FAN_REPORT_TID                       = 0x100
++	FAN_UNLIMITED_MARKS                  = 0x20
++	FAN_UNLIMITED_QUEUE                  = 0x10
+ 	FD_CLOEXEC                           = 0x1
+ 	FD_SETSIZE                           = 0x400
+ 	FF0                                  = 0x0
+ 	FF1                                  = 0x8000
+ 	FFDLY                                = 0x8000
+ 	FLUSHO                               = 0x1000
++	FS_ENCRYPTION_MODE_ADIANTUM          = 0x9
+ 	FS_ENCRYPTION_MODE_AES_128_CBC       = 0x5
+ 	FS_ENCRYPTION_MODE_AES_128_CTS       = 0x6
+ 	FS_ENCRYPTION_MODE_AES_256_CBC       = 0x3
+@@ -513,7 +559,7 @@ const (
+ 	FS_POLICY_FLAGS_PAD_4                = 0x0
+ 	FS_POLICY_FLAGS_PAD_8                = 0x1
+ 	FS_POLICY_FLAGS_PAD_MASK             = 0x3
+-	FS_POLICY_FLAGS_VALID                = 0x3
++	FS_POLICY_FLAGS_VALID                = 0x7
+ 	FUTEXFS_SUPER_MAGIC                  = 0xbad1dea
+ 	F_ADD_SEALS                          = 0x409
+ 	F_DUPFD                              = 0x0
+@@ -1132,7 +1178,7 @@ const (
+ 	NETLINK_UNUSED                       = 0x1
+ 	NETLINK_USERSOCK                     = 0x2
+ 	NETLINK_XFRM                         = 0x6
+-	NETNSA_MAX                           = 0x3
++	NETNSA_MAX                           = 0x5
+ 	NETNSA_NSID_NOT_ASSIGNED             = -0x1
+ 	NFNETLINK_V0                         = 0x0
+ 	NFNLGRP_ACCT_QUOTA                   = 0x8
+@@ -1396,6 +1442,12 @@ const (
+ 	PR_MCE_KILL_SET                      = 0x1
+ 	PR_MPX_DISABLE_MANAGEMENT            = 0x2c
+ 	PR_MPX_ENABLE_MANAGEMENT             = 0x2b
++	PR_PAC_APDAKEY                       = 0x4
++	PR_PAC_APDBKEY                       = 0x8
++	PR_PAC_APGAKEY                       = 0x10
++	PR_PAC_APIAKEY                       = 0x1
++	PR_PAC_APIBKEY                       = 0x2
++	PR_PAC_RESET_KEYS                    = 0x36
+ 	PR_SET_CHILD_SUBREAPER               = 0x24
+ 	PR_SET_DUMPABLE                      = 0x4
+ 	PR_SET_ENDIAN                        = 0x14
+@@ -2293,6 +2345,7 @@ const (
+ 	TUNGETVNETBE                         = 0x800454df
+ 	TUNGETVNETHDRSZ                      = 0x800454d7
+ 	TUNGETVNETLE                         = 0x800454dd
++	TUNSETCARRIER                        = 0x400454e2
+ 	TUNSETDEBUG                          = 0x400454c9
+ 	TUNSETFILTEREBPF                     = 0x800454e1
+ 	TUNSETGROUP                          = 0x400454ce
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_sparc64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_sparc64.go
+index 968e21fd68..c1e95e29cb 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_sparc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_sparc64.go
+@@ -177,6 +177,7 @@ const (
+ 	B9600                                = 0xd
+ 	BALLOON_KVM_MAGIC                    = 0x13661366
+ 	BDEVFS_MAGIC                         = 0x62646576
++	BINDERFS_SUPER_MAGIC                 = 0x6c6f6f70
+ 	BINFMTFS_MAGIC                       = 0x42494e4d
+ 	BLKBSZGET                            = 0x40081270
+ 	BLKBSZSET                            = 0x80081271
+@@ -490,12 +491,57 @@ const (
+ 	FALLOC_FL_PUNCH_HOLE                 = 0x2
+ 	FALLOC_FL_UNSHARE_RANGE              = 0x40
+ 	FALLOC_FL_ZERO_RANGE                 = 0x10
++	FANOTIFY_METADATA_VERSION            = 0x3
++	FAN_ACCESS                           = 0x1
++	FAN_ACCESS_PERM                      = 0x20000
++	FAN_ALLOW                            = 0x1
++	FAN_ALL_CLASS_BITS                   = 0xc
++	FAN_ALL_EVENTS                       = 0x3b
++	FAN_ALL_INIT_FLAGS                   = 0x3f
++	FAN_ALL_MARK_FLAGS                   = 0xff
++	FAN_ALL_OUTGOING_EVENTS              = 0x3403b
++	FAN_ALL_PERM_EVENTS                  = 0x30000
++	FAN_AUDIT                            = 0x10
++	FAN_CLASS_CONTENT                    = 0x4
++	FAN_CLASS_NOTIF                      = 0x0
++	FAN_CLASS_PRE_CONTENT                = 0x8
++	FAN_CLOEXEC                          = 0x1
++	FAN_CLOSE                            = 0x18
++	FAN_CLOSE_NOWRITE                    = 0x10
++	FAN_CLOSE_WRITE                      = 0x8
++	FAN_DENY                             = 0x2
++	FAN_ENABLE_AUDIT                     = 0x40
++	FAN_EVENT_METADATA_LEN               = 0x18
++	FAN_EVENT_ON_CHILD                   = 0x8000000
++	FAN_MARK_ADD                         = 0x1
++	FAN_MARK_DONT_FOLLOW                 = 0x4
++	FAN_MARK_FILESYSTEM                  = 0x100
++	FAN_MARK_FLUSH                       = 0x80
++	FAN_MARK_IGNORED_MASK                = 0x20
++	FAN_MARK_IGNORED_SURV_MODIFY         = 0x40
++	FAN_MARK_INODE                       = 0x0
++	FAN_MARK_MOUNT                       = 0x10
++	FAN_MARK_ONLYDIR                     = 0x8
++	FAN_MARK_REMOVE                      = 0x2
++	FAN_MODIFY                           = 0x2
++	FAN_NOFD                             = -0x1
++	FAN_NONBLOCK                         = 0x2
++	FAN_ONDIR                            = 0x40000000
++	FAN_OPEN                             = 0x20
++	FAN_OPEN_EXEC                        = 0x1000
++	FAN_OPEN_EXEC_PERM                   = 0x40000
++	FAN_OPEN_PERM                        = 0x10000
++	FAN_Q_OVERFLOW                       = 0x4000
++	FAN_REPORT_TID                       = 0x100
++	FAN_UNLIMITED_MARKS                  = 0x20
++	FAN_UNLIMITED_QUEUE                  = 0x10
+ 	FD_CLOEXEC                           = 0x1
+ 	FD_SETSIZE                           = 0x400
+ 	FF0                                  = 0x0
+ 	FF1                                  = 0x8000
+ 	FFDLY                                = 0x8000
+ 	FLUSHO                               = 0x1000
++	FS_ENCRYPTION_MODE_ADIANTUM          = 0x9
+ 	FS_ENCRYPTION_MODE_AES_128_CBC       = 0x5
+ 	FS_ENCRYPTION_MODE_AES_128_CTS       = 0x6
+ 	FS_ENCRYPTION_MODE_AES_256_CBC       = 0x3
+@@ -517,7 +563,7 @@ const (
+ 	FS_POLICY_FLAGS_PAD_4                = 0x0
+ 	FS_POLICY_FLAGS_PAD_8                = 0x1
+ 	FS_POLICY_FLAGS_PAD_MASK             = 0x3
+-	FS_POLICY_FLAGS_VALID                = 0x3
++	FS_POLICY_FLAGS_VALID                = 0x7
+ 	FUTEXFS_SUPER_MAGIC                  = 0xbad1dea
+ 	F_ADD_SEALS                          = 0x409
+ 	F_DUPFD                              = 0x0
+@@ -1136,7 +1182,7 @@ const (
+ 	NETLINK_UNUSED                       = 0x1
+ 	NETLINK_USERSOCK                     = 0x2
+ 	NETLINK_XFRM                         = 0x6
+-	NETNSA_MAX                           = 0x3
++	NETNSA_MAX                           = 0x5
+ 	NETNSA_NSID_NOT_ASSIGNED             = -0x1
+ 	NFNETLINK_V0                         = 0x0
+ 	NFNLGRP_ACCT_QUOTA                   = 0x8
+@@ -1400,6 +1446,12 @@ const (
+ 	PR_MCE_KILL_SET                      = 0x1
+ 	PR_MPX_DISABLE_MANAGEMENT            = 0x2c
+ 	PR_MPX_ENABLE_MANAGEMENT             = 0x2b
++	PR_PAC_APDAKEY                       = 0x4
++	PR_PAC_APDBKEY                       = 0x8
++	PR_PAC_APGAKEY                       = 0x10
++	PR_PAC_APIAKEY                       = 0x1
++	PR_PAC_APIBKEY                       = 0x2
++	PR_PAC_RESET_KEYS                    = 0x36
+ 	PR_SET_CHILD_SUBREAPER               = 0x24
+ 	PR_SET_DUMPABLE                      = 0x4
+ 	PR_SET_ENDIAN                        = 0x14
+@@ -2282,6 +2334,7 @@ const (
+ 	TUNGETVNETBE                         = 0x400454df
+ 	TUNGETVNETHDRSZ                      = 0x400454d7
+ 	TUNGETVNETLE                         = 0x400454dd
++	TUNSETCARRIER                        = 0x800454e2
+ 	TUNSETDEBUG                          = 0x800454c9
+ 	TUNSETFILTEREBPF                     = 0x400454e1
+ 	TUNSETGROUP                          = 0x800454ce
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_aix_ppc64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_aix_ppc64.go
+index e645a05cbe..52802bfc17 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_aix_ppc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_aix_ppc64.go
+@@ -1367,6 +1367,14 @@ func Utime(path string, buf *Utimbuf) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Getsystemcfg(label int) (n uint64) {
++	r0, _ := callgetsystemcfg(label)
++	n = uint64(r0)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Getrlimit(resource int, rlim *Rlimit) (err error) {
+ 	_, e1 := callgetrlimit(resource, uintptr(unsafe.Pointer(rlim)))
+ 	if e1 != 0 {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_aix_ppc64_gc.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_aix_ppc64_gc.go
+index 0b8eb72102..a2b24e4a43 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_aix_ppc64_gc.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_aix_ppc64_gc.go
+@@ -120,6 +120,7 @@ import (
+ //go:cgo_import_dynamic libc_gettimeofday gettimeofday "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_time time "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_utime utime "libc.a/shr_64.o"
++//go:cgo_import_dynamic libc_getsystemcfg getsystemcfg "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_getrlimit getrlimit "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_setrlimit setrlimit "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_lseek lseek "libc.a/shr_64.o"
+@@ -235,6 +236,7 @@ import (
+ //go:linkname libc_gettimeofday libc_gettimeofday
+ //go:linkname libc_time libc_time
+ //go:linkname libc_utime libc_utime
++//go:linkname libc_getsystemcfg libc_getsystemcfg
+ //go:linkname libc_getrlimit libc_getrlimit
+ //go:linkname libc_setrlimit libc_setrlimit
+ //go:linkname libc_lseek libc_lseek
+@@ -353,6 +355,7 @@ var (
+ 	libc_gettimeofday,
+ 	libc_time,
+ 	libc_utime,
++	libc_getsystemcfg,
+ 	libc_getrlimit,
+ 	libc_setrlimit,
+ 	libc_lseek,
+@@ -1135,6 +1138,13 @@ func callutime(_p0 uintptr, buf uintptr) (r1 uintptr, e1 Errno) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func callgetsystemcfg(label int) (r1 uintptr, e1 Errno) {
++	r1, _, e1 = syscall6(uintptr(unsafe.Pointer(&libc_getsystemcfg)), 1, uintptr(label), 0, 0, 0, 0, 0)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func callgetrlimit(resource int, rlim uintptr) (r1 uintptr, e1 Errno) {
+ 	r1, _, e1 = rawSyscall6(uintptr(unsafe.Pointer(&libc_getrlimit)), 2, uintptr(resource), rlim, 0, 0, 0, 0)
+ 	return
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_aix_ppc64_gccgo.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_aix_ppc64_gccgo.go
+index e88a442787..5491c89e96 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_aix_ppc64_gccgo.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_aix_ppc64_gccgo.go
+@@ -118,6 +118,7 @@ int poll(uintptr_t, int, int);
+ int gettimeofday(uintptr_t, uintptr_t);
+ int time(uintptr_t);
+ int utime(uintptr_t, uintptr_t);
++unsigned long long getsystemcfg(int);
+ int getrlimit(int, uintptr_t);
+ int setrlimit(int, uintptr_t);
+ long long lseek(int, long long, int);
+@@ -1011,6 +1012,14 @@ func callutime(_p0 uintptr, buf uintptr) (r1 uintptr, e1 Errno) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func callgetsystemcfg(label int) (r1 uintptr, e1 Errno) {
++	r1 = uintptr(C.getsystemcfg(C.int(label)))
++	e1 = syscall.GetErrno()
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func callgetrlimit(resource int, rlim uintptr) (r1 uintptr, e1 Errno) {
+ 	r1 = uintptr(C.getrlimit(C.int(resource), C.uintptr_t(rlim)))
+ 	e1 = syscall.GetErrno()
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_386.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_386.go
+index c8b451000b..9855afa767 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_386.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_386.go
+@@ -14,6 +14,27 @@ var _ syscall.Errno
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func FanotifyInit(flags uint, event_f_flags uint) (fd int, err error) {
++	r0, _, e1 := Syscall(SYS_FANOTIFY_INIT, uintptr(flags), uintptr(event_f_flags), 0)
++	fd = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func fanotifyMark(fd int, flags uint, mask uint64, dirFd int, pathname *byte) (err error) {
++	_, _, e1 := Syscall6(SYS_FANOTIFY_MARK, uintptr(fd), uintptr(flags), uintptr(mask), uintptr(mask>>32), uintptr(dirFd), uintptr(unsafe.Pointer(pathname)))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func fchmodat(dirfd int, path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_amd64.go
+index 2aac3184bc..773e251185 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_amd64.go
+@@ -14,6 +14,27 @@ var _ syscall.Errno
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func FanotifyInit(flags uint, event_f_flags uint) (fd int, err error) {
++	r0, _, e1 := Syscall(SYS_FANOTIFY_INIT, uintptr(flags), uintptr(event_f_flags), 0)
++	fd = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func fanotifyMark(fd int, flags uint, mask uint64, dirFd int, pathname *byte) (err error) {
++	_, _, e1 := Syscall6(SYS_FANOTIFY_MARK, uintptr(fd), uintptr(flags), uintptr(mask), uintptr(dirFd), uintptr(unsafe.Pointer(pathname)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func fchmodat(dirfd int, path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_arm.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_arm.go
+index 13c06c2815..ccea621d48 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_arm.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_arm.go
+@@ -14,6 +14,27 @@ var _ syscall.Errno
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func FanotifyInit(flags uint, event_f_flags uint) (fd int, err error) {
++	r0, _, e1 := Syscall(SYS_FANOTIFY_INIT, uintptr(flags), uintptr(event_f_flags), 0)
++	fd = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func fanotifyMark(fd int, flags uint, mask uint64, dirFd int, pathname *byte) (err error) {
++	_, _, e1 := Syscall6(SYS_FANOTIFY_MARK, uintptr(fd), uintptr(flags), uintptr(mask), uintptr(mask>>32), uintptr(dirFd), uintptr(unsafe.Pointer(pathname)))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func fchmodat(dirfd int, path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -1658,6 +1679,16 @@ func faccessat(dirfd int, path string, mode uint32) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func pipe(p *[2]_C_int) (err error) {
++	_, _, e1 := RawSyscall(SYS_PIPE, uintptr(unsafe.Pointer(p)), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func pipe2(p *[2]_C_int, flags int) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_PIPE2, uintptr(unsafe.Pointer(p)), uintptr(flags), 0)
+ 	if e1 != 0 {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_arm64.go
+index 737fa8d181..712c7a3265 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_arm64.go
+@@ -14,6 +14,27 @@ var _ syscall.Errno
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func FanotifyInit(flags uint, event_f_flags uint) (fd int, err error) {
++	r0, _, e1 := Syscall(SYS_FANOTIFY_INIT, uintptr(flags), uintptr(event_f_flags), 0)
++	fd = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func fanotifyMark(fd int, flags uint, mask uint64, dirFd int, pathname *byte) (err error) {
++	_, _, e1 := Syscall6(SYS_FANOTIFY_MARK, uintptr(fd), uintptr(flags), uintptr(mask), uintptr(dirFd), uintptr(unsafe.Pointer(pathname)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func fchmodat(dirfd int, path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -2206,3 +2227,18 @@ func pipe2(p *[2]_C_int, flags int) (err error) {
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func kexecFileLoad(kernelFd int, initrdFd int, cmdlineLen int, cmdline string, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(cmdline)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(SYS_KEXEC_FILE_LOAD, uintptr(kernelFd), uintptr(initrdFd), uintptr(cmdlineLen), uintptr(unsafe.Pointer(_p0)), uintptr(flags), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_mips.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_mips.go
+index 0a85f3f8db..68b325100b 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_mips.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_mips.go
+@@ -14,6 +14,27 @@ var _ syscall.Errno
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func FanotifyInit(flags uint, event_f_flags uint) (fd int, err error) {
++	r0, _, e1 := Syscall(SYS_FANOTIFY_INIT, uintptr(flags), uintptr(event_f_flags), 0)
++	fd = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func fanotifyMark(fd int, flags uint, mask uint64, dirFd int, pathname *byte) (err error) {
++	_, _, e1 := Syscall6(SYS_FANOTIFY_MARK, uintptr(fd), uintptr(flags), uintptr(mask>>32), uintptr(mask), uintptr(dirFd), uintptr(unsafe.Pointer(pathname)))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func fchmodat(dirfd int, path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_mips64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_mips64.go
+index ec7007e781..a8be4076cf 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_mips64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_mips64.go
+@@ -14,6 +14,27 @@ var _ syscall.Errno
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func FanotifyInit(flags uint, event_f_flags uint) (fd int, err error) {
++	r0, _, e1 := Syscall(SYS_FANOTIFY_INIT, uintptr(flags), uintptr(event_f_flags), 0)
++	fd = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func fanotifyMark(fd int, flags uint, mask uint64, dirFd int, pathname *byte) (err error) {
++	_, _, e1 := Syscall6(SYS_FANOTIFY_MARK, uintptr(fd), uintptr(flags), uintptr(mask), uintptr(dirFd), uintptr(unsafe.Pointer(pathname)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func fchmodat(dirfd int, path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_mips64le.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_mips64le.go
+index c5bb25d964..1351028adc 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_mips64le.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_mips64le.go
+@@ -14,6 +14,27 @@ var _ syscall.Errno
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func FanotifyInit(flags uint, event_f_flags uint) (fd int, err error) {
++	r0, _, e1 := Syscall(SYS_FANOTIFY_INIT, uintptr(flags), uintptr(event_f_flags), 0)
++	fd = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func fanotifyMark(fd int, flags uint, mask uint64, dirFd int, pathname *byte) (err error) {
++	_, _, e1 := Syscall6(SYS_FANOTIFY_MARK, uintptr(fd), uintptr(flags), uintptr(mask), uintptr(dirFd), uintptr(unsafe.Pointer(pathname)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func fchmodat(dirfd int, path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_mipsle.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_mipsle.go
+index 26ada0478f..327b4f97a8 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_mipsle.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_mipsle.go
+@@ -14,6 +14,27 @@ var _ syscall.Errno
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func FanotifyInit(flags uint, event_f_flags uint) (fd int, err error) {
++	r0, _, e1 := Syscall(SYS_FANOTIFY_INIT, uintptr(flags), uintptr(event_f_flags), 0)
++	fd = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func fanotifyMark(fd int, flags uint, mask uint64, dirFd int, pathname *byte) (err error) {
++	_, _, e1 := Syscall6(SYS_FANOTIFY_MARK, uintptr(fd), uintptr(flags), uintptr(mask), uintptr(mask>>32), uintptr(dirFd), uintptr(unsafe.Pointer(pathname)))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func fchmodat(dirfd int, path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_ppc64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_ppc64.go
+index 2da9cb700a..c145bd3cec 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_ppc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_ppc64.go
+@@ -14,6 +14,27 @@ var _ syscall.Errno
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func FanotifyInit(flags uint, event_f_flags uint) (fd int, err error) {
++	r0, _, e1 := Syscall(SYS_FANOTIFY_INIT, uintptr(flags), uintptr(event_f_flags), 0)
++	fd = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func fanotifyMark(fd int, flags uint, mask uint64, dirFd int, pathname *byte) (err error) {
++	_, _, e1 := Syscall6(SYS_FANOTIFY_MARK, uintptr(fd), uintptr(flags), uintptr(mask), uintptr(dirFd), uintptr(unsafe.Pointer(pathname)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func fchmodat(dirfd int, path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_ppc64le.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_ppc64le.go
+index 772733d83f..cd8179c7a5 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_ppc64le.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_ppc64le.go
+@@ -14,6 +14,27 @@ var _ syscall.Errno
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func FanotifyInit(flags uint, event_f_flags uint) (fd int, err error) {
++	r0, _, e1 := Syscall(SYS_FANOTIFY_INIT, uintptr(flags), uintptr(event_f_flags), 0)
++	fd = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func fanotifyMark(fd int, flags uint, mask uint64, dirFd int, pathname *byte) (err error) {
++	_, _, e1 := Syscall6(SYS_FANOTIFY_MARK, uintptr(fd), uintptr(flags), uintptr(mask), uintptr(dirFd), uintptr(unsafe.Pointer(pathname)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func fchmodat(dirfd int, path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_riscv64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_riscv64.go
+index 996eba517a..2e90cf0f27 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_riscv64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_riscv64.go
+@@ -14,6 +14,27 @@ var _ syscall.Errno
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func FanotifyInit(flags uint, event_f_flags uint) (fd int, err error) {
++	r0, _, e1 := Syscall(SYS_FANOTIFY_INIT, uintptr(flags), uintptr(event_f_flags), 0)
++	fd = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func fanotifyMark(fd int, flags uint, mask uint64, dirFd int, pathname *byte) (err error) {
++	_, _, e1 := Syscall6(SYS_FANOTIFY_MARK, uintptr(fd), uintptr(flags), uintptr(mask), uintptr(dirFd), uintptr(unsafe.Pointer(pathname)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func fchmodat(dirfd int, path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+@@ -2186,3 +2207,18 @@ func pipe2(p *[2]_C_int, flags int) (err error) {
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func kexecFileLoad(kernelFd int, initrdFd int, cmdlineLen int, cmdline string, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(cmdline)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(SYS_KEXEC_FILE_LOAD, uintptr(kernelFd), uintptr(initrdFd), uintptr(cmdlineLen), uintptr(unsafe.Pointer(_p0)), uintptr(flags), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_s390x.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_s390x.go
+index cb9072a33a..fe9c7e12b0 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_s390x.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_s390x.go
+@@ -14,6 +14,27 @@ var _ syscall.Errno
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func FanotifyInit(flags uint, event_f_flags uint) (fd int, err error) {
++	r0, _, e1 := Syscall(SYS_FANOTIFY_INIT, uintptr(flags), uintptr(event_f_flags), 0)
++	fd = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func fanotifyMark(fd int, flags uint, mask uint64, dirFd int, pathname *byte) (err error) {
++	_, _, e1 := Syscall6(SYS_FANOTIFY_MARK, uintptr(fd), uintptr(flags), uintptr(mask), uintptr(dirFd), uintptr(unsafe.Pointer(pathname)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func fchmodat(dirfd int, path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_sparc64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_sparc64.go
+index 5e48a1001b..d4a2100b09 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_sparc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_sparc64.go
+@@ -14,6 +14,27 @@ var _ syscall.Errno
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func FanotifyInit(flags uint, event_f_flags uint) (fd int, err error) {
++	r0, _, e1 := Syscall(SYS_FANOTIFY_INIT, uintptr(flags), uintptr(event_f_flags), 0)
++	fd = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func fanotifyMark(fd int, flags uint, mask uint64, dirFd int, pathname *byte) (err error) {
++	_, _, e1 := Syscall6(SYS_FANOTIFY_MARK, uintptr(fd), uintptr(flags), uintptr(mask), uintptr(dirFd), uintptr(unsafe.Pointer(pathname)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func fchmodat(dirfd int, path string, mode uint32) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_arm64.go
+index 3206967896..b81d508a73 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_arm64.go
+@@ -285,4 +285,5 @@ const (
+ 	SYS_STATX                  = 291
+ 	SYS_IO_PGETEVENTS          = 292
+ 	SYS_RSEQ                   = 293
++	SYS_KEXEC_FILE_LOAD        = 294
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_riscv64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_riscv64.go
+index 473c74613f..2c8c46a2fc 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_riscv64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_riscv64.go
+@@ -284,4 +284,5 @@ const (
+ 	SYS_STATX                  = 291
+ 	SYS_IO_PGETEVENTS          = 292
+ 	SYS_RSEQ                   = 293
++	SYS_KEXEC_FILE_LOAD        = 294
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_sparc64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_sparc64.go
+index 93480fcb16..6ed306370a 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_sparc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_sparc64.go
+@@ -253,6 +253,7 @@ const (
+ 	SYS_TIMER_GETOVERRUN       = 264
+ 	SYS_TIMER_DELETE           = 265
+ 	SYS_TIMER_CREATE           = 266
++	SYS_VSERVER                = 267
+ 	SYS_IO_SETUP               = 268
+ 	SYS_IO_DESTROY             = 269
+ 	SYS_IO_SUBMIT              = 270
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_386.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_386.go
+index 18724670a8..6dfe56be76 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_386.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_386.go
+@@ -973,7 +973,8 @@ type PerfEventAttr struct {
+ 	Clockid            int32
+ 	Sample_regs_intr   uint64
+ 	Aux_watermark      uint32
+-	_                  uint32
++	Sample_max_stack   uint16
++	_                  uint16
+ }
+ 
+ type PerfEventMmapPage struct {
+@@ -1076,6 +1077,7 @@ const (
+ 	PERF_COUNT_SW_ALIGNMENT_FAULTS = 0x7
+ 	PERF_COUNT_SW_EMULATION_FAULTS = 0x8
+ 	PERF_COUNT_SW_DUMMY            = 0x9
++	PERF_COUNT_SW_BPF_OUTPUT       = 0xa
+ 
+ 	PERF_SAMPLE_IP           = 0x1
+ 	PERF_SAMPLE_TID          = 0x2
+@@ -1097,21 +1099,38 @@ const (
+ 	PERF_SAMPLE_BRANCH_ANY_CALL   = 0x10
+ 	PERF_SAMPLE_BRANCH_ANY_RETURN = 0x20
+ 	PERF_SAMPLE_BRANCH_IND_CALL   = 0x40
++	PERF_SAMPLE_BRANCH_ABORT_TX   = 0x80
++	PERF_SAMPLE_BRANCH_IN_TX      = 0x100
++	PERF_SAMPLE_BRANCH_NO_TX      = 0x200
++	PERF_SAMPLE_BRANCH_COND       = 0x400
++	PERF_SAMPLE_BRANCH_CALL_STACK = 0x800
++	PERF_SAMPLE_BRANCH_IND_JUMP   = 0x1000
++	PERF_SAMPLE_BRANCH_CALL       = 0x2000
++	PERF_SAMPLE_BRANCH_NO_FLAGS   = 0x4000
++	PERF_SAMPLE_BRANCH_NO_CYCLES  = 0x8000
++	PERF_SAMPLE_BRANCH_TYPE_SAVE  = 0x10000
+ 
+ 	PERF_FORMAT_TOTAL_TIME_ENABLED = 0x1
+ 	PERF_FORMAT_TOTAL_TIME_RUNNING = 0x2
+ 	PERF_FORMAT_ID                 = 0x4
+ 	PERF_FORMAT_GROUP              = 0x8
+ 
+-	PERF_RECORD_MMAP       = 0x1
+-	PERF_RECORD_LOST       = 0x2
+-	PERF_RECORD_COMM       = 0x3
+-	PERF_RECORD_EXIT       = 0x4
+-	PERF_RECORD_THROTTLE   = 0x5
+-	PERF_RECORD_UNTHROTTLE = 0x6
+-	PERF_RECORD_FORK       = 0x7
+-	PERF_RECORD_READ       = 0x8
+-	PERF_RECORD_SAMPLE     = 0x9
++	PERF_RECORD_MMAP            = 0x1
++	PERF_RECORD_LOST            = 0x2
++	PERF_RECORD_COMM            = 0x3
++	PERF_RECORD_EXIT            = 0x4
++	PERF_RECORD_THROTTLE        = 0x5
++	PERF_RECORD_UNTHROTTLE      = 0x6
++	PERF_RECORD_FORK            = 0x7
++	PERF_RECORD_READ            = 0x8
++	PERF_RECORD_SAMPLE          = 0x9
++	PERF_RECORD_MMAP2           = 0xa
++	PERF_RECORD_AUX             = 0xb
++	PERF_RECORD_ITRACE_START    = 0xc
++	PERF_RECORD_LOST_SAMPLES    = 0xd
++	PERF_RECORD_SWITCH          = 0xe
++	PERF_RECORD_SWITCH_CPU_WIDE = 0xf
++	PERF_RECORD_NAMESPACES      = 0x10
+ 
+ 	PERF_CONTEXT_HV     = -0x20
+ 	PERF_CONTEXT_KERNEL = -0x80
+@@ -1124,6 +1143,7 @@ const (
+ 	PERF_FLAG_FD_NO_GROUP = 0x1
+ 	PERF_FLAG_FD_OUTPUT   = 0x2
+ 	PERF_FLAG_PID_CGROUP  = 0x4
++	PERF_FLAG_FD_CLOEXEC  = 0x8
+ )
+ 
+ const (
+@@ -1428,6 +1448,9 @@ const (
+ 	SizeofTpacketHdr  = 0x18
+ 	SizeofTpacket2Hdr = 0x20
+ 	SizeofTpacket3Hdr = 0x30
++
++	SizeofTpacketStats   = 0x8
++	SizeofTpacketStatsV3 = 0xc
+ )
+ 
+ const (
+@@ -2043,3 +2066,18 @@ type SockExtendedErr struct {
+ 	Info   uint32
+ 	Data   uint32
+ }
++
++type FanotifyEventMetadata struct {
++	Event_len    uint32
++	Vers         uint8
++	Reserved     uint8
++	Metadata_len uint16
++	Mask         uint64
++	Fd           int32
++	Pid          int32
++}
++
++type FanotifyResponse struct {
++	Fd       int32
++	Response uint32
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_amd64.go
+index 6ddbf0665c..9f8cbf4cb3 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_amd64.go
+@@ -984,7 +984,8 @@ type PerfEventAttr struct {
+ 	Clockid            int32
+ 	Sample_regs_intr   uint64
+ 	Aux_watermark      uint32
+-	_                  uint32
++	Sample_max_stack   uint16
++	_                  uint16
+ }
+ 
+ type PerfEventMmapPage struct {
+@@ -1087,6 +1088,7 @@ const (
+ 	PERF_COUNT_SW_ALIGNMENT_FAULTS = 0x7
+ 	PERF_COUNT_SW_EMULATION_FAULTS = 0x8
+ 	PERF_COUNT_SW_DUMMY            = 0x9
++	PERF_COUNT_SW_BPF_OUTPUT       = 0xa
+ 
+ 	PERF_SAMPLE_IP           = 0x1
+ 	PERF_SAMPLE_TID          = 0x2
+@@ -1108,21 +1110,38 @@ const (
+ 	PERF_SAMPLE_BRANCH_ANY_CALL   = 0x10
+ 	PERF_SAMPLE_BRANCH_ANY_RETURN = 0x20
+ 	PERF_SAMPLE_BRANCH_IND_CALL   = 0x40
++	PERF_SAMPLE_BRANCH_ABORT_TX   = 0x80
++	PERF_SAMPLE_BRANCH_IN_TX      = 0x100
++	PERF_SAMPLE_BRANCH_NO_TX      = 0x200
++	PERF_SAMPLE_BRANCH_COND       = 0x400
++	PERF_SAMPLE_BRANCH_CALL_STACK = 0x800
++	PERF_SAMPLE_BRANCH_IND_JUMP   = 0x1000
++	PERF_SAMPLE_BRANCH_CALL       = 0x2000
++	PERF_SAMPLE_BRANCH_NO_FLAGS   = 0x4000
++	PERF_SAMPLE_BRANCH_NO_CYCLES  = 0x8000
++	PERF_SAMPLE_BRANCH_TYPE_SAVE  = 0x10000
+ 
+ 	PERF_FORMAT_TOTAL_TIME_ENABLED = 0x1
+ 	PERF_FORMAT_TOTAL_TIME_RUNNING = 0x2
+ 	PERF_FORMAT_ID                 = 0x4
+ 	PERF_FORMAT_GROUP              = 0x8
+ 
+-	PERF_RECORD_MMAP       = 0x1
+-	PERF_RECORD_LOST       = 0x2
+-	PERF_RECORD_COMM       = 0x3
+-	PERF_RECORD_EXIT       = 0x4
+-	PERF_RECORD_THROTTLE   = 0x5
+-	PERF_RECORD_UNTHROTTLE = 0x6
+-	PERF_RECORD_FORK       = 0x7
+-	PERF_RECORD_READ       = 0x8
+-	PERF_RECORD_SAMPLE     = 0x9
++	PERF_RECORD_MMAP            = 0x1
++	PERF_RECORD_LOST            = 0x2
++	PERF_RECORD_COMM            = 0x3
++	PERF_RECORD_EXIT            = 0x4
++	PERF_RECORD_THROTTLE        = 0x5
++	PERF_RECORD_UNTHROTTLE      = 0x6
++	PERF_RECORD_FORK            = 0x7
++	PERF_RECORD_READ            = 0x8
++	PERF_RECORD_SAMPLE          = 0x9
++	PERF_RECORD_MMAP2           = 0xa
++	PERF_RECORD_AUX             = 0xb
++	PERF_RECORD_ITRACE_START    = 0xc
++	PERF_RECORD_LOST_SAMPLES    = 0xd
++	PERF_RECORD_SWITCH          = 0xe
++	PERF_RECORD_SWITCH_CPU_WIDE = 0xf
++	PERF_RECORD_NAMESPACES      = 0x10
+ 
+ 	PERF_CONTEXT_HV     = -0x20
+ 	PERF_CONTEXT_KERNEL = -0x80
+@@ -1135,6 +1154,7 @@ const (
+ 	PERF_FLAG_FD_NO_GROUP = 0x1
+ 	PERF_FLAG_FD_OUTPUT   = 0x2
+ 	PERF_FLAG_PID_CGROUP  = 0x4
++	PERF_FLAG_FD_CLOEXEC  = 0x8
+ )
+ 
+ const (
+@@ -1440,6 +1460,9 @@ const (
+ 	SizeofTpacketHdr  = 0x20
+ 	SizeofTpacket2Hdr = 0x20
+ 	SizeofTpacket3Hdr = 0x30
++
++	SizeofTpacketStats   = 0x8
++	SizeofTpacketStatsV3 = 0xc
+ )
+ 
+ const (
+@@ -2056,3 +2079,18 @@ type SockExtendedErr struct {
+ 	Info   uint32
+ 	Data   uint32
+ }
++
++type FanotifyEventMetadata struct {
++	Event_len    uint32
++	Vers         uint8
++	Reserved     uint8
++	Metadata_len uint16
++	Mask         uint64
++	Fd           int32
++	Pid          int32
++}
++
++type FanotifyResponse struct {
++	Fd       int32
++	Response uint32
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_arm.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_arm.go
+index b8e3ec1384..cbbf19a447 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_arm.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_arm.go
+@@ -962,7 +962,8 @@ type PerfEventAttr struct {
+ 	Clockid            int32
+ 	Sample_regs_intr   uint64
+ 	Aux_watermark      uint32
+-	_                  uint32
++	Sample_max_stack   uint16
++	_                  uint16
+ }
+ 
+ type PerfEventMmapPage struct {
+@@ -1065,6 +1066,7 @@ const (
+ 	PERF_COUNT_SW_ALIGNMENT_FAULTS = 0x7
+ 	PERF_COUNT_SW_EMULATION_FAULTS = 0x8
+ 	PERF_COUNT_SW_DUMMY            = 0x9
++	PERF_COUNT_SW_BPF_OUTPUT       = 0xa
+ 
+ 	PERF_SAMPLE_IP           = 0x1
+ 	PERF_SAMPLE_TID          = 0x2
+@@ -1086,21 +1088,38 @@ const (
+ 	PERF_SAMPLE_BRANCH_ANY_CALL   = 0x10
+ 	PERF_SAMPLE_BRANCH_ANY_RETURN = 0x20
+ 	PERF_SAMPLE_BRANCH_IND_CALL   = 0x40
++	PERF_SAMPLE_BRANCH_ABORT_TX   = 0x80
++	PERF_SAMPLE_BRANCH_IN_TX      = 0x100
++	PERF_SAMPLE_BRANCH_NO_TX      = 0x200
++	PERF_SAMPLE_BRANCH_COND       = 0x400
++	PERF_SAMPLE_BRANCH_CALL_STACK = 0x800
++	PERF_SAMPLE_BRANCH_IND_JUMP   = 0x1000
++	PERF_SAMPLE_BRANCH_CALL       = 0x2000
++	PERF_SAMPLE_BRANCH_NO_FLAGS   = 0x4000
++	PERF_SAMPLE_BRANCH_NO_CYCLES  = 0x8000
++	PERF_SAMPLE_BRANCH_TYPE_SAVE  = 0x10000
+ 
+ 	PERF_FORMAT_TOTAL_TIME_ENABLED = 0x1
+ 	PERF_FORMAT_TOTAL_TIME_RUNNING = 0x2
+ 	PERF_FORMAT_ID                 = 0x4
+ 	PERF_FORMAT_GROUP              = 0x8
+ 
+-	PERF_RECORD_MMAP       = 0x1
+-	PERF_RECORD_LOST       = 0x2
+-	PERF_RECORD_COMM       = 0x3
+-	PERF_RECORD_EXIT       = 0x4
+-	PERF_RECORD_THROTTLE   = 0x5
+-	PERF_RECORD_UNTHROTTLE = 0x6
+-	PERF_RECORD_FORK       = 0x7
+-	PERF_RECORD_READ       = 0x8
+-	PERF_RECORD_SAMPLE     = 0x9
++	PERF_RECORD_MMAP            = 0x1
++	PERF_RECORD_LOST            = 0x2
++	PERF_RECORD_COMM            = 0x3
++	PERF_RECORD_EXIT            = 0x4
++	PERF_RECORD_THROTTLE        = 0x5
++	PERF_RECORD_UNTHROTTLE      = 0x6
++	PERF_RECORD_FORK            = 0x7
++	PERF_RECORD_READ            = 0x8
++	PERF_RECORD_SAMPLE          = 0x9
++	PERF_RECORD_MMAP2           = 0xa
++	PERF_RECORD_AUX             = 0xb
++	PERF_RECORD_ITRACE_START    = 0xc
++	PERF_RECORD_LOST_SAMPLES    = 0xd
++	PERF_RECORD_SWITCH          = 0xe
++	PERF_RECORD_SWITCH_CPU_WIDE = 0xf
++	PERF_RECORD_NAMESPACES      = 0x10
+ 
+ 	PERF_CONTEXT_HV     = -0x20
+ 	PERF_CONTEXT_KERNEL = -0x80
+@@ -1113,6 +1132,7 @@ const (
+ 	PERF_FLAG_FD_NO_GROUP = 0x1
+ 	PERF_FLAG_FD_OUTPUT   = 0x2
+ 	PERF_FLAG_PID_CGROUP  = 0x4
++	PERF_FLAG_FD_CLOEXEC  = 0x8
+ )
+ 
+ const (
+@@ -1418,6 +1438,9 @@ const (
+ 	SizeofTpacketHdr  = 0x18
+ 	SizeofTpacket2Hdr = 0x20
+ 	SizeofTpacket3Hdr = 0x30
++
++	SizeofTpacketStats   = 0x8
++	SizeofTpacketStatsV3 = 0xc
+ )
+ 
+ const (
+@@ -2034,3 +2057,18 @@ type SockExtendedErr struct {
+ 	Info   uint32
+ 	Data   uint32
+ }
++
++type FanotifyEventMetadata struct {
++	Event_len    uint32
++	Vers         uint8
++	Reserved     uint8
++	Metadata_len uint16
++	Mask         uint64
++	Fd           int32
++	Pid          int32
++}
++
++type FanotifyResponse struct {
++	Fd       int32
++	Response uint32
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_arm64.go
+index 2f73f0086d..be21189dbd 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_arm64.go
+@@ -963,7 +963,8 @@ type PerfEventAttr struct {
+ 	Clockid            int32
+ 	Sample_regs_intr   uint64
+ 	Aux_watermark      uint32
+-	_                  uint32
++	Sample_max_stack   uint16
++	_                  uint16
+ }
+ 
+ type PerfEventMmapPage struct {
+@@ -1066,6 +1067,7 @@ const (
+ 	PERF_COUNT_SW_ALIGNMENT_FAULTS = 0x7
+ 	PERF_COUNT_SW_EMULATION_FAULTS = 0x8
+ 	PERF_COUNT_SW_DUMMY            = 0x9
++	PERF_COUNT_SW_BPF_OUTPUT       = 0xa
+ 
+ 	PERF_SAMPLE_IP           = 0x1
+ 	PERF_SAMPLE_TID          = 0x2
+@@ -1087,21 +1089,38 @@ const (
+ 	PERF_SAMPLE_BRANCH_ANY_CALL   = 0x10
+ 	PERF_SAMPLE_BRANCH_ANY_RETURN = 0x20
+ 	PERF_SAMPLE_BRANCH_IND_CALL   = 0x40
++	PERF_SAMPLE_BRANCH_ABORT_TX   = 0x80
++	PERF_SAMPLE_BRANCH_IN_TX      = 0x100
++	PERF_SAMPLE_BRANCH_NO_TX      = 0x200
++	PERF_SAMPLE_BRANCH_COND       = 0x400
++	PERF_SAMPLE_BRANCH_CALL_STACK = 0x800
++	PERF_SAMPLE_BRANCH_IND_JUMP   = 0x1000
++	PERF_SAMPLE_BRANCH_CALL       = 0x2000
++	PERF_SAMPLE_BRANCH_NO_FLAGS   = 0x4000
++	PERF_SAMPLE_BRANCH_NO_CYCLES  = 0x8000
++	PERF_SAMPLE_BRANCH_TYPE_SAVE  = 0x10000
+ 
+ 	PERF_FORMAT_TOTAL_TIME_ENABLED = 0x1
+ 	PERF_FORMAT_TOTAL_TIME_RUNNING = 0x2
+ 	PERF_FORMAT_ID                 = 0x4
+ 	PERF_FORMAT_GROUP              = 0x8
+ 
+-	PERF_RECORD_MMAP       = 0x1
+-	PERF_RECORD_LOST       = 0x2
+-	PERF_RECORD_COMM       = 0x3
+-	PERF_RECORD_EXIT       = 0x4
+-	PERF_RECORD_THROTTLE   = 0x5
+-	PERF_RECORD_UNTHROTTLE = 0x6
+-	PERF_RECORD_FORK       = 0x7
+-	PERF_RECORD_READ       = 0x8
+-	PERF_RECORD_SAMPLE     = 0x9
++	PERF_RECORD_MMAP            = 0x1
++	PERF_RECORD_LOST            = 0x2
++	PERF_RECORD_COMM            = 0x3
++	PERF_RECORD_EXIT            = 0x4
++	PERF_RECORD_THROTTLE        = 0x5
++	PERF_RECORD_UNTHROTTLE      = 0x6
++	PERF_RECORD_FORK            = 0x7
++	PERF_RECORD_READ            = 0x8
++	PERF_RECORD_SAMPLE          = 0x9
++	PERF_RECORD_MMAP2           = 0xa
++	PERF_RECORD_AUX             = 0xb
++	PERF_RECORD_ITRACE_START    = 0xc
++	PERF_RECORD_LOST_SAMPLES    = 0xd
++	PERF_RECORD_SWITCH          = 0xe
++	PERF_RECORD_SWITCH_CPU_WIDE = 0xf
++	PERF_RECORD_NAMESPACES      = 0x10
+ 
+ 	PERF_CONTEXT_HV     = -0x20
+ 	PERF_CONTEXT_KERNEL = -0x80
+@@ -1114,6 +1133,7 @@ const (
+ 	PERF_FLAG_FD_NO_GROUP = 0x1
+ 	PERF_FLAG_FD_OUTPUT   = 0x2
+ 	PERF_FLAG_PID_CGROUP  = 0x4
++	PERF_FLAG_FD_CLOEXEC  = 0x8
+ )
+ 
+ const (
+@@ -1419,6 +1439,9 @@ const (
+ 	SizeofTpacketHdr  = 0x20
+ 	SizeofTpacket2Hdr = 0x20
+ 	SizeofTpacket3Hdr = 0x30
++
++	SizeofTpacketStats   = 0x8
++	SizeofTpacketStatsV3 = 0xc
+ )
+ 
+ const (
+@@ -2035,3 +2058,18 @@ type SockExtendedErr struct {
+ 	Info   uint32
+ 	Data   uint32
+ }
++
++type FanotifyEventMetadata struct {
++	Event_len    uint32
++	Vers         uint8
++	Reserved     uint8
++	Metadata_len uint16
++	Mask         uint64
++	Fd           int32
++	Pid          int32
++}
++
++type FanotifyResponse struct {
++	Fd       int32
++	Response uint32
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips.go
+index 4a2a18bcb0..d599ca2759 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips.go
+@@ -967,7 +967,8 @@ type PerfEventAttr struct {
+ 	Clockid            int32
+ 	Sample_regs_intr   uint64
+ 	Aux_watermark      uint32
+-	_                  uint32
++	Sample_max_stack   uint16
++	_                  uint16
+ }
+ 
+ type PerfEventMmapPage struct {
+@@ -1070,6 +1071,7 @@ const (
+ 	PERF_COUNT_SW_ALIGNMENT_FAULTS = 0x7
+ 	PERF_COUNT_SW_EMULATION_FAULTS = 0x8
+ 	PERF_COUNT_SW_DUMMY            = 0x9
++	PERF_COUNT_SW_BPF_OUTPUT       = 0xa
+ 
+ 	PERF_SAMPLE_IP           = 0x1
+ 	PERF_SAMPLE_TID          = 0x2
+@@ -1091,21 +1093,38 @@ const (
+ 	PERF_SAMPLE_BRANCH_ANY_CALL   = 0x10
+ 	PERF_SAMPLE_BRANCH_ANY_RETURN = 0x20
+ 	PERF_SAMPLE_BRANCH_IND_CALL   = 0x40
++	PERF_SAMPLE_BRANCH_ABORT_TX   = 0x80
++	PERF_SAMPLE_BRANCH_IN_TX      = 0x100
++	PERF_SAMPLE_BRANCH_NO_TX      = 0x200
++	PERF_SAMPLE_BRANCH_COND       = 0x400
++	PERF_SAMPLE_BRANCH_CALL_STACK = 0x800
++	PERF_SAMPLE_BRANCH_IND_JUMP   = 0x1000
++	PERF_SAMPLE_BRANCH_CALL       = 0x2000
++	PERF_SAMPLE_BRANCH_NO_FLAGS   = 0x4000
++	PERF_SAMPLE_BRANCH_NO_CYCLES  = 0x8000
++	PERF_SAMPLE_BRANCH_TYPE_SAVE  = 0x10000
+ 
+ 	PERF_FORMAT_TOTAL_TIME_ENABLED = 0x1
+ 	PERF_FORMAT_TOTAL_TIME_RUNNING = 0x2
+ 	PERF_FORMAT_ID                 = 0x4
+ 	PERF_FORMAT_GROUP              = 0x8
+ 
+-	PERF_RECORD_MMAP       = 0x1
+-	PERF_RECORD_LOST       = 0x2
+-	PERF_RECORD_COMM       = 0x3
+-	PERF_RECORD_EXIT       = 0x4
+-	PERF_RECORD_THROTTLE   = 0x5
+-	PERF_RECORD_UNTHROTTLE = 0x6
+-	PERF_RECORD_FORK       = 0x7
+-	PERF_RECORD_READ       = 0x8
+-	PERF_RECORD_SAMPLE     = 0x9
++	PERF_RECORD_MMAP            = 0x1
++	PERF_RECORD_LOST            = 0x2
++	PERF_RECORD_COMM            = 0x3
++	PERF_RECORD_EXIT            = 0x4
++	PERF_RECORD_THROTTLE        = 0x5
++	PERF_RECORD_UNTHROTTLE      = 0x6
++	PERF_RECORD_FORK            = 0x7
++	PERF_RECORD_READ            = 0x8
++	PERF_RECORD_SAMPLE          = 0x9
++	PERF_RECORD_MMAP2           = 0xa
++	PERF_RECORD_AUX             = 0xb
++	PERF_RECORD_ITRACE_START    = 0xc
++	PERF_RECORD_LOST_SAMPLES    = 0xd
++	PERF_RECORD_SWITCH          = 0xe
++	PERF_RECORD_SWITCH_CPU_WIDE = 0xf
++	PERF_RECORD_NAMESPACES      = 0x10
+ 
+ 	PERF_CONTEXT_HV     = -0x20
+ 	PERF_CONTEXT_KERNEL = -0x80
+@@ -1118,6 +1137,7 @@ const (
+ 	PERF_FLAG_FD_NO_GROUP = 0x1
+ 	PERF_FLAG_FD_OUTPUT   = 0x2
+ 	PERF_FLAG_PID_CGROUP  = 0x4
++	PERF_FLAG_FD_CLOEXEC  = 0x8
+ )
+ 
+ const (
+@@ -1424,6 +1444,9 @@ const (
+ 	SizeofTpacketHdr  = 0x18
+ 	SizeofTpacket2Hdr = 0x20
+ 	SizeofTpacket3Hdr = 0x30
++
++	SizeofTpacketStats   = 0x8
++	SizeofTpacketStatsV3 = 0xc
+ )
+ 
+ const (
+@@ -2040,3 +2063,18 @@ type SockExtendedErr struct {
+ 	Info   uint32
+ 	Data   uint32
+ }
++
++type FanotifyEventMetadata struct {
++	Event_len    uint32
++	Vers         uint8
++	Reserved     uint8
++	Metadata_len uint16
++	Mask         uint64
++	Fd           int32
++	Pid          int32
++}
++
++type FanotifyResponse struct {
++	Fd       int32
++	Response uint32
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips64.go
+index 41e4513de1..011be86bae 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips64.go
+@@ -965,7 +965,8 @@ type PerfEventAttr struct {
+ 	Clockid            int32
+ 	Sample_regs_intr   uint64
+ 	Aux_watermark      uint32
+-	_                  uint32
++	Sample_max_stack   uint16
++	_                  uint16
+ }
+ 
+ type PerfEventMmapPage struct {
+@@ -1068,6 +1069,7 @@ const (
+ 	PERF_COUNT_SW_ALIGNMENT_FAULTS = 0x7
+ 	PERF_COUNT_SW_EMULATION_FAULTS = 0x8
+ 	PERF_COUNT_SW_DUMMY            = 0x9
++	PERF_COUNT_SW_BPF_OUTPUT       = 0xa
+ 
+ 	PERF_SAMPLE_IP           = 0x1
+ 	PERF_SAMPLE_TID          = 0x2
+@@ -1089,21 +1091,38 @@ const (
+ 	PERF_SAMPLE_BRANCH_ANY_CALL   = 0x10
+ 	PERF_SAMPLE_BRANCH_ANY_RETURN = 0x20
+ 	PERF_SAMPLE_BRANCH_IND_CALL   = 0x40
++	PERF_SAMPLE_BRANCH_ABORT_TX   = 0x80
++	PERF_SAMPLE_BRANCH_IN_TX      = 0x100
++	PERF_SAMPLE_BRANCH_NO_TX      = 0x200
++	PERF_SAMPLE_BRANCH_COND       = 0x400
++	PERF_SAMPLE_BRANCH_CALL_STACK = 0x800
++	PERF_SAMPLE_BRANCH_IND_JUMP   = 0x1000
++	PERF_SAMPLE_BRANCH_CALL       = 0x2000
++	PERF_SAMPLE_BRANCH_NO_FLAGS   = 0x4000
++	PERF_SAMPLE_BRANCH_NO_CYCLES  = 0x8000
++	PERF_SAMPLE_BRANCH_TYPE_SAVE  = 0x10000
+ 
+ 	PERF_FORMAT_TOTAL_TIME_ENABLED = 0x1
+ 	PERF_FORMAT_TOTAL_TIME_RUNNING = 0x2
+ 	PERF_FORMAT_ID                 = 0x4
+ 	PERF_FORMAT_GROUP              = 0x8
+ 
+-	PERF_RECORD_MMAP       = 0x1
+-	PERF_RECORD_LOST       = 0x2
+-	PERF_RECORD_COMM       = 0x3
+-	PERF_RECORD_EXIT       = 0x4
+-	PERF_RECORD_THROTTLE   = 0x5
+-	PERF_RECORD_UNTHROTTLE = 0x6
+-	PERF_RECORD_FORK       = 0x7
+-	PERF_RECORD_READ       = 0x8
+-	PERF_RECORD_SAMPLE     = 0x9
++	PERF_RECORD_MMAP            = 0x1
++	PERF_RECORD_LOST            = 0x2
++	PERF_RECORD_COMM            = 0x3
++	PERF_RECORD_EXIT            = 0x4
++	PERF_RECORD_THROTTLE        = 0x5
++	PERF_RECORD_UNTHROTTLE      = 0x6
++	PERF_RECORD_FORK            = 0x7
++	PERF_RECORD_READ            = 0x8
++	PERF_RECORD_SAMPLE          = 0x9
++	PERF_RECORD_MMAP2           = 0xa
++	PERF_RECORD_AUX             = 0xb
++	PERF_RECORD_ITRACE_START    = 0xc
++	PERF_RECORD_LOST_SAMPLES    = 0xd
++	PERF_RECORD_SWITCH          = 0xe
++	PERF_RECORD_SWITCH_CPU_WIDE = 0xf
++	PERF_RECORD_NAMESPACES      = 0x10
+ 
+ 	PERF_CONTEXT_HV     = -0x20
+ 	PERF_CONTEXT_KERNEL = -0x80
+@@ -1116,6 +1135,7 @@ const (
+ 	PERF_FLAG_FD_NO_GROUP = 0x1
+ 	PERF_FLAG_FD_OUTPUT   = 0x2
+ 	PERF_FLAG_PID_CGROUP  = 0x4
++	PERF_FLAG_FD_CLOEXEC  = 0x8
+ )
+ 
+ const (
+@@ -1421,6 +1441,9 @@ const (
+ 	SizeofTpacketHdr  = 0x20
+ 	SizeofTpacket2Hdr = 0x20
+ 	SizeofTpacket3Hdr = 0x30
++
++	SizeofTpacketStats   = 0x8
++	SizeofTpacketStatsV3 = 0xc
+ )
+ 
+ const (
+@@ -2037,3 +2060,18 @@ type SockExtendedErr struct {
+ 	Info   uint32
+ 	Data   uint32
+ }
++
++type FanotifyEventMetadata struct {
++	Event_len    uint32
++	Vers         uint8
++	Reserved     uint8
++	Metadata_len uint16
++	Mask         uint64
++	Fd           int32
++	Pid          int32
++}
++
++type FanotifyResponse struct {
++	Fd       int32
++	Response uint32
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips64le.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips64le.go
+index 4a3d74b76e..8163445163 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips64le.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips64le.go
+@@ -965,7 +965,8 @@ type PerfEventAttr struct {
+ 	Clockid            int32
+ 	Sample_regs_intr   uint64
+ 	Aux_watermark      uint32
+-	_                  uint32
++	Sample_max_stack   uint16
++	_                  uint16
+ }
+ 
+ type PerfEventMmapPage struct {
+@@ -1068,6 +1069,7 @@ const (
+ 	PERF_COUNT_SW_ALIGNMENT_FAULTS = 0x7
+ 	PERF_COUNT_SW_EMULATION_FAULTS = 0x8
+ 	PERF_COUNT_SW_DUMMY            = 0x9
++	PERF_COUNT_SW_BPF_OUTPUT       = 0xa
+ 
+ 	PERF_SAMPLE_IP           = 0x1
+ 	PERF_SAMPLE_TID          = 0x2
+@@ -1089,21 +1091,38 @@ const (
+ 	PERF_SAMPLE_BRANCH_ANY_CALL   = 0x10
+ 	PERF_SAMPLE_BRANCH_ANY_RETURN = 0x20
+ 	PERF_SAMPLE_BRANCH_IND_CALL   = 0x40
++	PERF_SAMPLE_BRANCH_ABORT_TX   = 0x80
++	PERF_SAMPLE_BRANCH_IN_TX      = 0x100
++	PERF_SAMPLE_BRANCH_NO_TX      = 0x200
++	PERF_SAMPLE_BRANCH_COND       = 0x400
++	PERF_SAMPLE_BRANCH_CALL_STACK = 0x800
++	PERF_SAMPLE_BRANCH_IND_JUMP   = 0x1000
++	PERF_SAMPLE_BRANCH_CALL       = 0x2000
++	PERF_SAMPLE_BRANCH_NO_FLAGS   = 0x4000
++	PERF_SAMPLE_BRANCH_NO_CYCLES  = 0x8000
++	PERF_SAMPLE_BRANCH_TYPE_SAVE  = 0x10000
+ 
+ 	PERF_FORMAT_TOTAL_TIME_ENABLED = 0x1
+ 	PERF_FORMAT_TOTAL_TIME_RUNNING = 0x2
+ 	PERF_FORMAT_ID                 = 0x4
+ 	PERF_FORMAT_GROUP              = 0x8
+ 
+-	PERF_RECORD_MMAP       = 0x1
+-	PERF_RECORD_LOST       = 0x2
+-	PERF_RECORD_COMM       = 0x3
+-	PERF_RECORD_EXIT       = 0x4
+-	PERF_RECORD_THROTTLE   = 0x5
+-	PERF_RECORD_UNTHROTTLE = 0x6
+-	PERF_RECORD_FORK       = 0x7
+-	PERF_RECORD_READ       = 0x8
+-	PERF_RECORD_SAMPLE     = 0x9
++	PERF_RECORD_MMAP            = 0x1
++	PERF_RECORD_LOST            = 0x2
++	PERF_RECORD_COMM            = 0x3
++	PERF_RECORD_EXIT            = 0x4
++	PERF_RECORD_THROTTLE        = 0x5
++	PERF_RECORD_UNTHROTTLE      = 0x6
++	PERF_RECORD_FORK            = 0x7
++	PERF_RECORD_READ            = 0x8
++	PERF_RECORD_SAMPLE          = 0x9
++	PERF_RECORD_MMAP2           = 0xa
++	PERF_RECORD_AUX             = 0xb
++	PERF_RECORD_ITRACE_START    = 0xc
++	PERF_RECORD_LOST_SAMPLES    = 0xd
++	PERF_RECORD_SWITCH          = 0xe
++	PERF_RECORD_SWITCH_CPU_WIDE = 0xf
++	PERF_RECORD_NAMESPACES      = 0x10
+ 
+ 	PERF_CONTEXT_HV     = -0x20
+ 	PERF_CONTEXT_KERNEL = -0x80
+@@ -1116,6 +1135,7 @@ const (
+ 	PERF_FLAG_FD_NO_GROUP = 0x1
+ 	PERF_FLAG_FD_OUTPUT   = 0x2
+ 	PERF_FLAG_PID_CGROUP  = 0x4
++	PERF_FLAG_FD_CLOEXEC  = 0x8
+ )
+ 
+ const (
+@@ -1421,6 +1441,9 @@ const (
+ 	SizeofTpacketHdr  = 0x20
+ 	SizeofTpacket2Hdr = 0x20
+ 	SizeofTpacket3Hdr = 0x30
++
++	SizeofTpacketStats   = 0x8
++	SizeofTpacketStatsV3 = 0xc
+ )
+ 
+ const (
+@@ -2037,3 +2060,18 @@ type SockExtendedErr struct {
+ 	Info   uint32
+ 	Data   uint32
+ }
++
++type FanotifyEventMetadata struct {
++	Event_len    uint32
++	Vers         uint8
++	Reserved     uint8
++	Metadata_len uint16
++	Mask         uint64
++	Fd           int32
++	Pid          int32
++}
++
++type FanotifyResponse struct {
++	Fd       int32
++	Response uint32
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mipsle.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mipsle.go
+index 8ae3ca4e4e..4ecf7a8c77 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mipsle.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mipsle.go
+@@ -967,7 +967,8 @@ type PerfEventAttr struct {
+ 	Clockid            int32
+ 	Sample_regs_intr   uint64
+ 	Aux_watermark      uint32
+-	_                  uint32
++	Sample_max_stack   uint16
++	_                  uint16
+ }
+ 
+ type PerfEventMmapPage struct {
+@@ -1070,6 +1071,7 @@ const (
+ 	PERF_COUNT_SW_ALIGNMENT_FAULTS = 0x7
+ 	PERF_COUNT_SW_EMULATION_FAULTS = 0x8
+ 	PERF_COUNT_SW_DUMMY            = 0x9
++	PERF_COUNT_SW_BPF_OUTPUT       = 0xa
+ 
+ 	PERF_SAMPLE_IP           = 0x1
+ 	PERF_SAMPLE_TID          = 0x2
+@@ -1091,21 +1093,38 @@ const (
+ 	PERF_SAMPLE_BRANCH_ANY_CALL   = 0x10
+ 	PERF_SAMPLE_BRANCH_ANY_RETURN = 0x20
+ 	PERF_SAMPLE_BRANCH_IND_CALL   = 0x40
++	PERF_SAMPLE_BRANCH_ABORT_TX   = 0x80
++	PERF_SAMPLE_BRANCH_IN_TX      = 0x100
++	PERF_SAMPLE_BRANCH_NO_TX      = 0x200
++	PERF_SAMPLE_BRANCH_COND       = 0x400
++	PERF_SAMPLE_BRANCH_CALL_STACK = 0x800
++	PERF_SAMPLE_BRANCH_IND_JUMP   = 0x1000
++	PERF_SAMPLE_BRANCH_CALL       = 0x2000
++	PERF_SAMPLE_BRANCH_NO_FLAGS   = 0x4000
++	PERF_SAMPLE_BRANCH_NO_CYCLES  = 0x8000
++	PERF_SAMPLE_BRANCH_TYPE_SAVE  = 0x10000
+ 
+ 	PERF_FORMAT_TOTAL_TIME_ENABLED = 0x1
+ 	PERF_FORMAT_TOTAL_TIME_RUNNING = 0x2
+ 	PERF_FORMAT_ID                 = 0x4
+ 	PERF_FORMAT_GROUP              = 0x8
+ 
+-	PERF_RECORD_MMAP       = 0x1
+-	PERF_RECORD_LOST       = 0x2
+-	PERF_RECORD_COMM       = 0x3
+-	PERF_RECORD_EXIT       = 0x4
+-	PERF_RECORD_THROTTLE   = 0x5
+-	PERF_RECORD_UNTHROTTLE = 0x6
+-	PERF_RECORD_FORK       = 0x7
+-	PERF_RECORD_READ       = 0x8
+-	PERF_RECORD_SAMPLE     = 0x9
++	PERF_RECORD_MMAP            = 0x1
++	PERF_RECORD_LOST            = 0x2
++	PERF_RECORD_COMM            = 0x3
++	PERF_RECORD_EXIT            = 0x4
++	PERF_RECORD_THROTTLE        = 0x5
++	PERF_RECORD_UNTHROTTLE      = 0x6
++	PERF_RECORD_FORK            = 0x7
++	PERF_RECORD_READ            = 0x8
++	PERF_RECORD_SAMPLE          = 0x9
++	PERF_RECORD_MMAP2           = 0xa
++	PERF_RECORD_AUX             = 0xb
++	PERF_RECORD_ITRACE_START    = 0xc
++	PERF_RECORD_LOST_SAMPLES    = 0xd
++	PERF_RECORD_SWITCH          = 0xe
++	PERF_RECORD_SWITCH_CPU_WIDE = 0xf
++	PERF_RECORD_NAMESPACES      = 0x10
+ 
+ 	PERF_CONTEXT_HV     = -0x20
+ 	PERF_CONTEXT_KERNEL = -0x80
+@@ -1118,6 +1137,7 @@ const (
+ 	PERF_FLAG_FD_NO_GROUP = 0x1
+ 	PERF_FLAG_FD_OUTPUT   = 0x2
+ 	PERF_FLAG_PID_CGROUP  = 0x4
++	PERF_FLAG_FD_CLOEXEC  = 0x8
+ )
+ 
+ const (
+@@ -1424,6 +1444,9 @@ const (
+ 	SizeofTpacketHdr  = 0x18
+ 	SizeofTpacket2Hdr = 0x20
+ 	SizeofTpacket3Hdr = 0x30
++
++	SizeofTpacketStats   = 0x8
++	SizeofTpacketStatsV3 = 0xc
+ )
+ 
+ const (
+@@ -2040,3 +2063,18 @@ type SockExtendedErr struct {
+ 	Info   uint32
+ 	Data   uint32
+ }
++
++type FanotifyEventMetadata struct {
++	Event_len    uint32
++	Vers         uint8
++	Reserved     uint8
++	Metadata_len uint16
++	Mask         uint64
++	Fd           int32
++	Pid          int32
++}
++
++type FanotifyResponse struct {
++	Fd       int32
++	Response uint32
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc64.go
+index 50294c94c0..ea817bafba 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc64.go
+@@ -973,7 +973,8 @@ type PerfEventAttr struct {
+ 	Clockid            int32
+ 	Sample_regs_intr   uint64
+ 	Aux_watermark      uint32
+-	_                  uint32
++	Sample_max_stack   uint16
++	_                  uint16
+ }
+ 
+ type PerfEventMmapPage struct {
+@@ -1076,6 +1077,7 @@ const (
+ 	PERF_COUNT_SW_ALIGNMENT_FAULTS = 0x7
+ 	PERF_COUNT_SW_EMULATION_FAULTS = 0x8
+ 	PERF_COUNT_SW_DUMMY            = 0x9
++	PERF_COUNT_SW_BPF_OUTPUT       = 0xa
+ 
+ 	PERF_SAMPLE_IP           = 0x1
+ 	PERF_SAMPLE_TID          = 0x2
+@@ -1097,21 +1099,38 @@ const (
+ 	PERF_SAMPLE_BRANCH_ANY_CALL   = 0x10
+ 	PERF_SAMPLE_BRANCH_ANY_RETURN = 0x20
+ 	PERF_SAMPLE_BRANCH_IND_CALL   = 0x40
++	PERF_SAMPLE_BRANCH_ABORT_TX   = 0x80
++	PERF_SAMPLE_BRANCH_IN_TX      = 0x100
++	PERF_SAMPLE_BRANCH_NO_TX      = 0x200
++	PERF_SAMPLE_BRANCH_COND       = 0x400
++	PERF_SAMPLE_BRANCH_CALL_STACK = 0x800
++	PERF_SAMPLE_BRANCH_IND_JUMP   = 0x1000
++	PERF_SAMPLE_BRANCH_CALL       = 0x2000
++	PERF_SAMPLE_BRANCH_NO_FLAGS   = 0x4000
++	PERF_SAMPLE_BRANCH_NO_CYCLES  = 0x8000
++	PERF_SAMPLE_BRANCH_TYPE_SAVE  = 0x10000
+ 
+ 	PERF_FORMAT_TOTAL_TIME_ENABLED = 0x1
+ 	PERF_FORMAT_TOTAL_TIME_RUNNING = 0x2
+ 	PERF_FORMAT_ID                 = 0x4
+ 	PERF_FORMAT_GROUP              = 0x8
+ 
+-	PERF_RECORD_MMAP       = 0x1
+-	PERF_RECORD_LOST       = 0x2
+-	PERF_RECORD_COMM       = 0x3
+-	PERF_RECORD_EXIT       = 0x4
+-	PERF_RECORD_THROTTLE   = 0x5
+-	PERF_RECORD_UNTHROTTLE = 0x6
+-	PERF_RECORD_FORK       = 0x7
+-	PERF_RECORD_READ       = 0x8
+-	PERF_RECORD_SAMPLE     = 0x9
++	PERF_RECORD_MMAP            = 0x1
++	PERF_RECORD_LOST            = 0x2
++	PERF_RECORD_COMM            = 0x3
++	PERF_RECORD_EXIT            = 0x4
++	PERF_RECORD_THROTTLE        = 0x5
++	PERF_RECORD_UNTHROTTLE      = 0x6
++	PERF_RECORD_FORK            = 0x7
++	PERF_RECORD_READ            = 0x8
++	PERF_RECORD_SAMPLE          = 0x9
++	PERF_RECORD_MMAP2           = 0xa
++	PERF_RECORD_AUX             = 0xb
++	PERF_RECORD_ITRACE_START    = 0xc
++	PERF_RECORD_LOST_SAMPLES    = 0xd
++	PERF_RECORD_SWITCH          = 0xe
++	PERF_RECORD_SWITCH_CPU_WIDE = 0xf
++	PERF_RECORD_NAMESPACES      = 0x10
+ 
+ 	PERF_CONTEXT_HV     = -0x20
+ 	PERF_CONTEXT_KERNEL = -0x80
+@@ -1124,6 +1143,7 @@ const (
+ 	PERF_FLAG_FD_NO_GROUP = 0x1
+ 	PERF_FLAG_FD_OUTPUT   = 0x2
+ 	PERF_FLAG_PID_CGROUP  = 0x4
++	PERF_FLAG_FD_CLOEXEC  = 0x8
+ )
+ 
+ const (
+@@ -1429,6 +1449,9 @@ const (
+ 	SizeofTpacketHdr  = 0x20
+ 	SizeofTpacket2Hdr = 0x20
+ 	SizeofTpacket3Hdr = 0x30
++
++	SizeofTpacketStats   = 0x8
++	SizeofTpacketStatsV3 = 0xc
+ )
+ 
+ const (
+@@ -2045,3 +2068,18 @@ type SockExtendedErr struct {
+ 	Info   uint32
+ 	Data   uint32
+ }
++
++type FanotifyEventMetadata struct {
++	Event_len    uint32
++	Vers         uint8
++	Reserved     uint8
++	Metadata_len uint16
++	Mask         uint64
++	Fd           int32
++	Pid          int32
++}
++
++type FanotifyResponse struct {
++	Fd       int32
++	Response uint32
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc64le.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc64le.go
+index d2acf3a734..192ea3b105 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc64le.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc64le.go
+@@ -973,7 +973,8 @@ type PerfEventAttr struct {
+ 	Clockid            int32
+ 	Sample_regs_intr   uint64
+ 	Aux_watermark      uint32
+-	_                  uint32
++	Sample_max_stack   uint16
++	_                  uint16
+ }
+ 
+ type PerfEventMmapPage struct {
+@@ -1076,6 +1077,7 @@ const (
+ 	PERF_COUNT_SW_ALIGNMENT_FAULTS = 0x7
+ 	PERF_COUNT_SW_EMULATION_FAULTS = 0x8
+ 	PERF_COUNT_SW_DUMMY            = 0x9
++	PERF_COUNT_SW_BPF_OUTPUT       = 0xa
+ 
+ 	PERF_SAMPLE_IP           = 0x1
+ 	PERF_SAMPLE_TID          = 0x2
+@@ -1097,21 +1099,38 @@ const (
+ 	PERF_SAMPLE_BRANCH_ANY_CALL   = 0x10
+ 	PERF_SAMPLE_BRANCH_ANY_RETURN = 0x20
+ 	PERF_SAMPLE_BRANCH_IND_CALL   = 0x40
++	PERF_SAMPLE_BRANCH_ABORT_TX   = 0x80
++	PERF_SAMPLE_BRANCH_IN_TX      = 0x100
++	PERF_SAMPLE_BRANCH_NO_TX      = 0x200
++	PERF_SAMPLE_BRANCH_COND       = 0x400
++	PERF_SAMPLE_BRANCH_CALL_STACK = 0x800
++	PERF_SAMPLE_BRANCH_IND_JUMP   = 0x1000
++	PERF_SAMPLE_BRANCH_CALL       = 0x2000
++	PERF_SAMPLE_BRANCH_NO_FLAGS   = 0x4000
++	PERF_SAMPLE_BRANCH_NO_CYCLES  = 0x8000
++	PERF_SAMPLE_BRANCH_TYPE_SAVE  = 0x10000
+ 
+ 	PERF_FORMAT_TOTAL_TIME_ENABLED = 0x1
+ 	PERF_FORMAT_TOTAL_TIME_RUNNING = 0x2
+ 	PERF_FORMAT_ID                 = 0x4
+ 	PERF_FORMAT_GROUP              = 0x8
+ 
+-	PERF_RECORD_MMAP       = 0x1
+-	PERF_RECORD_LOST       = 0x2
+-	PERF_RECORD_COMM       = 0x3
+-	PERF_RECORD_EXIT       = 0x4
+-	PERF_RECORD_THROTTLE   = 0x5
+-	PERF_RECORD_UNTHROTTLE = 0x6
+-	PERF_RECORD_FORK       = 0x7
+-	PERF_RECORD_READ       = 0x8
+-	PERF_RECORD_SAMPLE     = 0x9
++	PERF_RECORD_MMAP            = 0x1
++	PERF_RECORD_LOST            = 0x2
++	PERF_RECORD_COMM            = 0x3
++	PERF_RECORD_EXIT            = 0x4
++	PERF_RECORD_THROTTLE        = 0x5
++	PERF_RECORD_UNTHROTTLE      = 0x6
++	PERF_RECORD_FORK            = 0x7
++	PERF_RECORD_READ            = 0x8
++	PERF_RECORD_SAMPLE          = 0x9
++	PERF_RECORD_MMAP2           = 0xa
++	PERF_RECORD_AUX             = 0xb
++	PERF_RECORD_ITRACE_START    = 0xc
++	PERF_RECORD_LOST_SAMPLES    = 0xd
++	PERF_RECORD_SWITCH          = 0xe
++	PERF_RECORD_SWITCH_CPU_WIDE = 0xf
++	PERF_RECORD_NAMESPACES      = 0x10
+ 
+ 	PERF_CONTEXT_HV     = -0x20
+ 	PERF_CONTEXT_KERNEL = -0x80
+@@ -1124,6 +1143,7 @@ const (
+ 	PERF_FLAG_FD_NO_GROUP = 0x1
+ 	PERF_FLAG_FD_OUTPUT   = 0x2
+ 	PERF_FLAG_PID_CGROUP  = 0x4
++	PERF_FLAG_FD_CLOEXEC  = 0x8
+ )
+ 
+ const (
+@@ -1429,6 +1449,9 @@ const (
+ 	SizeofTpacketHdr  = 0x20
+ 	SizeofTpacket2Hdr = 0x20
+ 	SizeofTpacket3Hdr = 0x30
++
++	SizeofTpacketStats   = 0x8
++	SizeofTpacketStatsV3 = 0xc
+ )
+ 
+ const (
+@@ -2045,3 +2068,18 @@ type SockExtendedErr struct {
+ 	Info   uint32
+ 	Data   uint32
+ }
++
++type FanotifyEventMetadata struct {
++	Event_len    uint32
++	Vers         uint8
++	Reserved     uint8
++	Metadata_len uint16
++	Mask         uint64
++	Fd           int32
++	Pid          int32
++}
++
++type FanotifyResponse struct {
++	Fd       int32
++	Response uint32
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_riscv64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_riscv64.go
+index 675c596880..673e5e7919 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_riscv64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_riscv64.go
+@@ -990,7 +990,8 @@ type PerfEventAttr struct {
+ 	Clockid            int32
+ 	Sample_regs_intr   uint64
+ 	Aux_watermark      uint32
+-	_                  uint32
++	Sample_max_stack   uint16
++	_                  uint16
+ }
+ 
+ type PerfEventMmapPage struct {
+@@ -1093,6 +1094,7 @@ const (
+ 	PERF_COUNT_SW_ALIGNMENT_FAULTS = 0x7
+ 	PERF_COUNT_SW_EMULATION_FAULTS = 0x8
+ 	PERF_COUNT_SW_DUMMY            = 0x9
++	PERF_COUNT_SW_BPF_OUTPUT       = 0xa
+ 
+ 	PERF_SAMPLE_IP           = 0x1
+ 	PERF_SAMPLE_TID          = 0x2
+@@ -1114,21 +1116,38 @@ const (
+ 	PERF_SAMPLE_BRANCH_ANY_CALL   = 0x10
+ 	PERF_SAMPLE_BRANCH_ANY_RETURN = 0x20
+ 	PERF_SAMPLE_BRANCH_IND_CALL   = 0x40
++	PERF_SAMPLE_BRANCH_ABORT_TX   = 0x80
++	PERF_SAMPLE_BRANCH_IN_TX      = 0x100
++	PERF_SAMPLE_BRANCH_NO_TX      = 0x200
++	PERF_SAMPLE_BRANCH_COND       = 0x400
++	PERF_SAMPLE_BRANCH_CALL_STACK = 0x800
++	PERF_SAMPLE_BRANCH_IND_JUMP   = 0x1000
++	PERF_SAMPLE_BRANCH_CALL       = 0x2000
++	PERF_SAMPLE_BRANCH_NO_FLAGS   = 0x4000
++	PERF_SAMPLE_BRANCH_NO_CYCLES  = 0x8000
++	PERF_SAMPLE_BRANCH_TYPE_SAVE  = 0x10000
+ 
+ 	PERF_FORMAT_TOTAL_TIME_ENABLED = 0x1
+ 	PERF_FORMAT_TOTAL_TIME_RUNNING = 0x2
+ 	PERF_FORMAT_ID                 = 0x4
+ 	PERF_FORMAT_GROUP              = 0x8
+ 
+-	PERF_RECORD_MMAP       = 0x1
+-	PERF_RECORD_LOST       = 0x2
+-	PERF_RECORD_COMM       = 0x3
+-	PERF_RECORD_EXIT       = 0x4
+-	PERF_RECORD_THROTTLE   = 0x5
+-	PERF_RECORD_UNTHROTTLE = 0x6
+-	PERF_RECORD_FORK       = 0x7
+-	PERF_RECORD_READ       = 0x8
+-	PERF_RECORD_SAMPLE     = 0x9
++	PERF_RECORD_MMAP            = 0x1
++	PERF_RECORD_LOST            = 0x2
++	PERF_RECORD_COMM            = 0x3
++	PERF_RECORD_EXIT            = 0x4
++	PERF_RECORD_THROTTLE        = 0x5
++	PERF_RECORD_UNTHROTTLE      = 0x6
++	PERF_RECORD_FORK            = 0x7
++	PERF_RECORD_READ            = 0x8
++	PERF_RECORD_SAMPLE          = 0x9
++	PERF_RECORD_MMAP2           = 0xa
++	PERF_RECORD_AUX             = 0xb
++	PERF_RECORD_ITRACE_START    = 0xc
++	PERF_RECORD_LOST_SAMPLES    = 0xd
++	PERF_RECORD_SWITCH          = 0xe
++	PERF_RECORD_SWITCH_CPU_WIDE = 0xf
++	PERF_RECORD_NAMESPACES      = 0x10
+ 
+ 	PERF_CONTEXT_HV     = -0x20
+ 	PERF_CONTEXT_KERNEL = -0x80
+@@ -1141,6 +1160,7 @@ const (
+ 	PERF_FLAG_FD_NO_GROUP = 0x1
+ 	PERF_FLAG_FD_OUTPUT   = 0x2
+ 	PERF_FLAG_PID_CGROUP  = 0x4
++	PERF_FLAG_FD_CLOEXEC  = 0x8
+ )
+ 
+ const (
+@@ -1446,6 +1466,9 @@ const (
+ 	SizeofTpacketHdr  = 0x20
+ 	SizeofTpacket2Hdr = 0x20
+ 	SizeofTpacket3Hdr = 0x30
++
++	SizeofTpacketStats   = 0x8
++	SizeofTpacketStatsV3 = 0xc
+ )
+ 
+ const (
+@@ -2062,3 +2085,18 @@ type SockExtendedErr struct {
+ 	Info   uint32
+ 	Data   uint32
+ }
++
++type FanotifyEventMetadata struct {
++	Event_len    uint32
++	Vers         uint8
++	Reserved     uint8
++	Metadata_len uint16
++	Mask         uint64
++	Fd           int32
++	Pid          int32
++}
++
++type FanotifyResponse struct {
++	Fd       int32
++	Response uint32
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_s390x.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_s390x.go
+index 9f2cf0dfd7..faafcddfcc 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_s390x.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_s390x.go
+@@ -986,7 +986,8 @@ type PerfEventAttr struct {
+ 	Clockid            int32
+ 	Sample_regs_intr   uint64
+ 	Aux_watermark      uint32
+-	_                  uint32
++	Sample_max_stack   uint16
++	_                  uint16
+ }
+ 
+ type PerfEventMmapPage struct {
+@@ -1089,6 +1090,7 @@ const (
+ 	PERF_COUNT_SW_ALIGNMENT_FAULTS = 0x7
+ 	PERF_COUNT_SW_EMULATION_FAULTS = 0x8
+ 	PERF_COUNT_SW_DUMMY            = 0x9
++	PERF_COUNT_SW_BPF_OUTPUT       = 0xa
+ 
+ 	PERF_SAMPLE_IP           = 0x1
+ 	PERF_SAMPLE_TID          = 0x2
+@@ -1110,21 +1112,38 @@ const (
+ 	PERF_SAMPLE_BRANCH_ANY_CALL   = 0x10
+ 	PERF_SAMPLE_BRANCH_ANY_RETURN = 0x20
+ 	PERF_SAMPLE_BRANCH_IND_CALL   = 0x40
++	PERF_SAMPLE_BRANCH_ABORT_TX   = 0x80
++	PERF_SAMPLE_BRANCH_IN_TX      = 0x100
++	PERF_SAMPLE_BRANCH_NO_TX      = 0x200
++	PERF_SAMPLE_BRANCH_COND       = 0x400
++	PERF_SAMPLE_BRANCH_CALL_STACK = 0x800
++	PERF_SAMPLE_BRANCH_IND_JUMP   = 0x1000
++	PERF_SAMPLE_BRANCH_CALL       = 0x2000
++	PERF_SAMPLE_BRANCH_NO_FLAGS   = 0x4000
++	PERF_SAMPLE_BRANCH_NO_CYCLES  = 0x8000
++	PERF_SAMPLE_BRANCH_TYPE_SAVE  = 0x10000
+ 
+ 	PERF_FORMAT_TOTAL_TIME_ENABLED = 0x1
+ 	PERF_FORMAT_TOTAL_TIME_RUNNING = 0x2
+ 	PERF_FORMAT_ID                 = 0x4
+ 	PERF_FORMAT_GROUP              = 0x8
+ 
+-	PERF_RECORD_MMAP       = 0x1
+-	PERF_RECORD_LOST       = 0x2
+-	PERF_RECORD_COMM       = 0x3
+-	PERF_RECORD_EXIT       = 0x4
+-	PERF_RECORD_THROTTLE   = 0x5
+-	PERF_RECORD_UNTHROTTLE = 0x6
+-	PERF_RECORD_FORK       = 0x7
+-	PERF_RECORD_READ       = 0x8
+-	PERF_RECORD_SAMPLE     = 0x9
++	PERF_RECORD_MMAP            = 0x1
++	PERF_RECORD_LOST            = 0x2
++	PERF_RECORD_COMM            = 0x3
++	PERF_RECORD_EXIT            = 0x4
++	PERF_RECORD_THROTTLE        = 0x5
++	PERF_RECORD_UNTHROTTLE      = 0x6
++	PERF_RECORD_FORK            = 0x7
++	PERF_RECORD_READ            = 0x8
++	PERF_RECORD_SAMPLE          = 0x9
++	PERF_RECORD_MMAP2           = 0xa
++	PERF_RECORD_AUX             = 0xb
++	PERF_RECORD_ITRACE_START    = 0xc
++	PERF_RECORD_LOST_SAMPLES    = 0xd
++	PERF_RECORD_SWITCH          = 0xe
++	PERF_RECORD_SWITCH_CPU_WIDE = 0xf
++	PERF_RECORD_NAMESPACES      = 0x10
+ 
+ 	PERF_CONTEXT_HV     = -0x20
+ 	PERF_CONTEXT_KERNEL = -0x80
+@@ -1137,6 +1156,7 @@ const (
+ 	PERF_FLAG_FD_NO_GROUP = 0x1
+ 	PERF_FLAG_FD_OUTPUT   = 0x2
+ 	PERF_FLAG_PID_CGROUP  = 0x4
++	PERF_FLAG_FD_CLOEXEC  = 0x8
+ )
+ 
+ const (
+@@ -1443,6 +1463,9 @@ const (
+ 	SizeofTpacketHdr  = 0x20
+ 	SizeofTpacket2Hdr = 0x20
+ 	SizeofTpacket3Hdr = 0x30
++
++	SizeofTpacketStats   = 0x8
++	SizeofTpacketStatsV3 = 0xc
+ )
+ 
+ const (
+@@ -2059,3 +2082,18 @@ type SockExtendedErr struct {
+ 	Info   uint32
+ 	Data   uint32
+ }
++
++type FanotifyEventMetadata struct {
++	Event_len    uint32
++	Vers         uint8
++	Reserved     uint8
++	Metadata_len uint16
++	Mask         uint64
++	Fd           int32
++	Pid          int32
++}
++
++type FanotifyResponse struct {
++	Fd       int32
++	Response uint32
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_sparc64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_sparc64.go
+index 68643903c9..392dd7375c 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_sparc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_sparc64.go
+@@ -968,7 +968,8 @@ type PerfEventAttr struct {
+ 	Clockid            int32
+ 	Sample_regs_intr   uint64
+ 	Aux_watermark      uint32
+-	_                  uint32
++	Sample_max_stack   uint16
++	_                  uint16
+ }
+ 
+ type PerfEventMmapPage struct {
+@@ -1071,6 +1072,7 @@ const (
+ 	PERF_COUNT_SW_ALIGNMENT_FAULTS = 0x7
+ 	PERF_COUNT_SW_EMULATION_FAULTS = 0x8
+ 	PERF_COUNT_SW_DUMMY            = 0x9
++	PERF_COUNT_SW_BPF_OUTPUT       = 0xa
+ 
+ 	PERF_SAMPLE_IP           = 0x1
+ 	PERF_SAMPLE_TID          = 0x2
+@@ -1092,21 +1094,38 @@ const (
+ 	PERF_SAMPLE_BRANCH_ANY_CALL   = 0x10
+ 	PERF_SAMPLE_BRANCH_ANY_RETURN = 0x20
+ 	PERF_SAMPLE_BRANCH_IND_CALL   = 0x40
++	PERF_SAMPLE_BRANCH_ABORT_TX   = 0x80
++	PERF_SAMPLE_BRANCH_IN_TX      = 0x100
++	PERF_SAMPLE_BRANCH_NO_TX      = 0x200
++	PERF_SAMPLE_BRANCH_COND       = 0x400
++	PERF_SAMPLE_BRANCH_CALL_STACK = 0x800
++	PERF_SAMPLE_BRANCH_IND_JUMP   = 0x1000
++	PERF_SAMPLE_BRANCH_CALL       = 0x2000
++	PERF_SAMPLE_BRANCH_NO_FLAGS   = 0x4000
++	PERF_SAMPLE_BRANCH_NO_CYCLES  = 0x8000
++	PERF_SAMPLE_BRANCH_TYPE_SAVE  = 0x10000
+ 
+ 	PERF_FORMAT_TOTAL_TIME_ENABLED = 0x1
+ 	PERF_FORMAT_TOTAL_TIME_RUNNING = 0x2
+ 	PERF_FORMAT_ID                 = 0x4
+ 	PERF_FORMAT_GROUP              = 0x8
+ 
+-	PERF_RECORD_MMAP       = 0x1
+-	PERF_RECORD_LOST       = 0x2
+-	PERF_RECORD_COMM       = 0x3
+-	PERF_RECORD_EXIT       = 0x4
+-	PERF_RECORD_THROTTLE   = 0x5
+-	PERF_RECORD_UNTHROTTLE = 0x6
+-	PERF_RECORD_FORK       = 0x7
+-	PERF_RECORD_READ       = 0x8
+-	PERF_RECORD_SAMPLE     = 0x9
++	PERF_RECORD_MMAP            = 0x1
++	PERF_RECORD_LOST            = 0x2
++	PERF_RECORD_COMM            = 0x3
++	PERF_RECORD_EXIT            = 0x4
++	PERF_RECORD_THROTTLE        = 0x5
++	PERF_RECORD_UNTHROTTLE      = 0x6
++	PERF_RECORD_FORK            = 0x7
++	PERF_RECORD_READ            = 0x8
++	PERF_RECORD_SAMPLE          = 0x9
++	PERF_RECORD_MMAP2           = 0xa
++	PERF_RECORD_AUX             = 0xb
++	PERF_RECORD_ITRACE_START    = 0xc
++	PERF_RECORD_LOST_SAMPLES    = 0xd
++	PERF_RECORD_SWITCH          = 0xe
++	PERF_RECORD_SWITCH_CPU_WIDE = 0xf
++	PERF_RECORD_NAMESPACES      = 0x10
+ 
+ 	PERF_CONTEXT_HV     = -0x20
+ 	PERF_CONTEXT_KERNEL = -0x80
+@@ -1119,6 +1138,7 @@ const (
+ 	PERF_FLAG_FD_NO_GROUP = 0x1
+ 	PERF_FLAG_FD_OUTPUT   = 0x2
+ 	PERF_FLAG_PID_CGROUP  = 0x4
++	PERF_FLAG_FD_CLOEXEC  = 0x8
+ )
+ 
+ const (
+@@ -1424,6 +1444,9 @@ const (
+ 	SizeofTpacketHdr  = 0x20
+ 	SizeofTpacket2Hdr = 0x20
+ 	SizeofTpacket3Hdr = 0x30
++
++	SizeofTpacketStats   = 0x8
++	SizeofTpacketStatsV3 = 0xc
+ )
+ 
+ const (
+@@ -2040,3 +2063,18 @@ type SockExtendedErr struct {
+ 	Info   uint32
+ 	Data   uint32
+ }
++
++type FanotifyEventMetadata struct {
++	Event_len    uint32
++	Vers         uint8
++	Reserved     uint8
++	Metadata_len uint16
++	Mask         uint64
++	Fd           int32
++	Pid          int32
++}
++
++type FanotifyResponse struct {
++	Fd       int32
++	Response uint32
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_openbsd_386.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_openbsd_386.go
+index 8b37d83992..900fb44622 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_openbsd_386.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_openbsd_386.go
+@@ -558,3 +558,13 @@ type Uvmexp struct {
+ 	Fpswtch            int32
+ 	Kmapent            int32
+ }
++
++const SizeofClockinfo = 0x14
++
++type Clockinfo struct {
++	Hz      int32
++	Tick    int32
++	Tickadj int32
++	Stathz  int32
++	Profhz  int32
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_openbsd_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_openbsd_amd64.go
+index 6efea46355..028fa78d74 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_openbsd_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_openbsd_amd64.go
+@@ -558,3 +558,13 @@ type Uvmexp struct {
+ 	Fpswtch            int32
+ 	Kmapent            int32
+ }
++
++const SizeofClockinfo = 0x14
++
++type Clockinfo struct {
++	Hz      int32
++	Tick    int32
++	Tickadj int32
++	Stathz  int32
++	Profhz  int32
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_openbsd_arm.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_openbsd_arm.go
+index 510efc3eaa..b45d5eedff 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_openbsd_arm.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_openbsd_arm.go
+@@ -559,3 +559,13 @@ type Uvmexp struct {
+ 	Fpswtch            int32
+ 	Kmapent            int32
+ }
++
++const SizeofClockinfo = 0x14
++
++type Clockinfo struct {
++	Hz      int32
++	Tick    int32
++	Tickadj int32
++	Stathz  int32
++	Profhz  int32
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/dll_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/dll_windows.go
+index e92c05b213..ba67658db1 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/dll_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/dll_windows.go
+@@ -359,11 +359,11 @@ func loadLibraryEx(name string, system bool) (*DLL, error) {
+ 			// trying to load "foo.dll" out of the system
+ 			// folder, but LoadLibraryEx doesn't support
+ 			// that yet on their system, so emulate it.
+-			windir, _ := Getenv("WINDIR") // old var; apparently works on XP
+-			if windir == "" {
+-				return nil, errString("%WINDIR% not defined")
++			systemdir, err := GetSystemDirectory()
++			if err != nil {
++				return nil, err
+ 			}
+-			loadDLL = windir + "\\System32\\" + name
++			loadDLL = systemdir + "\\" + name
+ 		}
+ 	}
+ 	h, err := LoadLibraryEx(loadDLL, 0, flags)
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/security_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/security_windows.go
+index 9f946da6fe..da06406c44 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/security_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/security_windows.go
+@@ -169,6 +169,7 @@ const (
+ //sys	GetLengthSid(sid *SID) (len uint32) = advapi32.GetLengthSid
+ //sys	CopySid(destSidLen uint32, destSid *SID, srcSid *SID) (err error) = advapi32.CopySid
+ //sys	AllocateAndInitializeSid(identAuth *SidIdentifierAuthority, subAuth byte, subAuth0 uint32, subAuth1 uint32, subAuth2 uint32, subAuth3 uint32, subAuth4 uint32, subAuth5 uint32, subAuth6 uint32, subAuth7 uint32, sid **SID) (err error) = advapi32.AllocateAndInitializeSid
++//sys	createWellKnownSid(sidType WELL_KNOWN_SID_TYPE, domainSid *SID, sid *SID, sizeSid *uint32) (err error) = advapi32.CreateWellKnownSid
+ //sys	FreeSid(sid *SID) (err error) [failretval!=0] = advapi32.FreeSid
+ //sys	EqualSid(sid1 *SID, sid2 *SID) (isEqual bool) = advapi32.EqualSid
+ 
+@@ -286,6 +287,158 @@ func (sid *SID) LookupAccount(system string) (account, domain string, accType ui
+ 	}
+ }
+ 
++// Various types of pre-specified sids that can be synthesized at runtime.
++type WELL_KNOWN_SID_TYPE uint32
++
++const (
++	WinNullSid                                    = 0
++	WinWorldSid                                   = 1
++	WinLocalSid                                   = 2
++	WinCreatorOwnerSid                            = 3
++	WinCreatorGroupSid                            = 4
++	WinCreatorOwnerServerSid                      = 5
++	WinCreatorGroupServerSid                      = 6
++	WinNtAuthoritySid                             = 7
++	WinDialupSid                                  = 8
++	WinNetworkSid                                 = 9
++	WinBatchSid                                   = 10
++	WinInteractiveSid                             = 11
++	WinServiceSid                                 = 12
++	WinAnonymousSid                               = 13
++	WinProxySid                                   = 14
++	WinEnterpriseControllersSid                   = 15
++	WinSelfSid                                    = 16
++	WinAuthenticatedUserSid                       = 17
++	WinRestrictedCodeSid                          = 18
++	WinTerminalServerSid                          = 19
++	WinRemoteLogonIdSid                           = 20
++	WinLogonIdsSid                                = 21
++	WinLocalSystemSid                             = 22
++	WinLocalServiceSid                            = 23
++	WinNetworkServiceSid                          = 24
++	WinBuiltinDomainSid                           = 25
++	WinBuiltinAdministratorsSid                   = 26
++	WinBuiltinUsersSid                            = 27
++	WinBuiltinGuestsSid                           = 28
++	WinBuiltinPowerUsersSid                       = 29
++	WinBuiltinAccountOperatorsSid                 = 30
++	WinBuiltinSystemOperatorsSid                  = 31
++	WinBuiltinPrintOperatorsSid                   = 32
++	WinBuiltinBackupOperatorsSid                  = 33
++	WinBuiltinReplicatorSid                       = 34
++	WinBuiltinPreWindows2000CompatibleAccessSid   = 35
++	WinBuiltinRemoteDesktopUsersSid               = 36
++	WinBuiltinNetworkConfigurationOperatorsSid    = 37
++	WinAccountAdministratorSid                    = 38
++	WinAccountGuestSid                            = 39
++	WinAccountKrbtgtSid                           = 40
++	WinAccountDomainAdminsSid                     = 41
++	WinAccountDomainUsersSid                      = 42
++	WinAccountDomainGuestsSid                     = 43
++	WinAccountComputersSid                        = 44
++	WinAccountControllersSid                      = 45
++	WinAccountCertAdminsSid                       = 46
++	WinAccountSchemaAdminsSid                     = 47
++	WinAccountEnterpriseAdminsSid                 = 48
++	WinAccountPolicyAdminsSid                     = 49
++	WinAccountRasAndIasServersSid                 = 50
++	WinNTLMAuthenticationSid                      = 51
++	WinDigestAuthenticationSid                    = 52
++	WinSChannelAuthenticationSid                  = 53
++	WinThisOrganizationSid                        = 54
++	WinOtherOrganizationSid                       = 55
++	WinBuiltinIncomingForestTrustBuildersSid      = 56
++	WinBuiltinPerfMonitoringUsersSid              = 57
++	WinBuiltinPerfLoggingUsersSid                 = 58
++	WinBuiltinAuthorizationAccessSid              = 59
++	WinBuiltinTerminalServerLicenseServersSid     = 60
++	WinBuiltinDCOMUsersSid                        = 61
++	WinBuiltinIUsersSid                           = 62
++	WinIUserSid                                   = 63
++	WinBuiltinCryptoOperatorsSid                  = 64
++	WinUntrustedLabelSid                          = 65
++	WinLowLabelSid                                = 66
++	WinMediumLabelSid                             = 67
++	WinHighLabelSid                               = 68
++	WinSystemLabelSid                             = 69
++	WinWriteRestrictedCodeSid                     = 70
++	WinCreatorOwnerRightsSid                      = 71
++	WinCacheablePrincipalsGroupSid                = 72
++	WinNonCacheablePrincipalsGroupSid             = 73
++	WinEnterpriseReadonlyControllersSid           = 74
++	WinAccountReadonlyControllersSid              = 75
++	WinBuiltinEventLogReadersGroup                = 76
++	WinNewEnterpriseReadonlyControllersSid        = 77
++	WinBuiltinCertSvcDComAccessGroup              = 78
++	WinMediumPlusLabelSid                         = 79
++	WinLocalLogonSid                              = 80
++	WinConsoleLogonSid                            = 81
++	WinThisOrganizationCertificateSid             = 82
++	WinApplicationPackageAuthoritySid             = 83
++	WinBuiltinAnyPackageSid                       = 84
++	WinCapabilityInternetClientSid                = 85
++	WinCapabilityInternetClientServerSid          = 86
++	WinCapabilityPrivateNetworkClientServerSid    = 87
++	WinCapabilityPicturesLibrarySid               = 88
++	WinCapabilityVideosLibrarySid                 = 89
++	WinCapabilityMusicLibrarySid                  = 90
++	WinCapabilityDocumentsLibrarySid              = 91
++	WinCapabilitySharedUserCertificatesSid        = 92
++	WinCapabilityEnterpriseAuthenticationSid      = 93
++	WinCapabilityRemovableStorageSid              = 94
++	WinBuiltinRDSRemoteAccessServersSid           = 95
++	WinBuiltinRDSEndpointServersSid               = 96
++	WinBuiltinRDSManagementServersSid             = 97
++	WinUserModeDriversSid                         = 98
++	WinBuiltinHyperVAdminsSid                     = 99
++	WinAccountCloneableControllersSid             = 100
++	WinBuiltinAccessControlAssistanceOperatorsSid = 101
++	WinBuiltinRemoteManagementUsersSid            = 102
++	WinAuthenticationAuthorityAssertedSid         = 103
++	WinAuthenticationServiceAssertedSid           = 104
++	WinLocalAccountSid                            = 105
++	WinLocalAccountAndAdministratorSid            = 106
++	WinAccountProtectedUsersSid                   = 107
++	WinCapabilityAppointmentsSid                  = 108
++	WinCapabilityContactsSid                      = 109
++	WinAccountDefaultSystemManagedSid             = 110
++	WinBuiltinDefaultSystemManagedGroupSid        = 111
++	WinBuiltinStorageReplicaAdminsSid             = 112
++	WinAccountKeyAdminsSid                        = 113
++	WinAccountEnterpriseKeyAdminsSid              = 114
++	WinAuthenticationKeyTrustSid                  = 115
++	WinAuthenticationKeyPropertyMFASid            = 116
++	WinAuthenticationKeyPropertyAttestationSid    = 117
++	WinAuthenticationFreshKeyAuthSid              = 118
++	WinBuiltinDeviceOwnersSid                     = 119
++)
++
++// Creates a sid for a well-known predefined alias, generally using the constants of the form
++// Win*Sid, for the local machine.
++func CreateWellKnownSid(sidType WELL_KNOWN_SID_TYPE) (*SID, error) {
++	return CreateWellKnownDomainSid(sidType, nil)
++}
++
++// Creates a sid for a well-known predefined alias, generally using the constants of the form
++// Win*Sid, for the domain specified by the domainSid parameter.
++func CreateWellKnownDomainSid(sidType WELL_KNOWN_SID_TYPE, domainSid *SID) (*SID, error) {
++	n := uint32(50)
++	for {
++		b := make([]byte, n)
++		sid := (*SID)(unsafe.Pointer(&b[0]))
++		err := createWellKnownSid(sidType, domainSid, sid, &n)
++		if err == nil {
++			return sid, nil
++		}
++		if err != ERROR_INSUFFICIENT_BUFFER {
++			return nil, err
++		}
++		if n <= uint32(len(b)) {
++			return nil, err
++		}
++	}
++}
++
+ const (
+ 	// do not reorder
+ 	TOKEN_ASSIGN_PRIMARY = 1 << iota
+@@ -372,6 +525,7 @@ type Tokengroups struct {
+ //sys	OpenProcessToken(h Handle, access uint32, token *Token) (err error) = advapi32.OpenProcessToken
+ //sys	GetTokenInformation(t Token, infoClass uint32, info *byte, infoLen uint32, returnedLen *uint32) (err error) = advapi32.GetTokenInformation
+ //sys	GetUserProfileDirectory(t Token, dir *uint16, dirLen *uint32) (err error) = userenv.GetUserProfileDirectoryW
++//sys	getSystemDirectory(dir *uint16, dirLen uint32) (len uint32, err error) = kernel32.GetSystemDirectoryW
+ 
+ // An access token contains the security information for a logon session.
+ // The system creates an access token when a user logs on, and every
+@@ -468,6 +622,23 @@ func (t Token) GetUserProfileDirectory() (string, error) {
+ 	}
+ }
+ 
++// GetSystemDirectory retrieves path to current location of the system
++// directory, which is typically, though not always, C:\Windows\System32.
++func GetSystemDirectory() (string, error) {
++	n := uint32(MAX_PATH)
++	for {
++		b := make([]uint16, n)
++		l, e := getSystemDirectory(&b[0], n)
++		if e != nil {
++			return "", e
++		}
++		if l <= n {
++			return UTF16ToString(b[:l]), nil
++		}
++		n = l
++	}
++}
++
+ // IsMember reports whether the access token t is a member of the provided SID.
+ func (t Token) IsMember(sid *SID) (bool, error) {
+ 	var b int32
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
+index e4b54e2d92..75dcd275ca 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
+@@ -246,12 +246,14 @@ var (
+ 	procGetLengthSid                       = modadvapi32.NewProc("GetLengthSid")
+ 	procCopySid                            = modadvapi32.NewProc("CopySid")
+ 	procAllocateAndInitializeSid           = modadvapi32.NewProc("AllocateAndInitializeSid")
++	procCreateWellKnownSid                 = modadvapi32.NewProc("CreateWellKnownSid")
+ 	procFreeSid                            = modadvapi32.NewProc("FreeSid")
+ 	procEqualSid                           = modadvapi32.NewProc("EqualSid")
+ 	procCheckTokenMembership               = modadvapi32.NewProc("CheckTokenMembership")
+ 	procOpenProcessToken                   = modadvapi32.NewProc("OpenProcessToken")
+ 	procGetTokenInformation                = modadvapi32.NewProc("GetTokenInformation")
+ 	procGetUserProfileDirectoryW           = moduserenv.NewProc("GetUserProfileDirectoryW")
++	procGetSystemDirectoryW                = modkernel32.NewProc("GetSystemDirectoryW")
+ )
+ 
+ func RegisterEventSource(uncServerName *uint16, sourceName *uint16) (handle Handle, err error) {
+@@ -2653,6 +2655,18 @@ func AllocateAndInitializeSid(identAuth *SidIdentifierAuthority, subAuth byte, s
+ 	return
+ }
+ 
++func createWellKnownSid(sidType WELL_KNOWN_SID_TYPE, domainSid *SID, sid *SID, sizeSid *uint32) (err error) {
++	r1, _, e1 := syscall.Syscall6(procCreateWellKnownSid.Addr(), 4, uintptr(sidType), uintptr(unsafe.Pointer(domainSid)), uintptr(unsafe.Pointer(sid)), uintptr(unsafe.Pointer(sizeSid)), 0, 0)
++	if r1 == 0 {
++		if e1 != 0 {
++			err = errnoErr(e1)
++		} else {
++			err = syscall.EINVAL
++		}
++	}
++	return
++}
++
+ func FreeSid(sid *SID) (err error) {
+ 	r1, _, e1 := syscall.Syscall(procFreeSid.Addr(), 1, uintptr(unsafe.Pointer(sid)), 0, 0)
+ 	if r1 != 0 {
+@@ -2718,3 +2732,16 @@ func GetUserProfileDirectory(t Token, dir *uint16, dirLen *uint32) (err error) {
+ 	}
+ 	return
+ }
++
++func getSystemDirectory(dir *uint16, dirLen uint32) (len uint32, err error) {
++	r0, _, e1 := syscall.Syscall(procGetSystemDirectoryW.Addr(), 2, uintptr(unsafe.Pointer(dir)), uintptr(dirLen), 0)
++	len = uint32(r0)
++	if len == 0 {
++		if e1 != 0 {
++			err = errnoErr(e1)
++		} else {
++			err = syscall.EINVAL
++		}
++	}
++	return
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go
+index 8349511224..72530a0eeb 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go
+@@ -8,7 +8,6 @@ package stdmethods
+ 
+ import (
+ 	"go/ast"
+-	"go/token"
+ 	"go/types"
+ 	"strings"
+ 
+@@ -163,7 +162,7 @@ func matchParams(pass *analysis.Pass, expect []string, actual *types.Tuple, pref
+ 		if i >= actual.Len() {
+ 			return false
+ 		}
+-		if !matchParamType(pass.Fset, pass.Pkg, x, actual.At(i).Type()) {
++		if !matchParamType(x, actual.At(i).Type()) {
+ 			return false
+ 		}
+ 	}
+@@ -174,13 +173,8 @@ func matchParams(pass *analysis.Pass, expect []string, actual *types.Tuple, pref
+ }
+ 
+ // Does this one type match?
+-func matchParamType(fset *token.FileSet, pkg *types.Package, expect string, actual types.Type) bool {
++func matchParamType(expect string, actual types.Type) bool {
+ 	expect = strings.TrimPrefix(expect, "=")
+-	// Strip package name if we're in that package.
+-	if n := len(pkg.Name()); len(expect) > n && expect[:n] == pkg.Name() && expect[n] == '.' {
+-		expect = expect[n+1:]
+-	}
+-
+ 	// Overkill but easy.
+ 	return typeString(actual) == expect
+ }
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 916a8ca9b6..2b3dc6fe2f 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -21,12 +21,12 @@ golang.org/x/arch/arm/armasm
+ golang.org/x/arch/arm64/arm64asm
+ golang.org/x/arch/ppc64/ppc64asm
+ golang.org/x/arch/x86/x86asm
+-# golang.org/x/crypto v0.0.0-20190211182817-74369b46fc67
++# golang.org/x/crypto v0.0.0-20190313024323-a1f597ede03a
+ golang.org/x/crypto/ssh/terminal
+-# golang.org/x/sys v0.0.0-20190225065934-cc5685c2db12
++# golang.org/x/sys v0.0.0-20190318195719-6c81ef8f67ca
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/tools v0.0.0-20190307163923-6a08e3108db3
++# golang.org/x/tools v0.0.0-20190320160634-b6b7807791df
+ golang.org/x/tools/go/analysis/passes/asmdecl
+ golang.org/x/tools/go/analysis/passes/assign
+ golang.org/x/tools/go/analysis/passes/atomic
+diff --git a/src/cmd/vet/all/whitelist/all.txt b/src/cmd/vet/all/whitelist/all.txt
+index c73516392f..dd0718a389 100644
+--- a/src/cmd/vet/all/whitelist/all.txt
++++ b/src/cmd/vet/all/whitelist/all.txt
+@@ -47,15 +47,9 @@ cmd/internal/bio/buf.go: method Seek(offset int64, whence int) int64 should have
+ fmt/print.go: method WriteByte(c byte) should have signature WriteByte(byte) error
+ runtime/pprof/pprof.go: method WriteTo(w io.Writer, debug int) error should have signature WriteTo(io.Writer) (int64, error)
+ 
+-// These encoding/xml methods have the correct signature.
+-// vet doesn't know it because they are *in* the encoding/xml package.
+-// It's not worth teaching vet about the distinction, so whitelist them.
++// Also non-standard, but this method is on an unexported type, so it's
++// irrelevant.
+ encoding/gob/encode.go: method WriteByte(c byte) should have signature WriteByte(byte) error
+-encoding/xml/marshal.go: method MarshalXML(e *xml.Encoder, start xml.StartElement) error should have signature MarshalXML(*xml.Encoder, xml.StartElement) error
+-encoding/xml/marshal_test.go: method MarshalXML(e *xml.Encoder, start xml.StartElement) error should have signature MarshalXML(*xml.Encoder, xml.StartElement) error
+-encoding/xml/read.go: method UnmarshalXML(d *xml.Decoder, start xml.StartElement) error should have signature UnmarshalXML(*xml.Decoder, xml.StartElement) error
+-encoding/xml/read_test.go: method UnmarshalXML(d *xml.Decoder, start xml.StartElement) error should have signature UnmarshalXML(*xml.Decoder, xml.StartElement) error
+-encoding/xml/xml_test.go: method UnmarshalXML(*xml.Decoder, xml.StartElement) error should have signature UnmarshalXML(*xml.Decoder, xml.StartElement) error
+ 
+ // Long struct tags used to test reflect internals
+ cmd/link/link_test.go: struct field tag "\n\tLondon. Michaelmas term lately over, and the Lord Chancellor sitting in Lincoln’s Inn Hall. Implacable November weather. As much mud in the streets as if the waters had but newly retired from the face of the earth, and it would not be wonderful to meet a Megalosaurus, forty feet long or so, waddling like an elephantine lizard up Holborn Hill. Smoke lowering down from chimney-pots, making a soft black drizzle, with flakes of soot in it as big as full-grown snowflakes—gone into mourning, one might imagine, for the death of the sun. Dogs, undistinguishable in mire. Horses, scarcely better; splashed to their very blinkers. Foot passengers, jostling one another’s umbrellas in a general infection of ill temper, and losing their foot-hold at street-corners, where tens of thousands of other foot passengers have been slipping and sliding since the day broke (if this day ever broke), adding new deposits to the crust upon crust of mud, sticking at those points tenaciously to the pavement, and accumulating at compound interest.\n\n\tFog everywhere. Fog up the river, where it flows among green aits and meadows; fog down the river, where it rolls defiled among the tiers of shipping and the waterside pollutions of a great (and dirty) city. Fog on the Essex marshes, fog on the Kentish heights. Fog creeping into the cabooses of collier-brigs; fog lying out on the yards and hovering in the rigging of great ships; fog drooping on the gunwales of barges and small boats. Fog in the eyes and throats of ancient Greenwich pensioners, wheezing by the firesides of their wards; fog in the stem and bowl of the afternoon pipe of the wrathful skipper, down in his close cabin; fog cruelly pinching the toes and fingers of his shivering little ‘prentice boy on deck. Chance people on the bridges peeping over the parapets into a nether sky of fog, with fog all round them, as if they were up in a balloon and hanging in the misty clouds.\n\n\tGas looming through the fog in divers places in the streets, much as the sun may, from the spongey fields, be seen to loom by husbandman and ploughboy. Most of the shops lighted two hours before their time—as the gas seems to know, for it has a haggard and unwilling look.\n\n\tThe raw afternoon is rawest, and the dense fog is densest, and the muddy streets are muddiest near that leaden-headed old obstruction, appropriate ornament for the threshold of a leaden-headed old corporation, Temple Bar. And hard by Temple Bar, in Lincoln’s Inn Hall, at the very heart of the fog, sits the Lord High Chancellor in his High Court of Chancery." not compatible with reflect.StructTag.Get: bad syntax for struct tag key

@@ -27,9 +27,364 @@ Date:   Wed Oct 30 11:44:43 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  doc/go1.14.html                                    |  34 ++++--
  src/cmd/go/internal/modfetch/repo.go               |   2 +-
  src/cmd/go/internal/modload/query.go               | 119 +++++++++++++++++----
  .../go/testdata/script/mod_prefer_compatible.txt   |  64 +++++++++++
  4 files changed, 189 insertions(+), 30 deletions(-)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index 37b14a50f0..61edeea83c 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -81,7 +81,9 @@ TODO
+ 
+ <h3 id="go-command">Go command</h3>
+ 
++<h4 id="vendor">Vendoring</h4>
+ <!-- golang.org/issue/33848 -->
++
+ <p>
+   When the main module contains a top-level <code>vendor</code> directory and
+   its <code>go.mod</code> file specifies <code>go</code> <code>1.14</code> or
+@@ -106,6 +108,8 @@ TODO
+   <code>-mod=vendor</code> is set.
+ </p>
+ 
++<h4 id="go-flags">Flags</h4>
++
+ <p><!-- golang.org/issue/32502, golang.org/issue/30345 -->
+   The <code>go</code> <code>get</code> command no longer accepts
+   the <code>-mod</code> flag. Previously, the flag's setting either
+@@ -113,13 +117,6 @@ TODO
+   <a href="https://golang.org/issue/32502">caused the build to fail</a>.
+ </p>
+ 
+-<p><!-- golang.org/issue/30748 -->
+-  The <code>go</code> command now includes snippets of plain-text error messages
+-  from module proxies and other HTTP servers.
+-  An error message will only be shown if it is valid UTF-8 and consists of only
+-  graphic characters and spaces.
+-</p>
+-
+ <p><!-- golang.org/issue/31481 -->
+   <code>-modcacherw</code> is a new flag that instructs the <code>go</code>
+   command to leave newly-created directories in the module cache at their
+@@ -141,10 +138,33 @@ TODO
+   trimming the ".mod" extension and appending ".sum".
+ </p>
+ 
++<h4 id="incompatible-versions"><code>+incompatible</code> versions</h4>
++<!-- golang.org/issue/34165 -->
++
++<p>
++  If the latest version of a module contains a <code>go.mod</code> file,
++  <code>go</code> <code>get</code> will no longer upgrade to an
++  <a href="/cmd/go/#hdr-Module_compatibility_and_semantic_versioning">incompatible</a>
++  major version of that module unless such a version is requested explicitly
++  or is already required.
++  <code>go</code> <code>list</code> also omits incompatible major versions
++  for such a module when fetching directly from version control, but may
++  include them if reported by a proxy.
++</p>
++
++<h4 id="module-downloading">Module downloading</h4>
++
+ <p><!-- golang.org/issue/26092 -->
+   The <code>go</code> command now supports Subversion repositories in module mode.
+ </p>
+ 
++<p><!-- golang.org/issue/30748 -->
++  The <code>go</code> command now includes snippets of plain-text error messages
++  from module proxies and other HTTP servers.
++  An error message will only be shown if it is valid UTF-8 and consists of only
++  graphic characters and spaces.
++</p>
++
+ <h2 id="runtime">Runtime</h2>
+ 
+ <p>
+diff --git a/src/cmd/go/internal/modfetch/repo.go b/src/cmd/go/internal/modfetch/repo.go
+index 4df2ce34b1..39a3c076cd 100644
+--- a/src/cmd/go/internal/modfetch/repo.go
++++ b/src/cmd/go/internal/modfetch/repo.go
+@@ -55,7 +55,7 @@ type Repo interface {
+ 
+ // A Rev describes a single revision in a module repository.
+ type RevInfo struct {
+-	Version string    // version string
++	Version string    // suggested version string for this revision
+ 	Time    time.Time // commit time
+ 
+ 	// These fields are used for Stat of arbitrary rev,
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 1b8b2d0cbc..53278b9100 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -9,6 +9,7 @@ import (
+ 	"fmt"
+ 	"os"
+ 	pathpkg "path"
++	"path/filepath"
+ 	"strings"
+ 	"sync"
+ 
+@@ -90,10 +91,20 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
+ 	badVersion := func(v string) (*modfetch.RevInfo, error) {
+ 		return nil, fmt.Errorf("invalid semantic version %q in range %q", v, query)
+ 	}
+-	var ok func(module.Version) bool
+-	var prefix string
+-	var preferOlder bool
+-	var mayUseLatest bool
++	matchesMajor := func(v string) bool {
++		_, pathMajor, ok := module.SplitPathVersion(path)
++		if !ok {
++			return false
++		}
++		return module.CheckPathMajor(v, pathMajor) == nil
++	}
++	var (
++		ok                 func(module.Version) bool
++		prefix             string
++		preferOlder        bool
++		mayUseLatest       bool
++		preferIncompatible bool = strings.HasSuffix(current, "+incompatible")
++	)
+ 	switch {
+ 	case query == "latest":
+ 		ok = allowed
+@@ -126,6 +137,9 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
+ 		ok = func(m module.Version) bool {
+ 			return semver.Compare(m.Version, v) <= 0 && allowed(m)
+ 		}
++		if !matchesMajor(v) {
++			preferIncompatible = true
++		}
+ 
+ 	case strings.HasPrefix(query, "<"):
+ 		v := query[len("<"):]
+@@ -135,6 +149,9 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
+ 		ok = func(m module.Version) bool {
+ 			return semver.Compare(m.Version, v) < 0 && allowed(m)
+ 		}
++		if !matchesMajor(v) {
++			preferIncompatible = true
++		}
+ 
+ 	case strings.HasPrefix(query, ">="):
+ 		v := query[len(">="):]
+@@ -145,6 +162,9 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
+ 			return semver.Compare(m.Version, v) >= 0 && allowed(m)
+ 		}
+ 		preferOlder = true
++		if !matchesMajor(v) {
++			preferIncompatible = true
++		}
+ 
+ 	case strings.HasPrefix(query, ">"):
+ 		v := query[len(">"):]
+@@ -159,12 +179,18 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
+ 			return semver.Compare(m.Version, v) > 0 && allowed(m)
+ 		}
+ 		preferOlder = true
++		if !matchesMajor(v) {
++			preferIncompatible = true
++		}
+ 
+ 	case semver.IsValid(query) && isSemverPrefix(query):
+ 		ok = func(m module.Version) bool {
+ 			return matchSemverPrefix(query, m.Version) && allowed(m)
+ 		}
+ 		prefix = query + "."
++		if !matchesMajor(query) {
++			preferIncompatible = true
++		}
+ 
+ 	default:
+ 		// Direct lookup of semantic version or commit identifier.
+@@ -217,6 +243,10 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
+ 	if err != nil {
+ 		return nil, err
+ 	}
++	releases, prereleases, err := filterVersions(path, versions, ok, preferIncompatible)
++	if err != nil {
++		return nil, err
++	}
+ 
+ 	lookup := func(v string) (*modfetch.RevInfo, error) {
+ 		rev, err := repo.Stat(v)
+@@ -237,28 +267,18 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
+ 	}
+ 
+ 	if preferOlder {
+-		for _, v := range versions {
+-			if semver.Prerelease(v) == "" && ok(module.Version{Path: path, Version: v}) {
+-				return lookup(v)
+-			}
++		if len(releases) > 0 {
++			return lookup(releases[0])
+ 		}
+-		for _, v := range versions {
+-			if semver.Prerelease(v) != "" && ok(module.Version{Path: path, Version: v}) {
+-				return lookup(v)
+-			}
++		if len(prereleases) > 0 {
++			return lookup(prereleases[0])
+ 		}
+ 	} else {
+-		for i := len(versions) - 1; i >= 0; i-- {
+-			v := versions[i]
+-			if semver.Prerelease(v) == "" && ok(module.Version{Path: path, Version: v}) {
+-				return lookup(v)
+-			}
++		if len(releases) > 0 {
++			return lookup(releases[len(releases)-1])
+ 		}
+-		for i := len(versions) - 1; i >= 0; i-- {
+-			v := versions[i]
+-			if semver.Prerelease(v) != "" && ok(module.Version{Path: path, Version: v}) {
+-				return lookup(v)
+-			}
++		if len(prereleases) > 0 {
++			return lookup(prereleases[len(prereleases)-1])
+ 		}
+ 	}
+ 
+@@ -302,6 +322,52 @@ func matchSemverPrefix(p, v string) bool {
+ 	return len(v) > len(p) && v[len(p)] == '.' && v[:len(p)] == p && semver.Prerelease(v) == ""
+ }
+ 
++// filterVersions classifies versions into releases and pre-releases, filtering
++// out:
++// 	1. versions that do not satisfy the 'ok' predicate, and
++// 	2. "+incompatible" versions, if a compatible one satisfies the predicate
++// 	   and the incompatible version is not preferred.
++func filterVersions(path string, versions []string, ok func(module.Version) bool, preferIncompatible bool) (releases, prereleases []string, err error) {
++	var lastCompatible string
++	for _, v := range versions {
++		if !ok(module.Version{Path: path, Version: v}) {
++			continue
++		}
++
++		if !preferIncompatible {
++			if !strings.HasSuffix(v, "+incompatible") {
++				lastCompatible = v
++			} else if lastCompatible != "" {
++				// If the latest compatible version is allowed and has a go.mod file,
++				// ignore any version with a higher (+incompatible) major version. (See
++				// https://golang.org/issue/34165.) Note that we even prefer a
++				// compatible pre-release over an incompatible release.
++
++				ok, err := versionHasGoMod(module.Version{Path: path, Version: lastCompatible})
++				if err != nil {
++					return nil, nil, err
++				}
++				if ok {
++					break
++				}
++
++				// No acceptable compatible release has a go.mod file, so the versioning
++				// for the module might not be module-aware, and we should respect
++				// legacy major-version tags.
++				preferIncompatible = true
++			}
++		}
++
++		if semver.Prerelease(v) != "" {
++			prereleases = append(prereleases, v)
++		} else {
++			releases = append(releases, v)
++		}
++	}
++
++	return releases, prereleases, nil
++}
++
+ type QueryResult struct {
+ 	Mod      module.Version
+ 	Rev      *modfetch.RevInfo
+@@ -590,3 +656,12 @@ func ModuleHasRootPackage(m module.Version) (bool, error) {
+ 	_, ok := dirInModule(m.Path, m.Path, root, isLocal)
+ 	return ok, nil
+ }
++
++func versionHasGoMod(m module.Version) (bool, error) {
++	root, _, err := fetch(m)
++	if err != nil {
++		return false, err
++	}
++	fi, err := os.Stat(filepath.Join(root, "go.mod"))
++	return err == nil && !fi.IsDir(), nil
++}
+diff --git a/src/cmd/go/testdata/script/mod_prefer_compatible.txt b/src/cmd/go/testdata/script/mod_prefer_compatible.txt
+new file mode 100644
+index 0000000000..c5cf17c2b2
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_prefer_compatible.txt
+@@ -0,0 +1,64 @@
++# Regression test for golang.org/issue/34189 and golang.org/issue/34165:
++# @latest, @upgrade, and @patch should prefer compatible versions over
++# +incompatible ones, even if offered by a proxy.
++
++[!net] skip
++
++env GO111MODULE=on
++env GOPROXY=
++env GOSUMDB=
++
++# github.com/russross/blackfriday v2.0.0+incompatible exists,
++# and should be resolved if we ask for v2.0 explicitly.
++
++go list -m github.com/russross/blackfriday@v2.0
++stdout '^github.com/russross/blackfriday v2\.0\.0\+incompatible$'
++
++# blackfriday v1.5.2 has a go.mod file, so v1.5.2 should be preferred over
++# v2.0.0+incompatible when resolving latest, upgrade, and patch.
++
++go list -m github.com/russross/blackfriday@latest
++stdout '^github.com/russross/blackfriday v1\.'
++
++go list -m github.com/russross/blackfriday@upgrade
++stdout '^github.com/russross/blackfriday v1\.'
++
++go list -m github.com/russross/blackfriday@patch
++stdout '^github.com/russross/blackfriday v1\.'
++
++# If we're fetching directly from version control, ignored +incompatible
++# versions should also be omitted by 'go list'.
++
++# (Note that they may still be included in results from a proxy: in proxy mode,
++# we would need to fetch the whole zipfile for the latest compatible version in
++# order to determine whether it contains a go.mod file, and part of the point of
++# the proxy is to avoid fetching unnecessary data.)
++
++env GOPROXY=direct
++
++go list -versions -m github.com/russross/blackfriday github.com/russross/blackfriday
++stdout '^github.com/russross/blackfriday v1\.5\.1 v1\.5\.2' # and possibly others
++! stdout ' v2\.'
++
++# However, if the latest compatible version does not include a go.mod file,
++# +incompatible versions should still be listed, as they may still reflect the
++# intent of the module author.
++
++go list -versions -m github.com/rsc/legacytest
++stdout '^github.com/rsc/legacytest v1\.0\.0 v1\.1\.0-pre v1\.2\.0 v2\.0\.0\+incompatible'
++
++# If we're fetching directly from version control, asking for a commit hash
++# corresponding to a +incompatible version should continue to produce the
++# +incompatible version tagged for that commit, even if it is no longer listed.
++
++go list -m github.com/russross/blackfriday@cadec560ec52
++stdout '^github.com/russross/blackfriday v2\.0\.0\+incompatible$'
++
++# Similarly, requesting an untagged commit should continue to produce a +incompatible
++# pseudo-version.
++
++go list -m github.com/rsc/legacytest@7303f7796364
++stdout '^github.com/rsc/legacytest v2\.0\.1-0\.20180717164253-7303f7796364\+incompatible$'
++
++-- go.mod --
++module github.com/golang.org/issue/34165

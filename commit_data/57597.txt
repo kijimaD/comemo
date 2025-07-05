@@ -13,8 +13,47 @@ Date:   Thu Aug 17 17:04:10 2023 -0700
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/base/flag.go | 1 +
  test/escape2.go                       | 2 +-
  test/escape2n.go                      | 2 +-
  3 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index 1eb46e2369..817dfd4ca5 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -181,6 +181,7 @@ func ParseFlags() {
+ 	Debug.PGOInline = 1
+ 	Debug.PGODevirtualize = 1
+ 	Debug.SyncFrames = -1 // disable sync markers by default
++	Debug.ZeroCopy = 1
+ 
+ 	Debug.Checkptr = -1 // so we can tell whether it is set explicitly
+ 
+diff --git a/test/escape2.go b/test/escape2.go
+index e3e5904cde..99f85914a3 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -1729,7 +1729,7 @@ func intstring2() {
+ 
+ func stringtoslicebyte0() {
+ 	s := "foo"
+-	x := []byte(s) // ERROR "\(\[\]byte\)\(s\) does not escape$"
++	x := []byte(s) // ERROR "\(\[\]byte\)\(s\) does not escape$" "zero-copy string->\[\]byte conversion"
+ 	_ = x
+ }
+ 
+diff --git a/test/escape2n.go b/test/escape2n.go
+index 57cc1a0163..350be65202 100644
+--- a/test/escape2n.go
++++ b/test/escape2n.go
+@@ -1729,7 +1729,7 @@ func intstring2() {
+ 
+ func stringtoslicebyte0() {
+ 	s := "foo"
+-	x := []byte(s) // ERROR "\(\[\]byte\)\(s\) does not escape$"
++	x := []byte(s) // ERROR "\(\[\]byte\)\(s\) does not escape$" "zero-copy string->\[\]byte conversion"
+ 	_ = x
+ }
+ 

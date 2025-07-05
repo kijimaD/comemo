@@ -16,7 +16,52 @@ Date:   Tue Nov 14 14:01:11 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/78121
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/xml/marshal.go | 5 ++---
  src/encoding/xml/xml.go     | 3 ++-
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/encoding/xml/marshal.go b/src/encoding/xml/marshal.go
+index 37b0dcb3c9..d393d0610b 100644
+--- a/src/encoding/xml/marshal.go
++++ b/src/encoding/xml/marshal.go
+@@ -19,8 +19,7 @@ const (
+ 	// Header is a generic XML header suitable for use with the output of Marshal.
+ 	// This is not automatically added to any output of this package,
+ 	// it is provided as a convenience.
+-	Header             = `<?xml version="1.0" encoding="UTF-8"?>` + "\n"
+-	xmlNamespacePrefix = "xml"
++	Header = `<?xml version="1.0" encoding="UTF-8"?>` + "\n"
+ )
+ 
+ // Marshal returns the XML encoding of v.
+@@ -324,7 +323,7 @@ func (p *printer) createAttrPrefix(url string) string {
+ 	// (The "http://www.w3.org/2000/xmlns/" name space is also predefined as "xmlns",
+ 	// but users should not be trying to use that one directly - that's our job.)
+ 	if url == xmlURL {
+-		return xmlNamespacePrefix
++		return xmlPrefix
+ 	}
+ 
+ 	// Need to define a new name space.
+diff --git a/src/encoding/xml/xml.go b/src/encoding/xml/xml.go
+index 7556d4b876..f408623de5 100644
+--- a/src/encoding/xml/xml.go
++++ b/src/encoding/xml/xml.go
+@@ -338,6 +338,7 @@ func (d *Decoder) Token() (Token, error) {
+ const (
+ 	xmlURL      = "http://www.w3.org/XML/1998/namespace"
+ 	xmlnsPrefix = "xmlns"
++	xmlPrefix   = "xml"
+ )
+ 
+ // Apply name space translation to name n.
+@@ -349,7 +350,7 @@ func (d *Decoder) translate(n *Name, isElementName bool) {
+ 		return
+ 	case n.Space == "" && !isElementName:
+ 		return
+-	case n.Space == xmlNamespacePrefix:
++	case n.Space == xmlPrefix:
+ 		n.Space = xmlURL
+ 	case n.Space == "" && n.Local == xmlnsPrefix:
+ 		return

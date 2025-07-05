@@ -27,7 +27,53 @@ Date:   Sat Jun 27 12:57:06 2015 -0700
     Change-Id: Id8b016389d33348b4a791fdcba0f9db8ae71ebf3
     Reviewed-on: https://go-review.googlesource.com/11652
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/internal/obj/link.go     | 7 ++++---
  src/cmd/link/internal/ld/pcln.go | 9 ++++++++-
  2 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index a6ade0f20d..24de6ef698 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -365,9 +365,10 @@ const (
+ 	SCONST
+ 	SDYNIMPORT
+ 	SHOSTOBJ
+-	SSUB    = 1 << 8
+-	SMASK   = SSUB - 1
+-	SHIDDEN = 1 << 9
++	SSUB       = 1 << 8
++	SMASK      = SSUB - 1
++	SHIDDEN    = 1 << 9
++	SCONTAINER = 1 << 10 // has a sub-symbol
+ )
+ 
+ type Reloc struct {
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index be2568d3b9..56d813bfde 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -191,7 +191,7 @@ func renumberfiles(ctxt *Link, files []*LSym, d *Pcdata) {
+ func container(s *LSym) int {
+ 	// We want to generate func table entries only for the "lowest level" symbols,
+ 	// not containers of subsymbols.
+-	if s != nil && s.Sub != nil {
++	if s != nil && s.Type&obj.SCONTAINER != 0 {
+ 		return 1
+ 	}
+ 	return 0
+@@ -223,6 +223,13 @@ func pclntab() {
+ 	//	offset to file table [4 bytes]
+ 	nfunc := int32(0)
+ 
++	// Find container symbols, mark them with SCONTAINER
++	for Ctxt.Cursym = Ctxt.Textp; Ctxt.Cursym != nil; Ctxt.Cursym = Ctxt.Cursym.Next {
++		if Ctxt.Cursym.Outer != nil {
++			Ctxt.Cursym.Outer.Type |= obj.SCONTAINER
++		}
++	}
++
+ 	for Ctxt.Cursym = Ctxt.Textp; Ctxt.Cursym != nil; Ctxt.Cursym = Ctxt.Cursym.Next {
+ 		if container(Ctxt.Cursym) == 0 {
+ 			nfunc++

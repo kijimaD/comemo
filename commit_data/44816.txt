@@ -12,7 +12,7 @@ Date:   Mon Aug 3 15:33:47 2020 +0800
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/runtime/defs_linux_arm.go        | 4 ++++
  src/runtime/defs_linux_mips64x.go    | 4 ++++
  src/runtime/defs_openbsd_arm64.go    | 4 ++++
@@ -23,3 +23,112 @@ Date:   Mon Aug 3 15:33:47 2020 +0800
  src/runtime/trace/annotation.go      | 4 ++++
  src/runtime/trace/annotation_test.go | 4 ++++
  9 files changed, 36 insertions(+)
+
+diff --git a/src/runtime/defs_linux_arm.go b/src/runtime/defs_linux_arm.go
+index ea29fd9d98..5bc0916f8b 100644
+--- a/src/runtime/defs_linux_arm.go
++++ b/src/runtime/defs_linux_arm.go
+@@ -1,3 +1,7 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package runtime
+ 
+ // Constants
+diff --git a/src/runtime/defs_linux_mips64x.go b/src/runtime/defs_linux_mips64x.go
+index 0fb53d5737..1fb423b198 100644
+--- a/src/runtime/defs_linux_mips64x.go
++++ b/src/runtime/defs_linux_mips64x.go
+@@ -1,3 +1,7 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ // +build mips64 mips64le
+ // +build linux
+ 
+diff --git a/src/runtime/defs_openbsd_arm64.go b/src/runtime/defs_openbsd_arm64.go
+index 8b8d5cddf2..628f4bc5a5 100644
+--- a/src/runtime/defs_openbsd_arm64.go
++++ b/src/runtime/defs_openbsd_arm64.go
+@@ -1,3 +1,7 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package runtime
+ 
+ import "unsafe"
+diff --git a/src/runtime/defs_plan9_386.go b/src/runtime/defs_plan9_386.go
+index 220169d280..49129b3c3f 100644
+--- a/src/runtime/defs_plan9_386.go
++++ b/src/runtime/defs_plan9_386.go
+@@ -1,3 +1,7 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package runtime
+ 
+ const _PAGESIZE = 0x1000
+diff --git a/src/runtime/defs_plan9_amd64.go b/src/runtime/defs_plan9_amd64.go
+index 29a2643c3a..0099563034 100644
+--- a/src/runtime/defs_plan9_amd64.go
++++ b/src/runtime/defs_plan9_amd64.go
+@@ -1,3 +1,7 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package runtime
+ 
+ const _PAGESIZE = 0x1000
+diff --git a/src/runtime/rt0_linux_ppc64.s b/src/runtime/rt0_linux_ppc64.s
+index 1265b15853..897d61052a 100644
+--- a/src/runtime/rt0_linux_ppc64.s
++++ b/src/runtime/rt0_linux_ppc64.s
+@@ -1,3 +1,7 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ #include "textflag.h"
+ 
+ // actually a function descriptor for _main<>(SB)
+diff --git a/src/runtime/rt0_linux_ppc64le.s b/src/runtime/rt0_linux_ppc64le.s
+index 54ea9d58f7..4f7c6e6c99 100644
+--- a/src/runtime/rt0_linux_ppc64le.s
++++ b/src/runtime/rt0_linux_ppc64le.s
+@@ -1,3 +1,7 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+diff --git a/src/runtime/trace/annotation.go b/src/runtime/trace/annotation.go
+index 82cb232dba..6e18bfb755 100644
+--- a/src/runtime/trace/annotation.go
++++ b/src/runtime/trace/annotation.go
+@@ -1,3 +1,7 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package trace
+ 
+ import (
+diff --git a/src/runtime/trace/annotation_test.go b/src/runtime/trace/annotation_test.go
+index 71abbfcfa6..31fccef206 100644
+--- a/src/runtime/trace/annotation_test.go
++++ b/src/runtime/trace/annotation_test.go
+@@ -1,3 +1,7 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package trace_test
+ 
+ import (

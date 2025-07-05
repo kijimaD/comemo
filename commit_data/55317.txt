@@ -14,9 +14,82 @@ Date:   Wed Jan 25 11:22:29 2023 +0800
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Run-TryBot: xie cui <523516579@qq.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  api/next/57237.txt                          |  1 +
  src/encoding/binary/binary_test.go          | 10 ++++++++++
  src/encoding/binary/native_endian_big.go    | 14 ++++++++++++++
  src/encoding/binary/native_endian_little.go | 14 ++++++++++++++
  4 files changed, 39 insertions(+)
+
+diff --git a/api/next/57237.txt b/api/next/57237.txt
+new file mode 100644
+index 0000000000..141dfe02f7
+--- /dev/null
++++ b/api/next/57237.txt
+@@ -0,0 +1 @@
++pkg encoding/binary, var NativeEndian nativeEndian #57237
+diff --git a/src/encoding/binary/binary_test.go b/src/encoding/binary/binary_test.go
+index 09d08f5ee3..341cd86766 100644
+--- a/src/encoding/binary/binary_test.go
++++ b/src/encoding/binary/binary_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"strings"
+ 	"sync"
+ 	"testing"
++	"unsafe"
+ )
+ 
+ type Struct struct {
+@@ -831,3 +832,12 @@ func BenchmarkWriteSlice1000Uint8s(b *testing.B) {
+ 		Write(w, BigEndian, slice)
+ 	}
+ }
++
++func TestNativeEndian(t *testing.T) {
++	const val = 0x12345678
++	i := uint32(val)
++	s := unsafe.Slice((*byte)(unsafe.Pointer(&i)), unsafe.Sizeof(i))
++	if v := NativeEndian.Uint32(s); v != val {
++		t.Errorf("NativeEndian.Uint32 returned %#x, expected %#x", v, val)
++	}
++}
+diff --git a/src/encoding/binary/native_endian_big.go b/src/encoding/binary/native_endian_big.go
+new file mode 100644
+index 0000000000..1a24354f4b
+--- /dev/null
++++ b/src/encoding/binary/native_endian_big.go
+@@ -0,0 +1,14 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build armbe || arm64be || m68k || mips || mips64 || mips64p32 || ppc || ppc64 || s390 || s390x || shbe || sparc || sparc64
++
++package binary
++
++type nativeEndian struct {
++	bigEndian
++}
++
++// NativeEndian is the native-endian implementation of ByteOrder and AppendByteOrder.
++var NativeEndian nativeEndian
+diff --git a/src/encoding/binary/native_endian_little.go b/src/encoding/binary/native_endian_little.go
+new file mode 100644
+index 0000000000..67b41ae0a2
+--- /dev/null
++++ b/src/encoding/binary/native_endian_little.go
+@@ -0,0 +1,14 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build 386 || amd64 || amd64p32 || alpha || arm || arm64 || loong64 || mipsle || mips64le || mips64p32le || nios2 || ppc64le || riscv || riscv64 || sh || wasm
++
++package binary
++
++type nativeEndian struct {
++	littleEndian
++}
++
++// NativeEndian is the native-endian implementation of ByteOrder and AppendByteOrder.
++var NativeEndian nativeEndian

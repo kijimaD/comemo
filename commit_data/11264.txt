@@ -9,6 +9,22 @@ Date:   Thu Jan 19 08:52:53 2012 -0800
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/5553062
-
+---
  src/pkg/go/doc/doc.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index 112d01f78f..0259a6fec9 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -36,8 +36,8 @@ type Value struct {
+ type Method struct {
+ 	*Func
+ 	// TODO(gri) The following fields are not set at the moment. 
+-	Recv  *Type // original receiver base type
+-	Level int   // embedding level; 0 means Func is not embedded
++	Origin *Type // original receiver base type
++	Level  int   // embedding level; 0 means Func is not embedded
+ }
+ 
+ // Type is the documentation for type declaration.

@@ -7,6 +7,35 @@ Date:   Sat Jan 18 11:22:32 2014 +0900
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/54000043
-
+---
  src/pkg/syscall/rlimit_unix_test.go | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/syscall/rlimit_unix_test.go b/src/pkg/syscall/rlimit_unix_test.go
+index b96c4bb996..e84d62ad6f 100644
+--- a/src/pkg/syscall/rlimit_unix_test.go
++++ b/src/pkg/syscall/rlimit_unix_test.go
+@@ -7,6 +7,7 @@
+ package syscall_test
+ 
+ import (
++	"runtime"
+ 	"syscall"
+ 	"testing"
+ )
+@@ -34,7 +35,14 @@ func TestRlimit(t *testing.T) {
+ 	set = rlimit
+ 	set.Cur = set.Max - 1
+ 	if set != get {
+-		t.Fatalf("Rlimit: change failed: wanted %#v got %#v", set, get)
++		// Seems like Darwin requires some privilege to
++		// increse the soft limit of rlimit sandbox, though
++		// Setrlimit never reports error.
++		switch runtime.GOOS {
++		case "darwin":
++		default:
++			t.Fatalf("Rlimit: change failed: wanted %#v got %#v", set, get)
++		}
+ 	}
+ 	err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rlimit)
+ 	if err != nil {

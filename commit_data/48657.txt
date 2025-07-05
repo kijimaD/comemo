@@ -13,9 +13,87 @@ Date:   Thu Jun 3 21:58:32 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/325010
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/noder/expr.go      | 12 ++++++------
  src/cmd/compile/internal/types2/api.go      |  2 +-
  src/cmd/compile/internal/types2/api_test.go |  2 +-
  src/cmd/compile/internal/types2/sanitize.go |  4 ++--
  4 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index d6c75845ce..7034a19b81 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -111,11 +111,11 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ 		// The key for the Inferred map is the CallExpr (if inferring
+ 		// types required the function arguments) or the IndexExpr below
+ 		// (if types could be inferred without the function arguments).
+-		if inferred, ok := g.info.Inferred[expr]; ok && len(inferred.Targs) > 0 {
++		if inferred, ok := g.info.Inferred[expr]; ok && len(inferred.TArgs) > 0 {
+ 			// This is the case where inferring types required the
+ 			// types of the function arguments.
+-			targs := make([]ir.Node, len(inferred.Targs))
+-			for i, targ := range inferred.Targs {
++			targs := make([]ir.Node, len(inferred.TArgs))
++			for i, targ := range inferred.TArgs {
+ 				targs[i] = ir.TypeNode(g.typ(targ))
+ 			}
+ 			if fun.Op() == ir.OFUNCINST {
+@@ -137,12 +137,12 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ 	case *syntax.IndexExpr:
+ 		var targs []ir.Node
+ 
+-		if inferred, ok := g.info.Inferred[expr]; ok && len(inferred.Targs) > 0 {
++		if inferred, ok := g.info.Inferred[expr]; ok && len(inferred.TArgs) > 0 {
+ 			// This is the partial type inference case where the types
+ 			// can be inferred from other type arguments without using
+ 			// the types of the function arguments.
+-			targs = make([]ir.Node, len(inferred.Targs))
+-			for i, targ := range inferred.Targs {
++			targs = make([]ir.Node, len(inferred.TArgs))
++			for i, targ := range inferred.TArgs {
+ 				targs[i] = ir.TypeNode(g.typ(targ))
+ 			}
+ 		} else if _, ok := expr.Index.(*syntax.ListExpr); ok {
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index 433250f02c..4f7f35e61b 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -361,7 +361,7 @@ func (tv TypeAndValue) HasOk() bool {
+ // Inferred reports the inferred type arguments and signature
+ // for a parameterized function call that uses type inference.
+ type Inferred struct {
+-	Targs []Type
++	TArgs []Type
+ 	Sig   *Signature
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index 49d710067a..c7f3e490aa 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -514,7 +514,7 @@ func TestInferredInfo(t *testing.T) {
+ 				panic(fmt.Sprintf("unexpected call expression type %T", call))
+ 			}
+ 			if syntax.String(fun) == test.fun {
+-				targs = inf.Targs
++				targs = inf.TArgs
+ 				sig = inf.Sig
+ 				break
+ 			}
+diff --git a/src/cmd/compile/internal/types2/sanitize.go b/src/cmd/compile/internal/types2/sanitize.go
+index 4e654e074f..406b46e574 100644
+--- a/src/cmd/compile/internal/types2/sanitize.go
++++ b/src/cmd/compile/internal/types2/sanitize.go
+@@ -26,9 +26,9 @@ func sanitizeInfo(info *Info) {
+ 
+ 	for e, inf := range info.Inferred {
+ 		changed := false
+-		for i, targ := range inf.Targs {
++		for i, targ := range inf.TArgs {
+ 			if typ := s.typ(targ); typ != targ {
+-				inf.Targs[i] = typ
++				inf.TArgs[i] = typ
+ 				changed = true
+ 			}
+ 		}

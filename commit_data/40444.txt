@@ -11,8 +11,90 @@ Date:   Mon May 13 11:38:47 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/modload/query.go      |  4 ++--
  src/cmd/go/internal/modload/query_test.go |  7 ++++++-
  src/cmd/go/testdata/script/mod_query.txt  | 10 +++++++++-
  3 files changed, 17 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index a195b76fa1..cd0d9b17c5 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -186,7 +186,7 @@ func Query(path, query string, allowed func(module.Version) bool) (*modfetch.Rev
+ 	return nil, &NoMatchingVersionError{query: query}
+ }
+ 
+-// isSemverPrefix reports whether v is a semantic version prefix: v1 or  v1.2 (not wv1.2.3).
++// isSemverPrefix reports whether v is a semantic version prefix: v1 or v1.2 (not v1.2.3).
+ // The caller is assumed to have checked that semver.IsValid(v) is true.
+ func isSemverPrefix(v string) bool {
+ 	dots := 0
+@@ -207,7 +207,7 @@ func isSemverPrefix(v string) bool {
+ // matchSemverPrefix reports whether the shortened semantic version p
+ // matches the full-width (non-shortened) semantic version v.
+ func matchSemverPrefix(p, v string) bool {
+-	return len(v) > len(p) && v[len(p)] == '.' && v[:len(p)] == p
++	return len(v) > len(p) && v[len(p)] == '.' && v[:len(p)] == p && semver.Prerelease(v) == ""
+ }
+ 
+ type QueryResult struct {
+diff --git a/src/cmd/go/internal/modload/query_test.go b/src/cmd/go/internal/modload/query_test.go
+index d6e52c6b74..17e23ad12a 100644
+--- a/src/cmd/go/internal/modload/query_test.go
++++ b/src/cmd/go/internal/modload/query_test.go
+@@ -76,7 +76,7 @@ var queryTests = []struct {
+ 		git checkout v2
+ 		echo module vcs-test.golang.org/git/querytest.git/v2 >go.mod
+ 		git commit -m v2 go.mod
+-		for i in v2.0.0 v2.1.0 v2.2.0 v2.5.5; do
++		for i in v2.0.0 v2.1.0 v2.2.0 v2.5.5 v2.6.0-pre1; do
+ 			echo before $i >status
+ 			git add status
+ 			git commit -m "before $i" status
+@@ -84,6 +84,7 @@ var queryTests = []struct {
+ 			git commit -m "at $i" status
+ 			git tag $i
+ 		done
++		git checkout v2.5.5
+ 		echo after v2.5.5 >status
+ 		git commit -m 'after v2.5.5' status
+ 		git checkout master
+@@ -117,6 +118,10 @@ var queryTests = []struct {
+ 	{path: queryRepoV2, query: ">v0.0.0", vers: "v2.0.0"},
+ 	{path: queryRepoV2, query: ">=v0.0.0", vers: "v2.0.0"},
+ 	{path: queryRepoV2, query: "v0.0.1+foo", vers: "v2.0.0-20180704023347-179bc86b1be3"},
++	{path: queryRepoV2, query: "v2", vers: "v2.5.5"},
++	{path: queryRepoV2, query: "v2.5", vers: "v2.5.5"},
++	{path: queryRepoV2, query: "v2.6", err: `no matching versions for query "v2.6"`},
++	{path: queryRepoV2, query: "v2.6.0-pre1", vers: "v2.6.0-pre1"},
+ 	{path: queryRepoV2, query: "latest", vers: "v2.5.5"},
+ 
+ 	{path: queryRepoV3, query: "latest", vers: "v3.0.0-20180704024501-e0cf3de987e6"},
+diff --git a/src/cmd/go/testdata/script/mod_query.txt b/src/cmd/go/testdata/script/mod_query.txt
+index 4baaaa89ed..c41f83d264 100644
+--- a/src/cmd/go/testdata/script/mod_query.txt
++++ b/src/cmd/go/testdata/script/mod_query.txt
+@@ -3,13 +3,21 @@ env GO111MODULE=on
+ go list -m -versions rsc.io/quote
+ stdout '^rsc.io/quote v1.0.0 v1.1.0 v1.2.0 v1.2.1 v1.3.0 v1.4.0 v1.5.0 v1.5.1 v1.5.2 v1.5.3-pre1$'
+ 
+-# latest rsc.io/quote should be v1.5.2 not v1.5.3-pre1
++# Latest rsc.io/quote should be v1.5.2, not v1.5.3-pre1.
+ go list -m rsc.io/quote@latest
+ stdout 'rsc.io/quote v1.5.2$'
+ 
++# Same for rsc.io/quote@v1 and rsc.io/quote@v1.5 (with no patch version).
++go list -m rsc.io/quote@v1
++stdout 'rsc.io/quote v1.5.2$'
++go list -m rsc.io/quote@v1.5
++stdout 'rsc.io/quote v1.5.2$'
++
++# We should fall back to prereleases if no release tags match...
+ go list -m rsc.io/quote@>v1.5.2
+ stdout 'rsc.io/quote v1.5.3-pre1$'
+ 
++# ...but prefer release versions when given the option.
+ go list -m rsc.io/quote@<v1.5.4
+ stdout 'rsc.io/quote v1.5.2$'
+ 

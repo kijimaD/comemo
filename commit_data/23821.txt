@@ -10,6 +10,20 @@ Date:   Sun Jun 14 09:01:23 2015 +0900
     Change-Id: Ib3c55f670ac6a174fe9ea682dac7aab96b1e9dfb
     Reviewed-on: https://go-review.googlesource.com/11058
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/error_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/error_test.go b/src/net/error_test.go
+index e01b58e6c5..bf95ff6108 100644
+--- a/src/net/error_test.go
++++ b/src/net/error_test.go
+@@ -161,7 +161,7 @@ func TestDialError(t *testing.T) {
+ 
+ func TestProtocolDialError(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "nacl":
++	case "nacl", "solaris":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+ 

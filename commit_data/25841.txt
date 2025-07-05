@@ -27,7 +27,286 @@ Date:   Mon Nov 23 16:16:42 2015 -0800
     Change-Id: I5b0b26efea3d3bd01c7479a518b5ed1b886701cd
     Reviewed-on: https://go-review.googlesource.com/17195
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/regexp/onepass.go      | 83 +++-----------------------------------
  src/regexp/onepass_test.go | 99 +++++++++++++++++++++++++++-------------------
  2 files changed, 64 insertions(+), 118 deletions(-)
+
+diff --git a/src/regexp/onepass.go b/src/regexp/onepass.go
+index 2bd81e3233..2ce3902388 100644
+--- a/src/regexp/onepass.go
++++ b/src/regexp/onepass.go
+@@ -113,10 +113,6 @@ func (q *queueOnePass) clear() {
+ 	q.nextIndex = 0
+ }
+ 
+-func (q *queueOnePass) reset() {
+-	q.nextIndex = 0
+-}
+-
+ func (q *queueOnePass) contains(u uint32) bool {
+ 	if u >= uint32(len(q.sparse)) {
+ 		return false
+@@ -313,25 +309,9 @@ func makeOnePass(p *onePassProg) *onePassProg {
+ 	var (
+ 		instQueue    = newQueue(len(p.Inst))
+ 		visitQueue   = newQueue(len(p.Inst))
+-		build        func(uint32, *queueOnePass)
+ 		check        func(uint32, map[uint32]bool) bool
+ 		onePassRunes = make([][]rune, len(p.Inst))
+ 	)
+-	build = func(pc uint32, q *queueOnePass) {
+-		if q.contains(pc) {
+-			return
+-		}
+-		inst := p.Inst[pc]
+-		switch inst.Op {
+-		case syntax.InstAlt, syntax.InstAltMatch:
+-			q.insert(inst.Out)
+-			build(inst.Out, q)
+-			q.insert(inst.Arg)
+-		case syntax.InstMatch, syntax.InstFail:
+-		default:
+-			q.insert(inst.Out)
+-		}
+-	}
+ 
+ 	// check that paths from Alt instructions are unambiguous, and rebuild the new
+ 	// program as a onepass program
+@@ -390,11 +370,11 @@ func makeOnePass(p *onePassProg) *onePassProg {
+ 			m[pc] = inst.Op == syntax.InstMatch
+ 			break
+ 		case syntax.InstRune:
+-			ok = check(inst.Out, m)
+ 			m[pc] = false
+ 			if len(inst.Next) > 0 {
+ 				break
+ 			}
++			instQueue.insert(inst.Out)
+ 			if len(inst.Rune) == 0 {
+ 				onePassRunes[pc] = []rune{}
+ 				inst.Next = []uint32{inst.Out}
+@@ -418,11 +398,11 @@ func makeOnePass(p *onePassProg) *onePassProg {
+ 			}
+ 			inst.Op = syntax.InstRune
+ 		case syntax.InstRune1:
+-			ok = check(inst.Out, m)
+ 			m[pc] = false
+ 			if len(inst.Next) > 0 {
+ 				break
+ 			}
++			instQueue.insert(inst.Out)
+ 			runes := []rune{}
+ 			// expand case-folded runes
+ 			if syntax.Flags(inst.Arg)&syntax.FoldCase != 0 {
+@@ -442,19 +422,19 @@ func makeOnePass(p *onePassProg) *onePassProg {
+ 			}
+ 			inst.Op = syntax.InstRune
+ 		case syntax.InstRuneAny:
+-			ok = check(inst.Out, m)
+ 			m[pc] = false
+ 			if len(inst.Next) > 0 {
+ 				break
+ 			}
++			instQueue.insert(inst.Out)
+ 			onePassRunes[pc] = append([]rune{}, anyRune...)
+ 			inst.Next = []uint32{inst.Out}
+ 		case syntax.InstRuneAnyNotNL:
+-			ok = check(inst.Out, m)
+ 			m[pc] = false
+ 			if len(inst.Next) > 0 {
+ 				break
+ 			}
++			instQueue.insert(inst.Out)
+ 			onePassRunes[pc] = append([]rune{}, anyRuneNotNL...)
+ 			inst.Next = []uint32{}
+ 			for i := len(onePassRunes[pc]) / 2; i >= 0; i-- {
+@@ -468,24 +448,12 @@ func makeOnePass(p *onePassProg) *onePassProg {
+ 	instQueue.insert(uint32(p.Start))
+ 	m := make(map[uint32]bool, len(p.Inst))
+ 	for !instQueue.empty() {
+-		pc := instQueue.next()
+-		inst := p.Inst[pc]
+ 		visitQueue.clear()
++		pc := instQueue.next()
+ 		if !check(uint32(pc), m) {
+ 			p = notOnePass
+ 			break
+ 		}
+-		switch inst.Op {
+-		case syntax.InstAlt, syntax.InstAltMatch:
+-			instQueue.insert(inst.Out)
+-			instQueue.insert(inst.Arg)
+-		case syntax.InstCapture, syntax.InstEmptyWidth, syntax.InstNop:
+-			instQueue.insert(inst.Out)
+-		case syntax.InstMatch:
+-		case syntax.InstFail:
+-		case syntax.InstRune, syntax.InstRune1, syntax.InstRuneAny, syntax.InstRuneAnyNotNL:
+-		default:
+-		}
+ 	}
+ 	if p != notOnePass {
+ 		for i := range p.Inst {
+@@ -495,47 +463,6 @@ func makeOnePass(p *onePassProg) *onePassProg {
+ 	return p
+ }
+ 
+-// walk visits each Inst in the prog once, and applies the argument
+-// function(ip, next), in pre-order.
+-func walk(prog *syntax.Prog, funcs ...func(ip, next uint32)) {
+-	var walk1 func(uint32)
+-	progQueue := newQueue(len(prog.Inst))
+-	walk1 = func(ip uint32) {
+-		if progQueue.contains(ip) {
+-			return
+-		}
+-		progQueue.insert(ip)
+-		inst := prog.Inst[ip]
+-		switch inst.Op {
+-		case syntax.InstAlt, syntax.InstAltMatch:
+-			for _, f := range funcs {
+-				f(ip, inst.Out)
+-				f(ip, inst.Arg)
+-			}
+-			walk1(inst.Out)
+-			walk1(inst.Arg)
+-		default:
+-			for _, f := range funcs {
+-				f(ip, inst.Out)
+-			}
+-			walk1(inst.Out)
+-		}
+-	}
+-	walk1(uint32(prog.Start))
+-}
+-
+-// find returns the Insts that match the argument predicate function
+-func find(prog *syntax.Prog, f func(*syntax.Prog, int) bool) (matches []uint32) {
+-	matches = []uint32{}
+-
+-	for ip := range prog.Inst {
+-		if f(prog, ip) {
+-			matches = append(matches, uint32(ip))
+-		}
+-	}
+-	return
+-}
+-
+ var notOnePass *onePassProg = nil
+ 
+ // compileOnePass returns a new *syntax.Prog suitable for onePass execution if the original Prog
+diff --git a/src/regexp/onepass_test.go b/src/regexp/onepass_test.go
+index 7b2beea67f..8202ebefa5 100644
+--- a/src/regexp/onepass_test.go
++++ b/src/regexp/onepass_test.go
+@@ -140,47 +140,41 @@ var onePass = &onePassProg{}
+ var onePassTests = []struct {
+ 	re      string
+ 	onePass *onePassProg
+-	prog    string
+ }{
+-	{`^(?:a|(?:a*))$`, notOnePass, noStr},
+-	{`^(?:(a)|(?:a*))$`, notOnePass, noStr},
+-	{`^(?:(?:(?:.(?:$))?))$`, onePass, `a`},
+-	{`^abcd$`, onePass, `abcd`},
+-	{`^abcd$`, onePass, `abcde`},
+-	{`^(?:(?:a{0,})*?)$`, onePass, `a`},
+-	{`^(?:(?:a+)*)$`, onePass, ``},
+-	{`^(?:(?:a|(?:aa)))$`, onePass, ``},
+-	{`^(?:[^\s\S])$`, onePass, ``},
+-	{`^(?:(?:a{3,4}){0,})$`, notOnePass, `aaaaaa`},
+-	{`^(?:(?:a+)*)$`, onePass, `a`},
+-	{`^(?:(?:(?:a*)+))$`, onePass, noStr},
+-	{`^(?:(?:a+)*)$`, onePass, ``},
+-	{`^[a-c]+$`, onePass, `abc`},
+-	{`^[a-c]*$`, onePass, `abcdabc`},
+-	{`^(?:a*)$`, onePass, `aaaaaaa`},
+-	{`^(?:(?:aa)|a)$`, onePass, `a`},
+-	{`^[a-c]*`, notOnePass, `abcdabc`},
+-	{`^[a-c]*$`, onePass, `abc`},
+-	{`^...$`, onePass, ``},
+-	{`^(?:a|(?:aa))$`, onePass, `a`},
+-	{`^[a-c]*`, notOnePass, `abcabc`},
+-	{`^a((b))c$`, onePass, noStr},
+-	{`^a.[l-nA-Cg-j]?e$`, onePass, noStr},
+-	{`^a((b))$`, onePass, noStr},
+-	{`^a(?:(b)|(c))c$`, onePass, noStr},
+-	{`^a(?:(b*)|(c))c$`, notOnePass, noStr},
+-	{`^a(?:b|c)$`, onePass, noStr},
+-	{`^a(?:b?|c)$`, onePass, noStr},
+-	{`^a(?:b?|c?)$`, notOnePass, noStr},
+-	{`^a(?:b?|c+)$`, onePass, noStr},
+-	{`^a(?:b+|(bc))d$`, notOnePass, noStr},
+-	{`^a(?:bc)+$`, onePass, noStr},
+-	{`^a(?:[bcd])+$`, onePass, noStr},
+-	{`^a((?:[bcd])+)$`, onePass, noStr},
+-	{`^a(:?b|c)*d$`, onePass, `abbbccbbcbbd"`},
+-	{`^.bc(d|e)*$`, onePass, `abcddddddeeeededd`},
+-	{`^(?:(?:aa)|.)$`, notOnePass, `a`},
+-	{`^(?:(?:a{1,2}){1,2})$`, notOnePass, `aaaa`},
++	{`^(?:a|(?:a*))$`, notOnePass},
++	{`^(?:(a)|(?:a*))$`, notOnePass},
++	{`^(?:(?:(?:.(?:$))?))$`, onePass},
++	{`^abcd$`, onePass},
++	{`^(?:(?:a{0,})*?)$`, onePass},
++	{`^(?:(?:a+)*)$`, onePass},
++	{`^(?:(?:a|(?:aa)))$`, onePass},
++	{`^(?:[^\s\S])$`, onePass},
++	{`^(?:(?:a{3,4}){0,})$`, notOnePass},
++	{`^(?:(?:(?:a*)+))$`, onePass},
++	{`^[a-c]+$`, onePass},
++	{`^[a-c]*$`, onePass},
++	{`^(?:a*)$`, onePass},
++	{`^(?:(?:aa)|a)$`, onePass},
++	{`^[a-c]*`, notOnePass},
++	{`^...$`, onePass},
++	{`^(?:a|(?:aa))$`, onePass},
++	{`^a((b))c$`, onePass},
++	{`^a.[l-nA-Cg-j]?e$`, onePass},
++	{`^a((b))$`, onePass},
++	{`^a(?:(b)|(c))c$`, onePass},
++	{`^a(?:(b*)|(c))c$`, notOnePass},
++	{`^a(?:b|c)$`, onePass},
++	{`^a(?:b?|c)$`, onePass},
++	{`^a(?:b?|c?)$`, notOnePass},
++	{`^a(?:b?|c+)$`, onePass},
++	{`^a(?:b+|(bc))d$`, notOnePass},
++	{`^a(?:bc)+$`, onePass},
++	{`^a(?:[bcd])+$`, onePass},
++	{`^a((?:[bcd])+)$`, onePass},
++	{`^a(:?b|c)*d$`, onePass},
++	{`^.bc(d|e)*$`, onePass},
++	{`^(?:(?:aa)|.)$`, notOnePass},
++	{`^(?:(?:a{1,2}){1,2})$`, notOnePass},
+ }
+ 
+ func TestCompileOnePass(t *testing.T) {
+@@ -206,3 +200,28 @@ func TestCompileOnePass(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// TODO(cespare): Unify with onePassTests and rationalize one-pass test cases.
++var onePassTests1 = []struct {
++	re    string
++	match string
++}{
++	{`^a(/b+(#c+)*)*$`, "a/b#c"}, // golang.org/issue/11905
++}
++
++func TestRunOnePass(t *testing.T) {
++	for _, test := range onePassTests1 {
++		re, err := Compile(test.re)
++		if err != nil {
++			t.Errorf("Compile(%q): got err: %s", test.re, err)
++			continue
++		}
++		if re.onepass == notOnePass {
++			t.Errorf("Compile(%q): got notOnePass, want one-pass", test.re)
++			continue
++		}
++		if !re.MatchString(test.match) {
++			t.Errorf("onepass %q did not match %q", test.re, test.match)
++		}
++	}
++}

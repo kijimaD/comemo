@@ -26,9 +26,354 @@ Date:   Tue Jul 26 21:52:42 2022 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/noder/import.go  |  2 +-
  src/cmd/compile/internal/noder/linker.go  | 83 +++++++++++++++++++++-------
  src/cmd/compile/internal/noder/reader.go  | 35 ++++++++----
  src/cmd/compile/internal/noder/unified.go | 92 ++++++++++++++++++++++++-------
  4 files changed, 161 insertions(+), 51 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/import.go b/src/cmd/compile/internal/noder/import.go
+index 2cef9f75e8..49b8fd142a 100644
+--- a/src/cmd/compile/internal/noder/import.go
++++ b/src/cmd/compile/internal/noder/import.go
+@@ -241,7 +241,7 @@ func readImportFile(path string, target *ir.Package, env *types2.Context, packag
+ 		pr := pkgbits.NewPkgDecoder(pkg1.Path, data)
+ 
+ 		// Read package descriptors for both types2 and compiler backend.
+-		readPackage(newPkgReader(pr), pkg1)
++		readPackage(newPkgReader(pr), pkg1, false)
+ 		pkg2 = importer.ReadPackage(env, packages, pr)
+ 
+ 	case 'i':
+diff --git a/src/cmd/compile/internal/noder/linker.go b/src/cmd/compile/internal/noder/linker.go
+index 1626c04090..0f39fdec05 100644
+--- a/src/cmd/compile/internal/noder/linker.go
++++ b/src/cmd/compile/internal/noder/linker.go
+@@ -38,8 +38,9 @@ import (
+ type linker struct {
+ 	pw pkgbits.PkgEncoder
+ 
+-	pkgs  map[string]pkgbits.Index
+-	decls map[*types.Sym]pkgbits.Index
++	pkgs   map[string]pkgbits.Index
++	decls  map[*types.Sym]pkgbits.Index
++	bodies map[*types.Sym]pkgbits.Index
+ }
+ 
+ // relocAll ensures that all elements specified by pr and relocs are
+@@ -170,21 +171,12 @@ func (l *linker) relocObj(pr *pkgReader, idx pkgbits.Index) pkgbits.Index {
+ 	l.relocCommon(pr, &wname, pkgbits.RelocName, idx)
+ 	l.relocCommon(pr, &wdict, pkgbits.RelocObjDict, idx)
+ 
+-	var obj *ir.Name
+-	if sym.Pkg == types.LocalPkg {
+-		var ok bool
+-		obj, ok = sym.Def.(*ir.Name)
+-
+-		// Generic types and functions and declared constraint types won't
+-		// have definitions.
+-		// For now, just generically copy their extension data.
+-		// TODO(mdempsky): Restore assertion.
+-		if !ok && false {
+-			base.Fatalf("missing definition for %v", sym)
+-		}
+-	}
++	// Generic types and functions won't have definitions, and imported
++	// objects may not either.
++	obj, _ := sym.Def.(*ir.Name)
++	local := sym.Pkg == types.LocalPkg
+ 
+-	if obj != nil {
++	if local && obj != nil {
+ 		wext.Sync(pkgbits.SyncObject1)
+ 		switch tag {
+ 		case pkgbits.ObjFunc:
+@@ -199,9 +191,64 @@ func (l *linker) relocObj(pr *pkgReader, idx pkgbits.Index) pkgbits.Index {
+ 		l.relocCommon(pr, &wext, pkgbits.RelocObjExt, idx)
+ 	}
+ 
++	// Check if we need to export the inline bodies for functions and
++	// methods.
++	if obj != nil {
++		if obj.Op() == ir.ONAME && obj.Class == ir.PFUNC {
++			l.exportBody(obj, local)
++		}
++
++		if obj.Op() == ir.OTYPE {
++			if typ := obj.Type(); !typ.IsInterface() {
++				for _, method := range typ.Methods().Slice() {
++					l.exportBody(method.Nname.(*ir.Name), local)
++				}
++			}
++		}
++	}
++
+ 	return w.Idx
+ }
+ 
++// exportBody exports the given function or method's body, if
++// appropriate. local indicates whether it's a local function or
++// method available on a locally declared type. (Due to cross-package
++// type aliases, a method may be imported, but still available on a
++// locally declared type.)
++func (l *linker) exportBody(obj *ir.Name, local bool) {
++	assert(obj.Op() == ir.ONAME && obj.Class == ir.PFUNC)
++
++	fn := obj.Func
++	if fn.Inl == nil {
++		return // not inlinable anyway
++	}
++
++	// As a simple heuristic, if the function was declared in this
++	// package or we inlined it somewhere in this package, then we'll
++	// (re)export the function body. This isn't perfect, but seems
++	// reasonable in practice. In particular, it has the nice property
++	// that in the worst case, adding a blank import ensures the
++	// function body is available for inlining.
++	//
++	// TODO(mdempsky): Reimplement the reachable method crawling logic
++	// from typecheck/crawler.go.
++	exportBody := local || fn.Inl.Body != nil
++	if !exportBody {
++		return
++	}
++
++	sym := obj.Sym()
++	if _, ok := l.bodies[sym]; ok {
++		// Due to type aliases, we might visit methods multiple times.
++		base.AssertfAt(obj.Type().Recv() != nil, obj.Pos(), "expected method: %v", obj)
++		return
++	}
++
++	pri, ok := bodyReaderFor(fn)
++	assert(ok)
++	l.bodies[sym] = l.relocIdx(pri.pr, pkgbits.RelocBody, pri.idx)
++}
++
+ // relocCommon copies the specified element from pr into w,
+ // recursively relocating any referenced elements as well.
+ func (l *linker) relocCommon(pr *pkgReader, w *pkgbits.Encoder, k pkgbits.RelocKind, idx pkgbits.Index) {
+@@ -240,10 +287,6 @@ func (l *linker) relocFuncExt(w *pkgbits.Encoder, name *ir.Name) {
+ 	if inl := name.Func.Inl; w.Bool(inl != nil) {
+ 		w.Len(int(inl.Cost))
+ 		w.Bool(inl.CanDelayResults)
+-
+-		pri, ok := bodyReader[name.Func]
+-		assert(ok)
+-		w.Reloc(pkgbits.RelocBody, l.relocIdx(pri.pr, pkgbits.RelocBody, pri.idx))
+ 	}
+ 
+ 	w.Sync(pkgbits.SyncEOF)
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 0a382e1c9b..9458332fc8 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -897,6 +897,8 @@ func (r *reader) funcExt(name *ir.Name) {
+ 	typecheck.Func(fn)
+ 
+ 	if r.Bool() {
++		assert(name.Defn == nil)
++
+ 		fn.ABI = obj.ABI(r.Uint64())
+ 
+ 		// Escape analysis.
+@@ -911,7 +913,6 @@ func (r *reader) funcExt(name *ir.Name) {
+ 				Cost:            int32(r.Len()),
+ 				CanDelayResults: r.Bool(),
+ 			}
+-			r.addBody(name.Func)
+ 		}
+ 	} else {
+ 		r.addBody(name.Func)
+@@ -967,10 +968,26 @@ func (r *reader) pragmaFlag() ir.PragmaFlag {
+ 
+ // @@@ Function bodies
+ 
+-// bodyReader tracks where the serialized IR for a function's body can
+-// be found.
++// bodyReader tracks where the serialized IR for a local or imported,
++// generic function's body can be found.
+ var bodyReader = map[*ir.Func]pkgReaderIndex{}
+ 
++// importBodyReader tracks where the serialized IR for an imported,
++// static (i.e., non-generic) function body can be read.
++var importBodyReader = map[*types.Sym]pkgReaderIndex{}
++
++// bodyReaderFor returns the pkgReaderIndex for reading fn's
++// serialized IR, and whether one was found.
++func bodyReaderFor(fn *ir.Func) (pri pkgReaderIndex, ok bool) {
++	if fn.Nname.Defn != nil {
++		pri, ok = bodyReader[fn]
++		assert(ok) // must always be available
++	} else {
++		pri, ok = importBodyReader[fn.Sym()]
++	}
++	return
++}
++
+ // todoBodies holds the list of function bodies that still need to be
+ // constructed.
+ var todoBodies []*ir.Func
+@@ -978,15 +995,13 @@ var todoBodies []*ir.Func
+ // addBody reads a function body reference from the element bitstream,
+ // and associates it with fn.
+ func (r *reader) addBody(fn *ir.Func) {
++	// addBody should only be called for local functions or imported
++	// generic functions; see comment in funcExt.
++	assert(fn.Nname.Defn != nil)
++
+ 	pri := pkgReaderIndex{r.p, r.Reloc(pkgbits.RelocBody), r.dict}
+ 	bodyReader[fn] = pri
+ 
+-	if fn.Nname.Defn == nil {
+-		// Don't read in function body for imported functions.
+-		// See comment in funcExt.
+-		return
+-	}
+-
+ 	if r.curfn == nil {
+ 		todoBodies = append(todoBodies, fn)
+ 		return
+@@ -2225,7 +2240,7 @@ func InlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExp
+ 	// TODO(mdempsky): Turn callerfn into an explicit parameter.
+ 	callerfn := ir.CurFunc
+ 
+-	pri, ok := bodyReader[fn]
++	pri, ok := bodyReaderFor(fn)
+ 	if !ok {
+ 		// TODO(mdempsky): Reconsider this diagnostic's wording, if it's
+ 		// to be included in Go 1.20.
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index 95486af66c..d9b15ab385 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -85,7 +85,7 @@ func unified(noders []*noder) {
+ 	typecheck.TypecheckAllowed = true
+ 
+ 	localPkgReader = newPkgReader(pkgbits.NewPkgDecoder(types.LocalPkg.Path, data))
+-	readPackage(localPkgReader, types.LocalPkg)
++	readPackage(localPkgReader, types.LocalPkg, true)
+ 
+ 	r := localPkgReader.newReader(pkgbits.RelocMeta, pkgbits.PrivateRootIdx, pkgbits.SyncPrivate)
+ 	r.pkgInit(types.LocalPkg, target)
+@@ -226,29 +226,54 @@ func freePackage(pkg *types2.Package) {
+ 
+ // readPackage reads package export data from pr to populate
+ // importpkg.
+-func readPackage(pr *pkgReader, importpkg *types.Pkg) {
+-	r := pr.newReader(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
++//
++// localStub indicates whether pr is reading the stub export data for
++// the local package, as opposed to relocated export data for an
++// import.
++func readPackage(pr *pkgReader, importpkg *types.Pkg, localStub bool) {
++	{
++		r := pr.newReader(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
++
++		pkg := r.pkg()
++		base.Assertf(pkg == importpkg, "have package %q (%p), want package %q (%p)", pkg.Path, pkg, importpkg.Path, importpkg)
++
++		if r.Bool() {
++			sym := pkg.Lookup(".inittask")
++			task := ir.NewNameAt(src.NoXPos, sym)
++			task.Class = ir.PEXTERN
++			sym.Def = task
++		}
++
++		for i, n := 0, r.Len(); i < n; i++ {
++			r.Sync(pkgbits.SyncObject)
++			assert(!r.Bool())
++			idx := r.Reloc(pkgbits.RelocObj)
++			assert(r.Len() == 0)
+ 
+-	pkg := r.pkg()
+-	base.Assertf(pkg == importpkg, "have package %q (%p), want package %q (%p)", pkg.Path, pkg, importpkg.Path, importpkg)
++			path, name, code := r.p.PeekObj(idx)
++			if code != pkgbits.ObjStub {
++				objReader[types.NewPkg(path, "").Lookup(name)] = pkgReaderIndex{pr, idx, nil}
++			}
++		}
+ 
+-	if r.Bool() {
+-		sym := pkg.Lookup(".inittask")
+-		task := ir.NewNameAt(src.NoXPos, sym)
+-		task.Class = ir.PEXTERN
+-		sym.Def = task
++		r.Sync(pkgbits.SyncEOF)
+ 	}
+ 
+-	for i, n := 0, r.Len(); i < n; i++ {
+-		r.Sync(pkgbits.SyncObject)
+-		assert(!r.Bool())
+-		idx := r.Reloc(pkgbits.RelocObj)
+-		assert(r.Len() == 0)
++	if !localStub {
++		r := pr.newReader(pkgbits.RelocMeta, pkgbits.PrivateRootIdx, pkgbits.SyncPrivate)
++
++		for i, n := 0, r.Len(); i < n; i++ {
++			path := r.String()
++			name := r.String()
++			idx := r.Reloc(pkgbits.RelocBody)
+ 
+-		path, name, code := r.p.PeekObj(idx)
+-		if code != pkgbits.ObjStub {
+-			objReader[types.NewPkg(path, "").Lookup(name)] = pkgReaderIndex{pr, idx, nil}
++			sym := types.NewPkg(path, "").Lookup(name)
++			if _, ok := importBodyReader[sym]; !ok {
++				importBodyReader[sym] = pkgReaderIndex{pr, idx, nil}
++			}
+ 		}
++
++		r.Sync(pkgbits.SyncEOF)
+ 	}
+ }
+ 
+@@ -258,12 +283,15 @@ func writeUnifiedExport(out io.Writer) {
+ 	l := linker{
+ 		pw: pkgbits.NewPkgEncoder(base.Debug.SyncFrames),
+ 
+-		pkgs:  make(map[string]pkgbits.Index),
+-		decls: make(map[*types.Sym]pkgbits.Index),
++		pkgs:   make(map[string]pkgbits.Index),
++		decls:  make(map[*types.Sym]pkgbits.Index),
++		bodies: make(map[*types.Sym]pkgbits.Index),
+ 	}
+ 
+ 	publicRootWriter := l.pw.NewEncoder(pkgbits.RelocMeta, pkgbits.SyncPublic)
++	privateRootWriter := l.pw.NewEncoder(pkgbits.RelocMeta, pkgbits.SyncPrivate)
+ 	assert(publicRootWriter.Idx == pkgbits.PublicRootIdx)
++	assert(privateRootWriter.Idx == pkgbits.PrivateRootIdx)
+ 
+ 	var selfPkgIdx pkgbits.Index
+ 
+@@ -320,5 +348,29 @@ func writeUnifiedExport(out io.Writer) {
+ 		w.Flush()
+ 	}
+ 
++	{
++		type symIdx struct {
++			sym *types.Sym
++			idx pkgbits.Index
++		}
++		var bodies []symIdx
++		for sym, idx := range l.bodies {
++			bodies = append(bodies, symIdx{sym, idx})
++		}
++		sort.Slice(bodies, func(i, j int) bool { return bodies[i].idx < bodies[j].idx })
++
++		w := privateRootWriter
++
++		w.Len(len(bodies))
++		for _, body := range bodies {
++			w.String(body.sym.Pkg.Path)
++			w.String(body.sym.Name)
++			w.Reloc(pkgbits.RelocBody, body.idx)
++		}
++
++		w.Sync(pkgbits.SyncEOF)
++		w.Flush()
++	}
++
+ 	base.Ctxt.Fingerprint = l.pw.DumpTo(out)
+ }

@@ -13,7 +13,7 @@ Date:   Tue May 17 21:25:43 2022 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  doc/go1.19.html                                     | 2 +-
  src/cmd/asm/internal/asm/testdata/arm.s             | 2 +-
  src/cmd/cgo/out.go                                  | 2 +-
@@ -43,3 +43,388 @@ Date:   Tue May 17 21:25:43 2022 +0000
  src/runtime/mprof.go                                | 2 +-
  src/runtime/symtab_test.go                          | 2 +-
  28 files changed, 31 insertions(+), 31 deletions(-)
+
+diff --git a/doc/go1.19.html b/doc/go1.19.html
+index 0c55a7eac2..164f967bdd 100644
+--- a/doc/go1.19.html
++++ b/doc/go1.19.html
+@@ -144,7 +144,7 @@ Do not send CLs removing the interior tags from such phrases.
+       returns an "operation was canceled" error, the error will now
+       satisfy <code>errors.Is(err, context.Canceled)</code>.
+       These changes are intended to make it easier for code to test
+-      for cases in which a context cancelation or timeout causes a net
++      for cases in which a context cancellation or timeout causes a net
+       package function or method to return an error, while preserving
+       backward compatibility for error messages.
+     </p>
+diff --git a/src/cmd/asm/internal/asm/testdata/arm.s b/src/cmd/asm/internal/asm/testdata/arm.s
+index cc8e25ef7c..2ba22c71de 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm.s
++++ b/src/cmd/asm/internal/asm/testdata/arm.s
+@@ -1042,7 +1042,7 @@ jmp_label_3:
+ 	BFI	$29, $2, R8                              // 1881dee7
+ 	BFI	$16, $8, R1, R2 // BFI $16, R1, $8, R2   // 1124d7e7
+ 
+-// synthetic arithmatic
++// synthetic arithmetic
+ 	ADD	$0xffffffaa, R2, R3 // ADD $4294967210, R2, R3   // 55b0e0e30b3082e0
+ 	ADD	$0xffffff55, R5     // ADD $4294967125, R5       // aab0e0e30b5085e0
+ 	ADD.S	$0xffffffab, R2, R3 // ADD.S $4294967211, R2, R3 // 54b0e0e30b3092e0
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index a27007ed1d..d6740028da 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -174,7 +174,7 @@ func (p *Package) writeDefs() {
+ 				// the external linker will add DT_NEEDED
+ 				// entries as needed on ELF systems.
+ 				// Treat function variables differently
+-				// to avoid type confict errors from LTO
++				// to avoid type conflict errors from LTO
+ 				// (Link Time Optimization).
+ 				if n.Kind == "fpvar" {
+ 					fmt.Fprintf(fm, "extern void %s();\n", n.C)
+diff --git a/src/cmd/compile/internal/pkginit/initAsanGlobals.go b/src/cmd/compile/internal/pkginit/initAsanGlobals.go
+index 7276791d6e..63aa361694 100644
+--- a/src/cmd/compile/internal/pkginit/initAsanGlobals.go
++++ b/src/cmd/compile/internal/pkginit/initAsanGlobals.go
+@@ -86,7 +86,7 @@ func instrumentGlobals(fn *ir.Func) *ir.Name {
+ 		sizeWithRz := rzSize + size
+ 		c = tconv(ir.NewInt(sizeWithRz), types.Types[types.TUINTPTR])
+ 		setField("sizeWithRedzone", c, i)
+-		// The C string type is terminated by a null charactor "\0", Go should use three-digit
++		// The C string type is terminated by a null character "\0", Go should use three-digit
+ 		// octal "\000" or two-digit hexadecimal "\x00" to create null terminated string.
+ 		// asanName = symbol's linkname + "\000"
+ 		// globals[i].name = (*defString)(unsafe.Pointer(&asanName)).data
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index d9f2708712..3ffb7dcefa 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -356,7 +356,7 @@ func methods(t *types.Type) []*typeSig {
+ 		}
+ 		if f.Nointerface() {
+ 			// In the case of a nointerface method on an instantiated
+-			// type, don't actually apppend the typeSig.
++			// type, don't actually append the typeSig.
+ 			continue
+ 		}
+ 		ms = append(ms, sig)
+diff --git a/src/cmd/compile/internal/ssa/cse.go b/src/cmd/compile/internal/ssa/cse.go
+index f4b799394c..a71b78ce65 100644
+--- a/src/cmd/compile/internal/ssa/cse.go
++++ b/src/cmd/compile/internal/ssa/cse.go
+@@ -83,7 +83,7 @@ func cse(f *Func) {
+ 	// non-equivalent arguments.  Repeat until we can't find any
+ 	// more splits.
+ 	var splitPoints []int
+-	byArgClass := new(partitionByArgClass) // reuseable partitionByArgClass to reduce allocations
++	byArgClass := new(partitionByArgClass) // reusable partitionByArgClass to reduce allocations
+ 	for {
+ 		changed := false
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index 23f113285b..7328461972 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -479,7 +479,7 @@
+ (MOVHUloadidx ptr idx (MOVHstoreidx ptr2 idx x _)) && isSamePtr(ptr, ptr2) => (MOVHUreg x)
+ (MOVHloadidx ptr idx (MOVHstoreidx ptr2 idx x _)) && isSamePtr(ptr, ptr2) => (MOVHreg x)
+ 
+-// fold constant into arithmatic ops
++// fold constant into arithmetic ops
+ (ADD x (MOVWconst [c])) => (ADDconst [c] x)
+ (SUB (MOVWconst [c]) x) => (RSBconst [c] x)
+ (SUB x (MOVWconst [c])) => (SUBconst [c] x)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 07eb4f68e2..3776b3ca02 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -1166,7 +1166,7 @@
+ // But for now, this is enough to get rid of lots of them.
+ (MOVDnop (MOVDconst [c])) => (MOVDconst [c])
+ 
+-// fold constant into arithmatic ops
++// fold constant into arithmetic ops
+ (ADD x (MOVDconst [c])) => (ADDconst [c] x)
+ (SUB x (MOVDconst [c])) => (SUBconst [c] x)
+ (AND x (MOVDconst [c])) => (ANDconst [c] x)
+diff --git a/src/cmd/compile/internal/ssa/gen/LOONG64.rules b/src/cmd/compile/internal/ssa/gen/LOONG64.rules
+index e3bbb29efe..1ea5effb3c 100644
+--- a/src/cmd/compile/internal/ssa/gen/LOONG64.rules
++++ b/src/cmd/compile/internal/ssa/gen/LOONG64.rules
+@@ -558,7 +558,7 @@
+ // MOVVnop doesn't emit instruction, only for ensuring the type.
+ (MOVVreg x) && x.Uses == 1 => (MOVVnop x)
+ 
+-// fold constant into arithmatic ops
++// fold constant into arithmetic ops
+ (ADDV x (MOVVconst [c])) && is32Bit(c) => (ADDVconst [c] x)
+ (SUBV x (MOVVconst [c])) && is32Bit(c) => (SUBVconst [c] x)
+ (AND x (MOVVconst [c])) && is32Bit(c) => (ANDconst [c] x)
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS.rules b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+index 639dda4b07..6f696da3cc 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+@@ -565,7 +565,7 @@
+ // But for now, this is enough to get rid of lots of them.
+ (MOVWnop (MOVWconst [c])) => (MOVWconst [c])
+ 
+-// fold constant into arithmatic ops
++// fold constant into arithmetic ops
+ (ADD x (MOVWconst [c])) => (ADDconst [c] x)
+ (SUB x (MOVWconst [c])) => (SUBconst [c] x)
+ (AND x (MOVWconst [c])) => (ANDconst [c] x)
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64.rules b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+index 292ff2fc79..17634afd72 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS64.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+@@ -564,7 +564,7 @@
+ // But for now, this is enough to get rid of lots of them.
+ (MOVVnop (MOVVconst [c])) => (MOVVconst [c])
+ 
+-// fold constant into arithmatic ops
++// fold constant into arithmetic ops
+ (ADDV x (MOVVconst [c])) && is32Bit(c) => (ADDVconst [c] x)
+ (SUBV x (MOVVconst [c])) && is32Bit(c) => (SUBVconst [c] x)
+ (AND x (MOVVconst [c])) && is32Bit(c) => (ANDconst [c] x)
+diff --git a/src/cmd/compile/internal/ssa/poset.go b/src/cmd/compile/internal/ssa/poset.go
+index a3b4f0fea4..ad89de3f13 100644
+--- a/src/cmd/compile/internal/ssa/poset.go
++++ b/src/cmd/compile/internal/ssa/poset.go
+@@ -450,7 +450,7 @@ func (po *poset) aliasnodes(n1 *Value, i2s bitset) {
+ 			po.upush(undoSetChr, uint32(idx), r)
+ 		}
+ 
+-		// Connect all chidren of i2s to i1 (unless those children
++		// Connect all children of i2s to i1 (unless those children
+ 		// are in i2s as well, in which case it would be useless)
+ 		if i2s.Test(uint32(idx)) {
+ 			if l != 0 && !i2s.Test(l.Target()) {
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 58a87c66aa..d41772ad8a 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -418,7 +418,7 @@ func isSameCall(sym interface{}, name string) bool {
+ 	return fn != nil && fn.String() == name
+ }
+ 
+-// canLoadUnaligned reports if the achitecture supports unaligned load operations
++// canLoadUnaligned reports if the architecture supports unaligned load operations
+ func canLoadUnaligned(c *Config) bool {
+ 	return c.ctxt.Arch.Alignment == 1
+ }
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index 8afead9695..e6de955a6e 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -2296,7 +2296,7 @@ func TestInstantiateErrors(t *testing.T) {
+ 		}
+ 
+ 		if argErr.Index != test.wantAt {
+-			t.Errorf("Instantate(%v, %v): error at index %d, want index %d", T, test.targs, argErr.Index, test.wantAt)
++			t.Errorf("Instantiate(%v, %v): error at index %d, want index %d", T, test.targs, argErr.Index, test.wantAt)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/go/testdata/script/list_load_err.txt b/src/cmd/go/testdata/script/list_load_err.txt
+index 0cfa7fbed2..f1b9205f99 100644
+--- a/src/cmd/go/testdata/script/list_load_err.txt
++++ b/src/cmd/go/testdata/script/list_load_err.txt
+@@ -1,6 +1,6 @@
+ # go list -e -deps should list imports from any file it can read, even if
+ # other files in the same package cause go/build.Import to return an error.
+-# Verfifies golang.org/issue/38568
++# Verifies golang.org/issue/38568
+ 
+ go list -e -deps ./scan
+ stdout m/want
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 0e16fe5495..43f71c0400 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -938,7 +938,7 @@ func writeBlocks(ctxt *Link, out *OutBuf, sem chan int, ldr *loader.Loader, syms
+ 		length := int64(0)
+ 		if idx+1 < len(syms) {
+ 			// Find the next top-level symbol.
+-			// Skip over sub symbols so we won't split a containter symbol
++			// Skip over sub symbols so we won't split a container symbol
+ 			// into two blocks.
+ 			next := syms[idx+1]
+ 			for ldr.AttrSubSymbol(next) {
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index 4469a42ce2..8ef6115df4 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -700,11 +700,11 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
+ 		}
+ 
+ 		if len(cert.PermittedEmailAddresses) != 1 || cert.PermittedEmailAddresses[0] != "foo@example.com" {
+-			t.Errorf("%s: failed to parse permitted email addreses: %#v", test.name, cert.PermittedEmailAddresses)
++			t.Errorf("%s: failed to parse permitted email addresses: %#v", test.name, cert.PermittedEmailAddresses)
+ 		}
+ 
+ 		if len(cert.ExcludedEmailAddresses) != 2 || cert.ExcludedEmailAddresses[0] != ".example.com" || cert.ExcludedEmailAddresses[1] != "example.com" {
+-			t.Errorf("%s: failed to parse excluded email addreses: %#v", test.name, cert.ExcludedEmailAddresses)
++			t.Errorf("%s: failed to parse excluded email addresses: %#v", test.name, cert.ExcludedEmailAddresses)
+ 		}
+ 
+ 		if len(cert.PermittedURIDomains) != 2 || cert.PermittedURIDomains[0] != ".bar.com" || cert.PermittedURIDomains[1] != "bar.com" {
+diff --git a/src/database/sql/fakedb_test.go b/src/database/sql/fakedb_test.go
+index 050aed1ec8..ec47ce4714 100644
+--- a/src/database/sql/fakedb_test.go
++++ b/src/database/sql/fakedb_test.go
+@@ -643,7 +643,7 @@ func (c *fakeConn) PrepareContext(ctx context.Context, query string) (driver.Stm
+ 	}
+ 
+ 	if c.stickyBad || (hookPrepareBadConn != nil && hookPrepareBadConn()) {
+-		return nil, fakeError{Message: "Preapre: Sticky Bad", Wrapped: driver.ErrBadConn}
++		return nil, fakeError{Message: "Prepare: Sticky Bad", Wrapped: driver.ErrBadConn}
+ 	}
+ 
+ 	c.touchMem()
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 21a4421726..eb17f9280d 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -2316,7 +2316,7 @@ func TestInstantiateErrors(t *testing.T) {
+ 		}
+ 
+ 		if argErr.Index != test.wantAt {
+-			t.Errorf("Instantate(%v, %v): error at index %d, want index %d", T, test.targs, argErr.Index, test.wantAt)
++			t.Errorf("Instantiate(%v, %v): error at index %d, want index %d", T, test.targs, argErr.Index, test.wantAt)
+ 		}
+ 	}
+ }
+diff --git a/src/go/types/methodset_test.go b/src/go/types/methodset_test.go
+index ee3ad0dbeb..610329ecb9 100644
+--- a/src/go/types/methodset_test.go
++++ b/src/go/types/methodset_test.go
+@@ -40,7 +40,7 @@ func TestNewMethodSet(t *testing.T) {
+ 		"var a T1; type ( T1 T2; T2 interface{ f() } )":              {{"f", []int{0}, true}},
+ 		"var a T1; type ( T1 interface{ T2 }; T2 interface{ f() } )": {{"f", []int{0}, true}},
+ 
+-		// Genric interfaces
++		// Generic interfaces
+ 		"var a T[int]; type T[P any] interface{ f() }":                                     {{"f", []int{0}, true}},
+ 		"var a T1[int]; type ( T1[P any] T2[P]; T2[P any] interface{ f() } )":              {{"f", []int{0}, true}},
+ 		"var a T1[int]; type ( T1[P any] interface{ T2[P] }; T2[P any] interface{ f() } )": {{"f", []int{0}, true}},
+diff --git a/src/image/gif/writer_test.go b/src/image/gif/writer_test.go
+index af0105c6be..8dd28908d7 100644
+--- a/src/image/gif/writer_test.go
++++ b/src/image/gif/writer_test.go
+@@ -603,7 +603,7 @@ func TestEncodeWrappedImage(t *testing.T) {
+ 		t.Fatalf("readImg: %v", err)
+ 	}
+ 
+-	// Case 1: Enocde a wrapped image.Image
++	// Case 1: Encode a wrapped image.Image
+ 	buf := new(bytes.Buffer)
+ 	w0 := offsetImage{m0, m0.Bounds()}
+ 	err = Encode(buf, w0, nil)
+@@ -619,7 +619,7 @@ func TestEncodeWrappedImage(t *testing.T) {
+ 		t.Fatalf("Wrapped: average delta is too high. expected: 0, got %d", avgDelta)
+ 	}
+ 
+-	// Case 2: Enocde a wrapped image.Image with offset
++	// Case 2: Encode a wrapped image.Image with offset
+ 	b0 := image.Rectangle{
+ 		Min: image.Point{
+ 			X: 128,
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index 082490faaa..b5d3ce7110 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -221,13 +221,13 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 	if ctx.Done() != nil {
+ 		// CloseNotifier predates context.Context, and has been
+ 		// entirely superseded by it. If the request contains
+-		// a Context that carries a cancelation signal, don't
++		// a Context that carries a cancellation signal, don't
+ 		// bother spinning up a goroutine to watch the CloseNotify
+ 		// channel (if any).
+ 		//
+ 		// If the request Context has a nil Done channel (which
+ 		// means it is either context.Background, or a custom
+-		// Context implementation with no cancelation signal),
++		// Context implementation with no cancellation signal),
+ 		// then consult the CloseNotifier if available.
+ 	} else if cn, ok := rw.(http.CloseNotifier); ok {
+ 		var cancel context.CancelFunc
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index acdfae39ed..84868e2c5e 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -6530,7 +6530,7 @@ func TestCancelRequestWhenSharingConnection(t *testing.T) {
+ 	r2c := <-reqc
+ 	cancel()
+ 
+-	// Give the cancelation a moment to take effect, and then unblock the first request.
++	// Give the cancellation a moment to take effect, and then unblock the first request.
+ 	time.Sleep(1 * time.Millisecond)
+ 	close(idlec)
+ 
+diff --git a/src/net/netip/netip.go b/src/net/netip/netip.go
+index 5bbab951c5..a88a994068 100644
+--- a/src/net/netip/netip.go
++++ b/src/net/netip/netip.go
+@@ -474,7 +474,7 @@ func (ip Addr) Is6() bool {
+ 
+ // Unmap returns ip with any IPv4-mapped IPv6 address prefix removed.
+ //
+-// That is, if ip is an IPv6 address wrapping an IPv4 adddress, it
++// That is, if ip is an IPv6 address wrapping an IPv4 address, it
+ // returns the wrapped IPv4 address. Otherwise it returns ip unmodified.
+ func (ip Addr) Unmap() Addr {
+ 	if ip.Is4In6() {
+diff --git a/src/runtime/mem.go b/src/runtime/mem.go
+index 2f43bdf788..5fdc479f9c 100644
+--- a/src/runtime/mem.go
++++ b/src/runtime/mem.go
+@@ -69,7 +69,7 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
+ //
+ // This operation is idempotent for memory already in the Prepared state, so
+ // it is safe to refer, with v and n, to a range of memory that includes both
+-// Prepared and Ready memory. However, the caller must provide the exact amout
++// Prepared and Ready memory. However, the caller must provide the exact amount
+ // of Prepared memory for accounting purposes.
+ func sysUsed(v unsafe.Pointer, n, prepared uintptr) {
+ 	gcController.mappedReady.Add(int64(prepared))
+diff --git a/src/runtime/mgclimit.go b/src/runtime/mgclimit.go
+index 12ff0a7e68..1ae5c3764c 100644
+--- a/src/runtime/mgclimit.go
++++ b/src/runtime/mgclimit.go
+@@ -14,7 +14,7 @@ import "runtime/internal/atomic"
+ // CPU time and drains with mutator time. Because the bucket fills and
+ // drains with time directly (i.e. without any weighting), this effectively
+ // sets a very conservative limit of 50%. This limit could be enforced directly,
+-// however, but the purpose of the bucket is to accomodate spikes in GC CPU
++// however, but the purpose of the bucket is to accommodate spikes in GC CPU
+ // utilization without hurting throughput.
+ //
+ // Note that the bucket in the leaky bucket mechanism can never go negative,
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index 2046e9f245..6bf3ddda8c 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -963,7 +963,7 @@ func goroutineProfileWithLabelsConcurrent(p []StackRecord, labels []unsafe.Point
+ 	// New goroutines may not be in this list, but we didn't want to know about
+ 	// them anyway. If they do appear in this list (via reusing a dead goroutine
+ 	// struct, or racing to launch between the world restarting and us getting
+-	// the list), they will aleady have their goroutineProfiled field set to
++	// the list), they will already have their goroutineProfiled field set to
+ 	// goroutineProfileSatisfied before their state transitions out of _Gdead.
+ 	//
+ 	// Any goroutine that the scheduler tries to execute concurrently with this
+diff --git a/src/runtime/symtab_test.go b/src/runtime/symtab_test.go
+index 1a0c55af97..cf20ea7a0e 100644
+--- a/src/runtime/symtab_test.go
++++ b/src/runtime/symtab_test.go
+@@ -201,7 +201,7 @@ func tracebackFunc(t *testing.T) uintptr {
+ // Go will never generate a stack trace containing such an address, as it is
+ // not a valid call site. However, the cgo traceback function passed to
+ // runtime.SetCgoTraceback may not be completely accurate and may incorrect
+-// provide PCs in Go code or the alignement region between functions.
++// provide PCs in Go code or the alignment region between functions.
+ //
+ // Go obviously doesn't easily expose the problematic PCs to running programs,
+ // so this test is a bit fragile. Some details:

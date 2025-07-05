@@ -6,10 +6,315 @@ Date:   Thu Nov 5 08:55:18 2009 -0800
     
     R=rsc
     http://go/go-review/1017048
-
+---
  src/pkg/encoding/ascii85/ascii85.go      | 17 +++----
  src/pkg/encoding/ascii85/ascii85_test.go |  6 +--
  src/pkg/encoding/git85/git.go            | 85 ++++++++++++++++----------------
  src/pkg/encoding/git85/git_test.go       |  6 +--
  src/pkg/encoding/hex/hex_test.go         |  6 +--
  5 files changed, 59 insertions(+), 61 deletions(-)
+
+diff --git a/src/pkg/encoding/ascii85/ascii85.go b/src/pkg/encoding/ascii85/ascii85.go
+index 16f7b9a345..adf1fe7dd1 100644
+--- a/src/pkg/encoding/ascii85/ascii85.go
++++ b/src/pkg/encoding/ascii85/ascii85.go
+@@ -65,14 +65,14 @@ func Encode(dst, src []byte) int {
+ 
+ 		// Otherwise, 5 base 85 digits starting at !.
+ 		for i := 4; i >= 0; i-- {
+-			dst[i] = '!' + byte(v%85);
++			dst[i] = '!'+byte(v%85);
+ 			v /= 85;
+ 		}
+ 
+ 		// If src was short, discard the low destination bytes.
+ 		m := 5;
+ 		if len(src) < 4 {
+-			m -= 4 - len(src);
++			m -= 4-len(src);
+ 			src = nil;
+ 		} else {
+ 			src = src[4:len(src)];
+@@ -160,7 +160,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
+ func (e *encoder) Close() os.Error {
+ 	// If there's anything left in the buffer, flush it out
+ 	if e.err == nil && e.nbuf > 0 {
+-		nout := Encode(&e.out, e.buf[0:e.nbuf]);
++		nout := Encode(&e.out, e.buf[0 : e.nbuf]);
+ 		e.nbuf = 0;
+ 		_, e.err = e.w.Write(e.out[0:nout]);
+ 	}
+@@ -195,7 +195,7 @@ func Decode(dst, src []byte, flush bool) (ndst, nsrc int, err os.Error) {
+ 	var v uint32;
+ 	var nb int;
+ 	for i, b := range src {
+-		if len(dst) - ndst < 4 {
++		if len(dst)-ndst < 4 {
+ 			return;
+ 		}
+ 		switch {
+@@ -205,7 +205,7 @@ func Decode(dst, src []byte, flush bool) (ndst, nsrc int, err os.Error) {
+ 			nb = 5;
+ 			v = 0;
+ 		case '!' <= b && b <= 'u':
+-			v = v*85 + uint32(b - '!');
++			v = v*85 + uint32(b-'!');
+ 			nb++;
+ 		default:
+ 			return 0, 0, CorruptInputError(i);
+@@ -282,10 +282,10 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
+ 		// Decode leftover input from last read.
+ 		var nn, nsrc, ndst int;
+ 		if d.nbuf > 0 {
+-			ndst, nsrc, d.err = Decode(&d.outbuf, d.buf[0:d.nbuf], d.readErr != nil);
++			ndst, nsrc, d.err = Decode(&d.outbuf, d.buf[0 : d.nbuf], d.readErr != nil);
+ 			if ndst > 0 {
+ 				d.out = d.outbuf[0:ndst];
+-				d.nbuf = bytes.Copy(&d.buf, d.buf[nsrc:d.nbuf]);
++				d.nbuf = bytes.Copy(&d.buf, d.buf[nsrc : d.nbuf]);
+ 				continue;	// copy out and return
+ 			}
+ 		}
+@@ -300,9 +300,8 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
+ 		}
+ 
+ 		// Read more data.
+-		nn, d.readErr = d.r.Read(d.buf[d.nbuf:len(d.buf)]);
++		nn, d.readErr = d.r.Read(d.buf[d.nbuf : len(d.buf)]);
+ 		d.nbuf += nn;
+ 	}
+ 	panic("unreachable");
+ }
+-
+diff --git a/src/pkg/encoding/ascii85/ascii85_test.go b/src/pkg/encoding/ascii85/ascii85_test.go
+index 6c3f9c87a9..c30680ae53 100644
+--- a/src/pkg/encoding/ascii85/ascii85_test.go
++++ b/src/pkg/encoding/ascii85/ascii85_test.go
+@@ -28,11 +28,11 @@ var pairs = []testpair{
+ 		"O<DJ+*.@<*K0@<6L(Df-\\0Ec5e;DffZ(EZee.Bl.9pF\"AGXBPCsi+DGm>@3BB/F*&OCAfu2/AKY\n"
+ 		"i(DIb:@FD,*)+C]U=@3BN#EcYf8ATD3s@q?d$AftVqCh[NqF<G:8+EV:.+Cf>-FD5W8ARlolDIa\n"
+ 		"l(DId<j@<?3r@:F%a+D58'ATD4$Bl@l3De:,-DJs`8ARoFb/0JMK@qB4^F!,R<AKZ&-DfTqBG%G\n"
+-		">uD.RTpAKYo'+CT/5+Cei#DII?(E,9)oF*2M7/c\n"
+-	}
++		">uD.RTpAKYo'+CT/5+Cei#DII?(E,9)oF*2M7/c\n",
++	},
+ }
+ 
+-var bigtest = pairs[len(pairs)-1];
++var bigtest = pairs[len(pairs)-1]
+ 
+ func testEqual(t *testing.T, msg string, args ...) bool {
+ 	v := reflect.NewValue(args).(*reflect.StructValue);
+diff --git a/src/pkg/encoding/git85/git.go b/src/pkg/encoding/git85/git.go
+index 1ee4c9c919..51e4654dd3 100644
+--- a/src/pkg/encoding/git85/git.go
++++ b/src/pkg/encoding/git85/git.go
+@@ -24,20 +24,20 @@ const encode = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#
+ // The decodings are 1+ the actual value, so that the
+ // default zero value can be used to mean "not valid".
+ var decode = [256]uint8{
+-	'0':	1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+-	'A':	11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+-		24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36,
+-	'a':	37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49,
+-		50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62,
+-	'!':	63,
+-	'#':	64, 65, 66, 67,
+-	'(':	68, 69, 70, 71,
+-	'-':	72,
+-	';':	73,
+-	'<':	74, 75, 76, 77,
+-	'@':	78,
+-	'^':	79, 80, 81,
+-	'{':	82, 83, 84, 85
++	'0': 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
++	'A': 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
++	24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36,
++	'a': 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49,
++	50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62,
++	'!': 63,
++	'#': 64, 65, 66, 67,
++	'(': 68, 69, 70, 71,
++	'-': 72,
++	';': 73,
++	'<': 74, 75, 76, 77,
++	'@': 78,
++	'^': 79, 80, 81,
++	'{': 82, 83, 84, 85,
+ }
+ 
+ // Encode encodes src into EncodedLen(len(src))
+@@ -56,15 +56,15 @@ func Encode(dst, src []byte) int {
+ 			n = 52;
+ 		}
+ 		if n <= 27 {
+-			dst[ndst] = byte('A' + n - 1);
++			dst[ndst] = byte('A'+n-1);
+ 		} else {
+-			dst[ndst] = byte('a' + n - 26 - 1);
++			dst[ndst] = byte('a'+n-26-1);
+ 		}
+ 		ndst++;
+ 		for i := 0; i < n; i += 4 {
+ 			var v uint32;
+ 			for j := 0; j < 4 && i+j < n; j++ {
+-				v |= uint32(src[i+j]) << uint(24 - j*8);
++				v |= uint32(src[i+j])<<uint(24 - j*8);
+ 			}
+ 			for j := 4; j >= 0; j-- {
+ 				dst[ndst+j] = encode[v%85];
+@@ -103,9 +103,9 @@ func Decode(dst, src []byte) (n int, err os.Error) {
+ 		var l int;
+ 		switch ch := int(src[nsrc]); {
+ 		case 'A' <= ch && ch <= 'Z':
+-			l = ch - 'A' + 1;
++			l = ch-'A'+1;
+ 		case 'a' <= ch && ch <= 'z':
+-			l = ch - 'a' + 26 + 1;
++			l = ch-'a'+26+1;
+ 		default:
+ 			return ndst, CorruptInputError(nsrc);
+ 		}
+@@ -116,7 +116,7 @@ func Decode(dst, src []byte) (n int, err os.Error) {
+ 		if nsrc+1+el+1 > len(src) || src[nsrc+1+el] != '\n' {
+ 			return ndst, CorruptInputError(nsrc);
+ 		}
+-		line := src[nsrc+1:nsrc+1+el];
++		line := src[nsrc+1 : nsrc+1+el];
+ 		for i := 0; i < el; i += 5 {
+ 			var v uint32;
+ 			for j := 0; j < 5; j++ {
+@@ -156,12 +156,12 @@ func NewEncoder(w io.Writer) io.WriteCloser {
+ }
+ 
+ type encoder struct {
+-	w io.Writer;
+-	err os.Error;
+-	buf [52]byte;
+-	nbuf int;
+-	out [1024]byte;
+-	nout int;
++	w	io.Writer;
++	err	os.Error;
++	buf	[52]byte;
++	nbuf	int;
++	out	[1024]byte;
++	nout	int;
+ }
+ 
+ func (e *encoder) Write(p []byte) (n int, err os.Error) {
+@@ -190,9 +190,9 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
+ 
+ 	// Large interior chunks.
+ 	for len(p) >= 52 {
+-		nn := len(e.out)/(1+52/4*5+1) * 52;
++		nn := len(e.out)/(1 + 52/4*5 + 1)*52;
+ 		if nn > len(p) {
+-			nn = len(p)/52 * 52;
++			nn = len(p)/52*52;
+ 		}
+ 		if nn > 0 {
+ 			nout := Encode(&e.out, p[0:nn]);
+@@ -216,7 +216,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
+ func (e *encoder) Close() os.Error {
+ 	// If there's anything left in the buffer, flush it out
+ 	if e.err == nil && e.nbuf > 0 {
+-		nout := Encode(&e.out, e.buf[0:e.nbuf]);
++		nout := Encode(&e.out, e.buf[0 : e.nbuf]);
+ 		e.nbuf = 0;
+ 		_, e.err = e.w.Write(e.out[0:nout]);
+ 	}
+@@ -229,14 +229,14 @@ func NewDecoder(r io.Reader) io.Reader {
+ }
+ 
+ type decoder struct {
+-	r io.Reader;
+-	err os.Error;
+-	readErr os.Error;
+-	buf [1024]byte;
+-	nbuf int;
+-	out []byte;
+-	outbuf [1024]byte;
+-	off int64;
++	r	io.Reader;
++	err	os.Error;
++	readErr	os.Error;
++	buf	[1024]byte;
++	nbuf	int;
++	out	[]byte;
++	outbuf	[1024]byte;
++	off	int64;
+ }
+ 
+ func (d *decoder) Read(p []byte) (n int, err os.Error) {
+@@ -263,22 +263,21 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
+ 
+ 		// Read and decode more input.
+ 		var nn int;
+-		nn, d.readErr = d.r.Read(d.buf[d.nbuf:len(d.buf)]);
++		nn, d.readErr = d.r.Read(d.buf[d.nbuf : len(d.buf)]);
+ 		d.nbuf += nn;
+ 
+ 		// Send complete lines to Decode.
+-		nl := bytes.LastIndex(d.buf[0:d.nbuf], newline);
++		nl := bytes.LastIndex(d.buf[0 : d.nbuf], newline);
+ 		if nl < 0 {
+ 			continue;
+ 		}
+-		nn, d.err = Decode(&d.outbuf, d.buf[0:nl+1]);
++		nn, d.err = Decode(&d.outbuf, d.buf[0 : nl+1]);
+ 		if e, ok := d.err.(CorruptInputError); ok {
+-			d.err = CorruptInputError(int64(e)+d.off);
++			d.err = CorruptInputError(int64(e) + d.off);
+ 		}
+ 		d.out = d.outbuf[0:nn];
+-		d.nbuf = bytes.Copy(&d.buf, d.buf[nl+1:d.nbuf]);
++		d.nbuf = bytes.Copy(&d.buf, d.buf[nl+1 : d.nbuf]);
+ 		d.off += int64(nl+1);
+ 	}
+ 	panic("unreacahable");
+ }
+-
+diff --git a/src/pkg/encoding/git85/git_test.go b/src/pkg/encoding/git85/git_test.go
+index 933b2df575..51271c6002 100644
+--- a/src/pkg/encoding/git85/git_test.go
++++ b/src/pkg/encoding/git85/git_test.go
+@@ -56,11 +56,11 @@ var gitPairs = []testpair{
+ 		"zVIXXEb95kYW*~HEWgu;7Ze%PVbZB98AYyqSVIXj2a&u*NWpZI|V`U(3W*}r`Y-wj`\n"
+ 		"zbRcPNAarPDAY*TCbZKsNWn>^>Ze$>7Ze(R<VRUI{VPb4$AZKN6WpZJ3X>V>IZ)PBC\n"
+ 		"zZf|#NWn^b%EFfigV`XJzb0BnRWgv5CZ*p`Xc4cT~ZDnp_Wgu^6AYpEKAY);2ZeeU7\n"
+-		"IaBO8^b9HiME&u=k\n"
+-	}
++		"IaBO8^b9HiME&u=k\n",
++	},
+ }
+ 
+-var gitBigtest = gitPairs[len(gitPairs)-1];
++var gitBigtest = gitPairs[len(gitPairs)-1]
+ 
+ func TestEncode(t *testing.T) {
+ 	for _, p := range gitPairs {
+diff --git a/src/pkg/encoding/hex/hex_test.go b/src/pkg/encoding/hex/hex_test.go
+index e9006e22df..e1dd4c57c2 100644
+--- a/src/pkg/encoding/hex/hex_test.go
++++ b/src/pkg/encoding/hex/hex_test.go
+@@ -50,7 +50,7 @@ func TestEncode(t *testing.T) {
+ }
+ 
+ type decodeTest struct {
+-	in, out		[]byte;
++	in, out	[]byte;
+ 	ok	bool;
+ }
+ 
+@@ -120,8 +120,8 @@ func TestEncodeToString(t *testing.T) {
+ }
+ 
+ type decodeStringTest struct {
+-	in		string;
+-	out		[]byte;
++	in	string;
++	out	[]byte;
+ 	ok	bool;
+ }
+ 

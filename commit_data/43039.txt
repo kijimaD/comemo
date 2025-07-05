@@ -9,6 +9,21 @@ Date:   Sat Dec 14 15:52:17 2019 +0800
     Change-Id: Ic747faf9bb1b52f9d1786eca70616a05b71ee801
     Reviewed-on: https://go-review.googlesource.com/c/go/+/211198
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  doc/go_mem.html | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/doc/go_mem.html b/doc/go_mem.html
+index d355bebaed..5f1eb68af3 100644
+--- a/doc/go_mem.html
++++ b/doc/go_mem.html
+@@ -273,9 +273,7 @@ func f() {
+ 	a = "hello, world"
+ 	&lt;-c
+ }
+-</pre>
+ 
+-<pre>
+ func main() {
+ 	go f()
+ 	c &lt;- 0

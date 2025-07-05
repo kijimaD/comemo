@@ -7,6 +7,19 @@ Date:   Wed Mar 28 11:38:34 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5937048
-
+---
  lib/godoc/package.html | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index 1a580a2023..41677a69dd 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -206,4 +206,7 @@
+ 		{{end}}
+ 	{{end}}
+ 	</table>
++	{{if $.PDoc}}{{else}}
++	<p>Need more packages? Take a look at the <a href="http://godashboard.appspot.com/">Go Project Dashboard</a>.</p>
++	{{end}}
+ {{end}}

@@ -10,6 +10,19 @@ Date:   Tue May 22 22:09:35 2018 +0200
     Reviewed-on: https://go-review.googlesource.com/114175
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/internal/cpu/cpu_ppc64x_test.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/internal/cpu/cpu_ppc64x_test.go b/src/internal/cpu/cpu_ppc64x_test.go
+index b33acbfbdc..9c43d1e804 100644
+--- a/src/internal/cpu/cpu_ppc64x_test.go
++++ b/src/internal/cpu/cpu_ppc64x_test.go
+@@ -8,7 +8,6 @@ package cpu_test
+ 
+ import (
+ 	. "internal/cpu"
+-	"runtime"
+ 	"testing"
+ )
+ 

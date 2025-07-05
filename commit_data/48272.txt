@@ -12,7 +12,7 @@ Date:   Tue May 4 15:57:45 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go.mod                                     |  2 +-
  src/cmd/go.sum                                     |  2 ++
  .../go/testdata/script/mod_indirect_nospace.txt    | 32 ++++++++++++++++++++++
@@ -20,3 +20,109 @@ Date:   Tue May 4 15:57:45 2021 -0400
  src/cmd/vendor/golang.org/x/mod/module/module.go   |  2 +-
  src/cmd/vendor/modules.txt                         |  2 +-
  6 files changed, 39 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 79224db999..ebcfba62e5 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -7,7 +7,7 @@ require (
+ 	github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639 // indirect
+ 	golang.org/x/arch v0.0.0-20210502124803-cbf565b21d1e
+ 	golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e // indirect
+-	golang.org/x/mod v0.4.3-0.20210503183026-4435ecfe4815
++	golang.org/x/mod v0.4.3-0.20210504181020-67f1c1edc27a
+ 	golang.org/x/sys v0.0.0-20210423082822-04245dca01da // indirect
+ 	golang.org/x/term v0.0.0-20210503060354-a79de5458b56
+ 	golang.org/x/tools v0.1.1-0.20210503200558-19b1717ea5eb
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 4ae0261d1c..38cd527efc 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -11,6 +11,8 @@ golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e h1:8foAy0aoO5GkqCvAEJ4VC4
+ golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e/go.mod h1:P+XmwS30IXTQdn5tA2iutPOUgjI07+tq3H3K9MVA1s8=
+ golang.org/x/mod v0.4.3-0.20210503183026-4435ecfe4815 h1:9nyskUepGPcX93addfTsdRqsQ7rSWIdQOdWVcsWAYv0=
+ golang.org/x/mod v0.4.3-0.20210503183026-4435ecfe4815/go.mod h1:5OXOZSfqPIIbmVBIIKWRFfZjPR0E5r58TLhUjH0a2Ro=
++golang.org/x/mod v0.4.3-0.20210504181020-67f1c1edc27a h1:wbpC/7Wbo5WFVox32n+KjhRRLmTLq8YW/wRlL2iVAhk=
++golang.org/x/mod v0.4.3-0.20210504181020-67f1c1edc27a/go.mod h1:5OXOZSfqPIIbmVBIIKWRFfZjPR0E5r58TLhUjH0a2Ro=
+ golang.org/x/sys v0.0.0-20191204072324-ce4227a45e2e/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/sys v0.0.0-20210423082822-04245dca01da h1:b3NXsE2LusjYGGjL5bxEVZZORm/YEFFrWFjR8eFrw/c=
+ golang.org/x/sys v0.0.0-20210423082822-04245dca01da/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+diff --git a/src/cmd/go/testdata/script/mod_indirect_nospace.txt b/src/cmd/go/testdata/script/mod_indirect_nospace.txt
+new file mode 100644
+index 0000000000..f4fb6a8c1b
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_indirect_nospace.txt
+@@ -0,0 +1,32 @@
++# https://golang.org/issue/45932: "indirect" comments missing spaces
++# should not be corrupted when the comment is removed.
++
++go mod tidy
++cmp go.mod go.mod.direct
++
++-- go.mod --
++module example.net/m
++
++go 1.16
++
++require example.net/x v0.1.0 //indirect
++
++replace example.net/x v0.1.0 => ./x
++-- go.mod.direct --
++module example.net/m
++
++go 1.16
++
++require example.net/x v0.1.0
++
++replace example.net/x v0.1.0 => ./x
++-- m.go --
++package m
++import _ "example.net/x"
++
++-- x/go.mod --
++module example.net/x
++
++go 1.16
++-- x/x.go --
++package x
+diff --git a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+index 3f603fa60f..d8242de280 100644
+--- a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
++++ b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+@@ -505,8 +505,8 @@ func setIndirect(line *Line, indirect bool) {
+ 	}
+ 
+ 	// Removing comment.
+-	f := strings.Fields(line.Suffix[0].Token)
+-	if len(f) == 2 {
++	f := strings.TrimSpace(strings.TrimPrefix(line.Suffix[0].Token, string(slashSlash)))
++	if f == "indirect" {
+ 		// Remove whole comment.
+ 		line.Suffix = nil
+ 		return
+diff --git a/src/cmd/vendor/golang.org/x/mod/module/module.go b/src/cmd/vendor/golang.org/x/mod/module/module.go
+index cf69ff657a..ba97ac356e 100644
+--- a/src/cmd/vendor/golang.org/x/mod/module/module.go
++++ b/src/cmd/vendor/golang.org/x/mod/module/module.go
+@@ -393,7 +393,7 @@ func checkPath(path string, kind pathKind) error {
+ 	if path == "" {
+ 		return fmt.Errorf("empty string")
+ 	}
+-	if path[0] == '-' {
++	if path[0] == '-' && kind != filePath {
+ 		return fmt.Errorf("leading dash")
+ 	}
+ 	if strings.Contains(path, "//") {
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index e9644883fc..a5dd28b7dc 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -28,7 +28,7 @@ golang.org/x/arch/x86/x86asm
+ ## explicit; go 1.17
+ golang.org/x/crypto/ed25519
+ golang.org/x/crypto/ed25519/internal/edwards25519
+-# golang.org/x/mod v0.4.3-0.20210503183026-4435ecfe4815
++# golang.org/x/mod v0.4.3-0.20210504181020-67f1c1edc27a
+ ## explicit; go 1.17
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile

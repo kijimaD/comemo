@@ -12,8 +12,50 @@ Date:   Wed May 21 11:58:13 2025 +0200
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Sean Liao <sean@liao.dev>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/log/slog/handler.go      | 3 +++
  src/log/slog/handler_test.go | 2 +-
  src/log/slog/record.go       | 3 +++
  3 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/log/slog/handler.go b/src/log/slog/handler.go
+index e56be5f494..26eb4b82fc 100644
+--- a/src/log/slog/handler.go
++++ b/src/log/slog/handler.go
+@@ -492,6 +492,9 @@ func (s *handleState) appendAttr(a Attr) bool {
+ 	// Special case: Source.
+ 	if v := a.Value; v.Kind() == KindAny {
+ 		if src, ok := v.Any().(*Source); ok {
++			if src.isEmpty() {
++				return false
++			}
+ 			if s.h.json {
+ 				a.Value = src.group()
+ 			} else {
+diff --git a/src/log/slog/handler_test.go b/src/log/slog/handler_test.go
+index 445f43f1f5..3c4c36912c 100644
+--- a/src/log/slog/handler_test.go
++++ b/src/log/slog/handler_test.go
+@@ -652,7 +652,7 @@ func TestJSONAndTextHandlersWithUnavailableSource(t *testing.T) {
+ 		h    Handler
+ 		want string
+ 	}{
+-		{"text", NewTextHandler(&buf, opts), "source=:0 msg=message"},
++		{"text", NewTextHandler(&buf, opts), "msg=message"},
+ 		{"json", NewJSONHandler(&buf, opts), `{"msg":"message"}`},
+ 	} {
+ 		t.Run(test.name, func(t *testing.T) {
+diff --git a/src/log/slog/record.go b/src/log/slog/record.go
+index 53ecc67cc8..3b4e68ce76 100644
+--- a/src/log/slog/record.go
++++ b/src/log/slog/record.go
+@@ -211,6 +211,9 @@ func (s *Source) group() Value {
+ 	return GroupValue(as...)
+ }
+ 
++// isEmpty returns whether the Source struct is nil or only contains zero fields.
++func (s *Source) isEmpty() bool { return s == nil || *s == Source{} }
++
+ // Source returns a new Source for the log event using r's PC.
+ // If the PC field is zero, meaning the Record was created without the necessary information
+ // or the location is unavailable, then nil is returned.

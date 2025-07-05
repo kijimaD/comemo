@@ -9,6 +9,27 @@ Date:   Mon May 16 12:51:52 2016 -0700
     Change-Id: I9e0e1e3a26fa4cd697d2c613e6b4952188b7c7e1
     Reviewed-on: https://go-review.googlesource.com/23150
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/tls/tls.go | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/tls/tls.go b/src/crypto/tls/tls.go
+index 0be0b42912..25dc386f53 100644
+--- a/src/crypto/tls/tls.go
++++ b/src/crypto/tls/tls.go
+@@ -170,10 +170,11 @@ func Dial(network, addr string, config *Config) (*Conn, error) {
+ 	return DialWithDialer(new(net.Dialer), network, addr, config)
+ }
+ 
+-// LoadX509KeyPair reads and parses a public/private key pair from a pair of
+-// files. The files must contain PEM encoded data. On successful return,
+-// Certificate.Leaf will be nil because the parsed form of the certificate is
+-// not retained.
++// LoadX509KeyPair reads and parses a public/private key pair from a pair
++// of files. The files must contain PEM encoded data. The certificate file
++// may contain intermediate certificates following the leaf certificate to
++// form a certificate chain. On successful return, Certificate.Leaf will
++// be nil because the parsed form of the certificate is not retained.
+ func LoadX509KeyPair(certFile, keyFile string) (Certificate, error) {
+ 	certPEMBlock, err := ioutil.ReadFile(certFile)
+ 	if err != nil {

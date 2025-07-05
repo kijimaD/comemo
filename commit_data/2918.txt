@@ -11,8 +11,45 @@ Date:   Fri Aug 7 15:22:09 2009 -0700
     DELTA=3  (3 added, 0 deleted, 0 changed)
     OCL=32906
     CL=32908
-
+---
  src/cmd/5l/obj.c | 1 +
  src/cmd/6l/obj.c | 1 +
  src/cmd/8l/obj.c | 1 +
  3 files changed, 3 insertions(+)
+
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 202c2e8004..7c9cb1ae24 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -252,6 +252,7 @@ main(int argc, char *argv[])
+ 	dtype = 4;
+ 	if(outfile == 0)
+ 		outfile = "5.out";
++	unlink(outfile);
+ 	cout = create(outfile, 1, 0775);
+ 	if(cout < 0) {
+ 		diag("%s: cannot create", outfile);
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 66d1e7eede..75fe3ca031 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -337,6 +337,7 @@ main(int argc, char *argv[])
+ 	edatap = P;
+ 	pc = 0;
+ 	dtype = 4;
++	unlink(outfile);
+ 	cout = create(outfile, 1, 0775);
+ 	if(cout < 0) {
+ 		diag("cannot create %s", outfile);
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 5d230939d1..ce57521b7e 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -306,6 +306,7 @@ main(int argc, char *argv[])
+ 	edatap = P;
+ 	pc = 0;
+ 	dtype = 4;
++	unlink(outfile);
+ 	cout = create(outfile, 1, 0775);
+ 	if(cout < 0) {
+ 		diag("cannot create %s", outfile);

@@ -9,6 +9,20 @@ Date:   Wed Oct 3 08:16:27 2012 -0700
     R=golang-dev, dave, minux.ma
     CC=golang-dev
     https://golang.org/cl/6587071
-
+---
  misc/dashboard/app/build/handler.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/dashboard/app/build/handler.go b/misc/dashboard/app/build/handler.go
+index 5d1e3094cf..1a1118641a 100644
+--- a/misc/dashboard/app/build/handler.go
++++ b/misc/dashboard/app/build/handler.go
+@@ -322,7 +322,7 @@ func resultHandler(r *http.Request) (interface{}, error) {
+ // logHandler displays log text for a given hash.
+ // It handles paths like "/log/hash".
+ func logHandler(w http.ResponseWriter, r *http.Request) {
+-	w.Header().Set("Content-type", "text/plain")
++	w.Header().Set("Content-type", "text/plain; charset=utf-8")
+ 	c := appengine.NewContext(r)
+ 	hash := r.URL.Path[len("/log/"):]
+ 	key := datastore.NewKey(c, "Log", hash, 0, nil)

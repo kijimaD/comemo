@@ -17,6 +17,35 @@ Date:   Thu Oct 4 10:46:20 2018 -0400
     Change-Id: Ie677adaef763b893a2f620bd4fc3b8db314b3a1e
     Reviewed-on: https://go-review.googlesource.com/c/139697
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/malloc.go | 14 +++++++-------
  1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index c3fe1169dc..791bbe7850 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -216,16 +216,16 @@ const (
+ 	// The number of bits in a heap address, the size of heap
+ 	// arenas, and the L1 and L2 arena map sizes are related by
+ 	//
+-	//   (1 << addrBits) = arenaBytes * L1entries * L2entries
++	//   (1 << addr bits) = arena size * L1 entries * L2 entries
+ 	//
+ 	// Currently, we balance these as follows:
+ 	//
+-	//       Platform  Addr bits  Arena size  L1 entries  L2 size
+-	// --------------  ---------  ----------  ----------  -------
+-	//       */64-bit         48        64MB           1     32MB
+-	// windows/64-bit         48         4MB          64      8MB
+-	//       */32-bit         32         4MB           1      4KB
+-	//     */mips(le)         31         4MB           1      2KB
++	//       Platform  Addr bits  Arena size  L1 entries   L2 entries
++	// --------------  ---------  ----------  ----------  -----------
++	//       */64-bit         48        64MB           1    4M (32MB)
++	// windows/64-bit         48         4MB          64    1M  (8MB)
++	//       */32-bit         32         4MB           1  1024  (4KB)
++	//     */mips(le)         31         4MB           1   512  (2KB)
+ 
+ 	// heapArenaBytes is the size of a heap arena. The heap
+ 	// consists of mappings of size heapArenaBytes, aligned to

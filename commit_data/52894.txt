@@ -20,6 +20,39 @@ Date:   Fri Jun 3 16:22:58 2022 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/cgo/gcc_libinit_windows.c | 20 ++++++++++++++++----
  1 file changed, 16 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/cgo/gcc_libinit_windows.c b/src/runtime/cgo/gcc_libinit_windows.c
+index a9b94c3713..2b5896bb22 100644
+--- a/src/runtime/cgo/gcc_libinit_windows.c
++++ b/src/runtime/cgo/gcc_libinit_windows.c
+@@ -129,11 +129,23 @@ void (*(_cgo_get_context_function(void)))(struct context_arg*) {
+ }
+ 
+ void _cgo_beginthread(void (*func)(void*), void* arg) {
++	int tries;
+ 	uintptr_t thandle;
+ 
+-	thandle = _beginthread(func, 0, arg);
+-	if (thandle == -1) {
+-		fprintf(stderr, "runtime: failed to create new OS thread (%d)\n", errno);
+-		abort();
++	for (tries = 0; tries < 20; tries++) {
++		thandle = _beginthread(func, 0, arg);
++		if (thandle == -1 && errno == EACCES) {
++			// "Insufficient resources", try again in a bit.
++			//
++			// Note that the first Sleep(0) is a yield.
++			Sleep(tries); // milliseconds
++			continue;
++		} else if (thandle == -1) {
++			break;
++		}
++		return; // Success!
+ 	}
++
++	fprintf(stderr, "runtime: failed to create new OS thread (%d)\n", errno);
++	abort();
+ }

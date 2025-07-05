@@ -26,6 +26,20 @@ Date:   Fri Sep 16 16:46:19 2016 -0700
     Change-Id: Id3e0e24b2b14ca2d9ea8b13f82ba739edaa71cf0
     Reviewed-on: https://go-review.googlesource.com/29364
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/request.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index a27d13cb98..b191d519f2 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -329,6 +329,8 @@ var ErrNoCookie = errors.New("http: named cookie not present")
+ 
+ // Cookie returns the named cookie provided in the request or
+ // ErrNoCookie if not found.
++// If multiple cookies match the given name, only one cookie will
++// be returned.
+ func (r *Request) Cookie(name string) (*Cookie, error) {
+ 	for _, c := range readCookies(r.Header, name) {
+ 		return c, nil

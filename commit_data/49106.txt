@@ -12,8 +12,124 @@ Date:   Fri Jul 16 20:34:00 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/builtins.go                 | 27 +++++++++++++++++------
  src/go/types/testdata/check/builtins.go2 | 37 ++++++++++++++++++++++++++++++++
  src/go/types/type.go                     |  5 -----
  3 files changed, 58 insertions(+), 11 deletions(-)
+
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index c8348f4259..eb3503fd6b 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -369,25 +369,40 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		x.typ = Typ[Int]
+ 
+ 	case _Delete:
+-		// delete(m, k)
+-		m := asMap(x.typ)
+-		if m == nil {
+-			check.invalidArg(x, _InvalidDelete, "%s is not a map", x)
++		// delete(map_, key)
++		// map_ must be a map type or a type parameter describing map types.
++		// The key cannot be a type parameter for now.
++		map_ := x.typ
++		var key Type
++		if !underIs(map_, func(u Type) bool {
++			map_, _ := u.(*Map)
++			if map_ == nil {
++				check.invalidArg(x, _InvalidDelete, "%s is not a map", x)
++				return false
++			}
++			if key != nil && !Identical(map_.key, key) {
++				check.invalidArg(x, _Todo, "maps of %s must have identical key types", x)
++				return false
++			}
++			key = map_.key
++			return true
++		}) {
+ 			return
+ 		}
++
+ 		arg(x, 1) // k
+ 		if x.mode == invalid {
+ 			return
+ 		}
+ 
+-		check.assignment(x, m.key, "argument to delete")
++		check.assignment(x, key, "argument to delete")
+ 		if x.mode == invalid {
+ 			return
+ 		}
+ 
+ 		x.mode = novalue
+ 		if check.Types != nil {
+-			check.recordBuiltinType(call.Fun, makeSig(nil, m, m.key))
++			check.recordBuiltinType(call.Fun, makeSig(nil, map_, key))
+ 		}
+ 
+ 	case _Imag, _Real:
+diff --git a/src/go/types/testdata/check/builtins.go2 b/src/go/types/testdata/check/builtins.go2
+index 71295bf434..8fe6d7b332 100644
+--- a/src/go/types/testdata/check/builtins.go2
++++ b/src/go/types/testdata/check/builtins.go2
+@@ -43,6 +43,43 @@ func _[T C5[X], X any](ch T) {
+ 	close(ch)
+ }
+ 
++// delete
++
++type M0 interface{ int }
++type M1 interface{ map[string]int }
++type M2 interface { map[string]int | map[string]float64 }
++type M3 interface{ map[string]int | map[rune]int }
++type M4[K comparable, V any] interface{ map[K]V | map[rune]V }
++
++func _[T any](m T) {
++	delete(m /* ERROR not a map */, "foo")
++}
++
++func _[T M0](m T) {
++	delete(m /* ERROR not a map */, "foo")
++}
++
++func _[T M1](m T) {
++	delete(m, "foo")
++}
++
++func _[T M2](m T) {
++	delete(m, "foo")
++	delete(m, 0 /* ERROR cannot use .* as string */)
++}
++
++func _[T M3](m T) {
++	delete(m /* ERROR must have identical key types */, "foo")
++}
++
++func _[T M4[rune, V], V any](m T) {
++	delete(m, 'k')
++}
++
++func _[T M4[K, V], K comparable, V any](m T) {
++	delete(m /* ERROR must have identical key types */, "foo")
++}
++
+ // make
+ 
+ type Bmc interface {
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index bbb7100ef4..b575b11e4e 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -110,11 +110,6 @@ func asSignature(t Type) *Signature {
+ 	return op
+ }
+ 
+-func asMap(t Type) *Map {
+-	op, _ := optype(t).(*Map)
+-	return op
+-}
+-
+ // If the argument to asInterface, asNamed, or asTypeParam is of the respective type
+ // (possibly after expanding an instance type), these methods return that type.
+ // Otherwise the result is nil.

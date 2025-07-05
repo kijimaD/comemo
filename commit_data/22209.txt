@@ -10,7 +10,47 @@ Date:   Fri Feb 27 22:50:01 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/6333
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/dist/buildruntime.go | 4 +++-
  src/cmd/internal/obj/util.go | 4 ++++
  2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/buildruntime.go b/src/cmd/dist/buildruntime.go
+index 317652476b..112326558a 100644
+--- a/src/cmd/dist/buildruntime.go
++++ b/src/cmd/dist/buildruntime.go
+@@ -42,6 +42,7 @@ func mkzversion(dir, file string) {
+ //	const defaultGOARM = <goarm>
+ //	const defaultGOOS = <goos>
+ //	const defaultGOARCH = <goarch>
++//	const defaultGO_EXTLINK_ENABLED = <goextlinkenabled>
+ //	const version = <version>
+ //	const goexperiment = <goexperiment>
+ //
+@@ -56,9 +57,10 @@ func mkzbootstrap(file string) {
+ 			"const defaultGOARM = `%s`\n"+
+ 			"const defaultGOOS = `%s`\n"+
+ 			"const defaultGOARCH = `%s`\n"+
++			"const defaultGO_EXTLINK_ENABLED = `%s`\n"+
+ 			"const version = `%s`\n"+
+ 			"const goexperiment = `%s`\n",
+-		goroot_final, go386, goarm, gohostos, gohostarch, findgoversion(), os.Getenv("GOEXPERIMENT"))
++		goroot_final, go386, goarm, gohostos, gohostarch, goextlinkenabled, findgoversion(), os.Getenv("GOEXPERIMENT"))
+ 
+ 	writefile(out, file, 0)
+ }
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 14f9b3655e..a3c88a2b8a 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -231,6 +231,10 @@ func Getgo386() string {
+ 	return envOr("GO386", defaultGO386)
+ }
+ 
++func Getgoextlinkenabled() string {
++	return envOr("GO_EXTLINK_ENABLED", defaultGO_EXTLINK_ENABLED)
++}
++
+ func Getgoversion() string {
+ 	return version
+ }

@@ -11,7 +11,54 @@ Date:   Fri Sep 25 08:51:50 2015 +0000
     Reviewed-on: https://go-review.googlesource.com/14959
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/cgi/host.go      | 8 ++++----
  src/net/http/cgi/host_test.go | 4 +++-
  2 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/http/cgi/host.go b/src/net/http/cgi/host.go
+index 4efbe7abee..1ae66e097c 100644
+--- a/src/net/http/cgi/host.go
++++ b/src/net/http/cgi/host.go
+@@ -159,10 +159,6 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 		env = append(env, "CONTENT_TYPE="+ctype)
+ 	}
+ 
+-	if h.Env != nil {
+-		env = append(env, h.Env...)
+-	}
+-
+ 	envPath := os.Getenv("PATH")
+ 	if envPath == "" {
+ 		envPath = "/bin:/usr/bin:/usr/ucb:/usr/bsd:/usr/local/bin"
+@@ -181,6 +177,10 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 		}
+ 	}
+ 
++	if h.Env != nil {
++		env = append(env, h.Env...)
++	}
++
+ 	env = removeLeadingDuplicates(env)
+ 
+ 	var cwd, path string
+diff --git a/src/net/http/cgi/host_test.go b/src/net/http/cgi/host_test.go
+index 4aa67e4e5f..8a82789fd3 100644
+--- a/src/net/http/cgi/host_test.go
++++ b/src/net/http/cgi/host_test.go
+@@ -487,12 +487,14 @@ func TestEnvOverride(t *testing.T) {
+ 		Args: []string{cgifile},
+ 		Env: []string{
+ 			"SCRIPT_FILENAME=" + cgifile,
+-			"REQUEST_URI=/foo/bar"},
++			"REQUEST_URI=/foo/bar",
++			"PATH=/wibble"},
+ 	}
+ 	expectedMap := map[string]string{
+ 		"cwd": cwd,
+ 		"env-SCRIPT_FILENAME": cgifile,
+ 		"env-REQUEST_URI":     "/foo/bar",
++		"env-PATH":            "/wibble",
+ 	}
+ 	runCgiTest(t, h, "GET /test.cgi HTTP/1.0\nHost: example.com\n\n", expectedMap)
+ }

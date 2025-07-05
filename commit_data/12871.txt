@@ -7,7 +7,32 @@ Date:   Tue Apr 10 15:14:04 2012 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6004043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 7ffb079635..66be681ec3 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -10,6 +10,7 @@
+ 
+ Abhinav Gupta <abhinav.g90@gmail.com>
+ Adrian O'Grady <elpollouk@gmail.com>
++Akshat Kumar <seed@mail.nanosouffle.net>
+ Albert Strasheim <fullung@gmail.com>
+ Aleksandar Dezelin <dezelin@gmail.com>
+ Alex Brainman <alex.brainman@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 4b69317aea..a10e0de3c7 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -35,6 +35,7 @@ Aaron Kemp <kemp.aaron@gmail.com>
+ Abhinav Gupta <abhinav.g90@gmail.com>
+ Adam Langley <agl@golang.org>
+ Adrian O'Grady <elpollouk@gmail.com>
++Akshat Kumar <seed@mail.nanosouffle.net>
+ Albert Strasheim <fullung@gmail.com>
+ Aleksandar Dezelin <dezelin@gmail.com>
+ Alex Brainman <alex.brainman@gmail.com>

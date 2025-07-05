@@ -14,6 +14,26 @@ Date:   Mon Mar 30 23:12:04 2015 +0200
     Reviewed-on: https://go-review.googlesource.com/8264
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/progs/run.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/progs/run.go b/doc/progs/run.go
+index dbd232b597..8479a66b67 100755
+--- a/doc/progs/run.go
++++ b/doc/progs/run.go
+@@ -219,11 +219,11 @@ func fixcgo() {
+ 		// cgo1 and cgo2 don't run on netbsd, srandom has a different signature
+ 		skipTest("cgo1")
+ 		skipTest("cgo2")
+-		// cgo3 and cgo4 don't run on netbsd, since cgo cannot handle stdout correctly
++		// cgo3 and cgo4 don't run on netbsd, since cgo cannot handle stdout correctly, see issue #10715.
+ 		skipTest("cgo3")
+ 		skipTest("cgo4")
+-	case "openbsd":
+-		// cgo3 and cgo4 don't run on openbsd and solaris, since cgo cannot handle stdout correctly
++	case "openbsd", "solaris":
++		// cgo3 and cgo4 don't run on openbsd and solaris, since cgo cannot handle stdout correctly, see issue #10715.
+ 		skipTest("cgo3")
+ 		skipTest("cgo4")
+ 	}

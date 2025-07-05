@@ -17,7 +17,45 @@ Date:   Tue Nov 16 18:44:08 2021 -0500
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/reflectdata/reflect.go |  1 +
  test/fixedbugs/issue49619.go                    | 19 +++++++++++++++++++
  2 files changed, 20 insertions(+)
+
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 4e20dbf29e..e22fabb410 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1384,6 +1384,7 @@ func WriteBasicTypes() {
+ 		}
+ 		writeType(types.NewPtr(types.Types[types.TSTRING]))
+ 		writeType(types.NewPtr(types.Types[types.TUNSAFEPTR]))
++		writeType(types.AnyType)
+ 
+ 		// emit type structs for error and func(error) string.
+ 		// The latter is the type of an auto-generated wrapper.
+diff --git a/test/fixedbugs/issue49619.go b/test/fixedbugs/issue49619.go
+new file mode 100644
+index 0000000000..c9f3cbc4ad
+--- /dev/null
++++ b/test/fixedbugs/issue49619.go
+@@ -0,0 +1,19 @@
++// build
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This testcase caused a linker crash in DWARF generation.
++
++package main
++
++//go:noinline
++func f() any {
++	var a []any
++	return a[0]
++}
++
++func main() {
++	f()
++}

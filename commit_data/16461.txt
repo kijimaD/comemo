@@ -13,8 +13,113 @@ Date:   Sun Jun 2 09:13:12 2013 +1000
     R=minux.ma, kr, r
     CC=golang-dev
     https://golang.org/cl/9926043
-
+---
  src/pkg/testing/benchmark.go      | 13 ++++++++-----
  src/pkg/testing/benchmark_test.go | 39 +++++++++++++++++++++++++++++++++------
  src/pkg/testing/export_test.go    |  5 ++++-
  3 files changed, 45 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/testing/benchmark.go b/src/pkg/testing/benchmark.go
+index 25fb2d6191..3473c5b2cb 100644
+--- a/src/pkg/testing/benchmark.go
++++ b/src/pkg/testing/benchmark.go
+@@ -138,7 +138,7 @@ func max(x, y int) int {
+ func roundDown10(n int) int {
+ 	var tens = 0
+ 	// tens = floor(log_10(n))
+-	for n > 10 {
++	for n >= 10 {
+ 		n = n / 10
+ 		tens++
+ 	}
+@@ -153,13 +153,16 @@ func roundDown10(n int) int {
+ // roundUp rounds x up to a number of the form [1eX, 2eX, 5eX].
+ func roundUp(n int) int {
+ 	base := roundDown10(n)
+-	if n < (2 * base) {
++	switch {
++	case n <= base:
++		return base
++	case n <= (2 * base):
+ 		return 2 * base
+-	}
+-	if n < (5 * base) {
++	case n <= (5 * base):
+ 		return 5 * base
++	default:
++		return 10 * base
+ 	}
+-	return 10 * base
+ }
+ 
+ // run times the benchmark function in a separate goroutine.
+diff --git a/src/pkg/testing/benchmark_test.go b/src/pkg/testing/benchmark_test.go
+index 5ed4e03a4a..94e994dfae 100644
+--- a/src/pkg/testing/benchmark_test.go
++++ b/src/pkg/testing/benchmark_test.go
+@@ -13,19 +13,46 @@ var roundDownTests = []struct {
+ }{
+ 	{1, 1},
+ 	{9, 1},
+-	{10, 1},
++	{10, 10},
+ 	{11, 10},
+-	{100, 10},
+-	//	{101, 100}, // issue 5599
+-	{1000, 100},
+-	//	{1001, 1000}, // issue 5599
++	{100, 100},
++	{101, 100},
++	{999, 100},
++	{1000, 1000},
++	{1001, 1000},
+ }
+ 
+ func TestRoundDown10(t *testing.T) {
+ 	for _, tt := range roundDownTests {
+ 		actual := testing.RoundDown10(tt.v)
+ 		if tt.expected != actual {
+-			t.Errorf("roundDown10: expected %v, actual %v", tt.expected, actual)
++			t.Errorf("roundDown10(%d): expected %d, actual %d", tt.v, tt.expected, actual)
++		}
++	}
++}
++
++var roundUpTests = []struct {
++	v, expected int
++}{
++	{0, 1},
++	{1, 1},
++	{2, 2},
++	{5, 5},
++	{9, 10},
++	{999, 1000},
++	{1000, 1000},
++	{1400, 2000},
++	{1700, 2000},
++	{4999, 5000},
++	{5000, 5000},
++	{5001, 10000},
++}
++
++func TestRoundUp(t *testing.T) {
++	for _, tt := range roundUpTests {
++		actual := testing.RoundUp(tt.v)
++		if tt.expected != actual {
++			t.Errorf("roundUp(%d): expected %d, actual %d", tt.v, tt.expected, actual)
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/testing/export_test.go b/src/pkg/testing/export_test.go
+index 3084efd87d..89781b439f 100644
+--- a/src/pkg/testing/export_test.go
++++ b/src/pkg/testing/export_test.go
+@@ -4,4 +4,7 @@
+ 
+ package testing
+ 
+-var RoundDown10 = roundDown10
++var (
++	RoundDown10 = roundDown10
++	RoundUp     = roundUp
++)

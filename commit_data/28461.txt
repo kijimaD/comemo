@@ -19,7 +19,7 @@ Date:   Wed May 25 14:37:43 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/amd64/galign.go | 15 ++++++---------
  src/cmd/compile/internal/amd64/reg.go    |  3 +--
  src/cmd/compile/internal/ssa/regalloc.go |  3 +--
@@ -34,3 +34,298 @@ Date:   Wed May 25 14:37:43 2016 -0400
  src/runtime/runtime2.go                  |  3 ++-
  src/runtime/stack.go                     |  3 ---
  13 files changed, 46 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/galign.go b/src/cmd/compile/internal/amd64/galign.go
+index 461ef2ada1..42915340a0 100644
+--- a/src/cmd/compile/internal/amd64/galign.go
++++ b/src/cmd/compile/internal/amd64/galign.go
+@@ -25,18 +25,16 @@ func betypeinit() {
+ 		cmpptr = x86.ACMPL
+ 	}
+ 
+-	if gc.Ctxt.Flag_dynlink {
+-		gc.Thearch.ReservedRegs = append(gc.Thearch.ReservedRegs, x86.REG_R15)
++	if gc.Ctxt.Flag_dynlink || obj.Getgoos() == "nacl" {
++		resvd = append(resvd, x86.REG_R15)
+ 	}
+-}
+-
+-func Main() {
+-	if obj.Getgoos() == "nacl" {
+-		resvd = append(resvd, x86.REG_BP, x86.REG_R15)
+-	} else if obj.Framepointer_enabled != 0 {
++	if gc.Ctxt.Framepointer_enabled || obj.Getgoos() == "nacl" {
+ 		resvd = append(resvd, x86.REG_BP)
+ 	}
++	gc.Thearch.ReservedRegs = resvd
++}
+ 
++func Main() {
+ 	gc.Thearch.LinkArch = &x86.Linkamd64
+ 	if obj.Getgoarch() == "amd64p32" {
+ 		gc.Thearch.LinkArch = &x86.Linkamd64p32
+@@ -51,7 +49,6 @@ func Main() {
+ 	gc.Thearch.FREGMIN = x86.REG_X0
+ 	gc.Thearch.FREGMAX = x86.REG_X15
+ 	gc.Thearch.MAXWIDTH = 1 << 50
+-	gc.Thearch.ReservedRegs = resvd
+ 
+ 	gc.Thearch.AddIndex = addindex
+ 	gc.Thearch.Betypeinit = betypeinit
+diff --git a/src/cmd/compile/internal/amd64/reg.go b/src/cmd/compile/internal/amd64/reg.go
+index 764f5c3a9e..77720c855f 100644
+--- a/src/cmd/compile/internal/amd64/reg.go
++++ b/src/cmd/compile/internal/amd64/reg.go
+@@ -32,7 +32,6 @@ package amd64
+ 
+ import (
+ 	"cmd/compile/internal/gc"
+-	"cmd/internal/obj"
+ 	"cmd/internal/obj/x86"
+ )
+ 
+@@ -121,7 +120,7 @@ func BtoR(b uint64) int {
+ 	b &= 0xffff
+ 	if gc.Nacl {
+ 		b &^= (1<<(x86.REG_BP-x86.REG_AX) | 1<<(x86.REG_R15-x86.REG_AX))
+-	} else if obj.Framepointer_enabled != 0 {
++	} else if gc.Ctxt.Framepointer_enabled {
+ 		// BP is part of the calling convention if framepointer_enabled.
+ 		b &^= (1 << (x86.REG_BP - x86.REG_AX))
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index bd40522574..1eecd49c40 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -106,7 +106,6 @@
+ package ssa
+ 
+ import (
+-	"cmd/internal/obj"
+ 	"fmt"
+ 	"unsafe"
+ )
+@@ -456,7 +455,7 @@ func (s *regAllocState) init(f *Func) {
+ 	s.allocatable = regMask(1)<<s.numRegs - 1
+ 	s.allocatable &^= 1 << s.SPReg
+ 	s.allocatable &^= 1 << s.SBReg
+-	if obj.Framepointer_enabled != 0 {
++	if s.f.Config.ctxt.Framepointer_enabled {
+ 		s.allocatable &^= 1 << 5 // BP
+ 	}
+ 	if s.f.Config.ctxt.Flag_dynlink {
+diff --git a/src/cmd/internal/obj/go.go b/src/cmd/internal/obj/go.go
+index 484bb472d0..1852dc74f6 100644
+--- a/src/cmd/internal/obj/go.go
++++ b/src/cmd/internal/obj/go.go
+@@ -13,7 +13,7 @@ import (
+ // go-specific code shared across loaders (5l, 6l, 8l).
+ 
+ var (
+-	Framepointer_enabled int
++	framepointer_enabled int
+ 	Fieldtrack_enabled   int
+ )
+ 
+@@ -26,14 +26,21 @@ var exper = []struct {
+ 	val  *int
+ }{
+ 	{"fieldtrack", &Fieldtrack_enabled},
+-	{"framepointer", &Framepointer_enabled},
++	{"framepointer", &framepointer_enabled},
+ }
+ 
+ func addexp(s string) {
++	// Could do general integer parsing here, but the runtime copy doesn't yet.
++	v := 1
++	name := s
++	if len(name) > 2 && name[:2] == "no" {
++		v = 0
++		name = name[2:]
++	}
+ 	for i := 0; i < len(exper); i++ {
+-		if exper[i].name == s {
++		if exper[i].name == name {
+ 			if exper[i].val != nil {
+-				*exper[i].val = 1
++				*exper[i].val = v
+ 			}
+ 			return
+ 		}
+@@ -44,6 +51,7 @@ func addexp(s string) {
+ }
+ 
+ func init() {
++	framepointer_enabled = 1 // default
+ 	for _, f := range strings.Split(goexperiment, ",") {
+ 		if f != "" {
+ 			addexp(f)
+@@ -51,6 +59,10 @@ func init() {
+ 	}
+ }
+ 
++func Framepointer_enabled(goos, goarch string) bool {
++	return framepointer_enabled != 0 && goarch == "amd64" && goos != "nacl"
++}
++
+ func Nopout(p *Prog) {
+ 	p.As = ANOP
+ 	p.Scond = 0
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index eaf702533a..b6861f4c1e 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -664,6 +664,8 @@ type Link struct {
+ 	Etextp        *LSym
+ 	Errors        int
+ 
++	Framepointer_enabled bool
++
+ 	// state for writing objects
+ 	Text []*LSym
+ 	Data []*LSym
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 6f3542b3d4..e974ca8c8a 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -106,6 +106,7 @@ func Linknew(arch *LinkArch) *Link {
+ 	}
+ 
+ 	ctxt.Flag_optimize = true
++	ctxt.Framepointer_enabled = Framepointer_enabled(Getgoos(), arch.Name)
+ 	return ctxt
+ }
+ 
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 9230c9fdac..414a4d34a5 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -3765,7 +3765,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 					ctxt.Diag("directly calling duff when dynamically linking Go")
+ 				}
+ 
+-				if obj.Framepointer_enabled != 0 && yt.zcase == Zcallduff && p.Mode == 64 {
++				if ctxt.Framepointer_enabled && yt.zcase == Zcallduff && p.Mode == 64 {
+ 					// Maintain BP around call, since duffcopy/duffzero can't do it
+ 					// (the call jumps into the middle of the function).
+ 					// This makes it possible to see call sites for duffcopy/duffzero in
+@@ -3784,7 +3784,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 				r.Siz = 4
+ 				ctxt.AsmBuf.PutInt32(0)
+ 
+-				if obj.Framepointer_enabled != 0 && yt.zcase == Zcallduff && p.Mode == 64 {
++				if ctxt.Framepointer_enabled && yt.zcase == Zcallduff && p.Mode == 64 {
+ 					// Pop BP pushed above.
+ 					// MOVQ 0(BP), BP
+ 					ctxt.AsmBuf.Put(bpduff2)
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 0f1f28d36d..5dad0bbb98 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -610,7 +610,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 	}
+ 
+ 	var bpsize int
+-	if p.Mode == 64 && obj.Framepointer_enabled != 0 && autoffset > 0 && p.From3.Offset&obj.NOFRAME == 0 {
++	if p.Mode == 64 && ctxt.Framepointer_enabled && autoffset > 0 && p.From3.Offset&obj.NOFRAME == 0 {
+ 		// Make room for to save a base pointer. If autoffset == 0,
+ 		// this might do something special like a tail jump to
+ 		// another function, so in that case we omit this.
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index ca86e72d83..01747c5430 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1558,7 +1558,7 @@ func writelines(prev *LSym) *LSym {
+ 				if !haslinkregister() {
+ 					offs -= int64(SysArch.PtrSize)
+ 				}
+-				if obj.Framepointer_enabled != 0 {
++				if obj.Framepointer_enabled(obj.Getgoos(), obj.Getgoarch()) {
+ 					// The frame pointer is saved
+ 					// between the CFA and the
+ 					// autos.
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index da00de8547..bab71fb311 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -639,11 +639,17 @@ func loadlib() {
+ 		// recording the value of GOARM.
+ 		if SysArch.Family == sys.ARM {
+ 			s := Linklookup(Ctxt, "runtime.goarm", 0)
+-
+ 			s.Type = obj.SRODATA
+ 			s.Size = 0
+ 			Adduint8(Ctxt, s, uint8(Ctxt.Goarm))
+ 		}
++
++		if obj.Framepointer_enabled(obj.Getgoos(), obj.Getgoarch()) {
++			s := Linklookup(Ctxt, "runtime.framepointer_enabled", 0)
++			s.Type = obj.SRODATA
++			s.Size = 0
++			Adduint8(Ctxt, s, 1)
++		}
+ 	} else {
+ 		// If OTOH the module does not contain the runtime package,
+ 		// create a local symbol for the moduledata.
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index ee89547104..727c991a57 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -434,9 +434,6 @@ func schedinit() {
+ 
+ 	sched.maxmcount = 10000
+ 
+-	// Cache the framepointer experiment. This affects stack unwinding.
+-	framepointer_enabled = haveexperiment("framepointer")
+-
+ 	tracebackinit()
+ 	moduledataverify()
+ 	stackinit()
+@@ -4163,6 +4160,9 @@ func setMaxThreads(in int) (out int) {
+ }
+ 
+ func haveexperiment(name string) bool {
++	if name == "framepointer" {
++		return framepointer_enabled // set by linker
++	}
+ 	x := sys.Goexperiment
+ 	for x != "" {
+ 		xname := ""
+@@ -4175,6 +4175,9 @@ func haveexperiment(name string) bool {
+ 		if xname == name {
+ 			return true
+ 		}
++		if len(xname) > 2 && xname[:2] == "no" && xname[2:] == name {
++			return false
++		}
+ 	}
+ 	return false
+ }
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 71da504f1c..6119e75203 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -725,7 +725,8 @@ var (
+ 	support_avx       bool
+ 	support_avx2      bool
+ 
+-	goarm uint8 // set by cmd/link on arm systems
++	goarm                uint8 // set by cmd/link on arm systems
++	framepointer_enabled bool  // set by cmd/link
+ )
+ 
+ // Set by the linker so the runtime can determine the buildmode.
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 33d29f19a8..8e344cdf03 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -155,9 +155,6 @@ var stackLarge struct {
+ 	free [_MHeapMap_Bits]mSpanList // free lists by log_2(s.npages)
+ }
+ 
+-// Cached value of haveexperiment("framepointer")
+-var framepointer_enabled bool
+-
+ func stackinit() {
+ 	if _StackCacheSize&_PageMask != 0 {
+ 		throw("cache size must be a multiple of page size")

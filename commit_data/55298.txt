@@ -10,8 +10,108 @@ Date:   Thu Jan 26 13:44:30 2023 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/internal/syscall/unix/getrandom.go         | 6 +++---
  src/internal/syscall/unix/getrandom_netbsd.go  | 8 ++++----
  src/internal/syscall/unix/getrandom_solaris.go | 6 +++---
  3 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/internal/syscall/unix/getrandom.go b/src/internal/syscall/unix/getrandom.go
+index a6659331e4..e83f0cd6f9 100644
+--- a/src/internal/syscall/unix/getrandom.go
++++ b/src/internal/syscall/unix/getrandom.go
+@@ -12,7 +12,7 @@ import (
+ 	"unsafe"
+ )
+ 
+-var getrandomUnsupported int32 // atomic
++var getrandomUnsupported atomic.Bool
+ 
+ // GetRandomFlag is a flag supported by the getrandom system call.
+ type GetRandomFlag uintptr
+@@ -22,7 +22,7 @@ func GetRandom(p []byte, flags GetRandomFlag) (n int, err error) {
+ 	if len(p) == 0 {
+ 		return 0, nil
+ 	}
+-	if atomic.LoadInt32(&getrandomUnsupported) != 0 {
++	if getrandomUnsupported.Load() {
+ 		return 0, syscall.ENOSYS
+ 	}
+ 	r1, _, errno := syscall.Syscall(getrandomTrap,
+@@ -31,7 +31,7 @@ func GetRandom(p []byte, flags GetRandomFlag) (n int, err error) {
+ 		uintptr(flags))
+ 	if errno != 0 {
+ 		if errno == syscall.ENOSYS {
+-			atomic.StoreInt32(&getrandomUnsupported, 1)
++			getrandomUnsupported.Store(true)
+ 		}
+ 		return 0, errno
+ 	}
+diff --git a/src/internal/syscall/unix/getrandom_netbsd.go b/src/internal/syscall/unix/getrandom_netbsd.go
+index 724228b380..c83e3b21a5 100644
+--- a/src/internal/syscall/unix/getrandom_netbsd.go
++++ b/src/internal/syscall/unix/getrandom_netbsd.go
+@@ -14,7 +14,7 @@ import (
+ // NetBSD getrandom system call number.
+ const getrandomTrap uintptr = 91
+ 
+-var getrandomUnsupported int32 // atomic
++var getrandomUnsupported atomic.Bool
+ 
+ // GetRandomFlag is a flag supported by the getrandom system call.
+ type GetRandomFlag uintptr
+@@ -24,12 +24,12 @@ func GetRandom(p []byte, flags GetRandomFlag) (n int, err error) {
+ 	if len(p) == 0 {
+ 		return 0, nil
+ 	}
+-	if atomic.LoadInt32(&getrandomUnsupported) != 0 {
++	if getrandomUnsupported.Load() {
+ 		return 0, syscall.ENOSYS
+ 	}
+ 	// getrandom(2) was added in NetBSD 10.0
+ 	if getOSRevision() < 1000000000 {
+-		atomic.StoreInt32(&getrandomUnsupported, 1)
++		getrandomUnsupported.Store(true)
+ 		return 0, syscall.ENOSYS
+ 	}
+ 	r1, _, errno := syscall.Syscall(getrandomTrap,
+@@ -38,7 +38,7 @@ func GetRandom(p []byte, flags GetRandomFlag) (n int, err error) {
+ 		uintptr(flags))
+ 	if errno != 0 {
+ 		if errno == syscall.ENOSYS {
+-			atomic.StoreInt32(&getrandomUnsupported, 1)
++			getrandomUnsupported.Store(true)
+ 		}
+ 		return 0, errno
+ 	}
+diff --git a/src/internal/syscall/unix/getrandom_solaris.go b/src/internal/syscall/unix/getrandom_solaris.go
+index d86775cd98..cf4f35a419 100644
+--- a/src/internal/syscall/unix/getrandom_solaris.go
++++ b/src/internal/syscall/unix/getrandom_solaris.go
+@@ -16,7 +16,7 @@ import (
+ 
+ var procGetrandom uintptr
+ 
+-var getrandomUnsupported int32 // atomic
++var getrandomUnsupported atomic.Bool
+ 
+ // GetRandomFlag is a flag supported by the getrandom system call.
+ type GetRandomFlag uintptr
+@@ -34,7 +34,7 @@ func GetRandom(p []byte, flags GetRandomFlag) (n int, err error) {
+ 	if len(p) == 0 {
+ 		return 0, nil
+ 	}
+-	if atomic.LoadInt32(&getrandomUnsupported) != 0 {
++	if getrandomUnsupported.Load() {
+ 		return 0, syscall.ENOSYS
+ 	}
+ 	r1, _, errno := syscall6(uintptr(unsafe.Pointer(&procGetrandom)),
+@@ -45,7 +45,7 @@ func GetRandom(p []byte, flags GetRandomFlag) (n int, err error) {
+ 		0, 0, 0)
+ 	if errno != 0 {
+ 		if errno == syscall.ENOSYS {
+-			atomic.StoreInt32(&getrandomUnsupported, 1)
++			getrandomUnsupported.Store(true)
+ 		}
+ 		return 0, errno
+ 	}

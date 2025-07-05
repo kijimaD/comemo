@@ -16,6 +16,22 @@ Date:   Sun Nov 25 15:23:20 2012 -0800
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/6847101
-
+---
  src/pkg/net/http/httptest/server.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/net/http/httptest/server.go b/src/pkg/net/http/httptest/server.go
+index 0ad05483a4..fc52c9a2ef 100644
+--- a/src/pkg/net/http/httptest/server.go
++++ b/src/pkg/net/http/httptest/server.go
+@@ -155,6 +155,10 @@ func NewTLSServer(handler http.Handler) *Server {
+ func (s *Server) Close() {
+ 	s.Listener.Close()
+ 	s.wg.Wait()
++	s.CloseClientConnections()
++	if t, ok := http.DefaultTransport.(*http.Transport); ok {
++		t.CloseIdleConnections()
++	}
+ }
+ 
+ // CloseClientConnections closes any currently open HTTP connections

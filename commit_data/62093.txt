@@ -11,7 +11,7 @@ Date:   Mon Jan 13 10:24:50 2025 -0800
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/objabi/path_test.go   | 36 +++++++++++++++++-----------------
  src/cmd/internal/pgo/deserialize.go    |  2 +-
  src/cmd/internal/pgo/pgo.go            |  1 -
@@ -20,3 +20,182 @@ Date:   Mon Jan 13 10:24:50 2025 -0800
  src/reflect/all_test.go                |  4 ++--
  src/runtime/traceback_system_test.go   |  4 ++--
  7 files changed, 35 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/internal/objabi/path_test.go b/src/cmd/internal/objabi/path_test.go
+index 2f57882efa..676f794292 100644
+--- a/src/cmd/internal/objabi/path_test.go
++++ b/src/cmd/internal/objabi/path_test.go
+@@ -12,24 +12,24 @@ import (
+ )
+ 
+ var escapeTests = []struct {
+-		Path    string
+-		Escaped string
+-	}{
+-		{"foo/bar/v1", "foo/bar/v1"},
+-		{"foo/bar/v.1", "foo/bar/v%2e1"},
+-		{"f.o.o/b.a.r/v1", "f.o.o/b.a.r/v1"},
+-		{"f.o.o/b.a.r/v.1", "f.o.o/b.a.r/v%2e1"},
+-		{"f.o.o/b.a.r/v..1", "f.o.o/b.a.r/v%2e%2e1"},
+-		{"f.o.o/b.a.r/v..1.", "f.o.o/b.a.r/v%2e%2e1%2e"},
+-		{"f.o.o/b.a.r/v%1", "f.o.o/b.a.r/v%251"},
+-		{"runtime", "runtime"},
+-		{"sync/atomic", "sync/atomic"},
+-		{"golang.org/x/tools/godoc", "golang.org/x/tools/godoc"},
+-		{"foo.bar/baz.quux", "foo.bar/baz%2equux"},
+-		{"", ""},
+-		{"%foo%bar", "%25foo%25bar"},
+-		{"\x01\x00\x7F☺", "%01%00%7f%e2%98%ba"},
+-	}
++	Path    string
++	Escaped string
++}{
++	{"foo/bar/v1", "foo/bar/v1"},
++	{"foo/bar/v.1", "foo/bar/v%2e1"},
++	{"f.o.o/b.a.r/v1", "f.o.o/b.a.r/v1"},
++	{"f.o.o/b.a.r/v.1", "f.o.o/b.a.r/v%2e1"},
++	{"f.o.o/b.a.r/v..1", "f.o.o/b.a.r/v%2e%2e1"},
++	{"f.o.o/b.a.r/v..1.", "f.o.o/b.a.r/v%2e%2e1%2e"},
++	{"f.o.o/b.a.r/v%1", "f.o.o/b.a.r/v%251"},
++	{"runtime", "runtime"},
++	{"sync/atomic", "sync/atomic"},
++	{"golang.org/x/tools/godoc", "golang.org/x/tools/godoc"},
++	{"foo.bar/baz.quux", "foo.bar/baz%2equux"},
++	{"", ""},
++	{"%foo%bar", "%25foo%25bar"},
++	{"\x01\x00\x7F☺", "%01%00%7f%e2%98%ba"},
++}
+ 
+ func TestPathToPrefix(t *testing.T) {
+ 	for _, tc := range escapeTests {
+diff --git a/src/cmd/internal/pgo/deserialize.go b/src/cmd/internal/pgo/deserialize.go
+index 4b075b8daf..dd26da2aa9 100644
+--- a/src/cmd/internal/pgo/deserialize.go
++++ b/src/cmd/internal/pgo/deserialize.go
+@@ -8,8 +8,8 @@ import (
+ 	"bufio"
+ 	"fmt"
+ 	"io"
+-	"strings"
+ 	"strconv"
++	"strings"
+ )
+ 
+ // IsSerialized returns true if r is a serialized Profile.
+diff --git a/src/cmd/internal/pgo/pgo.go b/src/cmd/internal/pgo/pgo.go
+index 1d2cb880f7..3a0e01e8c2 100644
+--- a/src/cmd/internal/pgo/pgo.go
++++ b/src/cmd/internal/pgo/pgo.go
+@@ -52,4 +52,3 @@ func emptyProfile() *Profile {
+ func WeightInPercentage(value int64, total int64) float64 {
+ 	return (float64(value) / float64(total)) * 100
+ }
+-
+diff --git a/src/cmd/internal/pgo/serialize_test.go b/src/cmd/internal/pgo/serialize_test.go
+index b24163d1e2..9aef67c367 100644
+--- a/src/cmd/internal/pgo/serialize_test.go
++++ b/src/cmd/internal/pgo/serialize_test.go
+@@ -67,25 +67,25 @@ func TestRoundTrip(t *testing.T) {
+ 		NamedEdgeMap: NamedEdgeMap{
+ 			ByWeight: []NamedCallEdge{
+ 				{
+-					CallerName: "a",
+-					CalleeName: "b",
++					CallerName:     "a",
++					CalleeName:     "b",
+ 					CallSiteOffset: 14,
+ 				},
+ 				{
+-					CallerName: "c",
+-					CalleeName: "d",
++					CallerName:     "c",
++					CalleeName:     "d",
+ 					CallSiteOffset: 15,
+ 				},
+ 			},
+ 			Weight: map[NamedCallEdge]int64{
+ 				{
+-					CallerName: "a",
+-					CalleeName: "b",
++					CallerName:     "a",
++					CalleeName:     "b",
+ 					CallSiteOffset: 14,
+ 				}: 2,
+ 				{
+-					CallerName: "c",
+-					CalleeName: "d",
++					CallerName:     "c",
++					CalleeName:     "d",
+ 					CallSiteOffset: 15,
+ 				}: 1,
+ 			},
+@@ -157,8 +157,8 @@ func constructFuzzProfile(t *testing.T, b []byte) *Profile {
+ 		}
+ 
+ 		edge := NamedCallEdge{
+-			CallerName: caller,
+-			CalleeName: callee,
++			CallerName:     caller,
++			CalleeName:     callee,
+ 			CallSiteOffset: int(line),
+ 		}
+ 
+diff --git a/src/encoding/xml/xml_test.go b/src/encoding/xml/xml_test.go
+index fc3c15eff1..10cefa068f 100644
+--- a/src/encoding/xml/xml_test.go
++++ b/src/encoding/xml/xml_test.go
+@@ -640,11 +640,11 @@ func TestIssue68387(t *testing.T) {
+ 	if tok3, err = dec.RawToken(); err != io.EOF || tok3 != nil {
+ 		t.Fatalf("Missed EOF")
+ 	}
+-	s := StartElement{Name{"", "item"}, []Attr{Attr{Name{"","b"}, "]]>"}}}
++	s := StartElement{Name{"", "item"}, []Attr{Attr{Name{"", "b"}, "]]>"}}}
+ 	if !reflect.DeepEqual(tok1.(StartElement), s) {
+ 		t.Error("Wrong start element")
+ 	}
+-	e := EndElement{Name{"","item"}}
++	e := EndElement{Name{"", "item"}}
+ 	if tok2.(EndElement) != e {
+ 		t.Error("Wrong end element")
+ 	}
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index b2f70c1369..3d1e410dac 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -6322,12 +6322,12 @@ func TestMapOfGCBigKey(t *testing.T) {
+ 	const n = 100
+ 	m := MakeMap(mt)
+ 	for i := 0; i < n; i++ {
+-		kv := KV{int64(i), int64(i+1)}
++		kv := KV{int64(i), int64(i + 1)}
+ 		m.SetMapIndex(ValueOf(kv), ValueOf(kv))
+ 	}
+ 
+ 	for i := 0; i < n; i++ {
+-		kv := KV{int64(i), int64(i+1)}
++		kv := KV{int64(i), int64(i + 1)}
+ 		elem := m.MapIndex(ValueOf(kv)).Interface().(KV)
+ 		if elem != kv {
+ 			t.Errorf("lost m[%v] = %v, want %v", kv, elem, kv)
+diff --git a/src/runtime/traceback_system_test.go b/src/runtime/traceback_system_test.go
+index af20f54a09..3a3f33bbd4 100644
+--- a/src/runtime/traceback_system_test.go
++++ b/src/runtime/traceback_system_test.go
+@@ -129,7 +129,7 @@ func TestTracebackSystem(t *testing.T) {
+ 		t.Skip("Can't read source code for this file on Android")
+ 	}
+ 
+-	tests := []struct{
++	tests := []struct {
+ 		name string
+ 		want string
+ 	}{
+@@ -326,7 +326,7 @@ func parseStackPCs(crash string) ([]uintptr, error) {
+ 				continue
+ 			}
+ 
+-			pc = pc-parentSentinel+childSentinel
++			pc = pc - parentSentinel + childSentinel
+ 
+ 			// If the previous frame was sigpanic, then this frame
+ 			// was a trap (e.g., SIGSEGV).

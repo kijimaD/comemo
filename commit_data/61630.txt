@@ -10,6 +10,81 @@ Date:   Thu Nov 14 02:32:25 2024 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/629197
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/dist/test.go | 40 ++++++++++++++++++++++++++++++++++++++--
  1 file changed, 38 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 3d56f863cc..ebcf61f8f1 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -349,6 +349,12 @@ type goTest struct {
+ 	testFlags []string // Additional flags accepted by this test
+ }
+ 
++// compileOnly reports whether this test is only for compiling,
++// indicated by runTests being set to '^$' and bench being false.
++func (opts *goTest) compileOnly() bool {
++	return opts.runTests == "^$" && !opts.bench
++}
++
+ // bgCommand returns a go test Cmd and a post-Run flush function. The result
+ // will write its output to stdout and stderr. If stdout==stderr, bgCommand
+ // ensures Writes are serialized. The caller should call flush() after Cmd exits.
+@@ -357,13 +363,13 @@ func (opts *goTest) bgCommand(t *tester, stdout, stderr io.Writer) (cmd *exec.Cm
+ 
+ 	// Combine the flags.
+ 	args := append([]string{"test"}, build...)
+-	if t.compileOnly {
++	if t.compileOnly || opts.compileOnly() {
+ 		args = append(args, "-c", "-o", os.DevNull)
+ 	} else {
+ 		args = append(args, run...)
+ 	}
+ 	args = append(args, pkgs...)
+-	if !t.compileOnly {
++	if !t.compileOnly && !opts.compileOnly() {
+ 		args = append(args, testFlags...)
+ 	}
+ 
+@@ -699,6 +705,16 @@ func (t *tester) registerTests() {
+ 		runTests: "^$", // only ensure they compile
+ 	})
+ 
++	// Check that all crypto packages compile with fips.
++	for _, version := range fipsVersions() {
++		t.registerTest("crypto with GOFIPS140", &goTest{
++			variant:  "gofips140-" + version,
++			pkg:      "crypto/...",
++			runTests: "^$", // only ensure they compile
++			env:      []string{"GOFIPS140=" + version, "GOMODCACHE=" + filepath.Join(workdir, "fips-"+version)},
++		})
++	}
++
+ 	// Test ios/amd64 for the iOS simulator.
+ 	if goos == "darwin" && goarch == "amd64" && t.cgoEnabled {
+ 		t.registerTest("GOOS=ios on darwin/amd64",
+@@ -1749,3 +1765,23 @@ func isEnvSet(evar string) bool {
+ 	}
+ 	return false
+ }
++
++// fipsVersions returns the list of versions available in lib/fips140.
++func fipsVersions() []string {
++	var versions []string
++	zips, err := filepath.Glob(filepath.Join(goroot, "lib/fips140/*.zip"))
++	if err != nil {
++		fatalf("%v", err)
++	}
++	for _, zip := range zips {
++		versions = append(versions, strings.TrimSuffix(filepath.Base(zip), ".zip"))
++	}
++	txts, err := filepath.Glob(filepath.Join(goroot, "lib/fips140/*.txt"))
++	if err != nil {
++		fatalf("%v", err)
++	}
++	for _, txt := range txts {
++		versions = append(versions, strings.TrimSuffix(filepath.Base(txt), ".txt"))
++	}
++	return versions
++}

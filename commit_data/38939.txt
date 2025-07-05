@@ -20,7 +20,7 @@ Date:   Fri Dec 7 10:00:36 2018 -0800
     Change-Id: Id14a3a41e1b18901e7c5e460aa4caf6d940ed064
     Reviewed-on: https://go-review.googlesource.com/c/153241
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/asm/main.go                        |  2 +-
  src/cmd/compile/internal/gc/global_test.go | 17 ++++++++---------
  src/cmd/compile/internal/gc/main.go        | 10 +++++-----
@@ -30,3 +30,253 @@ Date:   Fri Dec 7 10:00:36 2018 -0800
  src/cmd/internal/obj/util.go               | 15 ++++++++++++++-
  test/run.go                                |  3 ++-
  8 files changed, 40 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index 55ae94a6de..447d1afde3 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -36,7 +36,7 @@ func main() {
+ 
+ 	ctxt := obj.Linknew(architecture.LinkArch)
+ 	if *flags.PrintOut {
+-		ctxt.Debugasm = true
++		ctxt.Debugasm = 1
+ 	}
+ 	ctxt.Flag_dynlink = *flags.Dynlink
+ 	ctxt.Flag_shared = *flags.Shared || *flags.Dynlink
+diff --git a/src/cmd/compile/internal/gc/global_test.go b/src/cmd/compile/internal/gc/global_test.go
+index 857cf96750..56855d797a 100644
+--- a/src/cmd/compile/internal/gc/global_test.go
++++ b/src/cmd/compile/internal/gc/global_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"internal/testenv"
+ 	"io/ioutil"
+-	"log"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -24,7 +23,7 @@ func TestScanfRemoval(t *testing.T) {
+ 	// Make a directory to work in.
+ 	dir, err := ioutil.TempDir("", "issue6853a-")
+ 	if err != nil {
+-		log.Fatalf("could not create directory: %v", err)
++		t.Fatalf("could not create directory: %v", err)
+ 	}
+ 	defer os.RemoveAll(dir)
+ 
+@@ -32,7 +31,7 @@ func TestScanfRemoval(t *testing.T) {
+ 	src := filepath.Join(dir, "test.go")
+ 	f, err := os.Create(src)
+ 	if err != nil {
+-		log.Fatalf("could not create source file: %v", err)
++		t.Fatalf("could not create source file: %v", err)
+ 	}
+ 	f.Write([]byte(`
+ package main
+@@ -50,17 +49,17 @@ func main() {
+ 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", dst, src)
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+-		log.Fatalf("could not build target: %v", err)
++		t.Fatalf("could not build target: %v", err)
+ 	}
+ 
+ 	// Check destination to see if scanf code was included.
+ 	cmd = exec.Command(testenv.GoToolPath(t), "tool", "nm", dst)
+ 	out, err = cmd.CombinedOutput()
+ 	if err != nil {
+-		log.Fatalf("could not read target: %v", err)
++		t.Fatalf("could not read target: %v", err)
+ 	}
+ 	if bytes.Contains(out, []byte("scanInt")) {
+-		log.Fatalf("scanf code not removed from helloworld")
++		t.Fatalf("scanf code not removed from helloworld")
+ 	}
+ }
+ 
+@@ -71,7 +70,7 @@ func TestDashS(t *testing.T) {
+ 	// Make a directory to work in.
+ 	dir, err := ioutil.TempDir("", "issue14515-")
+ 	if err != nil {
+-		log.Fatalf("could not create directory: %v", err)
++		t.Fatalf("could not create directory: %v", err)
+ 	}
+ 	defer os.RemoveAll(dir)
+ 
+@@ -79,7 +78,7 @@ func TestDashS(t *testing.T) {
+ 	src := filepath.Join(dir, "test.go")
+ 	f, err := os.Create(src)
+ 	if err != nil {
+-		log.Fatalf("could not create source file: %v", err)
++		t.Fatalf("could not create source file: %v", err)
+ 	}
+ 	f.Write([]byte(`
+ package main
+@@ -94,7 +93,7 @@ func main() {
+ 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags", "-S", "-o", filepath.Join(dir, "test"), src)
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+-		log.Fatalf("could not build target: %v", err)
++		t.Fatalf("could not build target: %v", err)
+ 	}
+ 
+ 	patterns := []string{
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index adfdd7cb37..f44d19b439 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -39,7 +39,6 @@ var (
+ 
+ var (
+ 	Debug_append       int
+-	Debug_asm          bool
+ 	Debug_closure      int
+ 	Debug_compilelater int
+ 	debug_dclstack     int
+@@ -195,7 +194,7 @@ func Main(archInit func(*Arch)) {
+ 	objabi.Flagcount("K", "debug missing line numbers", &Debug['K'])
+ 	objabi.Flagcount("L", "show full file names in error messages", &Debug['L'])
+ 	objabi.Flagcount("N", "disable optimizations", &Debug['N'])
+-	flag.BoolVar(&Debug_asm, "S", false, "print assembly listing")
++	objabi.Flagcount("S", "print assembly listing", &Debug['S'])
+ 	objabi.AddVersionFlag() // -V
+ 	objabi.Flagcount("W", "debug parse tree after type checking", &Debug['W'])
+ 	flag.StringVar(&asmhdr, "asmhdr", "", "write assembly header to `file`")
+@@ -265,7 +264,7 @@ func Main(archInit func(*Arch)) {
+ 	Ctxt.Flag_dynlink = flag_dynlink
+ 	Ctxt.Flag_optimize = Debug['N'] == 0
+ 
+-	Ctxt.Debugasm = Debug_asm
++	Ctxt.Debugasm = Debug['S']
+ 	Ctxt.Debugvlog = Debug_vlog
+ 	if flagDWARF {
+ 		Ctxt.DebugInfo = debuginfo
+@@ -1330,6 +1329,7 @@ var concurrentFlagOK = [256]bool{
+ 	'l': true, // disable inlining
+ 	'w': true, // all printing happens before compilation
+ 	'W': true, // all printing happens before compilation
++	'S': true, // printing disassembly happens at the end (but see concurrentBackendAllowed below)
+ }
+ 
+ func concurrentBackendAllowed() bool {
+@@ -1338,9 +1338,9 @@ func concurrentBackendAllowed() bool {
+ 			return false
+ 		}
+ 	}
+-	// Debug_asm by itself is ok, because all printing occurs
++	// Debug['S'] by itself is ok, because all printing occurs
+ 	// while writing the object file, and that is non-concurrent.
+-	// Adding Debug_vlog, however, causes Debug_asm to also print
++	// Adding Debug_vlog, however, causes Debug['S'] to also print
+ 	// while flushing the plist, which happens concurrently.
+ 	if Debug_vlog || debugstr != "" || debuglive > 0 {
+ 		return false
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 6cff335ddf..dfecdfbb37 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -599,7 +599,7 @@ type Pcdata struct {
+ type Link struct {
+ 	Headtype           objabi.HeadType
+ 	Arch               *LinkArch
+-	Debugasm           bool
++	Debugasm           int
+ 	Debugvlog          bool
+ 	Debugpcln          string
+ 	Flag_shared        bool
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 4fbaafe347..49301f04d5 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -240,7 +240,13 @@ func (w *objWriter) writeSymDebug(s *LSym) {
+ 	fmt.Fprintf(ctxt.Bso, "\n")
+ 	if s.Type == objabi.STEXT {
+ 		for p := s.Func.Text; p != nil; p = p.Link {
+-			fmt.Fprintf(ctxt.Bso, "\t%#04x %v\n", uint(int(p.Pc)), p)
++			var s string
++			if ctxt.Debugasm > 1 {
++				s = p.String()
++			} else {
++				s = p.InnermostString()
++			}
++			fmt.Fprintf(ctxt.Bso, "\t%#04x %s\n", uint(int(p.Pc)), s)
+ 		}
+ 	}
+ 	for i := 0; i < len(s.P); i += 16 {
+@@ -283,7 +289,7 @@ func (w *objWriter) writeSymDebug(s *LSym) {
+ 
+ func (w *objWriter) writeSym(s *LSym) {
+ 	ctxt := w.ctxt
+-	if ctxt.Debugasm {
++	if ctxt.Debugasm > 0 {
+ 		w.writeSymDebug(s)
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 6710b375f1..9d376f739f 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -27,7 +27,7 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
+ 
+ 	var plink *Prog
+ 	for p := plist.Firstpc; p != nil; p = plink {
+-		if ctxt.Debugasm && ctxt.Debugvlog {
++		if ctxt.Debugasm > 0 && ctxt.Debugvlog {
+ 			fmt.Printf("obj: %v\n", p)
+ 		}
+ 		plink = p.Link
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 46c3d7b17b..f1517d3d5d 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -17,6 +17,9 @@ const REG_NONE = 0
+ func (p *Prog) Line() string {
+ 	return p.Ctxt.OutermostPos(p.Pos).Format(false, true)
+ }
++func (p *Prog) InnermostLine() string {
++	return p.Ctxt.InnermostPos(p.Pos).Format(false, true)
++}
+ 
+ // InnermostLineNumber returns a string containing the line number for the
+ // innermost inlined function (if any inlining) at p's position
+@@ -118,6 +121,16 @@ func (p *Prog) String() string {
+ 	return fmt.Sprintf("%.5d (%v)\t%s", p.Pc, p.Line(), p.InstructionString())
+ }
+ 
++func (p *Prog) InnermostString() string {
++	if p == nil {
++		return "<nil Prog>"
++	}
++	if p.Ctxt == nil {
++		return "<Prog without ctxt>"
++	}
++	return fmt.Sprintf("%.5d (%v)\t%s", p.Pc, p.InnermostLine(), p.InstructionString())
++}
++
+ // InstructionString returns a string representation of the instruction without preceding
+ // program counter or file and line number.
+ func (p *Prog) InstructionString() string {
+@@ -177,7 +190,7 @@ func (ctxt *Link) NewProg() *Prog {
+ }
+ 
+ func (ctxt *Link) CanReuseProgs() bool {
+-	return !ctxt.Debugasm
++	return ctxt.Debugasm == 0
+ }
+ 
+ func Dconv(p *Prog, a *Addr) string {
+diff --git a/test/run.go b/test/run.go
+index 96192937b0..ad38d420c9 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -642,7 +642,8 @@ func (t *test) run() {
+ 		// against a set of regexps in comments.
+ 		ops := t.wantedAsmOpcodes(long)
+ 		for _, env := range ops.Envs() {
+-			cmdline := []string{"build", "-gcflags", "-S"}
++			// -S=2 forces outermost line numbers when disassembling inlined code.
++			cmdline := []string{"build", "-gcflags", "-S=2"}
+ 			cmdline = append(cmdline, flags...)
+ 			cmdline = append(cmdline, long)
+ 			cmd := exec.Command(goTool(), cmdline...)

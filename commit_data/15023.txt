@@ -7,6 +7,19 @@ Date:   Wed Jan 30 17:26:22 2013 +1100
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/7241048
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index f9a2f15ed1..af938c6681 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -172,6 +172,7 @@ Han-Wen Nienhuys <hanwen@google.com>
+ Harley Laue <losinggeneration@gmail.com>
+ Hector Chu <hectorchu@gmail.com>
+ Hong Ruiqi <hongruiqi@gmail.com>
++Hossein Sheikh Attar <hattar@google.com>
+ Ian Lance Taylor <iant@golang.org>
+ Icarus Sparry <golang@icarus.freeuk.com>
+ Ingo Oeser <nightlyone@googlemail.com> <nightlyone@gmail.com>

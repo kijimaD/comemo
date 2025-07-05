@@ -7,6 +7,20 @@ Date:   Wed Dec 21 13:55:47 2011 -0800
     R=iant, rsc
     CC=golang-dev
     https://golang.org/cl/5500065
-
+---
  src/pkg/go/doc/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index facc92a2a8..52ebda5ea2 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -258,7 +258,7 @@ func (doc *docReader) addDecl(decl ast.Decl) {
+ 					case *ast.InterfaceType:
+ 						fields = typ.Methods
+ 					}
+-					if fields == nil {
++					if fields != nil {
+ 						for _, field := range fields.List {
+ 							if len(field.Names) == 0 {
+ 								// anonymous field

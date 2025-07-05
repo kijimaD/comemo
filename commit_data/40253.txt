@@ -11,8 +11,122 @@ Date:   Mon Apr 29 12:24:30 2019 +1000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/build.go               |  2 +-
  src/cmd/nm/nm_cgo_test.go           |  9 +++--
  src/runtime/cgo/gcc_openbsd_arm64.c | 67 +++++++++++++++++++++++++++++++++++++
  3 files changed, 75 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 5edff52f87..ecb2e9e188 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1514,7 +1514,7 @@ var cgoEnabled = map[string]bool{
+ 	"openbsd/386":     true,
+ 	"openbsd/amd64":   true,
+ 	"openbsd/arm":     true,
+-	"openbsd/arm64":   false,
++	"openbsd/arm64":   true,
+ 	"plan9/386":       false,
+ 	"plan9/amd64":     false,
+ 	"plan9/arm":       false,
+diff --git a/src/cmd/nm/nm_cgo_test.go b/src/cmd/nm/nm_cgo_test.go
+index 143a297e05..475c57b4c2 100644
+--- a/src/cmd/nm/nm_cgo_test.go
++++ b/src/cmd/nm/nm_cgo_test.go
+@@ -13,6 +13,8 @@ import (
+ 
+ func canInternalLink() bool {
+ 	switch runtime.GOOS {
++	case "aix":
++		return false
+ 	case "dragonfly":
+ 		return false
+ 	case "linux":
+@@ -20,8 +22,11 @@ func canInternalLink() bool {
+ 		case "arm64", "mips64", "mips64le", "mips", "mipsle", "ppc64", "ppc64le":
+ 			return false
+ 		}
+-	case "aix":
+-		return false
++	case "openbsd":
++		switch runtime.GOARCH {
++		case "arm64":
++			return false
++		}
+ 	}
+ 	return true
+ }
+diff --git a/src/runtime/cgo/gcc_openbsd_arm64.c b/src/runtime/cgo/gcc_openbsd_arm64.c
+new file mode 100644
+index 0000000000..abf9f6660c
+--- /dev/null
++++ b/src/runtime/cgo/gcc_openbsd_arm64.c
+@@ -0,0 +1,67 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <sys/types.h>
++#include <pthread.h>
++#include <signal.h>
++#include <string.h>
++#include "libcgo.h"
++#include "libcgo_unix.h"
++
++static void* threadentry(void*);
++static void (*setg_gcc)(void*);
++
++void
++x_cgo_init(G *g, void (*setg)(void*))
++{
++	pthread_attr_t attr;
++	size_t size;
++
++	setg_gcc = setg;
++	pthread_attr_init(&attr);
++	pthread_attr_getstacksize(&attr, &size);
++	g->stacklo = (uintptr)&attr - size + 4096;
++	pthread_attr_destroy(&attr);
++}
++
++void
++_cgo_sys_thread_start(ThreadStart *ts)
++{
++	pthread_attr_t attr;
++	sigset_t ign, oset;
++	pthread_t p;
++	size_t size;
++	int err;
++
++	sigfillset(&ign);
++	pthread_sigmask(SIG_SETMASK, &ign, &oset);
++
++	pthread_attr_init(&attr);
++	pthread_attr_getstacksize(&attr, &size);
++
++	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
++	ts->g->stackhi = size;
++	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
++
++	pthread_sigmask(SIG_SETMASK, &oset, nil);
++
++	if (err != 0) {
++		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
++		abort();
++	}
++}
++
++extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
++
++static void*
++threadentry(void *v)
++{
++	ThreadStart ts;
++
++	ts = *(ThreadStart*)v;
++	free(v);
++
++	crosscall1(ts.fn, setg_gcc, (void*)ts.g);
++	return nil;
++}

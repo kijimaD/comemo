@@ -7,7 +7,7 @@ Date:   Mon Mar 30 17:09:28 2009 -0700
     R=ken
     OCL=26914
     CL=26914
-
+---
  src/cmd/6g/align.c  | 285 ++----------------------------------------
  src/cmd/6g/gg.h     |  17 ---
  src/cmd/gc/Makefile |   1 +
@@ -16,3 +16,979 @@ Date:   Mon Mar 30 17:09:28 2009 -0700
  src/cmd/gc/lex.c    | 100 ++-------------
  src/cmd/gc/walk.c   |   4 +-
  7 files changed, 410 insertions(+), 391 deletions(-)
+
+diff --git a/src/cmd/6g/align.c b/src/cmd/6g/align.c
+index dabd6385e7..5f8f8d35c9 100644
+--- a/src/cmd/6g/align.c
++++ b/src/cmd/6g/align.c
+@@ -4,257 +4,24 @@
+ 
+ #include "gg.h"
+ 
+-int
+-main(int argc, char *argv[])
+-{
+-	mainlex(argc, argv);
+-	return 99;
+-}
+-
+-/*
+- * machine size and rounding
+- * alignment is dictated around
+- * the size of a pointer.
+- * the size of the generic types
+- * are pulled from the typedef table.
+- */
+-
+-static	int	wptr	= 8;	// width of a pointer
+-static	int	wmax	= 8;	// max rounding
+-
+-uint32
+-rnd(uint32 o, uint32 r)
+-{
+-	if(r > wmax)
+-		r = wmax;
+-	if(r != 0)
+-		while(o%r != 0)
+-			o++;
+-	return o;
+-}
+-
+-void
+-offmod(Type *t)
+-{
+-	Type *f;
+-	int32 o;
+-
+-	o = 0;
+-	for(f=t->type; f!=T; f=f->down) {
+-		if(f->etype != TFIELD)
+-			fatal("widstruct: not TFIELD: %lT", f);
+-		if(f->type->etype != TFUNC)
+-			continue;
+-		f->width = o;
+-		o += wptr;
+-	}
+-}
+-
+-uint32
+-arrayelemwidth(Type *t)
+-{
+-
+-	while(t->etype == TARRAY && t->bound >= 0)
+-		t = t->type;
+-	return t->width;
+-}
+-
+-uint32
+-widstruct(Type *t, uint32 o, int flag)
+-{
+-	Type *f;
+-	int32 w, m;
+-
+-	for(f=t->type; f!=T; f=f->down) {
+-		if(f->etype != TFIELD)
+-			fatal("widstruct: not TFIELD: %lT", f);
+-		dowidth(f->type);
+-		w = f->type->width;
+-		m = arrayelemwidth(f->type);
+-		o = rnd(o, m);
+-		f->width = o;	// really offset for TFIELD
+-		o += w;
+-	}
+-	// final width is rounded
+-	if(flag)
+-		o = rnd(o, maxround);
+-
+-	// type width only includes back to first field's offset
+-	if(t->type == T)
+-		t->width = 0;
+-	else
+-		t->width = o - t->type->width;
+-	return o;
+-}
+-
+-void
+-dowidth(Type *t)
+-{
+-	int32 et;
+-	uint32 w;
+-
+-	if(t == T)
+-		return;
+-
+-	if(t->width == -2) {
+-		yyerror("invalid recursive type %T", t);
+-		t->width = 0;
+-		return;
+-	}
+-
+-	t->width = -2;
+-
+-
+-	et = t->etype;
+-	switch(et) {
+-	case TFUNC:
+-	case TCHAN:
+-	case TMAP:
+-	case TSTRING:
+-		break;
+-
+-	default:
+-		et = simtype[t->etype];
+-		break;
+-	}
+-
+-	w = 0;
+-	switch(et) {
+-	default:
+-		fatal("dowidth: unknown type: %E", t->etype);
+-		break;
+-
+-	/* compiler-specific stuff */
+-	case TINT8:
+-	case TUINT8:
+-	case TBOOL:		// bool is int8
+-		w = 1;
+-		break;
+-	case TINT16:
+-	case TUINT16:
+-		w = 2;
+-		break;
+-	case TINT32:
+-	case TUINT32:
+-	case TFLOAT32:
+-	case TPTR32:		// note lack of recursion
+-		w = 4;
+-		break;
+-	case TINT64:
+-	case TUINT64:
+-	case TFLOAT64:
+-	case TPTR64:		// note lack of recursion
+-		w = 8;
+-		break;
+-	case TFLOAT80:
+-		w = 10;
+-		break;
+-	case TDDD:
+-		w = 2*wptr;
+-		break;
+-	case TINTER:		// implemented as 2 pointers
+-	case TFORWINTER:
+-		offmod(t);
+-		w = 2*wptr;
+-		break;
+-	case TCHAN:		// implemented as pointer
+-		dowidth(t->type);
+-		dowidth(t->down);
+-		w = wptr;
+-		break;
+-	case TMAP:		// implemented as pointer
+-		dowidth(t->type);
+-		w = wptr;
+-		break;
+-	case TFORW:		// should have been filled in
+-	case TFORWSTRUCT:
+-		yyerror("incomplete type %T", t);
+-		w = wptr;
+-		break;
+-	case TANY:		// implemented as pointer
+-		w = wptr;
+-		break;
+-	case TSTRING:		// implemented as pointer
+-		w = wptr;
+-		break;
+-	case TARRAY:
+-		if(t->type == T)
+-			break;
+-		dowidth(t->type);
+-		w = sizeof_Array;
+-		if(t->bound >= 0)
+-			w = t->bound * t->type->width;
+-		break;
+-
+-	case TSTRUCT:
+-		if(t->funarg)
+-			fatal("dowidth fn struct %T", t);
+-		w = widstruct(t, 0, 1);
+-		if(w == 0)
+-			w = maxround;
+-		break;
+-
+-	case TFUNC:
+-		// function is 3 cated structures;
+-		// compute their widths as side-effect.
+-		w = widstruct(*getthis(t), 0, 1);
+-		w = widstruct(*getinarg(t), w, 0);
+-		w = widstruct(*getoutarg(t), w, 1);
+-		t->argwid = w;
+-
+-		// but width of func type is pointer
+-		w = wptr;
+-		break;
+-	}
+-	t->width = w;
+-}
+-
+-void
+-besetptr(void)
+-{
+-	maxround = wmax;
+-	widthptr = wptr;
+-
+-	types[TPTR32] = typ(TPTR32);
+-	dowidth(types[TPTR32]);
+-
+-	types[TPTR64] = typ(TPTR64);
+-	dowidth(types[TPTR64]);
+-
+-	tptr = TPTR32;
+-	if(wptr == 8)
+-		tptr = TPTR64;
+-}
+-
+ /*
+- * additionally, go declares several platform-specific type aliases:
+- * int, uint, float, and uptrint
++ * go declares several platform-specific type aliases:
++ * int, uint, float, and uintptr
+  */
+-static	struct
+-{
+-	char*	name;
+-	int	etype;
+-	int	sameas;
+-}
+-typedefs[] =
++Typedef	typedefs[] =
+ {
+ 	"int",		TINT,		TINT32,
+ 	"uint",		TUINT,		TUINT32,
+ 	"uintptr",	TUINTPTR,	TUINT64,
+ 	"float",	TFLOAT,		TFLOAT32,
++	0
+ };
+ 
+ void
+-belexinit(int lextype)
++betypeinit(void)
+ {
+-	int i, etype, sameas;
+-	Sym *s;
+-	Type *t;
+-
+-	simtype[TMAP] = tptr;
+-	simtype[TCHAN] = tptr;
+-	simtype[TSTRING] = tptr;
+-	simtype[TFUNC] = tptr;
++	maxround = 8;
++	widthptr = 8;
+ 
+ 	zprog.link = P;
+ 	zprog.as = AGOK;
+@@ -263,45 +30,7 @@ belexinit(int lextype)
+ 	zprog.from.scale = 0;
+ 	zprog.to = zprog.from;
+ 
+-	for(i=0; i<nelem(typedefs); i++) {
+-		s = lookup(typedefs[i].name);
+-		s->lexical = lextype;
+-
+-		etype = typedefs[i].etype;
+-		if(etype < 0 || etype >= nelem(types))
+-			fatal("lexinit: %s bad etype", s->name);
+-		sameas = typedefs[i].sameas;
+-		if(sameas < 0 || sameas >= nelem(types))
+-			fatal("lexinit: %s bad sameas", s->name);
+-		simtype[etype] = sameas;
+-
+-		t = types[etype];
+-		if(t != T)
+-			fatal("lexinit: %s already defined", s->name);
+-
+-		t = typ(etype);
+-		t->sym = s;
+-
+-		dowidth(t);
+-		types[etype] = t;
+-		s->otype = t;
+-
+-		if(minfltval[sameas] != nil)
+-			minfltval[etype] = minfltval[sameas];
+-		if(maxfltval[sameas] != nil)
+-			maxfltval[etype] = maxfltval[sameas];
+-		if(minintval[sameas] != nil)
+-			minintval[etype] = minintval[sameas];
+-		if(maxintval[sameas] != nil)
+-			maxintval[etype] = maxintval[sameas];
+-	}
+-
+ 	symstringo = lookup(".stringo");	// strings
+ 
+-	Array_array = rnd(0, types[tptr]->width);
+-	Array_nel = rnd(Array_array+types[tptr]->width, types[TUINT32]->width);
+-	Array_cap = rnd(Array_nel+types[TUINT32]->width, types[TUINT32]->width);
+-	sizeof_Array = rnd(Array_cap+types[TUINT32]->width, maxround);
+-
+ 	listinit();
+ }
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index ae165ca833..7fe47e1f58 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -112,22 +112,6 @@ EXTERN	Node*	deferreturn;
+ EXTERN	Node*	throwindex;
+ EXTERN	Node*	throwreturn;
+ 
+-/*
+- * note this is the runtime representation
+- * of the compilers arrays.
+- *
+- * typedef	struct
+- * {				// must not move anything
+- * 	uchar	array[8];	// pointer to data
+- * 	uchar	nel[4];		// number of elements
+- * 	uchar	cap[4];		// allocated number of elements
+- * } Array;
+- */
+-EXTERN	int	Array_array;	// runtime offsetof(Array,array)
+-EXTERN	int	Array_nel;	// runtime offsetof(Array,nel)
+-EXTERN	int	Array_cap;	// runtime offsetof(Array,cap)
+-EXTERN	int	sizeof_Array;	// runtime sizeof(Array)
+-
+ /*
+  * gen.c
+  */
+@@ -181,7 +165,6 @@ Prog*	prog(int);
+ void	gaddoffset(Node*);
+ void	gconv(int, int);
+ int	conv2pt(Type*);
+-void	belexinit(int);
+ vlong	convvtox(vlong, int);
+ int	brcom(int);
+ int	brrev(int);
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index 595554d1ca..23fe2a6d7e 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -29,6 +29,7 @@ OFILES=\
+ 	builtin.$O\
+ 	compat.$O\
+ 	bits.$O\
++	align.$O\
+ 
+ $(LIB): $(OFILES)
+ 	ar rsc $(LIB) $(OFILES)
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+new file mode 100644
+index 0000000000..7c39c646c0
+--- /dev/null
++++ b/src/cmd/gc/align.c
+@@ -0,0 +1,351 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go.h"
++
++/*
++ * machine size and rounding
++ * alignment is dictated around
++ * the size of a pointer, set in belexinit
++ * (see ../6g/align.c).
++ */
++
++uint32
++rnd(uint32 o, uint32 r)
++{
++	if(maxround == 0)
++		fatal("rnd");
++
++	if(r > maxround)
++		r = maxround;
++	if(r != 0)
++		while(o%r != 0)
++			o++;
++	return o;
++}
++
++static void
++offmod(Type *t)
++{
++	Type *f;
++	int32 o;
++
++	o = 0;
++	for(f=t->type; f!=T; f=f->down) {
++		if(f->etype != TFIELD)
++			fatal("widstruct: not TFIELD: %lT", f);
++		if(f->type->etype != TFUNC)
++			continue;
++		f->width = o;
++		o += widthptr;
++	}
++}
++
++static uint32
++arrayelemwidth(Type *t)
++{
++
++	while(t->etype == TARRAY && t->bound >= 0)
++		t = t->type;
++	return t->width;
++}
++
++static uint32
++widstruct(Type *t, uint32 o, int flag)
++{
++	Type *f;
++	int32 w, m;
++
++	for(f=t->type; f!=T; f=f->down) {
++		if(f->etype != TFIELD)
++			fatal("widstruct: not TFIELD: %lT", f);
++		dowidth(f->type);
++		w = f->type->width;
++		m = arrayelemwidth(f->type);
++		o = rnd(o, m);
++		f->width = o;	// really offset for TFIELD
++		o += w;
++	}
++	// final width is rounded
++	if(flag)
++		o = rnd(o, maxround);
++
++	// type width only includes back to first field's offset
++	if(t->type == T)
++		t->width = 0;
++	else
++		t->width = o - t->type->width;
++	return o;
++}
++
++void
++dowidth(Type *t)
++{
++	int32 et;
++	uint32 w;
++
++	if(maxround == 0 || widthptr == 0)
++		fatal("dowidth without betypeinit");
++
++	if(t == T)
++		return;
++
++	if(t->width == -2) {
++		yyerror("invalid recursive type %T", t);
++		t->width = 0;
++		return;
++	}
++
++	t->width = -2;
++
++
++	et = t->etype;
++	switch(et) {
++	case TFUNC:
++	case TCHAN:
++	case TMAP:
++	case TSTRING:
++		break;
++
++	default:
++		/* simtype == 0 during bootstrap */
++		if(simtype[t->etype] != 0)
++			et = simtype[t->etype];
++		break;
++	}
++
++	w = 0;
++	switch(et) {
++	default:
++		fatal("dowidth: unknown type: %E", t->etype);
++		break;
++
++	/* compiler-specific stuff */
++	case TINT8:
++	case TUINT8:
++	case TBOOL:		// bool is int8
++		w = 1;
++		break;
++	case TINT16:
++	case TUINT16:
++		w = 2;
++		break;
++	case TINT32:
++	case TUINT32:
++	case TFLOAT32:
++	case TPTR32:		// note lack of recursion
++		w = 4;
++		break;
++	case TINT64:
++	case TUINT64:
++	case TFLOAT64:
++	case TPTR64:		// note lack of recursion
++		w = 8;
++		break;
++	case TFLOAT80:
++		w = 10;
++		break;
++	case TDDD:
++		w = 2*widthptr;
++		break;
++	case TINTER:		// implemented as 2 pointers
++	case TFORWINTER:
++		offmod(t);
++		w = 2*widthptr;
++		break;
++	case TCHAN:		// implemented as pointer
++		dowidth(t->type);
++		dowidth(t->down);
++		w = widthptr;
++		break;
++	case TMAP:		// implemented as pointer
++		dowidth(t->type);
++		w = widthptr;
++		break;
++	case TFORW:		// should have been filled in
++	case TFORWSTRUCT:
++		yyerror("incomplete type %T", t);
++		w = widthptr;
++		break;
++	case TANY:		// implemented as pointer
++		w = widthptr;
++		break;
++	case TSTRING:		// implemented as pointer
++		w = widthptr;
++		break;
++	case TARRAY:
++		if(t->type == T)
++			break;
++		dowidth(t->type);
++		w = sizeof_Array;
++		if(t->bound >= 0)
++			w = t->bound * t->type->width;
++		break;
++
++	case TSTRUCT:
++		if(t->funarg)
++			fatal("dowidth fn struct %T", t);
++		w = widstruct(t, 0, 1);
++		if(w == 0)
++			w = maxround;
++		break;
++
++	case TFUNC:
++		// function is 3 cated structures;
++		// compute their widths as side-effect.
++		w = widstruct(*getthis(t), 0, 1);
++		w = widstruct(*getinarg(t), w, 0);
++		w = widstruct(*getoutarg(t), w, 1);
++		t->argwid = w;
++
++		// but width of func type is pointer
++		w = widthptr;
++		break;
++	}
++
++	t->width = w;
++}
++
++void
++typeinit(int lex)
++{
++	int i, etype, sameas;
++	Type *t;
++	Sym *s;
++	
++	if(widthptr == 0)
++		fatal("typeinit before betypeinit");
++
++	for(i=0; i<NTYPE; i++)
++		simtype[i] = i;
++
++	types[TPTR32] = typ(TPTR32);
++	dowidth(types[TPTR32]);
++
++	types[TPTR64] = typ(TPTR64);
++	dowidth(types[TPTR64]);
++
++	tptr = TPTR32;
++	if(widthptr == 8)
++		tptr = TPTR64;
++
++	for(i=TINT8; i<=TUINT64; i++)
++		isint[i] = 1;
++	isint[TINT] = 1;
++	isint[TUINT] = 1;
++	isint[TUINTPTR] = 1;
++
++	for(i=TFLOAT32; i<=TFLOAT80; i++)
++		isfloat[i] = 1;
++	isfloat[TFLOAT] = 1;
++
++	isptr[TPTR32] = 1;
++	isptr[TPTR64] = 1;
++
++	issigned[TINT] = 1;
++	issigned[TINT8] = 1;
++	issigned[TINT16] = 1;
++	issigned[TINT32] = 1;
++	issigned[TINT64] = 1;
++
++	/*
++	 * initialize okfor
++	 */
++	for(i=0; i<NTYPE; i++) {
++		if(isint[i]) {
++			okforeq[i] = 1;
++			okforadd[i] = 1;
++			okforand[i] = 1;
++			issimple[i] = 1;
++			minintval[i] = mal(sizeof(*minintval[i]));
++			maxintval[i] = mal(sizeof(*maxintval[i]));
++		}
++		if(isfloat[i]) {
++			okforeq[i] = 1;
++			okforadd[i] = 1;
++			issimple[i] = 1;
++			minfltval[i] = mal(sizeof(*minfltval[i]));
++			maxfltval[i] = mal(sizeof(*maxfltval[i]));
++		}
++		switch(i) {
++		case TBOOL:
++			issimple[i] = 1;
++
++		case TPTR32:
++		case TPTR64:
++		case TINTER:
++		case TMAP:
++		case TCHAN:
++		case TFUNC:
++			okforeq[i] = 1;
++			break;
++		}
++	}
++
++	mpatofix(maxintval[TINT8], "0x7f");
++	mpatofix(minintval[TINT8], "-0x80");
++	mpatofix(maxintval[TINT16], "0x7fff");
++	mpatofix(minintval[TINT16], "-0x8000");
++	mpatofix(maxintval[TINT32], "0x7fffffff");
++	mpatofix(minintval[TINT32], "-0x80000000");
++	mpatofix(maxintval[TINT64], "0x7fffffffffffffff");
++	mpatofix(minintval[TINT64], "-0x8000000000000000");
++
++	mpatofix(maxintval[TUINT8], "0xff");
++	mpatofix(maxintval[TUINT16], "0xffff");
++	mpatofix(maxintval[TUINT32], "0xffffffff");
++	mpatofix(maxintval[TUINT64], "0xffffffffffffffff");
++
++	mpatoflt(maxfltval[TFLOAT32], "3.40282347e+38");
++	mpatoflt(minfltval[TFLOAT32], "-3.40282347e+38");
++	mpatoflt(maxfltval[TFLOAT64], "1.7976931348623157e+308");
++	mpatoflt(minfltval[TFLOAT64], "-1.7976931348623157e+308");
++
++	/* for walk to use in error messages */
++	types[TFUNC] = functype(N, N, N);
++
++	/* types used in front end */
++	types[TNIL] = typ(TNIL);
++	types[TIDEAL] = typ(TIDEAL);
++
++	/* simple aliases */
++	simtype[TMAP] = tptr;
++	simtype[TCHAN] = tptr;
++	simtype[TSTRING] = tptr;
++	simtype[TFUNC] = tptr;
++
++	/* pick up the backend typedefs */
++	for(i=0; typedefs[i].name; i++) {
++		s = lookup(typedefs[i].name);
++		s->lexical = lex;
++
++		etype = typedefs[i].etype;
++		if(etype < 0 || etype >= nelem(types))
++			fatal("typeinit: %s bad etype", s->name);
++		sameas = typedefs[i].sameas;
++		if(sameas < 0 || sameas >= nelem(types))
++			fatal("typeinit: %s bad sameas", s->name);
++		simtype[etype] = sameas;
++		minfltval[etype] = minfltval[sameas];
++		maxfltval[etype] = maxfltval[sameas];
++		minintval[etype] = minintval[sameas];
++		maxintval[etype] = maxintval[sameas];
++
++		t = types[etype];
++		if(t != T)
++			fatal("typeinit: %s already defined", s->name);
++
++		t = typ(etype);
++		t->sym = s;
++
++		dowidth(t);
++		types[etype] = t;
++		s->otype = t;
++	}
++
++	Array_array = rnd(0, widthptr);
++	Array_nel = rnd(Array_array+widthptr, types[TUINT32]->width);
++	Array_cap = rnd(Array_nel+types[TUINT32]->width, types[TUINT32]->width);
++	sizeof_Array = rnd(Array_cap+types[TUINT32]->width, maxround);
++}
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 392c13d503..c09bc978d2 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -442,6 +442,15 @@ struct	Var
+ 
+ EXTERN	Var	var[NVAR];
+ 
++typedef	struct	Typedef	Typedef;
++struct	Typedef
++{
++	char*	name;
++	int	etype;
++	int	sameas;
++};
++
++extern	Typedef	typedefs[];
+ 
+ typedef	struct	Io	Io;
+ struct	Io
+@@ -467,6 +476,22 @@ struct Idir
+ 	char*	dir;
+ };
+ 
++/*
++ * note this is the runtime representation
++ * of the compilers arrays.
++ *
++ * typedef	struct
++ * {				// must not move anything
++ * 	uchar	array[8];	// pointer to data
++ * 	uchar	nel[4];		// number of elements
++ * 	uchar	cap[4];		// allocated number of elements
++ * } Array;
++ */
++EXTERN	int	Array_array;	// runtime offsetof(Array,array)
++EXTERN	int	Array_nel;	// runtime offsetof(Array,nel)
++EXTERN	int	Array_cap;	// runtime offsetof(Array,cap)
++EXTERN	int	sizeof_Array;	// runtime sizeof(Array)
++
+ EXTERN	Dlist	dotlist[10];	// size is max depth of embeddeds
+ 
+ EXTERN	Io	curio;
+@@ -477,7 +502,6 @@ EXTERN	char*	pathname;
+ EXTERN	Hist*	hist;
+ EXTERN	Hist*	ehist;
+ 
+-
+ EXTERN	char*	infile;
+ EXTERN	char*	outfile;
+ EXTERN	char*	package;
+@@ -534,6 +558,9 @@ EXTERN	ushort	blockgen;		// max block number
+ EXTERN	ushort	block;			// current block number
+ EXTERN	int	hasdefer;		// flag that curfn has defer statetment
+ 
++EXTERN	int	maxround;
++EXTERN	int	widthptr;
++
+ EXTERN	Node*	retnil;
+ EXTERN	Node*	fskel;
+ 
+@@ -562,13 +589,13 @@ int	yyparse(void);
+ /*
+  *	lex.c
+  */
+-int	mainlex(int, char*[]);
+ void	setfilename(char*);
+ void	addidir(char*);
+ void	importfile(Val*);
+ void	cannedimports(char*, char*);
+ void	unimportfile();
+ int32	yylex(void);
++void	typeinit(int lex);
+ void	lexinit(void);
+ char*	lexname(int);
+ int32	getr(void);
+@@ -881,8 +908,7 @@ int	isconst(Node*, int);
+ /*
+  *	gen.c/gsubr.c/obj.c
+  */
+-void	belexinit(int);
+-void	besetptr(void);
++void	betypeinit(void);
+ vlong	convvtox(vlong, int);
+ void	compile(Node*);
+ void	proglist(void);
+@@ -896,7 +922,13 @@ Type*	deep(Type*);
+ Type*	shallow(Type*);
+ 
+ /*
+- * bits.c
++ *	align.c
++ */
++uint32	rnd(uint32, uint32);
++void	dowidth(Type*);
++
++/*
++ *	bits.c
+  */
+ Bits	bor(Bits, Bits);
+ Bits	band(Bits, Bits);
+@@ -908,3 +940,4 @@ int	beq(Bits, Bits);
+ int	bset(Bits, uint);
+ int	Qconv(Fmt *fp);
+ int	bitno(int32);
++
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 3eedb8b61a..3bda54a7a0 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -15,7 +15,7 @@ enum
+ };
+ 
+ int
+-mainlex(int argc, char *argv[])
++main(int argc, char *argv[])
+ {
+ 	int c;
+ 
+@@ -59,7 +59,13 @@ mainlex(int argc, char *argv[])
+ 	fmtinstall('B', Bconv);		// big numbers
+ 	fmtinstall('F', Fconv);		// big float numbers
+ 
++	betypeinit();
++	if(maxround == 0 || widthptr == 0)
++		fatal("betypeinit failed");
++
+ 	lexinit();
++	typeinit(LBASETYPE);
++
+ 	lineno = 1;
+ 	block = 1;
+ 	blockgen = 1;
+@@ -1163,86 +1169,10 @@ static	struct
+ void
+ lexinit(void)
+ {
+-	int i, etype, lex;
+-	Type *t;
++	int i, lex;
+ 	Sym *s;
+-
+-	for(i=0; i<NTYPE; i++)
+-		simtype[i] = i;
+-
+-	besetptr();
+-
+-	for(i=TINT8; i<=TUINT64; i++)
+-		isint[i] = 1;
+-	isint[TINT] = 1;
+-	isint[TUINT] = 1;
+-	isint[TUINTPTR] = 1;
+-
+-	for(i=TFLOAT32; i<=TFLOAT80; i++)
+-		isfloat[i] = 1;
+-	isfloat[TFLOAT] = 1;
+-
+-	isptr[TPTR32] = 1;
+-	isptr[TPTR64] = 1;
+-
+-	issigned[TINT] = 1;
+-	issigned[TINT8] = 1;
+-	issigned[TINT16] = 1;
+-	issigned[TINT32] = 1;
+-	issigned[TINT64] = 1;
+-
+-	/*
+-	 * initialize okfor
+-	 */
+-	for(i=0; i<NTYPE; i++) {
+-		if(isint[i]) {
+-			okforeq[i] = 1;
+-			okforadd[i] = 1;
+-			okforand[i] = 1;
+-			issimple[i] = 1;
+-			minintval[i] = mal(sizeof(*minintval[i]));
+-			maxintval[i] = mal(sizeof(*maxintval[i]));
+-		}
+-		if(isfloat[i]) {
+-			okforeq[i] = 1;
+-			okforadd[i] = 1;
+-			issimple[i] = 1;
+-			minfltval[i] = mal(sizeof(*minfltval[i]));
+-			maxfltval[i] = mal(sizeof(*maxfltval[i]));
+-		}
+-		switch(i) {
+-		case TBOOL:
+-			issimple[i] = 1;
+-
+-		case TPTR32:
+-		case TPTR64:
+-		case TINTER:
+-		case TMAP:
+-		case TCHAN:
+-		case TFUNC:
+-			okforeq[i] = 1;
+-			break;
+-		}
+-	}
+-
+-	mpatofix(maxintval[TINT8], "0x7f");
+-	mpatofix(minintval[TINT8], "-0x80");
+-	mpatofix(maxintval[TINT16], "0x7fff");
+-	mpatofix(minintval[TINT16], "-0x8000");
+-	mpatofix(maxintval[TINT32], "0x7fffffff");
+-	mpatofix(minintval[TINT32], "-0x80000000");
+-	mpatofix(maxintval[TINT64], "0x7fffffffffffffff");
+-	mpatofix(minintval[TINT64], "-0x8000000000000000");
+-
+-	mpatofix(maxintval[TUINT8], "0xff");
+-	mpatofix(maxintval[TUINT16], "0xffff");
+-	mpatofix(maxintval[TUINT32], "0xffffffff");
+-	mpatofix(maxintval[TUINT64], "0xffffffffffffffff");
+-
+-	mpatoflt(maxfltval[TFLOAT32], "3.40282347e+38");
+-	mpatoflt(minfltval[TFLOAT32], "-3.40282347e+38");
+-	mpatoflt(maxfltval[TFLOAT64], "1.7976931348623157e+308");
+-	mpatoflt(minfltval[TFLOAT64], "-1.7976931348623157e+308");
++	Type *t;
++	int etype;
+ 
+ 	/*
+ 	 * initialize basic types array
+@@ -1272,16 +1202,6 @@ lexinit(void)
+ 		types[etype] = t;
+ 		s->otype = t;
+ 	}
+-
+-	/* for walk to use in error messages */
+-	types[TFUNC] = functype(N, N, N);
+-
+-	/* types used in front end */
+-	types[TNIL] = typ(TNIL);
+-	types[TIDEAL] = typ(TIDEAL);
+-
+-	/* pick up the backend typedefs */
+-	belexinit(LBASETYPE);
+ }
+ 
+ struct
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index a510a1a989..73872213f9 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1888,8 +1888,10 @@ ascompatte(int op, Type **nl, Node **nr, int fp)
+ 		// clumsy check for differently aligned structs.
+ 		// need to handle eventually, but this keeps us
+ 		// from inserting bugs
+-		if(r->type->width != (*nl)->width)
++		if(r->type->width != (*nl)->width) {
++			fprint(2, "oops: %T %d %T %d\n", r->type, r->type->width, (*nl), (*nl)->width);
+ 			yyerror("misaligned multiple return (6g's fault)");
++		}
+ 		a = nodarg(*nl, fp);
+ 		a->type = r->type;
+ 		return convas(nod(OAS, a, r));

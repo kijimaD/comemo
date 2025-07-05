@@ -9,7 +9,7 @@ Date:   Wed May 25 12:24:36 2011 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4530070
-
+---
  src/pkg/encoding/base64/base64.go      | 14 ++++++++++++++
  src/pkg/encoding/base64/base64_test.go |  9 ++++++---
  src/pkg/http/client.go                 |  5 +----
@@ -17,3 +17,127 @@ Date:   Wed May 25 12:24:36 2011 -0700
  src/pkg/http/transport.go              |  5 +----
  src/pkg/smtp/smtp.go                   |  3 +--
  6 files changed, 24 insertions(+), 16 deletions(-)
+
+diff --git a/src/pkg/encoding/base64/base64.go b/src/pkg/encoding/base64/base64.go
+index 496129798c..c6b2a13e4a 100644
+--- a/src/pkg/encoding/base64/base64.go
++++ b/src/pkg/encoding/base64/base64.go
+@@ -106,6 +106,13 @@ func (enc *Encoding) Encode(dst, src []byte) {
+ 	}
+ }
+ 
++// EncodeToString returns the base64 encoding of src.
++func (enc *Encoding) EncodeToString(src []byte) string {
++	buf := make([]byte, enc.EncodedLen(len(src)))
++	enc.Encode(buf, src)
++	return string(buf)
++}
++
+ type encoder struct {
+ 	err  os.Error
+ 	enc  *Encoding
+@@ -260,6 +267,13 @@ func (enc *Encoding) Decode(dst, src []byte) (n int, err os.Error) {
+ 	return
+ }
+ 
++// DecodeString returns the bytes represented by the base64 string s.
++func (enc *Encoding) DecodeString(s string) ([]byte, os.Error) {
++	dbuf := make([]byte, enc.DecodedLen(len(s)))
++	n, err := enc.Decode(dbuf, []byte(s))
++	return dbuf[:n], err
++}
++
+ type decoder struct {
+ 	err    os.Error
+ 	enc    *Encoding
+diff --git a/src/pkg/encoding/base64/base64_test.go b/src/pkg/encoding/base64/base64_test.go
+index de41e704b9..c163dae842 100644
+--- a/src/pkg/encoding/base64/base64_test.go
++++ b/src/pkg/encoding/base64/base64_test.go
+@@ -56,9 +56,8 @@ func testEqual(t *testing.T, msg string, args ...interface{}) bool {
+ 
+ func TestEncode(t *testing.T) {
+ 	for _, p := range pairs {
+-		buf := make([]byte, StdEncoding.EncodedLen(len(p.decoded)))
+-		StdEncoding.Encode(buf, []byte(p.decoded))
+-		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, string(buf), p.encoded)
++		got := StdEncoding.EncodeToString([]byte(p.decoded))
++		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, got, p.encoded)
+ 	}
+ }
+ 
+@@ -102,6 +101,10 @@ func TestDecode(t *testing.T) {
+ 			testEqual(t, "Decode(%q) = end %v, want %v", p.encoded, end, (p.encoded[len(p.encoded)-1] == '='))
+ 		}
+ 		testEqual(t, "Decode(%q) = %q, want %q", p.encoded, string(dbuf[0:count]), p.decoded)
++
++		dbuf, err = StdEncoding.DecodeString(p.encoded)
++		testEqual(t, "DecodeString(%q) = error %v, want %v", p.encoded, err, os.Error(nil))
++		testEqual(t, "DecodeString(%q) = %q, want %q", string(dbuf), p.decoded)
+ 	}
+ }
+ 
+diff --git a/src/pkg/http/client.go b/src/pkg/http/client.go
+index ac7ff18533..fdd53f33c8 100644
+--- a/src/pkg/http/client.go
++++ b/src/pkg/http/client.go
+@@ -100,13 +100,10 @@ func send(req *Request, t RoundTripper) (resp *Response, err os.Error) {
+ 
+ 	info := req.URL.RawUserinfo
+ 	if len(info) > 0 {
+-		enc := base64.URLEncoding
+-		encoded := make([]byte, enc.EncodedLen(len(info)))
+-		enc.Encode(encoded, []byte(info))
+ 		if req.Header == nil {
+ 			req.Header = make(Header)
+ 		}
+-		req.Header.Set("Authorization", "Basic "+string(encoded))
++		req.Header.Set("Authorization", "Basic "+base64.URLEncoding.EncodeToString([]byte(info)))
+ 	}
+ 	return t.RoundTrip(req)
+ }
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index 05d4892110..2f39de182b 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -485,9 +485,7 @@ func NewRequest(method, url string, body io.Reader) (*Request, os.Error) {
+ // are not encrypted.
+ func (r *Request) SetBasicAuth(username, password string) {
+ 	s := username + ":" + password
+-	buf := make([]byte, base64.StdEncoding.EncodedLen(len(s)))
+-	base64.StdEncoding.Encode(buf, []byte(s))
+-	r.Header.Set("Authorization", "Basic "+string(buf))
++	r.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(s)))
+ }
+ 
+ // ReadRequest reads and parses a request from b.
+diff --git a/src/pkg/http/transport.go b/src/pkg/http/transport.go
+index 34bfbdd34a..fdb1b0829a 100644
+--- a/src/pkg/http/transport.go
++++ b/src/pkg/http/transport.go
+@@ -169,10 +169,7 @@ func (cm *connectMethod) proxyAuth() string {
+ 	}
+ 	proxyInfo := cm.proxyURL.RawUserinfo
+ 	if proxyInfo != "" {
+-		enc := base64.URLEncoding
+-		encoded := make([]byte, enc.EncodedLen(len(proxyInfo)))
+-		enc.Encode(encoded, []byte(proxyInfo))
+-		return "Basic " + string(encoded)
++		return "Basic " + base64.URLEncoding.EncodeToString([]byte(proxyInfo))
+ 	}
+ 	return ""
+ }
+diff --git a/src/pkg/smtp/smtp.go b/src/pkg/smtp/smtp.go
+index 3f89af1472..d716df56b9 100644
+--- a/src/pkg/smtp/smtp.go
++++ b/src/pkg/smtp/smtp.go
+@@ -151,8 +151,7 @@ func (c *Client) Auth(a Auth) os.Error {
+ 		var msg []byte
+ 		switch code {
+ 		case 334:
+-			msg = make([]byte, encoding.DecodedLen(len(msg64)))
+-			_, err = encoding.Decode(msg, []byte(msg64))
++			msg, err = encoding.DecodeString(msg64)
+ 		case 235:
+ 			// the last message isn't base64 because it isn't a challenge
+ 			msg = []byte(msg64)

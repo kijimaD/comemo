@@ -14,8 +14,192 @@ Date:   Fri Mar 25 15:57:25 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/testcarchive/carchive_test.go     | 78 +++++++++++++++++++-----------
  misc/cgo/testcarchive/main5.c              | 23 +++++++--
  misc/cgo/testcarchive/src/libgo2/libgo2.go |  5 ++
  3 files changed, 74 insertions(+), 32 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/carchive_test.go b/misc/cgo/testcarchive/carchive_test.go
+index 2c81a6acd2..97e0c782f2 100644
+--- a/misc/cgo/testcarchive/carchive_test.go
++++ b/misc/cgo/testcarchive/carchive_test.go
+@@ -14,6 +14,7 @@ import (
+ 	"strings"
+ 	"syscall"
+ 	"testing"
++	"time"
+ 	"unicode"
+ )
+ 
+@@ -312,44 +313,65 @@ func TestSignalForwardingExternal(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	cmd = exec.Command(bin[0], append(bin[1:], "2")...)
++	// We want to send the process a signal and see if it dies.
++	// Normally the signal goes to the C thread, the Go signal
++	// handler picks it up, sees that it is running in a C thread,
++	// and the program dies. Unfortunately, occasionally the
++	// signal is delivered to a Go thread, which winds up
++	// discarding it because it was sent by another program and
++	// there is no Go handler for it. To avoid this, run the
++	// program several times in the hopes that it will eventually
++	// fail.
++	const tries = 20
++	for i := 0; i < tries; i++ {
++		cmd = exec.Command(bin[0], append(bin[1:], "2")...)
++
++		stderr, err := cmd.StderrPipe()
++		if err != nil {
++			t.Fatal(err)
++		}
++		defer stderr.Close()
+ 
+-	stderr, err := cmd.StderrPipe()
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer stderr.Close()
++		r := bufio.NewReader(stderr)
+ 
+-	r := bufio.NewReader(stderr)
++		err = cmd.Start()
+ 
+-	err = cmd.Start()
++		if err != nil {
++			t.Fatal(err)
++		}
+ 
+-	if err != nil {
+-		t.Fatal(err)
+-	}
++		// Wait for trigger to ensure that the process is started.
++		ok, err := r.ReadString('\n')
+ 
+-	// Wait for trigger to ensure that the process is started.
+-	ok, err := r.ReadString('\n')
++		// Verify trigger.
++		if err != nil || ok != "OK\n" {
++			t.Fatalf("Did not receive OK signal")
++		}
+ 
+-	// Verify trigger.
+-	if err != nil || ok != "OK\n" {
+-		t.Fatalf("Did not receive OK signal")
+-	}
++		// Give the program a chance to enter the sleep function.
++		time.Sleep(time.Millisecond)
+ 
+-	// Trigger an interrupt external to the process.
+-	cmd.Process.Signal(syscall.SIGSEGV)
++		cmd.Process.Signal(syscall.SIGSEGV)
+ 
+-	err = cmd.Wait()
++		err = cmd.Wait()
+ 
+-	if err == nil {
+-		t.Error("test program succeeded unexpectedly")
+-	} else if ee, ok := err.(*exec.ExitError); !ok {
+-		t.Errorf("error (%v) has type %T; expected exec.ExitError", err, err)
+-	} else if ws, ok := ee.Sys().(syscall.WaitStatus); !ok {
+-		t.Errorf("error.Sys (%v) has type %T; expected syscall.WaitStatus", ee.Sys(), ee.Sys())
+-	} else if !ws.Signaled() || ws.Signal() != syscall.SIGSEGV {
+-		t.Errorf("got %v; expected SIGSEGV", ee)
++		if err == nil {
++			continue
++		}
++
++		if ee, ok := err.(*exec.ExitError); !ok {
++			t.Errorf("error (%v) has type %T; expected exec.ExitError", err, err)
++		} else if ws, ok := ee.Sys().(syscall.WaitStatus); !ok {
++			t.Errorf("error.Sys (%v) has type %T; expected syscall.WaitStatus", ee.Sys(), ee.Sys())
++		} else if !ws.Signaled() || ws.Signal() != syscall.SIGSEGV {
++			t.Errorf("got %v; expected SIGSEGV", ee)
++		} else {
++			// We got the error we expected.
++			return
++		}
+ 	}
++
++	t.Errorf("program succeeded unexpectedly %d times", tries)
+ }
+ 
+ func TestOsSignal(t *testing.T) {
+diff --git a/misc/cgo/testcarchive/main5.c b/misc/cgo/testcarchive/main5.c
+index 556abdfe1c..9fadf0801e 100644
+--- a/misc/cgo/testcarchive/main5.c
++++ b/misc/cgo/testcarchive/main5.c
+@@ -8,6 +8,9 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <unistd.h>
++#include <sys/types.h>
++#include <sys/time.h>
++#include <sys/select.h>
+ 
+ #include "libgo2.h"
+ 
+@@ -16,7 +19,7 @@ int main(int argc, char** argv) {
+ 	int test;
+ 
+ 	if (argc < 2) {
+-		printf("Missing argument");
++		printf("Missing argument\n");
+ 		return 1;
+ 	}
+ 
+@@ -28,7 +31,7 @@ int main(int argc, char** argv) {
+ 		printf("calling RunGoroutines\n");
+ 	}
+ 
+-	RunGoroutines();
++	Noop();
+ 
+ 	switch (test) {
+ 		case 1: {
+@@ -41,6 +44,8 @@ int main(int argc, char** argv) {
+ 		}
+ 
+ 		case 2: {
++			struct timeval tv;
++
+ 			if (verbose) {
+ 				printf("attempting external signal test\n");
+ 			}
+@@ -48,8 +53,18 @@ int main(int argc, char** argv) {
+ 			fprintf(stderr, "OK\n");
+ 			fflush(stderr);
+ 
+-			// The program should be interrupted before this sleep finishes.
+-			sleep(60);
++			// The program should be interrupted before
++			// this sleep finishes. We use select rather
++			// than sleep because in older versions of
++			// glibc the sleep function does some signal
++			// fiddling to handle SIGCHLD.  If this
++			// program is fiddling signals just when the
++			// test program sends the signal, the signal
++			// may be delivered to a Go thread which will
++			// break this test.
++			tv.tv_sec = 60;
++			tv.tv_usec = 0;
++			select(0, NULL, NULL, NULL, &tv);
+ 
+ 			break;
+ 		}
+diff --git a/misc/cgo/testcarchive/src/libgo2/libgo2.go b/misc/cgo/testcarchive/src/libgo2/libgo2.go
+index ab40b75e78..fbed493b93 100644
+--- a/misc/cgo/testcarchive/src/libgo2/libgo2.go
++++ b/misc/cgo/testcarchive/src/libgo2/libgo2.go
+@@ -41,5 +41,10 @@ func TestSEGV() {
+ 	os.Exit(1)
+ }
+ 
++// Noop ensures that the Go runtime is initialized.
++//export Noop
++func Noop() {
++}
++
+ func main() {
+ }

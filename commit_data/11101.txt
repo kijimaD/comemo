@@ -7,6 +7,20 @@ Date:   Tue Jan 10 20:26:11 2012 -0800
     TBR=lvd
     CC=golang-dev
     https://golang.org/cl/5534070
-
+---
  src/pkg/os/file_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/file_windows.go b/src/pkg/os/file_windows.go
+index 4bf9c26038..92f03c4241 100644
+--- a/src/pkg/os/file_windows.go
++++ b/src/pkg/os/file_windows.go
+@@ -55,7 +55,7 @@ type dirInfo struct {
+ 
+ const DevNull = "NUL"
+ 
+-func (file *file) isdir() bool { return file != nil && file.dirinfo != nil }
++func (f *file) isdir() bool { return f != nil && f.dirinfo != nil }
+ 
+ func openFile(name string, flag int, perm uint32) (file *File, err error) {
+ 	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, perm)

@@ -11,6 +11,35 @@ Date:   Wed Feb 8 10:56:30 2017 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/go/constant/value.go | 9 ++-------
  1 file changed, 2 insertions(+), 7 deletions(-)
+
+diff --git a/src/go/constant/value.go b/src/go/constant/value.go
+index 7c32473c61..e9b6087bae 100644
+--- a/src/go/constant/value.go
++++ b/src/go/constant/value.go
+@@ -205,13 +205,8 @@ func rtof(x ratVal) floatVal {
+ 
+ func vtoc(x Value) complexVal { return complexVal{x, int64Val(0)} }
+ 
+-var (
+-	minInt64 = big.NewInt(-1 << 63)
+-	maxInt64 = big.NewInt(1<<63 - 1)
+-)
+-
+ func makeInt(x *big.Int) Value {
+-	if minInt64.Cmp(x) <= 0 && x.Cmp(maxInt64) <= 0 {
++	if x.IsInt64() {
+ 		return int64Val(x.Int64())
+ 	}
+ 	return intVal{x}
+@@ -413,7 +408,7 @@ func Uint64Val(x Value) (uint64, bool) {
+ 	case int64Val:
+ 		return uint64(x), x >= 0
+ 	case intVal:
+-		return x.val.Uint64(), x.val.Sign() >= 0 && x.val.BitLen() <= 64
++		return x.val.Uint64(), x.val.IsUint64()
+ 	case unknownVal:
+ 		return 0, false
+ 	default:

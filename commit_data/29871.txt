@@ -12,7 +12,79 @@ Date:   Tue Oct 11 09:23:39 2016 +0000
     Change-Id: Id56caf822c8592067bd8422672f0c1aec89e866c
     Reviewed-on: https://go-review.googlesource.com/30812
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  src/net/http/serve_test.go | 45 +++++++++++++++++++++++++++++++++++++++++++++
  src/net/http/server.go     |  4 +++-
  2 files changed, 48 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 360d3a37b3..db72e70e35 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -2252,6 +2252,51 @@ func testHandlerPanic(t *testing.T, withHijack, h2 bool, panicValue interface{})
+ 	}
+ }
+ 
++type terrorWriter struct{ t *testing.T }
++
++func (w terrorWriter) Write(p []byte) (int, error) {
++	w.t.Errorf("%s", p)
++	return len(p), nil
++}
++
++// Issue 16456: allow writing 0 bytes on hijacked conn to test hijack
++// without any log spam.
++func TestServerWriteHijackZeroBytes(t *testing.T) {
++	defer afterTest(t)
++	done := make(chan struct{})
++	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		defer close(done)
++		w.(Flusher).Flush()
++		conn, _, err := w.(Hijacker).Hijack()
++		if err != nil {
++			t.Errorf("Hijack: %v", err)
++			return
++		}
++		defer conn.Close()
++		_, err = w.Write(nil)
++		if err != ErrHijacked {
++			t.Errorf("Write error = %v; want ErrHijacked", err)
++		}
++	}))
++	ts.Config.ErrorLog = log.New(terrorWriter{t}, "Unexpected write: ", 0)
++	ts.Start()
++	defer ts.Close()
++
++	tr := &Transport{}
++	defer tr.CloseIdleConnections()
++	c := &Client{Transport: tr}
++	res, err := c.Get(ts.URL)
++	if err != nil {
++		t.Fatal(err)
++	}
++	res.Body.Close()
++	select {
++	case <-done:
++	case <-time.After(5 * time.Second):
++		t.Fatal("timeout")
++	}
++}
++
+ func TestServerNoDate_h1(t *testing.T)        { testServerNoHeader(t, h1Mode, "Date") }
+ func TestServerNoDate_h2(t *testing.T)        { testServerNoHeader(t, h2Mode, "Date") }
+ func TestServerNoContentType_h1(t *testing.T) { testServerNoHeader(t, h1Mode, "Content-Type") }
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 2677468aa3..d71006441e 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1318,7 +1318,9 @@ func (w *response) WriteString(data string) (n int, err error) {
+ // either dataB or dataS is non-zero.
+ func (w *response) write(lenData int, dataB []byte, dataS string) (n int, err error) {
+ 	if w.conn.hijacked() {
+-		w.conn.server.logf("http: response.Write on hijacked connection")
++		if lenData > 0 {
++			w.conn.server.logf("http: response.Write on hijacked connection")
++		}
+ 		return 0, ErrHijacked
+ 	}
+ 	if !w.wroteHeader {

@@ -21,7 +21,106 @@ Date:   Fri Oct 14 19:52:00 2022 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/test/race.go      | 64 ++++++++++++++++++++++++++++++
  src/cmd/compile/internal/typecheck/subr.go | 10 ++++-
  2 files changed, 73 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/test/race.go b/src/cmd/compile/internal/test/race.go
+new file mode 100644
+index 0000000000..b7215382eb
+--- /dev/null
++++ b/src/cmd/compile/internal/test/race.go
+@@ -0,0 +1,64 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !compiler_bootstrap
++
++package test
++
++// The racecompile builder only builds packages, but does not build
++// or run tests. This is a non-test file to hold cases that (used
++// to) trigger compiler data races, so they will be exercised on
++// the racecompile builder.
++//
++// This package is not imported so functions here are not included
++// in the actual compiler.
++
++// Issue 55357: data race when building multiple instantiations of
++// generic closures with _ parameters.
++func Issue55357() {
++	type U struct {
++		A int
++		B string
++		C string
++	}
++	var q T55357[U]
++	q.Count()
++	q.List()
++
++	type M struct {
++		A int64
++		B uint32
++		C uint32
++	}
++	var q2 T55357[M]
++	q2.Count()
++	q2.List()
++}
++
++type T55357[T any] struct{}
++
++//go:noinline
++func (q *T55357[T]) do(w, v bool, fn func(bk []byte, v T) error) error {
++	return nil
++}
++
++func (q *T55357[T]) Count() (n int, rerr error) {
++	err := q.do(false, false, func(kb []byte, _ T) error {
++		n++
++		return nil
++	})
++	return n, err
++}
++
++func (q *T55357[T]) List() (list []T, rerr error) {
++	var l []T
++	err := q.do(false, true, func(_ []byte, v T) error {
++		l = append(l, v)
++		return nil
++	})
++	if err != nil {
++		return nil, err
++	}
++	return l, nil
++}
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 419396d87e..fd8c027cf4 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -1358,7 +1358,8 @@ func (ts *Tsubster) tstruct(t *types.Type, force bool) *types.Type {
+ 				newfields[i].SetNointerface(true)
+ 			}
+ 			if f.Nname != nil && ts.Vars != nil {
+-				v := ts.Vars[f.Nname.(*ir.Name)]
++				n := f.Nname.(*ir.Name)
++				v := ts.Vars[n]
+ 				if v != nil {
+ 					// This is the case where we are
+ 					// translating the type of the function we
+@@ -1366,6 +1367,13 @@ func (ts *Tsubster) tstruct(t *types.Type, force bool) *types.Type {
+ 					// the subst.ts.vars table, and we want to
+ 					// change to reference the new dcl.
+ 					newfields[i].Nname = v
++				} else if ir.IsBlank(n) {
++					// Blank variable is not dcl list. Make a
++					// new one to not share.
++					m := ir.NewNameAt(n.Pos(), ir.BlankNode.Sym())
++					m.SetType(n.Type())
++					m.SetTypecheck(1)
++					newfields[i].Nname = m
+ 				} else {
+ 					// This is the case where we are
+ 					// translating the type of a function

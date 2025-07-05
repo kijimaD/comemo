@@ -25,7 +25,7 @@ Date:   Mon Aug 31 16:29:13 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go.mod                                   |   2 +-
  src/cmd/go.sum                                   |   4 +-
  src/cmd/go/testdata/script/mod_bad_filenames.txt |   6 +-
@@ -33,3 +33,858 @@ Date:   Mon Aug 31 16:29:13 2020 -0400
  src/cmd/vendor/golang.org/x/mod/zip/zip.go       | 621 ++++++++++++++++-------
  src/cmd/vendor/modules.txt                       |   2 +-
  6 files changed, 477 insertions(+), 191 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 5c5c99e3cd..68ce1705e4 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -7,7 +7,7 @@ require (
+ 	github.com/ianlancetaylor/demangle v0.0.0-20200414190113-039b1ae3a340 // indirect
+ 	golang.org/x/arch v0.0.0-20200511175325-f7c78586839d
+ 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
+-	golang.org/x/mod v0.3.1-0.20200824162228-c0d644d00ab8
++	golang.org/x/mod v0.3.1-0.20200828183125-ce943fd02449
+ 	golang.org/x/sys v0.0.0-20200501145240-bc7a7d42d5c3 // indirect
+ 	golang.org/x/tools v0.0.0-20200616133436-c1934b75d054
+ 	golang.org/x/xerrors v0.0.0-20200806184451-1a77d5e9f316 // indirect
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 69cebe1b23..cb64a5d475 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -14,8 +14,8 @@ golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550/go.mod h1:yigFU9vqHzYiE8U
+ golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 h1:psW17arqaxU48Z5kZ0CQnkZWQJsqcURM6tKiBApRjXI=
+ golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
+ golang.org/x/mod v0.2.0/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
+-golang.org/x/mod v0.3.1-0.20200824162228-c0d644d00ab8 h1:Qbq3laTJZip3mEOreFwHF81RGkkhIvmraRMINHNyWHE=
+-golang.org/x/mod v0.3.1-0.20200824162228-c0d644d00ab8/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
++golang.org/x/mod v0.3.1-0.20200828183125-ce943fd02449 h1:xUIPaMhvROX9dhPvRCenIJtU78+lbEenGbgqB5hfHCQ=
++golang.org/x/mod v0.3.1-0.20200828183125-ce943fd02449/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
+ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+ golang.org/x/net v0.0.0-20190620200207-3b0461eec859/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
+ golang.org/x/net v0.0.0-20200226121028-0de0cce0169b/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
+diff --git a/src/cmd/go/testdata/script/mod_bad_filenames.txt b/src/cmd/go/testdata/script/mod_bad_filenames.txt
+index 6e0c8bd302..eb556f4c7c 100644
+--- a/src/cmd/go/testdata/script/mod_bad_filenames.txt
++++ b/src/cmd/go/testdata/script/mod_bad_filenames.txt
+@@ -3,9 +3,9 @@ env GO111MODULE=on
+ ! go get rsc.io/badfile1 rsc.io/badfile2 rsc.io/badfile3 rsc.io/badfile4 rsc.io/badfile5
+ ! stderr 'unzip.*badfile1'
+ stderr 'unzip.*badfile2[\\/]@v[\\/]v1.0.0.zip:.*malformed file path "☺.go": invalid char ''☺'''
+-stderr 'unzip.*badfile3[\\/]@v[\\/]v1.0.0.zip: malformed file path "x\?y.go": invalid char ''\?'''
+-stderr 'unzip.*badfile4[\\/]@v[\\/]v1.0.0.zip: case-insensitive file name collision: "x/Y.go" and "x/y.go"'
+-stderr 'unzip.*badfile5[\\/]@v[\\/]v1.0.0.zip: case-insensitive file name collision: "x/y" and "x/Y"'
++stderr 'unzip.*badfile3[\\/]@v[\\/]v1.0.0.zip: rsc.io[\\/]badfile3@v1.0.0[\\/]x\?y.go: malformed file path "x\?y.go": invalid char ''\?'''
++stderr 'unzip.*badfile4[\\/]@v[\\/]v1.0.0.zip: rsc.io[\\/]badfile4@v1.0.0[\\/]x[\\/]y.go: case-insensitive file name collision: "x/Y.go" and "x/y.go"'
++stderr 'unzip.*badfile5[\\/]@v[\\/]v1.0.0.zip: rsc.io[\\/]badfile5@v1.0.0[\\/]x[\\/]Y[\\/]zz[\\/]ww.go: case-insensitive file name collision: "x/y" and "x/Y"'
+ 
+ -- go.mod --
+ module x
+diff --git a/src/cmd/vendor/golang.org/x/mod/module/module.go b/src/cmd/vendor/golang.org/x/mod/module/module.go
+index 3a8b080c7b..c1c5263c42 100644
+--- a/src/cmd/vendor/golang.org/x/mod/module/module.go
++++ b/src/cmd/vendor/golang.org/x/mod/module/module.go
+@@ -225,13 +225,13 @@ func firstPathOK(r rune) bool {
+ }
+ 
+ // pathOK reports whether r can appear in an import path element.
+-// Paths can be ASCII letters, ASCII digits, and limited ASCII punctuation: + - . _ and ~.
++// Paths can be ASCII letters, ASCII digits, and limited ASCII punctuation: - . _ and ~.
+ // This matches what "go get" has historically recognized in import paths.
+ // TODO(rsc): We would like to allow Unicode letters, but that requires additional
+ // care in the safe encoding (see "escaped paths" above).
+ func pathOK(r rune) bool {
+ 	if r < utf8.RuneSelf {
+-		return r == '+' || r == '-' || r == '.' || r == '_' || r == '~' ||
++		return r == '-' || r == '.' || r == '_' || r == '~' ||
+ 			'0' <= r && r <= '9' ||
+ 			'A' <= r && r <= 'Z' ||
+ 			'a' <= r && r <= 'z'
+@@ -314,11 +314,13 @@ func CheckPath(path string) error {
+ // separated by slashes (U+002F). (It must not begin with nor end in a slash.)
+ //
+ // A valid path element is a non-empty string made up of
+-// ASCII letters, ASCII digits, and limited ASCII punctuation: + - . _ and ~.
++// ASCII letters, ASCII digits, and limited ASCII punctuation: - . _ and ~.
+ // It must not begin or end with a dot (U+002E), nor contain two dots in a row.
+ //
+ // The element prefix up to the first dot must not be a reserved file name
+-// on Windows, regardless of case (CON, com1, NuL, and so on).
++// on Windows, regardless of case (CON, com1, NuL, and so on). The element
++// must not have a suffix of a tilde followed by one or more ASCII digits
++// (to exclude paths elements that look like Windows short-names).
+ //
+ // CheckImportPath may be less restrictive in the future, but see the
+ // top-level package documentation for additional information about
+@@ -403,6 +405,29 @@ func checkElem(elem string, fileName bool) error {
+ 			return fmt.Errorf("%q disallowed as path element component on Windows", short)
+ 		}
+ 	}
++
++	if fileName {
++		// don't check for Windows short-names in file names. They're
++		// only an issue for import paths.
++		return nil
++	}
++
++	// Reject path components that look like Windows short-names.
++	// Those usually end in a tilde followed by one or more ASCII digits.
++	if tilde := strings.LastIndexByte(short, '~'); tilde >= 0 && tilde < len(short)-1 {
++		suffix := short[tilde+1:]
++		suffixIsDigits := true
++		for _, r := range suffix {
++			if r < '0' || r > '9' {
++				suffixIsDigits = false
++				break
++			}
++		}
++		if suffixIsDigits {
++			return fmt.Errorf("trailing tilde and digits in path element")
++		}
++	}
++
+ 	return nil
+ }
+ 
+diff --git a/src/cmd/vendor/golang.org/x/mod/zip/zip.go b/src/cmd/vendor/golang.org/x/mod/zip/zip.go
+index 6865895b3d..5b401ad4d8 100644
+--- a/src/cmd/vendor/golang.org/x/mod/zip/zip.go
++++ b/src/cmd/vendor/golang.org/x/mod/zip/zip.go
+@@ -48,6 +48,7 @@ package zip
+ import (
+ 	"archive/zip"
+ 	"bytes"
++	"errors"
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
+@@ -92,40 +93,134 @@ type File interface {
+ 	Open() (io.ReadCloser, error)
+ }
+ 
+-// Create builds a zip archive for module m from an abstract list of files
+-// and writes it to w.
++// CheckedFiles reports whether a set of files satisfy the name and size
++// constraints required by module zip files. The constraints are listed in the
++// package documentation.
+ //
+-// Create verifies the restrictions described in the package documentation
+-// and should not produce an archive that Unzip cannot extract. Create does not
+-// include files in the output archive if they don't belong in the module zip.
+-// In particular, Create will not include files in modules found in
+-// subdirectories, most files in vendor directories, or irregular files (such
+-// as symbolic links) in the output archive.
+-func Create(w io.Writer, m module.Version, files []File) (err error) {
+-	defer func() {
+-		if err != nil {
+-			err = &zipError{verb: "create zip", err: err}
+-		}
+-	}()
++// Functions that produce this report may include slightly different sets of
++// files. See documentation for CheckFiles, CheckDir, and CheckZip for details.
++type CheckedFiles struct {
++	// Valid is a list of file paths that should be included in a zip file.
++	Valid []string
++
++	// Omitted is a list of files that are ignored when creating a module zip
++	// file, along with the reason each file is ignored.
++	Omitted []FileError
++
++	// Invalid is a list of files that should not be included in a module zip
++	// file, along with the reason each file is invalid.
++	Invalid []FileError
++
++	// SizeError is non-nil if the total uncompressed size of the valid files
++	// exceeds the module zip size limit or if the zip file itself exceeds the
++	// limit.
++	SizeError error
++}
+ 
+-	// Check that the version is canonical, the module path is well-formed, and
+-	// the major version suffix matches the major version.
+-	if vers := module.CanonicalVersion(m.Version); vers != m.Version {
+-		return fmt.Errorf("version %q is not canonical (should be %q)", m.Version, vers)
++// Err returns an error if CheckedFiles does not describe a valid module zip
++// file. SizeError is returned if that field is set. A FileErrorList is returned
++// if there are one or more invalid files. Other errors may be returned in the
++// future.
++func (cf CheckedFiles) Err() error {
++	if cf.SizeError != nil {
++		return cf.SizeError
+ 	}
+-	if err := module.Check(m.Path, m.Version); err != nil {
+-		return err
++	if len(cf.Invalid) > 0 {
++		return FileErrorList(cf.Invalid)
++	}
++	return nil
++}
++
++type FileErrorList []FileError
++
++func (el FileErrorList) Error() string {
++	buf := &strings.Builder{}
++	sep := ""
++	for _, e := range el {
++		buf.WriteString(sep)
++		buf.WriteString(e.Error())
++		sep = "\n"
++	}
++	return buf.String()
++}
++
++type FileError struct {
++	Path string
++	Err  error
++}
++
++func (e FileError) Error() string {
++	return fmt.Sprintf("%s: %s", e.Path, e.Err)
++}
++
++func (e FileError) Unwrap() error {
++	return e.Err
++}
++
++var (
++	// Predefined error messages for invalid files. Not exhaustive.
++	errPathNotClean    = errors.New("file path is not clean")
++	errPathNotRelative = errors.New("file path is not relative")
++	errGoModCase       = errors.New("go.mod files must have lowercase names")
++	errGoModSize       = fmt.Errorf("go.mod file too large (max size is %d bytes)", MaxGoMod)
++	errLICENSESize     = fmt.Errorf("LICENSE file too large (max size is %d bytes)", MaxLICENSE)
++
++	// Predefined error messages for omitted files. Not exhaustive.
++	errVCS           = errors.New("directory is a version control repository")
++	errVendored      = errors.New("file is in vendor directory")
++	errSubmoduleFile = errors.New("file is in another module")
++	errSubmoduleDir  = errors.New("directory is in another module")
++	errHgArchivalTxt = errors.New("file is inserted by 'hg archive' and is always omitted")
++	errSymlink       = errors.New("file is a symbolic link")
++	errNotRegular    = errors.New("not a regular file")
++)
++
++// CheckFiles reports whether a list of files satisfy the name and size
++// constraints listed in the package documentation. The returned CheckedFiles
++// record contains lists of valid, invalid, and omitted files. Every file in
++// the given list will be included in exactly one of those lists.
++//
++// CheckFiles returns an error if the returned CheckedFiles does not describe
++// a valid module zip file (according to CheckedFiles.Err). The returned
++// CheckedFiles is still populated when an error is returned.
++//
++// Note that CheckFiles will not open any files, so Create may still fail when
++// CheckFiles is successful due to I/O errors and reported size differences.
++func CheckFiles(files []File) (CheckedFiles, error) {
++	cf, _, _ := checkFiles(files)
++	return cf, cf.Err()
++}
++
++// checkFiles implements CheckFiles and also returns lists of valid files and
++// their sizes, corresponding to cf.Valid. These lists are used in Crewate to
++// avoid repeated calls to File.Lstat.
++func checkFiles(files []File) (cf CheckedFiles, validFiles []File, validSizes []int64) {
++	errPaths := make(map[string]struct{})
++	addError := func(path string, omitted bool, err error) {
++		if _, ok := errPaths[path]; ok {
++			return
++		}
++		errPaths[path] = struct{}{}
++		fe := FileError{Path: path, Err: err}
++		if omitted {
++			cf.Omitted = append(cf.Omitted, fe)
++		} else {
++			cf.Invalid = append(cf.Invalid, fe)
++		}
+ 	}
+ 
+ 	// Find directories containing go.mod files (other than the root).
++	// Files in these directories will be omitted.
+ 	// These directories will not be included in the output zip.
+ 	haveGoMod := make(map[string]bool)
+ 	for _, f := range files {
+-		dir, base := path.Split(f.Path())
++		p := f.Path()
++		dir, base := path.Split(p)
+ 		if strings.EqualFold(base, "go.mod") {
+ 			info, err := f.Lstat()
+ 			if err != nil {
+-				return err
++				addError(p, false, err)
++				continue
+ 			}
+ 			if info.Mode().IsRegular() {
+ 				haveGoMod[dir] = true
+@@ -146,77 +241,292 @@ func Create(w io.Writer, m module.Version, files []File) (err error) {
+ 		}
+ 	}
+ 
+-	// Create the module zip file.
+-	zw := zip.NewWriter(w)
+-	prefix := fmt.Sprintf("%s@%s/", m.Path, m.Version)
+-
+-	addFile := func(f File, path string, size int64) error {
+-		rc, err := f.Open()
+-		if err != nil {
+-			return err
+-		}
+-		defer rc.Close()
+-		w, err := zw.Create(prefix + path)
+-		if err != nil {
+-			return err
+-		}
+-		lr := &io.LimitedReader{R: rc, N: size + 1}
+-		if _, err := io.Copy(w, lr); err != nil {
+-			return err
+-		}
+-		if lr.N <= 0 {
+-			return fmt.Errorf("file %q is larger than declared size", path)
+-		}
+-		return nil
+-	}
+-
+ 	collisions := make(collisionChecker)
+ 	maxSize := int64(MaxZipFile)
+ 	for _, f := range files {
+ 		p := f.Path()
+ 		if p != path.Clean(p) {
+-			return fmt.Errorf("file path %s is not clean", p)
++			addError(p, false, errPathNotClean)
++			continue
+ 		}
+ 		if path.IsAbs(p) {
+-			return fmt.Errorf("file path %s is not relative", p)
++			addError(p, false, errPathNotRelative)
++			continue
++		}
++		if isVendoredPackage(p) {
++			addError(p, true, errVendored)
++			continue
+ 		}
+-		if isVendoredPackage(p) || inSubmodule(p) {
++		if inSubmodule(p) {
++			addError(p, true, errSubmoduleFile)
+ 			continue
+ 		}
+ 		if p == ".hg_archival.txt" {
+ 			// Inserted by hg archive.
+ 			// The go command drops this regardless of the VCS being used.
++			addError(p, true, errHgArchivalTxt)
+ 			continue
+ 		}
+ 		if err := module.CheckFilePath(p); err != nil {
+-			return err
++			addError(p, false, err)
++			continue
+ 		}
+ 		if strings.ToLower(p) == "go.mod" && p != "go.mod" {
+-			return fmt.Errorf("found file named %s, want all lower-case go.mod", p)
++			addError(p, false, errGoModCase)
++			continue
+ 		}
+ 		info, err := f.Lstat()
+ 		if err != nil {
+-			return err
++			addError(p, false, err)
++			continue
+ 		}
+ 		if err := collisions.check(p, info.IsDir()); err != nil {
+-			return err
++			addError(p, false, err)
++			continue
+ 		}
+-		if !info.Mode().IsRegular() {
++		if info.Mode()&os.ModeType == os.ModeSymlink {
+ 			// Skip symbolic links (golang.org/issue/27093).
++			addError(p, true, errSymlink)
++			continue
++		}
++		if !info.Mode().IsRegular() {
++			addError(p, true, errNotRegular)
+ 			continue
+ 		}
+ 		size := info.Size()
+-		if size < 0 || maxSize < size {
+-			return fmt.Errorf("module source tree too large (max size is %d bytes)", MaxZipFile)
++		if size >= 0 && size <= maxSize {
++			maxSize -= size
++		} else if cf.SizeError == nil {
++			cf.SizeError = fmt.Errorf("module source tree too large (max size is %d bytes)", MaxZipFile)
+ 		}
+-		maxSize -= size
+ 		if p == "go.mod" && size > MaxGoMod {
+-			return fmt.Errorf("go.mod file too large (max size is %d bytes)", MaxGoMod)
++			addError(p, false, errGoModSize)
++			continue
+ 		}
+ 		if p == "LICENSE" && size > MaxLICENSE {
+-			return fmt.Errorf("LICENSE file too large (max size is %d bytes)", MaxLICENSE)
++			addError(p, false, errLICENSESize)
++			continue
++		}
++
++		cf.Valid = append(cf.Valid, p)
++		validFiles = append(validFiles, f)
++		validSizes = append(validSizes, info.Size())
++	}
++
++	return cf, validFiles, validSizes
++}
++
++// CheckDir reports whether the files in dir satisfy the name and size
++// constraints listed in the package documentation. The returned CheckedFiles
++// record contains lists of valid, invalid, and omitted files. If a directory is
++// omitted (for example, a nested module or vendor directory), it will appear in
++// the omitted list, but its files won't be listed.
++//
++// CheckDir returns an error if it encounters an I/O error or if the returned
++// CheckedFiles does not describe a valid module zip file (according to
++// CheckedFiles.Err). The returned CheckedFiles is still populated when such
++// an error is returned.
++//
++// Note that CheckDir will not open any files, so CreateFromDir may still fail
++// when CheckDir is successful due to I/O errors.
++func CheckDir(dir string) (CheckedFiles, error) {
++	// List files (as CreateFromDir would) and check which ones are omitted
++	// or invalid.
++	files, omitted, err := listFilesInDir(dir)
++	if err != nil {
++		return CheckedFiles{}, err
++	}
++	cf, cfErr := CheckFiles(files)
++	_ = cfErr // ignore this error; we'll generate our own after rewriting paths.
++
++	// Replace all paths with file system paths.
++	// Paths returned by CheckFiles will be slash-separated paths relative to dir.
++	// That's probably not appropriate for error messages.
++	for i := range cf.Valid {
++		cf.Valid[i] = filepath.Join(dir, cf.Valid[i])
++	}
++	cf.Omitted = append(cf.Omitted, omitted...)
++	for i := range cf.Omitted {
++		cf.Omitted[i].Path = filepath.Join(dir, cf.Omitted[i].Path)
++	}
++	for i := range cf.Invalid {
++		cf.Invalid[i].Path = filepath.Join(dir, cf.Invalid[i].Path)
++	}
++	return cf, cf.Err()
++}
++
++// CheckZip reports whether the files contained in a zip file satisfy the name
++// and size constraints listed in the package documentation.
++//
++// CheckZip returns an error if the returned CheckedFiles does not describe
++// a valid module zip file (according to CheckedFiles.Err). The returned
++// CheckedFiles is still populated when an error is returned. CheckZip will
++// also return an error if the module path or version is malformed or if it
++// encounters an error reading the zip file.
++//
++// Note that CheckZip does not read individual files, so Unzip may still fail
++// when CheckZip is successful due to I/O errors.
++func CheckZip(m module.Version, zipFile string) (CheckedFiles, error) {
++	f, err := os.Open(zipFile)
++	if err != nil {
++		return CheckedFiles{}, err
++	}
++	defer f.Close()
++	_, cf, err := checkZip(m, f)
++	return cf, err
++}
++
++// checkZip implements checkZip and also returns the *zip.Reader. This is
++// used in Unzip to avoid redundant I/O.
++func checkZip(m module.Version, f *os.File) (*zip.Reader, CheckedFiles, error) {
++	// Make sure the module path and version are valid.
++	if vers := module.CanonicalVersion(m.Version); vers != m.Version {
++		return nil, CheckedFiles{}, fmt.Errorf("version %q is not canonical (should be %q)", m.Version, vers)
++	}
++	if err := module.Check(m.Path, m.Version); err != nil {
++		return nil, CheckedFiles{}, err
++	}
++
++	// Check the total file size.
++	info, err := f.Stat()
++	if err != nil {
++		return nil, CheckedFiles{}, err
++	}
++	zipSize := info.Size()
++	if zipSize > MaxZipFile {
++		cf := CheckedFiles{SizeError: fmt.Errorf("module zip file is too large (%d bytes; limit is %d bytes)", zipSize, MaxZipFile)}
++		return nil, cf, cf.Err()
++	}
++
++	// Check for valid file names, collisions.
++	var cf CheckedFiles
++	addError := func(zf *zip.File, err error) {
++		cf.Invalid = append(cf.Invalid, FileError{Path: zf.Name, Err: err})
++	}
++	z, err := zip.NewReader(f, zipSize)
++	if err != nil {
++		return nil, CheckedFiles{}, err
++	}
++	prefix := fmt.Sprintf("%s@%s/", m.Path, m.Version)
++	collisions := make(collisionChecker)
++	var size int64
++	for _, zf := range z.File {
++		if !strings.HasPrefix(zf.Name, prefix) {
++			addError(zf, fmt.Errorf("path does not have prefix %q", prefix))
++			continue
+ 		}
++		name := zf.Name[len(prefix):]
++		if name == "" {
++			continue
++		}
++		isDir := strings.HasSuffix(name, "/")
++		if isDir {
++			name = name[:len(name)-1]
++		}
++		if path.Clean(name) != name {
++			addError(zf, errPathNotClean)
++			continue
++		}
++		if err := module.CheckFilePath(name); err != nil {
++			addError(zf, err)
++			continue
++		}
++		if err := collisions.check(name, isDir); err != nil {
++			addError(zf, err)
++			continue
++		}
++		if isDir {
++			continue
++		}
++		if base := path.Base(name); strings.EqualFold(base, "go.mod") {
++			if base != name {
++				addError(zf, fmt.Errorf("go.mod file not in module root directory"))
++				continue
++			}
++			if name != "go.mod" {
++				addError(zf, errGoModCase)
++				continue
++			}
++		}
++		sz := int64(zf.UncompressedSize64)
++		if sz >= 0 && MaxZipFile-size >= sz {
++			size += sz
++		} else if cf.SizeError == nil {
++			cf.SizeError = fmt.Errorf("total uncompressed size of module contents too large (max size is %d bytes)", MaxZipFile)
++		}
++		if name == "go.mod" && sz > MaxGoMod {
++			addError(zf, fmt.Errorf("go.mod file too large (max size is %d bytes)", MaxGoMod))
++			continue
++		}
++		if name == "LICENSE" && sz > MaxLICENSE {
++			addError(zf, fmt.Errorf("LICENSE file too large (max size is %d bytes)", MaxLICENSE))
++			continue
++		}
++		cf.Valid = append(cf.Valid, zf.Name)
++	}
+ 
++	return z, cf, cf.Err()
++}
++
++// Create builds a zip archive for module m from an abstract list of files
++// and writes it to w.
++//
++// Create verifies the restrictions described in the package documentation
++// and should not produce an archive that Unzip cannot extract. Create does not
++// include files in the output archive if they don't belong in the module zip.
++// In particular, Create will not include files in modules found in
++// subdirectories, most files in vendor directories, or irregular files (such
++// as symbolic links) in the output archive.
++func Create(w io.Writer, m module.Version, files []File) (err error) {
++	defer func() {
++		if err != nil {
++			err = &zipError{verb: "create zip", err: err}
++		}
++	}()
++
++	// Check that the version is canonical, the module path is well-formed, and
++	// the major version suffix matches the major version.
++	if vers := module.CanonicalVersion(m.Version); vers != m.Version {
++		return fmt.Errorf("version %q is not canonical (should be %q)", m.Version, vers)
++	}
++	if err := module.Check(m.Path, m.Version); err != nil {
++		return err
++	}
++
++	// Check whether files are valid, not valid, or should be omitted.
++	// Also check that the valid files don't exceed the maximum size.
++	cf, validFiles, validSizes := checkFiles(files)
++	if err := cf.Err(); err != nil {
++		return err
++	}
++
++	// Create the module zip file.
++	zw := zip.NewWriter(w)
++	prefix := fmt.Sprintf("%s@%s/", m.Path, m.Version)
++
++	addFile := func(f File, path string, size int64) error {
++		rc, err := f.Open()
++		if err != nil {
++			return err
++		}
++		defer rc.Close()
++		w, err := zw.Create(prefix + path)
++		if err != nil {
++			return err
++		}
++		lr := &io.LimitedReader{R: rc, N: size + 1}
++		if _, err := io.Copy(w, lr); err != nil {
++			return err
++		}
++		if lr.N <= 0 {
++			return fmt.Errorf("file %q is larger than declared size", path)
++		}
++		return nil
++	}
++
++	for i, f := range validFiles {
++		p := f.Path()
++		size := validSizes[i]
+ 		if err := addFile(f, p, size); err != nil {
+ 			return err
+ 		}
+@@ -245,61 +555,7 @@ func CreateFromDir(w io.Writer, m module.Version, dir string) (err error) {
+ 		}
+ 	}()
+ 
+-	var files []File
+-	err = filepath.Walk(dir, func(filePath string, info os.FileInfo, err error) error {
+-		if err != nil {
+-			return err
+-		}
+-		relPath, err := filepath.Rel(dir, filePath)
+-		if err != nil {
+-			return err
+-		}
+-		slashPath := filepath.ToSlash(relPath)
+-
+-		if info.IsDir() {
+-			if filePath == dir {
+-				// Don't skip the top-level directory.
+-				return nil
+-			}
+-
+-			// Skip VCS directories.
+-			// fossil repos are regular files with arbitrary names, so we don't try
+-			// to exclude them.
+-			switch filepath.Base(filePath) {
+-			case ".bzr", ".git", ".hg", ".svn":
+-				return filepath.SkipDir
+-			}
+-
+-			// Skip some subdirectories inside vendor, but maintain bug
+-			// golang.org/issue/31562, described in isVendoredPackage.
+-			// We would like Create and CreateFromDir to produce the same result
+-			// for a set of files, whether expressed as a directory tree or zip.
+-			if isVendoredPackage(slashPath) {
+-				return filepath.SkipDir
+-			}
+-
+-			// Skip submodules (directories containing go.mod files).
+-			if goModInfo, err := os.Lstat(filepath.Join(filePath, "go.mod")); err == nil && !goModInfo.IsDir() {
+-				return filepath.SkipDir
+-			}
+-			return nil
+-		}
+-
+-		if info.Mode().IsRegular() {
+-			if !isVendoredPackage(slashPath) {
+-				files = append(files, dirFile{
+-					filePath:  filePath,
+-					slashPath: slashPath,
+-					info:      info,
+-				})
+-			}
+-			return nil
+-		}
+-
+-		// Not a regular file or a directory. Probably a symbolic link.
+-		// Irregular files are ignored, so skip it.
+-		return nil
+-	})
++	files, _, err := listFilesInDir(dir)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -356,89 +612,28 @@ func Unzip(dir string, m module.Version, zipFile string) (err error) {
+ 		}
+ 	}()
+ 
+-	if vers := module.CanonicalVersion(m.Version); vers != m.Version {
+-		return fmt.Errorf("version %q is not canonical (should be %q)", m.Version, vers)
+-	}
+-	if err := module.Check(m.Path, m.Version); err != nil {
+-		return err
+-	}
+-
+ 	// Check that the directory is empty. Don't create it yet in case there's
+ 	// an error reading the zip.
+-	files, _ := ioutil.ReadDir(dir)
+-	if len(files) > 0 {
++	if files, _ := ioutil.ReadDir(dir); len(files) > 0 {
+ 		return fmt.Errorf("target directory %v exists and is not empty", dir)
+ 	}
+ 
+-	// Open the zip file and ensure it's under the size limit.
++	// Open the zip and check that it satisfies all restrictions.
+ 	f, err := os.Open(zipFile)
+ 	if err != nil {
+ 		return err
+ 	}
+ 	defer f.Close()
+-	info, err := f.Stat()
++	z, cf, err := checkZip(m, f)
+ 	if err != nil {
+ 		return err
+ 	}
+-	zipSize := info.Size()
+-	if zipSize > MaxZipFile {
+-		return fmt.Errorf("module zip file is too large (%d bytes; limit is %d bytes)", zipSize, MaxZipFile)
+-	}
+-
+-	z, err := zip.NewReader(f, zipSize)
+-	if err != nil {
++	if err := cf.Err(); err != nil {
+ 		return err
+ 	}
+ 
+-	// Check total size, valid file names.
+-	collisions := make(collisionChecker)
++	// Unzip, enforcing sizes declared in the zip file.
+ 	prefix := fmt.Sprintf("%s@%s/", m.Path, m.Version)
+-	var size int64
+-	for _, zf := range z.File {
+-		if !strings.HasPrefix(zf.Name, prefix) {
+-			return fmt.Errorf("unexpected file name %s", zf.Name)
+-		}
+-		name := zf.Name[len(prefix):]
+-		if name == "" {
+-			continue
+-		}
+-		isDir := strings.HasSuffix(name, "/")
+-		if isDir {
+-			name = name[:len(name)-1]
+-		}
+-		if path.Clean(name) != name {
+-			return fmt.Errorf("invalid file name %s", zf.Name)
+-		}
+-		if err := module.CheckFilePath(name); err != nil {
+-			return err
+-		}
+-		if err := collisions.check(name, isDir); err != nil {
+-			return err
+-		}
+-		if isDir {
+-			continue
+-		}
+-		if base := path.Base(name); strings.EqualFold(base, "go.mod") {
+-			if base != name {
+-				return fmt.Errorf("found go.mod file not in module root directory (%s)", zf.Name)
+-			} else if name != "go.mod" {
+-				return fmt.Errorf("found file named %s, want all lower-case go.mod", zf.Name)
+-			}
+-		}
+-		s := int64(zf.UncompressedSize64)
+-		if s < 0 || MaxZipFile-size < s {
+-			return fmt.Errorf("total uncompressed size of module contents too large (max size is %d bytes)", MaxZipFile)
+-		}
+-		size += s
+-		if name == "go.mod" && s > MaxGoMod {
+-			return fmt.Errorf("go.mod file too large (max size is %d bytes)", MaxGoMod)
+-		}
+-		if name == "LICENSE" && s > MaxLICENSE {
+-			return fmt.Errorf("LICENSE file too large (max size is %d bytes)", MaxLICENSE)
+-		}
+-	}
+-
+-	// Unzip, enforcing sizes checked earlier.
+ 	if err := os.MkdirAll(dir, 0777); err != nil {
+ 		return err
+ 	}
+@@ -515,6 +710,72 @@ func (cc collisionChecker) check(p string, isDir bool) error {
+ 	return nil
+ }
+ 
++// listFilesInDir walks the directory tree rooted at dir and returns a list of
++// files, as well as a list of directories and files that were skipped (for
++// example, nested modules and symbolic links).
++func listFilesInDir(dir string) (files []File, omitted []FileError, err error) {
++	err = filepath.Walk(dir, func(filePath string, info os.FileInfo, err error) error {
++		if err != nil {
++			return err
++		}
++		relPath, err := filepath.Rel(dir, filePath)
++		if err != nil {
++			return err
++		}
++		slashPath := filepath.ToSlash(relPath)
++
++		// Skip some subdirectories inside vendor, but maintain bug
++		// golang.org/issue/31562, described in isVendoredPackage.
++		// We would like Create and CreateFromDir to produce the same result
++		// for a set of files, whether expressed as a directory tree or zip.
++		if isVendoredPackage(slashPath) {
++			omitted = append(omitted, FileError{Path: slashPath, Err: errVendored})
++			return nil
++		}
++
++		if info.IsDir() {
++			if filePath == dir {
++				// Don't skip the top-level directory.
++				return nil
++			}
++
++			// Skip VCS directories.
++			// fossil repos are regular files with arbitrary names, so we don't try
++			// to exclude them.
++			switch filepath.Base(filePath) {
++			case ".bzr", ".git", ".hg", ".svn":
++				omitted = append(omitted, FileError{Path: slashPath, Err: errVCS})
++				return filepath.SkipDir
++			}
++
++			// Skip submodules (directories containing go.mod files).
++			if goModInfo, err := os.Lstat(filepath.Join(filePath, "go.mod")); err == nil && !goModInfo.IsDir() {
++				omitted = append(omitted, FileError{Path: slashPath, Err: errSubmoduleDir})
++				return filepath.SkipDir
++			}
++			return nil
++		}
++
++		// Skip irregular files and files in vendor directories.
++		// Irregular files are ignored. They're typically symbolic links.
++		if !info.Mode().IsRegular() {
++			omitted = append(omitted, FileError{Path: slashPath, Err: errNotRegular})
++			return nil
++		}
++
++		files = append(files, dirFile{
++			filePath:  filePath,
++			slashPath: slashPath,
++			info:      info,
++		})
++		return nil
++	})
++	if err != nil {
++		return nil, nil, err
++	}
++	return files, omitted, nil
++}
++
+ type zipError struct {
+ 	verb, path string
+ 	err        error
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index ab2f81a66b..c0c008e038 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -29,7 +29,7 @@ golang.org/x/arch/x86/x86asm
+ golang.org/x/crypto/ed25519
+ golang.org/x/crypto/ed25519/internal/edwards25519
+ golang.org/x/crypto/ssh/terminal
+-# golang.org/x/mod v0.3.1-0.20200824162228-c0d644d00ab8
++# golang.org/x/mod v0.3.1-0.20200828183125-ce943fd02449
+ ## explicit
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile

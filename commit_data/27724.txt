@@ -19,7 +19,7 @@ Date:   Thu Apr 7 15:42:35 2016 +0900
     Change-Id: I3e99eeeae00ed55d7d01e6ed503d958c6e931dca
     Reviewed-on: https://go-review.googlesource.com/21647
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/runtime/extern.go                        |  4 ++--
  src/runtime/heapdump.go                      |  2 +-
  src/runtime/internal/sys/arch.go             | 17 +++++++++++++++++
@@ -58,3 +58,528 @@ Date:   Thu Apr 7 15:42:35 2016 +0900
  src/runtime/mgcmark.go                       |  4 ++--
  src/runtime/stack.go                         |  8 ++++----
  37 files changed, 59 insertions(+), 42 deletions(-)
+
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 1d8304f4fc..1df8691cfc 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -224,8 +224,8 @@ func Version() string {
+ 
+ // GOOS is the running program's operating system target:
+ // one of darwin, freebsd, linux, and so on.
+-const GOOS string = sys.TheGoos
++const GOOS string = sys.GOOS
+ 
+ // GOARCH is the running program's architecture target:
+ // 386, amd64, arm, or s390x.
+-const GOARCH string = sys.TheGoarch
++const GOARCH string = sys.GOARCH
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index e6a41f7f97..2410b1954a 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -496,7 +496,7 @@ func dumpparams() {
+ 	dumpint(sys.PtrSize)
+ 	dumpint(uint64(mheap_.arena_start))
+ 	dumpint(uint64(mheap_.arena_used))
+-	dumpint(sys.TheChar)
++	dumpstr(sys.GOARCH)
+ 	dumpstr(sys.Goexperiment)
+ 	dumpint(uint64(ncpu))
+ }
+diff --git a/src/runtime/internal/sys/arch.go b/src/runtime/internal/sys/arch.go
+new file mode 100644
+index 0000000000..c1757041d8
+--- /dev/null
++++ b/src/runtime/internal/sys/arch.go
+@@ -0,0 +1,17 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sys
++
++type ArchFamilyType int
++
++const (
++	AMD64 ArchFamilyType = iota
++	ARM
++	ARM64
++	I386
++	MIPS64
++	PPC64
++	S390X
++)
+diff --git a/src/runtime/internal/sys/arch_386.go b/src/runtime/internal/sys/arch_386.go
+index 1f1c704f9a..48c42f7584 100644
+--- a/src/runtime/internal/sys/arch_386.go
++++ b/src/runtime/internal/sys/arch_386.go
+@@ -5,7 +5,7 @@
+ package sys
+ 
+ const (
+-	TheChar       = '8'
++	ArchFamily    = I386
+ 	BigEndian     = 0
+ 	CacheLineSize = 64
+ 	PhysPageSize  = GoosNacl*65536 + (1-GoosNacl)*4096 // 4k normally; 64k on NaCl
+diff --git a/src/runtime/internal/sys/arch_amd64.go b/src/runtime/internal/sys/arch_amd64.go
+index 80fff557f2..1bbdb99e07 100644
+--- a/src/runtime/internal/sys/arch_amd64.go
++++ b/src/runtime/internal/sys/arch_amd64.go
+@@ -5,7 +5,7 @@
+ package sys
+ 
+ const (
+-	TheChar       = '6'
++	ArchFamily    = AMD64
+ 	BigEndian     = 0
+ 	CacheLineSize = 64
+ 	PhysPageSize  = 4096
+diff --git a/src/runtime/internal/sys/arch_amd64p32.go b/src/runtime/internal/sys/arch_amd64p32.go
+index ca29f698a2..b7011a4ff2 100644
+--- a/src/runtime/internal/sys/arch_amd64p32.go
++++ b/src/runtime/internal/sys/arch_amd64p32.go
+@@ -5,7 +5,7 @@
+ package sys
+ 
+ const (
+-	TheChar       = '6'
++	ArchFamily    = AMD64
+ 	BigEndian     = 0
+ 	CacheLineSize = 64
+ 	PhysPageSize  = 65536*GoosNacl + 4096*(1-GoosNacl)
+diff --git a/src/runtime/internal/sys/arch_arm.go b/src/runtime/internal/sys/arch_arm.go
+index b185e8fb69..f90f52da7f 100644
+--- a/src/runtime/internal/sys/arch_arm.go
++++ b/src/runtime/internal/sys/arch_arm.go
+@@ -5,7 +5,7 @@
+ package sys
+ 
+ const (
+-	TheChar       = '5'
++	ArchFamily    = ARM
+ 	BigEndian     = 0
+ 	CacheLineSize = 32
+ 	PhysPageSize  = 65536*GoosNacl + 4096*(1-GoosNacl)
+diff --git a/src/runtime/internal/sys/arch_arm64.go b/src/runtime/internal/sys/arch_arm64.go
+index b63a7a6f9a..aaaa4b0947 100644
+--- a/src/runtime/internal/sys/arch_arm64.go
++++ b/src/runtime/internal/sys/arch_arm64.go
+@@ -5,7 +5,7 @@
+ package sys
+ 
+ const (
+-	TheChar       = '7'
++	ArchFamily    = ARM64
+ 	BigEndian     = 0
+ 	CacheLineSize = 32
+ 	PhysPageSize  = 65536
+diff --git a/src/runtime/internal/sys/arch_mips64.go b/src/runtime/internal/sys/arch_mips64.go
+index 5b933d4e1a..d5672599d2 100644
+--- a/src/runtime/internal/sys/arch_mips64.go
++++ b/src/runtime/internal/sys/arch_mips64.go
+@@ -5,7 +5,7 @@
+ package sys
+ 
+ const (
+-	TheChar       = '0'
++	ArchFamily    = MIPS64
+ 	BigEndian     = 1
+ 	CacheLineSize = 32
+ 	PhysPageSize  = 16384
+diff --git a/src/runtime/internal/sys/arch_mips64le.go b/src/runtime/internal/sys/arch_mips64le.go
+index ce2e98b19f..f8cdf2b2d2 100644
+--- a/src/runtime/internal/sys/arch_mips64le.go
++++ b/src/runtime/internal/sys/arch_mips64le.go
+@@ -5,7 +5,7 @@
+ package sys
+ 
+ const (
+-	TheChar       = '0'
++	ArchFamily    = MIPS64
+ 	BigEndian     = 0
+ 	CacheLineSize = 32
+ 	PhysPageSize  = 16384
+diff --git a/src/runtime/internal/sys/arch_ppc64.go b/src/runtime/internal/sys/arch_ppc64.go
+index 3aa07e1f56..cdec63ff71 100644
+--- a/src/runtime/internal/sys/arch_ppc64.go
++++ b/src/runtime/internal/sys/arch_ppc64.go
+@@ -5,7 +5,7 @@
+ package sys
+ 
+ const (
+-	TheChar       = '9'
++	ArchFamily    = PPC64
+ 	BigEndian     = 1
+ 	CacheLineSize = 64
+ 	PhysPageSize  = 65536
+diff --git a/src/runtime/internal/sys/arch_ppc64le.go b/src/runtime/internal/sys/arch_ppc64le.go
+index 0f02f0bf3c..4fd68f9ce3 100644
+--- a/src/runtime/internal/sys/arch_ppc64le.go
++++ b/src/runtime/internal/sys/arch_ppc64le.go
+@@ -5,7 +5,7 @@
+ package sys
+ 
+ const (
+-	TheChar       = '9'
++	ArchFamily    = PPC64
+ 	BigEndian     = 0
+ 	CacheLineSize = 64
+ 	PhysPageSize  = 65536
+diff --git a/src/runtime/internal/sys/arch_s390x.go b/src/runtime/internal/sys/arch_s390x.go
+index 8690571c81..ca1cb8646e 100644
+--- a/src/runtime/internal/sys/arch_s390x.go
++++ b/src/runtime/internal/sys/arch_s390x.go
+@@ -5,7 +5,7 @@
+ package sys
+ 
+ const (
+-	TheChar       = 'z'
++	ArchFamily    = S390X
+ 	BigEndian     = 1
+ 	CacheLineSize = 256
+ 	PhysPageSize  = 4096
+diff --git a/src/runtime/internal/sys/gengoos.go b/src/runtime/internal/sys/gengoos.go
+index e2bd87de4e..4c45c0af02 100644
+--- a/src/runtime/internal/sys/gengoos.go
++++ b/src/runtime/internal/sys/gengoos.go
+@@ -50,7 +50,7 @@ func main() {
+ 			fmt.Fprintf(&buf, "// +build !android\n\n") // must explicitly exclude android for linux
+ 		}
+ 		fmt.Fprintf(&buf, "package sys\n\n")
+-		fmt.Fprintf(&buf, "const TheGoos = `%s`\n\n", target)
++		fmt.Fprintf(&buf, "const GOOS = `%s`\n\n", target)
+ 		for _, goos := range gooses {
+ 			value := 0
+ 			if goos == target {
+@@ -68,7 +68,7 @@ func main() {
+ 		var buf bytes.Buffer
+ 		fmt.Fprintf(&buf, "// generated by gengoos.go using 'go generate'\n\n")
+ 		fmt.Fprintf(&buf, "package sys\n\n")
+-		fmt.Fprintf(&buf, "const TheGoarch = `%s`\n\n", target)
++		fmt.Fprintf(&buf, "const GOARCH = `%s`\n\n", target)
+ 		for _, goarch := range goarches {
+ 			value := 0
+ 			if goarch == target {
+diff --git a/src/runtime/internal/sys/zgoarch_386.go b/src/runtime/internal/sys/zgoarch_386.go
+index 3ad244509d..3bcf83b8e3 100644
+--- a/src/runtime/internal/sys/zgoarch_386.go
++++ b/src/runtime/internal/sys/zgoarch_386.go
+@@ -2,7 +2,7 @@
+ 
+ package sys
+ 
+-const TheGoarch = `386`
++const GOARCH = `386`
+ 
+ const Goarch386 = 1
+ const GoarchAmd64 = 0
+diff --git a/src/runtime/internal/sys/zgoarch_amd64.go b/src/runtime/internal/sys/zgoarch_amd64.go
+index 7c858e3f5d..699f191fba 100644
+--- a/src/runtime/internal/sys/zgoarch_amd64.go
++++ b/src/runtime/internal/sys/zgoarch_amd64.go
+@@ -2,7 +2,7 @@
+ 
+ package sys
+ 
+-const TheGoarch = `amd64`
++const GOARCH = `amd64`
+ 
+ const Goarch386 = 0
+ const GoarchAmd64 = 1
+diff --git a/src/runtime/internal/sys/zgoarch_amd64p32.go b/src/runtime/internal/sys/zgoarch_amd64p32.go
+index 772031c090..cc2d658406 100644
+--- a/src/runtime/internal/sys/zgoarch_amd64p32.go
++++ b/src/runtime/internal/sys/zgoarch_amd64p32.go
+@@ -2,7 +2,7 @@
+ 
+ package sys
+ 
+-const TheGoarch = `amd64p32`
++const GOARCH = `amd64p32`
+ 
+ const Goarch386 = 0
+ const GoarchAmd64 = 0
+diff --git a/src/runtime/internal/sys/zgoarch_arm.go b/src/runtime/internal/sys/zgoarch_arm.go
+index 276e8a869b..a5fd789f13 100644
+--- a/src/runtime/internal/sys/zgoarch_arm.go
++++ b/src/runtime/internal/sys/zgoarch_arm.go
+@@ -2,7 +2,7 @@
+ 
+ package sys
+ 
+-const TheGoarch = `arm`
++const GOARCH = `arm`
+ 
+ const Goarch386 = 0
+ const GoarchAmd64 = 0
+diff --git a/src/runtime/internal/sys/zgoarch_arm64.go b/src/runtime/internal/sys/zgoarch_arm64.go
+index d124ec0343..084d2c7330 100644
+--- a/src/runtime/internal/sys/zgoarch_arm64.go
++++ b/src/runtime/internal/sys/zgoarch_arm64.go
+@@ -2,7 +2,7 @@
+ 
+ package sys
+ 
+-const TheGoarch = `arm64`
++const GOARCH = `arm64`
+ 
+ const Goarch386 = 0
+ const GoarchAmd64 = 0
+diff --git a/src/runtime/internal/sys/zgoarch_mips64.go b/src/runtime/internal/sys/zgoarch_mips64.go
+index b4a97d6da9..2ad62bd68c 100644
+--- a/src/runtime/internal/sys/zgoarch_mips64.go
++++ b/src/runtime/internal/sys/zgoarch_mips64.go
+@@ -2,7 +2,7 @@
+ 
+ package sys
+ 
+-const TheGoarch = `mips64`
++const GOARCH = `mips64`
+ 
+ const Goarch386 = 0
+ const GoarchAmd64 = 0
+diff --git a/src/runtime/internal/sys/zgoarch_mips64le.go b/src/runtime/internal/sys/zgoarch_mips64le.go
+index 3328a35bd2..047c8b425a 100644
+--- a/src/runtime/internal/sys/zgoarch_mips64le.go
++++ b/src/runtime/internal/sys/zgoarch_mips64le.go
+@@ -2,7 +2,7 @@
+ 
+ package sys
+ 
+-const TheGoarch = `mips64le`
++const GOARCH = `mips64le`
+ 
+ const Goarch386 = 0
+ const GoarchAmd64 = 0
+diff --git a/src/runtime/internal/sys/zgoarch_ppc64.go b/src/runtime/internal/sys/zgoarch_ppc64.go
+index 06f78b2023..748b5b562c 100644
+--- a/src/runtime/internal/sys/zgoarch_ppc64.go
++++ b/src/runtime/internal/sys/zgoarch_ppc64.go
+@@ -2,7 +2,7 @@
+ 
+ package sys
+ 
+-const TheGoarch = `ppc64`
++const GOARCH = `ppc64`
+ 
+ const Goarch386 = 0
+ const GoarchAmd64 = 0
+diff --git a/src/runtime/internal/sys/zgoarch_ppc64le.go b/src/runtime/internal/sys/zgoarch_ppc64le.go
+index 50b56dbe3f..d3dcba467d 100644
+--- a/src/runtime/internal/sys/zgoarch_ppc64le.go
++++ b/src/runtime/internal/sys/zgoarch_ppc64le.go
+@@ -2,7 +2,7 @@
+ 
+ package sys
+ 
+-const TheGoarch = `ppc64le`
++const GOARCH = `ppc64le`
+ 
+ const Goarch386 = 0
+ const GoarchAmd64 = 0
+diff --git a/src/runtime/internal/sys/zgoarch_s390x.go b/src/runtime/internal/sys/zgoarch_s390x.go
+index ce85f20e0a..1ead5d573c 100644
+--- a/src/runtime/internal/sys/zgoarch_s390x.go
++++ b/src/runtime/internal/sys/zgoarch_s390x.go
+@@ -2,7 +2,7 @@
+ 
+ package sys
+ 
+-const TheGoarch = `s390x`
++const GOARCH = `s390x`
+ 
+ const Goarch386 = 0
+ const GoarchAmd64 = 0
+diff --git a/src/runtime/internal/sys/zgoos_android.go b/src/runtime/internal/sys/zgoos_android.go
+index 03d91760ed..6503b15246 100644
+--- a/src/runtime/internal/sys/zgoos_android.go
++++ b/src/runtime/internal/sys/zgoos_android.go
+@@ -2,7 +2,7 @@
+ 
+ package sys
+ 
+-const TheGoos = `android`
++const GOOS = `android`
+ 
+ const GoosAndroid = 1
+ const GoosDarwin = 0
+diff --git a/src/runtime/internal/sys/zgoos_darwin.go b/src/runtime/internal/sys/zgoos_darwin.go
+index eb2efeb7af..6a285984bd 100644
+--- a/src/runtime/internal/sys/zgoos_darwin.go
++++ b/src/runtime/internal/sys/zgoos_darwin.go
+@@ -2,7 +2,7 @@
+ 
+ package sys
+ 
+-const TheGoos = `darwin`
++const GOOS = `darwin`
+ 
+ const GoosAndroid = 0
+ const GoosDarwin = 1
+diff --git a/src/runtime/internal/sys/zgoos_dragonfly.go b/src/runtime/internal/sys/zgoos_dragonfly.go
+index 403cf65311..886ac2698f 100644
+--- a/src/runtime/internal/sys/zgoos_dragonfly.go
++++ b/src/runtime/internal/sys/zgoos_dragonfly.go
+@@ -2,7 +2,7 @@
+ 
+ package sys
+ 
+-const TheGoos = `dragonfly`
++const GOOS = `dragonfly`
+ 
+ const GoosAndroid = 0
+ const GoosDarwin = 0
+diff --git a/src/runtime/internal/sys/zgoos_freebsd.go b/src/runtime/internal/sys/zgoos_freebsd.go
+index 632d5db9db..0bf2403eab 100644
+--- a/src/runtime/internal/sys/zgoos_freebsd.go
++++ b/src/runtime/internal/sys/zgoos_freebsd.go
+@@ -2,7 +2,7 @@
+ 
+ package sys
+ 
+-const TheGoos = `freebsd`
++const GOOS = `freebsd`
+ 
+ const GoosAndroid = 0
+ const GoosDarwin = 0
+diff --git a/src/runtime/internal/sys/zgoos_linux.go b/src/runtime/internal/sys/zgoos_linux.go
+index 2d43869a84..c8664db15d 100644
+--- a/src/runtime/internal/sys/zgoos_linux.go
++++ b/src/runtime/internal/sys/zgoos_linux.go
+@@ -4,7 +4,7 @@
+ 
+ package sys
+ 
+-const TheGoos = `linux`
++const GOOS = `linux`
+ 
+ const GoosAndroid = 0
+ const GoosDarwin = 0
+diff --git a/src/runtime/internal/sys/zgoos_nacl.go b/src/runtime/internal/sys/zgoos_nacl.go
+index a56b6ef3c9..054122638a 100644
+--- a/src/runtime/internal/sys/zgoos_nacl.go
++++ b/src/runtime/internal/sys/zgoos_nacl.go
+@@ -2,7 +2,7 @@
+ 
+ package sys
+ 
+-const TheGoos = `nacl`
++const GOOS = `nacl`
+ 
+ const GoosAndroid = 0
+ const GoosDarwin = 0
+diff --git a/src/runtime/internal/sys/zgoos_netbsd.go b/src/runtime/internal/sys/zgoos_netbsd.go
+index 46fd0a7cd5..5c509a1250 100644
+--- a/src/runtime/internal/sys/zgoos_netbsd.go
++++ b/src/runtime/internal/sys/zgoos_netbsd.go
+@@ -2,7 +2,7 @@
+ 
+ package sys
+ 
+-const TheGoos = `netbsd`
++const GOOS = `netbsd`
+ 
+ const GoosAndroid = 0
+ const GoosDarwin = 0
+diff --git a/src/runtime/internal/sys/zgoos_openbsd.go b/src/runtime/internal/sys/zgoos_openbsd.go
+index 7ee650afbb..dc43157d49 100644
+--- a/src/runtime/internal/sys/zgoos_openbsd.go
++++ b/src/runtime/internal/sys/zgoos_openbsd.go
+@@ -2,7 +2,7 @@
+ 
+ package sys
+ 
+-const TheGoos = `openbsd`
++const GOOS = `openbsd`
+ 
+ const GoosAndroid = 0
+ const GoosDarwin = 0
+diff --git a/src/runtime/internal/sys/zgoos_plan9.go b/src/runtime/internal/sys/zgoos_plan9.go
+index 162e7f6260..4b0934f77a 100644
+--- a/src/runtime/internal/sys/zgoos_plan9.go
++++ b/src/runtime/internal/sys/zgoos_plan9.go
+@@ -2,7 +2,7 @@
+ 
+ package sys
+ 
+-const TheGoos = `plan9`
++const GOOS = `plan9`
+ 
+ const GoosAndroid = 0
+ const GoosDarwin = 0
+diff --git a/src/runtime/internal/sys/zgoos_solaris.go b/src/runtime/internal/sys/zgoos_solaris.go
+index b2a8f98504..42511a36ad 100644
+--- a/src/runtime/internal/sys/zgoos_solaris.go
++++ b/src/runtime/internal/sys/zgoos_solaris.go
+@@ -2,7 +2,7 @@
+ 
+ package sys
+ 
+-const TheGoos = `solaris`
++const GOOS = `solaris`
+ 
+ const GoosAndroid = 0
+ const GoosDarwin = 0
+diff --git a/src/runtime/internal/sys/zgoos_windows.go b/src/runtime/internal/sys/zgoos_windows.go
+index 817ec79e4c..d77f62c396 100644
+--- a/src/runtime/internal/sys/zgoos_windows.go
++++ b/src/runtime/internal/sys/zgoos_windows.go
+@@ -2,7 +2,7 @@
+ 
+ package sys
+ 
+-const TheGoos = `windows`
++const GOOS = `windows`
+ 
+ const GoosAndroid = 0
+ const GoosDarwin = 0
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 66d61bae1e..1ab8315a29 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -719,8 +719,8 @@ func scanframeworker(frame *stkframe, cache *pcvalueCache, gcw *gcWork) {
+ 	// Scan local variables if stack frame has been allocated.
+ 	size := frame.varp - frame.sp
+ 	var minsize uintptr
+-	switch sys.TheChar {
+-	case '7':
++	switch sys.ArchFamily {
++	case sys.ARM64:
+ 		minsize = sys.SpAlign
+ 	default:
+ 		minsize = sys.MinFrameSize
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index fdd6710bad..dcb1b06dbd 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -634,8 +634,8 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
+ 	// Adjust local variables if stack frame has been allocated.
+ 	size := frame.varp - frame.sp
+ 	var minsize uintptr
+-	switch sys.TheChar {
+-	case '7':
++	switch sys.ArchFamily {
++	case sys.ARM64:
+ 		minsize = sys.SpAlign
+ 	default:
+ 		minsize = sys.MinFrameSize
+@@ -662,7 +662,7 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
+ 	}
+ 
+ 	// Adjust saved base pointer if there is one.
+-	if sys.TheChar == '6' && frame.argp-frame.varp == 2*sys.RegSize {
++	if sys.ArchFamily == sys.AMD64 && frame.argp-frame.varp == 2*sys.RegSize {
+ 		if !framepointer_enabled {
+ 			print("runtime: found space for saved base pointer, but no framepointer experiment\n")
+ 			print("argp=", hex(frame.argp), " varp=", hex(frame.varp), "\n")
+@@ -969,7 +969,7 @@ func newstack() {
+ 		throw("missing stack in newstack")
+ 	}
+ 	sp := gp.sched.sp
+-	if sys.TheChar == '6' || sys.TheChar == '8' {
++	if sys.ArchFamily == sys.AMD64 || sys.ArchFamily == sys.I386 {
+ 		// The call to morestack cost a word.
+ 		sp -= sys.PtrSize
+ 	}

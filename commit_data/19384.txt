@@ -9,6 +9,20 @@ Date:   Fri May 16 13:18:28 2014 -0700
     R=golang-codereviews, crawshaw
     CC=golang-codereviews
     https://golang.org/cl/100510044
-
+---
  src/pkg/encoding/xml/marshal_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/encoding/xml/marshal_test.go b/src/pkg/encoding/xml/marshal_test.go
+index 638158397b..14f73a75d5 100644
+--- a/src/pkg/encoding/xml/marshal_test.go
++++ b/src/pkg/encoding/xml/marshal_test.go
+@@ -1260,7 +1260,7 @@ func TestDecodeEncode(t *testing.T) {
+ 	for tok, err := dec.Token(); err == nil; tok, err = dec.Token() {
+ 		err = enc.EncodeToken(tok)
+ 		if err != nil {
+-			t.Fatalf("enc.EncodeToken: Unable to encode token (%#v), %d", tok, err)
++			t.Fatalf("enc.EncodeToken: Unable to encode token (%#v), %v", tok, err)
+ 		}
+ 	}
+ }

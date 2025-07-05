@@ -8,9 +8,98 @@ Date:   Tue Aug 12 19:49:52 2014 -0400
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/121580044
-
+---
  src/pkg/runtime/cgocall.c | 8 ++++++++
  src/pkg/runtime/panic.c   | 6 +++---
  src/pkg/runtime/proc.c    | 4 ++--
  src/pkg/runtime/stack.c   | 2 +-
  4 files changed, 14 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/runtime/cgocall.c b/src/pkg/runtime/cgocall.c
+index aa4cf5ee52..2149d7c723 100644
+--- a/src/pkg/runtime/cgocall.c
++++ b/src/pkg/runtime/cgocall.c
+@@ -228,6 +228,14 @@ struct CallbackArgs
+ #define CBARGS (CallbackArgs*)((byte*)g->m->g0->sched.sp+4*sizeof(void*))
+ #endif
+ 
++// Unimplemented on power64 or power64le
++#ifdef GOARCH_power64
++#define CBARGS (CallbackArgs*)(nil)
++#endif
++#ifdef GOARCH_power64le
++#define CBARGS (CallbackArgs*)(nil)
++#endif
++
+ void runtime·cgocallbackg1(void);
+ 
+ #pragma textflag NOSPLIT
+diff --git a/src/pkg/runtime/panic.c b/src/pkg/runtime/panic.c
+index af8bb1bc0e..748c4174bb 100644
+--- a/src/pkg/runtime/panic.c
++++ b/src/pkg/runtime/panic.c
+@@ -86,7 +86,7 @@ runtime·deferproc(int32 siz, FuncVal *fn, ...)
+ 	d = newdefer(siz);
+ 	d->fn = fn;
+ 	d->pc = runtime·getcallerpc(&siz);
+-	if(thechar == '5')
++	if(thechar == '5' || thechar == '9')
+ 		d->argp = (byte*)(&fn+2);  // skip caller's saved link register
+ 	else
+ 		d->argp = (byte*)(&fn+1);
+@@ -309,7 +309,7 @@ recovery(G *gp)
+ 	// (The pc we're returning to does pop pop
+ 	// before it tests the return value.)
+ 	// On the arm there are 2 saved LRs mixed in too.
+-	if(thechar == '5')
++	if(thechar == '5' || thechar == '9')
+ 		gp->sched.sp = (uintptr)argp - 4*sizeof(uintptr);
+ 	else
+ 		gp->sched.sp = (uintptr)argp - 2*sizeof(uintptr);
+@@ -514,10 +514,10 @@ runtime·canpanic(G *gp)
+ void
+ runtime·throw(int8 *s)
+ {
++	runtime·printf("fatal error: %s\n", s);
+ 	if(g->m->throwing == 0)
+ 		g->m->throwing = 1;
+ 	runtime·startpanic();
+-	runtime·printf("fatal error: %s\n", s);
+ 	runtime·dopanic(0);
+ 	*(int32*)0 = 0;	// not reached
+ 	runtime·exit(1);	// even more not reached
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 26e687e3b4..23513e1a7b 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1833,7 +1833,7 @@ runtime·newproc(int32 siz, FuncVal* fn, ...)
+ {
+ 	byte *argp;
+ 
+-	if(thechar == '5')
++	if(thechar == '5' || thechar == '9')
+ 		argp = (byte*)(&fn+2);  // skip caller's saved LR
+ 	else
+ 		argp = (byte*)(&fn+1);
+@@ -1880,7 +1880,7 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
+ 	sp = (byte*)newg->stackbase;
+ 	sp -= siz;
+ 	runtime·memmove(sp, argp, narg);
+-	if(thechar == '5') {
++	if(thechar == '5' || thechar == '9') {
+ 		// caller's LR
+ 		sp -= sizeof(void*);
+ 		*(void**)sp = nil;
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index 0a806e8fab..49ecd6cc36 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -969,7 +969,7 @@ runtime·newstack(void)
+ 		while(dst < dstend)
+ 			*dst++ = *src++;
+ 	}
+-	if(thechar == '5') {
++	if(thechar == '5' || thechar == '9') {
+ 		// caller would have saved its LR below args.
+ 		sp -= sizeof(void*);
+ 		*(void**)sp = nil;

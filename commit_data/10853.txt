@@ -20,7 +20,7 @@ Date:   Fri Dec 16 15:43:06 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5493057
-
+---
  src/cmd/gofix/testdata/reflect.type.go.in       |  1 +
  src/cmd/gofix/testdata/reflect.type.go.out      |  1 +
  src/pkg/crypto/openpgp/keys.go                  |  1 +
@@ -40,3 +40,481 @@ Date:   Fri Dec 16 15:43:06 2011 -0800
  src/pkg/net/ipraw_test.go                       |  1 +
  src/pkg/sort/sort.go                            |  4 +++
  18 files changed, 122 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/gofix/testdata/reflect.type.go.in b/src/cmd/gofix/testdata/reflect.type.go.in
+index 7ed7002abf..34963bef92 100644
+--- a/src/cmd/gofix/testdata/reflect.type.go.in
++++ b/src/cmd/gofix/testdata/reflect.type.go.in
+@@ -150,6 +150,7 @@ func userType(rt reflect.Type) *userTypeInfo {
+ 	}
+ 	return ut
+ }
++
+ // A typeId represents a gob Type as an integer that can be passed on the wire.
+ // Internally, typeIds are used as keys to a map to recover the underlying type info.
+ type typeId int32
+diff --git a/src/cmd/gofix/testdata/reflect.type.go.out b/src/cmd/gofix/testdata/reflect.type.go.out
+index 9cd78296dd..d729ea471a 100644
+--- a/src/cmd/gofix/testdata/reflect.type.go.out
++++ b/src/cmd/gofix/testdata/reflect.type.go.out
+@@ -150,6 +150,7 @@ func userType(rt reflect.Type) *userTypeInfo {
+ 	}
+ 	return ut
+ }
++
+ // A typeId represents a gob Type as an integer that can be passed on the wire.
+ // Internally, typeIds are used as keys to a map to recover the underlying type info.
+ type typeId int32
+diff --git a/src/pkg/crypto/openpgp/keys.go b/src/pkg/crypto/openpgp/keys.go
+index df39970c0b..74e7d239e0 100644
+--- a/src/pkg/crypto/openpgp/keys.go
++++ b/src/pkg/crypto/openpgp/keys.go
+@@ -16,6 +16,7 @@ import (
+ 
+ // PublicKeyType is the armor type for a PGP public key.
+ var PublicKeyType = "PGP PUBLIC KEY BLOCK"
++
+ // PrivateKeyType is the armor type for a PGP private key.
+ var PrivateKeyType = "PGP PRIVATE KEY BLOCK"
+ 
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index 65ca315800..28c7880e53 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -981,6 +981,7 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub *rsa.P
+ // pemCRLPrefix is the magic string that indicates that we have a PEM encoded
+ // CRL.
+ var pemCRLPrefix = []byte("-----BEGIN X509 CRL")
++
+ // pemType is the type of a PEM encoded CRL.
+ var pemType = "X509 CRL"
+ 
+diff --git a/src/pkg/encoding/gob/codec_test.go b/src/pkg/encoding/gob/codec_test.go
+index dc0e0078e6..73844b920c 100644
+--- a/src/pkg/encoding/gob/codec_test.go
++++ b/src/pkg/encoding/gob/codec_test.go
+@@ -102,12 +102,15 @@ func TestIntCodec(t *testing.T) {
+ 
+ // The result of encoding a true boolean with field number 7
+ var boolResult = []byte{0x07, 0x01}
++
+ // The result of encoding a number 17 with field number 7
+ var signedResult = []byte{0x07, 2 * 17}
+ var unsignedResult = []byte{0x07, 17}
+ var floatResult = []byte{0x07, 0xFE, 0x31, 0x40}
++
+ // The result of encoding a number 17+19i with field number 7
+ var complexResult = []byte{0x07, 0xFE, 0x31, 0x40, 0xFE, 0x33, 0x40}
++
+ // The result of encoding "hello" with field number 7
+ var bytesResult = []byte{0x07, 0x05, 'h', 'e', 'l', 'l', 'o'}
+ 
+diff --git a/src/pkg/encoding/gob/type.go b/src/pkg/encoding/gob/type.go
+index 1b20843fa2..71a28be7ca 100644
+--- a/src/pkg/encoding/gob/type.go
++++ b/src/pkg/encoding/gob/type.go
+@@ -130,6 +130,7 @@ func userType(rt reflect.Type) *userTypeInfo {
+ 	}
+ 	return ut
+ }
++
+ // A typeId represents a gob Type as an integer that can be passed on the wire.
+ // Internally, typeIds are used as keys to a map to recover the underlying type info.
+ type typeId int32
+diff --git a/src/pkg/exp/ssh/tcpip.go b/src/pkg/exp/ssh/tcpip.go
+index a85044ace9..bee41eeb0d 100644
+--- a/src/pkg/exp/ssh/tcpip.go
++++ b/src/pkg/exp/ssh/tcpip.go
+@@ -10,6 +10,7 @@ import (
+ 	"io"
+ 	"net"
+ )
++
+ // Dial initiates a connection to the addr from the remote host.
+ // addr is resolved using net.ResolveTCPAddr before connection. 
+ // This could allow an observer to observe the DNS name of the 
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 9e9d5f83df..6817cc42ad 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -364,9 +364,10 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool)
+ 	lbrace := fields.Opening
+ 	list := fields.List
+ 	rbrace := fields.Closing
++	hasComments := isIncomplete || p.commentBefore(p.fset.Position(rbrace))
+ 	srcIsOneLine := lbrace.IsValid() && rbrace.IsValid() && p.fset.Position(lbrace).Line == p.fset.Position(rbrace).Line
+ 
+-	if !isIncomplete && !p.commentBefore(p.fset.Position(rbrace)) && srcIsOneLine {
++	if !hasComments && srcIsOneLine {
+ 		// possibly a one-line struct/interface
+ 		if len(list) == 0 {
+ 			// no blank between keyword and {} in this case
+@@ -391,9 +392,13 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool)
+ 			return
+ 		}
+ 	}
++	// hasComments || !srcIsOneLine
++
++	p.print(blank, lbrace, token.LBRACE, indent)
++	if hasComments || len(list) > 0 {
++		p.print(formfeed)
++	}
+ 
+-	// at least one entry or incomplete
+-	p.print(blank, lbrace, token.LBRACE, indent, formfeed)
+ 	if isStruct {
+ 
+ 		sep := vtab
+@@ -1512,9 +1517,14 @@ func (p *printer) file(src *ast.File) {
+ 			prev := tok
+ 			tok = declToken(d)
+ 			// if the declaration token changed (e.g., from CONST to TYPE)
++			// or the next declaration has documentation associated with it,
+ 			// print an empty line between top-level declarations
++			// (because p.linebreak is called with the position of d, which
++			// is past any documentation, the minimum requirement is satisfied
++			// even w/o the extra getDoc(d) nil-check - leave it in case the
++			// linebreak logic improves - there's already a TODO).
+ 			min := 1
+-			if prev != tok {
++			if prev != tok || getDoc(d) != nil {
+ 				min = 2
+ 			}
+ 			p.linebreak(p.fset.Position(d.Pos()).Line, min, ignore, false)
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index a0197d87c4..a78cfc65fc 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -257,6 +257,7 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, prev, comment *as
+ 	} else {
+ 		// comment on a different line:
+ 		// separate with at least one line break
++		droppedLinebreak := false
+ 		if prev == nil {
+ 			// first comment of a comment group
+ 			j := 0
+@@ -282,6 +283,7 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, prev, comment *as
+ 				case newline, formfeed:
+ 					// TODO(gri): may want to keep formfeed info in some cases
+ 					p.wsbuf[i] = ignore
++					droppedLinebreak = true
+ 				}
+ 				j = i
+ 				break
+@@ -289,25 +291,41 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, prev, comment *as
+ 			p.writeWhitespace(j)
+ 		}
+ 
+-		// turn off indent if we're about to print a line directive.
+-		indent := p.indent
+-		if strings.HasPrefix(comment.Text, linePrefix) {
+-			p.indent = 0
++		// determine number of linebreaks before the comment
++		n := 0
++		if pos.IsValid() && p.last.IsValid() {
++			n = pos.Line - p.last.Line
++			if n < 0 { // should never happen
++				n = 0
++			}
++		}
++
++		// at the package scope level only (p.indent == 0),
++		// add an extra newline if we dropped one before:
++		// this preserves a blank line before documentation
++		// comments at the package scope level (issue 2570)
++		if p.indent == 0 && droppedLinebreak {
++			n++
+ 		}
+ 
+-		// use formfeeds to break columns before a comment;
+-		// this is analogous to using formfeeds to separate
+-		// individual lines of /*-style comments - but make
+-		// sure there is at least one line break if the previous
+-		// comment was a line comment
+-		n := pos.Line - p.last.Line // if !pos.IsValid(), pos.Line == 0, and n will be 0
+-		if n <= 0 && prev != nil && prev.Text[1] == '/' {
++		// make sure there is at least one line break
++		// if the previous comment was a line comment
++		if n == 0 && prev != nil && prev.Text[1] == '/' {
+ 			n = 1
+ 		}
++
+ 		if n > 0 {
++			// turn off indent if we're about to print a line directive
++			indent := p.indent
++			if strings.HasPrefix(comment.Text, linePrefix) {
++				p.indent = 0
++			}
++			// use formfeeds to break columns before a comment;
++			// this is analogous to using formfeeds to separate
++			// individual lines of /*-style comments
+ 			p.writeByteN('\f', nlimit(n))
++			p.indent = indent // restore indent
+ 		}
+-		p.indent = indent
+ 	}
+ }
+ 
+@@ -812,7 +830,8 @@ func (p *printer) flush(next token.Position, tok token.Token) (wroteNewline, dro
+ // getNode returns the ast.CommentGroup associated with n, if any.
+ func getDoc(n ast.Node) *ast.CommentGroup {
+ 	switch n := n.(type) {
+-	// *ast.Fields cannot be printed separately - ignore for now
++	case *ast.Field:
++		return n.Doc
+ 	case *ast.ImportSpec:
+ 		return n.Doc
+ 	case *ast.ValueSpec:
+diff --git a/src/pkg/go/printer/testdata/comments.golden b/src/pkg/go/printer/testdata/comments.golden
+index 7b332252c4..d2ad9e3a2f 100644
+--- a/src/pkg/go/printer/testdata/comments.golden
++++ b/src/pkg/go/printer/testdata/comments.golden
+@@ -106,7 +106,7 @@ type S3 struct {
+ var x int	// x
+ var ()
+ 
+-// This comment SHOULD be associated with the next declaration.
++// This comment SHOULD be associated with f0.
+ func f0() {
+ 	const pi = 3.14	// pi
+ 	var s1 struct{}	/* an empty struct */	/* foo */
+@@ -115,8 +115,9 @@ func f0() {
+ 	var s2 struct{} = struct{}{}
+ 	x := pi
+ }
++
+ //
+-// NO SPACE HERE
++// This comment should be associated with f1, with one blank line before the comment.
+ //
+ func f1() {
+ 	f0()
+diff --git a/src/pkg/go/printer/testdata/comments.input b/src/pkg/go/printer/testdata/comments.input
+index 2a9a86b681..222e0a713d 100644
+--- a/src/pkg/go/printer/testdata/comments.input
++++ b/src/pkg/go/printer/testdata/comments.input
+@@ -107,7 +107,7 @@ var x int  // x
+ var ()
+ 
+ 
+-// This comment SHOULD be associated with the next declaration.
++// This comment SHOULD be associated with f0.
+ func f0() {
+ 	const pi = 3.14  // pi
+ 	var s1 struct {}  /* an empty struct */ /* foo */
+@@ -117,7 +117,7 @@ func f0() {
+ 	x := pi
+ }
+ //
+-// NO SPACE HERE
++// This comment should be associated with f1, with one blank line before the comment.
+ //
+ func f1() {
+ 	f0()
+@@ -130,7 +130,7 @@ func f1() {
+ 
+ 
+ func _() {
+-	// this comment should be properly indented
++// this comment should be properly indented
+ }
+ 
+ 
+diff --git a/src/pkg/go/printer/testdata/declarations.golden b/src/pkg/go/printer/testdata/declarations.golden
+index bfa2568c21..239ba89030 100644
+--- a/src/pkg/go/printer/testdata/declarations.golden
++++ b/src/pkg/go/printer/testdata/declarations.golden
+@@ -115,6 +115,18 @@ import _ "io"
+ 
+ var _ int
+ 
++// at least one empty line between declarations of the same kind
++// if there is associated documentation (was issue 2570)
++type T1 struct{}
++
++// T2 comment
++type T2 struct {
++}	// should be a two-line struct
++
++// T3 comment
++type T2 struct {
++}	// should be a two-line struct
++
+ // printing of constant literals
+ const (
+ 	_	= "foobar"
+@@ -286,6 +298,15 @@ type _ struct {
+ 	}
+ }
+ 
++// no blank lines in empty structs and interfaces, but leave 1- or 2-line layout alone
++type _ struct{}
++type _ struct {
++}
++
++type _ interface{}
++type _ interface {
++}
++
+ // no tabs for single or ungrouped decls
+ func _() {
+ 	const xxxxxx = 0
+diff --git a/src/pkg/go/printer/testdata/declarations.input b/src/pkg/go/printer/testdata/declarations.input
+index 1d69c57b51..68f90308a3 100644
+--- a/src/pkg/go/printer/testdata/declarations.input
++++ b/src/pkg/go/printer/testdata/declarations.input
+@@ -115,6 +115,20 @@ import (
+ import _ "io"
+ var _ int
+ 
++// at least one empty line between declarations of the same kind
++// if there is associated documentation (was issue 2570)
++type T1 struct{}
++// T2 comment
++type T2 struct {
++} // should be a two-line struct
++
++
++// T3 comment
++type T2 struct {
++
++
++} // should be a two-line struct
++
+ 
+ // printing of constant literals
+ const (
+@@ -293,6 +307,18 @@ type _ struct {
+ }
+ 
+ 
++// no blank lines in empty structs and interfaces, but leave 1- or 2-line layout alone
++type _ struct{            }
++type _ struct {
++
++}
++
++type _ interface{            }
++type _ interface {
++
++}
++
++
+ // no tabs for single or ungrouped decls
+ func _() {
+ 	const xxxxxx = 0
+diff --git a/src/pkg/log/syslog/syslog.go b/src/pkg/log/syslog/syslog.go
+index 546bc296a5..914391af80 100644
+--- a/src/pkg/log/syslog/syslog.go
++++ b/src/pkg/log/syslog/syslog.go
+@@ -92,11 +92,13 @@ func (w *Writer) Emerg(m string) (err error) {
+ 	_, err = w.writeString(LOG_EMERG, m)
+ 	return err
+ }
++
+ // Crit logs a message using the LOG_CRIT priority.
+ func (w *Writer) Crit(m string) (err error) {
+ 	_, err = w.writeString(LOG_CRIT, m)
+ 	return err
+ }
++
+ // ERR logs a message using the LOG_ERR priority.
+ func (w *Writer) Err(m string) (err error) {
+ 	_, err = w.writeString(LOG_ERR, m)
+@@ -114,11 +116,13 @@ func (w *Writer) Notice(m string) (err error) {
+ 	_, err = w.writeString(LOG_NOTICE, m)
+ 	return err
+ }
++
+ // Info logs a message using the LOG_INFO priority.
+ func (w *Writer) Info(m string) (err error) {
+ 	_, err = w.writeString(LOG_INFO, m)
+ 	return err
+ }
++
+ // Debug logs a message using the LOG_DEBUG priority.
+ func (w *Writer) Debug(m string) (err error) {
+ 	_, err = w.writeString(LOG_DEBUG, m)
+diff --git a/src/pkg/math/all_test.go b/src/pkg/math/all_test.go
+index 0a3cb0315d..101c8dd85b 100644
+--- a/src/pkg/math/all_test.go
++++ b/src/pkg/math/all_test.go
+@@ -22,6 +22,7 @@ var vf = []float64{
+ 	1.8253080916808550e+00,
+ 	-8.6859247685756013e+00,
+ }
++
+ // The expected results below were computed by the high precision calculators
+ // at http://keisan.casio.com/.  More exact input values (array vf[], above)
+ // were obtained by printing them with "%.26f".  The answers were calculated
+@@ -159,6 +160,7 @@ var cos = []float64{
+ 	-2.517729313893103197176091e-01,
+ 	-7.39241351595676573201918e-01,
+ }
++
+ // Results for 100000 * Pi + vf[i]
+ var cosLarge = []float64{
+ 	2.634752141185559426744e-01,
+@@ -514,6 +516,7 @@ var sin = []float64{
+ 	9.6778633541687993721617774e-01,
+ 	-6.734405869050344734943028e-01,
+ }
++
+ // Results for 100000 * Pi + vf[i]
+ var sinLarge = []float64{
+ 	-9.646661658548936063912e-01,
+@@ -563,6 +566,7 @@ var tan = []float64{
+ 	-3.843885560201130679995041e+00,
+ 	9.10988793377685105753416e-01,
+ }
++
+ // Results for 100000 * Pi + vf[i]
+ var tanLarge = []float64{
+ 	-3.66131656475596512705e+00,
+diff --git a/src/pkg/math/sin.go b/src/pkg/math/sin.go
+index ec30477eac..176ac229ab 100644
+--- a/src/pkg/math/sin.go
++++ b/src/pkg/math/sin.go
+@@ -98,6 +98,7 @@ var _sin = [...]float64{
+ 	8.33333333332211858878E-3,  // 0x3f8111111110f7d0
+ 	-1.66666666666666307295E-1, // 0xbfc5555555555548
+ }
++
+ // cos coefficients
+ var _cos = [...]float64{
+ 	-1.13585365213876817300E-11, // 0xbda8fa49a0861a9b
+diff --git a/src/pkg/net/ipraw_test.go b/src/pkg/net/ipraw_test.go
+index 60c405ab4a..67a4049d5d 100644
+--- a/src/pkg/net/ipraw_test.go
++++ b/src/pkg/net/ipraw_test.go
+@@ -59,6 +59,7 @@ func parsePingReply(p []byte) (id, seq int) {
+ }
+ 
+ var srchost = flag.String("srchost", "", "Source of the ICMP ECHO request")
++
+ // 127.0.0.1 because this is an IPv4-specific test.
+ var dsthost = flag.String("dsthost", "127.0.0.1", "Destination for the ICMP ECHO request")
+ 
+diff --git a/src/pkg/sort/sort.go b/src/pkg/sort/sort.go
+index 83ee170cba..4aa4ca6d7d 100644
+--- a/src/pkg/sort/sort.go
++++ b/src/pkg/sort/sort.go
+@@ -240,14 +240,18 @@ func (p StringSlice) Sort() { Sort(p) }
+ 
+ // Ints sorts a slice of ints in increasing order.
+ func Ints(a []int) { Sort(IntSlice(a)) }
++
+ // Float64s sorts a slice of float64s in increasing order.
+ func Float64s(a []float64) { Sort(Float64Slice(a)) }
++
+ // Strings sorts a slice of strings in increasing order.
+ func Strings(a []string) { Sort(StringSlice(a)) }
+ 
+ // IntsAreSorted tests whether a slice of ints is sorted in increasing order.
+ func IntsAreSorted(a []int) bool { return IsSorted(IntSlice(a)) }
++
+ // Float64sAreSorted tests whether a slice of float64s is sorted in increasing order.
+ func Float64sAreSorted(a []float64) bool { return IsSorted(Float64Slice(a)) }
++
+ // StringsAreSorted tests whether a slice of strings is sorted in increasing order.
+ func StringsAreSorted(a []string) bool { return IsSorted(StringSlice(a)) }

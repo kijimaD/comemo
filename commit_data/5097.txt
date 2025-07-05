@@ -7,6 +7,29 @@ Date:   Sat Mar 20 22:38:06 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/634044
-
+---
  src/cmd/goinstall/download.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/goinstall/download.go b/src/cmd/goinstall/download.go
+index 67f389abac..13a2f65ab8 100644
+--- a/src/cmd/goinstall/download.go
++++ b/src/cmd/goinstall/download.go
+@@ -9,6 +9,7 @@ package main
+ import (
+ 	"http"
+ 	"os"
++	"path"
+ 	"regexp"
+ 	"strings"
+ )
+@@ -130,7 +131,8 @@ func vcsCheckout(vcs *vcs, dst, repo, dashpath string) os.Error {
+ 		return os.ErrorString("not a directory: " + dst)
+ 	}
+ 	if err != nil {
+-		if err := os.MkdirAll(dst, 0777); err != nil {
++		parent, _ := path.Split(dst)
++		if err := os.MkdirAll(parent, 0777); err != nil {
+ 			return err
+ 		}
+ 		if err := run("/", nil, vcs.cmd, vcs.clone, repo, dst); err != nil {

@@ -10,6 +10,27 @@ Date:   Thu Oct 3 13:23:02 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/14186043
-
+---
  src/pkg/reflect/all_test.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index a2f639fcc4..6e485c1e6b 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -2479,6 +2479,15 @@ func TestVariadic(t *testing.T) {
+ 	}
+ }
+ 
++func TestFuncArg(t *testing.T) {
++	f1 := func(i int, f func(int) int) int { return f(i) }
++	f2 := func(i int) int { return i + 1 }
++	r := ValueOf(f1).Call([]Value{ValueOf(100), ValueOf(f2)})
++	if r[0].Int() != 101 {
++		t.Errorf("function returned %d, want 101", r[0].Int())
++	}
++}
++
+ var tagGetTests = []struct {
+ 	Tag   StructTag
+ 	Key   string

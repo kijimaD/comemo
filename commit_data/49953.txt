@@ -18,7 +18,7 @@ Date:   Wed Aug 11 13:47:07 2021 -0700
     Run-TryBot: Zvonimir Pavlinovic <zpavlinovic@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/test/flagdefs.go               | 34 +++++++++++
  src/cmd/go/internal/test/flagdefs_test.go          | 19 ++++++
  src/cmd/go/internal/test/genflags.go               | 21 ++++++-
@@ -26,3 +26,254 @@ Date:   Wed Aug 11 13:47:07 2021 -0700
  src/cmd/go/internal/test/testflag.go               | 10 +++-
  src/cmd/go/testdata/script/test_vet.txt            | 11 ++++
  6 files changed, 160 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/test/flagdefs.go b/src/cmd/go/internal/test/flagdefs.go
+index 3148074d57..1b79314eff 100644
+--- a/src/cmd/go/internal/test/flagdefs.go
++++ b/src/cmd/go/internal/test/flagdefs.go
+@@ -36,3 +36,37 @@ var passFlagToTest = map[string]bool{
+ 	"trace":                true,
+ 	"v":                    true,
+ }
++
++var passAnalyzersToVet = map[string]bool{
++	"asmdecl":          true,
++	"assign":           true,
++	"atomic":           true,
++	"bool":             true,
++	"bools":            true,
++	"buildtag":         true,
++	"buildtags":        true,
++	"cgocall":          true,
++	"composites":       true,
++	"copylocks":        true,
++	"errorsas":         true,
++	"framepointer":     true,
++	"httpresponse":     true,
++	"ifaceassert":      true,
++	"loopclosure":      true,
++	"lostcancel":       true,
++	"methods":          true,
++	"nilfunc":          true,
++	"printf":           true,
++	"rangeloops":       true,
++	"shift":            true,
++	"sigchanyzer":      true,
++	"stdmethods":       true,
++	"stringintconv":    true,
++	"structtag":        true,
++	"testinggoroutine": true,
++	"tests":            true,
++	"unmarshal":        true,
++	"unreachable":      true,
++	"unsafeptr":        true,
++	"unusedresult":     true,
++}
+diff --git a/src/cmd/go/internal/test/flagdefs_test.go b/src/cmd/go/internal/test/flagdefs_test.go
+index f238fc7d33..40dc558e90 100644
+--- a/src/cmd/go/internal/test/flagdefs_test.go
++++ b/src/cmd/go/internal/test/flagdefs_test.go
+@@ -5,7 +5,9 @@
+ package test
+ 
+ import (
++	"cmd/go/internal/test/internal/genflags"
+ 	"flag"
++	"reflect"
+ 	"strings"
+ 	"testing"
+ )
+@@ -37,3 +39,20 @@ func TestPassFlagToTestIncludesAllTestFlags(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestVetAnalyzersSetIsCorrect(t *testing.T) {
++	vetAns, err := genflags.VetAnalyzers()
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	want := make(map[string]bool)
++	for _, a := range vetAns {
++		want[a] = true
++	}
++
++	if !reflect.DeepEqual(want, passAnalyzersToVet) {
++		t.Errorf("stale vet analyzers: want %v; got %v", want, passAnalyzersToVet)
++		t.Logf("(Run 'go generate cmd/go/internal/test' to refresh the set of analyzers.)")
++	}
++}
+diff --git a/src/cmd/go/internal/test/genflags.go b/src/cmd/go/internal/test/genflags.go
+index 645aae68b1..cba366062f 100644
+--- a/src/cmd/go/internal/test/genflags.go
++++ b/src/cmd/go/internal/test/genflags.go
+@@ -16,6 +16,8 @@ import (
+ 	"strings"
+ 	"testing"
+ 	"text/template"
++
++	"cmd/go/internal/test/internal/genflags"
+ )
+ 
+ func main() {
+@@ -25,9 +27,18 @@ func main() {
+ }
+ 
+ func regenerate() error {
++	vetAnalyzers, err := genflags.VetAnalyzers()
++	if err != nil {
++		return err
++	}
++
+ 	t := template.Must(template.New("fileTemplate").Parse(fileTemplate))
++	tData := map[string][]string{
++		"testFlags":    testFlags(),
++		"vetAnalyzers": vetAnalyzers,
++	}
+ 	buf := bytes.NewBuffer(nil)
+-	if err := t.Execute(buf, testFlags()); err != nil {
++	if err := t.Execute(buf, tData); err != nil {
+ 		return err
+ 	}
+ 
+@@ -85,7 +96,13 @@ package test
+ // passFlagToTest contains the flags that should be forwarded to
+ // the test binary with the prefix "test.".
+ var passFlagToTest = map[string]bool {
+-{{- range .}}
++{{- range .testFlags}}
++	"{{.}}": true,
++{{- end }}
++}
++
++var passAnalyzersToVet = map[string]bool {
++{{- range .vetAnalyzers}}
+ 	"{{.}}": true,
+ {{- end }}
+ }
+diff --git a/src/cmd/go/internal/test/internal/genflags/vetflag.go b/src/cmd/go/internal/test/internal/genflags/vetflag.go
+new file mode 100644
+index 0000000000..2195cc3447
+--- /dev/null
++++ b/src/cmd/go/internal/test/internal/genflags/vetflag.go
+@@ -0,0 +1,68 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package genflags
++
++import (
++	"bytes"
++	"cmd/go/internal/base"
++	"encoding/json"
++	"fmt"
++	exec "internal/execabs"
++	"regexp"
++	"sort"
++)
++
++// VetAnalyzers computes analyzers and their aliases supported by vet.
++func VetAnalyzers() ([]string, error) {
++	// get supported vet flag information
++	tool := base.Tool("vet")
++	vetcmd := exec.Command(tool, "-flags")
++	out := new(bytes.Buffer)
++	vetcmd.Stdout = out
++	if err := vetcmd.Run(); err != nil {
++		return nil, fmt.Errorf("go vet: can't execute %s -flags: %v\n", tool, err)
++	}
++	var analysisFlags []struct {
++		Name  string
++		Bool  bool
++		Usage string
++	}
++	if err := json.Unmarshal(out.Bytes(), &analysisFlags); err != nil {
++		return nil, fmt.Errorf("go vet: can't unmarshal JSON from %s -flags: %v", tool, err)
++	}
++
++	// parse the flags to figure out which ones stand for analyses
++	analyzerSet := make(map[string]bool)
++	rEnable := regexp.MustCompile("^enable .+ analysis$")
++	for _, flag := range analysisFlags {
++		if rEnable.MatchString(flag.Usage) {
++			analyzerSet[flag.Name] = true
++		}
++	}
++
++	rDeprecated := regexp.MustCompile("^deprecated alias for -(?P<analyzer>(.+))$")
++	// Returns the original value matched by rDeprecated on input value.
++	// If there is no match, "" is returned.
++	originalValue := func(value string) string {
++		match := rDeprecated.FindStringSubmatch(value)
++		if len(match) < 2 {
++			return ""
++		}
++		return match[1]
++	}
++	// extract deprecated aliases for existing analyses
++	for _, flag := range analysisFlags {
++		if o := originalValue(flag.Usage); analyzerSet[o] {
++			analyzerSet[flag.Name] = true
++		}
++	}
++
++	var analyzers []string
++	for a := range analyzerSet {
++		analyzers = append(analyzers, a)
++	}
++	sort.Strings(analyzers)
++	return analyzers, nil
++}
+diff --git a/src/cmd/go/internal/test/testflag.go b/src/cmd/go/internal/test/testflag.go
+index cb3543884a..b9d1ec91ff 100644
+--- a/src/cmd/go/internal/test/testflag.go
++++ b/src/cmd/go/internal/test/testflag.go
+@@ -195,6 +195,7 @@ func (f *vetFlag) Set(value string) error {
+ 	case strings.Contains(value, " "):
+ 		return fmt.Errorf("-vet argument is comma-separated list, cannot contain spaces")
+ 	}
++
+ 	*f = vetFlag{explicit: true}
+ 	var single string
+ 	for _, arg := range strings.Split(value, ",") {
+@@ -212,8 +213,15 @@ func (f *vetFlag) Set(value string) error {
+ 				off:      true,
+ 			}
+ 			continue
++		default:
++			if _, ok := passAnalyzersToVet[arg]; !ok {
++				return fmt.Errorf("-vet argument must be a supported analyzer or a distinguished value; found %s", arg)
++			}
++			f.flags = append(f.flags, "-"+arg)
+ 		}
+-		f.flags = append(f.flags, "-"+arg)
++	}
++	if len(f.flags) > 1 && single != "" {
++		return fmt.Errorf("-vet does not accept %q in a list with other analyzers", single)
+ 	}
+ 	if len(f.flags) > 1 && single != "" {
+ 		return fmt.Errorf("-vet does not accept %q in a list with other analyzers", single)
+diff --git a/src/cmd/go/testdata/script/test_vet.txt b/src/cmd/go/testdata/script/test_vet.txt
+index 2e0ae1956a..687d4851de 100644
+--- a/src/cmd/go/testdata/script/test_vet.txt
++++ b/src/cmd/go/testdata/script/test_vet.txt
+@@ -20,6 +20,17 @@ stdout '\[no test files\]'
+ ! go test -vet=all ./vetall/...
+ stderr 'using resp before checking for errors'
+ 
++# Test issue #47309
++! go test -vet=bools,xyz ./vetall/...
++stderr '-vet argument must be a supported analyzer'
++
++# Test with a list of analyzers
++! go test -vet=httpresponse ./vetall/...
++stderr 'using resp before checking for errors'
++
++# Test with a single analyzer
++go test -vet=atomic,bools,nilfunc ./vetall/...
++stdout 'm/vetall.*\[no tests to run\]'
+ 
+ # Test issue #22890
+ go test m/vetcycle

@@ -9,10 +9,140 @@ Date:   Wed Nov 9 11:27:27 2011 +0100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5364043
-
+---
  src/cmd/gc/dcl.c                 |  9 +++++----
  src/cmd/gc/fmt.c                 | 28 +++++++++++++++++++++-------
  test/fixedbugs/bug377.dir/one.go |  6 ++++++
  test/fixedbugs/bug377.dir/two.go |  4 ++++
  test/fixedbugs/bug377.go         |  9 +++++++++
  5 files changed, 45 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 71afbf1e50..12c7001846 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -573,7 +573,7 @@ funchdr(Node *n)
+ static void
+ funcargs(Node *nt)
+ {
+-	Node *n;
++	Node *n, *nn;
+ 	NodeList *l;
+ 	int gen;
+ 
+@@ -615,6 +615,10 @@ funcargs(Node *nt)
+ 			n->left->ntype = n->right;
+ 			if(isblank(n->left)) {
+ 				// Give it a name so we can assign to it during return.
++				// preserve the original in ->orig
++				nn = nod(OXXX, N, N);
++				*nn = *n->left;
++				n->left = nn;
+ 				snprint(namebuf, sizeof(namebuf), ".anon%d", gen++);
+ 				n->left->sym = lookup(namebuf);
+ 			}
+@@ -1342,6 +1346,3 @@ funccompile(Node *n, int isclosure)
+ 	funcdepth = 0;
+ 	dclcontext = PEXTERN;
+ }
+-
+-
+-
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 9447e9b1eb..f64a2314be 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -28,9 +28,9 @@
+ //
+ //	%T Type*	Types
+ //		Flags: +,- #: mode (see below)
+-//			'l' definition instead of name. 
++//			'l' definition instead of name.
+ //			'h' omit "func" and receiver in function types
+-//			'u' (only in -/Sym mode) print type identifiers wit package name instead of prefix. 
++//			'u' (only in -/Sym mode) print type identifiers wit package name instead of prefix.
+ //
+ //	%N Node*	Nodes
+ //		Flags: +,- #: mode (see below)
+@@ -41,7 +41,7 @@
+ //		Flags: those of %N
+ //			','  separate items with ',' instead of ';'
+ //
+-//	%Z Strlit*	String literals 
++//	%Z Strlit*	String literals
+ //
+ //   In mparith1.c:
+ //      %B Mpint*	Big integers
+@@ -542,6 +542,7 @@ static int
+ typefmt(Fmt *fp, Type *t)
+ {
+ 	Type *t1;
++	Sym *s;
+ 
+ 	if(t == T)
+ 		return fmtstrcpy(fp, "<T>");
+@@ -680,10 +681,23 @@ typefmt(Fmt *fp, Type *t)
+ 
+ 	case TFIELD:
+ 		if(!(fp->flags&FmtShort)) {
+-			if(t->sym != S && !t->embedded)
+-				fmtprint(fp, "%hS ", t->sym);
+-			if((!t->sym || t->embedded) && fmtmode == FExp)
+-				fmtstrcpy(fp, "? ");
++			s = t->sym;
++			switch(fmtmode) {
++			case FErr:
++			case FExp:
++				// Take the name from the original, lest we substituted it with .anon%d
++				if (t->nname)
++					s = t->nname->orig->sym;
++
++				if((s == S || t->embedded)) {
++					fmtstrcpy(fp, "? ");
++					break;
++				}
++				// fallthrough
++			default:
++				if(!(s == S || t->embedded))
++					fmtprint(fp, "%hS ", s);
++			}
+ 		}
+ 
+ 		if(t->isddd)
+diff --git a/test/fixedbugs/bug377.dir/one.go b/test/fixedbugs/bug377.dir/one.go
+new file mode 100644
+index 0000000000..c9060756b1
+--- /dev/null
++++ b/test/fixedbugs/bug377.dir/one.go
+@@ -0,0 +1,6 @@
++package one
++
++func Foo() (n int64, _ *int) {
++	return 42, nil
++}
++
+diff --git a/test/fixedbugs/bug377.dir/two.go b/test/fixedbugs/bug377.dir/two.go
+new file mode 100644
+index 0000000000..8a5346ab72
+--- /dev/null
++++ b/test/fixedbugs/bug377.dir/two.go
+@@ -0,0 +1,4 @@
++package two
++
++import _ "./one"
++
+diff --git a/test/fixedbugs/bug377.go b/test/fixedbugs/bug377.go
+new file mode 100644
+index 0000000000..b6b5509fb6
+--- /dev/null
++++ b/test/fixedbugs/bug377.go
+@@ -0,0 +1,9 @@
++// $G $D/$F.dir/one.go && $G $D/$F.dir/two.go
++
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 1802
++
++ignored

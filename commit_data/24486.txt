@@ -10,7 +10,7 @@ Date:   Thu Jul 30 11:03:05 2015 -0700
     Change-Id: If957abf128ec0778910d67666c297f97f183b7ee
     Reviewed-on: https://go-review.googlesource.com/12933
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 52 +++++++++-----
  src/cmd/compile/internal/ssa/config.go         | 36 ++++++----
  src/cmd/compile/internal/ssa/deadcode_test.go  |  8 +--
@@ -27,3 +27,1173 @@ Date:   Thu Jul 30 11:03:05 2015 -0700
  src/cmd/compile/internal/ssa/type.go           | 67 ++++++------------
  src/cmd/compile/internal/ssa/type_test.go      | 55 +++++++++++++++
  15 files changed, 262 insertions(+), 192 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index c292e4e014..4db33a84a7 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -67,8 +67,8 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
+ 	s.labels = map[string]*ssaLabel{}
+ 	s.labeledNodes = map[*Node]*ssaLabel{}
+ 	s.startmem = s.entryNewValue0(ssa.OpArg, ssa.TypeMem)
+-	s.sp = s.entryNewValue0(ssa.OpSP, s.config.Uintptr) // TODO: use generic pointer type (unsafe.Pointer?) instead
+-	s.sb = s.entryNewValue0(ssa.OpSB, s.config.Uintptr)
++	s.sp = s.entryNewValue0(ssa.OpSP, Types[TUINTPTR]) // TODO: use generic pointer type (unsafe.Pointer?) instead
++	s.sb = s.entryNewValue0(ssa.OpSB, Types[TUINTPTR])
+ 
+ 	// Generate addresses of local declarations
+ 	s.decladdrs = map[*Node]*ssa.Value{}
+@@ -90,8 +90,8 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
+ 		}
+ 	}
+ 	// nodfp is a special argument which is the function's FP.
+-	aux := &ssa.ArgSymbol{Typ: s.config.Uintptr, Offset: 0, Sym: nodfp.Sym}
+-	s.decladdrs[nodfp] = s.entryNewValue1A(ssa.OpAddr, s.config.Uintptr, aux, s.sp)
++	aux := &ssa.ArgSymbol{Typ: Types[TUINTPTR], Offset: 0, Sym: nodfp.Sym}
++	s.decladdrs[nodfp] = s.entryNewValue1A(ssa.OpAddr, Types[TUINTPTR], aux, s.sp)
+ 
+ 	// Convert the AST-based IR to the SSA-based IR
+ 	s.startBlock(s.f.Entry)
+@@ -1131,7 +1131,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 	case OLT, OEQ, ONE, OLE, OGE, OGT:
+ 		a := s.expr(n.Left)
+ 		b := s.expr(n.Right)
+-		return s.newValue2(s.ssaOp(n.Op, n.Left.Type), ssa.TypeBool, a, b)
++		return s.newValue2(s.ssaOp(n.Op, n.Left.Type), Types[TBOOL], a, b)
+ 	case OADD, OAND, OMUL, OOR, OSUB, OXOR:
+ 		a := s.expr(n.Left)
+ 		b := s.expr(n.Right)
+@@ -1209,7 +1209,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 	case ODOTPTR:
+ 		p := s.expr(n.Left)
+ 		s.nilCheck(p)
+-		p = s.newValue2(ssa.OpAddPtr, p.Type, p, s.constIntPtr(s.config.Uintptr, n.Xoffset))
++		p = s.newValue2(ssa.OpAddPtr, p.Type, p, s.constIntPtr(Types[TUINTPTR], n.Xoffset))
+ 		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
+ 
+ 	case OINDEX:
+@@ -1220,10 +1220,10 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			var elemtype *Type
+ 			var len *ssa.Value
+ 			if n.Left.Type.IsString() {
+-				len = s.newValue1(ssa.OpStringLen, s.config.Int, a)
++				len = s.newValue1(ssa.OpStringLen, Types[TINT], a)
+ 				elemtype = Types[TUINT8]
+ 			} else {
+-				len = s.constInt(s.config.Int, n.Left.Type.Bound)
++				len = s.constInt(Types[TINT], n.Left.Type.Bound)
+ 				elemtype = n.Left.Type.Type
+ 			}
+ 			s.boundsCheck(i, len)
+@@ -1240,11 +1240,11 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			if n.Op == OCAP {
+ 				op = ssa.OpSliceCap
+ 			}
+-			return s.newValue1(op, s.config.Int, s.expr(n.Left))
++			return s.newValue1(op, Types[TINT], s.expr(n.Left))
+ 		case n.Left.Type.IsString(): // string; not reachable for OCAP
+-			return s.newValue1(ssa.OpStringLen, s.config.Int, s.expr(n.Left))
++			return s.newValue1(ssa.OpStringLen, Types[TINT], s.expr(n.Left))
+ 		default: // array
+-			return s.constInt(s.config.Int, n.Left.Type.Bound)
++			return s.constInt(Types[TINT], n.Left.Type.Bound)
+ 		}
+ 
+ 	case OCALLFUNC, OCALLMETH:
+@@ -1281,7 +1281,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		if static {
+ 			call = s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, left.Sym, s.mem())
+ 		} else {
+-			entry := s.newValue2(ssa.OpLoad, s.config.Uintptr, closure, s.mem())
++			entry := s.newValue2(ssa.OpLoad, Types[TUINTPTR], closure, s.mem())
+ 			call = s.newValue3(ssa.OpClosureCall, ssa.TypeMem, entry, closure, s.mem())
+ 		}
+ 		dowidth(left.Type)
+@@ -1418,7 +1418,7 @@ func (s *state) addr(n *Node) *ssa.Value {
+ 			a := s.expr(n.Left)
+ 			i := s.expr(n.Right)
+ 			i = s.extendIndex(i)
+-			len := s.newValue1(ssa.OpSliceLen, s.config.Uintptr, a)
++			len := s.newValue1(ssa.OpSliceLen, Types[TUINTPTR], a)
+ 			s.boundsCheck(i, len)
+ 			p := s.newValue1(ssa.OpSlicePtr, Ptrto(n.Left.Type.Type), a)
+ 			return s.newValue2(ssa.OpPtrIndex, Ptrto(n.Left.Type.Type), p, i)
+@@ -1426,7 +1426,7 @@ func (s *state) addr(n *Node) *ssa.Value {
+ 			a := s.addr(n.Left)
+ 			i := s.expr(n.Right)
+ 			i = s.extendIndex(i)
+-			len := s.constInt(s.config.Int, n.Left.Type.Bound)
++			len := s.constInt(Types[TINT], n.Left.Type.Bound)
+ 			s.boundsCheck(i, len)
+ 			return s.newValue2(ssa.OpPtrIndex, Ptrto(n.Left.Type.Type), a, i)
+ 		}
+@@ -1436,11 +1436,11 @@ func (s *state) addr(n *Node) *ssa.Value {
+ 		return p
+ 	case ODOT:
+ 		p := s.addr(n.Left)
+-		return s.newValue2(ssa.OpAddPtr, p.Type, p, s.constIntPtr(s.config.Uintptr, n.Xoffset))
++		return s.newValue2(ssa.OpAddPtr, p.Type, p, s.constIntPtr(Types[TUINTPTR], n.Xoffset))
+ 	case ODOTPTR:
+ 		p := s.expr(n.Left)
+ 		s.nilCheck(p)
+-		return s.newValue2(ssa.OpAddPtr, p.Type, p, s.constIntPtr(s.config.Uintptr, n.Xoffset))
++		return s.newValue2(ssa.OpAddPtr, p.Type, p, s.constIntPtr(Types[TUINTPTR], n.Xoffset))
+ 	default:
+ 		s.Unimplementedf("addr: bad op %v", Oconv(int(n.Op), 0))
+ 		return nil
+@@ -1477,7 +1477,7 @@ func canSSA(n *Node) bool {
+ // Used only for automatically inserted nil checks,
+ // not for user code like 'x != nil'.
+ func (s *state) nilCheck(ptr *ssa.Value) {
+-	c := s.newValue1(ssa.OpIsNonNil, ssa.TypeBool, ptr)
++	c := s.newValue1(ssa.OpIsNonNil, Types[TBOOL], ptr)
+ 	b := s.endBlock()
+ 	b.Kind = ssa.BlockIf
+ 	b.Control = c
+@@ -1496,7 +1496,7 @@ func (s *state) boundsCheck(idx, len *ssa.Value) {
+ 	// TODO: if index is 64-bit and we're compiling to 32-bit, check that high 32 bits are zero.
+ 
+ 	// bounds check
+-	cmp := s.newValue2(ssa.OpIsInBounds, ssa.TypeBool, idx, len)
++	cmp := s.newValue2(ssa.OpIsInBounds, Types[TBOOL], idx, len)
+ 	b := s.endBlock()
+ 	b.Kind = ssa.BlockIf
+ 	b.Control = cmp
+@@ -2288,7 +2288,7 @@ func (s *state) extendIndex(v *ssa.Value) *ssa.Value {
+ 			s.Fatalf("bad unsigned index extension %s", v.Type)
+ 		}
+ 	}
+-	return s.newValue1(op, s.config.Uintptr, v)
++	return s.newValue1(op, Types[TUINTPTR], v)
+ }
+ 
+ // ssaRegToReg maps ssa register numbers to obj register numbers.
+@@ -2374,6 +2374,20 @@ type ssaExport struct {
+ 	mustImplement bool
+ }
+ 
++func (s *ssaExport) TypeBool() ssa.Type    { return Types[TBOOL] }
++func (s *ssaExport) TypeInt8() ssa.Type    { return Types[TINT8] }
++func (s *ssaExport) TypeInt16() ssa.Type   { return Types[TINT16] }
++func (s *ssaExport) TypeInt32() ssa.Type   { return Types[TINT32] }
++func (s *ssaExport) TypeInt64() ssa.Type   { return Types[TINT64] }
++func (s *ssaExport) TypeUInt8() ssa.Type   { return Types[TUINT8] }
++func (s *ssaExport) TypeUInt16() ssa.Type  { return Types[TUINT16] }
++func (s *ssaExport) TypeUInt32() ssa.Type  { return Types[TUINT32] }
++func (s *ssaExport) TypeUInt64() ssa.Type  { return Types[TUINT64] }
++func (s *ssaExport) TypeInt() ssa.Type     { return Types[TINT] }
++func (s *ssaExport) TypeUintptr() ssa.Type { return Types[TUINTPTR] }
++func (s *ssaExport) TypeString() ssa.Type  { return Types[TSTRING] }
++func (s *ssaExport) TypeBytePtr() ssa.Type { return Ptrto(Types[TUINT8]) }
++
+ // StringData returns a symbol (a *Sym wrapped in an interface) which
+ // is the data component of a global string constant containing s.
+ func (*ssaExport) StringData(s string) interface{} {
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index cabf62e463..8aea59d13c 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -5,11 +5,9 @@
+ package ssa
+ 
+ type Config struct {
+-	arch       string // "amd64", etc.
+-	IntSize    int64  // 4 or 8
+-	PtrSize    int64  // 4 or 8
+-	Uintptr    Type   // pointer arithmetic type
+-	Int        Type
++	arch       string                     // "amd64", etc.
++	IntSize    int64                      // 4 or 8
++	PtrSize    int64                      // 4 or 8
+ 	lowerBlock func(*Block) bool          // lowering function
+ 	lowerValue func(*Value, *Config) bool // lowering function
+ 	fe         Frontend                   // callbacks into compiler frontend
+@@ -17,7 +15,25 @@ type Config struct {
+ 	// TODO: more stuff.  Compiler flags of interest, ...
+ }
+ 
++type TypeSource interface {
++	TypeBool() Type
++	TypeInt8() Type
++	TypeInt16() Type
++	TypeInt32() Type
++	TypeInt64() Type
++	TypeUInt8() Type
++	TypeUInt16() Type
++	TypeUInt32() Type
++	TypeUInt64() Type
++	TypeInt() Type
++	TypeUintptr() Type
++	TypeString() Type
++	TypeBytePtr() Type // TODO: use unsafe.Pointer instead?
++}
++
+ type Frontend interface {
++	TypeSource
++
+ 	// StringData returns a symbol pointing to the given string's contents.
+ 	StringData(string) interface{} // returns *gc.Sym
+ 
+@@ -50,16 +66,6 @@ func NewConfig(arch string, fe Frontend) *Config {
+ 		fe.Unimplementedf("arch %s not implemented", arch)
+ 	}
+ 
+-	// cache the frequently-used types in the config
+-	c.Uintptr = TypeUInt32
+-	c.Int = TypeInt32
+-	if c.PtrSize == 8 {
+-		c.Uintptr = TypeUInt64
+-	}
+-	if c.IntSize == 8 {
+-		c.Int = TypeInt64
+-	}
+-
+ 	return c
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/deadcode_test.go b/src/cmd/compile/internal/ssa/deadcode_test.go
+index 9ec8959571..ef42d74f4d 100644
+--- a/src/cmd/compile/internal/ssa/deadcode_test.go
++++ b/src/cmd/compile/internal/ssa/deadcode_test.go
+@@ -7,7 +7,7 @@ package ssa
+ import "testing"
+ 
+ func TestDeadLoop(t *testing.T) {
+-	c := NewConfig("amd64", DummyFrontend{t})
++	c := testConfig(t)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+@@ -37,7 +37,7 @@ func TestDeadLoop(t *testing.T) {
+ }
+ 
+ func TestDeadValue(t *testing.T) {
+-	c := NewConfig("amd64", DummyFrontend{t})
++	c := testConfig(t)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+@@ -60,7 +60,7 @@ func TestDeadValue(t *testing.T) {
+ }
+ 
+ func TestNeverTaken(t *testing.T) {
+-	c := NewConfig("amd64", DummyFrontend{t})
++	c := testConfig(t)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("cond", OpConstBool, TypeBool, 0, false),
+@@ -95,7 +95,7 @@ func TestNeverTaken(t *testing.T) {
+ }
+ 
+ func TestNestedDeadBlocks(t *testing.T) {
+-	c := NewConfig("amd64", DummyFrontend{t})
++	c := testConfig(t)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+diff --git a/src/cmd/compile/internal/ssa/deadstore_test.go b/src/cmd/compile/internal/ssa/deadstore_test.go
+index 5b318eb2d2..8c0a875cad 100644
+--- a/src/cmd/compile/internal/ssa/deadstore_test.go
++++ b/src/cmd/compile/internal/ssa/deadstore_test.go
+@@ -9,7 +9,7 @@ import (
+ )
+ 
+ func TestDeadStore(t *testing.T) {
+-	c := NewConfig("amd64", DummyFrontend{t})
++	c := testConfig(t)
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+@@ -36,7 +36,7 @@ func TestDeadStore(t *testing.T) {
+ }
+ func TestDeadStorePhi(t *testing.T) {
+ 	// make sure we don't get into an infinite loop with phi values.
+-	c := NewConfig("amd64", DummyFrontend{t})
++	c := testConfig(t)
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+@@ -62,7 +62,7 @@ func TestDeadStoreTypes(t *testing.T) {
+ 	// stronger restriction, that one store can't shadow another unless the
+ 	// types of the address fields are identical (where identicalness is
+ 	// decided by the CSE pass).
+-	c := NewConfig("amd64", DummyFrontend{t})
++	c := testConfig(t)
+ 	t1 := &TypeImpl{Size_: 8, Ptr: true, Name: "t1"}
+ 	t2 := &TypeImpl{Size_: 4, Ptr: true, Name: "t2"}
+ 	fun := Fun(c, "entry",
+diff --git a/src/cmd/compile/internal/ssa/dom_test.go b/src/cmd/compile/internal/ssa/dom_test.go
+index 1f3124167a..6cd2ff440c 100644
+--- a/src/cmd/compile/internal/ssa/dom_test.go
++++ b/src/cmd/compile/internal/ssa/dom_test.go
+@@ -220,7 +220,7 @@ func verifyDominators(t *testing.T, fut fun, domFn domFunc, doms map[string]stri
+ }
+ 
+ func TestDominatorsSingleBlock(t *testing.T) {
+-	c := NewConfig("amd64", DummyFrontend{t})
++	c := testConfig(t)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+@@ -235,7 +235,7 @@ func TestDominatorsSingleBlock(t *testing.T) {
+ }
+ 
+ func TestDominatorsSimple(t *testing.T) {
+-	c := NewConfig("amd64", DummyFrontend{t})
++	c := testConfig(t)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+@@ -263,7 +263,7 @@ func TestDominatorsSimple(t *testing.T) {
+ }
+ 
+ func TestDominatorsMultPredFwd(t *testing.T) {
+-	c := NewConfig("amd64", DummyFrontend{t})
++	c := testConfig(t)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+@@ -291,7 +291,7 @@ func TestDominatorsMultPredFwd(t *testing.T) {
+ }
+ 
+ func TestDominatorsDeadCode(t *testing.T) {
+-	c := NewConfig("amd64", DummyFrontend{t})
++	c := testConfig(t)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+@@ -314,7 +314,7 @@ func TestDominatorsDeadCode(t *testing.T) {
+ }
+ 
+ func TestDominatorsMultPredRev(t *testing.T) {
+-	c := NewConfig("amd64", DummyFrontend{t})
++	c := testConfig(t)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+@@ -342,7 +342,7 @@ func TestDominatorsMultPredRev(t *testing.T) {
+ }
+ 
+ func TestDominatorsMultPred(t *testing.T) {
+-	c := NewConfig("amd64", DummyFrontend{t})
++	c := testConfig(t)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+@@ -370,7 +370,7 @@ func TestDominatorsMultPred(t *testing.T) {
+ }
+ 
+ func TestPostDominators(t *testing.T) {
+-	c := NewConfig("amd64", DummyFrontend{t})
++	c := testConfig(t)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+@@ -396,7 +396,7 @@ func TestPostDominators(t *testing.T) {
+ }
+ 
+ func TestInfiniteLoop(t *testing.T) {
+-	c := NewConfig("amd64", DummyFrontend{t})
++	c := testConfig(t)
+ 	// note lack of an exit block
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index d13729efbf..d2e8216b5d 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -11,6 +11,12 @@ var PrintFunc = printFunc
+ var Opt = opt
+ var Deadcode = deadcode
+ 
++func testConfig(t *testing.T) *Config {
++	return NewConfig("amd64", DummyFrontend{t})
++}
++
++// DummyFrontend is a test-only frontend.
++// It assumes 64 bit integers and pointers.
+ type DummyFrontend struct {
+ 	t testing.TB
+ }
+@@ -22,3 +28,17 @@ func (DummyFrontend) StringData(s string) interface{} {
+ func (d DummyFrontend) Logf(msg string, args ...interface{})           { d.t.Logf(msg, args...) }
+ func (d DummyFrontend) Fatalf(msg string, args ...interface{})         { d.t.Fatalf(msg, args...) }
+ func (d DummyFrontend) Unimplementedf(msg string, args ...interface{}) { d.t.Fatalf(msg, args...) }
++
++func (d DummyFrontend) TypeBool() Type    { return TypeBool }
++func (d DummyFrontend) TypeInt8() Type    { return TypeInt8 }
++func (d DummyFrontend) TypeInt16() Type   { return TypeInt16 }
++func (d DummyFrontend) TypeInt32() Type   { return TypeInt32 }
++func (d DummyFrontend) TypeInt64() Type   { return TypeInt64 }
++func (d DummyFrontend) TypeUInt8() Type   { return TypeUInt8 }
++func (d DummyFrontend) TypeUInt16() Type  { return TypeUInt16 }
++func (d DummyFrontend) TypeUInt32() Type  { return TypeUInt32 }
++func (d DummyFrontend) TypeUInt64() Type  { return TypeUInt64 }
++func (d DummyFrontend) TypeInt() Type     { return TypeInt64 }
++func (d DummyFrontend) TypeUintptr() Type { return TypeUInt64 }
++func (d DummyFrontend) TypeString() Type  { panic("unimplemented") }
++func (d DummyFrontend) TypeBytePtr() Type { return TypeBytePtr }
+diff --git a/src/cmd/compile/internal/ssa/func_test.go b/src/cmd/compile/internal/ssa/func_test.go
+index dda96317fe..4bdc84bd4c 100644
+--- a/src/cmd/compile/internal/ssa/func_test.go
++++ b/src/cmd/compile/internal/ssa/func_test.go
+@@ -262,7 +262,7 @@ func addEdge(b, c *Block) {
+ }
+ 
+ func TestArgs(t *testing.T) {
+-	c := NewConfig("amd64", DummyFrontend{t})
++	c := testConfig(t)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("a", OpConst64, TypeInt64, 14, nil),
+@@ -282,7 +282,7 @@ func TestArgs(t *testing.T) {
+ }
+ 
+ func TestEquiv(t *testing.T) {
+-	c := NewConfig("amd64", DummyFrontend{t})
++	c := testConfig(t)
+ 	equivalentCases := []struct{ f, g fun }{
+ 		// simple case
+ 		{
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 1630e13213..d0f5e5b073 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -211,7 +211,7 @@
+ (IsNonNil p) -> (SETNE (TESTQ <TypeFlags> p p))
+ (IsInBounds idx len) -> (SETB (CMPQ <TypeFlags> idx len))
+ 
+-(Move [size] dst src mem) -> (REPMOVSB dst src (MOVQconst <TypeUInt64> [size]) mem)
++(Move [size] dst src mem) -> (REPMOVSB dst src (MOVQconst <config.Frontend().TypeUInt64()> [size]) mem)
+ 
+ (Not x) -> (XORBconst [1] x)
+ 
+@@ -391,15 +391,15 @@
+ 
+ // lower Zero instructions with word sizes
+ (Zero [0] _ mem) -> (Copy mem)
+-(Zero [1] destptr mem) -> (MOVBstore destptr (MOVBconst <TypeInt8> [0]) mem)
+-(Zero [2] destptr mem) -> (MOVWstore destptr (MOVWconst <TypeInt16> [0]) mem)
+-(Zero [4] destptr mem) -> (MOVLstore destptr (MOVLconst <TypeInt32> [0]) mem)
+-(Zero [8] destptr mem) -> (MOVQstore destptr (MOVQconst <TypeInt64> [0]) mem)
++(Zero [1] destptr mem) -> (MOVBstore destptr (MOVBconst <config.Frontend().TypeInt8()> [0]) mem)
++(Zero [2] destptr mem) -> (MOVWstore destptr (MOVWconst <config.Frontend().TypeInt16()> [0]) mem)
++(Zero [4] destptr mem) -> (MOVLstore destptr (MOVLconst <config.Frontend().TypeInt32()> [0]) mem)
++(Zero [8] destptr mem) -> (MOVQstore destptr (MOVQconst <config.Frontend().TypeInt64()> [0]) mem)
+ 
+ // rewrite anything less than 4 words into a series of MOV[BWLQ] $0, ptr(off) instructions
+ (Zero [size] destptr mem) && size < 4*8 -> (MOVXzero [size] destptr mem)
+ // Use STOSQ to zero memory. Rewrite this into storing the words with REPSTOSQ and then filling in the remainder with linear moves
+-(Zero [size] destptr mem) && size >= 4*8 -> (Zero [size%8] (OffPtr <TypeUInt64> [size-(size%8)] destptr) (REPSTOSQ  <TypeMem> destptr (MOVQconst <TypeUInt64> [size/8]) mem))
++(Zero [size] destptr mem) && size >= 4*8 -> (Zero [size%8] (OffPtr <config.Frontend().TypeUInt64()> [size-(size%8)] destptr) (REPSTOSQ  <TypeMem> destptr (MOVQconst <config.Frontend().TypeUInt64()> [size/8]) mem))
+ 
+ // Absorb InvertFlags into branches.
+ (LT (InvertFlags cmp) yes no) -> (GT cmp yes no)
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 49c70af4cc..6a8952d6cb 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -29,8 +29,8 @@
+ // tear apart slices
+ // TODO: anything that generates a slice needs to go in here.
+ (SlicePtr (Load ptr mem)) -> (Load ptr mem)
+-(SliceLen (Load ptr mem)) -> (Load (AddPtr <ptr.Type> ptr (ConstPtr <config.Uintptr> [config.PtrSize])) mem)
+-(SliceCap (Load ptr mem)) -> (Load (AddPtr <ptr.Type> ptr (ConstPtr <config.Uintptr> [config.PtrSize*2])) mem)
++(SliceLen (Load ptr mem)) -> (Load (AddPtr <ptr.Type> ptr (ConstPtr <config.Frontend().TypeUintptr()> [config.PtrSize])) mem)
++(SliceCap (Load ptr mem)) -> (Load (AddPtr <ptr.Type> ptr (ConstPtr <config.Frontend().TypeUintptr()> [config.PtrSize*2])) mem)
+ 
+ // slice and interface comparisons
+ // the frontend ensures that we can only compare against nil
+@@ -38,13 +38,13 @@
+ (EqFat x y) && x.Op == OpConstNil && y.Op != OpConstNil -> (EqFat y x)
+ (NeqFat x y) && x.Op == OpConstNil && y.Op != OpConstNil -> (NeqFat y x)
+ // it suffices to check the first word (backing array for slices, dynamic type for interfaces)
+-(EqFat (Load ptr mem) (ConstNil)) -> (EqPtr (Load <config.Uintptr> ptr mem) (ConstPtr <config.Uintptr> [0]))
+-(NeqFat (Load ptr mem) (ConstNil)) -> (NeqPtr (Load <config.Uintptr> ptr mem) (ConstPtr <config.Uintptr> [0]))
++(EqFat (Load ptr mem) (ConstNil)) -> (EqPtr (Load <config.Frontend().TypeUintptr()> ptr mem) (ConstPtr <config.Frontend().TypeUintptr()> [0]))
++(NeqFat (Load ptr mem) (ConstNil)) -> (NeqPtr (Load <config.Frontend().TypeUintptr()> ptr mem) (ConstPtr <config.Frontend().TypeUintptr()> [0]))
+ 
+ // indexing operations
+ // Note: bounds check has already been done
+ (ArrayIndex (Load ptr mem) idx) -> (Load (PtrIndex <v.Type.PtrTo()> ptr idx) mem)
+-(PtrIndex <t> ptr idx) -> (AddPtr ptr (MulPtr <config.Uintptr> idx (ConstPtr <config.Uintptr> [t.Elem().Size()])))
++(PtrIndex <t> ptr idx) -> (AddPtr ptr (MulPtr <config.Frontend().TypeUintptr()> idx (ConstPtr <config.Frontend().TypeUintptr()> [t.Elem().Size()])))
+ (StructSelect [idx] (Load ptr mem)) -> (Load (OffPtr <v.Type.PtrTo()> [idx] ptr) mem)
+ 
+ // big-object moves
+@@ -52,11 +52,11 @@
+ (Store dst (Load <t> src mem) mem) && t.Size() > 8 -> (Move [t.Size()] dst src mem)
+ 
+ // string ops
+-(ConstString {s}) -> (StringMake (Addr <TypeBytePtr> {config.fe.StringData(s.(string))} (SB <config.Uintptr>)) (ConstPtr <config.Uintptr> [int64(len(s.(string)))]))
+-(Load <t> ptr mem) && t.IsString() -> (StringMake (Load <TypeBytePtr> ptr mem) (Load <config.Uintptr> (OffPtr <TypeBytePtr> [config.PtrSize] ptr) mem))
++(ConstString {s}) -> (StringMake (Addr <config.Frontend().TypeBytePtr()> {config.fe.StringData(s.(string))} (SB <config.Frontend().TypeUintptr()>)) (ConstPtr <config.Frontend().TypeUintptr()> [int64(len(s.(string)))]))
++(Load <t> ptr mem) && t.IsString() -> (StringMake (Load <config.Frontend().TypeBytePtr()> ptr mem) (Load <config.Frontend().TypeUintptr()> (OffPtr <config.Frontend().TypeBytePtr()> [config.PtrSize] ptr) mem))
+ (StringPtr (StringMake ptr _)) -> ptr
+ (StringLen (StringMake _ len)) -> len
+-(Store dst str mem) && str.Type.IsString() -> (Store (OffPtr <TypeBytePtr> [config.PtrSize] dst) (StringLen <config.Uintptr> str) (Store <TypeMem> dst (StringPtr <TypeBytePtr> str) mem))
++(Store dst str mem) && str.Type.IsString() -> (Store (OffPtr <config.Frontend().TypeBytePtr()> [config.PtrSize] dst) (StringLen <config.Frontend().TypeUintptr()> str) (Store <TypeMem> dst (StringPtr <config.Frontend().TypeBytePtr()> str) mem))
+ 
+ (If (Not cond) yes no) -> (If cond no yes)
+ (If (ConstBool {c}) yes no) && c.(bool) -> (Plain nil yes)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index f06227e749..9e4f133f3b 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -3392,7 +3392,7 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 	case OpMove:
+ 		// match: (Move [size] dst src mem)
+ 		// cond:
+-		// result: (REPMOVSB dst src (MOVQconst <TypeUInt64> [size]) mem)
++		// result: (REPMOVSB dst src (MOVQconst <config.Frontend().TypeUInt64()> [size]) mem)
+ 		{
+ 			size := v.AuxInt
+ 			dst := v.Args[0]
+@@ -3405,14 +3405,14 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.AddArg(dst)
+ 			v.AddArg(src)
+ 			v0 := v.Block.NewValue0(v.Line, OpAMD64MOVQconst, TypeInvalid)
+-			v0.Type = TypeUInt64
++			v0.Type = config.Frontend().TypeUInt64()
+ 			v0.AuxInt = size
+ 			v.AddArg(v0)
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto end2aab774aedae2c616ee88bfa87cdf30e
+-	end2aab774aedae2c616ee88bfa87cdf30e:
++		goto end4dd156b33beb9981378c91e46f055a56
++	end4dd156b33beb9981378c91e46f055a56:
+ 		;
+ 	case OpMul16:
+ 		// match: (Mul16 x y)
+@@ -6919,10 +6919,10 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		;
+ 		// match: (Zero [1] destptr mem)
+ 		// cond:
+-		// result: (MOVBstore destptr (MOVBconst <TypeInt8> [0]) mem)
++		// result: (MOVBstore destptr (MOVBconst <config.Frontend().TypeInt8()> [0]) mem)
+ 		{
+ 			if v.AuxInt != 1 {
+-				goto end16839f51d2e9cf9548f216848406bd97
++				goto end56bcaef03cce4d15c03efff669bb5585
+ 			}
+ 			destptr := v.Args[0]
+ 			mem := v.Args[1]
+@@ -6932,21 +6932,21 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.resetArgs()
+ 			v.AddArg(destptr)
+ 			v0 := v.Block.NewValue0(v.Line, OpAMD64MOVBconst, TypeInvalid)
+-			v0.Type = TypeInt8
++			v0.Type = config.Frontend().TypeInt8()
+ 			v0.AuxInt = 0
+ 			v.AddArg(v0)
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto end16839f51d2e9cf9548f216848406bd97
+-	end16839f51d2e9cf9548f216848406bd97:
++		goto end56bcaef03cce4d15c03efff669bb5585
++	end56bcaef03cce4d15c03efff669bb5585:
+ 		;
+ 		// match: (Zero [2] destptr mem)
+ 		// cond:
+-		// result: (MOVWstore destptr (MOVWconst <TypeInt16> [0]) mem)
++		// result: (MOVWstore destptr (MOVWconst <config.Frontend().TypeInt16()> [0]) mem)
+ 		{
+ 			if v.AuxInt != 2 {
+-				goto enddc4a090329efde9ca19983ad18174cbb
++				goto endf52f08f1f7b0ae220c4cfca6586a8586
+ 			}
+ 			destptr := v.Args[0]
+ 			mem := v.Args[1]
+@@ -6956,21 +6956,21 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.resetArgs()
+ 			v.AddArg(destptr)
+ 			v0 := v.Block.NewValue0(v.Line, OpAMD64MOVWconst, TypeInvalid)
+-			v0.Type = TypeInt16
++			v0.Type = config.Frontend().TypeInt16()
+ 			v0.AuxInt = 0
+ 			v.AddArg(v0)
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto enddc4a090329efde9ca19983ad18174cbb
+-	enddc4a090329efde9ca19983ad18174cbb:
++		goto endf52f08f1f7b0ae220c4cfca6586a8586
++	endf52f08f1f7b0ae220c4cfca6586a8586:
+ 		;
+ 		// match: (Zero [4] destptr mem)
+ 		// cond:
+-		// result: (MOVLstore destptr (MOVLconst <TypeInt32> [0]) mem)
++		// result: (MOVLstore destptr (MOVLconst <config.Frontend().TypeInt32()> [0]) mem)
+ 		{
+ 			if v.AuxInt != 4 {
+-				goto end365a027b67399ad8d5d2d5eca847f7d8
++				goto end41c91e0c7a23e233de77812b5264fd10
+ 			}
+ 			destptr := v.Args[0]
+ 			mem := v.Args[1]
+@@ -6980,21 +6980,21 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.resetArgs()
+ 			v.AddArg(destptr)
+ 			v0 := v.Block.NewValue0(v.Line, OpAMD64MOVLconst, TypeInvalid)
+-			v0.Type = TypeInt32
++			v0.Type = config.Frontend().TypeInt32()
+ 			v0.AuxInt = 0
+ 			v.AddArg(v0)
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto end365a027b67399ad8d5d2d5eca847f7d8
+-	end365a027b67399ad8d5d2d5eca847f7d8:
++		goto end41c91e0c7a23e233de77812b5264fd10
++	end41c91e0c7a23e233de77812b5264fd10:
+ 		;
+ 		// match: (Zero [8] destptr mem)
+ 		// cond:
+-		// result: (MOVQstore destptr (MOVQconst <TypeInt64> [0]) mem)
++		// result: (MOVQstore destptr (MOVQconst <config.Frontend().TypeInt64()> [0]) mem)
+ 		{
+ 			if v.AuxInt != 8 {
+-				goto end5808a5e9c68555a82c3514db39017e56
++				goto end157ad586af643d8dac6cc84a776000ca
+ 			}
+ 			destptr := v.Args[0]
+ 			mem := v.Args[1]
+@@ -7004,14 +7004,14 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.resetArgs()
+ 			v.AddArg(destptr)
+ 			v0 := v.Block.NewValue0(v.Line, OpAMD64MOVQconst, TypeInvalid)
+-			v0.Type = TypeInt64
++			v0.Type = config.Frontend().TypeInt64()
+ 			v0.AuxInt = 0
+ 			v.AddArg(v0)
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto end5808a5e9c68555a82c3514db39017e56
+-	end5808a5e9c68555a82c3514db39017e56:
++		goto end157ad586af643d8dac6cc84a776000ca
++	end157ad586af643d8dac6cc84a776000ca:
+ 		;
+ 		// match: (Zero [size] destptr mem)
+ 		// cond: size < 4*8
+@@ -7037,13 +7037,13 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		;
+ 		// match: (Zero [size] destptr mem)
+ 		// cond: size >= 4*8
+-		// result: (Zero [size%8] (OffPtr <TypeUInt64> [size-(size%8)] destptr) (REPSTOSQ  <TypeMem> destptr (MOVQconst <TypeUInt64> [size/8]) mem))
++		// result: (Zero [size%8] (OffPtr <config.Frontend().TypeUInt64()> [size-(size%8)] destptr) (REPSTOSQ  <TypeMem> destptr (MOVQconst <config.Frontend().TypeUInt64()> [size/8]) mem))
+ 		{
+ 			size := v.AuxInt
+ 			destptr := v.Args[0]
+ 			mem := v.Args[1]
+ 			if !(size >= 4*8) {
+-				goto endb3058a90f909821d5689fb358519828b
++				goto end84c39fe2e8d40e0042a10741a0ef16bd
+ 			}
+ 			v.Op = OpZero
+ 			v.AuxInt = 0
+@@ -7051,7 +7051,7 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v.resetArgs()
+ 			v.AuxInt = size % 8
+ 			v0 := v.Block.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+-			v0.Type = TypeUInt64
++			v0.Type = config.Frontend().TypeUInt64()
+ 			v0.AuxInt = size - (size % 8)
+ 			v0.AddArg(destptr)
+ 			v.AddArg(v0)
+@@ -7059,15 +7059,15 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 			v1.Type = TypeMem
+ 			v1.AddArg(destptr)
+ 			v2 := v.Block.NewValue0(v.Line, OpAMD64MOVQconst, TypeInvalid)
+-			v2.Type = TypeUInt64
++			v2.Type = config.Frontend().TypeUInt64()
+ 			v2.AuxInt = size / 8
+ 			v1.AddArg(v2)
+ 			v1.AddArg(mem)
+ 			v.AddArg(v1)
+ 			return true
+ 		}
+-		goto endb3058a90f909821d5689fb358519828b
+-	endb3058a90f909821d5689fb358519828b:
++		goto end84c39fe2e8d40e0042a10741a0ef16bd
++	end84c39fe2e8d40e0042a10741a0ef16bd:
+ 		;
+ 	case OpZeroExt16to32:
+ 		// match: (ZeroExt16to32 x)
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 8fa3b6ded1..7d889b89f1 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -79,7 +79,7 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 	case OpConstString:
+ 		// match: (ConstString {s})
+ 		// cond:
+-		// result: (StringMake (Addr <TypeBytePtr> {config.fe.StringData(s.(string))} (SB <config.Uintptr>)) (ConstPtr <config.Uintptr> [int64(len(s.(string)))]))
++		// result: (StringMake (Addr <config.Frontend().TypeBytePtr()> {config.fe.StringData(s.(string))} (SB <config.Frontend().TypeUintptr()>)) (ConstPtr <config.Frontend().TypeUintptr()> [int64(len(s.(string)))]))
+ 		{
+ 			s := v.Aux
+ 			v.Op = OpStringMake
+@@ -87,20 +87,20 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 			v.Aux = nil
+ 			v.resetArgs()
+ 			v0 := v.Block.NewValue0(v.Line, OpAddr, TypeInvalid)
+-			v0.Type = TypeBytePtr
++			v0.Type = config.Frontend().TypeBytePtr()
+ 			v0.Aux = config.fe.StringData(s.(string))
+ 			v1 := v.Block.NewValue0(v.Line, OpSB, TypeInvalid)
+-			v1.Type = config.Uintptr
++			v1.Type = config.Frontend().TypeUintptr()
+ 			v0.AddArg(v1)
+ 			v.AddArg(v0)
+ 			v2 := v.Block.NewValue0(v.Line, OpConstPtr, TypeInvalid)
+-			v2.Type = config.Uintptr
++			v2.Type = config.Frontend().TypeUintptr()
+ 			v2.AuxInt = int64(len(s.(string)))
+ 			v.AddArg(v2)
+ 			return true
+ 		}
+-		goto end1a01fc02fad8727f9a3b716cfdac3a44
+-	end1a01fc02fad8727f9a3b716cfdac3a44:
++		goto end68cc91679848c7c30bd8b0a8ed533843
++	end68cc91679848c7c30bd8b0a8ed533843:
+ 		;
+ 	case OpEqFat:
+ 		// match: (EqFat x y)
+@@ -125,33 +125,33 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		;
+ 		// match: (EqFat (Load ptr mem) (ConstNil))
+ 		// cond:
+-		// result: (EqPtr (Load <config.Uintptr> ptr mem) (ConstPtr <config.Uintptr> [0]))
++		// result: (EqPtr (Load <config.Frontend().TypeUintptr()> ptr mem) (ConstPtr <config.Frontend().TypeUintptr()> [0]))
+ 		{
+ 			if v.Args[0].Op != OpLoad {
+-				goto end2597220d1792c84d362da7901d2065d2
++				goto end540dc8dfbc66adcd3db2d7e819c534f6
+ 			}
+ 			ptr := v.Args[0].Args[0]
+ 			mem := v.Args[0].Args[1]
+ 			if v.Args[1].Op != OpConstNil {
+-				goto end2597220d1792c84d362da7901d2065d2
++				goto end540dc8dfbc66adcd3db2d7e819c534f6
+ 			}
+ 			v.Op = OpEqPtr
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+ 			v0 := v.Block.NewValue0(v.Line, OpLoad, TypeInvalid)
+-			v0.Type = config.Uintptr
++			v0.Type = config.Frontend().TypeUintptr()
+ 			v0.AddArg(ptr)
+ 			v0.AddArg(mem)
+ 			v.AddArg(v0)
+ 			v1 := v.Block.NewValue0(v.Line, OpConstPtr, TypeInvalid)
+-			v1.Type = config.Uintptr
++			v1.Type = config.Frontend().TypeUintptr()
+ 			v1.AuxInt = 0
+ 			v.AddArg(v1)
+ 			return true
+ 		}
+-		goto end2597220d1792c84d362da7901d2065d2
+-	end2597220d1792c84d362da7901d2065d2:
++		goto end540dc8dfbc66adcd3db2d7e819c534f6
++	end540dc8dfbc66adcd3db2d7e819c534f6:
+ 		;
+ 	case OpIsInBounds:
+ 		// match: (IsInBounds (ConstPtr [c]) (ConstPtr [d]))
+@@ -179,27 +179,27 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 	case OpLoad:
+ 		// match: (Load <t> ptr mem)
+ 		// cond: t.IsString()
+-		// result: (StringMake (Load <TypeBytePtr> ptr mem) (Load <config.Uintptr> (OffPtr <TypeBytePtr> [config.PtrSize] ptr) mem))
++		// result: (StringMake (Load <config.Frontend().TypeBytePtr()> ptr mem) (Load <config.Frontend().TypeUintptr()> (OffPtr <config.Frontend().TypeBytePtr()> [config.PtrSize] ptr) mem))
+ 		{
+ 			t := v.Type
+ 			ptr := v.Args[0]
+ 			mem := v.Args[1]
+ 			if !(t.IsString()) {
+-				goto endce3ba169a57b8a9f6b12751d49b4e23a
++				goto end18afa4a6fdd6d0b92ed292840898c8f6
+ 			}
+ 			v.Op = OpStringMake
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+ 			v0 := v.Block.NewValue0(v.Line, OpLoad, TypeInvalid)
+-			v0.Type = TypeBytePtr
++			v0.Type = config.Frontend().TypeBytePtr()
+ 			v0.AddArg(ptr)
+ 			v0.AddArg(mem)
+ 			v.AddArg(v0)
+ 			v1 := v.Block.NewValue0(v.Line, OpLoad, TypeInvalid)
+-			v1.Type = config.Uintptr
++			v1.Type = config.Frontend().TypeUintptr()
+ 			v2 := v.Block.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+-			v2.Type = TypeBytePtr
++			v2.Type = config.Frontend().TypeBytePtr()
+ 			v2.AuxInt = config.PtrSize
+ 			v2.AddArg(ptr)
+ 			v1.AddArg(v2)
+@@ -207,8 +207,8 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 			v.AddArg(v1)
+ 			return true
+ 		}
+-		goto endce3ba169a57b8a9f6b12751d49b4e23a
+-	endce3ba169a57b8a9f6b12751d49b4e23a:
++		goto end18afa4a6fdd6d0b92ed292840898c8f6
++	end18afa4a6fdd6d0b92ed292840898c8f6:
+ 		;
+ 	case OpMul64:
+ 		// match: (Mul64 (Const64 [c]) (Const64 [d]))
+@@ -279,38 +279,38 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		;
+ 		// match: (NeqFat (Load ptr mem) (ConstNil))
+ 		// cond:
+-		// result: (NeqPtr (Load <config.Uintptr> ptr mem) (ConstPtr <config.Uintptr> [0]))
++		// result: (NeqPtr (Load <config.Frontend().TypeUintptr()> ptr mem) (ConstPtr <config.Frontend().TypeUintptr()> [0]))
+ 		{
+ 			if v.Args[0].Op != OpLoad {
+-				goto end03a0fc8dde062c55439174f70c19e6ce
++				goto end67d723bb0f39a5c897816abcf411e5cf
+ 			}
+ 			ptr := v.Args[0].Args[0]
+ 			mem := v.Args[0].Args[1]
+ 			if v.Args[1].Op != OpConstNil {
+-				goto end03a0fc8dde062c55439174f70c19e6ce
++				goto end67d723bb0f39a5c897816abcf411e5cf
+ 			}
+ 			v.Op = OpNeqPtr
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+ 			v0 := v.Block.NewValue0(v.Line, OpLoad, TypeInvalid)
+-			v0.Type = config.Uintptr
++			v0.Type = config.Frontend().TypeUintptr()
+ 			v0.AddArg(ptr)
+ 			v0.AddArg(mem)
+ 			v.AddArg(v0)
+ 			v1 := v.Block.NewValue0(v.Line, OpConstPtr, TypeInvalid)
+-			v1.Type = config.Uintptr
++			v1.Type = config.Frontend().TypeUintptr()
+ 			v1.AuxInt = 0
+ 			v.AddArg(v1)
+ 			return true
+ 		}
+-		goto end03a0fc8dde062c55439174f70c19e6ce
+-	end03a0fc8dde062c55439174f70c19e6ce:
++		goto end67d723bb0f39a5c897816abcf411e5cf
++	end67d723bb0f39a5c897816abcf411e5cf:
+ 		;
+ 	case OpPtrIndex:
+ 		// match: (PtrIndex <t> ptr idx)
+ 		// cond:
+-		// result: (AddPtr ptr (MulPtr <config.Uintptr> idx (ConstPtr <config.Uintptr> [t.Elem().Size()])))
++		// result: (AddPtr ptr (MulPtr <config.Frontend().TypeUintptr()> idx (ConstPtr <config.Frontend().TypeUintptr()> [t.Elem().Size()])))
+ 		{
+ 			t := v.Type
+ 			ptr := v.Args[0]
+@@ -321,25 +321,25 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 			v.resetArgs()
+ 			v.AddArg(ptr)
+ 			v0 := v.Block.NewValue0(v.Line, OpMulPtr, TypeInvalid)
+-			v0.Type = config.Uintptr
++			v0.Type = config.Frontend().TypeUintptr()
+ 			v0.AddArg(idx)
+ 			v1 := v.Block.NewValue0(v.Line, OpConstPtr, TypeInvalid)
+-			v1.Type = config.Uintptr
++			v1.Type = config.Frontend().TypeUintptr()
+ 			v1.AuxInt = t.Elem().Size()
+ 			v0.AddArg(v1)
+ 			v.AddArg(v0)
+ 			return true
+ 		}
+-		goto endfb3e605edaa4c3c0684c4fa9c8f150ee
+-	endfb3e605edaa4c3c0684c4fa9c8f150ee:
++		goto endf7546737f42c76a99699f241d41f491a
++	endf7546737f42c76a99699f241d41f491a:
+ 		;
+ 	case OpSliceCap:
+ 		// match: (SliceCap (Load ptr mem))
+ 		// cond:
+-		// result: (Load (AddPtr <ptr.Type> ptr (ConstPtr <config.Uintptr> [config.PtrSize*2])) mem)
++		// result: (Load (AddPtr <ptr.Type> ptr (ConstPtr <config.Frontend().TypeUintptr()> [config.PtrSize*2])) mem)
+ 		{
+ 			if v.Args[0].Op != OpLoad {
+-				goto end18c7acae3d96b30b9e5699194df4a687
++				goto end6696811bf6bd45e505d24c1a15c68e70
+ 			}
+ 			ptr := v.Args[0].Args[0]
+ 			mem := v.Args[0].Args[1]
+@@ -351,23 +351,23 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 			v0.Type = ptr.Type
+ 			v0.AddArg(ptr)
+ 			v1 := v.Block.NewValue0(v.Line, OpConstPtr, TypeInvalid)
+-			v1.Type = config.Uintptr
++			v1.Type = config.Frontend().TypeUintptr()
+ 			v1.AuxInt = config.PtrSize * 2
+ 			v0.AddArg(v1)
+ 			v.AddArg(v0)
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto end18c7acae3d96b30b9e5699194df4a687
+-	end18c7acae3d96b30b9e5699194df4a687:
++		goto end6696811bf6bd45e505d24c1a15c68e70
++	end6696811bf6bd45e505d24c1a15c68e70:
+ 		;
+ 	case OpSliceLen:
+ 		// match: (SliceLen (Load ptr mem))
+ 		// cond:
+-		// result: (Load (AddPtr <ptr.Type> ptr (ConstPtr <config.Uintptr> [config.PtrSize])) mem)
++		// result: (Load (AddPtr <ptr.Type> ptr (ConstPtr <config.Frontend().TypeUintptr()> [config.PtrSize])) mem)
+ 		{
+ 			if v.Args[0].Op != OpLoad {
+-				goto end2dc65aee31bb0d91847032be777777d2
++				goto end9844ce3e290e81355493141e653e37d5
+ 			}
+ 			ptr := v.Args[0].Args[0]
+ 			mem := v.Args[0].Args[1]
+@@ -379,15 +379,15 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 			v0.Type = ptr.Type
+ 			v0.AddArg(ptr)
+ 			v1 := v.Block.NewValue0(v.Line, OpConstPtr, TypeInvalid)
+-			v1.Type = config.Uintptr
++			v1.Type = config.Frontend().TypeUintptr()
+ 			v1.AuxInt = config.PtrSize
+ 			v0.AddArg(v1)
+ 			v.AddArg(v0)
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto end2dc65aee31bb0d91847032be777777d2
+-	end2dc65aee31bb0d91847032be777777d2:
++		goto end9844ce3e290e81355493141e653e37d5
++	end9844ce3e290e81355493141e653e37d5:
+ 		;
+ 	case OpSlicePtr:
+ 		// match: (SlicePtr (Load ptr mem))
+@@ -443,40 +443,40 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		;
+ 		// match: (Store dst str mem)
+ 		// cond: str.Type.IsString()
+-		// result: (Store (OffPtr <TypeBytePtr> [config.PtrSize] dst) (StringLen <config.Uintptr> str) (Store <TypeMem> dst (StringPtr <TypeBytePtr> str) mem))
++		// result: (Store (OffPtr <config.Frontend().TypeBytePtr()> [config.PtrSize] dst) (StringLen <config.Frontend().TypeUintptr()> str) (Store <TypeMem> dst (StringPtr <config.Frontend().TypeBytePtr()> str) mem))
+ 		{
+ 			dst := v.Args[0]
+ 			str := v.Args[1]
+ 			mem := v.Args[2]
+ 			if !(str.Type.IsString()) {
+-				goto endb47e037c1e5ac54c3a41d53163d8aef6
++				goto enddf0c5a150f4b4bf6715fd2bd4bb4cc20
+ 			}
+ 			v.Op = OpStore
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+ 			v0 := v.Block.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+-			v0.Type = TypeBytePtr
++			v0.Type = config.Frontend().TypeBytePtr()
+ 			v0.AuxInt = config.PtrSize
+ 			v0.AddArg(dst)
+ 			v.AddArg(v0)
+ 			v1 := v.Block.NewValue0(v.Line, OpStringLen, TypeInvalid)
+-			v1.Type = config.Uintptr
++			v1.Type = config.Frontend().TypeUintptr()
+ 			v1.AddArg(str)
+ 			v.AddArg(v1)
+ 			v2 := v.Block.NewValue0(v.Line, OpStore, TypeInvalid)
+ 			v2.Type = TypeMem
+ 			v2.AddArg(dst)
+ 			v3 := v.Block.NewValue0(v.Line, OpStringPtr, TypeInvalid)
+-			v3.Type = TypeBytePtr
++			v3.Type = config.Frontend().TypeBytePtr()
+ 			v3.AddArg(str)
+ 			v2.AddArg(v3)
+ 			v2.AddArg(mem)
+ 			v.AddArg(v2)
+ 			return true
+ 		}
+-		goto endb47e037c1e5ac54c3a41d53163d8aef6
+-	endb47e037c1e5ac54c3a41d53163d8aef6:
++		goto enddf0c5a150f4b4bf6715fd2bd4bb4cc20
++	enddf0c5a150f4b4bf6715fd2bd4bb4cc20:
+ 		;
+ 	case OpStringLen:
+ 		// match: (StringLen (StringMake _ len))
+diff --git a/src/cmd/compile/internal/ssa/schedule_test.go b/src/cmd/compile/internal/ssa/schedule_test.go
+index e724871bd0..45f3dbcac5 100644
+--- a/src/cmd/compile/internal/ssa/schedule_test.go
++++ b/src/cmd/compile/internal/ssa/schedule_test.go
+@@ -7,7 +7,7 @@ package ssa
+ import "testing"
+ 
+ func TestSchedule(t *testing.T) {
+-	c := NewConfig("amd64", DummyFrontend{t})
++	c := testConfig(t)
+ 	cases := []fun{
+ 		Fun(c, "entry",
+ 			Bloc("entry",
+diff --git a/src/cmd/compile/internal/ssa/shift_test.go b/src/cmd/compile/internal/ssa/shift_test.go
+index 3bb26cda0b..fc26ab82ca 100644
+--- a/src/cmd/compile/internal/ssa/shift_test.go
++++ b/src/cmd/compile/internal/ssa/shift_test.go
+@@ -9,7 +9,7 @@ import (
+ )
+ 
+ func TestShiftConstAMD64(t *testing.T) {
+-	c := NewConfig("amd64", DummyFrontend{t})
++	c := testConfig(t)
+ 	fun := makeConstShiftFunc(c, 18, OpLsh64x64, TypeUInt64)
+ 	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SHLQconst: 1, OpAMD64CMPQconst: 0, OpAMD64ANDQconst: 0})
+ 	fun = makeConstShiftFunc(c, 66, OpLsh64x64, TypeUInt64)
+diff --git a/src/cmd/compile/internal/ssa/type.go b/src/cmd/compile/internal/ssa/type.go
+index 370137da71..d6e8384cf0 100644
+--- a/src/cmd/compile/internal/ssa/type.go
++++ b/src/cmd/compile/internal/ssa/type.go
+@@ -29,39 +29,29 @@ type Type interface {
+ 	Equal(Type) bool
+ }
+ 
+-// Stub implementation for now, until we are completely using ../gc:Type
+-type TypeImpl struct {
+-	Size_   int64
+-	Align   int64
+-	Boolean bool
+-	Integer bool
+-	Signed  bool
+-	Float   bool
+-	Ptr     bool
+-	string  bool
+-
++// Special compiler-only types.
++type CompilerType struct {
++	Name   string
+ 	Memory bool
+ 	Flags  bool
+-
+-	Name string
+ }
+ 
+-func (t *TypeImpl) Size() int64      { return t.Size_ }
+-func (t *TypeImpl) Alignment() int64 { return t.Align }
+-func (t *TypeImpl) IsBoolean() bool  { return t.Boolean }
+-func (t *TypeImpl) IsInteger() bool  { return t.Integer }
+-func (t *TypeImpl) IsSigned() bool   { return t.Signed }
+-func (t *TypeImpl) IsFloat() bool    { return t.Float }
+-func (t *TypeImpl) IsPtr() bool      { return t.Ptr }
+-func (t *TypeImpl) IsString() bool   { return t.string }
+-func (t *TypeImpl) IsMemory() bool   { return t.Memory }
+-func (t *TypeImpl) IsFlags() bool    { return t.Flags }
+-func (t *TypeImpl) String() string   { return t.Name }
+-func (t *TypeImpl) Elem() Type       { panic("not implemented"); return nil }
+-func (t *TypeImpl) PtrTo() Type      { panic("not implemented"); return nil }
++func (t *CompilerType) Size() int64      { return 0 }
++func (t *CompilerType) Alignment() int64 { return 0 }
++func (t *CompilerType) IsBoolean() bool  { return false }
++func (t *CompilerType) IsInteger() bool  { return false }
++func (t *CompilerType) IsSigned() bool   { return false }
++func (t *CompilerType) IsFloat() bool    { return false }
++func (t *CompilerType) IsPtr() bool      { return false }
++func (t *CompilerType) IsString() bool   { return false }
++func (t *CompilerType) IsMemory() bool   { return t.Memory }
++func (t *CompilerType) IsFlags() bool    { return t.Flags }
++func (t *CompilerType) String() string   { return t.Name }
++func (t *CompilerType) Elem() Type       { panic("not implemented") }
++func (t *CompilerType) PtrTo() Type      { panic("not implemented") }
+ 
+-func (t *TypeImpl) Equal(u Type) bool {
+-	x, ok := u.(*TypeImpl)
++func (t *CompilerType) Equal(u Type) bool {
++	x, ok := u.(*CompilerType)
+ 	if !ok {
+ 		return false
+ 	}
+@@ -69,22 +59,7 @@ func (t *TypeImpl) Equal(u Type) bool {
+ }
+ 
+ var (
+-	// shortcuts for commonly used basic types
+-	TypeInt8   = &TypeImpl{Size_: 1, Align: 1, Integer: true, Signed: true, Name: "int8"}
+-	TypeInt16  = &TypeImpl{Size_: 2, Align: 2, Integer: true, Signed: true, Name: "int16"}
+-	TypeInt32  = &TypeImpl{Size_: 4, Align: 4, Integer: true, Signed: true, Name: "int32"}
+-	TypeInt64  = &TypeImpl{Size_: 8, Align: 8, Integer: true, Signed: true, Name: "int64"}
+-	TypeUInt8  = &TypeImpl{Size_: 1, Align: 1, Integer: true, Name: "uint8"}
+-	TypeUInt16 = &TypeImpl{Size_: 2, Align: 2, Integer: true, Name: "uint16"}
+-	TypeUInt32 = &TypeImpl{Size_: 4, Align: 4, Integer: true, Name: "uint32"}
+-	TypeUInt64 = &TypeImpl{Size_: 8, Align: 8, Integer: true, Name: "uint64"}
+-	TypeBool   = &TypeImpl{Size_: 1, Align: 1, Boolean: true, Name: "bool"}
+-	//TypeString = types.Typ[types.String]
+-	TypeBytePtr = &TypeImpl{Size_: 8, Align: 8, Ptr: true, Name: "*byte"}
+-
+-	TypeInvalid = &TypeImpl{Name: "invalid"}
+-
+-	// Additional compiler-only types go here.
+-	TypeMem   = &TypeImpl{Memory: true, Name: "mem"}
+-	TypeFlags = &TypeImpl{Flags: true, Name: "flags"}
++	TypeInvalid = &CompilerType{Name: "invalid"}
++	TypeMem     = &CompilerType{Name: "mem", Memory: true}
++	TypeFlags   = &CompilerType{Name: "flags", Flags: true}
+ )
+diff --git a/src/cmd/compile/internal/ssa/type_test.go b/src/cmd/compile/internal/ssa/type_test.go
+new file mode 100644
+index 0000000000..6f8dd6d937
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/type_test.go
+@@ -0,0 +1,55 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++// Stub implementation used for testing.
++type TypeImpl struct {
++	Size_   int64
++	Align   int64
++	Boolean bool
++	Integer bool
++	Signed  bool
++	Float   bool
++	Ptr     bool
++	string  bool
++
++	Name string
++}
++
++func (t *TypeImpl) Size() int64      { return t.Size_ }
++func (t *TypeImpl) Alignment() int64 { return t.Align }
++func (t *TypeImpl) IsBoolean() bool  { return t.Boolean }
++func (t *TypeImpl) IsInteger() bool  { return t.Integer }
++func (t *TypeImpl) IsSigned() bool   { return t.Signed }
++func (t *TypeImpl) IsFloat() bool    { return t.Float }
++func (t *TypeImpl) IsPtr() bool      { return t.Ptr }
++func (t *TypeImpl) IsString() bool   { return t.string }
++func (t *TypeImpl) IsMemory() bool   { return false }
++func (t *TypeImpl) IsFlags() bool    { return false }
++func (t *TypeImpl) String() string   { return t.Name }
++func (t *TypeImpl) Elem() Type       { panic("not implemented") }
++func (t *TypeImpl) PtrTo() Type      { panic("not implemented") }
++
++func (t *TypeImpl) Equal(u Type) bool {
++	x, ok := u.(*TypeImpl)
++	if !ok {
++		return false
++	}
++	return x == t
++}
++
++var (
++	// shortcuts for commonly used basic types
++	TypeInt8    = &TypeImpl{Size_: 1, Align: 1, Integer: true, Signed: true, Name: "int8"}
++	TypeInt16   = &TypeImpl{Size_: 2, Align: 2, Integer: true, Signed: true, Name: "int16"}
++	TypeInt32   = &TypeImpl{Size_: 4, Align: 4, Integer: true, Signed: true, Name: "int32"}
++	TypeInt64   = &TypeImpl{Size_: 8, Align: 8, Integer: true, Signed: true, Name: "int64"}
++	TypeUInt8   = &TypeImpl{Size_: 1, Align: 1, Integer: true, Name: "uint8"}
++	TypeUInt16  = &TypeImpl{Size_: 2, Align: 2, Integer: true, Name: "uint16"}
++	TypeUInt32  = &TypeImpl{Size_: 4, Align: 4, Integer: true, Name: "uint32"}
++	TypeUInt64  = &TypeImpl{Size_: 8, Align: 8, Integer: true, Name: "uint64"}
++	TypeBool    = &TypeImpl{Size_: 1, Align: 1, Boolean: true, Name: "bool"}
++	TypeBytePtr = &TypeImpl{Size_: 8, Align: 8, Ptr: true, Name: "*byte"}
++)

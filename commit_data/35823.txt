@@ -17,7 +17,7 @@ Date:   Thu Mar 8 04:18:18 2018 -0800
     Change-Id: Ieae7c67225c1459c9719f9e6a748a25b975cf758
     Reviewed-on: https://go-review.googlesource.com/99535
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/alg.go       |  5 ---
  src/cmd/compile/internal/gc/bexport.go   |  4 +--
  src/cmd/compile/internal/gc/bimport.go   |  2 +-
@@ -30,3 +30,580 @@ Date:   Thu Mar 8 04:18:18 2018 -0800
  src/cmd/compile/internal/gc/universe.go  |  5 ++-
  src/cmd/compile/internal/gc/walk.go      | 31 +++++------------
  11 files changed, 98 insertions(+), 72 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index cdb21a7d4b..b17cab68bd 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -233,7 +233,6 @@ func genhash(sym *types.Sym, t *types.Type) {
+ 		nx := nod(OINDEX, np, ni)
+ 		nx.SetBounded(true)
+ 		na := nod(OADDR, nx, nil)
+-		na.Etype = 1 // no escape to heap
+ 		call.List.Append(na)
+ 		call.List.Append(nh)
+ 		n.Nbody.Append(nod(OAS, nh, call))
+@@ -258,7 +257,6 @@ func genhash(sym *types.Sym, t *types.Type) {
+ 				call := nod(OCALL, hashel, nil)
+ 				nx := nodSym(OXDOT, np, f.Sym) // TODO: fields from other packages?
+ 				na := nod(OADDR, nx, nil)
+-				na.Etype = 1 // no escape to heap
+ 				call.List.Append(na)
+ 				call.List.Append(nh)
+ 				fn.Nbody.Append(nod(OAS, nh, call))
+@@ -274,7 +272,6 @@ func genhash(sym *types.Sym, t *types.Type) {
+ 			call := nod(OCALL, hashel, nil)
+ 			nx := nodSym(OXDOT, np, f.Sym) // TODO: fields from other packages?
+ 			na := nod(OADDR, nx, nil)
+-			na.Etype = 1 // no escape to heap
+ 			call.List.Append(na)
+ 			call.List.Append(nh)
+ 			call.List.Append(nodintconst(size))
+@@ -518,9 +515,7 @@ func eqfield(p *Node, q *Node, field *types.Sym) *Node {
+ // 	memequal(&p.field, &q.field [, size])
+ func eqmem(p *Node, q *Node, field *types.Sym, size int64) *Node {
+ 	nx := nod(OADDR, nodSym(OXDOT, p, field), nil)
+-	nx.Etype = 1 // does not escape
+ 	ny := nod(OADDR, nodSym(OXDOT, q, field), nil)
+-	ny.Etype = 1 // does not escape
+ 	nx = typecheck(nx, Erv)
+ 	ny = typecheck(ny, Erv)
+ 
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 52ee4defc2..92dc06fc35 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -1461,7 +1461,7 @@ func (p *exporter) expr(n *Node) {
+ 		p.exprList(n.List)
+ 
+ 	case OCMPSTR, OCMPIFACE:
+-		p.op(Op(n.Etype))
++		p.op(n.SubOp())
+ 		p.pos(n)
+ 		p.expr(n.Left)
+ 		p.expr(n.Right)
+@@ -1527,7 +1527,7 @@ func (p *exporter) stmt(n *Node) {
+ 	case OASOP:
+ 		p.op(OASOP)
+ 		p.pos(n)
+-		p.int(int(n.Etype))
++		p.op(n.SubOp())
+ 		p.expr(n.Left)
+ 		if p.bool(!n.Implicit()) {
+ 			p.expr(n.Right)
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 68ca0ca949..f59cda6301 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -1124,7 +1124,7 @@ func (p *importer) node() *Node {
+ 
+ 	case OASOP:
+ 		n := nodl(p.pos(), OASOP, nil, nil)
+-		n.Etype = types.EType(p.int())
++		n.SetSubOp(p.op())
+ 		n.Left = p.expr()
+ 		if !p.bool() {
+ 			n.Right = nodintconst(1)
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index aa7e230496..5e8c2a85c7 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -926,7 +926,7 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
+ 
+ 	case OASOP:
+ 		if n.Implicit() {
+-			if Op(n.Etype) == OADD {
++			if n.SubOp() == OADD {
+ 				mode.Fprintf(s, "%v++", n.Left)
+ 			} else {
+ 				mode.Fprintf(s, "%v--", n.Left)
+@@ -934,7 +934,7 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
+ 			break
+ 		}
+ 
+-		mode.Fprintf(s, "%v %#v= %v", n.Left, Op(n.Etype), n.Right)
++		mode.Fprintf(s, "%v %#v= %v", n.Left, n.SubOp(), n.Right)
+ 
+ 	case OAS2:
+ 		if n.Colas() && !complexinit {
+@@ -1274,7 +1274,7 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
+ 		mode.Fprintf(s, "map[%v]%v", n.Left, n.Right)
+ 
+ 	case OTCHAN:
+-		switch types.ChanDir(n.Etype) {
++		switch n.TChanDir() {
+ 		case types.Crecv:
+ 			mode.Fprintf(s, "<-chan %v", n.Left)
+ 
+@@ -1282,7 +1282,7 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
+ 			mode.Fprintf(s, "chan<- %v", n.Left)
+ 
+ 		default:
+-			if n.Left != nil && n.Left.Op == OTCHAN && n.Left.Sym == nil && types.ChanDir(n.Left.Etype) == types.Crecv {
++			if n.Left != nil && n.Left.Op == OTCHAN && n.Left.Sym == nil && n.Left.TChanDir() == types.Crecv {
+ 				mode.Fprintf(s, "chan (%v)", n.Left)
+ 			} else {
+ 				mode.Fprintf(s, "chan %v", n.Left)
+@@ -1517,8 +1517,7 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
+ 
+ 	case OCMPSTR, OCMPIFACE:
+ 		n.Left.exprfmt(s, nprec, mode)
+-		// TODO(marvin): Fix Node.EType type union.
+-		mode.Fprintf(s, " %#v ", Op(n.Etype))
++		mode.Fprintf(s, " %#v ", n.SubOp())
+ 		n.Right.exprfmt(s, nprec+1, mode)
+ 
+ 	default:
+@@ -1593,7 +1592,7 @@ func (n *Node) nodedump(s fmt.State, flag FmtFlag, mode fmtMode) {
+ 		}
+ 
+ 	case OASOP:
+-		mode.Fprintf(s, "%v-%v%j", n.Op, Op(n.Etype), n)
++		mode.Fprintf(s, "%v-%v%j", n.Op, n.SubOp(), n)
+ 
+ 	case OTYPE:
+ 		mode.Fprintf(s, "%v %v%j type=%v", n.Op, n.Sym, n, n.Type)
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 85bbb4b4f3..f6ba430045 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -1005,7 +1005,6 @@ func mkinlcall1(n, fn *Node, isddd bool) *Node {
+ 	}
+ 
+ 	retlabel := autolabel(".i")
+-	retlabel.Etype = 1 // flag 'safe' for escape analysis (no backjumps)
+ 
+ 	inlgen++
+ 
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index a4cf3a14f5..fc6c5587df 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -654,7 +654,7 @@ func (p *noder) expr(expr syntax.Expr) *Node {
+ 		return p.nod(expr, OTMAP, p.typeExpr(expr.Key), p.typeExpr(expr.Value))
+ 	case *syntax.ChanType:
+ 		n := p.nod(expr, OTCHAN, p.typeExpr(expr.Elem), nil)
+-		n.Etype = types.EType(p.chanDir(expr.Dir))
++		n.SetTChanDir(p.chanDir(expr.Dir))
+ 		return n
+ 
+ 	case *syntax.TypeSwitchGuard:
+@@ -902,7 +902,7 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) *Node {
+ 		if stmt.Op != 0 && stmt.Op != syntax.Def {
+ 			n := p.nod(stmt, OASOP, p.expr(stmt.Lhs), p.expr(stmt.Rhs))
+ 			n.SetImplicit(stmt.Rhs == syntax.ImplicitOne)
+-			n.Etype = types.EType(p.binOp(stmt.Op))
++			n.SetSubOp(p.binOp(stmt.Op))
+ 			return n
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 8ae1dbcbef..ef82ae7625 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -526,15 +526,14 @@ func (o *Order) stmt(n *Node) {
+ 		n.Left = o.safeExpr(n.Left)
+ 		tmp1 := treecopy(n.Left, src.NoXPos)
+ 		if tmp1.Op == OINDEXMAP {
+-			tmp1.Etype = 0 // now an rvalue not an lvalue
++			tmp1.SetIndexMapLValue(false)
+ 		}
+ 		tmp1 = o.copyExpr(tmp1, n.Left.Type, false)
+-		// TODO(marvin): Fix Node.EType type union.
+-		n.Right = nod(Op(n.Etype), tmp1, n.Right)
++		n.Right = nod(n.SubOp(), tmp1, n.Right)
+ 		n.Right = typecheck(n.Right, Erv)
+ 		n.Right = o.expr(n.Right, nil)
+-		n.Etype = 0
+ 		n.Op = OAS
++		n.ResetAux()
+ 		o.mapAssign(n)
+ 		o.cleanTemp(t)
+ 
+@@ -1015,7 +1014,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
+ 		n.Right = o.expr(n.Right, nil)
+ 		needCopy := false
+ 
+-		if n.Etype == 0 && instrumenting {
++		if !n.IndexMapLValue() && instrumenting {
+ 			// Race detector needs the copy so it can
+ 			// call treecopy on the result.
+ 			needCopy = true
+@@ -1031,7 +1030,7 @@ func (o *Order) expr(n, lhs *Node) *Node {
+ 		// the map index, because the map access is going to
+ 		// be forced to happen immediately following this
+ 		// conversion (by the ordercopyexpr a few lines below).
+-		if n.Etype == 0 && n.Right.Op == OARRAYBYTESTR {
++		if !n.IndexMapLValue() && n.Right.Op == OARRAYBYTESTR {
+ 			n.Right.Op = OARRAYBYTESTRTMP
+ 			needCopy = true
+ 		}
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index edc9e4ea03..182f93da14 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -55,8 +55,62 @@ type Node struct {
+ 
+ 	Esc uint16 // EscXXX
+ 
+-	Op    Op
+-	Etype types.EType // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg, ChanDir for OTCHAN, for OINDEXMAP 1=LHS,0=RHS
++	Op  Op
++	aux uint8
++}
++
++func (n *Node) ResetAux() {
++	n.aux = 0
++}
++
++func (n *Node) SubOp() Op {
++	switch n.Op {
++	case OASOP, OCMPIFACE, OCMPSTR, ONAME:
++	default:
++		Fatalf("unexpected op: %v", n.Op)
++	}
++	return Op(n.aux)
++}
++
++func (n *Node) SetSubOp(op Op) {
++	switch n.Op {
++	case OASOP, OCMPIFACE, OCMPSTR, ONAME:
++	default:
++		Fatalf("unexpected op: %v", n.Op)
++	}
++	n.aux = uint8(op)
++}
++
++func (n *Node) IndexMapLValue() bool {
++	if n.Op != OINDEXMAP {
++		Fatalf("unexpected op: %v", n.Op)
++	}
++	return n.aux != 0
++}
++
++func (n *Node) SetIndexMapLValue(b bool) {
++	if n.Op != OINDEXMAP {
++		Fatalf("unexpected op: %v", n.Op)
++	}
++	if b {
++		n.aux = 1
++	} else {
++		n.aux = 0
++	}
++}
++
++func (n *Node) TChanDir() types.ChanDir {
++	if n.Op != OTCHAN {
++		Fatalf("unexpected op: %v", n.Op)
++	}
++	return types.ChanDir(n.aux)
++}
++
++func (n *Node) SetTChanDir(dir types.ChanDir) {
++	if n.Op != OTCHAN {
++		Fatalf("unexpected op: %v", n.Op)
++	}
++	n.aux = uint8(dir)
+ }
+ 
+ func (n *Node) IsSynthetic() bool {
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 47a8a42944..214831f2fb 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -263,7 +263,7 @@ func typecheck1(n *Node, top int) *Node {
+ 		// n.Sym is a field/method name, not a variable.
+ 	default:
+ 		if n.Sym != nil {
+-			if n.Op == ONAME && n.Etype != 0 && top&Ecall == 0 {
++			if n.Op == ONAME && n.SubOp() != 0 && top&Ecall == 0 {
+ 				yyerror("use of builtin %v not in function call", n.Sym)
+ 				n.Type = nil
+ 				return n
+@@ -300,7 +300,7 @@ func typecheck1(n *Node, top int) *Node {
+ 		if n.Name.Decldepth == 0 {
+ 			n.Name.Decldepth = decldepth
+ 		}
+-		if n.Etype != 0 {
++		if n.SubOp() != 0 {
+ 			ok |= Ecall
+ 			break
+ 		}
+@@ -428,11 +428,11 @@ func typecheck1(n *Node, top int) *Node {
+ 		if l.Type.NotInHeap() {
+ 			yyerror("chan of go:notinheap type not allowed")
+ 		}
+-		t := types.NewChan(l.Type, types.ChanDir(n.Etype)) // TODO(marvin): Fix Node.EType type union.
++		t := types.NewChan(l.Type, n.TChanDir())
+ 		n.Op = OTYPE
+ 		n.Type = t
+ 		n.Left = nil
+-		n.Etype = 0
++		n.ResetAux()
+ 
+ 	case OTSTRUCT:
+ 		ok |= Etype
+@@ -540,7 +540,7 @@ func typecheck1(n *Node, top int) *Node {
+ 				return n
+ 			}
+ 			// TODO(marvin): Fix Node.EType type union.
+-			op = Op(n.Etype)
++			op = n.SubOp()
+ 		} else {
+ 			ok |= Erv
+ 			n.Left = typecheck(n.Left, Erv)
+@@ -712,9 +712,9 @@ func typecheck1(n *Node, top int) *Node {
+ 
+ 		if et == TSTRING {
+ 			if iscmp[n.Op] {
+-				// TODO(marvin): Fix Node.EType type union.
+-				n.Etype = types.EType(n.Op)
++				ot := n.Op
+ 				n.Op = OCMPSTR
++				n.SetSubOp(ot)
+ 			} else if n.Op == OADD {
+ 				// create OADDSTR node with list of strings in x + y + z + (w + v) + ...
+ 				n.Op = OADDSTR
+@@ -743,9 +743,9 @@ func typecheck1(n *Node, top int) *Node {
+ 			} else if r.Op == OLITERAL && r.Val().Ctype() == CTNIL {
+ 			} else // leave alone for back end
+ 			if r.Type.IsInterface() == l.Type.IsInterface() {
+-				// TODO(marvin): Fix Node.EType type union.
+-				n.Etype = types.EType(n.Op)
++				ot := n.Op
+ 				n.Op = OCMPIFACE
++				n.SetSubOp(ot)
+ 			}
+ 		}
+ 
+@@ -1026,13 +1026,13 @@ func typecheck1(n *Node, top int) *Node {
+ 			}
+ 
+ 		case TMAP:
+-			n.Etype = 0
+ 			n.Right = defaultlit(n.Right, t.Key())
+ 			if n.Right.Type != nil {
+ 				n.Right = assignconv(n.Right, t.Key(), "map index")
+ 			}
+ 			n.Type = t.Val()
+ 			n.Op = OINDEXMAP
++			n.ResetAux()
+ 		}
+ 
+ 	case ORECV:
+@@ -1088,10 +1088,6 @@ func typecheck1(n *Node, top int) *Node {
+ 			return n
+ 		}
+ 		n.Right = assignconv(r, t.Elem(), "send")
+-
+-		// TODO: more aggressive
+-		n.Etype = 0
+-
+ 		n.Type = nil
+ 
+ 	case OSLICE, OSLICE3:
+@@ -1177,15 +1173,13 @@ func typecheck1(n *Node, top int) *Node {
+ 
+ 		l := n.Left
+ 
+-		if l.Op == ONAME && l.Etype != 0 {
+-			// TODO(marvin): Fix Node.EType type union.
+-			if n.Isddd() && Op(l.Etype) != OAPPEND {
++		if l.Op == ONAME && l.SubOp() != 0 {
++			if n.Isddd() && l.SubOp() != OAPPEND {
+ 				yyerror("invalid use of ... with builtin %v", l)
+ 			}
+ 
+ 			// builtin: OLEN, OCAP, etc.
+-			// TODO(marvin): Fix Node.EType type union.
+-			n.Op = Op(l.Etype)
++			n.Op = l.SubOp()
+ 			n.Left = n.Right
+ 			n.Right = nil
+ 			n = typecheck1(n, top)
+@@ -3214,7 +3208,7 @@ func checkassign(stmt *Node, n *Node) {
+ 		return
+ 	}
+ 	if n.Op == OINDEXMAP {
+-		n.Etype = 1
++		n.SetIndexMapLValue(true)
+ 		return
+ 	}
+ 
+@@ -3705,7 +3699,7 @@ func typecheckdef(n *Node) {
+ 			break
+ 		}
+ 		if n.Name.Defn == nil {
+-			if n.Etype != 0 { // like OPRINTN
++			if n.SubOp() != 0 { // like OPRINTN
+ 				break
+ 			}
+ 			if nsavederrors+nerrors > 0 {
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index a255ae08c0..dbc2d647c9 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -114,16 +114,15 @@ func lexinit() {
+ 	}
+ 
+ 	for _, s := range builtinFuncs {
+-		// TODO(marvin): Fix Node.EType type union.
+ 		s2 := builtinpkg.Lookup(s.name)
+ 		s2.Def = asTypesNode(newname(s2))
+-		asNode(s2.Def).Etype = types.EType(s.op)
++		asNode(s2.Def).SetSubOp(s.op)
+ 	}
+ 
+ 	for _, s := range unsafeFuncs {
+ 		s2 := unsafepkg.Lookup(s.name)
+ 		s2.Def = asTypesNode(newname(s2))
+-		asNode(s2.Def).Etype = types.EType(s.op)
++		asNode(s2.Def).SetSubOp(s.op)
+ 	}
+ 
+ 	types.Idealstring = types.New(TSTRING)
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index a2dfdb5abc..0441a15c60 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -557,7 +557,7 @@ opswitch:
+ 		n.Right = walkexpr(n.Right, init)
+ 		t := n.Left.Type
+ 		n.SetBounded(bounded(n.Right, 8*t.Width))
+-		if Debug['m'] != 0 && n.Etype != 0 && !Isconst(n.Right, CTINT) {
++		if Debug['m'] != 0 && n.Bounded() && !Isconst(n.Right, CTINT) {
+ 			Warn("shift bounds check elided")
+ 		}
+ 
+@@ -767,7 +767,6 @@ opswitch:
+ 		} else {
+ 			n1 = nod(OADDR, n.List.First(), nil)
+ 		}
+-		n1.Etype = 1 // addr does not escape
+ 		fn := chanfn("chanrecv2", 2, r.Left.Type)
+ 		ok := n.List.Second()
+ 		call := mkcall1(fn, ok.Type, init, r.Left, n1)
+@@ -1158,7 +1157,7 @@ opswitch:
+ 		map_ := n.Left
+ 		key := n.Right
+ 		t := map_.Type
+-		if n.Etype == 1 {
++		if n.IndexMapLValue() {
+ 			// This m[k] expression is on the left-hand side of an assignment.
+ 			fast := mapfast(t)
+ 			if fast == mapslow {
+@@ -1235,9 +1234,8 @@ opswitch:
+ 
+ 	case OCMPSTR:
+ 		// s + "badgerbadgerbadger" == "badgerbadgerbadger"
+-		if (Op(n.Etype) == OEQ || Op(n.Etype) == ONE) && Isconst(n.Right, CTSTR) && n.Left.Op == OADDSTR && n.Left.List.Len() == 2 && Isconst(n.Left.List.Second(), CTSTR) && strlit(n.Right) == strlit(n.Left.List.Second()) {
+-			// TODO(marvin): Fix Node.EType type union.
+-			r := nod(Op(n.Etype), nod(OLEN, n.Left.List.First(), nil), nodintconst(0))
++		if (n.SubOp() == OEQ || n.SubOp() == ONE) && Isconst(n.Right, CTSTR) && n.Left.Op == OADDSTR && n.Left.List.Len() == 2 && Isconst(n.Left.List.Second(), CTSTR) && strlit(n.Right) == strlit(n.Left.List.Second()) {
++			r := nod(n.SubOp(), nod(OLEN, n.Left.List.First(), nil), nodintconst(0))
+ 			n = finishcompare(n, r, init)
+ 			break
+ 		}
+@@ -1255,7 +1253,7 @@ opswitch:
+ 			ncs = n.Left
+ 		}
+ 		if cs != nil {
+-			cmp := Op(n.Etype)
++			cmp := n.SubOp()
+ 			// maxRewriteLen was chosen empirically.
+ 			// It is the value that minimizes cmd/go file size
+ 			// across most architectures.
+@@ -1294,7 +1292,6 @@ opswitch:
+ 				if len(s) > 0 {
+ 					ncs = safeexpr(ncs, init)
+ 				}
+-				// TODO(marvin): Fix Node.EType type union.
+ 				r := nod(cmp, nod(OLEN, ncs, nil), nodintconst(int64(len(s))))
+ 				remains := len(s)
+ 				for i := 0; remains > 0; {
+@@ -1344,8 +1341,7 @@ opswitch:
+ 		}
+ 
+ 		var r *Node
+-		// TODO(marvin): Fix Node.EType type union.
+-		if Op(n.Etype) == OEQ || Op(n.Etype) == ONE {
++		if n.SubOp() == OEQ || n.SubOp() == ONE {
+ 			// prepare for rewrite below
+ 			n.Left = cheapexpr(n.Left, init)
+ 			n.Right = cheapexpr(n.Right, init)
+@@ -1363,8 +1359,7 @@ opswitch:
+ 
+ 			// quick check of len before full compare for == or !=.
+ 			// memequal then tests equality up to length len.
+-			// TODO(marvin): Fix Node.EType type union.
+-			if Op(n.Etype) == OEQ {
++			if n.SubOp() == OEQ {
+ 				// len(left) == len(right) && memequal(left, right, len)
+ 				r = nod(OANDAND, nod(OEQ, llen, rlen), r)
+ 			} else {
+@@ -1375,8 +1370,7 @@ opswitch:
+ 		} else {
+ 			// sys_cmpstring(s1, s2) :: 0
+ 			r = mkcall("cmpstring", types.Types[TINT], init, conv(n.Left, types.Types[TSTRING]), conv(n.Right, types.Types[TSTRING]))
+-			// TODO(marvin): Fix Node.EType type union.
+-			r = nod(Op(n.Etype), r, nodintconst(0))
++			r = nod(n.SubOp(), r, nodintconst(0))
+ 		}
+ 
+ 		n = finishcompare(n, r, init)
+@@ -1677,9 +1671,8 @@ opswitch:
+ 
+ 		// Check itable/type before full compare.
+ 		// Note: short-circuited because order matters.
+-		// TODO(marvin): Fix Node.EType type union.
+ 		var cmp *Node
+-		if Op(n.Etype) == OEQ {
++		if n.SubOp() == OEQ {
+ 			cmp = nod(OANDAND, nod(OEQ, lt, rt), call)
+ 		} else {
+ 			cmp = nod(OOROR, nod(ONE, lt, rt), nod(ONOT, call, nil))
+@@ -2955,14 +2948,12 @@ func appendslice(n *Node, init *Nodes) *Node {
+ 	// s = s[:n]
+ 	nt := nod(OSLICE, s, nil)
+ 	nt.SetSliceBounds(nil, nn, nil)
+-	nt.Etype = 1
+ 	l = append(l, nod(OAS, s, nt))
+ 
+ 	if l1.Type.Elem().HasHeapPointer() {
+ 		// copy(s[len(l1):], l2)
+ 		nptr1 := nod(OSLICE, s, nil)
+ 		nptr1.SetSliceBounds(nod(OLEN, l1, nil), nil, nil)
+-		nptr1.Etype = 1
+ 		nptr2 := l2
+ 		Curfn.Func.setWBPos(n.Pos)
+ 		fn := syslook("typedslicecopy")
+@@ -2976,7 +2967,6 @@ func appendslice(n *Node, init *Nodes) *Node {
+ 		// copy(s[len(l1):], l2)
+ 		nptr1 := nod(OSLICE, s, nil)
+ 		nptr1.SetSliceBounds(nod(OLEN, l1, nil), nil, nil)
+-		nptr1.Etype = 1
+ 		nptr2 := l2
+ 
+ 		var ln Nodes
+@@ -3095,7 +3085,6 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
+ 
+ 	nx = nod(OSLICE, ns, nil) // ...s[:n+argc]
+ 	nx.SetSliceBounds(nil, nod(OADD, nn, na), nil)
+-	nx.Etype = 1
+ 	l = append(l, nod(OAS, ns, nx)) // s = s[:n+argc]
+ 
+ 	ls = n.List.Slice()[1:]
+@@ -3320,13 +3309,11 @@ func walkcompare(n *Node, init *Nodes) *Node {
+ 		// eq algs take pointers
+ 		pl := temp(types.NewPtr(t))
+ 		al := nod(OAS, pl, nod(OADDR, cmpl, nil))
+-		al.Right.Etype = 1 // addr does not escape
+ 		al = typecheck(al, Etop)
+ 		init.Append(al)
+ 
+ 		pr := temp(types.NewPtr(t))
+ 		ar := nod(OAS, pr, nod(OADDR, cmpr, nil))
+-		ar.Right.Etype = 1 // addr does not escape
+ 		ar = typecheck(ar, Etop)
+ 		init.Append(ar)
+ 

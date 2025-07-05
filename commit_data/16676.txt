@@ -11,7 +11,75 @@ Date:   Fri Jun 28 12:24:45 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/10744043
-
+---
  src/pkg/net/smtp/smtp.go      |  4 +++-
  src/pkg/net/smtp/smtp_test.go | 44 +++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 47 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/smtp/smtp.go b/src/pkg/net/smtp/smtp.go
+index dc7e1ceb8f..212c96c1d5 100644
+--- a/src/pkg/net/smtp/smtp.go
++++ b/src/pkg/net/smtp/smtp.go
+@@ -196,7 +196,9 @@ func (c *Client) Auth(a Auth) error {
+ 		default:
+ 			err = &textproto.Error{Code: code, Msg: msg64}
+ 		}
+-		resp, err = a.Next(msg, code == 334)
++		if err == nil {
++			resp, err = a.Next(msg, code == 334)
++		}
+ 		if err != nil {
+ 			// abort the AUTH
+ 			c.cmd(501, "*")
+diff --git a/src/pkg/net/smtp/smtp_test.go b/src/pkg/net/smtp/smtp_test.go
+index b696dbe3cb..2133dc7c7b 100644
+--- a/src/pkg/net/smtp/smtp_test.go
++++ b/src/pkg/net/smtp/smtp_test.go
+@@ -504,3 +504,47 @@ SendMail is working for me.
+ .
+ QUIT
+ `
++
++func TestAuthFailed(t *testing.T) {
++	server := strings.Join(strings.Split(authFailedServer, "\n"), "\r\n")
++	client := strings.Join(strings.Split(authFailedClient, "\n"), "\r\n")
++	var cmdbuf bytes.Buffer
++	bcmdbuf := bufio.NewWriter(&cmdbuf)
++	var fake faker
++	fake.ReadWriter = bufio.NewReadWriter(bufio.NewReader(strings.NewReader(server)), bcmdbuf)
++	c, err := NewClient(fake, "fake.host")
++	if err != nil {
++		t.Fatalf("NewClient: %v", err)
++	}
++	defer c.Close()
++
++	c.tls = true
++	c.serverName = "smtp.google.com"
++	err = c.Auth(PlainAuth("", "user", "pass", "smtp.google.com"))
++
++	if err == nil {
++		t.Error("Auth: expected error; got none")
++	} else if err.Error() != "535 Invalid credentials\nplease see www.example.com" {
++		t.Errorf("Auth: got error: %v, want: %s", err, "535 Invalid credentials\nplease see www.example.com")
++	}
++
++	bcmdbuf.Flush()
++	actualcmds := cmdbuf.String()
++	if client != actualcmds {
++		t.Errorf("Got:\n%s\nExpected:\n%s", actualcmds, client)
++	}
++}
++
++var authFailedServer = `220 hello world
++250-mx.google.com at your service
++250 AUTH LOGIN PLAIN
++535-Invalid credentials
++535 please see www.example.com
++221 Goodbye
++`
++
++var authFailedClient = `EHLO localhost
++AUTH PLAIN AHVzZXIAcGFzcw==
++*
++QUIT
++`

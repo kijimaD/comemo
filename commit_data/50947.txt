@@ -13,6 +13,30 @@ Date:   Tue Nov 16 19:41:43 2021 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
     Trust: Damien Neil <dneil@google.com>
-
+---
  src/net/fd_unix.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/fd_unix.go b/src/net/fd_unix.go
+index 4ded833bbf..aaa7a1c185 100644
+--- a/src/net/fd_unix.go
++++ b/src/net/fd_unix.go
+@@ -95,7 +95,8 @@ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (rsa sysc
+ 	// The interrupter goroutine waits for the context to be done and
+ 	// interrupts the dial (by altering the fd's write deadline, which
+ 	// wakes up waitWrite).
+-	if ctxDone := ctx.Done(); ctxDone != nil {
++	ctxDone := ctx.Done()
++	if ctxDone != nil {
+ 		// Wait for the interrupter goroutine to exit before returning
+ 		// from connect.
+ 		done := make(chan struct{})
+@@ -139,7 +140,7 @@ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (rsa sysc
+ 		// details.
+ 		if err := fd.pfd.WaitWrite(); err != nil {
+ 			select {
+-			case <-ctx.Done():
++			case <-ctxDone:
+ 				return nil, mapErr(ctx.Err())
+ 			default:
+ 			}

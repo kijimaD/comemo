@@ -9,10 +9,42 @@ Date:   Mon Aug 17 10:01:26 2009 -0700
     DELTA=1248  (623 added, 623 deleted, 2 changed)
     OCL=33371
     CL=33371
-
+---
  src/pkg/big/Makefile                      | 4 ++--
  src/pkg/big/{bigZ.go => int.go}           | 0
  src/pkg/big/{bigZ_test.go => int_test.go} | 0
  src/pkg/big/{bigN.go => nat.go}           | 0
  src/pkg/big/{bigN_test.go => nat_test.go} | 0
  5 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/big/Makefile b/src/pkg/big/Makefile
+index d98f5b21bd..b64ba40bf5 100644
+--- a/src/pkg/big/Makefile
++++ b/src/pkg/big/Makefile
+@@ -9,8 +9,8 @@ GOFILES=\
+ 	defs.go\
+ 	arith.go\
+ 	big.go\
+-	bigN.go\
+-	bigZ.go\
++	nat.go\
++	int.go\
+ 
+ OFILES=\
+ 	arith_$(GOARCH).$O\
+diff --git a/src/pkg/big/bigZ.go b/src/pkg/big/int.go
+similarity index 100%
+rename from src/pkg/big/bigZ.go
+rename to src/pkg/big/int.go
+diff --git a/src/pkg/big/bigZ_test.go b/src/pkg/big/int_test.go
+similarity index 100%
+rename from src/pkg/big/bigZ_test.go
+rename to src/pkg/big/int_test.go
+diff --git a/src/pkg/big/bigN.go b/src/pkg/big/nat.go
+similarity index 100%
+rename from src/pkg/big/bigN.go
+rename to src/pkg/big/nat.go
+diff --git a/src/pkg/big/bigN_test.go b/src/pkg/big/nat_test.go
+similarity index 100%
+rename from src/pkg/big/bigN_test.go
+rename to src/pkg/big/nat_test.go

@@ -24,9 +24,62 @@ Date:   Thu Oct 26 01:52:57 2023 +0000
     Reviewed-by: David Chase <drchase@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go.mod                | 2 +-
  src/go.sum                | 4 ++--
  src/net/http/h2_bundle.go | 1 +
  src/vendor/modules.txt    | 2 +-
  4 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/go.mod b/src/go.mod
+index 7116fd3d72..003d6a96a9 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -4,7 +4,7 @@ go 1.22
+ 
+ require (
+ 	golang.org/x/crypto v0.14.1-0.20231011220222-8779cbd1c995
+-	golang.org/x/net v0.17.1-0.20231011215812-d23d9bc54922
++	golang.org/x/net v0.17.1-0.20231025180729-4c7a5b64f145
+ )
+ 
+ require (
+diff --git a/src/go.sum b/src/go.sum
+index bcaeab5758..22519d7feb 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,7 +1,7 @@
+ golang.org/x/crypto v0.14.1-0.20231011220222-8779cbd1c995 h1:fwu25/DhiXr/++jtzz2gHfC/FL/FimAGVxczaK4pjR8=
+ golang.org/x/crypto v0.14.1-0.20231011220222-8779cbd1c995/go.mod h1:aSyBXtGhRzSMdne9jbl3+PPMVS0IgOWF6Llc+HB5uUU=
+-golang.org/x/net v0.17.1-0.20231011215812-d23d9bc54922 h1:5dPkjItO/mhqL4dWOB/ERHdeNKAe0YXhUnCOLpn/nwI=
+-golang.org/x/net v0.17.1-0.20231011215812-d23d9bc54922/go.mod h1:ctp6Rq0w6YZwLQMXSCn4tot1uuoj9E9vKYJV26guPn4=
++golang.org/x/net v0.17.1-0.20231025180729-4c7a5b64f145 h1:b50rfQxeg+jm4ud87SAQt4escws56zdE+/rT1oKU4oU=
++golang.org/x/net v0.17.1-0.20231025180729-4c7a5b64f145/go.mod h1:ctp6Rq0w6YZwLQMXSCn4tot1uuoj9E9vKYJV26guPn4=
+ golang.org/x/sys v0.13.1-0.20231011215430-1bfbee0e20e3 h1:G9se7UpoI67yWrFY0IIFGf6H3nwLLUZFDBCyOJwWeSc=
+ golang.org/x/sys v0.13.1-0.20231011215430-1bfbee0e20e3/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+ golang.org/x/text v0.13.1-0.20231011215848-6c97a165dd66 h1:9Dyvhe9/DDm3upTpNNwowKgum0eUka4TBRU6uHiINKo=
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 83f0bc0966..fea33276d8 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -7004,6 +7004,7 @@ func (sc *http2serverConn) startPush(msg *http2startPushRequest) {
+ 			panic(fmt.Sprintf("newWriterAndRequestNoBody(%+v): %v", msg.url, err))
+ 		}
+ 
++		sc.curHandlers++
+ 		go sc.runHandler(rw, req, sc.handler.ServeHTTP)
+ 		return promisedID, nil
+ 	}
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 5680dfb8c1..6d61189796 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -7,7 +7,7 @@ golang.org/x/crypto/cryptobyte/asn1
+ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/alias
+ golang.org/x/crypto/internal/poly1305
+-# golang.org/x/net v0.17.1-0.20231011215812-d23d9bc54922
++# golang.org/x/net v0.17.1-0.20231025180729-4c7a5b64f145
+ ## explicit; go 1.18
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts

@@ -7,6 +7,32 @@ Date:   Thu Jul 11 15:17:32 2013 +1000
     R=r
     CC=andybons, golang-dev
     https://golang.org/cl/11148043
-
+---
  src/pkg/image/draw/draw.go | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/image/draw/draw.go b/src/pkg/image/draw/draw.go
+index 4c514e77c7..661230e7c5 100644
+--- a/src/pkg/image/draw/draw.go
++++ b/src/pkg/image/draw/draw.go
+@@ -16,12 +16,19 @@ import (
+ // m is the maximum color value returned by image.Color.RGBA.
+ const m = 1<<16 - 1
+ 
+-// A draw.Image is an image.Image with a Set method to change a single pixel.
++// Image is an image.Image with a Set method to change a single pixel.
+ type Image interface {
+ 	image.Image
+ 	Set(x, y int, c color.Color)
+ }
+ 
++// Quantizer produces a palette for an image.
++type Quantizer interface {
++	// Quantize appends up to cap(p) - len(p) colors to p and returns the
++	// updated palette suitable for converting m to a paletted image.
++	Quantize(p color.Palette, m image.Image) color.Palette
++}
++
+ // Op is a Porter-Duff compositing operator.
+ type Op int
+ 

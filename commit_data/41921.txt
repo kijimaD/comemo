@@ -22,7 +22,7 @@ Date:   Fri Nov 1 12:06:24 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modfetch/cache.go             | 22 +++++++++++++-----
  src/cmd/go/internal/modfetch/fetch.go             |  4 ----
  src/cmd/go/internal/modget/get.go                 | 28 +++++++++++++++++++++--
@@ -32,3 +32,260 @@ Date:   Fri Nov 1 12:06:24 2019 -0400
  src/cmd/go/testdata/script/mod_getmode_vendor.txt |  2 +-
  src/cmd/go/testdata/script/mod_load_badchain.txt  |  4 ++++
  8 files changed, 63 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index 58b510301d..8d2bac5623 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -13,6 +13,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"strings"
++	"time"
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+@@ -25,10 +26,10 @@ import (
+ 	"golang.org/x/mod/semver"
+ )
+ 
+-var QuietLookup bool // do not print about lookups
+-
+ var PkgMod string // $GOPATH/pkg/mod; set by package modload
+ 
++const logFindingDelay = 1 * time.Second
++
+ func cacheDir(path string) (string, error) {
+ 	if PkgMod == "" {
+ 		return "", fmt.Errorf("internal error: modfetch.PkgMod not set")
+@@ -140,6 +141,11 @@ func (r *cachingRepo) Versions(prefix string) ([]string, error) {
+ 		err  error
+ 	}
+ 	c := r.cache.Do("versions:"+prefix, func() interface{} {
++		logTimer := time.AfterFunc(logFindingDelay, func() {
++			fmt.Fprintf(os.Stderr, "go: finding versions for %s\n", r.path)
++		})
++		defer logTimer.Stop()
++
+ 		list, err := r.r.Versions(prefix)
+ 		return cached{list, err}
+ 	}).(cached)
+@@ -162,9 +168,11 @@ func (r *cachingRepo) Stat(rev string) (*RevInfo, error) {
+ 			return cachedInfo{info, nil}
+ 		}
+ 
+-		if !QuietLookup {
++		logTimer := time.AfterFunc(logFindingDelay, func() {
+ 			fmt.Fprintf(os.Stderr, "go: finding %s %s\n", r.path, rev)
+-		}
++		})
++		defer logTimer.Stop()
++
+ 		info, err = r.r.Stat(rev)
+ 		if err == nil {
+ 			// If we resolved, say, 1234abcde to v0.0.0-20180604122334-1234abcdef78,
+@@ -192,9 +200,11 @@ func (r *cachingRepo) Stat(rev string) (*RevInfo, error) {
+ 
+ func (r *cachingRepo) Latest() (*RevInfo, error) {
+ 	c := r.cache.Do("latest:", func() interface{} {
+-		if !QuietLookup {
++		logTimer := time.AfterFunc(logFindingDelay, func() {
+ 			fmt.Fprintf(os.Stderr, "go: finding %s latest\n", r.path)
+-		}
++		})
++		defer logTimer.Stop()
++
+ 		info, err := r.r.Latest()
+ 
+ 		// Save info for likely future Stat call.
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index 7e9601f876..9db5d137d4 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -71,10 +71,6 @@ func download(mod module.Version, dir string) (err error) {
+ 		return err
+ 	}
+ 
+-	if cfg.CmdName != "mod download" {
+-		fmt.Fprintf(os.Stderr, "go: extracting %s %s\n", mod.Path, mod.Version)
+-	}
+-
+ 	unlock, err := lockVersion(mod)
+ 	if err != nil {
+ 		return err
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index b3b4dea778..eb94d68aa8 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -372,7 +372,7 @@ func runGet(cmd *base.Command, args []string) {
+ 			continue
+ 
+ 		default:
+-			// The argument is a package path.
++			// The argument is a package or module path.
+ 			if pkgs := modload.TargetPackages(path); len(pkgs) != 0 {
+ 				// The path is in the main module. Nothing to query.
+ 				if vers != "upgrade" && vers != "patch" {
+@@ -763,6 +763,9 @@ func getQuery(path, vers string, prevM module.Version, forceModulePath bool) (mo
+ 
+ 		info, err := modload.Query(path, vers, prevM.Version, modload.Allowed)
+ 		if err == nil {
++			if info.Version != vers && info.Version != prevM.Version {
++				logOncef("go: %s %s => %s", path, vers, info.Version)
++			}
+ 			return module.Version{Path: path, Version: info.Version}, nil
+ 		}
+ 
+@@ -791,6 +794,9 @@ func getQuery(path, vers string, prevM module.Version, forceModulePath bool) (mo
+ 		if !strings.Contains(path, "...") {
+ 			var modErr *modload.PackageNotInModuleError
+ 			if errors.As(err, &modErr) && modErr.Mod.Path == path {
++				if modErr.Mod.Version != vers {
++					logOncef("go: %s %s => %s", path, vers, modErr.Mod.Version)
++				}
+ 				return modErr.Mod, nil
+ 			}
+ 		}
+@@ -798,7 +804,13 @@ func getQuery(path, vers string, prevM module.Version, forceModulePath bool) (mo
+ 		return module.Version{}, err
+ 	}
+ 
+-	return results[0].Mod, nil
++	m := results[0].Mod
++	if m.Path != path {
++		logOncef("go: found %s in %s %s", path, m.Path, m.Version)
++	} else if m.Version != vers {
++		logOncef("go: %s %s => %s", path, vers, m.Version)
++	}
++	return m, nil
+ }
+ 
+ // An upgrader adapts an underlying mvs.Reqs to apply an
+@@ -955,6 +967,9 @@ func (u *upgrader) Upgrade(m module.Version) (module.Version, error) {
+ 		return m, nil
+ 	}
+ 
++	if info.Version != m.Version {
++		logOncef("go: %s %s => %s", m.Path, getU, info.Version)
++	}
+ 	return module.Version{Path: m.Path, Version: info.Version}, nil
+ }
+ 
+@@ -983,3 +998,12 @@ func (r *lostUpgradeReqs) Required(mod module.Version) ([]module.Version, error)
+ 	}
+ 	return r.Reqs.Required(mod)
+ }
++
++var loggedLines sync.Map
++
++func logOncef(format string, args ...interface{}) {
++	msg := fmt.Sprintf(format, args...)
++	if _, dup := loggedLines.LoadOrStore(msg, true); !dup {
++		fmt.Fprintln(os.Stderr, msg)
++	}
++}
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 01ee40e42e..acb968cdfa 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -626,6 +626,7 @@ func (ld *loader) load(roots func() []string) {
+ 				added[pkg.path] = true
+ 				numAdded++
+ 				if !haveMod[err.Module] {
++					fmt.Fprintf(os.Stderr, "go: found %s in %s %s\n", pkg.path, err.Module.Path, err.Module.Version)
+ 					haveMod[err.Module] = true
+ 					modAddedBy[err.Module] = pkg
+ 					buildList = append(buildList, err.Module)
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 976d35665d..1b8b2d0cbc 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -12,6 +12,7 @@ import (
+ 	"strings"
+ 	"sync"
+ 
++	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/imports"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/search"
+@@ -62,10 +63,24 @@ func Query(path, query, current string, allowed func(module.Version) bool) (*mod
+ 	return info, err
+ }
+ 
++var errQueryDisabled error = queryDisabledError{}
++
++type queryDisabledError struct{}
++
++func (queryDisabledError) Error() string {
++	if cfg.BuildModReason == "" {
++		return fmt.Sprintf("cannot query module due to -mod=%s", cfg.BuildMod)
++	}
++	return fmt.Sprintf("cannot query module due to -mod=%s\n\t(%s)", cfg.BuildMod, cfg.BuildModReason)
++}
++
+ func queryProxy(proxy, path, query, current string, allowed func(module.Version) bool) (*modfetch.RevInfo, error) {
+ 	if current != "" && !semver.IsValid(current) {
+ 		return nil, fmt.Errorf("invalid previous version %q", current)
+ 	}
++	if cfg.BuildMod != "" && cfg.BuildMod != "mod" {
++		return nil, errQueryDisabled
++	}
+ 	if allowed == nil {
+ 		allowed = func(module.Version) bool { return true }
+ 	}
+diff --git a/src/cmd/go/testdata/script/mod_get_newcycle.txt b/src/cmd/go/testdata/script/mod_get_newcycle.txt
+index b1838f824a..5c197bb0b8 100644
+--- a/src/cmd/go/testdata/script/mod_get_newcycle.txt
++++ b/src/cmd/go/testdata/script/mod_get_newcycle.txt
+@@ -11,6 +11,5 @@ go mod init m
+ cmp stderr stderr-expected
+ 
+ -- stderr-expected --
+-go: finding example.com/newcycle v1.0.0
+ go get: inconsistent versions:
+ 	example.com/newcycle/a@v1.0.0 requires example.com/newcycle/a@v1.0.1 (not example.com/newcycle/a@v1.0.0)
+diff --git a/src/cmd/go/testdata/script/mod_getmode_vendor.txt b/src/cmd/go/testdata/script/mod_getmode_vendor.txt
+index 430bf1ef44..d3df2078b0 100644
+--- a/src/cmd/go/testdata/script/mod_getmode_vendor.txt
++++ b/src/cmd/go/testdata/script/mod_getmode_vendor.txt
+@@ -11,7 +11,7 @@ stdout '^rsc.io/quote v1.5.1 .*vendor[\\/]rsc.io[\\/]quote$'
+ stdout '^golang.org/x/text v0.0.0.* .*vendor[\\/]golang.org[\\/]x[\\/]text[\\/]language$'
+ 
+ ! go list -mod=vendor -m rsc.io/quote@latest
+-stderr 'go list -m: rsc.io/quote@latest: module lookup disabled by -mod=vendor'
++stderr 'go list -m: rsc.io/quote@latest: cannot query module due to -mod=vendor'
+ ! go get -mod=vendor -u
+ stderr 'flag provided but not defined: -mod'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_load_badchain.txt b/src/cmd/go/testdata/script/mod_load_badchain.txt
+index b97a2e6eab..2c532f1fda 100644
+--- a/src/cmd/go/testdata/script/mod_load_badchain.txt
++++ b/src/cmd/go/testdata/script/mod_load_badchain.txt
+@@ -56,11 +56,13 @@ import (
+ 
+ func Test(t *testing.T) {}
+ -- update-main-expected --
++go: example.com/badchain/c upgrade => v1.1.0
+ go get: example.com/badchain/c@v1.0.0 updating to
+ 	example.com/badchain/c@v1.1.0: parsing go.mod:
+ 	module declares its path as: badchain.example.com/c
+ 	        but was required as: example.com/badchain/c
+ -- update-a-expected --
++go: example.com/badchain/a upgrade => v1.1.0
+ go get: example.com/badchain/a@v1.1.0 requires
+ 	example.com/badchain/b@v1.1.0 requires
+ 	example.com/badchain/c@v1.1.0: parsing go.mod:
+@@ -73,11 +75,13 @@ go: example.com/badchain/a@v1.1.0 requires
+ 	module declares its path as: badchain.example.com/c
+ 	        but was required as: example.com/badchain/c
+ -- list-missing-expected --
++go: found example.com/badchain/c in example.com/badchain/c v1.1.0
+ go: m/use imports
+ 	example.com/badchain/c: example.com/badchain/c@v1.1.0: parsing go.mod:
+ 	module declares its path as: badchain.example.com/c
+ 	        but was required as: example.com/badchain/c
+ -- list-missing-test-expected --
++go: found example.com/badchain/c in example.com/badchain/c v1.1.0
+ go: m/testuse tested by
+ 	m/testuse.test imports
+ 	example.com/badchain/c: example.com/badchain/c@v1.1.0: parsing go.mod:

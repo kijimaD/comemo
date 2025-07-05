@@ -22,8 +22,85 @@ Date:   Fri Jun 16 13:04:50 2023 -0400
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/distpack/archive.go | 12 +++++++++++-
  src/cmd/distpack/pack.go    | 13 +++++++++++++
  src/cmd/distpack/test.go    |  4 ++++
  3 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/distpack/archive.go b/src/cmd/distpack/archive.go
+index 730233765c..f731b3792f 100644
+--- a/src/cmd/distpack/archive.go
++++ b/src/cmd/distpack/archive.go
+@@ -92,7 +92,7 @@ func (a *Archive) Add(name, src string, info fs.FileInfo) {
+ }
+ 
+ // Sort sorts the files in the archive.
+-// It is only necessary to call Sort after calling Add.
++// It is only necessary to call Sort after calling Add or RenameGoMod.
+ // ArchiveDir returns a sorted archive, and the other methods
+ // preserve the sorting of the archive.
+ func (a *Archive) Sort() {
+@@ -164,6 +164,16 @@ func (a *Archive) SetTime(t time.Time) {
+ 	}
+ }
+ 
++// RenameGoMod renames the go.mod files in the archive to _go.mod,
++// for use with the module form, which cannot contain other go.mod files.
++func (a *Archive) RenameGoMod() {
++	for i, f := range a.Files {
++		if strings.HasSuffix(f.Name, "/go.mod") {
++			a.Files[i].Name = strings.TrimSuffix(f.Name, "go.mod") + "_go.mod"
++		}
++	}
++}
++
+ func amatch(pattern, name string) (bool, error) {
+ 	// firstN returns the prefix of name corresponding to the first n path elements.
+ 	// If n <= 0, firstN returns the entire name.
+diff --git a/src/cmd/distpack/pack.go b/src/cmd/distpack/pack.go
+index fb549f967d..6867ac17c2 100644
+--- a/src/cmd/distpack/pack.go
++++ b/src/cmd/distpack/pack.go
+@@ -14,6 +14,17 @@
+ // A cross-compiled distribution for goos/goarch can be built using:
+ //
+ //	GOOS=goos GOARCH=goarch ./make.bash -distpack
++//
++// To test that the module downloads are usable with the go command:
++//
++//	./make.bash -distpack
++//	mkdir -p /tmp/goproxy/golang.org/toolchain/
++//	ln -sf $(pwd)/../pkg/distpack /tmp/goproxy/golang.org/toolchain/@v
++//	GOPROXY=file:///tmp/goproxy GOTOOLCHAIN=$(sed 1q ../VERSION) gotip version
++//
++// gotip can be replaced with an older released Go version once there is one.
++// It just can't be the one make.bash built, because it knows it is already that
++// version and will skip the download.
+ package main
+ 
+ import (
+@@ -199,6 +210,8 @@ func main() {
+ 	)
+ 	modVers := modVersionPrefix + "-" + version + "." + goosDashGoarch
+ 	modArch.AddPrefix(modPath + "@" + modVers)
++	modArch.RenameGoMod()
++	modArch.Sort()
+ 	testMod(modArch)
+ 
+ 	// distpack returns the full path to name in the distpack directory.
+diff --git a/src/cmd/distpack/test.go b/src/cmd/distpack/test.go
+index 93c6564594..4544d72d1f 100644
+--- a/src/cmd/distpack/test.go
++++ b/src/cmd/distpack/test.go
+@@ -95,6 +95,10 @@ var modRules = []testRule{
+ 	{name: "golang.org/toolchain@*/pkg/tool/*/compile", goos: "darwin"},
+ 	{name: "golang.org/toolchain@*/pkg/tool/*/compile", goos: "windows", exclude: true},
+ 	{name: "golang.org/toolchain@*/pkg/tool/*/compile.exe", goos: "windows"},
++
++	// go.mod are renamed to _go.mod.
++	{name: "**/go.mod", exclude: true},
++	{name: "**/_go.mod"},
+ }
+ 
+ func testSrc(a *Archive) {

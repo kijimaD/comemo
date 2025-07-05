@@ -9,8 +9,172 @@ Date:   Thu Mar 5 21:22:06 2020 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/macho.go             | 73 +++++++++++++++------------
  src/cmd/link/internal/ld/main.go              | 32 +++++++-----
  src/cmd/link/internal/loader/symbolbuilder.go |  6 ++-
  3 files changed, 65 insertions(+), 46 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index e50eddd96c..3f45cc029a 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -428,42 +428,49 @@ func (ctxt *Link) domacho() {
+ 	}
+ 
+ 	// empirically, string table must begin with " \x00".
+-	s := ctxt.Syms.Lookup(".machosymstr", 0)
+-
+-	s.Type = sym.SMACHOSYMSTR
+-	s.Attr |= sym.AttrReachable
+-	s.AddUint8(' ')
+-	s.AddUint8('\x00')
+-
+-	s = ctxt.Syms.Lookup(".machosymtab", 0)
+-	s.Type = sym.SMACHOSYMTAB
+-	s.Attr |= sym.AttrReachable
+-
+-	if ctxt.LinkMode != LinkExternal {
+-		s := ctxt.Syms.Lookup(".plt", 0) // will be __symbol_stub
+-		s.Type = sym.SMACHOPLT
+-		s.Attr |= sym.AttrReachable
+-
+-		s = ctxt.Syms.Lookup(".got", 0) // will be __nl_symbol_ptr
+-		s.Type = sym.SMACHOGOT
+-		s.Attr |= sym.AttrReachable
+-		s.Align = 4
+-
+-		s = ctxt.Syms.Lookup(".linkedit.plt", 0) // indirect table for .plt
+-		s.Type = sym.SMACHOINDIRECTPLT
+-		s.Attr |= sym.AttrReachable
+-
+-		s = ctxt.Syms.Lookup(".linkedit.got", 0) // indirect table for .got
+-		s.Type = sym.SMACHOINDIRECTGOT
+-		s.Attr |= sym.AttrReachable
++	s := ctxt.loader.LookupOrCreateSym(".machosymstr", 0)
++	sb := ctxt.loader.MakeSymbolUpdater(s)
++
++	sb.SetType(sym.SMACHOSYMSTR)
++	sb.SetReachable(true)
++	sb.AddUint8(' ')
++	sb.AddUint8('\x00')
++
++	s = ctxt.loader.LookupOrCreateSym(".machosymtab", 0)
++	sb = ctxt.loader.MakeSymbolUpdater(s)
++	sb.SetType(sym.SMACHOSYMTAB)
++	sb.SetReachable(true)
++
++	if ctxt.IsInternal() {
++		s = ctxt.loader.LookupOrCreateSym(".plt", 0) // will be __symbol_stub
++		sb = ctxt.loader.MakeSymbolUpdater(s)
++		sb.SetType(sym.SMACHOPLT)
++		sb.SetReachable(true)
++
++		s = ctxt.loader.LookupOrCreateSym(".got", 0) // will be __nl_symbol_ptr
++		sb = ctxt.loader.MakeSymbolUpdater(s)
++		sb.SetType(sym.SMACHOGOT)
++		sb.SetReachable(true)
++		sb.SetAlign(4)
++
++		s = ctxt.loader.LookupOrCreateSym(".linkedit.plt", 0) // indirect table for .plt
++		sb = ctxt.loader.MakeSymbolUpdater(s)
++		sb.SetType(sym.SMACHOINDIRECTPLT)
++		sb.SetReachable(true)
++
++		s = ctxt.loader.LookupOrCreateSym(".linkedit.got", 0) // indirect table for .got
++		sb = ctxt.loader.MakeSymbolUpdater(s)
++		sb.SetType(sym.SMACHOINDIRECTGOT)
++		sb.SetReachable(true)
+ 	}
+ 
+ 	// Add a dummy symbol that will become the __asm marker section.
+-	if ctxt.LinkMode == LinkExternal {
+-		s := ctxt.Syms.Lookup(".llvmasm", 0)
+-		s.Type = sym.SMACHO
+-		s.Attr |= sym.AttrReachable
+-		s.AddUint8(0)
++	if ctxt.IsExternal() {
++		s = ctxt.loader.LookupOrCreateSym(".llvmasm", 0)
++		sb = ctxt.loader.MakeSymbolUpdater(s)
++		sb.SetType(sym.SMACHO)
++		sb.SetReachable(true)
++		sb.AddUint8(0)
+ 	}
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index ef65e786f5..6964ea59ff 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -245,33 +245,41 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	bench.Start("dwarfGenerateDebugInfo")
+ 	dwarfGenerateDebugInfo(ctxt)
+ 
+-	bench.Start("loadlibfull")
+-	ctxt.loadlibfull() // XXX do it here for now
+-
+-	bench.Start("mangleTypeSym")
+-	ctxt.mangleTypeSym()
+ 	bench.Start("callgraph")
+ 	ctxt.callgraph()
+ 
+-	bench.Start("doelf")
+-	ctxt.doelf()
+-	if ctxt.HeadType == objabi.Hdarwin {
++	bench.Start("dostkcheck")
++	ctxt.dostkcheck()
++
++	if !ctxt.IsDarwin() {
++		bench.Start("loadlibfull")
++		ctxt.loadlibfull() // XXX do it here for now
++	}
++
++	if ctxt.IsELF {
++		bench.Start("doelf")
++		ctxt.doelf()
++	}
++	if ctxt.IsDarwin() {
+ 		bench.Start("domacho")
+ 		ctxt.domacho()
++		bench.Start("loadlibfull")
++		ctxt.loadlibfull() // XXX do it here for now
+ 	}
+-	bench.Start("dostkcheck")
+-	ctxt.dostkcheck()
+-	if ctxt.HeadType == objabi.Hwindows {
++	if ctxt.IsWindows() {
+ 		bench.Start("dope")
+ 		ctxt.dope()
+ 		bench.Start("windynrelocsyms")
+ 		ctxt.windynrelocsyms()
+ 	}
+-	if ctxt.HeadType == objabi.Haix {
++	if ctxt.IsAIX() {
+ 		bench.Start("doxcoff")
+ 		ctxt.doxcoff()
+ 	}
+ 
++	bench.Start("mangleTypeSym")
++	ctxt.mangleTypeSym()
++
+ 	bench.Start("addexport")
+ 	ctxt.addexport()
+ 	bench.Start("Gentext")
+diff --git a/src/cmd/link/internal/loader/symbolbuilder.go b/src/cmd/link/internal/loader/symbolbuilder.go
+index 94176498f8..2560198aa6 100644
+--- a/src/cmd/link/internal/loader/symbolbuilder.go
++++ b/src/cmd/link/internal/loader/symbolbuilder.go
+@@ -133,8 +133,12 @@ func (sb *SymbolBuilder) Reachable() bool {
+ 	return sb.l.AttrReachable(sb.symIdx)
+ }
+ 
++func (sb *SymbolBuilder) SetReachable(v bool) {
++	sb.l.SetAttrReachable(sb.symIdx, v)
++}
++
+ func (sb *SymbolBuilder) setReachable() {
+-	sb.l.SetAttrReachable(sb.symIdx, true)
++	sb.SetReachable(true)
+ }
+ 
+ func (sb *SymbolBuilder) ReadOnly() bool {

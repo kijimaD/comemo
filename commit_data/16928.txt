@@ -8,7 +8,41 @@ Date:   Tue Jul 30 22:17:38 2013 +0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/12008044
-
+---
  src/pkg/runtime/proc.c       | 2 +-
  src/pkg/runtime/proc_test.go | 2 --
  2 files changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 0f44f6b981..c4b8c02517 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -2266,7 +2266,7 @@ preemptone(P *p)
+ // For now, disable.
+ // The if(1) silences a compiler warning about the rest of the
+ // function being unreachable.
+-if(1) return;
++if(0) return;
+ 
+ 	mp = p->m;
+ 	if(mp == nil || mp == m)
+diff --git a/src/pkg/runtime/proc_test.go b/src/pkg/runtime/proc_test.go
+index 100deb8f23..8f47553fb4 100644
+--- a/src/pkg/runtime/proc_test.go
++++ b/src/pkg/runtime/proc_test.go
+@@ -193,7 +193,6 @@ var preempt = func() int {
+ }
+ 
+ func TestPreemption(t *testing.T) {
+-	t.Skip("preemption is disabled")
+ 	// Test that goroutines are preempted at function calls.
+ 	const N = 5
+ 	c := make(chan bool)
+@@ -214,7 +213,6 @@ func TestPreemption(t *testing.T) {
+ }
+ 
+ func TestPreemptionGC(t *testing.T) {
+-	t.Skip("preemption is disabled")
+ 	// Test that pending GC preempts running goroutines.
+ 	const P = 5
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(P + 1))

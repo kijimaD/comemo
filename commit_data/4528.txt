@@ -7,6 +7,20 @@ Date:   Tue Jan 5 16:50:52 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/181138
-
+---
  src/pkg/xml/read.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/xml/read.go b/src/pkg/xml/read.go
+index c1defe5e72..4865c064a4 100644
+--- a/src/pkg/xml/read.go
++++ b/src/pkg/xml/read.go
+@@ -39,7 +39,7 @@ import (
+ //		Email []Email;
+ //	}
+ //
+-//	var result = Result{ "name", "phone", nil }
++//	result := Result{ Name: "name", Phone: "phone", Email: nil }
+ //
+ // unmarshalling the XML input
+ //

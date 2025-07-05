@@ -7,7 +7,39 @@ Date:   Sat Feb 19 07:37:24 2011 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4170063
-
+---
  misc/dashboard/godashboard/const.py   | 1 +
  misc/dashboard/godashboard/gobuild.py | 3 ++-
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/misc/dashboard/godashboard/const.py b/misc/dashboard/godashboard/const.py
+index 26e1e4873b..b0110c6354 100644
+--- a/misc/dashboard/godashboard/const.py
++++ b/misc/dashboard/godashboard/const.py
+@@ -8,5 +8,6 @@ mail_submit_to      = "adg@golang.org"
+ mail_submit_subject = "New Project Submitted"
+ 
+ mail_fail_to       = "golang-dev@googlegroups.com"
++mail_fail_reply_to = "golang-dev@googlegroups.com"
+ mail_fail_subject  = "%s broken by %s"
+ 
+diff --git a/misc/dashboard/godashboard/gobuild.py b/misc/dashboard/godashboard/gobuild.py
+index 4cf04093a6..08d70ec645 100644
+--- a/misc/dashboard/godashboard/gobuild.py
++++ b/misc/dashboard/godashboard/gobuild.py
+@@ -351,13 +351,14 @@ class Build(webapp.RequestHandler):
+             path = os.path.join(os.path.dirname(__file__), 'fail-notify.txt')
+             body = template.render(path, {
+                 "builder": builder,
+-                "node": node,
++                "node": node[:12],
+                 "user": user,
+                 "desc": desc, 
+                 "loghash": loghash
+             })
+             mail.send_mail(
+                 sender=const.mail_from,
++                reply_to=const.mail_fail_reply_to,
+                 to=const.mail_fail_to,
+                 subject=subject,
+                 body=body

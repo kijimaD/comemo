@@ -17,10 +17,132 @@ Date:   Mon Jan 18 14:41:20 2021 +0800
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Trust: Jay Conrod <jayconrod@google.com>
     Trust: Baokun Lee <bk@golangcn.org>
-
+---
  src/cmd/go/internal/envcmd/env.go            |  2 +-
  src/cmd/go/internal/modfetch/cache.go        | 31 +++++++++++++++++-----------
  src/cmd/go/internal/modfetch/fetch.go        |  6 ++----
  src/cmd/go/testdata/script/env_write.txt     |  6 ++++++
  src/cmd/go/testdata/script/mod_cache_dir.txt | 11 ++++++++++
  5 files changed, 39 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index 6937187522..aad5d704e5 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -428,7 +428,7 @@ func checkEnvWrite(key, val string) error {
+ 			return fmt.Errorf("GOPATH entry is relative; must be absolute path: %q", val)
+ 		}
+ 	// Make sure CC and CXX are absolute paths
+-	case "CC", "CXX":
++	case "CC", "CXX", "GOMODCACHE":
+ 		if !filepath.IsAbs(val) && val != "" && val != filepath.Base(val) {
+ 			return fmt.Errorf("%s entry is relative; must be absolute path: %q", key, val)
+ 		}
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index 3a2ff63721..9e751931a0 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -28,10 +28,8 @@ import (
+ )
+ 
+ func cacheDir(path string) (string, error) {
+-	if cfg.GOMODCACHE == "" {
+-		// modload.Init exits if GOPATH[0] is empty, and cfg.GOMODCACHE
+-		// is set to GOPATH[0]/pkg/mod if GOMODCACHE is empty, so this should never happen.
+-		return "", fmt.Errorf("internal error: cfg.GOMODCACHE not set")
++	if err := checkCacheDir(); err != nil {
++		return "", err
+ 	}
+ 	enc, err := module.EscapePath(path)
+ 	if err != nil {
+@@ -64,10 +62,8 @@ func CachePath(m module.Version, suffix string) (string, error) {
+ // along with the directory if the directory does not exist or if the directory
+ // is not completely populated.
+ func DownloadDir(m module.Version) (string, error) {
+-	if cfg.GOMODCACHE == "" {
+-		// modload.Init exits if GOPATH[0] is empty, and cfg.GOMODCACHE
+-		// is set to GOPATH[0]/pkg/mod if GOMODCACHE is empty, so this should never happen.
+-		return "", fmt.Errorf("internal error: cfg.GOMODCACHE not set")
++	if err := checkCacheDir(); err != nil {
++		return "", err
+ 	}
+ 	enc, err := module.EscapePath(m.Path)
+ 	if err != nil {
+@@ -134,10 +130,8 @@ func lockVersion(mod module.Version) (unlock func(), err error) {
+ // user's working directory.
+ // If err is nil, the caller MUST eventually call the unlock function.
+ func SideLock() (unlock func(), err error) {
+-	if cfg.GOMODCACHE == "" {
+-		// modload.Init exits if GOPATH[0] is empty, and cfg.GOMODCACHE
+-		// is set to GOPATH[0]/pkg/mod if GOMODCACHE is empty, so this should never happen.
+-		base.Fatalf("go: internal error: cfg.GOMODCACHE not set")
++	if err := checkCacheDir(); err != nil {
++		base.Fatalf("go: %v", err)
+ 	}
+ 
+ 	path := filepath.Join(cfg.GOMODCACHE, "cache", "lock")
+@@ -633,3 +627,16 @@ func rewriteVersionList(dir string) {
+ 		base.Fatalf("go: failed to write version list: %v", err)
+ 	}
+ }
++
++func checkCacheDir() error {
++	if cfg.GOMODCACHE == "" {
++		// modload.Init exits if GOPATH[0] is empty, and cfg.GOMODCACHE
++		// is set to GOPATH[0]/pkg/mod if GOMODCACHE is empty, so this should never happen.
++		return fmt.Errorf("internal error: cfg.GOMODCACHE not set")
++	}
++
++	if !filepath.IsAbs(cfg.GOMODCACHE) {
++		return fmt.Errorf("GOMODCACHE entry is relative; must be absolute path: %q.\n", cfg.GOMODCACHE)
++	}
++	return nil
++}
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index c55c3cf253..d5ad277dd0 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -37,10 +37,8 @@ var downloadCache par.Cache
+ // local download cache and returns the name of the directory
+ // corresponding to the root of the module's file tree.
+ func Download(ctx context.Context, mod module.Version) (dir string, err error) {
+-	if cfg.GOMODCACHE == "" {
+-		// modload.Init exits if GOPATH[0] is empty, and cfg.GOMODCACHE
+-		// is set to GOPATH[0]/pkg/mod if GOMODCACHE is empty, so this should never happen.
+-		base.Fatalf("go: internal error: cfg.GOMODCACHE not set")
++	if err := checkCacheDir(); err != nil {
++		base.Fatalf("go: %v", err)
+ 	}
+ 
+ 	// The par.Cache here avoids duplicate work.
+diff --git a/src/cmd/go/testdata/script/env_write.txt b/src/cmd/go/testdata/script/env_write.txt
+index bda1e57826..4fa39df104 100644
+--- a/src/cmd/go/testdata/script/env_write.txt
++++ b/src/cmd/go/testdata/script/env_write.txt
+@@ -173,3 +173,9 @@ go env -w GOOS=linux GOARCH=mips
+ env GOOS=windows
+ ! go env -u GOOS
+ stderr 'unsupported GOOS/GOARCH.*windows/mips$'
++
++# go env -w should reject relative paths in GOMODCACHE environment.
++! go env -w GOMODCACHE=~/test
++stderr 'go env -w: GOMODCACHE entry is relative; must be absolute path: "~/test"'
++! go env -w GOMODCACHE=./test
++stderr 'go env -w: GOMODCACHE entry is relative; must be absolute path: "./test"'
+diff --git a/src/cmd/go/testdata/script/mod_cache_dir.txt b/src/cmd/go/testdata/script/mod_cache_dir.txt
+new file mode 100644
+index 0000000000..7284ccf8ba
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_cache_dir.txt
+@@ -0,0 +1,11 @@
++env GO111MODULE=on
++
++# Go should reject relative paths in GOMODCACHE environment.
++
++env GOMODCACHE="~/test"
++! go get example.com/tools/cmd/hello
++stderr 'must be absolute path'
++
++env GOMODCACHE="./test"
++! go get example.com/tools/cmd/hello
++stderr 'must be absolute path'

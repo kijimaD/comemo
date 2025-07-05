@@ -17,7 +17,7 @@ Date:   Fri Sep 25 18:06:26 2020 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/syscall_bsd.go           | 15 +++++++
  src/syscall/syscall_darwin.go        | 85 +-----------------------------------
  src/syscall/syscall_getwd_bsd.go     | 22 ----------
@@ -29,3 +29,332 @@ Date:   Fri Sep 25 18:06:26 2020 +0200
  src/syscall/ztypes_darwin_amd64.go   |  4 ++
  src/syscall/ztypes_darwin_arm64.go   |  4 ++
  10 files changed, 79 insertions(+), 109 deletions(-)
+
+diff --git a/src/syscall/syscall_bsd.go b/src/syscall/syscall_bsd.go
+index b52de7450f..1c7ec588bc 100644
+--- a/src/syscall/syscall_bsd.go
++++ b/src/syscall/syscall_bsd.go
+@@ -17,6 +17,21 @@ import (
+ 	"unsafe"
+ )
+ 
++const ImplementsGetwd = true
++
++func Getwd() (string, error) {
++	var buf [pathMax]byte
++	_, err := getcwd(buf[:])
++	if err != nil {
++		return "", err
++	}
++	n := clen(buf[:])
++	if n < 1 {
++		return "", EINVAL
++	}
++	return string(buf[:n]), nil
++}
++
+ /*
+  * Wrapped
+  */
+diff --git a/src/syscall/syscall_darwin.go b/src/syscall/syscall_darwin.go
+index c84547c628..afdadbf894 100644
+--- a/src/syscall/syscall_darwin.go
++++ b/src/syscall/syscall_darwin.go
+@@ -12,28 +12,7 @@
+ 
+ package syscall
+ 
+-import (
+-	errorspkg "errors"
+-	"unsafe"
+-)
+-
+-const ImplementsGetwd = true
+-
+-func Getwd() (string, error) {
+-	buf := make([]byte, 2048)
+-	attrs, err := getAttrList(".", attrList{CommonAttr: attrCmnFullpath}, buf, 0)
+-	if err == nil && len(attrs) == 1 && len(attrs[0]) >= 2 {
+-		wd := string(attrs[0])
+-		// Sanity check that it's an absolute path and ends
+-		// in a null byte, which we then strip.
+-		if wd[0] == '/' && wd[len(wd)-1] == 0 {
+-			return wd[:len(wd)-1], nil
+-		}
+-	}
+-	// If pkg/os/getwd.go gets ENOTSUP, it will fall back to the
+-	// slow algorithm.
+-	return "", ENOTSUP
+-}
++import "unsafe"
+ 
+ type SockaddrDatalink struct {
+ 	Len    uint8
+@@ -94,7 +73,6 @@ const (
+ 	attrBitMapCount = 5
+ 	attrCmnModtime  = 0x00000400
+ 	attrCmnAcctime  = 0x00001000
+-	attrCmnFullpath = 0x08000000
+ )
+ 
+ type attrList struct {
+@@ -107,66 +85,6 @@ type attrList struct {
+ 	Forkattr    uint32
+ }
+ 
+-func getAttrList(path string, attrList attrList, attrBuf []byte, options uint) (attrs [][]byte, err error) {
+-	if len(attrBuf) < 4 {
+-		return nil, errorspkg.New("attrBuf too small")
+-	}
+-	attrList.bitmapCount = attrBitMapCount
+-
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return nil, err
+-	}
+-
+-	_, _, e1 := syscall6(
+-		funcPC(libc_getattrlist_trampoline),
+-		uintptr(unsafe.Pointer(_p0)),
+-		uintptr(unsafe.Pointer(&attrList)),
+-		uintptr(unsafe.Pointer(&attrBuf[0])),
+-		uintptr(len(attrBuf)),
+-		uintptr(options),
+-		0,
+-	)
+-	if e1 != 0 {
+-		return nil, e1
+-	}
+-	size := *(*uint32)(unsafe.Pointer(&attrBuf[0]))
+-
+-	// dat is the section of attrBuf that contains valid data,
+-	// without the 4 byte length header. All attribute offsets
+-	// are relative to dat.
+-	dat := attrBuf
+-	if int(size) < len(attrBuf) {
+-		dat = dat[:size]
+-	}
+-	dat = dat[4:] // remove length prefix
+-
+-	for i := uint32(0); int(i) < len(dat); {
+-		header := dat[i:]
+-		if len(header) < 8 {
+-			return attrs, errorspkg.New("truncated attribute header")
+-		}
+-		datOff := *(*int32)(unsafe.Pointer(&header[0]))
+-		attrLen := *(*uint32)(unsafe.Pointer(&header[4]))
+-		if datOff < 0 || uint32(datOff)+attrLen > uint32(len(dat)) {
+-			return attrs, errorspkg.New("truncated results; attrBuf too small")
+-		}
+-		end := uint32(datOff) + attrLen
+-		attrs = append(attrs, dat[datOff:end])
+-		i = end
+-		if r := i % 4; r != 0 {
+-			i += (4 - r)
+-		}
+-	}
+-	return
+-}
+-
+-func libc_getattrlist_trampoline()
+-
+-//go:linkname libc_getattrlist libc_getattrlist
+-//go:cgo_import_dynamic libc_getattrlist getattrlist "/usr/lib/libSystem.B.dylib"
+-
+ //sysnb pipe(p *[2]int32) (err error)
+ 
+ func Pipe(p []int) (err error) {
+@@ -341,6 +259,7 @@ func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1)
+ //sys	fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (val int, err error) = SYS_fcntl
+ //sys   unlinkat(fd int, path string, flags int) (err error)
+ //sys   openat(fd int, path string, flags int, perm uint32) (fdret int, err error)
++//sys	getcwd(buf []byte) (n int, err error)
+ 
+ func init() {
+ 	execveDarwin = execve
+diff --git a/src/syscall/syscall_getwd_bsd.go b/src/syscall/syscall_getwd_bsd.go
+deleted file mode 100644
+index b14367936e..0000000000
+--- a/src/syscall/syscall_getwd_bsd.go
++++ /dev/null
+@@ -1,22 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build dragonfly freebsd netbsd openbsd
+-
+-package syscall
+-
+-const ImplementsGetwd = true
+-
+-func Getwd() (string, error) {
+-	var buf [pathMax]byte
+-	_, err := getcwd(buf[:])
+-	if err != nil {
+-		return "", err
+-	}
+-	n := clen(buf[:])
+-	if n < 1 {
+-		return "", EINVAL
+-	}
+-	return string(buf[:n]), nil
+-}
+diff --git a/src/syscall/types_darwin.go b/src/syscall/types_darwin.go
+index d8218d6aea..7b3a9d2335 100644
+--- a/src/syscall/types_darwin.go
++++ b/src/syscall/types_darwin.go
+@@ -123,6 +123,12 @@ type Fsid C.struct_fsid
+ 
+ type Dirent C.struct_dirent
+ 
++// File system limits
++
++const (
++	pathMax = C.PATH_MAX
++)
++
+ // Sockets
+ 
+ type RawSockaddrInet4 C.struct_sockaddr_in
+diff --git a/src/syscall/zsyscall_darwin_amd64.go b/src/syscall/zsyscall_darwin_amd64.go
+index 83214de2fb..093739ebc7 100644
+--- a/src/syscall/zsyscall_darwin_amd64.go
++++ b/src/syscall/zsyscall_darwin_amd64.go
+@@ -1943,6 +1943,28 @@ func libc_openat_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func getcwd(buf []byte) (n int, err error) {
++	var _p0 unsafe.Pointer
++	if len(buf) > 0 {
++		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := syscall(funcPC(libc_getcwd_trampoline), uintptr(_p0), uintptr(len(buf)), 0)
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++func libc_getcwd_trampoline()
++
++//go:linkname libc_getcwd libc_getcwd
++//go:cgo_import_dynamic libc_getcwd getcwd "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Fstat(fd int, stat *Stat_t) (err error) {
+ 	_, _, e1 := syscall(funcPC(libc_fstat64_trampoline), uintptr(fd), uintptr(unsafe.Pointer(stat)), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_darwin_amd64.s b/src/syscall/zsyscall_darwin_amd64.s
+index 23ddbe06c0..d99656d028 100644
+--- a/src/syscall/zsyscall_darwin_amd64.s
++++ b/src/syscall/zsyscall_darwin_amd64.s
+@@ -1,8 +1,6 @@
+ // go run mkasm_darwin.go amd64
+ // Code generated by the command above; DO NOT EDIT.
+ #include "textflag.h"
+-TEXT ·libc_getattrlist_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_getattrlist(SB)
+ TEXT ·libc_getfsstat_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_getfsstat(SB)
+ TEXT ·libc_setattrlist_trampoline(SB),NOSPLIT,$0-0
+@@ -235,6 +233,8 @@ TEXT ·libc_unlinkat_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_unlinkat(SB)
+ TEXT ·libc_openat_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_openat(SB)
++TEXT ·libc_getcwd_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_getcwd(SB)
+ TEXT ·libc_fstat64_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_fstat64(SB)
+ TEXT ·libc_fstatfs64_trampoline(SB),NOSPLIT,$0-0
+diff --git a/src/syscall/zsyscall_darwin_arm64.go b/src/syscall/zsyscall_darwin_arm64.go
+index 0b77839869..0ff642eb25 100644
+--- a/src/syscall/zsyscall_darwin_arm64.go
++++ b/src/syscall/zsyscall_darwin_arm64.go
+@@ -1943,6 +1943,28 @@ func libc_openat_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func getcwd(buf []byte) (n int, err error) {
++	var _p0 unsafe.Pointer
++	if len(buf) > 0 {
++		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := syscall(funcPC(libc_getcwd_trampoline), uintptr(_p0), uintptr(len(buf)), 0)
++	n = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++func libc_getcwd_trampoline()
++
++//go:linkname libc_getcwd libc_getcwd
++//go:cgo_import_dynamic libc_getcwd getcwd "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Fstat(fd int, stat *Stat_t) (err error) {
+ 	_, _, e1 := syscall(funcPC(libc_fstat_trampoline), uintptr(fd), uintptr(unsafe.Pointer(stat)), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_darwin_arm64.s b/src/syscall/zsyscall_darwin_arm64.s
+index 7b8b3764a8..214851604a 100644
+--- a/src/syscall/zsyscall_darwin_arm64.s
++++ b/src/syscall/zsyscall_darwin_arm64.s
+@@ -1,8 +1,6 @@
+ // go run mkasm_darwin.go arm64
+ // Code generated by the command above; DO NOT EDIT.
+ #include "textflag.h"
+-TEXT ·libc_getattrlist_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_getattrlist(SB)
+ TEXT ·libc_getfsstat_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_getfsstat(SB)
+ TEXT ·libc_setattrlist_trampoline(SB),NOSPLIT,$0-0
+@@ -235,6 +233,8 @@ TEXT ·libc_unlinkat_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_unlinkat(SB)
+ TEXT ·libc_openat_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_openat(SB)
++TEXT ·libc_getcwd_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_getcwd(SB)
+ TEXT ·libc_fstat_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_fstat(SB)
+ TEXT ·libc_fstatfs_trampoline(SB),NOSPLIT,$0-0
+diff --git a/src/syscall/ztypes_darwin_amd64.go b/src/syscall/ztypes_darwin_amd64.go
+index bbd5bec385..da56f0da22 100644
+--- a/src/syscall/ztypes_darwin_amd64.go
++++ b/src/syscall/ztypes_darwin_amd64.go
+@@ -151,6 +151,10 @@ type Dirent struct {
+ 	Pad_cgo_0 [3]byte
+ }
+ 
++const (
++	pathMax = 0x400
++)
++
+ type RawSockaddrInet4 struct {
+ 	Len    uint8
+ 	Family uint8
+diff --git a/src/syscall/ztypes_darwin_arm64.go b/src/syscall/ztypes_darwin_arm64.go
+index e9c8549fa1..82685ff659 100644
+--- a/src/syscall/ztypes_darwin_arm64.go
++++ b/src/syscall/ztypes_darwin_arm64.go
+@@ -151,6 +151,10 @@ type Dirent struct {
+ 	Pad_cgo_0 [3]byte
+ }
+ 
++const (
++	pathMax = 0x400
++)
++
+ type RawSockaddrInet4 struct {
+ 	Len    uint8
+ 	Family uint8

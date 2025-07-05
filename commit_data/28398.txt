@@ -14,8 +14,158 @@ Date:   Fri May 20 03:01:27 2016 +0000
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/clientserver_test.go | 29 +++++++++++++++++++++++++++++
  src/net/http/export_test.go       | 30 +++++++++++++++++++-----------
  src/net/http/h2_bundle.go         | 32 ++++++++++++++++++++++----------
  3 files changed, 70 insertions(+), 21 deletions(-)
+
+diff --git a/src/net/http/clientserver_test.go b/src/net/http/clientserver_test.go
+index b1b7d137d9..e12ea0c8c4 100644
+--- a/src/net/http/clientserver_test.go
++++ b/src/net/http/clientserver_test.go
+@@ -1196,6 +1196,35 @@ func TestH12_AutoGzipWithDumpResponse(t *testing.T) {
+ 	}.run(t)
+ }
+ 
++// Issue 14607
++func TestCloseIdleConnections_h1(t *testing.T) { testCloseIdleConnections(t, h1Mode) }
++func TestCloseIdleConnections_h2(t *testing.T) { testCloseIdleConnections(t, h2Mode) }
++func testCloseIdleConnections(t *testing.T, h2 bool) {
++	defer afterTest(t)
++	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
++		w.Header().Set("X-Addr", r.RemoteAddr)
++	}))
++	defer cst.close()
++	get := func() string {
++		res, err := cst.c.Get(cst.ts.URL)
++		if err != nil {
++			t.Fatal(err)
++		}
++		res.Body.Close()
++		v := res.Header.Get("X-Addr")
++		if v == "" {
++			t.Fatal("didn't get X-Addr")
++		}
++		return v
++	}
++	a1 := get()
++	cst.tr.CloseIdleConnections()
++	a2 := get()
++	if a1 == a2 {
++		t.Errorf("didn't close connection")
++	}
++}
++
+ type noteCloseConn struct {
+ 	net.Conn
+ 	closeFunc func()
+diff --git a/src/net/http/export_test.go b/src/net/http/export_test.go
+index 3ebc51b19e..9c5ba0809a 100644
+--- a/src/net/http/export_test.go
++++ b/src/net/http/export_test.go
+@@ -15,17 +15,16 @@ import (
+ )
+ 
+ var (
+-	DefaultUserAgent              = defaultUserAgent
+-	NewLoggingConn                = newLoggingConn
+-	ExportAppendTime              = appendTime
+-	ExportRefererForURL           = refererForURL
+-	ExportServerNewConn           = (*Server).newConn
+-	ExportCloseWriteAndWait       = (*conn).closeWriteAndWait
+-	ExportErrRequestCanceled      = errRequestCanceled
+-	ExportErrRequestCanceledConn  = errRequestCanceledConn
+-	ExportServeFile               = serveFile
+-	ExportHttp2ConfigureTransport = http2ConfigureTransport
+-	ExportHttp2ConfigureServer    = http2ConfigureServer
++	DefaultUserAgent             = defaultUserAgent
++	NewLoggingConn               = newLoggingConn
++	ExportAppendTime             = appendTime
++	ExportRefererForURL          = refererForURL
++	ExportServerNewConn          = (*Server).newConn
++	ExportCloseWriteAndWait      = (*conn).closeWriteAndWait
++	ExportErrRequestCanceled     = errRequestCanceled
++	ExportErrRequestCanceledConn = errRequestCanceledConn
++	ExportServeFile              = serveFile
++	ExportHttp2ConfigureServer   = http2ConfigureServer
+ )
+ 
+ func init() {
+@@ -152,3 +151,12 @@ func hookSetter(dst *func()) func(func()) {
+ 		*dst = fn
+ 	}
+ }
++
++func ExportHttp2ConfigureTransport(t *Transport) error {
++	t2, err := http2configureTransport(t)
++	if err != nil {
++		return err
++	}
++	t.h2transport = t2
++	return nil
++}
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 633bdeadb7..55111523e5 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -50,6 +50,18 @@ type http2ClientConnPool interface {
+ 	MarkDead(*http2ClientConn)
+ }
+ 
++// clientConnPoolIdleCloser is the interface implemented by ClientConnPool
++// implementations which can close their idle connections.
++type http2clientConnPoolIdleCloser interface {
++	http2ClientConnPool
++	closeIdleConnections()
++}
++
++var (
++	_ http2clientConnPoolIdleCloser = (*http2clientConnPool)(nil)
++	_ http2clientConnPoolIdleCloser = http2noDialClientConnPool{}
++)
++
+ // TODO: use singleflight for dialing and addConnCalls?
+ type http2clientConnPool struct {
+ 	t *http2Transport
+@@ -250,6 +262,15 @@ func http2filterOutClientConn(in []*http2ClientConn, exclude *http2ClientConn) [
+ 	return out
+ }
+ 
++// noDialClientConnPool is an implementation of http2.ClientConnPool
++// which never dials.  We let the HTTP/1.1 client dial and use its TLS
++// connection instead.
++type http2noDialClientConnPool struct{ *http2clientConnPool }
++
++func (p http2noDialClientConnPool) GetClientConn(req *Request, addr string) (*http2ClientConn, error) {
++	return p.getClientConn(req, addr, http2noDialOnMiss)
++}
++
+ func http2configureTransport(t1 *Transport) (*http2Transport, error) {
+ 	connPool := new(http2clientConnPool)
+ 	t2 := &http2Transport{
+@@ -302,15 +323,6 @@ func http2registerHTTPSProtocol(t *Transport, rt RoundTripper) (err error) {
+ 	return nil
+ }
+ 
+-// noDialClientConnPool is an implementation of http2.ClientConnPool
+-// which never dials.  We let the HTTP/1.1 client dial and use its TLS
+-// connection instead.
+-type http2noDialClientConnPool struct{ *http2clientConnPool }
+-
+-func (p http2noDialClientConnPool) GetClientConn(req *Request, addr string) (*http2ClientConn, error) {
+-	return p.getClientConn(req, addr, http2noDialOnMiss)
+-}
+-
+ // noDialH2RoundTripper is a RoundTripper which only tries to complete the request
+ // if there's already has a cached connection to the host.
+ type http2noDialH2RoundTripper struct{ t *http2Transport }
+@@ -5054,7 +5066,7 @@ func (t *http2Transport) RoundTripOpt(req *Request, opt http2RoundTripOpt) (*Res
+ // connected from previous requests but are now sitting idle.
+ // It does not interrupt any connections currently in use.
+ func (t *http2Transport) CloseIdleConnections() {
+-	if cp, ok := t.connPool().(*http2clientConnPool); ok {
++	if cp, ok := t.connPool().(http2clientConnPoolIdleCloser); ok {
+ 		cp.closeIdleConnections()
+ 	}
+ }

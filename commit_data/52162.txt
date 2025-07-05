@@ -12,7 +12,58 @@ Date:   Thu Mar 17 17:01:24 2022 +0100
     Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/http/httptest/recorder.go      | 24 +++++++++++++-----------
  src/net/http/httptest/recorder_test.go |  3 +--
  2 files changed, 14 insertions(+), 13 deletions(-)
+
+diff --git a/src/net/http/httptest/recorder.go b/src/net/http/httptest/recorder.go
+index 1b712ef2b0..1c1d880155 100644
+--- a/src/net/http/httptest/recorder.go
++++ b/src/net/http/httptest/recorder.go
+@@ -207,18 +207,20 @@ func (rw *ResponseRecorder) Result() *http.Response {
+ 	if trailers, ok := rw.snapHeader["Trailer"]; ok {
+ 		res.Trailer = make(http.Header, len(trailers))
+ 		for _, k := range trailers {
+-			k = http.CanonicalHeaderKey(k)
+-			if !httpguts.ValidTrailerHeader(k) {
+-				// Ignore since forbidden by RFC 7230, section 4.1.2.
+-				continue
++			for _, k := range strings.Split(k, ",") {
++				k = http.CanonicalHeaderKey(textproto.TrimString(k))
++				if !httpguts.ValidTrailerHeader(k) {
++					// Ignore since forbidden by RFC 7230, section 4.1.2.
++					continue
++				}
++				vv, ok := rw.HeaderMap[k]
++				if !ok {
++					continue
++				}
++				vv2 := make([]string, len(vv))
++				copy(vv2, vv)
++				res.Trailer[k] = vv2
+ 			}
+-			vv, ok := rw.HeaderMap[k]
+-			if !ok {
+-				continue
+-			}
+-			vv2 := make([]string, len(vv))
+-			copy(vv2, vv)
+-			res.Trailer[k] = vv2
+ 		}
+ 	}
+ 	for k, vv := range rw.HeaderMap {
+diff --git a/src/net/http/httptest/recorder_test.go b/src/net/http/httptest/recorder_test.go
+index 8cb32dd740..4782eced43 100644
+--- a/src/net/http/httptest/recorder_test.go
++++ b/src/net/http/httptest/recorder_test.go
+@@ -220,8 +220,7 @@ func TestRecorder(t *testing.T) {
+ 			"Trailer headers are correctly recorded",
+ 			func(w http.ResponseWriter, r *http.Request) {
+ 				w.Header().Set("Non-Trailer", "correct")
+-				w.Header().Set("Trailer", "Trailer-A")
+-				w.Header().Add("Trailer", "Trailer-B")
++				w.Header().Set("Trailer", "Trailer-A, Trailer-B")
+ 				w.Header().Add("Trailer", "Trailer-C")
+ 				io.WriteString(w, "<html>")
+ 				w.Header().Set("Non-Trailer", "incorrect")

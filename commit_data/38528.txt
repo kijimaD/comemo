@@ -16,8 +16,81 @@ Date:   Fri Nov 2 12:03:31 2018 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Ben Shi <powerman1st@163.com>
     Reviewed-by: Ben Shi <powerman1st@163.com>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64.s |  7 +++++++
  src/cmd/internal/obj/arm64/asm7.go        | 23 ++++++++---------------
  src/cmd/internal/obj/arm64/obj7.go        |  9 +++------
  3 files changed, 18 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index 12c7adbd04..b851ba411e 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -222,6 +222,13 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ 	EOR	$(1<<63), R1   // EOR	$-9223372036854775808, R1 // 210041d2
+ 	EOR	$(1<<63-1), R1 // EOR	$9223372036854775807, R1  // 21f840d2
+ 
++	ANDW	$0x3ff00000, R2 // ANDW	$1072693248, R2 // 42240c12
++	BICW	$0x3ff00000, R2 // BICW	$1072693248, R2 // 42540212
++	ORRW	$0x3ff00000, R2 // ORRW	$1072693248, R2 // 42240c32
++	ORNW	$0x3ff00000, R2 // ORNW	$1072693248, R2 // 42540232
++	EORW	$0x3ff00000, R2 // EORW	$1072693248, R2 // 42240c52
++	EONW	$0x3ff00000, R2 // EONW	$1072693248, R2 // 42540252
++
+ 	AND	$0x22220000, R3, R4   // AND $572653568, R3, R4   // 5b44a4d264001b8a
+ 	ORR	$0x22220000, R3, R4   // ORR $572653568, R3, R4   // 5b44a4d264001baa
+ 	EOR	$0x22220000, R3, R4   // EOR $572653568, R3, R4   // 5b44a4d264001bca
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 6a6e81807a..770b4b6fc3 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -1689,21 +1689,14 @@ func (c *ctxt7) oplook(p *obj.Prog) *Optab {
+ 				a1 = ra0 + 1
+ 				p.From.Class = int8(a1)
+ 			}
+-			if isANDWop(p.As) {
+-				switch p.As {
+-				case AANDW, AORRW, AEORW, AANDSW, ATSTW:
+-					// For 32-bit logical instruction with constant,
+-					// rewrite the high 32-bit to be a copy of the low
+-					// 32-bit, so that the BITCON test can be shared
+-					// for both 32-bit and 64-bit.
+-					if a0 == C_BITCON {
+-						break
+-					}
+-					fallthrough
+-				default:
+-					a1 = c.con32class(&p.From) + 1
+-					p.From.Class = int8(a1)
+-				}
++			if isANDWop(p.As) && a0 != C_BITCON {
++				// For 32-bit logical instruction with constant,
++				// the BITCON test is special in that it looks at
++				// the 64-bit which has the high 32-bit as a copy
++				// of the low 32-bit. We have handled that and
++				// don't pass it to con32class.
++				a1 = c.con32class(&p.From) + 1
++				p.From.Class = int8(a1)
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index 4476dad071..d0e354eabd 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -311,12 +311,9 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 	// shared for both 32-bit and 64-bit. 32-bit ops
+ 	// will zero the high 32-bit of the destination
+ 	// register anyway.
+-	switch p.As {
+-	case AANDW, AORRW, AEORW, AANDSW, ATSTW:
+-		if p.From.Type == obj.TYPE_CONST {
+-			v := p.From.Offset & 0xffffffff
+-			p.From.Offset = v | v<<32
+-		}
++	if isANDWop(p.As) && p.From.Type == obj.TYPE_CONST {
++		v := p.From.Offset & 0xffffffff
++		p.From.Offset = v | v<<32
+ 	}
+ 
+ 	if c.ctxt.Flag_dynlink {

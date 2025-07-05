@@ -14,10 +14,142 @@ Date:   Wed Sep 7 14:42:43 2016 -0500
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/arch/ppc64.go   |  4 ++++
  src/cmd/asm/internal/asm/asm.go      | 27 ++++++++++++++++++---------
  src/cmd/internal/obj/ppc64/a.out.go  |  1 +
  src/cmd/internal/obj/ppc64/anames.go |  1 +
  src/cmd/internal/obj/ppc64/asm9.go   | 15 +++++++++++++++
  5 files changed, 39 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/ppc64.go b/src/cmd/asm/internal/arch/ppc64.go
+index fef25652d0..b47cd80c62 100644
+--- a/src/cmd/asm/internal/arch/ppc64.go
++++ b/src/cmd/asm/internal/arch/ppc64.go
+@@ -39,6 +39,10 @@ func IsPPC64RLD(op obj.As) bool {
+ 	return false
+ }
+ 
++func IsPPC64ISEL(op obj.As) bool {
++	return op == ppc64.AISEL
++}
++
+ // IsPPC64CMP reports whether the op (as defined by an ppc64.A* constant) is
+ // one of the CMP instructions that require special handling.
+ func IsPPC64CMP(op obj.As) bool {
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index 3b41bb9bb1..6167810f1b 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -673,15 +673,24 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 			prog.To = a[3]
+ 			break
+ 		}
+-		if p.arch.Family == sys.PPC64 && arch.IsPPC64RLD(op) {
+-			// 2nd operand must always be a register.
+-			// TODO: Do we need to guard this with the instruction type?
+-			// That is, are there 4-operand instructions without this property?
+-			prog.From = a[0]
+-			prog.Reg = p.getRegister(prog, op, &a[1])
+-			prog.From3 = newAddr(a[2])
+-			prog.To = a[3]
+-			break
++		if p.arch.Family == sys.PPC64 {
++			if arch.IsPPC64RLD(op) {
++				// 2nd operand must always be a register.
++				// TODO: Do we need to guard this with the instruction type?
++				// That is, are there 4-operand instructions without this property?
++				prog.From = a[0]
++				prog.Reg = p.getRegister(prog, op, &a[1])
++				prog.From3 = newAddr(a[2])
++				prog.To = a[3]
++				break
++			} else if arch.IsPPC64ISEL(op) {
++				// ISEL BC,RB,RA,RT becomes isel rt,ra,rb,bc
++				prog.From3 = newAddr(a[2])                // ra
++				prog.From = a[0]                          // bc
++				prog.Reg = p.getRegister(prog, op, &a[1]) // rb
++				prog.To = a[3]                            // rt
++				break
++			}
+ 		}
+ 		if p.arch.Family == sys.S390X {
+ 			prog.From = a[1]
+diff --git a/src/cmd/internal/obj/ppc64/a.out.go b/src/cmd/internal/obj/ppc64/a.out.go
+index e1e624d962..4c7b303bc8 100644
+--- a/src/cmd/internal/obj/ppc64/a.out.go
++++ b/src/cmd/internal/obj/ppc64/a.out.go
+@@ -347,6 +347,7 @@ const (
+ 	AFSUBCC
+ 	AFSUBS
+ 	AFSUBSCC
++	AISEL
+ 	AMOVMW
+ 	ALBAR
+ 	ALSW
+diff --git a/src/cmd/internal/obj/ppc64/anames.go b/src/cmd/internal/obj/ppc64/anames.go
+index aeceb383bf..b0e4f10ec6 100644
+--- a/src/cmd/internal/obj/ppc64/anames.go
++++ b/src/cmd/internal/obj/ppc64/anames.go
+@@ -119,6 +119,7 @@ var Anames = []string{
+ 	"FSUBCC",
+ 	"FSUBS",
+ 	"FSUBSCC",
++	"ISEL",
+ 	"MOVMW",
+ 	"LBAR",
+ 	"LSW",
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 06156e0bee..d16298b08f 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -323,6 +323,8 @@ var optab = []Optab{
+ 	{AADDME, C_REG, C_NONE, C_NONE, C_REG, 47, 4, 0},
+ 	{AEXTSB, C_REG, C_NONE, C_NONE, C_REG, 48, 4, 0},
+ 	{AEXTSB, C_NONE, C_NONE, C_NONE, C_REG, 48, 4, 0},
++	{AISEL, C_LCON, C_REG, C_REG, C_REG, 84, 4, 0},
++	{AISEL, C_ZCON, C_REG, C_REG, C_REG, 84, 4, 0},
+ 	{ANEG, C_REG, C_NONE, C_NONE, C_REG, 47, 4, 0},
+ 	{ANEG, C_NONE, C_NONE, C_NONE, C_REG, 47, 4, 0},
+ 	{AREM, C_REG, C_NONE, C_NONE, C_REG, 50, 12, 0},
+@@ -1167,6 +1169,9 @@ func buildop(ctxt *obj.Link) {
+ 		case AFCMPO:
+ 			opset(AFCMPU, r0)
+ 
++		case AISEL:
++			opset(AISEL, r0)
++
+ 		case AMTFSB0:
+ 			opset(AMTFSB0CC, r0)
+ 			opset(AMTFSB1, r0)
+@@ -1350,6 +1355,10 @@ func OP_RLW(op uint32, a uint32, s uint32, sh uint32, mb uint32, me uint32) uint
+ 	return op | (s&31)<<21 | (a&31)<<16 | (sh&31)<<11 | (mb&31)<<6 | (me&31)<<1
+ }
+ 
++func AOP_ISEL(op uint32, t uint32, a uint32, b uint32, bc uint32) uint32 {
++	return op | (t&31)<<21 | (a&31)<<16 | (b&31)<<11 | (bc&0x1F)<<6
++}
++
+ const (
+ 	/* each rhs is OPVCC(_, _, _, _) */
+ 	OP_ADD    = 31<<26 | 266<<1 | 0<<10 | 0
+@@ -1359,6 +1368,7 @@ const (
+ 	OP_EXTSB  = 31<<26 | 954<<1 | 0<<10 | 0
+ 	OP_EXTSH  = 31<<26 | 922<<1 | 0<<10 | 0
+ 	OP_EXTSW  = 31<<26 | 986<<1 | 0<<10 | 0
++	OP_ISEL   = 31<<26 | 15<<1 | 0<<10 | 0
+ 	OP_MCRF   = 19<<26 | 0<<1 | 0<<10 | 0
+ 	OP_MCRFS  = 63<<26 | 64<<1 | 0<<10 | 0
+ 	OP_MCRXR  = 31<<26 | 512<<1 | 0<<10 | 0
+@@ -2522,6 +2532,11 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 		rel.Siz = 8
+ 		rel.Sym = p.From.Sym
+ 		rel.Type = obj.R_ADDRPOWER_GOT
++	case 84: // ISEL BC,RA,RB,RT -> isel rt,ra,rb,bc
++		bc := vregoff(ctxt, &p.From)
++
++		// rt = To.Reg, ra = p.Reg, rb = p.From3.Reg
++		o1 = AOP_ISEL(OP_ISEL, uint32(p.To.Reg), uint32(p.Reg), uint32(p.From3.Reg), uint32(bc))
+ 	}
+ 
+ 	out[0] = o1

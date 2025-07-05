@@ -22,8 +22,71 @@ Date:   Mon Nov 26 10:48:56 2018 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/noder.go                        | 13 ++++++++++++-
  .../empty.s => test/fixedbugs/issue23311.dir/main.go        | 11 ++++++++++-
  .../syscall/unix/empty.s => test/fixedbugs/issue23311.go    |  4 +++-
  3 files changed, 25 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index b9849e7a84..23c9539b0a 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -497,7 +497,18 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
+ 		}
+ 	} else {
+ 		if pure_go || strings.HasPrefix(f.funcname(), "init.") {
+-			yyerrorl(f.Pos, "missing function body")
++			// Linknamed functions are allowed to have no body. Hopefully
++			// the linkname target has a body. See issue 23311.
++			isLinknamed := false
++			for _, n := range p.linknames {
++				if f.funcname() == n.local {
++					isLinknamed = true
++					break
++				}
++			}
++			if !isLinknamed {
++				yyerrorl(f.Pos, "missing function body")
++			}
+ 		}
+ 	}
+ 
+diff --git a/src/runtime/testdata/testprog/empty.s b/test/fixedbugs/issue23311.dir/main.go
+similarity index 59%
+rename from src/runtime/testdata/testprog/empty.s
+rename to test/fixedbugs/issue23311.dir/main.go
+index c5aa6f8a54..fa4cf76b89 100644
+--- a/src/runtime/testdata/testprog/empty.s
++++ b/test/fixedbugs/issue23311.dir/main.go
+@@ -2,4 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This exists solely so we can linkname in symbols from runtime.
++package main
++
++import _ "unsafe" // for linkname
++
++//go:linkname f runtime.GC
++func f()
++
++func main() {
++	f()
++}
+diff --git a/src/internal/syscall/unix/empty.s b/test/fixedbugs/issue23311.go
+similarity index 70%
+rename from src/internal/syscall/unix/empty.s
+rename to test/fixedbugs/issue23311.go
+index 717189c658..128cf9d06a 100644
+--- a/src/internal/syscall/unix/empty.s
++++ b/test/fixedbugs/issue23311.go
+@@ -1,5 +1,7 @@
++// compiledir
++
+ // Copyright 2018 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This exists solely so we can linkname in symbols from syscall.
++package ignored

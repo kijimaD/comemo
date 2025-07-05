@@ -9,6 +9,24 @@ Date:   Wed Sep 10 13:24:47 2008 -0700
     DELTA=3  (0 added, 0 deleted, 3 changed)
     OCL=15092
     CL=15096
-
+---
  doc/go_spec.txt | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go_spec.txt b/doc/go_spec.txt
+index 80f18b15f7..ddf1af4b7b 100644
+--- a/doc/go_spec.txt
++++ b/doc/go_spec.txt
+@@ -1090,9 +1090,9 @@ Interface types
+ 
+ An interface type denotes a set of methods.
+ 
+-	InterfaceType = "interface" "{" [ MethodDeclList [ ";" ] ] "}" .
+-	MethodDeclList = MethodDecl { ";" MethodDecl } .
+-	MethodDecl = identifier FunctionType .
++	InterfaceType = "interface" "{" [ MethodList [ ";" ] ] "}" .
++	MethodList = Method { ";" Method } .
++	Method = identifier FunctionType .
+ 
+ 	// A basic file interface.
+ 	type File interface {

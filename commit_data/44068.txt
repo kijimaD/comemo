@@ -80,7 +80,7 @@ Date:   Thu Apr 2 17:10:13 2020 -0400
     Change-Id: Id850962bad667f71e3af594bdfebbbb1edfbcbb4
     Reviewed-on: https://go-review.googlesource.com/c/go/+/227037
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/crypto/x509/internal/macOS/corefoundation.go   | 141 ++++++++++
  src/crypto/x509/internal/macOS/corefoundation.s    |  26 ++
  src/crypto/x509/internal/macOS/security.go         | 116 +++++++++
@@ -97,3 +97,1216 @@ Date:   Thu Apr 2 17:10:13 2020 -0400
  src/runtime/sys_darwin.go                          |  17 +-
  src/runtime/sys_darwin_amd64.s                     |  26 ++
  15 files changed, 620 insertions(+), 394 deletions(-)
+
+diff --git a/src/crypto/x509/internal/macOS/corefoundation.go b/src/crypto/x509/internal/macOS/corefoundation.go
+new file mode 100644
+index 0000000000..359694fabf
+--- /dev/null
++++ b/src/crypto/x509/internal/macOS/corefoundation.go
+@@ -0,0 +1,141 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin,amd64
++
++// Package macOS provides cgo-less wrappers for Core Foundation and
++// Security.framework, similarly to how package syscall provides access to
++// libSystem.dylib.
++package macOS
++
++import (
++	"errors"
++	"reflect"
++	"runtime"
++	"unsafe"
++)
++
++// CFRef is an opaque reference to a Core Foundation object. It is a pointer,
++// but to memory not owned by Go, so not an unsafe.Pointer.
++type CFRef uintptr
++
++// CFDataToSlice returns a copy of the contents of data as a bytes slice.
++func CFDataToSlice(data CFRef) []byte {
++	length := CFDataGetLength(data)
++	ptr := CFDataGetBytePtr(data)
++	src := (*[1 << 20]byte)(unsafe.Pointer(ptr))[:length:length]
++	out := make([]byte, length)
++	copy(out, src)
++	return out
++}
++
++type CFString CFRef
++
++const kCFAllocatorDefault = 0
++const kCFStringEncodingUTF8 = 0x08000100
++
++//go:linkname x509_CFStringCreateWithBytes x509_CFStringCreateWithBytes
++//go:cgo_import_dynamic x509_CFStringCreateWithBytes CFStringCreateWithBytes "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
++
++// StringToCFString returns a copy of the UTF-8 contents of s as a new CFString.
++func StringToCFString(s string) CFString {
++	p := unsafe.Pointer((*reflect.StringHeader)(unsafe.Pointer(&s)).Data)
++	ret := syscall(funcPC(x509_CFStringCreateWithBytes_trampoline), kCFAllocatorDefault, uintptr(p),
++		uintptr(len(s)), uintptr(kCFStringEncodingUTF8), 0 /* isExternalRepresentation */, 0)
++	runtime.KeepAlive(p)
++	return CFString(ret)
++}
++func x509_CFStringCreateWithBytes_trampoline()
++
++//go:linkname x509_CFDictionaryGetValueIfPresent x509_CFDictionaryGetValueIfPresent
++//go:cgo_import_dynamic x509_CFDictionaryGetValueIfPresent CFDictionaryGetValueIfPresent "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
++
++func CFDictionaryGetValueIfPresent(dict CFRef, key CFString) (value CFRef, ok bool) {
++	ret := syscall(funcPC(x509_CFDictionaryGetValueIfPresent_trampoline), uintptr(dict), uintptr(key),
++		uintptr(unsafe.Pointer(&value)), 0, 0, 0)
++	if ret == 0 {
++		return 0, false
++	}
++	return value, true
++}
++func x509_CFDictionaryGetValueIfPresent_trampoline()
++
++const kCFNumberSInt32Type = 3
++
++//go:linkname x509_CFNumberGetValue x509_CFNumberGetValue
++//go:cgo_import_dynamic x509_CFNumberGetValue CFNumberGetValue "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
++
++func CFNumberGetValue(num CFRef) (int32, error) {
++	var value int32
++	ret := syscall(funcPC(x509_CFNumberGetValue_trampoline), uintptr(num), uintptr(kCFNumberSInt32Type),
++		uintptr(unsafe.Pointer(&value)), 0, 0, 0)
++	if ret == 0 {
++		return 0, errors.New("CFNumberGetValue call failed")
++	}
++	return value, nil
++}
++func x509_CFNumberGetValue_trampoline()
++
++//go:linkname x509_CFDataGetLength x509_CFDataGetLength
++//go:cgo_import_dynamic x509_CFDataGetLength CFDataGetLength "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
++
++func CFDataGetLength(data CFRef) int {
++	ret := syscall(funcPC(x509_CFDataGetLength_trampoline), uintptr(data), 0, 0, 0, 0, 0)
++	return int(ret)
++}
++func x509_CFDataGetLength_trampoline()
++
++//go:linkname x509_CFDataGetBytePtr x509_CFDataGetBytePtr
++//go:cgo_import_dynamic x509_CFDataGetBytePtr CFDataGetBytePtr "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
++
++func CFDataGetBytePtr(data CFRef) uintptr {
++	ret := syscall(funcPC(x509_CFDataGetBytePtr_trampoline), uintptr(data), 0, 0, 0, 0, 0)
++	return ret
++}
++func x509_CFDataGetBytePtr_trampoline()
++
++//go:linkname x509_CFArrayGetCount x509_CFArrayGetCount
++//go:cgo_import_dynamic x509_CFArrayGetCount CFArrayGetCount "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
++
++func CFArrayGetCount(array CFRef) int {
++	ret := syscall(funcPC(x509_CFArrayGetCount_trampoline), uintptr(array), 0, 0, 0, 0, 0)
++	return int(ret)
++}
++func x509_CFArrayGetCount_trampoline()
++
++//go:linkname x509_CFArrayGetValueAtIndex x509_CFArrayGetValueAtIndex
++//go:cgo_import_dynamic x509_CFArrayGetValueAtIndex CFArrayGetValueAtIndex "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
++
++func CFArrayGetValueAtIndex(array CFRef, index int) CFRef {
++	ret := syscall(funcPC(x509_CFArrayGetValueAtIndex_trampoline), uintptr(array), uintptr(index), 0, 0, 0, 0)
++	return CFRef(ret)
++}
++func x509_CFArrayGetValueAtIndex_trampoline()
++
++//go:linkname x509_CFEqual x509_CFEqual
++//go:cgo_import_dynamic x509_CFEqual CFEqual "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
++
++func CFEqual(a, b CFRef) bool {
++	ret := syscall(funcPC(x509_CFEqual_trampoline), uintptr(a), uintptr(b), 0, 0, 0, 0)
++	return ret == 1
++}
++func x509_CFEqual_trampoline()
++
++//go:linkname x509_CFRelease x509_CFRelease
++//go:cgo_import_dynamic x509_CFRelease CFRelease "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
++
++func CFRelease(ref CFRef) {
++	syscall(funcPC(x509_CFRelease_trampoline), uintptr(ref), 0, 0, 0, 0, 0)
++}
++func x509_CFRelease_trampoline()
++
++// syscall is implemented in the runtime package (runtime/sys_darwin.go)
++func syscall(fn, a1, a2, a3, a4, a5, a6 uintptr) uintptr
++
++// funcPC returns the entry point for f. See comments in runtime/proc.go
++// for the function of the same name.
++//go:nosplit
++func funcPC(f func()) uintptr {
++	return **(**uintptr)(unsafe.Pointer(&f))
++}
+diff --git a/src/crypto/x509/internal/macOS/corefoundation.s b/src/crypto/x509/internal/macOS/corefoundation.s
+new file mode 100644
+index 0000000000..8f6be47e4b
+--- /dev/null
++++ b/src/crypto/x509/internal/macOS/corefoundation.s
+@@ -0,0 +1,26 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin,amd64
++
++#include "textflag.h"
++
++TEXT ·x509_CFArrayGetCount_trampoline(SB),NOSPLIT,$0-0
++	JMP	x509_CFArrayGetCount(SB)
++TEXT ·x509_CFArrayGetValueAtIndex_trampoline(SB),NOSPLIT,$0-0
++	JMP	x509_CFArrayGetValueAtIndex(SB)
++TEXT ·x509_CFDataGetBytePtr_trampoline(SB),NOSPLIT,$0-0
++	JMP	x509_CFDataGetBytePtr(SB)
++TEXT ·x509_CFDataGetLength_trampoline(SB),NOSPLIT,$0-0
++	JMP	x509_CFDataGetLength(SB)
++TEXT ·x509_CFStringCreateWithBytes_trampoline(SB),NOSPLIT,$0-0
++	JMP	x509_CFStringCreateWithBytes(SB)
++TEXT ·x509_CFRelease_trampoline(SB),NOSPLIT,$0-0
++	JMP	x509_CFRelease(SB)
++TEXT ·x509_CFDictionaryGetValueIfPresent_trampoline(SB),NOSPLIT,$0-0
++	JMP	x509_CFDictionaryGetValueIfPresent(SB)
++TEXT ·x509_CFNumberGetValue_trampoline(SB),NOSPLIT,$0-0
++	JMP	x509_CFNumberGetValue(SB)
++TEXT ·x509_CFEqual_trampoline(SB),NOSPLIT,$0-0
++	JMP	x509_CFEqual(SB)
+diff --git a/src/crypto/x509/internal/macOS/security.go b/src/crypto/x509/internal/macOS/security.go
+new file mode 100644
+index 0000000000..64fe206390
+--- /dev/null
++++ b/src/crypto/x509/internal/macOS/security.go
+@@ -0,0 +1,116 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin,amd64
++
++package macOS
++
++import (
++	"errors"
++	"strconv"
++	"unsafe"
++)
++
++// Based on https://opensource.apple.com/source/Security/Security-59306.41.2/base/Security.h
++
++type SecTrustSettingsResult int32
++
++const (
++	SecTrustSettingsResultInvalid SecTrustSettingsResult = iota
++	SecTrustSettingsResultTrustRoot
++	SecTrustSettingsResultTrustAsRoot
++	SecTrustSettingsResultDeny
++	SecTrustSettingsResultUnspecified
++)
++
++type SecTrustSettingsDomain int32
++
++const (
++	SecTrustSettingsDomainUser SecTrustSettingsDomain = iota
++	SecTrustSettingsDomainAdmin
++	SecTrustSettingsDomainSystem
++)
++
++type OSStatus struct {
++	call   string
++	status int32
++}
++
++func (s OSStatus) Error() string {
++	return s.call + " error: " + strconv.Itoa(int(s.status))
++}
++
++// Dictionary keys are defined as build-time strings with CFSTR, but the Go
++// linker's internal linking mode can't handle CFSTR relocations. Create our
++// own dynamic strings instead and just never release them.
++//
++// Note that this might be the only thing that can break over time if
++// these values change, as the ABI arguably requires using the strings
++// pointed to by the symbols, not values that happen to be equal to them.
++
++var SecTrustSettingsResultKey = StringToCFString("kSecTrustSettingsResult")
++var SecTrustSettingsPolicy = StringToCFString("kSecTrustSettingsPolicy")
++var SecTrustSettingsPolicyString = StringToCFString("kSecTrustSettingsPolicyString")
++var SecPolicyOid = StringToCFString("SecPolicyOid")
++var SecPolicyAppleSSL = StringToCFString("1.2.840.113635.100.1.3") // defined by POLICYMACRO
++
++var ErrNoTrustSettings = errors.New("no trust settings found")
++
++const errSecNoTrustSettings = -25263
++
++//go:linkname x509_SecTrustSettingsCopyCertificates x509_SecTrustSettingsCopyCertificates
++//go:cgo_import_dynamic x509_SecTrustSettingsCopyCertificates SecTrustSettingsCopyCertificates "/System/Library/Frameworks/Security.framework/Versions/A/Security"
++
++func SecTrustSettingsCopyCertificates(domain SecTrustSettingsDomain) (certArray CFRef, err error) {
++	ret := syscall(funcPC(x509_SecTrustSettingsCopyCertificates_trampoline), uintptr(domain),
++		uintptr(unsafe.Pointer(&certArray)), 0, 0, 0, 0)
++	if int32(ret) == errSecNoTrustSettings {
++		return 0, ErrNoTrustSettings
++	} else if ret != 0 {
++		return 0, OSStatus{"SecTrustSettingsCopyCertificates", int32(ret)}
++	}
++	return certArray, nil
++}
++func x509_SecTrustSettingsCopyCertificates_trampoline()
++
++const kSecFormatX509Cert int32 = 9
++
++//go:linkname x509_SecItemExport x509_SecItemExport
++//go:cgo_import_dynamic x509_SecItemExport SecItemExport "/System/Library/Frameworks/Security.framework/Versions/A/Security"
++
++func SecItemExport(cert CFRef) (data CFRef, err error) {
++	ret := syscall(funcPC(x509_SecItemExport_trampoline), uintptr(cert), uintptr(kSecFormatX509Cert),
++		0 /* flags */, 0 /* keyParams */, uintptr(unsafe.Pointer(&data)), 0)
++	if ret != 0 {
++		return 0, OSStatus{"SecItemExport", int32(ret)}
++	}
++	return data, nil
++}
++func x509_SecItemExport_trampoline()
++
++const errSecItemNotFound = -25300
++
++//go:linkname x509_SecTrustSettingsCopyTrustSettings x509_SecTrustSettingsCopyTrustSettings
++//go:cgo_import_dynamic x509_SecTrustSettingsCopyTrustSettings SecTrustSettingsCopyTrustSettings "/System/Library/Frameworks/Security.framework/Versions/A/Security"
++
++func SecTrustSettingsCopyTrustSettings(cert CFRef, domain SecTrustSettingsDomain) (trustSettings CFRef, err error) {
++	ret := syscall(funcPC(x509_SecTrustSettingsCopyTrustSettings_trampoline), uintptr(cert), uintptr(domain),
++		uintptr(unsafe.Pointer(&trustSettings)), 0, 0, 0)
++	if int32(ret) == errSecItemNotFound {
++		return 0, ErrNoTrustSettings
++	} else if ret != 0 {
++		return 0, OSStatus{"SecTrustSettingsCopyTrustSettings", int32(ret)}
++	}
++	return trustSettings, nil
++}
++func x509_SecTrustSettingsCopyTrustSettings_trampoline()
++
++//go:linkname x509_SecPolicyCopyProperties x509_SecPolicyCopyProperties
++//go:cgo_import_dynamic x509_SecPolicyCopyProperties SecPolicyCopyProperties "/System/Library/Frameworks/Security.framework/Versions/A/Security"
++
++func SecPolicyCopyProperties(policy CFRef) CFRef {
++	ret := syscall(funcPC(x509_SecPolicyCopyProperties_trampoline), uintptr(policy), 0, 0, 0, 0, 0)
++	return CFRef(ret)
++}
++func x509_SecPolicyCopyProperties_trampoline()
+diff --git a/src/crypto/x509/internal/macOS/security.s b/src/crypto/x509/internal/macOS/security.s
+new file mode 100644
+index 0000000000..1630c55bab
+--- /dev/null
++++ b/src/crypto/x509/internal/macOS/security.s
+@@ -0,0 +1,16 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin,amd64
++
++#include "textflag.h"
++
++TEXT ·x509_SecTrustSettingsCopyCertificates_trampoline(SB),NOSPLIT,$0-0
++	JMP	x509_SecTrustSettingsCopyCertificates(SB)
++TEXT ·x509_SecItemExport_trampoline(SB),NOSPLIT,$0-0
++	JMP	x509_SecItemExport(SB)
++TEXT ·x509_SecTrustSettingsCopyTrustSettings_trampoline(SB),NOSPLIT,$0-0
++	JMP	x509_SecTrustSettingsCopyTrustSettings(SB)
++TEXT ·x509_SecPolicyCopyProperties_trampoline(SB),NOSPLIT,$0-0
++	JMP	x509_SecPolicyCopyProperties(SB)
+diff --git a/src/crypto/x509/root_cgo_darwin.go b/src/crypto/x509/root_cgo_darwin_amd64.go
+similarity index 97%
+rename from src/crypto/x509/root_cgo_darwin.go
+rename to src/crypto/x509/root_cgo_darwin_amd64.go
+index 784470bb3b..bec57eb836 100644
+--- a/src/crypto/x509/root_cgo_darwin.go
++++ b/src/crypto/x509/root_cgo_darwin_amd64.go
+@@ -2,10 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo,!arm64,!ios
+-
+ package x509
+ 
++// This cgo implementation exists only to support side-by-side testing by
++// TestSystemRoots. It can be removed once we are confident in the no-cgo
++// implementation.
++
+ /*
+ #cgo CFLAGS: -mmacosx-version-min=10.11
+ #cgo LDFLAGS: -framework CoreFoundation -framework Security
+@@ -283,7 +285,11 @@ import (
+ 	"unsafe"
+ )
+ 
+-func loadSystemRoots() (*CertPool, error) {
++func init() {
++	loadSystemRootsWithCgo = _loadSystemRootsWithCgo
++}
++
++func _loadSystemRootsWithCgo() (*CertPool, error) {
+ 	var data, untrustedData C.CFDataRef
+ 	err := C.CopyPEMRoots(&data, &untrustedData, C.bool(debugDarwinRoots))
+ 	if err == -1 {
+diff --git a/src/crypto/x509/root_darwin.go b/src/crypto/x509/root_darwin.go
+deleted file mode 100644
+index 2f6a8b8d60..0000000000
+--- a/src/crypto/x509/root_darwin.go
++++ /dev/null
+@@ -1,288 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:generate go run root_darwin_arm_gen.go -output root_darwin_armx.go
+-
+-package x509
+-
+-import (
+-	"bufio"
+-	"bytes"
+-	"crypto/sha1"
+-	"encoding/pem"
+-	"fmt"
+-	"io"
+-	"io/ioutil"
+-	"os"
+-	"os/exec"
+-	"path/filepath"
+-	"strings"
+-	"sync"
+-)
+-
+-var debugDarwinRoots = strings.Contains(os.Getenv("GODEBUG"), "x509roots=1")
+-
+-func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
+-	return nil, nil
+-}
+-
+-// This code is only used when compiling without cgo.
+-// It is here, instead of root_nocgo_darwin.go, so that tests can check it
+-// even if the tests are run with cgo enabled.
+-// The linker will not include these unused functions in binaries built with cgo enabled.
+-
+-// execSecurityRoots finds the macOS list of trusted root certificates
+-// using only command-line tools. This is our fallback path when cgo isn't available.
+-//
+-// The strategy is as follows:
+-//
+-// 1. Run "security trust-settings-export" and "security
+-//    trust-settings-export -d" to discover the set of certs with some
+-//    user-tweaked trust policy. We're too lazy to parse the XML
+-//    (Issue 26830) to understand what the trust
+-//    policy actually is. We just learn that there is _some_ policy.
+-//
+-// 2. Run "security find-certificate" to dump the list of system root
+-//    CAs in PEM format.
+-//
+-// 3. For each dumped cert, conditionally verify it with "security
+-//    verify-cert" if that cert was in the set discovered in Step 1.
+-//    Without the Step 1 optimization, running "security verify-cert"
+-//    150-200 times takes 3.5 seconds. With the optimization, the
+-//    whole process takes about 180 milliseconds with 1 untrusted root
+-//    CA. (Compared to 110ms in the cgo path)
+-func execSecurityRoots() (*CertPool, error) {
+-	hasPolicy, err := getCertsWithTrustPolicy()
+-	if err != nil {
+-		return nil, err
+-	}
+-	if debugDarwinRoots {
+-		fmt.Fprintf(os.Stderr, "crypto/x509: %d certs have a trust policy\n", len(hasPolicy))
+-	}
+-
+-	keychains := []string{"/Library/Keychains/System.keychain"}
+-
+-	// Note that this results in trusting roots from $HOME/... (the environment
+-	// variable), which might not be expected.
+-	home, err := os.UserHomeDir()
+-	if err != nil {
+-		if debugDarwinRoots {
+-			fmt.Fprintf(os.Stderr, "crypto/x509: can't get user home directory: %v\n", err)
+-		}
+-	} else {
+-		keychains = append(keychains,
+-			filepath.Join(home, "/Library/Keychains/login.keychain"),
+-
+-			// Fresh installs of Sierra use a slightly different path for the login keychain
+-			filepath.Join(home, "/Library/Keychains/login.keychain-db"),
+-		)
+-	}
+-
+-	type rootCandidate struct {
+-		c      *Certificate
+-		system bool
+-	}
+-
+-	var (
+-		mu          sync.Mutex
+-		roots       = NewCertPool()
+-		numVerified int // number of execs of 'security verify-cert', for debug stats
+-		wg          sync.WaitGroup
+-		verifyCh    = make(chan rootCandidate)
+-	)
+-
+-	// Using 4 goroutines to pipe into verify-cert seems to be
+-	// about the best we can do. The verify-cert binary seems to
+-	// just RPC to another server with coarse locking anyway, so
+-	// running 16 at a time for instance doesn't help at all. Due
+-	// to the "if hasPolicy" check below, though, we will rarely
+-	// (or never) call verify-cert on stock macOS systems, though.
+-	// The hope is that we only call verify-cert when the user has
+-	// tweaked their trust policy. These 4 goroutines are only
+-	// defensive in the pathological case of many trust edits.
+-	for i := 0; i < 4; i++ {
+-		wg.Add(1)
+-		go func() {
+-			defer wg.Done()
+-			for cert := range verifyCh {
+-				sha1CapHex := fmt.Sprintf("%X", sha1.Sum(cert.c.Raw))
+-
+-				var valid bool
+-				verifyChecks := 0
+-				if hasPolicy[sha1CapHex] {
+-					verifyChecks++
+-					valid = verifyCertWithSystem(cert.c)
+-				} else {
+-					// Certificates not in SystemRootCertificates without user
+-					// or admin trust settings are not trusted.
+-					valid = cert.system
+-				}
+-
+-				mu.Lock()
+-				numVerified += verifyChecks
+-				if valid {
+-					roots.AddCert(cert.c)
+-				}
+-				mu.Unlock()
+-			}
+-		}()
+-	}
+-	err = forEachCertInKeychains(keychains, func(cert *Certificate) {
+-		verifyCh <- rootCandidate{c: cert, system: false}
+-	})
+-	if err != nil {
+-		close(verifyCh)
+-		return nil, err
+-	}
+-	err = forEachCertInKeychains([]string{
+-		"/System/Library/Keychains/SystemRootCertificates.keychain",
+-	}, func(cert *Certificate) {
+-		verifyCh <- rootCandidate{c: cert, system: true}
+-	})
+-	if err != nil {
+-		close(verifyCh)
+-		return nil, err
+-	}
+-	close(verifyCh)
+-	wg.Wait()
+-
+-	if debugDarwinRoots {
+-		fmt.Fprintf(os.Stderr, "crypto/x509: ran security verify-cert %d times\n", numVerified)
+-	}
+-
+-	return roots, nil
+-}
+-
+-func forEachCertInKeychains(paths []string, f func(*Certificate)) error {
+-	args := append([]string{"find-certificate", "-a", "-p"}, paths...)
+-	cmd := exec.Command("/usr/bin/security", args...)
+-	data, err := cmd.Output()
+-	if err != nil {
+-		return err
+-	}
+-	for len(data) > 0 {
+-		var block *pem.Block
+-		block, data = pem.Decode(data)
+-		if block == nil {
+-			break
+-		}
+-		if block.Type != "CERTIFICATE" || len(block.Headers) != 0 {
+-			continue
+-		}
+-		cert, err := ParseCertificate(block.Bytes)
+-		if err != nil {
+-			continue
+-		}
+-		f(cert)
+-	}
+-	return nil
+-}
+-
+-func verifyCertWithSystem(cert *Certificate) bool {
+-	data := pem.EncodeToMemory(&pem.Block{
+-		Type: "CERTIFICATE", Bytes: cert.Raw,
+-	})
+-
+-	f, err := ioutil.TempFile("", "cert")
+-	if err != nil {
+-		fmt.Fprintf(os.Stderr, "can't create temporary file for cert: %v", err)
+-		return false
+-	}
+-	defer os.Remove(f.Name())
+-	if _, err := f.Write(data); err != nil {
+-		fmt.Fprintf(os.Stderr, "can't write temporary file for cert: %v", err)
+-		return false
+-	}
+-	if err := f.Close(); err != nil {
+-		fmt.Fprintf(os.Stderr, "can't write temporary file for cert: %v", err)
+-		return false
+-	}
+-	cmd := exec.Command("/usr/bin/security", "verify-cert", "-p", "ssl", "-c", f.Name(), "-l", "-L")
+-	var stderr bytes.Buffer
+-	if debugDarwinRoots {
+-		cmd.Stderr = &stderr
+-	}
+-	if err := cmd.Run(); err != nil {
+-		if debugDarwinRoots {
+-			fmt.Fprintf(os.Stderr, "crypto/x509: verify-cert rejected %s: %q\n", cert.Subject, bytes.TrimSpace(stderr.Bytes()))
+-		}
+-		return false
+-	}
+-	if debugDarwinRoots {
+-		fmt.Fprintf(os.Stderr, "crypto/x509: verify-cert approved %s\n", cert.Subject)
+-	}
+-	return true
+-}
+-
+-// getCertsWithTrustPolicy returns the set of certs that have a
+-// possibly-altered trust policy. The keys of the map are capitalized
+-// sha1 hex of the raw cert.
+-// They are the certs that should be checked against `security
+-// verify-cert` to see whether the user altered the default trust
+-// settings. This code is only used for cgo-disabled builds.
+-func getCertsWithTrustPolicy() (map[string]bool, error) {
+-	set := map[string]bool{}
+-	td, err := ioutil.TempDir("", "x509trustpolicy")
+-	if err != nil {
+-		return nil, err
+-	}
+-	defer os.RemoveAll(td)
+-	run := func(file string, args ...string) error {
+-		file = filepath.Join(td, file)
+-		args = append(args, file)
+-		cmd := exec.Command("/usr/bin/security", args...)
+-		var stderr bytes.Buffer
+-		cmd.Stderr = &stderr
+-		if err := cmd.Run(); err != nil {
+-			// If there are no trust settings, the
+-			// `security trust-settings-export` command
+-			// fails with:
+-			//    exit status 1, SecTrustSettingsCreateExternalRepresentation: No Trust Settings were found.
+-			// Rather than match on English substrings that are probably
+-			// localized on macOS, just interpret any failure to mean that
+-			// there are no trust settings.
+-			if debugDarwinRoots {
+-				fmt.Fprintf(os.Stderr, "crypto/x509: exec %q: %v, %s\n", cmd.Args, err, stderr.Bytes())
+-			}
+-			return nil
+-		}
+-
+-		f, err := os.Open(file)
+-		if err != nil {
+-			return err
+-		}
+-		defer f.Close()
+-
+-		// Gather all the runs of 40 capitalized hex characters.
+-		br := bufio.NewReader(f)
+-		var hexBuf bytes.Buffer
+-		for {
+-			b, err := br.ReadByte()
+-			isHex := ('A' <= b && b <= 'F') || ('0' <= b && b <= '9')
+-			if isHex {
+-				hexBuf.WriteByte(b)
+-			} else {
+-				if hexBuf.Len() == 40 {
+-					set[hexBuf.String()] = true
+-				}
+-				hexBuf.Reset()
+-			}
+-			if err == io.EOF {
+-				break
+-			}
+-			if err != nil {
+-				return err
+-			}
+-		}
+-
+-		return nil
+-	}
+-	if err := run("user", "trust-settings-export"); err != nil {
+-		return nil, fmt.Errorf("dump-trust-settings (user): %v", err)
+-	}
+-	if err := run("admin", "trust-settings-export", "-d"); err != nil {
+-		return nil, fmt.Errorf("dump-trust-settings (admin): %v", err)
+-	}
+-	return set, nil
+-}
+diff --git a/src/crypto/x509/root_darwin_amd64.go b/src/crypto/x509/root_darwin_amd64.go
+new file mode 100644
+index 0000000000..3ddd3a46f4
+--- /dev/null
++++ b/src/crypto/x509/root_darwin_amd64.go
+@@ -0,0 +1,222 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package x509
++
++import (
++	"bytes"
++	"crypto/x509/internal/macOS"
++	"fmt"
++	"os"
++	"strings"
++)
++
++var debugDarwinRoots = strings.Contains(os.Getenv("GODEBUG"), "x509roots=1")
++
++func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
++	return nil, nil
++}
++
++// loadSystemRootsWithCgo is set in root_cgo_darwin_amd64.go when cgo is
++// available, and is only used for testing.
++var loadSystemRootsWithCgo func() (*CertPool, error)
++
++func loadSystemRoots() (*CertPool, error) {
++	var trustedRoots []*Certificate
++	untrustedRoots := make(map[string]bool)
++
++	// macOS has three trust domains: one for CAs added by users to their
++	// "login" keychain, one for CAs added by Admins to the "System" keychain,
++	// and one for the CAs that ship with the OS.
++	for _, domain := range []macOS.SecTrustSettingsDomain{
++		macOS.SecTrustSettingsDomainUser,
++		macOS.SecTrustSettingsDomainAdmin,
++		macOS.SecTrustSettingsDomainSystem,
++	} {
++		certs, err := macOS.SecTrustSettingsCopyCertificates(domain)
++		if err == macOS.ErrNoTrustSettings {
++			continue
++		} else if err != nil {
++			return nil, err
++		}
++		defer macOS.CFRelease(certs)
++
++		for i := 0; i < macOS.CFArrayGetCount(certs); i++ {
++			c := macOS.CFArrayGetValueAtIndex(certs, i)
++			cert, err := exportCertificate(c)
++			if err != nil {
++				if debugDarwinRoots {
++					fmt.Fprintf(os.Stderr, "crypto/x509: domain %d, certificate #%d: %v\n", domain, i, err)
++				}
++				continue
++			}
++
++			var result macOS.SecTrustSettingsResult
++			if domain == macOS.SecTrustSettingsDomainSystem {
++				// Certs found in the system domain are always trusted. If the user
++				// configures "Never Trust" on such a cert, it will also be found in the
++				// admin or user domain, causing it to be added to untrustedRoots.
++				result = macOS.SecTrustSettingsResultTrustRoot
++			} else {
++				result, err = sslTrustSettingsResult(c)
++				if err != nil {
++					if debugDarwinRoots {
++						fmt.Fprintf(os.Stderr, "crypto/x509: trust settings for %v: %v\n", cert.Subject, err)
++					}
++					continue
++				}
++				if debugDarwinRoots {
++					fmt.Fprintf(os.Stderr, "crypto/x509: trust settings for %v: %d\n", cert.Subject, result)
++				}
++			}
++
++			switch result {
++			// "Note the distinction between the results kSecTrustSettingsResultTrustRoot
++			// and kSecTrustSettingsResultTrustAsRoot: The former can only be applied to
++			// root (self-signed) certificates; the latter can only be applied to
++			// non-root certificates."
++			case macOS.SecTrustSettingsResultTrustRoot:
++				if isRootCertificate(cert) {
++					trustedRoots = append(trustedRoots, cert)
++				}
++			case macOS.SecTrustSettingsResultTrustAsRoot:
++				if !isRootCertificate(cert) {
++					trustedRoots = append(trustedRoots, cert)
++				}
++
++			case macOS.SecTrustSettingsResultDeny:
++				// Add this certificate to untrustedRoots, which are subtracted
++				// from trustedRoots, so that we don't have to evaluate policies
++				// for every root in the system domain, but still apply user and
++				// admin policies that override system roots.
++				untrustedRoots[string(cert.Raw)] = true
++
++			case macOS.SecTrustSettingsResultUnspecified:
++				// Certificates with unspecified trust should be added to a pool
++				// of intermediates for chain building, but we don't support it
++				// at the moment. This is Issue 35631.
++
++			default:
++				if debugDarwinRoots {
++					fmt.Fprintf(os.Stderr, "crypto/x509: unknown trust setting for %v: %d\n", cert.Subject, result)
++				}
++			}
++		}
++	}
++
++	pool := NewCertPool()
++	for _, cert := range trustedRoots {
++		if !untrustedRoots[string(cert.Raw)] {
++			pool.AddCert(cert)
++		}
++	}
++	return pool, nil
++}
++
++// exportCertificate returns a *Certificate for a SecCertificateRef.
++func exportCertificate(cert macOS.CFRef) (*Certificate, error) {
++	data, err := macOS.SecItemExport(cert)
++	if err != nil {
++		return nil, err
++	}
++	defer macOS.CFRelease(data)
++	der := macOS.CFDataToSlice(data)
++
++	return ParseCertificate(der)
++}
++
++// isRootCertificate reports whether Subject and Issuer match.
++func isRootCertificate(cert *Certificate) bool {
++	return bytes.Equal(cert.RawSubject, cert.RawIssuer)
++}
++
++// sslTrustSettingsResult obtains the final kSecTrustSettingsResult value for a
++// certificate in the user or admin domain, combining usage constraints for the
++// SSL SecTrustSettingsPolicy,
++//
++// It ignores SecTrustSettingsKeyUsage and kSecTrustSettingsAllowedError, and
++// doesn't support kSecTrustSettingsDefaultRootCertSetting.
++//
++// https://developer.apple.com/documentation/security/1400261-sectrustsettingscopytrustsetting
++func sslTrustSettingsResult(cert macOS.CFRef) (macOS.SecTrustSettingsResult, error) {
++	trustSettings, err := macOS.SecTrustSettingsCopyTrustSettings(cert, macOS.SecTrustSettingsDomainUser)
++	// According to Apple's SecTrustServer.c, "user trust settings overrule
++	// admin trust settings", but the rules of the override are unclear. Let's
++	// assume admin trust settings are applicable if and only if there are no
++	// user trust settings.
++	if err == macOS.ErrNoTrustSettings {
++		trustSettings, err = macOS.SecTrustSettingsCopyTrustSettings(cert, macOS.SecTrustSettingsDomainAdmin)
++		// "no trust settings [...] means 'this certificate must be verified to a known trusted certificate'"
++		if err == macOS.ErrNoTrustSettings {
++			return macOS.SecTrustSettingsResultUnspecified, nil
++		}
++	}
++	if err != nil {
++		return 0, err
++	}
++	defer macOS.CFRelease(trustSettings)
++
++	// "An empty trust settings array means 'always trust this certificate' with an
++	// overall trust setting for the certificate of kSecTrustSettingsResultTrustRoot."
++	if macOS.CFArrayGetCount(trustSettings) == 0 {
++		return macOS.SecTrustSettingsResultTrustRoot, nil
++	}
++
++	isSSLPolicy := func(policyRef macOS.CFRef) bool {
++		properties := macOS.SecPolicyCopyProperties(policyRef)
++		defer macOS.CFRelease(properties)
++		if v, ok := macOS.CFDictionaryGetValueIfPresent(properties, macOS.SecPolicyOid); ok {
++			return macOS.CFEqual(v, macOS.CFRef(macOS.SecPolicyAppleSSL))
++		}
++		return false
++	}
++
++	for i := 0; i < macOS.CFArrayGetCount(trustSettings); i++ {
++		tSetting := macOS.CFArrayGetValueAtIndex(trustSettings, i)
++
++		// First, check if this trust setting is constrained to a non-SSL policy.
++		if policyRef, ok := macOS.CFDictionaryGetValueIfPresent(tSetting, macOS.SecTrustSettingsPolicy); ok {
++			if !isSSLPolicy(policyRef) {
++				continue
++			}
++		}
++
++		// Then check if it is restricted to a hostname, so not a root.
++		if _, ok := macOS.CFDictionaryGetValueIfPresent(tSetting, macOS.SecTrustSettingsPolicyString); ok {
++			continue
++		}
++
++		cfNum, ok := macOS.CFDictionaryGetValueIfPresent(tSetting, macOS.SecTrustSettingsResultKey)
++		// "If this key is not present, a default value of kSecTrustSettingsResultTrustRoot is assumed."
++		if !ok {
++			return macOS.SecTrustSettingsResultTrustRoot, nil
++		}
++		result, err := macOS.CFNumberGetValue(cfNum)
++		if err != nil {
++			return 0, err
++		}
++
++		// If multiple dictionaries match, we are supposed to "OR" them,
++		// the semantics of which are not clear. Since TrustRoot and TrustAsRoot
++		// are mutually exclusive, Deny should probably override, and Invalid and
++		// Unspecified be overridden, approximate this by stopping at the first
++		// TrustRoot, TrustAsRoot or Deny.
++		switch r := macOS.SecTrustSettingsResult(result); r {
++		case macOS.SecTrustSettingsResultTrustRoot,
++			macOS.SecTrustSettingsResultTrustAsRoot,
++			macOS.SecTrustSettingsResultDeny:
++			return r, nil
++		}
++	}
++
++	// If trust settings are present, but none of them match the policy...
++	// the docs don't tell us what to do.
++	//
++	// "Trust settings for a given use apply if any of the dictionaries in the
++	// certificate’s trust settings array satisfies the specified use." suggests
++	// that it's as if there were no trust settings at all, so we should maybe
++	// fallback to the admin trust settings? TODO(golang.org/issue/38888).
++
++	return macOS.SecTrustSettingsResultUnspecified, nil
++}
+diff --git a/src/crypto/x509/root_darwin_arm64.go b/src/crypto/x509/root_darwin_arm64.go
+index 639c6ae7de..2fb079ba66 100644
+--- a/src/crypto/x509/root_darwin_arm64.go
++++ b/src/crypto/x509/root_darwin_arm64.go
+@@ -1,13 +1,18 @@
+-// Code generated by root_darwin_arm_gen --output root_darwin_arm64.go; DO NOT EDIT.
++// Code generated by root_darwin_arm64_gen.go; DO NOT EDIT.
+ 
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
++//go:generate go run root_darwin_arm64_gen.go -output root_darwin_arm64.go
+ 
+ // +build !x509omitbundledroots
+ 
+ package x509
+ 
++func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
++	return nil, nil
++}
++
++// loadSystemRootsWithCgo is not available on iOS.
++var loadSystemRootsWithCgo func() (*CertPool, error)
++
+ func loadSystemRoots() (*CertPool, error) {
+ 	p := NewCertPool()
+ 	p.AppendCertsFromPEM([]byte(systemRootsPEM))
+diff --git a/src/crypto/x509/root_darwin_arm_gen.go b/src/crypto/x509/root_darwin_arm64_gen.go
+similarity index 92%
+rename from src/crypto/x509/root_darwin_arm_gen.go
+rename to src/crypto/x509/root_darwin_arm64_gen.go
+index cba950fcc9..e7e312e882 100644
+--- a/src/crypto/x509/root_darwin_arm_gen.go
++++ b/src/crypto/x509/root_darwin_arm64_gen.go
+@@ -42,8 +42,6 @@ func main() {
+ 	}
+ 
+ 	buf := new(bytes.Buffer)
+-
+-	fmt.Fprintf(buf, "// Code generated by root_darwin_arm_gen --output %s; DO NOT EDIT.\n", *output)
+ 	fmt.Fprintf(buf, "%s", header)
+ 
+ 	fmt.Fprintf(buf, "const systemRootsPEM = `\n")
+@@ -167,15 +165,21 @@ func fetchCertIDs() ([]certID, error) {
+ 	return ids, nil
+ }
+ 
+-const header = `
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
++const header = `// Code generated by root_darwin_arm64_gen.go; DO NOT EDIT.
++
++//go:generate go run root_darwin_arm64_gen.go -output root_darwin_arm64.go
+ 
+ // +build !x509omitbundledroots
+ 
+ package x509
+ 
++func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
++	return nil, nil
++}
++
++// loadSystemRootsWithCgo is not available on iOS.
++var loadSystemRootsWithCgo func() (*CertPool, error)
++
+ func loadSystemRoots() (*CertPool, error) {
+ 	p := NewCertPool()
+ 	p.AppendCertsFromPEM([]byte(systemRootsPEM))
+diff --git a/src/crypto/x509/root_darwin_test.go b/src/crypto/x509/root_darwin_test.go
+index bd14d34b90..2c773b9120 100644
+--- a/src/crypto/x509/root_darwin_test.go
++++ b/src/crypto/x509/root_darwin_test.go
+@@ -5,120 +5,60 @@
+ package x509
+ 
+ import (
+-	"crypto/rsa"
+ 	"os"
+ 	"os/exec"
+-	"path/filepath"
+-	"runtime"
+ 	"testing"
+ 	"time"
+ )
+ 
+ func TestSystemRoots(t *testing.T) {
+-	switch runtime.GOARCH {
+-	case "arm64":
+-		t.Skipf("skipping on %s/%s, no system root", runtime.GOOS, runtime.GOARCH)
+-	}
+-
+ 	t0 := time.Now()
+-	sysRoots := systemRootsPool() // actual system roots
++	sysRoots, err := loadSystemRoots() // actual system roots
+ 	sysRootsDuration := time.Since(t0)
+ 
+-	t1 := time.Now()
+-	execRoots, err := execSecurityRoots() // non-cgo roots
+-	execSysRootsDuration := time.Since(t1)
+-
+ 	if err != nil {
+ 		t.Fatalf("failed to read system roots: %v", err)
+ 	}
+ 
+-	t.Logf("    cgo sys roots: %v", sysRootsDuration)
+-	t.Logf("non-cgo sys roots: %v", execSysRootsDuration)
++	t.Logf("loadSystemRoots: %v", sysRootsDuration)
+ 
+-	// On Mavericks, there are 212 bundled certs, at least there was at
+-	// one point in time on one machine. (Maybe it was a corp laptop
+-	// with extra certs?) Other OS X users report 135, 142, 145...
+-	// Let's try requiring at least 100, since this is just a sanity
+-	// check.
++	// There are 174 system roots on Catalina, and 163 on iOS right now, require
++	// at least 100 to make sure this is not completely broken.
+ 	if want, have := 100, len(sysRoots.certs); have < want {
+ 		t.Errorf("want at least %d system roots, have %d", want, have)
+ 	}
+ 
+-	// Fetch any intermediate certificate that verify-cert might be aware of.
+-	out, err := exec.Command("/usr/bin/security", "find-certificate", "-a", "-p",
+-		"/Library/Keychains/System.keychain",
+-		filepath.Join(os.Getenv("HOME"), "/Library/Keychains/login.keychain"),
+-		filepath.Join(os.Getenv("HOME"), "/Library/Keychains/login.keychain-db")).Output()
++	if loadSystemRootsWithCgo == nil {
++		t.Skip("cgo not available, can't compare pool")
++	}
++
++	t1 := time.Now()
++	cgoRoots, err := loadSystemRootsWithCgo() // cgo roots
++	cgoSysRootsDuration := time.Since(t1)
++
+ 	if err != nil {
+-		t.Fatal(err)
++		t.Fatalf("failed to read cgo roots: %v", err)
+ 	}
+-	allCerts := NewCertPool()
+-	allCerts.AppendCertsFromPEM(out)
++
++	t.Logf("loadSystemRootsWithCgo: %v", cgoSysRootsDuration)
+ 
+ 	// Check that the two cert pools are the same.
+ 	sysPool := make(map[string]*Certificate, len(sysRoots.certs))
+ 	for _, c := range sysRoots.certs {
+ 		sysPool[string(c.Raw)] = c
+ 	}
+-	for _, c := range execRoots.certs {
++	for _, c := range cgoRoots.certs {
+ 		if _, ok := sysPool[string(c.Raw)]; ok {
+ 			delete(sysPool, string(c.Raw))
+ 		} else {
+-			// verify-cert lets in certificates that are not trusted roots, but
+-			// are signed by trusted roots. This is not great, but unavoidable
+-			// until we parse real policies without cgo, so confirm that's the
+-			// case and skip them.
+-			if _, err := c.Verify(VerifyOptions{
+-				Roots:         sysRoots,
+-				Intermediates: allCerts,
+-				KeyUsages:     []ExtKeyUsage{ExtKeyUsageAny},
+-				CurrentTime:   c.NotBefore, // verify-cert does not check expiration
+-			}); err != nil {
+-				t.Errorf("certificate only present in non-cgo pool: %v (verify error: %v)", c.Subject, err)
+-			} else {
+-				t.Logf("signed certificate only present in non-cgo pool (acceptable): %v", c.Subject)
+-			}
++			t.Errorf("certificate only present in cgo pool: %v", c.Subject)
+ 		}
+ 	}
+ 	for _, c := range sysPool {
+-		// The nocgo codepath uses verify-cert with the ssl policy, which also
+-		// happens to check EKUs, so some certificates will appear only in the
+-		// cgo pool. We can't easily make them consistent because the EKU check
+-		// is only applied to the certificates passed to verify-cert.
+-		var ekuOk bool
+-		for _, eku := range c.ExtKeyUsage {
+-			if eku == ExtKeyUsageServerAuth || eku == ExtKeyUsageNetscapeServerGatedCrypto ||
+-				eku == ExtKeyUsageMicrosoftServerGatedCrypto || eku == ExtKeyUsageAny {
+-				ekuOk = true
+-			}
+-		}
+-		if len(c.ExtKeyUsage) == 0 && len(c.UnknownExtKeyUsage) == 0 {
+-			ekuOk = true
+-		}
+-		if !ekuOk {
+-			t.Logf("off-EKU certificate only present in cgo pool (acceptable): %v", c.Subject)
+-			continue
+-		}
+-
+-		// Same for expired certificates. We don't chain to them anyway.
+-		now := time.Now()
+-		if now.Before(c.NotBefore) || now.After(c.NotAfter) {
+-			t.Logf("expired certificate only present in cgo pool (acceptable): %v", c.Subject)
+-			continue
+-		}
+-
+-		// On 10.11 there are five unexplained roots that only show up from the
+-		// C API. They have in common the fact that they are old, 1024-bit
+-		// certificates. It's arguably better to ignore them anyway.
+-		if key, ok := c.PublicKey.(*rsa.PublicKey); ok && key.N.BitLen() == 1024 {
+-			t.Logf("1024-bit certificate only present in cgo pool (acceptable): %v", c.Subject)
+-			continue
+-		}
+-
+-		t.Errorf("certificate only present in cgo pool: %v", c.Subject)
++		t.Errorf("certificate only present in real pool: %v", c.Subject)
+ 	}
+ 
+-	if t.Failed() && debugDarwinRoots {
++	if t.Failed() {
+ 		cmd := exec.Command("security", "dump-trust-settings")
+ 		cmd.Stdout, cmd.Stderr = os.Stderr, os.Stderr
+ 		cmd.Run()
+diff --git a/src/crypto/x509/root_nocgo_darwin.go b/src/crypto/x509/root_nocgo_darwin.go
+deleted file mode 100644
+index 2ac4666aff..0000000000
+--- a/src/crypto/x509/root_nocgo_darwin.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build !cgo
+-
+-package x509
+-
+-func loadSystemRoots() (*CertPool, error) {
+-	return execSecurityRoots()
+-}
+diff --git a/src/crypto/x509/root_omit.go b/src/crypto/x509/root_omit.go
+index f466e24dce..b757ea81c2 100644
+--- a/src/crypto/x509/root_omit.go
++++ b/src/crypto/x509/root_omit.go
+@@ -19,3 +19,10 @@ import "errors"
+ func loadSystemRoots() (*CertPool, error) {
+ 	return nil, errors.New("x509: system root bundling disabled")
+ }
++
++func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
++	return nil, nil
++}
++
++// loadSystemRootsWithCgo is not available on iOS.
++var loadSystemRootsWithCgo func() (*CertPool, error)
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index d980781416..d3bbf087c3 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -412,11 +412,12 @@ var pkgDeps = map[string][]string{
+ 		"container/list", "context", "crypto/x509", "encoding/pem", "net", "syscall", "crypto/ed25519",
+ 	},
+ 	"crypto/x509": {
+-		"L4", "CRYPTO-MATH", "OS", "CGO", "crypto/ed25519",
++		"L4", "CRYPTO-MATH", "OS", "CGO", "crypto/ed25519", "crypto/x509/internal/macOS",
+ 		"crypto/x509/pkix", "encoding/pem", "encoding/hex", "net", "os/user", "syscall", "net/url",
+ 		"golang.org/x/crypto/cryptobyte", "golang.org/x/crypto/cryptobyte/asn1",
+ 	},
+-	"crypto/x509/pkix": {"L4", "CRYPTO-MATH", "encoding/hex"},
++	"crypto/x509/pkix":           {"L4", "CRYPTO-MATH", "encoding/hex"},
++	"crypto/x509/internal/macOS": {"L4"},
+ 
+ 	// Simple net+crypto-aware packages.
+ 	"mime/multipart": {"L4", "OS", "mime", "crypto/rand", "net/textproto", "mime/quotedprintable"},
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index 1b136f88a8..28c500a710 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -127,6 +127,19 @@ func syscall_rawSyscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintpt
+ 	return
+ }
+ 
++// syscallNoErr is used in crypto/x509 to call into Security.framework and CF.
++
++//go:linkname crypto_x509_syscall crypto/x509/internal/macOS.syscall
++//go:nosplit
++//go:cgo_unsafe_args
++func crypto_x509_syscall(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1 uintptr) {
++	entersyscall()
++	libcCall(unsafe.Pointer(funcPC(syscallNoErr)), unsafe.Pointer(&fn))
++	exitsyscall()
++	return
++}
++func syscallNoErr()
++
+ // The *_trampoline functions convert from the Go calling convention to the C calling convention
+ // and then call the underlying libc function.  They are defined in sys_darwin_$ARCH.s.
+ 
+@@ -477,6 +490,8 @@ func setNonblock(fd int32) {
+ //go:cgo_import_dynamic libc_pthread_cond_timedwait_relative_np pthread_cond_timedwait_relative_np "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_pthread_cond_signal pthread_cond_signal "/usr/lib/libSystem.B.dylib"
+ 
+-// Magic incantation to get libSystem actually dynamically linked.
++// Magic incantation to get libSystem and friends actually dynamically linked.
+ // TODO: Why does the code require this?  See cmd/link/internal/ld/go.go
+ //go:cgo_import_dynamic _ _ "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic _ _ "/System/Library/Frameworks/Security.framework/Versions/A/Security"
++//go:cgo_import_dynamic _ _ "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index a45ea42e5d..825852d673 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -825,3 +825,29 @@ ok:
+ 	MOVQ	BP, SP
+ 	POPQ	BP
+ 	RET
++
++// syscallNoErr is like syscall6 but does not check for errors, and
++// only returns one value, for use with standard C ABI library functions.
++TEXT runtime·syscallNoErr(SB),NOSPLIT,$0
++	PUSHQ	BP
++	MOVQ	SP, BP
++	SUBQ	$16, SP
++	MOVQ	(0*8)(DI), R11// fn
++	MOVQ	(2*8)(DI), SI // a2
++	MOVQ	(3*8)(DI), DX // a3
++	MOVQ	(4*8)(DI), CX // a4
++	MOVQ	(5*8)(DI), R8 // a5
++	MOVQ	(6*8)(DI), R9 // a6
++	MOVQ	DI, (SP)
++	MOVQ	(1*8)(DI), DI // a1
++	XORL	AX, AX	      // vararg: say "no float args"
++
++	CALL	R11
++
++	MOVQ	(SP), DI
++	MOVQ	AX, (7*8)(DI) // r1
++
++	XORL	AX, AX        // no error (it's ignored anyway)
++	MOVQ	BP, SP
++	POPQ	BP
++	RET

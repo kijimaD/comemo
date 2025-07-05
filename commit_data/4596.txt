@@ -9,6 +9,47 @@ Date:   Wed Jan 13 10:25:28 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/186073
-
+---
  src/cmd/cgo/gcc.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index dd6223ea77..4f65a1afb7 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -329,6 +329,7 @@ type typeConv struct {
+ 	typedef map[string]ast.Expr
+ 
+ 	// Predeclared types.
++	bool                                   ast.Expr
+ 	byte                                   ast.Expr // denotes padding
+ 	int8, int16, int32, int64              ast.Expr
+ 	uint8, uint16, uint32, uint64, uintptr ast.Expr
+@@ -346,6 +347,7 @@ func (c *typeConv) Init(ptrSize int64) {
+ 	c.ptrSize = ptrSize
+ 	c.m = make(map[dwarf.Type]*Type)
+ 	c.typedef = make(map[string]ast.Expr)
++	c.bool = c.Ident("bool")
+ 	c.byte = c.Ident("byte")
+ 	c.int8 = c.Ident("int8")
+ 	c.int16 = c.Ident("int16")
+@@ -443,6 +445,10 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 		gt.Elt = sub.Go
+ 		t.C = fmt.Sprintf("typeof(%s[%d])", sub.C, dt.Count)
+ 
++	case *dwarf.BoolType:
++		t.Go = c.bool
++		t.Align = c.ptrSize
++
+ 	case *dwarf.CharType:
+ 		if t.Size != 1 {
+ 			fatal("unexpected: %d-byte char type - %s", t.Size, dtype)
+@@ -613,7 +619,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 	}
+ 
+ 	switch dtype.(type) {
+-	case *dwarf.AddrType, *dwarf.CharType, *dwarf.IntType, *dwarf.FloatType, *dwarf.UcharType, *dwarf.UintType:
++	case *dwarf.AddrType, *dwarf.BoolType, *dwarf.CharType, *dwarf.IntType, *dwarf.FloatType, *dwarf.UcharType, *dwarf.UintType:
+ 		s := dtype.Common().Name
+ 		if s != "" {
+ 			if ss, ok := cnameMap[s]; ok {

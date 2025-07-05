@@ -14,7 +14,51 @@ Date:   Sat Feb 17 02:21:11 2024 +1100
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
-
+---
  src/log/slog/level_test.go | 8 ++++----
  src/log/slog/value_test.go | 6 +++---
  2 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/log/slog/level_test.go b/src/log/slog/level_test.go
+index 19adcd8466..217a0d7204 100644
+--- a/src/log/slog/level_test.go
++++ b/src/log/slog/level_test.go
+@@ -59,8 +59,8 @@ func TestLevelMarshalJSON(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	if !bytes.Equal(data, wantData) {
+-                t.Errorf("got %s, want %s", string(data), string(wantData))
+-        }
++		t.Errorf("got %s, want %s", string(data), string(wantData))
++	}
+ 	var got Level
+ 	if err := got.UnmarshalJSON(data); err != nil {
+ 		t.Fatal(err)
+@@ -78,8 +78,8 @@ func TestLevelMarshalText(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	if !bytes.Equal(data, wantData) {
+-                t.Errorf("got %s, want %s", string(data), string(wantData))
+-        }
++		t.Errorf("got %s, want %s", string(data), string(wantData))
++	}
+ 	var got Level
+ 	if err := got.UnmarshalText(data); err != nil {
+ 		t.Fatal(err)
+diff --git a/src/log/slog/value_test.go b/src/log/slog/value_test.go
+index df83da4d69..033f945407 100644
+--- a/src/log/slog/value_test.go
++++ b/src/log/slog/value_test.go
+@@ -37,9 +37,9 @@ func TestValueEqual(t *testing.T) {
+ 		GroupValue(Bool("b", true), Int("i", 4)),
+ 		GroupValue(Bool("b", true), Int("j", 4)),
+ 		DurationValue(3 * time.Second),
+-                DurationValue(2 * time.Second),
+-                StringValue("foo"),
+-                StringValue("fuu"),
++		DurationValue(2 * time.Second),
++		StringValue("foo"),
++		StringValue("fuu"),
+ 	}
+ 	for i, v1 := range vals {
+ 		for j, v2 := range vals {

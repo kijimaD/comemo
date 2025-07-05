@@ -19,7 +19,107 @@ Date:   Mon Oct 6 14:18:09 2014 -0400
     R=golang-codereviews, iant, r
     CC=dvyukov, golang-codereviews, khr, rlh
     https://golang.org/cl/145930043
-
+---
  src/runtime/malloc.go      | 37 +++++++++++++++++++++++--------------
  src/runtime/mfinal_test.go | 13 ++++++++++---
  2 files changed, 33 insertions(+), 17 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index fc22cc29e4..99d14e3145 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -488,6 +488,10 @@ func GC() {
+ 	gogc(2)
+ }
+ 
++// linker-provided
++var noptrdata struct{}
++var enoptrbss struct{}
++
+ // SetFinalizer sets the finalizer associated with x to f.
+ // When the garbage collector finds an unreachable block
+ // with an associated finalizer, it clears the association and runs
+@@ -527,6 +531,10 @@ func GC() {
+ // It is not guaranteed that a finalizer will run if the size of *x is
+ // zero bytes.
+ //
++// It is not guaranteed that a finalizer will run for objects allocated
++// in initializers for package-level variables. Such objects may be
++// linker-allocated, not heap-allocated.
++//
+ // A single goroutine runs all finalizers for a program, sequentially.
+ // If a finalizer must run for a long time, it should do so by starting
+ // a new goroutine.
+@@ -544,24 +552,25 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
+ 		gothrow("nil elem type!")
+ 	}
+ 
+-	// As an implementation detail we do not run finalizers for zero-sized objects,
+-	// because we use &runtime·zerobase for all such allocations.
+-	if ot.elem.size == 0 {
+-		return
+-	}
+-
+ 	// find the containing object
+ 	_, base, _ := findObject(e.data)
+ 
+-	// The following check is required for cases when a user passes a pointer to composite
+-	// literal, but compiler makes it a pointer to global. For example:
+-	//	var Foo = &Object{}
+-	//	func main() {
+-	//		runtime.SetFinalizer(Foo, nil)
+-	//	}
+-	// See issue 7656.
+ 	if base == nil {
+-		return
++		// 0-length objects are okay.
++		if e.data == unsafe.Pointer(&zerobase) {
++			return
++		}
++
++		// Global initializers might be linker-allocated.
++		//	var Foo = &Object{}
++		//	func main() {
++		//		runtime.SetFinalizer(Foo, nil)
++		//	}
++		// The segments are, in order: text, rodata, noptrdata, data, bss, noptrbss.
++		if uintptr(unsafe.Pointer(&noptrdata)) <= uintptr(e.data) && uintptr(e.data) < uintptr(unsafe.Pointer(&enoptrbss)) {
++			return
++		}
++		gothrow("runtime.SetFinalizer: pointer not in allocated block")
+ 	}
+ 
+ 	if e.data != base {
+diff --git a/src/runtime/mfinal_test.go b/src/runtime/mfinal_test.go
+index 6b53888ab6..d2cead2876 100644
+--- a/src/runtime/mfinal_test.go
++++ b/src/runtime/mfinal_test.go
+@@ -44,10 +44,17 @@ func TestFinalizerType(t *testing.T) {
+ 		{func(x *int) interface{} { return (*Tint)(x) }, func(v Tinter) { finalize((*int)(v.(*Tint))) }},
+ 	}
+ 
+-	for _, tt := range finalizerTests {
++	for i, tt := range finalizerTests {
+ 		done := make(chan bool, 1)
+ 		go func() {
+-			v := new(int)
++			// allocate struct with pointer to avoid hitting tinyalloc.
++			// Otherwise we can't be sure when the allocation will
++			// be freed.
++			type T struct {
++				v int
++				p unsafe.Pointer
++			}
++			v := &new(T).v
+ 			*v = 97531
+ 			runtime.SetFinalizer(tt.convert(v), tt.finalizer)
+ 			v = nil
+@@ -58,7 +65,7 @@ func TestFinalizerType(t *testing.T) {
+ 		select {
+ 		case <-ch:
+ 		case <-time.After(time.Second * 4):
+-			t.Errorf("finalizer for type %T didn't run", tt.finalizer)
++			t.Errorf("#%d: finalizer for type %T didn't run", i, tt.finalizer)
+ 		}
+ 	}
+ }

@@ -14,9 +14,297 @@ Date:   Tue Jun 14 09:24:32 2022 -0500
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Paul Murphy <murp@ibm.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  test/codegen/math.go     |  4 ++++
  test/codegen/mathbits.go | 16 ++++++++++++++++
  test/codegen/shift.go    | 18 ++++++++++++++++++
  test/codegen/slices.go   | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
  4 files changed, 86 insertions(+)
+
+diff --git a/test/codegen/math.go b/test/codegen/math.go
+index ad154e0c40..7c76d26b38 100644
+--- a/test/codegen/math.go
++++ b/test/codegen/math.go
+@@ -60,6 +60,8 @@ func sqrt(x float64) float64 {
+ 	// mips/hardfloat:"SQRTD" mips/softfloat:-"SQRTD"
+ 	// mips64/hardfloat:"SQRTD" mips64/softfloat:-"SQRTD"
+ 	// wasm:"F64Sqrt"
++	// ppc64le:"FSQRT"
++	// ppc64:"FSQRT"
+ 	return math.Sqrt(x)
+ }
+ 
+@@ -71,6 +73,8 @@ func sqrt32(x float32) float32 {
+ 	// mips/hardfloat:"SQRTF" mips/softfloat:-"SQRTF"
+ 	// mips64/hardfloat:"SQRTF" mips64/softfloat:-"SQRTF"
+ 	// wasm:"F32Sqrt"
++	// ppc64le:"FSQRTS"
++	// ppc64:"FSQRTS"
+ 	return float32(math.Sqrt(float64(x)))
+ }
+ 
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 1ddb5c75cc..fe9c4eceb5 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -19,6 +19,8 @@ func LeadingZeros(n uint) int {
+ 	// arm:"CLZ" arm64:"CLZ"
+ 	// mips:"CLZ"
+ 	// wasm:"I64Clz"
++	// ppc64le:"CNTLZD"
++	// ppc64:"CNTLZD"
+ 	return bits.LeadingZeros(n)
+ }
+ 
+@@ -29,6 +31,8 @@ func LeadingZeros64(n uint64) int {
+ 	// arm:"CLZ" arm64:"CLZ"
+ 	// mips:"CLZ"
+ 	// wasm:"I64Clz"
++	// ppc64le:"CNTLZD"
++	// ppc64:"CNTLZD"
+ 	return bits.LeadingZeros64(n)
+ }
+ 
+@@ -39,6 +43,8 @@ func LeadingZeros32(n uint32) int {
+ 	// arm:"CLZ" arm64:"CLZW"
+ 	// mips:"CLZ"
+ 	// wasm:"I64Clz"
++	// ppc64le:"CNTLZW"
++	// ppc64:"CNTLZW"
+ 	return bits.LeadingZeros32(n)
+ }
+ 
+@@ -49,6 +55,8 @@ func LeadingZeros16(n uint16) int {
+ 	// arm:"CLZ" arm64:"CLZ"
+ 	// mips:"CLZ"
+ 	// wasm:"I64Clz"
++	// ppc64le:"CNTLZD"
++	// ppc64:"CNTLZD"
+ 	return bits.LeadingZeros16(n)
+ }
+ 
+@@ -59,6 +67,8 @@ func LeadingZeros8(n uint8) int {
+ 	// arm:"CLZ" arm64:"CLZ"
+ 	// mips:"CLZ"
+ 	// wasm:"I64Clz"
++	// ppc64le:"CNTLZD"
++	// ppc64:"CNTLZD"
+ 	return bits.LeadingZeros8(n)
+ }
+ 
+@@ -73,6 +83,8 @@ func Len(n uint) int {
+ 	// arm:"CLZ" arm64:"CLZ"
+ 	// mips:"CLZ"
+ 	// wasm:"I64Clz"
++	// ppc64le:"SUBC","CNTLZD"
++	// ppc64:"SUBC","CNTLZD"
+ 	return bits.Len(n)
+ }
+ 
+@@ -113,6 +125,8 @@ func Len16(n uint16) int {
+ 	// arm:"CLZ" arm64:"CLZ"
+ 	// mips:"CLZ"
+ 	// wasm:"I64Clz"
++	// ppc64le:"SUBC","CNTLZD"
++	// ppc64:"SUBC","CNTLZD"
+ 	return bits.Len16(n)
+ }
+ 
+@@ -123,6 +137,8 @@ func Len8(n uint8) int {
+ 	// arm:"CLZ" arm64:"CLZ"
+ 	// mips:"CLZ"
+ 	// wasm:"I64Clz"
++	// ppc64le:"SUBC","CNTLZD"
++	// ppc64:"SUBC","CNTLZD"
+ 	return bits.Len8(n)
+ }
+ 
+diff --git a/test/codegen/shift.go b/test/codegen/shift.go
+index b3ed69d9e3..66a5c62391 100644
+--- a/test/codegen/shift.go
++++ b/test/codegen/shift.go
+@@ -12,46 +12,64 @@ package codegen
+ 
+ func lshConst64x64(v int64) int64 {
+ 	// riscv64:"SLLI",-"AND",-"SLTIU"
++	// ppc64le:"SLD"
++	// ppc64:"SLD"
+ 	return v << uint64(33)
+ }
+ 
+ func rshConst64Ux64(v uint64) uint64 {
+ 	// riscv64:"SRLI",-"AND",-"SLTIU"
++	// ppc64le:"SRD"
++	// ppc64:"SRD"
+ 	return v >> uint64(33)
+ }
+ 
+ func rshConst64x64(v int64) int64 {
+ 	// riscv64:"SRAI",-"OR",-"SLTIU"
++	// ppc64le:"SRAD"
++	// ppc64:"SRAD"
+ 	return v >> uint64(33)
+ }
+ 
+ func lshConst32x64(v int32) int32 {
+ 	// riscv64:"SLLI",-"AND",-"SLTIU"
++	// ppc64le:"SLW"
++	// ppc64:"SLW"
+ 	return v << uint64(29)
+ }
+ 
+ func rshConst32Ux64(v uint32) uint32 {
+ 	// riscv64:"SRLI",-"AND",-"SLTIU"
++	// ppc64le:"SRW"
++	// ppc64:"SRW"
+ 	return v >> uint64(29)
+ }
+ 
+ func rshConst32x64(v int32) int32 {
+ 	// riscv64:"SRAI",-"OR",-"SLTIU"
++	// ppc64le:"SRAW"
++	// ppc64:"SRAW"
+ 	return v >> uint64(29)
+ }
+ 
+ func lshConst64x32(v int64) int64 {
+ 	// riscv64:"SLLI",-"AND",-"SLTIU"
++	// ppc64le:"SLD"
++	// ppc64:"SLD"
+ 	return v << uint32(33)
+ }
+ 
+ func rshConst64Ux32(v uint64) uint64 {
+ 	// riscv64:"SRLI",-"AND",-"SLTIU"
++	// ppc64le:"SRD"
++	// ppc64:"SRD"
+ 	return v >> uint32(33)
+ }
+ 
+ func rshConst64x32(v int64) int64 {
+ 	// riscv64:"SRAI",-"OR",-"SLTIU"
++	// ppc64le:"SRAD"
++	// ppc64:"SRAD"
+ 	return v >> uint32(33)
+ }
+ 
+diff --git a/test/codegen/slices.go b/test/codegen/slices.go
+index 99bdd50e52..fa4142d767 100644
+--- a/test/codegen/slices.go
++++ b/test/codegen/slices.go
+@@ -19,6 +19,8 @@ import "unsafe"
+ 
+ func SliceClear(s []int) []int {
+ 	// amd64:`.*memclrNoHeapPointers`
++	// ppc64le:`.*memclrNoHeapPointers`
++	// ppc64:`.*memclrNoHeapPointers`
+ 	for i := range s {
+ 		s[i] = 0
+ 	}
+@@ -27,6 +29,8 @@ func SliceClear(s []int) []int {
+ 
+ func SliceClearPointers(s []*int) []*int {
+ 	// amd64:`.*memclrHasPointers`
++	// ppc64le:`.*memclrHasPointers`
++	// ppc64:`.*memclrHasPointers`
+ 	for i := range s {
+ 		s[i] = nil
+ 	}
+@@ -43,6 +47,12 @@ func SliceExtensionConst(s []int) []int {
+ 	// amd64:`.*runtime\.memclrNoHeapPointers`
+ 	// amd64:-`.*runtime\.makeslice`
+ 	// amd64:-`.*runtime\.panicmakeslicelen`
++	// ppc64le:`.*runtime\.memclrNoHeapPointers`
++	// ppc64le:-`.*runtime\.makeslice`
++	// ppc64le:-`.*runtime\.panicmakeslicelen`
++	// ppc64:`.*runtime\.memclrNoHeapPointers`
++	// ppc64:-`.*runtime\.makeslice`
++	// ppc64:-`.*runtime\.panicmakeslicelen`
+ 	return append(s, make([]int, 1<<2)...)
+ }
+ 
+@@ -50,6 +60,12 @@ func SliceExtensionConstInt64(s []int) []int {
+ 	// amd64:`.*runtime\.memclrNoHeapPointers`
+ 	// amd64:-`.*runtime\.makeslice`
+ 	// amd64:-`.*runtime\.panicmakeslicelen`
++	// ppc64le:`.*runtime\.memclrNoHeapPointers`
++	// ppc64le:-`.*runtime\.makeslice`
++	// ppc64le:-`.*runtime\.panicmakeslicelen`
++	// ppc64:`.*runtime\.memclrNoHeapPointers`
++	// ppc64:-`.*runtime\.makeslice`
++	// ppc64:-`.*runtime\.panicmakeslicelen`
+ 	return append(s, make([]int, int64(1<<2))...)
+ }
+ 
+@@ -57,6 +73,12 @@ func SliceExtensionConstUint64(s []int) []int {
+ 	// amd64:`.*runtime\.memclrNoHeapPointers`
+ 	// amd64:-`.*runtime\.makeslice`
+ 	// amd64:-`.*runtime\.panicmakeslicelen`
++	// ppc64le:`.*runtime\.memclrNoHeapPointers`
++	// ppc64le:-`.*runtime\.makeslice`
++	// ppc64le:-`.*runtime\.panicmakeslicelen`
++	// ppc64:`.*runtime\.memclrNoHeapPointers`
++	// ppc64:-`.*runtime\.makeslice`
++	// ppc64:-`.*runtime\.panicmakeslicelen`
+ 	return append(s, make([]int, uint64(1<<2))...)
+ }
+ 
+@@ -64,18 +86,32 @@ func SliceExtensionConstUint(s []int) []int {
+ 	// amd64:`.*runtime\.memclrNoHeapPointers`
+ 	// amd64:-`.*runtime\.makeslice`
+ 	// amd64:-`.*runtime\.panicmakeslicelen`
++	// ppc64le:`.*runtime\.memclrNoHeapPointers`
++	// ppc64le:-`.*runtime\.makeslice`
++	// ppc64le:-`.*runtime\.panicmakeslicelen`
++	// ppc64:`.*runtime\.memclrNoHeapPointers`
++	// ppc64:-`.*runtime\.makeslice`
++	// ppc64:-`.*runtime\.panicmakeslicelen`
+ 	return append(s, make([]int, uint(1<<2))...)
+ }
+ 
+ func SliceExtensionPointer(s []*int, l int) []*int {
+ 	// amd64:`.*runtime\.memclrHasPointers`
+ 	// amd64:-`.*runtime\.makeslice`
++	// ppc64le:`.*runtime\.memclrHasPointers`
++	// ppc64le:-`.*runtime\.makeslice`
++	// ppc64:`.*runtime\.memclrHasPointers`
++	// ppc64:-`.*runtime\.makeslice`
+ 	return append(s, make([]*int, l)...)
+ }
+ 
+ func SliceExtensionVar(s []byte, l int) []byte {
+ 	// amd64:`.*runtime\.memclrNoHeapPointers`
+ 	// amd64:-`.*runtime\.makeslice`
++	// ppc64le:`.*runtime\.memclrNoHeapPointers`
++	// ppc64le:-`.*runtime\.makeslice`
++	// ppc64:`.*runtime\.memclrNoHeapPointers`
++	// ppc64:-`.*runtime\.makeslice`
+ 	return append(s, make([]byte, l)...)
+ }
+ 
+@@ -116,6 +152,12 @@ func SliceMakeCopyLen(s []int) []int {
+ 	// amd64:`.*runtime\.mallocgc`
+ 	// amd64:`.*runtime\.memmove`
+ 	// amd64:-`.*runtime\.makeslice`
++	// ppc64le:`.*runtime\.mallocgc`
++	// ppc64le:`.*runtime\.memmove`
++	// ppc64le:-`.*runtime\.makeslice`
++	// ppc64:`.*runtime\.mallocgc`
++	// ppc64:`.*runtime\.memmove`
++	// ppc64:-`.*runtime\.makeslice`
+ 	a := make([]int, len(s))
+ 	copy(a, s)
+ 	return a
+@@ -125,6 +167,12 @@ func SliceMakeCopyLenPtr(s []*int) []*int {
+ 	// amd64:`.*runtime\.makeslicecopy`
+ 	// amd64:-`.*runtime\.makeslice\(`
+ 	// amd64:-`.*runtime\.typedslicecopy
++	// ppc64le:`.*runtime\.makeslicecopy`
++	// ppc64le:-`.*runtime\.makeslice\(`
++	// ppc64le:-`.*runtime\.typedslicecopy
++	// ppc64:`.*runtime\.makeslicecopy`
++	// ppc64:-`.*runtime\.makeslice\(`
++	// ppc64:-`.*runtime\.typedslicecopy
+ 	a := make([]*int, len(s))
+ 	copy(a, s)
+ 	return a

@@ -7,6 +7,24 @@ Date:   Tue Sep 13 09:38:26 2011 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5002043
-
+---
  src/pkg/http/chunked.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/chunked.go b/src/pkg/http/chunked.go
+index 6c23e691f0..eff9ae288e 100644
+--- a/src/pkg/http/chunked.go
++++ b/src/pkg/http/chunked.go
+@@ -5,11 +5,11 @@
+ package http
+ 
+ import (
++	"bufio"
+ 	"io"
+ 	"log"
+ 	"os"
+ 	"strconv"
+-	"bufio"
+ )
+ 
+ // NewChunkedWriter returns a new writer that translates writes into HTTP

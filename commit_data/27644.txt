@@ -7,6 +7,23 @@ Date:   Wed Apr 6 16:11:22 2016 +1000
     Change-Id: Ie4c4ff4167ee45ae93a8b764fb6197f402e7994d
     Reviewed-on: https://go-review.googlesource.com/21593
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/mksyscall_windows.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/syscall/mksyscall_windows.go b/src/syscall/mksyscall_windows.go
+index 7786d1349e..a6cef6fca7 100644
+--- a/src/syscall/mksyscall_windows.go
++++ b/src/syscall/mksyscall_windows.go
+@@ -707,9 +707,9 @@ func (src *Source) Generate(w io.Writer) error {
+ 			}
+ 			if *sysRepo {
+ 				if packageName == "windows" {
+-					return "&LazyDLL{Name: " + arg + ", System: true}"
++					return "NewLazySystemDLL(" + arg + ")"
+ 				} else {
+-					return "&windows.LazyDLL{Name: " + arg + ", System: true}"
++					return "windows.NewLazySystemDLL(" + arg + ")"
+ 				}
+ 			} else {
+ 				return syscalldot() + "NewLazyDLL(" + arg + ")"

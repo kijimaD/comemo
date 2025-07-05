@@ -15,6 +15,43 @@ Date:   Sun Sep 24 14:41:10 2023 +0100
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/path/filepath/path.go | 18 +-----------------
  1 file changed, 1 insertion(+), 17 deletions(-)
+
+diff --git a/src/path/filepath/path.go b/src/path/filepath/path.go
+index 6dcb0e1fb9..b1f1bf0e3f 100644
+--- a/src/path/filepath/path.go
++++ b/src/path/filepath/path.go
+@@ -463,7 +463,7 @@ func walkDir(path string, d fs.DirEntry, walkDirFn fs.WalkDirFunc) error {
+ 		return err
+ 	}
+ 
+-	dirs, err := readDir(path)
++	dirs, err := os.ReadDir(path)
+ 	if err != nil {
+ 		// Second call, to report ReadDir error.
+ 		err = walkDirFn(path, d, err)
+@@ -580,22 +580,6 @@ func Walk(root string, fn WalkFunc) error {
+ 	return err
+ }
+ 
+-// readDir reads the directory named by dirname and returns
+-// a sorted list of directory entries.
+-func readDir(dirname string) ([]fs.DirEntry, error) {
+-	f, err := os.Open(dirname)
+-	if err != nil {
+-		return nil, err
+-	}
+-	dirs, err := f.ReadDir(-1)
+-	f.Close()
+-	if err != nil {
+-		return nil, err
+-	}
+-	sort.Slice(dirs, func(i, j int) bool { return dirs[i].Name() < dirs[j].Name() })
+-	return dirs, nil
+-}
+-
+ // readDirNames reads the directory named by dirname and returns
+ // a sorted list of directory entry names.
+ func readDirNames(dirname string) ([]string, error) {

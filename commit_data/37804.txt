@@ -15,7 +15,7 @@ Date:   Tue Jul 17 11:02:57 2018 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/elf.go          |  6 ++--
  src/cmd/link/internal/ld/go.go           | 12 +++----
  src/cmd/link/internal/ld/lib.go          |  4 +--
@@ -25,3 +25,360 @@ Date:   Tue Jul 17 11:02:57 2018 -0400
  src/cmd/link/internal/sym/symbol.go      | 57 +++++++++++++++++++++++---------
  src/cmd/link/internal/sym/symbols.go     |  6 ++--
  8 files changed, 70 insertions(+), 44 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 4ecbff86a9..f61a290e42 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1034,7 +1034,7 @@ func elfdynhash(ctxt *Link) {
+ 			need[sy.Dynid] = addelflib(&needlib, sy.Dynimplib(), sy.Dynimpvers())
+ 		}
+ 
+-		name := sy.Extname
++		name := sy.Extname()
+ 		hc := elfhash(name)
+ 
+ 		b := hc % uint32(nbucket)
+@@ -2254,7 +2254,7 @@ func elfadddynsym(ctxt *Link, s *sym.Symbol) {
+ 
+ 		d := ctxt.Syms.Lookup(".dynsym", 0)
+ 
+-		name := s.Extname
++		name := s.Extname()
+ 		d.AddUint32(ctxt.Arch, uint32(Addstring(ctxt.Syms.Lookup(".dynstr", 0), name)))
+ 
+ 		/* type */
+@@ -2297,7 +2297,7 @@ func elfadddynsym(ctxt *Link, s *sym.Symbol) {
+ 		d := ctxt.Syms.Lookup(".dynsym", 0)
+ 
+ 		/* name */
+-		name := s.Extname
++		name := s.Extname()
+ 
+ 		d.AddUint32(ctxt.Arch, uint32(Addstring(ctxt.Syms.Lookup(".dynstr", 0), name)))
+ 
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 06ee6968c6..f2dd799922 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -156,7 +156,7 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+ 			s := ctxt.Syms.Lookup(local, 0)
+ 			if s.Type == 0 || s.Type == sym.SXREF || s.Type == sym.SHOSTOBJ {
+ 				s.SetDynimplib(lib)
+-				s.Extname = remote
++				s.SetExtname(remote)
+ 				s.SetDynimpvers(q)
+ 				if s.Type != sym.SHOSTOBJ {
+ 					s.Type = sym.SDYNIMPORT
+@@ -200,15 +200,15 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+ 			// see issue 4878.
+ 			if s.Dynimplib() != "" {
+ 				s.ResetDyninfo()
+-				s.Extname = ""
++				s.SetExtname("")
+ 				s.Type = 0
+ 			}
+ 
+ 			if !s.Attr.CgoExport() {
+-				s.Extname = remote
++				s.SetExtname(remote)
+ 				dynexp = append(dynexp, s)
+-			} else if s.Extname != remote {
+-				fmt.Fprintf(os.Stderr, "%s: conflicting cgo_export directives: %s as %s and %s\n", os.Args[0], s.Name, s.Extname, remote)
++			} else if s.Extname() != remote {
++				fmt.Fprintf(os.Stderr, "%s: conflicting cgo_export directives: %s as %s and %s\n", os.Args[0], s.Name, s.Extname(), remote)
+ 				nerrors++
+ 				return
+ 			}
+@@ -276,7 +276,7 @@ func Adddynsym(ctxt *Link, s *sym.Symbol) {
+ 	if ctxt.IsELF {
+ 		elfadddynsym(ctxt, s)
+ 	} else if ctxt.HeadType == objabi.Hdarwin {
+-		Errorf(s, "adddynsym: missed symbol (Extname=%s)", s.Extname)
++		Errorf(s, "adddynsym: missed symbol (Extname=%s)", s.Extname())
+ 	} else if ctxt.HeadType == objabi.Hwindows {
+ 		// already taken care of
+ 	} else {
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index ba03cb707b..511cdd891a 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -435,7 +435,7 @@ func (ctxt *Link) loadlib() {
+ 				// cgo_import_static and cgo_import_dynamic,
+ 				// then we want to make it cgo_import_dynamic
+ 				// now.
+-				if s.Extname != "" && s.Dynimplib() != "" && !s.Attr.CgoExport() {
++				if s.Extname() != "" && s.Dynimplib() != "" && !s.Attr.CgoExport() {
+ 					s.Type = sym.SDYNIMPORT
+ 				} else {
+ 					s.Type = 0
+@@ -2116,7 +2116,7 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
+ 			if !s.Attr.Reachable() {
+ 				continue
+ 			}
+-			put(ctxt, s, s.Extname, UndefinedSym, 0, nil)
++			put(ctxt, s, s.Extname(), UndefinedSym, 0, nil)
+ 
+ 		case sym.STLSBSS:
+ 			if ctxt.LinkMode == LinkExternal {
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 8315de5152..b935814ff0 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -724,7 +724,7 @@ func (x machoscmp) Less(i, j int) bool {
+ 		return k1 < k2
+ 	}
+ 
+-	return s1.Extname < s2.Extname
++	return s1.Extname() < s2.Extname()
+ }
+ 
+ func machogenasmsym(ctxt *Link) {
+@@ -763,7 +763,7 @@ func machoShouldExport(ctxt *Link, s *sym.Symbol) bool {
+ 	if !ctxt.DynlinkingGo() || s.Attr.Local() {
+ 		return false
+ 	}
+-	if ctxt.BuildMode == BuildModePlugin && strings.HasPrefix(s.Extname, objabi.PathToPrefix(*flagPluginPath)) {
++	if ctxt.BuildMode == BuildModePlugin && strings.HasPrefix(s.Extname(), objabi.PathToPrefix(*flagPluginPath)) {
+ 		return true
+ 	}
+ 	if strings.HasPrefix(s.Name, "go.itab.") {
+@@ -798,13 +798,13 @@ func machosymtab(ctxt *Link) {
+ 		// symbols like crosscall2 are in pclntab and end up
+ 		// pointing at the host binary, breaking unwinding.
+ 		// See Issue #18190.
+-		cexport := !strings.Contains(s.Extname, ".") && (ctxt.BuildMode != BuildModePlugin || onlycsymbol(s))
++		cexport := !strings.Contains(s.Extname(), ".") && (ctxt.BuildMode != BuildModePlugin || onlycsymbol(s))
+ 		if cexport || export {
+ 			symstr.AddUint8('_')
+ 		}
+ 
+ 		// replace "·" as ".", because DTrace cannot handle it.
+-		Addstring(symstr, strings.Replace(s.Extname, "·", ".", -1))
++		Addstring(symstr, strings.Replace(s.Extname(), "·", ".", -1))
+ 
+ 		if s.Type == sym.SDYNIMPORT || s.Type == sym.SHOSTOBJ {
+ 			symtab.AddUint8(0x01)                             // type N_EXT, external symbol
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 0e60ef76d2..db269c78e5 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -1040,14 +1040,15 @@ func initdynimport(ctxt *Link) *Dll {
+ 		// of uinptrs this function consumes. Store the argsize and discard
+ 		// the %n suffix if any.
+ 		m.argsize = -1
+-		if i := strings.IndexByte(s.Extname, '%'); i >= 0 {
++		extName := s.Extname()
++		if i := strings.IndexByte(extName, '%'); i >= 0 {
+ 			var err error
+-			m.argsize, err = strconv.Atoi(s.Extname[i+1:])
++			m.argsize, err = strconv.Atoi(extName[i+1:])
+ 			if err != nil {
+ 				Errorf(s, "failed to parse stdcall decoration: %v", err)
+ 			}
+ 			m.argsize *= ctxt.Arch.PtrSize
+-			s.Extname = s.Extname[:i]
++			s.SetExtname(extName[:i])
+ 		}
+ 
+ 		m.s = s
+@@ -1061,7 +1062,7 @@ func initdynimport(ctxt *Link) *Dll {
+ 			for m = d.ms; m != nil; m = m.next {
+ 				m.s.Type = sym.SDATA
+ 				m.s.Grow(int64(ctxt.Arch.PtrSize))
+-				dynName := m.s.Extname
++				dynName := m.s.Extname()
+ 				// only windows/386 requires stdcall decoration
+ 				if ctxt.Arch.Family == sys.I386 && m.argsize >= 0 {
+ 					dynName += fmt.Sprintf("@%d", m.argsize)
+@@ -1132,7 +1133,7 @@ func addimports(ctxt *Link, datsect *peSection) {
+ 		for m := d.ms; m != nil; m = m.next {
+ 			m.off = uint64(pefile.nextSectOffset) + uint64(ctxt.Out.Offset()) - uint64(startoff)
+ 			ctxt.Out.Write16(0) // hint
+-			strput(ctxt.Out, m.s.Extname)
++			strput(ctxt.Out, m.s.Extname())
+ 		}
+ 	}
+ 
+@@ -1217,7 +1218,7 @@ type byExtname []*sym.Symbol
+ 
+ func (s byExtname) Len() int           { return len(s) }
+ func (s byExtname) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+-func (s byExtname) Less(i, j int) bool { return s[i].Extname < s[j].Extname }
++func (s byExtname) Less(i, j int) bool { return s[i].Extname() < s[j].Extname() }
+ 
+ func initdynexport(ctxt *Link) {
+ 	nexport = 0
+@@ -1242,7 +1243,7 @@ func addexports(ctxt *Link) {
+ 
+ 	size := binary.Size(&e) + 10*nexport + len(*flagOutfile) + 1
+ 	for i := 0; i < nexport; i++ {
+-		size += len(dexport[i].Extname) + 1
++		size += len(dexport[i].Extname()) + 1
+ 	}
+ 
+ 	if nexport == 0 {
+@@ -1286,7 +1287,7 @@ func addexports(ctxt *Link) {
+ 
+ 	for i := 0; i < nexport; i++ {
+ 		out.Write32(uint32(v))
+-		v += len(dexport[i].Extname) + 1
++		v += len(dexport[i].Extname()) + 1
+ 	}
+ 
+ 	// put EXPORT Ordinal Table
+@@ -1298,7 +1299,7 @@ func addexports(ctxt *Link) {
+ 	out.WriteStringN(*flagOutfile, len(*flagOutfile)+1)
+ 
+ 	for i := 0; i < nexport; i++ {
+-		out.WriteStringN(dexport[i].Extname, len(dexport[i].Extname)+1)
++		out.WriteStringN(dexport[i].Extname(), len(dexport[i].Extname())+1)
+ 	}
+ 	sect.pad(out, uint32(size))
+ }
+diff --git a/src/cmd/link/internal/sym/sizeof_test.go b/src/cmd/link/internal/sym/sizeof_test.go
+index 2f2dfc79ed..5d501bda49 100644
+--- a/src/cmd/link/internal/sym/sizeof_test.go
++++ b/src/cmd/link/internal/sym/sizeof_test.go
+@@ -23,7 +23,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Symbol{}, 132, 216},
++		{Symbol{}, 124, 200},
+ 	}
+ 
+ 	for _, tt := range tests {
+diff --git a/src/cmd/link/internal/sym/symbol.go b/src/cmd/link/internal/sym/symbol.go
+index ea0eb89e2b..245d62003b 100644
+--- a/src/cmd/link/internal/sym/symbol.go
++++ b/src/cmd/link/internal/sym/symbol.go
+@@ -15,7 +15,6 @@ import (
+ // Symbol is an entry in the symbol table.
+ type Symbol struct {
+ 	Name        string
+-	Extname     string
+ 	Type        SymKind
+ 	Version     int16
+ 	Attr        Attribute
+@@ -36,7 +35,7 @@ type Symbol struct {
+ 	Outer    *Symbol
+ 	Gotype   *Symbol
+ 	File     string
+-	dyninfo  *dynimp
++	auxinfo  *AuxSymbol
+ 	Sect     *Section
+ 	FuncInfo *FuncInfo
+ 	Lib      *Library // Package defining this symbol
+@@ -45,7 +44,9 @@ type Symbol struct {
+ 	R []Reloc
+ }
+ 
+-type dynimp struct {
++// AuxSymbol contains less-frequently used sym.Symbol fields.
++type AuxSymbol struct {
++	extname    string
+ 	dynimplib  string
+ 	dynimpvers string
+ }
+@@ -268,38 +269,62 @@ func (s *Symbol) setUintXX(arch *sys.Arch, off int64, v uint64, wid int64) int64
+ 	return off + wid
+ }
+ 
++func (s *Symbol) makeAuxInfo() {
++	if s.auxinfo == nil {
++		s.auxinfo = &AuxSymbol{extname: s.Name}
++	}
++}
++
++func (s *Symbol) Extname() string {
++	if s.auxinfo == nil {
++		return s.Name
++	}
++	return s.auxinfo.extname
++}
++
++func (s *Symbol) SetExtname(n string) {
++	if s.auxinfo == nil {
++		if s.Name == n {
++			return
++		}
++		s.makeAuxInfo()
++	}
++	s.auxinfo.extname = n
++}
++
+ func (s *Symbol) Dynimplib() string {
+-	if s.dyninfo == nil {
++	if s.auxinfo == nil {
+ 		return ""
+ 	}
+-	return s.dyninfo.dynimplib
++	return s.auxinfo.dynimplib
+ }
+ 
+ func (s *Symbol) Dynimpvers() string {
+-	if s.dyninfo == nil {
++	if s.auxinfo == nil {
+ 		return ""
+ 	}
+-	return s.dyninfo.dynimpvers
++	return s.auxinfo.dynimpvers
+ }
+ 
+ func (s *Symbol) SetDynimplib(lib string) {
+-	if s.dyninfo == nil {
+-		s.dyninfo = &dynimp{dynimplib: lib}
+-	} else {
+-		s.dyninfo.dynimplib = lib
++	if s.auxinfo == nil {
++		s.makeAuxInfo()
+ 	}
++	s.auxinfo.dynimplib = lib
+ }
+ 
+ func (s *Symbol) SetDynimpvers(vers string) {
+-	if s.dyninfo == nil {
+-		s.dyninfo = &dynimp{dynimpvers: vers}
+-	} else {
+-		s.dyninfo.dynimpvers = vers
++	if s.auxinfo == nil {
++		s.makeAuxInfo()
+ 	}
++	s.auxinfo.dynimpvers = vers
+ }
+ 
+ func (s *Symbol) ResetDyninfo() {
+-	s.dyninfo = nil
++	if s.auxinfo != nil {
++		s.auxinfo.dynimplib = ""
++		s.auxinfo.dynimpvers = ""
++	}
+ }
+ 
+ // SortSub sorts a linked-list (by Sub) of *Symbol by Value.
+diff --git a/src/cmd/link/internal/sym/symbols.go b/src/cmd/link/internal/sym/symbols.go
+index f9405db185..7c6137c73c 100644
+--- a/src/cmd/link/internal/sym/symbols.go
++++ b/src/cmd/link/internal/sym/symbols.go
+@@ -77,7 +77,6 @@ func (syms *Symbols) Lookup(name string, v int) *Symbol {
+ 		return s
+ 	}
+ 	s = syms.Newsym(name, v)
+-	s.Extname = s.Name
+ 	m[name] = s
+ 	return s
+ }
+@@ -97,9 +96,10 @@ func (syms *Symbols) IncVersion() int {
+ // Rename renames a symbol.
+ func (syms *Symbols) Rename(old, new string, v int, reachparent map[*Symbol]*Symbol) {
+ 	s := syms.hash[v][old]
++	oldExtName := s.Extname()
+ 	s.Name = new
+-	if s.Extname == old {
+-		s.Extname = new
++	if oldExtName == old {
++		s.SetExtname(new)
+ 	}
+ 	delete(syms.hash[v], old)
+ 

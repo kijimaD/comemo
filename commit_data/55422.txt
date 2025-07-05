@@ -15,6 +15,26 @@ Date:   Thu Feb 2 20:13:46 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/time/zoneinfo_unix.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/time/zoneinfo_unix.go b/src/time/zoneinfo_unix.go
+index 67b8beb47b..b52c67d069 100644
+--- a/src/time/zoneinfo_unix.go
++++ b/src/time/zoneinfo_unix.go
+@@ -16,11 +16,13 @@ import (
+ )
+ 
+ // Many systems use /usr/share/zoneinfo, Solaris 2 has
+-// /usr/share/lib/zoneinfo, IRIX 6 has /usr/lib/locale/TZ.
++// /usr/share/lib/zoneinfo, IRIX 6 has /usr/lib/locale/TZ,
++// NixOS has /etc/zoneinfo.
+ var platformZoneSources = []string{
+ 	"/usr/share/zoneinfo/",
+ 	"/usr/share/lib/zoneinfo/",
+ 	"/usr/lib/locale/TZ/",
++	"/etc/zoneinfo",
+ }
+ 
+ func initLocal() {

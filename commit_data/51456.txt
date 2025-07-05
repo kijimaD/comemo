@@ -10,6 +10,23 @@ Date:   Tue Feb 1 10:16:48 2022 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/script_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 0fc4b0f7ab..165d3308a8 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -648,9 +648,9 @@ func (ts *testScript) doCmdCmp(want simpleStatus, args []string, env, quiet bool
+ 		}
+ 	case successOrFailure:
+ 		if eq {
+-			fmt.Fprintf(&ts.log, "%s and %s do not differ", name1, name2)
++			fmt.Fprintf(&ts.log, "%s and %s do not differ\n", name1, name2)
+ 		} else {
+-			fmt.Fprintf(&ts.log, "%s and %s differ", name1, name2)
++			fmt.Fprintf(&ts.log, "%s and %s differ\n", name1, name2)
+ 		}
+ 	default:
+ 		ts.fatalf("unsupported: %v cmp", want)

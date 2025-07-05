@@ -9,6 +9,26 @@ Date:   Wed Oct 2 16:34:03 2019 +0000
     Change-Id: I4a6c9414fe369cd5e9915472331c4bd8a21d8b0e
     Reviewed-on: https://go-review.googlesource.com/c/go/+/198457
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/net/http/request.go | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 0b195a89a6..1fdd8a4fc7 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -217,9 +217,11 @@ type Request struct {
+ 	// Transport.DisableKeepAlives were set.
+ 	Close bool
+ 
+-	// For server requests, Host specifies the host on which the URL
+-	// is sought. Per RFC 7230, section 5.4, this is either the value
+-	// of the "Host" header or the host name given in the URL itself.
++	// For server requests, Host specifies the host on which the
++	// URL is sought. For HTTP/1 (per RFC 7230, section 5.4), this
++	// is either the value of the "Host" header or the host name
++	// given in the URL itself. For HTTP/2, it is the value of the
++	// ":authority" pseudo-header field.
+ 	// It may be of the form "host:port". For international domain
+ 	// names, Host may be in Punycode or Unicode form. Use
+ 	// golang.org/x/net/idna to convert it to either format if

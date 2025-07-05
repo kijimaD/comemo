@@ -13,7 +13,69 @@ Date:   Wed Apr 11 04:11:27 2012 +0800
     R=rsc, bradfitz, dave, kai.backman
     CC=golang-dev
     https://golang.org/cl/5975060
-
+---
  src/cmd/5l/obj.c          | 14 +++-----------
  src/pkg/runtime/asm_arm.s | 11 -----------
  2 files changed, 3 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index a3f8161601..fe6bc2e7e1 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -63,13 +63,6 @@ Header headers[] = {
+  *	-Hlinux -Tx -Rx			is linux elf
+  */
+ 
+-static char*
+-linkername[] =
+-{
+-	"runtime.softfloat",
+-	"math.sqrtGoC",
+-};
+-
+ void
+ usage(void)
+ {
+@@ -80,7 +73,7 @@ usage(void)
+ void
+ main(int argc, char *argv[])
+ {
+-	int c, i;
++	int c;
+ 	char *p, *name, *val;
+ 
+ 	Binit(&bso, 1, OWRITE);
+@@ -250,9 +243,8 @@ main(int argc, char *argv[])
+ 	loadlib();
+ 
+ 	// mark some functions that are only referenced after linker code editing
+-	// TODO(kaib): this doesn't work, the prog can't be found in runtime
+-	for(i=0; i<nelem(linkername); i++)
+-		mark(lookup(linkername[i], 0));
++	if(debug['F'])
++		mark(rlookup("_sfloat", 0));
+ 	deadcode();
+ 	if(textp == nil) {
+ 		diag("no code");
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 423fda7a0c..489a347400 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -58,17 +58,6 @@ TEXT _rt0_arm(SB),7,$-4
+ 	MOVW	$1234, R0
+ 	MOVW	$1000, R1
+ 	MOVW	R0, (R1)	// fail hard
+-	B	runtime·_dep_dummy(SB)	// Never reached
+-
+-// TODO(kaib): remove these once i actually understand how the linker removes symbols
+-// pull in dummy dependencies
+-TEXT runtime·_dep_dummy(SB),7,$0
+-	BL	_div(SB)
+-	BL	_divu(SB)
+-	BL	_mod(SB)
+-	BL	_modu(SB)
+-	BL	_modu(SB)
+-	BL	_sfloat(SB)
+ 
+ TEXT runtime·breakpoint(SB),7,$0
+ 	// no breakpoint yet; let program exit

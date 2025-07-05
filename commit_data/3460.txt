@@ -8,8 +8,102 @@ Date:   Tue Oct 6 15:22:03 2009 -0700
     DELTA=16  (10 added, 4 deleted, 2 changed)
     OCL=35379
     CL=35403
-
+---
  src/pkg/go/printer/printer.go                  | 4 ++--
  src/pkg/go/printer/testdata/expressions.go     | 7 +++++--
  src/pkg/go/printer/testdata/expressions.golden | 7 +++++--
  3 files changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 443546cd43..73ac64d4ae 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -684,10 +684,10 @@ func needsBlanks(expr ast.Expr) bool {
+ 	switch x := expr.(type) {
+ 	case *ast.Ident:
+ 		// "long" identifiers look better with blanks around them
+-		return len(x.Value) > 12;  // adjust as looks best
++		return len(x.Value) > 8;
+ 	case *ast.BasicLit:
+ 		// "long" literals look better with blanks around them
+-		return len(x.Value) > 6;  // adjust as looks best
++		return len(x.Value) > 8;
+ 	case *ast.ParenExpr:
+ 		// parenthesized expressions don't need blanks around them
+ 		return false;
+diff --git a/src/pkg/go/printer/testdata/expressions.go b/src/pkg/go/printer/testdata/expressions.go
+index aa43a3b155..d335496f0a 100644
+--- a/src/pkg/go/printer/testdata/expressions.go
++++ b/src/pkg/go/printer/testdata/expressions.go
+@@ -10,6 +10,7 @@ type T struct {
+ 
+ var (
+ 	a, b, c, d, e int;
++	under_bar int;
+ 	longIdentifier1, longIdentifier2, longIdentifier3 int;
+ 	t0, t1, t2 T;
+ 	s string;
+@@ -29,14 +30,15 @@ func _() {
+ 	_ = 1+a;
+ 	_ = a+1;
+ 	_ = a+b+1;
+-	_ = "foo"+s;
+-	_ = s+"foo";
+ 	_ = s[1:2];
+ 	_ = s[a:b];
+ 	_ = s[0:len(s)];
+ 	_ = s[0]<<1;
+ 	_ = (s[0]<<1)&0xf;
+ 	_ = s[0] << 2 | s[1] >> 4;
++	_ = "foo"+s;
++	_ = s+"foo";
++	_ = 'a'+'b';
+ 
+ 	// spaces around expressions of different precedence or expressions containing spaces
+ 	_ = a + -b;
+@@ -77,6 +79,7 @@ func _() {
+ 	_ = a + b + c + 2*3 + d + e;
+ 	_ = (a+b+c)*2;
+ 	_ = a - b + c - d + (a+b+c) + d&e;
++	_ = under_bar-1;
+ }
+ 
+ 
+diff --git a/src/pkg/go/printer/testdata/expressions.golden b/src/pkg/go/printer/testdata/expressions.golden
+index 5b2cfca28d..b8fca42573 100644
+--- a/src/pkg/go/printer/testdata/expressions.golden
++++ b/src/pkg/go/printer/testdata/expressions.golden
+@@ -10,6 +10,7 @@ type T struct {
+ 
+ var (
+ 	a, b, c, d, e						int;
++	under_bar						int;
+ 	longIdentifier1, longIdentifier2, longIdentifier3	int;
+ 	t0, t1, t2						T;
+ 	s							string;
+@@ -29,14 +30,15 @@ func _() {
+ 	_ = 1+a;
+ 	_ = a+1;
+ 	_ = a+b+1;
+-	_ = "foo"+s;
+-	_ = s+"foo";
+ 	_ = s[1:2];
+ 	_ = s[a:b];
+ 	_ = s[0:len(s)];
+ 	_ = s[0]<<1;
+ 	_ = (s[0]<<1)&0xf;
+ 	_ = s[0]<<2 | s[1]>>4;
++	_ = "foo"+s;
++	_ = s+"foo";
++	_ = 'a'+'b';
+ 
+ 	// spaces around expressions of different precedence or expressions containing spaces
+ 	_ = a + -b;
+@@ -77,6 +79,7 @@ func _() {
+ 	_ = a + b + c + 2*3 + d + e;
+ 	_ = (a+b+c)*2;
+ 	_ = a - b + c - d + (a+b+c) + d&e;
++	_ = under_bar - 1;
+ }
+ 
+ 

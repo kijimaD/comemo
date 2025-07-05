@@ -595,3 +595,37 @@ Date:   Tue Apr 5 09:19:57 2022 +0200
  test/syntax/composite.go                           |   2 +-
  test/typeparam/issue52124.go                       |   9 +
  587 files changed, 7214 insertions(+), 5242 deletions(-)
+
+diff --cc api/next/46057.txt
+index 0000000000,0000000000..d971aa7ffd
+new file mode 100644
+--- /dev/null
++++ b/api/next/46057.txt
+@@@ -1,0 -1,0 +1,1 @@@
+++pkg crypto/x509, method (*CertPool) Equal(*CertPool) bool #46057
+diff --cc src/go/build/deps_test.go
+index ade6519b8d,052e7ad9c0..f318f6e432
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@@ -412,13 -408,18 +411,13 @@@ var depsRules = 
+  	< crypto/ed25519/internal/edwards25519/field, golang.org/x/crypto/curve25519/internal/field
+  	< crypto/ed25519/internal/edwards25519
+  	< crypto/cipher
+ +	< encoding/asn1
+ +	< crypto/internal/boring
+  	< crypto/aes, crypto/des, crypto/hmac, crypto/md5, crypto/rc4,
+  	  crypto/sha1, crypto/sha256, crypto/sha512
+- 	< crypto/rand
+ -	< CRYPTO;
+ -
+ -	CGO, fmt, net !< CRYPTO;
+ -
+ -	# CRYPTO-MATH is core bignum-based crypto - no cgo, net; fmt now ok.
+ -	CRYPTO, FMT, math/big, embed
+  	< crypto/internal/randutil
++ 	< crypto/rand
+  	< crypto/ed25519
+ -	< encoding/asn1
+  	< golang.org/x/crypto/cryptobyte/asn1
+  	< golang.org/x/crypto/cryptobyte
+  	< golang.org/x/crypto/curve25519

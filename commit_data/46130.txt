@@ -12,6 +12,20 @@ Date:   Wed Dec 9 14:17:56 2020 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/276612
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/logopt/logopt_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/logopt/logopt_test.go b/src/cmd/compile/internal/logopt/logopt_test.go
+index 51bab49518..e121c1abd2 100644
+--- a/src/cmd/compile/internal/logopt/logopt_test.go
++++ b/src/cmd/compile/internal/logopt/logopt_test.go
+@@ -51,7 +51,7 @@ func want(t *testing.T, out string, desired string) {
+ 
+ func wantN(t *testing.T, out string, desired string, n int) {
+ 	if strings.Count(out, desired) != n {
+-		t.Errorf("expected exactly %d occurences of %s in \n%s", n, desired, out)
++		t.Errorf("expected exactly %d occurrences of %s in \n%s", n, desired, out)
+ 	}
+ }
+ 

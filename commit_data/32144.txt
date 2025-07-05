@@ -7,6 +7,30 @@ Date:   Wed Mar 22 06:05:31 2017 -0700
     Change-Id: I9ec137502353e65325087dfb60ee9bd68ffd286d
     Reviewed-on: https://go-review.googlesource.com/38447
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/regexp/regexp.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/regexp/regexp.go b/src/regexp/regexp.go
+index 4b34d53c8a..924b011991 100644
+--- a/src/regexp/regexp.go
++++ b/src/regexp/regexp.go
+@@ -76,7 +76,8 @@ import (
+ )
+ 
+ // Regexp is the representation of a compiled regular expression.
+-// A Regexp is safe for concurrent use by multiple goroutines.
++// A Regexp is safe for concurrent use by multiple goroutines,
++// except for configuration methods, such as Longest.
+ type Regexp struct {
+ 	// read-only after Compile
+ 	regexpRO
+@@ -159,6 +160,8 @@ func CompilePOSIX(expr string) (*Regexp, error) {
+ // That is, when matching against text, the regexp returns a match that
+ // begins as early as possible in the input (leftmost), and among those
+ // it chooses a match that is as long as possible.
++// This method modifies the Regexp and may not be called concurrently
++// with any other methods.
+ func (re *Regexp) Longest() {
+ 	re.longest = true
+ }

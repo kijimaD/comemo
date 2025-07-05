@@ -515,3 +515,42 @@ Date:   Fri May 27 15:18:49 2016 -0400
  test/fixedbugs/issue15838.go                       |    12 +
  test/linkobj.go                                    |   155 +
  507 files changed, 31560 insertions(+), 5829 deletions(-)
+
+diff --cc src/cmd/compile/internal/ssa/config.go
+index 26f16bae58,e8ab17806c..ddb58d9f79
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@@ -13,19 -14,19 +14,20 @@@ import 
+  )
+  
+  type Config struct {
+- 	arch         string                     // "amd64", etc.
+- 	IntSize      int64                      // 4 or 8
+- 	PtrSize      int64                      // 4 or 8
+- 	lowerBlock   func(*Block) bool          // lowering function
+- 	lowerValue   func(*Value, *Config) bool // lowering function
+- 	registers    []Register                 // machine registers
+- 	flagRegMask  regMask                    // flag register mask
+- 	fe           Frontend                   // callbacks into compiler frontend
+- 	HTML         *HTMLWriter                // html writer, for debugging
+- 	ctxt         *obj.Link                  // Generic arch information
+- 	optimize     bool                       // Do optimization
+- 	noDuffDevice bool                       // Don't use Duff's device
+- 	curFunc      *Func
++ 	arch            string                     // "amd64", etc.
++ 	IntSize         int64                      // 4 or 8
++ 	PtrSize         int64                      // 4 or 8
++ 	lowerBlock      func(*Block) bool          // lowering function
++ 	lowerValue      func(*Value, *Config) bool // lowering function
++ 	registers       []Register                 // machine registers
+++	flagRegMask     regMask                    // flag register mask
++ 	fe              Frontend                   // callbacks into compiler frontend
++ 	HTML            *HTMLWriter                // html writer, for debugging
++ 	ctxt            *obj.Link                  // Generic arch information
++ 	optimize        bool                       // Do optimization
++ 	noDuffDevice    bool                       // Don't use Duff's device
++ 	sparsePhiCutoff uint64                     // Sparse phi location algorithm used above this #blocks*#variables score
++ 	curFunc         *Func
+  
+  	// TODO: more stuff. Compiler flags of interest, ...
+  

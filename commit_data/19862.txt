@@ -12,7 +12,7 @@ Date:   Thu Jul 31 15:07:05 2014 -0700
     R=golang-codereviews, dvyukov, dave, khr
     CC=golang-codereviews
     https://golang.org/cl/119360043
-
+---
  src/cmd/gc/reflect.c            |   9 +-
  src/cmd/gc/subr.c               |  69 +++++++------
  src/pkg/runtime/alg.goc         | 221 +++++++++-------------------------------
@@ -27,3 +27,1076 @@ Date:   Thu Jul 31 15:07:05 2014 -0700
  src/pkg/runtime/runtime.h       |  24 +++--
  src/pkg/runtime/stubs.go        |  24 +++++
  13 files changed, 196 insertions(+), 416 deletions(-)
+
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 934289e08a..984b507826 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -1227,7 +1227,7 @@ static Sym*
+ dalgsym(Type *t)
+ {
+ 	int ot;
+-	Sym *s, *hash, *eq;
++	Sym *s, *hash, *hashfunc, *eq;
+ 	char buf[100];
+ 
+ 	// dalgsym is only called for a type that needs an algorithm table,
+@@ -1239,9 +1239,14 @@ dalgsym(Type *t)
+ 	eq = typesymprefix(".eq", t);
+ 	geneq(eq, t);
+ 
++	// make Go func (a closure) for calling the hash function from Go
++	hashfunc = typesymprefix(".hashfunc", t);
++	dsymptr(hashfunc, 0, hash, 0);
++	ggloblsym(hashfunc, widthptr, DUPOK|RODATA);
++
+ 	// ../../pkg/runtime/runtime.h:/Alg
+ 	ot = 0;
+-	ot = dsymptr(s, ot, hash, 0);
++	ot = dsymptr(s, ot, hashfunc, 0);
+ 	ot = dsymptr(s, ot, eq, 0);
+ 	ot = dsymptr(s, ot, pkglookup("memprint", runtimepkg), 0);
+ 	switch(t->width) {
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index ac006f5bc7..0195f3d629 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2625,9 +2625,10 @@ hashmem(Type *t)
+ 	n = newname(sym);
+ 	n->class = PFUNC;
+ 	tfn = nod(OTFUNC, N, N);
+-	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(ptrto(types[TUINTPTR]))));
+-	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
+ 	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(ptrto(t))));
++	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
++	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
++	tfn->rlist = list(tfn->rlist, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
+ 	typecheck(&tfn, Etype);
+ 	n->type = tfn->type;
+ 	return n;
+@@ -2673,9 +2674,10 @@ hashfor(Type *t)
+ 	n = newname(sym);
+ 	n->class = PFUNC;
+ 	tfn = nod(OTFUNC, N, N);
+-	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(ptrto(types[TUINTPTR]))));
+-	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
+ 	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(ptrto(t))));
++	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
++	tfn->list = list(tfn->list, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
++	tfn->rlist = list(tfn->rlist, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
+ 	typecheck(&tfn, Etype);
+ 	n->type = tfn->type;
+ 	return n;
+@@ -2687,7 +2689,7 @@ hashfor(Type *t)
+ void
+ genhash(Sym *sym, Type *t)
+ {
+-	Node *n, *fn, *np, *nh, *ni, *call, *nx, *na, *tfn;
++	Node *n, *fn, *np, *nh, *ni, *call, *nx, *na, *tfn, *r;
+ 	Node *hashel;
+ 	Type *first, *t1;
+ 	int old_safemode;
+@@ -2700,21 +2702,23 @@ genhash(Sym *sym, Type *t)
+ 	dclcontext = PEXTERN;
+ 	markdcl();
+ 
+-	// func sym(h *uintptr, s uintptr, p *T)
++	// func sym(p *T, s uintptr, h uintptr) uintptr
+ 	fn = nod(ODCLFUNC, N, N);
+ 	fn->nname = newname(sym);
+ 	fn->nname->class = PFUNC;
+ 	tfn = nod(OTFUNC, N, N);
+ 	fn->nname->ntype = tfn;
+ 
+-	n = nod(ODCLFIELD, newname(lookup("h")), typenod(ptrto(types[TUINTPTR])));
++	n = nod(ODCLFIELD, newname(lookup("p")), typenod(ptrto(t)));
+ 	tfn->list = list(tfn->list, n);
+-	nh = n->left;
++	np = n->left;
+ 	n = nod(ODCLFIELD, newname(lookup("s")), typenod(types[TUINTPTR]));
+ 	tfn->list = list(tfn->list, n);
+-	n = nod(ODCLFIELD, newname(lookup("p")), typenod(ptrto(t)));
++	n = nod(ODCLFIELD, newname(lookup("h")), typenod(types[TUINTPTR]));
+ 	tfn->list = list(tfn->list, n);
+-	np = n->left;
++	nh = n->left;
++	n = nod(ODCLFIELD, N, typenod(types[TUINTPTR])); // return value
++	tfn->rlist = list(tfn->rlist, n);
+ 
+ 	funchdr(fn);
+ 	typecheck(&fn->nname->ntype, Etype);
+@@ -2740,15 +2744,17 @@ genhash(Sym *sym, Type *t)
+ 		colasdefn(n->list, n);
+ 		ni = n->list->n;
+ 
+-		// *h = *h<<3 | *h>>61
++		// TODO: with aeshash we don't need these shift/mul parts
++
++		// h = h<<3 | h>>61
+ 		n->nbody = list(n->nbody,
+ 			nod(OAS,
+-				nod(OIND, nh, N),
++			    nh,
+ 				nod(OOR,
+-					nod(OLSH, nod(OIND, nh, N), nodintconst(3)),
+-					nod(ORSH, nod(OIND, nh, N), nodintconst(widthptr*8-3)))));
++					nod(OLSH, nh, nodintconst(3)),
++					nod(ORSH, nh, nodintconst(widthptr*8-3)))));
+ 
+-		// *h *= mul
++		// h *= mul
+ 		// Same multipliers as in runtime.memhash.
+ 		if(widthptr == 4)
+ 			mul = 3267000013LL;
+@@ -2756,19 +2762,19 @@ genhash(Sym *sym, Type *t)
+ 			mul = 23344194077549503LL;
+ 		n->nbody = list(n->nbody,
+ 			nod(OAS,
+-				nod(OIND, nh, N),
+-				nod(OMUL, nod(OIND, nh, N), nodintconst(mul))));
++				nh,
++				nod(OMUL, nh, nodintconst(mul))));
+ 
+-		// hashel(h, sizeof(p[i]), &p[i])
++		// h = hashel(&p[i], sizeof(p[i]), h)
+ 		call = nod(OCALL, hashel, N);
+-		call->list = list(call->list, nh);
+-		call->list = list(call->list, nodintconst(t->type->width));
+ 		nx = nod(OINDEX, np, ni);
+ 		nx->bounded = 1;
+ 		na = nod(OADDR, nx, N);
+ 		na->etype = 1;  // no escape to heap
+ 		call->list = list(call->list, na);
+-		n->nbody = list(n->nbody, call);
++		call->list = list(call->list, nodintconst(t->type->width));
++		call->list = list(call->list, nh);
++		n->nbody = list(n->nbody, nod(OAS, nh, call));
+ 
+ 		fn->nbody = list(fn->nbody, n);
+ 		break;
+@@ -2793,15 +2799,15 @@ genhash(Sym *sym, Type *t)
+ 			if(first != T) {
+ 				size = offend - first->width; // first->width is offset
+ 				hashel = hashmem(first->type);
+-				// hashel(h, size, &p.first)
++				// h = hashel(&p.first, size, h)
+ 				call = nod(OCALL, hashel, N);
+-				call->list = list(call->list, nh);
+-				call->list = list(call->list, nodintconst(size));
+ 				nx = nod(OXDOT, np, newname(first->sym));  // TODO: fields from other packages?
+ 				na = nod(OADDR, nx, N);
+ 				na->etype = 1;  // no escape to heap
+ 				call->list = list(call->list, na);
+-				fn->nbody = list(fn->nbody, call);
++				call->list = list(call->list, nodintconst(size));
++				call->list = list(call->list, nh);
++				fn->nbody = list(fn->nbody, nod(OAS, nh, call));
+ 
+ 				first = T;
+ 			}
+@@ -2812,20 +2818,21 @@ genhash(Sym *sym, Type *t)
+ 
+ 			// Run hash for this field.
+ 			hashel = hashfor(t1->type);
+-			// hashel(h, size, &p.t1)
++			// h = hashel(&p.t1, size, h)
+ 			call = nod(OCALL, hashel, N);
+-			call->list = list(call->list, nh);
+-			call->list = list(call->list, nodintconst(t1->type->width));
+ 			nx = nod(OXDOT, np, newname(t1->sym));  // TODO: fields from other packages?
+ 			na = nod(OADDR, nx, N);
+ 			na->etype = 1;  // no escape to heap
+ 			call->list = list(call->list, na);
+-			fn->nbody = list(fn->nbody, call);
++			call->list = list(call->list, nodintconst(t1->type->width));
++			call->list = list(call->list, nh);
++			fn->nbody = list(fn->nbody, nod(OAS, nh, call));
+ 		}
+-		// make sure body is not empty.
+-		fn->nbody = list(fn->nbody, nod(ORETURN, N, N));
+ 		break;
+ 	}
++	r = nod(ORETURN, N, N);
++	r->list = list(r->list, nh);
++	fn->nbody = list(fn->nbody, r);
+ 
+ 	if(debug['r'])
+ 		dumplist("genhash body", fn->nbody);
+diff --git a/src/pkg/runtime/alg.goc b/src/pkg/runtime/alg.goc
+index cb8e073151..70c877ebbb 100644
+--- a/src/pkg/runtime/alg.goc
++++ b/src/pkg/runtime/alg.goc
+@@ -7,34 +7,7 @@ package runtime
+ #include "type.h"
+ #include "../../cmd/ld/textflag.h"
+ 
+-#define M0 (sizeof(uintptr)==4 ? 2860486313UL : 33054211828000289ULL)
+-#define M1 (sizeof(uintptr)==4 ? 3267000013UL : 23344194077549503ULL)
+-
+-static bool use_aeshash;
+-
+-/*
+- * map and chan helpers for
+- * dealing with unknown types
+- */
+-void
+-runtime·memhash(uintptr *h, uintptr s, void *a)
+-{
+-	byte *b;
+-	uintptr hash;
+-	if(!NaCl && use_aeshash) {
+-		runtime·aeshash(h, s, a);
+-		return;
+-	}
+-
+-	b = a;
+-	hash = M0 ^ *h;
+-	while(s > 0) {
+-		hash = (hash ^ *b) * M1;
+-		b++;
+-		s--;
+-	}
+-	*h = hash;
+-}
++bool runtime·use_aeshash;
+ 
+ void
+ runtime·memequal(bool *eq, uintptr s, void *a, void *b)
+@@ -224,67 +197,6 @@ runtime·c128equal(bool *eq, uintptr s, void *a, void *b)
+ 	*eq = ca->real == cb->real && ca->imag == cb->imag;
+ }
+ 
+-// NOTE: Because NaN != NaN, a map can contain any
+-// number of (mostly useless) entries keyed with NaNs.
+-// To avoid long hash chains, we assign a random number
+-// as the hash value for a NaN.
+-
+-void
+-runtime·f32hash(uintptr *h, uintptr s, void *a)
+-{
+-	uintptr hash;
+-	float32 f;
+-
+-	USED(s);
+-	f = *(float32*)a;
+-	if(f == 0)
+-		hash = 0;  // +0, -0
+-	else if(f != f)
+-		hash = runtime·fastrand1();  // any kind of NaN
+-	else
+-		hash = *(uint32*)a;
+-	*h = (*h ^ hash ^ M0) * M1;
+-}
+-
+-void
+-runtime·f64hash(uintptr *h, uintptr s, void *a)
+-{
+-	uintptr hash;
+-	float64 f;
+-	uint64 u;
+-
+-	USED(s);
+-	f = *(float64*)a;
+-	if(f == 0)
+-		hash = 0;	// +0, -0
+-	else if(f != f)
+-		hash = runtime·fastrand1();  // any kind of NaN
+-	else {
+-		u = *(uint64*)a;
+-		if(sizeof(uintptr) == 4)
+-			hash = ((uint32)(u>>32) * M1) ^ (uint32)u;
+-		else
+-			hash = u;
+-	}
+-	*h = (*h ^ hash ^ M0) * M1;
+-}
+-
+-void
+-runtime·c64hash(uintptr *h, uintptr s, void *a)
+-{
+-	USED(s);
+-	runtime·f32hash(h, 0, a);
+-	runtime·f32hash(h, 0, (float32*)a+1);
+-}
+-
+-void
+-runtime·c128hash(uintptr *h, uintptr s, void *a)
+-{
+-	USED(s);
+-	runtime·f64hash(h, 0, a);
+-	runtime·f64hash(h, 0, (float64*)a+1);
+-}
+-
+ void
+ runtime·algslicecopy(uintptr s, void *a, void *b)
+ {
+@@ -300,13 +212,6 @@ runtime·algslicecopy(uintptr s, void *a, void *b)
+ 	((Slice*)a)->cap = ((Slice*)b)->cap;
+ }
+ 
+-void
+-runtime·strhash(uintptr *h, uintptr s, void *a)
+-{
+-	USED(s);
+-	runtime·memhash(h, ((String*)a)->len, ((String*)a)->str);
+-}
+-
+ void
+ runtime·strequal(bool *eq, uintptr s, void *a, void *b)
+ {
+@@ -348,13 +253,6 @@ runtime·strcopy(uintptr s, void *a, void *b)
+ 	((String*)a)->len = ((String*)b)->len;
+ }
+ 
+-void
+-runtime·interhash(uintptr *h, uintptr s, void *a)
+-{
+-	USED(s);
+-	*h = runtime·ifacehash(*(Iface*)a, *h ^ M0) * M1;
+-}
+-
+ void
+ runtime·interprint(uintptr s, void *a)
+ {
+@@ -382,13 +280,6 @@ runtime·intercopy(uintptr s, void *a, void *b)
+ 	((Iface*)a)->data = ((Iface*)b)->data;
+ }
+ 
+-void
+-runtime·nilinterhash(uintptr *h, uintptr s, void *a)
+-{
+-	USED(s);
+-	*h = runtime·efacehash(*(Eface*)a, *h ^ M0) * M1;
+-}
+-
+ void
+ runtime·nilinterprint(uintptr s, void *a)
+ {
+@@ -416,15 +307,6 @@ runtime·nilintercopy(uintptr s, void *a, void *b)
+ 	((Eface*)a)->data = ((Eface*)b)->data;
+ }
+ 
+-void
+-runtime·nohash(uintptr *h, uintptr s, void *a)
+-{
+-	USED(s);
+-	USED(a);
+-	USED(h);
+-	runtime·panicstring("hash of unhashable type");
+-}
+-
+ extern uintptr runtime·nohashcode;
+ 
+ void
+@@ -437,31 +319,46 @@ runtime·noequal(bool *eq, uintptr s, void *a, void *b)
+ 	runtime·panicstring("comparing uncomparable types");
+ }
+ 
++static FuncVal memhashfunc = {(void*)runtime·memhash};
++static FuncVal nohashfunc = {(void*)runtime·nohash};
++static FuncVal strhashfunc = {(void*)runtime·strhash};
++static FuncVal interhashfunc = {(void*)runtime·interhash};
++static FuncVal nilinterhashfunc = {(void*)runtime·nilinterhash};
++static FuncVal f32hashfunc = {(void*)runtime·f32hash};
++static FuncVal f64hashfunc = {(void*)runtime·f64hash};
++static FuncVal c64hashfunc = {(void*)runtime·c64hash};
++static FuncVal c128hashfunc = {(void*)runtime·c128hash};
++
++static FuncVal aeshashfunc = {(void*)runtime·aeshash};
++static FuncVal aeshash32func = {(void*)runtime·aeshash32};
++static FuncVal aeshash64func = {(void*)runtime·aeshash64};
++static FuncVal aeshashstrfunc = {(void*)runtime·aeshashstr};
++
+ Alg
+ runtime·algarray[] =
+ {
+-[AMEM]		{ runtime·memhash, runtime·memequal, runtime·memprint, runtime·memcopy },
+-[ANOEQ]		{ runtime·nohash, runtime·noequal, runtime·memprint, runtime·memcopy },
+-[ASTRING]	{ runtime·strhash, runtime·strequal, runtime·strprint, runtime·strcopy },
+-[AINTER]	{ runtime·interhash, runtime·interequal, runtime·interprint, runtime·intercopy },
+-[ANILINTER]	{ runtime·nilinterhash, runtime·nilinterequal, runtime·nilinterprint, runtime·nilintercopy },
+-[ASLICE]	{ runtime·nohash, runtime·noequal, runtime·memprint, runtime·algslicecopy },
+-[AFLOAT32]	{ runtime·f32hash, runtime·f32equal, runtime·memprint, runtime·memcopy },
+-[AFLOAT64]	{ runtime·f64hash, runtime·f64equal, runtime·memprint, runtime·memcopy },
+-[ACPLX64]	{ runtime·c64hash, runtime·c64equal, runtime·memprint, runtime·memcopy },
+-[ACPLX128]	{ runtime·c128hash, runtime·c128equal, runtime·memprint, runtime·memcopy },
+-[AMEM0]		{ runtime·memhash, runtime·memequal0, runtime·memprint, runtime·memcopy0 },
+-[AMEM8]		{ runtime·memhash, runtime·memequal8, runtime·memprint, runtime·memcopy8 },
+-[AMEM16]	{ runtime·memhash, runtime·memequal16, runtime·memprint, runtime·memcopy16 },
+-[AMEM32]	{ runtime·memhash, runtime·memequal32, runtime·memprint, runtime·memcopy32 },
+-[AMEM64]	{ runtime·memhash, runtime·memequal64, runtime·memprint, runtime·memcopy64 },
+-[AMEM128]	{ runtime·memhash, runtime·memequal128, runtime·memprint, runtime·memcopy128 },
+-[ANOEQ0]	{ runtime·nohash, runtime·noequal, runtime·memprint, runtime·memcopy0 },
+-[ANOEQ8]	{ runtime·nohash, runtime·noequal, runtime·memprint, runtime·memcopy8 },
+-[ANOEQ16]	{ runtime·nohash, runtime·noequal, runtime·memprint, runtime·memcopy16 },
+-[ANOEQ32]	{ runtime·nohash, runtime·noequal, runtime·memprint, runtime·memcopy32 },
+-[ANOEQ64]	{ runtime·nohash, runtime·noequal, runtime·memprint, runtime·memcopy64 },
+-[ANOEQ128]	{ runtime·nohash, runtime·noequal, runtime·memprint, runtime·memcopy128 },
++[AMEM]		{ &memhashfunc, runtime·memequal, runtime·memprint, runtime·memcopy },
++[ANOEQ]		{ &nohashfunc, runtime·noequal, runtime·memprint, runtime·memcopy },
++[ASTRING]	{ &strhashfunc, runtime·strequal, runtime·strprint, runtime·strcopy },
++[AINTER]	{ &interhashfunc, runtime·interequal, runtime·interprint, runtime·intercopy },
++[ANILINTER]	{ &nilinterhashfunc, runtime·nilinterequal, runtime·nilinterprint, runtime·nilintercopy },
++[ASLICE]	{ &nohashfunc, runtime·noequal, runtime·memprint, runtime·algslicecopy },
++[AFLOAT32]	{ &f32hashfunc, runtime·f32equal, runtime·memprint, runtime·memcopy },
++[AFLOAT64]	{ &f64hashfunc, runtime·f64equal, runtime·memprint, runtime·memcopy },
++[ACPLX64]	{ &c64hashfunc, runtime·c64equal, runtime·memprint, runtime·memcopy },
++[ACPLX128]	{ &c128hashfunc, runtime·c128equal, runtime·memprint, runtime·memcopy },
++[AMEM0]		{ &memhashfunc, runtime·memequal0, runtime·memprint, runtime·memcopy0 },
++[AMEM8]		{ &memhashfunc, runtime·memequal8, runtime·memprint, runtime·memcopy8 },
++[AMEM16]	{ &memhashfunc, runtime·memequal16, runtime·memprint, runtime·memcopy16 },
++[AMEM32]	{ &memhashfunc, runtime·memequal32, runtime·memprint, runtime·memcopy32 },
++[AMEM64]	{ &memhashfunc, runtime·memequal64, runtime·memprint, runtime·memcopy64 },
++[AMEM128]	{ &memhashfunc, runtime·memequal128, runtime·memprint, runtime·memcopy128 },
++[ANOEQ0]	{ &nohashfunc, runtime·noequal, runtime·memprint, runtime·memcopy0 },
++[ANOEQ8]	{ &nohashfunc, runtime·noequal, runtime·memprint, runtime·memcopy8 },
++[ANOEQ16]	{ &nohashfunc, runtime·noequal, runtime·memprint, runtime·memcopy16 },
++[ANOEQ32]	{ &nohashfunc, runtime·noequal, runtime·memprint, runtime·memcopy32 },
++[ANOEQ64]	{ &nohashfunc, runtime·noequal, runtime·memprint, runtime·memcopy64 },
++[ANOEQ128]	{ &nohashfunc, runtime·noequal, runtime·memprint, runtime·memcopy128 },
+ };
+ 
+ // Runtime helpers.
+@@ -483,15 +380,14 @@ runtime·hashinit(void)
+ 	   (runtime·cpuid_ecx & (1 << 19)) != 0) {  // sse4.1 (pinsr{d,q})
+ 		byte *rnd;
+ 		int32 n;
+-		use_aeshash = true;
+-		runtime·algarray[AMEM].hash = runtime·aeshash;
+-		runtime·algarray[AMEM8].hash = runtime·aeshash;
+-		runtime·algarray[AMEM16].hash = runtime·aeshash;
+-		runtime·algarray[AMEM32].hash = runtime·aeshash32;
+-		runtime·algarray[AMEM64].hash = runtime·aeshash64;
+-		runtime·algarray[AMEM128].hash = runtime·aeshash;
+-		runtime·algarray[ASTRING].hash = runtime·aeshashstr;
+-
++		runtime·use_aeshash = true;
++		runtime·algarray[AMEM].hash = &aeshashfunc;
++		runtime·algarray[AMEM8].hash = &aeshashfunc;
++		runtime·algarray[AMEM16].hash = &aeshashfunc;
++		runtime·algarray[AMEM32].hash = &aeshash32func;
++		runtime·algarray[AMEM64].hash = &aeshash64func;
++		runtime·algarray[AMEM128].hash = &aeshashfunc;
++		runtime·algarray[ASTRING].hash = &aeshashstrfunc;
+ 		// Initialize with random data so hash collisions will be hard to engineer.
+ 		runtime·get_random_data(&rnd, &n);
+ 		if(n > HashRandomBytes)
+@@ -525,28 +421,3 @@ runtime·equal(Type *t, ...)
+ func memclrBytes(s Slice) {
+ 	runtime·memclr(s.array, s.len);
+ }
+-
+-// Testing adapters for hash quality tests (see hash_test.go)
+-func haveGoodHash() (res bool) {
+-	res = use_aeshash;
+-}
+-
+-func stringHash(s String, seed uintptr) (res uintptr) {
+-	runtime·algarray[ASTRING].hash(&seed, sizeof(String), &s);
+-	res = seed;
+-}
+-
+-func bytesHash(s Slice, seed uintptr) (res uintptr) {
+-	runtime·algarray[AMEM].hash(&seed, s.len, s.array);
+-	res = seed;
+-}
+-
+-func int32Hash(i uint32, seed uintptr) (res uintptr) {
+-	runtime·algarray[AMEM32].hash(&seed, sizeof(uint32), &i);
+-	res = seed;
+-}
+-
+-func int64Hash(i uint64, seed uintptr) (res uintptr) {
+-	runtime·algarray[AMEM64].hash(&seed, sizeof(uint64), &i);
+-	res = seed;
+-}
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index a4a79bd904..d2c6e30469 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -890,24 +890,22 @@ TEXT runtime·stackguard(SB),NOSPLIT,$0-8
+ GLOBL runtime·tls0(SB), $32
+ 
+ // hash function using AES hardware instructions
+-TEXT runtime·aeshash(SB),NOSPLIT,$0-12
+-	MOVL	4(SP), DX	// ptr to hash value
+-	MOVL	8(SP), CX	// size
+-	MOVL	12(SP), AX	// ptr to data
++TEXT runtime·aeshash(SB),NOSPLIT,$0-16
++	MOVL	p+0(FP), AX	// ptr to data
++	MOVL	s+4(FP), CX	// size
+ 	JMP	runtime·aeshashbody(SB)
+ 
+-TEXT runtime·aeshashstr(SB),NOSPLIT,$0-12
+-	MOVL	4(SP), DX	// ptr to hash value
+-	MOVL	12(SP), AX	// ptr to string struct
++TEXT runtime·aeshashstr(SB),NOSPLIT,$0-16
++	MOVL	p+0(FP), AX	// ptr to string object
++	// s+4(FP) is ignored, it is always sizeof(String)
+ 	MOVL	4(AX), CX	// length of string
+ 	MOVL	(AX), AX	// string data
+ 	JMP	runtime·aeshashbody(SB)
+ 
+ // AX: data
+ // CX: length
+-// DX: ptr to seed input / hash output
+-TEXT runtime·aeshashbody(SB),NOSPLIT,$0-12
+-	MOVL	(DX), X0	// seed to low 32 bits of xmm0
++TEXT runtime·aeshashbody(SB),NOSPLIT,$0-16
++	MOVL	h+8(FP), X0	// seed to low 32 bits of xmm0
+ 	PINSRD	$1, CX, X0	// size to next 32 bits of xmm0
+ 	MOVO	runtime·aeskeysched+0(SB), X2
+ 	MOVO	runtime·aeskeysched+16(SB), X3
+@@ -958,29 +956,29 @@ finalize:
+ 	AESENC	X2, X0
+ 	AESENC	X3, X0
+ 	AESENC	X2, X0
+-	MOVL	X0, (DX)
++	MOVL	X0, res+12(FP)
+ 	RET
+ 
+-TEXT runtime·aeshash32(SB),NOSPLIT,$0-12
+-	MOVL	4(SP), DX	// ptr to hash value
+-	MOVL	12(SP), AX	// ptr to data
+-	MOVL	(DX), X0	// seed
++TEXT runtime·aeshash32(SB),NOSPLIT,$0-16
++	MOVL	p+0(FP), AX	// ptr to data
++	// s+4(FP) is ignored, it is always sizeof(int32)
++	MOVL	h+8(FP), X0	// seed
+ 	PINSRD	$1, (AX), X0	// data
+ 	AESENC	runtime·aeskeysched+0(SB), X0
+ 	AESENC	runtime·aeskeysched+16(SB), X0
+ 	AESENC	runtime·aeskeysched+0(SB), X0
+-	MOVL	X0, (DX)
++	MOVL	X0, res+12(FP)
+ 	RET
+ 
+-TEXT runtime·aeshash64(SB),NOSPLIT,$0-12
+-	MOVL	4(SP), DX	// ptr to hash value
+-	MOVL	12(SP), AX	// ptr to data
++TEXT runtime·aeshash64(SB),NOSPLIT,$0-16
++	MOVL	p+0(FP), AX	// ptr to data
++	// s+4(FP) is ignored, it is always sizeof(int64)
+ 	MOVQ	(AX), X0	// data
+-	PINSRD	$2, (DX), X0	// seed
++	PINSRD	$2, h+8(FP), X0	// seed
+ 	AESENC	runtime·aeskeysched+0(SB), X0
+ 	AESENC	runtime·aeskeysched+16(SB), X0
+ 	AESENC	runtime·aeskeysched+0(SB), X0
+-	MOVL	X0, (DX)
++	MOVL	X0, res+12(FP)
+ 	RET
+ 
+ // simple mask to get rid of data in the high part of the register.
+@@ -2269,40 +2267,10 @@ TEXT runtime·fastrand2(SB), NOSPLIT, $0-4
+ 	MOVL	DX, ret+0(FP)
+ 	RET
+ 
+-// The gohash and goeq trampolines are necessary while we have
++// The goeq trampoline is necessary while we have
+ // both Go and C calls to alg functions.  Once we move all call
+-// sites to Go, we can redo the hash/eq functions to use the
+-// Go calling convention and remove these.
+-
+-// convert call to:
+-//   func (alg unsafe.Pointer, p unsafe.Pointer, size uintpr, seed uintptr) uintptr
+-// to:
+-//   func (hash *uintptr, size uintptr, p unsafe.Pointer)
+-TEXT runtime·gohash(SB), NOSPLIT, $12-20
+-	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_gohash<>(SB)
+-	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_gohash<>(SB)
+-	MOVL	a+0(FP), AX
+-	MOVL	alg_hash(AX), AX
+-	MOVL	p+4(FP), CX
+-	MOVL	size+8(FP), DX
+-	MOVL	seed+12(FP), DI
+-	MOVL	DI, ret+16(FP)
+-	LEAL	ret+16(FP), SI
+-	MOVL	SI, 0(SP)
+-	MOVL	DX, 4(SP)
+-	MOVL	CX, 8(SP)
+-	PCDATA  $PCDATA_StackMapIndex, $0
+-	CALL	*AX
+-	RET
+-
+-DATA gcargs_gohash<>+0x00(SB)/4, $1  // 1 stackmap
+-DATA gcargs_gohash<>+0x04(SB)/4, $10  // 5 args
+-DATA gcargs_gohash<>+0x08(SB)/4, $(const_BitsPointer+(const_BitsPointer<<2))
+-GLOBL gcargs_gohash<>(SB),RODATA,$12
+-
+-DATA gclocals_gohash<>+0x00(SB)/4, $1  // 1 stackmap
+-DATA gclocals_gohash<>+0x04(SB)/4, $0  // 0 locals
+-GLOBL gclocals_gohash<>(SB),RODATA,$8
++// sites to Go, we can redo the eq functions to use the
++// Go calling convention and remove this.
+ 
+ // convert call to:
+ //   func (alg unsafe.Pointer, p, q unsafe.Pointer, size uintptr) bool
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 4ddfdb71c4..19e9f1d3a2 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -954,24 +954,22 @@ TEXT runtime·stackguard(SB),NOSPLIT,$0-16
+ GLOBL runtime·tls0(SB), $64
+ 
+ // hash function using AES hardware instructions
+-TEXT runtime·aeshash(SB),NOSPLIT,$0-24
+-	MOVQ	8(SP), DX	// ptr to hash value
+-	MOVQ	16(SP), CX	// size
+-	MOVQ	24(SP), AX	// ptr to data
++TEXT runtime·aeshash(SB),NOSPLIT,$0-32
++	MOVQ	p+0(FP), AX	// ptr to data
++	MOVQ	s+8(FP), CX	// size
+ 	JMP	runtime·aeshashbody(SB)
+ 
+-TEXT runtime·aeshashstr(SB),NOSPLIT,$0-24
+-	MOVQ	8(SP), DX	// ptr to hash value
+-	MOVQ	24(SP), AX	// ptr to string struct
++TEXT runtime·aeshashstr(SB),NOSPLIT,$0-32
++	MOVQ	p+0(FP), AX	// ptr to string struct
++	// s+8(FP) is ignored, it is always sizeof(String)
+ 	MOVQ	8(AX), CX	// length of string
+ 	MOVQ	(AX), AX	// string data
+ 	JMP	runtime·aeshashbody(SB)
+ 
+ // AX: data
+ // CX: length
+-// DX: ptr to seed input / hash output
+-TEXT runtime·aeshashbody(SB),NOSPLIT,$0-24
+-	MOVQ	(DX), X0	// seed to low 64 bits of xmm0
++TEXT runtime·aeshashbody(SB),NOSPLIT,$0-32
++	MOVQ	h+16(FP), X0	// seed to low 64 bits of xmm0
+ 	PINSRQ	$1, CX, X0	// size to high 64 bits of xmm0
+ 	MOVO	runtime·aeskeysched+0(SB), X2
+ 	MOVO	runtime·aeskeysched+16(SB), X3
+@@ -1022,29 +1020,29 @@ finalize:
+ 	AESENC	X2, X0
+ 	AESENC	X3, X0
+ 	AESENC	X2, X0
+-	MOVQ	X0, (DX)
++	MOVQ	X0, res+24(FP)
+ 	RET
+ 
+-TEXT runtime·aeshash32(SB),NOSPLIT,$0-24
+-	MOVQ	8(SP), DX	// ptr to hash value
+-	MOVQ	24(SP), AX	// ptr to data
+-	MOVQ	(DX), X0	// seed
++TEXT runtime·aeshash32(SB),NOSPLIT,$0-32
++	MOVQ	p+0(FP), AX	// ptr to data
++	// s+8(FP) is ignored, it is always sizeof(int32)
++	MOVQ	h+16(FP), X0	// seed
+ 	PINSRD	$2, (AX), X0	// data
+ 	AESENC	runtime·aeskeysched+0(SB), X0
+ 	AESENC	runtime·aeskeysched+16(SB), X0
+ 	AESENC	runtime·aeskeysched+0(SB), X0
+-	MOVQ	X0, (DX)
++	MOVQ	X0, res+24(FP)
+ 	RET
+ 
+-TEXT runtime·aeshash64(SB),NOSPLIT,$0-24
+-	MOVQ	8(SP), DX	// ptr to hash value
+-	MOVQ	24(SP), AX	// ptr to data
+-	MOVQ	(DX), X0	// seed
++TEXT runtime·aeshash64(SB),NOSPLIT,$0-32
++	MOVQ	p+0(FP), AX	// ptr to data
++	// s+8(FP) is ignored, it is always sizeof(int64)
++	MOVQ	h+16(FP), X0	// seed
+ 	PINSRQ	$1, (AX), X0	// data
+ 	AESENC	runtime·aeskeysched+0(SB), X0
+ 	AESENC	runtime·aeskeysched+16(SB), X0
+ 	AESENC	runtime·aeskeysched+0(SB), X0
+-	MOVQ	X0, (DX)
++	MOVQ	X0, res+24(FP)
+ 	RET
+ 
+ // simple mask to get rid of data in the high part of the register.
+@@ -2308,40 +2306,10 @@ TEXT runtime·fastrand2(SB), NOSPLIT, $0-4
+ 	MOVL	DX, ret+0(FP)
+ 	RET
+ 
+-// The gohash and goeq trampolines are necessary while we have
++// goeq trampoline is necessary while we have
+ // both Go and C calls to alg functions.  Once we move all call
+-// sites to Go, we can redo the hash/eq functions to use the
+-// Go calling convention and remove these.
+-
+-// convert call to:
+-//   func (alg unsafe.Pointer, p unsafe.Pointer, size uintpr, seed uintptr) uintptr
+-// to:
+-//   func (hash *uintptr, size uintptr, p unsafe.Pointer)
+-TEXT runtime·gohash(SB), NOSPLIT, $24-40
+-	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_gohash<>(SB)
+-	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_gohash<>(SB)
+-	MOVQ	a+0(FP), AX
+-	MOVQ	alg_hash(AX), AX
+-	MOVQ	p+8(FP), CX
+-	MOVQ	size+16(FP), DX
+-	MOVQ	seed+24(FP), DI
+-	MOVQ	DI, ret+32(FP)
+-	LEAQ	ret+32(FP), SI
+-	MOVQ	SI, 0(SP)
+-	MOVQ	DX, 8(SP)
+-	MOVQ	CX, 16(SP)
+-	PCDATA  $PCDATA_StackMapIndex, $0
+-	CALL	*AX
+-	RET
+-
+-DATA gcargs_gohash<>+0x00(SB)/4, $1  // 1 stackmap
+-DATA gcargs_gohash<>+0x04(SB)/4, $10  // 5 args
+-DATA gcargs_gohash<>+0x08(SB)/4, $(const_BitsPointer+(const_BitsPointer<<2))
+-GLOBL gcargs_gohash<>(SB),RODATA,$12
+-
+-DATA gclocals_gohash<>+0x00(SB)/4, $1  // 1 stackmap
+-DATA gclocals_gohash<>+0x04(SB)/4, $0  // 0 locals
+-GLOBL gclocals_gohash<>(SB),RODATA,$8
++// sites to Go, we can redo the eq function to use the
++// Go calling convention and remove this.
+ 
+ // convert call to:
+ //   func (alg unsafe.Pointer, p, q unsafe.Pointer, size uintptr) bool
+diff --git a/src/pkg/runtime/asm_amd64p32.s b/src/pkg/runtime/asm_amd64p32.s
+index 0756272e24..f2a1f2a0bc 100644
+--- a/src/pkg/runtime/asm_amd64p32.s
++++ b/src/pkg/runtime/asm_amd64p32.s
+@@ -1181,40 +1181,10 @@ TEXT runtime·fastrand2(SB), NOSPLIT, $0-4
+ 	MOVL	DX, ret+0(FP)
+ 	RET
+ 
+-// The gohash and goeq trampolines are necessary while we have
++// The goeq trampoline is necessary while we have
+ // both Go and C calls to alg functions.  Once we move all call
+-// sites to Go, we can redo the hash/eq functions to use the
+-// Go calling convention and remove these.
+-
+-// convert call to:
+-//   func (alg unsafe.Pointer, p unsafe.Pointer, size uintpr, seed uintptr) uintptr
+-// to:
+-//   func (hash *uintptr, size uintptr, p unsafe.Pointer)
+-TEXT runtime·gohash(SB), NOSPLIT, $16-20
+-	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_gohash<>(SB)
+-	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_gohash<>(SB)
+-	MOVL	a+0(FP), AX
+-	MOVL	alg_hash(AX), AX
+-	MOVL	p+4(FP), CX
+-	MOVL	size+8(FP), DX
+-	MOVL	seed+12(FP), DI
+-	MOVL	DI, ret+16(FP)
+-	LEAL	ret+16(FP), SI
+-	MOVL	SI, 0(SP)
+-	MOVL	DX, 4(SP)
+-	MOVL	CX, 8(SP)
+-	PCDATA  $PCDATA_StackMapIndex, $0
+-	CALL	*AX
+-	RET
+-
+-DATA gcargs_gohash<>+0x00(SB)/4, $1  // 1 stackmap
+-DATA gcargs_gohash<>+0x04(SB)/4, $10  // 5 args
+-DATA gcargs_gohash<>+0x08(SB)/4, $(const_BitsPointer+(const_BitsPointer<<2))
+-GLOBL gcargs_gohash<>(SB),RODATA,$12
+-
+-DATA gclocals_gohash<>+0x00(SB)/4, $1  // 1 stackmap
+-DATA gclocals_gohash<>+0x04(SB)/4, $0  // 0 locals
+-GLOBL gclocals_gohash<>(SB),RODATA,$8
++// sites to Go, we can redo the eq functions to use the
++// Go calling convention and remove this.
+ 
+ // convert call to:
+ //   func (alg unsafe.Pointer, p, q unsafe.Pointer, size uintptr) bool
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 4866afd4dc..406a426078 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -1269,40 +1269,10 @@ TEXT runtime·fastrand2(SB), NOSPLIT, $-4-4
+ 	MOVW	R0, ret+0(FP)
+ 	RET
+ 
+-// The gohash and goeq trampolines are necessary while we have
++// The goeq trampoline is necessary while we have
+ // both Go and C calls to alg functions.  Once we move all call
+-// sites to Go, we can redo the hash/eq functions to use the
+-// Go calling convention and remove these.
+-
+-// convert call to:
+-//   func (alg unsafe.Pointer, p unsafe.Pointer, size uintpr, seed uintptr) uintptr
+-// to:
+-//   func (hash *uintptr, size uintptr, p unsafe.Pointer)
+-TEXT runtime·gohash(SB), NOSPLIT, $12-20
+-	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_gohash<>(SB)
+-	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_gohash<>(SB)
+-	MOVW	a+0(FP), R0
+-	MOVW	alg_hash(R0), R0
+-	MOVW	p+4(FP), R1
+-	MOVW	size+8(FP), R2
+-	MOVW	seed+12(FP), R3
+-	MOVW	R3, ret+16(FP)
+-	ADD	$36, R13, R4
+-	MOVW	R4, 4(R13)
+-	MOVW	R2, 8(R13)
+-	MOVW	R1, 12(R13)
+-	PCDATA  $PCDATA_StackMapIndex, $0
+-	BL	(R0)
+-	RET
+-
+-DATA gcargs_gohash<>+0x00(SB)/4, $1  // 1 stackmap
+-DATA gcargs_gohash<>+0x04(SB)/4, $10  // 5 args
+-DATA gcargs_gohash<>+0x08(SB)/4, $(const_BitsPointer+(const_BitsPointer<<2))
+-GLOBL gcargs_gohash<>(SB),RODATA,$12
+-
+-DATA gclocals_gohash<>+0x00(SB)/4, $1  // 1 stackmap
+-DATA gclocals_gohash<>+0x04(SB)/4, $0  // 0 locals
+-GLOBL gclocals_gohash<>(SB),RODATA,$8
++// sites to Go, we can redo the eq functions to use the
++// Go calling convention and remove this.
+ 
+ // convert call to:
+ //   func (alg unsafe.Pointer, p, q unsafe.Pointer, size uintptr) bool
+diff --git a/src/pkg/runtime/export_test.go b/src/pkg/runtime/export_test.go
+index 385ea19eac..01b47e17af 100644
+--- a/src/pkg/runtime/export_test.go
++++ b/src/pkg/runtime/export_test.go
+@@ -71,12 +71,6 @@ func testSchedLocalQueueSteal()
+ var TestSchedLocalQueue1 = testSchedLocalQueue
+ var TestSchedLocalQueueSteal1 = testSchedLocalQueueSteal
+ 
+-func haveGoodHash() bool
+-func stringHash(s string, seed uintptr) uintptr
+-func bytesHash(b []byte, seed uintptr) uintptr
+-func int32Hash(i uint32, seed uintptr) uintptr
+-func int64Hash(i uint64, seed uintptr) uintptr
+-
+ var HaveGoodHash = haveGoodHash
+ var StringHash = stringHash
+ var BytesHash = bytesHash
+diff --git a/src/pkg/runtime/hashmap.go b/src/pkg/runtime/hashmap.go
+index d181f9c930..0b4bb7d71c 100644
+--- a/src/pkg/runtime/hashmap.go
++++ b/src/pkg/runtime/hashmap.go
+@@ -259,7 +259,7 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+ 	if h == nil || h.count == 0 {
+ 		return unsafe.Pointer(t.elem.zero)
+ 	}
+-	hash := gohash(t.key.alg, key, uintptr(t.key.size), uintptr(h.hash0))
++	hash := goalg(t.key.alg).hash(key, uintptr(t.key.size), uintptr(h.hash0))
+ 	m := uintptr(1)<<h.B - 1
+ 	b := (*bmap)(add(h.buckets, (hash&m)*uintptr(h.bucketsize)))
+ 	if c := h.oldbuckets; c != nil {
+@@ -307,7 +307,7 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool)
+ 	if h == nil || h.count == 0 {
+ 		return unsafe.Pointer(t.elem.zero), false
+ 	}
+-	hash := gohash(t.key.alg, key, uintptr(t.key.size), uintptr(h.hash0))
++	hash := goalg(t.key.alg).hash(key, uintptr(t.key.size), uintptr(h.hash0))
+ 	m := uintptr(1)<<h.B - 1
+ 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + (hash&m)*uintptr(h.bucketsize)))
+ 	if c := h.oldbuckets; c != nil {
+@@ -349,7 +349,7 @@ func mapaccessK(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, unsafe
+ 	if h == nil || h.count == 0 {
+ 		return nil, nil
+ 	}
+-	hash := gohash(t.key.alg, key, uintptr(t.key.size), uintptr(h.hash0))
++	hash := goalg(t.key.alg).hash(key, uintptr(t.key.size), uintptr(h.hash0))
+ 	m := uintptr(1)<<h.B - 1
+ 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + (hash&m)*uintptr(h.bucketsize)))
+ 	if c := h.oldbuckets; c != nil {
+@@ -399,7 +399,7 @@ func mapassign1(t *maptype, h *hmap, key unsafe.Pointer, val unsafe.Pointer) {
+ 		raceReadObjectPC(t.elem, val, callerpc, pc)
+ 	}
+ 
+-	hash := gohash(t.key.alg, key, uintptr(t.key.size), uintptr(h.hash0))
++	hash := goalg(t.key.alg).hash(key, uintptr(t.key.size), uintptr(h.hash0))
+ 
+ 	if h.buckets == nil {
+ 		if checkgc {
+@@ -508,7 +508,7 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
+ 	if h == nil || h.count == 0 {
+ 		return
+ 	}
+-	hash := gohash(t.key.alg, key, uintptr(t.key.size), uintptr(h.hash0))
++	hash := goalg(t.key.alg).hash(key, uintptr(t.key.size), uintptr(h.hash0))
+ 	bucket := hash & (uintptr(1)<<h.B - 1)
+ 	if h.oldbuckets != nil {
+ 		growWork(t, h, bucket)
+@@ -664,7 +664,7 @@ next:
+ 				if goeq(t.key.alg, k2, k2, uintptr(t.key.size)) {
+ 					// If the item in the oldbucket is not destined for
+ 					// the current new bucket in the iteration, skip it.
+-					hash := gohash(t.key.alg, k2, uintptr(t.key.size), uintptr(h.hash0))
++					hash := goalg(t.key.alg).hash(k2, uintptr(t.key.size), uintptr(h.hash0))
+ 					if hash&(uintptr(1)<<it.B-1) != checkBucket {
+ 						continue
+ 					}
+@@ -804,7 +804,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
+ 				}
+ 				// Compute hash to make our evacuation decision (whether we need
+ 				// to send this key/value to bucket x or bucket y).
+-				hash := gohash(t.key.alg, k2, uintptr(t.key.size), uintptr(h.hash0))
++				hash := goalg(t.key.alg).hash(k2, uintptr(t.key.size), uintptr(h.hash0))
+ 				if h.flags&iterator != 0 {
+ 					if !goeq(t.key.alg, k2, k2, uintptr(t.key.size)) {
+ 						// If key != key (NaNs), then the hash could be (and probably
+@@ -905,7 +905,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
+ }
+ 
+ func ismapkey(t *_type) bool {
+-	return *(*uintptr)(unsafe.Pointer(&t.alg.hash)) != nohashcode
++	return **(**uintptr)(unsafe.Pointer(&t.alg.hash)) != nohashcode
+ }
+ 
+ // Reflect stubs.  Called from ../reflect/asm_*.s
+diff --git a/src/pkg/runtime/hashmap_fast.go b/src/pkg/runtime/hashmap_fast.go
+index 5055af4a7b..6176c842dd 100644
+--- a/src/pkg/runtime/hashmap_fast.go
++++ b/src/pkg/runtime/hashmap_fast.go
+@@ -23,7 +23,7 @@ func mapaccess1_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
+ 		// One-bucket table.  No need to hash.
+ 		b = (*bmap)(h.buckets)
+ 	} else {
+-		hash := gohash(t.key.alg, unsafe.Pointer(&key), 4, uintptr(h.hash0))
++		hash := goalg(t.key.alg).hash(noescape(unsafe.Pointer(&key)), 4, uintptr(h.hash0))
+ 		m := uintptr(1)<<h.B - 1
+ 		b = (*bmap)(add(h.buckets, (hash&m)*uintptr(h.bucketsize)))
+ 		if c := h.oldbuckets; c != nil {
+@@ -67,7 +67,7 @@ func mapaccess2_fast32(t *maptype, h *hmap, key uint32) (unsafe.Pointer, bool) {
+ 		// One-bucket table.  No need to hash.
+ 		b = (*bmap)(h.buckets)
+ 	} else {
+-		hash := gohash(t.key.alg, unsafe.Pointer(&key), 4, uintptr(h.hash0))
++		hash := goalg(t.key.alg).hash(noescape(unsafe.Pointer(&key)), 4, uintptr(h.hash0))
+ 		m := uintptr(1)<<h.B - 1
+ 		b = (*bmap)(add(h.buckets, (hash&m)*uintptr(h.bucketsize)))
+ 		if c := h.oldbuckets; c != nil {
+@@ -111,7 +111,7 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
+ 		// One-bucket table.  No need to hash.
+ 		b = (*bmap)(h.buckets)
+ 	} else {
+-		hash := gohash(t.key.alg, unsafe.Pointer(&key), 8, uintptr(h.hash0))
++		hash := goalg(t.key.alg).hash(noescape(unsafe.Pointer(&key)), 8, uintptr(h.hash0))
+ 		m := uintptr(1)<<h.B - 1
+ 		b = (*bmap)(add(h.buckets, (hash&m)*uintptr(h.bucketsize)))
+ 		if c := h.oldbuckets; c != nil {
+@@ -155,7 +155,7 @@ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
+ 		// One-bucket table.  No need to hash.
+ 		b = (*bmap)(h.buckets)
+ 	} else {
+-		hash := gohash(t.key.alg, unsafe.Pointer(&key), 8, uintptr(h.hash0))
++		hash := goalg(t.key.alg).hash(noescape(unsafe.Pointer(&key)), 8, uintptr(h.hash0))
+ 		m := uintptr(1)<<h.B - 1
+ 		b = (*bmap)(add(h.buckets, (hash&m)*uintptr(h.bucketsize)))
+ 		if c := h.oldbuckets; c != nil {
+@@ -254,7 +254,7 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
+ 		return unsafe.Pointer(t.elem.zero)
+ 	}
+ dohash:
+-	hash := gohash(t.key.alg, unsafe.Pointer(&ky), 2*ptrSize, uintptr(h.hash0))
++	hash := goalg(t.key.alg).hash(noescape(unsafe.Pointer(&ky)), 2*ptrSize, uintptr(h.hash0))
+ 	m := uintptr(1)<<h.B - 1
+ 	b := (*bmap)(add(h.buckets, (hash&m)*uintptr(h.bucketsize)))
+ 	if c := h.oldbuckets; c != nil {
+@@ -356,7 +356,7 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
+ 		return unsafe.Pointer(t.elem.zero), false
+ 	}
+ dohash:
+-	hash := gohash(t.key.alg, unsafe.Pointer(&ky), 2*ptrSize, uintptr(h.hash0))
++	hash := goalg(t.key.alg).hash(noescape(unsafe.Pointer(&ky)), 2*ptrSize, uintptr(h.hash0))
+ 	m := uintptr(1)<<h.B - 1
+ 	b := (*bmap)(add(h.buckets, (hash&m)*uintptr(h.bucketsize)))
+ 	if c := h.oldbuckets; c != nil {
+diff --git a/src/pkg/runtime/iface.goc b/src/pkg/runtime/iface.goc
+index b5f5815275..ec89746470 100644
+--- a/src/pkg/runtime/iface.goc
++++ b/src/pkg/runtime/iface.goc
+@@ -487,17 +487,16 @@ ifacehash1(void *data, Type *t, uintptr h)
+ 
+ 	alg = t->alg;
+ 	size = t->size;
+-	if(alg->hash == runtime·nohash) {
++	if(alg->hash->fn == (void(*)())runtime·nohash) {
+ 		// calling nohash will panic too,
+ 		// but we can print a better error.
+ 		runtime·newErrorString(runtime·catstring(runtime·gostringnocopy((byte*)"hash of unhashable type "), *t->string), &err);
+ 		runtime·panic(err);
+ 	}
+ 	if(size <= sizeof(data))
+-		alg->hash(&h, size, &data);
++		return ((uintptr(*)(void**,uintptr,uintptr))alg->hash)(&data, size, h);
+ 	else
+-		alg->hash(&h, size, data);
+-	return h;
++		return ((uintptr(*)(void*,uintptr,uintptr))alg->hash)(data, size, h);
+ }
+ 
+ uintptr
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 22551bda36..e6354d7e9c 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -633,7 +633,7 @@ enum
+ typedef	struct	Alg		Alg;
+ struct	Alg
+ {
+-	void	(*hash)(uintptr*, uintptr, void*);
++	FuncVal* hash;
+ 	void	(*equal)(bool*, uintptr, void*, void*);
+ 	void	(*print)(uintptr, void*);
+ 	void	(*copy)(uintptr, void*, void*);
+@@ -651,15 +651,19 @@ enum {
+ };
+ void	runtime·hashinit(void);
+ 
+-void	runtime·memhash(uintptr*, uintptr, void*);
+-void	runtime·nohash(uintptr*, uintptr, void*);
+-void	runtime·strhash(uintptr*, uintptr, void*);
+-void	runtime·interhash(uintptr*, uintptr, void*);
+-void	runtime·nilinterhash(uintptr*, uintptr, void*);
+-void	runtime·aeshash(uintptr*, uintptr, void*);
+-void	runtime·aeshash32(uintptr*, uintptr, void*);
+-void	runtime·aeshash64(uintptr*, uintptr, void*);
+-void	runtime·aeshashstr(uintptr*, uintptr, void*);
++uintptr	runtime·memhash(void*, uintptr, uintptr);
++uintptr	runtime·nohash(void*, uintptr, uintptr);
++uintptr	runtime·strhash(void*, uintptr, uintptr);
++uintptr	runtime·interhash(void*, uintptr, uintptr);
++uintptr	runtime·nilinterhash(void*, uintptr, uintptr);
++uintptr	runtime·f32hash(void*, uintptr, uintptr);
++uintptr	runtime·f64hash(void*, uintptr, uintptr);
++uintptr	runtime·c64hash(void*, uintptr, uintptr);
++uintptr	runtime·c128hash(void*, uintptr, uintptr);
++uintptr	runtime·aeshash(void*, uintptr, uintptr);
++uintptr	runtime·aeshash32(void*, uintptr, uintptr);
++uintptr	runtime·aeshash64(void*, uintptr, uintptr);
++uintptr	runtime·aeshashstr(void*, uintptr, uintptr);
+ 
+ void	runtime·memequal(bool*, uintptr, void*, void*);
+ void	runtime·noequal(bool*, uintptr, void*, void*);
+diff --git a/src/pkg/runtime/stubs.go b/src/pkg/runtime/stubs.go
+index fa1fa859c8..30638d1af8 100644
+--- a/src/pkg/runtime/stubs.go
++++ b/src/pkg/runtime/stubs.go
+@@ -120,3 +120,27 @@ func golock(x *lock)
+ func gounlock(x *lock)
+ func semacquire(*uint32, bool)
+ func semrelease(*uint32)
++
++// Return the Go equivalent of the C Alg structure.
++// TODO: at some point Go will hold the truth for the layout
++// of runtime structures and C will be derived from it (if
++// needed at all).  At that point this function can go away.
++type goalgtype struct {
++	// function for hashing objects of this type
++	// (ptr to object, size, seed) -> hash
++	hash func(unsafe.Pointer, uintptr, uintptr) uintptr
++}
++
++func goalg(a *alg) *goalgtype {
++	return (*goalgtype)(unsafe.Pointer(a))
++}
++
++// noescape hides a pointer from escape analysis.  noescape is
++// the identity function but escape analysis doesn't think the
++// output depends on the input.  noescape is inlined and currently
++// compiles down to a single xor instruction.
++// USE CAREFULLY!
++func noescape(p unsafe.Pointer) unsafe.Pointer {
++	x := uintptr(p)
++	return unsafe.Pointer(x ^ 0)
++}

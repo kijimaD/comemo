@@ -19,6 +19,22 @@ Date:   Wed Jun 5 09:26:29 2024 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     Auto-Submit: Damien Neil <dneil@google.com>
-
+---
  src/net/http/server.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index e28b107e99..9deb308e8a 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -3598,9 +3598,7 @@ func (srv *Server) onceSetNextProtoDefaults() {
+ 	// Enable HTTP/2 by default if the user hasn't otherwise
+ 	// configured their TLSNextProto map.
+ 	if srv.TLSNextProto == nil {
+-		conf := &http2Server{
+-			NewWriteScheduler: func() http2WriteScheduler { return http2NewPriorityWriteScheduler(nil) },
+-		}
++		conf := &http2Server{}
+ 		srv.nextProtoErr = http2ConfigureServer(srv, conf)
+ 	}
+ }

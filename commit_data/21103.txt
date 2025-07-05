@@ -8,10 +8,224 @@ Date:   Sat Nov 15 03:55:14 2014 +1100
     R=golang-codereviews, bradfitz, rsc
     CC=golang-codereviews
     https://golang.org/cl/173200044
-
+---
  src/runtime/defs_openbsd_386.go   | 64 +++++++++++++++++++++++----------------
  src/runtime/defs_openbsd_amd64.go |  4 +--
  src/runtime/os1_openbsd.go        |  2 +-
  src/runtime/signal_openbsd_386.go | 41 +++++++++++++++++++++++++
  src/runtime/signal_openbsd_386.h  | 23 --------------
  5 files changed, 82 insertions(+), 52 deletions(-)
+
+diff --git a/src/runtime/defs_openbsd_386.go b/src/runtime/defs_openbsd_386.go
+index a6194a4be8..d7cdbd2273 100644
+--- a/src/runtime/defs_openbsd_386.go
++++ b/src/runtime/defs_openbsd_386.go
+@@ -85,38 +85,38 @@ const (
+ )
+ 
+ type tforkt struct {
+-	tf_tcb   *byte
++	tf_tcb   unsafe.Pointer
+ 	tf_tid   *int32
+-	tf_stack *byte
++	tf_stack uintptr
+ }
+ 
+ type sigaltstackt struct {
+-	ss_sp    *byte
+-	ss_size  uint32
++	ss_sp    uintptr
++	ss_size  uintptr
+ 	ss_flags int32
+ }
+ 
+ type sigcontext struct {
+-	sc_gs       int32
+-	sc_fs       int32
+-	sc_es       int32
+-	sc_ds       int32
+-	sc_edi      int32
+-	sc_esi      int32
+-	sc_ebp      int32
+-	sc_ebx      int32
+-	sc_edx      int32
+-	sc_ecx      int32
+-	sc_eax      int32
+-	sc_eip      int32
+-	sc_cs       int32
+-	sc_eflags   int32
+-	sc_esp      int32
+-	sc_ss       int32
+-	__sc_unused int32
+-	sc_mask     int32
+-	sc_trapno   int32
+-	sc_err      int32
++	sc_gs       uint32
++	sc_fs       uint32
++	sc_es       uint32
++	sc_ds       uint32
++	sc_edi      uint32
++	sc_esi      uint32
++	sc_ebp      uint32
++	sc_ebx      uint32
++	sc_edx      uint32
++	sc_ecx      uint32
++	sc_eax      uint32
++	sc_eip      uint32
++	sc_cs       uint32
++	sc_eflags   uint32
++	sc_esp      uint32
++	sc_ss       uint32
++	__sc_unused uint32
++	sc_mask     uint32
++	sc_trapno   uint32
++	sc_err      uint32
+ 	sc_fpstate  unsafe.Pointer
+ }
+ 
+@@ -128,8 +128,8 @@ type siginfo struct {
+ }
+ 
+ type stackt struct {
+-	ss_sp    *byte
+-	ss_size  uint32
++	ss_sp    uintptr
++	ss_size  uintptr
+ 	ss_flags int32
+ }
+ 
+@@ -138,11 +138,23 @@ type timespec struct {
+ 	tv_nsec int32
+ }
+ 
++func (ts *timespec) set_sec(x int32) {
++	ts.tv_sec = int64(x)
++}
++
++func (ts *timespec) set_nsec(x int32) {
++	ts.tv_nsec = x
++}
++
+ type timeval struct {
+ 	tv_sec  int64
+ 	tv_usec int32
+ }
+ 
++func (tv *timeval) set_usec(x int32) {
++	tv.tv_usec = x
++}
++
+ type itimerval struct {
+ 	it_interval timeval
+ 	it_value    timeval
+diff --git a/src/runtime/defs_openbsd_amd64.go b/src/runtime/defs_openbsd_amd64.go
+index 9b110239aa..122f46cf33 100644
+--- a/src/runtime/defs_openbsd_amd64.go
++++ b/src/runtime/defs_openbsd_amd64.go
+@@ -92,7 +92,7 @@ type tforkt struct {
+ 
+ type sigaltstackt struct {
+ 	ss_sp     uintptr
+-	ss_size   uint64
++	ss_size   uintptr
+ 	ss_flags  int32
+ 	pad_cgo_0 [4]byte
+ }
+@@ -139,7 +139,7 @@ type siginfo struct {
+ 
+ type stackt struct {
+ 	ss_sp     uintptr
+-	ss_size   uint64
++	ss_size   uintptr
+ 	ss_flags  int32
+ 	pad_cgo_0 [4]byte
+ }
+diff --git a/src/runtime/os1_openbsd.go b/src/runtime/os1_openbsd.go
+index 49cc792d33..5c6ea74121 100644
+--- a/src/runtime/os1_openbsd.go
++++ b/src/runtime/os1_openbsd.go
+@@ -222,7 +222,7 @@ func signalstack(p *byte, n int32) {
+ 	var st stackt
+ 
+ 	st.ss_sp = uintptr(unsafe.Pointer(p))
+-	st.ss_size = uint64(n)
++	st.ss_size = uintptr(n)
+ 	st.ss_flags = 0
+ 	if p == nil {
+ 		st.ss_flags = _SS_DISABLE
+diff --git a/src/runtime/signal_openbsd_386.go b/src/runtime/signal_openbsd_386.go
+new file mode 100644
+index 0000000000..c582a44935
+--- /dev/null
++++ b/src/runtime/signal_openbsd_386.go
+@@ -0,0 +1,41 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++type sigctxt struct {
++	info *siginfo
++	ctxt unsafe.Pointer
++}
++
++func (c *sigctxt) regs() *sigcontext {
++	return (*sigcontext)(c.ctxt)
++}
++
++func (c *sigctxt) eax() uint32     { return c.regs().sc_eax }
++func (c *sigctxt) ebx() uint32     { return c.regs().sc_ebx }
++func (c *sigctxt) ecx() uint32     { return c.regs().sc_ecx }
++func (c *sigctxt) edx() uint32     { return c.regs().sc_edx }
++func (c *sigctxt) edi() uint32     { return c.regs().sc_edi }
++func (c *sigctxt) esi() uint32     { return c.regs().sc_esi }
++func (c *sigctxt) ebp() uint32     { return c.regs().sc_ebp }
++func (c *sigctxt) esp() uint32     { return c.regs().sc_esp }
++func (c *sigctxt) eip() uint32     { return c.regs().sc_eip }
++func (c *sigctxt) eflags() uint32  { return c.regs().sc_eflags }
++func (c *sigctxt) cs() uint32      { return c.regs().sc_cs }
++func (c *sigctxt) fs() uint32      { return c.regs().sc_fs }
++func (c *sigctxt) gs() uint32      { return c.regs().sc_gs }
++func (c *sigctxt) sigcode() uint32 { return uint32(c.info.si_code) }
++func (c *sigctxt) sigaddr() uint32 {
++	return *(*uint32)(add(unsafe.Pointer(c.info), 12))
++}
++
++func (c *sigctxt) set_eip(x uint32)     { c.regs().sc_eip = x }
++func (c *sigctxt) set_esp(x uint32)     { c.regs().sc_esp = x }
++func (c *sigctxt) set_sigcode(x uint32) { c.info.si_code = int32(x) }
++func (c *sigctxt) set_sigaddr(x uint32) {
++	*(*uint32)(add(unsafe.Pointer(c.info), 12)) = x
++}
+diff --git a/src/runtime/signal_openbsd_386.h b/src/runtime/signal_openbsd_386.h
+deleted file mode 100644
+index 6742db8d49..0000000000
+--- a/src/runtime/signal_openbsd_386.h
++++ /dev/null
+@@ -1,23 +0,0 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#define SIG_REGS(ctxt) (*(Sigcontext*)(ctxt))
+-
+-#define SIG_EAX(info, ctxt) (SIG_REGS(ctxt).sc_eax)
+-#define SIG_EBX(info, ctxt) (SIG_REGS(ctxt).sc_ebx)
+-#define SIG_ECX(info, ctxt) (SIG_REGS(ctxt).sc_ecx)
+-#define SIG_EDX(info, ctxt) (SIG_REGS(ctxt).sc_edx)
+-#define SIG_EDI(info, ctxt) (SIG_REGS(ctxt).sc_edi)
+-#define SIG_ESI(info, ctxt) (SIG_REGS(ctxt).sc_esi)
+-#define SIG_EBP(info, ctxt) (SIG_REGS(ctxt).sc_ebp)
+-#define SIG_ESP(info, ctxt) (SIG_REGS(ctxt).sc_esp)
+-#define SIG_EIP(info, ctxt) (SIG_REGS(ctxt).sc_eip)
+-#define SIG_EFLAGS(info, ctxt) (SIG_REGS(ctxt).sc_eflags)
+-
+-#define SIG_CS(info, ctxt) (SIG_REGS(ctxt).sc_cs)
+-#define SIG_FS(info, ctxt) (SIG_REGS(ctxt).sc_fs)
+-#define SIG_GS(info, ctxt) (SIG_REGS(ctxt).sc_gs)
+-
+-#define SIG_CODE0(info, ctxt) ((info)->si_code)
+-#define SIG_CODE1(info, ctxt) (*(uintptr*)((byte*)info + 12))

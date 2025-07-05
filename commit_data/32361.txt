@@ -28,7 +28,7 @@ Date:   Fri Apr 21 07:51:41 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ggen.go   |  2 +-
  src/cmd/compile/internal/arm/ggen.go     |  2 +-
  src/cmd/compile/internal/arm64/ggen.go   |  2 +-
@@ -56,3 +56,783 @@ Date:   Fri Apr 21 07:51:41 2017 -0700
  src/cmd/compile/internal/types/utils.go  |  1 +
  src/cmd/compile/internal/x86/ggen.go     |  2 +-
  26 files changed, 98 insertions(+), 96 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ggen.go b/src/cmd/compile/internal/amd64/ggen.go
+index 60a19f899b..e294bce66b 100644
+--- a/src/cmd/compile/internal/amd64/ggen.go
++++ b/src/cmd/compile/internal/amd64/ggen.go
+@@ -127,7 +127,7 @@ func zeroAuto(pp *gc.Progs, n *gc.Node) {
+ 	if gc.Widthptr == 4 {
+ 		op = x86.AMOVL
+ 	}
+-	sym := gc.Linksym(n.Sym)
++	sym := n.Sym.Linksym()
+ 	size := n.Type.Size()
+ 	for i := int64(0); i < size; i += int64(gc.Widthptr) {
+ 		p := pp.Prog(op)
+diff --git a/src/cmd/compile/internal/arm/ggen.go b/src/cmd/compile/internal/arm/ggen.go
+index 8a9e1d2b5b..b2fc272ec6 100644
+--- a/src/cmd/compile/internal/arm/ggen.go
++++ b/src/cmd/compile/internal/arm/ggen.go
+@@ -49,7 +49,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, r0 *uint32) *obj.Prog
+ 
+ func zeroAuto(pp *gc.Progs, n *gc.Node) {
+ 	// Note: this code must not clobber any registers.
+-	sym := gc.Linksym(n.Sym)
++	sym := n.Sym.Linksym()
+ 	size := n.Type.Size()
+ 	p := pp.Prog(arm.AMOVW)
+ 	p.From.Type = obj.TYPE_CONST
+diff --git a/src/cmd/compile/internal/arm64/ggen.go b/src/cmd/compile/internal/arm64/ggen.go
+index 6b457e1fd0..52a8e3f3e3 100644
+--- a/src/cmd/compile/internal/arm64/ggen.go
++++ b/src/cmd/compile/internal/arm64/ggen.go
+@@ -60,7 +60,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
+ 
+ func zeroAuto(pp *gc.Progs, n *gc.Node) {
+ 	// Note: this code must not clobber any registers.
+-	sym := gc.Linksym(n.Sym)
++	sym := n.Sym.Linksym()
+ 	size := n.Type.Size()
+ 	for i := int64(0); i < size; i += 8 {
+ 		p := pp.Prog(arm64.AMOVD)
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index 528748fdf7..fada9a115b 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -157,7 +157,7 @@ func algtype1(t *types.Type) (AlgKind, *types.Type) {
+ 		fields := t.FieldSlice()
+ 
+ 		// One-field struct is same as that one field alone.
+-		if len(fields) == 1 && !isblanksym(fields[0].Sym) {
++		if len(fields) == 1 && !fields[0].Sym.IsBlank() {
+ 			return algtype1(fields[0].Type)
+ 		}
+ 
+@@ -171,7 +171,7 @@ func algtype1(t *types.Type) (AlgKind, *types.Type) {
+ 
+ 			// Blank fields, padded fields, fields with non-memory
+ 			// equality need special compare.
+-			if a != AMEM || isblanksym(f.Sym) || ispaddedfield(t, i) {
++			if a != AMEM || f.Sym.IsBlank() || ispaddedfield(t, i) {
+ 				ret = ASPECIAL
+ 			}
+ 		}
+@@ -247,7 +247,7 @@ func genhash(sym *types.Sym, t *types.Type) {
+ 			f := fields[i]
+ 
+ 			// Skip blank fields.
+-			if isblanksym(f.Sym) {
++			if f.Sym.IsBlank() {
+ 				i++
+ 				continue
+ 			}
+@@ -435,7 +435,7 @@ func geneq(sym *types.Sym, t *types.Type) {
+ 			f := fields[i]
+ 
+ 			// Skip blank-named fields.
+-			if isblanksym(f.Sym) {
++			if f.Sym.IsBlank() {
+ 				i++
+ 				continue
+ 			}
+@@ -568,7 +568,7 @@ func memrun(t *types.Type, start int) (size int64, next int) {
+ 			break
+ 		}
+ 		// Also, stop before a blank or non-memory field.
+-		if f := t.Field(next); isblanksym(f.Sym) || !IsRegularMemory(f.Type) {
++		if f := t.Field(next); f.Sym.IsBlank() || !IsRegularMemory(f.Type) {
+ 			break
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index e9b0efcf47..93f52f3af2 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -607,7 +607,7 @@ func checkdupfields(what string, ts ...*types.Type) {
+ 	seen := make(map[*types.Sym]bool)
+ 	for _, t := range ts {
+ 		for _, f := range t.Fields().Slice() {
+-			if f.Sym == nil || isblanksym(f.Sym) || asNode(f.Nname) == nil {
++			if f.Sym == nil || f.Sym.IsBlank() || asNode(f.Nname) == nil {
+ 				continue
+ 			}
+ 			if seen[f.Sym] {
+@@ -935,7 +935,7 @@ func methodname(s *types.Sym, recv *types.Type) *types.Sym {
+ 	}
+ 
+ 	tsym := recv.Sym
+-	if tsym == nil || isblanksym(s) {
++	if tsym == nil || s.IsBlank() {
+ 		return s
+ 	}
+ 
+@@ -1000,7 +1000,7 @@ func addmethod(msym *types.Sym, t *types.Type, local, nointerface bool) {
+ 		return
+ 	}
+ 
+-	if isblanksym(msym) {
++	if msym.IsBlank() {
+ 		return
+ 	}
+ 
+@@ -1087,7 +1087,7 @@ func makefuncsym(s *types.Sym) {
+ 	if !Ctxt.Flag_dynlink {
+ 		Fatalf("makefuncsym dynlink")
+ 	}
+-	if isblanksym(s) {
++	if s.IsBlank() {
+ 		return
+ 	}
+ 	if compiling_runtime && s.Name == "getg" {
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 4565c4aa02..8ee4af2831 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -2109,7 +2109,7 @@ func (e *EscState) esctag(fn *Node) {
+ 	// (Unnamed parameters are not in the Dcl list in the loop above
+ 	// so we need to mark them separately.)
+ 	for _, f := range fn.Type.Params().Fields().Slice() {
+-		if f.Sym == nil || isblanksym(f.Sym) {
++		if f.Sym == nil || f.Sym.IsBlank() {
+ 			f.Note = mktag(EscNone)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index b214d8fb97..5f72c67c00 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -301,7 +301,7 @@ func dumpasmhdr() {
+ 	}
+ 	fmt.Fprintf(b, "// generated by compile -asmhdr from package %s\n\n", localpkg.Name)
+ 	for _, n := range asmlist {
+-		if isblanksym(n.Sym) {
++		if n.Sym.IsBlank() {
+ 			continue
+ 		}
+ 		switch n.Op {
+@@ -315,7 +315,7 @@ func dumpasmhdr() {
+ 			}
+ 			fmt.Fprintf(b, "#define %s__size %d\n", t.Sym.Name, int(t.Width))
+ 			for _, t := range t.Fields().Slice() {
+-				if !isblanksym(t.Sym) {
++				if !t.Sym.IsBlank() {
+ 					fmt.Fprintf(b, "#define %s_%s %d\n", n.Sym.Name, t.Sym.Name, int(t.Offset))
+ 				}
+ 			}
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 176611de92..3738070027 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -15,7 +15,7 @@ import (
+ )
+ 
+ func Sysfunc(name string) *obj.LSym {
+-	return Linksym(Runtimepkg.Lookup(name))
++	return Runtimepkg.Lookup(name).Linksym()
+ }
+ 
+ // addrescapes tags node n as having had its address taken
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 24497f40f5..941e8e963c 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -173,7 +173,7 @@ func (f *Func) initLSym() {
+ 	}
+ 
+ 	if nam := f.Nname; !isblank(nam) {
+-		f.lsym = Linksym(nam.Sym)
++		f.lsym = nam.Sym.Linksym()
+ 		if f.Pragma&Systemstack != 0 {
+ 			f.lsym.Set(obj.AttrCFunc, true)
+ 		}
+@@ -213,8 +213,8 @@ func (f *Func) initLSym() {
+ }
+ 
+ func ggloblnod(nam *Node) {
+-	s := Linksym(nam.Sym)
+-	s.Gotype = Linksym(ngotype(nam))
++	s := nam.Sym.Linksym()
++	s.Gotype = ngotype(nam).Linksym()
+ 	flags := 0
+ 	if nam.Name.Readonly() {
+ 		flags = obj.RODATA
+@@ -226,7 +226,7 @@ func ggloblnod(nam *Node) {
+ }
+ 
+ func ggloblsym(s *types.Sym, width int32, flags int16) {
+-	ggloblLSym(Linksym(s), width, flags)
++	ggloblLSym(s.Linksym(), width, flags)
+ }
+ 
+ func ggloblLSym(s *obj.LSym, width int32, flags int16) {
+@@ -316,7 +316,7 @@ func nodarg(t interface{}, fp int) *Node {
+ 			}
+ 
+ 			for _, n := range Curfn.Func.Dcl {
+-				if (n.Class == PPARAM || n.Class == PPARAMOUT) && !isblanksym(t.Sym) && n.Sym == t.Sym {
++				if (n.Class == PPARAM || n.Class == PPARAMOUT) && !t.Sym.IsBlank() && n.Sym == t.Sym {
+ 					if n != expect {
+ 						Fatalf("nodarg: unexpected node: %v (%p %v) vs %v (%p %v)", n, n, n.Op, asNode(t.Nname), asNode(t.Nname), asNode(t.Nname).Op)
+ 					}
+@@ -324,7 +324,7 @@ func nodarg(t interface{}, fp int) *Node {
+ 				}
+ 			}
+ 
+-			if !isblanksym(expect.Sym) {
++			if !expect.Sym.IsBlank() {
+ 				Fatalf("nodarg: did not find node in dcl list: %v", expect)
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 464b6e0e65..2982322c0c 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -762,7 +762,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
+ 	if callBase != nil {
+ 		parent = callBase.InliningIndex()
+ 	}
+-	newIndex := Ctxt.InlTree.Add(parent, n.Pos, Linksym(fn.Sym))
++	newIndex := Ctxt.InlTree.Add(parent, n.Pos, fn.Sym.Linksym())
+ 	setpos := &setPos{
+ 		bases:       make(map[*src.PosBase]*src.PosBase),
+ 		newInlIndex: newIndex,
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index ecbc0d4590..c7a8bc2f78 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -361,11 +361,12 @@ func Main(archInit func(*Arch)) {
+ 		return f.Sym.Name
+ 	}
+ 	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
+-		return Linksym(typenamesym(t))
++		return typenamesym(t).Linksym()
+ 	}
+ 	types.FmtLeft = int(FmtLeft)
+ 	types.FmtUnsigned = int(FmtUnsigned)
+ 	types.FErr = FErr
++	types.Ctxt = Ctxt
+ 
+ 	initUniverse()
+ 
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 3ff5c6fa20..88ca348e43 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -251,28 +251,8 @@ func addGCLocals() {
+ 	}
+ }
+ 
+-func linksymname(s *types.Sym) string {
+-	if isblanksym(s) {
+-		return "_"
+-	}
+-	if s.Linkname != "" {
+-		return s.Linkname
+-	}
+-	return s.Pkg.Prefix + "." + s.Name
+-}
+-
+-func Linksym(s *types.Sym) *obj.LSym {
+-	if s == nil {
+-		return nil
+-	}
+-	if s.Lsym == nil {
+-		s.Lsym = Ctxt.Lookup(linksymname(s))
+-	}
+-	return s.Lsym
+-}
+-
+ func duintxx(s *types.Sym, off int, v uint64, wid int) int {
+-	return duintxxLSym(Linksym(s), off, v, wid)
++	return duintxxLSym(s.Linksym(), off, v, wid)
+ }
+ 
+ func duintxxLSym(s *obj.LSym, off int, v uint64, wid int) int {
+@@ -369,7 +349,7 @@ func slicebytes(nam *Node, s string, len int) {
+ }
+ 
+ func dsname(s *types.Sym, off int, t string) int {
+-	return dsnameLSym(Linksym(s), off, t)
++	return dsnameLSym(s.Linksym(), off, t)
+ }
+ 
+ func dsnameLSym(s *obj.LSym, off int, t string) int {
+@@ -378,7 +358,7 @@ func dsnameLSym(s *obj.LSym, off int, t string) int {
+ }
+ 
+ func dsymptr(s *types.Sym, off int, x *types.Sym, xoff int) int {
+-	return dsymptrLSym(Linksym(s), off, Linksym(x), xoff)
++	return dsymptrLSym(s.Linksym(), off, x.Linksym(), xoff)
+ }
+ 
+ func dsymptrLSym(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
+@@ -407,7 +387,7 @@ func gdata(nam *Node, nr *Node, wid int) {
+ 	if nam.Sym == nil {
+ 		Fatalf("gdata nil nam sym")
+ 	}
+-	s := Linksym(nam.Sym)
++	s := nam.Sym.Linksym()
+ 
+ 	switch nr.Op {
+ 	case OLITERAL:
+@@ -454,13 +434,13 @@ func gdata(nam *Node, nr *Node, wid int) {
+ 			Fatalf("gdata ADDR left op %v", nr.Left.Op)
+ 		}
+ 		to := nr.Left
+-		s.WriteAddr(Ctxt, nam.Xoffset, wid, Linksym(to.Sym), to.Xoffset)
++		s.WriteAddr(Ctxt, nam.Xoffset, wid, to.Sym.Linksym(), to.Xoffset)
+ 
+ 	case ONAME:
+ 		if nr.Class != PFUNC {
+ 			Fatalf("gdata NAME not PFUNC %d", nr.Class)
+ 		}
+-		s.WriteAddr(Ctxt, nam.Xoffset, wid, Linksym(funcsym(nr.Sym)), nr.Xoffset)
++		s.WriteAddr(Ctxt, nam.Xoffset, wid, funcsym(nr.Sym).Linksym(), nr.Xoffset)
+ 
+ 	default:
+ 		Fatalf("gdata unhandled op %v %v\n", nr, nr.Op)
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 6a3a345bf4..9c67d624e5 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -23,7 +23,7 @@ func emitptrargsmap() {
+ 		return
+ 	}
+ 	sym := lookup(fmt.Sprintf("%s.args_stackmap", Curfn.Func.Nname.Sym.Name))
+-	lsym := Linksym(sym)
++	lsym := sym.Linksym()
+ 
+ 	nptr := int(Curfn.Type.ArgWidth() / int64(Widthptr))
+ 	bv := bvalloc(int32(nptr) * 2)
+@@ -223,7 +223,7 @@ func compile(fn *Node) {
+ 
+ func debuginfo(fnsym *obj.LSym, curfn interface{}) []*dwarf.Var {
+ 	fn := curfn.(*Node)
+-	if expect := Linksym(fn.Func.Nname.Sym); fnsym != expect {
++	if expect := fn.Func.Nname.Sym.Linksym(); fnsym != expect {
+ 		Fatalf("unexpected fnsym: %v != %v", fnsym, expect)
+ 	}
+ 
+@@ -262,7 +262,7 @@ func debuginfo(fnsym *obj.LSym, curfn interface{}) []*dwarf.Var {
+ 			continue
+ 		}
+ 
+-		gotype := Linksym(ngotype(n))
++		gotype := ngotype(n).Linksym()
+ 		fnsym.Func.Autom = append(fnsym.Func.Autom, &obj.Auto{
+ 			Asym:    Ctxt.Lookup(n.Sym.Name),
+ 			Aoffset: int32(n.Xoffset),
+@@ -306,7 +306,7 @@ func fieldtrack(fnsym *obj.LSym, tracked map[*types.Sym]struct{}) {
+ 	sort.Sort(symByName(trackSyms))
+ 	for _, sym := range trackSyms {
+ 		r := obj.Addrel(fnsym)
+-		r.Sym = Linksym(sym)
++		r.Sym = sym.Linksym()
+ 		r.Type = objabi.R_USEFIELD
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 3f9bf40a95..a80048cd8e 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -409,7 +409,7 @@ func imethods(t *types.Type) []*Sig {
+ 		methods = append(methods, &sig)
+ 
+ 		// Compiler can only refer to wrappers for non-blank methods.
+-		if isblanksym(method) {
++		if method.IsBlank() {
+ 			continue
+ 		}
+ 
+@@ -454,7 +454,7 @@ func dimportpath(p *types.Pkg) {
+ }
+ 
+ func dgopkgpath(s *types.Sym, ot int, pkg *types.Pkg) int {
+-	return dgopkgpathLSym(Linksym(s), ot, pkg)
++	return dgopkgpathLSym(s.Linksym(), ot, pkg)
+ }
+ 
+ func dgopkgpathLSym(s *obj.LSym, ot int, pkg *types.Pkg) int {
+@@ -521,7 +521,7 @@ func dnameField(s *types.Sym, ot int, spkg *types.Pkg, ft *types.Field) int {
+ 		fpkg = nil
+ 	}
+ 	nsym := dname(name, ft.Note, fpkg, isExported)
+-	return dsymptrLSym(Linksym(s), ot, nsym, 0)
++	return dsymptrLSym(s.Linksym(), ot, nsym, 0)
+ }
+ 
+ // dnameData writes the contents of a reflect.name into s at offset ot.
+@@ -617,7 +617,7 @@ func dextratype(s *types.Sym, ot int, t *types.Type, dataAdd int) int {
+ 		dtypesym(a.type_)
+ 	}
+ 
+-	ot = dgopkgpathOffLSym(Linksym(s), ot, typePkg(t))
++	ot = dgopkgpathOffLSym(s.Linksym(), ot, typePkg(t))
+ 
+ 	dataAdd += uncommonSize(t)
+ 	mcount := len(m)
+@@ -654,7 +654,7 @@ func typePkg(t *types.Type) *types.Pkg {
+ // dextratypeData dumps the backing array for the []method field of
+ // runtime.uncommontype.
+ func dextratypeData(s *types.Sym, ot int, t *types.Type) int {
+-	lsym := Linksym(s)
++	lsym := s.Linksym()
+ 	for _, a := range methods(t) {
+ 		// ../../../../runtime/type.go:/method
+ 		exported := exportname(a.name)
+@@ -665,9 +665,9 @@ func dextratypeData(s *types.Sym, ot int, t *types.Type) int {
+ 		nsym := dname(a.name, "", pkg, exported)
+ 
+ 		ot = dsymptrOffLSym(lsym, ot, nsym, 0)
+-		ot = dmethodptrOffLSym(lsym, ot, Linksym(dtypesym(a.mtype)))
+-		ot = dmethodptrOffLSym(lsym, ot, Linksym(a.isym))
+-		ot = dmethodptrOffLSym(lsym, ot, Linksym(a.tsym))
++		ot = dmethodptrOffLSym(lsym, ot, dtypesym(a.mtype).Linksym())
++		ot = dmethodptrOffLSym(lsym, ot, a.isym.Linksym())
++		ot = dmethodptrOffLSym(lsym, ot, a.tsym.Linksym())
+ 	}
+ 	return ot
+ }
+@@ -885,14 +885,14 @@ func dcommontype(s *types.Sym, ot int, t *types.Type) int {
+ 	ot = dsymptr(s, ot, gcsym, 0) // gcdata
+ 
+ 	nsym := dname(p, "", nil, exported)
+-	ot = dsymptrOffLSym(Linksym(s), ot, nsym, 0) // str
++	ot = dsymptrOffLSym(s.Linksym(), ot, nsym, 0) // str
+ 	// ptrToThis
+ 	if sptr == nil {
+ 		ot = duint32(s, ot, 0)
+ 	} else if sptrWeak {
+-		ot = dsymptrWeakOffLSym(Linksym(s), ot, Linksym(sptr))
++		ot = dsymptrWeakOffLSym(s.Linksym(), ot, sptr.Linksym())
+ 	} else {
+-		ot = dsymptrOffLSym(Linksym(s), ot, Linksym(sptr), 0)
++		ot = dsymptrOffLSym(s.Linksym(), ot, sptr.Linksym(), 0)
+ 	}
+ 
+ 	return ot
+@@ -1209,7 +1209,7 @@ ok:
+ 		dataAdd := imethodSize() * n
+ 		ot = dextratype(s, ot, t, dataAdd)
+ 
+-		lsym := Linksym(s)
++		lsym := s.Linksym()
+ 		for _, a := range m {
+ 			// ../../../../runtime/type.go:/imethod
+ 			exported := exportname(a.name)
+@@ -1220,7 +1220,7 @@ ok:
+ 			nsym := dname(a.name, "", pkg, exported)
+ 
+ 			ot = dsymptrOffLSym(lsym, ot, nsym, 0)
+-			ot = dsymptrOffLSym(lsym, ot, Linksym(dtypesym(a.type_)), 0)
++			ot = dsymptrOffLSym(lsym, ot, dtypesym(a.type_).Linksym(), 0)
+ 		}
+ 
+ 	// ../../../../runtime/type.go:/mapType
+@@ -1352,7 +1352,7 @@ func peekitabs() {
+ 		if len(methods) == 0 {
+ 			continue
+ 		}
+-		tab.lsym = Linksym(tab.sym)
++		tab.lsym = tab.sym.Linksym()
+ 		tab.entries = methods
+ 	}
+ }
+@@ -1375,7 +1375,7 @@ func genfun(t, it *types.Type) []*obj.LSym {
+ 	// so we can find the intersect in a single pass
+ 	for _, m := range methods {
+ 		if m.name == sigs[0].name {
+-			out = append(out, Linksym(m.isym))
++			out = append(out, m.isym.Linksym())
+ 			sigs = sigs[1:]
+ 			if len(sigs) == 0 {
+ 				break
+@@ -1488,14 +1488,14 @@ func dumptypestructs() {
+ 			// }
+ 			nsym := dname(p.s.Name, "", nil, true)
+ 			ot = dsymptrOffLSym(s, ot, nsym, 0)
+-			ot = dsymptrOffLSym(s, ot, Linksym(dtypesym(p.t)), 0)
++			ot = dsymptrOffLSym(s, ot, dtypesym(p.t).Linksym(), 0)
+ 		}
+ 		ggloblLSym(s, int32(ot), int16(obj.RODATA))
+ 
+ 		ot = 0
+ 		s = Ctxt.Lookup("go.plugin.exports")
+ 		for _, p := range ptabs {
+-			ot = dsymptrLSym(s, ot, Linksym(p.s), 0)
++			ot = dsymptrLSym(s, ot, p.s.Linksym(), 0)
+ 		}
+ 		ggloblLSym(s, int32(ot), int16(obj.RODATA))
+ 	}
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 0ff94abe2e..b2d1fa7a28 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -725,7 +725,7 @@ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes)
+ 			if r.Op != OSTRUCTKEY {
+ 				Fatalf("fixedlit: rhs not OSTRUCTKEY: %v", r)
+ 			}
+-			if isblanksym(r.Sym) {
++			if r.Sym.IsBlank() {
+ 				return nblank, r.Left
+ 			}
+ 			return nodSym(ODOT, var_, r.Sym), r.Left
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index aba1111be2..9ca6ef88b7 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -762,7 +762,7 @@ func (s *state) stmt(n *Node) {
+ 		s.stmtList(n.List)
+ 		b := s.exit()
+ 		b.Kind = ssa.BlockRetJmp // override BlockRet
+-		b.Aux = Linksym(n.Left.Sym)
++		b.Aux = n.Left.Sym.Linksym()
+ 
+ 	case OCONTINUE, OBREAK:
+ 		var to *ssa.Block
+@@ -1387,12 +1387,12 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		len := s.newValue1(ssa.OpStringLen, types.Types[TINT], str)
+ 		return s.newValue3(ssa.OpSliceMake, n.Type, ptr, len, len)
+ 	case OCFUNC:
+-		aux := s.lookupSymbol(n, &ssa.ExternSymbol{Sym: Linksym(n.Left.Sym)})
++		aux := s.lookupSymbol(n, &ssa.ExternSymbol{Sym: n.Left.Sym.Linksym()})
+ 		return s.entryNewValue1A(ssa.OpAddr, n.Type, aux, s.sb)
+ 	case ONAME:
+ 		if n.Class == PFUNC {
+ 			// "value" of a function is the address of the function's closure
+-			sym := Linksym(funcsym(n.Sym))
++			sym := funcsym(n.Sym).Linksym()
+ 			aux := s.lookupSymbol(n, &ssa.ExternSymbol{Sym: sym})
+ 			return s.entryNewValue1A(ssa.OpAddr, types.NewPtr(n.Type), aux, s.sb)
+ 		}
+@@ -2833,7 +2833,7 @@ func init() {
+ 		sys.ARM64)
+ 	makeOnesCount := func(op64 ssa.Op, op32 ssa.Op) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 		return func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+-			aux := s.lookupSymbol(n, &ssa.ExternSymbol{Sym: Linksym(syslook("support_popcnt").Sym)})
++			aux := s.lookupSymbol(n, &ssa.ExternSymbol{Sym: syslook("support_popcnt").Sym.Linksym()})
+ 			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), aux, s.sb)
+ 			v := s.newValue2(ssa.OpLoad, types.Types[TBOOL], addr, s.mem())
+ 			b := s.endBlock()
+@@ -3131,7 +3131,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 	case codeptr != nil:
+ 		call = s.newValue2(ssa.OpInterCall, ssa.TypeMem, codeptr, s.mem())
+ 	case sym != nil:
+-		call = s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, Linksym(sym), s.mem())
++		call = s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, sym.Linksym(), s.mem())
+ 	default:
+ 		Fatalf("bad call type %v %v", n.Op, n)
+ 	}
+@@ -3204,7 +3204,7 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
+ 		switch n.Class {
+ 		case PEXTERN:
+ 			// global variable
+-			aux := s.lookupSymbol(n, &ssa.ExternSymbol{Sym: Linksym(n.Sym)})
++			aux := s.lookupSymbol(n, &ssa.ExternSymbol{Sym: n.Sym.Linksym()})
+ 			v := s.entryNewValue1A(ssa.OpAddr, t, aux, s.sb)
+ 			// TODO: Make OpAddr use AuxInt as well as Aux.
+ 			if n.Xoffset != 0 {
+@@ -4599,12 +4599,12 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
+ 	case *ssa.ArgSymbol:
+ 		n := sym.Node.(*Node)
+ 		a.Name = obj.NAME_PARAM
+-		a.Sym = Linksym(n.Orig.Sym)
++		a.Sym = n.Orig.Sym.Linksym()
+ 		a.Offset += n.Xoffset
+ 	case *ssa.AutoSymbol:
+ 		n := sym.Node.(*Node)
+ 		a.Name = obj.NAME_AUTO
+-		a.Sym = Linksym(n.Sym)
++		a.Sym = n.Sym.Linksym()
+ 		a.Offset += n.Xoffset
+ 	default:
+ 		v.Fatalf("aux in %s not implemented %#v", v, v.Aux)
+@@ -4706,7 +4706,7 @@ func AutoVar(v *ssa.Value) (*Node, int64) {
+ func AddrAuto(a *obj.Addr, v *ssa.Value) {
+ 	n, off := AutoVar(v)
+ 	a.Type = obj.TYPE_MEM
+-	a.Sym = Linksym(n.Sym)
++	a.Sym = n.Sym.Linksym()
+ 	a.Reg = int16(thearch.REGSP)
+ 	a.Offset = n.Xoffset + off
+ 	if n.Class == PPARAM || n.Class == PPARAMOUT {
+@@ -4722,7 +4722,7 @@ func (s *SSAGenState) AddrScratch(a *obj.Addr) {
+ 	}
+ 	a.Type = obj.TYPE_MEM
+ 	a.Name = obj.NAME_AUTO
+-	a.Sym = Linksym(s.ScratchFpMem.Sym)
++	a.Sym = s.ScratchFpMem.Sym.Linksym()
+ 	a.Reg = int16(thearch.REGSP)
+ 	a.Offset = s.ScratchFpMem.Xoffset
+ }
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index b52b4e4e69..1d94147230 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -510,11 +510,7 @@ func isblank(n *Node) bool {
+ 	if n == nil {
+ 		return false
+ 	}
+-	return isblanksym(n.Sym)
+-}
+-
+-func isblanksym(s *types.Sym) bool {
+-	return s != nil && s.Name == "_"
++	return n.Sym.IsBlank()
+ }
+ 
+ // methtype returns the underlying type, if any,
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 03320b1407..b61ea0d0b0 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -901,7 +901,7 @@ OpSwitch:
+ 			checkwidth(t)
+ 		}
+ 
+-		if isblanksym(n.Sym) {
++		if n.Sym.IsBlank() {
+ 			yyerror("cannot refer to blank field or method")
+ 			n.Type = nil
+ 			return n
+@@ -2010,7 +2010,7 @@ OpSwitch:
+ 	case OLABEL:
+ 		ok |= Etop
+ 		decldepth++
+-		if isblanksym(n.Left.Sym) {
++		if n.Left.Sym.IsBlank() {
+ 			// Empty identifier is valid but useless.
+ 			// Eliminate now to simplify life later.
+ 			// See issues 7538, 11589, 11593.
+@@ -3097,7 +3097,7 @@ func typecheckcomplit(n *Node) *Node {
+ 					// the field to the right of the dot,
+ 					// so s will be non-nil, but an OXDOT
+ 					// is never a valid struct literal key.
+-					if key.Sym == nil || key.Op == OXDOT || isblanksym(key.Sym) {
++					if key.Sym == nil || key.Op == OXDOT || key.Sym.IsBlank() {
+ 						yyerror("invalid field name %v in struct initializer", key)
+ 						l.Left = typecheck(l.Left, Erv)
+ 						continue
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index f9a81d7dbf..d04c4ada1c 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3202,7 +3202,7 @@ func walkcompare(n *Node, init *Nodes) *Node {
+ 	if t.IsStruct() {
+ 		for _, f := range t.Fields().Slice() {
+ 			sym := f.Sym
+-			if isblanksym(sym) {
++			if sym.IsBlank() {
+ 				continue
+ 			}
+ 			compare(
+diff --git a/src/cmd/compile/internal/mips/ggen.go b/src/cmd/compile/internal/mips/ggen.go
+index 5a9f590763..acbe4a91de 100644
+--- a/src/cmd/compile/internal/mips/ggen.go
++++ b/src/cmd/compile/internal/mips/ggen.go
+@@ -45,7 +45,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
+ 
+ func zeroAuto(pp *gc.Progs, n *gc.Node) {
+ 	// Note: this code must not clobber any registers.
+-	sym := gc.Linksym(n.Sym)
++	sym := n.Sym.Linksym()
+ 	size := n.Type.Size()
+ 	for i := int64(0); i < size; i += 4 {
+ 		p := pp.Prog(mips.AMOVW)
+diff --git a/src/cmd/compile/internal/mips64/ggen.go b/src/cmd/compile/internal/mips64/ggen.go
+index b9d9a29bcb..a7e07d3740 100644
+--- a/src/cmd/compile/internal/mips64/ggen.go
++++ b/src/cmd/compile/internal/mips64/ggen.go
+@@ -49,7 +49,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
+ 
+ func zeroAuto(pp *gc.Progs, n *gc.Node) {
+ 	// Note: this code must not clobber any registers.
+-	sym := gc.Linksym(n.Sym)
++	sym := n.Sym.Linksym()
+ 	size := n.Type.Size()
+ 	for i := int64(0); i < size; i += 8 {
+ 		p := pp.Prog(mips.AMOVV)
+diff --git a/src/cmd/compile/internal/ppc64/ggen.go b/src/cmd/compile/internal/ppc64/ggen.go
+index 1c14952594..5dda2d6e80 100644
+--- a/src/cmd/compile/internal/ppc64/ggen.go
++++ b/src/cmd/compile/internal/ppc64/ggen.go
+@@ -44,7 +44,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
+ 
+ func zeroAuto(pp *gc.Progs, n *gc.Node) {
+ 	// Note: this code must not clobber any registers.
+-	sym := gc.Linksym(n.Sym)
++	sym := n.Sym.Linksym()
+ 	size := n.Type.Size()
+ 	for i := int64(0); i < size; i += 8 {
+ 		p := pp.Prog(ppc64.AMOVD)
+diff --git a/src/cmd/compile/internal/s390x/ggen.go b/src/cmd/compile/internal/s390x/ggen.go
+index 7ce8c0d16c..36e30a5fee 100644
+--- a/src/cmd/compile/internal/s390x/ggen.go
++++ b/src/cmd/compile/internal/s390x/ggen.go
+@@ -102,7 +102,7 @@ func zeroAuto(pp *gc.Progs, n *gc.Node) {
+ 	p.To.Name = obj.NAME_AUTO
+ 	p.To.Reg = s390x.REGSP
+ 	p.To.Offset = n.Xoffset
+-	p.To.Sym = gc.Linksym(n.Sym)
++	p.To.Sym = n.Sym.Linksym()
+ }
+ 
+ func ginsnop(pp *gc.Progs) {
+diff --git a/src/cmd/compile/internal/types/sym.go b/src/cmd/compile/internal/types/sym.go
+index af6eccc485..92be6ca1a6 100644
+--- a/src/cmd/compile/internal/types/sym.go
++++ b/src/cmd/compile/internal/types/sym.go
+@@ -59,3 +59,27 @@ func (sym *Sym) SetUniq(b bool)     { sym.flags.set(symUniq, b) }
+ func (sym *Sym) SetSiggen(b bool)   { sym.flags.set(symSiggen, b) }
+ func (sym *Sym) SetAsm(b bool)      { sym.flags.set(symAsm, b) }
+ func (sym *Sym) SetAlgGen(b bool)   { sym.flags.set(symAlgGen, b) }
++
++func (sym *Sym) IsBlank() bool {
++	return sym != nil && sym.Name == "_"
++}
++
++func (sym *Sym) LinksymName() string {
++	if sym.IsBlank() {
++		return "_"
++	}
++	if sym.Linkname != "" {
++		return sym.Linkname
++	}
++	return sym.Pkg.Prefix + "." + sym.Name
++}
++
++func (sym *Sym) Linksym() *obj.LSym {
++	if sym == nil {
++		return nil
++	}
++	if sym.Lsym == nil {
++		sym.Lsym = Ctxt.Lookup(sym.LinksymName())
++	}
++	return sym.Lsym
++}
+diff --git a/src/cmd/compile/internal/types/utils.go b/src/cmd/compile/internal/types/utils.go
+index 5f3692fef4..9d00adf979 100644
+--- a/src/cmd/compile/internal/types/utils.go
++++ b/src/cmd/compile/internal/types/utils.go
+@@ -27,6 +27,7 @@ var (
+ 	FormatType  func(*Type, fmt.State, rune, int) // orig: func typeFormat(t *Type, s fmt.State, verb rune, mode fmtMode)
+ 	FieldName   func(*Field) string
+ 	TypeLinkSym func(*Type) *obj.LSym
++	Ctxt        *obj.Link
+ 
+ 	FmtLeft     int
+ 	FmtUnsigned int
+diff --git a/src/cmd/compile/internal/x86/ggen.go b/src/cmd/compile/internal/x86/ggen.go
+index 8ea877bd37..ef380bd740 100644
+--- a/src/cmd/compile/internal/x86/ggen.go
++++ b/src/cmd/compile/internal/x86/ggen.go
+@@ -39,7 +39,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, ax *uint32) *obj.Prog
+ 
+ func zeroAuto(pp *gc.Progs, n *gc.Node) {
+ 	// Note: this code must not clobber any registers.
+-	sym := gc.Linksym(n.Sym)
++	sym := n.Sym.Linksym()
+ 	size := n.Type.Size()
+ 	for i := int64(0); i < size; i += 4 {
+ 		p := pp.Prog(x86.AMOVL)

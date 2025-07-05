@@ -6,7 +6,121 @@ Date:   Wed Dec 9 21:39:20 2009 -0800
     
     R=rsc, r
     https://golang.org/cl/172045
-
+---
  test/chan/powser2.go | 36 ++++++++++++++++++++++++------------
  test/simassign.go    |  9 +++------
  2 files changed, 27 insertions(+), 18 deletions(-)
+
+diff --git a/test/chan/powser2.go b/test/chan/powser2.go
+index afd126f07d..0c523ac997 100644
+--- a/test/chan/powser2.go
++++ b/test/chan/powser2.go
+@@ -28,8 +28,11 @@ type item interface {
+ }
+ 
+ func (u *rat) pr(){
+-	if u.den==1 { print(u.num) }
+-	else { print(u.num, "/", u.den) }
++	if u.den==1 {
++		print(u.num)
++	} else {
++		print(u.num, "/", u.den)
++	}
+ 	print(" ")
+ }
+ 
+@@ -273,8 +276,7 @@ func inv(u *rat) *rat{	// invert a rat
+ }
+ 
+ // print eval in floating point of PS at x=c to n terms
+-func Evaln(c *rat, U PS, n int)
+-{
++func Evaln(c *rat, U PS, n int) {
+ 	xn := float64(1);
+ 	x := float64(c.num)/float64(c.den);
+ 	val := float64(0);
+@@ -294,8 +296,11 @@ func Printn(U PS, n int){
+ 	done := false;
+ 	for ; !done && n>0; n-- {
+ 		u := get(U);
+-		if end(u) != 0 { done = true }
+-		else { u.pr() }
++		if end(u) != 0 {
++			done = true
++		} else {
++			u.pr()
++		}
+ 	}
+ 	print(("\n"));
+ }
+@@ -357,8 +362,11 @@ func Cmul(c *rat,U PS) PS{
+ 		for !done {
+ 			<-Z.req;
+ 			u := get(U);
+-			if end(u) != 0 { done = true }
+-			else { Z.dat <- mul(c,u) }
++			if end(u) != 0 {
++				done = true
++			} else {
++				Z.dat <- mul(c,u)
++			}
+ 		}
+ 		Z.dat <- finis;
+ 	}(c, U, Z);
+@@ -474,8 +482,9 @@ func Diff(U PS) PS{
+ 			done:=false;
+ 			for i:=1; !done; i++ {
+ 				u = get(U);
+-				if end(u) != 0 { done=true }
+-				else {
++				if end(u) != 0 {
++					done=true
++				} else {
+ 					Z.dat <- mul(itor(int64(i)),u);
+ 					<-Z.req;
+ 				}
+@@ -569,8 +578,11 @@ func Subst(U, V PS) PS {
+ 		u := get(U);
+ 		Z.dat <- u;
+ 		if end(u) == 0 {
+-			if end(get(VV[0])) != 0 { put(finis,Z); }
+-			else { copy(Mul(VV[0],Subst(U,VV[1])),Z); }
++			if end(get(VV[0])) != 0 {
++				put(finis,Z);
++			} else {
++				copy(Mul(VV[0],Subst(U,VV[1])),Z);
++			}
+ 		}
+ 	}(U, V, Z);
+ 	return Z;
+diff --git a/test/simassign.go b/test/simassign.go
+index ce86d48dbc..16f5a57143 100644
+--- a/test/simassign.go
++++ b/test/simassign.go
+@@ -9,14 +9,12 @@ package main
+ var	a,b,c,d,e,f,g,h,i int;
+ 
+ func
+-printit()
+-{
++printit() {
+ 	println(a,b,c,d,e,f,g,h,i);
+ }
+ 
+ func
+-testit(permuteok bool) bool
+-{
++testit(permuteok bool) bool {
+ 	if a+b+c+d+e+f+g+h+i != 45 {
+ 		print("sum does not add to 45\n");
+ 		printit();
+@@ -40,8 +38,7 @@ swap(x, y int) (u, v int) {
+ }
+ 
+ func
+-main()
+-{
++main() {
+ 	a = 1;
+ 	b = 2;
+ 	c = 3;

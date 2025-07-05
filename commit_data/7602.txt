@@ -47,10 +47,115 @@ Date:   Wed Mar 2 13:42:02 2011 -0500
     R=r
     CC=golang-dev
     https://golang.org/cl/4243046
-
+---
  src/pkg/runtime/amd64/traceback.c | 11 +++++++++++
  src/pkg/runtime/arm/traceback.c   | 11 +++++++++++
  src/pkg/runtime/mgc0.c            |  2 +-
  src/pkg/runtime/proc.c            |  5 +++--
  src/pkg/runtime/runtime.h         |  3 ++-
  5 files changed, 28 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/runtime/amd64/traceback.c b/src/pkg/runtime/amd64/traceback.c
+index 035dc560c5..0f6733c364 100644
+--- a/src/pkg/runtime/amd64/traceback.c
++++ b/src/pkg/runtime/amd64/traceback.c
+@@ -182,6 +182,17 @@ gentraceback(byte *pc0, byte *sp, G *g, int32 skip, uintptr *pcbuf, int32 max)
+ 		sp = fp;
+ 		fp = nil;
+ 	}
++	
++	if(pcbuf == nil && (pc = g->gopc) != 0 && (f = runtime·findfunc(pc)) != nil) {
++		runtime·printf("----- goroutine created by -----\n%S", f->name);
++		if(pc > f->entry)
++			runtime·printf("+%p", (uintptr)(pc - f->entry));
++		tracepc = pc;	// back up to CALL instruction for funcline.
++		if(n > 0 && pc > f->entry)
++			tracepc--;
++		runtime·printf(" %S:%d\n", f->src, runtime·funcline(f, tracepc));
++	}
++		
+ 	return n;
+ }
+ 
+diff --git a/src/pkg/runtime/arm/traceback.c b/src/pkg/runtime/arm/traceback.c
+index ce0c287f3c..ad3096823e 100644
+--- a/src/pkg/runtime/arm/traceback.c
++++ b/src/pkg/runtime/arm/traceback.c
+@@ -175,6 +175,17 @@ gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr *pcbuf, i
+ 		if(f->entry == (uintptr)runtime·deferproc || f->entry == (uintptr)runtime·newproc)
+ 			sp += 12;
+ 	}
++	
++	if(pcbuf == nil && (pc = g->gopc) != 0 && (f = runtime·findfunc(pc)) != nil) {
++		runtime·printf("----- goroutine created by -----\n%S", f->name);
++		if(pc > f->entry)
++			runtime·printf("+%p", (uintptr)(pc - f->entry));
++		tracepc = pc;	// back up to CALL instruction for funcline.
++		if(n > 0 && pc > f->entry)
++			tracepc -= sizeof(uintptr);
++		runtime·printf(" %S:%d\n", f->src, runtime·funcline(f, tracepc));
++	}
++
+ 	return n;		
+ }
+ 
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 1d382580fa..7c175b308a 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -585,7 +585,7 @@ runtime·gc(int32 force)
+ 	if(fp != nil) {
+ 		// kick off or wake up goroutine to run queued finalizers
+ 		if(fing == nil)
+-			fing = runtime·newproc1((byte*)runfinq, nil, 0, 0);
++			fing = runtime·newproc1((byte*)runfinq, nil, 0, 0, runtime·gc);
+ 		else if(fingwait) {
+ 			fingwait = 0;
+ 			runtime·ready(fing);
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index ba16f48bbc..db6072b5ce 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -884,11 +884,11 @@ runtime·newproc(int32 siz, byte* fn, ...)
+ 		argp = (byte*)(&fn+2);  // skip caller's saved LR
+ 	else
+ 		argp = (byte*)(&fn+1);
+-	runtime·newproc1(fn, argp, siz, 0);
++	runtime·newproc1(fn, argp, siz, 0, runtime·getcallerpc(&siz));
+ }
+ 
+ G*
+-runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret)
++runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
+ {
+ 	byte *sp;
+ 	G *newg;
+@@ -926,6 +926,7 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret)
+ 	newg->sched.pc = (byte*)runtime·goexit;
+ 	newg->sched.g = newg;
+ 	newg->entry = fn;
++	newg->gopc = (uintptr)callerpc;
+ 
+ 	runtime·sched.gcount++;
+ 	runtime·goidgen++;
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 5db86a1771..85dca54f7d 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -202,6 +202,7 @@ struct	G
+ 	uintptr	sigcode0;
+ 	uintptr	sigcode1;
+ 	uintptr	sigpc;
++	uintptr	gopc;	// pc of go statement that created this goroutine
+ };
+ struct	M
+ {
+@@ -452,7 +453,7 @@ void	runtime·entersyscall(void);
+ void	runtime·exitsyscall(void);
+ void	runtime·startcgocallback(G*);
+ void	runtime·endcgocallback(G*);
+-G*	runtime·newproc1(byte*, byte*, int32, int32);
++G*	runtime·newproc1(byte*, byte*, int32, int32, void*);
+ void	runtime·siginit(void);
+ bool	runtime·sigsend(int32 sig);
+ void	runtime·gettime(int64*, int32*);

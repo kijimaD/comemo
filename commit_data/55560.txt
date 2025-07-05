@@ -12,6 +12,21 @@ Date:   Wed Feb 22 12:09:56 2023 -0500
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/util.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/util.go b/src/cmd/link/internal/ld/util.go
+index 779f4988b6..63b7e0d329 100644
+--- a/src/cmd/link/internal/ld/util.go
++++ b/src/cmd/link/internal/ld/util.go
+@@ -35,6 +35,9 @@ func Exit(code int) {
+ func Exitf(format string, a ...interface{}) {
+ 	fmt.Fprintf(os.Stderr, os.Args[0]+": "+format+"\n", a...)
+ 	nerrors++
++	if *flagH {
++		panic("error")
++	}
+ 	Exit(2)
+ }
+ 

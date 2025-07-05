@@ -14,8 +14,69 @@ Date:   Fri Oct 17 17:51:29 2008 -0700
     R=ken
     OCL=17396
     CL=17396
-
+---
  src/cmd/gc/lex.c   |  1 -
  test/golden.out    |  8 ++++++++
  test/interface3.go | 23 +++++++++++++++++++++++
  3 files changed, 31 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index d0bff27419..de9700da3d 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1120,7 +1120,6 @@ lexinit(void)
+ 		}
+ 
+ 		t->sym = s;
+-		t->recur = 1;	// supresses printing beyond name
+ 
+ 		dowidth(t);
+ 		types[etype] = t;
+diff --git a/test/golden.out b/test/golden.out
+index 19988f2aa4..9139d49d9e 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -34,6 +34,14 @@ Faulting address: 0x0
+ pc: xxx
+ 
+ 
++=========== ./interface3.go
++cannot convert type S to interface I2: missing method Name
++throw: interface conversion
++SIGSEGV: segmentation violation
++Faulting address: 0x0
++pc: xxx
++
++
+ =========== ./peano.go
+ 0! = 1
+ 1! = 1
+diff --git a/test/interface3.go b/test/interface3.go
+new file mode 100644
+index 0000000000..04af91a029
+--- /dev/null
++++ b/test/interface3.go
+@@ -0,0 +1,23 @@
++// $G $D/$F.go && $L $F.$A && (! ./$A.out || echo BUG: should not succeed)
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type S struct { a int }
++type T struct { b string }
++
++func (s *S) Name() int8 { return 1 }
++func (t *T) Name() int64 { return 64 }
++
++type I1 interface { Name() int8 }
++type I2 interface { Name() int64 }
++
++func main() {
++	var i1 I1;
++	var s *S;
++	i1 = s;
++	print(i1.(I2).Name())
++}

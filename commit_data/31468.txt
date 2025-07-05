@@ -18,8 +18,498 @@ Date:   Mon Feb 20 15:54:43 2017 -0500
     Change-Id: Idb2d56f27e80a2e1366bc995922ad3fd958c51a7
     Reviewed-on: https://go-review.googlesource.com/37292
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  16 ++
  src/cmd/compile/internal/ssa/rewritegeneric.go | 348 +++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/shift_test.go     |  60 +++++
  3 files changed, 424 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 91e53ea2a3..ff096ff858 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -481,6 +481,22 @@
+   && uint64(c1) >= uint64(c2) && uint64(c3) >= uint64(c2) && !uaddOvf(c1-c2, c3)
+   -> (Lsh8x64 x (Const64 <config.fe.TypeUInt64()> [c1-c2+c3]))
+ 
++// replace shifts with zero extensions
++(Rsh16Ux64 (Lsh16x64 x (Const64  [8])) (Const64  [8])) -> (ZeroExt8to16  (Trunc16to8  <config.fe.TypeUInt8()>  x))
++(Rsh32Ux64 (Lsh32x64 x (Const64 [24])) (Const64 [24])) -> (ZeroExt8to32  (Trunc32to8  <config.fe.TypeUInt8()>  x))
++(Rsh64Ux64 (Lsh64x64 x (Const64 [56])) (Const64 [56])) -> (ZeroExt8to64  (Trunc64to8  <config.fe.TypeUInt8()>  x))
++(Rsh32Ux64 (Lsh32x64 x (Const64 [16])) (Const64 [16])) -> (ZeroExt16to32 (Trunc32to16 <config.fe.TypeUInt16()> x))
++(Rsh64Ux64 (Lsh64x64 x (Const64 [48])) (Const64 [48])) -> (ZeroExt16to64 (Trunc64to16 <config.fe.TypeUInt16()> x))
++(Rsh64Ux64 (Lsh64x64 x (Const64 [32])) (Const64 [32])) -> (ZeroExt32to64 (Trunc64to32 <config.fe.TypeUInt32()> x))
++
++// replace shifts with sign extensions
++(Rsh16x64 (Lsh16x64 x (Const64  [8])) (Const64  [8])) -> (SignExt8to16  (Trunc16to8  <config.fe.TypeInt8()>  x))
++(Rsh32x64 (Lsh32x64 x (Const64 [24])) (Const64 [24])) -> (SignExt8to32  (Trunc32to8  <config.fe.TypeInt8()>  x))
++(Rsh64x64 (Lsh64x64 x (Const64 [56])) (Const64 [56])) -> (SignExt8to64  (Trunc64to8  <config.fe.TypeInt8()>  x))
++(Rsh32x64 (Lsh32x64 x (Const64 [16])) (Const64 [16])) -> (SignExt16to32 (Trunc32to16 <config.fe.TypeInt16()> x))
++(Rsh64x64 (Lsh64x64 x (Const64 [48])) (Const64 [48])) -> (SignExt16to64 (Trunc64to16 <config.fe.TypeInt16()> x))
++(Rsh64x64 (Lsh64x64 x (Const64 [32])) (Const64 [32])) -> (SignExt32to64 (Trunc64to32 <config.fe.TypeInt32()> x))
++
+ // constant comparisons
+ (Eq64 (Const64 [c]) (Const64 [d])) -> (ConstBool [b2i(c == d)])
+ (Eq32 (Const32 [c]) (Const32 [d])) -> (ConstBool [b2i(c == d)])
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 05eeeb80d0..2ce73857cb 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -9901,6 +9901,35 @@ func rewriteValuegeneric_OpRsh16Ux64(v *Value, config *Config) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Rsh16Ux64 (Lsh16x64 x (Const64  [8])) (Const64  [8]))
++	// cond:
++	// result: (ZeroExt8to16  (Trunc16to8  <config.fe.TypeUInt8()>  x))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpLsh16x64 {
++			break
++		}
++		x := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		if v_0_1.Op != OpConst64 {
++			break
++		}
++		if v_0_1.AuxInt != 8 {
++			break
++		}
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		if v_1.AuxInt != 8 {
++			break
++		}
++		v.reset(OpZeroExt8to16)
++		v0 := b.NewValue0(v.Pos, OpTrunc16to8, config.fe.TypeUInt8())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpRsh16Ux8(v *Value, config *Config) bool {
+@@ -10100,6 +10129,35 @@ func rewriteValuegeneric_OpRsh16x64(v *Value, config *Config) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Rsh16x64 (Lsh16x64 x (Const64  [8])) (Const64  [8]))
++	// cond:
++	// result: (SignExt8to16  (Trunc16to8  <config.fe.TypeInt8()>  x))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpLsh16x64 {
++			break
++		}
++		x := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		if v_0_1.Op != OpConst64 {
++			break
++		}
++		if v_0_1.AuxInt != 8 {
++			break
++		}
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		if v_1.AuxInt != 8 {
++			break
++		}
++		v.reset(OpSignExt8to16)
++		v0 := b.NewValue0(v.Pos, OpTrunc16to8, config.fe.TypeInt8())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpRsh16x8(v *Value, config *Config) bool {
+@@ -10353,6 +10411,64 @@ func rewriteValuegeneric_OpRsh32Ux64(v *Value, config *Config) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Rsh32Ux64 (Lsh32x64 x (Const64 [24])) (Const64 [24]))
++	// cond:
++	// result: (ZeroExt8to32  (Trunc32to8  <config.fe.TypeUInt8()>  x))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpLsh32x64 {
++			break
++		}
++		x := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		if v_0_1.Op != OpConst64 {
++			break
++		}
++		if v_0_1.AuxInt != 24 {
++			break
++		}
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		if v_1.AuxInt != 24 {
++			break
++		}
++		v.reset(OpZeroExt8to32)
++		v0 := b.NewValue0(v.Pos, OpTrunc32to8, config.fe.TypeUInt8())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++	// match: (Rsh32Ux64 (Lsh32x64 x (Const64 [16])) (Const64 [16]))
++	// cond:
++	// result: (ZeroExt16to32 (Trunc32to16 <config.fe.TypeUInt16()> x))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpLsh32x64 {
++			break
++		}
++		x := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		if v_0_1.Op != OpConst64 {
++			break
++		}
++		if v_0_1.AuxInt != 16 {
++			break
++		}
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		if v_1.AuxInt != 16 {
++			break
++		}
++		v.reset(OpZeroExt16to32)
++		v0 := b.NewValue0(v.Pos, OpTrunc32to16, config.fe.TypeUInt16())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpRsh32Ux8(v *Value, config *Config) bool {
+@@ -10552,6 +10668,64 @@ func rewriteValuegeneric_OpRsh32x64(v *Value, config *Config) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Rsh32x64 (Lsh32x64 x (Const64 [24])) (Const64 [24]))
++	// cond:
++	// result: (SignExt8to32  (Trunc32to8  <config.fe.TypeInt8()>  x))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpLsh32x64 {
++			break
++		}
++		x := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		if v_0_1.Op != OpConst64 {
++			break
++		}
++		if v_0_1.AuxInt != 24 {
++			break
++		}
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		if v_1.AuxInt != 24 {
++			break
++		}
++		v.reset(OpSignExt8to32)
++		v0 := b.NewValue0(v.Pos, OpTrunc32to8, config.fe.TypeInt8())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++	// match: (Rsh32x64 (Lsh32x64 x (Const64 [16])) (Const64 [16]))
++	// cond:
++	// result: (SignExt16to32 (Trunc32to16 <config.fe.TypeInt16()> x))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpLsh32x64 {
++			break
++		}
++		x := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		if v_0_1.Op != OpConst64 {
++			break
++		}
++		if v_0_1.AuxInt != 16 {
++			break
++		}
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		if v_1.AuxInt != 16 {
++			break
++		}
++		v.reset(OpSignExt16to32)
++		v0 := b.NewValue0(v.Pos, OpTrunc32to16, config.fe.TypeInt16())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpRsh32x8(v *Value, config *Config) bool {
+@@ -10805,6 +10979,93 @@ func rewriteValuegeneric_OpRsh64Ux64(v *Value, config *Config) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Rsh64Ux64 (Lsh64x64 x (Const64 [56])) (Const64 [56]))
++	// cond:
++	// result: (ZeroExt8to64  (Trunc64to8  <config.fe.TypeUInt8()>  x))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpLsh64x64 {
++			break
++		}
++		x := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		if v_0_1.Op != OpConst64 {
++			break
++		}
++		if v_0_1.AuxInt != 56 {
++			break
++		}
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		if v_1.AuxInt != 56 {
++			break
++		}
++		v.reset(OpZeroExt8to64)
++		v0 := b.NewValue0(v.Pos, OpTrunc64to8, config.fe.TypeUInt8())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++	// match: (Rsh64Ux64 (Lsh64x64 x (Const64 [48])) (Const64 [48]))
++	// cond:
++	// result: (ZeroExt16to64 (Trunc64to16 <config.fe.TypeUInt16()> x))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpLsh64x64 {
++			break
++		}
++		x := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		if v_0_1.Op != OpConst64 {
++			break
++		}
++		if v_0_1.AuxInt != 48 {
++			break
++		}
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		if v_1.AuxInt != 48 {
++			break
++		}
++		v.reset(OpZeroExt16to64)
++		v0 := b.NewValue0(v.Pos, OpTrunc64to16, config.fe.TypeUInt16())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++	// match: (Rsh64Ux64 (Lsh64x64 x (Const64 [32])) (Const64 [32]))
++	// cond:
++	// result: (ZeroExt32to64 (Trunc64to32 <config.fe.TypeUInt32()> x))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpLsh64x64 {
++			break
++		}
++		x := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		if v_0_1.Op != OpConst64 {
++			break
++		}
++		if v_0_1.AuxInt != 32 {
++			break
++		}
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		if v_1.AuxInt != 32 {
++			break
++		}
++		v.reset(OpZeroExt32to64)
++		v0 := b.NewValue0(v.Pos, OpTrunc64to32, config.fe.TypeUInt32())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpRsh64Ux8(v *Value, config *Config) bool {
+@@ -11004,6 +11265,93 @@ func rewriteValuegeneric_OpRsh64x64(v *Value, config *Config) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Rsh64x64 (Lsh64x64 x (Const64 [56])) (Const64 [56]))
++	// cond:
++	// result: (SignExt8to64  (Trunc64to8  <config.fe.TypeInt8()>  x))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpLsh64x64 {
++			break
++		}
++		x := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		if v_0_1.Op != OpConst64 {
++			break
++		}
++		if v_0_1.AuxInt != 56 {
++			break
++		}
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		if v_1.AuxInt != 56 {
++			break
++		}
++		v.reset(OpSignExt8to64)
++		v0 := b.NewValue0(v.Pos, OpTrunc64to8, config.fe.TypeInt8())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++	// match: (Rsh64x64 (Lsh64x64 x (Const64 [48])) (Const64 [48]))
++	// cond:
++	// result: (SignExt16to64 (Trunc64to16 <config.fe.TypeInt16()> x))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpLsh64x64 {
++			break
++		}
++		x := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		if v_0_1.Op != OpConst64 {
++			break
++		}
++		if v_0_1.AuxInt != 48 {
++			break
++		}
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		if v_1.AuxInt != 48 {
++			break
++		}
++		v.reset(OpSignExt16to64)
++		v0 := b.NewValue0(v.Pos, OpTrunc64to16, config.fe.TypeInt16())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++	// match: (Rsh64x64 (Lsh64x64 x (Const64 [32])) (Const64 [32]))
++	// cond:
++	// result: (SignExt32to64 (Trunc64to32 <config.fe.TypeInt32()> x))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpLsh64x64 {
++			break
++		}
++		x := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		if v_0_1.Op != OpConst64 {
++			break
++		}
++		if v_0_1.AuxInt != 32 {
++			break
++		}
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		if v_1.AuxInt != 32 {
++			break
++		}
++		v.reset(OpSignExt32to64)
++		v0 := b.NewValue0(v.Pos, OpTrunc64to32, config.fe.TypeInt32())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpRsh64x8(v *Value, config *Config) bool {
+diff --git a/src/cmd/compile/internal/ssa/shift_test.go b/src/cmd/compile/internal/ssa/shift_test.go
+index 8d5e62f070..488b7faf29 100644
+--- a/src/cmd/compile/internal/ssa/shift_test.go
++++ b/src/cmd/compile/internal/ssa/shift_test.go
+@@ -46,3 +46,63 @@ func makeConstShiftFunc(c *Config, amount int64, op Op, typ Type) fun {
+ 	Compile(fun.f)
+ 	return fun
+ }
++
++func TestShiftToExtensionAMD64(t *testing.T) {
++	// Test that eligible pairs of constant shifts are converted to extensions.
++	// For example:
++	//   (uint64(x) << 32) >> 32 -> uint64(uint32(x))
++	ops := map[Op]int{
++		OpAMD64SHLQconst: 0, OpAMD64SHLLconst: 0,
++		OpAMD64SHRQconst: 0, OpAMD64SHRLconst: 0,
++		OpAMD64SARQconst: 0, OpAMD64SARLconst: 0,
++	}
++	tests := [...]struct {
++		amount      int64
++		left, right Op
++		typ         Type
++	}{
++		// unsigned
++		{56, OpLsh64x64, OpRsh64Ux64, TypeUInt64},
++		{48, OpLsh64x64, OpRsh64Ux64, TypeUInt64},
++		{32, OpLsh64x64, OpRsh64Ux64, TypeUInt64},
++		{24, OpLsh32x64, OpRsh32Ux64, TypeUInt32},
++		{16, OpLsh32x64, OpRsh32Ux64, TypeUInt32},
++		{8, OpLsh16x64, OpRsh16Ux64, TypeUInt16},
++		// signed
++		{56, OpLsh64x64, OpRsh64x64, TypeInt64},
++		{48, OpLsh64x64, OpRsh64x64, TypeInt64},
++		{32, OpLsh64x64, OpRsh64x64, TypeInt64},
++		{24, OpLsh32x64, OpRsh32x64, TypeInt32},
++		{16, OpLsh32x64, OpRsh32x64, TypeInt32},
++		{8, OpLsh16x64, OpRsh16x64, TypeInt16},
++	}
++	c := testConfig(t)
++	for _, tc := range tests {
++		fun := makeShiftExtensionFunc(c, tc.amount, tc.left, tc.right, tc.typ)
++		checkOpcodeCounts(t, fun.f, ops)
++		fun.f.Free()
++	}
++}
++
++// makeShiftExtensionFunc generates a function containing:
++//
++//   (rshift (lshift (Const64 [amount])) (Const64 [amount]))
++//
++// This may be equivalent to a sign or zero extension.
++func makeShiftExtensionFunc(c *Config, amount int64, lshift, rshift Op, typ Type) fun {
++	ptyp := &TypeImpl{Size_: 8, Ptr: true, Name: "ptr"}
++	fun := Fun(c, "entry",
++		Bloc("entry",
++			Valu("mem", OpInitMem, TypeMem, 0, nil),
++			Valu("SP", OpSP, TypeUInt64, 0, nil),
++			Valu("argptr", OpOffPtr, ptyp, 8, nil, "SP"),
++			Valu("resptr", OpOffPtr, ptyp, 16, nil, "SP"),
++			Valu("load", OpLoad, typ, 0, nil, "argptr", "mem"),
++			Valu("c", OpConst64, TypeUInt64, amount, nil),
++			Valu("lshift", lshift, typ, 0, nil, "load", "c"),
++			Valu("rshift", rshift, typ, 0, nil, "lshift", "c"),
++			Valu("store", OpStore, TypeMem, 8, nil, "resptr", "rshift", "mem"),
++			Exit("store")))
++	Compile(fun.f)
++	return fun
++}

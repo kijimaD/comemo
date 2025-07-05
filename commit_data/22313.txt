@@ -8,6 +8,34 @@ Date:   Tue Mar 3 22:21:04 2015 -0500
     Signed-off-by: Shenghou Ma <minux@golang.org>
     Reviewed-on: https://go-review.googlesource.com/6732
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  .gitignore | 8 --------
  1 file changed, 8 deletions(-)
+
+diff --git a/.gitignore b/.gitignore
+index 585cd0f12b..1973b58f94 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -21,22 +21,14 @@ _testmain.go
+ build.out
+ test.out
+ doc/articles/wiki/*.bin
+-include/plan9/libc_plan9.h
+ misc/cgo/life/run.out
+ misc/cgo/stdio/run.out
+ misc/cgo/testso/main
+-misc/dashboard/builder/builder
+-src/liblink/anames?.c
+ src/cmd/*/y.output
+ src/cmd/cgo/zdefaultcc.go
+-src/cmd/dist/dist.dSYM
+-src/cmd/gc/mkbuiltin1
+-src/cmd/gc/opnames.h
+ src/cmd/go/zdefaultcc.go
+ src/cmd/internal/obj/zbootstrap.go
+ src/go/doc/headscan
+-src/runtime/mkversion
+-src/runtime/zaexperiment.h
+ src/runtime/zversion.go
+ src/unicode/maketables
+ src/*.*/

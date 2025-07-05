@@ -11,9 +11,100 @@ Date:   Thu Mar 25 12:31:25 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/304849
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/api.go    | 2 +-
  src/cmd/compile/internal/types2/expr.go   | 6 +++---
  src/cmd/compile/internal/types2/lookup.go | 8 ++++----
  src/cmd/compile/internal/types2/stmt.go   | 6 +++---
  4 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index 19adaba578..d356978d5e 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -405,7 +405,7 @@ func (conf *Config) Check(path string, files []*syntax.File, info *Info) (*Packa
+ 
+ // AssertableTo reports whether a value of type V can be asserted to have type T.
+ func AssertableTo(V *Interface, T Type) bool {
+-	m, _ := (*Checker)(nil).assertableTo(V, T, false)
++	m, _ := (*Checker)(nil).assertableTo(V, T)
+ 	return m == nil
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 2eb4ded465..b5ffdf34c2 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1790,7 +1790,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 		if T == Typ[Invalid] {
+ 			goto Error
+ 		}
+-		check.typeAssertion(posFor(x), x, xtyp, T, false)
++		check.typeAssertion(posFor(x), x, xtyp, T)
+ 		x.mode = commaok
+ 		x.typ = T
+ 
+@@ -1916,8 +1916,8 @@ func keyVal(x constant.Value) interface{} {
+ }
+ 
+ // typeAssertion checks that x.(T) is legal; xtyp must be the type of x.
+-func (check *Checker) typeAssertion(pos syntax.Pos, x *operand, xtyp *Interface, T Type, strict bool) {
+-	method, wrongType := check.assertableTo(xtyp, T, strict)
++func (check *Checker) typeAssertion(pos syntax.Pos, x *operand, xtyp *Interface, T Type) {
++	method, wrongType := check.assertableTo(xtyp, T)
+ 	if method == nil {
+ 		return
+ 	}
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index a62def4183..cadaf05ca8 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -427,13 +427,13 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ // method required by V and whether it is missing or just has the wrong type.
+ // The receiver may be nil if assertableTo is invoked through an exported API call
+ // (such as AssertableTo), i.e., when all methods have been type-checked.
+-// If strict (or the global constant forceStrict) is set, assertions that
+-// are known to fail are not permitted.
+-func (check *Checker) assertableTo(V *Interface, T Type, strict bool) (method, wrongType *Func) {
++// If the global constant forceStrict is set, assertions that are known to fail
++// are not permitted.
++func (check *Checker) assertableTo(V *Interface, T Type) (method, wrongType *Func) {
+ 	// no static check is required if T is an interface
+ 	// spec: "If T is an interface type, x.(T) asserts that the
+ 	//        dynamic type of x implements the interface T."
+-	if asInterface(T) != nil && !(strict || forceStrict) {
++	if asInterface(T) != nil && !forceStrict {
+ 		return
+ 	}
+ 	return check.missingMethod(T, V, false)
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index bf3c9dfa5f..367146b528 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -265,7 +265,7 @@ L:
+ 	}
+ }
+ 
+-func (check *Checker) caseTypes(x *operand, xtyp *Interface, types []syntax.Expr, seen map[Type]syntax.Pos, strict bool) (T Type) {
++func (check *Checker) caseTypes(x *operand, xtyp *Interface, types []syntax.Expr, seen map[Type]syntax.Pos) (T Type) {
+ L:
+ 	for _, e := range types {
+ 		T = check.typOrNil(e)
+@@ -293,7 +293,7 @@ L:
+ 		}
+ 		seen[T] = e.Pos()
+ 		if T != nil {
+-			check.typeAssertion(e.Pos(), x, xtyp, T, strict)
++			check.typeAssertion(e.Pos(), x, xtyp, T)
+ 		}
+ 	}
+ 	return
+@@ -708,7 +708,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
+ 		}
+ 		// Check each type in this type switch case.
+ 		cases := unpackExpr(clause.Cases)
+-		T := check.caseTypes(&x, xtyp, cases, seen, false)
++		T := check.caseTypes(&x, xtyp, cases, seen)
+ 		check.openScopeUntil(clause, end, "case")
+ 		// If lhs exists, declare a corresponding variable in the case-local scope.
+ 		if lhs != nil {

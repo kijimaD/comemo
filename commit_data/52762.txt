@@ -16,10 +16,213 @@ Date:   Wed May 4 15:44:44 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/base/env.go                    | 25 ++++++++++++-
  src/cmd/go/internal/generate/generate.go           | 21 +++++++++--
  src/cmd/go/internal/test/test.go                   |  7 +++-
  .../go/testdata/script/generate_goroot_PATH.txt    | 38 ++++++++++++++++++++
  src/cmd/go/testdata/script/test_goroot_PATH.txt    | 41 ++++++++++++++++++++++
  5 files changed, 127 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/internal/base/env.go b/src/cmd/go/internal/base/env.go
+index 2f47300f2e..20ae06d67b 100644
+--- a/src/cmd/go/internal/base/env.go
++++ b/src/cmd/go/internal/base/env.go
+@@ -5,14 +5,18 @@
+ package base
+ 
+ import (
++	"cmd/go/internal/cfg"
+ 	"fmt"
++	"os"
+ 	"path/filepath"
++	"runtime"
+ )
+ 
+ // AppendPWD returns the result of appending PWD=dir to the environment base.
+ //
+ // The resulting environment makes os.Getwd more efficient for a subprocess
+-// running in dir.
++// running in dir, and also improves the accuracy of paths relative to dir
++// if one or more elements of dir is a symlink.
+ func AppendPWD(base []string, dir string) []string {
+ 	// POSIX requires PWD to be absolute.
+ 	// Internally we only use absolute paths, so dir should already be absolute.
+@@ -21,3 +25,22 @@ func AppendPWD(base []string, dir string) []string {
+ 	}
+ 	return append(base, "PWD="+dir)
+ }
++
++// AppendPATH returns the result of appending PATH=$GOROOT/bin:$PATH
++// (or the platform equivalent) to the environment base.
++func AppendPATH(base []string) []string {
++	if cfg.GOROOTbin == "" {
++		return base
++	}
++
++	pathVar := "PATH"
++	if runtime.GOOS == "plan9" {
++		pathVar = "path"
++	}
++
++	path := os.Getenv(pathVar)
++	if path == "" {
++		return append(base, pathVar+"="+cfg.GOROOTbin)
++	}
++	return append(base, pathVar+"="+cfg.GOROOTbin+string(os.PathListSeparator)+path)
++}
+diff --git a/src/cmd/go/internal/generate/generate.go b/src/cmd/go/internal/generate/generate.go
+index fe1e3d46c0..65e7148aa8 100644
+--- a/src/cmd/go/internal/generate/generate.go
++++ b/src/cmd/go/internal/generate/generate.go
+@@ -328,7 +328,7 @@ func isGoGenerate(buf []byte) bool {
+ // setEnv sets the extra environment variables used when executing a
+ // single go:generate command.
+ func (g *Generator) setEnv() {
+-	g.env = []string{
++	env := []string{
+ 		"GOROOT=" + cfg.GOROOT,
+ 		"GOARCH=" + cfg.BuildContext.GOARCH,
+ 		"GOOS=" + cfg.BuildContext.GOOS,
+@@ -337,7 +337,9 @@ func (g *Generator) setEnv() {
+ 		"GOPACKAGE=" + g.pkg,
+ 		"DOLLAR=" + "$",
+ 	}
+-	g.env = base.AppendPWD(g.env, g.dir)
++	env = base.AppendPATH(env)
++	env = base.AppendPWD(env, g.dir)
++	g.env = env
+ }
+ 
+ // split breaks the line into words, evaluating quoted
+@@ -446,7 +448,20 @@ func (g *Generator) setShorthand(words []string) {
+ // exec runs the command specified by the argument. The first word is
+ // the command name itself.
+ func (g *Generator) exec(words []string) {
+-	cmd := exec.Command(words[0], words[1:]...)
++	path := words[0]
++	if path != "" && !strings.Contains(path, string(os.PathSeparator)) {
++		// If a generator says '//go:generate go run <blah>' it almost certainly
++		// intends to use the same 'go' as 'go generate' itself.
++		// Prefer to resolve the binary from GOROOT/bin, and for consistency
++		// prefer to resolve any other commands there too.
++		gorootBinPath, err := exec.LookPath(filepath.Join(cfg.GOROOTbin, path))
++		if err == nil {
++			path = gorootBinPath
++		}
++	}
++	cmd := exec.Command(path, words[1:]...)
++	cmd.Args[0] = words[0] // Overwrite with the original in case it was rewritten above.
++
+ 	// Standard in and out of generator should be the usual.
+ 	cmd.Stdout = os.Stdout
+ 	cmd.Stderr = os.Stderr
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 4adf3acbe6..058906d9b8 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -1354,7 +1354,12 @@ func (c *runCache) builderRunTest(b *work.Builder, ctx context.Context, a *work.
+ 
+ 	cmd := exec.Command(args[0], args[1:]...)
+ 	cmd.Dir = a.Package.Dir
+-	cmd.Env = base.AppendPWD(cfg.OrigEnv[:len(cfg.OrigEnv):len(cfg.OrigEnv)], cmd.Dir)
++
++	env := cfg.OrigEnv[:len(cfg.OrigEnv):len(cfg.OrigEnv)]
++	env = base.AppendPATH(env)
++	env = base.AppendPWD(env, cmd.Dir)
++	cmd.Env = env
++
+ 	cmd.Stdout = stdout
+ 	cmd.Stderr = stdout
+ 
+diff --git a/src/cmd/go/testdata/script/generate_goroot_PATH.txt b/src/cmd/go/testdata/script/generate_goroot_PATH.txt
+new file mode 100644
+index 0000000000..647cea3bf9
+--- /dev/null
++++ b/src/cmd/go/testdata/script/generate_goroot_PATH.txt
+@@ -0,0 +1,38 @@
++# https://go.dev/issue/51473: to avoid the need for generators to rely on
++# runtime.GOROOT, 'go generate' should run the test with its own GOROOT/bin
++# at the beginning of $PATH.
++
++[short] skip
++
++[!plan9] env PATH=
++[plan9] env path=
++go generate .
++
++[!plan9] env PATH=$WORK${/}bin
++[plan9] env path=$WORK${/}bin
++go generate .
++
++-- go.mod --
++module example
++
++go 1.19
++-- main.go --
++//go:generate go run .
++
++package main
++
++import (
++	"fmt"
++	"os"
++	"os/exec"
++)
++
++func main() {
++	_, err := exec.LookPath("go")
++	if err != nil {
++		fmt.Println(err)
++		os.Exit(1)
++	}
++}
++-- $WORK/bin/README.txt --
++This directory contains no executables.
+diff --git a/src/cmd/go/testdata/script/test_goroot_PATH.txt b/src/cmd/go/testdata/script/test_goroot_PATH.txt
+new file mode 100644
+index 0000000000..f49ec106ff
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_goroot_PATH.txt
+@@ -0,0 +1,41 @@
++# https://go.dev/issue/51473: to avoid the need for tests to rely on
++# runtime.GOROOT, 'go test' should run the test with its own GOROOT/bin
++# at the beginning of $PATH.
++
++[short] skip
++
++[!plan9] env PATH=
++[plan9] env path=
++go test .
++
++[!plan9] env PATH=$WORK${/}bin
++[plan9] env path=$WORK${/}bin
++go test .
++
++-- go.mod --
++module example
++
++go 1.19
++-- example_test.go --
++package example
++
++import (
++	"os"
++	"os/exec"
++	"path/filepath"
++	"testing"
++)
++
++func TestGoCommandExists(t *testing.T) {
++	got, err := exec.LookPath("go")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	want := filepath.Join(os.Getenv("GOROOT"), "bin", "go" + os.Getenv("GOEXE"))
++	if got != want {
++		t.Fatalf(`exec.LookPath("go") = %q; want %q`, got, want)
++	}
++}
++-- $WORK/bin/README.txt --
++This directory contains no executables.

@@ -7,8 +7,51 @@ Date:   Fri Jan 20 13:34:11 2012 -0500
     R=golang-dev, gri, r
     CC=golang-dev
     https://golang.org/cl/5561047
-
+---
  src/pkg/go/doc/testdata/a0.go                | 2 +-
  src/pkg/go/doc/testdata/a1.go                | 2 +-
  src/pkg/go/doc/testdata/{a.out => alpha.out} | 4 ++--
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/go/doc/testdata/a0.go b/src/pkg/go/doc/testdata/a0.go
+index dc552989ec..1c208c0faa 100644
+--- a/src/pkg/go/doc/testdata/a0.go
++++ b/src/pkg/go/doc/testdata/a0.go
+@@ -3,6 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ // comment 0
+-package a
++package alpha
+ 
+ //BUG(uid): bug0
+diff --git a/src/pkg/go/doc/testdata/a1.go b/src/pkg/go/doc/testdata/a1.go
+index 098776c1b0..8db9c8041d 100644
+--- a/src/pkg/go/doc/testdata/a1.go
++++ b/src/pkg/go/doc/testdata/a1.go
+@@ -3,6 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ // comment 1
+-package a
++package alpha
+ 
+ //BUG(uid): bug1
+diff --git a/src/pkg/go/doc/testdata/a.out b/src/pkg/go/doc/testdata/alpha.out
+similarity index 77%
+rename from src/pkg/go/doc/testdata/a.out
+rename to src/pkg/go/doc/testdata/alpha.out
+index 24db02d348..8f02f9d914 100644
+--- a/src/pkg/go/doc/testdata/a.out
++++ b/src/pkg/go/doc/testdata/alpha.out
+@@ -1,8 +1,8 @@
+ // comment 0  comment 1 
+-PACKAGE a
++PACKAGE alpha
+ 
+ IMPORTPATH
+-	testdata/a
++	testdata/alpha
+ 
+ FILENAMES
+ 	testdata/a0.go

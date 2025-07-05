@@ -176,7 +176,7 @@ Date:   Mon Aug 12 16:41:11 2024 +0800
     Reviewed-by: Meidan Li <limeidan@loongson.cn>
     Reviewed-by: Tim King <taking@google.com>
     Reviewed-by: abner chenc <chenguoqi@loongson.cn>
-
+---
  src/cmd/compile/internal/loong64/ssa.go         |   4 +
  src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  13 +++
  src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go |   8 ++
@@ -184,3 +184,378 @@ Date:   Mon Aug 12 16:41:11 2024 +0800
  src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 139 ++++++++++++++++++++++++
  test/codegen/math.go                            |   4 +
  6 files changed, 224 insertions(+)
+
+diff --git a/src/cmd/compile/internal/loong64/ssa.go b/src/cmd/compile/internal/loong64/ssa.go
+index fd5ed5f928..d9ad1a0a62 100644
+--- a/src/cmd/compile/internal/loong64/ssa.go
++++ b/src/cmd/compile/internal/loong64/ssa.go
+@@ -418,6 +418,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssa.OpLOONG64TRUNCDV,
+ 		ssa.OpLOONG64MOVFD,
+ 		ssa.OpLOONG64MOVDF,
++		ssa.OpLOONG64MOVWfpgp,
++		ssa.OpLOONG64MOVWgpfp,
++		ssa.OpLOONG64MOVVfpgp,
++		ssa.OpLOONG64MOVVgpfp,
+ 		ssa.OpLOONG64NEGF,
+ 		ssa.OpLOONG64NEGD,
+ 		ssa.OpLOONG64SQRTD,
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+index ab280f8f79..ae01b5eb24 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+@@ -394,6 +394,19 @@
+                 mem)
+ 
+ 
++// float <=> int register moves, with no conversion.
++// These come up when compiling math.{Float64bits, Float64frombits, Float32bits, Float32frombits}.
++(MOVVload  [off] {sym} ptr (MOVDstore [off] {sym} ptr val _)) => (MOVVfpgp val)
++(MOVDload  [off] {sym} ptr (MOVVstore [off] {sym} ptr val _)) => (MOVVgpfp val)
++(MOVWUload [off] {sym} ptr (MOVFstore [off] {sym} ptr val _)) => (ZeroExt32to64 (MOVWfpgp <typ.Float32> val))
++(MOVFload  [off] {sym} ptr (MOVWstore [off] {sym} ptr val _)) => (MOVWgpfp val)
++
++// Similarly for stores, if we see a store after FPR <=> GPR move, then redirect store to use the other register set.
++(MOVVstore [off] {sym} ptr (MOVVfpgp val) mem) => (MOVDstore [off] {sym} ptr val mem)
++(MOVDstore [off] {sym} ptr (MOVVgpfp val) mem) => (MOVVstore [off] {sym} ptr val mem)
++(MOVWstore [off] {sym} ptr (MOVWfpgp val) mem) => (MOVFstore [off] {sym} ptr val mem)
++(MOVFstore [off] {sym} ptr (MOVWgpfp val) mem) => (MOVWstore [off] {sym} ptr val mem)
++
+ // calls
+ (StaticCall ...) => (CALLstatic ...)
+ (ClosureCall ...) => (CALLclosure ...)
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+index 8046ffead3..140088b6bd 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+@@ -152,6 +152,8 @@ func init() {
+ 		fp2flags  = regInfo{inputs: []regMask{fp, fp}}
+ 		fpload    = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{fp}}
+ 		fpstore   = regInfo{inputs: []regMask{gpspsbg, fp}}
++		fpgp      = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}
++		gpfp      = regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}
+ 		readflags = regInfo{inputs: nil, outputs: []regMask{gp}}
+ 	)
+ 	ops := []opData{
+@@ -258,6 +260,12 @@ func init() {
+ 		{name: "MOVWstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVW", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 4 bytes of zero to arg0 + auxInt + aux.  arg1=mem.
+ 		{name: "MOVVstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVV", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 8 bytes of zero to arg0 + auxInt + aux.  ar12=mem.
+ 
++		// moves (no conversion)
++		{name: "MOVWfpgp", argLength: 1, reg: fpgp, asm: "MOVW"}, // move float32 to int32 (no conversion).
++		{name: "MOVWgpfp", argLength: 1, reg: gpfp, asm: "MOVW"}, // move int32 to float32 (no conversion).
++		{name: "MOVVfpgp", argLength: 1, reg: fpgp, asm: "MOVV"}, // move float64 to int64 (no conversion).
++		{name: "MOVVgpfp", argLength: 1, reg: gpfp, asm: "MOVV"}, // move int64 to float64 (no conversion).
++
+ 		// conversions
+ 		{name: "MOVBreg", argLength: 1, reg: gp11, asm: "MOVB"},   // move from arg0, sign-extended from byte
+ 		{name: "MOVBUreg", argLength: 1, reg: gp11, asm: "MOVBU"}, // move from arg0, unsign-extended from byte
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 7f5ab229e0..9e6f8b9a97 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1824,6 +1824,10 @@ const (
+ 	OpLOONG64MOVHstorezero
+ 	OpLOONG64MOVWstorezero
+ 	OpLOONG64MOVVstorezero
++	OpLOONG64MOVWfpgp
++	OpLOONG64MOVWgpfp
++	OpLOONG64MOVVfpgp
++	OpLOONG64MOVVgpfp
+ 	OpLOONG64MOVBreg
+ 	OpLOONG64MOVBUreg
+ 	OpLOONG64MOVHreg
+@@ -24608,6 +24612,58 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "MOVWfpgp",
++		argLen: 1,
++		asm:    loong64.AMOVW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
++	{
++		name:   "MOVWgpfp",
++		argLen: 1,
++		asm:    loong64.AMOVW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++			outputs: []outputInfo{
++				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:   "MOVVfpgp",
++		argLen: 1,
++		asm:    loong64.AMOVV,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
++	{
++		name:   "MOVVgpfp",
++		argLen: 1,
++		asm:    loong64.AMOVV,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++			outputs: []outputInfo{
++				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
+ 	{
+ 		name:   "MOVBreg",
+ 		argLen: 1,
+diff --git a/src/cmd/compile/internal/ssa/rewriteLOONG64.go b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+index e17c305f4f..99690d324c 100644
+--- a/src/cmd/compile/internal/ssa/rewriteLOONG64.go
++++ b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+@@ -2143,6 +2143,23 @@ func rewriteValueLOONG64_OpLOONG64MOVDload(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	config := b.Func.Config
++	// match: (MOVDload [off] {sym} ptr (MOVVstore [off] {sym} ptr val _))
++	// result: (MOVVgpfp val)
++	for {
++		off := auxIntToInt32(v.AuxInt)
++		sym := auxToSym(v.Aux)
++		ptr := v_0
++		if v_1.Op != OpLOONG64MOVVstore || auxIntToInt32(v_1.AuxInt) != off || auxToSym(v_1.Aux) != sym {
++			break
++		}
++		val := v_1.Args[1]
++		if ptr != v_1.Args[0] {
++			break
++		}
++		v.reset(OpLOONG64MOVVgpfp)
++		v.AddArg(val)
++		return true
++	}
+ 	// match: (MOVDload [off1] {sym} (ADDVconst [off2] ptr) mem)
+ 	// cond: is32Bit(int64(off1)+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_dynlink)
+ 	// result: (MOVDload [off1+int32(off2)] {sym} ptr mem)
+@@ -2194,6 +2211,23 @@ func rewriteValueLOONG64_OpLOONG64MOVDstore(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	config := b.Func.Config
++	// match: (MOVDstore [off] {sym} ptr (MOVVgpfp val) mem)
++	// result: (MOVVstore [off] {sym} ptr val mem)
++	for {
++		off := auxIntToInt32(v.AuxInt)
++		sym := auxToSym(v.Aux)
++		ptr := v_0
++		if v_1.Op != OpLOONG64MOVVgpfp {
++			break
++		}
++		val := v_1.Args[0]
++		mem := v_2
++		v.reset(OpLOONG64MOVVstore)
++		v.AuxInt = int32ToAuxInt(off)
++		v.Aux = symToAux(sym)
++		v.AddArg3(ptr, val, mem)
++		return true
++	}
+ 	// match: (MOVDstore [off1] {sym} (ADDVconst [off2] ptr) val mem)
+ 	// cond: is32Bit(int64(off1)+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_dynlink)
+ 	// result: (MOVDstore [off1+int32(off2)] {sym} ptr val mem)
+@@ -2246,6 +2280,23 @@ func rewriteValueLOONG64_OpLOONG64MOVFload(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	config := b.Func.Config
++	// match: (MOVFload [off] {sym} ptr (MOVWstore [off] {sym} ptr val _))
++	// result: (MOVWgpfp val)
++	for {
++		off := auxIntToInt32(v.AuxInt)
++		sym := auxToSym(v.Aux)
++		ptr := v_0
++		if v_1.Op != OpLOONG64MOVWstore || auxIntToInt32(v_1.AuxInt) != off || auxToSym(v_1.Aux) != sym {
++			break
++		}
++		val := v_1.Args[1]
++		if ptr != v_1.Args[0] {
++			break
++		}
++		v.reset(OpLOONG64MOVWgpfp)
++		v.AddArg(val)
++		return true
++	}
+ 	// match: (MOVFload [off1] {sym} (ADDVconst [off2] ptr) mem)
+ 	// cond: is32Bit(int64(off1)+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_dynlink)
+ 	// result: (MOVFload [off1+int32(off2)] {sym} ptr mem)
+@@ -2297,6 +2348,23 @@ func rewriteValueLOONG64_OpLOONG64MOVFstore(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	config := b.Func.Config
++	// match: (MOVFstore [off] {sym} ptr (MOVWgpfp val) mem)
++	// result: (MOVWstore [off] {sym} ptr val mem)
++	for {
++		off := auxIntToInt32(v.AuxInt)
++		sym := auxToSym(v.Aux)
++		ptr := v_0
++		if v_1.Op != OpLOONG64MOVWgpfp {
++			break
++		}
++		val := v_1.Args[0]
++		mem := v_2
++		v.reset(OpLOONG64MOVWstore)
++		v.AuxInt = int32ToAuxInt(off)
++		v.Aux = symToAux(sym)
++		v.AddArg3(ptr, val, mem)
++		return true
++	}
+ 	// match: (MOVFstore [off1] {sym} (ADDVconst [off2] ptr) val mem)
+ 	// cond: is32Bit(int64(off1)+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_dynlink)
+ 	// result: (MOVFstore [off1+int32(off2)] {sym} ptr val mem)
+@@ -2760,6 +2828,23 @@ func rewriteValueLOONG64_OpLOONG64MOVVload(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	config := b.Func.Config
++	// match: (MOVVload [off] {sym} ptr (MOVDstore [off] {sym} ptr val _))
++	// result: (MOVVfpgp val)
++	for {
++		off := auxIntToInt32(v.AuxInt)
++		sym := auxToSym(v.Aux)
++		ptr := v_0
++		if v_1.Op != OpLOONG64MOVDstore || auxIntToInt32(v_1.AuxInt) != off || auxToSym(v_1.Aux) != sym {
++			break
++		}
++		val := v_1.Args[1]
++		if ptr != v_1.Args[0] {
++			break
++		}
++		v.reset(OpLOONG64MOVVfpgp)
++		v.AddArg(val)
++		return true
++	}
+ 	// match: (MOVVload [off1] {sym} (ADDVconst [off2] ptr) mem)
+ 	// cond: is32Bit(int64(off1)+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_dynlink)
+ 	// result: (MOVVload [off1+int32(off2)] {sym} ptr mem)
+@@ -2838,6 +2923,23 @@ func rewriteValueLOONG64_OpLOONG64MOVVstore(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	config := b.Func.Config
++	// match: (MOVVstore [off] {sym} ptr (MOVVfpgp val) mem)
++	// result: (MOVDstore [off] {sym} ptr val mem)
++	for {
++		off := auxIntToInt32(v.AuxInt)
++		sym := auxToSym(v.Aux)
++		ptr := v_0
++		if v_1.Op != OpLOONG64MOVVfpgp {
++			break
++		}
++		val := v_1.Args[0]
++		mem := v_2
++		v.reset(OpLOONG64MOVDstore)
++		v.AuxInt = int32ToAuxInt(off)
++		v.Aux = symToAux(sym)
++		v.AddArg3(ptr, val, mem)
++		return true
++	}
+ 	// match: (MOVVstore [off1] {sym} (ADDVconst [off2] ptr) val mem)
+ 	// cond: is32Bit(int64(off1)+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_dynlink)
+ 	// result: (MOVVstore [off1+int32(off2)] {sym} ptr val mem)
+@@ -2940,6 +3042,26 @@ func rewriteValueLOONG64_OpLOONG64MOVWUload(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	config := b.Func.Config
++	typ := &b.Func.Config.Types
++	// match: (MOVWUload [off] {sym} ptr (MOVFstore [off] {sym} ptr val _))
++	// result: (ZeroExt32to64 (MOVWfpgp <typ.Float32> val))
++	for {
++		off := auxIntToInt32(v.AuxInt)
++		sym := auxToSym(v.Aux)
++		ptr := v_0
++		if v_1.Op != OpLOONG64MOVFstore || auxIntToInt32(v_1.AuxInt) != off || auxToSym(v_1.Aux) != sym {
++			break
++		}
++		val := v_1.Args[1]
++		if ptr != v_1.Args[0] {
++			break
++		}
++		v.reset(OpZeroExt32to64)
++		v0 := b.NewValue0(v_1.Pos, OpLOONG64MOVWfpgp, typ.Float32)
++		v0.AddArg(val)
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (MOVWUload [off1] {sym} (ADDVconst [off2] ptr) mem)
+ 	// cond: is32Bit(int64(off1)+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_dynlink)
+ 	// result: (MOVWUload [off1+int32(off2)] {sym} ptr mem)
+@@ -3236,6 +3358,23 @@ func rewriteValueLOONG64_OpLOONG64MOVWstore(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	config := b.Func.Config
++	// match: (MOVWstore [off] {sym} ptr (MOVWfpgp val) mem)
++	// result: (MOVFstore [off] {sym} ptr val mem)
++	for {
++		off := auxIntToInt32(v.AuxInt)
++		sym := auxToSym(v.Aux)
++		ptr := v_0
++		if v_1.Op != OpLOONG64MOVWfpgp {
++			break
++		}
++		val := v_1.Args[0]
++		mem := v_2
++		v.reset(OpLOONG64MOVFstore)
++		v.AuxInt = int32ToAuxInt(off)
++		v.Aux = symToAux(sym)
++		v.AddArg3(ptr, val, mem)
++		return true
++	}
+ 	// match: (MOVWstore [off1] {sym} (ADDVconst [off2] ptr) val mem)
+ 	// cond: is32Bit(int64(off1)+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_dynlink)
+ 	// result: (MOVWstore [off1+int32(off2)] {sym} ptr val mem)
+diff --git a/test/codegen/math.go b/test/codegen/math.go
+index eb6e927dec..806f909648 100644
+--- a/test/codegen/math.go
++++ b/test/codegen/math.go
+@@ -156,6 +156,7 @@ func fnma(x, y, z float64) float64 {
+ func fromFloat64(f64 float64) uint64 {
+ 	// amd64:"MOVQ\tX.*, [^X].*"
+ 	// arm64:"FMOVD\tF.*, R.*"
++	// loong64:"MOVV\tF.*, R.*"
+ 	// ppc64x:"MFVSRD"
+ 	// mips64/hardfloat:"MOVV\tF.*, R.*"
+ 	return math.Float64bits(f64+1) + 1
+@@ -164,6 +165,7 @@ func fromFloat64(f64 float64) uint64 {
+ func fromFloat32(f32 float32) uint32 {
+ 	// amd64:"MOVL\tX.*, [^X].*"
+ 	// arm64:"FMOVS\tF.*, R.*"
++	// loong64:"MOVW\tF.*, R.*"
+ 	// mips64/hardfloat:"MOVW\tF.*, R.*"
+ 	return math.Float32bits(f32+1) + 1
+ }
+@@ -171,6 +173,7 @@ func fromFloat32(f32 float32) uint32 {
+ func toFloat64(u64 uint64) float64 {
+ 	// amd64:"MOVQ\t[^X].*, X.*"
+ 	// arm64:"FMOVD\tR.*, F.*"
++	// loong64:"MOVV\tR.*, F.*"
+ 	// ppc64x:"MTVSRD"
+ 	// mips64/hardfloat:"MOVV\tR.*, F.*"
+ 	return math.Float64frombits(u64+1) + 1
+@@ -179,6 +182,7 @@ func toFloat64(u64 uint64) float64 {
+ func toFloat32(u32 uint32) float32 {
+ 	// amd64:"MOVL\t[^X].*, X.*"
+ 	// arm64:"FMOVS\tR.*, F.*"
++	// loong64:"MOVW\tR.*, F.*"
+ 	// mips64/hardfloat:"MOVW\tR.*, F.*"
+ 	return math.Float32frombits(u32+1) + 1
+ }

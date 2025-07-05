@@ -7,7 +7,7 @@ Date:   Wed Aug 12 14:41:13 2009 -0700
     R=ken
     OCL=33108
     CL=33113
-
+---
  src/cmd/gc/align.c     |   7 ---
  src/cmd/gc/dcl.c       | 121 ++-----------------------------------------------
  src/cmd/gc/export.c    |   6 ---
@@ -18,3 +18,395 @@ Date:   Wed Aug 12 14:41:13 2009 -0700
  src/cmd/gc/typecheck.c |   2 -
  src/cmd/gc/walk.c      |   5 +-
  9 files changed, 6 insertions(+), 170 deletions(-)
+
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index 0ea7e8e971..34f3e9c84a 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -165,7 +165,6 @@ dowidth(Type *t)
+ 		w = 2*widthptr;
+ 		break;
+ 	case TINTER:		// implemented as 2 pointers
+-	case TFORWINTER:
+ 		offmod(t);
+ 		w = 2*widthptr;
+ 		break;
+@@ -179,10 +178,6 @@ dowidth(Type *t)
+ 		w = widthptr;
+ 		break;
+ 	case TFORW:		// should have been filled in
+-	case TFORWSTRUCT:
+-		yyerror("undefined type %T", t);
+-		w = widthptr;
+-		break;
+ 	case TANY:
+ 		// dummy type; should be replaced before use.
+ 		fatal("dowidth any");
+@@ -262,8 +257,6 @@ typeinit(void)
+ 	isptr[TPTR64] = 1;
+ 
+ 	isforw[TFORW] = 1;
+-	isforw[TFORWSTRUCT] = 1;
+-	isforw[TFORWINTER] = 1;
+ 
+ 	issigned[TINT] = 1;
+ 	issigned[TINT8] = 1;
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index d19c0a4d2e..ef7cd3e925 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -239,28 +239,7 @@ addtyp(Type *n, int ctxt)
+ Type*
+ dodcltype(Type *n)
+ {
+-	Sym *s;
+-
+-	// if n has been forward declared,
+-	// use the Type* created then
+-	s = n->sym;
+-	if((funcdepth == 0 || s->block == block) && s->def != N && s->def->op == OTYPE) {
+-		switch(s->def->type->etype) {
+-		case TFORWSTRUCT:
+-		case TFORWINTER:
+-			n = s->def->type;
+-			if(s->block != block) {
+-				// completing forward struct from other file
+-				externdcl = list(externdcl, typenod(n));
+-			}
+-			goto found;
+-		}
+-	}
+-
+-	// otherwise declare a new type
+ 	addtyp(n, dclcontext);
+-
+-found:
+ 	n->local = 1;
+ 	autoexport(typenod(n), dclcontext);
+ 	return n;
+@@ -288,21 +267,6 @@ updatetype(Type *n, Type *t)
+ 	case TFORW:
+ 		break;
+ 
+-	case TFORWSTRUCT:
+-		if(t->etype != TSTRUCT) {
+-			yyerror("%T forward declared as struct", n);
+-			return;
+-		}
+-		n->local = 1;
+-		break;
+-
+-	case TFORWINTER:
+-		if(t->etype != TINTER) {
+-			yyerror("%T forward declared as interface", n);
+-			return;
+-		}
+-		break;
+-
+ 	default:
+ 		fatal("updatetype %T / %T", n, t);
+ 	}
+@@ -323,14 +287,7 @@ updatetype(Type *n, Type *t)
+ 	n->vargen = vargen;
+ 	n->nod = N;
+ 
+-	// catch declaration of incomplete type
+-	switch(n->etype) {
+-	case TFORWSTRUCT:
+-	case TFORWINTER:
+-		break;
+-	default:
+-		checkwidth(n);
+-	}
++	checkwidth(n);
+ 
+ 	// double-check use of type as map key
+ 	if(maplineno) {
+@@ -646,7 +603,6 @@ colas(NodeList *left, NodeList *right)
+ void
+ funchdr(Node *n)
+ {
+-	Node *nt;
+ 
+ 	if(n->nname != N) {
+ 		n->nname->op = ONAME;
+@@ -735,47 +691,14 @@ funcbody(Node *n)
+ 		dclcontext = PEXTERN;
+ }
+ 
+-/*
+- * forward declarations of types
+- * TODO(rsc): delete!
+- */
+-
+ /*
+  * new type being defined with name s.
+  */
+ Node*
+ typedcl0(Sym *s)
+ {
+-	Node *o, *ot, *n;
+-	int et;
+-
+-	// TODO(rsc): throw away once forward declarations are gone
+-	if((o = s->def) != N && o != N && o->op == OTYPE && s->block == block) {
+-		if((ot = o->ntype) != N && ot->op == OTYPE && ot->type != T)
+-		if((et = ot->type->etype) == TFORWSTRUCT || et == TFORWINTER) {
+-			// local forward declaration exists!
+-			// use it instead of the node we just created.
+-			if(ot->walkdef || ot->typecheck)
+-				fatal("someone looked at the fwd decl");
+-			return o;
+-		}
+-
+-		if(o->type && ((et = o->type->etype) == TFORWSTRUCT || et == TFORWINTER)) {
+-			// imported forward declaration exists.
+-			// attach the fwd type to the node we just
+-			// created, so that when we define the type in walkdef
+-			// we will overwrite the fwd version.
+-			o->nincr = nod(OXXX, N, N);
+-			o->nincr->type = o->type;
+-			o->type = T;
+-			o->walkdef = 0;
+-			o->typecheck = 0;
+-			autoexport(o, PEXTERN);
+-			return o;
+-		}
+-	}
++	Node *n;
+ 
+-	// make a new one
+ 	n = dclname(s);
+ 	n->op = OTYPE;
+ 	declare(n, dclcontext);
+@@ -784,9 +707,7 @@ typedcl0(Sym *s)
+ 
+ /*
+  * node n, which was returned by typedcl0
+- * is being declared to have uncompiled type t.  if n was previously forward
+- * declared, update the forward declaration and undo the dclname.
+- * extra tricky because we have to deal with imported forward declarations.
++ * is being declared to have uncompiled type t.
+  * return the ODCLTYPE node to use.
+  */
+ Node*
+@@ -797,20 +718,6 @@ typedcl1(Node *n, Node *t, int local)
+ 	return nod(ODCLTYPE, n, N);
+ }
+ 
+-/*
+- * node n, which was returned by dclname (newname for imports)
+- * is being forward declared as et (TFORWSTRUCT or TFORWINTER).
+- * if n was previously forward declared, scream.
+- * return the ODCLTYPE node to use.
+- */
+-Node*
+-fwdtype(Node *n, int et)
+-{
+-	n->op = OTYPE;
+-	n->ntype = typenod(typ(et));
+-	return nod(ODCLTYPE, n, N);
+-}
+-
+ /*
+  * typedcl1 but during imports
+  */
+@@ -821,14 +728,6 @@ typedcl2(Type *pt, Type *t)
+ 
+ 	if(pt->etype == TFORW)
+ 		goto ok;
+-	if(pt->etype == TFORWSTRUCT && t->etype == TSTRUCT)
+-		goto ok;
+-	if(pt->etype == TFORWINTER && t->etype == TINTER)
+-		goto ok;
+-	if(pt->etype == TSTRUCT && t->etype == TFORWSTRUCT)
+-		return;
+-	if(pt->etype == TINTER && t->etype == TFORWINTER)
+-		return;
+ 	if(!cvttype(pt, t)) {
+ 		yyerror("redeclaration of %T during imports", pt);
+ 		return;
+@@ -843,17 +742,7 @@ ok:
+ 	pt->sym = n->sym;
+ 	declare(n, PEXTERN);
+ 
+-	switch(pt->etype) {
+-	case TFORWINTER:
+-	case TFORWSTRUCT:
+-		// allow re-export in case it gets defined
+-		pt->sym->flags &= ~(SymExport|SymPackage);
+-		pt->sym->flags &= ~SymImported;
+-		break;
+-	default:
+-		checkwidth(pt);
+-		break;
+-	}
++	checkwidth(pt);
+ }
+ 
+ /*
+@@ -1292,8 +1181,6 @@ addmethod(Sym *sf, Type *t, int local)
+ 
+ 	if(local && !pa->local) {
+ 		// defining method on non-local type.
+-		// method must have been forward declared
+-		// elsewhere, i.e. where the type was.
+ 		yyerror("cannot define new methods on non-local type %T", pa);
+ 		return;
+ 	}
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index b5abec3cca..1d5253ff5f 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -163,12 +163,6 @@ dumpexporttype(Sym *s)
+ 	case TFORW:
+ 		yyerror("export of incomplete type %T", t);
+ 		return;
+-	case TFORWSTRUCT:
+-		Bprint(bout, "type %#T struct\n", t);
+-		return;
+-	case TFORWINTER:
+-		Bprint(bout, "type %#T interface\n", t);
+-		return;
+ 	}
+ 	Bprint(bout, "type %#T %l#T\n",  t, t);
+ }
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index e5cdadbb73..5768a55461 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -2,13 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-/*
+-*/
+-
+ #include	<u.h>
+ #include	<libc.h>
+ #include	<bio.h>
+-#include	"compat.h"
+ 
+ #ifndef	EXTERN
+ #define	EXTERN	extern
+@@ -420,8 +416,6 @@ enum
+ 	TFIELD,
+ 	TANY,
+ 	TSTRING,
+-	TFORWSTRUCT,
+-	TFORWINTER,
+ 
+ 	// pseudo-types for literals
+ 	TIDEAL,
+@@ -942,7 +936,6 @@ void	funccompile(Node*);
+ 
+ Node*	typedcl0(Sym*);
+ Node*	typedcl1(Node*, Node*, int);
+-Node*	fwdtype(Node*, int);
+ void	typedcl2(Type*, Type*);
+ 
+ /*
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 439340caba..722ca82db0 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -389,17 +389,6 @@ typedcl:
+ 		$$ = typedcl1($1, $2, 1);
+ 	}
+ 
+-// TODO(rsc): delete
+-|	typedclname LSTRUCT
+-	{
+-		$$ = fwdtype($1, TFORWSTRUCT);
+-	}
+-// TODO(rsc): delete
+-|	typedclname LINTERFACE
+-	{
+-		$$ = fwdtype($1, TFORWINTER);
+-	}
+-
+ simple_stmt:
+ 	expr
+ 	{
+@@ -1566,15 +1555,6 @@ hidden_import:
+ 	{
+ 		importtype($2, $3);
+ 	}
+-// TODO(rsc): delete
+-|	LTYPE hidden_pkgtype LSTRUCT
+-	{
+-		importtype($2, typ(TFORWSTRUCT));
+-	}
+-|	LTYPE hidden_pkgtype LINTERFACE
+-	{
+-		importtype($2, typ(TFORWINTER));
+-	}
+ |	LFUNC hidden_pkg_importsym '(' ohidden_funarg_list ')' ohidden_funres
+ 	{
+ 		importvar($2, functype(N, $4, $6), PFUNC);
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 5c58077129..9a1ad088dd 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -532,10 +532,6 @@ ok:
+ 		ot = duintptr(s, ot, t->chan);
+ 		break;
+ 
+-	case TFORWSTRUCT:
+-	case TFORWINTER:
+-		return s;
+-
+ 	case TFUNC:
+ 		for(t1=getthisx(t)->type; t1; t1=t1->down)
+ 			dtypesym(t1->type);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 896f5f61d1..771e9c293d 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -336,7 +336,7 @@ algtype(Type *t)
+ 		a = ASTRING;	// string
+ 	else if(isnilinter(t))
+ 		a = ANILINTER;	// nil interface
+-	else if(t->etype == TINTER || t->etype == TFORWINTER)
++	else if(t->etype == TINTER)
+ 		a = AINTER;	// interface
+ 	else
+ 		a = ANOEQ;	// just bytes, but no hash/eq
+@@ -804,8 +804,6 @@ etnames[] =
+ 	[TSTRING]	= "STRING",
+ 	[TCHAN]		= "CHAN",
+ 	[TANY]		= "ANY",
+-	[TFORWINTER]	= "FORWINTER",
+-	[TFORWSTRUCT]	= "FORWSTRUCT",
+ };
+ 
+ int
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index a7d5b8d40e..2ff2af9307 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -948,8 +948,6 @@ ret:
+ 		case TFUNC:	// might have TANY; wait until its called
+ 		case TANY:
+ 		case TFORW:
+-		case TFORWINTER:
+-		case TFORWSTRUCT:
+ 		case TIDEAL:
+ 		case TNIL:
+ 			break;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index fd1220f618..2f5ff58325 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -195,10 +195,7 @@ walkdef(Node *n)
+ 
+ 	case OTYPE:
+ 		n->walkdef = 1;
+-		if(n->nincr != N)	// fwd decl hack
+-			n->type = n->nincr->type;
+-		else
+-			n->type = typ(TFORW);
++		n->type = typ(TFORW);
+ 		n->type->sym = n->sym;
+ 		n->typecheck = 1;
+ 		typecheck(&n->ntype, Etype);

@@ -7,6 +7,20 @@ Date:   Mon Nov 14 15:51:30 2016 -0800
     Change-Id: I05f31938f3736100bd8b20a150c9fe3a6ffcdeae
     Reviewed-on: https://go-review.googlesource.com/33245
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/cgo/gcc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index d88c41d50a..5ee06f7f40 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1424,7 +1424,7 @@ var typedef = make(map[string]*Type)
+ var goIdent = make(map[string]*ast.Ident)
+ 
+ // unionWithPointer is true for a Go type that represents a C union (or class)
+-// that may contain a pointer. This is used for cgo pointer checking
++// that may contain a pointer. This is used for cgo pointer checking.
+ var unionWithPointer = make(map[ast.Expr]bool)
+ 
+ func (c *typeConv) Init(ptrSize, intSize int64) {

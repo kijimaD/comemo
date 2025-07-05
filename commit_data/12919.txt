@@ -13,7 +13,102 @@ Date:   Fri Apr 20 10:48:10 2012 +1000
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/6072047
-
+---
  src/pkg/exp/html/parse.go                 | 39 +++++++++++--------------------
  src/pkg/exp/html/testlogs/tests19.dat.log |  2 +-
  2 files changed, 14 insertions(+), 27 deletions(-)
+
+diff --git a/src/pkg/exp/html/parse.go b/src/pkg/exp/html/parse.go
+index 72963a5f5d..8f62348969 100644
+--- a/src/pkg/exp/html/parse.go
++++ b/src/pkg/exp/html/parse.go
+@@ -539,16 +539,7 @@ func inHeadIM(p *parser) bool {
+ 
+ // Section 12.2.5.4.6.
+ func afterHeadIM(p *parser) bool {
+-	var (
+-		add        bool
+-		attr       []Attribute
+-		framesetOK bool
+-		implied    bool
+-	)
+ 	switch p.tok.Type {
+-	case ErrorToken:
+-		implied = true
+-		framesetOK = true
+ 	case TextToken:
+ 		s := strings.TrimLeft(p.tok.Data, whitespace)
+ 		if len(s) < len(p.tok.Data) {
+@@ -559,16 +550,15 @@ func afterHeadIM(p *parser) bool {
+ 			}
+ 			p.tok.Data = s
+ 		}
+-		implied = true
+-		framesetOK = true
+ 	case StartTagToken:
+ 		switch p.tok.Data {
+ 		case "html":
+-			// TODO.
++			return inBodyIM(p)
+ 		case "body":
+-			add = true
+-			attr = p.tok.Attr
+-			framesetOK = false
++			p.addElement(p.tok.Data, p.tok.Attr)
++			p.framesetOK = false
++			p.im = inBodyIM
++			return true
+ 		case "frameset":
+ 			p.addElement(p.tok.Data, p.tok.Attr)
+ 			p.im = inFramesetIM
+@@ -580,15 +570,11 @@ func afterHeadIM(p *parser) bool {
+ 		case "head":
+ 			// Ignore the token.
+ 			return true
+-		default:
+-			implied = true
+-			framesetOK = true
+ 		}
+ 	case EndTagToken:
+ 		switch p.tok.Data {
+ 		case "body", "html", "br":
+-			implied = true
+-			framesetOK = true
++			// Drop down to creating an implied <body> tag.
+ 		default:
+ 			// Ignore the token.
+ 			return true
+@@ -599,13 +585,14 @@ func afterHeadIM(p *parser) bool {
+ 			Data: p.tok.Data,
+ 		})
+ 		return true
++	case DoctypeToken:
++		// Ignore the token.
++		return true
+ 	}
+-	if add || implied {
+-		p.addElement("body", attr)
+-		p.framesetOK = framesetOK
+-	}
+-	p.im = inBodyIM
+-	return !implied
++
++	p.parseImpliedToken(StartTagToken, "body", nil)
++	p.framesetOK = true
++	return false
+ }
+ 
+ // copyAttributes copies attributes of src not found on dst to dst.
+diff --git a/src/pkg/exp/html/testlogs/tests19.dat.log b/src/pkg/exp/html/testlogs/tests19.dat.log
+index 45269a870a..189e0fe4a8 100644
+--- a/src/pkg/exp/html/testlogs/tests19.dat.log
++++ b/src/pkg/exp/html/testlogs/tests19.dat.log
+@@ -85,7 +85,7 @@ PASS "<!doctype html><math></html>"
+ PASS "<!doctype html><meta charset=\"ascii\">"
+ FAIL "<!doctype html><meta http-equiv=\"content-type\" content=\"text/html;charset=ascii\">"
+ PASS "<!doctype html><head><!--aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa--><meta charset=\"utf8\">"
+-FAIL "<!doctype html><html a=b><head></head><html c=d>"
++PASS "<!doctype html><html a=b><head></head><html c=d>"
+ PASS "<!doctype html><image/>"
+ PASS "<!doctype html>a<i>b<table>c<b>d</i>e</b>f"
+ PASS "<!doctype html><table><i>a<b>b<div>c<a>d</i>e</b>f"

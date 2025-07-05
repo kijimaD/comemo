@@ -10,8 +10,87 @@ Date:   Fri Jun 3 13:50:44 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4529111
-
+---
  src/pkg/sync/rwmutex_test.go | 2 ++
  src/pkg/testing/benchmark.go | 9 +++++++--
  src/pkg/testing/testing.go   | 6 ++++++
  3 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/sync/rwmutex_test.go b/src/pkg/sync/rwmutex_test.go
+index 9fb89f8e8a..0480a66018 100644
+--- a/src/pkg/sync/rwmutex_test.go
++++ b/src/pkg/sync/rwmutex_test.go
+@@ -45,6 +45,7 @@ func doTestParallelReaders(numReaders, gomaxprocs int) {
+ }
+ 
+ func TestParallelReaders(t *testing.T) {
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(-1))
+ 	doTestParallelReaders(1, 4)
+ 	doTestParallelReaders(3, 4)
+ 	doTestParallelReaders(4, 2)
+@@ -102,6 +103,7 @@ func HammerRWMutex(gomaxprocs, numReaders, num_iterations int) {
+ }
+ 
+ func TestRWMutex(t *testing.T) {
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(-1))
+ 	n := 1000
+ 	if testing.Short() {
+ 		n = 5
+diff --git a/src/pkg/testing/benchmark.go b/src/pkg/testing/benchmark.go
+index db4c65941c..f8b53e63ae 100644
+--- a/src/pkg/testing/benchmark.go
++++ b/src/pkg/testing/benchmark.go
+@@ -143,7 +143,6 @@ func (b *B) run() BenchmarkResult {
+ 		b.runN(n)
+ 	}
+ 	return BenchmarkResult{b.N, b.ns, b.bytes}
+-
+ }
+ 
+ // The results of a benchmark run.
+@@ -183,6 +182,7 @@ func RunBenchmarks(matchString func(pat, str string) (bool, os.Error), benchmark
+ 	if len(*matchBenchmarks) == 0 {
+ 		return
+ 	}
++	procs := runtime.GOMAXPROCS(-1)
+ 	for _, Benchmark := range benchmarks {
+ 		matched, err := matchString(*matchBenchmarks, Benchmark.Name)
+ 		if err != nil {
+@@ -194,7 +194,12 @@ func RunBenchmarks(matchString func(pat, str string) (bool, os.Error), benchmark
+ 		}
+ 		b := &B{benchmark: Benchmark}
+ 		r := b.run()
+-		fmt.Printf("%s\t%v\n", Benchmark.Name, r)
++		print(fmt.Sprintf("%s\t%v\n", Benchmark.Name, r))
++		if p := runtime.GOMAXPROCS(-1); p != procs {
++			print(fmt.Sprintf("%s left GOMAXPROCS set to %d\n", Benchmark.Name, p))
++			procs = p
++		}
++
+ 	}
+ }
+ 
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index 8781b207de..3b2dd377af 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -171,6 +171,7 @@ func RunTests(matchString func(pat, str string) (bool, os.Error), tests []Intern
+ 	if len(tests) == 0 {
+ 		println("testing: warning: no tests to run")
+ 	}
++	procs := runtime.GOMAXPROCS(-1)
+ 	for i := 0; i < len(tests); i++ {
+ 		matched, err := matchString(*match, tests[i].Name)
+ 		if err != nil {
+@@ -190,6 +191,11 @@ func RunTests(matchString func(pat, str string) (bool, os.Error), tests []Intern
+ 		<-t.ch
+ 		ns += time.Nanoseconds()
+ 		tstr := fmt.Sprintf("(%.2f seconds)", float64(ns)/1e9)
++		if p := runtime.GOMAXPROCS(-1); t.failed == false && p != procs {
++			t.failed = true
++			t.errors = fmt.Sprintf("%s left GOMAXPROCS set to %d\n", tests[i].Name, p)
++			procs = p
++		}
+ 		if t.failed {
+ 			println("--- FAIL:", tests[i].Name, tstr)
+ 			print(t.errors)

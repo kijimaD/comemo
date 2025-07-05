@@ -10,8 +10,63 @@ Date:   Mon Feb 2 13:41:38 2009 -0800
     R=ken
     OCL=24108
     CL=24111
-
+---
  src/cmd/6g/align.c | 7 ++++++-
  src/cmd/6g/cgen.c  | 8 +++-----
  src/cmd/6g/gsubr.c | 4 +---
  3 files changed, 10 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/6g/align.c b/src/cmd/6g/align.c
+index 5d55e2ca91..a2a8e2808b 100644
+--- a/src/cmd/6g/align.c
++++ b/src/cmd/6g/align.c
+@@ -68,7 +68,12 @@ widstruct(Type *t, uint32 o, int flag)
+ 	// final width is rounded
+ 	if(flag)
+ 		o = rnd(o, maxround);
+-	t->width = o;
++
++	// type width only includes back to first field's offset
++	if(t->type == T)
++		t->width = 0;
++	else
++		t->width = o - t->type->width;
+ 	return o;
+ }
+ 
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 4a7404e8ca..05dd256ffa 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -906,11 +906,9 @@ sgen(Node *n, Node *ns, int32 w)
+ 		}
+ 
+ 		if(c >= 4) {
+-			gconreg(AMOVQ, c, D_CX);
+-			gins(AREP, N, N);	// repeat
+-			gins(AMOVSB, N, N);	// MOVB *(SI)+,*(DI)+
+-
+-		} else
++			gins(AMOVSL, N, N);	// MOVL *(SI)+,*(DI)+
++			c -= 4;
++		}
+ 		while(c > 0) {
+ 			gins(AMOVSB, N, N);	// MOVB *(SI)+,*(DI)+
+ 			c--;
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 67def99527..4d091da648 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -1887,11 +1887,9 @@ lsort(Sig *l, int(*f)(Sig*, Sig*))
+ void
+ setmaxarg(Type *t)
+ {
+-	Type *to;
+ 	int32 w;
+ 
+-	to = *getoutarg(t);
+-	w = to->width;
++	w = t->argwid;
+ 	if(w > maxarg)
+ 		maxarg = w;
+ }

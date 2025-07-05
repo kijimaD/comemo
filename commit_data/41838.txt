@@ -13,7 +13,7 @@ Date:   Sun Oct 27 12:03:17 2019 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/envcmd/env.go   |  6 +++---
  src/cmd/go/internal/load/pkg.go     |  7 +++----
  src/cmd/go/internal/sumdb/server.go | 12 ++++++------
@@ -21,3 +21,196 @@ Date:   Sun Oct 27 12:03:17 2019 +0000
  src/cmd/go/internal/work/exec.go    |  6 +++---
  src/go/build/build.go               |  7 ++++---
  6 files changed, 20 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index b80b181642..da704777f5 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -237,7 +237,7 @@ func runEnv(cmd *base.Command, args []string) {
+ 				base.Fatalf("go env -w: arguments must be KEY=VALUE: invalid argument: %s", arg)
+ 			}
+ 			key, val := arg[:i], arg[i+1:]
+-			if err := checkEnvWrite(key, val, env); err != nil {
++			if err := checkEnvWrite(key, val); err != nil {
+ 				base.Fatalf("go env -w: %v", err)
+ 			}
+ 			if _, ok := add[key]; ok {
+@@ -259,7 +259,7 @@ func runEnv(cmd *base.Command, args []string) {
+ 		}
+ 		del := make(map[string]bool)
+ 		for _, arg := range args {
+-			if err := checkEnvWrite(arg, "", env); err != nil {
++			if err := checkEnvWrite(arg, ""); err != nil {
+ 				base.Fatalf("go env -u: %v", err)
+ 			}
+ 			del[arg] = true
+@@ -330,7 +330,7 @@ func printEnvAsJSON(env []cfg.EnvVar) {
+ 	}
+ }
+ 
+-func checkEnvWrite(key, val string, env []cfg.EnvVar) error {
++func checkEnvWrite(key, val string) error {
+ 	switch key {
+ 	case "GOEXE", "GOGCCFLAGS", "GOHOSTARCH", "GOHOSTOS", "GOMOD", "GOTOOLDIR":
+ 		return fmt.Errorf("%s cannot be modified", key)
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 6b8ecc46b1..6a6f77e367 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -593,7 +593,7 @@ func loadImport(pre *preload, path, srcDir string, parent *Package, stk *ImportS
+ 		return setErrorPos(perr, importPos)
+ 	}
+ 	if mode&ResolveImport != 0 {
+-		if perr := disallowVendor(srcDir, parent, parentPath, path, p, stk); perr != p {
++		if perr := disallowVendor(srcDir, path, p, stk); perr != p {
+ 			return setErrorPos(perr, importPos)
+ 		}
+ 	}
+@@ -1321,11 +1321,10 @@ func findInternal(path string) (index int, ok bool) {
+ 	return 0, false
+ }
+ 
+-// disallowVendor checks that srcDir (containing package importerPath, if non-empty)
+-// is allowed to import p as path.
++// disallowVendor checks that srcDir is allowed to import p as path.
+ // If the import is allowed, disallowVendor returns the original package p.
+ // If not, it returns a new package containing just an appropriate error.
+-func disallowVendor(srcDir string, importer *Package, importerPath, path string, p *Package, stk *ImportStack) *Package {
++func disallowVendor(srcDir string, path string, p *Package, stk *ImportStack) *Package {
+ 	// The stack includes p.ImportPath.
+ 	// If that's the only thing on the stack, we started
+ 	// with a name given on the command line, not an
+diff --git a/src/cmd/go/internal/sumdb/server.go b/src/cmd/go/internal/sumdb/server.go
+index 6370cf5fd5..16b04fce15 100644
+--- a/src/cmd/go/internal/sumdb/server.go
++++ b/src/cmd/go/internal/sumdb/server.go
+@@ -80,17 +80,17 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+ 		escPath, escVers := mod[:i], mod[i+1:]
+ 		path, err := module.UnescapePath(escPath)
+ 		if err != nil {
+-			reportError(w, r, err)
++			reportError(w, err)
+ 			return
+ 		}
+ 		vers, err := module.UnescapeVersion(escVers)
+ 		if err != nil {
+-			reportError(w, r, err)
++			reportError(w, err)
+ 			return
+ 		}
+ 		id, err := s.ops.Lookup(ctx, module.Version{Path: path, Version: vers})
+ 		if err != nil {
+-			reportError(w, r, err)
++			reportError(w, err)
+ 			return
+ 		}
+ 		records, err := s.ops.ReadRecords(ctx, id, 1)
+@@ -137,7 +137,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+ 			start := t.N << uint(t.H)
+ 			records, err := s.ops.ReadRecords(ctx, start, int64(t.W))
+ 			if err != nil {
+-				reportError(w, r, err)
++				reportError(w, err)
+ 				return
+ 			}
+ 			if len(records) != t.W {
+@@ -159,7 +159,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+ 
+ 		data, err := s.ops.ReadTileData(ctx, t)
+ 		if err != nil {
+-			reportError(w, r, err)
++			reportError(w, err)
+ 			return
+ 		}
+ 		w.Header().Set("Content-Type", "application/octet-stream")
+@@ -172,7 +172,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+ // Otherwise it is an internal server error.
+ // The caller must only call reportError in contexts where
+ // a not-found err should be reported as 404.
+-func reportError(w http.ResponseWriter, r *http.Request, err error) {
++func reportError(w http.ResponseWriter, err error) {
+ 	if os.IsNotExist(err) {
+ 		http.Error(w, err.Error(), http.StatusNotFound)
+ 		return
+diff --git a/src/cmd/go/internal/work/buildid.go b/src/cmd/go/internal/work/buildid.go
+index 27bde8c615..7558a3091a 100644
+--- a/src/cmd/go/internal/work/buildid.go
++++ b/src/cmd/go/internal/work/buildid.go
+@@ -15,7 +15,6 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cache"
+ 	"cmd/go/internal/cfg"
+-	"cmd/go/internal/load"
+ 	"cmd/go/internal/str"
+ 	"cmd/internal/buildid"
+ )
+@@ -421,7 +420,7 @@ func (b *Builder) fileHash(file string) string {
+ // during a's work. The caller should defer b.flushOutput(a), to make sure
+ // that flushOutput is eventually called regardless of whether the action
+ // succeeds. The flushOutput call must happen after updateBuildID.
+-func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID, target string) bool {
++func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string) bool {
+ 	// The second half of the build ID here is a placeholder for the content hash.
+ 	// It's important that the overall buildID be unlikely verging on impossible
+ 	// to appear in the output by chance, but that should be taken care of by
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 0f25a5d19f..a50de513f5 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -395,7 +395,7 @@ func (b *Builder) build(a *Action) (err error) {
+ 		bit(needCompiledGoFiles, b.NeedCompiledGoFiles)
+ 
+ 	if !p.BinaryOnly {
+-		if b.useCache(a, p, b.buildActionID(a), p.Target) {
++		if b.useCache(a, b.buildActionID(a), p.Target) {
+ 			// We found the main output in the cache.
+ 			// If we don't need any other outputs, we can stop.
+ 			// Otherwise, we need to write files to a.Objdir (needVet, needCgoHdr).
+@@ -1171,7 +1171,7 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
+ // link is the action for linking a single command.
+ // Note that any new influence on this logic must be reported in b.linkActionID above as well.
+ func (b *Builder) link(a *Action) (err error) {
+-	if b.useCache(a, a.Package, b.linkActionID(a), a.Package.Target) || b.IsCmdList {
++	if b.useCache(a, b.linkActionID(a), a.Package.Target) || b.IsCmdList {
+ 		return nil
+ 	}
+ 	defer b.flushOutput(a)
+@@ -1404,7 +1404,7 @@ func (b *Builder) linkSharedActionID(a *Action) cache.ActionID {
+ }
+ 
+ func (b *Builder) linkShared(a *Action) (err error) {
+-	if b.useCache(a, nil, b.linkSharedActionID(a), a.Target) || b.IsCmdList {
++	if b.useCache(a, b.linkSharedActionID(a), a.Target) || b.IsCmdList {
+ 		return nil
+ 	}
+ 	defer b.flushOutput(a)
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index c763db4f86..8832ab7856 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -592,13 +592,14 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
+ 			return p, fmt.Errorf("import %q: cannot import absolute path", path)
+ 		}
+ 
+-		gopath := ctxt.gopath() // needed by both importGo and below; avoid computing twice
+-		if err := ctxt.importGo(p, path, srcDir, mode, gopath); err == nil {
++		if err := ctxt.importGo(p, path, srcDir, mode); err == nil {
+ 			goto Found
+ 		} else if err != errNoModules {
+ 			return p, err
+ 		}
+ 
++		gopath := ctxt.gopath() // needed twice below; avoid computing many times
++
+ 		// tried records the location of unsuccessful package lookups
+ 		var tried struct {
+ 			vendor []string
+@@ -990,7 +991,7 @@ var errNoModules = errors.New("not using modules")
+ // about the requested package and all dependencies and then only reports about the requested package.
+ // Then we reinvoke it for every dependency. But this is still better than not working at all.
+ // See golang.org/issue/26504.
+-func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode, gopath []string) error {
++func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode) error {
+ 	const debugImportGo = false
+ 
+ 	// To invoke the go command, we must know the source directory,

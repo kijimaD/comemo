@@ -9,6 +9,20 @@ Date:   Thu Oct 1 07:57:00 2020 -0700
     Trust: Roland Shoemaker <roland@golang.org>
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.16.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index 2ecf7db7c7..c6e3d92cc6 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -164,7 +164,7 @@ Do not send CLs removing the interior tags from such phrases.
+   TODO
+ </p>
+ 
+-<h3 id="ctypto/tls"><a href="/pkg/crypto/tls">crypto/tls</a></h3>
++<h3 id="crypto/tls"><a href="/pkg/crypto/tls">crypto/tls</a></h3>
+ 
+ <p><!-- CL 256897 -->
+   I/O operations on closing or closed TLS connections can now be detected using

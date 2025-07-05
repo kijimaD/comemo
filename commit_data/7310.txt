@@ -7,7 +7,32 @@ Date:   Tue Feb 1 13:31:28 2011 -0500
     R=gri, josvazg, gri1
     CC=golang-dev
     https://golang.org/cl/4044047
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 3656f0a7db..e0b5e19252 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -67,6 +67,7 @@ Jeff R. Allen <jra@nella.org>
+ Jim McGrath <jimmc2@gmail.com>
+ Joe Poirier <jdpoirier@gmail.com>
+ Jonathan Wills <runningwild@gmail.com>
++Jose Luis Vázquez González <josvazg@gmail.com>
+ Josh Goebel <dreamer3@gmail.com>
+ Jukka-Pekka Kekkonen <karatepekka@gmail.com>
+ Kai Backman <kaib@golang.org>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 76199ddb50..769a5b10ec 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -110,6 +110,7 @@ Jim McGrath <jimmc2@gmail.com>
+ Joe Poirier <jdpoirier@gmail.com>
+ Jonathan Wills <runningwild@gmail.com>
+ Jos Visser <josv@google.com>
++Jose Luis Vázquez González <josvazg@gmail.com>
+ Josh Goebel <dreamer3@gmail.com>
+ Jukka-Pekka Kekkonen <karatepekka@gmail.com>
+ Kai Backman <kaib@golang.org>

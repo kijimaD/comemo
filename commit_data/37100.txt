@@ -14,7 +14,7 @@ Date:   Wed Nov 22 19:27:20 2017 +0000
     Change-Id: I8006b92e017453ae408c153233ce5ccef99b5c3f
     Reviewed-on: https://go-review.googlesource.com/79736
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/tls/auth.go                  | 17 ++++++++++----
  src/crypto/tls/auth_test.go             | 21 +++++++++++-------
  src/crypto/tls/cipher_suites.go         |  4 ++--
@@ -24,3 +24,289 @@ Date:   Wed Nov 22 19:27:20 2017 +0000
  src/crypto/tls/key_agreement.go         | 14 +++++++-----
  src/crypto/tls/prf.go                   |  2 +-
  8 files changed, 90 insertions(+), 25 deletions(-)
+
+diff --git a/src/crypto/tls/auth.go b/src/crypto/tls/auth.go
+index 57efe085a1..88face4cde 100644
+--- a/src/crypto/tls/auth.go
++++ b/src/crypto/tls/auth.go
+@@ -30,9 +30,9 @@ func pickSignatureAlgorithm(pubkey crypto.PublicKey, peerSigAlgs, ourSigAlgs []S
+ 		switch pubkey.(type) {
+ 		case *rsa.PublicKey:
+ 			if tlsVersion < VersionTLS12 {
+-				return 0, signatureRSA, crypto.MD5SHA1, nil
++				return 0, signaturePKCS1v15, crypto.MD5SHA1, nil
+ 			} else {
+-				return PKCS1WithSHA1, signatureRSA, crypto.SHA1, nil
++				return PKCS1WithSHA1, signaturePKCS1v15, crypto.SHA1, nil
+ 			}
+ 		case *ecdsa.PublicKey:
+ 			return ECDSAWithSHA1, signatureECDSA, crypto.SHA1, nil
+@@ -51,7 +51,7 @@ func pickSignatureAlgorithm(pubkey crypto.PublicKey, peerSigAlgs, ourSigAlgs []S
+ 		sigType := signatureFromSignatureScheme(sigAlg)
+ 		switch pubkey.(type) {
+ 		case *rsa.PublicKey:
+-			if sigType == signatureRSA {
++			if sigType == signaturePKCS1v15 || sigType == signatureRSAPSS {
+ 				return sigAlg, sigType, hashAlg, nil
+ 			}
+ 		case *ecdsa.PublicKey:
+@@ -84,7 +84,7 @@ func verifyHandshakeSignature(sigType uint8, pubkey crypto.PublicKey, hashFunc c
+ 		if !ecdsa.Verify(pubKey, digest, ecdsaSig.R, ecdsaSig.S) {
+ 			return errors.New("tls: ECDSA verification failure")
+ 		}
+-	case signatureRSA:
++	case signaturePKCS1v15:
+ 		pubKey, ok := pubkey.(*rsa.PublicKey)
+ 		if !ok {
+ 			return errors.New("tls: RSA signing requires a RSA public key")
+@@ -92,6 +92,15 @@ func verifyHandshakeSignature(sigType uint8, pubkey crypto.PublicKey, hashFunc c
+ 		if err := rsa.VerifyPKCS1v15(pubKey, hashFunc, digest, sig); err != nil {
+ 			return err
+ 		}
++	case signatureRSAPSS:
++		pubKey, ok := pubkey.(*rsa.PublicKey)
++		if !ok {
++			return errors.New("tls: RSA signing requires a RSA public key")
++		}
++		signOpts := &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash}
++		if err := rsa.VerifyPSS(pubKey, hashFunc, digest, sig, signOpts); err != nil {
++			return err
++		}
+ 	default:
+ 		return errors.New("tls: unknown signature algorithm")
+ 	}
+diff --git a/src/crypto/tls/auth_test.go b/src/crypto/tls/auth_test.go
+index 4258a822d6..3f876b9e1a 100644
+--- a/src/crypto/tls/auth_test.go
++++ b/src/crypto/tls/auth_test.go
+@@ -13,6 +13,7 @@ func TestSignatureSelection(t *testing.T) {
+ 	rsaCert := &testRSAPrivateKey.PublicKey
+ 	ecdsaCert := &testECDSAPrivateKey.PublicKey
+ 	sigsPKCS1WithSHA := []SignatureScheme{PKCS1WithSHA256, PKCS1WithSHA1}
++	sigsPSSWithSHA := []SignatureScheme{PSSWithSHA256, PSSWithSHA384}
+ 	sigsECDSAWithSHA := []SignatureScheme{ECDSAWithP256AndSHA256, ECDSAWithSHA1}
+ 
+ 	tests := []struct {
+@@ -27,30 +28,34 @@ func TestSignatureSelection(t *testing.T) {
+ 	}{
+ 		// Hash is fixed for RSA in TLS 1.1 and before.
+ 		// https://tools.ietf.org/html/rfc4346#page-44
+-		{rsaCert, nil, nil, VersionTLS11, 0, signatureRSA, crypto.MD5SHA1},
+-		{rsaCert, nil, nil, VersionTLS10, 0, signatureRSA, crypto.MD5SHA1},
+-		{rsaCert, nil, nil, VersionSSL30, 0, signatureRSA, crypto.MD5SHA1},
++		{rsaCert, nil, nil, VersionTLS11, 0, signaturePKCS1v15, crypto.MD5SHA1},
++		{rsaCert, nil, nil, VersionTLS10, 0, signaturePKCS1v15, crypto.MD5SHA1},
++		{rsaCert, nil, nil, VersionSSL30, 0, signaturePKCS1v15, crypto.MD5SHA1},
+ 
+ 		// Before TLS 1.2, there is no signature_algorithms extension
+ 		// nor field in CertificateRequest and digitally-signed and thus
+ 		// it should be ignored.
+-		{rsaCert, sigsPKCS1WithSHA, nil, VersionTLS11, 0, signatureRSA, crypto.MD5SHA1},
+-		{rsaCert, sigsPKCS1WithSHA, sigsPKCS1WithSHA, VersionTLS11, 0, signatureRSA, crypto.MD5SHA1},
++		{rsaCert, sigsPKCS1WithSHA, nil, VersionTLS11, 0, signaturePKCS1v15, crypto.MD5SHA1},
++		{rsaCert, sigsPKCS1WithSHA, sigsPKCS1WithSHA, VersionTLS11, 0, signaturePKCS1v15, crypto.MD5SHA1},
+ 		// Use SHA-1 for TLS 1.0 and 1.1 with ECDSA, see https://tools.ietf.org/html/rfc4492#page-20
+ 		{ecdsaCert, sigsPKCS1WithSHA, sigsPKCS1WithSHA, VersionTLS11, 0, signatureECDSA, crypto.SHA1},
+ 		{ecdsaCert, sigsPKCS1WithSHA, sigsPKCS1WithSHA, VersionTLS10, 0, signatureECDSA, crypto.SHA1},
+ 
+ 		// TLS 1.2 without signature_algorithms extension
+ 		// https://tools.ietf.org/html/rfc5246#page-47
+-		{rsaCert, nil, sigsPKCS1WithSHA, VersionTLS12, PKCS1WithSHA1, signatureRSA, crypto.SHA1},
++		{rsaCert, nil, sigsPKCS1WithSHA, VersionTLS12, PKCS1WithSHA1, signaturePKCS1v15, crypto.SHA1},
+ 		{ecdsaCert, nil, sigsPKCS1WithSHA, VersionTLS12, ECDSAWithSHA1, signatureECDSA, crypto.SHA1},
+ 
+-		{rsaCert, []SignatureScheme{PKCS1WithSHA1}, sigsPKCS1WithSHA, VersionTLS12, PKCS1WithSHA1, signatureRSA, crypto.SHA1},
+-		{rsaCert, []SignatureScheme{PKCS1WithSHA256}, sigsPKCS1WithSHA, VersionTLS12, PKCS1WithSHA256, signatureRSA, crypto.SHA256},
++		{rsaCert, []SignatureScheme{PKCS1WithSHA1}, sigsPKCS1WithSHA, VersionTLS12, PKCS1WithSHA1, signaturePKCS1v15, crypto.SHA1},
++		{rsaCert, []SignatureScheme{PKCS1WithSHA256}, sigsPKCS1WithSHA, VersionTLS12, PKCS1WithSHA256, signaturePKCS1v15, crypto.SHA256},
+ 		// "sha_hash" may denote hashes other than SHA-1
+ 		// https://tools.ietf.org/html/draft-ietf-tls-rfc4492bis-17#page-17
+ 		{ecdsaCert, []SignatureScheme{ECDSAWithSHA1}, sigsECDSAWithSHA, VersionTLS12, ECDSAWithSHA1, signatureECDSA, crypto.SHA1},
+ 		{ecdsaCert, []SignatureScheme{ECDSAWithP256AndSHA256}, sigsECDSAWithSHA, VersionTLS12, ECDSAWithP256AndSHA256, signatureECDSA, crypto.SHA256},
++
++		// RSASSA-PSS is defined in TLS 1.3 for TLS 1.2
++		// https://tools.ietf.org/html/draft-ietf-tls-tls13-21#page-45
++		{rsaCert, []SignatureScheme{PSSWithSHA256}, sigsPSSWithSHA, VersionTLS12, PSSWithSHA256, signatureRSAPSS, crypto.SHA256},
+ 	}
+ 
+ 	for testNo, test := range tests {
+diff --git a/src/crypto/tls/cipher_suites.go b/src/crypto/tls/cipher_suites.go
+index 41f9103f0d..3c8dc4b2d2 100644
+--- a/src/crypto/tls/cipher_suites.go
++++ b/src/crypto/tls/cipher_suites.go
+@@ -333,14 +333,14 @@ func rsaKA(version uint16) keyAgreement {
+ 
+ func ecdheECDSAKA(version uint16) keyAgreement {
+ 	return &ecdheKeyAgreement{
+-		sigType: signatureECDSA,
++		isRSA:   false,
+ 		version: version,
+ 	}
+ }
+ 
+ func ecdheRSAKA(version uint16) keyAgreement {
+ 	return &ecdheKeyAgreement{
+-		sigType: signatureRSA,
++		isRSA:   true,
+ 		version: version,
+ 	}
+ }
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 14996e6835..7c8f0de6e8 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -127,10 +127,12 @@ const (
+ 	// Rest of these are reserved by the TLS spec
+ )
+ 
+-// Signature algorithms for TLS 1.2 (See RFC 5246, section A.4.1)
++// Signature algorithms (for internal signaling use). Starting at 16 to avoid overlap with
++// TLS 1.2 codepoints (RFC 5246, section A.4.1), with which these have nothing to do.
+ const (
+-	signatureRSA   uint8 = 1
+-	signatureECDSA uint8 = 3
++	signaturePKCS1v15 uint8 = iota + 16
++	signatureECDSA
++	signatureRSAPSS
+ )
+ 
+ // supportedSignatureAlgorithms contains the signature and hash algorithms that
+@@ -994,7 +996,9 @@ func isSupportedSignatureAlgorithm(sigAlg SignatureScheme, supportedSignatureAlg
+ func signatureFromSignatureScheme(signatureAlgorithm SignatureScheme) uint8 {
+ 	switch signatureAlgorithm {
+ 	case PKCS1WithSHA1, PKCS1WithSHA256, PKCS1WithSHA384, PKCS1WithSHA512:
+-		return signatureRSA
++		return signaturePKCS1v15
++	case PSSWithSHA256, PSSWithSHA384, PSSWithSHA512:
++		return signatureRSAPSS
+ 	case ECDSAWithSHA1, ECDSAWithP256AndSHA256, ECDSAWithP384AndSHA384, ECDSAWithP521AndSHA512:
+ 		return signatureECDSA
+ 	default:
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index 634f967cd0..d7fb368228 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -493,7 +493,11 @@ func (hs *clientHandshakeState) doFullHandshake() error {
+ 			c.sendAlert(alertInternalError)
+ 			return err
+ 		}
+-		certVerify.signature, err = key.Sign(c.config.rand(), digest, hashFunc)
++		signOpts := crypto.SignerOpts(hashFunc)
++		if sigType == signatureRSAPSS {
++			signOpts = &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash, Hash: hashFunc}
++		}
++		certVerify.signature, err = key.Sign(c.config.rand(), digest, signOpts)
+ 		if err != nil {
+ 			c.sendAlert(alertInternalError)
+ 			return err
+diff --git a/src/crypto/tls/handshake_client_test.go b/src/crypto/tls/handshake_client_test.go
+index cc3ab714a6..2ab4e474ec 100644
+--- a/src/crypto/tls/handshake_client_test.go
++++ b/src/crypto/tls/handshake_client_test.go
+@@ -1578,3 +1578,42 @@ func TestGetClientCertificate(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestRSAPSSKeyError(t *testing.T) {
++	// crypto/tls does not support the rsa_pss_pss_xxx SignatureSchemes. If support for
++	// public keys with OID RSASSA-PSS is added to crypto/x509, they will be misused with
++	// the rsa_pss_rsae_xxx SignatureSchemes. Assert that RSASSA-PSS certificates don't
++	// parse, or that they don't carry *rsa.PublicKey keys.
++	b, _ := pem.Decode([]byte(`
++-----BEGIN CERTIFICATE-----
++MIIDZTCCAhygAwIBAgIUCF2x0FyTgZG0CC9QTDjGWkB5vgEwPgYJKoZIhvcNAQEK
++MDGgDTALBglghkgBZQMEAgGhGjAYBgkqhkiG9w0BAQgwCwYJYIZIAWUDBAIBogQC
++AgDeMBIxEDAOBgNVBAMMB1JTQS1QU1MwHhcNMTgwNjI3MjI0NDM2WhcNMTgwNzI3
++MjI0NDM2WjASMRAwDgYDVQQDDAdSU0EtUFNTMIIBIDALBgkqhkiG9w0BAQoDggEP
++ADCCAQoCggEBANxDm0f76JdI06YzsjB3AmmjIYkwUEGxePlafmIASFjDZl/elD0Z
++/a7xLX468b0qGxLS5al7XCcEprSdsDR6DF5L520+pCbpfLyPOjuOvGmk9KzVX4x5
++b05YXYuXdsQ0Kjxcx2i3jjCday6scIhMJVgBZxTEyMj1thPQM14SHzKCd/m6HmCL
++QmswpH2yMAAcBRWzRpp/vdH5DeOJEB3aelq7094no731mrLUCHRiZ1htq8BDB3ou
++czwqgwspbqZ4dnMXl2MvfySQ5wJUxQwILbiuAKO2lVVPUbFXHE9pgtznNoPvKwQT
++JNcX8ee8WIZc2SEGzofjk3NpjR+2ADB2u3sCAwEAAaNTMFEwHQYDVR0OBBYEFNEz
++AdyJ2f+fU+vSCS6QzohnOnprMB8GA1UdIwQYMBaAFNEzAdyJ2f+fU+vSCS6Qzohn
++OnprMA8GA1UdEwEB/wQFMAMBAf8wPgYJKoZIhvcNAQEKMDGgDTALBglghkgBZQME
++AgGhGjAYBgkqhkiG9w0BAQgwCwYJYIZIAWUDBAIBogQCAgDeA4IBAQCjEdrR5aab
++sZmCwrMeKidXgfkmWvfuLDE+TCbaqDZp7BMWcMQXT9O0UoUT5kqgKj2ARm2pEW0Z
++H3Z1vj3bbds72qcDIJXp+l0fekyLGeCrX/CbgnMZXEP7+/+P416p34ChR1Wz4dU1
++KD3gdsUuTKKeMUog3plxlxQDhRQmiL25ygH1LmjLd6dtIt0GVRGr8lj3euVeprqZ
++bZ3Uq5eLfsn8oPgfC57gpO6yiN+UURRTlK3bgYvLh4VWB3XXk9UaQZ7Mq1tpXjoD
++HYFybkWzibkZp4WRo+Fa28rirH+/wHt0vfeN7UCceURZEx4JaxIIfe4ku7uDRhJi
++RwBA9Xk1KBNF
++-----END CERTIFICATE-----`))
++	if b == nil {
++		t.Fatal("Failed to decode certificate")
++	}
++	cert, err := x509.ParseCertificate(b.Bytes)
++	if err != nil {
++		return
++	}
++	if _, ok := cert.PublicKey.(*rsa.PublicKey); ok {
++		t.Error("A RSA-PSS certificate was parsed like a PKCS1 one, and it will be mistakenly used with rsa_pss_rsae_xxx signature algorithms")
++	}
++}
+diff --git a/src/crypto/tls/key_agreement.go b/src/crypto/tls/key_agreement.go
+index 7dc54d5faa..1e77facce0 100644
+--- a/src/crypto/tls/key_agreement.go
++++ b/src/crypto/tls/key_agreement.go
+@@ -139,13 +139,13 @@ func curveForCurveID(id CurveID) (elliptic.Curve, bool) {
+ 
+ }
+ 
+-// ecdheRSAKeyAgreement implements a TLS key agreement where the server
++// ecdheKeyAgreement implements a TLS key agreement where the server
+ // generates an ephemeral EC public/private key pair and signs it. The
+ // pre-master secret is then calculated using ECDH. The signature may
+ // either be ECDSA or RSA.
+ type ecdheKeyAgreement struct {
+ 	version    uint16
+-	sigType    uint8
++	isRSA      bool
+ 	privateKey []byte
+ 	curveid    CurveID
+ 
+@@ -217,7 +217,7 @@ NextCandidate:
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	if sigType != ka.sigType {
++	if (sigType == signaturePKCS1v15 || sigType == signatureRSAPSS) != ka.isRSA {
+ 		return nil, errors.New("tls: certificate cannot be used with the selected cipher suite")
+ 	}
+ 
+@@ -226,7 +226,11 @@ NextCandidate:
+ 		return nil, err
+ 	}
+ 
+-	sig, err := priv.Sign(config.rand(), digest, hashFunc)
++	signOpts := crypto.SignerOpts(hashFunc)
++	if sigType == signatureRSAPSS {
++		signOpts = &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash, Hash: hashFunc}
++	}
++	sig, err := priv.Sign(config.rand(), digest, signOpts)
+ 	if err != nil {
+ 		return nil, errors.New("tls: failed to sign ECDHE parameters: " + err.Error())
+ 	}
+@@ -334,7 +338,7 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
+ 	if err != nil {
+ 		return err
+ 	}
+-	if sigType != ka.sigType {
++	if (sigType == signaturePKCS1v15 || sigType == signatureRSAPSS) != ka.isRSA {
+ 		return errServerKeyExchange
+ 	}
+ 
+diff --git a/src/crypto/tls/prf.go b/src/crypto/tls/prf.go
+index 1d883260de..98e9ab4292 100644
+--- a/src/crypto/tls/prf.go
++++ b/src/crypto/tls/prf.go
+@@ -317,7 +317,7 @@ func (h finishedHash) hashForClientCertificate(sigType uint8, hashAlg crypto.Has
+ 	}
+ 
+ 	if h.version == VersionSSL30 {
+-		if sigType != signatureRSA {
++		if sigType != signaturePKCS1v15 {
+ 			return nil, errors.New("tls: unsupported signature type for client certificate")
+ 		}
+ 

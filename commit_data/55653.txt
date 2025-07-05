@@ -17,6 +17,42 @@ Date:   Mon Jan 30 23:54:13 2023 -0500
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/noder/reader.go | 15 +--------------
  1 file changed, 1 insertion(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index d2d9d5a550..7a8350b1fb 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1566,13 +1566,6 @@ func (r *reader) addLocal(name *ir.Name, ctxt ir.Class) {
+ 			name.SetInlFormal(true)
+ 			ctxt = ir.PAUTO
+ 		}
+-
+-		// TODO(mdempsky): Rethink this hack.
+-		if strings.HasPrefix(name.Sym().Name, "~") || base.Flag.GenDwarfInl == 0 {
+-			name.SetPos(r.inlCall.Pos())
+-			name.SetInlFormal(false)
+-			name.SetInlLocal(false)
+-		}
+ 	}
+ 
+ 	name.Class = ctxt
+@@ -3549,15 +3542,9 @@ func unifiedInlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.Inlined
+ 			name.Curfn = callerfn
+ 			callerfn.Dcl = append(callerfn.Dcl, name)
+ 
+-			// Quirkish. TODO(mdempsky): Document why.
+ 			if name.AutoTemp() {
+ 				name.SetEsc(ir.EscUnknown)
+-
+-				if base.Flag.GenDwarfInl != 0 {
+-					name.SetInlLocal(true)
+-				} else {
+-					name.SetPos(r.inlCall.Pos())
+-				}
++				name.SetInlLocal(true)
+ 			}
+ 		}
+ 	}

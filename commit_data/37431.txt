@@ -14,6 +14,21 @@ Date:   Mon Jul 30 22:31:01 2018 +0100
     Change-Id: I284c84af712d4519c59f7ca6c396b05a4c967cee
     Reviewed-on: https://go-review.googlesource.com/126777
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.11.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.11.html b/doc/go1.11.html
+index 361a81cdb0..50292ac019 100644
+--- a/doc/go1.11.html
++++ b/doc/go1.11.html
+@@ -148,7 +148,8 @@ Do not send CLs removing the interior tags from such phrases.
+   to modules using Go 1.11 will continue to work with Go 1.12 and later.
+   If you encounter bugs using modules,
+   please <a href="https://golang.org/issue/new">file issues</a>
+-  so we can fix them.
++  so we can fix them. For more information, see the
++  <a href="/cmd/go#hdr-Modules__module_versions__and_more"><code>go</code> command documentation</a>.
+ </p>
+ 
+ <h3 id="importpath">Import path restriction</h3>

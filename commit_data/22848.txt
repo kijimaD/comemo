@@ -17,9 +17,773 @@ Date:   Fri Apr 10 15:25:10 2015 -0700
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/5g/peep.go           | 112 ++-----------
  src/cmd/internal/ld/dwarf.go | 369 ++++++++++++++-----------------------------
  src/cmd/internal/obj/go.go   |  10 +-
  src/cmd/internal/obj/sym.go  |  65 ++------
  4 files changed, 153 insertions(+), 403 deletions(-)
+
+diff --git a/src/cmd/5g/peep.go b/src/cmd/5g/peep.go
+index 9ec3be2eec..b76719d74e 100644
+--- a/src/cmd/5g/peep.go
++++ b/src/cmd/5g/peep.go
+@@ -1508,102 +1508,22 @@ var predinfo = []struct {
+ 	scond     int
+ 	notscond  int
+ }{
+-	struct {
+-		opcode    int
+-		notopcode int
+-		scond     int
+-		notscond  int
+-	}{arm.ABEQ, arm.ABNE, 0x0, 0x1},
+-	struct {
+-		opcode    int
+-		notopcode int
+-		scond     int
+-		notscond  int
+-	}{arm.ABNE, arm.ABEQ, 0x1, 0x0},
+-	struct {
+-		opcode    int
+-		notopcode int
+-		scond     int
+-		notscond  int
+-	}{arm.ABCS, arm.ABCC, 0x2, 0x3},
+-	struct {
+-		opcode    int
+-		notopcode int
+-		scond     int
+-		notscond  int
+-	}{arm.ABHS, arm.ABLO, 0x2, 0x3},
+-	struct {
+-		opcode    int
+-		notopcode int
+-		scond     int
+-		notscond  int
+-	}{arm.ABCC, arm.ABCS, 0x3, 0x2},
+-	struct {
+-		opcode    int
+-		notopcode int
+-		scond     int
+-		notscond  int
+-	}{arm.ABLO, arm.ABHS, 0x3, 0x2},
+-	struct {
+-		opcode    int
+-		notopcode int
+-		scond     int
+-		notscond  int
+-	}{arm.ABMI, arm.ABPL, 0x4, 0x5},
+-	struct {
+-		opcode    int
+-		notopcode int
+-		scond     int
+-		notscond  int
+-	}{arm.ABPL, arm.ABMI, 0x5, 0x4},
+-	struct {
+-		opcode    int
+-		notopcode int
+-		scond     int
+-		notscond  int
+-	}{arm.ABVS, arm.ABVC, 0x6, 0x7},
+-	struct {
+-		opcode    int
+-		notopcode int
+-		scond     int
+-		notscond  int
+-	}{arm.ABVC, arm.ABVS, 0x7, 0x6},
+-	struct {
+-		opcode    int
+-		notopcode int
+-		scond     int
+-		notscond  int
+-	}{arm.ABHI, arm.ABLS, 0x8, 0x9},
+-	struct {
+-		opcode    int
+-		notopcode int
+-		scond     int
+-		notscond  int
+-	}{arm.ABLS, arm.ABHI, 0x9, 0x8},
+-	struct {
+-		opcode    int
+-		notopcode int
+-		scond     int
+-		notscond  int
+-	}{arm.ABGE, arm.ABLT, 0xA, 0xB},
+-	struct {
+-		opcode    int
+-		notopcode int
+-		scond     int
+-		notscond  int
+-	}{arm.ABLT, arm.ABGE, 0xB, 0xA},
+-	struct {
+-		opcode    int
+-		notopcode int
+-		scond     int
+-		notscond  int
+-	}{arm.ABGT, arm.ABLE, 0xC, 0xD},
+-	struct {
+-		opcode    int
+-		notopcode int
+-		scond     int
+-		notscond  int
+-	}{arm.ABLE, arm.ABGT, 0xD, 0xC},
++	{arm.ABEQ, arm.ABNE, 0x0, 0x1},
++	{arm.ABNE, arm.ABEQ, 0x1, 0x0},
++	{arm.ABCS, arm.ABCC, 0x2, 0x3},
++	{arm.ABHS, arm.ABLO, 0x2, 0x3},
++	{arm.ABCC, arm.ABCS, 0x3, 0x2},
++	{arm.ABLO, arm.ABHS, 0x3, 0x2},
++	{arm.ABMI, arm.ABPL, 0x4, 0x5},
++	{arm.ABPL, arm.ABMI, 0x5, 0x4},
++	{arm.ABVS, arm.ABVC, 0x6, 0x7},
++	{arm.ABVC, arm.ABVS, 0x7, 0x6},
++	{arm.ABHI, arm.ABLS, 0x8, 0x9},
++	{arm.ABLS, arm.ABHI, 0x9, 0x8},
++	{arm.ABGE, arm.ABLT, 0xA, 0xB},
++	{arm.ABLT, arm.ABGE, 0xB, 0xA},
++	{arm.ABGT, arm.ABLE, 0xC, 0xD},
++	{arm.ABLE, arm.ABGT, 0xD, 0xC},
+ }
+ 
+ type Joininfo struct {
+diff --git a/src/cmd/internal/ld/dwarf.go b/src/cmd/internal/ld/dwarf.go
+index c9f13cf29d..8f74e7979b 100644
+--- a/src/cmd/internal/ld/dwarf.go
++++ b/src/cmd/internal/ld/dwarf.go
+@@ -223,382 +223,261 @@ const (
+ type DWAbbrev struct {
+ 	tag      uint8
+ 	children uint8
+-	attr     [30]DWAttrForm
++	attr     []DWAttrForm
+ }
+ 
+-var abbrevs = [DW_NABRV]struct {
+-	tag      uint8
+-	children uint8
+-	attr     [30]DWAttrForm
+-}{
++var abbrevs = [DW_NABRV]DWAbbrev{
+ 	/* The mandatory DW_ABRV_NULL entry. */
+-	struct {
+-		tag      uint8
+-		children uint8
+-		attr     [30]DWAttrForm
+-	}{0, 0, [30]DWAttrForm{}},
++	{0, 0, []DWAttrForm{}},
+ 
+ 	/* COMPUNIT */
+-	struct {
+-		tag      uint8
+-		children uint8
+-		attr     [30]DWAttrForm
+-	}{
++	{
+ 		DW_TAG_compile_unit,
+ 		DW_CHILDREN_yes,
+-		[30]DWAttrForm{
+-			DWAttrForm{DW_AT_name, DW_FORM_string},
+-			DWAttrForm{DW_AT_language, DW_FORM_data1},
+-			DWAttrForm{DW_AT_low_pc, DW_FORM_addr},
+-			DWAttrForm{DW_AT_high_pc, DW_FORM_addr},
+-			DWAttrForm{DW_AT_stmt_list, DW_FORM_data4},
+-			DWAttrForm{0, 0},
++		[]DWAttrForm{
++			{DW_AT_name, DW_FORM_string},
++			{DW_AT_language, DW_FORM_data1},
++			{DW_AT_low_pc, DW_FORM_addr},
++			{DW_AT_high_pc, DW_FORM_addr},
++			{DW_AT_stmt_list, DW_FORM_data4},
+ 		},
+ 	},
+ 
+ 	/* FUNCTION */
+-	struct {
+-		tag      uint8
+-		children uint8
+-		attr     [30]DWAttrForm
+-	}{
++	{
+ 		DW_TAG_subprogram,
+ 		DW_CHILDREN_yes,
+-		[30]DWAttrForm{
+-			DWAttrForm{DW_AT_name, DW_FORM_string},
+-			DWAttrForm{DW_AT_low_pc, DW_FORM_addr},
+-			DWAttrForm{DW_AT_high_pc, DW_FORM_addr},
+-			DWAttrForm{DW_AT_external, DW_FORM_flag},
+-			DWAttrForm{0, 0},
++		[]DWAttrForm{
++			{DW_AT_name, DW_FORM_string},
++			{DW_AT_low_pc, DW_FORM_addr},
++			{DW_AT_high_pc, DW_FORM_addr},
++			{DW_AT_external, DW_FORM_flag},
+ 		},
+ 	},
+ 
+ 	/* VARIABLE */
+-	struct {
+-		tag      uint8
+-		children uint8
+-		attr     [30]DWAttrForm
+-	}{
++	{
+ 		DW_TAG_variable,
+ 		DW_CHILDREN_no,
+-		[30]DWAttrForm{
+-			DWAttrForm{DW_AT_name, DW_FORM_string},
+-			DWAttrForm{DW_AT_location, DW_FORM_block1},
+-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
+-			DWAttrForm{DW_AT_external, DW_FORM_flag},
+-			DWAttrForm{0, 0},
++		[]DWAttrForm{
++			{DW_AT_name, DW_FORM_string},
++			{DW_AT_location, DW_FORM_block1},
++			{DW_AT_type, DW_FORM_ref_addr},
++			{DW_AT_external, DW_FORM_flag},
+ 		},
+ 	},
+ 
+ 	/* AUTO */
+-	struct {
+-		tag      uint8
+-		children uint8
+-		attr     [30]DWAttrForm
+-	}{
++	{
+ 		DW_TAG_variable,
+ 		DW_CHILDREN_no,
+-		[30]DWAttrForm{
+-			DWAttrForm{DW_AT_name, DW_FORM_string},
+-			DWAttrForm{DW_AT_location, DW_FORM_block1},
+-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
+-			DWAttrForm{0, 0},
++		[]DWAttrForm{
++			{DW_AT_name, DW_FORM_string},
++			{DW_AT_location, DW_FORM_block1},
++			{DW_AT_type, DW_FORM_ref_addr},
+ 		},
+ 	},
+ 
+ 	/* PARAM */
+-	struct {
+-		tag      uint8
+-		children uint8
+-		attr     [30]DWAttrForm
+-	}{
++	{
+ 		DW_TAG_formal_parameter,
+ 		DW_CHILDREN_no,
+-		[30]DWAttrForm{
+-			DWAttrForm{DW_AT_name, DW_FORM_string},
+-			DWAttrForm{DW_AT_location, DW_FORM_block1},
+-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
+-			DWAttrForm{0, 0},
++		[]DWAttrForm{
++			{DW_AT_name, DW_FORM_string},
++			{DW_AT_location, DW_FORM_block1},
++			{DW_AT_type, DW_FORM_ref_addr},
+ 		},
+ 	},
+ 
+ 	/* STRUCTFIELD */
+-	struct {
+-		tag      uint8
+-		children uint8
+-		attr     [30]DWAttrForm
+-	}{
++	{
+ 		DW_TAG_member,
+ 		DW_CHILDREN_no,
+-		[30]DWAttrForm{
+-			DWAttrForm{DW_AT_name, DW_FORM_string},
+-			DWAttrForm{DW_AT_data_member_location, DW_FORM_block1},
+-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
+-			DWAttrForm{0, 0},
++		[]DWAttrForm{
++			{DW_AT_name, DW_FORM_string},
++			{DW_AT_data_member_location, DW_FORM_block1},
++			{DW_AT_type, DW_FORM_ref_addr},
+ 		},
+ 	},
+ 
+ 	/* FUNCTYPEPARAM */
+-	struct {
+-		tag      uint8
+-		children uint8
+-		attr     [30]DWAttrForm
+-	}{
++	{
+ 		DW_TAG_formal_parameter,
+ 		DW_CHILDREN_no,
+ 
+ 		// No name!
+-		[30]DWAttrForm{
+-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
+-			DWAttrForm{0, 0},
++		[]DWAttrForm{
++			{DW_AT_type, DW_FORM_ref_addr},
+ 		},
+ 	},
+ 
+ 	/* DOTDOTDOT */
+-	struct {
+-		tag      uint8
+-		children uint8
+-		attr     [30]DWAttrForm
+-	}{
++	{
+ 		DW_TAG_unspecified_parameters,
+ 		DW_CHILDREN_no,
+-		[30]DWAttrForm{DWAttrForm{0, 0}},
++		[]DWAttrForm{},
+ 	},
+ 
+ 	/* ARRAYRANGE */
+-	struct {
+-		tag      uint8
+-		children uint8
+-		attr     [30]DWAttrForm
+-	}{
++	{
+ 		DW_TAG_subrange_type,
+ 		DW_CHILDREN_no,
+ 
+ 		// No name!
+-		[30]DWAttrForm{
+-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
+-			DWAttrForm{DW_AT_count, DW_FORM_udata},
+-			DWAttrForm{0, 0},
++		[]DWAttrForm{
++			{DW_AT_type, DW_FORM_ref_addr},
++			{DW_AT_count, DW_FORM_udata},
+ 		},
+ 	},
+ 
+ 	// Below here are the types considered public by ispubtype
+ 	/* NULLTYPE */
+-	struct {
+-		tag      uint8
+-		children uint8
+-		attr     [30]DWAttrForm
+-	}{
++	{
+ 		DW_TAG_unspecified_type,
+ 		DW_CHILDREN_no,
+-		[30]DWAttrForm{
+-			DWAttrForm{DW_AT_name, DW_FORM_string},
+-			DWAttrForm{0, 0},
++		[]DWAttrForm{
++			{DW_AT_name, DW_FORM_string},
+ 		},
+ 	},
+ 
+ 	/* BASETYPE */
+-	struct {
+-		tag      uint8
+-		children uint8
+-		attr     [30]DWAttrForm
+-	}{
++	{
+ 		DW_TAG_base_type,
+ 		DW_CHILDREN_no,
+-		[30]DWAttrForm{
+-			DWAttrForm{DW_AT_name, DW_FORM_string},
+-			DWAttrForm{DW_AT_encoding, DW_FORM_data1},
+-			DWAttrForm{DW_AT_byte_size, DW_FORM_data1},
+-			DWAttrForm{DW_AT_go_kind, DW_FORM_data1},
+-			DWAttrForm{0, 0},
++		[]DWAttrForm{
++			{DW_AT_name, DW_FORM_string},
++			{DW_AT_encoding, DW_FORM_data1},
++			{DW_AT_byte_size, DW_FORM_data1},
++			{DW_AT_go_kind, DW_FORM_data1},
+ 		},
+ 	},
+ 
+ 	/* ARRAYTYPE */
+ 	// child is subrange with upper bound
+-	struct {
+-		tag      uint8
+-		children uint8
+-		attr     [30]DWAttrForm
+-	}{
++	{
+ 		DW_TAG_array_type,
+ 		DW_CHILDREN_yes,
+-		[30]DWAttrForm{
+-			DWAttrForm{DW_AT_name, DW_FORM_string},
+-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
+-			DWAttrForm{DW_AT_byte_size, DW_FORM_udata},
+-			DWAttrForm{DW_AT_go_kind, DW_FORM_data1},
+-			DWAttrForm{0, 0},
++		[]DWAttrForm{
++			{DW_AT_name, DW_FORM_string},
++			{DW_AT_type, DW_FORM_ref_addr},
++			{DW_AT_byte_size, DW_FORM_udata},
++			{DW_AT_go_kind, DW_FORM_data1},
+ 		},
+ 	},
+ 
+ 	/* CHANTYPE */
+-	struct {
+-		tag      uint8
+-		children uint8
+-		attr     [30]DWAttrForm
+-	}{
++	{
+ 		DW_TAG_typedef,
+ 		DW_CHILDREN_no,
+-		[30]DWAttrForm{
+-			DWAttrForm{DW_AT_name, DW_FORM_string},
+-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
+-			DWAttrForm{DW_AT_go_kind, DW_FORM_data1},
+-			DWAttrForm{DW_AT_go_elem, DW_FORM_ref_addr},
+-			DWAttrForm{0, 0},
++		[]DWAttrForm{
++			{DW_AT_name, DW_FORM_string},
++			{DW_AT_type, DW_FORM_ref_addr},
++			{DW_AT_go_kind, DW_FORM_data1},
++			{DW_AT_go_elem, DW_FORM_ref_addr},
+ 		},
+ 	},
+ 
+ 	/* FUNCTYPE */
+-	struct {
+-		tag      uint8
+-		children uint8
+-		attr     [30]DWAttrForm
+-	}{
++	{
+ 		DW_TAG_subroutine_type,
+ 		DW_CHILDREN_yes,
+-		[30]DWAttrForm{
+-			DWAttrForm{DW_AT_name, DW_FORM_string},
+-
+-			//		{DW_AT_type,	DW_FORM_ref_addr},
+-			DWAttrForm{DW_AT_go_kind, DW_FORM_data1},
+-			DWAttrForm{0, 0},
++		[]DWAttrForm{
++			{DW_AT_name, DW_FORM_string},
++			// {DW_AT_type,	DW_FORM_ref_addr},
++			{DW_AT_go_kind, DW_FORM_data1},
+ 		},
+ 	},
+ 
+ 	/* IFACETYPE */
+-	struct {
+-		tag      uint8
+-		children uint8
+-		attr     [30]DWAttrForm
+-	}{
++	{
+ 		DW_TAG_typedef,
+ 		DW_CHILDREN_yes,
+-		[30]DWAttrForm{
+-			DWAttrForm{DW_AT_name, DW_FORM_string},
+-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
+-			DWAttrForm{DW_AT_go_kind, DW_FORM_data1},
+-			DWAttrForm{0, 0},
++		[]DWAttrForm{
++			{DW_AT_name, DW_FORM_string},
++			{DW_AT_type, DW_FORM_ref_addr},
++			{DW_AT_go_kind, DW_FORM_data1},
+ 		},
+ 	},
+ 
+ 	/* MAPTYPE */
+-	struct {
+-		tag      uint8
+-		children uint8
+-		attr     [30]DWAttrForm
+-	}{
++	{
+ 		DW_TAG_typedef,
+ 		DW_CHILDREN_no,
+-		[30]DWAttrForm{
+-			DWAttrForm{DW_AT_name, DW_FORM_string},
+-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
+-			DWAttrForm{DW_AT_go_kind, DW_FORM_data1},
+-			DWAttrForm{DW_AT_go_key, DW_FORM_ref_addr},
+-			DWAttrForm{DW_AT_go_elem, DW_FORM_ref_addr},
+-			DWAttrForm{0, 0},
++		[]DWAttrForm{
++			{DW_AT_name, DW_FORM_string},
++			{DW_AT_type, DW_FORM_ref_addr},
++			{DW_AT_go_kind, DW_FORM_data1},
++			{DW_AT_go_key, DW_FORM_ref_addr},
++			{DW_AT_go_elem, DW_FORM_ref_addr},
+ 		},
+ 	},
+ 
+ 	/* PTRTYPE */
+-	struct {
+-		tag      uint8
+-		children uint8
+-		attr     [30]DWAttrForm
+-	}{
++	{
+ 		DW_TAG_pointer_type,
+ 		DW_CHILDREN_no,
+-		[30]DWAttrForm{
+-			DWAttrForm{DW_AT_name, DW_FORM_string},
+-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
+-			DWAttrForm{DW_AT_go_kind, DW_FORM_data1},
+-			DWAttrForm{0, 0},
++		[]DWAttrForm{
++			{DW_AT_name, DW_FORM_string},
++			{DW_AT_type, DW_FORM_ref_addr},
++			{DW_AT_go_kind, DW_FORM_data1},
+ 		},
+ 	},
+ 
+ 	/* BARE_PTRTYPE */
+-	struct {
+-		tag      uint8
+-		children uint8
+-		attr     [30]DWAttrForm
+-	}{
++	{
+ 		DW_TAG_pointer_type,
+ 		DW_CHILDREN_no,
+-		[30]DWAttrForm{
+-			DWAttrForm{DW_AT_name, DW_FORM_string},
+-			DWAttrForm{0, 0},
++		[]DWAttrForm{
++			{DW_AT_name, DW_FORM_string},
+ 		},
+ 	},
+ 
+ 	/* SLICETYPE */
+-	struct {
+-		tag      uint8
+-		children uint8
+-		attr     [30]DWAttrForm
+-	}{
++	{
+ 		DW_TAG_structure_type,
+ 		DW_CHILDREN_yes,
+-		[30]DWAttrForm{
+-			DWAttrForm{DW_AT_name, DW_FORM_string},
+-			DWAttrForm{DW_AT_byte_size, DW_FORM_udata},
+-			DWAttrForm{DW_AT_go_kind, DW_FORM_data1},
+-			DWAttrForm{DW_AT_go_elem, DW_FORM_ref_addr},
+-			DWAttrForm{0, 0},
++		[]DWAttrForm{
++			{DW_AT_name, DW_FORM_string},
++			{DW_AT_byte_size, DW_FORM_udata},
++			{DW_AT_go_kind, DW_FORM_data1},
++			{DW_AT_go_elem, DW_FORM_ref_addr},
+ 		},
+ 	},
+ 
+ 	/* STRINGTYPE */
+-	struct {
+-		tag      uint8
+-		children uint8
+-		attr     [30]DWAttrForm
+-	}{
++	{
+ 		DW_TAG_structure_type,
+ 		DW_CHILDREN_yes,
+-		[30]DWAttrForm{
+-			DWAttrForm{DW_AT_name, DW_FORM_string},
+-			DWAttrForm{DW_AT_byte_size, DW_FORM_udata},
+-			DWAttrForm{DW_AT_go_kind, DW_FORM_data1},
+-			DWAttrForm{0, 0},
++		[]DWAttrForm{
++			{DW_AT_name, DW_FORM_string},
++			{DW_AT_byte_size, DW_FORM_udata},
++			{DW_AT_go_kind, DW_FORM_data1},
+ 		},
+ 	},
+ 
+ 	/* STRUCTTYPE */
+-	struct {
+-		tag      uint8
+-		children uint8
+-		attr     [30]DWAttrForm
+-	}{
++	{
+ 		DW_TAG_structure_type,
+ 		DW_CHILDREN_yes,
+-		[30]DWAttrForm{
+-			DWAttrForm{DW_AT_name, DW_FORM_string},
+-			DWAttrForm{DW_AT_byte_size, DW_FORM_udata},
+-			DWAttrForm{DW_AT_go_kind, DW_FORM_data1},
+-			DWAttrForm{0, 0},
++		[]DWAttrForm{
++			{DW_AT_name, DW_FORM_string},
++			{DW_AT_byte_size, DW_FORM_udata},
++			{DW_AT_go_kind, DW_FORM_data1},
+ 		},
+ 	},
+ 
+ 	/* TYPEDECL */
+-	struct {
+-		tag      uint8
+-		children uint8
+-		attr     [30]DWAttrForm
+-	}{
++	{
+ 		DW_TAG_typedef,
+ 		DW_CHILDREN_no,
+-		[30]DWAttrForm{
+-			DWAttrForm{DW_AT_name, DW_FORM_string},
+-			DWAttrForm{DW_AT_type, DW_FORM_ref_addr},
+-			DWAttrForm{0, 0},
++		[]DWAttrForm{
++			{DW_AT_name, DW_FORM_string},
++			{DW_AT_type, DW_FORM_ref_addr},
+ 		},
+ 	},
+ }
+ 
+ func writeabbrev() {
+-	var j int
+-	var f *DWAttrForm
+-
+ 	abbrevo = Cpos()
+ 	for i := 1; i < DW_NABRV; i++ {
+ 		// See section 7.5.3
+@@ -606,14 +485,12 @@ func writeabbrev() {
+ 
+ 		uleb128put(int64(abbrevs[i].tag))
+ 		Cput(abbrevs[i].children)
+-		for j = 0; j < len(abbrevs[i].attr); j++ {
+-			f = &abbrevs[i].attr[j]
++		for _, f := range abbrevs[i].attr {
+ 			uleb128put(int64(f.attr))
+ 			uleb128put(int64(f.form))
+-			if f.attr == 0 {
+-				break
+-			}
+ 		}
++		uleb128put(0)
++		uleb128put(0)
+ 	}
+ 
+ 	Cput(0)
+@@ -975,18 +852,16 @@ func putattr(abbrev int, form int, cls int, value int64, data interface{}) {
+ // Note that we can (and do) add arbitrary attributes to a DIE, but
+ // only the ones actually listed in the Abbrev will be written out.
+ func putattrs(abbrev int, attr *DWAttr) {
+-	var ap *DWAttr
+-
+-	for af := abbrevs[abbrev].attr[:]; af[0].attr != 0; af = af[1:] {
+-		for ap = attr; ap != nil; ap = ap.link {
+-			if ap.atr == af[0].attr {
+-				putattr(abbrev, int(af[0].form), int(ap.cls), ap.value, ap.data)
+-				goto done
++Outer:
++	for _, f := range abbrevs[abbrev].attr {
++		for ap := attr; ap != nil; ap = ap.link {
++			if ap.atr == f.attr {
++				putattr(abbrev, int(f.form), int(ap.cls), ap.value, ap.data)
++				continue Outer
+ 			}
+ 		}
+ 
+-		putattr(abbrev, int(af[0].form), 0, 0, nil)
+-	done:
++		putattr(abbrev, int(f.form), 0, 0, nil)
+ 	}
+ }
+ 
+diff --git a/src/cmd/internal/obj/go.go b/src/cmd/internal/obj/go.go
+index 2b65ee6878..3d6ba85ba1 100644
+--- a/src/cmd/internal/obj/go.go
++++ b/src/cmd/internal/obj/go.go
+@@ -25,14 +25,8 @@ var exper = []struct {
+ 	name string
+ 	val  *int
+ }{
+-	struct {
+-		name string
+-		val  *int
+-	}{"fieldtrack", &Fieldtrack_enabled},
+-	struct {
+-		name string
+-		val  *int
+-	}{"framepointer", &Framepointer_enabled},
++	{"fieldtrack", &Fieldtrack_enabled},
++	{"framepointer", &Framepointer_enabled},
+ }
+ 
+ func addexp(s string) {
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index cd5c179459..03584b20b0 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -47,58 +47,19 @@ var headers = []struct {
+ 	name string
+ 	val  int
+ }{
+-	struct {
+-		name string
+-		val  int
+-	}{"darwin", Hdarwin},
+-	struct {
+-		name string
+-		val  int
+-	}{"dragonfly", Hdragonfly},
+-	struct {
+-		name string
+-		val  int
+-	}{"elf", Helf},
+-	struct {
+-		name string
+-		val  int
+-	}{"freebsd", Hfreebsd},
+-	struct {
+-		name string
+-		val  int
+-	}{"linux", Hlinux},
+-	struct {
+-		name string
+-		val  int
+-	}{"android", Hlinux}, // must be after "linux" entry or else headstr(Hlinux) == "android"
+-	struct {
+-		name string
+-		val  int
+-	}{"nacl", Hnacl},
+-	struct {
+-		name string
+-		val  int
+-	}{"netbsd", Hnetbsd},
+-	struct {
+-		name string
+-		val  int
+-	}{"openbsd", Hopenbsd},
+-	struct {
+-		name string
+-		val  int
+-	}{"plan9", Hplan9},
+-	struct {
+-		name string
+-		val  int
+-	}{"solaris", Hsolaris},
+-	struct {
+-		name string
+-		val  int
+-	}{"windows", Hwindows},
+-	struct {
+-		name string
+-		val  int
+-	}{"windowsgui", Hwindows},
++	{"darwin", Hdarwin},
++	{"dragonfly", Hdragonfly},
++	{"elf", Helf},
++	{"freebsd", Hfreebsd},
++	{"linux", Hlinux},
++	{"android", Hlinux}, // must be after "linux" entry or else headstr(Hlinux) == "android"
++	{"nacl", Hnacl},
++	{"netbsd", Hnetbsd},
++	{"openbsd", Hopenbsd},
++	{"plan9", Hplan9},
++	{"solaris", Hsolaris},
++	{"windows", Hwindows},
++	{"windowsgui", Hwindows},
+ }
+ 
+ func headtype(name string) int {

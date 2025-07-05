@@ -14,7 +14,7 @@ Date:   Mon Aug 22 10:33:13 2016 -0400
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go      |  26 +++---
  src/cmd/link/internal/ld/deadcode.go  |   6 +-
  src/cmd/link/internal/ld/decodesym.go | 168 +++++++++++++++++-----------------
@@ -29,3 +29,1341 @@ Date:   Mon Aug 22 10:33:13 2016 -0400
  src/cmd/link/internal/ld/pe.go        |  12 +--
  src/cmd/link/internal/ld/symtab.go    |   2 +-
  13 files changed, 233 insertions(+), 233 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 35ff37caa4..59617386ab 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1133,15 +1133,15 @@ func (p *GCProg) AddSym(s *Symbol) {
+ 	}
+ 
+ 	ptrsize := int64(SysArch.PtrSize)
+-	nptr := decodetype_ptrdata(p.ctxt.Arch, typ) / ptrsize
++	nptr := decodetypePtrdata(p.ctxt.Arch, typ) / ptrsize
+ 
+ 	if debugGCProg {
+ 		fmt.Fprintf(os.Stderr, "gcprog sym: %s at %d (ptr=%d+%d)\n", s.Name, s.Value, s.Value/ptrsize, nptr)
+ 	}
+ 
+-	if decodetype_usegcprog(typ) == 0 {
++	if decodetypeUsegcprog(typ) == 0 {
+ 		// Copy pointers from mask into program.
+-		mask := decodetype_gcmask(p.ctxt, typ)
++		mask := decodetypeGcmask(p.ctxt, typ)
+ 		for i := int64(0); i < nptr; i++ {
+ 			if (mask[i/8]>>uint(i%8))&1 != 0 {
+ 				p.w.Ptr(s.Value/ptrsize + i)
+@@ -1151,7 +1151,7 @@ func (p *GCProg) AddSym(s *Symbol) {
+ 	}
+ 
+ 	// Copy program.
+-	prog := decodetype_gcprog(p.ctxt, typ)
++	prog := decodetypeGcprog(p.ctxt, typ)
+ 	p.w.ZeroUntil(s.Value / ptrsize)
+ 	p.w.Append(prog[4:], nptr)
+ }
+@@ -1539,12 +1539,12 @@ func (ctxt *Link) dodata() {
+ 	// situation.
+ 	// TODO(mwhudson): It would make sense to do this more widely, but it makes
+ 	// the system linker segfault on darwin.
+-	relro_perms := 04
+-	relro_prefix := ""
++	relroPerms := 04
++	relroPrefix := ""
+ 
+ 	if UseRelro() {
+-		relro_perms = 06
+-		relro_prefix = ".data.rel.ro"
++		relroPerms = 06
++		relroPrefix = ".data.rel.ro"
+ 		/* data only written by relocations */
+ 		sect = addsection(segro, ".data.rel.ro", 06)
+ 
+@@ -1587,7 +1587,7 @@ func (ctxt *Link) dodata() {
+ 	}
+ 
+ 	/* typelink */
+-	sect = addsection(segro, relro_prefix+".typelink", relro_perms)
++	sect = addsection(segro, relroPrefix+".typelink", relroPerms)
+ 	sect.Align = dataMaxAlign[obj.STYPELINK]
+ 	datsize = Rnd(datsize, int64(sect.Align))
+ 	sect.Vaddr = uint64(datsize)
+@@ -1604,7 +1604,7 @@ func (ctxt *Link) dodata() {
+ 	sect.Length = uint64(datsize) - sect.Vaddr
+ 
+ 	/* itablink */
+-	sect = addsection(segro, relro_prefix+".itablink", relro_perms)
++	sect = addsection(segro, relroPrefix+".itablink", relroPerms)
+ 	sect.Align = dataMaxAlign[obj.SITABLINK]
+ 	datsize = Rnd(datsize, int64(sect.Align))
+ 	sect.Vaddr = uint64(datsize)
+@@ -1621,7 +1621,7 @@ func (ctxt *Link) dodata() {
+ 	sect.Length = uint64(datsize) - sect.Vaddr
+ 
+ 	/* gosymtab */
+-	sect = addsection(segro, relro_prefix+".gosymtab", relro_perms)
++	sect = addsection(segro, relroPrefix+".gosymtab", relroPerms)
+ 	sect.Align = dataMaxAlign[obj.SSYMTAB]
+ 	datsize = Rnd(datsize, int64(sect.Align))
+ 	sect.Vaddr = uint64(datsize)
+@@ -1638,7 +1638,7 @@ func (ctxt *Link) dodata() {
+ 	sect.Length = uint64(datsize) - sect.Vaddr
+ 
+ 	/* gopclntab */
+-	sect = addsection(segro, relro_prefix+".gopclntab", relro_perms)
++	sect = addsection(segro, relroPrefix+".gopclntab", relroPerms)
+ 	sect.Align = dataMaxAlign[obj.SPCLNTAB]
+ 	datsize = Rnd(datsize, int64(sect.Align))
+ 	sect.Vaddr = uint64(datsize)
+@@ -1794,7 +1794,7 @@ func dodataSect(ctxt *Link, symn int, syms []*Symbol) (result []*Symbol, maxAlig
+ 		case obj.STYPELINK:
+ 			// Sort typelinks by the rtype.string field so the reflect
+ 			// package can binary search type links.
+-			symsSort[i].name = string(decodetype_str(s.R[0].Sym))
++			symsSort[i].name = string(decodetypeStr(s.R[0].Sym))
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 4fd35e1513..43873a2abe 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -276,8 +276,8 @@ func (d *deadcodepass) flood() {
+ 		}
+ 
+ 		if strings.HasPrefix(s.Name, "type.") && s.Name[5] != '.' {
+-			if decodetype_kind(s)&kindMask == kindInterface {
+-				for _, sig := range decodetype_ifacemethods(d.ctxt.Arch, s) {
++			if decodetypeKind(s)&kindMask == kindInterface {
++				for _, sig := range decodeIfaceMethods(d.ctxt.Arch, s) {
+ 					if d.ctxt.Debugvlog > 1 {
+ 						fmt.Fprintf(d.ctxt.Bso, "reached iface method: %s\n", sig)
+ 					}
+@@ -315,7 +315,7 @@ func (d *deadcodepass) flood() {
+ 			// Decode runtime type information for type methods
+ 			// to help work out which methods can be called
+ 			// dynamically via interfaces.
+-			methodsigs := decodetype_methods(d.ctxt.Arch, s)
++			methodsigs := decodetypeMethods(d.ctxt.Arch, s)
+ 			if len(methods) != len(methodsigs) {
+ 				panic(fmt.Sprintf("%q has %d method relocations for %d methods", s.Name, len(methods), len(methodsigs)))
+ 			}
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index 7ec6ad6654..d111b005d9 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -28,7 +28,7 @@ const (
+ 	tflagExtraStar = 1 << 1
+ )
+ 
+-func decode_reloc(s *Symbol, off int32) *Reloc {
++func decodeReloc(s *Symbol, off int32) *Reloc {
+ 	for i := range s.R {
+ 		if s.R[i].Off == off {
+ 			return &s.R[i]
+@@ -37,15 +37,15 @@ func decode_reloc(s *Symbol, off int32) *Reloc {
+ 	return nil
+ }
+ 
+-func decode_reloc_sym(s *Symbol, off int32) *Symbol {
+-	r := decode_reloc(s, off)
++func decodeRelocSym(s *Symbol, off int32) *Symbol {
++	r := decodeReloc(s, off)
+ 	if r == nil {
+ 		return nil
+ 	}
+ 	return r.Sym
+ }
+ 
+-func decode_inuxi(arch *sys.Arch, p []byte, sz int) uint64 {
++func decodeInuxi(arch *sys.Arch, p []byte, sz int) uint64 {
+ 	switch sz {
+ 	case 2:
+ 		return uint64(arch.ByteOrder.Uint16(p))
+@@ -64,27 +64,27 @@ func structfieldSize() int { return 3 * SysArch.PtrSize }       // runtime.struc
+ func uncommonSize() int    { return 4 + 2 + 2 + 4 + 4 }         // runtime.uncommontype
+ 
+ // Type.commonType.kind
+-func decodetype_kind(s *Symbol) uint8 {
++func decodetypeKind(s *Symbol) uint8 {
+ 	return s.P[2*SysArch.PtrSize+7] & obj.KindMask //  0x13 / 0x1f
+ }
+ 
+ // Type.commonType.kind
+-func decodetype_usegcprog(s *Symbol) uint8 {
++func decodetypeUsegcprog(s *Symbol) uint8 {
+ 	return s.P[2*SysArch.PtrSize+7] & obj.KindGCProg //  0x13 / 0x1f
+ }
+ 
+ // Type.commonType.size
+-func decodetype_size(arch *sys.Arch, s *Symbol) int64 {
+-	return int64(decode_inuxi(arch, s.P, SysArch.PtrSize)) // 0x8 / 0x10
++func decodetypeSize(arch *sys.Arch, s *Symbol) int64 {
++	return int64(decodeInuxi(arch, s.P, SysArch.PtrSize)) // 0x8 / 0x10
+ }
+ 
+ // Type.commonType.ptrdata
+-func decodetype_ptrdata(arch *sys.Arch, s *Symbol) int64 {
+-	return int64(decode_inuxi(arch, s.P[SysArch.PtrSize:], SysArch.PtrSize)) // 0x8 / 0x10
++func decodetypePtrdata(arch *sys.Arch, s *Symbol) int64 {
++	return int64(decodeInuxi(arch, s.P[SysArch.PtrSize:], SysArch.PtrSize)) // 0x8 / 0x10
+ }
+ 
+ // Type.commonType.tflag
+-func decodetype_hasUncommon(s *Symbol) bool {
++func decodetypeHasUncommon(s *Symbol) bool {
+ 	return s.P[2*SysArch.PtrSize+4]&tflagUncommon != 0
+ }
+ 
+@@ -103,9 +103,9 @@ func findShlibSection(ctxt *Link, path string, addr uint64) *elf.Section {
+ }
+ 
+ // Type.commonType.gc
+-func decodetype_gcprog(ctxt *Link, s *Symbol) []byte {
++func decodetypeGcprog(ctxt *Link, s *Symbol) []byte {
+ 	if s.Type == obj.SDYNIMPORT {
+-		addr := decodetype_gcprog_shlib(ctxt, s)
++		addr := decodetypeGcprogShlib(ctxt, s)
+ 		sect := findShlibSection(ctxt, s.File, addr)
+ 		if sect != nil {
+ 			// A gcprog is a 4-byte uint32 indicating length, followed by
+@@ -119,25 +119,25 @@ func decodetype_gcprog(ctxt *Link, s *Symbol) []byte {
+ 		Exitf("cannot find gcprog for %s", s.Name)
+ 		return nil
+ 	}
+-	return decode_reloc_sym(s, 2*int32(SysArch.PtrSize)+8+1*int32(SysArch.PtrSize)).P
++	return decodeRelocSym(s, 2*int32(SysArch.PtrSize)+8+1*int32(SysArch.PtrSize)).P
+ }
+ 
+-func decodetype_gcprog_shlib(ctxt *Link, s *Symbol) uint64 {
++func decodetypeGcprogShlib(ctxt *Link, s *Symbol) uint64 {
+ 	if SysArch.Family == sys.ARM64 {
+ 		for _, shlib := range ctxt.Shlibs {
+ 			if shlib.Path == s.File {
+-				return shlib.gcdata_addresses[s]
++				return shlib.gcdataAddresses[s]
+ 			}
+ 		}
+ 		return 0
+ 	}
+-	return decode_inuxi(ctxt.Arch, s.P[2*int32(SysArch.PtrSize)+8+1*int32(SysArch.PtrSize):], SysArch.PtrSize)
++	return decodeInuxi(ctxt.Arch, s.P[2*int32(SysArch.PtrSize)+8+1*int32(SysArch.PtrSize):], SysArch.PtrSize)
+ }
+ 
+-func decodetype_gcmask(ctxt *Link, s *Symbol) []byte {
++func decodetypeGcmask(ctxt *Link, s *Symbol) []byte {
+ 	if s.Type == obj.SDYNIMPORT {
+-		addr := decodetype_gcprog_shlib(ctxt, s)
+-		ptrdata := decodetype_ptrdata(ctxt.Arch, s)
++		addr := decodetypeGcprogShlib(ctxt, s)
++		ptrdata := decodetypePtrdata(ctxt.Arch, s)
+ 		sect := findShlibSection(ctxt, s.File, addr)
+ 		if sect != nil {
+ 			r := make([]byte, ptrdata/int64(SysArch.PtrSize))
+@@ -147,93 +147,93 @@ func decodetype_gcmask(ctxt *Link, s *Symbol) []byte {
+ 		Exitf("cannot find gcmask for %s", s.Name)
+ 		return nil
+ 	}
+-	mask := decode_reloc_sym(s, 2*int32(SysArch.PtrSize)+8+1*int32(SysArch.PtrSize))
++	mask := decodeRelocSym(s, 2*int32(SysArch.PtrSize)+8+1*int32(SysArch.PtrSize))
+ 	return mask.P
+ }
+ 
+ // Type.ArrayType.elem and Type.SliceType.Elem
+-func decodetype_arrayelem(s *Symbol) *Symbol {
+-	return decode_reloc_sym(s, int32(commonsize())) // 0x1c / 0x30
++func decodetypeArrayElem(s *Symbol) *Symbol {
++	return decodeRelocSym(s, int32(commonsize())) // 0x1c / 0x30
+ }
+ 
+-func decodetype_arraylen(arch *sys.Arch, s *Symbol) int64 {
+-	return int64(decode_inuxi(arch, s.P[commonsize()+2*SysArch.PtrSize:], SysArch.PtrSize))
++func decodetypeArrayLen(arch *sys.Arch, s *Symbol) int64 {
++	return int64(decodeInuxi(arch, s.P[commonsize()+2*SysArch.PtrSize:], SysArch.PtrSize))
+ }
+ 
+ // Type.PtrType.elem
+-func decodetype_ptrelem(s *Symbol) *Symbol {
+-	return decode_reloc_sym(s, int32(commonsize())) // 0x1c / 0x30
++func decodetypePtrElem(s *Symbol) *Symbol {
++	return decodeRelocSym(s, int32(commonsize())) // 0x1c / 0x30
+ }
+ 
+ // Type.MapType.key, elem
+-func decodetype_mapkey(s *Symbol) *Symbol {
+-	return decode_reloc_sym(s, int32(commonsize())) // 0x1c / 0x30
++func decodetypeMapKey(s *Symbol) *Symbol {
++	return decodeRelocSym(s, int32(commonsize())) // 0x1c / 0x30
+ }
+ 
+-func decodetype_mapvalue(s *Symbol) *Symbol {
+-	return decode_reloc_sym(s, int32(commonsize())+int32(SysArch.PtrSize)) // 0x20 / 0x38
++func decodetypeMapValue(s *Symbol) *Symbol {
++	return decodeRelocSym(s, int32(commonsize())+int32(SysArch.PtrSize)) // 0x20 / 0x38
+ }
+ 
+ // Type.ChanType.elem
+-func decodetype_chanelem(s *Symbol) *Symbol {
+-	return decode_reloc_sym(s, int32(commonsize())) // 0x1c / 0x30
++func decodetypeChanElem(s *Symbol) *Symbol {
++	return decodeRelocSym(s, int32(commonsize())) // 0x1c / 0x30
+ }
+ 
+ // Type.FuncType.dotdotdot
+-func decodetype_funcdotdotdot(arch *sys.Arch, s *Symbol) bool {
+-	return uint16(decode_inuxi(arch, s.P[commonsize()+2:], 2))&(1<<15) != 0
++func decodetypeFuncDotdotdot(arch *sys.Arch, s *Symbol) bool {
++	return uint16(decodeInuxi(arch, s.P[commonsize()+2:], 2))&(1<<15) != 0
+ }
+ 
+ // Type.FuncType.inCount
+-func decodetype_funcincount(arch *sys.Arch, s *Symbol) int {
+-	return int(decode_inuxi(arch, s.P[commonsize():], 2))
++func decodetypeFuncInCount(arch *sys.Arch, s *Symbol) int {
++	return int(decodeInuxi(arch, s.P[commonsize():], 2))
+ }
+ 
+-func decodetype_funcoutcount(arch *sys.Arch, s *Symbol) int {
+-	return int(uint16(decode_inuxi(arch, s.P[commonsize()+2:], 2)) & (1<<15 - 1))
++func decodetypeFuncOutCount(arch *sys.Arch, s *Symbol) int {
++	return int(uint16(decodeInuxi(arch, s.P[commonsize()+2:], 2)) & (1<<15 - 1))
+ }
+ 
+-func decodetype_funcintype(s *Symbol, i int) *Symbol {
++func decodetypeFuncInType(s *Symbol, i int) *Symbol {
+ 	uadd := commonsize() + 4
+ 	if SysArch.PtrSize == 8 {
+ 		uadd += 4
+ 	}
+-	if decodetype_hasUncommon(s) {
++	if decodetypeHasUncommon(s) {
+ 		uadd += uncommonSize()
+ 	}
+-	return decode_reloc_sym(s, int32(uadd+i*SysArch.PtrSize))
++	return decodeRelocSym(s, int32(uadd+i*SysArch.PtrSize))
+ }
+ 
+-func decodetype_funcouttype(arch *sys.Arch, s *Symbol, i int) *Symbol {
+-	return decodetype_funcintype(s, i+decodetype_funcincount(arch, s))
++func decodetypeFuncOutType(arch *sys.Arch, s *Symbol, i int) *Symbol {
++	return decodetypeFuncInType(s, i+decodetypeFuncInCount(arch, s))
+ }
+ 
+ // Type.StructType.fields.Slice::length
+-func decodetype_structfieldcount(arch *sys.Arch, s *Symbol) int {
+-	return int(decode_inuxi(arch, s.P[commonsize()+2*SysArch.PtrSize:], SysArch.IntSize))
++func decodetypeStructFieldCount(arch *sys.Arch, s *Symbol) int {
++	return int(decodeInuxi(arch, s.P[commonsize()+2*SysArch.PtrSize:], SysArch.IntSize))
+ }
+ 
+-func decodetype_structfieldarrayoff(s *Symbol, i int) int {
++func decodetypeStructFieldArrayOff(s *Symbol, i int) int {
+ 	off := commonsize() + 2*SysArch.PtrSize + 2*SysArch.IntSize
+-	if decodetype_hasUncommon(s) {
++	if decodetypeHasUncommon(s) {
+ 		off += uncommonSize()
+ 	}
+ 	off += i * structfieldSize()
+ 	return off
+ }
+ 
+-// decodetype_str returns the contents of an rtype's str field (a nameOff).
+-func decodetype_str(s *Symbol) string {
+-	str := decodetype_name(s, 4*SysArch.PtrSize+8)
++// decodetypeStr returns the contents of an rtype's str field (a nameOff).
++func decodetypeStr(s *Symbol) string {
++	str := decodetypeName(s, 4*SysArch.PtrSize+8)
+ 	if s.P[2*SysArch.PtrSize+4]&tflagExtraStar != 0 {
+ 		return str[1:]
+ 	}
+ 	return str
+ }
+ 
+-// decodetype_name decodes the name from a reflect.name.
+-func decodetype_name(s *Symbol, off int) string {
+-	r := decode_reloc(s, int32(off))
++// decodetypeName decodes the name from a reflect.name.
++func decodetypeName(s *Symbol, off int) string {
++	r := decodeReloc(s, int32(off))
+ 	if r == nil {
+ 		return ""
+ 	}
+@@ -243,24 +243,24 @@ func decodetype_name(s *Symbol, off int) string {
+ 	return string(data[3 : 3+namelen])
+ }
+ 
+-func decodetype_structfieldname(s *Symbol, i int) string {
+-	off := decodetype_structfieldarrayoff(s, i)
+-	return decodetype_name(s, off)
++func decodetypeStructFieldName(s *Symbol, i int) string {
++	off := decodetypeStructFieldArrayOff(s, i)
++	return decodetypeName(s, off)
+ }
+ 
+-func decodetype_structfieldtype(s *Symbol, i int) *Symbol {
+-	off := decodetype_structfieldarrayoff(s, i)
+-	return decode_reloc_sym(s, int32(off+SysArch.PtrSize))
++func decodetypeStructFieldType(s *Symbol, i int) *Symbol {
++	off := decodetypeStructFieldArrayOff(s, i)
++	return decodeRelocSym(s, int32(off+SysArch.PtrSize))
+ }
+ 
+-func decodetype_structfieldoffs(arch *sys.Arch, s *Symbol, i int) int64 {
+-	off := decodetype_structfieldarrayoff(s, i)
+-	return int64(decode_inuxi(arch, s.P[off+2*SysArch.PtrSize:], SysArch.IntSize))
++func decodetypeStructFieldOffs(arch *sys.Arch, s *Symbol, i int) int64 {
++	off := decodetypeStructFieldArrayOff(s, i)
++	return int64(decodeInuxi(arch, s.P[off+2*SysArch.PtrSize:], SysArch.IntSize))
+ }
+ 
+ // InterfaceType.methods.length
+-func decodetype_ifacemethodcount(arch *sys.Arch, s *Symbol) int64 {
+-	return int64(decode_inuxi(arch, s.P[commonsize()+2*SysArch.PtrSize:], SysArch.IntSize))
++func decodetypeIfaceMethodCount(arch *sys.Arch, s *Symbol) int64 {
++	return int64(decodeInuxi(arch, s.P[commonsize()+2*SysArch.PtrSize:], SysArch.IntSize))
+ }
+ 
+ // methodsig is a fully qualified typed method signature, like
+@@ -280,34 +280,34 @@ const (
+ 	kindMask      = (1 << 5) - 1
+ )
+ 
+-// decode_methodsig decodes an array of method signature information.
++// decodeMethodSig decodes an array of method signature information.
+ // Each element of the array is size bytes. The first 4 bytes is a
+ // nameOff for the method name, and the next 4 bytes is a typeOff for
+ // the function type.
+ //
+ // Conveniently this is the layout of both runtime.method and runtime.imethod.
+-func decode_methodsig(arch *sys.Arch, s *Symbol, off, size, count int) []methodsig {
++func decodeMethodSig(arch *sys.Arch, s *Symbol, off, size, count int) []methodsig {
+ 	var buf bytes.Buffer
+ 	var methods []methodsig
+ 	for i := 0; i < count; i++ {
+-		buf.WriteString(decodetype_name(s, off))
+-		mtypSym := decode_reloc_sym(s, int32(off+4))
++		buf.WriteString(decodetypeName(s, off))
++		mtypSym := decodeRelocSym(s, int32(off+4))
+ 
+ 		buf.WriteRune('(')
+-		inCount := decodetype_funcincount(arch, mtypSym)
++		inCount := decodetypeFuncInCount(arch, mtypSym)
+ 		for i := 0; i < inCount; i++ {
+ 			if i > 0 {
+ 				buf.WriteString(", ")
+ 			}
+-			buf.WriteString(decodetype_funcintype(mtypSym, i).Name)
++			buf.WriteString(decodetypeFuncInType(mtypSym, i).Name)
+ 		}
+ 		buf.WriteString(") (")
+-		outCount := decodetype_funcoutcount(arch, mtypSym)
++		outCount := decodetypeFuncOutCount(arch, mtypSym)
+ 		for i := 0; i < outCount; i++ {
+ 			if i > 0 {
+ 				buf.WriteString(", ")
+ 			}
+-			buf.WriteString(decodetype_funcouttype(arch, mtypSym, i).Name)
++			buf.WriteString(decodetypeFuncOutType(arch, mtypSym, i).Name)
+ 		}
+ 		buf.WriteRune(')')
+ 
+@@ -318,11 +318,11 @@ func decode_methodsig(arch *sys.Arch, s *Symbol, off, size, count int) []methods
+ 	return methods
+ }
+ 
+-func decodetype_ifacemethods(arch *sys.Arch, s *Symbol) []methodsig {
+-	if decodetype_kind(s)&kindMask != kindInterface {
++func decodeIfaceMethods(arch *sys.Arch, s *Symbol) []methodsig {
++	if decodetypeKind(s)&kindMask != kindInterface {
+ 		panic(fmt.Sprintf("symbol %q is not an interface", s.Name))
+ 	}
+-	r := decode_reloc(s, int32(commonsize()+SysArch.PtrSize))
++	r := decodeReloc(s, int32(commonsize()+SysArch.PtrSize))
+ 	if r == nil {
+ 		return nil
+ 	}
+@@ -330,17 +330,17 @@ func decodetype_ifacemethods(arch *sys.Arch, s *Symbol) []methodsig {
+ 		panic(fmt.Sprintf("imethod slice pointer in %q leads to a different symbol", s.Name))
+ 	}
+ 	off := int(r.Add) // array of reflect.imethod values
+-	numMethods := int(decodetype_ifacemethodcount(arch, s))
++	numMethods := int(decodetypeIfaceMethodCount(arch, s))
+ 	sizeofIMethod := 4 + 4
+-	return decode_methodsig(arch, s, off, sizeofIMethod, numMethods)
++	return decodeMethodSig(arch, s, off, sizeofIMethod, numMethods)
+ }
+ 
+-func decodetype_methods(arch *sys.Arch, s *Symbol) []methodsig {
+-	if !decodetype_hasUncommon(s) {
++func decodetypeMethods(arch *sys.Arch, s *Symbol) []methodsig {
++	if !decodetypeHasUncommon(s) {
+ 		panic(fmt.Sprintf("no methods on %q", s.Name))
+ 	}
+ 	off := commonsize() // reflect.rtype
+-	switch decodetype_kind(s) & kindMask {
++	switch decodetypeKind(s) & kindMask {
+ 	case kindStruct: // reflect.structType
+ 		off += 2*SysArch.PtrSize + 2*SysArch.IntSize
+ 	case kindPtr: // reflect.ptrType
+@@ -361,9 +361,9 @@ func decodetype_methods(arch *sys.Arch, s *Symbol) []methodsig {
+ 		// just Sizeof(rtype)
+ 	}
+ 
+-	mcount := int(decode_inuxi(arch, s.P[off+4:], 2))
+-	moff := int(decode_inuxi(arch, s.P[off+4+2+2:], 4))
++	mcount := int(decodeInuxi(arch, s.P[off+4:], 2))
++	moff := int(decodeInuxi(arch, s.P[off+4+2+2:], 4))
+ 	off += moff                // offset to array of reflect.method values
+ 	const sizeofMethod = 4 * 4 // sizeof reflect.method in program
+-	return decode_methodsig(arch, s, off, sizeofMethod, mcount)
++	return decodeMethodSig(arch, s, off, sizeofMethod, mcount)
+ }
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 2bc7d999b7..dbd117de00 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -311,7 +311,7 @@ func newabslocexprattr(die *dwarf.DWDie, addr int64, sym *Symbol) {
+ }
+ 
+ // Lookup predefined types
+-func lookup_or_diag(ctxt *Link, n string) *Symbol {
++func lookupOrDiag(ctxt *Link, n string) *Symbol {
+ 	s := Linkrlookup(ctxt, n, 0)
+ 	if s == nil || s.Size == 0 {
+ 		Exitf("dwarf: missing type: %s", n)
+@@ -376,8 +376,8 @@ func defgotype(ctxt *Link, gotype *Symbol) *Symbol {
+ 
+ func newtype(ctxt *Link, gotype *Symbol) *dwarf.DWDie {
+ 	name := gotype.Name[5:] // could also decode from Type.string
+-	kind := decodetype_kind(gotype)
+-	bytesize := decodetype_size(ctxt.Arch, gotype)
++	kind := decodetypeKind(gotype)
++	bytesize := decodetypeSize(ctxt.Arch, gotype)
+ 
+ 	var die *dwarf.DWDie
+ 	switch kind {
+@@ -421,19 +421,19 @@ func newtype(ctxt *Link, gotype *Symbol) *dwarf.DWDie {
+ 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_ARRAYTYPE, name, 0)
+ 		dotypedef(ctxt, &dwtypes, name, die)
+ 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
+-		s := decodetype_arrayelem(gotype)
++		s := decodetypeArrayElem(gotype)
+ 		newrefattr(die, dwarf.DW_AT_type, defgotype(ctxt, s))
+ 		fld := newdie(ctxt, die, dwarf.DW_ABRV_ARRAYRANGE, "range", 0)
+ 
+ 		// use actual length not upper bound; correct for 0-length arrays.
+-		newattr(fld, dwarf.DW_AT_count, dwarf.DW_CLS_CONSTANT, decodetype_arraylen(ctxt.Arch, gotype), 0)
++		newattr(fld, dwarf.DW_AT_count, dwarf.DW_CLS_CONSTANT, decodetypeArrayLen(ctxt.Arch, gotype), 0)
+ 
+ 		newrefattr(fld, dwarf.DW_AT_type, mustFind(ctxt, "uintptr"))
+ 
+ 	case obj.KindChan:
+ 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_CHANTYPE, name, 0)
+ 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
+-		s := decodetype_chanelem(gotype)
++		s := decodetypeChanElem(gotype)
+ 		newrefattr(die, dwarf.DW_AT_go_elem, defgotype(ctxt, s))
+ 		// Save elem type for synthesizechantypes. We could synthesize here
+ 		// but that would change the order of DIEs we output.
+@@ -443,21 +443,21 @@ func newtype(ctxt *Link, gotype *Symbol) *dwarf.DWDie {
+ 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_FUNCTYPE, name, 0)
+ 		dotypedef(ctxt, &dwtypes, name, die)
+ 		newrefattr(die, dwarf.DW_AT_type, mustFind(ctxt, "void"))
+-		nfields := decodetype_funcincount(ctxt.Arch, gotype)
++		nfields := decodetypeFuncInCount(ctxt.Arch, gotype)
+ 		var fld *dwarf.DWDie
+ 		var s *Symbol
+ 		for i := 0; i < nfields; i++ {
+-			s = decodetype_funcintype(gotype, i)
++			s = decodetypeFuncInType(gotype, i)
+ 			fld = newdie(ctxt, die, dwarf.DW_ABRV_FUNCTYPEPARAM, s.Name[5:], 0)
+ 			newrefattr(fld, dwarf.DW_AT_type, defgotype(ctxt, s))
+ 		}
+ 
+-		if decodetype_funcdotdotdot(ctxt.Arch, gotype) {
++		if decodetypeFuncDotdotdot(ctxt.Arch, gotype) {
+ 			newdie(ctxt, die, dwarf.DW_ABRV_DOTDOTDOT, "...", 0)
+ 		}
+-		nfields = decodetype_funcoutcount(ctxt.Arch, gotype)
++		nfields = decodetypeFuncOutCount(ctxt.Arch, gotype)
+ 		for i := 0; i < nfields; i++ {
+-			s = decodetype_funcouttype(ctxt.Arch, gotype, i)
++			s = decodetypeFuncOutType(ctxt.Arch, gotype, i)
+ 			fld = newdie(ctxt, die, dwarf.DW_ABRV_FUNCTYPEPARAM, s.Name[5:], 0)
+ 			newrefattr(fld, dwarf.DW_AT_type, defptrto(ctxt, defgotype(ctxt, s)))
+ 		}
+@@ -466,20 +466,20 @@ func newtype(ctxt *Link, gotype *Symbol) *dwarf.DWDie {
+ 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_IFACETYPE, name, 0)
+ 		dotypedef(ctxt, &dwtypes, name, die)
+ 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
+-		nfields := int(decodetype_ifacemethodcount(ctxt.Arch, gotype))
++		nfields := int(decodetypeIfaceMethodCount(ctxt.Arch, gotype))
+ 		var s *Symbol
+ 		if nfields == 0 {
+-			s = lookup_or_diag(ctxt, "type.runtime.eface")
++			s = lookupOrDiag(ctxt, "type.runtime.eface")
+ 		} else {
+-			s = lookup_or_diag(ctxt, "type.runtime.iface")
++			s = lookupOrDiag(ctxt, "type.runtime.iface")
+ 		}
+ 		newrefattr(die, dwarf.DW_AT_type, defgotype(ctxt, s))
+ 
+ 	case obj.KindMap:
+ 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_MAPTYPE, name, 0)
+-		s := decodetype_mapkey(gotype)
++		s := decodetypeMapKey(gotype)
+ 		newrefattr(die, dwarf.DW_AT_go_key, defgotype(ctxt, s))
+-		s = decodetype_mapvalue(gotype)
++		s = decodetypeMapValue(gotype)
+ 		newrefattr(die, dwarf.DW_AT_go_elem, defgotype(ctxt, s))
+ 		// Save gotype for use in synthesizemaptypes. We could synthesize here,
+ 		// but that would change the order of the DIEs.
+@@ -488,14 +488,14 @@ func newtype(ctxt *Link, gotype *Symbol) *dwarf.DWDie {
+ 	case obj.KindPtr:
+ 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_PTRTYPE, name, 0)
+ 		dotypedef(ctxt, &dwtypes, name, die)
+-		s := decodetype_ptrelem(gotype)
++		s := decodetypePtrElem(gotype)
+ 		newrefattr(die, dwarf.DW_AT_type, defgotype(ctxt, s))
+ 
+ 	case obj.KindSlice:
+ 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_SLICETYPE, name, 0)
+ 		dotypedef(ctxt, &dwtypes, name, die)
+ 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
+-		s := decodetype_arrayelem(gotype)
++		s := decodetypeArrayElem(gotype)
+ 		elem := defgotype(ctxt, s)
+ 		newrefattr(die, dwarf.DW_AT_go_elem, elem)
+ 
+@@ -507,19 +507,19 @@ func newtype(ctxt *Link, gotype *Symbol) *dwarf.DWDie {
+ 		die = newdie(ctxt, &dwtypes, dwarf.DW_ABRV_STRUCTTYPE, name, 0)
+ 		dotypedef(ctxt, &dwtypes, name, die)
+ 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
+-		nfields := decodetype_structfieldcount(ctxt.Arch, gotype)
++		nfields := decodetypeStructFieldCount(ctxt.Arch, gotype)
+ 		var f string
+ 		var fld *dwarf.DWDie
+ 		var s *Symbol
+ 		for i := 0; i < nfields; i++ {
+-			f = decodetype_structfieldname(gotype, i)
+-			s = decodetype_structfieldtype(gotype, i)
++			f = decodetypeStructFieldName(gotype, i)
++			s = decodetypeStructFieldType(gotype, i)
+ 			if f == "" {
+ 				f = s.Name[5:] // skip "type."
+ 			}
+ 			fld = newdie(ctxt, die, dwarf.DW_ABRV_STRUCTFIELD, f, 0)
+ 			newrefattr(fld, dwarf.DW_AT_type, defgotype(ctxt, s))
+-			newmemberoffsetattr(fld, int32(decodetype_structfieldoffs(ctxt.Arch, gotype, i)))
++			newmemberoffsetattr(fld, int32(decodetypeStructFieldOffs(ctxt.Arch, gotype, i)))
+ 		}
+ 
+ 	case obj.KindUnsafePointer:
+@@ -600,7 +600,7 @@ func substitutetype(structdie *dwarf.DWDie, field string, dwtype *Symbol) {
+ func findprotodie(ctxt *Link, name string) *dwarf.DWDie {
+ 	die, ok := prototypedies[name]
+ 	if ok && die == nil {
+-		defgotype(ctxt, lookup_or_diag(ctxt, name))
++		defgotype(ctxt, lookupOrDiag(ctxt, name))
+ 		die = prototypedies[name]
+ 	}
+ 	return die
+@@ -680,20 +680,20 @@ func synthesizemaptypes(ctxt *Link, die *dwarf.DWDie) {
+ 			continue
+ 		}
+ 		gotype := getattr(die, dwarf.DW_AT_type).Data.(*Symbol)
+-		keytype := decodetype_mapkey(gotype)
+-		valtype := decodetype_mapvalue(gotype)
+-		keysize, valsize := decodetype_size(ctxt.Arch, keytype), decodetype_size(ctxt.Arch, valtype)
++		keytype := decodetypeMapKey(gotype)
++		valtype := decodetypeMapValue(gotype)
++		keysize, valsize := decodetypeSize(ctxt.Arch, keytype), decodetypeSize(ctxt.Arch, valtype)
+ 		keytype, valtype = walksymtypedef(ctxt, defgotype(ctxt, keytype)), walksymtypedef(ctxt, defgotype(ctxt, valtype))
+ 
+ 		// compute size info like hashmap.c does.
+-		indirect_key, indirect_val := false, false
++		indirectKey, indirectVal := false, false
+ 		if keysize > MaxKeySize {
+ 			keysize = int64(SysArch.PtrSize)
+-			indirect_key = true
++			indirectKey = true
+ 		}
+ 		if valsize > MaxValSize {
+ 			valsize = int64(SysArch.PtrSize)
+-			indirect_val = true
++			indirectVal = true
+ 		}
+ 
+ 		// Construct type to represent an array of BucketSize keys
+@@ -701,7 +701,7 @@ func synthesizemaptypes(ctxt *Link, die *dwarf.DWDie) {
+ 		dwhks := mkinternaltype(ctxt, dwarf.DW_ABRV_ARRAYTYPE, "[]key", keyname, "", func(dwhk *dwarf.DWDie) {
+ 			newattr(dwhk, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, BucketSize*keysize, 0)
+ 			t := keytype
+-			if indirect_key {
++			if indirectKey {
+ 				t = defptrto(ctxt, keytype)
+ 			}
+ 			newrefattr(dwhk, dwarf.DW_AT_type, t)
+@@ -715,7 +715,7 @@ func synthesizemaptypes(ctxt *Link, die *dwarf.DWDie) {
+ 		dwhvs := mkinternaltype(ctxt, dwarf.DW_ABRV_ARRAYTYPE, "[]val", valname, "", func(dwhv *dwarf.DWDie) {
+ 			newattr(dwhv, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, BucketSize*valsize, 0)
+ 			t := valtype
+-			if indirect_val {
++			if indirectVal {
+ 				t = defptrto(ctxt, valtype)
+ 			}
+ 			newrefattr(dwhv, dwarf.DW_AT_type, t)
+@@ -776,7 +776,7 @@ func synthesizechantypes(ctxt *Link, die *dwarf.DWDie) {
+ 			continue
+ 		}
+ 		elemgotype := getattr(die, dwarf.DW_AT_type).Data.(*Symbol)
+-		elemsize := decodetype_size(ctxt.Arch, elemgotype)
++		elemsize := decodetypeSize(ctxt.Arch, elemgotype)
+ 		elemname := elemgotype.Name[5:]
+ 		elemtype := walksymtypedef(ctxt, defgotype(ctxt, elemgotype))
+ 
+@@ -888,22 +888,22 @@ const (
+ 	OPCODE_BASE = 10
+ )
+ 
+-func putpclcdelta(linkctxt *Link, ctxt dwarf.Context, s *Symbol, delta_pc int64, delta_lc int64) {
+-	if LINE_BASE <= delta_lc && delta_lc < LINE_BASE+LINE_RANGE {
+-		var opcode int64 = OPCODE_BASE + (delta_lc - LINE_BASE) + (LINE_RANGE * delta_pc)
++func putpclcdelta(linkctxt *Link, ctxt dwarf.Context, s *Symbol, deltaPC int64, deltaLC int64) {
++	if LINE_BASE <= deltaLC && deltaLC < LINE_BASE+LINE_RANGE {
++		var opcode int64 = OPCODE_BASE + (deltaLC - LINE_BASE) + (LINE_RANGE * deltaPC)
+ 		if OPCODE_BASE <= opcode && opcode < 256 {
+ 			Adduint8(linkctxt, s, uint8(opcode))
+ 			return
+ 		}
+ 	}
+ 
+-	if delta_pc != 0 {
++	if deltaPC != 0 {
+ 		Adduint8(linkctxt, s, dwarf.DW_LNS_advance_pc)
+-		dwarf.Sleb128put(ctxt, s, delta_pc)
++		dwarf.Sleb128put(ctxt, s, deltaPC)
+ 	}
+ 
+ 	Adduint8(linkctxt, s, dwarf.DW_LNS_advance_line)
+-	dwarf.Sleb128put(ctxt, s, delta_lc)
++	dwarf.Sleb128put(ctxt, s, deltaLC)
+ 	Adduint8(linkctxt, s, dwarf.DW_LNS_copy)
+ }
+ 
+@@ -951,11 +951,11 @@ func writelines(ctxt *Link, syms []*Symbol) ([]*Symbol, []*Symbol) {
+ 
+ 	// Write .debug_line Line Number Program Header (sec 6.2.4)
+ 	// Fields marked with (*) must be changed for 64-bit dwarf
+-	unit_length_offset := ls.Size
++	unitLengthOffset := ls.Size
+ 	Adduint32(ctxt, ls, 0) // unit_length (*), filled in at end.
+ 	unitstart = ls.Size
+ 	Adduint16(ctxt, ls, 2) // dwarf version (appendix F)
+-	header_length_offset := ls.Size
++	headerLengthOffset := ls.Size
+ 	Adduint32(ctxt, ls, 0) // header_length (*), filled in at end.
+ 	headerstart = ls.Size
+ 
+@@ -1065,8 +1065,8 @@ func writelines(ctxt *Link, syms []*Symbol) ([]*Symbol, []*Symbol) {
+ 
+ 	newattr(dwinfo, dwarf.DW_AT_high_pc, dwarf.DW_CLS_ADDRESS, epc+1, epcs)
+ 
+-	setuint32(ctxt, ls, unit_length_offset, uint32(ls.Size-unitstart))
+-	setuint32(ctxt, ls, header_length_offset, uint32(headerend-headerstart))
++	setuint32(ctxt, ls, unitLengthOffset, uint32(ls.Size-unitstart))
++	setuint32(ctxt, ls, headerLengthOffset, uint32(headerend-headerstart))
+ 
+ 	return syms, funcs
+ }
+@@ -1444,10 +1444,10 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
+ 	}
+ 
+ 	// Needed by the prettyprinter code for interface inspection.
+-	defgotype(ctxt, lookup_or_diag(ctxt, "type.runtime._type"))
++	defgotype(ctxt, lookupOrDiag(ctxt, "type.runtime._type"))
+ 
+-	defgotype(ctxt, lookup_or_diag(ctxt, "type.runtime.interfacetype"))
+-	defgotype(ctxt, lookup_or_diag(ctxt, "type.runtime.itab"))
++	defgotype(ctxt, lookupOrDiag(ctxt, "type.runtime.interfacetype"))
++	defgotype(ctxt, lookupOrDiag(ctxt, "type.runtime.itab"))
+ 
+ 	genasmsym(ctxt, defdwsymb)
+ 
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 4ac53eaf50..1b041f4499 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -66,10 +66,10 @@ import (
+  * padded to a word boundary.  The values of n_namesz and n_descsz do
+  * not include the padding.
+  */
+-type Elf_Note struct {
+-	n_namesz uint32
+-	n_descsz uint32
+-	n_type   uint32
++type elfNote struct {
++	nNamesz uint32
++	nDescsz uint32
++	nType   uint32
+ }
+ 
+ const (
+diff --git a/src/cmd/link/internal/ld/ldelf.go b/src/cmd/link/internal/ld/ldelf.go
+index 0776aaa132..2b60343bc6 100644
+--- a/src/cmd/link/internal/ld/ldelf.go
++++ b/src/cmd/link/internal/ld/ldelf.go
+@@ -309,13 +309,13 @@ type ElfSym struct {
+ var ElfMagic = [4]uint8{0x7F, 'E', 'L', 'F'}
+ 
+ const (
+-	Tag_file                 = 1
+-	Tag_CPU_name             = 4
+-	Tag_CPU_raw_name         = 5
+-	Tag_compatibility        = 32
+-	Tag_nodefaults           = 64
+-	Tag_also_compatible_with = 65
+-	Tag_ABI_VFP_args         = 28
++	TagFile               = 1
++	TagCPUName            = 4
++	TagCPURawName         = 5
++	TagCompatibility      = 32
++	TagNoDefaults         = 64
++	TagAlsoCompatibleWith = 65
++	TagABIVFPArgs         = 28
+ )
+ 
+ type elfAttribute struct {
+@@ -356,7 +356,7 @@ func (a *elfAttributeList) uleb128() uint64 {
+ func (a *elfAttributeList) armAttr() elfAttribute {
+ 	attr := elfAttribute{tag: a.uleb128()}
+ 	switch {
+-	case attr.tag == Tag_compatibility:
++	case attr.tag == TagCompatibility:
+ 		attr.ival = a.uleb128()
+ 		attr.sval = a.string()
+ 
+@@ -367,7 +367,7 @@ func (a *elfAttributeList) armAttr() elfAttribute {
+ 		attr.sval = a.string()
+ 
+ 	// Tag with string argument
+-	case attr.tag == Tag_CPU_name || attr.tag == Tag_CPU_raw_name || (attr.tag >= 32 && attr.tag&1 != 0):
++	case attr.tag == TagCPUName || attr.tag == TagCPURawName || (attr.tag >= 32 && attr.tag&1 != 0):
+ 		attr.sval = a.string()
+ 
+ 	default: // Tag with integer argument
+@@ -421,11 +421,11 @@ func parseArmAttributes(ctxt *Link, e binary.ByteOrder, data []byte) {
+ 			subsectiondata := sectiondata[sz+4 : subsectionsize]
+ 			sectiondata = sectiondata[subsectionsize:]
+ 
+-			if subsectiontag == Tag_file {
++			if subsectiontag == TagFile {
+ 				attrList := elfAttributeList{data: subsectiondata}
+ 				for !attrList.done() {
+ 					attr := attrList.armAttr()
+-					if attr.tag == Tag_ABI_VFP_args && attr.ival == 1 {
++					if attr.tag == TagABIVFPArgs && attr.ival == 1 {
+ 						ehdr.flags = 0x5000402 // has entry point, Version5 EABI, hard-float ABI
+ 					}
+ 				}
+diff --git a/src/cmd/link/internal/ld/ldmacho.go b/src/cmd/link/internal/ld/ldmacho.go
+index 30d3a59fe4..0688d2386e 100644
+--- a/src/cmd/link/internal/ld/ldmacho.go
++++ b/src/cmd/link/internal/ld/ldmacho.go
+@@ -43,7 +43,7 @@ const (
+ 	N_STAB = 0xe0
+ )
+ 
+-type LdMachoObj struct {
++type ldMachoObj struct {
+ 	f          *bio.Reader
+ 	base       int64 // off in f where Mach-O begins
+ 	length     int64 // length of Mach-O
+@@ -54,20 +54,20 @@ type LdMachoObj struct {
+ 	subcputype uint
+ 	filetype   uint32
+ 	flags      uint32
+-	cmd        []LdMachoCmd
++	cmd        []ldMachoCmd
+ 	ncmd       uint
+ }
+ 
+-type LdMachoCmd struct {
++type ldMachoCmd struct {
+ 	type_ int
+ 	off   uint32
+ 	size  uint32
+-	seg   LdMachoSeg
+-	sym   LdMachoSymtab
+-	dsym  LdMachoDysymtab
++	seg   ldMachoSeg
++	sym   ldMachoSymtab
++	dsym  ldMachoDysymtab
+ }
+ 
+-type LdMachoSeg struct {
++type ldMachoSeg struct {
+ 	name     string
+ 	vmaddr   uint64
+ 	vmsize   uint64
+@@ -77,10 +77,10 @@ type LdMachoSeg struct {
+ 	initprot uint32
+ 	nsect    uint32
+ 	flags    uint32
+-	sect     []LdMachoSect
++	sect     []ldMachoSect
+ }
+ 
+-type LdMachoSect struct {
++type ldMachoSect struct {
+ 	name    string
+ 	segname string
+ 	addr    uint64
+@@ -93,10 +93,10 @@ type LdMachoSect struct {
+ 	res1    uint32
+ 	res2    uint32
+ 	sym     *Symbol
+-	rel     []LdMachoRel
++	rel     []ldMachoRel
+ }
+ 
+-type LdMachoRel struct {
++type ldMachoRel struct {
+ 	addr      uint32
+ 	symnum    uint32
+ 	pcrel     uint8
+@@ -107,16 +107,16 @@ type LdMachoRel struct {
+ 	value     uint32
+ }
+ 
+-type LdMachoSymtab struct {
++type ldMachoSymtab struct {
+ 	symoff  uint32
+ 	nsym    uint32
+ 	stroff  uint32
+ 	strsize uint32
+ 	str     []byte
+-	sym     []LdMachoSym
++	sym     []ldMachoSym
+ }
+ 
+-type LdMachoSym struct {
++type ldMachoSym struct {
+ 	name    string
+ 	type_   uint8
+ 	sectnum uint8
+@@ -126,7 +126,7 @@ type LdMachoSym struct {
+ 	sym     *Symbol
+ }
+ 
+-type LdMachoDysymtab struct {
++type ldMachoDysymtab struct {
+ 	ilocalsym      uint32
+ 	nlocalsym      uint32
+ 	iextdefsym     uint32
+@@ -175,7 +175,7 @@ const (
+ 	LdMachoFilePreload    = 5
+ )
+ 
+-func unpackcmd(p []byte, m *LdMachoObj, c *LdMachoCmd, type_ uint, sz uint) int {
++func unpackcmd(p []byte, m *ldMachoObj, c *ldMachoCmd, type_ uint, sz uint) int {
+ 	e4 := m.e.Uint32
+ 	e8 := m.e.Uint64
+ 
+@@ -198,12 +198,12 @@ func unpackcmd(p []byte, m *LdMachoObj, c *LdMachoCmd, type_ uint, sz uint) int
+ 		c.seg.initprot = e4(p[44:])
+ 		c.seg.nsect = e4(p[48:])
+ 		c.seg.flags = e4(p[52:])
+-		c.seg.sect = make([]LdMachoSect, c.seg.nsect)
++		c.seg.sect = make([]ldMachoSect, c.seg.nsect)
+ 		if uint32(sz) < 56+c.seg.nsect*68 {
+ 			return -1
+ 		}
+ 		p = p[56:]
+-		var s *LdMachoSect
++		var s *ldMachoSect
+ 		for i := 0; uint32(i) < c.seg.nsect; i++ {
+ 			s = &c.seg.sect[i]
+ 			s.name = cstring(p[0:16])
+@@ -233,12 +233,12 @@ func unpackcmd(p []byte, m *LdMachoObj, c *LdMachoCmd, type_ uint, sz uint) int
+ 		c.seg.initprot = e4(p[60:])
+ 		c.seg.nsect = e4(p[64:])
+ 		c.seg.flags = e4(p[68:])
+-		c.seg.sect = make([]LdMachoSect, c.seg.nsect)
++		c.seg.sect = make([]ldMachoSect, c.seg.nsect)
+ 		if uint32(sz) < 72+c.seg.nsect*80 {
+ 			return -1
+ 		}
+ 		p = p[72:]
+-		var s *LdMachoSect
++		var s *ldMachoSect
+ 		for i := 0; uint32(i) < c.seg.nsect; i++ {
+ 			s = &c.seg.sect[i]
+ 			s.name = cstring(p[0:16])
+@@ -293,11 +293,11 @@ func unpackcmd(p []byte, m *LdMachoObj, c *LdMachoCmd, type_ uint, sz uint) int
+ 	return 0
+ }
+ 
+-func macholoadrel(m *LdMachoObj, sect *LdMachoSect) int {
++func macholoadrel(m *ldMachoObj, sect *ldMachoSect) int {
+ 	if sect.rel != nil || sect.nreloc == 0 {
+ 		return 0
+ 	}
+-	rel := make([]LdMachoRel, sect.nreloc)
++	rel := make([]ldMachoRel, sect.nreloc)
+ 	n := int(sect.nreloc * 8)
+ 	buf := make([]byte, n)
+ 	if m.f.Seek(m.base+int64(sect.reloff), 0) < 0 {
+@@ -307,7 +307,7 @@ func macholoadrel(m *LdMachoObj, sect *LdMachoSect) int {
+ 		return -1
+ 	}
+ 	var p []byte
+-	var r *LdMachoRel
++	var r *ldMachoRel
+ 	var v uint32
+ 	for i := 0; uint32(i) < sect.nreloc; i++ {
+ 		r = &rel[i]
+@@ -345,7 +345,7 @@ func macholoadrel(m *LdMachoObj, sect *LdMachoSect) int {
+ 	return 0
+ }
+ 
+-func macholoaddsym(m *LdMachoObj, d *LdMachoDysymtab) int {
++func macholoaddsym(m *ldMachoObj, d *ldMachoDysymtab) int {
+ 	n := int(d.nindirectsyms)
+ 
+ 	p := make([]byte, n*4)
+@@ -363,7 +363,7 @@ func macholoaddsym(m *LdMachoObj, d *LdMachoDysymtab) int {
+ 	return 0
+ }
+ 
+-func macholoadsym(m *LdMachoObj, symtab *LdMachoSymtab) int {
++func macholoadsym(m *ldMachoObj, symtab *ldMachoSymtab) int {
+ 	if symtab.sym != nil {
+ 		return 0
+ 	}
+@@ -388,9 +388,9 @@ func macholoadsym(m *LdMachoObj, symtab *LdMachoSymtab) int {
+ 	if _, err := io.ReadFull(m.f, symbuf); err != nil {
+ 		return -1
+ 	}
+-	sym := make([]LdMachoSym, symtab.nsym)
++	sym := make([]ldMachoSym, symtab.nsym)
+ 	p := symbuf
+-	var s *LdMachoSym
++	var s *ldMachoSym
+ 	var v uint32
+ 	for i := 0; uint32(i) < symtab.nsym; i++ {
+ 		s = &sym[i]
+@@ -428,18 +428,18 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 	var ty uint32
+ 	var sz uint32
+ 	var off uint32
+-	var m *LdMachoObj
++	var m *ldMachoObj
+ 	var e binary.ByteOrder
+-	var sect *LdMachoSect
+-	var rel *LdMachoRel
++	var sect *ldMachoSect
++	var rel *ldMachoRel
+ 	var rpi int
+ 	var s *Symbol
+ 	var s1 *Symbol
+ 	var outer *Symbol
+-	var c *LdMachoCmd
+-	var symtab *LdMachoSymtab
+-	var dsymtab *LdMachoDysymtab
+-	var sym *LdMachoSym
++	var c *ldMachoCmd
++	var symtab *ldMachoSymtab
++	var dsymtab *ldMachoDysymtab
++	var sym *ldMachoSym
+ 	var r []Reloc
+ 	var rp *Reloc
+ 	var name string
+@@ -471,7 +471,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 		f.Seek(4, 1) // skip reserved word in header
+ 	}
+ 
+-	m = new(LdMachoObj)
++	m = new(ldMachoObj)
+ 
+ 	m.f = f
+ 	m.e = e
+@@ -503,7 +503,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 		}
+ 	}
+ 
+-	m.cmd = make([]LdMachoCmd, ncmd)
++	m.cmd = make([]ldMachoCmd, ncmd)
+ 	off = uint32(len(hdr))
+ 	cmdp = make([]byte, cmdsz)
+ 	if _, err2 := io.ReadFull(f, cmdp); err2 != nil {
+@@ -778,7 +778,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 
+ 				// now consider the desired symbol.
+ 				// find the section where it lives.
+-				var ks *LdMachoSect
++				var ks *ldMachoSect
+ 				for k := 0; uint32(k) < c.seg.nsect; k++ {
+ 					ks = &c.seg.sect[k]
+ 					if ks.addr <= uint64(rel.value) && uint64(rel.value) < ks.addr+ks.size {
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 68719a89d0..7603c81319 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1416,7 +1416,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 		ctxt.Diag("cannot read symbols from shared library: %s", libpath)
+ 		return
+ 	}
+-	gcdata_locations := make(map[uint64]*Symbol)
++	gcdataLocations := make(map[uint64]*Symbol)
+ 	for _, elfsym := range syms {
+ 		if elf.ST_TYPE(elfsym.Info) == elf.STT_NOTYPE || elf.ST_TYPE(elfsym.Info) == elf.STT_SECTION {
+ 			continue
+@@ -1439,11 +1439,11 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 			// the type data.
+ 			if strings.HasPrefix(lsym.Name, "type.") && !strings.HasPrefix(lsym.Name, "type..") {
+ 				lsym.P = readelfsymboldata(ctxt, f, &elfsym)
+-				gcdata_locations[elfsym.Value+2*uint64(SysArch.PtrSize)+8+1*uint64(SysArch.PtrSize)] = lsym
++				gcdataLocations[elfsym.Value+2*uint64(SysArch.PtrSize)+8+1*uint64(SysArch.PtrSize)] = lsym
+ 			}
+ 		}
+ 	}
+-	gcdata_addresses := make(map[*Symbol]uint64)
++	gcdataAddresses := make(map[*Symbol]uint64)
+ 	if SysArch.Family == sys.ARM64 {
+ 		for _, sect := range f.Sections {
+ 			if sect.Type == elf.SHT_RELA {
+@@ -1461,8 +1461,8 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 					if t != elf.R_AARCH64_RELATIVE {
+ 						continue
+ 					}
+-					if lsym, ok := gcdata_locations[rela.Off]; ok {
+-						gcdata_addresses[lsym] = uint64(rela.Addend)
++					if lsym, ok := gcdataLocations[rela.Off]; ok {
++						gcdataAddresses[lsym] = uint64(rela.Addend)
+ 					}
+ 				}
+ 			}
+@@ -1480,7 +1480,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 	}
+ 	ctxt.Textp = textp
+ 
+-	ctxt.Shlibs = append(ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps, File: f, gcdata_addresses: gcdata_addresses})
++	ctxt.Shlibs = append(ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps, File: f, gcdataAddresses: gcdataAddresses})
+ }
+ 
+ func mywhatsys() {
+@@ -1552,9 +1552,9 @@ func Be32(b []byte) uint32 {
+ 	return uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
+ }
+ 
+-type Chain struct {
++type chain struct {
+ 	sym   *Symbol
+-	up    *Chain
++	up    *chain
+ 	limit int // limit on entry to sym
+ }
+ 
+@@ -1575,7 +1575,7 @@ func callsize(ctxt *Link) int {
+ }
+ 
+ func (ctxt *Link) dostkcheck() {
+-	var ch Chain
++	var ch chain
+ 
+ 	morestack = Linklookup(ctxt, "runtime.morestack", 0)
+ 
+@@ -1616,7 +1616,7 @@ func (ctxt *Link) dostkcheck() {
+ 	}
+ }
+ 
+-func stkcheck(ctxt *Link, up *Chain, depth int) int {
++func stkcheck(ctxt *Link, up *chain, depth int) int {
+ 	limit := up.limit
+ 	s := up.sym
+ 
+@@ -1659,7 +1659,7 @@ func stkcheck(ctxt *Link, up *Chain, depth int) int {
+ 		return 0
+ 	}
+ 
+-	var ch Chain
++	var ch chain
+ 	ch.up = up
+ 
+ 	if !s.Attr.NoSplit() {
+@@ -1684,7 +1684,7 @@ func stkcheck(ctxt *Link, up *Chain, depth int) int {
+ 	ri := 0
+ 
+ 	endr := len(s.R)
+-	var ch1 Chain
++	var ch1 chain
+ 	var pcsp Pciter
+ 	var r *Reloc
+ 	for pciterinit(ctxt, &pcsp, &s.FuncInfo.Pcsp); pcsp.done == 0; pciternext(&pcsp) {
+@@ -1729,12 +1729,12 @@ func stkcheck(ctxt *Link, up *Chain, depth int) int {
+ 	return 0
+ }
+ 
+-func stkbroke(ctxt *Link, ch *Chain, limit int) {
++func stkbroke(ctxt *Link, ch *chain, limit int) {
+ 	ctxt.Diag("nosplit stack overflow")
+ 	stkprint(ctxt, ch, limit)
+ }
+ 
+-func stkprint(ctxt *Link, ch *Chain, limit int) {
++func stkprint(ctxt *Link, ch *chain, limit int) {
+ 	var name string
+ 
+ 	if ch.sym != nil {
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 18404da5da..50abeb5773 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -151,11 +151,11 @@ type Auto struct {
+ }
+ 
+ type Shlib struct {
+-	Path             string
+-	Hash             []byte
+-	Deps             []string
+-	File             *elf.File
+-	gcdata_addresses map[*Symbol]uint64
++	Path            string
++	Hash            []byte
++	Deps            []string
++	File            *elf.File
++	gcdataAddresses map[*Symbol]uint64
+ }
+ 
+ type Link struct {
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 056fde3777..ae29dc69e3 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -131,7 +131,7 @@ var nsortsym int
+ // "big enough" header size. The initial header is
+ // one page, the non-dynamic library stuff takes
+ // up about 1300 bytes; we overestimate that as 2k.
+-var load_budget int = INITIAL_MACHO_HEADR - 2*1024
++var loadBudget int = INITIAL_MACHO_HEADR - 2*1024
+ 
+ func Machoinit() {
+ 	macho64 = SysArch.RegSize == 8
+@@ -336,12 +336,12 @@ func Machoadddynlib(lib string) {
+ 	// and 24 bytes of header metadata. If not enough
+ 	// space, grab another page of initial space at the
+ 	// beginning of the output file.
+-	load_budget -= (len(lib)+7)/8*8 + 24
++	loadBudget -= (len(lib)+7)/8*8 + 24
+ 
+-	if load_budget < 0 {
++	if loadBudget < 0 {
+ 		HEADR += 4096
+ 		*FlagTextAddr += 4096
+-		load_budget += 4096
++		loadBudget += 4096
+ 	}
+ 
+ 	dylib = append(dylib, lib)
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 8e147627a2..73196e9c8c 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -198,7 +198,7 @@ func container(s *Symbol) int {
+ // pclntab initializes the pclntab symbol with
+ // runtime function and file name information.
+ 
+-var pclntab_zpcln FuncInfo
++var pclntabZpcln FuncInfo
+ 
+ // These variables are used to initialize runtime.firstmoduledata, see symtab.go:symtab.
+ var pclntabNfunc int32
+@@ -208,7 +208,7 @@ var pclntabFirstFunc *Symbol
+ var pclntabLastFunc *Symbol
+ 
+ func (ctxt *Link) pclntab() {
+-	funcdata_bytes := int64(0)
++	funcdataBytes := int64(0)
+ 	ftab := Linklookup(ctxt, "runtime.pclntab", 0)
+ 	ftab.Type = obj.SPCLNTAB
+ 	ftab.Attr |= AttrReachable
+@@ -251,7 +251,7 @@ func (ctxt *Link) pclntab() {
+ 		}
+ 		pcln := ctxt.Cursym.FuncInfo
+ 		if pcln == nil {
+-			pcln = &pclntab_zpcln
++			pcln = &pclntabZpcln
+ 		}
+ 
+ 		if pclntabFirstFunc == nil {
+@@ -294,7 +294,7 @@ func (ctxt *Link) pclntab() {
+ 		// TODO: Remove entirely.
+ 		off = int32(setuint32(ctxt, ftab, int64(off), 0x1234567))
+ 
+-		if pcln != &pclntab_zpcln {
++		if pcln != &pclntabZpcln {
+ 			renumberfiles(ctxt, pcln.File, &pcln.Pcfile)
+ 			if false {
+ 				// Sanity check the new numbering
+@@ -330,7 +330,7 @@ func (ctxt *Link) pclntab() {
+ 					setuintxx(ctxt, ftab, int64(off)+int64(SysArch.PtrSize)*int64(i), uint64(pcln.Funcdataoff[i]), int64(SysArch.PtrSize))
+ 				} else {
+ 					// TODO: Dedup.
+-					funcdata_bytes += pcln.Funcdata[i].Size
++					funcdataBytes += pcln.Funcdata[i].Size
+ 
+ 					setaddrplus(ctxt, ftab, int64(off)+int64(SysArch.PtrSize)*int64(i), pcln.Funcdata[i], pcln.Funcdataoff[i])
+ 				}
+@@ -368,7 +368,7 @@ func (ctxt *Link) pclntab() {
+ 	ftab.Size = int64(len(ftab.P))
+ 
+ 	if ctxt.Debugvlog != 0 {
+-		fmt.Fprintf(ctxt.Bso, "%5.2f pclntab=%d bytes, funcdata total %d bytes\n", obj.Cputime(), ftab.Size, funcdata_bytes)
++		fmt.Fprintf(ctxt.Bso, "%5.2f pclntab=%d bytes, funcdata total %d bytes\n", obj.Cputime(), ftab.Size, funcdataBytes)
+ 	}
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 8351555d30..af58c9913f 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -717,9 +717,9 @@ func addexports(ctxt *Link) {
+ 	dd[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress = uint32(va)
+ 	dd[IMAGE_DIRECTORY_ENTRY_EXPORT].Size = sect.VirtualSize
+ 
+-	va_name := va + binary.Size(&e) + nexport*4
+-	va_addr := va + binary.Size(&e)
+-	va_na := va + binary.Size(&e) + nexport*8
++	vaName := va + binary.Size(&e) + nexport*4
++	vaAddr := va + binary.Size(&e)
++	vaNa := va + binary.Size(&e) + nexport*8
+ 
+ 	e.Characteristics = 0
+ 	e.MajorVersion = 0
+@@ -728,9 +728,9 @@ func addexports(ctxt *Link) {
+ 	e.NumberOfNames = uint32(nexport)
+ 	e.Name = uint32(va+binary.Size(&e)) + uint32(nexport)*10 // Program names.
+ 	e.Base = 1
+-	e.AddressOfFunctions = uint32(va_addr)
+-	e.AddressOfNames = uint32(va_name)
+-	e.AddressOfNameOrdinals = uint32(va_na)
++	e.AddressOfFunctions = uint32(vaAddr)
++	e.AddressOfNames = uint32(vaName)
++	e.AddressOfNameOrdinals = uint32(vaNa)
+ 
+ 	// put IMAGE_EXPORT_DIRECTORY
+ 	binary.Write(&coutbuf, binary.LittleEndian, &e)
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index bb40282638..36fa2f543b 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -576,7 +576,7 @@ func (ctxt *Link) symtab() {
+ 	// creating the moduledata from scratch and it does not have a
+ 	// compiler-provided size, so read it from the type data.
+ 	moduledatatype := Linkrlookup(ctxt, "type.runtime.moduledata", 0)
+-	moduledata.Size = decodetype_size(ctxt.Arch, moduledatatype)
++	moduledata.Size = decodetypeSize(ctxt.Arch, moduledatatype)
+ 	Symgrow(ctxt, moduledata, moduledata.Size)
+ 
+ 	lastmoduledatap := Linklookup(ctxt, "runtime.lastmoduledatap", 0)

@@ -23,9 +23,157 @@ Date:   Thu Oct 27 16:23:53 2016 -0700
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/archive/tar/testdata/ustar.issue12594.tar | Bin 0 -> 3072 bytes
  src/archive/tar/testdata/writer-big-long.tar  | Bin 4096 -> 4096 bytes
  src/archive/tar/writer.go                     |  34 +++++++++++-
  src/archive/tar/writer_test.go                |  71 +++++++++++++++++++++++---
  4 files changed, 98 insertions(+), 7 deletions(-)
+
+diff --git a/src/archive/tar/testdata/ustar.issue12594.tar b/src/archive/tar/testdata/ustar.issue12594.tar
+new file mode 100644
+index 0000000000..c7910ae9f4
+Binary files /dev/null and b/src/archive/tar/testdata/ustar.issue12594.tar differ
+diff --git a/src/archive/tar/testdata/writer-big-long.tar b/src/archive/tar/testdata/writer-big-long.tar
+index 5960ee8247..52bd748f3b 100644
+Binary files a/src/archive/tar/testdata/writer-big-long.tar and b/src/archive/tar/testdata/writer-big-long.tar differ
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index bd6e7e5b58..596fb8b9e1 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -170,9 +170,41 @@ func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
+ 	formatNumeric(ustar.DevMajor(), hdr.Devmajor, paxNone)
+ 	formatNumeric(ustar.DevMinor(), hdr.Devminor, paxNone)
+ 
++	// TODO(dsnet): The logic surrounding the prefix field is broken when trying
++	// to encode the header as GNU format. The challenge with the current logic
++	// is that we are unsure what format we are using at any given moment until
++	// we have processed *all* of the fields. The problem is that by the time
++	// all fields have been processed, some work has already been done to handle
++	// each field under the assumption that it is for one given format or
++	// another. In some situations, this causes the Writer to be confused and
++	// encode a prefix field when the format being used is GNU. Thus, producing
++	// an invalid tar file.
++	//
++	// As a short-term fix, we disable the logic to use the prefix field, which
++	// will force the badly generated GNU files to become encoded as being
++	// the PAX format.
++	//
++	// As an alternative fix, we could hard-code preferPax to be true. However,
++	// this is problematic for the following reasons:
++	//	* The preferPax functionality is not tested at all.
++	//	* This can result in headers that try to use both the GNU and PAX
++	//	features at the same time, which is also wrong.
++	//
++	// The proper fix for this is to use a two-pass method:
++	//	* The first pass simply determines what set of formats can possibly
++	//	encode the given header.
++	//	* The second pass actually encodes the header as that given format
++	//	without worrying about violating the format.
++	//
++	// See the following:
++	//	https://golang.org/issue/12594
++	//	https://golang.org/issue/17630
++	//	https://golang.org/issue/9683
++	const usePrefix = false
++
+ 	// try to use a ustar header when only the name is too long
+ 	_, paxPathUsed := paxHeaders[paxPath]
+-	if !tw.preferPax && len(paxHeaders) == 1 && paxPathUsed {
++	if usePrefix && !tw.preferPax && len(paxHeaders) == 1 && paxPathUsed {
+ 		prefix, suffix, ok := splitUSTARPath(hdr.Name)
+ 		if ok {
+ 			// Since we can encode in USTAR format, disable PAX header.
+diff --git a/src/archive/tar/writer_test.go b/src/archive/tar/writer_test.go
+index 678254dbc1..d88b8f41ca 100644
+--- a/src/archive/tar/writer_test.go
++++ b/src/archive/tar/writer_test.go
+@@ -133,9 +133,13 @@ func TestWriter(t *testing.T) {
+ 			contents: strings.Repeat("\x00", 4<<10),
+ 		}},
+ 	}, {
+-		// The truncated test file was produced using these commands:
+-		//   dd if=/dev/zero bs=1048576 count=16384 > (longname/)*15 /16gig.txt
+-		//   tar -b 1 -c -f- (longname/)*15 /16gig.txt | dd bs=512 count=8 > writer-big-long.tar
++		// This truncated file was produced using this library.
++		// It was verified to work with GNU tar 1.27.1 and BSD tar 3.1.2.
++		//  dd if=/dev/zero bs=1G count=16 >> writer-big-long.tar
++		//  gnutar -xvf writer-big-long.tar
++		//  bsdtar -xvf writer-big-long.tar
++		//
++		// This file is in PAX format.
+ 		file: "testdata/writer-big-long.tar",
+ 		entries: []*entry{{
+ 			header: &Header{
+@@ -153,9 +157,15 @@ func TestWriter(t *testing.T) {
+ 			contents: strings.Repeat("\x00", 4<<10),
+ 		}},
+ 	}, {
+-		// This file was produced using gnu tar 1.17
+-		// gnutar  -b 4 --format=ustar (longname/)*15 + file.txt
+-		file: "testdata/ustar.tar",
++		// TODO(dsnet): The Writer output should match the following file.
++		// To fix an issue (see https://golang.org/issue/12594), we disabled
++		// prefix support, which alters the generated output.
++		/*
++			// This file was produced using gnu tar 1.17
++			// gnutar  -b 4 --format=ustar (longname/)*15 + file.txt
++			file: "testdata/ustar.tar"
++		*/
++		file: "testdata/ustar.issue12594.tar", // This is a valid tar file, but not expected
+ 		entries: []*entry{{
+ 			header: &Header{
+ 				Name:     strings.Repeat("longname/", 15) + "file.txt",
+@@ -586,3 +596,52 @@ func TestSplitUSTARPath(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// TestIssue12594 tests that the Writer does not attempt to populate the prefix
++// field when encoding a header in the GNU format. The prefix field is valid
++// in USTAR and PAX, but not GNU.
++func TestIssue12594(t *testing.T) {
++	names := []string{
++		"0/1/2/3/4/5/6/7/8/9/10/11/12/13/14/15/16/17/18/19/20/21/22/23/24/25/26/27/28/29/30/file.txt",
++		"0/1/2/3/4/5/6/7/8/9/10/11/12/13/14/15/16/17/18/19/20/21/22/23/24/25/26/27/28/29/30/31/32/33/file.txt",
++		"0/1/2/3/4/5/6/7/8/9/10/11/12/13/14/15/16/17/18/19/20/21/22/23/24/25/26/27/28/29/30/31/32/333/file.txt",
++		"0/1/2/3/4/5/6/7/8/9/10/11/12/13/14/15/16/17/18/19/20/21/22/23/24/25/26/27/28/29/30/31/32/33/34/35/36/37/38/39/40/file.txt",
++		"0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000/file.txt",
++		"/home/support/.openoffice.org/3/user/uno_packages/cache/registry/com.sun.star.comp.deployment.executable.PackageRegistryBackend",
++	}
++
++	for i, name := range names {
++		var b bytes.Buffer
++
++		tw := NewWriter(&b)
++		if err := tw.WriteHeader(&Header{
++			Name: name,
++			Uid:  1 << 25, // Prevent USTAR format
++		}); err != nil {
++			t.Errorf("test %d, unexpected WriteHeader error: %v", i, err)
++		}
++		if err := tw.Close(); err != nil {
++			t.Errorf("test %d, unexpected Close error: %v", i, err)
++		}
++
++		// The prefix field should never appear in the GNU format.
++		var blk block
++		copy(blk[:], b.Bytes())
++		prefix := string(blk.USTAR().Prefix())
++		if i := strings.IndexByte(prefix, 0); i >= 0 {
++			prefix = prefix[:i] // Truncate at the NUL terminator
++		}
++		if blk.GetFormat() == formatGNU && len(prefix) > 0 && strings.HasPrefix(name, prefix) {
++			t.Errorf("test %d, found prefix in GNU format: %s", i, prefix)
++		}
++
++		tr := NewReader(&b)
++		hdr, err := tr.Next()
++		if err != nil {
++			t.Errorf("test %d, unexpected Next error: %v", i, err)
++		}
++		if hdr.Name != name {
++			t.Errorf("test %d, hdr.Name = %s, want %s", i, hdr.Name, name)
++		}
++	}
++}

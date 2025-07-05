@@ -8,6 +8,29 @@ Date:   Thu Dec 3 17:24:14 2009 -0800
     
     R=r
     https://golang.org/cl/166044
-
+---
  src/pkg/runtime/386/traceback.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/386/traceback.c b/src/pkg/runtime/386/traceback.c
+index febbb51d1e..60359e19c3 100644
+--- a/src/pkg/runtime/386/traceback.c
++++ b/src/pkg/runtime/386/traceback.c
+@@ -42,7 +42,7 @@ traceback(byte *pc0, byte *sp, G *g)
+ 		if(f == nil) {
+ 			// dangerous, but poke around to see if it is a closure
+ 			// ADDL $xxx, SP; RET
+-			if((uint64)pc > 0x1000 && p[0] == 0x81 && p[1] == 0xc4 && p[6] == 0xc3) {
++			if(pc > 0x1000 && p[0] == 0x81 && p[1] == 0xc4 && p[6] == 0xc3) {
+ 				sp += *(uint32*)(p+2) + 8;
+ 				pc = *(uintptr*)(sp - 8);
+ 				if(pc <= 0x1000)
+@@ -130,7 +130,7 @@ runtime·Caller(int32 n, uintptr retpc, String retfile, int32 retline, bool retb
+ 			// see if it is a closure.
+ 			p = (byte*)pc;
+ 			// ADDL $xxx, SP; RET
+-			if(p[0] == 0x81 && p[1] == 0xc4 && p[6] == 0xc3) {
++			if(pc > 0x1000 && p[0] == 0x81 && p[1] == 0xc4 && p[6] == 0xc3) {
+ 				sp += *(uint32*)(p+2) + sizeof(uintptr);
+ 				goto loop;
+ 			}

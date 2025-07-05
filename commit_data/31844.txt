@@ -8,7 +8,7 @@ Date:   Mon Mar 20 15:01:20 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/38383
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/asm/main.go                 |  2 +-
  src/cmd/compile/internal/gc/main.go | 10 ++++++----
  src/cmd/internal/obj/arm/asm5.go    |  2 +-
@@ -24,3 +24,259 @@ Date:   Mon Mar 20 15:01:20 2017 -0700
  src/cmd/internal/obj/ppc64/obj9.go  |  2 +-
  src/cmd/internal/obj/s390x/objz.go  |  2 +-
  14 files changed, 25 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index 0bea3c5f20..627cce3380 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -35,7 +35,7 @@ func main() {
+ 
+ 	ctxt := obj.Linknew(architecture.LinkArch)
+ 	if *flags.PrintOut {
+-		ctxt.Debugasm = 1
++		ctxt.Debugasm = true
+ 	}
+ 	ctxt.Flag_dynlink = *flags.Dynlink
+ 	ctxt.Flag_shared = *flags.Shared || *flags.Dynlink
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 975bc579ba..a99067cb15 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -32,10 +32,12 @@ var (
+ 
+ var (
+ 	Debug_append   int
++	Debug_asm      bool
+ 	Debug_closure  int
+ 	debug_dclstack int
+ 	Debug_panic    int
+ 	Debug_slice    int
++	Debug_vlog     bool
+ 	Debug_wb       int
+ 	Debug_pctab    string
+ )
+@@ -174,7 +176,7 @@ func Main(archInit func(*Arch)) {
+ 	obj.Flagfn1("I", "add `directory` to import search path", addidir)
+ 	obj.Flagcount("K", "debug missing line numbers", &Debug['K'])
+ 	obj.Flagcount("N", "disable optimizations", &Debug['N'])
+-	obj.Flagcount("S", "print assembly listing", &Debug['S'])
++	flag.BoolVar(&Debug_asm, "S", false, "print assembly listing")
+ 	obj.Flagfn0("V", "print compiler version", doversion)
+ 	obj.Flagcount("W", "debug parse tree after type checking", &Debug['W'])
+ 	flag.StringVar(&asmhdr, "asmhdr", "", "write assembly header to `file`")
+@@ -203,7 +205,7 @@ func Main(archInit func(*Arch)) {
+ 	obj.Flagcount("s", "warn about composite literals that can be simplified", &Debug['s'])
+ 	flag.StringVar(&pathPrefix, "trimpath", "", "remove `prefix` from recorded source file paths")
+ 	flag.BoolVar(&safemode, "u", false, "reject unsafe code")
+-	obj.Flagcount("v", "increase debug verbosity", &Debug['v'])
++	flag.BoolVar(&Debug_vlog, "v", false, "increase debug verbosity")
+ 	obj.Flagcount("w", "debug type checking", &Debug['w'])
+ 	flag.BoolVar(&use_writebarrier, "wb", true, "enable write barrier")
+ 	var flag_shared bool
+@@ -226,8 +228,8 @@ func Main(archInit func(*Arch)) {
+ 	Ctxt.Flag_dynlink = flag_dynlink
+ 	Ctxt.Flag_optimize = Debug['N'] == 0
+ 
+-	Ctxt.Debugasm = int32(Debug['S'])
+-	Ctxt.Debugvlog = int32(Debug['v'])
++	Ctxt.Debugasm = Debug_asm
++	Ctxt.Debugvlog = Debug_vlog
+ 
+ 	if flag.NArg() < 1 {
+ 		usage()
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 89665b15e4..42c139dcd6 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -646,7 +646,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
+ 	var opc int32
+ 	var out [6 + 3]uint32
+ 	for {
+-		if ctxt.Debugvlog != 0 {
++		if ctxt.Debugvlog {
+ 			ctxt.Logf("%5.2f span1\n", obj.Cputime())
+ 		}
+ 		bflag = 0
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index 52a17e9fd8..dfc31010fc 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -355,7 +355,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			}
+ 
+ 			if autosize == 0 && cursym.Text.Mark&LEAF == 0 {
+-				if ctxt.Debugvlog != 0 {
++				if ctxt.Debugvlog {
+ 					ctxt.Logf("save suppressed in: %s\n", cursym.Name)
+ 				}
+ 
+@@ -549,7 +549,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			if cursym.Text.From3.Offset&obj.NOSPLIT != 0 {
+ 				ctxt.Diag("cannot divide in NOSPLIT function")
+ 			}
+-			if ctxt.Debugdivmod != 0 {
++			if ctxt.Debugdivmod {
+ 				break
+ 			}
+ 			if p.From.Type != obj.TYPE_REG {
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index c5fc023a6d..bf105a24ff 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -587,7 +587,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym) {
+ 	 * around jmps to fix. this is rare.
+ 	 */
+ 	for bflag != 0 {
+-		if ctxt.Debugvlog != 0 {
++		if ctxt.Debugvlog {
+ 			ctxt.Logf("%5.2f span1\n", obj.Cputime())
+ 		}
+ 		bflag = 0
+@@ -687,7 +687,7 @@ func checkpool(ctxt *obj.Link, p *obj.Prog, skip int) {
+ func flushpool(ctxt *obj.Link, p *obj.Prog, skip int) {
+ 	if ctxt.Blitrl != nil {
+ 		if skip != 0 {
+-			if ctxt.Debugvlog != 0 && skip == 1 {
++			if ctxt.Debugvlog && skip == 1 {
+ 				fmt.Printf("note: flush literal pool at %#x: len=%d ref=%x\n", uint64(p.Pc+4), pool.size, pool.start)
+ 			}
+ 			q := ctxt.NewProg()
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index f68964ab49..7b0a08a1da 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -555,7 +555,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			}
+ 			p.To.Offset = int64(ctxt.Autosize) - 8
+ 			if ctxt.Autosize == 0 && !(cursym.Text.Mark&LEAF != 0) {
+-				if ctxt.Debugvlog != 0 {
++				if ctxt.Debugvlog {
+ 					ctxt.Logf("save suppressed in: %s\n", cursym.Text.From.Sym.Name)
+ 				}
+ 				cursym.Text.Mark |= LEAF
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index e55af81c98..adc1a74956 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -719,9 +719,9 @@ type Pcdata struct {
+ type Link struct {
+ 	Headtype      HeadType
+ 	Arch          *LinkArch
+-	Debugasm      int32
+-	Debugvlog     int32
+-	Debugdivmod   int32
++	Debugasm      bool
++	Debugvlog     bool
++	Debugdivmod   bool
+ 	Debugpcln     string
+ 	Flag_shared   bool
+ 	Flag_dynlink  bool
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index eee37a9336..897073e95e 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -417,7 +417,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym) {
+ 	var otxt int64
+ 	var q *obj.Prog
+ 	for bflag != 0 {
+-		if ctxt.Debugvlog != 0 {
++		if ctxt.Debugvlog {
+ 			ctxt.Logf("%5.2f span1\n", obj.Cputime())
+ 		}
+ 		bflag = 0
+diff --git a/src/cmd/internal/obj/mips/obj0.go b/src/cmd/internal/obj/mips/obj0.go
+index 097b834e49..fe1ce9c027 100644
+--- a/src/cmd/internal/obj/mips/obj0.go
++++ b/src/cmd/internal/obj/mips/obj0.go
+@@ -168,7 +168,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 	 * expand RET
+ 	 * expand BECOME pseudo
+ 	 */
+-	if ctxt.Debugvlog != 0 {
++	if ctxt.Debugvlog {
+ 		ctxt.Logf("%5.2f noops\n", obj.Cputime())
+ 	}
+ 
+@@ -340,7 +340,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 				q.Spadj = +autosize
+ 			} else if cursym.Text.Mark&LEAF == 0 {
+ 				if cursym.Text.From3.Offset&obj.NOSPLIT != 0 {
+-					if ctxt.Debugvlog != 0 {
++					if ctxt.Debugvlog {
+ 						ctxt.Logf("save suppressed in: %s\n", cursym.Name)
+ 					}
+ 
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 9a208b20b1..150c46752c 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -380,7 +380,7 @@ func (w *objWriter) writeSymDebug(s *LSym) {
+ 
+ func (w *objWriter) writeSym(s *LSym) {
+ 	ctxt := w.ctxt
+-	if ctxt.Debugasm != 0 {
++	if ctxt.Debugasm {
+ 		w.writeSymDebug(s)
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 9baf1775e5..6b2ae8bb9e 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -15,7 +15,7 @@ type Plist struct {
+ }
+ 
+ func Flushplist(ctxt *Link, plist *Plist) {
+-	flushplist(ctxt, plist, ctxt.Debugasm == 0)
++	flushplist(ctxt, plist, !ctxt.Debugasm)
+ }
+ func FlushplistNoFree(ctxt *Link, plist *Plist) {
+ 	flushplist(ctxt, plist, false)
+@@ -28,7 +28,7 @@ func flushplist(ctxt *Link, plist *Plist, freeProgs bool) {
+ 
+ 	var plink *Prog
+ 	for p := plist.Firstpc; p != nil; p = plink {
+-		if ctxt.Debugasm != 0 && ctxt.Debugvlog != 0 {
++		if ctxt.Debugasm && ctxt.Debugvlog {
+ 			fmt.Printf("obj: %v\n", p)
+ 		}
+ 		plink = p.Link
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 0fdce94b7c..41a0ffbf17 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -597,7 +597,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym) {
+ 	var otxt int64
+ 	var q *obj.Prog
+ 	for bflag != 0 {
+-		if ctxt.Debugvlog != 0 {
++		if ctxt.Debugvlog {
+ 			ctxt.Logf("%5.2f span1\n", obj.Cputime())
+ 		}
+ 		bflag = 0
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 7ad754b77e..5639ec989d 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -274,7 +274,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 	 * expand RET
+ 	 * expand BECOME pseudo
+ 	 */
+-	if ctxt.Debugvlog != 0 {
++	if ctxt.Debugvlog {
+ 		ctxt.Logf("%5.2f noops\n", obj.Cputime())
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/s390x/objz.go b/src/cmd/internal/obj/s390x/objz.go
+index a404d7916d..6cb3718cdf 100644
+--- a/src/cmd/internal/obj/s390x/objz.go
++++ b/src/cmd/internal/obj/s390x/objz.go
+@@ -240,7 +240,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 	 * strip NOPs
+ 	 * expand RET
+ 	 */
+-	if ctxt.Debugvlog != 0 {
++	if ctxt.Debugvlog {
+ 		ctxt.Logf("%5.2f noops\n", obj.Cputime())
+ 	}
+ 

@@ -27,6 +27,31 @@ Date:   Mon Sep 29 13:28:08 2014 -0700
     R=iant, jonathan
     CC=golang-codereviews
     https://golang.org/cl/150250045
-
+---
  src/cmd/ld/lib.c | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 910201bdbb..f889aba8a9 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -531,9 +531,8 @@ char* mktempdir(void);
+ void removeall(char*);
+ 
+ static void
+-cleanup(void)
++rmtemp(void)
+ {
+-	close(cout);
+ 	removeall(tmpdir);
+ }
+ 
+@@ -548,7 +547,7 @@ hostlinksetup(void)
+ 	// create temporary directory and arrange cleanup
+ 	if(tmpdir == nil) {
+ 		tmpdir = mktempdir();
+-		atexit(cleanup);
++		atexit(rmtemp);
+ 	}
+ 
+ 	// change our output to temporary object file

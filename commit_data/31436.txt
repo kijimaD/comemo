@@ -23,6 +23,27 @@ Date:   Wed Feb 8 11:42:24 2017 +1100
     Change-Id: Ibb72b04f3864947c782f964a7badc69f4b074e25
     Reviewed-on: https://go-review.googlesource.com/36979
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/pe.go | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 876bc70939..3a99388381 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -458,10 +458,11 @@ func Peinit(ctxt *Link) {
+ 	nextsectoff = int(PESECTHEADR)
+ 	nextfileoff = int(PEFILEHEADR)
+ 
+-	// some mingw libs depend on this symbol, for example, FindPESectionByName
+-	ctxt.xdefine("__image_base__", obj.SDATA, PEBASE)
+-
+-	ctxt.xdefine("_image_base__", obj.SDATA, PEBASE)
++	if Linkmode == LinkInternal {
++		// some mingw libs depend on this symbol, for example, FindPESectionByName
++		ctxt.xdefine("__image_base__", obj.SDATA, PEBASE)
++		ctxt.xdefine("_image_base__", obj.SDATA, PEBASE)
++	}
+ 
+ 	HEADR = PEFILEHEADR
+ 	if *FlagTextAddr == -1 {

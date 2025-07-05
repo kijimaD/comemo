@@ -17,6 +17,25 @@ Date:   Tue Mar 21 13:59:24 2023 -0700
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/call.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 3f5c12599a..db83d58fcc 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -283,8 +283,11 @@ func (check *Checker) exprList(elist []syntax.Expr, allowCommaOk bool) (xlist []
+ 		// exactly one (possibly invalid or comma-ok) value
+ 		xlist = []*operand{&x}
+ 		if allowCommaOk && (x.mode == mapindex || x.mode == commaok || x.mode == commaerr) {
+-			x.mode = value
+-			xlist = append(xlist, &operand{mode: value, expr: e, typ: Typ[UntypedBool]})
++			x2 := &operand{mode: value, expr: e, typ: Typ[UntypedBool]}
++			if x.mode == commaerr {
++				x2.typ = universeError
++			}
++			xlist = append(xlist, x2)
+ 			commaOk = true
+ 		}
+ 

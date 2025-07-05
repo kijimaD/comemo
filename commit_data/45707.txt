@@ -14,7 +14,34 @@ Date:   Sun Oct 18 17:02:06 2020 +0000
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/alldocs.go               | 2 +-
  src/cmd/go/internal/modload/help.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 583ae9e92e..6e0d8337bf 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1976,7 +1976,7 @@
+ // like in Go imports:
+ //
+ // 	require (
+-// 		new/thing v2.3.4
++// 		new/thing/v2 v2.3.4
+ // 		old/thing v1.2.3
+ // 	)
+ //
+diff --git a/src/cmd/go/internal/modload/help.go b/src/cmd/go/internal/modload/help.go
+index 56920c28b9..0d2dd28e5f 100644
+--- a/src/cmd/go/internal/modload/help.go
++++ b/src/cmd/go/internal/modload/help.go
+@@ -439,7 +439,7 @@ The leading verb can be factored out of adjacent lines to create a block,
+ like in Go imports:
+ 
+ 	require (
+-		new/thing v2.3.4
++		new/thing/v2 v2.3.4
+ 		old/thing v1.2.3
+ 	)
+ 

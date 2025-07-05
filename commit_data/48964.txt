@@ -10,6 +10,20 @@ Date:   Wed Jun 30 10:51:54 2021 +0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/331850
     Trust: fannie zhang <Fannie.Zhang@arm.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/abi-internal.md | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/abi-internal.md b/src/cmd/compile/abi-internal.md
+index 1ae3c2538f..2bb4055083 100644
+--- a/src/cmd/compile/abi-internal.md
++++ b/src/cmd/compile/abi-internal.md
+@@ -233,7 +233,7 @@ stack frame is laid out in the following sequence:
+     r1.x    uintptr
+     r1.y    [2]uintptr
+     a1Spill uint8
+-    a2Spill uint8
++    a3Spill uint8
+     _       [6]uint8  // alignment padding
+ 
+ In the stack frame, only the `a2` field is initialized on entry; the

@@ -21,7 +21,7 @@ Date:   Wed Jul 13 10:49:48 2016 -0600
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/api/goapi.go                                              | 2 +-
  src/go/build/build_test.go                                        | 8 ++++----
  src/go/build/deps_test.go                                         | 8 ++++----
@@ -81,3 +81,381 @@ Date:   Wed Jul 13 10:49:48 2016 -0600
  src/vendor/{golang.org => golang_org}/x/net/route/zsys_netbsd.go  | 0
  src/vendor/{golang.org => golang_org}/x/net/route/zsys_openbsd.go | 0
  58 files changed, 19 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index e9c91477c6..936f9e5511 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -425,7 +425,7 @@ func (w *Walker) Import(name string) (*types.Package, error) {
+ 	w.imported[name] = &importing
+ 
+ 	root := w.root
+-	if strings.HasPrefix(name, "golang.org/x/") {
++	if strings.HasPrefix(name, "golang_org/x/") {
+ 		root = filepath.Join(root, "vendor")
+ 	}
+ 
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index c9f906a7da..198a649b15 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -303,11 +303,11 @@ func TestImportVendor(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t) // really must just have source
+ 	ctxt := Default
+ 	ctxt.GOPATH = ""
+-	p, err := ctxt.Import("golang.org/x/net/http2/hpack", filepath.Join(ctxt.GOROOT, "src/net/http"), 0)
++	p, err := ctxt.Import("golang_org/x/net/http2/hpack", filepath.Join(ctxt.GOROOT, "src/net/http"), 0)
+ 	if err != nil {
+-		t.Fatalf("cannot find vendored golang.org/x/net/http2/hpack from net/http directory: %v", err)
++		t.Fatalf("cannot find vendored golang_org/x/net/http2/hpack from net/http directory: %v", err)
+ 	}
+-	want := "vendor/golang.org/x/net/http2/hpack"
++	want := "vendor/golang_org/x/net/http2/hpack"
+ 	if p.ImportPath != want {
+ 		t.Fatalf("Import succeeded but found %q, want %q", p.ImportPath, want)
+ 	}
+@@ -333,7 +333,7 @@ func TestImportVendorParentFailure(t *testing.T) {
+ 	ctxt := Default
+ 	ctxt.GOPATH = ""
+ 	// This import should fail because the vendor/golang.org/x/net/http2 directory has no source code.
+-	p, err := ctxt.Import("golang.org/x/net/http2", filepath.Join(ctxt.GOROOT, "src/net/http"), 0)
++	p, err := ctxt.Import("golang_org/x/net/http2", filepath.Join(ctxt.GOROOT, "src/net/http"), 0)
+ 	if err == nil {
+ 		t.Fatalf("found empty parent in %s", p.Dir)
+ 	}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 335e774a7c..5b2529129c 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -297,7 +297,7 @@ var pkgDeps = map[string][]string{
+ 		"context", "math/rand", "os", "sort", "syscall", "time",
+ 		"internal/nettrace",
+ 		"internal/syscall/windows", "internal/singleflight", "internal/race",
+-		"golang.org/x/net/route",
++		"golang_org/x/net/route",
+ 	},
+ 
+ 	// NET enables use of basic network-related packages.
+@@ -378,8 +378,8 @@ var pkgDeps = map[string][]string{
+ 		"context", "compress/gzip", "container/list", "crypto/tls",
+ 		"mime/multipart", "runtime/debug",
+ 		"net/http/internal",
+-		"golang.org/x/net/http2/hpack",
+-		"golang.org/x/net/lex/httplex",
++		"golang_org/x/net/http2/hpack",
++		"golang_org/x/net/lex/httplex",
+ 		"internal/nettrace",
+ 		"net/http/httptrace",
+ 	},
+@@ -443,7 +443,7 @@ func listStdPkgs(goroot string) ([]string, error) {
+ 		}
+ 
+ 		name := filepath.ToSlash(path[len(src):])
+-		if name == "builtin" || name == "cmd" || strings.Contains(name, ".") {
++		if name == "builtin" || name == "cmd" || strings.Contains(name, "golang_org") {
+ 			return filepath.SkipDir
+ 		}
+ 
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 352a41d414..47e5f577e6 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -41,8 +41,8 @@ import (
+ 	"sync"
+ 	"time"
+ 
+-	"golang.org/x/net/http2/hpack"
+-	"golang.org/x/net/lex/httplex"
++	"golang_org/x/net/http2/hpack"
++	"golang_org/x/net/lex/httplex"
+ )
+ 
+ // ClientConnPool manages a pool of HTTP/2 client connections.
+diff --git a/src/net/http/http.go b/src/net/http/http.go
+index 4d088a5bb1..b34ae41ec5 100644
+--- a/src/net/http/http.go
++++ b/src/net/http/http.go
+@@ -7,7 +7,7 @@ package http
+ import (
+ 	"strings"
+ 
+-	"golang.org/x/net/lex/httplex"
++	"golang_org/x/net/lex/httplex"
+ )
+ 
+ // maxInt64 is the effective "infinite" value for the Server and
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 9bf4d667e2..7b2b4b2f42 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -28,7 +28,7 @@ import (
+ 	"sync/atomic"
+ 	"time"
+ 
+-	"golang.org/x/net/lex/httplex"
++	"golang_org/x/net/lex/httplex"
+ )
+ 
+ // Errors used by the HTTP server.
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index b27ace638a..c653467098 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -18,7 +18,7 @@ import (
+ 	"strings"
+ 	"sync"
+ 
+-	"golang.org/x/net/lex/httplex"
++	"golang_org/x/net/lex/httplex"
+ )
+ 
+ // ErrLineTooLong is returned when reading request or response bodies
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index f7904b4a89..0c81b55e12 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -27,7 +27,7 @@ import (
+ 	"sync"
+ 	"time"
+ 
+-	"golang.org/x/net/lex/httplex"
++	"golang_org/x/net/lex/httplex"
+ )
+ 
+ // DefaultTransport is the default implementation of Transport and is
+diff --git a/src/net/interface_bsd.go b/src/net/interface_bsd.go
+index d791cb3016..35b1c26815 100644
+--- a/src/net/interface_bsd.go
++++ b/src/net/interface_bsd.go
+@@ -9,7 +9,7 @@ package net
+ import (
+ 	"syscall"
+ 
+-	"golang.org/x/net/route"
++	"golang_org/x/net/route"
+ )
+ 
+ // If the ifindex is zero, interfaceTable returns mappings of all
+diff --git a/src/net/interface_bsdvar.go b/src/net/interface_bsdvar.go
+index a809b5f5ce..0b84ca37d4 100644
+--- a/src/net/interface_bsdvar.go
++++ b/src/net/interface_bsdvar.go
+@@ -9,7 +9,7 @@ package net
+ import (
+ 	"syscall"
+ 
+-	"golang.org/x/net/route"
++	"golang_org/x/net/route"
+ )
+ 
+ func interfaceMessages(ifindex int) ([]route.Message, error) {
+diff --git a/src/net/interface_darwin.go b/src/net/interface_darwin.go
+index bb4fd73a98..2ec8e1cc6e 100644
+--- a/src/net/interface_darwin.go
++++ b/src/net/interface_darwin.go
+@@ -7,7 +7,7 @@ package net
+ import (
+ 	"syscall"
+ 
+-	"golang.org/x/net/route"
++	"golang_org/x/net/route"
+ )
+ 
+ func interfaceMessages(ifindex int) ([]route.Message, error) {
+diff --git a/src/net/interface_freebsd.go b/src/net/interface_freebsd.go
+index 45badd6495..8a7d6f67c0 100644
+--- a/src/net/interface_freebsd.go
++++ b/src/net/interface_freebsd.go
+@@ -7,7 +7,7 @@ package net
+ import (
+ 	"syscall"
+ 
+-	"golang.org/x/net/route"
++	"golang_org/x/net/route"
+ )
+ 
+ func interfaceMessages(ifindex int) ([]route.Message, error) {
+diff --git a/src/vendor/golang.org/x/net/http2/hpack/encode.go b/src/vendor/golang_org/x/net/http2/hpack/encode.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/http2/hpack/encode.go
+rename to src/vendor/golang_org/x/net/http2/hpack/encode.go
+diff --git a/src/vendor/golang.org/x/net/http2/hpack/encode_test.go b/src/vendor/golang_org/x/net/http2/hpack/encode_test.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/http2/hpack/encode_test.go
+rename to src/vendor/golang_org/x/net/http2/hpack/encode_test.go
+diff --git a/src/vendor/golang.org/x/net/http2/hpack/hpack.go b/src/vendor/golang_org/x/net/http2/hpack/hpack.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/http2/hpack/hpack.go
+rename to src/vendor/golang_org/x/net/http2/hpack/hpack.go
+diff --git a/src/vendor/golang.org/x/net/http2/hpack/hpack_test.go b/src/vendor/golang_org/x/net/http2/hpack/hpack_test.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/http2/hpack/hpack_test.go
+rename to src/vendor/golang_org/x/net/http2/hpack/hpack_test.go
+diff --git a/src/vendor/golang.org/x/net/http2/hpack/huffman.go b/src/vendor/golang_org/x/net/http2/hpack/huffman.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/http2/hpack/huffman.go
+rename to src/vendor/golang_org/x/net/http2/hpack/huffman.go
+diff --git a/src/vendor/golang.org/x/net/http2/hpack/tables.go b/src/vendor/golang_org/x/net/http2/hpack/tables.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/http2/hpack/tables.go
+rename to src/vendor/golang_org/x/net/http2/hpack/tables.go
+diff --git a/src/vendor/golang.org/x/net/lex/httplex/httplex.go b/src/vendor/golang_org/x/net/lex/httplex/httplex.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/lex/httplex/httplex.go
+rename to src/vendor/golang_org/x/net/lex/httplex/httplex.go
+diff --git a/src/vendor/golang.org/x/net/lex/httplex/httplex_test.go b/src/vendor/golang_org/x/net/lex/httplex/httplex_test.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/lex/httplex/httplex_test.go
+rename to src/vendor/golang_org/x/net/lex/httplex/httplex_test.go
+diff --git a/src/vendor/golang.org/x/net/route/address.go b/src/vendor/golang_org/x/net/route/address.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/address.go
+rename to src/vendor/golang_org/x/net/route/address.go
+diff --git a/src/vendor/golang.org/x/net/route/address_darwin_test.go b/src/vendor/golang_org/x/net/route/address_darwin_test.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/address_darwin_test.go
+rename to src/vendor/golang_org/x/net/route/address_darwin_test.go
+diff --git a/src/vendor/golang.org/x/net/route/address_test.go b/src/vendor/golang_org/x/net/route/address_test.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/address_test.go
+rename to src/vendor/golang_org/x/net/route/address_test.go
+diff --git a/src/vendor/golang.org/x/net/route/binary.go b/src/vendor/golang_org/x/net/route/binary.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/binary.go
+rename to src/vendor/golang_org/x/net/route/binary.go
+diff --git a/src/vendor/golang.org/x/net/route/defs_darwin.go b/src/vendor/golang_org/x/net/route/defs_darwin.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/defs_darwin.go
+rename to src/vendor/golang_org/x/net/route/defs_darwin.go
+diff --git a/src/vendor/golang.org/x/net/route/defs_dragonfly.go b/src/vendor/golang_org/x/net/route/defs_dragonfly.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/defs_dragonfly.go
+rename to src/vendor/golang_org/x/net/route/defs_dragonfly.go
+diff --git a/src/vendor/golang.org/x/net/route/defs_freebsd.go b/src/vendor/golang_org/x/net/route/defs_freebsd.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/defs_freebsd.go
+rename to src/vendor/golang_org/x/net/route/defs_freebsd.go
+diff --git a/src/vendor/golang.org/x/net/route/defs_netbsd.go b/src/vendor/golang_org/x/net/route/defs_netbsd.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/defs_netbsd.go
+rename to src/vendor/golang_org/x/net/route/defs_netbsd.go
+diff --git a/src/vendor/golang.org/x/net/route/defs_openbsd.go b/src/vendor/golang_org/x/net/route/defs_openbsd.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/defs_openbsd.go
+rename to src/vendor/golang_org/x/net/route/defs_openbsd.go
+diff --git a/src/vendor/golang.org/x/net/route/interface.go b/src/vendor/golang_org/x/net/route/interface.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/interface.go
+rename to src/vendor/golang_org/x/net/route/interface.go
+diff --git a/src/vendor/golang.org/x/net/route/interface_announce.go b/src/vendor/golang_org/x/net/route/interface_announce.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/interface_announce.go
+rename to src/vendor/golang_org/x/net/route/interface_announce.go
+diff --git a/src/vendor/golang.org/x/net/route/interface_classic.go b/src/vendor/golang_org/x/net/route/interface_classic.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/interface_classic.go
+rename to src/vendor/golang_org/x/net/route/interface_classic.go
+diff --git a/src/vendor/golang.org/x/net/route/interface_freebsd.go b/src/vendor/golang_org/x/net/route/interface_freebsd.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/interface_freebsd.go
+rename to src/vendor/golang_org/x/net/route/interface_freebsd.go
+diff --git a/src/vendor/golang.org/x/net/route/interface_multicast.go b/src/vendor/golang_org/x/net/route/interface_multicast.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/interface_multicast.go
+rename to src/vendor/golang_org/x/net/route/interface_multicast.go
+diff --git a/src/vendor/golang.org/x/net/route/interface_openbsd.go b/src/vendor/golang_org/x/net/route/interface_openbsd.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/interface_openbsd.go
+rename to src/vendor/golang_org/x/net/route/interface_openbsd.go
+diff --git a/src/vendor/golang.org/x/net/route/message.go b/src/vendor/golang_org/x/net/route/message.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/message.go
+rename to src/vendor/golang_org/x/net/route/message.go
+diff --git a/src/vendor/golang.org/x/net/route/message_darwin_test.go b/src/vendor/golang_org/x/net/route/message_darwin_test.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/message_darwin_test.go
+rename to src/vendor/golang_org/x/net/route/message_darwin_test.go
+diff --git a/src/vendor/golang.org/x/net/route/message_freebsd_test.go b/src/vendor/golang_org/x/net/route/message_freebsd_test.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/message_freebsd_test.go
+rename to src/vendor/golang_org/x/net/route/message_freebsd_test.go
+diff --git a/src/vendor/golang.org/x/net/route/message_test.go b/src/vendor/golang_org/x/net/route/message_test.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/message_test.go
+rename to src/vendor/golang_org/x/net/route/message_test.go
+diff --git a/src/vendor/golang.org/x/net/route/route.go b/src/vendor/golang_org/x/net/route/route.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/route.go
+rename to src/vendor/golang_org/x/net/route/route.go
+diff --git a/src/vendor/golang.org/x/net/route/route_classic.go b/src/vendor/golang_org/x/net/route/route_classic.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/route_classic.go
+rename to src/vendor/golang_org/x/net/route/route_classic.go
+diff --git a/src/vendor/golang.org/x/net/route/route_openbsd.go b/src/vendor/golang_org/x/net/route/route_openbsd.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/route_openbsd.go
+rename to src/vendor/golang_org/x/net/route/route_openbsd.go
+diff --git a/src/vendor/golang.org/x/net/route/route_test.go b/src/vendor/golang_org/x/net/route/route_test.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/route_test.go
+rename to src/vendor/golang_org/x/net/route/route_test.go
+diff --git a/src/vendor/golang.org/x/net/route/sys.go b/src/vendor/golang_org/x/net/route/sys.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/sys.go
+rename to src/vendor/golang_org/x/net/route/sys.go
+diff --git a/src/vendor/golang.org/x/net/route/sys_darwin.go b/src/vendor/golang_org/x/net/route/sys_darwin.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/sys_darwin.go
+rename to src/vendor/golang_org/x/net/route/sys_darwin.go
+diff --git a/src/vendor/golang.org/x/net/route/sys_dragonfly.go b/src/vendor/golang_org/x/net/route/sys_dragonfly.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/sys_dragonfly.go
+rename to src/vendor/golang_org/x/net/route/sys_dragonfly.go
+diff --git a/src/vendor/golang.org/x/net/route/sys_freebsd.go b/src/vendor/golang_org/x/net/route/sys_freebsd.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/sys_freebsd.go
+rename to src/vendor/golang_org/x/net/route/sys_freebsd.go
+diff --git a/src/vendor/golang.org/x/net/route/sys_netbsd.go b/src/vendor/golang_org/x/net/route/sys_netbsd.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/sys_netbsd.go
+rename to src/vendor/golang_org/x/net/route/sys_netbsd.go
+diff --git a/src/vendor/golang.org/x/net/route/sys_openbsd.go b/src/vendor/golang_org/x/net/route/sys_openbsd.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/sys_openbsd.go
+rename to src/vendor/golang_org/x/net/route/sys_openbsd.go
+diff --git a/src/vendor/golang.org/x/net/route/syscall.go b/src/vendor/golang_org/x/net/route/syscall.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/syscall.go
+rename to src/vendor/golang_org/x/net/route/syscall.go
+diff --git a/src/vendor/golang.org/x/net/route/syscall.s b/src/vendor/golang_org/x/net/route/syscall.s
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/syscall.s
+rename to src/vendor/golang_org/x/net/route/syscall.s
+diff --git a/src/vendor/golang.org/x/net/route/zsys_darwin.go b/src/vendor/golang_org/x/net/route/zsys_darwin.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/zsys_darwin.go
+rename to src/vendor/golang_org/x/net/route/zsys_darwin.go
+diff --git a/src/vendor/golang.org/x/net/route/zsys_dragonfly.go b/src/vendor/golang_org/x/net/route/zsys_dragonfly.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/zsys_dragonfly.go
+rename to src/vendor/golang_org/x/net/route/zsys_dragonfly.go
+diff --git a/src/vendor/golang.org/x/net/route/zsys_freebsd_386.go b/src/vendor/golang_org/x/net/route/zsys_freebsd_386.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/zsys_freebsd_386.go
+rename to src/vendor/golang_org/x/net/route/zsys_freebsd_386.go
+diff --git a/src/vendor/golang.org/x/net/route/zsys_freebsd_amd64.go b/src/vendor/golang_org/x/net/route/zsys_freebsd_amd64.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/zsys_freebsd_amd64.go
+rename to src/vendor/golang_org/x/net/route/zsys_freebsd_amd64.go
+diff --git a/src/vendor/golang.org/x/net/route/zsys_freebsd_arm.go b/src/vendor/golang_org/x/net/route/zsys_freebsd_arm.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/zsys_freebsd_arm.go
+rename to src/vendor/golang_org/x/net/route/zsys_freebsd_arm.go
+diff --git a/src/vendor/golang.org/x/net/route/zsys_netbsd.go b/src/vendor/golang_org/x/net/route/zsys_netbsd.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/zsys_netbsd.go
+rename to src/vendor/golang_org/x/net/route/zsys_netbsd.go
+diff --git a/src/vendor/golang.org/x/net/route/zsys_openbsd.go b/src/vendor/golang_org/x/net/route/zsys_openbsd.go
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/zsys_openbsd.go
+rename to src/vendor/golang_org/x/net/route/zsys_openbsd.go

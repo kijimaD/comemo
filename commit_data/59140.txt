@@ -14,6 +14,35 @@ Date:   Sun Feb 18 12:23:20 2024 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/regexp/syntax/doc.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/regexp/syntax/doc.go b/src/regexp/syntax/doc.go
+index eb8a971c73..abc58bb159 100644
+--- a/src/regexp/syntax/doc.go
++++ b/src/regexp/syntax/doc.go
+@@ -7,12 +7,12 @@
+ /*
+ Package syntax parses regular expressions into parse trees and compiles
+ parse trees into programs. Most clients of regular expressions will use the
+-facilities of package regexp (such as Compile and Match) instead of this package.
++facilities of package [regexp] (such as [regexp.Compile] and [regexp.Match]) instead of this package.
+ 
+ # Syntax
+ 
+-The regular expression syntax understood by this package when parsing with the Perl flag is as follows.
+-Parts of the syntax can be disabled by passing alternate flags to Parse.
++The regular expression syntax understood by this package when parsing with the [Perl] flag is as follows.
++Parts of the syntax can be disabled by passing alternate flags to [Parse].
+ 
+ Single characters:
+ 
+@@ -137,6 +137,6 @@ ASCII character classes:
+ 	[[:word:]]     word characters (== [0-9A-Za-z_])
+ 	[[:xdigit:]]   hex digit (== [0-9A-Fa-f])
+ 
+-Unicode character classes are those in unicode.Categories and unicode.Scripts.
++Unicode character classes are those in [unicode.Categories] and [unicode.Scripts].
+ */
+ package syntax

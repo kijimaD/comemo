@@ -12,6 +12,25 @@ Date:   Thu Sep 23 15:50:22 2021 -0700
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Trust: Than McIntosh <thanm@google.com>
     Trust: Zvonimir Pavlinovic <zpavlinovic@google.com>
-
+---
  src/cmd/go/testdata/script/test_vet.txt | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_vet.txt b/src/cmd/go/testdata/script/test_vet.txt
+index 687d4851de..6151f912ae 100644
+--- a/src/cmd/go/testdata/script/test_vet.txt
++++ b/src/cmd/go/testdata/script/test_vet.txt
+@@ -24,11 +24,11 @@ stderr 'using resp before checking for errors'
+ ! go test -vet=bools,xyz ./vetall/...
+ stderr '-vet argument must be a supported analyzer'
+ 
+-# Test with a list of analyzers
++# Test with a single analyzer
+ ! go test -vet=httpresponse ./vetall/...
+ stderr 'using resp before checking for errors'
+ 
+-# Test with a single analyzer
++# Test with a list of analyzers
+ go test -vet=atomic,bools,nilfunc ./vetall/...
+ stdout 'm/vetall.*\[no tests to run\]'
+ 

@@ -9,7 +9,7 @@ Date:   Mon Jan 26 09:56:42 2009 -0800
     DELTA=351  (201 added, 80 deleted, 70 changed)
     OCL=23423
     CL=23481
-
+---
  src/cmd/gc/go.h       |  7 +++---
  src/cmd/gc/subr.c     | 20 ++++-----------
  src/runtime/chan.c    | 12 ++-------
@@ -26,3 +26,697 @@ Date:   Mon Jan 26 09:56:42 2009 -0800
  test/golden.out       | 32 ++++++++++++++++++++++++
  test/map.go           | 68 +++++++++++++++++++++++++--------------------------
  15 files changed, 282 insertions(+), 141 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index b04790d662..6dc8393bd7 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -37,13 +37,12 @@ enum
+ 	PRIME10		= 10093,
+ 
+ 	AUNK		= 100,
++
+ 	// these values are known by runtime
+-	ASIMP		= 0,
++	AMEM		= 0,
++	ANOEQ,
+ 	ASTRING,
+-	APTR,
+ 	AINTER,
+-	ASLICE,
+-	ASTRUCT,
+ 
+ 	BADWIDTH	= -1000000000
+ };
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 0650a634e3..bfcdd08f5b 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -291,26 +291,16 @@ algtype(Type *t)
+ {
+ 	int a;
+ 
+-	a = AUNK;
+-	if(issimple[t->etype])
+-		a = ASIMP;	// simple mem
++	if(issimple[t->etype] || isptr[t->etype] || t->etype == TCHAN)
++		a = AMEM;	// just bytes (int, ptr, etc)
+ 	else
+ 	if(t->etype == TSTRING)
+ 		a = ASTRING;	// string
+ 	else
+-	if(isptr[simtype[t->etype]])
+-		a = APTR;	// pointer
+-	else
+-	if(isslice(t))
+-		a = ASLICE;
+-	else
+-	if(t->etype == TSTRUCT)
+-		a = ASTRUCT;
+-	else
+-	if(isinter(t))
++	if(t->etype == TINTER)
+ 		a = AINTER;	// interface
+-//	else
+-//		fatal("algtype: cant find type %T", t);
++	else
++		a = ANOEQ;	// just bytes, but no hash/eq
+ 	return a;
+ }
+ 
+diff --git a/src/runtime/chan.c b/src/runtime/chan.c
+index 929d07f7ea..6f89fa3953 100644
+--- a/src/runtime/chan.c
++++ b/src/runtime/chan.c
+@@ -88,17 +88,9 @@ sys·newchan(uint32 elemsize, uint32 elemalg, uint32 hint,
+ 	Hchan *c;
+ 	int32 i;
+ 
+-	switch(elemalg){
+-	case ASIMP:
+-	case ASTRING:
+-	case APTR:
+-	case AINTER:
+-	case AARRAY:
+-	case ASTRUCT:
+-		break;
+-	default:
++	if(elemalg >= nelem(algarray)) {
+ 		printf("chan(alg=%d)\n", elemalg);
+-		throw("sys·newchan: unsupported channel element type");
++		throw("sys·newchan: unsupported elem type");
+ 	}
+ 
+ 	c = mal(sizeof(*c));
+diff --git a/src/runtime/hashmap.c b/src/runtime/hashmap.c
+index 5be990c49c..f54d13197c 100644
+--- a/src/runtime/hashmap.c
++++ b/src/runtime/hashmap.c
+@@ -663,28 +663,12 @@ sys·newmap(uint32 keysize, uint32 valsize,
+ {
+ 	Hmap *h;
+ 
+-	switch(keyalg) {
+-	case ASIMP:
+-	case ASTRING:
+-	case APTR:
+-	case AINTER:
+-	case AARRAY:
+-	case ASTRUCT:
+-		break;
+-	default:
++	if(keyalg >= nelem(algarray) || algarray[keyalg].hash == nohash) {
+ 		printf("map(keyalg=%d)\n", keyalg);
+ 		throw("sys·newmap: unsupported map key type");
+ 	}
+ 
+-	switch(valalg) {
+-	case ASIMP:
+-	case ASTRING:
+-	case APTR:
+-	case AINTER:
+-	case AARRAY:
+-	case ASTRUCT:
+-		break;
+-	default:
++	if(valalg >= nelem(algarray)) {
+ 		printf("map(valalg=%d)\n", valalg);
+ 		throw("sys·newmap: unsupported map value type");
+ 	}
+diff --git a/src/runtime/iface.c b/src/runtime/iface.c
+index 70e2b4f04c..99116806a3 100644
+--- a/src/runtime/iface.c
++++ b/src/runtime/iface.c
+@@ -404,11 +404,32 @@ sys·ifaceI2I2(Sigi *si, Iface i, Iface ret, bool ok)
+ 	FLUSH(&ok);
+ }
+ 
+-// ifaceeq(i1 any, i2 any) (ret bool);
+-void
+-sys·ifaceeq(Iface i1, Iface i2, bool ret)
++uint64
++ifacehash(Iface a)
++{
++	int32 alg, wid;
++	
++	if(a.type == nil)
++		return 0;
++	alg = a.type->sigt->hash;
++	wid = a.type->sigt->offset;
++	if(algarray[alg].hash == nohash) {
++		// calling nohash will throw too,
++		// but we can print a better error.
++		printf("hash of unhashable type %s\n", a.type->sigt->name);
++		throw("interface hash");
++	}
++	if(wid <= sizeof a.data)
++		return algarray[alg].hash(wid, &a.data);
++	else
++		return algarray[alg].hash(wid, a.data);
++}
++
++bool
++ifaceeq(Iface i1, Iface i2)
+ {
+ 	int32 alg, wid;
++	bool ret;
+ 
+ 	if(iface_debug) {
+ 		prints("Ieq i1=");
+@@ -438,6 +459,13 @@ sys·ifaceeq(Iface i1, Iface i2, bool ret)
+ 	if(wid != i2.type->sigt->offset)
+ 		goto no;
+ 
++	if(algarray[alg].equal == noequal) {
++		// calling noequal will throw too,
++		// but we can print a better error.
++		printf("comparing uncomparable type %s\n", i1.type->sigt->name);
++		throw("interface compare");
++	}
++
+ 	if(wid <= sizeof i1.data) {
+ 		if(!algarray[alg].equal(wid, &i1.data, &i2.data))
+ 			goto no;
+@@ -454,6 +482,14 @@ no:
+ 		sys·printbool(ret);
+ 		prints("\n");
+ 	}
++	return ret;
++}
++
++// ifaceeq(i1 any, i2 any) (ret bool);
++void
++sys·ifaceeq(Iface i1, Iface i2, bool ret)
++{
++	ret = ifaceeq(i1, i2);
+ 	FLUSH(&ret);
+ }
+ 
+@@ -526,7 +562,7 @@ fakesigt(string type, bool indir)
+ 	sigt = mal(2*sizeof sigt[0]);
+ 	sigt[0].name = mal(type->len + 1);
+ 	mcpy(sigt[0].name, type->str, type->len);
+-	sigt[0].hash = ASIMP;	// alg
++	sigt[0].hash = AMEM;	// alg
+ 	if(indir)
+ 		sigt[0].offset = 2*sizeof(niliface.data);  // big width
+ 	else
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index 29a67b190d..ce9349383c 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -328,57 +328,52 @@ strprint(uint32 s, string *a)
+ 	sys·printstring(*a);
+ }
+ 
+-static void
+-strcopy(uint32 s, string *a, string *b)
++static uint64
++interhash(uint32 s, Iface *a)
+ {
+ 	USED(s);
+-	if(b == nil) {
+-		*a = nil;
+-		return;
+-	}
+-	*a = *b;
++	return ifacehash(*a);
+ }
+ 
+-static uint64
+-ptrhash(uint32 s, void **a)
++static void
++interprint(uint32 s, Iface *a)
+ {
+-	return memhash(s, *a);
++	USED(s);
++	sys·printinter(*a);
+ }
+ 
+ static uint32
+-ptrequal(uint32 s, void **a, void **b)
++interequal(uint32 s, Iface *a, Iface *b)
+ {
+-	USED(s, a, b);
+-	prints("ptrequal\n");
+-	return 0;
++	USED(s);
++	return ifaceeq(*a, *b);
+ }
+ 
+-static void
+-ptrprint(uint32 s, void **a)
++uint64
++nohash(uint32 s, void *a)
+ {
+-	USED(s, a);
+-	prints("ptrprint\n");
++	USED(s);
++	USED(a);
++	throw("hash of unhashable type");
++	return 0;
+ }
+ 
+-static void
+-ptrcopy(uint32 s, void **a, void **b)
++uint32
++noequal(uint32 s, void *a, void *b)
+ {
+ 	USED(s);
+-	if(b == nil) {
+-		*a = nil;
+-		return;
+-	}
+-	*a = *b;
++	USED(a);
++	USED(b);
++	throw("comparing uncomparable types");
++	return 0;
+ }
+ 
+ Alg
+ algarray[] =
+ {
+-[ASIMP]		{ memhash, memequal, memprint, memcopy },
+-[ASTRING]	{ strhash, strequal, strprint, strcopy },
+-[APTR]		{ memhash, memequal, memprint, memcopy },	// TODO: ptr routines
+-[AINTER]	{ memhash, memequal, memprint, memcopy },	// TODO: interface routines
+-[ASTRUCT]	{ memhash, memequal, memprint, memcopy },	// TODO: what goes here?
+-[AARRAY]	{ memhash, memequal, memprint, memcopy },	// TODO: what goes here?
++[AMEM]	{ memhash, memequal, memprint, memcopy },
++[ANOEQ]	{ nohash, noequal, memprint, memcopy },
++[ASTRING]	{ strhash, strequal, strprint, memcopy },
++[AINTER]		{ interhash, interequal, interprint, memcopy },
+ };
+ 
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index bc6b2f76d5..47103e253a 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -226,18 +226,17 @@ struct	Func
+  */
+ enum
+ {
+-	ASIMP		= 0,
++	AMEM,
++	ANOEQ,
+ 	ASTRING,
+-	APTR,
+ 	AINTER,
+-	AARRAY,
+-	ASTRUCT,
++	Amax
+ };
+ 
+ /*
+  * external data
+  */
+-extern	Alg	algarray[];
++extern	Alg	algarray[Amax];
+ extern	string	emptystring;
+ G*	allg;
+ int32	goidgen;
+@@ -299,6 +298,10 @@ void*	stackalloc(uint32);
+ void	stackfree(void*);
+ MCache*	allocmcache(void);
+ void	mallocinit(void);
++bool	ifaceeq(Iface, Iface);
++uint64	ifacehash(Iface);
++uint64	nohash(uint32, void*);
++uint32	noequal(uint32, void*, void*);
+ 
+ #pragma	varargck	argpos	printf	1
+ 
+@@ -366,6 +369,7 @@ void	notewakeup(Note*);
+ #define sys_printfloat sys·printfloat
+ #define sys_printhex sys·printhex
+ #define sys_printint sys·printint
++#define sys_printinter sys·printinter
+ #define sys_printpc sys·printpc
+ #define sys_printpointer sys·printpointer
+ #define sys_printstring sys·printstring
+@@ -393,6 +397,7 @@ void*	sys_getcallerpc(void*);
+ void	sys_printbool(bool);
+ void	sys_printfloat(float64);
+ void	sys_printint(int64);
++void	sys_printinter(Iface);
+ void	sys_printstring(string);
+ void	sys_printpc(void*);
+ void	sys_printpointer(void*);
+diff --git a/test/bigalg.go b/test/bigalg.go
+index 434eecf5d2..afeccdf8f0 100644
+--- a/test/bigalg.go
++++ b/test/bigalg.go
+@@ -62,25 +62,6 @@ func maptest() {
+ 	}
+ }
+ 
+-var mt1 = make(map[T]int)
+-var ma1 = make(map[[]int] int)
+-
+-func maptest2() {
+-	mt1[t] = 123;
+-	t1 := t;
+-	val, ok := mt1[t1];
+-	if val != 123 || !ok {
+-		println("fail: map key struct", val, ok);
+-	}
+-
+-	ma1[a] = 345;
+-	a1 := a;
+-	val, ok = ma1[a1];
+-	if val != 345 || !ok {
+-		panic("map key array", val, ok);
+-	}
+-}
+-
+ var ct = make(chan T)
+ var ca = make(chan []int)
+ 
+@@ -136,7 +117,6 @@ func interfacetest() {
+ func main() {
+ 	arraycmptest();
+ 	maptest();
+-	maptest2();
+ 	chantest();
+ 	interfacetest();
+ }
+diff --git a/test/cmp1.go b/test/cmp1.go
+new file mode 100644
+index 0000000000..82e932f45e
+--- /dev/null
++++ b/test/cmp1.go
+@@ -0,0 +1,66 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "unsafe"
++
++func use(bool) { }
++
++func stringptr(s string) uintptr {
++	return *(&s).(unsafe.Pointer).(*uintptr);
++}
++
++func isfalse(b bool) {
++	if b { panicln("wanted false, got true") } // stack will explain where
++}
++
++func istrue(b bool) {
++	if !b { panicln("wanted true, got false") } // stack will explain where
++}
++
++func main()
++{
++	var a []int;
++	var b map[string]int;
++
++	var c string = "hello";
++	var d string = "hel";	// try to get different pointer
++	d = d + "lo";
++	if stringptr(c) == stringptr(d) {
++		panic("compiler too smart -- got same string")
++	}
++
++	var e = make(chan int);
++
++	var ia interface{} = a;
++	var ib interface{} = b;
++	var ic interface{} = c;
++	var id interface{} = d;
++	var ie interface{} = e;
++
++	// these comparisons are okay because
++	// string compare is okay and the others
++	// are comparisons where the types differ.
++	isfalse(ia == ib);
++	isfalse(ia == ic);
++	isfalse(ia == id);
++	isfalse(ib == ic);
++	isfalse(ib == id);
++	istrue(ic == id);
++	istrue(ie == ie);
++
++	// map of interface should use == on interface values,
++	// not memory.
++	// TODO: should m[c], m[d] be valid here?
++	var m = make(map[interface{}] int);
++	m[ic] = 1;
++	m[id] = 2;
++	if m[ic] != 2 {
++		panic("m[ic] = ", m[ic]);
++	}
++}
++
+diff --git a/test/cmp2.go b/test/cmp2.go
+new file mode 100644
+index 0000000000..d43cfcd107
+--- /dev/null
++++ b/test/cmp2.go
+@@ -0,0 +1,16 @@
++// $G $D/$F.go && $L $F.$A && ! ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func use(bool) { }
++
++func main()
++{
++	var a []int;
++	var ia interface{} = a;
++	use(ia == ia);
++}
+diff --git a/test/cmp3.go b/test/cmp3.go
+new file mode 100644
+index 0000000000..06a67bdf05
+--- /dev/null
++++ b/test/cmp3.go
+@@ -0,0 +1,16 @@
++// $G $D/$F.go && $L $F.$A && ! ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func use(bool) { }
++
++func main()
++{
++	var b map[string]int;
++	var ib interface{} = b;
++	use(ib == ib);
++}
+diff --git a/test/cmp4.go b/test/cmp4.go
+new file mode 100644
+index 0000000000..61787b07c4
+--- /dev/null
++++ b/test/cmp4.go
+@@ -0,0 +1,15 @@
++// $G $D/$F.go && $L $F.$A && ! ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main()
++{
++	var a []int;
++	var ia interface{} = a;
++	var m = make(map[interface{}] int);
++	m[ia] = 1;
++}
+diff --git a/test/cmp5.go b/test/cmp5.go
+new file mode 100644
+index 0000000000..7500974223
+--- /dev/null
++++ b/test/cmp5.go
+@@ -0,0 +1,15 @@
++// $G $D/$F.go && $L $F.$A && ! ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main()
++{
++	var b map[string]int;
++	var ib interface{} = b;
++	var m = make(map[interface{}] int);
++	m[ib] = 1;
++}
+diff --git a/test/golden.out b/test/golden.out
+index 023b96edd0..163242bc23 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -1,4 +1,36 @@
+ 
++=========== ./cmp2.go
++comparing uncomparable type []int
++throw: interface compare
++SIGSEGV: segmentation violation
++Faulting address: 0x0
++pc: xxx
++
++
++=========== ./cmp3.go
++comparing uncomparable type map[string] int
++throw: interface compare
++SIGSEGV: segmentation violation
++Faulting address: 0x0
++pc: xxx
++
++
++=========== ./cmp4.go
++hash of unhashable type []int
++throw: interface hash
++SIGSEGV: segmentation violation
++Faulting address: 0x0
++pc: xxx
++
++
++=========== ./cmp5.go
++hash of unhashable type map[string] int
++throw: interface hash
++SIGSEGV: segmentation violation
++Faulting address: 0x0
++pc: xxx
++
++
+ =========== ./convlit.go
+ BUG: errchk: ./convlit.go: missing expected error message on line 16: 'conver|incompatible'
+ errchk: ./convlit.go: missing expected error message on line 22: 'convert'
+diff --git a/test/map.go b/test/map.go
+index 51c6fe5f5b..085502bf52 100644
+--- a/test/map.go
++++ b/test/map.go
+@@ -52,7 +52,7 @@ func main() {
+ 	mipT := make(map[int] *T);
+ 	mpTi := make(map[*T] int);
+ 	mit := make(map[int] T);
+-	mti := make(map[T] int);
++//	mti := make(map[T] int);
+ 
+ 	type M map[int] int;
+ 	mipM := make(map[int] M);
+@@ -88,7 +88,7 @@ func main() {
+ 		mpTi[apT[i]] = i;
+ 		mipM[i] = m;
+ 		mit[i] = t;
+-		mti[t] = i;
++	//	mti[t] = i;
+ 	}
+ 
+ 	// test len
+@@ -122,15 +122,15 @@ func main() {
+ 	if len(mpTi) != count {
+ 		fmt.Printf("len(mpTi) = %d\n", len(mpTi));
+ 	}
+-	if len(mti) != count {
+-		fmt.Printf("len(mti) = %d\n", len(mti));
+-	}
++//	if len(mti) != count {
++//		fmt.Printf("len(mti) = %d\n", len(mti));
++//	}
+ 	if len(mipM) != count {
+ 		fmt.Printf("len(mipM) = %d\n", len(mipM));
+ 	}
+-	if len(mti) != count {
+-		fmt.Printf("len(mti) = %d\n", len(mti));
+-	}
++//	if len(mti) != count {
++//		fmt.Printf("len(mti) = %d\n", len(mti));
++//	}
+ 	if len(mit) != count {
+ 		fmt.Printf("len(mit) = %d\n", len(mit));
+ 	}
+@@ -174,15 +174,15 @@ func main() {
+ 		if(mpTi[apT[i]] != i) {
+ 			fmt.Printf("mpTi[apT[%d]] = %d\n", i, mpTi[apT[i]]);
+ 		}
+-		if(mti[t] != i) {
+-			fmt.Printf("mti[%s] = %s\n", s, mti[t]);
+-		}
++	//	if(mti[t] != i) {
++	//		fmt.Printf("mti[%s] = %s\n", s, mti[t]);
++	//	}
+ 		if (mipM[i][i] != i + 1) {
+ 			fmt.Printf("mipM[%d][%d] = %d\n", i, i, mipM[i][i]);
+ 		}
+-		if(mti[t] != i) {
+-			fmt.Printf("mti[%v] = %d\n", t, mti[t]);
+-		}
++	//	if(mti[t] != i) {
++	//		fmt.Printf("mti[%v] = %d\n", t, mti[t]);
++	//	}
+ 		if(mit[i].i != int64(i) || mit[i].f != f) {
+ 			fmt.Printf("mit[%d] = {%d %g}\n", i, mit[i].i, mit[i].f);
+ 		}
+@@ -314,16 +314,16 @@ func main() {
+ 				fmt.Printf("tuple existence assign: mit[%d]\n", i);
+ 			}
+ 		}
+-		{
+-			a, b := mti[t];
+-			if !b {
+-				fmt.Printf("tuple existence decl: mti[%d]\n", i);
+-			}
+-			a, b = mti[t];
+-			if !b {
+-				fmt.Printf("tuple existence assign: mti[%d]\n", i);
+-			}
+-		}
++//		{
++//			a, b := mti[t];
++//			if !b {
++//				fmt.Printf("tuple existence decl: mti[%d]\n", i);
++//			}
++//			a, b = mti[t];
++//			if !b {
++//				fmt.Printf("tuple existence assign: mti[%d]\n", i);
++//			}
++//		}
+ 	}
+ 
+ 	// test nonexistence with tuple check
+@@ -442,16 +442,16 @@ func main() {
+ 				fmt.Printf("tuple nonexistence assign: mipM[%d]", i);
+ 			}
+ 		}
+-		{
+-			a, b := mti[t];
+-			if b {
+-				fmt.Printf("tuple nonexistence decl: mti[%d]", i);
+-			}
+-			a, b = mti[t];
+-			if b {
+-				fmt.Printf("tuple nonexistence assign: mti[%d]", i);
+-			}
+-		}
++//		{
++//			a, b := mti[t];
++//			if b {
++//				fmt.Printf("tuple nonexistence decl: mti[%d]", i);
++//			}
++//			a, b = mti[t];
++//			if b {
++//				fmt.Printf("tuple nonexistence assign: mti[%d]", i);
++//			}
++//		}
+ 		{
+ 			a, b := mit[i];
+ 			if b {

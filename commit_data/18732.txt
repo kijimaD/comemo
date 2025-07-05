@@ -9,7 +9,32 @@ Date:   Tue Mar 4 08:20:09 2014 -0800
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/69110045
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 9a02641e04..e70464bd05 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -221,6 +221,7 @@ Kamil Kisiel <kamil@kamilkisiel.net> <kamil.kisiel@gmail.com>
+ Katrina Owen <katrina.owen@gmail.com>
+ Kei Son <hey.calmdown@gmail.com>
+ Keith Rarick <kr@xph.us>
++Kelsey Hightower <kelsey.hightower@gmail.com>
+ Kelvin Foo Chuan Lyi <vmirage@gmail.com>
+ Ken Friedenbach <kenliz@cruzio.com>
+ Ken Rockot <ken@oz.gs>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index b6e5e4fb8e..0d0f1c51fd 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -316,6 +316,7 @@ Katrina Owen <katrina.owen@gmail.com>
+ Kei Son <hey.calmdown@gmail.com>
+ Keith Randall <khr@golang.org>
+ Keith Rarick <kr@xph.us>
++Kelsey Hightower <kelsey.hightower@gmail.com>
+ Kelvin Foo Chuan Lyi <vmirage@gmail.com>
+ Ken Friedenbach <kenliz@cruzio.com>
+ Ken Rockot <ken@oz.gs> <ken.rockot@gmail.com>

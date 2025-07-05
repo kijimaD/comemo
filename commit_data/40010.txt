@@ -22,10 +22,253 @@ Date:   Sun Apr 7 13:56:58 2019 +0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/export_test.go    |  1 +
  src/os/path.go           |  3 +++
  src/os/removeall_at.go   | 48 ++++++++++++++++++++++++++++++++----------------
  src/os/removeall_noat.go | 40 ++++++++++++++++++++++++++++------------
  src/os/removeall_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
  5 files changed, 110 insertions(+), 28 deletions(-)
+
+diff --git a/src/os/export_test.go b/src/os/export_test.go
+index 812432cee4..d17d5e6230 100644
+--- a/src/os/export_test.go
++++ b/src/os/export_test.go
+@@ -9,3 +9,4 @@ package os
+ var Atime = atime
+ var LstatP = &lstat
+ var ErrWriteAtInAppendMode = errWriteAtInAppendMode
++var RemoveAllTestHook = &removeAllTestHook
+diff --git a/src/os/path.go b/src/os/path.go
+index ba43ea3525..9d7ecad792 100644
+--- a/src/os/path.go
++++ b/src/os/path.go
+@@ -58,6 +58,9 @@ func MkdirAll(path string, perm FileMode) error {
+ 	return nil
+ }
+ 
++// removeAllTestHook is a hook for testing.
++var removeAllTestHook = func(err error) error { return err }
++
+ // RemoveAll removes path and any children it contains.
+ // It removes everything it can but returns the first error
+ // it encounters. If the path does not exist, RemoveAll
+diff --git a/src/os/removeall_at.go b/src/os/removeall_at.go
+index 330963b354..3098b93368 100644
+--- a/src/os/removeall_at.go
++++ b/src/os/removeall_at.go
+@@ -91,7 +91,8 @@ func removeAllFrom(parent *File, base string) error {
+ 	// Remove the directory's entries.
+ 	var recurseErr error
+ 	for {
+-		const request = 1024
++		const reqSize = 1024
++		var respSize int
+ 
+ 		// Open the directory to recurse into
+ 		file, err := openFdAt(parentFd, base)
+@@ -103,23 +104,37 @@ func removeAllFrom(parent *File, base string) error {
+ 			break
+ 		}
+ 
+-		names, readErr := file.Readdirnames(request)
+-		// Errors other than EOF should stop us from continuing.
+-		if readErr != nil && readErr != io.EOF {
+-			file.Close()
+-			if IsNotExist(readErr) {
+-				return nil
++		for {
++			numErr := 0
++
++			names, readErr := file.Readdirnames(reqSize)
++			// Errors other than EOF should stop us from continuing.
++			if readErr != nil && readErr != io.EOF {
++				file.Close()
++				if IsNotExist(readErr) {
++					return nil
++				}
++				return &PathError{"readdirnames", base, readErr}
+ 			}
+-			return &PathError{"readdirnames", base, readErr}
+-		}
+ 
+-		for _, name := range names {
+-			err := removeAllFrom(file, name)
+-			if err != nil {
+-				if pathErr, ok := err.(*PathError); ok {
+-					pathErr.Path = base + string(PathSeparator) + pathErr.Path
++			respSize = len(names)
++			for _, name := range names {
++				err := removeAllFrom(file, name)
++				if err != nil {
++					if pathErr, ok := err.(*PathError); ok {
++						pathErr.Path = base + string(PathSeparator) + pathErr.Path
++					}
++					numErr++
++					if recurseErr == nil {
++						recurseErr = err
++					}
+ 				}
+-				recurseErr = err
++			}
++
++			// If we can delete any entry, break to start new iteration.
++			// Otherwise, we discard current names, get next entries and try deleting them.
++			if numErr != reqSize {
++				break
+ 			}
+ 		}
+ 
+@@ -131,13 +146,14 @@ func removeAllFrom(parent *File, base string) error {
+ 		file.Close()
+ 
+ 		// Finish when the end of the directory is reached
+-		if len(names) < request {
++		if respSize < reqSize {
+ 			break
+ 		}
+ 	}
+ 
+ 	// Remove the directory itself.
+ 	unlinkError := unix.Unlinkat(parentFd, base, unix.AT_REMOVEDIR)
++	unlinkError = removeAllTestHook(unlinkError)
+ 	if unlinkError == nil || IsNotExist(unlinkError) {
+ 		return nil
+ 	}
+diff --git a/src/os/removeall_noat.go b/src/os/removeall_noat.go
+index 5a7dc263f0..a0694fa4ce 100644
+--- a/src/os/removeall_noat.go
++++ b/src/os/removeall_noat.go
+@@ -56,8 +56,30 @@ func removeAll(path string) error {
+ 			return err
+ 		}
+ 
+-		const request = 1024
+-		names, err1 := fd.Readdirnames(request)
++		const reqSize = 1024
++		var names []string
++		var readErr error
++
++		for {
++			numErr := 0
++			names, readErr = fd.Readdirnames(reqSize)
++
++			for _, name := range names {
++				err1 := RemoveAll(path + string(PathSeparator) + name)
++				if err == nil {
++					err = err1
++				}
++				if err1 != nil {
++					numErr++
++				}
++			}
++
++			// If we can delete any entry, break to start new iteration.
++			// Otherwise, we discard current names, get next entries and try deleting them.
++			if numErr != reqSize {
++				break
++			}
++		}
+ 
+ 		// Removing files from the directory may have caused
+ 		// the OS to reshuffle it. Simply calling Readdirnames
+@@ -66,19 +88,12 @@ func removeAll(path string) error {
+ 		// directory. See issue 20841.
+ 		fd.Close()
+ 
+-		for _, name := range names {
+-			err1 := RemoveAll(path + string(PathSeparator) + name)
+-			if err == nil {
+-				err = err1
+-			}
+-		}
+-
+-		if err1 == io.EOF {
++		if readErr == io.EOF {
+ 			break
+ 		}
+ 		// If Readdirnames returned an error, use it.
+ 		if err == nil {
+-			err = err1
++			err = readErr
+ 		}
+ 		if len(names) == 0 {
+ 			break
+@@ -88,7 +103,7 @@ func removeAll(path string) error {
+ 		// got fewer than request names from Readdirnames, try
+ 		// simply removing the directory now. If that
+ 		// succeeds, we are done.
+-		if len(names) < request {
++		if len(names) < reqSize {
+ 			err1 := Remove(path)
+ 			if err1 == nil || IsNotExist(err1) {
+ 				return nil
+@@ -109,6 +124,7 @@ func removeAll(path string) error {
+ 
+ 	// Remove directory.
+ 	err1 := Remove(path)
++	err1 = removeAllTestHook(err1)
+ 	if err1 == nil || IsNotExist(err1) {
+ 		return nil
+ 	}
+diff --git a/src/os/removeall_test.go b/src/os/removeall_test.go
+index 2bd14979e0..eb9459445c 100644
+--- a/src/os/removeall_test.go
++++ b/src/os/removeall_test.go
+@@ -5,6 +5,7 @@
+ package os_test
+ 
+ import (
++	"errors"
+ 	"fmt"
+ 	"io/ioutil"
+ 	. "os"
+@@ -405,3 +406,48 @@ func TestRemoveUnreadableDir(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ }
++
++// Issue 29921
++func TestRemoveAllWithMoreErrorThanReqSize(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping in short mode")
++	}
++	oldRemoveAllTestHook := RemoveAllTestHook
++	*RemoveAllTestHook = func(err error) error {
++		return errors.New("error from RemoveAllTestHook")
++	}
++	defer func() {
++		*RemoveAllTestHook = *oldRemoveAllTestHook
++	}()
++
++	tmpDir, err := ioutil.TempDir("", "TestRemoveAll-")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer RemoveAll(tmpDir)
++
++	path := filepath.Join(tmpDir, "_TestRemoveAllWithMoreErrorThanReqSize_")
++
++	// Make directory with 1025 files and remove.
++	if err := MkdirAll(path, 0777); err != nil {
++		t.Fatalf("MkdirAll %q: %s", path, err)
++	}
++	for i := 0; i < 1025; i++ {
++		fpath := filepath.Join(path, fmt.Sprintf("file%d", i))
++		fd, err := Create(fpath)
++		if err != nil {
++			t.Fatalf("create %q: %s", fpath, err)
++		}
++		fd.Close()
++	}
++
++	// This call should not hang
++	if err := RemoveAll(path); err == nil {
++		t.Fatal("Want error from RemoveAllTestHook, got nil")
++	}
++
++	// We hook to inject error, but the actual files must be deleted
++	if _, err := Lstat(path); err == nil {
++		t.Fatal("directory must be deleted even with removeAllTetHook run")
++	}
++}

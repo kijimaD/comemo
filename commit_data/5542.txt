@@ -9,10 +9,117 @@ Date:   Mon May 24 16:55:23 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1267042
-
+---
  src/cmd/gc/go.y                 | 15 +++++++++++++--
  src/cmd/gc/subr.c               |  8 ++++++--
  test/fixedbugs/bug282.dir/p1.go | 10 ++++++++++
  test/fixedbugs/bug282.dir/p2.go |  8 ++++++++
  test/fixedbugs/bug282.go        |  7 +++++++
  5 files changed, 44 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 8128e8608e..5aac463c8c 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -74,6 +74,8 @@
+ %type	<node>	indcl interfacetype structtype ptrtype
+ %type	<node>	recvchantype non_recvchantype othertype fnret_type fntype
+ 
++%type	<val>	hidden_tag
++
+ %type	<sym>	hidden_importsym hidden_pkg_importsym
+ 
+ %type	<node>	hidden_constant hidden_literal hidden_dcl
+@@ -1709,12 +1711,12 @@ hidden_dcl:
+ 	}
+ 
+ hidden_structdcl:
+-	sym hidden_type oliteral
++	sym hidden_type hidden_tag
+ 	{
+ 		$$ = nod(ODCLFIELD, newname($1), typenod($2));
+ 		$$->val = $3;
+ 	}
+-|	'?' hidden_type oliteral
++|	'?' hidden_type hidden_tag
+ 	{
+ 		Sym *s;
+ 
+@@ -1728,6 +1730,15 @@ hidden_structdcl:
+ 		$$->val = $3;
+ 	}
+ 
++hidden_tag:
++	{
++		$$.ctype = CTxxx;
++	}
++|	':' LLITERAL	// extra colon avoids conflict with "" looking like beginning of "".typename
++	{
++		$$ = $2;
++	}
++
+ hidden_interfacedcl:
+ 	sym '(' ohidden_funarg_list ')' ohidden_funres
+ 	{
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index b0192adf33..cf7b1865cf 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1295,8 +1295,12 @@ Tpretty(Fmt *fp, Type *t)
+ 				fmtprint(fp, "... %T", t->type->type);
+ 		} else
+ 			fmtprint(fp, "%T", t->type);
+-		if(t->note)
+-			fmtprint(fp, " \"%Z\"", t->note);
++		if(t->note) {	
++			fmtprint(fp, " ");
++			if(exporting)
++				fmtprint(fp, ":");
++			fmtprint(fp, "\"%Z\"", t->note);
++		}
+ 		return 0;
+ 
+ 	case TFORW:
+diff --git a/test/fixedbugs/bug282.dir/p1.go b/test/fixedbugs/bug282.dir/p1.go
+new file mode 100644
+index 0000000000..b562755e5b
+--- /dev/null
++++ b/test/fixedbugs/bug282.dir/p1.go
+@@ -0,0 +1,10 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p1
++
++type T struct {
++	f func() "x"
++}
++
+diff --git a/test/fixedbugs/bug282.dir/p2.go b/test/fixedbugs/bug282.dir/p2.go
+new file mode 100644
+index 0000000000..3f8bd9d49b
+--- /dev/null
++++ b/test/fixedbugs/bug282.dir/p2.go
+@@ -0,0 +1,8 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p2
++
++import _ "./p1"
++
+diff --git a/test/fixedbugs/bug282.go b/test/fixedbugs/bug282.go
+new file mode 100644
+index 0000000000..463f21e941
+--- /dev/null
++++ b/test/fixedbugs/bug282.go
+@@ -0,0 +1,7 @@
++// $G $D/$F.dir/p1.go && $G $D/$F.dir/p2.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++ignored

@@ -13,10 +13,213 @@ Date:   Thu Oct 29 16:34:32 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/266368
     Trust: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  doc/go1.16.html                                  | 12 ++++++++++
  src/cmd/go/alldocs.go                            |  7 ++++--
  src/cmd/go/internal/test/test.go                 |  2 ++
  src/cmd/go/internal/work/build.go                | 30 +++++++++++++++++++++---
  src/cmd/go/testdata/script/build_i_deprecate.txt | 24 +++++++++++++++++++
  5 files changed, 70 insertions(+), 5 deletions(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index c6e217e726..6c4d076d50 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -151,6 +151,18 @@ Do not send CLs removing the interior tags from such phrases.
+   being built.
+ </p>
+ 
++<h4 id="i-flag">The <code>-i</code> build flag</h4>
++
++<p><!-- golang.org/issue/41696 -->
++  The <code>-i</code> flag accepted by <code>go</code> <code>build</code>,
++  <code>go</code> <code>install</code>, and <code>go</code> <code>test</code> is
++  now deprecated. The <code>-i</code> flag instructs the <code>go</code> command
++  to install packages imported by packages named on the command line. Since
++  the build cache was introduced in Go 1.10, the <code>-i</code> flag no longer
++  has a significant effect on build times, and it causes errors when the install
++  directory is not writable.
++</p>
++
+ <h4 id="list-buildid">The <code>list</code> command</h4>
+ 
+ <p><!-- golang.org/cl/263542 -->
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 4461be2d09..e8bfff1e69 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -72,7 +72,7 @@
+ //
+ // Usage:
+ //
+-// 	go build [-o output] [-i] [build flags] [packages]
++// 	go build [-o output] [build flags] [packages]
+ //
+ // Build compiles the packages named by the import paths,
+ // along with their dependencies, but it does not install the results.
+@@ -99,6 +99,7 @@
+ // will be written to that directory.
+ //
+ // The -i flag installs the packages that are dependencies of the target.
++// The -i flag is deprecated. Compiled packages are cached automatically.
+ //
+ // The build flags are shared by the build, clean, get, install, list, run,
+ // and test commands:
+@@ -717,7 +718,7 @@
+ //
+ // Usage:
+ //
+-// 	go install [-i] [build flags] [packages]
++// 	go install [build flags] [packages]
+ //
+ // Install compiles and installs the packages named by the import paths.
+ //
+@@ -758,6 +759,7 @@
+ // other packages are built and cached but not installed.
+ //
+ // The -i flag installs the dependencies of the named packages as well.
++// The -i flag is deprecated. Compiled packages are cached automatically.
+ //
+ // For more about the build flags, see 'go help build'.
+ // For more about specifying packages, see 'go help packages'.
+@@ -1459,6 +1461,7 @@
+ // 	-i
+ // 	    Install packages that are dependencies of the test.
+ // 	    Do not run the test.
++// 	    The -i flag is deprecated. Compiled packages are cached automatically.
+ //
+ // 	-json
+ // 	    Convert test output to JSON suitable for automated processing.
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 00da9770df..24601dc061 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -150,6 +150,7 @@ In addition to the build flags, the flags handled by 'go test' itself are:
+ 	-i
+ 	    Install packages that are dependencies of the test.
+ 	    Do not run the test.
++	    The -i flag is deprecated. Compiled packages are cached automatically.
+ 
+ 	-json
+ 	    Convert test output to JSON suitable for automated processing.
+@@ -640,6 +641,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 	b.Init()
+ 
+ 	if cfg.BuildI {
++		fmt.Fprint(os.Stderr, "go test: -i flag is deprecated\n")
+ 		cfg.BuildV = testV
+ 
+ 		deps := make(map[string]bool)
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 181bb3b874..7e26d4e6a3 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -31,7 +31,7 @@ import (
+ )
+ 
+ var CmdBuild = &base.Command{
+-	UsageLine: "go build [-o output] [-i] [build flags] [packages]",
++	UsageLine: "go build [-o output] [build flags] [packages]",
+ 	Short:     "compile packages and dependencies",
+ 	Long: `
+ Build compiles the packages named by the import paths,
+@@ -59,6 +59,7 @@ ends with a slash or backslash, then any resulting executables
+ will be written to that directory.
+ 
+ The -i flag installs the packages that are dependencies of the target.
++The -i flag is deprecated. Compiled packages are cached automatically.
+ 
+ The build flags are shared by the build, clean, get, install, list, run,
+ and test commands:
+@@ -381,6 +382,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
+ 	depMode := ModeBuild
+ 	if cfg.BuildI {
+ 		depMode = ModeInstall
++		fmt.Fprint(os.Stderr, "go build: -i flag is deprecated\n")
+ 	}
+ 
+ 	pkgs = omitTestOnly(pkgsFilter(load.Packages(ctx, args)))
+@@ -444,7 +446,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
+ }
+ 
+ var CmdInstall = &base.Command{
+-	UsageLine: "go install [-i] [build flags] [packages]",
++	UsageLine: "go install [build flags] [packages]",
+ 	Short:     "compile and install packages and dependencies",
+ 	Long: `
+ Install compiles and installs the packages named by the import paths.
+@@ -486,6 +488,7 @@ directory $GOPATH/pkg/$GOOS_$GOARCH. When module-aware mode is enabled,
+ other packages are built and cached but not installed.
+ 
+ The -i flag installs the dependencies of the named packages as well.
++The -i flag is deprecated. Compiled packages are cached automatically.
+ 
+ For more about the build flags, see 'go help build'.
+ For more about specifying packages, see 'go help packages'.
+@@ -551,14 +554,35 @@ func libname(args []string, pkgs []*load.Package) (string, error) {
+ }
+ 
+ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
++	// TODO(golang.org/issue/41696): print a deprecation message for the -i flag
++	// whenever it's set (or just remove it). For now, we don't print a message
++	// if all named packages are in GOROOT. cmd/dist (run by make.bash) uses
++	// 'go install -i' when bootstrapping, and we don't want to show deprecation
++	// messages in that case.
+ 	for _, arg := range args {
+ 		if strings.Contains(arg, "@") && !build.IsLocalImport(arg) && !filepath.IsAbs(arg) {
++			if cfg.BuildI {
++				fmt.Fprint(os.Stderr, "go install: -i flag is deprecated\n")
++			}
+ 			installOutsideModule(ctx, args)
+ 			return
+ 		}
+ 	}
+ 	BuildInit()
+-	InstallPackages(ctx, args, load.PackagesForBuild(ctx, args))
++	pkgs := load.PackagesForBuild(ctx, args)
++	if cfg.BuildI {
++		allGoroot := true
++		for _, pkg := range pkgs {
++			if !pkg.Goroot {
++				allGoroot = false
++				break
++			}
++		}
++		if !allGoroot {
++			fmt.Fprint(os.Stderr, "go install: -i flag is deprecated\n")
++		}
++	}
++	InstallPackages(ctx, args, pkgs)
+ }
+ 
+ // omitTestOnly returns pkgs with test-only packages removed.
+diff --git a/src/cmd/go/testdata/script/build_i_deprecate.txt b/src/cmd/go/testdata/script/build_i_deprecate.txt
+new file mode 100644
+index 0000000000..71356e5321
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_i_deprecate.txt
+@@ -0,0 +1,24 @@
++# Check that deprecation warnings are printed when the -i flag is used.
++# TODO(golang.org/issue/41696): remove the -i flag after Go 1.16, and this test.
++
++go build -n -i
++stderr '^go build: -i flag is deprecated$'
++
++go install -n -i
++stderr '^go install: -i flag is deprecated$'
++
++go test -n -i
++stderr '^go test: -i flag is deprecated$'
++
++
++# 'go clean -i' should not print a deprecation warning.
++# It will continue working.
++go clean -i .
++! stderr .
++
++-- go.mod --
++module m
++
++go 1.16
++-- m.go --
++package m

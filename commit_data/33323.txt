@@ -17,6 +17,26 @@ Date:   Thu Aug 10 08:11:46 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Martin Möhrmann <moehrmann@google.com>
-
+---
  src/runtime/hashmap.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index c36ff470d6..676f04efd5 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -995,10 +995,11 @@ func tooManyOverflowBuckets(noverflow uint16, B uint8) bool {
+ 	// If the threshold is too high, maps that grow and shrink can hold on to lots of unused memory.
+ 	// "too many" means (approximately) as many overflow buckets as regular buckets.
+ 	// See incrnoverflow for more details.
+-	if B < 16 {
+-		return noverflow >= uint16(1)<<B
++	if B > 15 {
++		B = 15
+ 	}
+-	return noverflow >= 1<<15
++	// The compiler doesn't see here that B < 16; mask B to generate shorter shift code.
++	return noverflow >= uint16(1)<<(B&15)
+ }
+ 
+ // growing reports whether h is growing. The growth may be to the same size or bigger.

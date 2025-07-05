@@ -12,8 +12,91 @@ Date:   Mon Jul 27 16:40:35 2020 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go           | 31 +++++++++++++++++++++++++---
  src/cmd/compile/internal/ssa/expand_calls.go |  1 -
  src/cmd/compile/internal/ssa/op.go           | 13 ++++++++++++
  3 files changed, 41 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 0bd87beb84..d0b3e8df94 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2557,8 +2557,23 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		return s.addr(n.Left)
+ 
+ 	case ORESULT:
+-		addr := s.constOffPtrSP(types.NewPtr(n.Type), n.Xoffset)
+-		return s.load(n.Type, addr)
++		if s.prevCall == nil || s.prevCall.Op != ssa.OpStaticLECall {
++			// Do the old thing
++			addr := s.constOffPtrSP(types.NewPtr(n.Type), n.Xoffset)
++			return s.load(n.Type, addr)
++		}
++		which := s.prevCall.Aux.(*ssa.AuxCall).ResultForOffset(n.Xoffset)
++		if which == -1 {
++			// Do the old thing // TODO: Panic instead.
++			addr := s.constOffPtrSP(types.NewPtr(n.Type), n.Xoffset)
++			return s.load(n.Type, addr)
++		}
++		if canSSAType(n.Type) {
++			return s.newValue1I(ssa.OpSelectN, n.Type, which, s.prevCall)
++		} else {
++			addr := s.newValue1I(ssa.OpSelectNAddr, types.NewPtr(n.Type), which, s.prevCall)
++			return s.load(n.Type, addr)
++		}
+ 
+ 	case ODEREF:
+ 		p := s.exprPtr(n.Left, n.Bounded(), n.Pos)
+@@ -4700,7 +4715,17 @@ func (s *state) addr(n *Node) *ssa.Value {
+ 		}
+ 	case ORESULT:
+ 		// load return from callee
+-		return s.constOffPtrSP(t, n.Xoffset)
++		if s.prevCall == nil || s.prevCall.Op != ssa.OpStaticLECall {
++			return s.constOffPtrSP(t, n.Xoffset)
++		}
++		which := s.prevCall.Aux.(*ssa.AuxCall).ResultForOffset(n.Xoffset)
++		if which == -1 {
++			// Do the old thing // TODO: Panic instead.
++			return s.constOffPtrSP(t, n.Xoffset)
++		}
++		x := s.newValue1I(ssa.OpSelectNAddr, t, which, s.prevCall)
++		return x
++
+ 	case OINDEX:
+ 		if n.Left.Type.IsSlice() {
+ 			a := s.expr(n.Left)
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index 13c7f532d6..34cff51c00 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -98,4 +98,3 @@ func expandCalls(f *Func) {
+ 		}
+ 	}
+ }
+-
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 1ab53cf285..b22b095401 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -79,6 +79,19 @@ type AuxCall struct {
+ 	results []Param
+ }
+ 
++// ResultForOffset returns the index of the result at a particular offset among the results
++// This does not include the mem result for the call opcode.
++func (a *AuxCall) ResultForOffset(offset int64) int64 {
++	which := int64(-1)
++	for i := int64(0); i < a.NResults(); i++ { // note aux NResults does not include mem result.
++		if a.OffsetOfResult(i) == offset {
++			which = i
++			break
++		}
++	}
++	return which
++}
++
+ // OffsetOfResult returns the SP offset of result which (indexed 0, 1, etc).
+ func (a *AuxCall) OffsetOfResult(which int64) int64 {
+ 	return int64(a.results[which].Offset)

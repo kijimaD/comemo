@@ -40,6 +40,47 @@ Date:   Wed Apr 3 02:01:50 2019 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/arith.go | 18 ++++++------------
  1 file changed, 6 insertions(+), 12 deletions(-)
+
+diff --git a/src/math/big/arith.go b/src/math/big/arith.go
+index ed51f38836..b0885f261f 100644
+--- a/src/math/big/arith.go
++++ b/src/math/big/arith.go
+@@ -160,14 +160,11 @@ func shlVU_g(z, x []Word, s uint) (c Word) {
+ 	s &= _W - 1 // hint to the compiler that shifts by s don't need guard code
+ 	ŝ := _W - s
+ 	ŝ &= _W - 1 // ditto
+-	w1 := x[len(z)-1]
+-	c = w1 >> ŝ
++	c = x[len(z)-1] >> ŝ
+ 	for i := len(z) - 1; i > 0; i-- {
+-		w := w1
+-		w1 = x[i-1]
+-		z[i] = w<<s | w1>>ŝ
++		z[i] = x[i]<<s | x[i-1]>>ŝ
+ 	}
+-	z[0] = w1 << s
++	z[0] = x[0] << s
+ 	return
+ }
+ 
+@@ -182,14 +179,11 @@ func shrVU_g(z, x []Word, s uint) (c Word) {
+ 	s &= _W - 1 // hint to the compiler that shifts by s don't need guard code
+ 	ŝ := _W - s
+ 	ŝ &= _W - 1 // ditto
+-	w1 := x[0]
+-	c = w1 << ŝ
++	c = x[0] << ŝ
+ 	for i := 0; i < len(z)-1; i++ {
+-		w := w1
+-		w1 = x[i+1]
+-		z[i] = w>>s | w1<<ŝ
++		z[i] = x[i]>>s | x[i+1]<<ŝ
+ 	}
+-	z[len(z)-1] = w1 >> s
++	z[len(z)-1] = x[len(z)-1] >> s
+ 	return
+ }
+ 

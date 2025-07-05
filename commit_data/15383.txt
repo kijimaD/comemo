@@ -7,8 +7,51 @@ Date:   Fri Feb 22 13:02:00 2013 -0800
     R=adonovan
     CC=golang-dev
     https://golang.org/cl/7386052
-
+---
  src/pkg/exp/ssa/interp/interp.go  | 2 +-
  src/pkg/exp/ssa/interp/reflect.go | 2 +-
  src/pkg/exp/ssa/literal.go        | 5 ++++-
  3 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/exp/ssa/interp/interp.go b/src/pkg/exp/ssa/interp/interp.go
+index c20ddb9622..812420d073 100644
+--- a/src/pkg/exp/ssa/interp/interp.go
++++ b/src/pkg/exp/ssa/interp/interp.go
+@@ -586,7 +586,7 @@ func Interpret(mainpkg *ssa.Package, mode Mode, filename string, args []string)
+ 		case string:
+ 			fmt.Fprintln(os.Stderr, "panic:", p)
+ 		default:
+-			fmt.Fprintln(os.Stderr, "panic: unexpected type: %T", p)
++			fmt.Fprintf(os.Stderr, "panic: unexpected type: %T\n", p)
+ 		}
+ 
+ 		// TODO(adonovan): dump panicking interpreter goroutine?
+diff --git a/src/pkg/exp/ssa/interp/reflect.go b/src/pkg/exp/ssa/interp/reflect.go
+index 97b31118c7..26a8338126 100644
+--- a/src/pkg/exp/ssa/interp/reflect.go
++++ b/src/pkg/exp/ssa/interp/reflect.go
+@@ -233,7 +233,7 @@ func ext۰reflect۰Value۰Len(fn *ssa.Function, args []value) value {
+ 	case map[value]value:
+ 		return len(v)
+ 	default:
+-		panic(fmt.Sprintf("reflect.(Value).Len(%V)", v))
++		panic(fmt.Sprintf("reflect.(Value).Len(%v)", v))
+ 	}
+ 	return nil // unreachable
+ }
+diff --git a/src/pkg/exp/ssa/literal.go b/src/pkg/exp/ssa/literal.go
+index 6fb2cebe74..32d2682f64 100644
+--- a/src/pkg/exp/ssa/literal.go
++++ b/src/pkg/exp/ssa/literal.go
+@@ -9,7 +9,10 @@ import (
+ 	"strconv"
+ )
+ 
+-var complexZero = types.Complex{new(big.Rat), new(big.Rat)}
++var complexZero = types.Complex{
++	Re: new(big.Rat),
++	Im: new(big.Rat),
++}
+ 
+ // newLiteral returns a new literal of the specified value and type.
+ // val must be valid according to the specification of Literal.Value.

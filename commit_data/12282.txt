@@ -29,7 +29,36 @@ Date:   Wed Feb 29 15:28:36 2012 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5712043
-
+---
  src/cmd/gc/lex.c | 5 +++++
  test/import5.go  | 4 ++++
  2 files changed, 9 insertions(+)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 140153a646..b393bccc45 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -637,6 +637,11 @@ importfile(Val *f, int line)
+ 	
+ 	path = f->u.sval;
+ 	if(islocalname(path)) {
++		if(path->s[0] == '/') {
++			yyerror("import path cannot be absolute path");
++			fakeimport();
++			return;
++		}
+ 		cleanbuf = mal(strlen(pathname) + strlen(path->s) + 2);
+ 		strcpy(cleanbuf, pathname);
+ 		strcat(cleanbuf, "/");
+diff --git a/test/import5.go b/test/import5.go
+index 02d443b2e2..6480acff92 100644
+--- a/test/import5.go
++++ b/test/import5.go
+@@ -49,3 +49,7 @@ import "\x80\x80" // ERROR "import path"
+ import `\x80\x80` // ERROR "import path"
+ import "\xFFFD"   // ERROR "import path"
+ import `\xFFFD`   // ERROR "import path"
++
++// Invalid local imports.
++import "/foo"  // ERROR "import path cannot be absolute path"
++import "c:/foo"  // ERROR "import path contains invalid character"

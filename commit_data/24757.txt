@@ -9,7 +9,7 @@ Date:   Fri Aug 28 14:24:10 2015 -0400
     Change-Id: I31fd23b34980c9ed4b4e304b8597134b2ba6ca5c
     Reviewed-on: https://go-review.googlesource.com/14024
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go                 |  37 +++++
  .../compile/internal/gc/testdata/compound_ssa.go   |  54 +++++++
  src/cmd/compile/internal/gc/type.go                |   4 +
@@ -23,3 +23,661 @@ Date:   Fri Aug 28 14:24:10 2015 -0400
  src/cmd/compile/internal/ssa/type.go               |   4 +-
  src/cmd/compile/internal/ssa/type_test.go          |  26 +--
  12 files changed, 377 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index d672eb58e0..94fdf0e489 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1113,6 +1113,29 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 				s.Fatalf("bad float size %d", n.Type.Size())
+ 				return nil
+ 			}
++		case CTCPLX:
++			c := n.Val().U.(*Mpcplx)
++			r := &c.Real
++			i := &c.Imag
++			switch n.Type.Size() {
++			case 8:
++				{
++					pt := Types[TFLOAT32]
++					return s.newValue2(ssa.OpComplexMake, n.Type,
++						s.constFloat32(pt, mpgetflt32(r)),
++						s.constFloat32(pt, mpgetflt32(i)))
++				}
++			case 16:
++				{
++					pt := Types[TFLOAT64]
++					return s.newValue2(ssa.OpComplexMake, n.Type,
++						s.constFloat32(pt, mpgetflt(r)),
++						s.constFloat32(pt, mpgetflt(i)))
++				}
++			default:
++				s.Fatalf("bad float size %d", n.Type.Size())
++				return nil
++			}
+ 
+ 		default:
+ 			s.Unimplementedf("unhandled OLITERAL %v", n.Val().Ctype())
+@@ -1654,6 +1677,18 @@ func (s *state) zeroVal(t *Type) *ssa.Value {
+ 		default:
+ 			s.Fatalf("bad sized float type %s", t)
+ 		}
++	case t.IsComplex():
++		switch t.Size() {
++		case 8:
++			z := s.constFloat32(Types[TFLOAT32], 0)
++			return s.newValue2(ssa.OpComplexMake, t, z, z)
++		case 16:
++			z := s.constFloat64(Types[TFLOAT64], 0)
++			return s.newValue2(ssa.OpComplexMake, t, z, z)
++		default:
++			s.Fatalf("bad sized complex type %s", t)
++		}
++
+ 	case t.IsString():
+ 		return s.entryNewValue0A(ssa.OpConstString, t, "")
+ 	case t.IsPtr():
+@@ -3328,6 +3363,8 @@ func (s *ssaExport) TypeUInt8() ssa.Type   { return Types[TUINT8] }
+ func (s *ssaExport) TypeUInt16() ssa.Type  { return Types[TUINT16] }
+ func (s *ssaExport) TypeUInt32() ssa.Type  { return Types[TUINT32] }
+ func (s *ssaExport) TypeUInt64() ssa.Type  { return Types[TUINT64] }
++func (s *ssaExport) TypeFloat32() ssa.Type { return Types[TFLOAT32] }
++func (s *ssaExport) TypeFloat64() ssa.Type { return Types[TFLOAT64] }
+ func (s *ssaExport) TypeInt() ssa.Type     { return Types[TINT] }
+ func (s *ssaExport) TypeUintptr() ssa.Type { return Types[TUINTPTR] }
+ func (s *ssaExport) TypeString() ssa.Type  { return Types[TSTRING] }
+diff --git a/src/cmd/compile/internal/gc/testdata/compound_ssa.go b/src/cmd/compile/internal/gc/testdata/compound_ssa.go
+index 9b84ce4b11..b0e4962f5e 100644
+--- a/src/cmd/compile/internal/gc/testdata/compound_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/compound_ssa.go
+@@ -33,6 +33,58 @@ func testString() {
+ 	}
+ }
+ 
++func complex64_ssa(a, b complex64, x bool) complex64 {
++	switch {
++	}
++	var c complex64
++	if x {
++		c = a
++	} else {
++		c = b
++	}
++	return c
++}
++
++func complex128_ssa(a, b complex128, x bool) complex128 {
++	switch {
++	}
++	var c complex128
++	if x {
++		c = a
++	} else {
++		c = b
++	}
++	return c
++}
++
++func testComplex64() {
++	var a complex64 = 1 + 2i
++	var b complex64 = 3 + 4i
++
++	if want, got := a, complex64_ssa(a, b, true); got != want {
++		fmt.Printf("complex64_ssa(%v, %v, true) = %v, want %v\n", a, b, got, want)
++		failed = true
++	}
++	if want, got := b, complex64_ssa(a, b, false); got != want {
++		fmt.Printf("complex64_ssa(%v, %v, true) = %v, want %v\n", a, b, got, want)
++		failed = true
++	}
++}
++
++func testComplex128() {
++	var a complex128 = 1 + 2i
++	var b complex128 = 3 + 4i
++
++	if want, got := a, complex128_ssa(a, b, true); got != want {
++		fmt.Printf("complex128_ssa(%v, %v, true) = %v, want %v\n", a, b, got, want)
++		failed = true
++	}
++	if want, got := b, complex128_ssa(a, b, false); got != want {
++		fmt.Printf("complex128_ssa(%v, %v, true) = %v, want %v\n", a, b, got, want)
++		failed = true
++	}
++}
++
+ func slice_ssa(a, b []byte, x bool) []byte {
+ 	var s []byte
+ 	if x {
+@@ -85,6 +137,8 @@ func main() {
+ 	testString()
+ 	testSlice()
+ 	testInterface()
++	testComplex64()
++	testComplex128()
+ 	if failed {
+ 		panic("failed")
+ 	}
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index e2d8925839..cdd9b3f14a 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -59,6 +59,10 @@ func (t *Type) IsFloat() bool {
+ 	return t.Etype == TFLOAT32 || t.Etype == TFLOAT64
+ }
+ 
++func (t *Type) IsComplex() bool {
++	return t.Etype == TCOMPLEX64 || t.Etype == TCOMPLEX128
++}
++
+ func (t *Type) IsPtr() bool {
+ 	return t.Etype == TPTR32 || t.Etype == TPTR64 || t.Etype == TUNSAFEPTR ||
+ 		t.Etype == TMAP || t.Etype == TCHAN || t.Etype == TFUNC
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index ad6441117c..865066870d 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -27,6 +27,8 @@ type TypeSource interface {
+ 	TypeUInt32() Type
+ 	TypeUInt64() Type
+ 	TypeInt() Type
++	TypeFloat32() Type
++	TypeFloat64() Type
+ 	TypeUintptr() Type
+ 	TypeString() Type
+ 	TypeBytePtr() Type // TODO: use unsafe.Pointer instead?
+diff --git a/src/cmd/compile/internal/ssa/decompose.go b/src/cmd/compile/internal/ssa/decompose.go
+index 534ffc269e..a2dfdc16ab 100644
+--- a/src/cmd/compile/internal/ssa/decompose.go
++++ b/src/cmd/compile/internal/ssa/decompose.go
+@@ -14,6 +14,8 @@ func decompose(f *Func) {
+ 				continue
+ 			}
+ 			switch {
++			case v.Type.IsComplex():
++				decomposeComplexPhi(v)
+ 			case v.Type.IsString():
+ 				decomposeStringPhi(v)
+ 			case v.Type.IsSlice():
+@@ -72,6 +74,31 @@ func decomposeSlicePhi(v *Value) {
+ 	v.AddArg(cap)
+ }
+ 
++func decomposeComplexPhi(v *Value) {
++	fe := v.Block.Func.Config.fe
++	var partType Type
++	if v.Type.Size() == 8 {
++		partType = fe.TypeFloat32()
++	} else if v.Type.Size() == 16 {
++		partType = fe.TypeFloat64()
++	} else {
++		panic("Whoops, are sizes in bytes or bits?")
++	}
++
++	real := v.Block.NewValue0(v.Line, OpPhi, partType)
++	imag := v.Block.NewValue0(v.Line, OpPhi, partType)
++	for _, a := range v.Args {
++		real.AddArg(a.Block.NewValue1(v.Line, OpComplexReal, partType, a))
++		imag.AddArg(a.Block.NewValue1(v.Line, OpComplexImag, partType, a))
++	}
++	v.Op = OpComplexMake
++	v.AuxInt = 0
++	v.Aux = nil
++	v.resetArgs()
++	v.AddArg(real)
++	v.AddArg(imag)
++}
++
+ func decomposeInterfacePhi(v *Value) {
+ 	ptrType := v.Block.Func.Config.fe.TypeBytePtr()
+ 
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index d2e8216b5d..5b56aa5184 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -38,6 +38,8 @@ func (d DummyFrontend) TypeUInt8() Type   { return TypeUInt8 }
+ func (d DummyFrontend) TypeUInt16() Type  { return TypeUInt16 }
+ func (d DummyFrontend) TypeUInt32() Type  { return TypeUInt32 }
+ func (d DummyFrontend) TypeUInt64() Type  { return TypeUInt64 }
++func (d DummyFrontend) TypeFloat32() Type { return TypeFloat32 }
++func (d DummyFrontend) TypeFloat64() Type { return TypeFloat64 }
+ func (d DummyFrontend) TypeInt() Type     { return TypeInt64 }
+ func (d DummyFrontend) TypeUintptr() Type { return TypeUInt64 }
+ func (d DummyFrontend) TypeString() Type  { panic("unimplemented") }
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 7be00569ea..f77b31501d 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -74,6 +74,36 @@
+ (PtrIndex <t> ptr idx) -> (AddPtr ptr (MulPtr <config.fe.TypeUintptr()> idx (ConstPtr <config.fe.TypeUintptr()> [t.Elem().Size()])))
+ (StructSelect [idx] (Load ptr mem)) -> (Load (OffPtr <v.Type.PtrTo()> [idx] ptr) mem)
+ 
++// complex ops
++(ComplexReal (ComplexMake real _  )) -> real
++(ComplexImag (ComplexMake _ imag )) -> imag
++
++(Load <t> ptr mem) && t.IsComplex() && t.Size() == 8 ->
++  (ComplexMake
++    (Load <config.fe.TypeFloat32()> ptr mem)
++    (Load <config.fe.TypeFloat32()>
++      (OffPtr <config.fe.TypeFloat32().PtrTo()> [4] ptr)
++      mem)
++    )
++(Store [8] dst (ComplexMake real imag) mem) ->
++  (Store [4]
++    (OffPtr <config.fe.TypeFloat32().PtrTo()> [4] dst)
++    imag
++    (Store <TypeMem> [4] dst real mem))
++
++(Load <t> ptr mem) && t.IsComplex() && t.Size() == 16 ->
++  (ComplexMake
++    (Load <config.fe.TypeFloat64()> ptr mem)
++    (Load <config.fe.TypeFloat64()>
++      (OffPtr <config.fe.TypeFloat64().PtrTo()> [8] ptr)
++      mem)
++    )
++(Store [16] dst (ComplexMake real imag) mem) ->
++  (Store [8]
++    (OffPtr <config.fe.TypeFloat64().PtrTo()> [8] dst)
++    imag
++    (Store <TypeMem> [8] dst real mem))
++
+ // string ops
+ (StringPtr (StringMake ptr _)) -> ptr
+ (StringLen (StringMake _ len)) -> len
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 726a62e6be..62d34e74bb 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -334,6 +334,11 @@ var genericOps = []opData{
+ 	{name: "SliceLen"},  // len(arg0)
+ 	{name: "SliceCap"},  // cap(arg0)
+ 
++	// Complex (part/whole)
++	{name: "ComplexMake"}, // arg0=real, arg1=imag
++	{name: "ComplexReal"}, // real_part(arg0)
++	{name: "ComplexImag"}, // imaginary_part(arg0)
++
+ 	// Strings
+ 	{name: "StringMake"}, // arg0=ptr, arg1=len
+ 	{name: "StringPtr"},  // ptr(arg0)
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 8d99d57df7..15689b2a85 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -505,6 +505,9 @@ const (
+ 	OpSlicePtr
+ 	OpSliceLen
+ 	OpSliceCap
++	OpComplexMake
++	OpComplexReal
++	OpComplexImag
+ 	OpStringMake
+ 	OpStringPtr
+ 	OpStringLen
+@@ -2350,7 +2353,6 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 8589934592}, // .FLAGS
+ 			},
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2363,7 +2365,6 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 8589934592}, // .FLAGS
+ 			},
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2496,7 +2497,7 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 8589934592}, // .FLAGS
+ 			},
+-			clobbers: 8589934593, // .AX .FLAGS
++			clobbers: 1, // .AX
+ 			outputs: []regMask{
+ 				65518, // .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2509,7 +2510,7 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 8589934592}, // .FLAGS
+ 			},
+-			clobbers: 8589934593, // .AX .FLAGS
++			clobbers: 1, // .AX
+ 			outputs: []regMask{
+ 				65518, // .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2522,7 +2523,6 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 8589934592}, // .FLAGS
+ 			},
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2535,7 +2535,6 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 8589934592}, // .FLAGS
+ 			},
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2548,7 +2547,6 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 8589934592}, // .FLAGS
+ 			},
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2561,7 +2559,6 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 8589934592}, // .FLAGS
+ 			},
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -4032,6 +4029,18 @@ var opcodeTable = [...]opInfo{
+ 		name:    "SliceCap",
+ 		generic: true,
+ 	},
++	{
++		name:    "ComplexMake",
++		generic: true,
++	},
++	{
++		name:    "ComplexReal",
++		generic: true,
++	},
++	{
++		name:    "ComplexImag",
++		generic: true,
++	},
+ 	{
+ 		name:    "StringMake",
+ 		generic: true,
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index bd53e05230..b14ed9c21e 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -237,6 +237,46 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		goto end4d92ff3ba567d9afd38fc9ca113602ad
+ 	end4d92ff3ba567d9afd38fc9ca113602ad:
+ 		;
++	case OpComplexImag:
++		// match: (ComplexImag (ComplexMake _ imag ))
++		// cond:
++		// result: imag
++		{
++			if v.Args[0].Op != OpComplexMake {
++				goto endec3009fd8727d03002021997936e091f
++			}
++			imag := v.Args[0].Args[1]
++			v.Op = OpCopy
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.Type = imag.Type
++			v.AddArg(imag)
++			return true
++		}
++		goto endec3009fd8727d03002021997936e091f
++	endec3009fd8727d03002021997936e091f:
++		;
++	case OpComplexReal:
++		// match: (ComplexReal (ComplexMake real _  ))
++		// cond:
++		// result: real
++		{
++			if v.Args[0].Op != OpComplexMake {
++				goto end8db3e16bd59af1adaa4b734c8adcc71d
++			}
++			real := v.Args[0].Args[0]
++			v.Op = OpCopy
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.Type = real.Type
++			v.AddArg(real)
++			return true
++		}
++		goto end8db3e16bd59af1adaa4b734c8adcc71d
++	end8db3e16bd59af1adaa4b734c8adcc71d:
++		;
+ 	case OpConstInterface:
+ 		// match: (ConstInterface)
+ 		// cond:
+@@ -569,6 +609,72 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 	end84d6ae817944985f572ecaac51999d6c:
+ 		;
+ 	case OpLoad:
++		// match: (Load <t> ptr mem)
++		// cond: t.IsComplex() && t.Size() == 8
++		// result: (ComplexMake     (Load <config.fe.TypeFloat32()> ptr mem)     (Load <config.fe.TypeFloat32()>       (OffPtr <config.fe.TypeFloat32().PtrTo()> [4] ptr)       mem)     )
++		{
++			t := v.Type
++			ptr := v.Args[0]
++			mem := v.Args[1]
++			if !(t.IsComplex() && t.Size() == 8) {
++				goto end665854b31b828893d90b36bb462ff381
++			}
++			v.Op = OpComplexMake
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
++			v0.Type = config.fe.TypeFloat32()
++			v0.AddArg(ptr)
++			v0.AddArg(mem)
++			v.AddArg(v0)
++			v1 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
++			v1.Type = config.fe.TypeFloat32()
++			v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
++			v2.Type = config.fe.TypeFloat32().PtrTo()
++			v2.AuxInt = 4
++			v2.AddArg(ptr)
++			v1.AddArg(v2)
++			v1.AddArg(mem)
++			v.AddArg(v1)
++			return true
++		}
++		goto end665854b31b828893d90b36bb462ff381
++	end665854b31b828893d90b36bb462ff381:
++		;
++		// match: (Load <t> ptr mem)
++		// cond: t.IsComplex() && t.Size() == 16
++		// result: (ComplexMake     (Load <config.fe.TypeFloat64()> ptr mem)     (Load <config.fe.TypeFloat64()>       (OffPtr <config.fe.TypeFloat64().PtrTo()> [8] ptr)       mem)     )
++		{
++			t := v.Type
++			ptr := v.Args[0]
++			mem := v.Args[1]
++			if !(t.IsComplex() && t.Size() == 16) {
++				goto end1b106f89e0e3e26c613b957a7c98d8ad
++			}
++			v.Op = OpComplexMake
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
++			v0.Type = config.fe.TypeFloat64()
++			v0.AddArg(ptr)
++			v0.AddArg(mem)
++			v.AddArg(v0)
++			v1 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
++			v1.Type = config.fe.TypeFloat64()
++			v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
++			v2.Type = config.fe.TypeFloat64().PtrTo()
++			v2.AuxInt = 8
++			v2.AddArg(ptr)
++			v1.AddArg(v2)
++			v1.AddArg(mem)
++			v.AddArg(v1)
++			return true
++		}
++		goto end1b106f89e0e3e26c613b957a7c98d8ad
++	end1b106f89e0e3e26c613b957a7c98d8ad:
++		;
+ 		// match: (Load <t> ptr mem)
+ 		// cond: t.IsString()
+ 		// result: (StringMake     (Load <config.fe.TypeBytePtr()> ptr mem)     (Load <config.fe.TypeUintptr()>       (OffPtr <config.fe.TypeUintptr().PtrTo()> [config.PtrSize] ptr)       mem))
+@@ -1017,6 +1123,80 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 	end526acc0a705137a5d25577499206720b:
+ 		;
+ 	case OpStore:
++		// match: (Store [8] dst (ComplexMake real imag) mem)
++		// cond:
++		// result: (Store [4]     (OffPtr <config.fe.TypeFloat32().PtrTo()> [4] dst)     imag     (Store <TypeMem> [4] dst real mem))
++		{
++			if v.AuxInt != 8 {
++				goto endba187c049aa71488994c8a2eb3453045
++			}
++			dst := v.Args[0]
++			if v.Args[1].Op != OpComplexMake {
++				goto endba187c049aa71488994c8a2eb3453045
++			}
++			real := v.Args[1].Args[0]
++			imag := v.Args[1].Args[1]
++			mem := v.Args[2]
++			v.Op = OpStore
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = 4
++			v0 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
++			v0.Type = config.fe.TypeFloat32().PtrTo()
++			v0.AuxInt = 4
++			v0.AddArg(dst)
++			v.AddArg(v0)
++			v.AddArg(imag)
++			v1 := b.NewValue0(v.Line, OpStore, TypeInvalid)
++			v1.Type = TypeMem
++			v1.AuxInt = 4
++			v1.AddArg(dst)
++			v1.AddArg(real)
++			v1.AddArg(mem)
++			v.AddArg(v1)
++			return true
++		}
++		goto endba187c049aa71488994c8a2eb3453045
++	endba187c049aa71488994c8a2eb3453045:
++		;
++		// match: (Store [16] dst (ComplexMake real imag) mem)
++		// cond:
++		// result: (Store [8]     (OffPtr <config.fe.TypeFloat64().PtrTo()> [8] dst)     imag     (Store <TypeMem> [8] dst real mem))
++		{
++			if v.AuxInt != 16 {
++				goto end4df4c826201cf51af245d6b89de00589
++			}
++			dst := v.Args[0]
++			if v.Args[1].Op != OpComplexMake {
++				goto end4df4c826201cf51af245d6b89de00589
++			}
++			real := v.Args[1].Args[0]
++			imag := v.Args[1].Args[1]
++			mem := v.Args[2]
++			v.Op = OpStore
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = 8
++			v0 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
++			v0.Type = config.fe.TypeFloat64().PtrTo()
++			v0.AuxInt = 8
++			v0.AddArg(dst)
++			v.AddArg(v0)
++			v.AddArg(imag)
++			v1 := b.NewValue0(v.Line, OpStore, TypeInvalid)
++			v1.Type = TypeMem
++			v1.AuxInt = 8
++			v1.AddArg(dst)
++			v1.AddArg(real)
++			v1.AddArg(mem)
++			v.AddArg(v1)
++			return true
++		}
++		goto end4df4c826201cf51af245d6b89de00589
++	end4df4c826201cf51af245d6b89de00589:
++		;
+ 		// match: (Store [2*config.PtrSize] dst (StringMake ptr len) mem)
+ 		// cond:
+ 		// result: (Store [config.PtrSize]     (OffPtr <config.fe.TypeUintptr().PtrTo()> [config.PtrSize] dst)     len     (Store <TypeMem> [config.PtrSize] dst ptr mem))
+diff --git a/src/cmd/compile/internal/ssa/type.go b/src/cmd/compile/internal/ssa/type.go
+index 15dbddd1fc..decde6889e 100644
+--- a/src/cmd/compile/internal/ssa/type.go
++++ b/src/cmd/compile/internal/ssa/type.go
+@@ -16,6 +16,7 @@ type Type interface {
+ 	IsInteger() bool //  ... ditto for the others
+ 	IsSigned() bool
+ 	IsFloat() bool
++	IsComplex() bool
+ 	IsPtr() bool
+ 	IsString() bool
+ 	IsSlice() bool
+@@ -39,12 +40,13 @@ type CompilerType struct {
+ 	Flags  bool
+ }
+ 
+-func (t *CompilerType) Size() int64          { return 0 }
++func (t *CompilerType) Size() int64          { return 0 } // Size in bytes
+ func (t *CompilerType) Alignment() int64     { return 0 }
+ func (t *CompilerType) IsBoolean() bool      { return false }
+ func (t *CompilerType) IsInteger() bool      { return false }
+ func (t *CompilerType) IsSigned() bool       { return false }
+ func (t *CompilerType) IsFloat() bool        { return false }
++func (t *CompilerType) IsComplex() bool      { return false }
+ func (t *CompilerType) IsPtr() bool          { return false }
+ func (t *CompilerType) IsString() bool       { return false }
+ func (t *CompilerType) IsSlice() bool        { return false }
+diff --git a/src/cmd/compile/internal/ssa/type_test.go b/src/cmd/compile/internal/ssa/type_test.go
+index 5f0413c397..b106688e84 100644
+--- a/src/cmd/compile/internal/ssa/type_test.go
++++ b/src/cmd/compile/internal/ssa/type_test.go
+@@ -12,6 +12,7 @@ type TypeImpl struct {
+ 	Integer bool
+ 	Signed  bool
+ 	Float   bool
++	Complex bool
+ 	Ptr     bool
+ 	string  bool
+ 	slice   bool
+@@ -27,6 +28,7 @@ func (t *TypeImpl) IsBoolean() bool      { return t.Boolean }
+ func (t *TypeImpl) IsInteger() bool      { return t.Integer }
+ func (t *TypeImpl) IsSigned() bool       { return t.Signed }
+ func (t *TypeImpl) IsFloat() bool        { return t.Float }
++func (t *TypeImpl) IsComplex() bool      { return t.Complex }
+ func (t *TypeImpl) IsPtr() bool          { return t.Ptr }
+ func (t *TypeImpl) IsString() bool       { return t.string }
+ func (t *TypeImpl) IsSlice() bool        { return t.slice }
+@@ -48,14 +50,18 @@ func (t *TypeImpl) Equal(u Type) bool {
+ 
+ var (
+ 	// shortcuts for commonly used basic types
+-	TypeInt8    = &TypeImpl{Size_: 1, Align: 1, Integer: true, Signed: true, Name: "int8"}
+-	TypeInt16   = &TypeImpl{Size_: 2, Align: 2, Integer: true, Signed: true, Name: "int16"}
+-	TypeInt32   = &TypeImpl{Size_: 4, Align: 4, Integer: true, Signed: true, Name: "int32"}
+-	TypeInt64   = &TypeImpl{Size_: 8, Align: 8, Integer: true, Signed: true, Name: "int64"}
+-	TypeUInt8   = &TypeImpl{Size_: 1, Align: 1, Integer: true, Name: "uint8"}
+-	TypeUInt16  = &TypeImpl{Size_: 2, Align: 2, Integer: true, Name: "uint16"}
+-	TypeUInt32  = &TypeImpl{Size_: 4, Align: 4, Integer: true, Name: "uint32"}
+-	TypeUInt64  = &TypeImpl{Size_: 8, Align: 8, Integer: true, Name: "uint64"}
+-	TypeBool    = &TypeImpl{Size_: 1, Align: 1, Boolean: true, Name: "bool"}
+-	TypeBytePtr = &TypeImpl{Size_: 8, Align: 8, Ptr: true, Name: "*byte"}
++	TypeInt8       = &TypeImpl{Size_: 1, Align: 1, Integer: true, Signed: true, Name: "int8"}
++	TypeInt16      = &TypeImpl{Size_: 2, Align: 2, Integer: true, Signed: true, Name: "int16"}
++	TypeInt32      = &TypeImpl{Size_: 4, Align: 4, Integer: true, Signed: true, Name: "int32"}
++	TypeInt64      = &TypeImpl{Size_: 8, Align: 8, Integer: true, Signed: true, Name: "int64"}
++	TypeFloat32    = &TypeImpl{Size_: 4, Align: 4, Float: true, Name: "float32"}
++	TypeFloat64    = &TypeImpl{Size_: 8, Align: 8, Float: true, Name: "float64"}
++	TypeComplex64  = &TypeImpl{Size_: 8, Align: 4, Complex: true, Name: "complex64"}
++	TypeComplex128 = &TypeImpl{Size_: 16, Align: 8, Complex: true, Name: "complex128"}
++	TypeUInt8      = &TypeImpl{Size_: 1, Align: 1, Integer: true, Name: "uint8"}
++	TypeUInt16     = &TypeImpl{Size_: 2, Align: 2, Integer: true, Name: "uint16"}
++	TypeUInt32     = &TypeImpl{Size_: 4, Align: 4, Integer: true, Name: "uint32"}
++	TypeUInt64     = &TypeImpl{Size_: 8, Align: 8, Integer: true, Name: "uint64"}
++	TypeBool       = &TypeImpl{Size_: 1, Align: 1, Boolean: true, Name: "bool"}
++	TypeBytePtr    = &TypeImpl{Size_: 8, Align: 8, Ptr: true, Name: "*byte"}
+ )

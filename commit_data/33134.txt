@@ -8,6 +8,20 @@ Date:   Sat Jul 15 14:39:00 2017 -0600
     Reviewed-on: https://go-review.googlesource.com/48960
     Reviewed-by: Caleb Spare <cespare@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/time/zoneinfo.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/time/zoneinfo.go b/src/time/zoneinfo.go
+index dfe857f436..f4d4df95d3 100644
+--- a/src/time/zoneinfo.go
++++ b/src/time/zoneinfo.go
+@@ -82,7 +82,7 @@ func (l *Location) get() *Location {
+ }
+ 
+ // String returns a descriptive name for the time zone information,
+-// corresponding to the argument to LoadLocation.
++// corresponding to the name argument to LoadLocation or FixedZone.
+ func (l *Location) String() string {
+ 	return l.get().name
+ }

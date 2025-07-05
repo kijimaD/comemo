@@ -29,7 +29,7 @@ Date:   Wed Oct 26 20:44:26 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/dial.go         |  2 +-
  src/net/error_test.go   | 14 +++++++++-----
  src/net/ipsock.go       | 43 +++++++++++++++++++++----------------------
@@ -37,3 +37,244 @@ Date:   Wed Oct 26 20:44:26 2016 -0400
  src/net/net.go          |  2 +-
  src/net/tcpsock_test.go | 30 ++++++++++++++++++------------
  6 files changed, 57 insertions(+), 48 deletions(-)
+
+diff --git a/src/net/dial.go b/src/net/dial.go
+index c77f0db030..5db3585894 100644
+--- a/src/net/dial.go
++++ b/src/net/dial.go
+@@ -230,7 +230,7 @@ func (r *Resolver) resolveAddrList(ctx context.Context, op, network, addr string
+ 		}
+ 	}
+ 	if len(naddrs) == 0 {
+-		return nil, errNoSuitableAddress
++		return nil, &AddrError{Err: errNoSuitableAddress.Error(), Addr: hint.String()}
+ 	}
+ 	return naddrs, nil
+ }
+diff --git a/src/net/error_test.go b/src/net/error_test.go
+index 8903f1de8a..b8d317cbf0 100644
+--- a/src/net/error_test.go
++++ b/src/net/error_test.go
+@@ -230,23 +230,27 @@ func TestDialAddrError(t *testing.T) {
+ 	} {
+ 		var err error
+ 		var c Conn
++		var op string
+ 		if tt.lit != "" {
+ 			c, err = Dial(tt.network, JoinHostPort(tt.lit, "0"))
++			op = fmt.Sprintf("Dial(%q, %q)", tt.network, JoinHostPort(tt.lit, "0"))
+ 		} else {
+ 			c, err = DialTCP(tt.network, nil, tt.addr)
++			op = fmt.Sprintf("DialTCP(%q, %q)", tt.network, tt.addr)
+ 		}
+ 		if err == nil {
+ 			c.Close()
+-			t.Errorf("%s %q/%v: should fail", tt.network, tt.lit, tt.addr)
++			t.Errorf("%s succeeded, want error", op)
+ 			continue
+ 		}
+ 		if perr := parseDialError(err); perr != nil {
+-			t.Error(perr)
++			t.Errorf("%s: %v", op, perr)
+ 			continue
+ 		}
+-		aerr, ok := err.(*OpError).Err.(*AddrError)
++		operr := err.(*OpError).Err
++		aerr, ok := operr.(*AddrError)
+ 		if !ok {
+-			t.Errorf("%s %q/%v: should be AddrError: %v", tt.network, tt.lit, tt.addr, err)
++			t.Errorf("%s: %v is %#T, want *AddrError", op, err, operr)
+ 			continue
+ 		}
+ 		want := tt.lit
+@@ -254,7 +258,7 @@ func TestDialAddrError(t *testing.T) {
+ 			want = tt.addr.IP.String()
+ 		}
+ 		if aerr.Addr != want {
+-			t.Fatalf("%s: got %q; want %q", tt.network, aerr.Addr, want)
++			t.Errorf("%s: %v, error Addr=%q, want %q", op, err, aerr.Addr, want)
+ 		}
+ 	}
+ }
+diff --git a/src/net/ipsock.go b/src/net/ipsock.go
+index 5e6b0a9940..c91e2017d4 100644
+--- a/src/net/ipsock.go
++++ b/src/net/ipsock.go
+@@ -76,7 +76,7 @@ func (addrs addrList) partition(strategy func(Addr) bool) (primaries, fallbacks
+ // yielding a list of Addr objects. Known filters are nil, ipv4only,
+ // and ipv6only. It returns every address when the filter is nil.
+ // The result contains at least one address when error is nil.
+-func filterAddrList(filter func(IPAddr) bool, ips []IPAddr, inetaddr func(IPAddr) Addr) (addrList, error) {
++func filterAddrList(filter func(IPAddr) bool, ips []IPAddr, inetaddr func(IPAddr) Addr, originalAddr string) (addrList, error) {
+ 	var addrs addrList
+ 	for _, ip := range ips {
+ 		if filter == nil || filter(ip) {
+@@ -84,21 +84,19 @@ func filterAddrList(filter func(IPAddr) bool, ips []IPAddr, inetaddr func(IPAddr
+ 		}
+ 	}
+ 	if len(addrs) == 0 {
+-		return nil, errNoSuitableAddress
++		return nil, &AddrError{Err: errNoSuitableAddress.Error(), Addr: originalAddr}
+ 	}
+ 	return addrs, nil
+ }
+ 
+-// ipv4only reports whether the kernel supports IPv4 addressing mode
+-// and addr is an IPv4 address.
++// ipv4only reports whether addr is an IPv4 address.
+ func ipv4only(addr IPAddr) bool {
+-	return supportsIPv4 && addr.IP.To4() != nil
++	return addr.IP.To4() != nil
+ }
+ 
+-// ipv6only reports whether the kernel supports IPv6 addressing mode
+-// and addr is an IPv6 address except IPv4-mapped IPv6 address.
++// ipv6only reports whether addr is an IPv6 address except IPv4-mapped IPv6 address.
+ func ipv6only(addr IPAddr) bool {
+-	return supportsIPv6 && len(addr.IP) == IPv6len && addr.IP.To4() == nil
++	return len(addr.IP) == IPv6len && addr.IP.To4() == nil
+ }
+ 
+ // SplitHostPort splits a network address of the form "host:port",
+@@ -228,20 +226,21 @@ func (r *Resolver) internetAddrList(ctx context.Context, net, addr string) (addr
+ 	if host == "" {
+ 		return addrList{inetaddr(IPAddr{})}, nil
+ 	}
+-	// Try as a literal IP address.
+-	var ip IP
+-	if ip = parseIPv4(host); ip != nil {
+-		return addrList{inetaddr(IPAddr{IP: ip})}, nil
+-	}
+-	var zone string
+-	if ip, zone = parseIPv6(host, true); ip != nil {
+-		return addrList{inetaddr(IPAddr{IP: ip, Zone: zone})}, nil
+-	}
+-	// Try as a DNS name.
+-	ips, err := r.LookupIPAddr(ctx, host)
+-	if err != nil {
+-		return nil, err
++
++	// Try as a literal IP address, then as a DNS name.
++	var ips []IPAddr
++	if ip := parseIPv4(host); ip != nil {
++		ips = []IPAddr{{IP: ip}}
++	} else if ip, zone := parseIPv6(host, true); ip != nil {
++		ips = []IPAddr{{IP: ip, Zone: zone}}
++	} else {
++		// Try as a DNS name.
++		ips, err = r.LookupIPAddr(ctx, host)
++		if err != nil {
++			return nil, err
++		}
+ 	}
++
+ 	var filter func(IPAddr) bool
+ 	if net != "" && net[len(net)-1] == '4' {
+ 		filter = ipv4only
+@@ -249,7 +248,7 @@ func (r *Resolver) internetAddrList(ctx context.Context, net, addr string) (addr
+ 	if net != "" && net[len(net)-1] == '6' {
+ 		filter = ipv6only
+ 	}
+-	return filterAddrList(filter, ips, inetaddr)
++	return filterAddrList(filter, ips, inetaddr, host)
+ }
+ 
+ func loopbackIP(net string) IP {
+diff --git a/src/net/ipsock_test.go b/src/net/ipsock_test.go
+index b36557a157..1d0f00ff5e 100644
+--- a/src/net/ipsock_test.go
++++ b/src/net/ipsock_test.go
+@@ -205,13 +205,13 @@ var addrListTests = []struct {
+ 		nil,
+ 	},
+ 
+-	{nil, nil, testInetaddr, nil, nil, nil, errNoSuitableAddress},
++	{nil, nil, testInetaddr, nil, nil, nil, &AddrError{errNoSuitableAddress.Error(), "ADDR"}},
+ 
+-	{ipv4only, nil, testInetaddr, nil, nil, nil, errNoSuitableAddress},
+-	{ipv4only, []IPAddr{{IP: IPv6loopback}}, testInetaddr, nil, nil, nil, errNoSuitableAddress},
++	{ipv4only, nil, testInetaddr, nil, nil, nil, &AddrError{errNoSuitableAddress.Error(), "ADDR"}},
++	{ipv4only, []IPAddr{{IP: IPv6loopback}}, testInetaddr, nil, nil, nil, &AddrError{errNoSuitableAddress.Error(), "ADDR"}},
+ 
+-	{ipv6only, nil, testInetaddr, nil, nil, nil, errNoSuitableAddress},
+-	{ipv6only, []IPAddr{{IP: IPv4(127, 0, 0, 1)}}, testInetaddr, nil, nil, nil, errNoSuitableAddress},
++	{ipv6only, nil, testInetaddr, nil, nil, nil, &AddrError{errNoSuitableAddress.Error(), "ADDR"}},
++	{ipv6only, []IPAddr{{IP: IPv4(127, 0, 0, 1)}}, testInetaddr, nil, nil, nil, &AddrError{errNoSuitableAddress.Error(), "ADDR"}},
+ }
+ 
+ func TestAddrList(t *testing.T) {
+@@ -220,8 +220,8 @@ func TestAddrList(t *testing.T) {
+ 	}
+ 
+ 	for i, tt := range addrListTests {
+-		addrs, err := filterAddrList(tt.filter, tt.ips, tt.inetaddr)
+-		if err != tt.err {
++		addrs, err := filterAddrList(tt.filter, tt.ips, tt.inetaddr, "ADDR")
++		if !reflect.DeepEqual(err, tt.err) {
+ 			t.Errorf("#%v: got %v; want %v", i, err, tt.err)
+ 		}
+ 		if tt.err != nil {
+diff --git a/src/net/net.go b/src/net/net.go
+index 4cf122475f..e28ead0833 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -519,7 +519,7 @@ func (e *AddrError) Error() string {
+ 	}
+ 	s := e.Err
+ 	if e.Addr != "" {
+-		s += " " + e.Addr
++		s = "address " + e.Addr + ": " + s
+ 	}
+ 	return s
+ }
+diff --git a/src/net/tcpsock_test.go b/src/net/tcpsock_test.go
+index 0d283dfa4f..8b2d2ca484 100644
+--- a/src/net/tcpsock_test.go
++++ b/src/net/tcpsock_test.go
+@@ -311,6 +311,16 @@ var resolveTCPAddrTests = []resolveTCPAddrTest{
+ 	{"tcp", ":12345", &TCPAddr{Port: 12345}, nil},
+ 
+ 	{"http", "127.0.0.1:0", nil, UnknownNetworkError("http")},
++
++	{"tcp", "127.0.0.1:http", &TCPAddr{IP: ParseIP("127.0.0.1"), Port: 80}, nil},
++	{"tcp", "[::ffff:127.0.0.1]:http", &TCPAddr{IP: ParseIP("::ffff:127.0.0.1"), Port: 80}, nil},
++	{"tcp", "[2001:db8::1]:http", &TCPAddr{IP: ParseIP("2001:db8::1"), Port: 80}, nil},
++	{"tcp4", "127.0.0.1:http", &TCPAddr{IP: ParseIP("127.0.0.1"), Port: 80}, nil},
++	{"tcp4", "[::ffff:127.0.0.1]:http", &TCPAddr{IP: ParseIP("127.0.0.1"), Port: 80}, nil},
++	{"tcp4", "[2001:db8::1]:http", nil, &AddrError{Err: errNoSuitableAddress.Error(), Addr: "2001:db8::1"}},
++	{"tcp6", "127.0.0.1:http", nil, &AddrError{Err: errNoSuitableAddress.Error(), Addr: "127.0.0.1"}},
++	{"tcp6", "[::ffff:127.0.0.1]:http", nil, &AddrError{Err: errNoSuitableAddress.Error(), Addr: "::ffff:127.0.0.1"}},
++	{"tcp6", "[2001:db8::1]:http", &TCPAddr{IP: ParseIP("2001:db8::1"), Port: 80}, nil},
+ }
+ 
+ func TestResolveTCPAddr(t *testing.T) {
+@@ -318,21 +328,17 @@ func TestResolveTCPAddr(t *testing.T) {
+ 	defer func() { testHookLookupIP = origTestHookLookupIP }()
+ 	testHookLookupIP = lookupLocalhost
+ 
+-	for i, tt := range resolveTCPAddrTests {
++	for _, tt := range resolveTCPAddrTests {
+ 		addr, err := ResolveTCPAddr(tt.network, tt.litAddrOrName)
+-		if err != tt.err {
+-			t.Errorf("#%d: %v", i, err)
+-		} else if !reflect.DeepEqual(addr, tt.addr) {
+-			t.Errorf("#%d: got %#v; want %#v", i, addr, tt.addr)
+-		}
+-		if err != nil {
++		if !reflect.DeepEqual(addr, tt.addr) || !reflect.DeepEqual(err, tt.err) {
++			t.Errorf("ResolveTCPAddr(%q, %q) = %v, %v, want %v, %v", tt.network, tt.litAddrOrName, addr, err, tt.addr, tt.err)
+ 			continue
+ 		}
+-		rtaddr, err := ResolveTCPAddr(addr.Network(), addr.String())
+-		if err != nil {
+-			t.Errorf("#%d: %v", i, err)
+-		} else if !reflect.DeepEqual(rtaddr, addr) {
+-			t.Errorf("#%d: got %#v; want %#v", i, rtaddr, addr)
++		if err == nil {
++			addr2, err := ResolveTCPAddr(addr.Network(), addr.String())
++			if !reflect.DeepEqual(addr2, tt.addr) || err != tt.err {
++				t.Errorf("(%q, %q): ResolveTCPAddr(%q, %q) = %v, %v, want %v, %v", tt.network, tt.litAddrOrName, addr.Network(), addr.String(), addr2, err, tt.addr, tt.err)
++			}
+ 		}
+ 	}
+ }

@@ -51,7 +51,7 @@ Date:   Fri Aug 26 15:00:46 2016 +0200
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Martin Möhrmann <martisch@uos.de>
-
+---
  src/cmd/compile/internal/gc/builtin.go         | 163 ++++++++++++-------------
  src/cmd/compile/internal/gc/builtin/runtime.go |   3 +-
  src/cmd/compile/internal/gc/range.go           |  67 +++++++---
@@ -61,3 +61,694 @@ Date:   Fri Aug 26 15:00:46 2016 +0200
  src/runtime/string_test.go                     |  52 +++++---
  test/fixedbugs/issue13162.go                   |  82 +++++++++++++
  8 files changed, 290 insertions(+), 224 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index c7223e0355..a52bb053e1 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -23,88 +23,87 @@ const runtimeimport = "" +
+ 	"ebytetostringtmp\x00\x01\x11\"\x00\x01 \x00\t!slicerunetostr" +
+ 	"ing\x00\x03\x17\x0f@\"\x00\x11|S\x00\x01 \x00\t!stringtoslicebyte\x00\x03\x17\x0f" +
+ 	"@\"\x00 \x00\x01\x11\"\x00\t'stringtoslicebytetmp\x00\x01 \x00\x01\x11\"\x00\t" +
+-	"!stringtoslicerune\x00\x03\x17\x0f@|S\x00 \x00\x01\x11|S\x00\t\x13strin" +
+-	"giter\x00\x03 \x00\x02\x00\x01\x02\x00\t\x15stringiter2\x00\x03 \x00\x02\x00\x04\x02\rretk" +
+-	"·1\x00\x00|S\rretv·2\x00\x00\t\x11slicecopy\x00\x06:\tto·2\x00\x00:" +
+-	"\tfr·3\x00\x00\x16\vwid·4\x00\x1bunsafe-uintptr\x01\x02\x00\t\x1dsli" +
+-	"cestringcopy\x00\x04:\\\x00\x00:^\x00\x00\x01\x02\x00\t\rconvI2E\x00\x02:\rel" +
+-	"em·2\x00\x00\x02:\vret·1\x00\x00\t\rconvI2I\x00\x04\x17\"\x06\x00\x00:\relem" +
+-	"·3\x00\x00\x02:j\x00\x00\t\rconvT2E\x00\x06\x17\"\x06\x00\x00\x17:n\x00\x00\x17:\vbuf·4" +
+-	"\x00\x00\x02:j\x00\x00\t\rconvT2I\x00\x06\x17\"\vtab·2\x00\x00\x17:n\x00\x00\x17:r\x00\x00\x02" +
+-	":j\x00\x00\t\x11assertE2E\x00\x06\x17\"\vtyp·1\x00\x00:\x0fiface·2\x00\x00" +
+-	"\x17:\vret·3\x00\x00\x00\t\x13assertE2E2\x00\x06\x17\"\x06\x00\x00:\x0fiface·" +
+-	"3\x00\x00\x17:\vret·4\x00\x00\x01\x00\x00\t\x11assertE2I\x00\x06\x17\"z\x00\x00:||\x00\x00" +
+-	"\x17:~\x00\x00\x00\t\x13assertE2I2\x00\x06\x17\"\x06\x00\x00:\x82\x01\x00\x00\x17:\x84\x01\x00\x00\x01\x00\x00\t" +
+-	"\x11assertE2T\x00\x06\x17\"z\x00\x00:||\x00\x00\x17:~\x00\x00\x00\t\x13assertE2T2" +
+-	"\x00\x06\x17\"\x06\x00\x00:\x82\x01\x00\x00\x17:\x84\x01\x00\x00\x01\x00\x00\t\x11assertI2E\x00\x06\x17\"z\x00\x00:" +
+-	"||\x00\x00\x17:~\x00\x00\x00\t\x13assertI2E2\x00\x06\x17\"\x06\x00\x00:\x82\x01\x00\x00\x17:\x84\x01\x00\x00" +
+-	"\x01\x00\x00\t\x11assertI2I\x00\x06\x17\"z\x00\x00:||\x00\x00\x17:~\x00\x00\x00\t\x13assert" +
+-	"I2I2\x00\x06\x17\"\x06\x00\x00:\x82\x01\x00\x00\x17:\x84\x01\x00\x00\x01\x00\x00\t\x11assertI2T\x00\x06\x17\"" +
+-	"z\x00\x00:||\x00\x00\x17:~\x00\x00\x00\t\x13assertI2T2\x00\x06\x17\"\x06\x00\x00:\x82\x01\x00\x00\x17:" +
+-	"\x84\x01\x00\x00\x01\x00\x00\t\x17panicdottype\x00\x06\x17\"\rhave·1\x00\x00\x17\"\rwa" +
+-	"nt·2\x00\x00\x17\"\x82\x01\x00\x00\x00\t\rifaceeq\x00\x04:\ti1·2\x00\x00:\ti2·" +
+-	"3\x00\x00\x02\x00j\x00\x00\t\refaceeq\x00\x04:\xa2\x01\x00\x00:\xa4\x01\x00\x00\x02\x00j\x00\x00\t\rmake" +
+-	"map\x00\b\x17\"\x13mapType·2\x00\x00\n\rhint·3\x00\x00\x17:\x11mapbuf" +
+-	"·4\x00\x00\x17:\x17bucketbuf·5\x00\x00\x02\x1d::\rhmap·1\x00\x00\t\x13ma" +
+-	"paccess1\x00\x06\x17\"\xaa\x01\x00\x00\x1d::\rhmap·3\x00\x00\x17:\vkey·4\x00\x00" +
+-	"\x02\x17:\vval·1\x00\x00\t!mapaccess1_fast32\x00\x06\x17\"\xaa\x01\x00\x00\x1d" +
+-	"::\xb6\x01\x00\x00:\xb8\x01\x00\x00\x02\x17:\xba\x01\x00\x00\t!mapaccess1_fast64\x00\x06\x17" +
+-	"\"\xaa\x01\x00\x00\x1d::\xb6\x01\x00\x00:\xb8\x01\x00\x00\x02\x17:\xba\x01\x00\x00\t#mapaccess1_fas" +
+-	"tstr\x00\x06\x17\"\xaa\x01\x00\x00\x1d::\xb6\x01\x00\x00:\xb8\x01\x00\x00\x02\x17:\xba\x01\x00\x00\t\x1bmapacce" +
+-	"ss1_fat\x00\b\x17\"\xaa\x01\x00\x00\x1d::\xb6\x01\x00\x00\x17:\xb8\x01\x00\x00\x17\"\rzero·5\x00\x00" +
+-	"\x02\x17:\xba\x01\x00\x00\t\x13mapaccess2\x00\x06\x17\"\x13mapType·3\x00\x00\x1d::\r" +
+-	"hmap·4\x00\x00\x17:\vkey·5\x00\x00\x04\x17:\xba\x01\x00\x00\x00\rpres·2\x00\x00\t!" +
+-	"mapaccess2_fast32\x00\x06\x17\"\xc8\x01\x00\x00\x1d::\xca\x01\x00\x00:\xcc\x01\x00\x00\x04\x17:" +
+-	"\xba\x01\x00\x00\x00\xce\x01\x00\x00\t!mapaccess2_fast64\x00\x06\x17\"\xc8\x01\x00\x00\x1d::\xca" +
+-	"\x01\x00\x00:\xcc\x01\x00\x00\x04\x17:\xba\x01\x00\x00\x00\xce\x01\x00\x00\t#mapaccess2_faststr" +
+-	"\x00\x06\x17\"\xc8\x01\x00\x00\x1d::\xca\x01\x00\x00:\xcc\x01\x00\x00\x04\x17:\xba\x01\x00\x00\x00\xce\x01\x00\x00\t\x1bmapacc" +
+-	"ess2_fat\x00\b\x17\"\xc8\x01\x00\x00\x1d::\xca\x01\x00\x00\x17:\xcc\x01\x00\x00\x17\"\rzero·6\x00" +
+-	"\x00\x04\x17:\xba\x01\x00\x00\x00\xce\x01\x00\x00\t\x13mapassign1\x00\b\x17\"\x13mapType·1" +
+-	"\x00\x00\x1d::\rhmap·2\x00\x00\x17:\vkey·3\x00\x00\x17:\vval·4\x00\x00\x00\t\x15" +
+-	"mapiterinit\x00\x06\x17\"\xdc\x01\x00\x00\x1d::\xde\x01\x00\x00\x17:\x0fhiter·3\x00\x00\x00" +
+-	"\t\x11mapdelete\x00\x06\x17\"\xdc\x01\x00\x00\x1d::\xde\x01\x00\x00\x17:\xe0\x01\x00\x00\x00\t\x15mapit" +
+-	"ernext\x00\x02\x17:\x0fhiter·1\x00\x00\x00\t\x0fmakechan\x00\x04\x17\"\x15cha" +
+-	"nType·2\x00\x00\n\xac\x01\x00\x00\x02\x1f\x06:\x0fhchan·1\x00\x00\t\x11chanrecv" +
+-	"1\x00\x06\x17\"\x15chanType·1\x00\x00\x1f\x02:\x0fhchan·2\x00\x00\x17:n\x00\x00\x00\t" +
+-	"\x11chanrecv2\x00\x06\x17\"\xf0\x01\x00\x00\x1f\x02:\x0fhchan·3\x00\x00\x17:\relem\xc2" +
+-	"\xb74\x00\x00\x01\x00\x00\t\x11chansend1\x00\x06\x17\"\xf6\x01\x00\x00\x1f\x04:\xf8\x01\x00\x00\x17:n\x00\x00\x00\t" +
+-	"\x11closechan\x00\x02:\xf2\x01\x00\x00\x00\a\x17writeBarrier\x00\x15\x06\renab" +
+-	"led\x00\x00\x00\vneeded\x00\x00\x00\x05cgo\x00\x00\x00\t\x1dwritebarrierptr" +
+-	"\x00\x04\x17:\vdst·1\x00\x00:\vsrc·2\x00\x00\x00\t\x17typedmemmove\x00\x06" +
+-	"\x17\"z\x00\x00\x17:\vdst·2\x00\x00\x17:\vsrc·3\x00\x00\x00\t\x1btypedslice" +
+-	"copy\x00\x06\x17\"\x06\x00\x00:\vdst·3\x00\x00:\vsrc·4\x00\x00\x01\x02\x00\t\x17sele" +
+-	"ctnbsend\x00\x06\x17\"\xf0\x01\x00\x00\x1f\x04:\xfc\x01\x00\x00\x17:\xfe\x01\x00\x00\x01\x00\x00\t\x17select" +
+-	"nbrecv\x00\x06\x17\"\xf0\x01\x00\x00\x17:n\x00\x00\x1f\x02:\x0fhchan·4\x00\x00\x01\x00\x00\t\x19se" +
+-	"lectnbrecv2\x00\b\x17\"\xf0\x01\x00\x00\x17:n\x00\x00\x17\x00\x15received·4\x00\x00" +
+-	"\x1f\x02:\x0fhchan·5\x00\x00\x01\x00\x00\t\x11newselect\x00\x06\x17\"\vsel·1\x00" +
+-	"\x00\n\x13selsize·2\x00\x00\b\rsize·3\x00\x00\x00\t\x13selectsend\x00" +
+-	"\x06\x17\"\vsel·2\x00\x00\x1f\x04:\xfc\x01\x00\x00\x17:\xfe\x01\x00\x00\x02\x00\x15selected·1\x00" +
+-	"\x00\t\x13selectrecv\x00\x06\x17\"\xb4\x02\x00\x00\x1f\x02:\xfc\x01\x00\x00\x17:\xfe\x01\x00\x00\x02\x00\xb6\x02\x00\x00" +
+-	"\t\x15selectrecv2\x00\b\x17\"\xb4\x02\x00\x00\x1f\x02:\xfc\x01\x00\x00\x17:\xfe\x01\x00\x00\x17\x00\x15rec" +
+-	"eived·5\x00\x00\x02\x00\xb6\x02\x00\x00\t\x19selectdefault\x00\x02\x17\"\xb4\x02\x00\x00\x02" +
+-	"\x00\xb6\x02\x00\x00\t\x0fselectgo\x00\x02\x17\"\xac\x02\x00\x00\x00\t\tblock\x00\x00\x00\t\x11make" +
+-	"slice\x00\x06\x17\"\x06\x00\x00\x02\vlen·3\x00\x00\x02\vcap·4\x00\x00\x02\x11:\vary\xc2" +
+-	"\xb71\x00\x00\t\x15makeslice64\x00\x06\x17\"\x06\x00\x00\n\xc6\x02\x00\x00\n\xc8\x02\x00\x00\x02\x11:\xca\x02\x00" +
+-	"\x00\t\x11growslice\x00\x06\x17\"\x06\x00\x00\x11:\vold·3\x00\x00\x02\xc8\x02\x00\x00\x02\x11:\xca\x02" +
+-	"\x00\x00\t\rmemmove\x00\x06\x17:\tto·1\x00\x00\x17:\vfrm·2\x00\x00\x16\x11leng" +
+-	"th·3\x00b\x00\t\vmemclr\x00\x04\x17\"\vptr·1\x00\x00\x16\x11length·2" +
+-	"\x00b\x00\t\x0fmemequal\x00\x06\x17:\ax·2\x00\x00\x17:\ay·3\x00\x00\x16\rsize\xc2" +
+-	"\xb74\x00b\x01\x00\x00\t\x11memequal8\x00\x04\x17:\xe2\x02\x00\x00\x17:\xe4\x02\x00\x00\x01\x00\x00\t\x13mem" +
+-	"equal16\x00\x04\x17:\xe2\x02\x00\x00\x17:\xe4\x02\x00\x00\x01\x00\x00\t\x13memequal32\x00\x04\x17:" +
+-	"\xe2\x02\x00\x00\x17:\xe4\x02\x00\x00\x01\x00\x00\t\x13memequal64\x00\x04\x17:\xe2\x02\x00\x00\x17:\xe4\x02\x00\x00\x01" +
+-	"\x00\x00\t\x15memequal128\x00\x04\x17:\xe2\x02\x00\x00\x17:\xe4\x02\x00\x00\x01\x00\x00\t\x0fint64d" +
+-	"iv\x00\x03\n\x00\n\x00\x01\n\x00\t\x11uint64div\x00\x03\x14\x00\x14\x00\x01\x14\x00\t\x0fint64mo" +
+-	"d\x00\x03\n\x00\n\x00\x01\n\x00\t\x11uint64mod\x00\x03\x14\x00\x14\x00\x01\x14\x00\t\x1bfloat64t" +
+-	"oint64\x00\x01\x1a\x00\x01\n\x00\t\x1dfloat64touint64\x00\x01\x1a\x00\x01\x14\x00\t\x1df" +
+-	"loat64touint32\x00\x01\x1a\x00\x01\x12\x00\t\x1bint64tofloat64\x00\x01\n" +
+-	"\x00\x01\x1a\x00\t\x1duint64tofloat64\x00\x01\x14\x00\x01\x1a\x00\t\x1duint32tofl" +
+-	"oat64\x00\x01\x12\x00\x01\x1a\x00\t\x19complex128div\x00\x04\x1e\vnum·2\x00\x00\x1e" +
+-	"\vden·3\x00\x00\x02\x1e\vquo·1\x00\x00\t\x19racefuncenter\x00\x01\x16b\x00" +
+-	"\t\x17racefuncexit\x00\x00\x00\t\x0fraceread\x00\x01\x16b\x00\t\x11racewr" +
+-	"ite\x00\x01\x16b\x00\t\x19racereadrange\x00\x04\x16\raddr·1\x00b\x16\rsi" +
+-	"ze·2\x00b\x00\t\x1bracewriterange\x00\x04\x16\x98\x03\x00b\x16\x9a\x03\x00b\x00\t\x0fm" +
+-	"sanread\x00\x04\x16\x98\x03\x00b\x16\x9a\x03\x00b\x00\t\x11msanwrite\x00\x04\x16\x98\x03\x00b\x16\x9a" +
+-	"\x03\x00b\x00\v\xfa\x01\v\x00\x01\x00\n$$\n"
++	"!stringtoslicerune\x00\x03\x17\x0f@|S\x00 \x00\x01\x11|S\x00\t\x15charn" +
++	"torune\x00\x03 \x00\x02\x00\x04|S\rretv·1\x00\x00\x02\rretk·2\x00\x00\t\x11sl" +
++	"icecopy\x00\x06:\tto·2\x00\x00:\tfr·3\x00\x00\x16\vwid·4\x00\x1buns" +
++	"afe-uintptr\x01\x02\x00\t\x1dslicestringcopy\x00\x04:Z\x00\x00:\\\x00" +
++	"\x00\x01\x02\x00\t\rconvI2E\x00\x02:\relem·2\x00\x00\x02:\vret·1\x00\x00\t\rc" +
++	"onvI2I\x00\x04\x17\"\x06\x00\x00:\relem·3\x00\x00\x02:h\x00\x00\t\rconvT2E\x00\x06" +
++	"\x17\"\x06\x00\x00\x17:l\x00\x00\x17:\vbuf·4\x00\x00\x02:h\x00\x00\t\rconvT2I\x00\x06\x17\"\v" +
++	"tab·2\x00\x00\x17:l\x00\x00\x17:p\x00\x00\x02:h\x00\x00\t\x11assertE2E\x00\x06\x17\"\vt" +
++	"yp·1\x00\x00:\x0fiface·2\x00\x00\x17:\vret·3\x00\x00\x00\t\x13assertE" +
++	"2E2\x00\x06\x17\"\x06\x00\x00:\x0fiface·3\x00\x00\x17:\vret·4\x00\x00\x01\x00\x00\t\x11as" +
++	"sertE2I\x00\x06\x17\"x\x00\x00:z\x00\x00\x17:||\x00\x00\x00\t\x13assertE2I2\x00\x06\x17" +
++	"\"\x06\x00\x00:\x80\x01\x00\x00\x17:\x82\x01\x00\x00\x01\x00\x00\t\x11assertE2T\x00\x06\x17\"x\x00\x00:z\x00\x00" +
++	"\x17:||\x00\x00\x00\t\x13assertE2T2\x00\x06\x17\"\x06\x00\x00:\x80\x01\x00\x00\x17:\x82\x01\x00\x00\x01\x00\x00" +
++	"\t\x11assertI2E\x00\x06\x17\"x\x00\x00:z\x00\x00\x17:||\x00\x00\x00\t\x13assertI2E" +
++	"2\x00\x06\x17\"\x06\x00\x00:\x80\x01\x00\x00\x17:\x82\x01\x00\x00\x01\x00\x00\t\x11assertI2I\x00\x06\x17\"x\x00\x00" +
++	":z\x00\x00\x17:||\x00\x00\x00\t\x13assertI2I2\x00\x06\x17\"\x06\x00\x00:\x80\x01\x00\x00\x17:\x82\x01\x00" +
++	"\x00\x01\x00\x00\t\x11assertI2T\x00\x06\x17\"x\x00\x00:z\x00\x00\x17:||\x00\x00\x00\t\x13asser" +
++	"tI2T2\x00\x06\x17\"\x06\x00\x00:\x80\x01\x00\x00\x17:\x82\x01\x00\x00\x01\x00\x00\t\x17panicdottype" +
++	"\x00\x06\x17\"\rhave·1\x00\x00\x17\"\rwant·2\x00\x00\x17\"\x80\x01\x00\x00\x00\t\riface" +
++	"eq\x00\x04:\ti1·2\x00\x00:\ti2·3\x00\x00\x02\x00h\x00\x00\t\refaceeq\x00\x04:\xa0" +
++	"\x01\x00\x00:\xa2\x01\x00\x00\x02\x00h\x00\x00\t\rmakemap\x00\b\x17\"\x13mapType·2\x00\x00\n" +
++	"\rhint·3\x00\x00\x17:\x11mapbuf·4\x00\x00\x17:\x17bucketbuf·5\x00" +
++	"\x00\x02\x1d::\rhmap·1\x00\x00\t\x13mapaccess1\x00\x06\x17\"\xa8\x01\x00\x00\x1d::\rh" +
++	"map·3\x00\x00\x17:\vkey·4\x00\x00\x02\x17:\vval·1\x00\x00\t!mapacce" +
++	"ss1_fast32\x00\x06\x17\"\xa8\x01\x00\x00\x1d::\xb4\x01\x00\x00:\xb6\x01\x00\x00\x02\x17:\xb8\x01\x00\x00\t!m" +
++	"apaccess1_fast64\x00\x06\x17\"\xa8\x01\x00\x00\x1d::\xb4\x01\x00\x00:\xb6\x01\x00\x00\x02\x17:\xb8" +
++	"\x01\x00\x00\t#mapaccess1_faststr\x00\x06\x17\"\xa8\x01\x00\x00\x1d::\xb4\x01\x00\x00:\xb6" +
++	"\x01\x00\x00\x02\x17:\xb8\x01\x00\x00\t\x1bmapaccess1_fat\x00\b\x17\"\xa8\x01\x00\x00\x1d::\xb4\x01\x00" +
++	"\x00\x17:\xb6\x01\x00\x00\x17\"\rzero·5\x00\x00\x02\x17:\xb8\x01\x00\x00\t\x13mapaccess2\x00\x06" +
++	"\x17\"\x13mapType·3\x00\x00\x1d::\rhmap·4\x00\x00\x17:\vkey·5\x00\x00\x04" +
++	"\x17:\xb8\x01\x00\x00\x00\rpres·2\x00\x00\t!mapaccess2_fast32\x00\x06\x17\"" +
++	"\xc6\x01\x00\x00\x1d::\xc8\x01\x00\x00:\xca\x01\x00\x00\x04\x17:\xb8\x01\x00\x00\x00\xcc\x01\x00\x00\t!mapaccess2" +
++	"_fast64\x00\x06\x17\"\xc6\x01\x00\x00\x1d::\xc8\x01\x00\x00:\xca\x01\x00\x00\x04\x17:\xb8\x01\x00\x00\x00\xcc\x01\x00\x00\t" +
++	"#mapaccess2_faststr\x00\x06\x17\"\xc6\x01\x00\x00\x1d::\xc8\x01\x00\x00:\xca\x01\x00\x00\x04" +
++	"\x17:\xb8\x01\x00\x00\x00\xcc\x01\x00\x00\t\x1bmapaccess2_fat\x00\b\x17\"\xc6\x01\x00\x00\x1d::\xc8\x01" +
++	"\x00\x00\x17:\xca\x01\x00\x00\x17\"\rzero·6\x00\x00\x04\x17:\xb8\x01\x00\x00\x00\xcc\x01\x00\x00\t\x13mapass" +
++	"ign1\x00\b\x17\"\x13mapType·1\x00\x00\x1d::\rhmap·2\x00\x00\x17:\vkey" +
++	"·3\x00\x00\x17:\vval·4\x00\x00\x00\t\x15mapiterinit\x00\x06\x17\"\xda\x01\x00\x00\x1d:" +
++	":\xdc\x01\x00\x00\x17:\x0fhiter·3\x00\x00\x00\t\x11mapdelete\x00\x06\x17\"\xda\x01\x00\x00\x1d:" +
++	":\xdc\x01\x00\x00\x17:\xde\x01\x00\x00\x00\t\x15mapiternext\x00\x02\x17:\x0fhiter·1\x00\x00" +
++	"\x00\t\x0fmakechan\x00\x04\x17\"\x15chanType·2\x00\x00\n\xaa\x01\x00\x00\x02\x1f\x06:\x0fh" +
++	"chan·1\x00\x00\t\x11chanrecv1\x00\x06\x17\"\x15chanType·1\x00\x00\x1f\x02" +
++	":\x0fhchan·2\x00\x00\x17:l\x00\x00\x00\t\x11chanrecv2\x00\x06\x17\"\xee\x01\x00\x00\x1f\x02:" +
++	"\x0fhchan·3\x00\x00\x17:\relem·4\x00\x00\x01\x00\x00\t\x11chansend1\x00\x06\x17" +
++	"\"\xf4\x01\x00\x00\x1f\x04:\xf6\x01\x00\x00\x17:l\x00\x00\x00\t\x11closechan\x00\x02:\xf0\x01\x00\x00\x00\a\x17w" +
++	"riteBarrier\x00\x15\x06\renabled\x00\x00\x00\vneeded\x00\x00\x00\x05cgo\x00" +
++	"\x00\x00\t\x1dwritebarrierptr\x00\x04\x17:\vdst·1\x00\x00:\vsrc·2" +
++	"\x00\x00\x00\t\x17typedmemmove\x00\x06\x17\"x\x00\x00\x17:\vdst·2\x00\x00\x17:\vsr" +
++	"c·3\x00\x00\x00\t\x1btypedslicecopy\x00\x06\x17\"\x06\x00\x00:\vdst·3\x00\x00" +
++	":\vsrc·4\x00\x00\x01\x02\x00\t\x17selectnbsend\x00\x06\x17\"\xee\x01\x00\x00\x1f\x04:\xfa\x01" +
++	"\x00\x00\x17:\xfc\x01\x00\x00\x01\x00\x00\t\x17selectnbrecv\x00\x06\x17\"\xee\x01\x00\x00\x17:l\x00\x00\x1f\x02" +
++	":\x0fhchan·4\x00\x00\x01\x00\x00\t\x19selectnbrecv2\x00\b\x17\"\xee\x01\x00\x00\x17:" +
++	"l\x00\x00\x17\x00\x15received·4\x00\x00\x1f\x02:\x0fhchan·5\x00\x00\x01\x00\x00\t\x11ne" +
++	"wselect\x00\x06\x17\"\vsel·1\x00\x00\n\x13selsize·2\x00\x00\b\rsize" +
++	"·3\x00\x00\x00\t\x13selectsend\x00\x06\x17\"\vsel·2\x00\x00\x1f\x04:\xfa\x01\x00\x00\x17:" +
++	"\xfc\x01\x00\x00\x02\x00\x15selected·1\x00\x00\t\x13selectrecv\x00\x06\x17\"\xb2\x02\x00\x00" +
++	"\x1f\x02:\xfa\x01\x00\x00\x17:\xfc\x01\x00\x00\x02\x00\xb4\x02\x00\x00\t\x15selectrecv2\x00\b\x17\"\xb2\x02\x00\x00" +
++	"\x1f\x02:\xfa\x01\x00\x00\x17:\xfc\x01\x00\x00\x17\x00\x15received·5\x00\x00\x02\x00\xb4\x02\x00\x00\t\x19sel" +
++	"ectdefault\x00\x02\x17\"\xb2\x02\x00\x00\x02\x00\xb4\x02\x00\x00\t\x0fselectgo\x00\x02\x17\"\xaa\x02" +
++	"\x00\x00\x00\t\tblock\x00\x00\x00\t\x11makeslice\x00\x06\x17\"\x06\x00\x00\x02\vlen·3\x00" +
++	"\x00\x02\vcap·4\x00\x00\x02\x11:\vary·1\x00\x00\t\x15makeslice64\x00\x06\x17\"" +
++	"\x06\x00\x00\n\xc4\x02\x00\x00\n\xc6\x02\x00\x00\x02\x11:\xc8\x02\x00\x00\t\x11growslice\x00\x06\x17\"\x06\x00\x00\x11:" +
++	"\vold·3\x00\x00\x02\xc6\x02\x00\x00\x02\x11:\xc8\x02\x00\x00\t\rmemmove\x00\x06\x17:\tto·1" +
++	"\x00\x00\x17:\vfrm·2\x00\x00\x16\x11length·3\x00`\x00\t\vmemclr\x00\x04\x17\"\v" +
++	"ptr·1\x00\x00\x16\x11length·2\x00`\x00\t\x0fmemequal\x00\x06\x17:\ax·" +
++	"2\x00\x00\x17:\ay·3\x00\x00\x16\rsize·4\x00`\x01\x00\x00\t\x11memequal8\x00\x04\x17" +
++	":\xe0\x02\x00\x00\x17:\xe2\x02\x00\x00\x01\x00\x00\t\x13memequal16\x00\x04\x17:\xe0\x02\x00\x00\x17:\xe2\x02\x00\x00" +
++	"\x01\x00\x00\t\x13memequal32\x00\x04\x17:\xe0\x02\x00\x00\x17:\xe2\x02\x00\x00\x01\x00\x00\t\x13memequ" +
++	"al64\x00\x04\x17:\xe0\x02\x00\x00\x17:\xe2\x02\x00\x00\x01\x00\x00\t\x15memequal128\x00\x04\x17:\xe0\x02" +
++	"\x00\x00\x17:\xe2\x02\x00\x00\x01\x00\x00\t\x0fint64div\x00\x03\n\x00\n\x00\x01\n\x00\t\x11uint64di" +
++	"v\x00\x03\x14\x00\x14\x00\x01\x14\x00\t\x0fint64mod\x00\x03\n\x00\n\x00\x01\n\x00\t\x11uint64mod" +
++	"\x00\x03\x14\x00\x14\x00\x01\x14\x00\t\x1bfloat64toint64\x00\x01\x1a\x00\x01\n\x00\t\x1dfloat6" +
++	"4touint64\x00\x01\x1a\x00\x01\x14\x00\t\x1dfloat64touint32\x00\x01\x1a\x00\x01\x12\x00" +
++	"\t\x1bint64tofloat64\x00\x01\n\x00\x01\x1a\x00\t\x1duint64tofloat64" +
++	"\x00\x01\x14\x00\x01\x1a\x00\t\x1duint32tofloat64\x00\x01\x12\x00\x01\x1a\x00\t\x19complex" +
++	"128div\x00\x04\x1e\vnum·2\x00\x00\x1e\vden·3\x00\x00\x02\x1e\vquo·1\x00\x00\t" +
++	"\x19racefuncenter\x00\x01\x16`\x00\t\x17racefuncexit\x00\x00\x00\t\x0fra" +
++	"ceread\x00\x01\x16`\x00\t\x11racewrite\x00\x01\x16`\x00\t\x19racereadran" +
++	"ge\x00\x04\x16\raddr·1\x00`\x16\rsize·2\x00`\x00\t\x1bracewritera" +
++	"nge\x00\x04\x16\x96\x03\x00`\x16\x98\x03\x00`\x00\t\x0fmsanread\x00\x04\x16\x96\x03\x00`\x16\x98\x03\x00`\x00\t" +
++	"\x11msanwrite\x00\x04\x16\x96\x03\x00`\x16\x98\x03\x00`\x00\v\xf8\x01\v\x00\x01\x00\n$$\n"
+ 
+ const unsafeimport = "" +
+ 	"version 2\n\n\x00\x00\x01\vunsafe\x00\x05\r\rPointer\x00\x16\x00\t\x0fOff" +
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index ee7010585d..b1798fe414 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -54,8 +54,7 @@ func slicerunetostring(*[32]byte, []rune) string
+ func stringtoslicebyte(*[32]byte, string) []byte
+ func stringtoslicebytetmp(string) []byte
+ func stringtoslicerune(*[32]rune, string) []rune
+-func stringiter(string, int) int
+-func stringiter2(string, int) (retk int, retv rune)
++func charntorune(string, int) (retv rune, retk int)
+ func slicecopy(to any, fr any, wid uintptr) int
+ func slicestringcopy(to any, fr any) int
+ 
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index 9d3f79cdce..66b11282fb 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -4,6 +4,8 @@
+ 
+ package gc
+ 
++import "unicode/utf8"
++
+ // range
+ func typecheckrange(n *Node) {
+ 	var toomany int
+@@ -284,34 +286,63 @@ func walkrange(n *Node) {
+ 		body = append(body, Nod(OAS, hv1, nil))
+ 
+ 	case TSTRING:
++		// Transform string range statements like "for v1, v2 = range a" into
++		//
++		// ha := a
++		// for hv1 := 0; hv1 < len(ha); {
++		//   v1 = hv1
++		//   hv2 := rune(ha[hv1])
++		//   if hv2 < utf8.RuneSelf {
++		//      hv1++
++		//   } else {
++		//      hv2, hv1 = charntorune(ha, hv1)
++		//   }
++		//   v2 = hv2
++		//   // original body
++		// }
++
+ 		// orderstmt arranged for a copy of the string variable.
+ 		ha := a
+ 
+-		ohv1 := temp(Types[TINT])
+-
+ 		hv1 := temp(Types[TINT])
+-		init = append(init, Nod(OAS, hv1, nil))
++		hv2 := temp(runetype)
+ 
+-		var a *Node
+-		var hv2 *Node
+-		if v2 == nil {
+-			a = Nod(OAS, hv1, mkcall("stringiter", Types[TINT], nil, ha, hv1))
+-		} else {
+-			hv2 = temp(runetype)
+-			a = Nod(OAS2, nil, nil)
+-			a.List.Set([]*Node{hv1, hv2})
+-			fn := syslook("stringiter2")
+-			a.Rlist.Set1(mkcall1(fn, fn.Type.Results(), nil, ha, hv1))
+-		}
++		// hv1 := 0
++		init = append(init, Nod(OAS, hv1, nil))
+ 
+-		n.Left = Nod(ONE, hv1, Nodintconst(0))
+-		n.Left.Ninit.Set([]*Node{Nod(OAS, ohv1, hv1), a})
++		// hv1 < len(ha)
++		n.Left = Nod(OLT, hv1, Nod(OLEN, ha, nil))
+ 
+-		body = nil
+ 		if v1 != nil {
+-			body = []*Node{Nod(OAS, v1, ohv1)}
++			// v1 = hv1
++			body = append(body, Nod(OAS, v1, hv1))
+ 		}
++
++		// hv2 := ha[hv1]
++		nind := Nod(OINDEX, ha, hv1)
++		nind.Bounded = true
++		body = append(body, Nod(OAS, hv2, conv(nind, runetype)))
++
++		// if hv2 < utf8.RuneSelf
++		nif := Nod(OIF, nil, nil)
++		nif.Left = Nod(OLT, nind, Nodintconst(utf8.RuneSelf))
++
++		// hv1++
++		nif.Nbody.Set1(Nod(OAS, hv1, Nod(OADD, hv1, Nodintconst(1))))
++
++		// } else {
++		eif := Nod(OAS2, nil, nil)
++		nif.Rlist.Set1(eif)
++
++		// hv2, hv1 = charntorune(ha, hv1)
++		eif.List.Set2(hv2, hv1)
++		fn := syslook("charntorune")
++		eif.Rlist.Set1(mkcall1(fn, fn.Type.Results(), nil, ha, hv1))
++
++		body = append(body, nif)
++
+ 		if v2 != nil {
++			// v2 = hv2
+ 			body = append(body, Nod(OAS, v2, hv2))
+ 		}
+ 	}
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 9147091a49..8529b35ca5 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -375,13 +375,11 @@ func writeConsole(handle uintptr, buf unsafe.Pointer, bufLen int32) int {
+ 
+ 	total := len(s)
+ 	w := 0
+-	for len(s) > 0 {
++	for _, r := range s {
+ 		if w >= len(utf16tmp)-2 {
+ 			writeConsoleUTF16(handle, utf16tmp[:w])
+ 			w = 0
+ 		}
+-		r, n := charntorune(s)
+-		s = s[n:]
+ 		if r < 0x10000 {
+ 			utf16tmp[w] = uint16(r)
+ 			w++
+diff --git a/src/runtime/rune.go b/src/runtime/rune.go
+index 91a0ca2503..84f7bbf1c0 100644
+--- a/src/runtime/rune.go
++++ b/src/runtime/rune.go
+@@ -49,115 +49,97 @@ const (
+ 	surrogateMin = 0xD800
+ 	surrogateMax = 0xDFFF
+ 
+-	bad = runeerror
+-
+ 	runemax = 0x10FFFF /* maximum rune value */
+ )
+ 
+-/*
+- * Modified by Wei-Hwa Huang, Google Inc., on 2004-09-24
+- * This is a slower but "safe" version of the old chartorune
+- * that works on strings that are not necessarily null-terminated.
+- *
+- * If you know for sure that your string is null-terminated,
+- * chartorune will be a bit faster.
+- *
+- * It is guaranteed not to attempt to access "length"
+- * past the incoming pointer.  This is to avoid
+- * possible access violations.  If the string appears to be
+- * well-formed but incomplete (i.e., to get the whole Rune
+- * we'd need to read past str+length) then we'll set the Rune
+- * to Bad and return 0.
+- *
+- * Note that if we have decoding problems for other
+- * reasons, we return 1 instead of 0.
+- */
+-func charntorune(s string) (rune, int) {
+-	/* When we're not allowed to read anything */
+-	if len(s) <= 0 {
+-		return bad, 1
++// charntorune returns the rune at the start of
++// s[k:] and the index after the rune in s.
++//
++// If the string appears to be incomplete or decoding problems
++// are encountered (runeerror, k + 1) is returned to ensure
++// progress when charntorune is used to iterate over a string.
++//
++// Modified by Wei-Hwa Huang, Google Inc., on 2004-09-24
++func charntorune(s string, k int) (rune, int) {
++	// When we're not allowed to read anything */
++	if len(s) <= k {
++		return runeerror, k + 1
+ 	}
+ 
+-	/*
+-	 * one character sequence (7-bit value)
+-	 *	00000-0007F => T1
+-	 */
++	s = s[k:]
++
++	// one character sequence (7-bit value)
++	// 00000-0007F => T1
+ 	c := s[0]
+ 	if c < tx {
+-		return rune(c), 1
++		return rune(c), k + 1
+ 	}
+ 
+ 	// If we can't read more than one character we must stop
+ 	if len(s) <= 1 {
+-		return bad, 1
++		return runeerror, k + 1
+ 	}
+ 
+-	/*
+-	 * two character sequence (11-bit value)
+-	 *	0080-07FF => t2 tx
+-	 */
++	// two character sequence (11-bit value)
++	// 0080-07FF => t2 tx
+ 	c1 := s[1] ^ tx
+ 	if (c1 & testx) != 0 {
+-		return bad, 1
++		return runeerror, k + 1
+ 	}
+ 	if c < t3 {
+ 		if c < t2 {
+-			return bad, 1
++			return runeerror, k + 1
+ 		}
+ 		l := ((rune(c) << bitx) | rune(c1)) & rune2
+ 		if l <= rune1 {
+-			return bad, 1
++			return runeerror, k + 1
+ 		}
+-		return l, 2
++		return l, k + 2
+ 	}
+ 
+ 	// If we can't read more than two characters we must stop
+ 	if len(s) <= 2 {
+-		return bad, 1
++		return runeerror, k + 1
+ 	}
+ 
+-	/*
+-	 * three character sequence (16-bit value)
+-	 *	0800-FFFF => t3 tx tx
+-	 */
++	// three character sequence (16-bit value)
++	// 0800-FFFF => t3 tx tx
+ 	c2 := s[2] ^ tx
+ 	if (c2 & testx) != 0 {
+-		return bad, 1
++		return runeerror, k + 1
+ 	}
+ 	if c < t4 {
+ 		l := ((((rune(c) << bitx) | rune(c1)) << bitx) | rune(c2)) & rune3
+ 		if l <= rune2 {
+-			return bad, 1
++			return runeerror, k + 1
+ 		}
+ 		if surrogateMin <= l && l <= surrogateMax {
+-			return bad, 1
++			return runeerror, k + 1
+ 		}
+-		return l, 3
++		return l, k + 3
+ 	}
+ 
+ 	if len(s) <= 3 {
+-		return bad, 1
++		return runeerror, k + 1
+ 	}
+ 
+-	/*
+-	 * four character sequence (21-bit value)
+-	 *	10000-1FFFFF => t4 tx tx tx
+-	 */
++	// four character sequence (21-bit value)
++	// 10000-1FFFFF => t4 tx tx tx
+ 	c3 := s[3] ^ tx
+ 	if (c3 & testx) != 0 {
+-		return bad, 1
++		return runeerror, k + 1
+ 	}
+ 	if c < t5 {
+ 		l := ((((((rune(c) << bitx) | rune(c1)) << bitx) | rune(c2)) << bitx) | rune(c3)) & rune4
+ 		if l <= rune3 || l > runemax {
+-			return bad, 1
++			return runeerror, k + 1
+ 		}
+-		return l, 4
++		return l, k + 4
+ 	}
+ 
+ 	// Support for 5-byte or longer UTF-8 would go here, but
+-	// since we don't have that, we'll just return bad.
+-	return bad, 1
++	// since we don't have that, we'll just return runeerror.
++	return runeerror, k + 1
+ }
+ 
+ // runetochar converts r to bytes and writes the result to str.
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index e74947f42f..5512f33ea8 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -163,12 +163,10 @@ func stringtoslicerune(buf *[tmpStringBufSize]rune, s string) []rune {
+ 	// two passes.
+ 	// unlike slicerunetostring, no race because strings are immutable.
+ 	n := 0
+-	t := s
+-	for len(s) > 0 {
+-		_, k := charntorune(s)
+-		s = s[k:]
++	for range s {
+ 		n++
+ 	}
++
+ 	var a []rune
+ 	if buf != nil && n <= len(buf) {
+ 		*buf = [tmpStringBufSize]rune{}
+@@ -176,10 +174,9 @@ func stringtoslicerune(buf *[tmpStringBufSize]rune, s string) []rune {
+ 	} else {
+ 		a = rawruneslice(n)
+ 	}
++
+ 	n = 0
+-	for len(t) > 0 {
+-		r, k := charntorune(t)
+-		t = t[k:]
++	for _, r := range s {
+ 		a[n] = r
+ 		n++
+ 	}
+@@ -244,42 +241,6 @@ func intstring(buf *[4]byte, v int64) string {
+ 	return s[:n]
+ }
+ 
+-// stringiter returns the index of the next
+-// rune after the rune that starts at s[k].
+-func stringiter(s string, k int) int {
+-	if k >= len(s) {
+-		// 0 is end of iteration
+-		return 0
+-	}
+-
+-	c := s[k]
+-	if c < runeself {
+-		return k + 1
+-	}
+-
+-	// multi-char rune
+-	_, n := charntorune(s[k:])
+-	return k + n
+-}
+-
+-// stringiter2 returns the rune that starts at s[k]
+-// and the index where the next rune starts.
+-func stringiter2(s string, k int) (int, rune) {
+-	if k >= len(s) {
+-		// 0 is end of iteration
+-		return 0, 0
+-	}
+-
+-	c := s[k]
+-	if c < runeself {
+-		return k + 1, rune(c)
+-	}
+-
+-	// multi-char rune
+-	r, n := charntorune(s[k:])
+-	return k + n, r
+-}
+-
+ // rawstring allocates storage for a new string. The returned
+ // string and byte slice both refer to the same storage.
+ // The storage is not zeroed. Callers should use
+diff --git a/src/runtime/string_test.go b/src/runtime/string_test.go
+index 0f1d82a481..b1757f0721 100644
+--- a/src/runtime/string_test.go
++++ b/src/runtime/string_test.go
+@@ -82,28 +82,42 @@ func BenchmarkCompareStringBig(b *testing.B) {
+ 	b.SetBytes(int64(len(s1)))
+ }
+ 
+-func BenchmarkRuneIterate(b *testing.B) {
+-	bytes := make([]byte, 100)
+-	for i := range bytes {
+-		bytes[i] = byte('A')
+-	}
+-	s := string(bytes)
+-	for i := 0; i < b.N; i++ {
+-		for range s {
+-		}
+-	}
++var stringdata = []struct{ name, data string }{
++	{"ASCII", "01234567890"},
++	{"Japanese", "日本語日本語日本語"},
+ }
+ 
+-func BenchmarkRuneIterate2(b *testing.B) {
+-	bytes := make([]byte, 100)
+-	for i := range bytes {
+-		bytes[i] = byte('A')
+-	}
+-	s := string(bytes)
+-	for i := 0; i < b.N; i++ {
+-		for range s {
++func BenchmarkRuneIterate(b *testing.B) {
++	b.Run("range", func(b *testing.B) {
++		for _, sd := range stringdata {
++			b.Run(sd.name, func(b *testing.B) {
++				for i := 0; i < b.N; i++ {
++					for range sd.data {
++					}
++				}
++			})
+ 		}
+-	}
++	})
++	b.Run("range1", func(b *testing.B) {
++		for _, sd := range stringdata {
++			b.Run(sd.name, func(b *testing.B) {
++				for i := 0; i < b.N; i++ {
++					for _ = range sd.data {
++					}
++				}
++			})
++		}
++	})
++	b.Run("range2", func(b *testing.B) {
++		for _, sd := range stringdata {
++			b.Run(sd.name, func(b *testing.B) {
++				for i := 0; i < b.N; i++ {
++					for _, _ = range sd.data {
++					}
++				}
++			})
++		}
++	})
+ }
+ 
+ func BenchmarkArrayEqual(b *testing.B) {
+diff --git a/test/fixedbugs/issue13162.go b/test/fixedbugs/issue13162.go
+new file mode 100644
+index 0000000000..f8b3150c3e
+--- /dev/null
++++ b/test/fixedbugs/issue13162.go
+@@ -0,0 +1,82 @@
++// run
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Ensure that range loops over a string have the requisite side-effects.
++
++package main
++
++import (
++	"fmt"
++	"os"
++)
++
++func check(n int) {
++	var i int
++	var r rune
++
++	b := make([]byte, n)
++	for i = range b {
++		b[i] = byte(i + 1)
++	}
++	s := string(b)
++
++	// When n == 0, i is untouched by the range loop.
++	// Picking an initial value of -1 for i makes the
++	// "want" calculation below correct in all cases.
++	i = -1
++	for i = range s {
++		b[i] = s[i]
++	}
++	if want := n - 1; i != want {
++		fmt.Printf("index after range with side-effect = %d want %d\n", i, want)
++		os.Exit(1)
++	}
++
++	i = -1
++	r = '\x00'
++	for i, r = range s {
++		b[i] = byte(r)
++	}
++	if want := n - 1; i != want {
++		fmt.Printf("index after range with side-effect = %d want %d\n", i, want)
++		os.Exit(1)
++	}
++	if want := rune(n); r != want {
++		fmt.Printf("rune after range with side-effect = %q want %q\n", r, want)
++		os.Exit(1)
++	}
++
++	i = -1
++	// i is shadowed here, so its value should be unchanged.
++	for i := range s {
++		b[i] = s[i]
++	}
++	if want := -1; i != want {
++		fmt.Printf("index after range without side-effect = %d want %d\n", i, want)
++		os.Exit(1)
++	}
++
++	i = -1
++	r = -1
++	// i and r are shadowed here, so their values should be unchanged.
++	for i, r := range s {
++		b[i] = byte(r)
++	}
++	if want := -1; i != want {
++		fmt.Printf("index after range without side-effect = %d want %d\n", i, want)
++		os.Exit(1)
++	}
++	if want := rune(-1); r != want {
++		fmt.Printf("rune after range without side-effect = %q want %q\n", r, want)
++		os.Exit(1)
++	}
++}
++
++func main() {
++	check(0)
++	check(1)
++	check(15)
++}

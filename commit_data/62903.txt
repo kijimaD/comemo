@@ -56,7 +56,7 @@ Date:   Wed Mar 19 23:57:23 2025 +1100
     Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/ir/symtab.go              |  1 +
  src/cmd/compile/internal/riscv64/ssa.go            |  2 +-
  src/cmd/compile/internal/ssa/_gen/RISCV64.rules    |  6 +++
@@ -76,3 +76,448 @@ Date:   Wed Mar 19 23:57:23 2025 +1100
  src/runtime/proc.go                                |  3 ++
  test/codegen/mathbits.go                           | 15 ++++---
  18 files changed, 157 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/symtab.go b/src/cmd/compile/internal/ir/symtab.go
+index 820916316c..00b07cb45c 100644
+--- a/src/cmd/compile/internal/ir/symtab.go
++++ b/src/cmd/compile/internal/ir/symtab.go
+@@ -64,6 +64,7 @@ type symsStruct struct {
+ 	Loong64HasLAMCAS *obj.LSym
+ 	Loong64HasLAM_BH *obj.LSym
+ 	Loong64HasLSX    *obj.LSym
++	RISCV64HasZbb    *obj.LSym
+ 	X86HasFMA        *obj.LSym
+ 	X86HasPOPCNT     *obj.LSym
+ 	X86HasSSE41      *obj.LSym
+diff --git a/src/cmd/compile/internal/riscv64/ssa.go b/src/cmd/compile/internal/riscv64/ssa.go
+index 4428d359a8..21edcabc58 100644
+--- a/src/cmd/compile/internal/riscv64/ssa.go
++++ b/src/cmd/compile/internal/riscv64/ssa.go
+@@ -420,7 +420,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssa.OpRISCV64FCVTSW, ssa.OpRISCV64FCVTSL, ssa.OpRISCV64FCVTWS, ssa.OpRISCV64FCVTLS,
+ 		ssa.OpRISCV64FCVTDW, ssa.OpRISCV64FCVTDL, ssa.OpRISCV64FCVTWD, ssa.OpRISCV64FCVTLD, ssa.OpRISCV64FCVTDS, ssa.OpRISCV64FCVTSD,
+ 		ssa.OpRISCV64NOT, ssa.OpRISCV64NEG, ssa.OpRISCV64NEGW, ssa.OpRISCV64CLZ, ssa.OpRISCV64CLZW, ssa.OpRISCV64CTZ, ssa.OpRISCV64CTZW,
+-		ssa.OpRISCV64REV8:
++		ssa.OpRISCV64REV8, ssa.OpRISCV64CPOP, ssa.OpRISCV64CPOPW:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[0].Reg()
+diff --git a/src/cmd/compile/internal/ssa/_gen/RISCV64.rules b/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
+index b8b0429de2..80061ada2c 100644
+--- a/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
+@@ -236,6 +236,12 @@
+ (Bswap32 <t> x) => (SRLI [32] (REV8 <t> x))
+ (Bswap16 <t> x) => (SRLI [48] (REV8 <t> x))
+ 
++// Population count (note that these will be emitted with guards for rva20u64).
++(PopCount64 ...) => (CPOP  ...)
++(PopCount32 ...) => (CPOPW ...)
++(PopCount16 x) => (CPOP (ZeroExt16to64 x))
++(PopCount8  x) => (CPOP (ZeroExt8to64  x))
++
+ (Less64  ...) => (SLT  ...)
+ (Less32  x y) => (SLT  (SignExt32to64 x) (SignExt32to64 y))
+ (Less16  x y) => (SLT  (SignExt16to64 x) (SignExt16to64 y))
+diff --git a/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go b/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
+index 86412ce8a6..8cb042a604 100644
+--- a/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
+@@ -231,6 +231,8 @@ func init() {
+ 		{name: "ANDI", argLength: 1, reg: gp11, asm: "ANDI", aux: "Int64"},      // arg0 & auxint
+ 		{name: "CLZ", argLength: 1, reg: gp11, asm: "CLZ"},                      // count leading zeros
+ 		{name: "CLZW", argLength: 1, reg: gp11, asm: "CLZW"},                    // count leading zeros of least significant word
++		{name: "CPOP", argLength: 1, reg: gp11, asm: "CPOP"},                    // count set bits
++		{name: "CPOPW", argLength: 1, reg: gp11, asm: "CPOPW"},                  // count set bits in least significant word
+ 		{name: "CTZ", argLength: 1, reg: gp11, asm: "CTZ"},                      // count trailing zeros
+ 		{name: "CTZW", argLength: 1, reg: gp11, asm: "CTZW"},                    // count trailing zeros of least significant word
+ 		{name: "NOT", argLength: 1, reg: gp11, asm: "NOT"},                      // ^arg0
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 6eeb90721b..20dfb05741 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2514,6 +2514,8 @@ const (
+ 	OpRISCV64ANDI
+ 	OpRISCV64CLZ
+ 	OpRISCV64CLZW
++	OpRISCV64CPOP
++	OpRISCV64CPOPW
+ 	OpRISCV64CTZ
+ 	OpRISCV64CTZW
+ 	OpRISCV64NOT
+@@ -33887,6 +33889,32 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "CPOP",
++		argLen: 1,
++		asm:    riscv.ACPOP,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++			outputs: []outputInfo{
++				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++		},
++	},
++	{
++		name:   "CPOPW",
++		argLen: 1,
++		asm:    riscv.ACPOPW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++			outputs: []outputInfo{
++				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++		},
++	},
+ 	{
+ 		name:   "CTZ",
+ 		argLen: 1,
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index d0e2c909e0..4e53ae5fe6 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -487,6 +487,16 @@ func rewriteValueRISCV64(v *Value) bool {
+ 		return true
+ 	case OpPanicBounds:
+ 		return rewriteValueRISCV64_OpPanicBounds(v)
++	case OpPopCount16:
++		return rewriteValueRISCV64_OpPopCount16(v)
++	case OpPopCount32:
++		v.Op = OpRISCV64CPOPW
++		return true
++	case OpPopCount64:
++		v.Op = OpRISCV64CPOP
++		return true
++	case OpPopCount8:
++		return rewriteValueRISCV64_OpPopCount8(v)
+ 	case OpPubBarrier:
+ 		v.Op = OpRISCV64LoweredPubBarrier
+ 		return true
+@@ -3458,6 +3468,36 @@ func rewriteValueRISCV64_OpPanicBounds(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueRISCV64_OpPopCount16(v *Value) bool {
++	v_0 := v.Args[0]
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (PopCount16 x)
++	// result: (CPOP (ZeroExt16to64 x))
++	for {
++		x := v_0
++		v.reset(OpRISCV64CPOP)
++		v0 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueRISCV64_OpPopCount8(v *Value) bool {
++	v_0 := v.Args[0]
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (PopCount8 x)
++	// result: (CPOP (ZeroExt8to64 x))
++	for {
++		x := v_0
++		v.reset(OpRISCV64CPOP)
++		v0 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueRISCV64_OpRISCV64ADD(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics.go b/src/cmd/compile/internal/ssagen/intrinsics.go
+index 86ab98118d..78350723da 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics.go
+@@ -1129,12 +1129,49 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 		}
+ 	}
+ 
++	makeOnesCountRISCV64 := func(op ssa.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++			if cfg.goriscv64 >= 22 {
++				return s.newValue1(op, types.Types[types.TINT], args[0])
++			}
++
++			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[types.TBOOL].PtrTo(), ir.Syms.RISCV64HasZbb, s.sb)
++			v := s.load(types.Types[types.TBOOL], addr)
++			b := s.endBlock()
++			b.Kind = ssa.BlockIf
++			b.SetControl(v)
++			bTrue := s.f.NewBlock(ssa.BlockPlain)
++			bFalse := s.f.NewBlock(ssa.BlockPlain)
++			bEnd := s.f.NewBlock(ssa.BlockPlain)
++			b.AddEdgeTo(bTrue)
++			b.AddEdgeTo(bFalse)
++			b.Likely = ssa.BranchLikely // Majority of RISC-V support Zbb.
++
++			// We have the intrinsic - use it directly.
++			s.startBlock(bTrue)
++			s.vars[n] = s.newValue1(op, types.Types[types.TINT], args[0])
++			s.endBlock().AddEdgeTo(bEnd)
++
++			// Call the pure Go version.
++			s.startBlock(bFalse)
++			s.vars[n] = s.callResult(n, callNormal) // types.Types[TINT]
++			s.endBlock().AddEdgeTo(bEnd)
++
++			// Merge results.
++			s.startBlock(bEnd)
++			return s.variable(n, types.Types[types.TINT])
++		}
++	}
++
+ 	addF("math/bits", "OnesCount64",
+ 		makeOnesCountAMD64(ssa.OpPopCount64),
+ 		sys.AMD64)
+ 	addF("math/bits", "OnesCount64",
+ 		makeOnesCountLoong64(ssa.OpPopCount64),
+ 		sys.Loong64)
++	addF("math/bits", "OnesCount64",
++		makeOnesCountRISCV64(ssa.OpPopCount64),
++		sys.RISCV64)
+ 	addF("math/bits", "OnesCount64",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpPopCount64, types.Types[types.TINT], args[0])
+@@ -1146,6 +1183,9 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 	addF("math/bits", "OnesCount32",
+ 		makeOnesCountLoong64(ssa.OpPopCount32),
+ 		sys.Loong64)
++	addF("math/bits", "OnesCount32",
++		makeOnesCountRISCV64(ssa.OpPopCount32),
++		sys.RISCV64)
+ 	addF("math/bits", "OnesCount32",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpPopCount32, types.Types[types.TINT], args[0])
+@@ -1157,6 +1197,9 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 	addF("math/bits", "OnesCount16",
+ 		makeOnesCountLoong64(ssa.OpPopCount16),
+ 		sys.Loong64)
++	addF("math/bits", "OnesCount16",
++		makeOnesCountRISCV64(ssa.OpPopCount16),
++		sys.RISCV64)
+ 	addF("math/bits", "OnesCount16",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpPopCount16, types.Types[types.TINT], args[0])
+@@ -1167,6 +1210,13 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 			return s.newValue1(ssa.OpPopCount8, types.Types[types.TINT], args[0])
+ 		},
+ 		sys.S390X, sys.PPC64, sys.Wasm)
++
++	if cfg.goriscv64 >= 22 {
++		addF("math/bits", "OnesCount8",
++			makeOnesCountRISCV64(ssa.OpPopCount8),
++			sys.RISCV64)
++	}
++
+ 	alias("math/bits", "OnesCount", "math/bits", "OnesCount64", p8...)
+ 
+ 	addF("math/bits", "Mul64",
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics_test.go b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+index e6275734f2..5d3b0519b7 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics_test.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+@@ -1114,6 +1114,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"riscv64", "internal/runtime/sys", "GetClosurePtr"}:               struct{}{},
+ 	{"riscv64", "internal/runtime/sys", "Len64"}:                       struct{}{},
+ 	{"riscv64", "internal/runtime/sys", "Len8"}:                        struct{}{},
++	{"riscv64", "internal/runtime/sys", "OnesCount64"}:                 struct{}{},
+ 	{"riscv64", "internal/runtime/sys", "TrailingZeros32"}:             struct{}{},
+ 	{"riscv64", "internal/runtime/sys", "TrailingZeros64"}:             struct{}{},
+ 	{"riscv64", "internal/runtime/sys", "TrailingZeros8"}:              struct{}{},
+@@ -1131,6 +1132,11 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"riscv64", "math/bits", "Len8"}:                                   struct{}{},
+ 	{"riscv64", "math/bits", "Mul"}:                                    struct{}{},
+ 	{"riscv64", "math/bits", "Mul64"}:                                  struct{}{},
++	{"riscv64", "math/bits", "OnesCount"}:                              struct{}{},
++	{"riscv64", "math/bits", "OnesCount16"}:                            struct{}{},
++	{"riscv64", "math/bits", "OnesCount32"}:                            struct{}{},
++	{"riscv64", "math/bits", "OnesCount64"}:                            struct{}{},
++	{"riscv64", "math/bits", "OnesCount8"}:                             struct{}{},
+ 	{"riscv64", "math/bits", "ReverseBytes16"}:                         struct{}{},
+ 	{"riscv64", "math/bits", "ReverseBytes32"}:                         struct{}{},
+ 	{"riscv64", "math/bits", "ReverseBytes64"}:                         struct{}{},
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 0b77a1334f..acb037dd56 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -160,6 +160,7 @@ func InitConfig() {
+ 	ir.Syms.Loong64HasLAMCAS = typecheck.LookupRuntimeVar("loong64HasLAMCAS") // bool
+ 	ir.Syms.Loong64HasLAM_BH = typecheck.LookupRuntimeVar("loong64HasLAM_BH") // bool
+ 	ir.Syms.Loong64HasLSX = typecheck.LookupRuntimeVar("loong64HasLSX")       // bool
++	ir.Syms.RISCV64HasZbb = typecheck.LookupRuntimeVar("riscv64HasZbb")       // bool
+ 	ir.Syms.Staticuint64s = typecheck.LookupRuntimeVar("staticuint64s")
+ 	ir.Syms.Typedmemmove = typecheck.LookupRuntimeFunc("typedmemmove")
+ 	ir.Syms.Udiv = typecheck.LookupRuntimeVar("udiv")                 // asm func with special ABI
+diff --git a/src/cmd/compile/internal/typecheck/_builtin/runtime.go b/src/cmd/compile/internal/typecheck/_builtin/runtime.go
+index 8a92c49061..a1397b32b3 100644
+--- a/src/cmd/compile/internal/typecheck/_builtin/runtime.go
++++ b/src/cmd/compile/internal/typecheck/_builtin/runtime.go
+@@ -294,5 +294,6 @@ var arm64HasATOMICS bool
+ var loong64HasLAMCAS bool
+ var loong64HasLAM_BH bool
+ var loong64HasLSX bool
++var riscv64HasZbb bool
+ 
+ func asanregisterglobals(unsafe.Pointer, uintptr)
+diff --git a/src/cmd/compile/internal/typecheck/builtin.go b/src/cmd/compile/internal/typecheck/builtin.go
+index 4c12ce6220..f3ab6766ec 100644
+--- a/src/cmd/compile/internal/typecheck/builtin.go
++++ b/src/cmd/compile/internal/typecheck/builtin.go
+@@ -242,6 +242,7 @@ var runtimeDecls = [...]struct {
+ 	{"loong64HasLAMCAS", varTag, 6},
+ 	{"loong64HasLAM_BH", varTag, 6},
+ 	{"loong64HasLSX", varTag, 6},
++	{"riscv64HasZbb", varTag, 6},
+ 	{"asanregisterglobals", funcTag, 130},
+ }
+ 
+diff --git a/src/cmd/internal/goobj/builtinlist.go b/src/cmd/internal/goobj/builtinlist.go
+index 3e550d8dd9..9e21544391 100644
+--- a/src/cmd/internal/goobj/builtinlist.go
++++ b/src/cmd/internal/goobj/builtinlist.go
+@@ -221,6 +221,7 @@ var builtins = [...]struct {
+ 	{"runtime.loong64HasLAMCAS", 0},
+ 	{"runtime.loong64HasLAM_BH", 0},
+ 	{"runtime.loong64HasLSX", 0},
++	{"runtime.riscv64HasZbb", 0},
+ 	{"runtime.asanregisterglobals", 1},
+ 	{"runtime.deferproc", 1},
+ 	{"runtime.deferprocStack", 1},
+diff --git a/src/internal/cpu/cpu.go b/src/internal/cpu/cpu.go
+index 4c945e4b96..e07463f870 100644
+--- a/src/internal/cpu/cpu.go
++++ b/src/internal/cpu/cpu.go
+@@ -145,6 +145,7 @@ var RISCV64 struct {
+ 	_                 CacheLinePad
+ 	HasFastMisaligned bool // Fast misaligned accesses
+ 	HasV              bool // Vector extension compatible with RVV 1.0
++	HasZbb            bool // Basic bit-manipulation extension
+ 	_                 CacheLinePad
+ }
+ 
+diff --git a/src/internal/cpu/cpu_riscv64.go b/src/internal/cpu/cpu_riscv64.go
+index e6e532c7e7..0fe1704855 100644
+--- a/src/internal/cpu/cpu_riscv64.go
++++ b/src/internal/cpu/cpu_riscv64.go
+@@ -12,6 +12,7 @@ func doinit() {
+ 	options = []option{
+ 		{Name: "fastmisaligned", Feature: &RISCV64.HasFastMisaligned},
+ 		{Name: "v", Feature: &RISCV64.HasV},
++		{Name: "zbb", Feature: &RISCV64.HasZbb},
+ 	}
+ 	osInit()
+ }
+diff --git a/src/internal/cpu/cpu_riscv64_linux.go b/src/internal/cpu/cpu_riscv64_linux.go
+index a076d3e33c..b67bdf5876 100644
+--- a/src/internal/cpu/cpu_riscv64_linux.go
++++ b/src/internal/cpu/cpu_riscv64_linux.go
+@@ -50,6 +50,7 @@ const (
+ 	// Copied from golang.org/x/sys/unix/ztypes_linux_riscv64.go.
+ 	riscv_HWPROBE_KEY_IMA_EXT_0   = 0x4
+ 	riscv_HWPROBE_IMA_V           = 0x4
++	riscv_HWPROBE_EXT_ZBB         = 0x10
+ 	riscv_HWPROBE_KEY_CPUPERF_0   = 0x5
+ 	riscv_HWPROBE_MISALIGNED_FAST = 0x3
+ 	riscv_HWPROBE_MISALIGNED_MASK = 0x7
+@@ -83,6 +84,7 @@ func osInit() {
+ 	if pairs[0].key != -1 {
+ 		v := uint(pairs[0].value)
+ 		RISCV64.HasV = isSet(v, riscv_HWPROBE_IMA_V)
++		RISCV64.HasZbb = isSet(v, riscv_HWPROBE_EXT_ZBB)
+ 	}
+ 	if pairs[1].key != -1 {
+ 		v := pairs[1].value & riscv_HWPROBE_MISALIGNED_MASK
+diff --git a/src/runtime/cpuflags.go b/src/runtime/cpuflags.go
+index 06424642c7..bd1cb328d3 100644
+--- a/src/runtime/cpuflags.go
++++ b/src/runtime/cpuflags.go
+@@ -38,4 +38,6 @@ var (
+ 	loong64HasLAMCAS bool
+ 	loong64HasLAM_BH bool
+ 	loong64HasLSX    bool
++
++	riscv64HasZbb bool
+ )
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index db7a5b2bb1..6929c70fb7 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -778,6 +778,9 @@ func cpuinit(env string) {
+ 		loong64HasLAMCAS = cpu.Loong64.HasLAMCAS
+ 		loong64HasLAM_BH = cpu.Loong64.HasLAM_BH
+ 		loong64HasLSX = cpu.Loong64.HasLSX
++
++	case "riscv64":
++		riscv64HasZbb = cpu.RISCV64.HasZbb
+ 	}
+ }
+ 
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index e9dfbb1443..c7ba357d09 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -181,8 +181,9 @@ func OnesCount(n uint) int {
+ 	// amd64:"POPCNTQ"
+ 	// arm64:"VCNT","VUADDLV"
+ 	// loong64:"VPCNTV"
+-	// s390x:"POPCNT"
+ 	// ppc64x:"POPCNTD"
++	// riscv64:"CPOP\t"
++	// s390x:"POPCNT"
+ 	// wasm:"I64Popcnt"
+ 	return bits.OnesCount(n)
+ }
+@@ -192,8 +193,9 @@ func OnesCount64(n uint64) int {
+ 	// amd64:"POPCNTQ"
+ 	// arm64:"VCNT","VUADDLV"
+ 	// loong64:"VPCNTV"
+-	// s390x:"POPCNT"
+ 	// ppc64x:"POPCNTD"
++	// riscv64:"CPOP\t"
++	// s390x:"POPCNT"
+ 	// wasm:"I64Popcnt"
+ 	return bits.OnesCount64(n)
+ }
+@@ -203,8 +205,9 @@ func OnesCount32(n uint32) int {
+ 	// amd64:"POPCNTL"
+ 	// arm64:"VCNT","VUADDLV"
+ 	// loong64:"VPCNTW"
+-	// s390x:"POPCNT"
+ 	// ppc64x:"POPCNTW"
++	// riscv64:"CPOPW"
++	// s390x:"POPCNT"
+ 	// wasm:"I64Popcnt"
+ 	return bits.OnesCount32(n)
+ }
+@@ -214,15 +217,17 @@ func OnesCount16(n uint16) int {
+ 	// amd64:"POPCNTL"
+ 	// arm64:"VCNT","VUADDLV"
+ 	// loong64:"VPCNTH"
+-	// s390x:"POPCNT"
+ 	// ppc64x:"POPCNTW"
++	// riscv64:"CPOP\t"
++	// s390x:"POPCNT"
+ 	// wasm:"I64Popcnt"
+ 	return bits.OnesCount16(n)
+ }
+ 
+ func OnesCount8(n uint8) int {
+-	// s390x:"POPCNT"
+ 	// ppc64x:"POPCNTB"
++	// riscv64/rva22u64,riscv64/rva23u64:"CPOP\t"
++	// s390x:"POPCNT"
+ 	// wasm:"I64Popcnt"
+ 	return bits.OnesCount8(n)
+ }

@@ -23,7 +23,243 @@ Date:   Fri Apr 10 12:14:16 2015 +0200
     Change-Id: Ib0caf8ad603eb21e32fcb957a5f1a0fe5d1c6e6e
     Reviewed-on: https://go-review.googlesource.com/8724
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/mail/message.go      | 72 +++++++++++++++++++++++++++++++---
  src/net/mail/message_test.go | 92 ++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 159 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index 04cbfd3e8b..2d8e380cd9 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -168,10 +168,42 @@ func (p *AddressParser) ParseList(list string) ([]*Address, error) {
+ // If the address's name contains non-ASCII characters
+ // the name will be rendered according to RFC 2047.
+ func (a *Address) String() string {
+-	s := "<" + a.Address + ">"
++
++	// Format address local@domain
++	at := strings.LastIndex(a.Address, "@")
++	local, domain := a.Address[:at], a.Address[at+1:]
++
++	// Add quotes if needed
++	// TODO: rendering quoted local part and rendering printable name
++	//       should be merged in helper function.
++	quoteLocal := false
++	for i := 0; i < len(local); i++ {
++		ch := local[i]
++		if isAtext(ch, false) {
++			continue
++		}
++		if ch == '.' {
++			// Dots are okay if they are surrounded by atext.
++			// We only need to check that the previous byte is
++			// not a dot, and this isn't the end of the string.
++			if i > 0 && local[i-1] != '.' && i < len(local)-1 {
++				continue
++			}
++		}
++		quoteLocal = true
++		break
++	}
++	if quoteLocal {
++		local = quoteString(local)
++
++	}
++
++	s := "<" + local + "@" + domain + ">"
++
+ 	if a.Name == "" {
+ 		return s
+ 	}
++
+ 	// If every character is printable ASCII, quoting is simple.
+ 	allPrintable := true
+ 	for i := 0; i < len(a.Name); i++ {
+@@ -301,7 +333,7 @@ func (p *addrParser) consumeAddrSpec() (spec string, err error) {
+ 	} else {
+ 		// dot-atom
+ 		debug.Printf("consumeAddrSpec: parsing dot-atom")
+-		localPart, err = p.consumeAtom(true)
++		localPart, err = p.consumeAtom(true, false)
+ 	}
+ 	if err != nil {
+ 		debug.Printf("consumeAddrSpec: failed: %v", err)
+@@ -319,7 +351,7 @@ func (p *addrParser) consumeAddrSpec() (spec string, err error) {
+ 		return "", errors.New("mail: no domain in addr-spec")
+ 	}
+ 	// TODO(dsymonds): Handle domain-literal
+-	domain, err = p.consumeAtom(true)
++	domain, err = p.consumeAtom(true, false)
+ 	if err != nil {
+ 		return "", err
+ 	}
+@@ -346,7 +378,7 @@ func (p *addrParser) consumePhrase() (phrase string, err error) {
+ 			// atom
+ 			// We actually parse dot-atom here to be more permissive
+ 			// than what RFC 5322 specifies.
+-			word, err = p.consumeAtom(true)
++			word, err = p.consumeAtom(true, true)
+ 		}
+ 
+ 		if err == nil {
+@@ -402,7 +434,9 @@ Loop:
+ 
+ // consumeAtom parses an RFC 5322 atom at the start of p.
+ // If dot is true, consumeAtom parses an RFC 5322 dot-atom instead.
+-func (p *addrParser) consumeAtom(dot bool) (atom string, err error) {
++// If permissive is true, consumeAtom will not fail on
++// leading/trailing/double dots in the atom (see golang.org/issue/4938).
++func (p *addrParser) consumeAtom(dot bool, permissive bool) (atom string, err error) {
+ 	if !isAtext(p.peek(), false) {
+ 		return "", errors.New("mail: invalid string")
+ 	}
+@@ -410,6 +444,17 @@ func (p *addrParser) consumeAtom(dot bool) (atom string, err error) {
+ 	for ; i < p.len() && isAtext(p.s[i], dot); i++ {
+ 	}
+ 	atom, p.s = string(p.s[:i]), p.s[i:]
++	if !permissive {
++		if strings.HasPrefix(atom, ".") {
++			return "", errors.New("mail: leading dot in atom")
++		}
++		if strings.Contains(atom, "..") {
++			return "", errors.New("mail: double dot in atom")
++		}
++		if strings.HasSuffix(atom, ".") {
++			return "", errors.New("mail: trailing dot in atom")
++		}
++	}
+ 	return atom, nil
+ }
+ 
+@@ -491,6 +536,23 @@ func isQtext(c byte) bool {
+ 	return '!' <= c && c <= '~'
+ }
+ 
++// quoteString renders a string as a RFC5322 quoted-string.
++func quoteString(s string) string {
++	var buf bytes.Buffer
++	buf.WriteByte('"')
++	for _, c := range s {
++		ch := byte(c)
++		if isQtext(ch) || isWSP(ch) {
++			buf.WriteByte(ch)
++		} else if isVchar(ch) {
++			buf.WriteByte('\\')
++			buf.WriteByte(ch)
++		}
++	}
++	buf.WriteByte('"')
++	return buf.String()
++}
++
+ // isVchar reports whether c is an RFC 5322 VCHAR character.
+ func isVchar(c byte) bool {
+ 	// Visible (printing) characters.
+diff --git a/src/net/mail/message_test.go b/src/net/mail/message_test.go
+index 43574c6188..1da3213f7e 100644
+--- a/src/net/mail/message_test.go
++++ b/src/net/mail/message_test.go
+@@ -458,6 +458,14 @@ func TestAddressFormatting(t *testing.T) {
+ 			&Address{Address: "bob@example.com"},
+ 			"<bob@example.com>",
+ 		},
++		{ // quoted local parts: RFC 5322, 3.4.1. and 3.2.4.
++			&Address{Address: `my@idiot@address@example.com`},
++			`<"my@idiot@address"@example.com>`,
++		},
++		{ // quoted local parts
++			&Address{Address: ` @example.com`},
++			`<" "@example.com>`,
++		},
+ 		{
+ 			&Address{Name: "Bob", Address: "bob@example.com"},
+ 			`"Bob" <bob@example.com>`,
+@@ -483,3 +491,87 @@ func TestAddressFormatting(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Check if all valid addresses can be parsed, formatted and parsed again
++func TestAddressParsingAndFormatting(t *testing.T) {
++
++	// Should pass
++	tests := []string{
++		`<Bob@example.com>`,
++		`<bob.bob@example.com>`,
++		`<".bob"@example.com>`,
++		`<" "@example.com>`,
++		`<some.mail-with-dash@example.com>`,
++		`<"dot.and space"@example.com>`,
++		`<"very.unusual.@.unusual.com"@example.com>`,
++		`<admin@mailserver1>`,
++		`<postmaster@localhost>`,
++		"<#!$%&'*+-/=?^_`{}|~@example.org>",
++		`<"very.(),:;<>[]\".VERY.\"very@\\ \"very\".unusual"@strange.example.com>`, // escaped quotes
++		`<"()<>[]:,;@\\\"!#$%&'*+-/=?^_{}| ~.a"@example.org>`,                      // escaped backslashes
++		`<"Abc\\@def"@example.com>`,
++		`<"Joe\\Blow"@example.com>`,
++		`<test1/test2=test3@example.com>`,
++		`<def!xyz%abc@example.com>`,
++		`<_somename@example.com>`,
++		`<joe@uk>`,
++		`<~@example.com>`,
++		`<"..."@test.com>`,
++		`<"john..doe"@example.com>`,
++		`<"john.doe."@example.com>`,
++		`<".john.doe"@example.com>`,
++		`<"."@example.com>`,
++		`<".."@example.com>`,
++	}
++
++	for _, test := range tests {
++		addr, err := ParseAddress(test)
++		if err != nil {
++			t.Errorf("Couldn't parse address %s: %s", test, err.Error())
++			continue
++		}
++		str := addr.String()
++		addr, err = ParseAddress(str)
++		if err != nil {
++			t.Errorf("ParseAddr(%q) error: %v", test, err)
++			continue
++		}
++
++		if addr.String() != test {
++			t.Errorf("String() round-trip = %q; want %q", addr, test)
++			continue
++		}
++
++	}
++
++	// Should fail
++	badTests := []string{
++		`<Abc.example.com>`,
++		`<A@b@c@example.com>`,
++		`<a"b(c)d,e:f;g<h>i[j\k]l@example.com>`,
++		`<just"not"right@example.com>`,
++		`<this is"not\allowed@example.com>`,
++		`<this\ still\"not\\allowed@example.com>`,
++		`<john..doe@example.com>`,
++		`<john.doe@example..com>`,
++		`<john.doe@example..com>`,
++		`<john.doe.@example.com>`,
++		`<john.doe.@.example.com>`,
++		`<.john.doe@example.com>`,
++		`<@example.com>`,
++		`<.@example.com>`,
++		`<test@.>`,
++		`< @example.com>`,
++		`<""test""blah""@example.com>`,
++	}
++
++	for _, test := range badTests {
++		_, err := ParseAddress(test)
++		if err == nil {
++			t.Errorf("Should have failed to parse address: %s", test)
++			continue
++		}
++
++	}
++
++}

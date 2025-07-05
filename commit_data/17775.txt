@@ -9,6 +9,30 @@ Date:   Wed Oct 9 13:52:29 2013 -0700
     R=golang-dev, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/14526048
-
+---
  src/pkg/net/dial_test.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/dial_test.go b/src/pkg/net/dial_test.go
+index c7296b7a9c..f1d813f412 100644
+--- a/src/pkg/net/dial_test.go
++++ b/src/pkg/net/dial_test.go
+@@ -436,7 +436,8 @@ func TestDialFailPDLeak(t *testing.T) {
+ 		t.Skipf("skipping test on %q/%q", runtime.GOOS, runtime.GOARCH)
+ 	}
+ 
+-	const loops = 10
++	maxprocs := runtime.GOMAXPROCS(0)
++	loops := 10 + maxprocs
+ 	// 500 is enough to turn over the chunk of pollcache.
+ 	// See allocPollDesc in runtime/netpoll.goc.
+ 	const count = 500
+@@ -471,7 +472,7 @@ func TestDialFailPDLeak(t *testing.T) {
+ 			failcount++
+ 		}
+ 		// there are always some allocations on the first loop
+-		if failcount > 3 {
++		if failcount > maxprocs+2 {
+ 			t.Error("detected possible memory leak in runtime")
+ 			t.FailNow()
+ 		}

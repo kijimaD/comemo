@@ -5,6 +5,19 @@ Date:   Fri Jun 6 17:07:38 2008 -0700
     - updated golden.out one more time
     
     SVN=121552
-
+---
  test/golden.out | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/test/golden.out b/test/golden.out
+index 269a08c46e..935e5be6e0 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -1,7 +1,4 @@
+ 
+-=========== ./bug041.go
+-BUG: compilation succeeds incorrectly
+-
+ =========== ./char_lit.go
+ char_lit.go:5: syntax error
+ char_lit.go:17: unknown escape sequence: \

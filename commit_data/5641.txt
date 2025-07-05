@@ -7,6 +7,19 @@ Date:   Wed Jun 9 21:39:40 2010 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/1555042
-
+---
  .hgignore | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/.hgignore b/.hgignore
+index f5ebf6f211..c808140588 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -14,6 +14,7 @@ syntax:glob
+ core
+ _obj
+ _test
++doc/htmlgen
+ src/cmd/6a/6a
+ y.tab.[ch]
+ src/cmd/?l/enam.c

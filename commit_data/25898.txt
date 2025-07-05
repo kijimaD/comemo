@@ -11,8 +11,69 @@ Date:   Wed Dec 2 12:07:57 2015 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/errors/issue13423.go | 12 ++++++++++++
  misc/cgo/errors/test.bash     |  1 +
  src/cmd/cgo/gcc.go            | 12 ++++++------
  3 files changed, 19 insertions(+), 6 deletions(-)
+
+diff --git a/misc/cgo/errors/issue13423.go b/misc/cgo/errors/issue13423.go
+new file mode 100644
+index 0000000000..6b2ad58a9d
+--- /dev/null
++++ b/misc/cgo/errors/issue13423.go
+@@ -0,0 +1,12 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// #include <stdio.h>
++import "C"
++
++func main() {
++	_ = C.fopen() // ERROR HERE
++}
+diff --git a/misc/cgo/errors/test.bash b/misc/cgo/errors/test.bash
+index d15c9e113d..1744eee077 100755
+--- a/misc/cgo/errors/test.bash
++++ b/misc/cgo/errors/test.bash
+@@ -40,6 +40,7 @@ check issue8442.go
+ check issue11097a.go
+ check issue11097b.go
+ expect issue13129.go C.ushort
++check issue13423.go
+ 
+ if ! go run ptr.go; then
+ 	exit 1
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 2b222d6d27..a3baecdf8b 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -598,6 +598,12 @@ func (p *Package) rewriteCalls(f *File) {
+ // each pointer argument x with _cgoCheckPointer(x).(T).
+ func (p *Package) rewriteCall(f *File, call *ast.CallExpr, name *Name) {
+ 	for i, param := range name.FuncType.Params {
++		if len(call.Args) <= i {
++			// Avoid a crash; this will be caught when the
++			// generated file is compiled.
++			return
++		}
++
+ 		// An untyped nil does not need a pointer check, and
+ 		// when _cgoCheckPointer returns the untyped nil the
+ 		// type assertion we are going to insert will fail.
+@@ -611,12 +617,6 @@ func (p *Package) rewriteCall(f *File, call *ast.CallExpr, name *Name) {
+ 			continue
+ 		}
+ 
+-		if len(call.Args) <= i {
+-			// Avoid a crash; this will be caught when the
+-			// generated file is compiled.
+-			return
+-		}
+-
+ 		c := &ast.CallExpr{
+ 			Fun: ast.NewIdent("_cgoCheckPointer"),
+ 			Args: []ast.Expr{

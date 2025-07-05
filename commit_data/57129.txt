@@ -16,7 +16,38 @@ Date:   Fri Jun 23 12:07:19 2023 -0700
     Auto-Submit: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/crypto/x509/root_darwin_test.go  | 4 +++-
  src/crypto/x509/root_windows_test.go | 4 +++-
  2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/x509/root_darwin_test.go b/src/crypto/x509/root_darwin_test.go
+index df7ca99308..e6b52e9f91 100644
+--- a/src/crypto/x509/root_darwin_test.go
++++ b/src/crypto/x509/root_darwin_test.go
+@@ -12,7 +12,9 @@ import (
+ 	"time"
+ )
+ 
+-func TestPlatformVerifier(t *testing.T) {
++func TestPlatformVerifierLegacy(t *testing.T) {
++	// TODO(#52108): This can be removed once the synthetic test root is deployed on
++	// builders.
+ 	if !testenv.HasExternalNetwork() {
+ 		t.Skip()
+ 	}
+diff --git a/src/crypto/x509/root_windows_test.go b/src/crypto/x509/root_windows_test.go
+index 54dbc161dc..1372c043b2 100644
+--- a/src/crypto/x509/root_windows_test.go
++++ b/src/crypto/x509/root_windows_test.go
+@@ -16,7 +16,9 @@ import (
+ 	"time"
+ )
+ 
+-func TestPlatformVerifier(t *testing.T) {
++func TestPlatformVerifierLegacy(t *testing.T) {
++	// TODO(#52108): This can be removed once the synthetic test root is deployed on
++	// builders.
+ 	if !testenv.HasExternalNetwork() {
+ 		t.Skip()
+ 	}

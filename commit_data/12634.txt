@@ -10,6 +10,32 @@ Date:   Thu Mar 15 02:24:49 2012 +0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5784075
-
+---
  src/pkg/runtime/sys_windows_amd64.s | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/sys_windows_amd64.s b/src/pkg/runtime/sys_windows_amd64.s
+index 041383ee89..11909cda27 100644
+--- a/src/pkg/runtime/sys_windows_amd64.s
++++ b/src/pkg/runtime/sys_windows_amd64.s
+@@ -60,7 +60,11 @@ loadregs:
+ 
+ 	RET
+ 
+-TEXT runtime·badcallback(SB),7,$48
++// This should be called on a system stack,
++// so we don't need to concern about split stack.
++TEXT runtime·badcallback(SB),7,$0
++	SUBQ	$48, SP
++
+ 	// stderr
+ 	MOVQ	$-12, CX // stderr
+ 	MOVQ	CX, 0(SP)
+@@ -80,6 +84,7 @@ TEXT runtime·badcallback(SB),7,$48
+ 	MOVQ	runtime·WriteFile(SB), AX
+ 	CALL	AX
+ 	
++	ADDQ	$48, SP
+ 	RET
+ 
+ TEXT runtime·badsignal(SB),7,$48

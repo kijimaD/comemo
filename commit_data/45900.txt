@@ -15,7 +15,52 @@ Date:   Wed Nov 25 13:47:42 2020 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/reflect/all_test.go |  3 +++
  src/reflect/value.go    | 12 ++++++++++--
  2 files changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index a12712d254..b01158635f 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -4007,9 +4007,12 @@ var convertTests = []struct {
+ 	{V(int16(-3)), V(string("\uFFFD"))},
+ 	{V(int32(-4)), V(string("\uFFFD"))},
+ 	{V(int64(-5)), V(string("\uFFFD"))},
++	{V(int64(-1 << 32)), V(string("\uFFFD"))},
++	{V(int64(1 << 32)), V(string("\uFFFD"))},
+ 	{V(uint(0x110001)), V(string("\uFFFD"))},
+ 	{V(uint32(0x110002)), V(string("\uFFFD"))},
+ 	{V(uint64(0x110003)), V(string("\uFFFD"))},
++	{V(uint64(1 << 32)), V(string("\uFFFD"))},
+ 	{V(uintptr(0x110004)), V(string("\uFFFD"))},
+ 
+ 	// named string
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index bf926a7453..1f185b52e4 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -2681,12 +2681,20 @@ func cvtComplex(v Value, t Type) Value {
+ 
+ // convertOp: intXX -> string
+ func cvtIntString(v Value, t Type) Value {
+-	return makeString(v.flag.ro(), string(rune(v.Int())), t)
++	s := "\uFFFD"
++	if x := v.Int(); int64(rune(x)) == x {
++		s = string(rune(x))
++	}
++	return makeString(v.flag.ro(), s, t)
+ }
+ 
+ // convertOp: uintXX -> string
+ func cvtUintString(v Value, t Type) Value {
+-	return makeString(v.flag.ro(), string(rune(v.Uint())), t)
++	s := "\uFFFD"
++	if x := v.Uint(); uint64(rune(x)) == x {
++		s = string(rune(x))
++	}
++	return makeString(v.flag.ro(), s, t)
+ }
+ 
+ // convertOp: []byte -> string

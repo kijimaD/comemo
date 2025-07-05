@@ -15,7 +15,108 @@ Date:   Mon Oct 17 09:28:06 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/database/sql/convert.go  | 33 +++++++++++++++++++++------------
  src/database/sql/sql_test.go |  4 ++--
  2 files changed, 23 insertions(+), 14 deletions(-)
+
+diff --git a/src/database/sql/convert.go b/src/database/sql/convert.go
+index 594a816966..44695b67a6 100644
+--- a/src/database/sql/convert.go
++++ b/src/database/sql/convert.go
+@@ -17,6 +17,13 @@ import (
+ 
+ var errNilPtr = errors.New("destination pointer is nil") // embedded in descriptive error
+ 
++func describeNamedValue(nv *driver.NamedValue) string {
++	if len(nv.Name) == 0 {
++		return fmt.Sprintf("$%d", nv.Ordinal)
++	}
++	return fmt.Sprintf("with name %q", nv.Name)
++}
++
+ // driverArgs converts arguments from callers of Stmt.Exec and
+ // Stmt.Query into driver Values.
+ //
+@@ -33,15 +40,16 @@ func driverArgs(ds *driverStmt, args []interface{}) ([]driver.NamedValue, error)
+ 	if !ok {
+ 		for n, arg := range args {
+ 			var err error
+-			nvargs[n].Ordinal = n + 1
++			nv := &nvargs[n]
++			nv.Ordinal = n + 1
+ 			if np, ok := arg.(NamedParam); ok {
+ 				arg = np.Value
+ 				nvargs[n].Name = np.Name
+ 			}
+-			nvargs[n].Value, err = driver.DefaultParameterConverter.ConvertValue(arg)
++			nv.Value, err = driver.DefaultParameterConverter.ConvertValue(arg)
+ 
+ 			if err != nil {
+-				return nil, fmt.Errorf("sql: converting Exec argument #%d's type: %v", n, err)
++				return nil, fmt.Errorf("sql: converting Exec argument %s type: %v", describeNamedValue(nv), err)
+ 			}
+ 		}
+ 		return nvargs, nil
+@@ -49,10 +57,11 @@ func driverArgs(ds *driverStmt, args []interface{}) ([]driver.NamedValue, error)
+ 
+ 	// Let the Stmt convert its own arguments.
+ 	for n, arg := range args {
+-		nvargs[n].Ordinal = n + 1
++		nv := &nvargs[n]
++		nv.Ordinal = n + 1
+ 		if np, ok := arg.(NamedParam); ok {
+ 			arg = np.Value
+-			nvargs[n].Name = np.Name
++			nv.Name = np.Name
+ 		}
+ 		// First, see if the value itself knows how to convert
+ 		// itself to a driver type. For example, a NullString
+@@ -60,10 +69,10 @@ func driverArgs(ds *driverStmt, args []interface{}) ([]driver.NamedValue, error)
+ 		if vr, ok := arg.(driver.Valuer); ok {
+ 			sv, err := callValuerValue(vr)
+ 			if err != nil {
+-				return nil, fmt.Errorf("sql: argument index %d from Value: %v", n, err)
++				return nil, fmt.Errorf("sql: argument %s from Value: %v", describeNamedValue(nv), err)
+ 			}
+ 			if !driver.IsValue(sv) {
+-				return nil, fmt.Errorf("sql: argument index %d: non-subset type %T returned from Value", n, sv)
++				return nil, fmt.Errorf("sql: argument %s: non-subset type %T returned from Value", describeNamedValue(nv), sv)
+ 			}
+ 			arg = sv
+ 		}
+@@ -77,14 +86,14 @@ func driverArgs(ds *driverStmt, args []interface{}) ([]driver.NamedValue, error)
+ 		// same error.
+ 		var err error
+ 		ds.Lock()
+-		nvargs[n].Value, err = cc.ColumnConverter(n).ConvertValue(arg)
++		nv.Value, err = cc.ColumnConverter(n).ConvertValue(arg)
+ 		ds.Unlock()
+ 		if err != nil {
+-			return nil, fmt.Errorf("sql: converting argument #%d's type: %v", n, err)
++			return nil, fmt.Errorf("sql: converting argument %s type: %v", describeNamedValue(nv), err)
+ 		}
+-		if !driver.IsValue(nvargs[n].Value) {
+-			return nil, fmt.Errorf("sql: driver ColumnConverter error converted %T to unsupported type %T",
+-				arg, nvargs[n].Value)
++		if !driver.IsValue(nv.Value) {
++			return nil, fmt.Errorf("sql: for argument %s, driver ColumnConverter error converted %T to unsupported type %T",
++				describeNamedValue(nv), arg, nv.Value)
+ 		}
+ 	}
+ 
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index f4b887ca96..228a3f2580 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -745,8 +745,8 @@ func TestExec(t *testing.T) {
+ 		{[]interface{}{7, 9}, ""},
+ 
+ 		// Invalid conversions:
+-		{[]interface{}{"Brad", int64(0xFFFFFFFF)}, "sql: converting argument #1's type: sql/driver: value 4294967295 overflows int32"},
+-		{[]interface{}{"Brad", "strconv fail"}, "sql: converting argument #1's type: sql/driver: value \"strconv fail\" can't be converted to int32"},
++		{[]interface{}{"Brad", int64(0xFFFFFFFF)}, "sql: converting argument $2 type: sql/driver: value 4294967295 overflows int32"},
++		{[]interface{}{"Brad", "strconv fail"}, `sql: converting argument $2 type: sql/driver: value "strconv fail" can't be converted to int32`},
+ 
+ 		// Wrong number of args:
+ 		{[]interface{}{}, "sql: expected 2 arguments, got 0"},

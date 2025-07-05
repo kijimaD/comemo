@@ -10,7 +10,7 @@ Date:   Wed Aug 17 15:54:17 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4897050
-
+---
  src/cmd/gc/builtin.c.boot |  15 +++---
  src/cmd/gc/runtime.go     |  15 +++---
  src/cmd/gc/select.c       |  15 +++---
@@ -21,3 +21,524 @@ Date:   Wed Aug 17 15:54:17 2011 -0400
  src/pkg/runtime/type.h    |   1 -
  test/chan/select3.go      |   8 +--
  9 files changed, 93 insertions(+), 110 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index 84eef6982d..190c560089 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -66,15 +66,14 @@ char *runtimeimport =
+ 	"func \"\".mapiternext (hiter *any)\n"
+ 	"func \"\".mapiter1 (hiter *any) any\n"
+ 	"func \"\".mapiter2 (hiter *any) (key any, val any)\n"
+-	"func \"\".makechan (elem *uint8, hint int64) chan any\n"
+-	"func \"\".chanrecv1 (hchan <-chan any) any\n"
+-	"func \"\".chanrecv2 (hchan <-chan any) (elem any, received bool)\n"
+-	"func \"\".chansend1 (hchan chan<- any, elem any)\n"
++	"func \"\".makechan (chanType *uint8, hint int64) chan any\n"
++	"func \"\".chanrecv1 (chanType *uint8, hchan <-chan any) any\n"
++	"func \"\".chanrecv2 (chanType *uint8, hchan <-chan any) (elem any, received bool)\n"
++	"func \"\".chansend1 (chanType *uint8, hchan chan<- any, elem any)\n"
+ 	"func \"\".closechan (hchan any)\n"
+-	"func \"\".closedchan (hchan any) bool\n"
+-	"func \"\".selectnbsend (hchan chan<- any, elem any) bool\n"
+-	"func \"\".selectnbrecv (elem *any, hchan <-chan any) bool\n"
+-	"func \"\".selectnbrecv2 (elem *any, received *bool, hchan <-chan any) bool\n"
++	"func \"\".selectnbsend (chanType *uint8, hchan chan<- any, elem any) bool\n"
++	"func \"\".selectnbrecv (chanType *uint8, elem *any, hchan <-chan any) bool\n"
++	"func \"\".selectnbrecv2 (chanType *uint8, elem *any, received *bool, hchan <-chan any) bool\n"
+ 	"func \"\".newselect (size int) *uint8\n"
+ 	"func \"\".selectsend (sel *uint8, hchan chan<- any, elem *any) bool\n"
+ 	"func \"\".selectrecv (sel *uint8, hchan <-chan any, elem *any) bool\n"
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 64098ab137..549f7abe38 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -91,16 +91,15 @@ func mapiter1(hiter *any) (key any)
+ func mapiter2(hiter *any) (key any, val any)
+ 
+ // *byte is really *runtime.Type
+-func makechan(elem *byte, hint int64) (hchan chan any)
+-func chanrecv1(hchan <-chan any) (elem any)
+-func chanrecv2(hchan <-chan any) (elem any, received bool)
+-func chansend1(hchan chan<- any, elem any)
++func makechan(chanType *byte, hint int64) (hchan chan any)
++func chanrecv1(chanType *byte, hchan <-chan any) (elem any)
++func chanrecv2(chanType *byte, hchan <-chan any) (elem any, received bool)
++func chansend1(chanType *byte, hchan chan<- any, elem any)
+ func closechan(hchan any)
+-func closedchan(hchan any) bool
+ 
+-func selectnbsend(hchan chan<- any, elem any) bool
+-func selectnbrecv(elem *any, hchan <-chan any) bool
+-func selectnbrecv2(elem *any, received *bool, hchan <-chan any) bool
++func selectnbsend(chanType *byte, hchan chan<- any, elem any) bool
++func selectnbrecv(chanType *byte, elem *any, hchan <-chan any) bool
++func selectnbrecv2(chanType *byte, elem *any, received *bool, hchan <-chan any) bool
+ 
+ func newselect(size int) (sel *byte)
+ func selectsend(sel *byte, hchan chan<- any, elem *any) (selected bool)
+diff --git a/src/cmd/gc/select.c b/src/cmd/gc/select.c
+index 8395dda319..909ad3aa4b 100644
+--- a/src/cmd/gc/select.c
++++ b/src/cmd/gc/select.c
+@@ -250,9 +250,8 @@ walkselect(Node *sel)
+ 		case OSEND:
+ 			// if c != nil && selectnbsend(c, v) { body } else { default body }
+ 			ch = cheapexpr(n->left, &r->ninit);
+-			r->ntest = nod(OANDAND, nod(ONE, ch, nodnil()),
+-				mkcall1(chanfn("selectnbsend", 2, ch->type),
+-					types[TBOOL], &r->ninit, ch, n->right));
++			r->ntest = mkcall1(chanfn("selectnbsend", 2, ch->type),
++					types[TBOOL], &r->ninit, typename(ch->type), ch, n->right);
+ 			break;
+ 			
+ 		case OSELRECV:
+@@ -260,9 +259,8 @@ walkselect(Node *sel)
+ 			r = nod(OIF, N, N);
+ 			r->ninit = cas->ninit;
+ 			ch = cheapexpr(n->right->left, &r->ninit);
+-			r->ntest = nod(OANDAND, nod(ONE, ch, nodnil()),
+-				mkcall1(chanfn("selectnbrecv", 2, ch->type),
+-					types[TBOOL], &r->ninit, n->left, ch));
++			r->ntest = mkcall1(chanfn("selectnbrecv", 2, ch->type),
++					types[TBOOL], &r->ninit, typename(ch->type), n->left, ch);
+ 			break;
+ 
+ 		case OSELRECV2:
+@@ -270,9 +268,8 @@ walkselect(Node *sel)
+ 			r = nod(OIF, N, N);
+ 			r->ninit = cas->ninit;
+ 			ch = cheapexpr(n->right->left, &r->ninit);
+-			r->ntest = nod(OANDAND, nod(ONE, ch, nodnil()),
+-				mkcall1(chanfn("selectnbrecv2", 2, ch->type),
+-					types[TBOOL], &r->ninit, n->left, n->ntest, ch));
++			r->ntest = mkcall1(chanfn("selectnbrecv2", 2, ch->type),
++					types[TBOOL], &r->ninit, typename(ch->type), n->left, n->ntest, ch);
+ 			break;
+ 		}
+ 		typecheck(&r->ntest, Erv);
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 7a39db2d80..9cd4ee919c 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -591,7 +591,7 @@ walkexpr(Node **np, NodeList **init)
+ 		walkexprlistsafe(n->list, init);
+ 		walkexpr(&r->left, init);
+ 		fn = chanfn("chanrecv2", 2, r->left->type);
+-		r = mkcall1(fn, getoutargx(fn->type), init, r->left);
++		r = mkcall1(fn, getoutargx(fn->type), init, typename(r->left->type), r->left);
+ 		n->rlist->n = r;
+ 		n->op = OAS2FUNC;
+ 		goto as2func;
+@@ -858,7 +858,7 @@ walkexpr(Node **np, NodeList **init)
+ 	case ORECV:
+ 		walkexpr(&n->left, init);
+ 		walkexpr(&n->right, init);
+-		n = mkcall1(chanfn("chanrecv1", 2, n->left->type), n->type, init, n->left);
++		n = mkcall1(chanfn("chanrecv1", 2, n->left->type), n->type, init, typename(n->left->type), n->left);
+ 		goto ret;
+ 
+ 	case OSLICE:
+@@ -1078,7 +1078,7 @@ walkexpr(Node **np, NodeList **init)
+ 
+ 	case OMAKECHAN:
+ 		n = mkcall1(chanfn("makechan", 1, n->type), n->type, init,
+-			typename(n->type->type),
++			typename(n->type),
+ 			conv(n->left, types[TINT64]));
+ 		goto ret;
+ 
+@@ -1163,7 +1163,7 @@ walkexpr(Node **np, NodeList **init)
+ 		goto ret;
+ 
+ 	case OSEND:
+-		n = mkcall1(chanfn("chansend1", 2, n->left->type), T, init, n->left, n->right);
++		n = mkcall1(chanfn("chansend1", 2, n->left->type), T, init, typename(n->left->type), n->left, n->right);
+ 		goto ret;
+ 
+ 	case OCLOSURE:
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index e40b434910..d3c510ac2d 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -1162,7 +1162,7 @@ func (iv internalValue) recv(nb bool) (val Value, ok bool) {
+ 	if ch == 0 {
+ 		panic("recv on nil channel")
+ 	}
+-	valWord, selected, ok := chanrecv(ch, nb)
++	valWord, selected, ok := chanrecv(iv.typ.runtimeType(), ch, nb)
+ 	if selected {
+ 		val = valueFromIword(0, t.Elem(), valWord)
+ 	}
+@@ -1192,7 +1192,7 @@ func (iv internalValue) send(x Value, nb bool) (selected bool) {
+ 	if ch == 0 {
+ 		panic("send on nil channel")
+ 	}
+-	return chansend(ch, ix.word, nb)
++	return chansend(iv.typ.runtimeType(), ch, ix.word, nb)
+ }
+ 
+ // Set assigns x to the value v.
+@@ -1720,8 +1720,8 @@ func convertForAssignment(what string, addr unsafe.Pointer, dst Type, iv interna
+ func chancap(ch iword) int32
+ func chanclose(ch iword)
+ func chanlen(ch iword) int32
+-func chanrecv(ch iword, nb bool) (val iword, selected, received bool)
+-func chansend(ch iword, val iword, nb bool) bool
++func chanrecv(t *runtime.Type, ch iword, nb bool) (val iword, selected, received bool)
++func chansend(t *runtime.Type, ch iword, val iword, nb bool) bool
+ 
+ func makechan(typ *runtime.Type, size uint32) (ch iword)
+ func makemap(t *runtime.Type) iword
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index ffb32616fd..ef53423538 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -81,10 +81,13 @@ static	void	enqueue(WaitQ*, SudoG*);
+ static	void	destroychan(Hchan*);
+ 
+ Hchan*
+-runtime·makechan_c(Type *elem, int64 hint)
++runtime·makechan_c(ChanType *t, int64 hint)
+ {
+ 	Hchan *c;
+ 	int32 n;
++	Type *elem;
++	
++	elem = t->elem;
+ 
+ 	if(hint < 0 || (int32)hint != hint || (elem->size > 0 && hint > ((uintptr)-1) / elem->size))
+ 		runtime·panicstring("makechan: size out of range");
+@@ -121,7 +124,7 @@ runtime·makechan_c(Type *elem, int64 hint)
+ void
+ reflect·makechan(ChanType *t, uint32 size, Hchan *c)
+ {
+-	c = runtime·makechan_c(t->elem, size);
++	c = runtime·makechan_c(t, size);
+ 	FLUSH(&c);
+ }
+ 
+@@ -132,11 +135,11 @@ destroychan(Hchan *c)
+ }
+ 
+ 
+-// makechan(elem *Type, hint int64) (hchan *chan any);
++// makechan(t *ChanType, hint int64) (hchan *chan any);
+ void
+-runtime·makechan(Type *elem, int64 hint, Hchan *ret)
++runtime·makechan(ChanType *t, int64 hint, Hchan *ret)
+ {
+-	ret = runtime·makechan_c(elem, hint);
++	ret = runtime·makechan_c(t, hint);
+ 	FLUSH(&ret);
+ }
+ 
+@@ -155,14 +158,22 @@ runtime·makechan(Type *elem, int64 hint, Hchan *ret)
+  * the operation; we'll see that it's now closed.
+  */
+ void
+-runtime·chansend(Hchan *c, byte *ep, bool *pres)
++runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres)
+ {
+ 	SudoG *sg;
+ 	SudoG mysg;
+ 	G* gp;
+ 
+-	if(c == nil)
+-		runtime·panicstring("send to nil channel");
++	if(c == nil) {
++		USED(t);
++		if(pres != nil) {
++			*pres = false;
++			return;
++		}
++		g->status = Gwaiting;
++		runtime·gosched();
++		return;  // not reached
++	}
+ 
+ 	if(runtime·gcwaiting)
+ 		runtime·gosched();
+@@ -263,21 +274,29 @@ closed:
+ 
+ 
+ void
+-runtime·chanrecv(Hchan* c, byte *ep, bool *selected, bool *received)
++runtime·chanrecv(ChanType *t, Hchan* c, byte *ep, bool *selected, bool *received)
+ {
+ 	SudoG *sg;
+ 	SudoG mysg;
+ 	G *gp;
+ 
+-	if(c == nil)
+-		runtime·panicstring("receive from nil channel");
+-
+ 	if(runtime·gcwaiting)
+ 		runtime·gosched();
+ 
+ 	if(debug)
+ 		runtime·printf("chanrecv: chan=%p\n", c);
+ 
++	if(c == nil) {
++		USED(t);
++		if(selected != nil) {
++			*selected = false;
++			return;
++		}
++		g->status = Gwaiting;
++		runtime·gosched();
++		return;  // not reached
++	}
++
+ 	runtime·lock(c);
+ 	if(c->dataqsiz > 0)
+ 		goto asynch;
+@@ -385,50 +404,29 @@ closed:
+ // chansend1(hchan *chan any, elem any);
+ #pragma textflag 7
+ void
+-runtime·chansend1(Hchan* c, ...)
++runtime·chansend1(ChanType *t, Hchan* c, ...)
+ {
+-	int32 o;
+-	byte *ae;
+-
+-	if(c == nil)
+-		runtime·panicstring("send to nil channel");
+-
+-	o = runtime·rnd(sizeof(c), c->elemalign);
+-	ae = (byte*)&c + o;
+-	runtime·chansend(c, ae, nil);
++	runtime·chansend(t, c, (byte*)(&c+1), nil);
+ }
+ 
+ // chanrecv1(hchan *chan any) (elem any);
+ #pragma textflag 7
+ void
+-runtime·chanrecv1(Hchan* c, ...)
++runtime·chanrecv1(ChanType *t, Hchan* c, ...)
+ {
+-	int32 o;
+-	byte *ae;
+-
+-	o = runtime·rnd(sizeof(c), Structrnd);
+-	ae = (byte*)&c + o;
+-
+-	runtime·chanrecv(c, ae, nil, nil);
++	runtime·chanrecv(t, c, (byte*)(&c+1), nil, nil);
+ }
+ 
+ // chanrecv2(hchan *chan any) (elem any, received bool);
+ #pragma textflag 7
+ void
+-runtime·chanrecv2(Hchan* c, ...)
++runtime·chanrecv2(ChanType *t, Hchan* c, ...)
+ {
+-	int32 o;
+-	byte *ae, *ac;
+-	
+-	if(c == nil)
+-		runtime·panicstring("receive from nil channel");
+-
+-	o = runtime·rnd(sizeof(c), Structrnd);
+-	ae = (byte*)&c + o;
+-	o += c->elemsize;
+-	ac = (byte*)&c + o;
++	byte *ae, *ap;
+ 
+-	runtime·chanrecv(c, ae, nil, ac);
++	ae = (byte*)(&c+1);
++	ap = ae + t->elem->size;
++	runtime·chanrecv(t, c, ae, nil, ap);
+ }
+ 
+ // func selectnbsend(c chan any, elem any) bool
+@@ -444,7 +442,7 @@ runtime·chanrecv2(Hchan* c, ...)
+ //
+ // as
+ //
+-//	if c != nil && selectnbsend(c, v) {
++//	if selectnbsend(c, v) {
+ //		... foo
+ //	} else {
+ //		... bar
+@@ -452,17 +450,13 @@ runtime·chanrecv2(Hchan* c, ...)
+ //
+ #pragma textflag 7
+ void
+-runtime·selectnbsend(Hchan *c, ...)
++runtime·selectnbsend(ChanType *t, Hchan *c, ...)
+ {
+-	int32 o;
+ 	byte *ae, *ap;
+ 
+-	o = runtime·rnd(sizeof(c), c->elemalign);
+-	ae = (byte*)&c + o;
+-	o = runtime·rnd(o+c->elemsize, Structrnd);
+-	ap = (byte*)&c + o;
+-
+-	runtime·chansend(c, ae, ap);
++	ae = (byte*)(&c + 1);
++	ap = ae + runtime·rnd(t->elem->size, Structrnd);
++	runtime·chansend(t, c, ae, ap);
+ }
+ 
+ // func selectnbrecv(elem *any, c chan any) bool
+@@ -478,7 +472,7 @@ runtime·selectnbsend(Hchan *c, ...)
+ //
+ // as
+ //
+-//	if c != nil && selectnbrecv(&v, c) {
++//	if selectnbrecv(&v, c) {
+ //		... foo
+ //	} else {
+ //		... bar
+@@ -486,9 +480,9 @@ runtime·selectnbsend(Hchan *c, ...)
+ //
+ #pragma textflag 7
+ void
+-runtime·selectnbrecv(byte *v, Hchan *c, bool selected)
++runtime·selectnbrecv(ChanType *t, byte *v, Hchan *c, bool selected)
+ {
+-	runtime·chanrecv(c, v, &selected, nil);
++	runtime·chanrecv(t, c, v, &selected, nil);
+ }	
+ 
+ // func selectnbrecv2(elem *any, ok *bool, c chan any) bool
+@@ -512,9 +506,9 @@ runtime·selectnbrecv(byte *v, Hchan *c, bool selected)
+ //
+ #pragma textflag 7
+ void
+-runtime·selectnbrecv2(byte *v, bool *received, Hchan *c, bool selected)
++runtime·selectnbrecv2(ChanType *t, byte *v, bool *received, Hchan *c, bool selected)
+ {
+-	runtime·chanrecv(c, v, &selected, received);
++	runtime·chanrecv(t, c, v, &selected, received);
+ }	
+ 
+ // For reflect:
+@@ -525,14 +519,11 @@ runtime·selectnbrecv2(byte *v, bool *received, Hchan *c, bool selected)
+ // The "uintptr selected" is really "bool selected" but saying
+ // uintptr gets us the right alignment for the output parameter block.
+ void
+-reflect·chansend(Hchan *c, uintptr val, bool nb, uintptr selected)
++reflect·chansend(ChanType *t, Hchan *c, uintptr val, bool nb, uintptr selected)
+ {
+ 	bool *sp;
+ 	byte *vp;
+ 	
+-	if(c == nil)
+-		runtime·panicstring("send to nil channel");
+-
+ 	if(nb) {
+ 		selected = false;
+ 		sp = (bool*)&selected;
+@@ -541,11 +532,11 @@ reflect·chansend(Hchan *c, uintptr val, bool nb, uintptr selected)
+ 		FLUSH(&selected);
+ 		sp = nil;
+ 	}
+-	if(c->elemsize <= sizeof(val))
++	if(t->elem->size <= sizeof(val))
+ 		vp = (byte*)&val;
+ 	else
+ 		vp = (byte*)val;
+-	runtime·chansend(c, vp, sp);
++	runtime·chansend(t, c, vp, sp);
+ }
+ 
+ // For reflect:
+@@ -553,13 +544,10 @@ reflect·chansend(Hchan *c, uintptr val, bool nb, uintptr selected)
+ // where an iword is the same word an interface value would use:
+ // the actual data if it fits, or else a pointer to the data.
+ void
+-reflect·chanrecv(Hchan *c, bool nb, uintptr val, bool selected, bool received)
++reflect·chanrecv(ChanType *t, Hchan *c, bool nb, uintptr val, bool selected, bool received)
+ {
+ 	byte *vp;
+ 	bool *sp;
+-	
+-	if(c == nil)
+-		runtime·panicstring("receive from nil channel");
+ 
+ 	if(nb) {
+ 		selected = false;
+@@ -571,15 +559,15 @@ reflect·chanrecv(Hchan *c, bool nb, uintptr val, bool selected, bool received)
+ 	}
+ 	received = false;
+ 	FLUSH(&received);
+-	if(c->elemsize <= sizeof(val)) {
++	if(t->elem->size <= sizeof(val)) {
+ 		val = 0;
+ 		vp = (byte*)&val;
+ 	} else {
+-		vp = runtime·mal(c->elemsize);
++		vp = runtime·mal(t->elem->size);
+ 		val = (uintptr)vp;
+ 		FLUSH(&val);
+ 	}
+-	runtime·chanrecv(c, vp, sp, &received);
++	runtime·chanrecv(t, c, vp, sp, &received);
+ }
+ 
+ static void newselect(int32, Select**);
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 9719c30f01..526a320ea6 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -62,6 +62,7 @@ typedef	struct	Iface		Iface;
+ typedef	struct	Itab		Itab;
+ typedef	struct	Eface		Eface;
+ typedef	struct	Type		Type;
++typedef	struct	ChanType		ChanType;
+ typedef	struct	MapType		MapType;
+ typedef	struct	Defer		Defer;
+ typedef	struct	Panic		Panic;
+@@ -624,9 +625,9 @@ bool	runtime·mapiterkey(struct hash_iter*, void*);
+ void	runtime·mapiterkeyvalue(struct hash_iter*, void*, void*);
+ Hmap*	runtime·makemap_c(MapType*, int64);
+ 
+-Hchan*	runtime·makechan_c(Type*, int64);
+-void	runtime·chansend(Hchan*, void*, bool*);
+-void	runtime·chanrecv(Hchan*, void*, bool*, bool*);
++Hchan*	runtime·makechan_c(ChanType*, int64);
++void	runtime·chansend(ChanType*, Hchan*, void*, bool*);
++void	runtime·chanrecv(ChanType*, Hchan*, void*, bool*, bool*);
+ int32	runtime·chanlen(Hchan*);
+ int32	runtime·chancap(Hchan*);
+ 
+diff --git a/src/pkg/runtime/type.h b/src/pkg/runtime/type.h
+index d4067556de..8c80c62d39 100644
+--- a/src/pkg/runtime/type.h
++++ b/src/pkg/runtime/type.h
+@@ -16,7 +16,6 @@ typedef struct UncommonType UncommonType;
+ typedef struct InterfaceType InterfaceType;
+ typedef struct Method Method;
+ typedef struct IMethod IMethod;
+-typedef struct ChanType ChanType;
+ typedef struct SliceType SliceType;
+ typedef struct FuncType FuncType;
+ 
+diff --git a/test/chan/select3.go b/test/chan/select3.go
+index b4e8f8e4bf..d919de3e0d 100644
+--- a/test/chan/select3.go
++++ b/test/chan/select3.go
+@@ -58,15 +58,15 @@ func main() {
+ 	closedch := make(chan int)
+ 	close(closedch)
+ 
+-	// sending/receiving from a nil channel outside a select panics
+-	testPanic(always, func() {
++	// sending/receiving from a nil channel blocks
++	testBlock(always, func() {
+ 		nilch <- 7
+ 	})
+-	testPanic(always, func() {
++	testBlock(always, func() {
+ 		<-nilch
+ 	})
+ 
+-	// sending/receiving from a nil channel inside a select never panics
++	// sending/receiving from a nil channel inside a select is never selected
+ 	testPanic(never, func() {
+ 		select {
+ 		case nilch <- 7:

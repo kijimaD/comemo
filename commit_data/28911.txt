@@ -15,7 +15,36 @@ Date:   Fri Jun 17 12:28:31 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/obj/link.go | 3 ++-
  src/cmd/internal/obj/util.go | 3 +++
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 3c66eecbf0..edd45d411d 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -308,7 +308,8 @@ const (
+ 	ABaseMIPS64
+ 	ABaseS390X
+ 
+-	AMask = 1<<12 - 1 // AND with this to use the opcode as an array index.
++	AllowedOpCodes = 1 << 12            // The number of opcodes available for any given architecture.
++	AMask          = AllowedOpCodes - 1 // AND with this to use the opcode as an array index.
+ )
+ 
+ // An LSym is the sort of symbol that is written to an object file.
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index a80af26c07..1572071ed3 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -462,6 +462,9 @@ var aSpace []opSet
+ // RegisterOpcode binds a list of instruction names
+ // to a given instruction number range.
+ func RegisterOpcode(lo As, Anames []string) {
++	if len(Anames) > AllowedOpCodes {
++		panic(fmt.Sprintf("too many instructions, have %d max %d", len(Anames), AllowedOpCodes))
++	}
+ 	aSpace = append(aSpace, opSet{lo, Anames})
+ }
+ 

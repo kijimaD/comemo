@@ -11,6 +11,19 @@ Date:   Mon Oct 22 17:14:36 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/buildtool.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 94b7587026..2058c721c5 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -65,6 +65,7 @@ var bootstrapDirs = []string{
+ 	"cmd/internal/obj/wasm",
+ 	"cmd/internal/src",
+ 	"cmd/internal/sys",
++	"cmd/internal/xcoff",
+ 	"cmd/link",
+ 	"cmd/link/internal/amd64",
+ 	"cmd/link/internal/arm",

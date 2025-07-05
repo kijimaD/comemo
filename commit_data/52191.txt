@@ -20,7 +20,53 @@ Date:   Tue Apr 12 21:22:22 2022 -0700
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Auto-Submit: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/x509/x509.go      |  2 +-
  src/crypto/x509/x509_test.go | 24 ++++++++++++++++++++++++
  2 files changed, 25 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index bcc14a0056..e28e213dc1 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -155,7 +155,7 @@ type tbsCertificate struct {
+ 	PublicKey          publicKeyInfo
+ 	UniqueId           asn1.BitString   `asn1:"optional,tag:1"`
+ 	SubjectUniqueId    asn1.BitString   `asn1:"optional,tag:2"`
+-	Extensions         []pkix.Extension `asn1:"optional,explicit,tag:3"`
++	Extensions         []pkix.Extension `asn1:"omitempty,optional,explicit,tag:3"`
+ }
+ 
+ type dsaAlgorithmParameters struct {
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index d8dde25019..818a9750c3 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -3568,3 +3568,27 @@ func TestRevocationListCheckSignatureFrom(t *testing.T) {
+ 		})
+ 	}
+ }
++
++func TestOmitEmptyExtensions(t *testing.T) {
++	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
++	if err != nil {
++		t.Fatal(err)
++	}
++	tmpl := &Certificate{
++		SerialNumber: big.NewInt(1),
++		Subject: pkix.Name{
++			CommonName: ":)",
++		},
++		NotAfter:  time.Now().Add(time.Hour),
++		NotBefore: time.Now().Add(-time.Hour),
++	}
++	der, err := CreateCertificate(rand.Reader, tmpl, tmpl, k.Public(), k)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	emptyExtSeq := []byte{0xA3, 0x02, 0x30, 0x00}
++	if bytes.Contains(der, emptyExtSeq) {
++		t.Error("DER encoding contains the an empty extensions SEQUENCE")
++	}
++}

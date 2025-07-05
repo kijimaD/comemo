@@ -21,7 +21,7 @@ Date:   Tue Nov 17 21:47:56 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/fmtmap_test.go              |  2 --
  src/cmd/compile/internal/gc/order.go        | 10 ++++-----
  src/cmd/compile/internal/gc/pgen.go         | 16 +++++++--------
@@ -39,3 +39,703 @@ Date:   Tue Nov 17 21:47:56 2020 -0500
  src/cmd/compile/internal/ssa/sizeof_test.go |  2 +-
  src/cmd/compile/internal/ssa/stackalloc.go  |  3 ++-
  16 files changed, 73 insertions(+), 126 deletions(-)
+
+diff --git a/src/cmd/compile/fmtmap_test.go b/src/cmd/compile/fmtmap_test.go
+index 404e89d0f2..432d26a7b8 100644
+--- a/src/cmd/compile/fmtmap_test.go
++++ b/src/cmd/compile/fmtmap_test.go
+@@ -81,7 +81,6 @@ var knownFormats = map[string]string{
+ 	"cmd/compile/internal/gc.initKind %d":             "",
+ 	"cmd/compile/internal/gc.itag %v":                 "",
+ 	"cmd/compile/internal/ir.Class %d":                "",
+-	"cmd/compile/internal/ir.Class %s":                "",
+ 	"cmd/compile/internal/ir.Class %v":                "",
+ 	"cmd/compile/internal/ir.FmtMode %d":              "",
+ 	"cmd/compile/internal/ir.Nodes %#v":               "",
+@@ -92,7 +91,6 @@ var knownFormats = map[string]string{
+ 	"cmd/compile/internal/ir.Op %v":                   "",
+ 	"cmd/compile/internal/ssa.BranchPrediction %d":    "",
+ 	"cmd/compile/internal/ssa.Edge %v":                "",
+-	"cmd/compile/internal/ssa.GCNode %v":              "",
+ 	"cmd/compile/internal/ssa.ID %d":                  "",
+ 	"cmd/compile/internal/ssa.ID %v":                  "",
+ 	"cmd/compile/internal/ssa.LocalSlot %s":           "",
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 25bdbd5a41..3bd49e8094 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -195,7 +195,7 @@ func (o *Order) safeExpr(n *ir.Node) *ir.Node {
+ // because we emit explicit VARKILL instructions marking the end of those
+ // temporaries' lifetimes.
+ func isaddrokay(n *ir.Node) bool {
+-	return islvalue(n) && (n.Op != ir.ONAME || n.Class() == ir.PEXTERN || n.IsAutoTmp())
++	return islvalue(n) && (n.Op != ir.ONAME || n.Class() == ir.PEXTERN || ir.IsAutoTmp(n))
+ }
+ 
+ // addrTemp ensures that n is okay to pass by address to runtime routines.
+@@ -550,10 +550,10 @@ func (o *Order) mapAssign(n *ir.Node) {
+ 		for i, m := range n.List.Slice() {
+ 			switch {
+ 			case m.Op == ir.OINDEXMAP:
+-				if !m.Left.IsAutoTmp() {
++				if !ir.IsAutoTmp(m.Left) {
+ 					m.Left = o.copyExpr(m.Left, m.Left.Type, false)
+ 				}
+-				if !m.Right.IsAutoTmp() {
++				if !ir.IsAutoTmp(m.Right) {
+ 					m.Right = o.copyExpr(m.Right, m.Right.Type, false)
+ 				}
+ 				fallthrough
+@@ -952,11 +952,11 @@ func (o *Order) stmt(n *ir.Node) {
+ 				// r->left is c, r->right is x, both are always evaluated.
+ 				r.Left = o.expr(r.Left, nil)
+ 
+-				if !r.Left.IsAutoTmp() {
++				if !ir.IsAutoTmp(r.Left) {
+ 					r.Left = o.copyExpr(r.Left, r.Left.Type, false)
+ 				}
+ 				r.Right = o.expr(r.Right, nil)
+-				if !r.Right.IsAutoTmp() {
++				if !ir.IsAutoTmp(r.Right) {
+ 					r.Right = o.copyExpr(r.Right, r.Right.Type, false)
+ 				}
+ 			}
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 38f416c1c3..6e7922ca54 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -121,7 +121,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 
+ 	for _, l := range f.RegAlloc {
+ 		if ls, ok := l.(ssa.LocalSlot); ok {
+-			ls.N.(*ir.Node).Name.SetUsed(true)
++			ls.N.Name.SetUsed(true)
+ 		}
+ 	}
+ 
+@@ -517,7 +517,7 @@ func createSimpleVars(fnsym *obj.LSym, apDecls []*ir.Node) ([]*ir.Node, []*dwarf
+ 	var decls []*ir.Node
+ 	selected := make(map[*ir.Node]bool)
+ 	for _, n := range apDecls {
+-		if n.IsAutoTmp() {
++		if ir.IsAutoTmp(n) {
+ 			continue
+ 		}
+ 
+@@ -580,7 +580,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Node) *dwarf.Var {
+ // createComplexVars creates recomposed DWARF vars with location lists,
+ // suitable for describing optimized code.
+ func createComplexVars(fnsym *obj.LSym, fn *ir.Func) ([]*ir.Node, []*dwarf.Var, map[*ir.Node]bool) {
+-	debugInfo := fn.DebugInfo
++	debugInfo := fn.DebugInfo.(*ssa.FuncDebug)
+ 
+ 	// Produce a DWARF variable entry for each user variable.
+ 	var decls []*ir.Node
+@@ -588,10 +588,10 @@ func createComplexVars(fnsym *obj.LSym, fn *ir.Func) ([]*ir.Node, []*dwarf.Var,
+ 	ssaVars := make(map[*ir.Node]bool)
+ 
+ 	for varID, dvar := range debugInfo.Vars {
+-		n := dvar.(*ir.Node)
++		n := dvar
+ 		ssaVars[n] = true
+ 		for _, slot := range debugInfo.VarSlots[varID] {
+-			ssaVars[debugInfo.Slots[slot].N.(*ir.Node)] = true
++			ssaVars[debugInfo.Slots[slot].N] = true
+ 		}
+ 
+ 		if dvar := createComplexVar(fnsym, fn, ssa.VarID(varID)); dvar != nil {
+@@ -727,7 +727,7 @@ func preInliningDcls(fnsym *obj.LSym) []*ir.Node {
+ // stack pointer, suitable for use in a DWARF location entry. This has nothing
+ // to do with its offset in the user variable.
+ func stackOffset(slot ssa.LocalSlot) int32 {
+-	n := slot.N.(*ir.Node)
++	n := slot.N
+ 	var off int64
+ 	switch n.Class() {
+ 	case ir.PAUTO:
+@@ -746,8 +746,8 @@ func stackOffset(slot ssa.LocalSlot) int32 {
+ 
+ // createComplexVar builds a single DWARF variable entry and location list.
+ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID) *dwarf.Var {
+-	debug := fn.DebugInfo
+-	n := debug.Vars[varID].(*ir.Node)
++	debug := fn.DebugInfo.(*ssa.FuncDebug)
++	n := debug.Vars[varID]
+ 
+ 	var abbrev int
+ 	switch n.Class() {
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 658ea28fbe..5cee3fab85 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3080,7 +3080,7 @@ func (s *state) assign(left *ir.Node, right *ssa.Value, deref bool, skip skipMas
+ 	// If this assignment clobbers an entire local variable, then emit
+ 	// OpVarDef so liveness analysis knows the variable is redefined.
+ 	if base := clobberBase(left); base.Op == ir.ONAME && base.Class() != ir.PEXTERN && skip == 0 {
+-		s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, base, s.mem(), !base.IsAutoTmp())
++		s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, base, s.mem(), !ir.IsAutoTmp(base))
+ 	}
+ 
+ 	// Left is not ssa-able. Compute its address.
+@@ -3103,7 +3103,7 @@ func (s *state) assign(left *ir.Node, right *ssa.Value, deref bool, skip skipMas
+ 		return
+ 	}
+ 	// Treat as a store.
+-	s.storeType(t, addr, right, skip, !left.IsAutoTmp())
++	s.storeType(t, addr, right, skip, !ir.IsAutoTmp(left))
+ }
+ 
+ // zeroVal returns the zero value for type t.
+@@ -4860,7 +4860,7 @@ func (s *state) addr(n *ir.Node) *ssa.Value {
+ 			s.Fatalf("addr of undeclared ONAME %v. declared: %v", n, s.decladdrs)
+ 			return nil
+ 		case ir.PAUTO:
+-			return s.newValue2Apos(ssa.OpLocalAddr, t, n, s.sp, s.mem(), !n.IsAutoTmp())
++			return s.newValue2Apos(ssa.OpLocalAddr, t, n, s.sp, s.mem(), !ir.IsAutoTmp(n))
+ 
+ 		case ir.PPARAMOUT: // Same as PAUTO -- cannot generate LEA early.
+ 			// ensure that we reuse symbols for out parameters so
+@@ -6063,7 +6063,7 @@ func (s *state) addNamedValue(n *ir.Node, v *ssa.Value) {
+ 		// Don't track our marker nodes (memVar etc.).
+ 		return
+ 	}
+-	if n.IsAutoTmp() {
++	if ir.IsAutoTmp(n) {
+ 		// Don't track temporary variables.
+ 		return
+ 	}
+@@ -6476,12 +6476,13 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 	}
+ 
+ 	if base.Ctxt.Flag_locationlists {
+-		e.curfn.Func.DebugInfo = ssa.BuildFuncDebug(base.Ctxt, f, base.Debug.LocationLists > 1, stackOffset)
++		debugInfo := ssa.BuildFuncDebug(base.Ctxt, f, base.Debug.LocationLists > 1, stackOffset)
++		e.curfn.Func.DebugInfo = debugInfo
+ 		bstart := s.bstart
+ 		// Note that at this moment, Prog.Pc is a sequence number; it's
+ 		// not a real PC until after assembly, so this mapping has to
+ 		// be done later.
+-		e.curfn.Func.DebugInfo.GetPC = func(b, v ssa.ID) int64 {
++		debugInfo.GetPC = func(b, v ssa.ID) int64 {
+ 			switch v {
+ 			case ssa.BlockStart.ID:
+ 				if b == f.Entry.ID {
+@@ -6820,7 +6821,7 @@ func AutoVar(v *ssa.Value) (*ir.Node, int64) {
+ 	if v.Type.Size() > loc.Type.Size() {
+ 		v.Fatalf("spill/restore type %s doesn't fit in slot type %s", v.Type, loc.Type)
+ 	}
+-	return loc.N.(*ir.Node), loc.Off
++	return loc.N, loc.Off
+ }
+ 
+ func AddrAuto(a *obj.Addr, v *ssa.Value) {
+@@ -6975,7 +6976,7 @@ func (e *ssafn) StringData(s string) *obj.LSym {
+ 	return data
+ }
+ 
+-func (e *ssafn) Auto(pos src.XPos, t *types.Type) ssa.GCNode {
++func (e *ssafn) Auto(pos src.XPos, t *types.Type) *ir.Node {
+ 	n := tempAt(pos, e.curfn, t) // Note: adds new auto to e.curfn.Func.Dcl list
+ 	return n
+ }
+@@ -6990,7 +6991,7 @@ func (e *ssafn) SplitString(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
+ }
+ 
+ func (e *ssafn) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
+-	n := name.N.(*ir.Node)
++	n := name.N
+ 	u := types.Types[types.TUINTPTR]
+ 	t := types.NewPtr(types.Types[types.TUINT8])
+ 	// Split this interface up into two separate variables.
+@@ -7047,7 +7048,7 @@ func (e *ssafn) SplitStruct(name ssa.LocalSlot, i int) ssa.LocalSlot {
+ }
+ 
+ func (e *ssafn) SplitArray(name ssa.LocalSlot) ssa.LocalSlot {
+-	n := name.N.(*ir.Node)
++	n := name.N
+ 	at := name.Type
+ 	if at.NumElem() != 1 {
+ 		e.Fatalf(n.Pos, "bad array size")
+@@ -7062,7 +7063,7 @@ func (e *ssafn) DerefItab(it *obj.LSym, offset int64) *obj.LSym {
+ 
+ // SplitSlot returns a slot representing the data of parent starting at offset.
+ func (e *ssafn) SplitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t *types.Type) ssa.LocalSlot {
+-	node := parent.N.(*ir.Node)
++	node := parent.N
+ 
+ 	if node.Class() != ir.PAUTO || node.Name.Addrtaken() {
+ 		// addressed things and non-autos retain their parents (i.e., cannot truly be split)
+@@ -7070,7 +7071,7 @@ func (e *ssafn) SplitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t
+ 	}
+ 
+ 	s := &types.Sym{Name: node.Sym.Name + suffix, Pkg: ir.LocalPkg}
+-	n := ir.NewNameAt(parent.N.(*ir.Node).Pos, s)
++	n := ir.NewNameAt(parent.N.Pos, s)
+ 	s.Def = ir.AsTypesNode(n)
+ 	ir.AsNode(s.Def).Name.SetUsed(true)
+ 	n.Type = t
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 78fdf100ad..318f315f16 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1960,7 +1960,7 @@ func typecheck1(n *ir.Node, top int) (res *ir.Node) {
+ 		typecheckas(n)
+ 
+ 		// Code that creates temps does not bother to set defn, so do it here.
+-		if n.Left.Op == ir.ONAME && n.Left.IsAutoTmp() {
++		if n.Left.Op == ir.ONAME && ir.IsAutoTmp(n.Left) {
+ 			n.Left.Name.Defn = n
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index e6ed178f49..cac9e6eb3e 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -13,7 +13,6 @@ import (
+ 	"unsafe"
+ 
+ 	"cmd/compile/internal/base"
+-	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+@@ -156,14 +155,14 @@ func (n *Node) SetTChanDir(dir types.ChanDir) {
+ 	n.aux = uint8(dir)
+ }
+ 
+-func (n *Node) IsSynthetic() bool {
++func IsSynthetic(n *Node) bool {
+ 	name := n.Sym.Name
+ 	return name[0] == '.' || name[0] == '~'
+ }
+ 
+ // IsAutoTmp indicates if n was created by the compiler as a temporary,
+ // based on the setting of the .AutoTemp flag in n's Name.
+-func (n *Node) IsAutoTmp() bool {
++func IsAutoTmp(n *Node) bool {
+ 	if n == nil || n.Op != ONAME {
+ 		return false
+ 	}
+@@ -683,7 +682,7 @@ type Func struct {
+ 	Closgen int
+ 
+ 	FieldTrack map[*types.Sym]struct{}
+-	DebugInfo  *ssa.FuncDebug
++	DebugInfo  interface{}
+ 	LSym       *obj.LSym
+ 
+ 	Inl *Inline
+@@ -1550,21 +1549,3 @@ func IsBlank(n *Node) bool {
+ func IsMethod(n *Node) bool {
+ 	return n.Type.Recv() != nil
+ }
+-
+-func (n *Node) Typ() *types.Type {
+-	return n.Type
+-}
+-
+-func (n *Node) StorageClass() ssa.StorageClass {
+-	switch n.Class() {
+-	case PPARAM:
+-		return ssa.ClassParam
+-	case PPARAMOUT:
+-		return ssa.ClassParamOut
+-	case PAUTO:
+-		return ssa.ClassAuto
+-	default:
+-		base.Fatalf("untranslatable storage class for %v: %s", n, n.Class())
+-		return 0
+-	}
+-}
+diff --git a/src/cmd/compile/internal/ir/sizeof_test.go b/src/cmd/compile/internal/ir/sizeof_test.go
+index c5169b9092..1ec89c338d 100644
+--- a/src/cmd/compile/internal/ir/sizeof_test.go
++++ b/src/cmd/compile/internal/ir/sizeof_test.go
+@@ -20,7 +20,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Func{}, 132, 240},
++		{Func{}, 136, 248},
+ 		{Name{}, 32, 56},
+ 		{Param{}, 24, 48},
+ 		{Node{}, 76, 128},
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 0fe0337ddf..62abbdc223 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -5,6 +5,7 @@
+ package ssa
+ 
+ import (
++	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+@@ -138,7 +139,7 @@ type Frontend interface {
+ 
+ 	// Auto returns a Node for an auto variable of the given type.
+ 	// The SSA compiler uses this function to allocate space for spills.
+-	Auto(src.XPos, *types.Type) GCNode
++	Auto(src.XPos, *types.Type) *ir.Node
+ 
+ 	// Given the name for a compound type, returns the name we should use
+ 	// for the parts of that compound type.
+@@ -178,24 +179,6 @@ type Frontend interface {
+ 	MyImportPath() string
+ }
+ 
+-// interface used to hold a *gc.Node (a stack variable).
+-// We'd use *gc.Node directly but that would lead to an import cycle.
+-type GCNode interface {
+-	Typ() *types.Type
+-	String() string
+-	IsSynthetic() bool
+-	IsAutoTmp() bool
+-	StorageClass() StorageClass
+-}
+-
+-type StorageClass uint8
+-
+-const (
+-	ClassAuto     StorageClass = iota // local stack variable
+-	ClassParam                        // argument
+-	ClassParamOut                     // return value
+-)
+-
+ const go116lateCallExpansion = true
+ 
+ // LateCallExpansionEnabledWithin returns true if late call expansion should be tested
+diff --git a/src/cmd/compile/internal/ssa/deadstore.go b/src/cmd/compile/internal/ssa/deadstore.go
+index 0664013b39..0f1cd4bc9f 100644
+--- a/src/cmd/compile/internal/ssa/deadstore.go
++++ b/src/cmd/compile/internal/ssa/deadstore.go
+@@ -5,6 +5,7 @@
+ package ssa
+ 
+ import (
++	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
+ )
+@@ -136,9 +137,9 @@ func dse(f *Func) {
+ // reaches stores then we delete all the stores. The other operations will then
+ // be eliminated by the dead code elimination pass.
+ func elimDeadAutosGeneric(f *Func) {
+-	addr := make(map[*Value]GCNode) // values that the address of the auto reaches
+-	elim := make(map[*Value]GCNode) // values that could be eliminated if the auto is
+-	used := make(map[GCNode]bool)   // used autos that must be kept
++	addr := make(map[*Value]*ir.Node) // values that the address of the auto reaches
++	elim := make(map[*Value]*ir.Node) // values that could be eliminated if the auto is
++	used := make(map[*ir.Node]bool)   // used autos that must be kept
+ 
+ 	// visit the value and report whether any of the maps are updated
+ 	visit := func(v *Value) (changed bool) {
+@@ -146,8 +147,8 @@ func elimDeadAutosGeneric(f *Func) {
+ 		switch v.Op {
+ 		case OpAddr, OpLocalAddr:
+ 			// Propagate the address if it points to an auto.
+-			n, ok := v.Aux.(GCNode)
+-			if !ok || n.StorageClass() != ClassAuto {
++			n, ok := v.Aux.(*ir.Node)
++			if !ok || n.Class() != ir.PAUTO {
+ 				return
+ 			}
+ 			if addr[v] == nil {
+@@ -157,8 +158,8 @@ func elimDeadAutosGeneric(f *Func) {
+ 			return
+ 		case OpVarDef, OpVarKill:
+ 			// v should be eliminated if we eliminate the auto.
+-			n, ok := v.Aux.(GCNode)
+-			if !ok || n.StorageClass() != ClassAuto {
++			n, ok := v.Aux.(*ir.Node)
++			if !ok || n.Class() != ir.PAUTO {
+ 				return
+ 			}
+ 			if elim[v] == nil {
+@@ -173,8 +174,8 @@ func elimDeadAutosGeneric(f *Func) {
+ 			// for open-coded defers from being removed (since they
+ 			// may not be used by the inline code, but will be used by
+ 			// panic processing).
+-			n, ok := v.Aux.(GCNode)
+-			if !ok || n.StorageClass() != ClassAuto {
++			n, ok := v.Aux.(*ir.Node)
++			if !ok || n.Class() != ir.PAUTO {
+ 				return
+ 			}
+ 			if !used[n] {
+@@ -221,7 +222,7 @@ func elimDeadAutosGeneric(f *Func) {
+ 		}
+ 
+ 		// Propagate any auto addresses through v.
+-		node := GCNode(nil)
++		var node *ir.Node
+ 		for _, a := range args {
+ 			if n, ok := addr[a]; ok && !used[n] {
+ 				if node == nil {
+@@ -298,15 +299,15 @@ func elimUnreadAutos(f *Func) {
+ 	// Loop over all ops that affect autos taking note of which
+ 	// autos we need and also stores that we might be able to
+ 	// eliminate.
+-	seen := make(map[GCNode]bool)
++	seen := make(map[*ir.Node]bool)
+ 	var stores []*Value
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+-			n, ok := v.Aux.(GCNode)
++			n, ok := v.Aux.(*ir.Node)
+ 			if !ok {
+ 				continue
+ 			}
+-			if n.StorageClass() != ClassAuto {
++			if n.Class() != ir.PAUTO {
+ 				continue
+ 			}
+ 
+@@ -334,7 +335,7 @@ func elimUnreadAutos(f *Func) {
+ 
+ 	// Eliminate stores to unread autos.
+ 	for _, store := range stores {
+-		n, _ := store.Aux.(GCNode)
++		n, _ := store.Aux.(*ir.Node)
+ 		if seen[n] {
+ 			continue
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/debug.go b/src/cmd/compile/internal/ssa/debug.go
+index 6353f72897..9de5f427c0 100644
+--- a/src/cmd/compile/internal/ssa/debug.go
++++ b/src/cmd/compile/internal/ssa/debug.go
+@@ -5,6 +5,7 @@
+ package ssa
+ 
+ import (
++	"cmd/compile/internal/ir"
+ 	"cmd/internal/dwarf"
+ 	"cmd/internal/obj"
+ 	"encoding/hex"
+@@ -24,7 +25,7 @@ type FuncDebug struct {
+ 	// Slots is all the slots used in the debug info, indexed by their SlotID.
+ 	Slots []LocalSlot
+ 	// The user variables, indexed by VarID.
+-	Vars []GCNode
++	Vars []*ir.Node
+ 	// The slots that make up each variable, indexed by VarID.
+ 	VarSlots [][]SlotID
+ 	// The location list data, indexed by VarID. Must be processed by PutLocationList.
+@@ -165,7 +166,7 @@ func (s *debugState) logf(msg string, args ...interface{}) {
+ type debugState struct {
+ 	// See FuncDebug.
+ 	slots    []LocalSlot
+-	vars     []GCNode
++	vars     []*ir.Node
+ 	varSlots [][]SlotID
+ 	lists    [][]byte
+ 
+@@ -189,7 +190,7 @@ type debugState struct {
+ 	// The pending location list entry for each user variable, indexed by VarID.
+ 	pendingEntries []pendingEntry
+ 
+-	varParts           map[GCNode][]SlotID
++	varParts           map[*ir.Node][]SlotID
+ 	blockDebug         []BlockDebug
+ 	pendingSlotLocs    []VarLoc
+ 	liveSlots          []liveSlot
+@@ -346,7 +347,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset fu
+ 	}
+ 
+ 	if state.varParts == nil {
+-		state.varParts = make(map[GCNode][]SlotID)
++		state.varParts = make(map[*ir.Node][]SlotID)
+ 	} else {
+ 		for n := range state.varParts {
+ 			delete(state.varParts, n)
+@@ -360,7 +361,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset fu
+ 	state.vars = state.vars[:0]
+ 	for i, slot := range f.Names {
+ 		state.slots = append(state.slots, slot)
+-		if slot.N.IsSynthetic() {
++		if ir.IsSynthetic(slot.N) {
+ 			continue
+ 		}
+ 
+@@ -379,8 +380,8 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset fu
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+ 			if v.Op == OpVarDef || v.Op == OpVarKill {
+-				n := v.Aux.(GCNode)
+-				if n.IsSynthetic() {
++				n := v.Aux.(*ir.Node)
++				if ir.IsSynthetic(n) {
+ 					continue
+ 				}
+ 
+@@ -425,7 +426,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset fu
+ 	state.initializeCache(f, len(state.varParts), len(state.slots))
+ 
+ 	for i, slot := range f.Names {
+-		if slot.N.IsSynthetic() {
++		if ir.IsSynthetic(slot.N) {
+ 			continue
+ 		}
+ 		for _, value := range f.NamedValues[slot] {
+@@ -717,8 +718,8 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
+ 
+ 	switch {
+ 	case v.Op == OpVarDef, v.Op == OpVarKill:
+-		n := v.Aux.(GCNode)
+-		if n.IsSynthetic() {
++		n := v.Aux.(*ir.Node)
++		if ir.IsSynthetic(n) {
+ 			break
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index bfe94ff160..3d142a2272 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -5,6 +5,7 @@
+ package ssa
+ 
+ import (
++	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm64"
+@@ -65,36 +66,13 @@ type TestFrontend struct {
+ 	ctxt *obj.Link
+ }
+ 
+-type TestAuto struct {
+-	t *types.Type
+-	s string
+-}
+-
+-func (d *TestAuto) Typ() *types.Type {
+-	return d.t
+-}
+-
+-func (d *TestAuto) String() string {
+-	return d.s
+-}
+-
+-func (d *TestAuto) StorageClass() StorageClass {
+-	return ClassAuto
+-}
+-
+-func (d *TestAuto) IsSynthetic() bool {
+-	return false
+-}
+-
+-func (d *TestAuto) IsAutoTmp() bool {
+-	return true
+-}
+-
+ func (TestFrontend) StringData(s string) *obj.LSym {
+ 	return nil
+ }
+-func (TestFrontend) Auto(pos src.XPos, t *types.Type) GCNode {
+-	return &TestAuto{t: t, s: "aTestAuto"}
++func (TestFrontend) Auto(pos src.XPos, t *types.Type) *ir.Node {
++	n := ir.NewNameAt(pos, &types.Sym{Name: "aFakeAuto"})
++	n.SetClass(ir.PAUTO)
++	return n
+ }
+ func (d TestFrontend) SplitString(s LocalSlot) (LocalSlot, LocalSlot) {
+ 	return LocalSlot{N: s.N, Type: testTypes.BytePtr, Off: s.Off}, LocalSlot{N: s.N, Type: testTypes.Int, Off: s.Off + 8}
+diff --git a/src/cmd/compile/internal/ssa/location.go b/src/cmd/compile/internal/ssa/location.go
+index a333982389..2f456c9f89 100644
+--- a/src/cmd/compile/internal/ssa/location.go
++++ b/src/cmd/compile/internal/ssa/location.go
+@@ -5,6 +5,7 @@
+ package ssa
+ 
+ import (
++	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/types"
+ 	"fmt"
+ )
+@@ -59,7 +60,7 @@ func (r *Register) GCNum() int16 {
+ //                           { N: len, Type: int, Off: 0, SplitOf: parent, SplitOffset: 8}
+ //                           parent = &{N: s, Type: string}
+ type LocalSlot struct {
+-	N    GCNode      // an ONAME *gc.Node representing a stack location.
++	N    *ir.Node    // an ONAME *gc.Node representing a stack location.
+ 	Type *types.Type // type of slot
+ 	Off  int64       // offset of slot in N
+ 
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index d1bad529e7..e0ae0454ef 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -5,6 +5,7 @@
+ package ssa
+ 
+ import (
++	"cmd/compile/internal/ir"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ )
+@@ -235,7 +236,7 @@ func nilcheckelim2(f *Func) {
+ 				continue
+ 			}
+ 			if v.Type.IsMemory() || v.Type.IsTuple() && v.Type.FieldType(1).IsMemory() {
+-				if v.Op == OpVarKill || v.Op == OpVarLive || (v.Op == OpVarDef && !v.Aux.(GCNode).Typ().HasPointers()) {
++				if v.Op == OpVarKill || v.Op == OpVarLive || (v.Op == OpVarDef && !v.Aux.(*ir.Node).Type.HasPointers()) {
+ 					// These ops don't really change memory.
+ 					continue
+ 					// Note: OpVarDef requires that the defined variable not have pointers.
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 4ed884c3e7..9841883939 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -114,6 +114,7 @@
+ package ssa
+ 
+ import (
++	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+@@ -1248,7 +1249,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 					// This forces later liveness analysis to make the
+ 					// value live at this point.
+ 					v.SetArg(0, s.makeSpill(a, b))
+-				} else if _, ok := a.Aux.(GCNode); ok && vi.rematerializeable {
++				} else if _, ok := a.Aux.(*ir.Node); ok && vi.rematerializeable {
+ 					// Rematerializeable value with a gc.Node. This is the address of
+ 					// a stack object (e.g. an LEAQ). Keep the object live.
+ 					// Change it to VarLive, which is what plive expects for locals.
+diff --git a/src/cmd/compile/internal/ssa/sizeof_test.go b/src/cmd/compile/internal/ssa/sizeof_test.go
+index 60ada011e3..a27002ee3a 100644
+--- a/src/cmd/compile/internal/ssa/sizeof_test.go
++++ b/src/cmd/compile/internal/ssa/sizeof_test.go
+@@ -22,7 +22,7 @@ func TestSizeof(t *testing.T) {
+ 	}{
+ 		{Value{}, 72, 112},
+ 		{Block{}, 164, 304},
+-		{LocalSlot{}, 32, 48},
++		{LocalSlot{}, 28, 40},
+ 		{valState{}, 28, 40},
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ssa/stackalloc.go b/src/cmd/compile/internal/ssa/stackalloc.go
+index 406a3c3ea5..eee0a21a66 100644
+--- a/src/cmd/compile/internal/ssa/stackalloc.go
++++ b/src/cmd/compile/internal/ssa/stackalloc.go
+@@ -7,6 +7,7 @@
+ package ssa
+ 
+ import (
++	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
+ 	"fmt"
+@@ -156,7 +157,7 @@ func (s *stackAllocState) stackalloc() {
+ 		if v.Aux == nil {
+ 			f.Fatalf("%s has nil Aux\n", v.LongString())
+ 		}
+-		loc := LocalSlot{N: v.Aux.(GCNode), Type: v.Type, Off: v.AuxInt}
++		loc := LocalSlot{N: v.Aux.(*ir.Node), Type: v.Type, Off: v.AuxInt}
+ 		if f.pass.debug > stackDebug {
+ 			fmt.Printf("stackalloc %s to %s\n", v, loc)
+ 		}

@@ -8,7 +8,49 @@ Date:   Thu Jul 1 14:44:21 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1702050
-
+---
  src/pkg/strconv/itoa.go      | 5 ++++-
  src/pkg/strconv/itoa_test.go | 2 ++
  2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/strconv/itoa.go b/src/pkg/strconv/itoa.go
+index a633560537..a0a7496641 100644
+--- a/src/pkg/strconv/itoa.go
++++ b/src/pkg/strconv/itoa.go
+@@ -6,12 +6,15 @@ package strconv
+ 
+ // Uitob64 returns the string representation of i in the given base.
+ func Uitob64(u uint64, base uint) string {
++	if base < 2 || 36 < base {
++		panic("invalid base " + Uitoa(base))
++	}
+ 	if u == 0 {
+ 		return "0"
+ 	}
+ 
+ 	// Assemble decimal in reverse order.
+-	var buf [32]byte
++	var buf [64]byte
+ 	j := len(buf)
+ 	b := uint64(base)
+ 	for u > 0 {
+diff --git a/src/pkg/strconv/itoa_test.go b/src/pkg/strconv/itoa_test.go
+index e0624b547c..039ef44468 100644
+--- a/src/pkg/strconv/itoa_test.go
++++ b/src/pkg/strconv/itoa_test.go
+@@ -50,6 +50,7 @@ var itob64tests = []itob64Test{
+ 	itob64Test{16, 16, "10"},
+ 	itob64Test{-0x123456789abcdef, 16, "-123456789abcdef"},
+ 	itob64Test{1<<63 - 1, 16, "7fffffffffffffff"},
++	itob64Test{1<<63 - 1, 2, "111111111111111111111111111111111111111111111111111111111111111"},
+ 
+ 	itob64Test{16, 17, "g"},
+ 	itob64Test{25, 25, "10"},
+@@ -135,6 +136,7 @@ var uitob64tests = []uitob64Test{
+ 	uitob64Test{1<<63 + 1, 10, "9223372036854775809"},
+ 	uitob64Test{1<<64 - 2, 10, "18446744073709551614"},
+ 	uitob64Test{1<<64 - 1, 10, "18446744073709551615"},
++	uitob64Test{1<<64 - 1, 2, "1111111111111111111111111111111111111111111111111111111111111111"},
+ }
+ 
+ func TestUitoa(t *testing.T) {

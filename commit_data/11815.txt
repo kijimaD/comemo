@@ -7,6 +7,20 @@ Date:   Sun Feb 12 12:38:51 2012 -0200
     R=golang-dev, n13m3y3r
     CC=golang-dev
     https://golang.org/cl/5649072
-
+---
  src/pkg/net/http/pprof/pprof.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/pprof/pprof.go b/src/pkg/net/http/pprof/pprof.go
+index 5ee9f319e5..ce72aa0c35 100644
+--- a/src/pkg/net/http/pprof/pprof.go
++++ b/src/pkg/net/http/pprof/pprof.go
+@@ -12,7 +12,7 @@
+ // The handled paths all begin with /debug/pprof/.
+ //
+ // To use pprof, link this package into your program:
+-//	import _ "http/pprof"
++//	import _ "net/http/pprof"
+ //
+ // Then use the pprof tool to look at the heap profile:
+ //

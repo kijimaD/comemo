@@ -7,6 +7,20 @@ Date:   Tue Mar 19 14:47:41 2013 -0400
     R=golang-dev, r, rsc
     CC=golang-dev
     https://golang.org/cl/7869043
-
+---
  src/pkg/unicode/letter.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/unicode/letter.go b/src/pkg/unicode/letter.go
+index 8d56363df9..fadaa57d8b 100644
+--- a/src/pkg/unicode/letter.go
++++ b/src/pkg/unicode/letter.go
+@@ -151,7 +151,7 @@ func is32(ranges []Range32, r uint32) bool {
+ 	return false
+ }
+ 
+-// Is tests whether rune is in the specified table of ranges.
++// Is reports whether the rune is in the specified table of ranges.
+ func Is(rangeTab *RangeTable, r rune) bool {
+ 	r16 := rangeTab.R16
+ 	if len(r16) > 0 && r <= rune(r16[len(r16)-1].Hi) {

@@ -12,6 +12,27 @@ Date:   Sun Oct 7 19:32:28 2012 +1100
     R=r, dave
     CC=golang-dev
     https://golang.org/cl/6625058
-
+---
  src/pkg/image/jpeg/reader.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/image/jpeg/reader.go b/src/pkg/image/jpeg/reader.go
+index 263ef45aac..415b093281 100644
+--- a/src/pkg/image/jpeg/reader.go
++++ b/src/pkg/image/jpeg/reader.go
+@@ -92,6 +92,7 @@ type Reader interface {
+ 
+ type decoder struct {
+ 	r             Reader
++	b             bits
+ 	width, height int
+ 	img1          *image.Gray
+ 	img3          *image.YCbCr
+@@ -100,7 +101,6 @@ type decoder struct {
+ 	comp          [nColorComponent]component
+ 	huff          [maxTc + 1][maxTh + 1]huffman
+ 	quant         [maxTq + 1]block // Quantization tables, in zig-zag order.
+-	b             bits
+ 	tmp           [1024]byte
+ }
+ 

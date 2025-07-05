@@ -10,6 +10,59 @@ Date:   Mon Jan 5 13:14:08 2015 -0800
     Change-Id: I95f5a3d967a0b45ec1ebf10067e193f51db84e26
     Reviewed-on: https://go-review.googlesource.com/2283
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/crash_test.go | 27 ++++++++++++++++++++-------
  1 file changed, 20 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 211a0476fd..24fe338b91 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -5,12 +5,14 @@
+ package runtime_test
+ 
+ import (
++	"fmt"
+ 	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
+ 	"strings"
++	"sync"
+ 	"testing"
+ 	"text/template"
+ )
+@@ -78,14 +80,25 @@ func executeTest(t *testing.T, templ string, data interface{}, extra ...string)
+ 	return string(got)
+ }
+ 
++var (
++	staleRuntimeOnce sync.Once // guards init of staleRuntimeErr
++	staleRuntimeErr  error
++)
++
+ func checkStaleRuntime(t *testing.T) {
+-	// 'go run' uses the installed copy of runtime.a, which may be out of date.
+-	out, err := testEnv(exec.Command("go", "list", "-f", "{{.Stale}}", "runtime")).CombinedOutput()
+-	if err != nil {
+-		t.Fatalf("failed to execute 'go list': %v\n%v", err, string(out))
+-	}
+-	if string(out) != "false\n" {
+-		t.Fatalf("Stale runtime.a. Run 'go install runtime'.")
++	staleRuntimeOnce.Do(func() {
++		// 'go run' uses the installed copy of runtime.a, which may be out of date.
++		out, err := testEnv(exec.Command("go", "list", "-f", "{{.Stale}}", "runtime")).CombinedOutput()
++		if err != nil {
++			staleRuntimeErr = fmt.Errorf("failed to execute 'go list': %v\n%v", err, string(out))
++			return
++		}
++		if string(out) != "false\n" {
++			staleRuntimeErr = fmt.Errorf("Stale runtime.a. Run 'go install runtime'.")
++		}
++	})
++	if staleRuntimeErr != nil {
++		t.Fatal(staleRuntimeErr)
+ 	}
+ }
+ 

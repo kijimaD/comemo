@@ -11,6 +11,20 @@ Date:   Fri Jan 25 02:07:03 2019 +0000
     GitHub-Pull-Request: golang/go#29930
     Reviewed-on: https://go-review.googlesource.com/c/159479
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/sort/sort.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/sort/sort.go b/src/sort/sort.go
+index 7282b26ec4..dd5bb3762e 100644
+--- a/src/sort/sort.go
++++ b/src/sort/sort.go
+@@ -131,7 +131,7 @@ func doPivot(data Interface, lo, hi int) (midlo, midhi int) {
+ 		c--
+ 	}
+ 	// If hi-c<3 then there are duplicates (by property of median of nine).
+-	// Let be a bit more conservative, and set border to 5.
++	// Let's be a bit more conservative, and set border to 5.
+ 	protect := hi-c < 5
+ 	if !protect && hi-c < (hi-lo)/4 {
+ 		// Lets test some points for equality to pivot

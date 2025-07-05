@@ -7,7 +7,7 @@ Date:   Fri May 20 11:51:31 2011 -0700
     R=iant
     CC=golang-dev
     https://golang.org/cl/4553051
-
+---
  src/pkg/syscall/syscall_darwin.go       | 5 +++++
  src/pkg/syscall/syscall_freebsd.go      | 5 +++++
  src/pkg/syscall/syscall_linux.go        | 1 -
@@ -20,3 +20,176 @@ Date:   Fri May 20 11:51:31 2011 -0700
  src/pkg/syscall/zsyscall_linux_amd64.go | 9 +++++++++
  src/pkg/syscall/zsyscall_linux_arm.go   | 9 +++++++++
  11 files changed, 50 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/syscall/syscall_darwin.go b/src/pkg/syscall/syscall_darwin.go
+index 30b57cf556..9e153b73d6 100644
+--- a/src/pkg/syscall/syscall_darwin.go
++++ b/src/pkg/syscall/syscall_darwin.go
+@@ -56,6 +56,11 @@ func ParseDirent(buf []byte, max int, names []string) (consumed int, count int,
+ 	return origlen - len(buf), count, names
+ }
+ 
++// TODO
++func Sendfile(outfd int, infd int, offset *int64, count int) (written int, errno int) {
++	return -1, ENOSYS
++}
++
+ /*
+  * Wrapped
+  */
+diff --git a/src/pkg/syscall/syscall_freebsd.go b/src/pkg/syscall/syscall_freebsd.go
+index 242503dd71..a38c8ecd3c 100644
+--- a/src/pkg/syscall/syscall_freebsd.go
++++ b/src/pkg/syscall/syscall_freebsd.go
+@@ -56,6 +56,11 @@ func ParseDirent(buf []byte, max int, names []string) (consumed int, count int,
+ 	return origlen - len(buf), count, names
+ }
+ 
++// TODO
++func Sendfile(outfd int, infd int, offset *int64, count int) (written int, errno int) {
++	return -1, ENOSYS
++}
++
+ /*
+  * Exposed directly
+  */
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index cd040530e7..8e53068b7f 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -957,7 +957,6 @@ func Munmap(b []byte) (errno int) {
+ // Semget
+ // Semop
+ // Semtimedop
+-// Sendfile
+ // SetMempolicy
+ // SetRobustList
+ // SetThreadArea
+diff --git a/src/pkg/syscall/syscall_linux_386.go b/src/pkg/syscall/syscall_linux_386.go
+index 2b6bdebf8e..5195179a2c 100644
+--- a/src/pkg/syscall/syscall_linux_386.go
++++ b/src/pkg/syscall/syscall_linux_386.go
+@@ -41,6 +41,7 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ //sys	Lstat(path string, stat *Stat_t) (errno int) = SYS_LSTAT64
+ //sys	Pread(fd int, p []byte, offset int64) (n int, errno int) = SYS_PREAD64
+ //sys	Pwrite(fd int, p []byte, offset int64) (n int, errno int) = SYS_PWRITE64
++//sys	Sendfile(outfd int, infd int, offset *int64, count int) (written int, errno int) = SYS_SENDFILE64
+ //sys	Setfsgid(gid int) (errno int) = SYS_SETFSGID32
+ //sys	Setfsuid(uid int) (errno int) = SYS_SETFSUID32
+ //sysnb	Setgid(gid int) (errno int) = SYS_SETGID32
+diff --git a/src/pkg/syscall/syscall_linux_amd64.go b/src/pkg/syscall/syscall_linux_amd64.go
+index f2a4acfe9f..db95246682 100644
+--- a/src/pkg/syscall/syscall_linux_amd64.go
++++ b/src/pkg/syscall/syscall_linux_amd64.go
+@@ -22,6 +22,7 @@ package syscall
+ //sys	Pwrite(fd int, p []byte, offset int64) (n int, errno int) = SYS_PWRITE64
+ //sys	Seek(fd int, offset int64, whence int) (off int64, errno int) = SYS_LSEEK
+ //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, errno int)
++//sys	Sendfile(outfd int, infd int, offset *int64, count int) (written int, errno int)
+ //sys	Setfsgid(gid int) (errno int)
+ //sys	Setfsuid(uid int) (errno int)
+ //sysnb	Setgid(gid int) (errno int)
+diff --git a/src/pkg/syscall/syscall_linux_arm.go b/src/pkg/syscall/syscall_linux_arm.go
+index 4587458859..37845301ff 100644
+--- a/src/pkg/syscall/syscall_linux_arm.go
++++ b/src/pkg/syscall/syscall_linux_arm.go
+@@ -92,6 +92,7 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
+ //sys	Lchown(path string, uid int, gid int) (errno int)
+ //sys	Listen(s int, n int) (errno int)
+ //sys	Lstat(path string, stat *Stat_t) (errno int) = SYS_LSTAT64
++//sys	Sendfile(outfd int, infd int, offset *int64, count int) (written int, errno int) = SYS_SENDFILE64
+ //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, errno int) = SYS__NEWSELECT
+ //sys	Setfsgid(gid int) (errno int)
+ //sys	Setfsuid(uid int) (errno int)
+diff --git a/src/pkg/syscall/syscall_plan9.go b/src/pkg/syscall/syscall_plan9.go
+index 831cbddb24..730126f231 100644
+--- a/src/pkg/syscall/syscall_plan9.go
++++ b/src/pkg/syscall/syscall_plan9.go
+@@ -327,6 +327,11 @@ func Getgroups() (gids []int, err Error) {
+ 	return make([]int, 0), nil
+ }
+ 
++// TODO
++func Sendfile(outfd int, infd int, offset *int64, count int) (written int, errno int) {
++	return -1, ENOSYS
++}
++
+ //sys	Dup(oldfd int, newfd int) (fd int, err Error)
+ //sys	Open(path string, mode int) (fd int, err Error)
+ //sys	Create(path string, mode int, perm uint32) (fd int, err Error)
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index ce1be0021c..48b3214753 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -102,6 +102,11 @@ func getSysProcAddr(m uint32, pname string) uintptr {
+ // Implemented in ../runtime/windows/syscall.cgo
+ func NewCallback(fn interface{}) uintptr
+ 
++// TODO
++func Sendfile(outfd int, infd int, offset *int64, count int) (written int, errno int) {
++	return -1, ENOSYS
++}
++
+ // windows api calls
+ 
+ //sys	GetLastError() (lasterrno int)
+diff --git a/src/pkg/syscall/zsyscall_linux_386.go b/src/pkg/syscall/zsyscall_linux_386.go
+index 4f331aa226..8df29f1367 100644
+--- a/src/pkg/syscall/zsyscall_linux_386.go
++++ b/src/pkg/syscall/zsyscall_linux_386.go
+@@ -971,6 +971,15 @@ func Pwrite(fd int, p []byte, offset int64) (n int, errno int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Sendfile(outfd int, infd int, offset *int64, count int) (written int, errno int) {
++	r0, _, e1 := Syscall6(SYS_SENDFILE64, uintptr(outfd), uintptr(infd), uintptr(unsafe.Pointer(offset)), uintptr(count), 0, 0)
++	written = int(r0)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Setfsgid(gid int) (errno int) {
+ 	_, _, e1 := Syscall(SYS_SETFSGID32, uintptr(gid), 0, 0)
+ 	errno = int(e1)
+diff --git a/src/pkg/syscall/zsyscall_linux_amd64.go b/src/pkg/syscall/zsyscall_linux_amd64.go
+index 19501dbfa5..d6e287967b 100644
+--- a/src/pkg/syscall/zsyscall_linux_amd64.go
++++ b/src/pkg/syscall/zsyscall_linux_amd64.go
+@@ -1005,6 +1005,15 @@ func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Sendfile(outfd int, infd int, offset *int64, count int) (written int, errno int) {
++	r0, _, e1 := Syscall6(SYS_SENDFILE, uintptr(outfd), uintptr(infd), uintptr(unsafe.Pointer(offset)), uintptr(count), 0, 0)
++	written = int(r0)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Setfsgid(gid int) (errno int) {
+ 	_, _, e1 := Syscall(SYS_SETFSGID, uintptr(gid), 0, 0)
+ 	errno = int(e1)
+diff --git a/src/pkg/syscall/zsyscall_linux_arm.go b/src/pkg/syscall/zsyscall_linux_arm.go
+index db49b64829..af5f7c50cf 100644
+--- a/src/pkg/syscall/zsyscall_linux_arm.go
++++ b/src/pkg/syscall/zsyscall_linux_arm.go
+@@ -1070,6 +1070,15 @@ func Lstat(path string, stat *Stat_t) (errno int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Sendfile(outfd int, infd int, offset *int64, count int) (written int, errno int) {
++	r0, _, e1 := Syscall6(SYS_SENDFILE64, uintptr(outfd), uintptr(infd), uintptr(unsafe.Pointer(offset)), uintptr(count), 0, 0)
++	written = int(r0)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, errno int) {
+ 	r0, _, e1 := Syscall6(SYS__NEWSELECT, uintptr(nfd), uintptr(unsafe.Pointer(r)), uintptr(unsafe.Pointer(w)), uintptr(unsafe.Pointer(e)), uintptr(unsafe.Pointer(timeout)), 0)
+ 	n = int(r0)

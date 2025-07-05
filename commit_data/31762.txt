@@ -37,6 +37,20 @@ Date:   Tue Nov 29 02:45:11 2016 -0800
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/typecheck.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 0c0782d40f..8299e49a34 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3429,7 +3429,7 @@ func typecheckas2(n *Node) {
+ 	}
+ 
+ mismatch:
+-	yyerror("assignment count mismatch: %d = %d", cl, cr)
++	yyerror("assignment count mismatch: want %d values, got %d", cl, cr)
+ 
+ 	// second half of dance
+ out:

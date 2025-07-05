@@ -12,6 +12,28 @@ Date:   Tue Aug 18 12:01:41 2020 -0400
     Change-Id: I00e6b4ab5349e317c9ad3a503997de85aed49373
     Reviewed-on: https://go-review.googlesource.com/c/go/+/249018
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/buildtool.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 40d28b535b..0b50f66c32 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -113,14 +113,15 @@ var ignorePrefixes = []string{
+ 
+ // File suffixes that use build tags introduced since Go 1.4.
+ // These must not be copied into the bootstrap build directory.
++// Also igonore test files.
+ var ignoreSuffixes = []string{
+ 	"_arm64.s",
+-	"_arm64_test.s",
+ 	"_arm64.go",
+ 	"_riscv64.s",
+ 	"_riscv64.go",
+ 	"_wasm.s",
+ 	"_wasm.go",
++	"_test.s",
+ }
+ 
+ func bootstrapBuildTools() {

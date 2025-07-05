@@ -7,6 +7,20 @@ Date:   Wed Feb 25 10:57:45 2015 -0800
     Change-Id: I42929abe5cefd84a1daf4f36ee1806c490ce16ec
     Reviewed-on: https://go-review.googlesource.com/5960
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  doc/install-source.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/install-source.html b/doc/install-source.html
+index c924caa30d..ea17c8306c 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -144,7 +144,7 @@ To build the Go distribution, run
+ </p>
+ 
+ <pre>
+-$ cd go/src
++$ cd src
+ $ ./all.bash
+ </pre>
+ 

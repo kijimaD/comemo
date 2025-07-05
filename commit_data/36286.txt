@@ -16,10 +16,106 @@ Date:   Fri Jan 26 22:29:55 2018 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/exec/exec.go       |  8 +++++---
  src/os/exec/exec_test.go  | 10 +++++-----
  src/os/exec/lp_plan9.go   |  4 ++--
  src/os/exec/lp_unix.go    |  4 ++--
  src/os/exec/lp_windows.go |  4 ++--
  5 files changed, 16 insertions(+), 14 deletions(-)
+
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index 5ef9540141..41fbf96370 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -34,11 +34,13 @@ import (
+ 	"syscall"
+ )
+ 
+-// Error records the name of a binary that failed to be executed
+-// and the reason it failed.
++// Error is returned by LookPath when it fails to classify a file as an
++// executable.
+ type Error struct {
++	// Name is the file name for which the error occurred.
+ 	Name string
+-	Err  error
++	// Err is the underlying error.
++	Err error
+ }
+ 
+ func (e *Error) Error() string {
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 61ffcafcd5..7bb230806f 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -142,11 +142,11 @@ func TestCatGoodAndBadFile(t *testing.T) {
+ 	}
+ }
+ 
+-func TestNoExistBinary(t *testing.T) {
+-	// Can't run a non-existent binary
+-	err := exec.Command("/no-exist-binary").Run()
++func TestNoExistExecutable(t *testing.T) {
++	// Can't run a non-existent executable
++	err := exec.Command("/no-exist-executable").Run()
+ 	if err == nil {
+-		t.Error("expected error from /no-exist-binary")
++		t.Error("expected error from /no-exist-executable")
+ 	}
+ }
+ 
+@@ -334,7 +334,7 @@ func TestPipeLookPathLeak(t *testing.T) {
+ 	}
+ 
+ 	for i := 0; i < 6; i++ {
+-		cmd := exec.Command("something-that-does-not-exist-binary")
++		cmd := exec.Command("something-that-does-not-exist-executable")
+ 		cmd.StdoutPipe()
+ 		cmd.StderrPipe()
+ 		cmd.StdinPipe()
+diff --git a/src/os/exec/lp_plan9.go b/src/os/exec/lp_plan9.go
+index 142f87ed32..5860cbca4d 100644
+--- a/src/os/exec/lp_plan9.go
++++ b/src/os/exec/lp_plan9.go
+@@ -25,8 +25,8 @@ func findExecutable(file string) error {
+ 	return os.ErrPermission
+ }
+ 
+-// LookPath searches for an executable binary named file
+-// in the directories named by the path environment variable.
++// LookPath searches for an executable named file in the
++// directories named by the path environment variable.
+ // If file begins with "/", "#", "./", or "../", it is tried
+ // directly and the path is not consulted.
+ // The result may be an absolute path or a path relative to the current directory.
+diff --git a/src/os/exec/lp_unix.go b/src/os/exec/lp_unix.go
+index 7a302752a8..e098ff8e1d 100644
+--- a/src/os/exec/lp_unix.go
++++ b/src/os/exec/lp_unix.go
+@@ -27,8 +27,8 @@ func findExecutable(file string) error {
+ 	return os.ErrPermission
+ }
+ 
+-// LookPath searches for an executable binary named file
+-// in the directories named by the PATH environment variable.
++// LookPath searches for an executable named file in the
++// directories named by the PATH environment variable.
+ // If file contains a slash, it is tried directly and the PATH is not consulted.
+ // The result may be an absolute path or a path relative to the current directory.
+ func LookPath(file string) (string, error) {
+diff --git a/src/os/exec/lp_windows.go b/src/os/exec/lp_windows.go
+index 793d4d98b3..9ea3d76575 100644
+--- a/src/os/exec/lp_windows.go
++++ b/src/os/exec/lp_windows.go
+@@ -50,8 +50,8 @@ func findExecutable(file string, exts []string) (string, error) {
+ 	return "", os.ErrNotExist
+ }
+ 
+-// LookPath searches for an executable binary named file
+-// in the directories named by the PATH environment variable.
++// LookPath searches for an executable named file in the
++// directories named by the PATH environment variable.
+ // If file contains a slash, it is tried directly and the PATH is not consulted.
+ // LookPath also uses PATHEXT environment variable to match
+ // a suitable candidate.

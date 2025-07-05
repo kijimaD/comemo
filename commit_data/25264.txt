@@ -9,10 +9,112 @@ Date:   Fri Oct 16 20:19:14 2015 +1300
     Reviewed-by: Minux Ma <minux@golang.org>
     Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/debug/stubs.go |  8 +++-----
  src/runtime/debug/stubs.s  | 30 ------------------------------
  src/runtime/mgc.go         |  1 +
  src/runtime/proc1.go       |  1 +
  src/runtime/rdebug.go      |  4 ++++
  5 files changed, 9 insertions(+), 35 deletions(-)
+
+diff --git a/src/runtime/debug/stubs.go b/src/runtime/debug/stubs.go
+index 95b33e4da6..6c87ffdafe 100644
+--- a/src/runtime/debug/stubs.go
++++ b/src/runtime/debug/stubs.go
+@@ -8,12 +8,10 @@ import (
+ 	"time"
+ )
+ 
+-// Uses assembly to call corresponding runtime-internal functions.
++// Implemented in package runtime.
++func readGCStats(*[]time.Duration)
++func freeOSMemory()
+ func setMaxStack(int) int
+ func setGCPercent(int32) int32
+ func setPanicOnFault(bool) bool
+ func setMaxThreads(int) int
+-
+-// Implemented in package runtime.
+-func readGCStats(*[]time.Duration)
+-func freeOSMemory()
+diff --git a/src/runtime/debug/stubs.s b/src/runtime/debug/stubs.s
+deleted file mode 100644
+index 9dc8e54664..0000000000
+--- a/src/runtime/debug/stubs.s
++++ /dev/null
+@@ -1,30 +0,0 @@
+-// Copyright 2014 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-#ifdef GOARCH_arm
+-#define JMP B
+-#endif
+-#ifdef GOARCH_arm64
+-#define JMP B
+-#endif
+-#ifdef GOARCH_ppc64
+-#define JMP BR
+-#endif
+-#ifdef GOARCH_ppc64le
+-#define JMP BR
+-#endif
+-
+-TEXT ·setMaxStack(SB),NOSPLIT,$0-0
+-  JMP runtime·setMaxStack(SB)
+-
+-TEXT ·setGCPercent(SB),NOSPLIT,$0-0
+-  JMP runtime·setGCPercent(SB)
+-
+-TEXT ·setPanicOnFault(SB),NOSPLIT,$0-0
+-  JMP runtime·setPanicOnFault(SB)
+-
+-TEXT ·setMaxThreads(SB),NOSPLIT,$0-0
+-  JMP runtime·setMaxThreads(SB)
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 086fc957f0..f57e16cdeb 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -196,6 +196,7 @@ func gcenable() {
+ 	memstats.enablegc = true // now that runtime is initialized, GC is okay
+ }
+ 
++//go:linkname setGCPercent runtime/debug.setGCPercent
+ func setGCPercent(in int32) (out int32) {
+ 	lock(&mheap_.lock)
+ 	out = gcpercent
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index ec60f8c0d0..614de5110c 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -3645,6 +3645,7 @@ func testSchedLocalQueueSteal() {
+ 	}
+ }
+ 
++//go:linkname setMaxThreads runtime/debug.setMaxThreads
+ func setMaxThreads(in int) (out int) {
+ 	lock(&sched.lock)
+ 	out = int(sched.maxmcount)
+diff --git a/src/runtime/rdebug.go b/src/runtime/rdebug.go
+index f2766d7937..ad7b976989 100644
+--- a/src/runtime/rdebug.go
++++ b/src/runtime/rdebug.go
+@@ -4,12 +4,16 @@
+ 
+ package runtime
+ 
++import _ "unsafe" // for go:linkname
++
++//go:linkname setMaxStack runtime/debug.setMaxStack
+ func setMaxStack(in int) (out int) {
+ 	out = int(maxstacksize)
+ 	maxstacksize = uintptr(in)
+ 	return out
+ }
+ 
++//go:linkname setPanicOnFault runtime/debug.setPanicOnFault
+ func setPanicOnFault(new bool) (old bool) {
+ 	mp := acquirem()
+ 	old = mp.curg.paniconfault

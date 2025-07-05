@@ -13,8 +13,58 @@ Date:   Thu Nov 14 11:10:47 2019 -0500
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  test/fixedbugs/issue35586.dir/a.go |  9 +++++++++
  test/fixedbugs/issue35586.dir/b.go | 11 +++++++++++
  test/fixedbugs/issue35586.go       | 11 +++++++++++
  3 files changed, 31 insertions(+)
+
+diff --git a/test/fixedbugs/issue35586.dir/a.go b/test/fixedbugs/issue35586.dir/a.go
+new file mode 100644
+index 0000000000..f509b25473
+--- /dev/null
++++ b/test/fixedbugs/issue35586.dir/a.go
+@@ -0,0 +1,9 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++func D(_ string, _ int) (uint64, string) {
++	return 101, "bad"
++}
+diff --git a/test/fixedbugs/issue35586.dir/b.go b/test/fixedbugs/issue35586.dir/b.go
+new file mode 100644
+index 0000000000..e8b674fe30
+--- /dev/null
++++ b/test/fixedbugs/issue35586.dir/b.go
+@@ -0,0 +1,11 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "a"
++
++func F(addr string) (uint64, string) {
++	return a.D(addr, 32)
++}
+diff --git a/test/fixedbugs/issue35586.go b/test/fixedbugs/issue35586.go
+new file mode 100644
+index 0000000000..0d522b1714
+--- /dev/null
++++ b/test/fixedbugs/issue35586.go
+@@ -0,0 +1,11 @@
++// compiledir
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 35586: gollvm compiler crash building docker-ce; the problem
++// involves inlining a function that has multiple no-name ("_") parameters.
++//
++
++package ignored

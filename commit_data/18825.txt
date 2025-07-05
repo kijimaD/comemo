@@ -9,6 +9,20 @@ Date:   Tue Mar 11 13:06:01 2014 -0400
     R=agl
     CC=golang-codereviews
     https://golang.org/cl/74090043
-
+---
  src/pkg/crypto/rsa/rsa.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/rsa/rsa.go b/src/pkg/crypto/rsa/rsa.go
+index c8f1febe64..bce6ba4eba 100644
+--- a/src/pkg/crypto/rsa/rsa.go
++++ b/src/pkg/crypto/rsa/rsa.go
+@@ -60,7 +60,7 @@ type PrivateKey struct {
+ 
+ type PrecomputedValues struct {
+ 	Dp, Dq *big.Int // D mod (P-1) (or mod Q-1)
+-	Qinv   *big.Int // Q^-1 mod Q
++	Qinv   *big.Int // Q^-1 mod P
+ 
+ 	// CRTValues is used for the 3rd and subsequent primes. Due to a
+ 	// historical accident, the CRT for the first two primes is handled

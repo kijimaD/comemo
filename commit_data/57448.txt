@@ -18,10 +18,107 @@ Date:   Thu Aug 3 14:44:01 2023 +0800
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Joel Sing <joel@sing.id.au>
-
+---
  src/cmd/asm/internal/asm/testdata/mips.s   | 4 ++++
  src/cmd/asm/internal/asm/testdata/mips64.s | 4 ++++
  src/cmd/internal/obj/mips/a.out.go         | 2 ++
  src/cmd/internal/obj/mips/anames.go        | 2 ++
  src/cmd/internal/obj/mips/asm0.go          | 9 ++++++++-
  5 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/mips.s b/src/cmd/asm/internal/asm/testdata/mips.s
+index 1ded0b072d..f65eba07ba 100644
+--- a/src/cmd/asm/internal/asm/testdata/mips.s
++++ b/src/cmd/asm/internal/asm/testdata/mips.s
+@@ -428,8 +428,12 @@ label4:
+ 	NEGW	R1, R2 // 00011023
+ 	CLZ	R1, R2 // 70221020
+ 	CLO	R1, R2 // 70221021
++
+ 	WSBH	R1, R2 // 7c0110a0
+ 
++	SEB	R1, R2 // 7c011420
++	SEH	R1, R2 // 7c011620
++
+ 	// to (Hi, Lo)
+ 	MADD	R2, R1 // 70220000
+ 	MSUB	R2, R1 // 70220004
+diff --git a/src/cmd/asm/internal/asm/testdata/mips64.s b/src/cmd/asm/internal/asm/testdata/mips64.s
+index 573e3d31a6..ea4bb80aec 100644
+--- a/src/cmd/asm/internal/asm/testdata/mips64.s
++++ b/src/cmd/asm/internal/asm/testdata/mips64.s
+@@ -590,10 +590,14 @@ label4:
+ 	// unary operation
+ 	NEGW	R1, R2 // 00011023
+ 	NEGV	R1, R2 // 0001102f
++
+ 	WSBH	R1, R2 // 7c0110a0
+ 	DSBH	R1, R2 // 7c0110a4
+ 	DSHD	R1, R2 // 7c011164
+ 
++	SEB	R1, R2 // 7c011420
++	SEH	R1, R2 // 7c011620
++
+ 	RET
+ 
+ // MSA VMOVI
+diff --git a/src/cmd/internal/obj/mips/a.out.go b/src/cmd/internal/obj/mips/a.out.go
+index c7884a3a3e..cd6131332a 100644
+--- a/src/cmd/internal/obj/mips/a.out.go
++++ b/src/cmd/internal/obj/mips/a.out.go
+@@ -394,6 +394,8 @@ const (
+ 	AROTRV
+ 	ASC
+ 	ASCV
++	ASEB
++	ASEH
+ 	ASGT
+ 	ASGTU
+ 	ASLL
+diff --git a/src/cmd/internal/obj/mips/anames.go b/src/cmd/internal/obj/mips/anames.go
+index 90972cff71..d86e37ff83 100644
+--- a/src/cmd/internal/obj/mips/anames.go
++++ b/src/cmd/internal/obj/mips/anames.go
+@@ -82,6 +82,8 @@ var Anames = []string{
+ 	"ROTRV",
+ 	"SC",
+ 	"SCV",
++	"SEB",
++	"SEH",
+ 	"SGT",
+ 	"SGTU",
+ 	"SLL",
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index 3a4dc5d185..f158b6688d 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -1084,7 +1084,6 @@ func buildop(ctxt *obj.Link) {
+ 			ANEGW,
+ 			ANEGV,
+ 			AWORD,
+-			AWSBH,
+ 			obj.ANOP,
+ 			obj.ATEXT,
+ 			obj.AUNDEF,
+@@ -1106,6 +1105,10 @@ func buildop(ctxt *obj.Link) {
+ 		case ATEQ:
+ 			opset(ATNE, r0)
+ 
++		case AWSBH:
++			opset(ASEB, r0)
++			opset(ASEH, r0)
++
+ 		case ADSBH:
+ 			opset(ADSHD, r0)
+ 		}
+@@ -1899,6 +1902,10 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
+ 		return SP(3, 7) | OP(20, 4)
+ 	case ADSHD:
+ 		return SP(3, 7) | OP(44, 4)
++	case ASEB:
++		return SP(3, 7) | OP(132, 0)
++	case ASEH:
++		return SP(3, 7) | OP(196, 0)
+ 	}
+ 
+ 	if a < 0 {

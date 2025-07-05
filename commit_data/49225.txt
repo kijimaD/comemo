@@ -115,3 +115,4 @@ Date:   Fri Jul 30 21:29:29 2021 +0000
  test/fixedbugs/issue47317.dir/x.go                 |  17 ++
  test/fixedbugs/issue47317.go                       |   7 +
  109 files changed, 1332 insertions(+), 440 deletions(-)
+

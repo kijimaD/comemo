@@ -11,6 +11,31 @@ Date:   Thu Apr 27 17:54:49 2017 -0700
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/go_spec.html | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 769231819c..ba5ce894d2 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of April 17, 2017",
++	"Subtitle": "Version of April 28, 2017",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -5965,6 +5965,11 @@ print      prints all arguments; formatting of arguments is implementation-speci
+ println    like print but prints spaces between arguments and a newline at the end
+ </pre>
+ 
++<p>
++Implementation restriction: <code>print</code> and <code>println</code> need not
++accept arbitrary argument types, but printing of boolean, numeric, and string
++<a href="#Types">types</a> must be supported. 
++</p>
+ 
+ <h2 id="Packages">Packages</h2>
+ 

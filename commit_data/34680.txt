@@ -18,7 +18,7 @@ Date:   Sat Sep 9 17:05:41 2017 -0700
     Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/crypto/x509/name_constraints_test.go | 1569 ++++++++++++++++++++++++++++++
  src/crypto/x509/root_windows.go          |    4 +-
  src/crypto/x509/verify.go                |  481 ++++++++-
@@ -27,3 +27,2939 @@ Date:   Sat Sep 9 17:05:41 2017 -0700
  src/crypto/x509/x509_test.go             |  130 ++-
  src/go/build/deps_test.go                |    2 +-
  7 files changed, 2443 insertions(+), 127 deletions(-)
+
+diff --git a/src/crypto/x509/name_constraints_test.go b/src/crypto/x509/name_constraints_test.go
+new file mode 100644
+index 0000000000..84e66be2e5
+--- /dev/null
++++ b/src/crypto/x509/name_constraints_test.go
+@@ -0,0 +1,1569 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package x509
++
++import (
++	"bytes"
++	"crypto/ecdsa"
++	"crypto/elliptic"
++	"crypto/rand"
++	"crypto/x509/pkix"
++	"encoding/pem"
++	"fmt"
++	"io/ioutil"
++	"math/big"
++	"net"
++	"net/url"
++	"os"
++	"os/exec"
++	"strconv"
++	"strings"
++	"sync"
++	"testing"
++	"time"
++)
++
++const (
++	// testNameConstraintsAgainstOpenSSL can be set to true to run tests
++	// against the system OpenSSL. This is disabled by default because Go
++	// cannot depend on having OpenSSL installed at testing time.
++	testNameConstraintsAgainstOpenSSL = false
++
++	// debugOpenSSLFailure can be set to true, when
++	// testNameConstraintsAgainstOpenSSL is also true, to cause
++	// intermediate files to be preserved for debugging.
++	debugOpenSSLFailure = false
++)
++
++type nameConstraintsTest struct {
++	roots         []constraintsSpec
++	intermediates [][]constraintsSpec
++	leaf          []string
++	expectedError string
++	noOpenSSL     bool
++}
++
++type constraintsSpec struct {
++	ok  []string
++	bad []string
++}
++
++var nameConstraintsTests = []nameConstraintsTest{
++	// #0: dummy test for the certificate generation process itself.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{},
++		},
++		leaf: []string{"dns:example.com"},
++	},
++
++	// #1: dummy test for the certificate generation process itself: single
++	// level of intermediate.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf: []string{"dns:example.com"},
++	},
++
++	// #2: dummy test for the certificate generation process itself: two
++	// levels of intermediates.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf: []string{"dns:example.com"},
++	},
++
++	// #3: matching DNS constraint in root
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"dns:example.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf: []string{"dns:example.com"},
++	},
++
++	// #4: matching DNS constraint in intermediate.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{
++					ok: []string{"dns:example.com"},
++				},
++			},
++		},
++		leaf: []string{"dns:example.com"},
++	},
++
++	// #5: .example.com only matches subdomains.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"dns:.example.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf:          []string{"dns:example.com"},
++		expectedError: "\"example.com\" is not permitted",
++	},
++
++	// #6: .example.com matches subdomains.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{
++					ok: []string{"dns:.example.com"},
++				},
++			},
++		},
++		leaf: []string{"dns:foo.example.com"},
++	},
++
++	// #7: .example.com matches multiple levels of subdomains
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"dns:.example.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf: []string{"dns:foo.bar.example.com"},
++	},
++
++	// #8: specifying a permitted list of names does not exclude other name
++	// types
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"dns:.example.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf: []string{"ip:10.1.1.1"},
++	},
++
++	// #9: specifying a permitted list of names does not exclude other name
++	// types
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"ip:10.0.0.0/8"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf: []string{"dns:example.com"},
++	},
++
++	// #10: intermediates can try to permit other names, which isn't
++	// forbidden if the leaf doesn't mention them. I.e. name constraints
++	// apply to names, not constraints themselves.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"dns:example.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{
++					ok: []string{"dns:example.com", "dns:foo.com"},
++				},
++			},
++		},
++		leaf: []string{"dns:example.com"},
++	},
++
++	// #11: intermediates cannot add permitted names that the root doesn't
++	// grant them.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"dns:example.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{
++					ok: []string{"dns:example.com", "dns:foo.com"},
++				},
++			},
++		},
++		leaf:          []string{"dns:foo.com"},
++		expectedError: "\"foo.com\" is not permitted",
++	},
++
++	// #12: intermediates can further limit their scope if they wish.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"dns:.example.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{
++					ok: []string{"dns:.bar.example.com"},
++				},
++			},
++		},
++		leaf: []string{"dns:foo.bar.example.com"},
++	},
++
++	// #13: intermediates can further limit their scope and that limitation
++	// is effective
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"dns:.example.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{
++					ok: []string{"dns:.bar.example.com"},
++				},
++			},
++		},
++		leaf:          []string{"dns:foo.notbar.example.com"},
++		expectedError: "\"foo.notbar.example.com\" is not permitted",
++	},
++
++	// #14: roots can exclude subtrees and that doesn't affect other names.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				bad: []string{"dns:.example.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf: []string{"dns:foo.com"},
++	},
++
++	// #15: roots exclusions are effective.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				bad: []string{"dns:.example.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf:          []string{"dns:foo.example.com"},
++		expectedError: "\"foo.example.com\" is excluded",
++	},
++
++	// #16: intermediates can also exclude names and that doesn't affect
++	// other names.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{
++					bad: []string{"dns:.example.com"},
++				},
++			},
++		},
++		leaf: []string{"dns:foo.com"},
++	},
++
++	// #17: intermediate exclusions are effective.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{
++					bad: []string{"dns:.example.com"},
++				},
++			},
++		},
++		leaf:          []string{"dns:foo.example.com"},
++		expectedError: "\"foo.example.com\" is excluded",
++	},
++
++	// #18: having an exclusion doesn't prohibit other types of names.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				bad: []string{"dns:.example.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf: []string{"dns:foo.com", "ip:10.1.1.1"},
++	},
++
++	// #19: IP-based exclusions are permitted and don't affect unrelated IP
++	// addresses.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				bad: []string{"ip:10.0.0.0/8"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf: []string{"ip:192.168.1.1"},
++	},
++
++	// #20: IP-based exclusions are effective
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				bad: []string{"ip:10.0.0.0/8"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf:          []string{"ip:10.0.0.1"},
++		expectedError: "\"10.0.0.1\" is excluded",
++	},
++
++	// #21: intermediates can further constrain IP ranges.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				bad: []string{"ip:0.0.0.0/1"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{
++					bad: []string{"ip:11.0.0.0/8"},
++				},
++			},
++		},
++		leaf:          []string{"ip:11.0.0.1"},
++		expectedError: "\"11.0.0.1\" is excluded",
++	},
++
++	// #22: when multiple intermediates are present, chain building can
++	// avoid intermediates with incompatible constraints.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{
++					ok: []string{"dns:.foo.com"},
++				},
++				constraintsSpec{
++					ok: []string{"dns:.example.com"},
++				},
++			},
++		},
++		leaf:      []string{"dns:foo.example.com"},
++		noOpenSSL: true, // OpenSSL's chain building is not informed by constraints.
++	},
++
++	// #23: (same as the previous test, but in the other order in ensure
++	// that we don't pass it by luck.)
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{
++					ok: []string{"dns:.example.com"},
++				},
++				constraintsSpec{
++					ok: []string{"dns:.foo.com"},
++				},
++			},
++		},
++		leaf:      []string{"dns:foo.example.com"},
++		noOpenSSL: true, // OpenSSL's chain building is not informed by constraints.
++	},
++
++	// #24: when multiple roots are valid, chain building can avoid roots
++	// with incompatible constraints.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{},
++			constraintsSpec{
++				ok: []string{"dns:foo.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf:      []string{"dns:example.com"},
++		noOpenSSL: true, // OpenSSL's chain building is not informed by constraints.
++	},
++
++	// #25: (same as the previous test, but in the other order in ensure
++	// that we don't pass it by luck.)
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"dns:foo.com"},
++			},
++			constraintsSpec{},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf:      []string{"dns:example.com"},
++		noOpenSSL: true, // OpenSSL's chain building is not informed by constraints.
++	},
++
++	// #26: chain building can find a valid path even with multiple levels
++	// of alternative intermediates and alternative roots.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"dns:foo.com"},
++			},
++			constraintsSpec{
++				ok: []string{"dns:example.com"},
++			},
++			constraintsSpec{},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++				constraintsSpec{
++					ok: []string{"dns:foo.com"},
++				},
++			},
++			[]constraintsSpec{
++				constraintsSpec{},
++				constraintsSpec{
++					ok: []string{"dns:foo.com"},
++				},
++			},
++		},
++		leaf:      []string{"dns:bar.com"},
++		noOpenSSL: true, // OpenSSL's chain building is not informed by constraints.
++	},
++
++	// #27: chain building doesn't get stuck when there is no valid path.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"dns:foo.com"},
++			},
++			constraintsSpec{
++				ok: []string{"dns:example.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++				constraintsSpec{
++					ok: []string{"dns:foo.com"},
++				},
++			},
++			[]constraintsSpec{
++				constraintsSpec{
++					ok: []string{"dns:bar.com"},
++				},
++				constraintsSpec{
++					ok: []string{"dns:foo.com"},
++				},
++			},
++		},
++		leaf:          []string{"dns:bar.com"},
++		expectedError: "\"bar.com\" is not permitted",
++	},
++
++	// #28: unknown name types don't cause a problem without constraints.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf: []string{"unknown:"},
++	},
++
++	// #29: unknown name types are allowed even in constrained chains.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"dns:foo.com", "dns:.foo.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf: []string{"unknown:"},
++	},
++
++	// #30: without SANs, a certificate is rejected in a constrained chain.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"dns:foo.com", "dns:.foo.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf:          []string{},
++		expectedError: "leaf doesn't have a SAN extension",
++		noOpenSSL:     true, // OpenSSL doesn't require SANs in this case.
++	},
++
++	// #31: IPv6 addresses work in constraints: roots can permit them as
++	// expected.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"ip:2000:abcd::/32"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf: []string{"ip:2000:abcd:1234::"},
++	},
++
++	// #32: IPv6 addresses work in constraints: root restrictions are
++	// effective.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"ip:2000:abcd::/32"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf:          []string{"ip:2000:1234:abcd::"},
++		expectedError: "\"2000:1234:abcd::\" is not permitted",
++	},
++
++	// #33: An IPv6 permitted subtree doesn't affect DNS names.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"ip:2000:abcd::/32"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf: []string{"ip:2000:abcd::", "dns:foo.com"},
++	},
++
++	// #34: IPv6 exclusions don't affect unrelated addresses.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				bad: []string{"ip:2000:abcd::/32"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf: []string{"ip:2000:1234::"},
++	},
++
++	// #35: IPv6 exclusions are effective.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				bad: []string{"ip:2000:abcd::/32"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf:          []string{"ip:2000:abcd::"},
++		expectedError: "\"2000:abcd::\" is excluded",
++	},
++
++	// #36: IPv6 constraints do not permit IPv4 addresses.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"ip:2000:abcd::/32"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf:          []string{"ip:10.0.0.1"},
++		expectedError: "\"10.0.0.1\" is not permitted",
++	},
++
++	// #37: IPv4 constraints do not permit IPv6 addresses.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"ip:10.0.0.0/8"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf:          []string{"ip:2000:abcd::"},
++		expectedError: "\"2000:abcd::\" is not permitted",
++	},
++
++	// #38: an exclusion of an unknown type doesn't affect other names.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				bad: []string{"unknown:"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf: []string{"dns:example.com"},
++	},
++
++	// #39: a permitted subtree of an unknown type doesn't affect other
++	// name types.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"unknown:"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf: []string{"dns:example.com"},
++	},
++
++	// #40: exact email constraints work
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"email:foo@example.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf: []string{"email:foo@example.com"},
++	},
++
++	// #41: exact email constraints are effective
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"email:foo@example.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf:          []string{"email:bar@example.com"},
++		expectedError: "\"bar@example.com\" is not permitted",
++	},
++
++	// #42: email canonicalisation works.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"email:foo@example.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf:      []string{"email:\"\\f\\o\\o\"@example.com"},
++		noOpenSSL: true, // OpenSSL doesn't canonicalise email addresses before matching
++	},
++
++	// #43: limiting email addresses to a host works.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"email:example.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf: []string{"email:foo@example.com"},
++	},
++
++	// #44: a leading dot matches hosts one level deep
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"email:.example.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf: []string{"email:foo@sub.example.com"},
++	},
++
++	// #45: a leading dot does not match the host itself
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"email:.example.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf:          []string{"email:foo@example.com"},
++		expectedError: "\"foo@example.com\" is not permitted",
++	},
++
++	// #46: a leading dot also matches two (or more) levels deep.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"email:.example.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf: []string{"email:foo@sub.sub.example.com"},
++	},
++
++	// #47: the local part of an email is case-sensitive
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"email:foo@example.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf:          []string{"email:Foo@example.com"},
++		expectedError: "\"Foo@example.com\" is not permitted",
++	},
++
++	// #48: the domain part of an email is not case-sensitive
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"email:foo@EXAMPLE.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf: []string{"email:foo@example.com"},
++	},
++
++	// #49: the domain part of a DNS constraint is also not case-sensitive.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"dns:EXAMPLE.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf: []string{"dns:example.com"},
++	},
++
++	// #50: URI constraints only cover the host part of the URI
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"uri:example.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf: []string{
++			"uri:http://example.com/bar",
++			"uri:http://example.com:8080/",
++			"uri:https://example.com/wibble#bar",
++		},
++	},
++
++	// #51: URIs with IPs are rejected
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"uri:example.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf:          []string{"uri:http://1.2.3.4/"},
++		expectedError: "URI with IP",
++	},
++
++	// #52: URIs with IPs and ports are rejected
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"uri:example.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf:          []string{"uri:http://1.2.3.4:43/"},
++		expectedError: "URI with IP",
++	},
++
++	// #53: URIs with IPv6 addresses are also rejected
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"uri:example.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf:          []string{"uri:http://[2006:abcd::1]/"},
++		expectedError: "URI with IP",
++	},
++
++	// #54: URIs with IPv6 addresses with ports are also rejected
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"uri:example.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf:          []string{"uri:http://[2006:abcd::1]:16/"},
++		expectedError: "URI with IP",
++	},
++
++	// #55: URI constraints are effective
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"uri:example.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf:          []string{"uri:http://bar.com/"},
++		expectedError: "\"http://bar.com/\" is not permitted",
++	},
++
++	// #56: URI constraints are effective
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				bad: []string{"uri:foo.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf:          []string{"uri:http://foo.com/"},
++		expectedError: "\"http://foo.com/\" is excluded",
++	},
++
++	// #57: URI constraints can allow subdomains
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"uri:.foo.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf: []string{"uri:http://www.foo.com/"},
++	},
++
++	// #58: excluding an IPv4-mapped-IPv6 address doesn't affect the IPv4
++	// version of that address.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				bad: []string{"ip:::ffff:1.2.3.4/128"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf: []string{"ip:1.2.3.4"},
++	},
++
++	// #59: a URI constraint isn't matched by a URN.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok: []string{"uri:example.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf:          []string{"uri:urn:example"},
++		expectedError: "URI with empty host",
++	},
++
++	// #60: excluding all IPv6 addresses doesn't exclude all IPv4 addresses
++	// too, even though IPv4 is mapped into the IPv6 range.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ok:  []string{"ip:1.2.3.0/24"},
++				bad: []string{"ip:::0/0"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf: []string{"ip:1.2.3.4"},
++	},
++
++	// TODO(agl): handle empty name constraints. Currently this doesn't
++	// work because empty values are treated as missing.
++}
++
++func makeConstraintsCACert(constraints constraintsSpec, name string, key *ecdsa.PrivateKey, parent *Certificate, parentKey *ecdsa.PrivateKey) (*Certificate, error) {
++	var serialBytes [16]byte
++	rand.Read(serialBytes[:])
++
++	template := &Certificate{
++		SerialNumber: new(big.Int).SetBytes(serialBytes[:]),
++		Subject: pkix.Name{
++			CommonName: name,
++		},
++		NotBefore:             time.Unix(1000, 0),
++		NotAfter:              time.Unix(2000, 0),
++		KeyUsage:              KeyUsageCertSign,
++		BasicConstraintsValid: true,
++		IsCA: true,
++	}
++
++	if err := addConstraintsToTemplate(constraints, template); err != nil {
++		return nil, err
++	}
++
++	if parent == nil {
++		parent = template
++	}
++	derBytes, err := CreateCertificate(rand.Reader, template, parent, &key.PublicKey, parentKey)
++	if err != nil {
++		return nil, err
++	}
++
++	caCert, err := ParseCertificate(derBytes)
++	if err != nil {
++		return nil, err
++	}
++
++	return caCert, nil
++}
++
++func makeConstraintsLeafCert(sans []string, key *ecdsa.PrivateKey, parent *Certificate, parentKey *ecdsa.PrivateKey) (*Certificate, error) {
++	var serialBytes [16]byte
++	rand.Read(serialBytes[:])
++
++	template := &Certificate{
++		SerialNumber: new(big.Int).SetBytes(serialBytes[:]),
++		Subject: pkix.Name{
++			// Don't set a CommonName because OpenSSL (at least) will try to
++			// match it against name constraints.
++			OrganizationalUnit: []string{"Leaf"},
++		},
++		NotBefore:             time.Unix(1000, 0),
++		NotAfter:              time.Unix(2000, 0),
++		KeyUsage:              KeyUsageDigitalSignature,
++		BasicConstraintsValid: true,
++		IsCA: false,
++	}
++
++	for _, name := range sans {
++		switch {
++		case strings.HasPrefix(name, "dns:"):
++			template.DNSNames = append(template.DNSNames, name[4:])
++
++		case strings.HasPrefix(name, "ip:"):
++			ip := net.ParseIP(name[3:])
++			if ip == nil {
++				return nil, fmt.Errorf("cannot parse IP %q", name[3:])
++			}
++			template.IPAddresses = append(template.IPAddresses, ip)
++
++		case strings.HasPrefix(name, "email:"):
++			template.EmailAddresses = append(template.EmailAddresses, name[6:])
++
++		case strings.HasPrefix(name, "uri:"):
++			uri, err := url.Parse(name[4:])
++			if err != nil {
++				return nil, fmt.Errorf("cannot parse URI %q: %s", name[4:], err)
++			}
++			template.URIs = append(template.URIs, uri)
++
++		case strings.HasPrefix(name, "unknown:"):
++			// This is a special case for testing unknown
++			// name types. A custom SAN extension is
++			// injected into the certificate.
++			if len(sans) != 1 {
++				panic("when using unknown name types, it must be the sole name")
++			}
++
++			template.ExtraExtensions = append(template.ExtraExtensions, pkix.Extension{
++				Id: []int{2, 5, 29, 17},
++				Value: []byte{
++					0x30, // SEQUENCE
++					3,    // three bytes
++					9,    // undefined GeneralName type 9
++					1,
++					1,
++				},
++			})
++
++		default:
++			return nil, fmt.Errorf("unknown name type %q", name)
++		}
++	}
++
++	if parent == nil {
++		parent = template
++	}
++
++	derBytes, err := CreateCertificate(rand.Reader, template, parent, &key.PublicKey, parentKey)
++	if err != nil {
++		return nil, err
++	}
++
++	return ParseCertificate(derBytes)
++}
++
++func customConstraintsExtension(typeNum int, constraint []byte, isExcluded bool) pkix.Extension {
++	appendConstraint := func(contents []byte, tag uint8) []byte {
++		contents = append(contents, tag|32 /* constructed */ |0x80 /* context-specific */)
++		contents = append(contents, byte(4+len(constraint)) /* length */)
++		contents = append(contents, 0x30 /* SEQUENCE */)
++		contents = append(contents, byte(2+len(constraint)) /* length */)
++		contents = append(contents, byte(typeNum) /* GeneralName type */)
++		contents = append(contents, byte(len(constraint)))
++		return append(contents, constraint...)
++	}
++
++	var contents []byte
++	if !isExcluded {
++		contents = appendConstraint(contents, 0 /* tag 0 for permitted */)
++	} else {
++		contents = appendConstraint(contents, 1 /* tag 1 for excluded */)
++	}
++
++	var value []byte
++	value = append(value, 0x30 /* SEQUENCE */)
++	value = append(value, byte(len(contents)))
++	value = append(value, contents...)
++
++	return pkix.Extension{
++		Id:    []int{2, 5, 29, 30},
++		Value: value,
++	}
++}
++
++func addConstraintsToTemplate(constraints constraintsSpec, template *Certificate) error {
++	parse := func(constraints []string) (dnsNames []string, ips []*net.IPNet, emailAddrs []string, uriDomains []string, err error) {
++		for _, constraint := range constraints {
++			switch {
++			case strings.HasPrefix(constraint, "dns:"):
++				dnsNames = append(dnsNames, constraint[4:])
++
++			case strings.HasPrefix(constraint, "ip:"):
++				_, ipNet, err := net.ParseCIDR(constraint[3:])
++				if err != nil {
++					return nil, nil, nil, nil, err
++				}
++				ips = append(ips, ipNet)
++
++			case strings.HasPrefix(constraint, "email:"):
++				emailAddrs = append(emailAddrs, constraint[6:])
++
++			case strings.HasPrefix(constraint, "uri:"):
++				uriDomains = append(uriDomains, constraint[4:])
++
++			default:
++				return nil, nil, nil, nil, fmt.Errorf("unknown constraint %q", constraint)
++			}
++		}
++
++		return dnsNames, ips, emailAddrs, uriDomains, err
++	}
++
++	handleSpecialConstraint := func(constraint string, isExcluded bool) bool {
++		switch {
++		case constraint == "unknown:":
++			template.ExtraExtensions = append(template.ExtraExtensions, customConstraintsExtension(9 /* undefined GeneralName type */, []byte{1}, isExcluded))
++
++		default:
++			return false
++		}
++
++		return true
++	}
++
++	if len(constraints.ok) == 1 && len(constraints.bad) == 0 {
++		if handleSpecialConstraint(constraints.ok[0], false) {
++			return nil
++		}
++	}
++
++	if len(constraints.bad) == 1 && len(constraints.ok) == 0 {
++		if handleSpecialConstraint(constraints.bad[0], true) {
++			return nil
++		}
++	}
++
++	var err error
++	template.PermittedDNSDomains, template.PermittedIPRanges, template.PermittedEmailAddresses, template.PermittedURIDomains, err = parse(constraints.ok)
++	if err != nil {
++		return err
++	}
++
++	template.ExcludedDNSDomains, template.ExcludedIPRanges, template.ExcludedEmailAddresses, template.ExcludedURIDomains, err = parse(constraints.bad)
++	if err != nil {
++		return err
++	}
++
++	return nil
++}
++
++func TestNameConstraintCases(t *testing.T) {
++	privateKeys := sync.Pool{
++		New: func() interface{} {
++			priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
++			if err != nil {
++				panic(err)
++			}
++			return priv
++		},
++	}
++
++	for i, test := range nameConstraintsTests {
++		rootPool := NewCertPool()
++		rootKey := privateKeys.Get().(*ecdsa.PrivateKey)
++		rootName := "Root " + strconv.Itoa(i)
++
++		// keys keeps track of all the private keys used in a given
++		// test and puts them back in the privateKeys pool at the end.
++		keys := []*ecdsa.PrivateKey{rootKey}
++
++		// At each level (root, intermediate(s), leaf), parent points to
++		// an example parent certificate and parentKey the key for the
++		// parent level. Since all certificates at a given level have
++		// the same name and public key, any parent certificate is
++		// sufficient to get the correct issuer name and authority
++		// key ID.
++		var parent *Certificate
++		parentKey := rootKey
++
++		for _, root := range test.roots {
++			rootCert, err := makeConstraintsCACert(root, rootName, rootKey, nil, rootKey)
++			if err != nil {
++				t.Fatalf("#%d: failed to create root: %s", i, err)
++			}
++
++			parent = rootCert
++			rootPool.AddCert(rootCert)
++		}
++
++		intermediatePool := NewCertPool()
++
++		for level, intermediates := range test.intermediates {
++			levelKey := privateKeys.Get().(*ecdsa.PrivateKey)
++			keys = append(keys, levelKey)
++			levelName := "Intermediate level " + strconv.Itoa(level)
++			var last *Certificate
++
++			for _, intermediate := range intermediates {
++				caCert, err := makeConstraintsCACert(intermediate, levelName, levelKey, parent, parentKey)
++				if err != nil {
++					t.Fatalf("#%d: failed to create %q: %s", i, levelName, err)
++				}
++
++				last = caCert
++				intermediatePool.AddCert(caCert)
++			}
++
++			parent = last
++			parentKey = levelKey
++		}
++
++		leafKey := privateKeys.Get().(*ecdsa.PrivateKey)
++		keys = append(keys, leafKey)
++
++		leafCert, err := makeConstraintsLeafCert(test.leaf, leafKey, parent, parentKey)
++		if err != nil {
++			t.Fatalf("#%d: cannot create leaf: %s", i, err)
++		}
++
++		if !test.noOpenSSL && testNameConstraintsAgainstOpenSSL {
++			output, err := testChainAgainstOpenSSL(leafCert, intermediatePool, rootPool)
++			if err == nil && len(test.expectedError) > 0 {
++				t.Errorf("#%d: unexpectedly succeeded against OpenSSL", i)
++				if debugOpenSSLFailure {
++					return
++				}
++			}
++
++			if err != nil {
++				if _, ok := err.(*exec.ExitError); !ok {
++					t.Errorf("#%d: OpenSSL failed to run: %s", i, err)
++				} else if len(test.expectedError) == 0 {
++					t.Errorf("#%d: OpenSSL unexpectedly failed: %q", i, output)
++					if debugOpenSSLFailure {
++						return
++					}
++				}
++			}
++		}
++
++		verifyOpts := VerifyOptions{
++			Roots:         rootPool,
++			Intermediates: intermediatePool,
++			CurrentTime:   time.Unix(1500, 0),
++		}
++		_, err = leafCert.Verify(verifyOpts)
++
++		logInfo := true
++		if len(test.expectedError) == 0 {
++			if err != nil {
++				t.Errorf("#%d: unexpected failure: %s", i, err)
++			} else {
++				logInfo = false
++			}
++		} else {
++			if err == nil {
++				t.Errorf("#%d: unexpected success", i)
++			} else if !strings.Contains(err.Error(), test.expectedError) {
++				t.Errorf("#%d: expected error containing %q, but got: %s", i, test.expectedError, err)
++			} else {
++				logInfo = false
++			}
++		}
++
++		if logInfo {
++			certAsPEM := func(cert *Certificate) string {
++				var buf bytes.Buffer
++				pem.Encode(&buf, &pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
++				return string(buf.Bytes())
++			}
++			t.Errorf("#%d: root:\n%s", i, certAsPEM(rootPool.certs[0]))
++			t.Errorf("#%d: leaf:\n%s", i, certAsPEM(leafCert))
++		}
++
++		for _, key := range keys {
++			privateKeys.Put(key)
++		}
++		keys = keys[:0]
++	}
++}
++
++func writePEMsToTempFile(certs []*Certificate) *os.File {
++	file, err := ioutil.TempFile("", "name_constraints_test")
++	if err != nil {
++		panic("cannot create tempfile")
++	}
++
++	pemBlock := &pem.Block{Type: "CERTIFICATE"}
++	for _, cert := range certs {
++		pemBlock.Bytes = cert.Raw
++		pem.Encode(file, pemBlock)
++	}
++
++	return file
++}
++
++func testChainAgainstOpenSSL(leaf *Certificate, intermediates, roots *CertPool) (string, error) {
++	args := []string{"verify", "-no_check_time"}
++
++	rootsFile := writePEMsToTempFile(roots.certs)
++	if debugOpenSSLFailure {
++		println("roots file:", rootsFile.Name())
++	} else {
++		defer os.Remove(rootsFile.Name())
++	}
++	args = append(args, "-CAfile", rootsFile.Name())
++
++	if len(intermediates.certs) > 0 {
++		intermediatesFile := writePEMsToTempFile(intermediates.certs)
++		if debugOpenSSLFailure {
++			println("intermediates file:", intermediatesFile.Name())
++		} else {
++			defer os.Remove(intermediatesFile.Name())
++		}
++		args = append(args, "-untrusted", intermediatesFile.Name())
++	}
++
++	leafFile := writePEMsToTempFile([]*Certificate{leaf})
++	if debugOpenSSLFailure {
++		println("leaf file:", leafFile.Name())
++	} else {
++		defer os.Remove(leafFile.Name())
++	}
++	args = append(args, leafFile.Name())
++
++	var output bytes.Buffer
++	cmd := exec.Command("openssl", args...)
++	cmd.Stdout = &output
++	cmd.Stderr = &output
++
++	err := cmd.Run()
++	return string(output.Bytes()), err
++}
++
++var rfc2821Tests = []struct {
++	in                string
++	localPart, domain string
++}{
++	{"foo@example.com", "foo", "example.com"},
++	{"@example.com", "", ""},
++	{"\"@example.com", "", ""},
++	{"\"\"@example.com", "", "example.com"},
++	{"\"a\"@example.com", "a", "example.com"},
++	{"\"\\a\"@example.com", "a", "example.com"},
++	{"a\"@example.com", "", ""},
++	{"foo..bar@example.com", "", ""},
++	{".foo.bar@example.com", "", ""},
++	{"foo.bar.@example.com", "", ""},
++	{"|{}?'@example.com", "|{}?'", "example.com"},
++
++	// Examples from RFC 3696
++	{"Abc\\@def@example.com", "Abc@def", "example.com"},
++	{"Fred\\ Bloggs@example.com", "Fred Bloggs", "example.com"},
++	{"Joe.\\\\Blow@example.com", "Joe.\\Blow", "example.com"},
++	{"\"Abc@def\"@example.com", "Abc@def", "example.com"},
++	{"\"Fred Bloggs\"@example.com", "Fred Bloggs", "example.com"},
++	{"customer/department=shipping@example.com", "customer/department=shipping", "example.com"},
++	{"$A12345@example.com", "$A12345", "example.com"},
++	{"!def!xyz%abc@example.com", "!def!xyz%abc", "example.com"},
++	{"_somename@example.com", "_somename", "example.com"},
++}
++
++func TestRFC2821Parsing(t *testing.T) {
++	for i, test := range rfc2821Tests {
++		mailbox, ok := parseRFC2821Mailbox(test.in)
++		expectedFailure := len(test.localPart) == 0 && len(test.domain) == 0
++
++		if ok && expectedFailure {
++			t.Errorf("#%d: %q unexpectedly parsed as (%q, %q)", i, test.in, mailbox.local, mailbox.domain)
++			continue
++		}
++
++		if !ok && !expectedFailure {
++			t.Errorf("#%d: unexpected failure for %q", i, test.in)
++			continue
++		}
++
++		if !ok {
++			continue
++		}
++
++		if mailbox.local != test.localPart || mailbox.domain != test.domain {
++			t.Errorf("#%d: %q parsed as (%q, %q), but wanted (%q, %q)", i, test.in, mailbox.local, mailbox.domain, test.localPart, test.domain)
++		}
++	}
++}
++
++func TestBadNamesInConstraints(t *testing.T) {
++	// Bad names in constraints should not parse.
++	badNames := []string{
++		"dns:foo.com.",
++		"email:abc@foo.com.",
++		"email:foo.com.",
++		"uri:example.com.",
++		"uri:1.2.3.4",
++		"uri:ffff::1",
++	}
++
++	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
++	if err != nil {
++		panic(err)
++	}
++
++	for _, badName := range badNames {
++		_, err := makeConstraintsCACert(constraintsSpec{
++			ok: []string{badName},
++		}, "TestAbsoluteNamesInConstraints", priv, nil, priv)
++
++		if err == nil {
++			t.Errorf("bad name %q unexpectedly accepted in name constraint", badName)
++			continue
++		}
++
++		if err != nil {
++			if str := err.Error(); !strings.Contains(str, "failed to parse ") && !strings.Contains(str, "constraint") {
++				t.Errorf("bad name %q triggered unrecognised error: %s", badName, str)
++			}
++		}
++	}
++}
++
++func TestBadNamesInSANs(t *testing.T) {
++	// Bad names in SANs should not parse.
++	badNames := []string{
++		"dns:foo.com.",
++		"email:abc@foo.com.",
++		"email:foo.com.",
++		"uri:https://example.com./dsf",
++	}
++
++	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
++	if err != nil {
++		panic(err)
++	}
++
++	for _, badName := range badNames {
++		_, err := makeConstraintsLeafCert([]string{badName}, priv, nil, priv)
++
++		if err == nil {
++			t.Errorf("bad name %q unexpectedly accepted in SAN", badName)
++			continue
++		}
++
++		if err != nil {
++			if str := err.Error(); !strings.Contains(str, "cannot parse ") {
++				t.Errorf("bad name %q triggered unrecognised error: %s", badName, str)
++			}
++		}
++	}
++}
+diff --git a/src/crypto/x509/root_windows.go b/src/crypto/x509/root_windows.go
+index a936fec7d8..92cc71692d 100644
+--- a/src/crypto/x509/root_windows.go
++++ b/src/crypto/x509/root_windows.go
+@@ -87,7 +87,7 @@ func checkChainTrustStatus(c *Certificate, chainCtx *syscall.CertChainContext) e
+ 		status := chainCtx.TrustStatus.ErrorStatus
+ 		switch status {
+ 		case syscall.CERT_TRUST_IS_NOT_TIME_VALID:
+-			return CertificateInvalidError{c, Expired}
++			return CertificateInvalidError{c, Expired, ""}
+ 		default:
+ 			return UnknownAuthorityError{c, nil, nil}
+ 		}
+@@ -125,7 +125,7 @@ func checkChainSSLServerPolicy(c *Certificate, chainCtx *syscall.CertChainContex
+ 	if status.Error != 0 {
+ 		switch status.Error {
+ 		case syscall.CERT_E_EXPIRED:
+-			return CertificateInvalidError{c, Expired}
++			return CertificateInvalidError{c, Expired, ""}
+ 		case syscall.CERT_E_CN_NO_MATCH:
+ 			return HostnameError{c, opts.DNSName}
+ 		case syscall.CERT_E_UNTRUSTEDROOT:
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index 1193a266a9..bbc4ad8f00 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -9,6 +9,8 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"net"
++	"net/url"
++	"reflect"
+ 	"runtime"
+ 	"strings"
+ 	"time"
+@@ -25,8 +27,8 @@ const (
+ 	// given in the VerifyOptions.
+ 	Expired
+ 	// CANotAuthorizedForThisName results when an intermediate or root
+-	// certificate has a name constraint which doesn't include the name
+-	// being checked.
++	// certificate has a name constraint which doesn't permit a DNS or
++	// other name (including IP address) in the leaf certificate.
+ 	CANotAuthorizedForThisName
+ 	// TooManyIntermediates results when a path length constraint is
+ 	// violated.
+@@ -37,6 +39,20 @@ const (
+ 	// NameMismatch results when the subject name of a parent certificate
+ 	// does not match the issuer name in the child.
+ 	NameMismatch
++	// NameConstraintsWithoutSANs results when a leaf certificate doesn't
++	// contain a Subject Alternative Name extension, but a CA certificate
++	// contains name constraints.
++	NameConstraintsWithoutSANs
++	// UnconstrainedName results when a CA certificate contains permitted
++	// name constraints, but leaf certificate contains a name of an
++	// unsupported or unconstrained type.
++	UnconstrainedName
++	// TooManyConstraints results when the number of comparision operations
++	// needed to check a certificate exceeds the limit set by
++	// VerifyOptions.MaxConstraintComparisions. This limit exists to
++	// prevent pathological certificates can consuming excessive amounts of
++	// CPU time to verify.
++	TooManyConstraints
+ )
+ 
+ // CertificateInvalidError results when an odd error occurs. Users of this
+@@ -44,6 +60,7 @@ const (
+ type CertificateInvalidError struct {
+ 	Cert   *Certificate
+ 	Reason InvalidReason
++	Detail string
+ }
+ 
+ func (e CertificateInvalidError) Error() string {
+@@ -53,13 +70,17 @@ func (e CertificateInvalidError) Error() string {
+ 	case Expired:
+ 		return "x509: certificate has expired or is not yet valid"
+ 	case CANotAuthorizedForThisName:
+-		return "x509: a root or intermediate certificate is not authorized to sign in this domain"
++		return "x509: a root or intermediate certificate is not authorized to sign for this name: " + e.Detail
+ 	case TooManyIntermediates:
+ 		return "x509: too many intermediates for path length constraint"
+ 	case IncompatibleUsage:
+ 		return "x509: certificate specifies an incompatible key usage"
+ 	case NameMismatch:
+ 		return "x509: issuer name does not match subject from issuing certificate"
++	case NameConstraintsWithoutSANs:
++		return "x509: issuer has name constraints but leaf doesn't have a SAN extension"
++	case UnconstrainedName:
++		return "x509: issuer has name constraints but leaf contains unknown or unconstrained name: " + e.Detail
+ 	}
+ 	return "x509: unknown error"
+ }
+@@ -156,6 +177,12 @@ type VerifyOptions struct {
+ 	// constraint down the chain which mirrors Windows CryptoAPI behavior,
+ 	// but not the spec. To accept any key usage, include ExtKeyUsageAny.
+ 	KeyUsages []ExtKeyUsage
++	// MaxConstraintComparisions is the maximum number of comparisons to
++	// perform when checking a given certificate's name constraints. If
++	// zero, a sensible default is used. This limit prevents pathalogical
++	// certificates from consuming excessive amounts of CPU time when
++	// validating.
++	MaxConstraintComparisions int
+ }
+ 
+ const (
+@@ -164,32 +191,354 @@ const (
+ 	rootCertificate
+ )
+ 
+-func matchNameConstraint(domain, constraint string) bool {
++// rfc2821Mailbox represents a “mailbox” (which is an email address to most
++// people) by breaking it into the “local” (i.e. before the '@') and “domain”
++// parts.
++type rfc2821Mailbox struct {
++	local, domain string
++}
++
++// parseRFC2821Mailbox parses an email address into local and domain parts,
++// based on the ABNF for a “Mailbox” from RFC 2821. According to
++// https://tools.ietf.org/html/rfc5280#section-4.2.1.6 that's correct for an
++// rfc822Name from a certificate: “The format of an rfc822Name is a "Mailbox"
++// as defined in https://tools.ietf.org/html/rfc2821#section-4.1.2”.
++func parseRFC2821Mailbox(in string) (mailbox rfc2821Mailbox, ok bool) {
++	if len(in) == 0 {
++		return mailbox, false
++	}
++
++	localPartBytes := make([]byte, 0, len(in)/2)
++
++	if in[0] == '"' {
++		// Quoted-string = DQUOTE *qcontent DQUOTE
++		// non-whitespace-control = %d1-8 / %d11 / %d12 / %d14-31 / %d127
++		// qcontent = qtext / quoted-pair
++		// qtext = non-whitespace-control /
++		//         %d33 / %d35-91 / %d93-126
++		// quoted-pair = ("\" text) / obs-qp
++		// text = %d1-9 / %d11 / %d12 / %d14-127 / obs-text
++		//
++		// (Names beginning with “obs-” are the obsolete syntax from
++		// https://tools.ietf.org/html/rfc2822#section-4. Since it has
++		// been 16 years, we no longer accept that.)
++		in = in[1:]
++	QuotedString:
++		for {
++			if len(in) == 0 {
++				return mailbox, false
++			}
++			c := in[0]
++			in = in[1:]
++
++			switch {
++			case c == '"':
++				break QuotedString
++
++			case c == '\\':
++				// quoted-pair
++				if len(in) == 0 {
++					return mailbox, false
++				}
++				if in[0] == 11 ||
++					in[0] == 12 ||
++					(1 <= in[0] && in[0] <= 9) ||
++					(14 <= in[0] && in[0] <= 127) {
++					localPartBytes = append(localPartBytes, in[0])
++					in = in[1:]
++				} else {
++					return mailbox, false
++				}
++
++			case c == 11 ||
++				c == 12 ||
++				// Space (char 32) is not allowed based on the
++				// BNF, but RFC 3696 gives an example that
++				// assumes that it is. Several “verified”
++				// errata continue to argue about this point.
++				// We choose to accept it.
++				c == 32 ||
++				c == 33 ||
++				c == 127 ||
++				(1 <= c && c <= 8) ||
++				(14 <= c && c <= 31) ||
++				(35 <= c && c <= 91) ||
++				(93 <= c && c <= 126):
++				// qtext
++				localPartBytes = append(localPartBytes, c)
++
++			default:
++				return mailbox, false
++			}
++		}
++	} else {
++		// Atom ("." Atom)*
++	NextChar:
++		for len(in) > 0 {
++			// atext from https://tools.ietf.org/html/rfc2822#section-3.2.4
++			c := in[0]
++
++			switch {
++			case c == '\\':
++				// Examples given in RFC 3696 suggest that
++				// escaped characters can appear outside of a
++				// quoted string. Several “verified” errata
++				// continue to argue the point. We choose to
++				// accept it.
++				in = in[1:]
++				if len(in) == 0 {
++					return mailbox, false
++				}
++				fallthrough
++
++			case ('0' <= c && c <= '9') ||
++				('a' <= c && c <= 'z') ||
++				('A' <= c && c <= 'Z') ||
++				c == '!' || c == '#' || c == '$' || c == '%' ||
++				c == '&' || c == '\'' || c == '*' || c == '+' ||
++				c == '-' || c == '/' || c == '=' || c == '?' ||
++				c == '^' || c == '_' || c == '`' || c == '{' ||
++				c == '|' || c == '}' || c == '~' || c == '.':
++				localPartBytes = append(localPartBytes, in[0])
++				in = in[1:]
++
++			default:
++				break NextChar
++			}
++		}
++
++		if len(localPartBytes) == 0 {
++			return mailbox, false
++		}
++
++		// https://tools.ietf.org/html/rfc3696#section-3
++		// “period (".") may also appear, but may not be used to start
++		// or end the local part, nor may two or more consecutive
++		// periods appear.”
++		twoDots := []byte{'.', '.'}
++		if localPartBytes[0] == '.' ||
++			localPartBytes[len(localPartBytes)-1] == '.' ||
++			bytes.Contains(localPartBytes, twoDots) {
++			return mailbox, false
++		}
++	}
++
++	if len(in) == 0 || in[0] != '@' {
++		return mailbox, false
++	}
++	in = in[1:]
++
++	// The RFC species a format for domains, but that's known to be
++	// violated in practice so we accept that anything after an '@' is the
++	// domain part.
++	if _, ok := domainToReverseLabels(in); !ok {
++		return mailbox, false
++	}
++
++	mailbox.local = string(localPartBytes)
++	mailbox.domain = in
++	return mailbox, true
++}
++
++// domainToReverseLabels converts a textual domain name like foo.example.com to
++// the list of labels in reverse order, e.g. ["com", "example", "foo"].
++func domainToReverseLabels(domain string) (reverseLabels []string, ok bool) {
++	for len(domain) > 0 {
++		if i := strings.LastIndexByte(domain, '.'); i == -1 {
++			reverseLabels = append(reverseLabels, domain)
++			domain = ""
++		} else {
++			reverseLabels = append(reverseLabels, domain[i+1:len(domain)])
++			domain = domain[:i]
++		}
++	}
++
++	if len(reverseLabels) > 0 && len(reverseLabels[0]) == 0 {
++		// An empty label at the end indicates an absolute value.
++		return nil, false
++	}
++
++	for _, label := range reverseLabels {
++		if len(label) == 0 {
++			// Empty labels are otherwise invalid.
++			return nil, false
++		}
++
++		for _, c := range label {
++			if c < 33 || c > 126 {
++				// Invalid character.
++				return nil, false
++			}
++		}
++	}
++
++	return reverseLabels, true
++}
++
++func matchEmailConstraint(mailbox rfc2821Mailbox, constraint string) (bool, error) {
++	// If the constraint contains an @, then it specifies an exact mailbox
++	// name.
++	if strings.Contains(constraint, "@") {
++		constraintMailbox, ok := parseRFC2821Mailbox(constraint)
++		if !ok {
++			return false, fmt.Errorf("x509: internal error: cannot parse constraint %q", constraint)
++		}
++		return mailbox.local == constraintMailbox.local && strings.EqualFold(mailbox.domain, constraintMailbox.domain), nil
++	}
++
++	// Otherwise the constraint is like a DNS constraint of the domain part
++	// of the mailbox.
++	return matchDomainConstraint(mailbox.domain, constraint)
++}
++
++func matchURIConstraint(uri *url.URL, constraint string) (bool, error) {
++	// https://tools.ietf.org/html/rfc5280#section-4.2.1.10
++	// “a uniformResourceIdentifier that does not include an authority
++	// component with a host name specified as a fully qualified domain
++	// name (e.g., if the URI either does not include an authority
++	// component or includes an authority component in which the host name
++	// is specified as an IP address), then the application MUST reject the
++	// certificate.”
++
++	host := uri.Host
++	if len(host) == 0 {
++		return false, fmt.Errorf("URI with empty host (%q) cannot be matched against constraints", uri.String())
++	}
++
++	if strings.Contains(host, ":") && !strings.HasSuffix(host, "]") {
++		var err error
++		host, _, err = net.SplitHostPort(uri.Host)
++		if err != nil {
++			return false, err
++		}
++	}
++
++	if strings.HasPrefix(host, "[") && strings.HasSuffix(host, "]") ||
++		net.ParseIP(host) != nil {
++		return false, fmt.Errorf("URI with IP (%q) cannot be matched against constraints", uri.String())
++	}
++
++	return matchDomainConstraint(host, constraint)
++}
++
++func matchIPConstraint(ip net.IP, constraint *net.IPNet) (bool, error) {
++	if len(ip) != len(constraint.IP) {
++		return false, nil
++	}
++
++	for i := range ip {
++		if mask := constraint.Mask[i]; ip[i]&mask != constraint.IP[i]&mask {
++			return false, nil
++		}
++	}
++
++	return true, nil
++}
++
++func matchDomainConstraint(domain, constraint string) (bool, error) {
+ 	// The meaning of zero length constraints is not specified, but this
+ 	// code follows NSS and accepts them as matching everything.
+ 	if len(constraint) == 0 {
+-		return true
++		return true, nil
+ 	}
+ 
+-	if len(domain) < len(constraint) {
+-		return false
++	domainLabels, ok := domainToReverseLabels(domain)
++	if !ok {
++		return false, fmt.Errorf("x509: internal error: cannot parse domain %q", domain)
+ 	}
+ 
+-	prefixLen := len(domain) - len(constraint)
+-	if !strings.EqualFold(domain[prefixLen:], constraint) {
+-		return false
++	// RFC 5280 says that a leading period in a domain name means that at
++	// least one label must be prepended, but only for URI and email
++	// constraints, not DNS constraints. The code also supports that
++	// behaviour for DNS constraints.
++
++	mustHaveSubdomains := false
++	if constraint[0] == '.' {
++		mustHaveSubdomains = true
++		constraint = constraint[1:]
++	}
++
++	constraintLabels, ok := domainToReverseLabels(constraint)
++	if !ok {
++		return false, fmt.Errorf("x509: internal error: cannot parse domain %q", constraint)
+ 	}
+ 
+-	if prefixLen == 0 {
+-		return true
++	if len(domainLabels) < len(constraintLabels) ||
++		(mustHaveSubdomains && len(domainLabels) == len(constraintLabels)) {
++		return false, nil
+ 	}
+ 
+-	isSubdomain := domain[prefixLen-1] == '.'
+-	constraintHasLeadingDot := constraint[0] == '.'
+-	return isSubdomain != constraintHasLeadingDot
++	for i, constraintLabel := range constraintLabels {
++		if !strings.EqualFold(constraintLabel, domainLabels[i]) {
++			return false, nil
++		}
++	}
++
++	return true, nil
+ }
+ 
+-// isValid performs validity checks on the c.
++// checkNameConstraints checks that c permits a child certificate to claim the
++// given name, of type nameType. The argument parsedName contains the parsed
++// form of name, suitable for passing to the match function. The total number
++// of comparisons is tracked in the given count and should not exceed the given
++// limit.
++func (c *Certificate) checkNameConstraints(count *int,
++	maxConstraintComparisons int,
++	nameType string,
++	name string,
++	parsedName interface{},
++	match func(parsedName, constraint interface{}) (match bool, err error),
++	permitted, excluded interface{}) error {
++
++	excludedValue := reflect.ValueOf(excluded)
++
++	*count += excludedValue.Len()
++	if *count > maxConstraintComparisons {
++		return CertificateInvalidError{c, TooManyConstraints, ""}
++	}
++
++	for i := 0; i < excludedValue.Len(); i++ {
++		constraint := excludedValue.Index(i).Interface()
++		match, err := match(parsedName, constraint)
++		if err != nil {
++			return CertificateInvalidError{c, CANotAuthorizedForThisName, err.Error()}
++		}
++
++		if match {
++			return CertificateInvalidError{c, CANotAuthorizedForThisName, fmt.Sprintf("%s %q is excluded by constraint %q", nameType, name, constraint)}
++		}
++	}
++
++	permittedValue := reflect.ValueOf(permitted)
++
++	*count += permittedValue.Len()
++	if *count > maxConstraintComparisons {
++		return CertificateInvalidError{c, TooManyConstraints, ""}
++	}
++
++	ok := true
++	for i := 0; i < permittedValue.Len(); i++ {
++		constraint := permittedValue.Index(i).Interface()
++
++		var err error
++		if ok, err = match(parsedName, constraint); err != nil {
++			return CertificateInvalidError{c, CANotAuthorizedForThisName, err.Error()}
++		}
++
++		if ok {
++			break
++		}
++	}
++
++	if !ok {
++		return CertificateInvalidError{c, CANotAuthorizedForThisName, fmt.Sprintf("%s %q is not permitted by any constraint", nameType, name)}
++	}
++
++	return nil
++}
++
++// isValid performs validity checks on c given that it is a candidate to append
++// to the chain in currentChain.
+ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *VerifyOptions) error {
+ 	if len(c.UnhandledCriticalExtensions) > 0 {
+ 		return UnhandledCriticalExtension{}
+@@ -198,7 +547,7 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
+ 	if len(currentChain) > 0 {
+ 		child := currentChain[len(currentChain)-1]
+ 		if !bytes.Equal(child.RawIssuer, c.RawSubject) {
+-			return CertificateInvalidError{c, NameMismatch}
++			return CertificateInvalidError{c, NameMismatch, ""}
+ 		}
+ 	}
+ 
+@@ -207,26 +556,92 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
+ 		now = time.Now()
+ 	}
+ 	if now.Before(c.NotBefore) || now.After(c.NotAfter) {
+-		return CertificateInvalidError{c, Expired}
++		return CertificateInvalidError{c, Expired, ""}
+ 	}
+ 
+-	if len(c.PermittedDNSDomains) > 0 {
+-		ok := false
+-		for _, constraint := range c.PermittedDNSDomains {
+-			ok = matchNameConstraint(opts.DNSName, constraint)
+-			if ok {
+-				break
+-			}
++	if (certType == intermediateCertificate || certType == rootCertificate) && c.hasNameConstraints() {
++		maxConstraintComparisons := opts.MaxConstraintComparisions
++		if maxConstraintComparisons == 0 {
++			maxConstraintComparisons = 250000
+ 		}
++		count := 0
+ 
++		if len(currentChain) == 0 {
++			return errors.New("x509: internal error: empty chain when appending CA cert")
++		}
++		leaf := currentChain[0]
++
++		sanExtension, ok := leaf.getSANExtension()
+ 		if !ok {
+-			return CertificateInvalidError{c, CANotAuthorizedForThisName}
++			// This is the deprecated, legacy case of depending on
++			// the CN as a hostname. Chains modern enough to be
++			// using name constraints should not be depending on
++			// CNs.
++			return CertificateInvalidError{c, NameConstraintsWithoutSANs, ""}
+ 		}
+-	}
+ 
+-	for _, constraint := range c.ExcludedDNSDomains {
+-		if matchNameConstraint(opts.DNSName, constraint) {
+-			return CertificateInvalidError{c, CANotAuthorizedForThisName}
++		err := forEachSAN(sanExtension, func(tag int, data []byte) error {
++			switch tag {
++			case nameTypeEmail:
++				name := string(data)
++				mailbox, ok := parseRFC2821Mailbox(name)
++				if !ok {
++					// This certificate should not have parsed.
++					return errors.New("x509: internal error: rfc822Name SAN failed to parse")
++				}
++
++				if err := c.checkNameConstraints(&count, maxConstraintComparisons, "email address", name, mailbox,
++					func(parsedName, constraint interface{}) (bool, error) {
++						return matchEmailConstraint(parsedName.(rfc2821Mailbox), constraint.(string))
++					}, c.PermittedEmailAddresses, c.ExcludedEmailAddresses); err != nil {
++					return err
++				}
++
++			case nameTypeDNS:
++				name := string(data)
++				if err := c.checkNameConstraints(&count, maxConstraintComparisons, "DNS name", name, name,
++					func(parsedName, constraint interface{}) (bool, error) {
++						return matchDomainConstraint(parsedName.(string), constraint.(string))
++					}, c.PermittedDNSDomains, c.ExcludedDNSDomains); err != nil {
++					return err
++				}
++
++			case nameTypeURI:
++				name := string(data)
++				uri, err := url.Parse(name)
++				if err != nil {
++					return fmt.Errorf("x509: internal error: URI SAN %q failed to parse", name)
++				}
++
++				if err := c.checkNameConstraints(&count, maxConstraintComparisons, "URI", name, uri,
++					func(parsedName, constraint interface{}) (bool, error) {
++						return matchURIConstraint(parsedName.(*url.URL), constraint.(string))
++					}, c.PermittedURIDomains, c.ExcludedURIDomains); err != nil {
++					return err
++				}
++
++			case nameTypeIP:
++				ip := net.IP(data)
++				if l := len(ip); l != net.IPv4len && l != net.IPv6len {
++					return fmt.Errorf("x509: internal error: IP SAN %x failed to parse", data)
++				}
++
++				if err := c.checkNameConstraints(&count, maxConstraintComparisons, "IP address", ip.String(), ip,
++					func(parsedName, constraint interface{}) (bool, error) {
++						return matchIPConstraint(parsedName.(net.IP), constraint.(*net.IPNet))
++					}, c.PermittedIPRanges, c.ExcludedIPRanges); err != nil {
++					return err
++				}
++
++			default:
++				// Unknown SAN types are ignored.
++			}
++
++			return nil
++		})
++
++		if err != nil {
++			return err
+ 		}
+ 	}
+ 
+@@ -248,13 +663,13 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
+ 	// encryption key could only be used for Diffie-Hellman key agreement.
+ 
+ 	if certType == intermediateCertificate && (!c.BasicConstraintsValid || !c.IsCA) {
+-		return CertificateInvalidError{c, NotAuthorizedToSign}
++		return CertificateInvalidError{c, NotAuthorizedToSign, ""}
+ 	}
+ 
+ 	if c.BasicConstraintsValid && c.MaxPathLen >= 0 {
+ 		numIntermediates := len(currentChain) - 1
+ 		if numIntermediates > c.MaxPathLen {
+-			return CertificateInvalidError{c, TooManyIntermediates}
++			return CertificateInvalidError{c, TooManyIntermediates, ""}
+ 		}
+ 	}
+ 
+@@ -337,7 +752,7 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
+ 	}
+ 
+ 	if len(chains) == 0 {
+-		err = CertificateInvalidError{c, IncompatibleUsage}
++		err = CertificateInvalidError{c, IncompatibleUsage, ""}
+ 	}
+ 
+ 	return
+diff --git a/src/crypto/x509/verify_test.go b/src/crypto/x509/verify_test.go
+index 41e295d3e5..bd3df47907 100644
+--- a/src/crypto/x509/verify_test.go
++++ b/src/crypto/x509/verify_test.go
+@@ -1551,22 +1551,37 @@ func TestUnknownAuthorityError(t *testing.T) {
+ 
+ var nameConstraintTests = []struct {
+ 	constraint, domain string
++	expectError        bool
+ 	shouldMatch        bool
+ }{
+-	{"", "anything.com", true},
+-	{"example.com", "example.com", true},
+-	{"example.com", "ExAmPle.coM", true},
+-	{"example.com", "exampl1.com", false},
+-	{"example.com", "www.ExAmPle.coM", true},
+-	{"example.com", "notexample.com", false},
+-	{".example.com", "example.com", false},
+-	{".example.com", "www.example.com", true},
+-	{".example.com", "www..example.com", false},
++	{"", "anything.com", false, true},
++	{"example.com", "example.com", false, true},
++	{"example.com.", "example.com", true, false},
++	{"example.com", "example.com.", true, false},
++	{"example.com", "ExAmPle.coM", false, true},
++	{"example.com", "exampl1.com", false, false},
++	{"example.com", "www.ExAmPle.coM", false, true},
++	{"example.com", "sub.www.ExAmPle.coM", false, true},
++	{"example.com", "notexample.com", false, false},
++	{".example.com", "example.com", false, false},
++	{".example.com", "www.example.com", false, true},
++	{".example.com", "www..example.com", true, false},
+ }
+ 
+ func TestNameConstraints(t *testing.T) {
+ 	for i, test := range nameConstraintTests {
+-		result := matchNameConstraint(test.domain, test.constraint)
++		result, err := matchDomainConstraint(test.domain, test.constraint)
++
++		if err != nil && !test.expectError {
++			t.Errorf("unexpected error for test #%d: domain=%s, constraint=%s, err=%s", i, test.domain, test.constraint, err)
++			continue
++		}
++
++		if err == nil && test.expectError {
++			t.Errorf("unexpected success for test #%d: domain=%s, constraint=%s", i, test.domain, test.constraint)
++			continue
++		}
++
+ 		if result != test.shouldMatch {
+ 			t.Errorf("unexpected result for test #%d: domain=%s, constraint=%s, result=%t", i, test.domain, test.constraint, result)
+ 		}
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 2a8ee599ad..915cd2e454 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -27,7 +27,9 @@ import (
+ 	"io"
+ 	"math/big"
+ 	"net"
++	"net/url"
+ 	"strconv"
++	"strings"
+ 	"time"
+ )
+ 
+@@ -698,11 +700,18 @@ type Certificate struct {
+ 	DNSNames       []string
+ 	EmailAddresses []string
+ 	IPAddresses    []net.IP
++	URIs           []*url.URL
+ 
+ 	// Name constraints
+ 	PermittedDNSDomainsCritical bool // if true then the name constraints are marked critical.
+ 	PermittedDNSDomains         []string
+ 	ExcludedDNSDomains          []string
++	PermittedIPRanges           []*net.IPNet
++	ExcludedIPRanges            []*net.IPNet
++	PermittedEmailAddresses     []string
++	ExcludedEmailAddresses      []string
++	PermittedURIDomains         []string
++	ExcludedURIDomains          []string
+ 
+ 	// CRL Distribution Points
+ 	CRLDistributionPoints []string
+@@ -821,6 +830,26 @@ func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature
+ 	return checkSignature(algo, signed, signature, c.PublicKey)
+ }
+ 
++func (c *Certificate) hasNameConstraints() bool {
++	for _, e := range c.Extensions {
++		if len(e.Id) == 4 && e.Id[0] == 2 && e.Id[1] == 5 && e.Id[2] == 29 && e.Id[3] == 30 {
++			return true
++		}
++	}
++
++	return false
++}
++
++func (c *Certificate) getSANExtension() ([]byte, bool) {
++	for _, e := range c.Extensions {
++		if len(e.Id) == 4 && e.Id[0] == 2 && e.Id[1] == 5 && e.Id[2] == 29 && e.Id[3] == 17 {
++			return e.Value, true
++		}
++	}
++
++	return nil, false
++}
++
+ func signaturePublicKeyAlgoMismatchError(expectedPubKeyAlgo PublicKeyAlgorithm, pubKey interface{}) error {
+ 	return fmt.Errorf("x509: signature algorithm specifies an %s public key, but have public key of type %T", expectedPubKeyAlgo.String(), pubKey)
+ }
+@@ -930,8 +959,18 @@ type nameConstraints struct {
+ 	Excluded  []generalSubtree `asn1:"optional,tag:1"`
+ }
+ 
++const (
++	nameTypeEmail = 1
++	nameTypeDNS   = 2
++	nameTypeURI   = 6
++	nameTypeIP    = 7
++)
++
+ type generalSubtree struct {
+-	Name string `asn1:"tag:2,optional,ia5"`
++	Email     string `asn1:"tag:1,optional,ia5"`
++	Name      string `asn1:"tag:2,optional,ia5"`
++	URIDomain string `asn1:"tag:6,optional,ia5"`
++	IPAndMask []byte `asn1:"tag:7,optional"`
+ }
+ 
+ // RFC 5280, 4.2.2.1
+@@ -1086,14 +1125,33 @@ func forEachSAN(extension []byte, callback func(tag int, data []byte) error) err
+ 	return nil
+ }
+ 
+-func parseSANExtension(value []byte) (dnsNames, emailAddresses []string, ipAddresses []net.IP, err error) {
++func parseSANExtension(value []byte) (dnsNames, emailAddresses []string, ipAddresses []net.IP, uris []*url.URL, err error) {
+ 	err = forEachSAN(value, func(tag int, data []byte) error {
+ 		switch tag {
+-		case 1:
+-			emailAddresses = append(emailAddresses, string(data))
+-		case 2:
+-			dnsNames = append(dnsNames, string(data))
+-		case 7:
++		case nameTypeEmail:
++			mailbox := string(data)
++			if _, ok := parseRFC2821Mailbox(mailbox); !ok {
++				return fmt.Errorf("x509: cannot parse rfc822Name %q", mailbox)
++			}
++			emailAddresses = append(emailAddresses, mailbox)
++		case nameTypeDNS:
++			domain := string(data)
++			if _, ok := domainToReverseLabels(domain); !ok {
++				return fmt.Errorf("x509: cannot parse dnsName %q", string(data))
++			}
++			dnsNames = append(dnsNames, domain)
++		case nameTypeURI:
++			uri, err := url.Parse(string(data))
++			if err != nil {
++				return fmt.Errorf("x509: cannot parse URI %q: %s", string(data), err)
++			}
++			if len(uri.Host) > 0 {
++				if _, ok := domainToReverseLabels(uri.Host); !ok {
++					return fmt.Errorf("x509: cannot parse URI %q: invalid domain", string(data))
++				}
++			}
++			uris = append(uris, uri)
++		case nameTypeIP:
+ 			switch len(data) {
+ 			case net.IPv4len, net.IPv6len:
+ 				ipAddresses = append(ipAddresses, data)
+@@ -1108,6 +1166,160 @@ func parseSANExtension(value []byte) (dnsNames, emailAddresses []string, ipAddre
+ 	return
+ }
+ 
++// isValidIPMask returns true iff mask consists of zero or more 1 bits, followed by zero bits.
++func isValidIPMask(mask []byte) bool {
++	seenZero := false
++
++	for _, b := range mask {
++		if seenZero {
++			if b != 0 {
++				return false
++			}
++
++			continue
++		}
++
++		switch b {
++		case 0x00, 0x80, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc, 0xfe:
++			seenZero = true
++		case 0xff:
++		default:
++			return false
++		}
++	}
++
++	return true
++}
++
++func parseNameConstraintsExtension(out *Certificate, e pkix.Extension) (unhandled bool, err error) {
++	// RFC 5280, 4.2.1.10
++
++	// NameConstraints ::= SEQUENCE {
++	//      permittedSubtrees       [0]     GeneralSubtrees OPTIONAL,
++	//      excludedSubtrees        [1]     GeneralSubtrees OPTIONAL }
++	//
++	// GeneralSubtrees ::= SEQUENCE SIZE (1..MAX) OF GeneralSubtree
++	//
++	// GeneralSubtree ::= SEQUENCE {
++	//      base                    GeneralName,
++	//      minimum         [0]     BaseDistance DEFAULT 0,
++	//      maximum         [1]     BaseDistance OPTIONAL }
++	//
++	// BaseDistance ::= INTEGER (0..MAX)
++
++	var constraints nameConstraints
++	if rest, err := asn1.Unmarshal(e.Value, &constraints); err != nil {
++		return false, err
++	} else if len(rest) != 0 {
++		return false, errors.New("x509: trailing data after X.509 NameConstraints")
++	}
++
++	if len(constraints.Permitted) == 0 && len(constraints.Excluded) == 0 {
++		// https://tools.ietf.org/html/rfc5280#section-4.2.1.10:
++		//   “either the permittedSubtrees field
++		//   or the excludedSubtrees MUST be
++		//   present”
++		return false, errors.New("x509: empty name constraints extension")
++	}
++
++	getValues := func(subtrees []generalSubtree) (dnsNames []string, ips []*net.IPNet, emails, uriDomains []string, err error) {
++		for _, subtree := range subtrees {
++			switch {
++			case len(subtree.Name) != 0:
++				domain := subtree.Name
++				if len(domain) > 0 && domain[0] == '.' {
++					// constraints can have a leading
++					// period to exclude the domain
++					// itself, but that's not valid in a
++					// normal domain name.
++					domain = domain[1:]
++				}
++				if _, ok := domainToReverseLabels(domain); !ok {
++					return nil, nil, nil, nil, fmt.Errorf("x509: failed to parse dnsName constraint %q", subtree.Name)
++				}
++				dnsNames = append(dnsNames, subtree.Name)
++
++			case len(subtree.IPAndMask) != 0:
++				l := len(subtree.IPAndMask)
++				var ip, mask []byte
++
++				switch l {
++				case 8:
++					ip = subtree.IPAndMask[:4]
++					mask = subtree.IPAndMask[4:]
++
++				case 32:
++					ip = subtree.IPAndMask[:16]
++					mask = subtree.IPAndMask[16:]
++
++				default:
++					return nil, nil, nil, nil, fmt.Errorf("x509: IP constraint contained value of length %d", l)
++				}
++
++				if !isValidIPMask(mask) {
++					return nil, nil, nil, nil, fmt.Errorf("x509: IP constraint contained invalid mask %x", mask)
++				}
++
++				ips = append(ips, &net.IPNet{IP: net.IP(ip), Mask: net.IPMask(mask)})
++
++			case len(subtree.Email) != 0:
++				constraint := subtree.Email
++				// If the constraint contains an @ then
++				// it specifies an exact mailbox name.
++				if strings.Contains(constraint, "@") {
++					if _, ok := parseRFC2821Mailbox(constraint); !ok {
++						return nil, nil, nil, nil, fmt.Errorf("x509: failed to parse rfc822Name constraint %q", constraint)
++					}
++				} else {
++					// Otherwise it's a domain name.
++					domain := constraint
++					if len(domain) > 0 && domain[0] == '.' {
++						domain = domain[1:]
++					}
++					if _, ok := domainToReverseLabels(domain); !ok {
++						return nil, nil, nil, nil, fmt.Errorf("x509: failed to parse rfc822Name constraint %q", constraint)
++					}
++				}
++				emails = append(emails, constraint)
++
++			case len(subtree.URIDomain) != 0:
++				domain := subtree.URIDomain
++
++				if net.ParseIP(domain) != nil {
++					return nil, nil, nil, nil, fmt.Errorf("x509: failed to parse URI constraint %q: cannot be IP address", subtree.URIDomain)
++				}
++
++				if len(domain) > 0 && domain[0] == '.' {
++					// constraints can have a leading
++					// period to exclude the domain
++					// itself, but that's not valid in a
++					// normal domain name.
++					domain = domain[1:]
++				}
++				if _, ok := domainToReverseLabels(domain); !ok {
++					return nil, nil, nil, nil, fmt.Errorf("x509: failed to parse URI constraint %q", subtree.URIDomain)
++				}
++				uriDomains = append(uriDomains, subtree.URIDomain)
++
++			default:
++				unhandled = true
++			}
++		}
++
++		return dnsNames, ips, emails, uriDomains, nil
++	}
++
++	if out.PermittedDNSDomains, out.PermittedIPRanges, out.PermittedEmailAddresses, out.PermittedURIDomains, err = getValues(constraints.Permitted); err != nil {
++		return false, err
++	}
++	if out.ExcludedDNSDomains, out.ExcludedIPRanges, out.ExcludedEmailAddresses, out.ExcludedURIDomains, err = getValues(constraints.Excluded); err != nil {
++		return false, err
++	}
++	out.PermittedDNSDomainsCritical = e.Critical
++
++	return unhandled, nil
++}
++
+ func parseCertificate(in *certificate) (*Certificate, error) {
+ 	out := new(Certificate)
+ 	out.Raw = in.Raw
+@@ -1187,69 +1399,22 @@ func parseCertificate(in *certificate) (*Certificate, error) {
+ 				out.MaxPathLenZero = out.MaxPathLen == 0
+ 				// TODO: map out.MaxPathLen to 0 if it has the -1 default value? (Issue 19285)
+ 			case 17:
+-				out.DNSNames, out.EmailAddresses, out.IPAddresses, err = parseSANExtension(e.Value)
++				out.DNSNames, out.EmailAddresses, out.IPAddresses, out.URIs, err = parseSANExtension(e.Value)
+ 				if err != nil {
+ 					return nil, err
+ 				}
+ 
+-				if len(out.DNSNames) == 0 && len(out.EmailAddresses) == 0 && len(out.IPAddresses) == 0 {
++				if len(out.DNSNames) == 0 && len(out.EmailAddresses) == 0 && len(out.IPAddresses) == 0 && len(out.URIs) == 0 {
+ 					// If we didn't parse anything then we do the critical check, below.
+ 					unhandled = true
+ 				}
+ 
+ 			case 30:
+-				// RFC 5280, 4.2.1.10
+-
+-				// NameConstraints ::= SEQUENCE {
+-				//      permittedSubtrees       [0]     GeneralSubtrees OPTIONAL,
+-				//      excludedSubtrees        [1]     GeneralSubtrees OPTIONAL }
+-				//
+-				// GeneralSubtrees ::= SEQUENCE SIZE (1..MAX) OF GeneralSubtree
+-				//
+-				// GeneralSubtree ::= SEQUENCE {
+-				//      base                    GeneralName,
+-				//      minimum         [0]     BaseDistance DEFAULT 0,
+-				//      maximum         [1]     BaseDistance OPTIONAL }
+-				//
+-				// BaseDistance ::= INTEGER (0..MAX)
+-
+-				var constraints nameConstraints
+-				if rest, err := asn1.Unmarshal(e.Value, &constraints); err != nil {
++				unhandled, err = parseNameConstraintsExtension(out, e)
++				if err != nil {
+ 					return nil, err
+-				} else if len(rest) != 0 {
+-					return nil, errors.New("x509: trailing data after X.509 NameConstraints")
+ 				}
+ 
+-				if len(constraints.Permitted) == 0 && len(constraints.Excluded) == 0 {
+-					// https://tools.ietf.org/html/rfc5280#section-4.2.1.10:
+-					//   “either the permittedSubtrees field
+-					//   or the excludedSubtrees MUST be
+-					//   present”
+-					return nil, errors.New("x509: empty name constraints extension")
+-				}
+-
+-				getDNSNames := func(subtrees []generalSubtree, isCritical bool) (dnsNames []string, err error) {
+-					for _, subtree := range subtrees {
+-						if len(subtree.Name) == 0 {
+-							if isCritical {
+-								return nil, UnhandledCriticalExtension{}
+-							}
+-							continue
+-						}
+-						dnsNames = append(dnsNames, subtree.Name)
+-					}
+-
+-					return dnsNames, nil
+-				}
+-
+-				if out.PermittedDNSDomains, err = getDNSNames(constraints.Permitted, e.Critical); err != nil {
+-					return out, err
+-				}
+-				if out.ExcludedDNSDomains, err = getDNSNames(constraints.Excluded, e.Critical); err != nil {
+-					return out, err
+-				}
+-				out.PermittedDNSDomainsCritical = e.Critical
+-
+ 			case 31:
+ 				// RFC 5280, 4.2.1.13
+ 
+@@ -1483,13 +1648,13 @@ func oidInExtensions(oid asn1.ObjectIdentifier, extensions []pkix.Extension) boo
+ 
+ // marshalSANs marshals a list of addresses into a the contents of an X.509
+ // SubjectAlternativeName extension.
+-func marshalSANs(dnsNames, emailAddresses []string, ipAddresses []net.IP) (derBytes []byte, err error) {
++func marshalSANs(dnsNames, emailAddresses []string, ipAddresses []net.IP, uris []*url.URL) (derBytes []byte, err error) {
+ 	var rawValues []asn1.RawValue
+ 	for _, name := range dnsNames {
+-		rawValues = append(rawValues, asn1.RawValue{Tag: 2, Class: 2, Bytes: []byte(name)})
++		rawValues = append(rawValues, asn1.RawValue{Tag: nameTypeDNS, Class: 2, Bytes: []byte(name)})
+ 	}
+ 	for _, email := range emailAddresses {
+-		rawValues = append(rawValues, asn1.RawValue{Tag: 1, Class: 2, Bytes: []byte(email)})
++		rawValues = append(rawValues, asn1.RawValue{Tag: nameTypeEmail, Class: 2, Bytes: []byte(email)})
+ 	}
+ 	for _, rawIP := range ipAddresses {
+ 		// If possible, we always want to encode IPv4 addresses in 4 bytes.
+@@ -1497,7 +1662,10 @@ func marshalSANs(dnsNames, emailAddresses []string, ipAddresses []net.IP) (derBy
+ 		if ip == nil {
+ 			ip = rawIP
+ 		}
+-		rawValues = append(rawValues, asn1.RawValue{Tag: 7, Class: 2, Bytes: ip})
++		rawValues = append(rawValues, asn1.RawValue{Tag: nameTypeIP, Class: 2, Bytes: ip})
++	}
++	for _, uri := range uris {
++		rawValues = append(rawValues, asn1.RawValue{Tag: nameTypeURI, Class: 2, Bytes: []byte(uri.String())})
+ 	}
+ 	return asn1.Marshal(rawValues)
+ }
+@@ -1608,10 +1776,10 @@ func buildExtensions(template *Certificate, authorityKeyId []byte) (ret []pkix.E
+ 		n++
+ 	}
+ 
+-	if (len(template.DNSNames) > 0 || len(template.EmailAddresses) > 0 || len(template.IPAddresses) > 0) &&
++	if (len(template.DNSNames) > 0 || len(template.EmailAddresses) > 0 || len(template.IPAddresses) > 0 || len(template.URIs) > 0) &&
+ 		!oidInExtensions(oidExtensionSubjectAltName, template.ExtraExtensions) {
+ 		ret[n].Id = oidExtensionSubjectAltName
+-		ret[n].Value, err = marshalSANs(template.DNSNames, template.EmailAddresses, template.IPAddresses)
++		ret[n].Value, err = marshalSANs(template.DNSNames, template.EmailAddresses, template.IPAddresses, template.URIs)
+ 		if err != nil {
+ 			return
+ 		}
+@@ -1632,20 +1800,50 @@ func buildExtensions(template *Certificate, authorityKeyId []byte) (ret []pkix.E
+ 		n++
+ 	}
+ 
+-	if (len(template.PermittedDNSDomains) > 0 || len(template.ExcludedDNSDomains) > 0) &&
++	if (len(template.PermittedDNSDomains) > 0 || len(template.ExcludedDNSDomains) > 0 ||
++		len(template.PermittedIPRanges) > 0 || len(template.ExcludedIPRanges) > 0 ||
++		len(template.PermittedEmailAddresses) > 0 || len(template.ExcludedEmailAddresses) > 0 ||
++		len(template.PermittedURIDomains) > 0 || len(template.ExcludedURIDomains) > 0) &&
+ 		!oidInExtensions(oidExtensionNameConstraints, template.ExtraExtensions) {
+ 		ret[n].Id = oidExtensionNameConstraints
+ 		ret[n].Critical = template.PermittedDNSDomainsCritical
+ 
+ 		var out nameConstraints
+ 
+-		out.Permitted = make([]generalSubtree, len(template.PermittedDNSDomains))
+-		for i, permitted := range template.PermittedDNSDomains {
+-			out.Permitted[i] = generalSubtree{Name: permitted}
++		ipAndMask := func(ipNet *net.IPNet) []byte {
++			maskedIP := ipNet.IP.Mask(ipNet.Mask)
++			ipAndMask := make([]byte, 0, len(maskedIP)+len(ipNet.Mask))
++			ipAndMask = append(ipAndMask, maskedIP...)
++			ipAndMask = append(ipAndMask, ipNet.Mask...)
++			return ipAndMask
++		}
++
++		out.Permitted = make([]generalSubtree, 0, len(template.PermittedDNSDomains)+len(template.PermittedIPRanges))
++		for _, permitted := range template.PermittedDNSDomains {
++			out.Permitted = append(out.Permitted, generalSubtree{Name: permitted})
++		}
++		for _, permitted := range template.PermittedIPRanges {
++			out.Permitted = append(out.Permitted, generalSubtree{IPAndMask: ipAndMask(permitted)})
++		}
++		for _, permitted := range template.PermittedEmailAddresses {
++			out.Permitted = append(out.Permitted, generalSubtree{Email: permitted})
++		}
++		for _, permitted := range template.PermittedURIDomains {
++			out.Permitted = append(out.Permitted, generalSubtree{URIDomain: permitted})
++		}
++
++		out.Excluded = make([]generalSubtree, 0, len(template.ExcludedDNSDomains)+len(template.ExcludedIPRanges))
++		for _, excluded := range template.ExcludedDNSDomains {
++			out.Excluded = append(out.Excluded, generalSubtree{Name: excluded})
++		}
++		for _, excluded := range template.ExcludedIPRanges {
++			out.Excluded = append(out.Excluded, generalSubtree{IPAndMask: ipAndMask(excluded)})
++		}
++		for _, excluded := range template.ExcludedEmailAddresses {
++			out.Excluded = append(out.Excluded, generalSubtree{Email: excluded})
+ 		}
+-		out.Excluded = make([]generalSubtree, len(template.ExcludedDNSDomains))
+-		for i, excluded := range template.ExcludedDNSDomains {
+-			out.Excluded[i] = generalSubtree{Name: excluded}
++		for _, excluded := range template.ExcludedURIDomains {
++			out.Excluded = append(out.Excluded, generalSubtree{URIDomain: excluded})
+ 		}
+ 
+ 		ret[n].Value, err = asn1.Marshal(out)
+@@ -1997,6 +2195,7 @@ type CertificateRequest struct {
+ 	DNSNames       []string
+ 	EmailAddresses []string
+ 	IPAddresses    []net.IP
++	URIs           []*url.URL
+ }
+ 
+ // These structures reflect the ASN.1 structure of X.509 certificate
+@@ -2088,7 +2287,7 @@ func parseCSRExtensions(rawAttributes []asn1.RawValue) ([]pkix.Extension, error)
+ 
+ // CreateCertificateRequest creates a new certificate request based on a
+ // template. The following members of template are used: Attributes, DNSNames,
+-// EmailAddresses, ExtraExtensions, IPAddresses, SignatureAlgorithm, and
++// EmailAddresses, ExtraExtensions, IPAddresses, URIs, SignatureAlgorithm, and
+ // Subject. The private key is the private key of the signer.
+ //
+ // The returned slice is the certificate request in DER encoding.
+@@ -2117,9 +2316,9 @@ func CreateCertificateRequest(rand io.Reader, template *CertificateRequest, priv
+ 
+ 	var extensions []pkix.Extension
+ 
+-	if (len(template.DNSNames) > 0 || len(template.EmailAddresses) > 0 || len(template.IPAddresses) > 0) &&
++	if (len(template.DNSNames) > 0 || len(template.EmailAddresses) > 0 || len(template.IPAddresses) > 0 || len(template.URIs) > 0) &&
+ 		!oidInExtensions(oidExtensionSubjectAltName, template.ExtraExtensions) {
+-		sanBytes, err := marshalSANs(template.DNSNames, template.EmailAddresses, template.IPAddresses)
++		sanBytes, err := marshalSANs(template.DNSNames, template.EmailAddresses, template.IPAddresses, template.URIs)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+@@ -2294,7 +2493,7 @@ func parseCertificateRequest(in *certificateRequest) (*CertificateRequest, error
+ 
+ 	for _, extension := range out.Extensions {
+ 		if extension.Id.Equal(oidExtensionSubjectAltName) {
+-			out.DNSNames, out.EmailAddresses, out.IPAddresses, err = parseSANExtension(extension.Value)
++			out.DNSNames, out.EmailAddresses, out.IPAddresses, out.URIs, err = parseSANExtension(extension.Value)
+ 			if err != nil {
+ 				return nil, err
+ 			}
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index 100c8bebfc..f28f2fb761 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -22,6 +22,7 @@ import (
+ 	"internal/testenv"
+ 	"math/big"
+ 	"net"
++	"net/url"
+ 	"os/exec"
+ 	"reflect"
+ 	"runtime"
+@@ -352,6 +353,22 @@ var certBytes = "308203223082028ba00302010202106edf0d9499fd4533dd1297fc42a93be13
+ 	"9048084225c53e8acb7feb6f04d16dc574a2f7a27c7b603c77cd0ece48027f012fb69b37e02a2a" +
+ 	"36dcd585d6ace53f546f961e05af"
+ 
++func parseCIDR(s string) *net.IPNet {
++	_, net, err := net.ParseCIDR(s)
++	if err != nil {
++		panic(err)
++	}
++	return net
++}
++
++func parseURI(s string) *url.URL {
++	uri, err := url.Parse(s)
++	if err != nil {
++		panic(err)
++	}
++	return uri
++}
++
+ func TestCreateSelfSignedCertificate(t *testing.T) {
+ 	random := rand.Reader
+ 
+@@ -423,10 +440,17 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
+ 			DNSNames:       []string{"test.example.com"},
+ 			EmailAddresses: []string{"gopher@golang.org"},
+ 			IPAddresses:    []net.IP{net.IPv4(127, 0, 0, 1).To4(), net.ParseIP("2001:4860:0:2001::68")},
+-
+-			PolicyIdentifiers:   []asn1.ObjectIdentifier{[]int{1, 2, 3}},
+-			PermittedDNSDomains: []string{".example.com", "example.com"},
+-			ExcludedDNSDomains:  []string{"bar.example.com"},
++			URIs:           []*url.URL{parseURI("https://foo.com/wibble#foo")},
++
++			PolicyIdentifiers:       []asn1.ObjectIdentifier{[]int{1, 2, 3}},
++			PermittedDNSDomains:     []string{".example.com", "example.com"},
++			ExcludedDNSDomains:      []string{"bar.example.com"},
++			PermittedIPRanges:       []*net.IPNet{parseCIDR("192.168.1.1/16"), parseCIDR("1.2.3.4/8")},
++			ExcludedIPRanges:        []*net.IPNet{parseCIDR("2001:db8::/48")},
++			PermittedEmailAddresses: []string{"foo@example.com"},
++			ExcludedEmailAddresses:  []string{".example.com", "example.com"},
++			PermittedURIDomains:     []string{".bar.com", "bar.com"},
++			ExcludedURIDomains:      []string{".bar2.com", "bar2.com"},
+ 
+ 			CRLDistributionPoints: []string{"http://crl1.example.com/ca1.crl", "http://crl2.example.com/ca1.crl"},
+ 
+@@ -468,6 +492,30 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
+ 			t.Errorf("%s: failed to parse name constraint exclusions: %#v", test.name, cert.ExcludedDNSDomains)
+ 		}
+ 
++		if len(cert.PermittedIPRanges) != 2 || cert.PermittedIPRanges[0].String() != "192.168.0.0/16" || cert.PermittedIPRanges[1].String() != "1.0.0.0/8" {
++			t.Errorf("%s: failed to parse IP constraints: %#v", test.name, cert.PermittedIPRanges)
++		}
++
++		if len(cert.ExcludedIPRanges) != 1 || cert.ExcludedIPRanges[0].String() != "2001:db8::/48" {
++			t.Errorf("%s: failed to parse IP constraint exclusions: %#v", test.name, cert.ExcludedIPRanges)
++		}
++
++		if len(cert.PermittedEmailAddresses) != 1 || cert.PermittedEmailAddresses[0] != "foo@example.com" {
++			t.Errorf("%s: failed to parse permitted email addreses: %#v", test.name, cert.PermittedEmailAddresses)
++		}
++
++		if len(cert.ExcludedEmailAddresses) != 2 || cert.ExcludedEmailAddresses[0] != ".example.com" || cert.ExcludedEmailAddresses[1] != "example.com" {
++			t.Errorf("%s: failed to parse excluded email addreses: %#v", test.name, cert.ExcludedEmailAddresses)
++		}
++
++		if len(cert.PermittedURIDomains) != 2 || cert.PermittedURIDomains[0] != ".bar.com" || cert.PermittedURIDomains[1] != "bar.com" {
++			t.Errorf("%s: failed to parse permitted URIs: %#v", test.name, cert.PermittedURIDomains)
++		}
++
++		if len(cert.ExcludedURIDomains) != 2 || cert.ExcludedURIDomains[0] != ".bar2.com" || cert.ExcludedURIDomains[1] != "bar2.com" {
++			t.Errorf("%s: failed to parse excluded URIs: %#v", test.name, cert.ExcludedURIDomains)
++		}
++
+ 		if cert.Subject.CommonName != commonName {
+ 			t.Errorf("%s: subject wasn't correctly copied from the template. Got %s, want %s", test.name, cert.Subject.CommonName, commonName)
+ 		}
+@@ -519,6 +567,10 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
+ 			t.Errorf("%s: SAN emails differ from template. Got %v, want %v", test.name, cert.EmailAddresses, template.EmailAddresses)
+ 		}
+ 
++		if len(cert.URIs) != 1 || cert.URIs[0].String() != "https://foo.com/wibble#foo" {
++			t.Errorf("%s: URIs differ from template. Got %v, want %v", test.name, cert.URIs, template.URIs)
++		}
++
+ 		if !reflect.DeepEqual(cert.IPAddresses, template.IPAddresses) {
+ 			t.Errorf("%s: SAN IPs differ from template. Got %v, want %v", test.name, cert.IPAddresses, template.IPAddresses)
+ 		}
+@@ -1012,7 +1064,7 @@ func marshalAndParseCSR(t *testing.T, template *CertificateRequest) *Certificate
+ }
+ 
+ func TestCertificateRequestOverrides(t *testing.T) {
+-	sanContents, err := marshalSANs([]string{"foo.example.com"}, nil, nil)
++	sanContents, err := marshalSANs([]string{"foo.example.com"}, nil, nil, nil)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -1069,7 +1121,7 @@ func TestCertificateRequestOverrides(t *testing.T) {
+ 		t.Errorf("bad attributes: %#v\n", csr.Attributes)
+ 	}
+ 
+-	sanContents2, err := marshalSANs([]string{"foo2.example.com"}, nil, nil)
++	sanContents2, err := marshalSANs([]string{"foo2.example.com"}, nil, nil, nil)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -1567,3 +1619,69 @@ func TestRDNSequenceString(t *testing.T) {
+ 		}
+ 	}
+ }
++
++const criticalNameConstraintWithUnknownTypePEM = `
++-----BEGIN CERTIFICATE-----
++MIIC/TCCAeWgAwIBAgICEjQwDQYJKoZIhvcNAQELBQAwKDEmMCQGA1UEAxMdRW1w
++dHkgbmFtZSBjb25zdHJhaW50cyBpc3N1ZXIwHhcNMTMwMjAxMDAwMDAwWhcNMjAw
++NTMwMTA0ODM4WjAhMR8wHQYDVQQDExZFbXB0eSBuYW1lIGNvbnN0cmFpbnRzMIIB
++IjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwriElUIt3LCqmJObs+yDoWPD
++F5IqgWk6moIobYjPfextZiYU6I3EfvAwoNxPDkN2WowcocUZMJbEeEq5ebBksFnx
++f12gBxlIViIYwZAzu7aFvhDMyPKQI3C8CG0ZSC9ABZ1E3umdA3CEueNOmP/TChNq
++Cl23+BG1Qb/PJkpAO+GfpWSVhTcV53Mf/cKvFHcjGNrxzdSoq9fyW7a6gfcGEQY0
++LVkmwFWUfJ0wT8kaeLr0E0tozkIfo01KNWNzv6NcYP80QOBRDlApWu9ODmEVJHPD
++blx4jzTQ3JLa+4DvBNOjVUOp+mgRmjiW0rLdrxwOxIqIOwNjweMCp/hgxX/hTQID
++AQABozgwNjA0BgNVHR4BAf8EKjAooCQwIokgIACrzQAAAAAAAAAAAAAAAP////8A
++AAAAAAAAAAAAAAChADANBgkqhkiG9w0BAQsFAAOCAQEAWG+/zUMHQhP8uNCtgSHy
++im/vh7wminwAvWgMKxlkLBFns6nZeQqsOV1lABY7U0Zuoqa1Z5nb6L+iJa4ElREJ
++Oi/erLc9uLwBdDCAR0hUTKD7a6i4ooS39DTle87cUnj0MW1CUa6Hv5SsvpYW+1Xl
++eYJk/axQOOTcy4Es53dvnZsjXH0EA/QHnn7UV+JmlE3rtVxcYp6MLYPmRhTioROA
++/drghicRkiu9hxdPyxkYS16M5g3Zj30jdm+k/6C6PeNtN9YmOOganCOSyFYfGhqO
++ANYzpmuV+oIedAsPpIbfIzN8njYUs1zio+1IoI4o8ddM9sCbtPU8o+WoY6IsCKXV
++/g==
++-----END CERTIFICATE-----`
++
++func TestCriticalNameConstraintWithUnknownType(t *testing.T) {
++	block, _ := pem.Decode([]byte(criticalNameConstraintWithUnknownTypePEM))
++	cert, err := ParseCertificate(block.Bytes)
++	if err != nil {
++		t.Fatalf("unexpected parsing failure: %s", err)
++	}
++
++	if l := len(cert.UnhandledCriticalExtensions); l != 1 {
++		t.Fatalf("expected one unhandled critical extension, but found %d", l)
++	}
++}
++
++const badIPMaskPEM = `
++-----BEGIN CERTIFICATE-----
++MIICzzCCAbegAwIBAgICEjQwDQYJKoZIhvcNAQELBQAwHTEbMBkGA1UEAxMSQmFk
++IElQIG1hc2sgaXNzdWVyMB4XDTEzMDIwMTAwMDAwMFoXDTIwMDUzMDEwNDgzOFow
++FjEUMBIGA1UEAxMLQmFkIElQIG1hc2swggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAw
++ggEKAoIBAQDCuISVQi3csKqYk5uz7IOhY8MXkiqBaTqagihtiM997G1mJhTojcR+
++8DCg3E8OQ3ZajByhxRkwlsR4Srl5sGSwWfF/XaAHGUhWIhjBkDO7toW+EMzI8pAj
++cLwIbRlIL0AFnUTe6Z0DcIS5406Y/9MKE2oKXbf4EbVBv88mSkA74Z+lZJWFNxXn
++cx/9wq8UdyMY2vHN1Kir1/JbtrqB9wYRBjQtWSbAVZR8nTBPyRp4uvQTS2jOQh+j
++TUo1Y3O/o1xg/zRA4FEOUCla704OYRUkc8NuXHiPNNDcktr7gO8E06NVQ6n6aBGa
++OJbSst2vHA7Eiog7A2PB4wKn+GDFf+FNAgMBAAGjIDAeMBwGA1UdHgEB/wQSMBCg
++DDAKhwgBAgME//8BAKEAMA0GCSqGSIb3DQEBCwUAA4IBAQBYb7/NQwdCE/y40K2B
++IfKKb++HvCaKfAC9aAwrGWQsEWezqdl5Cqw5XWUAFjtTRm6iprVnmdvov6IlrgSV
++EQk6L96stz24vAF0MIBHSFRMoPtrqLiihLf0NOV7ztxSePQxbUJRroe/lKy+lhb7
++VeV5gmT9rFA45NzLgSznd2+dmyNcfQQD9AeeftRX4maUTeu1XFxinowtg+ZGFOKh
++E4D92uCGJxGSK72HF0/LGRhLXozmDdmPfSN2b6T/oLo942031iY46BqcI5LIVh8a
++Go4A1jOma5X6gh50Cw+kht8jM3yeNhSzXOKj7Uigjijx10z2wJu09Tyj5ahjoiwI
++pdX+
++-----END CERTIFICATE-----`
++
++func TestBadIPMask(t *testing.T) {
++	block, _ := pem.Decode([]byte(badIPMaskPEM))
++	_, err := ParseCertificate(block.Bytes)
++	if err == nil {
++		t.Fatalf("unexpected success")
++	}
++
++	const expected = "contained invalid mask"
++	if !strings.Contains(err.Error(), expected) {
++		t.Fatalf("expected %q in error but got: %s", expected, err)
++	}
++}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index a82e779f81..16ac51ef07 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -377,7 +377,7 @@ var pkgDeps = map[string][]string{
+ 	},
+ 	"crypto/x509": {
+ 		"L4", "CRYPTO-MATH", "OS", "CGO",
+-		"crypto/x509/pkix", "encoding/pem", "encoding/hex", "net", "os/user", "syscall",
++		"crypto/x509/pkix", "encoding/pem", "encoding/hex", "net", "os/user", "syscall", "net/url",
+ 	},
+ 	"crypto/x509/pkix": {"L4", "CRYPTO-MATH", "encoding/hex"},
+ 

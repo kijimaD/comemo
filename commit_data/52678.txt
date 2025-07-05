@@ -13,6 +13,20 @@ Date:   Tue May 17 19:29:03 2022 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/HACKING.md | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/HACKING.md b/src/runtime/HACKING.md
+index 0ab6bcaee5..af9fe288aa 100644
+--- a/src/runtime/HACKING.md
++++ b/src/runtime/HACKING.md
+@@ -97,7 +97,7 @@ For runtime error debugging, it may be useful to run with `GOTRACEBACK=system`
+ or `GOTRACEBACK=crash`. The output of `panic` and `fatal` is as described by
+ `GOTRACEBACK`. The output of `throw` always includes runtime frames, metadata
+ and all goroutines regardless of `GOTRACEBACK` (i.e., equivalent to
+-`GOTRACEBACK=system). Whether `throw` crashes or not is still controlled by
++`GOTRACEBACK=system`). Whether `throw` crashes or not is still controlled by
+ `GOTRACEBACK`.
+ 
+ Synchronization

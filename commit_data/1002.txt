@@ -10,6 +10,40 @@ Date:   Thu Oct 30 12:43:32 2008 -0700
     DELTA=7  (2 added, 1 deleted, 4 changed)
     OCL=18092
     CL=18145
-
+---
  test/errchk | 11 ++++++-----
  1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/test/errchk b/test/errchk
+index a8476a6258..2b602c3c7f 100755
+--- a/test/errchk
++++ b/test/errchk
+@@ -29,9 +29,11 @@ TMPERR=/tmp/errchk-err-$$
+ TMPALL=/tmp/errchk-all-$$
+ TMPTMP=/tmp/errchk-tmp-$$
+ TMPSTAT=/tmp/errchk-stat-$$
+-rm -f $TMPOUT $TMPERR $TMPALL $TMPTMP $TMPSTAT
++TMPBUG=/tmp/errchk-bug-$$
+ 
+-trap "rm -f $TMPOUT $TMPERR $TMPALL $TMPTMP $TMPSTAT" 0 1 2 3 14 15
++rm -f $TMPOUT $TMPERR $TMPALL $TMPTMP $TMPSTAT $TMPBUG
++
++trap "rm -f $TMPOUT $TMPERR $TMPALL $TMPTMP $TMPSTAT $TMPBUG" 0 1 2 3 14 15
+ 
+ if $* >$TMPOUT 2>$TMPERR; then
+   echo 1>&2 "BUG: errchk: command succeeded unexpectedly: " "$@"
+@@ -43,12 +45,11 @@ fi
+ 
+ cat $TMPOUT $TMPERR | grep -v '^	' > $TMPALL
+ 
+-didbug=false
+ bug() {
+-  if ! $didbug
++  if ! test -f $TMPBUG
+   then
+     echo 1>&2 -n BUG: ''
+-    didbug=true
++    echo >$TMPBUG
+   fi
+ }
+ 

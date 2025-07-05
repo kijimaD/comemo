@@ -20,7 +20,104 @@ Date:   Sat Dec 26 17:51:16 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/walk/switch.go | 36 ++++++++++++++++++++++++---------
  src/cmd/compile/internal/walk/walk.go   | 31 ++++++++++++++++++++++------
  2 files changed, 52 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/walk/switch.go b/src/cmd/compile/internal/walk/switch.go
+index 7829d93373..141d2e5e05 100644
+--- a/src/cmd/compile/internal/walk/switch.go
++++ b/src/cmd/compile/internal/walk/switch.go
+@@ -318,15 +318,7 @@ func walkSwitchType(sw *ir.SwitchStmt) {
+ 	sw.Compiled.Append(ifNil)
+ 
+ 	// Load hash from type or itab.
+-	dotHash := ir.NewSelectorExpr(base.Pos, ir.ODOTPTR, itab, nil)
+-	dotHash.SetType(types.Types[types.TUINT32])
+-	dotHash.SetTypecheck(1)
+-	if s.facename.Type().IsEmptyInterface() {
+-		dotHash.Offset = int64(2 * types.PtrSize) // offset of hash in runtime._type
+-	} else {
+-		dotHash.Offset = int64(2 * types.PtrSize) // offset of hash in runtime.itab
+-	}
+-	dotHash.SetBounded(true) // guaranteed not to fault
++	dotHash := typeHashFieldOf(base.Pos, itab)
+ 	s.hashname = copyExpr(dotHash, dotHash.Type(), &sw.Compiled)
+ 
+ 	br := ir.NewBranchStmt(base.Pos, ir.OBREAK, nil)
+@@ -409,6 +401,32 @@ func walkSwitchType(sw *ir.SwitchStmt) {
+ 	walkStmtList(sw.Compiled)
+ }
+ 
++// typeHashFieldOf returns an expression to select the type hash field
++// from an interface's descriptor word (whether a *runtime._type or
++// *runtime.itab pointer).
++func typeHashFieldOf(pos src.XPos, itab *ir.UnaryExpr) *ir.SelectorExpr {
++	if itab.Op() != ir.OITAB {
++		base.Fatalf("expected OITAB, got %v", itab.Op())
++	}
++	var hashField *types.Field
++	if itab.X.Type().IsEmptyInterface() {
++		// runtime._type's hash field
++		if rtypeHashField == nil {
++			rtypeHashField = runtimeField("hash", int64(2*types.PtrSize), types.Types[types.TUINT32])
++		}
++		hashField = rtypeHashField
++	} else {
++		// runtime.itab's hash field
++		if itabHashField == nil {
++			itabHashField = runtimeField("hash", int64(2*types.PtrSize), types.Types[types.TUINT32])
++		}
++		hashField = itabHashField
++	}
++	return boundedDotPtr(pos, itab, hashField)
++}
++
++var rtypeHashField, itabHashField *types.Field
++
+ // A typeSwitch walks a type switch.
+ type typeSwitch struct {
+ 	// Temporary variables (i.e., ONAMEs) used by type switch dispatch logic:
+diff --git a/src/cmd/compile/internal/walk/walk.go b/src/cmd/compile/internal/walk/walk.go
+index 9dda367b4d..6def35ef24 100644
+--- a/src/cmd/compile/internal/walk/walk.go
++++ b/src/cmd/compile/internal/walk/walk.go
+@@ -539,12 +539,31 @@ func calcHasCall(n ir.Node) bool {
+ 
+ // itabType loads the _type field from a runtime.itab struct.
+ func itabType(itab ir.Node) ir.Node {
+-	typ := ir.NewSelectorExpr(base.Pos, ir.ODOTPTR, itab, nil)
+-	typ.SetType(types.NewPtr(types.Types[types.TUINT8]))
+-	typ.SetTypecheck(1)
+-	typ.Offset = int64(types.PtrSize) // offset of _type in runtime.itab
+-	typ.SetBounded(true)              // guaranteed not to fault
+-	return typ
++	if itabTypeField == nil {
++		// runtime.itab's _type field
++		itabTypeField = runtimeField("_type", int64(types.PtrSize), types.NewPtr(types.Types[types.TUINT8]))
++	}
++	return boundedDotPtr(base.Pos, itab, itabTypeField)
++}
++
++var itabTypeField *types.Field
++
++// boundedDotPtr returns a selector expression representing ptr.field
++// and omits nil-pointer checks for ptr.
++func boundedDotPtr(pos src.XPos, ptr ir.Node, field *types.Field) *ir.SelectorExpr {
++	sel := ir.NewSelectorExpr(pos, ir.ODOTPTR, ptr, field.Sym)
++	sel.Selection = field
++	sel.Offset = field.Offset
++	sel.SetType(field.Type)
++	sel.SetTypecheck(1)
++	sel.SetBounded(true) // guaranteed not to fault
++	return sel
++}
++
++func runtimeField(name string, offset int64, typ *types.Type) *types.Field {
++	f := types.NewField(src.NoXPos, ir.Pkgs.Runtime.Lookup(name), typ)
++	f.Offset = offset
++	return f
+ }
+ 
+ // ifaceData loads the data field from an interface.

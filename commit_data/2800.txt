@@ -9,7 +9,7 @@ Date:   Tue Jul 28 11:23:24 2009 -0700
     DELTA=53  (12 added, 6 deleted, 35 changed)
     OCL=31822
     CL=32282
-
+---
  src/Make.conf             | 5 ++++-
  src/cmd/5a/Makefile       | 2 +-
  src/cmd/5c/Makefile       | 3 +--
@@ -37,3 +37,396 @@ Date:   Tue Jul 28 11:23:24 2009 -0700
  test/run                  | 2 +-
  usr/gri/pretty/Makefile   | 5 +++--
  26 files changed, 42 insertions(+), 38 deletions(-)
+
+diff --git a/src/Make.conf b/src/Make.conf
+index 29f352079e..417e49b136 100644
+--- a/src/Make.conf
++++ b/src/Make.conf
+@@ -5,6 +5,9 @@
+ CC=quietgcc
+ LD=quietgcc
+ CFLAGS=-ggdb -I$(GOROOT)/include -O1
+-BIN=$(HOME)/bin
+ O=o
+ YFLAGS=-d
++# GNU Make syntax:
++ifndef GOBIN
++GOBIN=$(HOME)/bin
++endif
+diff --git a/src/cmd/5a/Makefile b/src/cmd/5a/Makefile
+index d9e91a03a6..6508d94115 100644
+--- a/src/cmd/5a/Makefile
++++ b/src/cmd/5a/Makefile
+@@ -39,4 +39,4 @@ clean:
+ 	rm -f $(OFILES) $(TARG) *.5 enam.c 5.out a.out y.tab.h y.tab.c
+ 
+ install: $(TARG)
+-	cp $(TARG) $(BIN)/$(TARG)
++	cp $(TARG) $(GOBIN)/$(TARG)
+diff --git a/src/cmd/5c/Makefile b/src/cmd/5c/Makefile
+index 06dfa4f3e3..96219bdbaf 100644
+--- a/src/cmd/5c/Makefile
++++ b/src/cmd/5c/Makefile
+@@ -37,8 +37,7 @@ clean:
+ 	rm -f $(OFILES) $(TARG) *.5 enam.c 5.out a.out
+ 
+ install: $(TARG)
+-	cp $(TARG) $(BIN)/$(TARG)
++	cp $(TARG) $(GOBIN)/$(TARG)
+ 
+ %.$O: ../cc/%.c
+ 	$(CC) $(CFLAGS) -c -I. -o $@ ../cc/$*.c
+-
+diff --git a/src/cmd/5g/Makefile b/src/cmd/5g/Makefile
+index b955f20ee4..736d7c10cc 100644
+--- a/src/cmd/5g/Makefile
++++ b/src/cmd/5g/Makefile
+@@ -34,4 +34,4 @@ clean:
+ 	rm -f $(OFILES) $(TARG) *.5 enam.c 5.out a.out
+ 
+ install: $(TARG)
+-	cp $(TARG) $(BIN)/$(TARG)
++	cp $(TARG) $(GOBIN)/$(TARG)
+diff --git a/src/cmd/5l/Makefile b/src/cmd/5l/Makefile
+index 490f723030..d2c2f76e1e 100644
+--- a/src/cmd/5l/Makefile
++++ b/src/cmd/5l/Makefile
+@@ -37,4 +37,4 @@ clean:
+ 	rm -f $(OFILES) $(TARG) *.5 enam.c 5.out a.out
+ 
+ install: $(TARG)
+-	cp $(TARG) $(BIN)/$(TARG)
++	cp $(TARG) $(GOBIN)/$(TARG)
+diff --git a/src/cmd/6a/Makefile b/src/cmd/6a/Makefile
+index 73baf7ffd1..38548c05f0 100644
+--- a/src/cmd/6a/Makefile
++++ b/src/cmd/6a/Makefile
+@@ -11,12 +11,10 @@ HFILES=\
+ 	a.h\
+ 	y.tab.h\
+ 	../6l/6.out.h\
+-	compat.h\
+ 
+ OFILES=\
+ 	y.tab.$O\
+ 	lex.$O\
+-	compat.$O\
+ 	../6l/enam.$O\
+ 
+ YFILES=\
+@@ -39,4 +37,4 @@ clean:
+ 	rm -f $(OFILES) $(TARG) *.6 enam.c 6.out a.out y.tab.h y.tab.c
+ 
+ install: $(TARG)
+-	cp $(TARG) $(BIN)/$(TARG)
++	cp $(TARG) $(GOBIN)/$(TARG)
+diff --git a/src/cmd/6c/Makefile b/src/cmd/6c/Makefile
+index b6c8d61d8f..d5daa9e1b4 100644
+--- a/src/cmd/6c/Makefile
++++ b/src/cmd/6c/Makefile
+@@ -38,8 +38,7 @@ clean:
+ 	rm -f $(OFILES) $(TARG) *.6 enam.c 6.out a.out
+ 
+ install: $(TARG)
+-	cp $(TARG) $(BIN)/$(TARG)
++	cp $(TARG) $(GOBIN)/$(TARG)
+ 
+ %.$O: ../cc/%.c
+ 	$(CC) $(CFLAGS) -c -I. -o $@ ../cc/$*.c
+-
+diff --git a/src/cmd/6g/Makefile b/src/cmd/6g/Makefile
+index d4bb7c4b45..2a1819618e 100644
+--- a/src/cmd/6g/Makefile
++++ b/src/cmd/6g/Makefile
+@@ -36,4 +36,4 @@ clean:
+ 	rm -f $(OFILES) $(TARG) *.6 enam.c 6.out a.out
+ 
+ install: $(TARG)
+-	cp $(TARG) $(BIN)/$(TARG)
++	cp $(TARG) $(GOBIN)/$(TARG)
+diff --git a/src/cmd/6l/Makefile b/src/cmd/6l/Makefile
+index bcbdb3de7d..1044611b76 100644
+--- a/src/cmd/6l/Makefile
++++ b/src/cmd/6l/Makefile
+@@ -23,6 +23,7 @@ HFILES=\
+ 	l.h\
+ 	../6l/6.out.h\
+ 	../ld/elf64.h\
++	../6l/compat.h\
+ 
+ 
+ $(TARG): $(OFILES)
+@@ -37,7 +38,7 @@ clean:
+ 	rm -f $(OFILES) $(TARG) *.6 enam.c 6.out a.out
+ 
+ install: $(TARG)
+-	cp $(TARG) $(BIN)/$(TARG)
++	cp $(TARG) $(GOBIN)/$(TARG)
+ 
+ go.o: ../ld/go.c
+ 
+diff --git a/src/cmd/8a/Makefile b/src/cmd/8a/Makefile
+index 690c6251de..ae221632b4 100644
+--- a/src/cmd/8a/Makefile
++++ b/src/cmd/8a/Makefile
+@@ -39,4 +39,4 @@ clean:
+ 	rm -f $(OFILES) $(TARG) *.6 enam.c 6.out a.out y.tab.h y.tab.c
+ 
+ install: $(TARG)
+-	cp $(TARG) $(BIN)/$(TARG)
++	cp $(TARG) $(GOBIN)/$(TARG)
+diff --git a/src/cmd/8c/Makefile b/src/cmd/8c/Makefile
+index 0b3736b278..5d8d79fe33 100644
+--- a/src/cmd/8c/Makefile
++++ b/src/cmd/8c/Makefile
+@@ -40,8 +40,7 @@ clean:
+ 	rm -f $(OFILES) $(TARG) *.8 8.out a.out
+ 
+ install: $(TARG)
+-	cp $(TARG) $(BIN)/$(TARG)
++	cp $(TARG) $(GOBIN)/$(TARG)
+ 
+ %.$O: ../cc/%.c
+ 	$(CC) $(CFLAGS) -c -I. -o $@ ../cc/$*.c
+-
+diff --git a/src/cmd/8g/Makefile b/src/cmd/8g/Makefile
+index 02ddfa6dd0..7325d62d9c 100644
+--- a/src/cmd/8g/Makefile
++++ b/src/cmd/8g/Makefile
+@@ -37,4 +37,4 @@ clean:
+ 	rm -f $(OFILES) $(TARG) *.8 enam.c 8.out a.out
+ 
+ install: $(TARG)
+-	cp $(TARG) $(BIN)/$(TARG)
++	cp $(TARG) $(GOBIN)/$(TARG)
+diff --git a/src/cmd/8l/Makefile b/src/cmd/8l/Makefile
+index 6b8c73ae2e..27004bb83d 100644
+--- a/src/cmd/8l/Makefile
++++ b/src/cmd/8l/Makefile
+@@ -35,7 +35,6 @@ clean:
+ 	rm -f $(OFILES) $(TARG) *.8 enam.c 8.out a.out
+ 
+ install: $(TARG)
+-	cp $(TARG) $(BIN)/$(TARG)
++	cp $(TARG) $(GOBIN)/$(TARG)
+ 
+ go.o: ../ld/go.c
+-
+diff --git a/src/cmd/ar/Makefile b/src/cmd/ar/Makefile
+index 01e97ea637..b6999aa37a 100644
+--- a/src/cmd/ar/Makefile
++++ b/src/cmd/ar/Makefile
+@@ -19,4 +19,4 @@ clean:
+ 	rm -f $(OFILES) $(TARG)
+ 
+ install: $(TARG)
+-	cp $(TARG) $(BIN)/$(TARG)
++	cp $(TARG) $(GOBIN)/$(TARG)
+diff --git a/src/cmd/cov/Makefile b/src/cmd/cov/Makefile
+index 6f5173075b..fc98974731 100644
+--- a/src/cmd/cov/Makefile
++++ b/src/cmd/cov/Makefile
+@@ -30,6 +30,6 @@ install-darwin: $(TARG)
+ 	@true
+ 
+ install-default: $(TARG)
+-	cp $(TARG) $(BIN)/$(TARG)
++	cp $(TARG) $(GOBIN)/$(TARG)
+ 
+ $(OFILES): $(HFILES)
+diff --git a/src/cmd/ebnflint/Makefile b/src/cmd/ebnflint/Makefile
+index e223002986..e473b5c29e 100644
+--- a/src/cmd/ebnflint/Makefile
++++ b/src/cmd/ebnflint/Makefile
+@@ -2,6 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++include $(GOROOT)/src/Make.conf
+ include $(GOROOT)/src/Make.$(GOARCH)
+ 
+ TARG=ebnflint
+@@ -18,7 +19,7 @@ clean:
+ 	rm -f $(OFILES) $(TARG)
+ 
+ install: $(TARG)
+-	cp $(TARG) $(HOME)/bin/$(TARG)
++	cp $(TARG) $(GOBIN)/$(TARG)
+ 
+ %.$O:	%.go
+ 	$(GC) $<
+diff --git a/src/cmd/gobuild/Makefile b/src/cmd/gobuild/Makefile
+index cb326c24f7..c0dd9f3f2a 100644
+--- a/src/cmd/gobuild/Makefile
++++ b/src/cmd/gobuild/Makefile
+@@ -4,6 +4,8 @@
+ 
+ # ironically, not auto-generated
+ 
++include ../../Make.conf
++
+ O_arm=5
+ O_amd64=6
+ O_386=8
+@@ -71,8 +73,7 @@ gobuild: zzgobuild
+ main.$O: phases
+ 
+ nuke: clean
+-	rm -f $(HOME)/bin/gobuild
++	rm -f $(GOBIN)/gobuild
+ 
+ install: zzgobuild
+-	cp gobuild $(HOME)/bin/gobuild
+-
++	cp gobuild $(GOBIN)/gobuild
+diff --git a/src/cmd/godefs/Makefile b/src/cmd/godefs/Makefile
+index 0d02769c90..819f94a004 100644
+--- a/src/cmd/godefs/Makefile
++++ b/src/cmd/godefs/Makefile
+@@ -19,6 +19,6 @@ clean:
+ 	rm -f $(OFILES) $(TARG)
+ 
+ install: $(TARG)
+-	cp $(TARG) $(BIN)/$(TARG)
++	cp $(TARG) $(GOBIN)/$(TARG)
+ 
+ $(OFILES): $(HFILES)
+diff --git a/src/cmd/godoc/Makefile b/src/cmd/godoc/Makefile
+index 8365f9feac..53f694e7b9 100644
+--- a/src/cmd/godoc/Makefile
++++ b/src/cmd/godoc/Makefile
+@@ -2,6 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++include $(GOROOT)/src/Make.conf
+ include $(GOROOT)/src/Make.$(GOARCH)
+ 
+ TARG=godoc
+@@ -15,7 +16,7 @@ clean:
+ 	rm -f $(OFILES) $(TARG)
+ 
+ install: $(TARG)
+-	cp $(TARG) $(HOME)/bin/$(TARG)
++	cp $(TARG) $(GOBIN)/$(TARG)
+ 
+ %.$O:	%.go
+ 	$(GC) $<
+diff --git a/src/cmd/gofmt/Makefile b/src/cmd/gofmt/Makefile
+index 1312cb19d5..01d772ff72 100644
+--- a/src/cmd/gofmt/Makefile
++++ b/src/cmd/gofmt/Makefile
+@@ -2,6 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++include $(GOROOT)/src/Make.conf
+ include $(GOROOT)/src/Make.$(GOARCH)
+ 
+ TARG=gofmt
+@@ -21,7 +22,7 @@ clean:
+ 	rm -f $(OFILES) $(TARG)
+ 
+ install: $(TARG)
+-	cp $(TARG) $(HOME)/bin/$(TARG)
++	cp $(TARG) $(GOBIN)/$(TARG)
+ 
+ %.$O:	%.go
+ 	$(GC) $<
+diff --git a/src/cmd/gotest/Makefile b/src/cmd/gotest/Makefile
+index dbfa321145..8a1f023867 100644
+--- a/src/cmd/gotest/Makefile
++++ b/src/cmd/gotest/Makefile
+@@ -10,5 +10,5 @@ clean:
+ 	@true
+ 
+ install: $(TARG)
+-	! test -f $(BIN)/$(TARG) || chmod u+w $(BIN)/$(TARG)
+-	cp $(TARG) $(BIN)/$(TARG)
++	! test -f $(GOBIN)/$(TARG) || chmod u+w $(GOBIN)/$(TARG)
++	cp $(TARG) $(GOBIN)/$(TARG)
+diff --git a/src/cmd/nm/Makefile b/src/cmd/nm/Makefile
+index 080d668c9a..8ed55ff3fe 100644
+--- a/src/cmd/nm/Makefile
++++ b/src/cmd/nm/Makefile
+@@ -19,6 +19,6 @@ clean:
+ 	rm -f $(OFILES) $(TARG)
+ 
+ install: $(TARG)
+-	cp $(TARG) $(BIN)/$(TARG)
++	cp $(TARG) $(GOBIN)/$(TARG)
+ 
+ $(OFILES): $(HFILES)
+diff --git a/src/cmd/prof/Makefile b/src/cmd/prof/Makefile
+index 055cb3dd1a..8d785b4aaf 100644
+--- a/src/cmd/prof/Makefile
++++ b/src/cmd/prof/Makefile
+@@ -30,6 +30,6 @@ install-darwin: $(TARG)
+ 	@true
+ 
+ install-default: $(TARG)
+-	cp $(TARG) $(BIN)/$(TARG)
++	cp $(TARG) $(GOBIN)/$(TARG)
+ 
+ $(OFILES): $(HFILES)
+diff --git a/src/make.bash b/src/make.bash
+index 6374f0b9e5..f8f4b8e730 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -4,6 +4,7 @@
+ # license that can be found in the LICENSE file.
+ 
+ set -e
++GOBIN="${GOBIN:-$HOME/bin}"
+ export MAKEFLAGS=-j4
+ 
+ if ! test -f $GOROOT/include/u.h
+@@ -14,9 +15,9 @@ fi
+ 
+ bash clean.bash
+ 
+-rm -f $HOME/bin/quietgcc
+-cp quietgcc.bash $HOME/bin/quietgcc
+-chmod +x $HOME/bin/quietgcc
++rm -f $GOBIN/quietgcc
++cp quietgcc.bash $GOBIN/quietgcc
++chmod +x $GOBIN/quietgcc
+ 
+ for i in lib9 libbio libmach_amd64 libregexp cmd pkg cmd/ebnflint cmd/gobuild cmd/godoc cmd/gofmt
+ do
+diff --git a/test/run b/test/run
+index 9ef2746d38..094aa8427f 100755
+--- a/test/run
++++ b/test/run
+@@ -24,7 +24,7 @@ export GOTRACEBACK=0
+ 
+ failed=0
+ 
+-PATH=/bin:/usr/bin:$HOME/bin:`pwd`
++PATH=/bin:/usr/bin:${GOBIN:-$HOME/bin}:`pwd`
+ 
+ RUNFILE=/tmp/gorun-$$-$USER
+ TMP1FILE=/tmp/gotest1-$$-$USER
+diff --git a/usr/gri/pretty/Makefile b/usr/gri/pretty/Makefile
+index 3171a087a5..2b323c8a59 100644
+--- a/usr/gri/pretty/Makefile
++++ b/usr/gri/pretty/Makefile
+@@ -2,6 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++include $(GOROOT)/src/Make.conf
+ include $(GOROOT)/src/Make.$(GOARCH)
+ 
+ all: godoc gofmt
+@@ -19,8 +20,8 @@ smoketest: gofmt
+ 	./test.sh $(GOROOT)/src/pkg/go/printer/printer.go
+ 
+ install: pretty godoc untab
+-	cp godoc $(HOME)/bin/godoc
+-	cp gofmt $(HOME)/bin/gofmt
++	cp godoc $(GOBIN)/godoc
++	cp gofmt $(GOBIN)/gofmt
+ 
+ clean:
+ 	rm -f godoc gofmt *.$O *.a 6.out *~

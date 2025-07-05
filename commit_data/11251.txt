@@ -7,7 +7,7 @@ Date:   Wed Jan 18 19:35:53 2012 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/5556051
-
+---
  src/pkg/go/doc/doc.go                |  2 +-
  src/pkg/go/doc/exports.go            |  3 +++
  src/pkg/go/doc/reader.go             | 22 ++++++++++++++++++++++
@@ -15,3 +15,154 @@ Date:   Wed Jan 18 19:35:53 2012 -0800
  src/pkg/go/doc/testdata/template.txt |  6 +++---
  src/pkg/go/doc/testdata/testing.out  | 12 ++++++++++++
  6 files changed, 44 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index 66e2937aeb..112d01f78f 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -15,7 +15,7 @@ type Package struct {
+ 	Doc        string
+ 	Name       string
+ 	ImportPath string
+-	Imports    []string // TODO(gri) this field is not computed at the moment
++	Imports    []string
+ 	Filenames  []string
+ 	Consts     []*Value
+ 	Types      []*Type
+diff --git a/src/pkg/go/doc/exports.go b/src/pkg/go/doc/exports.go
+index 994bf503b5..a35b3e2391 100644
+--- a/src/pkg/go/doc/exports.go
++++ b/src/pkg/go/doc/exports.go
+@@ -124,6 +124,9 @@ func (doc *docReader) filterType(tinfo *typeInfo, typ ast.Expr) bool {
+ 
+ func (doc *docReader) filterSpec(spec ast.Spec) bool {
+ 	switch s := spec.(type) {
++	case *ast.ImportSpec:
++		// always keep imports so we can collect them
++		return true
+ 	case *ast.ValueSpec:
+ 		s.Names = filterIdentList(s.Names)
+ 		if len(s.Names) > 0 {
+diff --git a/src/pkg/go/doc/reader.go b/src/pkg/go/doc/reader.go
+index 939dd89b00..1a2fad559a 100644
+--- a/src/pkg/go/doc/reader.go
++++ b/src/pkg/go/doc/reader.go
+@@ -9,6 +9,7 @@ import (
+ 	"go/token"
+ 	"regexp"
+ 	"sort"
++	"strconv"
+ )
+ 
+ // ----------------------------------------------------------------------------
+@@ -55,6 +56,7 @@ type docReader struct {
+ 	doc      *ast.CommentGroup // package documentation, if any
+ 	pkgName  string
+ 	mode     Mode
++	imports  map[string]int
+ 	values   []*ast.GenDecl // consts and vars
+ 	types    map[string]*typeInfo
+ 	embedded map[string]*typeInfo // embedded types, possibly not exported
+@@ -65,6 +67,7 @@ type docReader struct {
+ func (doc *docReader) init(pkgName string, mode Mode) {
+ 	doc.pkgName = pkgName
+ 	doc.mode = mode
++	doc.imports = make(map[string]int)
+ 	doc.types = make(map[string]*typeInfo)
+ 	doc.embedded = make(map[string]*typeInfo)
+ 	doc.funcs = make(map[string]*ast.FuncDecl)
+@@ -244,6 +247,13 @@ func (doc *docReader) addDecl(decl ast.Decl) {
+ 	case *ast.GenDecl:
+ 		if len(d.Specs) > 0 {
+ 			switch d.Tok {
++			case token.IMPORT:
++				// imports are handled individually
++				for _, spec := range d.Specs {
++					if import_, err := strconv.Unquote(spec.(*ast.ImportSpec).Path.Value); err == nil {
++						doc.imports[import_] = 1
++					}
++				}
+ 			case token.CONST, token.VAR:
+ 				// constants and variables are always handled as a group
+ 				doc.addValue(d)
+@@ -346,6 +356,17 @@ func (doc *docReader) addFile(src *ast.File) {
+ // ----------------------------------------------------------------------------
+ // Conversion to external representation
+ 
++func (doc *docReader) makeImports() []string {
++	list := make([]string, len(doc.imports))
++	i := 0
++	for import_ := range doc.imports {
++		list[i] = import_
++		i++
++	}
++	sort.Strings(list)
++	return list
++}
++
+ type sortValue []*Value
+ 
+ func (p sortValue) Len() int      { return len(p) }
+@@ -661,6 +682,7 @@ func (doc *docReader) newDoc(importpath string, filenames []string) *Package {
+ 	// doc.funcs and thus must be called before any other
+ 	// function consuming those lists
+ 	p.Types = doc.makeTypes(doc.types)
++	p.Imports = doc.makeImports()
+ 	p.Consts = makeValues(doc.values, token.CONST)
+ 	p.Vars = makeValues(doc.values, token.VAR)
+ 	p.Funcs = makeFuncs(doc.funcs)
+diff --git a/src/pkg/go/doc/testdata/b.out b/src/pkg/go/doc/testdata/b.out
+index 80e2deb429..c5ad0d0fc8 100644
+--- a/src/pkg/go/doc/testdata/b.out
++++ b/src/pkg/go/doc/testdata/b.out
+@@ -4,6 +4,9 @@ PACKAGE b
+ IMPORTPATH
+ 	testdata/b
+ 
++IMPORTS
++	a
++
+ FILENAMES
+ 	testdata/b.go
+ 
+diff --git a/src/pkg/go/doc/testdata/template.txt b/src/pkg/go/doc/testdata/template.txt
+index b10dfc4b72..32e331cdd1 100644
+--- a/src/pkg/go/doc/testdata/template.txt
++++ b/src/pkg/go/doc/testdata/template.txt
+@@ -4,10 +4,10 @@ PACKAGE {{.Name}}
+ IMPORTPATH
+ 	{{.ImportPath}}
+ 
+-{{with .Imports}}
+-IMPORTS
++{{with .Imports}}IMPORTS
+ {{range .}}	{{.}}
+-{{end}}{{end}}{{/*
++{{end}}
++{{end}}{{/*
+ 
+ */}}FILENAMES
+ {{range .Filenames}}	{{.}}
+diff --git a/src/pkg/go/doc/testdata/testing.out b/src/pkg/go/doc/testdata/testing.out
+index 97111993cd..15a9039866 100644
+--- a/src/pkg/go/doc/testdata/testing.out
++++ b/src/pkg/go/doc/testdata/testing.out
+@@ -4,6 +4,18 @@ PACKAGE testing
+ IMPORTPATH
+ 	testdata/testing
+ 
++IMPORTS
++	bytes
++	flag
++	fmt
++	io
++	os
++	runtime
++	runtime/pprof
++	strconv
++	strings
++	time
++
+ FILENAMES
+ 	testdata/benchmark.go
+ 	testdata/example.go

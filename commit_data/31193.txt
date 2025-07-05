@@ -10,6 +10,42 @@ Date:   Sat Feb 4 17:33:14 2017 +1100
     Reviewed-on: https://go-review.googlesource.com/36373
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/cmd/nm/nm_cgo_test.go | 17 +++++++++++++++++
  1 file changed, 17 insertions(+)
+
+diff --git a/src/cmd/nm/nm_cgo_test.go b/src/cmd/nm/nm_cgo_test.go
+index 633f9c0406..de16f77ecc 100644
+--- a/src/cmd/nm/nm_cgo_test.go
++++ b/src/cmd/nm/nm_cgo_test.go
+@@ -7,13 +7,30 @@
+ package main
+ 
+ import (
++	"runtime"
+ 	"testing"
+ )
+ 
+ func TestInternalLinkerCgoFile(t *testing.T) {
++	if !canInternalLink() {
++		t.Skip("skipping; internal linking is not supported")
++	}
+ 	testGoFile(t, true, false)
+ }
+ 
++func canInternalLink() bool {
++	switch runtime.GOOS {
++	case "dragonfly":
++		return false
++	case "linux":
++		switch runtime.GOARCH {
++		case "arm64", "mips64", "mips64le", "mips", "mipsle":
++			return false
++		}
++	}
++	return true
++}
++
+ func TestExternalLinkerCgoFile(t *testing.T) {
+ 	testGoFile(t, true, true)
+ }

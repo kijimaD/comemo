@@ -10,7 +10,43 @@ Date:   Tue May 27 23:58:03 2014 -0400
     R=rsc, adg, robert.hencke, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/89280043
-
+---
  src/cmd/go/get.go | 4 ++++
  src/cmd/go/pkg.go | 2 ++
  2 files changed, 6 insertions(+)
+
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index 94f8083477..e708fcf779 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -140,6 +140,10 @@ var downloadRootCache = map[string]bool{}
+ // for the package named by the argument.
+ func download(arg string, stk *importStack, getTestDeps bool) {
+ 	p := loadPackage(arg, stk)
++	if p.Error != nil && p.Error.hard {
++		errorf("%s", p.Error)
++		return
++	}
+ 
+ 	// There's nothing to do if this is a package in the standard library.
+ 	if p.Standard {
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 16a99f382d..d45df265b9 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -139,6 +139,7 @@ type PackageError struct {
+ 	Pos           string   // position of error
+ 	Err           string   // the error itself
+ 	isImportCycle bool     // the error is an import cycle
++	hard          bool     // whether the error is soft or hard; soft errors are ignored in some places
+ }
+ 
+ func (p *PackageError) Error() string {
+@@ -715,6 +716,7 @@ func loadPackage(arg string, stk *importStack) *Package {
+ 				Error: &PackageError{
+ 					ImportStack: stk.copy(),
+ 					Err:         fmt.Sprintf("invalid import path: cmd/... is reserved for Go commands"),
++					hard:        true,
+ 				},
+ 			}
+ 			return p

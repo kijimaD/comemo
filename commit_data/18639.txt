@@ -16,6 +16,28 @@ Date:   Tue Feb 25 23:02:19 2014 +0900
     R=iant, minux.ma, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/61520049
-
+---
  src/pkg/syscall/syscall_unix_test.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/pkg/syscall/syscall_unix_test.go b/src/pkg/syscall/syscall_unix_test.go
+index 0292d3b37f..acc355f0b2 100644
+--- a/src/pkg/syscall/syscall_unix_test.go
++++ b/src/pkg/syscall/syscall_unix_test.go
+@@ -77,6 +77,16 @@ func TestFcntlFlock(t *testing.T) {
+ 	}
+ }
+ 
++func TestMmap(t *testing.T) {
++	b, err := syscall.Mmap(-1, 0, syscall.Getpagesize(), syscall.PROT_NONE, syscall.MAP_ANON|syscall.MAP_PRIVATE)
++	if err != nil {
++		t.Fatalf("Mmap: %v", err)
++	}
++	if err := syscall.Munmap(b); err != nil {
++		t.Fatalf("Munmap: %v", err)
++	}
++}
++
+ // TestPassFD tests passing a file descriptor over a Unix socket.
+ //
+ // This test involved both a parent and child process. The parent

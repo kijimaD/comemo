@@ -17,6 +17,20 @@ Date:   Wed Sep 18 15:05:40 2024 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     Commit-Queue: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 02bea8e443..a9eda54713 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2133,7 +2133,7 @@ func linkerFlagSupported(arch *sys.Arch, linker, altLinker, flag string) bool {
+ 
+ 	flags := hostlinkArchArgs(arch)
+ 
+-	moreFlags := trimLinkerArgv(append(flagExtldflags, ldflag...))
++	moreFlags := trimLinkerArgv(append(ldflag, flagExtldflags...))
+ 	flags = append(flags, moreFlags...)
+ 
+ 	if altLinker != "" {

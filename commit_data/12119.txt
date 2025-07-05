@@ -7,7 +7,7 @@ Date:   Wed Feb 22 00:19:59 2012 +0100
     R=golang-dev, rsc
     CC=golang-dev, remy
     https://golang.org/cl/5688057
-
+---
  test/fixedbugs/bug110.go | 2 +-
  test/fixedbugs/bug114.go | 2 +-
  test/fixedbugs/bug155.go | 2 +-
@@ -16,3 +16,78 @@ Date:   Wed Feb 22 00:19:59 2012 +0100
  test/sieve.go            | 4 +++-
  test/solitaire.go        | 4 +++-
  7 files changed, 11 insertions(+), 7 deletions(-)
+
+diff --git a/test/fixedbugs/bug110.go b/test/fixedbugs/bug110.go
+index 4e43d1c01b..5528ba3f16 100644
+--- a/test/fixedbugs/bug110.go
++++ b/test/fixedbugs/bug110.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A || echo BUG: const bug
++// build
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug114.go b/test/fixedbugs/bug114.go
+index 974b7cf26e..99e66a2ddc 100644
+--- a/test/fixedbugs/bug114.go
++++ b/test/fixedbugs/bug114.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && (./$A.out || echo BUG: bug114 failed)
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug155.go b/test/fixedbugs/bug155.go
+index 312c8e6a96..8872e978da 100644
+--- a/test/fixedbugs/bug155.go
++++ b/test/fixedbugs/bug155.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A || echo BUG: bug155
++// build
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug167.go b/test/fixedbugs/bug167.go
+index 33eb3cb1a9..3a50e6ff0c 100644
+--- a/test/fixedbugs/bug167.go
++++ b/test/fixedbugs/bug167.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A || echo BUG: bug167
++// build
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug183.go b/test/fixedbugs/bug183.go
+index 7fd6e4942f..dc9f5356e0 100644
+--- a/test/fixedbugs/bug183.go
++++ b/test/fixedbugs/bug183.go
+@@ -1,4 +1,4 @@
+-//errchk $G $D/$F.go
++// errorcheck
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/sieve.go b/test/sieve.go
+index 4fa1115824..31c4ed5c05 100644
+--- a/test/sieve.go
++++ b/test/sieve.go
+@@ -1,4 +1,6 @@
+-// $G $F.go && $L $F.$A  # don't run it - goes forever
++// build
++
++// don't run it - goes forever
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/solitaire.go b/test/solitaire.go
+index 473a1d12d7..99c194f5bb 100644
+--- a/test/solitaire.go
++++ b/test/solitaire.go
+@@ -1,4 +1,6 @@
+-// $G $F.go && $L $F.$A  # don't run it - produces too much output
++// build
++
++// don't run it - produces too much output
+ 
+ // Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

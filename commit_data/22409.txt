@@ -9,7 +9,74 @@ Date:   Thu Mar 12 11:54:11 2015 +1100
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Geert-Johan Riemer <gjr19912@gmail.com>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/archive/zip/writer.go      | 27 +++++++++------------------
  src/archive/zip/writer_test.go |  5 +++--
  2 files changed, 12 insertions(+), 20 deletions(-)
+
+diff --git a/src/archive/zip/writer.go b/src/archive/zip/writer.go
+index c2e04163cf..87ac694a4e 100644
+--- a/src/archive/zip/writer.go
++++ b/src/archive/zip/writer.go
+@@ -29,29 +29,20 @@ type header struct {
+ 	offset uint64
+ }
+ 
+-// WriterOptions contains configuration options for a zip.Writer.
+-type WriterOptions struct {
+-	// Offset modifies the initial zip offset.
+-	// This is useful when the zip is appended to other data such as a binary executable.
+-	Offset int64
+-}
+-
+ // NewWriter returns a new Writer writing a zip file to w.
+ func NewWriter(w io.Writer) *Writer {
+-	return NewWriterWithOptions(w, nil)
++	return &Writer{cw: &countWriter{w: bufio.NewWriter(w)}}
+ }
+ 
+-// NewWriterWithOptions returns a new Writer writing a zip file to w and uses the given options.
+-func NewWriterWithOptions(w io.Writer, options *WriterOptions) *Writer {
+-	writer := &Writer{
+-		cw: &countWriter{
+-			w: bufio.NewWriter(w),
+-		},
+-	}
+-	if options != nil {
+-		writer.cw.count = options.Offset
++// SetOffset sets the offset of the beginning of the zip data within the
++// underlying writer. It should be used when the zip data is appended to an
++// existing file, such as a binary executable.
++// It must be called before any data is written.
++func (w *Writer) SetOffset(n int64) {
++	if w.cw.count != 0 {
++		panic("zip: SetOffset called after data was written")
+ 	}
+-	return writer
++	w.cw.count = n
+ }
+ 
+ // Flush flushes any buffered data to the underlying writer.
+diff --git a/src/archive/zip/writer_test.go b/src/archive/zip/writer_test.go
+index 8be86408d8..01b63f2358 100644
+--- a/src/archive/zip/writer_test.go
++++ b/src/archive/zip/writer_test.go
+@@ -87,7 +87,7 @@ func TestWriter(t *testing.T) {
+ 	}
+ }
+ 
+-func TestWriterOffsetOption(t *testing.T) {
++func TestWriterOffset(t *testing.T) {
+ 	largeData := make([]byte, 1<<17)
+ 	for i := range largeData {
+ 		largeData[i] = byte(rand.Int())
+@@ -101,7 +101,8 @@ func TestWriterOffsetOption(t *testing.T) {
+ 	buf := new(bytes.Buffer)
+ 	existingData := []byte{1, 2, 3, 1, 2, 3, 1, 2, 3}
+ 	n, _ := buf.Write(existingData)
+-	w := NewWriterWithOptions(buf, &WriterOptions{Offset: int64(n)})
++	w := NewWriter(buf)
++	w.SetOffset(int64(n))
+ 
+ 	for _, wt := range writeTests {
+ 		testCreate(t, w, &wt)

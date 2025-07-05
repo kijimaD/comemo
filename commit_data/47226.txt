@@ -16,7 +16,68 @@ Date:   Thu Mar 4 12:09:04 2021 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/expr.go       | 15 ++++++++++++++-
  src/cmd/compile/internal/types2/selection.go | 16 ----------------
  2 files changed, 14 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index 3fded144dc..b99f5a4cdd 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -253,7 +253,7 @@ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.Selecto
+ 
+ 				// selinfo.Targs() are the types used to
+ 				// instantiate the type of receiver
+-				targs2 := selinfo.TArgs()
++				targs2 := getTargs(selinfo)
+ 				targs := make([]ir.Node, len(targs2))
+ 				for i, targ2 := range targs2 {
+ 					targs[i] = ir.TypeNode(g.typ(targ2))
+@@ -279,6 +279,19 @@ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.Selecto
+ 	return n
+ }
+ 
++// getTargs gets the targs associated with the receiver of a selected method
++func getTargs(selinfo *types2.Selection) []types2.Type {
++	r := selinfo.Recv()
++	if p := types2.AsPointer(r); p != nil {
++		r = p.Elem()
++	}
++	n := types2.AsNamed(r)
++	if n == nil {
++		base.Fatalf("Incorrect type for selinfo %v", selinfo)
++	}
++	return n.TArgs()
++}
++
+ func (g *irgen) exprList(expr syntax.Expr) []ir.Node {
+ 	switch expr := expr.(type) {
+ 	case nil:
+diff --git a/src/cmd/compile/internal/types2/selection.go b/src/cmd/compile/internal/types2/selection.go
+index 02c0fc6902..8128aeee2e 100644
+--- a/src/cmd/compile/internal/types2/selection.go
++++ b/src/cmd/compile/internal/types2/selection.go
+@@ -51,22 +51,6 @@ func (s *Selection) Kind() SelectionKind { return s.kind }
+ // Recv returns the type of x in x.f.
+ func (s *Selection) Recv() Type { return s.recv }
+ 
+-// Work-around for a compiler issue where an (*instance) escapes.
+-// TODO(gri): Is this still needed?
+-func (s *Selection) TArgs() []Type {
+-	r := s.recv
+-	if p := asPointer(r); p != nil {
+-		r = p.Elem()
+-	}
+-	if n := asNamed(r); n != nil {
+-		return n.TArgs()
+-	}
+-	// The base type (after skipping any pointer) must be a Named type. The
+-	// bug is that sometimes it can be an instance type (which is supposed to
+-	// be an internal type only).
+-	return r.(*instance).targs
+-}
+-
+ // Obj returns the object denoted by x.f; a *Var for
+ // a field selection, and a *Func in all other cases.
+ func (s *Selection) Obj() Object { return s.obj }

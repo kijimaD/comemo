@@ -14,8 +14,52 @@ Date:   Thu Apr 8 17:41:24 2021 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/os3_plan9.go      | 2 +-
  src/runtime/signal_windows.go | 2 +-
  src/runtime/stubs.go          | 6 ++++--
  3 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/os3_plan9.go b/src/runtime/os3_plan9.go
+index b6ee98cab6..c5dc23de8b 100644
+--- a/src/runtime/os3_plan9.go
++++ b/src/runtime/os3_plan9.go
+@@ -100,7 +100,7 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
+ 		if usesLR {
+ 			c.setpc(funcPC(sigpanictramp))
+ 		} else {
+-			c.setpc(funcPC(sigpanic))
++			c.setpc(funcPC(sigpanic0))
+ 		}
+ 		return _NCONT
+ 	}
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index 63158f0bc4..f2ce24d735 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -145,7 +145,7 @@ func exceptionhandler(info *exceptionrecord, r *context, gp *g) int32 {
+ 			*((*uintptr)(sp)) = r.ip()
+ 		}
+ 	}
+-	r.set_ip(funcPC(sigpanic))
++	r.set_ip(funcPC(sigpanic0))
+ 	return _EXCEPTION_CONTINUE_EXECUTION
+ }
+ 
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index f11ec539df..f635d942e4 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -394,8 +394,10 @@ func duffcopy()
+ // Called from linker-generated .initarray; declared for go vet; do NOT call from Go.
+ func addmoduledata()
+ 
+-// Injected by the signal handler for panicking signals. On many platforms it just
+-// jumps to sigpanic.
++// Injected by the signal handler for panicking signals.
++// Initializes any registers that have fixed meaning at calls but
++// are scratch in bodies and calls sigpanic.
++// On many platforms it just jumps to sigpanic.
+ func sigpanic0()
+ 
+ // intArgRegs is used by the various register assignment

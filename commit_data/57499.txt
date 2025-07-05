@@ -19,7 +19,7 @@ Date:   Thu Aug 10 20:56:27 2023 +0000
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  doc/godebug.md                 |  4 ++++
  src/internal/godebugs/table.go |  1 +
  src/net/http/response_test.go  |  3 ++-
@@ -27,3 +27,174 @@ Date:   Thu Aug 10 20:56:27 2023 +0000
  src/net/http/transfer_test.go  |  6 +++++-
  src/runtime/metrics/doc.go     |  5 +++++
  6 files changed, 41 insertions(+), 16 deletions(-)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index d26555503e..35aac00d76 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -134,6 +134,10 @@ The default is tlsmaxrsasize=8192, limiting RSA to 8192-bit keys. To avoid
+ denial of service attacks, this setting and default was backported to Go
+ 1.19.13, Go 1.20.8, and Go 1.21.1.
+ 
++Go 1.22 made it an error for a request or response read by a net/http
++client or server to have an empty Content-Length header.
++This behavior is controlled by the `httplaxcontentlength` setting.
++
+ ### Go 1.21
+ 
+ Go 1.21 made it a run-time error to call `panic` with a nil interface value,
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index b1711d9ef2..cc169e6661 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -32,6 +32,7 @@ var All = []Info{
+ 	{Name: "http2client", Package: "net/http"},
+ 	{Name: "http2debug", Package: "net/http", Opaque: true},
+ 	{Name: "http2server", Package: "net/http"},
++	{Name: "httplaxcontentlength", Package: "net/http", Changed: 22, Old: "1"},
+ 	{Name: "installgoroot", Package: "go/build"},
+ 	{Name: "jstmpllitinterp", Package: "html/template"},
+ 	//{Name: "multipartfiles", Package: "mime/multipart"},
+diff --git a/src/net/http/response_test.go b/src/net/http/response_test.go
+index 19fb48f23c..ddd318084d 100644
+--- a/src/net/http/response_test.go
++++ b/src/net/http/response_test.go
+@@ -883,6 +883,7 @@ func TestReadResponseErrors(t *testing.T) {
+ 	}
+ 
+ 	errMultiCL := "message cannot contain multiple Content-Length headers"
++	errEmptyCL := "invalid empty Content-Length"
+ 
+ 	tests := []testCase{
+ 		{"", "", io.ErrUnexpectedEOF},
+@@ -918,7 +919,7 @@ func TestReadResponseErrors(t *testing.T) {
+ 		contentLength("200 OK", "Content-Length: 7\r\nContent-Length: 7\r\n\r\nGophers\r\n", nil),
+ 		contentLength("201 OK", "Content-Length: 0\r\nContent-Length: 7\r\n\r\nGophers\r\n", errMultiCL),
+ 		contentLength("300 OK", "Content-Length: 0\r\nContent-Length: 0 \r\n\r\nGophers\r\n", nil),
+-		contentLength("200 OK", "Content-Length:\r\nContent-Length:\r\n\r\nGophers\r\n", nil),
++		contentLength("200 OK", "Content-Length:\r\nContent-Length:\r\n\r\nGophers\r\n", errEmptyCL),
+ 		contentLength("206 OK", "Content-Length:\r\nContent-Length: 0 \r\nConnection: close\r\n\r\nGophers\r\n", errMultiCL),
+ 
+ 		// multiple content-length headers for 204 and 304 should still be checked
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index d6f26a709c..b24998174f 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -9,6 +9,7 @@ import (
+ 	"bytes"
+ 	"errors"
+ 	"fmt"
++	"internal/godebug"
+ 	"io"
+ 	"net/http/httptrace"
+ 	"net/http/internal"
+@@ -527,7 +528,7 @@ func readTransfer(msg any, r *bufio.Reader) (err error) {
+ 		return err
+ 	}
+ 	if isResponse && t.RequestMethod == "HEAD" {
+-		if n, err := parseContentLength(t.Header.get("Content-Length")); err != nil {
++		if n, err := parseContentLength(t.Header["Content-Length"]); err != nil {
+ 			return err
+ 		} else {
+ 			t.ContentLength = n
+@@ -707,18 +708,15 @@ func fixLength(isResponse bool, status int, requestMethod string, header Header,
+ 		return -1, nil
+ 	}
+ 
+-	// Logic based on Content-Length
+-	var cl string
+-	if len(contentLens) == 1 {
+-		cl = textproto.TrimString(contentLens[0])
+-	}
+-	if cl != "" {
+-		n, err := parseContentLength(cl)
++	if len(contentLens) > 0 {
++		// Logic based on Content-Length
++		n, err := parseContentLength(contentLens)
+ 		if err != nil {
+ 			return -1, err
+ 		}
+ 		return n, nil
+ 	}
++
+ 	header.Del("Content-Length")
+ 
+ 	if isRequest {
+@@ -1038,19 +1036,31 @@ func (bl bodyLocked) Read(p []byte) (n int, err error) {
+ 	return bl.b.readLocked(p)
+ }
+ 
+-// parseContentLength trims whitespace from s and returns -1 if no value
+-// is set, or the value if it's >= 0.
+-func parseContentLength(cl string) (int64, error) {
+-	cl = textproto.TrimString(cl)
+-	if cl == "" {
++var laxContentLength = godebug.New("httplaxcontentlength")
++
++// parseContentLength checks that the header is valid and then trims
++// whitespace. It returns -1 if no value is set otherwise the value
++// if it's >= 0.
++func parseContentLength(clHeaders []string) (int64, error) {
++	if len(clHeaders) == 0 {
+ 		return -1, nil
+ 	}
++	cl := textproto.TrimString(clHeaders[0])
++
++	// The Content-Length must be a valid numeric value.
++	// See: https://datatracker.ietf.org/doc/html/rfc2616/#section-14.13
++	if cl == "" {
++		if laxContentLength.Value() == "1" {
++			laxContentLength.IncNonDefault()
++			return -1, nil
++		}
++		return 0, badStringError("invalid empty Content-Length", cl)
++	}
+ 	n, err := strconv.ParseUint(cl, 10, 63)
+ 	if err != nil {
+ 		return 0, badStringError("bad Content-Length", cl)
+ 	}
+ 	return int64(n), nil
+-
+ }
+ 
+ // finishAsyncByteRead finishes reading the 1-byte sniff
+diff --git a/src/net/http/transfer_test.go b/src/net/http/transfer_test.go
+index 5e0df896d8..20cc7b5d50 100644
+--- a/src/net/http/transfer_test.go
++++ b/src/net/http/transfer_test.go
+@@ -332,6 +332,10 @@ func TestParseContentLength(t *testing.T) {
+ 		cl      string
+ 		wantErr error
+ 	}{
++		{
++			cl:      "",
++			wantErr: badStringError("invalid empty Content-Length", ""),
++		},
+ 		{
+ 			cl:      "3",
+ 			wantErr: nil,
+@@ -356,7 +360,7 @@ func TestParseContentLength(t *testing.T) {
+ 	}
+ 
+ 	for _, tt := range tests {
+-		if _, gotErr := parseContentLength(tt.cl); !reflect.DeepEqual(gotErr, tt.wantErr) {
++		if _, gotErr := parseContentLength([]string{tt.cl}); !reflect.DeepEqual(gotErr, tt.wantErr) {
+ 			t.Errorf("%q:\n\tgot=%v\n\twant=%v", tt.cl, gotErr, tt.wantErr)
+ 		}
+ 	}
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index 55d1f65f42..bf7c96f8b5 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -254,6 +254,11 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		The number of non-default behaviors executed by the net/http
+ 		package due to a non-default GODEBUG=http2server=... setting.
+ 
++	/godebug/non-default-behavior/httplaxcontentlength:events
++		The number of non-default behaviors executed by the net/http
++		package due to a non-default GODEBUG=httplaxcontentlength=...
++		setting.
++
+ 	/godebug/non-default-behavior/installgoroot:events
+ 		The number of non-default behaviors executed by the go/build
+ 		package due to a non-default GODEBUG=installgoroot=... setting.

@@ -10,10 +10,231 @@ Date:   Sat Dec 27 20:32:11 2014 -0800
     Change-Id: Ia0c1af35bef3497a899f22084a1a7b42daae72a0
     Reviewed-on: https://go-review.googlesource.com/2099
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/reflect/type.go         |  3 ++-
  src/runtime/alg.go          | 13 ++++---------
  src/runtime/hashmap.go      | 16 ++++++++--------
  src/runtime/hashmap_fast.go | 12 ++++++------
  src/runtime/type.go         |  2 +-
  5 files changed, 21 insertions(+), 25 deletions(-)
+
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index b54e60adaa..75d73adbca 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -251,7 +251,7 @@ type rtype struct {
+ 	align         uint8             // alignment of variable with this type
+ 	fieldAlign    uint8             // alignment of struct field with this type
+ 	kind          uint8             // enumeration for C
+-	alg           *typeAlg          // algorithm table (../runtime/runtime.h:/Alg)
++	alg           *typeAlg          // algorithm table
+ 	gc            [2]unsafe.Pointer // garbage collection data
+ 	string        *string           // string form; unnecessary but undeniably useful
+ 	*uncommonType                   // (relatively) uncommon fields
+@@ -259,6 +259,7 @@ type rtype struct {
+ 	zero          unsafe.Pointer    // pointer to zero value
+ }
+ 
++// a copy of runtime.typeAlg
+ type typeAlg struct {
+ 	// function for hashing objects of this type
+ 	// (ptr to object, size, seed) -> hash
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index 1bed3c461b..15e3abe368 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -131,7 +131,7 @@ func interhash(p unsafe.Pointer, s, h uintptr) uintptr {
+ 		return h
+ 	}
+ 	t := tab._type
+-	fn := goalg(t.alg).hash
++	fn := t.alg.hash
+ 	if fn == nil {
+ 		panic(errorString("hash of unhashable type " + *t._string))
+ 	}
+@@ -148,7 +148,7 @@ func nilinterhash(p unsafe.Pointer, s, h uintptr) uintptr {
+ 	if t == nil {
+ 		return h
+ 	}
+-	fn := goalg(t.alg).hash
++	fn := t.alg.hash
+ 	if fn == nil {
+ 		panic(errorString("hash of unhashable type " + *t._string))
+ 	}
+@@ -219,7 +219,7 @@ func efaceeq(p, q interface{}) bool {
+ 	if t == nil {
+ 		return true
+ 	}
+-	eq := goalg(t.alg).equal
++	eq := t.alg.equal
+ 	if eq == nil {
+ 		panic(errorString("comparing uncomparable type " + *t._string))
+ 	}
+@@ -241,7 +241,7 @@ func ifaceeq(p, q interface {
+ 		return true
+ 	}
+ 	t := xtab._type
+-	eq := goalg(t.alg).equal
++	eq := t.alg.equal
+ 	if eq == nil {
+ 		panic(errorString("comparing uncomparable type " + *t._string))
+ 	}
+@@ -285,11 +285,6 @@ func memclrBytes(b []byte) {
+ 	memclr(s.array, uintptr(s.len))
+ }
+ 
+-// TODO(dvyukov): remove when Type is converted to Go and contains *typeAlg.
+-func goalg(a unsafe.Pointer) *typeAlg {
+-	return (*typeAlg)(a)
+-}
+-
+ // used in asm_{386,amd64}.s
+ const hashRandomBytes = ptrSize / 4 * 64
+ 
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index f0759b58a9..999270a3b1 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -251,7 +251,7 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+ 	if h == nil || h.count == 0 {
+ 		return unsafe.Pointer(t.elem.zero)
+ 	}
+-	alg := goalg(t.key.alg)
++	alg := t.key.alg
+ 	hash := alg.hash(key, uintptr(t.key.size), uintptr(h.hash0))
+ 	m := uintptr(1)<<h.B - 1
+ 	b := (*bmap)(add(h.buckets, (hash&m)*uintptr(t.bucketsize)))
+@@ -299,7 +299,7 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool)
+ 	if h == nil || h.count == 0 {
+ 		return unsafe.Pointer(t.elem.zero), false
+ 	}
+-	alg := goalg(t.key.alg)
++	alg := t.key.alg
+ 	hash := alg.hash(key, uintptr(t.key.size), uintptr(h.hash0))
+ 	m := uintptr(1)<<h.B - 1
+ 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + (hash&m)*uintptr(t.bucketsize)))
+@@ -342,7 +342,7 @@ func mapaccessK(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, unsafe
+ 	if h == nil || h.count == 0 {
+ 		return nil, nil
+ 	}
+-	alg := goalg(t.key.alg)
++	alg := t.key.alg
+ 	hash := alg.hash(key, uintptr(t.key.size), uintptr(h.hash0))
+ 	m := uintptr(1)<<h.B - 1
+ 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + (hash&m)*uintptr(t.bucketsize)))
+@@ -392,7 +392,7 @@ func mapassign1(t *maptype, h *hmap, key unsafe.Pointer, val unsafe.Pointer) {
+ 		raceReadObjectPC(t.elem, val, callerpc, pc)
+ 	}
+ 
+-	alg := goalg(t.key.alg)
++	alg := t.key.alg
+ 	hash := alg.hash(key, uintptr(t.key.size), uintptr(h.hash0))
+ 
+ 	if h.buckets == nil {
+@@ -502,7 +502,7 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
+ 	if h == nil || h.count == 0 {
+ 		return
+ 	}
+-	alg := goalg(t.key.alg)
++	alg := t.key.alg
+ 	hash := alg.hash(key, uintptr(t.key.size), uintptr(h.hash0))
+ 	bucket := hash & (uintptr(1)<<h.B - 1)
+ 	if h.oldbuckets != nil {
+@@ -609,7 +609,7 @@ func mapiternext(it *hiter) {
+ 	b := it.bptr
+ 	i := it.i
+ 	checkBucket := it.checkBucket
+-	alg := goalg(t.key.alg)
++	alg := t.key.alg
+ 
+ next:
+ 	if b == nil {
+@@ -773,7 +773,7 @@ func growWork(t *maptype, h *hmap, bucket uintptr) {
+ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
+ 	b := (*bmap)(add(h.oldbuckets, oldbucket*uintptr(t.bucketsize)))
+ 	newbit := uintptr(1) << (h.B - 1)
+-	alg := goalg(t.key.alg)
++	alg := t.key.alg
+ 	if !evacuated(b) {
+ 		// TODO: reuse overflow buckets instead of using new ones, if there
+ 		// is no iterator using the old buckets.  (If !oldIterator.)
+@@ -904,7 +904,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
+ }
+ 
+ func ismapkey(t *_type) bool {
+-	return goalg(t.alg).hash != nil
++	return t.alg.hash != nil
+ }
+ 
+ // Reflect stubs.  Called from ../reflect/asm_*.s
+diff --git a/src/runtime/hashmap_fast.go b/src/runtime/hashmap_fast.go
+index afa6ecc99a..3169ae673e 100644
+--- a/src/runtime/hashmap_fast.go
++++ b/src/runtime/hashmap_fast.go
+@@ -21,7 +21,7 @@ func mapaccess1_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
+ 		// One-bucket table.  No need to hash.
+ 		b = (*bmap)(h.buckets)
+ 	} else {
+-		hash := goalg(t.key.alg).hash(noescape(unsafe.Pointer(&key)), 4, uintptr(h.hash0))
++		hash := t.key.alg.hash(noescape(unsafe.Pointer(&key)), 4, uintptr(h.hash0))
+ 		m := uintptr(1)<<h.B - 1
+ 		b = (*bmap)(add(h.buckets, (hash&m)*uintptr(t.bucketsize)))
+ 		if c := h.oldbuckets; c != nil {
+@@ -63,7 +63,7 @@ func mapaccess2_fast32(t *maptype, h *hmap, key uint32) (unsafe.Pointer, bool) {
+ 		// One-bucket table.  No need to hash.
+ 		b = (*bmap)(h.buckets)
+ 	} else {
+-		hash := goalg(t.key.alg).hash(noescape(unsafe.Pointer(&key)), 4, uintptr(h.hash0))
++		hash := t.key.alg.hash(noescape(unsafe.Pointer(&key)), 4, uintptr(h.hash0))
+ 		m := uintptr(1)<<h.B - 1
+ 		b = (*bmap)(add(h.buckets, (hash&m)*uintptr(t.bucketsize)))
+ 		if c := h.oldbuckets; c != nil {
+@@ -105,7 +105,7 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
+ 		// One-bucket table.  No need to hash.
+ 		b = (*bmap)(h.buckets)
+ 	} else {
+-		hash := goalg(t.key.alg).hash(noescape(unsafe.Pointer(&key)), 8, uintptr(h.hash0))
++		hash := t.key.alg.hash(noescape(unsafe.Pointer(&key)), 8, uintptr(h.hash0))
+ 		m := uintptr(1)<<h.B - 1
+ 		b = (*bmap)(add(h.buckets, (hash&m)*uintptr(t.bucketsize)))
+ 		if c := h.oldbuckets; c != nil {
+@@ -147,7 +147,7 @@ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
+ 		// One-bucket table.  No need to hash.
+ 		b = (*bmap)(h.buckets)
+ 	} else {
+-		hash := goalg(t.key.alg).hash(noescape(unsafe.Pointer(&key)), 8, uintptr(h.hash0))
++		hash := t.key.alg.hash(noescape(unsafe.Pointer(&key)), 8, uintptr(h.hash0))
+ 		m := uintptr(1)<<h.B - 1
+ 		b = (*bmap)(add(h.buckets, (hash&m)*uintptr(t.bucketsize)))
+ 		if c := h.oldbuckets; c != nil {
+@@ -244,7 +244,7 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
+ 		return unsafe.Pointer(t.elem.zero)
+ 	}
+ dohash:
+-	hash := goalg(t.key.alg).hash(noescape(unsafe.Pointer(&ky)), 2*ptrSize, uintptr(h.hash0))
++	hash := t.key.alg.hash(noescape(unsafe.Pointer(&ky)), 2*ptrSize, uintptr(h.hash0))
+ 	m := uintptr(1)<<h.B - 1
+ 	b := (*bmap)(add(h.buckets, (hash&m)*uintptr(t.bucketsize)))
+ 	if c := h.oldbuckets; c != nil {
+@@ -344,7 +344,7 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
+ 		return unsafe.Pointer(t.elem.zero), false
+ 	}
+ dohash:
+-	hash := goalg(t.key.alg).hash(noescape(unsafe.Pointer(&ky)), 2*ptrSize, uintptr(h.hash0))
++	hash := t.key.alg.hash(noescape(unsafe.Pointer(&ky)), 2*ptrSize, uintptr(h.hash0))
+ 	m := uintptr(1)<<h.B - 1
+ 	b := (*bmap)(add(h.buckets, (hash&m)*uintptr(t.bucketsize)))
+ 	if c := h.oldbuckets; c != nil {
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index cbf2b1b6af..943d7bfd0e 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -16,7 +16,7 @@ type _type struct {
+ 	align      uint8
+ 	fieldalign uint8
+ 	kind       uint8
+-	alg        unsafe.Pointer
++	alg        *typeAlg
+ 	// gc stores _type info required for garbage collector.
+ 	// If (kind&KindGCProg)==0, then gc[0] points at sparse GC bitmap
+ 	// (no indirection), 4 bits per word.

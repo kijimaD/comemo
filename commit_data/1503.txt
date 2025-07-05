@@ -8,8 +8,254 @@ Date:   Fri Jan 16 11:06:42 2009 -0800
     DELTA=33  (0 added, 0 deleted, 33 changed)
     OCL=22947
     CL=22949
-
+---
  src/lib/http/request.go | 36 ++++++++++++++++++------------------
  src/lib/http/server.go  |  4 ++--
  src/lib/http/url.go     | 26 +++++++++++++-------------
  3 files changed, 33 insertions(+), 33 deletions(-)
+
+diff --git a/src/lib/http/request.go b/src/lib/http/request.go
+index 3d000abdef..b6c84461bc 100644
+--- a/src/lib/http/request.go
++++ b/src/lib/http/request.go
+@@ -14,9 +14,9 @@ import (
+ )
+ 
+ const (
+-	MaxLineLength = 1024;	// assumed < bufio.DefaultBufSize
+-	MaxValueLength = 1024;
+-	MaxHeaderLines = 1024;
++	_MaxLineLength = 1024;	// assumed < bufio.DefaultBufSize
++	_MaxValueLength = 1024;
++	_MaxHeaderLines = 1024;
+ )
+ 
+ export var (
+@@ -46,14 +46,14 @@ export type Request struct {
+ }
+ 
+ // Read a line of bytes (up to \n) from b.
+-// Give up if the line exceeds MaxLineLength.
++// Give up if the line exceeds _MaxLineLength.
+ // The returned bytes are a pointer into storage in
+ // the bufio, so they are only valid until the next bufio read.
+-func ReadLineBytes(b *bufio.BufRead) (p []byte, err *os.Error) {
++func readLineBytes(b *bufio.BufRead) (p []byte, err *os.Error) {
+ 	if p, err = b.ReadLineSlice('\n'); err != nil {
+ 		return nil, err
+ 	}
+-	if len(p) >= MaxLineLength {
++	if len(p) >= _MaxLineLength {
+ 		return nil, LineTooLong
+ 	}
+ 
+@@ -67,9 +67,9 @@ func ReadLineBytes(b *bufio.BufRead) (p []byte, err *os.Error) {
+ 	return p[0:i], nil
+ }
+ 
+-// ReadLineByte, but convert the bytes into a string.
+-func ReadLine(b *bufio.BufRead) (s string, err *os.Error) {
+-	p, e := ReadLineBytes(b);
++// readLineBytes, but convert the bytes into a string.
++func readLine(b *bufio.BufRead) (s string, err *os.Error) {
++	p, e := readLineBytes(b);
+ 	if e != nil {
+ 		return "", e
+ 	}
+@@ -80,8 +80,8 @@ func ReadLine(b *bufio.BufRead) (s string, err *os.Error) {
+ // A key/value has the form Key: Value\r\n
+ // and the Value can continue on multiple lines if each continuation line
+ // starts with a space.
+-func ReadKeyValue(b *bufio.BufRead) (key, value string, err *os.Error) {
+-	line, e := ReadLineBytes(b);
++func readKeyValue(b *bufio.BufRead) (key, value string, err *os.Error) {
++	line, e := readLineBytes(b);
+ 	if e != nil {
+ 		return "", "", e
+ 	}
+@@ -127,12 +127,12 @@ func ReadKeyValue(b *bufio.BufRead) (key, value string, err *os.Error) {
+ 				b.UnreadByte();
+ 
+ 				// Read the rest of the line and add to value.
+-				if line, e = ReadLineBytes(b); e != nil {
++				if line, e = readLineBytes(b); e != nil {
+ 					return "", "", e
+ 				}
+ 				value += " " + string(line);
+ 
+-				if len(value) >= MaxValueLength {
++				if len(value) >= _MaxValueLength {
+ 					return "", "", ValueTooLong
+ 				}
+ 			}
+@@ -163,7 +163,7 @@ func atoi(s string, i int) (n, i1 int, ok bool) {
+ }
+ 
+ // Parse HTTP version: "HTTP/1.2" -> (1, 2, true).
+-func ParseHTTPVersion(vers string) (int, int, bool) {
++func parseHTTPVersion(vers string) (int, int, bool) {
+ 	if vers[0:5] != "HTTP/" {
+ 		return 0, 0, false
+ 	}
+@@ -185,7 +185,7 @@ export func ReadRequest(b *bufio.BufRead) (req *Request, err *os.Error) {
+ 
+ 	// First line: GET /index.html HTTP/1.0
+ 	var s string;
+-	if s, err = ReadLine(b); err != nil {
++	if s, err = readLine(b); err != nil {
+ 		return nil, err
+ 	}
+ 
+@@ -195,7 +195,7 @@ export func ReadRequest(b *bufio.BufRead) (req *Request, err *os.Error) {
+ 	}
+ 	req.method, req.rawurl, req.proto = f[0], f[1], f[2];
+ 	var ok bool;
+-	if req.pmajor, req.pminor, ok = ParseHTTPVersion(req.proto); !ok {
++	if req.pmajor, req.pminor, ok = parseHTTPVersion(req.proto); !ok {
+ 		return nil, BadHTTPVersion
+ 	}
+ 
+@@ -208,13 +208,13 @@ export func ReadRequest(b *bufio.BufRead) (req *Request, err *os.Error) {
+ 	req.header = make(map[string] string);
+ 	for {
+ 		var key, value string;
+-		if key, value, err = ReadKeyValue(b); err != nil {
++		if key, value, err = readKeyValue(b); err != nil {
+ 			return nil, err
+ 		}
+ 		if key == "" {
+ 			break
+ 		}
+-		if nheader++; nheader >= MaxHeaderLines {
++		if nheader++; nheader >= _MaxHeaderLines {
+ 			return nil, HeaderTooLong
+ 		}
+ 
+diff --git a/src/lib/http/server.go b/src/lib/http/server.go
+index b86536399e..20bfef43bb 100644
+--- a/src/lib/http/server.go
++++ b/src/lib/http/server.go
+@@ -17,7 +17,7 @@ import (
+ )
+ 
+ // Serve a new connection.
+-func ServeConnection(fd net.Conn, raddr string, f *(*Conn, *Request)) {
++func serveConnection(fd net.Conn, raddr string, f *(*Conn, *Request)) {
+ 	c, err := NewConn(fd);
+ 	if err != nil {
+ 		return
+@@ -48,7 +48,7 @@ export func Serve(l net.Listener, f *(*Conn, *Request)) *os.Error {
+ 		if e != nil {
+ 			return e
+ 		}
+-		go ServeConnection(rw, raddr, f)
++		go serveConnection(rw, raddr, f)
+ 	}
+ 	panic("not reached")
+ }
+diff --git a/src/lib/http/url.go b/src/lib/http/url.go
+index f96f9479a9..7aac1f27e5 100644
+--- a/src/lib/http/url.go
++++ b/src/lib/http/url.go
+@@ -16,7 +16,7 @@ export var (
+ 	BadURL = os.NewError("bad url syntax")
+ )
+ 
+-func IsHex(c byte) bool {
++func ishex(c byte) bool {
+ 	switch {
+ 	case '0' <= c && c <= '9':
+ 		return true;
+@@ -28,7 +28,7 @@ func IsHex(c byte) bool {
+ 	return false
+ }
+ 
+-func UnHex(c byte) byte {
++func unhex(c byte) byte {
+ 	switch {
+ 	case '0' <= c && c <= '9':
+ 		return c - '0';
+@@ -47,7 +47,7 @@ export func URLUnescape(s string) (string, *os.Error) {
+ 	for i := 0; i < len(s); {
+ 		if s[i] == '%' {
+ 			n++;
+-			if !IsHex(s[i+1]) || !IsHex(s[i+2]) {
++			if !ishex(s[i+1]) || !ishex(s[i+2]) {
+ 				return "", BadURL;
+ 			}
+ 			i += 3
+@@ -64,7 +64,7 @@ export func URLUnescape(s string) (string, *os.Error) {
+ 	j := 0;
+ 	for i := 0; i < len(s); {
+ 		if s[i] == '%' {
+-			t[j] = UnHex(s[i+1]) << 4 | UnHex(s[i+2]);
++			t[j] = unhex(s[i+1]) << 4 | unhex(s[i+2]);
+ 			j++;
+ 			i += 3;
+ 		} else {
+@@ -91,7 +91,7 @@ export type URL struct {
+ // Maybe rawurl is of the form scheme:path.
+ // (Scheme must be [a-zA-Z][a-zA-Z0-9+-.]*)
+ // If so, return scheme, path; else return "", rawurl.
+-func GetScheme(rawurl string) (scheme, path string, err *os.Error) {
++func getscheme(rawurl string) (scheme, path string, err *os.Error) {
+ 	for i := 0; i < len(rawurl); i++ {
+ 		c := rawurl[i];
+ 		switch {
+@@ -114,7 +114,7 @@ func GetScheme(rawurl string) (scheme, path string, err *os.Error) {
+ // Maybe s is of the form t c u.
+ // If so, return t, c u (or t, u if cutc == true).
+ // If not, return s, "".
+-func Split(s string, c byte, cutc bool) (string, string) {
++func split(s string, c byte, cutc bool) (string, string) {
+ 	for i := 0; i < len(s); i++ {
+ 		if s[i] == c {
+ 			if cutc {
+@@ -134,9 +134,9 @@ export func ParseURL(rawurl string) (url *URL, err *os.Error) {
+ 	url = new(URL);
+ 	url.raw = rawurl;
+ 
+-	// Split off possible leading "http:", "mailto:", etc.
++	// split off possible leading "http:", "mailto:", etc.
+ 	var path string;
+-	if url.scheme, path, err = GetScheme(rawurl); err != nil {
++	if url.scheme, path, err = getscheme(rawurl); err != nil {
+ 		return nil, err
+ 	}
+ 	url.rawpath = path;
+@@ -144,7 +144,7 @@ export func ParseURL(rawurl string) (url *URL, err *os.Error) {
+ 	// RFC 2396: a relative URI (no scheme) has a ?query,
+ 	// but absolute URIs only have query if path begins with /
+ 	if url.scheme == "" || len(path) > 0 && path[0] == '/' {
+-		path, url.query = Split(path, '?', true);
++		path, url.query = split(path, '?', true);
+ 		if url.query, err = URLUnescape(url.query); err != nil {
+ 			return nil, err
+ 		}
+@@ -152,14 +152,14 @@ export func ParseURL(rawurl string) (url *URL, err *os.Error) {
+ 
+ 	// Maybe path is //authority/path
+ 	if len(path) > 2 && path[0:2] == "//" {
+-		url.authority, path = Split(path[2:len(path)], '/', false);
++		url.authority, path = split(path[2:len(path)], '/', false);
+ 	}
+ 
+-	// If there's no @, Split's default is wrong.  Check explicitly.
++	// If there's no @, split's default is wrong.  Check explicitly.
+ 	if strings.index(url.authority, "@") < 0 {
+ 		url.host = url.authority;
+ 	} else {
+-		url.userinfo, url.host = Split(url.authority, '@', true);
++		url.userinfo, url.host = split(url.authority, '@', true);
+ 	}
+ 
+ 	// What's left is the path.
+@@ -174,7 +174,7 @@ export func ParseURL(rawurl string) (url *URL, err *os.Error) {
+ // A URL reference is a URL with #frag potentially added.  Parse it.
+ export func ParseURLReference(rawurlref string) (url *URL, err *os.Error) {
+ 	// Cut off #frag.
+-	rawurl, frag := Split(rawurlref, '#', true);
++	rawurl, frag := split(rawurlref, '#', true);
+ 	if url, err = ParseURL(rawurl); err != nil {
+ 		return nil, err
+ 	}

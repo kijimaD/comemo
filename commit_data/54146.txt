@@ -11,6 +11,21 @@ Date:   Tue Sep 27 23:26:26 2022 +0800
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/bufio/bufio.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/bufio/bufio.go b/src/bufio/bufio.go
+index 1da8ffa951..5a88def0c7 100644
+--- a/src/bufio/bufio.go
++++ b/src/bufio/bufio.go
+@@ -454,8 +454,7 @@ func (b *Reader) collectFragments(delim byte) (fullBuffers [][]byte, finalFragme
+ 		}
+ 
+ 		// Make a copy of the buffer.
+-		buf := make([]byte, len(frag))
+-		copy(buf, frag)
++		buf := bytes.Clone(frag)
+ 		fullBuffers = append(fullBuffers, buf)
+ 		totalLen += len(buf)
+ 	}

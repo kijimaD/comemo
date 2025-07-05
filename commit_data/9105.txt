@@ -10,9 +10,209 @@ Date:   Mon Jul 18 17:08:12 2011 +1000
     R=golang-dev, adg
     CC=golang-dev, mattn.jp
     https://golang.org/cl/4758051
-
+---
  src/pkg/go/scanner/scanner_test.go    | 15 +++++++++---
  src/pkg/path/filepath/path.go         | 10 ++++----
  src/pkg/path/filepath/path_test.go    | 46 +++++++++++++++++++++++++++++------
  src/pkg/path/filepath/path_windows.go | 22 +++++++++++------
  4 files changed, 69 insertions(+), 24 deletions(-)
+
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index 52d726245f..eb9e1cb818 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -451,24 +451,31 @@ var segments = []segment{
+ 	{"\n //line foo:42\n  line44", filepath.Join("dir", "foo"), 44},           // bad line comment, ignored
+ 	{"\n//line foo 42\n  line46", filepath.Join("dir", "foo"), 46},            // bad line comment, ignored
+ 	{"\n//line foo:42 extra text\n  line48", filepath.Join("dir", "foo"), 48}, // bad line comment, ignored
+-	{"\n//line /bar:42\n  line42", string(filepath.Separator) + "bar", 42},
+ 	{"\n//line ./foo:42\n  line42", filepath.Join("dir", "foo"), 42},
+ 	{"\n//line a/b/c/File1.go:100\n  line100", filepath.Join("dir", "a", "b", "c", "File1.go"), 100},
+ }
+ 
++var unixsegments = []segment{
++	{"\n//line /bar:42\n  line42", "/bar", 42},
++}
++
+ var winsegments = []segment{
++	{"\n//line c:\\bar:42\n  line42", "c:\\bar", 42},
+ 	{"\n//line c:\\dir\\File1.go:100\n  line100", "c:\\dir\\File1.go", 100},
+ }
+ 
+ // Verify that comments of the form "//line filename:line" are interpreted correctly.
+ func TestLineComments(t *testing.T) {
++	segs := segments
+ 	if runtime.GOOS == "windows" {
+-		segments = append(segments, winsegments...)
++		segs = append(segs, winsegments...)
++	} else {
++		segs = append(segs, unixsegments...)
+ 	}
+ 
+ 	// make source
+ 	var src string
+-	for _, e := range segments {
++	for _, e := range segs {
+ 		src += e.srcline
+ 	}
+ 
+@@ -476,7 +483,7 @@ func TestLineComments(t *testing.T) {
+ 	var S Scanner
+ 	file := fset.AddFile(filepath.Join("dir", "TestLineComments"), fset.Base(), len(src))
+ 	S.Init(file, []byte(src), nil, 0)
+-	for _, s := range segments {
++	for _, s := range segs {
+ 		p, _, lit := S.Scan()
+ 		pos := file.Position(p)
+ 		checkPos(t, lit, p, token.Position{s.filename, pos.Offset, s.line, pos.Column})
+diff --git a/src/pkg/path/filepath/path.go b/src/pkg/path/filepath/path.go
+index a5e6a22ae9..28ad676c25 100644
+--- a/src/pkg/path/filepath/path.go
++++ b/src/pkg/path/filepath/path.go
+@@ -38,19 +38,19 @@ const (
+ // Getting Dot-Dot right,''
+ // http://plan9.bell-labs.com/sys/doc/lexnames.html
+ func Clean(path string) string {
++	vol := volumeName(path)
++	path = path[len(vol):]
+ 	if path == "" {
+-		return "."
++		return vol + "."
+ 	}
+ 
+-	rooted := IsAbs(path)
++	rooted := os.IsPathSeparator(path[0])
+ 
+ 	// Invariants:
+ 	//	reading from path; r is index of next byte to process.
+ 	//	writing to buf; w is index of next byte to write.
+ 	//	dotdot is index in buf where .. must stop, either because
+ 	//		it is the leading slash or it is a leading ../../.. prefix.
+-	prefix := volumeName(path)
+-	path = path[len(prefix):]
+ 	n := len(path)
+ 	buf := []byte(path)
+ 	r, w, dotdot := 0, 0, 0
+@@ -110,7 +110,7 @@ func Clean(path string) string {
+ 		w++
+ 	}
+ 
+-	return prefix + string(buf[0:w])
++	return FromSlash(vol + string(buf[0:w]))
+ }
+ 
+ // ToSlash returns the result of replacing each separator character
+diff --git a/src/pkg/path/filepath/path_test.go b/src/pkg/path/filepath/path_test.go
+index 58c4c0301a..d2a10698e1 100644
+--- a/src/pkg/path/filepath/path_test.go
++++ b/src/pkg/path/filepath/path_test.go
+@@ -67,9 +67,27 @@ var cleantests = []PathTest{
+ 	{"abc/../../././../def", "../../def"},
+ }
+ 
++var wincleantests = []PathTest{
++	{`c:`, `c:.`},
++	{`c:\`, `c:\`},
++	{`c:\abc`, `c:\abc`},
++	{`c:abc\..\..\.\.\..\def`, `c:..\..\def`},
++	{`c:\abc\def\..\..`, `c:\`},
++	{`c:..\abc`, `c:..\abc`},
++	{`\`, `\`},
++	{`/`, `\`},
++}
++
+ func TestClean(t *testing.T) {
+-	for _, test := range cleantests {
+-		if s := filepath.ToSlash(filepath.Clean(test.path)); s != test.result {
++	tests := cleantests
++	if runtime.GOOS == "windows" {
++		for i, _ := range tests {
++			tests[i].result = filepath.FromSlash(tests[i].result)
++		}
++		tests = append(tests, wincleantests...)
++	}
++	for _, test := range tests {
++		if s := filepath.Clean(test.path); s != test.result {
+ 			t.Errorf("Clean(%q) = %q, want %q", test.path, s, test.result)
+ 		}
+ 	}
+@@ -399,16 +417,30 @@ var winisabstests = []IsAbsTest{
+ 	{`C:\`, true},
+ 	{`c\`, false},
+ 	{`c::`, false},
+-	{`/`, true},
+-	{`\`, true},
+-	{`\Windows`, true},
++	{`c:`, false},
++	{`/`, false},
++	{`\`, false},
++	{`\Windows`, false},
++	{`c:a\b`, false},
+ }
+ 
+ func TestIsAbs(t *testing.T) {
++	var tests []IsAbsTest
+ 	if runtime.GOOS == "windows" {
+-		isabstests = append(isabstests, winisabstests...)
++		tests = append(tests, winisabstests...)
++		// All non-windows tests should fail, because they have no volume letter.
++		for _, test := range isabstests {
++			tests = append(tests, IsAbsTest{test.path, false})
++		}
++		// All non-windows test should work as intended if prefixed with volume letter.
++		for _, test := range isabstests {
++			tests = append(tests, IsAbsTest{"c:" + test.path, test.isAbs})
++		}
++	} else {
++		tests = isabstests
+ 	}
+-	for _, test := range isabstests {
++
++	for _, test := range tests {
+ 		if r := filepath.IsAbs(test.path); r != test.isAbs {
+ 			t.Errorf("IsAbs(%q) = %v, want %v", test.path, r, test.isAbs)
+ 		}
+diff --git a/src/pkg/path/filepath/path_windows.go b/src/pkg/path/filepath/path_windows.go
+index 35302eb1ab..b7d18ee5a8 100644
+--- a/src/pkg/path/filepath/path_windows.go
++++ b/src/pkg/path/filepath/path_windows.go
+@@ -4,25 +4,31 @@
+ 
+ package filepath
+ 
+-import "os"
+-
+ // IsAbs returns true if the path is absolute.
+-func IsAbs(path string) bool {
+-	return path != "" && (volumeName(path) != "" || os.IsPathSeparator(path[0]))
++func IsAbs(path string) (b bool) {
++	v := volumeName(path)
++	if v == "" {
++		return false
++	}
++	path = path[len(v):]
++	if path == "" {
++		return false
++	}
++	return path[0] == '/' || path[0] == '\\'
+ }
+ 
+ // volumeName return leading volume name.  
+ // If given "C:\foo\bar", return "C:" on windows.
+-func volumeName(path string) string {
+-	if path == "" {
++func volumeName(path string) (v string) {
++	if len(path) < 2 {
+ 		return ""
+ 	}
+ 	// with drive letter
+ 	c := path[0]
+-	if len(path) > 2 && path[1] == ':' && os.IsPathSeparator(path[2]) &&
++	if path[1] == ':' &&
+ 		('0' <= c && c <= '9' || 'a' <= c && c <= 'z' ||
+ 			'A' <= c && c <= 'Z') {
+-		return path[0:2]
++		return path[:2]
+ 	}
+ 	return ""
+ }

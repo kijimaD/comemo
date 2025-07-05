@@ -18,6 +18,17 @@ Date:   Tue Aug 2 13:33:02 2022 -0400
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/internal/goversion/goversion.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/goversion/goversion.go b/src/internal/goversion/goversion.go
+index da33e68caf..e9ecf8e643 100644
+--- a/src/internal/goversion/goversion.go
++++ b/src/internal/goversion/goversion.go
+@@ -9,4 +9,4 @@ package goversion
+ //
+ // It should be updated at the start of each development cycle to be
+ // the version of the next Go 1.x release. See golang.org/issue/40705.
+-const Version = 19
++const Version = 20

@@ -36,9 +36,172 @@ Date:   Fri Oct 15 16:39:39 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/check.go                          | 27 ++++++++++++++++++++++++++
  src/go/types/named.go                          | 23 ++++++++--------------
  src/go/types/testdata/fixedbugs/issue48703.go2 | 27 ++++++++++++++++++++++++++
  src/go/types/testdata/fixedbugs/issue48974.go2 | 22 +++++++++++++++++++++
  4 files changed, 84 insertions(+), 15 deletions(-)
+
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 46a0000940..3fc9c03917 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -113,6 +113,7 @@ type Checker struct {
+ 	untyped  map[ast.Expr]exprInfo // map of expressions without final type
+ 	delayed  []func()              // stack of delayed action segments; segments are processed in FIFO order
+ 	objPath  []Object              // path of object dependencies during type inference (for cycle reporting)
++	defTypes []*Named              // defined types created during type checking, for final validation.
+ 
+ 	// context within which the current object is type-checked
+ 	// (valid only for the duration of type-checking a specific object)
+@@ -269,6 +270,8 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
+ 
+ 	check.processDelayed(0) // incl. all functions
+ 
++	check.expandDefTypes()
++
+ 	check.initOrder()
+ 
+ 	if !check.conf.DisableUnusedImportCheck {
+@@ -285,6 +288,7 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
+ 	check.pkgPathMap = nil
+ 	check.seenPkgMap = nil
+ 	check.recvTParamMap = nil
++	check.defTypes = nil
+ 
+ 	// TODO(rFindley) There's more memory we should release at this point.
+ 
+@@ -306,6 +310,29 @@ func (check *Checker) processDelayed(top int) {
+ 	check.delayed = check.delayed[:top]
+ }
+ 
++func (check *Checker) expandDefTypes() {
++	// Ensure that every defined type created in the course of type-checking has
++	// either non-*Named underlying, or is unresolved.
++	//
++	// This guarantees that we don't leak any types whose underlying is *Named,
++	// because any unresolved instances will lazily compute their underlying by
++	// substituting in the underlying of their origin. The origin must have
++	// either been imported or type-checked and expanded here, and in either case
++	// its underlying will be fully expanded.
++	for i := 0; i < len(check.defTypes); i++ {
++		n := check.defTypes[i]
++		switch n.underlying.(type) {
++		case nil:
++			if n.resolver == nil {
++				panic("nil underlying")
++			}
++		case *Named:
++			n.under() // n.under may add entries to check.defTypes
++		}
++		n.check = nil
++	}
++}
++
+ func (check *Checker) record(x *operand) {
+ 	// convert x into a user-friendly set of values
+ 	// TODO(gri) this code can be simplified
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index 595863a01b..c81383810e 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -65,22 +65,9 @@ func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tpar
+ 	if obj.typ == nil {
+ 		obj.typ = typ
+ 	}
+-	// Ensure that typ is always expanded, at which point the check field can be
+-	// nilled out.
+-	//
+-	// Note that currently we cannot nil out check inside typ.under(), because
+-	// it's possible that typ is expanded multiple times.
+-	//
+-	// TODO(rFindley): clean this up so that under is the only function mutating
+-	//                 named types.
++	// Ensure that typ is always expanded and sanity-checked.
+ 	if check != nil {
+-		check.later(func() {
+-			switch typ.under().(type) {
+-			case *Named:
+-				panic("unexpanded underlying type")
+-			}
+-			typ.check = nil
+-		})
++		check.defTypes = append(check.defTypes, typ)
+ 	}
+ 	return typ
+ }
+@@ -241,6 +228,12 @@ func expandNamed(ctxt *Context, n *Named, instPos token.Pos) (tparams *TypeParam
+ 
+ 	check := n.check
+ 
++	if _, unexpanded := n.orig.underlying.(*Named); unexpanded {
++		// We should only get an unexpanded underlying here during type checking
++		// (for example, in recursive type declarations).
++		assert(check != nil)
++	}
++
+ 	// Mismatching arg and tparam length may be checked elsewhere.
+ 	if n.orig.tparams.Len() == n.targs.Len() {
+ 		// We must always have a context, to avoid infinite recursion.
+diff --git a/src/go/types/testdata/fixedbugs/issue48703.go2 b/src/go/types/testdata/fixedbugs/issue48703.go2
+new file mode 100644
+index 0000000000..8a32c1ecf2
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue48703.go2
+@@ -0,0 +1,27 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import "unsafe"
++
++// The actual example from the issue.
++type List[P any] struct{}
++
++func (_ List[P]) m() (_ List[List[P]]) { return }
++
++// Other types of recursion through methods.
++type R[P any] int
++
++func (*R[R /* ERROR must be an identifier */ [int]]) m0() {}
++func (R[P]) m1(R[R[P]])                                   {}
++func (R[P]) m2(R[*P])                                     {}
++func (R[P]) m3([unsafe.Sizeof(new(R[P]))]int)             {}
++func (R[P]) m4([unsafe.Sizeof(new(R[R[P]]))]int)          {}
++
++// Mutual recursion
++type M[P any] int
++
++func (R[P]) m5(M[M[P]]) {}
++func (M[P]) m(R[R[P]])  {}
+diff --git a/src/go/types/testdata/fixedbugs/issue48974.go2 b/src/go/types/testdata/fixedbugs/issue48974.go2
+new file mode 100644
+index 0000000000..ca4b6d9321
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue48974.go2
+@@ -0,0 +1,22 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type Fooer interface {
++	Foo()
++}
++
++type Fooable[F Fooer] struct {
++	ptr F
++}
++
++func (f *Fooable[F]) Adapter() *Fooable[*FooerImpl[F]] {
++	return &Fooable[*FooerImpl[F]]{&FooerImpl[F]{}}
++}
++
++type FooerImpl[F Fooer] struct {
++}
++
++func (fi *FooerImpl[F]) Foo() {}

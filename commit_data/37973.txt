@@ -19,8 +19,152 @@ Date:   Mon Sep 17 12:25:36 2018 -0700
     Change-Id: Ib4efd4b62e0d1ef32fa51e373035ef207a655084
     Reviewed-on: https://go-review.googlesource.com/135698
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/chan.go                    | 23 ++++++++++++++++-------
  src/runtime/race/testdata/chan_test.go | 30 ++++++++++++++++++++++--------
  src/runtime/select.go                  |  4 ++--
  3 files changed, 40 insertions(+), 17 deletions(-)
+
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index 615643e6a6..a4ee51ca39 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -92,7 +92,7 @@ func makechan(t *chantype, size int) *hchan {
+ 		// Queue or element size is zero.
+ 		c = (*hchan)(mallocgc(hchanSize, nil, true))
+ 		// Race detector uses this location for synchronization.
+-		c.buf = unsafe.Pointer(c)
++		c.buf = c.raceaddr()
+ 	case elem.kind&kindNoPointers != 0:
+ 		// Elements do not contain pointers.
+ 		// Allocate hchan and buf in one call.
+@@ -151,7 +151,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
+ 	}
+ 
+ 	if raceenabled {
+-		racereadpc(unsafe.Pointer(c), callerpc, funcPC(chansend))
++		racereadpc(c.raceaddr(), callerpc, funcPC(chansend))
+ 	}
+ 
+ 	// Fast path: check for failed non-blocking operation without acquiring the lock.
+@@ -337,8 +337,8 @@ func closechan(c *hchan) {
+ 
+ 	if raceenabled {
+ 		callerpc := getcallerpc()
+-		racewritepc(unsafe.Pointer(c), callerpc, funcPC(closechan))
+-		racerelease(unsafe.Pointer(c))
++		racewritepc(c.raceaddr(), callerpc, funcPC(closechan))
++		racerelease(c.raceaddr())
+ 	}
+ 
+ 	c.closed = 1
+@@ -361,7 +361,7 @@ func closechan(c *hchan) {
+ 		gp := sg.g
+ 		gp.param = nil
+ 		if raceenabled {
+-			raceacquireg(gp, unsafe.Pointer(c))
++			raceacquireg(gp, c.raceaddr())
+ 		}
+ 		glist.push(gp)
+ 	}
+@@ -379,7 +379,7 @@ func closechan(c *hchan) {
+ 		gp := sg.g
+ 		gp.param = nil
+ 		if raceenabled {
+-			raceacquireg(gp, unsafe.Pointer(c))
++			raceacquireg(gp, c.raceaddr())
+ 		}
+ 		glist.push(gp)
+ 	}
+@@ -454,7 +454,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
+ 
+ 	if c.closed != 0 && c.qcount == 0 {
+ 		if raceenabled {
+-			raceacquire(unsafe.Pointer(c))
++			raceacquire(c.raceaddr())
+ 		}
+ 		unlock(&c.lock)
+ 		if ep != nil {
+@@ -732,6 +732,15 @@ func (q *waitq) dequeue() *sudog {
+ 	}
+ }
+ 
++func (c *hchan) raceaddr() unsafe.Pointer {
++	// Treat read-like and write-like operations on the channel to
++	// happen at this address. Avoid using the address of qcount
++	// or dataqsiz, because the len() and cap() builtins read
++	// those addresses, and we don't want them racing with
++	// operations like close().
++	return unsafe.Pointer(&c.buf)
++}
++
+ func racesync(c *hchan, sg *sudog) {
+ 	racerelease(chanbuf(c, 0))
+ 	raceacquireg(sg.g, chanbuf(c, 0))
+diff --git a/src/runtime/race/testdata/chan_test.go b/src/runtime/race/testdata/chan_test.go
+index 7f349c42ed..60e55ed66a 100644
+--- a/src/runtime/race/testdata/chan_test.go
++++ b/src/runtime/race/testdata/chan_test.go
+@@ -577,18 +577,32 @@ func TestRaceChanItselfCap(t *testing.T) {
+ 	<-compl
+ }
+ 
+-func TestRaceChanCloseLen(t *testing.T) {
+-	v := 0
+-	_ = v
++func TestNoRaceChanCloseLen(t *testing.T) {
+ 	c := make(chan int, 10)
+-	c <- 0
++	r := make(chan int, 10)
++	go func() {
++		r <- len(c)
++	}()
+ 	go func() {
+-		v = 1
+ 		close(c)
++		r <- 0
+ 	}()
+-	time.Sleep(1e7)
+-	_ = len(c)
+-	v = 2
++	<-r
++	<-r
++}
++
++func TestNoRaceChanCloseCap(t *testing.T) {
++	c := make(chan int, 10)
++	r := make(chan int, 10)
++	go func() {
++		r <- cap(c)
++	}()
++	go func() {
++		close(c)
++		r <- 0
++	}()
++	<-r
++	<-r
+ }
+ 
+ func TestRaceChanCloseSend(t *testing.T) {
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index 3a3ac6b7ac..2729c2ecf9 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -245,7 +245,7 @@ loop:
+ 
+ 		case caseSend:
+ 			if raceenabled {
+-				racereadpc(unsafe.Pointer(c), cas.pc, chansendpc)
++				racereadpc(c.raceaddr(), cas.pc, chansendpc)
+ 			}
+ 			if c.closed != 0 {
+ 				goto sclose
+@@ -462,7 +462,7 @@ rclose:
+ 		typedmemclr(c.elemtype, cas.elem)
+ 	}
+ 	if raceenabled {
+-		raceacquire(unsafe.Pointer(c))
++		raceacquire(c.raceaddr())
+ 	}
+ 	goto retc
+ 

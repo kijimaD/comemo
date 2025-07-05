@@ -9,6 +9,22 @@ Date:   Fri Apr 29 17:10:02 2016 -0700
     Change-Id: Ieb5be1caa4b1c23e23b20d56c1a0a619032a9f5d
     Reviewed-on: https://go-review.googlesource.com/22652
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/x86/peep.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/compile/internal/x86/peep.go b/src/cmd/compile/internal/x86/peep.go
+index dfbe9d2023..0a4ecc0e5c 100644
+--- a/src/cmd/compile/internal/x86/peep.go
++++ b/src/cmd/compile/internal/x86/peep.go
+@@ -249,6 +249,10 @@ func excise(r *gc.Flow) {
+ }
+ 
+ func regtyp(a *obj.Addr) bool {
++	if gc.Ctxt.Flag_shared && a.Type == obj.TYPE_REG && a.Reg == x86.REG_CX {
++		// don't propagate CX, it is used implicitly by PIC global references
++		return false
++	}
+ 	return a.Type == obj.TYPE_REG && (x86.REG_AX <= a.Reg && a.Reg <= x86.REG_DI || x86.REG_X0 <= a.Reg && a.Reg <= x86.REG_X7)
+ }
+ 

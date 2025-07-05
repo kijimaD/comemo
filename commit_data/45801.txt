@@ -174,7 +174,58 @@ Date:   Fri Nov 13 14:44:25 2020 -0600
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
     Trust: Carlos Eduardo Seo <carlos.seo@linaro.org>
-
+---
  src/cmd/compile/internal/ppc64/ssa.go |  3 +++
  src/cmd/internal/obj/ppc64/asm9.go    | 11 +++++++++++
  2 files changed, 14 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 3888aa6527..3e20c44a4c 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -1781,6 +1781,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		pp := s.Call(v)
+ 		pp.To.Reg = ppc64.REG_LR
+ 
++		// Insert a hint this is not a subroutine return.
++		pp.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: 1})
++
+ 		if gc.Ctxt.Flag_shared {
+ 			// When compiling Go into PIC, the function we just
+ 			// called via pointer might have been implemented in
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 775d27d8e8..41e263b2c0 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -334,6 +334,7 @@ var optab = []Optab{
+ 	{ABC, C_SCON, C_REG, C_NONE, C_SBRA, 16, 4, 0},
+ 	{ABC, C_SCON, C_REG, C_NONE, C_LBRA, 17, 4, 0},
+ 	{ABR, C_NONE, C_NONE, C_NONE, C_LR, 18, 4, 0},
++	{ABR, C_NONE, C_NONE, C_SCON, C_LR, 18, 4, 0},
+ 	{ABR, C_NONE, C_NONE, C_NONE, C_CTR, 18, 4, 0},
+ 	{ABR, C_REG, C_NONE, C_NONE, C_CTR, 18, 4, 0},
+ 	{ABR, C_NONE, C_NONE, C_NONE, C_ZOREG, 15, 8, 0},
+@@ -2844,6 +2845,7 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 
+ 	case 18: /* br/bl (lr/ctr); bc/bcl bo,bi,(lr/ctr) */
+ 		var v int32
++		var bh uint32 = 0
+ 		if p.As == ABC || p.As == ABCL {
+ 			v = c.regoff(&p.From) & 31
+ 		} else {
+@@ -2865,6 +2867,15 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			v = 0
+ 		}
+ 
++		// Insert optional branch hint for bclr[l]/bcctr[l]
++		if p.From3Type() != obj.TYPE_NONE {
++			bh = uint32(p.GetFrom3().Offset)
++			if bh == 2 || bh > 3 {
++				log.Fatalf("BH must be 0,1,3 for %v", p)
++			}
++			o1 |= bh << 11
++		}
++
+ 		if p.As == ABL || p.As == ABCL {
+ 			o1 |= 1
+ 		}

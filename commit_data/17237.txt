@@ -7,6 +7,32 @@ Date:   Wed Aug 14 22:18:49 2013 +0400
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/12941043
-
+---
  src/pkg/runtime/mem_windows.c | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/mem_windows.c b/src/pkg/runtime/mem_windows.c
+index 0a1ea38d56..2cf83396fa 100644
+--- a/src/pkg/runtime/mem_windows.c
++++ b/src/pkg/runtime/mem_windows.c
+@@ -32,17 +32,17 @@ runtime·SysAlloc(uintptr n)
+ void
+ runtime·SysUnused(void *v, uintptr n)
+ {
+-	uintptr r;
++	void *r;
+ 
+ 	r = runtime·stdcall(runtime·VirtualFree, 3, v, n, (uintptr)MEM_DECOMMIT);
+-	if(r == 0)
++	if(r == nil)
+ 		runtime·throw("runtime: failed to decommit pages");
+ }
+ 
+ void
+ runtime·SysUsed(void *v, uintptr n)
+ {
+-	uintptr r;
++	void *r;
+ 
+ 	r = runtime·stdcall(runtime·VirtualAlloc, 4, v, n, (uintptr)MEM_COMMIT, (uintptr)PAGE_READWRITE);
+ 	if(r != v)

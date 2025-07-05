@@ -7,6 +7,20 @@ Date:   Wed Feb 17 15:46:46 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/213041
-
+---
  src/pkg/bytes/bytes_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index 28ec55e3a9..5a76813e99 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -170,7 +170,7 @@ var explodetests = []ExplodeTest{
+ }
+ 
+ func TestExplode(t *testing.T) {
+-	for _, tt := range (explodetests) {
++	for _, tt := range explodetests {
+ 		a := Split(strings.Bytes(tt.s), nil, tt.n)
+ 		result := arrayOfString(a)
+ 		if !eq(result, tt.a) {

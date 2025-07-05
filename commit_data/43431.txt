@@ -17,8 +17,137 @@ Date:   Fri Apr 3 00:13:08 2020 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.15.html       | 15 +++++++++++++
  src/flag/flag.go      |  5 ++++-
  src/flag/flag_test.go | 61 +++++++++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 80 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index c59fc4f151..d5b5832913 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -119,6 +119,21 @@ TODO
+ TODO
+ </p>
+ 
++<dl id="flag"><dt><a href="/pkg/flag/">flag</a></dt>
++  <dd>
++    <p><!-- CL 221427 -->
++      When the flag package sees <code>-h</code> or <code>-help</code>, and
++      those flags are not defined, the flag package prints a usage message.
++      If the <a href=/pkg/flag/#FlagSet><code>FlagSet</code></a> was created with
++      <a href=/pkg/flag/#ExitOnError><code>ExitOnError</code></a>,
++      <a href=/pkg/flag/#FlagSet.Parse><code>FlagSet.Parse</code></a> would then
++      exit with a status of 2. In this release, the exit status for <code>-h</code>
++      or <code>-help</code> has been changed to 0. In particular, this applies to
++      the default handling of command line flags.
++    </p>
++  </dd>
++</dl>
++
+ <dl id="pkg-runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
+   <dd>
+     <p><!-- CL 221779 -->
+diff --git a/src/flag/flag.go b/src/flag/flag.go
+index eb88c1faa8..286bba6873 100644
+--- a/src/flag/flag.go
++++ b/src/flag/flag.go
+@@ -308,7 +308,7 @@ type ErrorHandling int
+ // These constants cause FlagSet.Parse to behave as described if the parse fails.
+ const (
+ 	ContinueOnError ErrorHandling = iota // Return a descriptive error.
+-	ExitOnError                          // Call os.Exit(2).
++	ExitOnError                          // Call os.Exit(2) or for -h/-help Exit(0).
+ 	PanicOnError                         // Call panic with a descriptive error.
+ )
+ 
+@@ -979,6 +979,9 @@ func (f *FlagSet) Parse(arguments []string) error {
+ 		case ContinueOnError:
+ 			return err
+ 		case ExitOnError:
++			if err == ErrHelp {
++				os.Exit(0)
++			}
+ 			os.Exit(2)
+ 		case PanicOnError:
+ 			panic(err)
+diff --git a/src/flag/flag_test.go b/src/flag/flag_test.go
+index 0d9491c020..a7450f3f48 100644
+--- a/src/flag/flag_test.go
++++ b/src/flag/flag_test.go
+@@ -8,9 +8,11 @@ import (
+ 	"bytes"
+ 	. "flag"
+ 	"fmt"
++	"internal/testenv"
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
++	"os/exec"
+ 	"sort"
+ 	"strconv"
+ 	"strings"
+@@ -544,3 +546,62 @@ func TestRangeError(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestExitCode(t *testing.T) {
++	testenv.MustHaveExec(t)
++
++	magic := 123
++	if os.Getenv("GO_CHILD_FLAG") != "" {
++		fs := NewFlagSet("test", ExitOnError)
++		if os.Getenv("GO_CHILD_FLAG_HANDLE") != "" {
++			var b bool
++			fs.BoolVar(&b, os.Getenv("GO_CHILD_FLAG_HANDLE"), false, "")
++		}
++		fs.Parse([]string{os.Getenv("GO_CHILD_FLAG")})
++		os.Exit(magic)
++	}
++
++	tests := []struct {
++		flag       string
++		flagHandle string
++		expectExit int
++	}{
++		{
++			flag:       "-h",
++			expectExit: 0,
++		},
++		{
++			flag:       "-help",
++			expectExit: 0,
++		},
++		{
++			flag:       "-undefined",
++			expectExit: 2,
++		},
++		{
++			flag:       "-h",
++			flagHandle: "h",
++			expectExit: magic,
++		},
++		{
++			flag:       "-help",
++			flagHandle: "help",
++			expectExit: magic,
++		},
++	}
++
++	for _, test := range tests {
++		cmd := exec.Command(os.Args[0], "-test.run=TestExitCode")
++		cmd.Env = append(
++			os.Environ(),
++			"GO_CHILD_FLAG="+test.flag,
++			"GO_CHILD_FLAG_HANDLE="+test.flagHandle,
++		)
++		cmd.Run()
++		got := cmd.ProcessState.ExitCode()
++		if got != test.expectExit {
++			t.Errorf("unexpected exit code for test case %+v \n: got %d, expect %d",
++				test, got, test.expectExit)
++		}
++	}
++}

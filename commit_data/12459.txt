@@ -8,6 +8,20 @@ Date:   Wed Mar 7 14:24:28 2012 +0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5752068
-
+---
  src/cmd/dist/build.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 6bcc0f5327..d5fcfbedb3 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -1321,7 +1321,7 @@ cmdenv(int argc, char **argv)
+ 	xprintf(format, "GOTOOLDIR", tooldir);
+ 	xprintf(format, "GOCHAR", gochar);
+ 
+-	if(find(bprintf(&b, "%s/%s", goos, goarch), okcgo, nelem(okcgo)))
++	if(find(bprintf(&b, "%s/%s", goos, goarch), okcgo, nelem(okcgo)) >= 0)
+ 		xprintf(format, "CGO_ENABLED", "1");
+ 	else
+ 		xprintf(format, "CGO_ENABLED", "0");

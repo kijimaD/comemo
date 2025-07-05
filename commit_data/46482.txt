@@ -18,7 +18,68 @@ Date:   Sun Jan 3 14:24:25 2021 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/walk/switch.go |  7 ++++++-
  test/fixedbugs/issue43480.go            | 33 +++++++++++++++++++++++++++++++++
  2 files changed, 39 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/walk/switch.go b/src/cmd/compile/internal/walk/switch.go
+index b03bc3eba7..59446ef3db 100644
+--- a/src/cmd/compile/internal/walk/switch.go
++++ b/src/cmd/compile/internal/walk/switch.go
+@@ -201,10 +201,15 @@ func (s *exprSwitch) flush() {
+ 
+ 	// Merge consecutive integer cases.
+ 	if s.exprname.Type().IsInteger() {
++		consecutive := func(last, next constant.Value) bool {
++			delta := constant.BinaryOp(next, token.SUB, last)
++			return constant.Compare(delta, token.EQL, constant.MakeInt64(1))
++		}
++
+ 		merged := cc[:1]
+ 		for _, c := range cc[1:] {
+ 			last := &merged[len(merged)-1]
+-			if last.jmp == c.jmp && ir.Int64Val(last.hi)+1 == ir.Int64Val(c.lo) {
++			if last.jmp == c.jmp && consecutive(last.hi.Val(), c.lo.Val()) {
+ 				last.hi = c.lo
+ 			} else {
+ 				merged = append(merged, c)
+diff --git a/test/fixedbugs/issue43480.go b/test/fixedbugs/issue43480.go
+new file mode 100644
+index 0000000000..d98ad3a34e
+--- /dev/null
++++ b/test/fixedbugs/issue43480.go
+@@ -0,0 +1,33 @@
++// run
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue #43480: ICE on large uint64 constants in switch cases.
++
++package main
++
++func isPow10(x uint64) bool {
++	switch x {
++	case 1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9,
++		1e10, 1e11, 1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18, 1e19:
++		return true
++	}
++	return false
++}
++
++func main() {
++	var x uint64 = 1
++
++	for {
++		if !isPow10(x) || isPow10(x-1) || isPow10(x+1) {
++			panic(x)
++		}
++		next := x * 10
++		if next/10 != x {
++			break // overflow
++		}
++		x = next
++	}
++}

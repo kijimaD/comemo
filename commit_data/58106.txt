@@ -12,7 +12,7 @@ Date:   Wed Nov 16 17:32:08 2022 -0500
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/export_test.go |  2 +-
  src/runtime/heapdump.go    |  4 ++--
  src/runtime/malloc.go      | 10 +++++-----
@@ -23,3 +23,311 @@ Date:   Wed Nov 16 17:32:08 2022 -0500
  src/runtime/mheap.go       | 25 ++++++++++++-------------
  src/runtime/pinner.go      |  4 ++--
  9 files changed, 40 insertions(+), 41 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 6376445110..f81e8a9ea1 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1372,7 +1372,7 @@ func FreeMSpan(s *MSpan) {
+ 
+ func MSpanCountAlloc(ms *MSpan, bits []byte) int {
+ 	s := (*mspan)(ms)
+-	s.nelems = uintptr(len(bits) * 8)
++	s.nelems = uint16(len(bits) * 8)
+ 	s.gcmarkBits = (*gcBits)(unsafe.Pointer(&bits[0]))
+ 	result := s.countAlloc()
+ 	s.gcmarkBits = nil
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 4283aac320..2394a3e9eb 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -488,8 +488,8 @@ func dumpobjs() {
+ 			throw("freemark array doesn't have enough entries")
+ 		}
+ 
+-		for freeIndex := uintptr(0); freeIndex < s.nelems; freeIndex++ {
+-			if s.isFree(freeIndex) {
++		for freeIndex := uint16(0); freeIndex < s.nelems; freeIndex++ {
++			if s.isFree(uintptr(freeIndex)) {
+ 				freemark[freeIndex] = true
+ 			}
+ 		}
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index ec2e547d3f..a071428391 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -886,7 +886,7 @@ var zerobase uintptr
+ func nextFreeFast(s *mspan) gclinkptr {
+ 	theBit := sys.TrailingZeros64(s.allocCache) // Is there a free object in the allocCache?
+ 	if theBit < 64 {
+-		result := s.freeindex + uintptr(theBit)
++		result := s.freeindex + uint16(theBit)
+ 		if result < s.nelems {
+ 			freeidx := result + 1
+ 			if freeidx%64 == 0 && freeidx != s.nelems {
+@@ -895,7 +895,7 @@ func nextFreeFast(s *mspan) gclinkptr {
+ 			s.allocCache >>= uint(theBit + 1)
+ 			s.freeindex = freeidx
+ 			s.allocCount++
+-			return gclinkptr(result*s.elemsize + s.base())
++			return gclinkptr(uintptr(result)*s.elemsize + s.base())
+ 		}
+ 	}
+ 	return 0
+@@ -916,7 +916,7 @@ func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, shouldhelpgc bo
+ 	freeIndex := s.nextFreeIndex()
+ 	if freeIndex == s.nelems {
+ 		// The span is full.
+-		if uintptr(s.allocCount) != s.nelems {
++		if s.allocCount != s.nelems {
+ 			println("runtime: s.allocCount=", s.allocCount, "s.nelems=", s.nelems)
+ 			throw("s.allocCount != s.nelems && freeIndex == s.nelems")
+ 		}
+@@ -931,9 +931,9 @@ func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, shouldhelpgc bo
+ 		throw("freeIndex is not valid")
+ 	}
+ 
+-	v = gclinkptr(freeIndex*s.elemsize + s.base())
++	v = gclinkptr(uintptr(freeIndex)*s.elemsize + s.base())
+ 	s.allocCount++
+-	if uintptr(s.allocCount) > s.nelems {
++	if s.allocCount > s.nelems {
+ 		println("s.allocCount=", s.allocCount, "s.nelems=", s.nelems)
+ 		throw("s.allocCount > s.nelems")
+ 	}
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 4ba25901d4..20323ff82d 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -117,8 +117,8 @@ func (s *mspan) allocBitsForIndex(allocBitIndex uintptr) markBits {
+ // and negates them so that ctz (count trailing zeros) instructions
+ // can be used. It then places these 8 bytes into the cached 64 bit
+ // s.allocCache.
+-func (s *mspan) refillAllocCache(whichByte uintptr) {
+-	bytes := (*[8]uint8)(unsafe.Pointer(s.allocBits.bytep(whichByte)))
++func (s *mspan) refillAllocCache(whichByte uint16) {
++	bytes := (*[8]uint8)(unsafe.Pointer(s.allocBits.bytep(uintptr(whichByte))))
+ 	aCache := uint64(0)
+ 	aCache |= uint64(bytes[0])
+ 	aCache |= uint64(bytes[1]) << (1 * 8)
+@@ -135,7 +135,7 @@ func (s *mspan) refillAllocCache(whichByte uintptr) {
+ // or after s.freeindex.
+ // There are hardware instructions that can be used to make this
+ // faster if profiling warrants it.
+-func (s *mspan) nextFreeIndex() uintptr {
++func (s *mspan) nextFreeIndex() uint16 {
+ 	sfreeindex := s.freeindex
+ 	snelems := s.nelems
+ 	if sfreeindex == snelems {
+@@ -163,7 +163,7 @@ func (s *mspan) nextFreeIndex() uintptr {
+ 		// nothing available in cached bits
+ 		// grab the next 8 bytes and try again.
+ 	}
+-	result := sfreeindex + uintptr(bitIndex)
++	result := sfreeindex + uint16(bitIndex)
+ 	if result >= snelems {
+ 		s.freeindex = snelems
+ 		return snelems
+@@ -191,7 +191,7 @@ func (s *mspan) nextFreeIndex() uintptr {
+ // been no preemption points since ensuring this (which could allow a
+ // GC transition, which would allow the state to change).
+ func (s *mspan) isFree(index uintptr) bool {
+-	if index < s.freeIndexForScan {
++	if index < uintptr(s.freeIndexForScan) {
+ 		return false
+ 	}
+ 	bytep, mask := s.allocBits.bitp(index)
+@@ -751,7 +751,7 @@ func (s *mspan) initHeapBits(forceClear bool) {
+ // scanning the allocation bitmap.
+ func (s *mspan) countAlloc() int {
+ 	count := 0
+-	bytes := divRoundUp(s.nelems, 8)
++	bytes := divRoundUp(uintptr(s.nelems), 8)
+ 	// Iterate over each 8-byte chunk and count allocations
+ 	// with an intrinsic. Note that newMarkBits guarantees that
+ 	// gcmarkBits will be 8-byte aligned, so we don't have to
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index 757d09787d..d4b6eef13a 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -148,7 +148,7 @@ func (c *mcache) refill(spc spanClass) {
+ 	// Return the current cached span to the central lists.
+ 	s := c.alloc[spc]
+ 
+-	if uintptr(s.allocCount) != s.nelems {
++	if s.allocCount != s.nelems {
+ 		throw("refill of span with free space remaining")
+ 	}
+ 	if s != &emptymspan {
+@@ -184,7 +184,7 @@ func (c *mcache) refill(spc spanClass) {
+ 		throw("out of memory")
+ 	}
+ 
+-	if uintptr(s.allocCount) == s.nelems {
++	if s.allocCount == s.nelems {
+ 		throw("span has no free space")
+ 	}
+ 
+@@ -284,7 +284,7 @@ func (c *mcache) releaseAll() {
+ 				//
+ 				// If this span was cached before sweep, then gcController.heapLive was totally
+ 				// recomputed since caching this span, so we don't do this for stale spans.
+-				dHeapLive -= int64(s.nelems-uintptr(s.allocCount)) * int64(s.elemsize)
++				dHeapLive -= int64(s.nelems-s.allocCount) * int64(s.elemsize)
+ 			}
+ 
+ 			// Release the span to the mcentral.
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index 78611994f3..b1dcbd7e7d 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -174,7 +174,7 @@ havespan:
+ 		traceGCSweepDone()
+ 	}
+ 	n := int(s.nelems) - int(s.allocCount)
+-	if n == 0 || s.freeindex == s.nelems || uintptr(s.allocCount) == s.nelems {
++	if n == 0 || s.freeindex == s.nelems || s.allocCount == s.nelems {
+ 		throw("span has no free objects")
+ 	}
+ 	freeByteBase := s.freeindex &^ (64 - 1)
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 68f1aae600..986eb573ca 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -602,8 +602,8 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
+ 		// efficient; allocfreetrace has massive overhead.
+ 		mbits := s.markBitsForBase()
+ 		abits := s.allocBitsForIndex(0)
+-		for i := uintptr(0); i < s.nelems; i++ {
+-			if !mbits.isMarked() && (abits.index < s.freeindex || abits.isMarked()) {
++		for i := uintptr(0); i < uintptr(s.nelems); i++ {
++			if !mbits.isMarked() && (abits.index < uintptr(s.freeindex) || abits.isMarked()) {
+ 				x := s.base() + i*s.elemsize
+ 				if debug.allocfreetrace != 0 {
+ 					tracefree(unsafe.Pointer(x), size)
+@@ -634,12 +634,12 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
+ 		//
+ 		// Check the first bitmap byte, where we have to be
+ 		// careful with freeindex.
+-		obj := s.freeindex
++		obj := uintptr(s.freeindex)
+ 		if (*s.gcmarkBits.bytep(obj / 8)&^*s.allocBits.bytep(obj / 8))>>(obj%8) != 0 {
+ 			s.reportZombies()
+ 		}
+ 		// Check remaining bytes.
+-		for i := obj/8 + 1; i < divRoundUp(s.nelems, 8); i++ {
++		for i := obj/8 + 1; i < divRoundUp(uintptr(s.nelems), 8); i++ {
+ 			if *s.gcmarkBits.bytep(i)&^*s.allocBits.bytep(i) != 0 {
+ 				s.reportZombies()
+ 			}
+@@ -666,7 +666,7 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
+ 	// gcmarkBits becomes the allocBits.
+ 	// get a fresh cleared gcmarkBits in preparation for next GC
+ 	s.allocBits = s.gcmarkBits
+-	s.gcmarkBits = newMarkBits(s.nelems)
++	s.gcmarkBits = newMarkBits(uintptr(s.nelems))
+ 
+ 	// refresh pinnerBits if they exists
+ 	if s.pinnerBits != nil {
+@@ -760,7 +760,7 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
+ 				return true
+ 			}
+ 			// Return span back to the right mcentral list.
+-			if uintptr(nalloc) == s.nelems {
++			if nalloc == s.nelems {
+ 				mheap_.central[spc].mcentral.fullSwept(sweepgen).push(s)
+ 			} else {
+ 				mheap_.central[spc].mcentral.partialSwept(sweepgen).push(s)
+@@ -829,10 +829,10 @@ func (s *mspan) reportZombies() {
+ 	print("runtime: marked free object in span ", s, ", elemsize=", s.elemsize, " freeindex=", s.freeindex, " (bad use of unsafe.Pointer? try -d=checkptr)\n")
+ 	mbits := s.markBitsForBase()
+ 	abits := s.allocBitsForIndex(0)
+-	for i := uintptr(0); i < s.nelems; i++ {
++	for i := uintptr(0); i < uintptr(s.nelems); i++ {
+ 		addr := s.base() + i*s.elemsize
+ 		print(hex(addr))
+-		alloc := i < s.freeindex || abits.isMarked()
++		alloc := i < uintptr(s.freeindex) || abits.isMarked()
+ 		if alloc {
+ 			print(" alloc")
+ 		} else {
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 0ba45009eb..42318ca04c 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -435,10 +435,17 @@ type mspan struct {
+ 	// undefined and should never be referenced.
+ 	//
+ 	// Object n starts at address n*elemsize + (start << pageShift).
+-	freeindex uintptr
++	freeindex uint16
+ 	// TODO: Look up nelems from sizeclass and remove this field if it
+ 	// helps performance.
+-	nelems uintptr // number of object in the span.
++	nelems uint16 // number of object in the span.
++	// freeIndexForScan is like freeindex, except that freeindex is
++	// used by the allocator whereas freeIndexForScan is used by the
++	// GC scanner. They are two fields so that the GC sees the object
++	// is allocated only when the object and the heap bits are
++	// initialized (see also the assignment of freeIndexForScan in
++	// mallocgc, and issue 54596).
++	freeIndexForScan uint16
+ 
+ 	// Cache of the allocBits at freeindex. allocCache is shifted
+ 	// such that the lowest bit corresponds to the bit freeindex.
+@@ -495,14 +502,6 @@ type mspan struct {
+ 	speciallock           mutex         // guards specials list and changes to pinnerBits
+ 	specials              *special      // linked list of special records sorted by offset.
+ 	userArenaChunkFree    addrRange     // interval for managing chunk allocation
+-
+-	// freeIndexForScan is like freeindex, except that freeindex is
+-	// used by the allocator whereas freeIndexForScan is used by the
+-	// GC scanner. They are two fields so that the GC sees the object
+-	// is allocated only when the object and the heap bits are
+-	// initialized (see also the assignment of freeIndexForScan in
+-	// mallocgc, and issue 54596).
+-	freeIndexForScan uintptr
+ }
+ 
+ func (s *mspan) base() uintptr {
+@@ -1403,7 +1402,7 @@ func (h *mheap) initSpan(s *mspan, typ spanAllocType, spanclass spanClass, base,
+ 			s.divMul = 0
+ 		} else {
+ 			s.elemsize = uintptr(class_to_size[sizeclass])
+-			s.nelems = nbytes / s.elemsize
++			s.nelems = uint16(nbytes / s.elemsize)
+ 			s.divMul = class_to_divmagic[sizeclass]
+ 		}
+ 
+@@ -1411,8 +1410,8 @@ func (h *mheap) initSpan(s *mspan, typ spanAllocType, spanclass spanClass, base,
+ 		s.freeindex = 0
+ 		s.freeIndexForScan = 0
+ 		s.allocCache = ^uint64(0) // all 1s indicating all free.
+-		s.gcmarkBits = newMarkBits(s.nelems)
+-		s.allocBits = newAllocBits(s.nelems)
++		s.gcmarkBits = newMarkBits(uintptr(s.nelems))
++		s.allocBits = newAllocBits(uintptr(s.nelems))
+ 
+ 		// It's safe to access h.sweepgen without the heap lock because it's
+ 		// only ever updated with the world stopped and we run on the
+diff --git a/src/runtime/pinner.go b/src/runtime/pinner.go
+index c0db91eba8..0cc48e2164 100644
+--- a/src/runtime/pinner.go
++++ b/src/runtime/pinner.go
+@@ -267,14 +267,14 @@ func (p *pinnerBits) ofObject(n uintptr) pinState {
+ }
+ 
+ func (s *mspan) pinnerBitSize() uintptr {
+-	return divRoundUp(s.nelems*2, 8)
++	return divRoundUp(uintptr(s.nelems)*2, 8)
+ }
+ 
+ // newPinnerBits returns a pointer to 8 byte aligned bytes to be used for this
+ // span's pinner bits. newPinneBits is used to mark objects that are pinned.
+ // They are copied when the span is swept.
+ func (s *mspan) newPinnerBits() *pinnerBits {
+-	return (*pinnerBits)(newMarkBits(s.nelems * 2))
++	return (*pinnerBits)(newMarkBits(uintptr(s.nelems) * 2))
+ }
+ 
+ // nosplit, because it's called by isPinned, which is nosplit

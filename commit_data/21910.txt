@@ -13,8 +13,152 @@ Date:   Tue Feb 10 15:26:07 2015 +0300
     Change-Id: I0eb6abf3a2cd2491a338fab5f7da22f01bf7e89b
     Reviewed-on: https://go-review.googlesource.com/4370
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/gc/racewalk.c                   |  1 +
  src/runtime/mbarrier.go                 |  7 +++
  src/runtime/race/testdata/slice_test.go | 95 +++++++++++++++++++++++++++++++++
  3 files changed, 103 insertions(+)
+
+diff --git a/src/cmd/gc/racewalk.c b/src/cmd/gc/racewalk.c
+index 757b02cb12..3aa7e36386 100644
+--- a/src/cmd/gc/racewalk.c
++++ b/src/cmd/gc/racewalk.c
+@@ -205,6 +205,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 	case OCALLFUNC:
+ 		// Instrument dst argument of runtime.writebarrier* calls
+ 		// as we do not instrument runtime code.
++		// typedslicecopy is instrumented in runtime.
+ 		if(n->left->sym != S && n->left->sym->pkg == runtimepkg && 
+ 		(strncmp(n->left->sym->name, "writebarrier", 12) == 0 || strcmp(n->left->sym->name, "typedmemmove") == 0)) {
+ 			// Find the dst argument.
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index 33d67c4976..f6e9269858 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -328,6 +328,13 @@ func typedslicecopy(typ *_type, dst, src slice) int {
+ 	dstp := unsafe.Pointer(dst.array)
+ 	srcp := unsafe.Pointer(src.array)
+ 
++	if raceenabled {
++		callerpc := getcallerpc(unsafe.Pointer(&typ))
++		pc := funcPC(slicecopy)
++		racewriterangepc(dstp, uintptr(n)*typ.size, callerpc, pc)
++		racereadrangepc(srcp, uintptr(n)*typ.size, callerpc, pc)
++	}
++
+ 	if !needwb() {
+ 		memmove(dstp, srcp, uintptr(n)*typ.size)
+ 		return int(n)
+diff --git a/src/runtime/race/testdata/slice_test.go b/src/runtime/race/testdata/slice_test.go
+index 5702d1ac85..32ae878970 100644
+--- a/src/runtime/race/testdata/slice_test.go
++++ b/src/runtime/race/testdata/slice_test.go
+@@ -144,6 +144,54 @@ func TestNoRaceSliceCopyRead(t *testing.T) {
+ 	<-ch
+ }
+ 
++func TestRacePointerSliceCopyRead(t *testing.T) {
++	ch := make(chan bool, 1)
++	a := make([]*int, 10)
++	b := make([]*int, 10)
++	go func() {
++		_ = a[5]
++		ch <- true
++	}()
++	copy(a, b)
++	<-ch
++}
++
++func TestNoRacePointerSliceWriteCopy(t *testing.T) {
++	ch := make(chan bool, 1)
++	a := make([]*int, 10)
++	b := make([]*int, 10)
++	go func() {
++		a[5] = new(int)
++		ch <- true
++	}()
++	copy(a[:5], b[:5])
++	<-ch
++}
++
++func TestRacePointerSliceCopyWrite2(t *testing.T) {
++	ch := make(chan bool, 1)
++	a := make([]*int, 10)
++	b := make([]*int, 10)
++	go func() {
++		b[5] = new(int)
++		ch <- true
++	}()
++	copy(a, b)
++	<-ch
++}
++
++func TestNoRacePointerSliceCopyRead(t *testing.T) {
++	ch := make(chan bool, 1)
++	a := make([]*int, 10)
++	b := make([]*int, 10)
++	go func() {
++		_ = b[5]
++		ch <- true
++	}()
++	copy(a, b)
++	<-ch
++}
++
+ func TestNoRaceSliceWriteSlice2(t *testing.T) {
+ 	ch := make(chan bool, 1)
+ 	a := make([]float64, 10)
+@@ -395,6 +443,53 @@ func TestRaceSliceAppendString(t *testing.T) {
+ 	<-c
+ }
+ 
++func TestRacePointerSliceAppend(t *testing.T) {
++	c := make(chan bool, 1)
++	s := make([]*int, 10, 20)
++	go func() {
++		_ = append(s, new(int))
++		c <- true
++	}()
++	_ = append(s, new(int))
++	<-c
++}
++
++func TestRacePointerSliceAppendWrite(t *testing.T) {
++	c := make(chan bool, 1)
++	s := make([]*int, 10)
++	go func() {
++		_ = append(s, new(int))
++		c <- true
++	}()
++	s[0] = new(int)
++	<-c
++}
++
++func TestRacePointerSliceAppendSlice(t *testing.T) {
++	c := make(chan bool, 1)
++	s := make([]*int, 10)
++	go func() {
++		s2 := make([]*int, 10)
++		_ = append(s, s2...)
++		c <- true
++	}()
++	s[0] = new(int)
++	<-c
++}
++
++func TestRacePointerSliceAppendSlice2(t *testing.T) {
++	c := make(chan bool, 1)
++	s := make([]*int, 10)
++	s2foobar := make([]*int, 10)
++	go func() {
++		_ = append(s, s2foobar...)
++		c <- true
++	}()
++	println("WRITE:", &s2foobar[5])
++	s2foobar[5] = nil
++	<-c
++}
++
+ func TestNoRaceSliceIndexAccess(t *testing.T) {
+ 	c := make(chan bool, 1)
+ 	s := make([]int, 10)

@@ -19,6 +19,43 @@ Date:   Fri Sep 15 10:37:08 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/http/serve_test.go | 13 ++++++++-----
  1 file changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index ebf685bcae..cadadf48bc 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -3135,12 +3135,19 @@ func testServerGracefulClose(t *testing.T, mode testMode) {
+ 		if err != nil {
+ 			return err
+ 		}
+-		defer conn.Close()
+ 		writeErr := make(chan error)
+ 		go func() {
+ 			_, err := conn.Write(req)
+ 			writeErr <- err
+ 		}()
++		defer func() {
++			conn.Close()
++			// Wait for write to finish. This is a broken pipe on both
++			// Darwin and Linux, but checking this isn't the point of
++			// the test.
++			<-writeErr
++		}()
++
+ 		br := bufio.NewReader(conn)
+ 		lineNum := 0
+ 		for {
+@@ -3156,10 +3163,6 @@ func testServerGracefulClose(t *testing.T, mode testMode) {
+ 				t.Errorf("Response line = %q; want a 401", line)
+ 			}
+ 		}
+-		// Wait for write to finish. This is a broken pipe on both
+-		// Darwin and Linux, but checking this isn't the point of
+-		// the test.
+-		<-writeErr
+ 		return nil
+ 	})
+ }

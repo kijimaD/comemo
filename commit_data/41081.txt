@@ -13,6 +13,31 @@ Date:   Mon Sep 2 10:34:38 2019 +0000
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/fs.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index 4c4f0e429e..27512411de 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -582,17 +582,15 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
+ 		}
+ 	}
+ 
+-	// redirect if the directory name doesn't end in a slash
+ 	if d.IsDir() {
+ 		url := r.URL.Path
++		// redirect if the directory name doesn't end in a slash
+ 		if url == "" || url[len(url)-1] != '/' {
+ 			localRedirect(w, r, path.Base(url)+"/")
+ 			return
+ 		}
+-	}
+ 
+-	// use contents of index.html for directory, if present
+-	if d.IsDir() {
++		// use contents of index.html for directory, if present
+ 		index := strings.TrimSuffix(name, "/") + indexPage
+ 		ff, err := fs.Open(index)
+ 		if err == nil {

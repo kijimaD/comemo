@@ -11,10 +11,76 @@ Date:   Sun Mar 29 08:12:06 2020 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/crypto/x509/x509_test.go            | 2 +-
  src/go/internal/gccgoimporter/parser.go | 2 +-
  test/blank1.go                          | 2 +-
  test/chanlinear.go                      | 2 +-
  test/fixedbugs/issue9521.go             | 2 +-
  5 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index 0c6747d28d..c2f110e87b 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -1806,7 +1806,7 @@ func TestMD5(t *testing.T) {
+ 	}
+ }
+ 
+-// certMissingRSANULL contains an RSA public key where the AlgorithmIdentifer
++// certMissingRSANULL contains an RSA public key where the AlgorithmIdentifier
+ // parameters are omitted rather than being an ASN.1 NULL.
+ const certMissingRSANULL = `
+ -----BEGIN CERTIFICATE-----
+diff --git a/src/go/internal/gccgoimporter/parser.go b/src/go/internal/gccgoimporter/parser.go
+index 9204b004f9..e2ef33f7ae 100644
+--- a/src/go/internal/gccgoimporter/parser.go
++++ b/src/go/internal/gccgoimporter/parser.go
+@@ -326,7 +326,7 @@ func (p *parser) parseConstValue(pkg *types.Package) (val constant.Value, typ ty
+ 	if p.tok == '$' {
+ 		p.next()
+ 		if p.tok != scanner.Ident {
+-			p.errorf("expected identifer after '$', got %s (%q)", scanner.TokenString(p.tok), p.lit)
++			p.errorf("expected identifier after '$', got %s (%q)", scanner.TokenString(p.tok), p.lit)
+ 		}
+ 	}
+ 
+diff --git a/test/blank1.go b/test/blank1.go
+index 1a9f012464..c9a8e6a290 100644
+--- a/test/blank1.go
++++ b/test/blank1.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Test that incorrect uses of the blank identifer are caught.
++// Test that incorrect uses of the blank identifier are caught.
+ // Does not compile.
+ 
+ package _	// ERROR "invalid package name"
+diff --git a/test/chanlinear.go b/test/chanlinear.go
+index 55fee4ab9b..4d55586dc8 100644
+--- a/test/chanlinear.go
++++ b/test/chanlinear.go
+@@ -5,7 +5,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Test that dequeueing from a pending channel doesn't
++// Test that dequeuing from a pending channel doesn't
+ // take linear time.
+ 
+ package main
+diff --git a/test/fixedbugs/issue9521.go b/test/fixedbugs/issue9521.go
+index 4e4a55f1e1..a33f0483f3 100644
+--- a/test/fixedbugs/issue9521.go
++++ b/test/fixedbugs/issue9521.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Test that an incorrect use of the blank identifer is caught.
++// Test that an incorrect use of the blank identifier is caught.
+ // Does not compile.
+ 
+ package main

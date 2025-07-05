@@ -21,10 +21,156 @@ Date:   Tue Dec 28 18:40:12 2021 -0800
     Trust: Dan Scales <danscales@google.com>
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/typecheck/crawler.go | 38 ++++++++++++++++++++-------
  test/typeparam/gencrawler.dir/a.go            | 27 +++++++++++++++++++
  test/typeparam/gencrawler.dir/main.go         | 12 +++++++++
  test/typeparam/gencrawler.go                  | 10 +++++++
  test/typeparam/gencrawler.out                 |  2 ++
  5 files changed, 80 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/crawler.go b/src/cmd/compile/internal/typecheck/crawler.go
+index 5a9649e7a1..cdb1c46509 100644
+--- a/src/cmd/compile/internal/typecheck/crawler.go
++++ b/src/cmd/compile/internal/typecheck/crawler.go
+@@ -11,11 +11,22 @@ import (
+ )
+ 
+ // crawlExports crawls the type/object graph rooted at the given list of exported
+-// objects. It descends through all parts of types and follows any methods on defined
+-// types. Any functions that are found to be potentially callable by importers are
+-// marked with ExportInline, so that iexport.go knows to re-export their inline body.
+-// Also, any function or global referenced by a function marked by ExportInline() is
+-// marked for export (whether its name is exported or not).
++// objects (which are variables, functions, and types). It descends through all parts
++// of types and follows methods on defined types. Any functions that are found to be
++// potentially callable by importers directly or after inlining are marked with
++// ExportInline, so that iexport.go knows to export their inline body.
++//
++// The overall purpose of crawlExports is to AVOID exporting inlineable methods
++// that cannot actually be referenced, thereby reducing the size of the exports
++// significantly.
++//
++// For non-generic defined types reachable from global variables, we only set
++// ExportInline for exported methods. For defined types that are directly named or are
++// embedded recursively in such a type, we set ExportInline for all methods, since
++// these types can be embedded in another local type. For instantiated types that are
++// used anywhere in a inlineable function, we set ExportInline on all methods of the
++// base generic type, since all methods will be needed for creating any instantiated
++// type.
+ func crawlExports(exports []*ir.Name) {
+ 	p := crawler{
+ 		marked:   make(map[*types.Type]bool),
+@@ -170,10 +181,12 @@ func (p *crawler) markEmbed(t *types.Type) {
+ 	}
+ }
+ 
+-// markGeneric takes an instantiated type or a base generic type t, and
+-// marks all the methods of the base generic type of t. If a base generic
+-// type is written to export file, even if not explicitly marked for export,
+-// all of its methods need to be available for instantiation if needed.
++// markGeneric takes an instantiated type or a base generic type t, and marks all the
++// methods of the base generic type of t. If a base generic type is written out for
++// export, even if not explicitly marked for export, then all of its methods need to
++// be available for instantiation, since we always create all methods of a specified
++// instantiated type. Non-exported methods must generally be instantiated, since they may
++// be called by the exported methods or other generic function in the same package.
+ func (p *crawler) markGeneric(t *types.Type) {
+ 	if t.IsPtr() {
+ 		t = t.Elem()
+@@ -222,6 +235,9 @@ func (p *crawler) markInlBody(n *ir.Name) {
+ 	doFlood = func(n ir.Node) {
+ 		t := n.Type()
+ 		if t != nil {
++			if t.IsPtr() {
++				t = t.Elem()
++			}
+ 			if t.IsFullyInstantiated() && !t.HasShape() && !t.IsInterface() && t.Methods().Len() > 0 {
+ 				// For any fully-instantiated type, the relevant
+ 				// dictionaries and shape instantiations will have
+@@ -287,6 +303,10 @@ func (p *crawler) markInlBody(n *ir.Name) {
+ 			switch n.Class {
+ 			case ir.PFUNC:
+ 				p.markInlBody(n)
++				// Note: this Export() and the one below seem unneeded,
++				// since any function/extern name encountered in an
++				// exported function body will be exported
++				// automatically via qualifiedIdent() in iexport.go.
+ 				Export(n)
+ 			case ir.PEXTERN:
+ 				Export(n)
+diff --git a/test/typeparam/gencrawler.dir/a.go b/test/typeparam/gencrawler.dir/a.go
+new file mode 100644
+index 0000000000..50d6b4adeb
+--- /dev/null
++++ b/test/typeparam/gencrawler.dir/a.go
+@@ -0,0 +1,27 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++var V val[int]
++
++type val[T any] struct {
++	valx T
++}
++
++func (v *val[T]) Print() {
++	v.print1()
++}
++
++func (v *val[T]) print1() {
++	println(v.valx)
++}
++
++func (v *val[T]) fnprint1() {
++	println(v.valx)
++}
++
++func FnPrint[T any](v *val[T]) {
++	v.fnprint1()
++}
+diff --git a/test/typeparam/gencrawler.dir/main.go b/test/typeparam/gencrawler.dir/main.go
+new file mode 100644
+index 0000000000..063de7f350
+--- /dev/null
++++ b/test/typeparam/gencrawler.dir/main.go
+@@ -0,0 +1,12 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "a"
++
++func main() {
++	a.V.Print()
++	a.FnPrint(&a.V)
++}
+diff --git a/test/typeparam/gencrawler.go b/test/typeparam/gencrawler.go
+new file mode 100644
+index 0000000000..7c268aed51
+--- /dev/null
++++ b/test/typeparam/gencrawler.go
+@@ -0,0 +1,10 @@
++// rundir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Testing that all methods of a private generic type are exported, if a variable
++// with that type is exported.
++
++package ignored
+diff --git a/test/typeparam/gencrawler.out b/test/typeparam/gencrawler.out
+new file mode 100644
+index 0000000000..aa47d0d46d
+--- /dev/null
++++ b/test/typeparam/gencrawler.out
+@@ -0,0 +1,2 @@
++0
++0

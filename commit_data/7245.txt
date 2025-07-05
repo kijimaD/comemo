@@ -14,7 +14,7 @@ Date:   Wed Jan 26 08:41:23 2011 -0500
     R=r, r2, uriel
     CC=golang-dev
     https://golang.org/cl/3996047
-
+---
  src/pkg/runtime/Makefile             |   3 -
  src/pkg/runtime/tiny/386/defs.h      |   1 -
  src/pkg/runtime/tiny/386/rt0.s       |  28 --------
@@ -34,3 +34,614 @@ Date:   Wed Jan 26 08:41:23 2011 -0500
  src/pkg/runtime/tiny/signals.h       |   1 -
  src/pkg/runtime/tiny/thread.c        |  92 --------------------------
  18 files changed, 499 deletions(-)
+
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index e62dbe3933..134d51ac02 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -34,9 +34,6 @@ GOFILES=\
+ 	runtime_defs.go\
+ 	$(GOOS)/runtime_defs.go\
+ 
+-GOFILES_tiny=\
+-	tiny/io.go\
+-
+ OFILES_windows=\
+ 	syscall.$O\
+ 
+diff --git a/src/pkg/runtime/tiny/386/defs.h b/src/pkg/runtime/tiny/386/defs.h
+deleted file mode 100644
+index 5df7576133..0000000000
+--- a/src/pkg/runtime/tiny/386/defs.h
++++ /dev/null
+@@ -1 +0,0 @@
+-// nothing to see here
+diff --git a/src/pkg/runtime/tiny/386/rt0.s b/src/pkg/runtime/tiny/386/rt0.s
+deleted file mode 100644
+index 524ac76641..0000000000
+--- a/src/pkg/runtime/tiny/386/rt0.s
++++ /dev/null
+@@ -1,28 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-TEXT _rt0_386_tiny(SB), 7, $0
+-	// Disable interrupts.
+-	CLI
+-	
+-	// Establish stack.
+-	MOVL	$0x10000, AX
+-	MOVL	AX, SP
+-	
+-	// Set up memory hardware.
+-	CALL	runtime·msetup(SB)
+-
+-	// _rt0_386 expects to find argc, argv, envv on stack.
+-	// Set up argv=["kernel"] and envv=[].
+-	SUBL	$64, SP
+-	MOVL	$1, 0(SP)
+-	MOVL	$runtime·kernel(SB), 4(SP)
+-	MOVL	$0, 8(SP)
+-	MOVL	$0, 12(SP)
+-	JMP	_rt0_386(SB)
+-
+-DATA runtime·kernel(SB)/7, $"kernel\z"
+-GLOBL runtime·kernel(SB), $7
+-	
+-
+diff --git a/src/pkg/runtime/tiny/386/signal.c b/src/pkg/runtime/tiny/386/signal.c
+deleted file mode 100644
+index 88e634e9d0..0000000000
+--- a/src/pkg/runtime/tiny/386/signal.c
++++ /dev/null
+@@ -1,19 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file. 
+-
+-#include "runtime.h"
+-
+-extern void runtime·write(int32 fd, void *v, int32 len, int32 cap);	// slice, spelled out
+-
+-int32
+-runtime·write(int32 fd, void *v, int32 len)
+-{
+-	runtime·write(fd, v, len, len);
+-	return len;
+-}
+-
+-void
+-runtime·gettime(int64*, int32*) 
+-{
+-}
+diff --git a/src/pkg/runtime/tiny/386/sys.s b/src/pkg/runtime/tiny/386/sys.s
+deleted file mode 100644
+index 8511714766..0000000000
+--- a/src/pkg/runtime/tiny/386/sys.s
++++ /dev/null
+@@ -1,92 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Manipulation of segment tables.
+-//
+-// Descriptor entry format for system call
+-// is the native machine format, ugly as it is:
+-//
+-//	2-byte limit
+-//	3-byte base
+-//	1-byte: 0x80=present, 0x60=dpl<<5, 0x1F=type
+-//	1-byte: 0x80=limit is *4k, 0x40=32-bit operand size,
+-//		0x0F=4 more bits of limit
+-//	1 byte: 8 more bits of base
+-
+-// Called to set up memory hardware.
+-// Already running in 32-bit mode thanks to boot block,
+-// but we need to install our new GDT that we can modify.
+-TEXT runtime·msetup(SB), 7, $0
+-	MOVL	runtime·gdtptr(SB), GDTR
+-	MOVL	$(1*8+0), AX
+-	MOVW	AX, DS
+-	MOVW	AX, ES
+-	MOVW	AX, SS
+-	MOVW	$0, AX
+-	MOVW	AX, FS
+-	MOVW	AX, GS
+-
+-	// long jmp to cs:mret
+-	BYTE	$0xEA
+-	LONG $runtime·mret(SB)
+-	WORD $(2*8+0)
+-	
+-TEXT runtime·mret(SB), 7, $0
+-	RET
+-
+-// GDT memory
+-TEXT runtime·gdt(SB), 7, $0
+-	// null segment
+-	LONG	$0
+-	LONG	$0
+-	
+-	// 4GB data segment
+-	LONG	$0xFFFF
+-	LONG	$0x00CF9200
+-
+-	// 4GB code segment
+-	LONG	$0xFFFF
+-	LONG	$0x00CF9A00
+-
+-	// null segment (will be thread-local storage segment)
+-	LONG	$0
+-	LONG	$0
+-
+-// GDT pseudo-descriptor
+-TEXT runtime·gdtptr(SB), 7, $0
+-	WORD	$(4*8)
+-	LONG	$runtime·gdt(SB)
+-
+-// Called to establish the per-thread segment.
+-// Write to gdt[3] and reload the gdt register.
+-// setldt(int entry, int address, int limit)
+-TEXT runtime·setldt(SB),7,$32
+-	MOVL	address+4(FP), BX	// aka base
+-	MOVL	limit+8(FP), CX
+-
+-	// set up segment descriptor
+-	LEAL	gdt+(3*8)(SB), AX	// gdt entry #3
+-	MOVL	$0, 0(AX)
+-	MOVL	$0, 4(AX)
+-
+-	MOVW	BX, 2(AX)
+-	SHRL	$16, BX
+-	MOVB	BX, 4(AX)
+-	SHRL	$8, BX
+-	MOVB	BX, 7(AX)
+-
+-	MOVW	CX, 0(AX)
+-	SHRL	$16, CX
+-	ANDL	$0x0F, CX
+-	ORL	$0x40, CX		// 32-bit operand size
+-	MOVB	CX, 6(AX)
+-	MOVB	$0xF2, 5(AX)	// r/w data descriptor, dpl=3, present
+-
+-	MOVL	runtime·gdtptr(SB), GDTR
+-
+-	// Compute segment selector - (entry*8+0)
+-	MOVL	$(3*8+0), AX
+-	MOVW	AX, GS
+-	RET
+-
+diff --git a/src/pkg/runtime/tiny/README b/src/pkg/runtime/tiny/README
+deleted file mode 100755
+index cf001d1e69..0000000000
+--- a/src/pkg/runtime/tiny/README
++++ /dev/null
+@@ -1,123 +0,0 @@
+-This directory contains a simple example of how one might
+-start Go running on bare hardware. There is currently code
+-for 386 and arm.
+-
+-
+-386
+-
+-It is very primitive but can run go/test/sieve.go, the concurrent
+-prime sieve, on a uniprocessor.
+-
+-To run, first build the tools by running all.bash with GOARCH=386
+-and GOOS set to your normal GOOS (linux, darwin).  Then:
+-
+-	export GOOS=tiny
+-	cd $GOROOT/src/pkg/runtime
+-	make clean
+-	make install
+-	cd tiny
+-	8g $GOROOT/test/sieve.go
+-	8l sieve.8
+-	8l -a sieve.8 >sieve.asm	# can consult sieve.asm for debugging
+-	dd if=/dev/zero of=disk count=10000
+-	cat bootblock 8.out | dd of=disk conv=notrunc
+-
+-Use the built-in print(text string) function to print to the
+-console.
+-
+-
+-BOCHS
+-
+-You may have to tweak the .bochsrc depending on your system,
+-and you may need to install the Bochs emulator.
+-
+-    $ cp dot-bochsrc .bochsrc
+-    $ $EDITOR .bochsrc # tweak it if required
+-    $ bochs
+-
+-
+-ORACLE xVM VIRTUALBOX
+-
+-Install VirtualBox. Then:
+-
+-    Build 'disk' (described above under '386').
+-
+-    $ VBoxManage convertfromraw disk go-tiny.vdi
+-    $ VirtualBox
+-        create a new VM; as disk use the go-tiny.vdi image.
+-        start the vm.
+-
+-
+-QEMU / KVM
+-
+-This should work the same for qemu and kvm (really: qemu-kvm).
+-
+-    Build 'disk' (described above under '386').
+-
+-    $ qemu -hda disk
+-
+-
+-ARM
+-
+-First build the toolchain using GOARCH=arm and GOOS=linux. When
+-you build your embedded code set GOARCH=tiny.
+-
+-	export GOOS=tiny
+-	cd $GOROOT/src/pkg/runtime
+-	make clean
+-	make install
+-
+-On arm the tiny runtime doesn't define a low level write function. You can either
+-define a stub if you don't need debug output, or more usefully, define it to
+-print to some debug serial port. Here is a sample function that prints to
+-the DBGU on an at91sam7s:
+-
+-#define DBGU_CSR  ((uint32*)   0xFFFFF214) // (DBGU) Channel Status Register
+-#define US_TXRDY        ((uint32) 0x1 <<  1) // (DBGU) TXRDY Interrupt
+-#define DBGU_THR  ((uint32*)   0xFFFFF21C) // (DBGU) Transmitter Holding Register
+-
+-int32
+-write(int32 fd, void* b, int32 n)
+-{
+-	uint32 i;
+-	uint8* s = (uint8*)b;
+-
+-	for (i = 0; i < n; i++) {
+-		while ((*DBGU_CSR & US_TXRDY) == 0) {
+-		}
+-		*DBGU_THR = *s;
+-		s++;
+-	}
+-	return n;
+-}
+-
+-
+-
+-The 386 bootblock is from MIT's xv6 project and carries this notice:
+-
+-    The xv6 software is:
+-    
+-    Copyright (c) 2006-2009 Frans Kaashoek, Robert Morris, Russ Cox,
+-                            Massachusetts Institute of Technology
+-    
+-    Permission is hereby granted, free of charge, to any person obtaining
+-    a copy of this software and associated documentation files (the
+-    "Software"), to deal in the Software without restriction, including
+-    without limitation the rights to use, copy, modify, merge, publish,
+-    distribute, sublicense, and/or sell copies of the Software, and to
+-    permit persons to whom the Software is furnished to do so, subject to
+-    the following conditions:
+-    
+-    The above copyright notice and this permission notice shall be
+-    included in all copies or substantial portions of the Software.
+-    
+-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+-    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+-    LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+-    OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+-    WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-
+-http://pdos.csail.mit.edu/6.828/xv6/
+-
+diff --git a/src/pkg/runtime/tiny/arm/defs.h b/src/pkg/runtime/tiny/arm/defs.h
+deleted file mode 100644
+index 5df7576133..0000000000
+--- a/src/pkg/runtime/tiny/arm/defs.h
++++ /dev/null
+@@ -1 +0,0 @@
+-// nothing to see here
+diff --git a/src/pkg/runtime/tiny/arm/rt0.s b/src/pkg/runtime/tiny/arm/rt0.s
+deleted file mode 100644
+index 5df7576133..0000000000
+--- a/src/pkg/runtime/tiny/arm/rt0.s
++++ /dev/null
+@@ -1 +0,0 @@
+-// nothing to see here
+diff --git a/src/pkg/runtime/tiny/arm/signal.c b/src/pkg/runtime/tiny/arm/signal.c
+deleted file mode 100644
+index 5df7576133..0000000000
+--- a/src/pkg/runtime/tiny/arm/signal.c
++++ /dev/null
+@@ -1 +0,0 @@
+-// nothing to see here
+diff --git a/src/pkg/runtime/tiny/arm/sys.s b/src/pkg/runtime/tiny/arm/sys.s
+deleted file mode 100644
+index 5df7576133..0000000000
+--- a/src/pkg/runtime/tiny/arm/sys.s
++++ /dev/null
+@@ -1 +0,0 @@
+-// nothing to see here
+diff --git a/src/pkg/runtime/tiny/bootblock b/src/pkg/runtime/tiny/bootblock
+deleted file mode 100755
+index 54dd7c6328..0000000000
+Binary files a/src/pkg/runtime/tiny/bootblock and /dev/null differ
+diff --git a/src/pkg/runtime/tiny/dot-bochsrc b/src/pkg/runtime/tiny/dot-bochsrc
+deleted file mode 100644
+index 3f5c813a25..0000000000
+--- a/src/pkg/runtime/tiny/dot-bochsrc
++++ /dev/null
+@@ -1,18 +0,0 @@
+-romimage: file=$BXSHARE/BIOS-bochs-latest
+-cpu: count=1, ips=100000000, reset_on_triple_fault=0
+-megs: 32
+-vgaromimage: file=/usr/share/vgabios/vgabios.bin
+-vga: extension=none
+-ata0: enabled=1, ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
+-ata1: enabled=1, ioaddr1=0x170, ioaddr2=0x370, irq=15
+-ata2: enabled=0, ioaddr1=0x1e8, ioaddr2=0x3e0, irq=11
+-ata3: enabled=0, ioaddr1=0x168, ioaddr2=0x360, irq=9
+-ata0-master: type=disk, mode=flat, path="disk", cylinders=100, heads=10, spt=10
+-boot: disk
+-panic: action=ask
+-error: action=report
+-info: action=report
+-debug: action=ignore
+-debugger_log: -
+-config_interface: wx
+-display_library: wx
+diff --git a/src/pkg/runtime/tiny/io.go b/src/pkg/runtime/tiny/io.go
+deleted file mode 100644
+index f30e688895..0000000000
+--- a/src/pkg/runtime/tiny/io.go
++++ /dev/null
+@@ -1,53 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Simple CGA screen output
+-
+-package runtime
+-
+-import "unsafe"
+-
+-var crt *[25 * 80]uint16
+-var pos int
+-
+-func putc(c int) {
+-	const (
+-		port  = 0x3d4
+-		color = 0x0700 // white on black
+-	)
+-
+-	if crt == nil {
+-		// init on demand in case printf is called before
+-		// initialization runs.
+-		var mem uintptr = 0xb8000
+-		crt = (*[25 * 80]uint16)(unsafe.Pointer(mem))
+-		pos = 0
+-		for i := range crt[0:] {
+-			crt[i] = 0
+-		}
+-	}
+-
+-	switch c {
+-	case '\n':
+-		pos += 80 - pos%80
+-	default:
+-		crt[pos] = uint16(c&0xff | color)
+-		pos++
+-	}
+-
+-	if pos/80 >= 24 {
+-		copy(crt[0:], crt[80:])
+-		pos -= 80
+-		for i := 0; i < 80; i++ {
+-			crt[24*80+i] = 0
+-		}
+-	}
+-	crt[pos] = ' ' | color
+-}
+-
+-func write(fd int32, b []byte) {
+-	for _, c := range b {
+-		putc(int(c))
+-	}
+-}
+diff --git a/src/pkg/runtime/tiny/mem.c b/src/pkg/runtime/tiny/mem.c
+deleted file mode 100644
+index 7abecfba0f..0000000000
+--- a/src/pkg/runtime/tiny/mem.c
++++ /dev/null
+@@ -1,50 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "malloc.h"
+-
+-// Assume there's an arbitrary amount of memory starting at "end".
+-// Sizing PC memory is beyond the scope of this demo.
+-
+-static byte *allocp;
+-
+-void*
+-runtime·SysAlloc(uintptr ask)
+-{
+-	extern byte end[];
+-	byte *q;
+-	
+-	if(allocp == nil) {
+-		allocp = end;
+-		allocp += 7 & -(uintptr)allocp;
+-	}
+-	ask += 7 & -ask;
+-
+-	q = allocp;
+-	allocp += ask;
+-	runtime·memclr(q, ask);
+-	return q;
+-}
+-
+-void
+-runtime·SysFree(void *v, uintptr n)
+-{
+-	// Push pointer back if this is a free
+-	// of the most recent SysAlloc.
+-	n += 7 & -n;
+-	if(allocp == (byte*)v+n)
+-		allocp -= n;
+-}
+-
+-void
+-runtime·SysUnused(void *v, uintptr n)
+-{
+-	USED(v, n);
+-}
+-
+-void
+-runtime·SysMemInit(void)
+-{
+-}
+diff --git a/src/pkg/runtime/tiny/os.h b/src/pkg/runtime/tiny/os.h
+deleted file mode 100644
+index 5df7576133..0000000000
+--- a/src/pkg/runtime/tiny/os.h
++++ /dev/null
+@@ -1 +0,0 @@
+-// nothing to see here
+diff --git a/src/pkg/runtime/tiny/runtime_defs.go b/src/pkg/runtime/tiny/runtime_defs.go
+deleted file mode 100644
+index 86de13316e..0000000000
+--- a/src/pkg/runtime/tiny/runtime_defs.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// OS-Specific Go definitions of internal structures. Master is runtime.h
+-
+-package runtime
+-
+-type lock struct {
+-	key  uint32
+-	sema uint32
+-}
+-
+-type note lock
+diff --git a/src/pkg/runtime/tiny/signals.h b/src/pkg/runtime/tiny/signals.h
+deleted file mode 100644
+index 5df7576133..0000000000
+--- a/src/pkg/runtime/tiny/signals.h
++++ /dev/null
+@@ -1 +0,0 @@
+-// nothing to see here
+diff --git a/src/pkg/runtime/tiny/thread.c b/src/pkg/runtime/tiny/thread.c
+deleted file mode 100644
+index 0572ecb779..0000000000
+--- a/src/pkg/runtime/tiny/thread.c
++++ /dev/null
+@@ -1,92 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-
+-int8 *goos = "tiny";
+-
+-void
+-runtime·minit(void)
+-{
+-}
+-
+-void
+-runtime·osinit(void)
+-{
+-}
+-
+-void
+-runtime·goenvs(void)
+-{
+-	runtime·goenvs_unix();
+-}
+-
+-void
+-runtime·initsig(int32 queue)
+-{
+-}
+-
+-void
+-runtime·exit(int32)
+-{
+-	for(;;);
+-}
+-
+-// single processor, no interrupts,
+-// so no need for real concurrency or atomicity
+-
+-void
+-runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
+-{
+-	USED(m, g, stk, fn);
+-	runtime·throw("newosproc");
+-}
+-
+-void
+-runtime·lock(Lock *l)
+-{
+-	if(m->locks < 0)
+-		runtime·throw("lock count");
+-	m->locks++;
+-	if(l->key != 0)
+-		runtime·throw("deadlock");
+-	l->key = 1;
+-}
+-
+-void
+-runtime·unlock(Lock *l)
+-{
+-	m->locks--;
+-	if(m->locks < 0)
+-		runtime·throw("lock count");
+-	if(l->key != 1)
+-		runtime·throw("unlock of unlocked lock");
+-	l->key = 0;
+-}
+-
+-void 
+-runtime·destroylock(Lock *l)
+-{
+-	// nothing
+-}
+-
+-void
+-runtime·noteclear(Note *n)
+-{
+-	n->lock.key = 0;
+-}
+-
+-void
+-runtime·notewakeup(Note *n)
+-{
+-	n->lock.key = 1;
+-}
+-
+-void
+-runtime·notesleep(Note *n)
+-{
+-	if(n->lock.key != 1)
+-		runtime·throw("notesleep");
+-}
+-

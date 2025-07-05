@@ -8,7 +8,34 @@ Date:   Fri Mar 2 14:07:26 2012 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5719045
-
+---
  src/pkg/os/exec_plan9.go | 2 +-
  src/pkg/os/exec_posix.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/os/exec_plan9.go b/src/pkg/os/exec_plan9.go
+index a7e2e2543a..41cc8c26f4 100644
+--- a/src/pkg/os/exec_plan9.go
++++ b/src/pkg/os/exec_plan9.go
+@@ -101,7 +101,7 @@ func findProcess(pid int) (p *Process, err error) {
+ 	return newProcess(pid, 0), nil
+ }
+ 
+-// ProcessState stores information about process as reported by Wait.
++// ProcessState stores information about a process, as reported by Wait.
+ type ProcessState struct {
+ 	pid    int              // The process's id.
+ 	status *syscall.Waitmsg // System-dependent status info.
+diff --git a/src/pkg/os/exec_posix.go b/src/pkg/os/exec_posix.go
+index a39ed92b9e..70351cfb31 100644
+--- a/src/pkg/os/exec_posix.go
++++ b/src/pkg/os/exec_posix.go
+@@ -44,7 +44,7 @@ func (p *Process) kill() error {
+ 	return p.Signal(Kill)
+ }
+ 
+-// ProcessState stores information about process as reported by Wait.
++// ProcessState stores information about a process, as reported by Wait.
+ type ProcessState struct {
+ 	pid    int                // The process's id.
+ 	status syscall.WaitStatus // System-dependent status info.

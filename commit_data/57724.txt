@@ -21,7 +21,51 @@ Date:   Thu Aug 24 16:17:44 2023 -0700
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/base/print.go    | 5 -----
  src/cmd/compile/internal/noder/unified.go | 9 ---------
  2 files changed, 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/print.go b/src/cmd/compile/internal/base/print.go
+index efd70f7cc5..cc36acec4b 100644
+--- a/src/cmd/compile/internal/base/print.go
++++ b/src/cmd/compile/internal/base/print.go
+@@ -146,11 +146,6 @@ func ErrorfAt(pos src.XPos, code errors.Code, format string, args ...interface{}
+ 	}
+ }
+ 
+-// ErrorfVers reports that a language feature (format, args) requires a later version of Go.
+-func ErrorfVers(lang string, format string, args ...interface{}) {
+-	Errorf("%s requires %s or later (-lang was set to %s; check go.mod)", fmt.Sprintf(format, args...), lang, Flag.Lang)
+-}
+-
+ // UpdateErrorDot is a clumsy hack that rewrites the last error,
+ // if it was "LINE: undefined: NAME", to be "LINE: undefined: NAME in EXPR".
+ // It is used to give better error messages for dot (selector) expressions.
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index e534f0b725..59a3536000 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -5,8 +5,6 @@
+ package noder
+ 
+ import (
+-	"fmt"
+-	"internal/goversion"
+ 	"internal/pkgbits"
+ 	"io"
+ 	"runtime"
+@@ -74,13 +72,6 @@ func unified(m posMap, noders []*noder) {
+ 
+ 	data := writePkgStub(m, noders)
+ 
+-	// We already passed base.Flag.Lang to types2 to handle validating
+-	// the user's source code. Bump it up now to the current version and
+-	// re-parse, so typecheck doesn't complain if we construct IR that
+-	// utilizes newer Go features.
+-	base.Flag.Lang = fmt.Sprintf("go1.%d", goversion.Version)
+-	types.ParseLangFlag()
+-
+ 	target := typecheck.Target
+ 
+ 	localPkgReader = newPkgReader(pkgbits.NewPkgDecoder(types.LocalPkg.Path, data))

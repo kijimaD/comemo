@@ -20,8 +20,132 @@ Date:   Fri Apr 16 13:06:45 2010 +0300
     R=dpx
     CC=golang-dev, rsc
     https://golang.org/cl/880046
-
+---
  misc/arm/a        | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
  test/arm-pass.txt |  8 ++++----
  test/run-arm      | 13 +++++++++++--
  3 files changed, 64 insertions(+), 6 deletions(-)
+
+diff --git a/misc/arm/a b/misc/arm/a
+new file mode 100755
+index 0000000000..140b47e296
+--- /dev/null
++++ b/misc/arm/a
+@@ -0,0 +1,49 @@
++#!/usr/bin/env bash
++
++# Copyright 2010 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# This is a small script for executing go binaries on the android platform.
++#
++# example:
++# ./a 5.out foo bar baz
++#
++# The script exports the local values of GOARCH, GOTRACEBACK and GOGC
++# to the android environment.
++#
++# Known issues:
++# The script fails unless the last character output by the program is "\n"
++#
++# TODO(kaib): add gdb bridge support
++
++exp ()
++{
++	if [ ${!1} ]; then
++		echo "export $1=\"${!1}\"; "
++	fi
++}
++
++# adb does not correctly return the exit value of the executed program. use this
++# wrapper to manually extract the exit value
++rloc=/data/local/tmp/retval
++rsize=$(adb shell "ls -l $rloc"|tr -s ' '|cut -d' ' -f4)
++rcheck=38
++if [ $rsize != $rcheck ] ; then
++#	echo "debug: retval size incorrect want $rcheck, got $rsize. uploading"
++	echo  >/tmp/adb.retval '#!/system/bin/sh
++"$@"
++echo RETVAL: $?' 
++	adb push /tmp/adb.retval $rloc >/dev/null 2>&1
++	adb shell chmod 755 $rloc
++fi
++
++# run the main binary
++if [ "$*" != "$1" ]; then
++	args=$(echo $*| cut -d' ' -f2-)
++fi
++adb push $1 /data/local/tmp/$1 >/dev/null 2>&1
++adb shell "$(exp GOARCH) $(exp GOTRACEBACK) $(exp GOGC) \
++	/data/local/tmp/retval /data/local/tmp/$1 $args" \
++	2>&1|tr -d '\r' |tee /tmp/adb.out|grep -v RETVAL
++exit $(grep RETVAL /tmp/adb.out|tr -d '\n\r'| cut -d' ' -f2)
+diff --git a/test/arm-pass.txt b/test/arm-pass.txt
+index ce24e01ac6..e4187c2999 100644
+--- a/test/arm-pass.txt
++++ b/test/arm-pass.txt
+@@ -1,6 +1,6 @@
+-./235.go  # slow
+-./64bit.go  # slow
+-# ./args.go  # android runner doesn't pass args through
++./235.go
++./64bit.go  # slow with GOGC=on
++./args.go
+ ./assign.go
+ ./bigalg.go
+ ./blank.go
+@@ -34,7 +34,7 @@
+ ./defer.go
+ # ./deferprint.go  # need floating point
+ ./empty.go
+-# ./env.go  # android runner doesn't pass env through
++./env.go
+ ./escape.go
+ # ./float_lit.go  # need floating point
+ # ./floatcmp.go  # need floating point
+diff --git a/test/run-arm b/test/run-arm
+index d6d257adc6..4a469ceae1 100755
+--- a/test/run-arm
++++ b/test/run-arm
+@@ -35,6 +35,14 @@ FAILEDFILE=/tmp/gotest3-$$-$USER
+ # on thresher, 3GB suffices to run the tests; with 2GB, peano fails.
+ ulimit -v 4000000
+ 
++# no core files please
++ulimit -c 0
++
++true >times.out
++
++# TODO(kaib): figure out why the GC makes things so utterly slow.
++export GOGC=off
++export GOTRACEBACK=0
+ 
+ for i in $(cat arm-pass.txt | sed 's/#.*//')
+ do
+@@ -42,7 +50,7 @@ do
+ 	dir=$(dirname $i)
+ 	export D=$dir
+ 	sed '/^\/\//!q' $i | sed 's@//@@; $d' |sed 's|./\$A.out|$E &|' >$RUNFILE
+-	if ! sh $RUNFILE >$TMP1FILE 2>&1
++	if ! { time -p bash -c "bash $RUNFILE >$TMP1FILE 2>&1" ; } 2>$TMP2FILE
+ 	then
+ 		echo
+ 		echo "===========" $i
+@@ -58,6 +66,7 @@ do
+ 	then
+ 		echo $i succeeded with no output.
+ 	fi
++	echo $(awk 'NR==1{print $2}' $TMP2FILE) $D/$F >>times.out
+ done | # clean up some stack noise
+ 	egrep -v '^(r[0-9a-z]+|[cfg]s)  +0x'  |
+ 	sed '/tmp.*Bus error/s/.*Bus/Bus/; /tmp.*Trace.BPT/s/.*Trace/Trace/
+@@ -75,7 +84,7 @@ done | # clean up some stack noise
+ failed=0
+ rm  -f $RUNFILE $TMP1FILE $TMP2FILE *.$A $A.out
+ diffmsg=""
+-if ! diff run.out golden-arm.out
++if ! diff -b run.out golden-arm.out
+ then
+ 	diffmsg="; test output differs"
+ 	failed=1

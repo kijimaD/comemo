@@ -9,9 +9,171 @@ Date:   Sat May 14 19:13:12 2011 -0400
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/4521064
-
+---
  src/pkg/crypto/openpgp/packet/packet.go          |  8 ++++++
  src/pkg/crypto/openpgp/packet/public_key.go      | 33 ++++++++++++++++++----
  src/pkg/crypto/openpgp/packet/public_key_test.go | 36 ++++++++++++++++++++++--
  src/pkg/crypto/openpgp/packet/signature.go       |  6 ++--
  4 files changed, 71 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/crypto/openpgp/packet/packet.go b/src/pkg/crypto/openpgp/packet/packet.go
+index 24be5cb26d..1c8a071398 100644
+--- a/src/pkg/crypto/openpgp/packet/packet.go
++++ b/src/pkg/crypto/openpgp/packet/packet.go
+@@ -386,6 +386,14 @@ func readMPI(r io.Reader) (mpi []byte, bitLength uint16, err os.Error) {
+ 	return
+ }
+ 
++// mpiLength returns the length of the given *big.Int when serialised as an
++// MPI.
++func mpiLength(n *big.Int) (mpiLengthInBytes int) {
++	mpiLengthInBytes = 2 /* MPI length */
++	mpiLengthInBytes += (n.BitLen() + 7) / 8
++	return
++}
++
+ // writeMPI serializes a big integer to w.
+ func writeMPI(w io.Writer, bitLength uint16, mpiBytes []byte) (err os.Error) {
+ 	_, err = w.Write([]byte{byte(bitLength >> 8), byte(bitLength)})
+diff --git a/src/pkg/crypto/openpgp/packet/public_key.go b/src/pkg/crypto/openpgp/packet/public_key.go
+index cd4a9aebb6..24eab49f58 100644
+--- a/src/pkg/crypto/openpgp/packet/public_key.go
++++ b/src/pkg/crypto/openpgp/packet/public_key.go
+@@ -57,7 +57,7 @@ func (pk *PublicKey) parse(r io.Reader) (err os.Error) {
+ 	// RFC 4880, section 12.2
+ 	fingerPrint := sha1.New()
+ 	pk.SerializeSignaturePrefix(fingerPrint)
+-	pk.Serialize(fingerPrint)
++	pk.serializeWithoutHeaders(fingerPrint)
+ 	copy(pk.Fingerprint[:], fingerPrint.Sum())
+ 	pk.KeyId = binary.BigEndian.Uint64(pk.Fingerprint[12:20])
+ 
+@@ -143,9 +143,30 @@ func (pk *PublicKey) SerializeSignaturePrefix(h hash.Hash) {
+ 	return
+ }
+ 
+-// Serialize marshals the PublicKey to w in the form of an OpenPGP public key
+-// packet, not including the packet header.
+ func (pk *PublicKey) Serialize(w io.Writer) (err os.Error) {
++	length := 6 // 6 byte header
++
++	switch pk.PubKeyAlgo {
++	case PubKeyAlgoRSA, PubKeyAlgoRSAEncryptOnly, PubKeyAlgoRSASignOnly:
++		length += 2 + len(pk.n.bytes)
++		length += 2 + len(pk.e.bytes)
++	case PubKeyAlgoDSA:
++		length += 2 + len(pk.p.bytes)
++		length += 2 + len(pk.q.bytes)
++		length += 2 + len(pk.g.bytes)
++		length += 2 + len(pk.y.bytes)
++	}
++
++	err = serializeHeader(w, packetTypePublicKey, length)
++	if err != nil {
++		return
++	}
++	return pk.serializeWithoutHeaders(w)
++}
++
++// serializeWithoutHeaders marshals the PublicKey to w in the form of an
++// OpenPGP public key packet, not including the packet header.
++func (pk *PublicKey) serializeWithoutHeaders(w io.Writer) (err os.Error) {
+ 	var buf [6]byte
+ 	buf[0] = 4
+ 	buf[1] = byte(pk.CreationTime >> 24)
+@@ -221,9 +242,9 @@ func (pk *PublicKey) VerifyKeySignature(signed *PublicKey, sig *Signature) (err
+ 
+ 	// RFC 4880, section 5.2.4
+ 	pk.SerializeSignaturePrefix(h)
+-	pk.Serialize(h)
++	pk.serializeWithoutHeaders(h)
+ 	signed.SerializeSignaturePrefix(h)
+-	signed.Serialize(h)
++	signed.serializeWithoutHeaders(h)
+ 
+ 	return pk.VerifySignature(h, sig)
+ }
+@@ -238,7 +259,7 @@ func (pk *PublicKey) VerifyUserIdSignature(id string, sig *Signature) (err os.Er
+ 
+ 	// RFC 4880, section 5.2.4
+ 	pk.SerializeSignaturePrefix(h)
+-	pk.Serialize(h)
++	pk.serializeWithoutHeaders(h)
+ 
+ 	var buf [5]byte
+ 	buf[0] = 0xb4
+diff --git a/src/pkg/crypto/openpgp/packet/public_key_test.go b/src/pkg/crypto/openpgp/packet/public_key_test.go
+index 069388c14d..3bbdf92f08 100644
+--- a/src/pkg/crypto/openpgp/packet/public_key_test.go
++++ b/src/pkg/crypto/openpgp/packet/public_key_test.go
+@@ -28,12 +28,12 @@ func TestPublicKeyRead(t *testing.T) {
+ 		packet, err := Read(readerFromHex(test.hexData))
+ 		if err != nil {
+ 			t.Errorf("#%d: Read error: %s", i, err)
+-			return
++			continue
+ 		}
+ 		pk, ok := packet.(*PublicKey)
+ 		if !ok {
+ 			t.Errorf("#%d: failed to parse, got: %#v", i, packet)
+-			return
++			continue
+ 		}
+ 		if pk.PubKeyAlgo != test.pubKeyAlgo {
+ 			t.Errorf("#%d: bad public key algorithm got:%x want:%x", i, pk.PubKeyAlgo, test.pubKeyAlgo)
+@@ -57,6 +57,38 @@ func TestPublicKeyRead(t *testing.T) {
+ 	}
+ }
+ 
++func TestPublicKeySerialize(t *testing.T) {
++	for i, test := range pubKeyTests {
++		packet, err := Read(readerFromHex(test.hexData))
++		if err != nil {
++			t.Errorf("#%d: Read error: %s", i, err)
++			continue
++		}
++		pk, ok := packet.(*PublicKey)
++		if !ok {
++			t.Errorf("#%d: failed to parse, got: %#v", i, packet)
++			continue
++		}
++		serializeBuf := bytes.NewBuffer(nil)
++		err = pk.Serialize(serializeBuf)
++		if err != nil {
++			t.Errorf("#%d: failed to serialize: %s", err)
++			continue
++		}
++
++		packet, err = Read(serializeBuf)
++		if err != nil {
++			t.Errorf("#%d: Read error (from serialized data): %s", i, err)
++			continue
++		}
++		pk, ok = packet.(*PublicKey)
++		if !ok {
++			t.Errorf("#%d: failed to parse serialized data, got: %#v", i, packet)
++			continue
++		}
++	}
++}
++
+ const rsaFingerprintHex = "5fb74b1d03b1e3cb31bc2f8aa34d7e18c20c31bb"
+ 
+ const rsaPkDataHex = "988d044d3c5c10010400b1d13382944bd5aba23a4312968b5095d14f947f600eb478e14a6fcb16b0e0cac764884909c020bc495cfcc39a935387c661507bdb236a0612fb582cac3af9b29cc2c8c70090616c41b662f4da4c1201e195472eb7f4ae1ccbcbf9940fe21d985e379a5563dde5b9a23d35f1cfaa5790da3b79db26f23695107bfaca8e7b5bcd0011010001"
+diff --git a/src/pkg/crypto/openpgp/packet/signature.go b/src/pkg/crypto/openpgp/packet/signature.go
+index 719657e76e..39c68619e5 100644
+--- a/src/pkg/crypto/openpgp/packet/signature.go
++++ b/src/pkg/crypto/openpgp/packet/signature.go
+@@ -455,10 +455,8 @@ func (sig *Signature) Serialize(w io.Writer) (err os.Error) {
+ 	case PubKeyAlgoRSA, PubKeyAlgoRSASignOnly:
+ 		sigLength = len(sig.RSASignature)
+ 	case PubKeyAlgoDSA:
+-		sigLength = 2 /* MPI length */
+-		sigLength += (sig.DSASigR.BitLen() + 7) / 8
+-		sigLength += 2 /* MPI length */
+-		sigLength += (sig.DSASigS.BitLen() + 7) / 8
++		sigLength = mpiLength(sig.DSASigR)
++		sigLength += mpiLength(sig.DSASigS)
+ 	default:
+ 		panic("impossible")
+ 	}

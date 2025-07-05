@@ -12,8 +12,114 @@ Date:   Wed Jan 18 00:05:32 2017 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/testing/benchmark.go |  7 +++++--
  src/testing/sub_test.go  | 17 +++++++++++++++++
  src/testing/testing.go   | 12 ++++++++----
  3 files changed, 30 insertions(+), 6 deletions(-)
+
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index c033ce5fec..bcebb418c4 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -219,7 +219,7 @@ func (b *B) run1() bool {
+ 	}
+ 	// Only print the output if we know we are not going to proceed.
+ 	// Otherwise it is printed in processBench.
+-	if b.hasSub || b.finished {
++	if atomic.LoadInt32(&b.hasSub) != 0 || b.finished {
+ 		tag := "BENCH"
+ 		if b.skipped {
+ 			tag = "SKIP"
+@@ -460,10 +460,13 @@ func (ctx *benchContext) processBench(b *B) {
+ //
+ // A subbenchmark is like any other benchmark. A benchmark that calls Run at
+ // least once will not be measured itself and will be called once with N=1.
++//
++// Run may be called simultaneously from multiple goroutines, but all such
++// calls must happen before the outer benchmark function for b returns.
+ func (b *B) Run(name string, f func(b *B)) bool {
+ 	// Since b has subbenchmarks, we will no longer run it as a benchmark itself.
+ 	// Release the lock and acquire it on exit to ensure locks stay paired.
+-	b.hasSub = true
++	atomic.StoreInt32(&b.hasSub, 1)
+ 	benchmarkLock.Unlock()
+ 	defer benchmarkLock.Lock()
+ 
+diff --git a/src/testing/sub_test.go b/src/testing/sub_test.go
+index 8d5d9206f0..bb7b3e0925 100644
+--- a/src/testing/sub_test.go
++++ b/src/testing/sub_test.go
+@@ -6,6 +6,7 @@ package testing
+ 
+ import (
+ 	"bytes"
++	"fmt"
+ 	"regexp"
+ 	"strings"
+ 	"sync/atomic"
+@@ -515,3 +516,19 @@ func TestBenchmarkOutput(t *T) {
+ 	Benchmark(func(b *B) { b.Error("do not print this output") })
+ 	Benchmark(func(b *B) {})
+ }
++
++func TestParallelSub(t *T) {
++	c := make(chan int)
++	block := make(chan int)
++	for i := 0; i < 10; i++ {
++		go func(i int) {
++			<-block
++			t.Run(fmt.Sprint(i), func(t *T) {})
++			c <- 1
++		}(i)
++	}
++	close(block)
++	for i := 0; i < 10; i++ {
++		<-c
++	}
++}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index c972b2737f..ddbdc25bf1 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -216,6 +216,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"sync"
++	"sync/atomic"
+ 	"time"
+ )
+ 
+@@ -267,8 +268,8 @@ type common struct {
+ 	skipped    bool         // Test of benchmark has been skipped.
+ 	finished   bool         // Test function has completed.
+ 	done       bool         // Test is finished and all subtests have completed.
+-	hasSub     bool
+-	raceErrors int // number of races detected during test
++	hasSub     int32        // written atomically
++	raceErrors int          // number of races detected during test
+ 
+ 	parent   *common
+ 	level    int       // Nesting depth of test or benchmark.
+@@ -645,7 +646,7 @@ func tRunner(t *T, fn func(t *T)) {
+ 		// Do not lock t.done to allow race detector to detect race in case
+ 		// the user does not appropriately synchronizes a goroutine.
+ 		t.done = true
+-		if t.parent != nil && !t.hasSub {
++		if t.parent != nil && atomic.LoadInt32(&t.hasSub) == 0 {
+ 			t.setRan()
+ 		}
+ 		t.signal <- true
+@@ -659,8 +660,11 @@ func tRunner(t *T, fn func(t *T)) {
+ 
+ // Run runs f as a subtest of t called name. It reports whether f succeeded.
+ // Run will block until all its parallel subtests have completed.
++//
++// Run may be called simultaneously from multiple goroutines, but all such
++// calls must happen before the outer test function for t returns.
+ func (t *T) Run(name string, f func(t *T)) bool {
+-	t.hasSub = true
++	atomic.StoreInt32(&t.hasSub, 1)
+ 	testName, ok := t.context.match.fullName(&t.common, name)
+ 	if !ok {
+ 		return true

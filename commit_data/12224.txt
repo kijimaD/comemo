@@ -7,6 +7,40 @@ Date:   Mon Feb 27 14:16:56 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5701052
-
+---
  doc/install.html | 14 ++++++++++++--
  1 file changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/doc/install.html b/doc/install.html
+index e99b60dc09..217b52a0e6 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -68,16 +68,26 @@ export PATH=$PATH:$GOROOT/bin
+ 
+ <h3 id="freebsd_linux">FreeBSD and Linux</h3>
+ 
++<p>
++On FreeBSD and Linux, if you are upgrading from an older version of Go you must
++first remove the existing version from <code>/usr/local/go</code>:
++</p>
++
++<pre>
++rm -r /usr/local/go
++</pre>
++
+ <p>
+ Extract the archive into <code>/usr/local</code>, creating a Go tree in
+-<code>/usr/local/go</code> (typically this must be run as root or through
+-<code>sudo</code>):
++<code>/usr/local/go</code>:
+ </p>
+ 
+ <pre>
+ tar -C /usr/local -xzf go.release.go1.tar.gz
+ </pre>
+ 
++<p>(Typically these commands must be run as root or through <code>sudo</code>.)</p>
++
+ <p>
+ Add <code>/usr/local/go/bin</code> to the <code>PATH</code> environment
+ variable. You can do this by adding this line to your <code>/etc/profile</code>

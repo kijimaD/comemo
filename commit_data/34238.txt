@@ -18,6 +18,31 @@ Date:   Tue Oct 10 11:58:31 2017 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/dwarf.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 4fcd86f45c..dd6d983f56 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1273,8 +1273,8 @@ func writeframes(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
+ func writeranges(ctxt *Link, syms []*sym.Symbol) []*sym.Symbol {
+ 	empty := true
+ 	for _, s := range ctxt.Textp {
+-		rangeSym := ctxt.Syms.Lookup(dwarf.RangePrefix+s.Name, int(s.Version))
+-		if rangeSym.Size == 0 {
++		rangeSym := ctxt.Syms.ROLookup(dwarf.RangePrefix+s.Name, int(s.Version))
++		if rangeSym == nil || rangeSym.Size == 0 {
+ 			continue
+ 		}
+ 		rangeSym.Attr |= sym.AttrReachable | sym.AttrNotInSymbolTable
+@@ -1555,7 +1555,7 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
+ 
+ 	var consts []*sym.Symbol
+ 	for _, lib := range ctxt.Library {
+-		if s := ctxt.Syms.Lookup(dwarf.ConstInfoPrefix+lib.Pkg, 0); s != nil {
++		if s := ctxt.Syms.ROLookup(dwarf.ConstInfoPrefix+lib.Pkg, 0); s != nil {
+ 			importInfoSymbol(ctxt, s)
+ 			consts = append(consts, s)
+ 		}

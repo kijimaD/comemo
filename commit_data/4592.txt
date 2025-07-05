@@ -21,8 +21,57 @@ Date:   Wed Jan 13 14:39:16 2010 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/186116
-
+---
  src/cmd/gc/lex.c | 2 +-
  src/cmd/ld/lib.c | 5 +----
  src/cmd/ld/lib.h | 1 +
  3 files changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 75d6d2200a..d74cb096ad 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -225,7 +225,7 @@ findpkg(Strlit *name)
+ 	if(goroot == nil) {
+ 		goroot = getenv("GOROOT");
+ 		goos = getenv("GOOS");
+-		goarch = getenv("GOARCH");
++		goarch = thestring;
+ 	}
+ 
+ 	if(islocalname(name)) {
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 232916845e..f702bae237 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -721,7 +721,6 @@ mywhatsys(void)
+ 	char *s;
+ 
+ 	goroot = getenv("GOROOT");
+-	goarch = getenv("GOARCH");
+ 	goos = getenv("GOOS");
+ 
+ 	if(goroot == nil) {
+@@ -732,9 +731,7 @@ mywhatsys(void)
+ 		strcpy(goroot, s);
+ 		strcat(goroot, "/go");
+ 	}
+-	if(goarch == nil) {
+-		goarch = "amd64";
+-	}
++	goarch = thestring;	// ignore $GOARCH - we know who we are
+ 	if(goos == nil) {
+ 		goos = "linux";
+ 	}
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 4a300ac4e9..bf26ae87d8 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -52,6 +52,7 @@ EXTERN	uchar	inuxi4[4];
+ EXTERN	uchar	inuxi8[8];
+ EXTERN	char*	outfile;
+ EXTERN	int32	nsymbol;
++EXTERN	char*	thestring;
+ 
+ void	addlib(char *src, char *obj);
+ void	copyhistfrog(char *buf, int nbuf);

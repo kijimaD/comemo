@@ -36,10 +36,204 @@ Date:   Fri Sep 12 00:18:20 2014 -0400
     R=khr
     CC=golang-codereviews
     https://golang.org/cl/137520043
-
+---
  src/cmd/dist/build.c   |  2 ++
  src/cmd/gc/pgen.c      | 49 +++++++++++++++++++++++++++++++++++++++++++++----
  src/liblink/objfile.c  | 12 ++++++++++++
  src/runtime/asm.s      | 14 ++++++++++++++
  src/runtime/funcdata.h | 26 ++++++++++++++++++++++++++
  5 files changed, 99 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index e4dc9ba56c..31c4da3817 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -897,6 +897,8 @@ install(char *dir)
+ 			bpathf(&b1, "%s/signals_%s.h", bstr(&path), goos), 0);
+ 		copyfile(bpathf(&b, "%s/pkg/%s_%s/textflag.h", goroot, goos, goarch),
+ 			bpathf(&b1, "%s/src/cmd/ld/textflag.h", goroot), 0);
++		copyfile(bpathf(&b, "%s/pkg/%s_%s/funcdata.h", goroot, goos, goarch),
++			bpathf(&b1, "%s/src/runtime/funcdata.h", goroot), 0);
+ 	}
+ 
+ 	// Generate any missing files; regenerate existing ones.
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index ec50ada5b6..50c03788e8 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -14,6 +14,7 @@
+ #include	"../../runtime/funcdata.h"
+ 
+ static void allocauto(Prog* p);
++static void emitptrargsmap(void);
+ 
+ static Sym*
+ makefuncdatasym(char *namefmt, int64 funcdatakind)
+@@ -173,9 +174,15 @@ compile(Node *fn)
+ 
+ 	lno = setlineno(fn);
+ 
++	curfn = fn;
++	dowidth(curfn->type);
++
+ 	if(fn->nbody == nil) {
+-		if(pure_go || strncmp(fn->nname->sym->name, "init·", 6) == 0)
++		if(pure_go || strncmp(fn->nname->sym->name, "init·", 6) == 0) {
+ 			yyerror("missing function body", fn);
++			goto ret;
++		}
++		emitptrargsmap();
+ 		goto ret;
+ 	}
+ 
+@@ -184,9 +191,6 @@ compile(Node *fn)
+ 	// set up domain for labels
+ 	clearlabels();
+ 
+-	curfn = fn;
+-	dowidth(curfn->type);
+-
+ 	if(curfn->type->outnamed) {
+ 		// add clearing of the output parameters
+ 		t = structfirst(&save, getoutarg(curfn->type));
+@@ -329,6 +333,43 @@ ret:
+ 	lineno = lno;
+ }
+ 
++static void
++emitptrargsmap(void)
++{
++	int nptr, nbitmap, j, off;
++	vlong xoffset;
++	Bvec *bv;
++	Sym *sym;
++	
++	sym = lookup(smprint("%s.args_stackmap", curfn->nname->sym->name));
++
++	nptr = curfn->type->argwid / widthptr;
++	bv = bvalloc(nptr*2);
++	nbitmap = 1;
++	if(curfn->type->outtuple > 0)
++		nbitmap = 2;
++	off = duint32(sym, 0, nbitmap);
++	off = duint32(sym, off, bv->n);
++	if(curfn->type->thistuple > 0) {
++		xoffset = 0;
++		twobitwalktype1(getthisx(curfn->type), &xoffset, bv);
++	}
++	if(curfn->type->intuple > 0) {
++		xoffset = 0;
++		twobitwalktype1(getinargx(curfn->type), &xoffset, bv);
++	}
++	for(j = 0; j < bv->n; j += 32)
++		off = duint32(sym, off, bv->b[j/32]);
++	if(curfn->type->outtuple > 0) {
++		xoffset = 0;
++		twobitwalktype1(getoutargx(curfn->type), &xoffset, bv);
++		for(j = 0; j < bv->n; j += 32)
++			off = duint32(sym, off, bv->b[j/32]);
++	}
++	ggloblsym(sym, off, RODATA);
++	free(bv);
++}
++
+ // Sort the list of stack variables. Autos after anything else,
+ // within autos, unused after used, within used, things with
+ // pointers first, zeroed things first, and then decreasing size.
+diff --git a/src/liblink/objfile.c b/src/liblink/objfile.c
+index dc463d474e..02cfae495a 100644
+--- a/src/liblink/objfile.c
++++ b/src/liblink/objfile.c
+@@ -103,6 +103,7 @@
+ #include <bio.h>
+ #include <link.h>
+ #include "../cmd/ld/textflag.h"
++#include "../runtime/funcdata.h"
+ 
+ static void writesym(Link*, Biobuf*, LSym*);
+ static void wrint(Biobuf*, int64);
+@@ -232,6 +233,17 @@ writeobj(Link *ctxt, Biobuf *b)
+ 				continue;
+ 			}
+ 			
++			if(p->as == ctxt->arch->AFUNCDATA) {
++				// Rewrite reference to go_args_stackmap(SB) to the Go-provided declaration information.
++				if(curtext == nil) // func _() {}
++					continue;
++				if(strcmp(p->to.sym->name, "go_args_stackmap") == 0) {
++					if(p->from.type != ctxt->arch->D_CONST || p->from.offset != FUNCDATA_ArgsPointerMaps)
++						ctxt->diag("FUNCDATA use of go_args_stackmap(SB) without FUNCDATA_ArgsPointerMaps");
++					p->to.sym = linklookup(ctxt, smprint("%s.args_stackmap", curtext->name), curtext->version);
++				}
++			}
++			
+ 			if(curtext == nil)
+ 				continue;
+ 			s = curtext;
+diff --git a/src/runtime/asm.s b/src/runtime/asm.s
+new file mode 100644
+index 0000000000..e6d782f37e
+--- /dev/null
++++ b/src/runtime/asm.s
+@@ -0,0 +1,14 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// funcdata for functions with no local variables in frame.
++// Define two zero-length bitmaps, because the same index is used
++// for the local variables as for the argument frame, and assembly
++// frames have two argument bitmaps, one without results and one with results.
++DATA runtime·no_pointers_stackmap+0x00(SB)/4, $2
++DATA runtime·no_pointers_stackmap+0x04(SB)/4, $0
++GLOBL runtime·no_pointers_stackmap(SB),RODATA, $8
++
+diff --git a/src/runtime/funcdata.h b/src/runtime/funcdata.h
+index dc9c41363e..5ddc877c2b 100644
+--- a/src/runtime/funcdata.h
++++ b/src/runtime/funcdata.h
+@@ -9,6 +9,7 @@
+ //
+ // symtab.go also contains a copy of these constants.
+ 
++// TODO(rsc): Remove PCDATA_ArgSize, renumber StackMapIndex to 0.
+ #define PCDATA_ArgSize 0 /* argument size at CALL instruction */
+ #define PCDATA_StackMapIndex 1
+ 
+@@ -16,9 +17,34 @@
+ #define FUNCDATA_LocalsPointerMaps 1
+ #define FUNCDATA_DeadValueMaps 2
+ 
++// TODO(rsc): Remove ARGSIZE.
+ // To be used in assembly.
+ #define ARGSIZE(n) PCDATA $PCDATA_ArgSize, $n
+ 
++// Pseudo-assembly statements.
++
++// GO_ARGS, GO_RESULTS_INITIALIZED, and NO_LOCAL_POINTERS are macros
++// that communicate to the runtime information about the location and liveness
++// of pointers in an assembly function's arguments, results, and stack frame.
++// This communication is only required in assembly functions that make calls
++// to other functions that might be preempted or grow the stack.
++// NOSPLIT functions that make no calls do not need to use these macros.
++
++// GO_ARGS indicates that the Go prototype for this assembly function
++// defines the pointer map for the function's arguments.
++// GO_ARGS should be the first instruction in a function that uses it.
++// It can be omitted if there are no arguments at all.
++#define GO_ARGS	FUNCDATA $FUNCDATA_ArgsPointerMaps, go_args_stackmap(SB)
++
++// GO_RESULTS_INITIALIZED indicates that the assembly function
++// has initialized the stack space for its results and that those results
++// should be considered live for the remainder of the function.
++#define GO_RESULTS_INITIALIZED	FUNCDATA PCDATA $PCDATA_StackMapIndex, 1
++
++// NO_LOCAL_POINTERS indicates that the assembly function stores
++// no pointers to heap objects in its local stack variables.
++#define NO_LOCAL_POINTERS	FUNCDATA $FUNCDATA_LocalsPointerMaps, runtime·no_pointers_stackmap(SB)
++
+ // ArgsSizeUnknown is set in Func.argsize to mark all functions
+ // whose argument size is unknown (C vararg functions, and
+ // assembly code without an explicit specification).

@@ -43,6 +43,22 @@ Date:   Tue Mar 7 15:58:28 2017 -0800
     Change-Id: I6269067ea58358250fe6dd1f73bdf9e5d2adfe3d
     Reviewed-on: https://go-review.googlesource.com/37936
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 5f71ca0b71..24e043cacb 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -568,8 +568,8 @@ func (p *exporter) pos(n *Node) {
+ func fileLine(n *Node) (file string, line int) {
+ 	if n != nil {
+ 		pos := Ctxt.PosTable.Pos(n.Pos)
+-		file = pos.AbsFilename()
+-		line = int(pos.Line())
++		file = pos.Base().AbsFilename()
++		line = int(pos.RelLine())
+ 	}
+ 	return
+ }

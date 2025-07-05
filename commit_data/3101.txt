@@ -8,9 +8,185 @@ Date:   Thu Aug 27 11:16:34 2009 -0700
     R=ken
     OCL=33958
     CL=33958
-
+---
  src/cmd/gc/const.c   | 40 +++++++++++-----------------------------
  src/cmd/gc/go.h      |  1 +
  src/cmd/gc/reflect.c | 13 +++++++++++--
  src/cmd/gc/subr.c    | 10 ++++++++++
  4 files changed, 33 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 1433eb9ba5..59bd9a3887 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -66,18 +66,13 @@ convlit(Node **np, Type *t)
+ void
+ convlit1(Node **np, Type *t, int explicit)
+ {
+-	int et, ct;
++	int ct, et;
+ 	Node *n, *nn;
+ 
+ 	n = *np;
+-	if(n == N || t == T || n->type == T)
++	if(n == N || t == T || n->type == T || isideal(t) || eqtype(t, n->type))
+ 		return;
+-	et = t->etype;
+-	if(et == TIDEAL || et == TNIL)
+-		return;
+-	if(eqtype(t, n->type))
+-		return;
+-	if(!explicit && n->type->etype != TIDEAL && n->type != idealstring && n->type->etype != TNIL)
++	if(!explicit && !isideal(n->type))
+ 		return;
+ 
+ //dump("convlit1", n);
+@@ -120,6 +115,7 @@ convlit1(Node **np, Type *t, int explicit)
+ 	if(ct < 0)
+ 		goto bad;
+ 
++	et = t->etype;
+ 	if(et == TINTER) {
+ 		if(ct == CTNIL && n->type == types[TNIL]) {
+ 			n->type = t;
+@@ -129,21 +125,6 @@ convlit1(Node **np, Type *t, int explicit)
+ 		return;
+ 	}
+ 
+-	// if already has non-ideal type, cannot change implicitly
+-	if(!explicit) {
+-		switch(n->type->etype) {
+-		case TIDEAL:
+-		case TNIL:
+-			break;
+-		case TSTRING:
+-			if(n->type == idealstring)
+-				break;
+-			// fall through
+-		default:
+-			goto bad;
+-		}
+-	}
+-
+ 	switch(ct) {
+ 	default:
+ 		goto bad;
+@@ -203,7 +184,7 @@ convlit1(Node **np, Type *t, int explicit)
+ 	return;
+ 
+ bad:
+-	if(n->type->etype == TIDEAL) {
++	if(isideal(n->type)) {
+ 		defaultlit(&n, T);
+ 		*np = n;
+ 	}
+@@ -720,9 +701,7 @@ defaultlit(Node **np, Type *t)
+ 	Node *n, *nn;
+ 
+ 	n = *np;
+-	if(n == N)
+-		return;
+-	if(n->type == T || (n->type->etype != TIDEAL && n->type->etype != TNIL))
++	if(n == N || !isideal(n->type))
+ 		return;
+ 
+ 	switch(n->op) {
+@@ -749,8 +728,7 @@ defaultlit(Node **np, Type *t)
+ 		return;
+ 	}
+ 
+-	lno = lineno;
+-	lineno = n->lineno;
++	lno = setlineno(n);
+ 	switch(n->val.ctype) {
+ 	default:
+ 		if(t != T) {
+@@ -763,6 +741,10 @@ defaultlit(Node **np, Type *t)
+ 			n->type = T;
+ 			break;
+ 		}
++		if(n->val.ctype == CTSTR) {
++			n->type = types[TSTRING];
++			break;
++		}
+ 		yyerror("defaultlit: unknown literal: %#N", n);
+ 		break;
+ 	case CTINT:
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index f7d6f83c97..bcbc5f84c8 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -805,6 +805,7 @@ int	isslice(Type*);
+ int	isinter(Type*);
+ int	isnilinter(Type*);
+ int	isddd(Type*);
++int	isideal(Type*);
+ Type*	maptype(Type*, Type*);
+ Type*	methtype(Type*);
+ Node*	typename(Type*);
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 597b6a6a34..c82875ca89 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -320,7 +320,7 @@ dextratype(Type *t)
+ 		else
+ 			ot = duintptr(s, ot, 0);
+ 	}
+-	ggloblsym(s, ot, 1);
++	ggloblsym(s, ot, 0);
+ 
+ 	return s;
+ }
+@@ -480,6 +480,10 @@ dtypesym(Type *t)
+ 	Sym *s, *s1, *s2;
+ 	Sig *a, *m;
+ 	Type *t1;
++	Sym *tsym;
++
++	if(t->etype == TNIL || t->etype == TIDEAL || t == idealstring)
++		fatal("dtypesym ideal %T", t);
+ 
+ 	s = typesym(t);
+ 	if(s->flags & SymSiggen)
+@@ -492,6 +496,11 @@ dtypesym(Type *t)
+ 	t1 = T;
+ 	if(isptr[t->etype])
+ 		t1 = t->type;
++	tsym = S;
++	if(t1)
++		tsym = t1->sym;
++	else
++		tsym = t->sym;
+ 
+ 	if(strcmp(package, "runtime") == 0) {
+ 		if(t == types[t->etype])
+@@ -639,7 +648,7 @@ ok:
+ 		break;
+ 	}
+ 
+-	ggloblsym(s, ot, 1);
++	ggloblsym(s, ot, tsym == nil);
+ 	return s;
+ }
+ 
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 3c4aaf2fee..052be2a844 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1468,6 +1468,16 @@ isddd(Type *t)
+ 	return 0;
+ }
+ 
++int
++isideal(Type *t)
++{
++	if(t == T)
++		return 0;
++	if(t == idealstring)
++		return 1;
++	return t->etype == TNIL || t->etype == TIDEAL;
++}
++
+ /*
+  * given receiver of type t (t == r or t == *r)
+  * return type to hang methods off (r).

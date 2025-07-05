@@ -14,7 +14,7 @@ Date:   Fri Oct 13 18:26:10 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/70890
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  misc/cgo/test/cgo_test.go         |  2 ++
  misc/cgo/test/issue6907.go        | 33 ++++++++++++++++++++++++++++
  misc/cgo/test/issue6907export.go  | 30 +++++++++++++++++++++++++
@@ -23,3 +23,299 @@ Date:   Fri Oct 13 18:26:10 2017 -0700
  src/cmd/cgo/gcc.go                |  6 ++---
  src/cmd/cgo/out.go                | 33 ++++++++++++++++++++++++++--
  7 files changed, 148 insertions(+), 13 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 4d1bc378dc..33228a4f9a 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -83,5 +83,7 @@ func Test20129(t *testing.T)                 { test20129(t) }
+ func Test20910(t *testing.T)                 { test20910(t) }
+ func Test21708(t *testing.T)                 { test21708(t) }
+ func Test21809(t *testing.T)                 { test21809(t) }
++func Test6907(t *testing.T)                  { test6907(t) }
++func Test6907Go(t *testing.T)                { test6907Go(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/misc/cgo/test/issue6907.go b/misc/cgo/test/issue6907.go
+new file mode 100644
+index 0000000000..00495ab8e2
+--- /dev/null
++++ b/misc/cgo/test/issue6907.go
+@@ -0,0 +1,33 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++/*
++#include <stdlib.h>
++#include <string.h>
++
++char* Issue6907CopyString(_GoString_ s) {
++	size_t n;
++	const char *p;
++	char *r;
++
++	n = _GoStringLen(s);
++	p = _GoStringPtr(s);
++	r = malloc(n + 1);
++	memmove(r, p, n);
++	r[n] = '\0';
++	return r;
++}
++*/
++import "C"
++
++import "testing"
++
++func test6907(t *testing.T) {
++	want := "yarn"
++	if got := C.GoString(C.Issue6907CopyString(want)); got != want {
++		t.Errorf("C.GoString(C.Issue6907CopyString(%q)) == %q, want %q", want, got, want)
++	}
++}
+diff --git a/misc/cgo/test/issue6907export.go b/misc/cgo/test/issue6907export.go
+new file mode 100644
+index 0000000000..d41899e1a6
+--- /dev/null
++++ b/misc/cgo/test/issue6907export.go
+@@ -0,0 +1,30 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++/*
++extern int CheckIssue6907C(_GoString_);
++*/
++import "C"
++
++import (
++	"testing"
++)
++
++const CString = "C string"
++
++//export CheckIssue6907Go
++func CheckIssue6907Go(s string) C.int {
++	if s == CString {
++		return 1
++	}
++	return 0
++}
++
++func test6907Go(t *testing.T) {
++	if got := C.CheckIssue6907C(CString); got != 1 {
++		t.Errorf("C.CheckIssue6907C() == %d, want %d", got, 1)
++	}
++}
+diff --git a/misc/cgo/test/issue6907export_c.c b/misc/cgo/test/issue6907export_c.c
+new file mode 100644
+index 0000000000..9b1a4fc630
+--- /dev/null
++++ b/misc/cgo/test/issue6907export_c.c
+@@ -0,0 +1,11 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <string.h>
++
++#include "_cgo_export.h"
++
++int CheckIssue6907C(_GoString_ s) {
++	return CheckIssue6907Go(s);
++}
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 796d11a63c..bc0c5d95fa 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -134,6 +134,19 @@ struct_, union_, or enum_, as in C.struct_stat.
+ The size of any C type T is available as C.sizeof_T, as in
+ C.sizeof_struct_stat.
+ 
++A C function may be declared in the Go file with a parameter type of
++the special name _GoString_. This function may be called with an
++ordinary Go string value. The string length, and a pointer to the
++string contents, may be accessed by calling the C functions
++
++	size_t _GoStringLen(_GoString_ s);
++	const char *_GoStringPtr(_GoString_ s);
++
++These functions are only available in the preamble, not in other C
++files. The C code must not modify the contents of the pointer returned
++by _GoStringPtr. Note that the string contents may not have a trailing
++NUL byte.
++
+ As Go doesn't have support for C's union type in the general case,
+ C's union types are represented as a Go byte array with the same length.
+ 
+@@ -248,6 +261,12 @@ Not all Go types can be mapped to C types in a useful way.
+ Go struct types are not supported; use a C struct type.
+ Go array types are not supported; use a C pointer.
+ 
++Go functions that take arguments of type string may be called with the
++C type _GoString_, described above. The _GoString_ type will be
++automatically defined in the preamble. Note that there is no way for C
++code to create a value of this type; this is only useful for passing
++string values from Go to C and back to Go.
++
+ Using //export in a file places a restriction on the preamble:
+ since it is copied into two different C output files, it must not
+ contain any definitions, only declarations. If a file contains both
+@@ -269,6 +288,14 @@ pointer is a Go pointer or a C pointer is a dynamic property
+ determined by how the memory was allocated; it has nothing to do with
+ the type of the pointer.
+ 
++Note that values of some Go types, other than the type's zero value,
++always include Go pointers. This is true of string, slice, interface,
++channel, map, and function types. A pointer type may hold a Go pointer
++or a C pointer. Array and struct types may or may not include Go
++pointers, depending on the element types. All the discussion below
++about Go pointers applies not just to pointer types, but also to other
++types that include Go pointers.
++
+ Go code may pass a Go pointer to C provided the Go memory to which it
+ points does not contain any Go pointers. The C code must preserve
+ this property: it must not store any Go pointers in Go memory, even
+@@ -279,14 +306,17 @@ the Go memory in question is the entire array or the entire backing
+ array of the slice.
+ 
+ C code may not keep a copy of a Go pointer after the call returns.
+-
+-A Go function called by C code may not return a Go pointer. A Go
+-function called by C code may take C pointers as arguments, and it may
+-store non-pointer or C pointer data through those pointers, but it may
+-not store a Go pointer in memory pointed to by a C pointer. A Go
+-function called by C code may take a Go pointer as an argument, but it
+-must preserve the property that the Go memory to which it points does
+-not contain any Go pointers.
++This includes the _GoString_ type, which, as noted above, includes a
++Go pointer; _GoString_ values may not be retained by C code.
++
++A Go function called by C code may not return a Go pointer (which
++implies that it may not return a string, slice, channel, and so
++forth). A Go function called by C code may take C pointers as
++arguments, and it may store non-pointer or C pointer data through
++those pointers, but it may not store a Go pointer in memory pointed to
++by a C pointer. A Go function called by C code may take a Go pointer
++as an argument, but it must preserve the property that the Go memory
++to which it points does not contain any Go pointers.
+ 
+ Go code may not store a Go pointer in C memory. C code may store Go
+ pointers in C memory, subject to the rule above: it must stop storing
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 95be03f6e4..15cba77abf 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -192,8 +192,8 @@ func (p *Package) Translate(f *File) {
+ // in the file f and saves relevant renamings in f.Name[name].Define.
+ func (p *Package) loadDefines(f *File) {
+ 	var b bytes.Buffer
+-	b.WriteString(f.Preamble)
+ 	b.WriteString(builtinProlog)
++	b.WriteString(f.Preamble)
+ 	stdout := p.gccDefines(b.Bytes())
+ 
+ 	for _, line := range strings.Split(stdout, "\n") {
+@@ -312,8 +312,8 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 	// whether name denotes a type or an expression.
+ 
+ 	var b bytes.Buffer
+-	b.WriteString(f.Preamble)
+ 	b.WriteString(builtinProlog)
++	b.WriteString(f.Preamble)
+ 
+ 	for i, n := range names {
+ 		fmt.Fprintf(&b, "#line %d \"not-declared\"\n"+
+@@ -461,8 +461,8 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
+ 	// for each entry in names and then dereference the type we
+ 	// learn for __cgo__i.
+ 	var b bytes.Buffer
+-	b.WriteString(f.Preamble)
+ 	b.WriteString(builtinProlog)
++	b.WriteString(f.Preamble)
+ 	b.WriteString("#line 1 \"cgo-dwarf-inference\"\n")
+ 	for i, n := range names {
+ 		fmt.Fprintf(&b, "__typeof__(%s) *__cgo__%d;\n", n.C, i)
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 6df400d96c..af49e6e817 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -539,6 +539,7 @@ func (p *Package) writeOutput(f *File, srcfile string) {
+ 
+ 	// While we process the vars and funcs, also write gcc output.
+ 	// Gcc output starts with the preamble.
++	fmt.Fprintf(fgcc, "%s\n", builtinProlog)
+ 	fmt.Fprintf(fgcc, "%s\n", f.Preamble)
+ 	fmt.Fprintf(fgcc, "%s\n", gccProlog)
+ 	fmt.Fprintf(fgcc, "%s\n", tsanProlog)
+@@ -1145,6 +1146,7 @@ func (p *Package) writeExportHeader(fgcch io.Writer) {
+ 		pkg = p.PackagePath
+ 	}
+ 	fmt.Fprintf(fgcch, "/* package %s */\n\n", pkg)
++	fmt.Fprintf(fgcch, "%s\n", builtinExportProlog)
+ 
+ 	fmt.Fprintf(fgcch, "/* Start of preamble from import \"C\" comments.  */\n\n")
+ 	fmt.Fprintf(fgcch, "%s\n", p.Preamble)
+@@ -1389,7 +1391,7 @@ const builtinProlog = `
+ /* Define intgo when compiling with GCC.  */
+ typedef ptrdiff_t intgo;
+ 
+-typedef struct { char *p; intgo n; } _GoString_;
++typedef struct { const char *p; intgo n; } _GoString_;
+ typedef struct { char *p; intgo n; intgo c; } _GoBytes_;
+ _GoString_ GoString(char *p);
+ _GoString_ GoStringN(char *p, int l);
+@@ -1397,6 +1399,12 @@ _GoBytes_ GoBytes(void *p, int n);
+ char *CString(_GoString_);
+ void *CBytes(_GoBytes_);
+ void *_CMalloc(size_t);
++
++__attribute__ ((unused))
++static size_t _GoStringLen(_GoString_ s) { return s.n; }
++
++__attribute__ ((unused))
++static const char *_GoStringPtr(_GoString_ s) { return s.p; }
+ `
+ 
+ const goProlog = `
+@@ -1628,6 +1636,27 @@ void localCgoCheckResult(Eface val) {
+ }
+ `
+ 
++// builtinExportProlog is a shorter version of builtinProlog,
++// to be put into the _cgo_export.h file.
++// For historical reasons we can't use builtinProlog in _cgo_export.h,
++// because _cgo_export.h defines GoString as a struct while builtinProlog
++// defines it as a function. We don't change this to avoid unnecessarily
++// breaking existing code.
++const builtinExportProlog = `
++#line 1 "cgo-builtin-prolog"
++
++#include <stddef.h> /* for ptrdiff_t below */
++
++#ifndef GO_CGO_EXPORT_PROLOGUE_H
++#define GO_CGO_EXPORT_PROLOGUE_H
++
++typedef ptrdiff_t intgo;
++
++typedef struct { const char *p; intgo n; } _GoString_;
++
++#endif
++`
++
+ func (p *Package) gccExportHeaderProlog() string {
+ 	return strings.Replace(gccExportHeaderProlog, "GOINTBITS", fmt.Sprint(8*p.IntSize), -1)
+ }
+@@ -1661,7 +1690,7 @@ typedef double _Complex GoComplex128;
+ */
+ typedef char _check_for_GOINTBITS_bit_pointer_matching_GoInt[sizeof(void*)==GOINTBITS/8 ? 1:-1];
+ 
+-typedef struct { const char *p; GoInt n; } GoString;
++typedef _GoString_ GoString;
+ typedef void *GoMap;
+ typedef void *GoChan;
+ typedef struct { void *t; void *v; } GoInterface;

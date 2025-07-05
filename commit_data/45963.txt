@@ -11,6 +11,23 @@ Date:   Tue Dec 1 13:54:53 2020 +0100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/274472
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.16.html | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index 145f920aab..3545632ea4 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -699,8 +699,9 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <dl id="text/template"><dt><a href="/pkg/text/template/">text/template</a></dt>
+   <dd>
+-    <p><!-- CL 254257 -->
+-      TODO: <a href="https://golang.org/cl/254257">https://golang.org/cl/254257</a>: allow newlines inside action delimiters
++    <p><!-- CL 254257, golang.org/issue/29770 -->
++      Newlines characters are now allowed inside action delimiters,
++      permitting actions to span multiple lines.
+     </p>
+   </dd>
+ </dl><!-- text/template -->

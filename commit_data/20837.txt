@@ -8,6 +8,19 @@ Date:   Fri Oct 17 16:39:42 2014 +0200
     R=golang-codereviews, iant
     CC=dvyukov, golang-codereviews, jamesr, nigeltao
     https://golang.org/cl/155530043
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index d4686215c3..b73bce09fc 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -281,6 +281,7 @@ James Fysh <james.fysh@gmail.com>
+ James Gray <james@james4k.com>
+ James Meneghello <rawrz0r@gmail.com>
+ James P. Cooper <jamespcooper@gmail.com>
++James Robinson <jamesr@google.com> <jamesr.gatech@gmail.com>
+ James Toy <nil@opensesame.st>
+ James Tucker <raggi@google.com>
+ James Whitehead <jnwhiteh@gmail.com>

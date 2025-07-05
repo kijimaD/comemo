@@ -9,6 +9,27 @@ Date:   Wed Nov 14 23:13:28 2018 +0100
     Change-Id: I4eb8e8f2486b20fe0ed6e3e2c6ec521c9e8c0032
     Reviewed-on: https://go-review.googlesource.com/c/149579
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  doc/diagnostics.html | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/doc/diagnostics.html b/doc/diagnostics.html
+index 0a7847744b..478611c15c 100644
+--- a/doc/diagnostics.html
++++ b/doc/diagnostics.html
+@@ -456,3 +456,15 @@ each collection, summarizing the amount of memory collected
+ and the length of the pause.</li>
+ <li>GODEBUG=schedtrace=X prints scheduling events every X milliseconds.</li>
+ </ul>
++
++<p>The GODEBUG environmental variable can be used to disable use of
++instruction set extensions in the standard library and runtime.</p>
++
++<ul>
++<li>GODEBUG=cpu.all=off disables the use of all optional
++instruction set extensions.</li>
++<li>GODEBUG=cpu.<em>extension</em>=off disables use of instructions from the
++specified instruction set extension.<br>
++<em>extension</em> is the lower case name for the instruction set extension
++such as <em>sse41</em> or <em>avx</em>.</li>
++</ul>

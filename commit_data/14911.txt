@@ -7,6 +7,20 @@ Date:   Fri Jan 18 19:25:45 2013 +1100
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/7139057
-
+---
  lib/godoc/package.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index 1a17ad9b9e..e67cf93bed 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -213,7 +213,7 @@
+ 	{{end}}
+ 	</table>
+ 	{{if $.PDoc}}{{else}}
+-	<p>Need more packages? Take a look at the <a href="http://godashboard.appspot.com/">Go Project Dashboard</a>.</p>
++	<p>Need more packages? Take a look at the <a href="http://code.google.com/p/go-wiki/wiki/Projects">Go Projects wiki page</a>.</p>
+ 	{{end}}
+ {{end}}
+ 

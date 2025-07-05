@@ -21,7 +21,7 @@ Date:   Fri Sep 3 21:07:22 2021 +0000
     Trust: Carlos Amedee <carlos@golang.org>
     Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  AUTHORS                                 |  1 +
  CONTRIBUTORS                            |  1 +
  src/net/http/roundtrip_js.go            | 12 ++++++++++--
@@ -29,3 +29,117 @@ Date:   Fri Sep 3 21:07:22 2021 +0000
  src/net/http/transport_default_js.go    | 17 +++++++++++++++++
  src/net/http/transport_default_other.go | 17 +++++++++++++++++
  6 files changed, 48 insertions(+), 4 deletions(-)
+
+diff --git a/AUTHORS b/AUTHORS
+index 8d8d83605e..ad907967b4 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -1015,6 +1015,7 @@ Nathan Youngman <git@nathany.com>
+ Nathaniel Cook <nvcook42@gmail.com>
+ Naveen Kumar Sangi <naveenkumarsangi@protonmail.com>
+ Neelesh Chandola <neelesh.c98@gmail.com>
++Neil Alexander <neilalexander@neilalexander.dev>
+ Neil Lyons <nwjlyons@googlemail.com>
+ Netflix, Inc.
+ Neuman Vong <neuman.vong@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 74d4687373..706d630193 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -1901,6 +1901,7 @@ Naveen Kumar Sangi <naveenkumarsangi@protonmail.com>
+ Neeilan Selvalingam <neeilan96@gmail.com>
+ Neelesh Chandola <neelesh.c98@gmail.com>
+ Nehal J Wani <nehaljw.kkd1@gmail.com>
++Neil Alexander <neilalexander@neilalexander.dev>
+ Neil Lyons <nwjlyons@googlemail.com>
+ Neuman Vong <neuman.vong@gmail.com>
+ Neven Sajko <nsajko@gmail.com>
+diff --git a/src/net/http/roundtrip_js.go b/src/net/http/roundtrip_js.go
+index 362dbcbdde..4a8595ebcf 100644
+--- a/src/net/http/roundtrip_js.go
++++ b/src/net/http/roundtrip_js.go
+@@ -41,11 +41,19 @@ const jsFetchCreds = "js.fetch:credentials"
+ // Reference: https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/fetch#Parameters
+ const jsFetchRedirect = "js.fetch:redirect"
+ 
+-var useFakeNetwork = js.Global().Get("fetch").IsUndefined()
++// jsFetchMissing will be true if the Fetch API is not present in
++// the browser globals.
++var jsFetchMissing = js.Global().Get("fetch").IsUndefined()
+ 
+ // RoundTrip implements the RoundTripper interface using the WHATWG Fetch API.
+ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+-	if useFakeNetwork {
++	// The Transport has a documented contract that states that if the DialContext or
++	// DialTLSContext functions are set, they will be used to set up the connections.
++	// If they aren't set then the documented contract is to use Dial or DialTLS, even
++	// though they are deprecated. Therefore, if any of these are set, we should obey
++	// the contract and dial using the regular round-trip instead. Otherwise, we'll try
++	// to fall back on the Fetch API, unless it's not available.
++	if t.Dial != nil || t.DialContext != nil || t.DialTLS != nil || t.DialTLSContext != nil || jsFetchMissing {
+ 		return t.roundTrip(req)
+ 	}
+ 
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 17f0047b59..0e60992e6c 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -42,10 +42,10 @@ import (
+ // $no_proxy) environment variables.
+ var DefaultTransport RoundTripper = &Transport{
+ 	Proxy: ProxyFromEnvironment,
+-	DialContext: (&net.Dialer{
++	DialContext: defaultTransportDialContext(&net.Dialer{
+ 		Timeout:   30 * time.Second,
+ 		KeepAlive: 30 * time.Second,
+-	}).DialContext,
++	}),
+ 	ForceAttemptHTTP2:     true,
+ 	MaxIdleConns:          100,
+ 	IdleConnTimeout:       90 * time.Second,
+diff --git a/src/net/http/transport_default_js.go b/src/net/http/transport_default_js.go
+new file mode 100644
+index 0000000000..c07d35ef86
+--- /dev/null
++++ b/src/net/http/transport_default_js.go
+@@ -0,0 +1,17 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build js && wasm
++// +build js,wasm
++
++package http
++
++import (
++	"context"
++	"net"
++)
++
++func defaultTransportDialContext(dialer *net.Dialer) func(context.Context, string, string) (net.Conn, error) {
++	return nil
++}
+diff --git a/src/net/http/transport_default_other.go b/src/net/http/transport_default_other.go
+new file mode 100644
+index 0000000000..8a2f1cc42b
+--- /dev/null
++++ b/src/net/http/transport_default_other.go
+@@ -0,0 +1,17 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !(js && wasm)
++// +build !js !wasm
++
++package http
++
++import (
++	"context"
++	"net"
++)
++
++func defaultTransportDialContext(dialer *net.Dialer) func(context.Context, string, string) (net.Conn, error) {
++	return dialer.DialContext
++}

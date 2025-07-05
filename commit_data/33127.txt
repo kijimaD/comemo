@@ -7,6 +7,22 @@ Date:   Sat Jul 15 19:27:56 2017 +0100
     Change-Id: Ibdd57489543d57a24d1e3c41210abd9fbc930b8f
     Reviewed-on: https://go-review.googlesource.com/48867
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/strconv/decimal.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/strconv/decimal.go b/src/strconv/decimal.go
+index 957acd9891..b58001888e 100644
+--- a/src/strconv/decimal.go
++++ b/src/strconv/decimal.go
+@@ -15,8 +15,8 @@ type decimal struct {
+ 	d     [800]byte // digits, big-endian representation
+ 	nd    int       // number of digits used
+ 	dp    int       // decimal point
+-	neg   bool
+-	trunc bool // discarded nonzero digits beyond d[:nd]
++	neg   bool      // negative flag
++	trunc bool      // discarded nonzero digits beyond d[:nd]
+ }
+ 
+ func (a *decimal) String() string {

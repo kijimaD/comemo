@@ -28,7 +28,7 @@ Date:   Mon Sep 16 18:50:52 2024 -0400
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Alan Donovan <adonovan@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/types2/api_predicates.go |  6 +--
  src/cmd/compile/internal/types2/api_test.go       | 32 +++++++++++++
  src/cmd/compile/internal/types2/call.go           |  6 +--
@@ -60,3 +60,1139 @@ Date:   Mon Sep 16 18:50:52 2024 -0400
  src/go/types/typeset.go                           |  2 +-
  src/go/types/version.go                           | 49 +++-----------------
  30 files changed, 222 insertions(+), 168 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api_predicates.go b/src/cmd/compile/internal/types2/api_predicates.go
+index 458c65d445..d2473804c0 100644
+--- a/src/cmd/compile/internal/types2/api_predicates.go
++++ b/src/cmd/compile/internal/types2/api_predicates.go
+@@ -19,7 +19,7 @@ func AssertableTo(V *Interface, T Type) bool {
+ 	if !isValid(T.Underlying()) {
+ 		return false
+ 	}
+-	return (*Checker)(nil).newAssertableTo(nopos, V, T, nil)
++	return (*Checker)(nil).newAssertableTo(V, T, nil)
+ }
+ 
+ // AssignableTo reports whether a value of type V is assignable to a variable
+@@ -57,7 +57,7 @@ func Implements(V Type, T *Interface) bool {
+ 	if !isValid(V.Underlying()) {
+ 		return false
+ 	}
+-	return (*Checker)(nil).implements(nopos, V, T, false, nil)
++	return (*Checker)(nil).implements(V, T, false, nil)
+ }
+ 
+ // Satisfies reports whether type V satisfies the constraint T.
+@@ -65,7 +65,7 @@ func Implements(V Type, T *Interface) bool {
+ // The behavior of Satisfies is unspecified if V is Typ[Invalid] or an uninstantiated
+ // generic type.
+ func Satisfies(V Type, T *Interface) bool {
+-	return (*Checker)(nil).implements(nopos, V, T, true, nil)
++	return (*Checker)(nil).implements(V, T, true, nil)
+ }
+ 
+ // Identical reports whether x and y are identical types.
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index 55b649af84..e742023135 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -3206,3 +3206,35 @@ func TestAnyHijacking_Check(t *testing.T) {
+ 		})
+ 	}
+ }
++
++// This test function only exists for go/types.
++// func TestVersionIssue69477(t *testing.T)
++
++// TestVersionWithoutPos is a regression test for issue #69477,
++// in which the type checker would use position information
++// to compute which file it is "in" based on syntax position.
++//
++// As a rule the type checker should not depend on position
++// information for correctness, only for error messages and
++// Object.Pos. (Scope.LookupParent was a mistake.)
++//
++// The Checker now holds the effective version in a state variable.
++func TestVersionWithoutPos(t *testing.T) {
++	f := mustParse("//go:build go1.22\n\npackage p; var _ int")
++
++	// Splice in a decl from another file. Its pos will be wrong.
++	f.DeclList[0] = mustParse("package q; func _(s func(func() bool)) { for range s {} }").DeclList[0]
++
++	// Type check. The checker will consult the effective
++	// version (1.22) for the for-range stmt to know whether
++	// range-over-func are permitted: they are not.
++	// (Previously, no error was reported.)
++	pkg := NewPackage("p", "p")
++	check := NewChecker(&Config{}, pkg, nil)
++	err := check.Files([]*syntax.File{f})
++	got := fmt.Sprint(err)
++	want := "range over s (variable of type func(func() bool)): requires go1.23"
++	if !strings.Contains(got, want) {
++		t.Errorf("check error was %q, want substring %q", got, want)
++	}
++}
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 551b1c1a90..ea4b174f65 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -87,7 +87,7 @@ func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *synt
+ 		var params []*Var
+ 		var reverse bool
+ 		if T != nil && sig.tparams != nil {
+-			if !versionErr && !check.allowVersion(instErrPos, go1_21) {
++			if !versionErr && !check.allowVersion(go1_21) {
+ 				if inst != nil {
+ 					check.versionErrorf(instErrPos, go1_21, "partially instantiated function in assignment")
+ 				} else {
+@@ -372,7 +372,7 @@ func (check *Checker) genericExprList(elist []syntax.Expr) (resList []*operand,
+ 	// nor permitted. Checker.funcInst must infer missing type arguments in that case.
+ 	infer := true // for -lang < go1.21
+ 	n := len(elist)
+-	if n > 0 && check.allowVersion(elist[0], go1_21) {
++	if n > 0 && check.allowVersion(go1_21) {
+ 		infer = false
+ 	}
+ 
+@@ -542,7 +542,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
+ 	// collect type parameters of callee
+ 	n := sig.TypeParams().Len()
+ 	if n > 0 {
+-		if !check.allowVersion(call.Pos(), go1_18) {
++		if !check.allowVersion(go1_18) {
+ 			if iexpr, _ := call.Fun.(*syntax.IndexExpr); iexpr != nil {
+ 				check.versionErrorf(iexpr, go1_18, "function instantiation")
+ 			} else {
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index a60140c4e7..bd52d45c99 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -56,6 +56,7 @@ type exprInfo struct {
+ type environment struct {
+ 	decl          *declInfo                 // package-level declaration whose init expression/function body is checked
+ 	scope         *Scope                    // top-most scope for lookups
++	version       goVersion                 // current accepted language version; changes across files
+ 	pos           syntax.Pos                // if valid, identifiers are looked up as if at position pos (used by Eval)
+ 	iota          constant.Value            // value of iota in a constant declaration; nil otherwise
+ 	errpos        syntax.Pos                // if valid, identifier position of a constant with inherited initializer
+@@ -90,8 +91,9 @@ type dotImportKey struct {
+ 
+ // An action describes a (delayed) action.
+ type action struct {
+-	f    func()      // action to be executed
+-	desc *actionDesc // action description; may be nil, requires debug to be set
++	version goVersion   // applicable language version
++	f       func()      // action to be executed
++	desc    *actionDesc // action description; may be nil, requires debug to be set
+ }
+ 
+ // If debug is set, describef sets a printf-formatted description for action a.
+@@ -119,10 +121,9 @@ type Checker struct {
+ 	ctxt *Context // context for de-duplicating instances
+ 	pkg  *Package
+ 	*Info
+-	version goVersion              // accepted language version
+-	nextID  uint64                 // unique Id for type parameters (first valid Id is 1)
+-	objMap  map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
+-	impMap  map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
++	nextID uint64                 // unique Id for type parameters (first valid Id is 1)
++	objMap map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
++	impMap map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
+ 	// see TODO in validtype.go
+ 	// valids  instanceLookup      // valid *Named (incl. instantiated) types per the validType check
+ 
+@@ -140,7 +141,7 @@ type Checker struct {
+ 	// (initialized by Files, valid only for the duration of check.Files;
+ 	// maps and lists are allocated on demand)
+ 	files         []*syntax.File             // list of package files
+-	versions      map[*syntax.PosBase]string // maps files to version strings (each file has an entry); shared with Info.FileVersions if present
++	versions      map[*syntax.PosBase]string // maps files to version strings (each file has an entry); shared with Info.FileVersions if present; may be unaltered Config.GoVersion
+ 	imports       []*PkgName                 // list of imported packages
+ 	dotImportMap  map[dotImportKey]*PkgName  // maps dot-imported objects to the package they were dot-imported through
+ 	brokenAliases map[*TypeName]bool         // set of aliases with broken (not yet determined) types
+@@ -219,7 +220,7 @@ func (check *Checker) rememberUntyped(e syntax.Expr, lhs bool, mode operandMode,
+ // via action.describef for debugging, if desired.
+ func (check *Checker) later(f func()) *action {
+ 	i := len(check.delayed)
+-	check.delayed = append(check.delayed, action{f: f})
++	check.delayed = append(check.delayed, action{version: check.version, f: f})
+ 	return &check.delayed[i]
+ }
+ 
+@@ -268,13 +269,12 @@ func NewChecker(conf *Config, pkg *Package, info *Info) *Checker {
+ 	// (previously, pkg.goVersion was mutated here: go.dev/issue/61212)
+ 
+ 	return &Checker{
+-		conf:    conf,
+-		ctxt:    conf.Context,
+-		pkg:     pkg,
+-		Info:    info,
+-		version: asGoVersion(conf.GoVersion),
+-		objMap:  make(map[Object]*declInfo),
+-		impMap:  make(map[importKey]*Package),
++		conf:   conf,
++		ctxt:   conf.Context,
++		pkg:    pkg,
++		Info:   info,
++		objMap: make(map[Object]*declInfo),
++		impMap: make(map[importKey]*Package),
+ 	}
+ }
+ 
+@@ -321,10 +321,10 @@ func (check *Checker) initFiles(files []*syntax.File) {
+ 	}
+ 	check.versions = versions
+ 
+-	pkgVersionOk := check.version.isValid()
+-	if pkgVersionOk && len(files) > 0 && check.version.cmp(go_current) > 0 {
++	pkgVersion := asGoVersion(check.conf.GoVersion)
++	if pkgVersion.isValid() && len(files) > 0 && pkgVersion.cmp(go_current) > 0 {
+ 		check.errorf(files[0], TooNew, "package requires newer Go version %v (application built with %v)",
+-			check.version, go_current)
++			pkgVersion, go_current)
+ 	}
+ 
+ 	// determine Go version for each file
+@@ -479,6 +479,7 @@ func (check *Checker) processDelayed(top int) {
+ 	// are processed in a delayed fashion) that may
+ 	// add more actions (such as nested functions), so
+ 	// this is a sufficiently bounded process.
++	savedVersion := check.version
+ 	for i := top; i < len(check.delayed); i++ {
+ 		a := &check.delayed[i]
+ 		if check.conf.Trace {
+@@ -488,13 +489,15 @@ func (check *Checker) processDelayed(top int) {
+ 				check.trace(nopos, "-- delayed %p", a.f)
+ 			}
+ 		}
+-		a.f() // may append to check.delayed
++		check.version = a.version // reestablish the effective Go version captured earlier
++		a.f()                     // may append to check.delayed
+ 		if check.conf.Trace {
+ 			fmt.Println()
+ 		}
+ 	}
+ 	assert(top <= len(check.delayed)) // stack must not have shrunk
+ 	check.delayed = check.delayed[:top]
++	check.version = savedVersion
+ }
+ 
+ // cleanup runs cleanup for all collected cleaners.
+diff --git a/src/cmd/compile/internal/types2/conversions.go b/src/cmd/compile/internal/types2/conversions.go
+index 1dd3e55c2a..0ad79afe71 100644
+--- a/src/cmd/compile/internal/types2/conversions.go
++++ b/src/cmd/compile/internal/types2/conversions.go
+@@ -200,7 +200,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 		switch a := Tu.(type) {
+ 		case *Array:
+ 			if Identical(s.Elem(), a.Elem()) {
+-				if check == nil || check.allowVersion(x, go1_20) {
++				if check == nil || check.allowVersion(go1_20) {
+ 					return true
+ 				}
+ 				// check != nil
+@@ -213,7 +213,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 		case *Pointer:
+ 			if a, _ := under(a.Elem()).(*Array); a != nil {
+ 				if Identical(s.Elem(), a.Elem()) {
+-					if check == nil || check.allowVersion(x, go1_17) {
++					if check == nil || check.allowVersion(go1_17) {
+ 						return true
+ 					}
+ 					// check != nil
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 6a266de7fd..3827e34563 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -169,9 +169,7 @@ func (check *Checker) objDecl(obj Object, def *TypeName) {
+ 	defer func(env environment) {
+ 		check.environment = env
+ 	}(check.environment)
+-	check.environment = environment{
+-		scope: d.file,
+-	}
++	check.environment = environment{scope: d.file, version: d.version}
+ 
+ 	// Const and var declarations must not have initialization
+ 	// cycles. We track them by remembering the current declaration
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 60862b3ab1..45ff6233ca 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -110,7 +110,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 	// Unify parameter and argument types for generic parameters with typed arguments
+ 	// and collect the indices of generic parameters with untyped arguments.
+ 	// Terminology: generic parameter = function parameter with a type-parameterized type
+-	u := newUnifier(tparams, targs, check.allowVersion(pos, go1_21))
++	u := newUnifier(tparams, targs, check.allowVersion(go1_21))
+ 
+ 	errorf := func(tpar, targ Type, arg *operand) {
+ 		// provide a better error message if we can
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index df6aaf1ffa..92f12673c8 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -82,6 +82,8 @@ func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, e
+ // must be non-nil.
+ //
+ // For Named types the resulting instance may be unexpanded.
++//
++// check may be nil (when not type-checking syntax); pos is used only only if check is non-nil.
+ func (check *Checker) instance(pos syntax.Pos, orig genericType, targs []Type, expanding *Named, ctxt *Context) (res Type) {
+ 	// The order of the contexts below matters: we always prefer instances in the
+ 	// expanding instance context in order to preserve reference cycles.
+@@ -198,6 +200,7 @@ func (check *Checker) validateTArgLen(pos syntax.Pos, name string, want, got int
+ 	panic(fmt.Sprintf("%v: %s", pos, msg))
+ }
+ 
++// check may be nil; pos is used only if check is non-nil.
+ func (check *Checker) verify(pos syntax.Pos, tparams []*TypeParam, targs []Type, ctxt *Context) (int, error) {
+ 	smap := makeSubstMap(tparams, targs)
+ 	for i, tpar := range tparams {
+@@ -209,7 +212,7 @@ func (check *Checker) verify(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 		// the parameterized type.
+ 		bound := check.subst(pos, tpar.bound, smap, nil, ctxt)
+ 		var cause string
+-		if !check.implements(pos, targs[i], bound, true, &cause) {
++		if !check.implements(targs[i], bound, true, &cause) {
+ 			return i, errors.New(cause)
+ 		}
+ 	}
+@@ -222,7 +225,7 @@ func (check *Checker) verify(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ //
+ // If the provided cause is non-nil, it may be set to an error string
+ // explaining why V does not implement (or satisfy, for constraints) T.
+-func (check *Checker) implements(pos syntax.Pos, V, T Type, constraint bool, cause *string) bool {
++func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool {
+ 	Vu := under(V)
+ 	Tu := under(T)
+ 	if !isValid(Vu) || !isValid(Tu) {
+@@ -295,7 +298,7 @@ func (check *Checker) implements(pos syntax.Pos, V, T Type, constraint bool, cau
+ 		// so that ordinary, non-type parameter interfaces implement comparable.
+ 		if constraint && comparableType(V, true /* spec comparability */, nil, nil) {
+ 			// V is comparable if we are at Go 1.20 or higher.
+-			if check == nil || check.allowVersion(atPos(pos), go1_20) { // atPos needed so that go/types generate passes
++			if check == nil || check.allowVersion(go1_20) {
+ 				return true
+ 			}
+ 			if cause != nil {
+diff --git a/src/cmd/compile/internal/types2/literals.go b/src/cmd/compile/internal/types2/literals.go
+index 7e16d9d4c1..b4fa9d9ee7 100644
+--- a/src/cmd/compile/internal/types2/literals.go
++++ b/src/cmd/compile/internal/types2/literals.go
+@@ -16,7 +16,7 @@ import (
+ // literal is not compatible with the current language version.
+ func (check *Checker) langCompat(lit *syntax.BasicLit) {
+ 	s := lit.Value
+-	if len(s) <= 2 || check.allowVersion(lit, go1_13) {
++	if len(s) <= 2 || check.allowVersion(go1_13) {
+ 		return
+ 	}
+ 	// len(s) > 2
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 3583a48407..9d51c44880 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -6,10 +6,7 @@
+ 
+ package types2
+ 
+-import (
+-	"bytes"
+-	"cmd/compile/internal/syntax"
+-)
++import "bytes"
+ 
+ // Internal use of LookupFieldOrMethod: If the obj result is a method
+ // associated with a concrete (non-interface) type, the method's signature
+@@ -531,14 +528,14 @@ func (check *Checker) assertableTo(V, T Type, cause *string) bool {
+ // in constraint position (we have not yet defined that behavior in the spec).
+ // The underlying type of V must be an interface.
+ // If the result is false and cause is not nil, *cause is set to the error cause.
+-func (check *Checker) newAssertableTo(pos syntax.Pos, V, T Type, cause *string) bool {
++func (check *Checker) newAssertableTo(V, T Type, cause *string) bool {
+ 	// no static check is required if T is an interface
+ 	// spec: "If T is an interface type, x.(T) asserts that the
+ 	//        dynamic type of x implements the interface T."
+ 	if IsInterface(T) {
+ 		return true
+ 	}
+-	return check.implements(pos, T, V, false, cause)
++	return check.implements(T, V, false, cause)
+ }
+ 
+ // deref dereferences typ if it is a *Pointer (but not a *Named type
+diff --git a/src/cmd/compile/internal/types2/operand.go b/src/cmd/compile/internal/types2/operand.go
+index a176b9faf3..a34af9104e 100644
+--- a/src/cmd/compile/internal/types2/operand.go
++++ b/src/cmd/compile/internal/types2/operand.go
+@@ -307,7 +307,7 @@ func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Cod
+ 	// Also handle the case where T is a pointer to an interface so that we get
+ 	// the Checker.implements error cause.
+ 	if _, ok := Tu.(*Interface); ok && Tp == nil || isInterfacePtr(Tu) {
+-		if check.implements(x.Pos(), V, T, false, cause) {
++		if check.implements(V, T, false, cause) {
+ 			return true, 0
+ 		}
+ 		// V doesn't implement T but V may still be assignable to T if V
+@@ -322,7 +322,7 @@ func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Cod
+ 
+ 	// If V is an interface, check if a missing type assertion is the problem.
+ 	if Vi, _ := Vu.(*Interface); Vi != nil && Vp == nil {
+-		if check.implements(x.Pos(), T, V, false, nil) {
++		if check.implements(T, V, false, nil) {
+ 			// T implements V, so give hint about type assertion.
+ 			if cause != nil {
+ 				*cause = "need type assertion"
+diff --git a/src/cmd/compile/internal/types2/resolver.go b/src/cmd/compile/internal/types2/resolver.go
+index 9a3664eafd..c16e8289a2 100644
+--- a/src/cmd/compile/internal/types2/resolver.go
++++ b/src/cmd/compile/internal/types2/resolver.go
+@@ -18,6 +18,7 @@ import (
+ // A declInfo describes a package-level const, type, var, or func declaration.
+ type declInfo struct {
+ 	file      *Scope           // scope of file containing this declaration
++	version   goVersion        // Go version of file containing this declaration
+ 	lhs       []*Var           // lhs of n:1 variable declarations, or nil
+ 	vtyp      syntax.Expr      // type, or nil (for const and var declarations only)
+ 	init      syntax.Expr      // init/orig expression, or nil (for const and var declarations only)
+@@ -219,6 +220,8 @@ func (check *Checker) collectObjects() {
+ 	var methods []methodInfo // collected methods with valid receivers and non-blank _ names
+ 	var fileScopes []*Scope
+ 	for fileNo, file := range check.files {
++		check.version = asGoVersion(check.versions[file.Pos().FileBase()])
++
+ 		// The package identifier denotes the current package,
+ 		// but there is no corresponding package object.
+ 		check.recordDef(file.PkgName, nil)
+@@ -359,7 +362,7 @@ func (check *Checker) collectObjects() {
+ 						init = values[i]
+ 					}
+ 
+-					d := &declInfo{file: fileScope, vtyp: last.Type, init: init, inherited: inherited}
++					d := &declInfo{file: fileScope, version: check.version, vtyp: last.Type, init: init, inherited: inherited}
+ 					check.declarePkgObj(name, obj, d)
+ 				}
+ 
+@@ -377,7 +380,7 @@ func (check *Checker) collectObjects() {
+ 					// The lhs elements are only set up after the for loop below,
+ 					// but that's ok because declarePkgObj only collects the declInfo
+ 					// for a later phase.
+-					d1 = &declInfo{file: fileScope, lhs: lhs, vtyp: s.Type, init: s.Values}
++					d1 = &declInfo{file: fileScope, version: check.version, lhs: lhs, vtyp: s.Type, init: s.Values}
+ 				}
+ 
+ 				// declare all variables
+@@ -393,7 +396,7 @@ func (check *Checker) collectObjects() {
+ 						if i < len(values) {
+ 							init = values[i]
+ 						}
+-						d = &declInfo{file: fileScope, vtyp: s.Type, init: init}
++						d = &declInfo{file: fileScope, version: check.version, vtyp: s.Type, init: init}
+ 					}
+ 
+ 					check.declarePkgObj(name, obj, d)
+@@ -406,7 +409,7 @@ func (check *Checker) collectObjects() {
+ 
+ 			case *syntax.TypeDecl:
+ 				obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Value, nil)
+-				check.declarePkgObj(s.Name, obj, &declInfo{file: fileScope, tdecl: s})
++				check.declarePkgObj(s.Name, obj, &declInfo{file: fileScope, version: check.version, tdecl: s})
+ 
+ 			case *syntax.FuncDecl:
+ 				name := s.Name.Value
+@@ -452,7 +455,7 @@ func (check *Checker) collectObjects() {
+ 					check.recordDef(s.Name, obj)
+ 				}
+ 				_ = len(s.TParamList) != 0 && !hasTParamError && check.verifyVersionf(s.TParamList[0], go1_18, "type parameter")
+-				info := &declInfo{file: fileScope, fdecl: s}
++				info := &declInfo{file: fileScope, version: check.version, fdecl: s}
+ 				// Methods are not package-level objects but we still track them in the
+ 				// object map so that we can handle them like regular functions (if the
+ 				// receiver is invalid); also we need their fdecl info when associating
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index a6767321a4..2174aedf7f 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -14,6 +14,7 @@ import (
+ 	"slices"
+ )
+ 
++// decl may be nil
+ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body *syntax.BlockStmt, iota constant.Value) {
+ 	if check.conf.IgnoreFuncBodies {
+ 		panic("function body not ignored")
+@@ -30,10 +31,11 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
+ 		check.indent = indent
+ 	}(check.environment, check.indent)
+ 	check.environment = environment{
+-		decl:  decl,
+-		scope: sig.scope,
+-		iota:  iota,
+-		sig:   sig,
++		decl:    decl,
++		scope:   sig.scope,
++		version: check.version, // TODO(adonovan): would decl.version (if decl != nil) be better?
++		iota:    iota,
++		sig:     sig,
+ 	}
+ 	check.indent = 0
+ 
+@@ -871,7 +873,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 	if x.mode != invalid {
+ 		// Ranging over a type parameter is permitted if it has a core type.
+ 		k, v, cause, ok := rangeKeyVal(x.typ, func(v goVersion) bool {
+-			return check.allowVersion(x.expr, v)
++			return check.allowVersion(v)
+ 		})
+ 		switch {
+ 		case !ok && cause != "":
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index 2ab470274d..8d2ca71614 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -237,7 +237,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
+ 			// error message.
+ 			if check != nil {
+ 				check.later(func() {
+-					if pos.IsKnown() && !check.allowVersion(atPos(pos), go1_14) || !Identical(m.typ, other.Type()) {
++					if pos.IsKnown() && !check.allowVersion(go1_14) || !Identical(m.typ, other.Type()) {
+ 						err := check.newError(DuplicateDecl)
+ 						err.addf(atPos(pos), "duplicate method %s", m.name)
+ 						err.addf(atPos(mpos[other.(*Func)]), "other declaration of method %s", m.name)
+diff --git a/src/cmd/compile/internal/types2/version.go b/src/cmd/compile/internal/types2/version.go
+index 39ecb9c3af..b555f398da 100644
+--- a/src/cmd/compile/internal/types2/version.go
++++ b/src/cmd/compile/internal/types2/version.go
+@@ -48,28 +48,17 @@ var (
+ 	go_current = asGoVersion(fmt.Sprintf("go1.%d", goversion.Version))
+ )
+ 
+-// allowVersion reports whether the current package at the given position
+-// is allowed to use version v. If the position is unknown, the specified
+-// module version (Config.GoVersion) is used. If that version is invalid,
+-// allowVersion returns true.
+-func (check *Checker) allowVersion(at poser, v goVersion) bool {
+-	fileVersion := check.conf.GoVersion
+-	if pos := at.Pos(); pos.IsKnown() {
+-		fileVersion = check.versions[pos.FileBase()]
+-	}
+-
+-	// We need asGoVersion (which calls version.Lang) below
+-	// because fileVersion may be the (unaltered) Config.GoVersion
+-	// string which may contain dot-release information.
+-	version := asGoVersion(fileVersion)
+-
+-	return !version.isValid() || version.cmp(v) >= 0
++// allowVersion reports whether the current effective Go version
++// (which may vary from one file to another) is allowed to use the
++// feature version (want).
++func (check *Checker) allowVersion(want goVersion) bool {
++	return !check.version.isValid() || check.version.cmp(want) >= 0
+ }
+ 
+ // verifyVersionf is like allowVersion but also accepts a format string and arguments
+ // which are used to report a version error if allowVersion returns false.
+ func (check *Checker) verifyVersionf(at poser, v goVersion, format string, args ...interface{}) bool {
+-	if !check.allowVersion(at, v) {
++	if !check.allowVersion(v) {
+ 		check.versionErrorf(at, v, format, args...)
+ 		return false
+ 	}
+diff --git a/src/go/types/api_predicates.go b/src/go/types/api_predicates.go
+index 4a6b3fe9ca..d0c9788b9d 100644
+--- a/src/go/types/api_predicates.go
++++ b/src/go/types/api_predicates.go
+@@ -22,7 +22,7 @@ func AssertableTo(V *Interface, T Type) bool {
+ 	if !isValid(T.Underlying()) {
+ 		return false
+ 	}
+-	return (*Checker)(nil).newAssertableTo(nopos, V, T, nil)
++	return (*Checker)(nil).newAssertableTo(V, T, nil)
+ }
+ 
+ // AssignableTo reports whether a value of type V is assignable to a variable
+@@ -60,7 +60,7 @@ func Implements(V Type, T *Interface) bool {
+ 	if !isValid(V.Underlying()) {
+ 		return false
+ 	}
+-	return (*Checker)(nil).implements(nopos, V, T, false, nil)
++	return (*Checker)(nil).implements(V, T, false, nil)
+ }
+ 
+ // Satisfies reports whether type V satisfies the constraint T.
+@@ -68,7 +68,7 @@ func Implements(V Type, T *Interface) bool {
+ // The behavior of Satisfies is unspecified if V is Typ[Invalid] or an uninstantiated
+ // generic type.
+ func Satisfies(V Type, T *Interface) bool {
+-	return (*Checker)(nil).implements(nopos, V, T, true, nil)
++	return (*Checker)(nil).implements(V, T, true, nil)
+ }
+ 
+ // Identical reports whether x and y are identical types.
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index b4b89a5096..f868338f67 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -3234,3 +3234,58 @@ func setGotypesalias(t *testing.T, enable bool) {
+ 		t.Setenv("GODEBUG", "gotypesalias=0")
+ 	}
+ }
++
++// TestVersionIssue69477 is a regression test for issue #69477,
++// in which the type checker would panic while attempting
++// to compute which file it is "in" based on syntax position.
++func TestVersionIssue69477(t *testing.T) {
++	fset := token.NewFileSet()
++	f, _ := parser.ParseFile(fset, "a.go", "package p; const k = 123", 0)
++
++	// Set an invalid Pos on the BasicLit.
++	ast.Inspect(f, func(n ast.Node) bool {
++		if lit, ok := n.(*ast.BasicLit); ok {
++			lit.ValuePos = 99999
++		}
++		return true
++	})
++
++	// Type check. The checker will consult the effective
++	// version for the BasicLit 123. This used to panic.
++	pkg := NewPackage("p", "p")
++	check := NewChecker(&Config{}, fset, pkg, nil)
++	if err := check.Files([]*ast.File{f}); err != nil {
++		t.Fatal(err)
++	}
++}
++
++// TestVersionWithoutPos is a regression test for issue #69477,
++// in which the type checker would use position information
++// to compute which file it is "in" based on syntax position.
++//
++// As a rule the type checker should not depend on position
++// information for correctness, only for error messages and
++// Object.Pos. (Scope.LookupParent was a mistake.)
++//
++// The Checker now holds the effective version in a state variable.
++func TestVersionWithoutPos(t *testing.T) {
++	fset := token.NewFileSet()
++	f, _ := parser.ParseFile(fset, "a.go", "//go:build go1.22\n\npackage p; var _ int", 0)
++
++	// Splice in a decl from another file. Its pos will be wrong.
++	f2, _ := parser.ParseFile(fset, "a.go", "package q; func _(s func(func() bool)) { for range s {} }", 0)
++	f.Decls[0] = f2.Decls[0]
++
++	// Type check. The checker will consult the effective
++	// version (1.22) for the for-range stmt to know whether
++	// range-over-func are permitted: they are not.
++	// (Previously, no error was reported.)
++	pkg := NewPackage("p", "p")
++	check := NewChecker(&Config{}, fset, pkg, nil)
++	err := check.Files([]*ast.File{f})
++	got := fmt.Sprint(err)
++	want := "range over s (variable of type func(func() bool)): requires go1.23"
++	if !strings.Contains(got, want) {
++		t.Errorf("check error was %q, want substring %q", got, want)
++	}
++}
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 60a5b2d972..f14b408829 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -89,7 +89,7 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *typepar
+ 		var params []*Var
+ 		var reverse bool
+ 		if T != nil && sig.tparams != nil {
+-			if !versionErr && !check.allowVersion(instErrPos, go1_21) {
++			if !versionErr && !check.allowVersion(go1_21) {
+ 				if ix != nil {
+ 					check.versionErrorf(instErrPos, go1_21, "partially instantiated function in assignment")
+ 				} else {
+@@ -375,7 +375,7 @@ func (check *Checker) genericExprList(elist []ast.Expr) (resList []*operand, tar
+ 	// nor permitted. Checker.funcInst must infer missing type arguments in that case.
+ 	infer := true // for -lang < go1.21
+ 	n := len(elist)
+-	if n > 0 && check.allowVersion(elist[0], go1_21) {
++	if n > 0 && check.allowVersion(go1_21) {
+ 		infer = false
+ 	}
+ 
+@@ -543,7 +543,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
+ 	// collect type parameters of callee
+ 	n := sig.TypeParams().Len()
+ 	if n > 0 {
+-		if !check.allowVersion(call, go1_18) {
++		if !check.allowVersion(go1_18) {
+ 			switch call.Fun.(type) {
+ 			case *ast.IndexExpr, *ast.IndexListExpr:
+ 				ix := typeparams.UnpackIndexExpr(call.Fun)
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 7487dceb1c..ceb14c0bc2 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -72,6 +72,7 @@ type exprInfo struct {
+ type environment struct {
+ 	decl          *declInfo              // package-level declaration whose init expression/function body is checked
+ 	scope         *Scope                 // top-most scope for lookups
++	version       goVersion              // current accepted language version; changes across files
+ 	pos           token.Pos              // if valid, identifiers are looked up as if at position pos (used by Eval)
+ 	iota          constant.Value         // value of iota in a constant declaration; nil otherwise
+ 	errpos        positioner             // if set, identifier position of a constant with inherited initializer
+@@ -106,8 +107,9 @@ type dotImportKey struct {
+ 
+ // An action describes a (delayed) action.
+ type action struct {
+-	f    func()      // action to be executed
+-	desc *actionDesc // action description; may be nil, requires debug to be set
++	version goVersion   // applicable language version
++	f       func()      // action to be executed
++	desc    *actionDesc // action description; may be nil, requires debug to be set
+ }
+ 
+ // If debug is set, describef sets a printf-formatted description for action a.
+@@ -136,10 +138,9 @@ type Checker struct {
+ 	fset *token.FileSet
+ 	pkg  *Package
+ 	*Info
+-	version goVersion              // accepted language version
+-	nextID  uint64                 // unique Id for type parameters (first valid Id is 1)
+-	objMap  map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
+-	impMap  map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
++	nextID uint64                 // unique Id for type parameters (first valid Id is 1)
++	objMap map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
++	impMap map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
+ 	// see TODO in validtype.go
+ 	// valids instanceLookup // valid *Named (incl. instantiated) types per the validType check
+ 
+@@ -157,7 +158,7 @@ type Checker struct {
+ 	// (initialized by Files, valid only for the duration of check.Files;
+ 	// maps and lists are allocated on demand)
+ 	files         []*ast.File               // package files
+-	versions      map[*ast.File]string      // maps files to version strings (each file has an entry); shared with Info.FileVersions if present
++	versions      map[*ast.File]string      // maps files to goVersion strings (each file has an entry); shared with Info.FileVersions if present; may be unaltered Config.GoVersion
+ 	imports       []*PkgName                // list of imported packages
+ 	dotImportMap  map[dotImportKey]*PkgName // maps dot-imported objects to the package they were dot-imported through
+ 	brokenAliases map[*TypeName]bool        // set of aliases with broken (not yet determined) types
+@@ -236,7 +237,7 @@ func (check *Checker) rememberUntyped(e ast.Expr, lhs bool, mode operandMode, ty
+ // via action.describef for debugging, if desired.
+ func (check *Checker) later(f func()) *action {
+ 	i := len(check.delayed)
+-	check.delayed = append(check.delayed, action{f: f})
++	check.delayed = append(check.delayed, action{version: check.version, f: f})
+ 	return &check.delayed[i]
+ }
+ 
+@@ -288,14 +289,13 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
+ 	conf._EnableAlias = gotypesalias.Value() != "0"
+ 
+ 	return &Checker{
+-		conf:    conf,
+-		ctxt:    conf.Context,
+-		fset:    fset,
+-		pkg:     pkg,
+-		Info:    info,
+-		version: asGoVersion(conf.GoVersion),
+-		objMap:  make(map[Object]*declInfo),
+-		impMap:  make(map[importKey]*Package),
++		conf:   conf,
++		ctxt:   conf.Context,
++		fset:   fset,
++		pkg:    pkg,
++		Info:   info,
++		objMap: make(map[Object]*declInfo),
++		impMap: make(map[importKey]*Package),
+ 	}
+ }
+ 
+@@ -342,10 +342,10 @@ func (check *Checker) initFiles(files []*ast.File) {
+ 	}
+ 	check.versions = versions
+ 
+-	pkgVersionOk := check.version.isValid()
+-	if pkgVersionOk && len(files) > 0 && check.version.cmp(go_current) > 0 {
++	pkgVersion := asGoVersion(check.conf.GoVersion)
++	if pkgVersion.isValid() && len(files) > 0 && pkgVersion.cmp(go_current) > 0 {
+ 		check.errorf(files[0], TooNew, "package requires newer Go version %v (application built with %v)",
+-			check.version, go_current)
++			pkgVersion, go_current)
+ 	}
+ 
+ 	// determine Go version for each file
+@@ -501,6 +501,7 @@ func (check *Checker) processDelayed(top int) {
+ 	// are processed in a delayed fashion) that may
+ 	// add more actions (such as nested functions), so
+ 	// this is a sufficiently bounded process.
++	savedVersion := check.version
+ 	for i := top; i < len(check.delayed); i++ {
+ 		a := &check.delayed[i]
+ 		if check.conf._Trace {
+@@ -510,13 +511,16 @@ func (check *Checker) processDelayed(top int) {
+ 				check.trace(nopos, "-- delayed %p", a.f)
+ 			}
+ 		}
+-		a.f() // may append to check.delayed
++		check.version = a.version // reestablish the effective Go version captured earlier
++		a.f()                     // may append to check.delayed
++
+ 		if check.conf._Trace {
+ 			fmt.Println()
+ 		}
+ 	}
+ 	assert(top <= len(check.delayed)) // stack must not have shrunk
+ 	check.delayed = check.delayed[:top]
++	check.version = savedVersion
+ }
+ 
+ // cleanup runs cleanup for all collected cleaners.
+diff --git a/src/go/types/conversions.go b/src/go/types/conversions.go
+index 1c1dd14ba4..6a9f263c57 100644
+--- a/src/go/types/conversions.go
++++ b/src/go/types/conversions.go
+@@ -203,7 +203,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 		switch a := Tu.(type) {
+ 		case *Array:
+ 			if Identical(s.Elem(), a.Elem()) {
+-				if check == nil || check.allowVersion(x, go1_20) {
++				if check == nil || check.allowVersion(go1_20) {
+ 					return true
+ 				}
+ 				// check != nil
+@@ -216,7 +216,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 		case *Pointer:
+ 			if a, _ := under(a.Elem()).(*Array); a != nil {
+ 				if Identical(s.Elem(), a.Elem()) {
+-					if check == nil || check.allowVersion(x, go1_17) {
++					if check == nil || check.allowVersion(go1_17) {
+ 						return true
+ 					}
+ 					// check != nil
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index f4bccb5209..9941dd538f 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -170,9 +170,7 @@ func (check *Checker) objDecl(obj Object, def *TypeName) {
+ 	defer func(env environment) {
+ 		check.environment = env
+ 	}(check.environment)
+-	check.environment = environment{
+-		scope: d.file,
+-	}
++	check.environment = environment{scope: d.file, version: d.version}
+ 
+ 	// Const and var declarations must not have initialization
+ 	// cycles. We track them by remembering the current declaration
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 30e9d0093e..9a64bd0a71 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -113,7 +113,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 	// Unify parameter and argument types for generic parameters with typed arguments
+ 	// and collect the indices of generic parameters with untyped arguments.
+ 	// Terminology: generic parameter = function parameter with a type-parameterized type
+-	u := newUnifier(tparams, targs, check.allowVersion(posn, go1_21))
++	u := newUnifier(tparams, targs, check.allowVersion(go1_21))
+ 
+ 	errorf := func(tpar, targ Type, arg *operand) {
+ 		// provide a better error message if we can
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index b6e5b1f34e..9de7756e8b 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -85,6 +85,8 @@ func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, e
+ // must be non-nil.
+ //
+ // For Named types the resulting instance may be unexpanded.
++//
++// check may be nil (when not type-checking syntax); pos is used only only if check is non-nil.
+ func (check *Checker) instance(pos token.Pos, orig genericType, targs []Type, expanding *Named, ctxt *Context) (res Type) {
+ 	// The order of the contexts below matters: we always prefer instances in the
+ 	// expanding instance context in order to preserve reference cycles.
+@@ -201,6 +203,7 @@ func (check *Checker) validateTArgLen(pos token.Pos, name string, want, got int)
+ 	panic(fmt.Sprintf("%v: %s", pos, msg))
+ }
+ 
++// check may be nil; pos is used only if check is non-nil.
+ func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type, ctxt *Context) (int, error) {
+ 	smap := makeSubstMap(tparams, targs)
+ 	for i, tpar := range tparams {
+@@ -212,7 +215,7 @@ func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type,
+ 		// the parameterized type.
+ 		bound := check.subst(pos, tpar.bound, smap, nil, ctxt)
+ 		var cause string
+-		if !check.implements(pos, targs[i], bound, true, &cause) {
++		if !check.implements(targs[i], bound, true, &cause) {
+ 			return i, errors.New(cause)
+ 		}
+ 	}
+@@ -225,7 +228,7 @@ func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type,
+ //
+ // If the provided cause is non-nil, it may be set to an error string
+ // explaining why V does not implement (or satisfy, for constraints) T.
+-func (check *Checker) implements(pos token.Pos, V, T Type, constraint bool, cause *string) bool {
++func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool {
+ 	Vu := under(V)
+ 	Tu := under(T)
+ 	if !isValid(Vu) || !isValid(Tu) {
+@@ -298,7 +301,7 @@ func (check *Checker) implements(pos token.Pos, V, T Type, constraint bool, caus
+ 		// so that ordinary, non-type parameter interfaces implement comparable.
+ 		if constraint && comparableType(V, true /* spec comparability */, nil, nil) {
+ 			// V is comparable if we are at Go 1.20 or higher.
+-			if check == nil || check.allowVersion(atPos(pos), go1_20) { // atPos needed so that go/types generate passes
++			if check == nil || check.allowVersion(go1_20) {
+ 				return true
+ 			}
+ 			if cause != nil {
+diff --git a/src/go/types/literals.go b/src/go/types/literals.go
+index 46a93bb10a..4019c094d5 100644
+--- a/src/go/types/literals.go
++++ b/src/go/types/literals.go
+@@ -20,7 +20,7 @@ import (
+ // literal is not compatible with the current language version.
+ func (check *Checker) langCompat(lit *ast.BasicLit) {
+ 	s := lit.Value
+-	if len(s) <= 2 || check.allowVersion(lit, go1_13) {
++	if len(s) <= 2 || check.allowVersion(go1_13) {
+ 		return
+ 	}
+ 	// len(s) > 2
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index d25662ac5e..462214c812 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -9,10 +9,7 @@
+ 
+ package types
+ 
+-import (
+-	"bytes"
+-	"go/token"
+-)
++import "bytes"
+ 
+ // Internal use of LookupFieldOrMethod: If the obj result is a method
+ // associated with a concrete (non-interface) type, the method's signature
+@@ -534,14 +531,14 @@ func (check *Checker) assertableTo(V, T Type, cause *string) bool {
+ // in constraint position (we have not yet defined that behavior in the spec).
+ // The underlying type of V must be an interface.
+ // If the result is false and cause is not nil, *cause is set to the error cause.
+-func (check *Checker) newAssertableTo(pos token.Pos, V, T Type, cause *string) bool {
++func (check *Checker) newAssertableTo(V, T Type, cause *string) bool {
+ 	// no static check is required if T is an interface
+ 	// spec: "If T is an interface type, x.(T) asserts that the
+ 	//        dynamic type of x implements the interface T."
+ 	if IsInterface(T) {
+ 		return true
+ 	}
+-	return check.implements(pos, T, V, false, cause)
++	return check.implements(T, V, false, cause)
+ }
+ 
+ // deref dereferences typ if it is a *Pointer (but not a *Named type
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index 060a408c26..2fca5f4ffc 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -311,7 +311,7 @@ func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Cod
+ 	// Also handle the case where T is a pointer to an interface so that we get
+ 	// the Checker.implements error cause.
+ 	if _, ok := Tu.(*Interface); ok && Tp == nil || isInterfacePtr(Tu) {
+-		if check.implements(x.Pos(), V, T, false, cause) {
++		if check.implements(V, T, false, cause) {
+ 			return true, 0
+ 		}
+ 		// V doesn't implement T but V may still be assignable to T if V
+@@ -326,7 +326,7 @@ func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Cod
+ 
+ 	// If V is an interface, check if a missing type assertion is the problem.
+ 	if Vi, _ := Vu.(*Interface); Vi != nil && Vp == nil {
+-		if check.implements(x.Pos(), T, V, false, nil) {
++		if check.implements(T, V, false, nil) {
+ 			// T implements V, so give hint about type assertion.
+ 			if cause != nil {
+ 				*cause = "need type assertion"
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index 3ca9bb5422..af53dc5851 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -20,6 +20,7 @@ import (
+ // A declInfo describes a package-level const, type, var, or func declaration.
+ type declInfo struct {
+ 	file      *Scope        // scope of file containing this declaration
++	version   goVersion     // Go version of file containing this declaration
+ 	lhs       []*Var        // lhs of n:1 variable declarations, or nil
+ 	vtyp      ast.Expr      // type, or nil (for const and var declarations only)
+ 	init      ast.Expr      // init/orig expression, or nil (for const and var declarations only)
+@@ -234,6 +235,8 @@ func (check *Checker) collectObjects() {
+ 	var methods []methodInfo // collected methods with valid receivers and non-blank _ names
+ 	var fileScopes []*Scope
+ 	for fileNo, file := range check.files {
++		check.version = asGoVersion(check.versions[file])
++
+ 		// The package identifier denotes the current package,
+ 		// but there is no corresponding package object.
+ 		check.recordDef(file.Name, nil)
+@@ -355,7 +358,7 @@ func (check *Checker) collectObjects() {
+ 						init = d.init[i]
+ 					}
+ 
+-					d := &declInfo{file: fileScope, vtyp: d.typ, init: init, inherited: d.inherited}
++					d := &declInfo{file: fileScope, version: check.version, vtyp: d.typ, init: init, inherited: d.inherited}
+ 					check.declarePkgObj(name, obj, d)
+ 				}
+ 
+@@ -370,7 +373,7 @@ func (check *Checker) collectObjects() {
+ 					// The lhs elements are only set up after the for loop below,
+ 					// but that's ok because declareVar only collects the declInfo
+ 					// for a later phase.
+-					d1 = &declInfo{file: fileScope, lhs: lhs, vtyp: d.spec.Type, init: d.spec.Values[0]}
++					d1 = &declInfo{file: fileScope, version: check.version, lhs: lhs, vtyp: d.spec.Type, init: d.spec.Values[0]}
+ 				}
+ 
+ 				// declare all variables
+@@ -385,14 +388,14 @@ func (check *Checker) collectObjects() {
+ 						if i < len(d.spec.Values) {
+ 							init = d.spec.Values[i]
+ 						}
+-						di = &declInfo{file: fileScope, vtyp: d.spec.Type, init: init}
++						di = &declInfo{file: fileScope, version: check.version, vtyp: d.spec.Type, init: init}
+ 					}
+ 
+ 					check.declarePkgObj(name, obj, di)
+ 				}
+ 			case typeDecl:
+ 				obj := NewTypeName(d.spec.Name.Pos(), pkg, d.spec.Name.Name, nil)
+-				check.declarePkgObj(d.spec.Name, obj, &declInfo{file: fileScope, tdecl: d.spec})
++				check.declarePkgObj(d.spec.Name, obj, &declInfo{file: fileScope, version: check.version, tdecl: d.spec})
+ 			case funcDecl:
+ 				name := d.decl.Name.Name
+ 				obj := NewFunc(d.decl.Name.Pos(), pkg, name, nil) // signature set later
+@@ -447,7 +450,7 @@ func (check *Checker) collectObjects() {
+ 					check.recordDef(d.decl.Name, obj)
+ 				}
+ 				_ = d.decl.Type.TypeParams.NumFields() != 0 && !hasTParamError && check.verifyVersionf(d.decl.Type.TypeParams.List[0], go1_18, "type parameter")
+-				info := &declInfo{file: fileScope, fdecl: d.decl}
++				info := &declInfo{file: fileScope, version: check.version, fdecl: d.decl}
+ 				// Methods are not package-level objects but we still track them in the
+ 				// object map so that we can handle them like regular functions (if the
+ 				// receiver is invalid); also we need their fdecl info when associating
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index e4af27dffe..d3223f3b92 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -15,6 +15,7 @@ import (
+ 	"slices"
+ )
+ 
++// decl may be nil
+ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body *ast.BlockStmt, iota constant.Value) {
+ 	if check.conf.IgnoreFuncBodies {
+ 		panic("function body not ignored")
+@@ -31,10 +32,11 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
+ 		check.indent = indent
+ 	}(check.environment, check.indent)
+ 	check.environment = environment{
+-		decl:  decl,
+-		scope: sig.scope,
+-		iota:  iota,
+-		sig:   sig,
++		decl:    decl,
++		scope:   sig.scope,
++		version: check.version, // TODO(adonovan): would decl.version (if decl != nil) be better?
++		iota:    iota,
++		sig:     sig,
+ 	}
+ 	check.indent = 0
+ 
+@@ -889,7 +891,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
+ 	if x.mode != invalid {
+ 		// Ranging over a type parameter is permitted if it has a core type.
+ 		k, v, cause, ok := rangeKeyVal(x.typ, func(v goVersion) bool {
+-			return check.allowVersion(x.expr, v)
++			return check.allowVersion(v)
+ 		})
+ 		switch {
+ 		case !ok && cause != "":
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index e2eb0766b0..84c7130646 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -240,7 +240,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 			// error message.
+ 			if check != nil {
+ 				check.later(func() {
+-					if pos.IsValid() && !check.allowVersion(atPos(pos), go1_14) || !Identical(m.typ, other.Type()) {
++					if pos.IsValid() && !check.allowVersion(go1_14) || !Identical(m.typ, other.Type()) {
+ 						err := check.newError(DuplicateDecl)
+ 						err.addf(atPos(pos), "duplicate method %s", m.name)
+ 						err.addf(atPos(mpos[other.(*Func)]), "other declaration of method %s", m.name)
+diff --git a/src/go/types/version.go b/src/go/types/version.go
+index 669ca66a39..2a2d341205 100644
+--- a/src/go/types/version.go
++++ b/src/go/types/version.go
+@@ -6,8 +6,6 @@ package types
+ 
+ import (
+ 	"fmt"
+-	"go/ast"
+-	"go/token"
+ 	"go/version"
+ 	"internal/goversion"
+ )
+@@ -50,52 +48,19 @@ var (
+ 	go_current = asGoVersion(fmt.Sprintf("go1.%d", goversion.Version))
+ )
+ 
+-// allowVersion reports whether the current package at the given position
+-// is allowed to use version v. If the position is unknown, the specified
+-// module version (Config.GoVersion) is used. If that version is invalid,
+-// allowVersion returns true.
+-func (check *Checker) allowVersion(at positioner, v goVersion) bool {
+-	fileVersion := check.conf.GoVersion
+-	if pos := at.Pos(); pos.IsValid() {
+-		fileVersion = check.versions[check.fileFor(pos)]
+-	}
+-
+-	// We need asGoVersion (which calls version.Lang) below
+-	// because fileVersion may be the (unaltered) Config.GoVersion
+-	// string which may contain dot-release information.
+-	version := asGoVersion(fileVersion)
+-
+-	return !version.isValid() || version.cmp(v) >= 0
++// allowVersion reports whether the current effective Go version
++// (which may vary from one file to another) is allowed to use the
++// feature version (want).
++func (check *Checker) allowVersion(want goVersion) bool {
++	return !check.version.isValid() || check.version.cmp(want) >= 0
+ }
+ 
+ // verifyVersionf is like allowVersion but also accepts a format string and arguments
+-// which are used to report a version error if allowVersion returns false. It uses the
+-// current package.
++// which are used to report a version error if allowVersion returns false.
+ func (check *Checker) verifyVersionf(at positioner, v goVersion, format string, args ...interface{}) bool {
+-	if !check.allowVersion(at, v) {
++	if !check.allowVersion(v) {
+ 		check.versionErrorf(at, v, format, args...)
+ 		return false
+ 	}
+ 	return true
+ }
+-
+-// TODO(gri) Consider a more direct (position-independent) mechanism
+-//           to identify which file we're in so that version checks
+-//           work correctly in the absence of correct position info.
+-
+-// fileFor returns the *ast.File which contains the position pos.
+-// If there are no files, the result is nil.
+-// The position must be valid.
+-func (check *Checker) fileFor(pos token.Pos) *ast.File {
+-	assert(pos.IsValid())
+-	// Eval and CheckExpr tests may not have any source files.
+-	if len(check.files) == 0 {
+-		return nil
+-	}
+-	for _, file := range check.files {
+-		if file.FileStart <= pos && pos < file.FileEnd {
+-			return file
+-		}
+-	}
+-	panic(check.sprintf("file not found for pos = %d (%s)", int(pos), check.fset.Position(pos)))
+-}

@@ -7,7 +7,7 @@ Date:   Wed Mar 31 15:55:10 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/805043
-
+---
  src/pkg/runtime/386/asm.s   |  14 ------
  src/pkg/runtime/Makefile    |   1 +
  src/pkg/runtime/amd64/asm.s |  13 -----
@@ -19,3 +19,496 @@ Date:   Wed Mar 31 15:55:10 2010 -0700
  src/pkg/runtime/runtime.h   |  12 +++--
  test/golden.out             |  12 ++---
  10 files changed, 166 insertions(+), 135 deletions(-)
+
+diff --git a/src/pkg/runtime/386/asm.s b/src/pkg/runtime/386/asm.s
+index e2eca81a88..862c2746c9 100644
+--- a/src/pkg/runtime/386/asm.s
++++ b/src/pkg/runtime/386/asm.s
+@@ -369,20 +369,6 @@ TEXT stackcheck(SB), 7, $0
+ 	INT	$3
+ 	RET
+ 
+-// callString(f, arg, out)
+-// call Go f(arg), which returns a string, and store in out
+-TEXT callString(SB), 7, $24
+-	MOVL	arg+4(FP), BX
+-	MOVL	f+0(FP), CX
+-	MOVL	BX, 0(SP)
+-	CALL	*CX
+-	MOVL	out+8(FP), DI
+-	LEAL	4(SP), SI
+-	MOVSL
+-	MOVSL
+-	MOVSL
+-	RET
+-
+ GLOBL m0(SB), $1024
+ GLOBL g0(SB), $1024
+ GLOBL tls0(SB), $32
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 2ea11c0edd..8828426c71 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -21,6 +21,7 @@ CFLAGS_mingw=-D__MINGW__
+ CFLAGS=-I$(GOOS) -I$(GOOS)/$(GOARCH) -wF $(CFLAGS_$(SIZE)) $(CFLAGS_$(GOARCH)) $(CFLAGS_$(GOOS))
+ 
+ GOFILES=\
++	error.go\
+ 	extern.go\
+ 	type.go\
+ 	version.go\
+diff --git a/src/pkg/runtime/amd64/asm.s b/src/pkg/runtime/amd64/asm.s
+index fb32be05f9..9c966c5871 100644
+--- a/src/pkg/runtime/amd64/asm.s
++++ b/src/pkg/runtime/amd64/asm.s
+@@ -311,16 +311,3 @@ TEXT stackcheck(SB), 7, $0
+ 	INT	$3
+ 	RET
+ 
+-// callString(f, arg, out)
+-// call Go f(arg), which returns a string, and store in out
+-TEXT callString(SB), 7, $24
+-	MOVQ	arg+8(FP), BX
+-	MOVQ	f+0(FP), CX
+-	MOVQ	BX, 0(SP)
+-	CALL	*CX
+-	MOVQ	out+16(FP), DI
+-	LEAQ	8(SP), SI
+-	MOVSQ
+-	MOVSQ
+-	RET
+-
+diff --git a/src/pkg/runtime/arm/asm.s b/src/pkg/runtime/arm/asm.s
+index 49610451a6..19fa1cc2e3 100644
+--- a/src/pkg/runtime/arm/asm.s
++++ b/src/pkg/runtime/arm/asm.s
+@@ -264,18 +264,3 @@ TEXT abort(SB),7,$0
+ 	MOVW	$0, R0
+ 	MOVW	(R0), R1
+ 
+-// callString(f, arg, out)
+-// call Go f(arg), which returns a string, and store in out
+-TEXT callString(SB), 7, $24
+-	MOVW	arg+4(FP), R1
+-	MOVW	f+0(FP), R0
+-	MOVW	R1, 0(SP)
+-	BL	(R0)
+-	MOVW	4(SP), R1
+-	MOVW	8(SP), R2
+-	MOVW	12(SP), R3
+-	MOVW	out+8(FP), R0
+-	MOVW	R1, 0(R0)
+-	MOVW	R2, 4(R0)
+-	MOVW	R3, 8(R0)
+-	RET
+diff --git a/src/pkg/runtime/error.go b/src/pkg/runtime/error.go
+new file mode 100644
+index 0000000000..a7d3bedb9c
+--- /dev/null
++++ b/src/pkg/runtime/error.go
+@@ -0,0 +1,112 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++// The Error interface identifies a run time error.
++type Error interface {
++	String() string
++	RuntimeError() // no-op that uniquely identifies runtime.Error
++}
++
++// A TypeAssertionError explains a failed type assertion.
++type TypeAssertionError struct {
++	interfaceType   Type // interface had this type
++	concreteType    Type // concrete value had this type
++	assertedType    Type // asserted type
++	interfaceString string
++	concreteString  string
++	assertedString  string
++	missingMethod   string // one method needed by Interface, missing from Concrete
++}
++
++func (e *TypeAssertionError) String() string {
++	inter := e.interfaceString
++	if inter == "" {
++		inter = "interface"
++	}
++	if e.concreteType == nil {
++		return "interface conversion: " + inter + " is nil, not " + e.assertedString
++	}
++	if e.missingMethod == "" {
++		return "interface conversion: " + inter + " is " + e.concreteString +
++			", not " + e.assertedString
++	}
++	return "interface conversion: " + e.concreteString + " is not " + e.assertedString +
++		": missing method " + e.missingMethod
++}
++
++// Concrete returns the type of the concrete value in the failed type assertion.
++// If the interface value was nil, Concrete returns nil.
++func (e *TypeAssertionError) Concrete() Type {
++	return e.concreteType
++}
++
++// Asserted returns the type incorrectly asserted by the type assertion.
++func (e *TypeAssertionError) Asserted() Type {
++	return e.assertedType
++}
++
++// If the type assertion is to an interface type, MissingMethod returns the
++// name of a method needed to satisfy that interface type but not implemented
++// by Concrete.  If there are multiple such methods,
++// MissingMethod returns one; which one is unspecified.
++// If the type assertion is not to an interface type, MissingMethod returns an empty string.
++func (e *TypeAssertionError) MissingMethod() string {
++	return e.missingMethod
++}
++
++func (*TypeAssertionError) RuntimeError() {}
++
++// For calling from C.
++func newTypeAssertionError(pt1, pt2, pt3 *Type, ps1, ps2, ps3 *string, pmeth *string, ret *interface{}) {
++	var t1, t2, t3 Type
++	var s1, s2, s3, meth string
++
++	if pt1 != nil {
++		t1 = *pt1
++	}
++	if pt2 != nil {
++		t2 = *pt2
++	}
++	if pt3 != nil {
++		t3 = *pt3
++	}
++	if ps1 != nil {
++		s1 = *ps1
++	}
++	if ps2 != nil {
++		s2 = *ps2
++	}
++	if ps3 != nil {
++		s3 = *ps3
++	}
++	if pmeth != nil {
++		meth = *pmeth
++	}
++	*ret = &TypeAssertionError{t1, t2, t3, s1, s2, s3, meth}
++}
++
++type stringer interface {
++	String() string
++}
++
++// For calling from C.
++// Prints an argument to panic.
++// There's room for arbitrary complexity here, but we keep it
++// simple and handle just a few important cases: int, string, and Stringer.
++func printany(i interface{}) {
++	switch v := i.(type) {
++	case nil:
++		print("nil")
++	case stringer:
++		print(v.String())
++	case int:
++		print(v)
++	case string:
++		print(v)
++	default:
++		print(i)
++	}
++}
+diff --git a/src/pkg/runtime/iface.c b/src/pkg/runtime/iface.c
+index ce42346272..1af7ca7f56 100644
+--- a/src/pkg/runtime/iface.c
++++ b/src/pkg/runtime/iface.c
+@@ -46,10 +46,13 @@ itab(InterfaceType *inter, Type *type, int32 canfail)
+ 	Itab *m;
+ 	UncommonType *x;
+ 	Type *itype;
++	Eface err;
+ 
+ 	if(inter->mhdr.len == 0)
+ 		throw("internal error - misuse of itab");
+ 
++	locked = 0;
++
+ 	// easy case
+ 	x = type->x;
+ 	if(x == nil) {
+@@ -114,9 +117,12 @@ search:
+ 				if(!canfail) {
+ 				throw:
+ 					// didn't find method
+-					printf("%S is not %S: missing method %S\n",
+-						*type->string, *inter->string, *iname);
+-					throw("interface conversion");
++					·newTypeAssertionError(nil, type, inter,
++						nil, type->string, inter->string,
++						iname, &err);
++					if(locked)
++						unlock(&ifacelock);
++					·panic(err);
+ 					return nil;	// not reached
+ 				}
+ 				m->bad = 1;
+@@ -211,16 +217,21 @@ void
+ {
+ 	Itab *tab;
+ 	byte *ret;
++	Eface err;
+ 
+ 	ret = (byte*)(&i+1);
+ 	tab = i.tab;
+ 	if(tab == nil) {
+-		printf("interface is nil, not %S\n", *t->string);
+-		throw("interface conversion");
++		·newTypeAssertionError(nil, nil, t,
++			nil, nil, t->string,
++			nil, &err);
++		·panic(err);
+ 	}
+ 	if(tab->type != t) {
+-		printf("%S is %S, not %S\n", *tab->inter->string, *tab->type->string, *t->string);
+-		throw("interface conversion");
++		·newTypeAssertionError(tab->inter, tab->type, t,
++			tab->inter->string, tab->type->string, t->string,
++			nil, &err);
++		·panic(err);
+ 	}
+ 	copyout(t, &i.data, ret);
+ }
+@@ -254,15 +265,21 @@ void
+ ·ifaceE2T(Type *t, Eface e, ...)
+ {
+ 	byte *ret;
++	Eface err;
+ 
+ 	ret = (byte*)(&e+1);
+ 
++	if(e.type == nil) {
++		·newTypeAssertionError(nil, nil, t,
++			nil, nil, t->string,
++			nil, &err);
++		·panic(err);
++	}
+ 	if(e.type != t) {
+-		if(e.type == nil)
+-			printf("interface is nil, not %S\n", *t->string);
+-		else
+-			printf("interface is %S, not %S\n", *e.type->string, *t->string);
+-		throw("interface conversion");
++		·newTypeAssertionError(nil, e.type, t,
++			nil, e.type->string, t->string,
++			nil, &err);
++		·panic(err);
+ 	}
+ 	copyout(t, &e.data, ret);
+ }
+@@ -336,12 +353,15 @@ void
+ ·ifaceI2Ix(InterfaceType *inter, Iface i, Iface ret)
+ {
+ 	Itab *tab;
++	Eface err;
+ 
+ 	tab = i.tab;
+ 	if(tab == nil) {
+ 		// explicit conversions require non-nil interface value.
+-		printf("interface is nil, not %S\n", *inter->string);
+-		throw("interface conversion");
++		·newTypeAssertionError(nil, nil, inter,
++			nil, nil, inter->string,
++			nil, &err);
++		·panic(err);
+ 	} else {
+ 		ret = i;
+ 		if(tab->inter != inter)
+@@ -385,12 +405,15 @@ void
+ ifaceE2I(InterfaceType *inter, Eface e, Iface *ret)
+ {
+ 	Type *t;
++	Eface err;
+ 
+ 	t = e.type;
+ 	if(t == nil) {
+ 		// explicit conversions require non-nil interface value.
+-		printf("interface is nil, not %S\n", *inter->string);
+-		throw("interface conversion");
++		·newTypeAssertionError(nil, nil, inter,
++			nil, nil, inter->string,
++			nil, &err);
++		·panic(err);
+ 	} else {
+ 		ret->data = e.data;
+ 		ret->tab = itab(inter, t, 0);
+diff --git a/src/pkg/runtime/print.c b/src/pkg/runtime/print.c
+index 5e4f2f5956..12484329eb 100644
+--- a/src/pkg/runtime/print.c
++++ b/src/pkg/runtime/print.c
+@@ -348,68 +348,3 @@ void
+ {
+ 	write(fd, "\n", 1);
+ }
+-
+-// print an empty interface, for use by panic.
+-// this could be arbitrarily complex in general,
+-// so we pick off only a few important cases:
+-// int, string, and values with a String() string method.
+-void
+-printany(Eface e)
+-{
+-	int32 i;
+-	FuncType *ft;
+-	Method *m;
+-	String s;
+-	Type *rt;
+-	UncommonType *x;
+-
+-	if(e.type == nil) {
+-		write(fd, "nil", 3);
+-		return;
+-	}
+-
+-	if((x=e.type->x) != nil) {
+-		for(i=0; i<x->mhdr.len; i++) {
+-			// Look for String() string method.
+-			m = &x->m[i];
+-			if(m->name->len == 6 &&
+-			   mcmp(m->name->str, (byte*)"String", 6) == 0 &&
+-			   // Found String; check method signature for func() string.
+-			   m->mtyp->kind == KindFunc &&
+-			   (ft = (FuncType*)m->mtyp)->in.len == 0 &&
+-			   ft->out.len == 1 &&
+-			   // Found single output.  Is it string?
+-			   // Only base types have name != nil but pkgPath == nil.
+-			   (rt = *(Type**)ft->out.array)->kind == KindString &&
+-			   rt->x != nil &&
+-			   rt->x->name != nil && rt->x->pkgPath == nil) {
+-				// Found the method!
+-				// Have to use assembly to call it
+-				// and save the return value.
+-				callString(m->ifn, e.data, &s);
+-				·printstring(s);
+-				return;
+-			}
+-		}
+-	}
+-
+-	switch(e.type->kind & ~KindNoPointers) {
+-	case KindInt:
+-		mcpy((byte*)&i, (byte*)&e.data, sizeof(i));
+-		·printint(i);
+-		break;
+-
+-	case KindString:
+-		·printstring(*(String*)e.data);
+-		break;
+-
+-	default:
+-		// Could print the other numeric types,
+-		// but that's overkill: good panics have
+-		// a string method anyway.
+-		·printstring(*e.type->string);
+-		write(fd, "(???)", 5);
+-		break;
+-	}
+-
+-}
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 6001c22892..3dd9977922 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -935,7 +935,7 @@ printpanics(Panic *p)
+ 		printf("\t");
+ 	}
+ 	printf("panic: ");
+-	printany(p->arg);
++	·printany(p->arg);
+ 	if(p->recovered)
+ 		printf(" [recovered]");
+ 	printf("\n");
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index adb83116bb..b4011b7588 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -361,7 +361,6 @@ int32	charntorune(int32*, uint8*, int32);
+ /*
+  * very low level c-called
+  */
+-void	callString(void(*fn)(void), void *arg, String *out);
+ void	gogo(Gobuf*, uintptr);
+ void	gogocall(Gobuf*, void(*)(void));
+ uintptr	gosave(Gobuf*);
+@@ -372,7 +371,6 @@ void*	getu(void);
+ void	throw(int8*);
+ uint32	rnd(uint32, uint32);
+ void	prints(int8*);
+-void	printany(Eface);
+ void	printf(int8*, ...);
+ byte*	mchr(byte*, byte, byte*);
+ void	mcpy(byte*, byte*, uint32);
+@@ -432,6 +430,7 @@ bool	sigsend(int32 sig);
+ void	gettime(int64*, int32*);
+ int32	callers(int32, uintptr*, int32);
+ int64	nanotime(void);
++void	panic(int32);
+ 
+ #pragma	varargck	argpos	printf	1
+ 
+@@ -530,8 +529,15 @@ void	runtime_printuint(uint64);
+ void	runtime_printhex(uint64);
+ void	runtime_printslice(Slice);
+ void	runtime_printcomplex(Complex128);
+-void	panic(int32);
+ void	reflect·call(byte*, byte*, uint32);
++void	·panic(Eface);
++
++/*
++ * runtime c-called (but written in Go)
++ */
++void ·newError(String, Eface*);
++void	·printany(Eface);
++void	·newTypeAssertionError(Type*, Type*, Type*, String*, String*, String*, String*, Eface*);
+ 
+ /*
+  * wrapped for go users
+diff --git a/test/golden.out b/test/golden.out
+index cae5509f83..2bb6f110f7 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -116,14 +116,12 @@ PASS
+ == interface/
+ 
+ =========== interface/fail.go
+-*main.S is not main.I: missing method Foo
+-throw: interface conversion
++panic: interface conversion: *main.S is not main.I: missing method Foo
+ 
+ panic PC=xxx
+ 
+ =========== interface/returntype.go
+-*main.S is not main.I2: missing method Name
+-throw: interface conversion
++panic: interface conversion: *main.S is not main.I2: missing method Name
+ 
+ panic PC=xxx
+ 
+@@ -165,15 +163,13 @@ fixedbugs/bug081.go:9: typechecking loop
+ M
+ 
+ =========== fixedbugs/bug113.go
+-interface is int, not int32
+-throw: interface conversion
++panic: interface conversion: interface is int, not int32
+ 
+ panic PC=xxx
+ 
+ =========== fixedbugs/bug148.go
+ 2 3
+-interface is main.T, not main.T
+-throw: interface conversion
++panic: interface conversion: interface is main.T, not main.T
+ 
+ panic PC=xxx
+ 

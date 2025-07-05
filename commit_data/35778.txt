@@ -15,9 +15,174 @@ Date:   Tue Mar 6 20:47:38 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/cgo_sigaction.go   | 23 +++++++++--------------
  src/runtime/os_linux.go        | 22 ++++++++++++++++------
  src/runtime/sigaction_linux.go | 11 ++++++++---
  src/runtime/sys_linux_amd64.s  |  2 +-
  4 files changed, 34 insertions(+), 24 deletions(-)
+
+diff --git a/src/runtime/cgo_sigaction.go b/src/runtime/cgo_sigaction.go
+index 713490d353..0908f863a4 100644
+--- a/src/runtime/cgo_sigaction.go
++++ b/src/runtime/cgo_sigaction.go
+@@ -17,7 +17,7 @@ var _cgo_sigaction unsafe.Pointer
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32 {
++func sigaction(sig uint32, new, old *sigactiont) {
+ 	// The runtime package is explicitly blacklisted from sanitizer
+ 	// instrumentation in racewalk.go, but we might be calling into instrumented C
+ 	// functions here — so we need the pointer parameters to be properly marked.
+@@ -28,10 +28,8 @@ func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32 {
+ 		msanwrite(unsafe.Pointer(new), unsafe.Sizeof(*new))
+ 	}
+ 
+-	var ret int32
+-
+ 	if _cgo_sigaction == nil || inForkedChild {
+-		ret = sysSigaction(sig, new, old, size)
++		sysSigaction(sig, new, old)
+ 	} else {
+ 		// We need to call _cgo_sigaction, which means we need a big enough stack
+ 		// for C.  To complicate matters, we may be in libpreinit (before the
+@@ -39,17 +37,19 @@ func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32 {
+ 		// the current thread in transition between goroutines, or with the g0
+ 		// system stack already in use).
+ 
++		var ret int32
++
+ 		g := getg()
+ 		sp := uintptr(unsafe.Pointer(&sig))
+ 		switch {
+ 		case g == nil:
+ 			// No g: we're on a C stack or a signal stack.
+-			ret = callCgoSigaction(sig, new, old)
++			ret = callCgoSigaction(uintptr(sig), new, old)
+ 		case sp < g.stack.lo || sp >= g.stack.hi:
+ 			// We're no longer on g's stack, so we must be handling a signal.  It's
+ 			// possible that we interrupted the thread during a transition between g
+ 			// and g0, so we should stay on the current stack to avoid corrupting g0.
+-			ret = callCgoSigaction(sig, new, old)
++			ret = callCgoSigaction(uintptr(sig), new, old)
+ 		default:
+ 			// We're running on g's stack, so either we're not in a signal handler or
+ 			// the signal handler has set the correct g.  If we're on gsignal or g0,
+@@ -60,7 +60,7 @@ func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32 {
+ 			// that's ok: we'll be running on a fresh, clean system stack so the stack
+ 			// check will always succeed anyway.
+ 			systemstack(func() {
+-				ret = callCgoSigaction(sig, new, old)
++				ret = callCgoSigaction(uintptr(sig), new, old)
+ 			})
+ 		}
+ 
+@@ -69,20 +69,15 @@ func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32 {
+ 			// libc reserves certain signals — normally 32-33 — for pthreads, and
+ 			// returns EINVAL for sigaction calls on those signals.  If we get EINVAL,
+ 			// fall back to making the syscall directly.
+-			ret = sysSigaction(sig, new, old, size)
++			sysSigaction(sig, new, old)
+ 		}
+ 	}
+ 
+-	if msanenabled && old != nil && ret == 0 {
++	if msanenabled && old != nil {
+ 		msanread(unsafe.Pointer(old), unsafe.Sizeof(*old))
+ 	}
+-	return ret
+ }
+ 
+-// sysSigaction calls the rt_sigaction system call. It is implemented in assembly.
+-//go:noescape
+-func sysSigaction(sig uintptr, new, old *sigactiont, size uintptr) int32
+-
+ // callCgoSigaction calls the sigaction function in the runtime/cgo package
+ // using the GCC calling convention. It is implemented in assembly.
+ //go:noescape
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index d8c1592a1d..779f7403ec 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -378,28 +378,26 @@ func setsig(i uint32, fn uintptr) {
+ 		}
+ 	}
+ 	sa.sa_handler = fn
+-	rt_sigaction(uintptr(i), &sa, nil, unsafe.Sizeof(sa.sa_mask))
++	sigaction(i, &sa, nil)
+ }
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+ func setsigstack(i uint32) {
+ 	var sa sigactiont
+-	rt_sigaction(uintptr(i), nil, &sa, unsafe.Sizeof(sa.sa_mask))
++	sigaction(i, nil, &sa)
+ 	if sa.sa_flags&_SA_ONSTACK != 0 {
+ 		return
+ 	}
+ 	sa.sa_flags |= _SA_ONSTACK
+-	rt_sigaction(uintptr(i), &sa, nil, unsafe.Sizeof(sa.sa_mask))
++	sigaction(i, &sa, nil)
+ }
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+ func getsig(i uint32) uintptr {
+ 	var sa sigactiont
+-	if rt_sigaction(uintptr(i), nil, &sa, unsafe.Sizeof(sa.sa_mask)) != 0 {
+-		throw("rt_sigaction read failure")
+-	}
++	sigaction(i, nil, &sa)
+ 	return sa.sa_handler
+ }
+ 
+@@ -411,3 +409,15 @@ func setSignalstackSP(s *stackt, sp uintptr) {
+ 
+ func (c *sigctxt) fixsigcode(sig uint32) {
+ }
++
++// sysSigaction calls the rt_sigaction system call.
++//go:nosplit
++func sysSigaction(sig uint32, new, old *sigactiont) {
++	if rt_sigaction(uintptr(sig), new, old, unsafe.Sizeof(sigactiont{}.sa_mask)) != 0 {
++		throw("sigaction failed")
++	}
++}
++
++// rt_sigaction is implemented in assembly.
++//go:noescape
++func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32
+diff --git a/src/runtime/sigaction_linux.go b/src/runtime/sigaction_linux.go
+index 0b2afb01eb..4775f64123 100644
+--- a/src/runtime/sigaction_linux.go
++++ b/src/runtime/sigaction_linux.go
+@@ -6,6 +6,11 @@
+ 
+ package runtime
+ 
+-// rt_sigaction calls the rt_sigaction system call. It is implemented in assembly.
+-//go:noescape
+-func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32
++// This version is used on Linux systems on which we don't use cgo to
++// call the C version of sigaction.
++
++//go:nosplit
++//go:nowritebarrierrec
++func sigaction(sig uint32, new, old *sigactiont) {
++	sysSigaction(sig, new, old)
++}
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index 210730e405..323078f9ea 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -287,7 +287,7 @@ TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0-28
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·sysSigaction(SB),NOSPLIT,$0-36
++TEXT runtime·rt_sigaction(SB),NOSPLIT,$0-36
+ 	MOVQ	sig+0(FP), DI
+ 	MOVQ	new+8(FP), SI
+ 	MOVQ	old+16(FP), DX

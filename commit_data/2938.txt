@@ -8,7 +8,7 @@ Date:   Mon Aug 10 22:02:51 2009 -0700
     DELTA=95  (0 added, 0 deleted, 95 changed)
     OCL=33012
     CL=33012
-
+---
  src/pkg/container/vector/intvector.go    |  2 +-
  src/pkg/container/vector/stringvector.go |  2 +-
  src/pkg/container/vector/vector_test.go  | 34 +++++++++----------
@@ -30,3 +30,665 @@ Date:   Mon Aug 10 22:02:51 2009 -0700
  src/pkg/time/tick.go                     | 10 +++---
  src/pkg/time/time.go                     |  2 +-
  20 files changed, 86 insertions(+), 86 deletions(-)
+
+diff --git a/src/pkg/container/vector/intvector.go b/src/pkg/container/vector/intvector.go
+index c3b62f256a..ca2c4d1030 100644
+--- a/src/pkg/container/vector/intvector.go
++++ b/src/pkg/container/vector/intvector.go
+@@ -8,7 +8,7 @@ import "container/vector"
+ 
+ // IntVector is a specialization of Vector that hides the wrapping of Elements around ints.
+ type IntVector struct {
+-	vector.Vector;
++	Vector;
+ }
+ 
+ 
+diff --git a/src/pkg/container/vector/stringvector.go b/src/pkg/container/vector/stringvector.go
+index 18ca11a3f3..4cf047f2ca 100644
+--- a/src/pkg/container/vector/stringvector.go
++++ b/src/pkg/container/vector/stringvector.go
+@@ -8,7 +8,7 @@ import "container/vector"
+ 
+ // StringVector is a specialization of Vector that hides the wrapping of Elements around strings.
+ type StringVector struct {
+-	vector.Vector;
++	Vector;
+ }
+ 
+ 
+diff --git a/src/pkg/container/vector/vector_test.go b/src/pkg/container/vector/vector_test.go
+index 2a9819394c..8b4f54dae5 100644
+--- a/src/pkg/container/vector/vector_test.go
++++ b/src/pkg/container/vector/vector_test.go
+@@ -11,15 +11,15 @@ import "fmt"
+ 
+ 
+ func TestZeroLen(t *testing.T) {
+-	var a *vector.Vector;
++	var a *Vector;
+ 	if a.Len() != 0 { t.Errorf("A) expected 0, got %d", a.Len()); }
+-	a = vector.New(0);
++	a = New(0);
+ 	if a.Len() != 0 { t.Errorf("B) expected 0, got %d", a.Len()); }
+ }
+ 
+ 
+ func TestInit(t *testing.T) {
+-	var a vector.Vector;
++	var a Vector;
+ 	if a.Init(0).Len() != 0 { t.Error("A") }
+ 	if a.Init(1).Len() != 1 { t.Error("B") }
+ 	if a.Init(10).Len() != 10 { t.Error("C") }
+@@ -27,9 +27,9 @@ func TestInit(t *testing.T) {
+ 
+ 
+ func TestNew(t *testing.T) {
+-	if vector.New(0).Len() != 0 { t.Error("A") }
+-	if vector.New(1).Len() != 1 { t.Error("B") }
+-	if vector.New(10).Len() != 10 { t.Error("C") }
++	if New(0).Len() != 0 { t.Error("A") }
++	if New(1).Len() != 1 { t.Error("B") }
++	if New(10).Len() != 10 { t.Error("C") }
+ }
+ 
+ 
+@@ -40,7 +40,7 @@ func val(i int) int {
+ 
+ func TestAccess(t *testing.T) {
+ 	const n = 100;
+-	var a vector.Vector;
++	var a Vector;
+ 	a.Init(n);
+ 	for i := 0; i < n; i++ {
+ 		a.Set(i, val(i));
+@@ -53,7 +53,7 @@ func TestAccess(t *testing.T) {
+ 
+ func TestInsertDeleteClear(t *testing.T) {
+ 	const n = 100;
+-	a := vector.New(0);
++	a := New(0);
+ 
+ 	for i := 0; i < n; i++ {
+ 		if a.Len() != i { t.Errorf("A) wrong len %d (expected %d)", a.Len(), i) }
+@@ -90,7 +90,7 @@ func TestInsertDeleteClear(t *testing.T) {
+ }
+ 
+ 
+-func verify_slice(t *testing.T, x *vector.Vector, elt, i, j int) {
++func verify_slice(t *testing.T, x *Vector, elt, i, j int) {
+ 	for k := i; k < j; k++ {
+ 		if x.At(k).(int) != elt {
+ 			t.Errorf("M) wrong [%d] element %d (expected %d)", k, x.At(k).(int), elt)
+@@ -106,7 +106,7 @@ func verify_slice(t *testing.T, x *vector.Vector, elt, i, j int) {
+ }
+ 
+ 
+-func verify_pattern(t *testing.T, x *vector.Vector, a, b, c int) {
++func verify_pattern(t *testing.T, x *Vector, a, b, c int) {
+ 	n := a + b + c;
+ 	if x.Len() != n {
+ 		t.Errorf("O) wrong len %d (expected %d)", x.Len(), n)
+@@ -117,8 +117,8 @@ func verify_pattern(t *testing.T, x *vector.Vector, a, b, c int) {
+ }
+ 
+ 
+-func make_vector(elt, len int) *vector.Vector {
+-	x := vector.New(len);
++func make_vector(elt, len int) *Vector {
++	x := New(len);
+ 	for i := 0; i < len; i++ {
+ 		x.Set(i, elt);
+ 	}
+@@ -154,13 +154,13 @@ func TestInsertVector(t *testing.T) {
+ func TestSorting(t *testing.T) {
+ 	const n = 100;
+ 
+-	a := vector.NewIntVector(n);
++	a := NewIntVector(n);
+ 	for i := n-1; i >= 0; i-- {
+ 		a.Set(i, n-1-i);
+ 	}
+ 	if sort.IsSorted(a) { t.Error("int vector not sorted") }
+ 
+-	b := vector.NewStringVector(n);
++	b := NewStringVector(n);
+ 	for i := n-1; i >= 0; i-- {
+ 		b.Set(i, fmt.Sprint(n-1-i));
+ 	}
+@@ -171,13 +171,13 @@ func TestSorting(t *testing.T) {
+ func TestDo(t *testing.T) {
+ 	const n = 25;
+ 	const salt = 17;
+-	a := vector.NewIntVector(n);
++	a := NewIntVector(n);
+ 	for i := 0; i < n; i++ {
+ 		a.Set(i, salt * i);
+ 	}
+ 	count := 0;
+ 	a.Do(
+-		func(e vector.Element) {
++		func(e Element) {
+ 			i := e.(int);
+ 			if i != count*salt {
+ 				t.Error("value at", count, "should be", count*salt, "not", i)
+@@ -192,7 +192,7 @@ func TestDo(t *testing.T) {
+ 
+ func TestIter(t *testing.T) {
+ 	const Len = 100;
+-	x := vector.New(Len);
++	x := New(Len);
+ 	for i := 0; i < Len; i++ {
+ 		x.Set(i, i*i);
+ 	}
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 3b27e0a159..86a09879e5 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -122,7 +122,7 @@ type pp struct {
+ 
+ func newPrinter() *pp {
+ 	p := new(pp);
+-	p.fmt = fmt.New();
++	p.fmt = New();
+ 	return p;
+ }
+ 
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index 2e606b9423..9ab6dc9ce6 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -419,11 +419,11 @@ func IsExported(name string) bool {
+ 
+ // IsExported returns whether name is an exported Go symbol
+ // (i.e., whether it begins with an uppercase letter).
+-func (name *ast.Ident) IsExported() bool {
++func (name *Ident) IsExported() bool {
+ 	return IsExported(name.Value);
+ }
+ 
+-func (name *ast.Ident) String() string {
++func (name *Ident) String() string {
+ 	return name.Value;
+ }
+ 
+diff --git a/src/pkg/go/ast/filter.go b/src/pkg/go/ast/filter.go
+index 94cd28ea90..0b9d508bb3 100644
+--- a/src/pkg/go/ast/filter.go
++++ b/src/pkg/go/ast/filter.go
+@@ -66,7 +66,7 @@ func filterFieldList(list []*Field) []*Field {
+ 	if j > 0 && j < len(list) {
+ 		// fields have been stripped but there is at least one left;
+ 		// add a '...' anonymous field instead
+-		list[j] = &ast.Field{nil, nil, &ast.Ellipsis{}, nil, nil};
++		list[j] = &Field{nil, nil, &Ellipsis{}, nil, nil};
+ 		j++;
+ 	}
+ 	return list[0 : j];
+diff --git a/src/pkg/http/fs.go b/src/pkg/http/fs.go
+index fd18096f0b..6af85ca03a 100644
+--- a/src/pkg/http/fs.go
++++ b/src/pkg/http/fs.go
+@@ -78,7 +78,7 @@ func serveFileInternal(c *Conn, r *Request, name string, redirect bool) {
+ 	// redirect to strip off any index.html
+ 	n := len(name) - len(indexPage);
+ 	if n >= 0 && name[n:len(name)] == indexPage {
+-		http.Redirect(c, name[0:n+1], StatusMovedPermanently);
++		Redirect(c, name[0:n+1], StatusMovedPermanently);
+ 		return;
+ 	}
+ 
+@@ -103,12 +103,12 @@ func serveFileInternal(c *Conn, r *Request, name string, redirect bool) {
+ 		url := r.Url.Path;
+ 		if d.IsDirectory() {
+ 			if url[len(url)-1] != '/' {
+-				http.Redirect(c, url + "/", StatusMovedPermanently);
++				Redirect(c, url + "/", StatusMovedPermanently);
+ 				return;
+ 			}
+ 		} else {
+ 			if url[len(url)-1] == '/' {
+-				http.Redirect(c, url[0:len(url)-1], StatusMovedPermanently);
++				Redirect(c, url[0:len(url)-1], StatusMovedPermanently);
+ 				return;
+ 			}
+ 		}
+diff --git a/src/pkg/math/all_test.go b/src/pkg/math/all_test.go
+index c5d5c01c41..8973d456ec 100644
+--- a/src/pkg/math/all_test.go
++++ b/src/pkg/math/all_test.go
+@@ -177,102 +177,102 @@ func veryclose(a,b float64) bool {
+ 
+ func TestAsin(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		if f := math.Asin(vf[i]/10); !veryclose(asin[i], f) {
+-			t.Errorf("math.Asin(%g) = %g, want %g\n", vf[i]/10, f, asin[i]);
++		if f := Asin(vf[i]/10); !veryclose(asin[i], f) {
++			t.Errorf("Asin(%g) = %g, want %g\n", vf[i]/10, f, asin[i]);
+ 		}
+ 	}
+ }
+ 
+ func TestAtan(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		if f := math.Atan(vf[i]); !veryclose(atan[i], f) {
+-			t.Errorf("math.Atan(%g) = %g, want %g\n", vf[i], f, atan[i]);
++		if f := Atan(vf[i]); !veryclose(atan[i], f) {
++			t.Errorf("Atan(%g) = %g, want %g\n", vf[i], f, atan[i]);
+ 		}
+ 	}
+ }
+ 
+ func TestExp(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		if f := math.Exp(vf[i]); !veryclose(exp[i], f) {
+-			t.Errorf("math.Exp(%g) = %g, want %g\n", vf[i], f, exp[i]);
++		if f := Exp(vf[i]); !veryclose(exp[i], f) {
++			t.Errorf("Exp(%g) = %g, want %g\n", vf[i], f, exp[i]);
+ 		}
+ 	}
+ }
+ 
+ func TestFloor(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		if f := math.Floor(vf[i]); floor[i] != f {
+-			t.Errorf("math.Floor(%g) = %g, want %g\n", vf[i], f, floor[i]);
++		if f := Floor(vf[i]); floor[i] != f {
++			t.Errorf("Floor(%g) = %g, want %g\n", vf[i], f, floor[i]);
+ 		}
+ 	}
+ }
+ 
+ func TestLog(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		a := math.Fabs(vf[i]);
+-		if f := math.Log(a); log[i] != f {
+-			t.Errorf("math.Log(%g) = %g, want %g\n", a, f, log[i]);
++		a := Fabs(vf[i]);
++		if f := Log(a); log[i] != f {
++			t.Errorf("Log(%g) = %g, want %g\n", a, f, log[i]);
+ 		}
+ 	}
+-	if f := math.Log(10); f != math.Ln10 {
+-		t.Errorf("math.Log(%g) = %g, want %g\n", 10, f, math.Ln10);
++	if f := Log(10); f != Ln10 {
++		t.Errorf("Log(%g) = %g, want %g\n", 10, f, Ln10);
+ 	}
+ }
+ 
+ func TestPow(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		if f := math.Pow(10, vf[i]); !close(pow[i], f) {
+-			t.Errorf("math.Pow(10, %.17g) = %.17g, want %.17g\n", vf[i], f, pow[i]);
++		if f := Pow(10, vf[i]); !close(pow[i], f) {
++			t.Errorf("Pow(10, %.17g) = %.17g, want %.17g\n", vf[i], f, pow[i]);
+ 		}
+ 	}
+ }
+ 
+ func TestSin(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		if f := math.Sin(vf[i]); !close(sin[i], f) {
+-			t.Errorf("math.Sin(%g) = %g, want %g\n", vf[i], f, sin[i]);
++		if f := Sin(vf[i]); !close(sin[i], f) {
++			t.Errorf("Sin(%g) = %g, want %g\n", vf[i], f, sin[i]);
+ 		}
+ 	}
+ }
+ 
+ func TestSinh(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		if f := math.Sinh(vf[i]); !veryclose(sinh[i], f) {
+-			t.Errorf("math.Sinh(%g) = %g, want %g\n", vf[i], f, sinh[i]);
++		if f := Sinh(vf[i]); !veryclose(sinh[i], f) {
++			t.Errorf("Sinh(%g) = %g, want %g\n", vf[i], f, sinh[i]);
+ 		}
+ 	}
+ }
+ 
+ func TestSqrt(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		a := math.Fabs(vf[i]);
+-		if f := math.Sqrt(a); !veryclose(sqrt[i], f) {
+-			t.Errorf("math.Sqrt(%g) = %g, want %g\n", a, f, floor[i]);
++		a := Fabs(vf[i]);
++		if f := Sqrt(a); !veryclose(sqrt[i], f) {
++			t.Errorf("Sqrt(%g) = %g, want %g\n", a, f, floor[i]);
+ 		}
+ 	}
+ }
+ 
+ func TestTan(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		if f := math.Tan(vf[i]); !close(tan[i], f) {
+-			t.Errorf("math.Tan(%g) = %g, want %g\n", vf[i], f, tan[i]);
++		if f := Tan(vf[i]); !close(tan[i], f) {
++			t.Errorf("Tan(%g) = %g, want %g\n", vf[i], f, tan[i]);
+ 		}
+ 	}
+ }
+ 
+ func TestTanh(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		if f := math.Tanh(vf[i]); !veryclose(tanh[i], f) {
+-			t.Errorf("math.Tanh(%g) = %g, want %g\n", vf[i], f, tanh[i]);
++		if f := Tanh(vf[i]); !veryclose(tanh[i], f) {
++			t.Errorf("Tanh(%g) = %g, want %g\n", vf[i], f, tanh[i]);
+ 		}
+ 	}
+ }
+ 
+ func TestHypot(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		a := math.Fabs(tanh[i]*math.Sqrt(2));
+-		if f := math.Hypot(tanh[i], tanh[i]); !veryclose(a, f) {
+-			t.Errorf("math.Hypot(%g, %g) = %g, want %g\n", tanh[i], tanh[i], f, a);
++		a := Fabs(tanh[i]*Sqrt(2));
++		if f := Hypot(tanh[i], tanh[i]); !veryclose(a, f) {
++			t.Errorf("Hypot(%g, %g) = %g, want %g\n", tanh[i], tanh[i], f, a);
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/os/env.go b/src/pkg/os/env.go
+index 3bd0fa9fea..5515dae2f5 100644
+--- a/src/pkg/os/env.go
++++ b/src/pkg/os/env.go
+@@ -19,7 +19,7 @@ var env map[string] string;
+ 
+ func copyenv() {
+ 	env = make(map[string] string);
+-	for i, s := range os.Envs {
++	for i, s := range Envs {
+ 		for j := 0; j < len(s); j++ {
+ 			if s[j] == '=' {
+ 				env[s[0:j]] = s[j+1:len(s)];
+diff --git a/src/pkg/os/error.go b/src/pkg/os/error.go
+index 10a7d042a1..531de8cc8f 100644
+--- a/src/pkg/os/error.go
++++ b/src/pkg/os/error.go
+@@ -93,10 +93,10 @@ func (e *SyscallError) String() string {
+ 	return e.Syscall + ": " + e.Errno.String();
+ }
+ 
+-// NewSyscallError returns, as an os.Error, a new SyscallError
++// NewSyscallError returns, as an Error, a new SyscallError
+ // with the given system call name and error number.
+ // As a convenience, if errno is 0, NewSyscallError returns nil.
+-func NewSyscallError(syscall string, errno int) os.Error {
++func NewSyscallError(syscall string, errno int) Error {
+ 	if errno == 0 {
+ 		return nil;
+ 	}
+diff --git a/src/pkg/os/exec.go b/src/pkg/os/exec.go
+index ceb52999b3..d9f7d2a570 100644
+--- a/src/pkg/os/exec.go
++++ b/src/pkg/os/exec.go
+@@ -54,7 +54,7 @@ func Exec(argv0 string, argv []string, envv []string) Error {
+ // TODO(rsc): Should os implement its own syscall.WaitStatus
+ // wrapper with the methods, or is exposing the underlying one enough?
+ //
+-// TODO(rsc): Certainly need to have os.Rusage struct,
++// TODO(rsc): Certainly need to have Rusage struct,
+ // since syscall one might have different field types across
+ // different OS.
+ 
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index 952348307c..b2b456429c 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -92,7 +92,7 @@ func (file *File) Close() Error {
+ 	if file == nil {
+ 		return EINVAL
+ 	}
+-	var err os.Error;
++	var err Error;
+ 	if e := syscall.Close(file.fd); e != 0 {
+ 		err = &PathError{"close", file.name, Errno(e)};
+ 	}
+@@ -147,7 +147,7 @@ func (file *File) Write(b []byte) (ret int, err Error) {
+ 	if e == syscall.EPIPE {
+ 		file.nepipe++;
+ 		if file.nepipe >= 10 {
+-			os.Exit(syscall.EPIPE);
++			Exit(syscall.EPIPE);
+ 		}
+ 	} else {
+ 		file.nepipe = 0;
+diff --git a/src/pkg/os/path.go b/src/pkg/os/path.go
+index 586760e383..8499ec9600 100644
+--- a/src/pkg/os/path.go
++++ b/src/pkg/os/path.go
+@@ -15,7 +15,7 @@ import "os"
+ // and returns nil.
+ func MkdirAll(path string, perm int) Error {
+ 	// If path exists, stop with success or error.
+-	dir, err := os.Lstat(path);
++	dir, err := Lstat(path);
+ 	if err == nil {
+ 		if dir.IsDirectory() {
+ 			return nil;
+@@ -47,7 +47,7 @@ func MkdirAll(path string, perm int) Error {
+ 	if err != nil {
+ 		// Handle arguments like "foo/." by
+ 		// double-checking that directory doesn't exist.
+-		dir, err1 := os.Lstat(path);
++		dir, err1 := Lstat(path);
+ 		if err1 == nil && dir.IsDirectory() {
+ 			return nil;
+ 		}
+@@ -68,7 +68,7 @@ func RemoveAll(path string) Error {
+ 	}
+ 
+ 	// Otherwise, is this a directory we need to recurse into?
+-	dir, serr := os.Lstat(path);
++	dir, serr := Lstat(path);
+ 	if serr != nil {
+ 		if serr, ok := serr.(*PathError); ok && serr.Error == ENOENT {
+ 			return nil;
+@@ -81,7 +81,7 @@ func RemoveAll(path string) Error {
+ 	}
+ 
+ 	// Directory.
+-	fd, err := Open(path, os.O_RDONLY, 0);
++	fd, err := Open(path, O_RDONLY, 0);
+ 	if err != nil {
+ 		return err;
+ 	}
+diff --git a/src/pkg/os/path_test.go b/src/pkg/os/path_test.go
+index ddb523b406..357d6882f3 100644
+--- a/src/pkg/os/path_test.go
++++ b/src/pkg/os/path_test.go
+@@ -26,7 +26,7 @@ func TestMkdirAll(t *testing.T) {
+ 
+ 	// Make file.
+ 	fpath := path + "/file";
+-	fd, err := os.Open(fpath, os.O_WRONLY | os.O_CREAT, 0666);
++	fd, err := Open(fpath, O_WRONLY | O_CREAT, 0666);
+ 	if err != nil {
+ 		t.Fatalf("create %q: %s", fpath, err);
+ 	}
+@@ -71,7 +71,7 @@ func TestRemoveAll(t *testing.T) {
+ 	if err := MkdirAll(path, 0777); err != nil {
+ 		t.Fatalf("MkdirAll %q: %s", path, err);
+ 	}
+-	fd, err := os.Open(fpath, os.O_WRONLY | os.O_CREAT, 0666);
++	fd, err := Open(fpath, O_WRONLY | O_CREAT, 0666);
+ 	if err != nil {
+ 		t.Fatalf("create %q: %s", fpath, err);
+ 	}
+@@ -79,7 +79,7 @@ func TestRemoveAll(t *testing.T) {
+ 	if err = RemoveAll(path); err != nil {
+ 		t.Fatalf("RemoveAll %q (first): %s", path, err);
+ 	}
+-	if dir, err := os.Lstat(path); err == nil {
++	if dir, err := Lstat(path); err == nil {
+ 		t.Fatalf("Lstat %q succeeded after RemoveAll (first)", path);
+ 	}
+ 
+@@ -87,12 +87,12 @@ func TestRemoveAll(t *testing.T) {
+ 	if err = MkdirAll(dpath, 0777); err != nil {
+ 		t.Fatalf("MkdirAll %q: %s", dpath, err);
+ 	}
+-	fd, err = os.Open(fpath, os.O_WRONLY | os.O_CREAT, 0666);
++	fd, err = Open(fpath, O_WRONLY | O_CREAT, 0666);
+ 	if err != nil {
+ 		t.Fatalf("create %q: %s", fpath, err);
+ 	}
+ 	fd.Close();
+-	fd, err = os.Open(dpath+"/file", os.O_WRONLY | os.O_CREAT, 0666);
++	fd, err = Open(dpath+"/file", O_WRONLY | O_CREAT, 0666);
+ 	if err != nil {
+ 		t.Fatalf("create %q: %s", fpath, err);
+ 	}
+@@ -100,7 +100,7 @@ func TestRemoveAll(t *testing.T) {
+ 	if err = RemoveAll(path); err != nil {
+ 		t.Fatalf("RemoveAll %q (second): %s", path, err);
+ 	}
+-	if dir, err := os.Lstat(path); err == nil {
++	if dir, err := Lstat(path); err == nil {
+ 		t.Fatalf("Lstat %q succeeded after RemoveAll (second)", path);
+ 	}
+ 
+@@ -110,13 +110,13 @@ func TestRemoveAll(t *testing.T) {
+ 	}
+ 
+ 	for i, s := range []string{fpath, dpath+"/file1", path+"/zzz"} {
+-		fd, err = os.Open(s, os.O_WRONLY | os.O_CREAT, 0666);
++		fd, err = Open(s, O_WRONLY | O_CREAT, 0666);
+ 		if err != nil {
+ 			t.Fatalf("create %q: %s", s, err);
+ 		}
+ 		fd.Close();
+ 	}
+-	if err = os.Chmod(dpath, 0); err != nil {
++	if err = Chmod(dpath, 0); err != nil {
+ 		t.Fatalf("Chmod %q 0: %s", dpath, err);
+ 	}
+ 	if err = RemoveAll(path); err == nil {
+@@ -133,18 +133,18 @@ func TestRemoveAll(t *testing.T) {
+ 	if perr.Path != dpath {
+ 		t.Fatalf("RemoveAll %q failed at %q not %q", path, perr.Path, dpath);
+ 	}
+-	if err = os.Chmod(dpath, 0777); err != nil {
++	if err = Chmod(dpath, 0777); err != nil {
+ 		t.Fatalf("Chmod %q 0777: %s", dpath, err);
+ 	}
+ 	for i, s := range []string{fpath, path+"/zzz"} {
+-		if dir, err := os.Lstat(s); err == nil {
++		if dir, err := Lstat(s); err == nil {
+ 			t.Fatalf("Lstat %q succeeded after partial RemoveAll", s);
+ 		}
+ 	}
+ 	if err = RemoveAll(path); err != nil {
+ 		t.Fatalf("RemoveAll %q after partial RemoveAll: %s", path, err);
+ 	}
+-	if dir, err := os.Lstat(path); err == nil {
++	if dir, err := Lstat(path); err == nil {
+ 		t.Fatalf("Lstat %q succeeded after RemoveAll (final)", path);
+ 	}
+ }
+diff --git a/src/pkg/os/proc.go b/src/pkg/os/proc.go
+index 9920c13556..38380c1e3a 100644
+--- a/src/pkg/os/proc.go
++++ b/src/pkg/os/proc.go
+@@ -37,7 +37,7 @@ func Getegid() int {
+ }
+ 
+ // Getgroups returns a list of the numeric ids of groups that the caller belongs to.
+-func Getgroups() ([]int, os.Error) {
++func Getgroups() ([]int, Error) {
+ 	gids, errno := syscall.Getgroups();
+ 	return gids, NewSyscallError("getgroups", errno);
+ }
+diff --git a/src/pkg/os/sys_darwin.go b/src/pkg/os/sys_darwin.go
+index ed5e501e8c..731709dfcc 100644
+--- a/src/pkg/os/sys_darwin.go
++++ b/src/pkg/os/sys_darwin.go
+@@ -11,7 +11,7 @@ import (
+ 	"syscall";
+ )
+ 
+-func Hostname() (name string, err os.Error) {
++func Hostname() (name string, err Error) {
+ 	var errno int;
+ 	name, errno = syscall.Sysctl("kern.hostname");
+ 	if errno != 0 {
+diff --git a/src/pkg/os/sys_linux.go b/src/pkg/os/sys_linux.go
+index 85f094effb..6ff4e014fb 100644
+--- a/src/pkg/os/sys_linux.go
++++ b/src/pkg/os/sys_linux.go
+@@ -9,7 +9,7 @@ package os
+ import "os"
+ 
+ // Hostname returns the host name reported by the kernel.
+-func Hostname() (name string, err os.Error) {
++func Hostname() (name string, err Error) {
+ 	f, err := Open("/proc/sys/kernel/hostname", O_RDONLY, 0);
+ 	if err != nil {
+ 		return "", err;
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index a7de452a37..f1ea106557 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -433,7 +433,7 @@ func (v *UnsafePointerValue) Set(x unsafe.Pointer) {
+ 	*(*unsafe.Pointer)(v.addr) = x;
+ }
+ 
+-func typesMustMatch(t1, t2 reflect.Type) {
++func typesMustMatch(t1, t2 Type) {
+ 	if t1 != t2 {
+ 		panicln("type mismatch:", t1.String(), "!=", t2.String());
+ 	}
+diff --git a/src/pkg/time/tick.go b/src/pkg/time/tick.go
+index 53e2234f89..26de901250 100644
+--- a/src/pkg/time/tick.go
++++ b/src/pkg/time/tick.go
+@@ -10,7 +10,7 @@ import (
+ 	"unsafe";
+ )
+ 
+-// TODO(rsc): This implementation of time.Tick is a
++// TODO(rsc): This implementation of Tick is a
+ // simple placeholder.  Eventually, there will need to be
+ // a single central time server no matter how many tickers
+ // are active.  There also needs to be a way to cancel a ticker.
+@@ -21,13 +21,13 @@ import (
+ //	func Ticker(ns int64, c chan int64) {
+ //		for {
+ //			select { timeout ns: }
+-//			nsec, err := time.Nanoseconds();
++//			nsec, err := Nanoseconds();
+ //			c <- nsec;
+ //		}
+ 
+ func ticker(ns int64, c chan int64) {
+ 	var tv syscall.Timeval;
+-	now := time.Nanoseconds();
++	now := Nanoseconds();
+ 	when := now;
+ 	for {
+ 		when += ns;	// next alarm
+@@ -42,8 +42,8 @@ func ticker(ns int64, c chan int64) {
+ 			when += ns
+ 		}
+ 
+-		time.Sleep(when - now);
+-		now = time.Nanoseconds();
++		Sleep(when - now);
++		now = Nanoseconds();
+ 		c <- now;
+ 	}
+ }
+diff --git a/src/pkg/time/time.go b/src/pkg/time/time.go
+index 3d69d99912..d47dbe6a11 100644
+--- a/src/pkg/time/time.go
++++ b/src/pkg/time/time.go
+@@ -159,7 +159,7 @@ func UTC() *Time {
+ // SecondsToLocalTime converts sec, in number of seconds since the Unix epoch,
+ // into a parsed Time value in the local time zone.
+ func SecondsToLocalTime(sec int64) *Time {
+-	z, offset := time.lookupTimezone(sec);
++	z, offset := lookupTimezone(sec);
+ 	t := SecondsToUTC(sec+int64(offset));
+ 	t.Zone = z;
+ 	t.ZoneOffset = offset;

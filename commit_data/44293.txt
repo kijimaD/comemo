@@ -151,3 +151,52 @@ Date:   Fri Jun 5 16:55:43 2020 -0400
  test/fixedbugs/issue38093.go                       |  49 ++++
  test/fixedbugs/issue8606.go                        |  50 ++++
  139 files changed, 1893 insertions(+), 591 deletions(-)
+
+diff --cc src/cmd/internal/goobj/readnew.go
+index 43f0fdabed,7a84b91d3a..cd1a9049d0
+--- a/src/cmd/internal/goobj/readnew.go
++++ b/src/cmd/internal/goobj/readnew.go
+@@@ -56,12 -61,9 +61,9 @@@ func (r *objReader) readNew() 
+  			name, abi := goobj2.BuiltinName(int(s.SymIdx))
+  			return SymID{name, int64(abi)}
+  		case goobj2.PkgIdxSelf:
+ -			i = int(s.SymIdx)
+ +			i = s.SymIdx
+  		default:
+- 			// Symbol from other package, referenced by index.
+- 			// We don't know the name. Use index.
+- 			pkg := pkglist[p]
+- 			return SymID{fmt.Sprintf("%s.#%d", pkg, s.SymIdx), 0}
++ 			return SymID{refNames[s], 0}
+  		}
+  		sym := rr.Sym(i)
+  		return SymID{sym.Name(rr), abiToVer(sym.ABI())}
+@@@ -71,10 -73,9 +73,9 @@@
+  
+  	// Symbols
+  	pcdataBase := start + rr.PcdataBase()
+ -	n := rr.NSym() + rr.NNonpkgdef() + rr.NNonpkgref()
+ -	ndef := rr.NSym() + rr.NNonpkgdef()
+ -	for i := 0; i < n; i++ {
+ +	n := uint32(rr.NSym() + rr.NNonpkgdef() + rr.NNonpkgref())
+- 	npkgdef := uint32(rr.NSym())
+ +	ndef := uint32(rr.NSym() + rr.NNonpkgdef())
+ +	for i := uint32(0); i < n; i++ {
+  		osym := rr.Sym(i)
+  		if osym.Name(rr) == "" {
+  			continue // not a real symbol
+diff --cc src/cmd/link/internal/loader/loader.go
+index 191787675a,ab38bc3f5c..9b4214bdca
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@@ -1911,8 -1913,8 +1911,8 @@@ func (l *Loader) FuncInfo(i Sym) FuncIn
+  // Does not add non-package symbols yet, which will be done in LoadNonpkgSyms.
+  // Does not read symbol data.
+  // Returns the fingerprint of the object.
+ -func (l *Loader) Preload(syms *sym.Symbols, f *bio.Reader, lib *sym.Library, unit *sym.CompilationUnit, length int64) goobj2.FingerprintType {
+ +func (l *Loader) Preload(localSymVersion int, f *bio.Reader, lib *sym.Library, unit *sym.CompilationUnit, length int64) goobj2.FingerprintType {
+- 	roObject, readonly, err := f.Slice(uint64(length))
++ 	roObject, readonly, err := f.Slice(uint64(length)) // TODO: no need to map blocks that are for tools only (e.g. RefName)
+  	if err != nil {
+  		log.Fatal("cannot read object file:", err)
+  	}

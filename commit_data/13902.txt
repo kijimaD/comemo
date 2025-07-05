@@ -11,6 +11,41 @@ Date:   Sat Sep 22 17:57:54 2012 +1000
     R=alex.brainman
     CC=golang-dev
     https://golang.org/cl/6545047
-
+---
  src/cmd/cgo/gcc.go | 18 ++++++++++++++----
  1 file changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index eee7602307..963efa58de 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -830,15 +830,25 @@ func (p *Package) gccDebug(stdin []byte) (*dwarf.Data, binary.ByteOrder, []byte)
+ 		return d, f.ByteOrder, data
+ 	}
+ 
+-	// Can skip debug data block in PE for now.
+-	// The DWARF information is complete.
+-
+ 	if f, err := pe.Open(gccTmp()); err == nil {
+ 		d, err := f.DWARF()
+ 		if err != nil {
+ 			fatalf("cannot load DWARF output from %s: %v", gccTmp(), err)
+ 		}
+-		return d, binary.LittleEndian, nil
++		var data []byte
++		for _, s := range f.Symbols {
++			if s.Name == "_"+"__cgodebug_data" {
++				if i := int(s.SectionNumber) - 1; 0 <= i && i < len(f.Sections) {
++					sect := f.Sections[i]
++					if s.Value < sect.Size {
++						if sdat, err := sect.Data(); err == nil {
++							data = sdat[s.Value:]
++						}
++					}
++				}
++			}
++		}
++		return d, binary.LittleEndian, data
+ 	}
+ 
+ 	fatalf("cannot parse gcc output %s as ELF, Mach-O, PE object", gccTmp())

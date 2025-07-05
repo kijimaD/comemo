@@ -9,6 +9,20 @@ Date:   Thu May 31 15:07:02 2018 -0700
     Change-Id: I19ac3463682f662515feaf4c6132f55c12ba5386
     Reviewed-on: https://go-review.googlesource.com/115618
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/archive/zip/writer.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/archive/zip/writer.go b/src/archive/zip/writer.go
+index 0f1a193345..506148ee30 100644
+--- a/src/archive/zip/writer.go
++++ b/src/archive/zip/writer.go
+@@ -72,7 +72,7 @@ func (w *Writer) SetComment(comment string) error {
+ }
+ 
+ // Close finishes writing the zip file by writing the central directory.
+-// It does not (and cannot) close the underlying writer.
++// It does not close the underlying writer.
+ func (w *Writer) Close() error {
+ 	if w.last != nil && !w.last.closed {
+ 		if err := w.last.close(); err != nil {

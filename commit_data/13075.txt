@@ -9,7 +9,176 @@ Date:   Wed May 16 03:33:37 2012 +1000
     R=golang-dev, for.go.yong, rsc
     CC=golang-dev
     https://golang.org/cl/6200070
-
+---
  src/pkg/runtime/sys_netbsd_386.s   | 28 ++++++++++++++--------------
  src/pkg/runtime/sys_netbsd_amd64.s | 26 +++++++++++++-------------
  2 files changed, 27 insertions(+), 27 deletions(-)
+
+diff --git a/src/pkg/runtime/sys_netbsd_386.s b/src/pkg/runtime/sys_netbsd_386.s
+index 139f20d0f7..9b99807ad6 100644
+--- a/src/pkg/runtime/sys_netbsd_386.s
++++ b/src/pkg/runtime/sys_netbsd_386.s
+@@ -16,7 +16,7 @@ TEXT runtime·exit(SB),7,$-4
+ 	RET
+ 
+ TEXT runtime·exit1(SB),7,$-4
+-	MOVL	$302, AX		// sys_threxit
++	MOVL	$310, AX		// sys__lwp_exit
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	MOVL	$0xf1, 0xf1		// crash
+@@ -41,17 +41,17 @@ TEXT runtime·usleep(SB),7,$20
+ 	LEAL	12(SP), AX
+ 	MOVL	AX, 4(SP)		// arg 1 - rqtp
+ 	MOVL	$0, 8(SP)		// arg 2 - rmtp
+-	MOVL	$240, AX		// sys_nanosleep
++	MOVL	$430, AX		// sys_nanosleep
+ 	INT	$0x80
+ 	RET
+ 
+ TEXT runtime·raisesigpipe(SB),7,$12
+-	MOVL	$299, AX		// sys_getthrid
++	MOVL	$311, AX		// sys__lwp_self
+ 	INT	$0x80
+ 	MOVL	$0, 0(SP)
+-	MOVL	AX, 4(SP)		// arg 1 - pid
+-	MOVL	$13, 8(SP)		// arg 2 - signum == SIGPIPE
+-	MOVL	$37, AX			// sys_kill
++	MOVL	AX, 4(SP)		// arg 1 - target
++	MOVL	$13, 8(SP)		// arg 2 - signo == SIGPIPE
++	MOVL	$318, AX		// sys__lwp_kill
+ 	INT	$0x80
+ 	RET
+ 
+@@ -83,16 +83,16 @@ TEXT runtime·munmap(SB),7,$-4
+ 	RET
+ 
+ TEXT runtime·setitimer(SB),7,$-4
+-	MOVL	$83, AX
++	MOVL	$425, AX		// sys_setitimer
+ 	INT	$0x80
+ 	RET
+ 
+ // func now() (sec int64, nsec int32)
+ TEXT time·now(SB), 7, $32
+-	MOVL	$116, AX
+ 	LEAL	12(SP), BX
+-	MOVL	BX, 4(SP)
+-	MOVL	$0, 8(SP)
++	MOVL	BX, 4(SP)		// arg 1 - tp
++	MOVL	$0, 8(SP)		// arg 2 - tzp
++	MOVL	$418, AX		// sys_gettimeofday
+ 	INT	$0x80
+ 	MOVL	12(SP), AX		// sec
+ 	MOVL	16(SP), BX		// usec
+@@ -107,10 +107,10 @@ TEXT time·now(SB), 7, $32
+ // int64 nanotime(void) so really
+ // void nanotime(int64 *nsec)
+ TEXT runtime·nanotime(SB),7,$32
+-	MOVL	$116, AX
+ 	LEAL	12(SP), BX
+-	MOVL	BX, 4(SP)
+-	MOVL	$0, 8(SP)
++	MOVL	BX, 4(SP)		// arg 1 - tp
++	MOVL	$0, 8(SP)		// arg 2 - tzp
++	MOVL	$418, AX		// sys_gettimeofday
+ 	INT	$0x80
+ 	MOVL	12(SP), AX		// sec
+ 	MOVL	16(SP), BX		// usec
+@@ -307,7 +307,7 @@ TEXT runtime·settls(SB),7,$16
+ 	RET
+ 
+ TEXT runtime·osyield(SB),7,$-4
+-	MOVL	$298, AX		// sys_sched_yield
++	MOVL	$350, AX		// sys_sched_yield
+ 	INT	$0x80
+ 	RET
+ 
+diff --git a/src/pkg/runtime/sys_netbsd_amd64.s b/src/pkg/runtime/sys_netbsd_amd64.s
+index 0f70f7cfa0..c57d413bc4 100644
+--- a/src/pkg/runtime/sys_netbsd_amd64.s
++++ b/src/pkg/runtime/sys_netbsd_amd64.s
+@@ -58,7 +58,7 @@ TEXT runtime·rfork_thread(SB),7,$0
+ 	JMP	-3(PC)			// keep exiting
+ 
+ TEXT runtime·osyield(SB),7,$0
+-	MOVL $298, AX			// sys_sched_yield
++	MOVL	$350, AX		// sys_sched_yield
+ 	SYSCALL
+ 	RET
+ 
+@@ -87,7 +87,7 @@ TEXT runtime·exit(SB),7,$-8
+ 	RET
+ 
+ TEXT runtime·exit1(SB),7,$-8
+-	MOVL	$302, AX		// sys_threxit
++	MOVL	$310, AX		// sys__lwp_exit
+ 	SYSCALL
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+@@ -112,16 +112,16 @@ TEXT runtime·usleep(SB),7,$16
+ 
+ 	MOVQ	SP, DI			// arg 1 - rqtp
+ 	MOVQ	$0, SI			// arg 2 - rmtp
+-	MOVL	$240, AX		// sys_nanosleep
++	MOVL	$430, AX		// sys_nanosleep
+ 	SYSCALL
+ 	RET
+ 
+ TEXT runtime·raisesigpipe(SB),7,$16
+-	MOVL	$299, AX		// sys_getthrid
++	MOVL	$311, AX		// sys__lwp_self
+ 	SYSCALL
+-	MOVQ	AX, DI			// arg 1 - pid
+-	MOVQ	$13, SI			// arg 2 - signum == SIGPIPE
+-	MOVL	$37, AX			// sys_kill
++	MOVQ	AX, DI			// arg 1 - target
++	MOVQ	$13, SI			// arg 2 - signo == SIGPIPE
++	MOVL	$318, AX		// sys__lwp_kill
+ 	SYSCALL
+ 	RET
+ 
+@@ -129,7 +129,7 @@ TEXT runtime·setitimer(SB),7,$-8
+ 	MOVL	8(SP), DI		// arg 1 - which
+ 	MOVQ	16(SP), SI		// arg 2 - itv
+ 	MOVQ	24(SP), DX		// arg 3 - oitv
+-	MOVL	$83, AX			// sys_setitimer
++	MOVL	$425, AX		// sys_setitimer
+ 	SYSCALL
+ 	RET
+ 
+@@ -137,10 +137,10 @@ TEXT runtime·setitimer(SB),7,$-8
+ TEXT time·now(SB), 7, $32
+ 	LEAQ	8(SP), DI		// arg 1 - tp
+ 	MOVQ	$0, SI			// arg 2 - tzp
+-	MOVL	$116, AX		// sys_gettimeofday
++	MOVL	$418, AX		// sys_gettimeofday
+ 	SYSCALL
+ 	MOVQ	8(SP), AX		// sec
+-	MOVL	16(SP), DX	// usec
++	MOVL	16(SP), DX		// usec
+ 
+ 	// sec is in AX, usec in DX
+ 	MOVQ	AX, sec+0(FP)
+@@ -151,10 +151,10 @@ TEXT time·now(SB), 7, $32
+ TEXT runtime·nanotime(SB),7,$32
+ 	LEAQ	8(SP), DI		// arg 1 - tp
+ 	MOVQ	$0, SI			// arg 2 - tzp
+-	MOVL	$116, AX		// sys_gettimeofday
++	MOVL	$418, AX		// sys_gettimeofday
+ 	SYSCALL
+ 	MOVQ	8(SP), AX		// sec
+-	MOVL	16(SP), DX	// usec
++	MOVL	16(SP), DX		// usec
+ 
+ 	// sec is in AX, usec in DX
+ 	// return nsec in AX
+@@ -224,7 +224,7 @@ TEXT runtime·mmap(SB),7,$0
+ 	SUBQ	$16, SP
+ 	MOVQ	R9, 8(SP)		// arg 7 - offset (passed on stack)
+ 	MOVQ	$0, R9			// arg 6 - pad
+-	MOVL	$197, AX
++	MOVL	$197, AX		// sys_mmap
+ 	SYSCALL
+ 	JCC	2(PC)
+ 	NEGL	AX

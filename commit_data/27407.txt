@@ -22,6 +22,52 @@ Date:   Fri Mar 25 12:50:35 2016 +0000
     Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David du Colombier <0intro@gmail.com>
-
+---
  src/runtime/os1_plan9.go | 12 ++++++++++--
  1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/os1_plan9.go b/src/runtime/os1_plan9.go
+index b0b05bb7d7..2c257442ba 100644
+--- a/src/runtime/os1_plan9.go
++++ b/src/runtime/os1_plan9.go
+@@ -35,6 +35,9 @@ func sigblock() {
+ // Called to initialize a new m (including the bootstrap m).
+ // Called on the new thread, cannot allocate memory.
+ func minit() {
++	if atomic.Load(&exiting) != 0 {
++		exits(&emptystatus[0])
++	}
+ 	// Mask all SSE floating-point exceptions
+ 	// when running on the 64-bit kernel.
+ 	setfpmasks()
+@@ -148,15 +151,20 @@ func itoa(buf []byte, val uint64) []byte {
+ }
+ 
+ var goexits = []byte("go: exit ")
++var emptystatus = []byte("\x00")
++var exiting uint32
+ 
+ func goexitsall(status *byte) {
+ 	var buf [_ERRMAX]byte
++	if !atomic.Cas(&exiting, 0, 1) {
++		return
++	}
+ 	getg().m.locks++
+ 	n := copy(buf[:], goexits)
+ 	n = copy(buf[n:], gostringnocopy(status))
+ 	pid := getpid()
+ 	for mp := (*m)(atomic.Loadp(unsafe.Pointer(&allm))); mp != nil; mp = mp.alllink {
+-		if mp.procid != pid {
++		if mp.procid != 0 && mp.procid != pid {
+ 			postnote(mp.procid, buf[:])
+ 		}
+ 	}
+@@ -189,7 +197,7 @@ func postnote(pid uint64, msg []byte) int {
+ func exit(e int) {
+ 	var status []byte
+ 	if e == 0 {
+-		status = []byte("\x00")
++		status = emptystatus
+ 	} else {
+ 		// build error string
+ 		var tmp [32]byte

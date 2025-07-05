@@ -12,7 +12,116 @@ Date:   Fri Sep 9 19:29:25 2016 +0000
     Reviewed-by: Francesc Campoy Flores <campoy@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/url/url.go      | 41 +++++++++++++++++++++++++++++++++++++++++
  src/net/url/url_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 85 insertions(+)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 4a6253bdcc..a0a2931c9e 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -872,6 +872,7 @@ func resolvePath(base, ref string) string {
+ }
+ 
+ // IsAbs reports whether the URL is absolute.
++// Absolute means that it has a non-empty scheme.
+ func (u *URL) IsAbs() bool {
+ 	return u.Scheme != ""
+ }
+@@ -951,3 +952,43 @@ func (u *URL) RequestURI() string {
+ 	}
+ 	return result
+ }
++
++// Hostname returns u.Host, without any port number.
++//
++// If Host is an IPv6 literal with a port number, Hostname returns the
++// IPv6 literal without the square brackets. IPv6 literals may include
++// a zone identifier.
++func (u *URL) Hostname() string {
++	return stripPort(u.Host)
++}
++
++// Port returns the port part of u.Host, without the leading colon.
++// If u.Host doesn't contain a port, Port returns an empty string.
++func (u *URL) Port() string {
++	return portOnly(u.Host)
++}
++
++func stripPort(hostport string) string {
++	colon := strings.IndexByte(hostport, ':')
++	if colon == -1 {
++		return hostport
++	}
++	if i := strings.IndexByte(hostport, ']'); i != -1 {
++		return strings.TrimPrefix(hostport[:i], "[")
++	}
++	return hostport[:colon]
++}
++
++func portOnly(hostport string) string {
++	colon := strings.IndexByte(hostport, ':')
++	if colon == -1 {
++		return ""
++	}
++	if i := strings.Index(hostport, "]:"); i != -1 {
++		return hostport[i+len("]:"):]
++	}
++	if strings.Contains(hostport, "]") {
++		return ""
++	}
++	return hostport[colon+len(":"):]
++}
+diff --git a/src/net/url/url_test.go b/src/net/url/url_test.go
+index 76e16812a5..73f5699152 100644
+--- a/src/net/url/url_test.go
++++ b/src/net/url/url_test.go
+@@ -1479,3 +1479,47 @@ func TestURLErrorImplementsNetError(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestURLHostname(t *testing.T) {
++	tests := []struct {
++		host string // URL.Host field
++		want string
++	}{
++		{"foo.com:80", "foo.com"},
++		{"foo.com", "foo.com"},
++		{"FOO.COM", "FOO.COM"}, // no canonicalization (yet?)
++		{"1.2.3.4", "1.2.3.4"},
++		{"1.2.3.4:80", "1.2.3.4"},
++		{"[1:2:3:4]", "1:2:3:4"},
++		{"[1:2:3:4]:80", "1:2:3:4"},
++		{"[::1]:80", "::1"},
++	}
++	for _, tt := range tests {
++		u := &URL{Host: tt.host}
++		got := u.Hostname()
++		if got != tt.want {
++			t.Errorf("Hostname for Host %q = %q; want %q", tt.host, got, tt.want)
++		}
++	}
++}
++
++func TestURLPort(t *testing.T) {
++	tests := []struct {
++		host string // URL.Host field
++		want string
++	}{
++		{"foo.com", ""},
++		{"foo.com:80", "80"},
++		{"1.2.3.4", ""},
++		{"1.2.3.4:80", "80"},
++		{"[1:2:3:4]", ""},
++		{"[1:2:3:4]:80", "80"},
++	}
++	for _, tt := range tests {
++		u := &URL{Host: tt.host}
++		got := u.Port()
++		if got != tt.want {
++			t.Errorf("Port for Host %q = %q; want %q", tt.host, got, tt.want)
++		}
++	}
++}

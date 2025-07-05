@@ -8,6 +8,18 @@ Date:   Tue Feb 25 10:54:09 2014 -0500
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/68600043
-
+---
  doc/go1.3.txt | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/doc/go1.3.txt b/doc/go1.3.txt
+index 95db83a728..c2f26c42a0 100644
+--- a/doc/go1.3.txt
++++ b/doc/go1.3.txt
+@@ -10,4 +10,6 @@ cmd/go, go/build: support .m files (CL 60590044)
+ unicode: upgrade from Unicode 6.2.0 to 6.3.0 (CL 65400044)
+ runtime/debug: add SetPanicOnFault (CL 66590044)
+ crypto/tls: ServerName or InsecureSkipVerify (CL 67010043)
++crypto/tls: report TLS version in ConnectionState (CL 68250043)
++crypto/x509: support CSRs (CL 49830048)
+ cmd/go: add -exec to 'go run' and 'go test' (CL 68580043)

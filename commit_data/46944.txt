@@ -12,7 +12,7 @@ Date:   Wed Feb 17 17:06:53 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/293292
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/importer/support.go  |  4 ---
  src/cmd/compile/internal/types2/builtins.go   |  6 ++--
  src/cmd/compile/internal/types2/call.go       |  2 +-
@@ -27,3 +27,396 @@ Date:   Wed Feb 17 17:06:53 2021 -0800
  src/cmd/compile/internal/types2/unify.go      |  6 ++--
  src/cmd/compile/internal/types2/universe.go   |  2 +-
  13 files changed, 43 insertions(+), 62 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/support.go b/src/cmd/compile/internal/importer/support.go
+index cac87745fe..b143913583 100644
+--- a/src/cmd/compile/internal/importer/support.go
++++ b/src/cmd/compile/internal/importer/support.go
+@@ -127,7 +127,3 @@ type anyType struct{}
+ func (t anyType) Underlying() types2.Type { return t }
+ func (t anyType) Under() types2.Type      { return t }
+ func (t anyType) String() string          { return "any" }
+-
+-// types2.aType is not exported for now so we need to implemented these here.
+-func (anyType) Named() *types2.Named         { return nil }
+-func (anyType) TypeParam() *types2.TypeParam { return nil }
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 763122bc5b..16e294d226 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -577,7 +577,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 	case _Alignof:
+ 		// unsafe.Alignof(x T) uintptr
+-		if x.typ.TypeParam() != nil {
++		if asTypeParam(x.typ) != nil {
+ 			check.invalidOpf(call, "unsafe.Alignof undefined for %s", x)
+ 			return
+ 		}
+@@ -638,7 +638,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 	case _Sizeof:
+ 		// unsafe.Sizeof(x T) uintptr
+-		if x.typ.TypeParam() != nil {
++		if asTypeParam(x.typ) != nil {
+ 			check.invalidOpf(call, "unsafe.Sizeof undefined for %s", x)
+ 			return
+ 		}
+@@ -705,7 +705,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ // applyTypeFunc returns nil.
+ // If x is not a type parameter, the result is f(x).
+ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
+-	if tp := x.TypeParam(); tp != nil {
++	if tp := asTypeParam(x); tp != nil {
+ 		// Test if t satisfies the requirements for the argument
+ 		// type and collect possible result types at the same time.
+ 		var rtypes []Type
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 10db701324..67a76d14fb 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -563,7 +563,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
+ 			check.errorf(e.Sel, "cannot call pointer method %s on %s", sel, x.typ)
+ 		default:
+ 			var why string
+-			if tpar := x.typ.TypeParam(); tpar != nil {
++			if tpar := asTypeParam(x.typ); tpar != nil {
+ 				// Type parameter bounds don't specify fields, so don't mention "field".
+ 				switch obj := tpar.Bound().obj.(type) {
+ 				case nil:
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 59d0a112b1..e9fc08df37 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -559,7 +559,7 @@ func (n0 *Named) Under() Type {
+ 
+ 	// If the underlying type of a defined type is not a defined
+ 	// type, then that is the desired underlying type.
+-	n := u.Named()
++	n := asNamed(u)
+ 	if n == nil {
+ 		return u // common case
+ 	}
+@@ -573,7 +573,7 @@ func (n0 *Named) Under() Type {
+ 			u = Typ[Invalid]
+ 			break
+ 		}
+-		n1 := u.Named()
++		n1 := asNamed(u)
+ 		if n1 == nil {
+ 			break // end of chain
+ 		}
+@@ -760,7 +760,7 @@ func (check *Checker) collectMethods(obj *TypeName) {
+ 
+ 	// spec: "If the base type is a struct type, the non-blank method
+ 	// and field names must be distinct."
+-	base := obj.typ.Named() // shouldn't fail but be conservative
++	base := asNamed(obj.typ) // shouldn't fail but be conservative
+ 	if base != nil {
+ 		if t, _ := base.underlying.(*Struct); t != nil {
+ 			for _, fld := range t.fields {
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 07b23c9eff..57c8896e0d 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -615,7 +615,7 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
+ 	// TODO(gri) We should not need this because we have the code
+ 	// for Sum types in convertUntypedInternal. But at least one
+ 	// test fails. Investigate.
+-	if t := target.TypeParam(); t != nil {
++	if t := asTypeParam(target); t != nil {
+ 		types := t.Bound().allTypes
+ 		if types == nil {
+ 			goto Error
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index df25c9cf70..e210850ba0 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -54,7 +54,7 @@ func (check *Checker) lookupFieldOrMethod(T Type, addressable bool, pkg *Package
+ 	// Thus, if we have a named pointer type, proceed with the underlying
+ 	// pointer type but discard the result if it is a method since we would
+ 	// not have found it for T (see also issue 8590).
+-	if t := T.Named(); t != nil {
++	if t := asNamed(T); t != nil {
+ 		if p, _ := t.underlying.(*Pointer); p != nil {
+ 			obj, index, indirect = check.rawLookupFieldOrMethod(p, false, pkg, name)
+ 			if _, ok := obj.(*Func); ok {
+@@ -112,7 +112,7 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
+ 
+ 			// If we have a named type, we may have associated methods.
+ 			// Look for those first.
+-			if named := typ.Named(); named != nil {
++			if named := asNamed(typ); named != nil {
+ 				if seen[named] {
+ 					// We have seen this type before, at a more shallow depth
+ 					// (note that multiples of this type at the current depth
+@@ -142,7 +142,7 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
+ 				// continue with underlying type, but only if it's not a type parameter
+ 				// TODO(gri) is this what we want to do for type parameters? (spec question)
+ 				typ = named.Under()
+-				if typ.TypeParam() != nil {
++				if asTypeParam(typ) != nil {
+ 					continue
+ 				}
+ 			}
+@@ -352,7 +352,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ 
+ 	// A concrete type implements T if it implements all methods of T.
+ 	Vd, _ := deref(V)
+-	Vn := Vd.Named()
++	Vn := asNamed(Vd)
+ 	for _, m := range T.allMethods {
+ 		// TODO(gri) should this be calling lookupFieldOrMethod instead (and why not)?
+ 		obj, _, _ := check.rawLookupFieldOrMethod(V, false, m.pkg, m.name)
+diff --git a/src/cmd/compile/internal/types2/operand.go b/src/cmd/compile/internal/types2/operand.go
+index dcd29fbce0..238c9b8ee0 100644
+--- a/src/cmd/compile/internal/types2/operand.go
++++ b/src/cmd/compile/internal/types2/operand.go
+@@ -180,7 +180,7 @@ func operandString(x *operand, qf Qualifier) string {
+ 			switch {
+ 			case isGeneric(x.typ):
+ 				intro = " of generic type "
+-			case x.typ.TypeParam() != nil:
++			case asTypeParam(x.typ) != nil:
+ 				intro = " of type parameter type "
+ 			default:
+ 				intro = " of type "
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index a7972c6928..a48e72b9c4 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -104,7 +104,7 @@ func comparable(T Type, seen map[Type]bool) bool {
+ 	//     interface{ comparable; type []byte }
+ 	//
+ 	// is not comparable because []byte is not comparable.
+-	if t := T.TypeParam(); t != nil && optype(t) == theTop {
++	if t := asTypeParam(T); t != nil && optype(t) == theTop {
+ 		return t.Bound().IsComparable()
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/subst.go b/src/cmd/compile/internal/types2/subst.go
+index 27405d8f41..fc4b228e33 100644
+--- a/src/cmd/compile/internal/types2/subst.go
++++ b/src/cmd/compile/internal/types2/subst.go
+@@ -146,7 +146,7 @@ func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, poslis
+ 			// If the type argument is a pointer to a type parameter, the type argument's
+ 			// method set is empty.
+ 			// TODO(gri) is this what we want? (spec question)
+-			if base, isPtr := deref(targ); isPtr && base.TypeParam() != nil {
++			if base, isPtr := deref(targ); isPtr && asTypeParam(base) != nil {
+ 				check.errorf(pos, "%s has no methods", targ)
+ 				break
+ 			}
+@@ -179,7 +179,7 @@ func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, poslis
+ 
+ 		// If targ is itself a type parameter, each of its possible types, but at least one, must be in the
+ 		// list of iface types (i.e., the targ type list must be a non-empty subset of the iface types).
+-		if targ := targ.TypeParam(); targ != nil {
++		if targ := asTypeParam(targ); targ != nil {
+ 			targBound := targ.Bound()
+ 			if targBound.allTypes == nil {
+ 				check.softErrorf(pos, "%s does not satisfy %s (%s has no type constraints)", targ, tpar.bound, targ)
+diff --git a/src/cmd/compile/internal/types2/type.go b/src/cmd/compile/internal/types2/type.go
+index f90abba8da..4b6f507393 100644
+--- a/src/cmd/compile/internal/types2/type.go
++++ b/src/cmd/compile/internal/types2/type.go
+@@ -26,13 +26,6 @@ type Type interface {
+ 
+ 	// String returns a string representation of a type.
+ 	String() string
+-
+-	// If the receiver for Named and TypeParam is of
+-	// the respective type (possibly after unpacking
+-	// an instance type), these methods return that
+-	// type. Otherwise the result is nil.
+-	Named() *Named
+-	TypeParam() *TypeParam
+ }
+ 
+ // aType implements default type behavior
+@@ -43,9 +36,6 @@ func (aType) Underlying() Type { panic("unreachable") }
+ func (aType) Under() Type      { panic("unreachable") }
+ func (aType) String() string   { panic("unreachable") }
+ 
+-func (aType) Named() *Named         { return nil }
+-func (aType) TypeParam() *TypeParam { return nil }
+-
+ // BasicKind describes the kind of basic type.
+ type BasicKind int
+ 
+@@ -209,6 +199,9 @@ type Tuple struct {
+ 	aType
+ }
+ 
++// TODO(gri) Don't represent empty tuples with a (*Tuple)(nil) pointer;
++//           it's too subtle and causes problems. Use a singleton instead.
++
+ // NewTuple returns a new tuple for the given variables.
+ func NewTuple(x ...*Var) *Tuple {
+ 	if len(x) > 0 {
+@@ -217,16 +210,6 @@ func NewTuple(x ...*Var) *Tuple {
+ 	return nil
+ }
+ 
+-// We cannot rely on the embedded X() *X methods because (*Tuple)(nil)
+-// is a valid *Tuple value but (*Tuple)(nil).X() would panic without
+-// these implementations. At the moment we only need X = Basic, Named,
+-// but add all because missing one leads to very confusing bugs.
+-// TODO(gri) Don't represent empty tuples with a (*Tuple)(nil) pointer;
+-//           it's too subtle and causes problems.
+-
+-func (*Tuple) Named() *Named         { return nil }
+-func (*Tuple) TypeParam() *TypeParam { return nil }
+-
+ // Len returns the number variables of tuple t.
+ func (t *Tuple) Len() int {
+ 	if t != nil {
+@@ -730,9 +713,6 @@ func (check *Checker) NewNamed(obj *TypeName, underlying Type, methods []*Func)
+ // Obj returns the type name for the named type t.
+ func (t *Named) Obj() *TypeName { return t.obj }
+ 
+-// func (t *Named) Named() *Named      // declared below
+-func (t *Named) TypeParam() *TypeParam { return t.Under().TypeParam() }
+-
+ // TODO(gri) Come up with a better representation and API to distinguish
+ //           between parameterized instantiated and non-instantiated types.
+ 
+@@ -814,7 +794,7 @@ func (t *TypeParam) Bound() *Interface {
+ // result may be the bottom or top type, but it is never
+ // the incoming type parameter.
+ func optype(typ Type) Type {
+-	if t := typ.TypeParam(); t != nil {
++	if t := asTypeParam(typ); t != nil {
+ 		// If the optype is typ, return the top type as we have
+ 		// no information. It also prevents infinite recursion
+ 		// via the TypeParam converter methods. This can happen
+@@ -830,9 +810,6 @@ func optype(typ Type) Type {
+ 	return typ.Under()
+ }
+ 
+-// func (t *TypeParam) Named() *Named         // Named does not unpack type parameters
+-// func (t *TypeParam) TypeParam() *TypeParam // declared below
+-
+ // An instance represents an instantiated generic type syntactically
+ // (without expanding the instantiation). Type instances appear only
+ // during type-checking and are replaced by their fully instantiated
+@@ -847,9 +824,6 @@ type instance struct {
+ 	aType
+ }
+ 
+-func (t *instance) Named() *Named         { return t.expand().Named() }
+-func (t *instance) TypeParam() *TypeParam { return t.expand().TypeParam() }
+-
+ // expand returns the instantiated (= expanded) type of t.
+ // The result is either an instantiated *Named type, or
+ // Typ[Invalid] if there was an error.
+@@ -908,9 +882,6 @@ type top struct {
+ // theTop is the singleton top type.
+ var theTop = &top{}
+ 
+-func (t *Named) Named() *Named             { return t }
+-func (t *TypeParam) TypeParam() *TypeParam { return t }
+-
+ // Type-specific implementations of Underlying.
+ func (t *Basic) Underlying() Type     { return t }
+ func (t *Array) Underlying() Type     { return t }
+@@ -1025,3 +996,17 @@ func asChan(t Type) *Chan {
+ 	op, _ := optype(t).(*Chan)
+ 	return op
+ }
++
++// If the argument to asNamed and asTypeParam is of the respective types
++// (possibly after expanding an instance type), these methods return that type.
++// Otherwise the result is nil.
++
++func asNamed(t Type) *Named {
++	e, _ := expand(t).(*Named)
++	return e
++}
++
++func asTypeParam(t Type) *TypeParam {
++	u, _ := t.Under().(*TypeParam)
++	return u
++}
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 7ee28abac3..cf9d7c0a40 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -302,7 +302,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 				// Also: Don't report an error via genericType since it will be reported
+ 				//       again when we type-check the signature.
+ 				// TODO(gri) maybe the receiver should be marked as invalid instead?
+-				if recv := check.genericType(rname, false).Named(); recv != nil {
++				if recv := asNamed(check.genericType(rname, false)); recv != nil {
+ 					recvTParams = recv.tparams
+ 				}
+ 			}
+@@ -382,7 +382,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 		// (ignore invalid types - error was reported before)
+ 		if t := rtyp; t != Typ[Invalid] {
+ 			var err string
+-			if T := t.Named(); T != nil {
++			if T := asNamed(t); T != nil {
+ 				// spec: "The type denoted by T is called the receiver base type; it must not
+ 				// be a pointer or interface type and it must be declared in the same package
+ 				// as the method."
+@@ -575,7 +575,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
+ 		check.atEnd(func() {
+ 			if !Comparable(typ.key) {
+ 				var why string
+-				if typ.key.TypeParam() != nil {
++				if asTypeParam(typ.key) != nil {
+ 					why = " (missing comparable constraint)"
+ 				}
+ 				check.errorf(e.Key, "invalid map key type %s%s", typ.key, why)
+@@ -644,7 +644,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, targs []syntax.Expr, def *
+ 	if b == Typ[Invalid] {
+ 		return b // error already reported
+ 	}
+-	base := b.Named()
++	base := asNamed(b)
+ 	if base == nil {
+ 		unreachable() // should have been caught by genericType
+ 	}
+@@ -1045,7 +1045,7 @@ func (a byUniqueTypeName) Less(i, j int) bool { return sortName(a[i]) < sortName
+ func (a byUniqueTypeName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+ 
+ func sortName(t Type) string {
+-	if named := t.Named(); named != nil {
++	if named := asNamed(t); named != nil {
+ 		return named.obj.Id()
+ 	}
+ 	return ""
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index ab19c5a38b..153df9d622 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -211,12 +211,12 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+ 		// match a type name against an unnamed type literal, consider
+ 		// the underlying type of the named type.
+ 		// (Subtle: We use isNamed to include any type with a name (incl.
+-		// basic types and type parameters. We use Named() because we only
++		// basic types and type parameters. We use asNamed because we only
+ 		// want *Named types.)
+ 		switch {
+-		case !isNamed(x) && y != nil && y.Named() != nil:
++		case !isNamed(x) && y != nil && asNamed(y) != nil:
+ 			return u.nify(x, y.Under(), p)
+-		case x != nil && x.Named() != nil && !isNamed(y):
++		case x != nil && asNamed(x) != nil && !isNamed(y):
+ 			return u.nify(x.Under(), y, p)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/types2/universe.go b/src/cmd/compile/internal/types2/universe.go
+index dc79902777..994e298a6c 100644
+--- a/src/cmd/compile/internal/types2/universe.go
++++ b/src/cmd/compile/internal/types2/universe.go
+@@ -255,7 +255,7 @@ func def(obj Object) {
+ 		return // nothing to do
+ 	}
+ 	// fix Obj link for named types
+-	if typ := obj.Type().Named(); typ != nil {
++	if typ := asNamed(obj.Type()); typ != nil {
+ 		typ.obj = obj.(*TypeName)
+ 	}
+ 	// exported identifiers go into package unsafe

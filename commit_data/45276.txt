@@ -13,6 +13,20 @@ Date:   Fri Oct 16 15:29:25 2020 -0400
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/objdump/objdump_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index 02a8b71385..cb692e7a81 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -262,6 +262,8 @@ func TestDisasmExtld(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9", "windows":
+ 		t.Skipf("skipping on %s", runtime.GOOS)
++	case "aix":
++		t.Skipf("skipping on AIX, see issue 40972")
+ 	}
+ 	t.Parallel()
+ 	testDisasm(t, "fmthello.go", false, false, "-ldflags=-linkmode=external")

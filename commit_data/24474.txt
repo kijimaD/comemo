@@ -503,3 +503,18 @@ Date:   Thu Jul 30 12:22:02 2015 -0700
  test/run.go                                        |   23 +-
  test/sinit.go                                      |    5 +
  493 files changed, 13259 insertions(+), 21905 deletions(-)
+
+diff --cc src/cmd/dist/buildtool.go
+index 9b37bd97d2,8a55b5da70..b231b5ce61
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@@ -35,9 -35,7 +35,8 @@@ var bootstrapDirs = []string
+  	"compile/internal/big",
+  	"compile/internal/gc",
+  	"compile/internal/ppc64",
+ +	"compile/internal/ssa",
+  	"compile/internal/x86",
+- 	"internal/asm",
+  	"internal/gcprog",
+  	"internal/obj",
+  	"internal/obj/arm",

@@ -9,9 +9,156 @@ Date:   Mon May 16 16:57:49 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4543052
-
+---
  src/cmd/8l/pass.c         | 15 +--------------
  src/pkg/runtime/proc.c    | 12 ++++++------
  src/pkg/runtime/runtime.h | 14 --------------
  src/pkg/runtime/stack.h   | 14 ++++++++++++--
  4 files changed, 19 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index 28589b66a1..72ae043d64 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -32,23 +32,10 @@
+ 
+ #include	"l.h"
+ #include	"../ld/lib.h"
++#include "../../pkg/runtime/stack.h"
+ 
+ static void xfol(Prog*, Prog**);
+ 
+-// see ../../pkg/runtime/proc.c:/StackGuard
+-enum
+-{
+-#ifdef __WINDOWS__
+-	// use larger stacks to compensate for larger stack guard,
+-	// needed for exception handling.
+-	StackSmall = 256,
+-	StackBig = 8192,
+-#else
+-	StackSmall = 128,
+-	StackBig = 4096,
+-#endif
+-};
+-
+ Prog*
+ brchain(Prog *p)
+ {
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 61faa15594..c5af8b754a 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -714,7 +714,7 @@ runtime·oldstack(void)
+ 	goid = old.gobuf.g->goid;	// fault if g is bad, before gogo
+ 
+ 	if(old.free != 0)
+-		runtime·stackfree(g1->stackguard - StackGuard - StackSystem, old.free);
++		runtime·stackfree(g1->stackguard - StackGuard, old.free);
+ 	g1->stackbase = old.stackbase;
+ 	g1->stackguard = old.stackguard;
+ 
+@@ -756,7 +756,7 @@ runtime·newstack(void)
+ 		// the new Stktop* is necessary to unwind, but
+ 		// we don't need to create a new segment.
+ 		top = (Stktop*)(m->morebuf.sp - sizeof(*top));
+-		stk = g1->stackguard - StackGuard - StackSystem;
++		stk = g1->stackguard - StackGuard;
+ 		free = 0;
+ 	} else {
+ 		// allocate new segment.
+@@ -785,7 +785,7 @@ runtime·newstack(void)
+ 	g1->ispanic = false;
+ 
+ 	g1->stackbase = (byte*)top;
+-	g1->stackguard = stk + StackGuard + StackSystem;
++	g1->stackguard = stk + StackGuard;
+ 
+ 	sp = (byte*)top;
+ 	if(argsize > 0) {
+@@ -834,7 +834,7 @@ runtime·malg(int32 stacksize)
+ 			g->param = nil;
+ 		}
+ 		newg->stack0 = stk;
+-		newg->stackguard = stk + StackSystem + StackGuard;
++		newg->stackguard = stk + StackGuard;
+ 		newg->stackbase = stk + StackSystem + stacksize - sizeof(Stktop);
+ 		runtime·memclr(newg->stackbase, sizeof(Stktop));
+ 	}
+@@ -880,7 +880,7 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
+ 
+ 	if((newg = gfget()) != nil){
+ 		newg->status = Gwaiting;
+-		if(newg->stackguard - StackGuard - StackSystem != newg->stack0)
++		if(newg->stackguard - StackGuard != newg->stack0)
+ 			runtime·throw("invalid stack in newg");
+ 	} else {
+ 		newg = runtime·malg(StackMin);
+@@ -1165,7 +1165,7 @@ nomatch:
+ static void
+ gfput(G *g)
+ {
+-	if(g->stackguard - StackGuard - StackSystem != g->stack0)
++	if(g->stackguard - StackGuard != g->stack0)
+ 		runtime·throw("invalid stack in gfput");
+ 	g->schedlink = runtime·sched.gfree;
+ 	runtime·sched.gfree = g;
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index f9b404e152..f2f8dcd5b9 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -597,17 +597,3 @@ int32	runtime·chancap(Hchan*);
+ 
+ void	runtime·ifaceE2I(struct InterfaceType*, Eface, Iface*);
+ 
+-enum
+-{
+-	// StackSystem is a number of additional bytes to add
+-	// to each stack below the usual guard area for OS-specific
+-	// purposes like signal handling.
+-	// TODO(rsc): This is only for Windows.  Can't Windows use
+-	// a separate exception stack like every other operating system?
+-#ifdef __WINDOWS__
+-	StackSystem = 2048,
+-#else
+-	StackSystem = 0,
+-#endif
+-};
+-
+diff --git a/src/pkg/runtime/stack.h b/src/pkg/runtime/stack.h
+index ebf0462b56..2b6b0e3876 100644
+--- a/src/pkg/runtime/stack.h
++++ b/src/pkg/runtime/stack.h
+@@ -53,6 +53,16 @@ functions to make sure that this limit cannot be violated.
+  */
+ 
+ enum {
++	// StackSystem is a number of additional bytes to add
++	// to each stack below the usual guard area for OS-specific
++	// purposes like signal handling. Used on Windows because
++	// it does not use a separate stack.
++#ifdef __WINDOWS__
++	StackSystem = 2048,
++#else
++	StackSystem = 0,
++#endif
++
+ 	// The amount of extra stack to allocate beyond the size
+ 	// needed for the single frame that triggered the split.
+ 	StackExtra = 1024,
+@@ -73,7 +83,7 @@ enum {
+ 
+ 	// The stack guard is a pointer this many bytes above the
+ 	// bottom of the stack.
+-	StackGuard = 256,
++	StackGuard = 256 + StackSystem,
+ 
+ 	// After a stack split check the SP is allowed to be this
+ 	// many bytes below the stack guard.  This saves an instruction
+@@ -82,5 +92,5 @@ enum {
+ 
+ 	// The maximum number of bytes that a chain of NOSPLIT
+ 	// functions can use.
+-	StackLimit = StackGuard - StackSmall,
++	StackLimit = StackGuard - StackSystem - StackSmall,
+ };

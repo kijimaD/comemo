@@ -13,9 +13,133 @@ Date:   Sun Jan 24 15:20:36 2016 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/amd64enc.s | 64 ++++++++++++++--------------
  src/cmd/internal/obj/x86/a.out.go            |  4 ++
  src/cmd/internal/obj/x86/anames.go           |  4 ++
  src/cmd/internal/obj/x86/asm6.go             |  4 ++
  4 files changed, 44 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64enc.s b/src/cmd/asm/internal/asm/testdata/amd64enc.s
+index 63ba7cafea..63fdcac27d 100644
+--- a/src/cmd/asm/internal/asm/testdata/amd64enc.s
++++ b/src/cmd/asm/internal/asm/testdata/amd64enc.s
+@@ -1878,39 +1878,39 @@ TEXT asmtest(SB),7,$0
+ 	FXTRACT                                 // d9f4
+ 	FYL2X                                   // d9f1
+ 	FYL2XP1                                 // d9f9
+-	//TODO: HADDPD (BX), X2                 // 660f7c13
+-	//TODO: HADDPD (R11), X2                // 66410f7c13
+-	//TODO: HADDPD X2, X2                   // 660f7cd2
+-	//TODO: HADDPD X11, X2                  // 66410f7cd3
+-	//TODO: HADDPD (BX), X11                // 66440f7c1b
+-	//TODO: HADDPD (R11), X11               // 66450f7c1b
+-	//TODO: HADDPD X2, X11                  // 66440f7cda
+-	//TODO: HADDPD X11, X11                 // 66450f7cdb
+-	//TODO: HADDPS (BX), X2                 // f20f7c13
+-	//TODO: HADDPS (R11), X2                // f2410f7c13
+-	//TODO: HADDPS X2, X2                   // f20f7cd2
+-	//TODO: HADDPS X11, X2                  // f2410f7cd3
+-	//TODO: HADDPS (BX), X11                // f2440f7c1b
+-	//TODO: HADDPS (R11), X11               // f2450f7c1b
+-	//TODO: HADDPS X2, X11                  // f2440f7cda
+-	//TODO: HADDPS X11, X11                 // f2450f7cdb
++	HADDPD (BX), X2                         // 660f7c13
++	HADDPD (R11), X2                        // 66410f7c13
++	HADDPD X2, X2                           // 660f7cd2
++	HADDPD X11, X2                          // 66410f7cd3
++	HADDPD (BX), X11                        // 66440f7c1b
++	HADDPD (R11), X11                       // 66450f7c1b
++	HADDPD X2, X11                          // 66440f7cda
++	HADDPD X11, X11                         // 66450f7cdb
++	HADDPS (BX), X2                         // f20f7c13
++	HADDPS (R11), X2                        // f2410f7c13
++	HADDPS X2, X2                           // f20f7cd2
++	HADDPS X11, X2                          // f2410f7cd3
++	HADDPS (BX), X11                        // f2440f7c1b
++	HADDPS (R11), X11                       // f2450f7c1b
++	HADDPS X2, X11                          // f2440f7cda
++	HADDPS X11, X11                         // f2450f7cdb
+ 	HLT                                     // f4
+-	//TODO: HSUBPD (BX), X2                 // 660f7d13
+-	//TODO: HSUBPD (R11), X2                // 66410f7d13
+-	//TODO: HSUBPD X2, X2                   // 660f7dd2
+-	//TODO: HSUBPD X11, X2                  // 66410f7dd3
+-	//TODO: HSUBPD (BX), X11                // 66440f7d1b
+-	//TODO: HSUBPD (R11), X11               // 66450f7d1b
+-	//TODO: HSUBPD X2, X11                  // 66440f7dda
+-	//TODO: HSUBPD X11, X11                 // 66450f7ddb
+-	//TODO: HSUBPS (BX), X2                 // f20f7d13
+-	//TODO: HSUBPS (R11), X2                // f2410f7d13
+-	//TODO: HSUBPS X2, X2                   // f20f7dd2
+-	//TODO: HSUBPS X11, X2                  // f2410f7dd3
+-	//TODO: HSUBPS (BX), X11                // f2440f7d1b
+-	//TODO: HSUBPS (R11), X11               // f2450f7d1b
+-	//TODO: HSUBPS X2, X11                  // f2440f7dda
+-	//TODO: HSUBPS X11, X11                 // f2450f7ddb
++	HSUBPD (BX), X2                         // 660f7d13
++	HSUBPD (R11), X2                        // 66410f7d13
++	HSUBPD X2, X2                           // 660f7dd2
++	HSUBPD X11, X2                          // 66410f7dd3
++	HSUBPD (BX), X11                        // 66440f7d1b
++	HSUBPD (R11), X11                       // 66450f7d1b
++	HSUBPD X2, X11                          // 66440f7dda
++	HSUBPD X11, X11                         // 66450f7ddb
++	HSUBPS (BX), X2                         // f20f7d13
++	HSUBPS (R11), X2                        // f2410f7d13
++	HSUBPS X2, X2                           // f20f7dd2
++	HSUBPS X11, X2                          // f2410f7dd3
++	HSUBPS (BX), X11                        // f2440f7d1b
++	HSUBPS (R11), X11                       // f2450f7d1b
++	HSUBPS X2, X11                          // f2440f7dda
++	HSUBPS X11, X11                         // f2450f7ddb
+ 	//TODO: ICEBP                           // f1
+ 	IDIVW (BX)                              // 66f73b
+ 	IDIVW (R11)                             // 6641f73b
+diff --git a/src/cmd/internal/obj/x86/a.out.go b/src/cmd/internal/obj/x86/a.out.go
+index efce9867d5..12eaa90bf6 100644
+--- a/src/cmd/internal/obj/x86/a.out.go
++++ b/src/cmd/internal/obj/x86/a.out.go
+@@ -89,7 +89,11 @@ const (
+ 	ADIVL
+ 	ADIVW
+ 	AENTER
++	AHADDPD
++	AHADDPS
+ 	AHLT
++	AHSUBPD
++	AHSUBPS
+ 	AIDIVB
+ 	AIDIVL
+ 	AIDIVW
+diff --git a/src/cmd/internal/obj/x86/anames.go b/src/cmd/internal/obj/x86/anames.go
+index b1c3f00f7c..1875eae418 100644
+--- a/src/cmd/internal/obj/x86/anames.go
++++ b/src/cmd/internal/obj/x86/anames.go
+@@ -57,7 +57,11 @@ var Anames = []string{
+ 	"DIVL",
+ 	"DIVW",
+ 	"ENTER",
++	"HADDPD",
++	"HADDPS",
+ 	"HLT",
++	"HSUBPD",
++	"HSUBPS",
+ 	"IDIVB",
+ 	"IDIVL",
+ 	"IDIVW",
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index fdc25faf98..4ed1d8790b 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -1171,6 +1171,10 @@ var optab =
+ 	{AJPC, yjcond, Px, [23]uint8{0x7b, 0x8b}},
+ 	{AJPL, yjcond, Px, [23]uint8{0x79, 0x89}},
+ 	{AJPS, yjcond, Px, [23]uint8{0x7a, 0x8a}},
++	{AHADDPD, yxm, Pq, [23]uint8{0x7c}},
++	{AHADDPS, yxm, Pf2, [23]uint8{0x7c}},
++	{AHSUBPD, yxm, Pq, [23]uint8{0x7d}},
++	{AHSUBPS, yxm, Pf2, [23]uint8{0x7d}},
+ 	{ALAHF, ynone, Px, [23]uint8{0x9f}},
+ 	{ALARL, yml_rl, Pm, [23]uint8{0x02}},
+ 	{ALARW, yml_rl, Pq, [23]uint8{0x02}},

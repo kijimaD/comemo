@@ -21,6 +21,20 @@ Date:   Wed Jun 10 22:32:14 2015 +0200
     Reviewed-on: https://go-review.googlesource.com/10900
     Run-TryBot: David du Colombier <0intro@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/stat_plan9.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/stat_plan9.go b/src/os/stat_plan9.go
+index 57227876f1..ddb304fd94 100644
+--- a/src/os/stat_plan9.go
++++ b/src/os/stat_plan9.go
+@@ -63,7 +63,7 @@ func dirstat(arg interface{}) (*syscall.Dir, error) {
+ 		}
+ 
+ 		if n < _BIT16SZ {
+-			return nil, &PathError{"stat", name, syscall.ErrShortStat}
++			return nil, &PathError{"stat", name, err}
+ 		}
+ 
+ 		// Pull the real size out of the stat message.

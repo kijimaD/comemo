@@ -14,6 +14,44 @@ Date:   Thu Feb 28 16:47:17 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/go/build/build_test.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index db8b12eabf..cfcb8167a1 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -350,6 +350,10 @@ func TestImportDirNotExist(t *testing.T) {
+ 
+ func TestImportVendor(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t) // really must just have source
++
++	defer os.Setenv("GO111MODULE", os.Getenv("GO111MODULE"))
++	os.Setenv("GO111MODULE", "off")
++
+ 	ctxt := Default
+ 	wd, err := os.Getwd()
+ 	if err != nil {
+@@ -368,6 +372,10 @@ func TestImportVendor(t *testing.T) {
+ 
+ func TestImportVendorFailure(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t) // really must just have source
++
++	defer os.Setenv("GO111MODULE", os.Getenv("GO111MODULE"))
++	os.Setenv("GO111MODULE", "off")
++
+ 	ctxt := Default
+ 	wd, err := os.Getwd()
+ 	if err != nil {
+@@ -387,6 +395,10 @@ func TestImportVendorFailure(t *testing.T) {
+ 
+ func TestImportVendorParentFailure(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t) // really must just have source
++
++	defer os.Setenv("GO111MODULE", os.Getenv("GO111MODULE"))
++	os.Setenv("GO111MODULE", "off")
++
+ 	ctxt := Default
+ 	wd, err := os.Getwd()
+ 	if err != nil {

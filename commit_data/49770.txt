@@ -17,7 +17,7 @@ Date:   Thu Sep 9 11:17:39 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/internal/gcimporter/gcimporter_test.go |  2 ++
  test/run.go                                   |  2 ++
  test/typeparam/issue46461.go                  | 13 +++++++++++++
@@ -25,3 +25,92 @@ Date:   Thu Sep 9 11:17:39 2021 -0700
  test/typeparam/issue46461b.dir/b.go           | 11 +++++++++++
  test/typeparam/issue46461b.go                 |  7 +++++++
  6 files changed, 42 insertions(+)
+
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index 9f4345d8f9..478534daf2 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -167,6 +167,8 @@ func TestImportTypeparamTests(t *testing.T) {
+ 	skip := map[string]string{
+ 		"equal.go":  "inconsistent embedded sorting", // TODO(rfindley): investigate this.
+ 		"nested.go": "fails to compile",              // TODO(rfindley): investigate this.
++
++		"issue46461.go": "known issue with type parameter constraints referring back to parameterized type",
+ 	}
+ 
+ 	for _, entry := range list {
+diff --git a/test/run.go b/test/run.go
+index 790b54bfd2..d2b7b88768 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2188,6 +2188,8 @@ var g3Failures = setOf(
+ 
+ 	"typeparam/nested.go", // -G=3 doesn't support function-local types with generics
+ 
++	"typeparam/issue46461b.go", // -G=3 fails when type parameters refer back to the parameterized type itself
++
+ 	"typeparam/mdempsky/4.go", // -G=3 can't export functions with labeled breaks in loops
+ )
+ 
+diff --git a/test/typeparam/issue46461.go b/test/typeparam/issue46461.go
+new file mode 100644
+index 0000000000..2c54a6ba28
+--- /dev/null
++++ b/test/typeparam/issue46461.go
+@@ -0,0 +1,13 @@
++// compile -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T[U interface{ M() T[U] }] int
++
++type X int
++
++func (X) M() T[X] { return 0 }
+diff --git a/test/typeparam/issue46461b.dir/a.go b/test/typeparam/issue46461b.dir/a.go
+new file mode 100644
+index 0000000000..0d53b3e204
+--- /dev/null
++++ b/test/typeparam/issue46461b.dir/a.go
+@@ -0,0 +1,7 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type T[U interface{ M() T[U] }] int
+diff --git a/test/typeparam/issue46461b.dir/b.go b/test/typeparam/issue46461b.dir/b.go
+new file mode 100644
+index 0000000000..3393a375c2
+--- /dev/null
++++ b/test/typeparam/issue46461b.dir/b.go
+@@ -0,0 +1,11 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++type X int
++
++func (X) M() a.T[X] { return 0 }
+diff --git a/test/typeparam/issue46461b.go b/test/typeparam/issue46461b.go
+new file mode 100644
+index 0000000000..87b4ff46c1
+--- /dev/null
++++ b/test/typeparam/issue46461b.go
+@@ -0,0 +1,7 @@
++// compiledir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

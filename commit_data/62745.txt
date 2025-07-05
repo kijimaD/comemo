@@ -15,9 +15,161 @@ Date:   Fri Mar 14 17:52:33 2025 -0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/escape/utils.go    | 37 ++++++++----------
  src/cmd/compile/internal/test/stack_test.go | 12 ++++++
  src/cmd/compile/internal/walk/builtin.go    |  4 --
  test/escape6.go                             | 59 +++++++++++++++++++++++++++++
  4 files changed, 86 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/utils.go b/src/cmd/compile/internal/escape/utils.go
+index 815bfd8896..b3ebe778f4 100644
+--- a/src/cmd/compile/internal/escape/utils.go
++++ b/src/cmd/compile/internal/escape/utils.go
+@@ -233,28 +233,21 @@ func HeapAllocReason(n ir.Node) string {
+ 			return "zero-sized element"
+ 		}
+ 		if !ir.IsSmallIntConst(*r) {
+-			if !elem.HasPointers() {
+-				// For non-constant sizes, we do a hybrid approach:
+-				//
+-				// if cap <= K {
+-				//     var backing [K]E
+-				//     s = backing[:len:cap]
+-				// } else {
+-				//     s = makeslice(E, len, cap)
+-				// }
+-				//
+-				// It costs a constant amount of stack space, but may
+-				// avoid a heap allocation.
+-				// Note that this only works for pointer-free element types,
+-				// because we forbid heap->stack pointers.
+-				// (TODO: To get around this limitation, maybe we could treat
+-				// these "heap" objects as still in the stack, possibly as
+-				// stack objects. We should be able to find them and walk them
+-				// on a stack backtrace. Not sure if that would work.)
+-				// Implementation is in ../walk/builtin.go:walkMakeSlice.
+-				return ""
+-			}
+-			return "non-constant size"
++			// For non-constant sizes, we do a hybrid approach:
++			//
++			// if cap <= K {
++			//     var backing [K]E
++			//     s = backing[:len:cap]
++			// } else {
++			//     s = makeslice(E, len, cap)
++			// }
++			//
++			// It costs a constant amount of stack space, but may
++			// avoid a heap allocation.
++			// Note we have to be careful that assigning s[i] = v
++			// still escapes v, because we forbid heap->stack pointers.
++			// Implementation is in ../walk/builtin.go:walkMakeSlice.
++			return ""
+ 		}
+ 		if ir.Int64Val(*r) > ir.MaxImplicitStackVarSize/elem.Size() {
+ 			return "too large for stack"
+diff --git a/src/cmd/compile/internal/test/stack_test.go b/src/cmd/compile/internal/test/stack_test.go
+index d4caa9155d..26c29ef148 100644
+--- a/src/cmd/compile/internal/test/stack_test.go
++++ b/src/cmd/compile/internal/test/stack_test.go
+@@ -34,6 +34,18 @@ func TestStackAllocation(t *testing.T) {
+ 			},
+ 			elemSize: unsafe.Sizeof(int(0)),
+ 		},
++		{
++			f: func(n int) {
++				genericUse(make([]*byte, n))
++			},
++			elemSize: unsafe.Sizeof((*byte)(nil)),
++		},
++		{
++			f: func(n int) {
++				genericUse(make([]string, n))
++			},
++			elemSize: unsafe.Sizeof(""),
++		},
+ 	} {
+ 		max := maxStackSize / int(tc.elemSize)
+ 		if n := testing.AllocsPerRun(10, func() {
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index 0d9e2a4392..f5e558b471 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -568,10 +568,6 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
+ 			// The conv is necessary in case n.Type is named.
+ 			return walkExpr(typecheck.Expr(typecheck.Conv(s, n.Type())), init)
+ 		}
+-		if t.Elem().HasPointers() {
+-			// TODO: remove this limitation (see ../escape/utils.go:HeapAllocReason).
+-			base.Fatalf("%v can't have pointers", t.Elem())
+-		}
+ 		tryStack = true
+ 	}
+ 
+diff --git a/test/escape6.go b/test/escape6.go
+new file mode 100644
+index 0000000000..c45eb023fc
+--- /dev/null
++++ b/test/escape6.go
+@@ -0,0 +1,59 @@
++// errorcheck -0 -m -l
++
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Tests for escaping variable-sized allocations.
++// In particular, we need to make sure things assigned into
++// variable-sized allocations escape even when the variable-sized
++// allocations themselves don't escape.
++
++package foo
++
++type T string
++
++func f1(n int, v T) { // ERROR "leaking param: v"
++	s := make([]T, n) // ERROR "make\(\[\]T, n\) does not escape"
++	s[0] = v
++	g(s)
++}
++
++func f2(n int, v T) { // ERROR "leaking param: v"
++	s := make([]T, n) // ERROR "make\(\[\]T, n\) does not escape"
++	p := &s[0]
++	*p = v
++	g(s)
++}
++
++func f3(n int, v T) { // ERROR "leaking param: v"
++	s := make([]T, n) // ERROR "make\(\[\]T, n\) does not escape"
++	t := (*[4]T)(s)
++	t[0] = v
++	g(s)
++}
++
++// TODO: imprecise: this does not need to leak v.
++func f4(v T) { // ERROR "leaking param: v"
++	s := make([]T, 4) // ERROR "make\(\[\]T, 4\) does not escape"
++	s[0] = v
++	g(s)
++}
++
++// TODO: imprecise: this does not need to leak v.
++func f5(v T) { // ERROR "leaking param: v"
++	var b [4]T
++	s := b[:]
++	s[0] = v
++	g(s)
++}
++
++func f6(v T) { // ERROR "v does not escape"
++	var b [4]T
++	s := b[:]
++	b[0] = v
++	g(s)
++}
++
++func g(s []T) { // ERROR "s does not escape"
++}

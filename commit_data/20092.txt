@@ -8,7 +8,34 @@ Date:   Thu Aug 14 16:34:28 2014 -0400
     R=minux
     CC=golang-codereviews
     https://golang.org/cl/130030043
-
+---
  src/pkg/runtime/arch_power64.h   | 2 +-
  src/pkg/runtime/arch_power64le.h | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/arch_power64.h b/src/pkg/runtime/arch_power64.h
+index 1dcbbc226c..7cfb9da2fc 100644
+--- a/src/pkg/runtime/arch_power64.h
++++ b/src/pkg/runtime/arch_power64.h
+@@ -6,7 +6,7 @@ enum {
+ 	thechar = '9',
+ 	BigEndian = 1,
+ 	CacheLineSize = 64,
+-	RuntimeGogoBytes = 84,
++	RuntimeGogoBytes = 64,
+ 	PhysPageSize = 65536,
+ 	PCQuantum = 4,
+ 	Int64Align = 8
+diff --git a/src/pkg/runtime/arch_power64le.h b/src/pkg/runtime/arch_power64le.h
+index d9241da98b..3015e70aa6 100644
+--- a/src/pkg/runtime/arch_power64le.h
++++ b/src/pkg/runtime/arch_power64le.h
+@@ -6,7 +6,7 @@ enum {
+ 	thechar = '9',
+ 	BigEndian = 0,
+ 	CacheLineSize = 64,
+-	RuntimeGogoBytes = 84,
++	RuntimeGogoBytes = 64,
+ 	PhysPageSize = 4096,
+ 	PCQuantum = 4,
+ 	Int64Align = 8

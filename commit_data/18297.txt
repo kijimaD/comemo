@@ -8,6 +8,20 @@ Date:   Tue Jan 21 10:44:08 2014 +0400
     R=golang-codereviews, bradfitz, dave
     CC=golang-codereviews
     https://golang.org/cl/54890043
-
+---
  src/pkg/runtime/proc_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/proc_test.go b/src/pkg/runtime/proc_test.go
+index d3f1f8bb1c..fb9c76c3a7 100644
+--- a/src/pkg/runtime/proc_test.go
++++ b/src/pkg/runtime/proc_test.go
+@@ -268,7 +268,7 @@ func main() {
+ 	if os.IsNotExist(err) {
+ 		// This test tests what it is intended to test only if writes are fast.
+ 		// If there is no /dev/null, we just don't execute the test.
+-		fmt.Println("OK\n")
++		fmt.Println("OK")
+ 		return
+ 	}
+ 	if err != nil {

@@ -28,9 +28,189 @@ Date:   Tue Apr 24 12:42:47 2018 -0400
     Change-Id: Id3028d60b5642fcab4b09a74fd7d79361a3861e5
     Reviewed-on: https://go-review.googlesource.com/109115
     Reviewed-by: Peter Weinberger <pjw@google.com>
-
+---
  src/runtime/trace/annotation.go       |  8 ++++++++
  src/runtime/trace/annotation_test.go  | 31 ++++++++++++++++++++++++++++++-
  src/runtime/trace/trace_stack_test.go |  9 ++++++++-
  src/runtime/trace/trace_test.go       | 21 +++++++++++++++++++++
  4 files changed, 67 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/trace/annotation.go b/src/runtime/trace/annotation.go
+index 0261d1c162..1cf01165cc 100644
+--- a/src/runtime/trace/annotation.go
++++ b/src/runtime/trace/annotation.go
+@@ -158,6 +158,9 @@ func WithSpan(ctx context.Context, spanType string, fn func(ctx context.Context)
+ //     defer trace.StartRegion(ctx, "myTracedRegion").End()
+ //
+ func StartRegion(ctx context.Context, regionType string) *Region {
++	if !IsEnabled() {
++		return noopRegion
++	}
+ 	id := fromContext(ctx).id
+ 	userRegion(id, regionStartCode, regionType)
+ 	return &Region{id, regionType}
+@@ -175,8 +178,13 @@ type Region struct {
+ 	regionType string
+ }
+ 
++var noopRegion = &Region{}
++
+ // End marks the end of the traced code region.
+ func (r *Region) End() {
++	if r == noopRegion {
++		return
++	}
+ 	userRegion(r.id, regionEndCode, r.regionType)
+ }
+ 
+diff --git a/src/runtime/trace/annotation_test.go b/src/runtime/trace/annotation_test.go
+index c20b009daa..71abbfcfa6 100644
+--- a/src/runtime/trace/annotation_test.go
++++ b/src/runtime/trace/annotation_test.go
+@@ -12,7 +12,35 @@ import (
+ 	"testing"
+ )
+ 
++func BenchmarkStartRegion(b *testing.B) {
++	b.ReportAllocs()
++	ctx, task := NewTask(context.Background(), "benchmark")
++	defer task.End()
++
++	b.RunParallel(func(pb *testing.PB) {
++		for pb.Next() {
++			StartRegion(ctx, "region").End()
++		}
++	})
++}
++
++func BenchmarkNewTask(b *testing.B) {
++	b.ReportAllocs()
++	pctx, task := NewTask(context.Background(), "benchmark")
++	defer task.End()
++
++	b.RunParallel(func(pb *testing.PB) {
++		for pb.Next() {
++			_, task := NewTask(pctx, "task")
++			task.End()
++		}
++	})
++}
++
+ func TestUserTaskRegion(t *testing.T) {
++	if IsEnabled() {
++		t.Skip("skipping because -test.trace is set")
++	}
+ 	bgctx, cancel := context.WithCancel(context.Background())
+ 	defer cancel()
+ 
+@@ -107,7 +135,8 @@ func TestUserTaskRegion(t *testing.T) {
+ 		{trace.EvUserRegion, []string{"task0", "region1"}, []uint64{1}, false},
+ 		{trace.EvUserRegion, []string{"task0", "region0"}, []uint64{1}, false},
+ 		{trace.EvUserTaskEnd, []string{"task0"}, nil, false},
+-		{trace.EvUserRegion, []string{"", "pre-existing region"}, []uint64{1}, false},
++		//  Currently, pre-existing region is not recorded to avoid allocations.
++		//  {trace.EvUserRegion, []string{"", "pre-existing region"}, []uint64{1}, false},
+ 		{trace.EvUserRegion, []string{"", "post-existing region"}, []uint64{0}, false},
+ 	}
+ 	if !reflect.DeepEqual(got, want) {
+diff --git a/src/runtime/trace/trace_stack_test.go b/src/runtime/trace/trace_stack_test.go
+index e7b8d57659..62c06e67d9 100644
+--- a/src/runtime/trace/trace_stack_test.go
++++ b/src/runtime/trace/trace_stack_test.go
+@@ -24,7 +24,7 @@ import (
+ // In particular that we strip bottom uninteresting frames like goexit,
+ // top uninteresting frames (runtime guts).
+ func TestTraceSymbolize(t *testing.T) {
+-	testenv.MustHaveGoBuild(t)
++	skipTraceSymbolizeTestIfNecessary(t)
+ 
+ 	buf := new(bytes.Buffer)
+ 	if err := Start(buf); err != nil {
+@@ -285,6 +285,13 @@ func TestTraceSymbolize(t *testing.T) {
+ 	}
+ }
+ 
++func skipTraceSymbolizeTestIfNecessary(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	if IsEnabled() {
++		t.Skip("skipping because -test.trace is set")
++	}
++}
++
+ func dumpEventStacks(typ byte, events []*trace.Event) ([]byte, int) {
+ 	matched := 0
+ 	o := new(bytes.Buffer)
+diff --git a/src/runtime/trace/trace_test.go b/src/runtime/trace/trace_test.go
+index 997d486c65..f289bd6f85 100644
+--- a/src/runtime/trace/trace_test.go
++++ b/src/runtime/trace/trace_test.go
+@@ -31,6 +31,9 @@ func TestEventBatch(t *testing.T) {
+ 	if race.Enabled {
+ 		t.Skip("skipping in race mode")
+ 	}
++	if IsEnabled() {
++		t.Skip("skipping because -test.trace is set")
++	}
+ 	if testing.Short() {
+ 		t.Skip("skipping in short mode")
+ 	}
+@@ -81,6 +84,9 @@ func TestEventBatch(t *testing.T) {
+ }
+ 
+ func TestTraceStartStop(t *testing.T) {
++	if IsEnabled() {
++		t.Skip("skipping because -test.trace is set")
++	}
+ 	buf := new(bytes.Buffer)
+ 	if err := Start(buf); err != nil {
+ 		t.Fatalf("failed to start tracing: %v", err)
+@@ -98,6 +104,9 @@ func TestTraceStartStop(t *testing.T) {
+ }
+ 
+ func TestTraceDoubleStart(t *testing.T) {
++	if IsEnabled() {
++		t.Skip("skipping because -test.trace is set")
++	}
+ 	Stop()
+ 	buf := new(bytes.Buffer)
+ 	if err := Start(buf); err != nil {
+@@ -111,6 +120,9 @@ func TestTraceDoubleStart(t *testing.T) {
+ }
+ 
+ func TestTrace(t *testing.T) {
++	if IsEnabled() {
++		t.Skip("skipping because -test.trace is set")
++	}
+ 	buf := new(bytes.Buffer)
+ 	if err := Start(buf); err != nil {
+ 		t.Fatalf("failed to start tracing: %v", err)
+@@ -168,6 +180,9 @@ func testBrokenTimestamps(t *testing.T, data []byte) {
+ }
+ 
+ func TestTraceStress(t *testing.T) {
++	if IsEnabled() {
++		t.Skip("skipping because -test.trace is set")
++	}
+ 	var wg sync.WaitGroup
+ 	done := make(chan bool)
+ 
+@@ -307,6 +322,9 @@ func TestTraceStress(t *testing.T) {
+ // Do a bunch of various stuff (timers, GC, network, etc) in a separate goroutine.
+ // And concurrently with all that start/stop trace 3 times.
+ func TestTraceStressStartStop(t *testing.T) {
++	if IsEnabled() {
++		t.Skip("skipping because -test.trace is set")
++	}
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(8))
+ 	outerDone := make(chan bool)
+ 
+@@ -454,6 +472,9 @@ func TestTraceStressStartStop(t *testing.T) {
+ }
+ 
+ func TestTraceFutileWakeup(t *testing.T) {
++	if IsEnabled() {
++		t.Skip("skipping because -test.trace is set")
++	}
+ 	buf := new(bytes.Buffer)
+ 	if err := Start(buf); err != nil {
+ 		t.Fatalf("failed to start tracing: %v", err)

@@ -9,6 +9,20 @@ Date:   Sun May 5 18:34:18 2019 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/compile.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 8f9c26d065..ce1e7fb409 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -386,7 +386,7 @@ var passes = [...]pass{
+ 	{name: "short circuit", fn: shortcircuit},
+ 	{name: "decompose args", fn: decomposeArgs, required: true},
+ 	{name: "decompose user", fn: decomposeUser, required: true},
+-	{name: "opt", fn: opt, required: true},               // TODO: split required rules and optimizing rules
++	{name: "opt", fn: opt, required: true},               // NB: some generic rules know the name of the opt pass. TODO: split required rules and optimizing rules
+ 	{name: "zero arg cse", fn: zcse, required: true},     // required to merge OpSB values
+ 	{name: "opt deadcode", fn: deadcode, required: true}, // remove any blocks orphaned during opt
+ 	{name: "generic cse", fn: cse},

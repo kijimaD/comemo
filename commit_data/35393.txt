@@ -12,6 +12,24 @@ Date:   Sat Jan 27 22:09:25 2018 -0500
     Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/test/test.go | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index a99c6a5ec2..0a440585cb 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -1805,11 +1805,7 @@ func writeTestmain(out string, t *testFuncs) error {
+ 	}
+ 	defer f.Close()
+ 
+-	if err := testmainTmpl.Execute(f, t); err != nil {
+-		return err
+-	}
+-
+-	return nil
++	return testmainTmpl.Execute(f, t)
+ }
+ 
+ type testFuncs struct {

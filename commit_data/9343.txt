@@ -7,7 +7,75 @@ Date:   Fri Aug 12 13:29:56 2011 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/4878042
-
+---
  src/pkg/exp/template/exec.go      | 22 +++++++++++++---------
  src/pkg/exp/template/exec_test.go |  5 +++++
  2 files changed, 18 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/exp/template/exec.go b/src/pkg/exp/template/exec.go
+index 2f3235303a..ff4e3876af 100644
+--- a/src/pkg/exp/template/exec.go
++++ b/src/pkg/exp/template/exec.go
+@@ -620,19 +620,23 @@ func indirect(v reflect.Value) (rv reflect.Value, isNil bool) {
+ // printValue writes the textual representation of the value to the output of
+ // the template.
+ func (s *state) printValue(n parse.Node, v reflect.Value) {
++	if v.Kind() == reflect.Ptr {
++		v, _ = indirect(v) // fmt.Fprint handles nil.
++	}
+ 	if !v.IsValid() {
+ 		fmt.Fprint(s.wr, "<no value>")
+ 		return
+ 	}
+-	switch v.Kind() {
+-	case reflect.Ptr:
+-		v, _ = indirect(v) // fmt.Fprint handles nil.
+-	case reflect.Chan, reflect.Func, reflect.Interface:
+-		s.errorf("can't print %s of type %s", n, v.Type())
+-	}
+-	// If it's a value but the pointer implements Stringer, use the pointer.
+-	if v.Kind() != reflect.Ptr && v.CanAddr() && reflect.PtrTo(v.Type()).Implements(fmtStringerType) {
+-		v = v.Addr()
++
++	if !v.Type().Implements(fmtStringerType) {
++		if v.CanAddr() && reflect.PtrTo(v.Type()).Implements(fmtStringerType) {
++			v = v.Addr()
++		} else {
++			switch v.Kind() {
++			case reflect.Chan, reflect.Func:
++				s.errorf("can't print %s of type %s", n, v.Type())
++			}
++		}
+ 	}
+ 	fmt.Fprint(s.wr, v.Interface())
+ }
+diff --git a/src/pkg/exp/template/exec_test.go b/src/pkg/exp/template/exec_test.go
+index 50f1591906..58e9526303 100644
+--- a/src/pkg/exp/template/exec_test.go
++++ b/src/pkg/exp/template/exec_test.go
+@@ -48,6 +48,8 @@ type T struct {
+ 	Empty4 interface{}
+ 	// Non-empty interface.
+ 	NonEmptyInterface I
++	// Stringer.
++	Str fmt.Stringer
+ 	// Pointers
+ 	PI  *int
+ 	PSI *[]int
+@@ -92,6 +94,7 @@ var tVal = &T{
+ 	Empty3:            []int{7, 8},
+ 	Empty4:            &U{"UinEmpty"},
+ 	NonEmptyInterface: new(T),
++	Str:               os.NewError("foozle"),
+ 	PI:                newInt(23),
+ 	PSI:               newIntSlice(21, 22, 23),
+ 	Tmpl:              Must(New("x").Parse("test template")), // "x" is the value of .X
+@@ -396,6 +399,8 @@ var execTests = []execTest{
+ 	{"bug3", "{{with $}}{{.Method0}}{{end}}", "M0", tVal, true},
+ 	// Nil interface values in if.
+ 	{"bug4", "{{if .Empty0}}non-nil{{else}}nil{{end}}", "nil", tVal, true},
++	// Stringer.
++	{"bug5", "{{.Str}}", "foozle", tVal, true},
+ }
+ 
+ func zeroArgs() string {

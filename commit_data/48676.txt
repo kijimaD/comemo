@@ -14,9 +14,71 @@ Date:   Fri Jun 4 18:17:49 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/325529
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/stencil.go |  2 +-
  test/typeparam/mutualimp.dir/a.go         | 11 +++++++++++
  test/typeparam/mutualimp.dir/b.go         | 12 ++++++++++++
  test/typeparam/mutualimp.go               |  7 +++++++
  4 files changed, 31 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 25a4bf775f..8b5a91f6d1 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -558,7 +558,7 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, targs []*type
+ 	oldt := nameNode.Type()
+ 	// We also transform a generic method type to the corresponding
+ 	// instantiated function type where the dictionary is the first parameter.
+-	dictionarySym := types.LocalPkg.Lookup(".dict")
++	dictionarySym := newsym.Pkg.Lookup(".dict")
+ 	dictionaryType := types.Types[types.TUINTPTR]
+ 	dictionaryName := ir.NewNameAt(gf.Pos(), dictionarySym)
+ 	typed(dictionaryType, dictionaryName)
+diff --git a/test/typeparam/mutualimp.dir/a.go b/test/typeparam/mutualimp.dir/a.go
+new file mode 100644
+index 0000000000..56ca57cea5
+--- /dev/null
++++ b/test/typeparam/mutualimp.dir/a.go
+@@ -0,0 +1,11 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type X int
++func (x X) M() X { return x }
++
++func F[T interface{ M() U }, U interface{ M() T }]() {}
++func G() { F[X, X]() }
+diff --git a/test/typeparam/mutualimp.dir/b.go b/test/typeparam/mutualimp.dir/b.go
+new file mode 100644
+index 0000000000..83cc3af283
+--- /dev/null
++++ b/test/typeparam/mutualimp.dir/b.go
+@@ -0,0 +1,12 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++func H() {
++	a.F[a.X, a.X]()
++	a.G()
++}
+diff --git a/test/typeparam/mutualimp.go b/test/typeparam/mutualimp.go
+new file mode 100644
+index 0000000000..87b4ff46c1
+--- /dev/null
++++ b/test/typeparam/mutualimp.go
+@@ -0,0 +1,7 @@
++// compiledir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

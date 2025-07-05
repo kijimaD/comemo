@@ -7,6 +7,37 @@ Date:   Thu Jun 9 22:41:19 2011 -0400
     R=iant, rsc
     CC=golang-dev
     https://golang.org/cl/4601051
-
+---
  src/cmd/gopack/ar.c | 19 +------------------
  1 file changed, 1 insertion(+), 18 deletions(-)
+
+diff --git a/src/cmd/gopack/ar.c b/src/cmd/gopack/ar.c
+index 5d71d32479..0b5e608c74 100644
+--- a/src/cmd/gopack/ar.c
++++ b/src/cmd/gopack/ar.c
+@@ -1532,24 +1532,7 @@ arwrite(int fd, Armember *bp)
+ int
+ page(Arfile *ap)
+ {
+-	Armember *bp;
+-
+-	bp = ap->head;
+-	if (!ap->paged) {		/* not yet paged - create file */
+-		ap->fd = mkstemp(ap->fname);
+-		if (ap->fd < 0) {
+-			fprint(2,"gopack: can't create temp file\n");
+-			return 0;
+-		}
+-		ap->paged = 1;
+-	}
+-	if (!arwrite(ap->fd, bp))	/* write member and free buffer block */
+-		return 0;
+-	ap->head = bp->next;
+-	if (ap->tail == bp)
+-		ap->tail = bp->next;
+-	free(bp->member);
+-	free(bp);
++	sysfatal("page");
+ 	return 1;
+ }
+ 

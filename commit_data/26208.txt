@@ -12,7 +12,7 @@ Date:   Fri Jan 1 15:44:12 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/18156
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/crash_unix_test.go          | 18 ++++++++++++++++++
  src/runtime/os_nacl.go                  |  4 ++++
  src/runtime/signal1_unix.go             | 18 +++++++++++++-----
@@ -24,3 +24,182 @@ Date:   Fri Jan 1 15:44:12 2016 -0800
  src/runtime/signal_ppc64x.go            |  2 +-
  src/runtime/testdata/testprog/signal.go | 17 +++++++++++++++++
  10 files changed, 58 insertions(+), 11 deletions(-)
+
+diff --git a/src/runtime/crash_unix_test.go b/src/runtime/crash_unix_test.go
+index b925d028aa..59425271c5 100644
+--- a/src/runtime/crash_unix_test.go
++++ b/src/runtime/crash_unix_test.go
+@@ -133,3 +133,21 @@ func loop(i int, c chan bool) {
+ 	}
+ }
+ `
++
++func TestSignalExitStatus(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	exe, err := buildTestProg(t, "testprog")
++	if err != nil {
++		t.Fatal(err)
++	}
++	err = testEnv(exec.Command(exe, "SignalExitStatus")).Run()
++	if err == nil {
++		t.Error("test program succeeded unexpectedly")
++	} else if ee, ok := err.(*exec.ExitError); !ok {
++		t.Errorf("error (%v) has type %T; expected exec.ExitError", err, err)
++	} else if ws, ok := ee.Sys().(syscall.WaitStatus); !ok {
++		t.Errorf("error.Sys (%v) has type %T; expected syscall.WaitStatus", ee.Sys(), ee.Sys())
++	} else if !ws.Signaled() || ws.Signal() != syscall.SIGTERM {
++		t.Errorf("got %v; expected SIGTERM", ee)
++	}
++}
+diff --git a/src/runtime/os_nacl.go b/src/runtime/os_nacl.go
+index 69eaf4c14e..c7cc0a9889 100644
+--- a/src/runtime/os_nacl.go
++++ b/src/runtime/os_nacl.go
+@@ -45,6 +45,10 @@ func os_sigpipe() {
+ 	throw("too many writes on closed pipe")
+ }
+ 
++func dieFromSignal(sig int32) {
++	exit(2)
++}
++
+ func sigpanic() {
+ 	g := getg()
+ 	if !canpanic(g) {
+diff --git a/src/runtime/signal1_unix.go b/src/runtime/signal1_unix.go
+index c2530322cc..4f4d2af6ea 100644
+--- a/src/runtime/signal1_unix.go
++++ b/src/runtime/signal1_unix.go
+@@ -142,8 +142,18 @@ func sigpipe() {
+ 	if sigsend(_SIGPIPE) {
+ 		return
+ 	}
+-	setsig(_SIGPIPE, _SIG_DFL, false)
+-	raise(_SIGPIPE)
++	dieFromSignal(_SIGPIPE)
++}
++
++// dieFromSignal kills the program with a signal.
++// This provides the expected exit status for the shell.
++// This is only called with fatal signals expected to kill the process.
++func dieFromSignal(sig int32) {
++	setsig(sig, _SIG_DFL, false)
++	updatesigmask(sigmask{})
++	raise(sig)
++	// That should have killed us; call exit just in case.
++	exit(2)
+ }
+ 
+ // raisebadsignal is called when a signal is received on a non-Go
+@@ -196,9 +206,7 @@ func crash() {
+ 		}
+ 	}
+ 
+-	updatesigmask(sigmask{})
+-	setsig(_SIGABRT, _SIG_DFL, false)
+-	raise(_SIGABRT)
++	dieFromSignal(_SIGABRT)
+ }
+ 
+ // ensureSigM starts one global, sleeping thread to make sure at least one thread
+diff --git a/src/runtime/signal_386.go b/src/runtime/signal_386.go
+index 3ea0656e65..5c53582f90 100644
+--- a/src/runtime/signal_386.go
++++ b/src/runtime/signal_386.go
+@@ -108,7 +108,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	}
+ 
+ 	if flags&_SigKill != 0 {
+-		exit(2)
++		dieFromSignal(int32(sig))
+ 	}
+ 
+ 	if flags&_SigThrow == 0 {
+diff --git a/src/runtime/signal_amd64x.go b/src/runtime/signal_amd64x.go
+index ad3187337a..834e85563c 100644
+--- a/src/runtime/signal_amd64x.go
++++ b/src/runtime/signal_amd64x.go
+@@ -140,7 +140,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	}
+ 
+ 	if flags&_SigKill != 0 {
+-		exit(2)
++		dieFromSignal(int32(sig))
+ 	}
+ 
+ 	if flags&_SigThrow == 0 {
+diff --git a/src/runtime/signal_arm.go b/src/runtime/signal_arm.go
+index e8d19a454d..9ea48dff8a 100644
+--- a/src/runtime/signal_arm.go
++++ b/src/runtime/signal_arm.go
+@@ -100,7 +100,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	}
+ 
+ 	if flags&_SigKill != 0 {
+-		exit(2)
++		dieFromSignal(int32(sig))
+ 	}
+ 
+ 	if flags&_SigThrow == 0 {
+diff --git a/src/runtime/signal_arm64.go b/src/runtime/signal_arm64.go
+index 2966ec0b20..9a83bf0c97 100644
+--- a/src/runtime/signal_arm64.go
++++ b/src/runtime/signal_arm64.go
+@@ -116,7 +116,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	}
+ 
+ 	if flags&_SigKill != 0 {
+-		exit(2)
++		dieFromSignal(int32(sig))
+ 	}
+ 
+ 	if flags&_SigThrow == 0 {
+diff --git a/src/runtime/signal_mips64x.go b/src/runtime/signal_mips64x.go
+index f30ff6e9e9..868e993104 100644
+--- a/src/runtime/signal_mips64x.go
++++ b/src/runtime/signal_mips64x.go
+@@ -118,7 +118,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	}
+ 
+ 	if flags&_SigKill != 0 {
+-		exit(2)
++		dieFromSignal(int32(sig))
+ 	}
+ 
+ 	if flags&_SigThrow == 0 {
+diff --git a/src/runtime/signal_ppc64x.go b/src/runtime/signal_ppc64x.go
+index b22df88602..ee263484aa 100644
+--- a/src/runtime/signal_ppc64x.go
++++ b/src/runtime/signal_ppc64x.go
+@@ -122,7 +122,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	}
+ 
+ 	if flags&_SigKill != 0 {
+-		exit(2)
++		dieFromSignal(int32(sig))
+ 	}
+ 
+ 	if flags&_SigThrow == 0 {
+diff --git a/src/runtime/testdata/testprog/signal.go b/src/runtime/testdata/testprog/signal.go
+new file mode 100644
+index 0000000000..ac2d3e8f6c
+--- /dev/null
++++ b/src/runtime/testdata/testprog/signal.go
+@@ -0,0 +1,17 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !windows,!plan9,!nacl
++
++package main
++
++import "syscall"
++
++func init() {
++	register("SignalExitStatus", SignalExitStatus)
++}
++
++func SignalExitStatus() {
++	syscall.Kill(syscall.Getpid(), syscall.SIGTERM)
++}

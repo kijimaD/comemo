@@ -8,8 +8,100 @@ Date:   Mon May 17 12:23:48 2010 -0700
     R=ken2, ken3
     CC=golang-dev
     https://golang.org/cl/813047
-
+---
  src/cmd/goyacc/doc.go    |  2 ++
  src/cmd/goyacc/goyacc.go |  7 ++++---
  src/cmd/goyacc/units.y   | 10 +++++-----
  3 files changed, 11 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/goyacc/doc.go b/src/cmd/goyacc/doc.go
+index eea70adabb..686f757452 100644
+--- a/src/cmd/goyacc/doc.go
++++ b/src/cmd/goyacc/doc.go
+@@ -24,10 +24,12 @@ argument that conforms to the following interface:
+ 
+ 	type yyLexer interface {
+ 		Lex(lval *yySymType) int
++		Error(e string)
+ 	}
+ 
+ Lex should return the token identifier, and place other token
+ information in lval (which replaces the usual yylval).
++Error is equivalent to yyerror in the original yacc.
+ 
+ Code inside the parser may refer to the variable yylex
+ which holds the yyLexer passed to Parse.
+diff --git a/src/cmd/goyacc/goyacc.go b/src/cmd/goyacc/goyacc.go
+index 118d277f6b..a5da5f0a1d 100644
+--- a/src/cmd/goyacc/goyacc.go
++++ b/src/cmd/goyacc/goyacc.go
+@@ -3080,6 +3080,7 @@ var yyDebug = 0
+ 
+ type yyLexer interface {
+ 	Lex(lval *yySymType) int
++	Error(s string)
+ }
+ 
+ const yyFlag = -1000
+@@ -3162,7 +3163,7 @@ ret1:
+ yystack:
+ 	/* put a state and value onto the stack */
+ 	if yyDebug >= 4 {
+-		fmt.Printf("char %v in %v", yyTokname(yychar), yyStatname(yystate))
++		fmt.Printf("char %v in %v\n", yyTokname(yychar), yyStatname(yystate))
+ 	}
+ 
+ 	yyp++
+@@ -3228,7 +3229,7 @@ yydefault:
+ 		/* error ... attempt to resume parsing */
+ 		switch Errflag {
+ 		case 0: /* brand new error */
+-			yyError("syntax error")
++			yylex.Error("syntax error")
+ 			Nerrs++
+ 			if yyDebug >= 1 {
+ 				fmt.Printf("%s", yyStatname(yystate))
+@@ -3273,7 +3274,7 @@ yydefault:
+ 
+ 	/* reduction by production yyn */
+ 	if yyDebug >= 2 {
+-		fmt.Printf("reduce %v in:\n\t%v", yyn, yyStatname(yystate))
++		fmt.Printf("reduce %v in:\n\t%v\n", yyn, yyStatname(yystate))
+ 	}
+ 
+ 	yynt := yyn
+diff --git a/src/cmd/goyacc/units.y b/src/cmd/goyacc/units.y
+index b909d115c6..bd5517e8be 100644
+--- a/src/cmd/goyacc/units.y
++++ b/src/cmd/goyacc/units.y
+@@ -215,7 +215,7 @@ expr0:
+ 
+ type UnitsLex int
+ 
+-func (l UnitsLex) Lex(yylval *yySymType) int {
++func (_ UnitsLex) Lex(yylval *yySymType) int {
+ 	var c, i int
+ 
+ 	c = peekrune
+@@ -280,6 +280,10 @@ numb:
+ 	return VAL
+ }
+ 
++func (_ UnitsLex) Error(s string) {
++	Error("syntax error, last name: %v", sym)
++}
++
+ func main() {
+ 	var file string
+ 
+@@ -384,10 +388,6 @@ func rdigit(c int) bool {
+ 	return false
+ }
+ 
+-func yyError(s string) {
+-	Error("syntax error, last name: %v", sym)
+-}
+-
+ func Error(s string, v ...interface{}) {
+ 	fmt.Printf("%v: %v\n\t", lineno, line)
+ 	fmt.Printf(s, v)

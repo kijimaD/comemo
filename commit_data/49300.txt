@@ -17,7 +17,7 @@ Date:   Sun Aug 8 12:37:35 2021 -0700
     Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/builtins.go   |  2 +-
  src/cmd/compile/internal/types2/expr.go       |  1 -
  src/cmd/compile/internal/types2/named.go      |  9 ---------
@@ -28,3 +28,179 @@ Date:   Sun Aug 8 12:37:35 2021 -0700
  src/cmd/compile/internal/types2/unify.go      |  6 ++----
  src/cmd/compile/internal/types2/union.go      | 11 +++++------
  9 files changed, 16 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index eafe6e9eb8..da2dcf54aa 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -46,7 +46,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 	default:
+ 		// make argument getter
+ 		xlist, _ := check.exprList(call.ArgList, false)
+-		arg = func(x *operand, i int) { *x = *xlist[i]; x.typ = expand(x.typ) }
++		arg = func(x *operand, i int) { *x = *xlist[i] }
+ 		nargs = len(xlist)
+ 		// evaluate first argument, if present
+ 		if nargs > 0 {
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 008c2446fc..3c2b10cd7e 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -682,7 +682,6 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
+ // If x is a constant operand, the returned constant.Value will be the
+ // representation of x in this context.
+ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, constant.Value, errorCode) {
+-	target = expand(target)
+ 	if x.mode == invalid || isTyped(x.typ) || target == Typ[Invalid] {
+ 		return x.typ, nil, 0
+ 	}
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index 14e073bfae..e099660481 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -279,12 +279,3 @@ func (n *Named) expand() {
+ 		n.instance = nil
+ 	}
+ }
+-
+-// expand expands uninstantiated named types and leaves all other types alone.
+-// expand does not recurse.
+-func expand(typ Type) Type {
+-	if t, _ := typ.(*Named); t != nil {
+-		t.expand()
+-	}
+-	return typ
+-}
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index afef488b96..1541b3f416 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -140,10 +140,6 @@ func (p *ifacePair) identical(q *ifacePair) bool {
+ 
+ // For changes to this code the corresponding changes should be made to unifier.nify.
+ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+-	// types must be expanded for comparison
+-	x = expand(x)
+-	y = expand(y)
+-
+ 	if x == y {
+ 		return true
+ 	}
+@@ -306,6 +302,8 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 		// Two named types are identical if their type names originate
+ 		// in the same type declaration.
+ 		if y, ok := y.(*Named); ok {
++			x.expand()
++			y.expand()
+ 			// TODO(gri) Why is x == y not sufficient? And if it is,
+ 			//           we can just return false here because x == y
+ 			//           is caught in the very beginning of this function.
+diff --git a/src/cmd/compile/internal/types2/signature.go b/src/cmd/compile/internal/types2/signature.go
+index 14112462e1..48b11b289c 100644
+--- a/src/cmd/compile/internal/types2/signature.go
++++ b/src/cmd/compile/internal/types2/signature.go
+@@ -208,7 +208,6 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 		// TODO(gri) We should delay rtyp expansion to when we actually need the
+ 		//           receiver; thus all checks here should be delayed to later.
+ 		rtyp, _ := deref(recv.typ)
+-		rtyp = expand(rtyp)
+ 
+ 		// spec: "The receiver type must be of the form T or *T where T is a type name."
+ 		// (ignore invalid types - error was reported before)
+@@ -216,6 +215,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 			var err string
+ 			switch T := rtyp.(type) {
+ 			case *Named:
++				T.expand()
+ 				// spec: "The type denoted by T is called the receiver base type; it must not
+ 				// be a pointer or interface type and it must be declared in the same package
+ 				// as the method."
+diff --git a/src/cmd/compile/internal/types2/type.go b/src/cmd/compile/internal/types2/type.go
+index 7ae2db3412..637829613b 100644
+--- a/src/cmd/compile/internal/types2/type.go
++++ b/src/cmd/compile/internal/types2/type.go
+@@ -114,7 +114,10 @@ func asInterface(t Type) *Interface {
+ }
+ 
+ func asNamed(t Type) *Named {
+-	e, _ := expand(t).(*Named)
++	e, _ := t.(*Named)
++	if e != nil {
++		e.expand()
++	}
+ 	return e
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index fa4a1638b6..6a9eacd31d 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -446,8 +446,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, targsx []syntax.Expr, def
+ 	// make sure we check instantiation works at least once
+ 	// and that the resulting type is valid
+ 	check.later(func() {
+-		t := expand(typ)
+-		check.validType(t, nil)
++		check.validType(typ, nil)
+ 	})
+ 
+ 	return typ
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index 75b9a12197..ae81382fb0 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -229,10 +229,6 @@ func (u *unifier) nifyEq(x, y Type, p *ifacePair) bool {
+ // code the corresponding changes should be made here.
+ // Must not be called directly from outside the unifier.
+ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+-	// types must be expanded for comparison
+-	x = expand(x)
+-	y = expand(y)
+-
+ 	if !u.exact {
+ 		// If exact unification is known to fail because we attempt to
+ 		// match a type name against an unnamed type literal, consider
+@@ -436,6 +432,8 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+ 		// 	return x.obj == y.obj
+ 		// }
+ 		if y, ok := y.(*Named); ok {
++			x.expand()
++			y.expand()
+ 			// TODO(gri) This is not always correct: two types may have the same names
+ 			//           in the same package if one of them is nested in a function.
+ 			//           Extremely unlikely but we need an always correct solution.
+diff --git a/src/cmd/compile/internal/types2/union.go b/src/cmd/compile/internal/types2/union.go
+index 85aa3d9104..f61c37a6af 100644
+--- a/src/cmd/compile/internal/types2/union.go
++++ b/src/cmd/compile/internal/types2/union.go
+@@ -68,8 +68,7 @@ func parseUnion(check *Checker, tlist []syntax.Expr) Type {
+ 	// Note: This is a quadratic algorithm, but unions tend to be short.
+ 	check.later(func() {
+ 		for i, t := range terms {
+-			typ := expand(t.typ)
+-			if typ == Typ[Invalid] {
++			if t.typ == Typ[Invalid] {
+ 				continue
+ 			}
+ 
+@@ -85,16 +84,16 @@ func parseUnion(check *Checker, tlist []syntax.Expr) Type {
+ 				}
+ 			}
+ 
+-			u := under(typ)
++			u := under(t.typ)
+ 			f, _ := u.(*Interface)
+ 			if t.tilde {
+ 				if f != nil {
+-					check.errorf(x, "invalid use of ~ (%s is an interface)", typ)
++					check.errorf(x, "invalid use of ~ (%s is an interface)", t.typ)
+ 					continue // don't report another error for t
+ 				}
+ 
+-				if !Identical(u, typ) {
+-					check.errorf(x, "invalid use of ~ (underlying type of %s is %s)", typ, u)
++				if !Identical(u, t.typ) {
++					check.errorf(x, "invalid use of ~ (underlying type of %s is %s)", t.typ, u)
+ 					continue // don't report another error for t
+ 				}
+ 			}

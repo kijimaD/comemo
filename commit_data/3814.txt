@@ -6,9 +6,341 @@ Date:   Thu Nov 5 14:42:28 2009 -0800
     
     R=rsc
     http://go/go-review/1017055
-
+---
  src/pkg/exp/draw/arith.go | 71 +++++++++++++++++++++++------------------------
  src/pkg/exp/draw/color.go | 54 +++++++++++++++++------------------
  src/pkg/exp/draw/draw.go  | 28 +++++++++----------
  src/pkg/exp/draw/event.go |  7 ++---
  4 files changed, 79 insertions(+), 81 deletions(-)
+
+diff --git a/src/pkg/exp/draw/arith.go b/src/pkg/exp/draw/arith.go
+index 4c09965977..43aefbaade 100644
+--- a/src/pkg/exp/draw/arith.go
++++ b/src/pkg/exp/draw/arith.go
+@@ -22,147 +22,146 @@ var ZR Rectangle
+ 
+ // Pt is shorthand for Point{X, Y}.
+ func Pt(X, Y int) Point {
+-	return Point{X, Y}
++	return Point{X, Y};
+ }
+ 
+ // Rect is shorthand for Rectangle{Pt(x0, y0), Pt(x1, y1)}.
+ func Rect(x0, y0, x1, y1 int) Rectangle {
+-	return Rectangle{Point{x0,y0}, Point{x1,y1}}
++	return Rectangle{Point{x0, y0}, Point{x1, y1}};
+ }
+ 
+ // Rpt is shorthand for Rectangle{min, max}.
+ func Rpt(min, max Point) Rectangle {
+-	return Rectangle{min, max}
++	return Rectangle{min, max};
+ }
+ 
+ // Add returns the sum of p and q: Pt(p.X+q.X, p.Y+q.Y).
+ func (p Point) Add(q Point) Point {
+-	return Point{p.X+q.X, p.Y+q.Y}
++	return Point{p.X + q.X, p.Y + q.Y};
+ }
+ 
+ // Sub returns the difference of p and q: Pt(p.X-q.X, p.Y-q.Y).
+ func (p Point) Sub(q Point) Point {
+-	return Point{p.X-q.X, p.Y-q.Y}
++	return Point{p.X - q.X, p.Y - q.Y};
+ }
+ 
+ // Mul returns p scaled by k: Pt(p.X*k p.Y*k).
+ func (p Point) Mul(k int) Point {
+-	return Point{p.X*k, p.Y*k}
++	return Point{p.X * k, p.Y * k};
+ }
+ 
+ // Div returns p divided by k: Pt(p.X/k, p.Y/k).
+ func (p Point) Div(k int) Point {
+-	return Point{p.X/k, p.Y/k}
++	return Point{p.X / k, p.Y / k};
+ }
+ 
+ // Eq returns true if p and q are equal.
+ func (p Point) Eq(q Point) bool {
+-	return p.X == q.X && p.Y == q.Y
++	return p.X == q.X && p.Y == q.Y;
+ }
+ 
+ // Inset returns the rectangle r inset by n: Rect(r.Min.X+n, r.Min.Y+n, r.Max.X-n, r.Max.Y-n).
+ func (r Rectangle) Inset(n int) Rectangle {
+-	return Rectangle{Point{r.Min.X+n, r.Min.Y+n}, Point{r.Max.X-n, r.Max.Y-n}}
++	return Rectangle{Point{r.Min.X + n, r.Min.Y + n}, Point{r.Max.X - n, r.Max.Y - n}};
+ }
+ 
+ // Add returns the rectangle r translated by p: Rpt(r.Min.Add(p), r.Max.Add(p)).
+ func (r Rectangle) Add(p Point) Rectangle {
+-	return Rectangle{r.Min.Add(p), r.Max.Add(p)}
++	return Rectangle{r.Min.Add(p), r.Max.Add(p)};
+ }
+ 
+ // Sub returns the rectangle r translated by -p: Rpt(r.Min.Sub(p), r.Max.Sub(p)).
+ func (r Rectangle) Sub(p Point) Rectangle {
+-	return Rectangle{r.Min.Sub(p), r.Max.Sub(p)}
++	return Rectangle{r.Min.Sub(p), r.Max.Sub(p)};
+ }
+ 
+ // Canon returns a canonical version of r: the returned rectangle
+ // has Min.X <= Max.X and Min.Y <= Max.Y.
+ func (r Rectangle) Canon() Rectangle {
+ 	if r.Max.X < r.Min.X {
+-		r.Max.X = r.Min.X
++		r.Max.X = r.Min.X;
+ 	}
+ 	if r.Max.Y < r.Min.Y {
+-		r.Max.Y = r.Min.Y
++		r.Max.Y = r.Min.Y;
+ 	}
+ 	return r;
+ }
+ 
+ // Overlaps returns true if r and r1 cross; that is, it returns true if they share any point.
+ func (r Rectangle) Overlaps(r1 Rectangle) bool {
+-	return r.Min.X < r1.Max.X && r1.Min.X < r.Max.X
+-		&& r.Min.Y < r1.Max.Y && r1.Min.Y < r.Max.Y
++	return r.Min.X < r1.Max.X && r1.Min.X < r.Max.X &&
++		r.Min.Y < r1.Max.Y && r1.Min.Y < r.Max.Y;
+ }
+ 
+ // Empty retruns true if r contains no points.
+ func (r Rectangle) Empty() bool {
+-	return r.Max.X <= r.Min.X || r.Max.Y <= r.Min.Y
++	return r.Max.X <= r.Min.X || r.Max.Y <= r.Min.Y;
+ }
+ 
+ // InRect returns true if all the points in r are also in r1.
+ func (r Rectangle) In(r1 Rectangle) bool {
+ 	if r.Empty() {
+-		return true
++		return true;
+ 	}
+ 	if r1.Empty() {
+-		return false
++		return false;
+ 	}
+-	return r1.Min.X <= r.Min.X && r.Max.X <= r1.Max.X
+-		&& r1.Min.Y <= r.Min.Y && r.Max.Y <= r1.Max.Y
++	return r1.Min.X <= r.Min.X && r.Max.X <= r1.Max.X &&
++		r1.Min.Y <= r.Min.Y && r.Max.Y <= r1.Max.Y;
+ }
+ 
+ // Combine returns the smallest rectangle containing all points from r and from r1.
+ func (r Rectangle) Combine(r1 Rectangle) Rectangle {
+ 	if r.Empty() {
+-		return r1
++		return r1;
+ 	}
+ 	if r1.Empty() {
+-		return r
++		return r;
+ 	}
+ 	if r.Min.X > r1.Min.X {
+-		r.Min.X = r1.Min.X
++		r.Min.X = r1.Min.X;
+ 	}
+ 	if r.Min.Y > r1.Min.Y {
+-		r.Min.Y = r1.Min.Y
++		r.Min.Y = r1.Min.Y;
+ 	}
+ 	if r.Max.X < r1.Max.X {
+-		r.Max.X = r1.Max.X
++		r.Max.X = r1.Max.X;
+ 	}
+ 	if r.Max.Y < r1.Max.Y {
+-		r.Max.Y = r1.Max.Y
++		r.Max.Y = r1.Max.Y;
+ 	}
+-	return r
++	return r;
+ }
+ 
+ // Clip returns the largest rectangle containing only points shared by r and r1.
+ func (r Rectangle) Clip(r1 Rectangle) Rectangle {
+ 	if r.Empty() {
+-		return r
++		return r;
+ 	}
+ 	if r1.Empty() {
+-		return r1
++		return r1;
+ 	}
+ 	if r.Min.X < r1.Min.X {
+-		r.Min.X = r1.Min.X
++		r.Min.X = r1.Min.X;
+ 	}
+ 	if r.Min.Y < r1.Min.Y {
+-		r.Min.Y = r1.Min.Y
++		r.Min.Y = r1.Min.Y;
+ 	}
+ 	if r.Max.X > r1.Max.X {
+-		r.Max.X = r1.Max.X
++		r.Max.X = r1.Max.X;
+ 	}
+ 	if r.Max.Y > r1.Max.Y {
+-		r.Max.Y = r1.Max.Y
++		r.Max.Y = r1.Max.Y;
+ 	}
+ 	return r;
+ }
+ 
+ // Dx returns the width of the rectangle r: r.Max.X - r.Min.X.
+ func (r Rectangle) Dx() int {
+-	return r.Max.X - r.Min.X
++	return r.Max.X - r.Min.X;
+ }
+ 
+ // Dy returns the width of the rectangle r: r.Max.Y - r.Min.Y.
+ func (r Rectangle) Dy() int {
+-	return r.Max.Y - r.Min.Y
++	return r.Max.Y - r.Min.Y;
+ }
+-
+diff --git a/src/pkg/exp/draw/color.go b/src/pkg/exp/draw/color.go
+index bae35eba5c..db772c7ad7 100644
+--- a/src/pkg/exp/draw/color.go
++++ b/src/pkg/exp/draw/color.go
+@@ -19,32 +19,32 @@ var _ image.Color = Black
+ var _ image.Image = Black
+ 
+ var (
+-	Opaque Color = 0xFFFFFFFF;
+-	Transparent Color = 0x00000000;
+-	Black Color = 0x000000FF;
+-	White Color = 0xFFFFFFFF;
+-	Red Color = 0xFF0000FF;
+-	Green Color = 0x00FF00FF;
+-	Blue Color = 0x0000FFFF;
+-	Cyan Color = 0x00FFFFFF;
+-	Magenta Color = 0xFF00FFFF;
+-	Yellow Color = 0xFFFF00FF;
+-	PaleYellow Color = 0xFFFFAAFF;
+-	DarkYellow Color = 0xEEEE9EFF;
+-	DarkGreen Color = 0x448844FF;
+-	PaleGreen Color = 0xAAFFAAFF;
+-	MedGreen Color = 0x88CC88FF;
+-	DarkBlue Color = 0x000055FF;
+-	PaleBlueGreen Color = 0xAAFFFFFF;
+-	PaleBlue Color = 0x0000BBFF;
+-	BlueGreen Color = 0x008888FF;
+-	GreyGreen Color = 0x55AAAAFF;
+-	PaleGreyGreen Color = 0x9EEEEEFF;
+-	YellowGreen Color = 0x99994CFF;
+-	MedBlue Color = 0x000099FF;
+-	GreyBlue Color = 0x005DBBFF;
+-	PaleGreyBlue Color = 0x4993DDFF;
+-	PurpleBlue Color = 0x8888CCFF;
++	Opaque		Color	= 0xFFFFFFFF;
++	Transparent	Color	= 0x00000000;
++	Black		Color	= 0x000000FF;
++	White		Color	= 0xFFFFFFFF;
++	Red		Color	= 0xFF0000FF;
++	Green		Color	= 0x00FF00FF;
++	Blue		Color	= 0x0000FFFF;
++	Cyan		Color	= 0x00FFFFFF;
++	Magenta		Color	= 0xFF00FFFF;
++	Yellow		Color	= 0xFFFF00FF;
++	PaleYellow	Color	= 0xFFFFAAFF;
++	DarkYellow	Color	= 0xEEEE9EFF;
++	DarkGreen	Color	= 0x448844FF;
++	PaleGreen	Color	= 0xAAFFAAFF;
++	MedGreen	Color	= 0x88CC88FF;
++	DarkBlue	Color	= 0x000055FF;
++	PaleBlueGreen	Color	= 0xAAFFFFFF;
++	PaleBlue	Color	= 0x0000BBFF;
++	BlueGreen	Color	= 0x008888FF;
++	GreyGreen	Color	= 0x55AAAAFF;
++	PaleGreyGreen	Color	= 0x9EEEEEFF;
++	YellowGreen	Color	= 0x99994CFF;
++	MedBlue		Color	= 0x000099FF;
++	GreyBlue	Color	= 0x005DBBFF;
++	PaleGreyBlue	Color	= 0x4993DDFF;
++	PurpleBlue	Color	= 0x8888CCFF;
+ )
+ 
+ func (c Color) RGBA() (r, g, b, a uint32) {
+@@ -66,7 +66,7 @@ func (c Color) RGBA() (r, g, b, a uint32) {
+ func (c Color) SetAlpha(a uint8) Color {
+ 	r, g, b, oa := c>>24, (c>>16)&0xFF, (c>>8)&0xFF, c&0xFF;
+ 	if oa == 0 {
+-		return 0
++		return 0;
+ 	}
+ 	r = r*Color(a)/oa;
+ 	if r < 0 {
+diff --git a/src/pkg/exp/draw/draw.go b/src/pkg/exp/draw/draw.go
+index 4fc6a94ca6..0f5f9bb468 100644
+--- a/src/pkg/exp/draw/draw.go
++++ b/src/pkg/exp/draw/draw.go
+@@ -56,8 +56,8 @@ func Draw(dst Image, r Rectangle, src, mask image.Image, pt Point) {
+ 	}
+ 
+ 	var out *image.RGBA64Color;
+-	for y := y0; y != y1; y+=dy {
+-		for x := x0; x != x1; x+=dx {
++	for y := y0; y != y1; y += dy {
++		for x := x0; x != x1; x += dx {
+ 			sx := pt.X + x - r.Min.X;
+ 			sy := pt.Y + y - r.Min.Y;
+ 			if mask == nil {
+@@ -84,10 +84,10 @@ func Draw(dst Image, r Rectangle, src, mask image.Image, pt Point) {
+ 				ma >>= 16;
+ 				const M = 1<<16 - 1;
+ 				a := sa*ma/M;
+-				dr = (dr*(M-a) + sr*ma) / M;
+-				dg = (dg*(M-a) + sg*ma) / M;
+-				db = (db*(M-a) + sb*ma) / M;
+-				da = (da*(M-a) + sa*ma) / M;
++				dr = (dr*(M-a) + sr*ma)/M;
++				dg = (dg*(M-a) + sg*ma)/M;
++				db = (db*(M-a) + sb*ma)/M;
++				da = (da*(M-a) + sa*ma)/M;
+ 				if out == nil {
+ 					out = new(image.RGBA64Color);
+ 				}
+@@ -109,17 +109,17 @@ func Border(dst Image, r Rectangle, w int, src image.Image, sp Point) {
+ 	i := w;
+ 	if i > 0 {
+ 		// inside r
+-		Draw(dst, Rect(r.Min.X, r.Min.Y, r.Max.X, r.Min.Y+i), src, nil, sp);	// top
+-		Draw(dst, Rect(r.Min.X, r.Min.Y+i, r.Min.X+i, r.Max.Y-i), src, nil, sp.Add(Pt(0, i)));	// left
+-		Draw(dst, Rect(r.Max.X-i, r.Min.Y+i, r.Max.X, r.Max.Y-i), src, nil, sp.Add(Pt(r.Dx()-i, i)));	// right
+-		Draw(dst, Rect(r.Min.X, r.Max.Y-i, r.Max.X, r.Max.Y), src, nil, sp.Add(Pt(0, r.Dy()-i)));	// bottom
++		Draw(dst, Rect(r.Min.X, r.Min.Y, r.Max.X, r.Min.Y + i), src, nil, sp);					// top
++		Draw(dst, Rect(r.Min.X, r.Min.Y + i, r.Min.X + i, r.Max.Y - i), src, nil, sp.Add(Pt(0, i)));		// left
++		Draw(dst, Rect(r.Max.X - i, r.Min.Y + i, r.Max.X, r.Max.Y - i), src, nil, sp.Add(Pt(r.Dx() - i, i)));	// right
++		Draw(dst, Rect(r.Min.X, r.Max.Y - i, r.Max.X, r.Max.Y), src, nil, sp.Add(Pt(0, r.Dy() - i)));		// bottom
+ 		return;
+ 	}
+ 
+ 	// outside r;
+ 	i = -i;
+-	Draw(dst, Rect(r.Min.X-i, r.Min.Y-i, r.Max.X+i, r.Min.Y), src, nil, sp.Add(Pt(-i, -i)));	// top
+-	Draw(dst, Rect(r.Min.X-i, r.Min.Y, r.Min.X, r.Max.Y), src, nil, sp.Add(Pt(-i, 0)));	// left
+-	Draw(dst, Rect(r.Max.X, r.Min.Y, r.Max.X+i, r.Max.Y), src, nil, sp.Add(Pt(r.Dx(), 0)));	// right
+-	Draw(dst, Rect(r.Min.X-i, r.Max.Y, r.Max.X+i, r.Max.Y+i), src, nil, sp.Add(Pt(-i, 0)));	// bottom
++	Draw(dst, Rect(r.Min.X - i, r.Min.Y - i, r.Max.X + i, r.Min.Y), src, nil, sp.Add(Pt(-i, -i)));	// top
++	Draw(dst, Rect(r.Min.X - i, r.Min.Y, r.Min.X, r.Max.Y), src, nil, sp.Add(Pt(-i, 0)));		// left
++	Draw(dst, Rect(r.Max.X, r.Min.Y, r.Max.X + i, r.Max.Y), src, nil, sp.Add(Pt(r.Dx(), 0)));	// right
++	Draw(dst, Rect(r.Min.X - i, r.Max.Y, r.Max.X + i, r.Max.Y + i), src, nil, sp.Add(Pt(-i, 0)));	// bottom
+ }
+diff --git a/src/pkg/exp/draw/event.go b/src/pkg/exp/draw/event.go
+index b5bce50788..8a148bd48d 100644
+--- a/src/pkg/exp/draw/event.go
++++ b/src/pkg/exp/draw/event.go
+@@ -40,8 +40,7 @@ type Context interface {
+ 
+ // A Mouse represents the state of the mouse.
+ type Mouse struct {
+-	Buttons int;	// bit mask of buttons: 1<<0 is left, 1<<1 middle, 1<<2 right
+-	Point;	// location of cursor
+-	Nsec int64;	// time stamp
++	Buttons	int;	// bit mask of buttons: 1<<0 is left, 1<<1 middle, 1<<2 right
++	Point;		// location of cursor
++	Nsec	int64;	// time stamp
+ }
+-

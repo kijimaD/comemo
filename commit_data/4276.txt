@@ -7,6 +7,23 @@ Date:   Wed Dec 2 01:16:38 2009 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/164053
-
+---
  lib/codereview/codereview.py | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 0d97226b76..51f9b8ee08 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -43,7 +43,10 @@ import stat
+ import subprocess
+ import threading
+ from HTMLParser import HTMLParser
+-from xml.etree import ElementTree as ET
++try:
++	from xml.etree import ElementTree as ET
++except:
++	from lxml.etree import ElementTree as ET
+ 
+ try:
+ 	hgversion = util.version()

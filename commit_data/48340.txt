@@ -21,7 +21,7 @@ Date:   Sun May 9 11:06:17 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/reflectdata/reflect.go |  29 ++++---
  src/cmd/link/internal/ld/decodesym.go           |   5 +-
  src/internal/reflectlite/all_test.go            |  13 ---
@@ -30,3 +30,502 @@ Date:   Sun May 9 11:06:17 2021 -0700
  src/reflect/type.go                             | 111 +++++++++++++++---------
  src/runtime/type.go                             |  53 ++++++-----
  7 files changed, 143 insertions(+), 133 deletions(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 01eaf26a0a..8c0e33f6df 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -5,6 +5,7 @@
+ package reflectdata
+ 
+ import (
++	"encoding/binary"
+ 	"fmt"
+ 	"internal/buildcfg"
+ 	"os"
+@@ -473,21 +474,25 @@ func dnameField(lsym *obj.LSym, ot int, spkg *types.Pkg, ft *types.Field) int {
+ 
+ // dnameData writes the contents of a reflect.name into s at offset ot.
+ func dnameData(s *obj.LSym, ot int, name, tag string, pkg *types.Pkg, exported bool) int {
+-	if len(name) > 1<<16-1 {
+-		base.Fatalf("name too long: %s", name)
++	if len(name) >= 1<<29 {
++		base.Fatalf("name too long: %d %s...", len(name), name[:1024])
+ 	}
+-	if len(tag) > 1<<16-1 {
+-		base.Fatalf("tag too long: %s", tag)
++	if len(tag) >= 1<<29 {
++		base.Fatalf("tag too long: %d %s...", len(tag), tag[:1024])
+ 	}
++	var nameLen [binary.MaxVarintLen64]byte
++	nameLenLen := binary.PutUvarint(nameLen[:], uint64(len(name)))
++	var tagLen [binary.MaxVarintLen64]byte
++	tagLenLen := binary.PutUvarint(tagLen[:], uint64(len(tag)))
+ 
+ 	// Encode name and tag. See reflect/type.go for details.
+ 	var bits byte
+-	l := 1 + 2 + len(name)
++	l := 1 + nameLenLen + len(name)
+ 	if exported {
+ 		bits |= 1 << 0
+ 	}
+ 	if len(tag) > 0 {
+-		l += 2 + len(tag)
++		l += tagLenLen + len(tag)
+ 		bits |= 1 << 1
+ 	}
+ 	if pkg != nil {
+@@ -495,14 +500,12 @@ func dnameData(s *obj.LSym, ot int, name, tag string, pkg *types.Pkg, exported b
+ 	}
+ 	b := make([]byte, l)
+ 	b[0] = bits
+-	b[1] = uint8(len(name) >> 8)
+-	b[2] = uint8(len(name))
+-	copy(b[3:], name)
++	copy(b[1:], nameLen[:nameLenLen])
++	copy(b[1+nameLenLen:], name)
+ 	if len(tag) > 0 {
+-		tb := b[3+len(name):]
+-		tb[0] = uint8(len(tag) >> 8)
+-		tb[1] = uint8(len(tag))
+-		copy(tb[2:], tag)
++		tb := b[1+nameLenLen+len(name):]
++		copy(tb, tagLen[:tagLenLen])
++		copy(tb[tagLenLen:], tag)
+ 	}
+ 
+ 	ot = int(s.WriteBytes(base.Ctxt, int64(ot), b))
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index fc179fc6e4..c41d97706e 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -10,6 +10,7 @@ import (
+ 	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
+ 	"debug/elf"
++	"encoding/binary"
+ 	"log"
+ )
+ 
+@@ -126,8 +127,8 @@ func decodetypeName(ldr *loader.Loader, symIdx loader.Sym, relocs *loader.Relocs
+ 	}
+ 
+ 	data := ldr.Data(r)
+-	namelen := int(uint16(data[1])<<8 | uint16(data[2]))
+-	return string(data[3 : 3+namelen])
++	nameLen, nameLenLen := binary.Uvarint(data[1:])
++	return string(data[1+nameLenLen : 1+nameLenLen+int(nameLen)])
+ }
+ 
+ func decodetypeFuncInType(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, relocs *loader.Relocs, i int) loader.Sym {
+diff --git a/src/internal/reflectlite/all_test.go b/src/internal/reflectlite/all_test.go
+index e2c4f30487..e15f364fcd 100644
+--- a/src/internal/reflectlite/all_test.go
++++ b/src/internal/reflectlite/all_test.go
+@@ -982,19 +982,6 @@ func TestNames(t *testing.T) {
+ 	}
+ }
+ 
+-type embed struct {
+-	EmbedWithUnexpMeth
+-}
+-
+-func TestNameBytesAreAligned(t *testing.T) {
+-	typ := TypeOf(embed{})
+-	b := FirstMethodNameBytes(typ)
+-	v := uintptr(unsafe.Pointer(b))
+-	if v%unsafe.Alignof((*byte)(nil)) != 0 {
+-		t.Errorf("reflect.name.bytes pointer is not aligned: %x", v)
+-	}
+-}
+-
+ // TestUnaddressableField tests that the reflect package will not allow
+ // a type from another package to be used as a named type with an
+ // unexported field.
+diff --git a/src/internal/reflectlite/type.go b/src/internal/reflectlite/type.go
+index 15ba30da36..f529f7c5fc 100644
+--- a/src/internal/reflectlite/type.go
++++ b/src/internal/reflectlite/type.go
+@@ -321,49 +321,55 @@ func (n name) isExported() bool {
+ 	return (*n.bytes)&(1<<0) != 0
+ }
+ 
+-func (n name) nameLen() int {
+-	return int(uint16(*n.data(1, "name len field"))<<8 | uint16(*n.data(2, "name len field")))
+-}
+-
+-func (n name) tagLen() int {
+-	if *n.data(0, "name flag field")&(1<<1) == 0 {
+-		return 0
++func (n name) hasTag() bool {
++	return (*n.bytes)&(1<<1) != 0
++}
++
++// readVarint parses a varint as encoded by encoding/binary.
++// It returns the number of encoded bytes and the encoded value.
++func (n name) readVarint(off int) (int, int) {
++	v := 0
++	for i := 0; ; i++ {
++		x := *n.data(off+i, "read varint")
++		v += int(x&0x7f) << (7 * i)
++		if x&0x80 == 0 {
++			return i + 1, v
++		}
+ 	}
+-	off := 3 + n.nameLen()
+-	return int(uint16(*n.data(off, "name taglen field"))<<8 | uint16(*n.data(off+1, "name taglen field")))
+ }
+ 
+ func (n name) name() (s string) {
+ 	if n.bytes == nil {
+ 		return
+ 	}
+-	b := (*[4]byte)(unsafe.Pointer(n.bytes))
+-
++	i, l := n.readVarint(1)
+ 	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
+-	hdr.Data = unsafe.Pointer(&b[3])
+-	hdr.Len = int(b[1])<<8 | int(b[2])
+-	return s
++	hdr.Data = unsafe.Pointer(n.data(1+i, "non-empty string"))
++	hdr.Len = l
++	return
+ }
+ 
+ func (n name) tag() (s string) {
+-	tl := n.tagLen()
+-	if tl == 0 {
++	if !n.hasTag() {
+ 		return ""
+ 	}
+-	nl := n.nameLen()
++	i, l := n.readVarint(1)
++	i2, l2 := n.readVarint(1 + i + l)
+ 	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
+-	hdr.Data = unsafe.Pointer(n.data(3+nl+2, "non-empty string"))
+-	hdr.Len = tl
+-	return s
++	hdr.Data = unsafe.Pointer(n.data(1+i+l+i2, "non-empty string"))
++	hdr.Len = l2
++	return
+ }
+ 
+ func (n name) pkgPath() string {
+ 	if n.bytes == nil || *n.data(0, "name flag field")&(1<<2) == 0 {
+ 		return ""
+ 	}
+-	off := 3 + n.nameLen()
+-	if tl := n.tagLen(); tl > 0 {
+-		off += 2 + tl
++	i, l := n.readVarint(1)
++	off := 1 + i + l
++	if n.hasTag() {
++		i2, l2 := n.readVarint(off)
++		off += i2 + l2
+ 	}
+ 	var nameOff int32
+ 	// Note that this field may not be aligned in memory,
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 065ff04611..17104ad4fa 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -6942,19 +6942,6 @@ func TestExported(t *testing.T) {
+ 	}
+ }
+ 
+-type embed struct {
+-	EmbedWithUnexpMeth
+-}
+-
+-func TestNameBytesAreAligned(t *testing.T) {
+-	typ := TypeOf(embed{})
+-	b := FirstMethodNameBytes(typ)
+-	v := uintptr(unsafe.Pointer(b))
+-	if v%unsafe.Alignof((*byte)(nil)) != 0 {
+-		t.Errorf("reflect.name.bytes pointer is not aligned: %x", v)
+-	}
+-}
+-
+ func TestTypeStrings(t *testing.T) {
+ 	type stringTest struct {
+ 		typ  Type
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 9727bfe467..39414fc2a6 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -450,14 +450,11 @@ type structType struct {
+ //	1<<1 tag data follows the name
+ //	1<<2 pkgPath nameOff follows the name and tag
+ //
+-// The next two bytes are the data length:
++// Following that, there is a varint-encoded length of the name,
++// followed by the name itself.
+ //
+-//	 l := uint16(data[1])<<8 | uint16(data[2])
+-//
+-// Bytes [3:3+l] are the string data.
+-//
+-// If tag data follows then bytes 3+l and 3+l+1 are the tag length,
+-// with the data following.
++// If tag data is present, it also has a varint-encoded length
++// followed by the tag itself.
+ //
+ // If the import path follows, then 4 bytes at the end of
+ // the data form a nameOff. The import path is only set for concrete
+@@ -465,6 +462,13 @@ type structType struct {
+ //
+ // If a name starts with "*", then the exported bit represents
+ // whether the pointed to type is exported.
++//
++// Note: this encoding must match here and in:
++//   cmd/compile/internal/reflectdata/reflect.go
++//   runtime/type.go
++//   internal/reflectlite/type.go
++//   cmd/link/internal/ld/decodesym.go
++
+ type name struct {
+ 	bytes *byte
+ }
+@@ -477,49 +481,70 @@ func (n name) isExported() bool {
+ 	return (*n.bytes)&(1<<0) != 0
+ }
+ 
+-func (n name) nameLen() int {
+-	return int(uint16(*n.data(1, "name len field"))<<8 | uint16(*n.data(2, "name len field")))
++func (n name) hasTag() bool {
++	return (*n.bytes)&(1<<1) != 0
++}
++
++// readVarint parses a varint as encoded by encoding/binary.
++// It returns the number of encoded bytes and the encoded value.
++func (n name) readVarint(off int) (int, int) {
++	v := 0
++	for i := 0; ; i++ {
++		x := *n.data(off+i, "read varint")
++		v += int(x&0x7f) << (7 * i)
++		if x&0x80 == 0 {
++			return i + 1, v
++		}
++	}
+ }
+ 
+-func (n name) tagLen() int {
+-	if *n.data(0, "name flag field")&(1<<1) == 0 {
+-		return 0
++// writeVarint writes n to buf in varint form. Returns the
++// number of bytes written. n must be nonnegative.
++// Writes at most 10 bytes.
++func writeVarint(buf []byte, n int) int {
++	for i := 0; ; i++ {
++		b := byte(n & 0x7f)
++		n >>= 7
++		if n == 0 {
++			buf[i] = b
++			return i + 1
++		}
++		buf[i] = b | 0x80
+ 	}
+-	off := 3 + n.nameLen()
+-	return int(uint16(*n.data(off, "name taglen field"))<<8 | uint16(*n.data(off+1, "name taglen field")))
+ }
+ 
+ func (n name) name() (s string) {
+ 	if n.bytes == nil {
+ 		return
+ 	}
+-	b := (*[4]byte)(unsafe.Pointer(n.bytes))
+-
++	i, l := n.readVarint(1)
+ 	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
+-	hdr.Data = unsafe.Pointer(&b[3])
+-	hdr.Len = int(b[1])<<8 | int(b[2])
+-	return s
++	hdr.Data = unsafe.Pointer(n.data(1+i, "non-empty string"))
++	hdr.Len = l
++	return
+ }
+ 
+ func (n name) tag() (s string) {
+-	tl := n.tagLen()
+-	if tl == 0 {
++	if !n.hasTag() {
+ 		return ""
+ 	}
+-	nl := n.nameLen()
++	i, l := n.readVarint(1)
++	i2, l2 := n.readVarint(1 + i + l)
+ 	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
+-	hdr.Data = unsafe.Pointer(n.data(3+nl+2, "non-empty string"))
+-	hdr.Len = tl
+-	return s
++	hdr.Data = unsafe.Pointer(n.data(1+i+l+i2, "non-empty string"))
++	hdr.Len = l2
++	return
+ }
+ 
+ func (n name) pkgPath() string {
+ 	if n.bytes == nil || *n.data(0, "name flag field")&(1<<2) == 0 {
+ 		return ""
+ 	}
+-	off := 3 + n.nameLen()
+-	if tl := n.tagLen(); tl > 0 {
+-		off += 2 + tl
++	i, l := n.readVarint(1)
++	off := 1 + i + l
++	if n.hasTag() {
++		i2, l2 := n.readVarint(off)
++		off += i2 + l2
+ 	}
+ 	var nameOff int32
+ 	// Note that this field may not be aligned in memory,
+@@ -530,33 +555,35 @@ func (n name) pkgPath() string {
+ }
+ 
+ func newName(n, tag string, exported bool) name {
+-	if len(n) > 1<<16-1 {
+-		panic("reflect.nameFrom: name too long: " + n)
++	if len(n) >= 1<<29 {
++		panic("reflect.nameFrom: name too long: " + n[:1024] + "...")
+ 	}
+-	if len(tag) > 1<<16-1 {
+-		panic("reflect.nameFrom: tag too long: " + tag)
++	if len(tag) >= 1<<29 {
++		panic("reflect.nameFrom: tag too long: " + tag[:1024] + "...")
+ 	}
++	var nameLen [10]byte
++	var tagLen [10]byte
++	nameLenLen := writeVarint(nameLen[:], len(n))
++	tagLenLen := writeVarint(tagLen[:], len(tag))
+ 
+ 	var bits byte
+-	l := 1 + 2 + len(n)
++	l := 1 + nameLenLen + len(n)
+ 	if exported {
+ 		bits |= 1 << 0
+ 	}
+ 	if len(tag) > 0 {
+-		l += 2 + len(tag)
++		l += tagLenLen + len(tag)
+ 		bits |= 1 << 1
+ 	}
+ 
+ 	b := make([]byte, l)
+ 	b[0] = bits
+-	b[1] = uint8(len(n) >> 8)
+-	b[2] = uint8(len(n))
+-	copy(b[3:], n)
++	copy(b[1:], nameLen[:nameLenLen])
++	copy(b[1+nameLenLen:], n)
+ 	if len(tag) > 0 {
+-		tb := b[3+len(n):]
+-		tb[0] = uint8(len(tag) >> 8)
+-		tb[1] = uint8(len(tag))
+-		copy(tb[2:], tag)
++		tb := b[1+nameLenLen+len(n):]
++		copy(tb, tagLen[:tagLenLen])
++		copy(tb[tagLenLen:], tag)
+ 	}
+ 
+ 	return name{bytes: &b[0]}
+@@ -2570,7 +2597,7 @@ func StructOf(fields []StructField) Type {
+ 		hash = fnv1(hash, byte(ft.hash>>24), byte(ft.hash>>16), byte(ft.hash>>8), byte(ft.hash))
+ 
+ 		repr = append(repr, (" " + ft.String())...)
+-		if f.name.tagLen() > 0 {
++		if f.name.hasTag() {
+ 			hash = fnv1(hash, []byte(f.name.tag())...)
+ 			repr = append(repr, (" " + strconv.Quote(f.name.tag()))...)
+ 		}
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index c0911b1dcb..335fc57f4b 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -459,51 +459,52 @@ func (n name) isExported() bool {
+ 	return (*n.bytes)&(1<<0) != 0
+ }
+ 
+-func (n name) nameLen() int {
+-	return int(uint16(*n.data(1))<<8 | uint16(*n.data(2)))
+-}
+-
+-func (n name) tagLen() int {
+-	if *n.data(0)&(1<<1) == 0 {
+-		return 0
++func (n name) readvarint(off int) (int, int) {
++	v := 0
++	for i := 0; ; i++ {
++		x := *n.data(off + i)
++		v += int(x&0x7f) << (7 * i)
++		if x&0x80 == 0 {
++			return i + 1, v
++		}
+ 	}
+-	off := 3 + n.nameLen()
+-	return int(uint16(*n.data(off))<<8 | uint16(*n.data(off + 1)))
+ }
+ 
+ func (n name) name() (s string) {
+ 	if n.bytes == nil {
+ 		return ""
+ 	}
+-	nl := n.nameLen()
+-	if nl == 0 {
++	i, l := n.readvarint(1)
++	if l == 0 {
+ 		return ""
+ 	}
+ 	hdr := (*stringStruct)(unsafe.Pointer(&s))
+-	hdr.str = unsafe.Pointer(n.data(3))
+-	hdr.len = nl
+-	return s
++	hdr.str = unsafe.Pointer(n.data(1 + i))
++	hdr.len = l
++	return
+ }
+ 
+ func (n name) tag() (s string) {
+-	tl := n.tagLen()
+-	if tl == 0 {
++	if *n.data(0)&(1<<1) == 0 {
+ 		return ""
+ 	}
+-	nl := n.nameLen()
++	i, l := n.readvarint(1)
++	i2, l2 := n.readvarint(1 + i + l)
+ 	hdr := (*stringStruct)(unsafe.Pointer(&s))
+-	hdr.str = unsafe.Pointer(n.data(3 + nl + 2))
+-	hdr.len = tl
+-	return s
++	hdr.str = unsafe.Pointer(n.data(1 + i + l + i2))
++	hdr.len = l2
++	return
+ }
+ 
+ func (n name) pkgPath() string {
+ 	if n.bytes == nil || *n.data(0)&(1<<2) == 0 {
+ 		return ""
+ 	}
+-	off := 3 + n.nameLen()
+-	if tl := n.tagLen(); tl > 0 {
+-		off += 2 + tl
++	i, l := n.readvarint(1)
++	off := 1 + i + l
++	if *n.data(0)&(1<<1) != 0 {
++		i2, l2 := n.readvarint(off)
++		off += i2 + l2
+ 	}
+ 	var nameOff nameOff
+ 	copy((*[4]byte)(unsafe.Pointer(&nameOff))[:], (*[4]byte)(unsafe.Pointer(n.data(off)))[:])
+@@ -515,10 +516,8 @@ func (n name) isBlank() bool {
+ 	if n.bytes == nil {
+ 		return false
+ 	}
+-	if n.nameLen() != 1 {
+-		return false
+-	}
+-	return *n.data(3) == '_'
++	_, l := n.readvarint(1)
++	return l == 1 && *n.data(2) == '_'
+ }
+ 
+ // typelinksinit scans the types from extra modules and builds the

@@ -13,8 +13,144 @@ Date:   Mon Oct 12 16:01:51 2015 -0700
     Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/export_test.go |  4 ++--
  src/runtime/typekind.go    | 60 +++++++++++++++++++++++-----------------------
  src/runtime/typekind1.go   | 39 ------------------------------
  3 files changed, 32 insertions(+), 71 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index d7e43f4fe2..5c1394899a 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -132,11 +132,11 @@ func BenchSetType(n int, x interface{}) {
+ 	var size uintptr
+ 	var p unsafe.Pointer
+ 	switch t.kind & kindMask {
+-	case _KindPtr:
++	case kindPtr:
+ 		t = (*ptrtype)(unsafe.Pointer(t)).elem
+ 		size = t.size
+ 		p = e.data
+-	case _KindSlice:
++	case kindSlice:
+ 		slice := *(*struct {
+ 			ptr      unsafe.Pointer
+ 			len, cap uintptr
+diff --git a/src/runtime/typekind.go b/src/runtime/typekind.go
+index b64ec44f9e..d146dcae55 100644
+--- a/src/runtime/typekind.go
++++ b/src/runtime/typekind.go
+@@ -5,37 +5,37 @@
+ package runtime
+ 
+ const (
+-	kindBool          = _KindBool
+-	kindInt           = _KindInt
+-	kindInt8          = _KindInt8
+-	kindInt16         = _KindInt16
+-	kindInt32         = _KindInt32
+-	kindInt64         = _KindInt64
+-	kindUint          = _KindUint
+-	kindUint8         = _KindUint8
+-	kindUint16        = _KindUint16
+-	kindUint32        = _KindUint32
+-	kindUint64        = _KindUint64
+-	kindUintptr       = _KindUintptr
+-	kindFloat32       = _KindFloat32
+-	kindFloat64       = _KindFloat64
+-	kindComplex64     = _KindComplex64
+-	kindComplex128    = _KindComplex128
+-	kindArray         = _KindArray
+-	kindChan          = _KindChan
+-	kindFunc          = _KindFunc
+-	kindInterface     = _KindInterface
+-	kindMap           = _KindMap
+-	kindPtr           = _KindPtr
+-	kindSlice         = _KindSlice
+-	kindString        = _KindString
+-	kindStruct        = _KindStruct
+-	kindUnsafePointer = _KindUnsafePointer
++	kindBool = 1 + iota
++	kindInt
++	kindInt8
++	kindInt16
++	kindInt32
++	kindInt64
++	kindUint
++	kindUint8
++	kindUint16
++	kindUint32
++	kindUint64
++	kindUintptr
++	kindFloat32
++	kindFloat64
++	kindComplex64
++	kindComplex128
++	kindArray
++	kindChan
++	kindFunc
++	kindInterface
++	kindMap
++	kindPtr
++	kindSlice
++	kindString
++	kindStruct
++	kindUnsafePointer
+ 
+-	kindDirectIface = _KindDirectIface
+-	kindGCProg      = _KindGCProg
+-	kindNoPointers  = _KindNoPointers
+-	kindMask        = _KindMask
++	kindDirectIface = 1 << 5
++	kindGCProg      = 1 << 6
++	kindNoPointers  = 1 << 7
++	kindMask        = (1 << 5) - 1
+ )
+ 
+ // isDirectIface reports whether t is stored directly in an interface value.
+diff --git a/src/runtime/typekind1.go b/src/runtime/typekind1.go
+deleted file mode 100644
+index 73028d6f4e..0000000000
+--- a/src/runtime/typekind1.go
++++ /dev/null
+@@ -1,39 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package runtime
+-
+-const (
+-	_KindBool = 1 + iota
+-	_KindInt
+-	_KindInt8
+-	_KindInt16
+-	_KindInt32
+-	_KindInt64
+-	_KindUint
+-	_KindUint8
+-	_KindUint16
+-	_KindUint32
+-	_KindUint64
+-	_KindUintptr
+-	_KindFloat32
+-	_KindFloat64
+-	_KindComplex64
+-	_KindComplex128
+-	_KindArray
+-	_KindChan
+-	_KindFunc
+-	_KindInterface
+-	_KindMap
+-	_KindPtr
+-	_KindSlice
+-	_KindString
+-	_KindStruct
+-	_KindUnsafePointer
+-
+-	_KindDirectIface = 1 << 5
+-	_KindGCProg      = 1 << 6 // Type.gc points to GC program
+-	_KindNoPointers  = 1 << 7
+-	_KindMask        = (1 << 5) - 1
+-)

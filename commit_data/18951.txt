@@ -8,6 +8,19 @@ Date:   Wed Mar 26 13:51:00 2014 +1100
     R=adg
     CC=golang-codereviews
     https://golang.org/cl/80310043
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index a98da8012b..a73f6056fd 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -162,6 +162,7 @@ Dave Cheney <dave@cheney.net>
+ Dave Day <djd@golang.org>
+ Dave Grijalva <dgrijalva@ngmoco.com>
+ David Anderson <danderson@google.com>
++David Barnett <dbarnett@google.com>
+ David Bürgin <676c7473@gmail.com>
+ David Covert <davidhcovert@gmail.com>
+ David Crawshaw <david.crawshaw@zentus.com> <crawshaw@google.com>

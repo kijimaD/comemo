@@ -8,6 +8,20 @@ Date:   Tue Nov 17 08:39:26 2009 -0800
     
     R=r
     https://golang.org/cl/154176
-
+---
  src/Make.pkg | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+index 1377792075..f7b850685f 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -26,7 +26,7 @@ PREREQ+=$(patsubst %,%.make,$(DEPS))
+ 
+ coverage:
+ 	gotest
+-	6cov -g $(shell pwd) | grep -v '_test\.go:'
++	6cov -g $(shell pwd) $O.out | grep -v '_test\.go:'
+ 
+ clean:
+ 	rm -rf *.[$(OS)o] *.a [$(OS)].out *.cgo[12].go *.cgo[34].c *.so _obj _test _testmain.go $(CLEANFILES)

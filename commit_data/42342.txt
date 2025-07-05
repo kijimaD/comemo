@@ -10,6 +10,20 @@ Date:   Wed Dec 4 14:14:10 2019 -0500
     Run-TryBot: Alexander Rakoczy <alex@golang.org>
     Reviewed-by: Alexander Rakoczy <alex@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  doc/devel/release.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 06647953f5..3592625185 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -174,7 +174,7 @@ Only macOS users who hit this issue need to update.
+ </p>
+ 
+ <p>
+-go1.12.14 (released 2019/12/4) includes a fix to the runtime. See
++go1.12.14 (released 2019/12/04) includes a fix to the runtime. See
+ the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.12.14">Go
+ 1.12.14 milestone</a> on our issue tracker for details.
+ </p>

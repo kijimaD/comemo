@@ -10,7 +10,36 @@ Date:   Wed Apr 14 12:50:40 2021 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/config.go | 4 ++++
  src/cmd/link/internal/ld/lib.go    | 2 +-
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index 75fddc6a38..ae0d7520eb 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -205,6 +205,10 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
+ 		// doesn't work. Test case is "go test runtime/cgo".
+ 		return true, buildcfg.GOOS + " does not support internal cgo"
+ 	}
++	if iscgo && buildcfg.GOOS == "windows" && buildcfg.GOARCH == "arm64" {
++		// windows/arm64 internal linking is not implemented.
++		return true, buildcfg.GOOS + "/" + buildcfg.GOARCH + " does not support internal cgo"
++	}
+ 
+ 	// When the race flag is set, the LLVM tsan relocatable file is linked
+ 	// into the final binary, which means external linking is required because
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index d2dc3fb175..adf1669cf2 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1868,7 +1868,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 			return nil
+ 		}
+ 
+-		Errorf(nil, "%s: not an object file", pn)
++		Errorf(nil, "%s: not an object file: @%d %02x%02x%02x%02x", pn, start, c1, c2, c3, c4)
+ 		return nil
+ 	}
+ 

@@ -7,7 +7,7 @@ Date:   Wed Feb 1 00:36:45 2012 +0900
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/5593046
-
+---
  src/pkg/net/fd.go                | 33 ++++++++---------
  src/pkg/net/fd_darwin.go         | 12 +++----
  src/pkg/net/fd_freebsd.go        | 20 +++++------
@@ -31,3 +31,1369 @@ Date:   Wed Feb 1 00:36:45 2012 +0900
  src/pkg/net/udpsock_posix.go     |  8 ++---
  src/pkg/net/unixsock_posix.go    | 26 +++++++-------
  22 files changed, 230 insertions(+), 282 deletions(-)
+
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index c1bda7d67e..98e5a69502 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -275,20 +275,20 @@ func startServer() {
+ 	pollserver = p
+ }
+ 
+-func newFD(fd, family, sotype int, net string) (f *netFD, err error) {
++func newFD(fd, family, sotype int, net string) (*netFD, error) {
+ 	onceStartServer.Do(startServer)
+-	if e := syscall.SetNonblock(fd, true); e != nil {
+-		return nil, e
++	if err := syscall.SetNonblock(fd, true); err != nil {
++		return nil, err
+ 	}
+-	f = &netFD{
++	netfd := &netFD{
+ 		sysfd:  fd,
+ 		family: family,
+ 		sotype: sotype,
+ 		net:    net,
+ 	}
+-	f.cr = make(chan bool, 1)
+-	f.cw = make(chan bool, 1)
+-	return f, nil
++	netfd.cr = make(chan bool, 1)
++	netfd.cw = make(chan bool, 1)
++	return netfd, nil
+ }
+ 
+ func (fd *netFD) setAddr(laddr, raddr Addr) {
+@@ -304,8 +304,8 @@ func (fd *netFD) setAddr(laddr, raddr Addr) {
+ 	fd.sysfile = os.NewFile(fd.sysfd, fd.net+":"+ls+"->"+rs)
+ }
+ 
+-func (fd *netFD) connect(ra syscall.Sockaddr) (err error) {
+-	err = syscall.Connect(fd.sysfd, ra)
++func (fd *netFD) connect(ra syscall.Sockaddr) error {
++	err := syscall.Connect(fd.sysfd, ra)
+ 	if err == syscall.EINPROGRESS {
+ 		pollserver.WaitWrite(fd)
+ 		var e int
+@@ -466,7 +466,7 @@ func (fd *netFD) ReadMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.S
+ 	return
+ }
+ 
+-func (fd *netFD) Write(p []byte) (n int, err error) {
++func (fd *netFD) Write(p []byte) (int, error) {
+ 	if fd == nil {
+ 		return 0, os.EINVAL
+ 	}
+@@ -477,8 +477,9 @@ func (fd *netFD) Write(p []byte) (n int, err error) {
+ 	if fd.sysfile == nil {
+ 		return 0, os.EINVAL
+ 	}
+-	nn := 0
+ 
++	var err error
++	nn := 0
+ 	for {
+ 		var n int
+ 		n, err = syscall.Write(fd.sysfile.Fd(), p[nn:])
+@@ -565,7 +566,7 @@ func (fd *netFD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oob
+ 	return
+ }
+ 
+-func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err error) {
++func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (netfd *netFD, err error) {
+ 	if fd == nil || fd.sysfile == nil {
+ 		return nil, os.EINVAL
+ 	}
+@@ -600,13 +601,13 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err err
+ 	syscall.CloseOnExec(s)
+ 	syscall.ForkLock.RUnlock()
+ 
+-	if nfd, err = newFD(s, fd.family, fd.sotype, fd.net); err != nil {
++	if netfd, err = newFD(s, fd.family, fd.sotype, fd.net); err != nil {
+ 		syscall.Close(s)
+ 		return nil, err
+ 	}
+-	lsa, _ := syscall.Getsockname(nfd.sysfd)
+-	nfd.setAddr(toAddr(lsa), toAddr(rsa))
+-	return nfd, nil
++	lsa, _ := syscall.Getsockname(netfd.sysfd)
++	netfd.setAddr(toAddr(lsa), toAddr(rsa))
++	return netfd, nil
+ }
+ 
+ func (fd *netFD) dup() (f *os.File, err error) {
+diff --git a/src/pkg/net/fd_darwin.go b/src/pkg/net/fd_darwin.go
+index c6db083c49..3dd33edc20 100644
+--- a/src/pkg/net/fd_darwin.go
++++ b/src/pkg/net/fd_darwin.go
+@@ -52,7 +52,7 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) (bool, error) {
+ 	}
+ 	syscall.SetKevent(ev, fd, kmode, flags)
+ 
+-	n, err := syscall.Kevent(p.kq, p.kbuf[0:], p.kbuf[0:], nil)
++	n, err := syscall.Kevent(p.kq, p.kbuf[:], p.kbuf[:], nil)
+ 	if err != nil {
+ 		return false, os.NewSyscallError("kevent", err)
+ 	}
+@@ -93,19 +93,19 @@ func (p *pollster) WaitFD(s *pollServer, nsec int64) (fd int, mode int, err erro
+ 		}
+ 
+ 		s.Unlock()
+-		nn, e := syscall.Kevent(p.kq, nil, p.eventbuf[0:], t)
++		n, err := syscall.Kevent(p.kq, nil, p.eventbuf[:], t)
+ 		s.Lock()
+ 
+-		if e != nil {
+-			if e == syscall.EINTR {
++		if err != nil {
++			if err == syscall.EINTR {
+ 				continue
+ 			}
+ 			return -1, 0, os.NewSyscallError("kevent", nil)
+ 		}
+-		if nn == 0 {
++		if n == 0 {
+ 			return -1, 0, nil
+ 		}
+-		p.events = p.eventbuf[0:nn]
++		p.events = p.eventbuf[:n]
+ 	}
+ 	ev := &p.events[0]
+ 	p.events = p.events[1:]
+diff --git a/src/pkg/net/fd_freebsd.go b/src/pkg/net/fd_freebsd.go
+index 31d0744e2c..35d84c30ef 100644
+--- a/src/pkg/net/fd_freebsd.go
++++ b/src/pkg/net/fd_freebsd.go
+@@ -49,12 +49,12 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) (bool, error) {
+ 	}
+ 	syscall.SetKevent(ev, fd, kmode, flags)
+ 
+-	n, e := syscall.Kevent(p.kq, p.kbuf[:], nil, nil)
+-	if e != nil {
+-		return false, os.NewSyscallError("kevent", e)
++	n, err := syscall.Kevent(p.kq, p.kbuf[:], nil, nil)
++	if err != nil {
++		return false, os.NewSyscallError("kevent", err)
+ 	}
+ 	if n != 1 || (ev.Flags&syscall.EV_ERROR) == 0 || int(ev.Ident) != fd || int(ev.Filter) != kmode {
+-		return false, os.NewSyscallError("kqueue phase error", e)
++		return false, os.NewSyscallError("kqueue phase error", err)
+ 	}
+ 	if ev.Data != 0 {
+ 		return false, syscall.Errno(int(ev.Data))
+@@ -88,19 +88,19 @@ func (p *pollster) WaitFD(s *pollServer, nsec int64) (fd int, mode int, err erro
+ 		}
+ 
+ 		s.Unlock()
+-		nn, e := syscall.Kevent(p.kq, nil, p.eventbuf[:], t)
++		n, err := syscall.Kevent(p.kq, nil, p.eventbuf[:], t)
+ 		s.Lock()
+ 
+-		if e != nil {
+-			if e == syscall.EINTR {
++		if err != nil {
++			if err == syscall.EINTR {
+ 				continue
+ 			}
+-			return -1, 0, os.NewSyscallError("kevent", e)
++			return -1, 0, os.NewSyscallError("kevent", err)
+ 		}
+-		if nn == 0 {
++		if n == 0 {
+ 			return -1, 0, nil
+ 		}
+-		p.events = p.eventbuf[0:nn]
++		p.events = p.eventbuf[:n]
+ 	}
+ 	ev := &p.events[0]
+ 	p.events = p.events[1:]
+diff --git a/src/pkg/net/fd_linux.go b/src/pkg/net/fd_linux.go
+index c8df9c9326..a1d62acc78 100644
+--- a/src/pkg/net/fd_linux.go
++++ b/src/pkg/net/fd_linux.go
+@@ -35,17 +35,15 @@ type pollster struct {
+ 
+ func newpollster() (p *pollster, err error) {
+ 	p = new(pollster)
+-	var e error
+-
+-	if p.epfd, e = syscall.EpollCreate1(syscall.EPOLL_CLOEXEC); e != nil {
+-		if e != syscall.ENOSYS {
+-			return nil, os.NewSyscallError("epoll_create1", e)
++	if p.epfd, err = syscall.EpollCreate1(syscall.EPOLL_CLOEXEC); err != nil {
++		if err != syscall.ENOSYS {
++			return nil, os.NewSyscallError("epoll_create1", err)
+ 		}
+ 		// The arg to epoll_create is a hint to the kernel
+ 		// about the number of FDs we will care about.
+ 		// We don't know, and since 2.6.8 the kernel ignores it anyhow.
+-		if p.epfd, e = syscall.EpollCreate(16); e != nil {
+-			return nil, os.NewSyscallError("epoll_create", e)
++		if p.epfd, err = syscall.EpollCreate(16); err != nil {
++			return nil, os.NewSyscallError("epoll_create", err)
+ 		}
+ 		syscall.CloseOnExec(p.epfd)
+ 	}
+@@ -74,8 +72,8 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) (bool, error) {
+ 	} else {
+ 		op = syscall.EPOLL_CTL_ADD
+ 	}
+-	if e := syscall.EpollCtl(p.epfd, op, fd, &p.ctlEvent); e != nil {
+-		return false, os.NewSyscallError("epoll_ctl", e)
++	if err := syscall.EpollCtl(p.epfd, op, fd, &p.ctlEvent); err != nil {
++		return false, os.NewSyscallError("epoll_ctl", err)
+ 	}
+ 	p.events[fd] = p.ctlEvent.Events
+ 	return false, nil
+@@ -103,13 +101,13 @@ func (p *pollster) StopWaiting(fd int, bits uint) {
+ 	if int32(events)&^syscall.EPOLLONESHOT != 0 {
+ 		p.ctlEvent.Fd = int32(fd)
+ 		p.ctlEvent.Events = events
+-		if e := syscall.EpollCtl(p.epfd, syscall.EPOLL_CTL_MOD, fd, &p.ctlEvent); e != nil {
+-			print("Epoll modify fd=", fd, ": ", e.Error(), "\n")
++		if err := syscall.EpollCtl(p.epfd, syscall.EPOLL_CTL_MOD, fd, &p.ctlEvent); err != nil {
++			print("Epoll modify fd=", fd, ": ", err.Error(), "\n")
+ 		}
+ 		p.events[fd] = events
+ 	} else {
+-		if e := syscall.EpollCtl(p.epfd, syscall.EPOLL_CTL_DEL, fd, nil); e != nil {
+-			print("Epoll delete fd=", fd, ": ", e.Error(), "\n")
++		if err := syscall.EpollCtl(p.epfd, syscall.EPOLL_CTL_DEL, fd, nil); err != nil {
++			print("Epoll delete fd=", fd, ": ", err.Error(), "\n")
+ 		}
+ 		delete(p.events, fd)
+ 	}
+@@ -144,14 +142,14 @@ func (p *pollster) WaitFD(s *pollServer, nsec int64) (fd int, mode int, err erro
+ 		}
+ 
+ 		s.Unlock()
+-		n, e := syscall.EpollWait(p.epfd, p.waitEventBuf[0:], msec)
++		n, err := syscall.EpollWait(p.epfd, p.waitEventBuf[0:], msec)
+ 		s.Lock()
+ 
+-		if e != nil {
+-			if e == syscall.EAGAIN || e == syscall.EINTR {
++		if err != nil {
++			if err == syscall.EAGAIN || err == syscall.EINTR {
+ 				continue
+ 			}
+-			return -1, 0, os.NewSyscallError("epoll_wait", e)
++			return -1, 0, os.NewSyscallError("epoll_wait", err)
+ 		}
+ 		if n == 0 {
+ 			return -1, 0, nil
+diff --git a/src/pkg/net/fd_netbsd.go b/src/pkg/net/fd_netbsd.go
+index 31d0744e2c..35d84c30ef 100644
+--- a/src/pkg/net/fd_netbsd.go
++++ b/src/pkg/net/fd_netbsd.go
+@@ -49,12 +49,12 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) (bool, error) {
+ 	}
+ 	syscall.SetKevent(ev, fd, kmode, flags)
+ 
+-	n, e := syscall.Kevent(p.kq, p.kbuf[:], nil, nil)
+-	if e != nil {
+-		return false, os.NewSyscallError("kevent", e)
++	n, err := syscall.Kevent(p.kq, p.kbuf[:], nil, nil)
++	if err != nil {
++		return false, os.NewSyscallError("kevent", err)
+ 	}
+ 	if n != 1 || (ev.Flags&syscall.EV_ERROR) == 0 || int(ev.Ident) != fd || int(ev.Filter) != kmode {
+-		return false, os.NewSyscallError("kqueue phase error", e)
++		return false, os.NewSyscallError("kqueue phase error", err)
+ 	}
+ 	if ev.Data != 0 {
+ 		return false, syscall.Errno(int(ev.Data))
+@@ -88,19 +88,19 @@ func (p *pollster) WaitFD(s *pollServer, nsec int64) (fd int, mode int, err erro
+ 		}
+ 
+ 		s.Unlock()
+-		nn, e := syscall.Kevent(p.kq, nil, p.eventbuf[:], t)
++		n, err := syscall.Kevent(p.kq, nil, p.eventbuf[:], t)
+ 		s.Lock()
+ 
+-		if e != nil {
+-			if e == syscall.EINTR {
++		if err != nil {
++			if err == syscall.EINTR {
+ 				continue
+ 			}
+-			return -1, 0, os.NewSyscallError("kevent", e)
++			return -1, 0, os.NewSyscallError("kevent", err)
+ 		}
+-		if nn == 0 {
++		if n == 0 {
+ 			return -1, 0, nil
+ 		}
+-		p.events = p.eventbuf[0:nn]
++		p.events = p.eventbuf[:n]
+ 	}
+ 	ev := &p.events[0]
+ 	p.events = p.events[1:]
+diff --git a/src/pkg/net/fd_openbsd.go b/src/pkg/net/fd_openbsd.go
+index 31d0744e2c..35d84c30ef 100644
+--- a/src/pkg/net/fd_openbsd.go
++++ b/src/pkg/net/fd_openbsd.go
+@@ -49,12 +49,12 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) (bool, error) {
+ 	}
+ 	syscall.SetKevent(ev, fd, kmode, flags)
+ 
+-	n, e := syscall.Kevent(p.kq, p.kbuf[:], nil, nil)
+-	if e != nil {
+-		return false, os.NewSyscallError("kevent", e)
++	n, err := syscall.Kevent(p.kq, p.kbuf[:], nil, nil)
++	if err != nil {
++		return false, os.NewSyscallError("kevent", err)
+ 	}
+ 	if n != 1 || (ev.Flags&syscall.EV_ERROR) == 0 || int(ev.Ident) != fd || int(ev.Filter) != kmode {
+-		return false, os.NewSyscallError("kqueue phase error", e)
++		return false, os.NewSyscallError("kqueue phase error", err)
+ 	}
+ 	if ev.Data != 0 {
+ 		return false, syscall.Errno(int(ev.Data))
+@@ -88,19 +88,19 @@ func (p *pollster) WaitFD(s *pollServer, nsec int64) (fd int, mode int, err erro
+ 		}
+ 
+ 		s.Unlock()
+-		nn, e := syscall.Kevent(p.kq, nil, p.eventbuf[:], t)
++		n, err := syscall.Kevent(p.kq, nil, p.eventbuf[:], t)
+ 		s.Lock()
+ 
+-		if e != nil {
+-			if e == syscall.EINTR {
++		if err != nil {
++			if err == syscall.EINTR {
+ 				continue
+ 			}
+-			return -1, 0, os.NewSyscallError("kevent", e)
++			return -1, 0, os.NewSyscallError("kevent", err)
+ 		}
+-		if nn == 0 {
++		if n == 0 {
+ 			return -1, 0, nil
+ 		}
+-		p.events = p.eventbuf[0:nn]
++		p.events = p.eventbuf[:n]
+ 	}
+ 	ev := &p.events[0]
+ 	p.events = p.events[1:]
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index 2ade0964fc..8d6aa7b6ca 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -30,7 +30,7 @@ func init() {
+ 	}
+ }
+ 
+-func closesocket(s syscall.Handle) (err error) {
++func closesocket(s syscall.Handle) error {
+ 	return syscall.Closesocket(s)
+ }
+ 
+@@ -38,7 +38,7 @@ func closesocket(s syscall.Handle) (err error) {
+ type anOpIface interface {
+ 	Op() *anOp
+ 	Name() string
+-	Submit() (err error)
++	Submit() error
+ }
+ 
+ // IO completion result parameters.
+@@ -153,24 +153,24 @@ func (s *ioSrv) ProcessRemoteIO() {
+ // inline, or, if a deadline is employed, passes the request onto
+ // a special goroutine and waits for completion or cancels request.
+ // deadline is unix nanos.
+-func (s *ioSrv) ExecIO(oi anOpIface, deadline int64) (n int, err error) {
+-	var e error
++func (s *ioSrv) ExecIO(oi anOpIface, deadline int64) (int, error) {
++	var err error
+ 	o := oi.Op()
+ 	if deadline != 0 {
+ 		// Send request to a special dedicated thread,
+ 		// so it can stop the io with CancelIO later.
+ 		s.submchan <- oi
+-		e = <-o.errnoc
++		err = <-o.errnoc
+ 	} else {
+-		e = oi.Submit()
++		err = oi.Submit()
+ 	}
+-	switch e {
++	switch err {
+ 	case nil:
+ 		// IO completed immediately, but we need to get our completion message anyway.
+ 	case syscall.ERROR_IO_PENDING:
+ 		// IO started, and we have to wait for its completion.
+ 	default:
+-		return 0, &OpError{oi.Name(), o.fd.net, o.fd.laddr, e}
++		return 0, &OpError{oi.Name(), o.fd.net, o.fd.laddr, err}
+ 	}
+ 	// Wait for our request to complete.
+ 	var r ioResult
+@@ -245,25 +245,25 @@ type netFD struct {
+ 	wio       sync.Mutex
+ }
+ 
+-func allocFD(fd syscall.Handle, family, sotype int, net string) (f *netFD) {
+-	f = &netFD{
++func allocFD(fd syscall.Handle, family, sotype int, net string) *netFD {
++	netfd := &netFD{
+ 		sysfd:  fd,
+ 		family: family,
+ 		sotype: sotype,
+ 		net:    net,
+ 	}
+-	runtime.SetFinalizer(f, (*netFD).Close)
+-	return f
++	runtime.SetFinalizer(netfd, (*netFD).Close)
++	return netfd
+ }
+ 
+-func newFD(fd syscall.Handle, family, proto int, net string) (f *netFD, err error) {
++func newFD(fd syscall.Handle, family, proto int, net string) (*netFD, error) {
+ 	if initErr != nil {
+ 		return nil, initErr
+ 	}
+ 	onceStartServer.Do(startServer)
+ 	// Associate our socket with resultsrv.iocp.
+-	if _, e := syscall.CreateIoCompletionPort(syscall.Handle(fd), resultsrv.iocp, 0, 0); e != nil {
+-		return nil, e
++	if _, err := syscall.CreateIoCompletionPort(syscall.Handle(fd), resultsrv.iocp, 0, 0); err != nil {
++		return nil, err
+ 	}
+ 	return allocFD(fd, family, proto, net), nil
+ }
+@@ -273,7 +273,7 @@ func (fd *netFD) setAddr(laddr, raddr Addr) {
+ 	fd.raddr = raddr
+ }
+ 
+-func (fd *netFD) connect(ra syscall.Sockaddr) (err error) {
++func (fd *netFD) connect(ra syscall.Sockaddr) error {
+ 	return syscall.Connect(fd.sysfd, ra)
+ }
+ 
+@@ -340,7 +340,7 @@ type readOp struct {
+ 	bufOp
+ }
+ 
+-func (o *readOp) Submit() (err error) {
++func (o *readOp) Submit() error {
+ 	var d, f uint32
+ 	return syscall.WSARecv(syscall.Handle(o.fd.sysfd), &o.buf, 1, &d, &f, &o.o, nil)
+ }
+@@ -349,7 +349,7 @@ func (o *readOp) Name() string {
+ 	return "WSARecv"
+ }
+ 
+-func (fd *netFD) Read(buf []byte) (n int, err error) {
++func (fd *netFD) Read(buf []byte) (int, error) {
+ 	if fd == nil {
+ 		return 0, os.EINVAL
+ 	}
+@@ -362,11 +362,11 @@ func (fd *netFD) Read(buf []byte) (n int, err error) {
+ 	}
+ 	var o readOp
+ 	o.Init(fd, buf, 'r')
+-	n, err = iosrv.ExecIO(&o, fd.rdeadline)
++	n, err := iosrv.ExecIO(&o, fd.rdeadline)
+ 	if err == nil && n == 0 {
+ 		err = io.EOF
+ 	}
+-	return
++	return n, err
+ }
+ 
+ // ReadFrom from network.
+@@ -377,7 +377,7 @@ type readFromOp struct {
+ 	rsan int32
+ }
+ 
+-func (o *readFromOp) Submit() (err error) {
++func (o *readFromOp) Submit() error {
+ 	var d, f uint32
+ 	return syscall.WSARecvFrom(o.fd.sysfd, &o.buf, 1, &d, &f, &o.rsa, &o.rsan, &o.o, nil)
+ }
+@@ -417,7 +417,7 @@ type writeOp struct {
+ 	bufOp
+ }
+ 
+-func (o *writeOp) Submit() (err error) {
++func (o *writeOp) Submit() error {
+ 	var d uint32
+ 	return syscall.WSASend(o.fd.sysfd, &o.buf, 1, &d, 0, &o.o, nil)
+ }
+@@ -426,7 +426,7 @@ func (o *writeOp) Name() string {
+ 	return "WSASend"
+ }
+ 
+-func (fd *netFD) Write(buf []byte) (n int, err error) {
++func (fd *netFD) Write(buf []byte) (int, error) {
+ 	if fd == nil {
+ 		return 0, os.EINVAL
+ 	}
+@@ -449,7 +449,7 @@ type writeToOp struct {
+ 	sa syscall.Sockaddr
+ }
+ 
+-func (o *writeToOp) Submit() (err error) {
++func (o *writeToOp) Submit() error {
+ 	var d uint32
+ 	return syscall.WSASendto(o.fd.sysfd, &o.buf, 1, &d, 0, o.sa, &o.o, nil)
+ }
+@@ -458,7 +458,7 @@ func (o *writeToOp) Name() string {
+ 	return "WSASendto"
+ }
+ 
+-func (fd *netFD) WriteTo(buf []byte, sa syscall.Sockaddr) (n int, err error) {
++func (fd *netFD) WriteTo(buf []byte, sa syscall.Sockaddr) (int, error) {
+ 	if fd == nil {
+ 		return 0, os.EINVAL
+ 	}
+@@ -486,7 +486,7 @@ type acceptOp struct {
+ 	attrs   [2]syscall.RawSockaddrAny // space for local and remote address only
+ }
+ 
+-func (o *acceptOp) Submit() (err error) {
++func (o *acceptOp) Submit() error {
+ 	var d uint32
+ 	l := uint32(unsafe.Sizeof(o.attrs[0]))
+ 	return syscall.AcceptEx(o.fd.sysfd, o.newsock,
+@@ -497,7 +497,7 @@ func (o *acceptOp) Name() string {
+ 	return "AcceptEx"
+ }
+ 
+-func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err error) {
++func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
+ 	if fd == nil || fd.sysfd == syscall.InvalidHandle {
+ 		return nil, os.EINVAL
+ 	}
+@@ -507,18 +507,18 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err err
+ 	// Get new socket.
+ 	// See ../syscall/exec.go for description of ForkLock.
+ 	syscall.ForkLock.RLock()
+-	s, e := syscall.Socket(fd.family, fd.sotype, 0)
+-	if e != nil {
++	s, err := syscall.Socket(fd.family, fd.sotype, 0)
++	if err != nil {
+ 		syscall.ForkLock.RUnlock()
+-		return nil, e
++		return nil, err
+ 	}
+ 	syscall.CloseOnExec(s)
+ 	syscall.ForkLock.RUnlock()
+ 
+ 	// Associate our new socket with IOCP.
+ 	onceStartServer.Do(startServer)
+-	if _, e = syscall.CreateIoCompletionPort(s, resultsrv.iocp, 0, 0); e != nil {
+-		return nil, &OpError{"CreateIoCompletionPort", fd.net, fd.laddr, e}
++	if _, err := syscall.CreateIoCompletionPort(s, resultsrv.iocp, 0, 0); err != nil {
++		return nil, &OpError{"CreateIoCompletionPort", fd.net, fd.laddr, err}
+ 	}
+ 
+ 	// Submit accept request.
+@@ -532,10 +532,10 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err err
+ 	}
+ 
+ 	// Inherit properties of the listening socket.
+-	e = syscall.Setsockopt(s, syscall.SOL_SOCKET, syscall.SO_UPDATE_ACCEPT_CONTEXT, (*byte)(unsafe.Pointer(&fd.sysfd)), int32(unsafe.Sizeof(fd.sysfd)))
+-	if e != nil {
++	err = syscall.Setsockopt(s, syscall.SOL_SOCKET, syscall.SO_UPDATE_ACCEPT_CONTEXT, (*byte)(unsafe.Pointer(&fd.sysfd)), int32(unsafe.Sizeof(fd.sysfd)))
++	if err != nil {
+ 		closesocket(s)
+-		return nil, e
++		return nil, err
+ 	}
+ 
+ 	// Get local and peer addr out of AcceptEx buffer.
+@@ -547,14 +547,14 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err err
+ 	lsa, _ := lrsa.Sockaddr()
+ 	rsa, _ := rrsa.Sockaddr()
+ 
+-	nfd = allocFD(s, fd.family, fd.sotype, fd.net)
+-	nfd.setAddr(toAddr(lsa), toAddr(rsa))
+-	return nfd, nil
++	netfd := allocFD(s, fd.family, fd.sotype, fd.net)
++	netfd.setAddr(toAddr(lsa), toAddr(rsa))
++	return netfd, nil
+ }
+ 
+ // Unimplemented functions.
+ 
+-func (fd *netFD) dup() (f *os.File, err error) {
++func (fd *netFD) dup() (*os.File, error) {
+ 	// TODO: Implement this
+ 	return nil, os.NewSyscallError("dup", syscall.EWINDOWS)
+ }
+diff --git a/src/pkg/net/file.go b/src/pkg/net/file.go
+index 4ac280bd1a..901b856599 100644
+--- a/src/pkg/net/file.go
++++ b/src/pkg/net/file.go
+@@ -11,15 +11,15 @@ import (
+ 	"syscall"
+ )
+ 
+-func newFileFD(f *os.File) (nfd *netFD, err error) {
+-	fd, errno := syscall.Dup(f.Fd())
+-	if errno != nil {
+-		return nil, os.NewSyscallError("dup", errno)
++func newFileFD(f *os.File) (*netFD, error) {
++	fd, err := syscall.Dup(f.Fd())
++	if err != nil {
++		return nil, os.NewSyscallError("dup", err)
+ 	}
+ 
+-	proto, errno := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_TYPE)
+-	if errno != nil {
+-		return nil, os.NewSyscallError("getsockopt", errno)
++	proto, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_TYPE)
++	if err != nil {
++		return nil, os.NewSyscallError("getsockopt", err)
+ 	}
+ 
+ 	family := syscall.AF_UNSPEC
+@@ -56,11 +56,12 @@ func newFileFD(f *os.File) (nfd *netFD, err error) {
+ 	sa, _ = syscall.Getpeername(fd)
+ 	raddr := toAddr(sa)
+ 
+-	if nfd, err = newFD(fd, family, proto, laddr.Network()); err != nil {
++	netfd, err := newFD(fd, family, proto, laddr.Network())
++	if err != nil {
+ 		return nil, err
+ 	}
+-	nfd.setAddr(laddr, raddr)
+-	return nfd, nil
++	netfd.setAddr(laddr, raddr)
++	return netfd, nil
+ }
+ 
+ // FileConn returns a copy of the network connection corresponding to
+diff --git a/src/pkg/net/interface_darwin.go b/src/pkg/net/interface_darwin.go
+index 2da447adc8..0b5fb5fb9d 100644
+--- a/src/pkg/net/interface_darwin.go
++++ b/src/pkg/net/interface_darwin.go
+@@ -15,23 +15,17 @@ import (
+ // addresses for all network interfaces.  Otherwise it returns
+ // addresses for a specific interface.
+ func interfaceMulticastAddrTable(ifindex int) ([]Addr, error) {
+-	var (
+-		tab   []byte
+-		e     error
+-		msgs  []syscall.RoutingMessage
+-		ifmat []Addr
+-	)
+-
+-	tab, e = syscall.RouteRIB(syscall.NET_RT_IFLIST2, ifindex)
+-	if e != nil {
+-		return nil, os.NewSyscallError("route rib", e)
++	tab, err := syscall.RouteRIB(syscall.NET_RT_IFLIST2, ifindex)
++	if err != nil {
++		return nil, os.NewSyscallError("route rib", err)
+ 	}
+ 
+-	msgs, e = syscall.ParseRoutingMessage(tab)
+-	if e != nil {
+-		return nil, os.NewSyscallError("route message", e)
++	msgs, err := syscall.ParseRoutingMessage(tab)
++	if err != nil {
++		return nil, os.NewSyscallError("route message", err)
+ 	}
+ 
++	var ifmat []Addr
+ 	for _, m := range msgs {
+ 		switch v := m.(type) {
+ 		case *syscall.InterfaceMulticastAddrMessage:
+@@ -44,18 +38,16 @@ func interfaceMulticastAddrTable(ifindex int) ([]Addr, error) {
+ 			}
+ 		}
+ 	}
+-
+ 	return ifmat, nil
+ }
+ 
+ func newMulticastAddr(m *syscall.InterfaceMulticastAddrMessage) ([]Addr, error) {
+-	var ifmat []Addr
+-
+-	sas, e := syscall.ParseRoutingSockaddr(m)
+-	if e != nil {
+-		return nil, os.NewSyscallError("route sockaddr", e)
++	sas, err := syscall.ParseRoutingSockaddr(m)
++	if err != nil {
++		return nil, os.NewSyscallError("route sockaddr", err)
+ 	}
+ 
++	var ifmat []Addr
+ 	for _, s := range sas {
+ 		switch v := s.(type) {
+ 		case *syscall.SockaddrInet4:
+@@ -75,6 +67,5 @@ func newMulticastAddr(m *syscall.InterfaceMulticastAddrMessage) ([]Addr, error)
+ 			ifmat = append(ifmat, ifma.toAddr())
+ 		}
+ 	}
+-
+ 	return ifmat, nil
+ }
+diff --git a/src/pkg/net/interface_freebsd.go b/src/pkg/net/interface_freebsd.go
+index a12877e251..3cba28fc69 100644
+--- a/src/pkg/net/interface_freebsd.go
++++ b/src/pkg/net/interface_freebsd.go
+@@ -15,23 +15,17 @@ import (
+ // addresses for all network interfaces.  Otherwise it returns
+ // addresses for a specific interface.
+ func interfaceMulticastAddrTable(ifindex int) ([]Addr, error) {
+-	var (
+-		tab   []byte
+-		e     error
+-		msgs  []syscall.RoutingMessage
+-		ifmat []Addr
+-	)
+-
+-	tab, e = syscall.RouteRIB(syscall.NET_RT_IFMALIST, ifindex)
+-	if e != nil {
+-		return nil, os.NewSyscallError("route rib", e)
++	tab, err := syscall.RouteRIB(syscall.NET_RT_IFMALIST, ifindex)
++	if err != nil {
++		return nil, os.NewSyscallError("route rib", err)
+ 	}
+ 
+-	msgs, e = syscall.ParseRoutingMessage(tab)
+-	if e != nil {
+-		return nil, os.NewSyscallError("route message", e)
++	msgs, err := syscall.ParseRoutingMessage(tab)
++	if err != nil {
++		return nil, os.NewSyscallError("route message", err)
+ 	}
+ 
++	var ifmat []Addr
+ 	for _, m := range msgs {
+ 		switch v := m.(type) {
+ 		case *syscall.InterfaceMulticastAddrMessage:
+@@ -44,18 +38,16 @@ func interfaceMulticastAddrTable(ifindex int) ([]Addr, error) {
+ 			}
+ 		}
+ 	}
+-
+ 	return ifmat, nil
+ }
+ 
+ func newMulticastAddr(m *syscall.InterfaceMulticastAddrMessage) ([]Addr, error) {
+-	var ifmat []Addr
+-
+-	sas, e := syscall.ParseRoutingSockaddr(m)
+-	if e != nil {
+-		return nil, os.NewSyscallError("route sockaddr", e)
++	sas, err := syscall.ParseRoutingSockaddr(m)
++	if err != nil {
++		return nil, os.NewSyscallError("route sockaddr", err)
+ 	}
+ 
++	var ifmat []Addr
+ 	for _, s := range sas {
+ 		switch v := s.(type) {
+ 		case *syscall.SockaddrInet4:
+@@ -75,6 +67,5 @@ func newMulticastAddr(m *syscall.InterfaceMulticastAddrMessage) ([]Addr, error)
+ 			ifmat = append(ifmat, ifma.toAddr())
+ 		}
+ 	}
+-
+ 	return ifmat, nil
+ }
+diff --git a/src/pkg/net/interface_linux.go b/src/pkg/net/interface_linux.go
+index c0887c57ef..21038c629b 100644
+--- a/src/pkg/net/interface_linux.go
++++ b/src/pkg/net/interface_linux.go
+@@ -17,8 +17,6 @@ import (
+ // network interfaces.  Otheriwse it returns a mapping of a specific
+ // interface.
+ func interfaceTable(ifindex int) ([]Interface, error) {
+-	var ift []Interface
+-
+ 	tab, err := syscall.NetlinkRIB(syscall.RTM_GETLINK, syscall.AF_UNSPEC)
+ 	if err != nil {
+ 		return nil, os.NewSyscallError("netlink rib", err)
+@@ -29,6 +27,7 @@ func interfaceTable(ifindex int) ([]Interface, error) {
+ 		return nil, os.NewSyscallError("netlink message", err)
+ 	}
+ 
++	var ift []Interface
+ 	for _, m := range msgs {
+ 		switch m.Header.Type {
+ 		case syscall.NLMSG_DONE:
+@@ -45,7 +44,6 @@ func interfaceTable(ifindex int) ([]Interface, error) {
+ 			}
+ 		}
+ 	}
+-
+ done:
+ 	return ift, nil
+ }
+@@ -111,13 +109,11 @@ func interfaceAddrTable(ifindex int) ([]Addr, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-
+ 	return ifat, nil
+ }
+ 
+ func addrTable(msgs []syscall.NetlinkMessage, ifindex int) ([]Addr, error) {
+ 	var ifat []Addr
+-
+ 	for _, m := range msgs {
+ 		switch m.Header.Type {
+ 		case syscall.NLMSG_DONE:
+@@ -133,7 +129,6 @@ func addrTable(msgs []syscall.NetlinkMessage, ifindex int) ([]Addr, error) {
+ 			}
+ 		}
+ 	}
+-
+ done:
+ 	return ifat, nil
+ }
+@@ -165,32 +160,28 @@ func interfaceMulticastAddrTable(ifindex int) ([]Addr, error) {
+ 		err error
+ 		ifi *Interface
+ 	)
+-
+ 	if ifindex > 0 {
+ 		ifi, err = InterfaceByIndex(ifindex)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+ 	}
+-
+ 	ifmat4 := parseProcNetIGMP(ifi)
+ 	ifmat6 := parseProcNetIGMP6(ifi)
+-
+ 	return append(ifmat4, ifmat6...), nil
+ }
+ 
+ func parseProcNetIGMP(ifi *Interface) []Addr {
+-	var (
+-		ifmat []Addr
+-		name  string
+-	)
+-
+ 	fd, err := open("/proc/net/igmp")
+ 	if err != nil {
+ 		return nil
+ 	}
+ 	defer fd.close()
+ 
++	var (
++		ifmat []Addr
++		name  string
++	)
+ 	fd.readLine() // skip first line
+ 	b := make([]byte, IPv4len)
+ 	for l, ok := fd.readLine(); ok; l, ok = fd.readLine() {
+@@ -206,19 +197,17 @@ func parseProcNetIGMP(ifi *Interface) []Addr {
+ 			name = f[1]
+ 		}
+ 	}
+-
+ 	return ifmat
+ }
+ 
+ func parseProcNetIGMP6(ifi *Interface) []Addr {
+-	var ifmat []Addr
+-
+ 	fd, err := open("/proc/net/igmp6")
+ 	if err != nil {
+ 		return nil
+ 	}
+ 	defer fd.close()
+ 
++	var ifmat []Addr
+ 	b := make([]byte, IPv6len)
+ 	for l, ok := fd.readLine(); ok; l, ok = fd.readLine() {
+ 		f := getFields(l)
+@@ -229,6 +218,5 @@ func parseProcNetIGMP6(ifi *Interface) []Addr {
+ 
+ 		}
+ 	}
+-
+ 	return ifmat
+ }
+diff --git a/src/pkg/net/interface_windows.go b/src/pkg/net/interface_windows.go
+index add3dd3b9d..d0c9753269 100644
+--- a/src/pkg/net/interface_windows.go
++++ b/src/pkg/net/interface_windows.go
+@@ -25,31 +25,31 @@ func getAdapterList() (*syscall.IpAdapterInfo, error) {
+ 	b := make([]byte, 1000)
+ 	l := uint32(len(b))
+ 	a := (*syscall.IpAdapterInfo)(unsafe.Pointer(&b[0]))
+-	e := syscall.GetAdaptersInfo(a, &l)
+-	if e == syscall.ERROR_BUFFER_OVERFLOW {
++	err := syscall.GetAdaptersInfo(a, &l)
++	if err == syscall.ERROR_BUFFER_OVERFLOW {
+ 		b = make([]byte, l)
+ 		a = (*syscall.IpAdapterInfo)(unsafe.Pointer(&b[0]))
+-		e = syscall.GetAdaptersInfo(a, &l)
++		err = syscall.GetAdaptersInfo(a, &l)
+ 	}
+-	if e != nil {
+-		return nil, os.NewSyscallError("GetAdaptersInfo", e)
++	if err != nil {
++		return nil, os.NewSyscallError("GetAdaptersInfo", err)
+ 	}
+ 	return a, nil
+ }
+ 
+ func getInterfaceList() ([]syscall.InterfaceInfo, error) {
+-	s, e := syscall.Socket(syscall.AF_INET, syscall.SOCK_DGRAM, syscall.IPPROTO_UDP)
+-	if e != nil {
+-		return nil, os.NewSyscallError("Socket", e)
++	s, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_DGRAM, syscall.IPPROTO_UDP)
++	if err != nil {
++		return nil, os.NewSyscallError("Socket", err)
+ 	}
+ 	defer syscall.Closesocket(s)
+ 
+ 	ii := [20]syscall.InterfaceInfo{}
+ 	ret := uint32(0)
+ 	size := uint32(unsafe.Sizeof(ii))
+-	e = syscall.WSAIoctl(s, syscall.SIO_GET_INTERFACE_LIST, nil, 0, (*byte)(unsafe.Pointer(&ii[0])), size, &ret, nil, 0)
+-	if e != nil {
+-		return nil, os.NewSyscallError("WSAIoctl", e)
++	err = syscall.WSAIoctl(s, syscall.SIO_GET_INTERFACE_LIST, nil, 0, (*byte)(unsafe.Pointer(&ii[0])), size, &ret, nil, 0)
++	if err != nil {
++		return nil, os.NewSyscallError("WSAIoctl", err)
+ 	}
+ 	c := ret / uint32(unsafe.Sizeof(ii[0]))
+ 	return ii[:c-1], nil
+@@ -59,14 +59,14 @@ func getInterfaceList() ([]syscall.InterfaceInfo, error) {
+ // network interfaces.  Otheriwse it returns a mapping of a specific
+ // interface.
+ func interfaceTable(ifindex int) ([]Interface, error) {
+-	ai, e := getAdapterList()
+-	if e != nil {
+-		return nil, e
++	ai, err := getAdapterList()
++	if err != nil {
++		return nil, err
+ 	}
+ 
+-	ii, e := getInterfaceList()
+-	if e != nil {
+-		return nil, e
++	ii, err := getInterfaceList()
++	if err != nil {
++		return nil, err
+ 	}
+ 
+ 	var ift []Interface
+@@ -130,9 +130,9 @@ func interfaceTable(ifindex int) ([]Interface, error) {
+ // for all network interfaces.  Otherwise it returns addresses
+ // for a specific interface.
+ func interfaceAddrTable(ifindex int) ([]Addr, error) {
+-	ai, e := getAdapterList()
+-	if e != nil {
+-		return nil, e
++	ai, err := getAdapterList()
++	if err != nil {
++		return nil, err
+ 	}
+ 
+ 	var ifat []Addr
+diff --git a/src/pkg/net/ipsock.go b/src/pkg/net/ipsock.go
+index 9234f5aff6..bfbce18a41 100644
+--- a/src/pkg/net/ipsock.go
++++ b/src/pkg/net/ipsock.go
+@@ -99,16 +99,12 @@ func JoinHostPort(host, port string) string {
+ 
+ // Convert "host:port" into IP address and port.
+ func hostPortToIP(net, hostport string) (ip IP, iport int, err error) {
+-	var (
+-		addr IP
+-		p, i int
+-		ok   bool
+-	)
+ 	host, port, err := SplitHostPort(hostport)
+ 	if err != nil {
+-		goto Error
++		return nil, 0, err
+ 	}
+ 
++	var addr IP
+ 	if host != "" {
+ 		// Try as an IP address.
+ 		addr = ParseIP(host)
+@@ -121,34 +117,29 @@ func hostPortToIP(net, hostport string) (ip IP, iport int, err error) {
+ 				filter = ipv6only
+ 			}
+ 			// Not an IP address.  Try as a DNS name.
+-			addrs, err1 := LookupHost(host)
+-			if err1 != nil {
+-				err = err1
+-				goto Error
++			addrs, err := LookupHost(host)
++			if err != nil {
++				return nil, 0, err
+ 			}
+ 			addr = firstFavoriteAddr(filter, addrs)
+ 			if addr == nil {
+ 				// should not happen
+-				err = &AddrError{"LookupHost returned no suitable address", addrs[0]}
+-				goto Error
++				return nil, 0, &AddrError{"LookupHost returned no suitable address", addrs[0]}
+ 			}
+ 		}
+ 	}
+ 
+-	p, i, ok = dtoi(port, 0)
++	p, i, ok := dtoi(port, 0)
+ 	if !ok || i != len(port) {
+ 		p, err = LookupPort(net, port)
+ 		if err != nil {
+-			goto Error
++			return nil, 0, err
+ 		}
+ 	}
+ 	if p < 0 || p > 0xFFFF {
+-		err = &AddrError{"invalid port", port}
+-		goto Error
++		return nil, 0, &AddrError{"invalid port", port}
+ 	}
+ 
+ 	return addr, p, nil
+ 
+-Error:
+-	return nil, 0, err
+ }
+diff --git a/src/pkg/net/ipsock_plan9.go b/src/pkg/net/ipsock_plan9.go
+index 29eeb75825..15657b96f0 100644
+--- a/src/pkg/net/ipsock_plan9.go
++++ b/src/pkg/net/ipsock_plan9.go
+@@ -22,33 +22,22 @@ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
+ 
+ // parsePlan9Addr parses address of the form [ip!]port (e.g. 127.0.0.1!80).
+ func parsePlan9Addr(s string) (ip IP, iport int, err error) {
+-	var (
+-		addr IP
+-		p, i int
+-		ok   bool
+-	)
+-	addr = IPv4zero // address contains port only
++	addr := IPv4zero // address contains port only
+ 	i = byteIndex(s, '!')
+ 	if i >= 0 {
+ 		addr = ParseIP(s[:i])
+ 		if addr == nil {
+-			err = errors.New("net: parsing IP failed")
+-			goto Error
++			return nil, 0, errors.New("net: parsing IP failed")
+ 		}
+ 	}
+-	p, _, ok = dtoi(s[i+1:], 0)
++	p, _, ok := dtoi(s[i+1:], 0)
+ 	if !ok {
+-		err = errors.New("net: parsing port failed")
+-		goto Error
++		return nil, 0, errors.New("net: parsing port failed")
+ 	}
+ 	if p < 0 || p > 0xFFFF {
+-		err = &AddrError{"invalid port", string(p)}
+-		goto Error
++		return nil, 0, &AddrError{"invalid port", string(p)}
+ 	}
+ 	return addr, p, nil
+-
+-Error:
+-	return nil, 0, err
+ }
+ 
+ func readPlan9Addr(proto, filename string) (addr Addr, err error) {
+diff --git a/src/pkg/net/lookup_windows.go b/src/pkg/net/lookup_windows.go
+index dfe2ff6f1f..99783e9756 100644
+--- a/src/pkg/net/lookup_windows.go
++++ b/src/pkg/net/lookup_windows.go
+@@ -21,9 +21,9 @@ var (
+ func lookupProtocol(name string) (proto int, err error) {
+ 	protoentLock.Lock()
+ 	defer protoentLock.Unlock()
+-	p, e := syscall.GetProtoByName(name)
+-	if e != nil {
+-		return 0, os.NewSyscallError("GetProtoByName", e)
++	p, err := syscall.GetProtoByName(name)
++	if err != nil {
++		return 0, os.NewSyscallError("GetProtoByName", err)
+ 	}
+ 	return int(p.Proto), nil
+ }
+@@ -43,9 +43,9 @@ func lookupHost(name string) (addrs []string, err error) {
+ func lookupIP(name string) (addrs []IP, err error) {
+ 	hostentLock.Lock()
+ 	defer hostentLock.Unlock()
+-	h, e := syscall.GetHostByName(name)
+-	if e != nil {
+-		return nil, os.NewSyscallError("GetHostByName", e)
++	h, err := syscall.GetHostByName(name)
++	if err != nil {
++		return nil, os.NewSyscallError("GetHostByName", err)
+ 	}
+ 	switch h.AddrType {
+ 	case syscall.AF_INET:
+@@ -70,9 +70,9 @@ func lookupPort(network, service string) (port int, err error) {
+ 	}
+ 	serventLock.Lock()
+ 	defer serventLock.Unlock()
+-	s, e := syscall.GetServByName(service, network)
+-	if e != nil {
+-		return 0, os.NewSyscallError("GetServByName", e)
++	s, err := syscall.GetServByName(service, network)
++	if err != nil {
++		return 0, os.NewSyscallError("GetServByName", err)
+ 	}
+ 	return int(syscall.Ntohs(s.Port)), nil
+ }
+diff --git a/src/pkg/net/multicast_test.go b/src/pkg/net/multicast_test.go
+index 183d5a8aba..b6a2fa6c88 100644
+--- a/src/pkg/net/multicast_test.go
++++ b/src/pkg/net/multicast_test.go
+@@ -42,10 +42,6 @@ func TestMulticastUDP(t *testing.T) {
+ 	}
+ 
+ 	for _, tt := range multicastUDPTests {
+-		var (
+-			ifi   *Interface
+-			found bool
+-		)
+ 		if tt.ipv6 && (!supportsIPv6 || os.Getuid() != 0) {
+ 			continue
+ 		}
+@@ -53,6 +49,7 @@ func TestMulticastUDP(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatalf("Interfaces failed: %v", err)
+ 		}
++		var ifi *Interface
+ 		for _, x := range ift {
+ 			if x.Flags&tt.flags == tt.flags {
+ 				ifi = &x
+@@ -80,6 +77,7 @@ func TestMulticastUDP(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatalf("MulticastAddrs failed: %v", err)
+ 		}
++		var found bool
+ 		for _, ifma := range ifmat {
+ 			if ifma.(*IPAddr).IP.Equal(tt.gaddr) {
+ 				found = true
+diff --git a/src/pkg/net/net_test.go b/src/pkg/net/net_test.go
+index 0dc86698e1..3192cd4a9a 100644
+--- a/src/pkg/net/net_test.go
++++ b/src/pkg/net/net_test.go
+@@ -71,15 +71,15 @@ func TestDialError(t *testing.T) {
+ 		return
+ 	}
+ 	for i, tt := range dialErrorTests {
+-		c, e := Dial(tt.Net, tt.Raddr)
++		c, err := Dial(tt.Net, tt.Raddr)
+ 		if c != nil {
+ 			c.Close()
+ 		}
+-		if e == nil {
++		if err == nil {
+ 			t.Errorf("#%d: nil error, want match for %#q", i, tt.Pattern)
+ 			continue
+ 		}
+-		s := e.Error()
++		s := err.Error()
+ 		match, _ := regexp.MatchString(tt.Pattern, s)
+ 		if !match {
+ 			t.Errorf("#%d: %q, want match for %#q", i, s, tt.Pattern)
+@@ -111,16 +111,16 @@ var revAddrTests = []struct {
+ 
+ func TestReverseAddress(t *testing.T) {
+ 	for i, tt := range revAddrTests {
+-		a, e := reverseaddr(tt.Addr)
+-		if len(tt.ErrPrefix) > 0 && e == nil {
++		a, err := reverseaddr(tt.Addr)
++		if len(tt.ErrPrefix) > 0 && err == nil {
+ 			t.Errorf("#%d: expected %q, got <nil> (error)", i, tt.ErrPrefix)
+ 			continue
+ 		}
+-		if len(tt.ErrPrefix) == 0 && e != nil {
+-			t.Errorf("#%d: expected <nil>, got %q (error)", i, e)
++		if len(tt.ErrPrefix) == 0 && err != nil {
++			t.Errorf("#%d: expected <nil>, got %q (error)", i, err)
+ 		}
+-		if e != nil && e.(*DNSError).Err != tt.ErrPrefix {
+-			t.Errorf("#%d: expected %q, got %q (mismatched error)", i, tt.ErrPrefix, e.(*DNSError).Err)
++		if err != nil && err.(*DNSError).Err != tt.ErrPrefix {
++			t.Errorf("#%d: expected %q, got %q (mismatched error)", i, tt.ErrPrefix, err.(*DNSError).Err)
+ 		}
+ 		if a != tt.Reverse {
+ 			t.Errorf("#%d: expected %q, got %q (reverse address)", i, tt.Reverse, a)
+diff --git a/src/pkg/net/sendfile_linux.go b/src/pkg/net/sendfile_linux.go
+index e9ab066663..7f51519b2e 100644
+--- a/src/pkg/net/sendfile_linux.go
++++ b/src/pkg/net/sendfile_linux.go
+@@ -48,23 +48,23 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 		if int64(n) > remain {
+ 			n = int(remain)
+ 		}
+-		n, errno := syscall.Sendfile(dst, src, nil, n)
++		n, err1 := syscall.Sendfile(dst, src, nil, n)
+ 		if n > 0 {
+ 			written += int64(n)
+ 			remain -= int64(n)
+ 		}
+-		if n == 0 && errno == nil {
++		if n == 0 && err1 == nil {
+ 			break
+ 		}
+-		if errno == syscall.EAGAIN && c.wdeadline >= 0 {
++		if err1 == syscall.EAGAIN && c.wdeadline >= 0 {
+ 			pollserver.WaitWrite(c)
+ 			continue
+ 		}
+-		if errno != nil {
++		if err1 != nil {
+ 			// This includes syscall.ENOSYS (no kernel
+ 			// support) and syscall.EINVAL (fd types which
+ 			// don't implement sendfile together)
+-			err = &OpError{"sendfile", c.net, c.raddr, errno}
++			err = &OpError{"sendfile", c.net, c.raddr, err1}
+ 			break
+ 		}
+ 	}
+diff --git a/src/pkg/net/sockopt.go b/src/pkg/net/sockopt.go
+index 3d0f8dd7a8..b5b75a2745 100644
+--- a/src/pkg/net/sockopt.go
++++ b/src/pkg/net/sockopt.go
+@@ -135,8 +135,8 @@ func setWriteDeadline(fd *netFD, t time.Time) error {
+ }
+ 
+ func setDeadline(fd *netFD, t time.Time) error {
+-	if e := setReadDeadline(fd, t); e != nil {
+-		return e
++	if err := setReadDeadline(fd, t); err != nil {
++		return err
+ 	}
+ 	return setWriteDeadline(fd, t)
+ }
+diff --git a/src/pkg/net/tcpsock_posix.go b/src/pkg/net/tcpsock_posix.go
+index e589f86b44..51a5d6f0ed 100644
+--- a/src/pkg/net/tcpsock_posix.go
++++ b/src/pkg/net/tcpsock_posix.go
+@@ -223,13 +223,13 @@ func (c *TCPConn) File() (f *os.File, err error) { return c.fd.dup() }
+ // DialTCP connects to the remote address raddr on the network net,
+ // which must be "tcp", "tcp4", or "tcp6".  If laddr is not nil, it is used
+ // as the local address for the connection.
+-func DialTCP(net string, laddr, raddr *TCPAddr) (c *TCPConn, err error) {
++func DialTCP(net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
+ 	if raddr == nil {
+ 		return nil, &OpError{"dial", net, nil, errMissingAddress}
+ 	}
+-	fd, e := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_STREAM, 0, "dial", sockaddrToTCP)
+-	if e != nil {
+-		return nil, e
++	fd, err := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_STREAM, 0, "dial", sockaddrToTCP)
++	if err != nil {
++		return nil, err
+ 	}
+ 	return newTCPConn(fd), nil
+ }
+@@ -245,7 +245,7 @@ type TCPListener struct {
+ // Net must be "tcp", "tcp4", or "tcp6".
+ // If laddr has a port of 0, it means to listen on some available port.
+ // The caller can use l.Addr() to retrieve the chosen address.
+-func ListenTCP(net string, laddr *TCPAddr) (l *TCPListener, err error) {
++func ListenTCP(net string, laddr *TCPAddr) (*TCPListener, error) {
+ 	fd, err := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_STREAM, 0, "listen", sockaddrToTCP)
+ 	if err != nil {
+ 		return nil, err
+@@ -255,7 +255,7 @@ func ListenTCP(net string, laddr *TCPAddr) (l *TCPListener, err error) {
+ 		closesocket(fd.sysfd)
+ 		return nil, &OpError{"listen", net, laddr, err}
+ 	}
+-	l = new(TCPListener)
++	l := new(TCPListener)
+ 	l.fd = fd
+ 	return l, nil
+ }
+diff --git a/src/pkg/net/udpsock_posix.go b/src/pkg/net/udpsock_posix.go
+index b8092e6b89..0f63e95c1b 100644
+--- a/src/pkg/net/udpsock_posix.go
++++ b/src/pkg/net/udpsock_posix.go
+@@ -210,7 +210,7 @@ func (c *UDPConn) WriteTo(b []byte, addr Addr) (int, error) {
+ // DialUDP connects to the remote address raddr on the network net,
+ // which must be "udp", "udp4", or "udp6".  If laddr is not nil, it is used
+ // as the local address for the connection.
+-func DialUDP(net string, laddr, raddr *UDPAddr) (c *UDPConn, err error) {
++func DialUDP(net string, laddr, raddr *UDPAddr) (*UDPConn, error) {
+ 	switch net {
+ 	case "udp", "udp4", "udp6":
+ 	default:
+@@ -219,9 +219,9 @@ func DialUDP(net string, laddr, raddr *UDPAddr) (c *UDPConn, err error) {
+ 	if raddr == nil {
+ 		return nil, &OpError{"dial", net, nil, errMissingAddress}
+ 	}
+-	fd, e := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_DGRAM, 0, "dial", sockaddrToUDP)
+-	if e != nil {
+-		return nil, e
++	fd, err := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_DGRAM, 0, "dial", sockaddrToUDP)
++	if err != nil {
++		return nil, err
+ 	}
+ 	return newUDPConn(fd), nil
+ }
+diff --git a/src/pkg/net/unixsock_posix.go b/src/pkg/net/unixsock_posix.go
+index beb2aa90f5..10b7966851 100644
+--- a/src/pkg/net/unixsock_posix.go
++++ b/src/pkg/net/unixsock_posix.go
+@@ -298,10 +298,10 @@ func (c *UnixConn) File() (f *os.File, err error) { return c.fd.dup() }
+ // DialUnix connects to the remote address raddr on the network net,
+ // which must be "unix" or "unixgram".  If laddr is not nil, it is used
+ // as the local address for the connection.
+-func DialUnix(net string, laddr, raddr *UnixAddr) (c *UnixConn, err error) {
+-	fd, e := unixSocket(net, laddr, raddr, "dial")
+-	if e != nil {
+-		return nil, e
++func DialUnix(net string, laddr, raddr *UnixAddr) (*UnixConn, error) {
++	fd, err := unixSocket(net, laddr, raddr, "dial")
++	if err != nil {
++		return nil, err
+ 	}
+ 	return newUnixConn(fd), nil
+ }
+@@ -337,15 +337,15 @@ func ListenUnix(net string, laddr *UnixAddr) (*UnixListener, error) {
+ 
+ // AcceptUnix accepts the next incoming call and returns the new connection
+ // and the remote address.
+-func (l *UnixListener) AcceptUnix() (c *UnixConn, err error) {
++func (l *UnixListener) AcceptUnix() (*UnixConn, error) {
+ 	if l == nil || l.fd == nil {
+ 		return nil, os.EINVAL
+ 	}
+-	fd, e := l.fd.accept(sockaddrToUnix)
+-	if e != nil {
+-		return nil, e
++	fd, err := l.fd.accept(sockaddrToUnix)
++	if err != nil {
++		return nil, err
+ 	}
+-	c = newUnixConn(fd)
++	c := newUnixConn(fd)
+ 	return c, nil
+ }
+ 
+@@ -405,7 +405,7 @@ func (l *UnixListener) File() (f *os.File, err error) { return l.fd.dup() }
+ // local address laddr.  The returned connection c's ReadFrom
+ // and WriteTo methods can be used to receive and send UDP
+ // packets with per-packet addressing.  The network net must be "unixgram".
+-func ListenUnixgram(net string, laddr *UnixAddr) (c *UDPConn, err error) {
++func ListenUnixgram(net string, laddr *UnixAddr) (*UDPConn, error) {
+ 	switch net {
+ 	case "unixgram":
+ 	default:
+@@ -414,9 +414,9 @@ func ListenUnixgram(net string, laddr *UnixAddr) (c *UDPConn, err error) {
+ 	if laddr == nil {
+ 		return nil, &OpError{"listen", net, nil, errMissingAddress}
+ 	}
+-	fd, e := unixSocket(net, laddr, nil, "listen")
+-	if e != nil {
+-		return nil, e
++	fd, err := unixSocket(net, laddr, nil, "listen")
++	if err != nil {
++		return nil, err
+ 	}
+ 	return newUDPConn(fd), nil
+ }

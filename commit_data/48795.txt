@@ -12,7 +12,7 @@ Date:   Wed Jun 9 18:31:55 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/interface.go                      |  10 ---
  src/go/types/predicates.go                     |  11 ++-
  src/go/types/sanitize.go                       |   2 +-
@@ -24,3 +24,432 @@ Date:   Wed Jun 9 18:31:55 2021 -0400
  src/go/types/typestring.go                     |   7 +-
  src/go/types/union.go                          | 107 ++++++++++++++++++-------
  10 files changed, 119 insertions(+), 79 deletions(-)
+
+diff --git a/src/go/types/interface.go b/src/go/types/interface.go
+index 2bbd2f135d..9b4d080c81 100644
+--- a/src/go/types/interface.go
++++ b/src/go/types/interface.go
+@@ -111,16 +111,6 @@ func flattenUnion(list []ast.Expr, x ast.Expr) []ast.Expr {
+ 	return append(list, x)
+ }
+ 
+-// includes reports whether typ is in list.
+-func includes(list []Type, typ Type) bool {
+-	for _, e := range list {
+-		if Identical(typ, e) {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+ func (check *Checker) completeInterface(pos token.Pos, ityp *Interface) {
+ 	if ityp.allMethods != nil {
+ 		return
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 78dba6d3e0..6aa5825943 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -101,9 +101,9 @@ func comparable(T Type, seen map[Type]bool) bool {
+ 	seen[T] = true
+ 
+ 	// If T is a type parameter not constrained by any type
+-	// list (i.e., it's underlying type is the top type),
++	// list (i.e., it's operational type is the top type),
+ 	// T is comparable if it has the == method. Otherwise,
+-	// the underlying type "wins". For instance
++	// the operational type "wins". For instance
+ 	//
+ 	//     interface{ comparable; type []byte }
+ 	//
+@@ -374,10 +374,9 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 	// case *instance:
+ 	//	unreachable since types are expanded
+ 
+-	case *bottom, *top:
+-		// Either both types are theBottom, or both are theTop in which
+-		// case the initial x == y check will have caught them. Otherwise
+-		// they are not identical.
++	case *top:
++		// Either both types are theTop in which case the initial x == y check
++		// will have caught them. Otherwise they are not identical.
+ 
+ 	case nil:
+ 		// avoid a crash in case of nil type
+diff --git a/src/go/types/sanitize.go b/src/go/types/sanitize.go
+index 2d70060899..05e7d8b4bf 100644
+--- a/src/go/types/sanitize.go
++++ b/src/go/types/sanitize.go
+@@ -78,7 +78,7 @@ func (s sanitizer) typ(typ Type) Type {
+ 	s[typ] = typ
+ 
+ 	switch t := typ.(type) {
+-	case *Basic, *bottom, *top:
++	case *Basic, *top:
+ 		// nothing to do
+ 
+ 	case *Array:
+diff --git a/src/go/types/sizeof_test.go b/src/go/types/sizeof_test.go
+index 3e79499ea5..9459f67769 100644
+--- a/src/go/types/sizeof_test.go
++++ b/src/go/types/sizeof_test.go
+@@ -33,7 +33,6 @@ func TestSizeof(t *testing.T) {
+ 		{Named{}, 68, 136},
+ 		{_TypeParam{}, 28, 48},
+ 		{instance{}, 44, 88},
+-		{bottom{}, 0, 0},
+ 		{top{}, 0, 0},
+ 
+ 		// Objects
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index 8cd8d0719b..24108993ef 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -210,7 +210,7 @@ func (check *Checker) satisfies(pos token.Pos, targ Type, tpar *_TypeParam, smap
+ 
+ 	// Otherwise, targ's type or underlying type must also be one of the interface types listed, if any.
+ 	if !iface.isSatisfiedBy(targ) {
+-		check.softErrorf(atPos(pos), _Todo, "%s does not satisfy %s (%s not found in %s)", targ, tpar.bound, under(targ), iface.allTypes)
++		check.softErrorf(atPos(pos), _Todo, "%s does not satisfy %s (%s not found in %s)", targ, tpar.bound, targ, iface.allTypes)
+ 		return false
+ 	}
+ 
+@@ -253,7 +253,7 @@ func (subst *subster) typ(typ Type) Type {
+ 		// Call typOrNil if it's possible that typ is nil.
+ 		panic("nil typ")
+ 
+-	case *Basic, *bottom, *top:
++	case *Basic, *top:
+ 		// nothing to do
+ 
+ 	case *Array:
+diff --git a/src/go/types/testdata/check/issues.go2 b/src/go/types/testdata/check/issues.go2
+index 8994164eac..0a7648cba1 100644
+--- a/src/go/types/testdata/check/issues.go2
++++ b/src/go/types/testdata/check/issues.go2
+@@ -241,7 +241,7 @@ func _[T interface{ type func() }](f T) {
+ 
+ type sliceOf[E any] interface{ type []E }
+ 
+-func append[T interface{}, S sliceOf[T], T2 interface{ type T }](s S, t ...T2) S
++func append[T interface{}, S sliceOf[T], T2 interface{ T }](s S, t ...T2) S
+ 
+ var f           func()
+ var cancelSlice []context.CancelFunc
+diff --git a/src/go/types/testdata/examples/constraints.go2 b/src/go/types/testdata/examples/constraints.go2
+index e8b3912884..f6291ccf7d 100644
+--- a/src/go/types/testdata/examples/constraints.go2
++++ b/src/go/types/testdata/examples/constraints.go2
+@@ -23,3 +23,17 @@ type (
+ 	_ interface{~ /* ERROR cannot use interface */ interface{}}
+ 	_ interface{int|interface /* ERROR cannot use interface */ {}}
+ )
++
++// Multiple embedded union elements are intersected. The order in which they
++// appear in the interface doesn't matter since intersection is a symmetric
++// operation.
++
++type myInt1 int
++type myInt2 int
++
++func _[T interface{ myInt1|myInt2; ~int }]() T { return T(0) }
++func _[T interface{ ~int; myInt1|myInt2 }]() T { return T(0) }
++
++// Here the intersections are empty - there's no type that's in the type set of T.
++func _[T interface{ myInt1|myInt2; int }]() T { return T(0 /* ERROR cannot convert */ ) }
++func _[T interface{ int; myInt1|myInt2 }]() T { return T(0 /* ERROR cannot convert */ ) }
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index 3b10fabbf8..8a4544e497 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -383,7 +383,6 @@ func (t *Interface) Method(i int) *Func { t.Complete(); return t.allMethods[i] }
+ // Empty reports whether t is the empty interface.
+ func (t *Interface) Empty() bool {
+ 	t.Complete()
+-	// A non-nil allTypes may still have length 0 but represents the bottom type.
+ 	return len(t.allMethods) == 0 && t.allTypes == nil
+ }
+ 
+@@ -438,11 +437,15 @@ func (t *Interface) iterate(f func(*Interface) bool, seen map[*Interface]bool) b
+ //           "implements" predicate.
+ func (t *Interface) isSatisfiedBy(typ Type) bool {
+ 	t.Complete()
+-	if t.allTypes == nil {
+-		return true
++	switch t := t.allTypes.(type) {
++	case nil:
++		return true // no type restrictions
++	case *Union:
++		r, _ := t.intersect(typ, false)
++		return r != nil
++	default:
++		return Identical(t, typ)
+ 	}
+-	types := unpackType(t.allTypes)
+-	return includes(types, typ) || includes(types, under(typ))
+ }
+ 
+ // Complete computes the interface's method set. It must be called by users of
+@@ -647,13 +650,11 @@ func (t *_TypeParam) Bound() *Interface {
+ 	return iface
+ }
+ 
+-// optype returns a type's operational type. Except for
+-// type parameters, the operational type is the same
+-// as the underlying type (as returned by under). For
+-// Type parameters, the operational type is determined
+-// by the corresponding type bound's type list. The
+-// result may be the bottom or top type, but it is never
+-// the incoming type parameter.
++// optype returns a type's operational type. Except for type parameters,
++// the operational type is the same as the underlying type (as returned
++// by under). For Type parameters, the operational type is determined
++// by the corresponding type constraint. The result may be the top type,
++// but it is never the incoming type parameter.
+ func optype(typ Type) Type {
+ 	if t := asTypeParam(typ); t != nil {
+ 		// If the optype is typ, return the top type as we have
+@@ -726,20 +727,11 @@ var expandf func(Type) Type
+ 
+ func init() { expandf = expand }
+ 
+-// bottom represents the bottom of the type lattice.
+-// It is the underlying type of a type parameter that
+-// cannot be satisfied by any type, usually because
+-// the intersection of type constraints left nothing).
+-type bottom struct{}
+-
+-// theBottom is the singleton bottom type.
+-var theBottom = &bottom{}
+-
+ // top represents the top of the type lattice.
+ // It is the underlying type of a type parameter that
+ // can be satisfied by any type (ignoring methods),
+-// usually because the type constraint has no type
+-// list.
++// because its type constraint contains no restrictions
++// besides methods.
+ type top struct{}
+ 
+ // theTop is the singleton top type.
+@@ -759,7 +751,6 @@ func (t *Chan) Underlying() Type       { return t }
+ func (t *Named) Underlying() Type      { return t.underlying }
+ func (t *_TypeParam) Underlying() Type { return t }
+ func (t *instance) Underlying() Type   { return t }
+-func (t *bottom) Underlying() Type     { return t }
+ func (t *top) Underlying() Type        { return t }
+ 
+ // Type-specific implementations of String.
+@@ -776,7 +767,6 @@ func (t *Chan) String() string       { return TypeString(t, nil) }
+ func (t *Named) String() string      { return TypeString(t, nil) }
+ func (t *_TypeParam) String() string { return TypeString(t, nil) }
+ func (t *instance) String() string   { return TypeString(t, nil) }
+-func (t *bottom) String() string     { return TypeString(t, nil) }
+ func (t *top) String() string        { return TypeString(t, nil) }
+ 
+ // under returns the true expanded underlying type.
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index 52c22f25d8..73465a35b7 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -159,6 +159,10 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 		writeSignature(buf, t, qf, visited)
+ 
+ 	case *Union:
++		if t.IsEmpty() {
++			buf.WriteString("⊥")
++			break
++		}
+ 		for i, e := range t.types {
+ 			if i > 0 {
+ 				buf.WriteString("|")
+@@ -288,9 +292,6 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 		writeTypeList(buf, t.targs, qf, visited)
+ 		buf.WriteByte(']')
+ 
+-	case *bottom:
+-		buf.WriteString("⊥")
+-
+ 	case *top:
+ 		buf.WriteString("⊤")
+ 
+diff --git a/src/go/types/union.go b/src/go/types/union.go
+index aa46b8ab9c..4eda874eb8 100644
+--- a/src/go/types/union.go
++++ b/src/go/types/union.go
+@@ -13,14 +13,18 @@ import (
+ // API
+ 
+ // A Union represents a union of terms.
+-// A term is a type, possibly with a ~ (tilde) flag.
++// A term is a type with a ~ (tilde) flag.
+ type Union struct {
+ 	types []Type // types are unique
+ 	tilde []bool // if tilde[i] is set, terms[i] is of the form ~T
+ }
+ 
+-func NewUnion(types []Type, tilde []bool) Type { return newUnion(types, tilde) }
++// NewUnion returns a new Union type with the given terms (types[i], tilde[i]).
++// The lengths of both arguments must match. An empty union represents the set
++// of no types.
++func NewUnion(types []Type, tilde []bool) *Union { return newUnion(types, tilde) }
+ 
++func (u *Union) IsEmpty() bool           { return len(u.types) == 0 }
+ func (u *Union) NumTerms() int           { return len(u.types) }
+ func (u *Union) Term(i int) (Type, bool) { return u.types[i], u.tilde[i] }
+ 
+@@ -30,10 +34,12 @@ func (u *Union) String() string   { return TypeString(u, nil) }
+ // ----------------------------------------------------------------------------
+ // Implementation
+ 
+-func newUnion(types []Type, tilde []bool) Type {
++var emptyUnion = new(Union)
++
++func newUnion(types []Type, tilde []bool) *Union {
+ 	assert(len(types) == len(tilde))
+-	if types == nil {
+-		return nil
++	if len(types) == 0 {
++		return emptyUnion
+ 	}
+ 	t := new(Union)
+ 	t.types = types
+@@ -43,7 +49,7 @@ func newUnion(types []Type, tilde []bool) Type {
+ 
+ // is reports whether f returned true for all terms (type, tilde) of u.
+ func (u *Union) is(f func(Type, bool) bool) bool {
+-	if u == nil {
++	if u.IsEmpty() {
+ 		return false
+ 	}
+ 	for i, t := range u.types {
+@@ -56,7 +62,7 @@ func (u *Union) is(f func(Type, bool) bool) bool {
+ 
+ // is reports whether f returned true for the underlying types of all terms of u.
+ func (u *Union) underIs(f func(Type) bool) bool {
+-	if u == nil {
++	if u.IsEmpty() {
+ 		return false
+ 	}
+ 	for _, t := range u.types {
+@@ -133,26 +139,24 @@ func parseTilde(check *Checker, x ast.Expr) (Type, bool) {
+ 	return check.anyType(x), tilde
+ }
+ 
+-// intersect computes the intersection of the types x and y.
+-// Note: An incomming nil type stands for the top type. A top
+-// type result is returned as nil.
++// intersect computes the intersection of the types x and y,
++// A nil type stands for the set of all types; an empty union
++// stands for the set of no types.
+ func intersect(x, y Type) (r Type) {
+-	defer func() {
+-		if r == theTop {
+-			r = nil
+-		}
+-	}()
+-
++	// If one of the types is nil (no restrictions)
++	// the result is the other type.
+ 	switch {
+-	case x == theBottom || y == theBottom:
+-		return theBottom
+-	case x == nil || x == theTop:
++	case x == nil:
+ 		return y
+-	case y == nil || x == theTop:
++	case y == nil:
+ 		return x
+ 	}
+ 
+ 	// Compute the terms which are in both x and y.
++	// TODO(gri) This is not correct as it may not always compute
++	//           the "largest" intersection. For instance, for
++	//           x = myInt|~int, y = ~int
++	//           we get the result myInt but we should get ~int.
+ 	xu, _ := x.(*Union)
+ 	yu, _ := y.(*Union)
+ 	switch {
+@@ -161,23 +165,29 @@ func intersect(x, y Type) (r Type) {
+ 		// TODO(gri) fix asymptotic performance
+ 		var types []Type
+ 		var tilde []bool
+-		for _, y := range yu.types {
+-			if includes(xu.types, y) {
+-				types = append(types, y)
+-				tilde = append(tilde, true) // TODO(gri) fix this
++		for j, y := range yu.types {
++			yt := yu.tilde[j]
++			if r, rt := xu.intersect(y, yt); r != nil {
++				// Terms x[i] and y[j] match: Select the one that
++				// is not a ~t because that is the intersection
++				// type. If both are ~t, they are identical:
++				//  T ∩  T =  T
++				//  T ∩ ~t =  T
++				// ~t ∩  T =  T
++				// ~t ∩ ~t = ~t
++				types = append(types, r)
++				tilde = append(tilde, rt)
+ 			}
+ 		}
+-		if types != nil {
+-			return newUnion(types, tilde)
+-		}
++		return newUnion(types, tilde)
+ 
+ 	case xu != nil:
+-		if includes(xu.types, y) {
++		if r, _ := xu.intersect(y, false); r != nil {
+ 			return y
+ 		}
+ 
+ 	case yu != nil:
+-		if includes(yu.types, x) {
++		if r, _ := yu.intersect(x, false); r != nil {
+ 			return x
+ 		}
+ 
+@@ -187,5 +197,42 @@ func intersect(x, y Type) (r Type) {
+ 		}
+ 	}
+ 
+-	return theBottom
++	return emptyUnion
++}
++
++// includes reports whether typ is in list.
++func includes(list []Type, typ Type) bool {
++	for _, e := range list {
++		if Identical(typ, e) {
++			return true
++		}
++	}
++	return false
++}
++
++// intersect computes the intersection of the union u and term (y, yt)
++// and returns the intersection term, if any. Otherwise the result is
++// (nil, false).
++func (u *Union) intersect(y Type, yt bool) (Type, bool) {
++	under_y := under(y)
++	for i, x := range u.types {
++		xt := u.tilde[i]
++		// determine which types xx, yy to compare
++		xx := x
++		if yt {
++			xx = under(x)
++		}
++		yy := y
++		if xt {
++			yy = under_y
++		}
++		if Identical(xx, yy) {
++			//  T ∩  T =  T
++			//  T ∩ ~t =  T
++			// ~t ∩  T =  T
++			// ~t ∩ ~t = ~t
++			return xx, xt && yt
++		}
++	}
++	return nil, false
+ }

@@ -16,7 +16,56 @@ Date:   Fri Jan 22 10:16:24 2021 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/crypto/x509/x509.go      | 15 ++++++---------
  src/crypto/x509/x509_test.go |  4 ++--
  2 files changed, 8 insertions(+), 11 deletions(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 582e1b1519..e17df0dd94 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -1397,6 +1397,10 @@ func signingParamsForPublicKey(pub any, requestedSigAlgo SignatureAlgorithm) (ha
+ 				err = errors.New("x509: cannot sign with hash function requested")
+ 				return
+ 			}
++			if hashFunc == crypto.MD5 {
++				err = errors.New("x509: signing with MD5 is not supported")
++				return
++			}
+ 			if requestedSigAlgo.isRSAPSS() {
+ 				sigAlgo.Parameters = hashToPSSParameters[hashFunc]
+ 			}
+@@ -1591,15 +1595,8 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv
+ 	}
+ 
+ 	// Check the signature to ensure the crypto.Signer behaved correctly.
+-	sigAlg := getSignatureAlgorithmFromAI(signatureAlgorithm)
+-	switch sigAlg {
+-	case MD5WithRSA:
+-		// We skip the check if the signature algorithm is only supported for
+-		// signing, not verification.
+-	default:
+-		if err := checkSignature(sigAlg, c.Raw, signature, key.Public(), true); err != nil {
+-			return nil, fmt.Errorf("x509: signature over certificate returned by signer is invalid: %w", err)
+-		}
++	if err := checkSignature(getSignatureAlgorithmFromAI(signatureAlgorithm), c.Raw, signature, key.Public(), true); err != nil {
++		return nil, fmt.Errorf("x509: signature over certificate returned by signer is invalid: %w", err)
+ 	}
+ 
+ 	return signedCert, nil
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index f68dd0299a..4469a42ce2 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -2929,8 +2929,8 @@ func TestCreateCertificateLegacy(t *testing.T) {
+ 		SignatureAlgorithm: sigAlg,
+ 	}
+ 	_, err := CreateCertificate(rand.Reader, template, template, testPrivateKey.Public(), &brokenSigner{testPrivateKey.Public()})
+-	if err != nil {
+-		t.Fatalf("CreateCertificate failed when SignatureAlgorithm = %v: %s", sigAlg, err)
++	if err == nil {
++		t.Fatal("CreateCertificate didn't fail when SignatureAlgorithm = MD5WithRSA")
+ 	}
+ }
+ 

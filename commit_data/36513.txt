@@ -9,7 +9,88 @@ Date:   Wed May 2 11:16:47 2018 -0700
     Change-Id: I498cb29f18bd9b59b13dc2ddc3a613cc12ac2a14
     Reviewed-on: https://go-review.googlesource.com/110975
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/go/types/object.go   | 38 +++++++++++++++++++++++++++++---------
  src/go/types/universe.go | 10 ++++++++--
  2 files changed, 37 insertions(+), 11 deletions(-)
+
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index 633d32712a..70a56cba83 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -81,13 +81,31 @@ type object struct {
+ 	scopePos_ token.Pos
+ }
+ 
+-func (obj *object) Parent() *Scope      { return obj.parent }
+-func (obj *object) Pos() token.Pos      { return obj.pos }
+-func (obj *object) Pkg() *Package       { return obj.pkg }
+-func (obj *object) Name() string        { return obj.name }
+-func (obj *object) Type() Type          { return obj.typ }
+-func (obj *object) Exported() bool      { return ast.IsExported(obj.name) }
+-func (obj *object) Id() string          { return Id(obj.pkg, obj.name) }
++// Parent returns the scope in which the object is declared.
++// The result is nil for methods and struct fields.
++func (obj *object) Parent() *Scope { return obj.parent }
++
++// Pos returns the declaration position of the object's identifier.
++func (obj *object) Pos() token.Pos { return obj.pos }
++
++// Pkg returns the package to which the object belongs.
++// The result is nil for labels and objects in the Universe scope.
++func (obj *object) Pkg() *Package { return obj.pkg }
++
++// Name returns the object's (package-local, unqualified) name.
++func (obj *object) Name() string { return obj.name }
++
++// Type returns the object's type.
++func (obj *object) Type() Type { return obj.typ }
++
++// Exported reports whether the object is exported (starts with a capital letter).
++// It doesn't take into account whether the object is in a local (function) scope
++// or not.
++func (obj *object) Exported() bool { return ast.IsExported(obj.name) }
++
++// Id is a wrapper for Id(obj.Pkg(), obj.Name()).
++func (obj *object) Id() string { return Id(obj.pkg, obj.name) }
++
+ func (obj *object) String() string      { panic("abstract") }
+ func (obj *object) order() uint32       { return obj.order_ }
+ func (obj *object) scopePos() token.Pos { return obj.scopePos_ }
+@@ -149,10 +167,12 @@ func NewConst(pos token.Pos, pkg *Package, name string, typ Type, val constant.V
+ 	return &Const{object{nil, pos, pkg, name, typ, 0, token.NoPos}, val, false}
+ }
+ 
++// Val returns the constant's value.
+ func (obj *Const) Val() constant.Value { return obj.val }
+-func (*Const) isDependency()           {} // a constant may be a dependency of an initialization expression
+ 
+-// A TypeName represents a name for a (named or alias) type.
++func (*Const) isDependency() {} // a constant may be a dependency of an initialization expression
++
++// A TypeName represents a name for a (defined or alias) type.
+ type TypeName struct {
+ 	object
+ }
+diff --git a/src/go/types/universe.go b/src/go/types/universe.go
+index 07d7078ae2..a22832c338 100644
+--- a/src/go/types/universe.go
++++ b/src/go/types/universe.go
+@@ -12,9 +12,15 @@ import (
+ 	"strings"
+ )
+ 
++// The Universe scope contains all predeclared objects of Go.
++// It is the outermost scope of any chain of nested scopes.
++var Universe *Scope
++
++// The Unsafe package is the package returned by an importer
++// for the import path "unsafe".
++var Unsafe *Package
++
+ var (
+-	Universe     *Scope
+-	Unsafe       *Package
+ 	universeIota *Const
+ 	universeByte *Basic // uint8 alias, but has name "byte"
+ 	universeRune *Basic // int32 alias, but has name "rune"

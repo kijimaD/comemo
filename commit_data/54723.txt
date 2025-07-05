@@ -16,7 +16,7 @@ Date:   Tue Nov 1 12:33:59 2022 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/os_aix.go          | 10 ++++------
  src/runtime/os_darwin.go       | 19 ++++++++-----------
  src/runtime/os_freebsd.go      |  7 ++-----
@@ -27,3 +27,355 @@ Date:   Tue Nov 1 12:33:59 2022 -0700
  src/runtime/signal_unix.go     |  5 +----
  src/runtime/stubs.go           |  5 +----
  9 files changed, 40 insertions(+), 53 deletions(-)
+
+diff --git a/src/runtime/os_aix.go b/src/runtime/os_aix.go
+index 2b19ed6d96..1a534db0e4 100644
+--- a/src/runtime/os_aix.go
++++ b/src/runtime/os_aix.go
+@@ -111,17 +111,17 @@ func newosproc0(stacksize uintptr, fn *funcDescriptor) {
+ 	)
+ 
+ 	if pthread_attr_init(&attr) != 0 {
+-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
++		writeErrStr(failthreadcreate)
+ 		exit(1)
+ 	}
+ 
+ 	if pthread_attr_setstacksize(&attr, threadStackSize) != 0 {
+-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
++		writeErrStr(failthreadcreate)
+ 		exit(1)
+ 	}
+ 
+ 	if pthread_attr_setdetachstate(&attr, _PTHREAD_CREATE_DETACHED) != 0 {
+-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
++		writeErrStr(failthreadcreate)
+ 		exit(1)
+ 	}
+ 
+@@ -140,14 +140,12 @@ func newosproc0(stacksize uintptr, fn *funcDescriptor) {
+ 	}
+ 	sigprocmask(_SIG_SETMASK, &oset, nil)
+ 	if ret != 0 {
+-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
++		writeErrStr(failthreadcreate)
+ 		exit(1)
+ 	}
+ 
+ }
+ 
+-var failthreadcreate = []byte("runtime: failed to create new OS thread\n")
+-
+ // Called to do synchronous initialization of Go code built with
+ // -buildmode=c-archive or -buildmode=c-shared.
+ // None of the Go runtime is initialized.
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index 52f44c90e9..45032c782f 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -208,21 +208,21 @@ func newosproc(mp *m) {
+ 	var err int32
+ 	err = pthread_attr_init(&attr)
+ 	if err != 0 {
+-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
++		writeErrStr(failthreadcreate)
+ 		exit(1)
+ 	}
+ 
+ 	// Find out OS stack size for our own stack guard.
+ 	var stacksize uintptr
+ 	if pthread_attr_getstacksize(&attr, &stacksize) != 0 {
+-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
++		writeErrStr(failthreadcreate)
+ 		exit(1)
+ 	}
+ 	mp.g0.stack.hi = stacksize // for mstart
+ 
+ 	// Tell the pthread library we won't join with this thread.
+ 	if pthread_attr_setdetachstate(&attr, _PTHREAD_CREATE_DETACHED) != 0 {
+-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
++		writeErrStr(failthreadcreate)
+ 		exit(1)
+ 	}
+ 
+@@ -233,7 +233,7 @@ func newosproc(mp *m) {
+ 	err = pthread_create(&attr, abi.FuncPCABI0(mstart_stub), unsafe.Pointer(mp))
+ 	sigprocmask(_SIG_SETMASK, &oset, nil)
+ 	if err != 0 {
+-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
++		writeErrStr(failthreadcreate)
+ 		exit(1)
+ 	}
+ }
+@@ -253,7 +253,7 @@ func newosproc0(stacksize uintptr, fn uintptr) {
+ 	var err int32
+ 	err = pthread_attr_init(&attr)
+ 	if err != 0 {
+-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
++		writeErrStr(failthreadcreate)
+ 		exit(1)
+ 	}
+ 
+@@ -263,7 +263,7 @@ func newosproc0(stacksize uintptr, fn uintptr) {
+ 	// we use the OS default stack size instead of the suggestion.
+ 	// Find out that stack size for our own stack guard.
+ 	if pthread_attr_getstacksize(&attr, &stacksize) != 0 {
+-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
++		writeErrStr(failthreadcreate)
+ 		exit(1)
+ 	}
+ 	g0.stack.hi = stacksize // for mstart
+@@ -271,7 +271,7 @@ func newosproc0(stacksize uintptr, fn uintptr) {
+ 
+ 	// Tell the pthread library we won't join with this thread.
+ 	if pthread_attr_setdetachstate(&attr, _PTHREAD_CREATE_DETACHED) != 0 {
+-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
++		writeErrStr(failthreadcreate)
+ 		exit(1)
+ 	}
+ 
+@@ -282,14 +282,11 @@ func newosproc0(stacksize uintptr, fn uintptr) {
+ 	err = pthread_create(&attr, fn, nil)
+ 	sigprocmask(_SIG_SETMASK, &oset, nil)
+ 	if err != 0 {
+-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
++		writeErrStr(failthreadcreate)
+ 		exit(1)
+ 	}
+ }
+ 
+-var failallocatestack = []byte("runtime: failed to allocate stack for the new OS thread\n")
+-var failthreadcreate = []byte("runtime: failed to create new OS thread\n")
+-
+ // Called to do synchronous initialization of Go code built with
+ // -buildmode=c-archive or -buildmode=c-shared.
+ // None of the Go runtime is initialized.
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index 278a2fd20a..3b7ae2a0f6 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -227,7 +227,7 @@ func newosproc(mp *m) {
+ func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
+ 	stack := sysAlloc(stacksize, &memstats.stacks_sys)
+ 	if stack == nil {
+-		write(2, unsafe.Pointer(&failallocatestack[0]), int32(len(failallocatestack)))
++		writeErrStr(failallocatestack)
+ 		exit(1)
+ 	}
+ 	// This code "knows" it's being called once from the library
+@@ -252,14 +252,11 @@ func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
+ 	ret := thr_new(&param, int32(unsafe.Sizeof(param)))
+ 	sigprocmask(_SIG_SETMASK, &oset, nil)
+ 	if ret < 0 {
+-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
++		writeErrStr(failthreadcreate)
+ 		exit(1)
+ 	}
+ }
+ 
+-var failallocatestack = []byte("runtime: failed to allocate stack for the new OS thread\n")
+-var failthreadcreate = []byte("runtime: failed to create new OS thread\n")
+-
+ // Called to do synchronous initialization of Go code built with
+ // -buildmode=c-archive or -buildmode=c-shared.
+ // None of the Go runtime is initialized.
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 9f1d405fa8..8e30ee338e 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -194,19 +194,16 @@ func newosproc(mp *m) {
+ func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
+ 	stack := sysAlloc(stacksize, &memstats.stacks_sys)
+ 	if stack == nil {
+-		write(2, unsafe.Pointer(&failallocatestack[0]), int32(len(failallocatestack)))
++		writeErrStr(failallocatestack)
+ 		exit(1)
+ 	}
+ 	ret := clone(cloneFlags, unsafe.Pointer(uintptr(stack)+stacksize), nil, nil, fn)
+ 	if ret < 0 {
+-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
++		writeErrStr(failthreadcreate)
+ 		exit(1)
+ 	}
+ }
+ 
+-var failallocatestack = []byte("runtime: failed to allocate stack for the new OS thread\n")
+-var failthreadcreate = []byte("runtime: failed to create new OS thread\n")
+-
+ const (
+ 	_AT_NULL   = 0  // End of vector
+ 	_AT_PAGESZ = 6  // System physical page size
+diff --git a/src/runtime/os_openbsd_libc.go b/src/runtime/os_openbsd_libc.go
+index 4ad2a061bd..f0478b0936 100644
+--- a/src/runtime/os_openbsd_libc.go
++++ b/src/runtime/os_openbsd_libc.go
+@@ -11,8 +11,6 @@ import (
+ 	"unsafe"
+ )
+ 
+-var failThreadCreate = []byte("runtime: failed to create new OS thread\n")
+-
+ // mstart_stub provides glue code to call mstart from pthread_create.
+ func mstart_stub()
+ 
+@@ -27,21 +25,21 @@ func newosproc(mp *m) {
+ 	// Initialize an attribute object.
+ 	var attr pthreadattr
+ 	if err := pthread_attr_init(&attr); err != 0 {
+-		write(2, unsafe.Pointer(&failThreadCreate[0]), int32(len(failThreadCreate)))
++		writeErrStr(failthreadcreate)
+ 		exit(1)
+ 	}
+ 
+ 	// Find out OS stack size for our own stack guard.
+ 	var stacksize uintptr
+ 	if pthread_attr_getstacksize(&attr, &stacksize) != 0 {
+-		write(2, unsafe.Pointer(&failThreadCreate[0]), int32(len(failThreadCreate)))
++		writeErrStr(failthreadcreate)
+ 		exit(1)
+ 	}
+ 	mp.g0.stack.hi = stacksize // for mstart
+ 
+ 	// Tell the pthread library we won't join with this thread.
+ 	if pthread_attr_setdetachstate(&attr, _PTHREAD_CREATE_DETACHED) != 0 {
+-		write(2, unsafe.Pointer(&failThreadCreate[0]), int32(len(failThreadCreate)))
++		writeErrStr(failthreadcreate)
+ 		exit(1)
+ 	}
+ 
+@@ -52,7 +50,7 @@ func newosproc(mp *m) {
+ 	err := pthread_create(&attr, abi.FuncPCABI0(mstart_stub), unsafe.Pointer(mp))
+ 	sigprocmask(_SIG_SETMASK, &oset, nil)
+ 	if err != 0 {
+-		write(2, unsafe.Pointer(&failThreadCreate[0]), int32(len(failThreadCreate)))
++		writeErrStr(failthreadcreate)
+ 		exit(1)
+ 	}
+ 
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index a04c7b41aa..201ed537ba 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -494,22 +494,16 @@ func badreflectcall() {
+ 	panic(plainError("arg size to reflect.call more than 1GB"))
+ }
+ 
+-var badmorestackg0Msg = "fatal: morestack on g0\n"
+-
+ //go:nosplit
+ //go:nowritebarrierrec
+ func badmorestackg0() {
+-	sp := stringStructOf(&badmorestackg0Msg)
+-	write(2, sp.str, int32(sp.len))
++	writeErrStr("fatal: morestack on g0\n")
+ }
+ 
+-var badmorestackgsignalMsg = "fatal: morestack on gsignal\n"
+-
+ //go:nosplit
+ //go:nowritebarrierrec
+ func badmorestackgsignal() {
+-	sp := stringStructOf(&badmorestackgsignalMsg)
+-	write(2, sp.str, int32(sp.len))
++	writeErrStr("fatal: morestack on gsignal\n")
+ }
+ 
+ //go:nosplit
+@@ -1890,7 +1884,7 @@ func needm() {
+ 		// for details.
+ 		//
+ 		// Can not throw, because scheduler is not initialized yet.
+-		write(2, unsafe.Pointer(&earlycgocallback[0]), int32(len(earlycgocallback)))
++		writeErrStr("fatal error: cgo callback before cgo call\n")
+ 		exit(1)
+ 	}
+ 
+@@ -1950,8 +1944,6 @@ func needm() {
+ 	sched.ngsys.Add(-1)
+ }
+ 
+-var earlycgocallback = []byte("fatal error: cgo callback before cgo call\n")
+-
+ // newextram allocates m's and puts them on the extra list.
+ // It is called with a working local m, so that it can do things
+ // like call schedlock and allocate.
+@@ -2144,6 +2136,13 @@ var (
+ 	execLock rwmutex
+ )
+ 
++// These errors are reported (via writeErrStr) by some OS-specific
++// versions of newosproc and newosproc0.
++const (
++	failthreadcreate  = "runtime: failed to create new OS thread\n"
++	failallocatestack = "runtime: failed to allocate stack for the new OS thread\n"
++)
++
+ // newmHandoff contains a list of m structures that need new OS threads.
+ // This is used by newm in situations where newm itself can't safely
+ // start an OS thread.
+diff --git a/src/runtime/runtime.go b/src/runtime/runtime.go
+index 25b714de4e..bc60b3ca75 100644
+--- a/src/runtime/runtime.go
++++ b/src/runtime/runtime.go
+@@ -6,7 +6,7 @@ package runtime
+ 
+ import (
+ 	"runtime/internal/atomic"
+-	_ "unsafe" // for go:linkname
++	"unsafe"
+ )
+ 
+ //go:generate go run wincallback.go
+@@ -93,3 +93,10 @@ func syscall_runtimeUnsetenv(key string) {
+ 		godebugenv.Store(nil)
+ 	}
+ }
++
++// writeErrStr writes a string to descriptor 2.
++//
++//go:nosplit
++func writeErrStr(s string) {
++	write(2, unsafe.Pointer(unsafe.StringData(s)), int32(len(s)))
++}
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 580fec58ae..c401fc1b7a 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -1039,8 +1039,6 @@ func signalDuringFork(sig uint32) {
+ 	throw("signal received during fork")
+ }
+ 
+-var badginsignalMsg = "fatal: bad g in signal handler\n"
+-
+ // This runs on a foreign stack, without an m or a g. No stack split.
+ //
+ //go:nosplit
+@@ -1051,8 +1049,7 @@ func badsignal(sig uintptr, c *sigctxt) {
+ 		// There is no extra M. needm will not be able to grab
+ 		// an M. Instead of hanging, just crash.
+ 		// Cannot call split-stack function as there is no G.
+-		s := stringStructOf(&badginsignalMsg)
+-		write(2, s.str, int32(s.len))
++		writeErrStr("fatal: bad g in signal handler\n")
+ 		exit(2)
+ 		*(*uintptr)(unsafe.Pointer(uintptr(123))) = 2
+ 	}
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 8a8aace046..42c2612e68 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -59,13 +59,10 @@ func mcall(fn func(*g))
+ //go:noescape
+ func systemstack(fn func())
+ 
+-var badsystemstackMsg = "fatal: systemstack called from unexpected goroutine"
+-
+ //go:nosplit
+ //go:nowritebarrierrec
+ func badsystemstack() {
+-	sp := stringStructOf(&badsystemstackMsg)
+-	write(2, sp.str, int32(sp.len))
++	writeErrStr("fatal: systemstack called from unexpected goroutine")
+ }
+ 
+ // memclrNoHeapPointers clears n bytes starting at ptr.

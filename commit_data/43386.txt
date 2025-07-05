@@ -11,7 +11,77 @@ Date:   Thu Mar 26 21:28:37 2020 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/http/client.go      | 15 ++++++++++++++-
  src/net/http/client_test.go | 35 +++++++++++++++++++++++++++++++++++
  2 files changed, 49 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index 638ff500a4..3860d97d8f 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -269,7 +269,20 @@ func send(ireq *Request, rt RoundTripper, deadline time.Time) (resp *Response, d
+ 		return nil, didTimeout, fmt.Errorf("http: RoundTripper implementation (%T) returned a nil *Response with a nil error", rt)
+ 	}
+ 	if resp.Body == nil {
+-		return nil, didTimeout, fmt.Errorf("http: RoundTripper implementation (%T) returned a *Response with a nil Body", rt)
++		// The documentation on the Body field says “The http Client and Transport
++		// guarantee that Body is always non-nil, even on responses without a body
++		// or responses with a zero-length body.” Unfortunately, we didn't document
++		// that same constraint for arbitrary RoundTripper implementations, and
++		// RoundTripper implementations in the wild (mostly in tests) assume that
++		// they can use a nil Body to mean an empty one (similar to Request.Body).
++		// (See https://golang.org/issue/38095.)
++		//
++		// If the ContentLength allows the Body to be empty, fill in an empty one
++		// here to ensure that it is non-nil.
++		if resp.ContentLength > 0 && req.Method != "HEAD" {
++			return nil, didTimeout, fmt.Errorf("http: RoundTripper implementation (%T) returned a *Response with content length %d but a nil Body", rt, resp.ContentLength)
++		}
++		resp.Body = ioutil.NopCloser(strings.NewReader(""))
+ 	}
+ 	if !deadline.IsZero() {
+ 		resp.Body = &cancelTimerBody{
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index 2b4f53f802..80807fae7a 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -1991,3 +1991,38 @@ func testClientDoCanceledVsTimeout(t *testing.T, h2 bool) {
+ 		})
+ 	}
+ }
++
++type nilBodyRoundTripper struct{}
++
++func (nilBodyRoundTripper) RoundTrip(req *Request) (*Response, error) {
++	return &Response{
++		StatusCode: StatusOK,
++		Status:     StatusText(StatusOK),
++		Body:       nil,
++		Request:    req,
++	}, nil
++}
++
++func TestClientPopulatesNilResponseBody(t *testing.T) {
++	c := &Client{Transport: nilBodyRoundTripper{}}
++
++	resp, err := c.Get("http://localhost/anything")
++	if err != nil {
++		t.Fatalf("Client.Get rejected Response with nil Body: %v", err)
++	}
++
++	if resp.Body == nil {
++		t.Fatalf("Client failed to provide a non-nil Body as documented")
++	}
++	defer func() {
++		if err := resp.Body.Close(); err != nil {
++			t.Fatalf("error from Close on substitute Response.Body: %v", err)
++		}
++	}()
++
++	if b, err := ioutil.ReadAll(resp.Body); err != nil {
++		t.Errorf("read error from substitute Response.Body: %v", err)
++	} else if len(b) != 0 {
++		t.Errorf("substitute Response.Body was unexpectedly non-empty: %q", b)
++	}
++}

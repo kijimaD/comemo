@@ -7,6 +7,21 @@ Date:   Thu Jun 9 18:28:27 2011 -0400
     R=lvd
     CC=golang-dev
     https://golang.org/cl/4591063
-
+---
  src/cmd/gc/pgen.c | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index c24648737b..ab61866973 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -111,7 +111,8 @@ compile(Node *fn)
+ 	}
+ 
+ 	oldstksize = stksize;
+-	compactframe(ptxt);
++	if(thechar != '5')
++		compactframe(ptxt);
+ 	if(0)
+ 		print("compactframe: %ld to %ld\n", oldstksize, stksize);
+ 

@@ -20,10 +20,161 @@ Date:   Mon Mar 30 00:38:09 2020 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testgodefs/testdata/issue37479.go | 33 ++++++++++++++++++++++++++++++
  misc/cgo/testgodefs/testdata/issue37621.go | 23 +++++++++++++++++++++
  misc/cgo/testgodefs/testdata/main.go       |  8 ++++++++
  misc/cgo/testgodefs/testgodefs_test.go     |  2 ++
  src/cmd/cgo/gcc.go                         | 19 ++++++++++++++---
  5 files changed, 82 insertions(+), 3 deletions(-)
+
+diff --git a/misc/cgo/testgodefs/testdata/issue37479.go b/misc/cgo/testgodefs/testdata/issue37479.go
+new file mode 100644
+index 0000000000..a210eb5bc5
+--- /dev/null
++++ b/misc/cgo/testgodefs/testdata/issue37479.go
+@@ -0,0 +1,33 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++//
++// +build ignore
++
++package main
++
++/*
++typedef struct A A;
++
++typedef struct {
++	struct A *next;
++	struct A **prev;
++} N;
++
++struct A
++{
++	N n;
++};
++
++typedef struct B
++{
++	A* a;
++} B;
++*/
++import "C"
++
++type N C.N
++
++type A C.A
++
++type B C.B
+diff --git a/misc/cgo/testgodefs/testdata/issue37621.go b/misc/cgo/testgodefs/testdata/issue37621.go
+new file mode 100644
+index 0000000000..d5ace3f6d6
+--- /dev/null
++++ b/misc/cgo/testgodefs/testdata/issue37621.go
+@@ -0,0 +1,23 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++//
++// +build ignore
++
++package main
++
++/*
++struct tt {
++	long long a;
++	long long b;
++};
++
++struct s {
++	struct tt ts[3];
++};
++*/
++import "C"
++
++type TT C.struct_tt
++
++type S C.struct_s
+diff --git a/misc/cgo/testgodefs/testdata/main.go b/misc/cgo/testgodefs/testdata/main.go
+index 1ce0fd0d1e..ef45b95e65 100644
+--- a/misc/cgo/testgodefs/testdata/main.go
++++ b/misc/cgo/testgodefs/testdata/main.go
+@@ -11,5 +11,13 @@ var v2 = v1.L
+ // Test that P, Q, and R all point to byte.
+ var v3 = Issue8478{P: (*byte)(nil), Q: (**byte)(nil), R: (***byte)(nil)}
+ 
++// Test that N, A and B are fully defined
++var v4 = N{}
++var v5 = A{}
++var v6 = B{}
++
++// Test that S is fully defined
++var v7 = S{}
++
+ func main() {
+ }
+diff --git a/misc/cgo/testgodefs/testgodefs_test.go b/misc/cgo/testgodefs/testgodefs_test.go
+index c02c3ff0ac..438d23d65c 100644
+--- a/misc/cgo/testgodefs/testgodefs_test.go
++++ b/misc/cgo/testgodefs/testgodefs_test.go
+@@ -21,6 +21,8 @@ var filePrefixes = []string{
+ 	"anonunion",
+ 	"issue8478",
+ 	"fieldtypedef",
++	"issue37479",
++	"issue37621",
+ }
+ 
+ func TestGoDefs(t *testing.T) {
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index fcab494ea0..c4128e9502 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -2243,7 +2243,7 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
+ 			// Translate to zero-length array instead.
+ 			count = 0
+ 		}
+-		sub := c.loadType(dt.Type, pos, key)
++		sub := c.Type(dt.Type, pos)
+ 		t.Align = sub.Align
+ 		t.Go = &ast.ArrayType{
+ 			Len: c.intExpr(count),
+@@ -2388,7 +2388,7 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
+ 		c.ptrs[key] = append(c.ptrs[key], t)
+ 
+ 	case *dwarf.QualType:
+-		t1 := c.loadType(dt.Type, pos, key)
++		t1 := c.Type(dt.Type, pos)
+ 		t.Size = t1.Size
+ 		t.Align = t1.Align
+ 		t.Go = t1.Go
+@@ -2472,7 +2472,13 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
+ 		}
+ 		name := c.Ident("_Ctype_" + dt.Name)
+ 		goIdent[name.Name] = name
+-		sub := c.loadType(dt.Type, pos, key)
++		akey := ""
++		if c.anonymousStructTypedef(dt) {
++			// only load type recursively for typedefs of anonymous
++			// structs, see issues 37479 and 37621.
++			akey = key
++		}
++		sub := c.loadType(dt.Type, pos, akey)
+ 		if c.badPointerTypedef(dt) {
+ 			// Treat this typedef as a uintptr.
+ 			s := *sub
+@@ -2993,6 +2999,13 @@ func fieldPrefix(fld []*ast.Field) string {
+ 	return prefix
+ }
+ 
++// anonymousStructTypedef reports whether dt is a C typedef for an anonymous
++// struct.
++func (c *typeConv) anonymousStructTypedef(dt *dwarf.TypedefType) bool {
++	st, ok := dt.Type.(*dwarf.StructType)
++	return ok && st.StructName == ""
++}
++
+ // badPointerTypedef reports whether t is a C typedef that should not be considered a pointer in Go.
+ // A typedef is bad if C code sometimes stores non-pointers in this type.
+ // TODO: Currently our best solution is to find these manually and list them as

@@ -15,7 +15,38 @@ Date:   Sun Jun 8 08:49:25 2025 -0400
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Sean Liao <sean@liao.dev>
-
+---
  src/log/slog/json_handler.go | 4 +---
  src/log/slog/text_handler.go | 4 +---
  2 files changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/log/slog/json_handler.go b/src/log/slog/json_handler.go
+index da3eae1a8e..f139c54139 100644
+--- a/src/log/slog/json_handler.go
++++ b/src/log/slog/json_handler.go
+@@ -63,9 +63,7 @@ func (h *JSONHandler) WithGroup(name string) Handler {
+ // Otherwise, the key is "time"
+ // and the value is output as with json.Marshal.
+ //
+-// If the Record's level is zero, the level is omitted.
+-// Otherwise, the key is "level"
+-// and the value of [Level.String] is output.
++// The level's key is "level" and its value is the result of calling [Level.String].
+ //
+ // If the AddSource option is set and source information is available,
+ // the key is "source", and the value is a record of type [Source].
+diff --git a/src/log/slog/text_handler.go b/src/log/slog/text_handler.go
+index 6819e633bb..5a0d0a4a7e 100644
+--- a/src/log/slog/text_handler.go
++++ b/src/log/slog/text_handler.go
+@@ -62,9 +62,7 @@ func (h *TextHandler) WithGroup(name string) Handler {
+ // Otherwise, the key is "time"
+ // and the value is output in RFC3339 format with millisecond precision.
+ //
+-// If the Record's level is zero, the level is omitted.
+-// Otherwise, the key is "level"
+-// and the value of [Level.String] is output.
++// The level's key is "level" and its value is the result of calling [Level.String].
+ //
+ // If the AddSource option is set and source information is available,
+ // the key is "source" and the value is output as FILE:LINE.

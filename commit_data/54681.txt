@@ -11,8 +11,62 @@ Date:   Tue Nov 8 11:37:59 2022 +0800
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/compile/internal/ir/cfg.go | 4 ++--
  src/net/http/transport.go          | 6 ++----
  src/net/net.go                     | 2 +-
  3 files changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/cfg.go b/src/cmd/compile/internal/ir/cfg.go
+index d986ac3a1e..49e1ed31cb 100644
+--- a/src/cmd/compile/internal/ir/cfg.go
++++ b/src/cmd/compile/internal/ir/cfg.go
+@@ -5,12 +5,12 @@
+ package ir
+ 
+ var (
+-	// maximum size variable which we will allocate on the stack.
++	// MaxStackVarSize is the maximum size variable which we will allocate on the stack.
+ 	// This limit is for explicit variable declarations like "var x T" or "x := ...".
+ 	// Note: the flag smallframes can update this value.
+ 	MaxStackVarSize = int64(10 * 1024 * 1024)
+ 
+-	// maximum size of implicit variables that we will allocate on the stack.
++	// MaxImplicitStackVarSize is the maximum size of implicit variables that we will allocate on the stack.
+ 	//   p := new(T)          allocating T on the stack
+ 	//   p := &T{}            allocating T on the stack
+ 	//   s := make([]T, n)    allocating [n]T on the stack
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index b3fc08139c..671d9959ea 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -810,14 +810,12 @@ func (t *Transport) cancelRequest(key cancelKey, err error) bool {
+ //
+ 
+ var (
+-	// proxyConfigOnce guards proxyConfig
+ 	envProxyOnce      sync.Once
+ 	envProxyFuncValue func(*url.URL) (*url.URL, error)
+ )
+ 
+-// defaultProxyConfig returns a ProxyConfig value looked up
+-// from the environment. This mitigates expensive lookups
+-// on some platforms (e.g. Windows).
++// envProxyFunc returns a function that reads the
++// environment variable to determine the proxy address.
+ func envProxyFunc() func(*url.URL) (*url.URL, error) {
+ 	envProxyOnce.Do(func() {
+ 		envProxyFuncValue = httpproxy.FromEnvironment().ProxyFunc()
+diff --git a/src/net/net.go b/src/net/net.go
+index ff56c31c56..0a4f7471c4 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -498,7 +498,7 @@ var (
+ 	// immediate cancellation of dials.
+ 	aLongTimeAgo = time.Unix(1, 0)
+ 
+-	// nonDeadline and noCancel are just zero values for
++	// noDeadline and noCancel are just zero values for
+ 	// readability with functions taking too many parameters.
+ 	noDeadline = time.Time{}
+ 	noCancel   = (chan struct{})(nil)

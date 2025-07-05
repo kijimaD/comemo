@@ -16,7 +16,93 @@ Date:   Mon Dec 15 14:39:28 2014 -0800
     Change-Id: Iac6b664217d24763b9878c20e49229a1ecffc805
     Reviewed-on: https://go-review.googlesource.com/1600
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/mprof.go        | 14 +++++---------
  test/fixedbugs/issue9321.go | 37 +++++++++++++++++++++++++++++++++++++
  2 files changed, 42 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index ba989b1b86..6435c0446a 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -564,20 +564,16 @@ func saveg(pc, sp uintptr, gp *g, r *StackRecord) {
+ // If all is true, Stack formats stack traces of all other goroutines
+ // into buf after the trace for the current goroutine.
+ func Stack(buf []byte, all bool) int {
+-	mp := acquirem()
+-	gp := mp.curg
+ 	if all {
+ 		semacquire(&worldsema, false)
+-		mp.gcing = 1
+-		releasem(mp)
++		gp := getg()
++		gp.m.gcing = 1
+ 		systemstack(stoptheworld)
+-		if mp != acquirem() {
+-			gothrow("Stack: rescheduled")
+-		}
+ 	}
+ 
+ 	n := 0
+ 	if len(buf) > 0 {
++		gp := getg()
+ 		sp := getcallersp(unsafe.Pointer(&buf))
+ 		pc := getcallerpc(unsafe.Pointer(&buf))
+ 		systemstack(func() {
+@@ -594,11 +590,11 @@ func Stack(buf []byte, all bool) int {
+ 	}
+ 
+ 	if all {
+-		mp.gcing = 0
++		gp := getg()
++		gp.m.gcing = 0
+ 		semrelease(&worldsema)
+ 		systemstack(starttheworld)
+ 	}
+-	releasem(mp)
+ 	return n
+ }
+ 
+diff --git a/test/fixedbugs/issue9321.go b/test/fixedbugs/issue9321.go
+new file mode 100644
+index 0000000000..06cb5a6e36
+--- /dev/null
++++ b/test/fixedbugs/issue9321.go
+@@ -0,0 +1,37 @@
++// run
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"bytes"
++	"runtime"
++	"runtime/pprof"
++	"sync"
++)
++
++func test() {
++	var wg sync.WaitGroup
++	wg.Add(2)
++	test := func() {
++		for i := 0; i < 100; i++ {
++			buf := &bytes.Buffer{}
++			pprof.Lookup("goroutine").WriteTo(buf, 2)
++		}
++		wg.Done()
++	}
++
++	go test()
++	go test()
++	wg.Wait()
++}
++
++func main() {
++	runtime.GOMAXPROCS(2)
++	for i := 0; i < 100; i++ {
++		test()
++	}
++}

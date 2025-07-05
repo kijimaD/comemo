@@ -12,8 +12,107 @@ Date:   Wed Apr 18 21:04:49 2018 +0000
     Reviewed-on: https://go-review.googlesource.com/99337
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/internal/syscall/windows/symlink_windows.go | 14 ++++++++
  src/os/file_windows.go                          | 11 ++++++-
  src/os/os_windows_test.go                       | 44 +++++++++++++++++++++++++
  3 files changed, 68 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/syscall/windows/symlink_windows.go b/src/internal/syscall/windows/symlink_windows.go
+new file mode 100644
+index 0000000000..f2bcd4c4d0
+--- /dev/null
++++ b/src/internal/syscall/windows/symlink_windows.go
+@@ -0,0 +1,14 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package windows
++
++import "syscall"
++
++const (
++	ERROR_INVALID_PARAMETER syscall.Errno = 87
++
++	// symlink support for CreateSymbolicLink() starting with Windows 10 (1703, v10.0.14972)
++	SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE = 0x2
++)
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index 8ace9c0c7f..a17c6e2ac3 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -373,11 +373,20 @@ func Symlink(oldname, newname string) error {
+ 		return &LinkError{"symlink", oldname, newname, err}
+ 	}
+ 
+-	var flags uint32
++	var flags uint32 = windows.SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE
+ 	if isdir {
+ 		flags |= syscall.SYMBOLIC_LINK_FLAG_DIRECTORY
+ 	}
+ 	err = syscall.CreateSymbolicLink(n, o, flags)
++
++	if err != nil {
++		// the unprivileged create flag is unsupported
++		// below Windows 10 (1703, v10.0.14972). retry without it.
++		flags &^= windows.SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE
++
++		err = syscall.CreateSymbolicLink(n, o, flags)
++	}
++
+ 	if err != nil {
+ 		return &LinkError{"symlink", oldname, newname, err}
+ 	}
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index 25f93cf131..faf0d99992 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -1011,3 +1011,47 @@ func TestWindowsDevNullFile(t *testing.T) {
+ 		t.Errorf(`"NUL" and "nul" are not the same file`)
+ 	}
+ }
++
++// TestSymlinkCreation verifies that creating a symbolic link
++// works on Windows when developer mode is active.
++// This is supported starting Windows 10 (1703, v10.0.14972).
++func TestSymlinkCreation(t *testing.T) {
++	if !isWindowsDeveloperModeActive() {
++		t.Skip("Windows developer mode is not active")
++	}
++
++	temp, err := ioutil.TempDir("", "TestSymlinkCreation")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(temp)
++
++	dummyFile := filepath.Join(temp, "file")
++	err = ioutil.WriteFile(dummyFile, []byte(""), 0644)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	linkFile := filepath.Join(temp, "link")
++	err = os.Symlink(dummyFile, linkFile)
++	if err != nil {
++		t.Fatal(err)
++	}
++}
++
++// isWindowsDeveloperModeActive checks whether or not the developer mode is active on Windows 10.
++// Returns false for prior Windows versions.
++// see https://docs.microsoft.com/en-us/windows/uwp/get-started/enable-your-device-for-development
++func isWindowsDeveloperModeActive() bool {
++	key, err := registry.OpenKey(registry.LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AppModelUnlock", registry.READ)
++	if err != nil {
++		return false
++	}
++
++	val, _, err := key.GetIntegerValue("AllowDevelopmentWithoutDevLicense")
++	if err != nil {
++		return false
++	}
++
++	return val != 0
++}

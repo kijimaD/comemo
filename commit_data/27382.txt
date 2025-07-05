@@ -12,6 +12,19 @@ Date:   Thu Mar 24 10:40:34 2016 +0100
     Change-Id: I669264208cc3d6ecae9fbc8790e0b753a93a5e04
     Reviewed-on: https://go-review.googlesource.com/21071
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  misc/ios/go_darwin_arm_exec.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/misc/ios/go_darwin_arm_exec.go b/misc/ios/go_darwin_arm_exec.go
+index 828efe91c1..0392b9c200 100644
+--- a/misc/ios/go_darwin_arm_exec.go
++++ b/misc/ios/go_darwin_arm_exec.go
+@@ -196,6 +196,7 @@ func run(bin string, args []string) (err error) {
+ 	s.do(`process handle SIGHUP  --stop false --pass true --notify false`)
+ 	s.do(`process handle SIGPIPE --stop false --pass true --notify false`)
+ 	s.do(`process handle SIGUSR1 --stop false --pass true --notify false`)
++	s.do(`process handle SIGCONT --stop false --pass true --notify false`)
+ 	s.do(`process handle SIGSEGV --stop false --pass true --notify false`) // does not work
+ 	s.do(`process handle SIGBUS  --stop false --pass true --notify false`) // does not work
+ 

@@ -8,6 +8,19 @@ Date:   Thu Oct 9 11:21:21 2014 +0200
     R=golang-codereviews, adg
     CC=golang-codereviews
     https://golang.org/cl/151620043
-
+---
  src/net/rpc/client_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/net/rpc/client_test.go b/src/net/rpc/client_test.go
+index fb838eb34f..5dd111b299 100644
+--- a/src/net/rpc/client_test.go
++++ b/src/net/rpc/client_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"net"
++	"runtime"
+ 	"strings"
+ 	"testing"
+ )

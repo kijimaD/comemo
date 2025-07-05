@@ -7,9 +7,103 @@ Date:   Fri Dec 9 11:59:21 2011 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5478051
-
+---
  src/cmd/5g/gsubr.c |  6 ++++++
  src/cmd/6g/gsubr.c |  7 +++++++
  src/cmd/8g/gsubr.c |  6 ++++++
  test/blank.go      | 17 +++++++++++++++++
  4 files changed, 36 insertions(+)
+
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 73ae3304ad..d8460ff754 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -515,6 +515,12 @@ nodarg(Type *t, int fp)
+ 	n->orig = t->nname;
+ 
+ fp:
++	// Rewrite argument named _ to __,
++	// or else the assignment to _ will be
++	// discarded during code generation.
++	if(isblank(n))
++		n->sym = lookup("__");
++
+ 	switch(fp) {
+ 	default:
+ 		fatal("nodarg %T %d", t, fp);
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index c43d2ef82f..cf00c3c494 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -481,6 +481,7 @@ nodarg(Type *t, int fp)
+ 	n = nod(ONAME, N, N);
+ 	n->type = t->type;
+ 	n->sym = t->sym;
++	
+ 	if(t->width == BADWIDTH)
+ 		fatal("nodarg: offset not computed for %T", t);
+ 	n->xoffset = t->width;
+@@ -488,6 +489,12 @@ nodarg(Type *t, int fp)
+ 	n->orig = t->nname;
+ 
+ fp:
++	// Rewrite argument named _ to __,
++	// or else the assignment to _ will be
++	// discarded during code generation.
++	if(isblank(n))
++		n->sym = lookup("__");
++
+ 	switch(fp) {
+ 	case 0:		// output arg
+ 		n->op = OINDREG;
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index dd6ffbc4c6..9d0f7025f4 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -967,6 +967,12 @@ nodarg(Type *t, int fp)
+ 		n->orig = t->nname;
+ 		break;
+ 	}
++	
++	// Rewrite argument named _ to __,
++	// or else the assignment to _ will be
++	// discarded during code generation.
++	if(isblank(n))
++		n->sym = lookup("__");
+ 
+ 	switch(fp) {
+ 	default:
+diff --git a/test/blank.go b/test/blank.go
+index 581bc85c80..d6c9e79c60 100644
+--- a/test/blank.go
++++ b/test/blank.go
+@@ -118,12 +118,29 @@ func (TI) M(x int, y int) {
+ 	}
+ }
+ 
++var fp = func(_ int, y int) {}
++
++func init() {
++	fp = fp1
++}
++
++func fp1(x, y int) {
++	if x != y {
++		println("invalid fp1 call:", x, y)
++		panic("bad fp1")
++	}
++}
++
++
+ func m() {
+ 	var i I
+ 	
+ 	i = TI{}
+ 	i.M(1, 1)
+ 	i.M(2, 2)
++	
++	fp(1, 1)
++	fp(2, 2)
+ }
+ 
+ // useless but legal

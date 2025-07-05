@@ -7,8 +7,73 @@ Date:   Fri Aug 12 11:47:44 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4868045
-
+---
  src/pkg/exp/template/doc.go       |  2 ++
  src/pkg/exp/template/exec_test.go |  6 ++++++
  src/pkg/exp/template/funcs.go     | 16 ++++++++++++++++
  3 files changed, 24 insertions(+)
+
+diff --git a/src/pkg/exp/template/doc.go b/src/pkg/exp/template/doc.go
+index ef9e1563b9..ed0172ac8e 100644
+--- a/src/pkg/exp/template/doc.go
++++ b/src/pkg/exp/template/doc.go
+@@ -232,6 +232,8 @@ Predefined global functions are named as follows.
+ 	js
+ 		Returns the escaped JavaScript equivalent of the textual
+ 		representation of its arguments.
++	len
++		Returns the integer length of its argument.
+ 	not
+ 		Returns the boolean negation of its single argument.
+ 	or
+diff --git a/src/pkg/exp/template/exec_test.go b/src/pkg/exp/template/exec_test.go
+index 18dbcee3ea..50f1591906 100644
+--- a/src/pkg/exp/template/exec_test.go
++++ b/src/pkg/exp/template/exec_test.go
+@@ -331,6 +331,12 @@ var execTests = []execTest{
+ 	{"map[WRONG]", "{{index .MSI 10}}", "", tVal, false},
+ 	{"double index", "{{index .SMSI 1 `eleven`}}", "11", tVal, true},
+ 
++	// Len.
++	{"slice", "{{len .SI}}", "3", tVal, true},
++	{"map", "{{len .MSI }}", "3", tVal, true},
++	{"len of int", "{{len 3}}", "", tVal, false},
++	{"len of nothing", "{{len .Empty0}}", "", tVal, false},
++
+ 	// With.
+ 	{"with true", "{{with true}}{{.}}{{end}}", "true", tVal, true},
+ 	{"with false", "{{with false}}{{.}}{{else}}FALSE{{end}}", "FALSE", tVal, true},
+diff --git a/src/pkg/exp/template/funcs.go b/src/pkg/exp/template/funcs.go
+index 579c70099c..b2878a161b 100644
+--- a/src/pkg/exp/template/funcs.go
++++ b/src/pkg/exp/template/funcs.go
+@@ -27,6 +27,7 @@ var builtins = FuncMap{
+ 	"html":    HTMLEscaper,
+ 	"index":   index,
+ 	"js":      JSEscaper,
++	"len":     length,
+ 	"not":     not,
+ 	"or":      or,
+ 	"print":   fmt.Sprint,
+@@ -140,6 +141,21 @@ func index(item interface{}, indices ...interface{}) (interface{}, os.Error) {
+ 	return v.Interface(), nil
+ }
+ 
++// Length
++
++// length returns the length of the item, with an error if it has no defined length.
++func length(item interface{}) (int, os.Error) {
++	v, isNil := indirect(reflect.ValueOf(item))
++	if isNil {
++		return 0, fmt.Errorf("len of nil pointer")
++	}
++	switch v.Kind() {
++	case reflect.Array, reflect.Chan, reflect.Map, reflect.Slice, reflect.String:
++		return v.Len(), nil
++	}
++	return 0, fmt.Errorf("len of type %s", v.Type())
++}
++
+ // Boolean logic.
+ 
+ func truth(a interface{}) bool {

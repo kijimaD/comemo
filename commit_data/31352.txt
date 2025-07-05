@@ -29,7 +29,7 @@ Date:   Mon Feb 13 12:46:17 2017 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/export_test.go |  3 ++-
  src/runtime/mgc.go         |  2 +-
  src/runtime/proc.go        |  2 +-
@@ -38,3 +38,113 @@ Date:   Mon Feb 13 12:46:17 2017 -0800
  src/runtime/stubs.go       |  7 +++++++
  src/runtime/symtab.go      |  2 +-
  7 files changed, 26 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 5f85d91f5e..985cd7f851 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -246,4 +246,5 @@ func CountPagesInUse() (pagesInUse, counted uintptr) {
+ 	return
+ }
+ 
+-func Fastrand() uint32 { return fastrand() }
++func Fastrand() uint32          { return fastrand() }
++func Fastrandn(n uint32) uint32 { return fastrandn(n) }
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 527df1750a..cb0d305899 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -648,7 +648,7 @@ func (c *gcControllerState) enlistWorker() {
+ 	}
+ 	myID := gp.m.p.ptr().id
+ 	for tries := 0; tries < 5; tries++ {
+-		id := int32(fastrand() % uint32(gomaxprocs-1))
++		id := int32(fastrandn(uint32(gomaxprocs - 1)))
+ 		if id >= myID {
+ 			id++
+ 		}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 23626f19a9..e71ebcd7a7 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4280,7 +4280,7 @@ func runqputslow(_p_ *p, gp *g, h, t uint32) bool {
+ 
+ 	if randomizeScheduler {
+ 		for i := uint32(1); i <= n; i++ {
+-			j := fastrand() % (i + 1)
++			j := fastrandn(i + 1)
+ 			batch[i], batch[j] = batch[j], batch[i]
+ 		}
+ 	}
+diff --git a/src/runtime/rand_test.go b/src/runtime/rand_test.go
+index 0f6ec0f2ec..f8831b05f9 100644
+--- a/src/runtime/rand_test.go
++++ b/src/runtime/rand_test.go
+@@ -6,6 +6,7 @@ package runtime_test
+ 
+ import (
+ 	. "runtime"
++	"strconv"
+ 	"testing"
+ )
+ 
+@@ -30,3 +31,15 @@ func BenchmarkFastrandHashiter(b *testing.B) {
+ 		}
+ 	})
+ }
++
++var sink32 uint32
++
++func BenchmarkFastrandn(b *testing.B) {
++	for n := uint32(2); n <= 5; n++ {
++		b.Run(strconv.Itoa(int(n)), func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				sink32 = Fastrandn(n)
++			}
++		})
++	}
++}
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index 4a744a1967..1ace6dc5c3 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -270,7 +270,7 @@ func selectgoImpl(sel *hselect) (uintptr, uint16) {
+ 	pollslice := slice{unsafe.Pointer(sel.pollorder), int(sel.ncase), int(sel.ncase)}
+ 	pollorder := *(*[]uint16)(unsafe.Pointer(&pollslice))
+ 	for i := 1; i < int(sel.ncase); i++ {
+-		j := fastrand() % uint32(i+1)
++		j := fastrandn(uint32(i + 1))
+ 		pollorder[i] = pollorder[j]
+ 		pollorder[j] = uint16(i)
+ 	}
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index e839c59d55..ff230b8e55 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -103,6 +103,13 @@ func fastrand() uint32 {
+ 	return fr
+ }
+ 
++//go:nosplit
++func fastrandn(n uint32) uint32 {
++	// This is similar to fastrand() % n, but faster.
++	// See http://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/
++	return uint32(uint64(fastrand()) * uint64(n) >> 32)
++}
++
+ //go:linkname sync_fastrand sync.fastrand
+ func sync_fastrand() uint32 { return fastrand() }
+ 
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index ed82783ca9..377d970f09 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -549,7 +549,7 @@ func pcvalue(f *_func, off int32, targetpc uintptr, cache *pcvalueCache, strict
+ 			// a recursive stack's cycle is slightly
+ 			// larger than the cache.
+ 			if cache != nil {
+-				ci := fastrand() % uint32(len(cache.entries))
++				ci := fastrandn(uint32(len(cache.entries)))
+ 				cache.entries[ci] = pcvalueCacheEnt{
+ 					targetpc: targetpc,
+ 					off:      off,

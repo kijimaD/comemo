@@ -21,8 +21,80 @@ Date:   Wed Mar 24 17:14:29 2021 +0200
     Trust: Jay Conrod <jayconrod@google.com>
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/alldocs.go                            |  4 ++--
  src/cmd/go/internal/test/test.go                 |  7 ++++---
  src/cmd/go/testdata/script/test_cache_inputs.txt | 13 +++++++++++++
  3 files changed, 19 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 9aac344a3f..b15b77fac8 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1408,8 +1408,8 @@
+ //
+ // The rule for a match in the cache is that the run involves the same
+ // test binary and the flags on the command line come entirely from a
+-// restricted set of 'cacheable' test flags, defined as -cpu, -list,
+-// -parallel, -run, -short, and -v. If a run of go test has any test
++// restricted set of 'cacheable' test flags, defined as -benchtime, -cpu,
++// -list, -parallel, -run, -short, and -v. If a run of go test has any test
+ // or non-test flags outside this set, the result is not cached. To
+ // disable test caching, use any test flag or argument other than the
+ // cacheable flags. The idiomatic way to disable test caching explicitly
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 230ea2d318..ebe13205f7 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -118,8 +118,8 @@ elapsed time in the summary line.
+ 
+ The rule for a match in the cache is that the run involves the same
+ test binary and the flags on the command line come entirely from a
+-restricted set of 'cacheable' test flags, defined as -cpu, -list,
+--parallel, -run, -short, and -v. If a run of go test has any test
++restricted set of 'cacheable' test flags, defined as -benchtime, -cpu,
++-list, -parallel, -run, -short, and -v. If a run of go test has any test
+ or non-test flags outside this set, the result is not cached. To
+ disable test caching, use any test flag or argument other than the
+ cacheable flags. The idiomatic way to disable test caching explicitly
+@@ -1333,7 +1333,8 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
+ 			return false
+ 		}
+ 		switch arg[:i] {
+-		case "-test.cpu",
++		case "-test.benchtime",
++			"-test.cpu",
+ 			"-test.list",
+ 			"-test.parallel",
+ 			"-test.run",
+diff --git a/src/cmd/go/testdata/script/test_cache_inputs.txt b/src/cmd/go/testdata/script/test_cache_inputs.txt
+index 50486e1909..d694a30994 100644
+--- a/src/cmd/go/testdata/script/test_cache_inputs.txt
++++ b/src/cmd/go/testdata/script/test_cache_inputs.txt
+@@ -99,6 +99,15 @@ rm $WORK/external.txt
+ go test testcache -run=ExternalFile
+ stdout '\(cached\)'
+ 
++# The -benchtime flag without -bench should not affect caching.
++go test testcache -run=Benchtime -benchtime=1x
++go test testcache -run=Benchtime -benchtime=1x
++stdout '\(cached\)'
++
++go test testcache -run=Benchtime -bench=Benchtime -benchtime=1x
++go test testcache -run=Benchtime -bench=Benchtime -benchtime=1x
++! stdout '\(cached\)'
++
+ # Executables within GOROOT and GOPATH should affect caching,
+ # even if the test does not stat them explicitly.
+ 
+@@ -228,6 +237,10 @@ func TestExternalFile(t *testing.T) {
+ func TestOSArgs(t *testing.T) {
+ 	t.Log(os.Args)
+ }
++
++func TestBenchtime(t *testing.T) {
++}
++
+ -- mkold.go --
+ package main
+ 

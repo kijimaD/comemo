@@ -17,7 +17,7 @@ Date:   Wed Jul 6 10:04:45 2016 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/arm/ssa.go            |   5 +
  src/cmd/compile/internal/ssa/gen/ARM.rules     |   4 +
  src/cmd/compile/internal/ssa/gen/ARMOps.go     |   4 +
@@ -27,3 +27,604 @@ Date:   Wed Jul 6 10:04:45 2016 -0400
  src/cmd/compile/internal/ssa/rewritegeneric.go | 314 +++++++++++++++++++++++++
  src/runtime/softfloat_arm.go                   |  18 ++
  8 files changed, 439 insertions(+)
+
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 5dcd8ca1ac..bfd13464e5 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -523,6 +523,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = v.AuxInt
+ 		p.Reg = gc.SSARegNum(v.Args[0])
++	case ssa.OpARMCMPF0,
++		ssa.OpARMCMPD0:
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = gc.SSARegNum(v.Args[0])
+ 	case ssa.OpARMCMPshiftLL:
+ 		genshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), 0, arm.SHIFT_LL, v.AuxInt)
+ 	case ssa.OpARMCMPshiftRL:
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index 7ec0e502ec..0002e8ea07 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -1203,3 +1203,7 @@
+ (AND x (MVNshiftLL y [c])) -> (BICshiftLL x y [c])
+ (AND x (MVNshiftRL y [c])) -> (BICshiftRL x y [c])
+ (AND x (MVNshiftRA y [c])) -> (BICshiftRA x y [c])
++
++// floating point optimizations
++(CMPF x (MOVFconst [0])) -> (CMPF0 x)
++(CMPD x (MOVDconst [0])) -> (CMPD0 x)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index 89576daf0e..789fef5819 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -119,6 +119,7 @@ func init() {
+ 		gp2store  = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}, outputs: []regMask{}}
+ 		fp01      = regInfo{inputs: []regMask{}, outputs: []regMask{fp}}
+ 		fp11      = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
++		fp1flags  = regInfo{inputs: []regMask{fp}, outputs: []regMask{flags}}
+ 		fpgp      = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}
+ 		gpfp      = regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}
+ 		fp21      = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
+@@ -299,6 +300,9 @@ func init() {
+ 		{name: "CMPshiftRLreg", argLength: 3, reg: gp3flags, asm: "CMP", typ: "Flags"}, // arg0 compare to arg1>>arg2, unsigned shift
+ 		{name: "CMPshiftRAreg", argLength: 3, reg: gp3flags, asm: "CMP", typ: "Flags"}, // arg0 compare to arg1>>arg2, signed shift
+ 
++		{name: "CMPF0", argLength: 1, reg: fp1flags, asm: "CMPF", typ: "Flags"}, // arg0 compare to 0, float32
++		{name: "CMPD0", argLength: 1, reg: fp1flags, asm: "CMPD", typ: "Flags"}, // arg0 compare to 0, float64
++
+ 		// moves
+ 		{name: "MOVWconst", argLength: 0, reg: gp01, aux: "Int32", asm: "MOVW", typ: "UInt32", rematerializeable: true},    // 32 low bits of auxint
+ 		{name: "MOVFconst", argLength: 0, reg: fp01, aux: "Float64", asm: "MOVF", typ: "Float32", rematerializeable: true}, // auxint as 64-bit float, convert to 32-bit float
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index d010403d9d..c0fe802aaa 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -840,3 +840,23 @@
+   -> (Sub64 x (Mul64 <t> (Div64  <t> x (Const64 <t> [c])) (Const64 <t> [c])))
+ (Mod64u <t> x (Const64 [c])) && x.Op != OpConst64 && umagic64ok(c)
+   -> (Sub64 x (Mul64 <t> (Div64u <t> x (Const64 <t> [c])) (Const64 <t> [c])))
++
++// floating point optimizations
++(Add32F x (Const32F [0])) -> x
++(Add32F (Const32F [0]) x) -> x
++(Add64F x (Const64F [0])) -> x
++(Add64F (Const64F [0]) x) -> x
++(Sub32F x (Const32F [0])) -> x
++(Sub64F x (Const64F [0])) -> x
++(Mul32F x (Const32F [f2i(1)])) -> x
++(Mul32F (Const32F [f2i(1)]) x) -> x
++(Mul64F x (Const64F [f2i(1)])) -> x
++(Mul64F (Const64F [f2i(1)]) x) -> x
++(Mul32F x (Const32F [f2i(-1)])) -> (Neg32F x)
++(Mul32F (Const32F [f2i(-1)]) x) -> (Neg32F x)
++(Mul64F x (Const64F [f2i(-1)])) -> (Neg64F x)
++(Mul64F (Const64F [f2i(-1)]) x) -> (Neg64F x)
++(Div32F x (Const32F [f2i(1)])) -> x
++(Div64F x (Const64F [f2i(1)])) -> x
++(Div32F x (Const32F [f2i(-1)])) -> (Neg32F x)
++(Div64F x (Const64F [f2i(-1)])) -> (Neg32F x)
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 159e1b26b4..01576c1217 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -696,6 +696,8 @@ const (
+ 	OpARMCMPshiftLLreg
+ 	OpARMCMPshiftRLreg
+ 	OpARMCMPshiftRAreg
++	OpARMCMPF0
++	OpARMCMPD0
+ 	OpARMMOVWconst
+ 	OpARMMOVFconst
+ 	OpARMMOVDconst
+@@ -8866,6 +8868,32 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "CMPF0",
++		argLen: 1,
++		asm:    arm.ACMPF,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []regMask{
++				4294967296, // FLAGS
++			},
++		},
++	},
++	{
++		name:   "CMPD0",
++		argLen: 1,
++		asm:    arm.ACMPD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []regMask{
++				4294967296, // FLAGS
++			},
++		},
++	},
+ 	{
+ 		name:              "MOVWconst",
+ 		auxType:           auxInt32,
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index ceac5839ef..87eaea265f 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -118,6 +118,10 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpARMCMOVWLSconst(v, config)
+ 	case OpARMCMP:
+ 		return rewriteValueARM_OpARMCMP(v, config)
++	case OpARMCMPD:
++		return rewriteValueARM_OpARMCMPD(v, config)
++	case OpARMCMPF:
++		return rewriteValueARM_OpARMCMPF(v, config)
+ 	case OpARMCMPconst:
+ 		return rewriteValueARM_OpARMCMPconst(v, config)
+ 	case OpARMCMPshiftLL:
+@@ -4117,6 +4121,48 @@ func rewriteValueARM_OpARMCMP(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM_OpARMCMPD(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (CMPD x (MOVDconst [0]))
++	// cond:
++	// result: (CMPD0 x)
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARMMOVDconst {
++			break
++		}
++		if v_1.AuxInt != 0 {
++			break
++		}
++		v.reset(OpARMCMPD0)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
++func rewriteValueARM_OpARMCMPF(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (CMPF x (MOVFconst [0]))
++	// cond:
++	// result: (CMPF0 x)
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARMMOVFconst {
++			break
++		}
++		if v_1.AuxInt != 0 {
++			break
++		}
++		v.reset(OpARMCMPF0)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValueARM_OpARMCMPconst(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 3f2325d003..00bb24a67b 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -54,8 +54,12 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		return rewriteValuegeneric_OpCvt32Fto64F(v, config)
+ 	case OpCvt64Fto32F:
+ 		return rewriteValuegeneric_OpCvt64Fto32F(v, config)
++	case OpDiv32F:
++		return rewriteValuegeneric_OpDiv32F(v, config)
+ 	case OpDiv64:
+ 		return rewriteValuegeneric_OpDiv64(v, config)
++	case OpDiv64F:
++		return rewriteValuegeneric_OpDiv64F(v, config)
+ 	case OpDiv64u:
+ 		return rewriteValuegeneric_OpDiv64u(v, config)
+ 	case OpEq16:
+@@ -498,6 +502,40 @@ func rewriteValuegeneric_OpAdd32F(v *Value, config *Config) bool {
+ 		v.AuxInt = f2i(float64(i2f32(c) + i2f32(d)))
+ 		return true
+ 	}
++	// match: (Add32F x (Const32F [0]))
++	// cond:
++	// result: x
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst32F {
++			break
++		}
++		if v_1.AuxInt != 0 {
++			break
++		}
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
++	// match: (Add32F (Const32F [0]) x)
++	// cond:
++	// result: x
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst32F {
++			break
++		}
++		if v_0.AuxInt != 0 {
++			break
++		}
++		x := v.Args[1]
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpAdd64(v *Value, config *Config) bool {
+@@ -582,6 +620,40 @@ func rewriteValuegeneric_OpAdd64F(v *Value, config *Config) bool {
+ 		v.AuxInt = f2i(i2f(c) + i2f(d))
+ 		return true
+ 	}
++	// match: (Add64F x (Const64F [0]))
++	// cond:
++	// result: x
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64F {
++			break
++		}
++		if v_1.AuxInt != 0 {
++			break
++		}
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
++	// match: (Add64F (Const64F [0]) x)
++	// cond:
++	// result: x
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst64F {
++			break
++		}
++		if v_0.AuxInt != 0 {
++			break
++		}
++		x := v.Args[1]
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpAdd8(v *Value, config *Config) bool {
+@@ -1842,6 +1914,44 @@ func rewriteValuegeneric_OpCvt64Fto32F(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuegeneric_OpDiv32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Div32F x (Const32F [f2i(1)]))
++	// cond:
++	// result: x
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst32F {
++			break
++		}
++		if v_1.AuxInt != f2i(1) {
++			break
++		}
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
++	// match: (Div32F x (Const32F [f2i(-1)]))
++	// cond:
++	// result: (Neg32F x)
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst32F {
++			break
++		}
++		if v_1.AuxInt != f2i(-1) {
++			break
++		}
++		v.reset(OpNeg32F)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValuegeneric_OpDiv64(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -1997,6 +2107,44 @@ func rewriteValuegeneric_OpDiv64(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuegeneric_OpDiv64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Div64F x (Const64F [f2i(1)]))
++	// cond:
++	// result: x
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64F {
++			break
++		}
++		if v_1.AuxInt != f2i(1) {
++			break
++		}
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
++	// match: (Div64F x (Const64F [f2i(-1)]))
++	// cond:
++	// result: (Neg32F x)
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64F {
++			break
++		}
++		if v_1.AuxInt != f2i(-1) {
++			break
++		}
++		v.reset(OpNeg32F)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValuegeneric_OpDiv64u(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -5310,6 +5458,72 @@ func rewriteValuegeneric_OpMul32F(v *Value, config *Config) bool {
+ 		v.AuxInt = f2i(float64(i2f32(c) * i2f32(d)))
+ 		return true
+ 	}
++	// match: (Mul32F x (Const32F [f2i(1)]))
++	// cond:
++	// result: x
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst32F {
++			break
++		}
++		if v_1.AuxInt != f2i(1) {
++			break
++		}
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
++	// match: (Mul32F (Const32F [f2i(1)]) x)
++	// cond:
++	// result: x
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst32F {
++			break
++		}
++		if v_0.AuxInt != f2i(1) {
++			break
++		}
++		x := v.Args[1]
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
++	// match: (Mul32F x (Const32F [f2i(-1)]))
++	// cond:
++	// result: (Neg32F x)
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst32F {
++			break
++		}
++		if v_1.AuxInt != f2i(-1) {
++			break
++		}
++		v.reset(OpNeg32F)
++		v.AddArg(x)
++		return true
++	}
++	// match: (Mul32F (Const32F [f2i(-1)]) x)
++	// cond:
++	// result: (Neg32F x)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst32F {
++			break
++		}
++		if v_0.AuxInt != f2i(-1) {
++			break
++		}
++		x := v.Args[1]
++		v.reset(OpNeg32F)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpMul64(v *Value, config *Config) bool {
+@@ -5446,6 +5660,72 @@ func rewriteValuegeneric_OpMul64F(v *Value, config *Config) bool {
+ 		v.AuxInt = f2i(i2f(c) * i2f(d))
+ 		return true
+ 	}
++	// match: (Mul64F x (Const64F [f2i(1)]))
++	// cond:
++	// result: x
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64F {
++			break
++		}
++		if v_1.AuxInt != f2i(1) {
++			break
++		}
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
++	// match: (Mul64F (Const64F [f2i(1)]) x)
++	// cond:
++	// result: x
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst64F {
++			break
++		}
++		if v_0.AuxInt != f2i(1) {
++			break
++		}
++		x := v.Args[1]
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
++	// match: (Mul64F x (Const64F [f2i(-1)]))
++	// cond:
++	// result: (Neg64F x)
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64F {
++			break
++		}
++		if v_1.AuxInt != f2i(-1) {
++			break
++		}
++		v.reset(OpNeg64F)
++		v.AddArg(x)
++		return true
++	}
++	// match: (Mul64F (Const64F [f2i(-1)]) x)
++	// cond:
++	// result: (Neg64F x)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst64F {
++			break
++		}
++		if v_0.AuxInt != f2i(-1) {
++			break
++		}
++		x := v.Args[1]
++		v.reset(OpNeg64F)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpMul8(v *Value, config *Config) bool {
+@@ -9412,6 +9692,23 @@ func rewriteValuegeneric_OpSub32F(v *Value, config *Config) bool {
+ 		v.AuxInt = f2i(float64(i2f32(c) - i2f32(d)))
+ 		return true
+ 	}
++	// match: (Sub32F x (Const32F [0]))
++	// cond:
++	// result: x
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst32F {
++			break
++		}
++		if v_1.AuxInt != 0 {
++			break
++		}
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpSub64(v *Value, config *Config) bool {
+@@ -9527,6 +9824,23 @@ func rewriteValuegeneric_OpSub64F(v *Value, config *Config) bool {
+ 		v.AuxInt = f2i(i2f(c) - i2f(d))
+ 		return true
+ 	}
++	// match: (Sub64F x (Const64F [0]))
++	// cond:
++	// result: x
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64F {
++			break
++		}
++		if v_1.AuxInt != 0 {
++			break
++		}
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpSub8(v *Value, config *Config) bool {
+diff --git a/src/runtime/softfloat_arm.go b/src/runtime/softfloat_arm.go
+index 5f609c80d3..802a151fbf 100644
+--- a/src/runtime/softfloat_arm.go
++++ b/src/runtime/softfloat_arm.go
+@@ -464,6 +464,24 @@ execute:
+ 		}
+ 		return 1
+ 
++	case 0xeeb50bc0: // D[regd] :: 0 (CMPD)
++		cmp, nan := fcmp64(fgetd(regd), 0)
++		m.fflag = fstatus(nan, cmp)
++
++		if fptrace > 0 {
++			print("*** cmp D[", regd, "]::0 ", hex(m.fflag), "\n")
++		}
++		return 1
++
++	case 0xeeb50ac0: // F[regd] :: 0 (CMPF)
++		cmp, nan := fcmp64(f32to64(m.freglo[regd]), 0)
++		m.fflag = fstatus(nan, cmp)
++
++		if fptrace > 0 {
++			print("*** cmp F[", regd, "]::0 ", hex(m.fflag), "\n")
++		}
++		return 1
++
+ 	case 0xeeb70ac0: // D[regd] = F[regm] (MOVFD)
+ 		fputd(regd, f32to64(m.freglo[regm]))
+ 

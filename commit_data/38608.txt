@@ -10,6 +10,35 @@ Date:   Fri Nov 9 14:53:32 2018 -0800
     Change-Id: Ib4783b6c03d531c69ebc4cb0ac023bea5bee7d40
     Reviewed-on: https://go-review.googlesource.com/c/148819
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/cgo/out.go | 17 ++++++++++++++++-
  1 file changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index a93ff365b0..c203873b13 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -246,7 +246,22 @@ func (p *Package) writeDefs() {
+ 
+ 	init := gccgoInit.String()
+ 	if init != "" {
+-		fmt.Fprintln(fc, "static void init(void) __attribute__ ((constructor));")
++		// The init function does nothing but simple
++		// assignments, so it won't use much stack space, so
++		// it's OK to not split the stack. Splitting the stack
++		// can run into a bug in clang (as of 2018-11-09):
++		// this is a leaf function, and when clang sees a leaf
++		// function it won't emit the split stack prologue for
++		// the function. However, if this function refers to a
++		// non-split-stack function, which will happen if the
++		// cgo code refers to a C function not compiled with
++		// -fsplit-stack, then the linker will think that it
++		// needs to adjust the split stack prologue, but there
++		// won't be one. Marking the function explicitly
++		// no_split_stack works around this problem by telling
++		// the linker that it's OK if there is no split stack
++		// prologue.
++		fmt.Fprintln(fc, "static void init(void) __attribute__ ((constructor, no_split_stack));")
+ 		fmt.Fprintln(fc, "static void init(void) {")
+ 		fmt.Fprint(fc, init)
+ 		fmt.Fprintln(fc, "}")

@@ -10,6 +10,29 @@ Date:   Mon Mar 29 18:51:06 2021 +0800
     Reviewed-by: Ben Shi <powerman1st@163.com>
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/malloc.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 8435f96532..5e4974d40e 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -933,7 +933,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 		}
+ 
+ 		if inittrace.active && inittrace.id == getg().goid {
+-			// Init functions are executed sequentially in a single Go routine.
++			// Init functions are executed sequentially in a single goroutine.
+ 			inittrace.allocs += 1
+ 		}
+ 	}
+@@ -1137,7 +1137,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 		}
+ 
+ 		if inittrace.active && inittrace.id == getg().goid {
+-			// Init functions are executed sequentially in a single Go routine.
++			// Init functions are executed sequentially in a single goroutine.
+ 			inittrace.bytes += uint64(size)
+ 		}
+ 	}

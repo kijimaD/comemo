@@ -16,9 +16,91 @@ Date:   Wed Oct 26 15:57:58 2016 +1300
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/testshared/src/depBase/dep.go | 9 +++++++++
  misc/cgo/testshared/src/exe/exe.go     | 6 ++++++
  src/cmd/compile/internal/gc/reflect.go | 4 ++--
  src/runtime/iface.go                   | 4 ++++
  4 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/testshared/src/depBase/dep.go b/misc/cgo/testshared/src/depBase/dep.go
+index c3ae96fe98..a518b4efe2 100644
+--- a/misc/cgo/testshared/src/depBase/dep.go
++++ b/misc/cgo/testshared/src/depBase/dep.go
+@@ -1,5 +1,10 @@
+ package depBase
+ 
++import (
++	"os"
++	"reflect"
++)
++
+ var V int = 1
+ 
+ var HasMask []string = []string{"hi"}
+@@ -13,6 +18,10 @@ type Dep struct {
+ }
+ 
+ func (d *Dep) Method() int {
++	// This code below causes various go.itab.* symbols to be generated in
++	// the shared library. Similar code in ../exe/exe.go results in
++	// exercising https://github.com/golang/go/issues/17594
++	reflect.TypeOf(os.Stdout).Elem()
+ 	return 10
+ }
+ 
+diff --git a/misc/cgo/testshared/src/exe/exe.go b/misc/cgo/testshared/src/exe/exe.go
+index 136803fbc1..31fbedd31c 100644
+--- a/misc/cgo/testshared/src/exe/exe.go
++++ b/misc/cgo/testshared/src/exe/exe.go
+@@ -2,11 +2,17 @@ package main
+ 
+ import (
+ 	"depBase"
++	"os"
++	"reflect"
+ 	"runtime"
+ )
+ 
+ func main() {
+ 	defer depBase.ImplementedInAsm()
++	// This code below causes various go.itab.* symbols to be generated in
++	// the executable. Similar code in ../depBase/dep.go results in
++	// exercising https://github.com/golang/go/issues/17594
++	reflect.TypeOf(os.Stdout).Elem()
+ 	runtime.GC()
+ 	depBase.V = depBase.F() + 1
+ }
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index da63f87c22..57192dec1c 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1395,11 +1395,11 @@ func dumptypestructs() {
+ 		o += len(imethods(i.itype)) * Widthptr // skip fun method pointers
+ 		// at runtime the itab will contain pointers to types, other itabs and
+ 		// method functions. None are allocated on heap, so we can use obj.NOPTR.
+-		ggloblsym(i.sym, int32(o), int16(obj.DUPOK|obj.NOPTR))
++		ggloblsym(i.sym, int32(o), int16(obj.DUPOK|obj.NOPTR|obj.LOCAL))
+ 
+ 		ilink := Pkglookup(i.t.tconv(FmtLeft)+","+i.itype.tconv(FmtLeft), itablinkpkg)
+ 		dsymptr(ilink, 0, i.sym, 0)
+-		ggloblsym(ilink, int32(Widthptr), int16(obj.DUPOK|obj.RODATA))
++		ggloblsym(ilink, int32(Widthptr), int16(obj.DUPOK|obj.RODATA|obj.LOCAL))
+ 	}
+ 
+ 	// process ptabs
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index b55a9ed893..f7ad40d1c0 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -138,6 +138,10 @@ func additab(m *itab, locked, canfail bool) {
+ 		throw("invalid itab locking")
+ 	}
+ 	h := itabhash(inter, typ)
++	if m == hash[h] {
++		println("duplicate itab for", typ.string(), "and", inter.typ.string())
++		throw("duplicate itabs")
++	}
+ 	m.link = hash[h]
+ 	atomicstorep(unsafe.Pointer(&hash[h]), unsafe.Pointer(m))
+ }

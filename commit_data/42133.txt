@@ -12,10 +12,150 @@ Date:   Sat Jun 8 21:40:20 2019 +0900
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/align.go    |  2 +-
  src/cmd/compile/internal/gc/go.go       | 12 ++++++------
  src/cmd/compile/internal/gc/sinit.go    | 18 +++++++++---------
  src/cmd/compile/internal/gc/ssa.go      |  4 ++--
  src/cmd/compile/internal/gc/universe.go | 10 +++++-----
  5 files changed, 23 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 78be1b231e..ec66cb4392 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -344,7 +344,7 @@ func dowidth(t *types.Type) {
+ 		if t.Elem() == nil {
+ 			break
+ 		}
+-		w = int64(sizeof_Array)
++		w = int64(sizeof_Slice)
+ 		checkwidth(t.Elem())
+ 		t.Align = uint8(Widthptr)
+ 
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 025b276c20..50b866ca65 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -65,21 +65,21 @@ const (
+ )
+ 
+ // note this is the runtime representation
+-// of the compilers arrays.
++// of the compilers slices.
+ //
+ // typedef	struct
+ // {				// must not move anything
+ // 	uchar	array[8];	// pointer to data
+ // 	uchar	nel[4];		// number of elements
+ // 	uchar	cap[4];		// allocated number of elements
+-// } Array;
+-var array_array int // runtime offsetof(Array,array) - same for String
++// } Slice;
++var slice_array int // runtime offsetof(Slice,array) - same for String
+ 
+-var array_nel int // runtime offsetof(Array,nel) - same for String
++var slice_nel int // runtime offsetof(Slice,nel) - same for String
+ 
+-var array_cap int // runtime offsetof(Array,cap)
++var slice_cap int // runtime offsetof(Slice,cap)
+ 
+-var sizeof_Array int // runtime sizeof(Array)
++var sizeof_Slice int // runtime sizeof(Slice)
+ 
+ // note this is the runtime representation
+ // of the compilers strings.
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 5f05a2c72f..d76201031c 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -130,11 +130,11 @@ func (s *InitSchedule) staticcopy(l *Node, r *Node) bool {
+ 		a := s.inittemps[r]
+ 
+ 		n := l.copy()
+-		n.Xoffset = l.Xoffset + int64(array_array)
++		n.Xoffset = l.Xoffset + int64(slice_array)
+ 		gdata(n, nod(OADDR, a, nil), Widthptr)
+-		n.Xoffset = l.Xoffset + int64(array_nel)
++		n.Xoffset = l.Xoffset + int64(slice_nel)
+ 		gdata(n, r.Right, Widthptr)
+-		n.Xoffset = l.Xoffset + int64(array_cap)
++		n.Xoffset = l.Xoffset + int64(slice_cap)
+ 		gdata(n, r.Right, Widthptr)
+ 		return true
+ 
+@@ -227,11 +227,11 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
+ 		a := staticname(ta)
+ 		s.inittemps[r] = a
+ 		n := l.copy()
+-		n.Xoffset = l.Xoffset + int64(array_array)
++		n.Xoffset = l.Xoffset + int64(slice_array)
+ 		gdata(n, nod(OADDR, a, nil), Widthptr)
+-		n.Xoffset = l.Xoffset + int64(array_nel)
++		n.Xoffset = l.Xoffset + int64(slice_nel)
+ 		gdata(n, r.Right, Widthptr)
+-		n.Xoffset = l.Xoffset + int64(array_cap)
++		n.Xoffset = l.Xoffset + int64(slice_cap)
+ 		gdata(n, r.Right, Widthptr)
+ 
+ 		// Fall through to init underlying array.
+@@ -615,11 +615,11 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
+ 		v.Type = types.Types[TINT]
+ 		setintconst(&v, t.NumElem())
+ 
+-		nam.Xoffset += int64(array_array)
++		nam.Xoffset += int64(slice_array)
+ 		gdata(&nam, nod(OADDR, vstat, nil), Widthptr)
+-		nam.Xoffset += int64(array_nel) - int64(array_array)
++		nam.Xoffset += int64(slice_nel) - int64(slice_array)
+ 		gdata(&nam, &v, Widthptr)
+-		nam.Xoffset += int64(array_cap) - int64(array_nel)
++		nam.Xoffset += int64(slice_cap) - int64(slice_nel)
+ 		gdata(&nam, &v, Widthptr)
+ 
+ 		return
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 48eb89bb3a..bff038b39f 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2815,7 +2815,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
+ 			// Tell liveness we're about to build a new slice
+ 			s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, sn, s.mem())
+ 		}
+-		capaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, int64(array_cap), addr)
++		capaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, int64(slice_cap), addr)
+ 		s.store(types.Types[TINT], capaddr, r[2])
+ 		s.store(pt, addr, r[0])
+ 		// load the value we just stored to avoid having to spill it
+@@ -2836,7 +2836,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
+ 	if inplace {
+ 		l = s.variable(&lenVar, types.Types[TINT]) // generates phi for len
+ 		nl = s.newValue2(s.ssaOp(OADD, types.Types[TINT]), types.Types[TINT], l, s.constInt(types.Types[TINT], nargs))
+-		lenaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, int64(array_nel), addr)
++		lenaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, int64(slice_nel), addr)
+ 		s.store(types.Types[TINT], lenaddr, nl)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index 2077c5639e..9f4e4d9680 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -342,13 +342,13 @@ func typeinit() {
+ 	simtype[TFUNC] = TPTR
+ 	simtype[TUNSAFEPTR] = TPTR
+ 
+-	array_array = int(Rnd(0, int64(Widthptr)))
+-	array_nel = int(Rnd(int64(array_array)+int64(Widthptr), int64(Widthptr)))
+-	array_cap = int(Rnd(int64(array_nel)+int64(Widthptr), int64(Widthptr)))
+-	sizeof_Array = int(Rnd(int64(array_cap)+int64(Widthptr), int64(Widthptr)))
++	slice_array = int(Rnd(0, int64(Widthptr)))
++	slice_nel = int(Rnd(int64(slice_array)+int64(Widthptr), int64(Widthptr)))
++	slice_cap = int(Rnd(int64(slice_nel)+int64(Widthptr), int64(Widthptr)))
++	sizeof_Slice = int(Rnd(int64(slice_cap)+int64(Widthptr), int64(Widthptr)))
+ 
+ 	// string is same as slice wo the cap
+-	sizeof_String = int(Rnd(int64(array_nel)+int64(Widthptr), int64(Widthptr)))
++	sizeof_String = int(Rnd(int64(slice_nel)+int64(Widthptr), int64(Widthptr)))
+ 
+ 	dowidth(types.Types[TSTRING])
+ 	dowidth(types.Idealstring)

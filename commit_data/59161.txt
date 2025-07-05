@@ -17,6 +17,38 @@ Date:   Fri Feb 16 15:01:47 2024 -0500
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/go/main.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index f62477a839..0f6305f89c 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -97,7 +97,7 @@ func main() {
+ 
+ 	flag.Usage = base.Usage
+ 	flag.Parse()
+-	counter.CountFlags("cmd/go:flag-", *flag.CommandLine)
++	counter.CountFlags("cmd/go/flag:", *flag.CommandLine)
+ 
+ 	args := flag.Args()
+ 	if len(args) < 1 {
+@@ -153,7 +153,7 @@ func main() {
+ 
+ 	cmd, used := lookupCmd(args)
+ 	cfg.CmdName = strings.Join(args[:used], " ")
+-	counter.Inc("cmd/go:subcommand-" + strings.ReplaceAll(cfg.CmdName, " ", "-"))
++	counter.Inc("cmd/go/subcommand:" + strings.ReplaceAll(cfg.CmdName, " ", "-"))
+ 	if len(cmd.Commands) > 0 {
+ 		if used >= len(args) {
+ 			help.PrintUsage(os.Stderr, cmd)
+@@ -241,7 +241,7 @@ func invoke(cmd *base.Command, args []string) {
+ 	} else {
+ 		base.SetFromGOFLAGS(&cmd.Flag)
+ 		cmd.Flag.Parse(args[1:])
+-		counter.CountFlags("cmd/go/"+cmd.Name()+":flag-", cmd.Flag)
++		counter.CountFlags("cmd/go/flag:"+cmd.Name()+"-", cmd.Flag)
+ 		args = cmd.Flag.Args()
+ 	}
+ 

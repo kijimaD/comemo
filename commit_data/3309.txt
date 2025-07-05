@@ -9,7 +9,7 @@ Date:   Thu Sep 17 23:51:06 2009 -0700
     DELTA=40  (0 added, 3 deleted, 37 changed)
     OCL=34770
     CL=34775
-
+---
  src/pkg/base64/base64_test.go        |  9 ++++-----
  src/pkg/bufio/bufio_test.go          | 11 +++++------
  src/pkg/compress/gzip/gunzip_test.go |  2 +-
@@ -23,3 +23,277 @@ Date:   Thu Sep 17 23:51:06 2009 -0700
  src/pkg/regexp/regexp.go             |  2 +-
  src/pkg/template/template_test.go    | 16 ++++++++--------
  12 files changed, 27 insertions(+), 29 deletions(-)
+
+diff --git a/src/pkg/base64/base64_test.go b/src/pkg/base64/base64_test.go
+index 0537abab7c..8d0c67cf7f 100644
+--- a/src/pkg/base64/base64_test.go
++++ b/src/pkg/base64/base64_test.go
+@@ -73,7 +73,7 @@ func TestEncoder(t *testing.T) {
+ 		encoder := NewEncoder(StdEncoding, bb);
+ 		encoder.Write(strings.Bytes(p.decoded));
+ 		encoder.Close();
+-		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, string(bb.Bytes()), p.encoded);
++		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, bb.String(), p.encoded);
+ 	}
+ }
+ 
+@@ -93,7 +93,7 @@ func TestEncoderBuffering(t *testing.T) {
+ 		}
+ 		err := encoder.Close();
+ 		testEqual(t, "Close gave error %v, want %v", err, os.Error(nil));
+-		testEqual(t, "Encoding/%d of %q = %q, want %q", bs, bigtest.decoded, string(bb.Bytes()), bigtest.encoded);
++		testEqual(t, "Encoding/%d of %q = %q, want %q", bs, bigtest.decoded, bb.String(), bigtest.encoded);
+ 	}
+ }
+ 
+@@ -112,7 +112,7 @@ func TestDecode(t *testing.T) {
+ 
+ func TestDecoder(t *testing.T) {
+ 	for _, p := range pairs {
+-		decoder := NewDecoder(StdEncoding, bytes.NewBuffer(strings.Bytes(p.encoded)));
++		decoder := NewDecoder(StdEncoding, strings.NewBuffer(p.encoded));
+ 		dbuf := make([]byte, StdEncoding.DecodedLen(len(p.encoded)));
+ 		count, err := decoder.Read(dbuf);
+ 		if err != nil && err != os.EOF {
+@@ -128,9 +128,8 @@ func TestDecoder(t *testing.T) {
+ }
+ 
+ func TestDecoderBuffering(t *testing.T) {
+-	input := strings.Bytes(bigtest.encoded);
+ 	for bs := 1; bs <= 12; bs++ {
+-		decoder := NewDecoder(StdEncoding, bytes.NewBuffer(input));
++		decoder := NewDecoder(StdEncoding, strings.NewBuffer(bigtest.encoded));
+ 		buf := make([]byte, len(bigtest.decoded) + 12);
+ 		var total int;
+ 		for total = 0; total < len(bigtest.decoded); {
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index 78920eb408..7d590df0b7 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -60,13 +60,13 @@ func readBytes(buf *Reader) string {
+ }
+ 
+ func TestReaderSimple(t *testing.T) {
+-	data := strings.Bytes("hello world");
+-	b := NewReader(bytes.NewBuffer(data));
++	data := "hello world";
++	b := NewReader(strings.NewBuffer(data));
+ 	if s := readBytes(b); s != "hello world" {
+ 		t.Errorf("simple hello world test failed: got %q", s);
+ 	}
+ 
+-	b = NewReader(newRot13Reader(bytes.NewBuffer(data)));
++	b = NewReader(newRot13Reader(strings.NewBuffer(data)));
+ 	if s := readBytes(b); s != "uryyb jbeyq" {
+ 		t.Error("rot13 hello world test failed: got %q", s);
+ 	}
+@@ -148,14 +148,13 @@ func TestReader(t *testing.T) {
+ 
+ 	for h := 0; h < len(texts); h++ {
+ 		text := texts[h];
+-		textbytes := strings.Bytes(text);
+ 		for i := 0; i < len(readMakers); i++ {
+ 			for j := 0; j < len(bufreaders); j++ {
+ 				for k := 0; k < len(bufsizes); k++ {
+ 					readmaker := readMakers[i];
+ 					bufreader := bufreaders[j];
+ 					bufsize := bufsizes[k];
+-					read := readmaker.fn(bytes.NewBuffer(textbytes));
++					read := readmaker.fn(strings.NewBuffer(text));
+ 					buf, _ := NewReaderSize(read, bufsize);
+ 					s := bufreader.fn(buf);
+ 					if s != text {
+@@ -309,7 +308,7 @@ func TestWriteErrors(t *testing.T) {
+ 
+ func TestNewReaderSizeIdempotent(t *testing.T) {
+ 	const BufSize = 1000;
+-	b, err := NewReaderSize(bytes.NewBuffer(strings.Bytes("hello world")), BufSize);
++	b, err := NewReaderSize(strings.NewBuffer("hello world"), BufSize);
+ 	if err != nil {
+ 		t.Error("NewReaderSize create fail", err);
+ 	}
+diff --git a/src/pkg/compress/gzip/gunzip_test.go b/src/pkg/compress/gzip/gunzip_test.go
+index 99e9a75d64..8cc7890e41 100644
+--- a/src/pkg/compress/gzip/gunzip_test.go
++++ b/src/pkg/compress/gzip/gunzip_test.go
+@@ -297,7 +297,7 @@ func TestInflater(t *testing.T) {
+ 		if err != tt.err {
+ 			t.Errorf("%s: io.Copy: %v want %v", tt.name, err, tt.err);
+ 		}
+-		s := string(b.Bytes());
++		s := b.String();
+ 		if s != tt.raw {
+ 			t.Errorf("%s: got %d-byte %q want %d-byte %q", tt.name, n, s, len(tt.raw), tt.raw);
+ 		}
+diff --git a/src/pkg/compress/zlib/reader_test.go b/src/pkg/compress/zlib/reader_test.go
+index e1ebf6236e..96a81114fc 100644
+--- a/src/pkg/compress/zlib/reader_test.go
++++ b/src/pkg/compress/zlib/reader_test.go
+@@ -95,7 +95,7 @@ func TestInflater(t *testing.T) {
+ 			}
+ 			continue;
+ 		}
+-		s := string(b.Bytes());
++		s := b.String();
+ 		if s != tt.raw {
+ 			t.Errorf("%s: got %d-byte %q want %d-byte %q", tt.desc, n, s, len(tt.raw), tt.raw);
+ 		}
+diff --git a/src/pkg/datafmt/datafmt.go b/src/pkg/datafmt/datafmt.go
+index 7f245694e4..58ae008d80 100644
+--- a/src/pkg/datafmt/datafmt.go
++++ b/src/pkg/datafmt/datafmt.go
+@@ -729,5 +729,5 @@ func (f Format) Sprint(args ...) string {
+ 	if err != nil {
+ 		fmt.Fprintf(&buf, "--- Sprint(%s) failed: %v", fmt.Sprint(args), err);
+ 	}
+-	return string(buf.Bytes());
++	return buf.String();
+ }
+diff --git a/src/pkg/exvar/exvar.go b/src/pkg/exvar/exvar.go
+index 0765a80eea..4791548505 100644
+--- a/src/pkg/exvar/exvar.go
++++ b/src/pkg/exvar/exvar.go
+@@ -63,7 +63,7 @@ func (v *Map) String() string {
+ 		first = false;
+ 	}
+ 	fmt.Fprintf(b, "}");
+-	return string(b.Bytes())
++	return b.String()
+ }
+ 
+ func (v *Map) Init() *Map {
+diff --git a/src/pkg/gob/encoder_test.go b/src/pkg/gob/encoder_test.go
+index 178d30f71b..94d8033f2f 100644
+--- a/src/pkg/gob/encoder_test.go
++++ b/src/pkg/gob/encoder_test.go
+@@ -228,7 +228,7 @@ func TestWrongTypeDecoder(t *testing.T) {
+ }
+ 
+ func corruptDataCheck(s string, err os.Error, t *testing.T) {
+-	b := bytes.NewBuffer(strings.Bytes(s));
++	b := strings.NewBuffer(s);
+ 	dec := NewDecoder(b);
+ 	dec.Decode(new(ET2));
+ 	if dec.state.err != err {
+diff --git a/src/pkg/http/triv.go b/src/pkg/http/triv.go
+index 23ec9849f1..900dcbb5b9 100644
+--- a/src/pkg/http/triv.go
++++ b/src/pkg/http/triv.go
+@@ -43,7 +43,7 @@ func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
+ 	case "POST":
+ 		buf := new(bytes.Buffer);
+ 		io.Copy(req.Body, buf);
+-		body := string(buf.Bytes());
++		body := buf.String();
+ 		if n, err := strconv.Atoi(body); err != nil {
+ 			fmt.Fprintf(c, "bad POST: %v\nbody: [%v]\n", err, body);
+ 		} else {
+diff --git a/src/pkg/json/parse.go b/src/pkg/json/parse.go
+index 1607013b22..6937e28168 100644
+--- a/src/pkg/json/parse.go
++++ b/src/pkg/json/parse.go
+@@ -166,7 +166,7 @@ func Quote(s string) string {
+ 	}
+ 	chr[0] = '"';
+ 	b.Write(chr0);
+-	return string(b.Bytes());
++	return b.String();
+ }
+ 
+ 
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 45e101d88d..f711f73a53 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -326,7 +326,7 @@ func TestForkExec(t *testing.T) {
+ 
+ 	var b bytes.Buffer;
+ 	io.Copy(r, &b);
+-	output := string(b.Bytes());
++	output := b.String();
+ 	expect := "/\n";
+ 	if output != expect {
+ 		t.Errorf("exec /bin/pwd returned %q wanted %q", output, expect);
+@@ -605,7 +605,7 @@ func run(t *testing.T, cmd []string) string {
+ 	var b bytes.Buffer;
+ 	io.Copy(r, &b);
+ 	Wait(pid, 0);
+-	output := string(b.Bytes());
++	output := b.String();
+ 	if n := len(output); n > 0 && output[n-1] == '\n' {
+ 		output = output[0:n-1];
+ 	}
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index 1559da23e6..f754418ecb 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -883,7 +883,7 @@ func (re *Regexp) ReplaceAllString(src, repl string) string {
+ 	// Copy the unmatched characters after the last match.
+ 	io.WriteString(buf, src[lastMatchEnd:len(src)]);
+ 
+-	return string(buf.Bytes());
++	return buf.String();
+ }
+ 
+ // ReplaceAll returns a copy of src in which all matches for the Regexp
+diff --git a/src/pkg/template/template_test.go b/src/pkg/template/template_test.go
+index 11996f609b..5e73bc9f45 100644
+--- a/src/pkg/template/template_test.go
++++ b/src/pkg/template/template_test.go
+@@ -312,8 +312,8 @@ func TestAll(t *testing.T) {
+ 				t.Errorf("expected execute error %q, got %q", test.err, err.String());
+ 			}
+ 		}
+-		if string(buf.Bytes()) != test.out {
+-			t.Errorf("for %q: expected %q got %q", test.in, test.out, string(buf.Bytes()));
++		if buf.String() != test.out {
++			t.Errorf("for %q: expected %q got %q", test.in, test.out, buf.String());
+ 		}
+ 	}
+ }
+@@ -328,7 +328,7 @@ func TestStringDriverType(t *testing.T) {
+ 	if err != nil {
+ 		t.Error("unexpected execute error:", err)
+ 	}
+-	s := string(b.Bytes());
++	s := b.String();
+ 	if s != "template: hello" {
+ 		t.Errorf("failed passing string as data: expected %q got %q", "template: hello", s)
+ 	}
+@@ -344,7 +344,7 @@ func TestTwice(t *testing.T) {
+ 	if err != nil {
+ 		t.Error("unexpected parse error:", err)
+ 	}
+-	s := string(b.Bytes());
++	s := b.String();
+ 	text := "template: hello";
+ 	if s != text {
+ 		t.Errorf("failed passing string as data: expected %q got %q", text, s);
+@@ -353,7 +353,7 @@ func TestTwice(t *testing.T) {
+ 	if err != nil {
+ 		t.Error("unexpected parse error:", err)
+ 	}
+-	s = string(b.Bytes());
++	s = b.String();
+ 	text += text;
+ 	if s != text {
+ 		t.Errorf("failed passing string as data: expected %q got %q", text, s);
+@@ -386,7 +386,7 @@ func TestCustomDelims(t *testing.T) {
+ 			}
+ 			var b bytes.Buffer;
+ 			err = tmpl.Execute("hello", &b);
+-			s := string(b.Bytes());
++			s := b.String();
+ 			if s != "template: hello" + ldelim + rdelim {
+ 				t.Errorf("failed delim check(%q %q) %q got %q", ldelim, rdelim, text, s)
+ 			}
+@@ -411,7 +411,7 @@ func TestVarIndirection(t *testing.T) {
+ 		t.Fatal("unexpected execute error:", err)
+ 	}
+ 	expect := fmt.Sprintf("%v", &t1);	// output should be hex address of t1
+-	if string(buf.Bytes()) != expect {
+-		t.Errorf("for %q: expected %q got %q", input, expect, string(buf.Bytes()));
++	if buf.String() != expect {
++		t.Errorf("for %q: expected %q got %q", input, expect, buf.String());
+ 	}
+ }

@@ -11,8 +11,179 @@ Date:   Thu Feb 11 20:46:43 2016 +0100
     Change-Id: I8baeb206d1b3ef8aba4a6e3bcdc432959bcae2d5
     Reviewed-on: https://go-review.googlesource.com/19462
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/copyelim.go | 35 +++++++++++-----
  src/cmd/compile/internal/ssa/phielim.go  | 69 +++++++++++++++++---------------
  src/cmd/compile/internal/ssa/rewrite.go  | 24 +----------
  3 files changed, 64 insertions(+), 64 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/copyelim.go b/src/cmd/compile/internal/ssa/copyelim.go
+index 067d5e2606..cfeff21e84 100644
+--- a/src/cmd/compile/internal/ssa/copyelim.go
++++ b/src/cmd/compile/internal/ssa/copyelim.go
+@@ -8,15 +8,7 @@ package ssa
+ func copyelim(f *Func) {
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+-			for i, w := range v.Args {
+-				x := w
+-				for x.Op == OpCopy {
+-					x = x.Args[0]
+-				}
+-				if x != w {
+-					v.Args[i] = x
+-				}
+-			}
++			copyelimValue(v)
+ 		}
+ 		v := b.Control
+ 		if v != nil {
+@@ -41,3 +33,28 @@ func copyelim(f *Func) {
+ 		}
+ 	}
+ }
++
++func copyelimValue(v *Value) {
++	// elide any copies generated during rewriting
++	for i, a := range v.Args {
++		if a.Op != OpCopy {
++			continue
++		}
++		// Rewriting can generate OpCopy loops.
++		// They are harmless (see removePredecessor),
++		// but take care to stop if we find a cycle.
++		slow := a // advances every other iteration
++		var advance bool
++		for a.Op == OpCopy {
++			a = a.Args[0]
++			if slow == a {
++				break
++			}
++			if advance {
++				slow = slow.Args[0]
++			}
++			advance = !advance
++		}
++		v.Args[i] = a
++	}
++}
+diff --git a/src/cmd/compile/internal/ssa/phielim.go b/src/cmd/compile/internal/ssa/phielim.go
+index aaa0a0f238..20ce592030 100644
+--- a/src/cmd/compile/internal/ssa/phielim.go
++++ b/src/cmd/compile/internal/ssa/phielim.go
+@@ -18,44 +18,47 @@ package ssa
+ // and would that be useful?
+ func phielim(f *Func) {
+ 	for {
+-		changed := false
++		change := false
+ 		for _, b := range f.Blocks {
+-		nextv:
+ 			for _, v := range b.Values {
+-				if v.Op != OpPhi {
+-					continue
+-				}
+-				// If there are two distinct args of v which
+-				// are not v itself, then the phi must remain.
+-				// Otherwise, we can replace it with a copy.
+-				var w *Value
+-				for _, x := range v.Args {
+-					for x.Op == OpCopy {
+-						x = x.Args[0]
+-					}
+-					if x == v {
+-						continue
+-					}
+-					if x == w {
+-						continue
+-					}
+-					if w != nil {
+-						continue nextv
+-					}
+-					w = x
+-				}
+-				if w == nil {
+-					// v references only itself.  It must be in
+-					// a dead code loop.  Don't bother modifying it.
+-					continue
+-				}
+-				v.Op = OpCopy
+-				v.SetArgs1(w)
+-				changed = true
++				copyelimValue(v)
++				change = phielimValue(v) || change
+ 			}
+ 		}
+-		if !changed {
++		if !change {
+ 			break
+ 		}
+ 	}
+ }
++
++func phielimValue(v *Value) bool {
++	if v.Op != OpPhi {
++		return false
++	}
++
++	// If there are two distinct args of v which
++	// are not v itself, then the phi must remain.
++	// Otherwise, we can replace it with a copy.
++	var w *Value
++	for _, x := range v.Args {
++		if x == v {
++			continue
++		}
++		if x == w {
++			continue
++		}
++		if w != nil {
++			return false
++		}
++		w = x
++	}
++
++	if w == nil {
++		// v references only itself.  It must be in
++		// a dead code loop.  Don't bother modifying it.
++		return false
++	}
++	v.Op = OpCopy
++	v.SetArgs1(w)
++	return true
++}
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 69a463d4de..a580945702 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -40,28 +40,8 @@ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool)
+ 			}
+ 			curb = nil
+ 			for _, v := range b.Values {
+-				// elide any copies generated during rewriting
+-				for i, a := range v.Args {
+-					if a.Op != OpCopy {
+-						continue
+-					}
+-					// Rewriting can generate OpCopy loops.
+-					// They are harmless (see removePredecessor),
+-					// but take care to stop if we find a cycle.
+-					slow := a // advances every other iteration
+-					var advance bool
+-					for a.Op == OpCopy {
+-						a = a.Args[0]
+-						if slow == a {
+-							break
+-						}
+-						if advance {
+-							slow = a
+-						}
+-						advance = !advance
+-					}
+-					v.Args[i] = a
+-				}
++				copyelimValue(v)
++				change = phielimValue(v) || change
+ 
+ 				// apply rewrite function
+ 				curv = v

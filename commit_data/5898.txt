@@ -7,10 +7,89 @@ Date:   Tue Jul 27 13:43:58 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1893042
-
+---
  src/cmd/5g/gobj.c    | 4 ++--
  src/cmd/6g/gobj.c    | 2 +-
  src/cmd/8g/gobj.c    | 2 +-
  src/cmd/gc/go.h      | 2 +-
  src/cmd/gc/reflect.c | 4 ++--
  5 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/5g/gobj.c b/src/cmd/5g/gobj.c
+index 49c7df1f02..bf59534b9b 100644
+--- a/src/cmd/5g/gobj.c
++++ b/src/cmd/5g/gobj.c
+@@ -633,10 +633,10 @@ dsymptr(Sym *s, int off, Sym *x, int xoff)
+ 
+ 
+ void
+-genembedtramp(Type *rcvr, Type *method, Sym *newnam)
++genembedtramp(Type *rcvr, Type *method, Sym *newnam, int iface)
+ {
+ 	// TODO(kaib): re-implement genembedtramp
+-	genwrapper(rcvr, method, newnam);
++	genwrapper(rcvr, method, newnam, iface);
+ /*
+ 	Sym *e;
+ 	int c, d, o;
+diff --git a/src/cmd/6g/gobj.c b/src/cmd/6g/gobj.c
+index a8e32e9fd5..b667ae48a2 100644
+--- a/src/cmd/6g/gobj.c
++++ b/src/cmd/6g/gobj.c
+@@ -633,7 +633,7 @@ dsymptr(Sym *s, int off, Sym *x, int xoff)
+ }
+ 
+ void
+-genembedtramp(Type *rcvr, Type *method, Sym *newnam)
++genembedtramp(Type *rcvr, Type *method, Sym *newnam, int iface)
+ {
+ 	Sym *e;
+ 	int c, d, o, mov, add, loaded;
+diff --git a/src/cmd/8g/gobj.c b/src/cmd/8g/gobj.c
+index 6ffdcbcc89..e48ad529bf 100644
+--- a/src/cmd/8g/gobj.c
++++ b/src/cmd/8g/gobj.c
+@@ -642,7 +642,7 @@ dsymptr(Sym *s, int off, Sym *x, int xoff)
+ }
+ 
+ void
+-genembedtramp(Type *rcvr, Type *method, Sym *newnam)
++genembedtramp(Type *rcvr, Type *method, Sym *newnam, int iface)
+ {
+ 	Sym *e;
+ 	int c, d, o, mov, add, loaded;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 96fce565ef..cef3153c83 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1209,7 +1209,7 @@ void	dumpfuncs(void);
+ void	gdata(Node*, Node*, int);
+ void	gdatacomplex(Node*, Mpcplx*);
+ void	gdatastring(Node*, Strlit*);
+-void	genembedtramp(Type*, Type*, Sym*);
++void	genembedtramp(Type*, Type*, Sym*, int iface);
+ void	ggloblnod(Node *nam, int32 width);
+ void	ggloblsym(Sym *s, int32 width, int dupok);
+ Prog*	gjmp(Prog*);
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 16267ed9d9..87b9b04ba2 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -199,7 +199,7 @@ methods(Type *t)
+ 				// is a pointer adjustment and a JMP.
+ 				if(isptr[it->etype] && isptr[this->etype]
+ 				&& f->embedded && !isifacemethod(f->type))
+-					genembedtramp(it, f, a->isym);
++					genembedtramp(it, f, a->isym, 1);
+ 				else
+ 					genwrapper(it, f, a->isym, 1);
+ 			}
+@@ -212,7 +212,7 @@ methods(Type *t)
+ 					oldlist = pc;
+ 				if(isptr[t->etype] && isptr[this->etype]
+ 				&& f->embedded && !isifacemethod(f->type))
+-					genembedtramp(t, f, a->tsym);
++					genembedtramp(t, f, a->tsym, 0);
+ 				else
+ 					genwrapper(t, f, a->tsym, 0);
+ 			}

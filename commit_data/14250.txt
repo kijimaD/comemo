@@ -9,7 +9,56 @@ Date:   Wed Oct 31 09:58:05 2012 +1100
     R=golang-dev, alex.brainman
     CC=golang-dev
     https://golang.org/cl/6815044
-
+---
  src/pkg/net/fd_windows.go   |  2 +-
  src/pkg/net/timeout_test.go | 27 +++++++++++++++++++++++++++
  2 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index 4ae78397c3..eecb4a866a 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -544,7 +544,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
+ 	var o acceptOp
+ 	o.Init(fd, 'r')
+ 	o.newsock = s
+-	_, err = iosrv.ExecIO(&o, 0)
++	_, err = iosrv.ExecIO(&o, fd.rdeadline)
+ 	if err != nil {
+ 		closesocket(s)
+ 		return nil, err
+diff --git a/src/pkg/net/timeout_test.go b/src/pkg/net/timeout_test.go
+index 672fb7241d..eec371cfb2 100644
+--- a/src/pkg/net/timeout_test.go
++++ b/src/pkg/net/timeout_test.go
+@@ -119,3 +119,30 @@ func TestDeadlineReset(t *testing.T) {
+ 		t.Errorf("unexpected return from Accept; err=%v", err)
+ 	}
+ }
++
++func TestTimeoutAccept(t *testing.T) {
++	switch runtime.GOOS {
++	case "plan9":
++		t.Logf("skipping test on %q", runtime.GOOS)
++		return
++	}
++	ln, err := Listen("tcp", "127.0.0.1:0")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer ln.Close()
++	tl := ln.(*TCPListener)
++	tl.SetDeadline(time.Now().Add(100 * time.Millisecond))
++	errc := make(chan error, 1)
++	go func() {
++		_, err := ln.Accept()
++		errc <- err
++	}()
++	select {
++	case <-time.After(1 * time.Second):
++		// Accept shouldn't block indefinitely
++		t.Errorf("Accept didn't return in an expected time")
++	case <-errc:
++		// Pass.
++	}
++}

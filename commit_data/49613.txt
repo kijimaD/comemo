@@ -12,8 +12,70 @@ Date:   Tue Aug 31 17:04:10 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/go/types/instantiate.go |  2 +-
  src/go/types/subst.go       |  6 ------
  src/go/types/typelists.go   | 13 +++++++++++++
  3 files changed, 14 insertions(+), 7 deletions(-)
+
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index 6f0b3571d1..fe4904f63a 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -69,7 +69,7 @@ func Instantiate(env *Environment, typ Type, targs []Type, validate bool) (Type,
+ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, posList []token.Pos) (res Type) {
+ 	assert(check != nil)
+ 	if trace {
+-		check.trace(pos, "-- instantiating %s with %s", typ, typeListString(targs))
++		check.trace(pos, "-- instantiating %s with %s", typ, NewTypeList(targs))
+ 		check.indent++
+ 		defer func() {
+ 			check.indent--
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index d3b1cad13a..3eea44a72a 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -284,12 +284,6 @@ func instantiatedHash(typ *Named, targs []Type) string {
+ 	return string(res[:i])
+ }
+ 
+-func typeListString(list []Type) string {
+-	var buf bytes.Buffer
+-	writeTypeList(&buf, list, nil, nil)
+-	return buf.String()
+-}
+-
+ // typOrNil is like typ but if the argument is nil it is replaced with Typ[Invalid].
+ // A nil type may appear in pathological cases such as type T[P any] []func(_ T([]_))
+ // where an array/slice element is accessed before it is set up.
+diff --git a/src/go/types/typelists.go b/src/go/types/typelists.go
+index ef8ea1f32b..fc30139b76 100644
+--- a/src/go/types/typelists.go
++++ b/src/go/types/typelists.go
+@@ -4,6 +4,8 @@
+ 
+ package types
+ 
++import "bytes"
++
+ // TParamList holds a list of type parameters.
+ type TParamList struct{ tparams []*TypeParam }
+ 
+@@ -52,6 +54,17 @@ func (l *TypeList) list() []Type {
+ 	return l.types
+ }
+ 
++func (l *TypeList) String() string {
++	if l == nil || len(l.types) == 0 {
++		return "[]"
++	}
++	var buf bytes.Buffer
++	buf.WriteByte('[')
++	writeTypeList(&buf, l.types, nil, nil)
++	buf.WriteByte(']')
++	return buf.String()
++}
++
+ // ----------------------------------------------------------------------------
+ // Implementation
+ 

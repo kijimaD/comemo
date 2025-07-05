@@ -20,10 +20,150 @@ Date:   Tue Dec 25 19:36:25 2018 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/MIPS.rules   |  4 ++--
  src/cmd/compile/internal/ssa/gen/MIPS64.rules |  4 ++--
  src/cmd/compile/internal/ssa/rewriteMIPS.go   |  8 ++++----
  src/cmd/compile/internal/ssa/rewriteMIPS64.go |  8 ++++----
  test/fixedbugs/issue29402.go                  | 23 +++++++++++++++++++++++
  5 files changed, 35 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS.rules b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+index 098e19c8a8..db9c5bc638 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+@@ -670,8 +670,8 @@
+ (SGTUconst [c] (MOVHUreg _)) && 0xffff < uint32(c) -> (MOVWconst [1])
+ (SGTconst [c] (ANDconst [m] _)) && 0 <= int32(m) && int32(m) < int32(c) -> (MOVWconst [1])
+ (SGTUconst [c] (ANDconst [m] _)) && uint32(m) < uint32(c) -> (MOVWconst [1])
+-(SGTconst [c] (SRLconst _ [d])) && 0 <= int32(c) && uint32(d) <= 31 && 1<<(32-uint32(d)) <= int32(c) -> (MOVWconst [1])
+-(SGTUconst [c] (SRLconst _ [d])) && uint32(d) <= 31 && 1<<(32-uint32(d)) <= uint32(c) -> (MOVWconst [1])
++(SGTconst [c] (SRLconst _ [d])) && 0 <= int32(c) && uint32(d) <= 31 && 0xffffffff>>uint32(d) < uint32(c) -> (MOVWconst [1])
++(SGTUconst [c] (SRLconst _ [d])) && uint32(d) <= 31 && 0xffffffff>>uint32(d) < uint32(c) -> (MOVWconst [1])
+ 
+ // absorb constants into branches
+ (EQ  (MOVWconst [0]) yes no) -> (First nil yes no)
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64.rules b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+index 70f4f0d616..9c16c35438 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS64.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+@@ -667,8 +667,8 @@
+ (SGTconst [c] (MOVWUreg _)) && c < 0 -> (MOVVconst [0])
+ (SGTconst [c] (ANDconst [m] _)) && 0 <= m && m < c -> (MOVVconst [1])
+ (SGTUconst [c] (ANDconst [m] _)) && uint64(m) < uint64(c) -> (MOVVconst [1])
+-(SGTconst [c] (SRLVconst _ [d])) && 0 <= c && 0 < d && d <= 63 && 1<<uint64(64-d) <= c -> (MOVVconst [1])
+-(SGTUconst [c] (SRLVconst _ [d])) && 0 < d && d <= 63 && 1<<uint64(64-d) <= uint64(c) -> (MOVVconst [1])
++(SGTconst [c] (SRLVconst _ [d])) && 0 <= c && 0 < d && d <= 63 && 0xffffffffffffffff>>uint64(d) < uint64(c) -> (MOVVconst [1])
++(SGTUconst [c] (SRLVconst _ [d])) && 0 < d && d <= 63 && 0xffffffffffffffff>>uint64(d) < uint64(c) -> (MOVVconst [1])
+ 
+ // absorb constants into branches
+ (EQ  (MOVVconst [0]) yes no) -> (First nil yes no)
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS.go b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+index e513981852..951c5a5ef8 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+@@ -5625,7 +5625,7 @@ func rewriteValueMIPS_OpMIPSSGTUconst_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SGTUconst [c] (SRLconst _ [d]))
+-	// cond: uint32(d) <= 31 && 1<<(32-uint32(d)) <= uint32(c)
++	// cond: uint32(d) <= 31 && 0xffffffff>>uint32(d) < uint32(c)
+ 	// result: (MOVWconst [1])
+ 	for {
+ 		c := v.AuxInt
+@@ -5634,7 +5634,7 @@ func rewriteValueMIPS_OpMIPSSGTUconst_0(v *Value) bool {
+ 			break
+ 		}
+ 		d := v_0.AuxInt
+-		if !(uint32(d) <= 31 && 1<<(32-uint32(d)) <= uint32(c)) {
++		if !(uint32(d) <= 31 && 0xffffffff>>uint32(d) < uint32(c)) {
+ 			break
+ 		}
+ 		v.reset(OpMIPSMOVWconst)
+@@ -5862,7 +5862,7 @@ func rewriteValueMIPS_OpMIPSSGTconst_10(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SGTconst [c] (SRLconst _ [d]))
+-	// cond: 0 <= int32(c) && uint32(d) <= 31 && 1<<(32-uint32(d)) <= int32(c)
++	// cond: 0 <= int32(c) && uint32(d) <= 31 && 0xffffffff>>uint32(d) < uint32(c)
+ 	// result: (MOVWconst [1])
+ 	for {
+ 		c := v.AuxInt
+@@ -5871,7 +5871,7 @@ func rewriteValueMIPS_OpMIPSSGTconst_10(v *Value) bool {
+ 			break
+ 		}
+ 		d := v_0.AuxInt
+-		if !(0 <= int32(c) && uint32(d) <= 31 && 1<<(32-uint32(d)) <= int32(c)) {
++		if !(0 <= int32(c) && uint32(d) <= 31 && 0xffffffff>>uint32(d) < uint32(c)) {
+ 			break
+ 		}
+ 		v.reset(OpMIPSMOVWconst)
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS64.go b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+index 04df5b8603..9e12780664 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS64.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+@@ -6005,7 +6005,7 @@ func rewriteValueMIPS64_OpMIPS64SGTUconst_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SGTUconst [c] (SRLVconst _ [d]))
+-	// cond: 0 < d && d <= 63 && 1<<uint64(64-d) <= uint64(c)
++	// cond: 0 < d && d <= 63 && 0xffffffffffffffff>>uint64(d) < uint64(c)
+ 	// result: (MOVVconst [1])
+ 	for {
+ 		c := v.AuxInt
+@@ -6014,7 +6014,7 @@ func rewriteValueMIPS64_OpMIPS64SGTUconst_0(v *Value) bool {
+ 			break
+ 		}
+ 		d := v_0.AuxInt
+-		if !(0 < d && d <= 63 && 1<<uint64(64-d) <= uint64(c)) {
++		if !(0 < d && d <= 63 && 0xffffffffffffffff>>uint64(d) < uint64(c)) {
+ 			break
+ 		}
+ 		v.reset(OpMIPS64MOVVconst)
+@@ -6223,7 +6223,7 @@ func rewriteValueMIPS64_OpMIPS64SGTconst_10(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (SGTconst [c] (SRLVconst _ [d]))
+-	// cond: 0 <= c && 0 < d && d <= 63 && 1<<uint64(64-d) <= c
++	// cond: 0 <= c && 0 < d && d <= 63 && 0xffffffffffffffff>>uint64(d) < uint64(c)
+ 	// result: (MOVVconst [1])
+ 	for {
+ 		c := v.AuxInt
+@@ -6232,7 +6232,7 @@ func rewriteValueMIPS64_OpMIPS64SGTconst_10(v *Value) bool {
+ 			break
+ 		}
+ 		d := v_0.AuxInt
+-		if !(0 <= c && 0 < d && d <= 63 && 1<<uint64(64-d) <= c) {
++		if !(0 <= c && 0 < d && d <= 63 && 0xffffffffffffffff>>uint64(d) < uint64(c)) {
+ 			break
+ 		}
+ 		v.reset(OpMIPS64MOVVconst)
+diff --git a/test/fixedbugs/issue29402.go b/test/fixedbugs/issue29402.go
+new file mode 100644
+index 0000000000..8a1f959d84
+--- /dev/null
++++ b/test/fixedbugs/issue29402.go
+@@ -0,0 +1,23 @@
++// run
++  
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 29402: wrong optimization of comparison of
++// constant and shift on MIPS.
++
++package main
++
++//go:noinline
++func F(s []int) bool {
++	half := len(s) / 2
++	return half >= 0
++}
++
++func main() {
++	b := F([]int{1, 2, 3, 4})
++	if !b {
++		panic("FAIL")
++	}
++}

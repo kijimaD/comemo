@@ -11,9 +11,86 @@ Date:   Thu Sep 29 21:46:56 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/coverage/decodecounter/decodecounterfile.go | 2 +-
  src/internal/coverage/decodemeta/decodefile.go           | 2 +-
  src/internal/coverage/encodemeta/encode.go               | 2 +-
  src/internal/coverage/slicewriter/slicewriter.go         | 8 ++++----
  4 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/internal/coverage/decodecounter/decodecounterfile.go b/src/internal/coverage/decodecounter/decodecounterfile.go
+index 8a4c302275..8a905d9c34 100644
+--- a/src/internal/coverage/decodecounter/decodecounterfile.go
++++ b/src/internal/coverage/decodecounter/decodecounterfile.go
+@@ -63,7 +63,7 @@ func NewCounterDataReader(fn string, rs io.ReadSeeker) (*CounterDataReader, erro
+ 	}
+ 	// Seek back to just past the file header.
+ 	hsz := int64(unsafe.Sizeof(cdr.hdr))
+-	if _, err := cdr.mr.Seek(hsz, os.SEEK_SET); err != nil {
++	if _, err := cdr.mr.Seek(hsz, io.SeekStart); err != nil {
+ 		return nil, err
+ 	}
+ 	// Read preamble for first segment.
+diff --git a/src/internal/coverage/decodemeta/decodefile.go b/src/internal/coverage/decodemeta/decodefile.go
+index dd602c5d8a..6580dd5402 100644
+--- a/src/internal/coverage/decodemeta/decodefile.go
++++ b/src/internal/coverage/decodemeta/decodefile.go
+@@ -213,7 +213,7 @@ func (r *CoverageMetaFileReader) GetPackagePayload(pkIdx uint32, payloadbuf []by
+ 		payload = make([]byte, 0, len)
+ 	}
+ 	payload = append(payload, make([]byte, len)...)
+-	if _, err := r.f.Seek(int64(off), os.SEEK_SET); err != nil {
++	if _, err := r.f.Seek(int64(off), io.SeekStart); err != nil {
+ 		return nil, err
+ 	}
+ 	if _, err := io.ReadFull(r.f, payload); err != nil {
+diff --git a/src/internal/coverage/encodemeta/encode.go b/src/internal/coverage/encodemeta/encode.go
+index 1bc950637f..686042036a 100644
+--- a/src/internal/coverage/encodemeta/encode.go
++++ b/src/internal/coverage/encodemeta/encode.go
+@@ -175,7 +175,7 @@ func (b *CoverageMetaDataBuilder) Emit(w io.WriteSeeker) ([16]byte, error) {
+ 
+ 	// Back-patch the length.
+ 	totalLength := uint32(off)
+-	if _, err := w.Seek(0, os.SEEK_SET); err != nil {
++	if _, err := w.Seek(0, io.SeekStart); err != nil {
+ 		return digest, err
+ 	}
+ 	b.wrUint32(w, totalLength)
+diff --git a/src/internal/coverage/slicewriter/slicewriter.go b/src/internal/coverage/slicewriter/slicewriter.go
+index e606db901b..3522bf5770 100644
+--- a/src/internal/coverage/slicewriter/slicewriter.go
++++ b/src/internal/coverage/slicewriter/slicewriter.go
+@@ -6,7 +6,7 @@ package slicewriter
+ 
+ import (
+ 	"fmt"
+-	"os"
++	"io"
+ )
+ 
+ // WriteSeeker is a helper object that implements the io.WriteSeeker
+@@ -37,20 +37,20 @@ func (sws *WriteSeeker) Write(p []byte) (n int, err error) {
+ // the slice will result in an error.
+ func (sws *WriteSeeker) Seek(offset int64, whence int) (int64, error) {
+ 	switch whence {
+-	case os.SEEK_SET:
++	case io.SeekStart:
+ 		if sws.off != offset && (offset < 0 || offset >= int64(len(sws.payload))) {
+ 			return 0, fmt.Errorf("invalid seek: new offset %d (out of range [0 %d]", offset, len(sws.payload))
+ 		}
+ 		sws.off = offset
+ 		return offset, nil
+-	case os.SEEK_CUR:
++	case io.SeekCurrent:
+ 		newoff := sws.off + offset
+ 		if newoff != sws.off && (newoff < 0 || newoff >= int64(len(sws.payload))) {
+ 			return 0, fmt.Errorf("invalid seek: new offset %d (out of range [0 %d]", newoff, len(sws.payload))
+ 		}
+ 		sws.off += offset
+ 		return sws.off, nil
+-	case os.SEEK_END:
++	case io.SeekEnd:
+ 		newoff := int64(len(sws.payload)) + offset
+ 		if newoff != sws.off && (newoff < 0 || newoff >= int64(len(sws.payload))) {
+ 			return 0, fmt.Errorf("invalid seek: new offset %d (out of range [0 %d]", newoff, len(sws.payload))

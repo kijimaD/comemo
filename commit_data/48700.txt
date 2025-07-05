@@ -8,7 +8,62 @@ Date:   Thu Jun 3 15:33:08 2021 +0200
     Reviewed-on: https://go-review.googlesource.com/c/go/+/324471
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.17.html                 | 10 ++++++++++
  src/runtime/pprof/pprof_test.go | 22 ++++++++++++++++++++++
  2 files changed, 32 insertions(+)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index 42f3631b92..1701508ea9 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -725,6 +725,16 @@ Do not send CLs removing the interior tags from such phrases.
+   </dd>
+ </dl><!-- runtime/metrics -->
+ 
++
++<dl id="runtime/pprof"><dt><a href="/pkg/runtime/pprof">runtime/pprof</a></dt>
++  <dd>
++    <p><!-- CL 299991 -->
++      Block profiles are no longer biased to favor infrequent long events over
++      frequent short events.
++    </p>
++  </dd>
++</dl><!-- runtime/pprof -->
++
+ <dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
+   <dd>
+     <p><!-- CL 170079 -->
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 7cbb4fc7ae..e139ee787d 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -106,6 +106,28 @@ func TestCPUProfileMultithreaded(t *testing.T) {
+ 	})
+ }
+ 
++func TestCPUProfileThreadBias(t *testing.T) {
++	cpuHogA := func(dur time.Duration) {
++		cpuHogger(cpuHog1, &salt2, dur)
++	}
++
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
++	prof := testCPUProfile(t, stackContains, []string{"runtime/pprof.cpuHog1", "runtime/pprof.cpuHog2"}, avoidFunctions(), func(dur time.Duration) {
++		//c := make(chan int)
++		//go func() {
++		//cpuHogger(cpuHog1, &salt1, dur)
++		//c <- 1
++		//}()
++		cpuHogA(dur)
++		//<-c
++	})
++	fmt.Printf("%#v\n", prof)
++}
++
++func cpuHogA(dur time.Duration) {
++	cpuHogger(cpuHog1, &salt2, dur)
++}
++
+ // containsInlinedCall reports whether the function body for the function f is
+ // known to contain an inlined function call within the first maxBytes bytes.
+ func containsInlinedCall(f interface{}, maxBytes int) bool {

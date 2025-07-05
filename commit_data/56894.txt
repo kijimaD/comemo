@@ -60,7 +60,7 @@ Date:   Fri May 26 16:27:28 2023 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/infer.go           |  4 +-
  src/cmd/compile/internal/types2/unify.go           | 36 +++++++--
  src/go/types/infer.go                              |  4 +-
@@ -69,3 +69,388 @@ Date:   Fri May 26 16:27:28 2023 -0700
  .../types/testdata/fixedbugs/issue60377.go         | 12 +--
  .../types/testdata/fixedbugs/issue60460.go         | 88 ++++++++++++++++++++++
  7 files changed, 159 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index efa5727681..c323344ca7 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -155,7 +155,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 			// Function parameters are always typed. Arguments may be untyped.
+ 			// Collect the indices of untyped arguments and handle them later.
+ 			if isTyped(arg.typ) {
+-				if !u.unify(par.typ, arg.typ, 0) {
++				if !u.unify(par.typ, arg.typ, assign) {
+ 					errorf("type", par.typ, arg.typ, arg)
+ 					return nil
+ 				}
+@@ -340,7 +340,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 			arg := args[i]
+ 			typ := Default(arg.typ)
+ 			assert(isTyped(typ))
+-			if !u.unify(tpar, typ, 0) {
++			if !u.unify(tpar, typ, assign) {
+ 				errorf("default type", tpar, typ, arg)
+ 				return nil
+ 			}
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index 1d2b9d14b9..3f54a2c2f2 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -47,7 +47,7 @@ const (
+ 	// Whether to panic when unificationDepthLimit is reached.
+ 	// If disabled, a recursion depth overflow results in a (quiet)
+ 	// unification failure.
+-	panicAtUnificationDepthLimit = false // go.dev/issue/59740
++	panicAtUnificationDepthLimit = true
+ 
+ 	// If enableCoreTypeUnification is set, unification will consider
+ 	// the core types, if any, of non-local (unbound) type parameters.
+@@ -109,8 +109,24 @@ func newUnifier(tparams []*TypeParam, targs []Type) *unifier {
+ // unifyMode controls the behavior of the unifier.
+ type unifyMode uint
+ 
++const (
++	// If assign is set, we are unifying types involved in an assignment:
++	// they may match inexactly at the top, but element types must match
++	// exactly.
++	assign unifyMode = 1 << iota
++
++	// If exact is set, types unify if they are identical (or can be
++	// made identical with suitable arguments for type parameters).
++	// Otherwise, a named type and a type literal unify if their
++	// underlying types unify, channel directions are ignored, and
++	// if there is an interface, the other type must implement the
++	// interface.
++	exact
++)
++
+ // unify attempts to unify x and y and reports whether it succeeded.
+ // As a side-effect, types may be inferred for type parameters.
++// The mode parameter controls how types are compared.
+ func (u *unifier) unify(x, y Type, mode unifyMode) bool {
+ 	return u.nify(x, y, mode, nil)
+ }
+@@ -284,11 +300,11 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
+ 	}
+ 
+ 	// Unification will fail if we match a defined type against a type literal.
+-	// Per the (spec) assignment rules, assignments of values to variables with
++	// If we are matching types in an assignment, at the top-level, types with
+ 	// the same type structure are permitted as long as at least one of them
+ 	// is not a defined type. To accommodate for that possibility, we continue
+ 	// unification with the underlying type of a defined type if the other type
+-	// is a type literal.
++	// is a type literal. This is controlled by the exact unification mode.
+ 	// We also continue if the other type is a basic type because basic types
+ 	// are valid underlying types and may appear as core types of type constraints.
+ 	// If we exclude them, inferred defined types for type parameters may not
+@@ -300,7 +316,7 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
+ 	// we will fail at function instantiation or argument assignment time.
+ 	//
+ 	// If we have at least one defined type, there is one in y.
+-	if ny, _ := y.(*Named); ny != nil && isTypeLit(x) && !(enableInterfaceInference && IsInterface(x)) {
++	if ny, _ := y.(*Named); mode&exact == 0 && ny != nil && isTypeLit(x) && !(enableInterfaceInference && IsInterface(x)) {
+ 		if traceInference {
+ 			u.tracef("%s ≡ under %s", x, ny)
+ 		}
+@@ -365,7 +381,11 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
+ 	}
+ 
+ 	// Type elements (array, slice, etc. elements) use emode for unification.
++	// Element types must match exactly if the types are used in an assignment.
+ 	emode := mode
++	if mode&assign != 0 {
++		emode |= exact
++	}
+ 
+ 	// If EnableInterfaceInference is set and both types are interfaces, one
+ 	// interface must have a subset of the methods of the other and corresponding
+@@ -613,9 +633,11 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
+ 		}
+ 
+ 	case *Chan:
+-		// Two channel types unify if their value types unify.
++		// Two channel types unify if their value types unify
++		// and if they have the same direction.
++		// The channel direction is ignored for inexact unification.
+ 		if y, ok := y.(*Chan); ok {
+-			return u.nify(x.elem, y.elem, emode, p)
++			return (mode&exact == 0 || x.dir == y.dir) && u.nify(x.elem, y.elem, emode, p)
+ 		}
+ 
+ 	case *Named:
+@@ -625,7 +647,7 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
+ 		// If one or both named types are interfaces, the types unify if the
+ 		// respective methods unify (per the rules for interface unification).
+ 		if y, ok := y.(*Named); ok {
+-			if enableInterfaceInference {
++			if enableInterfaceInference && mode&exact == 0 {
+ 				xi, _ := x.under().(*Interface)
+ 				yi, _ := y.under().(*Interface)
+ 				// If one or both of x and y are interfaces, use interface unification.
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 7032aee7a3..015edb5fbe 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -157,7 +157,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 			// Function parameters are always typed. Arguments may be untyped.
+ 			// Collect the indices of untyped arguments and handle them later.
+ 			if isTyped(arg.typ) {
+-				if !u.unify(par.typ, arg.typ, 0) {
++				if !u.unify(par.typ, arg.typ, assign) {
+ 					errorf("type", par.typ, arg.typ, arg)
+ 					return nil
+ 				}
+@@ -342,7 +342,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 			arg := args[i]
+ 			typ := Default(arg.typ)
+ 			assert(isTyped(typ))
+-			if !u.unify(tpar, typ, 0) {
++			if !u.unify(tpar, typ, assign) {
+ 				errorf("default type", tpar, typ, arg)
+ 				return nil
+ 			}
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index 1e9efeee82..217356f13e 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -49,7 +49,7 @@ const (
+ 	// Whether to panic when unificationDepthLimit is reached.
+ 	// If disabled, a recursion depth overflow results in a (quiet)
+ 	// unification failure.
+-	panicAtUnificationDepthLimit = false // go.dev/issue/59740
++	panicAtUnificationDepthLimit = true
+ 
+ 	// If enableCoreTypeUnification is set, unification will consider
+ 	// the core types, if any, of non-local (unbound) type parameters.
+@@ -111,8 +111,24 @@ func newUnifier(tparams []*TypeParam, targs []Type) *unifier {
+ // unifyMode controls the behavior of the unifier.
+ type unifyMode uint
+ 
++const (
++	// If assign is set, we are unifying types involved in an assignment:
++	// they may match inexactly at the top, but element types must match
++	// exactly.
++	assign unifyMode = 1 << iota
++
++	// If exact is set, types unify if they are identical (or can be
++	// made identical with suitable arguments for type parameters).
++	// Otherwise, a named type and a type literal unify if their
++	// underlying types unify, channel directions are ignored, and
++	// if there is an interface, the other type must implement the
++	// interface.
++	exact
++)
++
+ // unify attempts to unify x and y and reports whether it succeeded.
+ // As a side-effect, types may be inferred for type parameters.
++// The mode parameter controls how types are compared.
+ func (u *unifier) unify(x, y Type, mode unifyMode) bool {
+ 	return u.nify(x, y, mode, nil)
+ }
+@@ -286,11 +302,11 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
+ 	}
+ 
+ 	// Unification will fail if we match a defined type against a type literal.
+-	// Per the (spec) assignment rules, assignments of values to variables with
++	// If we are matching types in an assignment, at the top-level, types with
+ 	// the same type structure are permitted as long as at least one of them
+ 	// is not a defined type. To accommodate for that possibility, we continue
+ 	// unification with the underlying type of a defined type if the other type
+-	// is a type literal.
++	// is a type literal. This is controlled by the exact unification mode.
+ 	// We also continue if the other type is a basic type because basic types
+ 	// are valid underlying types and may appear as core types of type constraints.
+ 	// If we exclude them, inferred defined types for type parameters may not
+@@ -302,7 +318,7 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
+ 	// we will fail at function instantiation or argument assignment time.
+ 	//
+ 	// If we have at least one defined type, there is one in y.
+-	if ny, _ := y.(*Named); ny != nil && isTypeLit(x) && !(enableInterfaceInference && IsInterface(x)) {
++	if ny, _ := y.(*Named); mode&exact == 0 && ny != nil && isTypeLit(x) && !(enableInterfaceInference && IsInterface(x)) {
+ 		if traceInference {
+ 			u.tracef("%s ≡ under %s", x, ny)
+ 		}
+@@ -367,7 +383,11 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
+ 	}
+ 
+ 	// Type elements (array, slice, etc. elements) use emode for unification.
++	// Element types must match exactly if the types are used in an assignment.
+ 	emode := mode
++	if mode&assign != 0 {
++		emode |= exact
++	}
+ 
+ 	// If EnableInterfaceInference is set and both types are interfaces, one
+ 	// interface must have a subset of the methods of the other and corresponding
+@@ -615,9 +635,11 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
+ 		}
+ 
+ 	case *Chan:
+-		// Two channel types unify if their value types unify.
++		// Two channel types unify if their value types unify
++		// and if they have the same direction.
++		// The channel direction is ignored for inexact unification.
+ 		if y, ok := y.(*Chan); ok {
+-			return u.nify(x.elem, y.elem, emode, p)
++			return (mode&exact == 0 || x.dir == y.dir) && u.nify(x.elem, y.elem, emode, p)
+ 		}
+ 
+ 	case *Named:
+@@ -627,7 +649,7 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
+ 		// If one or both named types are interfaces, the types unify if the
+ 		// respective methods unify (per the rules for interface unification).
+ 		if y, ok := y.(*Named); ok {
+-			if enableInterfaceInference {
++			if enableInterfaceInference && mode&exact == 0 {
+ 				xi, _ := x.under().(*Interface)
+ 				yi, _ := y.under().(*Interface)
+ 				// If one or both of x and y are interfaces, use interface unification.
+diff --git a/src/internal/types/testdata/examples/functions.go b/src/internal/types/testdata/examples/functions.go
+index c9917ee998..fdc67e7162 100644
+--- a/src/internal/types/testdata/examples/functions.go
++++ b/src/internal/types/testdata/examples/functions.go
+@@ -150,15 +150,15 @@ func _() {
+ 	var send func(chan<- int)
+ 
+ 	ffboth(both)
+-	ffboth(recv /* ERROR "cannot use" */ )
+-	ffboth(send /* ERROR "cannot use" */ )
++	ffboth(recv /* ERROR "does not match" */ )
++	ffboth(send /* ERROR "does not match" */ )
+ 
+-	ffrecv(both /* ERROR "cannot use" */ )
++	ffrecv(both /* ERROR "does not match" */ )
+ 	ffrecv(recv)
+-	ffrecv(send /* ERROR "cannot use" */ )
++	ffrecv(send /* ERROR "does not match" */ )
+ 
+-	ffsend(both /* ERROR "cannot use" */ )
+-	ffsend(recv /* ERROR "cannot use" */ )
++	ffsend(both /* ERROR "does not match" */ )
++	ffsend(recv /* ERROR "does not match" */ )
+ 	ffsend(send)
+ }
+ 
+diff --git a/src/internal/types/testdata/fixedbugs/issue60377.go b/src/internal/types/testdata/fixedbugs/issue60377.go
+index be37c516d3..b754f89df7 100644
+--- a/src/internal/types/testdata/fixedbugs/issue60377.go
++++ b/src/internal/types/testdata/fixedbugs/issue60377.go
+@@ -61,20 +61,14 @@ func _() {
+ }
+ 
+ // This is similar to the first example but here T1 is a component
+-// of a func type. In this case we should be able to infer a type
+-// argument for P because component types must be identical even
+-// in the case of interfaces.
+-// This is a short-coming of type inference at the moment, but it
+-// is better to not be able to infer a type here (we can always
+-// supply one), than to infer the wrong type in other cases (see
+-// below). Finally, if we decide to accept go.dev/issues/8082,
+-// the behavior here is correct.
++// of a func type. In this case types must match exactly: P must
++// match int.
+ 
+ func g5[P any](func(T1[P])) {}
+ 
+ func _() {
+ 	var f func(T1[int])
+-	g5 /* ERROR "cannot infer P" */ (f)
++	g5(f)
+ 	g5[int](f)
+ 	g5[string](f /* ERROR "cannot use f (variable of type func(T1[int])) as func(T1[string]) value in argument to g5[string]" */)
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue60460.go b/src/internal/types/testdata/fixedbugs/issue60460.go
+new file mode 100644
+index 0000000000..a9cb3d91e7
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue60460.go
+@@ -0,0 +1,88 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// Simplified (representative) test case.
++
++func _() {
++	f(R1{})
++}
++
++func f[T any](R[T]) {}
++
++type R[T any] interface {
++	m(R[T])
++}
++
++type R1 struct{}
++
++func (R1) m(R[int]) {}
++
++// Test case from issue.
++
++func _() {
++	r := newTestRules()
++	NewSet(r)
++	r2 := newTestRules2()
++	NewSet(r2)
++}
++
++type Set[T any] struct {
++	rules Rules[T]
++}
++
++func NewSet[T any](rules Rules[T]) Set[T] {
++	return Set[T]{
++		rules: rules,
++	}
++}
++
++func (s Set[T]) Copy() Set[T] {
++	return NewSet(s.rules)
++}
++
++type Rules[T any] interface {
++	Hash(T) int
++	Equivalent(T, T) bool
++	SameRules(Rules[T]) bool
++}
++
++type testRules struct{}
++
++func newTestRules() Rules[int] {
++	return testRules{}
++}
++
++func (r testRules) Hash(val int) int {
++	return val % 16
++}
++
++func (r testRules) Equivalent(val1 int, val2 int) bool {
++	return val1 == val2
++}
++
++func (r testRules) SameRules(other Rules[int]) bool {
++	_, ok := other.(testRules)
++	return ok
++}
++
++type testRules2 struct{}
++
++func newTestRules2() Rules[string] {
++	return testRules2{}
++}
++
++func (r testRules2) Hash(val string) int {
++	return 16
++}
++
++func (r testRules2) Equivalent(val1 string, val2 string) bool {
++	return val1 == val2
++}
++
++func (r testRules2) SameRules(other Rules[string]) bool {
++	_, ok := other.(testRules2)
++	return ok
++}

@@ -15,8 +15,90 @@ Date:   Tue Apr 15 19:48:17 2014 +0400
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/87960044
-
+---
  src/pkg/runtime/crash_test.go | 28 ++++++++++++++++++++++++++++
  src/pkg/runtime/mgc0.c        |  4 ++++
  src/pkg/runtime/time.goc      |  2 ++
  3 files changed, 34 insertions(+)
+
+diff --git a/src/pkg/runtime/crash_test.go b/src/pkg/runtime/crash_test.go
+index 0e5056d822..cd9520b165 100644
+--- a/src/pkg/runtime/crash_test.go
++++ b/src/pkg/runtime/crash_test.go
+@@ -144,6 +144,15 @@ panic: again
+ 
+ }
+ 
++func TestGoexitExit(t *testing.T) {
++	output := executeTest(t, goexitExitSource, nil)
++	want := ""
++	if output != want {
++		t.Fatalf("output:\n%s\n\nwanted:\n%s", output, want)
++	}
++
++}
++
+ const crashSource = `
+ package main
+ 
+@@ -310,3 +319,22 @@ func main() {
+ 	panic("again")
+ }
+ `
++
++const goexitExitSource = `
++package main
++
++import (
++	"runtime"
++	"time"
++)
++
++func main() {
++	go func() {
++		time.Sleep(time.Millisecond)
++	}()
++	i := 0
++	runtime.SetFinalizer(&i, func(p *int) {})
++	runtime.GC()
++	runtime.Goexit()
++}
++`
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 26a18d36c7..be7f27e396 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1973,7 +1973,9 @@ bgsweep(void)
+ 			continue;
+ 		}
+ 		sweep.parked = true;
++		g->isbackground = true;
+ 		runtime·parkunlock(&gclock, "GC sweep wait");
++		g->isbackground = false;
+ 	}
+ }
+ 
+@@ -2618,7 +2620,9 @@ runfinq(void)
+ 		finq = nil;
+ 		if(fb == nil) {
+ 			runtime·fingwait = true;
++			g->isbackground = true;
+ 			runtime·parkunlock(&finlock, "finalizer wait");
++			g->isbackground = false;
+ 			continue;
+ 		}
+ 		runtime·unlock(&finlock);
+diff --git a/src/pkg/runtime/time.goc b/src/pkg/runtime/time.goc
+index d9393d7c8a..195c5c41a3 100644
+--- a/src/pkg/runtime/time.goc
++++ b/src/pkg/runtime/time.goc
+@@ -238,7 +238,9 @@ timerproc(void)
+ 		if(delta < 0) {
+ 			// No timers left - put goroutine to sleep.
+ 			timers.rescheduling = true;
++			g->isbackground = true;
+ 			runtime·parkunlock(&timers, "timer goroutine (idle)");
++			g->isbackground = false;
+ 			continue;
+ 		}
+ 		// At least one timer pending.  Sleep until then.

@@ -20,6 +20,22 @@ Date:   Tue Feb 20 15:05:29 2024 -0500
     Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/rewrite.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index db21246446..d3ddfbfab2 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -2131,8 +2131,8 @@ func logicFlags32(x int32) flagConstant {
+ 
+ func makeJumpTableSym(b *Block) *obj.LSym {
+ 	s := base.Ctxt.Lookup(fmt.Sprintf("%s.jump%d", b.Func.fe.Func().LSym.Name, b.ID))
+-	s.Set(obj.AttrDuplicateOK, true)
+-	s.Set(obj.AttrLocal, true)
++	// The jump table symbol is accessed only from the function symbol.
++	s.Set(obj.AttrStatic, true)
+ 	return s
+ }
+ 

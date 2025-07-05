@@ -14,8 +14,69 @@ Date:   Fri Nov 22 17:14:25 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/208483
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  misc/cgo/testasan/main.go   | 7 +++++++
  misc/cgo/testsigfwd/main.go | 1 +
  src/cmd/dist/test.go        | 4 ++--
  3 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/testasan/main.go b/misc/cgo/testasan/main.go
+index 1837c6cc81..bc77678c25 100644
+--- a/misc/cgo/testasan/main.go
++++ b/misc/cgo/testasan/main.go
+@@ -36,14 +36,21 @@ thread(void *p)
+ import "C"
+ 
+ import (
++	"fmt"
++	"os"
++	"path/filepath"
+ 	"time"
+ )
+ 
+ func main() {
++	start := time.Now()
++
+ 	// ensure that we can function normally
+ 	var v [][]byte
+ 	for i := 0; i < 1000; i++ {
+ 		time.Sleep(10 * time.Microsecond)
+ 		v = append(v, make([]byte, 64<<10))
+ 	}
++
++	fmt.Printf("ok\t%s\t%s\n", filepath.Base(os.Args[0]), time.Since(start).Round(time.Millisecond))
+ }
+diff --git a/misc/cgo/testsigfwd/main.go b/misc/cgo/testsigfwd/main.go
+index 61bd0da88a..6d97050078 100644
+--- a/misc/cgo/testsigfwd/main.go
++++ b/misc/cgo/testsigfwd/main.go
+@@ -25,6 +25,7 @@ static void sigsegv() {
+ 
+ static void segvhandler(int signum) {
+ 	if (signum == SIGSEGV) {
++		fprintf(stdout, "ok\ttestsigfwd\n");
+ 		exit(0);  // success
+ 	}
+ }
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 2149c697ea..56bdfcac19 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -692,7 +692,7 @@ func (t *tester) registerTests() {
+ 			t.registerTest("testplugin", "../misc/cgo/testplugin", t.goTest(), t.timeout(600), ".")
+ 		}
+ 		if gohostos == "linux" && goarch == "amd64" {
+-			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", "main.go")
++			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", ".")
+ 		}
+ 		if mSanSupported(goos, goarch) {
+ 			t.registerHostTest("testsanitizers/msan", "../misc/cgo/testsanitizers", "misc/cgo/testsanitizers", ".")
+@@ -701,7 +701,7 @@ func (t *tester) registerTests() {
+ 			t.registerHostTest("cgo_errors", "../misc/cgo/errors", "misc/cgo/errors", ".")
+ 		}
+ 		if gohostos == "linux" && t.extLink() {
+-			t.registerTest("testsigfwd", "../misc/cgo/testsigfwd", "go", "run", "main.go")
++			t.registerTest("testsigfwd", "../misc/cgo/testsigfwd", "go", "run", ".")
+ 		}
+ 	}
+ 

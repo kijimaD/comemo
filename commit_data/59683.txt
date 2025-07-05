@@ -33,7 +33,7 @@ Date:   Fri Mar 15 22:18:06 2024 +0000
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/runtime/export_test.go    |  12 ++++
  src/runtime/trace2map.go      | 153 ++++++++++++++++++++----------------------
  src/runtime/trace2map_test.go |  89 ++++++++++++++++++++++++
@@ -42,3 +42,601 @@ Date:   Fri Mar 15 22:18:06 2024 +0000
  src/runtime/trace2stack.go    |  91 ++++++++++++-------------
  src/runtime/trace2string.go   |   6 +-
  7 files changed, 293 insertions(+), 162 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 26325b3712..d55da1028d 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1874,3 +1874,15 @@ func UnsafePoint(pc uintptr) bool {
+ 		panic("invalid unsafe point code " + string(itoa(buf[:], uint64(v))))
+ 	}
+ }
++
++type TraceMap struct {
++	traceMap
++}
++
++func (m *TraceMap) PutString(s string) (uint64, bool) {
++	return m.traceMap.put(unsafe.Pointer(unsafe.StringData(s)), uintptr(len(s)))
++}
++
++func (m *TraceMap) Reset() {
++	m.traceMap.reset()
++}
+diff --git a/src/runtime/trace2map.go b/src/runtime/trace2map.go
+index fc41d4f3c8..302f902a23 100644
+--- a/src/runtime/trace2map.go
++++ b/src/runtime/trace2map.go
+@@ -4,43 +4,54 @@
+ 
+ //go:build goexperiment.exectracer2
+ 
+-// Simple hash table for tracing. Provides a mapping
+-// between variable-length data and a unique ID. Subsequent
+-// puts of the same data will return the same ID.
++// Simple append-only thread-safe hash map for tracing.
++// Provides a mapping between variable-length data and a
++// unique ID. Subsequent puts of the same data will return
++// the same ID. The zero value is ready to use.
+ //
+-// Uses a region-based allocation scheme and assumes that the
+-// table doesn't ever grow very big.
++// Uses a region-based allocation scheme internally, and
++// reset clears the whole map.
+ //
+-// This is definitely not a general-purpose hash table! It avoids
+-// doing any high-level Go operations so it's safe to use even in
+-// sensitive contexts.
++// It avoids doing any high-level Go operations so it's safe
++// to use even in sensitive contexts.
+ 
+ package runtime
+ 
+ import (
++	"internal/cpu"
++	"internal/goarch"
+ 	"internal/runtime/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+ 
+ type traceMap struct {
+-	lock mutex // Must be acquired on the system stack
++	root atomic.UnsafePointer // *traceMapNode (can't use generics because it's notinheap)
++	_    cpu.CacheLinePad
+ 	seq  atomic.Uint64
++	_    cpu.CacheLinePad
+ 	mem  traceRegionAlloc
+-	tab  [1 << 13]atomic.UnsafePointer // *traceMapNode (can't use generics because it's notinheap)
+ }
+ 
++// traceMapNode is an implementation of a lock-free append-only hash-trie
++// (a trie of the hash bits).
++//
++// Key features:
++//   - 4-ary trie. Child nodes are indexed by the upper 2 (remaining) bits of the hash.
++//     For example, top level uses bits [63:62], next level uses [61:60] and so on.
++//   - New nodes are placed at the first empty level encountered.
++//   - When the first child is added to a node, the existing value is not moved into a child.
++//     This means that you must check the key at each level, not just at the leaf.
++//   - No deletion or rebalancing.
++//   - Intentionally devolves into a linked list on hash collisions (the hash bits will all
++//     get shifted out during iteration, and new nodes will just be appended to the 0th child).
+ type traceMapNode struct {
+-	_    sys.NotInHeap
+-	link atomic.UnsafePointer // *traceMapNode (can't use generics because it's notinheap)
+-	hash uintptr
+-	id   uint64
+-	data []byte
+-}
++	_ sys.NotInHeap
+ 
+-// next is a type-safe wrapper around link.
+-func (n *traceMapNode) next() *traceMapNode {
+-	return (*traceMapNode)(n.link.Load())
++	children [4]atomic.UnsafePointer // *traceMapNode (can't use generics because it's notinheap)
++	hash     uintptr
++	id       uint64
++	data     []byte
+ }
+ 
+ // stealID steals an ID from the table, ensuring that it will not
+@@ -51,7 +62,7 @@ func (tab *traceMap) stealID() uint64 {
+ 
+ // put inserts the data into the table.
+ //
+-// It's always safe to noescape data because its bytes are always copied.
++// It's always safe for callers to noescape data because put copies its bytes.
+ //
+ // Returns a unique ID for the data and whether this is the first time
+ // the data has been added to the map.
+@@ -60,59 +71,47 @@ func (tab *traceMap) put(data unsafe.Pointer, size uintptr) (uint64, bool) {
+ 		return 0, false
+ 	}
+ 	hash := memhash(data, 0, size)
+-	// First, search the hashtable w/o the mutex.
+-	if id := tab.find(data, size, hash); id != 0 {
+-		return id, false
+-	}
+-	// Now, double check under the mutex.
+-	// Switch to the system stack so we can acquire tab.lock
+-	var id uint64
+-	var added bool
+-	systemstack(func() {
+-		lock(&tab.lock)
+-		if id = tab.find(data, size, hash); id != 0 {
+-			unlock(&tab.lock)
+-			return
+-		}
+-		// Create new record.
+-		id = tab.seq.Add(1)
+-		vd := tab.newTraceMapNode(data, size, hash, id)
+ 
+-		// Insert it into the table.
+-		//
+-		// Update the link first, since the node isn't published yet.
+-		// Then, store the node in the table as the new first node
+-		// for the bucket.
+-		part := int(hash % uintptr(len(tab.tab)))
+-		vd.link.StoreNoWB(tab.tab[part].Load())
+-		tab.tab[part].StoreNoWB(unsafe.Pointer(vd))
+-		unlock(&tab.lock)
+-
+-		added = true
+-	})
+-	return id, added
+-}
+-
+-// find looks up data in the table, assuming hash is a hash of data.
+-//
+-// Returns 0 if the data is not found, and the unique ID for it if it is.
+-func (tab *traceMap) find(data unsafe.Pointer, size, hash uintptr) uint64 {
+-	part := int(hash % uintptr(len(tab.tab)))
+-	for vd := tab.bucket(part); vd != nil; vd = vd.next() {
+-		// Synchronization not necessary. Once published to the table, these
+-		// values are immutable.
+-		if vd.hash == hash && uintptr(len(vd.data)) == size {
+-			if memequal(unsafe.Pointer(&vd.data[0]), data, size) {
+-				return vd.id
++	var newNode *traceMapNode
++	m := &tab.root
++	hashIter := hash
++	for {
++		n := (*traceMapNode)(m.Load())
++		if n == nil {
++			// Try to insert a new map node. We may end up discarding
++			// this node if we fail to insert because it turns out the
++			// value is already in the map.
++			//
++			// The discard will only happen if two threads race on inserting
++			// the same value. Both might create nodes, but only one will
++			// succeed on insertion. If two threads race to insert two
++			// different values, then both nodes will *always* get inserted,
++			// because the equality checking below will always fail.
++			//
++			// Performance note: contention on insertion is likely to be
++			// higher for small maps, but since this data structure is
++			// append-only, either the map stays small because there isn't
++			// much activity, or the map gets big and races to insert on
++			// the same node are much less likely.
++			if newNode == nil {
++				newNode = tab.newTraceMapNode(data, size, hash, tab.seq.Add(1))
++			}
++			if m.CompareAndSwapNoWB(nil, unsafe.Pointer(newNode)) {
++				return newNode.id, true
++			}
++			// Reload n. Because pointers are only stored once,
++			// we must have lost the race, and therefore n is not nil
++			// anymore.
++			n = (*traceMapNode)(m.Load())
++		}
++		if n.hash == hash && uintptr(len(n.data)) == size {
++			if memequal(unsafe.Pointer(&n.data[0]), data, size) {
++				return n.id, false
+ 			}
+ 		}
++		m = &n.children[hashIter>>(8*goarch.PtrSize-2)]
++		hashIter <<= 2
+ 	}
+-	return 0
+-}
+-
+-// bucket is a type-safe wrapper for looking up a value in tab.tab.
+-func (tab *traceMap) bucket(part int) *traceMapNode {
+-	return (*traceMapNode)(tab.tab[part].Load())
+ }
+ 
+ func (tab *traceMap) newTraceMapNode(data unsafe.Pointer, size, hash uintptr, id uint64) *traceMapNode {
+@@ -134,18 +133,10 @@ func (tab *traceMap) newTraceMapNode(data unsafe.Pointer, size, hash uintptr, id
+ 
+ // reset drops all allocated memory from the table and resets it.
+ //
+-// tab.lock must be held. Must run on the system stack because of this.
+-//
+-//go:systemstack
++// The caller must ensure that there are no put operations executing concurrently
++// with this function.
+ func (tab *traceMap) reset() {
+-	assertLockHeld(&tab.lock)
+-	tab.mem.drop()
++	tab.root.Store(nil)
+ 	tab.seq.Store(0)
+-	// Clear table without write barriers. The table consists entirely
+-	// of notinheap pointers, so this is fine.
+-	//
+-	// Write barriers may theoretically call into the tracer and acquire
+-	// the lock again, and this lock ordering is expressed in the static
+-	// lock ranking checker.
+-	memclrNoHeapPointers(unsafe.Pointer(&tab.tab), unsafe.Sizeof(tab.tab))
++	tab.mem.drop()
+ }
+diff --git a/src/runtime/trace2map_test.go b/src/runtime/trace2map_test.go
+new file mode 100644
+index 0000000000..bc45ef9f80
+--- /dev/null
++++ b/src/runtime/trace2map_test.go
+@@ -0,0 +1,89 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime_test
++
++import (
++	. "runtime"
++	"strconv"
++	"sync"
++	"testing"
++)
++
++func TestTraceMap(t *testing.T) {
++	var m TraceMap
++
++	// Try all these operations multiple times between resets, to make sure
++	// we're resetting properly.
++	for range 3 {
++		var d = [...]string{
++			"a",
++			"b",
++			"aa",
++			"ab",
++			"ba",
++			"bb",
++		}
++		for i, s := range d {
++			id, inserted := m.PutString(s)
++			if !inserted {
++				t.Errorf("expected to have inserted string %q, but did not", s)
++			}
++			if id != uint64(i+1) {
++				t.Errorf("expected string %q to have ID %d, but got %d instead", s, i+1, id)
++			}
++		}
++		for i, s := range d {
++			id, inserted := m.PutString(s)
++			if inserted {
++				t.Errorf("inserted string %q, but expected to have not done so", s)
++			}
++			if id != uint64(i+1) {
++				t.Errorf("expected string %q to have ID %d, but got %d instead", s, i+1, id)
++			}
++		}
++		m.Reset()
++	}
++}
++
++func TestTraceMapConcurrent(t *testing.T) {
++	var m TraceMap
++
++	var wg sync.WaitGroup
++	for i := range 3 {
++		wg.Add(1)
++		go func(i int) {
++			defer wg.Done()
++
++			si := strconv.Itoa(i)
++			var d = [...]string{
++				"a" + si,
++				"b" + si,
++				"aa" + si,
++				"ab" + si,
++				"ba" + si,
++				"bb" + si,
++			}
++			ids := make([]uint64, 0, len(d))
++			for _, s := range d {
++				id, inserted := m.PutString(s)
++				if !inserted {
++					t.Errorf("expected to have inserted string %q, but did not", s)
++				}
++				ids = append(ids, id)
++			}
++			for i, s := range d {
++				id, inserted := m.PutString(s)
++				if inserted {
++					t.Errorf("inserted string %q, but expected to have not done so", s)
++				}
++				if id != ids[i] {
++					t.Errorf("expected string %q to have ID %d, but got %d instead", s, ids[i], id)
++				}
++			}
++		}(i)
++	}
++	wg.Wait()
++	m.Reset()
++}
+diff --git a/src/runtime/trace2region.go b/src/runtime/trace2region.go
+index b514d127b5..e3a57a4211 100644
+--- a/src/runtime/trace2region.go
++++ b/src/runtime/trace2region.go
+@@ -9,16 +9,18 @@
+ package runtime
+ 
+ import (
+-	"internal/goarch"
++	"internal/runtime/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+ 
+-// traceRegionAlloc is a non-thread-safe region allocator.
++// traceRegionAlloc is a thread-safe region allocator.
+ // It holds a linked list of traceRegionAllocBlock.
+ type traceRegionAlloc struct {
+-	head *traceRegionAllocBlock
+-	off  uintptr
++	lock     mutex
++	dropping atomic.Bool          // For checking invariants.
++	current  atomic.UnsafePointer // *traceRegionAllocBlock
++	full     *traceRegionAllocBlock
+ }
+ 
+ // traceRegionAllocBlock is a block in traceRegionAlloc.
+@@ -27,36 +29,84 @@ type traceRegionAlloc struct {
+ // contain heap pointers. Writes to pointers to traceRegionAllocBlocks do
+ // not need write barriers.
+ type traceRegionAllocBlock struct {
+-	_    sys.NotInHeap
++	_ sys.NotInHeap
++	traceRegionAllocBlockHeader
++	data [traceRegionAllocBlockData]byte
++}
++
++type traceRegionAllocBlockHeader struct {
+ 	next *traceRegionAllocBlock
+-	data [64<<10 - goarch.PtrSize]byte
++	off  atomic.Uintptr
+ }
+ 
+-// alloc allocates n-byte block.
++const traceRegionAllocBlockData = 64<<10 - unsafe.Sizeof(traceRegionAllocBlockHeader{})
++
++// alloc allocates n-byte block. The block is always aligned to 8 bytes, regardless of platform.
+ func (a *traceRegionAlloc) alloc(n uintptr) *notInHeap {
+-	n = alignUp(n, goarch.PtrSize)
+-	if a.head == nil || a.off+n > uintptr(len(a.head.data)) {
+-		if n > uintptr(len(a.head.data)) {
+-			throw("traceRegion: alloc too large")
++	n = alignUp(n, 8)
++	if n > traceRegionAllocBlockData {
++		throw("traceRegion: alloc too large")
++	}
++	if a.dropping.Load() {
++		throw("traceRegion: alloc with concurrent drop")
++	}
++
++	// Try to bump-pointer allocate into the current block.
++	block := (*traceRegionAllocBlock)(a.current.Load())
++	if block != nil {
++		r := block.off.Add(n)
++		if r <= uintptr(len(block.data)) {
++			return (*notInHeap)(unsafe.Pointer(&block.data[r-n]))
+ 		}
+-		block := (*traceRegionAllocBlock)(sysAlloc(unsafe.Sizeof(traceRegionAllocBlock{}), &memstats.other_sys))
+-		if block == nil {
+-			throw("traceRegion: out of memory")
++	}
++
++	// Try to install a new block.
++	lock(&a.lock)
++
++	// Check block again under the lock. Someone may
++	// have gotten here first.
++	block = (*traceRegionAllocBlock)(a.current.Load())
++	if block != nil {
++		r := block.off.Add(n)
++		if r <= uintptr(len(block.data)) {
++			unlock(&a.lock)
++			return (*notInHeap)(unsafe.Pointer(&block.data[r-n]))
+ 		}
+-		block.next = a.head
+-		a.head = block
+-		a.off = 0
++
++		// Add the existing block to the full list.
++		block.next = a.full
++		a.full = block
++	}
++
++	// Allocate a new block.
++	block = (*traceRegionAllocBlock)(sysAlloc(unsafe.Sizeof(traceRegionAllocBlock{}), &memstats.other_sys))
++	if block == nil {
++		throw("traceRegion: out of memory")
+ 	}
+-	p := &a.head.data[a.off]
+-	a.off += n
+-	return (*notInHeap)(unsafe.Pointer(p))
++
++	// Allocate space for our current request, so we always make
++	// progress.
++	block.off.Store(n)
++	x := (*notInHeap)(unsafe.Pointer(&block.data[0]))
++
++	// Publish the new block.
++	a.current.Store(unsafe.Pointer(block))
++	unlock(&a.lock)
++	return x
+ }
+ 
+ // drop frees all previously allocated memory and resets the allocator.
++//
++// drop is not safe to call concurrently with other calls to drop or with calls to alloc. The caller
++// must ensure that it is not possible for anything else to be using the same structure.
+ func (a *traceRegionAlloc) drop() {
+-	for a.head != nil {
+-		block := a.head
+-		a.head = block.next
++	a.dropping.Store(true)
++	for a.full != nil {
++		block := a.full
++		a.full = block.next
+ 		sysFree(unsafe.Pointer(block), unsafe.Sizeof(traceRegionAllocBlock{}), &memstats.other_sys)
+ 	}
++	sysFree(a.current.Load(), unsafe.Sizeof(traceRegionAllocBlock{}), &memstats.other_sys)
++	a.current.Store(nil)
++	a.dropping.Store(false)
+ }
+diff --git a/src/runtime/trace2runtime.go b/src/runtime/trace2runtime.go
+index 6623879e6b..f2140bdec9 100644
+--- a/src/runtime/trace2runtime.go
++++ b/src/runtime/trace2runtime.go
+@@ -56,11 +56,11 @@ func traceLockInit() {
+ 	// Sharing a lock rank here is fine because they should never be accessed
+ 	// together. If they are, we want to find out immediately.
+ 	lockInit(&trace.stringTab[0].lock, lockRankTraceStrings)
+-	lockInit(&trace.stringTab[0].tab.lock, lockRankTraceStrings)
++	lockInit(&trace.stringTab[0].tab.mem.lock, lockRankTraceStrings)
+ 	lockInit(&trace.stringTab[1].lock, lockRankTraceStrings)
+-	lockInit(&trace.stringTab[1].tab.lock, lockRankTraceStrings)
+-	lockInit(&trace.stackTab[0].tab.lock, lockRankTraceStackTab)
+-	lockInit(&trace.stackTab[1].tab.lock, lockRankTraceStackTab)
++	lockInit(&trace.stringTab[1].tab.mem.lock, lockRankTraceStrings)
++	lockInit(&trace.stackTab[0].tab.mem.lock, lockRankTraceStackTab)
++	lockInit(&trace.stackTab[1].tab.mem.lock, lockRankTraceStackTab)
+ 	lockInit(&trace.lock, lockRankTrace)
+ }
+ 
+diff --git a/src/runtime/trace2stack.go b/src/runtime/trace2stack.go
+index 7d698c89d3..dfccaabd62 100644
+--- a/src/runtime/trace2stack.go
++++ b/src/runtime/trace2stack.go
+@@ -140,62 +140,55 @@ func (t *traceStackTable) put(pcs []uintptr) uint64 {
+ // can guarantee that there are no more writers to the table.
+ func (t *traceStackTable) dump(gen uintptr) {
+ 	w := unsafeTraceWriter(gen, nil)
++	if root := (*traceMapNode)(t.tab.root.Load()); root != nil {
++		w = dumpStacksRec(root, w)
++	}
++	w.flush().end()
++	t.tab.reset()
++}
+ 
+-	// Iterate over the table.
+-	//
+-	// Do not acquire t.tab.lock. There's a conceptual lock cycle between acquiring this lock
+-	// here and allocation-related locks. Specifically, this lock may be acquired when an event
+-	// is emitted in allocation paths. Simultaneously, we might allocate here with the lock held,
+-	// creating a cycle. In practice, this cycle is never exercised. Because the table is only
+-	// dumped once there are no more writers, it's not possible for the cycle to occur. However
+-	// the lockrank mode is not sophisticated enough to identify this, and if it's not possible
+-	// for that cycle to happen, then it's also not possible for this to race with writers to
+-	// the table.
+-	for i := range t.tab.tab {
+-		stk := t.tab.bucket(i)
+-		for ; stk != nil; stk = stk.next() {
+-			stack := unsafe.Slice((*uintptr)(unsafe.Pointer(&stk.data[0])), uintptr(len(stk.data))/unsafe.Sizeof(uintptr(0)))
++func dumpStacksRec(node *traceMapNode, w traceWriter) traceWriter {
++	stack := unsafe.Slice((*uintptr)(unsafe.Pointer(&node.data[0])), uintptr(len(node.data))/unsafe.Sizeof(uintptr(0)))
+ 
+-			// N.B. This might allocate, but that's OK because we're not writing to the M's buffer,
+-			// but one we're about to create (with ensure).
+-			frames := makeTraceFrames(gen, fpunwindExpand(stack))
++	// N.B. This might allocate, but that's OK because we're not writing to the M's buffer,
++	// but one we're about to create (with ensure).
++	frames := makeTraceFrames(w.gen, fpunwindExpand(stack))
+ 
+-			// Returns the maximum number of bytes required to hold the encoded stack, given that
+-			// it contains N frames.
+-			maxBytes := 1 + (2+4*len(frames))*traceBytesPerNumber
++	// The maximum number of bytes required to hold the encoded stack, given that
++	// it contains N frames.
++	maxBytes := 1 + (2+4*len(frames))*traceBytesPerNumber
+ 
+-			// Estimate the size of this record. This
+-			// bound is pretty loose, but avoids counting
+-			// lots of varint sizes.
+-			//
+-			// Add 1 because we might also write traceEvStacks.
+-			var flushed bool
+-			w, flushed = w.ensure(1 + maxBytes)
+-			if flushed {
+-				w.byte(byte(traceEvStacks))
+-			}
++	// Estimate the size of this record. This
++	// bound is pretty loose, but avoids counting
++	// lots of varint sizes.
++	//
++	// Add 1 because we might also write traceEvStacks.
++	var flushed bool
++	w, flushed = w.ensure(1 + maxBytes)
++	if flushed {
++		w.byte(byte(traceEvStacks))
++	}
+ 
+-			// Emit stack event.
+-			w.byte(byte(traceEvStack))
+-			w.varint(uint64(stk.id))
+-			w.varint(uint64(len(frames)))
+-			for _, frame := range frames {
+-				w.varint(uint64(frame.PC))
+-				w.varint(frame.funcID)
+-				w.varint(frame.fileID)
+-				w.varint(frame.line)
+-			}
+-		}
++	// Emit stack event.
++	w.byte(byte(traceEvStack))
++	w.varint(uint64(node.id))
++	w.varint(uint64(len(frames)))
++	for _, frame := range frames {
++		w.varint(uint64(frame.PC))
++		w.varint(frame.funcID)
++		w.varint(frame.fileID)
++		w.varint(frame.line)
+ 	}
+-	// Still, hold the lock over reset. The callee expects it, even though it's
+-	// not strictly necessary.
+-	systemstack(func() {
+-		lock(&t.tab.lock)
+-		t.tab.reset()
+-		unlock(&t.tab.lock)
+-	})
+ 
+-	w.flush().end()
++	// Recursively walk all child nodes.
++	for i := range node.children {
++		child := node.children[i].Load()
++		if child == nil {
++			continue
++		}
++		w = dumpStacksRec((*traceMapNode)(child), w)
++	}
++	return w
+ }
+ 
+ // makeTraceFrames returns the frames corresponding to pcs. It may
+diff --git a/src/runtime/trace2string.go b/src/runtime/trace2string.go
+index 21ef5eaf98..8c5bf86fd8 100644
+--- a/src/runtime/trace2string.go
++++ b/src/runtime/trace2string.go
+@@ -95,9 +95,5 @@ func (t *traceStringTable) reset(gen uintptr) {
+ 	}
+ 
+ 	// Reset the table.
+-	systemstack(func() {
+-		lock(&t.tab.lock)
+-		t.tab.reset()
+-		unlock(&t.tab.lock)
+-	})
++	t.tab.reset()
+ }

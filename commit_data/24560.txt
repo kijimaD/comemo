@@ -19,9 +19,85 @@ Date:   Wed Aug 5 11:07:47 2015 -0400
     Change-Id: I7c3f6ec364545c36d619f2b4b3bf3b758e3bcbd6
     Reviewed-on: https://go-review.googlesource.com/13168
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/malloc.go |  2 +-
  src/runtime/mgc.go    | 11 ++++++++---
  src/runtime/mheap.go  |  2 +-
  src/runtime/proc.go   |  2 +-
  4 files changed, 11 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 40f672abb0..353f84083f 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -702,7 +702,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 	}
+ 
+ 	if shouldhelpgc && shouldtriggergc() {
+-		startGC(gcBackgroundMode)
++		startGC(gcBackgroundMode, false)
+ 	} else if gcBlackenEnabled != 0 {
+ 		// Assist garbage collector. We delay this until the
+ 		// epilogue so that it doesn't interfere with the
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index f7e9908a8a..f7fd4e51d5 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -811,7 +811,7 @@ var work struct {
+ // garbage collection is complete. It may also block the entire
+ // program.
+ func GC() {
+-	startGC(gcForceBlockMode)
++	startGC(gcForceBlockMode, false)
+ }
+ 
+ const (
+@@ -820,7 +820,12 @@ const (
+ 	gcForceBlockMode        // stop-the-world GC now and wait for sweep
+ )
+ 
+-func startGC(mode int) {
++// startGC starts a GC cycle. If mode is gcBackgroundMode, this will
++// start GC in the background and return. Otherwise, this will block
++// until the new GC cycle is started and finishes. If forceTrigger is
++// true, it indicates that GC should be started regardless of the
++// current heap size.
++func startGC(mode int, forceTrigger bool) {
+ 	// The gc is turned off (via enablegc) until the bootstrap has completed.
+ 	// Also, malloc gets called in the guts of a number of libraries that might be
+ 	// holding locks. To avoid deadlocks during stop-the-world, don't bother
+@@ -853,7 +858,7 @@ func startGC(mode int) {
+ 	// recheck that this really should trigger GC. (For example,
+ 	// we may have gone through a whole GC cycle since the
+ 	// speculative check.)
+-	if !shouldtriggergc() {
++	if !(forceTrigger || shouldtriggergc()) {
+ 		unlock(&bggc.lock)
+ 		return
+ 	}
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index be4d612156..bc4e7c1272 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -836,7 +836,7 @@ func mHeap_Scavenge(k int32, now, limit uint64) {
+ 
+ //go:linkname runtime_debug_freeOSMemory runtime/debug.freeOSMemory
+ func runtime_debug_freeOSMemory() {
+-	startGC(gcForceBlockMode)
++	startGC(gcForceBlockMode, false)
+ 	systemstack(func() { mHeap_Scavenge(-1, ^uint64(0), 0) })
+ }
+ 
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 1a4c6c109f..c5b4a8c9af 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -154,7 +154,7 @@ func forcegchelper() {
+ 		if debug.gctrace > 0 {
+ 			println("GC forced")
+ 		}
+-		startGC(gcBackgroundMode)
++		startGC(gcBackgroundMode, true)
+ 	}
+ }
+ 

@@ -8,6 +8,20 @@ Date:   Tue Aug 10 18:01:00 2010 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/1950041
-
+---
  src/cmd/gopack/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gopack/doc.go b/src/cmd/gopack/doc.go
+index 0d5ccdb6ce..74c272fd21 100644
+--- a/src/cmd/gopack/doc.go
++++ b/src/cmd/gopack/doc.go
+@@ -4,7 +4,7 @@
+ 
+ /*
+ 
+-Gopack program is a variant of the Plan 9 ar tool.  The original is documented at
++Gopack is a variant of the Plan 9 ar tool.  The original is documented at
+ 
+ 	http://plan9.bell-labs.com/magic/man2html/1/ar
+ 

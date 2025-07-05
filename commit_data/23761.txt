@@ -9,6 +9,20 @@ Date:   Thu Jun 11 08:22:56 2015 -0700
     Change-Id: Ief089e99bdad24b3bcfb075497dc259d06cc727c
     Reviewed-on: https://go-review.googlesource.com/10913
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/vet/vet_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/vet/vet_test.go b/src/cmd/vet/vet_test.go
+index ae4af6e104..af374787f0 100644
+--- a/src/cmd/vet/vet_test.go
++++ b/src/cmd/vet/vet_test.go
+@@ -91,6 +91,8 @@ func TestTags(t *testing.T) {
+ 		if strings.HasPrefix(runtime.GOARCH, "arm") {
+ 			t.Skip("skipping test; no command execution on darwin/%s", runtime.GOARCH)
+ 		}
++	case "android":
++		t.Skip("skipping test; no go toolchain available")
+ 	}
+ 
+ 	// go build

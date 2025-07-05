@@ -34,7 +34,7 @@ Date:   Mon May 12 17:10:36 2014 -0400
     R=rsc, daniel.morsing, bradfitz
     CC=dave, golang-codereviews
     https://golang.org/cl/91850043
-
+---
  src/cmd/5g/cgen.c           |  1 +
  src/cmd/5g/gsubr.c          |  3 ++-
  src/cmd/6g/cgen.c           |  1 +
@@ -47,3 +47,244 @@ Date:   Mon May 12 17:10:36 2014 -0400
  src/cmd/gc/typecheck.c      | 13 +++++++++++++
  test/fixedbugs/issue7316.go | 37 +++++++++++++++++++++++++++++++++++++
  11 files changed, 66 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 57e4e39366..9faf754617 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -254,6 +254,7 @@ cgen(Node *n, Node *res)
+ 	case OOR:
+ 	case OXOR:
+ 	case OADD:
++	case OADDPTR:
+ 	case OMUL:
+ 		a = optoas(n->op, nl->type);
+ 		goto sbop;
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 72c880cf7d..528e8f8cc3 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -1366,7 +1366,7 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		naddr(n->left, a, canemitcode);
+ 		if(a->type == D_CONST && a->offset == 0)
+ 			break;	// ptr(nil)
+-		a->etype = simtype[TUINTPTR];
++		a->etype = simtype[tptr];
+ 		a->offset += Array_array;
+ 		a->width = widthptr;
+ 		break;
+@@ -1592,6 +1592,7 @@ optoas(int op, Type *t)
+ 	case CASE(OADD, TINT32):
+ 	case CASE(OADD, TUINT32):
+ 	case CASE(OADD, TPTR32):
++	case CASE(OADDPTR, TPTR32):
+ 		a = AADD;
+ 		break;
+ 
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index eb45b29ea1..ae1309142c 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -247,6 +247,7 @@ cgen(Node *n, Node *res)
+ 	case OOR:
+ 	case OXOR:
+ 	case OADD:
++	case OADDPTR:
+ 	case OMUL:
+ 		a = optoas(n->op, nl->type);
+ 		if(a == AIMULB) {
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 14cefc35a0..bd2f2304b4 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -1300,7 +1300,7 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		naddr(n->left, a, canemitcode);
+ 		if(a->type == D_CONST && a->offset == 0)
+ 			break;	// ptr(nil)
+-		a->etype = simtype[TUINTPTR];
++		a->etype = simtype[tptr];
+ 		a->offset += Array_array;
+ 		a->width = widthptr;
+ 		break;
+@@ -1533,12 +1533,14 @@ optoas(int op, Type *t)
+ 	case CASE(OADD, TINT32):
+ 	case CASE(OADD, TUINT32):
+ 	case CASE(OADD, TPTR32):
++	case CASE(OADDPTR, TPTR32):
+ 		a = AADDL;
+ 		break;
+ 
+ 	case CASE(OADD, TINT64):
+ 	case CASE(OADD, TUINT64):
+ 	case CASE(OADD, TPTR64):
++	case CASE(OADDPTR, TPTR64):
+ 		a = AADDQ;
+ 		break;
+ 
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 042997a8be..1aae7771c7 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -242,6 +242,7 @@ cgen(Node *n, Node *res)
+ 	case OOR:
+ 	case OXOR:
+ 	case OADD:
++	case OADDPTR:
+ 	case OMUL:
+ 		a = optoas(n->op, nl->type);
+ 		if(a == AIMULB) {
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index 60c74c60ec..e83ae5d7a5 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -432,6 +432,7 @@ optoas(int op, Type *t)
+ 	case CASE(OADD, TINT32):
+ 	case CASE(OADD, TUINT32):
+ 	case CASE(OADD, TPTR32):
++	case CASE(OADDPTR, TPTR32):
+ 		a = AADDL;
+ 		break;
+ 
+@@ -1687,7 +1688,6 @@ floatmove(Node *f, Node *t)
+ 		gins(ACMPL, &thi, ncon(0));
+ 		p1 = gbranch(AJLT, T, 0);
+ 		// native
+-		t1.type = types[TINT64];
+ 		nodreg(&r1, types[tt], D_F0);
+ 		gins(AFMOVV, &t1, &r1);
+ 		if(tt == TFLOAT32)
+@@ -2327,7 +2327,7 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		naddr(n->left, a, canemitcode);
+ 		if(a->type == D_CONST && a->offset == 0)
+ 			break;	// ptr(nil)
+-		a->etype = simtype[TUINTPTR];
++		a->etype = simtype[tptr];
+ 		a->offset += Array_array;
+ 		a->width = widthptr;
+ 		break;
+diff --git a/src/cmd/gc/bits.c b/src/cmd/gc/bits.c
+index c0fd4d85e6..2e79f6f1de 100644
+--- a/src/cmd/gc/bits.c
++++ b/src/cmd/gc/bits.c
+@@ -153,7 +153,7 @@ Qconv(Fmt *fp)
+ 		if(var[i].node == N || var[i].node->sym == S)
+ 			fmtprint(fp, "$%d", i);
+ 		else {
+-			fmtprint(fp, "%s", var[i].node->sym->name);
++			fmtprint(fp, "%s(%d)", var[i].node->sym->name, i);
+ 			if(var[i].offset != 0)
+ 				fmtprint(fp, "%+lld", (vlong)var[i].offset);
+ 		}
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index 17c0a7082d..cf630f3484 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -829,7 +829,6 @@ cgen_slice(Node *n, Node *res)
+ 		src = *n->left;
+ 	if(n->op == OSLICE || n->op == OSLICE3 || n->op == OSLICESTR)
+ 		src.xoffset += Array_array;
+-	src.type = types[TUINTPTR];
+ 
+ 	if(n->op == OSLICEARR || n->op == OSLICE3ARR) {
+ 		if(!isptr[n->left->type->etype])
+@@ -842,9 +841,11 @@ cgen_slice(Node *n, Node *res)
+ 			cgen(add, base);
+ 		}
+ 	} else if(offs == N) {
++		src.type = types[tptr];
+ 		cgen(&src, base);
+ 	} else {
+-		add = nod(OADD, &src, offs);
++		src.type = types[tptr];
++		add = nod(OADDPTR, &src, offs);
+ 		typecheck(&add, Erv);
+ 		cgen(add, base);
+ 	}
+@@ -855,7 +856,7 @@ cgen_slice(Node *n, Node *res)
+ 	// dst.array = src.array  [ + lo *width ]
+ 	dst = *res;
+ 	dst.xoffset += Array_array;
+-	dst.type = types[TUINTPTR];
++	dst.type = types[tptr];
+ 	
+ 	cgen(base, &dst);
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 125ae9cf44..44e3ceda0d 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -445,6 +445,7 @@ enum
+ 	OSUB,	// x - y
+ 	OOR,	// x | y
+ 	OXOR,	// x ^ y
++	OADDPTR,	// ptr + uintptr, inserted by compiler only, used to avoid unsafe type changes during codegen
+ 	OADDSTR,	// s + "foo"
+ 	OADDR,	// &x
+ 	OANDAND,	// b0 && b1
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index d7a2637224..b51fc3892a 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -535,6 +535,19 @@ reswitch:
+ 		op = n->etype;
+ 		goto arith;
+ 
++	case OADDPTR:
++		ok |= Erv;
++		l = typecheck(&n->left, Erv);
++		r = typecheck(&n->right, Erv);
++		if(l->type == T || r->type == T)
++			goto error;
++		if(l->type->etype != tptr)
++			fatal("bad OADDPTR left type %E for %N", l->type->etype, n->left);
++		if(r->type->etype != TUINTPTR)
++			fatal("bad OADDPTR right type %E for %N", r->type->etype, n->right);
++		n->type = types[tptr];
++		goto ret;
++
+ 	case OADD:
+ 	case OAND:
+ 	case OANDAND:
+diff --git a/test/fixedbugs/issue7316.go b/test/fixedbugs/issue7316.go
+new file mode 100644
+index 0000000000..4b32261d48
+--- /dev/null
++++ b/test/fixedbugs/issue7316.go
+@@ -0,0 +1,37 @@
++// runoutput
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 7316
++// This test exercises all types of numeric conversions, which was one
++// of the sources of etype mismatch during register allocation in 8g.
++
++package main
++
++import "fmt"
++
++const tpl = `
++func init() {
++	var i %s
++	j := %s(i)
++	_ = %s(j)
++}
++`
++
++func main() {
++	fmt.Println("package main")
++	ntypes := []string{
++		"byte", "rune", "uintptr",
++		"float32", "float64",
++		"int", "int8", "int16", "int32", "int64",
++		"uint", "uint8", "uint16", "uint32", "uint64",
++	}
++	for i, from := range ntypes {
++		for _, to := range ntypes[i:] {
++			fmt.Printf(tpl, from, to, from)
++		}
++	}
++	fmt.Println("func main() {}")
++}

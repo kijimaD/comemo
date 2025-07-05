@@ -14,6 +14,20 @@ Date:   Sat Aug 24 17:36:18 2024 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/runtime/sys/nih.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/runtime/sys/nih.go b/src/internal/runtime/sys/nih.go
+index 17eab67345..a9cbc48e14 100644
+--- a/src/internal/runtime/sys/nih.go
++++ b/src/internal/runtime/sys/nih.go
+@@ -14,7 +14,7 @@ type nih struct{}
+ // Other types can embed NotInHeap to make it not-in-heap. Specifically, pointers
+ // to these types must always fail the `runtime.inheap` check. The type may be used
+ // for global variables, or for objects in unmanaged memory (e.g., allocated with
+-// `sysAlloc`, `persistentalloc`, r`fixalloc`, or from a manually-managed span).
++// `sysAlloc`, `persistentalloc`, `fixalloc`, or from a manually-managed span).
+ //
+ // Specifically:
+ //

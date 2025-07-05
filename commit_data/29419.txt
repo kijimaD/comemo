@@ -29,6 +29,34 @@ Date:   Wed Sep 14 17:48:33 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/regexp/exec_test.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/regexp/exec_test.go b/src/regexp/exec_test.go
+index 69f187e38a..766394de6e 100644
+--- a/src/regexp/exec_test.go
++++ b/src/regexp/exec_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bufio"
+ 	"compress/bzip2"
+ 	"fmt"
++	"internal/testenv"
+ 	"io"
+ 	"os"
+ 	"path/filepath"
+@@ -659,9 +660,14 @@ func makeText(n int) []byte {
+ }
+ 
+ func BenchmarkMatch(b *testing.B) {
++	isRaceBuilder := strings.HasSuffix(testenv.Builder(), "-race")
++
+ 	for _, data := range benchData {
+ 		r := MustCompile(data.re)
+ 		for _, size := range benchSizes {
++			if isRaceBuilder && size.n > 1<<10 {
++				continue
++			}
+ 			t := makeText(size.n)
+ 			b.Run(data.name+"/"+size.name, func(b *testing.B) {
+ 				b.SetBytes(int64(size.n))

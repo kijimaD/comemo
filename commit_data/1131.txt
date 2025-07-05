@@ -7,6 +7,19 @@ Date:   Fri Nov 14 17:28:11 2008 -0800
     TBR=rsc
     OCL=19297
     CL=19297
-
+---
  src/cmd/ar/ar.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/ar/ar.c b/src/cmd/ar/ar.c
+index 056753ac30..7c4b7fc504 100644
+--- a/src/cmd/ar/ar.c
++++ b/src/cmd/ar/ar.c
+@@ -1519,6 +1519,7 @@ loadpkgdata(char *data, int len)
+ 					fprint(2, "ar: conflicting scopes for %s\n", name);
+ 					fprint(2, "%s:\t%s\n", x->file, x->export);
+ 					fprint(2, "%s:\t%s\n", file, export);
++					errors++;
+ 				}
+ 			}
+ 		}

@@ -8,7 +8,60 @@ Date:   Wed Jun 1 14:17:09 2011 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4556069
-
+---
  src/pkg/path/filepath/match.go      | 7 +++----
  src/pkg/path/filepath/match_test.go | 9 ++++++++-
  2 files changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/path/filepath/match.go b/src/pkg/path/filepath/match.go
+index a05bb5f7e7..9c344309d2 100644
+--- a/src/pkg/path/filepath/match.go
++++ b/src/pkg/path/filepath/match.go
+@@ -124,9 +124,8 @@ func matchChunk(chunk, s string) (rest string, ok bool, err os.Error) {
+ 			s = s[n:]
+ 			chunk = chunk[1:]
+ 			// possibly negated
+-			notNegated := true
+-			if len(chunk) > 0 && chunk[0] == '^' {
+-				notNegated = false
++			negated := chunk[0] == '^'
++			if negated {
+ 				chunk = chunk[1:]
+ 			}
+ 			// parse all ranges
+@@ -152,7 +151,7 @@ func matchChunk(chunk, s string) (rest string, ok bool, err os.Error) {
+ 				}
+ 				nrange++
+ 			}
+-			if match != notNegated {
++			if match == negated {
+ 				return
+ 			}
+ 
+diff --git a/src/pkg/path/filepath/match_test.go b/src/pkg/path/filepath/match_test.go
+index 43e1c1cc2f..a1c8333f37 100644
+--- a/src/pkg/path/filepath/match_test.go
++++ b/src/pkg/path/filepath/match_test.go
+@@ -69,6 +69,13 @@ var matchTests = []MatchTest{
+ 	{"*x", "xxx", true, nil},
+ }
+ 
++func errp(e os.Error) string {
++	if e == nil {
++		return "<nil>"
++	}
++	return e.String()
++}
++
+ func TestMatch(t *testing.T) {
+ 	if runtime.GOOS == "windows" {
+ 		// XXX: Don't pass for windows.
+@@ -77,7 +84,7 @@ func TestMatch(t *testing.T) {
+ 	for _, tt := range matchTests {
+ 		ok, err := Match(tt.pattern, tt.s)
+ 		if ok != tt.match || err != tt.err {
+-			t.Errorf("Match(%#q, %#q) = %v, %v want %v, nil", tt.pattern, tt.s, ok, err, tt.match)
++			t.Errorf("Match(%#q, %#q) = %v, %q want %v, %q", tt.pattern, tt.s, ok, errp(err), tt.match, errp(tt.err))
+ 		}
+ 	}
+ }

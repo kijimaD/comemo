@@ -10,7 +10,50 @@ Date:   Mon Sep 15 18:16:45 2014 -0700
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/144870045
-
+---
  src/cmd/ld/doc.go | 6 +++---
  test/linkx.go     | 8 ++++++--
  2 files changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/ld/doc.go b/src/cmd/ld/doc.go
+index 8135bd549c..5b5833db5d 100644
+--- a/src/cmd/ld/doc.go
++++ b/src/cmd/ld/doc.go
+@@ -63,9 +63,9 @@ Options new in this version:
+ 	-w
+ 		Omit the DWARF symbol table.
+ 	-X symbol value
+-		Set the value of an otherwise uninitialized string variable.
+-		The symbol name should be of the form importpath.name,
+-		as displayed in the symbol table printed by "go tool nm".
++		Set the value of a string variable. The symbol name
++		should be of the form importpath.name, as displayed
++		in the symbol table printed by "go tool nm".
+ 	-race
+ 		Link with race detection libraries.
+ 	-B value
+diff --git a/test/linkx.go b/test/linkx.go
+index 12d446ffc1..36d16aec9b 100644
+--- a/test/linkx.go
++++ b/test/linkx.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L -X main.tbd hello $F.$A && ./$A.out
++// $G $D/$F.go && $L -X main.tbd hello -X main.overwrite trumped $F.$A && ./$A.out
+ 
+ // NOTE: This test is not run by 'run.go' and so not run by all.bash.
+ // To run this test you must use the ./run shell script.
+@@ -12,9 +12,13 @@
+ package main
+ 
+ var tbd string
++var overwrite string = "dibs"
+ 
+ func main() {
+ 	if tbd != "hello" {
+-		println("BUG: test/linkx", len(tbd), tbd)
++		println("BUG: test/linkx tbd", len(tbd), tbd)
++	}
++	if overwrite != "trumped" {
++		println("BUG: test/linkx overwrite", len(overwrite), overwrite)
+ 	}
+ }

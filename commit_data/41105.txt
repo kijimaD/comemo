@@ -13,7 +13,7 @@ Date:   Wed Sep 4 11:40:03 2019 +0200
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/modload/testgo.go              | 2 +-
  src/cmd/go/internal/renameio/renameio_test.go      | 2 +-
  src/cmd/go/internal/renameio/umask_test.go         | 2 +-
@@ -23,3 +23,106 @@ Date:   Wed Sep 4 11:40:03 2019 +0200
  src/cmd/go/testdata/script/test_compile_binary.txt | 2 +-
  src/runtime/semasleep_test.go                      | 2 +-
  8 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/testgo.go b/src/cmd/go/internal/modload/testgo.go
+index 663b24a68d..6b34f5be39 100644
+--- a/src/cmd/go/internal/modload/testgo.go
++++ b/src/cmd/go/internal/modload/testgo.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//+build testgo
++// +build testgo
+ 
+ package modload
+ 
+diff --git a/src/cmd/go/internal/renameio/renameio_test.go b/src/cmd/go/internal/renameio/renameio_test.go
+index 81dba6d545..ace6e493cb 100644
+--- a/src/cmd/go/internal/renameio/renameio_test.go
++++ b/src/cmd/go/internal/renameio/renameio_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//+build !plan9
++// +build !plan9
+ 
+ package renameio
+ 
+diff --git a/src/cmd/go/internal/renameio/umask_test.go b/src/cmd/go/internal/renameio/umask_test.go
+index 1a471c9e4e..031fe46e09 100644
+--- a/src/cmd/go/internal/renameio/umask_test.go
++++ b/src/cmd/go/internal/renameio/umask_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//+build !nacl,!plan9,!windows,!js
++// +build !nacl,!plan9,!windows,!js
+ 
+ package renameio
+ 
+diff --git a/src/cmd/go/internal/robustio/robustio_other.go b/src/cmd/go/internal/robustio/robustio_other.go
+index 91ca56cb82..56e6ad6d9c 100644
+--- a/src/cmd/go/internal/robustio/robustio_other.go
++++ b/src/cmd/go/internal/robustio/robustio_other.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//+build !windows
++// +build !windows
+ 
+ package robustio
+ 
+diff --git a/src/cmd/go/internal/web/url_other.go b/src/cmd/go/internal/web/url_other.go
+index bd243e591a..2641ee62bf 100644
+--- a/src/cmd/go/internal/web/url_other.go
++++ b/src/cmd/go/internal/web/url_other.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//+build !windows
++// +build !windows
+ 
+ package web
+ 
+diff --git a/src/cmd/go/internal/web/url_other_test.go b/src/cmd/go/internal/web/url_other_test.go
+index b4a74d94b9..aa5663355e 100644
+--- a/src/cmd/go/internal/web/url_other_test.go
++++ b/src/cmd/go/internal/web/url_other_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//+build !windows
++// +build !windows
+ 
+ package web
+ 
+diff --git a/src/cmd/go/testdata/script/test_compile_binary.txt b/src/cmd/go/testdata/script/test_compile_binary.txt
+index 6562f2453f..63bb8ec3e7 100644
+--- a/src/cmd/go/testdata/script/test_compile_binary.txt
++++ b/src/cmd/go/testdata/script/test_compile_binary.txt
+@@ -4,5 +4,5 @@ env GO111MODULE=off
+ stderr 'build comment'
+ 
+ -- compile_binary/foo_test.go --
+-//+build foo
++// +build foo
+ package foo
+diff --git a/src/runtime/semasleep_test.go b/src/runtime/semasleep_test.go
+index f5b4a50697..3eb7c6a6d1 100644
+--- a/src/runtime/semasleep_test.go
++++ b/src/runtime/semasleep_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//+build !nacl,!plan9,!windows,!js
++// +build !nacl,!plan9,!windows,!js
+ 
+ package runtime_test
+ 

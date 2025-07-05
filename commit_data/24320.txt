@@ -15,6 +15,20 @@ Date:   Wed Jul 22 17:45:32 2015 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/conf.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/conf.go b/src/net/conf.go
+index e70178d34c..01bb585ce6 100644
+--- a/src/net/conf.go
++++ b/src/net/conf.go
+@@ -80,7 +80,7 @@ func initConfVal() {
+ 	_, localDomainDefined := syscall.Getenv("LOCALDOMAIN")
+ 	if os.Getenv("RES_OPTIONS") != "" ||
+ 		os.Getenv("HOSTALIASES") != "" ||
+-		netCgo ||
++		confVal.netCgo ||
+ 		localDomainDefined {
+ 		confVal.forceCgoLookupHost = true
+ 		return

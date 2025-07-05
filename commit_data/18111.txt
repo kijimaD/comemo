@@ -10,7 +10,66 @@ Date:   Tue Dec 24 08:08:15 2013 -0800
     R=golang-codereviews, dave
     CC=golang-codereviews
     https://golang.org/cl/45180043
-
+---
  src/pkg/runtime/cgo/gcc_freebsd_arm.c | 7 +++++++
  src/pkg/runtime/cgo/gcc_linux_arm.c   | 7 +++++++
  2 files changed, 14 insertions(+)
+
+diff --git a/src/pkg/runtime/cgo/gcc_freebsd_arm.c b/src/pkg/runtime/cgo/gcc_freebsd_arm.c
+index 211dca75cb..6e0f3b55bc 100644
+--- a/src/pkg/runtime/cgo/gcc_freebsd_arm.c
++++ b/src/pkg/runtime/cgo/gcc_freebsd_arm.c
+@@ -39,10 +39,14 @@ void
+ _cgo_sys_thread_start(ThreadStart *ts)
+ {
+ 	pthread_attr_t attr;
++	sigset_t ign, oset;
+ 	pthread_t p;
+ 	size_t size;
+ 	int err;
+ 
++	SIGFILLSET(ign);
++	pthread_sigmask(SIG_SETMASK, &ign, &oset);
++
+ 	// Not sure why the memset is necessary here,
+ 	// but without it, we get a bogus stack size
+ 	// out of pthread_attr_getstacksize.  C'est la Linux.
+@@ -52,6 +56,9 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	ts->g->stackguard = size;
+ 	err = pthread_create(&p, &attr, threadentry, ts);
++
++	pthread_sigmask(SIG_SETMASK, &oset, nil);
++
+ 	if (err != 0) {
+ 		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+ 		abort();
+diff --git a/src/pkg/runtime/cgo/gcc_linux_arm.c b/src/pkg/runtime/cgo/gcc_linux_arm.c
+index 9a6e585948..5edf537dd4 100644
+--- a/src/pkg/runtime/cgo/gcc_linux_arm.c
++++ b/src/pkg/runtime/cgo/gcc_linux_arm.c
+@@ -28,10 +28,14 @@ void
+ _cgo_sys_thread_start(ThreadStart *ts)
+ {
+ 	pthread_attr_t attr;
++	sigset_t ign, oset;
+ 	pthread_t p;
+ 	size_t size;
+ 	int err;
+ 
++	sigfillset(&ign);
++	pthread_sigmask(SIG_SETMASK, &ign, &oset);
++
+ 	// Not sure why the memset is necessary here,
+ 	// but without it, we get a bogus stack size
+ 	// out of pthread_attr_getstacksize.  C'est la Linux.
+@@ -41,6 +45,9 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	ts->g->stackguard = size;
+ 	err = pthread_create(&p, &attr, threadentry, ts);
++
++	pthread_sigmask(SIG_SETMASK, &oset, nil);
++
+ 	if (err != 0) {
+ 		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+ 		abort();

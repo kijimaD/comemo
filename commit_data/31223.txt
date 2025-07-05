@@ -9,7 +9,50 @@ Date:   Tue Feb 7 15:21:44 2017 +0000
     Change-Id: I23c0351b0708877e0b3d1b44a2bc2799cee52cd1
     Reviewed-on: https://go-review.googlesource.com/36426
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/image/geom.go      | 6 +-----
  src/image/geom_test.go | 7 +++----
  2 files changed, 4 insertions(+), 9 deletions(-)
+
+diff --git a/src/image/geom.go b/src/image/geom.go
+index ed7dde2c84..e1cd4dc1e3 100644
+--- a/src/image/geom.go
++++ b/src/image/geom.go
+@@ -161,11 +161,7 @@ func (r Rectangle) Intersect(s Rectangle) Rectangle {
+ 	if r.Max.Y > s.Max.Y {
+ 		r.Max.Y = s.Max.Y
+ 	}
+-	// Letting r0 and s0 be the values of r and s at the time that the method
+-	// is called, this next line is equivalent to:
+-	//
+-	// if max(r0.Min.X, s0.Min.X) >= min(r0.Max.X, s0.Max.X) || likewiseForY { etc }
+-	if r.Empty() {
++	if r.Min.X > r.Max.X || r.Min.Y > r.Max.Y {
+ 		return ZR
+ 	}
+ 	return r
+diff --git a/src/image/geom_test.go b/src/image/geom_test.go
+index 9fede02721..6e9c6a13c2 100644
+--- a/src/image/geom_test.go
++++ b/src/image/geom_test.go
+@@ -28,7 +28,6 @@ func TestRectangle(t *testing.T) {
+ 
+ 	rects := []Rectangle{
+ 		Rect(0, 0, 10, 10),
+-		Rect(10, 0, 20, 10),
+ 		Rect(1, 2, 3, 4),
+ 		Rect(4, 6, 10, 10),
+ 		Rect(2, 3, 12, 5),
+@@ -63,9 +62,9 @@ func TestRectangle(t *testing.T) {
+ 			if err := in(a, s); err != nil {
+ 				t.Errorf("Intersect: r=%s, s=%s, a=%s, a not in s: %v", r, s, a, err)
+ 			}
+-			if isZero, overlaps := a == (Rectangle{}), r.Overlaps(s); isZero == overlaps {
+-				t.Errorf("Intersect: r=%s, s=%s, a=%s: isZero=%t same as overlaps=%t",
+-					r, s, a, isZero, overlaps)
++			if a.Empty() == r.Overlaps(s) {
++				t.Errorf("Intersect: r=%s, s=%s, a=%s: empty=%t same as overlaps=%t",
++					r, s, a, a.Empty(), r.Overlaps(s))
+ 			}
+ 			largerThanA := [4]Rectangle{a, a, a, a}
+ 			largerThanA[0].Min.X--

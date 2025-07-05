@@ -18,6 +18,24 @@ Date:   Mon Jan 8 16:58:39 2024 +0000
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/doc/pkg.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/doc/pkg.go b/src/cmd/doc/pkg.go
+index dfdc5674e9..a21d8a4688 100644
+--- a/src/cmd/doc/pkg.go
++++ b/src/cmd/doc/pkg.go
+@@ -43,9 +43,9 @@ type Package struct {
+ 	buf         pkgBuffer
+ }
+ 
+-func (p *Package) ToText(w io.Writer, text, prefix, codePrefix string) {
+-	d := p.doc.Parser().Parse(text)
+-	pr := p.doc.Printer()
++func (pkg *Package) ToText(w io.Writer, text, prefix, codePrefix string) {
++	d := pkg.doc.Parser().Parse(text)
++	pr := pkg.doc.Printer()
+ 	pr.TextPrefix = prefix
+ 	pr.TextCodePrefix = codePrefix
+ 	w.Write(pr.Text(d))

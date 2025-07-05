@@ -11,8 +11,79 @@ Date:   Tue Mar 3 09:14:31 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/6630
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/asm/internal/asm/operand_test.go | 8 ++++----
  src/cmd/internal/obj/arm/list5.go        | 4 ++++
  src/cmd/internal/obj/ppc64/list9.go      | 4 ++++
  3 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/operand_test.go b/src/cmd/asm/internal/asm/operand_test.go
+index fd0331eb2c..5190ed45eb 100644
+--- a/src/cmd/asm/internal/asm/operand_test.go
++++ b/src/cmd/asm/internal/asm/operand_test.go
+@@ -289,7 +289,7 @@ var armOperandTests = []operandTest{
+ 	{"$256", "$256"},
+ 	{"(R0)", "(R0)"},
+ 	{"(R11)", "(R11)"},
+-	{"(g)", "(R10)"}, // TODO: Should print 0(g).
++	{"(g)", "(g)"},
+ 	{"-12(R4)", "-12(R4)"},
+ 	{"0(PC)", "0(PC)"},
+ 	{"1024", "1024"},
+@@ -324,7 +324,7 @@ var armOperandTests = []operandTest{
+ 	{"armCAS64(SB)", "armCAS64(SB)"},
+ 	{"asmcgocall<>(SB)", "asmcgocall<>(SB)"},
+ 	{"c+28(FP)", "c+28(FP)"},
+-	{"g", "R10"}, // TODO: Should print g.
++	{"g", "g"},
+ 	{"gosave<>(SB)", "gosave<>(SB)"},
+ 	{"retlo+12(FP)", "retlo+12(FP)"},
+ 	{"runtime·_sfloat2(SB)", "runtime._sfloat2(SB)"},
+@@ -349,7 +349,7 @@ var ppc64OperandTests = []operandTest{
+ 	{"$~3", "$-4"},
+ 	{"(-288-3*8)(R1)", "-312(R1)"},
+ 	{"(16)(R7)", "16(R7)"},
+-	{"(8)(g)", "8(R30)"}, // TODO: Should print 8(g)
++	{"(8)(g)", "8(g)"},
+ 	{"(CTR)", "(CTR)"},
+ 	{"(R0)", "(R0)"},
+ 	{"(R3)", "(R3)"},
+@@ -411,7 +411,7 @@ var ppc64OperandTests = []operandTest{
+ 	{"R9", "R9"},
+ 	{"SPR(269)", "SPR(269)"},
+ 	{"a(FP)", "a(FP)"},
+-	{"g", "R30"}, // TODO: Should print g.
++	{"g", "g"},
+ 	{"ret+8(FP)", "ret+8(FP)"},
+ 	{"runtime·abort(SB)", "runtime.abort(SB)"},
+ 	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
+diff --git a/src/cmd/internal/obj/arm/list5.go b/src/cmd/internal/obj/arm/list5.go
+index 0625cffcf9..321c1f8583 100644
+--- a/src/cmd/internal/obj/arm/list5.go
++++ b/src/cmd/internal/obj/arm/list5.go
+@@ -105,6 +105,10 @@ func Rconv(r int) string {
+ 	if r == 0 {
+ 		return "NONE"
+ 	}
++	if r == REGG {
++		// Special case.
++		return "g"
++	}
+ 	if REG_R0 <= r && r <= REG_R15 {
+ 		return fmt.Sprintf("R%d", r-REG_R0)
+ 	}
+diff --git a/src/cmd/internal/obj/ppc64/list9.go b/src/cmd/internal/obj/ppc64/list9.go
+index f9de6f34a6..048928442a 100644
+--- a/src/cmd/internal/obj/ppc64/list9.go
++++ b/src/cmd/internal/obj/ppc64/list9.go
+@@ -122,6 +122,10 @@ func Rconv(r int) string {
+ 	if r == 0 {
+ 		return "NONE"
+ 	}
++	if r == REGG {
++		// Special case.
++		return "g"
++	}
+ 	if REG_R0 <= r && r <= REG_R31 {
+ 		return fmt.Sprintf("R%d", r-REG_R0)
+ 	}

@@ -16,7 +16,7 @@ Date:   Wed May 17 14:22:55 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/chan.go        |  8 ++++----
  src/runtime/debugcall.go   |  2 +-
  src/runtime/lock_js.go     |  6 +++---
@@ -33,3 +33,402 @@ Date:   Wed May 17 14:22:55 2023 +0000
  src/runtime/time.go        |  2 +-
  src/runtime/trace.go       | 37 ++++++++++++++++++++++++++++++++++---
  15 files changed, 69 insertions(+), 38 deletions(-)
+
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index aff4cf87b7..ff9e2a9155 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -162,7 +162,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
+ 		if !block {
+ 			return false
+ 		}
+-		gopark(nil, nil, waitReasonChanSendNilChan, traceEvGoStop, 2)
++		gopark(nil, nil, waitReasonChanSendNilChan, traceBlockForever, 2)
+ 		throw("unreachable")
+ 	}
+ 
+@@ -256,7 +256,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
+ 	// changes and when we set gp.activeStackChans is not safe for
+ 	// stack shrinking.
+ 	gp.parkingOnChan.Store(true)
+-	gopark(chanparkcommit, unsafe.Pointer(&c.lock), waitReasonChanSend, traceEvGoBlockSend, 2)
++	gopark(chanparkcommit, unsafe.Pointer(&c.lock), waitReasonChanSend, traceBlockChanSend, 2)
+ 	// Ensure the value being sent is kept alive until the
+ 	// receiver copies it out. The sudog has a pointer to the
+ 	// stack object, but sudogs aren't considered as roots of the
+@@ -466,7 +466,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
+ 		if !block {
+ 			return
+ 		}
+-		gopark(nil, nil, waitReasonChanReceiveNilChan, traceEvGoStop, 2)
++		gopark(nil, nil, waitReasonChanReceiveNilChan, traceBlockForever, 2)
+ 		throw("unreachable")
+ 	}
+ 
+@@ -580,7 +580,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
+ 	// changes and when we set gp.activeStackChans is not safe for
+ 	// stack shrinking.
+ 	gp.parkingOnChan.Store(true)
+-	gopark(chanparkcommit, unsafe.Pointer(&c.lock), waitReasonChanReceive, traceEvGoBlockRecv, 2)
++	gopark(chanparkcommit, unsafe.Pointer(&c.lock), waitReasonChanReceive, traceBlockChanRecv, 2)
+ 
+ 	// someone woke us up
+ 	if mysg != gp.waiting {
+diff --git a/src/runtime/debugcall.go b/src/runtime/debugcall.go
+index b78663715f..ea413bd0c5 100644
+--- a/src/runtime/debugcall.go
++++ b/src/runtime/debugcall.go
+@@ -162,7 +162,7 @@ func debugCallWrap(dispatch uintptr) {
+ 
+ 		// Park the calling goroutine.
+ 		if traceEnabled() {
+-			traceGoPark(traceEvGoBlock, 1)
++			traceGoPark(traceBlockDebugCall, 1)
+ 		}
+ 		casGToWaiting(gp, _Grunning, waitReasonDebugCall)
+ 		dropg()
+diff --git a/src/runtime/lock_js.go b/src/runtime/lock_js.go
+index f87a94a849..ae2bb3db47 100644
+--- a/src/runtime/lock_js.go
++++ b/src/runtime/lock_js.go
+@@ -114,7 +114,7 @@ func notetsleepg(n *note, ns int64) bool {
+ 		notesWithTimeout[n] = noteWithTimeout{gp: gp, deadline: deadline}
+ 		releasem(mp)
+ 
+-		gopark(nil, nil, waitReasonSleep, traceEvNone, 1)
++		gopark(nil, nil, waitReasonSleep, traceBlockSleep, 1)
+ 
+ 		clearTimeoutEvent(id) // note might have woken early, clear timeout
+ 		clearIdleID()
+@@ -132,7 +132,7 @@ func notetsleepg(n *note, ns int64) bool {
+ 		notes[n] = gp
+ 		releasem(mp)
+ 
+-		gopark(nil, nil, waitReasonZero, traceEvNone, 1)
++		gopark(nil, nil, waitReasonZero, traceBlockGeneric, 1)
+ 
+ 		mp = acquirem()
+ 		delete(notes, n)
+@@ -256,7 +256,7 @@ func handleEvent() {
+ 
+ 	// wait until all goroutines are idle
+ 	e.returned = true
+-	gopark(nil, nil, waitReasonZero, traceEvNone, 1)
++	gopark(nil, nil, waitReasonZero, traceBlockGeneric, 1)
+ 
+ 	events[len(events)-1] = nil
+ 	events = events[:len(events)-1]
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index cfdbd79af6..650db18105 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -190,7 +190,7 @@ func runfinq() {
+ 		fb := finq
+ 		finq = nil
+ 		if fb == nil {
+-			gopark(finalizercommit, unsafe.Pointer(&finlock), waitReasonFinalizerWait, traceEvGoBlock, 1)
++			gopark(finalizercommit, unsafe.Pointer(&finlock), waitReasonFinalizerWait, traceBlockSystemGoroutine, 1)
+ 			continue
+ 		}
+ 		argRegs = intArgRegs
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 599f688e6f..c44b1164d3 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -500,7 +500,7 @@ func gcWaitOnMark(n uint32) {
+ 		// Wait until sweep termination, mark, and mark
+ 		// termination of cycle N complete.
+ 		work.sweepWaiters.list.push(getg())
+-		goparkunlock(&work.sweepWaiters.lock, waitReasonWaitForGCCycle, traceEvGoBlock, 1)
++		goparkunlock(&work.sweepWaiters.lock, waitReasonWaitForGCCycle, traceBlockUntilGCEnds, 1)
+ 	}
+ }
+ 
+@@ -1315,7 +1315,7 @@ func gcBgMarkWorker() {
+ 			// Note that at this point, the G may immediately be
+ 			// rescheduled and may be running.
+ 			return true
+-		}, unsafe.Pointer(node), waitReasonGCWorkerIdle, traceEvGoBlock, 0)
++		}, unsafe.Pointer(node), waitReasonGCWorkerIdle, traceBlockSystemGoroutine, 0)
+ 
+ 		// Preemption must not occur here, or another G might see
+ 		// p.gcMarkWorkerMode.
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 1a45847208..2ed411ae61 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -649,7 +649,7 @@ func gcParkAssist() bool {
+ 		return false
+ 	}
+ 	// Park.
+-	goparkunlock(&work.assistQueue.lock, waitReasonGCAssistWait, traceEvGoBlockGC, 2)
++	goparkunlock(&work.assistQueue.lock, waitReasonGCAssistWait, traceBlockGCMarkAssist, 2)
+ 	return true
+ }
+ 
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 3f95bb0465..10e93a13d3 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -422,7 +422,7 @@ func (s *scavengerState) park() {
+ 		throw("tried to park scavenger from another goroutine")
+ 	}
+ 	s.parked = true
+-	goparkunlock(&s.lock, waitReasonGCScavengeWait, traceEvGoBlock, 2)
++	goparkunlock(&s.lock, waitReasonGCScavengeWait, traceBlockSystemGoroutine, 2)
+ }
+ 
+ // ready signals to sysmon that the scavenger should be awoken.
+@@ -501,7 +501,7 @@ func (s *scavengerState) sleep(worked float64) {
+ 
+ 		// Mark ourselves as asleep and go to sleep.
+ 		s.parked = true
+-		goparkunlock(&s.lock, waitReasonSleep, traceEvGoSleep, 2)
++		goparkunlock(&s.lock, waitReasonSleep, traceBlockSleep, 2)
+ 
+ 		// How long we actually slept for.
+ 		slept = nanotime() - start
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index e0e5bf0aef..728a5bad7e 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -277,7 +277,7 @@ func bgsweep(c chan int) {
+ 	lock(&sweep.lock)
+ 	sweep.parked = true
+ 	c <- 1
+-	goparkunlock(&sweep.lock, waitReasonGCSweepWait, traceEvGoBlock, 1)
++	goparkunlock(&sweep.lock, waitReasonGCSweepWait, traceBlockGCSweep, 1)
+ 
+ 	for {
+ 		// bgsweep attempts to be a "low priority" goroutine by intentionally
+@@ -318,7 +318,7 @@ func bgsweep(c chan int) {
+ 			continue
+ 		}
+ 		sweep.parked = true
+-		goparkunlock(&sweep.lock, waitReasonGCSweepWait, traceEvGoBlock, 1)
++		goparkunlock(&sweep.lock, waitReasonGCSweepWait, traceBlockGCSweep, 1)
+ 	}
+ }
+ 
+diff --git a/src/runtime/netpoll.go b/src/runtime/netpoll.go
+index a2b0be2261..3e6a6961e3 100644
+--- a/src/runtime/netpoll.go
++++ b/src/runtime/netpoll.go
+@@ -561,7 +561,7 @@ func netpollblock(pd *pollDesc, mode int32, waitio bool) bool {
+ 	// this is necessary because runtime_pollUnblock/runtime_pollSetDeadline/deadlineimpl
+ 	// do the opposite: store to closing/rd/wd, publishInfo, load of rg/wg
+ 	if waitio || netpollcheckerr(pd, mode) == pollNoError {
+-		gopark(netpollblockcommit, unsafe.Pointer(gpp), waitReasonIOWait, traceEvGoBlockNet, 5)
++		gopark(netpollblockcommit, unsafe.Pointer(gpp), waitReasonIOWait, traceBlockNet, 5)
+ 	}
+ 	// be careful to not lose concurrent pdReady notification
+ 	old := gpp.Swap(pdNil)
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 5ac32fb259..276d7355e9 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -284,7 +284,7 @@ func main() {
+ 		}
+ 	}
+ 	if panicking.Load() != 0 {
+-		gopark(nil, nil, waitReasonPanicWait, traceEvGoStop, 1)
++		gopark(nil, nil, waitReasonPanicWait, traceBlockForever, 1)
+ 	}
+ 	runExitHooks(0)
+ 
+@@ -319,7 +319,7 @@ func forcegchelper() {
+ 			throw("forcegc: phase error")
+ 		}
+ 		forcegc.idle.Store(true)
+-		goparkunlock(&forcegc.lock, waitReasonForceGCIdle, traceEvGoBlock, 1)
++		goparkunlock(&forcegc.lock, waitReasonForceGCIdle, traceBlockSystemGoroutine, 1)
+ 		// this goroutine is explicitly resumed by sysmon
+ 		if debug.gctrace > 0 {
+ 			println("GC forced")
+@@ -378,7 +378,7 @@ func goschedIfBusy() {
+ // Reason explains why the goroutine has been parked. It is displayed in stack
+ // traces and heap dumps. Reasons should be unique and descriptive. Do not
+ // re-use reasons, add new ones.
+-func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason waitReason, traceEv byte, traceskip int) {
++func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason waitReason, traceReason traceBlockReason, traceskip int) {
+ 	if reason != waitReasonSleep {
+ 		checkTimeouts() // timeouts may expire while two goroutines keep the scheduler busy
+ 	}
+@@ -391,8 +391,8 @@ func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason w
+ 	mp.waitlock = lock
+ 	mp.waitunlockf = unlockf
+ 	gp.waitreason = reason
+-	mp.waittraceev = traceEv
+-	mp.waittraceskip = traceskip
++	mp.waitTraceBlockReason = traceReason
++	mp.waitTraceSkip = traceskip
+ 	releasem(mp)
+ 	// can't do anything that might move the G between Ms here.
+ 	mcall(park_m)
+@@ -400,8 +400,8 @@ func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason w
+ 
+ // Puts the current goroutine into a waiting state and unlocks the lock.
+ // The goroutine can be made runnable again by calling goready(gp).
+-func goparkunlock(lock *mutex, reason waitReason, traceEv byte, traceskip int) {
+-	gopark(parkunlock_c, unsafe.Pointer(lock), reason, traceEv, traceskip)
++func goparkunlock(lock *mutex, reason waitReason, traceReason traceBlockReason, traceskip int) {
++	gopark(parkunlock_c, unsafe.Pointer(lock), reason, traceReason, traceskip)
+ }
+ 
+ func goready(gp *g, traceskip int) {
+@@ -3678,7 +3678,7 @@ func park_m(gp *g) {
+ 	mp := getg().m
+ 
+ 	if traceEnabled() {
+-		traceGoPark(mp.waittraceev, mp.waittraceskip)
++		traceGoPark(mp.waitTraceBlockReason, mp.waitTraceSkip)
+ 	}
+ 
+ 	// N.B. Not using casGToWaiting here because the waitreason is
+@@ -3749,7 +3749,7 @@ func gopreempt_m(gp *g) {
+ //go:systemstack
+ func preemptPark(gp *g) {
+ 	if traceEnabled() {
+-		traceGoPark(traceEvGoBlock, 0)
++		traceGoPark(traceBlockPreempted, 0)
+ 	}
+ 	status := readgstatus(gp)
+ 	if status&^_Gscan != _Grunning {
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index a2075dddef..59271a6001 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -581,10 +581,10 @@ type m struct {
+ 
+ 	// wait* are used to carry arguments from gopark into park_m, because
+ 	// there's no stack to put them on. That is their sole purpose.
+-	waitunlockf   func(*g, unsafe.Pointer) bool
+-	waitlock      unsafe.Pointer
+-	waittraceev   byte
+-	waittraceskip int
++	waitunlockf          func(*g, unsafe.Pointer) bool
++	waitlock             unsafe.Pointer
++	waitTraceBlockReason traceBlockReason
++	waitTraceSkip        int
+ 
+ 	syscalltick uint32
+ 	freelink    *m // on sched.freem
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index 339db75d4a..34c06375c2 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -100,7 +100,7 @@ func selparkcommit(gp *g, _ unsafe.Pointer) bool {
+ }
+ 
+ func block() {
+-	gopark(nil, nil, waitReasonSelectNoCases, traceEvGoStop, 1) // forever
++	gopark(nil, nil, waitReasonSelectNoCases, traceBlockForever, 1) // forever
+ }
+ 
+ // selectgo implements the select statement.
+@@ -324,7 +324,7 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
+ 	// changes and when we set gp.activeStackChans is not safe for
+ 	// stack shrinking.
+ 	gp.parkingOnChan.Store(true)
+-	gopark(selparkcommit, nil, waitReasonSelect, traceEvGoBlockSelect, 1)
++	gopark(selparkcommit, nil, waitReasonSelect, traceBlockSelect, 1)
+ 	gp.activeStackChans = false
+ 
+ 	sellock(scases, lockorder)
+diff --git a/src/runtime/sema.go b/src/runtime/sema.go
+index bc23a85e34..d0a81170c3 100644
+--- a/src/runtime/sema.go
++++ b/src/runtime/sema.go
+@@ -157,7 +157,7 @@ func semacquire1(addr *uint32, lifo bool, profile semaProfileFlags, skipframes i
+ 		// Any semrelease after the cansemacquire knows we're waiting
+ 		// (we set nwait above), so go to sleep.
+ 		root.queue(addr, s, lifo)
+-		goparkunlock(&root.lock, reason, traceEvGoBlockSync, 4+skipframes)
++		goparkunlock(&root.lock, reason, traceBlockSync, 4+skipframes)
+ 		if s.ticket != 0 || cansemacquire(addr) {
+ 			break
+ 		}
+@@ -524,7 +524,7 @@ func notifyListWait(l *notifyList, t uint32) {
+ 		l.tail.next = s
+ 	}
+ 	l.tail = s
+-	goparkunlock(&l.lock, waitReasonSyncCondWait, traceEvGoBlockCond, 3)
++	goparkunlock(&l.lock, waitReasonSyncCondWait, traceBlockCondWait, 3)
+ 	if t0 != 0 {
+ 		blockevent(s.releasetime-t0, 2)
+ 	}
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index 6cd70b7aed..93c927f57c 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -192,7 +192,7 @@ func timeSleep(ns int64) {
+ 	if t.nextwhen < 0 { // check for overflow.
+ 		t.nextwhen = maxWhen
+ 	}
+-	gopark(resetForSleep, unsafe.Pointer(t), waitReasonSleep, traceEvGoSleep, 1)
++	gopark(resetForSleep, unsafe.Pointer(t), waitReasonSleep, traceBlockSleep, 1)
+ }
+ 
+ // resetForSleep is called after the goroutine is parked for timeSleep.
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 703a447674..0bf7c272c4 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -78,6 +78,35 @@ const (
+ 	// That means, the max event type value is 63.
+ )
+ 
++// traceBlockReason is an enumeration of reasons a goroutine might block.
++// This is the interface the rest of the runtime uses to tell the
++// tracer why a goroutine blocked. The tracer then propagates this information
++// into the trace however it sees fit.
++//
++// Note that traceBlockReasons should not be compared, since reasons that are
++// distinct by name may *not* be distinct by value.
++type traceBlockReason uint8
++
++// For maximal efficiency, just map the trace block reason directly to a trace
++// event.
++const (
++	traceBlockGeneric         traceBlockReason = traceEvGoBlock
++	traceBlockForever                          = traceEvGoStop
++	traceBlockNet                              = traceEvGoBlockNet
++	traceBlockSelect                           = traceEvGoBlockSelect
++	traceBlockCondWait                         = traceEvGoBlockCond
++	traceBlockSync                             = traceEvGoBlockSync
++	traceBlockChanSend                         = traceEvGoBlockSend
++	traceBlockChanRecv                         = traceEvGoBlockRecv
++	traceBlockGCMarkAssist                     = traceEvGoBlockGC
++	traceBlockGCSweep                          = traceEvGoBlock
++	traceBlockSystemGoroutine                  = traceEvGoBlock
++	traceBlockPreempted                        = traceEvGoBlock
++	traceBlockDebugCall                        = traceEvGoBlock
++	traceBlockUntilGCEnds                      = traceEvGoBlock
++	traceBlockSleep                            = traceEvGoSleep
++)
++
+ const (
+ 	// Timestamps in trace are cputicks/traceTickDiv.
+ 	// This makes absolute values of timestamp diffs smaller,
+@@ -511,7 +540,7 @@ top:
+ 			}
+ 
+ 			return true
+-		}, nil, waitReasonTraceReaderBlocked, traceEvGoBlock, 2)
++		}, nil, waitReasonTraceReaderBlocked, traceBlockSystemGoroutine, 2)
+ 		goto top
+ 	}
+ 
+@@ -1588,8 +1617,10 @@ func traceGoPreempt() {
+ 	traceEvent(traceEvGoPreempt, 1)
+ }
+ 
+-func traceGoPark(traceEv byte, skip int) {
+-	traceEvent(traceEv, skip)
++func traceGoPark(reason traceBlockReason, skip int) {
++	// Convert the block reason directly to a trace event type.
++	// See traceBlockReason for more information.
++	traceEvent(byte(reason), skip)
+ }
+ 
+ func traceGoUnpark(gp *g, skip int) {

@@ -16,6 +16,19 @@ Date:   Wed Nov 22 15:29:03 2017 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/stack.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 89458b7ff6..eb0716c18d 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -942,6 +942,7 @@ func newstack() {
+ 			"\tmorebuf={pc:", hex(morebuf.pc), " sp:", hex(morebuf.sp), " lr:", hex(morebuf.lr), "}\n",
+ 			"\tsched={pc:", hex(gp.sched.pc), " sp:", hex(gp.sched.sp), " lr:", hex(gp.sched.lr), " ctxt:", gp.sched.ctxt, "}\n")
+ 
++		thisg.m.traceback = 2 // Include runtime frames
+ 		traceback(morebuf.pc, morebuf.sp, morebuf.lr, gp)
+ 		throw("runtime: stack split at bad time")
+ 	}

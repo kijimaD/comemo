@@ -21,7 +21,61 @@ Date:   Mon Jan 23 11:03:03 2017 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/httputil/reverseproxy.go      |  4 +---
  src/net/http/httputil/reverseproxy_test.go | 27 +++++++++++++++++++++++++++
  2 files changed, 28 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index 79c8fe2770..60b94d7649 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -149,12 +149,10 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 		}()
+ 	}
+ 
+-	outreq := new(http.Request)
+-	*outreq = *req // includes shallow copies of maps, but okay
++	outreq := req.WithContext(ctx) // includes shallow copies of maps, but okay
+ 	if req.ContentLength == 0 {
+ 		outreq.Body = nil // Issue 16036: nil Body for http.Transport retries
+ 	}
+-	outreq = outreq.WithContext(ctx)
+ 
+ 	p.Director(outreq)
+ 	outreq.Close = false
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index 20c4e16bcb..9153508ef4 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -664,3 +664,30 @@ func TestReverseProxy_CopyBuffer(t *testing.T) {
+ 		}
+ 	}
+ }
++
++type staticTransport struct {
++	res *http.Response
++}
++
++func (t *staticTransport) RoundTrip(r *http.Request) (*http.Response, error) {
++	return t.res, nil
++}
++
++func BenchmarkServeHTTP(b *testing.B) {
++	res := &http.Response{
++		StatusCode: 200,
++		Body:       ioutil.NopCloser(strings.NewReader("")),
++	}
++	proxy := &ReverseProxy{
++		Director:  func(*http.Request) {},
++		Transport: &staticTransport{res},
++	}
++
++	w := httptest.NewRecorder()
++	r := httptest.NewRequest("GET", "/", nil)
++
++	b.ReportAllocs()
++	for i := 0; i < b.N; i++ {
++		proxy.ServeHTTP(w, r)
++	}
++}

@@ -18,8 +18,92 @@ Date:   Wed May 31 11:33:04 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/ld.go   | 17 +++++++----------
  src/cmd/link/internal/ld/link.go | 17 +++++++++--------
  src/cmd/link/internal/ld/sym.go  |  3 ++-
  3 files changed, 18 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/ld.go b/src/cmd/link/internal/ld/ld.go
+index 52f82c3b87..c6cad49f26 100644
+--- a/src/cmd/link/internal/ld/ld.go
++++ b/src/cmd/link/internal/ld/ld.go
+@@ -50,10 +50,8 @@ func addlib(ctxt *Link, src string, obj string, pathname string) *Library {
+ 	}
+ 
+ 	// already loaded?
+-	for i := 0; i < len(ctxt.Library); i++ {
+-		if ctxt.Library[i].Pkg == pkg {
+-			return ctxt.Library[i]
+-		}
++	if l := ctxt.LibraryByPkg[pkg]; l != nil {
++		return l
+ 	}
+ 
+ 	var pname string
+@@ -97,18 +95,17 @@ func addlib(ctxt *Link, src string, obj string, pathname string) *Library {
+  *	pkg: package import path, e.g. container/vector
+  */
+ func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg string, shlibnamefile string) *Library {
+-	for i := 0; i < len(ctxt.Library); i++ {
+-		if pkg == ctxt.Library[i].Pkg {
+-			return ctxt.Library[i]
+-		}
++	if l := ctxt.LibraryByPkg[pkg]; l != nil {
++		return l
+ 	}
+ 
+ 	if ctxt.Debugvlog > 1 {
+ 		ctxt.Logf("%5.2f addlibpath: srcref: %s objref: %s file: %s pkg: %s shlibnamefile: %s\n", Cputime(), srcref, objref, file, pkg, shlibnamefile)
+ 	}
+ 
+-	ctxt.Library = append(ctxt.Library, &Library{})
+-	l := ctxt.Library[len(ctxt.Library)-1]
++	l := &Library{}
++	ctxt.LibraryByPkg[pkg] = l
++	ctxt.Library = append(ctxt.Library, l)
+ 	l.Objref = objref
+ 	l.Srcref = srcref
+ 	l.File = file
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 8d9e4a7cf3..45ce20a700 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -220,14 +220,15 @@ type Link struct {
+ 
+ 	Loaded bool // set after all inputs have been loaded as symbols
+ 
+-	Tlsg       *Symbol
+-	Libdir     []string
+-	Library    []*Library
+-	Shlibs     []Shlib
+-	Tlsoffset  int
+-	Textp      []*Symbol
+-	Filesyms   []*Symbol
+-	Moduledata *Symbol
++	Tlsg         *Symbol
++	Libdir       []string
++	Library      []*Library
++	LibraryByPkg map[string]*Library
++	Shlibs       []Shlib
++	Tlsoffset    int
++	Textp        []*Symbol
++	Filesyms     []*Symbol
++	Moduledata   *Symbol
+ 
+ 	tramps []*Symbol // trampolines
+ }
+diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
+index f1bbdeb58b..6e239d79a5 100644
+--- a/src/cmd/link/internal/ld/sym.go
++++ b/src/cmd/link/internal/ld/sym.go
+@@ -47,7 +47,8 @@ func linknew(arch *sys.Arch) *Link {
+ 			},
+ 			Allsym: make([]*Symbol, 0, 100000),
+ 		},
+-		Arch: arch,
++		Arch:         arch,
++		LibraryByPkg: make(map[string]*Library),
+ 	}
+ 
+ 	if objabi.GOARCH != arch.Name {

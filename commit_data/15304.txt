@@ -11,7 +11,7 @@ Date:   Tue Feb 19 10:02:01 2013 -0500
     R=golang-dev, rsc, mikioh.mikioh
     CC=golang-dev, r
     https://golang.org/cl/7323044
-
+---
  src/pkg/container/heap/heap_test.go    |  3 +-
  src/pkg/crypto/md5/md5_test.go         |  9 +++---
  src/pkg/crypto/sha1/sha1_test.go       |  9 +++---
@@ -26,3 +26,589 @@ Date:   Tue Feb 19 10:02:01 2013 -0500
  src/pkg/runtime/debug/garbage_test.go  |  3 +-
  src/pkg/runtime/debug/stack_test.go    |  3 +-
  13 files changed, 69 insertions(+), 73 deletions(-)
+
+diff --git a/src/pkg/container/heap/heap_test.go b/src/pkg/container/heap/heap_test.go
+index 73f33e8d2c..274d587d87 100644
+--- a/src/pkg/container/heap/heap_test.go
++++ b/src/pkg/container/heap/heap_test.go
+@@ -2,10 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package heap_test
++package heap
+ 
+ import (
+-	. "container/heap"
+ 	"testing"
+ )
+ 
+diff --git a/src/pkg/crypto/md5/md5_test.go b/src/pkg/crypto/md5/md5_test.go
+index cac39ad054..3ef4519b9a 100644
+--- a/src/pkg/crypto/md5/md5_test.go
++++ b/src/pkg/crypto/md5/md5_test.go
+@@ -2,10 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package md5_test
++package md5
+ 
+ import (
+-	"crypto/md5"
+ 	"fmt"
+ 	"io"
+ 	"testing"
+@@ -54,7 +53,7 @@ var golden = []md5Test{
+ func TestGolden(t *testing.T) {
+ 	for i := 0; i < len(golden); i++ {
+ 		g := golden[i]
+-		c := md5.New()
++		c := New()
+ 		buf := make([]byte, len(g.in)+4)
+ 		for j := 0; j < 3+4; j++ {
+ 			if j < 2 {
+@@ -79,14 +78,14 @@ func TestGolden(t *testing.T) {
+ }
+ 
+ func ExampleNew() {
+-	h := md5.New()
++	h := New()
+ 	io.WriteString(h, "The fog is getting thicker!")
+ 	io.WriteString(h, "And Leon's getting laaarger!")
+ 	fmt.Printf("%x", h.Sum(nil))
+ 	// Output: e2c569be17396eca2a2e3c11578123ed
+ }
+ 
+-var bench = md5.New()
++var bench = New()
+ var buf = make([]byte, 8192+1)
+ var sum = make([]byte, bench.Size())
+ 
+diff --git a/src/pkg/crypto/sha1/sha1_test.go b/src/pkg/crypto/sha1/sha1_test.go
+index 5854112778..57cd4313eb 100644
+--- a/src/pkg/crypto/sha1/sha1_test.go
++++ b/src/pkg/crypto/sha1/sha1_test.go
+@@ -4,10 +4,9 @@
+ 
+ // SHA1 hash algorithm.  See RFC 3174.
+ 
+-package sha1_test
++package sha1
+ 
+ import (
+-	"crypto/sha1"
+ 	"fmt"
+ 	"io"
+ 	"testing"
+@@ -55,7 +54,7 @@ var golden = []sha1Test{
+ func TestGolden(t *testing.T) {
+ 	for i := 0; i < len(golden); i++ {
+ 		g := golden[i]
+-		c := sha1.New()
++		c := New()
+ 		for j := 0; j < 3; j++ {
+ 			if j < 2 {
+ 				io.WriteString(c, g.in)
+@@ -74,13 +73,13 @@ func TestGolden(t *testing.T) {
+ }
+ 
+ func ExampleNew() {
+-	h := sha1.New()
++	h := New()
+ 	io.WriteString(h, "His money is twice tainted: 'taint yours and 'taint mine.")
+ 	fmt.Printf("% x", h.Sum(nil))
+ 	// Output: 59 7f 6a 54 00 10 f9 4c 15 d7 18 06 a9 9a 2c 87 10 e7 47 bd
+ }
+ 
+-var bench = sha1.New()
++var bench = New()
+ var buf = make([]byte, 8192)
+ 
+ func benchmarkSize(b *testing.B, size int) {
+diff --git a/src/pkg/go/build/deps_test.go b/src/pkg/go/build/deps_test.go
+index c78733a065..9a715ba601 100644
+--- a/src/pkg/go/build/deps_test.go
++++ b/src/pkg/go/build/deps_test.go
+@@ -5,10 +5,9 @@
+ // This file exercises the import parser but also checks that
+ // some low-level packages do not have new dependencies added.
+ 
+-package build_test
++package build
+ 
+ import (
+-	"go/build"
+ 	"sort"
+ 	"testing"
+ )
+@@ -382,7 +381,7 @@ func TestDependencies(t *testing.T) {
+ 	}
+ 	sort.Strings(all)
+ 
+-	ctxt := build.Default
++	ctxt := Default
+ 	test := func(mustImport bool) {
+ 		for _, pkg := range all {
+ 			if isMacro(pkg) {
+diff --git a/src/pkg/io/ioutil/ioutil_test.go b/src/pkg/io/ioutil/ioutil_test.go
+index d9c43beada..c297847b4e 100644
+--- a/src/pkg/io/ioutil/ioutil_test.go
++++ b/src/pkg/io/ioutil/ioutil_test.go
+@@ -2,10 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package ioutil_test
++package ioutil
+ 
+ import (
+-	. "io/ioutil"
+ 	"os"
+ 	"testing"
+ )
+diff --git a/src/pkg/io/ioutil/tempfile_test.go b/src/pkg/io/ioutil/tempfile_test.go
+index 80c62f672c..d2a132a110 100644
+--- a/src/pkg/io/ioutil/tempfile_test.go
++++ b/src/pkg/io/ioutil/tempfile_test.go
+@@ -2,10 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package ioutil_test
++package ioutil
+ 
+ import (
+-	. "io/ioutil"
+ 	"os"
+ 	"path/filepath"
+ 	"regexp"
+diff --git a/src/pkg/net/conn_test.go b/src/pkg/net/conn_test.go
+index f733a81a3b..ef4efdac9e 100644
+--- a/src/pkg/net/conn_test.go
++++ b/src/pkg/net/conn_test.go
+@@ -2,10 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package net_test
++// This file implements API tests across platforms and will never have a build
++// tag.
++
++package net
+ 
+ import (
+-	"net"
+ 	"os"
+ 	"runtime"
+ 	"testing"
+@@ -35,13 +37,13 @@ func TestConnAndListener(t *testing.T) {
+ 			os.Remove(tt.addr)
+ 		}
+ 
+-		ln, err := net.Listen(tt.net, tt.addr)
++		ln, err := Listen(tt.net, tt.addr)
+ 		if err != nil {
+ 			t.Errorf("net.Listen failed: %v", err)
+ 			return
+ 		}
+ 		ln.Addr()
+-		defer func(ln net.Listener, net, addr string) {
++		defer func(ln Listener, net, addr string) {
+ 			ln.Close()
+ 			switch net {
+ 			case "unix", "unixpacket":
+@@ -52,7 +54,7 @@ func TestConnAndListener(t *testing.T) {
+ 		done := make(chan int)
+ 		go transponder(t, ln, done)
+ 
+-		c, err := net.Dial(tt.net, ln.Addr().String())
++		c, err := Dial(tt.net, ln.Addr().String())
+ 		if err != nil {
+ 			t.Errorf("net.Dial failed: %v", err)
+ 			return
+@@ -77,7 +79,7 @@ func TestConnAndListener(t *testing.T) {
+ 	}
+ }
+ 
+-func transponder(t *testing.T, ln net.Listener, done chan<- int) {
++func transponder(t *testing.T, ln Listener, done chan<- int) {
+ 	defer func() { done <- 1 }()
+ 
+ 	c, err := ln.Accept()
+diff --git a/src/pkg/net/http/filetransport_test.go b/src/pkg/net/http/filetransport_test.go
+index 039926b538..cf68045d2e 100644
+--- a/src/pkg/net/http/filetransport_test.go
++++ b/src/pkg/net/http/filetransport_test.go
+@@ -2,11 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package http_test
++package http
+ 
+ import (
+ 	"io/ioutil"
+-	"net/http"
+ 	"os"
+ 	"path/filepath"
+ 	"testing"
+@@ -32,9 +31,9 @@ func TestFileTransport(t *testing.T) {
+ 	defer os.Remove(dname)
+ 	defer os.Remove(fname)
+ 
+-	tr := &http.Transport{}
+-	tr.RegisterProtocol("file", http.NewFileTransport(http.Dir(dname)))
+-	c := &http.Client{Transport: tr}
++	tr := &Transport{}
++	tr.RegisterProtocol("file", NewFileTransport(Dir(dname)))
++	c := &Client{Transport: tr}
+ 
+ 	fooURLs := []string{"file:///foo.txt", "file://../foo.txt"}
+ 	for _, urlstr := range fooURLs {
+diff --git a/src/pkg/net/packetconn_test.go b/src/pkg/net/packetconn_test.go
+index ff29e24a9a..296fcd9a4f 100644
+--- a/src/pkg/net/packetconn_test.go
++++ b/src/pkg/net/packetconn_test.go
+@@ -2,10 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package net_test
++// This file implements API tests across platforms and will never have a build
++// tag.
++
++package net
+ 
+ import (
+-	"net"
+ 	"os"
+ 	"runtime"
+ 	"strings"
+@@ -24,7 +26,7 @@ var packetConnTests = []struct {
+ }
+ 
+ func TestPacketConn(t *testing.T) {
+-	closer := func(c net.PacketConn, net, addr1, addr2 string) {
++	closer := func(c PacketConn, net, addr1, addr2 string) {
+ 		c.Close()
+ 		switch net {
+ 		case "unixgram":
+@@ -61,7 +63,7 @@ func TestPacketConn(t *testing.T) {
+ 			continue
+ 		}
+ 
+-		c1, err := net.ListenPacket(tt.net, tt.addr1)
++		c1, err := ListenPacket(tt.net, tt.addr1)
+ 		if err != nil {
+ 			t.Fatalf("net.ListenPacket failed: %v", err)
+ 		}
+@@ -71,7 +73,7 @@ func TestPacketConn(t *testing.T) {
+ 		c1.SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
+ 		defer closer(c1, netstr[0], tt.addr1, tt.addr2)
+ 
+-		c2, err := net.ListenPacket(tt.net, tt.addr2)
++		c2, err := ListenPacket(tt.net, tt.addr2)
+ 		if err != nil {
+ 			t.Fatalf("net.ListenPacket failed: %v", err)
+ 		}
+@@ -119,7 +121,7 @@ func TestConnAndPacketConn(t *testing.T) {
+ 			continue
+ 		}
+ 
+-		c1, err := net.ListenPacket(tt.net, tt.addr1)
++		c1, err := ListenPacket(tt.net, tt.addr1)
+ 		if err != nil {
+ 			t.Fatalf("net.ListenPacket failed: %v", err)
+ 		}
+@@ -129,7 +131,7 @@ func TestConnAndPacketConn(t *testing.T) {
+ 		c1.SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
+ 		defer c1.Close()
+ 
+-		c2, err := net.Dial(tt.net, c1.LocalAddr().String())
++		c2, err := Dial(tt.net, c1.LocalAddr().String())
+ 		if err != nil {
+ 			t.Fatalf("net.Dial failed: %v", err)
+ 		}
+@@ -147,9 +149,9 @@ func TestConnAndPacketConn(t *testing.T) {
+ 		if _, _, err := c1.ReadFrom(rb1); err != nil {
+ 			t.Fatalf("net.PacetConn.ReadFrom failed: %v", err)
+ 		}
+-		var dst net.Addr
++		var dst Addr
+ 		if netstr[0] == "ip" {
+-			dst = &net.IPAddr{IP: net.IPv4(127, 0, 0, 1)}
++			dst = &IPAddr{IP: IPv4(127, 0, 0, 1)}
+ 		} else {
+ 			dst = c2.LocalAddr()
+ 		}
+diff --git a/src/pkg/net/protoconn_test.go b/src/pkg/net/protoconn_test.go
+index 1344fba8a0..0c3b3abeb6 100644
+--- a/src/pkg/net/protoconn_test.go
++++ b/src/pkg/net/protoconn_test.go
+@@ -2,11 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package net_test
++// This file implements API tests across platforms and will never have a build
++// tag.
++
++package net
+ 
+ import (
+ 	"bytes"
+-	"net"
+ 	"os"
+ 	"runtime"
+ 	"testing"
+@@ -23,11 +25,11 @@ var condErrorf = func() func(*testing.T, string, ...interface{}) {
+ }()
+ 
+ func TestTCPListenerSpecificMethods(t *testing.T) {
+-	la, err := net.ResolveTCPAddr("tcp4", "127.0.0.1:0")
++	la, err := ResolveTCPAddr("tcp4", "127.0.0.1:0")
+ 	if err != nil {
+ 		t.Fatalf("net.ResolveTCPAddr failed: %v", err)
+ 	}
+-	ln, err := net.ListenTCP("tcp4", la)
++	ln, err := ListenTCP("tcp4", la)
+ 	if err != nil {
+ 		t.Fatalf("net.ListenTCP failed: %v", err)
+ 	}
+@@ -36,7 +38,7 @@ func TestTCPListenerSpecificMethods(t *testing.T) {
+ 	defer ln.Close()
+ 
+ 	if c, err := ln.Accept(); err != nil {
+-		if !err.(net.Error).Timeout() {
++		if !err.(Error).Timeout() {
+ 			t.Errorf("net.TCPListener.Accept failed: %v", err)
+ 			return
+ 		}
+@@ -44,7 +46,7 @@ func TestTCPListenerSpecificMethods(t *testing.T) {
+ 		c.Close()
+ 	}
+ 	if c, err := ln.AcceptTCP(); err != nil {
+-		if !err.(net.Error).Timeout() {
++		if !err.(Error).Timeout() {
+ 			t.Errorf("net.TCPListener.AcceptTCP failed: %v", err)
+ 			return
+ 		}
+@@ -61,11 +63,11 @@ func TestTCPListenerSpecificMethods(t *testing.T) {
+ }
+ 
+ func TestTCPConnSpecificMethods(t *testing.T) {
+-	la, err := net.ResolveTCPAddr("tcp4", "127.0.0.1:0")
++	la, err := ResolveTCPAddr("tcp4", "127.0.0.1:0")
+ 	if err != nil {
+ 		t.Fatalf("net.ResolveTCPAddr failed: %v", err)
+ 	}
+-	ln, err := net.ListenTCP("tcp4", la)
++	ln, err := ListenTCP("tcp4", la)
+ 	if err != nil {
+ 		t.Fatalf("net.ListenTCP failed: %v", err)
+ 	}
+@@ -75,12 +77,12 @@ func TestTCPConnSpecificMethods(t *testing.T) {
+ 	done := make(chan int)
+ 	go transponder(t, ln, done)
+ 
+-	ra, err := net.ResolveTCPAddr("tcp4", ln.Addr().String())
++	ra, err := ResolveTCPAddr("tcp4", ln.Addr().String())
+ 	if err != nil {
+ 		t.Errorf("net.ResolveTCPAddr failed: %v", err)
+ 		return
+ 	}
+-	c, err := net.DialTCP("tcp4", nil, ra)
++	c, err := DialTCP("tcp4", nil, ra)
+ 	if err != nil {
+ 		t.Errorf("net.DialTCP failed: %v", err)
+ 		return
+@@ -109,11 +111,11 @@ func TestTCPConnSpecificMethods(t *testing.T) {
+ }
+ 
+ func TestUDPConnSpecificMethods(t *testing.T) {
+-	la, err := net.ResolveUDPAddr("udp4", "127.0.0.1:0")
++	la, err := ResolveUDPAddr("udp4", "127.0.0.1:0")
+ 	if err != nil {
+ 		t.Fatalf("net.ResolveUDPAddr failed: %v", err)
+ 	}
+-	c, err := net.ListenUDP("udp4", la)
++	c, err := ListenUDP("udp4", la)
+ 	if err != nil {
+ 		t.Fatalf("net.ListenUDP failed: %v", err)
+ 	}
+@@ -128,7 +130,7 @@ func TestUDPConnSpecificMethods(t *testing.T) {
+ 
+ 	wb := []byte("UDPCONN TEST")
+ 	rb := make([]byte, 128)
+-	if _, err := c.WriteToUDP(wb, c.LocalAddr().(*net.UDPAddr)); err != nil {
++	if _, err := c.WriteToUDP(wb, c.LocalAddr().(*UDPAddr)); err != nil {
+ 		t.Errorf("net.UDPConn.WriteToUDP failed: %v", err)
+ 		return
+ 	}
+@@ -136,7 +138,7 @@ func TestUDPConnSpecificMethods(t *testing.T) {
+ 		t.Errorf("net.UDPConn.ReadFromUDP failed: %v", err)
+ 		return
+ 	}
+-	if _, _, err := c.WriteMsgUDP(wb, nil, c.LocalAddr().(*net.UDPAddr)); err != nil {
++	if _, _, err := c.WriteMsgUDP(wb, nil, c.LocalAddr().(*UDPAddr)); err != nil {
+ 		condErrorf(t, "net.UDPConn.WriteMsgUDP failed: %v", err)
+ 		return
+ 	}
+@@ -162,11 +164,11 @@ func TestIPConnSpecificMethods(t *testing.T) {
+ 		t.Skipf("skipping test; must be root")
+ 	}
+ 
+-	la, err := net.ResolveIPAddr("ip4", "127.0.0.1")
++	la, err := ResolveIPAddr("ip4", "127.0.0.1")
+ 	if err != nil {
+ 		t.Fatalf("net.ResolveIPAddr failed: %v", err)
+ 	}
+-	c, err := net.ListenIP("ip4:icmp", la)
++	c, err := ListenIP("ip4:icmp", la)
+ 	if err != nil {
+ 		t.Fatalf("net.ListenIP failed: %v", err)
+ 	}
+@@ -182,7 +184,7 @@ func TestIPConnSpecificMethods(t *testing.T) {
+ 	id := os.Getpid() & 0xffff
+ 	wb := newICMPEchoRequest(id, 1, 128, []byte("IPCONN TEST "))
+ 	rb := make([]byte, 20+128)
+-	if _, err := c.WriteToIP(wb, c.LocalAddr().(*net.IPAddr)); err != nil {
++	if _, err := c.WriteToIP(wb, c.LocalAddr().(*IPAddr)); err != nil {
+ 		t.Errorf("net.IPConn.WriteToIP failed: %v", err)
+ 		return
+ 	}
+@@ -190,7 +192,7 @@ func TestIPConnSpecificMethods(t *testing.T) {
+ 		t.Errorf("net.IPConn.ReadFromIP failed: %v", err)
+ 		return
+ 	}
+-	if _, _, err := c.WriteMsgIP(wb, nil, c.LocalAddr().(*net.IPAddr)); err != nil {
++	if _, _, err := c.WriteMsgIP(wb, nil, c.LocalAddr().(*IPAddr)); err != nil {
+ 		condErrorf(t, "net.UDPConn.WriteMsgIP failed: %v", err)
+ 		return
+ 	}
+@@ -215,11 +217,11 @@ func TestUnixListenerSpecificMethods(t *testing.T) {
+ 
+ 	p := "/tmp/gotest.net"
+ 	os.Remove(p)
+-	la, err := net.ResolveUnixAddr("unix", p)
++	la, err := ResolveUnixAddr("unix", p)
+ 	if err != nil {
+ 		t.Fatalf("net.ResolveUnixAddr failed: %v", err)
+ 	}
+-	ln, err := net.ListenUnix("unix", la)
++	ln, err := ListenUnix("unix", la)
+ 	if err != nil {
+ 		t.Fatalf("net.ListenUnix failed: %v", err)
+ 	}
+@@ -229,7 +231,7 @@ func TestUnixListenerSpecificMethods(t *testing.T) {
+ 	defer os.Remove(p)
+ 
+ 	if c, err := ln.Accept(); err != nil {
+-		if !err.(net.Error).Timeout() {
++		if !err.(Error).Timeout() {
+ 			t.Errorf("net.TCPListener.AcceptTCP failed: %v", err)
+ 			return
+ 		}
+@@ -237,7 +239,7 @@ func TestUnixListenerSpecificMethods(t *testing.T) {
+ 		c.Close()
+ 	}
+ 	if c, err := ln.AcceptUnix(); err != nil {
+-		if !err.(net.Error).Timeout() {
++		if !err.(Error).Timeout() {
+ 			t.Errorf("net.TCPListener.AcceptTCP failed: %v", err)
+ 			return
+ 		}
+@@ -264,11 +266,11 @@ func TestUnixConnSpecificMethods(t *testing.T) {
+ 	os.Remove(p2)
+ 	os.Remove(p3)
+ 
+-	a1, err := net.ResolveUnixAddr("unixgram", p1)
++	a1, err := ResolveUnixAddr("unixgram", p1)
+ 	if err != nil {
+ 		t.Fatalf("net.ResolveUnixAddr failed: %v", err)
+ 	}
+-	c1, err := net.DialUnix("unixgram", a1, nil)
++	c1, err := DialUnix("unixgram", a1, nil)
+ 	if err != nil {
+ 		t.Fatalf("net.DialUnix failed: %v", err)
+ 	}
+@@ -282,12 +284,12 @@ func TestUnixConnSpecificMethods(t *testing.T) {
+ 	defer c1.Close()
+ 	defer os.Remove(p1)
+ 
+-	a2, err := net.ResolveUnixAddr("unixgram", p2)
++	a2, err := ResolveUnixAddr("unixgram", p2)
+ 	if err != nil {
+ 		t.Errorf("net.ResolveUnixAddr failed: %v", err)
+ 		return
+ 	}
+-	c2, err := net.DialUnix("unixgram", a2, nil)
++	c2, err := DialUnix("unixgram", a2, nil)
+ 	if err != nil {
+ 		t.Errorf("net.DialUnix failed: %v", err)
+ 		return
+@@ -302,12 +304,12 @@ func TestUnixConnSpecificMethods(t *testing.T) {
+ 	defer c2.Close()
+ 	defer os.Remove(p2)
+ 
+-	a3, err := net.ResolveUnixAddr("unixgram", p3)
++	a3, err := ResolveUnixAddr("unixgram", p3)
+ 	if err != nil {
+ 		t.Errorf("net.ResolveUnixAddr failed: %v", err)
+ 		return
+ 	}
+-	c3, err := net.ListenUnixgram("unixgram", a3)
++	c3, err := ListenUnixgram("unixgram", a3)
+ 	if err != nil {
+ 		t.Errorf("net.ListenUnixgram failed: %v", err)
+ 		return
+diff --git a/src/pkg/path/filepath/match_test.go b/src/pkg/path/filepath/match_test.go
+index 7b0ea80179..f1bc60e354 100644
+--- a/src/pkg/path/filepath/match_test.go
++++ b/src/pkg/path/filepath/match_test.go
+@@ -2,10 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package filepath_test
++package filepath
+ 
+ import (
+-	. "path/filepath"
+ 	"runtime"
+ 	"strings"
+ 	"testing"
+diff --git a/src/pkg/runtime/debug/garbage_test.go b/src/pkg/runtime/debug/garbage_test.go
+index ba536c746f..5fda5ca1ae 100644
+--- a/src/pkg/runtime/debug/garbage_test.go
++++ b/src/pkg/runtime/debug/garbage_test.go
+@@ -2,11 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package debug_test
++package debug
+ 
+ import (
+ 	"runtime"
+-	. "runtime/debug"
+ 	"testing"
+ 	"time"
+ )
+diff --git a/src/pkg/runtime/debug/stack_test.go b/src/pkg/runtime/debug/stack_test.go
+index 8daa3b2424..bbd662618f 100644
+--- a/src/pkg/runtime/debug/stack_test.go
++++ b/src/pkg/runtime/debug/stack_test.go
+@@ -2,10 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package debug_test
++package debug
+ 
+ import (
+-	. "runtime/debug"
+ 	"strings"
+ 	"testing"
+ )

@@ -9,10 +9,111 @@ Date:   Wed Mar 9 12:59:13 2011 +1100
     R=r
     CC=golang-dev
     https://golang.org/cl/4243067
-
+---
  doc/codelab/wiki/final-noclosure.go     | 2 +-
  doc/codelab/wiki/final-noerror.go       | 4 ++--
  doc/codelab/wiki/final-parsetemplate.go | 2 +-
  doc/codelab/wiki/final-template.go      | 2 +-
  doc/codelab/wiki/index.html             | 8 ++++----
  5 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/doc/codelab/wiki/final-noclosure.go b/doc/codelab/wiki/final-noclosure.go
+index 99121f298b..d09a0d7ab9 100644
+--- a/doc/codelab/wiki/final-noclosure.go
++++ b/doc/codelab/wiki/final-noclosure.go
+@@ -73,7 +73,7 @@ func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
+ 		http.Error(w, err.String(), http.StatusInternalServerError)
+ 		return
+ 	}
+-	err = t.Execute(p, w)
++	err = t.Execute(w, p)
+ 	if err != nil {
+ 		http.Error(w, err.String(), http.StatusInternalServerError)
+ 	}
+diff --git a/doc/codelab/wiki/final-noerror.go b/doc/codelab/wiki/final-noerror.go
+index 0f18912d2e..5fcf1de76d 100644
+--- a/doc/codelab/wiki/final-noerror.go
++++ b/doc/codelab/wiki/final-noerror.go
+@@ -35,14 +35,14 @@ func editHandler(w http.ResponseWriter, r *http.Request) {
+ 		p = &Page{Title: title}
+ 	}
+ 	t, _ := template.ParseFile("edit.html", nil)
+-	t.Execute(p, w)
++	t.Execute(w, p)
+ }
+ 
+ func viewHandler(w http.ResponseWriter, r *http.Request) {
+ 	title := r.URL.Path[lenPath:]
+ 	p, _ := loadPage(title)
+ 	t, _ := template.ParseFile("view.html", nil)
+-	t.Execute(p, w)
++	t.Execute(w, p)
+ }
+ 
+ func main() {
+diff --git a/doc/codelab/wiki/final-parsetemplate.go b/doc/codelab/wiki/final-parsetemplate.go
+index ea89776015..f25012eed1 100644
+--- a/doc/codelab/wiki/final-parsetemplate.go
++++ b/doc/codelab/wiki/final-parsetemplate.go
+@@ -61,7 +61,7 @@ func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
+ 		http.Error(w, err.String(), http.StatusInternalServerError)
+ 		return
+ 	}
+-	err = t.Execute(p, w)
++	err = t.Execute(w, p)
+ 	if err != nil {
+ 		http.Error(w, err.String(), http.StatusInternalServerError)
+ 	}
+diff --git a/doc/codelab/wiki/final-template.go b/doc/codelab/wiki/final-template.go
+index 4d6a2cfaba..aab536ee1a 100644
+--- a/doc/codelab/wiki/final-template.go
++++ b/doc/codelab/wiki/final-template.go
+@@ -53,7 +53,7 @@ func saveHandler(w http.ResponseWriter, r *http.Request) {
+ 
+ func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
+ 	t, _ := template.ParseFile(tmpl+".html", nil)
+-	t.Execute(p, w)
++	t.Execute(w, p)
+ }
+ 
+ func main() {
+diff --git a/doc/codelab/wiki/index.html b/doc/codelab/wiki/index.html
+index fc8c27bfa0..d059fa027d 100644
+--- a/doc/codelab/wiki/index.html
++++ b/doc/codelab/wiki/index.html
+@@ -475,7 +475,7 @@ func editHandler(w http.ResponseWriter, r *http.Request) {
+ 		p = &amp;Page{Title: title}
+ 	}
+ 	t, _ := template.ParseFile(&#34;edit.html&#34;, nil)
+-	t.Execute(p, w)
++	t.Execute(w, p)
+ }
+ </pre>
+ 
+@@ -527,7 +527,7 @@ func viewHandler(w http.ResponseWriter, r *http.Request) {
+ 	title := r.URL.Path[lenPath:]
+ 	p, _ := loadPage(title)
+ 	t, _ := template.ParseFile(&#34;view.html&#34;, nil)
+-	t.Execute(p, w)
++	t.Execute(w, p)
+ }
+ </pre>
+ 
+@@ -555,7 +555,7 @@ func editHandler(w http.ResponseWriter, r *http.Request) {
+ 
+ func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
+ 	t, _ := template.ParseFile(tmpl+&#34;.html&#34;, nil)
+-	t.Execute(p, w)
++	t.Execute(w, p)
+ }
+ </pre>
+ 
+@@ -644,7 +644,7 @@ func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
+ 		http.Error(w, err.String(), http.StatusInternalServerError)
+ 		return
+ 	}
+-	err = t.Execute(p, w)
++	err = t.Execute(w, p)
+ 	if err != nil {
+ 		http.Error(w, err.String(), http.StatusInternalServerError)
+ 	}

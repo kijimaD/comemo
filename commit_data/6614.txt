@@ -9,6 +9,20 @@ Date:   Mon Oct 25 16:38:48 2010 +1100
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/2701041
-
+---
  src/make.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/make.bash b/src/make.bash
+index 0a0f49455f..11fa99ba4c 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -96,7 +96,7 @@ installed() {
+ 	echo Installed Go for $GOOS/$GOARCH in "$GOROOT".
+ 	echo Installed commands in "$GOBIN".
+ 	case "$OLDPATH" in
+-	*":$GOBIN" | *":$GOBIN:"*)
++	"$GOBIN:"* | *":$GOBIN" | *":$GOBIN:"*)
+ 		;;
+ 	*)
+ 		echo '***' "You need to add $GOBIN to your "'$PATH.' '***'

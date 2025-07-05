@@ -21,8 +21,148 @@ Date:   Tue Feb 19 14:42:05 2013 -0500
     R=gri
     CC=golang-dev
     https://golang.org/cl/7325051
-
+---
  src/pkg/exp/ssa/builder.go | 12 +++++++-----
  src/pkg/exp/ssa/func.go    | 41 ++++++++++++++++++++++++++---------------
  src/pkg/go/types/errors.go |  6 +++++-
  3 files changed, 38 insertions(+), 21 deletions(-)
+
+diff --git a/src/pkg/exp/ssa/builder.go b/src/pkg/exp/ssa/builder.go
+index 3dcc16f22e..810f7840c4 100644
+--- a/src/pkg/exp/ssa/builder.go
++++ b/src/pkg/exp/ssa/builder.go
+@@ -2570,11 +2570,13 @@ func (b *Builder) CreatePackage(importPath string, files []*ast.File) (*Package,
+ // from the gc compiler's object files; no code will be available.
+ //
+ func (b *Builder) createPackageImpl(typkg *types.Package, importPath string, files []*ast.File) *Package {
+-	// TODO(gri): make this an invariant and eliminate importPath
+-	// param and Package field.
+-	// if importPath != p.Types.Path {
+-	// 	panic(importPath + " != " + p.Types.Path)
+-	// }
++	// The typechecker sets types.Package.Path only for GcImported
++	// packages, since it doesn't know import path until after typechecking is done.
++	// Here we ensure it is always set, since we know the correct path.
++	// TODO(adonovan): eliminate redundant ssa.Package.ImportPath field.
++	if typkg.Path == "" {
++		typkg.Path = importPath
++	}
+ 
+ 	p := &Package{
+ 		Prog:       b.Prog,
+diff --git a/src/pkg/exp/ssa/func.go b/src/pkg/exp/ssa/func.go
+index dca3ca7510..f48c66aab9 100644
+--- a/src/pkg/exp/ssa/func.go
++++ b/src/pkg/exp/ssa/func.go
+@@ -255,6 +255,7 @@ func (f *Function) finish() {
+ 			}
+ 		}
+ 	}
++
+ 	optimizeBlocks(f)
+ 
+ 	// Build immediate-use (referrers) graph.
+@@ -351,8 +352,11 @@ func (f *Function) emit(instr Instruction) Value {
+ // FullName returns the full name of this function, qualified by
+ // package name, receiver type, etc.
+ //
++// The specific formatting rules are not guaranteed and may change.
++//
+ // Examples:
+ //      "math.IsNaN"                // a package-level function
++//      "IsNaN"                     // intra-package reference to same
+ //      "(*sync.WaitGroup).Add"     // a declared method
+ //      "(*exp/ssa.Ret).Block"      // a bridge method
+ //      "(ssa.Instruction).Block"   // an interface method thunk
+@@ -379,27 +383,20 @@ func (f *Function) fullName(from *Package) string {
+ 		} else {
+ 			recvType = f.Params[0].Type() // interface method thunk
+ 		}
+-		// TODO(adonovan): print type package-qualified, if NamedType.
+ 		return fmt.Sprintf("(%s).%s", recvType, f.Name_)
+ 	}
+ 
+-	// "pkg." prefix for cross-package references only.
+-	var pkgQual string
+-	if from != f.Pkg {
+-		pkgQual = f.Pkg.ImportPath + "."
+-	}
+-
+ 	// Declared method?
+ 	if recv != nil {
+-		star := ""
+-		if isPointer(recv.Type) {
+-			star = "*"
+-		}
+-		return fmt.Sprintf("(%s%s%s).%s", star, pkgQual, deref(recv.Type), f.Name_)
++		return fmt.Sprintf("(%s).%s", recv.Type, f.Name_)
+ 	}
+ 
+ 	// Package-level function.
+-	return pkgQual + f.Name_
++	// Prefix with package name for cross-package references only.
++	if from != f.Pkg {
++		return fmt.Sprintf("%s.%s", f.Pkg.ImportPath, f.Name_)
++	}
++	return f.Name_
+ }
+ 
+ // DumpTo prints to w a human readable "disassembly" of the SSA code of
+@@ -408,7 +405,6 @@ func (f *Function) fullName(from *Package) string {
+ func (f *Function) DumpTo(w io.Writer) {
+ 	fmt.Fprintf(w, "# Name: %s\n", f.FullName())
+ 	fmt.Fprintf(w, "# Declared at %s\n", f.Prog.Files.Position(f.Pos))
+-	fmt.Fprintf(w, "# Type: %s\n", f.Signature)
+ 
+ 	if f.Enclosing != nil {
+ 		fmt.Fprintf(w, "# Parent: %s\n", f.Enclosing.Name())
+@@ -421,6 +417,7 @@ func (f *Function) DumpTo(w io.Writer) {
+ 		}
+ 	}
+ 
++	// Function Signature in declaration syntax; derived from types.Signature.String().
+ 	io.WriteString(w, "func ")
+ 	params := f.Params
+ 	if f.Signature.Recv != nil {
+@@ -435,9 +432,23 @@ func (f *Function) DumpTo(w io.Writer) {
+ 		}
+ 		io.WriteString(w, v.Name())
+ 		io.WriteString(w, " ")
++		if f.Signature.IsVariadic && i == len(params)-1 {
++			io.WriteString(w, "...")
++		}
+ 		io.WriteString(w, v.Type().String())
+ 	}
+-	io.WriteString(w, "):\n")
++	io.WriteString(w, ")")
++	if res := f.Signature.Results; res != nil {
++		io.WriteString(w, " ")
++		var t types.Type
++		if len(res) == 1 && res[0].Name == "" {
++			t = res[0].Type
++		} else {
++			t = &types.Result{Values: res}
++		}
++		io.WriteString(w, t.String())
++	}
++	io.WriteString(w, ":\n")
+ 
+ 	for _, b := range f.Blocks {
+ 		if b == nil {
+diff --git a/src/pkg/go/types/errors.go b/src/pkg/go/types/errors.go
+index c8b420b4db..6dd3284937 100644
+--- a/src/pkg/go/types/errors.go
++++ b/src/pkg/go/types/errors.go
+@@ -307,7 +307,11 @@ func writeType(buf *bytes.Buffer, typ Type) {
+ 
+ 	case *NamedType:
+ 		s := "<NamedType w/o object>"
+-		if t.Obj != nil {
++		if obj := t.Obj; obj != nil {
++			if obj.Pkg != nil && obj.Pkg.Path != "" {
++				buf.WriteString(obj.Pkg.Path)
++				buf.WriteString(".")
++			}
+ 			s = t.Obj.GetName()
+ 		}
+ 		buf.WriteString(s)

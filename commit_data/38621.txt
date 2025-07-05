@@ -10,6 +10,24 @@ Date:   Sun Nov 11 12:19:20 2018 +0300
     Change-Id: Iaf6eb57afc84e25862f99a342f5824e315bcdcb7
     Reviewed-on: https://go-review.googlesource.com/c/148922
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/build/read_test.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/go/build/read_test.go b/src/go/build/read_test.go
+index 2a36a012d5..8636533f69 100644
+--- a/src/go/build/read_test.go
++++ b/src/go/build/read_test.go
+@@ -110,11 +110,8 @@ func testRead(t *testing.T, tests []readTest, read func(io.Reader) ([]byte, erro
+ 		if err != nil {
+ 			if tt.err == "" {
+ 				t.Errorf("#%d: err=%q, expected success (%q)", i, err, string(buf))
+-				continue
+-			}
+-			if !strings.Contains(err.Error(), tt.err) {
++			} else if !strings.Contains(err.Error(), tt.err) {
+ 				t.Errorf("#%d: err=%q, expected %q", i, err, tt.err)
+-				continue
+ 			}
+ 			continue
+ 		}

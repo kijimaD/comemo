@@ -7,7 +7,123 @@ Date:   Tue Sep 10 20:00:21 2013 +0900
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/13396051
-
+---
  src/pkg/net/fd_posix_test.go | 57 --------------------------------------------
  src/pkg/net/net.go           | 34 --------------------------
  2 files changed, 91 deletions(-)
+
+diff --git a/src/pkg/net/fd_posix_test.go b/src/pkg/net/fd_posix_test.go
+deleted file mode 100644
+index 6d2794b712..0000000000
+--- a/src/pkg/net/fd_posix_test.go
++++ /dev/null
+@@ -1,57 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build darwin dragonfly freebsd linux netbsd openbsd windows
+-
+-package net
+-
+-import (
+-	"testing"
+-	"time"
+-)
+-
+-var deadlineSetTimeTests = []struct {
+-	input    time.Time
+-	expected int64
+-}{
+-	{noDeadline, 0},
+-	{time.Date(2009, 11, 10, 23, 00, 00, 00, time.UTC), 1257894000000000000}, // 2009-11-10 23:00:00 +0000 UTC
+-}
+-
+-func TestDeadlineSetTime(t *testing.T) {
+-	for _, tt := range deadlineSetTimeTests {
+-		var d deadline
+-		d.setTime(tt.input)
+-		actual := d.value()
+-		expected := int64(0)
+-		if !tt.input.IsZero() {
+-			expected = tt.input.UnixNano()
+-		}
+-		if actual != expected {
+-			t.Errorf("set/value failed: expected %v, actual %v", expected, actual)
+-		}
+-	}
+-}
+-
+-var deadlineExpiredTests = []struct {
+-	deadline time.Time
+-	expired  bool
+-}{
+-	// note, times are relative to the start of the test run, not
+-	// the start of TestDeadlineExpired
+-	{time.Now().Add(5 * time.Minute), false},
+-	{time.Now().Add(-5 * time.Minute), true},
+-	{noDeadline, false},
+-}
+-
+-func TestDeadlineExpired(t *testing.T) {
+-	for _, tt := range deadlineExpiredTests {
+-		var d deadline
+-		d.set(tt.deadline.UnixNano())
+-		expired := d.expired()
+-		if expired != tt.expired {
+-			t.Errorf("expire failed: expected %v, actual %v", tt.expired, expired)
+-		}
+-	}
+-}
+diff --git a/src/pkg/net/net.go b/src/pkg/net/net.go
+index 4f177c64ed..44288643d6 100644
+--- a/src/pkg/net/net.go
++++ b/src/pkg/net/net.go
+@@ -46,7 +46,6 @@ import (
+ 	"errors"
+ 	"io"
+ 	"os"
+-	"sync"
+ 	"syscall"
+ 	"time"
+ )
+@@ -401,39 +400,6 @@ func genericReadFrom(w io.Writer, r io.Reader) (n int64, err error) {
+ 	return io.Copy(writerOnly{w}, r)
+ }
+ 
+-// deadline is an atomically-accessed number of nanoseconds since 1970
+-// or 0, if no deadline is set.
+-type deadline struct {
+-	sync.Mutex
+-	val int64
+-}
+-
+-func (d *deadline) expired() bool {
+-	t := d.value()
+-	return t > 0 && time.Now().UnixNano() >= t
+-}
+-
+-func (d *deadline) value() (v int64) {
+-	d.Lock()
+-	v = d.val
+-	d.Unlock()
+-	return
+-}
+-
+-func (d *deadline) set(v int64) {
+-	d.Lock()
+-	d.val = v
+-	d.Unlock()
+-}
+-
+-func (d *deadline) setTime(t time.Time) {
+-	if t.IsZero() {
+-		d.set(0)
+-	} else {
+-		d.set(t.UnixNano())
+-	}
+-}
+-
+ // Limit the number of concurrent cgo-using goroutines, because
+ // each will block an entire operating system thread. The usual culprit
+ // is resolving many DNS names in separate goroutines but the DNS

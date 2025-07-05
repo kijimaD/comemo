@@ -12,7 +12,61 @@ Date:   Mon Sep 21 12:00:24 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/typecheck.go | 16 ++++++++++++++++
  test/fixedbugs/issue41500.go             | 20 ++++++++++++++++++++
  2 files changed, 36 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 12c99bf48f..2c445567de 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -630,6 +630,22 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 			break
+ 		}
+ 
++		// For "x == x && len(s)", it's better to report that "len(s)" (type int)
++		// can't be used with "&&" than to report that "x == x" (type untyped bool)
++		// can't be converted to int (see issue #41500).
++		if n.Op == OANDAND || n.Op == OOROR {
++			if !n.Left.Type.IsBoolean() {
++				yyerror("invalid operation: %v (operator %v not defined on %s)", n, n.Op, typekind(n.Left.Type))
++				n.Type = nil
++				return n
++			}
++			if !n.Right.Type.IsBoolean() {
++				yyerror("invalid operation: %v (operator %v not defined on %s)", n, n.Op, typekind(n.Right.Type))
++				n.Type = nil
++				return n
++			}
++		}
++
+ 		// ideal mixed with non-ideal
+ 		l, r = defaultlit2(l, r, false)
+ 
+diff --git a/test/fixedbugs/issue41500.go b/test/fixedbugs/issue41500.go
+new file mode 100644
+index 0000000000..d1e4efc8fd
+--- /dev/null
++++ b/test/fixedbugs/issue41500.go
+@@ -0,0 +1,20 @@
++// errorcheck
++
++// Copyright 2020 The Go Authors. All rights reserved.  Use of this
++// source code is governed by a BSD-style license that can be found in
++// the LICENSE file.
++
++package p
++
++type s struct {
++	slice []int
++}
++
++func f() {
++	var x *s
++
++	_ = x == nil || len(x.slice) // ERROR "invalid operation: .+ \(operator \|\| not defined on int\)"
++	_ = len(x.slice) || x == nil // ERROR "invalid operation: .+ \(operator \|\| not defined on int\)"
++	_ = x == nil && len(x.slice) // ERROR "invalid operation: .+ \(operator && not defined on int\)"
++	_ = len(x.slice) && x == nil // ERROR "invalid operation: .+ \(operator && not defined on int\)"
++}

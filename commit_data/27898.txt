@@ -19,6 +19,54 @@ Date:   Fri Apr 15 15:20:24 2016 -0400
     Reviewed-by: Adam Langley <agl@golang.org>
     Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/aes/aes_test.go | 36 ------------------------------------
  1 file changed, 36 deletions(-)
+
+diff --git a/src/crypto/aes/aes_test.go b/src/crypto/aes/aes_test.go
+index 363180931c..28144968fc 100644
+--- a/src/crypto/aes/aes_test.go
++++ b/src/crypto/aes/aes_test.go
+@@ -280,42 +280,6 @@ var encryptTests = []CryptTest{
+ 	},
+ }
+ 
+-// Test encryptBlock against FIPS 197 examples.
+-func TestEncryptBlock(t *testing.T) {
+-	for i, tt := range encryptTests {
+-		n := len(tt.key) + 28
+-		enc := make([]uint32, n)
+-		dec := make([]uint32, n)
+-		expandKey(tt.key, enc, dec)
+-		out := make([]byte, len(tt.in))
+-		encryptBlock(enc, out, tt.in)
+-		for j, v := range out {
+-			if v != tt.out[j] {
+-				t.Errorf("encryptBlock %d: out[%d] = %#x, want %#x", i, j, v, tt.out[j])
+-				break
+-			}
+-		}
+-	}
+-}
+-
+-// Test decryptBlock against FIPS 197 examples.
+-func TestDecryptBlock(t *testing.T) {
+-	for i, tt := range encryptTests {
+-		n := len(tt.key) + 28
+-		enc := make([]uint32, n)
+-		dec := make([]uint32, n)
+-		expandKey(tt.key, enc, dec)
+-		plain := make([]byte, len(tt.in))
+-		decryptBlock(dec, plain, tt.out)
+-		for j, v := range plain {
+-			if v != tt.in[j] {
+-				t.Errorf("decryptBlock %d: plain[%d] = %#x, want %#x", i, j, v, tt.in[j])
+-				break
+-			}
+-		}
+-	}
+-}
+-
+ // Test Cipher Encrypt method against FIPS 197 examples.
+ func TestCipherEncrypt(t *testing.T) {
+ 	for i, tt := range encryptTests {

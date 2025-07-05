@@ -12,7 +12,7 @@ Date:   Sat Feb 21 21:01:40 2015 +0300
     Reviewed-on: https://go-review.googlesource.com/5523
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/cmd/trace/trace.go                |  12 +-
  src/internal/trace/parser.go          |   4 +-
  src/runtime/chan.go                   |  24 +--
@@ -30,3 +30,1170 @@ Date:   Sat Feb 21 21:01:40 2015 +0300
  src/runtime/time.go                   |   8 +-
  src/runtime/trace.go                  |  84 ++++++-----
  16 files changed, 389 insertions(+), 164 deletions(-)
+
+diff --git a/src/cmd/trace/trace.go b/src/cmd/trace/trace.go
+index 8f8ef14687..41a56b92bb 100644
+--- a/src/cmd/trace/trace.go
++++ b/src/cmd/trace/trace.go
+@@ -343,12 +343,12 @@ func (ctx *traceContext) proc(ev *trace.Event) uint64 {
+ 
+ func (ctx *traceContext) emitSlice(ev *trace.Event, name string) {
+ 	ctx.emit(&ViewerEvent{
+-		Name:  name,
+-		Phase: "X",
+-		Time:  ctx.time(ev),
+-		Dur:   ctx.time(ev.Link) - ctx.time(ev),
+-		Tid:   ctx.proc(ev),
+-		//Stack: ctx.stack(ev.Stk),
++		Name:     name,
++		Phase:    "X",
++		Time:     ctx.time(ev),
++		Dur:      ctx.time(ev.Link) - ctx.time(ev),
++		Tid:      ctx.proc(ev),
++		Stack:    ctx.stack(ev.Stk),
+ 		EndStack: ctx.stack(ev.Link.Stk),
+ 	})
+ }
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+index 62d063c5d8..4e5f534d4c 100644
+--- a/src/internal/trace/parser.go
++++ b/src/internal/trace/parser.go
+@@ -609,7 +609,7 @@ const (
+ 	EvGoBlockNet     = 27 // goroutine blocks on network [timestamp, stack]
+ 	EvGoSysCall      = 28 // syscall enter [timestamp, stack]
+ 	EvGoSysExit      = 29 // syscall exit [timestamp, goroutine id]
+-	EvGoSysBlock     = 30 // syscall blocks [timestamp, stack]
++	EvGoSysBlock     = 30 // syscall blocks [timestamp]
+ 	EvGoWaiting      = 31 // denotes that goroutine is blocked when tracing starts [goroutine id]
+ 	EvGoInSyscall    = 32 // denotes that goroutine is in syscall when tracing starts [goroutine id]
+ 	EvHeapAlloc      = 33 // memstats.heap_alloc change [timestamp, heap_alloc]
+@@ -653,7 +653,7 @@ var EventDescriptions = [EvCount]struct {
+ 	EvGoBlockNet:     {"GoBlockNet", true, []string{}},
+ 	EvGoSysCall:      {"GoSysCall", true, []string{}},
+ 	EvGoSysExit:      {"GoSysExit", false, []string{"g"}},
+-	EvGoSysBlock:     {"GoSysBlock", true, []string{}},
++	EvGoSysBlock:     {"GoSysBlock", false, []string{}},
+ 	EvGoWaiting:      {"GoWaiting", false, []string{"g"}},
+ 	EvGoInSyscall:    {"GoInSyscall", false, []string{"g"}},
+ 	EvHeapAlloc:      {"HeapAlloc", false, []string{"mem"}},
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index 28af9e5a64..ba226a1b42 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -113,7 +113,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
+ 		if !block {
+ 			return false
+ 		}
+-		gopark(nil, nil, "chan send (nil chan)", traceEvGoStop)
++		gopark(nil, nil, "chan send (nil chan)", traceEvGoStop, 2)
+ 		throw("unreachable")
+ 	}
+ 
+@@ -172,7 +172,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
+ 			if sg.releasetime != 0 {
+ 				sg.releasetime = cputicks()
+ 			}
+-			goready(recvg)
++			goready(recvg, 3)
+ 			return true
+ 		}
+ 
+@@ -195,7 +195,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
+ 		mysg.selectdone = nil
+ 		gp.param = nil
+ 		c.sendq.enqueue(mysg)
+-		goparkunlock(&c.lock, "chan send", traceEvGoBlockSend)
++		goparkunlock(&c.lock, "chan send", traceEvGoBlockSend, 3)
+ 
+ 		// someone woke us up.
+ 		if mysg != gp.waiting {
+@@ -234,7 +234,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
+ 		mysg.elem = nil
+ 		mysg.selectdone = nil
+ 		c.sendq.enqueue(mysg)
+-		goparkunlock(&c.lock, "chan send", traceEvGoBlockSend)
++		goparkunlock(&c.lock, "chan send", traceEvGoBlockSend, 3)
+ 
+ 		// someone woke us up - try again
+ 		if mysg.releasetime > 0 {
+@@ -268,7 +268,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
+ 		if sg.releasetime != 0 {
+ 			sg.releasetime = cputicks()
+ 		}
+-		goready(recvg)
++		goready(recvg, 3)
+ 	} else {
+ 		unlock(&c.lock)
+ 	}
+@@ -309,7 +309,7 @@ func closechan(c *hchan) {
+ 		if sg.releasetime != 0 {
+ 			sg.releasetime = cputicks()
+ 		}
+-		goready(gp)
++		goready(gp, 3)
+ 	}
+ 
+ 	// release all writers
+@@ -324,7 +324,7 @@ func closechan(c *hchan) {
+ 		if sg.releasetime != 0 {
+ 			sg.releasetime = cputicks()
+ 		}
+-		goready(gp)
++		goready(gp, 3)
+ 	}
+ 	unlock(&c.lock)
+ }
+@@ -357,7 +357,7 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
+ 		if !block {
+ 			return
+ 		}
+-		gopark(nil, nil, "chan receive (nil chan)", traceEvGoStop)
++		gopark(nil, nil, "chan receive (nil chan)", traceEvGoStop, 2)
+ 		throw("unreachable")
+ 	}
+ 
+@@ -406,7 +406,7 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
+ 			if sg.releasetime != 0 {
+ 				sg.releasetime = cputicks()
+ 			}
+-			goready(gp)
++			goready(gp, 3)
+ 			selected = true
+ 			received = true
+ 			return
+@@ -431,7 +431,7 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
+ 		mysg.selectdone = nil
+ 		gp.param = nil
+ 		c.recvq.enqueue(mysg)
+-		goparkunlock(&c.lock, "chan receive", traceEvGoBlockRecv)
++		goparkunlock(&c.lock, "chan receive", traceEvGoBlockRecv, 3)
+ 
+ 		// someone woke us up
+ 		if mysg != gp.waiting {
+@@ -488,7 +488,7 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
+ 		mysg.selectdone = nil
+ 
+ 		c.recvq.enqueue(mysg)
+-		goparkunlock(&c.lock, "chan receive", traceEvGoBlockRecv)
++		goparkunlock(&c.lock, "chan receive", traceEvGoBlockRecv, 3)
+ 
+ 		// someone woke us up - try again
+ 		if mysg.releasetime > 0 {
+@@ -521,7 +521,7 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
+ 		if sg.releasetime != 0 {
+ 			sg.releasetime = cputicks()
+ 		}
+-		goready(gp)
++		goready(gp, 3)
+ 	} else {
+ 		unlock(&c.lock)
+ 	}
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index d066b609b7..deaea441e3 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -146,7 +146,7 @@ func runfinq() {
+ 			gp := getg()
+ 			fing = gp
+ 			fingwait = true
+-			goparkunlock(&finlock, "finalizer wait", traceEvGoBlock)
++			goparkunlock(&finlock, "finalizer wait", traceEvGoBlock, 1)
+ 			continue
+ 		}
+ 		unlock(&finlock)
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index e8fd80c091..16f2e13200 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -270,7 +270,7 @@ func startGC(mode int) {
+ 		go backgroundgc()
+ 	} else if bggc.working == 0 {
+ 		bggc.working = 1
+-		ready(bggc.g)
++		ready(bggc.g, 0)
+ 	}
+ 	unlock(&bggc.lock)
+ }
+@@ -291,7 +291,7 @@ func backgroundgc() {
+ 		gc(gcBackgroundMode)
+ 		lock(&bggc.lock)
+ 		bggc.working = 0
+-		goparkunlock(&bggc.lock, "Concurrent GC wait", traceEvGoBlock)
++		goparkunlock(&bggc.lock, "Concurrent GC wait", traceEvGoBlock, 1)
+ 	}
+ }
+ 
+@@ -580,7 +580,7 @@ func gcSweep(mode int) {
+ 	lock(&sweep.lock)
+ 	if sweep.parked {
+ 		sweep.parked = false
+-		ready(sweep.g)
++		ready(sweep.g, 0)
+ 	}
+ 	unlock(&sweep.lock)
+ 	mProf_GC()
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 18b19f30b4..d72ef3aa36 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -48,7 +48,7 @@ func bgsweep(c chan int) {
+ 	lock(&sweep.lock)
+ 	sweep.parked = true
+ 	c <- 1
+-	goparkunlock(&sweep.lock, "GC sweep wait", traceEvGoBlock)
++	goparkunlock(&sweep.lock, "GC sweep wait", traceEvGoBlock, 1)
+ 
+ 	for {
+ 		for gosweepone() != ^uintptr(0) {
+@@ -64,7 +64,7 @@ func bgsweep(c chan int) {
+ 			continue
+ 		}
+ 		sweep.parked = true
+-		goparkunlock(&sweep.lock, "GC sweep wait", traceEvGoBlock)
++		goparkunlock(&sweep.lock, "GC sweep wait", traceEvGoBlock, 1)
+ 	}
+ }
+ 
+diff --git a/src/runtime/netpoll.go b/src/runtime/netpoll.go
+index 8ea0878ca2..a131da8542 100644
+--- a/src/runtime/netpoll.go
++++ b/src/runtime/netpoll.go
+@@ -237,10 +237,10 @@ func net_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
+ 	}
+ 	unlock(&pd.lock)
+ 	if rg != nil {
+-		goready(rg)
++		goready(rg, 3)
+ 	}
+ 	if wg != nil {
+-		goready(wg)
++		goready(wg, 3)
+ 	}
+ }
+ 
+@@ -266,10 +266,10 @@ func net_runtime_pollUnblock(pd *pollDesc) {
+ 	}
+ 	unlock(&pd.lock)
+ 	if rg != nil {
+-		goready(rg)
++		goready(rg, 3)
+ 	}
+ 	if wg != nil {
+-		goready(wg)
++		goready(wg, 3)
+ 	}
+ }
+ 
+@@ -333,7 +333,7 @@ func netpollblock(pd *pollDesc, mode int32, waitio bool) bool {
+ 	// this is necessary because runtime_pollUnblock/runtime_pollSetDeadline/deadlineimpl
+ 	// do the opposite: store to closing/rd/wd, membarrier, load of rg/wg
+ 	if waitio || netpollcheckerr(pd, mode) == 0 {
+-		gopark(netpollblockcommit, unsafe.Pointer(gpp), "IO wait", traceEvGoBlockNet)
++		gopark(netpollblockcommit, unsafe.Pointer(gpp), "IO wait", traceEvGoBlockNet, 5)
+ 	}
+ 	// be careful to not lose concurrent READY notification
+ 	old := xchguintptr(gpp, 0)
+@@ -401,10 +401,10 @@ func netpolldeadlineimpl(pd *pollDesc, seq uintptr, read, write bool) {
+ 	}
+ 	unlock(&pd.lock)
+ 	if rg != nil {
+-		goready(rg)
++		goready(rg, 0)
+ 	}
+ 	if wg != nil {
+-		goready(wg)
++		goready(wg, 0)
+ 	}
+ }
+ 
+diff --git a/src/runtime/pprof/trace_stack_test.go b/src/runtime/pprof/trace_stack_test.go
+new file mode 100644
+index 0000000000..79ff4ed40d
+--- /dev/null
++++ b/src/runtime/pprof/trace_stack_test.go
+@@ -0,0 +1,277 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package pprof_test
++
++import (
++	"bytes"
++	"internal/trace"
++	"net"
++	"os"
++	"runtime"
++	. "runtime/pprof"
++	"sync"
++	"testing"
++	"time"
++)
++
++// TestTraceSymbolize tests symbolization and that events has proper stacks.
++// In particular that we strip bottom uninteresting frames like goexit,
++// top uninteresting frames (runtime guts).
++func TestTraceSymbolize(t *testing.T) {
++	skipTraceTestsIfNeeded(t)
++	if runtime.GOOS == "nacl" {
++		t.Skip("skipping: nacl tests fail with 'failed to symbolize trace: failed to start addr2line'")
++	}
++	buf := new(bytes.Buffer)
++	if err := StartTrace(buf); err != nil {
++		t.Fatalf("failed to start tracing: %v", err)
++	}
++
++	// Now we will do a bunch of things for which we verify stacks later.
++	// It is impossible to ensure that a goroutine has actually blocked
++	// on a channel, in a select or otherwise. So we kick off goroutines
++	// that need to block first in the hope that while we are executing
++	// the rest of the test, they will block.
++	go func() {
++		select {}
++	}()
++	go func() {
++		var c chan int
++		c <- 0
++	}()
++	go func() {
++		var c chan int
++		<-c
++	}()
++	done1 := make(chan bool)
++	go func() {
++		<-done1
++	}()
++	done2 := make(chan bool)
++	go func() {
++		done2 <- true
++	}()
++	c1 := make(chan int)
++	c2 := make(chan int)
++	go func() {
++		select {
++		case <-c1:
++		case <-c2:
++		}
++	}()
++	var mu sync.Mutex
++	mu.Lock()
++	go func() {
++		mu.Lock()
++		mu.Unlock()
++	}()
++	var wg sync.WaitGroup
++	wg.Add(1)
++	go func() {
++		wg.Wait()
++	}()
++	cv := sync.NewCond(&sync.Mutex{})
++	go func() {
++		cv.L.Lock()
++		cv.Wait()
++		cv.L.Unlock()
++	}()
++	ln, err := net.Listen("tcp", "localhost:0")
++	if err != nil {
++		t.Fatalf("failed to listen: %v", err)
++	}
++	go func() {
++		c, err := ln.Accept()
++		if err != nil {
++			t.Fatalf("failed to accept: %v", err)
++		}
++		c.Close()
++	}()
++	rp, wp, err := os.Pipe()
++	if err != nil {
++		t.Fatalf("failed to create a pipe: %v", err)
++	}
++	defer rp.Close()
++	defer wp.Close()
++	go func() {
++		var data [1]byte
++		rp.Read(data[:])
++	}()
++
++	time.Sleep(time.Millisecond)
++	runtime.GC()
++	runtime.Gosched()
++	time.Sleep(time.Millisecond) // the last chance for the goroutines above to block
++	done1 <- true
++	<-done2
++	select {
++	case c1 <- 0:
++	case c2 <- 0:
++	}
++	mu.Unlock()
++	wg.Done()
++	cv.Signal()
++	c, err := net.Dial("tcp", ln.Addr().String())
++	if err != nil {
++		t.Fatalf("failed to dial: %v", err)
++	}
++	c.Close()
++	var data [1]byte
++	wp.Write(data[:])
++
++	StopTrace()
++	events, err := trace.Parse(buf)
++	if err != nil {
++		t.Fatalf("failed to parse trace: %v", err)
++	}
++	err = trace.Symbolize(events, os.Args[0])
++	if err != nil {
++		t.Fatalf("failed to symbolize trace: %v", err)
++	}
++
++	// Now check that the stacks are correct.
++	type frame struct {
++		Fn   string
++		Line int
++	}
++	type eventDesc struct {
++		Type byte
++		Stk  []frame
++	}
++	want := []eventDesc{
++		eventDesc{trace.EvGCStart, []frame{
++			frame{"runtime.GC", 0},
++			frame{"runtime/pprof_test.TestTraceSymbolize", 104},
++			frame{"testing.tRunner", 0},
++		}},
++		eventDesc{trace.EvGoSched, []frame{
++			frame{"runtime/pprof_test.TestTraceSymbolize", 105},
++			frame{"testing.tRunner", 0},
++		}},
++		eventDesc{trace.EvGoCreate, []frame{
++			frame{"runtime/pprof_test.TestTraceSymbolize", 39},
++			frame{"testing.tRunner", 0},
++		}},
++		eventDesc{trace.EvGoStop, []frame{
++			frame{"runtime.block", 0},
++			frame{"runtime/pprof_test.TestTraceSymbolize.func1", 38},
++		}},
++		eventDesc{trace.EvGoStop, []frame{
++			frame{"runtime.chansend1", 0},
++			frame{"runtime/pprof_test.TestTraceSymbolize.func2", 42},
++		}},
++		eventDesc{trace.EvGoStop, []frame{
++			frame{"runtime.chanrecv1", 0},
++			frame{"runtime/pprof_test.TestTraceSymbolize.func3", 46},
++		}},
++		eventDesc{trace.EvGoBlockRecv, []frame{
++			frame{"runtime.chanrecv1", 0},
++			frame{"runtime/pprof_test.TestTraceSymbolize.func4", 50},
++		}},
++		eventDesc{trace.EvGoUnblock, []frame{
++			frame{"runtime.chansend1", 0},
++			frame{"runtime/pprof_test.TestTraceSymbolize", 107},
++			frame{"testing.tRunner", 0},
++		}},
++		eventDesc{trace.EvGoBlockSend, []frame{
++			frame{"runtime.chansend1", 0},
++			frame{"runtime/pprof_test.TestTraceSymbolize.func5", 54},
++		}},
++		eventDesc{trace.EvGoUnblock, []frame{
++			frame{"runtime.chanrecv1", 0},
++			frame{"runtime/pprof_test.TestTraceSymbolize", 108},
++			frame{"testing.tRunner", 0},
++		}},
++		eventDesc{trace.EvGoBlockSelect, []frame{
++			frame{"runtime.selectgo", 0},
++			frame{"runtime/pprof_test.TestTraceSymbolize.func6", 59},
++		}},
++		eventDesc{trace.EvGoUnblock, []frame{
++			frame{"runtime.selectgo", 0},
++			frame{"runtime/pprof_test.TestTraceSymbolize", 109},
++			frame{"testing.tRunner", 0},
++		}},
++		eventDesc{trace.EvGoBlockSync, []frame{
++			frame{"sync.(*Mutex).Lock", 0},
++			frame{"runtime/pprof_test.TestTraceSymbolize.func7", 67},
++		}},
++		eventDesc{trace.EvGoUnblock, []frame{
++			frame{"sync.(*Mutex).Unlock", 0},
++			frame{"runtime/pprof_test.TestTraceSymbolize", 113},
++			frame{"testing.tRunner", 0},
++		}},
++		eventDesc{trace.EvGoBlockSync, []frame{
++			frame{"sync.(*WaitGroup).Wait", 0},
++			frame{"runtime/pprof_test.TestTraceSymbolize.func8", 73},
++		}},
++		eventDesc{trace.EvGoUnblock, []frame{
++			frame{"sync.(*WaitGroup).Add", 0},
++			frame{"sync.(*WaitGroup).Done", 0},
++			frame{"runtime/pprof_test.TestTraceSymbolize", 114},
++			frame{"testing.tRunner", 0},
++		}},
++		eventDesc{trace.EvGoBlockCond, []frame{
++			frame{"sync.(*Cond).Wait", 0},
++			frame{"runtime/pprof_test.TestTraceSymbolize.func9", 78},
++		}},
++		eventDesc{trace.EvGoUnblock, []frame{
++			frame{"sync.(*Cond).Signal", 0},
++			frame{"runtime/pprof_test.TestTraceSymbolize", 115},
++			frame{"testing.tRunner", 0},
++		}},
++		eventDesc{trace.EvGoBlockNet, []frame{
++			frame{"net.(*netFD).accept", 0},
++			frame{"net.(*TCPListener).AcceptTCP", 0},
++			frame{"net.(*TCPListener).Accept", 0},
++			frame{"runtime/pprof_test.TestTraceSymbolize.func10", 86},
++		}},
++		eventDesc{trace.EvGoSleep, []frame{
++			frame{"time.Sleep", 0},
++			frame{"runtime/pprof_test.TestTraceSymbolize", 106},
++			frame{"testing.tRunner", 0},
++		}},
++		eventDesc{trace.EvGoSysCall, []frame{
++			frame{"syscall.read", 0},
++			frame{"syscall.Read", 0},
++			frame{"os.(*File).read", 0},
++			frame{"os.(*File).Read", 0},
++			frame{"runtime/pprof_test.TestTraceSymbolize.func11", 100},
++		}},
++	}
++	matched := make([]bool, len(want))
++	for _, ev := range events {
++	wantLoop:
++		for i, w := range want {
++			if matched[i] || w.Type != ev.Type || len(w.Stk) != len(ev.Stk) {
++				continue
++			}
++
++			for fi, f := range ev.Stk {
++				wf := w.Stk[fi]
++				if wf.Fn != f.Fn || wf.Line != 0 && wf.Line != f.Line {
++					continue wantLoop
++				}
++			}
++			matched[i] = true
++		}
++	}
++	for i, m := range matched {
++		if m {
++			continue
++		}
++		w := want[i]
++		t.Errorf("did not match event %v at %v:%v", trace.EventDescriptions[w.Type].Name, w.Stk[0].Fn, w.Stk[0].Line)
++		t.Errorf("seen the following events of this type:")
++		for _, ev := range events {
++			if ev.Type != w.Type {
++				continue
++			}
++			for _, f := range ev.Stk {
++				t.Logf("  %v:%v", f.Fn, f.Line)
++			}
++			t.Logf("---")
++		}
++	}
++}
+diff --git a/src/runtime/pprof/trace_test.go b/src/runtime/pprof/trace_test.go
+index e19e695e50..efec9a6ba2 100644
+--- a/src/runtime/pprof/trace_test.go
++++ b/src/runtime/pprof/trace_test.go
+@@ -11,7 +11,6 @@ import (
+ 	"os"
+ 	"runtime"
+ 	. "runtime/pprof"
+-	"strings"
+ 	"sync"
+ 	"testing"
+ 	"time"
+@@ -345,42 +344,3 @@ func TestTraceStressStartStop(t *testing.T) {
+ 	}
+ 	<-outerDone
+ }
+-
+-func TestTraceSymbolize(t *testing.T) {
+-	skipTraceTestsIfNeeded(t)
+-	if runtime.GOOS == "nacl" {
+-		t.Skip("skipping: nacl tests fail with 'failed to symbolize trace: failed to start addr2line'")
+-	}
+-	buf := new(bytes.Buffer)
+-	if err := StartTrace(buf); err != nil {
+-		t.Fatalf("failed to start tracing: %v", err)
+-	}
+-	runtime.GC()
+-	StopTrace()
+-	events, err := trace.Parse(buf)
+-	if err != nil {
+-		t.Fatalf("failed to parse trace: %v", err)
+-	}
+-	err = trace.Symbolize(events, os.Args[0])
+-	if err != nil {
+-		t.Fatalf("failed to symbolize trace: %v", err)
+-	}
+-	found := false
+-eventLoop:
+-	for _, ev := range events {
+-		if ev.Type != trace.EvGCStart {
+-			continue
+-		}
+-		for _, f := range ev.Stk {
+-			if strings.HasSuffix(f.File, "trace_test.go") &&
+-				strings.HasSuffix(f.Fn, "pprof_test.TestTraceSymbolize") &&
+-				f.Line == 358 {
+-				found = true
+-				break eventLoop
+-			}
+-		}
+-	}
+-	if !found {
+-		t.Fatalf("the trace does not contain GC event")
+-	}
+-}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 5763b3d066..2953dd6a2b 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -95,7 +95,7 @@ func main() {
+ 	// let the other goroutine finish printing the panic trace.
+ 	// Once it does, it will exit. See issue 3934.
+ 	if panicking != 0 {
+-		gopark(nil, nil, "panicwait", traceEvGoStop)
++		gopark(nil, nil, "panicwait", traceEvGoStop, 1)
+ 	}
+ 
+ 	exit(0)
+@@ -118,7 +118,7 @@ func forcegchelper() {
+ 			throw("forcegc: phase error")
+ 		}
+ 		atomicstore(&forcegc.idle, 1)
+-		goparkunlock(&forcegc.lock, "force gc (idle)", traceEvGoBlock)
++		goparkunlock(&forcegc.lock, "force gc (idle)", traceEvGoBlock, 1)
+ 		// this goroutine is explicitly resumed by sysmon
+ 		if debug.gctrace > 0 {
+ 			println("GC forced")
+@@ -137,7 +137,7 @@ func Gosched() {
+ 
+ // Puts the current goroutine into a waiting state and calls unlockf.
+ // If unlockf returns false, the goroutine is resumed.
+-func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason string, traceEv byte) {
++func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason string, traceEv byte, traceskip int) {
+ 	mp := acquirem()
+ 	gp := mp.curg
+ 	status := readgstatus(gp)
+@@ -148,6 +148,7 @@ func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason s
+ 	mp.waitunlockf = *(*unsafe.Pointer)(unsafe.Pointer(&unlockf))
+ 	gp.waitreason = reason
+ 	mp.waittraceev = traceEv
++	mp.waittraceskip = traceskip
+ 	releasem(mp)
+ 	// can't do anything that might move the G between Ms here.
+ 	mcall(park_m)
+@@ -155,13 +156,13 @@ func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason s
+ 
+ // Puts the current goroutine into a waiting state and unlocks the lock.
+ // The goroutine can be made runnable again by calling goready(gp).
+-func goparkunlock(lock *mutex, reason string, traceEv byte) {
+-	gopark(parkunlock_c, unsafe.Pointer(lock), reason, traceEv)
++func goparkunlock(lock *mutex, reason string, traceEv byte, traceskip int) {
++	gopark(parkunlock_c, unsafe.Pointer(lock), reason, traceEv, traceskip)
+ }
+ 
+-func goready(gp *g) {
++func goready(gp *g, traceskip int) {
+ 	systemstack(func() {
+-		ready(gp)
++		ready(gp, traceskip)
+ 	})
+ }
+ 
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 98651db96e..36390460ca 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -128,9 +128,9 @@ func mcommoninit(mp *m) {
+ }
+ 
+ // Mark gp ready to run.
+-func ready(gp *g) {
++func ready(gp *g, traceskip int) {
+ 	if trace.enabled {
+-		traceGoUnpark(gp)
++		traceGoUnpark(gp, traceskip)
+ 	}
+ 
+ 	status := readgstatus(gp)
+@@ -447,7 +447,7 @@ func restartg(gp *g) {
+ 			throw("processing Gscanenqueue on wrong m")
+ 		}
+ 		dropg()
+-		ready(gp)
++		ready(gp, 0)
+ 	}
+ }
+ 
+@@ -1218,7 +1218,7 @@ top:
+ 	}
+ 	if fingwait && fingwake {
+ 		if gp := wakefing(); gp != nil {
+-			ready(gp)
++			ready(gp, 0)
+ 		}
+ 	}
+ 
+@@ -1249,7 +1249,7 @@ top:
+ 			injectglist(gp.schedlink)
+ 			casgstatus(gp, _Gwaiting, _Grunnable)
+ 			if trace.enabled {
+-				traceGoUnpark(gp)
++				traceGoUnpark(gp, 0)
+ 			}
+ 			return gp
+ 		}
+@@ -1336,7 +1336,7 @@ stop:
+ 				injectglist(gp.schedlink)
+ 				casgstatus(gp, _Gwaiting, _Grunnable)
+ 				if trace.enabled {
+-					traceGoUnpark(gp)
++					traceGoUnpark(gp, 0)
+ 				}
+ 				return gp
+ 			}
+@@ -1376,7 +1376,7 @@ func injectglist(glist *g) {
+ 	}
+ 	if trace.enabled {
+ 		for gp := glist; gp != nil; gp = gp.schedlink {
+-			traceGoUnpark(gp)
++			traceGoUnpark(gp, 0)
+ 		}
+ 	}
+ 	lock(&sched.lock)
+@@ -1418,7 +1418,7 @@ top:
+ 		gp = traceReader()
+ 		if gp != nil {
+ 			casgstatus(gp, _Gwaiting, _Grunnable)
+-			traceGoUnpark(gp)
++			traceGoUnpark(gp, 0)
+ 			resetspinning()
+ 		}
+ 	}
+@@ -1472,35 +1472,17 @@ func dropg() {
+ 	}
+ }
+ 
+-// Puts the current goroutine into a waiting state and calls unlockf.
+-// If unlockf returns false, the goroutine is resumed.
+-func park(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason string, traceev byte) {
+-	_g_ := getg()
+-
+-	_g_.m.waitlock = lock
+-	_g_.m.waitunlockf = *(*unsafe.Pointer)(unsafe.Pointer(&unlockf))
+-	_g_.m.waittraceev = traceev
+-	_g_.waitreason = reason
+-	mcall(park_m)
+-}
+-
+ func parkunlock_c(gp *g, lock unsafe.Pointer) bool {
+ 	unlock((*mutex)(lock))
+ 	return true
+ }
+ 
+-// Puts the current goroutine into a waiting state and unlocks the lock.
+-// The goroutine can be made runnable again by calling ready(gp).
+-func parkunlock(lock *mutex, reason string, traceev byte) {
+-	park(parkunlock_c, unsafe.Pointer(lock), reason, traceev)
+-}
+-
+ // park continuation on g0.
+ func park_m(gp *g) {
+ 	_g_ := getg()
+ 
+ 	if trace.enabled {
+-		traceGoPark(_g_.m.waittraceev, gp)
++		traceGoPark(_g_.m.waittraceev, _g_.m.waittraceskip, gp)
+ 	}
+ 
+ 	casgstatus(gp, _Grunning, _Gwaiting)
+@@ -1513,7 +1495,7 @@ func park_m(gp *g) {
+ 		_g_.m.waitlock = nil
+ 		if !ok {
+ 			if trace.enabled {
+-				traceGoUnpark(gp)
++				traceGoUnpark(gp, 2)
+ 			}
+ 			casgstatus(gp, _Gwaiting, _Grunnable)
+ 			execute(gp) // Schedule it back, never returns.
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 94fbb5253a..abd12544ae 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -280,6 +280,7 @@ type m struct {
+ 	waitunlockf   unsafe.Pointer // todo go func(*g, unsafe.pointer) bool
+ 	waitlock      unsafe.Pointer
+ 	waittraceev   byte
++	waittraceskip int
+ 	syscalltick   uint32
+ 	//#ifdef GOOS_windows
+ 	thread uintptr // thread handle
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index db097db3fe..8a4ff68197 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -202,7 +202,7 @@ func selparkcommit(gp *g, sel unsafe.Pointer) bool {
+ }
+ 
+ func block() {
+-	gopark(nil, nil, "select (no cases)", traceEvGoStop) // forever
++	gopark(nil, nil, "select (no cases)", traceEvGoStop, 1) // forever
+ }
+ 
+ // overwrites return pc on stack to signal which case of the select
+@@ -392,7 +392,7 @@ loop:
+ 
+ 	// wait for someone to wake us up
+ 	gp.param = nil
+-	gopark(selparkcommit, unsafe.Pointer(sel), "select", traceEvGoBlockSelect)
++	gopark(selparkcommit, unsafe.Pointer(sel), "select", traceEvGoBlockSelect, 2)
+ 
+ 	// someone woke us up
+ 	sellock(sel)
+@@ -493,7 +493,7 @@ asyncrecv:
+ 		if sg.releasetime != 0 {
+ 			sg.releasetime = cputicks()
+ 		}
+-		goready(gp)
++		goready(gp, 3)
+ 	} else {
+ 		selunlock(sel)
+ 	}
+@@ -519,7 +519,7 @@ asyncsend:
+ 		if sg.releasetime != 0 {
+ 			sg.releasetime = cputicks()
+ 		}
+-		goready(gp)
++		goready(gp, 3)
+ 	} else {
+ 		selunlock(sel)
+ 	}
+@@ -549,7 +549,7 @@ syncrecv:
+ 	if sg.releasetime != 0 {
+ 		sg.releasetime = cputicks()
+ 	}
+-	goready(gp)
++	goready(gp, 3)
+ 	goto retc
+ 
+ rclose:
+@@ -585,7 +585,7 @@ syncsend:
+ 	if sg.releasetime != 0 {
+ 		sg.releasetime = cputicks()
+ 	}
+-	goready(gp)
++	goready(gp, 3)
+ 
+ retc:
+ 	if cas.releasetime > 0 {
+diff --git a/src/runtime/sema.go b/src/runtime/sema.go
+index 34852ea835..8ae51b4311 100644
+--- a/src/runtime/sema.go
++++ b/src/runtime/sema.go
+@@ -97,7 +97,7 @@ func semacquire(addr *uint32, profile bool) {
+ 		// Any semrelease after the cansemacquire knows we're waiting
+ 		// (we set nwait above), so go to sleep.
+ 		root.queue(addr, s)
+-		goparkunlock(&root.lock, "semacquire", traceEvGoBlockSync)
++		goparkunlock(&root.lock, "semacquire", traceEvGoBlockSync, 4)
+ 		if cansemacquire(addr) {
+ 			break
+ 		}
+@@ -140,7 +140,7 @@ func semrelease(addr *uint32) {
+ 		if s.releasetime != 0 {
+ 			s.releasetime = cputicks()
+ 		}
+-		goready(s.g)
++		goready(s.g, 4)
+ 	}
+ }
+ 
+@@ -214,7 +214,7 @@ func syncsemacquire(s *syncSema) {
+ 		unlock(&s.lock)
+ 		if wake != nil {
+ 			wake.next = nil
+-			goready(wake.g)
++			goready(wake.g, 4)
+ 		}
+ 	} else {
+ 		// Enqueue itself.
+@@ -234,7 +234,7 @@ func syncsemacquire(s *syncSema) {
+ 			s.tail.next = w
+ 		}
+ 		s.tail = w
+-		goparkunlock(&s.lock, "semacquire", traceEvGoBlockCond)
++		goparkunlock(&s.lock, "semacquire", traceEvGoBlockCond, 3)
+ 		if t0 != 0 {
+ 			blockevent(int64(w.releasetime)-t0, 2)
+ 		}
+@@ -257,7 +257,7 @@ func syncsemrelease(s *syncSema, n uint32) {
+ 			wake.releasetime = cputicks()
+ 		}
+ 		wake.next = nil
+-		goready(wake.g)
++		goready(wake.g, 4)
+ 		n--
+ 	}
+ 	if n > 0 {
+@@ -273,7 +273,7 @@ func syncsemrelease(s *syncSema, n uint32) {
+ 			s.tail.next = w
+ 		}
+ 		s.tail = w
+-		goparkunlock(&s.lock, "semarelease", traceEvGoBlockCond)
++		goparkunlock(&s.lock, "semarelease", traceEvGoBlockCond, 3)
+ 		releaseSudog(w)
+ 	} else {
+ 		unlock(&s.lock)
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index 6a2cc2136c..ffe7590526 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -56,7 +56,7 @@ func timeSleep(ns int64) {
+ 	t.arg = getg()
+ 	lock(&timers.lock)
+ 	addtimerLocked(t)
+-	goparkunlock(&timers.lock, "sleep", traceEvGoSleep)
++	goparkunlock(&timers.lock, "sleep", traceEvGoSleep, 2)
+ }
+ 
+ // startTimer adds t to the timer heap.
+@@ -79,7 +79,7 @@ func stopTimer(t *timer) bool {
+ 
+ // Ready the goroutine arg.
+ func goroutineReady(arg interface{}, seq uintptr) {
+-	goready(arg.(*g))
++	goready(arg.(*g), 0)
+ }
+ 
+ func addtimer(t *timer) {
+@@ -108,7 +108,7 @@ func addtimerLocked(t *timer) {
+ 		}
+ 		if timers.rescheduling {
+ 			timers.rescheduling = false
+-			goready(timers.gp)
++			goready(timers.gp, 0)
+ 		}
+ 	}
+ 	if !timers.created {
+@@ -199,7 +199,7 @@ func timerproc() {
+ 		if delta < 0 || faketime > 0 {
+ 			// No timers left - put goroutine to sleep.
+ 			timers.rescheduling = true
+-			goparkunlock(&timers.lock, "timer goroutine (idle)", traceEvGoBlock)
++			goparkunlock(&timers.lock, "timer goroutine (idle)", traceEvGoBlock, 1)
+ 			continue
+ 		}
+ 		// At least one timer pending.  Sleep until then.
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 3a4421baca..ea35343552 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -46,7 +46,7 @@ const (
+ 	traceEvGoBlockNet     = 27 // goroutine blocks on network [timestamp, stack]
+ 	traceEvGoSysCall      = 28 // syscall enter [timestamp, stack]
+ 	traceEvGoSysExit      = 29 // syscall exit [timestamp, goroutine id]
+-	traceEvGoSysBlock     = 30 // syscall blocks [timestamp, stack]
++	traceEvGoSysBlock     = 30 // syscall blocks [timestamp]
+ 	traceEvGoWaiting      = 31 // denotes that goroutine is blocked when tracing starts [goroutine id]
+ 	traceEvGoInSyscall    = 32 // denotes that goroutine is in syscall when tracing starts [goroutine id]
+ 	traceEvHeapAlloc      = 33 // memstats.heap_alloc change [timestamp, heap_alloc]
+@@ -151,10 +151,10 @@ func StartTrace() error {
+ 			traceGoCreate(gp, gp.startpc)
+ 		}
+ 		if status == _Gwaiting {
+-			traceEvent(traceEvGoWaiting, false, uint64(gp.goid))
++			traceEvent(traceEvGoWaiting, -1, uint64(gp.goid))
+ 		}
+ 		if status == _Gsyscall {
+-			traceEvent(traceEvGoInSyscall, false, uint64(gp.goid))
++			traceEvent(traceEvGoInSyscall, -1, uint64(gp.goid))
+ 		}
+ 	}
+ 	traceProcStart()
+@@ -302,7 +302,7 @@ func ReadTrace() []byte {
+ 	// Wait for new data.
+ 	if trace.fullHead == nil && !trace.shutdown {
+ 		trace.reader = getg()
+-		goparkunlock(&trace.lock, "trace reader (blocked)", traceEvGoBlock)
++		goparkunlock(&trace.lock, "trace reader (blocked)", traceEvGoBlock, 2)
+ 		lock(&trace.lock)
+ 	}
+ 	// Write a buffer.
+@@ -405,8 +405,10 @@ func traceFullDequeue() *traceBuf {
+ 
+ // traceEvent writes a single event to trace buffer, flushing the buffer if necessary.
+ // ev is event type.
+-// If stack, write current stack id as the last argument.
+-func traceEvent(ev byte, stack bool, args ...uint64) {
++// If skip > 0, write current stack id as the last argument (skipping skip top frames).
++// If skip = 0, this event type should contain a stack, but we don't want
++// to collect and remember it for this particular call.
++func traceEvent(ev byte, skip int, args ...uint64) {
+ 	mp, pid, bufp := traceAcquireBuffer()
+ 	// Double-check trace.enabled now that we've done m.locks++ and acquired bufLock.
+ 	// This protects from races between traceEvent and StartTrace/StopTrace.
+@@ -440,7 +442,7 @@ func traceEvent(ev byte, stack bool, args ...uint64) {
+ 	}
+ 	buf.lastTicks = ticks
+ 	narg := byte(len(args))
+-	if stack {
++	if skip >= 0 {
+ 		narg++
+ 	}
+ 	// We have only 2 bits for number of arguments.
+@@ -460,17 +462,23 @@ func traceEvent(ev byte, stack bool, args ...uint64) {
+ 	for _, a := range args {
+ 		data = traceAppend(data, a)
+ 	}
+-	if stack {
++	if skip == 0 {
++		data = append(data, 0)
++	} else if skip > 0 {
+ 		_g_ := getg()
+ 		gp := mp.curg
+-		if gp == nil && ev == traceEvGoSysBlock {
+-			gp = _g_
+-		}
+ 		var nstk int
+ 		if gp == _g_ {
+-			nstk = callers(1, buf.stk[:])
++			nstk = callers(skip, buf.stk[:])
+ 		} else if gp != nil {
+-			nstk = gcallers(mp.curg, 1, buf.stk[:])
++			gp = mp.curg
++			nstk = gcallers(gp, skip, buf.stk[:])
++		}
++		if nstk > 0 {
++			nstk-- // skip runtime.goexit
++		}
++		if nstk > 0 && gp.goid == 1 {
++			nstk-- // skip runtime.main
+ 		}
+ 		id := trace.stackTab.put(buf.stk[:nstk])
+ 		data = traceAppend(data, uint64(id))
+@@ -704,11 +712,11 @@ func (a *traceAlloc) drop() {
+ // The following functions write specific events to trace.
+ 
+ func traceGomaxprocs(procs int32) {
+-	traceEvent(traceEvGomaxprocs, true, uint64(procs))
++	traceEvent(traceEvGomaxprocs, 1, uint64(procs))
+ }
+ 
+ func traceProcStart() {
+-	traceEvent(traceEvProcStart, false)
++	traceEvent(traceEvProcStart, -1)
+ }
+ 
+ func traceProcStop(pp *p) {
+@@ -717,73 +725,69 @@ func traceProcStop(pp *p) {
+ 	mp := acquirem()
+ 	oldp := mp.p
+ 	mp.p = pp
+-	traceEvent(traceEvProcStop, false)
++	traceEvent(traceEvProcStop, -1)
+ 	mp.p = oldp
+ 	releasem(mp)
+ }
+ 
+ func traceGCStart() {
+-	traceEvent(traceEvGCStart, true)
++	traceEvent(traceEvGCStart, 4)
+ }
+ 
+ func traceGCDone() {
+-	traceEvent(traceEvGCDone, false)
++	traceEvent(traceEvGCDone, -1)
+ }
+ 
+ func traceGCScanStart() {
+-	traceEvent(traceEvGCScanStart, false)
++	traceEvent(traceEvGCScanStart, -1)
+ }
+ 
+ func traceGCScanDone() {
+-	traceEvent(traceEvGCScanDone, false)
++	traceEvent(traceEvGCScanDone, -1)
+ }
+ 
+ func traceGCSweepStart() {
+-	traceEvent(traceEvGCSweepStart, true)
++	traceEvent(traceEvGCSweepStart, 1)
+ }
+ 
+ func traceGCSweepDone() {
+-	traceEvent(traceEvGCSweepDone, false)
++	traceEvent(traceEvGCSweepDone, -1)
+ }
+ 
+ func traceGoCreate(newg *g, pc uintptr) {
+-	traceEvent(traceEvGoCreate, true, uint64(newg.goid), uint64(pc))
++	traceEvent(traceEvGoCreate, 2, uint64(newg.goid), uint64(pc))
+ }
+ 
+ func traceGoStart() {
+-	traceEvent(traceEvGoStart, false, uint64(getg().m.curg.goid))
++	traceEvent(traceEvGoStart, -1, uint64(getg().m.curg.goid))
+ }
+ 
+ func traceGoEnd() {
+-	traceEvent(traceEvGoEnd, false)
++	traceEvent(traceEvGoEnd, -1)
+ }
+ 
+ func traceGoSched() {
+-	traceEvent(traceEvGoSched, true)
++	traceEvent(traceEvGoSched, 1)
+ }
+ 
+ func traceGoPreempt() {
+-	traceEvent(traceEvGoPreempt, true)
+-}
+-
+-func traceGoStop() {
+-	traceEvent(traceEvGoStop, true)
++	traceEvent(traceEvGoPreempt, 1)
+ }
+ 
+-func traceGoPark(traceEv byte, gp *g) {
+-	traceEvent(traceEv, true)
++func traceGoPark(traceEv byte, skip int, gp *g) {
++	traceEvent(traceEv, skip)
+ }
+ 
+-func traceGoUnpark(gp *g) {
+-	traceEvent(traceEvGoUnblock, true, uint64(gp.goid))
++func traceGoUnpark(gp *g, skip int) {
++	traceEvent(traceEvGoUnblock, skip, uint64(gp.goid))
+ }
+ 
+ func traceGoSysCall() {
+-	traceEvent(traceEvGoSysCall, true)
++	traceEvent(traceEvGoSysCall, 4)
+ }
+ 
+ func traceGoSysExit() {
+-	traceEvent(traceEvGoSysExit, false, uint64(getg().m.curg.goid))
++	traceEvent(traceEvGoSysExit, -1, uint64(getg().m.curg.goid))
+ }
+ 
+ func traceGoSysBlock(pp *p) {
+@@ -792,15 +796,15 @@ func traceGoSysBlock(pp *p) {
+ 	mp := acquirem()
+ 	oldp := mp.p
+ 	mp.p = pp
+-	traceEvent(traceEvGoSysBlock, true)
++	traceEvent(traceEvGoSysBlock, -1)
+ 	mp.p = oldp
+ 	releasem(mp)
+ }
+ 
+ func traceHeapAlloc() {
+-	traceEvent(traceEvHeapAlloc, false, memstats.heap_alloc)
++	traceEvent(traceEvHeapAlloc, -1, memstats.heap_alloc)
+ }
+ 
+ func traceNextGC() {
+-	traceEvent(traceEvNextGC, false, memstats.next_gc)
++	traceEvent(traceEvNextGC, -1, memstats.next_gc)
+ }

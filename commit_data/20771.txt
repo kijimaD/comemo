@@ -10,6 +10,35 @@ Date:   Tue Oct 7 23:39:00 2014 -0400
     TBR=brainman
     CC=golang-codereviews
     https://golang.org/cl/152340043
-
+---
  src/runtime/panic.go | 10 ++++++++--
  1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index c78102f8a3..58b14b09e3 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -189,8 +189,7 @@ func newdefer(siz int32) *_defer {
+ //go:nosplit
+ func freedefer(d *_defer) {
+ 	if d._panic != nil {
+-		// _panic must be cleared before d is unlinked from gp.
+-		gothrow("freedefer with d._panic != nil")
++		freedeferpanic()
+ 	}
+ 	sc := deferclass(uintptr(d.siz))
+ 	if sc < uintptr(len(p{}.deferpool)) {
+@@ -203,6 +202,13 @@ func freedefer(d *_defer) {
+ 	}
+ }
+ 
++// Separate function so that it can split stack.
++// Windows otherwise runs out of stack space.
++func freedeferpanic() {
++	// _panic must be cleared before d is unlinked from gp.
++	gothrow("freedefer with d._panic != nil")
++}
++
+ // Run a deferred function if there is one.
+ // The compiler inserts a call to this at the end of any
+ // function which calls defer.

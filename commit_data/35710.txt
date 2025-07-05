@@ -12,7 +12,43 @@ Date:   Fri Mar 2 08:42:02 2018 +0000
     Reviewed-on: https://go-review.googlesource.com/96575
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/serve_test.go | 10 ++++++++++
  src/net/http/server.go     |  3 +++
  2 files changed, 13 insertions(+)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 5ff08b4036..2fa3bc664f 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -581,6 +581,16 @@ func TestServeWithSlashRedirectForHostPatterns(t *testing.T) {
+ 	}
+ }
+ 
++func TestShouldRedirectConcurrency(t *testing.T) {
++	setParallel(t)
++	defer afterTest(t)
++
++	mux := NewServeMux()
++	ts := httptest.NewServer(mux)
++	defer ts.Close()
++	mux.HandleFunc("/", func(w ResponseWriter, r *Request) {})
++}
++
+ func BenchmarkServeMux(b *testing.B) {
+ 
+ 	type test struct {
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index c4377e8ce5..a7ba753bf5 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2223,6 +2223,9 @@ func (mux *ServeMux) redirectToPathSlash(host, path string, u *url.URL) (*url.UR
+ // path+"/". This should happen if a handler is registered for path+"/" but
+ // not path -- see comments at ServeMux.
+ func (mux *ServeMux) shouldRedirect(host, path string) bool {
++	mux.mu.RLock()
++	defer mux.mu.RUnlock()
++
+ 	p := []string{path, host + path}
+ 
+ 	for _, c := range p {

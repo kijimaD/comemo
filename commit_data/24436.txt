@@ -9,9 +9,250 @@ Date:   Tue Jul 28 15:50:51 2015 -0400
     Change-Id: Ib9d5bd79f3b73ebd32f6585b354aaad556e0fc71
     Reviewed-on: https://go-review.googlesource.com/12749
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/go/get.go         | 36 +++++++++++++++++++-----------------
  src/cmd/go/pkg.go         | 38 ++++++++++++++++++++++++++++++--------
  src/cmd/go/test.go        |  6 +++---
  src/cmd/go/vendor_test.go | 13 +++++++++++++
  4 files changed, 65 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index 90ac832a4b..99d11ac2fa 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -89,8 +89,12 @@ func runGet(cmd *Command, args []string) {
+ 
+ 	// Phase 1.  Download/update.
+ 	var stk importStack
++	mode := 0
++	if *getT {
++		mode |= getTestDeps
++	}
+ 	for _, arg := range downloadPaths(args) {
+-		download(arg, nil, &stk, *getT)
++		download(arg, nil, &stk, mode)
+ 	}
+ 	exitIfErrors()
+ 
+@@ -163,15 +167,15 @@ var downloadRootCache = map[string]bool{}
+ 
+ // download runs the download half of the get command
+ // for the package named by the argument.
+-func download(arg string, parent *Package, stk *importStack, getTestDeps bool) {
+-	load := func(path string) *Package {
++func download(arg string, parent *Package, stk *importStack, mode int) {
++	load := func(path string, mode int) *Package {
+ 		if parent == nil {
+ 			return loadPackage(path, stk)
+ 		}
+-		return loadImport(path, parent.Dir, nil, stk, nil)
++		return loadImport(path, parent.Dir, parent, stk, nil, mode)
+ 	}
+ 
+-	p := load(arg)
++	p := load(arg, mode)
+ 	if p.Error != nil && p.Error.hard {
+ 		errorf("%s", p.Error)
+ 		return
+@@ -195,7 +199,7 @@ func download(arg string, parent *Package, stk *importStack, getTestDeps bool) {
+ 	// Only process each package once.
+ 	// (Unless we're fetching test dependencies for this package,
+ 	// in which case we want to process it again.)
+-	if downloadCache[arg] && !getTestDeps {
++	if downloadCache[arg] && mode&getTestDeps == 0 {
+ 		return
+ 	}
+ 	downloadCache[arg] = true
+@@ -255,7 +259,7 @@ func download(arg string, parent *Package, stk *importStack, getTestDeps bool) {
+ 		pkgs = pkgs[:0]
+ 		for _, arg := range args {
+ 			stk.push(arg)
+-			p := load(arg)
++			p := load(arg, mode)
+ 			stk.pop()
+ 			if p.Error != nil {
+ 				errorf("%s", p.Error)
+@@ -291,28 +295,26 @@ func download(arg string, parent *Package, stk *importStack, getTestDeps bool) {
+ 				continue
+ 			}
+ 			// Don't get test dependencies recursively.
+-			download(path, p, stk, false)
++			// Imports is already vendor-expanded.
++			download(path, p, stk, 0)
+ 		}
+-		if getTestDeps {
++		if mode&getTestDeps != 0 {
+ 			// Process test dependencies when -t is specified.
+ 			// (Don't get test dependencies for test dependencies.)
+-			//
+-			// We apply vendoredImportPath here.  It's not
+-			// needed for Imports, because it was done
+-			// while loading the package.
++			// We pass useVendor here because p.load does not
++			// vendor-expand TestImports and XTestImports.
++			// The call to loadImport inside download needs to do that.
+ 			for _, path := range p.TestImports {
+ 				if path == "C" {
+ 					continue
+ 				}
+-				path, _ = vendoredImportPath(p, path)
+-				download(path, p, stk, false)
++				download(path, p, stk, useVendor)
+ 			}
+ 			for _, path := range p.XTestImports {
+ 				if path == "C" {
+ 					continue
+ 				}
+-				path, _ = vendoredImportPath(p, path)
+-				download(path, p, stk, false)
++				download(path, p, stk, useVendor)
+ 			}
+ 		}
+ 
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 95b5eb347a..d04b52a675 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -249,11 +249,29 @@ func makeImportValid(r rune) rune {
+ 	return r
+ }
+ 
++// Mode flags for loadImport and download (in get.go).
++const (
++	// useVendor means that loadImport should do vendor expansion
++	// (provided the vendoring experiment is enabled).
++	// That is, useVendor means that the import path came from
++	// a source file and has not been vendor-expanded yet.
++	// Every import path should be loaded initially with useVendor,
++	// and then the expanded version (with the /vendor/ in it) gets
++	// recorded as the canonical import path. At that point, future loads
++	// of that package must not pass useVendor, because
++	// disallowVendor will reject direct use of paths containing /vendor/.
++	useVendor = 1 << iota
++
++	// getTestDeps is for download (part of "go get") and indicates
++	// that test dependencies should be fetched too.
++	getTestDeps
++)
++
+ // loadImport scans the directory named by path, which must be an import path,
+ // but possibly a local import path (an absolute file system path or one beginning
+ // with ./ or ../).  A local relative path is interpreted relative to srcDir.
+ // It returns a *Package describing the package found in that directory.
+-func loadImport(path, srcDir string, parent *Package, stk *importStack, importPos []token.Position) *Package {
++func loadImport(path, srcDir string, parent *Package, stk *importStack, importPos []token.Position, mode int) *Package {
+ 	stk.push(path)
+ 	defer stk.pop()
+ 
+@@ -268,7 +286,7 @@ func loadImport(path, srcDir string, parent *Package, stk *importStack, importPo
+ 	var vendorSearch []string
+ 	if isLocal {
+ 		importPath = dirToImportPath(filepath.Join(srcDir, path))
+-	} else {
++	} else if mode&useVendor != 0 {
+ 		path, vendorSearch = vendoredImportPath(parent, path)
+ 		importPath = path
+ 	}
+@@ -277,8 +295,10 @@ func loadImport(path, srcDir string, parent *Package, stk *importStack, importPo
+ 		if perr := disallowInternal(srcDir, p, stk); perr != p {
+ 			return perr
+ 		}
+-		if perr := disallowVendor(srcDir, origPath, p, stk); perr != p {
+-			return perr
++		if mode&useVendor != 0 {
++			if perr := disallowVendor(srcDir, origPath, p, stk); perr != p {
++				return perr
++			}
+ 		}
+ 		return reusePackage(p, stk)
+ 	}
+@@ -334,8 +354,10 @@ func loadImport(path, srcDir string, parent *Package, stk *importStack, importPo
+ 	if perr := disallowInternal(srcDir, p, stk); perr != p {
+ 		return perr
+ 	}
+-	if perr := disallowVendor(srcDir, origPath, p, stk); perr != p {
+-		return perr
++	if mode&useVendor != 0 {
++		if perr := disallowVendor(srcDir, origPath, p, stk); perr != p {
++			return perr
++		}
+ 	}
+ 
+ 	return p
+@@ -851,7 +873,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 		if path == "C" {
+ 			continue
+ 		}
+-		p1 := loadImport(path, p.Dir, p, stk, p.build.ImportPos[path])
++		p1 := loadImport(path, p.Dir, p, stk, p.build.ImportPos[path], useVendor)
+ 		if p1.Name == "main" {
+ 			p.Error = &PackageError{
+ 				ImportStack: stk.copy(),
+@@ -1524,7 +1546,7 @@ func loadPackage(arg string, stk *importStack) *Package {
+ 		}
+ 	}
+ 
+-	return loadImport(arg, cwd, nil, stk, nil)
++	return loadImport(arg, cwd, nil, stk, nil, 0)
+ }
+ 
+ // packages returns the packages named by the
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 668665053d..baeec9d3a9 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -583,7 +583,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 	var stk importStack
+ 	stk.push(p.ImportPath + " (test)")
+ 	for i, path := range p.TestImports {
+-		p1 := loadImport(path, p.Dir, p, &stk, p.build.TestImportPos[path])
++		p1 := loadImport(path, p.Dir, p, &stk, p.build.TestImportPos[path], useVendor)
+ 		if p1.Error != nil {
+ 			return nil, nil, nil, p1.Error
+ 		}
+@@ -614,7 +614,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 			pxtestNeedsPtest = true
+ 			continue
+ 		}
+-		p1 := loadImport(path, p.Dir, p, &stk, p.build.XTestImportPos[path])
++		p1 := loadImport(path, p.Dir, p, &stk, p.build.XTestImportPos[path], useVendor)
+ 		if p1.Error != nil {
+ 			return nil, nil, nil, p1.Error
+ 		}
+@@ -749,7 +749,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 		if dep == ptest.ImportPath {
+ 			pmain.imports = append(pmain.imports, ptest)
+ 		} else {
+-			p1 := loadImport(dep, "", nil, &stk, nil)
++			p1 := loadImport(dep, "", nil, &stk, nil, 0)
+ 			if p1.Error != nil {
+ 				return nil, nil, nil, p1.Error
+ 			}
+diff --git a/src/cmd/go/vendor_test.go b/src/cmd/go/vendor_test.go
+index b99b4f1185..ac32545b3b 100644
+--- a/src/cmd/go/vendor_test.go
++++ b/src/cmd/go/vendor_test.go
+@@ -9,6 +9,7 @@ package main_test
+ import (
+ 	"bytes"
+ 	"fmt"
++	"internal/testenv"
+ 	"path/filepath"
+ 	"regexp"
+ 	"strings"
+@@ -173,3 +174,15 @@ func TestVendorGet(t *testing.T) {
+ 	tg.run("get")
+ 	tg.run("get", "-t")
+ }
++
++func TestVendorGetUpdate(t *testing.T) {
++	testenv.MustHaveExternalNetwork(t)
++
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.makeTempdir()
++	tg.setenv("GOPATH", tg.path("."))
++	tg.setenv("GO15VENDOREXPERIMENT", "1")
++	tg.run("get", "github.com/rsc/go-get-issue-11864")
++	tg.run("get", "-u", "github.com/rsc/go-get-issue-11864")
++}

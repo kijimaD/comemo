@@ -17,6 +17,29 @@ Date:   Wed Jul 26 16:28:28 2023 +0000
     Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Damien Neil <dneil@google.com>
-
+---
  src/net/http/request.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index bd868373c5..a2e8373dd5 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -1339,7 +1339,7 @@ func (r *Request) ParseMultipartForm(maxMemory int64) error {
+ }
+ 
+ // FormValue returns the first value for the named component of the query.
+-// POST and PUT body parameters take precedence over URL query string values.
++// POST, PUT, and PATCH body parameters take precedence over URL query string values.
+ // FormValue calls ParseMultipartForm and ParseForm if necessary and ignores
+ // any errors returned by these functions.
+ // If key is not present, FormValue returns the empty string.
+@@ -1356,7 +1356,7 @@ func (r *Request) FormValue(key string) string {
+ }
+ 
+ // PostFormValue returns the first value for the named component of the POST,
+-// PATCH, or PUT request body. URL query parameters are ignored.
++// PUT, or PATCH request body. URL query parameters are ignored.
+ // PostFormValue calls ParseMultipartForm and ParseForm if necessary and ignores
+ // any errors returned by these functions.
+ // If key is not present, PostFormValue returns the empty string.

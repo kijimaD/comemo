@@ -8,6 +8,28 @@ Date:   Wed Apr 15 18:52:28 2009 -0700
     DELTA=6  (5 added, 1 deleted, 0 changed)
     OCL=27500
     CL=27525
-
+---
  src/runtime/print.c | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/print.c b/src/runtime/print.c
+index 974d3d72ed..5295e338d1 100644
+--- a/src/runtime/print.c
++++ b/src/runtime/print.c
+@@ -58,11 +58,15 @@ printf(int8 *s, ...)
+ 			break;
+ 		case 'p':	// pointer-sized
+ 		case 's':
+-		case 'S':
+ 			if(sizeof(uintptr) == 8 && ((uint32)(uint64)arg)&4)
+ 				arg += 4;
+ 			narg = arg + sizeof(uintptr);
+ 			break;
++		case 'S':	// pointer-aligned but bigger
++			if(sizeof(uintptr) == 8 && ((uint32)(uint64)arg)&4)
++				arg += 4;
++			narg = arg + sizeof(String);
++			break;
+ 		}
+ 		switch(*p) {
+ 		case 'd':

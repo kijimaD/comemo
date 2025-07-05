@@ -17,6 +17,41 @@ Date:   Sun Oct 23 21:53:44 2016 -0400
     Change-Id: I3527c9a504c445b64b81170ee285a28594e7983d
     Reviewed-on: https://go-review.googlesource.com/31762
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/stack.go | 9 +++++++--
  1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 49499d4433..e803dc17a0 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -335,6 +335,7 @@ func stackalloc(n uint32) (stack, []stkbar) {
+ 	// Compute the size of stack barrier array.
+ 	maxstkbar := gcMaxStackBarriers(int(n))
+ 	nstkbar := unsafe.Sizeof(stkbar{}) * uintptr(maxstkbar)
++	var stkbarSlice slice
+ 
+ 	if debug.efence != 0 || stackFromSystem != 0 {
+ 		v := sysAlloc(round(uintptr(n), _PageSize), &memstats.stacks_sys)
+@@ -342,7 +343,9 @@ func stackalloc(n uint32) (stack, []stkbar) {
+ 			throw("out of memory (stackalloc)")
+ 		}
+ 		top := uintptr(n) - nstkbar
+-		stkbarSlice := slice{add(v, top), 0, maxstkbar}
++		if maxstkbar != 0 {
++			stkbarSlice = slice{add(v, top), 0, maxstkbar}
++		}
+ 		return stack{uintptr(v), uintptr(v) + top}, *(*[]stkbar)(unsafe.Pointer(&stkbarSlice))
+ 	}
+ 
+@@ -410,7 +413,9 @@ func stackalloc(n uint32) (stack, []stkbar) {
+ 		print("  allocated ", v, "\n")
+ 	}
+ 	top := uintptr(n) - nstkbar
+-	stkbarSlice := slice{add(v, top), 0, maxstkbar}
++	if maxstkbar != 0 {
++		stkbarSlice = slice{add(v, top), 0, maxstkbar}
++	}
+ 	return stack{uintptr(v), uintptr(v) + top}, *(*[]stkbar)(unsafe.Pointer(&stkbarSlice))
+ }
+ 

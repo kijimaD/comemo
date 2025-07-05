@@ -9,6 +9,20 @@ Date:   Tue Dec 13 21:28:43 2011 -0800
     R=iant, rsc
     CC=go.peter.90, golang-dev
     https://golang.org/cl/5486059
-
+---
  src/pkg/runtime/gc_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/gc_test.go b/src/pkg/runtime/gc_test.go
+index 156d3bc7d3..63c6037969 100644
+--- a/src/pkg/runtime/gc_test.go
++++ b/src/pkg/runtime/gc_test.go
+@@ -22,7 +22,7 @@ func TestGcSys(t *testing.T) {
+ 		sys = runtime.MemStats.Sys - sys
+ 	}
+ 	t.Logf("used %d extra bytes", sys)
+-	if sys > 2<<20 {
++	if sys > 4<<20 {
+ 		t.Fatalf("using too much memory: %d bytes", sys)
+ 	}
+ }

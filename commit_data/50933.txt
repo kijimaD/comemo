@@ -12,7 +12,7 @@ Date:   Wed Nov 17 19:14:58 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/builtins.go   | 27 ++------------
  src/go/types/decl.go       |  4 +++
  src/go/types/expr.go       | 19 ++--------
@@ -23,3 +23,353 @@ Date:   Wed Nov 17 19:14:58 2021 -0500
  src/go/types/type.go       |  4 +--
  src/go/types/typeparam.go  | 17 ++-------
  9 files changed, 27 insertions(+), 169 deletions(-)
+
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 5abfe8d35b..b547cddeb1 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -180,28 +180,10 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			}
+ 
+ 		case *Interface:
+-			if tparamIsIface && isTypeParam(x.typ) {
+-				if t.typeSet().underIs(func(t Type) bool {
+-					switch t := arrayPtrDeref(t).(type) {
+-					case *Basic:
+-						if isString(t) && id == _Len {
+-							return true
+-						}
+-					case *Array, *Slice, *Chan:
+-						return true
+-					case *Map:
+-						if id == _Len {
+-							return true
+-						}
+-					}
+-					return false
+-				}) {
+-					mode = value
+-				}
++			if !isTypeParam(x.typ) {
++				break
+ 			}
+-		case *TypeParam:
+-			assert(!tparamIsIface)
+-			if t.underIs(func(t Type) bool {
++			if t.typeSet().underIs(func(t Type) bool {
+ 				switch t := arrayPtrDeref(t).(type) {
+ 				case *Basic:
+ 					if isString(t) && id == _Len {
+@@ -829,9 +811,6 @@ func hasVarSize(t Type) bool {
+ 		}
+ 	case *Interface:
+ 		return isTypeParam(t)
+-	case *TypeParam:
+-		assert(!tparamIsIface)
+-		return true
+ 	case *Named, *Union:
+ 		unreachable()
+ 	}
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 600467620c..c85087018c 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -725,6 +725,10 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list *ast.FieldList
+ 	check.later(func() {
+ 		for i, bound := range bounds {
+ 			if isTypeParam(bound) {
++				// We may be able to allow this since it is now well-defined what
++				// the underlying type and thus type set of a type parameter is.
++				// But we may need some additional form of cycle detection within
++				// type parameter lists.
+ 				check.error(posns[i], _MisplacedTypeParam, "cannot use a type parameter as constraint")
+ 			}
+ 		}
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 0a3fa72c97..e93a2bc7c8 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -599,7 +599,7 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
+ 	newType, val, code := check.implicitTypeAndValue(x, target)
+ 	if code != 0 {
+ 		t := target
+-		if !tparamIsIface || !isTypeParam(target) {
++		if !isTypeParam(target) {
+ 			t = safeUnderlying(target)
+ 		}
+ 		check.invalidConversion(code, x, t)
+@@ -680,23 +680,8 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
+ 		default:
+ 			return nil, nil, _InvalidUntypedConversion
+ 		}
+-	case *TypeParam:
+-		assert(!tparamIsIface)
+-		if !u.underIs(func(u Type) bool {
+-			if u == nil {
+-				return false
+-			}
+-			t, _, _ := check.implicitTypeAndValue(x, u)
+-			return t != nil
+-		}) {
+-			return nil, nil, _InvalidUntypedConversion
+-		}
+-		// keep nil untyped (was bug #39755)
+-		if x.isNil() {
+-			return Typ[UntypedNil], nil, 0
+-		}
+ 	case *Interface:
+-		if tparamIsIface && isTypeParam(target) {
++		if isTypeParam(target) {
+ 			if !u.typeSet().underIs(func(u Type) bool {
+ 				if u == nil {
+ 					return false
+diff --git a/src/go/types/index.go b/src/go/types/index.go
+index 2ff33814e5..54398ad19b 100644
+--- a/src/go/types/index.go
++++ b/src/go/types/index.go
+@@ -101,97 +101,14 @@ func (check *Checker) indexExpr(x *operand, e *typeparams.IndexExpr) (isFuncInst
+ 		return false
+ 
+ 	case *Interface:
+-		// Note: The body of this 'if' statement is the same as the body
+-		//       of the case for type parameters below. If we keep both
+-		//       these branches we should factor out the code.
+-		if tparamIsIface && isTypeParam(x.typ) {
+-			// TODO(gri) report detailed failure cause for better error messages
+-			var key, elem Type // key != nil: we must have all maps
+-			mode := variable   // non-maps result mode
+-			// TODO(gri) factor out closure and use it for non-typeparam cases as well
+-			if typ.typeSet().underIs(func(u Type) bool {
+-				l := int64(-1) // valid if >= 0
+-				var k, e Type  // k is only set for maps
+-				switch t := u.(type) {
+-				case *Basic:
+-					if isString(t) {
+-						e = universeByte
+-						mode = value
+-					}
+-				case *Array:
+-					l = t.len
+-					e = t.elem
+-					if x.mode != variable {
+-						mode = value
+-					}
+-				case *Pointer:
+-					if t, _ := under(t.base).(*Array); t != nil {
+-						l = t.len
+-						e = t.elem
+-					}
+-				case *Slice:
+-					e = t.elem
+-				case *Map:
+-					k = t.key
+-					e = t.elem
+-				}
+-				if e == nil {
+-					return false
+-				}
+-				if elem == nil {
+-					// first type
+-					length = l
+-					key, elem = k, e
+-					return true
+-				}
+-				// all map keys must be identical (incl. all nil)
+-				// (that is, we cannot mix maps with other types)
+-				if !Identical(key, k) {
+-					return false
+-				}
+-				// all element types must be identical
+-				if !Identical(elem, e) {
+-					return false
+-				}
+-				// track the minimal length for arrays, if any
+-				if l >= 0 && l < length {
+-					length = l
+-				}
+-				return true
+-			}) {
+-				// For maps, the index expression must be assignable to the map key type.
+-				if key != nil {
+-					index := check.singleIndex(e)
+-					if index == nil {
+-						x.mode = invalid
+-						return false
+-					}
+-					var k operand
+-					check.expr(&k, index)
+-					check.assignment(&k, key, "map index")
+-					// ok to continue even if indexing failed - map element type is known
+-					x.mode = mapindex
+-					x.typ = elem
+-					x.expr = e
+-					return false
+-				}
+-
+-				// no maps
+-				valid = true
+-				x.mode = mode
+-				x.typ = elem
+-			}
++		if !isTypeParam(x.typ) {
++			break
+ 		}
+-	case *TypeParam:
+-		// Note: The body of this case is the same as the body of the 'if'
+-		//       statement in the interface case above. If we keep both
+-		//       these branches we should factor out the code.
+ 		// TODO(gri) report detailed failure cause for better error messages
+-		assert(!tparamIsIface)
+ 		var key, elem Type // key != nil: we must have all maps
+ 		mode := variable   // non-maps result mode
+ 		// TODO(gri) factor out closure and use it for non-typeparam cases as well
+-		if typ.underIs(func(u Type) bool {
++		if typ.typeSet().underIs(func(u Type) bool {
+ 			l := int64(-1) // valid if >= 0
+ 			var k, e Type  // k is only set for maps
+ 			switch t := u.(type) {
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 5204eb0c29..229a616eac 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -133,13 +133,7 @@ func comparable(T Type, seen map[Type]bool) bool {
+ 	case *Array:
+ 		return comparable(t.elem, seen)
+ 	case *Interface:
+-		if tparamIsIface && isTypeParam(T) {
+-			return t.IsComparable()
+-		}
+-		return true
+-	case *TypeParam:
+-		assert(!tparamIsIface)
+-		return t.iface().IsComparable()
++		return !isTypeParam(T) || t.IsComparable()
+ 	}
+ 	return false
+ }
+@@ -152,15 +146,7 @@ func hasNil(t Type) bool {
+ 	case *Slice, *Pointer, *Signature, *Map, *Chan:
+ 		return true
+ 	case *Interface:
+-		if tparamIsIface && isTypeParam(t) {
+-			return u.typeSet().underIs(func(u Type) bool {
+-				return u != nil && hasNil(u)
+-			})
+-		}
+-		return true
+-	case *TypeParam:
+-		assert(!tparamIsIface)
+-		return u.underIs(func(u Type) bool {
++		return !isTypeParam(t) || u.typeSet().underIs(func(u Type) bool {
+ 			return u != nil && hasNil(u)
+ 		})
+ 	}
+diff --git a/src/go/types/sizes.go b/src/go/types/sizes.go
+index a921525062..dd4b78969f 100644
+--- a/src/go/types/sizes.go
++++ b/src/go/types/sizes.go
+@@ -67,7 +67,9 @@ func (s *StdSizes) Alignof(T Type) int64 {
+ 	case *Slice, *Interface:
+ 		// Multiword data structures are effectively structs
+ 		// in which each element has size WordSize.
+-		assert(!tparamIsIface || !isTypeParam(T))
++		// Type parameters lead to variable sizes/alignments;
++		// StdSizes.Alignof won't be called for them.
++		assert(!isTypeParam(T))
+ 		return s.WordSize
+ 	case *Basic:
+ 		// Strings are like slices and interfaces.
+@@ -152,6 +154,9 @@ func (s *StdSizes) Sizeof(T Type) int64 {
+ 		offsets := s.Offsetsof(t.fields)
+ 		return offsets[n-1] + s.Sizeof(t.fields[n-1].typ)
+ 	case *Interface:
++		// Type parameters lead to variable sizes/alignments;
++		// StdSizes.Sizeof won't be called for them.
++		assert(!isTypeParam(T))
+ 		return s.WordSize * 2
+ 	case *TypeParam, *Union:
+ 		unreachable()
+diff --git a/src/go/types/struct.go b/src/go/types/struct.go
+index 53204dc381..d6c56341f0 100644
+--- a/src/go/types/struct.go
++++ b/src/go/types/struct.go
+@@ -155,14 +155,11 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
+ 					}
+ 				case *Pointer:
+ 					check.error(embeddedPos, _InvalidPtrEmbed, "embedded field type cannot be a pointer")
+-				case *TypeParam:
+-					assert(!tparamIsIface)
+-					// This error code here is inconsistent with other error codes for
+-					// invalid embedding, because this restriction may be relaxed in the
+-					// future, and so it did not warrant a new error code.
+-					check.error(embeddedPos, _MisplacedTypeParam, "embedded field type cannot be a (pointer to a) type parameter")
+ 				case *Interface:
+-					if tparamIsIface && isTypeParam(t) {
++					if isTypeParam(t) {
++						// The error code here is inconsistent with other error codes for
++						// invalid embedding, because this restriction may be relaxed in the
++						// future, and so it did not warrant a new error code.
+ 						check.error(embeddedPos, _MisplacedTypeParam, "embedded field type cannot be a (pointer to a) type parameter")
+ 						break
+ 					}
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index 1d672135b8..97de5e49d1 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -25,9 +25,7 @@ func under(t Type) Type {
+ 	case *Named:
+ 		return t.under()
+ 	case *TypeParam:
+-		if tparamIsIface {
+-			return t.iface()
+-		}
++		return t.iface()
+ 	}
+ 	return t
+ }
+diff --git a/src/go/types/typeparam.go b/src/go/types/typeparam.go
+index f000d8f108..7cce1f7e35 100644
+--- a/src/go/types/typeparam.go
++++ b/src/go/types/typeparam.go
+@@ -9,12 +9,6 @@ import (
+ 	"sync/atomic"
+ )
+ 
+-// If set, the underlying type of a type parameter is
+-// is the underlying type of its type constraint, i.e.,
+-// an interface. With that, a type parameter satisfies
+-// isInterface.
+-const tparamIsIface = true
+-
+ // Note: This is a uint32 rather than a uint64 because the
+ // respective 64 bit atomic instructions are not available
+ // on all platforms.
+@@ -79,10 +73,7 @@ func (t *TypeParam) SetConstraint(bound Type) {
+ }
+ 
+ func (t *TypeParam) Underlying() Type {
+-	if tparamIsIface {
+-		return t.iface()
+-	}
+-	return t
++	return t.iface()
+ }
+ 
+ func (t *TypeParam) String() string { return TypeString(t, nil) }
+@@ -105,15 +96,11 @@ func (t *TypeParam) iface() *Interface {
+ 			return &emptyInterface
+ 		}
+ 	case *Interface:
+-		if tparamIsIface && isTypeParam(bound) {
++		if isTypeParam(bound) {
+ 			// error is reported in Checker.collectTypeParams
+ 			return &emptyInterface
+ 		}
+ 		ityp = u
+-	case *TypeParam:
+-		assert(!tparamIsIface)
+-		// error is reported in Checker.collectTypeParams
+-		return &emptyInterface
+ 	}
+ 
+ 	// If we don't have an interface, wrap constraint into an implicit interface.

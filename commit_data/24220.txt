@@ -9,6 +9,31 @@ Date:   Wed Jul 15 22:08:27 2015 -0400
     Change-Id: I8365d33a15419bd0e54f71182ad0994e41650264
     Reviewed-on: https://go-review.googlesource.com/12248
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  test/fixedbugs/issue11656.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/issue11656.go b/test/fixedbugs/issue11656.go
+index 4bf657c5a8..ef0f469530 100644
+--- a/test/fixedbugs/issue11656.go
++++ b/test/fixedbugs/issue11656.go
+@@ -16,6 +16,10 @@
+ // delivers signals based on the current PC, and that current PC
+ // doesn't go into the Go runtime.
+ // +build !windows
++//
++// arm64 gets "illegal instruction" (why is the data executable?)
++// and is unable to do the traceback correctly (why?).
++// +build !arm64
+ 
+ package main
+ 
+@@ -47,7 +51,7 @@ func main() {
+ 
+ func f(n int) {
+ 	if n > 0 {
+-		f(n-1)
++		f(n - 1)
+ 	}
+ 	var f struct {
+ 		x uintptr

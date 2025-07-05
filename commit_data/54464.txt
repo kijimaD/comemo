@@ -18,9 +18,144 @@ Date:   Thu Oct 20 19:06:05 2022 +0200
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/runtime/signal_windows_test.go           |  4 +--
  src/runtime/testdata/testwinlibthrow/main.go |  4 ---
  src/runtime/testdata/testwinlibthrow/veh.c   | 26 ++++++++++++++
  src/runtime/testdata/testwinlibthrow/veh.cpp | 53 ----------------------------
  4 files changed, 28 insertions(+), 59 deletions(-)
+
+diff --git a/src/runtime/signal_windows_test.go b/src/runtime/signal_windows_test.go
+index fe74ad56bf..02497e6fae 100644
+--- a/src/runtime/signal_windows_test.go
++++ b/src/runtime/signal_windows_test.go
+@@ -23,14 +23,14 @@ func TestVectoredHandlerExceptionInNonGoThread(t *testing.T) {
+ 	}
+ 	testenv.MustHaveGoBuild(t)
+ 	testenv.MustHaveCGO(t)
+-	testenv.MustHaveExecPath(t, "g++")
++	testenv.MustHaveExecPath(t, "gcc")
+ 	testprog.Lock()
+ 	defer testprog.Unlock()
+ 	dir := t.TempDir()
+ 
+ 	// build c program
+ 	dll := filepath.Join(dir, "veh.dll")
+-	cmd := exec.Command("g++", "-shared", "-o", dll, "testdata/testwinlibthrow/veh.cpp", "-static", "-lstdc++")
++	cmd := exec.Command("gcc", "-shared", "-o", dll, "testdata/testwinlibthrow/veh.c")
+ 	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("failed to build c exe: %s\n%s", err, out)
+diff --git a/src/runtime/testdata/testwinlibthrow/main.go b/src/runtime/testdata/testwinlibthrow/main.go
+index 50c483f401..ce0c92f252 100644
+--- a/src/runtime/testdata/testwinlibthrow/main.go
++++ b/src/runtime/testdata/testwinlibthrow/main.go
+@@ -7,17 +7,13 @@ import (
+ 
+ func main() {
+ 	dll := syscall.MustLoadDLL("veh.dll")
+-	RaiseExcept := dll.MustFindProc("RaiseExcept")
+ 	RaiseNoExcept := dll.MustFindProc("RaiseNoExcept")
+-	ThreadRaiseExcept := dll.MustFindProc("ThreadRaiseExcept")
+ 	ThreadRaiseNoExcept := dll.MustFindProc("ThreadRaiseNoExcept")
+ 
+ 	thread := len(os.Args) > 1 && os.Args[1] == "thread"
+ 	if !thread {
+-		RaiseExcept.Call()
+ 		RaiseNoExcept.Call()
+ 	} else {
+-		ThreadRaiseExcept.Call()
+ 		ThreadRaiseNoExcept.Call()
+ 	}
+ }
+diff --git a/src/runtime/testdata/testwinlibthrow/veh.c b/src/runtime/testdata/testwinlibthrow/veh.c
+new file mode 100644
+index 0000000000..08c1f9edf0
+--- /dev/null
++++ b/src/runtime/testdata/testwinlibthrow/veh.c
+@@ -0,0 +1,26 @@
++//go:build ignore
++
++#include <windows.h>
++
++__declspec(dllexport)
++void RaiseNoExcept(void)
++{
++    RaiseException(42, 0, 0, 0);
++}
++
++static DWORD WINAPI ThreadRaiser(void* Context)
++{
++    RaiseNoExcept();
++    return 0;
++}
++
++__declspec(dllexport)
++void ThreadRaiseNoExcept(void)
++{
++    HANDLE thread = CreateThread(0, 0, ThreadRaiser,  0, 0, 0);
++    if (0 != thread)
++    {
++        WaitForSingleObject(thread, INFINITE);
++        CloseHandle(thread);
++    }
++}
+diff --git a/src/runtime/testdata/testwinlibthrow/veh.cpp b/src/runtime/testdata/testwinlibthrow/veh.cpp
+deleted file mode 100644
+index ed7015a064..0000000000
+--- a/src/runtime/testdata/testwinlibthrow/veh.cpp
++++ /dev/null
+@@ -1,53 +0,0 @@
+-//go:build ignore
+-
+-#include <windows.h>
+-
+-extern "C" __declspec(dllexport)
+-void RaiseExcept(void)
+-{
+-    try
+-    {
+-        RaiseException(42, 0, 0, 0);
+-    }
+-    catch (...)
+-    {
+-    }
+-}
+-
+-extern "C" __declspec(dllexport)
+-void RaiseNoExcept(void)
+-{
+-    RaiseException(42, 0, 0, 0);
+-}
+-
+-static DWORD WINAPI ThreadRaiser(void* Context)
+-{
+-    if (Context)
+-        RaiseExcept();
+-    else
+-        RaiseNoExcept();
+-    return 0;
+-}
+-
+-static void ThreadRaiseXxx(int except)
+-{
+-    static int dummy;
+-    HANDLE thread = CreateThread(0, 0, ThreadRaiser, except ? &dummy : 0, 0, 0);
+-    if (0 != thread)
+-    {
+-        WaitForSingleObject(thread, INFINITE);
+-        CloseHandle(thread);
+-    }
+-}
+-
+-extern "C" __declspec(dllexport)
+-void ThreadRaiseExcept(void)
+-{
+-    ThreadRaiseXxx(1);
+-}
+-
+-extern "C" __declspec(dllexport)
+-void ThreadRaiseNoExcept(void)
+-{
+-    ThreadRaiseXxx(0);
+-}

@@ -9,6 +9,19 @@ Date:   Thu Aug 8 13:36:22 2013 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/12678043
-
+---
  src/cmd/api/run.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/api/run.go b/src/cmd/api/run.go
+index f17d5eac9d..6e89bb7346 100644
+--- a/src/cmd/api/run.go
++++ b/src/cmd/api/run.go
+@@ -57,6 +57,7 @@ func main() {
+ 	if err != nil {
+ 		log.Fatalf("Error running API checker: %v\n%s", err, out)
+ 	}
++	fmt.Print(string(out))
+ }
+ 
+ // file expands s to $GOROOT/api/s.txt.

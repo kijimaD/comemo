@@ -16,7 +16,62 @@ Date:   Mon Apr 8 00:36:55 2019 +0200
     Run-TryBot: Richard Musiol <neelance@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/link/internal/wasm/asm.go | 18 +++++++++---------
  src/runtime/malloc.go             |  4 ++--
  2 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/link/internal/wasm/asm.go b/src/cmd/link/internal/wasm/asm.go
+index abb4409188..ea6b406c7e 100644
+--- a/src/cmd/link/internal/wasm/asm.go
++++ b/src/cmd/link/internal/wasm/asm.go
+@@ -297,18 +297,18 @@ func writeTableSec(ctxt *ld.Link, fns []*wasmFunc) {
+ }
+ 
+ // writeMemorySec writes the section that declares linear memories. Currently one linear memory is being used.
++// Linear memory always starts at address zero. More memory can be requested with the GrowMemory instruction.
+ func writeMemorySec(ctxt *ld.Link) {
+ 	sizeOffset := writeSecHeader(ctxt, sectionMemory)
+ 
+-	// Linear memory always starts at address zero.
+-	// The unit of the sizes is "WebAssembly page size", which is 64Ki.
+-	// The minimum is currently set to 1GB, which is a lot.
+-	// More memory can be requested with the grow_memory instruction,
+-	// but this operation currently is rather slow, so we avoid it for now.
+-	// TODO(neelance): Use lower initial memory size.
+-	writeUleb128(ctxt.Out, 1)       // number of memories
+-	ctxt.Out.WriteByte(0x00)        // no maximum memory size
+-	writeUleb128(ctxt.Out, 1024*16) // minimum (initial) memory size
++	const (
++		initialSize  = 16 << 20 // 16MB, enough for runtime init without growing
++		wasmPageSize = 64 << 10 // 64KB
++	)
++
++	writeUleb128(ctxt.Out, 1)                        // number of memories
++	ctxt.Out.WriteByte(0x00)                         // no maximum memory size
++	writeUleb128(ctxt.Out, initialSize/wasmPageSize) // minimum (initial) memory size
+ 
+ 	writeSecSize(ctxt, sizeOffset)
+ }
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 9feec1b007..c22c7aa7dc 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -248,7 +248,7 @@ const (
+ 	// logHeapArenaBytes is log_2 of heapArenaBytes. For clarity,
+ 	// prefer using heapArenaBytes where possible (we need the
+ 	// constant to compute some other constants).
+-	logHeapArenaBytes = (6+20)*(_64bit*(1-sys.GoosWindows)*(1-sys.GoosAix)) + (2+20)*(_64bit*sys.GoosWindows) + (2+20)*(1-_64bit) + (8+20)*sys.GoosAix
++	logHeapArenaBytes = (6+20)*(_64bit*(1-sys.GoosWindows)*(1-sys.GoosAix)*(1-sys.GoarchWasm)) + (2+20)*(_64bit*sys.GoosWindows) + (2+20)*(1-_64bit) + (8+20)*sys.GoosAix + (2+20)*sys.GoarchWasm
+ 
+ 	// heapArenaBitmapBytes is the size of each heap arena's bitmap.
+ 	heapArenaBitmapBytes = heapArenaBytes / (sys.PtrSize * 8 / 2)
+@@ -394,7 +394,7 @@ func mallocinit() {
+ 	_g_.m.mcache = allocmcache()
+ 
+ 	// Create initial arena growth hints.
+-	if sys.PtrSize == 8 && GOARCH != "wasm" {
++	if sys.PtrSize == 8 {
+ 		// On a 64-bit machine, we pick the following hints
+ 		// because:
+ 		//

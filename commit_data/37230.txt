@@ -16,7 +16,7 @@ Date:   Wed Jul 11 21:14:42 2018 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  doc/install.html                     |  2 +-
  src/crypto/x509/sha2_windows_test.go | 19 -------------------
  src/crypto/x509/verify_test.go       |  5 -----
@@ -24,3 +24,125 @@ Date:   Wed Jul 11 21:14:42 2018 +0000
  src/net/interface_windows.go         |  5 ++---
  src/runtime/syscall_windows.go       | 11 ++++++-----
  6 files changed, 14 insertions(+), 39 deletions(-)
+
+diff --git a/doc/install.html b/doc/install.html
+index 3bb4a15b25..2e0c7f859d 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -50,7 +50,7 @@ If your OS or architecture is not on the list, you may be able to
+ <tr><td>FreeBSD 10.3 or later</td> <td>amd64, 386</td> <td>Debian GNU/kFreeBSD not supported</td></tr>
+ <tr valign='top'><td>Linux 2.6.23 or later with glibc</td> <td>amd64, 386, arm, arm64,<br>s390x, ppc64le</td> <td>CentOS/RHEL 5.x not supported.<br>Install from source for other libc.</td></tr>
+ <tr><td>macOS 10.10 or later</td> <td>amd64</td> <td>use the clang or gcc<sup>&#8224;</sup> that comes with Xcode<sup>&#8225;</sup> for <code>cgo</code> support</td></tr>
+-<tr><td>Windows XP SP2 or later</td> <td>amd64, 386</td> <td>use MinGW gcc<sup>&#8224;</sup>. No need for cygwin or msys.</td></tr>
++<tr><td>Windows 7, Server 2008R2 or later</td> <td>amd64, 386</td> <td>use MinGW gcc<sup>&#8224;</sup>. No need for cygwin or msys.</td></tr>
+ </table>
+ 
+ <p>
+diff --git a/src/crypto/x509/sha2_windows_test.go b/src/crypto/x509/sha2_windows_test.go
+deleted file mode 100644
+index 620b7b9e77..0000000000
+--- a/src/crypto/x509/sha2_windows_test.go
++++ /dev/null
+@@ -1,19 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package x509
+-
+-import "syscall"
+-
+-func init() {
+-	v, err := syscall.GetVersion()
+-	if err != nil {
+-		return
+-	}
+-	if major := byte(v); major < 6 {
+-		// Windows XP SP2 and Windows 2003 do not support SHA2.
+-		// https://blogs.technet.com/b/pki/archive/2010/09/30/sha2-and-windows.aspx
+-		supportSHA2 = false
+-	}
+-}
+diff --git a/src/crypto/x509/verify_test.go b/src/crypto/x509/verify_test.go
+index bd3df47907..95034dbba3 100644
+--- a/src/crypto/x509/verify_test.go
++++ b/src/crypto/x509/verify_test.go
+@@ -15,8 +15,6 @@ import (
+ 	"time"
+ )
+ 
+-var supportSHA2 = true
+-
+ type verifyTest struct {
+ 	leaf                 string
+ 	intermediates        []string
+@@ -427,9 +425,6 @@ func testVerify(t *testing.T, useSystemRoots bool) {
+ 		if runtime.GOOS == "windows" && test.testSystemRootsError {
+ 			continue
+ 		}
+-		if useSystemRoots && !supportSHA2 && test.sha2 {
+-			continue
+-		}
+ 
+ 		opts := VerifyOptions{
+ 			Intermediates: NewCertPool(),
+diff --git a/src/internal/poll/fd_windows.go b/src/internal/poll/fd_windows.go
+index 74135ce716..d04d332696 100644
+--- a/src/internal/poll/fd_windows.go
++++ b/src/internal/poll/fd_windows.go
+@@ -34,12 +34,11 @@ var (
+ 
+ var canCancelIO bool // determines if CancelIoEx API is present
+ 
+-// This package uses SetFileCompletionNotificationModes Windows API
+-// to skip calling GetQueuedCompletionStatus if an IO operation completes
+-// synchronously. Unfortuently SetFileCompletionNotificationModes is not
+-// available on Windows XP. Also there is a known bug where
+-// SetFileCompletionNotificationModes crashes on some systems
+-// (see https://support.microsoft.com/kb/2568167 for details).
++// This package uses the SetFileCompletionNotificationModes Windows
++// API to skip calling GetQueuedCompletionStatus if an IO operation
++// completes synchronously. There is a known bug where
++// SetFileCompletionNotificationModes crashes on some systems (see
++// https://support.microsoft.com/kb/2568167 for details).
+ 
+ var useSetFileCompletionNotificationModes bool // determines is SetFileCompletionNotificationModes is present and safe to use
+ 
+diff --git a/src/net/interface_windows.go b/src/net/interface_windows.go
+index be96c586c7..28b0a65f66 100644
+--- a/src/net/interface_windows.go
++++ b/src/net/interface_windows.go
+@@ -65,9 +65,8 @@ func interfaceTable(ifindex int) ([]Interface, error) {
+ 			}
+ 			// For now we need to infer link-layer service
+ 			// capabilities from media types.
+-			// We will be able to use
+-			// MIB_IF_ROW2.AccessType once we drop support
+-			// for Windows XP.
++			// TODO: use MIB_IF_ROW2.AccessType now that we no longer support
++			// Windows XP.
+ 			switch aa.IfType {
+ 			case windows.IF_TYPE_ETHERNET_CSMACD, windows.IF_TYPE_ISO88025_TOKENRING, windows.IF_TYPE_IEEE80211, windows.IF_TYPE_IEEE1394:
+ 				ifi.Flags |= FlagBroadcast | FlagMulticast
+diff --git a/src/runtime/syscall_windows.go b/src/runtime/syscall_windows.go
+index 134d4dbd99..5ab78fdbf2 100644
+--- a/src/runtime/syscall_windows.go
++++ b/src/runtime/syscall_windows.go
+@@ -107,11 +107,12 @@ func syscall_loadsystemlibrary(filename *uint16) (handle, err uintptr) {
+ 		}{filename, 0, _LOAD_LIBRARY_SEARCH_SYSTEM32}
+ 		c.args = uintptr(noescape(unsafe.Pointer(&args)))
+ 	} else {
+-		// User is on Windows XP or something ancient.
+-		// The caller wanted to only load the filename DLL
+-		// from the System32 directory but that facility
+-		// doesn't exist, so just load it the normal way. This
+-		// is a potential security risk, but so is Windows XP.
++		// User doesn't have KB2533623 installed. The caller
++		// wanted to only load the filename DLL from the
++		// System32 directory but that facility doesn't exist,
++		// so just load it the normal way. This is a potential
++		// security risk, but so is not installing security
++		// updates.
+ 		c.fn = getLoadLibrary()
+ 		c.n = 1
+ 		c.args = uintptr(noescape(unsafe.Pointer(&filename)))

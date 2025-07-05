@@ -11,7 +11,7 @@ Date:   Wed Sep 14 13:19:20 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/order.go    | 10 +++++-----
  src/cmd/compile/internal/gc/pgen.go     |  2 +-
  src/cmd/compile/internal/gc/racewalk.go |  2 +-
@@ -22,3 +22,185 @@ Date:   Wed Sep 14 13:19:20 2016 -0700
  src/cmd/compile/internal/gc/syntax.go   | 20 +++++++++++++++++---
  src/cmd/compile/internal/gc/walk.go     |  2 +-
  9 files changed, 30 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 5b01d4b905..2512e4cedf 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -676,7 +676,7 @@ func orderstmt(n *Node, order *Order) {
+ 		n.Left = orderexprinplace(n.Left, order)
+ 		var l []*Node
+ 		cleantempnopop(t, order, &l)
+-		n.Nbody.Set(append(l, n.Nbody.Slice()...))
++		n.Nbody.Prepend(l...)
+ 		orderblockNodes(&n.Nbody)
+ 		n.Right = orderstmtinplace(n.Right)
+ 		order.out = append(order.out, n)
+@@ -690,10 +690,10 @@ func orderstmt(n *Node, order *Order) {
+ 		n.Left = orderexprinplace(n.Left, order)
+ 		var l []*Node
+ 		cleantempnopop(t, order, &l)
+-		n.Nbody.Set(append(l, n.Nbody.Slice()...))
++		n.Nbody.Prepend(l...)
+ 		l = nil
+ 		cleantempnopop(t, order, &l)
+-		n.Rlist.Set(append(l, n.Rlist.Slice()...))
++		n.Rlist.Prepend(l...)
+ 		poptemp(t, order)
+ 		orderblockNodes(&n.Nbody)
+ 		n.Rlist.Set(orderblock(n.Rlist))
+@@ -917,7 +917,7 @@ func orderstmt(n *Node, order *Order) {
+ 		for _, n3 := range n.List.Slice() {
+ 			s := n3.Ninit.Slice()
+ 			cleantempnopop(t, order, &s)
+-			n3.Nbody.Set(append(s, n3.Nbody.Slice()...))
++			n3.Nbody.Prepend(s...)
+ 			n3.Ninit.Set(nil)
+ 		}
+ 
+@@ -1110,7 +1110,7 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
+ 		var s []*Node
+ 
+ 		cleantempnopop(mark, order, &s)
+-		n.Right.Ninit.Set(append(s, n.Right.Ninit.Slice()...))
++		n.Right.Ninit.Prepend(s...)
+ 		n.Right = orderexprinplace(n.Right, order)
+ 
+ 	case OCALLFUNC,
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 6bb0fd7f7b..16e62a390b 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -376,7 +376,7 @@ func compile(fn *Node) {
+ 			if t.Nname != nil {
+ 				n := Nod(OAS, t.Nname, nil)
+ 				n = typecheck(n, Etop)
+-				Curfn.Nbody.Set(append([]*Node{n}, Curfn.Nbody.Slice()...))
++				Curfn.Nbody.Prepend(n)
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 07733da517..747f359c02 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -69,7 +69,7 @@ func instrument(fn *Node) {
+ 		nodpc.Type = Types[TUINTPTR]
+ 		nodpc.Xoffset = int64(-Widthptr)
+ 		nd := mkcall("racefuncenter", nil, nil, &nodpc)
+-		fn.Func.Enter.Set(append([]*Node{nd}, fn.Func.Enter.Slice()...))
++		fn.Func.Enter.Prepend(nd)
+ 		nd = mkcall("racefuncexit", nil, nil)
+ 		fn.Func.Exit.Append(nd)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index fd74dd9e33..be93a30f1f 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -354,7 +354,7 @@ func walkrange(n *Node) {
+ 	n.Left = typecheck(n.Left, Erv)
+ 	n.Right = typecheck(n.Right, Etop)
+ 	typecheckslice(body, Etop)
+-	n.Nbody.Set(append(body, n.Nbody.Slice()...))
++	n.Nbody.Prepend(body...)
+ 	n = walkstmt(n)
+ 
+ 	lineno = lno
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index 120a9b8cf1..9548732881 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -143,7 +143,7 @@ func walkselect(sel *Node) {
+ 				}
+ 
+ 				n.Op = OAS2
+-				n.List.Set(append([]*Node{n.Left}, n.List.Slice()...))
++				n.List.Prepend(n.Left)
+ 				n.Rlist.Set1(n.Right)
+ 				n.Right = nil
+ 				n.Left = nil
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 9992f49b4b..9d89fad25f 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -2198,7 +2198,7 @@ func addinit(n *Node, init []*Node) *Node {
+ 		n.Typecheck = 1
+ 	}
+ 
+-	n.Ninit.Set(append(init, n.Ninit.Slice()...))
++	n.Ninit.Prepend(init...)
+ 	n.Ullman = UINF
+ 	return n
+ }
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index bfe5c1fb23..bfbec29250 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -281,7 +281,7 @@ func (s *exprSwitch) walk(sw *Node) {
+ 	// handle default case
+ 	if nerrors == 0 {
+ 		cas = append(cas, clauses.defjmp)
+-		sw.Nbody.Set(append(cas, sw.Nbody.Slice()...))
++		sw.Nbody.Prepend(cas...)
+ 		walkstmtlist(sw.Nbody.Slice())
+ 	}
+ }
+@@ -800,7 +800,7 @@ func (s *typeSwitch) walk(sw *Node) {
+ 	// handle default case
+ 	if nerrors == 0 {
+ 		cas = append(cas, def)
+-		sw.Nbody.Set(append(cas, sw.Nbody.Slice()...))
++		sw.Nbody.Prepend(cas...)
+ 		sw.List.Set(nil)
+ 		walkstmtlist(sw.Nbody.Slice())
+ 	}
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 90be65e6a9..a1cccc4974 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -583,15 +583,29 @@ func (n Nodes) Addr(i int) **Node {
+ // Append appends entries to Nodes.
+ // If a slice is passed in, this will take ownership of it.
+ func (n *Nodes) Append(a ...*Node) {
++	if len(a) == 0 {
++		return
++	}
+ 	if n.slice == nil {
+-		if len(a) > 0 {
+-			n.slice = &a
+-		}
++		n.slice = &a
+ 	} else {
+ 		*n.slice = append(*n.slice, a...)
+ 	}
+ }
+ 
++// Prepend prepends entries to Nodes.
++// If a slice is passed in, this will take ownership of it.
++func (n *Nodes) Prepend(a ...*Node) {
++	if len(a) == 0 {
++		return
++	}
++	if n.slice == nil {
++		n.slice = &a
++	} else {
++		*n.slice = append(a, *n.slice...)
++	}
++}
++
+ // AppendNodes appends the contents of *n2 to n, then clears n2.
+ func (n *Nodes) AppendNodes(n2 *Nodes) {
+ 	switch {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index cb60115662..5810268574 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -669,7 +669,7 @@ opswitch:
+ 			// transformclosure already did all preparation work.
+ 
+ 			// Prepend captured variables to argument list.
+-			n.List.Set(append(n.Left.Func.Enter.Slice(), n.List.Slice()...))
++			n.List.Prepend(n.Left.Func.Enter.Slice()...)
+ 
+ 			n.Left.Func.Enter.Set(nil)
+ 

@@ -12,9 +12,80 @@ Date:   Mon May 2 17:13:50 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/type.go             |  4 ++--
  src/cmd/compile/internal/reflectdata/alg.go     | 10 +++++-----
  src/cmd/compile/internal/reflectdata/reflect.go |  2 +-
  src/cmd/compile/internal/typecheck/subr.go      |  2 +-
  4 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/type.go b/src/cmd/compile/internal/ir/type.go
+index f8aa35da4c..d810a6d60d 100644
+--- a/src/cmd/compile/internal/ir/type.go
++++ b/src/cmd/compile/internal/ir/type.go
+@@ -93,8 +93,8 @@ type Field struct {
+ 	Decl     *Name
+ }
+ 
+-func NewField(pos src.XPos, sym *types.Sym, ntyp Ntype, typ *types.Type) *Field {
+-	return &Field{Pos: pos, Sym: sym, Ntype: ntyp, Type: typ}
++func NewField(pos src.XPos, sym *types.Sym, typ *types.Type) *Field {
++	return &Field{Pos: pos, Sym: sym, Ntype: nil, Type: typ}
+ }
+ 
+ func (f *Field) String() string {
+diff --git a/src/cmd/compile/internal/reflectdata/alg.go b/src/cmd/compile/internal/reflectdata/alg.go
+index de23387ca1..0ed3eb2875 100644
+--- a/src/cmd/compile/internal/reflectdata/alg.go
++++ b/src/cmd/compile/internal/reflectdata/alg.go
+@@ -129,10 +129,10 @@ func genhash(t *types.Type) *obj.LSym {
+ 
+ 	// func sym(p *T, h uintptr) uintptr
+ 	args := []*ir.Field{
+-		ir.NewField(base.Pos, typecheck.Lookup("p"), nil, types.NewPtr(t)),
+-		ir.NewField(base.Pos, typecheck.Lookup("h"), nil, types.Types[types.TUINTPTR]),
++		ir.NewField(base.Pos, typecheck.Lookup("p"), types.NewPtr(t)),
++		ir.NewField(base.Pos, typecheck.Lookup("h"), types.Types[types.TUINTPTR]),
+ 	}
+-	results := []*ir.Field{ir.NewField(base.Pos, nil, nil, types.Types[types.TUINTPTR])}
++	results := []*ir.Field{ir.NewField(base.Pos, nil, types.Types[types.TUINTPTR])}
+ 	tfn := ir.NewFuncType(base.Pos, nil, args, results)
+ 
+ 	fn := typecheck.DeclFunc(sym, tfn)
+@@ -359,8 +359,8 @@ func geneq(t *types.Type) *obj.LSym {
+ 
+ 	// func sym(p, q *T) bool
+ 	tfn := ir.NewFuncType(base.Pos, nil,
+-		[]*ir.Field{ir.NewField(base.Pos, typecheck.Lookup("p"), nil, types.NewPtr(t)), ir.NewField(base.Pos, typecheck.Lookup("q"), nil, types.NewPtr(t))},
+-		[]*ir.Field{ir.NewField(base.Pos, typecheck.Lookup("r"), nil, types.Types[types.TBOOL])})
++		[]*ir.Field{ir.NewField(base.Pos, typecheck.Lookup("p"), types.NewPtr(t)), ir.NewField(base.Pos, typecheck.Lookup("q"), types.NewPtr(t))},
++		[]*ir.Field{ir.NewField(base.Pos, typecheck.Lookup("r"), types.Types[types.TBOOL])})
+ 
+ 	fn := typecheck.DeclFunc(sym, tfn)
+ 	np := ir.AsNode(tfn.Type().Params().Field(0).Nname)
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index d6e6b115a4..1804eaefe6 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1856,7 +1856,7 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
+ 	typecheck.DeclContext = ir.PEXTERN
+ 
+ 	tfn := ir.NewFuncType(base.Pos,
+-		ir.NewField(base.Pos, typecheck.Lookup(".this"), nil, rcvr),
++		ir.NewField(base.Pos, typecheck.Lookup(".this"), rcvr),
+ 		typecheck.NewFuncParams(method.Type.Params(), true),
+ 		typecheck.NewFuncParams(method.Type.Results(), false))
+ 
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index af16e826bd..8cd81cf12b 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -40,7 +40,7 @@ func NewFuncParams(tl *types.Type, mustname bool) []*ir.Field {
+ 			// TODO(mdempsky): Preserve original position, name, and package.
+ 			s = Lookup(s.Name)
+ 		}
+-		a := ir.NewField(base.Pos, s, nil, t.Type)
++		a := ir.NewField(base.Pos, s, t.Type)
+ 		a.Pos = t.Pos
+ 		a.IsDDD = t.IsDDD()
+ 		args = append(args, a)

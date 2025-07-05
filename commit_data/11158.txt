@@ -8,8 +8,133 @@ Date:   Fri Jan 13 14:09:13 2012 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5543055
-
+---
  src/pkg/text/template/doc.go       |  4 +++-
  src/pkg/text/template/exec.go      | 44 +++++++++++++++++++++++++++++++++++++-
  src/pkg/text/template/exec_test.go | 17 ++-------------
  3 files changed, 48 insertions(+), 17 deletions(-)
+
+diff --git a/src/pkg/text/template/doc.go b/src/pkg/text/template/doc.go
+index 4208d53a0a..3be1ec44e6 100644
+--- a/src/pkg/text/template/doc.go
++++ b/src/pkg/text/template/doc.go
+@@ -50,7 +50,9 @@ data, defined in detail below.
+ 		The value of the pipeline must be an array, slice, or map. If
+ 		the value of the pipeline has length zero, nothing is output;
+ 		otherwise, dot is set to the successive elements of the array,
+-		slice, or map and T1 is executed.
++		slice, or map and T1 is executed. If the value is a map and the
++		keys are of basic type with a defined order ("comparable"), the
++		elements will be visited in sorted key order.
+ 
+ 	{{range pipeline}} T1 {{else}} T0 {{end}}
+ 		The value of the pipeline must be an array, slice, or map. If
+diff --git a/src/pkg/text/template/exec.go b/src/pkg/text/template/exec.go
+index 2171b279be..973189a8a6 100644
+--- a/src/pkg/text/template/exec.go
++++ b/src/pkg/text/template/exec.go
+@@ -9,6 +9,7 @@ import (
+ 	"io"
+ 	"reflect"
+ 	"runtime"
++	"sort"
+ 	"strings"
+ 	"text/template/parse"
+ )
+@@ -234,7 +235,7 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
+ 		if val.Len() == 0 {
+ 			break
+ 		}
+-		for _, key := range val.MapKeys() {
++		for _, key := range sortKeys(val.MapKeys()) {
+ 			oneIteration(key, val.MapIndex(key))
+ 		}
+ 		return
+@@ -676,3 +677,44 @@ func (s *state) printValue(n parse.Node, v reflect.Value) {
+ 	}
+ 	fmt.Fprint(s.wr, v.Interface())
+ }
++
++// Types to help sort the keys in a map for reproducible output.
++
++type rvs []reflect.Value
++
++func (x rvs) Len() int      { return len(x) }
++func (x rvs) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
++
++type rvInts struct{ rvs }
++
++func (x rvInts) Less(i, j int) bool { return x.rvs[i].Int() < x.rvs[j].Int() }
++
++type rvUints struct{ rvs }
++
++func (x rvUints) Less(i, j int) bool { return x.rvs[i].Uint() < x.rvs[j].Uint() }
++
++type rvFloats struct{ rvs }
++
++func (x rvFloats) Less(i, j int) bool { return x.rvs[i].Float() < x.rvs[j].Float() }
++
++type rvStrings struct{ rvs }
++
++func (x rvStrings) Less(i, j int) bool { return x.rvs[i].String() < x.rvs[j].String() }
++
++// sortKeys sorts (if it can) the slice of reflect.Values, which is a slice of map keys.
++func sortKeys(v []reflect.Value) []reflect.Value {
++	if len(v) <= 1 {
++		return v
++	}
++	switch v[0].Kind() {
++	case reflect.Float32, reflect.Float64:
++		sort.Sort(rvFloats{v})
++	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
++		sort.Sort(rvInts{v})
++	case reflect.String:
++		sort.Sort(rvStrings{v})
++	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
++		sort.Sort(rvUints{v})
++	}
++	return v
++}
+diff --git a/src/pkg/text/template/exec_test.go b/src/pkg/text/template/exec_test.go
+index e33988b86c..2070cefde7 100644
+--- a/src/pkg/text/template/exec_test.go
++++ b/src/pkg/text/template/exec_test.go
+@@ -11,7 +11,6 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"reflect"
+-	"sort"
+ 	"strings"
+ 	"testing"
+ )
+@@ -169,18 +168,6 @@ func (t *T) MAdd(a int, b []int) []int {
+ 	return v
+ }
+ 
+-// MSort is used to sort map keys for stable output. (Nice trick!)
+-func (t *T) MSort(m map[string]int) []string {
+-	keys := make([]string, len(m))
+-	i := 0
+-	for k := range m {
+-		keys[i] = k
+-		i++
+-	}
+-	sort.Strings(keys)
+-	return keys
+-}
+-
+ // EPERM returns a value and an error according to its argument.
+ func (t *T) EPERM(error bool) (bool, error) {
+ 	if error {
+@@ -410,9 +397,9 @@ var execTests = []execTest{
+ 	{"range empty else", "{{range .SIEmpty}}-{{.}}-{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
+ 	{"range []bool", "{{range .SB}}-{{.}}-{{end}}", "-true--false-", tVal, true},
+ 	{"range []int method", "{{range .SI | .MAdd .I}}-{{.}}-{{end}}", "-20--21--22-", tVal, true},
+-	{"range map", "{{range .MSI | .MSort}}-{{.}}-{{end}}", "-one--three--two-", tVal, true},
++	{"range map", "{{range .MSI}}-{{.}}-{{end}}", "-1--3--2-", tVal, true},
+ 	{"range empty map no else", "{{range .MSIEmpty}}-{{.}}-{{end}}", "", tVal, true},
+-	{"range map else", "{{range .MSI | .MSort}}-{{.}}-{{else}}EMPTY{{end}}", "-one--three--two-", tVal, true},
++	{"range map else", "{{range .MSI}}-{{.}}-{{else}}EMPTY{{end}}", "-1--3--2-", tVal, true},
+ 	{"range empty map else", "{{range .MSIEmpty}}-{{.}}-{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
+ 	{"range empty interface", "{{range .Empty3}}-{{.}}-{{else}}EMPTY{{end}}", "-7--8-", tVal, true},
+ 	{"range empty nil", "{{range .Empty0}}-{{.}}-{{end}}", "", tVal, true},

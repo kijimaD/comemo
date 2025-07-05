@@ -9,9 +9,454 @@ Date:   Thu Sep 25 17:20:39 2008 -0700
     R=r
     OCL=15911
     CL=15911
-
+---
  usr/gri/pretty/ast.go     |  41 +++++++++++++----
  usr/gri/pretty/parser.go  | 114 ++++++++++++++++++++++++++++------------------
  usr/gri/pretty/printer.go |  26 ++++++++++-
  usr/gri/pretty/scanner.go |   4 +-
  4 files changed, 128 insertions(+), 57 deletions(-)
+
+diff --git a/usr/gri/pretty/ast.go b/usr/gri/pretty/ast.go
+index 7cbd05c5c7..b8839852a4 100644
+--- a/usr/gri/pretty/ast.go
++++ b/usr/gri/pretty/ast.go
+@@ -40,7 +40,9 @@ export type Visitor interface {
+ 	DoIndex(x *Index);
+ 	DoCall(x *Call);
+ 	DoSelector(x *Selector);
+-	
++	DoCompositeLit(x *CompositeLit);
++	DoFunctionLit(x *FunctionLit);
++
+ 	// Statements
+ 	DoLabel(x *Label);
+ 	DoBlock(x *Block);
+@@ -167,9 +169,16 @@ export type MapType struct {
+ }
+ 
+ 
++export const /* chan mode */ (
++	FULL = iota;
++	RECV;
++	SEND;
++)
++
+ export type ChannelType struct {
+ 	pos int;  // position of "chan" or "<-" (if before "chan")
+ 	elt Type;
++	mode int;
+ }
+ 
+ 
+@@ -324,13 +333,29 @@ export type Literal struct {
+ }
+ 
+ 
+-func (x *Binary)   Visit(v Visitor)  { v.DoBinary(x); }
+-func (x *Unary)    Visit(v Visitor)  { v.DoUnary(x); }
+-func (x *Literal)  Visit(v Visitor)  { v.DoLiteral(x); }
+-func (x *Pair)     Visit(v Visitor)  { v.DoPair(x); }
+-func (x *Index)    Visit(v Visitor)  { v.DoIndex(x); }
+-func (x *Call)     Visit(v Visitor)  { v.DoCall(x); }
+-func (x *Selector) Visit(v Visitor)  { v.DoSelector(x); }
++export type CompositeLit struct {
++	pos int;  // position of "{"
++	typ Type;
++	vals *List  // list of Expr
++}
++
++
++export type FunctionLit struct {
++	pos int;  // position of "func"
++	typ *FunctionType;
++	body *Block;
++}
++
++
++func (x *Binary)       Visit(v Visitor)  { v.DoBinary(x); }
++func (x *Unary)        Visit(v Visitor)  { v.DoUnary(x); }
++func (x *Literal)      Visit(v Visitor)  { v.DoLiteral(x); }
++func (x *Pair)         Visit(v Visitor)  { v.DoPair(x); }
++func (x *Index)        Visit(v Visitor)  { v.DoIndex(x); }
++func (x *Call)         Visit(v Visitor)  { v.DoCall(x); }
++func (x *Selector)     Visit(v Visitor)  { v.DoSelector(x); }
++func (x *CompositeLit) Visit(v Visitor)  { v.DoCompositeLit(x); }
++func (x *FunctionLit)  Visit(v Visitor)  { v.DoFunctionLit(x); }
+ 
+ 
+ // ----------------------------------------------------------------------------
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index c20f8f8d7c..8bca136e0d 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -212,6 +212,7 @@ func (P *Parser) ParseArrayType() *AST.ArrayType {
+ 	
+ 	typ := new(AST.ArrayType);
+ 	typ.pos = P.pos;
++	typ.len_ = AST.NIL;
+ 	
+ 	P.Expect(Scanner.LBRACK);
+ 	if P.tok != Scanner.RBRACK {
+@@ -231,15 +232,18 @@ func (P *Parser) ParseChannelType() *AST.ChannelType {
+ 	
+ 	typ := new(AST.ChannelType);
+ 	typ.pos = P.pos;
++	typ.mode = AST.FULL;
+ 	
+ 	if P.tok == Scanner.CHAN {
+ 		P.Next();
+ 		if P.tok == Scanner.ARROW {
+ 			P.Next();
++			typ.mode = AST.SEND;
+ 		}
+ 	} else {
+ 		P.Expect(Scanner.ARROW);
+ 		P.Expect(Scanner.CHAN);
++		typ.mode = AST.RECV;
+ 	}
+ 	typ.elt = P.ParseVarType();
+ 
+@@ -532,91 +536,106 @@ func (P *Parser) ParseBlock() *AST.Block {
+ // ----------------------------------------------------------------------------
+ // Expressions
+ 
+-func (P *Parser) ParseExpressionList() *AST.List {
++func (P *Parser) ParseExpressionList(list *AST.List) {
+ 	P.Trace("ExpressionList");
+ 
+-	p := AST.NewList();
+-	p.Add(P.ParseExpression());
++	list.Add(P.ParseExpression());
+ 	for P.tok == Scanner.COMMA {
+ 		P.Next();
+-		p.Add(P.ParseExpression());
++		list.Add(P.ParseExpression());
+ 	}
+ 	
+ 	P.Ecart();
+-	return p;
+ }
+ 
+ 
+-func (P *Parser) ParseFunctionLit() AST.Expr {
++func (P *Parser) ParseNewExpressionList() *AST.List {
++	list := AST.NewList();
++	P.ParseExpressionList(list);
++	return list;
++}
++
++
++func (P *Parser) ParseFunctionLit() *AST.FunctionLit {
+ 	P.Trace("FunctionLit");
+ 	
++	fun := new(AST.FunctionLit);
++	fun.pos = P.pos;
++	
+ 	P.Expect(Scanner.FUNC);
+-	P.ParseFunctionType();
+-	P.ParseBlock();
++	fun.typ = P.ParseFunctionType();
++	fun.body = P.ParseBlock();
+ 	
+ 	P.Ecart();
+-	var x AST.Expr;
+-	return x;
++	return fun;
+ }
+ 
+ 
+ func (P *Parser) ParseExpressionPair() AST.Expr {
+ 	P.Trace("ExpressionPair");
+ 
+-	x := P.ParseExpression();
+-	pos := P.pos;
++	p := new(AST.Pair);
++	p.x = P.ParseExpression();
++	p.pos = P.pos;
+ 	P.Expect(Scanner.COLON);
+-	y := P.ParseExpression();
+-	
+-	z := new(AST.Pair);
+-	z.pos, z.x, z.y = pos, x, y;
++	p.y = P.ParseExpression();
+ 	
+ 	P.Ecart();
+-	return z;
++	return p;
+ }
+ 
+ 
+-func (P *Parser) ParseExpressionPairList() *AST.List {
++func (P *Parser) ParseExpressionPairList(list *AST.List) {
+ 	P.Trace("ExpressionPairList");
+ 
+-	p := AST.NewList();
+-	p.Add(P.ParseExpressionPair());
++	list.Add(P.ParseExpressionPair());
+ 	for P.tok == Scanner.COMMA {
+-		p.Add(P.ParseExpressionPair());
++		list.Add(P.ParseExpressionPair());
+ 	}
+ 	
+ 	P.Ecart();
+-	return p;
+ }
+ 
+ 
+-func (P *Parser) ParseCompositeLit() AST.Expr {
++func (P *Parser) ParseCompositeLit(typ AST.Type) AST.Expr {
+ 	P.Trace("CompositeLit");
+ 	
++	lit := new(AST.CompositeLit);
++	lit.pos = P.pos;
++	lit.typ = typ;
++	lit.vals = AST.NewList();
++	
+ 	P.Expect(Scanner.LBRACE);
+ 	// TODO: should allow trailing ','
+ 	if P.tok != Scanner.RBRACE {
+-		P.ParseExpression();
++		x := P.ParseExpression();
+ 		if P.tok == Scanner.COMMA {
+ 			P.Next();
++			lit.vals.Add(x);
+ 			if P.tok != Scanner.RBRACE {
+-				P.ParseExpressionList();
++				P.ParseExpressionList(lit.vals);
+ 			}
+ 		} else if P.tok == Scanner.COLON {
++			p := new(AST.Pair);
++			p.pos = P.pos;
++			p.x = x;
+ 			P.Next();
+-			P.ParseExpression();
++			p.y = P.ParseExpression();
++			lit.vals.Add(p);
+ 			if P.tok == Scanner.COMMA {
+ 				P.Next();
+ 				if P.tok != Scanner.RBRACE {
+-					P.ParseExpressionPairList();
++					P.ParseExpressionPairList(lit.vals);
+ 				}
+ 			}
++		} else {
++			lit.vals.Add(x);
+ 		}
+ 	}
+ 	P.Expect(Scanner.RBRACE);
+ 
+ 	P.Ecart();
+-	return nil;
++	return lit;
+ }
+ 
+ 
+@@ -645,15 +664,15 @@ func (P *Parser) ParseOperand() AST.Expr {
+ 		
+ 	case Scanner.HASH:
+ 		P.Next();
+-		P.ParseType();
+-		P.ParseCompositeLit();
++		typ := P.ParseType();
++		P.ParseCompositeLit(typ);
+ 		op = AST.NIL;
+ 
+ 	default:
+ 		if P.tok != Scanner.IDENT {
+ 			typ, ok := P.TryType();
+ 			if ok {
+-				op = P.ParseCompositeLit();
++				op = P.ParseCompositeLit(typ);
+ 				break;
+ 			}
+ 		}
+@@ -712,11 +731,14 @@ func (P *Parser) ParseIndexOrSlice(x AST.Expr) AST.Expr {
+ }
+ 
+ 
+-func (P *Parser) ParseCall(x AST.Expr) AST.Expr {
++func (P *Parser) ParseCall(x AST.Expr) *AST.Call {
+ 	P.Trace("Call");
+ 
+-	pos := P.pos;
+-	var args *AST.List = nil;
++	call := new(AST.Call);
++	call.pos = P.pos;
++	call.fun = x;
++	call.args = nil;
++	
+ 	P.Expect(Scanner.LPAREN);
+ 	if P.tok != Scanner.RPAREN {
+ 	   	// first arguments could be a type if the call is to "new"
+@@ -727,24 +749,24 @@ func (P *Parser) ParseCall(x AST.Expr) AST.Expr {
+ 		if P.tok != Scanner.IDENT && P.tok != Scanner.LPAREN {
+ 			typ, ok := P.TryType();
+ 			if ok {
++				call.args = AST.NewList();
++				call.args.Add(typ);
+ 				if P.tok == Scanner.COMMA {
+ 					P.Next();
+ 					if P.tok != Scanner.RPAREN {
+-						args = P.ParseExpressionList();
++						P.ParseExpressionList(call.args);
+ 					}
+ 				}
+ 			} else {
+-				args = P.ParseExpressionList();
++				call.args = P.ParseNewExpressionList();
+ 			}
+ 		} else {
+-			args = P.ParseExpressionList();
++			call.args = P.ParseNewExpressionList();
+ 		}
+ 	}
+ 	P.Expect(Scanner.RPAREN);
+ 	
+ 	P.Ecart();
+-	call := new(AST.Call);
+-	call.pos, call.fun, call.args = pos, x, args;
+ 	return call;
+ }
+ 
+@@ -837,7 +859,7 @@ func (P *Parser) ParseSimpleStat() AST.Stat {
+ 	P.Trace("SimpleStat");
+ 	
+ 	var stat AST.Stat = AST.NIL;
+-	x := P.ParseExpressionList();
++	x := P.ParseNewExpressionList();
+ 	
+ 	switch P.tok {
+ 	case Scanner.COLON:
+@@ -860,7 +882,7 @@ func (P *Parser) ParseSimpleStat() AST.Stat {
+ 		Scanner.XOR_ASSIGN, Scanner.SHL_ASSIGN, Scanner.SHR_ASSIGN:
+ 		pos, tok := P.pos, P.tok;
+ 		P.Next();
+-		y := P.ParseExpressionList();
++		y := P.ParseNewExpressionList();
+ 		a := new(AST.Assignment);
+ 		a.pos, a.tok, a.lhs, a.rhs = pos, tok, x, y;
+ 		stat = a;
+@@ -915,7 +937,7 @@ func (P *Parser) ParseReturnStat() *AST.ReturnStat {
+ 	
+ 	P.Expect(Scanner.RETURN);
+ 	if P.tok != Scanner.SEMICOLON && P.tok != Scanner.RBRACE {
+-		stat.res = P.ParseExpressionList();
++		stat.res = P.ParseNewExpressionList();
+ 	}
+ 	
+ 	P.Ecart();
+@@ -1020,7 +1042,7 @@ func (P *Parser) ParseCase() *AST.CaseClause {
+ 	
+ 	if P.tok == Scanner.CASE {
+ 		P.Next();
+-		clause.exprs = P.ParseExpressionList();
++		clause.exprs = P.ParseNewExpressionList();
+ 	} else {
+ 		P.Expect(Scanner.DEFAULT);
+ 	}
+@@ -1218,6 +1240,7 @@ func (P *Parser) ParseConstSpec(exported bool) *AST.ConstDecl {
+ 	decl.ident = P.ParseIdent();
+ 	var ok bool;
+ 	decl.typ, ok = P.TryType();
++	decl.val = AST.NIL;
+ 	
+ 	if P.tok == Scanner.ASSIGN {
+ 		P.Next();
+@@ -1248,12 +1271,13 @@ func (P *Parser) ParseVarSpec(exported bool) *AST.VarDecl {
+ 	decl.idents = P.ParseIdentList();
+ 	if P.tok == Scanner.ASSIGN {
+ 		P.Next();
+-		decl.vals = P.ParseExpressionList();
++		decl.typ = AST.NIL;
++		decl.vals = P.ParseNewExpressionList();
+ 	} else {
+ 		decl.typ = P.ParseVarType();
+ 		if P.tok == Scanner.ASSIGN {
+ 			P.Next();
+-			decl.vals = P.ParseExpressionList();
++			decl.vals = P.ParseNewExpressionList();
+ 		}
+ 	}
+ 	
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index 7ab363da5b..52572cedd9 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -107,7 +107,11 @@ func (P *Printer) DoMapType(x *AST.MapType) {
+ 
+ 
+ func (P *Printer) DoChannelType(x *AST.ChannelType) {
+-	P.String("chan ");
++	switch x.mode {
++	case AST.FULL: P.String("chan ");
++	case AST.RECV: P.String("<-chan ");
++	case AST.SEND: P.String("chan <- ");
++	}
+ 	P.Print(x.elt);
+ }
+ 
+@@ -226,8 +230,8 @@ func (P *Printer) DoDeclaration(x *AST.Declaration) {
+ 			if i > 0 {
+ 				P.NewLine(0);
+ 			}
+-			//print("*** i = ", i, "\n");
+ 			P.Print(x.decls.at(i));
++			P.String(";");
+ 		}
+ 		P.NewLine(-1);
+ 		P.String(")");
+@@ -300,6 +304,22 @@ func (P *Printer) DoSelector(x *AST.Selector) {
+ }
+ 
+ 
++func (P *Printer) DoCompositeLit(x *AST.CompositeLit) {
++	P.Print(x.typ);
++	P.String("{");
++	P.PrintList(x.vals);
++	P.String("}");
++}
++
++
++func (P *Printer) DoFunctionLit(x *AST.FunctionLit) {
++	P.String("func ");
++	P.Print(x.typ);
++	P.String(" ");
++	P.Print(x.body);
++}
++
++
+ // ----------------------------------------------------------------------------
+ // Statements
+ 
+@@ -320,8 +340,10 @@ func (P *Printer) DoBlock(x *AST.Block) {
+ 
+ 
+ func (P *Printer) DoLabel(x *AST.Label) {
++	P.NewLine(-1);
+ 	P.Print(x.ident);
+ 	P.String(":");
++	P.indent++;
+ }
+ 
+ 
+diff --git a/usr/gri/pretty/scanner.go b/usr/gri/pretty/scanner.go
+index 60dfa1c621..02f5e56fe9 100644
+--- a/usr/gri/pretty/scanner.go
++++ b/usr/gri/pretty/scanner.go
+@@ -794,14 +794,14 @@ export type Token struct {
+ 
+ 
+ func (S *Scanner) TokenStream() *<-chan *Token {
+-     	ch := new(chan *Token, 100);
++	ch := new(chan *Token, 100);
+ 	go func(S *Scanner, ch *chan <- *Token) {
+ 		for {
+ 			t := new(Token);
+ 			t.tok, t.pos, t.val = S.Scan();
+ 			ch <- t;
+ 			if t.tok == EOF {
+-			   break;
++				break;
+ 			}
+ 		}
+ 	}(S, ch);

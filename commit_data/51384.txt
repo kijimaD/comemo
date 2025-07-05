@@ -12,8 +12,96 @@ Date:   Wed Jan 19 13:38:05 2022 -0500
     Run-TryBot: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modload/init.go                |  7 ++++
  src/cmd/go/internal/modload/modfile.go             |  3 ++
  .../testdata/script/work_replace_main_module.txt   | 45 ++++++++++++++++++++++
  3 files changed, 55 insertions(+)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index fe7d0ef3e6..cdcfbeb8de 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -983,9 +983,16 @@ func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile
+ 		workFileReplaceMap: toReplaceMap(workFileReplaces),
+ 		highestReplaced:    map[string]string{},
+ 	}
++	mainModulePaths := make(map[string]bool)
++	for _, m := range ms {
++		mainModulePaths[m.Path] = true
++	}
+ 	replacedByWorkFile := make(map[string]bool)
+ 	replacements := make(map[module.Version]module.Version)
+ 	for _, r := range workFileReplaces {
++		if mainModulePaths[r.Old.Path] && r.Old.Version == "" {
++			base.Errorf("go: workspace module %v is replaced at all versions in the go.work file. To fix, remove the replacement from the go.work file or specify the version at which to replace the module.", r.Old.Path)
++		}
+ 		replacedByWorkFile[r.Old.Path] = true
+ 		v, ok := mainModules.highestReplaced[r.Old.Path]
+ 		if !ok || semver.Compare(r.Old.Version, v) > 0 {
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index ec3f57ae3e..627cf1dbc0 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -340,6 +340,9 @@ func Replacement(mod module.Version) module.Version {
+ 	foundFrom, found, foundModRoot := "", module.Version{}, ""
+ 	if MainModules == nil {
+ 		return module.Version{}
++	} else if MainModules.Contains(mod.Path) && mod.Version == "" {
++		// Don't replace the workspace version of the main module.
++		return module.Version{}
+ 	}
+ 	if _, r, ok := replacement(mod, MainModules.WorkFileReplaceMap()); ok {
+ 		return r
+diff --git a/src/cmd/go/testdata/script/work_replace_main_module.txt b/src/cmd/go/testdata/script/work_replace_main_module.txt
+new file mode 100644
+index 0000000000..b213764280
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_replace_main_module.txt
+@@ -0,0 +1,45 @@
++# Ensure that replaces of the main module in workspace modules
++# are ignored, and replaces in the go.work file are disallowed.
++# This tests against an issue where requirements of the
++# main module were being ignored because the main module
++# was replaced in a transitive dependency with another
++# version.
++
++go list example.com/dep
++
++cp replace_main_module.go.work go.work
++! go list example.com/dep
++stderr 'go: workspace module example.com/mainmoda is replaced at all versions in the go.work file. To fix, remove the replacement from the go.work file or specify the version at which to replace the module.'
++
++-- replace_main_module.go.work --
++go 1.18
++use (
++    ./mainmoda
++    ./mainmodb
++)
++replace example.com/mainmoda => ../mainmodareplacement
++-- go.work --
++go 1.18
++use (
++    ./mainmoda
++    ./mainmodb
++)
++-- mainmoda/go.mod --
++module example.com/mainmoda
++
++go 1.18
++
++require example.com/dep v1.0.0
++replace example.com/dep => ../dep
++
++-- dep/go.mod --
++module example.com/dep
++-- dep/dep.go --
++package dep
++-- mainmodb/go.mod --
++module example.com/mainmodb
++go 1.18
++replace example.com/mainmoda => ../mainmodareplacement
++-- mainmodareplacement/go.mod --
++module example.com/mainmoda
++go 1.18
+\ No newline at end of file

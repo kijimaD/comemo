@@ -7,6 +7,19 @@ Date:   Mon Jan 14 09:54:56 2013 +1100
     R=dsymonds
     CC=golang-dev
     https://golang.org/cl/7106044
-
+---
  misc/dashboard/codereview/dashboard/people.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/misc/dashboard/codereview/dashboard/people.go b/misc/dashboard/codereview/dashboard/people.go
+index 47f5ca08bf..facda7baf0 100644
+--- a/misc/dashboard/codereview/dashboard/people.go
++++ b/misc/dashboard/codereview/dashboard/people.go
+@@ -22,6 +22,7 @@ func init() {
+ 	gophers := [...]string{
+ 		"adg",
+ 		"bradfitz",
++		"campoy",
+ 		"dsymonds",
+ 		"gri",
+ 		"iant",

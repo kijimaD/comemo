@@ -14,7 +14,78 @@ Date:   Fri Aug 26 17:44:30 2016 +0900
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David du Colombier <0intro@gmail.com>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/os/os_test.go         | 23 -----------------------
  src/os/os_windows_test.go | 24 ++++++++++++++++++++++++
  2 files changed, 24 insertions(+), 23 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index fb392b52cd..0c4042a4bf 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1812,26 +1812,3 @@ func TestRemoveAllRace(t *testing.T) {
+ 	close(hold) // let workers race to remove root
+ 	wg.Wait()
+ }
+-
+-func TestStatSymlinkLoop(t *testing.T) {
+-	testenv.MustHaveSymlink(t)
+-
+-	defer chtmpdir(t)()
+-
+-	err := Symlink("x", "y")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer Remove("y")
+-
+-	err = Symlink("y", "x")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer Remove("x")
+-
+-	_, err = Stat("x")
+-	if perr, ok := err.(*PathError); !ok || perr.Err != syscall.ELOOP {
+-		t.Errorf("expected *PathError with ELOOP, got %T: %v\n", err, err)
+-	}
+-}
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index 59f89fcae3..a6085f1368 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -5,6 +5,7 @@
+ package os_test
+ 
+ import (
++	"internal/testenv"
+ 	"io/ioutil"
+ 	"os"
+ 	osexec "os/exec"
+@@ -229,3 +230,26 @@ func TestDeleteReadOnly(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ }
++
++func TestStatSymlinkLoop(t *testing.T) {
++	testenv.MustHaveSymlink(t)
++
++	defer chtmpdir(t)()
++
++	err := os.Symlink("x", "y")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.Remove("y")
++
++	err = os.Symlink("y", "x")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.Remove("x")
++
++	_, err = os.Stat("x")
++	if perr, ok := err.(*os.PathError); !ok || perr.Err != syscall.ELOOP {
++		t.Errorf("expected *PathError with ELOOP, got %T: %v\n", err, err)
++	}
++}

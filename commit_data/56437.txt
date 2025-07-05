@@ -19,7 +19,7 @@ Date:   Mon May 8 13:38:04 2023 -0400
     Reviewed-by: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go.mod                                     |   8 +-
  src/cmd/go.sum                                     |  16 +-
  src/cmd/go/testdata/script/vet_flags.txt           |   4 +-
@@ -98,3 +98,3078 @@ Date:   Mon May 8 13:38:04 2023 -0400
  src/vendor/golang.org/x/net/nettest/nettest.go     |   8 +-
  src/vendor/modules.txt                             |   4 +-
  77 files changed, 926 insertions(+), 808 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index f374663442..529fc402dd 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -5,11 +5,11 @@ go 1.21
+ require (
+ 	github.com/google/pprof v0.0.0-20221118152302-e6195bd50e26
+ 	golang.org/x/arch v0.2.1-0.20230208145055-40c19ba4a7c5
+-	golang.org/x/mod v0.8.0
+-	golang.org/x/sync v0.1.0
+-	golang.org/x/sys v0.7.0
++	golang.org/x/mod v0.10.0
++	golang.org/x/sync v0.2.0
++	golang.org/x/sys v0.8.0
+ 	golang.org/x/term v0.5.0
+-	golang.org/x/tools v0.5.1-0.20230207232209-1ace7dbcb0de
++	golang.org/x/tools v0.8.1-0.20230508195130-8f7fb01dd429
+ )
+ 
+ require github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2 // indirect
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 24769262fb..d964d568e4 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -4,13 +4,13 @@ github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2 h1:rcanfLh
+ github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2/go.mod h1:aYm2/VgdVmcIU8iMfdMvDMsRAQjcfZSKFby6HOFvi/w=
+ golang.org/x/arch v0.2.1-0.20230208145055-40c19ba4a7c5 h1:UFbINK7+lzLJEIqCXPlzx05ivYhLQeXCkxW3SSH3f8Q=
+ golang.org/x/arch v0.2.1-0.20230208145055-40c19ba4a7c5/go.mod h1:5om86z9Hs0C8fWVUuoMHwpExlXzs5Tkyp9hOrfG7pp8=
+-golang.org/x/mod v0.8.0 h1:LUYupSeNrTNCGzR/hVBk2NHZO4hXcVaW1k4Qx7rjPx8=
+-golang.org/x/mod v0.8.0/go.mod h1:iBbtSCu2XBx23ZKBPSOrRkjjQPZFPuis4dIYUhu/chs=
+-golang.org/x/sync v0.1.0 h1:wsuoTGHzEhffawBOhz5CYhcrV4IdKZbEyZjBMuTp12o=
+-golang.org/x/sync v0.1.0/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
+-golang.org/x/sys v0.7.0 h1:3jlCCIQZPdOYu1h8BkNvLz8Kgwtae2cagcG/VamtZRU=
+-golang.org/x/sys v0.7.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
++golang.org/x/mod v0.10.0 h1:lFO9qtOdlre5W1jxS3r/4szv2/6iXxScdzjoBMXNhYk=
++golang.org/x/mod v0.10.0/go.mod h1:iBbtSCu2XBx23ZKBPSOrRkjjQPZFPuis4dIYUhu/chs=
++golang.org/x/sync v0.2.0 h1:PUR+T4wwASmuSTYdKjYHI5TD22Wy5ogLU5qZCOLxBrI=
++golang.org/x/sync v0.2.0/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
++golang.org/x/sys v0.8.0 h1:EBmGv8NaZBZTWvrbjNoL6HVt+IVy3QDQpJs7VRIw3tU=
++golang.org/x/sys v0.8.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/term v0.5.0 h1:n2a8QNdAb0sZNpU9R1ALUXBbY+w51fCQDN+7EdxNBsY=
+ golang.org/x/term v0.5.0/go.mod h1:jMB1sMXY+tzblOD4FWmEbocvup2/aLOaQEp7JmGp78k=
+-golang.org/x/tools v0.5.1-0.20230207232209-1ace7dbcb0de h1:4jmbIl5TAjCdpElDHfccqVTxbYmcojXD9SeGqafSYp0=
+-golang.org/x/tools v0.5.1-0.20230207232209-1ace7dbcb0de/go.mod h1:N+Kgy78s5I24c24dU8OfWNEotWjutIs8SnJvn5IDq+k=
++golang.org/x/tools v0.8.1-0.20230508195130-8f7fb01dd429 h1:nDRvPgHpNZhyxqe+K2j4+cOW3t5INqBY6UhqnrOp92Y=
++golang.org/x/tools v0.8.1-0.20230508195130-8f7fb01dd429/go.mod h1:owI94Op576fPu3cIGQeHs3joujW/2Oc6MtlxbF5dfNc=
+diff --git a/src/cmd/go/testdata/script/vet_flags.txt b/src/cmd/go/testdata/script/vet_flags.txt
+index e2e3f5bc55..1c130b579e 100644
+--- a/src/cmd/go/testdata/script/vet_flags.txt
++++ b/src/cmd/go/testdata/script/vet_flags.txt
+@@ -31,7 +31,7 @@ go vet -n -- .
+ go vet .
+ env GOFLAGS='-tags=buggy'
+ ! go vet .
+-stderr 'possible formatting directive'
++stderr 'possible Printf formatting directive'
+ 
+ # Enabling one analyzer in GOFLAGS should disable the rest implicitly...
+ env GOFLAGS='-tags=buggy -unsafeptr'
+@@ -41,7 +41,7 @@ go vet .
+ # enabled via GOFLAGS.
+ env GOFLAGS='-tags=buggy -printf'
+ ! go vet -unsafeptr
+-stderr 'possible formatting directive'
++stderr 'possible Printf formatting directive'
+ 
+ # Analyzer flags don't exist unless we're running 'go vet',
+ # and we shouldn't run the vet tool to discover them otherwise.
+diff --git a/src/cmd/go/testdata/script/work_vet.txt b/src/cmd/go/testdata/script/work_vet.txt
+index e258fc0394..f95caddad6 100644
+--- a/src/cmd/go/testdata/script/work_vet.txt
++++ b/src/cmd/go/testdata/script/work_vet.txt
+@@ -1,5 +1,5 @@
+ ! go vet ./a
+-stderr 'fmt.Println call has possible formatting directive'
++stderr 'fmt.Println call has possible Printf formatting directive'
+ 
+ -- go.work --
+ go 1.18
+diff --git a/src/cmd/vendor/golang.org/x/mod/zip/zip.go b/src/cmd/vendor/golang.org/x/mod/zip/zip.go
+index c5eca4bbc2..7b48a2a2f0 100644
+--- a/src/cmd/vendor/golang.org/x/mod/zip/zip.go
++++ b/src/cmd/vendor/golang.org/x/mod/zip/zip.go
+@@ -663,7 +663,7 @@ func filesInGitRepo(dir, rev, subdir string) ([]File, error) {
+ 		if n == "" {
+ 			continue
+ 		}
+-		n = strings.TrimPrefix(n, string(filepath.Separator))
++		n = strings.TrimPrefix(n, "/")
+ 
+ 		fs = append(fs, zipFile{
+ 			name: n,
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh b/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
+index 2045d3dadb..be0423e685 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
++++ b/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
+@@ -204,6 +204,7 @@ struct ltchars {
+ #include <sys/timerfd.h>
+ #include <sys/uio.h>
+ #include <sys/xattr.h>
++#include <netinet/udp.h>
+ #include <linux/audit.h>
+ #include <linux/bpf.h>
+ #include <linux/can.h>
+@@ -518,7 +519,7 @@ ccflags="$@"
+ 		$2 ~ /^LOCK_(SH|EX|NB|UN)$/ ||
+ 		$2 ~ /^LO_(KEY|NAME)_SIZE$/ ||
+ 		$2 ~ /^LOOP_(CLR|CTL|GET|SET)_/ ||
+-		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|MCAST|EVFILT|NOTE|SHUT|PROT|MAP|MFD|T?PACKET|MSG|SCM|MCL|DT|MADV|PR|LOCAL|TCPOPT)_/ ||
++		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|MCAST|EVFILT|NOTE|SHUT|PROT|MAP|MFD|T?PACKET|MSG|SCM|MCL|DT|MADV|PR|LOCAL|TCPOPT|UDP)_/ ||
+ 		$2 ~ /^NFC_(GENL|PROTO|COMM|RF|SE|DIRECTION|LLCP|SOCKPROTO)_/ ||
+ 		$2 ~ /^NFC_.*_(MAX)?SIZE$/ ||
+ 		$2 ~ /^RAW_PAYLOAD_/ ||
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
+index 398c37e52d..de936b677b 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
+@@ -2967,6 +2967,7 @@ const (
+ 	SOL_TCP                                     = 0x6
+ 	SOL_TIPC                                    = 0x10f
+ 	SOL_TLS                                     = 0x11a
++	SOL_UDP                                     = 0x11
+ 	SOL_X25                                     = 0x106
+ 	SOL_XDP                                     = 0x11b
+ 	SOMAXCONN                                   = 0x1000
+@@ -3251,6 +3252,19 @@ const (
+ 	TRACEFS_MAGIC                               = 0x74726163
+ 	TS_COMM_LEN                                 = 0x20
+ 	UDF_SUPER_MAGIC                             = 0x15013346
++	UDP_CORK                                    = 0x1
++	UDP_ENCAP                                   = 0x64
++	UDP_ENCAP_ESPINUDP                          = 0x2
++	UDP_ENCAP_ESPINUDP_NON_IKE                  = 0x1
++	UDP_ENCAP_GTP0                              = 0x4
++	UDP_ENCAP_GTP1U                             = 0x5
++	UDP_ENCAP_L2TPINUDP                         = 0x3
++	UDP_GRO                                     = 0x68
++	UDP_NO_CHECK6_RX                            = 0x66
++	UDP_NO_CHECK6_TX                            = 0x65
++	UDP_SEGMENT                                 = 0x67
++	UDP_V4_FLOW                                 = 0x2
++	UDP_V6_FLOW                                 = 0x6
+ 	UMOUNT_NOFOLLOW                             = 0x8
+ 	USBDEVICE_SUPER_MAGIC                       = 0x9fa2
+ 	UTIME_NOW                                   = 0x3fffffff
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/env_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/env_windows.go
+index 92ac05ff4e..b8ad192506 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/env_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/env_windows.go
+@@ -37,14 +37,14 @@ func (token Token) Environ(inheritExisting bool) (env []string, err error) {
+ 		return nil, err
+ 	}
+ 	defer DestroyEnvironmentBlock(block)
+-	blockp := uintptr(unsafe.Pointer(block))
++	blockp := unsafe.Pointer(block)
+ 	for {
+-		entry := UTF16PtrToString((*uint16)(unsafe.Pointer(blockp)))
++		entry := UTF16PtrToString((*uint16)(blockp))
+ 		if len(entry) == 0 {
+ 			break
+ 		}
+ 		env = append(env, entry)
+-		blockp += 2 * (uintptr(len(entry)) + 1)
++		blockp = unsafe.Add(blockp, 2*(len(entry)+1))
+ 	}
+ 	return env, nil
+ }
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/exec_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/exec_windows.go
+index 75980fd44a..a52e0331d8 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/exec_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/exec_windows.go
+@@ -95,12 +95,17 @@ func ComposeCommandLine(args []string) string {
+ // DecomposeCommandLine breaks apart its argument command line into unescaped parts using CommandLineToArgv,
+ // as gathered from GetCommandLine, QUERY_SERVICE_CONFIG's BinaryPathName argument, or elsewhere that
+ // command lines are passed around.
++// DecomposeCommandLine returns error if commandLine contains NUL.
+ func DecomposeCommandLine(commandLine string) ([]string, error) {
+ 	if len(commandLine) == 0 {
+ 		return []string{}, nil
+ 	}
++	utf16CommandLine, err := UTF16FromString(commandLine)
++	if err != nil {
++		return nil, errorspkg.New("string with NUL passed to DecomposeCommandLine")
++	}
+ 	var argc int32
+-	argv, err := CommandLineToArgv(StringToUTF16Ptr(commandLine), &argc)
++	argv, err := CommandLineToArgv(&utf16CommandLine[0], &argc)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/service.go b/src/cmd/vendor/golang.org/x/sys/windows/service.go
+index f8deca8397..c964b6848d 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/service.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/service.go
+@@ -141,6 +141,12 @@ const (
+ 	SERVICE_DYNAMIC_INFORMATION_LEVEL_START_REASON = 1
+ )
+ 
++type ENUM_SERVICE_STATUS struct {
++	ServiceName   *uint16
++	DisplayName   *uint16
++	ServiceStatus SERVICE_STATUS
++}
++
+ type SERVICE_STATUS struct {
+ 	ServiceType             uint32
+ 	CurrentState            uint32
+@@ -245,3 +251,4 @@ type QUERY_SERVICE_LOCK_STATUS struct {
+ //sys	UnsubscribeServiceChangeNotifications(subscription uintptr) = sechost.UnsubscribeServiceChangeNotifications?
+ //sys	RegisterServiceCtrlHandlerEx(serviceName *uint16, handlerProc uintptr, context uintptr) (handle Handle, err error) = advapi32.RegisterServiceCtrlHandlerExW
+ //sys	QueryServiceDynamicInformation(service Handle, infoLevel uint32, dynamicInfo unsafe.Pointer) (err error) = advapi32.QueryServiceDynamicInformation?
++//sys	EnumDependentServices(service Handle, activityState uint32, services *ENUM_SERVICE_STATUS, buffSize uint32, bytesNeeded *uint32, servicesReturned *uint32) (err error) = advapi32.EnumDependentServicesW
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go
+index 0dbb208411..88e62a6385 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go
+@@ -2220,15 +2220,19 @@ type JOBOBJECT_BASIC_UI_RESTRICTIONS struct {
+ }
+ 
+ const (
+-	// JobObjectInformationClass
++	// JobObjectInformationClass for QueryInformationJobObject and SetInformationJobObject
+ 	JobObjectAssociateCompletionPortInformation = 7
++	JobObjectBasicAccountingInformation         = 1
++	JobObjectBasicAndIoAccountingInformation    = 8
+ 	JobObjectBasicLimitInformation              = 2
++	JobObjectBasicProcessIdList                 = 3
+ 	JobObjectBasicUIRestrictions                = 4
+ 	JobObjectCpuRateControlInformation          = 15
+ 	JobObjectEndOfJobTimeInformation            = 6
+ 	JobObjectExtendedLimitInformation           = 9
+ 	JobObjectGroupInformation                   = 11
+ 	JobObjectGroupInformationEx                 = 14
++	JobObjectLimitViolationInformation          = 13
+ 	JobObjectLimitViolationInformation2         = 34
+ 	JobObjectNetRateControlInformation          = 32
+ 	JobObjectNotificationLimitInformation       = 12
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
+index 6d2a268534..a81ea2c700 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
+@@ -86,6 +86,7 @@ var (
+ 	procDeleteService                                        = modadvapi32.NewProc("DeleteService")
+ 	procDeregisterEventSource                                = modadvapi32.NewProc("DeregisterEventSource")
+ 	procDuplicateTokenEx                                     = modadvapi32.NewProc("DuplicateTokenEx")
++	procEnumDependentServicesW                               = modadvapi32.NewProc("EnumDependentServicesW")
+ 	procEnumServicesStatusExW                                = modadvapi32.NewProc("EnumServicesStatusExW")
+ 	procEqualSid                                             = modadvapi32.NewProc("EqualSid")
+ 	procFreeSid                                              = modadvapi32.NewProc("FreeSid")
+@@ -734,6 +735,14 @@ func DuplicateTokenEx(existingToken Token, desiredAccess uint32, tokenAttributes
+ 	return
+ }
+ 
++func EnumDependentServices(service Handle, activityState uint32, services *ENUM_SERVICE_STATUS, buffSize uint32, bytesNeeded *uint32, servicesReturned *uint32) (err error) {
++	r1, _, e1 := syscall.Syscall6(procEnumDependentServicesW.Addr(), 6, uintptr(service), uintptr(activityState), uintptr(unsafe.Pointer(services)), uintptr(buffSize), uintptr(unsafe.Pointer(bytesNeeded)), uintptr(unsafe.Pointer(servicesReturned)))
++	if r1 == 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
+ func EnumServicesStatusEx(mgr Handle, infoLevel uint32, serviceType uint32, serviceState uint32, services *byte, bufSize uint32, bytesNeeded *uint32, servicesReturned *uint32, resumeHandle *uint32, groupName *uint16) (err error) {
+ 	r1, _, e1 := syscall.Syscall12(procEnumServicesStatusExW.Addr(), 10, uintptr(mgr), uintptr(infoLevel), uintptr(serviceType), uintptr(serviceState), uintptr(unsafe.Pointer(services)), uintptr(bufSize), uintptr(unsafe.Pointer(bytesNeeded)), uintptr(unsafe.Pointer(servicesReturned)), uintptr(unsafe.Pointer(resumeHandle)), uintptr(unsafe.Pointer(groupName)), 0, 0)
+ 	if r1 == 0 {
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
+index 44ada22a03..e51e58b3d2 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
+@@ -24,6 +24,10 @@ type Analyzer struct {
+ 	// (no capital or period, max ~60 letters).
+ 	Doc string
+ 
++	// URL holds an optional link to a web page with additional
++	// documentation for this analyzer.
++	URL string
++
+ 	// Flags defines any flags accepted by the analyzer.
+ 	// The manner in which these flags are exposed to the user
+ 	// depends on the driver which runs the analyzer.
+@@ -145,11 +149,7 @@ type Pass struct {
+ 	// WARNING: This is an experimental API and may change in the future.
+ 	AllObjectFacts func() []ObjectFact
+ 
+-	// typeErrors contains types.Errors that are associated with the pkg.
+-	typeErrors []types.Error
+-
+ 	/* Further fields may be added in future. */
+-	// For example, suggested or applied refactorings.
+ }
+ 
+ // PackageFact is a package together with an associated fact.
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/diagnostic.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/diagnostic.go
+index 5cdcf46d2a..7646ad0d49 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/diagnostic.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/diagnostic.go
+@@ -20,6 +20,17 @@ type Diagnostic struct {
+ 	Category string    // optional
+ 	Message  string
+ 
++	// URL is the optional location of a web page that provides
++	// additional documentation for this diagnostic.
++	//
++	// If URL is empty but a Category is specified, then the
++	// Analysis driver should treat the URL as "#"+Category.
++	//
++	// The URL may be relative. If so, the base URL is that of the
++	// Analyzer that produced the diagnostic;
++	// see https://pkg.go.dev/net/url#URL.ResolveReference.
++	URL string
++
+ 	// SuggestedFixes contains suggested fixes for a diagnostic which can be used to perform
+ 	// edits to a file that address the diagnostic.
+ 	// TODO(matloob): Should multiple SuggestedFixes be allowed for a diagnostic?
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/url.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/url.go
+new file mode 100644
+index 0000000000..26a917a991
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/url.go
+@@ -0,0 +1,33 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package analysisflags
++
++import (
++	"fmt"
++	"net/url"
++
++	"golang.org/x/tools/go/analysis"
++)
++
++// ResolveURL resolves the URL field for a Diagnostic from an Analyzer
++// and returns the URL. See Diagnostic.URL for details.
++func ResolveURL(a *analysis.Analyzer, d analysis.Diagnostic) (string, error) {
++	if d.URL == "" && d.Category == "" && a.URL == "" {
++		return "", nil // do nothing
++	}
++	raw := d.URL
++	if d.URL == "" && d.Category != "" {
++		raw = "#" + d.Category
++	}
++	u, err := url.Parse(raw)
++	if err != nil {
++		return "", fmt.Errorf("invalid Diagnostic.URL %q: %s", raw, err)
++	}
++	base, err := url.Parse(a.URL)
++	if err != nil {
++		return "", fmt.Errorf("invalid Analyzer.URL %q: %s", a.URL, err)
++	}
++	return base.ResolveReference(u).String(), nil
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
+index 7288559fc0..e24dac9865 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
+@@ -27,6 +27,7 @@ const Doc = "report mismatches between assembly files and Go declarations"
+ var Analyzer = &analysis.Analyzer{
+ 	Name: "asmdecl",
+ 	Doc:  Doc,
++	URL:  "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/asmdecl",
+ 	Run:  run,
+ }
+ 
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/assign/assign.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/assign/assign.go
+index 89146b7334..10489bea17 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/assign/assign.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/assign/assign.go
+@@ -2,13 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package assign defines an Analyzer that detects useless assignments.
+ package assign
+ 
+ // TODO(adonovan): check also for assignments to struct fields inside
+ // methods that are on T instead of *T.
+ 
+ import (
++	_ "embed"
+ 	"fmt"
+ 	"go/ast"
+ 	"go/token"
+@@ -21,15 +21,13 @@ import (
+ 	"golang.org/x/tools/go/ast/inspector"
+ )
+ 
+-const Doc = `check for useless assignments
+-
+-This checker reports assignments of the form x = x or a[i] = a[i].
+-These are almost always useless, and even when they aren't they are
+-usually a mistake.`
++//go:embed doc.go
++var doc string
+ 
+ var Analyzer = &analysis.Analyzer{
+ 	Name:     "assign",
+-	Doc:      Doc,
++	Doc:      analysisutil.MustExtractDoc(doc, "assign"),
++	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/assign",
+ 	Requires: []*analysis.Analyzer{inspect.Analyzer},
+ 	Run:      run,
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/assign/doc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/assign/doc.go
+new file mode 100644
+index 0000000000..a4b1b64c51
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/assign/doc.go
+@@ -0,0 +1,14 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package assign defines an Analyzer that detects useless assignments.
++//
++// # Analyzer assign
++//
++// assign: check for useless assignments
++//
++// This checker reports assignments of the form x = x or a[i] = a[i].
++// These are almost always useless, and even when they aren't they are
++// usually a mistake.
++package assign
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/atomic/atomic.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/atomic/atomic.go
+index 9261db7e4e..b40e081ec2 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/atomic/atomic.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/atomic/atomic.go
+@@ -2,11 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package atomic defines an Analyzer that checks for common mistakes
+-// using the sync/atomic package.
+ package atomic
+ 
+ import (
++	_ "embed"
+ 	"go/ast"
+ 	"go/token"
+ 	"go/types"
+@@ -17,23 +16,23 @@ import (
+ 	"golang.org/x/tools/go/ast/inspector"
+ )
+ 
+-const Doc = `check for common mistakes using the sync/atomic package
+-
+-The atomic checker looks for assignment statements of the form:
+-
+-	x = atomic.AddUint64(&x, 1)
+-
+-which are not atomic.`
++//go:embed doc.go
++var doc string
+ 
+ var Analyzer = &analysis.Analyzer{
+ 	Name:             "atomic",
+-	Doc:              Doc,
++	Doc:              analysisutil.MustExtractDoc(doc, "atomic"),
++	URL:              "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/atomic",
+ 	Requires:         []*analysis.Analyzer{inspect.Analyzer},
+ 	RunDespiteErrors: true,
+ 	Run:              run,
+ }
+ 
+ func run(pass *analysis.Pass) (interface{}, error) {
++	if !analysisutil.Imports(pass.Pkg, "sync/atomic") {
++		return nil, nil // doesn't directly import sync/atomic
++	}
++
+ 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+ 
+ 	nodeFilter := []ast.Node{
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/atomic/doc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/atomic/doc.go
+new file mode 100644
+index 0000000000..5aafe25d32
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/atomic/doc.go
+@@ -0,0 +1,17 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package atomic defines an Analyzer that checks for common mistakes
++// using the sync/atomic package.
++//
++// # Analyzer atomic
++//
++// atomic: check for common mistakes using the sync/atomic package
++//
++// The atomic checker looks for assignment statements of the form:
++//
++//	x = atomic.AddUint64(&x, 1)
++//
++// which are not atomic.
++package atomic
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/bools/bools.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/bools/bools.go
+index 0d8b0bf4f1..4219f087b9 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/bools/bools.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/bools/bools.go
+@@ -22,6 +22,7 @@ const Doc = "check for common mistakes involving boolean operators"
+ var Analyzer = &analysis.Analyzer{
+ 	Name:     "bools",
+ 	Doc:      Doc,
++	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/bools",
+ 	Requires: []*analysis.Analyzer{inspect.Analyzer},
+ 	Run:      run,
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag.go
+index 775e507a34..a2a4a89b3a 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag.go
+@@ -25,6 +25,7 @@ const Doc = "check //go:build and // +build directives"
+ var Analyzer = &analysis.Analyzer{
+ 	Name: "buildtag",
+ 	Doc:  Doc,
++	URL:  "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/buildtag",
+ 	Run:  runBuildTag,
+ }
+ 
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall/cgocall.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall/cgocall.go
+index b61ee5c3dc..afff0d82d8 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall/cgocall.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall/cgocall.go
+@@ -35,6 +35,7 @@ or slice to C, either directly, or via a pointer, array, or struct.`
+ var Analyzer = &analysis.Analyzer{
+ 	Name:             "cgocall",
+ 	Doc:              Doc,
++	URL:              "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/cgocall",
+ 	RunDespiteErrors: true,
+ 	Run:              run,
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/composite.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/composite.go
+index 64e184d343..20fb70806a 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/composite.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/composite.go
+@@ -37,6 +37,7 @@ should be replaced by:
+ var Analyzer = &analysis.Analyzer{
+ 	Name:             "composites",
+ 	Doc:              Doc,
++	URL:              "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/composites",
+ 	Requires:         []*analysis.Analyzer{inspect.Analyzer},
+ 	RunDespiteErrors: true,
+ 	Run:              run,
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go
+index 8cc93e94dc..b3ca8ada40 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go
+@@ -29,6 +29,7 @@ values should be referred to through a pointer.`
+ var Analyzer = &analysis.Analyzer{
+ 	Name:             "copylocks",
+ 	Doc:              Doc,
++	URL:              "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/copylocks",
+ 	Requires:         []*analysis.Analyzer{inspect.Analyzer},
+ 	RunDespiteErrors: true,
+ 	Run:              run,
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ctrlflow/ctrlflow.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ctrlflow/ctrlflow.go
+index 73746d6f04..d21adeee90 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ctrlflow/ctrlflow.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ctrlflow/ctrlflow.go
+@@ -24,6 +24,7 @@ import (
+ var Analyzer = &analysis.Analyzer{
+ 	Name:       "ctrlflow",
+ 	Doc:        "build a control-flow graph",
++	URL:        "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/ctrlflow",
+ 	Run:        run,
+ 	ResultType: reflect.TypeOf(new(CFGs)),
+ 	FactTypes:  []analysis.Fact{new(noReturn)},
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/directive/directive.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/directive/directive.go
+index 76d852cd0f..1146d7be45 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/directive/directive.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/directive/directive.go
+@@ -36,6 +36,7 @@ buildtag analyzer.
+ var Analyzer = &analysis.Analyzer{
+ 	Name: "directive",
+ 	Doc:  Doc,
++	URL:  "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/directive",
+ 	Run:  runDirective,
+ }
+ 
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/errorsas/errorsas.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/errorsas/errorsas.go
+index 96adad3ee8..2fcbdfafb6 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/errorsas/errorsas.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/errorsas/errorsas.go
+@@ -13,6 +13,7 @@ import (
+ 
+ 	"golang.org/x/tools/go/analysis"
+ 	"golang.org/x/tools/go/analysis/passes/inspect"
++	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+ 	"golang.org/x/tools/go/ast/inspector"
+ 	"golang.org/x/tools/go/types/typeutil"
+ )
+@@ -25,6 +26,7 @@ of the second argument is not a pointer to a type implementing error.`
+ var Analyzer = &analysis.Analyzer{
+ 	Name:     "errorsas",
+ 	Doc:      Doc,
++	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/errorsas",
+ 	Requires: []*analysis.Analyzer{inspect.Analyzer},
+ 	Run:      run,
+ }
+@@ -37,6 +39,10 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 		return nil, nil
+ 	}
+ 
++	if !analysisutil.Imports(pass.Pkg, "errors") {
++		return nil, nil // doesn't directly import errors
++	}
++
+ 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+ 
+ 	nodeFilter := []ast.Node{
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/framepointer/framepointer.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/framepointer/framepointer.go
+index 741492e477..0b3ded47ea 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/framepointer/framepointer.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/framepointer/framepointer.go
+@@ -20,6 +20,7 @@ const Doc = "report assembly that clobbers the frame pointer before saving it"
+ var Analyzer = &analysis.Analyzer{
+ 	Name: "framepointer",
+ 	Doc:  Doc,
++	URL:  "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/framepointer",
+ 	Run:  run,
+ }
+ 
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/httpresponse/httpresponse.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/httpresponse/httpresponse.go
+index 3b9168c6c3..61c3b764f7 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/httpresponse/httpresponse.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/httpresponse/httpresponse.go
+@@ -35,6 +35,7 @@ diagnostic for such mistakes.`
+ var Analyzer = &analysis.Analyzer{
+ 	Name:     "httpresponse",
+ 	Doc:      Doc,
++	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/httpresponse",
+ 	Requires: []*analysis.Analyzer{inspect.Analyzer},
+ 	Run:      run,
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ifaceassert/doc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ifaceassert/doc.go
+new file mode 100644
+index 0000000000..3d2b1a3dcb
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ifaceassert/doc.go
+@@ -0,0 +1,24 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package ifaceassert defines an Analyzer that flags
++// impossible interface-interface type assertions.
++//
++// # Analyzer ifaceassert
++//
++// ifaceassert: detect impossible interface-to-interface type assertions
++//
++// This checker flags type assertions v.(T) and corresponding type-switch cases
++// in which the static type V of v is an interface that cannot possibly implement
++// the target interface T. This occurs when V and T contain methods with the same
++// name but different signatures. Example:
++//
++//	var v interface {
++//		Read()
++//	}
++//	_ = v.(io.Reader)
++//
++// The Read method in v has a different signature than the Read method in
++// io.Reader, so this assertion cannot succeed.
++package ifaceassert
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ifaceassert/ifaceassert.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ifaceassert/ifaceassert.go
+index 30130f63ea..cd4a477626 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ifaceassert/ifaceassert.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ifaceassert/ifaceassert.go
+@@ -2,38 +2,26 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package ifaceassert defines an Analyzer that flags
+-// impossible interface-interface type assertions.
+ package ifaceassert
+ 
+ import (
++	_ "embed"
+ 	"go/ast"
+ 	"go/types"
+ 
+ 	"golang.org/x/tools/go/analysis"
+ 	"golang.org/x/tools/go/analysis/passes/inspect"
++	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+ 	"golang.org/x/tools/go/ast/inspector"
+ )
+ 
+-const Doc = `detect impossible interface-to-interface type assertions
+-
+-This checker flags type assertions v.(T) and corresponding type-switch cases
+-in which the static type V of v is an interface that cannot possibly implement
+-the target interface T. This occurs when V and T contain methods with the same
+-name but different signatures. Example:
+-
+-	var v interface {
+-		Read()
+-	}
+-	_ = v.(io.Reader)
+-
+-The Read method in v has a different signature than the Read method in
+-io.Reader, so this assertion cannot succeed.
+-`
++//go:embed doc.go
++var doc string
+ 
+ var Analyzer = &analysis.Analyzer{
+ 	Name:     "ifaceassert",
+-	Doc:      Doc,
++	Doc:      analysisutil.MustExtractDoc(doc, "ifaceassert"),
++	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/ifaceassert",
+ 	Requires: []*analysis.Analyzer{inspect.Analyzer},
+ 	Run:      run,
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ifaceassert/parameterized.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ifaceassert/parameterized.go
+index b35f62dc73..b84577fcf8 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ifaceassert/parameterized.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ifaceassert/parameterized.go
+@@ -67,7 +67,7 @@ func (w *tpWalker) isParameterized(typ types.Type) (res bool) {
+ 		// of a generic function type (or an interface method) that is
+ 		// part of the type we're testing. We don't care about these type
+ 		// parameters.
+-		// Similarly, the receiver of a method may declare (rather then
++		// Similarly, the receiver of a method may declare (rather than
+ 		// use) type parameters, we don't care about those either.
+ 		// Thus, we only need to look at the input and result parameters.
+ 		return w.isParameterized(t.Params()) || w.isParameterized(t.Results())
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/inspect/inspect.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/inspect/inspect.go
+index 165c70cbd3..3b121cb0ce 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/inspect/inspect.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/inspect/inspect.go
+@@ -38,6 +38,7 @@ import (
+ var Analyzer = &analysis.Analyzer{
+ 	Name:             "inspect",
+ 	Doc:              "optimize AST traversal for later passes",
++	URL:              "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/inspect",
+ 	Run:              run,
+ 	RunDespiteErrors: true,
+ 	ResultType:       reflect.TypeOf(new(inspector.Inspector)),
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/internal/analysisutil/extractdoc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/internal/analysisutil/extractdoc.go
+new file mode 100644
+index 0000000000..0e175ca06f
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/internal/analysisutil/extractdoc.go
+@@ -0,0 +1,113 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package analysisutil
++
++import (
++	"fmt"
++	"go/parser"
++	"go/token"
++	"strings"
++)
++
++// MustExtractDoc is like [ExtractDoc] but it panics on error.
++//
++// To use, define a doc.go file such as:
++//
++//	// Package halting defines an analyzer of program termination.
++//	//
++//	// # Analyzer halting
++//	//
++//	// halting: reports whether execution will halt.
++//	//
++//	// The halting analyzer reports a diagnostic for functions
++//	// that run forever. To suppress the diagnostics, try inserting
++//	// a 'break' statement into each loop.
++//	package halting
++//
++//	import _ "embed"
++//
++//	//go:embed doc.go
++//	var doc string
++//
++// And declare your analyzer as:
++//
++//	var Analyzer = &analysis.Analyzer{
++//		Name:             "halting",
++//		Doc:              analysisutil.MustExtractDoc(doc, "halting"),
++//		...
++//	}
++func MustExtractDoc(content, name string) string {
++	doc, err := ExtractDoc(content, name)
++	if err != nil {
++		panic(err)
++	}
++	return doc
++}
++
++// ExtractDoc extracts a section of a package doc comment from the
++// provided contents of an analyzer package's doc.go file.
++//
++// A section is a portion of the comment between one heading and
++// the next, using this form:
++//
++//	# Analyzer NAME
++//
++//	NAME: SUMMARY
++//
++//	Full description...
++//
++// where NAME matches the name argument, and SUMMARY is a brief
++// verb-phrase that describes the analyzer. The following lines, up
++// until the next heading or the end of the comment, contain the full
++// description. ExtractDoc returns the portion following the colon,
++// which is the form expected by Analyzer.Doc.
++//
++// Example:
++//
++//	# Analyzer printf
++//
++//	printf: checks consistency of calls to printf
++//
++//	The printf analyzer checks consistency of calls to printf.
++//	Here is the complete description...
++//
++// This notation allows a single doc comment to provide documentation
++// for multiple analyzers, each in its own section.
++// The HTML anchors generated for each heading are predictable.
++//
++// It returns an error if the content was not a valid Go source file
++// containing a package doc comment with a heading of the required
++// form.
++//
++// This machinery enables the package documentation (typically
++// accessible via the web at https://pkg.go.dev/) and the command
++// documentation (typically printed to a terminal) to be derived from
++// the same source and formatted appropriately.
++func ExtractDoc(content, name string) (string, error) {
++	if content == "" {
++		return "", fmt.Errorf("empty Go source file")
++	}
++	fset := token.NewFileSet()
++	f, err := parser.ParseFile(fset, "", content, parser.ParseComments|parser.PackageClauseOnly)
++	if err != nil {
++		return "", fmt.Errorf("not a Go source file")
++	}
++	if f.Doc == nil {
++		return "", fmt.Errorf("Go source file has no package doc comment")
++	}
++	for _, section := range strings.Split(f.Doc.Text(), "\n# ") {
++		if body := strings.TrimPrefix(section, "Analyzer "+name); body != section &&
++			body != "" &&
++			body[0] == '\r' || body[0] == '\n' {
++			body = strings.TrimSpace(body)
++			rest := strings.TrimPrefix(body, name+":")
++			if rest == body {
++				return "", fmt.Errorf("'Analyzer %s' heading not followed by '%s: summary...' line", name, name)
++			}
++			return strings.TrimSpace(rest), nil
++		}
++	}
++	return "", fmt.Errorf("package doc comment contains no 'Analyzer %s' heading", name)
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/internal/analysisutil/util.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/internal/analysisutil/util.go
+index ac37e4784e..6d8039fe2b 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/internal/analysisutil/util.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/internal/analysisutil/util.go
+@@ -118,3 +118,12 @@ func Imports(pkg *types.Package, path string) bool {
+ 	}
+ 	return false
+ }
++
++// IsNamed reports whether t is exactly a named type in a package with a given path.
++func IsNamed(t types.Type, path, name string) bool {
++	if n, ok := t.(*types.Named); ok {
++		obj := n.Obj()
++		return obj.Pkg().Path() == path && obj.Name() == name
++	}
++	return false
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/doc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/doc.go
+new file mode 100644
+index 0000000000..dc544df1bf
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/doc.go
+@@ -0,0 +1,68 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package loopclosure defines an Analyzer that checks for references to
++// enclosing loop variables from within nested functions.
++//
++// # Analyzer loopclosure
++//
++// loopclosure: check references to loop variables from within nested functions
++//
++// This analyzer reports places where a function literal references the
++// iteration variable of an enclosing loop, and the loop calls the function
++// in such a way (e.g. with go or defer) that it may outlive the loop
++// iteration and possibly observe the wrong value of the variable.
++//
++// In this example, all the deferred functions run after the loop has
++// completed, so all observe the final value of v.
++//
++//	for _, v := range list {
++//	    defer func() {
++//	        use(v) // incorrect
++//	    }()
++//	}
++//
++// One fix is to create a new variable for each iteration of the loop:
++//
++//	for _, v := range list {
++//	    v := v // new var per iteration
++//	    defer func() {
++//	        use(v) // ok
++//	    }()
++//	}
++//
++// The next example uses a go statement and has a similar problem.
++// In addition, it has a data race because the loop updates v
++// concurrent with the goroutines accessing it.
++//
++//	for _, v := range elem {
++//	    go func() {
++//	        use(v)  // incorrect, and a data race
++//	    }()
++//	}
++//
++// A fix is the same as before. The checker also reports problems
++// in goroutines started by golang.org/x/sync/errgroup.Group.
++// A hard-to-spot variant of this form is common in parallel tests:
++//
++//	func Test(t *testing.T) {
++//	    for _, test := range tests {
++//	        t.Run(test.name, func(t *testing.T) {
++//	            t.Parallel()
++//	            use(test) // incorrect, and a data race
++//	        })
++//	    }
++//	}
++//
++// The t.Parallel() call causes the rest of the function to execute
++// concurrent with the loop.
++//
++// The analyzer reports references only in the last statement,
++// as it is not deep enough to understand the effects of subsequent
++// statements that might render the reference benign.
++// ("Last statement" is defined recursively in compound
++// statements such as if, switch, and select.)
++//
++// See: https://golang.org/doc/go_faq.html#closures_and_goroutines
++package loopclosure
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go
+index ae5b4151db..5620c35faa 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go
+@@ -2,82 +2,27 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package loopclosure defines an Analyzer that checks for references to
+-// enclosing loop variables from within nested functions.
+ package loopclosure
+ 
+ import (
++	_ "embed"
+ 	"go/ast"
+ 	"go/types"
+ 
+ 	"golang.org/x/tools/go/analysis"
+ 	"golang.org/x/tools/go/analysis/passes/inspect"
++	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+ 	"golang.org/x/tools/go/ast/inspector"
+ 	"golang.org/x/tools/go/types/typeutil"
+ )
+ 
+-const Doc = `check references to loop variables from within nested functions
+-
+-This analyzer reports places where a function literal references the
+-iteration variable of an enclosing loop, and the loop calls the function
+-in such a way (e.g. with go or defer) that it may outlive the loop
+-iteration and possibly observe the wrong value of the variable.
+-
+-In this example, all the deferred functions run after the loop has
+-completed, so all observe the final value of v.
+-
+-    for _, v := range list {
+-        defer func() {
+-            use(v) // incorrect
+-        }()
+-    }
+-
+-One fix is to create a new variable for each iteration of the loop:
+-
+-    for _, v := range list {
+-        v := v // new var per iteration
+-        defer func() {
+-            use(v) // ok
+-        }()
+-    }
+-
+-The next example uses a go statement and has a similar problem.
+-In addition, it has a data race because the loop updates v
+-concurrent with the goroutines accessing it.
+-
+-    for _, v := range elem {
+-        go func() {
+-            use(v)  // incorrect, and a data race
+-        }()
+-    }
+-
+-A fix is the same as before. The checker also reports problems
+-in goroutines started by golang.org/x/sync/errgroup.Group.
+-A hard-to-spot variant of this form is common in parallel tests:
+-
+-    func Test(t *testing.T) {
+-        for _, test := range tests {
+-            t.Run(test.name, func(t *testing.T) {
+-                t.Parallel()
+-                use(test) // incorrect, and a data race
+-            })
+-        }
+-    }
+-
+-The t.Parallel() call causes the rest of the function to execute
+-concurrent with the loop.
+-
+-The analyzer reports references only in the last statement,
+-as it is not deep enough to understand the effects of subsequent
+-statements that might render the reference benign.
+-("Last statement" is defined recursively in compound
+-statements such as if, switch, and select.)
+-
+-See: https://golang.org/doc/go_faq.html#closures_and_goroutines`
++//go:embed doc.go
++var doc string
+ 
+ var Analyzer = &analysis.Analyzer{
+ 	Name:     "loopclosure",
+-	Doc:      Doc,
++	Doc:      analysisutil.MustExtractDoc(doc, "loopclosure"),
++	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/loopclosure",
+ 	Requires: []*analysis.Analyzer{inspect.Analyzer},
+ 	Run:      run,
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/doc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/doc.go
+new file mode 100644
+index 0000000000..28bf6c7e26
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/doc.go
+@@ -0,0 +1,16 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package lostcancel defines an Analyzer that checks for failure to
++// call a context cancellation function.
++//
++// # Analyzer lostcancel
++//
++// lostcancel: check cancel func returned by context.WithCancel is called
++//
++// The cancellation function returned by context.WithCancel, WithTimeout,
++// and WithDeadline must be called or the new context will remain live
++// until its parent context is cancelled.
++// (The background context is never cancelled.)
++package lostcancel
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go
+index de6f840f68..2bccb67502 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go
+@@ -2,11 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package lostcancel defines an Analyzer that checks for failure to
+-// call a context cancellation function.
+ package lostcancel
+ 
+ import (
++	_ "embed"
+ 	"fmt"
+ 	"go/ast"
+ 	"go/types"
+@@ -14,20 +13,18 @@ import (
+ 	"golang.org/x/tools/go/analysis"
+ 	"golang.org/x/tools/go/analysis/passes/ctrlflow"
+ 	"golang.org/x/tools/go/analysis/passes/inspect"
++	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+ 	"golang.org/x/tools/go/ast/inspector"
+ 	"golang.org/x/tools/go/cfg"
+ )
+ 
+-const Doc = `check cancel func returned by context.WithCancel is called
+-
+-The cancellation function returned by context.WithCancel, WithTimeout,
+-and WithDeadline must be called or the new context will remain live
+-until its parent context is cancelled.
+-(The background context is never cancelled.)`
++//go:embed doc.go
++var doc string
+ 
+ var Analyzer = &analysis.Analyzer{
+ 	Name: "lostcancel",
+-	Doc:  Doc,
++	Doc:  analysisutil.MustExtractDoc(doc, "lostcancel"),
++	URL:  "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/lostcancel",
+ 	Run:  run,
+ 	Requires: []*analysis.Analyzer{
+ 		inspect.Analyzer,
+@@ -51,7 +48,7 @@ var contextPackage = "context"
+ // checkLostCancel analyzes a single named or literal function.
+ func run(pass *analysis.Pass) (interface{}, error) {
+ 	// Fast path: bypass check if file doesn't use context.WithCancel.
+-	if !hasImport(pass.Pkg, contextPackage) {
++	if !analysisutil.Imports(pass.Pkg, contextPackage) {
+ 		return nil, nil
+ 	}
+ 
+@@ -182,15 +179,6 @@ func runFunc(pass *analysis.Pass, node ast.Node) {
+ 
+ func isCall(n ast.Node) bool { _, ok := n.(*ast.CallExpr); return ok }
+ 
+-func hasImport(pkg *types.Package, path string) bool {
+-	for _, imp := range pkg.Imports() {
+-		if imp.Path() == path {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+ // isContextWithCancel reports whether n is one of the qualified identifiers
+ // context.With{Cancel,Timeout,Deadline}.
+ func isContextWithCancel(info *types.Info, n ast.Node) bool {
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/nilfunc/doc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/nilfunc/doc.go
+new file mode 100644
+index 0000000000..07f79332b2
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/nilfunc/doc.go
+@@ -0,0 +1,13 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package nilfunc defines an Analyzer that checks for useless
++// comparisons against nil.
++//
++// # Analyzer nilfunc
++//
++// nilfunc: check for useless comparisons between functions and nil
++//
++// A useless comparison is one like f == nil as opposed to f() == nil.
++package nilfunc
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/nilfunc/nilfunc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/nilfunc/nilfunc.go
+index e4c66df6d6..6df134399a 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/nilfunc/nilfunc.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/nilfunc/nilfunc.go
+@@ -7,23 +7,25 @@
+ package nilfunc
+ 
+ import (
++	_ "embed"
+ 	"go/ast"
+ 	"go/token"
+ 	"go/types"
+ 
+ 	"golang.org/x/tools/go/analysis"
+ 	"golang.org/x/tools/go/analysis/passes/inspect"
++	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+ 	"golang.org/x/tools/go/ast/inspector"
+ 	"golang.org/x/tools/internal/typeparams"
+ )
+ 
+-const Doc = `check for useless comparisons between functions and nil
+-
+-A useless comparison is one like f == nil as opposed to f() == nil.`
++//go:embed doc.go
++var doc string
+ 
+ var Analyzer = &analysis.Analyzer{
+ 	Name:     "nilfunc",
+-	Doc:      Doc,
++	Doc:      analysisutil.MustExtractDoc(doc, "nilfunc"),
++	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/nilfunc",
+ 	Requires: []*analysis.Analyzer{inspect.Analyzer},
+ 	Run:      run,
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/doc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/doc.go
+new file mode 100644
+index 0000000000..1ee16126ad
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/doc.go
+@@ -0,0 +1,47 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package printf defines an Analyzer that checks consistency
++// of Printf format strings and arguments.
++//
++// # Analyzer printf
++//
++// printf: check consistency of Printf format strings and arguments
++//
++// The check applies to calls of the formatting functions such as
++// [fmt.Printf] and [fmt.Sprintf], as well as any detected wrappers of
++// those functions.
++//
++// In this example, the %d format operator requires an integer operand:
++//
++//	fmt.Printf("%d", "hello") // fmt.Printf format %d has arg "hello" of wrong type string
++//
++// See the documentation of the fmt package for the complete set of
++// format operators and their operand types.
++//
++// To enable printf checking on a function that is not found by this
++// analyzer's heuristics (for example, because control is obscured by
++// dynamic method calls), insert a bogus call:
++//
++//	func MyPrintf(format string, args ...any) {
++//		if false {
++//			_ = fmt.Sprintf(format, args...) // enable printf checker
++//		}
++//		...
++//	}
++//
++// The -funcs flag specifies a comma-separated list of names of additional
++// known formatting functions or methods. If the name contains a period,
++// it must denote a specific function using one of the following forms:
++//
++//	dir/pkg.Function
++//	dir/pkg.Type.Method
++//	(*dir/pkg.Type).Method
++//
++// Otherwise the name is interpreted as a case-insensitive unqualified
++// identifier such as "errorf". Either way, if a listed name ends in f, the
++// function is assumed to be Printf-like, taking a format string before the
++// argument list. Otherwise it is assumed to be Print-like, taking a list
++// of arguments with no format string.
++package printf
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+index daaf709a44..b2b8c67c75 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+@@ -2,12 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package printf defines an Analyzer that checks consistency
+-// of Printf format strings and arguments.
+ package printf
+ 
+ import (
+ 	"bytes"
++	_ "embed"
+ 	"fmt"
+ 	"go/ast"
+ 	"go/constant"
+@@ -32,43 +31,19 @@ func init() {
+ 	Analyzer.Flags.Var(isPrint, "funcs", "comma-separated list of print function names to check")
+ }
+ 
++//go:embed doc.go
++var doc string
++
+ var Analyzer = &analysis.Analyzer{
+ 	Name:       "printf",
+-	Doc:        Doc,
++	Doc:        analysisutil.MustExtractDoc(doc, "printf"),
++	URL:        "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/printf",
+ 	Requires:   []*analysis.Analyzer{inspect.Analyzer},
+ 	Run:        run,
+ 	ResultType: reflect.TypeOf((*Result)(nil)),
+ 	FactTypes:  []analysis.Fact{new(isWrapper)},
+ }
+ 
+-const Doc = `check consistency of Printf format strings and arguments
+-
+-The check applies to known functions (for example, those in package fmt)
+-as well as any detected wrappers of known functions.
+-
+-A function that wants to avail itself of printf checking but is not
+-found by this analyzer's heuristics (for example, due to use of
+-dynamic calls) can insert a bogus call:
+-
+-	if false {
+-		_ = fmt.Sprintf(format, args...) // enable printf checking
+-	}
+-
+-The -funcs flag specifies a comma-separated list of names of additional
+-known formatting functions or methods. If the name contains a period,
+-it must denote a specific function using one of the following forms:
+-
+-	dir/pkg.Function
+-	dir/pkg.Type.Method
+-	(*dir/pkg.Type).Method
+-
+-Otherwise the name is interpreted as a case-insensitive unqualified
+-identifier such as "errorf". Either way, if a listed name ends in f, the
+-function is assumed to be Printf-like, taking a format string before the
+-argument list. Otherwise it is assumed to be Print-like, taking a list
+-of arguments with no format string.
+-`
+-
+ // Kind is a kind of fmt function behavior.
+ type Kind int
+ 
+@@ -303,7 +278,7 @@ func checkPrintfFwd(pass *analysis.Pass, w *printfWrapper, call *ast.CallExpr, k
+ 			// print/printf function can take, adding an ellipsis
+ 			// would break the program. For example:
+ 			//
+-			//   func foo(arg1 string, arg2 ...interface{} {
++			//   func foo(arg1 string, arg2 ...interface{}) {
+ 			//       fmt.Printf("%s %v", arg1, arg2)
+ 			//   }
+ 			return
+@@ -340,9 +315,10 @@ func checkPrintfFwd(pass *analysis.Pass, w *printfWrapper, call *ast.CallExpr, k
+ // example, fmt.Printf forwards to fmt.Fprintf. We avoid relying on the
+ // driver applying analyzers to standard packages because "go vet" does
+ // not do so with gccgo, and nor do some other build systems.
+-// TODO(adonovan): eliminate the redundant facts once this restriction
+-// is lifted.
+ var isPrint = stringSet{
++	"fmt.Appendf":  true,
++	"fmt.Append":   true,
++	"fmt.Appendln": true,
+ 	"fmt.Errorf":   true,
+ 	"fmt.Fprint":   true,
+ 	"fmt.Fprintf":  true,
+@@ -1080,7 +1056,7 @@ func checkPrint(pass *analysis.Pass, call *ast.CallExpr, fn *types.Func) {
+ 		if strings.Contains(s, "%") {
+ 			m := printFormatRE.FindStringSubmatch(s)
+ 			if m != nil {
+-				pass.ReportRangef(call, "%s call has possible formatting directive %s", fn.FullName(), m[0])
++				pass.ReportRangef(call, "%s call has possible Printf formatting directive %s", fn.FullName(), m[0])
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/shift/shift.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/shift/shift.go
+index e968f27b40..bafb9112e1 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/shift/shift.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/shift/shift.go
+@@ -29,6 +29,7 @@ const Doc = "check for shifts that equal or exceed the width of the integer"
+ var Analyzer = &analysis.Analyzer{
+ 	Name:     "shift",
+ 	Doc:      Doc,
++	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/shift",
+ 	Requires: []*analysis.Analyzer{inspect.Analyzer},
+ 	Run:      run,
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/sigchanyzer/doc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/sigchanyzer/doc.go
+new file mode 100644
+index 0000000000..583fed0147
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/sigchanyzer/doc.go
+@@ -0,0 +1,17 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package sigchanyzer defines an Analyzer that detects
++// misuse of unbuffered signal as argument to signal.Notify.
++//
++// # Analyzer sigchanyzer
++//
++// sigchanyzer: check for unbuffered channel of os.Signal
++//
++// This checker reports call expression of the form
++//
++//	signal.Notify(c <-chan os.Signal, sig ...os.Signal),
++//
++// where c is an unbuffered channel, which can be at risk of missing the signal.
++package sigchanyzer
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/sigchanyzer/sigchanyzer.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/sigchanyzer/sigchanyzer.go
+index c490a84ea7..5f121f720d 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/sigchanyzer/sigchanyzer.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/sigchanyzer/sigchanyzer.go
+@@ -8,6 +8,7 @@ package sigchanyzer
+ 
+ import (
+ 	"bytes"
++	_ "embed"
+ 	"go/ast"
+ 	"go/format"
+ 	"go/token"
+@@ -15,23 +16,27 @@ import (
+ 
+ 	"golang.org/x/tools/go/analysis"
+ 	"golang.org/x/tools/go/analysis/passes/inspect"
++	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+ 	"golang.org/x/tools/go/ast/inspector"
+ )
+ 
+-const Doc = `check for unbuffered channel of os.Signal
+-
+-This checker reports call expression of the form signal.Notify(c <-chan os.Signal, sig ...os.Signal),
+-where c is an unbuffered channel, which can be at risk of missing the signal.`
++//go:embed doc.go
++var doc string
+ 
+ // Analyzer describes sigchanyzer analysis function detector.
+ var Analyzer = &analysis.Analyzer{
+ 	Name:     "sigchanyzer",
+-	Doc:      Doc,
++	Doc:      analysisutil.MustExtractDoc(doc, "sigchanyzer"),
++	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/sigchanyzer",
+ 	Requires: []*analysis.Analyzer{inspect.Analyzer},
+ 	Run:      run,
+ }
+ 
+ func run(pass *analysis.Pass) (interface{}, error) {
++	if !analysisutil.Imports(pass.Pkg, "os/signal") {
++		return nil, nil // doesn't directly import signal
++	}
++
+ 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+ 
+ 	nodeFilter := []ast.Node{
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/doc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/doc.go
+new file mode 100644
+index 0000000000..9ed88698dd
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/doc.go
+@@ -0,0 +1,30 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package stdmethods defines an Analyzer that checks for misspellings
++// in the signatures of methods similar to well-known interfaces.
++//
++// # Analyzer stdmethods
++//
++// stdmethods: check signature of methods of well-known interfaces
++//
++// Sometimes a type may be intended to satisfy an interface but may fail to
++// do so because of a mistake in its method signature.
++// For example, the result of this WriteTo method should be (int64, error),
++// not error, to satisfy io.WriterTo:
++//
++//	type myWriterTo struct{...}
++//	func (myWriterTo) WriteTo(w io.Writer) error { ... }
++//
++// This check ensures that each method whose name matches one of several
++// well-known interface methods from the standard library has the correct
++// signature for that interface.
++//
++// Checked method names include:
++//
++//	Format GobEncode GobDecode MarshalJSON MarshalXML
++//	Peek ReadByte ReadFrom ReadRune Scan Seek
++//	UnmarshalJSON UnreadByte UnreadRune WriteByte
++//	WriteTo
++package stdmethods
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go
+index 41f455d100..28f51b1ec9 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go
+@@ -2,44 +2,27 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package stdmethods defines an Analyzer that checks for misspellings
+-// in the signatures of methods similar to well-known interfaces.
+ package stdmethods
+ 
+ import (
++	_ "embed"
+ 	"go/ast"
+ 	"go/types"
+ 	"strings"
+ 
+ 	"golang.org/x/tools/go/analysis"
+ 	"golang.org/x/tools/go/analysis/passes/inspect"
++	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+ 	"golang.org/x/tools/go/ast/inspector"
+ )
+ 
+-const Doc = `check signature of methods of well-known interfaces
+-
+-Sometimes a type may be intended to satisfy an interface but may fail to
+-do so because of a mistake in its method signature.
+-For example, the result of this WriteTo method should be (int64, error),
+-not error, to satisfy io.WriterTo:
+-
+-	type myWriterTo struct{...}
+-        func (myWriterTo) WriteTo(w io.Writer) error { ... }
+-
+-This check ensures that each method whose name matches one of several
+-well-known interface methods from the standard library has the correct
+-signature for that interface.
+-
+-Checked method names include:
+-	Format GobEncode GobDecode MarshalJSON MarshalXML
+-	Peek ReadByte ReadFrom ReadRune Scan Seek
+-	UnmarshalJSON UnreadByte UnreadRune WriteByte
+-	WriteTo
+-`
++//go:embed doc.go
++var doc string
+ 
+ var Analyzer = &analysis.Analyzer{
+ 	Name:     "stdmethods",
+-	Doc:      Doc,
++	Doc:      analysisutil.MustExtractDoc(doc, "stdmethods"),
++	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/stdmethods",
+ 	Requires: []*analysis.Analyzer{inspect.Analyzer},
+ 	Run:      run,
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/doc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/doc.go
+new file mode 100644
+index 0000000000..205cd64011
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/doc.go
+@@ -0,0 +1,21 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package stringintconv defines an Analyzer that flags type conversions
++// from integers to strings.
++//
++// # Analyzer stringintconv
++//
++// stringintconv: check for string(int) conversions
++//
++// This checker flags conversions of the form string(x) where x is an integer
++// (but not byte or rune) type. Such conversions are discouraged because they
++// return the UTF-8 representation of the Unicode code point x, and not a decimal
++// string representation of x as one might expect. Furthermore, if x denotes an
++// invalid code point, the conversion cannot be statically rejected.
++//
++// For conversions that intend on using the code point, consider replacing them
++// with string(rune(x)). Otherwise, strconv.Itoa and its equivalents return the
++// string representation of the value in the desired base.
++package stringintconv
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go
+index e41de809de..bb04dae626 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go
+@@ -2,11 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package stringintconv defines an Analyzer that flags type conversions
+-// from integers to strings.
+ package stringintconv
+ 
+ import (
++	_ "embed"
+ 	"fmt"
+ 	"go/ast"
+ 	"go/types"
+@@ -14,26 +13,18 @@ import (
+ 
+ 	"golang.org/x/tools/go/analysis"
+ 	"golang.org/x/tools/go/analysis/passes/inspect"
++	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+ 	"golang.org/x/tools/go/ast/inspector"
+ 	"golang.org/x/tools/internal/typeparams"
+ )
+ 
+-const Doc = `check for string(int) conversions
+-
+-This checker flags conversions of the form string(x) where x is an integer
+-(but not byte or rune) type. Such conversions are discouraged because they
+-return the UTF-8 representation of the Unicode code point x, and not a decimal
+-string representation of x as one might expect. Furthermore, if x denotes an
+-invalid code point, the conversion cannot be statically rejected.
+-
+-For conversions that intend on using the code point, consider replacing them
+-with string(rune(x)). Otherwise, strconv.Itoa and its equivalents return the
+-string representation of the value in the desired base.
+-`
++//go:embed doc.go
++var doc string
+ 
+ var Analyzer = &analysis.Analyzer{
+ 	Name:     "stringintconv",
+-	Doc:      Doc,
++	Doc:      analysisutil.MustExtractDoc(doc, "stringintconv"),
++	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/stringintconv",
+ 	Requires: []*analysis.Analyzer{inspect.Analyzer},
+ 	Run:      run,
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/structtag/structtag.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/structtag/structtag.go
+index f0b15051c5..a0beb46bd1 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/structtag/structtag.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/structtag/structtag.go
+@@ -28,6 +28,7 @@ Also report certain struct tags (json, xml) used with unexported fields.`
+ var Analyzer = &analysis.Analyzer{
+ 	Name:             "structtag",
+ 	Doc:              Doc,
++	URL:              "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/structtag",
+ 	Requires:         []*analysis.Analyzer{inspect.Analyzer},
+ 	RunDespiteErrors: true,
+ 	Run:              run,
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/doc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/doc.go
+new file mode 100644
+index 0000000000..a68adb12b4
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/doc.go
+@@ -0,0 +1,22 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package testinggoroutine defines an Analyzerfor detecting calls to
++// Fatal from a test goroutine.
++//
++// # Analyzer testinggoroutine
++//
++// testinggoroutine: report calls to (*testing.T).Fatal from goroutines started by a test.
++//
++// Functions that abruptly terminate a test, such as the Fatal, Fatalf, FailNow, and
++// Skip{,f,Now} methods of *testing.T, must be called from the test goroutine itself.
++// This checker detects calls to these functions that occur within a goroutine
++// started by the test. For example:
++//
++//	func TestFoo(t *testing.T) {
++//	    go func() {
++//	        t.Fatal("oops") // error: (*T).Fatal called from non-test goroutine
++//	    }()
++//	}
++package testinggoroutine
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/testinggoroutine.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/testinggoroutine.go
+index 7ea8f77e33..907b71503e 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/testinggoroutine.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/testinggoroutine/testinggoroutine.go
+@@ -5,6 +5,7 @@
+ package testinggoroutine
+ 
+ import (
++	_ "embed"
+ 	"go/ast"
+ 
+ 	"golang.org/x/tools/go/analysis"
+@@ -14,23 +15,13 @@ import (
+ 	"golang.org/x/tools/internal/typeparams"
+ )
+ 
+-const Doc = `report calls to (*testing.T).Fatal from goroutines started by a test.
+-
+-Functions that abruptly terminate a test, such as the Fatal, Fatalf, FailNow, and
+-Skip{,f,Now} methods of *testing.T, must be called from the test goroutine itself.
+-This checker detects calls to these functions that occur within a goroutine
+-started by the test. For example:
+-
+-func TestFoo(t *testing.T) {
+-    go func() {
+-        t.Fatal("oops") // error: (*T).Fatal called from non-test goroutine
+-    }()
+-}
+-`
++//go:embed doc.go
++var doc string
+ 
+ var Analyzer = &analysis.Analyzer{
+ 	Name:     "testinggoroutine",
+-	Doc:      Doc,
++	Doc:      analysisutil.MustExtractDoc(doc, "testinggoroutine"),
++	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/testinggoroutine",
+ 	Requires: []*analysis.Analyzer{inspect.Analyzer},
+ 	Run:      run,
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/doc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/doc.go
+new file mode 100644
+index 0000000000..3ae27db9c1
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/doc.go
+@@ -0,0 +1,18 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package tests defines an Analyzer that checks for common mistaken
++// usages of tests and examples.
++//
++// # Analyzer tests
++//
++// tests: check for common mistaken usages of tests and examples
++//
++// The tests checker walks Test, Benchmark, Fuzzing and Example functions checking
++// malformed names, wrong signatures and examples documenting non-existent
++// identifiers.
++//
++// Please see the documentation for package testing in golang.org/pkg/testing
++// for the conventions that are enforced for Tests, Benchmarks, and Examples.
++package tests
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go
+index 935aad00c9..9589a46a5a 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go
+@@ -2,11 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package tests defines an Analyzer that checks for common mistaken
+-// usages of tests and examples.
+ package tests
+ 
+ import (
++	_ "embed"
+ 	"fmt"
+ 	"go/ast"
+ 	"go/token"
+@@ -17,22 +16,17 @@ import (
+ 	"unicode/utf8"
+ 
+ 	"golang.org/x/tools/go/analysis"
+-	"golang.org/x/tools/internal/analysisinternal"
++	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+ 	"golang.org/x/tools/internal/typeparams"
+ )
+ 
+-const Doc = `check for common mistaken usages of tests and examples
+-
+-The tests checker walks Test, Benchmark and Example functions checking
+-malformed names, wrong signatures and examples documenting non-existent
+-identifiers.
+-
+-Please see the documentation for package testing in golang.org/pkg/testing
+-for the conventions that are enforced for Tests, Benchmarks, and Examples.`
++//go:embed doc.go
++var doc string
+ 
+ var Analyzer = &analysis.Analyzer{
+ 	Name: "tests",
+-	Doc:  Doc,
++	Doc:  analysisutil.MustExtractDoc(doc, "tests"),
++	URL:  "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/tests",
+ 	Run:  run,
+ }
+ 
+@@ -73,9 +67,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 				checkTest(pass, fn, "Test")
+ 			case strings.HasPrefix(fn.Name.Name, "Benchmark"):
+ 				checkTest(pass, fn, "Benchmark")
+-			}
+-			// run fuzz tests diagnostics only for 1.18 i.e. when analysisinternal.DiagnoseFuzzTests is turned on.
+-			if strings.HasPrefix(fn.Name.Name, "Fuzz") && analysisinternal.DiagnoseFuzzTests {
++			case strings.HasPrefix(fn.Name.Name, "Fuzz"):
+ 				checkTest(pass, fn, "Fuzz")
+ 				checkFuzz(pass, fn)
+ 			}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/timeformat/doc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/timeformat/doc.go
+new file mode 100644
+index 0000000000..5c665b298b
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/timeformat/doc.go
+@@ -0,0 +1,15 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package timeformat defines an Analyzer that checks for the use
++// of time.Format or time.Parse calls with a bad format.
++//
++// # Analyzer timeformat
++//
++// timeformat: check for calls of (time.Time).Format or time.Parse with 2006-02-01
++//
++// The timeformat checker looks for time formats with the 2006-02-01 (yyyy-dd-mm)
++// format. Internationally, "yyyy-dd-mm" does not occur in common calendar date
++// standards, and so it is more likely that 2006-01-02 (yyyy-mm-dd) was intended.
++package timeformat
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/timeformat/timeformat.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/timeformat/timeformat.go
+index acb198f95c..c45b9fa54b 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/timeformat/timeformat.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/timeformat/timeformat.go
+@@ -7,6 +7,7 @@
+ package timeformat
+ 
+ import (
++	_ "embed"
+ 	"go/ast"
+ 	"go/constant"
+ 	"go/token"
+@@ -15,6 +16,7 @@ import (
+ 
+ 	"golang.org/x/tools/go/analysis"
+ 	"golang.org/x/tools/go/analysis/passes/inspect"
++	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+ 	"golang.org/x/tools/go/ast/inspector"
+ 	"golang.org/x/tools/go/types/typeutil"
+ )
+@@ -22,21 +24,23 @@ import (
+ const badFormat = "2006-02-01"
+ const goodFormat = "2006-01-02"
+ 
+-const Doc = `check for calls of (time.Time).Format or time.Parse with 2006-02-01
+-
+-The timeformat checker looks for time formats with the 2006-02-01 (yyyy-dd-mm)
+-format. Internationally, "yyyy-dd-mm" does not occur in common calendar date
+-standards, and so it is more likely that 2006-01-02 (yyyy-mm-dd) was intended.
+-`
++//go:embed doc.go
++var doc string
+ 
+ var Analyzer = &analysis.Analyzer{
+ 	Name:     "timeformat",
+-	Doc:      Doc,
++	Doc:      analysisutil.MustExtractDoc(doc, "timeformat"),
++	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/timeformat",
+ 	Requires: []*analysis.Analyzer{inspect.Analyzer},
+ 	Run:      run,
+ }
+ 
+ func run(pass *analysis.Pass) (interface{}, error) {
++	// Note: (time.Time).Format is a method and can be a typeutil.Callee
++	// without directly importing "time". So we cannot just skip this package
++	// when !analysisutil.Imports(pass.Pkg, "time").
++	// TODO(taking): Consider using a prepass to collect typeutil.Callees.
++
+ 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+ 
+ 	nodeFilter := []ast.Node{
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unmarshal/doc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unmarshal/doc.go
+new file mode 100644
+index 0000000000..5781bbd32d
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unmarshal/doc.go
+@@ -0,0 +1,14 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The unmarshal package defines an Analyzer that checks for passing
++// non-pointer or non-interface types to unmarshal and decode functions.
++//
++// # Analyzer unmarshal
++//
++// unmarshal: report passing non-pointer or non-interface values to unmarshal
++//
++// The unmarshal analysis reports calls to functions such as json.Unmarshal
++// in which the argument type is not a pointer or an interface.
++package unmarshal
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unmarshal/unmarshal.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unmarshal/unmarshal.go
+index 5129048a07..7043baa899 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unmarshal/unmarshal.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unmarshal/unmarshal.go
+@@ -2,29 +2,28 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The unmarshal package defines an Analyzer that checks for passing
+-// non-pointer or non-interface types to unmarshal and decode functions.
+ package unmarshal
+ 
+ import (
++	_ "embed"
+ 	"go/ast"
+ 	"go/types"
+ 
+ 	"golang.org/x/tools/go/analysis"
+ 	"golang.org/x/tools/go/analysis/passes/inspect"
++	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+ 	"golang.org/x/tools/go/ast/inspector"
+ 	"golang.org/x/tools/go/types/typeutil"
+ 	"golang.org/x/tools/internal/typeparams"
+ )
+ 
+-const Doc = `report passing non-pointer or non-interface values to unmarshal
+-
+-The unmarshal analysis reports calls to functions such as json.Unmarshal
+-in which the argument type is not a pointer or an interface.`
++//go:embed doc.go
++var doc string
+ 
+ var Analyzer = &analysis.Analyzer{
+ 	Name:     "unmarshal",
+-	Doc:      Doc,
++	Doc:      analysisutil.MustExtractDoc(doc, "unmarshal"),
++	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/unmarshal",
+ 	Requires: []*analysis.Analyzer{inspect.Analyzer},
+ 	Run:      run,
+ }
+@@ -37,6 +36,12 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 		return nil, nil
+ 	}
+ 
++	// Note: (*"encoding/json".Decoder).Decode, (* "encoding/gob".Decoder).Decode
++	// and (* "encoding/xml".Decoder).Decode are methods and can be a typeutil.Callee
++	// without directly importing their packages. So we cannot just skip this package
++	// when !analysisutil.Imports(pass.Pkg, "encoding/...").
++	// TODO(taking): Consider using a prepass to collect typeutil.Callees.
++
+ 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+ 
+ 	nodeFilter := []ast.Node{
+@@ -51,6 +56,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 
+ 		// Classify the callee (without allocating memory).
+ 		argidx := -1
++
+ 		recv := fn.Type().(*types.Signature).Recv()
+ 		if fn.Name() == "Unmarshal" && recv == nil {
+ 			// "encoding/json".Unmarshal
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unreachable/doc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unreachable/doc.go
+new file mode 100644
+index 0000000000..d17d0d9444
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unreachable/doc.go
+@@ -0,0 +1,14 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package unreachable defines an Analyzer that checks for unreachable code.
++//
++// # Analyzer unreachable
++//
++// unreachable: check for unreachable code
++//
++// The unreachable analyzer finds statements that execution can never reach
++// because they are preceded by an return statement, a call to panic, an
++// infinite loop, or similar constructs.
++package unreachable
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unreachable/unreachable.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unreachable/unreachable.go
+index 90896dd1bb..b810db7ee9 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unreachable/unreachable.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unreachable/unreachable.go
+@@ -2,30 +2,29 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package unreachable defines an Analyzer that checks for unreachable code.
+ package unreachable
+ 
+ // TODO(adonovan): use the new cfg package, which is more precise.
+ 
+ import (
++	_ "embed"
+ 	"go/ast"
+ 	"go/token"
+ 	"log"
+ 
+ 	"golang.org/x/tools/go/analysis"
+ 	"golang.org/x/tools/go/analysis/passes/inspect"
++	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+ 	"golang.org/x/tools/go/ast/inspector"
+ )
+ 
+-const Doc = `check for unreachable code
+-
+-The unreachable analyzer finds statements that execution can never reach
+-because they are preceded by an return statement, a call to panic, an
+-infinite loop, or similar constructs.`
++//go:embed doc.go
++var doc string
+ 
+ var Analyzer = &analysis.Analyzer{
+ 	Name:             "unreachable",
+-	Doc:              Doc,
++	Doc:              analysisutil.MustExtractDoc(doc, "unreachable"),
++	URL:              "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/unreachable",
+ 	Requires:         []*analysis.Analyzer{inspect.Analyzer},
+ 	RunDespiteErrors: true,
+ 	Run:              run,
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unsafeptr/doc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unsafeptr/doc.go
+new file mode 100644
+index 0000000000..de10804cb1
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unsafeptr/doc.go
+@@ -0,0 +1,17 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package unsafeptr defines an Analyzer that checks for invalid
++// conversions of uintptr to unsafe.Pointer.
++//
++// # Analyzer unsafeptr
++//
++// unsafeptr: check for invalid conversions of uintptr to unsafe.Pointer
++//
++// The unsafeptr analyzer reports likely incorrect uses of unsafe.Pointer
++// to convert integers to pointers. A conversion from uintptr to
++// unsafe.Pointer is invalid if it implies that there is a uintptr-typed
++// word in memory that holds a pointer value, because that word will be
++// invisible to stack copying and to the garbage collector.
++package unsafeptr
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unsafeptr/unsafeptr.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unsafeptr/unsafeptr.go
+index ed86e5ebf0..e43ac20782 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unsafeptr/unsafeptr.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unsafeptr/unsafeptr.go
+@@ -7,6 +7,7 @@
+ package unsafeptr
+ 
+ import (
++	_ "embed"
+ 	"go/ast"
+ 	"go/token"
+ 	"go/types"
+@@ -17,17 +18,13 @@ import (
+ 	"golang.org/x/tools/go/ast/inspector"
+ )
+ 
+-const Doc = `check for invalid conversions of uintptr to unsafe.Pointer
+-
+-The unsafeptr analyzer reports likely incorrect uses of unsafe.Pointer
+-to convert integers to pointers. A conversion from uintptr to
+-unsafe.Pointer is invalid if it implies that there is a uintptr-typed
+-word in memory that holds a pointer value, because that word will be
+-invisible to stack copying and to the garbage collector.`
++//go:embed doc.go
++var doc string
+ 
+ var Analyzer = &analysis.Analyzer{
+ 	Name:     "unsafeptr",
+-	Doc:      Doc,
++	Doc:      analysisutil.MustExtractDoc(doc, "unsafeptr"),
++	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/unsafeptr",
+ 	Requires: []*analysis.Analyzer{inspect.Analyzer},
+ 	Run:      run,
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unusedresult/doc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unusedresult/doc.go
+new file mode 100644
+index 0000000000..a1bf4cf940
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unusedresult/doc.go
+@@ -0,0 +1,19 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package unusedresult defines an analyzer that checks for unused
++// results of calls to certain pure functions.
++//
++// # Analyzer unusedresult
++//
++// unusedresult: check for unused results of calls to some functions
++//
++// Some functions like fmt.Errorf return a result and have no side
++// effects, so it is always a mistake to discard the result. Other
++// functions may return an error that must not be ignored, or a cleanup
++// operation that must be called. This analyzer reports calls to
++// functions like these when the result of the call is ignored.
++//
++// The set of functions may be controlled using flags.
++package unusedresult
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unusedresult/unusedresult.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unusedresult/unusedresult.go
+index 06747ba72b..cb487a2177 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unusedresult/unusedresult.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unusedresult/unusedresult.go
+@@ -3,10 +3,18 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package unusedresult defines an analyzer that checks for unused
+-// results of calls to certain pure functions.
++// results of calls to certain functions.
+ package unusedresult
+ 
++// It is tempting to make this analysis inductive: for each function
++// that tail-calls one of the functions that we check, check those
++// functions too. However, just because you must use the result of
++// fmt.Sprintf doesn't mean you need to use the result of every
++// function that returns a formatted string: it may have other results
++// and effects.
++
+ import (
++	_ "embed"
+ 	"go/ast"
+ 	"go/token"
+ 	"go/types"
+@@ -17,24 +25,16 @@ import (
+ 	"golang.org/x/tools/go/analysis/passes/inspect"
+ 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+ 	"golang.org/x/tools/go/ast/inspector"
+-	"golang.org/x/tools/internal/typeparams"
++	"golang.org/x/tools/go/types/typeutil"
+ )
+ 
+-// TODO(adonovan): make this analysis modular: export a mustUseResult
+-// fact for each function that tail-calls one of the functions that we
+-// check, and check those functions too.
+-
+-const Doc = `check for unused results of calls to some functions
+-
+-Some functions like fmt.Errorf return a result and have no side effects,
+-so it is always a mistake to discard the result. This analyzer reports
+-calls to certain functions in which the result of the call is ignored.
+-
+-The set of functions may be controlled using flags.`
++//go:embed doc.go
++var doc string
+ 
+ var Analyzer = &analysis.Analyzer{
+ 	Name:     "unusedresult",
+-	Doc:      Doc,
++	Doc:      analysisutil.MustExtractDoc(doc, "unusedresult"),
++	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/unusedresult",
+ 	Requires: []*analysis.Analyzer{inspect.Analyzer},
+ 	Run:      run,
+ }
+@@ -43,8 +43,21 @@ var Analyzer = &analysis.Analyzer{
+ var funcs, stringMethods stringSetFlag
+ 
+ func init() {
+-	// TODO(adonovan): provide a comment syntax to allow users to
+-	// add their functions to this set using facts.
++	// TODO(adonovan): provide a comment or declaration syntax to
++	// allow users to add their functions to this set using facts.
++	// For example:
++	//
++	//    func ignoringTheErrorWouldBeVeryBad() error {
++	//      type mustUseResult struct{} // enables vet unusedresult check
++	//      ...
++	//    }
++	//
++	//    ignoringTheErrorWouldBeVeryBad() // oops
++	//
++
++	// List standard library functions here.
++	// The context.With{Cancel,Deadline,Timeout} entries are
++	// effectively redundant wrt the lostcancel analyzer.
+ 	funcs.Set("errors.New,fmt.Errorf,fmt.Sprintf,fmt.Sprint,sort.Reverse,context.WithValue,context.WithCancel,context.WithDeadline,context.WithTimeout")
+ 	Analyzer.Flags.Var(&funcs, "funcs",
+ 		"comma-separated list of functions whose results must be used")
+@@ -57,6 +70,14 @@ func init() {
+ func run(pass *analysis.Pass) (interface{}, error) {
+ 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+ 
++	// Split functions into (pkg, name) pairs to save allocation later.
++	pkgFuncs := make(map[[2]string]bool, len(funcs))
++	for s := range funcs {
++		if i := strings.LastIndexByte(s, '.'); i > 0 {
++			pkgFuncs[[2]string{s[:i], s[i+1:]}] = true
++		}
++	}
++
+ 	nodeFilter := []ast.Node{
+ 		(*ast.ExprStmt)(nil),
+ 	}
+@@ -65,41 +86,26 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 		if !ok {
+ 			return // not a call statement
+ 		}
+-		fun := analysisutil.Unparen(call.Fun)
+-
+-		if pass.TypesInfo.Types[fun].IsType() {
+-			return // a conversion, not a call
+-		}
+ 
+-		x, _, _, _ := typeparams.UnpackIndexExpr(fun)
+-		if x != nil {
+-			fun = x // If this is generic function or method call, skip the instantiation arguments
+-		}
+-
+-		selector, ok := fun.(*ast.SelectorExpr)
++		// Call to function or method?
++		fn, ok := typeutil.Callee(pass.TypesInfo, call).(*types.Func)
+ 		if !ok {
+-			return // neither a method call nor a qualified ident
++			return // e.g. var or builtin
+ 		}
+ 
+-		sel, ok := pass.TypesInfo.Selections[selector]
+-		if ok && sel.Kind() == types.MethodVal {
++		if sig := fn.Type().(*types.Signature); sig.Recv() != nil {
+ 			// method (e.g. foo.String())
+-			obj := sel.Obj().(*types.Func)
+-			sig := sel.Type().(*types.Signature)
+ 			if types.Identical(sig, sigNoArgsStringResult) {
+-				if stringMethods[obj.Name()] {
++				if stringMethods[fn.Name()] {
+ 					pass.Reportf(call.Lparen, "result of (%s).%s call not used",
+-						sig.Recv().Type(), obj.Name())
++						sig.Recv().Type(), fn.Name())
+ 				}
+ 			}
+-		} else if !ok {
+-			// package-qualified function (e.g. fmt.Errorf)
+-			obj := pass.TypesInfo.Uses[selector.Sel]
+-			if obj, ok := obj.(*types.Func); ok {
+-				qname := obj.Pkg().Path() + "." + obj.Name()
+-				if funcs[qname] {
+-					pass.Reportf(call.Lparen, "result of %v call not used", qname)
+-				}
++		} else {
++			// package-level function (e.g. fmt.Errorf)
++			if pkgFuncs[[2]string{fn.Pkg().Path(), fn.Name()}] {
++				pass.Reportf(call.Lparen, "result of %s.%s call not used",
++					fn.Pkg().Path(), fn.Name())
+ 			}
+ 		}
+ 	})
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+index 37693564e5..ff22d23ce5 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+@@ -183,11 +183,6 @@ func readConfig(filename string) (*Config, error) {
+ 	return cfg, nil
+ }
+ 
+-var importerForCompiler = func(_ *token.FileSet, compiler string, lookup importer.Lookup) types.Importer {
+-	// broken legacy implementation (https://golang.org/issue/28995)
+-	return importer.For(compiler, lookup)
+-}
+-
+ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]result, error) {
+ 	// Load, parse, typecheck.
+ 	var files []*ast.File
+@@ -203,7 +198,7 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
+ 		}
+ 		files = append(files, f)
+ 	}
+-	compilerImporter := importerForCompiler(fset, cfg.Compiler, func(path string) (io.ReadCloser, error) {
++	compilerImporter := importer.ForCompiler(fset, cfg.Compiler, func(path string) (io.ReadCloser, error) {
+ 		// path is a resolved package path, not an import path.
+ 		file, ok := cfg.PackageFile[path]
+ 		if !ok {
+@@ -357,6 +352,16 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
+ 
+ 			t0 := time.Now()
+ 			act.result, act.err = a.Run(pass)
++
++			if act.err == nil { // resolve URLs on diagnostics.
++				for i := range act.diagnostics {
++					if url, uerr := analysisflags.ResolveURL(a, act.diagnostics[i]); uerr == nil {
++						act.diagnostics[i].URL = url
++					} else {
++						act.err = uerr // keep the last error
++					}
++				}
++			}
+ 			if false {
+ 				log.Printf("analysis %s = %s", pass, time.Since(t0))
+ 			}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker112.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker112.go
+deleted file mode 100644
+index 3180f4abe1..0000000000
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker112.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build go1.12
+-// +build go1.12
+-
+-package unitchecker
+-
+-import "go/importer"
+-
+-func init() {
+-	importerForCompiler = importer.ForCompiler
+-}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go b/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
+index c160acb686..e064a1a292 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
+@@ -31,6 +31,8 @@ import (
+ 	"strings"
+ 
+ 	"golang.org/x/tools/internal/typeparams"
++
++	_ "unsafe" // for go:linkname
+ )
+ 
+ // A Path is an opaque name that identifies a types.Object
+@@ -111,7 +113,21 @@ const (
+ 	opObj    = 'O' // .Obj()		 (Named, TypeParam)
+ )
+ 
+-// The For function returns the path to an object relative to its package,
++// For is equivalent to new(Encoder).For(obj).
++//
++// It may be more efficient to reuse a single Encoder across several calls.
++func For(obj types.Object) (Path, error) {
++	return new(Encoder).For(obj)
++}
++
++// An Encoder amortizes the cost of encoding the paths of multiple objects.
++// The zero value of an Encoder is ready to use.
++type Encoder struct {
++	scopeNamesMemo   map[*types.Scope][]string      // memoization of Scope.Names()
++	namedMethodsMemo map[*types.Named][]*types.Func // memoization of namedMethods()
++}
++
++// For returns the path to an object relative to its package,
+ // or an error if the object is not accessible from the package's Scope.
+ //
+ // The For function guarantees to return a path only for the following objects:
+@@ -143,7 +159,7 @@ const (
+ //	.Type().Field(0)					(field Var X)
+ //
+ // where p is the package (*types.Package) to which X belongs.
+-func For(obj types.Object) (Path, error) {
++func (enc *Encoder) For(obj types.Object) (Path, error) {
+ 	pkg := obj.Pkg()
+ 
+ 	// This table lists the cases of interest.
+@@ -225,7 +241,7 @@ func For(obj types.Object) (Path, error) {
+ 			return "", fmt.Errorf("func is not a method: %v", obj)
+ 		}
+ 
+-		if path, ok := concreteMethod(obj); ok {
++		if path, ok := enc.concreteMethod(obj); ok {
+ 			// Fast path for concrete methods that avoids looping over scope.
+ 			return path, nil
+ 		}
+@@ -241,7 +257,7 @@ func For(obj types.Object) (Path, error) {
+ 	// the best paths because non-types may
+ 	// refer to types, but not the reverse.
+ 	empty := make([]byte, 0, 48) // initial space
+-	names := scope.Names()
++	names := enc.scopeNames(scope)
+ 	for _, name := range names {
+ 		o := scope.Lookup(name)
+ 		tname, ok := o.(*types.TypeName)
+@@ -294,9 +310,7 @@ func For(obj types.Object) (Path, error) {
+ 			// Note that method index here is always with respect
+ 			// to canonical ordering of methods, regardless of how
+ 			// they appear in the underlying type.
+-			canonical := canonicalize(T)
+-			for i := 0; i < len(canonical); i++ {
+-				m := canonical[i]
++			for i, m := range enc.namedMethods(T) {
+ 				path2 := appendOpArg(path, opMethod, i)
+ 				if m == obj {
+ 					return Path(path2), nil // found declared method
+@@ -324,7 +338,7 @@ func appendOpArg(path []byte, op byte, arg int) []byte {
+ // This function is just an optimization that avoids the general scope walking
+ // approach. You are expected to fall back to the general approach if this
+ // function fails.
+-func concreteMethod(meth *types.Func) (Path, bool) {
++func (enc *Encoder) concreteMethod(meth *types.Func) (Path, bool) {
+ 	// Concrete methods can only be declared on package-scoped named types. For
+ 	// that reason we can skip the expensive walk over the package scope: the
+ 	// path will always be package -> named type -> method. We can trivially get
+@@ -397,8 +411,7 @@ func concreteMethod(meth *types.Func) (Path, bool) {
+ 	path := make([]byte, 0, len(name)+8)
+ 	path = append(path, name...)
+ 	path = append(path, opType)
+-	canonical := canonicalize(named)
+-	for i, m := range canonical {
++	for i, m := range enc.namedMethods(named) {
+ 		if m == meth {
+ 			path = appendOpArg(path, opMethod, i)
+ 			return Path(path), true
+@@ -663,15 +676,23 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
+ 			t = nil
+ 
+ 		case opMethod:
+-			hasMethods, ok := t.(hasMethods) // Interface or Named
+-			if !ok {
++			switch t := t.(type) {
++			case *types.Interface:
++				if index >= t.NumMethods() {
++					return nil, fmt.Errorf("method index %d out of range [0-%d)", index, t.NumMethods())
++				}
++				obj = t.Method(index) // Id-ordered
++
++			case *types.Named:
++				methods := namedMethods(t) // (unmemoized)
++				if index >= len(methods) {
++					return nil, fmt.Errorf("method index %d out of range [0-%d)", index, len(methods))
++				}
++				obj = methods[index] // Id-ordered
++
++			default:
+ 				return nil, fmt.Errorf("cannot apply %q to %s (got %T, want interface or named)", code, t, t)
+ 			}
+-			canonical := canonicalize(hasMethods)
+-			if n := len(canonical); index >= n {
+-				return nil, fmt.Errorf("method index %d out of range [0-%d)", index, n)
+-			}
+-			obj = canonical[index]
+ 			t = nil
+ 
+ 		case opObj:
+@@ -694,27 +715,44 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
+ 	return obj, nil // success
+ }
+ 
+-// hasMethods is an abstraction of *types.{Interface,Named}. This is pulled up
+-// because it is used by methodOrdering, which is in turn used by both encoding
+-// and decoding.
+-type hasMethods interface {
+-	Method(int) *types.Func
+-	NumMethods() int
++// namedMethods returns the methods of a Named type in ascending Id order.
++func namedMethods(named *types.Named) []*types.Func {
++	methods := make([]*types.Func, named.NumMethods())
++	for i := range methods {
++		methods[i] = named.Method(i)
++	}
++	sort.Slice(methods, func(i, j int) bool {
++		return methods[i].Id() < methods[j].Id()
++	})
++	return methods
+ }
+ 
+-// canonicalize returns a canonical order for the methods in a hasMethod.
+-func canonicalize(hm hasMethods) []*types.Func {
+-	count := hm.NumMethods()
+-	if count <= 0 {
+-		return nil
++// namedMethods is a memoization of the namedMethods function. Callers must not modify the result.
++func (enc *Encoder) namedMethods(named *types.Named) []*types.Func {
++	m := enc.namedMethodsMemo
++	if m == nil {
++		m = make(map[*types.Named][]*types.Func)
++		enc.namedMethodsMemo = m
+ 	}
+-	canon := make([]*types.Func, count)
+-	for i := 0; i < count; i++ {
+-		canon[i] = hm.Method(i)
++	methods, ok := m[named]
++	if !ok {
++		methods = namedMethods(named) // allocates and sorts
++		m[named] = methods
+ 	}
+-	less := func(i, j int) bool {
+-		return canon[i].Id() < canon[j].Id()
++	return methods
++}
++
++// scopeNames is a memoization of scope.Names. Callers must not modify the result.
++func (enc *Encoder) scopeNames(scope *types.Scope) []string {
++	m := enc.scopeNamesMemo
++	if m == nil {
++		m = make(map[*types.Scope][]string)
++		enc.scopeNamesMemo = m
++	}
++	names, ok := m[scope]
++	if !ok {
++		names = scope.Names() // allocates and sorts
++		m[scope] = names
+ 	}
+-	sort.Slice(canon, less)
+-	return canon
++	return names
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go b/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
+deleted file mode 100644
+index d15f0eb7ab..0000000000
+--- a/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
++++ /dev/null
+@@ -1,390 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Package analysisinternal provides gopls' internal analyses with a
+-// number of helper functions that operate on typed syntax trees.
+-package analysisinternal
+-
+-import (
+-	"bytes"
+-	"fmt"
+-	"go/ast"
+-	"go/token"
+-	"go/types"
+-	"strconv"
+-)
+-
+-// DiagnoseFuzzTests controls whether the 'tests' analyzer diagnoses fuzz tests
+-// in Go 1.18+.
+-var DiagnoseFuzzTests bool = false
+-
+-func TypeErrorEndPos(fset *token.FileSet, src []byte, start token.Pos) token.Pos {
+-	// Get the end position for the type error.
+-	offset, end := fset.PositionFor(start, false).Offset, start
+-	if offset >= len(src) {
+-		return end
+-	}
+-	if width := bytes.IndexAny(src[offset:], " \n,():;[]+-*"); width > 0 {
+-		end = start + token.Pos(width)
+-	}
+-	return end
+-}
+-
+-func ZeroValue(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
+-	under := typ
+-	if n, ok := typ.(*types.Named); ok {
+-		under = n.Underlying()
+-	}
+-	switch u := under.(type) {
+-	case *types.Basic:
+-		switch {
+-		case u.Info()&types.IsNumeric != 0:
+-			return &ast.BasicLit{Kind: token.INT, Value: "0"}
+-		case u.Info()&types.IsBoolean != 0:
+-			return &ast.Ident{Name: "false"}
+-		case u.Info()&types.IsString != 0:
+-			return &ast.BasicLit{Kind: token.STRING, Value: `""`}
+-		default:
+-			panic("unknown basic type")
+-		}
+-	case *types.Chan, *types.Interface, *types.Map, *types.Pointer, *types.Signature, *types.Slice, *types.Array:
+-		return ast.NewIdent("nil")
+-	case *types.Struct:
+-		texpr := TypeExpr(f, pkg, typ) // typ because we want the name here.
+-		if texpr == nil {
+-			return nil
+-		}
+-		return &ast.CompositeLit{
+-			Type: texpr,
+-		}
+-	}
+-	return nil
+-}
+-
+-// IsZeroValue checks whether the given expression is a 'zero value' (as determined by output of
+-// analysisinternal.ZeroValue)
+-func IsZeroValue(expr ast.Expr) bool {
+-	switch e := expr.(type) {
+-	case *ast.BasicLit:
+-		return e.Value == "0" || e.Value == `""`
+-	case *ast.Ident:
+-		return e.Name == "nil" || e.Name == "false"
+-	default:
+-		return false
+-	}
+-}
+-
+-// TypeExpr returns syntax for the specified type. References to
+-// named types from packages other than pkg are qualified by an appropriate
+-// package name, as defined by the import environment of file.
+-func TypeExpr(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
+-	switch t := typ.(type) {
+-	case *types.Basic:
+-		switch t.Kind() {
+-		case types.UnsafePointer:
+-			return &ast.SelectorExpr{X: ast.NewIdent("unsafe"), Sel: ast.NewIdent("Pointer")}
+-		default:
+-			return ast.NewIdent(t.Name())
+-		}
+-	case *types.Pointer:
+-		x := TypeExpr(f, pkg, t.Elem())
+-		if x == nil {
+-			return nil
+-		}
+-		return &ast.UnaryExpr{
+-			Op: token.MUL,
+-			X:  x,
+-		}
+-	case *types.Array:
+-		elt := TypeExpr(f, pkg, t.Elem())
+-		if elt == nil {
+-			return nil
+-		}
+-		return &ast.ArrayType{
+-			Len: &ast.BasicLit{
+-				Kind:  token.INT,
+-				Value: fmt.Sprintf("%d", t.Len()),
+-			},
+-			Elt: elt,
+-		}
+-	case *types.Slice:
+-		elt := TypeExpr(f, pkg, t.Elem())
+-		if elt == nil {
+-			return nil
+-		}
+-		return &ast.ArrayType{
+-			Elt: elt,
+-		}
+-	case *types.Map:
+-		key := TypeExpr(f, pkg, t.Key())
+-		value := TypeExpr(f, pkg, t.Elem())
+-		if key == nil || value == nil {
+-			return nil
+-		}
+-		return &ast.MapType{
+-			Key:   key,
+-			Value: value,
+-		}
+-	case *types.Chan:
+-		dir := ast.ChanDir(t.Dir())
+-		if t.Dir() == types.SendRecv {
+-			dir = ast.SEND | ast.RECV
+-		}
+-		value := TypeExpr(f, pkg, t.Elem())
+-		if value == nil {
+-			return nil
+-		}
+-		return &ast.ChanType{
+-			Dir:   dir,
+-			Value: value,
+-		}
+-	case *types.Signature:
+-		var params []*ast.Field
+-		for i := 0; i < t.Params().Len(); i++ {
+-			p := TypeExpr(f, pkg, t.Params().At(i).Type())
+-			if p == nil {
+-				return nil
+-			}
+-			params = append(params, &ast.Field{
+-				Type: p,
+-				Names: []*ast.Ident{
+-					{
+-						Name: t.Params().At(i).Name(),
+-					},
+-				},
+-			})
+-		}
+-		var returns []*ast.Field
+-		for i := 0; i < t.Results().Len(); i++ {
+-			r := TypeExpr(f, pkg, t.Results().At(i).Type())
+-			if r == nil {
+-				return nil
+-			}
+-			returns = append(returns, &ast.Field{
+-				Type: r,
+-			})
+-		}
+-		return &ast.FuncType{
+-			Params: &ast.FieldList{
+-				List: params,
+-			},
+-			Results: &ast.FieldList{
+-				List: returns,
+-			},
+-		}
+-	case *types.Named:
+-		if t.Obj().Pkg() == nil {
+-			return ast.NewIdent(t.Obj().Name())
+-		}
+-		if t.Obj().Pkg() == pkg {
+-			return ast.NewIdent(t.Obj().Name())
+-		}
+-		pkgName := t.Obj().Pkg().Name()
+-
+-		// If the file already imports the package under another name, use that.
+-		for _, cand := range f.Imports {
+-			if path, _ := strconv.Unquote(cand.Path.Value); path == t.Obj().Pkg().Path() {
+-				if cand.Name != nil && cand.Name.Name != "" {
+-					pkgName = cand.Name.Name
+-				}
+-			}
+-		}
+-		if pkgName == "." {
+-			return ast.NewIdent(t.Obj().Name())
+-		}
+-		return &ast.SelectorExpr{
+-			X:   ast.NewIdent(pkgName),
+-			Sel: ast.NewIdent(t.Obj().Name()),
+-		}
+-	case *types.Struct:
+-		return ast.NewIdent(t.String())
+-	case *types.Interface:
+-		return ast.NewIdent(t.String())
+-	default:
+-		return nil
+-	}
+-}
+-
+-// StmtToInsertVarBefore returns the ast.Stmt before which we can safely insert a new variable.
+-// Some examples:
+-//
+-// Basic Example:
+-// z := 1
+-// y := z + x
+-// If x is undeclared, then this function would return `y := z + x`, so that we
+-// can insert `x := ` on the line before `y := z + x`.
+-//
+-// If stmt example:
+-// if z == 1 {
+-// } else if z == y {}
+-// If y is undeclared, then this function would return `if z == 1 {`, because we cannot
+-// insert a statement between an if and an else if statement. As a result, we need to find
+-// the top of the if chain to insert `y := ` before.
+-func StmtToInsertVarBefore(path []ast.Node) ast.Stmt {
+-	enclosingIndex := -1
+-	for i, p := range path {
+-		if _, ok := p.(ast.Stmt); ok {
+-			enclosingIndex = i
+-			break
+-		}
+-	}
+-	if enclosingIndex == -1 {
+-		return nil
+-	}
+-	enclosingStmt := path[enclosingIndex]
+-	switch enclosingStmt.(type) {
+-	case *ast.IfStmt:
+-		// The enclosingStmt is inside of the if declaration,
+-		// We need to check if we are in an else-if stmt and
+-		// get the base if statement.
+-		return baseIfStmt(path, enclosingIndex)
+-	case *ast.CaseClause:
+-		// Get the enclosing switch stmt if the enclosingStmt is
+-		// inside of the case statement.
+-		for i := enclosingIndex + 1; i < len(path); i++ {
+-			if node, ok := path[i].(*ast.SwitchStmt); ok {
+-				return node
+-			} else if node, ok := path[i].(*ast.TypeSwitchStmt); ok {
+-				return node
+-			}
+-		}
+-	}
+-	if len(path) <= enclosingIndex+1 {
+-		return enclosingStmt.(ast.Stmt)
+-	}
+-	// Check if the enclosing statement is inside another node.
+-	switch expr := path[enclosingIndex+1].(type) {
+-	case *ast.IfStmt:
+-		// Get the base if statement.
+-		return baseIfStmt(path, enclosingIndex+1)
+-	case *ast.ForStmt:
+-		if expr.Init == enclosingStmt || expr.Post == enclosingStmt {
+-			return expr
+-		}
+-	}
+-	return enclosingStmt.(ast.Stmt)
+-}
+-
+-// baseIfStmt walks up the if/else-if chain until we get to
+-// the top of the current if chain.
+-func baseIfStmt(path []ast.Node, index int) ast.Stmt {
+-	stmt := path[index]
+-	for i := index + 1; i < len(path); i++ {
+-		if node, ok := path[i].(*ast.IfStmt); ok && node.Else == stmt {
+-			stmt = node
+-			continue
+-		}
+-		break
+-	}
+-	return stmt.(ast.Stmt)
+-}
+-
+-// WalkASTWithParent walks the AST rooted at n. The semantics are
+-// similar to ast.Inspect except it does not call f(nil).
+-func WalkASTWithParent(n ast.Node, f func(n ast.Node, parent ast.Node) bool) {
+-	var ancestors []ast.Node
+-	ast.Inspect(n, func(n ast.Node) (recurse bool) {
+-		if n == nil {
+-			ancestors = ancestors[:len(ancestors)-1]
+-			return false
+-		}
+-
+-		var parent ast.Node
+-		if len(ancestors) > 0 {
+-			parent = ancestors[len(ancestors)-1]
+-		}
+-		ancestors = append(ancestors, n)
+-		return f(n, parent)
+-	})
+-}
+-
+-// MatchingIdents finds the names of all identifiers in 'node' that match any of the given types.
+-// 'pos' represents the position at which the identifiers may be inserted. 'pos' must be within
+-// the scope of each of identifier we select. Otherwise, we will insert a variable at 'pos' that
+-// is unrecognized.
+-func MatchingIdents(typs []types.Type, node ast.Node, pos token.Pos, info *types.Info, pkg *types.Package) map[types.Type][]string {
+-
+-	// Initialize matches to contain the variable types we are searching for.
+-	matches := make(map[types.Type][]string)
+-	for _, typ := range typs {
+-		if typ == nil {
+-			continue // TODO(adonovan): is this reachable?
+-		}
+-		matches[typ] = nil // create entry
+-	}
+-
+-	seen := map[types.Object]struct{}{}
+-	ast.Inspect(node, func(n ast.Node) bool {
+-		if n == nil {
+-			return false
+-		}
+-		// Prevent circular definitions. If 'pos' is within an assignment statement, do not
+-		// allow any identifiers in that assignment statement to be selected. Otherwise,
+-		// we could do the following, where 'x' satisfies the type of 'f0':
+-		//
+-		// x := fakeStruct{f0: x}
+-		//
+-		if assign, ok := n.(*ast.AssignStmt); ok && pos > assign.Pos() && pos <= assign.End() {
+-			return false
+-		}
+-		if n.End() > pos {
+-			return n.Pos() <= pos
+-		}
+-		ident, ok := n.(*ast.Ident)
+-		if !ok || ident.Name == "_" {
+-			return true
+-		}
+-		obj := info.Defs[ident]
+-		if obj == nil || obj.Type() == nil {
+-			return true
+-		}
+-		if _, ok := obj.(*types.TypeName); ok {
+-			return true
+-		}
+-		// Prevent duplicates in matches' values.
+-		if _, ok = seen[obj]; ok {
+-			return true
+-		}
+-		seen[obj] = struct{}{}
+-		// Find the scope for the given position. Then, check whether the object
+-		// exists within the scope.
+-		innerScope := pkg.Scope().Innermost(pos)
+-		if innerScope == nil {
+-			return true
+-		}
+-		_, foundObj := innerScope.LookupParent(ident.Name, pos)
+-		if foundObj != obj {
+-			return true
+-		}
+-		// The object must match one of the types that we are searching for.
+-		// TODO(adonovan): opt: use typeutil.Map?
+-		if names, ok := matches[obj.Type()]; ok {
+-			matches[obj.Type()] = append(names, ident.Name)
+-		} else {
+-			// If the object type does not exactly match
+-			// any of the target types, greedily find the first
+-			// target type that the object type can satisfy.
+-			for typ := range matches {
+-				if equivalentTypes(obj.Type(), typ) {
+-					matches[typ] = append(matches[typ], ident.Name)
+-				}
+-			}
+-		}
+-		return true
+-	})
+-	return matches
+-}
+-
+-func equivalentTypes(want, got types.Type) bool {
+-	if types.Identical(want, got) {
+-		return true
+-	}
+-	// Code segment to help check for untyped equality from (golang/go#32146).
+-	if rhs, ok := want.(*types.Basic); ok && rhs.Info()&types.IsUntyped > 0 {
+-		if lhs, ok := got.Underlying().(*types.Basic); ok {
+-			return rhs.Info()&types.IsConstType == lhs.Info()&types.IsConstType
+-		}
+-	}
+-	return types.AssignableTo(want, got)
+-}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go
+index 25a1426d30..cfba8189f1 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go
+@@ -87,7 +87,6 @@ func IsTypeParam(t types.Type) bool {
+ func OriginMethod(fn *types.Func) *types.Func {
+ 	recv := fn.Type().(*types.Signature).Recv()
+ 	if recv == nil {
+-
+ 		return fn
+ 	}
+ 	base := recv.Type()
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 61b06031e3..6cfb4cab1d 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -23,7 +23,7 @@ golang.org/x/arch/arm/armasm
+ golang.org/x/arch/arm64/arm64asm
+ golang.org/x/arch/ppc64/ppc64asm
+ golang.org/x/arch/x86/x86asm
+-# golang.org/x/mod v0.8.0
++# golang.org/x/mod v0.10.0
+ ## explicit; go 1.17
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile
+@@ -34,10 +34,10 @@ golang.org/x/mod/sumdb/dirhash
+ golang.org/x/mod/sumdb/note
+ golang.org/x/mod/sumdb/tlog
+ golang.org/x/mod/zip
+-# golang.org/x/sync v0.1.0
++# golang.org/x/sync v0.2.0
+ ## explicit
+ golang.org/x/sync/semaphore
+-# golang.org/x/sys v0.7.0
++# golang.org/x/sys v0.8.0
+ ## explicit; go 1.17
+ golang.org/x/sys/internal/unsafeheader
+ golang.org/x/sys/plan9
+@@ -46,7 +46,7 @@ golang.org/x/sys/windows
+ # golang.org/x/term v0.5.0
+ ## explicit; go 1.17
+ golang.org/x/term
+-# golang.org/x/tools v0.5.1-0.20230207232209-1ace7dbcb0de
++# golang.org/x/tools v0.8.1-0.20230508195130-8f7fb01dd429
+ ## explicit; go 1.18
+ golang.org/x/tools/cover
+ golang.org/x/tools/go/analysis
+@@ -89,6 +89,5 @@ golang.org/x/tools/go/ast/inspector
+ golang.org/x/tools/go/cfg
+ golang.org/x/tools/go/types/objectpath
+ golang.org/x/tools/go/types/typeutil
+-golang.org/x/tools/internal/analysisinternal
+ golang.org/x/tools/internal/facts
+ golang.org/x/tools/internal/typeparams
+diff --git a/src/cmd/vet/testdata/print/print.go b/src/cmd/vet/testdata/print/print.go
+index 46240e87bf..a2ad0f1298 100644
+--- a/src/cmd/vet/testdata/print/print.go
++++ b/src/cmd/vet/testdata/print/print.go
+@@ -140,9 +140,9 @@ func PrintfTests() {
+ 	fmt.Printf("%s", nonemptyinterface)         // correct (the type is responsible for formatting)
+ 	fmt.Printf("%.*s %d %6g", 3, "hi", 23, 'x') // ERROR "Printf format %6g has arg 'x' of wrong type rune"
+ 	fmt.Println()                               // not an error
+-	fmt.Println("%s", "hi")                     // ERROR "Println call has possible formatting directive %s"
+-	fmt.Println("%v", "hi")                     // ERROR "Println call has possible formatting directive %v"
+-	fmt.Println("%T", "hi")                     // ERROR "Println call has possible formatting directive %T"
++	fmt.Println("%s", "hi")                     // ERROR "Println call has possible Printf formatting directive %s"
++	fmt.Println("%v", "hi")                     // ERROR "Println call has possible Printf formatting directive %v"
++	fmt.Println("%T", "hi")                     // ERROR "Println call has possible Printf formatting directive %T"
+ 	fmt.Println("0.0%")                         // correct (trailing % couldn't be a formatting directive)
+ 	fmt.Printf("%s", "hi", 3)                   // ERROR "Printf call needs 1 arg but has 2 args"
+ 	_ = fmt.Sprintf("%"+("s"), "hi", 3)         // ERROR "Sprintf call needs 1 arg but has 2 args"
+@@ -165,19 +165,19 @@ func PrintfTests() {
+ 	Printf(format, "hi")              // ERROR "Printf format %s reads arg #2, but call has 1 arg$"
+ 	Printf("%s %d %.3v %q", "str", 4) // ERROR "Printf format %.3v reads arg #3, but call has 2 args"
+ 	f := new(ptrStringer)
+-	f.Warn(0, "%s", "hello", 3)           // ERROR "Warn call has possible formatting directive %s"
++	f.Warn(0, "%s", "hello", 3)           // ERROR "Warn call has possible Printf formatting directive %s"
+ 	f.Warnf(0, "%s", "hello", 3)          // ERROR "Warnf call needs 1 arg but has 2 args"
+ 	f.Warnf(0, "%r", "hello")             // ERROR "Warnf format %r has unknown verb r"
+ 	f.Warnf(0, "%#s", "hello")            // ERROR "Warnf format %#s has unrecognized flag #"
+-	f.Warn2(0, "%s", "hello", 3)          // ERROR "Warn2 call has possible formatting directive %s"
++	f.Warn2(0, "%s", "hello", 3)          // ERROR "Warn2 call has possible Printf formatting directive %s"
+ 	f.Warnf2(0, "%s", "hello", 3)         // ERROR "Warnf2 call needs 1 arg but has 2 args"
+ 	f.Warnf2(0, "%r", "hello")            // ERROR "Warnf2 format %r has unknown verb r"
+ 	f.Warnf2(0, "%#s", "hello")           // ERROR "Warnf2 format %#s has unrecognized flag #"
+-	f.Wrap(0, "%s", "hello", 3)           // ERROR "Wrap call has possible formatting directive %s"
++	f.Wrap(0, "%s", "hello", 3)           // ERROR "Wrap call has possible Printf formatting directive %s"
+ 	f.Wrapf(0, "%s", "hello", 3)          // ERROR "Wrapf call needs 1 arg but has 2 args"
+ 	f.Wrapf(0, "%r", "hello")             // ERROR "Wrapf format %r has unknown verb r"
+ 	f.Wrapf(0, "%#s", "hello")            // ERROR "Wrapf format %#s has unrecognized flag #"
+-	f.Wrap2(0, "%s", "hello", 3)          // ERROR "Wrap2 call has possible formatting directive %s"
++	f.Wrap2(0, "%s", "hello", 3)          // ERROR "Wrap2 call has possible Printf formatting directive %s"
+ 	f.Wrapf2(0, "%s", "hello", 3)         // ERROR "Wrapf2 call needs 1 arg but has 2 args"
+ 	f.Wrapf2(0, "%r", "hello")            // ERROR "Wrapf2 format %r has unknown verb r"
+ 	f.Wrapf2(0, "%#s", "hello")           // ERROR "Wrapf2 format %#s has unrecognized flag #"
+@@ -213,7 +213,7 @@ func PrintfTests() {
+ 	var et1 *testing.T
+ 	et1.Error()        // ok
+ 	et1.Error("hi")    // ok
+-	et1.Error("%d", 3) // ERROR "Error call has possible formatting directive %d"
++	et1.Error("%d", 3) // ERROR "Error call has possible Printf formatting directive %d"
+ 	var et3 errorTest3
+ 	et3.Error() // ok, not an error method.
+ 	var et4 errorTest4
+@@ -239,7 +239,7 @@ func PrintfTests() {
+ 	// Special handling for Log.
+ 	math.Log(3) // OK
+ 	var t *testing.T
+-	t.Log("%d", 3) // ERROR "Log call has possible formatting directive %d"
++	t.Log("%d", 3) // ERROR "Log call has possible Printf formatting directive %d"
+ 	t.Logf("%d", 3)
+ 	t.Logf("%d", "hi") // ERROR "Logf format %d has arg \x22hi\x22 of wrong type string"
+ 
+@@ -290,27 +290,27 @@ func PrintfTests() {
+ 	Printf(someString(), "hello") // OK
+ 
+ 	// Printf wrappers in package log should be detected automatically
+-	logpkg.Fatal("%d", 1)    // ERROR "Fatal call has possible formatting directive %d"
++	logpkg.Fatal("%d", 1)    // ERROR "Fatal call has possible Printf formatting directive %d"
+ 	logpkg.Fatalf("%d", "x") // ERROR "Fatalf format %d has arg \x22x\x22 of wrong type string"
+-	logpkg.Fatalln("%d", 1)  // ERROR "Fatalln call has possible formatting directive %d"
+-	logpkg.Panic("%d", 1)    // ERROR "Panic call has possible formatting directive %d"
++	logpkg.Fatalln("%d", 1)  // ERROR "Fatalln call has possible Printf formatting directive %d"
++	logpkg.Panic("%d", 1)    // ERROR "Panic call has possible Printf formatting directive %d"
+ 	logpkg.Panicf("%d", "x") // ERROR "Panicf format %d has arg \x22x\x22 of wrong type string"
+-	logpkg.Panicln("%d", 1)  // ERROR "Panicln call has possible formatting directive %d"
+-	logpkg.Print("%d", 1)    // ERROR "Print call has possible formatting directive %d"
++	logpkg.Panicln("%d", 1)  // ERROR "Panicln call has possible Printf formatting directive %d"
++	logpkg.Print("%d", 1)    // ERROR "Print call has possible Printf formatting directive %d"
+ 	logpkg.Printf("%d", "x") // ERROR "Printf format %d has arg \x22x\x22 of wrong type string"
+-	logpkg.Println("%d", 1)  // ERROR "Println call has possible formatting directive %d"
++	logpkg.Println("%d", 1)  // ERROR "Println call has possible Printf formatting directive %d"
+ 
+ 	// Methods too.
+ 	var l *logpkg.Logger
+-	l.Fatal("%d", 1)    // ERROR "Fatal call has possible formatting directive %d"
++	l.Fatal("%d", 1)    // ERROR "Fatal call has possible Printf formatting directive %d"
+ 	l.Fatalf("%d", "x") // ERROR "Fatalf format %d has arg \x22x\x22 of wrong type string"
+-	l.Fatalln("%d", 1)  // ERROR "Fatalln call has possible formatting directive %d"
+-	l.Panic("%d", 1)    // ERROR "Panic call has possible formatting directive %d"
++	l.Fatalln("%d", 1)  // ERROR "Fatalln call has possible Printf formatting directive %d"
++	l.Panic("%d", 1)    // ERROR "Panic call has possible Printf formatting directive %d"
+ 	l.Panicf("%d", "x") // ERROR "Panicf format %d has arg \x22x\x22 of wrong type string"
+-	l.Panicln("%d", 1)  // ERROR "Panicln call has possible formatting directive %d"
+-	l.Print("%d", 1)    // ERROR "Print call has possible formatting directive %d"
++	l.Panicln("%d", 1)  // ERROR "Panicln call has possible Printf formatting directive %d"
++	l.Print("%d", 1)    // ERROR "Print call has possible Printf formatting directive %d"
+ 	l.Printf("%d", "x") // ERROR "Printf format %d has arg \x22x\x22 of wrong type string"
+-	l.Println("%d", 1)  // ERROR "Println call has possible formatting directive %d"
++	l.Println("%d", 1)  // ERROR "Println call has possible Printf formatting directive %d"
+ 
+ 	// Issue 26486
+ 	dbg("", 1) // no error "call has arguments but no formatting directive"
+diff --git a/src/go.mod b/src/go.mod
+index 3c6222f569..321657d503 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -4,10 +4,10 @@ go 1.21
+ 
+ require (
+ 	golang.org/x/crypto v0.5.1-0.20230203195927-310bfa40f1e4
+-	golang.org/x/net v0.9.1-0.20230410173003-9001ca7de9d7
++	golang.org/x/net v0.10.0
+ )
+ 
+ require (
+-	golang.org/x/sys v0.7.0 // indirect
++	golang.org/x/sys v0.8.0 // indirect
+ 	golang.org/x/text v0.9.0 // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index 0868ac0d73..9b02505733 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,8 +1,8 @@
+ golang.org/x/crypto v0.5.1-0.20230203195927-310bfa40f1e4 h1:8CmdfDrqo5/AGztF4Zk/aBNGTgL5dgcfPMmmvH1z8Lo=
+ golang.org/x/crypto v0.5.1-0.20230203195927-310bfa40f1e4/go.mod h1:NK/OQwhpMQP3MwtdjgLlYHnH9ebylxKWv3e0fK+mkQU=
+-golang.org/x/net v0.9.1-0.20230410173003-9001ca7de9d7 h1:3Th36ggEMCIutdWQW4wH75MkjpKjK2/qO70GW+eA5Lo=
+-golang.org/x/net v0.9.1-0.20230410173003-9001ca7de9d7/go.mod h1:d48xBJpPfHeWQsugry2m+kC02ZBRGRgulfHnEXEuWns=
+-golang.org/x/sys v0.7.0 h1:3jlCCIQZPdOYu1h8BkNvLz8Kgwtae2cagcG/VamtZRU=
+-golang.org/x/sys v0.7.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
++golang.org/x/net v0.10.0 h1:X2//UzNDwYmtCLn7To6G58Wr6f5ahEAQgKNzv9Y951M=
++golang.org/x/net v0.10.0/go.mod h1:0qNGK6F8kojg2nk9dLZ2mShWaEBan6FAoqfSigmmuDg=
++golang.org/x/sys v0.8.0 h1:EBmGv8NaZBZTWvrbjNoL6HVt+IVy3QDQpJs7VRIw3tU=
++golang.org/x/sys v0.8.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/text v0.9.0 h1:2sjJmO8cDvYveuX97RDLsxlyUxLl+GHoLxBiRdHllBE=
+ golang.org/x/text v0.9.0/go.mod h1:e1OnstbJyHTd6l/uOt8jFFHp6TRDWZR/bV3emEE/zU8=
+diff --git a/src/vendor/golang.org/x/net/nettest/nettest.go b/src/vendor/golang.org/x/net/nettest/nettest.go
+index 1e350f09cb..3656c3c54b 100644
+--- a/src/vendor/golang.org/x/net/nettest/nettest.go
++++ b/src/vendor/golang.org/x/net/nettest/nettest.go
+@@ -103,12 +103,12 @@ func TestableNetwork(network string) bool {
+ 		// This is an internal network name for testing on the
+ 		// package net of the standard library.
+ 		switch runtime.GOOS {
+-		case "android", "fuchsia", "hurd", "ios", "js", "nacl", "plan9", "windows":
++		case "android", "fuchsia", "hurd", "ios", "js", "nacl", "plan9", "wasip1", "windows":
+ 			return false
+ 		}
+ 	case "ip", "ip4", "ip6":
+ 		switch runtime.GOOS {
+-		case "fuchsia", "hurd", "js", "nacl", "plan9":
++		case "fuchsia", "hurd", "js", "nacl", "plan9", "wasip1":
+ 			return false
+ 		default:
+ 			if os.Getuid() != 0 {
+@@ -117,14 +117,14 @@ func TestableNetwork(network string) bool {
+ 		}
+ 	case "unix", "unixgram":
+ 		switch runtime.GOOS {
+-		case "android", "fuchsia", "hurd", "ios", "js", "nacl", "plan9", "windows":
++		case "android", "fuchsia", "hurd", "ios", "js", "nacl", "plan9", "wasip1", "windows":
+ 			return false
+ 		case "aix":
+ 			return unixStrmDgramEnabled()
+ 		}
+ 	case "unixpacket":
+ 		switch runtime.GOOS {
+-		case "aix", "android", "fuchsia", "hurd", "darwin", "ios", "js", "nacl", "plan9", "windows", "zos":
++		case "aix", "android", "fuchsia", "hurd", "darwin", "ios", "js", "nacl", "plan9", "wasip1", "windows", "zos":
+ 			return false
+ 		}
+ 	}
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 438c2f447b..fd49affcf4 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -7,7 +7,7 @@ golang.org/x/crypto/cryptobyte/asn1
+ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/alias
+ golang.org/x/crypto/internal/poly1305
+-# golang.org/x/net v0.9.1-0.20230410173003-9001ca7de9d7
++# golang.org/x/net v0.10.0
+ ## explicit; go 1.17
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts
+@@ -17,7 +17,7 @@ golang.org/x/net/idna
+ golang.org/x/net/lif
+ golang.org/x/net/nettest
+ golang.org/x/net/route
+-# golang.org/x/sys v0.7.0
++# golang.org/x/sys v0.8.0
+ ## explicit; go 1.17
+ golang.org/x/sys/cpu
+ # golang.org/x/text v0.9.0

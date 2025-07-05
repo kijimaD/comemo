@@ -7,7 +7,62 @@ Date:   Wed Oct 29 14:09:32 2008 -0700
     R=r
     OCL=18034
     CL=18034
-
+---
  test/ken/simparray.go | 16 ++++++++--------
  test/ken/simpconv.go  |  1 +
  2 files changed, 9 insertions(+), 8 deletions(-)
+
+diff --git a/test/ken/simparray.go b/test/ken/simparray.go
+index a670986bda..90331e5e3d 100644
+--- a/test/ken/simparray.go
++++ b/test/ken/simparray.go
+@@ -6,29 +6,29 @@
+ 
+ package main
+ 
+-var b[10] float;
++var b[10] float32;
+ 
+ func
+ main()
+ {
+-	var a[10] float;
++	var a[10] float32;
+ 
+-	for i:=short(5); i<10; i=i+1 {
+-		a[i] = float(i);
++	for i:=int16(5); i<10; i=i+1 {
++		a[i] = float32(i);
+ 	}
+ 
+-	s1 := float(0);
++	s1 := float32(0);
+ 	for i:=5; i<10; i=i+1 {
+ 		s1 = s1 + a[i];
+ 	}
+ 
+ 	if s1 != 35 { panic(s1); }
+ 
+-	for i:=short(5); i<10; i=i+1 {
+-		b[i] = float(i);
++	for i:=int16(5); i<10; i=i+1 {
++		b[i] = float32(i);
+ 	}
+ 
+-	s2 := float(0);
++	s2 := float32(0);
+ 	for i:=5; i<10; i=i+1 {
+ 		s2 = s2 + b[i];
+ 	}
+diff --git a/test/ken/simpconv.go b/test/ken/simpconv.go
+index 7bb3896b25..9785138aeb 100644
+--- a/test/ken/simpconv.go
++++ b/test/ken/simpconv.go
+@@ -7,6 +7,7 @@
+ package main
+ 
+ type vlong int64;
++type short int16;
+ 
+ func
+ main()

@@ -7,7 +7,7 @@ Date:   Thu Dec 18 22:37:22 2008 -0800
     R=r
     OCL=21563
     CL=21571
-
+---
  src/cmd/gc/sys.go                   |  2 +-
  src/cmd/gotest/gotest               |  4 +-
  src/lib/Makefile                    |  9 +++--
@@ -83,3 +83,3654 @@ Date:   Thu Dec 18 22:37:22 2008 -0800
  test/map.go                         |  4 +-
  test/nil.go                         |  2 +-
  74 files changed, 532 insertions(+), 543 deletions(-)
+
+diff --git a/src/cmd/gc/sys.go b/src/cmd/gc/sys.go
+index 930e8097ef..ede7baddbc 100644
+--- a/src/cmd/gc/sys.go
++++ b/src/cmd/gc/sys.go
+@@ -95,7 +95,7 @@ export func	stringtorune(string, int) (int, int);	// convert bytes to runes
+ 
+ export func	exit(int);
+ 
+-export func	symdat() (symtab *[]byte, pclntab *[]byte);
++export func	symdat() (symtab []byte, pclntab []byte);
+ 
+ export func	semacquire(sema *int32);
+ export func	semrelease(sema *int32);
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index 744a7f3c87..174b1d6148 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -41,7 +41,7 @@ done
+ set -e
+ 
+ # They all compile; now generate the code to call them.
+-trap "rm -f _testmain.go _testmain.6" 0 1 2 3 14 15
++#trap "rm -f _testmain.go _testmain.6" 0 1 2 3 14 15
+ {
+ 	# package spec
+ 	echo 'package main'
+@@ -54,7 +54,7 @@ trap "rm -f _testmain.go _testmain.6" 0 1 2 3 14 15
+ 	echo 'import "testing"'
+ 	# test array
+ 	echo
+-	echo 'var tests = &[]testing.Test {'
++	echo 'var tests = []testing.Test {'	# TODO(rsc): *&
+ 	for ofile in $ofiles
+ 	do
+ 		# test functions are named TestFoo
+diff --git a/src/lib/Makefile b/src/lib/Makefile
+index 2c28ec5d44..bfab646d7a 100644
+--- a/src/lib/Makefile
++++ b/src/lib/Makefile
+@@ -24,7 +24,6 @@ DIRS=\
+ 	time\
+ 
+ FILES=\
+-	bignum\
+ 	bufio\
+ 	flag\
+ 	malloc\
+@@ -35,14 +34,17 @@ FILES=\
+ 	testing\
+ 	utf8\
+ 
++#	bignum\
++
+ TEST=\
+-	bignum\
+ 	bufio\
+ 	once\
+ 	sort\
+ 	strings\
+ 	utf8\
+ 
++#	bignum\
++
+ clean.dirs: $(addsuffix .dirclean, $(DIRS))
+ install.dirs: $(addsuffix .dirinstall, $(DIRS))
+ install.files: $(addsuffix .install, $(FILES))
+@@ -99,7 +101,8 @@ http.dirinstall: bufio.install io.dirinstall net.dirinstall os.dirinstall string
+ io.dirinstall: os.dirinstall syscall.dirinstall
+ json.dirinstall: container/array.dirinstall fmt.dirinstall io.dirinstall math.dirinstall \
+ 	strconv.dirinstall strings.install utf8.install
+-net.dirinstall: fmt.dirinstall once.install os.dirinstall strconv.dirinstall
++# TODO(rsc): net is not supposed to depend on fmt or strings or strconv
++net.dirinstall: fmt.dirinstall once.install os.dirinstall strconv.dirinstall strings.install
+ os.dirinstall: syscall.dirinstall
+ regexp.dirinstall: os.dirinstall
+ reflect.dirinstall: strconv.dirinstall sync.dirinstall
+diff --git a/src/lib/bignum.go b/src/lib/bignum.go
+index af969e06ba..c4a35f20bd 100755
+--- a/src/lib/bignum.go
++++ b/src/lib/bignum.go
+@@ -90,7 +90,7 @@ func IsSmall(x Digit) bool {
+ }
+ 
+ 
+-export func Dump(x *[]Digit) {
++export func Dump(x []Digit) {
+ 	print("[", len(x), "]");
+ 	for i := len(x) - 1; i >= 0; i-- {
+ 		print(" ", x[i]);
+@@ -113,16 +113,16 @@ export func Dump(x *[]Digit) {
+ export type Natural []Digit;
+ 
+ var (
+-	NatZero *Natural = &Natural{};
+-	NatOne *Natural = &Natural{1};
+-	NatTwo *Natural = &Natural{2};
+-	NatTen *Natural = &Natural{10};
++	NatZero Natural = *&Natural{};
++	NatOne Natural = *&Natural{1};
++	NatTwo Natural = *&Natural{2};
++	NatTen Natural = *&Natural{10};
+ )
+ 
+ 
+ // Creation
+ 
+-export func Nat(x uint) *Natural {
++export func Nat(x uint) Natural {
+ 	switch x {
+ 	case 0: return NatZero;
+ 	case 1: return NatOne;
+@@ -130,7 +130,7 @@ export func Nat(x uint) *Natural {
+ 	case 10: return NatTen;
+ 	}
+ 	assert(Digit(x) < B);
+-	return &Natural{Digit(x)};
++	return *&Natural{Digit(x)};	// TODO(rsc): *&
+ }
+ 
+ 
+@@ -148,7 +148,7 @@ func (x *Natural) IsZero() bool {
+ 
+ // Operations
+ 
+-func Normalize(x *Natural) *Natural {
++func Normalize(x *Natural) Natural {
+ 	n := len(x);
+ 	for n > 0 && x[n - 1] == 0 { n-- }
+ 	if n < len(x) {
+@@ -278,7 +278,7 @@ func (x *Natural) Mul(y *Natural) *Natural {
+ // into operands with twice as many digits of half the size (Digit2), do
+ // DivMod, and then pack the results again.
+ 
+-func Unpack(x *Natural) *[]Digit2 {
++func Unpack(x *Natural) []Digit2 {
+ 	n := len(x);
+ 	z := new([]Digit2, n*2 + 1);  // add space for extra digit (used by DivMod)
+ 	for i := 0; i < n; i++ {
+@@ -294,7 +294,7 @@ func Unpack(x *Natural) *[]Digit2 {
+ }
+ 
+ 
+-func Pack(x *[]Digit2) *Natural {
++func Pack(x []Digit2) *Natural {
+ 	n := (len(x) + 1) / 2;
+ 	z := new(Natural, n);
+ 	if len(x) & 1 == 1 {
+@@ -309,7 +309,7 @@ func Pack(x *[]Digit2) *Natural {
+ }
+ 
+ 
+-func Mul1(z, x *[]Digit2, y Digit2) Digit2 {
++func Mul1(z, x []Digit2, y Digit2) Digit2 {
+ 	n := len(x);
+ 	c := Digit(0);
+ 	f := Digit(y);
+@@ -321,7 +321,7 @@ func Mul1(z, x *[]Digit2, y Digit2) Digit2 {
+ }
+ 
+ 
+-func Div1(z, x *[]Digit2, y Digit2) Digit2 {
++func Div1(z, x []Digit2, y Digit2) Digit2 {
+ 	n := len(x);
+ 	c := Digit(0);
+ 	d := Digit(y);
+@@ -353,7 +353,7 @@ func Div1(z, x *[]Digit2, y Digit2) Digit2 {
+ //    minefield. "Software - Practice and Experience 24", (June 1994),
+ //    579-601. John Wiley & Sons, Ltd.
+ 
+-func DivMod(x, y *[]Digit2) (*[]Digit2, *[]Digit2) {
++func DivMod(x, y []Digit2) ([]Digit2, []Digit2) {
+ 	n := len(x);
+ 	m := len(y);
+ 	if m == 0 {
+@@ -458,7 +458,7 @@ func (x *Natural) DivMod(y *Natural) (*Natural, *Natural) {
+ }
+ 
+ 
+-func Shl(z, x *[]Digit, s uint) Digit {
++func Shl(z, x []Digit, s uint) Digit {
+ 	assert(s <= W);
+ 	n := len(x);
+ 	c := Digit(0);
+@@ -480,7 +480,7 @@ func (x *Natural) Shl(s uint) *Natural {
+ }
+ 
+ 
+-func Shr(z, x *[]Digit, s uint) Digit {
++func Shr(z, x []Digit, s uint) Digit {
+ 	assert(s <= W);
+ 	n := len(x);
+ 	c := Digit(0);
+@@ -522,7 +522,7 @@ func (x *Natural) And(y *Natural) *Natural {
+ }
+ 
+ 
+-func Copy(z, x *[]Digit) {
++func Copy(z, x []Digit) {
+ 	for i, e := range x {
+ 		z[i] = e
+ 	}
+diff --git a/src/lib/bufio.go b/src/lib/bufio.go
+index 77563be9d4..8df00731cb 100644
+--- a/src/lib/bufio.go
++++ b/src/lib/bufio.go
+@@ -30,7 +30,7 @@ export var (
+ 	ShortWrite = os.NewError("short write");
+ )
+ 
+-func CopySlice(dst *[]byte, src *[]byte) {
++func CopySlice(dst []byte, src []byte) {
+ 	for i := 0; i < len(dst); i++ {
+ 		dst[i] = src[i]
+ 	}
+@@ -40,7 +40,7 @@ func CopySlice(dst *[]byte, src *[]byte) {
+ // Buffered input.
+ 
+ export type BufRead struct {
+-	buf *[]byte;
++	buf []byte;
+ 	rd io.Read;
+ 	r, w int;
+ 	err *os.Error;
+@@ -91,7 +91,7 @@ func (b *BufRead) Fill() *os.Error {
+ // Returns the number of bytes read into p.
+ // If nn < len(p), also returns an error explaining
+ // why the read is short.
+-func (b *BufRead) Read(p *[]byte) (nn int, err *os.Error) {
++func (b *BufRead) Read(p []byte) (nn int, err *os.Error) {
+ 	nn = 0;
+ 	for len(p) > 0 {
+ 		n := len(p);
+@@ -170,7 +170,7 @@ func (b *BufRead) ReadRune() (rune int, size int, err *os.Error) {
+ 
+ // Helper function: look for byte c in array p,
+ // returning its index or -1.
+-func FindByte(p *[]byte, c byte) int {
++func FindByte(p []byte, c byte) int {
+ 	for i := 0; i < len(p); i++ {
+ 		if p[i] == c {
+ 			return i
+@@ -190,9 +190,12 @@ func (b *BufRead) Buffered() int {
+ // Fails if the line doesn't fit in the buffer.
+ // For internal (or advanced) use only.
+ // Use ReadLineString or ReadLineBytes instead.
+-func (b *BufRead) ReadLineSlice(delim byte) (line *[]byte, err *os.Error) {
++
++var NIL []byte // TODO(rsc): should be able to use nil
++
++func (b *BufRead) ReadLineSlice(delim byte) (line []byte, err *os.Error) {
+ 	if b.err != nil {
+-		return nil, b.err
++		return NIL, b.err
+ 	}
+ 
+ 	// Look in buffer.
+@@ -207,7 +210,7 @@ func (b *BufRead) ReadLineSlice(delim byte) (line *[]byte, err *os.Error) {
+ 		n := b.Buffered();
+ 		b.Fill();
+ 		if b.err != nil {
+-			return nil, b.err
++			return NIL, b.err
+ 		}
+ 		if b.Buffered() == n {	// no data added; end of file
+ 			line := b.buf[b.r:b.w];
+@@ -224,12 +227,12 @@ func (b *BufRead) ReadLineSlice(delim byte) (line *[]byte, err *os.Error) {
+ 
+ 		// Buffer is full?
+ 		if b.Buffered() >= len(b.buf) {
+-			return nil, BufferFull
++			return NIL, BufferFull
+ 		}
+ 	}
+ 
+ 	// BUG 6g bug100
+-	return nil, nil
++	return NIL, nil
+ }
+ 
+ // Read until the first occurrence of delim in the input,
+@@ -237,15 +240,15 @@ func (b *BufRead) ReadLineSlice(delim byte) (line *[]byte, err *os.Error) {
+ // If an error happens, returns the data (without a delimiter)
+ // and the error.  (Can't leave the data in the buffer because
+ // we might have read more than the buffer size.)
+-func (b *BufRead) ReadLineBytes(delim byte) (line *[]byte, err *os.Error) {
++func (b *BufRead) ReadLineBytes(delim byte) (line []byte, err *os.Error) {
+ 	if b.err != nil {
+-		return nil, b.err
++		return NIL, b.err
+ 	}
+ 
+ 	// Use ReadLineSlice to look for array,
+ 	// accumulating full buffers.
+-	var frag *[]byte;
+-	var full *[]*[]byte;
++	var frag []byte;
++	var full [][]byte;
+ 	nfull := 0;
+ 	err = nil;
+ 
+@@ -276,10 +279,10 @@ func (b *BufRead) ReadLineBytes(delim byte) (line *[]byte, err *os.Error) {
+ 		}
+ 
+ 		// Grow list if needed.
+-		if full == nil {
+-			full = new([]*[]byte, 16);
++		if len(full) == 0 {
++			full = new([][]byte, 16);
+ 		} else if nfull >= len(full) {
+-			newfull := new([]*[]byte, len(full)*2);
++			newfull := new([][]byte, len(full)*2);
+ 			// BUG slice assignment
+ 			for i := 0; i < len(full); i++ {
+ 				newfull[i] = full[i];
+@@ -297,9 +300,7 @@ func (b *BufRead) ReadLineBytes(delim byte) (line *[]byte, err *os.Error) {
+ 	for i := 0; i < nfull; i++ {
+ 		n += len(full[i])
+ 	}
+-	if frag != nil {
+-		n += len(frag);
+-	}
++	n += len(frag);
+ 
+ 	// Copy full pieces and fragment in.
+ 	buf := new([]byte, n);
+@@ -308,14 +309,12 @@ func (b *BufRead) ReadLineBytes(delim byte) (line *[]byte, err *os.Error) {
+ 		CopySlice(buf[n:n+len(full[i])], full[i]);
+ 		n += len(full[i])
+ 	}
+-	if frag != nil {
+-		CopySlice(buf[n:n+len(frag)], frag)
+-	}
++	CopySlice(buf[n:n+len(frag)], frag);
+ 	return buf, err
+ }
+ 
+ // BUG(bugs/bug102.go): string(empty bytes array) throws error
+-func ToString(p *[]byte) string {
++func ToString(p []byte) string {
+ 	if len(p) == 0 {
+ 		return ""
+ 	}
+@@ -341,7 +340,7 @@ func (b *BufRead) ReadLineString(delim byte, savedelim bool) (line string, err *
+ 
+ export type BufWrite struct {
+ 	err *os.Error;
+-	buf *[]byte;
++	buf []byte;
+ 	n int;
+ 	wr io.Write;
+ }
+@@ -395,7 +394,7 @@ func (b *BufWrite) Buffered() int {
+ 	return b.n
+ }
+ 
+-func (b *BufWrite) Write(p *[]byte) (nn int, err *os.Error) {
++func (b *BufWrite) Write(p []byte) (nn int, err *os.Error) {
+ 	if b.err != nil {
+ 		return 0, b.err
+ 	}
+diff --git a/src/lib/bufio_test.go b/src/lib/bufio_test.go
+index 8265c0a552..897f331d48 100644
+--- a/src/lib/bufio_test.go
++++ b/src/lib/bufio_test.go
+@@ -13,7 +13,7 @@ import (
+ 	"testing";
+ )
+ 
+-func StringToBytes(s string) *[]byte {
++func StringToBytes(s string) []byte {
+ 	b := new([]byte, len(s));
+ 	for i := 0; i < len(s); i++ {
+ 		b[i] = s[i]
+@@ -22,7 +22,7 @@ func StringToBytes(s string) *[]byte {
+ }
+ 
+ // Should be in language!
+-func Copy(p *[]byte, q *[]byte) {
++func Copy(p []byte, q []byte) {
+ 	for i := 0; i < len(p); i++ {
+ 		p[i] = q[i]
+ 	}
+@@ -30,16 +30,16 @@ func Copy(p *[]byte, q *[]byte) {
+ 
+ // Reads from p.
+ type ByteReader struct {
+-	p *[]byte
++	p []byte
+ }
+ 
+-func NewByteReader(p *[]byte) io.Read {
++func NewByteReader(p []byte) io.Read {
+ 	b := new(ByteReader);
+ 	b.p = p;
+ 	return b
+ }
+ 
+-func (b *ByteReader) Read(p *[]byte) (int, *os.Error) {
++func (b *ByteReader) Read(p []byte) (int, *os.Error) {
+ 	n := len(p);
+ 	if n > len(b.p) {
+ 		n = len(b.p)
+@@ -52,16 +52,16 @@ func (b *ByteReader) Read(p *[]byte) (int, *os.Error) {
+ 
+ // Reads from p but only returns half of what you asked for.
+ type HalfByteReader struct {
+-	p *[]byte
++	p []byte
+ }
+ 
+-func NewHalfByteReader(p *[]byte) io.Read {
++func NewHalfByteReader(p []byte) io.Read {
+ 	b := new(HalfByteReader);
+ 	b.p = p;
+ 	return b
+ }
+ 
+-func (b *HalfByteReader) Read(p *[]byte) (int, *os.Error) {
++func (b *HalfByteReader) Read(p []byte) (int, *os.Error) {
+ 	n := len(p)/2;
+ 	if n == 0 && len(p) > 0 {
+ 		n = 1
+@@ -85,7 +85,7 @@ func NewRot13Reader(r io.Read) *Rot13Reader {
+ 	return r13
+ }
+ 
+-func (r13 *Rot13Reader) Read(p *[]byte) (int, *os.Error) {
++func (r13 *Rot13Reader) Read(p []byte) (int, *os.Error) {
+ 	n, e := r13.r.Read(p);
+ 	if e != nil {
+ 		return n, e
+@@ -104,11 +104,11 @@ func (r13 *Rot13Reader) Read(p *[]byte) (int, *os.Error) {
+ 
+ type Readmaker struct {
+ 	name string;
+-	fn *(*[]byte) io.Read;
++	fn *([]byte) io.Read;
+ }
+ var readmakers = []Readmaker {
+-	Readmaker{ "full", func(p *[]byte) io.Read { return NewByteReader(p) } },
+-	Readmaker{ "half", func(p *[]byte) io.Read { return NewHalfByteReader(p) } },
++	Readmaker{ "full", func(p []byte) io.Read { return NewByteReader(p) } },
++	Readmaker{ "half", func(p []byte) io.Read { return NewHalfByteReader(p) } },
+ }
+ 
+ // Call ReadLineString (which ends up calling everything else)
+@@ -152,14 +152,13 @@ func Reads(buf *BufRead, m int) string {
+ 	var b [1000]byte;
+ 	nb := 0;
+ 	for {
+-		// BUG parens around (&b) should not be needed
+-		n, e := buf.Read((&b)[nb:nb+m]);
++		n, e := buf.Read(b[nb:nb+m]);
+ 		nb += n;
+ 		if e == EndOfFile {
+ 			break
+ 		}
+ 	}
+-	return string((&b)[0:nb])
++	return string(b[0:nb])
+ }
+ 
+ type Bufreader struct {
+@@ -228,13 +227,13 @@ export func TestBufRead(t *testing.T) {
+ }
+ 
+ type WriteBuffer interface {
+-	Write(p *[]byte) (int, *os.Error);
+-	GetBytes() *[]byte
++	Write(p []byte) (int, *os.Error);
++	GetBytes() []byte
+ }
+ 
+ // Accumulates bytes into a byte array.
+ type ByteWriter struct {
+-	p *[]byte;
++	p []byte;
+ 	n int
+ }
+ 
+@@ -242,7 +241,7 @@ func NewByteWriter() WriteBuffer {
+ 	return new(ByteWriter)
+ }
+ 
+-func (w *ByteWriter) Write(p *[]byte) (int, *os.Error) {
++func (w *ByteWriter) Write(p []byte) (int, *os.Error) {
+ 	if w.p == nil {
+ 		w.p = new([]byte, len(p)+100)
+ 	} else if w.n + len(p) >= len(w.p) {
+@@ -255,7 +254,7 @@ func (w *ByteWriter) Write(p *[]byte) (int, *os.Error) {
+ 	return len(p), nil
+ }
+ 
+-func (w *ByteWriter) GetBytes() *[]byte {
++func (w *ByteWriter) GetBytes() []byte {
+ 	return w.p[0:w.n]
+ }
+ 
+@@ -272,14 +271,14 @@ func NewHalfByteWriter() WriteBuffer {
+ 	return w
+ }
+ 
+-func (w *HalfByteWriter) Write(p *[]byte) (int, *os.Error) {
++func (w *HalfByteWriter) Write(p []byte) (int, *os.Error) {
+ 	n := (len(p)+1) / 2;
+ 	// BUG return w.bw.Write(p[0:n])
+ 	r, e := w.bw.Write(p[0:n]);
+ 	return r, e
+ }
+ 
+-func (w *HalfByteWriter) GetBytes() *[]byte {
++func (w *HalfByteWriter) GetBytes() []byte {
+ 	return w.bw.GetBytes()
+ }
+ 
+@@ -315,7 +314,7 @@ export func TestBufWrite(t *testing.T) {
+ 					t.Errorf("%s: NewBufWriteSize %d: %v", context, bs, e);
+ 					continue;
+ 				}
+-				n, e1 := buf.Write((&data)[0:nwrite]);
++				n, e1 := buf.Write(data[0:nwrite]);
+ 				if e1 != nil || n != nwrite {
+ 					t.Errorf("%s: buf.Write %d = %d, %v", context, nwrite, n, e1);
+ 					continue;
+@@ -331,7 +330,7 @@ export func TestBufWrite(t *testing.T) {
+ 				for l := 0; l < len(written); l++ {
+ 					if written[i] != data[i] {
+ 						t.Errorf("%s: wrong bytes written");
+-						t.Errorf("want=%s", (&data)[0:len(written)]);
++						t.Errorf("want=%s", data[0:len(written)]);
+ 						t.Errorf("have=%s", written);
+ 					}
+ 				}
+diff --git a/src/lib/container/array/array.go b/src/lib/container/array/array.go
+index 95ed6c2ece..5c03536138 100644
+--- a/src/lib/container/array/array.go
++++ b/src/lib/container/array/array.go
+@@ -10,14 +10,14 @@ export type Element interface {
+ 
+ export type Array struct {
+ 	// TODO do not export field
+-	a *[]Element
++	a []Element
+ }
+ 
+ 
+ func (p *Array) Init(initial_len int) *Array {
+ 	a := p.a;
+ 
+-	if a == nil || cap(a) < initial_len {
++	if cap(a) == 0 || cap(a) < initial_len {
+ 		n := 8;  // initial capacity
+ 		if initial_len > n {
+ 			n = initial_len
+diff --git a/src/lib/fmt/fmt_test.go b/src/lib/fmt/fmt_test.go
+index d7372c04cd..c2dc9c107d 100644
+--- a/src/lib/fmt/fmt_test.go
++++ b/src/lib/fmt/fmt_test.go
+@@ -26,11 +26,13 @@ type FmtTest struct {
+ 	out string;
+ }
+ 
+-func Bytes(s string) *[]byte {
+-	b := new([]byte, len(s)+1);
+-	syscall.StringToBytes(b, s);
+-	return b[0:len(s)];
+-}
++// TODO(rsc): return []byte, but need to be able to pass as interface.
++// func Bytes(s string) []byte {
++// 	b := new([]byte, len(s)+1);
++// 	syscall.StringToBytes(b, s);
++// 	return b[0:len(s)];
++// }
++func Bytes(s string) string { return s }
+ 
+ const B32 uint32 = 1<<32 - 1
+ const B64 uint64 = 1<<64 - 1
+diff --git a/src/lib/fmt/print.go b/src/lib/fmt/print.go
+index 426bca1861..def4760c57 100644
+--- a/src/lib/fmt/print.go
++++ b/src/lib/fmt/print.go
+@@ -20,7 +20,7 @@ import (
+ // Provides access to the io.Write interface plus information about
+ // the active formatting verb.
+ export type Formatter interface {
+-	Write(b *[]byte) (ret int, err *os.Error);
++	Write(b []byte) (ret int, err *os.Error);
+ 	Width()	(wid int, ok bool);
+ 	Precision()	(prec int, ok bool);
+ 
+@@ -41,7 +41,7 @@ const AllocSize = 32
+ 
+ type P struct {
+ 	n	int;
+-	buf	*[]byte;
++	buf	[]byte;
+ 	fmt	*Fmt;
+ }
+ 
+@@ -76,11 +76,8 @@ func (p *P) Flag(b int) bool {
+ }
+ 
+ func (p *P) ensure(n int) {
+-	if p.buf == nil || len(p.buf) < n {
+-		newn := AllocSize;
+-		if p.buf != nil {
+-			newn += len(p.buf);
+-		}
++	if len(p.buf) < n {
++		newn := AllocSize + len(p.buf);
+ 		if newn < n {
+ 			newn = n + AllocSize
+ 		}
+@@ -101,7 +98,7 @@ func (p *P) addstr(s string) {
+ 	}
+ }
+ 
+-func (p *P) addbytes(b *[]byte, start, end int) {
++func (p *P) addbytes(b []byte, start, end int) {
+ 	p.ensure(p.n + end-start);
+ 	for i := start; i < end; i++ {
+ 		p.buf[p.n] = b[i];
+@@ -121,7 +118,7 @@ func (p *P) add(c int) {
+ 
+ // Implement Write so we can call fprintf on a P, for
+ // recursive use in custom verbs.
+-func (p *P) Write(b *[]byte) (ret int, err *os.Error) {
++func (p *P) Write(b []byte) (ret int, err *os.Error) {
+ 	p.addbytes(b, 0, len(b));
+ 	return len(b), nil;
+ }
+@@ -257,7 +254,7 @@ func getString(v reflect.Value) (val string, ok bool) {
+ 	case reflect.StringKind:
+ 		return v.(reflect.StringValue).Get(), true;
+ 	}
+-	if valb, okb := v.Interface().(*[]byte); okb {
++	if valb, okb := v.Interface().([]byte); okb {
+ 		return string(valb), true;
+ 	}
+ 	return "", false;
+diff --git a/src/lib/hash/adler32.go b/src/lib/hash/adler32.go
+index 426f961b88..cebbfb212e 100644
+--- a/src/lib/hash/adler32.go
++++ b/src/lib/hash/adler32.go
+@@ -26,7 +26,7 @@ export func NewDigest() *Digest {
+ 	return &Digest{1, 0, 0};
+ }
+ 
+-func (d *Digest) Write(p *[]byte) (nn int, err *os.Error) {
++func (d *Digest) Write(p []byte) (nn int, err *os.Error) {
+ 	a, b, n := d.a, d.b, d.n;
+ 	for i := 0; i < len(p); i++ {
+ 		a += uint32(p[i]);
+@@ -51,7 +51,7 @@ func (d *Digest) Sum32() uint32 {
+ 	return b<<16 | a;
+ }
+ 
+-func (d *Digest) Sum() *[]byte {
++func (d *Digest) Sum() []byte {
+ 	p := new([]byte, 4);
+ 	s := d.Sum32();
+ 	p[0] = byte(s>>24);
+diff --git a/src/lib/hash/crc32.go b/src/lib/hash/crc32.go
+index f3b60dc890..4ab8495b5d 100644
+--- a/src/lib/hash/crc32.go
++++ b/src/lib/hash/crc32.go
+@@ -25,10 +25,11 @@ export const (
+ 	Koopman = 0xeb31d82e;
+ )
+ 
+-export type Table [256]uint32
++// TODO(rsc): Change to [256]uint32
++export type Table []uint32
+ 
+-export func MakeTable(poly uint32) *Table {
+-	t := new(Table);
++export func MakeTable(poly uint32) Table {
++	t := new(Table, 256);
+ 	for i := 0; i < 256; i++ {
+ 		crc := uint32(i);
+ 		for j := 0; j < 8; j++ {
+@@ -47,10 +48,10 @@ export var ieee = MakeTable(IEEE);
+ 
+ export type Digest struct {
+ 	crc uint32;
+-	tab *Table;
++	tab Table;
+ }
+ 
+-export func NewDigest(tab *Table) *Digest {
++export func NewDigest(tab Table) *Digest {
+ 	return &Digest{0, tab};
+ }
+ 
+@@ -58,7 +59,7 @@ export func NewIEEEDigest() *Digest {
+ 	return NewDigest(ieee);
+ }
+ 
+-func (d *Digest) Write(p *[]byte) (n int, err *os.Error) {
++func (d *Digest) Write(p []byte) (n int, err *os.Error) {
+ 	crc := d.crc ^ 0xFFFFFFFF;
+ 	tab := d.tab;
+ 	for i := 0; i < len(p); i++ {
+@@ -72,7 +73,7 @@ func (d *Digest) Sum32() uint32 {
+ 	return d.crc
+ }
+ 
+-func (d *Digest) Sum() *[]byte {
++func (d *Digest) Sum() []byte {
+ 	p := new([]byte, 4);
+ 	s := d.Sum32();
+ 	p[0] = byte(s>>24);
+diff --git a/src/lib/hash/md5.go b/src/lib/hash/md5.go
+index c977656b69..7e90e34119 100644
+--- a/src/lib/hash/md5.go
++++ b/src/lib/hash/md5.go
+@@ -35,9 +35,9 @@ export func NewDigest() *Digest {
+ 	return d;
+ }
+ 
+-package func Block(dig *Digest, p *[]byte) int
++package func Block(dig *Digest, p []byte) int
+ 
+-func (d *Digest) Write(p *[]byte) (nn int, err *os.Error) {
++func (d *Digest) Write(p []byte) (nn int, err *os.Error) {
+ 	nn = len(p);
+ 	d.len += uint64(nn);
+ 	if d.nx > 0 {
+@@ -50,7 +50,7 @@ func (d *Digest) Write(p *[]byte) (nn int, err *os.Error) {
+ 		}
+ 		d.nx += n;
+ 		if d.nx == Chunk {
+-			Block(d, &d.x);
++			Block(d, d.x);
+ 			d.nx = 0;
+ 		}
+ 		p = p[n:len(p)];
+@@ -66,15 +66,15 @@ func (d *Digest) Write(p *[]byte) (nn int, err *os.Error) {
+ 	return;
+ }
+ 
+-func (d *Digest) Sum() *[]byte {
++func (d *Digest) Sum() []byte {
+ 	// Padding.  Add a 1 bit and 0 bits until 56 bytes mod 64.
+ 	len := d.len;
+ 	var tmp [64]byte;
+ 	tmp[0] = 0x80;
+ 	if len%64 < 56 {
+-		d.Write((&tmp)[0:56-len%64]);
++		d.Write(tmp[0:56-len%64]);
+ 	} else {
+-		d.Write((&tmp)[0:64+56-len%64]);
++		d.Write(tmp[0:64+56-len%64]);
+ 	}
+ 
+ 	// Length in bits.
+@@ -82,7 +82,7 @@ func (d *Digest) Sum() *[]byte {
+ 	for i := uint(0); i < 8; i++ {
+ 		tmp[i] = byte(len>>(8*i));
+ 	}
+-	d.Write((&tmp)[0:8]);
++	d.Write(tmp[0:8]);
+ 
+ 	if d.nx != 0 {
+ 		panicln("oops");
+diff --git a/src/lib/hash/md5_test.go b/src/lib/hash/md5_test.go
+index c0b7ffa9b3..c99cfa5a68 100644
+--- a/src/lib/hash/md5_test.go
++++ b/src/lib/hash/md5_test.go
+@@ -49,7 +49,7 @@ var golden = []Md5Test {
+ 	Md5Test{ "132f7619d33b523b1d9e5bd8e0928355", "How can you write a big system without C++?  -Paul Glick" },
+ }
+ 
+-func Hex(p *[]byte) string {
++func Hex(p []byte) string {
+ 	s := "";
+ 	for i := 0; i < len(p); i++ {
+ 		v := p[i];
+diff --git a/src/lib/hash/md5block.go b/src/lib/hash/md5block.go
+index a885e63c50..fcea12193f 100644
+--- a/src/lib/hash/md5block.go
++++ b/src/lib/hash/md5block.go
+@@ -90,7 +90,7 @@ var shift2 = []uint { 5, 9, 14, 20 };
+ var shift3 = []uint { 4, 11, 16, 23 };
+ var shift4 = []uint { 6, 10, 15, 21 };
+ 
+-package func Block(dig *Digest, p *[]byte) int {
++package func Block(dig *Digest, p []byte) int {
+ 	a := dig.s[0];
+ 	b := dig.s[1];
+ 	c := dig.s[2];
+diff --git a/src/lib/hash/sha1.go b/src/lib/hash/sha1.go
+index fdd33e759f..3aa6903a4a 100644
+--- a/src/lib/hash/sha1.go
++++ b/src/lib/hash/sha1.go
+@@ -37,9 +37,9 @@ export func NewDigest() *Digest {
+ 	return d;
+ }
+ 
+-package func Block(dig *Digest, p *[]byte) int
++package func Block(dig *Digest, p []byte) int
+ 
+-func (d *Digest) Write(p *[]byte) (nn int, err *os.Error) {
++func (d *Digest) Write(p []byte) (nn int, err *os.Error) {
+ 	nn = len(p);
+ 	d.len += uint64(nn);
+ 	if d.nx > 0 {
+@@ -52,7 +52,7 @@ func (d *Digest) Write(p *[]byte) (nn int, err *os.Error) {
+ 		}
+ 		d.nx += n;
+ 		if d.nx == Chunk {
+-			Block(d, &d.x);
++			Block(d, d.x);
+ 			d.nx = 0;
+ 		}
+ 		p = p[n:len(p)];
+@@ -68,15 +68,15 @@ func (d *Digest) Write(p *[]byte) (nn int, err *os.Error) {
+ 	return;
+ }
+ 
+-func (d *Digest) Sum() *[]byte {
++func (d *Digest) Sum() []byte {
+ 	// Padding.  Add a 1 bit and 0 bits until 56 bytes mod 64.
+ 	len := d.len;
+ 	var tmp [64]byte;
+ 	tmp[0] = 0x80;
+ 	if len%64 < 56 {
+-		d.Write((&tmp)[0:56-len%64]);
++		d.Write(tmp[0:56-len%64]);
+ 	} else {
+-		d.Write((&tmp)[0:64+56-len%64]);
++		d.Write(tmp[0:64+56-len%64]);
+ 	}
+ 
+ 	// Length in bits.
+@@ -84,7 +84,7 @@ func (d *Digest) Sum() *[]byte {
+ 	for i := uint(0); i < 8; i++ {
+ 		tmp[i] = byte(len>>(56-8*i));
+ 	}
+-	d.Write((&tmp)[0:8]);
++	d.Write(tmp[0:8]);
+ 
+ 	if d.nx != 0 {
+ 		panicln("oops");
+diff --git a/src/lib/hash/sha1_test.go b/src/lib/hash/sha1_test.go
+index dacce55122..15ce2b779d 100644
+--- a/src/lib/hash/sha1_test.go
++++ b/src/lib/hash/sha1_test.go
+@@ -51,7 +51,7 @@ var golden = []Sha1Test {
+ 	Sha1Test{ "6627d6904d71420b0bf3886ab629623538689f45", "How can you write a big system without C++?  -Paul Glick" },
+ }
+ 
+-func Hex(p *[]byte) string {
++func Hex(p []byte) string {
+ 	s := "";
+ 	for i := 0; i < len(p); i++ {
+ 		v := p[i];
+diff --git a/src/lib/hash/sha1block.go b/src/lib/hash/sha1block.go
+index a81dceb699..b5052b712e 100644
+--- a/src/lib/hash/sha1block.go
++++ b/src/lib/hash/sha1block.go
+@@ -17,7 +17,7 @@ const (
+ 	K3 = 0xCA62C1D6;
+ )
+ 
+-package func Block(dig *Digest, p *[]byte) int {
++package func Block(dig *Digest, p []byte) int {
+ 	var w [80]uint32;
+ 
+ 	n := 0;
+diff --git a/src/lib/http/request.go b/src/lib/http/request.go
+index eea1b3e49d..36fa77033f 100644
+--- a/src/lib/http/request.go
++++ b/src/lib/http/request.go
+@@ -45,16 +45,18 @@ export type Request struct {
+ 	useragent string;
+ }
+ 
++var NIL []byte // TODO(rsc)
++
+ // Read a line of bytes (up to \n) from b.
+ // Give up if the line exceeds MaxLineLength.
+ // The returned bytes are a pointer into storage in
+ // the bufio, so they are only valid until the next bufio read.
+-func ReadLineBytes(b *bufio.BufRead) (p *[]byte, err *os.Error) {
++func ReadLineBytes(b *bufio.BufRead) (p []byte, err *os.Error) {
+ 	if p, err = b.ReadLineSlice('\n'); err != nil {
+-		return nil, err
++		return NIL, err
+ 	}
+ 	if len(p) >= MaxLineLength {
+-		return nil, LineTooLong
++		return NIL, LineTooLong
+ 	}
+ 
+ 	// Chop off trailing white space.
+@@ -189,7 +191,7 @@ export func ReadRequest(b *bufio.BufRead) (req *Request, err *os.Error) {
+ 		return nil, err
+ 	}
+ 
+-	var f *[]string;
++	var f []string;
+ 	if f = strings.split(s, " "); len(f) != 3 {
+ 		return nil, BadRequest
+ 	}
+diff --git a/src/lib/io/bytebuffer.go b/src/lib/io/bytebuffer.go
+index 8af8a09aa1..d06f1486bc 100644
+--- a/src/lib/io/bytebuffer.go
++++ b/src/lib/io/bytebuffer.go
+@@ -16,7 +16,7 @@ import (
+ 
+ // TODO(r): Do better memory management.
+ 
+-func bytecopy(dst *[]byte, doff int, src *[]byte, soff int, count int) {
++func bytecopy(dst []byte, doff int, src []byte, soff int, count int) {
+ 	for i := 0; i < count; i++ {
+ 		dst[doff] = src[soff];
+ 		doff++;
+@@ -25,7 +25,7 @@ func bytecopy(dst *[]byte, doff int, src *[]byte, soff int, count int) {
+ }
+ 
+ export type ByteBuffer struct {
+-	buf	*[]byte;
++	buf	[]byte;
+ 	off	int;	// Read from here
+ 	len	int;	// Write to here
+ 	cap	int;
+@@ -36,9 +36,9 @@ func (b *ByteBuffer) Reset() {
+ 	b.len = 0;
+ }
+ 
+-func (b *ByteBuffer) Write(p *[]byte) (n int, err *os.Error) {
++func (b *ByteBuffer) Write(p []byte) (n int, err *os.Error) {
+ 	plen := len(p);
+-	if b.buf == nil {
++	if len(b.buf) == 0 {
+ 		b.cap = plen + 1024;
+ 		b.buf = new([]byte, b.cap);
+ 		b.len = 0;
+@@ -54,9 +54,9 @@ func (b *ByteBuffer) Write(p *[]byte) (n int, err *os.Error) {
+ 	return plen, nil;
+ }
+ 
+-func (b *ByteBuffer) Read(p *[]byte) (n int, err *os.Error) {
++func (b *ByteBuffer) Read(p []byte) (n int, err *os.Error) {
+ 	plen := len(p);
+-	if b.buf == nil {
++	if len(b.buf) == 0 {
+ 		return 0, nil
+ 	}
+ 	if b.off == b.len {	// empty buffer
+@@ -75,20 +75,12 @@ func (b *ByteBuffer) Len() int {
+ 	return b.len
+ }
+ 
+-// If the buffer is empty, Data() should still give a valid array.
+-// Use this variable as a surrogate.  It's immutable (can't be
+-// grown, can't store any data) so it's safe to share.
+-var EmptyByteArray = new([]byte, 0)
+-
+-func (b *ByteBuffer) Data() *[]byte {
+-	if b.buf == nil {
+-		return EmptyByteArray
+-	}
++func (b *ByteBuffer) Data() []byte {
+ 	return b.buf[b.off:b.len]
+ }
+ 
+ 
+-export func NewByteBufferFromArray(buf *[]byte) *ByteBuffer {
++export func NewByteBufferFromArray(buf []byte) *ByteBuffer {
+ 	b := new(ByteBuffer);
+ 	b.buf = buf;
+ 	b.off = 0;
+diff --git a/src/lib/io/io.go b/src/lib/io/io.go
+index 26c2aaab76..af6a9fee91 100644
+--- a/src/lib/io/io.go
++++ b/src/lib/io/io.go
+@@ -12,21 +12,21 @@ import (
+ export var ErrEOF = os.NewError("EOF")
+ 
+ export type Read interface {
+-	Read(p *[]byte) (n int, err *os.Error);
++	Read(p []byte) (n int, err *os.Error);
+ }
+ 
+ export type Write interface {
+-	Write(p *[]byte) (n int, err *os.Error);
++	Write(p []byte) (n int, err *os.Error);
+ }
+ 
+ export type ReadWrite interface {
+-	Read(p *[]byte) (n int, err *os.Error);
+-	Write(p *[]byte) (n int, err *os.Error);
++	Read(p []byte) (n int, err *os.Error);
++	Write(p []byte) (n int, err *os.Error);
+ }
+ 
+ export type ReadWriteClose interface {
+-	Read(p *[]byte) (n int, err *os.Error);
+-	Write(p *[]byte) (n int, err *os.Error);
++	Read(p []byte) (n int, err *os.Error);
++	Write(p []byte) (n int, err *os.Error);
+ 	Close() *os.Error;
+ }
+ 
+@@ -41,7 +41,7 @@ export func WriteString(w Write, s string) (n int, err *os.Error) {
+ }
+ 
+ // Read until buffer is full, EOF, or error
+-export func Readn(fd Read, buf *[]byte) (n int, err *os.Error) {
++export func Readn(fd Read, buf []byte) (n int, err *os.Error) {
+ 	n = 0;
+ 	for n < len(buf) {
+ 		nn, e := fd.Read(buf[n:len(buf)]);
+@@ -64,7 +64,7 @@ type FullRead struct {
+ 	fd	Read;
+ }
+ 
+-func (fd *FullRead) Read(p *[]byte) (n int, err *os.Error) {
++func (fd *FullRead) Read(p []byte) (n int, err *os.Error) {
+ 	n, err = Readn(fd.fd, p);
+ 	return n, err
+ }
+@@ -147,7 +147,7 @@ export func Copy(src Read, dst Write) (written int64, err *os.Error) {
+ // Convert a string to an array of bytes for easy marshaling.
+ // Could fill with syscall.StringToBytes but it adds an unnecessary \000
+ // so the length would be wrong.
+-export func StringBytes(s string) *[]byte {
++export func StringBytes(s string) []byte {
+ 	b := new([]byte, len(s));
+ 	for i := 0; i < len(s); i++ {
+ 		b[i] = s[i];
+diff --git a/src/lib/json/struct_test.go b/src/lib/json/struct_test.go
+index c5dc903da0..85dbd8881d 100644
+--- a/src/lib/json/struct_test.go
++++ b/src/lib/json/struct_test.go
+@@ -26,7 +26,7 @@ type MyStruct struct {
+ 	fl float;
+ 	fl32 float32;
+ 	fl64 float64;
+-	a *[]string;
++	a []string;
+ 	my *MyStruct;
+ };
+ 
+@@ -69,7 +69,7 @@ export func TestUnmarshal(t *testing.T) {
+ 	Check(t, m.fl==11.5, "fl", m.fl);
+ 	Check(t, m.fl32==12.25, "fl32", m.fl32);
+ 	Check(t, m.fl64==13.75, "fl64", m.fl64);
+-	Check(t, m.a!=nil, "a", m.a);
++//	Check(t, m.a!=nil, "a", m.a);	// TODO(rsc): uncomment once []string as interface works
+ 	if m.a != nil {
+ 		Check(t, m.a[0]=="x", "a[0]", m.a[0]);
+ 		Check(t, m.a[1]=="y", "a[1]", m.a[1]);
+diff --git a/src/lib/net/dnsclient.go b/src/lib/net/dnsclient.go
+index a447d3e91b..2e8c638d26 100644
+--- a/src/lib/net/dnsclient.go
++++ b/src/lib/net/dnsclient.go
+@@ -46,7 +46,7 @@ func Exchange(cfg *DNS_Config, c Conn, name string) (m *DNS_Msg, err *os.Error)
+ 	}
+ 	out := new(DNS_Msg);
+ 	out.id = 0x1234;
+-	out.question = &[]DNS_Question{
++	out.question = []DNS_Question{
+ 		DNS_Question{ name, DNS_TypeA, DNS_ClassINET }
+ 	};
+ 	out.recursion_desired = true;
+@@ -80,21 +80,24 @@ func Exchange(cfg *DNS_Config, c Conn, name string) (m *DNS_Msg, err *os.Error)
+ 	return nil, DNS_NoAnswer
+ }
+ 
++var NIL []string // TODO(rsc)
++
++
+ // Find answer for name in dns message.
+ // On return, if err == nil, addrs != nil.
+-// TODO(rsc): Maybe return *[]*[]byte (==*[]IPAddr) instead?
+-func Answer(name string, dns *DNS_Msg) (addrs *[]string, err *os.Error) {
++// TODO(rsc): Maybe return [][]byte (==[]IPAddr) instead?
++func Answer(name string, dns *DNS_Msg) (addrs []string, err *os.Error) {
+ 	addrs = new([]string, len(dns.answer))[0:0];
+ 
+ 	if dns.rcode == DNS_RcodeNameError && dns.authoritative {
+-		return nil, DNS_NameNotFound	// authoritative "no such host"
++		return NIL, DNS_NameNotFound	// authoritative "no such host"
+ 	}
+ 	if dns.rcode != DNS_RcodeSuccess {
+ 		// None of the error codes make sense
+ 		// for the query we sent.  If we didn't get
+ 		// a name error and we didn't get success,
+ 		// the server is behaving incorrectly.
+-		return nil, DNS_ServerFailure
++		return NIL, DNS_ServerFailure
+ 	}
+ 
+ 	// Look for the name.
+@@ -123,18 +126,18 @@ Cname:
+ 			}
+ 		}
+ 		if len(addrs) == 0 {
+-			return nil, DNS_NameNotFound
++			return NIL, DNS_NameNotFound
+ 		}
+ 		return addrs, nil
+ 	}
+ 
+ 	// Too many redirects
+-	return nil, DNS_RedirectLoop
++	return NIL, DNS_RedirectLoop
+ }
+ 
+ // Do a lookup for a single name, which must be rooted
+ // (otherwise Answer will not find the answers).
+-func TryOneName(cfg *DNS_Config, name string) (addrs *[]string, err *os.Error) {
++func TryOneName(cfg *DNS_Config, name string) (addrs []string, err *os.Error) {
+ 	err = DNS_NoServers;
+ 	for i := 0; i < len(cfg.servers); i++ {
+ 		// Calling Dial here is scary -- we have to be sure
+@@ -170,7 +173,7 @@ func LoadConfig() {
+ 	cfg = DNS_ReadConfig();
+ }
+ 
+-export func LookupHost(name string) (name1 string, addrs *[]string, err *os.Error) {
++export func LookupHost(name string) (name1 string, addrs []string, err *os.Error) {
+ 	// TODO(rsc): Pick out obvious non-DNS names to avoid
+ 	// sending stupid requests to the server?
+ 
+diff --git a/src/lib/net/dnsconfig.go b/src/lib/net/dnsconfig.go
+index fee20b1cc3..0dff681b6f 100644
+--- a/src/lib/net/dnsconfig.go
++++ b/src/lib/net/dnsconfig.go
+@@ -14,8 +14,8 @@ import (
+ )
+ 
+ export type DNS_Config struct {
+-	servers *[]string;	// servers to use
+-	search *[]string;	// suffixes to append to local name
++	servers []string;	// servers to use
++	search []string;	// suffixes to append to local name
+ 	ndots int;		// number of dots in name to trigger absolute lookup
+ 	timeout int;	// seconds before giving up on packet
+ 	attempts int;	// lost packets before giving up on server
+@@ -53,7 +53,7 @@ export func DNS_ReadConfig() *DNS_Config {
+ 				// just an IP address.  Otherwise we need DNS
+ 				// to look it up.
+ 				name := f[1];
+-				if ParseIP(name) != nil {
++				if len(ParseIP(name)) != 0 {
+ 					a = a[0:n+1];
+ 					a[n] = name;
+ 					conf.servers = a;
+diff --git a/src/lib/net/dnsmsg.go b/src/lib/net/dnsmsg.go
+index fc7dc44378..a94d039cee 100644
+--- a/src/lib/net/dnsmsg.go
++++ b/src/lib/net/dnsmsg.go
+@@ -190,7 +190,7 @@ export type DNS_RR_A struct {
+ 
+ // Packing and unpacking.
+ //
+-// All the packers and unpackers take a (msg *[]byte, off int)
++// All the packers and unpackers take a (msg []byte, off int)
+ // and return (off1 int, ok bool).  If they return ok==false, they
+ // also return off1==len(msg), so that the next unpacker will
+ // also fail.  This lets us avoid checks of ok until the end of a
+@@ -215,7 +215,7 @@ var rr_mk = map[int]*()DNS_RR {
+ // Pack a domain name s into msg[off:].
+ // Domain names are a sequence of counted strings
+ // split at the dots.  They end with a zero-length string.
+-func PackDomainName(s string, msg *[]byte, off int) (off1 int, ok bool) {
++func PackDomainName(s string, msg []byte, off int) (off1 int, ok bool) {
+ 	// Add trailing dot to canonicalize name.
+ 	if n := len(s); n == 0 || s[n-1] != '.' {
+ 		s += ".";
+@@ -264,7 +264,7 @@ func PackDomainName(s string, msg *[]byte, off int) (off1 int, ok bool) {
+ // which is where the next record will start.
+ // In theory, the pointers are only allowed to jump backward.
+ // We let them jump anywhere and stop jumping after a while.
+-func UnpackDomainName(msg *[]byte, off int) (s string, off1 int, ok bool) {
++func UnpackDomainName(msg []byte, off int) (s string, off1 int, ok bool) {
+ 	s = "";
+ 	ptr := 0;	// number of pointers followed
+ Loop:
+@@ -317,7 +317,7 @@ Loop:
+ 
+ // Pack a reflect.StructValue into msg.  Struct members can only be uint16, uint32, string,
+ // and other (often anonymous) structs.
+-func PackStructValue(val reflect.StructValue, msg *[]byte, off int) (off1 int, ok bool) {
++func PackStructValue(val reflect.StructValue, msg []byte, off int) (off1 int, ok bool) {
+ 	for i := 0; i < val.Len(); i++ {
+ 		fld := val.Field(i);
+ 		name, typ, tag, xxx := val.Type().(reflect.StructType).Field(i);
+@@ -375,7 +375,7 @@ func PackStructValue(val reflect.StructValue, msg *[]byte, off int) (off1 int, o
+ 	return off, true
+ }
+ 
+-func PackStruct(any interface{}, msg *[]byte, off int) (off1 int, ok bool) {
++func PackStruct(any interface{}, msg []byte, off int) (off1 int, ok bool) {
+ 	val := reflect.NewValue(any).(reflect.PtrValue).Sub().(reflect.StructValue);
+ 	off, ok = PackStructValue(val, msg, off);
+ 	return off, ok
+@@ -383,7 +383,7 @@ func PackStruct(any interface{}, msg *[]byte, off int) (off1 int, ok bool) {
+ 
+ // Unpack a reflect.StructValue from msg.
+ // Same restrictions as PackStructValue.
+-func UnpackStructValue(val reflect.StructValue, msg *[]byte, off int) (off1 int, ok bool) {
++func UnpackStructValue(val reflect.StructValue, msg []byte, off int) (off1 int, ok bool) {
+ 	for i := 0; i < val.Len(); i++ {
+ 		name, typ, tag, xxx := val.Type().(reflect.StructType).Field(i);
+ 		fld := val.Field(i);
+@@ -437,7 +437,7 @@ func UnpackStructValue(val reflect.StructValue, msg *[]byte, off int) (off1 int,
+ 	return off, true
+ }
+ 
+-func UnpackStruct(any interface{}, msg *[]byte, off int) (off1 int, ok bool) {
++func UnpackStruct(any interface{}, msg []byte, off int) (off1 int, ok bool) {
+ 	val := reflect.NewValue(any).(reflect.PtrValue).Sub().(reflect.StructValue);
+ 	off, ok = UnpackStructValue(val, msg, off);
+ 	return off, ok
+@@ -480,7 +480,7 @@ func PrintStruct(any interface{}) string {
+ }
+ 
+ // Resource record packer.
+-func PackRR(rr DNS_RR, msg *[]byte, off int) (off2 int, ok bool) {
++func PackRR(rr DNS_RR, msg []byte, off int) (off2 int, ok bool) {
+ 	var off1 int;
+ 	// pack twice, once to find end of header
+ 	// and again to find end of packet.
+@@ -499,7 +499,7 @@ func PackRR(rr DNS_RR, msg *[]byte, off int) (off2 int, ok bool) {
+ }
+ 
+ // Resource record unpacker.
+-func UnpackRR(msg *[]byte, off int) (rr DNS_RR, off1 int, ok bool) {
++func UnpackRR(msg []byte, off int) (rr DNS_RR, off1 int, ok bool) {
+ 	// unpack just the header, to find the rr type and length
+ 	var h DNS_RR_Header;
+ 	off0 := off;
+@@ -539,16 +539,15 @@ type DNS_Msg_Top struct {
+ 
+ export type DNS_Msg struct {
+ 	DNS_Msg_Top;
+-	question *[]DNS_Question;
+-	answer *[]DNS_RR;
+-	ns *[]DNS_RR;
+-	extra *[]DNS_RR;
++	question []DNS_Question;
++	answer []DNS_RR;
++	ns []DNS_RR;
++	extra []DNS_RR;
+ }
+ 
+-var no_questions = new([]DNS_Question, 0)
+-var no_rr = new([]DNS_RR, 0)
++var NIL []byte // TODO(rsc): remove
+ 
+-func (dns *DNS_Msg) Pack() (msg *[]byte, ok bool) {
++func (dns *DNS_Msg) Pack() (msg []byte, ok bool) {
+ 	var dh DNS_Header;
+ 
+ 	// Convert convenient DNS_Msg into wire-like DNS_Header.
+@@ -571,20 +570,8 @@ func (dns *DNS_Msg) Pack() (msg *[]byte, ok bool) {
+ 	}
+ 
+ 	// Prepare variable sized arrays; paper over nils.
+-	var question *[]DNS_Question;
+-	var answer, ns, extra *[]DNS_RR;
+-	if question = dns.question; question == nil {
+-		question = no_questions
+-	}
+-	if answer = dns.answer; answer == nil {
+-		answer = no_rr
+-	}
+-	if ns = dns.ns; ns == nil {
+-		ns = no_rr
+-	}
+-	if extra = dns.extra; extra == nil {
+-		extra = no_rr
+-	}
++	var question []DNS_Question;
++	var answer, ns, extra []DNS_RR;
+ 
+ 	dh.qdcount = uint16(len(question));
+ 	dh.ancount = uint16(len(answer));
+@@ -612,12 +599,12 @@ func (dns *DNS_Msg) Pack() (msg *[]byte, ok bool) {
+ 		off, ok = PackStruct(extra[i], msg, off);
+ 	}
+ 	if !ok {
+-		return nil, false
++		return NIL, false
+ 	}
+ 	return msg[0:off], true
+ }
+ 
+-func (dns *DNS_Msg) Unpack(msg *[]byte) bool {
++func (dns *DNS_Msg) Unpack(msg []byte) bool {
+ 	// Header.
+ 	var dh DNS_Header;
+ 	off := 0;
+@@ -663,25 +650,25 @@ func (dns *DNS_Msg) Unpack(msg *[]byte) bool {
+ 
+ func (dns *DNS_Msg) String() string {
+ 	s := "DNS: "+PrintStruct(&dns.DNS_Msg_Top)+"\n";
+-	if dns.question != nil && len(dns.question) > 0 {
++	if len(dns.question) > 0 {
+ 		s += "-- Questions\n";
+ 		for i := 0; i < len(dns.question); i++ {
+ 			s += PrintStruct(&dns.question[i])+"\n";
+ 		}
+ 	}
+-	if dns.answer != nil && len(dns.answer) > 0 {
++	if len(dns.answer) > 0 {
+ 		s += "-- Answers\n";
+ 		for i := 0; i < len(dns.answer); i++ {
+ 			s += PrintStruct(dns.answer[i])+"\n";
+ 		}
+ 	}
+-	if dns.ns != nil && len(dns.ns) > 0 {
++	if len(dns.ns) > 0 {
+ 		s += "-- Name servers\n";
+ 		for i := 0; i < len(dns.ns); i++ {
+ 			s += PrintStruct(dns.ns[i])+"\n";
+ 		}
+ 	}
+-	if dns.extra != nil && len(dns.extra) > 0 {
++	if len(dns.extra) > 0 {
+ 		s += "-- Extra\n";
+ 		for i := 0; i < len(dns.extra); i++ {
+ 			s += PrintStruct(dns.extra[i])+"\n";
+diff --git a/src/lib/net/fd.go b/src/lib/net/fd.go
+index f9fba2bc0f..600ac38f65 100644
+--- a/src/lib/net/fd.go
++++ b/src/lib/net/fd.go
+@@ -144,8 +144,8 @@ func (s *PollServer) Run() {
+ 		}
+ 		if fd == s.pr.fd {
+ 			// Drain our wakeup pipe.
+-			for nn, e := s.pr.Read(&scratch); nn > 0; {
+-				nn, e = s.pr.Read(&scratch)
++			for nn, e := s.pr.Read(scratch); nn > 0; {
++				nn, e = s.pr.Read(scratch)
+ 			}
+ 
+ 			// Read from channels
+@@ -178,7 +178,7 @@ func (s *PollServer) Run() {
+ 
+ func (s *PollServer) Wakeup() {
+ 	var b [1]byte;
+-	s.pw.Write(&b)
++	s.pw.Write(b)
+ }
+ 
+ func (s *PollServer) WaitRead(fd *FD) {
+@@ -232,7 +232,7 @@ func (fd *FD) Close() *os.Error {
+ 	return e
+ }
+ 
+-func (fd *FD) Read(p *[]byte) (n int, err *os.Error) {
++func (fd *FD) Read(p []byte) (n int, err *os.Error) {
+ 	if fd == nil || fd.osfd == nil {
+ 		return -1, os.EINVAL
+ 	}
+@@ -244,7 +244,7 @@ func (fd *FD) Read(p *[]byte) (n int, err *os.Error) {
+ 	return n, err
+ }
+ 
+-func (fd *FD) Write(p *[]byte) (n int, err *os.Error) {
++func (fd *FD) Write(p []byte) (n int, err *os.Error) {
+ 	if fd == nil || fd.osfd == nil {
+ 		return -1, os.EINVAL
+ 	}
+diff --git a/src/lib/net/fd_darwin.go b/src/lib/net/fd_darwin.go
+index 3f2816737e..b0eaf0594e 100644
+--- a/src/lib/net/fd_darwin.go
++++ b/src/lib/net/fd_darwin.go
+@@ -15,16 +15,18 @@ import (
+ export type Pollster struct {
+ 	kq int64;
+ 	eventbuf [10]syscall.Kevent;
+-	events *[]syscall.Kevent;
++	events []syscall.Kevent;
+ }
+ 
++var NIL []syscall.Kevent;  // TODO(rsc): remove
++
+ export func NewPollster() (p *Pollster, err *os.Error) {
+ 	p = new(Pollster);
+ 	var e int64;
+ 	if p.kq, e = syscall.kqueue(); e != 0 {
+ 		return nil, os.ErrnoToError(e)
+ 	}
+-	p.events = (&p.eventbuf)[0:0];
++	p.events = p.eventbuf[0:0];
+ 	return p, nil
+ }
+ 
+@@ -49,7 +51,7 @@ func (p *Pollster) AddFD(fd int64, mode int, repeat bool) *os.Error {
+ 		ev.flags |= syscall.EV_ONESHOT
+ 	}
+ 
+-	n, e := syscall.kevent(p.kq, &events, &events, nil);
++	n, e := syscall.kevent(p.kq, events, events, nil);
+ 	if e != 0 {
+ 		return os.ErrnoToError(e)
+ 	}
+@@ -64,14 +66,14 @@ func (p *Pollster) AddFD(fd int64, mode int, repeat bool) *os.Error {
+ 
+ func (p *Pollster) WaitFD() (fd int64, mode int, err *os.Error) {
+ 	for len(p.events) == 0 {
+-		nn, e := syscall.kevent(p.kq, nil, &p.eventbuf, nil);
++		nn, e := syscall.kevent(p.kq, NIL, p.eventbuf, nil);
+ 		if e != 0 {
+ 			if e == syscall.EAGAIN || e == syscall.EINTR {
+ 				continue
+ 			}
+ 			return -1, 0, os.ErrnoToError(e)
+ 		}
+-		p.events = (&p.eventbuf)[0:nn]
++		p.events = p.eventbuf[0:nn]
+ 	}
+ 	ev := &p.events[0];
+ 	p.events = p.events[1:len(p.events)];
+diff --git a/src/lib/net/ip.go b/src/lib/net/ip.go
+index f573c3463b..4cf56dc8ae 100644
+--- a/src/lib/net/ip.go
++++ b/src/lib/net/ip.go
+@@ -22,7 +22,7 @@ export const (
+ )
+ 
+ // Make the 4 bytes into an IPv4 address (in IPv6 form)
+-func MakeIPv4(a, b, c, d byte) *[]byte {
++func MakeIPv4(a, b, c, d byte) []byte {
+ 	p := new([]byte, IPv6len);
+ 	for i := 0; i < 10; i++ {
+ 		p[i] = 0
+@@ -37,7 +37,9 @@ func MakeIPv4(a, b, c, d byte) *[]byte {
+ }
+ 
+ // Well-known IP addresses
+-export var IPv4bcast, IPv4allsys, IPv4allrouter, IPv4prefix, IPallbits, IPnoaddr *[]byte
++export var IPv4bcast, IPv4allsys, IPv4allrouter, IPv4prefix, IPallbits, IPnoaddr []byte
++
++var NIL []byte // TODO(rsc)
+ 
+ func init() {
+ 	IPv4bcast = MakeIPv4(0xff, 0xff, 0xff, 0xff);
+@@ -52,7 +54,7 @@ func init() {
+ }
+ 
+ // Is p all zeros?
+-func IsZeros(p *[]byte) bool {
++func IsZeros(p []byte) bool {
+ 	for i := 0; i < len(p); i++ {
+ 		if p[i] != 0 {
+ 			return false
+@@ -63,7 +65,7 @@ func IsZeros(p *[]byte) bool {
+ 
+ // Is p an IPv4 address (perhaps in IPv6 form)?
+ // If so, return the 4-byte V4 array.
+-export func ToIPv4(p *[]byte) *[]byte {
++export func ToIPv4(p []byte) []byte {
+ 	if len(p) == IPv4len {
+ 		return p
+ 	}
+@@ -73,18 +75,18 @@ export func ToIPv4(p *[]byte) *[]byte {
+ 	&& p[11] == 0xff {
+ 		return p[12:16]
+ 	}
+-	return nil
++	return NIL
+ }
+ 
+ // Convert p to IPv6 form.
+-export func ToIPv6(p *[]byte) *[]byte {
++export func ToIPv6(p []byte) []byte {
+ 	if len(p) == IPv4len {
+ 		return MakeIPv4(p[0], p[1], p[2], p[3])
+ 	}
+ 	if len(p) == IPv6len {
+ 		return p
+ 	}
+-	return nil
++	return NIL
+ }
+ 
+ // Default route masks for IPv4.
+@@ -94,9 +96,9 @@ export var (
+ 	ClassCMask = MakeIPv4(0xff, 0xff, 0xff, 0);
+ )
+ 
+-export func DefaultMask(p *[]byte) *[]byte {
+-	if p = ToIPv4(p); p == nil {
+-		return nil
++export func DefaultMask(p []byte) []byte {
++	if p = ToIPv4(p); len(p) == 0 {
++		return NIL
+ 	}
+ 	switch true {
+ 	case p[0] < 0x80:
+@@ -106,14 +108,14 @@ export func DefaultMask(p *[]byte) *[]byte {
+ 	default:
+ 		return ClassCMask;
+ 	}
+-	return nil;	// not reached
++	return NIL;	// not reached
+ }
+ 
+ // Apply mask to ip, returning new address.
+-export func Mask(ip *[]byte, mask *[]byte) *[]byte {
++export func Mask(ip []byte, mask []byte) []byte {
+ 	n := len(ip);
+ 	if n != len(mask) {
+-		return nil
++		return NIL
+ 	}
+ 	out := new([]byte, n);
+ 	for i := 0; i < n; i++ {
+@@ -136,8 +138,8 @@ func itod(i uint) string {
+ 		b[bp] = byte(i%10) + '0'
+ 	}
+ 
+-	// return string(b[bp:len(b)])
+-	return string((&b)[bp:len(b)])
++	return string(b[bp:len(b)])
++//	return string((&b)[bp:len(b)])
+ }
+ 
+ // Convert i to hexadecimal string.
+@@ -154,14 +156,14 @@ func itox(i uint) string {
+ 		b[bp] = "0123456789abcdef"[byte(i%16)]
+ 	}
+ 
+-	// return string(b[bp:len(b)])
+-	return string((&b)[bp:len(b)])
++	return string(b[bp:len(b)])
++	// return string((&b)[bp:len(b)])
+ }
+ 
+ // Convert IP address to string.
+-export func IPToString(p *[]byte) string {
++export func IPToString(p []byte) string {
+ 	// If IPv4, use dotted notation.
+-	if p4 := ToIPv4(p); p4 != nil {
++	if p4 := ToIPv4(p); len(p4) == 4 {
+ 		return itod(uint(p4[0]))+"."
+ 			+itod(uint(p4[1]))+"."
+ 			+itod(uint(p4[2]))+"."
+@@ -204,7 +206,7 @@ export func IPToString(p *[]byte) string {
+ 
+ // If mask is a sequence of 1 bits followed by 0 bits,
+ // return the number of 1 bits.
+-func SimpleMaskLength(mask *[]byte) int {
++func SimpleMaskLength(mask []byte) int {
+ 	var i int;
+ 	for i = 0; i < len(mask); i++ {
+ 		if mask[i] != 0xFF {
+@@ -228,7 +230,7 @@ func SimpleMaskLength(mask *[]byte) int {
+ 	return n
+ }
+ 
+-export func MaskToString(mask *[]byte) string {
++export func MaskToString(mask []byte) string {
+ 	switch len(mask) {
+ 	case 4:
+ 		n := SimpleMaskLength(mask);
+@@ -245,13 +247,13 @@ export func MaskToString(mask *[]byte) string {
+ }
+ 
+ // Parse IPv4 address (d.d.d.d).
+-func ParseIPv4(s string) *[]byte {
++func ParseIPv4(s string) []byte {
+ 	var p [IPv4len]byte;
+ 	i := 0;
+ 	for j := 0; j < IPv4len; j++ {
+ 		if j > 0 {
+ 			if s[i] != '.' {
+-				return nil
++				return NIL
+ 			}
+ 			i++;
+ 		}
+@@ -261,12 +263,12 @@ func ParseIPv4(s string) *[]byte {
+ 		)
+ 		n, i, ok = Dtoi(s, i);
+ 		if !ok || n > 0xFF {
+-			return nil
++			return NIL
+ 		}
+ 		p[j] = byte(n)
+ 	}
+ 	if i != len(s) {
+-		return nil
++		return NIL
+ 	}
+ 	return MakeIPv4(p[0], p[1], p[2], p[3])
+ }
+@@ -279,7 +281,7 @@ func ParseIPv4(s string) *[]byte {
+ //	* A run of zeros can be replaced with "::".
+ //	* The last 32 bits can be in IPv4 form.
+ // Thus, ::ffff:1.2.3.4 is the IPv4 address 1.2.3.4.
+-func ParseIPv6(s string) *[]byte {
++func ParseIPv6(s string) []byte {
+ 	p := new([]byte, 16);
+ 	ellipsis := -1;	// position of ellipsis in p
+ 	i := 0;	// index in string s
+@@ -300,22 +302,22 @@ L:	for j < IPv6len {
+ 		// Hex number.
+ 		n, i1, ok := Xtoi(s, i);
+ 		if !ok || n > 0xFFFF {
+-			return nil
++			return NIL
+ 		}
+ 
+ 		// If followed by dot, might be in trailing IPv4.
+ 		if i1 < len(s) && s[i1] == '.' {
+ 			if ellipsis < 0 && j != IPv6len - IPv4len {
+ 				// Not the right place.
+-				return nil
++				return NIL
+ 			}
+ 			if j+IPv4len > IPv6len {
+ 				// Not enough room.
+-				return nil
++				return NIL
+ 			}
+ 			p4 := ParseIPv4(s[i:len(s)]);
+-			if p4 == nil {
+-				return nil
++			if len(p4) == 0 {
++				return NIL
+ 			}
+ 			// BUG: p[j:j+4] = p4
+ 			p[j] = p4[12];
+@@ -340,14 +342,14 @@ L:	for j < IPv6len {
+ 
+ 		// Otherwise must be followed by colon and more.
+ 		if s[i] != ':' && i+1 == len(s) {
+-			return nil
++			return NIL
+ 		}
+ 		i++;
+ 
+ 		// Look for ellipsis.
+ 		if s[i] == ':' {
+ 			if ellipsis >= 0 {	// already have one
+-				return nil
++				return NIL
+ 			}
+ 			ellipsis = j;
+ 			if i++; i == len(s) {	// can be at end
+@@ -358,13 +360,13 @@ L:	for j < IPv6len {
+ 
+ 	// Must have used entire string.
+ 	if i != len(s) {
+-		return nil
++		return NIL
+ 	}
+ 
+ 	// If didn't parse enough, expand ellipsis.
+ 	if j < IPv6len {
+ 		if ellipsis < 0 {
+-			return nil
++			return NIL
+ 		}
+ 		n := IPv6len - j;
+ 		for k := j-1; k >= ellipsis; k-- {
+@@ -377,9 +379,9 @@ L:	for j < IPv6len {
+ 	return p
+ }
+ 
+-export func ParseIP(s string) *[]byte {
++export func ParseIP(s string) []byte {
+ 	p := ParseIPv4(s);
+-	if p != nil {
++	if len(p) != 0 {
+ 		return p
+ 	}
+ 	return ParseIPv6(s)
+diff --git a/src/lib/net/ip_test.go b/src/lib/net/ip_test.go
+index 9f8198ee75..7fd8539ac8 100644
+--- a/src/lib/net/ip_test.go
++++ b/src/lib/net/ip_test.go
+@@ -9,11 +9,11 @@ import (
+ 	"testing"
+ )
+ 
+-func IPv4(a, b, c, d byte) *[]byte {
+-	return &[]byte{ 0,0,0,0, 0,0,0,0, 0,0,255,255, a,b,c,d }
++func IPv4(a, b, c, d byte) []byte {
++	return []byte{ 0,0,0,0, 0,0,0,0, 0,0,255,255, a,b,c,d }
+ }
+ 
+-func Equal(a *[]byte, b *[]byte) bool {
++func Equal(a []byte, b []byte) bool {
+ 	if a == b {
+ 		return true
+ 	}
+@@ -30,7 +30,7 @@ func Equal(a *[]byte, b *[]byte) bool {
+ 
+ type ParseIPTest struct {
+ 	in string;
+-	out *[]byte;
++	out []byte;
+ }
+ var parseiptests = []ParseIPTest {
+ 	ParseIPTest{"127.0.1.2", IPv4(127, 0, 1, 2)},
+@@ -39,7 +39,7 @@ var parseiptests = []ParseIPTest {
+ 	ParseIPTest{"abc", nil},
+ 	ParseIPTest{"::ffff:127.0.0.1", IPv4(127, 0, 0, 1)},
+ 	ParseIPTest{"2001:4860:0:2001::68",
+-		&[]byte{0x20,0x01, 0x48,0x60, 0,0, 0x20,0x01, 0,0, 0,0, 0,0, 0x00,0x68}},
++		[]byte{0x20,0x01, 0x48,0x60, 0,0, 0x20,0x01, 0,0, 0,0, 0,0, 0x00,0x68}},
+ 	ParseIPTest{"::ffff:4a7d:1363", IPv4(74, 125, 19, 99)},
+ }
+ 
+diff --git a/src/lib/net/net.go b/src/lib/net/net.go
+index 6ea54931f1..ca5f33733c 100644
+--- a/src/lib/net/net.go
++++ b/src/lib/net/net.go
+@@ -21,7 +21,7 @@ export var (
+ 	UnknownSocketFamily = os.NewError("unknown socket family");
+ )
+ 
+-export func LookupHost(name string) (name1 string, addrs *[]string, err *os.Error)
++export func LookupHost(name string) (name1 string, addrs []string, err *os.Error)
+ 
+ // Split "host:port" into "host" and "port".
+ // Host cannot contain colons unless it is bracketed.
+@@ -62,31 +62,33 @@ func JoinHostPort(host, port string) string {
+ 	return host + ":" + port
+ }
+ 
++var NIL []byte
++
+ // Convert "host:port" into IP address and port.
+ // For now, host and port must be numeric literals.
+ // Eventually, we'll have name resolution.
+-func HostPortToIP(net string, hostport string) (ip *[]byte, iport int, err *os.Error) {
++func HostPortToIP(net string, hostport string) (ip []byte, iport int, err *os.Error) {
+ 	var host, port string;
+ 	host, port, err = SplitHostPort(hostport);
+ 	if err != nil {
+-		return nil, 0, err
++		return NIL, 0, err
+ 	}
+ 
+ 	// Try as an IP address.
+ 	addr := ParseIP(host);
+-	if addr == nil {
++	if len(addr) == 0 {
+ 		// Not an IP address.  Try as a DNS name.
+ 		hostname, addrs, err := LookupHost(host);
+ 		if err != nil {
+-			return nil, 0, err
++			return NIL, 0, err
+ 		}
+ 		if len(addrs) == 0 {
+-			return nil, 0, UnknownHost
++			return NIL, 0, UnknownHost
+ 		}
+ 		addr = ParseIP(addrs[0]);
+-		if addr == nil {
++		if len(addr) == 0 {
+ 			// should not happen
+-			return nil, 0, BadAddress
++			return NIL, 0, BadAddress
+ 		}
+ 	}
+ 
+@@ -94,11 +96,11 @@ func HostPortToIP(net string, hostport string) (ip *[]byte, iport int, err *os.E
+ 	if !ok || i != len(port) {
+ 		p, ok = LookupPort(net, port);
+ 		if !ok {
+-			return nil, 0, UnknownPort
++			return NIL, 0, UnknownPort
+ 		}
+ 	}
+ 	if p < 0 || p > 0xFFFF {
+-		return nil, 0, BadAddress
++		return NIL, 0, BadAddress
+ 	}
+ 
+ 	return addr, p, nil
+@@ -178,17 +180,17 @@ func (c *ConnBase) FD() int64 {
+ 	return c.fd.fd
+ }
+ 
+-func (c *ConnBase) Read(b *[]byte) (n int, err *os.Error) {
++func (c *ConnBase) Read(b []byte) (n int, err *os.Error) {
+ 	n, err = c.fd.Read(b);
+ 	return n, err
+ }
+ 
+-func (c *ConnBase) Write(b *[]byte) (n int, err *os.Error) {
++func (c *ConnBase) Write(b []byte) (n int, err *os.Error) {
+ 	n, err = c.fd.Write(b);
+ 	return n, err
+ }
+ 
+-func (c *ConnBase) ReadFrom(b *[]byte) (n int, raddr string, err *os.Error) {
++func (c *ConnBase) ReadFrom(b []byte) (n int, raddr string, err *os.Error) {
+ 	if c == nil {
+ 		return -1, "", os.EINVAL
+ 	}
+@@ -196,7 +198,7 @@ func (c *ConnBase) ReadFrom(b *[]byte) (n int, raddr string, err *os.Error) {
+ 	return n, c.raddr, err
+ }
+ 
+-func (c *ConnBase) WriteTo(raddr string, b *[]byte) (n int, err *os.Error) {
++func (c *ConnBase) WriteTo(raddr string, b []byte) (n int, err *os.Error) {
+ 	if c == nil {
+ 		return -1, os.EINVAL
+ 	}
+@@ -281,7 +283,7 @@ const PreferIPv4 = false
+ 
+ func InternetSocket(net, laddr, raddr string, proto int64) (fd *FD, err *os.Error) {
+ 	// Parse addresses (unless they are empty).
+-	var lip, rip *[]byte;
++	var lip, rip []byte;
+ 	var lport, rport int;
+ 	var lerr, rerr *os.Error;
+ 
+@@ -309,16 +311,14 @@ func InternetSocket(net, laddr, raddr string, proto int64) (fd *FD, err *os.Erro
+ 	default:
+ 		// Otherwise, guess.
+ 		// If the addresses are IPv4 and we prefer IPv4, use 4; else 6.
+-		if PreferIPv4
+-		&& (lip == nil || ToIPv4(lip) != nil)
+-		&& (rip == nil || ToIPv4(rip) != nil) {
++		if PreferIPv4 && len(ToIPv4(lip)) != 0 && len(ToIPv4(rip)) != 0 {
+ 			vers = 4
+ 		} else {
+ 			vers = 6
+ 		}
+ 	}
+ 
+-	var cvt *(addr *[]byte, port int) (sa *syscall.Sockaddr, err *os.Error);
++	var cvt *(addr []byte, port int) (sa *syscall.Sockaddr, err *os.Error);
+ 	var family int64;
+ 	if vers == 4 {
+ 		cvt = &IPv4ToSockaddr;
+@@ -329,13 +329,13 @@ func InternetSocket(net, laddr, raddr string, proto int64) (fd *FD, err *os.Erro
+ 	}
+ 
+ 	var la, ra *syscall.Sockaddr;
+-	if lip != nil {
++	if len(lip) != 0 {
+ 		la, lerr = cvt(lip, lport);
+ 		if lerr != nil {
+ 			return nil, lerr
+ 		}
+ 	}
+-	if rip != nil {
++	if len(rip) != 0 {
+ 		ra, rerr = cvt(rip, rport);
+ 		if rerr != nil {
+ 			return nil, rerr
+@@ -414,10 +414,10 @@ export func DialUDP(net, laddr, raddr string) (c *ConnUDP, err *os.Error) {
+ 
+ 
+ export type Conn interface {
+-	Read(b *[]byte) (n int, err *os.Error);
+-	Write(b *[]byte) (n int, err *os.Error);
+-	ReadFrom(b *[]byte) (n int, addr string, err *os.Error);
+-	WriteTo(addr string, b *[]byte) (n int, err *os.Error);
++	Read(b []byte) (n int, err *os.Error);
++	Write(b []byte) (n int, err *os.Error);
++	ReadFrom(b []byte) (n int, addr string, err *os.Error);
++	WriteTo(addr string, b []byte) (n int, err *os.Error);
+ 	Close() *os.Error;
+ 	SetReadBuffer(bytes int) *os.Error;
+ 	SetWriteBuffer(bytes int) *os.Error;
+diff --git a/src/lib/net/net_darwin.go b/src/lib/net/net_darwin.go
+index 1238a4cdca..2a23decc24 100644
+--- a/src/lib/net/net_darwin.go
++++ b/src/lib/net/net_darwin.go
+@@ -11,9 +11,9 @@ import (
+ 	"unsafe";
+ )
+ 
+-export func IPv4ToSockaddr(p *[]byte, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
++export func IPv4ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
+ 	p = ToIPv4(p);
+-	if p == nil || port < 0 || port > 0xFFFF {
++	if len(p) == 0 || port < 0 || port > 0xFFFF {
+ 		return nil, os.EINVAL
+ 	}
+ 	sa := new(syscall.SockaddrInet4);
+@@ -27,9 +27,9 @@ export func IPv4ToSockaddr(p *[]byte, port int) (sa1 *syscall.Sockaddr, err *os.
+ 	return unsafe.pointer(sa).(*syscall.Sockaddr), nil
+ }
+ 
+-export func IPv6ToSockaddr(p *[]byte, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
++export func IPv6ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
+ 	p = ToIPv6(p);
+-	if p == nil || port < 0 || port > 0xFFFF {
++	if len(p) == 0 || port < 0 || port > 0xFFFF {
+ 		return nil, os.EINVAL
+ 	}
+ 	sa := new(syscall.SockaddrInet6);
+@@ -43,26 +43,28 @@ export func IPv6ToSockaddr(p *[]byte, port int) (sa1 *syscall.Sockaddr, err *os.
+ 	return unsafe.pointer(sa).(*syscall.Sockaddr), nil
+ }
+ 
+-export func SockaddrToIP(sa1 *syscall.Sockaddr) (p *[]byte, port int, err *os.Error) {
++var NIL []byte	// TODO(rsc)
++
++export func SockaddrToIP(sa1 *syscall.Sockaddr) (p []byte, port int, err *os.Error) {
+ 	switch sa1.family {
+ 	case syscall.AF_INET:
+ 		sa := unsafe.pointer(sa1).(*syscall.SockaddrInet4);
+-		a := ToIPv6(&sa.addr);
+-		if a == nil {
+-			return nil, 0, os.EINVAL
++		a := ToIPv6(sa.addr);
++		if len(a) == 0 {
++			return NIL, 0, os.EINVAL
+ 		}
+ 		return a, int(sa.port[0])<<8 + int(sa.port[1]), nil;
+ 	case syscall.AF_INET6:
+ 		sa := unsafe.pointer(sa1).(*syscall.SockaddrInet6);
+-		a := ToIPv6(&sa.addr);
+-		if a == nil {
+-			return nil, 0, os.EINVAL
++		a := ToIPv6(sa.addr);
++		if len(a) == 0 {
++			return NIL, 0, os.EINVAL
+ 		}
+-		return a, int(sa.port[0])<<8 + int(sa.port[1]), nil;
++		return NIL, int(sa.port[0])<<8 + int(sa.port[1]), nil;
+ 	default:
+-		return nil, 0, os.EINVAL
++		return NIL, 0, os.EINVAL
+ 	}
+-	return nil, 0, nil	// not reached
++	return NIL, 0, nil	// not reached
+ }
+ 
+ export func ListenBacklog() int64 {
+diff --git a/src/lib/net/net_linux.go b/src/lib/net/net_linux.go
+index 1ae4e9a5b1..3d9dd69fe3 100644
+--- a/src/lib/net/net_linux.go
++++ b/src/lib/net/net_linux.go
+@@ -11,7 +11,7 @@ import (
+ 	"unsafe";
+ )
+ 
+-export func IPv4ToSockaddr(p *[]byte, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
++export func IPv4ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
+ 	p = ToIPv4(p);
+ 	if p == nil || port < 0 || port > 0xFFFF {
+ 		return nil, os.EINVAL
+@@ -28,7 +28,7 @@ export func IPv4ToSockaddr(p *[]byte, port int) (sa1 *syscall.Sockaddr, err *os.
+ 
+ var IPv6zero [16]byte;
+ 
+-export func IPv6ToSockaddr(p *[]byte, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
++export func IPv6ToSockaddr(p []byte, port int) (sa1 *syscall.Sockaddr, err *os.Error) {
+ 	p = ToIPv6(p);
+ 	if p == nil || port < 0 || port > 0xFFFF {
+ 		return nil, os.EINVAL
+@@ -51,7 +51,7 @@ export func IPv6ToSockaddr(p *[]byte, port int) (sa1 *syscall.Sockaddr, err *os.
+ 	return unsafe.pointer(sa).(*syscall.Sockaddr), nil
+ }
+ 
+-export func SockaddrToIP(sa1 *syscall.Sockaddr) (p *[]byte, port int, err *os.Error) {
++export func SockaddrToIP(sa1 *syscall.Sockaddr) (p []byte, port int, err *os.Error) {
+ 	switch sa1.family {
+ 	case syscall.AF_INET:
+ 		sa := unsafe.pointer(sa1).(*syscall.SockaddrInet4);
+diff --git a/src/lib/net/parse.go b/src/lib/net/parse.go
+index d0a8549c4f..b9ee185223 100644
+--- a/src/lib/net/parse.go
++++ b/src/lib/net/parse.go
+@@ -14,7 +14,7 @@ import (
+ 
+ package type File struct {
+ 	fd *os.FD;
+-	data *[]byte;
++	data []byte;
+ }
+ 
+ func (f *File) Close() {
+@@ -84,7 +84,7 @@ package func CountAnyByte(s string, t string) int {
+ }
+ 
+ // Split s at any bytes in t.
+-package func SplitAtBytes(s string, t string) *[]string {
++package func SplitAtBytes(s string, t string) []string {
+ 	a := new([]string, 1+CountAnyByte(s, t));
+ 	n := 0;
+ 	last := 0;
+@@ -104,7 +104,7 @@ package func SplitAtBytes(s string, t string) *[]string {
+ 	return a[0:n];
+ }
+ 
+-package func GetFields(s string) *[]string {
++package func GetFields(s string) []string {
+ 	return SplitAtBytes(s, " \r\t\n");
+ }
+ 
+diff --git a/src/lib/net/tcpserver_test.go b/src/lib/net/tcpserver_test.go
+index 2df012bcd2..9489c8cf27 100644
+--- a/src/lib/net/tcpserver_test.go
++++ b/src/lib/net/tcpserver_test.go
+@@ -15,11 +15,11 @@ func Echo(fd io.ReadWrite, done *chan<- int) {
+ 	var buf [1024]byte;
+ 
+ 	for {
+-		n, err := fd.Read(&buf);
++		n, err := fd.Read(buf);
+ 		if err != nil || n == 0 {
+ 			break;
+ 		}
+-		fd.Write((&buf)[0:n])
++		fd.Write(buf[0:n])
+ 	}
+ 	done <- 1
+ }
+@@ -58,7 +58,7 @@ func Connect(t *testing.T, network, addr string) {
+ 		t.Fatalf("fd.Write(%q) = %d, %v", b, n, errno);
+ 	}
+ 
+-	n, errno = fd.Read(&b1);
++	n, errno = fd.Read(b1);
+ 	if n != len(b) {
+ 		t.Fatalf("fd.Read() = %d, %v", n, errno);
+ 	}
+diff --git a/src/lib/os/os_file.go b/src/lib/os/os_file.go
+index 0d2e7bd6a3..4e878aabb9 100644
+--- a/src/lib/os/os_file.go
++++ b/src/lib/os/os_file.go
+@@ -53,7 +53,7 @@ func (fd *FD) Close() *Error {
+ 	return ErrnoToError(e)
+ }
+ 
+-func (fd *FD) Read(b *[]byte) (ret int, err *Error) {
++func (fd *FD) Read(b []byte) (ret int, err *Error) {
+ 	if fd == nil {
+ 		return 0, EINVAL
+ 	}
+@@ -67,7 +67,7 @@ func (fd *FD) Read(b *[]byte) (ret int, err *Error) {
+ 	return int(r), ErrnoToError(e)
+ }
+ 
+-func (fd *FD) Write(b *[]byte) (ret int, err *Error) {
++func (fd *FD) Write(b []byte) (ret int, err *Error) {
+ 	if fd == nil {
+ 		return 0, EINVAL
+ 	}
+diff --git a/src/lib/rand.go b/src/lib/rand.go
+index 7636661148..029a75c165 100644
+--- a/src/lib/rand.go
++++ b/src/lib/rand.go
+@@ -164,7 +164,7 @@ frand() float
+ }
+ 
+ export func
+-perm(n int) *[]int
++perm(n int) []int
+ {
+ 	m := new([]int, n);
+ 	for i:=0; i<n; i++ {
+diff --git a/src/lib/reflect/all_test.go b/src/lib/reflect/all_test.go
+index fe16a82f5b..df3ca648a2 100644
+--- a/src/lib/reflect/all_test.go
++++ b/src/lib/reflect/all_test.go
+@@ -177,23 +177,23 @@ export func TestAll(tt *testing.T) {	// TODO(r): wrap up better
+ 		value := reflect.NewValue(tmp);
+ 		assert(reflect.ValueToString(value), "*reflect.C·all_test(@)");
+ 	}
+-	{
+-		type A [10]int;
+-		var tmp A = A{1,2,3,4,5,6,7,8,9,10};
+-		value := reflect.NewValue(&tmp);
+-		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "reflect.A·all_test{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}");
+-		value.(reflect.PtrValue).Sub().(reflect.ArrayValue).Elem(4).(reflect.IntValue).Set(123);
+-		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "reflect.A·all_test{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}");
+-	}
+-	{
+-		type AA []int;
+-		tmp1 := [10]int{1,2,3,4,5,6,7,8,9,10};	// TODO: should not be necessary to use tmp1
+-		var tmp *AA = &tmp1;
+-		value := reflect.NewValue(tmp);
+-		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "reflect.AA·all_test{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}");
+-		value.(reflect.PtrValue).Sub().(reflect.ArrayValue).Elem(4).(reflect.IntValue).Set(123);
+-		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "reflect.AA·all_test{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}");
+-	}
++//	{
++//		type A [10]int;
++//		var tmp A = A{1,2,3,4,5,6,7,8,9,10};
++//		value := reflect.NewValue(&tmp);
++//		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "reflect.A·all_test{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}");
++//		value.(reflect.PtrValue).Sub().(reflect.ArrayValue).Elem(4).(reflect.IntValue).Set(123);
++//		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "reflect.A·all_test{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}");
++//	}
++//	{
++//		type AA []int;
++//		tmp1 := [10]int{1,2,3,4,5,6,7,8,9,10};	// TODO: should not be necessary to use tmp1
++//		var tmp *AA = &tmp1;
++//		value := reflect.NewValue(tmp);
++//		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "reflect.AA·all_test{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}");
++//		value.(reflect.PtrValue).Sub().(reflect.ArrayValue).Elem(4).(reflect.IntValue).Set(123);
++//		assert(reflect.ValueToString(value.(reflect.PtrValue).Sub()), "reflect.AA·all_test{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}");
++//	}
+ 
+ 	{
+ 		var ip *int32;
+@@ -264,18 +264,19 @@ export func TestAll(tt *testing.T) {	// TODO(r): wrap up better
+ 	assert(ct.Elem().String(), "string");
+ 
+ 	// make sure tag strings are not part of element type
+-	t = reflect.ParseTypeString("", "struct{d *[]uint32 \"TAG\"}");
++	t = reflect.ParseTypeString("", "struct{d []uint32 \"TAG\"}");
+ 	st = t.(reflect.StructType);
+ 	name, typ, tag, offset = st.Field(0);
+-	assert(typ.String(), "*[]uint32");
++	assert(typ.String(), "[]uint32");
+ 
+ 	t = reflect.ParseTypeString("", "[]int32");
+ 	v := reflect.NewOpenArrayValue(t, 5, 10);
+ 	t1 := reflect.ParseTypeString("", "*[]int32");
+ 	v1 := reflect.NewInitValue(t1);
++	if v1 == nil { panic("V1 is nil"); }
+ 	v1.(reflect.PtrValue).SetSub(v);
+ 	a := v1.Interface().(*[]int32);
+-	println(a, len(a), cap(a));
++	println(&a, len(a), cap(a));
+ 	for i := 0; i < len(a); i++ {
+ 		v.Elem(i).(reflect.Int32Value).Set(int32(i));
+ 	}
+@@ -296,33 +297,35 @@ export func TestInterfaceGet(t *testing.T) {
+ }
+ 
+ export func TestCopyArray(t *testing.T) {
+-	a := &[]int{ 1, 2, 3, 4, 10, 9, 8, 7 };
+-	b := &[]int{ 11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44 };
+-	c := &[]int{ 11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44 };
+-	va := NewValue(a);
+-	vb := NewValue(b);
++	a := []int{ 1, 2, 3, 4, 10, 9, 8, 7 };
++	b := []int{ 11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44 };
++	c := []int{ 11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44 };
++	va := NewValue(&a);
++	vb := NewValue(&b);
+ 	for i := 0; i < len(b); i++ {
+ 		if b[i] != c[i] {
+ 			t.Fatalf("b != c before test");
+ 		}
+ 	}
+-	for tocopy := 5; tocopy <= 6; tocopy++ {
++	for tocopy := 1; tocopy <= 7; tocopy++ {
+ 		CopyArray(vb.(PtrValue).Sub(), va.(PtrValue).Sub(), tocopy);
+ 		for i := 0; i < tocopy; i++ {
+ 			if a[i] != b[i] {
+-				t.Errorf("tocopy=%d a[%d]=%d, b[%d]=%d",
++				t.Errorf("1 tocopy=%d a[%d]=%d, b[%d]=%d",
+ 					tocopy, i, a[i], i, b[i]);
+ 			}
+ 		}
+ 		for i := tocopy; i < len(b); i++ {
+ 			if b[i] != c[i] {
+ 				if i < len(a) {
+-					t.Errorf("tocopy=%d a[%d]=%d, b[%d]=%d, c[%d]=%d",
++					t.Errorf("2 tocopy=%d a[%d]=%d, b[%d]=%d, c[%d]=%d",
+ 						tocopy, i, a[i], i, b[i], i, c[i]);
+ 				} else {
+-					t.Errorf("tocopy=%d b[%d]=%d, c[%d]=%d",
++					t.Errorf("3 tocopy=%d b[%d]=%d, c[%d]=%d",
+ 						tocopy, i, b[i], i, c[i]);
+ 				}
++			} else {
++				t.Logf("tocopy=%d elem %d is okay\n", tocopy, i);
+ 			}
+ 		}
+ 	}
+diff --git a/src/lib/reflect/type.go b/src/lib/reflect/type.go
+index b6caca1ffc..3fbfe110b9 100644
+--- a/src/lib/reflect/type.go
++++ b/src/lib/reflect/type.go
+@@ -124,6 +124,7 @@ type StubType struct {
+ }
+ 
+ func NewStubType(name string, typ Type) *StubType {
++if typ == nil && len(name) > 0 && name[0] == '*' { panicln("NewStubType", name, typ) }
+ 	return &StubType{name, typ}
+ }
+ 
+@@ -275,10 +276,10 @@ type Field struct {
+ 
+ type StructTypeStruct struct {
+ 	Common;
+-	field	*[]Field;
++	field	[]Field;
+ }
+ 
+-func NewStructTypeStruct(name, typestring string, field *[]Field) *StructTypeStruct {
++func NewStructTypeStruct(name, typestring string, field []Field) *StructTypeStruct {
+ 	return &StructTypeStruct{ Common{StructKind, typestring, name, 0}, field}
+ }
+ 
+@@ -327,10 +328,10 @@ export type InterfaceType interface {
+ 
+ type InterfaceTypeStruct struct {
+ 	Common;
+-	field	*[]Field;
++	field	[]Field;
+ }
+ 
+-func NewInterfaceTypeStruct(name, typestring string, field *[]Field) *InterfaceTypeStruct {
++func NewInterfaceTypeStruct(name, typestring string, field []Field) *InterfaceTypeStruct {
+ 	return &InterfaceTypeStruct{ Common{InterfaceKind, typestring, name, interfacesize}, field }
+ }
+ 
+@@ -683,7 +684,7 @@ func (p *Parser) Chan(name string, tokstart, dir int) *StubType {
+ }
+ 
+ // Parse array of fields for struct, interface, and func arguments
+-func (p *Parser) Fields(sep, term string) *[]Field {
++func (p *Parser) Fields(sep, term string) []Field {
+ 	a := new([]Field, 10);
+ 	nf := 0;
+ 	for p.token != "" && p.token != term {
+@@ -715,7 +716,7 @@ func (p *Parser) Fields(sep, term string) *[]Field {
+ }
+ 
+ // A single type packaged as a field for a function return
+-func (p *Parser) OneField() *[]Field {
++func (p *Parser) OneField() []Field {
+ 	a := new([]Field, 1);
+ 	a[0].name = "";
+ 	a[0].typ = p.Type("");
+diff --git a/src/lib/reflect/value.go b/src/lib/reflect/value.go
+index ea02f066f6..473a308eeb 100644
+--- a/src/lib/reflect/value.go
++++ b/src/lib/reflect/value.go
+@@ -693,7 +693,7 @@ export type StructValue interface {
+ 
+ type StructValueStruct struct {
+ 	Common;
+-	field	*[]Value;
++	field	[]Value;
+ }
+ 
+ func (v *StructValueStruct) Len() int {
+@@ -850,7 +850,7 @@ export func CopyArray(dst ArrayValue, src ArrayValue, n int) {
+ 	dstp := uintptr(dst.Elem(0).Addr());
+ 	srcp := uintptr(src.Elem(0).Addr());
+ 	end := uintptr(n)*uintptr(dt.Size());
+-	if dst.Type().Size() % 8 == 0 {
++	if end % 8 == 0 {
+ 		for i := uintptr(0); i < end; i += 8{
+ 			di := Addr(dstp + i);
+ 			si := Addr(srcp + i);
+diff --git a/src/lib/regexp/all_test.go b/src/lib/regexp/all_test.go
+index dd2e94712d..b228ee8458 100644
+--- a/src/lib/regexp/all_test.go
++++ b/src/lib/regexp/all_test.go
+@@ -49,7 +49,7 @@ var bad_re = []StringError{
+ 	StringError{ `\x`,	regexp.ErrBadBackslash },
+ }
+ 
+-type Vec [20]int;
++type Vec []int;
+ 
+ type Tester struct {
+ 	re	string;
+@@ -57,33 +57,31 @@ type Tester struct {
+ 	match	Vec;
+ }
+ 
+-const END = -1000
+-
+ var matches = []Tester {
+-	Tester{ ``,	"",	Vec{0,0, END} },
+-	Tester{ `a`,	"a",	Vec{0,1, END} },
+-	Tester{ `b`,	"abc",	Vec{1,2, END} },
+-	Tester{ `.`,	"a",	Vec{0,1, END} },
+-	Tester{ `.*`,	"abcdef",	Vec{0,6, END} },
+-	Tester{ `^abcd$`,	"abcd",	Vec{0,4, END} },
+-	Tester{ `^bcd'`,	"abcdef",	Vec{END} },
+-	Tester{ `^abcd$`,	"abcde",	Vec{END} },
+-	Tester{ `a+`,	"baaab",	Vec{1,4, END} },
+-	Tester{ `a*`,	"baaab",	Vec{0,0, END} },
+-	Tester{ `[a-z]+`,	"abcd",	Vec{0,4, END} },
+-	Tester{ `[^a-z]+`,	"ab1234cd",	Vec{2,6, END} },
+-	Tester{ `[a\-\]z]+`,	"az]-bcz",	Vec{0,4, END} },
+-	Tester{ `[日本語]+`,	"日本語日本語",	Vec{0,18, END} },
+-	Tester{ `()`,	"",	Vec{0,0, 0,0, END} },
+-	Tester{ `(a)`,	"a",	Vec{0,1, 0,1, END} },
+-	Tester{ `(.)(.)`,	"日a",	Vec{0,4, 0,3, 3,4, END} },
+-	Tester{ `(.*)`,	"",	Vec{0,0, 0,0, END} },
+-	Tester{ `(.*)`,	"abcd",	Vec{0,4, 0,4, END} },
+-	Tester{ `(..)(..)`,	"abcd",	Vec{0,4, 0,2, 2,4, END} },
+-	Tester{ `(([^xyz]*)(d))`,	"abcd",	Vec{0,4, 0,4, 0,3, 3,4, END} },
+-	Tester{ `((a|b|c)*(d))`,	"abcd",	Vec{0,4, 0,4, 2,3, 3,4, END} },
+-	Tester{ `(((a|b|c)*)(d))`,	"abcd",	Vec{0,4, 0,4, 0,3, 2,3, 3,4, END} },
+-	Tester{ `a*(|(b))c*`,	"aacc",	Vec{0,4, 2,2, -1,-1, END} },
++	Tester{ ``,	"",	Vec{0,0} },
++	Tester{ `a`,	"a",	Vec{0,1} },
++	Tester{ `b`,	"abc",	Vec{1,2} },
++	Tester{ `.`,	"a",	Vec{0,1} },
++	Tester{ `.*`,	"abcdef",	Vec{0,6} },
++	Tester{ `^abcd$`,	"abcd",	Vec{0,4} },
++	Tester{ `^bcd'`,	"abcdef",	Vec{} },
++	Tester{ `^abcd$`,	"abcde",	Vec{} },
++	Tester{ `a+`,	"baaab",	Vec{1,4} },
++	Tester{ `a*`,	"baaab",	Vec{0,0} },
++	Tester{ `[a-z]+`,	"abcd",	Vec{0,4} },
++	Tester{ `[^a-z]+`,	"ab1234cd",	Vec{2,6} },
++	Tester{ `[a\-\]z]+`,	"az]-bcz",	Vec{0,4} },
++	Tester{ `[日本語]+`,	"日本語日本語",	Vec{0,18} },
++	Tester{ `()`,	"",	Vec{0,0, 0,0} },
++	Tester{ `(a)`,	"a",	Vec{0,1, 0,1} },
++	Tester{ `(.)(.)`,	"日a",	Vec{0,4, 0,3, 3,4} },
++	Tester{ `(.*)`,	"",	Vec{0,0, 0,0} },
++	Tester{ `(.*)`,	"abcd",	Vec{0,4, 0,4} },
++	Tester{ `(..)(..)`,	"abcd",	Vec{0,4, 0,2, 2,4} },
++	Tester{ `(([^xyz]*)(d))`,	"abcd",	Vec{0,4, 0,4, 0,3, 3,4} },
++	Tester{ `((a|b|c)*(d))`,	"abcd",	Vec{0,4, 0,4, 2,3, 3,4} },
++	Tester{ `(((a|b|c)*)(d))`,	"abcd",	Vec{0,4, 0,4, 0,3, 2,3, 3,4} },
++	Tester{ `a*(|(b))c*`,	"aacc",	Vec{0,4, 2,2, -1,-1} },
+ }
+ 
+ func CompileTest(t *testing.T, expr string, error *os.Error) regexp.Regexp {
+@@ -94,30 +92,20 @@ func CompileTest(t *testing.T, expr string, error *os.Error) regexp.Regexp {
+ 	return re
+ }
+ 
+-func MarkedLen(m *[] int) int {
+-	if m == nil {
+-		return 0
+-	}
+-	var i int;
+-	for i = 0; i < len(m) && m[i] != END; i = i+2 {
+-	}
+-	return i
+-}
+-
+-func PrintVec(t *testing.T, m *[] int) {
+-	l := MarkedLen(m);
++func PrintVec(t *testing.T, m [] int) {
++	l := len(m);
+ 	if l == 0 {
+ 		t.Log("\t<no match>");
+ 	} else {
+-		for i := 0; i < l && m[i] != END; i = i+2 {
++		for i := 0; i < l; i = i+2 {
+ 			t.Log("\t", m[i], ",", m[i+1])
+ 		}
+ 	}
+ }
+ 
+-func Equal(m1, m2 *[]int) bool {
+-	l := MarkedLen(m1);
+-	if l != MarkedLen(m2) {
++func Equal(m1, m2 []int) bool {
++	l := len(m1);
++	if l != len(m2) {
+ 		return false
+ 	}
+ 	for i := 0; i < l; i++ {
+@@ -128,7 +116,7 @@ func Equal(m1, m2 *[]int) bool {
+ 	return true
+ }
+ 
+-func MatchTest(t *testing.T, expr string, str string, match *[]int) {
++func MatchTest(t *testing.T, expr string, str string, match []int) {
+ 	re := CompileTest(t, expr, nil);
+ 	if re == nil {
+ 		return
+@@ -157,6 +145,6 @@ export func TestBadCompile(t *testing.T) {
+ export func TestMatch(t *testing.T) {
+ 	for i := 0; i < len(matches); i++ {
+ 		test := &matches[i];
+-		MatchTest(t, test.re, test.text, &test.match)
++		MatchTest(t, test.re, test.text, test.match)
+ 	}
+ }
+diff --git a/src/lib/regexp/regexp.go b/src/lib/regexp/regexp.go
+index 3c458dbfbe..2176c4ddba 100644
+--- a/src/lib/regexp/regexp.go
++++ b/src/lib/regexp/regexp.go
+@@ -582,7 +582,7 @@ func Compiler(str string, ch *chan *RE) {
+ 
+ // Public interface has only execute functionality (not yet implemented)
+ export type Regexp interface {
+-	Execute(s string) *[]int
++	Execute(s string) []int
+ }
+ 
+ // Compile in separate goroutine; wait for result
+@@ -595,12 +595,12 @@ export func Compile(str string) (regexp Regexp, error *os.Error) {
+ 
+ type State struct {
+ 	inst	Inst;	// next instruction to execute
+-	match	*[]int;	// pairs of bracketing submatches. 0th is start,end
++	match	[]int;	// pairs of bracketing submatches. 0th is start,end
+ }
+ 
+ // Append new state to to-do list.  Leftmost-longest wins so avoid
+ // adding a state that's already active.
+-func AddState(s *[]State, inst Inst, match *[]int) *[]State {
++func AddState(s []State, inst Inst, match []int) []State {
+ 	index := inst.Index();
+ 	l := len(s);
+ 	pos := match[0];
+@@ -625,8 +625,8 @@ func AddState(s *[]State, inst Inst, match *[]int) *[]State {
+ 	return s;
+ }
+ 
+-func (re *RE) DoExecute(str string, pos int) *[]int {
+-	var s [2]*[]State;	// TODO: use a vector when State values (not ptrs) can be vector elements
++func (re *RE) DoExecute(str string, pos int) []int {
++	var s [2][]State;	// TODO: use a vector when State values (not ptrs) can be vector elements
+ 	s[0] = new([]State, 10)[0:0];
+ 	s[1] = new([]State, 10)[0:0];
+ 	in, out := 0, 1;
+@@ -708,13 +708,10 @@ func (re *RE) DoExecute(str string, pos int) *[]int {
+ 		}
+ 		pos += charwidth;
+ 	}
+-	if !found {
+-		return nil
+-	}
+ 	return final.match;
+ }
+ 
+ 
+-func (re *RE) Execute(s string) *[]int {
++func (re *RE) Execute(s string) []int {
+ 	return re.DoExecute(s, 0)
+ }
+diff --git a/src/lib/sort.go b/src/lib/sort.go
+index 6b46b754bd..fd0866d8e2 100644
+--- a/src/lib/sort.go
++++ b/src/lib/sort.go
+@@ -136,7 +136,7 @@ export func IsSorted(data SortInterface) bool {
+ // Convenience types for common cases
+ 
+ export type IntArray struct {
+-	data *[]int;
++	data []int;
+ }
+ 
+ func (p *IntArray) Len() int            { return len(p.data); }
+@@ -145,7 +145,7 @@ func (p *IntArray) Swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.da
+ 
+ 
+ export type FloatArray struct {
+-	data *[]float;
++	data []float;
+ }
+ 
+ func (p *FloatArray) Len() int            { return len(p.data); }
+@@ -154,7 +154,7 @@ func (p *FloatArray) Swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.
+ 
+ 
+ export type StringArray struct {
+-	data *[]string;
++	data []string;
+ }
+ 
+ func (p *StringArray) Len() int            { return len(p.data); }
+@@ -164,11 +164,11 @@ func (p *StringArray) Swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p
+ 
+ // Convenience wrappers for common cases
+ 
+-export func SortInts(a *[]int)        { Sort(&IntArray{a}); }
+-export func SortFloats(a *[]float)    { Sort(&FloatArray{a}); }
+-export func SortStrings(a *[]string)  { Sort(&StringArray{a}); }
++export func SortInts(a []int)        { Sort(&IntArray{a}); }
++export func SortFloats(a []float)    { Sort(&FloatArray{a}); }
++export func SortStrings(a []string)  { Sort(&StringArray{a}); }
+ 
+ 
+-export func IntsAreSorted(a *[]int) bool       { return IsSorted(&IntArray{a}); }
+-export func FloatsAreSorted(a *[]float) bool   { return IsSorted(&FloatArray{a}); }
+-export func StringsAreSorted(a *[]string) bool { return IsSorted(&StringArray{a}); }
++export func IntsAreSorted(a []int) bool       { return IsSorted(&IntArray{a}); }
++export func FloatsAreSorted(a []float) bool   { return IsSorted(&FloatArray{a}); }
++export func StringsAreSorted(a []string) bool { return IsSorted(&StringArray{a}); }
+diff --git a/src/lib/sort_test.go b/src/lib/sort_test.go
+index 5afced6992..1a6b602442 100644
+--- a/src/lib/sort_test.go
++++ b/src/lib/sort_test.go
+@@ -20,7 +20,7 @@ var strings = []string{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "***
+ 
+ export func TestSortIntArray(t *testing.T) {
+ 	data := ints;
+-	a := sort.IntArray{&data};
++	a := sort.IntArray{data};
+ 	sort.Sort(&a);
+ 	if !sort.IsSorted(&a) {
+ 		t.Errorf("sorted %v", ints);
+@@ -30,7 +30,7 @@ export func TestSortIntArray(t *testing.T) {
+ 
+ export func TestSortFloatArray(t *testing.T) {
+ 	data := floats;
+-	a := sort.FloatArray{&data};
++	a := sort.FloatArray{data};
+ 	sort.Sort(&a);
+ 	if !sort.IsSorted(&a) {
+ 		t.Errorf("sorted %v", floats);
+@@ -40,7 +40,7 @@ export func TestSortFloatArray(t *testing.T) {
+ 
+ export func TestSortStringArray(t *testing.T) {
+ 	data := strings;
+-	a := sort.StringArray{&data};
++	a := sort.StringArray{data};
+ 	sort.Sort(&a);
+ 	if !sort.IsSorted(&a) {
+ 		t.Errorf("sorted %v", strings);
+@@ -50,8 +50,8 @@ export func TestSortStringArray(t *testing.T) {
+ 
+ export func TestSortInts(t *testing.T) {
+ 	data := ints;
+-	sort.SortInts(&data);
+-	if !sort.IntsAreSorted(&data) {
++	sort.SortInts(data);
++	if !sort.IntsAreSorted(data) {
+ 		t.Errorf("sorted %v", ints);
+ 		t.Errorf("   got %v", data);
+ 	}
+@@ -59,8 +59,8 @@ export func TestSortInts(t *testing.T) {
+ 
+ export func TestSortFloats(t *testing.T) {
+ 	data := floats;
+-	sort.SortFloats(&data);
+-	if !sort.FloatsAreSorted(&data) {
++	sort.SortFloats(data);
++	if !sort.FloatsAreSorted(data) {
+ 		t.Errorf("sorted %v", floats);
+ 		t.Errorf("   got %v", data);
+ 	}
+@@ -68,8 +68,8 @@ export func TestSortFloats(t *testing.T) {
+ 
+ export func TestSortStrings(t *testing.T) {
+ 	data := strings;
+-	sort.SortStrings(&data);
+-	if !sort.StringsAreSorted(&data) {
++	sort.SortStrings(data);
++	if !sort.StringsAreSorted(data) {
+ 		t.Errorf("sorted %v", strings);
+ 		t.Errorf("   got %v", data);
+ 	}
+@@ -111,7 +111,7 @@ const (
+ type TestingData struct {
+ 	desc string;
+ 	t *testing.T;
+-	data *[]int;
++	data []int;
+ 	maxswap int;	// number of swaps allowed
+ 	nswap int;
+ }
+@@ -153,7 +153,7 @@ export func TestBentleyMcIlroy(t *testing.T) {
+ 			for dist := 0; dist < NDist; dist++ {
+ 				j := 0;
+ 				k := 1;
+-				data := (&tmp1)[0:n];
++				data := tmp1[0:n];
+ 				for i := 0; i < n; i++ {
+ 					switch dist {
+ 					case Sawtooth:
+@@ -175,7 +175,7 @@ export func TestBentleyMcIlroy(t *testing.T) {
+ 					}
+ 				}
+ 
+-				mdata := (&tmp2)[0:n];
++				mdata := tmp2[0:n];
+ 				for mode := 0; mode < NMode; mode++ {
+ 					switch mode {
+ 					case Copy:
+diff --git a/src/lib/strconv/decimal.go b/src/lib/strconv/decimal.go
+index b30c842ffc..d22d4526ca 100644
+--- a/src/lib/strconv/decimal.go
++++ b/src/lib/strconv/decimal.go
+@@ -27,8 +27,8 @@ func (a *Decimal) RoundDown(nd int) *Decimal;
+ func (a *Decimal) RoundedInteger() uint64;
+ 
+ 
+-func Copy(dst *[]byte, src *[]byte) int;
+-func DigitZero(dst *[]byte) int;
++func Copy(dst []byte, src []byte) int;
++func DigitZero(dst []byte) int;
+ 
+ func (a *Decimal) String() string {
+ 	n := 10 + a.nd;
+@@ -52,31 +52,31 @@ func (a *Decimal) String() string {
+ 		buf[w] = '.';
+ 		w++;
+ 		w += DigitZero(buf[w:w+-a.dp]);
+-		w += Copy(buf[w:w+a.nd], (&a.d)[0:a.nd]);
++		w += Copy(buf[w:w+a.nd], a.d[0:a.nd]);
+ 
+ 	case a.dp < a.nd:
+ 		// decimal point in middle of digits
+-		w += Copy(buf[w:w+a.dp], (&a.d)[0:a.dp]);
++		w += Copy(buf[w:w+a.dp], a.d[0:a.dp]);
+ 		buf[w] = '.';
+ 		w++;
+-		w += Copy(buf[w:w+a.nd-a.dp], (&a.d)[a.dp:a.nd]);
++		w += Copy(buf[w:w+a.nd-a.dp], a.d[a.dp:a.nd]);
+ 
+ 	default:
+ 		// zeros fill space between digits and decimal point
+-		w += Copy(buf[w:w+a.nd], (&a.d)[0:a.nd]);
++		w += Copy(buf[w:w+a.nd], a.d[0:a.nd]);
+ 		w += DigitZero(buf[w:w+a.dp-a.nd]);
+ 	}
+ 	return string(buf[0:w]);
+ }
+ 
+-func Copy(dst *[]byte, src *[]byte) int {
++func Copy(dst []byte, src []byte) int {
+ 	for i := 0; i < len(dst); i++ {
+ 		dst[i] = src[i];
+ 	}
+ 	return len(dst);
+ }
+ 
+-func DigitZero(dst *[]byte) int {
++func DigitZero(dst []byte) int {
+ 	for i := 0; i < len(dst); i++ {
+ 		dst[i] = '0';
+ 	}
+@@ -236,7 +236,7 @@ var leftcheat = []LeftCheat {
+ }
+ 
+ // Is the leading prefix of b lexicographically less than s?
+-func PrefixIsLessThan(b *[]byte, s string) bool {
++func PrefixIsLessThan(b []byte, s string) bool {
+ 	for i := 0; i < len(s); i++ {
+ 		if i >= len(b) {
+ 			return true;
+@@ -251,7 +251,7 @@ func PrefixIsLessThan(b *[]byte, s string) bool {
+ // Binary shift left (/ 2) by k bits.  k <= MaxShift to avoid overflow.
+ func LeftShift(a *Decimal, k uint) {
+ 	delta := leftcheat[k].delta;
+-	if PrefixIsLessThan((&a.d)[0:a.nd], leftcheat[k].cutoff) {
++	if PrefixIsLessThan(a.d[0:a.nd], leftcheat[k].cutoff) {
+ 		delta--;
+ 	}
+ 
+diff --git a/src/lib/strconv/ftoa.go b/src/lib/strconv/ftoa.go
+index c1c8af3179..0b6a616d1f 100644
+--- a/src/lib/strconv/ftoa.go
++++ b/src/lib/strconv/ftoa.go
+@@ -380,7 +380,7 @@ func FmtB(neg bool, mant uint64, exp int, flt *FloatInfo) string {
+ 		w--;
+ 		buf[w] = '-';
+ 	}
+-	return string((&buf)[w:len(buf)]);
++	return string(buf[w:len(buf)]);
+ }
+ 
+ func Max(a, b int) int {
+diff --git a/src/lib/strconv/itoa.go b/src/lib/strconv/itoa.go
+index 6bf2692076..698c553d27 100644
+--- a/src/lib/strconv/itoa.go
++++ b/src/lib/strconv/itoa.go
+@@ -28,8 +28,8 @@ export func itoa64(i int64) string {
+ 		b[bp] = '-'
+ 	}
+ 
+-	// BUG return string(b[bp:len(b)])
+-	return string((&b)[bp:len(b)])
++	return string(b[bp:len(b)])
++	//return string((&b)[bp:len(b)])
+ }
+ 
+ export func itoa(i int) string {
+diff --git a/src/lib/strings.go b/src/lib/strings.go
+index c171214db2..a553ec419b 100644
+--- a/src/lib/strings.go
++++ b/src/lib/strings.go
+@@ -7,7 +7,7 @@ package strings
+ import "utf8"
+ 
+ // Split string into array of UTF-8 sequences (still strings)
+-export func explode(s string) *[]string {
++export func explode(s string) []string {
+ 	a := new([]string, utf8.RuneCountInString(s, 0, len(s)));
+ 	j := 0;
+ 	var size, rune int;
+@@ -50,7 +50,7 @@ export func index(s, sep string) int {
+ }
+ 
+ // Split string into list of strings at separators
+-export func split(s, sep string) *[]string {
++export func split(s, sep string) []string {
+ 	if sep == "" {
+ 		return explode(s)
+ 	}
+@@ -72,7 +72,7 @@ export func split(s, sep string) *[]string {
+ }
+ 
+ // Join list of strings with separators between them.
+-export func join(a *[]string, sep string) string {
++export func join(a []string, sep string) string {
+ 	if len(a) == 0 {
+ 		return ""
+ 	}
+diff --git a/src/lib/strings_test.go b/src/lib/strings_test.go
+index 50ad30cc36..83a4c69540 100644
+--- a/src/lib/strings_test.go
++++ b/src/lib/strings_test.go
+@@ -9,7 +9,7 @@ import (
+ 	"testing";
+ )
+ 
+-func eq(a, b *[]string) bool {
++func eq(a, b []string) bool {
+ 	if len(a) != len(b) {
+ 		return false;
+ 	}
+@@ -28,11 +28,11 @@ var dots = "1....2....3....4";
+ 
+ type ExplodeTest struct {
+ 	s string;
+-	a *[]string;
++	a []string;
+ }
+ var explodetests = []ExplodeTest {
+-	ExplodeTest{ abcd,	&[]string{"a", "b", "c", "d"} },
+-	ExplodeTest{ faces,	&[]string{"☺", "☻", "☹" } },
++	ExplodeTest{ abcd,	[]string{"a", "b", "c", "d"} },
++	ExplodeTest{ faces,	[]string{"☺", "☻", "☹" } },
+ }
+ export func TestExplode(t *testing.T) {
+ 	for i := 0; i < len(explodetests); i++ {
+@@ -52,17 +52,17 @@ export func TestExplode(t *testing.T) {
+ type SplitTest struct {
+ 	s string;
+ 	sep string;
+-	a *[]string;
++	a []string;
+ }
+ var splittests = []SplitTest {
+-	SplitTest{ abcd,	"a",	&[]string{"", "bcd"} },
+-	SplitTest{ abcd,	"z",	&[]string{"abcd"} },
+-	SplitTest{ abcd,	"",	&[]string{"a", "b", "c", "d"} },
+-	SplitTest{ commas,	",",	&[]string{"1", "2", "3", "4"} },
+-	SplitTest{ dots,	"...",	&[]string{"1", ".2", ".3", ".4"} },
+-	SplitTest{ faces,	"☹",	&[]string{"☺☻", ""} },
+-	SplitTest{ faces,	"~",	&[]string{faces} },
+-	SplitTest{ faces,	"",	&[]string{"☺", "☻", "☹"} },
++	SplitTest{ abcd,	"a",	[]string{"", "bcd"} },
++	SplitTest{ abcd,	"z",	[]string{"abcd"} },
++	SplitTest{ abcd,	"",	[]string{"a", "b", "c", "d"} },
++	SplitTest{ commas,	",",	[]string{"1", "2", "3", "4"} },
++	SplitTest{ dots,	"...",	[]string{"1", ".2", ".3", ".4"} },
++	SplitTest{ faces,	"☹",	[]string{"☺☻", ""} },
++	SplitTest{ faces,	"~",	[]string{faces} },
++	SplitTest{ faces,	"",	[]string{"☺", "☻", "☹"} },
+ }
+ export func TestSplit(t *testing.T) {
+ 	for i := 0; i < len(splittests); i++ {
+diff --git a/src/lib/syscall/file_darwin.go b/src/lib/syscall/file_darwin.go
+index 55add2567a..7084a72a89 100644
+--- a/src/lib/syscall/file_darwin.go
++++ b/src/lib/syscall/file_darwin.go
+@@ -15,7 +15,7 @@ const NameBufsize = 512
+ 
+ export func open(name string, mode int64, perm int64) (ret int64, errno int64) {
+ 	var namebuf [NameBufsize]byte;
+-	if !StringToBytes(&namebuf, name) {
++	if !StringToBytes(namebuf, name) {
+ 		return -1, ENAMETOOLONG
+ 	}
+ 	r1, r2, err := Syscall(SYS_OPEN, int64(uintptr(unsafe.pointer(&namebuf[0]))), mode, perm);
+@@ -24,7 +24,7 @@ export func open(name string, mode int64, perm int64) (ret int64, errno int64) {
+ 
+ export func creat(name string, perm int64) (ret int64, errno int64) {
+ 	var namebuf [NameBufsize]byte;
+-	if !StringToBytes(&namebuf, name) {
++	if !StringToBytes(namebuf, name) {
+ 		return -1, ENAMETOOLONG
+ 	}
+ 	r1, r2, err := Syscall(SYS_OPEN, int64(uintptr(unsafe.pointer(&namebuf[0]))), O_CREAT|O_WRONLY|O_TRUNC, perm);
+@@ -58,7 +58,7 @@ export func pipe(fds *[2]int64) (ret int64, errno int64) {
+ 
+ export func stat(name string, buf *Stat) (ret int64, errno int64) {
+ 	var namebuf [NameBufsize]byte;
+-	if !StringToBytes(&namebuf, name) {
++	if !StringToBytes(namebuf, name) {
+ 		return -1, ENAMETOOLONG
+ 	}
+ 	r1, r2, err := Syscall(SYS_STAT64, int64(uintptr(unsafe.pointer(&namebuf[0]))), int64(uintptr(unsafe.pointer(buf))), 0);
+@@ -77,7 +77,7 @@ export func fstat(fd int64, buf *Stat) (ret int64, errno int64) {
+ 
+ export func unlink(name string) (ret int64, errno int64) {
+ 	var namebuf [NameBufsize]byte;
+-	if !StringToBytes(&namebuf, name) {
++	if !StringToBytes(namebuf, name) {
+ 		return -1, ENAMETOOLONG
+ 	}
+ 	r1, r2, err := Syscall(SYS_UNLINK, int64(uintptr(unsafe.pointer(&namebuf[0]))), 0, 0);
+@@ -91,7 +91,7 @@ export func fcntl(fd, cmd, arg int64) (ret int64, errno int64) {
+ 
+ export func mkdir(name string, perm int64) (ret int64, errno int64) {
+ 	var namebuf [NameBufsize]byte;
+-	if !StringToBytes(&namebuf, name) {
++	if !StringToBytes(namebuf, name) {
+ 		return -1, ENAMETOOLONG
+ 	}
+ 	r1, r2, err := Syscall(SYS_MKDIR, int64(uintptr(unsafe.pointer(&namebuf[0]))), perm, 0);
+diff --git a/src/lib/syscall/socket_darwin.go b/src/lib/syscall/socket_darwin.go
+index eb9f72c55b..e83004bdcb 100644
+--- a/src/lib/syscall/socket_darwin.go
++++ b/src/lib/syscall/socket_darwin.go
+@@ -91,17 +91,17 @@ export func kqueue() (ret int64, errno int64) {
+ 	return r1, err
+ }
+ 
+-export func kevent(kq int64, changes, events *[]Kevent, timeout *Timespec) (ret int64, errno int64) {
++export func kevent(kq int64, changes, events []Kevent, timeout *Timespec) (ret int64, errno int64) {
+ 	var nchange, changeptr, nevent, eventptr int64;
+ 	nchange = 0;
+ 	changeptr = 0;
+ 	nevent = 0;
+ 	eventptr = 0;
+-	if changes != nil && len(changes) > 0 {
++	if len(changes) > 0 {
+ 		changeptr = int64(uintptr(unsafe.pointer(&changes[0])));
+ 		nchange = int64(len(changes))
+ 	}
+-	if events != nil && len(events) > 0 {
++	if len(events) > 0 {
+ 		eventptr = int64(uintptr(unsafe.pointer(&events[0])));
+ 		nevent = int64(len(events))
+ 	}
+diff --git a/src/lib/syscall/socket_linux.go b/src/lib/syscall/socket_linux.go
+index 614c6bcb24..05df6baafe 100644
+--- a/src/lib/syscall/socket_linux.go
++++ b/src/lib/syscall/socket_linux.go
+@@ -108,7 +108,7 @@ export func epoll_ctl(epfd, op, fd int64, ev *EpollEvent) int64 {
+ 	return err
+ }
+ 
+-export func epoll_wait(epfd int64, ev *[]EpollEvent, msec int64) (ret int64, err int64) {
++export func epoll_wait(epfd int64, ev []EpollEvent, msec int64) (ret int64, err int64) {
+ 	var evptr, nev int64;
+ 	if ev != nil && len(ev) > 0 {
+ 		nev = int64(len(ev));
+diff --git a/src/lib/syscall/syscall.go b/src/lib/syscall/syscall.go
+index 79fc13ad99..9cef40d252 100644
+--- a/src/lib/syscall/syscall.go
++++ b/src/lib/syscall/syscall.go
+@@ -16,7 +16,7 @@ export func RawSyscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
+  * Used to convert file names to byte arrays for passing to kernel,
+  * but useful elsewhere too.
+  */
+-export func StringToBytes(b *[]byte, s string) bool {
++export func StringToBytes(b []byte, s string) bool {
+ 	if len(s) >= len(b) {
+ 		return false
+ 	}
+diff --git a/src/lib/tabwriter/tabwriter.go b/src/lib/tabwriter/tabwriter.go
+index b9b9365d4d..16a8ae10bb 100644
+--- a/src/lib/tabwriter/tabwriter.go
++++ b/src/lib/tabwriter/tabwriter.go
+@@ -16,7 +16,7 @@ import (
+ // Basic ByteArray support
+ 
+ type ByteArray struct {
+-	a *[]byte;
++	a []byte;
+ }
+ 
+ 
+@@ -35,12 +35,12 @@ func (b *ByteArray) Clear() {
+ }
+ 
+ 
+-func (b *ByteArray) Slice(i, j int) *[]byte {
++func (b *ByteArray) Slice(i, j int) []byte {
+ 	return b.a[i : j];  // BUG should really be &b.a[i : j]
+ }
+ 
+ 
+-func (b *ByteArray) Append(s *[]byte) {
++func (b *ByteArray) Append(s []byte) {
+ 	a := b.a;
+ 	n := len(a);
+ 	m := n + len(s);
+@@ -194,7 +194,7 @@ func (b *Writer) Dump() {
+ }
+ 
+ 
+-func (b *Writer) Write0(buf *[]byte) *os.Error {
++func (b *Writer) Write0(buf []byte) *os.Error {
+ 	n, err := b.writer.Write(buf);
+ 	if n != len(buf) && err == nil {
+ 		err = os.EIO;
+@@ -203,7 +203,7 @@ func (b *Writer) Write0(buf *[]byte) *os.Error {
+ }
+ 
+ 
+-var Newline = &[]byte{'\n'}
++var Newline = []byte{'\n'}
+ 
+ func (b *Writer) WritePadding(textw, cellw int) (err *os.Error) {
+ 	if b.padbytes[0] == '\t' {
+@@ -221,13 +221,13 @@ func (b *Writer) WritePadding(textw, cellw int) (err *os.Error) {
+ 	}
+ 	
+ 	for n > len(b.padbytes) {
+-		err = b.Write0(&b.padbytes);
++		err = b.Write0(b.padbytes);
+ 		if err != nil {
+ 			goto exit;
+ 		}
+ 		n -= len(b.padbytes);
+ 	}
+-	err = b.Write0((&b.padbytes)[0 : n]);  // BUG 6g should not require ()'s
++	err = b.Write0(b.padbytes[0 : n]);
+ 
+ exit:
+ 	return err;
+@@ -353,7 +353,7 @@ exit:
+ }
+ 
+ 
+-func UnicodeLen(buf *[]byte) int {
++func UnicodeLen(buf []byte) int {
+ 	l := 0;
+ 	for i := 0; i < len(buf); {
+ 		if buf[i] < utf8.RuneSelf {
+@@ -368,13 +368,13 @@ func UnicodeLen(buf *[]byte) int {
+ }
+  
+ 
+-func (b *Writer) Append(buf *[]byte) {
++func (b *Writer) Append(buf []byte) {
+ 	b.buf.Append(buf);
+ 	b.size += len(buf);
+ }
+ 
+ 
+-/* export */ func (b *Writer) Write(buf *[]byte) (written int, err *os.Error) {
++/* export */ func (b *Writer) Write(buf []byte) (written int, err *os.Error) {
+ 	i0, n := 0, len(buf);
+ 
+ 	// split text into cells
+diff --git a/src/lib/tabwriter/tabwriter_test.go b/src/lib/tabwriter/tabwriter_test.go
+index 0ff4964af4..56b7e226c8 100644
+--- a/src/lib/tabwriter/tabwriter_test.go
++++ b/src/lib/tabwriter/tabwriter_test.go
+@@ -13,7 +13,7 @@ import (
+ 
+ 
+ type Buffer struct {
+-	a *[]byte;
++	a []byte;
+ }
+ 
+ 
+@@ -27,7 +27,7 @@ func (b *Buffer) Clear() {
+ }
+ 
+ 
+-func (b *Buffer) Write(buf *[]byte) (written int, err *os.Error) {
++func (b *Buffer) Write(buf []byte) (written int, err *os.Error) {
+ 	n := len(b.a);
+ 	m := len(buf);
+ 	if n + m <= cap(b.a) {
+diff --git a/src/lib/testing.go b/src/lib/testing.go
+index afb24855ba..c5a9761e75 100644
+--- a/src/lib/testing.go
++++ b/src/lib/testing.go
+@@ -82,7 +82,7 @@ func TRunner(t *T, test *Test) {
+ 	t.ch <- t;
+ }
+ 
+-export func Main(tests *[]Test) {
++export func Main(tests []Test) {
+ 	flag.Parse();
+ 	ok := true;
+ 	if len(tests) == 0 {
+diff --git a/src/lib/time/time.go b/src/lib/time/time.go
+index 65b011c866..2a6a3bf018 100644
+--- a/src/lib/time/time.go
++++ b/src/lib/time/time.go
+@@ -53,13 +53,11 @@ var LeapMonths = []int{
+ 	31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
+ }
+ 
+-func Months(year int64) *[]int {
++func Months(year int64) []int {
+ 	if year%4 == 0 && (year%100 != 0 || year%400 == 0) {
+-		return &LeapMonths
+-	} else {
+-		return &RegularMonths
++		return LeapMonths
+ 	}
+-	return nil	// not reached
++	return RegularMonths
+ }
+ 
+ const (
+@@ -258,13 +256,13 @@ var ShortMonthNames = []string{
+ 	"Dec"
+ }
+ 
+-func Copy(dst *[]byte, s string) {
++func Copy(dst []byte, s string) {
+ 	for i := 0; i < len(s); i++ {
+ 		dst[i] = s[i]
+ 	}
+ }
+ 
+-func Decimal(dst *[]byte, n int) {
++func Decimal(dst []byte, n int) {
+ 	if n < 0 {
+ 		n = 0
+ 	}
+@@ -274,7 +272,7 @@ func Decimal(dst *[]byte, n int) {
+ 	}
+ }
+ 
+-func AddString(buf *[]byte, bp int, s string) int {
++func AddString(buf []byte, bp int, s string) int {
+ 	n := len(s);
+ 	Copy(buf[bp:bp+n], s);
+ 	return bp+n
+diff --git a/src/lib/time/zoneinfo.go b/src/lib/time/zoneinfo.go
+index f91a25fa1c..90d8adb9a3 100644
+--- a/src/lib/time/zoneinfo.go
++++ b/src/lib/time/zoneinfo.go
+@@ -26,13 +26,17 @@ export var (
+ 
+ // Simple I/O interface to binary blob of data.
+ type Data struct {
+-	p *[]byte
++	p []byte;
++	error bool;
+ }
+ 
+-func (d *Data) Read(n int) *[]byte {
+-	if d.p == nil || len(d.p) < n {
+-		d.p = nil;
+-		return nil
++var NIL []byte  // TODO(rsc)
++
++func (d *Data) Read(n int) []byte {
++	if len(d.p) < n {
++		d.p = NIL;
++		d.error = true;
++		return NIL;
+ 	}
+ 	p := d.p[0:n];
+ 	d.p = d.p[n:len(d.p)];
+@@ -41,7 +45,8 @@ func (d *Data) Read(n int) *[]byte {
+ 
+ func (d *Data) Big4() (n uint32, ok bool) {
+ 	p := d.Read(4);
+-	if p == nil {
++	if len(p) < 4 {
++		d.error = true;
+ 		return 0, false
+ 	}
+ 	return uint32(p[0]) << 24 | uint32(p[1]) << 16 | uint32(p[2]) << 8 | uint32(p[3]), true
+@@ -49,7 +54,8 @@ func (d *Data) Big4() (n uint32, ok bool) {
+ 
+ func (d *Data) Byte() (n byte, ok bool) {
+ 	p := d.Read(1);
+-	if p == nil {
++	if len(p) < 1 {
++		d.error = true;
+ 		return 0, false
+ 	}
+ 	return p[0], true
+@@ -57,7 +63,7 @@ func (d *Data) Byte() (n byte, ok bool) {
+ 
+ 
+ // Make a string by stopping at the first NUL
+-func ByteString(p *[]byte) string {
++func ByteString(p []byte) string {
+ 	for i := 0; i < len(p); i++ {
+ 		if p[i] == 0 {
+ 			return string(p[0:i])
+@@ -70,7 +76,7 @@ func ByteString(p *[]byte) string {
+ type Zone struct {
+ 	utcoff int;
+ 	isdst bool;
+-	name string
++	name string;
+ }
+ 
+ type Zonetime struct {
+@@ -79,19 +85,21 @@ type Zonetime struct {
+ 	isstd, isutc bool;	// ignored - no idea what these mean
+ }
+ 
+-func ParseZoneinfo(bytes *[]byte) (zt *[]Zonetime, err *os.Error) {
+-	data1 := Data{bytes};
++func ParseZoneinfo(bytes []byte) (zt []Zonetime, err *os.Error) {
++	var NIL []Zonetime;  // TODO(rsc)
++
++	data1 := Data{bytes, false};
+ 	data := &data1;
+ 
+ 	// 4-byte magic "TZif"
+-	if magic := data.Read(4); magic == nil || string(magic) != "TZif" {
+-		return nil, BadZoneinfo
++	if magic := data.Read(4); string(magic) != "TZif" {
++		return NIL, BadZoneinfo
+ 	}
+ 
+ 	// 1-byte version, then 15 bytes of padding
+-	var p *[]byte;
+-	if p = data.Read(16); p == nil || p[0] != 0 && p[0] != '2' {
+-		return nil, BadZoneinfo
++	var p []byte;
++	if p = data.Read(16); len(p) != 16 || p[0] != 0 && p[0] != '2' {
++		return NIL, BadZoneinfo
+ 	}
+ 	vers := p[0];
+ 
+@@ -114,27 +122,27 @@ func ParseZoneinfo(bytes *[]byte) (zt *[]Zonetime, err *os.Error) {
+ 	for i := 0; i < 6; i++ {
+ 		nn, ok := data.Big4();
+ 		if !ok {
+-			return nil, BadZoneinfo
++			return NIL, BadZoneinfo
+ 		}
+ 		n[i] = int(nn);
+ 	}
+ 
+ 	// Transition times.
+-	txtimes1 := Data{data.Read(n[NTime]*4)};
++	txtimes1 := Data{data.Read(n[NTime]*4), false};
+ 	txtimes := &txtimes1;
+ 
+ 	// Time zone indices for transition times.
+ 	txzones := data.Read(n[NTime]);
+ 
+ 	// Zone info structures
+-	zonedata1 := Data{data.Read(n[NZone]*6)};
++	zonedata1 := Data{data.Read(n[NZone]*6), false};
+ 	zonedata := &zonedata1;
+ 
+ 	// Time zone abbreviations.
+ 	abbrev := data.Read(n[NChar]);
+ 
+ 	// Leap-second time pairs
+-	leapdata1 := Data{data.Read(n[NLeap]*8)};
++	leapdata1 := Data{data.Read(n[NLeap]*8), false};
+ 	leapdata := &leapdata1;
+ 
+ 	// Whether tx times associated with local time types
+@@ -145,8 +153,8 @@ func ParseZoneinfo(bytes *[]byte) (zt *[]Zonetime, err *os.Error) {
+ 	// are specified as UTC or local time.
+ 	isutc := data.Read(n[NUTCLocal]);
+ 
+-	if data.p == nil {	// ran out of data
+-		return nil, BadZoneinfo
++	if data.error {	// ran out of data
++		return NIL, BadZoneinfo
+ 	}
+ 
+ 	// If version == 2, the entire file repeats, this time using
+@@ -161,16 +169,16 @@ func ParseZoneinfo(bytes *[]byte) (zt *[]Zonetime, err *os.Error) {
+ 		var ok bool;
+ 		var n uint32;
+ 		if n, ok = zonedata.Big4(); !ok {
+-			return nil, BadZoneinfo
++			return NIL, BadZoneinfo
+ 		}
+ 		zone[i].utcoff = int(n);
+ 		var b byte;
+ 		if b, ok = zonedata.Byte(); !ok {
+-			return nil, BadZoneinfo
++			return NIL, BadZoneinfo
+ 		}
+ 		zone[i].isdst = b != 0;
+ 		if b, ok = zonedata.Byte(); !ok || int(b) >= len(abbrev) {
+-			return nil, BadZoneinfo
++			return NIL, BadZoneinfo
+ 		}
+ 		zone[i].name = ByteString(abbrev[b:len(abbrev)])
+ 	}
+@@ -181,11 +189,11 @@ func ParseZoneinfo(bytes *[]byte) (zt *[]Zonetime, err *os.Error) {
+ 		var ok bool;
+ 		var n uint32;
+ 		if n, ok = txtimes.Big4(); !ok {
+-			return nil, BadZoneinfo
++			return NIL, BadZoneinfo
+ 		}
+ 		zt[i].time = int32(n);
+ 		if int(txzones[i]) >= len(zone) {
+-			return nil, BadZoneinfo
++			return NIL, BadZoneinfo
+ 		}
+ 		zt[i].zone = &zone[txzones[i]];
+ 		if i < len(isstd) {
+@@ -198,10 +206,11 @@ func ParseZoneinfo(bytes *[]byte) (zt *[]Zonetime, err *os.Error) {
+ 	return zt, nil
+ }
+ 
+-func ReadFile(name string, max int) (p *[]byte, err *os.Error) {
++func ReadFile(name string, max int) (p []byte, err *os.Error) {
++	var NIL []byte; // TODO(rsc)
+ 	fd, e := os.Open(name, os.O_RDONLY, 0);
+ 	if e != nil {
+-		return nil, e
++		return NIL, e
+ 	}
+ 	p = new([]byte, max+1)[0:0];
+ 	n := 0;
+@@ -209,7 +218,7 @@ func ReadFile(name string, max int) (p *[]byte, err *os.Error) {
+ 		nn, e := fd.Read(p[n:cap(p)]);
+ 		if e != nil {
+ 			fd.Close();
+-			return nil, e
++			return NIL, e
+ 		}
+ 		if nn == 0 {
+ 			fd.Close();
+@@ -218,20 +227,21 @@ func ReadFile(name string, max int) (p *[]byte, err *os.Error) {
+ 		p = p[0:n+nn]
+ 	}
+ 	fd.Close();
+-	return nil, BadZoneinfo	// too long
++	return NIL, BadZoneinfo	// too long
+ }
+ 
+ 
+-func ReadZoneinfoFile(name string) (tx *[]Zonetime, err *os.Error) {
++func ReadZoneinfoFile(name string) (tx []Zonetime, err *os.Error) {
++	var NIL []Zonetime;  // TODO(rsc)
+ 	data, e := ReadFile(name, MaxFileSize);
+ 	if e != nil {
+-		return nil, e
++		return NIL, e
+ 	}
+ 	tx, err = ParseZoneinfo(data);
+ 	return tx, err
+ }
+ 
+-var zones *[]Zonetime
++var zones []Zonetime
+ var zoneerr *os.Error
+ 
+ func SetupZone() {
+@@ -245,7 +255,7 @@ func SetupZone() {
+ 
+ export func LookupTimezone(sec int64) (zone string, offset int, err *os.Error) {
+ 	once.Do(&SetupZone);
+-	if zoneerr != nil || zones == nil || len(zones) == 0 {
++	if zoneerr != nil || len(zones) == 0 {
+ 		return "GMT", 0, zoneerr
+ 	}
+ 
+diff --git a/src/lib/utf8.go b/src/lib/utf8.go
+index 7c1c8fbe5a..82cb05f546 100644
+--- a/src/lib/utf8.go
++++ b/src/lib/utf8.go
+@@ -32,7 +32,7 @@ const (
+ 	Rune4Max = 1<<21 - 1;
+ )
+ 
+-func DecodeRuneInternal(p *[]byte) (rune, size int, short bool) {
++func DecodeRuneInternal(p []byte) (rune, size int, short bool) {
+ 	n := len(p);
+ 	if n < 1 {
+ 		return RuneError, 0, true;
+@@ -181,7 +181,7 @@ func DecodeRuneInStringInternal(s string, i int, n int) (rune, size int, short b
+ 	return RuneError, 1, false
+ }
+ 
+-export func FullRune(p *[]byte) bool {
++export func FullRune(p []byte) bool {
+ 	rune, size, short := DecodeRuneInternal(p);
+ 	return !short
+ }
+@@ -191,7 +191,7 @@ export func FullRuneInString(s string, i int) bool {
+ 	return !short
+ }
+ 
+-export func DecodeRune(p *[]byte) (rune, size int) {
++export func DecodeRune(p []byte) (rune, size int) {
+ 	var short bool;
+ 	rune, size, short = DecodeRuneInternal(p);
+ 	return;
+@@ -217,7 +217,7 @@ export func RuneLen(rune int) int {
+ 	return -1;
+ }
+ 
+-export func EncodeRune(rune int, p *[]byte) int {
++export func EncodeRune(rune int, p []byte) int {
+ 	if rune <= Rune1Max {
+ 		p[0] = byte(rune);
+ 		return 1;
+@@ -247,7 +247,7 @@ export func EncodeRune(rune int, p *[]byte) int {
+ 	return 4;
+ }
+ 
+-export func RuneCount(p *[]byte) int {
++export func RuneCount(p []byte) int {
+ 	i := 0;
+ 	var n int;
+ 	for n = 0; i < len(p); n++ {
+diff --git a/src/lib/utf8_test.go b/src/lib/utf8_test.go
+index 31118dd30c..a0fe345bdf 100644
+--- a/src/lib/utf8_test.go
++++ b/src/lib/utf8_test.go
+@@ -44,7 +44,7 @@ var utf8map = []Utf8Map {
+ 	Utf8Map{ 0x10ffff, "\xf4\x8f\xbf\xbf" },
+ }
+ 
+-func Bytes(s string) *[]byte {
++func Bytes(s string) []byte {
+ 	b := new([]byte, len(s)+1);
+ 	if !syscall.StringToBytes(b, s) {
+ 		panic("StringToBytes failed");
+@@ -74,7 +74,7 @@ export func TestFullRune(t *testing.T) {
+ 	}
+ }
+ 
+-func EqualBytes(a, b *[]byte) bool {
++func EqualBytes(a, b []byte) bool {
+ 	if len(a) != len(b) {
+ 		return false;
+ 	}
+@@ -91,8 +91,8 @@ export func TestEncodeRune(t *testing.T) {
+ 		m := utf8map[i];
+ 		b := Bytes(m.str);
+ 		var buf [10]byte;
+-		n := utf8.EncodeRune(m.rune, &buf);
+-		b1 := (&buf)[0:n];
++		n := utf8.EncodeRune(m.rune, buf);
++		b1 := buf[0:n];
+ 		if !EqualBytes(b, b1) {
+ 			t.Errorf("EncodeRune(0x%04x) = %q want %q", m.rune, b1, b);
+ 		}
+diff --git a/src/run.bash b/src/run.bash
+index 30166f71e9..15caf72675 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -26,15 +26,16 @@ maketest() {
+ maketest \
+ 	lib/fmt\
+ 	lib/hash\
+-	lib/json\
+ 	lib/math\
+-	lib/net\
+ 	lib/reflect\
+ 	lib/regexp\
+ 	lib/strconv\
+ 	lib/tabwriter\
+ 	lib/time\
+ 
++#	lib/json\
++#	lib/net\
++
+ # all of these are subtly different
+ # from what maketest does.
+ 
+diff --git a/src/runtime/string.c b/src/runtime/string.c
+index 4dba5ad7e5..b31e7cc784 100644
+--- a/src/runtime/string.c
++++ b/src/runtime/string.c
+@@ -179,10 +179,10 @@ sys·byteastring(byte *a, int32 l, string s)
+ }
+ 
+ void
+-sys·arraystring(Array *b, string s)
++sys·arraystring(Array b, string s)
+ {
+-	s = mal(sizeof(s->len)+b->nel);
+-	s->len = b->nel;
+-	mcpy(s->str, b->array, s->len);
++	s = mal(sizeof(s->len)+b.nel);
++	s->len = b.nel;
++	mcpy(s->str, b.array, s->len);
+ 	FLUSH(&s);
+ }
+diff --git a/test/235.go b/test/235.go
+index da1a3a7505..47d6b58ac0 100644
+--- a/test/235.go
++++ b/test/235.go
+@@ -20,7 +20,7 @@ func M(f uint64) (in, out *T) {
+ }
+ 
+ 
+-func min(xs *[]uint64) uint64 {
++func min(xs []uint64) uint64 {
+ 	m := xs[0];
+ 	for i := 1; i < len(xs); i++ {
+ 		if xs[i] < m {
+@@ -33,7 +33,7 @@ func min(xs *[]uint64) uint64 {
+ 
+ func main() {
+ 	F := []uint64{2, 3, 5};
+-	const n = len(F);
++	var n = len(F);
+ 	OUT := []uint64{
+ 		2, 3, 4, 5, 6, 8, 9, 10, 12, 15, 16, 18, 20, 24, 25, 27, 30, 32, 36,
+ 		40, 45, 48, 50, 54, 60, 64, 72, 75, 80, 81, 90, 96, 100, 108, 120, 125,
+diff --git a/test/chan/powser1.go b/test/chan/powser1.go
+index 775cb63162..8222de0392 100644
+--- a/test/chan/powser1.go
++++ b/test/chan/powser1.go
+@@ -124,7 +124,7 @@ func get(in *dch) *rat {
+ 
+ // Get one item from each of n demand channels
+ 
+-func getn(in *[]*dch, n int) *[]item {
++func getn(in []*dch, n int) []item {
+ 	// BUG n:=len(in);
+ 	if n != 2 { panic("bad n in getn") };
+ 	req := new([2] *chan int);
+@@ -159,7 +159,7 @@ func getn(in *[]*dch, n int) *[]item {
+ 
+ // Get one item from each of 2 demand channels
+ 
+-func get2(in0 *dch, in1 *dch)  *[]item {
++func get2(in0 *dch, in1 *dch)  []item {
+ 	x := new([2] *dch);
+ 	x[0] = in0;
+ 	x[1] = in1;
+@@ -325,7 +325,7 @@ func Split(U PS) *dch2{
+ func Add(U, V PS) PS{
+ 	Z := mkPS();
+ 	go func(U, V, Z PS){
+-		var uv *[] *rat;
++		var uv [] *rat;
+ 		for {
+ 			<-Z.req;
+ 			uv = get2(U,V);
+@@ -625,7 +625,7 @@ func check(U PS, c *rat, count int, str string) {
+ }
+ 
+ const N=10
+-func checka(U PS, a *[]*rat, str string) {
++func checka(U PS, a []*rat, str string) {
+ 	for i := 0; i < N; i++ {
+ 		check(U, a[i], 1, str);
+ 	}
+diff --git a/test/chan/powser2.go b/test/chan/powser2.go
+index 52f89ca5b2..c72c2fad55 100644
+--- a/test/chan/powser2.go
++++ b/test/chan/powser2.go
+@@ -129,7 +129,7 @@ func get(in *dch) *rat {
+ 
+ // Get one item from each of n demand channels
+ 
+-func getn(in *[]*dch, n int) *[]item {
++func getn(in []*dch, n int) []item {
+ 	// BUG n:=len(in);
+ 	if n != 2 { panic("bad n in getn") };
+ 	req := new([2] *chan int);
+@@ -164,7 +164,7 @@ func getn(in *[]*dch, n int) *[]item {
+ 
+ // Get one item from each of 2 demand channels
+ 
+-func get2(in0 *dch, in1 *dch)  *[]item {
++func get2(in0 *dch, in1 *dch)  []item {
+ 	x := new([2] *dch);
+ 	x[0] = in0;
+ 	x[1] = in1;
+@@ -330,7 +330,7 @@ func Split(U PS) *dch2{
+ func Add(U, V PS) PS{
+ 	Z := mkPS();
+ 	go func(U, V, Z PS){
+-		var uv *[] item;
++		var uv [] item;
+ 		for {
+ 			<-Z.req;
+ 			uv = get2(U,V);
+@@ -630,7 +630,7 @@ func check(U PS, c *rat, count int, str string) {
+ }
+ 
+ const N=10
+-func checka(U PS, a *[]*rat, str string) {
++func checka(U PS, a []*rat, str string) {
+ 	for i := 0; i < N; i++ {
+ 		check(U, a[i], 1, str);
+ 	}
+diff --git a/test/complit.go b/test/complit.go
+index 86985b994a..43f090412e 100644
+--- a/test/complit.go
++++ b/test/complit.go
+@@ -16,7 +16,7 @@ func itor(a int) *R {
+ 	return r;
+ }
+ 
+-func eq(a *[]*R) {
++func eq(a []*R) {
+ 	for i := 0; i < len(a); i++ {
+ 		if a[i].num != i { panic("bad") }
+ 	}
+@@ -41,7 +41,7 @@ func main() {
+ 	//a3 := [10]int{1,2,3,};  // BUG: trailing commas not allowed
+ 	//if len(a3) != 10 || a2[3] != 0 { panic("a3") }
+ 
+-	var oai *[]int;
++	var oai []int;
+ 	oai = &[]int{1,2,3};
+ 	if len(oai) != 3 { panic("oai") }
+ 
+diff --git a/test/fixedbugs/bug027.go b/test/fixedbugs/bug027.go
+index f7b33c04cb..2c595cb830 100644
+--- a/test/fixedbugs/bug027.go
++++ b/test/fixedbugs/bug027.go
+@@ -11,7 +11,7 @@ type Element interface {
+ 
+ type Vector struct {
+ 	nelem int;
+-	elem *[]Element;
++	elem []Element;
+ }
+ 
+ func New() *Vector {
+diff --git a/test/fixedbugs/bug045.go b/test/fixedbugs/bug045.go
+index 08b6990ae6..d8a712c6da 100644
+--- a/test/fixedbugs/bug045.go
++++ b/test/fixedbugs/bug045.go
+@@ -11,7 +11,7 @@ type T struct {
+ }
+ 
+ func main() {
+-	var ta *[]*T;
++	var ta []*T;
+ 
+ 	ta = new([1]*T);
+ 	ta[0] = nil;
+diff --git a/test/fixedbugs/bug054.go b/test/fixedbugs/bug054.go
+index a91773e224..decf5841df 100644
+--- a/test/fixedbugs/bug054.go
++++ b/test/fixedbugs/bug054.go
+@@ -10,7 +10,7 @@ type Element interface {
+ }
+ 
+ type Vector struct {
+-	elem *[]Element;
++	elem []Element;
+ }
+ 
+ func (v *Vector) At(i int) Element {
+diff --git a/test/fixedbugs/bug059.go b/test/fixedbugs/bug059.go
+index a798b6fcd0..5a29ed1f09 100644
+--- a/test/fixedbugs/bug059.go
++++ b/test/fixedbugs/bug059.go
+@@ -6,7 +6,7 @@
+ 
+ package main
+ 
+-func P(a *[]string) string {
++func P(a []string) string {
+ 	s := "{";
+ 	for i := 0; i < 2; i++ {
+ 		if i > 0 {
+@@ -19,7 +19,7 @@ func P(a *[]string) string {
+ }
+ 
+ func main() {
+-	m := new(map[string] *[]string);
++	m := new(map[string] []string);
+ 	as := new([2]string);
+ 	as[0] = "0";
+ 	as[1] = "1";
+diff --git a/test/fixedbugs/bug119.go b/test/fixedbugs/bug119.go
+index 7969379472..e565cffd4f 100644
+--- a/test/fixedbugs/bug119.go
++++ b/test/fixedbugs/bug119.go
+@@ -6,7 +6,7 @@
+ 
+ package main
+ 
+-func foo(a *[]int) int {
++func foo(a []int) int {
+ 	return (*a)[0]  // this seesm to do the wrong thing
+ }
+ 
+diff --git a/test/func2.go b/test/func2.go
+index 2db67ddf49..e8e6842e00 100644
+--- a/test/func2.go
++++ b/test/func2.go
+@@ -15,7 +15,7 @@ func f1(t1, t2, t3);
+ func f2(t1, t2, t3 bool);
+ func f3(t1, t2, x t3);
+ func f4(t1, *t3);
+-func (x *t1) f5(y *[]t2) (t1, *t3);
++func (x *t1) f5(y []t2) (t1, *t3);
+ func f6() (int, *string);
+ func f7(*t2, t3);
+ func f8(os int) int;
+diff --git a/test/hilbert.go b/test/hilbert.go
+index 275b11997d..b2b916b132 100644
+--- a/test/hilbert.go
++++ b/test/hilbert.go
+@@ -29,7 +29,7 @@ var (
+ 
+ type Matrix struct {
+ 	n, m int;
+-	a *[]*Big.Rational;
++	a []*Big.Rational;
+ }
+ 
+ 
+diff --git a/test/interface1.go b/test/interface1.go
+index c81cad54ba..649a955f6d 100644
+--- a/test/interface1.go
++++ b/test/interface1.go
+@@ -11,7 +11,7 @@ type Inst interface {
+ }
+ 
+ type Regexp struct {
+-	code *[]Inst;
++	code []Inst;
+ 	start	Inst;
+ }
+ 
+diff --git a/test/map.go b/test/map.go
+index c913fc6909..a0175feac4 100644
+--- a/test/map.go
++++ b/test/map.go
+@@ -10,7 +10,7 @@ import fmt "fmt"
+ 
+ const arraylen = 2; // BUG: shouldn't need this
+ 
+-func P(a *[]string) string {
++func P(a []string) string {
+ 	s := "{";
+ 	for i := 0; i < len(a); i++ {
+ 		if i > 0 {
+@@ -34,7 +34,7 @@ func main() {
+ 	msi := new(map[string] int);
+ 	mis := new(map[int] string);
+ 	mss := new(map[string] string);
+-	mspa := new(map[string] *[]string);
++	mspa := new(map[string] []string);
+ 	// BUG need an interface map both ways too
+ 
+ 	type T struct {
+diff --git a/test/nil.go b/test/nil.go
+index d0cb65dcb3..f26ba3221c 100644
+--- a/test/nil.go
++++ b/test/nil.go
+@@ -21,7 +21,7 @@ func main() {
+ 	var c *chan int;
+ 	var t *T;
+ 	var in IN;
+-	var ta *[]IN;
++	var ta []IN;
+ 
+ 	i = nil;
+ 	f = nil;

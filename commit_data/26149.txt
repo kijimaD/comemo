@@ -10,8 +10,134 @@ Date:   Fri Dec 18 11:19:38 2015 -0500
     Change-Id: Ib23ad9336f405485aabb642ca73f454a14c8baf3
     Reviewed-on: https://go-review.googlesource.com/18043
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/debug/garbage.go | 11 +++++++++
  src/runtime/extern.go        |  4 ++++
  src/runtime/runtime1.go      | 53 +++++++++++++++++++++++++++-----------------
  3 files changed, 48 insertions(+), 20 deletions(-)
+
+diff --git a/src/runtime/debug/garbage.go b/src/runtime/debug/garbage.go
+index 41202f9e3b..8d6d2782e9 100644
+--- a/src/runtime/debug/garbage.go
++++ b/src/runtime/debug/garbage.go
+@@ -157,3 +157,14 @@ func SetPanicOnFault(enabled bool) bool {
+ // it to the given file descriptor.
+ // The heap dump format is defined at https://golang.org/s/go13heapdump.
+ func WriteHeapDump(fd uintptr)
++
++// SetTraceback sets the amount of detail printed by the runtime in
++// the traceback it prints before exiting due to an unrecovered panic
++// or an internal runtime error.
++// The level argument takes the same values as the GOTRACEBACK
++// environment variable. For example, SetTraceback("all") ensure
++// that the program prints all goroutines when it crashes.
++// See the package runtime documentation for details.
++// If SetTraceback is called with a level lower than that of the
++// environment variable, the call is ignored.
++func SetTraceback(level string)
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index a3b23a448b..cab8de0481 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -127,6 +127,10 @@ manner instead of exiting. For example, on Unix systems, the crash raises
+ SIGABRT to trigger a core dump.
+ For historical reasons, the GOTRACEBACK settings 0, 1, and 2 are synonyms for
+ none, all, and system, respectively.
++The runtime/debug package's SetTraceback function allows increasing the
++amount of output at run time, but it cannot reduce the amount below that
++specified by the environment variable.
++See https://golang.org/pkg/runtime/debug/#SetTraceback.
+ 
+ The GOARCH, GOOS, GOPATH, and GOROOT environment variables complete
+ the set of Go environment variables. They influence the building of Go programs
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 3c4f47dd2e..f63e09cc61 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -22,6 +22,7 @@ const (
+ )
+ 
+ var traceback_cache uint32 = 2 << tracebackShift
++var traceback_env uint32
+ 
+ // gotraceback returns the current traceback settings.
+ //
+@@ -39,9 +40,10 @@ func gotraceback() (level int32, all, crash bool) {
+ 		level = int32(_g_.m.traceback)
+ 		return
+ 	}
+-	crash = traceback_cache&tracebackCrash != 0
+-	all = all || traceback_cache&tracebackAll != 0
+-	level = int32(traceback_cache >> tracebackShift)
++	t := atomic.Load(&traceback_cache)
++	crash = t&tracebackCrash != 0
++	all = all || t&tracebackAll != 0
++	level = int32(t >> tracebackShift)
+ 	return
+ }
+ 
+@@ -382,36 +384,47 @@ func parsedebugvars() {
+ 		}
+ 	}
+ 
+-	switch p := gogetenv("GOTRACEBACK"); p {
++	setTraceback(gogetenv("GOTRACEBACK"))
++	traceback_env = traceback_cache
++
++	if debug.gcstackbarrierall > 0 {
++		firstStackBarrierOffset = 0
++	}
++
++	// For cgocheck > 1, we turn on the write barrier at all times
++	// and check all pointer writes.
++	if debug.cgocheck > 1 {
++		writeBarrier.cgo = true
++		writeBarrier.enabled = true
++	}
++}
++
++//go:linkname setTraceback runtime/debug.SetTraceback
++func setTraceback(level string) {
++	var t uint32
++	switch level {
+ 	case "none":
+-		traceback_cache = 0
++		t = 0
+ 	case "single", "":
+-		traceback_cache = 1 << tracebackShift
++		t = 1 << tracebackShift
+ 	case "all":
+-		traceback_cache = 1<<tracebackShift | tracebackAll
++		t = 1<<tracebackShift | tracebackAll
+ 	case "system":
+-		traceback_cache = 2<<tracebackShift | tracebackAll
++		t = 2<<tracebackShift | tracebackAll
+ 	case "crash":
+-		traceback_cache = 2<<tracebackShift | tracebackAll | tracebackCrash
++		t = 2<<tracebackShift | tracebackAll | tracebackCrash
+ 	default:
+-		traceback_cache = uint32(atoi(p))<<tracebackShift | tracebackAll
++		t = uint32(atoi(level))<<tracebackShift | tracebackAll
+ 	}
+ 	// when C owns the process, simply exit'ing the process on fatal errors
+ 	// and panics is surprising. Be louder and abort instead.
+ 	if islibrary || isarchive {
+-		traceback_cache |= tracebackCrash
++		t |= tracebackCrash
+ 	}
+ 
+-	if debug.gcstackbarrierall > 0 {
+-		firstStackBarrierOffset = 0
+-	}
++	t |= traceback_env
+ 
+-	// For cgocheck > 1, we turn on the write barrier at all times
+-	// and check all pointer writes.
+-	if debug.cgocheck > 1 {
+-		writeBarrier.cgo = true
+-		writeBarrier.enabled = true
+-	}
++	atomic.Store(&traceback_cache, t)
+ }
+ 
+ // Poor mans 64-bit division.

@@ -9,6 +9,24 @@ Date:   Mon Nov 7 10:28:46 2016 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/fmt.go | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index b12bf5e4f9..7b4559bbd0 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -433,11 +433,7 @@ func (v Val) vconv(s fmt.State, flag FmtFlag) {
+ 		fmt.Fprint(s, strconv.Quote(u))
+ 
+ 	case bool:
+-		t := "false"
+-		if u {
+-			t = "true"
+-		}
+-		fmt.Fprint(s, t)
++		fmt.Fprint(s, u)
+ 
+ 	case *NilVal:
+ 		fmt.Fprint(s, "nil")

@@ -13,7 +13,7 @@ Date:   Fri Jun 5 22:18:32 2009 -0700
     DELTA=29  (6 added, 8 deleted, 15 changed)
     OCL=29923
     CL=29967
-
+---
  src/Make.386                |  1 +
  src/Make.amd64              |  1 +
  src/Make.arm                |  1 +
@@ -24,3 +24,177 @@ Date:   Fri Jun 5 22:18:32 2009 -0700
  src/cmd/gobuild/makefile.go | 20 ++++++--------------
  src/cmd/gobuild/util.go     |  4 ++--
  9 files changed, 20 insertions(+), 23 deletions(-)
+
+diff --git a/src/Make.386 b/src/Make.386
+index d97965f1cf..137220931b 100644
+--- a/src/Make.386
++++ b/src/Make.386
+@@ -7,3 +7,4 @@ AS=${O}a
+ CC=${O}c
+ GC=${O}g
+ LD=${O}l
++OS=568vq
+\ No newline at end of file
+diff --git a/src/Make.amd64 b/src/Make.amd64
+index a6bc9c67d4..79edb4fee4 100644
+--- a/src/Make.amd64
++++ b/src/Make.amd64
+@@ -7,3 +7,4 @@ AS=${O}a
+ CC=${O}c
+ GC=${O}g
+ LD=${O}l
++OS=568vq
+\ No newline at end of file
+diff --git a/src/Make.arm b/src/Make.arm
+index ef907329dc..748cce27e5 100644
+--- a/src/Make.arm
++++ b/src/Make.arm
+@@ -7,3 +7,4 @@ AS=${O}a
+ CC=${O}c
+ GC=${O}g
+ LD=${O}l
++OS=568vq
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 5ab1c561c9..23e794c2af 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -689,7 +689,7 @@ addlib(char *src, char *obj)
+ 		if(access(pname, AEXIST) < 0 && LIBDIR != nil)
+ 			snprint(pname, sizeof pname, "%s/%s", LIBDIR, name);
+ 		if(access(pname, AEXIST) < 0)
+-			snprint(pname, sizeof pname, "%s/pkg/%s", goroot, name);
++			snprint(pname, sizeof pname, "%s/pkg/%s_%s/%s", goroot, goos, goarch, name);
+ 		strcpy(name, pname);
+ 	}
+ 	if(debug['v'])
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 14dba3e159..fdcf45c882 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -655,7 +655,7 @@ addlib(char *src, char *obj)
+ 		if(access(pname, AEXIST) < 0 && LIBDIR != nil)
+ 			snprint(pname, sizeof pname, "%s/%s", LIBDIR, name);
+ 		if(access(pname, AEXIST) < 0)
+-			snprint(pname, sizeof pname, "%s/pkg/%s", goroot, name);
++			snprint(pname, sizeof pname, "%s/pkg/%s_%s/%s", goroot, goos, goarch, name);
+ 		strcpy(name, pname);
+ 	}
+ 	if(debug['v'])
+diff --git a/src/cmd/ar/Makefile b/src/cmd/ar/Makefile
+index ec499b2970..01e97ea637 100644
+--- a/src/cmd/ar/Makefile
++++ b/src/cmd/ar/Makefile
+@@ -8,7 +8,7 @@ include ../../Make.conf
+ # We call the binary 6ar to avoid confusion and because this binary
+ # is linked only with amd64 and x86 support.
+ 
+-TARG=6ar
++TARG=gopack
+ OFILES=\
+ 	ar.$O\
+ 
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 51e6534e12..8e4f3504e2 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -212,11 +212,13 @@ addidir(char* dir)
+ int
+ findpkg(Strlit *name)
+ {
+-	static char* goroot;
+-	Idir* p;
++	static char *goroot, *goos, *goarch;
++	Idir *p;
+ 
+ 	if(goroot == nil) {
+ 		goroot = getenv("GOROOT");
++		goos = getenv("GOOS");
++		goarch = getenv("GOARCH");
+ 	}
+ 
+ 	// try .a before .6.  important for building libraries:
+@@ -238,10 +240,10 @@ findpkg(Strlit *name)
+ 	if(access(namebuf, 0) >= 0)
+ 		return 1;
+ 	if(goroot != nil) {
+-		snprint(namebuf, sizeof(namebuf), "%s/pkg/%Z.a", goroot, name);
++		snprint(namebuf, sizeof(namebuf), "%s/pkg/%s_%s/%Z.a", goroot, goos, goarch, name);
+ 		if(access(namebuf, 0) >= 0)
+ 			return 1;
+-		snprint(namebuf, sizeof(namebuf), "%s/pkg/%Z.%c", goroot, name, thechar);
++		snprint(namebuf, sizeof(namebuf), "%s/pkg/%s_%s/%Z.%c", goroot, goos, goarch, name, thechar);
+ 		if(access(namebuf, 0) >= 0)
+ 			return 1;
+ 	}
+diff --git a/src/cmd/gobuild/makefile.go b/src/cmd/gobuild/makefile.go
+index e5eb47f19e..2c71917630 100644
+--- a/src/cmd/gobuild/makefile.go
++++ b/src/cmd/gobuild/makefile.go
+@@ -18,16 +18,8 @@ var makefileTemplate =
+ 	"\n"
+ 	"D={.section Dir}/{@}{.end}\n"
+ 	"\n"
+-	"O_arm=5\n"	// TODO(rsc): include something here?
+-	"O_amd64=6\n"
+-	"O_386=8\n"
+-	"OS=568vq\n"
+-	"\n"
+-	"O=$(O_$(GOARCH))\n"
+-	"GC=$(O)g -I{ObjDir}\n"
+-	"CC=$(O)c -FVw\n"
+-	"AS=$(O)a\n"
+-	"AR=6ar\n"
++	"include $(GOROOT)/src/Make.$(GOARCH)\n"
++	"AR=gopack\n"
+ 	"\n"
+ 	"default: packages\n"
+ 	"\n"
+@@ -42,7 +34,7 @@ var makefileTemplate =
+ 	"	6cov -g `pwd` | grep -v '_test\\.go:'\n"
+ 	"\n"
+ 	"%.$O: %.go\n"
+-	"	$(GC) $*.go\n"
++	"	$(GC) -I{ObjDir} $*.go\n"
+ 	"\n"
+ 	"%.$O: %.c\n"
+ 	"	$(CC) $*.c\n"
+@@ -86,14 +78,14 @@ var makefileTemplate =
+ 	"{.end}\n"
+ 	"\n"
+ 	"nuke: clean\n"
+-	"	rm -f{.repeated section Packages} $(GOROOT)/pkg$D/{Name}.a{.end}\n"
++	"	rm -f{.repeated section Packages} $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/{Name}.a{.end}\n"
+ 	"\n"
+ 	"packages:{.repeated section Packages} {ObjDir}$D/{Name}.a{.end}\n"
+ 	"\n"
+ 	"install: packages\n"
+-	"	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg$D\n"
++	"	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D\n"
+ 	"{.repeated section Packages}\n"
+-	"	cp {ObjDir}$D/{Name}.a $(GOROOT)/pkg$D/{Name}.a\n"
++	"	cp {ObjDir}$D/{Name}.a $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/{Name}.a\n"
+ 	"{.end}\n"
+ 
+ func argsFmt(w io.Writer, x interface{}, format string) {
+diff --git a/src/cmd/gobuild/util.go b/src/cmd/gobuild/util.go
+index e7b3c77890..94a4e6a73d 100644
+--- a/src/cmd/gobuild/util.go
++++ b/src/cmd/gobuild/util.go
+@@ -59,7 +59,7 @@ func init() {
+ 		theChar + "g",
+ 		theChar + "c",
+ 		theChar + "a",
+-		"6ar",	// sic
++		"gopack",
+ 	};
+ 
+ 	for i, v := range binaries {
+@@ -138,7 +138,7 @@ func Build(cmd []string, file string, flag int) (ok bool) {
+ }
+ 
+ func Archive(pkg string, files []string) {
+-	argv := []string{ "6ar", "grc", pkg };
++	argv := []string{ "gopack", "grc", pkg };
+ 	for i, file := range files {
+ 		PushString(&argv, file);
+ 	}

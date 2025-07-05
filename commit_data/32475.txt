@@ -23,9 +23,126 @@ Date:   Wed Apr 26 10:18:41 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/bitset.go |  6 ++++--
  src/cmd/compile/internal/gc/gen.go    | 10 ++++------
  src/cmd/compile/internal/gc/go.go     | 22 +++++++++++++++-------
  src/cmd/compile/internal/gc/sinit.go  |  9 +++++----
  4 files changed, 28 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bitset.go b/src/cmd/compile/internal/gc/bitset.go
+index 89e6fe85c8..90babd5a9f 100644
+--- a/src/cmd/compile/internal/gc/bitset.go
++++ b/src/cmd/compile/internal/gc/bitset.go
+@@ -28,20 +28,22 @@ func (f bitset32) get2(shift uint8) uint8 {
+ 	return uint8(f>>shift) & 3
+ }
+ 
++// set2 sets two bits in f using the bottom two bits of b.
+ func (f *bitset32) set2(shift uint8, b uint8) {
+ 	// Clear old bits.
+ 	*(*uint32)(f) &^= 3 << shift
+ 	// Set new bits.
+-	*(*uint32)(f) |= uint32(b) << shift
++	*(*uint32)(f) |= uint32(b&3) << shift
+ }
+ 
+ func (f bitset32) get3(shift uint8) uint8 {
+ 	return uint8(f>>shift) & 7
+ }
+ 
++// set3 sets three bits in f using the bottom three bits of b.
+ func (f *bitset32) set3(shift uint8, b uint8) {
+ 	// Clear old bits.
+ 	*(*uint32)(f) &^= 7 << shift
+ 	// Set new bits.
+-	*(*uint32)(f) |= uint32(b) << shift
++	*(*uint32)(f) |= uint32(b&7) << shift
+ }
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index fffc5b76dd..941c41502a 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -24,10 +24,11 @@ func Sysfunc(name string) *obj.LSym {
+ // to be taken.
+ func addrescapes(n *Node) {
+ 	switch n.Op {
+-	// probably a type error already.
+-	// dump("addrescapes", n);
+ 	default:
+-		break
++		// Unexpected Op, probably due to a previous type error. Ignore.
++
++	case OIND, ODOTPTR:
++		// Nothing to do.
+ 
+ 	case ONAME:
+ 		if n == nodfp {
+@@ -73,9 +74,6 @@ func addrescapes(n *Node) {
+ 		Curfn = oldfn
+ 		lineno = ln
+ 
+-	case OIND, ODOTPTR:
+-		break
+-
+ 	// ODOTPTR has already been introduced,
+ 	// so these are the non-pointer ODOT and OINDEX.
+ 	// In &x[0], if x is a slice, then x does not
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 46cec3e8bc..f795ce0bf0 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -31,17 +31,25 @@ func isRuntimePkg(p *types.Pkg) bool {
+ type Class uint8
+ 
+ const (
+-	Pxxx      Class = iota
+-	PEXTERN         // global variable
+-	PAUTO           // local variables
+-	PAUTOHEAP       // local variable or parameter moved to heap
+-	PPARAM          // input arguments
+-	PPARAMOUT       // output results
+-	PFUNC           // global function
++	Pxxx      Class = iota // no class; used during ssa conversion to indicate pseudo-variables
++	PEXTERN                // global variable
++	PAUTO                  // local variables
++	PAUTOHEAP              // local variable or parameter moved to heap
++	PPARAM                 // input arguments
++	PPARAMOUT              // output results
++	PFUNC                  // global function
+ 
+ 	PDISCARD // discard during parse of duplicate import
++	// Careful: Class is stored in three bits in Node.flags.
++	// Adding a new Class will overflow that.
+ )
+ 
++func init() {
++	if PDISCARD != 7 {
++		panic("PDISCARD changed; does all Class values still fit in three bits?")
++	}
++}
++
+ // note this is the runtime representation
+ // of the compilers arrays.
+ //
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index e8f3d70bd1..1a1dbc0de7 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -9,11 +9,12 @@ import (
+ 	"fmt"
+ )
+ 
+-// static initialization
++// Static initialization ordering state.
++// These values are stored in two bits in Node.flags.
+ const (
+-	InitNotStarted = 0
+-	InitDone       = 1
+-	InitPending    = 2
++	InitNotStarted = iota
++	InitDone
++	InitPending
+ )
+ 
+ type InitEntry struct {

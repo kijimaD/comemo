@@ -79,8 +79,128 @@ Date:   Wed Jul 11 01:30:32 2018 +0000
     Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/ARM.rules |  4 +++
  src/cmd/compile/internal/ssa/rewriteARM.go | 56 ++++++++++++++++++++++++++++++
  test/codegen/bits.go                       |  5 +++
  3 files changed, 65 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index 2846ef6d2e..e8a3c27c71 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -812,6 +812,10 @@
+ (SUBconst [c] x) && !isARMImmRot(uint32(c)) && isARMImmRot(uint32(-c)) -> (ADDconst [int64(int32(-c))] x)
+ (ANDconst [c] x) && !isARMImmRot(uint32(c)) && isARMImmRot(^uint32(c)) -> (BICconst [int64(int32(^uint32(c)))] x)
+ (BICconst [c] x) && !isARMImmRot(uint32(c)) && isARMImmRot(^uint32(c)) -> (ANDconst [int64(int32(^uint32(c)))] x)
++(ADDconst [c] x) && objabi.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && uint32(-c)<=0xffff -> (SUBconst [int64(int32(-c))] x)
++(SUBconst [c] x) && objabi.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && uint32(-c)<=0xffff -> (ANDconst [int64(int32(-c))] x)
++(ANDconst [c] x) && objabi.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && ^uint32(c)<=0xffff -> (BICconst [int64(int32(^uint32(c)))] x)
++(BICconst [c] x) && objabi.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && ^uint32(c)<=0xffff -> (ANDconst [int64(int32(^uint32(c)))] x)
+ (ADDconst [c] (MOVWconst [d])) -> (MOVWconst [int64(int32(c+d))])
+ (ADDconst [c] (ADDconst [d] x)) -> (ADDconst [int64(int32(c+d))] x)
+ (ADDconst [c] (SUBconst [d] x)) -> (ADDconst [int64(int32(c-d))] x)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index dc12733279..e463511f17 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -2850,6 +2850,20 @@ func rewriteValueARM_OpARMADDconst_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (ADDconst [c] x)
++	// cond: objabi.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && uint32(-c)<=0xffff
++	// result: (SUBconst [int64(int32(-c))] x)
++	for {
++		c := v.AuxInt
++		x := v.Args[0]
++		if !(objabi.GOARM == 7 && !isARMImmRot(uint32(c)) && uint32(c) > 0xffff && uint32(-c) <= 0xffff) {
++			break
++		}
++		v.reset(OpARMSUBconst)
++		v.AuxInt = int64(int32(-c))
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (ADDconst [c] (MOVWconst [d]))
+ 	// cond:
+ 	// result: (MOVWconst [int64(int32(c+d))])
+@@ -3670,6 +3684,20 @@ func rewriteValueARM_OpARMANDconst_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (ANDconst [c] x)
++	// cond: objabi.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && ^uint32(c)<=0xffff
++	// result: (BICconst [int64(int32(^uint32(c)))] x)
++	for {
++		c := v.AuxInt
++		x := v.Args[0]
++		if !(objabi.GOARM == 7 && !isARMImmRot(uint32(c)) && uint32(c) > 0xffff && ^uint32(c) <= 0xffff) {
++			break
++		}
++		v.reset(OpARMBICconst)
++		v.AuxInt = int64(int32(^uint32(c)))
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (ANDconst [c] (MOVWconst [d]))
+ 	// cond:
+ 	// result: (MOVWconst [c&d])
+@@ -4243,6 +4271,20 @@ func rewriteValueARM_OpARMBICconst_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (BICconst [c] x)
++	// cond: objabi.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && ^uint32(c)<=0xffff
++	// result: (ANDconst [int64(int32(^uint32(c)))] x)
++	for {
++		c := v.AuxInt
++		x := v.Args[0]
++		if !(objabi.GOARM == 7 && !isARMImmRot(uint32(c)) && uint32(c) > 0xffff && ^uint32(c) <= 0xffff) {
++			break
++		}
++		v.reset(OpARMANDconst)
++		v.AuxInt = int64(int32(^uint32(c)))
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (BICconst [c] (MOVWconst [d]))
+ 	// cond:
+ 	// result: (MOVWconst [d&^c])
+@@ -15243,6 +15285,20 @@ func rewriteValueARM_OpARMSUBconst_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (SUBconst [c] x)
++	// cond: objabi.GOARM==7 && !isARMImmRot(uint32(c)) && uint32(c)>0xffff && uint32(-c)<=0xffff
++	// result: (ANDconst [int64(int32(-c))] x)
++	for {
++		c := v.AuxInt
++		x := v.Args[0]
++		if !(objabi.GOARM == 7 && !isARMImmRot(uint32(c)) && uint32(c) > 0xffff && uint32(-c) <= 0xffff) {
++			break
++		}
++		v.reset(OpARMANDconst)
++		v.AuxInt = int64(int32(-c))
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (SUBconst [c] (MOVWconst [d]))
+ 	// cond:
+ 	// result: (MOVWconst [int64(int32(d-c))])
+diff --git a/test/codegen/bits.go b/test/codegen/bits.go
+index 2d1645b5e3..c46f75845c 100644
+--- a/test/codegen/bits.go
++++ b/test/codegen/bits.go
+@@ -284,6 +284,11 @@ func and_mask_2(a uint64) uint64 {
+ 	return a & (1 << 63)
+ }
+ 
++func and_mask_3(a uint32) uint32 {
++	// arm/7:`BIC`,-`AND`
++	return a & 0xffff0000
++}
++
+ // Check generation of arm64 BIC/EON/ORN instructions
+ 
+ func op_bic(x, y uint32) uint32 {

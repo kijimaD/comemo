@@ -7,6 +7,22 @@ Date:   Wed Aug 31 09:09:01 2016 -0700
     Change-Id: I47e3cfa8b49e3d0b55c91387df31488b37038a8f
     Reviewed-on: https://go-review.googlesource.com/28225
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/memmove_amd64.s | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/memmove_amd64.s b/src/runtime/memmove_amd64.s
+index 464f5fdc1b..ffcc6613cf 100644
+--- a/src/runtime/memmove_amd64.s
++++ b/src/runtime/memmove_amd64.s
+@@ -277,8 +277,8 @@ move_256through2048:
+ 	JMP	tail
+ 
+ avxUnaligned:
+-	// There are two implementations of move algorithm.
+-	// The first one for non-ovelapped memory regions. It uses forward copying.
++	// There are two implementations of the move algorithm.
++	// The first one for non-overlapped memory regions. It uses forward copying.
+ 	// The second one for overlapped regions. It uses backward copying
+ 	MOVQ	DI, CX
+ 	SUBQ	SI, CX

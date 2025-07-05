@@ -8,7 +8,73 @@ Date:   Mon Aug 31 18:12:40 2009 -0700
     DELTA=39  (39 added, 0 deleted, 0 changed)
     OCL=34153
     CL=34167
-
+---
  src/pkg/unicode/letter.go      | 12 ++++++++++++
  src/pkg/unicode/letter_test.go | 27 +++++++++++++++++++++++++++
  2 files changed, 39 insertions(+)
+
+diff --git a/src/pkg/unicode/letter.go b/src/pkg/unicode/letter.go
+index f67b7e5cf0..45b68f485d 100644
+--- a/src/pkg/unicode/letter.go
++++ b/src/pkg/unicode/letter.go
+@@ -117,6 +117,18 @@ func IsLetter(rune int) bool {
+ 	return Is(Letter, rune);
+ }
+ 
++// IsSpace reports whether the rune is a white space character.
++func IsSpace(rune int) bool {
++	if rune <= 0xFF {	// quick Latin-1 check
++		switch rune {
++		case '\t', '\n', '\v', '\f', '\r', ' ', 0x85, 0xA0:
++			return true;
++		}
++		return false;
++	}
++	return Is(White_Space, rune);
++}
++
+ // To maps the rune to the specified case: UpperCase, LowerCase, or TitleCase
+ func To(_case int, rune int) int {
+ 	if _case < 0 || MaxCase <= _case {
+diff --git a/src/pkg/unicode/letter_test.go b/src/pkg/unicode/letter_test.go
+index 0ccb29f0a2..f5cb72f7f8 100644
+--- a/src/pkg/unicode/letter_test.go
++++ b/src/pkg/unicode/letter_test.go
+@@ -92,6 +92,20 @@ var notletterTest = []int{
+ 	0x10ffff,
+ }
+ 
++// Contains all the special cased Latin-1 chars.
++var spaceTest = []int{
++	0x09,
++	0x0a,
++	0x0b,
++	0x0c,
++	0x0d,
++	0x20,
++	0x85,
++	0xA0,
++	0x2000,
++	0x3000,
++}
++
+ type caseT struct {
+ 	cas, in, out int
+ }
+@@ -291,3 +305,16 @@ func TestToTitleCase(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestIsSpace(t *testing.T) {
++	for _, c := range spaceTest {
++		if !IsSpace(c) {
++			t.Errorf("IsSpace(U+%04X) = false; want true", c);
++		}
++	}
++	for _, c := range letterTest {
++		if IsSpace(c) {
++			t.Errorf("IsSpace(U+%04X) = true; want false", c);
++		}
++	}
++}

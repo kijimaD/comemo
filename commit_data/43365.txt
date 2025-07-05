@@ -20,9 +20,320 @@ Date:   Wed Mar 25 13:47:43 2020 -0400
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/internal/objfile/disasm.go | 42 +++++++++++++++++----------
  src/cmd/objdump/main.go            |  9 +++---
  src/cmd/objdump/objdump_test.go    | 59 ++++++++++++++++++++++++++++++++++----
  src/cmd/pprof/pprof.go             |  2 +-
  4 files changed, 87 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/internal/objfile/disasm.go b/src/cmd/internal/objfile/disasm.go
+index 35cfd35d37..b5f1cd1632 100644
+--- a/src/cmd/internal/objfile/disasm.go
++++ b/src/cmd/internal/objfile/disasm.go
+@@ -187,7 +187,7 @@ func (fc *FileCache) Line(filename string, line int) ([]byte, error) {
+ // If filter is non-nil, the disassembly only includes functions with names matching filter.
+ // If printCode is true, the disassembly includs corresponding source lines.
+ // The disassembly only includes functions that overlap the range [start, end).
+-func (d *Disasm) Print(w io.Writer, filter *regexp.Regexp, start, end uint64, printCode bool) {
++func (d *Disasm) Print(w io.Writer, filter *regexp.Regexp, start, end uint64, printCode bool, gnuAsm bool) {
+ 	if start < d.textStart {
+ 		start = d.textStart
+ 	}
+@@ -229,7 +229,7 @@ func (d *Disasm) Print(w io.Writer, filter *regexp.Regexp, start, end uint64, pr
+ 		var lastFile string
+ 		var lastLine int
+ 
+-		d.Decode(symStart, symEnd, relocs, func(pc, size uint64, file string, line int, text string) {
++		d.Decode(symStart, symEnd, relocs, gnuAsm, func(pc, size uint64, file string, line int, text string) {
+ 			i := pc - d.textStart
+ 
+ 			if printCode {
+@@ -266,7 +266,7 @@ func (d *Disasm) Print(w io.Writer, filter *regexp.Regexp, start, end uint64, pr
+ }
+ 
+ // Decode disassembles the text segment range [start, end), calling f for each instruction.
+-func (d *Disasm) Decode(start, end uint64, relocs []Reloc, f func(pc, size uint64, file string, line int, text string)) {
++func (d *Disasm) Decode(start, end uint64, relocs []Reloc, gnuAsm bool, f func(pc, size uint64, file string, line int, text string)) {
+ 	if start < d.textStart {
+ 		start = d.textStart
+ 	}
+@@ -277,7 +277,7 @@ func (d *Disasm) Decode(start, end uint64, relocs []Reloc, f func(pc, size uint6
+ 	lookup := d.lookup
+ 	for pc := start; pc < end; {
+ 		i := pc - d.textStart
+-		text, size := d.disasm(code[i:], pc, lookup, d.byteOrder)
++		text, size := d.disasm(code[i:], pc, lookup, d.byteOrder, gnuAsm)
+ 		file, line, _ := d.pcln.PCToLine(pc)
+ 		sep := "\t"
+ 		for len(relocs) > 0 && relocs[0].Addr < i+uint64(size) {
+@@ -291,17 +291,17 @@ func (d *Disasm) Decode(start, end uint64, relocs []Reloc, f func(pc, size uint6
+ }
+ 
+ type lookupFunc = func(addr uint64) (sym string, base uint64)
+-type disasmFunc func(code []byte, pc uint64, lookup lookupFunc, ord binary.ByteOrder) (text string, size int)
++type disasmFunc func(code []byte, pc uint64, lookup lookupFunc, ord binary.ByteOrder, _ bool) (text string, size int)
+ 
+-func disasm_386(code []byte, pc uint64, lookup lookupFunc, _ binary.ByteOrder) (string, int) {
+-	return disasm_x86(code, pc, lookup, 32)
++func disasm_386(code []byte, pc uint64, lookup lookupFunc, _ binary.ByteOrder, gnuAsm bool) (string, int) {
++	return disasm_x86(code, pc, lookup, 32, gnuAsm)
+ }
+ 
+-func disasm_amd64(code []byte, pc uint64, lookup lookupFunc, _ binary.ByteOrder) (string, int) {
+-	return disasm_x86(code, pc, lookup, 64)
++func disasm_amd64(code []byte, pc uint64, lookup lookupFunc, _ binary.ByteOrder, gnuAsm bool) (string, int) {
++	return disasm_x86(code, pc, lookup, 64, gnuAsm)
+ }
+ 
+-func disasm_x86(code []byte, pc uint64, lookup lookupFunc, arch int) (string, int) {
++func disasm_x86(code []byte, pc uint64, lookup lookupFunc, arch int, gnuAsm bool) (string, int) {
+ 	inst, err := x86asm.Decode(code, arch)
+ 	var text string
+ 	size := inst.Len
+@@ -309,7 +309,11 @@ func disasm_x86(code []byte, pc uint64, lookup lookupFunc, arch int) (string, in
+ 		size = 1
+ 		text = "?"
+ 	} else {
+-		text = x86asm.GoSyntax(inst, pc, lookup)
++		if gnuAsm {
++			text = fmt.Sprintf("%-36s // %s", x86asm.GoSyntax(inst, pc, lookup), x86asm.GNUSyntax(inst, pc, nil))
++		} else {
++			text = x86asm.GoSyntax(inst, pc, lookup)
++		}
+ 	}
+ 	return text, size
+ }
+@@ -334,31 +338,35 @@ func (r textReader) ReadAt(data []byte, off int64) (n int, err error) {
+ 	return
+ }
+ 
+-func disasm_arm(code []byte, pc uint64, lookup lookupFunc, _ binary.ByteOrder) (string, int) {
++func disasm_arm(code []byte, pc uint64, lookup lookupFunc, _ binary.ByteOrder, gnuAsm bool) (string, int) {
+ 	inst, err := armasm.Decode(code, armasm.ModeARM)
+ 	var text string
+ 	size := inst.Len
+ 	if err != nil || size == 0 || inst.Op == 0 {
+ 		size = 4
+ 		text = "?"
++	} else if gnuAsm {
++		text = fmt.Sprintf("%-36s // %s", armasm.GoSyntax(inst, pc, lookup, textReader{code, pc}), armasm.GNUSyntax(inst))
+ 	} else {
+ 		text = armasm.GoSyntax(inst, pc, lookup, textReader{code, pc})
+ 	}
+ 	return text, size
+ }
+ 
+-func disasm_arm64(code []byte, pc uint64, lookup lookupFunc, byteOrder binary.ByteOrder) (string, int) {
++func disasm_arm64(code []byte, pc uint64, lookup lookupFunc, byteOrder binary.ByteOrder, gnuAsm bool) (string, int) {
+ 	inst, err := arm64asm.Decode(code)
+ 	var text string
+ 	if err != nil || inst.Op == 0 {
+ 		text = "?"
++	} else if gnuAsm {
++		text = fmt.Sprintf("%-36s // %s", arm64asm.GoSyntax(inst, pc, lookup, textReader{code, pc}), arm64asm.GNUSyntax(inst))
+ 	} else {
+ 		text = arm64asm.GoSyntax(inst, pc, lookup, textReader{code, pc})
+ 	}
+ 	return text, 4
+ }
+ 
+-func disasm_ppc64(code []byte, pc uint64, lookup lookupFunc, byteOrder binary.ByteOrder) (string, int) {
++func disasm_ppc64(code []byte, pc uint64, lookup lookupFunc, byteOrder binary.ByteOrder, gnuAsm bool) (string, int) {
+ 	inst, err := ppc64asm.Decode(code, byteOrder)
+ 	var text string
+ 	size := inst.Len
+@@ -366,7 +374,11 @@ func disasm_ppc64(code []byte, pc uint64, lookup lookupFunc, byteOrder binary.By
+ 		size = 4
+ 		text = "?"
+ 	} else {
+-		text = ppc64asm.GoSyntax(inst, pc, lookup)
++		if gnuAsm {
++			text = fmt.Sprintf("%-36s // %s", ppc64asm.GoSyntax(inst, pc, lookup), ppc64asm.GNUSyntax(inst, pc))
++		} else {
++			text = ppc64asm.GoSyntax(inst, pc, lookup)
++		}
+ 	}
+ 	return text, size
+ }
+diff --git a/src/cmd/objdump/main.go b/src/cmd/objdump/main.go
+index 6a60697ebd..6605f8a60c 100644
+--- a/src/cmd/objdump/main.go
++++ b/src/cmd/objdump/main.go
+@@ -43,12 +43,13 @@ import (
+ 	"cmd/internal/objfile"
+ )
+ 
+-var printCode = flag.Bool("S", false, "print go code alongside assembly")
++var printCode = flag.Bool("S", false, "print Go code alongside assembly")
+ var symregexp = flag.String("s", "", "only dump symbols matching this regexp")
++var gnuAsm = flag.Bool("gnu", false, "print GNU assembly next to Go assembly (where supported)")
+ var symRE *regexp.Regexp
+ 
+ func usage() {
+-	fmt.Fprintf(os.Stderr, "usage: go tool objdump [-S] [-s symregexp] binary [start end]\n\n")
++	fmt.Fprintf(os.Stderr, "usage: go tool objdump [-S] [-gnu] [-s symregexp] binary [start end]\n\n")
+ 	flag.PrintDefaults()
+ 	os.Exit(2)
+ }
+@@ -87,7 +88,7 @@ func main() {
+ 		usage()
+ 	case 1:
+ 		// disassembly of entire object
+-		dis.Print(os.Stdout, symRE, 0, ^uint64(0), *printCode)
++		dis.Print(os.Stdout, symRE, 0, ^uint64(0), *printCode, *gnuAsm)
+ 
+ 	case 3:
+ 		// disassembly of PC range
+@@ -99,6 +100,6 @@ func main() {
+ 		if err != nil {
+ 			log.Fatalf("invalid end PC: %v", err)
+ 		}
+-		dis.Print(os.Stdout, symRE, start, end, *printCode)
++		dis.Print(os.Stdout, symRE, start, end, *printCode, *gnuAsm)
+ 	}
+ }
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index 7ed32cf3c2..5030ec65d2 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -64,18 +64,42 @@ var x86Need = []string{
+ 	"RET",
+ }
+ 
++var amd64GnuNeed = []string{
++	"movq",
++	"callq",
++	"cmpb",
++}
++
++var i386GnuNeed = []string{
++	"mov",
++	"call",
++	"cmp",
++}
++
+ var armNeed = []string{
+ 	"B main.main(SB)",
+ 	"BL main.Println(SB)",
+ 	"RET",
+ }
+ 
++var arm64GnuNeed = []string{
++	"ldr",
++	"bl",
++	"cmp",
++}
++
+ var ppcNeed = []string{
+ 	"BR main.main(SB)",
+ 	"CALL main.Println(SB)",
+ 	"RET",
+ }
+ 
++var ppcGnuNeed = []string{
++	"mflr",
++	"lbz",
++	"cmpw",
++}
++
+ var target = flag.String("target", "", "test disassembly of `goos/goarch` binary")
+ 
+ // objdump is fully cross platform: it can handle binaries
+@@ -87,7 +111,7 @@ var target = flag.String("target", "", "test disassembly of `goos/goarch` binary
+ // binary for the current system (only) and test that objdump
+ // can handle that one.
+ 
+-func testDisasm(t *testing.T, printCode bool, flags ...string) {
++func testDisasm(t *testing.T, printCode bool, printGnuAsm bool, flags ...string) {
+ 	t.Parallel()
+ 	goarch := runtime.GOARCH
+ 	if *target != "" {
+@@ -102,7 +126,7 @@ func testDisasm(t *testing.T, printCode bool, flags ...string) {
+ 		goarch = f[1]
+ 	}
+ 
+-	hash := md5.Sum([]byte(fmt.Sprintf("%v-%v", flags, printCode)))
++	hash := md5.Sum([]byte(fmt.Sprintf("%v-%v-%v", flags, printCode, printGnuAsm)))
+ 	hello := filepath.Join(tmp, fmt.Sprintf("hello-%x.exe", hash))
+ 	args := []string{"build", "-o", hello}
+ 	args = append(args, flags...)
+@@ -133,6 +157,18 @@ func testDisasm(t *testing.T, printCode bool, flags ...string) {
+ 		need = append(need, ppcNeed...)
+ 	}
+ 
++	if printGnuAsm {
++		switch goarch {
++		case "amd64":
++			need = append(need, amd64GnuNeed...)
++		case "386":
++			need = append(need, i386GnuNeed...)
++		case "arm64":
++			need = append(need, arm64GnuNeed...)
++		case "ppc64", "ppc64le":
++			need = append(need, ppcGnuNeed...)
++		}
++	}
+ 	args = []string{
+ 		"-s", "main.main",
+ 		hello,
+@@ -142,6 +178,9 @@ func testDisasm(t *testing.T, printCode bool, flags ...string) {
+ 		args = append([]string{"-S"}, args...)
+ 	}
+ 
++	if printGnuAsm {
++		args = append([]string{"-gnu"}, args...)
++	}
+ 	cmd = exec.Command(exe, args...)
+ 	cmd.Dir = "testdata" // "Bad line" bug #36683 is sensitive to being run in the source directory
+ 	out, err = cmd.CombinedOutput()
+@@ -180,7 +219,7 @@ func TestDisasm(t *testing.T) {
+ 	case "s390x":
+ 		t.Skipf("skipping on %s, issue 15255", runtime.GOARCH)
+ 	}
+-	testDisasm(t, false)
++	testDisasm(t, false, false)
+ }
+ 
+ func TestDisasmCode(t *testing.T) {
+@@ -188,7 +227,17 @@ func TestDisasmCode(t *testing.T) {
+ 	case "mips", "mipsle", "mips64", "mips64le", "riscv64", "s390x":
+ 		t.Skipf("skipping on %s, issue 19160", runtime.GOARCH)
+ 	}
+-	testDisasm(t, true)
++	testDisasm(t, true, false)
++}
++
++func TestDisasmGnuAsm(t *testing.T) {
++	switch runtime.GOARCH {
++	case "mips", "mipsle", "mips64", "mips64le", "riscv64", "s390x":
++		t.Skipf("skipping on %s, issue 19160", runtime.GOARCH)
++	case "arm":
++		t.Skipf("skipping gnuAsm test on %s", runtime.GOARCH)
++	}
++	testDisasm(t, false, true)
+ }
+ 
+ func TestDisasmExtld(t *testing.T) {
+@@ -209,7 +258,7 @@ func TestDisasmExtld(t *testing.T) {
+ 	if !build.Default.CgoEnabled {
+ 		t.Skip("skipping because cgo is not enabled")
+ 	}
+-	testDisasm(t, false, "-ldflags=-linkmode=external")
++	testDisasm(t, false, false, "-ldflags=-linkmode=external")
+ }
+ 
+ func TestDisasmGoobj(t *testing.T) {
+diff --git a/src/cmd/pprof/pprof.go b/src/cmd/pprof/pprof.go
+index 42e310043d..903f9cc1db 100644
+--- a/src/cmd/pprof/pprof.go
++++ b/src/cmd/pprof/pprof.go
+@@ -177,7 +177,7 @@ func (t *objTool) Disasm(file string, start, end uint64) ([]driver.Inst, error)
+ 		return nil, err
+ 	}
+ 	var asm []driver.Inst
+-	d.Decode(start, end, nil, func(pc, size uint64, file string, line int, text string) {
++	d.Decode(start, end, nil, false, func(pc, size uint64, file string, line int, text string) {
+ 		asm = append(asm, driver.Inst{Addr: pc, File: file, Line: line, Text: text})
+ 	})
+ 	return asm, nil

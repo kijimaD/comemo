@@ -10,7 +10,7 @@ Date:   Wed Nov 2 16:47:09 2022 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/mem.go         | 7 +++++++
  src/runtime/mem_aix.go     | 3 +++
  src/runtime/mem_bsd.go     | 3 +++
@@ -19,3 +19,107 @@ Date:   Wed Nov 2 16:47:09 2022 +0000
  src/runtime/mem_sbrk.go    | 3 +++
  src/runtime/mem_windows.go | 3 +++
  7 files changed, 26 insertions(+)
+
+diff --git a/src/runtime/mem.go b/src/runtime/mem.go
+index 0ca933b25b..7b01905224 100644
+--- a/src/runtime/mem.go
++++ b/src/runtime/mem.go
+@@ -84,6 +84,13 @@ func sysHugePage(v unsafe.Pointer, n uintptr) {
+ 	sysHugePageOS(v, n)
+ }
+ 
++// sysNoHugePage does not transition memory regions, but instead provides a
++// hint to the OS that it would be less efficient to back this memory region
++// with pages of a larger size transparently.
++func sysNoHugePage(v unsafe.Pointer, n uintptr) {
++	sysNoHugePageOS(v, n)
++}
++
+ // sysFree transitions a memory region from any state to None. Therefore, it
+ // returns memory unconditionally. It is used if an out-of-memory error has been
+ // detected midway through an allocation or to carve out an aligned section of
+diff --git a/src/runtime/mem_aix.go b/src/runtime/mem_aix.go
+index 21726b56ae..deae61635c 100644
+--- a/src/runtime/mem_aix.go
++++ b/src/runtime/mem_aix.go
+@@ -38,6 +38,9 @@ func sysUsedOS(v unsafe.Pointer, n uintptr) {
+ func sysHugePageOS(v unsafe.Pointer, n uintptr) {
+ }
+ 
++func sysNoHugePageOS(v unsafe.Pointer, n uintptr) {
++}
++
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
+ //
+diff --git a/src/runtime/mem_bsd.go b/src/runtime/mem_bsd.go
+index 6c5edb17c2..a9025ad015 100644
+--- a/src/runtime/mem_bsd.go
++++ b/src/runtime/mem_bsd.go
+@@ -36,6 +36,9 @@ func sysUsedOS(v unsafe.Pointer, n uintptr) {
+ func sysHugePageOS(v unsafe.Pointer, n uintptr) {
+ }
+ 
++func sysNoHugePageOS(v unsafe.Pointer, n uintptr) {
++}
++
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
+ //
+diff --git a/src/runtime/mem_darwin.go b/src/runtime/mem_darwin.go
+index 25862cf161..1e3e53d45b 100644
+--- a/src/runtime/mem_darwin.go
++++ b/src/runtime/mem_darwin.go
+@@ -36,6 +36,9 @@ func sysUsedOS(v unsafe.Pointer, n uintptr) {
+ func sysHugePageOS(v unsafe.Pointer, n uintptr) {
+ }
+ 
++func sysNoHugePageOS(v unsafe.Pointer, n uintptr) {
++}
++
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
+ //
+diff --git a/src/runtime/mem_linux.go b/src/runtime/mem_linux.go
+index 1630664cff..96e890eedb 100644
+--- a/src/runtime/mem_linux.go
++++ b/src/runtime/mem_linux.go
+@@ -161,6 +161,10 @@ func sysHugePageOS(v unsafe.Pointer, n uintptr) {
+ 	}
+ }
+ 
++func sysNoHugePageOS(v unsafe.Pointer, n uintptr) {
++	madvise(v, n, _MADV_NOHUGEPAGE)
++}
++
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
+ //
+diff --git a/src/runtime/mem_sbrk.go b/src/runtime/mem_sbrk.go
+index 4d5d3d7ce3..c8f50e7bd5 100644
+--- a/src/runtime/mem_sbrk.go
++++ b/src/runtime/mem_sbrk.go
+@@ -160,6 +160,9 @@ func sysUsedOS(v unsafe.Pointer, n uintptr) {
+ func sysHugePageOS(v unsafe.Pointer, n uintptr) {
+ }
+ 
++func sysNoHugePageOS(v unsafe.Pointer, n uintptr) {
++}
++
+ func sysMapOS(v unsafe.Pointer, n uintptr) {
+ }
+ 
+diff --git a/src/runtime/mem_windows.go b/src/runtime/mem_windows.go
+index b1292fc725..c11abc17ad 100644
+--- a/src/runtime/mem_windows.go
++++ b/src/runtime/mem_windows.go
+@@ -94,6 +94,9 @@ func sysUsedOS(v unsafe.Pointer, n uintptr) {
+ func sysHugePageOS(v unsafe.Pointer, n uintptr) {
+ }
+ 
++func sysNoHugePageOS(v unsafe.Pointer, n uintptr) {
++}
++
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
+ //

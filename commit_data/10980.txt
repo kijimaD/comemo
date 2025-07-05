@@ -9,7 +9,107 @@ Date:   Thu Dec 22 14:08:34 2011 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5504076
-
+---
  src/pkg/path/path.go      | 18 ++++++++++++++++++
  src/pkg/path/path_test.go | 39 +++++++++++++++++++++++++++++++--------
  2 files changed, 49 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/path/path.go b/src/pkg/path/path.go
+index 235384667c..20d89c9ff0 100644
+--- a/src/pkg/path/path.go
++++ b/src/pkg/path/path.go
+@@ -160,3 +160,21 @@ func Base(path string) string {
+ func IsAbs(path string) bool {
+ 	return len(path) > 0 && path[0] == '/'
+ }
++
++// Dir returns the all but the last element of path, typically the path's directory.
++// Trailing path separators are removed before processing.
++// If the path is empty, Dir returns ".".
++// If the path consists entirely of separators, Dir returns a single separator.
++// The returned path does not end in a separator unless it is the root directory.
++func Dir(path string) string {
++	dir, _ := Split(path)
++	dir = Clean(dir)
++	last := len(dir) - 1
++	if last > 0 && dir[last] == '/' {
++		dir = dir[:last]
++	}
++	if dir == "" {
++		dir = "."
++	}
++	return dir
++}
+diff --git a/src/pkg/path/path_test.go b/src/pkg/path/path_test.go
+index 1fd57cc800..77f080433b 100644
+--- a/src/pkg/path/path_test.go
++++ b/src/pkg/path/path_test.go
+@@ -8,11 +8,11 @@ import (
+ 	"testing"
+ )
+ 
+-type CleanTest struct {
+-	path, clean string
++type PathTest struct {
++	path, result string
+ }
+ 
+-var cleantests = []CleanTest{
++var cleantests = []PathTest{
+ 	// Already clean
+ 	{"", "."},
+ 	{"abc", "abc"},
+@@ -64,8 +64,8 @@ var cleantests = []CleanTest{
+ 
+ func TestClean(t *testing.T) {
+ 	for _, test := range cleantests {
+-		if s := Clean(test.path); s != test.clean {
+-			t.Errorf("Clean(%q) = %q, want %q", test.path, s, test.clean)
++		if s := Clean(test.path); s != test.result {
++			t.Errorf("Clean(%q) = %q, want %q", test.path, s, test.result)
+ 		}
+ 	}
+ }
+@@ -148,7 +148,7 @@ func TestExt(t *testing.T) {
+ 	}
+ }
+ 
+-var basetests = []CleanTest{
++var basetests = []PathTest{
+ 	// Already clean
+ 	{"", "."},
+ 	{".", "."},
+@@ -165,8 +165,31 @@ var basetests = []CleanTest{
+ 
+ func TestBase(t *testing.T) {
+ 	for _, test := range basetests {
+-		if s := Base(test.path); s != test.clean {
+-			t.Errorf("Base(%q) = %q, want %q", test.path, s, test.clean)
++		if s := Base(test.path); s != test.result {
++			t.Errorf("Base(%q) = %q, want %q", test.path, s, test.result)
++		}
++	}
++}
++
++var dirtests = []PathTest{
++	{"", "."},
++	{".", "."},
++	{"/.", "/"},
++	{"/", "/"},
++	{"////", "/"},
++	{"/foo", "/"},
++	{"x/", "x"},
++	{"abc", "."},
++	{"abc/def", "abc"},
++	{"a/b/.x", "a/b"},
++	{"a/b/c.", "a/b"},
++	{"a/b/c.x", "a/b"},
++}
++
++func TestDir(t *testing.T) {
++	for _, test := range dirtests {
++		if s := Dir(test.path); s != test.result {
++			t.Errorf("Dir(%q) = %q, want %q", test.path, s, test.result)
+ 		}
+ 	}
+ }

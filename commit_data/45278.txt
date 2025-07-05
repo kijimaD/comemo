@@ -13,7 +13,90 @@ Date:   Wed Oct 14 19:26:20 2020 -0400
     Trust: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/cgo/gcc_darwin_arm64.c                  | 21 ++++++++++++++++-----
  ...gnal_darwin_nolldb.c => gcc_signal_ios_nolldb.c} |  4 ++--
  2 files changed, 18 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/cgo/gcc_darwin_arm64.c b/src/runtime/cgo/gcc_darwin_arm64.c
+index 9ea43ae4af..dbe848b4ee 100644
+--- a/src/runtime/cgo/gcc_darwin_arm64.c
++++ b/src/runtime/cgo/gcc_darwin_arm64.c
+@@ -10,12 +10,16 @@
+ #include <unistd.h>
+ #include <stdlib.h>
+ 
+-#include <CoreFoundation/CFBundle.h>
+-#include <CoreFoundation/CFString.h>
+-
+ #include "libcgo.h"
+ #include "libcgo_unix.h"
+ 
++#include <TargetConditionals.h>
++
++#if TARGET_OS_IPHONE
++#include <CoreFoundation/CFBundle.h>
++#include <CoreFoundation/CFString.h>
++#endif
++
+ #define magic (0xc476c475c47957UL)
+ 
+ // inittls allocates a thread-local storage slot for g.
+@@ -87,14 +91,18 @@ threadentry(void *v)
+ 	ts = *(ThreadStart*)v;
+ 	free(v);
+ 
++#if TARGET_OS_IPHONE
+ 	darwin_arm_init_thread_exception_port();
++#endif
+ 
+ 	crosscall1(ts.fn, setg_gcc, (void*)ts.g);
+ 	return nil;
+ }
+ 
++#if TARGET_OS_IPHONE
++
+ // init_working_dir sets the current working directory to the app root.
+-// By default darwin/arm64 processes start in "/".
++// By default ios/arm64 processes start in "/".
+ static void
+ init_working_dir()
+ {
+@@ -145,6 +153,8 @@ init_working_dir()
+ 	}
+ }
+ 
++#endif // TARGET_OS_IPHONE
++
+ void
+ x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
+ {
+@@ -161,8 +171,9 @@ x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
+ 	// yes, tlsbase from mrs might not be correctly aligned.
+ 	inittls(tlsg, (void**)((uintptr)tlsbase & ~7));
+ 
++#if TARGET_OS_IPHONE
+ 	darwin_arm_init_mach_exception_handler();
+ 	darwin_arm_init_thread_exception_port();
+-
+ 	init_working_dir();
++#endif
+ }
+diff --git a/src/runtime/cgo/gcc_signal_darwin_nolldb.c b/src/runtime/cgo/gcc_signal_ios_nolldb.c
+similarity index 88%
+rename from src/runtime/cgo/gcc_signal_darwin_nolldb.c
+rename to src/runtime/cgo/gcc_signal_ios_nolldb.c
+index 26be71bd1d..cfa4025414 100644
+--- a/src/runtime/cgo/gcc_signal_darwin_nolldb.c
++++ b/src/runtime/cgo/gcc_signal_ios_nolldb.c
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !lldb !ios
+-// +build darwin
++// +build !lldb
++// +build ios
+ // +build arm64
+ 
+ #include <stdint.h>

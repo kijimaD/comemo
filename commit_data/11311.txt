@@ -7,7 +7,34 @@ Date:   Sat Jan 21 12:18:15 2012 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5556077
-
+---
  src/pkg/compress/flate/deflate.go      | 2 +-
  src/pkg/compress/flate/deflate_test.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/compress/flate/deflate.go b/src/pkg/compress/flate/deflate.go
+index c61087672e..5f5100db83 100644
+--- a/src/pkg/compress/flate/deflate.go
++++ b/src/pkg/compress/flate/deflate.go
+@@ -112,7 +112,7 @@ func (d *compressor) fillDeflate(b []byte) int {
+ 			d.hashHead[i] = v
+ 		}
+ 		for i, h := range d.hashPrev {
+-			v := -h - windowSize
++			v := h - windowSize
+ 			if v < -1 {
+ 				v = -1
+ 			}
+diff --git a/src/pkg/compress/flate/deflate_test.go b/src/pkg/compress/flate/deflate_test.go
+index 9cf93479a2..24881d31c0 100644
+--- a/src/pkg/compress/flate/deflate_test.go
++++ b/src/pkg/compress/flate/deflate_test.go
+@@ -291,7 +291,7 @@ var deflateInflateStringTests = []deflateInflateStringTest{
+ 	{
+ 		"../testdata/Mark.Twain-Tom.Sawyer.txt",
+ 		"Mark.Twain-Tom.Sawyer",
+-		[...]int{416188, 191483, 185232, 179560, 175233, 171263, 169908, 169758, 169712, 169712},
++		[...]int{407330, 187598, 180361, 172974, 169160, 163476, 160936, 160506, 160295, 160295},
+ 	},
+ }
+ 

@@ -8,6 +8,20 @@ Date:   Mon Mar 11 22:31:34 2013 +0400
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/7713043
-
+---
  src/pkg/os/signal/signal_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/os/signal/signal_test.go b/src/pkg/os/signal/signal_test.go
+index 509b273aa2..93e5ab9fad 100644
+--- a/src/pkg/os/signal/signal_test.go
++++ b/src/pkg/os/signal/signal_test.go
+@@ -98,4 +98,8 @@ func TestStress(t *testing.T) {
+ 	close(done)
+ 	<-finished
+ 	<-finished
++	// When run with 'go test -cpu=1,2,4' SIGUSR1 from this test can slip
++	// into subsequent TestSignal() causing failure.
++	// Sleep for a while to reduce the possibility of the failure.
++	time.Sleep(10 * time.Millisecond)
+ }

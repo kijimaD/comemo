@@ -11,8 +11,48 @@ Date:   Tue Oct 25 08:39:19 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/vet/testdata/asm.go | 1 +
  src/cmd/vet/testdata/asm1.s | 7 +++++++
  src/go/types/sizes.go       | 4 ++++
  3 files changed, 12 insertions(+)
+
+diff --git a/src/cmd/vet/testdata/asm.go b/src/cmd/vet/testdata/asm.go
+index 3f9275c008..e6d6d03106 100644
+--- a/src/cmd/vet/testdata/asm.go
++++ b/src/cmd/vet/testdata/asm.go
+@@ -42,3 +42,4 @@ func noptr(x int)
+ func wrapper(x int)
+ 
+ func f15271() (x uint32)
++func f17584(x float32, y complex64)
+diff --git a/src/cmd/vet/testdata/asm1.s b/src/cmd/vet/testdata/asm1.s
+index bc8cbc2e79..cac6ed22cd 100644
+--- a/src/cmd/vet/testdata/asm1.s
++++ b/src/cmd/vet/testdata/asm1.s
+@@ -306,3 +306,10 @@ TEXT ·f15271(SB), NOSPLIT, $0-4
+     // Return them.
+     PEXTRD $0, X0, x+0(FP)
+     RET
++
++// issue 17584
++TEXT ·f17584(SB), NOSPLIT, $12
++	MOVSS	x+0(FP), X0
++	MOVSS	y_real+4(FP), X0
++	MOVSS	y_imag+8(FP), X0
++	RET
+diff --git a/src/go/types/sizes.go b/src/go/types/sizes.go
+index 6efd0b1394..3bbe5aee40 100644
+--- a/src/go/types/sizes.go
++++ b/src/go/types/sizes.go
+@@ -79,6 +79,10 @@ func (s *StdSizes) Alignof(T Type) int64 {
+ 	if a < 1 {
+ 		return 1
+ 	}
++	// complex{64,128} are aligned like [2]float{32,64}.
++	if isComplex(T) {
++		a /= 2
++	}
+ 	if a > s.MaxAlign {
+ 		return s.MaxAlign
+ 	}

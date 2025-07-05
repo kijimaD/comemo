@@ -11,7 +11,7 @@ Date:   Wed Aug 6 14:33:57 2014 -0700
     R=bradfitz
     CC=golang-codereviews
     https://golang.org/cl/121320043
-
+---
  src/pkg/runtime/malloc.c  |  6 +++---
  src/pkg/runtime/malloc.go | 12 ++++++------
  src/pkg/runtime/mgc0.c    |  2 +-
@@ -19,3 +19,181 @@ Date:   Wed Aug 6 14:33:57 2014 -0700
  src/pkg/runtime/print.go  | 10 ++++++----
  src/pkg/runtime/stubs.go  | 28 ++++++++++++++++++----------
  6 files changed, 35 insertions(+), 25 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.c b/src/pkg/runtime/malloc.c
+index d56d0dcf31..951117622f 100644
+--- a/src/pkg/runtime/malloc.c
++++ b/src/pkg/runtime/malloc.c
+@@ -514,7 +514,7 @@ throw:
+ }
+ 
+ void
+-runtime·setFinalizer(void)
++runtime·setFinalizer_m(void)
+ {
+ 	Eface obj, finalizer;
+ 
+@@ -531,13 +531,13 @@ runtime·setFinalizer(void)
+ 
+ // mcallable cache refill
+ void 
+-runtime·mcacheRefill(void)
++runtime·mcacheRefill_m(void)
+ {
+ 	runtime·MCache_Refill(g->m->mcache, (int32)g->m->scalararg[0]);
+ }
+ 
+ void
+-runtime·largeAlloc(void)
++runtime·largeAlloc_m(void)
+ {
+ 	uintptr npages, size;
+ 	MSpan *s;
+diff --git a/src/pkg/runtime/malloc.go b/src/pkg/runtime/malloc.go
+index dedcea94a6..81769573c9 100644
+--- a/src/pkg/runtime/malloc.go
++++ b/src/pkg/runtime/malloc.go
+@@ -114,7 +114,7 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
+ 			v := s.freelist
+ 			if v == nil {
+ 				mp.scalararg[0] = tinySizeClass
+-				onM(&mcacheRefill)
++				onM(&mcacheRefill_m)
+ 				s = c.alloc[tinySizeClass]
+ 				v = s.freelist
+ 			}
+@@ -143,7 +143,7 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
+ 			v := s.freelist
+ 			if v == nil {
+ 				mp.scalararg[0] = uint(sizeclass)
+-				onM(&mcacheRefill)
++				onM(&mcacheRefill_m)
+ 				s = c.alloc[sizeclass]
+ 				v = s.freelist
+ 			}
+@@ -162,7 +162,7 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
+ 	} else {
+ 		mp.scalararg[0] = uint(size)
+ 		mp.scalararg[1] = uint(flags)
+-		onM(&largeAlloc)
++		onM(&largeAlloc_m)
+ 		s = (*mspan)(mp.ptrarg[0])
+ 		mp.ptrarg[0] = nil
+ 		x = unsafe.Pointer(uintptr(s.start << pageShift))
+@@ -272,7 +272,7 @@ func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
+ 	}
+ 	mp.scalararg[0] = uint(size)
+ 	mp.ptrarg[0] = x
+-	onM(&mprofMalloc)
++	onM(&mprofMalloc_m)
+ }
+ 
+ // force = 1 - do GC regardless of current heap usage
+@@ -341,7 +341,7 @@ func gogc(force int32) {
+ 		} else {
+ 			mp.scalararg[1] = 0
+ 		}
+-		onM(&mgc2)
++		onM(&gc_m)
+ 	}
+ 
+ 	// all done
+@@ -426,6 +426,6 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
+ 	mp.ptrarg[1] = e.data
+ 	mp.ptrarg[2] = unsafe.Pointer(ftyp)
+ 	mp.ptrarg[3] = f.data
+-	onM(&setFinalizer)
++	onM(&setFinalizer_m)
+ 	releasem(mp)
+ }
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index e7955151ce..01e055cf04 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1369,7 +1369,7 @@ mgc(G *gp)
+ }
+ 
+ void
+-runtime·mgc2(void)
++runtime·gc_m(void)
+ {
+ 	struct gc_args a;
+ 	G *gp;
+diff --git a/src/pkg/runtime/mprof.goc b/src/pkg/runtime/mprof.goc
+index 69187f2a74..053781193e 100644
+--- a/src/pkg/runtime/mprof.goc
++++ b/src/pkg/runtime/mprof.goc
+@@ -142,7 +142,7 @@ runtime·MProf_Malloc(void *p, uintptr size)
+ 
+ // Called by malloc to record a profiled block.
+ void
+-runtime·mprofMalloc(void)
++runtime·mprofMalloc_m(void)
+ {
+ 	uintptr stk[32];
+ 	Bucket *b;
+diff --git a/src/pkg/runtime/print.go b/src/pkg/runtime/print.go
+index 904af5d333..4b94417c6e 100644
+--- a/src/pkg/runtime/print.go
++++ b/src/pkg/runtime/print.go
+@@ -10,10 +10,12 @@ import (
+ 
+ // these 4 functions are complicated enough that we will share
+ // the print logic with the C printf.
+-var printstring_m byte
+-var printuint_m byte
+-var printhex_m byte
+-var printfloat_m byte
++var (
++	printstring_m,
++	printuint_m,
++	printhex_m,
++	printfloat_m mFunction
++)
+ 
+ func printstring(s string) {
+ 	mp := acquirem()
+diff --git a/src/pkg/runtime/stubs.go b/src/pkg/runtime/stubs.go
+index 30638d1af8..8a2fc8a97e 100644
+--- a/src/pkg/runtime/stubs.go
++++ b/src/pkg/runtime/stubs.go
+@@ -44,21 +44,29 @@ func roundup(p unsafe.Pointer, n uintptr) unsafe.Pointer {
+ func acquirem() *m
+ func releasem(mp *m)
+ 
++// An mFunction represents a C function that runs on the M stack.  It
++// can be called from Go using mcall or onM.  Through the magic of
++// linking, an mFunction variable and the corresponding C code entry
++// point live at the same address.
++type mFunction byte
++
+ // in asm_*.s
+-func mcall(fn *byte)
+-func onM(fn *byte)
++func mcall(fn *mFunction)
++func onM(fn *mFunction)
+ 
+-// C routines that run on the M stack.  Call these like
+-//   mcall(&mcacheRefill)
++// C functions that run on the M stack.  Call these like
++//   mcall(&mcacheRefill_m)
+ // Arguments should be passed in m->scalararg[x] and
+ // m->ptrarg[x].  Return values can be passed in those
+ // same slots.
+-var mcacheRefill byte
+-var largeAlloc byte
+-var mprofMalloc byte
+-var mgc2 byte
+-var setFinalizer byte
+-var markallocated_m byte
++var (
++	mcacheRefill_m,
++	largeAlloc_m,
++	mprofMalloc_m,
++	gc_m,
++	setFinalizer_m,
++	markallocated_m mFunction
++)
+ 
+ // memclr clears n bytes starting at ptr.
+ // in memclr_*.s

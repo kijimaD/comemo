@@ -21,6 +21,27 @@ Date:   Tue Feb 23 15:29:19 2016 -0800
     Change-Id: Ibcc49fe3402264819b9abb53505631f7a0ad4a36
     Reviewed-on: https://go-review.googlesource.com/19859
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/parser.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index fbc5a5e1eb..6165684574 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -280,13 +280,11 @@ func (p *parser) package_() {
+ 		defer p.trace("package_")()
+ 	}
+ 
+-	if p.got(LPACKAGE) {
+-		mkpackage(p.sym().Name)
+-	} else {
+-		prevlineno = lineno // see issue #13267
++	if !p.got(LPACKAGE) {
+ 		p.syntax_error("package statement must be first")
+ 		errorexit()
+ 	}
++	mkpackage(p.sym().Name)
+ }
+ 
+ // ImportDecl = "import" ( ImportSpec | "(" { ImportSpec ";" } ")" ) .

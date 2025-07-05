@@ -40,6 +40,67 @@ Date:   Fri Aug 11 17:20:36 2023 +0800
     Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
     Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/encoding/json/decode.go | 17 ++++++++---------
  1 file changed, 8 insertions(+), 9 deletions(-)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index 858a2ed41a..72188a66f6 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -962,13 +962,12 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
+ 			}
+ 			panic(phasePanicMsg)
+ 		}
+-		s := string(item)
+ 		switch v.Kind() {
+ 		default:
+ 			if v.Kind() == reflect.String && v.Type() == numberType {
+ 				// s must be a valid number, because it's
+ 				// already been tokenized.
+-				v.SetString(s)
++				v.SetString(string(item))
+ 				break
+ 			}
+ 			if fromQuoted {
+@@ -976,7 +975,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
+ 			}
+ 			d.saveError(&UnmarshalTypeError{Value: "number", Type: v.Type(), Offset: int64(d.readIndex())})
+ 		case reflect.Interface:
+-			n, err := d.convertNumber(s)
++			n, err := d.convertNumber(string(item))
+ 			if err != nil {
+ 				d.saveError(err)
+ 				break
+@@ -988,25 +987,25 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
+ 			v.Set(reflect.ValueOf(n))
+ 
+ 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+-			n, err := strconv.ParseInt(s, 10, 64)
++			n, err := strconv.ParseInt(string(item), 10, 64)
+ 			if err != nil || v.OverflowInt(n) {
+-				d.saveError(&UnmarshalTypeError{Value: "number " + s, Type: v.Type(), Offset: int64(d.readIndex())})
++				d.saveError(&UnmarshalTypeError{Value: "number " + string(item), Type: v.Type(), Offset: int64(d.readIndex())})
+ 				break
+ 			}
+ 			v.SetInt(n)
+ 
+ 		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+-			n, err := strconv.ParseUint(s, 10, 64)
++			n, err := strconv.ParseUint(string(item), 10, 64)
+ 			if err != nil || v.OverflowUint(n) {
+-				d.saveError(&UnmarshalTypeError{Value: "number " + s, Type: v.Type(), Offset: int64(d.readIndex())})
++				d.saveError(&UnmarshalTypeError{Value: "number " + string(item), Type: v.Type(), Offset: int64(d.readIndex())})
+ 				break
+ 			}
+ 			v.SetUint(n)
+ 
+ 		case reflect.Float32, reflect.Float64:
+-			n, err := strconv.ParseFloat(s, v.Type().Bits())
++			n, err := strconv.ParseFloat(string(item), v.Type().Bits())
+ 			if err != nil || v.OverflowFloat(n) {
+-				d.saveError(&UnmarshalTypeError{Value: "number " + s, Type: v.Type(), Offset: int64(d.readIndex())})
++				d.saveError(&UnmarshalTypeError{Value: "number " + string(item), Type: v.Type(), Offset: int64(d.readIndex())})
+ 				break
+ 			}
+ 			v.SetFloat(n)

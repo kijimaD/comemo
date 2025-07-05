@@ -16,6 +16,24 @@ Date:   Tue May 10 15:09:12 2022 +0000
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Rhys Hiltner <rhys@justin.tv>
-
+---
  src/runtime/mprof.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index cd63bafebb..2046e9f245 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -952,9 +952,9 @@ func goroutineProfileWithLabelsConcurrent(p []StackRecord, labels []unsafe.Point
+ 	// system goroutine (to be excluded). Pick one before restarting the world.
+ 	if fing != nil {
+ 		fing.goroutineProfiled.Store(goroutineProfileSatisfied)
+-	}
+-	if readgstatus(fing) != _Gdead && !isSystemGoroutine(fing, false) {
+-		doRecordGoroutineProfile(fing)
++		if readgstatus(fing) != _Gdead && !isSystemGoroutine(fing, false) {
++			doRecordGoroutineProfile(fing)
++		}
+ 	}
+ 	startTheWorld()
+ 

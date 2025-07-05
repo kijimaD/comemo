@@ -7,6 +7,33 @@ Date:   Thu Jul 30 19:29:31 2009 -0700
     R=rsc
     OCL=32563
     CL=32563
-
+---
  src/pkg/template/template.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index dbbadeedfd..60021a423e 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -569,10 +569,11 @@ func (st *state) findVar(s string) reflect.Value {
+ 	if s == "@" {
+ 		return st.data
+ 	}
+-	data := reflect.Indirect(st.data);
++	data := st.data;
+ 	elems := strings.Split(s, ".", 0);
+ 	for i := 0; i < len(elems); i++ {
+ 		// Look up field; data must be a struct.
++		data = reflect.Indirect(data);
+ 		typ, ok := data.Type().(*reflect.StructType);
+ 		if !ok {
+ 			return nil
+@@ -581,7 +582,7 @@ func (st *state) findVar(s string) reflect.Value {
+ 		if !ok {
+ 			return nil
+ 		}
+-		data = reflect.Indirect(data.(*reflect.StructValue).Field(field.Index));
++		data = data.(*reflect.StructValue).Field(field.Index);
+ 	}
+ 	return data
+ }

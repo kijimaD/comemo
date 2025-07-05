@@ -27,7 +27,7 @@ Date:   Fri Jun 11 10:58:43 2021 -0400
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/go/ast/ast.go                              | 56 +++++++++++--------------
  src/go/ast/walk.go                             | 11 ++---
  src/go/internal/typeparams/typeparams.go       | 58 ++++++++++++++++----------
@@ -43,3 +43,757 @@ Date:   Fri Jun 11 10:58:43 2021 -0400
  src/go/types/testdata/fixedbugs/issue45635.go2 |  2 +-
  src/go/types/typexpr.go                        | 20 ++++-----
  14 files changed, 170 insertions(+), 167 deletions(-)
+
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index a34cafcb4e..b0f1330564 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -344,6 +344,15 @@ type (
+ 		Rbrack token.Pos // position of "]"
+ 	}
+ 
++	// A MultiIndexExpr node represents an expression followed by multiple
++	// indices.
++	MultiIndexExpr struct {
++		X       Expr      // expression
++		Lbrack  token.Pos // position of "["
++		Indices []Expr    // index expressions
++		Rbrack  token.Pos // position of "]"
++	}
++
+ 	// A SliceExpr node represents an expression followed by slice indices.
+ 	SliceExpr struct {
+ 		X      Expr      // expression
+@@ -374,13 +383,6 @@ type (
+ 		Rparen   token.Pos // position of ")"
+ 	}
+ 
+-	// A ListExpr node represents a list of expressions separated by commas.
+-	// ListExpr nodes are used as index in IndexExpr nodes representing type
+-	// or function instantiations with more than one type argument.
+-	ListExpr struct {
+-		ElemList []Expr
+-	}
+-
+ 	// A StarExpr node represents an expression of the form "*" Expression.
+ 	// Semantically it could be a unary "*" expression, or a pointer type.
+ 	//
+@@ -494,21 +496,16 @@ func (x *CompositeLit) Pos() token.Pos {
+ func (x *ParenExpr) Pos() token.Pos      { return x.Lparen }
+ func (x *SelectorExpr) Pos() token.Pos   { return x.X.Pos() }
+ func (x *IndexExpr) Pos() token.Pos      { return x.X.Pos() }
++func (x *MultiIndexExpr) Pos() token.Pos { return x.X.Pos() }
+ func (x *SliceExpr) Pos() token.Pos      { return x.X.Pos() }
+ func (x *TypeAssertExpr) Pos() token.Pos { return x.X.Pos() }
+ func (x *CallExpr) Pos() token.Pos       { return x.Fun.Pos() }
+-func (x *ListExpr) Pos() token.Pos {
+-	if len(x.ElemList) > 0 {
+-		return x.ElemList[0].Pos()
+-	}
+-	return token.NoPos
+-}
+-func (x *StarExpr) Pos() token.Pos     { return x.Star }
+-func (x *UnaryExpr) Pos() token.Pos    { return x.OpPos }
+-func (x *BinaryExpr) Pos() token.Pos   { return x.X.Pos() }
+-func (x *KeyValueExpr) Pos() token.Pos { return x.Key.Pos() }
+-func (x *ArrayType) Pos() token.Pos    { return x.Lbrack }
+-func (x *StructType) Pos() token.Pos   { return x.Struct }
++func (x *StarExpr) Pos() token.Pos       { return x.Star }
++func (x *UnaryExpr) Pos() token.Pos      { return x.OpPos }
++func (x *BinaryExpr) Pos() token.Pos     { return x.X.Pos() }
++func (x *KeyValueExpr) Pos() token.Pos   { return x.Key.Pos() }
++func (x *ArrayType) Pos() token.Pos      { return x.Lbrack }
++func (x *StructType) Pos() token.Pos     { return x.Struct }
+ func (x *FuncType) Pos() token.Pos {
+ 	if x.Func.IsValid() || x.Params == nil { // see issue 3870
+ 		return x.Func
+@@ -533,21 +530,16 @@ func (x *CompositeLit) End() token.Pos   { return x.Rbrace + 1 }
+ func (x *ParenExpr) End() token.Pos      { return x.Rparen + 1 }
+ func (x *SelectorExpr) End() token.Pos   { return x.Sel.End() }
+ func (x *IndexExpr) End() token.Pos      { return x.Rbrack + 1 }
++func (x *MultiIndexExpr) End() token.Pos { return x.Rbrack + 1 }
+ func (x *SliceExpr) End() token.Pos      { return x.Rbrack + 1 }
+ func (x *TypeAssertExpr) End() token.Pos { return x.Rparen + 1 }
+ func (x *CallExpr) End() token.Pos       { return x.Rparen + 1 }
+-func (x *ListExpr) End() token.Pos {
+-	if len(x.ElemList) > 0 {
+-		return x.ElemList[len(x.ElemList)-1].End()
+-	}
+-	return token.NoPos
+-}
+-func (x *StarExpr) End() token.Pos     { return x.X.End() }
+-func (x *UnaryExpr) End() token.Pos    { return x.X.End() }
+-func (x *BinaryExpr) End() token.Pos   { return x.Y.End() }
+-func (x *KeyValueExpr) End() token.Pos { return x.Value.End() }
+-func (x *ArrayType) End() token.Pos    { return x.Elt.End() }
+-func (x *StructType) End() token.Pos   { return x.Fields.End() }
++func (x *StarExpr) End() token.Pos       { return x.X.End() }
++func (x *UnaryExpr) End() token.Pos      { return x.X.End() }
++func (x *BinaryExpr) End() token.Pos     { return x.Y.End() }
++func (x *KeyValueExpr) End() token.Pos   { return x.Value.End() }
++func (x *ArrayType) End() token.Pos      { return x.Elt.End() }
++func (x *StructType) End() token.Pos     { return x.Fields.End() }
+ func (x *FuncType) End() token.Pos {
+ 	if x.Results != nil {
+ 		return x.Results.End()
+@@ -570,10 +562,10 @@ func (*CompositeLit) exprNode()   {}
+ func (*ParenExpr) exprNode()      {}
+ func (*SelectorExpr) exprNode()   {}
+ func (*IndexExpr) exprNode()      {}
++func (*MultiIndexExpr) exprNode() {}
+ func (*SliceExpr) exprNode()      {}
+ func (*TypeAssertExpr) exprNode() {}
+ func (*CallExpr) exprNode()       {}
+-func (*ListExpr) exprNode()       {}
+ func (*StarExpr) exprNode()       {}
+ func (*UnaryExpr) exprNode()      {}
+ func (*BinaryExpr) exprNode()     {}
+diff --git a/src/go/ast/walk.go b/src/go/ast/walk.go
+index 02fef5901d..c8abc40972 100644
+--- a/src/go/ast/walk.go
++++ b/src/go/ast/walk.go
+@@ -116,6 +116,12 @@ func Walk(v Visitor, node Node) {
+ 		Walk(v, n.X)
+ 		Walk(v, n.Index)
+ 
++	case *MultiIndexExpr:
++		Walk(v, n.X)
++		for _, index := range n.Indices {
++			Walk(v, index)
++		}
++
+ 	case *SliceExpr:
+ 		Walk(v, n.X)
+ 		if n.Low != nil {
+@@ -138,11 +144,6 @@ func Walk(v Visitor, node Node) {
+ 		Walk(v, n.Fun)
+ 		walkExprList(v, n.Args)
+ 
+-	case *ListExpr:
+-		for _, elem := range n.ElemList {
+-			Walk(v, elem)
+-		}
+-
+ 	case *StarExpr:
+ 		Walk(v, n.X)
+ 
+diff --git a/src/go/internal/typeparams/typeparams.go b/src/go/internal/typeparams/typeparams.go
+index b4251bda7e..e102b77ef8 100644
+--- a/src/go/internal/typeparams/typeparams.go
++++ b/src/go/internal/typeparams/typeparams.go
+@@ -7,40 +7,54 @@ package typeparams
+ import (
+ 	"fmt"
+ 	"go/ast"
++	"go/token"
+ )
+ 
+ const Enabled = true
+ 
+-func PackExpr(list []ast.Expr) ast.Expr {
+-	switch len(list) {
++func PackIndexExpr(x ast.Expr, lbrack token.Pos, exprs []ast.Expr, rbrack token.Pos) ast.Expr {
++	switch len(exprs) {
+ 	case 0:
+-		// Return an empty ListExpr here, rather than nil, as IndexExpr.Index must
+-		// never be nil.
+-		// TODO(rFindley) would a BadExpr be more appropriate here?
+-		return &ast.ListExpr{}
++		panic("internal error: PackIndexExpr with empty expr slice")
+ 	case 1:
+-		return list[0]
++		return &ast.IndexExpr{
++			X:      x,
++			Lbrack: lbrack,
++			Index:  exprs[0],
++			Rbrack: rbrack,
++		}
+ 	default:
+-		return &ast.ListExpr{ElemList: list}
++		return &ast.MultiIndexExpr{
++			X:       x,
++			Lbrack:  lbrack,
++			Indices: exprs,
++			Rbrack:  rbrack,
++		}
+ 	}
+ }
+ 
+-// TODO(gri) Should find a more efficient solution that doesn't
+-//           require introduction of a new slice for simple
+-//           expressions.
+-func UnpackExpr(x ast.Expr) []ast.Expr {
+-	if x, _ := x.(*ast.ListExpr); x != nil {
+-		return x.ElemList
+-	}
+-	if x != nil {
+-		return []ast.Expr{x}
+-	}
+-	return nil
++// IndexExpr wraps an ast.IndexExpr or ast.MultiIndexExpr into the
++// MultiIndexExpr interface.
++//
++// Orig holds the original ast.Expr from which this IndexExpr was derived.
++type IndexExpr struct {
++	Orig ast.Expr // the wrapped expr, which may be distinct from MultiIndexExpr below.
++	*ast.MultiIndexExpr
+ }
+ 
+-func IsListExpr(n ast.Node) bool {
+-	_, ok := n.(*ast.ListExpr)
+-	return ok
++func UnpackIndexExpr(n ast.Node) *IndexExpr {
++	switch e := n.(type) {
++	case *ast.IndexExpr:
++		return &IndexExpr{e, &ast.MultiIndexExpr{
++			X:       e.X,
++			Lbrack:  e.Lbrack,
++			Indices: []ast.Expr{e.Index},
++			Rbrack:  e.Rbrack,
++		}}
++	case *ast.MultiIndexExpr:
++		return &IndexExpr{e, e}
++	}
++	return nil
+ }
+ 
+ func Get(n ast.Node) *ast.FieldList {
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index c0a3cc66fe..d108259171 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -600,7 +600,7 @@ func (p *parser) parseArrayFieldOrTypeInstance(x *ast.Ident) (*ast.Ident, ast.Ex
+ 	}
+ 
+ 	// x[P], x[P1, P2], ...
+-	return nil, &ast.IndexExpr{X: x, Lbrack: lbrack, Index: typeparams.PackExpr(args), Rbrack: rbrack}
++	return nil, typeparams.PackIndexExpr(x, lbrack, args, rbrack)
+ }
+ 
+ func (p *parser) parseFieldDecl() *ast.Field {
+@@ -991,7 +991,7 @@ func (p *parser) parseMethodSpec() *ast.Field {
+ 					p.exprLev--
+ 				}
+ 				rbrack := p.expectClosing(token.RBRACK, "type argument list")
+-				typ = &ast.IndexExpr{X: ident, Lbrack: lbrack, Index: typeparams.PackExpr(list), Rbrack: rbrack}
++				typ = typeparams.PackIndexExpr(ident, lbrack, list, rbrack)
+ 			}
+ 		case p.tok == token.LPAREN:
+ 			// ordinary method
+@@ -1178,7 +1178,6 @@ func (p *parser) parseTypeInstance(typ ast.Expr) ast.Expr {
+ 	}
+ 
+ 	opening := p.expect(token.LBRACK)
+-
+ 	p.exprLev++
+ 	var list []ast.Expr
+ 	for p.tok != token.RBRACK && p.tok != token.EOF {
+@@ -1192,7 +1191,17 @@ func (p *parser) parseTypeInstance(typ ast.Expr) ast.Expr {
+ 
+ 	closing := p.expectClosing(token.RBRACK, "type argument list")
+ 
+-	return &ast.IndexExpr{X: typ, Lbrack: opening, Index: typeparams.PackExpr(list), Rbrack: closing}
++	if len(list) == 0 {
++		p.errorExpected(closing, "type argument list")
++		return &ast.IndexExpr{
++			X:      typ,
++			Lbrack: opening,
++			Index:  &ast.BadExpr{From: opening + 1, To: closing},
++			Rbrack: closing,
++		}
++	}
++
++	return typeparams.PackIndexExpr(typ, opening, list, closing)
+ }
+ 
+ func (p *parser) tryIdentOrType() ast.Expr {
+@@ -1455,7 +1464,7 @@ func (p *parser) parseIndexOrSliceOrInstance(x ast.Expr) ast.Expr {
+ 	}
+ 
+ 	// instance expression
+-	return &ast.IndexExpr{X: x, Lbrack: lbrack, Index: typeparams.PackExpr(args), Rbrack: rbrack}
++	return typeparams.PackIndexExpr(x, lbrack, args, rbrack)
+ }
+ 
+ func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
+@@ -1557,6 +1566,7 @@ func (p *parser) checkExpr(x ast.Expr) ast.Expr {
+ 		panic("unreachable")
+ 	case *ast.SelectorExpr:
+ 	case *ast.IndexExpr:
++	case *ast.MultiIndexExpr:
+ 	case *ast.SliceExpr:
+ 	case *ast.TypeAssertExpr:
+ 		// If t.Type == nil we have a type assertion of the form
+@@ -1646,7 +1656,7 @@ func (p *parser) parsePrimaryExpr() (x ast.Expr) {
+ 					return
+ 				}
+ 				// x is possibly a composite literal type
+-			case *ast.IndexExpr:
++			case *ast.IndexExpr, *ast.MultiIndexExpr:
+ 				if p.exprLev < 0 {
+ 					return
+ 				}
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index 913281ea6c..239fcbde1c 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -871,17 +871,15 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
+ 		// TODO(gri): should treat[] like parentheses and undo one level of depth
+ 		p.expr1(x.X, token.HighestPrec, 1)
+ 		p.print(x.Lbrack, token.LBRACK)
+-		// Note: we're a bit defensive here to handle the case of a ListExpr of
+-		// length 1.
+-		if list := typeparams.UnpackExpr(x.Index); len(list) > 0 {
+-			if len(list) > 1 {
+-				p.exprList(x.Lbrack, list, depth+1, commaTerm, x.Rbrack, false)
+-			} else {
+-				p.expr0(list[0], depth+1)
+-			}
+-		} else {
+-			p.expr0(x.Index, depth+1)
+-		}
++		p.expr0(x.Index, depth+1)
++		p.print(x.Rbrack, token.RBRACK)
++
++	case *ast.MultiIndexExpr:
++		// TODO(gri): as for IndexExpr, should treat [] like parentheses and undo
++		// one level of depth
++		p.expr1(x.X, token.HighestPrec, 1)
++		p.print(x.Lbrack, token.LBRACK)
++		p.exprList(x.Lbrack, x.Indices, depth+1, commaTerm, x.Rbrack, false)
+ 		p.print(x.Rbrack, token.RBRACK)
+ 
+ 	case *ast.SliceExpr:
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 039c7bbaf5..337ee741c6 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -16,23 +16,22 @@ import (
+ 
+ // funcInst type-checks a function instantiation inst and returns the result in x.
+ // The operand x must be the evaluation of inst.X and its type must be a signature.
+-func (check *Checker) funcInst(x *operand, inst *ast.IndexExpr) {
+-	xlist := typeparams.UnpackExpr(inst.Index)
+-	targs := check.typeList(xlist)
++func (check *Checker) funcInst(x *operand, ix *typeparams.IndexExpr) {
++	targs := check.typeList(ix.Indices)
+ 	if targs == nil {
+ 		x.mode = invalid
+-		x.expr = inst
++		x.expr = ix.Orig
+ 		return
+ 	}
+-	assert(len(targs) == len(xlist))
++	assert(len(targs) == len(ix.Indices))
+ 
+ 	// check number of type arguments (got) vs number of type parameters (want)
+ 	sig := x.typ.(*Signature)
+ 	got, want := len(targs), len(sig.tparams)
+ 	if got > want {
+-		check.errorf(xlist[got-1], _Todo, "got %d type arguments but want %d", got, want)
++		check.errorf(ix.Indices[got-1], _Todo, "got %d type arguments but want %d", got, want)
+ 		x.mode = invalid
+-		x.expr = inst
++		x.expr = ix.Orig
+ 		return
+ 	}
+ 
+@@ -40,11 +39,11 @@ func (check *Checker) funcInst(x *operand, inst *ast.IndexExpr) {
+ 	inferred := false
+ 
+ 	if got < want {
+-		targs = check.infer(inst, sig.tparams, targs, nil, nil, true)
++		targs = check.infer(ix.Orig, sig.tparams, targs, nil, nil, true)
+ 		if targs == nil {
+ 			// error was already reported
+ 			x.mode = invalid
+-			x.expr = inst
++			x.expr = ix.Orig
+ 			return
+ 		}
+ 		got = len(targs)
+@@ -55,8 +54,8 @@ func (check *Checker) funcInst(x *operand, inst *ast.IndexExpr) {
+ 	// determine argument positions (for error reporting)
+ 	// TODO(rFindley) use a positioner here? instantiate would need to be
+ 	//                updated accordingly.
+-	poslist := make([]token.Pos, len(xlist))
+-	for i, x := range xlist {
++	poslist := make([]token.Pos, len(ix.Indices))
++	for i, x := range ix.Indices {
+ 		poslist[i] = x.Pos()
+ 	}
+ 
+@@ -64,25 +63,27 @@ func (check *Checker) funcInst(x *operand, inst *ast.IndexExpr) {
+ 	res := check.instantiate(x.Pos(), sig, targs, poslist).(*Signature)
+ 	assert(res.tparams == nil) // signature is not generic anymore
+ 	if inferred {
+-		check.recordInferred(inst, targs, res)
++		check.recordInferred(ix.Orig, targs, res)
+ 	}
+ 	x.typ = res
+ 	x.mode = value
+-	x.expr = inst
++	x.expr = ix.Orig
+ }
+ 
+ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
+-	var inst *ast.IndexExpr
+-	if iexpr, _ := call.Fun.(*ast.IndexExpr); iexpr != nil {
+-		if check.indexExpr(x, iexpr) {
++	ix := typeparams.UnpackIndexExpr(call.Fun)
++	if ix != nil {
++		if check.indexExpr(x, ix) {
+ 			// Delay function instantiation to argument checking,
+ 			// where we combine type and value arguments for type
+ 			// inference.
+ 			assert(x.mode == value)
+-			inst = iexpr
++		} else {
++			ix = nil
+ 		}
+-		x.expr = iexpr
++		x.expr = call.Fun
+ 		check.record(x)
++
+ 	} else {
+ 		check.exprOrType(x, call.Fun)
+ 	}
+@@ -149,21 +150,20 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
+ 
+ 	// evaluate type arguments, if any
+ 	var targs []Type
+-	if inst != nil {
+-		xlist := typeparams.UnpackExpr(inst.Index)
+-		targs = check.typeList(xlist)
++	if ix != nil {
++		targs = check.typeList(ix.Indices)
+ 		if targs == nil {
+ 			check.use(call.Args...)
+ 			x.mode = invalid
+ 			x.expr = call
+ 			return statement
+ 		}
+-		assert(len(targs) == len(xlist))
++		assert(len(targs) == len(ix.Indices))
+ 
+ 		// check number of type arguments (got) vs number of type parameters (want)
+ 		got, want := len(targs), len(sig.tparams)
+ 		if got > want {
+-			check.errorf(xlist[want], _Todo, "got %d type arguments but want %d", got, want)
++			check.errorf(ix.Indices[want], _Todo, "got %d type arguments but want %d", got, want)
+ 			check.use(call.Args...)
+ 			x.mode = invalid
+ 			x.expr = call
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 402d96f66a..95f2a8d6ab 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1331,9 +1331,10 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 	case *ast.SelectorExpr:
+ 		check.selector(x, e)
+ 
+-	case *ast.IndexExpr:
+-		if check.indexExpr(x, e) {
+-			check.funcInst(x, e)
++	case *ast.IndexExpr, *ast.MultiIndexExpr:
++		ix := typeparams.UnpackIndexExpr(e)
++		if check.indexExpr(x, ix) {
++			check.funcInst(x, ix)
+ 		}
+ 		if x.mode == invalid {
+ 			goto Error
+@@ -1423,12 +1424,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 		// types, which are comparatively rare.
+ 
+ 	default:
+-		if typeparams.IsListExpr(e) {
+-			// catch-all for unexpected expression lists
+-			check.errorf(e, _Todo, "unexpected list of expressions")
+-		} else {
+-			panic(fmt.Sprintf("%s: unknown expression type %T", check.fset.Position(e.Pos()), e))
+-		}
++		panic(fmt.Sprintf("%s: unknown expression type %T", check.fset.Position(e.Pos()), e))
+ 	}
+ 
+ 	// everything went well
+diff --git a/src/go/types/exprstring.go b/src/go/types/exprstring.go
+index f05e6424d4..aee8a5ba5f 100644
+--- a/src/go/types/exprstring.go
++++ b/src/go/types/exprstring.go
+@@ -67,11 +67,11 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
+ 		buf.WriteByte('.')
+ 		buf.WriteString(x.Sel.Name)
+ 
+-	case *ast.IndexExpr:
+-		WriteExpr(buf, x.X)
++	case *ast.IndexExpr, *ast.MultiIndexExpr:
++		ix := typeparams.UnpackIndexExpr(x)
++		WriteExpr(buf, ix.X)
+ 		buf.WriteByte('[')
+-		exprs := typeparams.UnpackExpr(x.Index)
+-		for i, e := range exprs {
++		for i, e := range ix.Indices {
+ 			if i > 0 {
+ 				buf.WriteString(", ")
+ 			}
+diff --git a/src/go/types/index.go b/src/go/types/index.go
+index 5bc1d0af8d..7c7aa382ff 100644
+--- a/src/go/types/index.go
++++ b/src/go/types/index.go
+@@ -15,18 +15,18 @@ import (
+ // If e is a valid function instantiation, indexExpr returns true.
+ // In that case x represents the uninstantiated function value and
+ // it is the caller's responsibility to instantiate the function.
+-func (check *Checker) indexExpr(x *operand, e *ast.IndexExpr) (isFuncInst bool) {
+-	check.exprOrType(x, e.X)
++func (check *Checker) indexExpr(x *operand, expr *typeparams.IndexExpr) (isFuncInst bool) {
++	check.exprOrType(x, expr.X)
+ 
+ 	switch x.mode {
+ 	case invalid:
+-		check.use(typeparams.UnpackExpr(e.Index)...)
++		check.use(expr.Indices...)
+ 		return false
+ 
+ 	case typexpr:
+ 		// type instantiation
+ 		x.mode = invalid
+-		x.typ = check.varType(e)
++		x.typ = check.varType(expr.Orig)
+ 		if x.typ != Typ[Invalid] {
+ 			x.mode = typexpr
+ 		}
+@@ -77,7 +77,7 @@ func (check *Checker) indexExpr(x *operand, e *ast.IndexExpr) (isFuncInst bool)
+ 		x.typ = typ.elem
+ 
+ 	case *Map:
+-		index := check.singleIndex(e)
++		index := check.singleIndex(expr)
+ 		if index == nil {
+ 			x.mode = invalid
+ 			return
+@@ -88,7 +88,7 @@ func (check *Checker) indexExpr(x *operand, e *ast.IndexExpr) (isFuncInst bool)
+ 		// ok to continue even if indexing failed - map element type is known
+ 		x.mode = mapindex
+ 		x.typ = typ.elem
+-		x.expr = e
++		x.expr = expr.Orig
+ 		return
+ 
+ 	case *Union:
+@@ -137,7 +137,7 @@ func (check *Checker) indexExpr(x *operand, e *ast.IndexExpr) (isFuncInst bool)
+ 			// If there are maps, the index expression must be assignable
+ 			// to the map key type (as for simple map index expressions).
+ 			if nmaps > 0 {
+-				index := check.singleIndex(e)
++				index := check.singleIndex(expr)
+ 				if index == nil {
+ 					x.mode = invalid
+ 					return
+@@ -151,7 +151,7 @@ func (check *Checker) indexExpr(x *operand, e *ast.IndexExpr) (isFuncInst bool)
+ 				if nmaps == typ.NumTerms() {
+ 					x.mode = mapindex
+ 					x.typ = telem
+-					x.expr = e
++					x.expr = expr.Orig
+ 					return
+ 				}
+ 
+@@ -180,7 +180,7 @@ func (check *Checker) indexExpr(x *operand, e *ast.IndexExpr) (isFuncInst bool)
+ 		return
+ 	}
+ 
+-	index := check.singleIndex(e)
++	index := check.singleIndex(expr)
+ 	if index == nil {
+ 		x.mode = invalid
+ 		return
+@@ -311,23 +311,16 @@ L:
+ // singleIndex returns the (single) index from the index expression e.
+ // If the index is missing, or if there are multiple indices, an error
+ // is reported and the result is nil.
+-func (check *Checker) singleIndex(e *ast.IndexExpr) ast.Expr {
+-	index := e.Index
+-	if index == nil {
+-		check.invalidAST(e, "missing index for %s", e)
+-		return nil
+-	}
+-
+-	indexes := typeparams.UnpackExpr(index)
+-	if len(indexes) == 0 {
+-		check.invalidAST(index, "index expression %v with 0 indices", index)
++func (check *Checker) singleIndex(expr *typeparams.IndexExpr) ast.Expr {
++	if len(expr.Indices) == 0 {
++		check.invalidAST(expr.Orig, "index expression %v with 0 indices", expr)
+ 		return nil
+ 	}
+-	if len(indexes) > 1 {
++	if len(expr.Indices) > 1 {
+ 		// TODO(rFindley) should this get a distinct error code?
+-		check.invalidOp(indexes[1], _InvalidIndex, "more than one index")
++		check.invalidOp(expr.Indices[1], _InvalidIndex, "more than one index")
+ 	}
+-	return indexes[0]
++	return expr.Indices[0]
+ }
+ 
+ // index checks an index expression for validity.
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index 4892218b75..1434e6deb1 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -499,10 +499,12 @@ L: // unpack receiver type
+ 	}
+ 
+ 	// unpack type parameters, if any
+-	if ptyp, _ := rtyp.(*ast.IndexExpr); ptyp != nil {
+-		rtyp = ptyp.X
++	switch rtyp.(type) {
++	case *ast.IndexExpr, *ast.MultiIndexExpr:
++		ix := typeparams.UnpackIndexExpr(rtyp)
++		rtyp = ix.X
+ 		if unpackParams {
+-			for _, arg := range typeparams.UnpackExpr(ptyp.Index) {
++			for _, arg := range ix.Indices {
+ 				var par *ast.Ident
+ 				switch arg := arg.(type) {
+ 				case *ast.Ident:
+@@ -510,7 +512,7 @@ L: // unpack receiver type
+ 				case *ast.BadExpr:
+ 					// ignore - error already reported by parser
+ 				case nil:
+-					check.invalidAST(ptyp, "parameterized receiver contains nil parameters")
++					check.invalidAST(ix.Orig, "parameterized receiver contains nil parameters")
+ 				default:
+ 					check.errorf(arg, _Todo, "receiver type parameter %s must be an identifier", arg)
+ 				}
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index 5489b493ba..f56fe047c8 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -244,24 +244,21 @@ func isubst(x ast.Expr, smap map[*ast.Ident]*ast.Ident) ast.Expr {
+ 			new.X = X
+ 			return &new
+ 		}
+-	case *ast.IndexExpr:
+-		elems := typeparams.UnpackExpr(n.Index)
+-		var newElems []ast.Expr
+-		for i, elem := range elems {
+-			new := isubst(elem, smap)
+-			if new != elem {
+-				if newElems == nil {
+-					newElems = make([]ast.Expr, len(elems))
+-					copy(newElems, elems)
++	case *ast.IndexExpr, *ast.MultiIndexExpr:
++		ix := typeparams.UnpackIndexExpr(x)
++		var newIndexes []ast.Expr
++		for i, index := range ix.Indices {
++			new := isubst(index, smap)
++			if new != index {
++				if newIndexes == nil {
++					newIndexes = make([]ast.Expr, len(ix.Indices))
++					copy(newIndexes, ix.Indices)
+ 				}
+-				newElems[i] = new
++				newIndexes[i] = new
+ 			}
+ 		}
+-		if newElems != nil {
+-			index := typeparams.PackExpr(newElems)
+-			new := *n
+-			new.Index = index
+-			return &new
++		if newIndexes != nil {
++			return typeparams.PackIndexExpr(ix.X, ix.Lbrack, newIndexes, ix.Rbrack)
+ 		}
+ 	case *ast.ParenExpr:
+ 		return isubst(n.X, smap) // no need to keep parentheses
+diff --git a/src/go/types/testdata/check/typeinst.go2 b/src/go/types/testdata/check/typeinst.go2
+index 3184a4b5b1..069bd3bc16 100644
+--- a/src/go/types/testdata/check/typeinst.go2
++++ b/src/go/types/testdata/check/typeinst.go2
+@@ -33,11 +33,11 @@ var _ A3
+ var x int
+ type _ x /* ERROR not a type */ [int]
+ 
+-type _ int /* ERROR not a generic type */ []
+-type _ myInt /* ERROR not a generic type */ []
++type _ int /* ERROR not a generic type */ [] // ERROR expected type argument list
++type _ myInt /* ERROR not a generic type */ [] // ERROR expected type argument list
+ 
+ // TODO(gri) better error messages
+-type _ T1 /* ERROR got 0 arguments but 1 type parameters */ []
++type _ T1[] // ERROR expected type argument list
+ type _ T1[x /* ERROR not a type */ ]
+ type _ T1 /* ERROR got 2 arguments but 1 type parameters */ [int, float32]
+ 
+diff --git a/src/go/types/testdata/fixedbugs/issue45635.go2 b/src/go/types/testdata/fixedbugs/issue45635.go2
+index 0f62980343..c6784e12fd 100644
+--- a/src/go/types/testdata/fixedbugs/issue45635.go2
++++ b/src/go/types/testdata/fixedbugs/issue45635.go2
+@@ -10,7 +10,7 @@ func main() {
+ 
+ type N[T any] struct{}
+ 
+-var _ N /* ERROR "0 arguments but 1 type parameters" */ []
++var _ N [] // ERROR expected type argument list
+ 
+ type I interface {
+ 	~map[int]int | ~[]int
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index e6be7b72e4..f62b41831e 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -261,13 +261,13 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
+ 			check.errorf(&x, _NotAType, "%s is not a type", &x)
+ 		}
+ 
+-	case *ast.IndexExpr:
++	case *ast.IndexExpr, *ast.MultiIndexExpr:
++		ix := typeparams.UnpackIndexExpr(e)
+ 		if typeparams.Enabled {
+-			exprs := typeparams.UnpackExpr(e.Index)
+-			return check.instantiatedType(e.X, exprs, def)
++			return check.instantiatedType(ix, def)
+ 		}
+ 		check.errorf(e0, _NotAType, "%s is not a type", e0)
+-		check.use(e.X)
++		check.use(ix.X)
+ 
+ 	case *ast.ParenExpr:
+ 		// Generic types must be instantiated before they can be used in any form.
+@@ -403,8 +403,8 @@ func (check *Checker) typeOrNil(e ast.Expr) Type {
+ 	return Typ[Invalid]
+ }
+ 
+-func (check *Checker) instantiatedType(x ast.Expr, targs []ast.Expr, def *Named) Type {
+-	b := check.genericType(x, true) // TODO(gri) what about cycles?
++func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) Type {
++	b := check.genericType(ix.X, true) // TODO(gri) what about cycles?
+ 	if b == Typ[Invalid] {
+ 		return b // error already reported
+ 	}
+@@ -420,19 +420,19 @@ func (check *Checker) instantiatedType(x ast.Expr, targs []ast.Expr, def *Named)
+ 	def.setUnderlying(typ)
+ 
+ 	typ.check = check
+-	typ.pos = x.Pos()
++	typ.pos = ix.X.Pos()
+ 	typ.base = base
+ 
+ 	// evaluate arguments (always)
+-	typ.targs = check.typeList(targs)
++	typ.targs = check.typeList(ix.Indices)
+ 	if typ.targs == nil {
+ 		def.setUnderlying(Typ[Invalid]) // avoid later errors due to lazy instantiation
+ 		return Typ[Invalid]
+ 	}
+ 
+ 	// determine argument positions (for error reporting)
+-	typ.poslist = make([]token.Pos, len(targs))
+-	for i, arg := range targs {
++	typ.poslist = make([]token.Pos, len(ix.Indices))
++	for i, arg := range ix.Indices {
+ 		typ.poslist[i] = arg.Pos()
+ 	}
+ 

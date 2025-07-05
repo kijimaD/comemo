@@ -14,6 +14,27 @@ Date:   Thu Dec 12 11:25:17 2013 -0500
     R=agl
     CC=golang-dev
     https://golang.org/cl/40690046
-
+---
  src/pkg/crypto/cipher/gcm.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/crypto/cipher/gcm.go b/src/pkg/crypto/cipher/gcm.go
+index 122cd41ca2..2f748f02f7 100644
+--- a/src/pkg/crypto/cipher/gcm.go
++++ b/src/pkg/crypto/cipher/gcm.go
+@@ -258,11 +258,11 @@ func (g *gcm) update(y *gcmFieldElement, data []byte) {
+ // gcmInc32 treats the final four bytes of counterBlock as a big-endian value
+ // and increments it.
+ func gcmInc32(counterBlock *[16]byte) {
+-	c := 1
+ 	for i := gcmBlockSize - 1; i >= gcmBlockSize-4; i-- {
+-		c += int(counterBlock[i])
+-		counterBlock[i] = byte(c)
+-		c >>= 8
++		counterBlock[i]++
++		if counterBlock[i] != 0 {
++			break
++		}
+ 	}
+ }
+ 

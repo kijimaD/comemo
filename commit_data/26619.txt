@@ -10,7 +10,36 @@ Date:   Thu Feb 18 17:49:45 2016 -0500
     Change-Id: Ia60c8d90962f6e5f7c3ed1ded6ba1b25eee983e1
     Reviewed-on: https://go-review.googlesource.com/19662
     Reviewed-by: Todd Neal <todd@tneal.org>
-
+---
  src/cmd/compile/internal/ssa/TODO | 1 -
  src/runtime/pprof/pprof_test.go   | 5 -----
  2 files changed, 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/TODO b/src/cmd/compile/internal/ssa/TODO
+index 5fa14ee44b..5e5cb4b865 100644
+--- a/src/cmd/compile/internal/ssa/TODO
++++ b/src/cmd/compile/internal/ssa/TODO
+@@ -7,7 +7,6 @@ Coverage
+ Correctness
+ -----------
+ - Debugging info (check & fix as much as we can)
+-- Re-enable TestStackBarrierProfiling (src/runtime/pprof/pprof_test.go)
+ - @ directive in rewrites might read overwritten data.  Save @loc
+   in variable before modifying v.
+ 
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index f7c1a46805..ab6b1835c5 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -375,11 +375,6 @@ func TestStackBarrierProfiling(t *testing.T) {
+ 		t.Skipf("low resolution timers inhibit profiling signals (golang.org/issue/13405)")
+ 		return
+ 	}
+-	if true {
+-		// TODO(khr): remove
+-		t.Skipf("skipping for SSA branch, flaky")
+-		return
+-	}
+ 
+ 	if !strings.Contains(os.Getenv("GODEBUG"), "gcstackbarrierall=1") {
+ 		// Re-execute this test with constant GC and stack

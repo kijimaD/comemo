@@ -16,6 +16,27 @@ Date:   Tue Sep 25 09:22:09 2018 -0700
     Change-Id: I5fe7cddea61fa1954cef2006dc51b8fa8ece4d6e
     Reviewed-on: https://go-review.googlesource.com/c/137336
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/os/exec_posix.go | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/os/exec_posix.go b/src/os/exec_posix.go
+index 1e60365dba..4c8261295c 100644
+--- a/src/os/exec_posix.go
++++ b/src/os/exec_posix.go
+@@ -10,10 +10,11 @@ import (
+ 	"syscall"
+ )
+ 
+-// The only signal values guaranteed to be present in the os package
+-// on all systems are Interrupt (send the process an interrupt) and
+-// Kill (force the process to exit). Interrupt is not implemented on
+-// Windows; using it with os.Process.Signal will return an error.
++// The only signal values guaranteed to be present in the os package on all
++// systems are os.Interrupt (send the process an interrupt) and os.Kill (force
++// the process to exit). On Windows, sending os.Interrupt to a process with
++// os.Process.Signal is not implemented; it will return an error instead of
++// sending a signal.
+ var (
+ 	Interrupt Signal = syscall.SIGINT
+ 	Kill      Signal = syscall.SIGKILL

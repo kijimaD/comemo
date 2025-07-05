@@ -11,8 +11,48 @@ Date:   Thu Oct 31 16:11:20 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/flags/flags.go | 2 +-
  src/cmd/compile/internal/gc/main.go | 2 +-
  src/cmd/link/internal/ld/main.go    | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/asm/internal/flags/flags.go b/src/cmd/asm/internal/flags/flags.go
+index 95575e15a3..fad87b221a 100644
+--- a/src/cmd/asm/internal/flags/flags.go
++++ b/src/cmd/asm/internal/flags/flags.go
+@@ -23,7 +23,7 @@ var (
+ 	Dynlink    = flag.Bool("dynlink", false, "support references to Go symbols defined in other shared libraries")
+ 	AllErrors  = flag.Bool("e", false, "no limit on number of errors reported")
+ 	SymABIs    = flag.Bool("gensymabis", false, "write symbol ABI information to output file, don't assemble")
+-	Newobj     = flag.Bool("newobj", true, "use new object file format")
++	Newobj     = flag.Bool("newobj", false, "use new object file format")
+ )
+ 
+ var (
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 4684dfb88f..ed8cfeb40f 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -273,7 +273,7 @@ func Main(archInit func(*Arch)) {
+ 	flag.StringVar(&benchfile, "bench", "", "append benchmark times to `file`")
+ 	flag.BoolVar(&smallFrames, "smallframes", false, "reduce the size limit for stack allocated objects")
+ 	flag.BoolVar(&Ctxt.UseBASEntries, "dwarfbasentries", Ctxt.UseBASEntries, "use base address selection entries in DWARF")
+-	flag.BoolVar(&Ctxt.Flag_newobj, "newobj", true, "use new object file format")
++	flag.BoolVar(&Ctxt.Flag_newobj, "newobj", false, "use new object file format")
+ 
+ 	objabi.Flagparse(usage)
+ 
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 10717f603d..e42705e3ef 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -86,7 +86,7 @@ var (
+ 	flagInterpreter = flag.String("I", "", "use `linker` as ELF dynamic linker")
+ 	FlagDebugTramp  = flag.Int("debugtramp", 0, "debug trampolines")
+ 	FlagStrictDups  = flag.Int("strictdups", 0, "sanity check duplicate symbol contents during object file reading (1=warn 2=err).")
+-	flagNewobj      = flag.Bool("newobj", true, "use new object file format")
++	flagNewobj      = flag.Bool("newobj", false, "use new object file format")
+ 
+ 	FlagRound       = flag.Int("R", -1, "set address rounding `quantum`")
+ 	FlagTextAddr    = flag.Int64("T", -1, "set text segment `address`")

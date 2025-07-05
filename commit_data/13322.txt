@@ -14,6 +14,40 @@ Date:   Fri Jun 8 13:05:01 2012 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6294055
-
+---
  src/pkg/regexp/syntax/parse.go | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/regexp/syntax/parse.go b/src/pkg/regexp/syntax/parse.go
+index 74a9d6c30a..4924e94533 100644
+--- a/src/pkg/regexp/syntax/parse.go
++++ b/src/pkg/regexp/syntax/parse.go
+@@ -46,9 +46,11 @@ const (
+ 	ErrMissingParen          ErrorCode = "missing closing )"
+ 	ErrMissingRepeatArgument ErrorCode = "missing argument to repetition operator"
+ 	ErrTrailingBackslash     ErrorCode = "trailing backslash at end of expression"
+-	ErrUnexpectedParen       ErrorCode = "unexpected )"
+ )
+ 
++// TODO: Export for Go 1.1.
++const errUnexpectedParen ErrorCode = "unexpected )"
++
+ func (e ErrorCode) String() string {
+ 	return string(e)
+ }
+@@ -1169,13 +1171,13 @@ func (p *parser) parseRightParen() error {
+ 
+ 	n := len(p.stack)
+ 	if n < 2 {
+-		return &Error{ErrUnexpectedParen, p.wholeRegexp}
++		return &Error{errUnexpectedParen, p.wholeRegexp}
+ 	}
+ 	re1 := p.stack[n-1]
+ 	re2 := p.stack[n-2]
+ 	p.stack = p.stack[:n-2]
+ 	if re2.Op != opLeftParen {
+-		return &Error{ErrUnexpectedParen, p.wholeRegexp}
++		return &Error{errUnexpectedParen, p.wholeRegexp}
+ 	}
+ 	// Restore flags at time of paren.
+ 	p.flags = re2.Flags

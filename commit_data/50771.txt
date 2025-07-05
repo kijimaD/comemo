@@ -13,6 +13,30 @@ Date:   Tue Oct 12 16:50:35 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/encoding/xml/marshal_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/encoding/xml/marshal_test.go b/src/encoding/xml/marshal_test.go
+index d2e5137afd..cb95905f5b 100644
+--- a/src/encoding/xml/marshal_test.go
++++ b/src/encoding/xml/marshal_test.go
+@@ -524,6 +524,10 @@ type IfaceAny struct {
+ 	T2  T2
+ }
+ 
++type Generic[T any] struct {
++	X T
++}
++
+ var (
+ 	nameAttr     = "Sarah"
+ 	ageAttr      = uint(12)
+@@ -641,6 +645,7 @@ var marshalTests = []struct {
+ 	{Value: &Particle{HasMass: true}, ExpectXML: `<particle>true</particle>`},
+ 	{Value: &Departure{When: ParseTime("2013-01-09T00:15:00-09:00")}, ExpectXML: `<departure>2013-01-09T00:15:00-09:00</departure>`},
+ 	{Value: atomValue, ExpectXML: atomXML},
++	{Value: &Generic[int]{1}, ExpectXML: `<Generic><X>1</X></Generic>`},
+ 	{
+ 		Value: &Ship{
+ 			Name:  "Heart of Gold",

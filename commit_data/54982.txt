@@ -16,9 +16,88 @@ Date:   Wed Nov 30 12:31:30 2022 -0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  misc/cgo/test/test.go    | 6 ++++++
  src/cmd/cgo/ast.go       | 6 ++++++
  src/cmd/cgo/ast_go1.go   | 9 +++++++++
  src/cmd/cgo/ast_go118.go | 8 ++++++++
  4 files changed, 29 insertions(+)
+
+diff --git a/misc/cgo/test/test.go b/misc/cgo/test/test.go
+index 109ef987f9..9d9b14ee74 100644
+--- a/misc/cgo/test/test.go
++++ b/misc/cgo/test/test.go
+@@ -2295,3 +2295,9 @@ func test45451(t *testing.T) {
+ 	_ = reflect.New(typ)
+ 	t.Errorf("reflect.New(%v) should have panicked", typ)
+ }
++
++// issue 52542
++
++func func52542[T ~[]C.int]() {}
++
++type type52542[T ~*C.float] struct{}
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index c419699cb1..81060c67ed 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -409,6 +409,9 @@ func (f *File) walk(x interface{}, context astContext, visit func(*File, interfa
+ 	case *ast.StructType:
+ 		f.walk(n.Fields, ctxField, visit)
+ 	case *ast.FuncType:
++		if tparams := funcTypeTypeParams(n); tparams != nil {
++			f.walk(tparams, ctxParam, visit)
++		}
+ 		f.walk(n.Params, ctxParam, visit)
+ 		if n.Results != nil {
+ 			f.walk(n.Results, ctxParam, visit)
+@@ -496,6 +499,9 @@ func (f *File) walk(x interface{}, context astContext, visit func(*File, interfa
+ 			f.walk(n.Values, ctxExpr, visit)
+ 		}
+ 	case *ast.TypeSpec:
++		if tparams := typeSpecTypeParams(n); tparams != nil {
++			f.walk(tparams, ctxParam, visit)
++		}
+ 		f.walk(&n.Type, ctxType, visit)
+ 
+ 	case *ast.BadDecl:
+diff --git a/src/cmd/cgo/ast_go1.go b/src/cmd/cgo/ast_go1.go
+index ce61d29095..2f65f0f718 100644
+--- a/src/cmd/cgo/ast_go1.go
++++ b/src/cmd/cgo/ast_go1.go
+@@ -7,6 +7,7 @@
+ package main
+ 
+ import (
++	"go/ast"
+ 	"go/token"
+ )
+ 
+@@ -14,3 +15,11 @@ func (f *File) walkUnexpected(x interface{}, context astContext, visit func(*Fil
+ 	error_(token.NoPos, "unexpected type %T in walk", x)
+ 	panic("unexpected type")
+ }
++
++func funcTypeTypeParams(n *ast.FuncType) *ast.FieldList {
++	return nil
++}
++
++func typeSpecTypeParams(n *ast.TypeSpec) *ast.FieldList {
++	return nil
++}
+diff --git a/src/cmd/cgo/ast_go118.go b/src/cmd/cgo/ast_go118.go
+index 9f759b8ee5..ced30728dc 100644
+--- a/src/cmd/cgo/ast_go118.go
++++ b/src/cmd/cgo/ast_go118.go
+@@ -22,3 +22,11 @@ func (f *File) walkUnexpected(x interface{}, context astContext, visit func(*Fil
+ 		f.walk(n.Indices, ctxExpr, visit)
+ 	}
+ }
++
++func funcTypeTypeParams(n *ast.FuncType) *ast.FieldList {
++	return n.TypeParams
++}
++
++func typeSpecTypeParams(n *ast.TypeSpec) *ast.FieldList {
++	return n.TypeParams
++}

@@ -7,6 +7,22 @@ Date:   Fri Sep 8 06:03:46 2017 -0700
     Change-Id: I19c1b0e1b238dda82e69bd47459528ed06b55840
     Reviewed-on: https://go-review.googlesource.com/62310
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/math/rand/rand.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/math/rand/rand.go b/src/math/rand/rand.go
+index 895bb0597d..85871725a6 100644
+--- a/src/math/rand/rand.go
++++ b/src/math/rand/rand.go
+@@ -142,8 +142,8 @@ func (r *Rand) Int31n(n int32) int32 {
+ // int31n can thus only be used internally, by newly introduced APIs.
+ //
+ // For implementation details, see:
+-// http://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction
+-// http://lemire.me/blog/2016/06/30/fast-random-shuffling
++// https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction
++// https://lemire.me/blog/2016/06/30/fast-random-shuffling
+ func (r *Rand) int31n(n int32) int32 {
+ 	v := r.Uint32()
+ 	prod := uint64(v) * uint64(n)

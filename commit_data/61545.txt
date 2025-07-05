@@ -19,9 +19,74 @@ Date:   Fri Nov 15 19:22:16 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Tim King <taking@google.com>
-
+---
  src/sync/map.go   | 2 ++
  src/sync/mutex.go | 2 ++
  src/sync/once.go  | 2 ++
  test/assign.go    | 7 +++++--
  4 files changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/src/sync/map.go b/src/sync/map.go
+index 33bc8141ab..4f1395110a 100644
+--- a/src/sync/map.go
++++ b/src/sync/map.go
+@@ -36,6 +36,8 @@ import (
+ //
+ // [the Go memory model]: https://go.dev/ref/mem
+ type Map struct {
++	_ noCopy
++
+ 	mu Mutex
+ 
+ 	// read contains the portion of the map's contents that are safe for
+diff --git a/src/sync/mutex.go b/src/sync/mutex.go
+index e4ed47c75c..cd50fcbbb5 100644
+--- a/src/sync/mutex.go
++++ b/src/sync/mutex.go
+@@ -34,6 +34,8 @@ func fatal(string)
+ //
+ // [the Go memory model]: https://go.dev/ref/mem
+ type Mutex struct {
++	_ noCopy
++
+ 	state int32
+ 	sema  uint32
+ }
+diff --git a/src/sync/once.go b/src/sync/once.go
+index 168c7bbdd3..90840b19b5 100644
+--- a/src/sync/once.go
++++ b/src/sync/once.go
+@@ -18,6 +18,8 @@ import (
+ //
+ // [the Go memory model]: https://go.dev/ref/mem
+ type Once struct {
++	_ noCopy
++
+ 	// done indicates whether the action has been performed.
+ 	// It is first in the struct because it is used in the hot path.
+ 	// The hot path is inlined at every call site.
+diff --git a/test/assign.go b/test/assign.go
+index bdec58b710..5beffee6f3 100644
+--- a/test/assign.go
++++ b/test/assign.go
+@@ -9,7 +9,10 @@
+ 
+ package main
+ 
+-import "sync"
++import (
++	"sync"
++	"time"
++)
+ 
+ type T struct {
+ 	int
+@@ -38,7 +41,7 @@ func main() {
+ 		_ = x
+ 	}
+ 	{
+-		x := sync.Mutex{0, 0} // ERROR "assignment.*Mutex"
++		x := time.Time{0, 0, nil} // ERROR "assignment.*Time"
+ 		_ = x
+ 	}
+ 	{

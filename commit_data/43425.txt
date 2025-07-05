@@ -16,7 +16,34 @@ Date:   Thu Apr 2 14:20:23 2020 -0400
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/oldlink/internal/arm64/l.go | 2 +-
  src/cmd/oldlink/internal/ld/link.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/oldlink/internal/arm64/l.go b/src/cmd/oldlink/internal/arm64/l.go
+index 50b88e479f..5f3530335e 100644
+--- a/src/cmd/oldlink/internal/arm64/l.go
++++ b/src/cmd/oldlink/internal/arm64/l.go
+@@ -64,7 +64,7 @@ package arm64
+ const (
+ 	maxAlign  = 32 // max data alignment
+ 	minAlign  = 1  // min data alignment
+-	funcAlign = 8
++	funcAlign = 16
+ )
+ 
+ /* Used by ../internal/ld/dwarf.go */
+diff --git a/src/cmd/oldlink/internal/ld/link.go b/src/cmd/oldlink/internal/ld/link.go
+index 4020f8dbc4..15878f3267 100644
+--- a/src/cmd/oldlink/internal/ld/link.go
++++ b/src/cmd/oldlink/internal/ld/link.go
+@@ -136,7 +136,7 @@ func (ctxt *Link) ErrorUnresolved(s *sym.Symbol, r *sym.Reloc) {
+ 				if v == -1 {
+ 					continue
+ 				}
+-				if rs := ctxt.Syms.ROLookup(r.Sym.Name, v); rs != nil && rs.Type != sym.Sxxx {
++				if rs := ctxt.Syms.ROLookup(r.Sym.Name, v); rs != nil && rs.Type != sym.Sxxx && rs.Type != sym.SXREF {
+ 					haveABI = abi
+ 				}
+ 			}

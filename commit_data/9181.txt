@@ -13,7 +13,56 @@ Date:   Fri Jul 22 21:17:46 2011 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4811048
-
+---
  src/pkg/sort/search_test.go |  7 +++++--
  src/pkg/sort/sort_test.go   | 10 +++++++++-
  2 files changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/sort/search_test.go b/src/pkg/sort/search_test.go
+index 0005cd2ced..07295ffa97 100644
+--- a/src/pkg/sort/search_test.go
++++ b/src/pkg/sort/search_test.go
+@@ -2,9 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package sort
++package sort_test
+ 
+-import "testing"
++import (
++	. "sort"
++	"testing"
++)
+ 
+ func f(a []int, x int) func(int) bool {
+ 	return func(i int) bool {
+diff --git a/src/pkg/sort/sort_test.go b/src/pkg/sort/sort_test.go
+index 20e7287da9..64d486b759 100644
+--- a/src/pkg/sort/sort_test.go
++++ b/src/pkg/sort/sort_test.go
+@@ -2,11 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package sort
++package sort_test
+ 
+ import (
+ 	"fmt"
+ 	"rand"
++	. "sort"
+ 	"strconv"
+ 	"testing"
+ )
+@@ -271,3 +272,10 @@ func TestBentleyMcIlroy(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func min(a, b int) int {
++	if a < b {
++		return a
++	}
++	return b
++}

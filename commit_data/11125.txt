@@ -7,9 +7,67 @@ Date:   Thu Jan 12 22:06:50 2012 +0400
     R=golang-dev, robert.hencke, r
     CC=golang-dev
     https://golang.org/cl/5538050
-
+---
  doc/effective_go.html     | 4 +++-
  doc/effective_go.tmpl     | 4 +++-
  src/pkg/runtime/debug.go  | 1 +
  src/pkg/runtime/extern.go | 2 +-
  4 files changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index fdf8aa101d..3c16e10c3a 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -2623,8 +2623,10 @@ is if you want CPU parallelism you must tell the run-time
+ how many goroutines you want executing code simultaneously.  There
+ are two related ways to do this.  Either run your job with environment
+ variable <code>GOMAXPROCS</code> set to the number of cores to use
+-(default 1); or import the <code>runtime</code> package and call
++or import the <code>runtime</code> package and call
+ <code>runtime.GOMAXPROCS(NCPU)</code>.
++A helpful value might be <code>runtime.NumCPU()</code>, which reports the number
++of logical CPUs on the local machine.
+ Again, this requirement is expected to be retired as the scheduling and run-time improve.
+ </p>
+ 
+diff --git a/doc/effective_go.tmpl b/doc/effective_go.tmpl
+index e3d311eea2..af1bc1ea43 100644
+--- a/doc/effective_go.tmpl
++++ b/doc/effective_go.tmpl
+@@ -2560,8 +2560,10 @@ is if you want CPU parallelism you must tell the run-time
+ how many goroutines you want executing code simultaneously.  There
+ are two related ways to do this.  Either run your job with environment
+ variable <code>GOMAXPROCS</code> set to the number of cores to use
+-(default 1); or import the <code>runtime</code> package and call
++or import the <code>runtime</code> package and call
+ <code>runtime.GOMAXPROCS(NCPU)</code>.
++A helpful value might be <code>runtime.NumCPU()</code>, which reports the number
++of logical CPUs on the local machine.
+ Again, this requirement is expected to be retired as the scheduling and run-time improve.
+ </p>
+ 
+diff --git a/src/pkg/runtime/debug.go b/src/pkg/runtime/debug.go
+index 124370384c..c2b90566a9 100644
+--- a/src/pkg/runtime/debug.go
++++ b/src/pkg/runtime/debug.go
+@@ -19,6 +19,7 @@ func UnlockOSThread()
+ // GOMAXPROCS sets the maximum number of CPUs that can be executing
+ // simultaneously and returns the previous setting.  If n < 1, it does not
+ // change the current setting.
++// The number of logical CPUs on the local machine can be queried with NumCPU.
+ // This call will go away when the scheduler improves.
+ func GOMAXPROCS(n int) int
+ 
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index 1860c5b896..25c7470aab 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -68,7 +68,7 @@ func funcline_go(*Func, uintptr) (string, int)
+ // mid returns the current os thread (m) id.
+ func mid() uint32
+ 
+-// NumCPU returns the number of CPUs on the local machine.
++// NumCPU returns the number of logical CPUs on the local machine.
+ func NumCPU() int
+ 
+ // Semacquire waits until *s > 0 and then atomically decrements it.

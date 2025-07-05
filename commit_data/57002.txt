@@ -15,6 +15,21 @@ Date:   Wed Jun 7 10:18:06 2023 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/go/testdata/script/gccgo_link_ldflags.txt | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/gccgo_link_ldflags.txt b/src/cmd/go/testdata/script/gccgo_link_ldflags.txt
+index 4e91ae5650..80526c66fa 100644
+--- a/src/cmd/go/testdata/script/gccgo_link_ldflags.txt
++++ b/src/cmd/go/testdata/script/gccgo_link_ldflags.txt
+@@ -9,6 +9,9 @@ go build
+ 
+ [!exec:gccgo] skip
+ 
++# TODO: remove once gccgo on builder is updated
++[GOOS:aix] [GOARCH:ppc64] skip
++
+ go build -compiler gccgo
+ 
+ -- go.mod --

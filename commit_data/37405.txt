@@ -13,7 +13,64 @@ Date:   Fri Jul 27 15:52:36 2018 +0000
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/syscall_windows.go |  8 ++++----
  src/syscall/syscall_windows.go | 12 ++++++------
  2 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/runtime/syscall_windows.go b/src/runtime/syscall_windows.go
+index 5ab78fdbf2..8264070569 100644
+--- a/src/runtime/syscall_windows.go
++++ b/src/runtime/syscall_windows.go
+@@ -42,20 +42,20 @@ func callbackasmAddr(i int) uintptr {
+ //go:linkname compileCallback syscall.compileCallback
+ func compileCallback(fn eface, cleanstack bool) (code uintptr) {
+ 	if fn._type == nil || (fn._type.kind&kindMask) != kindFunc {
+-		panic("compileCallback: not a function")
++		panic("compileCallback: expected function with one uintptr-sized result")
+ 	}
+ 	ft := (*functype)(unsafe.Pointer(fn._type))
+ 	if len(ft.out()) != 1 {
+-		panic("compileCallback: function must have one output parameter")
++		panic("compileCallback: expected function with one uintptr-sized result")
+ 	}
+ 	uintptrSize := unsafe.Sizeof(uintptr(0))
+ 	if ft.out()[0].size != uintptrSize {
+-		panic("compileCallback: output parameter size is wrong")
++		panic("compileCallback: expected function with one uintptr-sized result")
+ 	}
+ 	argsize := uintptr(0)
+ 	for _, t := range ft.in() {
+ 		if t.size > uintptrSize {
+-			panic("compileCallback: input parameter size is wrong")
++			panic("compileCallback: argument size is larger than uintptr")
+ 		}
+ 		argsize += uintptrSize
+ 	}
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 5cfdb76e2b..b234f3d67d 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -120,16 +120,16 @@ func (e Errno) Timeout() bool {
+ // Implemented in runtime/syscall_windows.go.
+ func compileCallback(fn interface{}, cleanstack bool) uintptr
+ 
+-// Converts a Go function to a function pointer conforming
+-// to the stdcall calling convention. This is useful when
+-// interoperating with Windows code requiring callbacks.
++// NewCallback converts a Go function to a function pointer conforming to the stdcall calling convention.
++// This is useful when interoperating with Windows code requiring callbacks.
++// The argument is expected to be a function with with one uintptr-sized result. The function must not have arguments with size larger than the size of uintptr.
+ func NewCallback(fn interface{}) uintptr {
+ 	return compileCallback(fn, true)
+ }
+ 
+-// Converts a Go function to a function pointer conforming
+-// to the cdecl calling convention. This is useful when
+-// interoperating with Windows code requiring callbacks.
++// NewCallbackCDecl converts a Go function to a function pointer conforming to the cdecl calling convention.
++// This is useful when interoperating with Windows code requiring callbacks.
++// The argument is expected to be a function with with one uintptr-sized result. The function must not have arguments with size larger than the size of uintptr.
+ func NewCallbackCDecl(fn interface{}) uintptr {
+ 	return compileCallback(fn, false)
+ }

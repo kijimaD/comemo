@@ -8,7 +8,70 @@ Date:   Tue Aug 13 12:55:57 2013 +0400
     R=golang-dev, alex.brainman
     CC=golang-dev
     https://golang.org/cl/12686045
-
+---
  src/pkg/net/timeout_test.go | 33 +++++++++++++++++++++++++++++++++
  src/pkg/runtime/netpoll.goc |  9 ++++++---
  2 files changed, 39 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/timeout_test.go b/src/pkg/net/timeout_test.go
+index 2e92147b8e..76f51b38a5 100644
+--- a/src/pkg/net/timeout_test.go
++++ b/src/pkg/net/timeout_test.go
+@@ -703,3 +703,36 @@ func TestProlongTimeout(t *testing.T) {
+ 		c.Write(buf[:])
+ 	}
+ }
++
++func TestDeadlineRace(t *testing.T) {
++	switch runtime.GOOS {
++	case "plan9":
++		t.Skipf("skipping test on %q", runtime.GOOS)
++	}
++
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
++	ln := newLocalListener(t)
++	defer ln.Close()
++	c, err := Dial("tcp", ln.Addr().String())
++	if err != nil {
++		t.Fatalf("Dial: %v", err)
++	}
++	defer c.Close()
++	done := make(chan bool)
++	go func() {
++		t := time.NewTicker(2 * time.Microsecond).C
++		for {
++			if err := c.SetDeadline(time.Now().Add(2 * time.Microsecond)); err != nil {
++				break
++			}
++			<-t
++		}
++		done <- true
++	}()
++	var buf [1]byte
++	for i := 0; i < 1024; i++ {
++		c.Read(buf[:]) // ignore possible timeout errors
++	}
++	c.Close()
++	<-done
++}
+diff --git a/src/pkg/runtime/netpoll.goc b/src/pkg/runtime/netpoll.goc
+index ebe6defa00..da6929eed2 100644
+--- a/src/pkg/runtime/netpoll.goc
++++ b/src/pkg/runtime/netpoll.goc
+@@ -113,10 +113,13 @@ func runtime_pollWait(pd *PollDesc, mode int) (err int) {
+ 	runtime·lock(pd);
+ 	err = checkerr(pd, mode);
+ 	if(err == 0) {
+-		if(!netpollblock(pd, mode)) {
++		while(!netpollblock(pd, mode)) {
+ 			err = checkerr(pd, mode);
+-			if(err == 0)
+-				runtime·throw("runtime_pollWait: unblocked by ioready");
++			if(err != 0)
++				break;
++			// Can happen if timeout has fired and unblocked us,
++			// but before we had a chance to run, timeout has been reset.
++			// Pretend it has not happened and retry.
+ 		}
+ 	}
+ 	runtime·unlock(pd);

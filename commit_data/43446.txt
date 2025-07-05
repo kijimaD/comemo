@@ -15,8 +15,169 @@ Date:   Sun Apr 5 12:44:02 2020 -0600
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go      |  6 ++---
  src/cmd/compile/internal/ssa/compile.go |  4 +--
  src/cmd/compile/internal/ssa/html.go    | 45 ++++++++++++++++++++++-----------
  3 files changed, 35 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index d423c3268d..e0e49e8a8d 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -339,7 +339,7 @@ func buildssa(fn *Node, worker int) *ssa.Func {
+ 	s.softFloat = s.config.SoftFloat
+ 
+ 	if printssa {
+-		s.f.HTMLWriter = ssa.NewHTMLWriter(ssaDumpFile, s.f.Frontend(), name, ssaDumpCFG)
++		s.f.HTMLWriter = ssa.NewHTMLWriter(ssaDumpFile, s.f, ssaDumpCFG)
+ 		// TODO: generate and print a mapping from nodes to values and blocks
+ 		dumpSourcesColumn(s.f.HTMLWriter, fn)
+ 		s.f.HTMLWriter.WriteAST("AST", astBuf)
+@@ -471,7 +471,7 @@ func dumpSourcesColumn(writer *ssa.HTMLWriter, fn *Node) {
+ 	fname := Ctxt.PosTable.Pos(fn.Pos).Filename()
+ 	targetFn, err := readFuncLines(fname, fn.Pos.Line(), fn.Func.Endlineno.Line())
+ 	if err != nil {
+-		writer.Logger.Logf("cannot read sources for function %v: %v", fn, err)
++		writer.Logf("cannot read sources for function %v: %v", fn, err)
+ 	}
+ 
+ 	// Read sources of inlined functions.
+@@ -487,7 +487,7 @@ func dumpSourcesColumn(writer *ssa.HTMLWriter, fn *Node) {
+ 		fname := Ctxt.PosTable.Pos(fi.Pos).Filename()
+ 		fnLines, err := readFuncLines(fname, fi.Pos.Line(), elno.Line())
+ 		if err != nil {
+-			writer.Logger.Logf("cannot read sources for function %v: %v", fi, err)
++			writer.Logf("cannot read sources for inlined function %v: %v", fi, err)
+ 			continue
+ 		}
+ 		inlFns = append(inlFns, fnLines)
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 9ec4252def..3da3b8985f 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -55,7 +55,7 @@ func Compile(f *Func) {
+ 	if f.Log() {
+ 		printFunc(f)
+ 	}
+-	f.HTMLWriter.WriteFunc("start", "start", f)
++	f.HTMLWriter.WritePhase("start", "start")
+ 	if BuildDump != "" && BuildDump == f.Name {
+ 		f.dumpFile("build")
+ 	}
+@@ -111,7 +111,7 @@ func Compile(f *Func) {
+ 				f.Logf("  pass %s end %s\n", p.name, stats)
+ 				printFunc(f)
+ 			}
+-			f.HTMLWriter.WriteFunc(phaseName, fmt.Sprintf("%s <span class=\"stats\">%s</span>", phaseName, stats), f)
++			f.HTMLWriter.WritePhase(phaseName, fmt.Sprintf("%s <span class=\"stats\">%s</span>", phaseName, stats))
+ 		}
+ 		if p.time || p.mem {
+ 			// Surround timing information w/ enough context to allow comparisons.
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index 66fff88d7c..1b083917dc 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -18,8 +18,8 @@ import (
+ )
+ 
+ type HTMLWriter struct {
+-	Logger
+ 	w             io.WriteCloser
++	Func          *Func
+ 	path          string
+ 	dot           *dotWriter
+ 	prevHash      []byte
+@@ -27,22 +27,37 @@ type HTMLWriter struct {
+ 	pendingTitles []string
+ }
+ 
+-func NewHTMLWriter(path string, logger Logger, funcname, cfgMask string) *HTMLWriter {
++func NewHTMLWriter(path string, f *Func, cfgMask string) *HTMLWriter {
+ 	out, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+ 	if err != nil {
+-		logger.Fatalf(src.NoXPos, "%v", err)
++		f.Fatalf("%v", err)
+ 	}
+ 	pwd, err := os.Getwd()
+ 	if err != nil {
+-		logger.Fatalf(src.NoXPos, "%v", err)
++		f.Fatalf("%v", err)
+ 	}
+-	html := HTMLWriter{w: out, Logger: logger, path: filepath.Join(pwd, path)}
+-	html.dot = newDotWriter(cfgMask)
+-	html.start(funcname)
++	html := HTMLWriter{
++		w:    out,
++		Func: f,
++		path: filepath.Join(pwd, path),
++		dot:  newDotWriter(cfgMask),
++	}
++	html.start()
+ 	return &html
+ }
+ 
+-func (w *HTMLWriter) start(name string) {
++// Fatalf reports an error and exits.
++func (w *HTMLWriter) Fatalf(msg string, args ...interface{}) {
++	fe := w.Func.Frontend()
++	fe.Fatalf(src.NoXPos, msg, args...)
++}
++
++// Logf calls the (w *HTMLWriter).Func's Logf method passing along a msg and args.
++func (w *HTMLWriter) Logf(msg string, args ...interface{}) {
++	w.Func.Logf(msg, args...)
++}
++
++func (w *HTMLWriter) start() {
+ 	if w == nil {
+ 		return
+ 	}
+@@ -703,7 +718,7 @@ function toggleDarkMode() {
+ </head>`)
+ 	w.WriteString("<body>")
+ 	w.WriteString("<h1>")
+-	w.WriteString(html.EscapeString(name))
++	w.WriteString(html.EscapeString(w.Func.Name))
+ 	w.WriteString("</h1>")
+ 	w.WriteString(`
+ <a href="#" onclick="toggle_visibility('help');return false;" id="helplink">help</a>
+@@ -749,18 +764,18 @@ func (w *HTMLWriter) Close() {
+ 	fmt.Printf("dumped SSA to %v\n", w.path)
+ }
+ 
+-// WriteFunc writes f in a column headed by title.
++// WritePhase writes f in a column headed by title.
+ // phase is used for collapsing columns and should be unique across the table.
+-func (w *HTMLWriter) WriteFunc(phase, title string, f *Func) {
++func (w *HTMLWriter) WritePhase(phase, title string) {
+ 	if w == nil {
+ 		return // avoid generating HTML just to discard it
+ 	}
+-	hash := hashFunc(f)
++	hash := hashFunc(w.Func)
+ 	w.pendingPhases = append(w.pendingPhases, phase)
+ 	w.pendingTitles = append(w.pendingTitles, title)
+ 	if !bytes.Equal(hash, w.prevHash) {
+ 		phases := strings.Join(w.pendingPhases, "  +  ")
+-		w.WriteMultiTitleColumn(phases, w.pendingTitles, fmt.Sprintf("hash-%x", hash), f.HTML(phase, w.dot))
++		w.WriteMultiTitleColumn(phases, w.pendingTitles, fmt.Sprintf("hash-%x", hash), w.Func.HTML(phase, w.dot))
+ 		w.pendingPhases = w.pendingPhases[:0]
+ 		w.pendingTitles = w.pendingTitles[:0]
+ 	}
+@@ -903,13 +918,13 @@ func (w *HTMLWriter) WriteMultiTitleColumn(phase string, titles []string, class,
+ 
+ func (w *HTMLWriter) Printf(msg string, v ...interface{}) {
+ 	if _, err := fmt.Fprintf(w.w, msg, v...); err != nil {
+-		w.Fatalf(src.NoXPos, "%v", err)
++		w.Fatalf("%v", err)
+ 	}
+ }
+ 
+ func (w *HTMLWriter) WriteString(s string) {
+ 	if _, err := io.WriteString(w.w, s); err != nil {
+-		w.Fatalf(src.NoXPos, "%v", err)
++		w.Fatalf("%v", err)
+ 	}
+ }
+ 

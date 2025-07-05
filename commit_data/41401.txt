@@ -13,6 +13,24 @@ Date:   Tue Oct 1 09:54:30 2019 +1000
     Change-Id: Ic58637231789640ff7b293ece04a95a8de7ccf8f
     Reviewed-on: https://go-review.googlesource.com/c/go/+/198097
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/text/template/parse/node.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/text/template/parse/node.go b/src/text/template/parse/node.go
+index 74552c293f..2f921be2ec 100644
+--- a/src/text/template/parse/node.go
++++ b/src/text/template/parse/node.go
+@@ -187,9 +187,9 @@ func (p *PipeNode) CopyPipe() *PipeNode {
+ 	if p == nil {
+ 		return p
+ 	}
+-	vars := make([]*VariableNode, 0, len(p.Decl))
+-	for _, d := range p.Decl {
+-		vars = append(vars, d.Copy().(*VariableNode))
++	vars := make([]*VariableNode, len(p.Decl))
++	for i, d := range p.Decl {
++		vars[i] = d.Copy().(*VariableNode)
+ 	}
+ 	n := p.tr.newPipeline(p.Pos, p.Line, vars)
+ 	n.IsAssign = p.IsAssign

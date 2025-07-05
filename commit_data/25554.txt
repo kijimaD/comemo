@@ -14,6 +14,22 @@ Date:   Thu Aug 27 14:09:15 2015 +0800
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/transport.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 46ade72be6..17a8d7b8a7 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -925,8 +925,8 @@ func (pc *persistConn) readLoop() {
+ 			if !pc.closed {
+ 				pc.closeLocked()
+ 				if len(pb) > 0 {
+-					log.Printf("Unsolicited response received on idle HTTP channel starting with %q; err=%v",
+-						string(pb), err)
++					buf, _ := pc.br.Peek(pc.br.Buffered())
++					log.Printf("Unsolicited response received on idle HTTP channel starting with %q; err=%v", buf, err)
+ 				}
+ 			}
+ 			pc.lk.Unlock()

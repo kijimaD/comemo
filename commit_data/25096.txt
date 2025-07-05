@@ -7,6 +7,19 @@ Date:   Wed Sep 23 14:23:01 2015 -0700
     Change-Id: Icb52589909776fbe195ef2502ec7c0a4b590f350
     Reviewed-on: https://go-review.googlesource.com/14859
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.6.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.6.txt b/doc/go1.6.txt
+index 03ad32a5b7..eb9ff14b46 100644
+--- a/doc/go1.6.txt
++++ b/doc/go1.6.txt
+@@ -1,6 +1,7 @@
+ Tools:
+ 
+ cmd/go: vendoring enabled by default (https://golang.org/cl/13967/)
++cmd/go: flags for tests must precede package name if present; also makes it easier to pass flags to test binaries (https://golang.org/cl/14826)
+ 
+ Ports:
+ 

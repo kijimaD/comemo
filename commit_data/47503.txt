@@ -18,9 +18,212 @@ Date:   Tue Mar 23 15:51:29 2021 -0400
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/abi/abiutils.go     | 15 ++----------
  src/cmd/compile/internal/ssa/op.go           | 19 +--------------
  src/cmd/compile/internal/ssa/writebarrier.go |  4 ----
  src/cmd/compile/internal/ssagen/ssa.go       | 36 +---------------------------
  4 files changed, 4 insertions(+), 70 deletions(-)
+
+diff --git a/src/cmd/compile/internal/abi/abiutils.go b/src/cmd/compile/internal/abi/abiutils.go
+index 549c11306a..feda2153f7 100644
+--- a/src/cmd/compile/internal/abi/abiutils.go
++++ b/src/cmd/compile/internal/abi/abiutils.go
+@@ -225,27 +225,16 @@ func appendParamOffsets(offsets []int64, at int64, t *types.Type) ([]int64, int6
+ 	return offsets, at
+ }
+ 
+-// SpillOffset returns the offset *within the spill area* for the parameter that "a" describes.
+-// Registers will be spilled here; if a memory home is needed (for a pointer method e.g.)
+-// then that will be the address.
+-// This will panic if "a" describes a stack-allocated parameter.
+-func (a *ABIParamAssignment) SpillOffset() int32 {
+-	if len(a.Registers) == 0 {
+-		panic("Stack-allocated parameters have no spill offset")
+-	}
+-	return a.offset
+-}
+-
+ // FrameOffset returns the frame-pointer-relative location that a function
+ // would spill its input or output parameter to, if such a spill slot exists.
++// If there is none defined (e.g., register-allocated outputs) it panics.
+ // For register-allocated inputs that is their spill offset reserved for morestack;
+ // for stack-allocated inputs and outputs, that is their location on the stack.
+-// For register-allocated outputs, there is no defined spill area, so return -1.
+ // (In a future version of the ABI, register-resident inputs may lose their defined
+ // spill area to help reduce stack sizes.)
+ func (a *ABIParamAssignment) FrameOffset(i *ABIParamResultInfo) int64 {
+ 	if a.offset == -1 {
+-		return -1
++		panic("Function parameter has no ABI-defined frame-pointer offset")
+ 	}
+ 	if len(a.Registers) == 0 { // passed on stack
+ 		return int64(a.offset) - i.config.LocalsOffset()
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index e4721a1ba8..c406b3b223 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -92,13 +92,6 @@ func (r *regInfo) String() string {
+ 
+ type auxType int8
+ 
+-type Param struct {
+-	Type   *types.Type
+-	Offset int32 // Offset of Param if not in a register, spill offset if it is in a register input, types.BADWIDTH if it is a register output.
+-	Reg    []abi.RegIndex
+-	Name   *ir.Name // For OwnAux, need to prepend stores with Vardefs
+-}
+-
+ type AuxNameOffset struct {
+ 	Name   *ir.Name
+ 	Offset int64
+@@ -198,7 +191,7 @@ func (a *AuxCall) ArgWidth() int64 {
+ 	return a.abiInfo.ArgWidth()
+ }
+ 
+-// OffsetOfResult returns the SP offset of result which (indexed 0, 1, etc).
++// ParamAssignmentForResult returns the ABI Parameter assignment for result which (indexed 0, 1, etc).
+ func (a *AuxCall) ParamAssignmentForResult(which int64) *abi.ABIParamAssignment {
+ 	return a.abiInfo.OutParam(int(which))
+ }
+@@ -292,16 +285,6 @@ func (a *AuxCall) String() string {
+ 	return fn + "}"
+ }
+ 
+-// ACParamsToTypes translates a slice of Param into a slice of *types.Type
+-// This is a helper call for ssagen/ssa.go.
+-// TODO remove this, as part of replacing fields of AuxCall with abi.ABIParamResultInfo.
+-func ACParamsToTypes(ps []Param) (ts []*types.Type) {
+-	for _, p := range ps {
+-		ts = append(ts, p.Type)
+-	}
+-	return
+-}
+-
+ // StaticAuxCall returns an AuxCall for a static call.
+ func StaticAuxCall(sym *obj.LSym, paramResultInfo *abi.ABIParamResultInfo) *AuxCall {
+ 	if paramResultInfo == nil {
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index ddcafe461c..bbb5a7c148 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -486,14 +486,12 @@ func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Va
+ 	// put arguments on stack
+ 	off := config.ctxt.FixedFrameSize()
+ 
+-	var ACArgs []Param
+ 	var argTypes []*types.Type
+ 	if typ != nil { // for typedmemmove
+ 		taddr := b.NewValue1A(pos, OpAddr, b.Func.Config.Types.Uintptr, typ, sb)
+ 		off = round(off, taddr.Type.Alignment())
+ 		arg := b.NewValue1I(pos, OpOffPtr, taddr.Type.PtrTo(), off, sp)
+ 		mem = b.NewValue3A(pos, OpStore, types.TypeMem, ptr.Type, arg, taddr, mem)
+-		ACArgs = append(ACArgs, Param{Type: b.Func.Config.Types.Uintptr, Offset: int32(off)})
+ 		argTypes = append(argTypes, b.Func.Config.Types.Uintptr)
+ 		off += taddr.Type.Size()
+ 	}
+@@ -501,7 +499,6 @@ func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Va
+ 	off = round(off, ptr.Type.Alignment())
+ 	arg := b.NewValue1I(pos, OpOffPtr, ptr.Type.PtrTo(), off, sp)
+ 	mem = b.NewValue3A(pos, OpStore, types.TypeMem, ptr.Type, arg, ptr, mem)
+-	ACArgs = append(ACArgs, Param{Type: ptr.Type, Offset: int32(off)})
+ 	argTypes = append(argTypes, ptr.Type)
+ 	off += ptr.Type.Size()
+ 
+@@ -509,7 +506,6 @@ func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Va
+ 		off = round(off, val.Type.Alignment())
+ 		arg = b.NewValue1I(pos, OpOffPtr, val.Type.PtrTo(), off, sp)
+ 		mem = b.NewValue3A(pos, OpStore, types.TypeMem, val.Type, arg, val, mem)
+-		ACArgs = append(ACArgs, Param{Type: val.Type, Offset: int32(off)})
+ 		argTypes = append(argTypes, val.Type)
+ 		off += val.Type.Size()
+ 	}
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 45952482fb..18363c1219 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -521,7 +521,6 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 
+ 	// Generate addresses of local declarations
+ 	s.decladdrs = map[*ir.Name]*ssa.Value{}
+-	var results []ssa.Param
+ 	for _, n := range fn.Dcl {
+ 		switch n.Class {
+ 		case ir.PPARAM:
+@@ -529,7 +528,6 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 			s.decladdrs[n] = s.entryNewValue2A(ssa.OpLocalAddr, types.NewPtr(n.Type()), n, s.sp, s.startmem)
+ 		case ir.PPARAMOUT:
+ 			s.decladdrs[n] = s.entryNewValue2A(ssa.OpLocalAddr, types.NewPtr(n.Type()), n, s.sp, s.startmem)
+-			results = append(results, ssa.Param{Name: n})
+ 		case ir.PAUTO:
+ 			// processed at each use, to prevent Addr coming
+ 			// before the decl.
+@@ -538,34 +536,6 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 		}
+ 	}
+ 
+-	// TODO: figure out why base.Ctxt.FixedFrameSize() is not added to these offsets here (compare to calls).
+-	// The input half is ignored unless a register ABI is used.
+-	var args []ssa.Param
+-	for _, p := range params.InParams() {
+-		r := p.Registers
+-		var o int32
+-		if len(r) == 0 {
+-			o = p.Offset()
+-		} else {
+-			o = p.SpillOffset() + int32(params.SpillAreaOffset())
+-		}
+-		args = append(args, ssa.Param{Type: p.Type, Offset: o, Reg: r})
+-	}
+-
+-	// For now, need the ir.Name attached to these, so update those already created.
+-	for i, p := range params.OutParams() {
+-		r := p.Registers
+-		var o int32
+-		if len(r) == 0 {
+-			o = p.Offset()
+-		} else {
+-			o = types.BADWIDTH
+-		}
+-		results[i].Type = p.Type
+-		results[i].Offset = o
+-		results[i].Reg = r
+-	}
+-
+ 	s.f.OwnAux = ssa.OwnAuxCall(fn.LSym, params)
+ 
+ 	// Populate SSAable arguments.
+@@ -5497,8 +5467,6 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
+ 	s.prevCall = nil
+ 	// Write args to the stack
+ 	off := base.Ctxt.FixedFrameSize()
+-	var ACArgs []ssa.Param
+-	var ACResults []ssa.Param
+ 	var callArgs []*ssa.Value
+ 	var callArgTypes []*types.Type
+ 
+@@ -5506,7 +5474,6 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
+ 		t := arg.Type
+ 		off = types.Rnd(off, t.Alignment())
+ 		size := t.Size()
+-		ACArgs = append(ACArgs, ssa.Param{Type: t, Offset: int32(off)})
+ 		callArgs = append(callArgs, arg)
+ 		callArgTypes = append(callArgTypes, t)
+ 		off += size
+@@ -5517,7 +5484,6 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
+ 	offR := off
+ 	for _, t := range results {
+ 		offR = types.Rnd(offR, t.Alignment())
+-		ACResults = append(ACResults, ssa.Param{Type: t, Offset: int32(offR)})
+ 		offR += t.Size()
+ 	}
+ 
+@@ -5527,7 +5493,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
+ 	callArgs = append(callArgs, s.mem())
+ 	call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
+ 	call.AddArgs(callArgs...)
+-	s.vars[memVar] = s.newValue1I(ssa.OpSelectN, types.TypeMem, int64(len(ACResults)), call)
++	s.vars[memVar] = s.newValue1I(ssa.OpSelectN, types.TypeMem, int64(len(results)), call)
+ 
+ 	if !returns {
+ 		// Finish block

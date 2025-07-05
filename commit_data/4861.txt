@@ -7,7 +7,38 @@ Date:   Tue Feb 16 12:49:41 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/206109
-
+---
  src/cmd/godoc/godoc.go | 4 +++-
  src/cmd/godoc/main.go  | 1 +
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 176e33949f..eebedd2870 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -111,10 +111,12 @@ func init() {
+ 	flag.StringVar(&cmdroot, "cmdroot", pathutil.Join(goroot, "src/cmd"), "command source directory")
+ 	flag.StringVar(&pkgroot, "pkgroot", pathutil.Join(goroot, "src/pkg"), "package source directory")
+ 	flag.StringVar(&tmplroot, "tmplroot", pathutil.Join(goroot, "lib/godoc"), "template directory")
++}
++
+ 
++func initHandlers() {
+ 	fsMap.Init(*path)
+ 	fileServer = http.FileServer(goroot, "")
+-
+ 	cmdHandler = httpHandler{"/cmd/", cmdroot, false}
+ 	pkgHandler = httpHandler{"/pkg/", pkgroot, true}
+ }
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 4bff23f0df..9a7a13abab 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -152,6 +152,7 @@ func main() {
+ 		log.Exitf("negative tabwidth %d", *tabwidth)
+ 	}
+ 
++	initHandlers()
+ 	readTemplates()
+ 
+ 	if *httpaddr != "" {

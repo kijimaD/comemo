@@ -16,6 +16,29 @@ Date:   Fri Mar 25 13:22:55 2022 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/make.bash | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/make.bash b/src/make.bash
+index 96cbbf37a9..d8c1da6766 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -185,7 +185,7 @@ fi
+ # Get the exact bootstrap toolchain version to help with debugging.
+ # We clear GOOS and GOARCH to avoid an ominous but harmless warning if
+ # the bootstrap doesn't support them.
+-GOROOT_BOOTSTRAP_VERSION=$(GOOS= GOARCH= $GOROOT_BOOTSTRAP/bin/go version | sed 's/go version //')
++GOROOT_BOOTSTRAP_VERSION=$(GOOS= GOARCH= GOEXPERIMENT= $GOROOT_BOOTSTRAP/bin/go version | sed 's/go version //')
+ echo "Building Go cmd/dist using $GOROOT_BOOTSTRAP. ($GOROOT_BOOTSTRAP_VERSION)"
+ if $verbose; then
+ 	echo cmd/dist
+@@ -196,7 +196,7 @@ if [ "$GOROOT_BOOTSTRAP" = "$GOROOT" ]; then
+ 	exit 1
+ fi
+ rm -f cmd/dist/dist
+-GOROOT="$GOROOT_BOOTSTRAP" GOOS="" GOARCH="" GO111MODULE=off "$GOROOT_BOOTSTRAP/bin/go" build -o cmd/dist/dist ./cmd/dist
++GOROOT="$GOROOT_BOOTSTRAP" GOOS="" GOARCH="" GO111MODULE=off GOEXPERIMENT= "$GOROOT_BOOTSTRAP/bin/go" build -o cmd/dist/dist ./cmd/dist
+ 
+ # -e doesn't propagate out of eval, so check success by hand.
+ eval $(./cmd/dist/dist env -p || echo FAIL=true)

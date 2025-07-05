@@ -39,6 +39,30 @@ Date:   Fri Feb 26 09:16:56 2021 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/arith.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/math/big/arith.go b/src/math/big/arith.go
+index 750ce8aa39..e1947936d4 100644
+--- a/src/math/big/arith.go
++++ b/src/math/big/arith.go
+@@ -170,12 +170,16 @@ func shrVU_g(z, x []Word, s uint) (c Word) {
+ 	if len(z) == 0 {
+ 		return
+ 	}
++	if len(x) != len(z) {
++		// This is an invariant guaranteed by the caller.
++		panic("len(x) != len(z)")
++	}
+ 	s &= _W - 1 // hint to the compiler that shifts by s don't need guard code
+ 	ŝ := _W - s
+ 	ŝ &= _W - 1 // ditto
+ 	c = x[0] << ŝ
+-	for i := 0; i < len(z)-1; i++ {
+-		z[i] = x[i]>>s | x[i+1]<<ŝ
++	for i := 1; i < len(z); i++ {
++		z[i-1] = x[i-1]>>s | x[i]<<ŝ
+ 	}
+ 	z[len(z)-1] = x[len(z)-1] >> s
+ 	return

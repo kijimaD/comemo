@@ -9,6 +9,30 @@ Date:   Mon Jun 20 08:34:39 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/sinit.go | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index f6ff906999..e073a5fad4 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -974,13 +974,14 @@ func maplit(ctxt int, n *Node, m *Node, init *Nodes) {
+ 			val = temp(m.Type.Val())
+ 		}
+ 
+-		setlineno(r.Left)
+-		a = Nod(OAS, key, r.Left)
++		setlineno(index)
++		a = Nod(OAS, key, index)
+ 		a = typecheck(a, Etop)
+ 		a = walkstmt(a)
+ 		init.Append(a)
+-		setlineno(r.Right)
+-		a = Nod(OAS, val, r.Right)
++
++		setlineno(value)
++		a = Nod(OAS, val, value)
+ 		a = typecheck(a, Etop)
+ 		a = walkstmt(a)
+ 		init.Append(a)

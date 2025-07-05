@@ -7,7 +7,7 @@ Date:   Tue Oct 18 09:56:34 2011 -0400
     R=golang-dev, r, adg, r, cw
     CC=golang-dev
     https://golang.org/cl/5266045
-
+---
  src/cmd/cgo/gcc.go                  | 2 +-
  src/cmd/gofmt/rewrite.go            | 2 +-
  src/pkg/debug/dwarf/type.go         | 2 +-
@@ -37,3 +37,432 @@ Date:   Tue Oct 18 09:56:34 2011 -0400
  src/pkg/xml/xml.go                  | 6 +++++-
  test/nil.go                         | 2 +-
  28 files changed, 40 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 90f4032b25..1864eed09a 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -588,7 +588,7 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
+ 				n.Const = strconv.Itoa64(n.Type.EnumValues[k])
+ 				// Remove injected enum to ensure the value will deep-compare
+ 				// equally in future loads of the same constant.
+-				n.Type.EnumValues[k] = 0, false
++				delete(n.Type.EnumValues, k)
+ 			} else if n.Kind == "const" && i < len(enumVal) {
+ 				n.Const = strconv.Itoa64(enumVal[i])
+ 			}
+diff --git a/src/cmd/gofmt/rewrite.go b/src/cmd/gofmt/rewrite.go
+index 8f65ef1ff1..7f2bf0647a 100644
+--- a/src/cmd/gofmt/rewrite.go
++++ b/src/cmd/gofmt/rewrite.go
+@@ -65,7 +65,7 @@ func rewriteFile(pattern, replace ast.Expr, p *ast.File) *ast.File {
+ 			return reflect.Value{}
+ 		}
+ 		for k := range m {
+-			m[k] = reflect.Value{}, false
++			delete(m, k)
+ 		}
+ 		val = apply(f, val)
+ 		if match(m, pat, val) {
+diff --git a/src/pkg/debug/dwarf/type.go b/src/pkg/debug/dwarf/type.go
+index f35365ebeb..9fa221b090 100644
+--- a/src/pkg/debug/dwarf/type.go
++++ b/src/pkg/debug/dwarf/type.go
+@@ -579,6 +579,6 @@ Error:
+ 	// If the parse fails, take the type out of the cache
+ 	// so that the next call with this offset doesn't hit
+ 	// the cache and return success.
+-	d.typeCache[off] = nil, false
++	delete(d.typeCache, off)
+ 	return nil, err
+ }
+diff --git a/src/pkg/exp/types/check_test.go b/src/pkg/exp/types/check_test.go
+index 8be653fcb6..034acd00de 100644
+--- a/src/pkg/exp/types/check_test.go
++++ b/src/pkg/exp/types/check_test.go
+@@ -154,7 +154,7 @@ func eliminate(t *testing.T, expected map[token.Pos]string, errors os.Error) {
+ 				continue
+ 			}
+ 			// we have a match - eliminate this error
+-			expected[pos] = "", false
++			delete(expected, pos)
+ 		} else {
+ 			// To keep in mind when analyzing failed test output:
+ 			// If the same error position occurs multiple times in errors,
+diff --git a/src/pkg/exp/types/universe.go b/src/pkg/exp/types/universe.go
+index 6ae88e5f9c..80db127829 100644
+--- a/src/pkg/exp/types/universe.go
++++ b/src/pkg/exp/types/universe.go
+@@ -81,6 +81,7 @@ func init() {
+ 	defFun("close")
+ 	defFun("complex")
+ 	defFun("copy")
++	defFun("delete")
+ 	defFun("imag")
+ 	defFun("len")
+ 	defFun("make")
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index 9d8d905874..f480087836 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -1154,7 +1154,7 @@ func (dec *Decoder) getDecEnginePtr(remoteId typeId, ut *userTypeInfo) (enginePt
+ 		decoderMap[remoteId] = enginePtr
+ 		*enginePtr, err = dec.compileDec(remoteId, ut)
+ 		if err != nil {
+-			decoderMap[remoteId] = nil, false
++			delete(decoderMap, remoteId)
+ 		}
+ 	}
+ 	return
+@@ -1179,7 +1179,7 @@ func (dec *Decoder) getIgnoreEnginePtr(wireId typeId) (enginePtr **decEngine, er
+ 			*enginePtr, err = dec.compileIgnoreSingle(wireId)
+ 		}
+ 		if err != nil {
+-			dec.ignorerCache[wireId] = nil, false
++			delete(dec.ignorerCache, wireId)
+ 		}
+ 	}
+ 	return
+diff --git a/src/pkg/gob/type.go b/src/pkg/gob/type.go
+index b2f716c4b5..870101e20c 100644
+--- a/src/pkg/gob/type.go
++++ b/src/pkg/gob/type.go
+@@ -405,7 +405,7 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, os.
+ 	var type0, type1 gobType
+ 	defer func() {
+ 		if err != nil {
+-			types[rt] = nil, false
++			delete(types, rt)
+ 		}
+ 	}()
+ 	// Install the top-level type before the subtypes (e.g. struct before
+diff --git a/src/pkg/http/fcgi/child.go b/src/pkg/http/fcgi/child.go
+index 19718824c9..61dd3fbdc4 100644
+--- a/src/pkg/http/fcgi/child.go
++++ b/src/pkg/http/fcgi/child.go
+@@ -194,7 +194,7 @@ func (c *child) serve() {
+ 		case typeData:
+ 			// If the filter role is implemented, read the data stream here.
+ 		case typeAbortRequest:
+-			requests[rec.h.Id] = nil, false
++			delete(requests, rec.h.Id)
+ 			c.conn.writeEndRequest(rec.h.Id, 0, statusRequestComplete)
+ 			if !req.keepConn {
+ 				// connection will close upon return
+diff --git a/src/pkg/http/persist.go b/src/pkg/http/persist.go
+index 78bf9058f3..f73e6c63c5 100644
+--- a/src/pkg/http/persist.go
++++ b/src/pkg/http/persist.go
+@@ -165,7 +165,7 @@ func (sc *ServerConn) Write(req *Request, resp *Response) os.Error {
+ 	// Retrieve the pipeline ID of this request/response pair
+ 	sc.lk.Lock()
+ 	id, ok := sc.pipereq[req]
+-	sc.pipereq[req] = 0, false
++	delete(sc.pipereq, req)
+ 	if !ok {
+ 		sc.lk.Unlock()
+ 		return ErrPipeline
+@@ -353,7 +353,7 @@ func (cc *ClientConn) readUsing(req *Request, readRes func(*bufio.Reader, *Reque
+ 	// Retrieve the pipeline ID of this request/response pair
+ 	cc.lk.Lock()
+ 	id, ok := cc.pipereq[req]
+-	cc.pipereq[req] = 0, false
++	delete(cc.pipereq, req)
+ 	if !ok {
+ 		cc.lk.Unlock()
+ 		return nil, ErrPipeline
+diff --git a/src/pkg/http/transfer.go b/src/pkg/http/transfer.go
+index 300c7a88d5..868a1143fd 100644
+--- a/src/pkg/http/transfer.go
++++ b/src/pkg/http/transfer.go
+@@ -366,7 +366,7 @@ func fixTransferEncoding(requestMethod string, header Header) ([]string, os.Erro
+ 		return nil, nil
+ 	}
+ 
+-	header["Transfer-Encoding"] = nil, false
++	delete(header, "Transfer-Encoding")
+ 
+ 	// Head responses have no bodies, so the transfer encoding
+ 	// should be ignored.
+@@ -399,7 +399,7 @@ func fixTransferEncoding(requestMethod string, header Header) ([]string, os.Erro
+ 		// Chunked encoding trumps Content-Length. See RFC 2616
+ 		// Section 4.4. Currently len(te) > 0 implies chunked
+ 		// encoding.
+-		header["Content-Length"] = nil, false
++		delete(header, "Content-Length")
+ 		return te, nil
+ 	}
+ 
+diff --git a/src/pkg/http/transport.go b/src/pkg/http/transport.go
+index b0aea97087..0914af7e5c 100644
+--- a/src/pkg/http/transport.go
++++ b/src/pkg/http/transport.go
+@@ -266,7 +266,7 @@ func (t *Transport) getIdleConn(cm *connectMethod) (pconn *persistConn) {
+ 		}
+ 		if len(pconns) == 1 {
+ 			pconn = pconns[0]
+-			t.idleConn[key] = nil, false
++			delete(t.idleConn, key)
+ 		} else {
+ 			// 2 or more cached connections; pop last
+ 			// TODO: queue?
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index e46e1203a5..80d40af766 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -152,7 +152,7 @@ func (s *pollServer) LookupFD(fd int, mode int) *netFD {
+ 	if !ok {
+ 		return nil
+ 	}
+-	s.pending[key] = nil, false
++	delete(s.pending, key)
+ 	return netfd
+ }
+ 
+@@ -195,7 +195,7 @@ func (s *pollServer) CheckDeadlines() {
+ 		}
+ 		if t > 0 {
+ 			if t <= now {
+-				s.pending[key] = nil, false
++				delete(s.pending, key)
+ 				if mode == 'r' {
+ 					s.poll.DelFD(fd.sysfd, mode)
+ 					fd.rdeadline = -1
+diff --git a/src/pkg/net/fd_linux.go b/src/pkg/net/fd_linux.go
+index 70fc344b2a..c860c842af 100644
+--- a/src/pkg/net/fd_linux.go
++++ b/src/pkg/net/fd_linux.go
+@@ -105,7 +105,7 @@ func (p *pollster) StopWaiting(fd int, bits uint) {
+ 		if e := syscall.EpollCtl(p.epfd, syscall.EPOLL_CTL_DEL, fd, nil); e != 0 {
+ 			print("Epoll delete fd=", fd, ": ", os.Errno(e).String(), "\n")
+ 		}
+-		p.events[fd] = 0, false
++		delete(p.events, fd)
+ 	}
+ }
+ 
+diff --git a/src/pkg/net/textproto/header.go b/src/pkg/net/textproto/header.go
+index 288deb2ceb..7fb32f8045 100644
+--- a/src/pkg/net/textproto/header.go
++++ b/src/pkg/net/textproto/header.go
+@@ -39,5 +39,5 @@ func (h MIMEHeader) Get(key string) string {
+ 
+ // Del deletes the values associated with key.
+ func (h MIMEHeader) Del(key string) {
+-	h[CanonicalMIMEHeaderKey(key)] = nil, false
++	delete(h, CanonicalMIMEHeaderKey(key))
+ }
+diff --git a/src/pkg/net/textproto/pipeline.go b/src/pkg/net/textproto/pipeline.go
+index 8c25884b3b..ca50eddac3 100644
+--- a/src/pkg/net/textproto/pipeline.go
++++ b/src/pkg/net/textproto/pipeline.go
+@@ -108,7 +108,7 @@ func (s *sequencer) End(id uint) {
+ 	}
+ 	c, ok := s.wait[id]
+ 	if ok {
+-		s.wait[id] = nil, false
++		delete(s.wait, id)
+ 	}
+ 	s.mu.Unlock()
+ 	if ok {
+diff --git a/src/pkg/old/netchan/export.go b/src/pkg/old/netchan/export.go
+index 7df7365153..99d5d7e05d 100644
+--- a/src/pkg/old/netchan/export.go
++++ b/src/pkg/old/netchan/export.go
+@@ -314,7 +314,7 @@ func (exp *Exporter) addClient(conn io.ReadWriter) *expClient {
+ // delClient forgets the client existed
+ func (exp *Exporter) delClient(client *expClient) {
+ 	exp.mu.Lock()
+-	exp.clients[client] = false, false
++	delete(exp.clients, client)
+ 	exp.mu.Unlock()
+ }
+ 
+@@ -388,7 +388,7 @@ func (exp *Exporter) Hangup(name string) os.Error {
+ 	exp.mu.Lock()
+ 	chDir, ok := exp.names[name]
+ 	if ok {
+-		exp.names[name] = nil, false
++		delete(exp.names, name)
+ 	}
+ 	// TODO drop all instances of channel from client sets
+ 	exp.mu.Unlock()
+diff --git a/src/pkg/old/netchan/import.go b/src/pkg/old/netchan/import.go
+index ec17d97774..5a459e0d5a 100644
+--- a/src/pkg/old/netchan/import.go
++++ b/src/pkg/old/netchan/import.go
+@@ -256,8 +256,8 @@ func (imp *Importer) Hangup(name string) os.Error {
+ 	if nc == nil {
+ 		return os.NewError("netchan import: hangup: no such channel: " + name)
+ 	}
+-	imp.names[name] = nil, false
+-	imp.chans[nc.id] = nil, false
++	delete(imp.names, name)
++	delete(imp.chans, nc.id)
+ 	nc.close()
+ 	return nil
+ }
+diff --git a/src/pkg/os/inotify/inotify_linux.go b/src/pkg/os/inotify/inotify_linux.go
+index 99fa516222..ee3c75f63b 100644
+--- a/src/pkg/os/inotify/inotify_linux.go
++++ b/src/pkg/os/inotify/inotify_linux.go
+@@ -131,7 +131,7 @@ func (w *Watcher) RemoveWatch(path string) os.Error {
+ 	if success == -1 {
+ 		return os.NewSyscallError("inotify_rm_watch", errno)
+ 	}
+-	w.watches[path] = nil, false
++	delete(w.watches, path)
+ 	return nil
+ }
+ 
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index 3630069bba..be5477d243 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -876,7 +876,7 @@ L:
+ 		fd = inf
+ 	}
+ 
+-	mark[t] = false, false
++	delete(mark, t)
+ 	return
+ }
+ 
+diff --git a/src/pkg/rpc/client.go b/src/pkg/rpc/client.go
+index 4acfdf6d96..c77901c6dc 100644
+--- a/src/pkg/rpc/client.go
++++ b/src/pkg/rpc/client.go
+@@ -104,7 +104,7 @@ func (client *Client) input() {
+ 		seq := response.Seq
+ 		client.mutex.Lock()
+ 		c := client.pending[seq]
+-		client.pending[seq] = c, false
++		delete(client.pending, seq)
+ 		client.mutex.Unlock()
+ 
+ 		if response.Error == "" {
+diff --git a/src/pkg/rpc/jsonrpc/client.go b/src/pkg/rpc/jsonrpc/client.go
+index 577d0ce429..17e9b9388a 100644
+--- a/src/pkg/rpc/jsonrpc/client.go
++++ b/src/pkg/rpc/jsonrpc/client.go
+@@ -79,7 +79,7 @@ func (c *clientCodec) ReadResponseHeader(r *rpc.Response) os.Error {
+ 
+ 	c.mutex.Lock()
+ 	r.ServiceMethod = c.pending[c.resp.Id]
+-	c.pending[c.resp.Id] = "", false
++	delete(c.pending, c.resp.Id)
+ 	c.mutex.Unlock()
+ 
+ 	r.Error = ""
+diff --git a/src/pkg/rpc/jsonrpc/server.go b/src/pkg/rpc/jsonrpc/server.go
+index 9801fdf221..61b5abff55 100644
+--- a/src/pkg/rpc/jsonrpc/server.go
++++ b/src/pkg/rpc/jsonrpc/server.go
+@@ -107,7 +107,7 @@ func (c *serverCodec) WriteResponse(r *rpc.Response, x interface{}) os.Error {
+ 		c.mutex.Unlock()
+ 		return os.NewError("invalid sequence number in response")
+ 	}
+-	c.pending[r.Seq] = nil, false
++	delete(c.pending, r.Seq)
+ 	c.mutex.Unlock()
+ 
+ 	if b == nil {
+diff --git a/src/pkg/syscall/syscall_unix.go b/src/pkg/syscall/syscall_unix.go
+index 1590b6d4f2..70ea3bd69a 100644
+--- a/src/pkg/syscall/syscall_unix.go
++++ b/src/pkg/syscall/syscall_unix.go
+@@ -87,6 +87,6 @@ func (m *mmapper) Munmap(data []byte) (errno int) {
+ 	if errno := m.munmap(uintptr(unsafe.Pointer(&b[0])), uintptr(len(b))); errno != 0 {
+ 		return errno
+ 	}
+-	m.active[p] = nil, false
++	delete(m.active, p)
+ 	return 0
+ }
+diff --git a/src/pkg/unicode/maketables.go b/src/pkg/unicode/maketables.go
+index 087422de38..15579aa83c 100644
+--- a/src/pkg/unicode/maketables.go
++++ b/src/pkg/unicode/maketables.go
+@@ -1152,7 +1152,7 @@ func foldExceptions(class []int) map[int]bool {
+ 
+ 	// Remove class itself.
+ 	for _, r := range class {
+-		m[r] = false, false
++		delete(m, r)
+ 	}
+ 
+ 	// What's left is the exceptions.
+diff --git a/src/pkg/unicode/script_test.go b/src/pkg/unicode/script_test.go
+index b37ad18361..dfd636d839 100644
+--- a/src/pkg/unicode/script_test.go
++++ b/src/pkg/unicode/script_test.go
+@@ -206,7 +206,7 @@ func TestScripts(t *testing.T) {
+ 		if !Is(Scripts[test.script], test.rune) {
+ 			t.Errorf("IsScript(%U, %s) = false, want true", test.rune, test.script)
+ 		}
+-		notTested[test.script] = false, false
++		delete(notTested, test.script)
+ 	}
+ 	for _, test := range outTest {
+ 		if Is(Scripts[test.script], test.rune) {
+@@ -230,7 +230,7 @@ func TestCategories(t *testing.T) {
+ 		if !Is(Categories[test.script], test.rune) {
+ 			t.Errorf("IsCategory(%U, %s) = false, want true", test.rune, test.script)
+ 		}
+-		notTested[test.script] = false, false
++		delete(notTested, test.script)
+ 	}
+ 	for k := range notTested {
+ 		t.Error("category not tested:", k)
+@@ -249,7 +249,7 @@ func TestProperties(t *testing.T) {
+ 		if !Is(Properties[test.script], test.rune) {
+ 			t.Errorf("IsCategory(%U, %s) = false, want true", test.rune, test.script)
+ 		}
+-		notTested[test.script] = false, false
++		delete(notTested, test.script)
+ 	}
+ 	for k := range notTested {
+ 		t.Error("property not tested:", k)
+diff --git a/src/pkg/url/url.go b/src/pkg/url/url.go
+index 9d193482ce..dd1f93d14c 100644
+--- a/src/pkg/url/url.go
++++ b/src/pkg/url/url.go
+@@ -517,7 +517,7 @@ func (v Values) Add(key, value string) {
+ 
+ // Del deletes the values associated with key.
+ func (v Values) Del(key string) {
+-	v[key] = nil, false
++	delete(v, key)
+ }
+ 
+ // ParseQuery parses the URL-encoded query string and returns
+diff --git a/src/pkg/xml/xml.go b/src/pkg/xml/xml.go
+index e7ba44e4a2..85c24bc450 100644
+--- a/src/pkg/xml/xml.go
++++ b/src/pkg/xml/xml.go
+@@ -390,7 +390,11 @@ func (p *Parser) popElement(t *EndElement) bool {
+ 	// translations that were associated with the element we just closed.
+ 	for p.stk != nil && p.stk.kind != stkStart {
+ 		s := p.pop()
+-		p.ns[s.name.Local] = s.name.Space, s.ok
++		if s.ok {
++			p.ns[s.name.Local] = s.name.Space
++		} else {
++			delete(p.ns, s.name.Local)
++		}
+ 	}
+ 
+ 	return true
+diff --git a/test/nil.go b/test/nil.go
+index 30cc2705b0..efcf4f7822 100644
+--- a/test/nil.go
++++ b/test/nil.go
+@@ -150,7 +150,7 @@ func maptest() {
+ 		m[2] = 3
+ 	})
+ 	shouldPanic(func() {
+-		m[2] = 0, false
++		delete(m, 2)
+ 	})
+ }
+ 

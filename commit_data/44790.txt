@@ -18,9 +18,290 @@ Date:   Sun Jul 12 22:36:34 2020 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/api_test.go    |  20 +++----
  src/go/types/assignments.go |   4 +-
  src/go/types/expr.go        | 125 ++++++++++++++++++++++++--------------------
  src/go/types/operand.go     |  43 ++++-----------
  4 files changed, 88 insertions(+), 104 deletions(-)
+
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 6c129cd01b..75cebc9826 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -1243,11 +1243,9 @@ func TestConvertibleTo(t *testing.T) {
+ 		{newDefined(new(Struct)), new(Struct), true},
+ 		{newDefined(Typ[Int]), new(Struct), false},
+ 		{Typ[UntypedInt], Typ[Int], true},
+-		// TODO (rFindley): the below behavior is undefined as non-constant untyped
+-		// string values are not permitted by the spec. But we should consider
+-		// changing this case to return 'true', to have more reasonable behavior in
+-		// cases where the API is used for constant expressions.
+-		{Typ[UntypedString], Typ[String], false},
++		// Untyped string values are not permitted by the spec, so the below
++		// behavior is undefined.
++		{Typ[UntypedString], Typ[String], true},
+ 	} {
+ 		if got := ConvertibleTo(test.v, test.t); got != test.want {
+ 			t.Errorf("ConvertibleTo(%v, %v) = %t, want %t", test.v, test.t, got, test.want)
+@@ -1266,13 +1264,11 @@ func TestAssignableTo(t *testing.T) {
+ 		{newDefined(new(Struct)), new(Struct), true},
+ 		{Typ[UntypedBool], Typ[Bool], true},
+ 		{Typ[UntypedString], Typ[Bool], false},
+-		// TODO (rFindley): the below behavior is undefined as AssignableTo is
+-		// intended for non-constant values (and neither UntypedString or
+-		// UntypedInt assignments arise during normal type checking).  But as
+-		// described in TestConvertibleTo above, we should consider changing this
+-		// behavior.
+-		{Typ[UntypedString], Typ[String], false},
+-		{Typ[UntypedInt], Typ[Int], false},
++		// Neither untyped string nor untyped numeric assignments arise during
++		// normal type checking, so the below behavior is technically undefined by
++		// the spec.
++		{Typ[UntypedString], Typ[String], true},
++		{Typ[UntypedInt], Typ[Int], true},
+ 	} {
+ 		if got := AssignableTo(test.v, test.t); got != test.want {
+ 			t.Errorf("AssignableTo(%v, %v) = %t, want %t", test.v, test.t, got, test.want)
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index 9697e504cd..4e8ec278fc 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -34,8 +34,8 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
+ 		// spec: "If an untyped constant is assigned to a variable of interface
+ 		// type or the blank identifier, the constant is first converted to type
+ 		// bool, rune, int, float64, complex128 or string respectively, depending
+-		// on whether the value is a boolean, rune, integer, floating-point, complex,
+-		// or string constant."
++		// on whether the value is a boolean, rune, integer, floating-point,
++		// complex, or string constant."
+ 		if T == nil || IsInterface(T) {
+ 			if T == nil && x.typ == Typ[UntypedNil] {
+ 				check.errorf(x.pos(), "use of untyped nil in %s", context)
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 8503a521f6..94d98f0fbb 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -506,8 +506,6 @@ func (check *Checker) canConvertUntyped(x *operand, target Type) error {
+ 	if x.mode == invalid || isTyped(x.typ) || target == Typ[Invalid] {
+ 		return nil
+ 	}
+-	// TODO(gri) Sloppy code - clean up. This function is central
+-	//           to assignment and expression checking.
+ 
+ 	if isUntyped(target) {
+ 		// both x and target are untyped
+@@ -519,80 +517,91 @@ func (check *Checker) canConvertUntyped(x *operand, target Type) error {
+ 				check.updateExprType(x.expr, target, false)
+ 			}
+ 		} else if xkind != tkind {
+-			goto Error
++			return check.newErrorf(x.pos(), "cannot convert %s to %s", x, target)
+ 		}
+ 		return nil
+ 	}
+ 
+-	// typed target
++	if t, ok := target.Underlying().(*Basic); ok && x.mode == constant_ {
++		if err := check.isRepresentable(x, t); err != nil {
++			return err
++		}
++		// Expression value may have been rounded - update if needed.
++		check.updateExprVal(x.expr, x.val)
++	} else {
++		newTarget := check.implicitType(x, target)
++		if newTarget == nil {
++			return check.newErrorf(x.pos(), "cannot convert %s to %s", x, target)
++		}
++		target = newTarget
++	}
++	x.typ = target
++	// Even though implicitType can return UntypedNil, this value is final: the
++	// predeclared identifier nil has no type.
++	check.updateExprType(x.expr, target, true)
++	return nil
++}
++
++// implicitType returns the implicit type of x when used in a context where the
++// target type is expected. If no such implicit conversion is possible, it
++// returns nil.
++func (check *Checker) implicitType(x *operand, target Type) Type {
++	assert(isUntyped(x.typ))
+ 	switch t := target.Underlying().(type) {
+ 	case *Basic:
+-		if x.mode == constant_ {
+-			if err := check.isRepresentable(x, t); err != nil {
+-				return err
++		assert(x.mode != constant_)
++		// Non-constant untyped values may appear as the
++		// result of comparisons (untyped bool), intermediate
++		// (delayed-checked) rhs operands of shifts, and as
++		// the value nil.
++		switch x.typ.(*Basic).kind {
++		case UntypedBool:
++			if !isBoolean(target) {
++				return nil
+ 			}
+-			// expression value may have been rounded - update if needed
+-			check.updateExprVal(x.expr, x.val)
+-		} else {
+-			// Non-constant untyped values may appear as the
+-			// result of comparisons (untyped bool), intermediate
+-			// (delayed-checked) rhs operands of shifts, and as
+-			// the value nil.
+-			switch x.typ.(*Basic).kind {
+-			case UntypedBool:
+-				if !isBoolean(target) {
+-					goto Error
+-				}
+-			case UntypedInt, UntypedRune, UntypedFloat, UntypedComplex:
+-				if !isNumeric(target) {
+-					goto Error
+-				}
+-			case UntypedString:
+-				// Non-constant untyped string values are not
+-				// permitted by the spec and should not occur.
+-				unreachable()
+-			case UntypedNil:
+-				// Unsafe.Pointer is a basic type that includes nil.
+-				if !hasNil(target) {
+-					goto Error
+-				}
+-			default:
+-				goto Error
++		case UntypedInt, UntypedRune, UntypedFloat, UntypedComplex:
++			if !isNumeric(target) {
++				return nil
++			}
++		case UntypedString:
++			// Non-constant untyped string values are not permitted by the spec and
++			// should not occur during normal typechecking passes, but this path is
++			// reachable via the AssignableTo API.
++			if !isString(target) {
++				return nil
+ 			}
++		case UntypedNil:
++			// Unsafe.Pointer is a basic type that includes nil.
++			if !hasNil(target) {
++				return nil
++			}
++		default:
++			return nil
+ 		}
+ 	case *Interface:
+-		// Update operand types to the default type rather then
+-		// the target (interface) type: values must have concrete
+-		// dynamic types. If the value is nil, keep it untyped
+-		// (this is important for tools such as go vet which need
+-		// the dynamic type for argument checking of say, print
++		// Values must have concrete dynamic types. If the value is nil,
++		// keep it untyped (this is important for tools such as go vet which
++		// need the dynamic type for argument checking of say, print
+ 		// functions)
+ 		if x.isNil() {
+-			target = Typ[UntypedNil]
+-		} else {
+-			// cannot assign untyped values to non-empty interfaces
+-			check.completeInterface(t)
+-			if !t.Empty() {
+-				goto Error
+-			}
+-			target = Default(x.typ)
++			return Typ[UntypedNil]
++		}
++		// cannot assign untyped values to non-empty interfaces
++		check.completeInterface(t)
++		if !t.Empty() {
++			return nil
+ 		}
++		return Default(x.typ)
+ 	case *Pointer, *Signature, *Slice, *Map, *Chan:
+ 		if !x.isNil() {
+-			goto Error
++			return nil
+ 		}
+-		// keep nil untyped - see comment for interfaces, above
+-		target = Typ[UntypedNil]
++		// Keep nil untyped - see comment for interfaces, above.
++		return Typ[UntypedNil]
+ 	default:
+-		goto Error
++		return nil
+ 	}
+-
+-	x.typ = target
+-	check.updateExprType(x.expr, target, true) // UntypedNils are final
+-	return nil
+-
+-Error:
+-	return check.newErrorf(x.pos(), "cannot convert %s to %s", x, target)
++	return target
+ }
+ 
+ func (check *Checker) comparison(x, y *operand, op token.Token) {
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index 80d11e2f21..6fbfe09627 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -205,15 +205,11 @@ func (x *operand) isNil() bool {
+ 	return x.mode == value && x.typ == Typ[UntypedNil]
+ }
+ 
+-// TODO(gri) The functions operand.assignableTo, checker.convertUntyped,
+-//           checker.representable, and checker.assignment are
+-//           overlapping in functionality. Need to simplify and clean up.
+-
+-// assignableTo reports whether x is assignable to a variable of type T.
+-// If the result is false and a non-nil reason is provided, it may be set
+-// to a more detailed explanation of the failure (result != "").
+-// The check parameter may be nil if assignableTo is invoked through
+-// an exported API call, i.e., when all methods have been type-checked.
++// assignableTo reports whether x is assignable to a variable of type T. If the
++// result is false and a non-nil reason is provided, it may be set to a more
++// detailed explanation of the failure (result != ""). The check parameter may
++// be nil if assignableTo is invoked through an exported API call, i.e., when
++// all methods have been type-checked.
+ func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
+ 	if x.mode == invalid || T == Typ[Invalid] {
+ 		return true // avoid spurious errors
+@@ -229,34 +225,17 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
+ 	Vu := V.Underlying()
+ 	Tu := T.Underlying()
+ 
+-	// x is an untyped value representable by a value of type T
+-	// TODO(gri) This is borrowing from checker.convertUntyped and
+-	//           checker.representable. Need to clean up.
++	// x is an untyped value representable by a value of type T.
+ 	if isUntyped(Vu) {
+-		switch t := Tu.(type) {
+-		case *Basic:
+-			if x.isNil() && t.kind == UnsafePointer {
+-				return true
+-			}
+-			if x.mode == constant_ {
+-				return representableConst(x.val, check, t, nil)
+-			}
+-			// The result of a comparison is an untyped boolean,
+-			// but may not be a constant.
+-			if Vb, _ := Vu.(*Basic); Vb != nil {
+-				return Vb.kind == UntypedBool && isBoolean(Tu)
+-			}
+-		case *Interface:
+-			check.completeInterface(t)
+-			return x.isNil() || t.Empty()
+-		case *Pointer, *Signature, *Slice, *Map, *Chan:
+-			return x.isNil()
++		if t, ok := Tu.(*Basic); ok && x.mode == constant_ {
++			return representableConst(x.val, check, t, nil)
+ 		}
++		return check.implicitType(x, Tu) != nil
+ 	}
+ 	// Vu is typed
+ 
+-	// x's type V and T have identical underlying types
+-	// and at least one of V or T is not a named type
++	// x's type V and T have identical underlying types and at least one of V or
++	// T is not a named type.
+ 	if check.identical(Vu, Tu) && (!isNamed(V) || !isNamed(T)) {
+ 		return true
+ 	}

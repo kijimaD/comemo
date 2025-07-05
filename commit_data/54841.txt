@@ -84,7 +84,60 @@ Date:   Wed Nov 9 16:07:11 2022 +0100
     Run-TryBot: Jakub Ciolek <jakub@ciolek.dev>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/ssa/_gen/generic.rules |  1 +
  src/cmd/compile/internal/ssa/rewritegeneric.go  | 29 +++++++++++++++++++++++++
  2 files changed, 30 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/generic.rules b/src/cmd/compile/internal/ssa/_gen/generic.rules
+index d5f9e5be63..8d985526d1 100644
+--- a/src/cmd/compile/internal/ssa/_gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/_gen/generic.rules
+@@ -961,6 +961,7 @@
+ (NilCheck (GetG mem) mem) => mem
+ 
+ (If (Not cond) yes no) => (If cond no yes)
++(If (Phi <t> nx:(Not x) ny:(Not y)) yes no) && nx.Uses == 1 && ny.Uses == 1 => (If (Phi <t> x y) no yes)
+ (If (ConstBool [c]) yes no) && c => (First yes no)
+ (If (ConstBool [c]) yes no) && !c => (First no yes)
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index a76f55813f..ad8d33c97d 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -32462,6 +32462,35 @@ func rewriteBlockgeneric(b *Block) bool {
+ 			b.swapSuccessors()
+ 			return true
+ 		}
++		// match: (If (Phi <t> nx:(Not x) ny:(Not y)) yes no)
++		// cond: nx.Uses == 1 && ny.Uses == 1
++		// result: (If (Phi <t> x y) no yes)
++		for b.Controls[0].Op == OpPhi {
++			v_0 := b.Controls[0]
++			if len(v_0.Args) != 2 {
++				break
++			}
++			t := v_0.Type
++			_ = v_0.Args[1]
++			nx := v_0.Args[0]
++			if nx.Op != OpNot {
++				break
++			}
++			x := nx.Args[0]
++			ny := v_0.Args[1]
++			if ny.Op != OpNot {
++				break
++			}
++			y := ny.Args[0]
++			if !(nx.Uses == 1 && ny.Uses == 1) {
++				break
++			}
++			v0 := b.NewValue0(v_0.Pos, OpPhi, t)
++			v0.AddArg2(x, y)
++			b.resetWithControl(BlockIf, v0)
++			b.swapSuccessors()
++			return true
++		}
+ 		// match: (If (ConstBool [c]) yes no)
+ 		// cond: c
+ 		// result: (First yes no)

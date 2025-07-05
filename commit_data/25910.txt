@@ -10,6 +10,20 @@ Date:   Wed Nov 25 12:06:06 2015 -0500
     Change-Id: I596cd5109b25a4079b966427411860fde8b9b54a
     Reviewed-on: https://go-review.googlesource.com/17232
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/encoding/xml/marshal.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/encoding/xml/marshal.go b/src/encoding/xml/marshal.go
+index f908ccb1cb..8ebd693030 100644
+--- a/src/encoding/xml/marshal.go
++++ b/src/encoding/xml/marshal.go
+@@ -48,6 +48,8 @@ const (
+ //       field name in the XML element.
+ //     - a field with tag ",chardata" is written as character data,
+ //       not as an XML element.
++//     - a field with tag ",cdata" is written as character data
++//       wrapped in one or more <![CDATA[ ... ]]> tags, not as an XML element.
+ //     - a field with tag ",innerxml" is written verbatim, not subject
+ //       to the usual marshalling procedure.
+ //     - a field with tag ",comment" is written as an XML comment, not

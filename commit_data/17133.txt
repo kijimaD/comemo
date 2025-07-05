@@ -7,7 +7,43 @@ Date:   Fri Aug 9 13:10:53 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12689045
-
+---
  src/pkg/mime/mediatype.go      | 2 +-
  src/pkg/mime/mediatype_test.go | 9 +++++++++
  2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/mime/mediatype.go b/src/pkg/mime/mediatype.go
+index 8396c0a155..608f759da8 100644
+--- a/src/pkg/mime/mediatype.go
++++ b/src/pkg/mime/mediatype.go
+@@ -47,7 +47,7 @@ func FormatMediaType(t string, param map[string]string) string {
+ 		b.WriteByte('"')
+ 		offset := 0
+ 		for index, character := range value {
+-			if character == '"' || character == '\r' {
++			if character == '"' || character == '\\' {
+ 				b.WriteString(value[offset:index])
+ 				offset = index
+ 				b.WriteByte('\\')
+diff --git a/src/pkg/mime/mediatype_test.go b/src/pkg/mime/mediatype_test.go
+index e41ead237a..29511445bc 100644
+--- a/src/pkg/mime/mediatype_test.go
++++ b/src/pkg/mime/mediatype_test.go
+@@ -282,8 +282,17 @@ type formatTest struct {
+ 
+ var formatTests = []formatTest{
+ 	{"noslash", nil, ""},
++	{"foo bar/baz", nil, ""},
++	{"foo/bar baz", nil, ""},
+ 	{"foo/BAR", nil, "foo/bar"},
+ 	{"foo/BAR", map[string]string{"X": "Y"}, "foo/bar; x=Y"},
++	{"foo/BAR", map[string]string{"space": "With space"}, `foo/bar; space="With space"`},
++	{"foo/BAR", map[string]string{"quote": `With "quote`}, `foo/bar; quote="With \"quote"`},
++	{"foo/BAR", map[string]string{"bslash": `With \backslash`}, `foo/bar; bslash="With \\backslash"`},
++	{"foo/BAR", map[string]string{"both": `With \backslash and "quote`}, `foo/bar; both="With \\backslash and \"quote"`},
++	{"foo/BAR", map[string]string{"": "empty attribute"}, ""},
++	{"foo/BAR", map[string]string{"bad attribute": "baz"}, ""},
++	{"foo/BAR", map[string]string{"nonascii": "not an ascii character: ä"}, ""},
+ }
+ 
+ func TestFormatMediaType(t *testing.T) {

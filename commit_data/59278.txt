@@ -12,6 +12,20 @@ Date:   Wed Feb 28 02:52:55 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/abi/type.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/abi/type.go b/src/internal/abi/type.go
+index bf48fede2d..009cc86d50 100644
+--- a/src/internal/abi/type.go
++++ b/src/internal/abi/type.go
+@@ -733,7 +733,7 @@ const (
+ // The data is a stream of bytes, which contains the offsets and sizes of the
+ // non-aggregate arguments or non-aggregate fields/elements of aggregate-typed
+ // arguments, along with special "operators". Specifically,
+-//   - for each non-aggrgate arg/field/element, its offset from FP (1 byte) and
++//   - for each non-aggregate arg/field/element, its offset from FP (1 byte) and
+ //     size (1 byte)
+ //   - special operators:
+ //   - 0xff - end of sequence

@@ -9,6 +9,20 @@ Date:   Thu Sep 2 17:00:24 2010 +1000
     R=rsc, lvd, vcc
     CC=golang-dev
     https://golang.org/cl/2104042
-
+---
  src/cmd/8l/asm.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index f110f60176..89d0fca3ce 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -651,7 +651,7 @@ asmb(void)
+ 		lputl(symsize);
+ 		lputl(lcsize);
+ 		cflush();
+-                if(!debug['s']) {
++                if(HEADTYPE != 10 && !debug['s']) {
+                         seek(cout, symo+8+symsize+lcsize, 0);
+                         if(debug['v'])
+                                Bprint(&bso, "%5.2f dwarf\n", cputime());

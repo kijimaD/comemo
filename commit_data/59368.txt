@@ -12,6 +12,25 @@ Date:   Wed Feb 28 15:25:40 2024 -0500
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/work/exec.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 92aa0c1dc5..505186da08 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -139,10 +139,11 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
+ 		var err error
+ 		if a.Actor != nil && (!a.Failed || a.IgnoreFail) {
+ 			// TODO(matloob): Better action descriptions
+-			desc := "Executing action "
++			desc := "Executing action (" + a.Mode
+ 			if a.Package != nil {
+-				desc += "(" + a.Mode + " " + a.Package.Desc() + ")"
++				desc += " " + a.Package.Desc()
+ 			}
++			desc += ")"
+ 			ctx, span := trace.StartSpan(ctx, desc)
+ 			a.traceSpan = span
+ 			for _, d := range a.Deps {

@@ -9,7 +9,52 @@ Date:   Sun Jan 10 23:20:06 2016 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/response.go      |  8 +++++---
  src/net/http/response_test.go | 11 ++++++++++-
  2 files changed, 15 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/http/response.go b/src/net/http/response.go
+index 57ae364f57..c424f61cd0 100644
+--- a/src/net/http/response.go
++++ b/src/net/http/response.go
+@@ -150,12 +150,14 @@ func ReadResponse(r *bufio.Reader, req *Request) (*Response, error) {
+ 	if len(f) > 2 {
+ 		reasonPhrase = f[2]
+ 	}
+-	resp.Status = f[1] + " " + reasonPhrase
++	if len(f[1]) != 3 {
++		return nil, &badStringError{"malformed HTTP status code", f[1]}
++	}
+ 	resp.StatusCode, err = strconv.Atoi(f[1])
+-	if err != nil {
++	if err != nil || resp.StatusCode < 0 {
+ 		return nil, &badStringError{"malformed HTTP status code", f[1]}
+ 	}
+-
++	resp.Status = f[1] + " " + reasonPhrase
+ 	resp.Proto = f[0]
+ 	var ok bool
+ 	if resp.ProtoMajor, resp.ProtoMinor, ok = ParseHTTPVersion(resp.Proto); !ok {
+diff --git a/src/net/http/response_test.go b/src/net/http/response_test.go
+index abd9059522..b4bf09aa9b 100644
+--- a/src/net/http/response_test.go
++++ b/src/net/http/response_test.go
+@@ -798,7 +798,16 @@ func TestReadResponseErrors(t *testing.T) {
+ 		status("c8 OK", true),
+ 		status("0x12d Moved Permanently", true),
+ 		status("200 OK", nil),
+-		status("20 OK", nil), // TODO: wrong. we should reject non-three digit
++		status("000 OK", nil),
++		status("001 OK", nil),
++		status("404 NOTFOUND", nil),
++		status("20 OK", true),
++		status("00 OK", true),
++		status("-10 OK", true),
++		status("1000 OK", true),
++		status("999 Done", nil),
++		status("-1 OK", true),
++		status("-200 OK", true),
+ 		version("HTTP/1.2", nil),
+ 		version("HTTP/2.0", nil),
+ 		version("HTTP/1.100000000002", true),

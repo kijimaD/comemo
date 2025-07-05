@@ -18,7 +18,7 @@ Date:   Wed Nov 15 13:02:11 2023 -0500
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modfetch/coderepo.go           | 66 ++++++++++++-------
  src/cmd/go/internal/modload/build.go               | 10 ++-
  src/cmd/go/internal/modload/query.go               | 62 ++++++++++--------
@@ -26,3 +26,421 @@ Date:   Wed Nov 15 13:02:11 2023 -0500
  src/cmd/go/testdata/script/reuse_git.txt           | 14 ++--
  src/cmd/go/testdata/vcstest/git/issue61415.txt     | 42 ++++++++++++
  6 files changed, 211 insertions(+), 59 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index 8fe432a9f5..4f10f1f5dd 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -322,6 +322,9 @@ func (r *codeRepo) Stat(ctx context.Context, rev string) (*RevInfo, error) {
+ func (r *codeRepo) Latest(ctx context.Context) (*RevInfo, error) {
+ 	info, err := r.code.Latest(ctx)
+ 	if err != nil {
++		if info != nil {
++			return &RevInfo{Origin: info.Origin}, err
++		}
+ 		return nil, err
+ 	}
+ 	return r.convert(ctx, info, "")
+@@ -332,7 +335,44 @@ func (r *codeRepo) Latest(ctx context.Context) (*RevInfo, error) {
+ //
+ // If statVers is a valid module version, it is used for the Version field.
+ // Otherwise, the Version is derived from the passed-in info and recent tags.
+-func (r *codeRepo) convert(ctx context.Context, info *codehost.RevInfo, statVers string) (*RevInfo, error) {
++func (r *codeRepo) convert(ctx context.Context, info *codehost.RevInfo, statVers string) (revInfo *RevInfo, err error) {
++	defer func() {
++		if info.Origin == nil {
++			return
++		}
++		if revInfo == nil {
++			revInfo = new(RevInfo)
++		} else if revInfo.Origin != nil {
++			panic("internal error: RevInfo Origin unexpectedly already populated")
++		}
++
++		origin := *info.Origin
++		revInfo.Origin = &origin
++		origin.Subdir = r.codeDir
++
++		v := revInfo.Version
++		if module.IsPseudoVersion(v) && (v != statVers || !strings.HasPrefix(v, "v0.0.0-")) {
++			// Add tags that are relevant to pseudo-version calculation to origin.
++			prefix := r.codeDir
++			if prefix != "" {
++				prefix += "/"
++			}
++			if r.pathMajor != "" { // "/v2" or "/.v2"
++				prefix += r.pathMajor[1:] + "." // += "v2."
++			}
++			tags, tagsErr := r.code.Tags(ctx, prefix)
++			if tagsErr != nil {
++				origin.ClearCheckable()
++				if err == nil {
++					err = tagsErr
++				}
++			} else {
++				origin.TagPrefix = tags.Origin.TagPrefix
++				origin.TagSum = tags.Origin.TagSum
++			}
++		}
++	}()
++
+ 	// If this is a plain tag (no dir/ prefix)
+ 	// and the module path is unversioned,
+ 	// and if the underlying file tree has no go.mod,
+@@ -463,31 +503,7 @@ func (r *codeRepo) convert(ctx context.Context, info *codehost.RevInfo, statVers
+ 			return nil, errIncompatible
+ 		}
+ 
+-		origin := info.Origin
+-		if origin != nil {
+-			o := *origin
+-			origin = &o
+-			origin.Subdir = r.codeDir
+-			if module.IsPseudoVersion(v) && (v != statVers || !strings.HasPrefix(v, "v0.0.0-")) {
+-				// Add tags that are relevant to pseudo-version calculation to origin.
+-				prefix := r.codeDir
+-				if prefix != "" {
+-					prefix += "/"
+-				}
+-				if r.pathMajor != "" { // "/v2" or "/.v2"
+-					prefix += r.pathMajor[1:] + "." // += "v2."
+-				}
+-				tags, err := r.code.Tags(ctx, prefix)
+-				if err != nil {
+-					return nil, err
+-				}
+-				origin.TagPrefix = tags.Origin.TagPrefix
+-				origin.TagSum = tags.Origin.TagSum
+-			}
+-		}
+-
+ 		return &RevInfo{
+-			Origin:  origin,
+ 			Name:    info.Name,
+ 			Short:   info.Short,
+ 			Time:    info.Time,
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index bb513ea938..ff545ac81d 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -162,7 +162,7 @@ func addUpdate(ctx context.Context, m *modinfo.ModulePublic) {
+ }
+ 
+ // mergeOrigin merges two origins,
+-// returning and possibly modifying one of its arguments.
++// returning either a new origin or one of its unmodified arguments.
+ // If the two origins conflict, mergeOrigin returns a non-specific one
+ // that will not pass CheckReuse.
+ // If m1 or m2 is nil, the other is returned unmodified.
+@@ -194,11 +194,17 @@ func mergeOrigin(m1, m2 *codehost.Origin) *codehost.Origin {
+ 		merged.TagPrefix = m2.TagPrefix
+ 	}
+ 	if m2.Hash != "" {
+-		if m1.Hash != "" && (m1.Hash != m2.Hash || m1.Ref != m2.Ref) {
++		if m1.Hash != "" && m1.Hash != m2.Hash {
+ 			merged.ClearCheckable()
+ 			return merged
+ 		}
+ 		merged.Hash = m2.Hash
++	}
++	if m2.Ref != "" {
++		if m1.Ref != "" && m1.Ref != m2.Ref {
++			merged.ClearCheckable()
++			return merged
++		}
+ 		merged.Ref = m2.Ref
+ 	}
+ 	return merged
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index f8ddf1101a..9bd9c6b9a4 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -216,34 +216,35 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	revErr := &modfetch.RevInfo{Origin: versions.Origin} // RevInfo to return with error
++	origin := versions.Origin
+ 
+-	releases, prereleases, err := qm.filterVersions(ctx, versions.List)
+-	if err != nil {
+-		return revErr, err
++	revWithOrigin := func(rev *modfetch.RevInfo) *modfetch.RevInfo {
++		if rev == nil {
++			if origin == nil {
++				return nil
++			}
++			return &modfetch.RevInfo{Origin: origin}
++		}
++
++		clone := *rev
++		clone.Origin = origin
++		return &clone
+ 	}
+ 
+-	mergeRevOrigin := func(rev *modfetch.RevInfo, origin *codehost.Origin) *modfetch.RevInfo {
+-		merged := mergeOrigin(rev.Origin, origin)
+-		if merged == rev.Origin {
+-			return rev
+-		}
+-		clone := new(modfetch.RevInfo)
+-		*clone = *rev
+-		clone.Origin = merged
+-		return clone
++	releases, prereleases, err := qm.filterVersions(ctx, versions.List)
++	if err != nil {
++		return revWithOrigin(nil), err
+ 	}
+ 
+ 	lookup := func(v string) (*modfetch.RevInfo, error) {
+ 		rev, err := repo.Stat(ctx, v)
+-		// Stat can return a non-nil rev and a non-nil err,
+-		// in order to provide origin information to make the error cacheable.
+-		if rev == nil && err != nil {
+-			return revErr, err
++		if rev != nil {
++			// Note that Stat can return a non-nil rev and a non-nil err,
++			// in order to provide origin information to make the error cacheable.
++			origin = mergeOrigin(origin, rev.Origin)
+ 		}
+-		rev = mergeRevOrigin(rev, versions.Origin)
+ 		if err != nil {
+-			return rev, err
++			return revWithOrigin(nil), err
+ 		}
+ 
+ 		if (query == "upgrade" || query == "patch") && module.IsPseudoVersion(current) && !rev.Time.IsZero() {
+@@ -268,18 +269,20 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
+ 			currentTime, err := module.PseudoVersionTime(current)
+ 			if err == nil && rev.Time.Before(currentTime) {
+ 				if err := allowed(ctx, module.Version{Path: path, Version: current}); errors.Is(err, ErrDisallowed) {
+-					return revErr, err
++					return revWithOrigin(nil), err
+ 				}
+ 				rev, err = repo.Stat(ctx, current)
+-				if rev == nil && err != nil {
+-					return revErr, err
++				if rev != nil {
++					origin = mergeOrigin(origin, rev.Origin)
++				}
++				if err != nil {
++					return revWithOrigin(nil), err
+ 				}
+-				rev = mergeRevOrigin(rev, versions.Origin)
+-				return rev, err
++				return revWithOrigin(rev), nil
+ 			}
+ 		}
+ 
+-		return rev, nil
++		return revWithOrigin(rev), nil
+ 	}
+ 
+ 	if qm.preferLower {
+@@ -300,24 +303,27 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
+ 
+ 	if qm.mayUseLatest {
+ 		latest, err := repo.Latest(ctx)
++		if latest != nil {
++			origin = mergeOrigin(origin, latest.Origin)
++		}
+ 		if err == nil {
+ 			if qm.allowsVersion(ctx, latest.Version) {
+ 				return lookup(latest.Version)
+ 			}
+ 		} else if !errors.Is(err, fs.ErrNotExist) {
+-			return revErr, err
++			return revWithOrigin(nil), err
+ 		}
+ 	}
+ 
+ 	if (query == "upgrade" || query == "patch") && current != "" && current != "none" {
+ 		// "upgrade" and "patch" may stay on the current version if allowed.
+ 		if err := allowed(ctx, module.Version{Path: path, Version: current}); errors.Is(err, ErrDisallowed) {
+-			return nil, err
++			return revWithOrigin(nil), err
+ 		}
+ 		return lookup(current)
+ 	}
+ 
+-	return revErr, &NoMatchingVersionError{query: query, current: current}
++	return revWithOrigin(nil), &NoMatchingVersionError{query: query, current: current}
+ }
+ 
+ // IsRevisionQuery returns true if vers is a version query that may refer to
+diff --git a/src/cmd/go/testdata/script/mod_list_issue61415.txt b/src/cmd/go/testdata/script/mod_list_issue61415.txt
+new file mode 100644
+index 0000000000..e763fae895
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_list_issue61415.txt
+@@ -0,0 +1,76 @@
++[short] skip 'generates a vcstest git repo'
++[!git] skip
++
++env GOPROXY=direct
++
++# Control case: fetching a nested module at a tag that exists should
++# emit Origin metadata for that tag and commit, and the origin should
++# be reusable for that tag.
++
++go list -json -m --versions -e vcs-test.golang.org/git/issue61415.git/nested@has-nested
++cp stdout has-nested.json
++stdout '"Origin":'
++stdout '"VCS": "git"'
++stdout '"URL":'  # randomly-chosen vcweb localhost URL
++stdout '"Subdir": "nested"'
++stdout '"TagPrefix": "nested/"'
++stdout '"TagSum": "t1:47DEQpj8HBSa\+/TImW\+5JCeuQeRkm5NMpJWZG3hSuFU="'
++stdout '"Ref": "refs/tags/has-nested"'
++stdout '"Hash": "08a4fa6bb9c04ffba03b26ae427b0d6335d90a2a"'
++
++go list -reuse=has-nested.json -json -m --versions -e vcs-test.golang.org/git/issue61415.git/nested@has-nested
++stdout '"Origin":'
++stdout '"VCS": "git"'
++stdout '"URL":'  # randomly-chosen vcweb localhost URL
++stdout '"Subdir": "nested"'
++stdout '"TagPrefix": "nested/"'
++stdout '"TagSum": "t1:47DEQpj8HBSa\+/TImW\+5JCeuQeRkm5NMpJWZG3hSuFU="'
++stdout '"Ref": "refs/tags/has-nested"'
++stdout '"Hash": "08a4fa6bb9c04ffba03b26ae427b0d6335d90a2a"'
++stdout '"Reuse": true'
++
++
++# Experiment case: if the nested module doesn't exist at "latest",
++# the Origin metadata should include the ref that we tried to resolve
++# (HEAD for a repo without version tags) and the hash to which it refers,
++# so that changing the HEAD ref will invalidate the result.
++
++go list -json -m --versions -e vcs-test.golang.org/git/issue61415.git/nested@latest
++cp stdout no-nested.json
++stdout '"Err": "module vcs-test.golang.org/git/issue61415.git/nested: no matching versions for query \\"latest\\""'
++stdout '"URL":'  # randomly-chosen vcweb localhost URL
++stdout '"Subdir": "nested"'
++stdout '"TagPrefix": "nested/"'
++stdout '"TagSum": "t1:47DEQpj8HBSa\+/TImW\+5JCeuQeRkm5NMpJWZG3hSuFU="'
++
++stdout '"Ref": "HEAD"'
++stdout '"Hash": "f213069baa68ec26412fb373c7cf6669db1f8e69"'
++
++# The error result should be reusable.
++
++go list -reuse=no-nested.json -json -m --versions -e vcs-test.golang.org/git/issue61415.git/nested@latest
++
++stdout '"Err": "module vcs-test.golang.org/git/issue61415.git/nested: no matching versions for query \\"latest\\""'
++stdout '"URL":'  # randomly-chosen vcweb localhost URL
++stdout '"Subdir": "nested"'
++stdout '"TagPrefix": "nested/"'
++stdout '"TagSum": "t1:47DEQpj8HBSa\+/TImW\+5JCeuQeRkm5NMpJWZG3hSuFU="'
++stdout '"Ref": "HEAD"'
++stdout '"Hash": "f213069baa68ec26412fb373c7cf6669db1f8e69"'
++stdout '"Reuse": true'
++
++
++# If the hash refers to some other commit instead, the
++# result should not be reused.
++
++replace f213069baa68ec26412fb373c7cf6669db1f8e69 08a4fa6bb9c04ffba03b26ae427b0d6335d90a2a no-nested.json
++
++go list -reuse=no-nested.json -json -m --versions -e vcs-test.golang.org/git/issue61415.git/nested@latest
++stdout '"Err": "module vcs-test.golang.org/git/issue61415.git/nested: no matching versions for query \\"latest\\""'
++stdout '"URL":'  # randomly-chosen vcweb localhost URL
++stdout '"Subdir": "nested"'
++stdout '"TagPrefix": "nested/"'
++stdout '"TagSum": "t1:47DEQpj8HBSa\+/TImW\+5JCeuQeRkm5NMpJWZG3hSuFU="'
++stdout '"Ref": "HEAD"'
++stdout '"Hash": "f213069baa68ec26412fb373c7cf6669db1f8e69"'
++! stdout '"Reuse"'
+diff --git a/src/cmd/go/testdata/script/reuse_git.txt b/src/cmd/go/testdata/script/reuse_git.txt
+index 0357d670f4..432f5a9aea 100644
+--- a/src/cmd/go/testdata/script/reuse_git.txt
++++ b/src/cmd/go/testdata/script/reuse_git.txt
+@@ -55,7 +55,9 @@ stdout '"Version": "latest"'
+ stdout '"Error":.*no matching versions'
+ ! stdout '"TagPrefix"'
+ stdout '"TagSum": "t1:47DEQpj8HBSa[+]/TImW[+]5JCeuQeRkm5NMpJWZG3hSuFU="'
+-! stdout '"(Ref|Hash|RepoSum)":'
++stdout '"Ref": "HEAD"'
++stdout '"Hash": "fc3a09f3dc5cfe0d7a743ea18f1f5226e68b3777"'
++! stdout 'RepoSum'
+ 
+ # go mod download vcstest/hello/sub/v9 should also fail, print origin info with TagPrefix
+ ! go mod download -x -json vcs-test.golang.org/git/hello.git/sub/v9@latest
+@@ -64,7 +66,9 @@ stdout '"Version": "latest"'
+ stdout '"Error":.*no matching versions'
+ stdout '"TagPrefix": "sub/"'
+ stdout '"TagSum": "t1:47DEQpj8HBSa[+]/TImW[+]5JCeuQeRkm5NMpJWZG3hSuFU="'
+-! stdout '"(Ref|Hash|RepoSum)":'
++stdout '"Ref": "HEAD"'
++stdout '"Hash": "fc3a09f3dc5cfe0d7a743ea18f1f5226e68b3777"'
++! stdout 'RepoSum'
+ 
+ # go mod download vcstest/hello@nonexist should fail, still print origin info
+ ! go mod download -x -json vcs-test.golang.org/git/hello.git@nonexist
+@@ -200,7 +204,8 @@ stdout '"Reuse": true'
+ stdout '"Error":.*no matching versions'
+ ! stdout '"TagPrefix"'
+ stdout '"TagSum": "t1:47DEQpj8HBSa[+]/TImW[+]5JCeuQeRkm5NMpJWZG3hSuFU="'
+-! stdout '"(Ref|Hash)":'
++stdout '"Ref": "HEAD"'
++stdout '"Hash": "fc3a09f3dc5cfe0d7a743ea18f1f5226e68b3777"'
+ ! stdout '"(Dir|Info|GoMod|Zip)"'
+ 
+ # reuse go mod download vcstest/hello/sub/v9 error result
+@@ -210,7 +215,8 @@ stdout '"Reuse": true'
+ stdout '"Error":.*no matching versions'
+ stdout '"TagPrefix": "sub/"'
+ stdout '"TagSum": "t1:47DEQpj8HBSa[+]/TImW[+]5JCeuQeRkm5NMpJWZG3hSuFU="'
+-! stdout '"(Ref|Hash)":'
++stdout '"Ref": "HEAD"'
++stdout '"Hash": "fc3a09f3dc5cfe0d7a743ea18f1f5226e68b3777"'
+ ! stdout '"(Dir|Info|GoMod|Zip)"'
+ 
+ # reuse go mod download vcstest/hello@nonexist
+diff --git a/src/cmd/go/testdata/vcstest/git/issue61415.txt b/src/cmd/go/testdata/vcstest/git/issue61415.txt
+new file mode 100644
+index 0000000000..5b8bca68fb
+--- /dev/null
++++ b/src/cmd/go/testdata/vcstest/git/issue61415.txt
+@@ -0,0 +1,42 @@
++handle git
++
++env GIT_AUTHOR_NAME='Bryan C. Mills'
++env GIT_AUTHOR_EMAIL='bcmills@google.com'
++env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
++env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
++
++at 2023-11-14T13:00:00-05:00
++
++git init
++
++git add go.mod nested
++git commit -m 'nested: add go.mod'
++git branch -m main
++
++git tag has-nested
++
++at 2023-11-14T13:00:01-05:00
++
++git rm -r nested
++git commit -m 'nested: delete subdirectory'
++
++git show-ref --tags --heads
++cmp stdout .git-refs
++
++git log --pretty=oneline
++cmp stdout .git-log
++
++-- .git-refs --
++f213069baa68ec26412fb373c7cf6669db1f8e69 refs/heads/main
++08a4fa6bb9c04ffba03b26ae427b0d6335d90a2a refs/tags/has-nested
++-- .git-log --
++f213069baa68ec26412fb373c7cf6669db1f8e69 nested: delete subdirectory
++08a4fa6bb9c04ffba03b26ae427b0d6335d90a2a nested: add go.mod
++-- go.mod --
++module vcs-test.golang.org/git/issue61415.git
++
++go 1.20
++-- nested/go.mod --
++module vcs-test.golang.org/git/issue61415.git/nested
++
++go 1.20

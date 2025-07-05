@@ -12,7 +12,7 @@ Date:   Mon Oct 9 11:31:20 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/asm_amd64.s           | 15 +++++++++++++++
  src/runtime/rt0_android_amd64.s   |  5 +----
  src/runtime/rt0_darwin_amd64.s    |  9 +--------
@@ -24,3 +24,205 @@ Date:   Mon Oct 9 11:31:20 2017 -0700
  src/runtime/rt0_solaris_amd64.s   |  9 +--------
  src/runtime/rt0_windows_amd64.s   |  9 +--------
  10 files changed, 25 insertions(+), 66 deletions(-)
+
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index d87f454e03..838a1681da 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -7,6 +7,21 @@
+ #include "funcdata.h"
+ #include "textflag.h"
+ 
++// _rt0_amd64 is common startup code for most amd64 systems when using
++// internal linking. This is the entry point for the program from the
++// kernel for an ordinary -buildmode=exe program. The stack holds the
++// number of arguments and the C-style argv.
++TEXT _rt0_amd64(SB),NOSPLIT,$-8
++	MOVQ	0(SP), DI	// argc
++	LEAQ	8(SP), SI	// argv
++	JMP	runtime·rt0_go(SB)
++
++// main is common startup code for most amd64 systems when using
++// external linking. The C startup code will call the symbol "main"
++// passing argc and argv in the usual C ABI registers DI and SI.
++TEXT main(SB),NOSPLIT,$-8
++	JMP	runtime·rt0_go(SB)
++
+ TEXT runtime·rt0_go(SB),NOSPLIT,$0
+ 	// copy arguments forward on an even stack
+ 	MOVQ	DI, AX		// argc
+diff --git a/src/runtime/rt0_android_amd64.s b/src/runtime/rt0_android_amd64.s
+index 6420c9f35d..3077cb1841 100644
+--- a/src/runtime/rt0_android_amd64.s
++++ b/src/runtime/rt0_android_amd64.s
+@@ -5,10 +5,7 @@
+ #include "textflag.h"
+ 
+ TEXT _rt0_amd64_android(SB),NOSPLIT,$-8
+-	MOVQ	0(SP), DI // argc
+-	LEAQ	8(SP), SI // argv
+-	MOVQ	$main(SB), AX
+-	JMP	AX
++	JMP	_rt0_amd64(SB)
+ 
+ TEXT _rt0_amd64_android_lib(SB),NOSPLIT,$0
+ 	MOVQ	$1, DI // argc
+diff --git a/src/runtime/rt0_darwin_amd64.s b/src/runtime/rt0_darwin_amd64.s
+index 655e77a86b..2d11aa4155 100644
+--- a/src/runtime/rt0_darwin_amd64.s
++++ b/src/runtime/rt0_darwin_amd64.s
+@@ -5,10 +5,7 @@
+ #include "textflag.h"
+ 
+ TEXT _rt0_amd64_darwin(SB),NOSPLIT,$-8
+-	LEAQ	8(SP), SI // argv
+-	MOVQ	0(SP), DI // argc
+-	MOVQ	$main(SB), AX
+-	JMP	AX
++	JMP	_rt0_amd64(SB)
+ 
+ // When linking with -shared, this symbol is called when the shared library
+ // is loaded.
+@@ -73,7 +70,3 @@ DATA _rt0_amd64_darwin_lib_argc<>(SB)/8, $0
+ GLOBL _rt0_amd64_darwin_lib_argc<>(SB),NOPTR, $8
+ DATA _rt0_amd64_darwin_lib_argv<>(SB)/8, $0
+ GLOBL _rt0_amd64_darwin_lib_argv<>(SB),NOPTR, $8
+-
+-TEXT main(SB),NOSPLIT,$-8
+-	MOVQ	$runtime·rt0_go(SB), AX
+-	JMP	AX
+diff --git a/src/runtime/rt0_dragonfly_amd64.s b/src/runtime/rt0_dragonfly_amd64.s
+index fb56618d8f..166d3fafda 100644
+--- a/src/runtime/rt0_dragonfly_amd64.s
++++ b/src/runtime/rt0_dragonfly_amd64.s
+@@ -5,11 +5,4 @@
+ #include "textflag.h"
+ 
+ TEXT _rt0_amd64_dragonfly(SB),NOSPLIT,$-8
+-	LEAQ	8(DI), SI // argv
+-	MOVQ	0(DI), DI // argc
+-	MOVQ	$main(SB), AX
+-	JMP	AX
+-
+-TEXT main(SB),NOSPLIT,$-8
+-	MOVQ	$runtime·rt0_go(SB), AX
+-	JMP	AX
++	JMP	_rt0_amd64(SB)
+diff --git a/src/runtime/rt0_freebsd_amd64.s b/src/runtime/rt0_freebsd_amd64.s
+index 7989f7c3e9..5be2cd1301 100644
+--- a/src/runtime/rt0_freebsd_amd64.s
++++ b/src/runtime/rt0_freebsd_amd64.s
+@@ -4,12 +4,8 @@
+ 
+ #include "textflag.h"
+ 
++// On FreeBSD argc/argv are passed in DI, not SP, so we can't use _rt0_amd64.
+ TEXT _rt0_amd64_freebsd(SB),NOSPLIT,$-8
+ 	LEAQ	8(DI), SI // argv
+ 	MOVQ	0(DI), DI // argc
+-	MOVQ	$main(SB), AX
+-	JMP	AX
+-
+-TEXT main(SB),NOSPLIT,$-8
+-	MOVQ	$runtime·rt0_go(SB), AX
+-	JMP	AX
++	JMP	runtime·rt0_go(SB)
+diff --git a/src/runtime/rt0_linux_amd64.s b/src/runtime/rt0_linux_amd64.s
+index ced471f5cb..4faa1f24d3 100644
+--- a/src/runtime/rt0_linux_amd64.s
++++ b/src/runtime/rt0_linux_amd64.s
+@@ -5,10 +5,7 @@
+ #include "textflag.h"
+ 
+ TEXT _rt0_amd64_linux(SB),NOSPLIT,$-8
+-	LEAQ	8(SP), SI // argv
+-	MOVQ	0(SP), DI // argc
+-	MOVQ	$main(SB), AX
+-	JMP	AX
++	JMP	_rt0_amd64(SB)
+ 
+ // When building with -buildmode=c-shared, this symbol is called when the shared
+ // library is loaded.
+@@ -68,7 +65,3 @@ DATA _rt0_amd64_linux_lib_argc<>(SB)/8, $0
+ GLOBL _rt0_amd64_linux_lib_argc<>(SB),NOPTR, $8
+ DATA _rt0_amd64_linux_lib_argv<>(SB)/8, $0
+ GLOBL _rt0_amd64_linux_lib_argv<>(SB),NOPTR, $8
+-
+-TEXT main(SB),NOSPLIT,$-8
+-	MOVQ	$runtime·rt0_go(SB), AX
+-	JMP	AX
+diff --git a/src/runtime/rt0_netbsd_amd64.s b/src/runtime/rt0_netbsd_amd64.s
+index fad56614e5..7736c8d0aa 100644
+--- a/src/runtime/rt0_netbsd_amd64.s
++++ b/src/runtime/rt0_netbsd_amd64.s
+@@ -5,11 +5,4 @@
+ #include "textflag.h"
+ 
+ TEXT _rt0_amd64_netbsd(SB),NOSPLIT,$-8
+-	LEAQ	8(SP), SI // argv
+-	MOVQ	0(SP), DI // argc
+-	MOVQ	$main(SB), AX
+-	JMP	AX
+-
+-TEXT main(SB),NOSPLIT,$-8
+-	MOVQ	$runtime·rt0_go(SB), AX
+-	JMP	AX
++	JMP	_rt0_amd64(SB)
+diff --git a/src/runtime/rt0_openbsd_amd64.s b/src/runtime/rt0_openbsd_amd64.s
+index 58fe666391..6830a81cc2 100644
+--- a/src/runtime/rt0_openbsd_amd64.s
++++ b/src/runtime/rt0_openbsd_amd64.s
+@@ -5,11 +5,4 @@
+ #include "textflag.h"
+ 
+ TEXT _rt0_amd64_openbsd(SB),NOSPLIT,$-8
+-	LEAQ	8(SP), SI // argv
+-	MOVQ	0(SP), DI // argc
+-	MOVQ	$main(SB), AX
+-	JMP	AX
+-
+-TEXT main(SB),NOSPLIT,$-8
+-	MOVQ	$runtime·rt0_go(SB), AX
+-	JMP	AX
++	JMP	_rt0_amd64(SB)
+diff --git a/src/runtime/rt0_solaris_amd64.s b/src/runtime/rt0_solaris_amd64.s
+index e2d1e71bb4..695b4a6c8e 100644
+--- a/src/runtime/rt0_solaris_amd64.s
++++ b/src/runtime/rt0_solaris_amd64.s
+@@ -5,11 +5,4 @@
+ #include "textflag.h"
+ 
+ TEXT _rt0_amd64_solaris(SB),NOSPLIT,$-8
+-	LEAQ	8(SP), SI // argv
+-	MOVQ	0(SP), DI // argc
+-	MOVQ	$main(SB), AX
+-	JMP	AX
+-
+-TEXT main(SB),NOSPLIT,$-8
+-	MOVQ	$runtime·rt0_go(SB), AX
+-	JMP	AX
++	JMP	_rt0_amd64(SB)
+diff --git a/src/runtime/rt0_windows_amd64.s b/src/runtime/rt0_windows_amd64.s
+index 2f73b37f31..1604711cdb 100644
+--- a/src/runtime/rt0_windows_amd64.s
++++ b/src/runtime/rt0_windows_amd64.s
+@@ -7,10 +7,7 @@
+ #include "textflag.h"
+ 
+ TEXT _rt0_amd64_windows(SB),NOSPLIT,$-8
+-	LEAQ	8(SP), SI // argv
+-	MOVQ	0(SP), DI // argc
+-	MOVQ	$main(SB), AX
+-	JMP	AX
++	JMP	_rt0_amd64(SB)
+ 
+ // When building with -buildmode=(c-shared or c-archive), this
+ // symbol is called. For dynamic libraries it is called when the
+@@ -42,7 +39,3 @@ TEXT _rt0_amd64_windows_lib_go(SB),NOSPLIT,$0
+ 	MOVQ	$0, SI
+ 	MOVQ	$runtime·rt0_go(SB), AX
+ 	JMP	AX
+-
+-TEXT main(SB),NOSPLIT,$-8
+-	MOVQ	$runtime·rt0_go(SB), AX
+-	JMP	AX

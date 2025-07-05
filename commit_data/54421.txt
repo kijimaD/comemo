@@ -16,6 +16,24 @@ Date:   Fri Oct 14 03:10:28 2022 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Rob Pike <r@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/flag/flag.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/flag/flag.go b/src/flag/flag.go
+index f6b38908f6..ef3cf29c0c 100644
+--- a/src/flag/flag.go
++++ b/src/flag/flag.go
+@@ -1056,9 +1056,9 @@ func (f *FlagSet) parseOne() (bool, error) {
+ 			break
+ 		}
+ 	}
+-	m := f.formal
+-	flag, alreadythere := m[name] // BUG
+-	if !alreadythere {
++
++	flag, ok := f.formal[name]
++	if !ok {
+ 		if name == "help" || name == "h" { // special case for nice help message.
+ 			f.usage()
+ 			return false, ErrHelp

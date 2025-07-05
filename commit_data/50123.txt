@@ -15,6 +15,22 @@ Date:   Tue Oct 5 07:42:48 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/build_concurrent_backend.txt | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/build_concurrent_backend.txt b/src/cmd/go/testdata/script/build_concurrent_backend.txt
+index a279fed9dc..9cac635e5a 100644
+--- a/src/cmd/go/testdata/script/build_concurrent_backend.txt
++++ b/src/cmd/go/testdata/script/build_concurrent_backend.txt
+@@ -1,10 +1,6 @@
+ # Tests golang.org/issue/48490
+ # cmd/go should enable concurrent compilation by default
+ 
+-# Skip test on darwin/arm64, see #48496.
+-# TODO(cuonglm): remove this once #48496 is fixed.
+-[darwin] [arm64] skip
+-
+ # Reset all experiments, since one of them can disable
+ # concurrent compilation, e.g: fieldtrack.
+ env GOEXPERIMENT=none

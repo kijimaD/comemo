@@ -12,7 +12,7 @@ Date:   Mon Aug 24 14:05:52 2015 -0700
     Change-Id: I2f07d73703f4e5661c4b5df5d487939dcf530b43
     Reviewed-on: https://go-review.googlesource.com/13897
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/constant/go13.go  | 24 ------------------------
  src/go/constant/go14.go  | 13 -------------
  src/go/constant/value.go |  4 ++--
@@ -20,3 +20,145 @@ Date:   Mon Aug 24 14:05:52 2015 -0700
  src/go/types/go11.go     | 17 -----------------
  src/go/types/go12.go     | 17 -----------------
  6 files changed, 5 insertions(+), 76 deletions(-)
+
+diff --git a/src/go/constant/go13.go b/src/go/constant/go13.go
+deleted file mode 100644
+index a4a838a290..0000000000
+--- a/src/go/constant/go13.go
++++ /dev/null
+@@ -1,24 +0,0 @@
+-// Copyright 2014 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build !go1.4
+-
+-package constant
+-
+-import (
+-	"math"
+-	"math/big"
+-)
+-
+-func ratToFloat32(x *big.Rat) (float32, bool) {
+-	// Before 1.4, there's no Rat.Float32.
+-	// Emulate it, albeit at the cost of
+-	// imprecision in corner cases.
+-	x64, exact := x.Float64()
+-	x32 := float32(x64)
+-	if math.IsInf(float64(x32), 0) {
+-		exact = false
+-	}
+-	return x32, exact
+-}
+diff --git a/src/go/constant/go14.go b/src/go/constant/go14.go
+deleted file mode 100644
+index 2ab6da02f6..0000000000
+--- a/src/go/constant/go14.go
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2014 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build go1.4
+-
+-package constant
+-
+-import "math/big"
+-
+-func ratToFloat32(x *big.Rat) (float32, bool) {
+-	return x.Float32()
+-}
+diff --git a/src/go/constant/value.go b/src/go/constant/value.go
+index 79a80af1ab..8a2dda060c 100644
+--- a/src/go/constant/value.go
++++ b/src/go/constant/value.go
+@@ -258,9 +258,9 @@ func Float32Val(x Value) (float32, bool) {
+ 		f := float32(x)
+ 		return f, int64Val(f) == x
+ 	case intVal:
+-		return ratToFloat32(new(big.Rat).SetFrac(x.val, int1))
++		return new(big.Rat).SetFrac(x.val, int1).Float32()
+ 	case floatVal:
+-		return ratToFloat32(x.val)
++		return x.val.Float32()
+ 	case unknownVal:
+ 		return 0, false
+ 	}
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index dd78756845..e26607b532 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1256,7 +1256,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 		switch typ := x.typ.Underlying().(type) {
+ 		case *Basic:
+ 			if isString(typ) {
+-				if slice3(e) {
++				if e.Slice3 {
+ 					check.invalidOp(x.pos(), "3-index slice of string")
+ 					goto Error
+ 				}
+@@ -1300,14 +1300,14 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 		x.mode = value
+ 
+ 		// spec: "Only the first index may be omitted; it defaults to 0."
+-		if slice3(e) && (e.High == nil || sliceMax(e) == nil) {
++		if e.Slice3 && (e.High == nil || e.Max == nil) {
+ 			check.error(e.Rbrack, "2nd and 3rd index required in 3-index slice")
+ 			goto Error
+ 		}
+ 
+ 		// check indices
+ 		var ind [3]int64
+-		for i, expr := range []ast.Expr{e.Low, e.High, sliceMax(e)} {
++		for i, expr := range []ast.Expr{e.Low, e.High, e.Max} {
+ 			x := int64(-1)
+ 			switch {
+ 			case expr != nil:
+diff --git a/src/go/types/go11.go b/src/go/types/go11.go
+deleted file mode 100644
+index cf41cabeea..0000000000
+--- a/src/go/types/go11.go
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build !go1.2
+-
+-package types
+-
+-import "go/ast"
+-
+-func slice3(x *ast.SliceExpr) bool {
+-	return false
+-}
+-
+-func sliceMax(x *ast.SliceExpr) ast.Expr {
+-	return nil
+-}
+diff --git a/src/go/types/go12.go b/src/go/types/go12.go
+deleted file mode 100644
+index 2017442154..0000000000
+--- a/src/go/types/go12.go
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build go1.2
+-
+-package types
+-
+-import "go/ast"
+-
+-func slice3(x *ast.SliceExpr) bool {
+-	return x.Slice3
+-}
+-
+-func sliceMax(x *ast.SliceExpr) ast.Expr {
+-	return x.Max
+-}

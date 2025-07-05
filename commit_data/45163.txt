@@ -24,7 +24,7 @@ Date:   Wed Oct 7 18:29:51 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/go/go_test.go                  |  9 ++++---
  src/cmd/internal/sys/supported.go      |  1 +
  src/cmd/internal/sys/supported_test.go | 18 ++++++++++++++
@@ -39,3 +39,386 @@ Date:   Wed Oct 7 18:29:51 2020 -0400
  src/runtime/crash_test.go              | 21 ++++++++++++++++
  src/runtime/time_test.go               |  4 ++++
  13 files changed, 123 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 66a52c86ad..093ea2ffa1 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -58,11 +58,10 @@ func init() {
+ 	switch runtime.GOOS {
+ 	case "android", "js":
+ 		canRun = false
+-	case "darwin", "ios":
+-		switch runtime.GOARCH {
+-		case "arm64":
+-			canRun = false
+-		}
++	case "darwin":
++		// nothing to do
++	case "ios":
++		canRun = false
+ 	case "linux":
+ 		switch runtime.GOARCH {
+ 		case "arm":
+diff --git a/src/cmd/internal/sys/supported.go b/src/cmd/internal/sys/supported.go
+index 8d87e95655..41e5ec1432 100644
+--- a/src/cmd/internal/sys/supported.go
++++ b/src/cmd/internal/sys/supported.go
+@@ -32,6 +32,7 @@ func MSanSupported(goos, goarch string) bool {
+ }
+ 
+ // MustLinkExternal reports whether goos/goarch requires external linking.
++// (This is the opposite of internal/testenv.CanInternalLink. Keep them in sync.)
+ func MustLinkExternal(goos, goarch string) bool {
+ 	switch goos {
+ 	case "android":
+diff --git a/src/cmd/internal/sys/supported_test.go b/src/cmd/internal/sys/supported_test.go
+new file mode 100644
+index 0000000000..1217814af5
+--- /dev/null
++++ b/src/cmd/internal/sys/supported_test.go
+@@ -0,0 +1,18 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sys
++
++import (
++	"internal/testenv"
++	"runtime"
++	"testing"
++)
++
++func TestMustLinkExternalMatchesTestenv(t *testing.T) {
++	// MustLinkExternal and testenv.CanInternalLink are the exact opposite.
++	if b := MustLinkExternal(runtime.GOOS, runtime.GOARCH); b != !testenv.CanInternalLink() {
++		t.Fatalf("MustLinkExternal() == %v, testenv.CanInternalLink() == %v, don't match", b, testenv.CanInternalLink())
++	}
++}
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index 22948521f5..a66506d392 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -238,6 +238,10 @@ func TestSizes(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+ 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+ 	}
++
++	// External linking may bring in C symbols with unknown size. Skip.
++	testenv.MustInternalLink(t)
++
+ 	t.Parallel()
+ 
+ 	// DWARF sizes should never be -1.
+@@ -919,6 +923,7 @@ func TestAbstractOriginSanityIssue26237(t *testing.T) {
+ 
+ func TestRuntimeTypeAttrInternal(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
++	testenv.MustInternalLink(t)
+ 
+ 	if runtime.GOOS == "plan9" {
+ 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+@@ -1018,6 +1023,9 @@ func main() {
+ 		t.Fatalf("*main.X DIE had no runtime type attr. DIE: %v", dies[0])
+ 	}
+ 
++	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
++		return // everything is PIE on ARM64, addresses are relocated
++	}
+ 	if rtAttr.(uint64)+types.Addr != addr {
+ 		t.Errorf("DWARF type offset was %#x+%#x, but test program said %#x", rtAttr.(uint64), types.Addr, addr)
+ 	}
+@@ -1203,6 +1211,15 @@ func main() {
+ 		}
+ 	}
+ 
++	// When external linking, we put all symbols in the symbol table (so the
++	// external linker can find them). Skip the symbol table check.
++	// TODO: maybe there is some way to tell the external linker not to put
++	// those symbols in the executable's symbol table? Prefix the symbol name
++	// with "." or "L" to pretend it is a label?
++	if !testenv.CanInternalLink() {
++		return
++	}
++
+ 	syms, err := f.Symbols()
+ 	if err != nil {
+ 		t.Fatalf("error reading symbols: %v", err)
+diff --git a/src/cmd/link/internal/ld/ld_test.go b/src/cmd/link/internal/ld/ld_test.go
+index 4367c1028e..cdfaadb17d 100644
+--- a/src/cmd/link/internal/ld/ld_test.go
++++ b/src/cmd/link/internal/ld/ld_test.go
+@@ -18,8 +18,13 @@ import (
+ )
+ 
+ func TestUndefinedRelocErrors(t *testing.T) {
+-	t.Parallel()
+ 	testenv.MustHaveGoBuild(t)
++
++	// When external linking, symbols may be defined externally, so we allow
++	// undefined symbols and let external linker resolve. Skip the test.
++	testenv.MustInternalLink(t)
++
++	t.Parallel()
+ 	dir, err := ioutil.TempDir("", "go-build")
+ 	if err != nil {
+ 		t.Fatal(err)
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index b7611f207c..6729568766 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -181,6 +181,7 @@ main.x: relocation target main.zero not defined
+ func TestIssue33979(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 	testenv.MustHaveCGO(t)
++	testenv.MustInternalLink(t)
+ 
+ 	// Skip test on platforms that do not support cgo internal linking.
+ 	switch runtime.GOARCH {
+diff --git a/src/cmd/nm/nm_cgo_test.go b/src/cmd/nm/nm_cgo_test.go
+index 9a257e0ed2..58f2c24908 100644
+--- a/src/cmd/nm/nm_cgo_test.go
++++ b/src/cmd/nm/nm_cgo_test.go
+@@ -15,6 +15,11 @@ func canInternalLink() bool {
+ 	switch runtime.GOOS {
+ 	case "aix":
+ 		return false
++	case "darwin":
++		switch runtime.GOARCH {
++		case "arm64":
++			return false
++		}
+ 	case "dragonfly":
+ 		return false
+ 	case "freebsd":
+diff --git a/src/cmd/nm/nm_test.go b/src/cmd/nm/nm_test.go
+index 413a4eb06f..382446e9fe 100644
+--- a/src/cmd/nm/nm_test.go
++++ b/src/cmd/nm/nm_test.go
+@@ -173,6 +173,9 @@ func testGoExec(t *testing.T, iscgo, isexternallinker bool) {
+ 		if runtime.GOOS == "windows" {
+ 			return true
+ 		}
++		if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
++			return true // On darwin/arm64 everything is PIE
++		}
+ 		return false
+ 	}
+ 
+diff --git a/src/internal/cpu/cpu_test.go b/src/internal/cpu/cpu_test.go
+index e09bd2d8b9..919bbd5ed7 100644
+--- a/src/internal/cpu/cpu_test.go
++++ b/src/internal/cpu/cpu_test.go
+@@ -15,6 +15,7 @@ import (
+ )
+ 
+ func TestMinimalFeatures(t *testing.T) {
++	// TODO: maybe do MustSupportFeatureDectection(t) ?
+ 	if runtime.GOARCH == "arm64" {
+ 		switch runtime.GOOS {
+ 		case "linux", "android":
+@@ -36,6 +37,13 @@ func MustHaveDebugOptionsSupport(t *testing.T) {
+ 	}
+ }
+ 
++func MustSupportFeatureDectection(t *testing.T) {
++	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
++		t.Skipf("CPU feature detection is not supported on %s/%s", runtime.GOOS, runtime.GOARCH)
++	}
++	// TODO: maybe there are other platforms?
++}
++
+ func runDebugOptionsTest(t *testing.T, test string, options string) {
+ 	MustHaveDebugOptionsSupport(t)
+ 
+@@ -58,6 +66,7 @@ func runDebugOptionsTest(t *testing.T, test string, options string) {
+ }
+ 
+ func TestDisableAllCapabilities(t *testing.T) {
++	MustSupportFeatureDectection(t)
+ 	runDebugOptionsTest(t, "TestAllCapabilitiesDisabled", "cpu.all=off")
+ }
+ 
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index cfb033b2a2..0ee6355ee3 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -43,12 +43,8 @@ func HasGoBuild() bool {
+ 		return false
+ 	}
+ 	switch runtime.GOOS {
+-	case "android", "js":
++	case "android", "js", "ios":
+ 		return false
+-	case "darwin", "ios":
+-		if runtime.GOARCH == "arm64" {
+-			return false
+-		}
+ 	}
+ 	return true
+ }
+@@ -122,12 +118,8 @@ func GoTool() (string, error) {
+ // using os.StartProcess or (more commonly) exec.Command.
+ func HasExec() bool {
+ 	switch runtime.GOOS {
+-	case "js":
++	case "js", "ios":
+ 		return false
+-	case "darwin", "ios":
+-		if runtime.GOARCH == "arm64" {
+-			return false
+-		}
+ 	}
+ 	return true
+ }
+@@ -135,10 +127,8 @@ func HasExec() bool {
+ // HasSrc reports whether the entire source tree is available under GOROOT.
+ func HasSrc() bool {
+ 	switch runtime.GOOS {
+-	case "darwin", "ios":
+-		if runtime.GOARCH == "arm64" {
+-			return false
+-		}
++	case "ios":
++		return false
+ 	}
+ 	return true
+ }
+@@ -202,6 +192,32 @@ func MustHaveCGO(t testing.TB) {
+ 	}
+ }
+ 
++// CanInternalLink reports whether the current system can link programs with
++// internal linking.
++// (This is the opposite of cmd/internal/sys.MustLinkExternal. Keep them in sync.)
++func CanInternalLink() bool {
++	switch runtime.GOOS {
++	case "android":
++		if runtime.GOARCH != "arm64" {
++			return false
++		}
++	case "darwin", "ios":
++		if runtime.GOARCH == "arm64" {
++			return false
++		}
++	}
++	return true
++}
++
++// MustInternalLink checks that the current system can link programs with internal
++// linking.
++// If not, MustInternalLink calls t.Skip with an explanation.
++func MustInternalLink(t testing.TB) {
++	if !CanInternalLink() {
++		t.Skipf("skipping test: internal linking on %s/%s is not supported", runtime.GOOS, runtime.GOARCH)
++	}
++}
++
+ // HasSymlink reports whether the current system can use os.Symlink.
+ func HasSymlink() bool {
+ 	ok, _ := hasSymlink()
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index dafbc64a17..9746722980 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -605,6 +605,10 @@ func TestExtraFiles(t *testing.T) {
+ 	testenv.MustHaveExec(t)
+ 	testenv.MustHaveGoBuild(t)
+ 
++	// This test runs with cgo disabled. External linking needs cgo, so
++	// it doesn't work if external linking is required.
++	testenv.MustInternalLink(t)
++
+ 	if runtime.GOOS == "windows" {
+ 		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index eae4f538c1..5e22b7593e 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -181,6 +181,9 @@ func TestCrashHandler(t *testing.T) {
+ }
+ 
+ func testDeadlock(t *testing.T, name string) {
++	// External linking brings in cgo, causing deadlock detection not working.
++	testenv.MustInternalLink(t)
++
+ 	output := runTestProg(t, "testprog", name)
+ 	want := "fatal error: all goroutines are asleep - deadlock!\n"
+ 	if !strings.HasPrefix(output, want) {
+@@ -205,6 +208,9 @@ func TestLockedDeadlock2(t *testing.T) {
+ }
+ 
+ func TestGoexitDeadlock(t *testing.T) {
++	// External linking brings in cgo, causing deadlock detection not working.
++	testenv.MustInternalLink(t)
++
+ 	output := runTestProg(t, "testprog", "GoexitDeadlock")
+ 	want := "no goroutines (main called runtime.Goexit) - deadlock!"
+ 	if !strings.Contains(output, want) {
+@@ -290,6 +296,9 @@ func TestRecursivePanic4(t *testing.T) {
+ }
+ 
+ func TestGoexitCrash(t *testing.T) {
++	// External linking brings in cgo, causing deadlock detection not working.
++	testenv.MustInternalLink(t)
++
+ 	output := runTestProg(t, "testprog", "GoexitExit")
+ 	want := "no goroutines (main called runtime.Goexit) - deadlock!"
+ 	if !strings.Contains(output, want) {
+@@ -348,6 +357,9 @@ func TestBreakpoint(t *testing.T) {
+ }
+ 
+ func TestGoexitInPanic(t *testing.T) {
++	// External linking brings in cgo, causing deadlock detection not working.
++	testenv.MustInternalLink(t)
++
+ 	// see issue 8774: this code used to trigger an infinite recursion
+ 	output := runTestProg(t, "testprog", "GoexitInPanic")
+ 	want := "fatal error: no goroutines (main called runtime.Goexit) - deadlock!"
+@@ -412,6 +424,9 @@ func TestPanicAfterGoexit(t *testing.T) {
+ }
+ 
+ func TestRecoveredPanicAfterGoexit(t *testing.T) {
++	// External linking brings in cgo, causing deadlock detection not working.
++	testenv.MustInternalLink(t)
++
+ 	output := runTestProg(t, "testprog", "RecoveredPanicAfterGoexit")
+ 	want := "fatal error: no goroutines (main called runtime.Goexit) - deadlock!"
+ 	if !strings.HasPrefix(output, want) {
+@@ -420,6 +435,9 @@ func TestRecoveredPanicAfterGoexit(t *testing.T) {
+ }
+ 
+ func TestRecoverBeforePanicAfterGoexit(t *testing.T) {
++	// External linking brings in cgo, causing deadlock detection not working.
++	testenv.MustInternalLink(t)
++
+ 	t.Parallel()
+ 	output := runTestProg(t, "testprog", "RecoverBeforePanicAfterGoexit")
+ 	want := "fatal error: no goroutines (main called runtime.Goexit) - deadlock!"
+@@ -429,6 +447,9 @@ func TestRecoverBeforePanicAfterGoexit(t *testing.T) {
+ }
+ 
+ func TestRecoverBeforePanicAfterGoexit2(t *testing.T) {
++	// External linking brings in cgo, causing deadlock detection not working.
++	testenv.MustInternalLink(t)
++
+ 	t.Parallel()
+ 	output := runTestProg(t, "testprog", "RecoverBeforePanicAfterGoexit2")
+ 	want := "fatal error: no goroutines (main called runtime.Goexit) - deadlock!"
+diff --git a/src/runtime/time_test.go b/src/runtime/time_test.go
+index a8dab7db8e..afd9af2af4 100644
+--- a/src/runtime/time_test.go
++++ b/src/runtime/time_test.go
+@@ -20,6 +20,10 @@ func TestFakeTime(t *testing.T) {
+ 		t.Skip("faketime not supported on windows")
+ 	}
+ 
++	// Faketime is advanced in checkdead. External linking brings in cgo,
++	// causing checkdead not working.
++	testenv.MustInternalLink(t)
++
+ 	t.Parallel()
+ 
+ 	exe, err := buildTestProg(t, "testfaketime", "-tags=faketime")

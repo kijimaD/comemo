@@ -14,7 +14,7 @@ Date:   Fri Jun 8 18:12:57 2018 +0200
     Change-Id: Icaeb6d903876e51ceb1edff7631f715a98c28696
     Reviewed-on: https://go-review.googlesource.com/118657
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/vet/all/main.go               |  5 -----
  src/cmd/vet/all/whitelist/wasm.txt    | 33 +++++++++++++++++++++++++++++++++
  src/cmd/vet/asmdecl.go                |  2 ++
@@ -24,3 +24,262 @@ Date:   Fri Jun 8 18:12:57 2018 +0200
  src/runtime/rt0_js_wasm.s             |  2 +-
  src/syscall/time_js_wasm.s            | 11 -----------
  8 files changed, 60 insertions(+), 41 deletions(-)
+
+diff --git a/src/cmd/vet/all/main.go b/src/cmd/vet/all/main.go
+index 4b1df73b54..09181f9689 100644
+--- a/src/cmd/vet/all/main.go
++++ b/src/cmd/vet/all/main.go
+@@ -192,11 +192,6 @@ func vetPlatforms(pp []platform) {
+ }
+ 
+ func (p platform) vet() {
+-	if p.os == "js" && p.arch == "wasm" {
+-		// TODO(neelance): enable as soon as js/wasm has fully landed
+-		fmt.Println("skipping js/wasm")
+-		return
+-	}
+ 	if p.os == "linux" && p.arch == "riscv64" {
+ 		// TODO(tklauser): enable as soon as the riscv64 port has fully landed
+ 		fmt.Println("skipping linux/riscv64")
+diff --git a/src/cmd/vet/all/whitelist/wasm.txt b/src/cmd/vet/all/whitelist/wasm.txt
+new file mode 100644
+index 0000000000..ade759026d
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/wasm.txt
+@@ -0,0 +1,33 @@
++// wasm-specific vet whitelist. See readme.txt for details.
++
++// False positives.
++
++// Nothing much to do about cross-package assembly. Unfortunate.
++internal/bytealg/compare_wasm.s: [wasm] cannot check cross-package assembly function: Compare is in package bytes
++internal/bytealg/compare_wasm.s: [wasm] cannot check cross-package assembly function: cmpstring is in package runtime
++
++// morestack intentionally omits arg size.
++runtime/asm_wasm.s: [wasm] morestack: use of 8(SP) points beyond argument frame
++runtime/asm_wasm.s: [wasm] morestack: use of 16(SP) points beyond argument frame
++runtime/asm_wasm.s: [wasm] morestack: use of 8(SP) points beyond argument frame
++
++// rt0_go does not allocate a stack frame.
++runtime/asm_wasm.s: [wasm] rt0_go: use of 8(SP) points beyond argument frame
++
++// Calling WebAssembly import. No write from Go assembly.
++runtime/sys_wasm.s: [wasm] nanotime: RET without writing to 8-byte ret+0(FP)
++runtime/sys_wasm.s: [wasm] scheduleCallback: RET without writing to 4-byte ret+8(FP)
++syscall/js/js_js.s: [wasm] boolVal: RET without writing to 4-byte ret+8(FP)
++syscall/js/js_js.s: [wasm] intVal: RET without writing to 4-byte ret+8(FP)
++syscall/js/js_js.s: [wasm] floatVal: RET without writing to 4-byte ret+8(FP)
++syscall/js/js_js.s: [wasm] stringVal: RET without writing to 4-byte ret+16(FP)
++syscall/js/js_js.s: [wasm] valueGet: RET without writing to 4-byte ret+24(FP)
++syscall/js/js_js.s: [wasm] valueIndex: RET without writing to 4-byte ret+16(FP)
++syscall/js/js_js.s: [wasm] valueCall: RET without writing to 4-byte ret+48(FP)
++syscall/js/js_js.s: [wasm] valueInvoke: RET without writing to 4-byte ret+32(FP)
++syscall/js/js_js.s: [wasm] valueNew: RET without writing to 4-byte ret+32(FP)
++syscall/js/js_js.s: [wasm] valueFloat: RET without writing to 8-byte ret+8(FP)
++syscall/js/js_js.s: [wasm] valueInt: RET without writing to 8-byte ret+8(FP)
++syscall/js/js_js.s: [wasm] valueBool: RET without writing to 1-byte ret+8(FP)
++syscall/js/js_js.s: [wasm] valueLength: RET without writing to 8-byte ret+8(FP)
++syscall/js/js_js.s: [wasm] valuePrepareString: RET without writing to 4-byte ret+8(FP)
+diff --git a/src/cmd/vet/asmdecl.go b/src/cmd/vet/asmdecl.go
+index 43c4203809..ccf6269f1d 100644
+--- a/src/cmd/vet/asmdecl.go
++++ b/src/cmd/vet/asmdecl.go
+@@ -77,6 +77,7 @@ var (
+ 	asmArchPpc64    = asmArch{name: "ppc64", bigEndian: true, stack: "R1", lr: true}
+ 	asmArchPpc64LE  = asmArch{name: "ppc64le", bigEndian: false, stack: "R1", lr: true}
+ 	asmArchS390X    = asmArch{name: "s390x", bigEndian: true, stack: "R15", lr: true}
++	asmArchWasm     = asmArch{name: "wasm", bigEndian: false, stack: "SP", lr: false}
+ 
+ 	arches = []*asmArch{
+ 		&asmArch386,
+@@ -91,6 +92,7 @@ var (
+ 		&asmArchPpc64,
+ 		&asmArchPpc64LE,
+ 		&asmArchS390X,
++		&asmArchWasm,
+ 	}
+ )
+ 
+diff --git a/src/internal/bytealg/compare_wasm.s b/src/internal/bytealg/compare_wasm.s
+index 39bc0fc37a..b412649e04 100644
+--- a/src/internal/bytealg/compare_wasm.s
++++ b/src/internal/bytealg/compare_wasm.s
+@@ -7,30 +7,30 @@
+ 
+ TEXT ·Compare(SB), NOSPLIT, $0-56
+ 	Get SP
+-	I64Load s1_base+0(FP)
+-	I64Load s1_len+8(FP)
+-	I64Load s2_base+24(FP)
+-	I64Load s2_len+32(FP)
++	I64Load a_base+0(FP)
++	I64Load a_len+8(FP)
++	I64Load b_base+24(FP)
++	I64Load b_len+32(FP)
+ 	Call cmpbody<>(SB)
+ 	I64Store ret+48(FP)
+ 	RET
+ 
+ TEXT bytes·Compare(SB), NOSPLIT, $0-56
+ 	Get SP
+-	I64Load s1_base+0(FP)
+-	I64Load s1_len+8(FP)
+-	I64Load s2_base+24(FP)
+-	I64Load s2_len+32(FP)
++	I64Load a_base+0(FP)
++	I64Load a_len+8(FP)
++	I64Load b_base+24(FP)
++	I64Load b_len+32(FP)
+ 	Call cmpbody<>(SB)
+ 	I64Store ret+48(FP)
+ 	RET
+ 
+ TEXT runtime·cmpstring(SB), NOSPLIT, $0-40
+ 	Get SP
+-	I64Load s1_base+0(FP)
+-	I64Load s1_len+8(FP)
+-	I64Load s2_base+16(FP)
+-	I64Load s2_len+24(FP)
++	I64Load a_base+0(FP)
++	I64Load a_len+8(FP)
++	I64Load b_base+16(FP)
++	I64Load b_len+24(FP)
+ 	Call cmpbody<>(SB)
+ 	I64Store ret+32(FP)
+ 	RET
+diff --git a/src/internal/bytealg/indexbyte_wasm.s b/src/internal/bytealg/indexbyte_wasm.s
+index 113c7a0a6f..f9f8e65002 100644
+--- a/src/internal/bytealg/indexbyte_wasm.s
++++ b/src/internal/bytealg/indexbyte_wasm.s
+@@ -6,10 +6,10 @@
+ #include "textflag.h"
+ 
+ TEXT ·IndexByte(SB), NOSPLIT, $0-40
+-	I64Load s+0(FP)
++	I64Load b_base+0(FP)
+ 	I32WrapI64
+ 	I32Load8U c+24(FP)
+-	I64Load s_len+8(FP)
++	I64Load b_len+8(FP)
+ 	I32WrapI64
+ 	Call memchr<>(SB)
+ 	I64ExtendSI32
+@@ -18,7 +18,7 @@ TEXT ·IndexByte(SB), NOSPLIT, $0-40
+ 	Get SP
+ 	I64Const $-1
+ 	Get R0
+-	I64Load s+0(FP)
++	I64Load b_base+0(FP)
+ 	I64Sub
+ 	Get R0
+ 	I64Eqz $0
+@@ -29,7 +29,7 @@ TEXT ·IndexByte(SB), NOSPLIT, $0-40
+ 
+ TEXT ·IndexByteString(SB), NOSPLIT, $0-32
+ 	Get SP
+-	I64Load s+0(FP)
++	I64Load s_base+0(FP)
+ 	I32WrapI64
+ 	I32Load8U c+16(FP)
+ 	I64Load s_len+8(FP)
+@@ -40,7 +40,7 @@ TEXT ·IndexByteString(SB), NOSPLIT, $0-32
+ 
+ 	I64Const $-1
+ 	Get R0
+-	I64Load s+0(FP)
++	I64Load s_base+0(FP)
+ 	I64Sub
+ 	Get R0
+ 	I64Eqz $0
+@@ -51,10 +51,10 @@ TEXT ·IndexByteString(SB), NOSPLIT, $0-32
+ 
+ TEXT bytes·IndexByte(SB), NOSPLIT, $0-40
+ 	Get SP
+-	I64Load s+0(FP)
++	I64Load b_base+0(FP)
+ 	I32WrapI64
+ 	I32Load8U c+24(FP)
+-	I64Load s_len+8(FP)
++	I64Load b_len+8(FP)
+ 	I32WrapI64
+ 	Call memchr<>(SB)
+ 	I64ExtendSI32
+@@ -62,7 +62,7 @@ TEXT bytes·IndexByte(SB), NOSPLIT, $0-40
+ 
+ 	I64Const $-1
+ 	Get R0
+-	I64Load s+0(FP)
++	I64Load b_base+0(FP)
+ 	I64Sub
+ 	Get R0
+ 	I64Eqz $0
+@@ -73,7 +73,7 @@ TEXT bytes·IndexByte(SB), NOSPLIT, $0-40
+ 
+ TEXT strings·IndexByte(SB), NOSPLIT, $0-32
+ 	Get SP
+-	I64Load s+0(FP)
++	I64Load s_base+0(FP)
+ 	I32WrapI64
+ 	I32Load8U c+16(FP)
+ 	I64Load s_len+8(FP)
+@@ -84,7 +84,7 @@ TEXT strings·IndexByte(SB), NOSPLIT, $0-32
+ 
+ 	I64Const $-1
+ 	Get R0
+-	I64Load s+0(FP)
++	I64Load s_base+0(FP)
+ 	I64Sub
+ 	Get R0
+ 	I64Eqz $0
+diff --git a/src/runtime/asm_wasm.s b/src/runtime/asm_wasm.s
+index 67d7bf17dd..baf840d0cf 100644
+--- a/src/runtime/asm_wasm.s
++++ b/src/runtime/asm_wasm.s
+@@ -186,7 +186,7 @@ TEXT runtime·return0(SB), NOSPLIT, $0-0
+ 	RET
+ 
+ TEXT runtime·jmpdefer(SB), NOSPLIT, $0-16
+-	MOVD fn+0(FP), CTXT
++	MOVD fv+0(FP), CTXT
+ 
+ 	Get CTXT
+ 	I64Eqz
+@@ -297,7 +297,7 @@ TEXT reflect·call(SB), NOSPLIT, $0-0
+ 	JMP ·reflectcall(SB)
+ 
+ TEXT ·reflectcall(SB), NOSPLIT, $0-32
+-	I64Load f+8(FP)
++	I64Load fn+8(FP)
+ 	I64Eqz
+ 	If
+ 		CALLNORESUME runtime·sigpanic(SB)
+diff --git a/src/runtime/rt0_js_wasm.s b/src/runtime/rt0_js_wasm.s
+index e20f623610..c494b0a34a 100644
+--- a/src/runtime/rt0_js_wasm.s
++++ b/src/runtime/rt0_js_wasm.s
+@@ -74,7 +74,7 @@ TEXT runtime·pause(SB), NOSPLIT, $0
+ 	Set RUN
+ 	RETUNWIND
+ 
+-TEXT runtime·exit(SB), NOSPLIT, $0-8
++TEXT runtime·exit(SB), NOSPLIT, $0-4
+ 	Call runtime·wasmExit(SB)
+ 	Drop
+ 	I32Const $RUN_EXITED
+diff --git a/src/syscall/time_js_wasm.s b/src/syscall/time_js_wasm.s
+deleted file mode 100644
+index f08b17006d..0000000000
+--- a/src/syscall/time_js_wasm.s
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·startTimer(SB),NOSPLIT,$0
+-	JMP time·startTimer(SB)
+-
+-TEXT ·stopTimer(SB),NOSPLIT,$0
+-	JMP time·stopTimer(SB)

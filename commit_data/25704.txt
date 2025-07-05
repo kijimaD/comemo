@@ -15,7 +15,56 @@ Date:   Mon Nov 16 15:31:50 2015 -0500
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/malloc.go | 8 ++++----
  src/runtime/mcache.go | 4 ++--
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index d9f52399b8..ad1123be96 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -589,9 +589,9 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 			} else if size&1 == 0 {
+ 				off = round(off, 2)
+ 			}
+-			if off+size <= maxTinySize && c.tiny != nil {
++			if off+size <= maxTinySize && c.tiny != 0 {
+ 				// The object fits into existing tiny block.
+-				x = add(c.tiny, off)
++				x = unsafe.Pointer(c.tiny + off)
+ 				c.tinyoffset = off + size
+ 				c.local_tinyallocs++
+ 				mp.mallocing = 0
+@@ -618,8 +618,8 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 			(*[2]uint64)(x)[1] = 0
+ 			// See if we need to replace the existing tiny block with the new one
+ 			// based on amount of remaining free space.
+-			if size < c.tinyoffset || c.tiny == nil {
+-				c.tiny = x
++			if size < c.tinyoffset || c.tiny == 0 {
++				c.tiny = uintptr(x)
+ 				c.tinyoffset = size
+ 			}
+ 			size = maxTinySize
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index c80c5b095a..c843fb2096 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -27,7 +27,7 @@ type mcache struct {
+ 	// tiny is a heap pointer. Since mcache is in non-GC'd memory,
+ 	// we handle it by clearing it in releaseAll during mark
+ 	// termination.
+-	tiny             unsafe.Pointer
++	tiny             uintptr
+ 	tinyoffset       uintptr
+ 	local_tinyallocs uintptr // number of tiny allocs not counted in other stats
+ 
+@@ -139,6 +139,6 @@ func (c *mcache) releaseAll() {
+ 		}
+ 	}
+ 	// Clear tinyalloc pool.
+-	c.tiny = nil
++	c.tiny = 0
+ 	c.tinyoffset = 0
+ }

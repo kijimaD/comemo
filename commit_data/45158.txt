@@ -14,7 +14,79 @@ Date:   Thu Oct 8 19:51:57 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 38 +++++++---------------------------
  src/cmd/compile/internal/gc/iexport.go |  4 ++--
  2 files changed, 9 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 5ced66c0da..f82925347c 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -126,30 +126,6 @@ const (
+ 	aliasTag
+ )
+ 
+-// untype returns the "pseudo" untyped type for a Ctype (import/export use only).
+-// (we can't use a pre-initialized array because we must be sure all types are
+-// set up)
+-func untype(ctype Ctype) *types.Type {
+-	switch ctype {
+-	case CTINT:
+-		return types.Idealint
+-	case CTRUNE:
+-		return types.Idealrune
+-	case CTFLT:
+-		return types.Idealfloat
+-	case CTCPLX:
+-		return types.Idealcomplex
+-	case CTSTR:
+-		return types.Idealstring
+-	case CTBOOL:
+-		return types.Idealbool
+-	case CTNIL:
+-		return types.Types[TNIL]
+-	}
+-	Fatalf("exporter: unknown Ctype")
+-	return nil
+-}
+-
+ var predecl []*types.Type // initialized lazily
+ 
+ func predeclared() []*types.Type {
+@@ -184,13 +160,13 @@ func predeclared() []*types.Type {
+ 			types.Errortype,
+ 
+ 			// untyped types
+-			untype(CTBOOL),
+-			untype(CTINT),
+-			untype(CTRUNE),
+-			untype(CTFLT),
+-			untype(CTCPLX),
+-			untype(CTSTR),
+-			untype(CTNIL),
++			types.Idealbool,
++			types.Idealint,
++			types.Idealrune,
++			types.Idealfloat,
++			types.Idealcomplex,
++			types.Idealstring,
++			types.Types[TNIL],
+ 
+ 			// package unsafe
+ 			types.Types[TUNSAFEPTR],
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index 3be3b0a213..3ccaf60f40 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -780,8 +780,8 @@ func constTypeOf(typ *types.Type) Ctype {
+ }
+ 
+ func (w *exportWriter) value(typ *types.Type, v Val) {
+-	if typ.IsUntyped() {
+-		typ = untype(v.Ctype())
++	if vt := idealType(v.Ctype()); typ.IsUntyped() && typ != vt {
++		Fatalf("exporter: untyped type mismatch, have: %v, want: %v", typ, vt)
+ 	}
+ 	w.typ(typ)
+ 

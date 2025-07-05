@@ -14,7 +14,169 @@ Date:   Wed Dec 30 00:18:35 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/mknode.go   |  5 +++-
  src/cmd/compile/internal/ir/node_gen.go | 42 +++++++++++++++++++++++++++++++++
  2 files changed, 46 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ir/mknode.go b/src/cmd/compile/internal/ir/mknode.go
+index 17ef720172..54a228bce7 100644
+--- a/src/cmd/compile/internal/ir/mknode.go
++++ b/src/cmd/compile/internal/ir/mknode.go
+@@ -35,6 +35,7 @@ func main() {
+ 	}
+ 
+ 	nodeType := lookup("Node")
++	ptrNameType := types.NewPointer(lookup("Name"))
+ 	ntypeType := lookup("Ntype")
+ 	nodesType := lookup("Nodes")
+ 	slicePtrCaseClauseType := types.NewSlice(types.NewPointer(lookup("CaseClause")))
+@@ -94,7 +95,7 @@ func main() {
+ 		fmt.Fprintf(&buf, "func (n *%s) doChildren(do func(Node) error) error { var err error\n", name)
+ 		forNodeFields(typName, typ, func(name string, is func(types.Type) bool) {
+ 			switch {
+-			case is(ptrIdentType):
++			case is(ptrIdentType), is(ptrNameType):
+ 				fmt.Fprintf(&buf, "if n.%s != nil { err = maybeDo(n.%s, err, do) }\n", name, name)
+ 			case is(nodeType), is(ntypeType):
+ 				fmt.Fprintf(&buf, "err = maybeDo(n.%s, err, do)\n", name)
+@@ -117,6 +118,8 @@ func main() {
+ 			switch {
+ 			case is(ptrIdentType):
+ 				fmt.Fprintf(&buf, "if n.%s != nil { n.%s = edit(n.%s).(*Ident) }\n", name, name, name)
++			case is(ptrNameType):
++				fmt.Fprintf(&buf, "if n.%s != nil { n.%s = edit(n.%s).(*Name) }\n", name, name, name)
+ 			case is(nodeType):
+ 				fmt.Fprintf(&buf, "n.%s = maybeEdit(n.%s, edit)\n", name, name)
+ 			case is(ntypeType):
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index a2a30a0587..d8bb4200ef 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -15,11 +15,17 @@ func (n *AddStringExpr) doChildren(do func(Node) error) error {
+ 	var err error
+ 	err = maybeDoList(n.init, err, do)
+ 	err = maybeDoList(n.List, err, do)
++	if n.Prealloc != nil {
++		err = maybeDo(n.Prealloc, err, do)
++	}
+ 	return err
+ }
+ func (n *AddStringExpr) editChildren(edit func(Node) Node) {
+ 	editList(n.init, edit)
+ 	editList(n.List, edit)
++	if n.Prealloc != nil {
++		n.Prealloc = edit(n.Prealloc).(*Name)
++	}
+ }
+ 
+ func (n *AddrExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+@@ -32,11 +38,17 @@ func (n *AddrExpr) doChildren(do func(Node) error) error {
+ 	var err error
+ 	err = maybeDoList(n.init, err, do)
+ 	err = maybeDo(n.X, err, do)
++	if n.Alloc != nil {
++		err = maybeDo(n.Alloc, err, do)
++	}
+ 	return err
+ }
+ func (n *AddrExpr) editChildren(edit func(Node) Node) {
+ 	editList(n.init, edit)
+ 	n.X = maybeEdit(n.X, edit)
++	if n.Alloc != nil {
++		n.Alloc = edit(n.Alloc).(*Name)
++	}
+ }
+ 
+ func (n *ArrayType) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+@@ -253,10 +265,16 @@ func (n *ClosureExpr) copy() Node {
+ func (n *ClosureExpr) doChildren(do func(Node) error) error {
+ 	var err error
+ 	err = maybeDoList(n.init, err, do)
++	if n.Prealloc != nil {
++		err = maybeDo(n.Prealloc, err, do)
++	}
+ 	return err
+ }
+ func (n *ClosureExpr) editChildren(edit func(Node) Node) {
+ 	editList(n.init, edit)
++	if n.Prealloc != nil {
++		n.Prealloc = edit(n.Prealloc).(*Name)
++	}
+ }
+ 
+ func (n *ClosureReadExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+@@ -306,12 +324,18 @@ func (n *CompLitExpr) doChildren(do func(Node) error) error {
+ 	err = maybeDoList(n.init, err, do)
+ 	err = maybeDo(n.Ntype, err, do)
+ 	err = maybeDoList(n.List, err, do)
++	if n.Prealloc != nil {
++		err = maybeDo(n.Prealloc, err, do)
++	}
+ 	return err
+ }
+ func (n *CompLitExpr) editChildren(edit func(Node) Node) {
+ 	editList(n.init, edit)
+ 	n.Ntype = toNtype(maybeEdit(n.Ntype, edit))
+ 	editList(n.List, edit)
++	if n.Prealloc != nil {
++		n.Prealloc = edit(n.Prealloc).(*Name)
++	}
+ }
+ 
+ func (n *ConstExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+@@ -654,10 +678,16 @@ func (n *NameOffsetExpr) copy() Node {
+ func (n *NameOffsetExpr) doChildren(do func(Node) error) error {
+ 	var err error
+ 	err = maybeDoList(n.init, err, do)
++	if n.Name_ != nil {
++		err = maybeDo(n.Name_, err, do)
++	}
+ 	return err
+ }
+ func (n *NameOffsetExpr) editChildren(edit func(Node) Node) {
+ 	editList(n.init, edit)
++	if n.Name_ != nil {
++		n.Name_ = edit(n.Name_).(*Name)
++	}
+ }
+ 
+ func (n *NilExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+@@ -718,6 +748,9 @@ func (n *RangeStmt) doChildren(do func(Node) error) error {
+ 	err = maybeDo(n.Key, err, do)
+ 	err = maybeDo(n.Value, err, do)
+ 	err = maybeDoList(n.Body, err, do)
++	if n.Prealloc != nil {
++		err = maybeDo(n.Prealloc, err, do)
++	}
+ 	return err
+ }
+ func (n *RangeStmt) editChildren(edit func(Node) Node) {
+@@ -726,6 +759,9 @@ func (n *RangeStmt) editChildren(edit func(Node) Node) {
+ 	n.Key = maybeEdit(n.Key, edit)
+ 	n.Value = maybeEdit(n.Value, edit)
+ 	editList(n.Body, edit)
++	if n.Prealloc != nil {
++		n.Prealloc = edit(n.Prealloc).(*Name)
++	}
+ }
+ 
+ func (n *ResultExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+@@ -792,11 +828,17 @@ func (n *SelectorExpr) doChildren(do func(Node) error) error {
+ 	var err error
+ 	err = maybeDoList(n.init, err, do)
+ 	err = maybeDo(n.X, err, do)
++	if n.Prealloc != nil {
++		err = maybeDo(n.Prealloc, err, do)
++	}
+ 	return err
+ }
+ func (n *SelectorExpr) editChildren(edit func(Node) Node) {
+ 	editList(n.init, edit)
+ 	n.X = maybeEdit(n.X, edit)
++	if n.Prealloc != nil {
++		n.Prealloc = edit(n.Prealloc).(*Name)
++	}
+ }
+ 
+ func (n *SendStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }

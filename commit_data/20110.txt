@@ -19,10 +19,232 @@ Date:   Mon Aug 18 16:33:39 2014 +0400
     R=golang-codereviews, khr
     CC=golang-codereviews, rlh, rsc
     https://golang.org/cl/123100043
-
+---
  src/cmd/api/goapi.go      |  5 +++-
  src/pkg/runtime/malloc.go | 67 ++++++++++++++++++++++++++++++++++++++---------
  src/pkg/runtime/race.c    |  2 ++
  src/pkg/runtime/stubs.go  |  1 +
  src/pkg/runtime/stubs.goc |  5 ++++
  5 files changed, 67 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 38bf9592f2..e0d17c9564 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -378,7 +378,10 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
+ 	}
+ 	if w.context != nil && file == fmt.Sprintf("zruntime_defs_%s_%s.go", w.context.GOOS, w.context.GOARCH) {
+ 		// Just enough to keep the api checker happy.
+-		src := "package runtime; type maptype struct{}; type _type struct{}; type alg struct{}; type mspan struct{}; type m struct{}; type lock struct{}; type slicetype struct{}; type iface struct{}; type eface struct{}; type interfacetype struct{}; type itab struct{}"
++		src := "package runtime; type maptype struct{}; type _type struct{}; type alg struct{};" +
++			" type mspan struct{}; type m struct{}; type lock struct{}; type slicetype struct{};" +
++			" type iface struct{}; type eface struct{}; type interfacetype struct{}; type itab struct{};" +
++			" type mcache struct{}"
+ 		f, err = parser.ParseFile(fset, filename, src, 0)
+ 		if err != nil {
+ 			log.Fatalf("incorrect generated file: %s", err)
+diff --git a/src/pkg/runtime/malloc.go b/src/pkg/runtime/malloc.go
+index 76c06f314b..f116efaba4 100644
+--- a/src/pkg/runtime/malloc.go
++++ b/src/pkg/runtime/malloc.go
+@@ -59,14 +59,25 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
+ 	if size == 0 {
+ 		return unsafe.Pointer(&zeroObject)
+ 	}
+-	mp := acquirem()
+-	if mp.mallocing != 0 {
+-		gothrow("malloc/free - deadlock")
+-	}
+-	mp.mallocing = 1
+ 	size0 := size
+ 
+-	c := mp.mcache
++	// This function must be atomic wrt GC, but for performance reasons
++	// we don't acquirem/releasem on fast path. The code below does not have
++	// split stack checks, so it can't be preempted by GC.
++	// Functions like roundup/add are inlined. And onM/racemalloc are nosplit.
++	// If debugMalloc = true, these assumptions are checked below.
++	if debugMalloc {
++		mp := acquirem()
++		if mp.mallocing != 0 {
++			gothrow("malloc deadlock")
++		}
++		mp.mallocing = 1
++		if mp.curg != nil {
++			mp.curg.stackguard0 = ^uint(0xfff) | 0xbad
++		}
++	}
++
++	c := gomcache()
+ 	var s *mspan
+ 	var x unsafe.Pointer
+ 	if size <= maxSmallSize {
+@@ -118,8 +129,18 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
+ 					x = tiny
+ 					c.tiny = (*byte)(add(x, size))
+ 					c.tinysize -= uint(size1)
+-					mp.mallocing = 0
+-					releasem(mp)
++					if debugMalloc {
++						mp := acquirem()
++						if mp.mallocing == 0 {
++							gothrow("bad malloc")
++						}
++						mp.mallocing = 0
++						if mp.curg != nil {
++							mp.curg.stackguard0 = mp.curg.stackguard
++						}
++						releasem(mp)
++						releasem(mp)
++					}
+ 					return x
+ 				}
+ 			}
+@@ -127,8 +148,10 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
+ 			s = c.alloc[tinySizeClass]
+ 			v := s.freelist
+ 			if v == nil {
++				mp := acquirem()
+ 				mp.scalararg[0] = tinySizeClass
+ 				onM(&mcacheRefill_m)
++				releasem(mp)
+ 				s = c.alloc[tinySizeClass]
+ 				v = s.freelist
+ 			}
+@@ -156,8 +179,10 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
+ 			s = c.alloc[sizeclass]
+ 			v := s.freelist
+ 			if v == nil {
++				mp := acquirem()
+ 				mp.scalararg[0] = uint(sizeclass)
+ 				onM(&mcacheRefill_m)
++				releasem(mp)
+ 				s = c.alloc[sizeclass]
+ 				v = s.freelist
+ 			}
+@@ -174,11 +199,13 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
+ 		}
+ 		c.local_cachealloc += int(size)
+ 	} else {
++		mp := acquirem()
+ 		mp.scalararg[0] = uint(size)
+ 		mp.scalararg[1] = uint(flags)
+ 		onM(&largeAlloc_m)
+ 		s = (*mspan)(mp.ptrarg[0])
+ 		mp.ptrarg[0] = nil
++		releasem(mp)
+ 		x = unsafe.Pointer(uintptr(s.start << pageShift))
+ 		size = uintptr(s.elemsize)
+ 	}
+@@ -221,18 +248,22 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
+ 					// into the GC bitmap. It's 7 times slower than copying
+ 					// from the pre-unrolled mask, but saves 1/16 of type size
+ 					// memory for the mask.
++					mp := acquirem()
+ 					mp.ptrarg[0] = x
+ 					mp.ptrarg[1] = unsafe.Pointer(typ)
+ 					mp.scalararg[0] = uint(size)
+ 					mp.scalararg[1] = uint(size0)
+ 					onM(&unrollgcproginplace_m)
++					releasem(mp)
+ 					goto marked
+ 				}
+ 				ptrmask = (*uint8)(unsafe.Pointer(uintptr(typ.gc[0])))
+ 				// Check whether the program is already unrolled.
+ 				if uintptr(goatomicloadp(unsafe.Pointer(ptrmask)))&0xff == 0 {
++					mp := acquirem()
+ 					mp.ptrarg[0] = unsafe.Pointer(typ)
+ 					onM(&unrollgcprog_m)
++					releasem(mp)
+ 				}
+ 				ptrmask = (*uint8)(add(unsafe.Pointer(ptrmask), 1)) // skip the unroll flag byte
+ 			} else {
+@@ -287,11 +318,23 @@ func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
+ 		}
+ 	}
+ marked:
+-	mp.mallocing = 0
+-
+ 	if raceenabled {
+ 		racemalloc(x, size)
+ 	}
++
++	if debugMalloc {
++		mp := acquirem()
++		if mp.mallocing == 0 {
++			gothrow("bad malloc")
++		}
++		mp.mallocing = 0
++		if mp.curg != nil {
++			mp.curg.stackguard0 = mp.curg.stackguard
++		}
++		releasem(mp)
++		releasem(mp)
++	}
++
+ 	if debug.allocfreetrace != 0 {
+ 		tracealloc(x, size, typ)
+ 	}
+@@ -300,12 +343,12 @@ marked:
+ 		if size < uintptr(rate) && int32(size) < c.next_sample {
+ 			c.next_sample -= int32(size)
+ 		} else {
++			mp := acquirem()
+ 			profilealloc(mp, x, size)
++			releasem(mp)
+ 		}
+ 	}
+ 
+-	releasem(mp)
+-
+ 	if memstats.heap_alloc >= memstats.next_gc {
+ 		gogc(0)
+ 	}
+diff --git a/src/pkg/runtime/race.c b/src/pkg/runtime/race.c
+index 12cc6a0dd8..fa04a39310 100644
+--- a/src/pkg/runtime/race.c
++++ b/src/pkg/runtime/race.c
+@@ -11,6 +11,7 @@
+ #include "race.h"
+ #include "type.h"
+ #include "typekind.h"
++#include "../../cmd/ld/textflag.h"
+ 
+ // Race runtime functions called via runtime·racecall.
+ void __tsan_init(void);
+@@ -106,6 +107,7 @@ runtime·racemapshadow(void *addr, uintptr size)
+ 	runtime·racecall(__tsan_map_shadow, addr, size);
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·racemalloc(void *p, uintptr sz)
+ {
+diff --git a/src/pkg/runtime/stubs.go b/src/pkg/runtime/stubs.go
+index 9c18434d5d..a4ef9d3d55 100644
+--- a/src/pkg/runtime/stubs.go
++++ b/src/pkg/runtime/stubs.go
+@@ -43,6 +43,7 @@ func roundup(p unsafe.Pointer, n uintptr) unsafe.Pointer {
+ // in stubs.goc
+ func acquirem() *m
+ func releasem(mp *m)
++func gomcache() *mcache
+ 
+ // An mFunction represents a C function that runs on the M stack.  It
+ // can be called from Go using mcall or onM.  Through the magic of
+diff --git a/src/pkg/runtime/stubs.goc b/src/pkg/runtime/stubs.goc
+index 8a043c63b0..e646b55181 100644
+--- a/src/pkg/runtime/stubs.goc
++++ b/src/pkg/runtime/stubs.goc
+@@ -83,6 +83,11 @@ func runtime·releasem(mp *M) {
+ 	}
+ }
+ 
++#pragma textflag NOSPLIT
++func runtime·gomcache() (ret *MCache) {
++	ret = g->m->mcache;
++}
++
+ // For testing.
+ // TODO: find a better place for this.
+ func GCMask(x Eface) (mask Slice) {

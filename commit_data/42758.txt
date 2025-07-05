@@ -13,7 +13,7 @@ Date:   Wed Jan 8 13:49:25 2020 -0500
     Change-Id: I94a99c339f527da8ffacc73f1b36a7ac860522ee
     Reviewed-on: https://go-review.googlesource.com/c/go/+/213819
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                              | 29 --------------
  src/cmd/go/testdata/script/build_internal.txt      | 44 ++++++++++++++++++++++
  src/cmd/go/testdata/testinternal/p.go              |  3 --
@@ -24,3 +24,156 @@ Date:   Wed Jan 8 13:49:25 2020 -0500
  .../testdata/testinternal4/src/q/internal/x/x.go   |  1 -
  src/cmd/go/testdata/testinternal4/src/q/j/j.go     |  3 --
  9 files changed, 44 insertions(+), 49 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 46c2a3e2a7..03f482628f 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1012,35 +1012,6 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
+ 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale after building with old release")
+ }
+ 
+-func TestInternalPackagesInGOROOTAreRespected(t *testing.T) {
+-	skipIfGccgo(t, "gccgo does not have GOROOT")
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.runFail("build", "-v", "./testdata/testinternal")
+-	tg.grepBoth(`testinternal(\/|\\)p\.go\:3\:8\: use of internal package net/http/internal not allowed`, "wrong error message for testdata/testinternal")
+-}
+-
+-func TestInternalPackagesOutsideGOROOTAreRespected(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.runFail("build", "-v", "./testdata/testinternal2")
+-	tg.grepBoth(`testinternal2(\/|\\)p\.go\:3\:8\: use of internal package .*internal/w not allowed`, "wrote error message for testdata/testinternal2")
+-}
+-
+-func TestInternalPackageErrorsAreHandled(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.run("list", "./testdata/testinternal3")
+-}
+-
+-func TestInternalCache(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata/testinternal4"))
+-	tg.runFail("build", "p")
+-	tg.grepStderr("internal", "did not fail to build p")
+-}
+-
+ // cmd/go: custom import path checking should not apply to Go packages without import comment.
+ func TestIssue10952(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+diff --git a/src/cmd/go/testdata/script/build_internal.txt b/src/cmd/go/testdata/script/build_internal.txt
+new file mode 100644
+index 0000000000..6fcc4e02aa
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_internal.txt
+@@ -0,0 +1,44 @@
++# Test internal package errors are handled
++go list ./testinternal3
++stdout 'testinternal3'
++
++# Test internal cache
++env GOPATH=$WORK/gopath/src/testinternal4
++! go build p
++stderr 'internal'
++
++# Test internal packages outside GOROOT are respected
++! go build -v  ./testinternal2
++stderr 'testinternal2(\/|\\)p\.go\:3\:8\: use of internal package .*internal/w not allowed'
++
++[gccgo] skip # gccgo does not have GOROOT
++! go build -v ./testinternal
++stderr 'testinternal(\/|\\)p\.go\:3\:8\: use of internal package net/http/internal not allowed'
++
++-- testinternal/p.go --
++package p
++
++import _ "net/http/internal"
++-- testinternal2/p.go --
++package p
++
++import _ "./x/y/z/internal/w"
++-- testinternal2/x/y/z/internal/w/w.go --
++package w
++-- testinternal3/t.go --
++package t
++
++import _ "internal/does-not-exist"
++-- testinternal4/src/p/p.go --
++package p
++
++import (
++	_ "q/internal/x"
++	_ "q/j"
++)
++-- testinternal4/src/q/internal/x/x.go --
++package x
++-- testinternal4/src/q/j/j.go --
++package j
++
++import _ "q/internal/x"
+diff --git a/src/cmd/go/testdata/testinternal/p.go b/src/cmd/go/testdata/testinternal/p.go
+deleted file mode 100644
+index e3558a53b2..0000000000
+--- a/src/cmd/go/testdata/testinternal/p.go
++++ /dev/null
+@@ -1,3 +0,0 @@
+-package p
+-
+-import _ "net/http/internal"
+diff --git a/src/cmd/go/testdata/testinternal2/p.go b/src/cmd/go/testdata/testinternal2/p.go
+deleted file mode 100644
+index c594f5c5e9..0000000000
+--- a/src/cmd/go/testdata/testinternal2/p.go
++++ /dev/null
+@@ -1,3 +0,0 @@
+-package p
+-
+-import _ "./x/y/z/internal/w"
+diff --git a/src/cmd/go/testdata/testinternal2/x/y/z/internal/w/w.go b/src/cmd/go/testdata/testinternal2/x/y/z/internal/w/w.go
+deleted file mode 100644
+index a796c0b5f4..0000000000
+--- a/src/cmd/go/testdata/testinternal2/x/y/z/internal/w/w.go
++++ /dev/null
+@@ -1 +0,0 @@
+-package w
+diff --git a/src/cmd/go/testdata/testinternal3/t.go b/src/cmd/go/testdata/testinternal3/t.go
+deleted file mode 100644
+index 8576a4b4d7..0000000000
+--- a/src/cmd/go/testdata/testinternal3/t.go
++++ /dev/null
+@@ -1,3 +0,0 @@
+-package t
+-
+-import _ "internal/does-not-exist"
+diff --git a/src/cmd/go/testdata/testinternal4/src/p/p.go b/src/cmd/go/testdata/testinternal4/src/p/p.go
+deleted file mode 100644
+index 6bdee27be2..0000000000
+--- a/src/cmd/go/testdata/testinternal4/src/p/p.go
++++ /dev/null
+@@ -1,6 +0,0 @@
+-package p
+-
+-import (
+-	_ "q/internal/x"
+-	_ "q/j"
+-)
+diff --git a/src/cmd/go/testdata/testinternal4/src/q/internal/x/x.go b/src/cmd/go/testdata/testinternal4/src/q/internal/x/x.go
+deleted file mode 100644
+index 823aafd071..0000000000
+--- a/src/cmd/go/testdata/testinternal4/src/q/internal/x/x.go
++++ /dev/null
+@@ -1 +0,0 @@
+-package x
+diff --git a/src/cmd/go/testdata/testinternal4/src/q/j/j.go b/src/cmd/go/testdata/testinternal4/src/q/j/j.go
+deleted file mode 100644
+index 9f07543894..0000000000
+--- a/src/cmd/go/testdata/testinternal4/src/q/j/j.go
++++ /dev/null
+@@ -1,3 +0,0 @@
+-package j
+-
+-import _ "q/internal/x"

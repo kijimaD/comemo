@@ -19,8 +19,150 @@ Date:   Sun Jul 3 14:57:35 2016 -0700
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Run-TryBot: Andrew Gerrand <adg@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/gob/doc.go          |  3 +-
  src/encoding/gob/encoder.go      |  4 +--
  src/encoding/gob/encoder_test.go | 72 ++++++++++++++++++++++++++++++++++------
  3 files changed, 66 insertions(+), 13 deletions(-)
+
+diff --git a/src/encoding/gob/doc.go b/src/encoding/gob/doc.go
+index 6f86d84891..1536574fed 100644
+--- a/src/encoding/gob/doc.go
++++ b/src/encoding/gob/doc.go
+@@ -17,7 +17,8 @@ Basics
+ A stream of gobs is self-describing.  Each data item in the stream is preceded by
+ a specification of its type, expressed in terms of a small set of predefined
+ types.  Pointers are not transmitted, but the things they point to are
+-transmitted; that is, the values are flattened.  Recursive types work fine, but
++transmitted; that is, the values are flattened. Nil pointers are not permitted,
++as they have no value. Recursive types work fine, but
+ recursive values (data with cycles) are problematic.  This may change.
+ 
+ To use gobs, create an Encoder and present it with a series of data items as
+diff --git a/src/encoding/gob/encoder.go b/src/encoding/gob/encoder.go
+index 92b559ee11..d6c8fdd963 100644
+--- a/src/encoding/gob/encoder.go
++++ b/src/encoding/gob/encoder.go
+@@ -170,6 +170,7 @@ func (enc *Encoder) sendType(w io.Writer, state *encoderState, origt reflect.Typ
+ 
+ // Encode transmits the data item represented by the empty interface value,
+ // guaranteeing that all necessary type information has been transmitted first.
++// Passing a nil pointer to Encoder will panic, as they cannot be transmitted by gob.
+ func (enc *Encoder) Encode(e interface{}) error {
+ 	return enc.EncodeValue(reflect.ValueOf(e))
+ }
+@@ -212,9 +213,8 @@ func (enc *Encoder) sendTypeId(state *encoderState, ut *userTypeInfo) {
+ 
+ // EncodeValue transmits the data item represented by the reflection value,
+ // guaranteeing that all necessary type information has been transmitted first.
++// Passing a nil pointer to EncodeValue will panic, as they cannot be transmitted by gob.
+ func (enc *Encoder) EncodeValue(value reflect.Value) error {
+-	// Gobs contain values. They cannot represent nil pointers, which
+-	// have no value to encode.
+ 	if value.Kind() == reflect.Ptr && value.IsNil() {
+ 		panic("gob: cannot encode nil pointer of type " + value.Type().String())
+ 	}
+diff --git a/src/encoding/gob/encoder_test.go b/src/encoding/gob/encoder_test.go
+index 519574e66d..22090a18a6 100644
+--- a/src/encoding/gob/encoder_test.go
++++ b/src/encoding/gob/encoder_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"encoding/hex"
+ 	"fmt"
++	"io/ioutil"
+ 	"reflect"
+ 	"strings"
+ 	"testing"
+@@ -831,30 +832,81 @@ func TestPtrToMapOfMap(t *testing.T) {
+ 
+ // A top-level nil pointer generates a panic with a helpful string-valued message.
+ func TestTopLevelNilPointer(t *testing.T) {
+-	errMsg := topLevelNilPanic(t)
+-	if errMsg == "" {
++	var ip *int
++	encodeErr, panicErr := encodeAndRecover(ip)
++	if encodeErr != nil {
++		t.Fatal("error in encode:", encodeErr)
++	}
++	if panicErr == nil {
+ 		t.Fatal("top-level nil pointer did not panic")
+ 	}
++	errMsg := panicErr.Error()
+ 	if !strings.Contains(errMsg, "nil pointer") {
+ 		t.Fatal("expected nil pointer error, got:", errMsg)
+ 	}
+ }
+ 
+-func topLevelNilPanic(t *testing.T) (panicErr string) {
++func encodeAndRecover(value interface{}) (encodeErr, panicErr error) {
+ 	defer func() {
+ 		e := recover()
+-		if err, ok := e.(string); ok {
+-			panicErr = err
++		if e != nil {
++			switch err := e.(type) {
++			case error:
++				panicErr = err
++			default:
++				panicErr = fmt.Errorf("%v", err)
++			}
+ 		}
+ 	}()
+-	var ip *int
+-	buf := new(bytes.Buffer)
+-	if err := NewEncoder(buf).Encode(ip); err != nil {
+-		t.Fatal("error in encode:", err)
+-	}
++
++	encodeErr = NewEncoder(ioutil.Discard).Encode(value)
+ 	return
+ }
+ 
++func TestNilPointerPanics(t *testing.T) {
++	var (
++		nilStringPtr      *string
++		intMap            = make(map[int]int)
++		intMapPtr         = &intMap
++		nilIntMapPtr      *map[int]int
++		zero              int
++		nilBoolChannel    chan bool
++		nilBoolChannelPtr *chan bool
++		nilStringSlice    []string
++		stringSlice       = make([]string, 1)
++		nilStringSlicePtr *[]string
++	)
++
++	testCases := []struct {
++		value     interface{}
++		mustPanic bool
++	}{
++		{nilStringPtr, true},
++		{intMap, false},
++		{intMapPtr, false},
++		{nilIntMapPtr, true},
++		{zero, false},
++		{nilStringSlice, false},
++		{stringSlice, false},
++		{nilStringSlicePtr, true},
++		{nilBoolChannel, false},
++		{nilBoolChannelPtr, true},
++	}
++
++	for _, tt := range testCases {
++		_, panicErr := encodeAndRecover(tt.value)
++		if tt.mustPanic {
++			if panicErr == nil {
++				t.Errorf("expected panic with input %#v, did not panic", tt.value)
++			}
++			continue
++		}
++		if panicErr != nil {
++			t.Fatalf("expected no panic with input %#v, got panic=%v", tt.value, panicErr)
++		}
++	}
++}
++
+ func TestNilPointerInsideInterface(t *testing.T) {
+ 	var ip *int
+ 	si := struct {

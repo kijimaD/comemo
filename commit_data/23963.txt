@@ -7,6 +7,20 @@ Date:   Fri Jun 26 00:23:50 2015 -0400
     Change-Id: I193b416ac91b4fa9234d30a1c1c58b3f0a71f398
     Reviewed-on: https://go-review.googlesource.com/11543
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  doc/go1.5.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.5.html b/doc/go1.5.html
+index 0f9a6c6493..8eaf5ef612 100644
+--- a/doc/go1.5.html
++++ b/doc/go1.5.html
+@@ -130,7 +130,7 @@ The old names <code>6g</code>, <code>8g</code> and so on are gone; instead there
+ is just one binary, accessible as <code>go</code> <code>tool</code> <code>compile</code>,
+ that compiles Go source into binaries suitable for the architecture and operating system
+ specified by <code>$GOARCH</code> and <code>$GOOS</code>.
+-Simlarly, there is now one linker (<code>go</code> <code>tool</code> <code>link</code>)
++Similarly, there is now one linker (<code>go</code> <code>tool</code> <code>link</code>)
+ and one assembler (<code>go</code> <code>tool</code> <code>asm</code>).
+ The linker was translated automatically from the old C implementation,
+ but the assembler is a new native Go implementation discussed

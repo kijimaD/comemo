@@ -46,7 +46,49 @@ Date:   Tue Aug 14 16:41:22 2018 -0600
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go |  6 ++++++
  test/codegen/mathbits.go           | 16 ++++++++++++++++
  2 files changed, 22 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 2ee966d890..8df8023d18 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3435,6 +3435,12 @@ func init() {
+ 	addF("math/bits", "OnesCount",
+ 		makeOnesCountAMD64(ssa.OpPopCount64, ssa.OpPopCount32),
+ 		sys.AMD64)
++	alias("math/bits", "Mul", "math/bits", "Mul64", sys.ArchAMD64, sys.ArchARM64)
++	addF("math/bits", "Mul64",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			return s.newValue2(ssa.OpMul64uhilo, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1])
++		},
++		sys.AMD64, sys.ARM64)
+ 
+ 	/******** sync/atomic ********/
+ 
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 28354ed651..834b08f101 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -302,3 +302,19 @@ func IterateBits8(n uint8) int {
+ 	}
+ 	return i
+ }
++
++// --------------- //
++//    bits.Mul*    //
++// --------------- //
++
++func Mul(x, y uint) (hi, lo uint) {
++	// amd64:"MULQ"
++	// arm64:"UMULH","MUL"
++	return bits.Mul(x, y)
++}
++
++func Mul64(x, y uint64) (hi, lo uint64) {
++	// amd64:"MULQ"
++	// arm64:"UMULH","MUL"
++	return bits.Mul64(x, y)
++}

@@ -8,9 +8,62 @@ Date:   Tue May 20 14:42:07 2014 -0400
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/93470043
-
+---
  doc/articles/wiki/index.html             | 2 +-
  src/cmd/gofmt/testdata/typeswitch.golden | 2 +-
  src/cmd/gofmt/testdata/typeswitch.input  | 2 +-
  src/pkg/runtime/runtime-gdb.py           | 2 +-
  4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/doc/articles/wiki/index.html b/doc/articles/wiki/index.html
+index 7bf7213e88..b6b080df96 100644
+--- a/doc/articles/wiki/index.html
++++ b/doc/articles/wiki/index.html
+@@ -466,7 +466,7 @@ header to the HTTP response.
+ <p>
+ The function <code>saveHandler</code> will handle the submission of forms
+ located on the edit pages. After uncommenting the related line in
+-<code>main</code>, let's implement the the handler:
++<code>main</code>, let's implement the handler:
+ </p>
+ 
+ {{code "doc/articles/wiki/final-template.go" `/^func saveHandler/` `/^}/`}}
+diff --git a/src/cmd/gofmt/testdata/typeswitch.golden b/src/cmd/gofmt/testdata/typeswitch.golden
+index 87e9161815..2b1905edd3 100644
+--- a/src/cmd/gofmt/testdata/typeswitch.golden
++++ b/src/cmd/gofmt/testdata/typeswitch.golden
+@@ -4,7 +4,7 @@
+ 	into the correct unparenthesized form.
+ 
+ 	Only type-switches that didn't declare a variable
+-	in the the type switch type assertion and which
++	in the type switch type assertion and which
+ 	contained only "expression-like" (named) types in their
+ 	cases were permitted to have their type assertion parenthesized
+ 	by go/parser (due to a weak predicate in the parser). All others
+diff --git a/src/cmd/gofmt/testdata/typeswitch.input b/src/cmd/gofmt/testdata/typeswitch.input
+index f90f28949a..8f8cba9b85 100644
+--- a/src/cmd/gofmt/testdata/typeswitch.input
++++ b/src/cmd/gofmt/testdata/typeswitch.input
+@@ -4,7 +4,7 @@
+ 	into the correct unparenthesized form.
+ 
+ 	Only type-switches that didn't declare a variable
+-	in the the type switch type assertion and which
++	in the type switch type assertion and which
+ 	contained only "expression-like" (named) types in their
+ 	cases were permitted to have their type assertion parenthesized
+ 	by go/parser (due to a weak predicate in the parser). All others
+diff --git a/src/pkg/runtime/runtime-gdb.py b/src/pkg/runtime/runtime-gdb.py
+index a33280f694..eedac7cf44 100644
+--- a/src/pkg/runtime/runtime-gdb.py
++++ b/src/pkg/runtime/runtime-gdb.py
+@@ -378,7 +378,7 @@ class GoroutinesCmd(gdb.Command):
+ def find_goroutine(goid):
+ 	"""
+ 	find_goroutine attempts to find the goroutine identified by goid.
+-	It returns a touple of gdv.Value's representing the the stack pointer
++	It returns a touple of gdv.Value's representing the stack pointer
+ 	and program counter pointer for the goroutine.
+ 
+ 	@param int goid

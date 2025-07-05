@@ -7,6 +7,24 @@ Date:   Wed Oct 24 17:59:25 2018 -0400
     Change-Id: Id14b417095628c7a1dc7a8e47bc28cfa392b5262
     Reviewed-on: https://go-review.googlesource.com/c/146498
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types/sym.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types/sym.go b/src/cmd/compile/internal/types/sym.go
+index 49233ad386..b7fd7ae9fb 100644
+--- a/src/cmd/compile/internal/types/sym.go
++++ b/src/cmd/compile/internal/types/sym.go
+@@ -39,9 +39,9 @@ type Sym struct {
+ const (
+ 	symOnExportList = 1 << iota // added to exportlist (no need to add again)
+ 	symUniq
+-	symSiggen
+-	symAsm
+-	symAlgGen
++	symSiggen // type symbol has been generated
++	symAsm    // on asmlist, for writing to -asmhdr
++	symAlgGen // algorithm table has been generated
+ )
+ 
+ func (sym *Sym) OnExportList() bool { return sym.flags&symOnExportList != 0 }

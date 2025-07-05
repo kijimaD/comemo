@@ -8,7 +8,33 @@ Date:   Thu Apr 14 23:49:51 2011 -0400
     R=golang-dev, rsc
     CC=golang-dev, r
     https://golang.org/cl/4418042
-
+---
  src/pkg/net/ip.go      | 2 +-
  src/pkg/net/ip_test.go | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/ip.go b/src/pkg/net/ip.go
+index 12bb6f351a..2429b10d9b 100644
+--- a/src/pkg/net/ip.go
++++ b/src/pkg/net/ip.go
+@@ -436,7 +436,7 @@ func parseIPv6(s string) IP {
+ 		}
+ 
+ 		// Otherwise must be followed by colon and more.
+-		if s[i] != ':' && i+1 == len(s) {
++		if s[i] != ':' || i+1 == len(s) {
+ 			return nil
+ 		}
+ 		i++
+diff --git a/src/pkg/net/ip_test.go b/src/pkg/net/ip_test.go
+index f1a4716d22..2008953ef3 100644
+--- a/src/pkg/net/ip_test.go
++++ b/src/pkg/net/ip_test.go
+@@ -29,6 +29,7 @@ var parseiptests = []struct {
+ 	{"127.0.0.1", IPv4(127, 0, 0, 1)},
+ 	{"127.0.0.256", nil},
+ 	{"abc", nil},
++	{"123:", nil},
+ 	{"::ffff:127.0.0.1", IPv4(127, 0, 0, 1)},
+ 	{"2001:4860:0:2001::68",
+ 		IP{0x20, 0x01, 0x48, 0x60, 0, 0, 0x20, 0x01,

@@ -14,6 +14,37 @@ Date:   Fri Jun 16 15:15:25 2023 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/go/internal/gcimporter/gcimporter_test.go | 12 +++++++++++-
  1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index 9ab29f3b1c..25ff402277 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -137,6 +137,16 @@ func TestImportTypeparamTests(t *testing.T) {
+ 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+ 	}
+ 
++	// cmd/distpack removes the GOROOT/test directory, so skip if it isn't there.
++	// cmd/distpack also requires the presence of GOROOT/VERSION, so use that to
++	// avoid false-positive skips.
++	gorootTest := filepath.Join(testenv.GOROOT(t), "test")
++	if _, err := os.Stat(gorootTest); os.IsNotExist(err) {
++		if _, err := os.Stat(filepath.Join(testenv.GOROOT(t), "VERSION")); err == nil {
++			t.Skipf("skipping: GOROOT/test not present")
++		}
++	}
++
+ 	testenv.MustHaveGoBuild(t)
+ 
+ 	tmpdir := mktmpdir(t)
+@@ -144,7 +154,7 @@ func TestImportTypeparamTests(t *testing.T) {
+ 
+ 	// Check go files in test/typeparam, except those that fail for a known
+ 	// reason.
+-	rootDir := filepath.Join(testenv.GOROOT(t), "test", "typeparam")
++	rootDir := filepath.Join(gorootTest, "typeparam")
+ 	list, err := os.ReadDir(rootDir)
+ 	if err != nil {
+ 		t.Fatal(err)

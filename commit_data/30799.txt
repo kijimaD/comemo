@@ -7,6 +7,21 @@ Date:   Mon Dec 5 23:47:54 2016 -0500
     Change-Id: I811e76c9f42505e974bea634d4ded2499e4893db
     Reviewed-on: https://go-review.googlesource.com/33926
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.8.html | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/doc/go1.8.html b/doc/go1.8.html
+index 2687772a12..49ff5c0278 100644
+--- a/doc/go1.8.html
++++ b/doc/go1.8.html
+@@ -116,8 +116,7 @@ and cancelation.
+ There are some instabilities on FreeBSD and NetBSD that are known but not understood.
+ These can lead to program crashes in rare cases.
+ See
+-<a href="https://golang.org/issue/15658">issue 15658</a>,
+-<a href="https://golang.org/issue/16396">issue 16396</a>, and
++<a href="https://golang.org/issue/15658">issue 15658</a> and
+ <a href="https://golang.org/issue/16511">issue 16511</a>.
+ Any help in solving these issues would be appreciated.
+ </p>

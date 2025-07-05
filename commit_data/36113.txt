@@ -14,6 +14,24 @@ Date:   Tue Apr 3 19:11:53 2018 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  test/locklinear.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/test/locklinear.go b/test/locklinear.go
+index 161912b65e..54e40a543b 100644
+--- a/test/locklinear.go
++++ b/test/locklinear.go
+@@ -125,6 +125,12 @@ func main() {
+ 		}
+ 	})
+ 
++	if runtime.GOARCH == "arm" && os.Getenv("GOARM") == "5" {
++		// lockmany reliably fails on the linux-arm-arm5spacemonkey
++		// builder. See https://golang.org/issue/24221.
++		return
++	}
++
+ 	checkLinear("lockmany", 1000, func(n int) {
+ 		locks := make([]sync.RWMutex, n*offset+1)
+ 

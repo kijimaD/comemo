@@ -14,6 +14,24 @@ Date:   Thu Feb 17 09:37:07 2022 -0800
     Reviewed-by: Martin Möhrmann <martin@golang.org>
     Trust: Martin Möhrmann <martin@golang.org>
     Run-TryBot: Martin Möhrmann <martin@golang.org>
-
+---
  doc/go1.18.html | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index b320579c37..1ca0a5560d 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -512,6 +512,12 @@ For more information, see <a href="https://go.dev/design/draft-gobuild">https://
+   after each value that may be inaccurate.
+ </p>
+ 
++<p><!-- CL 347917 -->
++  The built-in function <code>append</code> now uses a slightly different formula
++  when deciding how much to grow a slice when it must allocate a new underlying array.
++  The new formula is less prone to sudden transitions in allocation behavior.
++</p>
++
+ <h2 id="compiler">Compiler</h2>
+ 
+ <p><!-- https://golang.org/issue/40724 -->

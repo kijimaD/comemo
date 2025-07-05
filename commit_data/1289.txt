@@ -11,6 +11,20 @@ Date:   Fri Dec 5 10:20:34 2008 -0800
     DELTA=2  (0 added, 0 deleted, 2 changed)
     OCL=20564
     CL=20595
-
+---
  test/bugs/bug127.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/bugs/bug127.go b/test/bugs/bug127.go
+index a67e85144d..b463d233ce 100644
+--- a/test/bugs/bug127.go
++++ b/test/bugs/bug127.go
+@@ -7,6 +7,6 @@
+ package main
+ func main() {
+         var x int64 = 0;
+-        println(x != nil);	// ERROR ".*"
+-        println(0 != nil);	// ERROR ".*"
++        println(x != nil);	// ERROR "illegal|incompatible"
++        println(0 != nil);	// ERROR "illegal|incompatible"
+ }

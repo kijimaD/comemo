@@ -9,6 +9,22 @@ Date:   Mon Mar 25 08:17:10 2013 +0100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7814046
-
+---
  src/pkg/net/http/serve_test.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index 5adde545f8..6458455559 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -1635,7 +1635,9 @@ Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.3
+ 	res := []byte("Hello world!\n")
+ 
+ 	conn := &testConn{
+-		closec: make(chan bool),
++		// testConn.Close will not push into the channel
++		// if it's full.
++		closec: make(chan bool, 1),
+ 	}
+ 	handler := HandlerFunc(func(rw ResponseWriter, r *Request) {
+ 		rw.Header().Set("Content-Type", "text/html; charset=utf-8")

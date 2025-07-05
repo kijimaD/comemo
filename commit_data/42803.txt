@@ -13,7 +13,42 @@ Date:   Wed Oct 17 17:20:26 2018 -0700
     Change-Id: I088265f0e3ce52029679407f0b84b734191d4d3c
     Reviewed-on: https://go-review.googlesource.com/c/go/+/143024
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/go/internal/gcimporter/gcimporter.go              | 7 -------
  src/go/internal/gcimporter/{bimport.go => support.go} | 2 ++
  2 files changed, 2 insertions(+), 7 deletions(-)
+
+diff --git a/src/go/internal/gcimporter/gcimporter.go b/src/go/internal/gcimporter/gcimporter.go
+index ecfa25e28d..fda15eaaae 100644
+--- a/src/go/internal/gcimporter/gcimporter.go
++++ b/src/go/internal/gcimporter/gcimporter.go
+@@ -168,13 +168,6 @@ func Import(fset *token.FileSet, packages map[string]*types.Package, path, srcDi
+ 	return
+ }
+ 
+-func deref(typ types.Type) types.Type {
+-	if p, _ := typ.(*types.Pointer); p != nil {
+-		return p.Elem()
+-	}
+-	return typ
+-}
+-
+ type byPath []*types.Package
+ 
+ func (a byPath) Len() int           { return len(a) }
+diff --git a/src/go/internal/gcimporter/bimport.go b/src/go/internal/gcimporter/support.go
+similarity index 97%
+rename from src/go/internal/gcimporter/bimport.go
+rename to src/go/internal/gcimporter/support.go
+index e291ea644a..2de7cacd2d 100644
+--- a/src/go/internal/gcimporter/bimport.go
++++ b/src/go/internal/gcimporter/support.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// This file implements support functionality for iimport.go.
++
+ package gcimporter
+ 
+ import (

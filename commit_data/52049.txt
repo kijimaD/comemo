@@ -12,6 +12,43 @@ Date:   Thu Dec 30 16:46:21 2021 +0800
     Run-TryBot: mzh <mzh@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/dist/test.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index a540a2abda..9118c133e5 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -38,6 +38,9 @@ func cmdtest() {
+ 	flag.StringVar(&t.runRxStr, "run", os.Getenv("GOTESTONLY"),
+ 		"run only those tests matching the regular expression; empty means to run all. "+
+ 			"Special exception: if the string begins with '!', the match is inverted.")
++	flag.BoolVar(&t.msan, "msan", false, "run in memory sanitizer builder mode")
++	flag.BoolVar(&t.asan, "asan", false, "run in address sanitizer builder mode")
++
+ 	xflagparse(-1) // any number of args
+ 	if noRebuild {
+ 		t.rebuild = false
+@@ -49,6 +52,8 @@ func cmdtest() {
+ // tester executes cmdtest.
+ type tester struct {
+ 	race        bool
++	msan        bool
++	asan        bool
+ 	listMode    bool
+ 	rebuild     bool
+ 	failed      bool
+@@ -404,6 +409,12 @@ func (t *tester) registerStdTest(pkg string) {
+ 			if t.race {
+ 				args = append(args, "-race")
+ 			}
++			if t.msan {
++				args = append(args, "-msan")
++			}
++			if t.asan {
++				args = append(args, "-asan")
++			}
+ 			if t.compileOnly {
+ 				args = append(args, "-run=^$")
+ 			}

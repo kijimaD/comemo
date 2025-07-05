@@ -19,6 +19,29 @@ Date:   Fri Jun 29 17:46:17 2018 +0100
     Change-Id: I4dee5ed8dd9fba565b4755bad12ae1ee6d277959
     Reviewed-on: https://go-review.googlesource.com/121637
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/strings/strings.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index adbbe742fc..20868be269 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -797,6 +797,8 @@ func Trim(s string, cutset string) string {
+ 
+ // TrimLeft returns a slice of the string s with all leading
+ // Unicode code points contained in cutset removed.
++//
++// To remove a prefix, use TrimPrefix instead.
+ func TrimLeft(s string, cutset string) string {
+ 	if s == "" || cutset == "" {
+ 		return s
+@@ -806,6 +808,8 @@ func TrimLeft(s string, cutset string) string {
+ 
+ // TrimRight returns a slice of the string s, with all trailing
+ // Unicode code points contained in cutset removed.
++//
++// To remove a suffix, use TrimSuffix instead.
+ func TrimRight(s string, cutset string) string {
+ 	if s == "" || cutset == "" {
+ 		return s

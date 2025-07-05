@@ -27,7 +27,7 @@ Date:   Tue Jan 18 14:15:11 2011 -0500
     R=r
     CC=golang-dev
     https://golang.org/cl/4036042
-
+---
  src/pkg/runtime/darwin/386/signal.c    | 1 +
  src/pkg/runtime/darwin/amd64/signal.c  | 1 +
  src/pkg/runtime/freebsd/386/signal.c   | 1 +
@@ -40,3 +40,188 @@ Date:   Tue Jan 18 14:15:11 2011 -0500
  src/pkg/runtime/runtime.h              | 1 +
  test/golden.out                        | 8 --------
  11 files changed, 16 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/runtime/darwin/386/signal.c b/src/pkg/runtime/darwin/386/signal.c
+index 53a4e2f177..33f47d44f9 100644
+--- a/src/pkg/runtime/darwin/386/signal.c
++++ b/src/pkg/runtime/darwin/386/signal.c
+@@ -66,6 +66,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context)
+ 		gp->sig = sig;
+ 		gp->sigcode0 = info->si_code;
+ 		gp->sigcode1 = (uintptr)info->si_addr;
++		gp->sigpc = r->eip;
+ 
+ 		// Only push runtime·sigpanic if r->eip != 0.
+ 		// If r->eip == 0, probably panicked because of a
+diff --git a/src/pkg/runtime/darwin/amd64/signal.c b/src/pkg/runtime/darwin/amd64/signal.c
+index 474a1bd5c3..948b6c9c20 100644
+--- a/src/pkg/runtime/darwin/amd64/signal.c
++++ b/src/pkg/runtime/darwin/amd64/signal.c
+@@ -76,6 +76,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context)
+ 		gp->sig = sig;
+ 		gp->sigcode0 = info->si_code;
+ 		gp->sigcode1 = (uintptr)info->si_addr;
++		gp->sigpc = r->rip;
+ 		
+ 		// Only push runtime·sigpanic if r->rip != 0.
+ 		// If r->rip == 0, probably panicked because of a
+diff --git a/src/pkg/runtime/freebsd/386/signal.c b/src/pkg/runtime/freebsd/386/signal.c
+index 52b820df13..ddb11fc3ba 100644
+--- a/src/pkg/runtime/freebsd/386/signal.c
++++ b/src/pkg/runtime/freebsd/386/signal.c
+@@ -63,6 +63,7 @@ runtime·sighandler(int32 sig, Siginfo* info, void* context)
+ 		gp->sig = sig;
+ 		gp->sigcode0 = info->si_code;
+ 		gp->sigcode1 = (uintptr)info->si_addr;
++		gp->sigpc = r->mc_eip;
+ 
+ 		// Only push runtime·sigpanic if r->mc_eip != 0.
+ 		// If r->mc_eip == 0, probably panicked because of a
+diff --git a/src/pkg/runtime/freebsd/amd64/signal.c b/src/pkg/runtime/freebsd/amd64/signal.c
+index c74ddad0b8..9f873d276b 100644
+--- a/src/pkg/runtime/freebsd/amd64/signal.c
++++ b/src/pkg/runtime/freebsd/amd64/signal.c
+@@ -71,6 +71,7 @@ runtime·sighandler(int32 sig, Siginfo* info, void* context)
+ 		gp->sig = sig;
+ 		gp->sigcode0 = info->si_code;
+ 		gp->sigcode1 = (uintptr)info->si_addr;
++		gp->sigpc = r->mc_rip;
+ 
+ 		// Only push runtime·sigpanic if r->mc_rip != 0.
+ 		// If r->mc_rip == 0, probably panicked because of a
+diff --git a/src/pkg/runtime/linux/386/signal.c b/src/pkg/runtime/linux/386/signal.c
+index 0dbfcf9ff3..9651a6f280 100644
+--- a/src/pkg/runtime/linux/386/signal.c
++++ b/src/pkg/runtime/linux/386/signal.c
+@@ -60,6 +60,7 @@ runtime·sighandler(int32 sig, Siginfo* info, void* context)
+ 		gp->sig = sig;
+ 		gp->sigcode0 = info->si_code;
+ 		gp->sigcode1 = ((uintptr*)info)[3];
++		gp->sigpc = r->eip;
+ 
+ 		// Only push runtime·sigpanic if r->eip != 0.
+ 		// If r->eip == 0, probably panicked because of a
+diff --git a/src/pkg/runtime/linux/amd64/signal.c b/src/pkg/runtime/linux/amd64/signal.c
+index e78bbda9d4..9e501c96d8 100644
+--- a/src/pkg/runtime/linux/amd64/signal.c
++++ b/src/pkg/runtime/linux/amd64/signal.c
+@@ -70,6 +70,7 @@ runtime·sighandler(int32 sig, Siginfo* info, void* context)
+ 		gp->sig = sig;
+ 		gp->sigcode0 = info->si_code;
+ 		gp->sigcode1 = ((uintptr*)info)[2];
++		gp->sigpc = r->rip;
+ 
+ 		// Only push runtime·sigpanic if r->rip != 0.
+ 		// If r->rip == 0, probably panicked because of a
+diff --git a/src/pkg/runtime/linux/arm/signal.c b/src/pkg/runtime/linux/arm/signal.c
+index c65aff913b..481bd13c62 100644
+--- a/src/pkg/runtime/linux/arm/signal.c
++++ b/src/pkg/runtime/linux/arm/signal.c
+@@ -67,6 +67,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context)
+ 		gp->sig = sig;
+ 		gp->sigcode0 = info->si_code;
+ 		gp->sigcode1 = r->fault_address;
++		gp->sigpc = r->arm_pc;
+ 
+ 		// If this is a leaf function, we do smash LR,
+ 		// but we're not going back there anyway.
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 35ab098944..09c7a1dbc9 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1070,6 +1070,8 @@ runtime·panic(Eface e)
+ 		reflect·call(d->fn, d->args, d->siz);
+ 		if(p->recovered) {
+ 			g->panic = p->link;
++			if(g->panic == nil)	// must be done with signal
++				g->sig = 0;
+ 			runtime·free(p);
+ 			// put recovering defer back on list
+ 			// for scheduler to find.
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index 9d3efe966d..513675240f 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -30,11 +30,16 @@ runtime·dopanic(int32 unused)
+ 	}
+ 	runtime·panicking++;
+ 
+-	runtime·printf("\npanic PC=%X\n", (uint64)(uintptr)&unused);
++	if(g->sig != 0)
++		runtime·printf("\n[signal %d code=%p addr=%p pc=%p]\n",
++			g->sig, g->sigcode0, g->sigcode1, g->sigpc);
++
++	runtime·printf("\n");
+ 	if(runtime·gotraceback()){
+ 		runtime·traceback(runtime·getcallerpc(&unused), runtime·getcallersp(&unused), 0, g);
+ 		runtime·tracebackothers(g);
+ 	}
++	
+ 	runtime·breakpoint();  // so we can grab it in a debugger
+ 	runtime·exit(2);
+ }
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index c00c40aed9..7ba7932b2b 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -199,6 +199,7 @@ struct	G
+ 	int32	sig;
+ 	uintptr	sigcode0;
+ 	uintptr	sigcode1;
++	uintptr	sigpc;
+ };
+ struct	M
+ {
+diff --git a/test/golden.out b/test/golden.out
+index e587912a48..04c71327b1 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -4,22 +4,18 @@
+ =========== ./cmp2.go
+ panic: runtime error: comparing uncomparable type []int
+ 
+-panic PC=xxx
+ 
+ =========== ./cmp3.go
+ panic: runtime error: comparing uncomparable type []int
+ 
+-panic PC=xxx
+ 
+ =========== ./cmp4.go
+ panic: runtime error: hash of unhashable type []int
+ 
+-panic PC=xxx
+ 
+ =========== ./cmp5.go
+ panic: runtime error: hash of unhashable type []int
+ 
+-panic PC=xxx
+ 
+ =========== ./deferprint.go
+ printing: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+@@ -117,12 +113,10 @@ PASS
+ =========== interface/fail.go
+ panic: interface conversion: *main.S is not main.I: missing method Foo
+ 
+-panic PC=xxx
+ 
+ =========== interface/returntype.go
+ panic: interface conversion: *main.S is not main.I2: missing method Name
+ 
+-panic PC=xxx
+ 
+ == nilptr/
+ 
+@@ -164,12 +158,10 @@ M
+ =========== fixedbugs/bug113.go
+ panic: interface conversion: interface is int, not int32
+ 
+-panic PC=xxx
+ 
+ =========== fixedbugs/bug148.go
+ 2 3
+ panic: interface conversion: interface is main.T, not main.T
+ 
+-panic PC=xxx
+ 
+ == bugs/

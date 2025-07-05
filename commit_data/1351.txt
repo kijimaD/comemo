@@ -9,6 +9,27 @@ Date:   Tue Dec 16 13:01:39 2008 -0800
     DELTA=8  (8 added, 0 deleted, 0 changed)
     OCL=21303
     CL=21303
-
+---
  src/lib/io/bytebuffer.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/lib/io/bytebuffer.go b/src/lib/io/bytebuffer.go
+index 9035367171..8af8a09aa1 100644
+--- a/src/lib/io/bytebuffer.go
++++ b/src/lib/io/bytebuffer.go
+@@ -75,7 +75,15 @@ func (b *ByteBuffer) Len() int {
+ 	return b.len
+ }
+ 
++// If the buffer is empty, Data() should still give a valid array.
++// Use this variable as a surrogate.  It's immutable (can't be
++// grown, can't store any data) so it's safe to share.
++var EmptyByteArray = new([]byte, 0)
++
+ func (b *ByteBuffer) Data() *[]byte {
++	if b.buf == nil {
++		return EmptyByteArray
++	}
+ 	return b.buf[b.off:b.len]
+ }
+ 

@@ -17,7 +17,125 @@ Date:   Fri Oct 13 15:56:37 2017 -0700
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/client.go      | 10 +++++++
  src/net/http/client_test.go | 72 ++++++++++++++++++++++++++++++++++++++++++++-
  2 files changed, 81 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index 25cd5739fe..3ed666e815 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -536,12 +536,22 @@ func (c *Client) Do(req *Request) (*Response, error) {
+ 				resp.closeBody()
+ 				return nil, uerr(fmt.Errorf("failed to parse Location header %q: %v", loc, err))
+ 			}
++			host := ""
++			if req.Host != "" && req.Host != req.URL.Host {
++				// If the caller specified a custom Host header and the
++				// redirect location is relative, preserve the Host header
++				// through the redirect. See issue #22233.
++				if u, _ := url.Parse(loc); u != nil && !u.IsAbs() {
++					host = req.Host
++				}
++			}
+ 			ireq := reqs[0]
+ 			req = &Request{
+ 				Method:   redirectMethod,
+ 				Response: resp,
+ 				URL:      u,
+ 				Header:   make(Header),
++				Host:     host,
+ 				Cancel:   ireq.Cancel,
+ 				ctx:      ireq.ctx,
+ 			}
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index 7db74dd4cb..eea3b16fb3 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -1426,7 +1426,7 @@ func TestClientRedirectResponseWithoutRequest(t *testing.T) {
+ 	c.Get("http://dummy.tld")
+ }
+ 
+-// Issue 4800: copy (some) headers when Client follows a redirect
++// Issue 4800: copy (some) headers when Client follows a redirect.
+ func TestClientCopyHeadersOnRedirect(t *testing.T) {
+ 	const (
+ 		ua   = "some-agent/1.2"
+@@ -1487,6 +1487,76 @@ func TestClientCopyHeadersOnRedirect(t *testing.T) {
+ 	}
+ }
+ 
++// Issue 22233: copy host when Client follows a relative redirect.
++func TestClientCopyHostOnRedirect(t *testing.T) {
++	// Virtual hostname: should not receive any request.
++	virtual := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		t.Errorf("Virtual host received request %v", r.URL)
++		w.WriteHeader(403)
++		io.WriteString(w, "should not see this response")
++	}))
++	defer virtual.Close()
++	virtualHost := strings.TrimPrefix(virtual.URL, "http://")
++	t.Logf("Virtual host is %v", virtualHost)
++
++	// Actual hostname: should not receive any request.
++	const wantBody = "response body"
++	var tsURL string
++	var tsHost string
++	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		switch r.URL.Path {
++		case "/":
++			// Relative redirect.
++			if r.Host != virtualHost {
++				t.Errorf("Serving /: Request.Host = %#v; want %#v", r.Host, virtualHost)
++				w.WriteHeader(404)
++				return
++			}
++			w.Header().Set("Location", "/hop")
++			w.WriteHeader(302)
++		case "/hop":
++			// Absolute redirect.
++			if r.Host != virtualHost {
++				t.Errorf("Serving /hop: Request.Host = %#v; want %#v", r.Host, virtualHost)
++				w.WriteHeader(404)
++				return
++			}
++			w.Header().Set("Location", tsURL+"/final")
++			w.WriteHeader(302)
++		case "/final":
++			if r.Host != tsHost {
++				t.Errorf("Serving /final: Request.Host = %#v; want %#v", r.Host, tsHost)
++				w.WriteHeader(404)
++				return
++			}
++			w.WriteHeader(200)
++			io.WriteString(w, wantBody)
++		default:
++			t.Errorf("Serving unexpected path %q", r.URL.Path)
++			w.WriteHeader(404)
++		}
++	}))
++	defer ts.Close()
++	tsURL = ts.URL
++	tsHost = strings.TrimPrefix(ts.URL, "http://")
++	t.Logf("Server host is %v", tsHost)
++
++	c := ts.Client()
++	req, _ := NewRequest("GET", ts.URL, nil)
++	req.Host = virtualHost
++	resp, err := c.Do(req)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer resp.Body.Close()
++	if resp.StatusCode != 200 {
++		t.Fatal(resp.Status)
++	}
++	if got, err := ioutil.ReadAll(resp.Body); err != nil || string(got) != wantBody {
++		t.Errorf("body = %q; want %q", got, wantBody)
++	}
++}
++
+ // Issue 17494: cookies should be altered when Client follows redirects.
+ func TestClientAltersCookiesOnRedirect(t *testing.T) {
+ 	cookieMap := func(cs []*Cookie) map[string][]string {

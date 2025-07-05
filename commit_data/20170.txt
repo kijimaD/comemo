@@ -12,7 +12,45 @@ Date:   Fri Aug 22 22:21:41 2014 +1000
     R=bradfitz, ruiu, r
     CC=golang-codereviews
     https://golang.org/cl/132730043
-
+---
  src/pkg/path/filepath/path.go |  7 -------
  src/pkg/path/path.go          | 10 +---------
  2 files changed, 1 insertion(+), 16 deletions(-)
+
+diff --git a/src/pkg/path/filepath/path.go b/src/pkg/path/filepath/path.go
+index 7fa3b9b56a..d37fc9dfc8 100644
+--- a/src/pkg/path/filepath/path.go
++++ b/src/pkg/path/filepath/path.go
+@@ -452,13 +452,6 @@ func Dir(path string) string {
+ 		i--
+ 	}
+ 	dir := Clean(path[len(vol) : i+1])
+-	last := len(dir) - 1
+-	if last > 0 && os.IsPathSeparator(dir[last]) {
+-		dir = dir[:last]
+-	}
+-	if dir == "" {
+-		dir = "."
+-	}
+ 	return vol + dir
+ }
+ 
+diff --git a/src/pkg/path/path.go b/src/pkg/path/path.go
+index bdb85c6b92..98a6d52922 100644
+--- a/src/pkg/path/path.go
++++ b/src/pkg/path/path.go
+@@ -206,13 +206,5 @@ func IsAbs(path string) bool {
+ // slash.
+ func Dir(path string) string {
+ 	dir, _ := Split(path)
+-	dir = Clean(dir)
+-	last := len(dir) - 1
+-	if last > 0 && dir[last] == '/' {
+-		dir = dir[:last]
+-	}
+-	if dir == "" {
+-		dir = "."
+-	}
+-	return dir
++	return Clean(dir)
+ }

@@ -9,6 +9,20 @@ Date:   Thu Sep 23 21:47:45 2021 -0700
     Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/types2/stdlib_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/types2/stdlib_test.go b/src/cmd/compile/internal/types2/stdlib_test.go
+index 5bf2982418..6e340d0777 100644
+--- a/src/cmd/compile/internal/types2/stdlib_test.go
++++ b/src/cmd/compile/internal/types2/stdlib_test.go
+@@ -217,7 +217,7 @@ func typecheck(t *testing.T, path string, filenames []string) {
+ 	var files []*syntax.File
+ 	for _, filename := range filenames {
+ 		errh := func(err error) { t.Error(err) }
+-		file, err := syntax.ParseFile(filename, errh, nil, 0)
++		file, err := syntax.ParseFile(filename, errh, nil, syntax.AllowGenerics)
+ 		if err != nil {
+ 			return
+ 		}

@@ -9,6 +9,21 @@ Date:   Wed Sep 14 15:33:37 2011 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5018046
-
+---
  src/pkg/debug/elf/file_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/debug/elf/file_test.go b/src/pkg/debug/elf/file_test.go
+index 451d3d5147..98f2723c86 100644
+--- a/src/pkg/debug/elf/file_test.go
++++ b/src/pkg/debug/elf/file_test.go
+@@ -227,6 +227,9 @@ func TestNoSectionOverlaps(t *testing.T) {
+ 	}
+ 	for i, si := range f.Sections {
+ 		sih := si.SectionHeader
++		if sih.Type == SHT_NOBITS {
++			continue
++		}
+ 		for j, sj := range f.Sections {
+ 			sjh := sj.SectionHeader
+ 			if i == j || sjh.Type == SHT_NOBITS || sih.Offset == sjh.Offset && sih.Size == 0 {

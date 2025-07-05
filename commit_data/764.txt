@@ -8,7 +8,40 @@ Date:   Mon Sep 29 13:16:22 2008 -0700
     DELTA=6  (0 added, 0 deleted, 6 changed)
     OCL=16110
     CL=16114
-
+---
  test/bugs/bug099.go | 2 +-
  test/bugs/bug107.go | 8 ++++----
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/test/bugs/bug099.go b/test/bugs/bug099.go
+index 3b26475dee..eddfcb8088 100644
+--- a/test/bugs/bug099.go
++++ b/test/bugs/bug099.go
+@@ -30,7 +30,7 @@ func main() {
+ 	i := NewI(0);
+ 	Use(i);
+ 	print("done1\n");
+-	
++
+ 	// Again, without temporary
+ 	// Crashes because x.F is 0.
+ 	Use(NewI(0));
+diff --git a/test/bugs/bug107.go b/test/bugs/bug107.go
+index 05db2e58fc..d08c440459 100644
+--- a/test/bugs/bug107.go
++++ b/test/bugs/bug107.go
+@@ -5,10 +5,10 @@
+ // license that can be found in the LICENSE file.
+ 
+ package main
+-import ip "ip"
+-func f() (ip int) {
+-     // In the next line "ip" should refer to the result variable, not
++import os "os"
++func f() (os int) {
++     // In the next line "os" should refer to the result variable, not
+      // to the package.
+-     v := ip.ParseIP("")	// ERROR "undefined"
++     v := os.Open("", 0, 0)	// ERROR "undefined"
+      return 0
+ }

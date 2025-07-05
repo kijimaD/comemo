@@ -8,6 +8,26 @@ Date:   Fri Nov 13 13:10:53 2009 -0800
     
     R=r
     https://golang.org/cl/152124
-
+---
  test/run | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/run b/test/run
+index 1f921e7a1b..00cfede662 100755
+--- a/test/run
++++ b/test/run
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/bin/bash
+ # Copyright 2009 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+@@ -57,7 +57,7 @@ do
+ 		export F=$(basename $i .go)
+ 		export D=$dir
+ 		sed '/^\/\//!q' $i | sed 's@//@@; $d' |sed 's|./\$A.out|$E &|' >$RUNFILE
+-		if ! /usr/bin/time -p sh -c "sh $RUNFILE >$TMP1FILE 2>&1" 2>$TMP2FILE
++		if ! time -p bash -c "bash $RUNFILE >$TMP1FILE 2>&1" 2>$TMP2FILE
+ 		then
+ 			echo
+ 			echo "===========" $i

@@ -9,6 +9,30 @@ Date:   Tue Jun 5 02:12:23 2012 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6282048
-
+---
  src/pkg/net/cgo_netbsd.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/pkg/net/cgo_netbsd.go b/src/pkg/net/cgo_netbsd.go
+index 84ade5932f..aeaf8e568a 100644
+--- a/src/pkg/net/cgo_netbsd.go
++++ b/src/pkg/net/cgo_netbsd.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build netbsd
+-
+ package net
+ 
+ /*
+@@ -12,9 +10,5 @@ package net
+ import "C"
+ 
+ func cgoAddrInfoFlags() C.int {
+-<<<<<<< local
+ 	return C.AI_CANONNAME
+-=======
+-	return C.AI_CANONNAME | C.AI_V4MAPPED | C.AI_ALL
+->>>>>>> other
+ }

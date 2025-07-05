@@ -30,7 +30,74 @@ Date:   Mon May 1 17:28:33 2017 -0400
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/go/build/build.go      | 15 +++++++++++----
  src/go/build/build_test.go | 12 +++++++++++-
  2 files changed, 22 insertions(+), 5 deletions(-)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 406cb046ea..17446ee4ce 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -529,10 +529,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
+ 		if !ctxt.isAbsPath(path) {
+ 			p.Dir = ctxt.joinPath(srcDir, path)
+ 		}
+-		if !ctxt.isDir(p.Dir) {
+-			// package was not found
+-			return p, fmt.Errorf("cannot find package %q in:\n\t%s", path, p.Dir)
+-		}
++		// p.Dir directory may or may not exist. Gather partial information first, check if it exists later.
+ 		// Determine canonical import path, if any.
+ 		// Exclude results where the import path would include /testdata/.
+ 		inTestdata := func(sub string) bool {
+@@ -687,6 +684,16 @@ Found:
+ 		}
+ 	}
+ 
++	// If it's a local import path, by the time we get here, we still haven't checked
++	// that p.Dir directory exists. This is the right time to do that check.
++	// We can't do it earlier, because we want to gather partial information for the
++	// non-nil *Package returned when an error occurs.
++	// We need to do this before we return early on FindOnly flag.
++	if IsLocalImport(path) && !ctxt.isDir(p.Dir) {
++		// package was not found
++		return p, fmt.Errorf("cannot find package %q in:\n\t%s", path, p.Dir)
++	}
++
+ 	if mode&FindOnly != 0 {
+ 		return p, pkgerr
+ 	}
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index 68d3c529db..979f76c177 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -303,6 +303,7 @@ func TestShellSafety(t *testing.T) {
+ }
+ 
+ // Want to get a "cannot find package" error when directory for package does not exist.
++// There should be valid partial information in the returned non-nil *Package.
+ func TestImportDirNotExist(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t) // really must just have source
+ 	ctxt := Default
+@@ -319,10 +320,19 @@ func TestImportDirNotExist(t *testing.T) {
+ 		{"Import(local, FindOnly)", "./doesnotexist", filepath.Join(ctxt.GOROOT, "src/go/build"), FindOnly},
+ 	}
+ 	for _, test := range tests {
+-		_, err := ctxt.Import(test.path, test.srcDir, test.mode)
++		p, err := ctxt.Import(test.path, test.srcDir, test.mode)
+ 		if err == nil || !strings.HasPrefix(err.Error(), "cannot find package") {
+ 			t.Errorf(`%s got error: %q, want "cannot find package" error`, test.label, err)
+ 		}
++		// If an error occurs, build.Import is documented to return
++		// a non-nil *Package containing partial information.
++		if p == nil {
++			t.Fatalf(`%s got nil p, want non-nil *Package`, test.label)
++		}
++		// Verify partial information in p.
++		if p.ImportPath != "go/build/doesnotexist" {
++			t.Errorf(`%s got p.ImportPath: %q, want "go/build/doesnotexist"`, test.label, p.ImportPath)
++		}
+ 	}
+ }
+ 

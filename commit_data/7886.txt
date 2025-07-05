@@ -7,7 +7,7 @@ Date:   Sat Mar 26 11:25:22 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4314044
-
+---
  src/pkg/archive/tar/writer_test.go            |  3 +++
  src/pkg/big/int_test.go                       | 11 +++++++++--
  src/pkg/container/vector/numbers_test.go      |  9 +++++++++
@@ -23,3 +23,343 @@ Date:   Sat Mar 26 11:25:22 2011 -0700
  src/pkg/netchan/netchan_test.go               |  2 +-
  src/pkg/utf8/string_test.go                   | 11 ++++++++---
  14 files changed, 89 insertions(+), 18 deletions(-)
+
+diff --git a/src/pkg/archive/tar/writer_test.go b/src/pkg/archive/tar/writer_test.go
+index 48b8911400..838cb7e1fe 100644
+--- a/src/pkg/archive/tar/writer_test.go
++++ b/src/pkg/archive/tar/writer_test.go
+@@ -150,5 +150,8 @@ testLoop:
+ 			t.Errorf("test %d: Incorrect result: (-=expected, +=actual)\n%v",
+ 				i, bytediff(expected, actual))
+ 		}
++		if testing.Short() { // The second test is expensive.
++			break
++		}
+ 	}
+ }
+diff --git a/src/pkg/big/int_test.go b/src/pkg/big/int_test.go
+index c0cc9accf1..9c19dd5da6 100755
+--- a/src/pkg/big/int_test.go
++++ b/src/pkg/big/int_test.go
+@@ -716,18 +716,25 @@ var composites = []string{
+ 
+ 
+ func TestProbablyPrime(t *testing.T) {
++	nreps := 20
++	if testing.Short() {
++		nreps = 1
++	}
+ 	for i, s := range primes {
+ 		p, _ := new(Int).SetString(s, 10)
+-		if !ProbablyPrime(p, 20) {
++		if !ProbablyPrime(p, nreps) {
+ 			t.Errorf("#%d prime found to be non-prime (%s)", i, s)
+ 		}
+ 	}
+ 
+ 	for i, s := range composites {
+ 		c, _ := new(Int).SetString(s, 10)
+-		if ProbablyPrime(c, 20) {
++		if ProbablyPrime(c, nreps) {
+ 			t.Errorf("#%d composite found to be prime (%s)", i, s)
+ 		}
++		if testing.Short() {
++			break
++		}
+ 	}
+ }
+ 
+diff --git a/src/pkg/container/vector/numbers_test.go b/src/pkg/container/vector/numbers_test.go
+index d540ace050..b83b0bfeef 100644
+--- a/src/pkg/container/vector/numbers_test.go
++++ b/src/pkg/container/vector/numbers_test.go
+@@ -33,6 +33,9 @@ func s(n uint64) string {
+ 
+ 
+ func TestVectorNums(t *testing.T) {
++	if testing.Short() {
++		return
++	}
+ 	var v Vector
+ 	c := int(0)
+ 	runtime.GC()
+@@ -51,6 +54,9 @@ func TestVectorNums(t *testing.T) {
+ 
+ 
+ func TestIntVectorNums(t *testing.T) {
++	if testing.Short() {
++		return
++	}
+ 	var v IntVector
+ 	c := int(0)
+ 	runtime.GC()
+@@ -69,6 +75,9 @@ func TestIntVectorNums(t *testing.T) {
+ 
+ 
+ func TestStringVectorNums(t *testing.T) {
++	if testing.Short() {
++		return
++	}
+ 	var v StringVector
+ 	c := ""
+ 	runtime.GC()
+diff --git a/src/pkg/crypto/elliptic/elliptic_test.go b/src/pkg/crypto/elliptic/elliptic_test.go
+index 6ae6fb96d3..02083a9866 100644
+--- a/src/pkg/crypto/elliptic/elliptic_test.go
++++ b/src/pkg/crypto/elliptic/elliptic_test.go
+@@ -297,6 +297,9 @@ func TestBaseMult(t *testing.T) {
+ 		if fmt.Sprintf("%x", x) != e.x || fmt.Sprintf("%x", y) != e.y {
+ 			t.Errorf("%d: bad output for k=%s: got (%x, %s), want (%s, %s)", i, e.k, x, y, e.x, e.y)
+ 		}
++		if testing.Short() && i > 5 {
++			break
++		}
+ 	}
+ }
+ 
+diff --git a/src/pkg/crypto/tls/handshake_messages_test.go b/src/pkg/crypto/tls/handshake_messages_test.go
+index 21577dd0b0..0b93b89f1a 100644
+--- a/src/pkg/crypto/tls/handshake_messages_test.go
++++ b/src/pkg/crypto/tls/handshake_messages_test.go
+@@ -34,7 +34,11 @@ func TestMarshalUnmarshal(t *testing.T) {
+ 	for i, iface := range tests {
+ 		ty := reflect.NewValue(iface).Type()
+ 
+-		for j := 0; j < 100; j++ {
++		n := 100
++		if testing.Short() {
++			n = 5
++		}
++		for j := 0; j < n; j++ {
+ 			v, ok := quick.Value(ty, rand)
+ 			if !ok {
+ 				t.Errorf("#%d: failed to create value", i)
+diff --git a/src/pkg/exp/eval/eval_test.go b/src/pkg/exp/eval/eval_test.go
+index ff28cf1a90..541d3feb71 100644
+--- a/src/pkg/exp/eval/eval_test.go
++++ b/src/pkg/exp/eval/eval_test.go
+@@ -39,9 +39,13 @@ type job struct {
+ }
+ 
+ func runTests(t *testing.T, baseName string, tests []test) {
+-	for i, test := range tests {
++	delta := 1
++	if testing.Short() {
++		delta = 16
++	}
++	for i := 0; i < len(tests); i += delta {
+ 		name := fmt.Sprintf("%s[%d]", baseName, i)
+-		test.run(t, name)
++		tests[i].run(t, name)
+ 	}
+ }
+ 
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index c8aa6090bb..4d308ac342 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -442,6 +442,9 @@ func BenchmarkSprintfPrefixedInt(b *testing.B) {
+ }
+ 
+ func TestCountMallocs(t *testing.T) {
++	if testing.Short() {
++		return
++	}
+ 	mallocs := 0 - runtime.MemStats.Mallocs
+ 	for i := 0; i < 100; i++ {
+ 		Sprintf("")
+diff --git a/src/pkg/go/printer/printer_test.go b/src/pkg/go/printer/printer_test.go
+index debd2d336e..72ce581f03 100644
+--- a/src/pkg/go/printer/printer_test.go
++++ b/src/pkg/go/printer/printer_test.go
+@@ -156,12 +156,15 @@ var data = []entry{
+ 
+ 
+ func TestFiles(t *testing.T) {
+-	for _, e := range data {
++	for i, e := range data {
+ 		source := filepath.Join(dataDir, e.source)
+ 		golden := filepath.Join(dataDir, e.golden)
+ 		check(t, source, golden, e.mode)
+ 		// TODO(gri) check that golden is idempotent
+-		//check(t, golden, golden, e.mode);
++		//check(t, golden, golden, e.mode)
++		if testing.Short() && i >= 3 {
++			break
++		}
+ 	}
+ }
+ 
+diff --git a/src/pkg/image/png/reader_test.go b/src/pkg/image/png/reader_test.go
+index 8314a83387..0b2058d51a 100644
+--- a/src/pkg/image/png/reader_test.go
++++ b/src/pkg/image/png/reader_test.go
+@@ -34,6 +34,12 @@ var filenames = []string{
+ 	"basn6a16",
+ }
+ 
++var filenamesShort = []string{
++	"basn0g01",
++	"basn0g04-31",
++	"basn6a16",
++}
++
+ func readPng(filename string) (image.Image, os.Error) {
+ 	f, err := os.Open(filename, os.O_RDONLY, 0444)
+ 	if err != nil {
+@@ -157,7 +163,11 @@ func sng(w io.WriteCloser, filename string, png image.Image) {
+ }
+ 
+ func TestReader(t *testing.T) {
+-	for _, fn := range filenames {
++	names := filenames
++	if testing.Short() {
++		names = filenamesShort
++	}
++	for _, fn := range names {
+ 		// Read the .png file.
+ 		img, err := readPng("testdata/pngsuite/" + fn + ".png")
+ 		if err != nil {
+diff --git a/src/pkg/image/png/writer_test.go b/src/pkg/image/png/writer_test.go
+index f218a5564b..4d9929f314 100644
+--- a/src/pkg/image/png/writer_test.go
++++ b/src/pkg/image/png/writer_test.go
+@@ -32,7 +32,11 @@ func diff(m0, m1 image.Image) os.Error {
+ 
+ func TestWriter(t *testing.T) {
+ 	// The filenames variable is declared in reader_test.go.
+-	for _, fn := range filenames {
++	names := filenames
++	if testing.Short() {
++		names = filenamesShort
++	}
++	for _, fn := range names {
+ 		qfn := "testdata/pngsuite/" + fn + ".png"
+ 		// Read the image.
+ 		m0, err := readPng(qfn)
+diff --git a/src/pkg/json/decode_test.go b/src/pkg/json/decode_test.go
+index ad6026363b..aad8b635f2 100644
+--- a/src/pkg/json/decode_test.go
++++ b/src/pkg/json/decode_test.go
+@@ -157,6 +157,7 @@ func TestUnmarshal(t *testing.T) {
+ }
+ 
+ func TestUnmarshalMarshal(t *testing.T) {
++	initBig()
+ 	var v interface{}
+ 	if err := Unmarshal(jsonBig, &v); err != nil {
+ 		t.Fatalf("Unmarshal: %v", err)
+diff --git a/src/pkg/json/scanner_test.go b/src/pkg/json/scanner_test.go
+index 2dc8ff87fb..0d4de3246d 100644
+--- a/src/pkg/json/scanner_test.go
++++ b/src/pkg/json/scanner_test.go
+@@ -85,6 +85,7 @@ func TestIndent(t *testing.T) {
+ // Tests of a large random structure.
+ 
+ func TestCompactBig(t *testing.T) {
++	initBig()
+ 	var buf bytes.Buffer
+ 	if err := Compact(&buf, jsonBig); err != nil {
+ 		t.Fatalf("Compact: %v", err)
+@@ -98,6 +99,7 @@ func TestCompactBig(t *testing.T) {
+ }
+ 
+ func TestIndentBig(t *testing.T) {
++	initBig()
+ 	var buf bytes.Buffer
+ 	if err := Indent(&buf, jsonBig, "", "\t"); err != nil {
+ 		t.Fatalf("Indent1: %v", err)
+@@ -135,6 +137,7 @@ func TestIndentBig(t *testing.T) {
+ }
+ 
+ func TestNextValueBig(t *testing.T) {
++	initBig()
+ 	var scan scanner
+ 	item, rest, err := nextValue(jsonBig, &scan)
+ 	if err != nil {
+@@ -160,6 +163,7 @@ func TestNextValueBig(t *testing.T) {
+ }
+ 
+ func BenchmarkSkipValue(b *testing.B) {
++	initBig()
+ 	var scan scanner
+ 	for i := 0; i < b.N; i++ {
+ 		nextValue(jsonBig, &scan)
+@@ -191,12 +195,23 @@ func trim(b []byte) []byte {
+ 
+ var jsonBig []byte
+ 
+-func init() {
+-	b, err := Marshal(genValue(10000))
+-	if err != nil {
+-		panic(err)
++const (
++	big   = 10000
++	small = 100
++)
++
++func initBig() {
++	n := big
++	if testing.Short() {
++		n = small
++	}
++	if len(jsonBig) != n {
++		b, err := Marshal(genValue(n))
++		if err != nil {
++			panic(err)
++		}
++		jsonBig = b
+ 	}
+-	jsonBig = b
+ }
+ 
+ func genValue(n int) interface{} {
+diff --git a/src/pkg/netchan/netchan_test.go b/src/pkg/netchan/netchan_test.go
+index 1b5c560872..fd4d8f780d 100644
+--- a/src/pkg/netchan/netchan_test.go
++++ b/src/pkg/netchan/netchan_test.go
+@@ -399,7 +399,7 @@ func TestImportFlowControl(t *testing.T) {
+ 
+ func testFlow(sendDone chan bool, ch <-chan int, N int, t *testing.T) {
+ 	go func() {
+-		time.Sleep(1e9)
++		time.Sleep(0.5e9)
+ 		sendDone <- false
+ 	}()
+ 
+diff --git a/src/pkg/utf8/string_test.go b/src/pkg/utf8/string_test.go
+index 9dd8472473..f376b628c7 100644
+--- a/src/pkg/utf8/string_test.go
++++ b/src/pkg/utf8/string_test.go
+@@ -45,7 +45,12 @@ func TestScanBackwards(t *testing.T) {
+ 	}
+ }
+ 
+-const randCount = 100000
++func randCount() int {
++	if testing.Short() {
++		return 100
++	}
++	return 100000
++}
+ 
+ func TestRandomAccess(t *testing.T) {
+ 	for _, s := range testStrings {
+@@ -58,7 +63,7 @@ func TestRandomAccess(t *testing.T) {
+ 			t.Errorf("%s: expected %d runes; got %d", s, len(runes), str.RuneCount())
+ 			break
+ 		}
+-		for j := 0; j < randCount; j++ {
++		for j := 0; j < randCount(); j++ {
+ 			i := rand.Intn(len(runes))
+ 			expect := runes[i]
+ 			got := str.At(i)
+@@ -80,7 +85,7 @@ func TestRandomSliceAccess(t *testing.T) {
+ 			t.Errorf("%s: expected %d runes; got %d", s, len(runes), str.RuneCount())
+ 			break
+ 		}
+-		for k := 0; k < randCount; k++ {
++		for k := 0; k < randCount(); k++ {
+ 			i := rand.Intn(len(runes))
+ 			j := rand.Intn(len(runes) + 1)
+ 			if i > j { // include empty strings

@@ -13,6 +13,22 @@ Date:   Wed Dec 7 11:24:49 2022 -0500
     Run-TryBot: Michael Pratt <mpratt@google.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  doc/go1.20.html | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/doc/go1.20.html b/doc/go1.20.html
+index d14034c2f5..28d3c8224d 100644
+--- a/doc/go1.20.html
++++ b/doc/go1.20.html
+@@ -522,10 +522,6 @@ proxyHandler := &httputil.ReverseProxy{
+   There are also various performance improvements, not enumerated here.
+ </p>
+ 
+-<p>
+-  TODO: complete this section
+-</p>
+-
+ <dl id="archive/tar"><dt><a href="/pkg/archive/tar/">archive/tar</a></dt>
+   <dd>
+     <p><!-- https://go.dev/issue/55356, CL 449937 -->

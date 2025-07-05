@@ -7,6 +7,19 @@ Date:   Thu Apr 30 08:34:21 2015 -0700
     Change-Id: I187e97592cd0403d84ca25c4acb1a4b25495041b
     Reviewed-on: https://go-review.googlesource.com/9534
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  doc/go1.5.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index af6e1b5f9c..013cfed73c 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -46,6 +46,7 @@ io: add CopyBuffer, Copy with user-provided buffer (https://golang.org/cl/8730)
+ log: add SetOutput functions (https://golang.org/cl/2686, https://golang.org/cl/3023)
+ log: add LUTC flag (https://golang.org/cl/8761)
+ math/big: add arbitrary precision Floats (many cl's)
++math/big: add Jacobi and Int.ModSqrt (https://golang.org/cl/1886)
+ mime: add ExtensionByType (https://golang.org/cl/7444)
+ mime/quotedprintable: new package (https://golang.org/cl/5940 + others)
+ net: add Source field to OpError (https://go-review.googlesource.com/9231)

@@ -7,6 +7,20 @@ Date:   Tue Oct 4 13:46:03 2011 -0700
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5185045
-
+---
  src/pkg/websocket/websocket_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/websocket/websocket_test.go b/src/pkg/websocket/websocket_test.go
+index d2834cd1fc..240af4e49b 100644
+--- a/src/pkg/websocket/websocket_test.go
++++ b/src/pkg/websocket/websocket_test.go
+@@ -227,7 +227,7 @@ func TestTrailingSpaces(t *testing.T) {
+ 		// body
+ 		ws, err := DialConfig(config)
+ 		if err != nil {
+-			t.Error("Dial failed:", err.String())
++			t.Errorf("Dial #%d failed: %v", i, err)
+ 			break
+ 		}
+ 		ws.Close()

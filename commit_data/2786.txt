@@ -9,7 +9,50 @@ Date:   Mon Jul 27 14:33:21 2009 -0700
     DELTA=15  (14 added, 0 deleted, 1 changed)
     OCL=32105
     CL=32238
-
+---
  src/pkg/compress/flate/flate_test.go | 14 ++++++++++++++
  src/pkg/compress/flate/inflate.go    |  2 +-
  2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/compress/flate/flate_test.go b/src/pkg/compress/flate/flate_test.go
+index 309606ecbc..bfa5627154 100644
+--- a/src/pkg/compress/flate/flate_test.go
++++ b/src/pkg/compress/flate/flate_test.go
+@@ -9,6 +9,7 @@
+ package flate
+ 
+ import (
++	"bytes";
+ 	"bufio";
+ 	"compress/flate";
+ 	"io";
+@@ -129,3 +130,16 @@ func TestInitDecoder(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestUncompressedSource(t *testing.T) {
++	decoder := NewInflater(bytes.NewBuffer(
++		[]byte{ 0x01, 0x01, 0x00, 0xfe, 0xff, 0x11 }));
++	output := make([]byte, 1);
++	n, error := decoder.Read(output);
++	if n != 1 || error != nil {
++		t.Fatalf("decoder.Read() = %d, %v, want 1, nil", n, error);
++	}
++	if output[0] != 0x11 {
++		t.Errorf("output[0] = %x, want 0x11", output[0]);
++	}
++}
+diff --git a/src/pkg/compress/flate/inflate.go b/src/pkg/compress/flate/inflate.go
+index 31289c80ae..95973b4c73 100644
+--- a/src/pkg/compress/flate/inflate.go
++++ b/src/pkg/compress/flate/inflate.go
+@@ -542,7 +542,7 @@ func (f *inflater) dataBlock() os.Error {
+ 	}
+ 	n := int(f.buf[0]) | int(f.buf[1])<<8;
+ 	nn := int(f.buf[2]) | int(f.buf[3])<<8;
+-	if nn != ^n {
++	if uint16(nn) != uint16(^n) {
+ 		return CorruptInputError(f.roffset);
+ 	}
+ 

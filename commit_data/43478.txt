@@ -15,6 +15,31 @@ Date:   Mon Apr 6 09:07:03 2020 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/proc_test.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index acee7a1819..81bcb98aeb 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -6,6 +6,7 @@ package runtime_test
+ 
+ import (
+ 	"fmt"
++	"internal/race"
+ 	"math"
+ 	"net"
+ 	"runtime"
+@@ -422,6 +423,11 @@ func TestPingPongHog(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("skipping in -short mode")
+ 	}
++	if race.Enabled {
++		// The race detector randomizes the scheduler,
++		// which causes this test to fail (#38266).
++		t.Skip("skipping in -race mode")
++	}
+ 
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+ 	done := make(chan bool)

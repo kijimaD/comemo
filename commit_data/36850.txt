@@ -11,7 +11,7 @@ Date:   Fri Jun 1 17:29:59 2018 -0300
     Reviewed-on: https://go-review.googlesource.com/115798
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/archive/tar/format.go                   |  2 +-
  src/archive/zip/struct.go                   |  4 ++--
  src/cmd/cgo/out.go                          |  2 +-
@@ -143,3 +143,2272 @@ Date:   Fri Jun 1 17:29:59 2018 -0300
  src/unicode/maketables.go                   |  4 ++--
  src/unicode/utf16/utf16_test.go             |  2 +-
  130 files changed, 206 insertions(+), 206 deletions(-)
+
+diff --git a/src/archive/tar/format.go b/src/archive/tar/format.go
+index 6e29698a14..1f89d0c59a 100644
+--- a/src/archive/tar/format.go
++++ b/src/archive/tar/format.go
+@@ -94,7 +94,7 @@ const (
+ 	// application can only parse GNU formatted archives.
+ 	//
+ 	// Reference:
+-	//	http://www.gnu.org/software/tar/manual/html_node/Standard.html
++	//	https://www.gnu.org/software/tar/manual/html_node/Standard.html
+ 	FormatGNU
+ 
+ 	// Schily's tar format, which is incompatible with USTAR.
+diff --git a/src/archive/zip/struct.go b/src/archive/zip/struct.go
+index 36b551ec2c..c545c5b830 100644
+--- a/src/archive/zip/struct.go
++++ b/src/archive/zip/struct.go
+@@ -202,7 +202,7 @@ func timeZone(offset time.Duration) *time.Location {
+ 
+ // msDosTimeToTime converts an MS-DOS date and time into a time.Time.
+ // The resolution is 2s.
+-// See: http://msdn.microsoft.com/en-us/library/ms724247(v=VS.85).aspx
++// See: https://msdn.microsoft.com/en-us/library/ms724247(v=VS.85).aspx
+ func msDosTimeToTime(dosDate, dosTime uint16) time.Time {
+ 	return time.Date(
+ 		// date bits 0-4: day of month; 5-8: month; 9-15: years since 1980
+@@ -222,7 +222,7 @@ func msDosTimeToTime(dosDate, dosTime uint16) time.Time {
+ 
+ // timeToMsDosTime converts a time.Time to an MS-DOS date and time.
+ // The resolution is 2s.
+-// See: http://msdn.microsoft.com/en-us/library/ms724274(v=VS.85).aspx
++// See: https://msdn.microsoft.com/en-us/library/ms724274(v=VS.85).aspx
+ func timeToMsDosTime(t time.Time) (fDate uint16, fTime uint16) {
+ 	fDate = uint16(t.Day() + int(t.Month())<<5 + (t.Year()-1980)<<9)
+ 	fTime = uint16(t.Second()/2 + t.Minute()<<5 + t.Hour()<<11)
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 62ef872ca0..e9b7986565 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -725,7 +725,7 @@ func (p *Package) writeGccgoOutputFunc(fgcc *os.File, n *Name) {
+ // packedAttribute returns host compiler struct attribute that will be
+ // used to match gc's struct layout. For example, on 386 Windows,
+ // gcc wants to 8-align int64s, but gc does not.
+-// Use __gcc_struct__ to work around http://gcc.gnu.org/PR52991 on x86,
++// Use __gcc_struct__ to work around https://gcc.gnu.org/PR52991 on x86,
+ // and https://golang.org/issue/5603.
+ func (p *Package) packedAttribute() string {
+ 	s := "__attribute__((__packed__"
+diff --git a/src/cmd/compile/internal/gc/phi.go b/src/cmd/compile/internal/gc/phi.go
+index bd66568eed..5218cd0ef3 100644
+--- a/src/cmd/compile/internal/gc/phi.go
++++ b/src/cmd/compile/internal/gc/phi.go
+@@ -14,7 +14,7 @@ import (
+ 
+ // This file contains the algorithm to place phi nodes in a function.
+ // For small functions, we use Braun, Buchwald, Hack, Leißa, Mallon, and Zwinkau.
+-// http://pp.info.uni-karlsruhe.de/uploads/publikationen/braun13cc.pdf
++// https://pp.info.uni-karlsruhe.de/uploads/publikationen/braun13cc.pdf
+ // For large functions, we use Sreedhar & Gao: A Linear Time Algorithm for Placing Φ-Nodes.
+ // http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.8.1979&rep=rep1&type=pdf
+ 
+diff --git a/src/cmd/compile/internal/ssa/sparsemap.go b/src/cmd/compile/internal/ssa/sparsemap.go
+index c42fb99c7a..f55db54b1c 100644
+--- a/src/cmd/compile/internal/ssa/sparsemap.go
++++ b/src/cmd/compile/internal/ssa/sparsemap.go
+@@ -6,7 +6,7 @@ package ssa
+ 
+ import "cmd/internal/src"
+ 
+-// from http://research.swtch.com/sparse
++// from https://research.swtch.com/sparse
+ // in turn, from Briggs and Torczon
+ 
+ type sparseEntry struct {
+diff --git a/src/cmd/compile/internal/ssa/sparseset.go b/src/cmd/compile/internal/ssa/sparseset.go
+index b5cabfb0cd..395931d1ff 100644
+--- a/src/cmd/compile/internal/ssa/sparseset.go
++++ b/src/cmd/compile/internal/ssa/sparseset.go
+@@ -4,7 +4,7 @@
+ 
+ package ssa
+ 
+-// from http://research.swtch.com/sparse
++// from https://research.swtch.com/sparse
+ // in turn, from Briggs and Torczon
+ 
+ type sparseSet struct {
+diff --git a/src/cmd/dist/sys_windows.go b/src/cmd/dist/sys_windows.go
+index 6d1f82e093..216dc01798 100644
+--- a/src/cmd/dist/sys_windows.go
++++ b/src/cmd/dist/sys_windows.go
+@@ -14,7 +14,7 @@ var (
+ 	procGetSystemInfo = modkernel32.NewProc("GetSystemInfo")
+ )
+ 
+-// see http://msdn.microsoft.com/en-us/library/windows/desktop/ms724958(v=vs.85).aspx
++// see https://msdn.microsoft.com/en-us/library/windows/desktop/ms724958(v=vs.85).aspx
+ type systeminfo struct {
+ 	wProcessorArchitecture      uint16
+ 	wReserved                   uint16
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 0f86834079..9b9df3cbc3 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2925,7 +2925,7 @@ func TestCgoPkgConfig(t *testing.T) {
+ 	// OpenBSD's pkg-config is strict about whitespace and only
+ 	// supports backslash-escaped whitespace. It does not support
+ 	// quotes, which the normal freedesktop.org pkg-config does
+-	// support. See http://man.openbsd.org/pkg-config.1
++	// support. See https://man.openbsd.org/pkg-config.1
+ 	tg.tempFile("foo.pc", `
+ Name: foo
+ Description: The foo library
+diff --git a/src/cmd/internal/obj/s390x/a.out.go b/src/cmd/internal/obj/s390x/a.out.go
+index ec959c4090..babcd2af01 100644
+--- a/src/cmd/internal/obj/s390x/a.out.go
++++ b/src/cmd/internal/obj/s390x/a.out.go
+@@ -150,7 +150,7 @@ const (
+ )
+ 
+ // LINUX for zSeries ELF Application Binary Interface Supplement
+-// http://refspecs.linuxfoundation.org/ELF/zSeries/lzsabi0_zSeries/x1472.html
++// https://refspecs.linuxfoundation.org/ELF/zSeries/lzsabi0_zSeries/x1472.html
+ var S390XDWARFRegisters = map[int16]int16{}
+ 
+ func init() {
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 6897ae21fe..af274444f3 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -617,7 +617,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
+ 		// so for now we'll just use non-lazy pointers,
+ 		// which don't need to be told which library to use.
+ 		//
+-		// http://networkpx.blogspot.com/2009/09/about-lcdyldinfoonly-command.html
++		// https://networkpx.blogspot.com/2009/09/about-lcdyldinfoonly-command.html
+ 		// has details about what we're avoiding.
+ 
+ 		addgotsym(ctxt, s)
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index edf3922980..816c867fa8 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1962,7 +1962,7 @@ func usage() {
+ type SymbolType int8
+ 
+ const (
+-	// see also http://9p.io/magic/man2html/1/nm
++	// see also https://9p.io/magic/man2html/1/nm
+ 	TextSym      SymbolType = 'T'
+ 	DataSym      SymbolType = 'D'
+ 	BSSSym       SymbolType = 'B'
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index c0083fb8b0..d804dc83b3 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -143,7 +143,7 @@ const (
+ )
+ 
+ // Mach-O file writing
+-// http://developer.apple.com/mac/library/DOCUMENTATION/DeveloperTools/Conceptual/MachORuntime/Reference/reference.html
++// https://developer.apple.com/mac/library/DOCUMENTATION/DeveloperTools/Conceptual/MachORuntime/Reference/reference.html
+ 
+ var machohdr MachoHdr
+ 
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 66b1463086..8005dc5228 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -116,7 +116,7 @@ const (
+ // license that can be found in the LICENSE file.
+ 
+ // PE (Portable Executable) file writing
+-// http://www.microsoft.com/whdc/system/platform/firmware/PECOFF.mspx
++// https://www.microsoft.com/whdc/system/platform/firmware/PECOFF.mspx
+ 
+ // DOS stub that prints out
+ // "This program cannot be run in DOS mode."
+diff --git a/src/cmd/link/internal/loadelf/ldelf.go b/src/cmd/link/internal/loadelf/ldelf.go
+index 7fb9a38a9f..301c2ce116 100644
+--- a/src/cmd/link/internal/loadelf/ldelf.go
++++ b/src/cmd/link/internal/loadelf/ldelf.go
+@@ -1048,7 +1048,7 @@ func readelfsym(arch *sys.Arch, syms *sym.Symbols, elfobj *ElfObj, i int, elfsym
+ 				// __i686.get_pc_thunk.bx is allowed to be duplicated, to
+ 				// workaround that we set dupok.
+ 				// TODO(minux): correctly handle __i686.get_pc_thunk.bx without
+-				// set dupok generally. See http://codereview.appspot.com/5823055/
++				// set dupok generally. See https://golang.org/cl/5823055
+ 				// comment #5 for details.
+ 				if s != nil && elfsym.other == 2 {
+ 					s.Attr |= sym.AttrDuplicateOK | sym.AttrVisibilityHidden
+diff --git a/src/cmd/link/internal/wasm/asm.go b/src/cmd/link/internal/wasm/asm.go
+index 235a5a25d1..aadb0c3b6e 100644
+--- a/src/cmd/link/internal/wasm/asm.go
++++ b/src/cmd/link/internal/wasm/asm.go
+@@ -88,7 +88,7 @@ func assignAddress(ctxt *ld.Link, sect *sym.Section, n int, s *sym.Symbol, va ui
+ }
+ 
+ // asmb writes the final WebAssembly module binary.
+-// Spec: http://webassembly.github.io/spec/core/binary/modules.html
++// Spec: https://webassembly.github.io/spec/core/binary/modules.html
+ func asmb(ctxt *ld.Link) {
+ 	if ctxt.Debugvlog != 0 {
+ 		ctxt.Logf("%5.2f asmb\n", ld.Cputime())
+diff --git a/src/compress/bzip2/bzip2.go b/src/compress/bzip2/bzip2.go
+index f07c7e81e8..c40129b982 100644
+--- a/src/compress/bzip2/bzip2.go
++++ b/src/compress/bzip2/bzip2.go
+@@ -8,7 +8,7 @@ package bzip2
+ import "io"
+ 
+ // There's no RFC for bzip2. I used the Wikipedia page for reference and a lot
+-// of guessing: http://en.wikipedia.org/wiki/Bzip2
++// of guessing: https://en.wikipedia.org/wiki/Bzip2
+ // The source code to pyflate was useful for debugging:
+ // http://www.paul.sladen.org/projects/pyflate
+ 
+diff --git a/src/compress/flate/deflate.go b/src/compress/flate/deflate.go
+index 4d6a5357d8..8b92f1586d 100644
+--- a/src/compress/flate/deflate.go
++++ b/src/compress/flate/deflate.go
+@@ -720,7 +720,7 @@ func (w *Writer) Write(data []byte) (n int, err error) {
+ // In the terminology of the zlib library, Flush is equivalent to Z_SYNC_FLUSH.
+ func (w *Writer) Flush() error {
+ 	// For more about flushing:
+-	// http://www.bolet.org/~pornin/deflate-flush.html
++	// https://www.bolet.org/~pornin/deflate-flush.html
+ 	return w.d.syncFlush()
+ }
+ 
+diff --git a/src/compress/lzw/reader_test.go b/src/compress/lzw/reader_test.go
+index f8974de28f..98bbfbb763 100644
+--- a/src/compress/lzw/reader_test.go
++++ b/src/compress/lzw/reader_test.go
+@@ -66,7 +66,7 @@ var lzwTests = []lzwTest{
+ 		"\x54\x9e\x08\x29\xf2\x44\x8a\x93\x27\x54\x04",
+ 		io.ErrUnexpectedEOF,
+ 	},
+-	// This example comes from http://en.wikipedia.org/wiki/Graphics_Interchange_Format.
++	// This example comes from https://en.wikipedia.org/wiki/Graphics_Interchange_Format.
+ 	{
+ 		"gif;LSB;8",
+ 		"\x28\xff\xff\xff\x28\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff",
+diff --git a/src/compress/zlib/reader_test.go b/src/compress/zlib/reader_test.go
+index 7e27aecb47..70e33babd1 100644
+--- a/src/compress/zlib/reader_test.go
++++ b/src/compress/zlib/reader_test.go
+@@ -19,7 +19,7 @@ type zlibTest struct {
+ }
+ 
+ // Compare-to-golden test data was generated by the ZLIB example program at
+-// http://www.zlib.net/zpipe.c
++// https://www.zlib.net/zpipe.c
+ 
+ var zlibTests = []zlibTest{
+ 	{
+diff --git a/src/crypto/aes/aes_test.go b/src/crypto/aes/aes_test.go
+index 28144968fc..bedc2da946 100644
+--- a/src/crypto/aes/aes_test.go
++++ b/src/crypto/aes/aes_test.go
+@@ -122,7 +122,7 @@ func TestTd(t *testing.T) {
+ }
+ 
+ // Test vectors are from FIPS 197:
+-//	http://www.csrc.nist.gov/publications/fips/fips197/fips-197.pdf
++//	https://csrc.nist.gov/publications/fips/fips197/fips-197.pdf
+ 
+ // Appendix A of FIPS 197: Key expansion examples
+ type KeyTest struct {
+diff --git a/src/crypto/aes/block.go b/src/crypto/aes/block.go
+index 41ea9cf95e..8647019d58 100644
+--- a/src/crypto/aes/block.go
++++ b/src/crypto/aes/block.go
+@@ -31,8 +31,8 @@
+ //
+ // See FIPS 197 for specification, and see Daemen and Rijmen's Rijndael submission
+ // for implementation details.
+-//	http://www.csrc.nist.gov/publications/fips/fips197/fips-197.pdf
+-//	http://csrc.nist.gov/archive/aes/rijndael/Rijndael-ammended.pdf
++//	https://www.csrc.nist.gov/publications/fips/fips197/fips-197.pdf
++//	https://csrc.nist.gov/archive/aes/rijndael/Rijndael-ammended.pdf
+ 
+ package aes
+ 
+diff --git a/src/crypto/aes/const.go b/src/crypto/aes/const.go
+index cbac5ff0ea..4eca4b9aff 100644
+--- a/src/crypto/aes/const.go
++++ b/src/crypto/aes/const.go
+@@ -15,7 +15,7 @@ package aes
+ 
+ // This file contains AES constants - 8720 bytes of initialized data.
+ 
+-// http://www.csrc.nist.gov/publications/fips/fips197/fips-197.pdf
++// https://csrc.nist.gov/publications/fips/fips197/fips-197.pdf
+ 
+ // AES is based on the mathematical behavior of binary polynomials
+ // (polynomials over GF(2)) modulo the irreducible polynomial x⁸ + x⁴ + x³ + x + 1.
+diff --git a/src/crypto/cipher/cfb_test.go b/src/crypto/cipher/cfb_test.go
+index 9b544bb211..ecb716df01 100644
+--- a/src/crypto/cipher/cfb_test.go
++++ b/src/crypto/cipher/cfb_test.go
+@@ -14,7 +14,7 @@ import (
+ )
+ 
+ // cfbTests contains the test vectors from
+-// http://csrc.nist.gov/publications/nistpubs/800-38a/sp800-38a.pdf, section
++// https://csrc.nist.gov/publications/nistpubs/800-38a/sp800-38a.pdf, section
+ // F.3.13.
+ var cfbTests = []struct {
+ 	key, iv, plaintext, ciphertext string
+diff --git a/src/crypto/cipher/cipher.go b/src/crypto/cipher/cipher.go
+index 31c14d7f91..7e1a4de9a3 100644
+--- a/src/crypto/cipher/cipher.go
++++ b/src/crypto/cipher/cipher.go
+@@ -4,7 +4,7 @@
+ 
+ // Package cipher implements standard block cipher modes that can be wrapped
+ // around low-level block cipher implementations.
+-// See http://csrc.nist.gov/groups/ST/toolkit/BCM/current_modes.html
++// See https://csrc.nist.gov/groups/ST/toolkit/BCM/current_modes.html
+ // and NIST Special Publication 800-38A.
+ package cipher
+ 
+diff --git a/src/crypto/cipher/gcm.go b/src/crypto/cipher/gcm.go
+index 0ea053428c..c0ac9f163e 100644
+--- a/src/crypto/cipher/gcm.go
++++ b/src/crypto/cipher/gcm.go
+@@ -63,7 +63,7 @@ type gcmFieldElement struct {
+ }
+ 
+ // gcm represents a Galois Counter Mode with a specific key. See
+-// http://csrc.nist.gov/groups/ST/toolkit/BCM/documents/proposedmodes/gcm/gcm-revised-spec.pdf
++// https://csrc.nist.gov/groups/ST/toolkit/BCM/documents/proposedmodes/gcm/gcm-revised-spec.pdf
+ type gcm struct {
+ 	cipher    Block
+ 	nonceSize int
+diff --git a/src/crypto/ecdsa/ecdsa_test.go b/src/crypto/ecdsa/ecdsa_test.go
+index 9224a039f3..6284e06bd4 100644
+--- a/src/crypto/ecdsa/ecdsa_test.go
++++ b/src/crypto/ecdsa/ecdsa_test.go
+@@ -213,7 +213,7 @@ func fromHex(s string) *big.Int {
+ 
+ func TestVectors(t *testing.T) {
+ 	// This test runs the full set of NIST test vectors from
+-	// http://csrc.nist.gov/groups/STM/cavp/documents/dss/186-3ecdsatestvectors.zip
++	// https://csrc.nist.gov/groups/STM/cavp/documents/dss/186-3ecdsatestvectors.zip
+ 	//
+ 	// The SigVer.rsp file has been edited to remove test vectors for
+ 	// unsupported algorithms and has been compressed.
+diff --git a/src/crypto/elliptic/elliptic.go b/src/crypto/elliptic/elliptic.go
+index 35aacf24e5..4fc2b5e521 100644
+--- a/src/crypto/elliptic/elliptic.go
++++ b/src/crypto/elliptic/elliptic.go
+@@ -20,7 +20,7 @@ import (
+ )
+ 
+ // A Curve represents a short-form Weierstrass curve with a=-3.
+-// See http://www.hyperelliptic.org/EFD/g1p/auto-shortw.html
++// See https://www.hyperelliptic.org/EFD/g1p/auto-shortw.html
+ type Curve interface {
+ 	// Params returns the parameters for the curve.
+ 	Params() *CurveParams
+@@ -108,7 +108,7 @@ func (curve *CurveParams) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
+ // addJacobian takes two points in Jacobian coordinates, (x1, y1, z1) and
+ // (x2, y2, z2) and returns their sum, also in Jacobian form.
+ func (curve *CurveParams) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (*big.Int, *big.Int, *big.Int) {
+-	// See http://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#addition-add-2007-bl
++	// See https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#addition-add-2007-bl
+ 	x3, y3, z3 := new(big.Int), new(big.Int), new(big.Int)
+ 	if z1.Sign() == 0 {
+ 		x3.Set(x2)
+@@ -191,7 +191,7 @@ func (curve *CurveParams) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
+ // doubleJacobian takes a point in Jacobian coordinates, (x, y, z), and
+ // returns its double, also in Jacobian form.
+ func (curve *CurveParams) doubleJacobian(x, y, z *big.Int) (*big.Int, *big.Int, *big.Int) {
+-	// See http://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#doubling-dbl-2001-b
++	// See https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#doubling-dbl-2001-b
+ 	delta := new(big.Int).Mul(z, z)
+ 	delta.Mod(delta, curve.P)
+ 	gamma := new(big.Int).Mul(y, y)
+diff --git a/src/crypto/elliptic/p224.go b/src/crypto/elliptic/p224.go
+index 22d0e2429c..2ea63f3f0c 100644
+--- a/src/crypto/elliptic/p224.go
++++ b/src/crypto/elliptic/p224.go
+@@ -7,7 +7,7 @@ package elliptic
+ // This is a constant-time, 32-bit implementation of P224. See FIPS 186-3,
+ // section D.2.2.
+ //
+-// See http://www.imperialviolet.org/2010/12/04/ecc.html ([1]) for background.
++// See https://www.imperialviolet.org/2010/12/04/ecc.html ([1]) for background.
+ 
+ import (
+ 	"math/big"
+@@ -503,7 +503,7 @@ func p224Contract(out, in *p224FieldElement) {
+ 
+ // p224AddJacobian computes *out = a+b where a != b.
+ func p224AddJacobian(x3, y3, z3, x1, y1, z1, x2, y2, z2 *p224FieldElement) {
+-	// See http://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#addition-p224Add-2007-bl
++	// See https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#addition-p224Add-2007-bl
+ 	var z1z1, z2z2, u1, u2, s1, s2, h, i, j, r, v p224FieldElement
+ 	var c p224LargeFieldElement
+ 
+diff --git a/src/crypto/elliptic/p256.go b/src/crypto/elliptic/p256.go
+index bbf0087e66..bb9757355a 100644
+--- a/src/crypto/elliptic/p256.go
++++ b/src/crypto/elliptic/p256.go
+@@ -817,7 +817,7 @@ func p256Scalar8(out *[p256Limbs]uint32) {
+ 
+ // p256PointDouble sets {xOut,yOut,zOut} = 2*{x,y,z}.
+ //
+-// See http://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-0.html#doubling-dbl-2009-l
++// See https://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-0.html#doubling-dbl-2009-l
+ func p256PointDouble(xOut, yOut, zOut, x, y, z *[p256Limbs]uint32) {
+ 	var delta, gamma, alpha, beta, tmp, tmp2 [p256Limbs]uint32
+ 
+@@ -850,7 +850,7 @@ func p256PointDouble(xOut, yOut, zOut, x, y, z *[p256Limbs]uint32) {
+ // p256PointAddMixed sets {xOut,yOut,zOut} = {x1,y1,z1} + {x2,y2,1}.
+ // (i.e. the second point is affine.)
+ //
+-// See http://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-0.html#addition-add-2007-bl
++// See https://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-0.html#addition-add-2007-bl
+ //
+ // Note that this function does not handle P+P, infinity+P nor P+infinity
+ // correctly.
+@@ -886,7 +886,7 @@ func p256PointAddMixed(xOut, yOut, zOut, x1, y1, z1, x2, y2 *[p256Limbs]uint32)
+ 
+ // p256PointAdd sets {xOut,yOut,zOut} = {x1,y1,z1} + {x2,y2,z2}.
+ //
+-// See http://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-0.html#addition-add-2007-bl
++// See https://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-0.html#addition-add-2007-bl
+ //
+ // Note that this function does not handle P+P, infinity+P nor P+infinity
+ // correctly.
+diff --git a/src/crypto/elliptic/p256_amd64.go b/src/crypto/elliptic/p256_amd64.go
+index b4346d7484..30eb33a0d4 100644
+--- a/src/crypto/elliptic/p256_amd64.go
++++ b/src/crypto/elliptic/p256_amd64.go
+@@ -7,7 +7,7 @@
+ // detail in:
+ // S.Gueron and V.Krasnov, "Fast prime field elliptic-curve cryptography with
+ //                          256-bit primes"
+-// http://link.springer.com/article/10.1007%2Fs13389-014-0090-x
++// https://link.springer.com/article/10.1007%2Fs13389-014-0090-x
+ // https://eprint.iacr.org/2013/816.pdf
+ 
+ // +build amd64
+diff --git a/src/crypto/elliptic/p256_asm_amd64.s b/src/crypto/elliptic/p256_asm_amd64.s
+index 4aebe37c8d..a4e3757977 100644
+--- a/src/crypto/elliptic/p256_asm_amd64.s
++++ b/src/crypto/elliptic/p256_asm_amd64.s
+@@ -6,7 +6,7 @@
+ // P256. The optimizations performed here are described in detail in:
+ // S.Gueron and V.Krasnov, "Fast prime field elliptic-curve cryptography with
+ //                          256-bit primes"
+-// http://link.springer.com/article/10.1007%2Fs13389-014-0090-x
++// https://link.springer.com/article/10.1007%2Fs13389-014-0090-x
+ // https://eprint.iacr.org/2013/816.pdf
+ 
+ #include "textflag.h"
+diff --git a/src/crypto/elliptic/p256_asm_s390x.s b/src/crypto/elliptic/p256_asm_s390x.s
+index 8a17e81062..2219b858b3 100644
+--- a/src/crypto/elliptic/p256_asm_s390x.s
++++ b/src/crypto/elliptic/p256_asm_s390x.s
+@@ -1733,9 +1733,9 @@ TEXT ·p256PointAddAffineAsm(SB), NOSPLIT, $0
+ #undef CAR2
+ 
+ // p256PointDoubleAsm(P3, P1 *p256Point)
+-// http://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian.html#doubling-dbl-2007-bl
+-// http://www.hyperelliptic.org/EFD/g1p/auto-shortw.html
+-// http://www.hyperelliptic.org/EFD/g1p/auto-shortw-projective-3.html
++// https://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian.html#doubling-dbl-2007-bl
++// https://www.hyperelliptic.org/EFD/g1p/auto-shortw.html
++// https://www.hyperelliptic.org/EFD/g1p/auto-shortw-projective-3.html
+ #define P3ptr   R1
+ #define P1ptr   R2
+ #define CPOOL   R4
+@@ -1783,7 +1783,7 @@ TEXT ·p256PointAddAffineAsm(SB), NOSPLIT, $0
+ #define CAR1  V28
+ #define CAR2  V29
+ /*
+- * http://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#doubling-dbl-2004-hmv
++ * https://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#doubling-dbl-2004-hmv
+  * Cost: 4M + 4S + 1*half + 5add + 2*2 + 1*3.
+  * Source: 2004 Hankerson–Menezes–Vanstone, page 91.
+  * 	A  = 3(X₁-Z₁²)×(X₁+Z₁²)
+@@ -1995,7 +1995,7 @@ TEXT ·p256PointDoubleAsm(SB), NOSPLIT, $0
+  * Y₃ = D×(A×C² - X₃) - B×C³
+  * Z₃ = Z₁×Z₂×C
+  *
+- * Three-operand formula (adopted): http://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#addition-add-1998-cmo-2
++ * Three-operand formula (adopted): https://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#addition-add-1998-cmo-2
+  * Temp storage: T1,T2,U1,H,Z3=X3=Y3,S1,R
+  *
+  * T1 = Z1*Z1
+diff --git a/src/crypto/hmac/hmac.go b/src/crypto/hmac/hmac.go
+index 3c8e727bc8..c8c0617c47 100644
+--- a/src/crypto/hmac/hmac.go
++++ b/src/crypto/hmac/hmac.go
+@@ -27,7 +27,7 @@ import (
+ )
+ 
+ // FIPS 198-1:
+-// http://csrc.nist.gov/publications/fips/fips198-1/FIPS-198-1_final.pdf
++// https://csrc.nist.gov/publications/fips/fips198-1/FIPS-198-1_final.pdf
+ 
+ // key is zero padded to the block size of the hash function
+ // ipad = 0x36 byte repeated for key length
+diff --git a/src/crypto/hmac/hmac_test.go b/src/crypto/hmac/hmac_test.go
+index aac9aa96a8..eea345edb6 100644
+--- a/src/crypto/hmac/hmac_test.go
++++ b/src/crypto/hmac/hmac_test.go
+@@ -25,7 +25,7 @@ type hmacTest struct {
+ 
+ var hmacTests = []hmacTest{
+ 	// Tests from US FIPS 198
+-	// http://csrc.nist.gov/publications/fips/fips198/fips-198a.pdf
++	// https://csrc.nist.gov/publications/fips/fips198/fips-198a.pdf
+ 	{
+ 		sha1.New,
+ 		[]byte{
+@@ -205,7 +205,7 @@ var hmacTests = []hmacTest{
+ 		sha256.BlockSize,
+ 	},
+ 
+-	// Tests from http://csrc.nist.gov/groups/ST/toolkit/examples.html
++	// Tests from https://csrc.nist.gov/groups/ST/toolkit/examples.html
+ 	// (truncated tag tests are left out)
+ 	{
+ 		sha1.New,
+diff --git a/src/crypto/rc4/rc4_test.go b/src/crypto/rc4/rc4_test.go
+index af79882463..1fc08b8593 100644
+--- a/src/crypto/rc4/rc4_test.go
++++ b/src/crypto/rc4/rc4_test.go
+@@ -16,7 +16,7 @@ type rc4Test struct {
+ 
+ var golden = []rc4Test{
+ 	// Test vectors from the original cypherpunk posting of ARC4:
+-	//   http://groups.google.com/group/sci.crypt/msg/10a300c9d21afca0?pli=1
++	//   https://groups.google.com/group/sci.crypt/msg/10a300c9d21afca0?pli=1
+ 	{
+ 		[]byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef},
+ 		[]byte{0x74, 0x94, 0xc2, 0xe7, 0x10, 0x4b, 0x08, 0x79},
+@@ -30,7 +30,7 @@ var golden = []rc4Test{
+ 		[]byte{0xd6, 0xa1, 0x41, 0xa7, 0xec, 0x3c, 0x38, 0xdf, 0xbd, 0x61},
+ 	},
+ 
+-	// Test vectors from the Wikipedia page: http://en.wikipedia.org/wiki/RC4
++	// Test vectors from the Wikipedia page: https://en.wikipedia.org/wiki/RC4
+ 	{
+ 		[]byte{0x4b, 0x65, 0x79},
+ 		[]byte{0xeb, 0x9f, 0x77, 0x81, 0xb7, 0x34, 0xca, 0x72, 0xa7, 0x19},
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index 83d74967aa..862657fa60 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -68,7 +68,7 @@ var (
+ // We require pub.E to fit into a 32-bit integer so that we
+ // do not have different behavior depending on whether
+ // int is 32 or 64 bits. See also
+-// http://www.imperialviolet.org/2012/03/16/rsae.html.
++// https://www.imperialviolet.org/2012/03/16/rsae.html.
+ func checkPub(pub *PublicKey) error {
+ 	if pub.N == nil {
+ 		return errPublicModulus
+diff --git a/src/crypto/sha256/sha256block_386.s b/src/crypto/sha256/sha256block_386.s
+index 33ed027e1f..086a0ab25c 100644
+--- a/src/crypto/sha256/sha256block_386.s
++++ b/src/crypto/sha256/sha256block_386.s
+@@ -6,7 +6,7 @@
+ //
+ // The algorithm is detailed in FIPS 180-4:
+ //
+-//  http://csrc.nist.gov/publications/fips/fips180-4/fips-180-4.pdf
++//  https://csrc.nist.gov/publications/fips/fips180-4/fips-180-4.pdf
+ //
+ // Wt = Mt; for 0 <= t <= 15
+ // Wt = SIGMA1(Wt-2) + SIGMA0(Wt-15) + Wt-16; for 16 <= t <= 63
+diff --git a/src/crypto/sha256/sha256block_amd64.s b/src/crypto/sha256/sha256block_amd64.s
+index f533f64260..f6af47c50e 100644
+--- a/src/crypto/sha256/sha256block_amd64.s
++++ b/src/crypto/sha256/sha256block_amd64.s
+@@ -8,7 +8,7 @@
+ //
+ // The algorithm is detailed in FIPS 180-4:
+ //
+-//  http://csrc.nist.gov/publications/fips/fips180-4/fips-180-4.pdf
++//  https://csrc.nist.gov/publications/fips/fips180-4/fips-180-4.pdf
+ 
+ // The avx2-version is described in an Intel White-Paper:
+ // "Fast SHA-256 Implementations on Intel Architecture Processors"
+diff --git a/src/crypto/sha256/sha256block_ppc64le.s b/src/crypto/sha256/sha256block_ppc64le.s
+index f5435602fe..77e63c073f 100644
+--- a/src/crypto/sha256/sha256block_ppc64le.s
++++ b/src/crypto/sha256/sha256block_ppc64le.s
+@@ -16,7 +16,7 @@
+ //
+ // The algorithm is detailed in FIPS 180-4:
+ //
+-//  http://csrc.nist.gov/publications/fips/fips180-4/fips-180-4.pdf
++//  https://csrc.nist.gov/publications/fips/fips180-4/fips-180-4.pdf
+ //
+ // Wt = Mt; for 0 <= t <= 15
+ // Wt = SIGMA1(Wt-2) + SIGMA0(Wt-15) + Wt-16; for 16 <= t <= 63
+diff --git a/src/crypto/sha512/sha512block_amd64.s b/src/crypto/sha512/sha512block_amd64.s
+index a02356607e..0fa0df2f60 100644
+--- a/src/crypto/sha512/sha512block_amd64.s
++++ b/src/crypto/sha512/sha512block_amd64.s
+@@ -8,7 +8,7 @@
+ //
+ // The algorithm is detailed in FIPS 180-4:
+ //
+-//  http://csrc.nist.gov/publications/fips/fips180-4/fips-180-4.pdf
++//  https://csrc.nist.gov/publications/fips/fips180-4/fips-180-4.pdf
+ //
+ // Wt = Mt; for 0 <= t <= 15
+ // Wt = SIGMA1(Wt-2) + SIGMA0(Wt-15) + Wt-16; for 16 <= t <= 79
+@@ -274,7 +274,7 @@ end:
+ 
+ // Version below is based on "Fast SHA512 Implementations on Intel
+ // Architecture Processors" White-paper
+-// http://www.intel.com/content/dam/www/public/us/en/documents/white-papers/fast-sha512-implementations-ia-processors-paper.pdf
++// https://www.intel.com/content/dam/www/public/us/en/documents/white-papers/fast-sha512-implementations-ia-processors-paper.pdf
+ // AVX2 version by Intel, same algorithm in Linux kernel:
+ // https://github.com/torvalds/linux/blob/master/arch/x86/crypto/sha512-avx2-asm.S
+ 
+diff --git a/src/crypto/sha512/sha512block_ppc64le.s b/src/crypto/sha512/sha512block_ppc64le.s
+index 170e3a6456..55f0c06c7a 100644
+--- a/src/crypto/sha512/sha512block_ppc64le.s
++++ b/src/crypto/sha512/sha512block_ppc64le.s
+@@ -16,7 +16,7 @@
+ //
+ // The algorithm is detailed in FIPS 180-4:
+ //
+-//  http://csrc.nist.gov/publications/fips/fips180-4/fips-180-4.pdf
++//  https://csrc.nist.gov/publications/fips/fips180-4/fips-180-4.pdf
+ //
+ // Wt = Mt; for 0 <= t <= 15
+ // Wt = SIGMA1(Wt-2) + SIGMA0(Wt-15) + Wt-16; for 16 <= t <= 79
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 32caa6233c..76b1f6e5c4 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -246,19 +246,19 @@ type ClientHelloInfo struct {
+ 	// ServerName indicates the name of the server requested by the client
+ 	// in order to support virtual hosting. ServerName is only set if the
+ 	// client is using SNI (see
+-	// http://tools.ietf.org/html/rfc4366#section-3.1).
++	// https://tools.ietf.org/html/rfc4366#section-3.1).
+ 	ServerName string
+ 
+ 	// SupportedCurves lists the elliptic curves supported by the client.
+ 	// SupportedCurves is set only if the Supported Elliptic Curves
+ 	// Extension is being used (see
+-	// http://tools.ietf.org/html/rfc4492#section-5.1.1).
++	// https://tools.ietf.org/html/rfc4492#section-5.1.1).
+ 	SupportedCurves []CurveID
+ 
+ 	// SupportedPoints lists the point formats supported by the client.
+ 	// SupportedPoints is set only if the Supported Point Formats Extension
+ 	// is being used (see
+-	// http://tools.ietf.org/html/rfc4492#section-5.1.2).
++	// https://tools.ietf.org/html/rfc4492#section-5.1.2).
+ 	SupportedPoints []uint8
+ 
+ 	// SignatureSchemes lists the signature and hash schemes that the client
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index dc3b8911c7..cdaa7aba97 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -1061,9 +1061,9 @@ func (c *Conn) Write(b []byte) (int, error) {
+ 	// This can be prevented by splitting each Application Data
+ 	// record into two records, effectively randomizing the IV.
+ 	//
+-	// http://www.openssl.org/~bodo/tls-cbc.txt
++	// https://www.openssl.org/~bodo/tls-cbc.txt
+ 	// https://bugzilla.mozilla.org/show_bug.cgi?id=665814
+-	// http://www.imperialviolet.org/2012/01/15/beastfollowup.html
++	// https://www.imperialviolet.org/2012/01/15/beastfollowup.html
+ 
+ 	var m int
+ 	if len(b) > 1 && c.vers <= VersionTLS10 {
+diff --git a/src/crypto/tls/handshake_messages.go b/src/crypto/tls/handshake_messages.go
+index f8c8d571cc..a5bf10efb8 100644
+--- a/src/crypto/tls/handshake_messages.go
++++ b/src/crypto/tls/handshake_messages.go
+@@ -192,7 +192,7 @@ func (m *clientHelloMsg) marshal() []byte {
+ 		z = z[9:]
+ 	}
+ 	if len(m.supportedCurves) > 0 {
+-		// http://tools.ietf.org/html/rfc4492#section-5.5.1
++		// https://tools.ietf.org/html/rfc4492#section-5.5.1
+ 		z[0] = byte(extensionSupportedCurves >> 8)
+ 		z[1] = byte(extensionSupportedCurves)
+ 		l := 2 + 2*len(m.supportedCurves)
+@@ -209,7 +209,7 @@ func (m *clientHelloMsg) marshal() []byte {
+ 		}
+ 	}
+ 	if len(m.supportedPoints) > 0 {
+-		// http://tools.ietf.org/html/rfc4492#section-5.5.2
++		// https://tools.ietf.org/html/rfc4492#section-5.5.2
+ 		z[0] = byte(extensionSupportedPoints >> 8)
+ 		z[1] = byte(extensionSupportedPoints)
+ 		l := 1 + len(m.supportedPoints)
+@@ -224,7 +224,7 @@ func (m *clientHelloMsg) marshal() []byte {
+ 		}
+ 	}
+ 	if m.ticketSupported {
+-		// http://tools.ietf.org/html/rfc5077#section-3.2
++		// https://tools.ietf.org/html/rfc5077#section-3.2
+ 		z[0] = byte(extensionSessionTicket >> 8)
+ 		z[1] = byte(extensionSessionTicket)
+ 		l := len(m.sessionTicket)
+@@ -414,7 +414,7 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
+ 		case extensionStatusRequest:
+ 			m.ocspStapling = length > 0 && data[0] == statusTypeOCSP
+ 		case extensionSupportedCurves:
+-			// http://tools.ietf.org/html/rfc4492#section-5.5.1
++			// https://tools.ietf.org/html/rfc4492#section-5.5.1
+ 			if length < 2 {
+ 				return false
+ 			}
+@@ -430,7 +430,7 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
+ 				d = d[2:]
+ 			}
+ 		case extensionSupportedPoints:
+-			// http://tools.ietf.org/html/rfc4492#section-5.5.2
++			// https://tools.ietf.org/html/rfc4492#section-5.5.2
+ 			if length < 1 {
+ 				return false
+ 			}
+@@ -441,7 +441,7 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
+ 			m.supportedPoints = make([]uint8, l)
+ 			copy(m.supportedPoints, data[1:])
+ 		case extensionSessionTicket:
+-			// http://tools.ietf.org/html/rfc5077#section-3.2
++			// https://tools.ietf.org/html/rfc5077#section-3.2
+ 			m.ticketSupported = true
+ 			m.sessionTicket = data[:length]
+ 		case extensionSignatureAlgorithms:
+@@ -1224,7 +1224,7 @@ func (m *certificateRequestMsg) marshal() (x []byte) {
+ 		return m.raw
+ 	}
+ 
+-	// See http://tools.ietf.org/html/rfc4346#section-7.4.4
++	// See https://tools.ietf.org/html/rfc4346#section-7.4.4
+ 	length := 1 + len(m.certificateTypes) + 2
+ 	casLength := 0
+ 	for _, ca := range m.certificateAuthorities {
+@@ -1374,7 +1374,7 @@ func (m *certificateVerifyMsg) marshal() (x []byte) {
+ 		return m.raw
+ 	}
+ 
+-	// See http://tools.ietf.org/html/rfc4346#section-7.4.8
++	// See https://tools.ietf.org/html/rfc4346#section-7.4.8
+ 	siglength := len(m.signature)
+ 	length := 2 + siglength
+ 	if m.hasSignatureAndHash {
+@@ -1452,7 +1452,7 @@ func (m *newSessionTicketMsg) marshal() (x []byte) {
+ 		return m.raw
+ 	}
+ 
+-	// See http://tools.ietf.org/html/rfc5077#section-3.3
++	// See https://tools.ietf.org/html/rfc5077#section-3.3
+ 	ticketLen := len(m.ticket)
+ 	length := 2 + 4 + ticketLen
+ 	x = make([]byte, 4+length)
+diff --git a/src/crypto/tls/key_agreement.go b/src/crypto/tls/key_agreement.go
+index 3f570b66c6..6685b47584 100644
+--- a/src/crypto/tls/key_agreement.go
++++ b/src/crypto/tls/key_agreement.go
+@@ -141,7 +141,7 @@ func pickTLS12HashForSignature(sigType uint8, clientList []SignatureScheme) (Sig
+ 	if len(clientList) == 0 {
+ 		// If the client didn't specify any signature_algorithms
+ 		// extension then we can assume that it supports SHA1. See
+-		// http://tools.ietf.org/html/rfc5246#section-7.4.1.4.1
++		// https://tools.ietf.org/html/rfc5246#section-7.4.1.4.1
+ 		switch sigType {
+ 		case signatureRSA:
+ 			return PKCS1WithSHA1, nil
+@@ -239,7 +239,7 @@ NextCandidate:
+ 		ecdhePublic = elliptic.Marshal(curve, x, y)
+ 	}
+ 
+-	// http://tools.ietf.org/html/rfc4492#section-5.4
++	// https://tools.ietf.org/html/rfc4492#section-5.4
+ 	serverECDHParams := make([]byte, 1+2+1+len(ecdhePublic))
+ 	serverECDHParams[0] = 3 // named curve
+ 	serverECDHParams[1] = byte(ka.curveid >> 8)
+diff --git a/src/crypto/tls/prf.go b/src/crypto/tls/prf.go
+index 93a638819d..367e0842b0 100644
+--- a/src/crypto/tls/prf.go
++++ b/src/crypto/tls/prf.go
+@@ -140,7 +140,7 @@ func prfForVersion(version uint16, suite *cipherSuite) func(result, secret, labe
+ }
+ 
+ // masterFromPreMasterSecret generates the master secret from the pre-master
+-// secret. See http://tools.ietf.org/html/rfc5246#section-8.1
++// secret. See https://tools.ietf.org/html/rfc5246#section-8.1
+ func masterFromPreMasterSecret(version uint16, suite *cipherSuite, preMasterSecret, clientRandom, serverRandom []byte) []byte {
+ 	seed := make([]byte, 0, len(clientRandom)+len(serverRandom))
+ 	seed = append(seed, clientRandom...)
+diff --git a/src/crypto/x509/pkix/pkix.go b/src/crypto/x509/pkix/pkix.go
+index 7b32220b74..3cc4d587e3 100644
+--- a/src/crypto/x509/pkix/pkix.go
++++ b/src/crypto/x509/pkix/pkix.go
+@@ -95,7 +95,7 @@ func (r RDNSequence) String() string {
+ type RelativeDistinguishedNameSET []AttributeTypeAndValue
+ 
+ // AttributeTypeAndValue mirrors the ASN.1 structure of the same name in
+-// http://tools.ietf.org/html/rfc5280#section-4.1.2.4
++// https://tools.ietf.org/html/rfc5280#section-4.1.2.4
+ type AttributeTypeAndValue struct {
+ 	Type  asn1.ObjectIdentifier
+ 	Value interface{}
+diff --git a/src/crypto/x509/sha2_windows_test.go b/src/crypto/x509/sha2_windows_test.go
+index 79dc685c5b..620b7b9e77 100644
+--- a/src/crypto/x509/sha2_windows_test.go
++++ b/src/crypto/x509/sha2_windows_test.go
+@@ -13,7 +13,7 @@ func init() {
+ 	}
+ 	if major := byte(v); major < 6 {
+ 		// Windows XP SP2 and Windows 2003 do not support SHA2.
+-		// http://blogs.technet.com/b/pki/archive/2010/09/30/sha2-and-windows.aspx
++		// https://blogs.technet.com/b/pki/archive/2010/09/30/sha2-and-windows.aspx
+ 		supportSHA2 = false
+ 	}
+ }
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index 6a66940034..0b29249218 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -204,7 +204,7 @@ func (n Number) Int64() (int64, error) {
+ func isValidNumber(s string) bool {
+ 	// This function implements the JSON numbers grammar.
+ 	// See https://tools.ietf.org/html/rfc7159#section-6
+-	// and http://json.org/number.gif
++	// and https://json.org/number.gif
+ 
+ 	if s == "" {
+ 		return false
+diff --git a/src/encoding/json/number_test.go b/src/encoding/json/number_test.go
+index 4b86999638..cc6701814f 100644
+--- a/src/encoding/json/number_test.go
++++ b/src/encoding/json/number_test.go
+@@ -10,7 +10,7 @@ import (
+ )
+ 
+ func TestNumberIsValid(t *testing.T) {
+-	// From: http://stackoverflow.com/a/13340826
++	// From: https://stackoverflow.com/a/13340826
+ 	var jsonNumberRegexp = regexp.MustCompile(`^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$`)
+ 
+ 	validTests := []string{
+diff --git a/src/encoding/xml/xml.go b/src/encoding/xml/xml.go
+index 7d2ff01ee9..452caefab4 100644
+--- a/src/encoding/xml/xml.go
++++ b/src/encoding/xml/xml.go
+@@ -7,8 +7,8 @@
+ package xml
+ 
+ // References:
+-//    Annotated XML spec: http://www.xml.com/axml/testaxml.htm
+-//    XML name spaces: http://www.w3.org/TR/REC-xml-names/
++//    Annotated XML spec: https://www.xml.com/axml/testaxml.htm
++//    XML name spaces: https://www.w3.org/TR/REC-xml-names/
+ 
+ // TODO(rsc):
+ //	Test error handling.
+@@ -271,7 +271,7 @@ func NewTokenDecoder(t TokenReader) *Decoder {
+ // it will return an error.
+ //
+ // Token implements XML name spaces as described by
+-// http://www.w3.org/TR/REC-xml-names/.  Each of the
++// https://www.w3.org/TR/REC-xml-names/.  Each of the
+ // Name structures contained in the Token has the Space
+ // set to the URL identifying its name space when known.
+ // If Token encounters an unrecognized name space prefix,
+@@ -863,7 +863,7 @@ func (d *Decoder) attrval() []byte {
+ 		if !ok {
+ 			return nil
+ 		}
+-		// http://www.w3.org/TR/REC-html40/intro/sgmltut.html#h-3.2.2
++		// https://www.w3.org/TR/REC-html40/intro/sgmltut.html#h-3.2.2
+ 		if 'a' <= b && b <= 'z' || 'A' <= b && b <= 'Z' ||
+ 			'0' <= b && b <= '9' || b == '_' || b == ':' || b == '-' {
+ 			d.buf.WriteByte(b)
+@@ -1134,7 +1134,7 @@ Input:
+ }
+ 
+ // Decide whether the given rune is in the XML Character Range, per
+-// the Char production of http://www.xml.com/axml/testaxml.htm,
++// the Char production of https://www.xml.com/axml/testaxml.htm,
+ // Section 2.2 Characters.
+ func isInCharacterRange(r rune) (inrange bool) {
+ 	return r == 0x09 ||
+@@ -1263,7 +1263,7 @@ func isNameString(s string) bool {
+ }
+ 
+ // These tables were generated by cut and paste from Appendix B of
+-// the XML spec at http://www.xml.com/axml/testaxml.htm
++// the XML spec at https://www.xml.com/axml/testaxml.htm
+ // and then reformatting. First corresponds to (Letter | '_' | ':')
+ // and second corresponds to NameChar.
+ 
+diff --git a/src/hash/crc32/crc32.go b/src/hash/crc32/crc32.go
+index 1912caa212..908b84adcb 100644
+--- a/src/hash/crc32/crc32.go
++++ b/src/hash/crc32/crc32.go
+@@ -3,12 +3,12 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package crc32 implements the 32-bit cyclic redundancy check, or CRC-32,
+-// checksum. See http://en.wikipedia.org/wiki/Cyclic_redundancy_check for
++// checksum. See https://en.wikipedia.org/wiki/Cyclic_redundancy_check for
+ // information.
+ //
+ // Polynomials are represented in LSB-first form also known as reversed representation.
+ //
+-// See http://en.wikipedia.org/wiki/Mathematics_of_cyclic_redundancy_checks#Reversed_representations_and_reciprocal_polynomials
++// See https://en.wikipedia.org/wiki/Mathematics_of_cyclic_redundancy_checks#Reversed_representations_and_reciprocal_polynomials
+ // for information.
+ package crc32
+ 
+@@ -29,12 +29,12 @@ const (
+ 
+ 	// Castagnoli's polynomial, used in iSCSI.
+ 	// Has better error detection characteristics than IEEE.
+-	// http://dx.doi.org/10.1109/26.231911
++	// https://dx.doi.org/10.1109/26.231911
+ 	Castagnoli = 0x82f63b78
+ 
+ 	// Koopman's polynomial.
+ 	// Also has better error detection characteristics than IEEE.
+-	// http://dx.doi.org/10.1109/DSN.2002.1028931
++	// https://dx.doi.org/10.1109/DSN.2002.1028931
+ 	Koopman = 0xeb31d82e
+ )
+ 
+diff --git a/src/hash/crc32/crc32_amd64.s b/src/hash/crc32/crc32_amd64.s
+index a944ead9b2..6af6c253a7 100644
+--- a/src/hash/crc32/crc32_amd64.s
++++ b/src/hash/crc32/crc32_amd64.s
+@@ -149,7 +149,7 @@ GLOBL r4r3<>(SB),RODATA,$16
+ GLOBL rupoly<>(SB),RODATA,$16
+ GLOBL r5<>(SB),RODATA,$8
+ 
+-// Based on http://www.intel.com/content/dam/www/public/us/en/documents/white-papers/fast-crc-computation-generic-polynomials-pclmulqdq-paper.pdf
++// Based on https://www.intel.com/content/dam/www/public/us/en/documents/white-papers/fast-crc-computation-generic-polynomials-pclmulqdq-paper.pdf
+ // len(p) must be at least 64, and must be a multiple of 16.
+ 
+ // func ieeeCLMUL(crc uint32, p []byte) uint32
+diff --git a/src/hash/crc64/crc64.go b/src/hash/crc64/crc64.go
+index 3b24c24406..a799a017c9 100644
+--- a/src/hash/crc64/crc64.go
++++ b/src/hash/crc64/crc64.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package crc64 implements the 64-bit cyclic redundancy check, or CRC-64,
+-// checksum. See http://en.wikipedia.org/wiki/Cyclic_redundancy_check for
++// checksum. See https://en.wikipedia.org/wiki/Cyclic_redundancy_check for
+ // information.
+ package crc64
+ 
+diff --git a/src/html/template/attr.go b/src/html/template/attr.go
+index 92d2789e80..22922e6038 100644
+--- a/src/html/template/attr.go
++++ b/src/html/template/attr.go
+@@ -13,9 +13,9 @@ import (
+ // other content, or affects the contents, idempotency, or credentials of a
+ // network message, then the value in this map is contentTypeUnsafe.
+ // This map is derived from HTML5, specifically
+-// http://www.w3.org/TR/html5/Overview.html#attributes-1
++// https://www.w3.org/TR/html5/Overview.html#attributes-1
+ // as well as "%URI"-typed attributes from
+-// http://www.w3.org/TR/html4/index/attributes.html
++// https://www.w3.org/TR/html4/index/attributes.html
+ var attrTypeMap = map[string]contentType{
+ 	"accept":          contentTypePlain,
+ 	"accept-charset":  contentTypeUnsafe,
+@@ -90,7 +90,7 @@ var attrTypeMap = map[string]contentType{
+ 	"name":            contentTypePlain,
+ 	"novalidate":      contentTypeUnsafe,
+ 	// Skip handler names from
+-	// http://www.w3.org/TR/html5/webappapis.html#event-handlers-on-elements,-document-objects,-and-window-objects
++	// https://www.w3.org/TR/html5/webappapis.html#event-handlers-on-elements,-document-objects,-and-window-objects
+ 	// since we have special handling in attrType.
+ 	"open":        contentTypePlain,
+ 	"optimum":     contentTypePlain,
+@@ -160,7 +160,7 @@ func attrType(name string) contentType {
+ 
+ 	// Heuristics to prevent "javascript:..." injection in custom
+ 	// data attributes and custom attributes like g:tweetUrl.
+-	// http://www.w3.org/TR/html5/dom.html#embedding-custom-non-visible-data-with-the-data-*-attributes
++	// https://www.w3.org/TR/html5/dom.html#embedding-custom-non-visible-data-with-the-data-*-attributes
+ 	// "Custom data attributes are intended to store custom data
+ 	//  private to the page or application, for which there are no
+ 	//  more appropriate attributes or elements."
+diff --git a/src/html/template/content.go b/src/html/template/content.go
+index e7cdedc3b6..4aadf64df2 100644
+--- a/src/html/template/content.go
++++ b/src/html/template/content.go
+@@ -16,7 +16,7 @@ type (
+ 	//   2. The CSS3 rule production, such as `a[href=~"https:"].foo#bar`.
+ 	//   3. CSS3 declaration productions, such as `color: red; margin: 2px`.
+ 	//   4. The CSS3 value production, such as `rgba(0, 0, 255, 127)`.
+-	// See http://www.w3.org/TR/css3-syntax/#parsing and
++	// See https://www.w3.org/TR/css3-syntax/#parsing and
+ 	// https://web.archive.org/web/20090211114933/http://w3.org/TR/css3-syntax#style
+ 	//
+ 	// Use of this type presents a security risk:
+@@ -85,7 +85,7 @@ type (
+ 	URL string
+ 
+ 	// Srcset encapsulates a known safe srcset attribute
+-	// (see http://w3c.github.io/html/semantics-embedded-content.html#element-attrdef-img-srcset).
++	// (see https://w3c.github.io/html/semantics-embedded-content.html#element-attrdef-img-srcset).
+ 	//
+ 	// Use of this type presents a security risk:
+ 	// the encapsulated content should come from a trusted source,
+diff --git a/src/html/template/context.go b/src/html/template/context.go
+index fdbf7e25ee..45be3a6a9f 100644
+--- a/src/html/template/context.go
++++ b/src/html/template/context.go
+@@ -13,7 +13,7 @@ import (
+ //
+ // The zero value of type context is the start context for a template that
+ // produces an HTML fragment as defined at
+-// http://www.w3.org/TR/html5/syntax.html#the-end
++// https://www.w3.org/TR/html5/syntax.html#the-end
+ // where the context element is null.
+ type context struct {
+ 	state   state
+@@ -98,7 +98,7 @@ const (
+ 	// stateHTMLCmt occurs inside an <!-- HTML comment -->.
+ 	stateHTMLCmt
+ 	// stateRCDATA occurs inside an RCDATA element (<textarea> or <title>)
+-	// as described at http://www.w3.org/TR/html5/syntax.html#elements-0
++	// as described at https://www.w3.org/TR/html5/syntax.html#elements-0
+ 	stateRCDATA
+ 	// stateAttr occurs inside an HTML attribute whose content is text.
+ 	stateAttr
+diff --git a/src/html/template/css.go b/src/html/template/css.go
+index 9154d8636d..1587af8385 100644
+--- a/src/html/template/css.go
++++ b/src/html/template/css.go
+@@ -28,7 +28,7 @@ func endsWithCSSKeyword(b []byte, kw string) bool {
+ 	}
+ 	// Many CSS keywords, such as "!important" can have characters encoded,
+ 	// but the URI production does not allow that according to
+-	// http://www.w3.org/TR/css3-syntax/#TOK-URI
++	// https://www.w3.org/TR/css3-syntax/#TOK-URI
+ 	// This does not attempt to recognize encoded keywords. For example,
+ 	// given "\75\72\6c" and "url" this return false.
+ 	return string(bytes.ToLower(b[i:])) == kw
+@@ -38,7 +38,7 @@ func endsWithCSSKeyword(b []byte, kw string) bool {
+ func isCSSNmchar(r rune) bool {
+ 	// Based on the CSS3 nmchar production but ignores multi-rune escape
+ 	// sequences.
+-	// http://www.w3.org/TR/css3-syntax/#SUBTOK-nmchar
++	// https://www.w3.org/TR/css3-syntax/#SUBTOK-nmchar
+ 	return 'a' <= r && r <= 'z' ||
+ 		'A' <= r && r <= 'Z' ||
+ 		'0' <= r && r <= '9' ||
+@@ -53,7 +53,7 @@ func isCSSNmchar(r rune) bool {
+ // decodeCSS decodes CSS3 escapes given a sequence of stringchars.
+ // If there is no change, it returns the input, otherwise it returns a slice
+ // backed by a new array.
+-// http://www.w3.org/TR/css3-syntax/#SUBTOK-stringchar defines stringchar.
++// https://www.w3.org/TR/css3-syntax/#SUBTOK-stringchar defines stringchar.
+ func decodeCSS(s []byte) []byte {
+ 	i := bytes.IndexByte(s, '\\')
+ 	if i == -1 {
+@@ -72,10 +72,10 @@ func decodeCSS(s []byte) []byte {
+ 		if len(s) < 2 {
+ 			break
+ 		}
+-		// http://www.w3.org/TR/css3-syntax/#SUBTOK-escape
++		// https://www.w3.org/TR/css3-syntax/#SUBTOK-escape
+ 		// escape ::= unicode | '\' [#x20-#x7E#x80-#xD7FF#xE000-#xFFFD#x10000-#x10FFFF]
+ 		if isHex(s[1]) {
+-			// http://www.w3.org/TR/css3-syntax/#SUBTOK-unicode
++			// https://www.w3.org/TR/css3-syntax/#SUBTOK-unicode
+ 			//   unicode ::= '\' [0-9a-fA-F]{1,6} wc?
+ 			j := 2
+ 			for j < len(s) && j < 7 && isHex(s[j]) {
+@@ -222,7 +222,7 @@ func cssValueFilter(args ...interface{}) string {
+ 	b, id := decodeCSS([]byte(s)), make([]byte, 0, 64)
+ 
+ 	// CSS3 error handling is specified as honoring string boundaries per
+-	// http://www.w3.org/TR/css3-syntax/#error-handling :
++	// https://www.w3.org/TR/css3-syntax/#error-handling :
+ 	//     Malformed declarations. User agents must handle unexpected
+ 	//     tokens encountered while parsing a declaration by reading until
+ 	//     the end of the declaration, while observing the rules for
+diff --git a/src/html/template/escape.go b/src/html/template/escape.go
+index f87e9a69ea..8517620d3c 100644
+--- a/src/html/template/escape.go
++++ b/src/html/template/escape.go
+@@ -668,7 +668,7 @@ func (e *escaper) escapeText(c context, n *parse.TextNode) context {
+ 		} else if isComment(c.state) && c.delim == delimNone {
+ 			switch c.state {
+ 			case stateJSBlockCmt:
+-				// http://es5.github.com/#x7.4:
++				// https://es5.github.com/#x7.4:
+ 				// "Comments behave like white space and are
+ 				// discarded except that, if a MultiLineComment
+ 				// contains a line terminator character, then
+@@ -731,7 +731,7 @@ func contextAfterText(c context, s []byte) (context, int) {
+ 		i = len(s)
+ 	}
+ 	if c.delim == delimSpaceOrTagEnd {
+-		// http://www.w3.org/TR/html5/syntax.html#attribute-value-(unquoted)-state
++		// https://www.w3.org/TR/html5/syntax.html#attribute-value-(unquoted)-state
+ 		// lists the runes below as error characters.
+ 		// Error out because HTML parsers may differ on whether
+ 		// "<a id= onclick=f("     ends inside id's or onclick's value,
+diff --git a/src/html/template/html.go b/src/html/template/html.go
+index de4aa4abb2..2ea5a7d4bc 100644
+--- a/src/html/template/html.go
++++ b/src/html/template/html.go
+@@ -50,12 +50,12 @@ func htmlEscaper(args ...interface{}) string {
+ // htmlReplacementTable contains the runes that need to be escaped
+ // inside a quoted attribute value or in a text node.
+ var htmlReplacementTable = []string{
+-	// http://www.w3.org/TR/html5/syntax.html#attribute-value-(unquoted)-state
++	// https://www.w3.org/TR/html5/syntax.html#attribute-value-(unquoted)-state
+ 	// U+0000 NULL Parse error. Append a U+FFFD REPLACEMENT
+ 	// CHARACTER character to the current attribute's value.
+ 	// "
+ 	// and similarly
+-	// http://www.w3.org/TR/html5/syntax.html#before-attribute-value-state
++	// https://www.w3.org/TR/html5/syntax.html#before-attribute-value-state
+ 	0:    "\uFFFD",
+ 	'"':  "&#34;",
+ 	'&':  "&amp;",
+diff --git a/src/html/template/js.go b/src/html/template/js.go
+index e02fdb9751..33a18b4186 100644
+--- a/src/html/template/js.go
++++ b/src/html/template/js.go
+@@ -24,7 +24,7 @@ import (
+ // "x = ++/foo/i" which is quite different than "x++/foo/i", but is not known to
+ // fail on any known useful programs. It is based on the draft
+ // JavaScript 2.0 lexical grammar and requires one token of lookbehind:
+-// http://www.mozilla.org/js/language/js20-2000-07/rationale/syntax.html
++// https://www.mozilla.org/js/language/js20-2000-07/rationale/syntax.html
+ func nextJSCtx(s []byte, preceding jsCtx) jsCtx {
+ 	s = bytes.TrimRight(s, "\t\n\f\r \u2028\u2029")
+ 	if len(s) == 0 {
+diff --git a/src/html/template/js_test.go b/src/html/template/js_test.go
+index cf2a0d2987..12a850d6e3 100644
+--- a/src/html/template/js_test.go
++++ b/src/html/template/js_test.go
+@@ -191,7 +191,7 @@ func TestJSStrEscaper(t *testing.T) {
+ 		{"</script>", `\x3c\/script\x3e`},
+ 		{"<![CDATA[", `\x3c![CDATA[`},
+ 		{"]]>", `]]\x3e`},
+-		// http://dev.w3.org/html5/markup/aria/syntax.html#escaping-text-span
++		// https://dev.w3.org/html5/markup/aria/syntax.html#escaping-text-span
+ 		//   "The text in style, script, title, and textarea elements
+ 		//   must not have an escaping text span start that is not
+ 		//   followed by an escaping text span end."
+@@ -203,7 +203,7 @@ func TestJSStrEscaper(t *testing.T) {
+ 		// injection followed by an HTML text injection.
+ 		{"<!--", `\x3c!--`},
+ 		{"-->", `--\x3e`},
+-		// From http://code.google.com/p/doctype/wiki/ArticleUtf7
++		// From https://code.google.com/p/doctype/wiki/ArticleUtf7
+ 		{"+ADw-script+AD4-alert(1)+ADw-/script+AD4-",
+ 			`\x2bADw-script\x2bAD4-alert(1)\x2bADw-\/script\x2bAD4-`,
+ 		},
+diff --git a/src/html/template/transition.go b/src/html/template/transition.go
+index c72cf1ea60..06df679330 100644
+--- a/src/html/template/transition.go
++++ b/src/html/template/transition.go
+@@ -254,7 +254,7 @@ func tURL(c context, s []byte) (context, int) {
+ 		c.urlPart = urlPartQueryOrFrag
+ 	} else if len(s) != eatWhiteSpace(s, 0) && c.urlPart == urlPartNone {
+ 		// HTML5 uses "Valid URL potentially surrounded by spaces" for
+-		// attrs: http://www.w3.org/TR/html5/index.html#attributes-1
++		// attrs: https://www.w3.org/TR/html5/index.html#attributes-1
+ 		c.urlPart = urlPartPreQuery
+ 	}
+ 	return c, len(s)
+@@ -380,7 +380,7 @@ func tLineCmt(c context, s []byte) (context, int) {
+ 		// are supported by the 4 major browsers.
+ 		// This defines line comments as
+ 		//     LINECOMMENT ::= "//" [^\n\f\d]*
+-		// since http://www.w3.org/TR/css3-syntax/#SUBTOK-nl defines
++		// since https://www.w3.org/TR/css3-syntax/#SUBTOK-nl defines
+ 		// newlines:
+ 		//     nl ::= #xA | #xD #xA | #xD | #xC
+ 	default:
+@@ -392,7 +392,7 @@ func tLineCmt(c context, s []byte) (context, int) {
+ 		return c, len(s)
+ 	}
+ 	c.state = endState
+-	// Per section 7.4 of EcmaScript 5 : http://es5.github.com/#x7.4
++	// Per section 7.4 of EcmaScript 5 : https://es5.github.com/#x7.4
+ 	// "However, the LineTerminator at the end of the line is not
+ 	// considered to be part of the single-line comment; it is
+ 	// recognized separately by the lexical grammar and becomes part
+diff --git a/src/image/color/palette/gen.go b/src/image/color/palette/gen.go
+index d55e2d285a..f8587db8f3 100644
+--- a/src/image/color/palette/gen.go
++++ b/src/image/color/palette/gen.go
+@@ -111,7 +111,7 @@ func printWebSafe(w io.Writer) {
+ 	fmt.Fprintln(w, "// WebSafe is a 216-color palette that was popularized by early versions")
+ 	fmt.Fprintln(w, "// of Netscape Navigator. It is also known as the Netscape Color Cube.")
+ 	fmt.Fprintln(w, "//")
+-	fmt.Fprintln(w, "// See http://en.wikipedia.org/wiki/Web_colors#Web-safe_colors for details.")
++	fmt.Fprintln(w, "// See https://en.wikipedia.org/wiki/Web_colors#Web-safe_colors for details.")
+ 	fmt.Fprintln(w, "var WebSafe = []color.Color{")
+ 	for _, line := range lines {
+ 		fmt.Fprintln(w, line)
+diff --git a/src/image/color/palette/palette.go b/src/image/color/palette/palette.go
+index 07d60d2fb0..2a4cdcb7df 100644
+--- a/src/image/color/palette/palette.go
++++ b/src/image/color/palette/palette.go
+@@ -282,7 +282,7 @@ var Plan9 = []color.Color{
+ // WebSafe is a 216-color palette that was popularized by early versions
+ // of Netscape Navigator. It is also known as the Netscape Color Cube.
+ //
+-// See http://en.wikipedia.org/wiki/Web_colors#Web-safe_colors for details.
++// See https://en.wikipedia.org/wiki/Web_colors#Web-safe_colors for details.
+ var WebSafe = []color.Color{
+ 	color.RGBA{0x00, 0x00, 0x00, 0xff},
+ 	color.RGBA{0x00, 0x00, 0x33, 0xff},
+diff --git a/src/image/color/ycbcr.go b/src/image/color/ycbcr.go
+index fd2443078c..8b6d508588 100644
+--- a/src/image/color/ycbcr.go
++++ b/src/image/color/ycbcr.go
+@@ -10,7 +10,7 @@ func RGBToYCbCr(r, g, b uint8) (uint8, uint8, uint8) {
+ 	//	Y' =  0.2990*R + 0.5870*G + 0.1140*B
+ 	//	Cb = -0.1687*R - 0.3313*G + 0.5000*B + 128
+ 	//	Cr =  0.5000*R - 0.4187*G - 0.0813*B + 128
+-	// http://www.w3.org/Graphics/JPEG/jfif3.pdf says Y but means Y'.
++	// https://www.w3.org/Graphics/JPEG/jfif3.pdf says Y but means Y'.
+ 
+ 	r1 := int32(r)
+ 	g1 := int32(g)
+@@ -60,7 +60,7 @@ func YCbCrToRGB(y, cb, cr uint8) (uint8, uint8, uint8) {
+ 	//	R = Y' + 1.40200*(Cr-128)
+ 	//	G = Y' - 0.34414*(Cb-128) - 0.71414*(Cr-128)
+ 	//	B = Y' + 1.77200*(Cb-128)
+-	// http://www.w3.org/Graphics/JPEG/jfif3.pdf says Y but means Y'.
++	// https://www.w3.org/Graphics/JPEG/jfif3.pdf says Y but means Y'.
+ 	//
+ 	// Those formulae use non-integer multiplication factors. When computing,
+ 	// integer math is generally faster than floating point math. We multiply
+@@ -163,7 +163,7 @@ func YCbCrToRGB(y, cb, cr uint8) (uint8, uint8, uint8) {
+ //
+ // Conversion between RGB and Y'CbCr is lossy and there are multiple, slightly
+ // different formulae for converting between the two. This package follows
+-// the JFIF specification at http://www.w3.org/Graphics/JPEG/jfif3.pdf.
++// the JFIF specification at https://www.w3.org/Graphics/JPEG/jfif3.pdf.
+ type YCbCr struct {
+ 	Y, Cb, Cr uint8
+ }
+diff --git a/src/image/gif/reader.go b/src/image/gif/reader.go
+index 7ae1ba9b41..e580ab049e 100644
+--- a/src/image/gif/reader.go
++++ b/src/image/gif/reader.go
+@@ -4,7 +4,7 @@
+ 
+ // Package gif implements a GIF image decoder and encoder.
+ //
+-// The GIF specification is at http://www.w3.org/Graphics/GIF/spec-gif89a.txt.
++// The GIF specification is at https://www.w3.org/Graphics/GIF/spec-gif89a.txt.
+ package gif
+ 
+ import (
+diff --git a/src/image/jpeg/reader.go b/src/image/jpeg/reader.go
+index a915e96a4c..26b312cfd2 100644
+--- a/src/image/jpeg/reader.go
++++ b/src/image/jpeg/reader.go
+@@ -4,7 +4,7 @@
+ 
+ // Package jpeg implements a JPEG image decoder and encoder.
+ //
+-// JPEG is defined in ITU-T T.81: http://www.w3.org/Graphics/JPEG/itu-t81.pdf.
++// JPEG is defined in ITU-T T.81: https://www.w3.org/Graphics/JPEG/itu-t81.pdf.
+ package jpeg
+ 
+ import (
+@@ -62,13 +62,13 @@ const (
+ 	comMarker  = 0xfe // COMment.
+ 	// "APPlication specific" markers aren't part of the JPEG spec per se,
+ 	// but in practice, their use is described at
+-	// http://www.sno.phy.queensu.ca/~phil/exiftool/TagNames/JPEG.html
++	// https://www.sno.phy.queensu.ca/~phil/exiftool/TagNames/JPEG.html
+ 	app0Marker  = 0xe0
+ 	app14Marker = 0xee
+ 	app15Marker = 0xef
+ )
+ 
+-// See http://www.sno.phy.queensu.ca/~phil/exiftool/TagNames/JPEG.html#Adobe
++// See https://www.sno.phy.queensu.ca/~phil/exiftool/TagNames/JPEG.html#Adobe
+ const (
+ 	adobeTransformUnknown = 0
+ 	adobeTransformYCbCr   = 1
+@@ -684,7 +684,7 @@ func (d *decoder) applyBlack() (image.Image, error) {
+ 
+ 	// If the 4-component JPEG image isn't explicitly marked as "Unknown (RGB
+ 	// or CMYK)" as per
+-	// http://www.sno.phy.queensu.ca/~phil/exiftool/TagNames/JPEG.html#Adobe
++	// https://www.sno.phy.queensu.ca/~phil/exiftool/TagNames/JPEG.html#Adobe
+ 	// we assume that it is YCbCrK. This matches libjpeg's jdapimin.c.
+ 	if d.adobeTransform != adobeTransformUnknown {
+ 		// Convert the YCbCr part of the YCbCrK to RGB, invert the RGB to get
+@@ -747,7 +747,7 @@ func (d *decoder) isRGB() bool {
+ 		return false
+ 	}
+ 	if d.adobeTransformValid && d.adobeTransform == adobeTransformUnknown {
+-		// http://www.sno.phy.queensu.ca/~phil/exiftool/TagNames/JPEG.html#Adobe
++		// https://www.sno.phy.queensu.ca/~phil/exiftool/TagNames/JPEG.html#Adobe
+ 		// says that 0 means Unknown (and in practice RGB) and 1 means YCbCr.
+ 		return true
+ 	}
+diff --git a/src/image/png/reader.go b/src/image/png/reader.go
+index 4fbcef84b7..53fbf3e00a 100644
+--- a/src/image/png/reader.go
++++ b/src/image/png/reader.go
+@@ -4,7 +4,7 @@
+ 
+ // Package png implements a PNG image decoder and encoder.
+ //
+-// The PNG specification is at http://www.w3.org/TR/PNG/.
++// The PNG specification is at https://www.w3.org/TR/PNG/.
+ package png
+ 
+ import (
+@@ -73,7 +73,7 @@ type interlaceScan struct {
+ }
+ 
+ // interlacing defines Adam7 interlacing, with 7 passes of reduced images.
+-// See http://www.w3.org/TR/PNG/#8Interlace
++// See https://www.w3.org/TR/PNG/#8Interlace
+ var interlacing = []interlaceScan{
+ 	{8, 8, 0, 0},
+ 	{8, 8, 4, 0},
+@@ -89,7 +89,7 @@ var interlacing = []interlaceScan{
+ // present), IDAT and IEND chunks must appear in that order. There may be
+ // multiple IDAT chunks, and IDAT chunks must be sequential (i.e. they may not
+ // have any other chunks between them).
+-// http://www.w3.org/TR/PNG/#5ChunkOrdering
++// https://www.w3.org/TR/PNG/#5ChunkOrdering
+ const (
+ 	dsStart = iota
+ 	dsSeenIHDR
+diff --git a/src/internal/poll/fd_windows.go b/src/internal/poll/fd_windows.go
+index 75bd1669fb..74135ce716 100644
+--- a/src/internal/poll/fd_windows.go
++++ b/src/internal/poll/fd_windows.go
+@@ -39,14 +39,14 @@ var canCancelIO bool // determines if CancelIoEx API is present
+ // synchronously. Unfortuently SetFileCompletionNotificationModes is not
+ // available on Windows XP. Also there is a known bug where
+ // SetFileCompletionNotificationModes crashes on some systems
+-// (see http://support.microsoft.com/kb/2568167 for details).
++// (see https://support.microsoft.com/kb/2568167 for details).
+ 
+ var useSetFileCompletionNotificationModes bool // determines is SetFileCompletionNotificationModes is present and safe to use
+ 
+ // checkSetFileCompletionNotificationModes verifies that
+ // SetFileCompletionNotificationModes Windows API is present
+ // on the system and is safe to use.
+-// See http://support.microsoft.com/kb/2568167 for details.
++// See https://support.microsoft.com/kb/2568167 for details.
+ func checkSetFileCompletionNotificationModes() {
+ 	err := syscall.LoadSetFileCompletionNotificationModes()
+ 	if err != nil {
+@@ -383,7 +383,7 @@ func (fd *FD) Init(net string, pollable bool) (string, error) {
+ 		// We do not use events, so we can skip them always.
+ 		flags := uint8(syscall.FILE_SKIP_SET_EVENT_ON_HANDLE)
+ 		// It's not safe to skip completion notifications for UDP:
+-		// http://blogs.technet.com/b/winserverperformance/archive/2008/06/26/designing-applications-for-high-performance-part-iii.aspx
++		// https://blogs.technet.com/b/winserverperformance/archive/2008/06/26/designing-applications-for-high-performance-part-iii.aspx
+ 		if net == "tcp" {
+ 			flags |= syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS
+ 		}
+diff --git a/src/math/all_test.go b/src/math/all_test.go
+index 87df89e812..261d209486 100644
+--- a/src/math/all_test.go
++++ b/src/math/all_test.go
+@@ -25,7 +25,7 @@ var vf = []float64{
+ }
+ 
+ // The expected results below were computed by the high precision calculators
+-// at http://keisan.casio.com/.  More exact input values (array vf[], above)
++// at https://keisan.casio.com/.  More exact input values (array vf[], above)
+ // were obtained by printing them with "%.26f".  The answers were calculated
+ // to 26 digits (by using the "Digit number" drop-down control of each
+ // calculator).
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index c042854eba..6f0025ec57 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // This file implements multi-precision floating-point numbers.
+-// Like in the GNU MPFR library (http://www.mpfr.org/), operands
++// Like in the GNU MPFR library (https://www.mpfr.org/), operands
+ // can be of mixed precision. Unlike MPFR, the rounding mode is
+ // not specified with each operation, but with each operand. The
+ // rounding mode of the result operand determines the rounding
+diff --git a/src/math/big/float_test.go b/src/math/big/float_test.go
+index 08da33779e..2029409656 100644
+--- a/src/math/big/float_test.go
++++ b/src/math/big/float_test.go
+@@ -1007,9 +1007,9 @@ func TestFloatFloat64(t *testing.T) {
+ 		{"0x.fffffffffffffp-1022", smallestNormalFloat64 - math.SmallestNonzeroFloat64, Exact},
+ 		{"4503599627370495p-1074", smallestNormalFloat64 - math.SmallestNonzeroFloat64, Exact},
+ 
+-		// http://www.exploringbinary.com/php-hangs-on-numeric-value-2-2250738585072011e-308/
++		// https://www.exploringbinary.com/php-hangs-on-numeric-value-2-2250738585072011e-308/
+ 		{"2.2250738585072011e-308", 2.225073858507201e-308, Below},
+-		// http://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
++		// https://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
+ 		{"2.2250738585072012e-308", 2.2250738585072014e-308, Above},
+ 	} {
+ 		for i := 0; i < 2; i++ {
+diff --git a/src/math/big/floatconv_test.go b/src/math/big/floatconv_test.go
+index 6d0f17dbe0..269e2652e8 100644
+--- a/src/math/big/floatconv_test.go
++++ b/src/math/big/floatconv_test.go
+@@ -286,9 +286,9 @@ func TestFloat64Text(t *testing.T) {
+ 		{0.5, 'f', 0, "0"},
+ 		{1.5, 'f', 0, "2"},
+ 
+-		// http://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
++		// https://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
+ 		{2.2250738585072012e-308, 'g', -1, "2.2250738585072014e-308"},
+-		// http://www.exploringbinary.com/php-hangs-on-numeric-value-2-2250738585072011e-308/
++		// https://www.exploringbinary.com/php-hangs-on-numeric-value-2-2250738585072011e-308/
+ 		{2.2250738585072011e-308, 'g', -1, "2.225073858507201e-308"},
+ 
+ 		// Issue 2625.
+diff --git a/src/math/big/prime.go b/src/math/big/prime.go
+index 848affbf5b..4c2c152f65 100644
+--- a/src/math/big/prime.go
++++ b/src/math/big/prime.go
+@@ -131,11 +131,11 @@ NextRandom:
+ //
+ // Baillie and Wagstaff, "Lucas Pseudoprimes", Mathematics of Computation 35(152),
+ // October 1980, pp. 1391-1417, especially page 1401.
+-// http://www.ams.org/journals/mcom/1980-35-152/S0025-5718-1980-0583518-6/S0025-5718-1980-0583518-6.pdf
++// https://www.ams.org/journals/mcom/1980-35-152/S0025-5718-1980-0583518-6/S0025-5718-1980-0583518-6.pdf
+ //
+ // Grantham, "Frobenius Pseudoprimes", Mathematics of Computation 70(234),
+ // March 2000, pp. 873-891.
+-// http://www.ams.org/journals/mcom/2001-70-234/S0025-5718-00-01197-2/S0025-5718-00-01197-2.pdf
++// https://www.ams.org/journals/mcom/2001-70-234/S0025-5718-00-01197-2/S0025-5718-00-01197-2.pdf
+ //
+ // Baillie, "Extra strong Lucas pseudoprimes", OEIS A217719, https://oeis.org/A217719.
+ //
+diff --git a/src/math/big/prime_test.go b/src/math/big/prime_test.go
+index 77605195e5..bf50f34419 100644
+--- a/src/math/big/prime_test.go
++++ b/src/math/big/prime_test.go
+@@ -29,13 +29,13 @@ var primes = []string{
+ 	"98920366548084643601728869055592650835572950932266967461790948584315647051443",
+ 	"94560208308847015747498523884063394671606671904944666360068158221458669711639",
+ 
+-	// http://primes.utm.edu/lists/small/small3.html
++	// https://primes.utm.edu/lists/small/small3.html
+ 	"449417999055441493994709297093108513015373787049558499205492347871729927573118262811508386655998299074566974373711472560655026288668094291699357843464363003144674940345912431129144354948751003607115263071543163",
+ 	"230975859993204150666423538988557839555560243929065415434980904258310530753006723857139742334640122533598517597674807096648905501653461687601339782814316124971547968912893214002992086353183070342498989426570593",
+ 	"5521712099665906221540423207019333379125265462121169655563495403888449493493629943498064604536961775110765377745550377067893607246020694972959780839151452457728855382113555867743022746090187341871655890805971735385789993",
+ 	"203956878356401977405765866929034577280193993314348263094772646453283062722701277632936616063144088173312372882677123879538709400158306567338328279154499698366071906766440037074217117805690872792848149112022286332144876183376326512083574821647933992961249917319836219304274280243803104015000563790123",
+ 
+-	// ECC primes: http://tools.ietf.org/html/draft-ladd-safecurves-02
++	// ECC primes: https://tools.ietf.org/html/draft-ladd-safecurves-02
+ 	"3618502788666131106986593281521497120414687020801267626233049500247285301239",                                                                                  // Curve1174: 2^251-9
+ 	"57896044618658097711785492504343953926634992332820282019728792003956564819949",                                                                                 // Curve25519: 2^255-19
+ 	"9850501549098619803069760025035903451269934817616361666987073351061430442874302652853566563721228910201656997576599",                                           // E-382: 2^382-105
+diff --git a/src/math/big/ratconv_test.go b/src/math/big/ratconv_test.go
+index 56ac8d7aa3..fe8b8b60af 100644
+--- a/src/math/big/ratconv_test.go
++++ b/src/math/big/ratconv_test.go
+@@ -300,9 +300,9 @@ var float64inputs = []string{
+ 	// "1e-18446744073709551616",
+ 	// "1e+18446744073709551616",
+ 
+-	// http://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
++	// https://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
+ 	"2.2250738585072012e-308",
+-	// http://www.exploringbinary.com/php-hangs-on-numeric-value-2-2250738585072011e-308/
++	// https://www.exploringbinary.com/php-hangs-on-numeric-value-2-2250738585072011e-308/
+ 	"2.2250738585072011e-308",
+ 
+ 	// A very large number (initially wrongly parsed by the fast algorithm).
+diff --git a/src/math/cmplx/cmath_test.go b/src/math/cmplx/cmath_test.go
+index 8d705622fd..80c3b33937 100644
+--- a/src/math/cmplx/cmath_test.go
++++ b/src/math/cmplx/cmath_test.go
+@@ -39,7 +39,7 @@ var vc = []complex128{
+ }
+ 
+ // The expected results below were computed by the high precision calculators
+-// at http://keisan.casio.com/.  More exact input values (array vc[], above)
++// at https://keisan.casio.com/.  More exact input values (array vc[], above)
+ // were obtained by printing them with "%.26f".  The answers were calculated
+ // to 26 digits (by using the "Digit number" drop-down control of each
+ // calculator).
+diff --git a/src/math/erfinv.go b/src/math/erfinv.go
+index 21b5578c84..ee423d33e4 100644
+--- a/src/math/erfinv.go
++++ b/src/math/erfinv.go
+@@ -10,7 +10,7 @@ package math
+ 
+ // This implementation is based on the rational approximation
+ // of percentage points of normal distribution available from
+-// http://www.jstor.org/stable/2347330.
++// https://www.jstor.org/stable/2347330.
+ 
+ const (
+ 	// Coefficients for approximation to erf in |x| <= 0.85
+diff --git a/src/math/exp_amd64.s b/src/math/exp_amd64.s
+index 1c2ac8f676..525745d66c 100644
+--- a/src/math/exp_amd64.s
++++ b/src/math/exp_amd64.s
+@@ -8,7 +8,7 @@
+ // methods of elementary functions suitable for SIMD computation", Proc.
+ // of International Supercomputing Conference 2010 (ISC'10), pp. 25 -- 32
+ // (May 2010). The paper is available at
+-// http://www.springerlink.com/content/340228x165742104/
++// https://www.springerlink.com/content/340228x165742104/
+ //
+ // The original code and the constants below are from the author's
+ // implementation available at http://freshmeat.net/projects/sleef.
+diff --git a/src/math/rand/exp.go b/src/math/rand/exp.go
+index 4bc110f913..5a8d946c0c 100644
+--- a/src/math/rand/exp.go
++++ b/src/math/rand/exp.go
+@@ -13,7 +13,7 @@ import (
+  *
+  * See "The Ziggurat Method for Generating Random Variables"
+  * (Marsaglia & Tsang, 2000)
+- * http://www.jstatsoft.org/v05/i08/paper [pdf]
++ * https://www.jstatsoft.org/v05/i08/paper [pdf]
+  */
+ 
+ const (
+diff --git a/src/mime/multipart/multipart.go b/src/mime/multipart/multipart.go
+index 06fa736f95..adaaf6975a 100644
+--- a/src/mime/multipart/multipart.go
++++ b/src/mime/multipart/multipart.go
+@@ -61,7 +61,7 @@ type Part struct {
+ // FormName returns the name parameter if p has a Content-Disposition
+ // of type "form-data".  Otherwise it returns the empty string.
+ func (p *Part) FormName() string {
+-	// See http://tools.ietf.org/html/rfc2183 section 2 for EBNF
++	// See https://tools.ietf.org/html/rfc2183 section 2 for EBNF
+ 	// of Content-Disposition value format.
+ 	if p.dispositionParams == nil {
+ 		p.parseContentDisposition()
+@@ -380,7 +380,7 @@ func (mr *Reader) isFinalBoundary(line []byte) bool {
+ }
+ 
+ func (mr *Reader) isBoundaryDelimiterLine(line []byte) (ret bool) {
+-	// http://tools.ietf.org/html/rfc2046#section-5.1
++	// https://tools.ietf.org/html/rfc2046#section-5.1
+ 	//   The boundary delimiter line is then defined as a line
+ 	//   consisting entirely of two hyphen characters ("-",
+ 	//   decimal value 45) followed by the boundary parameter
+diff --git a/src/mime/quotedprintable/writer_test.go b/src/mime/quotedprintable/writer_test.go
+index a9b77b3f98..d494c1e3dc 100644
+--- a/src/mime/quotedprintable/writer_test.go
++++ b/src/mime/quotedprintable/writer_test.go
+@@ -138,7 +138,7 @@ func TestRoundTrip(t *testing.T) {
+ 	}
+ }
+ 
+-// From http://fr.wikipedia.org/wiki/Quoted-Printable
++// From https://fr.wikipedia.org/wiki/Quoted-Printable
+ var testMsg = []byte("Quoted-Printable (QP) est un format d'encodage de données codées sur 8 bits, qui utilise exclusivement les caractères alphanumériques imprimables du code ASCII (7 bits).\r\n" +
+ 	"\r\n" +
+ 	"En effet, les différents codages comprennent de nombreux caractères qui ne sont pas représentables en ASCII (par exemple les caractères accentués), ainsi que des caractères dits « non-imprimables ».\r\n" +
+diff --git a/src/net/conf.go b/src/net/conf.go
+index d4bd56cc58..71ed1360c5 100644
+--- a/src/net/conf.go
++++ b/src/net/conf.go
+@@ -149,7 +149,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
+ 		}
+ 		lookup := c.resolv.lookup
+ 		if len(lookup) == 0 {
+-			// http://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-current/man5/resolv.conf.5
++			// https://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-current/man5/resolv.conf.5
+ 			// "If the lookup keyword is not used in the
+ 			// system's resolv.conf file then the assumed
+ 			// order is 'bind file'"
+@@ -203,7 +203,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
+ 		}
+ 		if c.goos == "linux" {
+ 			// glibc says the default is "dns [!UNAVAIL=return] files"
+-			// http://www.gnu.org/software/libc/manual/html_node/Notes-on-NSS-Configuration-File.html.
++			// https://www.gnu.org/software/libc/manual/html_node/Notes-on-NSS-Configuration-File.html.
+ 			return hostLookupDNSFiles
+ 		}
+ 		return hostLookupFilesDNS
+diff --git a/src/net/conf_test.go b/src/net/conf_test.go
+index a6d6987b15..3c7403eccc 100644
+--- a/src/net/conf_test.go
++++ b/src/net/conf_test.go
+@@ -171,7 +171,7 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupDNSFiles}},
+ 		},
+ 		// glibc lacking an nsswitch.conf, per
+-		// http://www.gnu.org/software/libc/manual/html_node/Notes-on-NSS-Configuration-File.html
++		// https://www.gnu.org/software/libc/manual/html_node/Notes-on-NSS-Configuration-File.html
+ 		{
+ 			name: "linux_no_nsswitch.conf",
+ 			c: &conf{
+diff --git a/src/net/dnsconfig_unix.go b/src/net/dnsconfig_unix.go
+index 9c8108d11c..53fa14687f 100644
+--- a/src/net/dnsconfig_unix.go
++++ b/src/net/dnsconfig_unix.go
+@@ -121,7 +121,7 @@ func dnsReadConfig(filename string) *dnsConfig {
+ 
+ 		case "lookup":
+ 			// OpenBSD option:
+-			// http://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-current/man5/resolv.conf.5
++			// https://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-current/man5/resolv.conf.5
+ 			// "the legal space-separated values are: bind, file, yp"
+ 			conf.lookup = f[1:]
+ 
+diff --git a/src/net/http/cgi/child.go b/src/net/http/cgi/child.go
+index ec10108821..da12ac3498 100644
+--- a/src/net/http/cgi/child.go
++++ b/src/net/http/cgi/child.go
+@@ -102,7 +102,7 @@ func RequestFromMap(params map[string]string) (*http.Request, error) {
+ 	}
+ 
+ 	// There's apparently a de-facto standard for this.
+-	// http://docstore.mik.ua/orelly/linux/cgi/ch03_02.htm#ch03-35636
++	// https://docstore.mik.ua/orelly/linux/cgi/ch03_02.htm#ch03-35636
+ 	if s := params["HTTPS"]; s == "on" || s == "ON" || s == "1" {
+ 		r.TLS = &tls.ConnectionState{HandshakeComplete: true}
+ 	}
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index a6f67f0ef4..601017a683 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -335,7 +335,7 @@ func setRequestCancel(req *Request, rt RoundTripper, deadline time.Time) (stopTi
+ 	return stopTimer, timedOut.isSet
+ }
+ 
+-// See 2 (end of page 4) http://www.ietf.org/rfc/rfc2617.txt
++// See 2 (end of page 4) https://www.ietf.org/rfc/rfc2617.txt
+ // "To receive authorization, the client sends the userid and password,
+ // separated by a single colon (":") character, within a base64
+ // encoded string in the credentials."
+diff --git a/src/net/http/cookie.go b/src/net/http/cookie.go
+index 3e80cb659a..09b8974862 100644
+--- a/src/net/http/cookie.go
++++ b/src/net/http/cookie.go
+@@ -15,7 +15,7 @@ import (
+ // A Cookie represents an HTTP cookie as sent in the Set-Cookie header of an
+ // HTTP response or the Cookie header of an HTTP request.
+ //
+-// See http://tools.ietf.org/html/rfc6265 for details.
++// See https://tools.ietf.org/html/rfc6265 for details.
+ type Cookie struct {
+ 	Name  string
+ 	Value string
+@@ -307,7 +307,7 @@ func sanitizeCookieName(n string) string {
+ 	return cookieNameSanitizer.Replace(n)
+ }
+ 
+-// http://tools.ietf.org/html/rfc6265#section-4.1.1
++// https://tools.ietf.org/html/rfc6265#section-4.1.1
+ // cookie-value      = *cookie-octet / ( DQUOTE *cookie-octet DQUOTE )
+ // cookie-octet      = %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E
+ //           ; US-ASCII characters excluding CTLs,
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index d5d0a505f7..2eda6b70d0 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -136,7 +136,7 @@ var hopHeaders = []string{
+ 	"Proxy-Authenticate",
+ 	"Proxy-Authorization",
+ 	"Te",      // canonicalized version of "TE"
+-	"Trailer", // not Trailers per URL above; http://www.rfc-editor.org/errata_search.php?eid=4522
++	"Trailer", // not Trailers per URL above; https://www.rfc-editor.org/errata_search.php?eid=4522
+ 	"Transfer-Encoding",
+ 	"Upgrade",
+ }
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 699cc0a180..0ac7c96de7 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1059,7 +1059,7 @@ func checkWriteHeaderCode(code int) {
+ 	// Issue 22880: require valid WriteHeader status codes.
+ 	// For now we only enforce that it's three digits.
+ 	// In the future we might block things over 599 (600 and above aren't defined
+-	// at http://httpwg.org/specs/rfc7231.html#status.codes)
++	// at https://httpwg.org/specs/rfc7231.html#status.codes)
+ 	// and we might block under 200 (once we have more mature 1xx support).
+ 	// But for now any three digits.
+ 	//
+diff --git a/src/net/http/sniff.go b/src/net/http/sniff.go
+index 1486d13460..ff934ff357 100644
+--- a/src/net/http/sniff.go
++++ b/src/net/http/sniff.go
+@@ -13,7 +13,7 @@ import (
+ const sniffLen = 512
+ 
+ // DetectContentType implements the algorithm described
+-// at http://mimesniff.spec.whatwg.org/ to determine the
++// at https://mimesniff.spec.whatwg.org/ to determine the
+ // Content-Type of the given data. It considers at most the
+ // first 512 bytes of data. DetectContentType always returns
+ // a valid MIME type: if it cannot determine a more specific one, it
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index ba2c00e067..972b6bd895 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -1846,7 +1846,7 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
+ 		//
+ 		// Note that we don't request this for HEAD requests,
+ 		// due to a bug in nginx:
+-		//   http://trac.nginx.org/nginx/ticket/358
++		//   https://trac.nginx.org/nginx/ticket/358
+ 		//   https://golang.org/issue/5522
+ 		//
+ 		// We don't request gzip if the request is for a range, since
+diff --git a/src/net/tcpsock_posix.go b/src/net/tcpsock_posix.go
+index bcf7592d35..e6e7144f20 100644
+--- a/src/net/tcpsock_posix.go
++++ b/src/net/tcpsock_posix.go
+@@ -80,7 +80,7 @@ func (sd *sysDialer) doDialTCP(ctx context.Context, laddr, raddr *TCPAddr) (*TCP
+ 	// close the fd and try again. If it happens twice more, we relent and
+ 	// use the result. See also:
+ 	//	https://golang.org/issue/2690
+-	//	http://stackoverflow.com/questions/4949858/
++	//	https://stackoverflow.com/questions/4949858/
+ 	//
+ 	// The opposite can also happen: if we ask the kernel to pick an appropriate
+ 	// originating local address, sometimes it picks one that is already in use.
+diff --git a/src/net/textproto/reader.go b/src/net/textproto/reader.go
+index 8c3a05264a..feb464b2f2 100644
+--- a/src/net/textproto/reader.go
++++ b/src/net/textproto/reader.go
+@@ -236,7 +236,7 @@ func (r *Reader) ReadCodeLine(expectCode int) (code int, message string, err err
+ // with the same code followed by a space. Each line in message is
+ // separated by a newline (\n).
+ //
+-// See page 36 of RFC 959 (http://www.ietf.org/rfc/rfc959.txt) for
++// See page 36 of RFC 959 (https://www.ietf.org/rfc/rfc959.txt) for
+ // details of another form of response accepted:
+ //
+ //  code-message line 1
+diff --git a/src/net/textproto/reader_test.go b/src/net/textproto/reader_test.go
+index f1c56b4608..7cff7b4579 100644
+--- a/src/net/textproto/reader_test.go
++++ b/src/net/textproto/reader_test.go
+@@ -290,7 +290,7 @@ var readResponseTests = []readResponseTest{
+ 	},
+ }
+ 
+-// See http://www.ietf.org/rfc/rfc959.txt page 36.
++// See https://www.ietf.org/rfc/rfc959.txt page 36.
+ func TestRFC959Lines(t *testing.T) {
+ 	for i, tt := range readResponseTests {
+ 		r := reader(tt.in + "\nFOLLOWING DATA")
+diff --git a/src/os/env_test.go b/src/os/env_test.go
+index 7a45fca132..218205e7c3 100644
+--- a/src/os/env_test.go
++++ b/src/os/env_test.go
+@@ -126,7 +126,7 @@ func TestClearenv(t *testing.T) {
+ 	defer func(origEnv []string) {
+ 		for _, pair := range origEnv {
+ 			// Environment variables on Windows can begin with =
+-			// http://blogs.msdn.com/b/oldnewthing/archive/2010/05/06/10008132.aspx
++			// https://blogs.msdn.com/b/oldnewthing/archive/2010/05/06/10008132.aspx
+ 			i := strings.Index(pair[1:], "=") + 1
+ 			if err := Setenv(pair[:i], pair[i+1:]); err != nil {
+ 				t.Errorf("Setenv(%q, %q) failed during reset: %v", pair[:i], pair[i+1:], err)
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index 164d0c5977..11fdb19808 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -183,7 +183,7 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
+ 
+ 		// On OS X, sigaction(2) doesn't guarantee that SA_RESTART will cause
+ 		// open(2) to be restarted for regular files. This is easy to reproduce on
+-		// fuse file systems (see http://golang.org/issue/11180).
++		// fuse file systems (see https://golang.org/issue/11180).
+ 		if runtime.GOOS == "darwin" && e == syscall.EINTR {
+ 			continue
+ 		}
+diff --git a/src/os/sys_unix.go b/src/os/sys_unix.go
+index 87f36cfa4a..3c63c10409 100644
+--- a/src/os/sys_unix.go
++++ b/src/os/sys_unix.go
+@@ -9,6 +9,6 @@ package os
+ // supportsCloseOnExec reports whether the platform supports the
+ // O_CLOEXEC flag.
+ // On Darwin, the O_CLOEXEC flag was introduced in OS X 10.7 (Darwin 11.0.0).
+-// See http://support.apple.com/kb/HT1633.
++// See https://support.apple.com/kb/HT1633.
+ // On FreeBSD, the O_CLOEXEC flag was introduced in version 8.3.
+ const supportsCloseOnExec = true
+diff --git a/src/regexp/exec.go b/src/regexp/exec.go
+index 84cb3e6fa5..1c7b02d1cd 100644
+--- a/src/regexp/exec.go
++++ b/src/regexp/exec.go
+@@ -10,7 +10,7 @@ import (
+ )
+ 
+ // A queue is a 'sparse array' holding pending threads of execution.
+-// See http://research.swtch.com/2008/03/using-uninitialized-memory-for-fun-and.html
++// See https://research.swtch.com/2008/03/using-uninitialized-memory-for-fun-and.html
+ type queue struct {
+ 	sparse []uint32
+ 	dense  []entry
+@@ -27,7 +27,7 @@ type entry struct {
+ 
+ // A thread is the state of a single path through the machine:
+ // an instruction and a corresponding capture array.
+-// See http://swtch.com/~rsc/regexp/regexp2.html
++// See https://swtch.com/~rsc/regexp/regexp2.html
+ type thread struct {
+ 	inst *syntax.Inst
+ 	cap  []int
+diff --git a/src/regexp/regexp.go b/src/regexp/regexp.go
+index 7a214ad156..09faced8f3 100644
+--- a/src/regexp/regexp.go
++++ b/src/regexp/regexp.go
+@@ -16,7 +16,7 @@
+ // (This is a property not guaranteed by most open source
+ // implementations of regular expressions.) For more information
+ // about this property, see
+-//	http://swtch.com/~rsc/regexp/regexp1.html
++//	https://swtch.com/~rsc/regexp/regexp1.html
+ // or any book about automata theory.
+ //
+ // All characters are UTF-8-encoded code points.
+@@ -145,7 +145,7 @@ func Compile(expr string) (*Regexp, error) {
+ // specifies that the match be chosen to maximize the length of the first
+ // subexpression, then the second, and so on from left to right.
+ // The POSIX rule is computationally prohibitive and not even well-defined.
+-// See http://swtch.com/~rsc/regexp/regexp2.html#posix for details.
++// See https://swtch.com/~rsc/regexp/regexp2.html#posix for details.
+ func CompilePOSIX(expr string) (*Regexp, error) {
+ 	return compile(expr, syntax.POSIX, true)
+ }
+diff --git a/src/regexp/syntax/compile.go b/src/regexp/syntax/compile.go
+index 83e53ba6ca..1d8ab87a6d 100644
+--- a/src/regexp/syntax/compile.go
++++ b/src/regexp/syntax/compile.go
+@@ -9,7 +9,7 @@ import "unicode"
+ // A patchList is a list of instruction pointers that need to be filled in (patched).
+ // Because the pointers haven't been filled in yet, we can reuse their storage
+ // to hold the list. It's kind of sleazy, but works well in practice.
+-// See http://swtch.com/~rsc/regexp/regexp1.html for inspiration.
++// See https://swtch.com/~rsc/regexp/regexp1.html for inspiration.
+ //
+ // These aren't really pointers: they're integers, so we can reinterpret them
+ // this way without using package unsafe. A value l denotes
+diff --git a/src/runtime/defs3_linux.go b/src/runtime/defs3_linux.go
+index 6aa3ee4309..31f2191c76 100644
+--- a/src/runtime/defs3_linux.go
++++ b/src/runtime/defs3_linux.go
+@@ -38,6 +38,6 @@ type Vreg C.elf_vrreg_t
+ type StackT C.stack_t
+ 
+ // PPC64 uses sigcontext in place of mcontext in ucontext.
+-// see http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/arch/powerpc/include/uapi/asm/ucontext.h
++// see https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/arch/powerpc/include/uapi/asm/ucontext.h
+ type Sigcontext C.struct_sigcontext
+ type Ucontext C.struct_ucontext
+diff --git a/src/runtime/internal/atomic/sys_linux_arm.s b/src/runtime/internal/atomic/sys_linux_arm.s
+index 715231fbaa..0fd39d4ee8 100644
+--- a/src/runtime/internal/atomic/sys_linux_arm.s
++++ b/src/runtime/internal/atomic/sys_linux_arm.s
+@@ -19,7 +19,7 @@
+ // report a conflict, so we have to double-check the compare ourselves
+ // and retry if necessary.
+ //
+-// http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=b49c0f24cf6744a3f4fd09289fe7cade349dead5
++// https://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=b49c0f24cf6744a3f4fd09289fe7cade349dead5
+ //
+ TEXT cas<>(SB),NOSPLIT,$0
+ 	MOVW	$0xffff0fc0, R15 // R15 is hardware PC.
+diff --git a/src/runtime/memmove_amd64.s b/src/runtime/memmove_amd64.s
+index aaed67936a..a671baf383 100644
+--- a/src/runtime/memmove_amd64.s
++++ b/src/runtime/memmove_amd64.s
+@@ -409,7 +409,7 @@ gobble_mem_fwd_loop:
+ 	// Prefetch values were chosen empirically.
+ 	// Approach for prefetch usage as in 7.6.6 of [1]
+ 	// [1] 64-ia-32-architectures-optimization-manual.pdf
+-	// http://www.intel.ru/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-optimization-manual.pdf
++	// https://www.intel.ru/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-optimization-manual.pdf
+ 	VMOVDQU	(SI), Y0
+ 	VMOVDQU	0x20(SI), Y1
+ 	VMOVDQU	0x40(SI), Y2
+diff --git a/src/runtime/mgclarge.go b/src/runtime/mgclarge.go
+index cf9f80c2fa..e7fa831937 100644
+--- a/src/runtime/mgclarge.go
++++ b/src/runtime/mgclarge.go
+@@ -9,7 +9,7 @@
+ // Large spans are the subject of this file. Spans consisting of less than
+ // _MaxMHeapLists are held in lists of like sized spans. Larger spans
+ // are held in a treap. See https://en.wikipedia.org/wiki/Treap or
+-// http://faculty.washington.edu/aragon/pubs/rst89.pdf for an overview.
++// https://faculty.washington.edu/aragon/pubs/rst89.pdf for an overview.
+ // sema.go also holds an implementation of a treap.
+ //
+ // Each treapNode holds a single span. The treap is sorted by page size
+@@ -137,7 +137,7 @@ func (root *mTreap) insert(span *mspan) {
+ 	// npagesKeys, it is kept balanced on average by maintaining a heap ordering
+ 	// on the priority: s.priority <= both s.right.priority and s.right.priority.
+ 	// https://en.wikipedia.org/wiki/Treap
+-	// http://faculty.washington.edu/aragon/pubs/rst89.pdf
++	// https://faculty.washington.edu/aragon/pubs/rst89.pdf
+ 
+ 	t := (*treapNode)(mheap_.treapalloc.alloc())
+ 	t.init()
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 8a5812639e..9da276d453 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -843,7 +843,7 @@ func casgstatus(gp *g, oldval, newval uint32) {
+ 		})
+ 	}
+ 
+-	// See http://golang.org/cl/21503 for justification of the yield delay.
++	// See https://golang.org/cl/21503 for justification of the yield delay.
+ 	const yieldDelay = 5 * 1000
+ 	var nextYield int64
+ 
+@@ -907,7 +907,7 @@ func scang(gp *g, gcw *gcWork) {
+ 
+ 	gp.gcscandone = false
+ 
+-	// See http://golang.org/cl/21503 for justification of the yield delay.
++	// See https://golang.org/cl/21503 for justification of the yield delay.
+ 	const yieldDelay = 10 * 1000
+ 	var nextYield int64
+ 
+diff --git a/src/runtime/race/output_test.go b/src/runtime/race/output_test.go
+index adf9ce8851..019ad5806e 100644
+--- a/src/runtime/race/output_test.go
++++ b/src/runtime/race/output_test.go
+@@ -218,7 +218,7 @@ func main() {
+   main\.main\.func1\(\)
+       .*/main.go:7`},
+ 
+-	// Test for http://golang.org/issue/17190
++	// Test for https://golang.org/issue/17190
+ 	{"external_cgo_thread", "run", "linux", "atexit_sleep_ms=0", `
+ package main
+ 
+diff --git a/src/runtime/race_amd64.s b/src/runtime/race_amd64.s
+index cc1d92f437..2a65b0faee 100644
+--- a/src/runtime/race_amd64.s
++++ b/src/runtime/race_amd64.s
+@@ -23,7 +23,7 @@
+ // Arguments are passed in CX, DX, R8, R9, the rest is on stack.
+ // Callee-saved registers are: BX, BP, DI, SI, R12-R15.
+ // SP must be 16-byte aligned. Windows also requires "stack-backing" for the 4 register arguments:
+-// http://msdn.microsoft.com/en-us/library/ms235286.aspx
++// https://msdn.microsoft.com/en-us/library/ms235286.aspx
+ // We do not do this, because it seems to be intended for vararg/unprototyped functions.
+ // Gcc-compiled race runtime does not try to use that space.
+ 
+diff --git a/src/runtime/sema.go b/src/runtime/sema.go
+index 9e3a0a34a3..aba9733127 100644
+--- a/src/runtime/sema.go
++++ b/src/runtime/sema.go
+@@ -15,7 +15,7 @@
+ // even if, due to races, the wakeup happens before the sleep.
+ //
+ // See Mullender and Cox, ``Semaphores in Plan 9,''
+-// http://swtch.com/semaphore.pdf
++// https://swtch.com/semaphore.pdf
+ 
+ package runtime
+ 
+@@ -274,7 +274,7 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool) {
+ 	// addresses, it is kept balanced on average by maintaining a heap ordering
+ 	// on the ticket: s.ticket <= both s.prev.ticket and s.next.ticket.
+ 	// https://en.wikipedia.org/wiki/Treap
+-	// http://faculty.washington.edu/aragon/pubs/rst89.pdf
++	// https://faculty.washington.edu/aragon/pubs/rst89.pdf
+ 	//
+ 	// s.ticket compared with zero in couple of places, therefore set lowest bit.
+ 	// It will not affect treap's quality noticeably.
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index a37d3c39d5..74b385d596 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -113,7 +113,7 @@ func fastrand() uint32 {
+ //go:nosplit
+ func fastrandn(n uint32) uint32 {
+ 	// This is similar to fastrand() % n, but faster.
+-	// See http://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/
++	// See https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/
+ 	return uint32(uint64(fastrand()) * uint64(n) >> 32)
+ }
+ 
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index 128e8abd97..5f0d8b7c2a 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -432,7 +432,7 @@ TEXT runtime·switchtothread(SB),NOSPLIT,$0
+ 	MOVL	BP, SP
+ 	RET
+ 
+-// See http://www.dcl.hpi.uni-potsdam.de/research/WRK/2007/08/getting-os-information-the-kuser_shared_data-structure/
++// See https://www.dcl.hpi.uni-potsdam.de/research/WRK/2007/08/getting-os-information-the-kuser_shared_data-structure/
+ // Must read hi1, then lo, then hi2. The snapshot is valid if hi1 == hi2.
+ #define _INTERRUPT_TIME 0x7ffe0008
+ #define _SYSTEM_TIME 0x7ffe0014
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index 744e78c708..2e5b29ba55 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -465,7 +465,7 @@ TEXT runtime·switchtothread(SB),NOSPLIT|NOFRAME,$0
+ 	MOVQ	32(SP), SP
+ 	RET
+ 
+-// See http://www.dcl.hpi.uni-potsdam.de/research/WRK/2007/08/getting-os-information-the-kuser_shared_data-structure/
++// See https://www.dcl.hpi.uni-potsdam.de/research/WRK/2007/08/getting-os-information-the-kuser_shared_data-structure/
+ // Must read hi1, then lo, then hi2. The snapshot is valid if hi1 == hi2.
+ #define _INTERRUPT_TIME 0x7ffe0008
+ #define _SYSTEM_TIME 0x7ffe0014
+diff --git a/src/runtime/vdso_linux.go b/src/runtime/vdso_linux.go
+index c246b33884..f6a285efd7 100644
+--- a/src/runtime/vdso_linux.go
++++ b/src/runtime/vdso_linux.go
+@@ -18,7 +18,7 @@ import "unsafe"
+ // http://sco.com/developers/gabi/latest/ch5.dynamic.html
+ 
+ // The version section is documented at
+-// http://refspecs.linuxfoundation.org/LSB_3.2.0/LSB-Core-generic/LSB-Core-generic/symversion.html
++// https://refspecs.linuxfoundation.org/LSB_3.2.0/LSB-Core-generic/LSB-Core-generic/symversion.html
+ 
+ const (
+ 	_AT_SYSINFO_EHDR = 33
+diff --git a/src/runtime/vlop_arm_test.go b/src/runtime/vlop_arm_test.go
+index 85cea923a9..015126adb5 100644
+--- a/src/runtime/vlop_arm_test.go
++++ b/src/runtime/vlop_arm_test.go
+@@ -10,7 +10,7 @@ import (
+ )
+ 
+ // arm soft division benchmarks adapted from
+-// http://ridiculousfish.com/files/division_benchmarks.tar.gz
++// https://ridiculousfish.com/files/division_benchmarks.tar.gz
+ 
+ const numeratorsSize = 1 << 21
+ 
+diff --git a/src/sort/sort_test.go b/src/sort/sort_test.go
+index 4516f05e16..3b31143a74 100644
+--- a/src/sort/sort_test.go
++++ b/src/sort/sort_test.go
+@@ -456,7 +456,7 @@ func TestStableBM(t *testing.T) {
+ }
+ 
+ // This is based on the "antiquicksort" implementation by M. Douglas McIlroy.
+-// See http://www.cs.dartmouth.edu/~doug/mdmspe.pdf for more info.
++// See https://www.cs.dartmouth.edu/~doug/mdmspe.pdf for more info.
+ type adversaryTestingData struct {
+ 	t         *testing.T
+ 	data      []int // item values, initialized to special gas value and changed by Less
+diff --git a/src/strconv/atof_test.go b/src/strconv/atof_test.go
+index 3380b20088..cf4d47c8b9 100644
+--- a/src/strconv/atof_test.go
++++ b/src/strconv/atof_test.go
+@@ -137,9 +137,9 @@ var atoftests = []atofTest{
+ 	{".e-1", "0", ErrSyntax},
+ 	{"1\x00.2", "0", ErrSyntax},
+ 
+-	// http://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
++	// https://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
+ 	{"2.2250738585072012e-308", "2.2250738585072014e-308", nil},
+-	// http://www.exploringbinary.com/php-hangs-on-numeric-value-2-2250738585072011e-308/
++	// https://www.exploringbinary.com/php-hangs-on-numeric-value-2-2250738585072011e-308/
+ 	{"2.2250738585072011e-308", "2.225073858507201e-308", nil},
+ 
+ 	// A very large number (initially wrongly parsed by the fast algorithm).
+diff --git a/src/strconv/extfloat.go b/src/strconv/extfloat.go
+index 558daa1dbe..32d3340f5f 100644
+--- a/src/strconv/extfloat.go
++++ b/src/strconv/extfloat.go
+@@ -19,7 +19,7 @@ type extFloat struct {
+ }
+ 
+ // Powers of ten taken from double-conversion library.
+-// http://code.google.com/p/double-conversion/
++// https://code.google.com/p/double-conversion/
+ const (
+ 	firstPowerOfTen = -348
+ 	stepPowerOfTen  = 8
+diff --git a/src/strconv/ftoa_test.go b/src/strconv/ftoa_test.go
+index 976bd2c9b8..1d3030be81 100644
+--- a/src/strconv/ftoa_test.go
++++ b/src/strconv/ftoa_test.go
+@@ -120,9 +120,9 @@ var ftoatests = []ftoaTest{
+ 	{0.5, 'f', 0, "0"},
+ 	{1.5, 'f', 0, "2"},
+ 
+-	// http://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
++	// https://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
+ 	{2.2250738585072012e-308, 'g', -1, "2.2250738585072014e-308"},
+-	// http://www.exploringbinary.com/php-hangs-on-numeric-value-2-2250738585072011e-308/
++	// https://www.exploringbinary.com/php-hangs-on-numeric-value-2-2250738585072011e-308/
+ 	{2.2250738585072011e-308, 'g', -1, "2.225073858507201e-308"},
+ 
+ 	// Issue 2625.
+diff --git a/src/strings/search.go b/src/strings/search.go
+index f77c879c57..e5bffbbfe8 100644
+--- a/src/strings/search.go
++++ b/src/strings/search.go
+@@ -6,8 +6,8 @@ package strings
+ 
+ // stringFinder efficiently finds strings in a source text. It's implemented
+ // using the Boyer-Moore string search algorithm:
+-// http://en.wikipedia.org/wiki/Boyer-Moore_string_search_algorithm
+-// http://www.cs.utexas.edu/~moore/publications/fstrpos.pdf (note: this aged
++// https://en.wikipedia.org/wiki/Boyer-Moore_string_search_algorithm
++// https://www.cs.utexas.edu/~moore/publications/fstrpos.pdf (note: this aged
+ // document uses 1-based indexing)
+ type stringFinder struct {
+ 	// pattern is the string that we are searching for in the text.
+diff --git a/src/strings/search_test.go b/src/strings/search_test.go
+index 966c05e65a..c01a393a12 100644
+--- a/src/strings/search_test.go
++++ b/src/strings/search_test.go
+@@ -57,7 +57,7 @@ func TestFinderCreation(t *testing.T) {
+ 			[256]int{'i': 3, 'm': 7, 's': 1},
+ 			[]int{15, 14, 13, 7, 11, 10, 7, 1},
+ 		},
+-		// From http://www.cs.utexas.edu/~moore/publications/fstrpos.pdf
++		// From https://www.cs.utexas.edu/~moore/publications/fstrpos.pdf
+ 		{
+ 			"abcxxxabc",
+ 			[256]int{'a': 2, 'b': 1, 'c': 6, 'x': 3},
+diff --git a/src/syscall/env_windows.go b/src/syscall/env_windows.go
+index 1606b424ca..74b154ec15 100644
+--- a/src/syscall/env_windows.go
++++ b/src/syscall/env_windows.go
+@@ -57,7 +57,7 @@ func Clearenv() {
+ 	for _, s := range Environ() {
+ 		// Environment variables can begin with =
+ 		// so start looking for the separator = at j=1.
+-		// http://blogs.msdn.com/b/oldnewthing/archive/2010/05/06/10008132.aspx
++		// https://blogs.msdn.com/b/oldnewthing/archive/2010/05/06/10008132.aspx
+ 		for j := 1; j < len(s); j++ {
+ 			if s[j] == '=' {
+ 				Unsetenv(s[0:j])
+diff --git a/src/syscall/exec_windows.go b/src/syscall/exec_windows.go
+index 91b0e84857..c78bad8e00 100644
+--- a/src/syscall/exec_windows.go
++++ b/src/syscall/exec_windows.go
+@@ -15,7 +15,7 @@ import (
+ var ForkLock sync.RWMutex
+ 
+ // EscapeArg rewrites command line argument s as prescribed
+-// in http://msdn.microsoft.com/en-us/library/ms880421.
++// in https://msdn.microsoft.com/en-us/library/ms880421.
+ // This function returns "" (2 double quotes) if s is empty.
+ // Alternatively, these transformations are done:
+ // - every back slash (\) is doubled, but only if immediately
+diff --git a/src/syscall/route_freebsd_32bit.go b/src/syscall/route_freebsd_32bit.go
+index 5c10b05e24..ec6f6b7f8b 100644
+--- a/src/syscall/route_freebsd_32bit.go
++++ b/src/syscall/route_freebsd_32bit.go
+@@ -21,7 +21,7 @@ func (any *anyMessage) parseInterfaceMessage(b []byte) *InterfaceMessage {
+ 	p := (*InterfaceMessage)(unsafe.Pointer(any))
+ 	// FreeBSD 10 and beyond have a restructured mbuf
+ 	// packet header view.
+-	// See http://svnweb.freebsd.org/base?view=revision&revision=254804.
++	// See https://svnweb.freebsd.org/base?view=revision&revision=254804.
+ 	if freebsdVersion >= 1000000 {
+ 		m := (*ifMsghdr)(unsafe.Pointer(any))
+ 		p.Header.Data.Hwassist = uint32(m.Data.Hwassist)
+diff --git a/src/syscall/security_windows.go b/src/syscall/security_windows.go
+index e2a9dc5f9d..dbaf6d3264 100644
+--- a/src/syscall/security_windows.go
++++ b/src/syscall/security_windows.go
+@@ -30,7 +30,7 @@ const (
+ )
+ 
+ // This function returns 1 byte BOOLEAN rather than the 4 byte BOOL.
+-// http://blogs.msdn.com/b/drnick/archive/2007/12/19/windows-and-upn-format-credentials.aspx
++// https://blogs.msdn.com/b/drnick/archive/2007/12/19/windows-and-upn-format-credentials.aspx
+ //sys	TranslateName(accName *uint16, accNameFormat uint32, desiredNameFormat uint32, translatedName *uint16, nSize *uint32) (err error) [failretval&0xff==0] = secur32.TranslateNameW
+ //sys	GetUserNameEx(nameFormat uint32, nameBuffre *uint16, nSize *uint32) (err error) [failretval&0xff==0] = secur32.GetUserNameExW
+ 
+diff --git a/src/syscall/types_windows.go b/src/syscall/types_windows.go
+index 1e580abcfc..23ea5dbf14 100644
+--- a/src/syscall/types_windows.go
++++ b/src/syscall/types_windows.go
+@@ -559,7 +559,7 @@ const (
+ 	SIO_KEEPALIVE_VALS                 = IOC_IN | IOC_VENDOR | 4
+ 	SIO_UDP_CONNRESET                  = IOC_IN | IOC_VENDOR | 12
+ 
+-	// cf. http://support.microsoft.com/default.aspx?scid=kb;en-us;257460
++	// cf. https://support.microsoft.com/default.aspx?scid=kb;en-us;257460
+ 
+ 	IP_TOS             = 0x3
+ 	IP_TTL             = 0x4
+diff --git a/src/time/zoneinfo_read.go b/src/time/zoneinfo_read.go
+index 839b37aac4..20f84f0067 100644
+--- a/src/time/zoneinfo_read.go
++++ b/src/time/zoneinfo_read.go
+@@ -4,7 +4,7 @@
+ 
+ // Parse "zoneinfo" time zone file.
+ // This is a fairly standard file format used on OS X, Linux, BSD, Sun, and others.
+-// See tzfile(5), http://en.wikipedia.org/wiki/Zoneinfo,
++// See tzfile(5), https://en.wikipedia.org/wiki/Zoneinfo,
+ // and ftp://munnari.oz.au/pub/oldtz/
+ 
+ package time
+diff --git a/src/time/zoneinfo_unix.go b/src/time/zoneinfo_unix.go
+index a37fd742df..682e24b566 100644
+--- a/src/time/zoneinfo_unix.go
++++ b/src/time/zoneinfo_unix.go
+@@ -6,7 +6,7 @@
+ 
+ // Parse "zoneinfo" time zone file.
+ // This is a fairly standard file format used on OS X, Linux, BSD, Sun, and others.
+-// See tzfile(5), http://en.wikipedia.org/wiki/Zoneinfo,
++// See tzfile(5), https://en.wikipedia.org/wiki/Zoneinfo,
+ // and ftp://munnari.oz.au/pub/oldtz/
+ 
+ package time
+diff --git a/src/unicode/maketables.go b/src/unicode/maketables.go
+index 9a92a0130a..b11b77c634 100644
+--- a/src/unicode/maketables.go
++++ b/src/unicode/maketables.go
+@@ -176,7 +176,7 @@ var category = map[string]bool{
+ // UnicodeData.txt has form:
+ //	0037;DIGIT SEVEN;Nd;0;EN;;7;7;7;N;;;;;
+ //	007A;LATIN SMALL LETTER Z;Ll;0;L;;;;;N;;;005A;;005A
+-// See http://www.unicode.org/reports/tr44/ for a full explanation
++// See https://www.unicode.org/reports/tr44/ for a full explanation
+ // The fields:
+ const (
+ 	FCodePoint = iota
+@@ -232,7 +232,7 @@ type Char struct {
+ // Scripts.txt has form:
+ //	A673          ; Cyrillic # Po       SLAVONIC ASTERISK
+ //	A67C..A67D    ; Cyrillic # Mn   [2] COMBINING CYRILLIC KAVYKA..COMBINING CYRILLIC PAYEROK
+-// See http://www.unicode.org/Public/5.1.0/ucd/UCD.html for full explanation
++// See https://www.unicode.org/Public/5.1.0/ucd/UCD.html for full explanation
+ 
+ type Script struct {
+ 	lo, hi uint32 // range of code points
+diff --git a/src/unicode/utf16/utf16_test.go b/src/unicode/utf16/utf16_test.go
+index d258f0bc7b..4ecaabef96 100644
+--- a/src/unicode/utf16/utf16_test.go
++++ b/src/unicode/utf16/utf16_test.go
+@@ -124,7 +124,7 @@ var surrogateTests = []struct {
+ 	r    rune
+ 	want bool
+ }{
+-	// from http://en.wikipedia.org/wiki/UTF-16
++	// from https://en.wikipedia.org/wiki/UTF-16
+ 	{'\u007A', false},     // LATIN SMALL LETTER Z
+ 	{'\u6C34', false},     // CJK UNIFIED IDEOGRAPH-6C34 (water)
+ 	{'\uFEFF', false},     // Byte Order Mark

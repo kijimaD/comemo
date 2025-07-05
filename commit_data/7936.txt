@@ -7,6 +7,20 @@ Date:   Wed Mar 30 09:46:11 2011 -0700
     R=r, rsc1, iant2
     CC=golang-dev
     https://golang.org/cl/4329044
-
+---
  src/cmd/gotest/gotest.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gotest/gotest.go b/src/cmd/gotest/gotest.go
+index ae33eb7181..08f9ed4ee9 100644
+--- a/src/cmd/gotest/gotest.go
++++ b/src/cmd/gotest/gotest.go
+@@ -177,7 +177,7 @@ func setEnvironment() {
+ func getTestFileNames() {
+ 	names := flag.Args()
+ 	if len(names) == 0 {
+-		names = filepath.Glob("*_test.go")
++		names = filepath.Glob("[^.]*_test.go")
+ 		if len(names) == 0 {
+ 			Fatalf(`no test files found: no match for "*_test.go"`)
+ 		}

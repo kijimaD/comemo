@@ -10,6 +10,20 @@ Date:   Tue Jul 6 07:17:07 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/332954
     Trust: Meng Zhuo <mzh@golangcn.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/asm_riscv64.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/asm_riscv64.s b/src/runtime/asm_riscv64.s
+index d7ab90d1ab..531b46927c 100644
+--- a/src/runtime/asm_riscv64.s
++++ b/src/runtime/asm_riscv64.s
+@@ -81,7 +81,7 @@ TEXT setg_gcc<>(SB),NOSPLIT,$0-0
+ 
+ // func cputicks() int64
+ TEXT runtime·cputicks(SB),NOSPLIT,$0-8
+-	RDTIME	A0
++	RDCYCLE	A0
+ 	MOV	A0, ret+0(FP)
+ 	RET
+ 

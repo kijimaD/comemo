@@ -20,7 +20,44 @@ Date:   Thu Jul 30 12:31:18 2015 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/esc.go |  1 +
  test/escape_iface.go               | 16 ++++++++++++++++
  2 files changed, 17 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 85561cdb27..4c4455fba7 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -1735,6 +1735,7 @@ func escwalk(e *EscState, level Level, dst *Node, src *Node) {
+ 		}
+ 
+ 	case ODOT,
++		ODOTTYPE,
+ 		OSLICE,
+ 		OSLICEARR,
+ 		OSLICE3,
+diff --git a/test/escape_iface.go b/test/escape_iface.go
+index 3bc914c8bb..2b1144ad2c 100644
+--- a/test/escape_iface.go
++++ b/test/escape_iface.go
+@@ -209,3 +209,19 @@ func efaceEscape2() {
+ 		mdoesnotescape(x)
+ 	}
+ }
++
++type T1 struct {
++	p *int
++}
++
++type T2 struct {
++	T1 T1
++}
++
++func dotTypeEscape() *T2 { // #11931
++	var x interface{}
++	x = &T1{p: new(int)} // ERROR "new\(int\) escapes to heap" "&T1 literal does not escape"
++	return &T2{
++		T1: *(x.(*T1)), // ERROR "&T2 literal escapes to heap"
++	}
++}

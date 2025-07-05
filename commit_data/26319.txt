@@ -10,7 +10,58 @@ Date:   Sat Jan 9 11:55:32 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/18471
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/serve_test.go | 27 +++++++++++++++++++++++++++
  src/net/http/server.go     |  1 -
  2 files changed, 27 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index f36bb38ba7..00220b471c 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -3639,6 +3639,33 @@ func TestTolerateCRLFBeforeRequestLine(t *testing.T) {
+ 	}
+ }
+ 
++func TestIssue13893_Expect100(t *testing.T) {
++	// test that the Server doesn't filter out Expect headers.
++	req := reqBytes(`PUT /readbody HTTP/1.1
++User-Agent: PycURL/7.22.0
++Host: 127.0.0.1:9000
++Accept: */*
++Expect: 100-continue
++Content-Length: 10
++
++HelloWorld
++
++`)
++	var buf bytes.Buffer
++	conn := &rwTestConn{
++		Reader: bytes.NewReader(req),
++		Writer: &buf,
++		closec: make(chan bool, 1),
++	}
++	ln := &oneConnListener{conn: conn}
++	go Serve(ln, HandlerFunc(func(w ResponseWriter, r *Request) {
++		if _, ok := r.Header["Expect"]; !ok {
++			t.Error("Expect header should not be filtered out")
++		}
++	}))
++	<-conn.closec
++}
++
+ func TestIssue11549_Expect100(t *testing.T) {
+ 	req := reqBytes(`PUT /readbody HTTP/1.1
+ User-Agent: PycURL/7.22.0
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index ac7086c21e..19324d02c4 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1452,7 +1452,6 @@ func (c *conn) serve() {
+ 				// Wrap the Body reader with one that replies on the connection
+ 				req.Body = &expectContinueReader{readCloser: req.Body, resp: w}
+ 			}
+-			req.Header.Del("Expect")
+ 		} else if req.Header.get("Expect") != "" {
+ 			w.sendExpectationFailed()
+ 			return

@@ -8,8 +8,107 @@ Date:   Tue Feb 19 09:20:56 2013 -0800
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/7349046
-
+---
  src/pkg/exp/gotype/gotype_test.go   | 12 ++++++------
  src/pkg/go/types/stmt.go            |  4 +++-
  src/pkg/go/types/testdata/stmt0.src |  5 ++++-
  3 files changed, 13 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/exp/gotype/gotype_test.go b/src/pkg/exp/gotype/gotype_test.go
+index 3fbada7920..03c114013a 100644
+--- a/src/pkg/exp/gotype/gotype_test.go
++++ b/src/pkg/exp/gotype/gotype_test.go
+@@ -61,7 +61,7 @@ var tests = []string{
+ 	"bufio",
+ 	"bytes",
+ 
+-	// "compress/bzip2",
++	"compress/bzip2",
+ 	"compress/flate",
+ 	"compress/gzip",
+ 	// "compress/lzw",
+@@ -80,7 +80,7 @@ var tests = []string{
+ 	"crypto/elliptic",
+ 	"crypto/hmac",
+ 	"crypto/md5",
+-	// "crypto/rand",
++	"crypto/rand",
+ 	"crypto/rc4",
+ 	"crypto/rsa",
+ 	"crypto/sha1",
+@@ -126,7 +126,7 @@ var tests = []string{
+ 	"go/parser",
+ 	"go/printer",
+ 	"go/scanner",
+-	// "go/token",
++	"go/token",
+ 	"go/types",
+ 
+ 	"hash/adler32",
+@@ -138,7 +138,7 @@ var tests = []string{
+ 	"image/color",
+ 	"image/draw",
+ 	"image/gif",
+-	// "image/jpeg",
++	"image/jpeg",
+ 	"image/png",
+ 
+ 	"index/suffixarray",
+@@ -149,7 +149,7 @@ var tests = []string{
+ 	"log",
+ 	"log/syslog",
+ 
+-	// "math",
++	"math",
+ 	//"math/big",
+ 	"math/cmplx",
+ 	"math/rand",
+@@ -168,7 +168,7 @@ var tests = []string{
+ 	"net/rpc",
+ 	"net/rpc/jsonrpc",
+ 	"net/smtp",
+-	// "net/textproto",
++	"net/textproto",
+ 	"net/url",
+ 
+ 	"path",
+diff --git a/src/pkg/go/types/stmt.go b/src/pkg/go/types/stmt.go
+index 05a65ca2c0..2da798e4ca 100644
+--- a/src/pkg/go/types/stmt.go
++++ b/src/pkg/go/types/stmt.go
+@@ -403,11 +403,13 @@ func (check *checker) stmt(s ast.Stmt) {
+ 				return
+ 			}
+ 			var x, y operand
++			// The lhs operand's type doesn't need a hint (from the rhs operand),
++			// because it must be a fully typed variable in this case.
+ 			check.expr(&x, s.Lhs[0], nil, -1)
+ 			if x.mode == invalid {
+ 				return
+ 			}
+-			check.expr(&y, s.Rhs[0], nil, -1)
++			check.expr(&y, s.Rhs[0], x.typ, -1)
+ 			if y.mode == invalid {
+ 				return
+ 			}
+diff --git a/src/pkg/go/types/testdata/stmt0.src b/src/pkg/go/types/testdata/stmt0.src
+index ca36834fde..37610d3ddd 100644
+--- a/src/pkg/go/types/testdata/stmt0.src
++++ b/src/pkg/go/types/testdata/stmt0.src
+@@ -29,6 +29,9 @@ func _() {
+ 
+ 	s += "bar"
+ 	s += 1 /* ERROR "cannot convert.*string" */
++
++	var u64 uint64
++	u64 += 1<<u64
+ }
+ 
+ func _incdecs() {
+@@ -271,4 +274,4 @@ func _rangeloops() {
+ 		var xx rune
+ 		xx = x
+ 	}
+-}
+\ No newline at end of file
++}

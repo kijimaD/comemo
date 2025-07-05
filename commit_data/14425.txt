@@ -9,8 +9,61 @@ Date:   Fri Nov 16 17:24:43 2012 -0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/6856056
-
+---
  src/pkg/archive/zip/zip_test.go   | 4 ++--
  src/pkg/crypto/tls/prf_test.go    | 2 +-
  src/pkg/net/http/transfer_test.go | 4 ++--
  3 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/archive/zip/zip_test.go b/src/pkg/archive/zip/zip_test.go
+index 34c899d9f2..906ded6a91 100644
+--- a/src/pkg/archive/zip/zip_test.go
++++ b/src/pkg/archive/zip/zip_test.go
+@@ -186,12 +186,12 @@ func testInvalidHeader(h *FileHeader, t *testing.T) {
+ 		t.Fatalf("error writing content: %v", err)
+ 	}
+ 	if err := z.Close(); err != nil {
+-		t.Fatal("error closing zip writer: %v", err)
++		t.Fatalf("error closing zip writer: %v", err)
+ 	}
+ 
+ 	b := buf.Bytes()
+ 	if _, err = NewReader(bytes.NewReader(b), int64(len(b))); err != ErrFormat {
+-		t.Fatal("got %v, expected ErrFormat", err)
++		t.Fatalf("got %v, expected ErrFormat", err)
+ 	}
+ }
+ 
+diff --git a/src/pkg/crypto/tls/prf_test.go b/src/pkg/crypto/tls/prf_test.go
+index ce6e36de8a..773a2b2ffc 100644
+--- a/src/pkg/crypto/tls/prf_test.go
++++ b/src/pkg/crypto/tls/prf_test.go
+@@ -51,7 +51,7 @@ func TestKeysFromPreMasterSecret(t *testing.T) {
+ 
+ 		masterSecret := masterFromPreMasterSecret(test.version, in, clientRandom, serverRandom)
+ 		if s := hex.EncodeToString(masterSecret); s != test.masterSecret {
+-			t.Errorf("#%d: bad master secret %s, want %s", s, test.masterSecret)
++			t.Errorf("#%d: bad master secret %s, want %s", i, s, test.masterSecret)
+ 			continue
+ 		}
+ 
+diff --git a/src/pkg/net/http/transfer_test.go b/src/pkg/net/http/transfer_test.go
+index e903c94c1f..8627a374c8 100644
+--- a/src/pkg/net/http/transfer_test.go
++++ b/src/pkg/net/http/transfer_test.go
+@@ -20,13 +20,13 @@ func TestBodyReadBadTrailer(t *testing.T) {
+ 	n, err := b.Read(buf[:3])
+ 	got := string(buf[:n])
+ 	if got != "foo" || err != nil {
+-		t.Fatalf(`first Read = %n (%q), %v; want 3 ("foo")`, n, got, err)
++		t.Fatalf(`first Read = %d (%q), %v; want 3 ("foo")`, n, got, err)
+ 	}
+ 
+ 	n, err = b.Read(buf[:])
+ 	got = string(buf[:n])
+ 	if got != "bar" || err != nil {
+-		t.Fatalf(`second Read = %n (%q), %v; want 3 ("bar")`, n, got, err)
++		t.Fatalf(`second Read = %d (%q), %v; want 3 ("bar")`, n, got, err)
+ 	}
+ 
+ 	n, err = b.Read(buf[:])

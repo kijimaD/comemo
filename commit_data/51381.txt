@@ -14,7 +14,52 @@ Date:   Wed Jan 19 15:48:17 2022 -0800
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/importer/iimport.go | 4 ++--
  src/go/internal/gcimporter/iimport.go        | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/iimport.go b/src/cmd/compile/internal/importer/iimport.go
+index 7c51d3b16f..691e9b6976 100644
+--- a/src/cmd/compile/internal/importer/iimport.go
++++ b/src/cmd/compile/internal/importer/iimport.go
+@@ -126,7 +126,7 @@ func ImportData(imports map[string]*types2.Package, data, path string) (pkg *typ
+ 		typCache: make(map[uint64]types2.Type),
+ 		// Separate map for typeparams, keyed by their package and unique
+ 		// name (name with subscript).
+-		tparamIndex: make(map[ident]types2.Type),
++		tparamIndex: make(map[ident]*types2.TypeParam),
+ 	}
+ 
+ 	for i, pt := range predeclared {
+@@ -202,7 +202,7 @@ type iimporter struct {
+ 	declData    string
+ 	pkgIndex    map[*types2.Package]map[string]uint64
+ 	typCache    map[uint64]types2.Type
+-	tparamIndex map[ident]types2.Type
++	tparamIndex map[ident]*types2.TypeParam
+ 
+ 	interfaceList []*types2.Interface
+ }
+diff --git a/src/go/internal/gcimporter/iimport.go b/src/go/internal/gcimporter/iimport.go
+index c5b89aa042..ee8dd0ee7c 100644
+--- a/src/go/internal/gcimporter/iimport.go
++++ b/src/go/internal/gcimporter/iimport.go
+@@ -127,7 +127,7 @@ func iImportData(fset *token.FileSet, imports map[string]*types.Package, dataRea
+ 		typCache: make(map[uint64]types.Type),
+ 		// Separate map for typeparams, keyed by their package and unique
+ 		// name (name with subscript).
+-		tparamIndex: make(map[ident]types.Type),
++		tparamIndex: make(map[ident]*types.TypeParam),
+ 
+ 		fake: fakeFileSet{
+ 			fset:  fset,
+@@ -207,7 +207,7 @@ type iimporter struct {
+ 	declData    []byte
+ 	pkgIndex    map[*types.Package]map[string]uint64
+ 	typCache    map[uint64]types.Type
+-	tparamIndex map[ident]types.Type
++	tparamIndex map[ident]*types.TypeParam
+ 
+ 	fake          fakeFileSet
+ 	interfaceList []*types.Interface

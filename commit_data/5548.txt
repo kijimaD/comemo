@@ -7,6 +7,20 @@ Date:   Tue May 25 14:22:12 2010 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/1253046
-
+---
  misc/dashboard/godashboard/main.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/dashboard/godashboard/main.html b/misc/dashboard/godashboard/main.html
+index 6de8e93158..dba7951b85 100644
+--- a/misc/dashboard/godashboard/main.html
++++ b/misc/dashboard/godashboard/main.html
+@@ -56,7 +56,7 @@
+     <div class="paginate">
+ 	<a{% if prev %} href="?n={{num}}&p={{prev}}"{% else %} class="inactive"{% endif %}>prev</a>
+ 	<a{% if next %} href="?n={{num}}&p={{next}}"{% else %} class="inactive"{% endif %}>next</a>
+-	<a href="#top">top</a>
++	<a{% if prev %} href="?n={{num}}&p=1"{% else %} class="inactive"{% endif %}>top</a>
+     </div>
+   </body>
+ </html>

@@ -14,7 +14,79 @@ Date:   Thu Apr 21 11:44:05 2016 +1000
     Reviewed-on: https://go-review.googlesource.com/22332
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/debug/pe/file.go    |  8 ++++++++
  src/debug/pe/section.go | 27 +++++++++++++++++++++++++++
  2 files changed, 35 insertions(+)
+
+diff --git a/src/debug/pe/file.go b/src/debug/pe/file.go
+index 73b7c1cba2..cfd8e08a63 100644
+--- a/src/debug/pe/file.go
++++ b/src/debug/pe/file.go
+@@ -192,6 +192,14 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 		s.ReaderAt = s.sr
+ 		f.Sections[i] = s
+ 	}
++	for i := range f.Sections {
++		var err error
++		f.Sections[i].Relocs, err = readRelocs(&f.Sections[i].SectionHeader, sr)
++		if err != nil {
++			return nil, err
++		}
++	}
++
+ 	return f, nil
+ }
+ 
+diff --git a/src/debug/pe/section.go b/src/debug/pe/section.go
+index ded3ec4393..69fe41fd7a 100644
+--- a/src/debug/pe/section.go
++++ b/src/debug/pe/section.go
+@@ -5,6 +5,8 @@
+ package pe
+ 
+ import (
++	"encoding/binary"
++	"fmt"
+ 	"io"
+ 	"strconv"
+ )
+@@ -37,6 +39,30 @@ func (sh *SectionHeader32) fullName(st StringTable) (string, error) {
+ 	return st.String(uint32(i))
+ }
+ 
++// Reloc represents a PE COFF relocation.
++// Each section contains its own relocation list.
++type Reloc struct {
++	VirtualAddress   uint32
++	SymbolTableIndex uint32
++	Type             uint16
++}
++
++func readRelocs(sh *SectionHeader, r io.ReadSeeker) ([]Reloc, error) {
++	if sh.NumberOfRelocations <= 0 {
++		return nil, nil
++	}
++	_, err := r.Seek(int64(sh.PointerToRelocations), io.SeekStart)
++	if err != nil {
++		return nil, fmt.Errorf("fail to seek to %q section relocations: %v", sh.Name, err)
++	}
++	relocs := make([]Reloc, sh.NumberOfRelocations)
++	err = binary.Read(r, binary.LittleEndian, relocs)
++	if err != nil {
++		return nil, fmt.Errorf("fail to read section relocations: %v", err)
++	}
++	return relocs, nil
++}
++
+ // SectionHeader is similar to SectionHeader32 with Name
+ // field replaced by Go string.
+ type SectionHeader struct {
+@@ -55,6 +81,7 @@ type SectionHeader struct {
+ // Section provides access to PE COFF section.
+ type Section struct {
+ 	SectionHeader
++	Relocs []Reloc
+ 
+ 	// Embed ReaderAt for ReadAt method.
+ 	// Do not embed SectionReader directly

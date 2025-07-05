@@ -9,6 +9,20 @@ Date:   Wed Jul 1 15:07:20 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=30967
     CL=30990
-
+---
  doc/effective_go.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 1e925528d0..a4d4ed31db 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -360,7 +360,7 @@ out a data structure.
+ <h3 id="buffer-slice">Use parallel assignment to slice a buffer</h3>
+ 
+ <pre>
+-hdr, body, checksum := buf[0:20], buf[20:len(buf)], buf[len(buf)-4:len(buf)];
++hdr, body, checksum := buf[0:20], buf[20:len(buf)-4], buf[len(buf)-4:len(buf)];
+ </pre>
+ 
+ <h2 id="control-flow">Control Flow</h2>

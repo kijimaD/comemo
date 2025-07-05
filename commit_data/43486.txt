@@ -15,7 +15,7 @@ Date:   Mon Apr 6 16:16:48 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  api/except.txt                                      |  4 ----
  misc/cgo/test/sigaltstack.go                        |  2 --
  src/cmd/dist/test.go                                |  8 ++++----
@@ -35,3 +35,335 @@ Date:   Mon Apr 6 16:16:48 2020 -0400
  src/runtime/vlrt.go                                 |  3 ---
  src/syscall/mkall.sh                                |  7 -------
  18 files changed, 25 insertions(+), 83 deletions(-)
+
+diff --git a/api/except.txt b/api/except.txt
+index 6316401897..ccfdf06c55 100644
+--- a/api/except.txt
++++ b/api/except.txt
+@@ -8,10 +8,6 @@ pkg os (linux-arm), const O_SYNC = 4096
+ pkg os (linux-arm-cgo), const O_SYNC = 4096
+ pkg os (linux-arm), const O_SYNC = 1052672
+ pkg os (linux-arm-cgo), const O_SYNC = 1052672
+-pkg syscall (darwin-386), const ImplementsGetwd = false
+-pkg syscall (darwin-386), func Fchflags(string, int) error
+-pkg syscall (darwin-386-cgo), const ImplementsGetwd = false
+-pkg syscall (darwin-386-cgo), func Fchflags(string, int) error
+ pkg syscall (darwin-amd64), const ImplementsGetwd = false
+ pkg syscall (darwin-amd64), func Fchflags(string, int) error
+ pkg syscall (darwin-amd64-cgo), const ImplementsGetwd = false
+diff --git a/misc/cgo/test/sigaltstack.go b/misc/cgo/test/sigaltstack.go
+index f501f9ba3a..8dfa1cb5ad 100644
+--- a/misc/cgo/test/sigaltstack.go
++++ b/misc/cgo/test/sigaltstack.go
+@@ -64,8 +64,6 @@ func testSigaltstack(t *testing.T) {
+ 	switch {
+ 	case runtime.GOOS == "solaris", runtime.GOOS == "illumos", runtime.GOOS == "darwin" && runtime.GOARCH == "arm64":
+ 		t.Skipf("switching signal stack not implemented on %s/%s", runtime.GOOS, runtime.GOARCH)
+-	case runtime.GOOS == "darwin" && runtime.GOARCH == "386":
+-		t.Skipf("sigaltstack fails on darwin/386")
+ 	}
+ 
+ 	C.changeSignalStack()
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index a7ef8f27d5..b9b78bf57d 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -902,7 +902,7 @@ func (t *tester) extLink() bool {
+ 	switch pair {
+ 	case "aix-ppc64",
+ 		"android-arm", "android-arm64",
+-		"darwin-386", "darwin-amd64", "darwin-arm64",
++		"darwin-amd64", "darwin-arm64",
+ 		"dragonfly-amd64",
+ 		"freebsd-386", "freebsd-amd64", "freebsd-arm",
+ 		"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-mips64", "linux-mips64le", "linux-mips", "linux-mipsle", "linux-s390x",
+@@ -963,7 +963,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 		}
+ 		switch pair {
+ 		case "aix-ppc64",
+-			"darwin-386", "darwin-amd64", "darwin-arm64",
++			"darwin-amd64", "darwin-arm64",
+ 			"linux-amd64", "linux-386", "linux-ppc64le", "linux-s390x",
+ 			"freebsd-amd64",
+ 			"windows-amd64", "windows-386":
+@@ -973,7 +973,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 	case "c-shared":
+ 		switch pair {
+ 		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-s390x",
+-			"darwin-amd64", "darwin-386",
++			"darwin-amd64",
+ 			"freebsd-amd64",
+ 			"android-arm", "android-arm64", "android-386",
+ 			"windows-amd64", "windows-386":
+@@ -1069,7 +1069,7 @@ func (t *tester) cgoTest(dt *distTest) error {
+ 
+ 	pair := gohostos + "-" + goarch
+ 	switch pair {
+-	case "darwin-386", "darwin-amd64",
++	case "darwin-amd64",
+ 		"openbsd-386", "openbsd-amd64",
+ 		"windows-386", "windows-amd64":
+ 		// test linkmode=external, but __thread not supported, so skip testtls.
+diff --git a/src/cmd/go/testdata/script/link_syso_issue33139.txt b/src/cmd/go/testdata/script/link_syso_issue33139.txt
+index 03169bf5e9..46b0ef4200 100644
+--- a/src/cmd/go/testdata/script/link_syso_issue33139.txt
++++ b/src/cmd/go/testdata/script/link_syso_issue33139.txt
+@@ -12,10 +12,6 @@
+ # See: https://github.com/golang/go/issues/36739
+ [linux] [riscv64] skip
+ 
+-# External linking is not supported on darwin/386 (10.14+).
+-# See: https://github.com/golang/go/issues/31751
+-[darwin] [386] skip
+-
+ cc -c -o syso/objTestImpl.syso syso/src/objTestImpl.c
+ go build -ldflags='-linkmode=external' ./cmd/main.go
+ 
+diff --git a/src/cmd/internal/sys/supported.go b/src/cmd/internal/sys/supported.go
+index efc07af56b..c27b3b986d 100644
+--- a/src/cmd/internal/sys/supported.go
++++ b/src/cmd/internal/sys/supported.go
+@@ -69,7 +69,7 @@ func BuildModeSupported(compiler, buildmode, goos, goarch string) bool {
+ 		case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/ppc64le", "linux/s390x",
+ 			"android/amd64", "android/arm", "android/arm64", "android/386",
+ 			"freebsd/amd64",
+-			"darwin/amd64", "darwin/386",
++			"darwin/amd64",
+ 			"windows/amd64", "windows/386":
+ 			return true
+ 		}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index f7b8e04ddf..62cf2262bd 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -540,7 +540,7 @@ func (ctxt *Link) loadlib() {
+ 	// We now have enough information to determine the link mode.
+ 	determineLinkMode(ctxt)
+ 
+-	if ctxt.LinkMode == LinkExternal && !iscgo && !(objabi.GOOS == "darwin" && ctxt.BuildMode != BuildModePlugin && (ctxt.Arch.Family == sys.AMD64 || ctxt.Arch.Family == sys.I386)) {
++	if ctxt.LinkMode == LinkExternal && !iscgo && !(objabi.GOOS == "darwin" && ctxt.BuildMode != BuildModePlugin && ctxt.Arch.Family == sys.AMD64) {
+ 		// This indicates a user requested -linkmode=external.
+ 		// The startup code uses an import of runtime/cgo to decide
+ 		// whether to initialize the TLS.  So give it one. This could
+diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
+index 2284963f59..ff47c688b6 100644
+--- a/src/cmd/link/internal/ld/sym.go
++++ b/src/cmd/link/internal/ld/sym.go
+@@ -95,14 +95,11 @@ func (ctxt *Link) computeTLSOffset() {
+ 
+ 			/*
+ 			 * For x86, Apple has reserved a slot in the TLS for Go. See issue 23617.
+-			 * That slot is at offset 0x30 on amd64, and 0x18 on 386.
++			 * That slot is at offset 0x30 on amd64.
+ 			 * The slot will hold the G pointer.
+-			 * These constants should match those in runtime/sys_darwin_{386,amd64}.s
+-			 * and runtime/cgo/gcc_darwin_{386,amd64}.c.
++			 * These constants should match those in runtime/sys_darwin_amd64.s
++			 * and runtime/cgo/gcc_darwin_amd64.c.
+ 			 */
+-		case sys.I386:
+-			ctxt.Tlsoffset = 0x18
+-
+ 		case sys.AMD64:
+ 			ctxt.Tlsoffset = 0x30
+ 
+diff --git a/src/cmd/oldlink/internal/ld/lib.go b/src/cmd/oldlink/internal/ld/lib.go
+index a6c86af6cf..0fc786f1bf 100644
+--- a/src/cmd/oldlink/internal/ld/lib.go
++++ b/src/cmd/oldlink/internal/ld/lib.go
+@@ -435,7 +435,7 @@ func (ctxt *Link) loadlib() {
+ 	// We now have enough information to determine the link mode.
+ 	determineLinkMode(ctxt)
+ 
+-	if ctxt.LinkMode == LinkExternal && !iscgo && ctxt.LibraryByPkg["runtime/cgo"] == nil && !(objabi.GOOS == "darwin" && ctxt.BuildMode != BuildModePlugin && (ctxt.Arch.Family == sys.AMD64 || ctxt.Arch.Family == sys.I386)) {
++	if ctxt.LinkMode == LinkExternal && !iscgo && ctxt.LibraryByPkg["runtime/cgo"] == nil && !(objabi.GOOS == "darwin" && ctxt.BuildMode != BuildModePlugin && ctxt.Arch.Family == sys.AMD64) {
+ 		// This indicates a user requested -linkmode=external.
+ 		// The startup code uses an import of runtime/cgo to decide
+ 		// whether to initialize the TLS.  So give it one. This could
+diff --git a/src/cmd/oldlink/internal/ld/sym.go b/src/cmd/oldlink/internal/ld/sym.go
+index a470ddbca8..4f697d0627 100644
+--- a/src/cmd/oldlink/internal/ld/sym.go
++++ b/src/cmd/oldlink/internal/ld/sym.go
+@@ -93,14 +93,11 @@ func (ctxt *Link) computeTLSOffset() {
+ 
+ 			/*
+ 			 * For x86, Apple has reserved a slot in the TLS for Go. See issue 23617.
+-			 * That slot is at offset 0x30 on amd64, and 0x18 on 386.
++			 * That slot is at offset 0x30 on amd64.
+ 			 * The slot will hold the G pointer.
+ 			 * These constants should match those in runtime/sys_darwin_{386,amd64}.s
+ 			 * and runtime/cgo/gcc_darwin_{386,amd64}.c.
+ 			 */
+-		case sys.I386:
+-			ctxt.Tlsoffset = 0x18
+-
+ 		case sys.AMD64:
+ 			ctxt.Tlsoffset = 0x30
+ 
+diff --git a/src/go/build/doc.go b/src/go/build/doc.go
+index 47dec5a05d..bf60ff7fc2 100644
+--- a/src/go/build/doc.go
++++ b/src/go/build/doc.go
+@@ -86,11 +86,11 @@
+ // of the individual constraints. That is, the build constraints:
+ //
+ //	// +build linux darwin
+-//	// +build 386
++//	// +build amd64
+ //
+ // corresponds to the boolean formula:
+ //
+-//	(linux OR darwin) AND 386
++//	(linux OR darwin) AND amd64
+ //
+ // During a particular build, the following words are satisfied:
+ //
+diff --git a/src/os/wait_waitid.go b/src/os/wait_waitid.go
+index c57bace90f..6c904e54db 100644
+--- a/src/os/wait_waitid.go
++++ b/src/os/wait_waitid.go
+@@ -23,8 +23,7 @@ const _P_PID = 1
+ func (p *Process) blockUntilWaitable() (bool, error) {
+ 	// The waitid system call expects a pointer to a siginfo_t,
+ 	// which is 128 bytes on all GNU/Linux systems.
+-	// On Darwin, it requires greater than or equal to 64 bytes
+-	// for darwin/386 and 104 bytes for darwin/amd64.
++	// On darwin/amd64, it requires 104 bytes.
+ 	// We don't care about the values it returns.
+ 	var siginfo [16]uint64
+ 	psig := &siginfo[0]
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 8f0ec08f80..11863fba39 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -199,10 +199,6 @@ needtls:
+ 	// skip runtime·ldt0setup(SB) and tls test on Plan 9 in all cases
+ 	JMP	ok
+ #endif
+-#ifdef GOOS_darwin
+-	// skip runtime·ldt0setup(SB) on Darwin
+-	JMP	ok
+-#endif
+ 
+ 	// set up %gs
+ 	CALL	ldt0setup<>(SB)
+diff --git a/src/runtime/defs_darwin.go b/src/runtime/defs_darwin.go
+index de1489f032..cc8c475387 100644
+--- a/src/runtime/defs_darwin.go
++++ b/src/runtime/defs_darwin.go
+@@ -8,7 +8,6 @@
+ Input to cgo.
+ 
+ GOARCH=amd64 go tool cgo -cdefs defs_darwin.go >defs_darwin_amd64.h
+-GOARCH=386 go tool cgo -cdefs defs_darwin.go >defs_darwin_386.h
+ */
+ 
+ package runtime
+diff --git a/src/runtime/signal_386.go b/src/runtime/signal_386.go
+index bceffa6f4e..2f390f12f7 100644
+--- a/src/runtime/signal_386.go
++++ b/src/runtime/signal_386.go
+@@ -37,22 +37,6 @@ func (c *sigctxt) fault() uintptr { return uintptr(c.sigaddr()) }
+ 
+ // preparePanic sets up the stack to look like a call to sigpanic.
+ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+-	if GOOS == "darwin" {
+-		// Work around Leopard bug that doesn't set FPE_INTDIV.
+-		// Look at instruction to see if it is a divide.
+-		// Not necessary in Snow Leopard (si_code will be != 0).
+-		if sig == _SIGFPE && gp.sigcode0 == 0 {
+-			pc := (*[4]byte)(unsafe.Pointer(gp.sigpc))
+-			i := 0
+-			if pc[i] == 0x66 { // 16-bit instruction prefix
+-				i++
+-			}
+-			if pc[i] == 0xF6 || pc[i] == 0xF7 {
+-				gp.sigcode0 = _FPE_INTDIV
+-			}
+-		}
+-	}
+-
+ 	pc := uintptr(c.eip())
+ 	sp := uintptr(c.esp())
+ 
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index d2d1822aab..1b136f88a8 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -67,6 +67,17 @@ func syscall_syscall(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+ }
+ func syscall()
+ 
++//go:linkname syscall_syscallX syscall.syscallX
++//go:nosplit
++//go:cgo_unsafe_args
++func syscall_syscallX(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
++	entersyscallblock()
++	libcCall(unsafe.Pointer(funcPC(syscallX)), unsafe.Pointer(&fn))
++	exitsyscall()
++	return
++}
++func syscallX()
++
+ //go:linkname syscall_syscall6 syscall.syscall6
+ //go:nosplit
+ //go:cgo_unsafe_args
+diff --git a/src/runtime/sys_darwin_64.go b/src/runtime/sys_darwin_64.go
+deleted file mode 100644
+index 07b0bb54af..0000000000
+--- a/src/runtime/sys_darwin_64.go
++++ /dev/null
+@@ -1,21 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build darwin
+-// +build amd64 arm64
+-
+-package runtime
+-
+-import "unsafe"
+-
+-//go:linkname syscall_syscallX syscall.syscallX
+-//go:nosplit
+-//go:cgo_unsafe_args
+-func syscall_syscallX(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+-	entersyscallblock()
+-	libcCall(unsafe.Pointer(funcPC(syscallX)), unsafe.Pointer(&fn))
+-	exitsyscall()
+-	return
+-}
+-func syscallX()
+diff --git a/src/runtime/vlrt.go b/src/runtime/vlrt.go
+index e4d1be5d8a..87370f870d 100644
+--- a/src/runtime/vlrt.go
++++ b/src/runtime/vlrt.go
+@@ -130,9 +130,6 @@ func uint64mod(n, d uint64) uint64 {
+ 	return r
+ }
+ 
+-//go:nosplit
+-// nosplit because division is used in syscall context in nanotime on darwin/386
+-// where stack splits are not allowed.
+ func int64div(n, d int64) int64 {
+ 	// Check for 32 bit operands
+ 	if int64(int32(n)) == n && int64(int32(d)) == d {
+diff --git a/src/syscall/mkall.sh b/src/syscall/mkall.sh
+index 7e624c5a21..826512a177 100755
+--- a/src/syscall/mkall.sh
++++ b/src/syscall/mkall.sh
+@@ -121,13 +121,6 @@ aix_ppc64)
+ 	mksyscall="./mksyscall_libc.pl -aix"
+ 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+ 	;;
+-darwin_386)
+-	mkerrors="$mkerrors -m32"
+-	mksyscall="./mksyscall.pl -l32 -darwin"
+-	mksysnum="./mksysnum_darwin.pl /usr/include/sys/syscall.h"
+-	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+-	mkasm="go run mkasm_darwin.go"
+-	;;
+ darwin_amd64)
+ 	mkerrors="$mkerrors -m64"
+ 	mksyscall="./mksyscall.pl -darwin"

@@ -22,9 +22,133 @@ Date:   Wed Aug 31 13:48:06 2022 -0700
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/inline/inl.go        | 12 ++++++------
  src/cmd/compile/internal/noder/reader.go      | 22 ++++++++++++++--------
  src/cmd/compile/internal/noder/unified.go     |  3 ++-
  src/cmd/compile/internal/typecheck/iimport.go | 11 ++++-------
  4 files changed, 26 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index b335b84d19..817f2fd999 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -689,9 +689,9 @@ var inlgen int
+ // when producing output for debugging the compiler itself.
+ var SSADumpInline = func(*ir.Func) {}
+ 
+-// NewInline allows the inliner implementation to be overridden.
++// InlineCall allows the inliner implementation to be overridden.
+ // If it returns nil, the function will not be inlined.
+-var NewInline = oldInline
++var InlineCall = oldInlineCall
+ 
+ // If n is a OCALLFUNC node, and fn is an ONAME node for a
+ // function with an inlinable body, return an OINLCALL node that can replace n.
+@@ -817,9 +817,9 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlCalls *[]*ir.Inlin
+ 		fmt.Printf("%v: Before inlining: %+v\n", ir.Line(n), n)
+ 	}
+ 
+-	res := NewInline(n, fn, inlIndex)
++	res := InlineCall(n, fn, inlIndex)
+ 	if res == nil {
+-		return n
++		base.FatalfAt(n.Pos(), "inlining call to %v failed", fn)
+ 	}
+ 
+ 	if base.Flag.LowerM > 2 {
+@@ -855,11 +855,11 @@ func CalleeEffects(init *ir.Nodes, callee ir.Node) {
+ 	}
+ }
+ 
+-// oldInline creates an InlinedCallExpr to replace the given call
++// oldInlineCall creates an InlinedCallExpr to replace the given call
+ // expression. fn is the callee function to be inlined. inlIndex is
+ // the inlining tree position index, for use with src.NewInliningBase
+ // when rewriting positions.
+-func oldInline(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExpr {
++func oldInlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExpr {
+ 	if base.Debug.TypecheckInl == 0 {
+ 		typecheck.ImportedBody(fn)
+ 	}
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index a34d5c924a..8270c403fe 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -3374,22 +3374,28 @@ func (r *reader) pkgObjs(target *ir.Package) []*ir.Name {
+ 
+ // @@@ Inlining
+ 
++// unifiedHaveInlineBody reports whether we have the function body for
++// fn, so we can inline it.
++func unifiedHaveInlineBody(fn *ir.Func) bool {
++	if fn.Inl == nil {
++		return false
++	}
++
++	_, ok := bodyReaderFor(fn)
++	return ok
++}
++
+ var inlgen = 0
+ 
+-// InlineCall implements inline.NewInline by re-reading the function
++// unifiedInlineCall implements inline.NewInline by re-reading the function
+ // body from its Unified IR export data.
+-func InlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExpr {
++func unifiedInlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExpr {
+ 	// TODO(mdempsky): Turn callerfn into an explicit parameter.
+ 	callerfn := ir.CurFunc
+ 
+ 	pri, ok := bodyReaderFor(fn)
+ 	if !ok {
+-		// TODO(mdempsky): Reconsider this diagnostic's wording, if it's
+-		// to be included in Go 1.20.
+-		if base.Flag.LowerM != 0 {
+-			base.WarnfAt(call.Pos(), "cannot inline call to %v: missing inline body", fn)
+-		}
+-		return nil
++		base.FatalfAt(call.Pos(), "cannot inline call to %v: missing inline body", fn)
+ 	}
+ 
+ 	if fn.Inl.Body == nil {
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index 394336c020..b8e4fe78d7 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -69,7 +69,8 @@ var localPkgReader *pkgReader
+ // In other words, we have all the necessary information to build the generic IR form
+ // (see writer.captureVars for an example).
+ func unified(noders []*noder) {
+-	inline.NewInline = InlineCall
++	inline.InlineCall = unifiedInlineCall
++	typecheck.HaveInlineBody = unifiedHaveInlineBody
+ 
+ 	data := writePkgStub(noders)
+ 
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 85cac7af79..a08f62b414 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -83,17 +83,14 @@ func ImportBody(fn *ir.Func) {
+ 
+ // HaveInlineBody reports whether we have fn's inline body available
+ // for inlining.
+-func HaveInlineBody(fn *ir.Func) bool {
++//
++// It's a function literal so that it can be overriden for
++// GOEXPERIMENT=unified.
++var HaveInlineBody = func(fn *ir.Func) bool {
+ 	if fn.Inl == nil {
+ 		return false
+ 	}
+ 
+-	// Unified IR is much more conservative about pruning unreachable
+-	// methods (at the cost of increased build artifact size).
+-	if base.Debug.Unified != 0 {
+-		return true
+-	}
+-
+ 	if fn.Inl.Body != nil {
+ 		return true
+ 	}

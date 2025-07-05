@@ -7,7 +7,83 @@ Date:   Fri Jun 17 11:31:40 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4643044
-
+---
  .hgtags               |  1 -
  doc/devel/weekly.html | 53 +++++++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 53 insertions(+), 1 deletion(-)
+
+diff --git a/.hgtags b/.hgtags
+index dbc92d9012..859a127443 100644
+--- a/.hgtags
++++ b/.hgtags
+@@ -65,6 +65,5 @@ d6903b7fbff40c13ee7ea3177c0ae54c7f89d2e6 weekly.2011-04-13
+ c98449d685d2b6aa1df9bfd2e1cce9307efb6e00 weekly.2011-05-22
+ 3418f22c39eb8299053ae681199ee90f8cd29c6d weekly.2011-06-02
+ c81944152e973a917797679055b8fcdc70fbc802 weekly.2011-06-09
+-c81944152e973a917797679055b8fcdc70fbc802 weekly
+ 9d7967223815ef6415ff01aa0fe6ad38cdbc7810 release.r57.2
+ 9d7967223815ef6415ff01aa0fe6ad38cdbc7810 release
+diff --git a/doc/devel/weekly.html b/doc/devel/weekly.html
+index e45c48a12f..a41545d98c 100644
+--- a/doc/devel/weekly.html
++++ b/doc/devel/weekly.html
+@@ -14,6 +14,59 @@ hg pull
+ hg update weekly.<i>YYYY-MM-DD</i>
+ </pre>
+ 
++<h2 id="2011-06-16">2011-06-16</h2>
++
++<pre>
++This release includes changes to the sort and image/draw packages that will
++require changes to client code.
++
++The sort.IntArray type has been renamed to IntSlice, and similarly for
++StringArray and Float64Array.
++
++The image/draw package’s Draw function now takes an additional argument,
++a compositing operator. If in doubt, use draw.Over.
++
++Other changes:
++* build: fix header files for Plan 9 (thanks Lucio De Re).
++* cgo: handle new Apple LLVM-based gcc from Xcode 4.2.
++* crypto/openpgp: add ability to encrypt and sign messages.
++* doc/gopher: add goggled gopher logo for App Engine.
++* doc: Update notes for 3-day Go course.
++* exec: make LookPath work when PATHEXT var not set on Windows (thanks Alex Brainman).
++* exp/regexp/syntax: syntax data structures, parser, escapes, character classes.
++* exp/template: lexical scanner for new template package.
++* fmt: debugging formats for characters: %+q %#U.
++* gc: frame compaction for arm,
++        handle go print() and go println(),
++        work around goto bug.
++* go/build: fixes, self-contained tests.
++* go/printer, gofmt: print "select {}" on one line.
++* godoc: replace OS file system accesses in favor of a FileSystem interface.
++* gofix: fix inconsistent indentation in help output (thanks Scott Lawrence).
++* goinstall: use go/build package to scan and build packages.
++* http/spdy: improve error handling (thanks William Chan).
++* http: use runtime/debug.Stack() to dump stack trace on panic.
++* ld: dwarf emit filenames in debug_line header instead of as extended opcodes,
++        fix link Windows PE __declspec(dllimport) symbol (thanks Wei Guangjing),
++        make .rodata section read-only (thanks Gustavo Niemeyer).
++* mail: decode RFC 2047 "B" encoding.
++* mime/multipart: remove temp files after tests on Windows (thanks Alex Brainman).
++* net: export all fields in Interface (thanks Mikio Hara),
++        rearrange source to run more tests on Windows (thanks Alex Brainman),
++        sendfile for win32 (thanks Yasuhiro Matsumoto).
++* os: Plan 9, fix OpenFile & Chmod, add Process.Kill (thanks Yuval Pavel Zholkover).
++* runtime: fix Plan 9 "lingering goroutines bug" (thanks Yuval Pavel Zholkover).
++* spec: clarify rules for append, scope rules for :=,
++        specify constant conversions,
++        unsafe.Alignof/Offsetof/Sizeof return uintptr.
++* syscall, os, exec: add *syscall.SysProcAttr field to os.ProcAttr and exec.Cmd.
++* syscall: add ptrace on darwin (thanks Jeff Hodges),
++        mksyscall_windows.pl should output unix newline (thanks Yasuhiro Matsumoto).
++        update BPF support for BSD variants (thanks Mikio Hara),
++        use strict in perl scripts (thanks Yasuhiro Matsumoto).
++* xml: handle non-string attribute fields (thanks Maxim Ushakov).
++</pre>
++
+ <h2 id="2011-06-09">2011-06-09</h2>
+ 
+ <pre>

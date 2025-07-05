@@ -18,7 +18,7 @@ Date:   Mon Jun 11 09:11:29 2018 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/compile/internal/gc/bv.go         | 11 -----------
  src/cmd/compile/internal/gc/const.go      |  2 +-
  src/cmd/compile/internal/gc/dwinl.go      |  2 +-
@@ -29,3 +29,164 @@ Date:   Mon Jun 11 09:11:29 2018 +0100
  src/cmd/compile/internal/gc/scope_test.go |  1 -
  src/cmd/compile/internal/gc/walk.go       |  8 --------
  9 files changed, 10 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bv.go b/src/cmd/compile/internal/gc/bv.go
+index e9db35ede2..5ddfd5f2ca 100644
+--- a/src/cmd/compile/internal/gc/bv.go
++++ b/src/cmd/compile/internal/gc/bv.go
+@@ -227,17 +227,6 @@ type bvecSet struct {
+ 	uniq  []bvec // unique bvecs, in insertion order
+ }
+ 
+-func newBvecSet(size int) bvecSet {
+-	// bvecSet is a linear probing hash table.
+-	// The hash table has 4n entries to keep the linear
+-	// scan short.
+-	index := make([]int, size*4)
+-	for i := range index {
+-		index[i] = -1
+-	}
+-	return bvecSet{index, nil}
+-}
+-
+ func (m *bvecSet) grow() {
+ 	// Allocate new index.
+ 	n := len(m.index) * 2
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 2827543e31..ceb124e31e 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -766,7 +766,7 @@ func evconst(n *Node) {
+ 			v.U.(*Mpint).Neg()
+ 
+ 		case OCOM_ | CTINT_:
+-			var et types.EType = Txxx
++			et := Txxx
+ 			if nl.Type != nil {
+ 				et = nl.Type.Etype
+ 			}
+diff --git a/src/cmd/compile/internal/gc/dwinl.go b/src/cmd/compile/internal/gc/dwinl.go
+index f514281061..d191b7ba6c 100644
+--- a/src/cmd/compile/internal/gc/dwinl.go
++++ b/src/cmd/compile/internal/gc/dwinl.go
+@@ -142,7 +142,7 @@ func assembleInlines(fnsym *obj.LSym, dwVars []*dwarf.Var) dwarf.InlCalls {
+ 				// return temps (~r%d) that were created during
+ 				// lowering, or unnamed params ("_").
+ 				v.ChildIndex = int32(synthCount)
+-				synthCount += 1
++				synthCount++
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index becc4e1f3b..3aa7c39067 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -88,7 +88,7 @@ func dumpexport(bout *bio.Writer) {
+ 	}
+ }
+ 
+-func importsym(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op Op) *Node {
++func importsym(ipkg *types.Pkg, s *types.Sym, op Op) *Node {
+ 	n := asNode(s.PkgDef())
+ 	if n == nil {
+ 		// iimport should have created a stub ONONAME
+@@ -113,7 +113,7 @@ func importsym(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op Op) *Node {
+ // If no such type has been declared yet, a forward declaration is returned.
+ // ipkg is the package being imported
+ func importtype(ipkg *types.Pkg, pos src.XPos, s *types.Sym) *types.Type {
+-	n := importsym(ipkg, pos, s, OTYPE)
++	n := importsym(ipkg, s, OTYPE)
+ 	if n.Op != OTYPE {
+ 		t := types.New(TFORW)
+ 		t.Sym = s
+@@ -135,7 +135,7 @@ func importtype(ipkg *types.Pkg, pos src.XPos, s *types.Sym) *types.Type {
+ // importobj declares symbol s as an imported object representable by op.
+ // ipkg is the package being imported
+ func importobj(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op Op, ctxt Class, t *types.Type) *Node {
+-	n := importsym(ipkg, pos, s, op)
++	n := importsym(ipkg, s, op)
+ 	if n.Op != ONONAME {
+ 		if n.Op == op && (n.Class() != ctxt || !eqtype(n.Type, t)) {
+ 			redeclare(lineno, s, fmt.Sprintf("during import %q", ipkg.Path))
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index 3abbd15e16..5ce284dc73 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -595,7 +595,7 @@ func (p *iexporter) typOff(t *types.Type) uint64 {
+ 	if !ok {
+ 		w := p.newWriter()
+ 		w.doTyp(t)
+-		off = predeclReserved + uint64(w.flush())
++		off = predeclReserved + w.flush()
+ 		p.typIndex[t] = off
+ 	}
+ 	return off
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 9f1ea2ab4b..da6f800ccd 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -341,7 +341,7 @@ func Main(archInit func(*Arch)) {
+ 			}
+ 			// display help about the -d option itself and quit
+ 			if name == "help" {
+-				fmt.Printf(debugHelpHeader)
++				fmt.Print(debugHelpHeader)
+ 				maxLen := len("ssa/help")
+ 				for _, t := range debugtab {
+ 					if len(t.name) > maxLen {
+@@ -353,7 +353,7 @@ func Main(archInit func(*Arch)) {
+ 				}
+ 				// ssa options have their own help
+ 				fmt.Printf("\t%-*s\t%s\n", maxLen, "ssa/help", "print help about SSA debugging")
+-				fmt.Printf(debugHelpFooter)
++				fmt.Print(debugHelpFooter)
+ 				os.Exit(0)
+ 			}
+ 			val, valstring, haveInt := 1, "", true
+diff --git a/src/cmd/compile/internal/gc/mpint.go b/src/cmd/compile/internal/gc/mpint.go
+index e9471b2a21..de47205435 100644
+--- a/src/cmd/compile/internal/gc/mpint.go
++++ b/src/cmd/compile/internal/gc/mpint.go
+@@ -299,8 +299,8 @@ func (a *Mpint) SetString(as string) {
+ 	}
+ }
+ 
+-func (x *Mpint) String() string {
+-	return bconv(x, 0)
++func (a *Mpint) String() string {
++	return bconv(a, 0)
+ }
+ 
+ func bconv(xval *Mpint, flag FmtFlag) string {
+diff --git a/src/cmd/compile/internal/gc/scope_test.go b/src/cmd/compile/internal/gc/scope_test.go
+index 944a81e670..e327dc02af 100644
+--- a/src/cmd/compile/internal/gc/scope_test.go
++++ b/src/cmd/compile/internal/gc/scope_test.go
+@@ -350,7 +350,6 @@ type scopexplainContext struct {
+ 	dwarfData   *dwarf.Data
+ 	dwarfReader *dwarf.Reader
+ 	scopegen    int
+-	lines       map[line][]int
+ }
+ 
+ // readScope reads the DW_TAG_lexical_block or the DW_TAG_subprogram in
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index df7428a127..f75e729eb5 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -2220,14 +2220,6 @@ func callnew(t *types.Type) *Node {
+ 	return v
+ }
+ 
+-func iscallret(n *Node) bool {
+-	if n == nil {
+-		return false
+-	}
+-	n = outervalue(n)
+-	return n.Op == OINDREGSP
+-}
+-
+ // isReflectHeaderDataField reports whether l is an expression p.Data
+ // where p has type reflect.SliceHeader or reflect.StringHeader.
+ func isReflectHeaderDataField(l *Node) bool {

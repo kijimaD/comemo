@@ -7,7 +7,38 @@ Date:   Thu Oct 4 11:21:37 2012 +1000
     R=dsymonds
     CC=gobot, golang-dev
     https://golang.org/cl/6588079
-
+---
  doc/godocs.js          | 2 ++
  lib/godoc/package.html | 4 ++--
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/doc/godocs.js b/doc/godocs.js
+index 8fd32fef0f..b1ad3b28c3 100644
+--- a/doc/godocs.js
++++ b/doc/godocs.js
+@@ -208,6 +208,8 @@ function godocs_onload() {
+   godocs_bindToggles("toggleVisible");
+   godocs_bindToggleLinks("exampleLink", "example_");
+   godocs_bindToggleLinks("overviewLink", "");
++  godocs_bindToggleLinks("examplesLink", "");
++  godocs_bindToggleLinks("indexLink", "");
+ }
+ 
+ bindEvent(window, 'load', godocs_onload);
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index ae574827d6..3c0dfa41bf 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -17,10 +17,10 @@
+ 			</dl>
+ 			<dl>
+ 			<dd><a href="#pkg-overview" class="overviewLink">Overview</a></dd>
+-			<dd><a href="#pkg-index">Index</a></dd>
+ 			{{if $.Examples}}
+-				<dd><a href="#pkg-examples">Examples</a></dd>
++				<dd><a href="#pkg-examples" class="examplesLink">Examples</a></dd>
+ 			{{end}}
++			<dd><a href="#pkg-index" class="indexLink">Index</a></dd>
+ 			{{if $.Dirs}}
+ 				<dd><a href="#pkg-subdirectories">Subdirectories</a></dd>
+ 			{{end}}

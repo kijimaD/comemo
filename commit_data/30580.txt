@@ -15,7 +15,29 @@ Date:   Sun Nov 13 15:18:42 2016 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/testdata/src/dupload/dupload.go | 2 +-
  src/cmd/go/testdata/src/my.pkg/pkg.go      | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/src/dupload/dupload.go b/src/cmd/go/testdata/src/dupload/dupload.go
+index 3cf98aaa7a..2f078525b9 100644
+--- a/src/cmd/go/testdata/src/dupload/dupload.go
++++ b/src/cmd/go/testdata/src/dupload/dupload.go
+@@ -1,7 +1,7 @@
+ package main
+ 
+ import (
+-	_"dupload/p2"
++	_ "dupload/p2"
+ 	_ "p"
+ )
+ 
+diff --git a/src/cmd/go/testdata/src/my.pkg/pkg.go b/src/cmd/go/testdata/src/my.pkg/pkg.go
+index 0a5466ef17..17702a680b 100644
+--- a/src/cmd/go/testdata/src/my.pkg/pkg.go
++++ b/src/cmd/go/testdata/src/my.pkg/pkg.go
+@@ -1,2 +1,3 @@
+ package pkg
++
+ var Text = "unset"

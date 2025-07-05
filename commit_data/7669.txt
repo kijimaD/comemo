@@ -7,6 +7,34 @@ Date:   Mon Mar 7 10:37:10 2011 -0500
     R=golang-dev, rsc1, rsc
     CC=golang-dev
     https://golang.org/cl/4253060
-
+---
  src/pkg/rpc/server_test.go | 8 +++-----
  1 file changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/rpc/server_test.go b/src/pkg/rpc/server_test.go
+index 05aaebceb4..344fe2457a 100644
+--- a/src/pkg/rpc/server_test.go
++++ b/src/pkg/rpc/server_test.go
+@@ -6,7 +6,7 @@ package rpc
+ 
+ import (
+ 	"fmt"
+-	"http"
++	"http/httptest"
+ 	"log"
+ 	"net"
+ 	"os"
+@@ -103,11 +103,9 @@ func startNewServer() {
+ }
+ 
+ func startHttpServer() {
+-	var l net.Listener
+-	l, httpServerAddr = listenTCP()
+-	httpServerAddr = l.Addr().String()
++	server := httptest.NewServer(nil)
++	httpServerAddr = server.Listener.Addr().String()
+ 	log.Println("Test HTTP RPC server listening on", httpServerAddr)
+-	go http.Serve(l, nil)
+ }
+ 
+ func TestRPC(t *testing.T) {

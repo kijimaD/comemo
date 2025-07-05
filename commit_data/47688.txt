@@ -18,6 +18,27 @@ Date:   Tue Apr 6 11:36:36 2021 -0700
     Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  test/syntax/interface.go | 14 --------------
  1 file changed, 14 deletions(-)
+
+diff --git a/test/syntax/interface.go b/test/syntax/interface.go
+deleted file mode 100644
+index 010d3ce578..0000000000
+--- a/test/syntax/interface.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// errorcheck
+-
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-type T interface {
+-	f, g ()	// ERROR "name list not allowed in interface type"
+-}
+-
+-
+-

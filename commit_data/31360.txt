@@ -13,6 +13,27 @@ Date:   Thu Feb 9 11:36:25 2017 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/runtime1.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 40c0e8579c..d822480846 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -329,7 +329,6 @@ var debug struct {
+ 	scavenge          int32
+ 	scheddetail       int32
+ 	schedtrace        int32
+-	wbshadow          int32
+ }
+ 
+ var dbgvars = []dbgVar{
+@@ -349,7 +348,6 @@ var dbgvars = []dbgVar{
+ 	{"scavenge", &debug.scavenge},
+ 	{"scheddetail", &debug.scheddetail},
+ 	{"schedtrace", &debug.schedtrace},
+-	{"wbshadow", &debug.wbshadow},
+ }
+ 
+ func parsedebugvars() {

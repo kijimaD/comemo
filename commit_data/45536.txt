@@ -17,8 +17,74 @@ Date:   Sat Oct 24 16:29:26 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Joel Sing <joel@sing.id.au>
-
+---
  src/runtime/asm_arm64.s        | 3 ---
  src/runtime/sys_darwin_arm64.s | 6 ++----
  src/runtime/tls_arm64.s        | 4 ++++
  3 files changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 6257c1a183..a09172f0c9 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -977,10 +977,7 @@ TEXT ·cgocallback(SB),NOSPLIT,$24-24
+ 	NO_LOCAL_POINTERS
+ 
+ 	// Load g from thread-local storage.
+-	MOVB	runtime·iscgo(SB), R3
+-	CBZ	R3, nocgo
+ 	BL	runtime·load_g(SB)
+-nocgo:
+ 
+ 	// If g is nil, Go did not create the current thread.
+ 	// Call needm to obtain one for temporary use.
+diff --git a/src/runtime/sys_darwin_arm64.s b/src/runtime/sys_darwin_arm64.s
+index 31b997df13..fd713b7902 100644
+--- a/src/runtime/sys_darwin_arm64.s
++++ b/src/runtime/sys_darwin_arm64.s
+@@ -197,9 +197,6 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$192
+ 
+ 	// this might be called in external code context,
+ 	// where g is not set.
+-	MOVB	runtime·iscgo(SB), R0
+-	CMP	$0, R0
+-	BEQ	2(PC)
+ 	BL	runtime·load_g(SB)
+ 
+ #ifdef GOOS_ios
+@@ -381,7 +378,8 @@ TEXT runtime·mstart_stub(SB),NOSPLIT,$160
+ 	FMOVD	F14, 144(RSP)
+ 	FMOVD	F15, 152(RSP)
+ 
+-	MOVD    m_g0(R0), g
++	MOVD	m_g0(R0), g
++	BL	·save_g(SB)
+ 
+ 	BL	runtime·mstart(SB)
+ 
+diff --git a/src/runtime/tls_arm64.s b/src/runtime/tls_arm64.s
+index 7846fac6c5..701abae105 100644
+--- a/src/runtime/tls_arm64.s
++++ b/src/runtime/tls_arm64.s
+@@ -9,8 +9,10 @@
+ #include "tls_arm64.h"
+ 
+ TEXT runtime·load_g(SB),NOSPLIT,$0
++#ifndef TLS_darwin
+ 	MOVB	runtime·iscgo(SB), R0
+ 	CBZ	R0, nocgo
++#endif
+ 
+ 	MRS_TPIDR_R0
+ #ifdef TLS_darwin
+@@ -25,8 +27,10 @@ nocgo:
+ 	RET
+ 
+ TEXT runtime·save_g(SB),NOSPLIT,$0
++#ifndef TLS_darwin
+ 	MOVB	runtime·iscgo(SB), R0
+ 	CBZ	R0, nocgo
++#endif
+ 
+ 	MRS_TPIDR_R0
+ #ifdef TLS_darwin

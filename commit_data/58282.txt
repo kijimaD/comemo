@@ -12,7 +12,112 @@ Date:   Wed May 24 21:43:15 2023 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-
+---
  src/bufio/example_test.go | 34 ++++++++++++++++++++++++++++++++++
  src/bufio/scan.go         | 25 ++++++++++++++++---------
  2 files changed, 50 insertions(+), 9 deletions(-)
+
+diff --git a/src/bufio/example_test.go b/src/bufio/example_test.go
+index a864d11012..6d219aecc6 100644
+--- a/src/bufio/example_test.go
++++ b/src/bufio/example_test.go
+@@ -6,6 +6,7 @@ package bufio_test
+ 
+ import (
+ 	"bufio"
++	"bytes"
+ 	"fmt"
+ 	"os"
+ 	"strconv"
+@@ -137,3 +138,36 @@ func ExampleScanner_emptyFinalToken() {
+ 	}
+ 	// Output: "1" "2" "3" "4" ""
+ }
++
++// Use a Scanner with a custom split function to parse a comma-separated
++// list with an empty final value but stops at the token "STOP".
++func ExampleScanner_earlyStop() {
++	onComma := func(data []byte, atEOF bool) (advance int, token []byte, err error) {
++		i := bytes.IndexByte(data, ',')
++		if i == -1 {
++			if !atEOF {
++				return 0, nil, nil
++			}
++			// If we have reached the end, return the last token.
++			return 0, data, bufio.ErrFinalToken
++		}
++		// If the token is "STOP", stop the scanning and ignore the rest.
++		if string(data[:i]) == "STOP" {
++			return i + 1, nil, bufio.ErrFinalToken
++		}
++		// Otherwise, return the token before the comma.
++		return i + 1, data[:i], nil
++	}
++	const input = "1,2,STOP,4,"
++	scanner := bufio.NewScanner(strings.NewReader(input))
++	scanner.Split(onComma)
++	for scanner.Scan() {
++		fmt.Printf("Got a token %q\n", scanner.Text())
++	}
++	if err := scanner.Err(); err != nil {
++		fmt.Fprintln(os.Stderr, "reading input:", err)
++	}
++	// Output:
++	// Got a token "1"
++	// Got a token "2"
++}
+diff --git a/src/bufio/scan.go b/src/bufio/scan.go
+index 15ea7ffcb8..a26b2ff17d 100644
+--- a/src/bufio/scan.go
++++ b/src/bufio/scan.go
+@@ -48,7 +48,9 @@ type Scanner struct {
+ //
+ // Scanning stops if the function returns an error, in which case some of
+ // the input may be discarded. If that error is [ErrFinalToken], scanning
+-// stops with no error.
++// stops with no error. A non-nil token delivered with [ErrFinalToken]
++// will be the last token, and a nil token with [ErrFinalToken]
++// immediately stops the scanning.
+ //
+ // Otherwise, the [Scanner] advances the input. If the token is not nil,
+ // the [Scanner] returns it to the user. If the token is nil, the
+@@ -114,18 +116,20 @@ func (s *Scanner) Text() string {
+ }
+ 
+ // ErrFinalToken is a special sentinel error value. It is intended to be
+-// returned by a Split function to indicate that the token being delivered
+-// with the error is the last token and scanning should stop after this one.
+-// After ErrFinalToken is received by Scan, scanning stops with no error.
++// returned by a Split function to indicate that the scanning should stop
++// with no error. If the token being delivered with this error is not nil,
++// the token is the last token.
++//
+ // The value is useful to stop processing early or when it is necessary to
+-// deliver a final empty token. One could achieve the same behavior
+-// with a custom error value but providing one here is tidier.
++// deliver a final empty token (which is different from a nil token).
++// One could achieve the same behavior with a custom error value but
++// providing one here is tidier.
+ // See the emptyFinalToken example for a use of this value.
+ var ErrFinalToken = errors.New("final token")
+ 
+ // Scan advances the [Scanner] to the next token, which will then be
+-// available through the [Scanner.Bytes] or [Scanner.Text] method. It returns false when the
+-// scan stops, either by reaching the end of the input or an error.
++// available through the [Scanner.Bytes] or [Scanner.Text] method. It returns false when
++// there are no more tokens, either by reaching the end of the input or an error.
+ // After Scan returns false, the [Scanner.Err] method will return any error that
+ // occurred during scanning, except that if it was [io.EOF], [Scanner.Err]
+ // will return nil.
+@@ -148,7 +152,10 @@ func (s *Scanner) Scan() bool {
+ 				if err == ErrFinalToken {
+ 					s.token = token
+ 					s.done = true
+-					return true
++					// When token is not nil, it means the scanning stops
++					// with a trailing token, and thus the return value
++					// should be true to indicate the existence of the token.
++					return token != nil
+ 				}
+ 				s.setErr(err)
+ 				return false

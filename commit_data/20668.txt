@@ -10,6 +10,19 @@ Date:   Mon Sep 29 12:24:06 2014 -0700
     R=r
     CC=golang-codereviews
     https://golang.org/cl/146470043
-
+---
  src/net/net.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/net/net.go b/src/net/net.go
+index ca56af54fc..cb31af5e34 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -32,7 +32,6 @@ The Listen function creates servers:
+ 		conn, err := ln.Accept()
+ 		if err != nil {
+ 			// handle error
+-			continue
+ 		}
+ 		go handleConnection(conn)
+ 	}

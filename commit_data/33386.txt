@@ -10,6 +10,24 @@ Date:   Tue Aug 15 12:11:01 2017 +0530
     Change-Id: I3814f2b850dcb15c4002a3aa22e2a9326e5a5e53
     Reviewed-on: https://go-review.googlesource.com/55614
     Reviewed-by: Martin Möhrmann <moehrmann@google.com>
-
+---
  src/runtime/chan_test.go | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/runtime/chan_test.go b/src/runtime/chan_test.go
+index dd04f82a06..a09baf52e1 100644
+--- a/src/runtime/chan_test.go
++++ b/src/runtime/chan_test.go
+@@ -669,11 +669,7 @@ done:
+ 	<-ready2
+ }
+ 
+-type (
+-	struct0  struct{}
+-	struct32 struct{ a, b, c, d int64 }
+-	struct40 struct{ a, b, c, d, e int64 }
+-)
++type struct0 struct{}
+ 
+ func BenchmarkMakeChan(b *testing.B) {
+ 	b.Run("Byte", func(b *testing.B) {

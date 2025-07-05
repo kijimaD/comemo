@@ -13,6 +13,22 @@ Date:   Fri Jul 14 04:07:45 2023 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmp.bash | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmp.bash b/src/cmp.bash
+index dac9ca0da1..5bca266c40 100644
+--- a/src/cmp.bash
++++ b/src/cmp.bash
+@@ -14,8 +14,8 @@
+ # "go build <pkg>" assembly output for each package
+ # and lists the packages with differences.
+ #
+-# It leaves and old.txt and new.txt file in the package
+-# directories for the packages with differences.
++# For packages with differences it leaves files named
++# old.txt and new.txt.
+ 
+ FLAGS1="-newexport=0"
+ FLAGS2="-newexport=1"

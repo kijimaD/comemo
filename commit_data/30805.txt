@@ -9,9 +9,186 @@ Date:   Tue Dec 6 18:22:42 2016 +0000
     Change-Id: Ie8a32dd6fe306f00e51cde77dd4ea353f7109940
     Reviewed-on: https://go-review.googlesource.com/34010
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/test.go                               | 26 +++++++++++++++
  src/cmd/dist/test_linux.go                         | 27 +++++++++++++++
  src/cmd/go/test.go                                 | 15 +++------
  .../go/testdata/testterminal18153/terminal_test.go | 39 ++++++++++++++++++++++
  4 files changed, 96 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 7e6e979fad..054f4dde45 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -15,6 +15,7 @@ import (
+ 	"os/exec"
+ 	"path/filepath"
+ 	"regexp"
++	"runtime"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+@@ -331,6 +332,10 @@ func (t *tester) registerRaceBenchTest(pkg string) {
+ 	})
+ }
+ 
++// stdOutErrAreTerminals is defined in test_linux.go, to report
++// whether stdout & stderr are terminals.
++var stdOutErrAreTerminals func() bool
++
+ func (t *tester) registerTests() {
+ 	if strings.HasSuffix(os.Getenv("GO_BUILDER_NAME"), "-vetall") {
+ 		// Run vet over std and cmd and call it quits.
+@@ -347,6 +352,27 @@ func (t *tester) registerTests() {
+ 		return
+ 	}
+ 
++	// This test needs its stdout/stderr to be terminals, so we don't run it from cmd/go's tests.
++	// See issue 18153.
++	if runtime.GOOS == "linux" {
++		t.tests = append(t.tests, distTest{
++			name:    "cmd_go_test_terminal",
++			heading: "cmd/go terminal test",
++			fn: func(dt *distTest) error {
++				t.runPending(dt)
++				if !stdOutErrAreTerminals() {
++					fmt.Println("skipping terminal test; stdout/stderr not terminals")
++					return nil
++				}
++				cmd := exec.Command("go", "test")
++				cmd.Dir = filepath.Join(os.Getenv("GOROOT"), "src/cmd/go/testdata/testterminal18153")
++				cmd.Stdout = os.Stdout
++				cmd.Stderr = os.Stderr
++				return cmd.Run()
++			},
++		})
++	}
++
+ 	// Fast path to avoid the ~1 second of `go list std cmd` when
+ 	// the caller lists specific tests to run. (as the continuous
+ 	// build coordinator does).
+diff --git a/src/cmd/dist/test_linux.go b/src/cmd/dist/test_linux.go
+new file mode 100644
+index 0000000000..b6d0aedbbf
+--- /dev/null
++++ b/src/cmd/dist/test_linux.go
+@@ -0,0 +1,27 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux
++
++package main
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++const ioctlReadTermios = syscall.TCGETS
++
++// isTerminal reports whether fd is a terminal.
++func isTerminal(fd uintptr) bool {
++	var termios syscall.Termios
++	_, _, err := syscall.Syscall6(syscall.SYS_IOCTL, fd, ioctlReadTermios, uintptr(unsafe.Pointer(&termios)), 0, 0, 0)
++	return err == 0
++}
++
++func init() {
++	stdOutErrAreTerminals = func() bool {
++		return isTerminal(1) && isTerminal(2)
++	}
++}
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 95914d5f58..f27144c485 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -13,7 +13,6 @@ import (
+ 	"go/doc"
+ 	"go/parser"
+ 	"go/token"
+-	"io"
+ 	"os"
+ 	"os/exec"
+ 	"path"
+@@ -1122,12 +1121,8 @@ func (b *builder) runTest(a *action) error {
+ 	cmd.Env = envForDir(cmd.Dir, origEnv)
+ 	var buf bytes.Buffer
+ 	if testStreamOutput {
+-		// The only way to keep the ordering of the messages and still
+-		// intercept its contents. os/exec will share the same Pipe for
+-		// both Stdout and Stderr when running the test program.
+-		mw := io.MultiWriter(os.Stdout, &buf)
+-		cmd.Stdout = mw
+-		cmd.Stderr = mw
++		cmd.Stdout = os.Stdout
++		cmd.Stderr = os.Stderr
+ 	} else {
+ 		cmd.Stdout = &buf
+ 		cmd.Stderr = &buf
+@@ -1192,7 +1187,7 @@ func (b *builder) runTest(a *action) error {
+ 	t := fmt.Sprintf("%.3fs", time.Since(t0).Seconds())
+ 	if err == nil {
+ 		norun := ""
+-		if testShowPass && !testStreamOutput {
++		if testShowPass {
+ 			a.testOutput.Write(out)
+ 		}
+ 		if bytes.HasPrefix(out, noTestsToRun[1:]) || bytes.Contains(out, noTestsToRun) {
+@@ -1204,9 +1199,7 @@ func (b *builder) runTest(a *action) error {
+ 
+ 	setExitStatus(1)
+ 	if len(out) > 0 {
+-		if !testStreamOutput {
+-			a.testOutput.Write(out)
+-		}
++		a.testOutput.Write(out)
+ 		// assume printing the test binary's exit status is superfluous
+ 	} else {
+ 		fmt.Fprintf(a.testOutput, "%s\n", err)
+diff --git a/src/cmd/go/testdata/testterminal18153/terminal_test.go b/src/cmd/go/testdata/testterminal18153/terminal_test.go
+new file mode 100644
+index 0000000000..d662e55ee5
+--- /dev/null
++++ b/src/cmd/go/testdata/testterminal18153/terminal_test.go
+@@ -0,0 +1,39 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux
++
++// This test is run by src/cmd/dist/test.go (cmd_go_test_terminal),
++// and not by cmd/go's tests. This is because this test requires that
++// that it be called with its stdout and stderr being a terminal.
++// dist doesn't run `cmd/go test` against this test directory if
++// dist's stdout/stderr aren't terminals.
++//
++// See issue 18153.
++
++package p
++
++import (
++	"syscall"
++	"testing"
++	"unsafe"
++)
++
++const ioctlReadTermios = syscall.TCGETS
++
++// isTerminal reports whether fd is a terminal.
++func isTerminal(fd uintptr) bool {
++	var termios syscall.Termios
++	_, _, err := syscall.Syscall6(syscall.SYS_IOCTL, fd, ioctlReadTermios, uintptr(unsafe.Pointer(&termios)), 0, 0, 0)
++	return err == 0
++}
++
++func TestIsTerminal(t *testing.T) {
++	if !isTerminal(1) {
++		t.Errorf("stdout is not a terminal")
++	}
++	if !isTerminal(2) {
++		t.Errorf("stderr is not a terminal")
++	}
++}

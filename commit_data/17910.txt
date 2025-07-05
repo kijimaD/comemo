@@ -8,6 +8,14 @@ Date:   Tue Dec 3 17:08:51 2013 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/36830043
-
+---
  doc/go1.3.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.3.txt b/doc/go1.3.txt
+new file mode 100644
+index 0000000000..e92cff4cab
+--- /dev/null
++++ b/doc/go1.3.txt
+@@ -0,0 +1 @@
++<YOUR CL HERE>

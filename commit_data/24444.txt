@@ -28,7 +28,120 @@ Date:   Wed Jul 29 14:02:34 2015 -0400
     Change-Id: I0f7dc3fdcafe95e8d1233ceb79de606b48acd989
     Reviewed-on: https://go-review.googlesource.com/12844
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgc.go    | 33 +++++++++++++++++----------------
  src/runtime/mstats.go | 36 +++++++++++++++++++-----------------
  2 files changed, 36 insertions(+), 33 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 56e5d578d5..614860e711 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1121,6 +1121,21 @@ func gc(mode int) {
+ 	memstats.pause_end[memstats.numgc%uint32(len(memstats.pause_end))] = uint64(unixNow)
+ 	memstats.pause_total_ns += uint64(pauseNS)
+ 
++	// Update work.totaltime.
++	sweepTermCpu := int64(stwprocs) * (tScan - tSweepTerm)
++	scanCpu := tInstallWB - tScan
++	installWBCpu := int64(0)
++	// We report idle marking time below, but omit it from the
++	// overall utilization here since it's "free".
++	markCpu := gcController.assistTime + gcController.dedicatedMarkTime + gcController.fractionalMarkTime
++	markTermCpu := int64(stwprocs) * (now - tMarkTerm)
++	cycleCpu := sweepTermCpu + scanCpu + installWBCpu + markCpu + markTermCpu
++	work.totaltime += cycleCpu
++
++	// Compute overall GC CPU utilization.
++	totalCpu := sched.totaltime + (now-sched.procresizetime)*int64(gomaxprocs)
++	memstats.gc_cpu_fraction = float64(work.totaltime) / float64(totalCpu)
++
+ 	memstats.numgc++
+ 
+ 	systemstack(startTheWorldWithSema)
+@@ -1130,22 +1145,8 @@ func gc(mode int) {
+ 	mp = nil
+ 
+ 	if debug.gctrace > 0 {
+-		tEnd := nanotime()
+-
+-		// Update work.totaltime
+-		sweepTermCpu := int64(stwprocs) * (tScan - tSweepTerm)
+-		scanCpu := tInstallWB - tScan
+-		installWBCpu := int64(0)
+-		// We report idle marking time below, but omit it from
+-		// the overall utilization here since it's "free".
+-		markCpu := gcController.assistTime + gcController.dedicatedMarkTime + gcController.fractionalMarkTime
+-		markTermCpu := int64(stwprocs) * (tEnd - tMarkTerm)
+-		cycleCpu := sweepTermCpu + scanCpu + installWBCpu + markCpu + markTermCpu
+-		work.totaltime += cycleCpu
+-
+-		// Compute overall utilization
+-		totalCpu := sched.totaltime + (tEnd-sched.procresizetime)*int64(gomaxprocs)
+-		util := work.totaltime * 100 / totalCpu
++		tEnd := now
++		util := int(memstats.gc_cpu_fraction * 100)
+ 
+ 		var sbuf [24]byte
+ 		printlock()
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 3eff7f6b3e..08b82e021a 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -9,7 +9,7 @@ package runtime
+ import "unsafe"
+ 
+ // Statistics.
+-// Shared with Go: if you edit this structure, also edit type MemStats in mem.go.
++// If you edit this structure, also edit type MemStats below.
+ type mstats struct {
+ 	// General statistics.
+ 	alloc       uint64 // bytes allocated and not yet freed
+@@ -42,14 +42,15 @@ type mstats struct {
+ 
+ 	// Statistics about garbage collector.
+ 	// Protected by mheap or stopping the world during GC.
+-	next_gc        uint64 // next gc (in heap_alloc time)
+-	last_gc        uint64 // last gc (in absolute time)
+-	pause_total_ns uint64
+-	pause_ns       [256]uint64 // circular buffer of recent gc pause lengths
+-	pause_end      [256]uint64 // circular buffer of recent gc end times (nanoseconds since 1970)
+-	numgc          uint32
+-	enablegc       bool
+-	debuggc        bool
++	next_gc         uint64 // next gc (in heap_alloc time)
++	last_gc         uint64 // last gc (in absolute time)
++	pause_total_ns  uint64
++	pause_ns        [256]uint64 // circular buffer of recent gc pause lengths
++	pause_end       [256]uint64 // circular buffer of recent gc end times (nanoseconds since 1970)
++	numgc           uint32
++	gc_cpu_fraction float64 // fraction of CPU time used by GC
++	enablegc        bool
++	debuggc         bool
+ 
+ 	// Statistics about allocation size classes.
+ 
+@@ -119,14 +120,15 @@ type MemStats struct {
+ 	OtherSys    uint64 // other system allocations
+ 
+ 	// Garbage collector statistics.
+-	NextGC       uint64 // next collection will happen when HeapAlloc ≥ this amount
+-	LastGC       uint64 // end time of last collection (nanoseconds since 1970)
+-	PauseTotalNs uint64
+-	PauseNs      [256]uint64 // circular buffer of recent GC pause durations, most recent at [(NumGC+255)%256]
+-	PauseEnd     [256]uint64 // circular buffer of recent GC pause end times
+-	NumGC        uint32
+-	EnableGC     bool
+-	DebugGC      bool
++	NextGC        uint64 // next collection will happen when HeapAlloc ≥ this amount
++	LastGC        uint64 // end time of last collection (nanoseconds since 1970)
++	PauseTotalNs  uint64
++	PauseNs       [256]uint64 // circular buffer of recent GC pause durations, most recent at [(NumGC+255)%256]
++	PauseEnd      [256]uint64 // circular buffer of recent GC pause end times
++	NumGC         uint32
++	GCCPUFraction float64 // fraction of CPU time used by GC
++	EnableGC      bool
++	DebugGC       bool
+ 
+ 	// Per-size allocation statistics.
+ 	// 61 is NumSizeClasses in the C code.

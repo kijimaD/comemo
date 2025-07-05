@@ -11,6 +11,19 @@ Date:   Wed Jan 6 15:45:08 2010 -0800
     R=rsc
     CC=golang-dev, waltermundt
     https://golang.org/cl/181102
-
+---
  src/cmd/cgo/gcc.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index aeca50eece..c701a6bbca 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -229,6 +229,7 @@ func (p *Prog) gccDebug(stdin []byte) (*dwarf.Data, string) {
+ 		"-Werror", // warnings are errors
+ 		"-o" + tmp, // write object to tmp
+ 		"-gdwarf-2", // generate DWARF v2 debugging symbols
++		"-fno-eliminate-unused-debug-types", // gets rid of e.g. untyped enum otherwise
+ 		"-c", // do not link
+ 		"-xc", // input language is C
+ 		"-", // read input from standard input

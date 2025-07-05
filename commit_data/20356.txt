@@ -15,7 +15,7 @@ Date:   Wed Sep 3 11:11:16 2014 -0400
     R=golang-codereviews, r
     CC=dvyukov, golang-codereviews, iant, khr
     https://golang.org/cl/139110043
-
+---
  src/cmd/api/goapi.go                  |  12 +++-
  src/pkg/runtime/asm_386.s             |   2 +-
  src/pkg/runtime/asm_amd64.s           |   2 +-
@@ -50,3 +50,690 @@ Date:   Wed Sep 3 11:11:16 2014 -0400
  src/pkg/runtime/traceback.go          | 121 ++++++++++++++++++++++++++++++--
  src/pkg/runtime/traceback_windows.go  |   3 +-
  33 files changed, 158 insertions(+), 167 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 8dec9e2cc7..7f7b389be3 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -405,7 +405,17 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
+ 			" wincallbackcontext struct{};" +
+ 			" _select struct{}; " +
+ 			"); " +
+-			"const ( cb_max = 2000 )"
++			"const (" +
++			" cb_max = 2000;" +
++			" _Gidle = 1;" +
++			" _Grunnable = 2;" +
++			" _Grunning = 3;" +
++			" _Gsyscall = 4;" +
++			" _Gwaiting = 5;" +
++			" _Gdead = 6;" +
++			" _Genqueue = 7;" +
++			" _Gcopystack = 8;" +
++			")"
+ 		f, err = parser.ParseFile(fset, filename, src, 0)
+ 		if err != nil {
+ 			log.Fatalf("incorrect generated file: %s", err)
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 681a1b6819..e99c114ad7 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -6,7 +6,7 @@
+ #include "funcdata.h"
+ #include "../../cmd/ld/textflag.h"
+ 
+-TEXT _rt0_go(SB),NOSPLIT,$0
++TEXT runtime·rt0_go(SB),NOSPLIT,$0
+ 	// copy arguments forward on an even stack
+ 	MOVL	argc+0(FP), AX
+ 	MOVL	argv+4(FP), BX
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 0121b7d865..0933fa92c7 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -6,7 +6,7 @@
+ #include "funcdata.h"
+ #include "../../cmd/ld/textflag.h"
+ 
+-TEXT _rt0_go(SB),NOSPLIT,$0
++TEXT runtime·rt0_go(SB),NOSPLIT,$0
+ 	// copy arguments forward on an even stack
+ 	MOVQ	DI, AX		// argc
+ 	MOVQ	SI, BX		// argv
+diff --git a/src/pkg/runtime/asm_amd64p32.s b/src/pkg/runtime/asm_amd64p32.s
+index 03cf9bd444..4a391033d1 100644
+--- a/src/pkg/runtime/asm_amd64p32.s
++++ b/src/pkg/runtime/asm_amd64p32.s
+@@ -6,7 +6,7 @@
+ #include "funcdata.h"
+ #include "../../cmd/ld/textflag.h"
+ 
+-TEXT _rt0_go(SB),NOSPLIT,$0
++TEXT runtime·rt0_go(SB),NOSPLIT,$0
+ 	// copy arguments forward on an even stack
+ 	MOVL	argc+0(FP), AX
+ 	MOVL	argv+4(FP), BX
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 87ea974246..6954bb7c05 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -7,7 +7,7 @@
+ #include "../../cmd/ld/textflag.h"
+ 
+ // using frame size $-4 means do not save LR on stack.
+-TEXT _rt0_go(SB),NOSPLIT,$-4
++TEXT runtime·rt0_go(SB),NOSPLIT,$-4
+ 	MOVW	$0xcafebabe, R12
+ 
+ 	// copy arguments forward on an even stack
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 9229c53a8c..b85baca14d 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -185,8 +185,6 @@ runtime·schedinit(void)
+ 	if(p != nil && !runtime·strcmp(p, (byte*)"0"))
+ 		runtime·copystack = false;
+ 
+-	mstats.enablegc = 1;
+-
+ 	if(runtime·buildVersion.str == nil) {
+ 		// Condition should never trigger.  This code just serves
+ 		// to ensure runtime·buildVersion is kept in the resulting binary.
+@@ -244,7 +242,10 @@ runtime·main(void)
+ 
+ 	if(g->m != &runtime·m0)
+ 		runtime·throw("runtime·main not on m0");
++
+ 	runtime·init();
++	mstats.enablegc = 1; // now that runtime is initialized, GC is okay
++
+ 	main·init();
+ 
+ 	if(g->defer != &d || d.fn != &initDone)
+@@ -268,118 +269,12 @@ runtime·main(void)
+ 		*(int32*)runtime·main = 0;
+ }
+ 
+-void
+-runtime·goroutineheader(G *gp)
+-{
+-	String status;
+-	int64 waitfor;
+-	uint32 gpstatus;
+-
+-	gpstatus = runtime·readgstatus(gp);
+-	switch(gpstatus) {
+-	case Gidle:
+-		status = runtime·gostringnocopy((byte*)"idle");
+-		break;
+-	case Grunnable:
+-		status = runtime·gostringnocopy((byte*)"runnable");
+-		break;
+-	case Grunning:
+-		status = runtime·gostringnocopy((byte*)"running");
+-		break;
+-	case Gsyscall:
+-		status = runtime·gostringnocopy((byte*)"syscall");
+-		break;
+-	case Gwaiting:
+-		if(gp->waitreason.str != nil)
+-			status = gp->waitreason;
+-		else
+-			status = runtime·gostringnocopy((byte*)"waiting");
+-		break;
+-	case Gscan:
+-		status = runtime·gostringnocopy((byte*)"scan");
+-		break;
+-	case Gscanrunnable:
+-		status =  runtime·gostringnocopy((byte*)"scanrunnable");
+-		break;
+-	case Gscanrunning:
+-		status = runtime·gostringnocopy((byte*)"scanrunning");
+-		break;
+-	case Gscansyscall:
+-		status = runtime·gostringnocopy((byte*)"scansyscall");
+-		break;
+-	case Gscanenqueue:
+-		status = runtime·gostringnocopy((byte*)"scanenqueue");
+-		break;
+-	case Gscanwaiting:
+-		if(gp->waitreason.str != nil)
+-			status = gp->waitreason;
+-		else
+-			status = runtime·gostringnocopy((byte*)"scanwaiting");
+-		break;
+-	case Gcopystack:
+-		status = runtime·gostringnocopy((byte*)"copystack");
+-		break;
+-	default:
+-		status = runtime·gostringnocopy((byte*)"???");
+-		break;
+-	}
+-
+-	// approx time the G is blocked, in minutes
+-	waitfor = 0;
+-	gpstatus = gpstatus&~Gscan; // drop the scan bit
+-	if((gpstatus == Gwaiting || gpstatus == Gsyscall) && gp->waitsince != 0)
+-		waitfor = (runtime·nanotime() - gp->waitsince) / (60LL*1000*1000*1000);
+-
+-	runtime·printf("goroutine %D [%S", gp->goid, status);
+-	if(waitfor >= 1)
+-		runtime·printf(", %D minutes", waitfor);
+-	if(gp->lockedm != nil)
+-		runtime·printf(", locked to thread");
+-	runtime·printf("]:\n");
+-}
+-
+ static void
+ dumpgstatus(G* gp)
+ {
+ 	runtime·printf("runtime: gp=%p, goid=%D, gp->atomicstatus=%d\n", gp, gp->goid, runtime·readgstatus(gp));
+ }
+ 
+-void
+-runtime·tracebackothers(G *me)
+-{
+-	G *gp;
+-	int32 traceback;
+-	uintptr i;
+-	uint32 status;
+-
+-	traceback = runtime·gotraceback(nil);
+-	
+-	// Show the current goroutine first, if we haven't already.
+-	if((gp = g->m->curg) != nil && gp != me) {
+-		runtime·printf("\n");
+-		runtime·goroutineheader(gp);
+-		runtime·traceback(~(uintptr)0, ~(uintptr)0, 0, gp);
+-	}
+-
+-	runtime·lock(&allglock);
+-	for(i = 0; i < runtime·allglen; i++) {
+-		gp = runtime·allg[i];
+-		if(gp == me || gp == g->m->curg || runtime·readgstatus(gp) == Gdead)
+-			continue;
+-		if(gp->issystem && traceback < 2)
+-			continue;
+-		runtime·printf("\n");
+-		runtime·goroutineheader(gp);
+-		status = runtime·readgstatus(gp);
+-		if((status&~Gscan) == Grunning){
+-			runtime·printf("\tgoroutine running on other thread; stack unavailable\n");
+-			runtime·printcreatedby(gp);
+-		} else
+-			runtime·traceback(~(uintptr)0, ~(uintptr)0, 0, gp);
+-	}
+-	runtime·unlock(&allglock);
+-}
+-
+ static void
+ checkmcount(void)
+ {
+@@ -3373,23 +3268,6 @@ runtime·testSchedLocalQueueSteal(void)
+ 	}
+ }
+ 
+-extern void runtime·morestack(void);
+-uintptr runtime·externalthreadhandlerp;
+-
+-// Does f mark the top of a goroutine stack?
+-bool
+-runtime·topofstack(Func *f)
+-{
+-	return f->entry == (uintptr)runtime·goexit ||
+-		f->entry == (uintptr)runtime·mstart ||
+-		f->entry == (uintptr)runtime·mcall ||
+-		f->entry == (uintptr)runtime·onM ||
+-		f->entry == (uintptr)runtime·morestack ||
+-		f->entry == (uintptr)runtime·lessstack ||
+-		f->entry == (uintptr)_rt0_go ||
+-		(runtime·externalthreadhandlerp != 0 && f->entry == runtime·externalthreadhandlerp);
+-}
+-
+ void
+ runtime·setmaxthreads_m(void)
+ {
+diff --git a/src/pkg/runtime/rt0_darwin_386.s b/src/pkg/runtime/rt0_darwin_386.s
+index 4f85250c2d..7fe1df4c90 100644
+--- a/src/pkg/runtime/rt0_darwin_386.s
++++ b/src/pkg/runtime/rt0_darwin_386.s
+@@ -13,4 +13,4 @@ TEXT _rt0_386_darwin(SB),NOSPLIT,$8
+ 	INT	$3
+ 
+ TEXT main(SB),NOSPLIT,$0
+-	JMP	_rt0_go(SB)
++	JMP	runtime·rt0_go(SB)
+diff --git a/src/pkg/runtime/rt0_darwin_amd64.s b/src/pkg/runtime/rt0_darwin_amd64.s
+index 8d2962b03a..ac323c83c2 100644
+--- a/src/pkg/runtime/rt0_darwin_amd64.s
++++ b/src/pkg/runtime/rt0_darwin_amd64.s
+@@ -11,5 +11,5 @@ TEXT _rt0_amd64_darwin(SB),NOSPLIT,$-8
+ 	JMP	AX
+ 
+ TEXT main(SB),NOSPLIT,$-8
+-	MOVQ	$_rt0_go(SB), AX
++	MOVQ	$runtime·rt0_go(SB), AX
+ 	JMP	AX
+diff --git a/src/pkg/runtime/rt0_dragonfly_386.s b/src/pkg/runtime/rt0_dragonfly_386.s
+index b857f60391..9262a0f9e1 100644
+--- a/src/pkg/runtime/rt0_dragonfly_386.s
++++ b/src/pkg/runtime/rt0_dragonfly_386.s
+@@ -13,4 +13,4 @@ TEXT _rt0_386_dragonfly(SB),NOSPLIT,$8
+ 	INT	$3
+ 
+ TEXT main(SB),NOSPLIT,$0
+-	JMP	_rt0_go(SB)
++	JMP	runtime·rt0_go(SB)
+diff --git a/src/pkg/runtime/rt0_dragonfly_amd64.s b/src/pkg/runtime/rt0_dragonfly_amd64.s
+index fc7e745983..a83b20e228 100644
+--- a/src/pkg/runtime/rt0_dragonfly_amd64.s
++++ b/src/pkg/runtime/rt0_dragonfly_amd64.s
+@@ -11,5 +11,5 @@ TEXT _rt0_amd64_dragonfly(SB),NOSPLIT,$-8
+ 	JMP	AX
+ 
+ TEXT main(SB),NOSPLIT,$-8
+-	MOVQ	$_rt0_go(SB), AX
++	MOVQ	$runtime·rt0_go(SB), AX
+ 	JMP	AX
+diff --git a/src/pkg/runtime/rt0_freebsd_386.s b/src/pkg/runtime/rt0_freebsd_386.s
+index 758f7d2685..242b67df5e 100644
+--- a/src/pkg/runtime/rt0_freebsd_386.s
++++ b/src/pkg/runtime/rt0_freebsd_386.s
+@@ -13,4 +13,4 @@ TEXT _rt0_386_freebsd(SB),NOSPLIT,$8
+ 	INT	$3
+ 
+ TEXT main(SB),NOSPLIT,$0
+-	JMP	_rt0_go(SB)
++	JMP	runtime·rt0_go(SB)
+diff --git a/src/pkg/runtime/rt0_freebsd_amd64.s b/src/pkg/runtime/rt0_freebsd_amd64.s
+index 3cf7163b5e..729effbdba 100644
+--- a/src/pkg/runtime/rt0_freebsd_amd64.s
++++ b/src/pkg/runtime/rt0_freebsd_amd64.s
+@@ -11,5 +11,5 @@ TEXT _rt0_amd64_freebsd(SB),NOSPLIT,$-8
+ 	JMP	AX
+ 
+ TEXT main(SB),NOSPLIT,$-8
+-	MOVQ	$_rt0_go(SB), AX
++	MOVQ	$runtime·rt0_go(SB), AX
+ 	JMP	AX
+diff --git a/src/pkg/runtime/rt0_freebsd_arm.s b/src/pkg/runtime/rt0_freebsd_arm.s
+index 56219f8999..d50c73c237 100644
+--- a/src/pkg/runtime/rt0_freebsd_arm.s
++++ b/src/pkg/runtime/rt0_freebsd_arm.s
+@@ -10,9 +10,9 @@ TEXT _rt0_arm_freebsd(SB),NOSPLIT,$-4
+ 	MOVW	(R13), R0	// argc
+ 	MOVW	$4(R13), R1		// argv
+ 	MOVM.DB.W [R0-R1], (R13)
+-	B	_rt0_go(SB)
++	B	runtime·rt0_go(SB)
+ 
+ TEXT main(SB),NOSPLIT,$-4
+ 	MOVM.DB.W [R0-R1], (R13)
+-	MOVW	$_rt0_go(SB), R4
++	MOVW	$runtime·rt0_go(SB), R4
+ 	B		(R4)
+diff --git a/src/pkg/runtime/rt0_linux_386.s b/src/pkg/runtime/rt0_linux_386.s
+index c6f4159ce3..285aeed73c 100644
+--- a/src/pkg/runtime/rt0_linux_386.s
++++ b/src/pkg/runtime/rt0_linux_386.s
+@@ -14,7 +14,7 @@ TEXT _rt0_386_linux(SB),NOSPLIT,$8
+ 	INT	$3
+ 
+ TEXT main(SB),NOSPLIT,$0
+-	JMP	_rt0_go(SB)
++	JMP	runtime·rt0_go(SB)
+ 
+ TEXT _fallback_vdso(SB),NOSPLIT,$0
+ 	INT	$0x80
+diff --git a/src/pkg/runtime/rt0_linux_amd64.s b/src/pkg/runtime/rt0_linux_amd64.s
+index a887ced8f0..7f8c795481 100644
+--- a/src/pkg/runtime/rt0_linux_amd64.s
++++ b/src/pkg/runtime/rt0_linux_amd64.s
+@@ -11,5 +11,5 @@ TEXT _rt0_amd64_linux(SB),NOSPLIT,$-8
+ 	JMP	AX
+ 
+ TEXT main(SB),NOSPLIT,$-8
+-	MOVQ	$_rt0_go(SB), AX
++	MOVQ	$runtime·rt0_go(SB), AX
+ 	JMP	AX
+diff --git a/src/pkg/runtime/rt0_linux_arm.s b/src/pkg/runtime/rt0_linux_arm.s
+index 309fa2f79d..21391c7300 100644
+--- a/src/pkg/runtime/rt0_linux_arm.s
++++ b/src/pkg/runtime/rt0_linux_arm.s
+@@ -56,7 +56,7 @@ TEXT _rt0_arm_linux1(SB),NOSPLIT,$-4
+ 	SUB	$4, R13 // fake a stack frame for runtime·setup_auxv
+ 	BL	runtime·setup_auxv(SB)
+ 	ADD	$4, R13
+-	B	_rt0_go(SB)
++	B	runtime·rt0_go(SB)
+ 
+ TEXT bad_abi<>(SB),NOSPLIT,$-4
+ 	// give diagnosis and exit
+diff --git a/src/pkg/runtime/rt0_nacl_386.s b/src/pkg/runtime/rt0_nacl_386.s
+index 8b713548fe..e374bf3359 100644
+--- a/src/pkg/runtime/rt0_nacl_386.s
++++ b/src/pkg/runtime/rt0_nacl_386.s
+@@ -19,4 +19,4 @@ TEXT _rt0_386_nacl(SB),NOSPLIT,$8
+ 	INT	$3
+ 
+ TEXT main(SB),NOSPLIT,$0
+-	JMP	_rt0_go(SB)
++	JMP	runtime·rt0_go(SB)
+diff --git a/src/pkg/runtime/rt0_nacl_amd64p32.s b/src/pkg/runtime/rt0_nacl_amd64p32.s
+index 502d2e2bfc..de08618fc8 100644
+--- a/src/pkg/runtime/rt0_nacl_amd64p32.s
++++ b/src/pkg/runtime/rt0_nacl_amd64p32.s
+@@ -27,4 +27,4 @@ TEXT main(SB),NOSPLIT,$0
+ 	// Uncomment for fake time like on Go Playground.
+ 	//MOVQ	$1257894000000000000, AX
+ 	//MOVQ	AX, runtime·timens(SB)
+-	JMP	_rt0_go(SB)
++	JMP	runtime·rt0_go(SB)
+diff --git a/src/pkg/runtime/rt0_nacl_arm.s b/src/pkg/runtime/rt0_nacl_arm.s
+index df84d5d02b..243cb3375d 100644
+--- a/src/pkg/runtime/rt0_nacl_arm.s
++++ b/src/pkg/runtime/rt0_nacl_arm.s
+@@ -17,4 +17,4 @@ TEXT _rt0_arm_nacl(SB),NOSPLIT,$-4
+ 	B	main(SB)
+ 
+ TEXT main(SB),NOSPLIT,$0
+-	B	_rt0_go(SB)
++	B	runtime·rt0_go(SB)
+diff --git a/src/pkg/runtime/rt0_netbsd_386.s b/src/pkg/runtime/rt0_netbsd_386.s
+index eb348fcee1..f4cc78a1bc 100644
+--- a/src/pkg/runtime/rt0_netbsd_386.s
++++ b/src/pkg/runtime/rt0_netbsd_386.s
+@@ -13,4 +13,4 @@ TEXT _rt0_386_netbsd(SB),NOSPLIT,$8
+ 	INT	$3
+ 
+ TEXT main(SB),NOSPLIT,$0
+-	JMP	_rt0_go(SB)
++	JMP	runtime·rt0_go(SB)
+diff --git a/src/pkg/runtime/rt0_netbsd_amd64.s b/src/pkg/runtime/rt0_netbsd_amd64.s
+index c8e3fb18c3..e2288dbaed 100644
+--- a/src/pkg/runtime/rt0_netbsd_amd64.s
++++ b/src/pkg/runtime/rt0_netbsd_amd64.s
+@@ -11,5 +11,5 @@ TEXT _rt0_amd64_netbsd(SB),NOSPLIT,$-8
+ 	JMP	AX
+ 
+ TEXT main(SB),NOSPLIT,$-8
+-	MOVQ	$_rt0_go(SB), AX
++	MOVQ	$runtime·rt0_go(SB), AX
+ 	JMP	AX
+diff --git a/src/pkg/runtime/rt0_netbsd_arm.s b/src/pkg/runtime/rt0_netbsd_arm.s
+index 36effc3c51..1f649d97c4 100644
+--- a/src/pkg/runtime/rt0_netbsd_arm.s
++++ b/src/pkg/runtime/rt0_netbsd_arm.s
+@@ -10,4 +10,4 @@ TEXT _rt0_arm_netbsd(SB),NOSPLIT,$-4
+ 	MOVW	(R13), R0	// argc
+ 	MOVW	$4(R13), R1		// argv
+ 	MOVM.DB.W [R0-R1], (R13)
+-	B _rt0_go(SB)
++	B runtime·rt0_go(SB)
+diff --git a/src/pkg/runtime/rt0_openbsd_386.s b/src/pkg/runtime/rt0_openbsd_386.s
+index 9e80f69be2..35439d0d58 100644
+--- a/src/pkg/runtime/rt0_openbsd_386.s
++++ b/src/pkg/runtime/rt0_openbsd_386.s
+@@ -13,4 +13,4 @@ TEXT _rt0_386_openbsd(SB),NOSPLIT,$8
+ 	INT	$3
+ 
+ TEXT main(SB),NOSPLIT,$0
+-	JMP	_rt0_go(SB)
++	JMP	runtime·rt0_go(SB)
+diff --git a/src/pkg/runtime/rt0_openbsd_amd64.s b/src/pkg/runtime/rt0_openbsd_amd64.s
+index b1ad403b70..a394890f94 100644
+--- a/src/pkg/runtime/rt0_openbsd_amd64.s
++++ b/src/pkg/runtime/rt0_openbsd_amd64.s
+@@ -11,5 +11,5 @@ TEXT _rt0_amd64_openbsd(SB),NOSPLIT,$-8
+ 	JMP	AX
+ 
+ TEXT main(SB),NOSPLIT,$-8
+-	MOVQ	$_rt0_go(SB), AX
++	MOVQ	$runtime·rt0_go(SB), AX
+ 	JMP	AX
+diff --git a/src/pkg/runtime/rt0_plan9_386.s b/src/pkg/runtime/rt0_plan9_386.s
+index a8ae50841d..4aaabfaa45 100644
+--- a/src/pkg/runtime/rt0_plan9_386.s
++++ b/src/pkg/runtime/rt0_plan9_386.s
+@@ -14,7 +14,7 @@ TEXT _rt0_386_plan9(SB),NOSPLIT,$12
+ 	MOVL	AX, 0(SP)
+ 	LEAL	inargv+0(FP), AX
+ 	MOVL	AX, 4(SP)
+-	CALL	_rt0_go(SB)
++	CALL	runtime·rt0_go(SB)
+ 
+ DATA  runtime·isplan9(SB)/4, $1
+ GLOBL runtime·isplan9(SB), $4
+diff --git a/src/pkg/runtime/rt0_plan9_amd64.s b/src/pkg/runtime/rt0_plan9_amd64.s
+index 96d00584df..9f20eef60a 100644
+--- a/src/pkg/runtime/rt0_plan9_amd64.s
++++ b/src/pkg/runtime/rt0_plan9_amd64.s
+@@ -11,7 +11,7 @@ TEXT _rt0_amd64_plan9(SB),NOSPLIT,$24
+ 	MOVL	$1, _nprivates(SB)
+ 	MOVL	inargc-8(FP), DI
+ 	LEAQ	inargv+0(FP), SI
+-	MOVQ	$_rt0_go(SB), AX
++	MOVQ	$runtime·rt0_go(SB), AX
+ 	JMP	AX
+ 
+ DATA runtime·isplan9(SB)/4, $1
+diff --git a/src/pkg/runtime/rt0_solaris_amd64.s b/src/pkg/runtime/rt0_solaris_amd64.s
+index 4aca991f08..fd0a79cc9b 100644
+--- a/src/pkg/runtime/rt0_solaris_amd64.s
++++ b/src/pkg/runtime/rt0_solaris_amd64.s
+@@ -11,7 +11,7 @@ TEXT _rt0_amd64_solaris(SB),NOSPLIT,$-8
+ 	JMP	AX
+ 
+ TEXT main(SB),NOSPLIT,$-8
+-	MOVQ	$_rt0_go(SB), AX
++	MOVQ	$runtime·rt0_go(SB), AX
+ 	JMP	AX
+ 
+ DATA runtime·issolaris(SB)/4, $1
+diff --git a/src/pkg/runtime/rt0_windows_386.s b/src/pkg/runtime/rt0_windows_386.s
+index 594e2cd343..d4008ad5dc 100644
+--- a/src/pkg/runtime/rt0_windows_386.s
++++ b/src/pkg/runtime/rt0_windows_386.s
+@@ -13,7 +13,7 @@ TEXT _rt0_386_windows(SB),NOSPLIT,$12
+ 	JMP	main(SB)
+ 
+ TEXT main(SB),NOSPLIT,$0
+-	JMP	_rt0_go(SB)
++	JMP	runtime·rt0_go(SB)
+ 
+ 
+ DATA  runtime·iswindows(SB)/4, $1
+diff --git a/src/pkg/runtime/rt0_windows_amd64.s b/src/pkg/runtime/rt0_windows_amd64.s
+index 32e18b02ba..0b144717ba 100644
+--- a/src/pkg/runtime/rt0_windows_amd64.s
++++ b/src/pkg/runtime/rt0_windows_amd64.s
+@@ -12,7 +12,7 @@ TEXT _rt0_amd64_windows(SB),NOSPLIT,$-8
+ 	JMP	AX
+ 
+ TEXT main(SB),NOSPLIT,$-8
+-	MOVQ	$_rt0_go(SB), AX
++	MOVQ	$runtime·rt0_go(SB), AX
+ 	JMP	AX
+ 
+ DATA  runtime·iswindows(SB)/4, $1
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index f1b3ee83f3..3cc6f9a81e 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -882,7 +882,6 @@ void	runtime·netpolllock(PollDesc*);
+ void	runtime·netpollunlock(PollDesc*);
+ void	runtime·crash(void);
+ void	runtime·parsedebugvars(void);
+-void	_rt0_go(void);
+ void*	runtime·funcdata(Func*, int32);
+ void	runtime·setmaxthreads_m(void);
+ G*	runtime·timejump(void);
+diff --git a/src/pkg/runtime/stubs.go b/src/pkg/runtime/stubs.go
+index cdcf4b3670..86dc47f4ab 100644
+--- a/src/pkg/runtime/stubs.go
++++ b/src/pkg/runtime/stubs.go
+@@ -138,9 +138,6 @@ func entersyscall()
+ func entersyscallblock()
+ func exitsyscall()
+ 
+-func goroutineheader(gp *g)
+-func tracebackothers(gp *g)
+-
+ func cgocallback(fn, frame unsafe.Pointer, framesize uintptr)
+ func gogo(buf *gobuf)
+ func gosave(buf *gobuf)
+@@ -260,4 +257,3 @@ var newproc, deferproc, lessstack struct{} // C/assembly functions
+ func funcspdelta(*_func, uintptr) int32 // symtab.c
+ func funcarglen(*_func, uintptr) int32  // symtab.c
+ const _ArgsSizeUnknown = -0x80000000    // funcdata.h
+-func topofstack(*_func) bool            // proc.c
+diff --git a/src/pkg/runtime/traceback.go b/src/pkg/runtime/traceback.go
+index c6a6c056c1..26d0f5fc92 100644
+--- a/src/pkg/runtime/traceback.go
++++ b/src/pkg/runtime/traceback.go
+@@ -32,12 +32,7 @@ const usesLR = GOARCH != "amd64" && GOARCH != "amd64p32" && GOARCH != "386"
+ 
+ // jmpdeferPC is the PC at the beginning of the jmpdefer assembly function.
+ // The traceback needs to recognize it on link register architectures.
+-var jmpdeferPC uintptr
+-
+-func init() {
+-	f := jmpdefer
+-	jmpdeferPC = **(**uintptr)(unsafe.Pointer(&f))
+-}
++var jmpdeferPC = funcPC(jmpdefer)
+ 
+ // System-specific hook. See traceback_windows.go
+ var systraceback func(*_func, *stkframe, *g, bool, func(*stkframe, unsafe.Pointer) bool, unsafe.Pointer) (changed, aborted bool)
+@@ -502,3 +497,117 @@ func callers(skip int, pcbuf *uintptr, m int) int {
+ func gcallers(gp *g, skip int, pcbuf *uintptr, m int) int {
+ 	return gentraceback(^uintptr(0), ^uintptr(0), 0, gp, skip, pcbuf, m, nil, nil, false)
+ }
++
++var gStatusStrings = [...]string{
++	_Gidle:      "idle",
++	_Grunnable:  "runnable",
++	_Grunning:   "running",
++	_Gsyscall:   "syscall",
++	_Gwaiting:   "waiting",
++	_Gdead:      "dead",
++	_Genqueue:   "enqueue",
++	_Gcopystack: "copystack",
++}
++
++var gScanStatusStrings = [...]string{
++	0:          "scan",
++	_Grunnable: "scanrunnable",
++	_Grunning:  "scanrunning",
++	_Gsyscall:  "scansyscall",
++	_Gwaiting:  "scanwaiting",
++	_Gdead:     "scandead",
++	_Genqueue:  "scanenqueue",
++}
++
++func goroutineheader(gp *g) {
++	gpstatus := readgstatus(gp)
++
++	// Basic string status
++	var status string
++	if 0 <= gpstatus && gpstatus < uint32(len(gStatusStrings)) {
++		status = gStatusStrings[gpstatus]
++	} else if gpstatus&_Gscan != 0 && 0 <= gpstatus&^_Gscan && gpstatus&^_Gscan < uint32(len(gStatusStrings)) {
++		status = gStatusStrings[gpstatus&^_Gscan]
++	} else {
++		status = "???"
++	}
++
++	// Override.
++	if (gpstatus == _Gwaiting || gpstatus == _Gscanwaiting) && gp.waitreason != "" {
++		status = gp.waitreason
++	}
++
++	// approx time the G is blocked, in minutes
++	var waitfor int64
++	gpstatus &^= _Gscan // drop the scan bit
++	if (gpstatus == _Gwaiting || gpstatus == _Gsyscall) && gp.waitsince != 0 {
++		waitfor = (nanotime() - gp.waitsince) / 60e9
++	}
++	print("goroutine ", gp.goid, " [", status)
++	if waitfor >= 1 {
++		print(", ", waitfor, " minutes")
++	}
++	if gp.lockedm != nil {
++		print(", locked to thread")
++	}
++	print("]:\n")
++}
++
++func tracebackothers(me *g) {
++	level := gotraceback(nil)
++
++	// Show the current goroutine first, if we haven't already.
++	g := getg()
++	gp := g.m.curg
++	if gp != nil && gp != me {
++		print("\n")
++		goroutineheader(gp)
++		traceback(^uintptr(0), ^uintptr(0), 0, gp)
++	}
++
++	lock(&allglock)
++	for _, gp := range allgs {
++		if gp == me || gp == g.m.curg || readgstatus(gp) == _Gdead || gp.issystem && level < 2 {
++			continue
++		}
++		print("\n")
++		goroutineheader(gp)
++		if readgstatus(gp)&^_Gscan == _Grunning {
++			print("\tgoroutine running on other thread; stack unavailable\n")
++			printcreatedby(gp)
++		} else {
++			traceback(^uintptr(0), ^uintptr(0), 0, gp)
++		}
++	}
++	unlock(&allglock)
++}
++
++func goexit()
++func mstart()
++func morestack()
++func rt0_go()
++
++var (
++	goexitPC    = funcPC(goexit)
++	mstartPC    = funcPC(mstart)
++	mcallPC     = funcPC(mcall)
++	onMPC       = funcPC(onM)
++	morestackPC = funcPC(morestack)
++	lessstackPC = funcPC(lessstack)
++	rt0_goPC    = funcPC(rt0_go)
++
++	externalthreadhandlerp uintptr // initialized elsewhere
++)
++
++// Does f mark the top of a goroutine stack?
++func topofstack(f *_func) bool {
++	pc := f.entry
++	return pc == goexitPC ||
++		pc == mstartPC ||
++		pc == mcallPC ||
++		pc == onMPC ||
++		pc == morestackPC ||
++		pc == lessstackPC ||
++		pc == rt0_goPC ||
++		externalthreadhandlerp != 0 && pc == externalthreadhandlerp
++}
+diff --git a/src/pkg/runtime/traceback_windows.go b/src/pkg/runtime/traceback_windows.go
+index 206f93c46e..892bed04ca 100644
+--- a/src/pkg/runtime/traceback_windows.go
++++ b/src/pkg/runtime/traceback_windows.go
+@@ -13,8 +13,7 @@ var sigtrampPC uintptr
+ var sigtramp struct{} // assembly function
+ 
+ func init() {
+-	f := sigtramp
+-	sigtrampPC = **(**uintptr)(unsafe.Pointer(&f))
++	sigtrampPC = funcPC(sigtramp)
+ 	systraceback = traceback_windows
+ }
+ 

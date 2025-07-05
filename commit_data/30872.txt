@@ -11,6 +11,20 @@ Date:   Thu Dec 8 15:57:48 2016 -0800
     Change-Id: I2c7b181bcec81e124d30702f6fac5aa43bb57c04
     Reviewed-on: https://go-review.googlesource.com/34230
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/link/doc.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/link/doc.go b/src/cmd/link/doc.go
+index 16fddf2345..78d25c6245 100644
+--- a/src/cmd/link/doc.go
++++ b/src/cmd/link/doc.go
+@@ -41,6 +41,8 @@ Flags:
+ 		Set the value of the string variable in importpath named name to value.
+ 		Note that before Go 1.5 this option took two separate arguments.
+ 		Now it takes one argument split on the first = sign.
++		To figure out the name to use, run `go tool nm PROGRAM`;
++		usable variables will be tagged "D" or "d".
+ 	-buildmode mode
+ 		Set build mode (default exe).
+ 	-cpuprofile file

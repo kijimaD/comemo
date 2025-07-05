@@ -9,6 +9,55 @@ Date:   Sat Jul 15 12:33:00 2017 -0600
     Change-Id: Id99ca6de94d8d895dfaed1ed507e9d36c7f60670
     Reviewed-on: https://go-review.googlesource.com/48869
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/example_test.go | 28 ++++++++++++++++++++++++++++
  1 file changed, 28 insertions(+)
+
+diff --git a/src/net/http/example_test.go b/src/net/http/example_test.go
+index 1774795d37..9de0893e87 100644
+--- a/src/net/http/example_test.go
++++ b/src/net/http/example_test.go
+@@ -5,11 +5,14 @@
+ package http_test
+ 
+ import (
++	"context"
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
+ 	"log"
+ 	"net/http"
++	"os"
++	"os/signal"
+ )
+ 
+ func ExampleHijacker() {
+@@ -109,3 +112,28 @@ func ExampleResponseWriter_trailers() {
+ 		w.Header().Set("AtEnd3", "value 3") // These will appear as trailers.
+ 	})
+ }
++
++func ExampleServer_Shutdown() {
++	var srv http.Server
++
++	idleConnsClosed := make(chan struct{})
++	go func() {
++		sigint := make(chan os.Signal, 1)
++		signal.Notify(sigint, os.Interrupt)
++		<-sigint
++
++		// We received an interrupt signal, shut down.
++		if err := srv.Shutdown(context.Background()); err != nil {
++			// Error from closing listeners, or context timeout:
++			log.Printf("HTTP server Shutdown: %v", err)
++		}
++		close(idleConnsClosed)
++	}()
++
++	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
++		// Error starting or closing listener:
++		log.Printf("HTTP server ListenAndServe: %v", err)
++	}
++
++	<-idleConnsClosed
++}

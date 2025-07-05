@@ -13,8 +13,152 @@ Date:   Fri Aug 10 12:49:54 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/load.go         |  6 ++--
  src/cmd/go/internal/modload/search.go       | 52 +++++++++++++++++++----------
  src/cmd/go/testdata/script/mod_patterns.txt |  7 ++--
  3 files changed, 40 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index b42d0d2e50..389c643db2 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -103,7 +103,7 @@ func ImportPaths(args []string) []string {
+ 			case pkg == "all":
+ 				loaded.testAll = true
+ 				// TODO: Don't print warnings multiple times.
+-				roots = append(roots, warnPattern("all", matchPackages("...", loaded.tags, []module.Version{Target}))...)
++				roots = append(roots, warnPattern("all", matchPackages("...", loaded.tags, false, []module.Version{Target}))...)
+ 				paths = append(paths, "all") // will expand after load completes
+ 
+ 			case search.IsMetaPackage(pkg): // std, cmd
+@@ -113,7 +113,7 @@ func ImportPaths(args []string) []string {
+ 
+ 			case strings.Contains(pkg, "..."):
+ 				// TODO: Don't we need to reevaluate this one last time once the build list stops changing?
+-				list := warnPattern(pkg, matchPackages(pkg, loaded.tags, buildList))
++				list := warnPattern(pkg, matchPackages(pkg, loaded.tags, true, buildList))
+ 				roots = append(roots, list...)
+ 				paths = append(paths, list...)
+ 
+@@ -286,7 +286,7 @@ var anyTags = map[string]bool{"*": true}
+ // TargetPackages returns the list of packages in the target (top-level) module,
+ // under all build tag settings.
+ func TargetPackages() []string {
+-	return matchPackages("...", anyTags, []module.Version{Target})
++	return matchPackages("...", anyTags, false, []module.Version{Target})
+ }
+ 
+ // BuildList returns the module build list,
+diff --git a/src/cmd/go/internal/modload/search.go b/src/cmd/go/internal/modload/search.go
+index 9ce65f0511..6aaabe6a08 100644
+--- a/src/cmd/go/internal/modload/search.go
++++ b/src/cmd/go/internal/modload/search.go
+@@ -19,7 +19,7 @@ import (
+ 
+ // matchPackages returns a list of packages in the list of modules
+ // matching the pattern. Package loading assumes the given set of tags.
+-func matchPackages(pattern string, tags map[string]bool, modules []module.Version) []string {
++func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []module.Version) []string {
+ 	match := func(string) bool { return true }
+ 	treeCanMatch := func(string) bool { return true }
+ 	if !search.IsMetaPackage(pattern) {
+@@ -35,28 +35,18 @@ func matchPackages(pattern string, tags map[string]bool, modules []module.Versio
+ 	}
+ 	var pkgs []string
+ 
+-	for _, mod := range modules {
+-		if !treeCanMatch(mod.Path) {
+-			continue
+-		}
+-		var root string
+-		if mod.Version == "" {
+-			root = ModRoot
+-		} else {
+-			var err error
+-			root, _, err = fetch(mod)
+-			if err != nil {
+-				base.Errorf("go: %v", err)
+-				continue
+-			}
+-		}
++	walkPkgs := func(root, importPathRoot string) {
+ 		root = filepath.Clean(root)
+-
+ 		filepath.Walk(root, func(path string, fi os.FileInfo, err error) error {
+ 			if err != nil {
+ 				return nil
+ 			}
+ 
++			// Don't use GOROOT/src but do walk down into it.
++			if path == root && importPathRoot == "" {
++				return nil
++			}
++
+ 			want := true
+ 			// Avoid .foo, _foo, and testdata directory trees.
+ 			_, elem := filepath.Split(path)
+@@ -64,7 +54,10 @@ func matchPackages(pattern string, tags map[string]bool, modules []module.Versio
+ 				want = false
+ 			}
+ 
+-			name := mod.Path + filepath.ToSlash(path[len(root):])
++			name := importPathRoot + filepath.ToSlash(path[len(root):])
++			if importPathRoot == "" {
++				name = name[1:] // cut leading slash
++			}
+ 			if !treeCanMatch(name) {
+ 				want = false
+ 			}
+@@ -102,5 +95,28 @@ func matchPackages(pattern string, tags map[string]bool, modules []module.Versio
+ 			return nil
+ 		})
+ 	}
++
++	if useStd {
++		walkPkgs(cfg.GOROOTsrc, "")
++	}
++
++	for _, mod := range modules {
++		if !treeCanMatch(mod.Path) {
++			continue
++		}
++		var root string
++		if mod.Version == "" {
++			root = ModRoot
++		} else {
++			var err error
++			root, _, err = fetch(mod)
++			if err != nil {
++				base.Errorf("go: %v", err)
++				continue
++			}
++		}
++		walkPkgs(root, mod.Path)
++	}
++
+ 	return pkgs
+ }
+diff --git a/src/cmd/go/testdata/script/mod_patterns.txt b/src/cmd/go/testdata/script/mod_patterns.txt
+index 83b86ee097..2a3629f764 100644
+--- a/src/cmd/go/testdata/script/mod_patterns.txt
++++ b/src/cmd/go/testdata/script/mod_patterns.txt
+@@ -15,15 +15,14 @@ stdout '^unsafe$'
+ ! stdout index/suffixarray
+ 
+ # 'go list ...' should list packages in all active modules and the standard library.
+-# BUG: It currently omits the standard library (https://golang.org/issue/26905).
+ go list ...
+ stdout example.com/unused/useerrors
+ stdout example.com/m/useunsafe
+ [cgo] stdout example.com/m/useC
+ [!cgo] ! stdout example.com/m/useC
+-# stdout '^unicode$'
+-# stdout '^unsafe$'
+-# stdout index/suffixarray
++stdout '^unicode$'
++stdout '^unsafe$'
++stdout index/suffixarray
+ 
+ # 'go list example.com/m/...' should list packages in all modules that begin with
+ # "example.com/m/".

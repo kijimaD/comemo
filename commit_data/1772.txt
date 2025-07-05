@@ -8,8 +8,213 @@ Date:   Fri Mar 6 03:43:44 2009 -0800
     DELTA=44  (30 added, 4 deleted, 10 changed)
     OCL=25819
     CL=25835
-
+---
  src/lib/io/bytebuffer.go | 21 ++++++++++++++-------
  src/lib/io/io.go         | 26 +++++++++++++++++++++-----
  src/lib/io/pipe.go       |  5 ++++-
  3 files changed, 39 insertions(+), 13 deletions(-)
+
+diff --git a/src/lib/io/bytebuffer.go b/src/lib/io/bytebuffer.go
+index fa11b37ee0..cb2d44815a 100644
+--- a/src/lib/io/bytebuffer.go
++++ b/src/lib/io/bytebuffer.go
+@@ -4,15 +4,13 @@
+ 
+ package io
+ 
+-// Byte buffer for marshaling nested messages.
++// Simple byte buffer for marshaling data.
+ 
+ import (
+ 	"io";
+ 	"os";
+ )
+ 
+-// A simple implementation of the io.Read and io.Write interfaces.
+-// A newly allocated ByteBuffer is ready to use.
+ 
+ // TODO(r): Do better memory management.
+ 
+@@ -24,6 +22,9 @@ func bytecopy(dst []byte, doff int, src []byte, soff int, count int) {
+ 	}
+ }
+ 
++// A ByteBuffer is a simple implementation of the io.Read and io.Write interfaces
++// connected to a buffer of bytes.
++// The zero value for ByteBuffer is an empty buffer ready to use.
+ type ByteBuffer struct {
+ 	buf	[]byte;
+ 	off	int;	// Read from here
+@@ -31,11 +32,14 @@ type ByteBuffer struct {
+ 	cap	int;
+ }
+ 
++// Reset resets the buffer so it has no content.
+ func (b *ByteBuffer) Reset() {
+ 	b.off = 0;
+ 	b.len = 0;
+ }
+ 
++// Write appends the contents of p to the buffer.  The return
++// value is the length of p; err is always nil.
+ func (b *ByteBuffer) Write(p []byte) (n int, err *os.Error) {
+ 	plen := len(p);
+ 	if len(b.buf) == 0 {
+@@ -54,6 +58,8 @@ func (b *ByteBuffer) Write(p []byte) (n int, err *os.Error) {
+ 	return plen, nil;
+ }
+ 
++// Read reads the next len(p) bytes from the buffer or until the buffer
++// is drained.  The return value is the number of bytes read; err is always nil.
+ func (b *ByteBuffer) Read(p []byte) (n int, err *os.Error) {
+ 	plen := len(p);
+ 	if len(b.buf) == 0 {
+@@ -71,22 +77,23 @@ func (b *ByteBuffer) Read(p []byte) (n int, err *os.Error) {
+ 	return plen, nil;
+ }
+ 
++// Len returns the length of the underlying buffer.
+ func (b *ByteBuffer) Len() int {
+ 	return b.len
+ }
+ 
++// Off returns the location within the buffer of the next byte to be read.
+ func (b *ByteBuffer) Off() int {
+ 	return b.off
+ }
+ 
++// Data returns the contents of the unread portion of the buffer.
+ func (b *ByteBuffer) Data() []byte {
+ 	return b.buf[b.off:b.len]
+ }
+ 
+-func (b *ByteBuffer) AllData() []byte {
+-	return b.buf[0:b.len]
+-}
+-
++// NewByteBufferFromArray creates and initializes a new ByteBuffer
++// with buf as its initial contents.
+ func NewByteBufferFromArray(buf []byte) *ByteBuffer {
+ 	b := new(ByteBuffer);
+ 	b.buf = buf;
+diff --git a/src/lib/io/io.go b/src/lib/io/io.go
+index e5f02eb709..37acab4c71 100644
+--- a/src/lib/io/io.go
++++ b/src/lib/io/io.go
+@@ -2,6 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// This package provides basic interfaces to I/O primitives.
++// Its primary job is to wrap existing implementations of such primitives,
++// such as those in package os, into shared public interfaces that
++// abstract the functionality.
++// It also provides buffering primitives and some other basic operations.
+ package io
+ 
+ import (
+@@ -9,35 +14,43 @@ import (
+ 	"syscall";
+ )
+ 
++// ErrEOF is the error returned by Readn and Copyn when they encounter EOF.
+ var ErrEOF = os.NewError("EOF")
+ 
++// Read is the interface that wraps the basic Read method.
+ type Read interface {
+ 	Read(p []byte) (n int, err *os.Error);
+ }
+ 
++// Write is the interface that wraps the basic Write method.
+ type Write interface {
+ 	Write(p []byte) (n int, err *os.Error);
+ }
+ 
++// Close is the interface that wraps the basic Close method.
+ type Close interface {
+ 	Close() *os.Error;
+ }
+ 
++// ReadWrite is the interface that groups the basic Read and Write methods.
+ type ReadWrite interface {
+ 	Read;
+ 	Write;
+ }
+ 
++// ReadClose is the interface that groups the basic Read and Close methods.
+ type ReadClose interface {
+ 	Read;
+ 	Close;
+ }
+ 
++// WriteClose is the interface that groups the basic Write and Close methods.
+ type WriteClose interface {
+ 	Write;
+ 	Close;
+ }
+ 
++// ReadWriteClose is the interface that groups the basic Read, Write and Close methods.
+ type ReadWriteClose interface {
+ 	Read;
+ 	Write;
+@@ -53,11 +66,12 @@ func StringBytes(s string) []byte {
+ 	return b;
+ }
+ 
++// WriteString writes the contents of the string s to w, which accepts an array of bytes.
+ func WriteString(w Write, s string) (n int, err *os.Error) {
+ 	return w.Write(StringBytes(s))
+ }
+ 
+-// Read until buffer is full, EOF, or error
++// Readn reads r until the buffer buf is full, or until EOF or error.
+ func Readn(r Read, buf []byte) (n int, err *os.Error) {
+ 	n = 0;
+ 	for n < len(buf) {
+@@ -86,6 +100,8 @@ func (fr *fullRead) Read(p []byte) (n int, err *os.Error) {
+ 	return n, err
+ }
+ 
++// MakeFullReader takes r, an implementation of Read, and returns an object
++// that still implements Read but always calls Readn underneath.
+ func MakeFullReader(r Read) Read {
+ 	if fr, ok := r.(*fullRead); ok {
+ 		// already a fullRead
+@@ -94,8 +110,8 @@ func MakeFullReader(r Read) Read {
+ 	return &fullRead{r}
+ }
+ 
+-// Copies n bytes (or until EOF is reached) from src to dst.
+-// Returns the number of bytes copied and the error, if any.
++// Copy n copies n bytes (or until EOF is reached) from src to dst.
++// It returns the number of bytes copied and the error, if any.
+ func Copyn(src Read, dst Write, n int64) (written int64, err *os.Error) {
+ 	buf := make([]byte, 32*1024);
+ 	for written < n {
+@@ -130,8 +146,8 @@ func Copyn(src Read, dst Write, n int64) (written int64, err *os.Error) {
+ 	return written, err
+ }
+ 
+-// Copies from src to dst until EOF is reached.
+-// Returns the number of bytes copied and the error, if any.
++// Copy copies from src to dst until EOF is reached.
++// It returns the number of bytes copied and the error, if any.
+ func Copy(src Read, dst Write) (written int64, err *os.Error) {
+ 	buf := make([]byte, 32*1024);
+ 	for {
+diff --git a/src/lib/io/pipe.go b/src/lib/io/pipe.go
+index 6ef080f4d4..427717b09a 100644
+--- a/src/lib/io/pipe.go
++++ b/src/lib/io/pipe.go
+@@ -169,7 +169,10 @@ func (w *pipeWrite) finish() {
+ 	w.Close();
+ }
+ 
+-// Create a synchronous in-memory pipe.
++// Pipe creates a synchronous in-memory pipe.
++// Used to connect code expecting an io.Read
++// with code expecting an io.Write.
++//
+ // Reads on one end are matched by writes on the other.
+ // Writes don't complete until all the data has been
+ // written or the read end is closed.  Reads return

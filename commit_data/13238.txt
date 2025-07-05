@@ -7,6 +7,19 @@ Date:   Thu May 31 16:51:49 2012 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6244071
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index a468600a80..10f060d2cb 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -266,6 +266,7 @@ Roger Peppe <rogpeppe@gmail.com>
+ Ron Minnich <rminnich@gmail.com>
+ Ross Light <rlight2@gmail.com>
+ Russ Cox <rsc@golang.org>
++Ryan Barrett <ryanb@google.com>
+ Ryan Hitchman <hitchmanr@gmail.com>
+ Sam Thorogood <thorogood@google.com> <sam.thorogood@gmail.com>
+ Sameer Ajmani <sameer@golang.org> <ajmani@gmail.com>

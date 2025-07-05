@@ -7,7 +7,58 @@ Date:   Thu Sep 29 12:09:46 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5161041
-
+---
  src/cmd/5g/cgen.c        |  4 ++--
  test/fixedbugs/bug368.go | 26 ++++++++++++++++++++++++++
  2 files changed, 28 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 0ea8695a02..15defaf111 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -213,11 +213,11 @@ cgen(Node *n, Node *res)
+ 		goto ret;
+ 
+ 	case OMINUS:
++		regalloc(&n1, nl->type, N);
++		cgen(nl, &n1);
+ 		nodconst(&n3, nl->type, 0);
+ 		regalloc(&n2, nl->type, res);
+-		regalloc(&n1, nl->type, N);
+ 		gmove(&n3, &n2);
+-		cgen(nl, &n1);
+ 		gins(optoas(OSUB, nl->type), &n1, &n2);
+ 		gmove(&n2, res);
+ 		regfree(&n1);
+diff --git a/test/fixedbugs/bug368.go b/test/fixedbugs/bug368.go
+new file mode 100644
+index 0000000000..8d94f531c9
+--- /dev/null
++++ b/test/fixedbugs/bug368.go
+@@ -0,0 +1,26 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// 5g bug used to set up the 0 for -f() before calling f,
++// and the call to f smashed the register.
++
++func f(n int) int {
++	s := 0
++	for i := 0; i < n; i++ {
++		s += i>>1
++	}
++	return s
++}
++
++func main() {
++	x := -f(100)
++	if x != -2450 {
++		println(x)
++		panic("broken")
++	}
++}

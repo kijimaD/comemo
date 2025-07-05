@@ -37,7 +37,7 @@ Date:   Fri Mar 8 18:12:07 2019 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/imports/build.go     | 53 ++++++++++++++++++++++++--------
  src/compress/flate/huffman_bit_writer.go |  6 ++--
  src/crypto/des/block.go                  | 14 +++++++--
@@ -45,3 +45,221 @@ Date:   Fri Mar 8 18:12:07 2019 +0000
  src/net/textproto/reader.go              | 11 +++++--
  src/net/textproto/reader_test.go         |  1 +
  6 files changed, 70 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/go/internal/imports/build.go b/src/cmd/go/internal/imports/build.go
+index 3718dbba3c..fd0a300bc8 100644
+--- a/src/cmd/go/internal/imports/build.go
++++ b/src/cmd/go/internal/imports/build.go
+@@ -195,17 +195,46 @@ func MatchFile(name string, tags map[string]bool) bool {
+ 	return true
+ }
+ 
+-var KnownOS = make(map[string]bool)
+-var KnownArch = make(map[string]bool)
+-
+-func init() {
+-	for _, v := range strings.Fields(goosList) {
+-		KnownOS[v] = true
+-	}
+-	for _, v := range strings.Fields(goarchList) {
+-		KnownArch[v] = true
+-	}
++var KnownOS = map[string]bool{
++	"aix":       true,
++	"android":   true,
++	"darwin":    true,
++	"dragonfly": true,
++	"freebsd":   true,
++	"hurd":      true,
++	"js":        true,
++	"linux":     true,
++	"nacl":      true,
++	"netbsd":    true,
++	"openbsd":   true,
++	"plan9":     true,
++	"solaris":   true,
++	"windows":   true,
++	"zos":       true,
+ }
+ 
+-const goosList = "aix android darwin dragonfly freebsd hurd js linux nacl netbsd openbsd plan9 solaris windows zos "
+-const goarchList = "386 amd64 amd64p32 arm armbe arm64 arm64be ppc64 ppc64le mips mipsle mips64 mips64le mips64p32 mips64p32le ppc riscv riscv64 s390 s390x sparc sparc64 wasm "
++var KnownArch = map[string]bool{
++	"386":         true,
++	"amd64":       true,
++	"amd64p32":    true,
++	"arm":         true,
++	"armbe":       true,
++	"arm64":       true,
++	"arm64be":     true,
++	"ppc64":       true,
++	"ppc64le":     true,
++	"mips":        true,
++	"mipsle":      true,
++	"mips64":      true,
++	"mips64le":    true,
++	"mips64p32":   true,
++	"mips64p32le": true,
++	"ppc":         true,
++	"riscv":       true,
++	"riscv64":     true,
++	"s390":        true,
++	"s390x":       true,
++	"sparc":       true,
++	"sparc64":     true,
++	"wasm":        true,
++}
+diff --git a/src/compress/flate/huffman_bit_writer.go b/src/compress/flate/huffman_bit_writer.go
+index f42a921e67..3e19061f8b 100644
+--- a/src/compress/flate/huffman_bit_writer.go
++++ b/src/compress/flate/huffman_bit_writer.go
+@@ -609,10 +609,10 @@ func (w *huffmanBitWriter) writeTokens(tokens []token, leCodes, oeCodes []hcode)
+ var huffOffset *huffmanEncoder
+ 
+ func init() {
+-	w := newHuffmanBitWriter(nil)
+-	w.offsetFreq[0] = 1
++	offsetFreq := make([]int32, offsetCodeCount)
++	offsetFreq[0] = 1
+ 	huffOffset = newHuffmanEncoder(offsetCodeCount)
+-	huffOffset.generate(w.offsetFreq, 15)
++	huffOffset.generate(offsetFreq, 15)
+ }
+ 
+ // writeBlockHuff encodes a block of bytes as either
+diff --git a/src/crypto/des/block.go b/src/crypto/des/block.go
+index 21e6d4e82f..3e3fe06c02 100644
+--- a/src/crypto/des/block.go
++++ b/src/crypto/des/block.go
+@@ -4,7 +4,10 @@
+ 
+ package des
+ 
+-import "encoding/binary"
++import (
++	"encoding/binary"
++	"sync"
++)
+ 
+ func cryptBlock(subkeys []uint64, dst, src []byte, decrypt bool) {
+ 	b := binary.BigEndian.Uint64(src)
+@@ -42,7 +45,8 @@ func decryptBlock(subkeys []uint64, dst, src []byte) {
+ 	cryptBlock(subkeys, dst, src, true)
+ }
+ 
+-// DES Feistel function
++// DES Feistel function. feistelBox must be initialized via
++// feistelBoxOnce.Do(initFeistelBox) first.
+ func feistel(l, r uint32, k0, k1 uint64) (lout, rout uint32) {
+ 	var t uint32
+ 
+@@ -77,6 +81,8 @@ func feistel(l, r uint32, k0, k1 uint64) (lout, rout uint32) {
+ // for sBoxes[s][i][j] << 4*(7-s)
+ var feistelBox [8][64]uint32
+ 
++var feistelBoxOnce sync.Once
++
+ // general purpose function to perform DES block permutations
+ func permuteBlock(src uint64, permutation []uint8) (block uint64) {
+ 	for position, n := range permutation {
+@@ -86,7 +92,7 @@ func permuteBlock(src uint64, permutation []uint8) (block uint64) {
+ 	return
+ }
+ 
+-func init() {
++func initFeistelBox() {
+ 	for s := range sBoxes {
+ 		for i := 0; i < 4; i++ {
+ 			for j := 0; j < 16; j++ {
+@@ -219,6 +225,8 @@ func ksRotate(in uint32) (out []uint32) {
+ 
+ // creates 16 56-bit subkeys from the original key
+ func (c *desCipher) generateSubkeys(keyBytes []byte) {
++	feistelBoxOnce.Do(initFeistelBox)
++
+ 	// apply PC1 permutation to key
+ 	key := binary.BigEndian.Uint64(keyBytes)
+ 	permutedKey := permuteBlock(key, permutedChoice1[:])
+diff --git a/src/flag/flag.go b/src/flag/flag.go
+index c312c62a58..9fed4d82b3 100644
+--- a/src/flag/flag.go
++++ b/src/flag/flag.go
+@@ -341,17 +341,15 @@ type Flag struct {
+ 
+ // sortFlags returns the flags as a slice in lexicographical sorted order.
+ func sortFlags(flags map[string]*Flag) []*Flag {
+-	list := make(sort.StringSlice, len(flags))
++	result := make([]*Flag, len(flags))
+ 	i := 0
+ 	for _, f := range flags {
+-		list[i] = f.Name
++		result[i] = f
+ 		i++
+ 	}
+-	list.Sort()
+-	result := make([]*Flag, len(list))
+-	for i, name := range list {
+-		result[i] = flags[name]
+-	}
++	sort.Slice(result, func(i, j int) bool {
++		return result[i].Name < result[j].Name
++	})
+ 	return result
+ }
+ 
+diff --git a/src/net/textproto/reader.go b/src/net/textproto/reader.go
+index 2c4f25d5ae..a5cab993b2 100644
+--- a/src/net/textproto/reader.go
++++ b/src/net/textproto/reader.go
+@@ -11,6 +11,7 @@ import (
+ 	"io/ioutil"
+ 	"strconv"
+ 	"strings"
++	"sync"
+ )
+ 
+ // A Reader implements convenience methods for reading requests
+@@ -27,6 +28,7 @@ type Reader struct {
+ // should be reading from an io.LimitReader or similar Reader to bound
+ // the size of responses.
+ func NewReader(r *bufio.Reader) *Reader {
++	commonHeaderOnce.Do(initCommonHeader)
+ 	return &Reader{R: r}
+ }
+ 
+@@ -571,6 +573,8 @@ func (r *Reader) upcomingHeaderNewlines() (n int) {
+ // If s contains a space or invalid header field bytes, it is
+ // returned without modifications.
+ func CanonicalMIMEHeaderKey(s string) string {
++	commonHeaderOnce.Do(initCommonHeader)
++
+ 	// Quick check for canonical encoding.
+ 	upper := true
+ 	for i := 0; i < len(s); i++ {
+@@ -642,9 +646,12 @@ func canonicalMIMEHeaderKey(a []byte) string {
+ }
+ 
+ // commonHeader interns common header strings.
+-var commonHeader = make(map[string]string)
++var commonHeader map[string]string
++
++var commonHeaderOnce sync.Once
+ 
+-func init() {
++func initCommonHeader() {
++	commonHeader = make(map[string]string)
+ 	for _, v := range []string{
+ 		"Accept",
+ 		"Accept-Charset",
+diff --git a/src/net/textproto/reader_test.go b/src/net/textproto/reader_test.go
+index 6d9bcd841b..6ff7eefe91 100644
+--- a/src/net/textproto/reader_test.go
++++ b/src/net/textproto/reader_test.go
+@@ -338,6 +338,7 @@ func TestReadMultiLineError(t *testing.T) {
+ }
+ 
+ func TestCommonHeaders(t *testing.T) {
++	commonHeaderOnce.Do(initCommonHeader)
+ 	for h := range commonHeader {
+ 		if h != CanonicalMIMEHeaderKey(h) {
+ 			t.Errorf("Non-canonical header %q in commonHeader", h)

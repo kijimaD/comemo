@@ -14,10 +14,196 @@ Date:   Mon Dec 4 10:17:34 2023 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/546916
     Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  doc/godebug.md                 |  9 +++++++++
  src/crypto/x509/x509.go        | 42 +++++++++++++++++++++++++++++++++--------
  src/crypto/x509/x509_test.go   | 43 ++++++++++++++++++++++++++++++++++++++++++
  src/internal/godebugs/table.go |  1 +
  src/runtime/metrics/doc.go     |  5 +++++
  5 files changed, 92 insertions(+), 8 deletions(-)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index 9710940118..a7619c9a3d 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -185,6 +185,15 @@ runtime locks can be enabled with the [`runtimecontentionstacks`
+ setting](/pkg/runtime#hdr-Environment_Variable). These stack traces have
+ non-standard semantics, see setting documentation for details.
+ 
++Go 1.22 added a new [`crypto/x509.Certificate`](/pkg/crypto/x509/#Certificate)
++field, [`Policies`](/pkg/crypto/x509/#Certificate.Policies), which supports
++certificate policy OIDs with components larger than 31 bits. By default this
++field is only used during parsing, when it is populated with policy OIDs, but
++not used during marshaling. It can be used to marshal these larger OIDs, instead
++of the existing PolicyIdentifiers field, by using the
++[`x509usepolicies` setting.](/pkg/crypto/x509/#CreateCertificate).
++
++
+ ### Go 1.21
+ 
+ Go 1.21 made it a run-time error to call `panic` with a nil interface value,
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 29d8e6bff7..f33283b559 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -1101,6 +1101,8 @@ func isIA5String(s string) error {
+ 	return nil
+ }
+ 
++var usePoliciesField = godebug.New("x509usepolicies")
++
+ func buildCertExtensions(template *Certificate, subjectIsEmpty bool, authorityKeyId []byte, subjectKeyId []byte) (ret []pkix.Extension, err error) {
+ 	ret = make([]pkix.Extension, 10 /* maximum number of elements. */)
+ 	n := 0
+@@ -1186,9 +1188,10 @@ func buildCertExtensions(template *Certificate, subjectIsEmpty bool, authorityKe
+ 		n++
+ 	}
+ 
+-	if len(template.PolicyIdentifiers) > 0 &&
++	usePolicies := usePoliciesField.Value() == "1"
++	if ((!usePolicies && len(template.PolicyIdentifiers) > 0) || (usePolicies && len(template.Policies) > 0)) &&
+ 		!oidInExtensions(oidExtensionCertificatePolicies, template.ExtraExtensions) {
+-		ret[n], err = marshalCertificatePolicies(template.PolicyIdentifiers)
++		ret[n], err = marshalCertificatePolicies(template.Policies, template.PolicyIdentifiers)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+@@ -1373,15 +1376,30 @@ func marshalBasicConstraints(isCA bool, maxPathLen int, maxPathLenZero bool) (pk
+ 	return ext, err
+ }
+ 
+-func marshalCertificatePolicies(policyIdentifiers []asn1.ObjectIdentifier) (pkix.Extension, error) {
++func marshalCertificatePolicies(policies []OID, policyIdentifiers []asn1.ObjectIdentifier) (pkix.Extension, error) {
+ 	ext := pkix.Extension{Id: oidExtensionCertificatePolicies}
+ 
+ 	b := cryptobyte.NewBuilder(make([]byte, 0, 128))
+ 	b.AddASN1(cryptobyte_asn1.SEQUENCE, func(child *cryptobyte.Builder) {
+-		for _, v := range policyIdentifiers {
+-			child.AddASN1(cryptobyte_asn1.SEQUENCE, func(child *cryptobyte.Builder) {
+-				child.AddASN1ObjectIdentifier(v)
+-			})
++		if usePoliciesField.Value() == "1" {
++			usePoliciesField.IncNonDefault()
++			for _, v := range policies {
++				child.AddASN1(cryptobyte_asn1.SEQUENCE, func(child *cryptobyte.Builder) {
++					child.AddASN1(cryptobyte_asn1.OBJECT_IDENTIFIER, func(child *cryptobyte.Builder) {
++						if len(v.der) == 0 {
++							child.SetError(errors.New("invalid policy object identifier"))
++							return
++						}
++						child.AddBytes(v.der)
++					})
++				})
++			}
++		} else {
++			for _, v := range policyIdentifiers {
++				child.AddASN1(cryptobyte_asn1.SEQUENCE, func(child *cryptobyte.Builder) {
++					child.AddASN1ObjectIdentifier(v)
++				})
++			}
+ 		}
+ 	})
+ 
+@@ -1526,7 +1544,8 @@ var emptyASN1Subject = []byte{0x30, 0}
+ //   - PermittedEmailAddresses
+ //   - PermittedIPRanges
+ //   - PermittedURIDomains
+-//   - PolicyIdentifiers
++//   - PolicyIdentifiers (see note below)
++//   - Policies (see note below)
+ //   - SerialNumber
+ //   - SignatureAlgorithm
+ //   - Subject
+@@ -1550,6 +1569,13 @@ var emptyASN1Subject = []byte{0x30, 0}
+ //
+ // If SubjectKeyId from template is empty and the template is a CA, SubjectKeyId
+ // will be generated from the hash of the public key.
++//
++// The PolicyIdentifier and Policies fields are both used to marshal certificate
++// policy OIDs. By default, only the PolicyIdentifier is marshaled, but if the
++// GODEBUG setting "x509usepolicies" has the value "1", the Policies field will
++// be marshalled instead of the PolicyIdentifier field. The Policies field can
++// be used to marshal policy OIDs which have components that are larger than 31
++// bits.
+ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv any) ([]byte, error) {
+ 	key, ok := priv.(crypto.Signer)
+ 	if !ok {
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index 47cddceacf..ead0453f66 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -3956,3 +3956,46 @@ func TestCertificateOIDPolicies(t *testing.T) {
+ 		t.Errorf("cert.Policies = %v, want: %v", cert.Policies, expectPolicies)
+ 	}
+ }
++
++func TestCertificatePoliciesGODEBUG(t *testing.T) {
++	template := Certificate{
++		SerialNumber:      big.NewInt(1),
++		Subject:           pkix.Name{CommonName: "Cert"},
++		NotBefore:         time.Unix(1000, 0),
++		NotAfter:          time.Unix(100000, 0),
++		PolicyIdentifiers: []asn1.ObjectIdentifier{[]int{1, 2, 3}},
++		Policies:          []OID{mustNewOIDFromInts(t, []uint64{1, 2, math.MaxUint32 + 1})},
++	}
++
++	expectPolicies := []OID{mustNewOIDFromInts(t, []uint64{1, 2, 3})}
++	certDER, err := CreateCertificate(rand.Reader, &template, &template, rsaPrivateKey.Public(), rsaPrivateKey)
++	if err != nil {
++		t.Fatalf("CreateCertificate() unexpected error: %v", err)
++	}
++
++	cert, err := ParseCertificate(certDER)
++	if err != nil {
++		t.Fatalf("ParseCertificate() unexpected error: %v", err)
++	}
++
++	if !slices.EqualFunc(cert.Policies, expectPolicies, OID.Equal) {
++		t.Errorf("cert.Policies = %v, want: %v", cert.Policies, expectPolicies)
++	}
++
++	t.Setenv("GODEBUG", "x509usepolicies=1")
++	expectPolicies = []OID{mustNewOIDFromInts(t, []uint64{1, 2, math.MaxUint32 + 1})}
++
++	certDER, err = CreateCertificate(rand.Reader, &template, &template, rsaPrivateKey.Public(), rsaPrivateKey)
++	if err != nil {
++		t.Fatalf("CreateCertificate() unexpected error: %v", err)
++	}
++
++	cert, err = ParseCertificate(certDER)
++	if err != nil {
++		t.Fatalf("ParseCertificate() unexpected error: %v", err)
++	}
++
++	if !slices.EqualFunc(cert.Policies, expectPolicies, OID.Equal) {
++		t.Errorf("cert.Policies = %v, want: %v", cert.Policies, expectPolicies)
++	}
++}
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index 3a76214b39..a0a0672966 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -51,6 +51,7 @@ var All = []Info{
+ 	{Name: "tlsunsafeekm", Package: "crypto/tls", Changed: 22, Old: "1"},
+ 	{Name: "x509sha1", Package: "crypto/x509"},
+ 	{Name: "x509usefallbackroots", Package: "crypto/x509"},
++	{Name: "x509usepolicies", Package: "crypto/x509"},
+ 	{Name: "zipinsecurepath", Package: "archive/zip"},
+ }
+ 
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index ba153174a6..e5a1fbc8d2 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -327,6 +327,11 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		package due to a non-default GODEBUG=x509usefallbackroots=...
+ 		setting.
+ 
++	/godebug/non-default-behavior/x509usepolicies:events
++		The number of non-default behaviors executed by the crypto/x509
++		package due to a non-default GODEBUG=x509usepolicies=...
++		setting.
++
+ 	/godebug/non-default-behavior/zipinsecurepath:events
+ 		The number of non-default behaviors executed by the archive/zip
+ 		package due to a non-default GODEBUG=zipinsecurepath=...

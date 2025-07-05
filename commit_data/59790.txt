@@ -17,8 +17,48 @@ Date:   Tue Apr 23 11:45:49 2024 +0000
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     Commit-Queue: Ian Lance Taylor <iant@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/concurrent/hashtriemap.go | 2 +-
  src/net/http/cookiejar/jar.go          | 2 +-
  src/os/path_windows_test.go            | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/concurrent/hashtriemap.go b/src/internal/concurrent/hashtriemap.go
+index 348e3b6c47..5e31023494 100644
+--- a/src/internal/concurrent/hashtriemap.go
++++ b/src/internal/concurrent/hashtriemap.go
+@@ -306,7 +306,7 @@ const (
+ 	// 16 children. This seems to be the sweet spot for
+ 	// load performance: any smaller and we lose out on
+ 	// 50% or more in CPU performance. Any larger and the
+-	// returns are miniscule (~1% improvement for 32 children).
++	// returns are minuscule (~1% improvement for 32 children).
+ 	nChildrenLog2 = 4
+ 	nChildren     = 1 << nChildrenLog2
+ 	nChildrenMask = nChildren - 1
+diff --git a/src/net/http/cookiejar/jar.go b/src/net/http/cookiejar/jar.go
+index 280f4650c1..b09dea2d44 100644
+--- a/src/net/http/cookiejar/jar.go
++++ b/src/net/http/cookiejar/jar.go
+@@ -367,7 +367,7 @@ func isIP(host string) bool {
+ 		// Probable IPv6 address.
+ 		// Hostnames can't contain : or %, so this is definitely not a valid host.
+ 		// Treating it as an IP is the more conservative option, and avoids the risk
+-		// of interpeting ::1%.www.example.com as a subtomain of www.example.com.
++		// of interpreting ::1%.www.example.com as a subdomain of www.example.com.
+ 		return true
+ 	}
+ 	return net.ParseIP(host) != nil
+diff --git a/src/os/path_windows_test.go b/src/os/path_windows_test.go
+index b37cae52b3..0b5d7099f6 100644
+--- a/src/os/path_windows_test.go
++++ b/src/os/path_windows_test.go
+@@ -30,7 +30,7 @@ func TestAddExtendedPrefix(t *testing.T) {
+ 	// (256) and thus requires fixLongPath to be correctly interpreted in I/O syscalls.
+ 	veryLong := "l" + strings.Repeat("o", 500) + "ng"
+ 	for _, test := range []struct{ in, want string }{
+-		// Testcases use word subsitutions:
++		// Test cases use word substitutions:
+ 		//   * "long" is replaced with a very long pathname
+ 		//   * "c:" or "C:" are replaced with the drive of the current directory (preserving case)
+ 		//   * "cwd" is replaced with the current directory

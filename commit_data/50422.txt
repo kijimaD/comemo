@@ -31,6 +31,21 @@ Date:   Mon Oct 25 12:18:40 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Joel Sing <joel@sing.id.au>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/riscv/obj.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index d98806edb5..c27ad99b2d 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -1610,7 +1610,8 @@ func instructionsForOpImmediate(p *obj.Prog, as obj.As, rs int16) []*instruction
+ 	}
+ 
+ 	// Split into two additions, if possible.
+-	if ins.as == AADDI && ins.imm >= -(1<<12) && ins.imm < 1<<12-1 {
++	// Do not split SP-writing instructions, as otherwise the recorded SP delta may be wrong.
++	if p.Spadj == 0 && ins.as == AADDI && ins.imm >= -(1<<12) && ins.imm < 1<<12-1 {
+ 		imm0 := ins.imm / 2
+ 		imm1 := ins.imm - imm0
+ 

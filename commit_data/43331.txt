@@ -11,6 +11,21 @@ Date:   Thu Mar 19 13:00:44 2020 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alexander Rakoczy <alex@golang.org>
-
+---
  src/cmd/dist/test.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 43d8089c65..5baab69316 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1527,9 +1527,6 @@ func (t *tester) shouldUsePrecompiledStdTest() bool {
+ }
+ 
+ func (t *tester) shouldTestCmd() bool {
+-	if t.race {
+-		return false
+-	}
+ 	if goos == "js" && goarch == "wasm" {
+ 		// Issues 25911, 35220
+ 		return false

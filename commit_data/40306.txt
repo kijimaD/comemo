@@ -13,6 +13,20 @@ Date:   Thu May 2 03:45:08 2019 +0000
     GitHub-Pull-Request: golang/go#31794
     Reviewed-on: https://go-review.googlesource.com/c/go/+/174917
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/errors/wrap.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/errors/wrap.go b/src/errors/wrap.go
+index b1a15d01dd..04ddf79ba3 100644
+--- a/src/errors/wrap.go
++++ b/src/errors/wrap.go
+@@ -34,7 +34,7 @@ func (e noWrapper) FormatError(p Printer) (next error) {
+ }
+ 
+ // Unwrap returns the result of calling the Unwrap method on err, if err
+-// implements Unwrap. Otherwise, Unwrap returns nil.
++// implements Wrapper. Otherwise, Unwrap returns nil.
+ func Unwrap(err error) error {
+ 	u, ok := err.(Wrapper)
+ 	if !ok {

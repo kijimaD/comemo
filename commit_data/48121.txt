@@ -13,9 +13,153 @@ Date:   Tue Dec 8 04:30:22 2020 +1100
     Trust: Joel Sing <joel@sing.id.au>
     Run-TryBot: Joel Sing <joel@sing.id.au>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/dist/build.go                |  2 +-
  src/cmd/link/internal/mips64/asm.go  | 15 +++++++-
  src/cmd/nm/nm_cgo_test.go            |  2 +-
  src/runtime/cgo/gcc_openbsd_mips64.c | 67 ++++++++++++++++++++++++++++++++++++
  4 files changed, 83 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index c81fe6a586..00e23ef179 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1590,7 +1590,7 @@ var cgoEnabled = map[string]bool{
+ 	"openbsd/amd64":   true,
+ 	"openbsd/arm":     true,
+ 	"openbsd/arm64":   true,
+-	"openbsd/mips64":  false,
++	"openbsd/mips64":  true,
+ 	"plan9/386":       false,
+ 	"plan9/amd64":     false,
+ 	"plan9/arm":       false,
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index 55b4ba2fc8..f7f91d1e8b 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -52,6 +52,8 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym,
+ 	//		type	uint8
+ 	//		addend	int64
+ 
++	addend := r.Xadd
++
+ 	out.Write64(uint64(sectoff))
+ 
+ 	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
+@@ -77,11 +79,17 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym,
+ 		out.Write8(uint8(elf.R_MIPS_HI16))
+ 	case objabi.R_ADDRMIPSTLS:
+ 		out.Write8(uint8(elf.R_MIPS_TLS_TPREL_LO16))
++		if ctxt.Target.IsOpenbsd() {
++			// OpenBSD mips64 does not currently offset TLS by 0x7000,
++			// as such we need to add this back to get the correct offset
++			// via the external linker.
++			addend += 0x7000
++		}
+ 	case objabi.R_CALLMIPS,
+ 		objabi.R_JMPMIPS:
+ 		out.Write8(uint8(elf.R_MIPS_26))
+ 	}
+-	out.Write64(uint64(r.Xadd))
++	out.Write64(uint64(addend))
+ 
+ 	return true
+ }
+@@ -124,6 +132,11 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
+ 	case objabi.R_ADDRMIPSTLS:
+ 		// thread pointer is at 0x7000 offset from the start of TLS data area
+ 		t := ldr.SymValue(rs) + r.Add() - 0x7000
++		if target.IsOpenbsd() {
++			// OpenBSD mips64 does not currently offset TLS by 0x7000,
++			// as such we need to add this back to get the correct offset.
++			t += 0x7000
++		}
+ 		if t < -32768 || t >= 32678 {
+ 			ldr.Errorf(s, "TLS offset out of range %d", t)
+ 		}
+diff --git a/src/cmd/nm/nm_cgo_test.go b/src/cmd/nm/nm_cgo_test.go
+index d0937904a2..1544be041a 100644
+--- a/src/cmd/nm/nm_cgo_test.go
++++ b/src/cmd/nm/nm_cgo_test.go
+@@ -30,7 +30,7 @@ func canInternalLink() bool {
+ 		}
+ 	case "openbsd":
+ 		switch runtime.GOARCH {
+-		case "arm64":
++		case "arm64", "mips64":
+ 			return false
+ 		}
+ 	case "windows":
+diff --git a/src/runtime/cgo/gcc_openbsd_mips64.c b/src/runtime/cgo/gcc_openbsd_mips64.c
+new file mode 100644
+index 0000000000..79f039a373
+--- /dev/null
++++ b/src/runtime/cgo/gcc_openbsd_mips64.c
+@@ -0,0 +1,67 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <sys/types.h>
++#include <pthread.h>
++#include <signal.h>
++#include <string.h>
++#include "libcgo.h"
++#include "libcgo_unix.h"
++
++static void* threadentry(void*);
++static void (*setg_gcc)(void*);
++
++void
++x_cgo_init(G *g, void (*setg)(void*))
++{
++	pthread_attr_t attr;
++	size_t size;
++
++	setg_gcc = setg;
++	pthread_attr_init(&attr);
++	pthread_attr_getstacksize(&attr, &size);
++	g->stacklo = (uintptr)&attr - size + 4096;
++	pthread_attr_destroy(&attr);
++}
++
++void
++_cgo_sys_thread_start(ThreadStart *ts)
++{
++	pthread_attr_t attr;
++	sigset_t ign, oset;
++	pthread_t p;
++	size_t size;
++	int err;
++
++	sigfillset(&ign);
++	pthread_sigmask(SIG_SETMASK, &ign, &oset);
++
++	pthread_attr_init(&attr);
++	pthread_attr_getstacksize(&attr, &size);
++
++	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
++	ts->g->stackhi = size;
++	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
++
++	pthread_sigmask(SIG_SETMASK, &oset, nil);
++
++	if (err != 0) {
++		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
++		abort();
++	}
++}
++
++extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
++
++static void*
++threadentry(void *v)
++{
++	ThreadStart ts;
++
++	ts = *(ThreadStart*)v;
++	free(v);
++
++	crosscall1(ts.fn, setg_gcc, (void*)ts.g);
++	return nil;
++}

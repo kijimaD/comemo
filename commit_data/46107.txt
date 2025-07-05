@@ -22,7 +22,7 @@ Date:   Sun Dec 6 14:53:38 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/275782
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/fmtmap_test.go           |  7 -------
  src/cmd/compile/internal/gc/closure.go   |  2 +-
  src/cmd/compile/internal/gc/escape.go    |  6 +++---
@@ -35,3 +35,312 @@ Date:   Sun Dec 6 14:53:38 2020 -0500
  src/cmd/compile/internal/gc/walk.go      |  2 +-
  src/cmd/compile/internal/ir/fmt.go       | 28 +++++++++++-----------------
  11 files changed, 29 insertions(+), 42 deletions(-)
+
+diff --git a/src/cmd/compile/fmtmap_test.go b/src/cmd/compile/fmtmap_test.go
+index ca6f1c302e..756320285c 100644
+--- a/src/cmd/compile/fmtmap_test.go
++++ b/src/cmd/compile/fmtmap_test.go
+@@ -27,11 +27,8 @@ var knownFormats = map[string]string{
+ 	"*cmd/compile/internal/ssa.Value %s":           "",
+ 	"*cmd/compile/internal/types.Sym %+v":          "",
+ 	"*cmd/compile/internal/types.Sym %S":           "",
+-	"*cmd/compile/internal/types.Type %#L":         "",
+-	"*cmd/compile/internal/types.Type %#v":         "",
+ 	"*cmd/compile/internal/types.Type %+v":         "",
+ 	"*cmd/compile/internal/types.Type %-S":         "",
+-	"*cmd/compile/internal/types.Type %0S":         "",
+ 	"*cmd/compile/internal/types.Type %L":          "",
+ 	"*cmd/compile/internal/types.Type %S":          "",
+ 	"*cmd/compile/internal/types.Type %s":          "",
+@@ -41,14 +38,10 @@ var knownFormats = map[string]string{
+ 	"cmd/compile/internal/arm.shift %d":            "",
+ 	"cmd/compile/internal/gc.initKind %d":          "",
+ 	"cmd/compile/internal/ir.Class %d":             "",
+-	"cmd/compile/internal/ir.Node %#v":             "",
+ 	"cmd/compile/internal/ir.Node %+v":             "",
+ 	"cmd/compile/internal/ir.Node %L":              "",
+-	"cmd/compile/internal/ir.Node %S":              "",
+-	"cmd/compile/internal/ir.Nodes %#v":            "",
+ 	"cmd/compile/internal/ir.Nodes %+v":            "",
+ 	"cmd/compile/internal/ir.Nodes %.v":            "",
+-	"cmd/compile/internal/ir.Op %#v":               "",
+ 	"cmd/compile/internal/ir.Op %+v":               "",
+ 	"cmd/compile/internal/ssa.BranchPrediction %d": "",
+ 	"cmd/compile/internal/ssa.ID %d":               "",
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 01e5a953de..b56e255d10 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -100,7 +100,7 @@ func typecheckclosure(clo ir.Node, top int) {
+ 		if !n.Name().Captured() {
+ 			n.Name().SetCaptured(true)
+ 			if n.Name().Decldepth == 0 {
+-				base.Fatalf("typecheckclosure: var %S does not have decldepth assigned", n)
++				base.Fatalf("typecheckclosure: var %v does not have decldepth assigned", n)
+ 			}
+ 
+ 			// Ignore assignments to the variable in straightline code
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index a7458ab733..f317e9999c 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -757,7 +757,7 @@ func (e *Escape) assign(dst, src ir.Node, why string, where ir.Node) {
+ 	// Filter out some no-op assignments for escape analysis.
+ 	ignore := dst != nil && src != nil && isSelfAssign(dst, src)
+ 	if ignore && base.Flag.LowerM != 0 {
+-		base.WarnfAt(where.Pos(), "%v ignoring self-assignment in %S", funcSym(e.curfn), where)
++		base.WarnfAt(where.Pos(), "%v ignoring self-assignment in %v", funcSym(e.curfn), where)
+ 	}
+ 
+ 	k := e.addr(dst)
+@@ -1454,7 +1454,7 @@ func (e *Escape) finish(fns []*ir.Func) {
+ 		if loc.escapes {
+ 			if n.Op() != ir.ONAME {
+ 				if base.Flag.LowerM != 0 {
+-					base.WarnfAt(n.Pos(), "%S escapes to heap", n)
++					base.WarnfAt(n.Pos(), "%v escapes to heap", n)
+ 				}
+ 				if logopt.Enabled() {
+ 					logopt.LogOpt(n.Pos(), "escape", "escape", ir.FuncName(e.curfn))
+@@ -1464,7 +1464,7 @@ func (e *Escape) finish(fns []*ir.Func) {
+ 			addrescapes(n)
+ 		} else {
+ 			if base.Flag.LowerM != 0 && n.Op() != ir.ONAME {
+-				base.WarnfAt(n.Pos(), "%S does not escape", n)
++				base.WarnfAt(n.Pos(), "%v does not escape", n)
+ 			}
+ 			n.SetEsc(EscNone)
+ 			if loc.transient {
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 859263c83f..1f75393b3e 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -713,9 +713,9 @@ func (r *importReader) doInline(fn *ir.Func) {
+ 
+ 	if base.Flag.E > 0 && base.Flag.LowerM > 2 {
+ 		if base.Flag.LowerM > 3 {
+-			fmt.Printf("inl body for %v %#v: %+v\n", fn, fn.Type(), ir.AsNodes(fn.Inl.Body))
++			fmt.Printf("inl body for %v %v: %+v\n", fn, fn.Type(), ir.AsNodes(fn.Inl.Body))
+ 		} else {
+-			fmt.Printf("inl body for %v %#v: %v\n", fn, fn.Type(), ir.AsNodes(fn.Inl.Body))
++			fmt.Printf("inl body for %v %v: %v\n", fn, fn.Type(), ir.AsNodes(fn.Inl.Body))
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 77fbf7c802..f965fa6325 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -90,7 +90,7 @@ func typecheckinl(fn *ir.Func) {
+ 	}
+ 
+ 	if base.Flag.LowerM > 2 || base.Debug.Export != 0 {
+-		fmt.Printf("typecheck import [%v] %L { %#v }\n", fn.Sym(), fn, ir.AsNodes(fn.Inl.Body))
++		fmt.Printf("typecheck import [%v] %L { %v }\n", fn.Sym(), fn, ir.AsNodes(fn.Inl.Body))
+ 	}
+ 
+ 	savefn := Curfn
+@@ -219,7 +219,7 @@ func caninl(fn *ir.Func) {
+ 	}
+ 
+ 	if base.Flag.LowerM > 1 {
+-		fmt.Printf("%v: can inline %#v with cost %d as: %#v { %#v }\n", ir.Line(fn), n, inlineMaxBudget-visitor.budget, fn.Type(), ir.AsNodes(n.Func().Inl.Body))
++		fmt.Printf("%v: can inline %v with cost %d as: %v { %v }\n", ir.Line(fn), n, inlineMaxBudget-visitor.budget, fn.Type(), ir.AsNodes(n.Func().Inl.Body))
+ 	} else if base.Flag.LowerM != 0 {
+ 		fmt.Printf("%v: can inline %v\n", ir.Line(fn), n)
+ 	}
+@@ -816,7 +816,7 @@ func mkinlcall(n ir.Node, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool,
+ 
+ 	// We have a function node, and it has an inlineable body.
+ 	if base.Flag.LowerM > 1 {
+-		fmt.Printf("%v: inlining call to %v %#v { %#v }\n", ir.Line(n), fn.Sym(), fn.Type(), ir.AsNodes(fn.Inl.Body))
++		fmt.Printf("%v: inlining call to %v %v { %v }\n", ir.Line(n), fn.Sym(), fn.Type(), ir.AsNodes(fn.Inl.Body))
+ 	} else if base.Flag.LowerM != 0 {
+ 		fmt.Printf("%v: inlining call to %v\n", ir.Line(n), fn)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/pgen_test.go b/src/cmd/compile/internal/gc/pgen_test.go
+index 473df82a0d..ad8b87c6f5 100644
+--- a/src/cmd/compile/internal/gc/pgen_test.go
++++ b/src/cmd/compile/internal/gc/pgen_test.go
+@@ -145,11 +145,11 @@ func TestCmpstackvar(t *testing.T) {
+ 	for _, d := range testdata {
+ 		got := cmpstackvarlt(d.a, d.b)
+ 		if got != d.lt {
+-			t.Errorf("want %#v < %#v", d.a, d.b)
++			t.Errorf("want %v < %v", d.a, d.b)
+ 		}
+ 		// If we expect a < b to be true, check that b < a is false.
+ 		if d.lt && cmpstackvarlt(d.b, d.a) {
+-			t.Errorf("unexpected %#v < %#v", d.b, d.a)
++			t.Errorf("unexpected %v < %v", d.b, d.a)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index dffebc58f2..e05a124b29 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -291,12 +291,12 @@ func assignop(src, dst *types.Type) (ir.Op, string) {
+ 			why = fmt.Sprintf(":\n\t%v does not implement %v (%v method is marked 'nointerface')", src, dst, missing.Sym)
+ 		} else if have != nil && have.Sym == missing.Sym {
+ 			why = fmt.Sprintf(":\n\t%v does not implement %v (wrong type for %v method)\n"+
+-				"\t\thave %v%0S\n\t\twant %v%0S", src, dst, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
++				"\t\thave %v%S\n\t\twant %v%S", src, dst, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+ 		} else if ptr != 0 {
+ 			why = fmt.Sprintf(":\n\t%v does not implement %v (%v method has pointer receiver)", src, dst, missing.Sym)
+ 		} else if have != nil {
+ 			why = fmt.Sprintf(":\n\t%v does not implement %v (missing %v method)\n"+
+-				"\t\thave %v%0S\n\t\twant %v%0S", src, dst, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
++				"\t\thave %v%S\n\t\twant %v%S", src, dst, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+ 		} else {
+ 			why = fmt.Sprintf(":\n\t%v does not implement %v (missing %v method)", src, dst, missing.Sym)
+ 		}
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 85094dbebc..a7c05c6c0f 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -58,7 +58,7 @@ func tracePrint(title string, n ir.Node) func(np *ir.Node) {
+ 
+ 		skipDowidthForTracing = true
+ 		defer func() { skipDowidthForTracing = false }()
+-		fmt.Printf("%s: %s=> %p %s %v tc=%d type=%#L\n", pos, indent, n, op, n, tc, typ)
++		fmt.Printf("%s: %s=> %p %s %v tc=%d type=%L\n", pos, indent, n, op, n, tc, typ)
+ 	}
+ }
+ 
+@@ -1039,12 +1039,12 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
+ 			if !implements(n.Type(), t, &missing, &have, &ptr) {
+ 				if have != nil && have.Sym == missing.Sym {
+ 					base.Errorf("impossible type assertion:\n\t%v does not implement %v (wrong type for %v method)\n"+
+-						"\t\thave %v%0S\n\t\twant %v%0S", n.Type(), t, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
++						"\t\thave %v%S\n\t\twant %v%S", n.Type(), t, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+ 				} else if ptr != 0 {
+ 					base.Errorf("impossible type assertion:\n\t%v does not implement %v (%v method has pointer receiver)", n.Type(), t, missing.Sym)
+ 				} else if have != nil {
+ 					base.Errorf("impossible type assertion:\n\t%v does not implement %v (missing %v method)\n"+
+-						"\t\thave %v%0S\n\t\twant %v%0S", n.Type(), t, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
++						"\t\thave %v%S\n\t\twant %v%S", n.Type(), t, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+ 				} else {
+ 					base.Errorf("impossible type assertion:\n\t%v does not implement %v (missing %v method)", n.Type(), t, missing.Sym)
+ 				}
+diff --git a/src/cmd/compile/internal/gc/unsafe.go b/src/cmd/compile/internal/gc/unsafe.go
+index 678924b229..d7ae5d7aaa 100644
+--- a/src/cmd/compile/internal/gc/unsafe.go
++++ b/src/cmd/compile/internal/gc/unsafe.go
+@@ -70,7 +70,7 @@ func evalunsafe(n ir.Node) int64 {
+ 				v += r.Offset()
+ 			default:
+ 				ir.Dump("unsafenmagic", n.Left())
+-				base.Fatalf("impossible %#v node after dot insertion", r.Op())
++				base.Fatalf("impossible %v node after dot insertion", r.Op())
+ 			}
+ 		}
+ 		return v
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 346817e589..4189d1a721 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -2154,7 +2154,7 @@ func reorder3(all []ir.Node) []ir.Node {
+ 
+ 		switch l.Op() {
+ 		default:
+-			base.Fatalf("reorder3 unexpected lvalue %#v", l.Op())
++			base.Fatalf("reorder3 unexpected lvalue %v", l.Op())
+ 
+ 		case ir.ONAME:
+ 			break
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index 85c6b218e2..68e425bdaa 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -125,12 +125,6 @@ func (o Op) Format(s fmt.State, verb rune) {
+ //	%+v	Debug syntax, as in Dump.
+ //
+ func FmtNode(n Node, s fmt.State, verb rune) {
+-	// TODO(rsc): Remove uses of %#v, which behaves just like %v.
+-	// TODO(rsc): Remove uses of %S, which behaves just like %v.
+-	if verb == 'S' {
+-		verb = 'v'
+-	}
+-
+ 	// %+v prints Dump.
+ 	// Otherwise we print Go syntax.
+ 	if s.Flag('+') && verb == 'v' {
+@@ -355,7 +349,7 @@ func stmtFmt(n Node, s fmt.State) {
+ 			break
+ 		}
+ 
+-		fmt.Fprintf(s, "%v %#v= %v", n.Left(), n.SubOp(), n.Right())
++		fmt.Fprintf(s, "%v %v= %v", n.Left(), n.SubOp(), n.Right())
+ 
+ 	case OAS2, OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
+ 		if n.Colas() && !complexinit {
+@@ -446,7 +440,7 @@ func stmtFmt(n Node, s fmt.State) {
+ 			break
+ 		}
+ 
+-		fmt.Fprintf(s, "%#v", n.Op())
++		fmt.Fprintf(s, "%v", n.Op())
+ 		if simpleinit {
+ 			fmt.Fprintf(s, " %v;", n.Init().First())
+ 		}
+@@ -466,9 +460,9 @@ func stmtFmt(n Node, s fmt.State) {
+ 
+ 	case OBREAK, OCONTINUE, OGOTO, OFALL:
+ 		if n.Sym() != nil {
+-			fmt.Fprintf(s, "%#v %v", n.Op(), n.Sym())
++			fmt.Fprintf(s, "%v %v", n.Op(), n.Sym())
+ 		} else {
+-			fmt.Fprintf(s, "%#v", n.Op())
++			fmt.Fprintf(s, "%v", n.Op())
+ 		}
+ 
+ 	case OLABEL:
+@@ -754,9 +748,9 @@ func exprFmt(n Node, s fmt.State, prec int) {
+ 
+ 	case OCOMPLEX, OCOPY:
+ 		if n.Left() != nil {
+-			fmt.Fprintf(s, "%#v(%v, %v)", n.Op(), n.Left(), n.Right())
++			fmt.Fprintf(s, "%v(%v, %v)", n.Op(), n.Left(), n.Right())
+ 		} else {
+-			fmt.Fprintf(s, "%#v(%.v)", n.Op(), n.List())
++			fmt.Fprintf(s, "%v(%.v)", n.Op(), n.List())
+ 		}
+ 
+ 	case OCONV,
+@@ -795,14 +789,14 @@ func exprFmt(n Node, s fmt.State, prec int) {
+ 		OPRINT,
+ 		OPRINTN:
+ 		if n.Left() != nil {
+-			fmt.Fprintf(s, "%#v(%v)", n.Op(), n.Left())
++			fmt.Fprintf(s, "%v(%v)", n.Op(), n.Left())
+ 			return
+ 		}
+ 		if n.IsDDD() {
+-			fmt.Fprintf(s, "%#v(%.v...)", n.Op(), n.List())
++			fmt.Fprintf(s, "%v(%.v...)", n.Op(), n.List())
+ 			return
+ 		}
+-		fmt.Fprintf(s, "%#v(%.v)", n.Op(), n.List())
++		fmt.Fprintf(s, "%v(%.v)", n.Op(), n.List())
+ 
+ 	case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH, OGETG:
+ 		exprFmt(n.Left(), s, nprec)
+@@ -832,7 +826,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
+ 
+ 	case OPLUS, ONEG, OADDR, OBITNOT, ODEREF, ONOT, ORECV:
+ 		// Unary
+-		fmt.Fprintf(s, "%#v", n.Op())
++		fmt.Fprintf(s, "%v", n.Op())
+ 		if n.Left() != nil && n.Left().Op() == n.Op() {
+ 			fmt.Fprint(s, " ")
+ 		}
+@@ -860,7 +854,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
+ 		OSUB,
+ 		OXOR:
+ 		exprFmt(n.Left(), s, nprec)
+-		fmt.Fprintf(s, " %#v ", n.Op())
++		fmt.Fprintf(s, " %v ", n.Op())
+ 		exprFmt(n.Right(), s, nprec+1)
+ 
+ 	case OADDSTR:

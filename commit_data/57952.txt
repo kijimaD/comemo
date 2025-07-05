@@ -17,6 +17,20 @@ Date:   Tue Sep 12 11:46:25 2023 +0200
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/syscall/syscall_linux_arm64.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/syscall/syscall_linux_arm64.go b/src/syscall/syscall_linux_arm64.go
+index 56b492e810..48067e22dd 100644
+--- a/src/syscall/syscall_linux_arm64.go
++++ b/src/syscall/syscall_linux_arm64.go
+@@ -37,7 +37,7 @@ func Fstatat(fd int, path string, stat *Stat_t, flags int) error {
+ //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
+ //sys	Setfsgid(gid int) (err error)
+ //sys	Setfsuid(uid int) (err error)
+-//sysnb	setrlimit1(resource int, rlim *Rlimit) (err error)
++//sysnb	setrlimit1(resource int, rlim *Rlimit) (err error) = SYS_SETRLIMIT
+ //sys	Shutdown(fd int, how int) (err error)
+ //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error)
+ 

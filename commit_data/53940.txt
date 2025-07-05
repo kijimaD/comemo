@@ -14,7 +14,44 @@ Date:   Wed Sep 7 20:33:06 2022 +0000
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/malloc.go  | 4 ++--
  src/runtime/mgcmark.go | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 205c6d44a8..f2b93c04f4 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1052,8 +1052,8 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 		}
+ 	}
+ 
+-	var scanSize uintptr
+ 	if !noscan {
++		var scanSize uintptr
+ 		heapBitsSetType(uintptr(x), size, dataSize, typ)
+ 		if dataSize > typ.size {
+ 			// Array allocation. If there are any
+@@ -1081,7 +1081,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 	// This may be racing with GC so do it atomically if there can be
+ 	// a race marking the bit.
+ 	if gcphase != _GCoff {
+-		gcmarknewobject(span, uintptr(x), size, scanSize)
++		gcmarknewobject(span, uintptr(x), size)
+ 	}
+ 
+ 	if raceenabled {
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 8d3259c79a..90240c3159 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -1563,7 +1563,7 @@ func gcDumpObject(label string, obj, off uintptr) {
+ //
+ //go:nowritebarrier
+ //go:nosplit
+-func gcmarknewobject(span *mspan, obj, size, scanSize uintptr) {
++func gcmarknewobject(span *mspan, obj, size uintptr) {
+ 	if useCheckmark { // The world should be stopped so this should not happen.
+ 		throw("gcmarknewobject called while doing checkmark")
+ 	}

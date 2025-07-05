@@ -7,9 +7,101 @@ Date:   Tue Mar 2 11:18:22 2010 +1100
     R=rsc, adg
     CC=golang-dev
     https://golang.org/cl/224087
-
+---
  doc/effective_go.html           |  3 +--
  doc/htmlgen.go                  | 19 +++++++++----------
  src/pkg/compress/zlib/reader.go |  2 +-
  src/pkg/websocket/client.go     |  2 +-
  4 files changed, 12 insertions(+), 14 deletions(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 684f108de9..728e07be11 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -2435,7 +2435,6 @@ import (
+     "http"
+     "io"
+     "log"
+-    "strings"
+     "template"
+ )
+ 
+@@ -2460,7 +2459,7 @@ func QR(c *http.Conn, req *http.Request) {
+ }
+ 
+ func UrlHtmlFormatter(w io.Writer, v interface{}, fmt string) {
+-    template.HTMLEscape(w, strings.Bytes(http.URLEscape(v.(string))))
++    template.HTMLEscape(w, []byte(http.URLEscape(v.(string))))
+ }
+ 
+ 
+diff --git a/doc/htmlgen.go b/doc/htmlgen.go
+index 8d44fc0787..e4a2b52933 100644
+--- a/doc/htmlgen.go
++++ b/doc/htmlgen.go
+@@ -15,22 +15,21 @@ import (
+ 	"bytes";
+ 	"log";
+ 	"os";
+-	"strings";
+ )
+ 
+ var (
+ 	lines = make([][]byte, 0, 10000);	// assume big enough
+ 	linebuf = make([]byte, 10000);		// assume big enough
+ 
+-	empty = strings.Bytes("");
+-	newline = strings.Bytes("\n");
+-	tab = strings.Bytes("\t");
+-	quote = strings.Bytes(`"`);
++	empty = []byte("");
++	newline = []byte("\n");
++	tab = []byte("\t");
++	quote = []byte(`"`);
+ 
+-	sectionMarker = strings.Bytes("----\n");
+-	preStart = strings.Bytes("<pre>");
+-	preEnd = strings.Bytes("</pre>\n");
+-	pp = strings.Bytes("<p>\n");
++	sectionMarker = []byte("----\n");
++	preStart = []byte("<pre>");
++	preEnd = []byte("</pre>\n");
++	pp = []byte("<p>\n");
+ );
+ 
+ func main() {
+@@ -119,7 +118,7 @@ func headings() {
+ 	b := bufio.NewWriter(os.Stdout);
+ 	for i, l := range lines {
+ 		if i > 0 && bytes.Equal(l, sectionMarker) {
+-			lines[i-1] = strings.Bytes("<h2>" + string(trim(lines[i-1])) + "</h2>\n");
++			lines[i-1] = []byte("<h2>" + string(trim(lines[i-1])) + "</h2>\n");
+ 			lines[i] = empty;
+ 		}
+ 	}
+diff --git a/src/pkg/compress/zlib/reader.go b/src/pkg/compress/zlib/reader.go
+index 357a8a337b..c541a8d508 100644
+--- a/src/pkg/compress/zlib/reader.go
++++ b/src/pkg/compress/zlib/reader.go
+@@ -12,7 +12,7 @@ to a buffer:
+ 
+ 	var b bytes.Buffer
+ 	w, err := zlib.NewDeflater(&b)
+-	w.Write(strings.Bytes("hello, world\n"))
++	w.Write([]byte("hello, world\n"))
+ 	w.Close()
+ 
+ and to read that data back:
+diff --git a/src/pkg/websocket/client.go b/src/pkg/websocket/client.go
+index 9060f8b293..7bf53d840c 100644
+--- a/src/pkg/websocket/client.go
++++ b/src/pkg/websocket/client.go
+@@ -57,7 +57,7 @@ func newClient(resourceName, host, origin, location, protocol string, rwc io.Rea
+ 	 	if err != nil {
+ 			panic("Dial: ", err.String())
+ 		}
+-		if _, err := ws.Write(strings.Bytes("hello, world!\n")); err != nil {
++		if _, err := ws.Write([]byte("hello, world!\n")); err != nil {
+ 			panic("Write: ", err.String())
+ 		}
+ 		var msg = make([]byte, 512);

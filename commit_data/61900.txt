@@ -10,6 +10,20 @@ Date:   Thu Dec 12 20:08:35 2024 +0200
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/example_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/example_test.go b/src/net/example_test.go
+index 2c045d73a2..12c8397094 100644
+--- a/src/net/example_test.go
++++ b/src/net/example_test.go
+@@ -334,7 +334,7 @@ func ExampleIP_To16() {
+ 	// 10.255.0.0
+ }
+ 
+-func ExampleIP_to4() {
++func ExampleIP_To4() {
+ 	ipv6 := net.IP{0xfc, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+ 	ipv4 := net.IPv4(10, 255, 0, 0)
+ 

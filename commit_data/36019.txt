@@ -7,6 +7,21 @@ Date:   Wed Mar 28 21:11:05 2018 -0400
     Change-Id: Idf88d289bac9603d852a9d19eb4b764f8589f8d9
     Reviewed-on: https://go-review.googlesource.com/103159
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  doc/devel/release.html | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 3729d38a6b..420ad8ed5e 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -82,8 +82,7 @@ See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.9.4">Go
+ </p>
+ 
+ <p>
+-go1.9.5 (released 2018/03/28) includes fixes to the compiler, go command,
+-and the <code>net</code> package.
++go1.9.5 (released 2018/03/28) includes fixes to the compiler and go command.
+ See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.9.5">Go
+ 1.9.5 milestone</a> on our issue tracker for details.
+ </p>

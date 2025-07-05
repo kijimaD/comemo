@@ -14,6 +14,22 @@ Date:   Mon Apr 13 14:58:44 2015 -0700
     Change-Id: If92658ef6c29dc020f66ba30b02eaa796f7205e0
     Reviewed-on: https://go-review.googlesource.com/8891
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 03e9eeda9b..22018f9372 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -430,6 +430,10 @@ func runTest(cmd *Command, args []string) {
+ 
+ 		// Mark all the coverage packages for rebuilding with coverage.
+ 		for _, p := range testCoverPkgs {
++			// There is nothing to cover in package unsafe; it comes from the compiler.
++			if p.ImportPath == "unsafe" {
++				continue
++			}
+ 			p.Stale = true // rebuild
+ 			p.fake = true  // do not warn about rebuild
+ 			p.coverMode = testCoverMode

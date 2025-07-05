@@ -24,8 +24,115 @@ Date:   Fri Apr 9 00:39:25 2021 -0400
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modload/buildlist.go |  7 +++----
  src/cmd/go/internal/modload/edit.go      | 10 +++++-----
  src/cmd/go/internal/modload/mvs.go       |  4 ++--
  3 files changed, 10 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index a1ac7b22b7..ad138887a0 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -492,7 +492,7 @@ func editRequirements(ctx context.Context, rs *Requirements, add, mustSelect []m
+ 		// remove roots.)
+ 	}
+ 
+-	min, err := mvs.Req(Target, rootPaths, &mvsReqs{buildList: final})
++	min, err := mvs.Req(Target, rootPaths, &mvsReqs{roots: final[1:]})
+ 	if err != nil {
+ 		return nil, false, err
+ 	}
+@@ -610,7 +610,7 @@ func updateRoots(ctx context.Context, depth modDepth, direct map[string]bool, pk
+ 			// dependencies, then we can't reliably compute a minimal subset of them.
+ 			return rs, err
+ 		}
+-		keep = mg.BuildList()
++		keep = mg.BuildList()[1:]
+ 
+ 		for _, root := range rs.rootModules {
+ 			// If the selected version of the root is the same as what was already
+@@ -625,7 +625,6 @@ func updateRoots(ctx context.Context, depth modDepth, direct map[string]bool, pk
+ 			}
+ 		}
+ 	} else {
+-		keep = append(keep, Target)
+ 		kept := map[module.Version]bool{Target: true}
+ 		for _, pkg := range pkgs {
+ 			if pkg.mod.Path != "" && !kept[pkg.mod] {
+@@ -691,7 +690,7 @@ func updateRoots(ctx context.Context, depth modDepth, direct map[string]bool, pk
+ 		return rs, nil
+ 	}
+ 
+-	min, err := mvs.Req(Target, rootPaths, &mvsReqs{buildList: keep})
++	min, err := mvs.Req(Target, rootPaths, &mvsReqs{roots: keep})
+ 	if err != nil {
+ 		return rs, err
+ 	}
+diff --git a/src/cmd/go/internal/modload/edit.go b/src/cmd/go/internal/modload/edit.go
+index 0d7811a3cd..858fec5dd5 100644
+--- a/src/cmd/go/internal/modload/edit.go
++++ b/src/cmd/go/internal/modload/edit.go
+@@ -49,7 +49,7 @@ func editBuildList(ctx context.Context, initial, tryUpgrade, mustSelect []module
+ 	// percieves as “downgrades” will not also result in upgrades.
+ 	max := make(map[string]string)
+ 	maxes, err := mvs.Upgrade(Target, &mvsReqs{
+-		buildList: append(capVersionSlice(initial), mustSelect...),
++		roots: append(capVersionSlice(initial[1:]), mustSelect...),
+ 	}, tryUpgrade...)
+ 	if err != nil {
+ 		return nil, err
+@@ -108,12 +108,12 @@ func editBuildList(ctx context.Context, initial, tryUpgrade, mustSelect []module
+ 	// another. The lower version may require extraneous dependencies that aren't
+ 	// actually relevant, so we need to compute the actual selected versions.
+ 	adjusted := make([]module.Version, 0, len(maxes))
+-	for _, m := range maxes {
++	for _, m := range maxes[1:] {
+ 		if v, ok := limiter.selected[m.Path]; ok {
+ 			adjusted = append(adjusted, module.Version{Path: m.Path, Version: v})
+ 		}
+ 	}
+-	consistent, err := mvs.BuildList(Target, &mvsReqs{buildList: adjusted})
++	consistent, err := mvs.BuildList(Target, &mvsReqs{roots: adjusted})
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -122,7 +122,7 @@ func editBuildList(ctx context.Context, initial, tryUpgrade, mustSelect []module
+ 	// the actually-selected versions in order to eliminate extraneous
+ 	// dependencies from lower-than-selected ones.
+ 	compacted := consistent[:0]
+-	for _, m := range consistent {
++	for _, m := range consistent[1:] {
+ 		if _, ok := limiter.selected[m.Path]; ok {
+ 			// The fact that the limiter has a version for m.Path indicates that we
+ 			// care about retaining that path, even if the version was upgraded for
+@@ -131,7 +131,7 @@ func editBuildList(ctx context.Context, initial, tryUpgrade, mustSelect []module
+ 		}
+ 	}
+ 
+-	return mvs.BuildList(Target, &mvsReqs{buildList: compacted})
++	return mvs.BuildList(Target, &mvsReqs{roots: compacted})
+ }
+ 
+ // A versionLimiter tracks the versions that may be selected for each module
+diff --git a/src/cmd/go/internal/modload/mvs.go b/src/cmd/go/internal/modload/mvs.go
+index 5f52017a74..87619b4ace 100644
+--- a/src/cmd/go/internal/modload/mvs.go
++++ b/src/cmd/go/internal/modload/mvs.go
+@@ -38,14 +38,14 @@ func cmpVersion(v1, v2 string) int {
+ // mvsReqs implements mvs.Reqs for module semantic versions,
+ // with any exclusions or replacements applied internally.
+ type mvsReqs struct {
+-	buildList []module.Version
++	roots []module.Version
+ }
+ 
+ func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {
+ 	if mod == Target {
+ 		// Use the build list as it existed when r was constructed, not the current
+ 		// global build list.
+-		return r.buildList[1:], nil
++		return r.roots, nil
+ 	}
+ 
+ 	if mod.Version == "none" {

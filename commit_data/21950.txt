@@ -11,6 +11,20 @@ Date:   Fri Feb 13 22:24:41 2015 +0100
     Reviewed-on: https://go-review.googlesource.com/4814
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/gc/walk.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 0e69f88b66..50dae8ca68 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -634,7 +634,7 @@ walkexpr(Node **np, NodeList **init)
+ 
+ 			// Append captured variables to argument list.
+ 			n->list = concat(n->list, n->left->enter);
+-			n->left->enter = NULL;
++			n->left->enter = nil;
+ 			// Replace OCLOSURE with ONAME/PFUNC.
+ 			n->left = n->left->closure->nname;
+ 			// Update type of OCALLFUNC node.

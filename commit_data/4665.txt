@@ -7,8 +7,64 @@ Date:   Mon Jan 25 00:09:46 2010 -0800
     R=rsc, dho, r
     CC=golang-dev
     https://golang.org/cl/194045
-
+---
  doc/install.html |  4 ++--
  src/Makefile     | 16 ----------------
  src/all.bash     |  9 +++++++--
  3 files changed, 9 insertions(+), 20 deletions(-)
+
+diff --git a/doc/install.html b/doc/install.html
+index 0d7b1850b6..33dacf2cfc 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -208,11 +208,11 @@ To build the Go distribution, run
+ 
+ <pre>
+ $ cd $GOROOT/src
+-$ make all
++$ ./all.bash
+ </pre>
+ 
+ <p>
+-If <code>make all</code> goes well, it will finish by printing
++If all goes well, it will finish by printing
+ </p>
+ 
+ <pre>
+diff --git a/src/Makefile b/src/Makefile
+deleted file mode 100644
+index e1b76f802e..0000000000
+--- a/src/Makefile
++++ /dev/null
+@@ -1,16 +0,0 @@
+-# GNU Make syntax:
+-nullstring :=
+-space := $(nullstring) # a space at the end
+-QUOTED_GOROOT=$(subst $(space),\ ,$(GOROOT))
+-
+-all: build run
+-
+-build:
+-	bash $(QUOTED_GOROOT)/src/make.bash
+-
+-run:
+-	bash $(QUOTED_GOROOT)/src/run.bash
+-
+-clean:
+-	bash $(QUOTED_GOROOT)/src/clean.bash
+-
+diff --git a/src/all.bash b/src/all.bash
+index 8074c571a9..67c19cd43f 100755
+--- a/src/all.bash
++++ b/src/all.bash
+@@ -1,3 +1,8 @@
+-#!/bin/sh
+-exec make all
++#!/usr/bin/env bash
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
+ 
++set -e
++bash make.bash
++bash run.bash

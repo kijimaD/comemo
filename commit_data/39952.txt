@@ -19,7 +19,7 @@ Date:   Wed Apr 3 14:21:21 2019 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/net/cgo_darwin_stub.go        | 209 ++++++++++++++++++++++++++++++++++++++
  src/net/cgo_stub.go               |   1 +
  src/net/conf.go                   |   5 +
@@ -29,3 +29,448 @@ Date:   Wed Apr 3 14:21:21 2019 +0000
  src/runtime/lookup_darwin_arm.s   |  25 +++++
  src/runtime/lookup_darwin_arm64.s |  21 ++++
  8 files changed, 386 insertions(+)
+
+diff --git a/src/net/cgo_darwin_stub.go b/src/net/cgo_darwin_stub.go
+new file mode 100644
+index 0000000000..544df7fd6c
+--- /dev/null
++++ b/src/net/cgo_darwin_stub.go
+@@ -0,0 +1,209 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !netgo,!cgo
++// +build darwin
++
++package net
++
++import (
++	"context"
++	"errors"
++	"sync"
++
++	"golang.org/x/net/dns/dnsmessage"
++)
++
++type addrinfoErrno int
++
++func (eai addrinfoErrno) Error() string   { return "<nil>" }
++func (eai addrinfoErrno) Temporary() bool { return false }
++func (eai addrinfoErrno) Timeout() bool   { return false }
++
++func cgoLookupHost(ctx context.Context, name string) (addrs []string, err error, completed bool) {
++	resources, err := resolverGetResources(ctx, name, int32(dnsmessage.TypeALL), int32(dnsmessage.ClassINET))
++	if err != nil {
++		return
++	}
++	addrs, err = parseHostsFromResources(resources)
++	if err != nil {
++		return
++	}
++	return addrs, nil, true
++}
++
++func cgoLookupPort(ctx context.Context, network, service string) (port int, err error, completed bool) {
++	port, err = goLookupPort(network, service) // we can just use netgo lookup
++	return port, err, err == nil
++}
++
++func cgoLookupIP(ctx context.Context, network, name string) (addrs []IPAddr, err error, completed bool) {
++
++	var resources []dnsmessage.Resource
++	switch ipVersion(network) {
++	case '4':
++		resources, err = resolverGetResources(ctx, name, int32(dnsmessage.TypeA), int32(dnsmessage.ClassINET))
++	case '6':
++		resources, err = resolverGetResources(ctx, name, int32(dnsmessage.TypeAAAA), int32(dnsmessage.ClassINET))
++	default:
++		resources, err = resolverGetResources(ctx, name, int32(dnsmessage.TypeALL), int32(dnsmessage.ClassINET))
++	}
++	if err != nil {
++		return
++	}
++
++	addrs, err = parseIPsFromResources(resources)
++	if err != nil {
++		return
++	}
++
++	return addrs, nil, true
++}
++
++func cgoLookupCNAME(ctx context.Context, name string) (cname string, err error, completed bool) {
++	resources, err := resolverGetResources(ctx, name, int32(dnsmessage.TypeCNAME), int32(dnsmessage.ClassINET))
++	if err != nil {
++		return
++	}
++	cname, err = parseCNAMEFromResources(resources)
++	if err != nil {
++		return "", err, false
++	}
++	return cname, nil, true
++}
++
++func cgoLookupPTR(ctx context.Context, addr string) (ptrs []string, err error, completed bool) {
++	resources, err := resolverGetResources(ctx, addr, int32(dnsmessage.TypePTR), int32(dnsmessage.ClassINET))
++	if err != nil {
++		return
++	}
++	ptrs, err = parsePTRsFromResources(resources)
++	if err != nil {
++		return
++	}
++	return ptrs, nil, true
++}
++
++var (
++	resInitOnce sync.Once
++	errCode     int32
++)
++
++// resolverGetResources will make a call to the 'res_search' routine in libSystem
++// and parse the output as a slice of resource resources which can then be parsed
++func resolverGetResources(ctx context.Context, hostname string, rtype, class int32) ([]dnsmessage.Resource, error) {
++
++	resInitOnce.Do(func() {
++		errCode = res_init()
++	})
++	if errCode < 0 {
++		return nil, errors.New("could not initialize name resolver data")
++	}
++
++	var byteHostname = []byte(hostname)
++	var responseBuffer [512]byte
++	var size int32
++
++	size, errCode = res_search(&byteHostname[0], class, rtype, &responseBuffer[0], int32(len(responseBuffer)))
++	if errCode != 0 {
++		return nil, errors.New("could not complete domain resolution return code " + string(errCode))
++	}
++	if size == 0 {
++		return nil, errors.New("received empty response")
++	}
++
++	var msg dnsmessage.Message
++	err := msg.Unpack(responseBuffer[:])
++	if err != nil {
++		return nil, err
++	}
++
++	var dnsParser dnsmessage.Parser
++	if _, err := dnsParser.Start(responseBuffer[:]); err != nil {
++		return nil, err
++	}
++
++	var resources []dnsmessage.Resource
++	for {
++		r, err := dnsParser.Answer()
++		if err == dnsmessage.ErrSectionDone {
++			break
++		}
++		if err != nil {
++			return nil, err
++		}
++		resources = append(resources, r)
++	}
++	return resources, nil
++}
++
++func parseHostsFromResources(resources []dnsmessage.Resource) ([]string, error) {
++	var answers []string
++
++	for i := range resources {
++		switch resources[i].Header.Type {
++		case dnsmessage.TypeA:
++			b := resources[i].Body.(*dnsmessage.AResource)
++			answers = append(answers, string(b.A[:]))
++		case dnsmessage.TypeAAAA:
++			b := resources[i].Body.(*dnsmessage.AAAAResource)
++			answers = append(answers, string(b.AAAA[:]))
++		default:
++			return nil, errors.New("could not parse an A or AAAA response from message buffer")
++		}
++	}
++	return answers, nil
++}
++
++func parseIPsFromResources(resources []dnsmessage.Resource) ([]IPAddr, error) {
++	var answers []IPAddr
++
++	for i := range resources {
++		switch resources[i].Header.Type {
++		case dnsmessage.TypeA:
++			b := resources[i].Body.(*dnsmessage.AResource)
++			ip := parseIPv4(string(b.A[:]))
++			answers = append(answers, IPAddr{IP: ip})
++		case dnsmessage.TypeAAAA:
++			b := resources[i].Body.(*dnsmessage.AAAAResource)
++			ip, zone := parseIPv6Zone(string(b.AAAA[:]))
++			answers = append(answers, IPAddr{IP: ip, Zone: zone})
++		default:
++			return nil, errors.New("could not parse an A or AAAA response from message buffer")
++		}
++	}
++	return answers, nil
++}
++
++func parseCNAMEFromResources(resources []dnsmessage.Resource) (string, error) {
++	if len(resources) == 0 {
++		return "", errors.New("no CNAME record received")
++	}
++	c, ok := resources[0].Body.(*dnsmessage.CNAMEResource)
++	if !ok {
++		return "", errors.New("could not parse CNAME record")
++	}
++	return c.CNAME.String(), nil
++}
++
++func parsePTRsFromResources(resources []dnsmessage.Resource) ([]string, error) {
++	var answers []string
++	for i := range resources {
++		switch resources[i].Header.Type {
++		case dnsmessage.TypePTR:
++			p := resources[0].Body.(*dnsmessage.PTRResource)
++			answers = append(answers, p.PTR.String())
++		default:
++			return nil, errors.New("could not parse a PTR response from message buffer")
++
++		}
++	}
++	return answers, nil
++}
++
++// res_init and res_search are defined in runtime/lookup_darwin.go
++
++func res_init() int32
++
++func res_search(dname *byte, class int32, rtype int32, answer *byte, anslen int32) (int32, int32)
+diff --git a/src/net/cgo_stub.go b/src/net/cgo_stub.go
+index 041f8af129..aa15ab4dc1 100644
+--- a/src/net/cgo_stub.go
++++ b/src/net/cgo_stub.go
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build !cgo netgo
++// +build !darwin
+ 
+ package net
+ 
+diff --git a/src/net/conf.go b/src/net/conf.go
+index 971b1a399a..1c88f096ba 100644
+--- a/src/net/conf.go
++++ b/src/net/conf.go
+@@ -70,6 +70,11 @@ func initConfVal() {
+ 	// their own DNS requests. So always use cgo instead, which
+ 	// avoids that.
+ 	if runtime.GOOS == "darwin" {
++		// Normally we force netGo to be true if building without cgo enabled.
++		// On Darwin, we can call libc even if cgo is not enabled, so only set netGo to true
++		// if explicitly requested.
++		confVal.netGo = dnsMode == "go"
++
+ 		confVal.forceCgoLookupHost = true
+ 		return
+ 	}
+diff --git a/src/runtime/lookup_darwin.go b/src/runtime/lookup_darwin.go
+new file mode 100644
+index 0000000000..c39b937ccf
+--- /dev/null
++++ b/src/runtime/lookup_darwin.go
+@@ -0,0 +1,35 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import (
++	"unsafe"
++)
++
++//go:linkname res_init net.res_init
++//go:nosplit
++//go:cgo_unsafe_args
++func res_init() int32 {
++	return libcCall(unsafe.Pointer(funcPC(res_init_trampoline)), nil)
++}
++func res_init_trampoline()
++
++//go:linkname res_search net.res_search
++//go:nosplit
++//go:cgo_unsafe_args
++func res_search(dname *byte, class int32, rtype int32, answer *byte, anslen int32) (int32, int32) {
++	args := struct {
++		dname                   *byte
++		class, rtype            int32
++		answer                  *byte
++		anslen, retSize, retErr int32
++	}{dname, class, rtype, answer, anslen, 0, 0}
++	libcCall(unsafe.Pointer(funcPC(res_search_trampoline)), unsafe.Pointer(&args))
++	return args.retSize, args.retErr
++}
++func res_search_trampoline()
++
++//go:cgo_import_dynamic libc_res_search res_search "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_res_init res_init "/usr/lib/libSystem.B.dylib"
+diff --git a/src/runtime/lookup_darwin_386.s b/src/runtime/lookup_darwin_386.s
+new file mode 100644
+index 0000000000..4995e51df5
+--- /dev/null
++++ b/src/runtime/lookup_darwin_386.s
+@@ -0,0 +1,50 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "go_tls.h"
++#include "textflag.h"
++
++TEXT runtime·res_init_trampoline(SB),NOSPLIT,$0
++    PUSHL   BP
++    MOVL    SP, BP
++    SUBL    $8, SP
++    CALL    libc_res_init(SB)
++    CMPL    AX, $-1
++    JNE ok
++    CALL    libc_error(SB)
++ok:
++    MOVL    BP, SP
++    POPL    BP
++    RET
++
++TEXT runtime·res_search_trampoline(SB),NOSPLIT,$0
++    PUSHL   BP
++    MOVL    SP, BP
++    SUBL    $24, SP
++    MOVL    32(SP), CX
++    MOVL    16(CX), AX      // arg 5 anslen
++    MOVL    AX, 16(SP)
++    MOVL    12(CX), AX      // arg 4 answer
++    MOVL    AX, 12(SP)
++    MOVL    8(CX), AX       // arg 3 type
++    MOVL    AX, 8(SP)
++    MOVL    4(CX), AX       // arg 2 class
++    MOVL    AX, 4(SP)
++    MOVL    0(CX), AX       // arg 1 name
++    MOVL    AX, 0(SP)
++    CALL    libc_res_search(SB)
++    XORL    DX, DX
++    CMPL    AX, $-1
++    JNE ok
++    CALL    libc_error(SB)
++    MOVL    (AX), DX
++    XORL    AX, AX
++ok:
++    MOVL    32(SP), CX
++    MOVL    AX, 20(CX)
++    MOVL    DX, 24(CX)
++    MOVL    BP, SP
++    POPL    BP
++    RET
+diff --git a/src/runtime/lookup_darwin_amd64.s b/src/runtime/lookup_darwin_amd64.s
+new file mode 100644
+index 0000000000..bfe70c2d01
+--- /dev/null
++++ b/src/runtime/lookup_darwin_amd64.s
+@@ -0,0 +1,40 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "go_tls.h"
++#include "textflag.h"
++
++TEXT runtime·res_init_trampoline(SB),NOSPLIT,$0
++    PUSHQ    BP
++    MOVQ     SP, BP
++    CALL     libc_res_init(SB)
++    CMPQ     AX, $-1
++    JNE ok
++    CALL     libc_error(SB)
++ok:
++    POPQ    BP
++    RET
++
++TEXT runtime·res_search_trampoline(SB),NOSPLIT,$0
++    PUSHQ    BP
++    MOVQ     SP, BP
++    MOVQ     DI, BX   // move DI into BX to preserve struct addr
++    MOVL     24(BX), R8  // arg 5 anslen
++    MOVQ     16(BX), CX  // arg 4 answer
++    MOVL     12(BX), DX  // arg 3 type
++    MOVL     8(BX), SI   // arg 2 class
++    MOVQ     0(BX), DI   // arg 1 name
++    CALL     libc_res_search(SB)
++    XORL     DX, DX
++    CMPQ     AX, $-1
++    JNE ok
++    CALL     libc_error(SB)
++    MOVLQSX  (AX), DX             // move return from libc_error into DX
++    XORL     AX, AX               // size on error is 0
++ok:
++    MOVQ    AX, 28(BX) // size
++    MOVQ    DX, 32(BX) // error code
++    POPQ    BP
++    RET
+diff --git a/src/runtime/lookup_darwin_arm.s b/src/runtime/lookup_darwin_arm.s
+new file mode 100644
+index 0000000000..bf69d21213
+--- /dev/null
++++ b/src/runtime/lookup_darwin_arm.s
+@@ -0,0 +1,25 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// System calls and other sys.stuff for ARM64, Darwin
++// System calls are implemented in libSystem, this file contains
++// trampolines that convert from Go to C calling convention.
++
++#include "go_asm.h"
++#include "go_tls.h"
++#include "textflag.h"
++
++// On darwin/arm, the runtime always uses runtime/cgo
++// for resolution. This will just exit with a nominal
++// exit code.
++
++TEXT runtime·res_search_trampoline(SB),NOSPLIT,$0
++    MOVW    $90, R0
++    BL    libc_exit(SB)
++    RET
++
++TEXT runtime·res_init_trampoline(SB),NOSPLIT,$0
++    MOVW    $91, R0
++    BL    libc_exit(SB)
++    RET
+diff --git a/src/runtime/lookup_darwin_arm64.s b/src/runtime/lookup_darwin_arm64.s
+new file mode 100644
+index 0000000000..31061e15c0
+--- /dev/null
++++ b/src/runtime/lookup_darwin_arm64.s
+@@ -0,0 +1,21 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "go_tls.h"
++#include "textflag.h"
++
++// On darwin/arm, the runtime always uses runtime/cgo
++// for resolution. This will just exit with a nominal
++// exit code.
++
++TEXT runtime·res_search_trampoline(SB),NOSPLIT,$0
++    MOVW    $90, R0
++    BL    libc_exit(SB)
++    RET
++
++TEXT runtime·res_init_trampoline(SB),NOSPLIT,$0
++    MOVW    $91, R0
++    BL    libc_exit(SB)
++    RET

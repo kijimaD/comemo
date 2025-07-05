@@ -7,6 +7,20 @@ Date:   Sat Oct 25 13:50:18 2008 -0700
     R=r
     OCL=17852
     CL=17852
-
+---
  src/cmd/gc/subr.c | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index d4e482984f..88bb1f02f6 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2585,8 +2585,6 @@ expandmeth(Sym *s, Type *t)
+ 		return;
+ 	if(t == T)
+ 		return;
+-	if(strcmp(s->name, "S") != 0)
+-		return;
+ 
+ 	// generate all reachable methods
+ 	slist = nil;

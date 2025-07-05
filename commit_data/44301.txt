@@ -23,6 +23,20 @@ Date:   Thu Jun 4 19:20:01 2020 -0400
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/internal/moddeps/moddeps_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/moddeps/moddeps_test.go b/src/cmd/internal/moddeps/moddeps_test.go
+index 5d73edd318..2e6167322e 100644
+--- a/src/cmd/internal/moddeps/moddeps_test.go
++++ b/src/cmd/internal/moddeps/moddeps_test.go
+@@ -36,7 +36,7 @@ func findGorootModules(t *testing.T) []gorootModule {
+ 			if err != nil {
+ 				return err
+ 			}
+-			if info.Name() == "vendor" || info.Name() == "testdata" {
++			if info.IsDir() && (info.Name() == "vendor" || info.Name() == "testdata") {
+ 				return filepath.SkipDir
+ 			}
+ 			if path == filepath.Join(runtime.GOROOT(), "pkg") {

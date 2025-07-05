@@ -10,8 +10,65 @@ Date:   Tue Jul 16 15:35:03 2013 +0400
     R=golang-dev, daniel.morsing, dave
     CC=golang-dev
     https://golang.org/cl/11324044
-
+---
  src/cmd/gc/racewalk.c         | 14 +++++++++++++-
  src/pkg/syscall/exec_bsd.go   |  1 +
  src/pkg/syscall/exec_linux.go |  1 +
  3 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/racewalk.c b/src/cmd/gc/racewalk.c
+index 4a90549909..b214645fa5 100644
+--- a/src/cmd/gc/racewalk.c
++++ b/src/cmd/gc/racewalk.c
+@@ -51,6 +51,18 @@ ispkgin(const char **pkgs, int n)
+ 	return 0;
+ }
+ 
++static int
++isforkfunc(Node *fn)
++{
++	// Special case for syscall.forkAndExecInChild.
++	// In the child, this function must not acquire any locks, because
++	// they might have been locked at the time of the fork.  This means
++	// no rescheduling, no malloc calls, and no new stack segments.
++	// Race instrumentation does all of the above.
++	return myimportpath != nil && strcmp(myimportpath, "syscall") == 0 &&
++		strcmp(fn->nname->sym->name, "forkAndExecInChild") == 0;
++}
++
+ void
+ racewalk(Node *fn)
+ {
+@@ -58,7 +70,7 @@ racewalk(Node *fn)
+ 	Node *nodpc;
+ 	char s[1024];
+ 
+-	if(ispkgin(omit_pkgs, nelem(omit_pkgs)))
++	if(ispkgin(omit_pkgs, nelem(omit_pkgs)) || isforkfunc(fn))
+ 		return;
+ 
+ 	if(!ispkgin(noinst_pkgs, nelem(noinst_pkgs))) {
+diff --git a/src/pkg/syscall/exec_bsd.go b/src/pkg/syscall/exec_bsd.go
+index 5d3d57813e..249fa638dd 100644
+--- a/src/pkg/syscall/exec_bsd.go
++++ b/src/pkg/syscall/exec_bsd.go
+@@ -27,6 +27,7 @@ type SysProcAttr struct {
+ // In the child, this function must not acquire any locks, because
+ // they might have been locked at the time of the fork.  This means
+ // no rescheduling, no malloc calls, and no new stack segments.
++// For the same reason compiler does not race instrument it.
+ // The calls to RawSyscall are okay because they are assembly
+ // functions that do not grow the stack.
+ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, sys *SysProcAttr, pipe int) (pid int, err Errno) {
+diff --git a/src/pkg/syscall/exec_linux.go b/src/pkg/syscall/exec_linux.go
+index ddd946ed20..934c657712 100644
+--- a/src/pkg/syscall/exec_linux.go
++++ b/src/pkg/syscall/exec_linux.go
+@@ -28,6 +28,7 @@ type SysProcAttr struct {
+ // In the child, this function must not acquire any locks, because
+ // they might have been locked at the time of the fork.  This means
+ // no rescheduling, no malloc calls, and no new stack segments.
++// For the same reason compiler does not race instrument it.
+ // The calls to RawSyscall are okay because they are assembly
+ // functions that do not grow the stack.
+ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, sys *SysProcAttr, pipe int) (pid int, err Errno) {

@@ -15,6 +15,29 @@ Date:   Wed Feb 22 17:58:31 2017 -0500
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/trace/trace.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/trace/trace.go b/src/cmd/trace/trace.go
+index 0b80d94f7d..72cab90de0 100644
+--- a/src/cmd/trace/trace.go
++++ b/src/cmd/trace/trace.go
+@@ -475,7 +475,7 @@ func generateTrace(params *traceParams) (ViewerData, error) {
+ 			goFinish := getGInfo(ev.G).start.Link
+ 			fakeMarkStart := *ev
+ 			text := "MARK ASSIST"
+-			if markFinish.Ts > goFinish.Ts {
++			if markFinish == nil || markFinish.Ts > goFinish.Ts {
+ 				fakeMarkStart.Link = goFinish
+ 				text = "MARK ASSIST (unfinished)"
+ 			}
+@@ -496,7 +496,7 @@ func generateTrace(params *traceParams) (ViewerData, error) {
+ 				goFinish := ev.Link
+ 				fakeMarkStart := *ev
+ 				text := "MARK ASSIST (resumed, unfinished)"
+-				if markFinish.Ts < goFinish.Ts {
++				if markFinish != nil && markFinish.Ts < goFinish.Ts {
+ 					fakeMarkStart.Link = markFinish
+ 					text = "MARK ASSIST (resumed)"
+ 				}

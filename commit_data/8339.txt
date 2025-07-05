@@ -10,6 +10,79 @@ Date:   Sun May 8 17:26:16 2011 -0700
     R=nigeltao, r2
     CC=golang-dev
     https://golang.org/cl/4515045
-
+---
  src/pkg/image/gif/reader.go | 24 +++++++++++++++---------
  1 file changed, 15 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/image/gif/reader.go b/src/pkg/image/gif/reader.go
+index b7f4afd125..6548090dd9 100644
+--- a/src/pkg/image/gif/reader.go
++++ b/src/pkg/image/gif/reader.go
+@@ -69,13 +69,13 @@ type decoder struct {
+ 	// From image descriptor.
+ 	imageFields byte
+ 
++	// From graphics control.
++	transparentIndex byte
++
+ 	// Computed.
+ 	pixelSize      uint
+ 	globalColorMap image.PalettedColorModel
+ 
+-	// Computed but unused (TODO).
+-	transparentIndex byte
+-
+ 	// Used when decoding.
+ 	delay []int
+ 	image []*image.Paletted
+@@ -165,6 +165,8 @@ Loop:
+ 				if err != nil {
+ 					break
+ 				}
++				// TODO: do we set transparency in this map too? That would be
++				// d.setTransparency(m.Palette)
+ 			} else {
+ 				m.Palette = d.globalColorMap
+ 			}
+@@ -304,13 +306,19 @@ func (d *decoder) readGraphicControl() os.Error {
+ 	}
+ 	d.flags = d.tmp[1]
+ 	d.delayTime = int(d.tmp[2]) | int(d.tmp[3])<<8
+-	if d.flags&gcTransparentColorSet != 0 {
++	if d.flags&gcTransparentColorSet == 0 {
+ 		d.transparentIndex = d.tmp[4]
+-		return os.ErrorString("gif: can't handle transparency")
++		d.setTransparency(d.globalColorMap)
+ 	}
+ 	return nil
+ }
+ 
++func (d *decoder) setTransparency(colorMap image.PalettedColorModel) {
++	if int(d.transparentIndex) < len(colorMap) {
++		colorMap[d.transparentIndex] = image.RGBAColor{}
++	}
++}
++
+ func (d *decoder) newImageFromDescriptor() (*image.Paletted, os.Error) {
+ 	if _, err := io.ReadFull(d.r, d.tmp[0:9]); err != nil {
+ 		return nil, fmt.Errorf("gif: can't read image descriptor: %s", err)
+@@ -336,8 +344,7 @@ func (d *decoder) readBlock() (int, os.Error) {
+ 
+ // Decode reads a GIF image from r and returns the first embedded
+ // image as an image.Image.
+-// Limitation: The file must be 8 bits per pixel and have no interlacing
+-// or transparency.
++// Limitation: The file must be 8 bits per pixel and have no interlacing.
+ func Decode(r io.Reader) (image.Image, os.Error) {
+ 	var d decoder
+ 	if err := d.decode(r, false); err != nil {
+@@ -355,8 +362,7 @@ type GIF struct {
+ 
+ // DecodeAll reads a GIF image from r and returns the sequential frames
+ // and timing information.
+-// Limitation: The file must be 8 bits per pixel and have no interlacing
+-// or transparency.
++// Limitation: The file must be 8 bits per pixel and have no interlacing.
+ func DecodeAll(r io.Reader) (*GIF, os.Error) {
+ 	var d decoder
+ 	if err := d.decode(r, false); err != nil {

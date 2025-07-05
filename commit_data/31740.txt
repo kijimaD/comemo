@@ -42,8 +42,143 @@ Date:   Thu Mar 9 10:38:45 2017 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/plive.go | 10 ++++++---
  src/cmd/compile/internal/gc/walk.go  | 35 ++++++++++++++++++++----------
  test/fixedbugs/issue19078.go         | 42 ++++++++++++++++++++++++++++++++++++
  3 files changed, 73 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 6aa11f4379..3b8ee373ac 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -1106,11 +1106,15 @@ func livenessepilogue(lv *Liveness) {
+ 		for i, n := range lv.vars {
+ 			if n.Class == PPARAMOUT {
+ 				if n.IsOutputParamHeapAddr() {
+-					// Just to be paranoid.
++					// Just to be paranoid.  Heap addresses are PAUTOs.
+ 					Fatalf("variable %v both output param and heap output param", n)
+ 				}
+-				// Needzero not necessary, as the compiler
+-				// explicitly zeroes output vars at start of fn.
++				if n.Name.Param.Heapaddr != nil {
++					// If this variable moved to the heap, then
++					// its stack copy is not live.
++					continue
++				}
++				// Note: zeroing is handled by zeroResults in walk.go.
+ 				livedefer.Set(int32(i))
+ 			}
+ 			if n.IsOutputParamHeapAddr() {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index c15ca26926..a0689ec2c2 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -68,6 +68,7 @@ func walk(fn *Node) {
+ 		dumplist(s, Curfn.Nbody)
+ 	}
+ 
++	zeroResults()
+ 	heapmoves()
+ 	if Debug['W'] != 0 && Curfn.Func.Enter.Len() > 0 {
+ 		s := fmt.Sprintf("enter %v", Curfn.Func.Nname.Sym)
+@@ -2466,20 +2467,9 @@ func vmatch1(l *Node, r *Node) bool {
+ 
+ // paramstoheap returns code to allocate memory for heap-escaped parameters
+ // and to copy non-result prameters' values from the stack.
+-// If out is true, then code is also produced to zero-initialize their
+-// stack memory addresses.
+ func paramstoheap(params *Type) []*Node {
+ 	var nn []*Node
+ 	for _, t := range params.Fields().Slice() {
+-		// For precise stacks, the garbage collector assumes results
+-		// are always live, so zero them always.
+-		if params.StructType().Funarg == FunargResults {
+-			// Defer might stop a panic and show the
+-			// return values as they exist at the time of panic.
+-			// Make sure to zero them on entry to the function.
+-			nn = append(nn, nod(OAS, nodarg(t, 1), nil))
+-		}
+-
+ 		v := t.Nname
+ 		if v != nil && v.Sym != nil && strings.HasPrefix(v.Sym.Name, "~r") { // unnamed result
+ 			v = nil
+@@ -2499,6 +2489,29 @@ func paramstoheap(params *Type) []*Node {
+ 	return nn
+ }
+ 
++// zeroResults zeros the return values at the start of the function.
++// We need to do this very early in the function.  Defer might stop a
++// panic and show the return values as they exist at the time of
++// panic.  For precise stacks, the garbage collector assumes results
++// are always live, so we need to zero them before any allocations,
++// even allocations to move params/results to the heap.
++// The generated code is added to Curfn's Enter list.
++func zeroResults() {
++	lno := lineno
++	lineno = Curfn.Pos
++	for _, f := range Curfn.Type.Results().Fields().Slice() {
++		if v := f.Nname; v != nil && v.Name.Param.Heapaddr != nil {
++			// The local which points to the return value is the
++			// thing that needs zeroing. This is already handled
++			// by a Needzero annotation in plive.go:livenessepilogue.
++			continue
++		}
++		// Zero the stack location containing f.
++		Curfn.Func.Enter.Append(nod(OAS, nodarg(f, 1), nil))
++	}
++	lineno = lno
++}
++
+ // returnsfromheap returns code to copy values for heap-escaped parameters
+ // back to the stack.
+ func returnsfromheap(params *Type) []*Node {
+diff --git a/test/fixedbugs/issue19078.go b/test/fixedbugs/issue19078.go
+new file mode 100644
+index 0000000000..b19e8749d7
+--- /dev/null
++++ b/test/fixedbugs/issue19078.go
+@@ -0,0 +1,42 @@
++// run
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 19078: liveness & zero-initialization of results
++// when there is a defer.
++package main
++
++import "unsafe"
++
++func main() {
++	// Construct an invalid pointer.  We do this by
++	// making a pointer which points to the unused space
++	// between the last 48-byte object in a span and the
++	// end of the span (there are 32 unused bytes there).
++	p := new([48]byte)              // make a 48-byte object
++	sink = &p                       // escape it, so it allocates for real
++	u := uintptr(unsafe.Pointer(p)) // get its address
++	u = u >> 13 << 13               // round down to page size
++	u += 1<<13 - 1                  // add almost a page
++
++	for i := 0; i < 1000000; i++ {
++		_ = identity(u)         // installs u at return slot
++		_ = liveReturnSlot(nil) // incorrectly marks return slot as live
++	}
++}
++
++//go:noinline
++func liveReturnSlot(x *int) *int {
++	defer func() {}() // causes return slot to be marked live
++	sink = &x         // causes x to be moved to the heap, triggering allocation
++	return x
++}
++
++//go:noinline
++func identity(x uintptr) uintptr {
++	return x
++}
++
++var sink interface{}

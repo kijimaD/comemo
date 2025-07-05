@@ -8,7 +8,41 @@ Date:   Tue Jul 21 14:05:21 2009 -0700
     DELTA=12  (12 added, 0 deleted, 0 changed)
     OCL=31915
     CL=31936
-
+---
  test/bugs/bug170.go | 13 +++++++++++++
  test/golden.out     |  3 +++
  2 files changed, 16 insertions(+)
+
+diff --git a/test/bugs/bug170.go b/test/bugs/bug170.go
+new file mode 100644
+index 0000000000..b04e771871
+--- /dev/null
++++ b/test/bugs/bug170.go
+@@ -0,0 +1,13 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++var v1 = ([10]int)(nil)		// ERROR "illegal|nil|invalid"
++var v2 [10]int = nil		// ERROR "illegal|nil|incompatible"
++var v3 [10]int
++func main() {
++	v3 = nil;		// ERROR "illegal|nil|incompatible"
++}
+diff --git a/test/golden.out b/test/golden.out
+index e232ffb88d..48283452fd 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -109,6 +109,9 @@ BUG: should fail
+ =========== bugs/bug169.go
+ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug169.go
+ 
++=========== bugs/bug170.go
++BUG: errchk: command succeeded unexpectedly:  6g bugs/bug170.go
++
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: constant -3 overflows uint
+ 

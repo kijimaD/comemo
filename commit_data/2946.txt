@@ -11,8 +11,208 @@ Date:   Wed Aug 12 13:18:46 2009 -0700
     DELTA=102  (68 added, 6 deleted, 28 changed)
     OCL=33067
     CL=33098
-
+---
  src/Make.pkg          | 57 +++++++++++++++++++++++++++++++++++++++
  src/cmd/gotest/gotest | 75 ++++++++++++++++++++++++++++-----------------------
  src/make.bash         |  2 +-
  3 files changed, 100 insertions(+), 34 deletions(-)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+new file mode 100644
+index 0000000000..a796260240
+--- /dev/null
++++ b/src/Make.pkg
+@@ -0,0 +1,57 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++package: _obj/$(TARG).a
++testpackage: _test/$(TARG).a
++
++dir=$(shell echo $(TARG) | sed 's|[^/]*$$||')
++pkgdir=$(GOROOT)/pkg/$(GOOS)_$(GOARCH)
++
++coverage:
++	gotest
++	6cov -g $(shell pwd) | grep -v '_test\.go:'
++
++clean:
++	rm -rf *.[$(OS)] *.a [$(OS)].out _obj _test _testmain.go
++
++test:
++	gotest
++
++nuke: clean
++	rm -f $(pkgdir)/$(TARG).a
++
++testpackage-clean:
++	rm -f _test/$(TARG).a _gotest_.$O
++
++install: package
++	test -d $(GOROOT)/pkg && mkdir -p $(pkgdir)/$(dir)
++	cp _obj/$(TARG).a $(pkgdir)/$(TARG).a
++
++_go_.$O: $(GOFILES)
++	$(GC) -o $@ $(GOFILES)
++
++_gotest_.$O: $(GOFILES) $(GOTESTFILES)
++	$(GC) -o $@ $(GOFILES) $(GOTESTFILES)
++
++%.$O: %.c
++	$(CC) $*.c
++
++%.$O: %.s
++	$(AS) $*.s
++
++%.$O: $(HFILES)
++
++_obj/$(TARG).a: _go_.$O $(OFILES)
++	mkdir -p _obj/$(dir)
++	rm -f _obj/$(TARG).a
++	gopack grc $@ _go_.$O $(OFILES)
++
++_test/$(TARG).a: _gotest_.$O $(OFILES)
++	mkdir -p _test/$(dir)
++	rm -f _test/$(TARG).a
++	gopack grc $@ _gotest_.$O $(OFILES)
++
++importpath:
++	@echo $(TARG)
++
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index 7d64d56cc5..c2e2afec07 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -19,8 +19,8 @@ fi
+ # Allow overrides
+ GC=${_GC:-$GC}
+ GL=${GL:-$LD}
+-GC="$GC -I _obj"
+-GL="$GL -L _obj"
++GC="$GC -I _test"
++GL="$GL -L _test"
+ export GC GL
+ 
+ gofiles=""
+@@ -42,7 +42,7 @@ done
+ 
+ case "x$gofiles" in
+ x)
+-	gofiles=$(ls *_test.go 2>/dev/null)
++	gofiles=$(echo -n $(ls *_test.go *_test.pb.go 2>/dev/null))
+ esac
+ 
+ case "x$gofiles" in
+@@ -51,53 +51,62 @@ x)
+ 	exit 1
+ esac
+ 
+-ofiles=$(echo $gofiles | sed 's/\.go/.'$O'/g')
+-files=$(echo $gofiles | sed 's/\.go//g')
+-
+-
+ # Run any commands given in sources, like
+ #   // gotest: $GC foo.go
+ # to build any test-only dependencies.
+ sed -n 's/^\/\/ gotest: //p' $gofiles | sh
+ 
++# Split $gofiles into external gofiles (those in *_test packages)
++# and internal ones (those in the main package).
++xgofiles=$(echo $(grep '^package[ 	]' $gofiles /dev/null | grep ':.*_test' | sed 's/:.*//'))
++gofiles=$(echo $(grep '^package[ 	]' $gofiles /dev/null | grep -v ':.*_test' | sed 's/:.*//'))
++
++# External $O file
++xofile=""
++havex=false
++if [ "x$xgofiles" != "x" ]; then
++	xofile="_xtest_.$O"
++	havex=true
++fi
++
+ set -e
+ 
+-for i in $gofiles
+-do
+-	$GC $i
+-done
++make testpackage-clean
++make testpackage "GOTESTFILES=$gofiles"
++if $havex; then
++	$GC -o $xofile $xgofiles
++fi
+ 
+ # They all compile; now generate the code to call them.
+-trap "rm -f _testmain.go _testmain.$O" 0 1 2 3 14 15
++#trap "rm -f _testmain.go _testmain.$O" 0 1 2 3 14 15
++importpath=$(make importpath)
+ {
+ 	# package spec
+ 	echo 'package main'
+ 	echo
+ 	# imports
+-	for i in $files
+-	do
+-		echo 'import "./'$i'"'
+-	done
++	echo 'import "'$importpath'"'
++	if $havex; then
++		echo 'import "./_xtest_"'
++	fi
+ 	echo 'import "testing"'
+ 	# test array
+ 	echo
+ 	echo 'var tests = []testing.Test {'
+-	for ofile in $ofiles
+-	do
+-		# test functions are named TestFoo
+-		# the grep -v eliminates methods and other special names
+-		# that have multiple dots.
+-		pattern='Test([^a-z].*)?'
+-		tests=$(6nm -s $ofile | egrep ' T .*·'$pattern'$' | grep -v '·.*[.·]' | sed 's/.* //; s/·/./')
+-		if [ "x$tests" = x ]; then
+-			echo 'gotest: warning: no tests matching '$pattern' in '$ofile 1>&2
+-		else
+-			for i in $tests
+-			do
+-				echo '	testing.Test{ "'$i'", '$i' },'
+-			done
+-		fi
+-	done
++
++	# test functions are named TestFoo
++	# the grep -v eliminates methods and other special names
++	# that have multiple dots.
++	pattern='Test([^a-z].*)?'
++	tests=$(6nm -s _test/$importpath.a $xofile | egrep ' T .*·'$pattern'$' | grep -v '·.*[.·]' | sed 's/.* //; s/·/./')
++	if [ "x$tests" = x ]; then
++		echo 'gotest: warning: no tests matching '$pattern in _test/$importpath.a $xofile 1>&2
++	else
++		for i in $tests
++		do
++			echo '	testing.Test{ "'$i'", '$i' },'
++		done
++	fi
+ 	echo '}'
+ 	# body
+ 	echo
+@@ -107,5 +116,5 @@ trap "rm -f _testmain.go _testmain.$O" 0 1 2 3 14 15
+ }>_testmain.go
+ 
+ $GC _testmain.go
+-$GL _testmain.$O
++$GL _testmain.$O _test/$importpath.a $xofile
+ ./$O.out "$@"
+diff --git a/src/make.bash b/src/make.bash
+index f8f4b8e730..acd4f5af79 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -19,7 +19,7 @@ rm -f $GOBIN/quietgcc
+ cp quietgcc.bash $GOBIN/quietgcc
+ chmod +x $GOBIN/quietgcc
+ 
+-for i in lib9 libbio libmach_amd64 libregexp cmd pkg cmd/ebnflint cmd/gobuild cmd/godoc cmd/gofmt
++for i in lib9 libbio libmach_amd64 libregexp cmd pkg cmd/ebnflint cmd/godoc cmd/gofmt
+ do
+ 	# The ( ) here are to preserve the current directory
+ 	# for the next round despite the cd $i below.

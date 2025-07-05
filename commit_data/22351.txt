@@ -8,9 +8,77 @@ Date:   Fri Mar 6 11:42:53 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/7061
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/ld/ar.go      | 7 ++++---
  src/cmd/internal/ld/lib.go     | 7 ++++---
  src/cmd/internal/ld/objfile.go | 7 ++++---
  src/cmd/internal/ld/pobj.go    | 2 +-
  4 files changed, 13 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/internal/ld/ar.go b/src/cmd/internal/ld/ar.go
+index c464a623f6..0e59016edb 100644
+--- a/src/cmd/internal/ld/ar.go
++++ b/src/cmd/internal/ld/ar.go
+@@ -36,9 +36,10 @@ const (
+ 	SAR_HDR = 16 + 44
+ )
+ 
+-var ARMAG string = "!<arch>\n"
+-
+-var ARFMAG string = "`\n"
++const (
++	ARMAG  = "!<arch>\n"
++	ARFMAG = "`\n"
++)
+ 
+ type ArHdr struct {
+ 	name string
+diff --git a/src/cmd/internal/ld/lib.go b/src/cmd/internal/ld/lib.go
+index 282245458b..788f648108 100644
+--- a/src/cmd/internal/ld/lib.go
++++ b/src/cmd/internal/ld/lib.go
+@@ -258,9 +258,10 @@ const (
+ 	AssumeGoldLinker = 0
+ )
+ 
+-var symname string = "__.GOSYMDEF"
+-
+-var pkgname string = "__.PKGDEF"
++const (
++	symname = "__.GOSYMDEF"
++	pkgname = "__.PKGDEF"
++)
+ 
+ var cout *os.File
+ 
+diff --git a/src/cmd/internal/ld/objfile.go b/src/cmd/internal/ld/objfile.go
+index 5d0eb0257b..34176bee6e 100644
+--- a/src/cmd/internal/ld/objfile.go
++++ b/src/cmd/internal/ld/objfile.go
+@@ -12,9 +12,10 @@ import (
+ 	"strings"
+ )
+ 
+-var startmagic string = "\x00\x00go13ld"
+-
+-var endmagic string = "\xff\xffgo13ld"
++const (
++	startmagic = "\x00\x00go13ld"
++	endmagic   = "\xff\xffgo13ld"
++)
+ 
+ func ldobjfile(ctxt *Link, f *Biobuf, pkg string, length int64, pn string) {
+ 	start := Boffset(f)
+diff --git a/src/cmd/internal/ld/pobj.go b/src/cmd/internal/ld/pobj.go
+index 226ccf1c19..a161a456d2 100644
+--- a/src/cmd/internal/ld/pobj.go
++++ b/src/cmd/internal/ld/pobj.go
+@@ -40,7 +40,7 @@ import (
+ 
+ // Reading object files.
+ 
+-var noname string = "<none>"
++const noname = "<none>"
+ 
+ var paramspace string = "FP"
+ 

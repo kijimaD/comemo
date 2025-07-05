@@ -17,6 +17,21 @@ Date:   Wed Mar 18 13:29:22 2015 -0700
     Change-Id: I51cfd7baa0011557141dca33b7af1d892cc6f49e
     Reviewed-on: https://go-review.googlesource.com/7780
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/yacc/yacc.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/cmd/yacc/yacc.go b/src/cmd/yacc/yacc.go
+index d0a9279c87..f52ef2f4d7 100644
+--- a/src/cmd/yacc/yacc.go
++++ b/src/cmd/yacc/yacc.go
+@@ -637,9 +637,6 @@ outer:
+ 			if tempty != nontrst[curprod[0]-NTBASE].value {
+ 				lerrorf(ruleline, "default action causes potential type clash")
+ 			}
+-			fmt.Fprintf(fcode, "\n\tcase %v:", nprod)
+-			fmt.Fprintf(fcode, "\n\t\t%sVAL.%v = %sS[%spt-0].%v",
+-				prefix, typeset[tempty], prefix, prefix, typeset[tempty])
+ 		}
+ 		moreprod()
+ 		prdptr[nprod] = make([]int, mem)

@@ -25,7 +25,7 @@ Date:   Thu Dec 2 12:36:28 2021 -0500
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go.mod                                     |   2 +-
  src/cmd/go.sum                                     |   4 +-
  .../x/tools/go/analysis/passes/printf/printf.go    |   8 +-
@@ -36,3 +36,392 @@ Date:   Thu Dec 2 12:36:28 2021 -0500
  .../tools/internal/typeparams/typeparams_go117.go  |   1 +
  src/cmd/vendor/modules.txt                         |   2 +-
  9 files changed, 187 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 75a93e6bd1..833c7d7b1f 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -8,7 +8,7 @@ require (
+ 	golang.org/x/mod v0.6.0-dev.0.20211102181907-3a5865c02020
+ 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
+ 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
+-	golang.org/x/tools v0.1.8-0.20211116011028-4adea5033c5c
++	golang.org/x/tools v0.1.8-0.20211202032535-e212aff8fd14
+ )
+ 
+ require (
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 62619b8d01..0d39656a1d 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -18,7 +18,7 @@ golang.org/x/sys v0.0.0-20211109065445-02f5c0300f6e h1:i6Vklmyu+fZMFYpum+sR4ZWAB
+ golang.org/x/sys v0.0.0-20211109065445-02f5c0300f6e/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 h1:JGgROgKl9N8DuW20oFS5gxc+lE67/N3FcwmBPMe7ArY=
+ golang.org/x/term v0.0.0-20210927222741-03fcf44c2211/go.mod h1:jbD1KX2456YbFQfuXm/mYQcufACuNUgVhRMnK/tPxf8=
+-golang.org/x/tools v0.1.8-0.20211116011028-4adea5033c5c h1:EftGXIEk7/EwE5R+/azXJzSbzwNumuLeH9oupAN7YV0=
+-golang.org/x/tools v0.1.8-0.20211116011028-4adea5033c5c/go.mod h1:nABZi5QlRsZVlzPpHl034qft6wpY4eDcsTt5AaioBiU=
++golang.org/x/tools v0.1.8-0.20211202032535-e212aff8fd14 h1:KPFD5zp3T4bZL/kdosp4tGDJ6DKwUmYSWM0twy7w/bg=
++golang.org/x/tools v0.1.8-0.20211202032535-e212aff8fd14/go.mod h1:nABZi5QlRsZVlzPpHl034qft6wpY4eDcsTt5AaioBiU=
+ golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 h1:go1bK/D/BFZV2I8cIQd1NKEZ+0owSTG1fDTci4IqFcE=
+ golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+index 0206073578..dee37d78ae 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+@@ -25,6 +25,7 @@ import (
+ 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+ 	"golang.org/x/tools/go/ast/inspector"
+ 	"golang.org/x/tools/go/types/typeutil"
++	"golang.org/x/tools/internal/typeparams"
+ )
+ 
+ func init() {
+@@ -520,7 +521,12 @@ func printfNameAndKind(pass *analysis.Pass, call *ast.CallExpr) (fn *types.Func,
+ func isFormatter(typ types.Type) bool {
+ 	// If the type is an interface, the value it holds might satisfy fmt.Formatter.
+ 	if _, ok := typ.Underlying().(*types.Interface); ok {
+-		return true
++		// Don't assume type parameters could be formatters. With the greater
++		// expressiveness of constraint interface syntax we expect more type safety
++		// when using type parameters.
++		if !typeparams.IsTypeParam(typ) {
++			return true
++		}
+ 	}
+ 	obj, _, _ := types.LookupFieldOrMethod(typ, false, nil, "Format")
+ 	fn, ok := obj.(*types.Func)
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/types.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/types.go
+index 81bf36e1ee..270e917c80 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/types.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/types.go
+@@ -178,10 +178,12 @@ func (m *argMatcher) match(typ types.Type, topLevel bool) bool {
+ 			return true
+ 		}
+ 
++		if typeparams.IsTypeParam(typ.Elem()) {
++			return true // We don't know whether the logic below applies. Give up.
++		}
++
+ 		under := typ.Elem().Underlying()
+ 		switch under.(type) {
+-		case *typeparams.TypeParam:
+-			return true // We don't know whether the logic below applies. Give up.
+ 		case *types.Struct: // see below
+ 		case *types.Array: // see below
+ 		case *types.Slice: // see below
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/map.go b/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/map.go
+index c7f7545006..490ee904a6 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/map.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/map.go
+@@ -11,6 +11,8 @@ import (
+ 	"fmt"
+ 	"go/types"
+ 	"reflect"
++
++	"golang.org/x/tools/internal/typeparams"
+ )
+ 
+ // Map is a hash-table-based mapping from types (types.Type) to
+@@ -211,11 +213,29 @@ func (m *Map) KeysString() string {
+ // Call MakeHasher to create a Hasher.
+ type Hasher struct {
+ 	memo map[types.Type]uint32
++
++	// ptrMap records pointer identity.
++	ptrMap map[interface{}]uint32
++
++	// sigTParams holds type parameters from the signature being hashed.
++	// Signatures are considered identical modulo renaming of type parameters, so
++	// within the scope of a signature type the identity of the signature's type
++	// parameters is just their index.
++	//
++	// Since the language does not currently support referring to uninstantiated
++	// generic types or functions, and instantiated signatures do not have type
++	// parameter lists, we should never encounter a second non-empty type
++	// parameter list when hashing a generic signature.
++	sigTParams *typeparams.TypeParamList
+ }
+ 
+ // MakeHasher returns a new Hasher instance.
+ func MakeHasher() Hasher {
+-	return Hasher{make(map[types.Type]uint32)}
++	return Hasher{
++		memo:       make(map[types.Type]uint32),
++		ptrMap:     make(map[interface{}]uint32),
++		sigTParams: nil,
++	}
+ }
+ 
+ // Hash computes a hash value for the given type t such that
+@@ -273,17 +293,62 @@ func (h Hasher) hashFor(t types.Type) uint32 {
+ 		if t.Variadic() {
+ 			hash *= 8863
+ 		}
++
++		// Use a separate hasher for types inside of the signature, where type
++		// parameter identity is modified to be (index, constraint). We must use a
++		// new memo for this hasher as type identity may be affected by this
++		// masking. For example, in func[T any](*T), the identity of *T depends on
++		// whether we are mapping the argument in isolation, or recursively as part
++		// of hashing the signature.
++		//
++		// We should never encounter a generic signature while hashing another
++		// generic signature, but defensively set sigTParams only if h.mask is
++		// unset.
++		tparams := typeparams.ForSignature(t)
++		if h.sigTParams == nil && tparams.Len() != 0 {
++			h = Hasher{
++				// There may be something more efficient than discarding the existing
++				// memo, but it would require detecting whether types are 'tainted' by
++				// references to type parameters.
++				memo: make(map[types.Type]uint32),
++				// Re-using ptrMap ensures that pointer identity is preserved in this
++				// hasher.
++				ptrMap:     h.ptrMap,
++				sigTParams: tparams,
++			}
++		}
++
++		for i := 0; i < tparams.Len(); i++ {
++			tparam := tparams.At(i)
++			hash += 7 * h.Hash(tparam.Constraint())
++		}
++
+ 		return hash + 3*h.hashTuple(t.Params()) + 5*h.hashTuple(t.Results())
+ 
++	case *typeparams.Union:
++		return h.hashUnion(t)
++
+ 	case *types.Interface:
++		// Interfaces are identical if they have the same set of methods, with
++		// identical names and types, and they have the same set of type
++		// restrictions. See go/types.identical for more details.
+ 		var hash uint32 = 9103
++
++		// Hash methods.
+ 		for i, n := 0, t.NumMethods(); i < n; i++ {
+-			// See go/types.identicalMethods for rationale.
+ 			// Method order is not significant.
+ 			// Ignore m.Pkg().
+ 			m := t.Method(i)
+ 			hash += 3*hashString(m.Name()) + 5*h.Hash(m.Type())
+ 		}
++
++		// Hash type restrictions.
++		terms, err := typeparams.InterfaceTermSet(t)
++		// if err != nil t has invalid type restrictions.
++		if err == nil {
++			hash += h.hashTermSet(terms)
++		}
++
+ 		return hash
+ 
+ 	case *types.Map:
+@@ -293,13 +358,22 @@ func (h Hasher) hashFor(t types.Type) uint32 {
+ 		return 9127 + 2*uint32(t.Dir()) + 3*h.Hash(t.Elem())
+ 
+ 	case *types.Named:
+-		// Not safe with a copying GC; objects may move.
+-		return uint32(reflect.ValueOf(t.Obj()).Pointer())
++		hash := h.hashPtr(t.Obj())
++		targs := typeparams.NamedTypeArgs(t)
++		for i := 0; i < targs.Len(); i++ {
++			targ := targs.At(i)
++			hash += 2 * h.Hash(targ)
++		}
++		return hash
++
++	case *typeparams.TypeParam:
++		return h.hashTypeParam(t)
+ 
+ 	case *types.Tuple:
+ 		return h.hashTuple(t)
+ 	}
+-	panic(t)
++
++	panic(fmt.Sprintf("%T: %v", t, t))
+ }
+ 
+ func (h Hasher) hashTuple(tuple *types.Tuple) uint32 {
+@@ -311,3 +385,57 @@ func (h Hasher) hashTuple(tuple *types.Tuple) uint32 {
+ 	}
+ 	return hash
+ }
++
++func (h Hasher) hashUnion(t *typeparams.Union) uint32 {
++	// Hash type restrictions.
++	terms, err := typeparams.UnionTermSet(t)
++	// if err != nil t has invalid type restrictions. Fall back on a non-zero
++	// hash.
++	if err != nil {
++		return 9151
++	}
++	return h.hashTermSet(terms)
++}
++
++func (h Hasher) hashTermSet(terms []*typeparams.Term) uint32 {
++	var hash uint32 = 9157 + 2*uint32(len(terms))
++	for _, term := range terms {
++		// term order is not significant.
++		termHash := h.Hash(term.Type())
++		if term.Tilde() {
++			termHash *= 9161
++		}
++		hash += 3 * termHash
++	}
++	return hash
++}
++
++// hashTypeParam returns a hash of the type parameter t, with a hash value
++// depending on whether t is contained in h.sigTParams.
++//
++// If h.sigTParams is set and contains t, then we are in the process of hashing
++// a signature, and the hash value of t must depend only on t's index and
++// constraint: signatures are considered identical modulo type parameter
++// renaming.
++//
++// Otherwise the hash of t depends only on t's pointer identity.
++func (h Hasher) hashTypeParam(t *typeparams.TypeParam) uint32 {
++	if h.sigTParams != nil {
++		i := t.Index()
++		if i >= 0 && i < h.sigTParams.Len() && t == h.sigTParams.At(i) {
++			return 9173 + 2*h.Hash(t.Constraint()) + 3*uint32(i)
++		}
++	}
++	return h.hashPtr(t.Obj())
++}
++
++// hashPtr hashes the pointer identity of ptr. It uses h.ptrMap to ensure that
++// pointers values are not dependent on the GC.
++func (h Hasher) hashPtr(ptr interface{}) uint32 {
++	if hash, ok := h.ptrMap[ptr]; ok {
++		return hash
++	}
++	hash := uint32(reflect.ValueOf(ptr).Pointer())
++	h.ptrMap[ptr] = hash
++	return hash
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go
+index 9fc6b4beb8..961d036fdb 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go
+@@ -13,6 +13,7 @@ package typeparams
+ import (
+ 	"go/ast"
+ 	"go/token"
++	"go/types"
+ )
+ 
+ // A IndexExprData holds data from both ast.IndexExpr and the new
+@@ -23,3 +24,9 @@ type IndexExprData struct {
+ 	Indices []ast.Expr // index expressions
+ 	Rbrack  token.Pos  // position of "]"
+ }
++
++// IsTypeParam reports whether t is a type parameter.
++func IsTypeParam(t types.Type) bool {
++	_, ok := t.(*TypeParam)
++	return ok
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/normalize.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/normalize.go
+index f41ec6ec0b..090f142a5f 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/normalize.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/normalize.go
+@@ -23,9 +23,9 @@ var ErrEmptyTypeSet = errors.New("empty type set")
+ //
+ // Structural type restrictions of a type parameter are created via
+ // non-interface types embedded in its constraint interface (directly, or via a
+-// chain of interface embeddings). For example, in the declaration `type T[P
+-// interface{~int; m()}] int`, the structural restriction of the type parameter
+-// P is ~int.
++// chain of interface embeddings). For example, in the declaration
++//  type T[P interface{~int; m()}] int
++// the structural restriction of the type parameter P is ~int.
+ //
+ // With interface embedding and unions, the specification of structural type
+ // restrictions may be arbitrarily complex. For example, consider the
+@@ -67,7 +67,31 @@ func StructuralTerms(tparam *TypeParam) ([]*Term, error) {
+ 	if iface == nil {
+ 		return nil, fmt.Errorf("constraint is %T, not *types.Interface", constraint.Underlying())
+ 	}
+-	tset, err := computeTermSet(iface, make(map[types.Type]*termSet), 0)
++	return InterfaceTermSet(iface)
++}
++
++// InterfaceTermSet computes the normalized terms for a constraint interface,
++// returning an error if the term set cannot be computed or is empty. In the
++// latter case, the error will be ErrEmptyTypeSet.
++//
++// See the documentation of StructuralTerms for more information on
++// normalization.
++func InterfaceTermSet(iface *types.Interface) ([]*Term, error) {
++	return computeTermSet(iface)
++}
++
++// UnionTermSet computes the normalized terms for a union, returning an error
++// if the term set cannot be computed or is empty. In the latter case, the
++// error will be ErrEmptyTypeSet.
++//
++// See the documentation of StructuralTerms for more information on
++// normalization.
++func UnionTermSet(union *Union) ([]*Term, error) {
++	return computeTermSet(union)
++}
++
++func computeTermSet(typ types.Type) ([]*Term, error) {
++	tset, err := computeTermSetInternal(typ, make(map[types.Type]*termSet), 0)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -98,7 +122,7 @@ func indentf(depth int, format string, args ...interface{}) {
+ 	fmt.Fprintf(os.Stderr, strings.Repeat(".", depth)+format+"\n", args...)
+ }
+ 
+-func computeTermSet(t types.Type, seen map[types.Type]*termSet, depth int) (res *termSet, err error) {
++func computeTermSetInternal(t types.Type, seen map[types.Type]*termSet, depth int) (res *termSet, err error) {
+ 	if t == nil {
+ 		panic("nil type")
+ 	}
+@@ -139,7 +163,7 @@ func computeTermSet(t types.Type, seen map[types.Type]*termSet, depth int) (res
+ 			if _, ok := embedded.Underlying().(*TypeParam); ok {
+ 				return nil, fmt.Errorf("invalid embedded type %T", embedded)
+ 			}
+-			tset2, err := computeTermSet(embedded, seen, depth+1)
++			tset2, err := computeTermSetInternal(embedded, seen, depth+1)
+ 			if err != nil {
+ 				return nil, err
+ 			}
+@@ -153,7 +177,7 @@ func computeTermSet(t types.Type, seen map[types.Type]*termSet, depth int) (res
+ 			var terms termlist
+ 			switch t.Type().Underlying().(type) {
+ 			case *types.Interface:
+-				tset2, err := computeTermSet(t.Type(), seen, depth+1)
++				tset2, err := computeTermSetInternal(t.Type(), seen, depth+1)
+ 				if err != nil {
+ 					return nil, err
+ 				}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go117.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go117.go
+index 6ad3a43a2c..e509daf7be 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go117.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go117.go
+@@ -75,6 +75,7 @@ func ForFuncType(*ast.FuncType) *ast.FieldList {
+ // this Go version. Its methods panic on use.
+ type TypeParam struct{ types.Type }
+ 
++func (*TypeParam) Index() int             { unsupported(); return 0 }
+ func (*TypeParam) Constraint() types.Type { unsupported(); return nil }
+ func (*TypeParam) Obj() *types.TypeName   { unsupported(); return nil }
+ 
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index fd955a6932..0c107cd5ea 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -51,7 +51,7 @@ golang.org/x/sys/windows
+ # golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
+ ## explicit; go 1.17
+ golang.org/x/term
+-# golang.org/x/tools v0.1.8-0.20211116011028-4adea5033c5c
++# golang.org/x/tools v0.1.8-0.20211202032535-e212aff8fd14
+ ## explicit; go 1.17
+ golang.org/x/tools/cover
+ golang.org/x/tools/go/analysis

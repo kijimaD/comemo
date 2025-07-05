@@ -15,9 +15,70 @@ Date:   Sun Jan 11 03:40:08 2015 +0000
     Reviewed-on: https://go-review.googlesource.com/2681
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/asm_arm.s       | 2 +-
  src/runtime/os_linux_arm.go | 3 +--
  src/runtime/rt0_linux_arm.s | 3 ---
  src/runtime/vdso_none.go    | 1 +
  4 files changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index fc95bb05d0..f3ce1a8f17 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -59,7 +59,6 @@ nocgo:
+ 	MOVW	R0, g_stackguard0(g)
+ 	MOVW	R0, g_stackguard1(g)
+ 
+-	BL	runtime·checkgoarm(SB)
+ 	BL	runtime·check(SB)
+ 
+ 	// saved argc, argv
+@@ -68,6 +67,7 @@ nocgo:
+ 	MOVW	64(R13), R1
+ 	MOVW	R1, 8(R13)
+ 	BL	runtime·args(SB)
++	BL	runtime·checkgoarm(SB)
+ 	BL	runtime·osinit(SB)
+ 	BL	runtime·schedinit(SB)
+ 
+diff --git a/src/runtime/os_linux_arm.go b/src/runtime/os_linux_arm.go
+index c1d506661c..d88bf785ee 100644
+--- a/src/runtime/os_linux_arm.go
++++ b/src/runtime/os_linux_arm.go
+@@ -34,8 +34,7 @@ func checkgoarm() {
+ 	}
+ }
+ 
+-//go:nosplit
+-func setup_auxv(argc int32, argv **byte) {
++func sysargs(argc int32, argv **byte) {
+ 	// skip over argv, envv to get to auxv
+ 	n := argc + 1
+ 	for argv_index(argv, n) != nil {
+diff --git a/src/runtime/rt0_linux_arm.s b/src/runtime/rt0_linux_arm.s
+index 5f521d24ba..15a57cbc56 100644
+--- a/src/runtime/rt0_linux_arm.s
++++ b/src/runtime/rt0_linux_arm.s
+@@ -53,9 +53,6 @@ TEXT _rt0_arm_linux1(SB),NOSPLIT,$-4
+ 	// SWI	$0 // restore signal handler
+ 	// ADD	$32, R13
+ 
+-	SUB	$4, R13 // fake a stack frame for runtime·setup_auxv
+-	BL	runtime·setup_auxv(SB)
+-	ADD	$4, R13
+ 	B	runtime·rt0_go(SB)
+ 
+ TEXT bad_abi<>(SB),NOSPLIT,$-4
+diff --git a/src/runtime/vdso_none.go b/src/runtime/vdso_none.go
+index 6f83ecc895..93bd91ca85 100644
+--- a/src/runtime/vdso_none.go
++++ b/src/runtime/vdso_none.go
+@@ -4,6 +4,7 @@
+ 
+ // +build !linux !amd64
+ // +build !linux !386
++// +build !linux !arm
+ 
+ package runtime
+ 

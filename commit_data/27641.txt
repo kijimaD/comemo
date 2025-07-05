@@ -9,6 +9,21 @@ Date:   Wed Apr 6 11:18:55 2016 -0300
     Change-Id: I5ce8f6253245d8cc1f862a1bf618775f557f955d
     Reviewed-on: https://go-review.googlesource.com/21610
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/pprof/pprof.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/pprof/pprof.go b/src/net/http/pprof/pprof.go
+index 2357d8ed1e..44afa2d8d8 100644
+--- a/src/net/http/pprof/pprof.go
++++ b/src/net/http/pprof/pprof.go
+@@ -30,7 +30,8 @@
+ //
+ //	go tool pprof http://localhost:6060/debug/pprof/profile
+ //
+-// Or to look at the goroutine blocking profile:
++// Or to look at the goroutine blocking profile, after calling
++// runtime.SetBlockProfileRate in your program:
+ //
+ //	go tool pprof http://localhost:6060/debug/pprof/block
+ //

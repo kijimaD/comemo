@@ -12,6 +12,20 @@ Date:   Mon Dec 5 13:02:22 2022 -0500
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/runtime/cgo/gcc_loong64.S | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/cgo/gcc_loong64.S b/src/runtime/cgo/gcc_loong64.S
+index 9947aa61e8..6b7668f288 100644
+--- a/src/runtime/cgo/gcc_loong64.S
++++ b/src/runtime/cgo/gcc_loong64.S
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-.file "gcc_loong4.S"
++.file "gcc_loong64.S"
+ 
+ /*
+  * void crosscall1(void (*fn)(void), void (*setg_gcc)(void *g), void *g)

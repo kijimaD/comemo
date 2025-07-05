@@ -8,6 +8,22 @@ Date:   Tue Jan 14 19:23:36 2014 -0500
     R=golang-codereviews, r
     CC=golang-codereviews
     https://golang.org/cl/52230043
-
+---
  src/pkg/runtime/debug/garbage.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/debug/garbage.go b/src/pkg/runtime/debug/garbage.go
+index 8337d5d5b3..a724fdf8f6 100644
+--- a/src/pkg/runtime/debug/garbage.go
++++ b/src/pkg/runtime/debug/garbage.go
+@@ -91,7 +91,9 @@ func (x byDuration) Less(i, j int) bool { return x[i] < x[j] }
+ // at startup, or 100 if the variable is not set.
+ // A negative percentage disables garbage collection.
+ func SetGCPercent(percent int) int {
+-	return setGCPercent(percent)
++	old := setGCPercent(percent)
++	runtime.GC()
++	return old
+ }
+ 
+ // FreeOSMemory forces a garbage collection followed by an

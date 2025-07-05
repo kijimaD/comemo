@@ -12,8 +12,106 @@ Date:   Thu Oct 18 14:15:17 2018 +0530
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Richard Musiol <neelance@gmail.com>
-
+---
  src/go/build/deps_test.go |  1 +
  src/time/zoneinfo_js.go   | 66 +++++++++++++++++++++++++++++++++++++++++++++++
  src/time/zoneinfo_unix.go |  2 +-
  3 files changed, 68 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 386ab9e408..5e5b5ed655 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -159,6 +159,7 @@ var pkgDeps = map[string][]string{
+ 		// Other time dependencies:
+ 		"internal/syscall/windows/registry",
+ 		"syscall",
++		"syscall/js",
+ 	},
+ 
+ 	"internal/poll":    {"L0", "internal/race", "syscall", "time", "unicode/utf16", "unicode/utf8", "internal/syscall/windows"},
+diff --git a/src/time/zoneinfo_js.go b/src/time/zoneinfo_js.go
+new file mode 100644
+index 0000000000..d640c831bf
+--- /dev/null
++++ b/src/time/zoneinfo_js.go
+@@ -0,0 +1,66 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build js,wasm
++
++package time
++
++import (
++	"runtime"
++	"syscall/js"
++)
++
++var zoneSources = []string{
++	"/usr/share/zoneinfo/",
++	"/usr/share/lib/zoneinfo/",
++	"/usr/lib/locale/TZ/",
++	runtime.GOROOT() + "/lib/time/zoneinfo.zip",
++}
++
++func initLocal() {
++	localLoc.name = "Local"
++
++	z := zone{}
++	d := js.Global().Get("Date").New()
++	offset := d.Call("getTimezoneOffset").Int() * -1
++	z.offset = offset * 60
++	// According to https://tc39.github.io/ecma262/#sec-timezoneestring,
++	// the timezone name from (new Date()).toTimeString() is an implementation-dependent
++	// result, and in Google Chrome, it gives the fully expanded name rather than
++	// the abbreviation.
++	// Hence, we construct the name from the offset.
++	z.name = "UTC"
++	if offset < 0 {
++		z.name += "-"
++	} else {
++		z.name += "+"
++	}
++	z.name += itoa(offset / 60)
++	min := offset % 60
++	if min != 0 {
++		z.name += ":" + itoa(min)
++	}
++	localLoc.zone = []zone{z}
++}
++
++// itoa is just the fast path implementation copied from strconv.Itoa.
++// No timezone hour can exceed 100, so the fast path will always satisfy.
++func itoa(i int) string {
++	if i < 10 {
++		return digits[i : i+1]
++	}
++	return smallsString[i*2 : i*2+2]
++}
++
++const smallsString = "00010203040506070809" +
++	"10111213141516171819" +
++	"20212223242526272829" +
++	"30313233343536373839" +
++	"40414243444546474849" +
++	"50515253545556575859" +
++	"60616263646566676869" +
++	"70717273747576777879" +
++	"80818283848586878889" +
++	"90919293949596979899"
++const digits = "0123456789"
+diff --git a/src/time/zoneinfo_unix.go b/src/time/zoneinfo_unix.go
+index fca8e5497b..d6bcabfb80 100644
+--- a/src/time/zoneinfo_unix.go
++++ b/src/time/zoneinfo_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build aix darwin,386 darwin,amd64 dragonfly freebsd js,wasm linux,!android nacl netbsd openbsd solaris
++// +build aix darwin,386 darwin,amd64 dragonfly freebsd linux,!android nacl netbsd openbsd solaris
+ 
+ // Parse "zoneinfo" time zone file.
+ // This is a fairly standard file format used on OS X, Linux, BSD, Sun, and others.

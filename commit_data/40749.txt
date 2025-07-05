@@ -30,10 +30,93 @@ Date:   Thu Jun 13 19:11:25 2019 -0700
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go |  1 -
  test/fixedbugs/issue32595.dir/a.go     |  9 +++++++++
  test/fixedbugs/issue32595.dir/b.go     | 15 +++++++++++++++
  test/fixedbugs/issue32595.dir/main.go  | 15 +++++++++++++++
  test/fixedbugs/issue32595.go           |  7 +++++++
  5 files changed, 46 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 0854817713..9b26ba16cb 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -330,7 +330,6 @@ func deferstruct(stksize int64) *types.Type {
+ 		return f
+ 	}
+ 	argtype := types.NewArray(types.Types[TUINT8], stksize)
+-	argtype.SetNoalg(true)
+ 	argtype.Width = stksize
+ 	argtype.Align = 1
+ 	// These fields must match the ones in runtime/runtime2.go:_defer and
+diff --git a/test/fixedbugs/issue32595.dir/a.go b/test/fixedbugs/issue32595.dir/a.go
+new file mode 100644
+index 0000000000..8342dd5cbc
+--- /dev/null
++++ b/test/fixedbugs/issue32595.dir/a.go
+@@ -0,0 +1,9 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++func A() {
++	defer func() {}()
++}
+diff --git a/test/fixedbugs/issue32595.dir/b.go b/test/fixedbugs/issue32595.dir/b.go
+new file mode 100644
+index 0000000000..9a13a575a8
+--- /dev/null
++++ b/test/fixedbugs/issue32595.dir/b.go
+@@ -0,0 +1,15 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "reflect"
++
++func B() {
++	t1 := reflect.TypeOf([0]byte{})
++	t2 := reflect.TypeOf(new([0]byte)).Elem()
++	if t1 != t2 {
++		panic("[0]byte types do not match")
++	}
++}
+diff --git a/test/fixedbugs/issue32595.dir/main.go b/test/fixedbugs/issue32595.dir/main.go
+new file mode 100644
+index 0000000000..20472cd72a
+--- /dev/null
++++ b/test/fixedbugs/issue32595.dir/main.go
+@@ -0,0 +1,15 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"a"
++	"b"
++)
++
++func main() {
++	a.A()
++	b.B()
++}
+diff --git a/test/fixedbugs/issue32595.go b/test/fixedbugs/issue32595.go
+new file mode 100644
+index 0000000000..af6f134172
+--- /dev/null
++++ b/test/fixedbugs/issue32595.go
+@@ -0,0 +1,7 @@
++// rundir
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

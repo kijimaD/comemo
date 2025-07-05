@@ -8,7 +8,7 @@ Date:   Tue Aug 7 10:09:24 2012 +0800
     R=dave, lvd, rsc
     CC=golang-dev
     https://golang.org/cl/6084044
-
+---
  src/cmd/5l/asm.c       | 17 ++++++-----------
  src/cmd/5l/l.h         |  9 +++++++++
  src/cmd/5l/noop.c      | 31 ++++++-------------------------
@@ -17,3 +17,231 @@ Date:   Tue Aug 7 10:09:24 2012 +0800
  src/cmd/5l/span.c      |  8 ++++++++
  src/cmd/dist/build.c   |  9 +--------
  7 files changed, 33 insertions(+), 44 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 9a74c2a35d..3e51ece462 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -33,6 +33,7 @@
+ #include	"l.h"
+ #include	"../ld/lib.h"
+ #include	"../ld/elf.h"
++#include	"../ld/dwarf.h"
+ 
+ static Prog *PP;
+ 
+@@ -509,6 +510,7 @@ doelf(void)
+ 	if(!debug['s']) {
+ 		elfstr[ElfStrSymtab] = addstring(shstrtab, ".symtab");
+ 		elfstr[ElfStrStrtab] = addstring(shstrtab, ".strtab");
++		dwarfaddshstrings(shstrtab);
+ 	}
+ 	elfstr[ElfStrShstrtab] = addstring(shstrtab, ".shstrtab");
+ 
+@@ -723,12 +725,11 @@ asmb(void)
+ 			cflush();
+ 			cwrite(elfstrdat, elfstrsize);
+ 
+-			// if(debug['v'])
+-			// 	Bprint(&bso, "%5.2f dwarf\n", cputime());
+-			// dwarfemitdebugsections();
++			if(debug['v'])
++				Bprint(&bso, "%5.2f dwarf\n", cputime());
++			dwarfemitdebugsections();
+ 		}
+ 		cflush();
+-		
+ 	}
+ 
+ 	cursym = nil;
+@@ -989,7 +990,7 @@ asmb(void)
+ 			sh->size = elfstrsize;
+ 			sh->addralign = 1;
+ 
+-			// dwarfaddelfheaders();
++			dwarfaddelfheaders();
+ 		}
+ 
+ 		/* Main header */
+@@ -2317,9 +2318,3 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+ 		Bprint(&bso, "symsize = %ud\n", symsize);
+ 	Bflush(&bso);
+ }
+-
+-void
+-setpersrc(Sym *s)
+-{
+-	USED(s);
+-}
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index 190bfa9ee1..e6f2ec3d98 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -401,6 +401,9 @@ void	span(void);
+ void	strnput(char*, int);
+ int32	symaddr(Sym*);
+ void	undef(void);
++void	vputb(uint64);
++void	vputl(uint64);
++void	wputb(uint16);
+ void	wput(int32);
+ void    wputl(ushort w);
+ void	xdefine(char*, int, int32);
+@@ -428,3 +431,9 @@ vlong		adduintxx(Sym *s, uint64 v, int wid);
+ #define	VPUT(a)	abort()
+ 
+ #endif
++
++/* Used by ../ld/dwarf.c */
++enum
++{
++	DWARFREGSP = 13
++};
+diff --git a/src/cmd/5l/noop.c b/src/cmd/5l/noop.c
+index 004f9f2faa..c50a108f38 100644
+--- a/src/cmd/5l/noop.c
++++ b/src/cmd/5l/noop.c
+@@ -365,11 +365,7 @@ noops(void)
+ 				q1 = p;
+ 	
+ 				/* MOV a,4(SP) */
+-				q = prg();
+-				q->link = p->link;
+-				p->link = q;
+-				p = q;
+-	
++				p = appendp(p);
+ 				p->as = AMOVW;
+ 				p->line = q1->line;
+ 				p->from.type = D_REG;
+@@ -379,11 +375,7 @@ noops(void)
+ 				p->to.offset = 4;
+ 	
+ 				/* MOV b,REGTMP */
+-				q = prg();
+-				q->link = p->link;
+-				p->link = q;
+-				p = q;
+-	
++				p = appendp(p);
+ 				p->as = AMOVW;
+ 				p->line = q1->line;
+ 				p->from.type = D_REG;
+@@ -395,11 +387,7 @@ noops(void)
+ 				p->to.offset = 0;
+ 	
+ 				/* CALL appropriate */
+-				q = prg();
+-				q->link = p->link;
+-				p->link = q;
+-				p = q;
+-	
++				p = appendp(p);
+ 				p->as = ABL;
+ 				p->line = q1->line;
+ 				p->to.type = D_BRANCH;
+@@ -424,11 +412,7 @@ noops(void)
+ 				}
+ 	
+ 				/* MOV REGTMP, b */
+-				q = prg();
+-				q->link = p->link;
+-				p->link = q;
+-				p = q;
+-	
++				p = appendp(p);
+ 				p->as = AMOVW;
+ 				p->line = q1->line;
+ 				p->from.type = D_REG;
+@@ -438,12 +422,9 @@ noops(void)
+ 				p->to.reg = q1->to.reg;
+ 	
+ 				/* ADD $8,SP */
+-				q = prg();
+-				q->link = p->link;
+-				p->link = q;
+-				p = q;
+-	
++				p = appendp(p);
+ 				p->as = AADD;
++				p->line = q1->line;
+ 				p->from.type = D_CONST;
+ 				p->from.reg = NREG;
+ 				p->from.offset = 8;
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 3c345de2ab..05967ac9c0 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -34,6 +34,7 @@
+ #include	"l.h"
+ #include	"../ld/lib.h"
+ #include	"../ld/elf.h"
++#include	"../ld/dwarf.h"
+ #include	<ar.h>
+ 
+ #ifndef	DEFAULT
+@@ -481,6 +482,7 @@ loop:
+ 				histfrogp++;
+ 			} else
+ 				collapsefrog(s);
++			dwarfaddfrag(s->value, s->name);
+ 		}
+ 		goto loop;
+ 	}
+diff --git a/src/cmd/5l/softfloat.c b/src/cmd/5l/softfloat.c
+index 8be5b7585c..de6481c710 100644
+--- a/src/cmd/5l/softfloat.c
++++ b/src/cmd/5l/softfloat.c
+@@ -76,6 +76,7 @@ softfloat(void)
+ 	 				p->to.type = D_BRANCH;
+ 					p->to.sym = symsfloat;
+ 					p->cond = psfloat;
++					p->line = next->line;
+ 	
+ 					p = next;
+ 					wasfloat = 1;
+diff --git a/src/cmd/5l/span.c b/src/cmd/5l/span.c
+index 3787740e28..7614c40185 100644
+--- a/src/cmd/5l/span.c
++++ b/src/cmd/5l/span.c
+@@ -288,12 +288,20 @@ flushpool(Prog *p, int skip, int force)
+ 			q->to.type = D_BRANCH;
+ 			q->cond = p->link;
+ 			q->link = blitrl;
++			q->line = p->line;
+ 			blitrl = q;
+ 		}
+ 		else if(!force && (p->pc+pool.size-pool.start < 2048))
+ 			return 0;
+ 		elitrl->link = p->link;
+ 		p->link = blitrl;
++		// BUG(minux): how to correctly handle line number for constant pool entries?
++		// for now, we set line number to the last instruction preceding them at least
++		// this won't bloat the .debug_line tables
++		while(blitrl) {
++			blitrl->line = p->line;
++			blitrl = blitrl->link;
++		}
+ 		blitrl = 0;	/* BUG: should refer back to values until out-of-range */
+ 		elitrl = 0;
+ 		pool.size = 0;
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 440fc5d0bd..f21b5afda3 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -474,14 +474,7 @@ static struct {
+ 		"$GOROOT/pkg/obj/$GOOS_$GOARCH/libgc.a",
+ 	}},
+ 	{"cmd/5l", {
+-		"../ld/data.c",
+-		"../ld/elf.c",
+-		"../ld/go.c",
+-		"../ld/ldelf.c",
+-		"../ld/ldmacho.c",
+-		"../ld/ldpe.c",
+-		"../ld/lib.c",
+-		"../ld/symtab.c",
++		"../ld/*",
+ 		"enam.c",
+ 	}},
+ 	{"cmd/6l", {

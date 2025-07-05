@@ -13,6 +13,36 @@ Date:   Tue Mar 3 16:24:32 2020 +0100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/221804
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  misc/cgo/test/sigaltstack.go | 11 +++++++++--
  1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/test/sigaltstack.go b/misc/cgo/test/sigaltstack.go
+index 2c9b81ced7..7b3f4acbb7 100644
+--- a/misc/cgo/test/sigaltstack.go
++++ b/misc/cgo/test/sigaltstack.go
+@@ -14,15 +14,22 @@ package cgotest
+ #include <stdlib.h>
+ #include <string.h>
+ 
++#ifdef _AIX
++// On AIX, SIGSTKSZ is too small to handle Go sighandler.
++#define CSIGSTKSZ 0x4000
++#else
++#define CSIGSTKSZ SIGSTKSZ
++#endif
++
+ static stack_t oss;
+-static char signalStack[SIGSTKSZ];
++static char signalStack[CSIGSTKSZ];
+ 
+ static void changeSignalStack(void) {
+ 	stack_t ss;
+ 	memset(&ss, 0, sizeof ss);
+ 	ss.ss_sp = signalStack;
+ 	ss.ss_flags = 0;
+-	ss.ss_size = SIGSTKSZ;
++	ss.ss_size = CSIGSTKSZ;
+ 	if (sigaltstack(&ss, &oss) < 0) {
+ 		perror("sigaltstack");
+ 		abort();

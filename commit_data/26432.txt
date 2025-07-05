@@ -12,7 +12,63 @@ Date:   Fri Jan 22 09:35:05 2016 -0500
     Change-Id: Id4f7329a969b747a867ce261b20165fab2cdcab8
     Reviewed-on: https://go-review.googlesource.com/18846
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/internal/obj/x86/a.out.go | 17 +++++++++++++++++
  src/cmd/internal/obj/x86/list6.go | 16 ++++++++++++++++
  2 files changed, 33 insertions(+)
+
+diff --git a/src/cmd/internal/obj/x86/a.out.go b/src/cmd/internal/obj/x86/a.out.go
+index b3e2d48d24..b02c7495b8 100644
+--- a/src/cmd/internal/obj/x86/a.out.go
++++ b/src/cmd/internal/obj/x86/a.out.go
+@@ -864,6 +864,23 @@ const (
+ 	REG_X14
+ 	REG_X15
+ 
++	REG_Y0
++	REG_Y1
++	REG_Y2
++	REG_Y3
++	REG_Y4
++	REG_Y5
++	REG_Y6
++	REG_Y7
++	REG_Y8
++	REG_Y9
++	REG_Y10
++	REG_Y11
++	REG_Y12
++	REG_Y13
++	REG_Y14
++	REG_Y15
++
+ 	REG_CS
+ 	REG_SS
+ 	REG_DS
+diff --git a/src/cmd/internal/obj/x86/list6.go b/src/cmd/internal/obj/x86/list6.go
+index fc79b902a2..0284bbfe8a 100644
+--- a/src/cmd/internal/obj/x86/list6.go
++++ b/src/cmd/internal/obj/x86/list6.go
+@@ -104,6 +104,22 @@ var Register = []string{
+ 	"X13",
+ 	"X14",
+ 	"X15",
++	"Y0",
++	"Y1",
++	"Y2",
++	"Y3",
++	"Y4",
++	"Y5",
++	"Y6",
++	"Y7",
++	"Y8",
++	"Y9",
++	"Y10",
++	"Y11",
++	"Y12",
++	"Y13",
++	"Y14",
++	"Y15",
+ 	"CS", /* [D_CS] */
+ 	"SS",
+ 	"DS",

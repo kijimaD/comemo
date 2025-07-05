@@ -19,7 +19,7 @@ Date:   Sat Mar 25 09:03:15 2023 -0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/dist/test.go                               |   3 +
  src/internal/poll/{fcntl_js.go => fcntl_wasm.go}   |   4 +-
  src/internal/poll/fd_fsync_posix.go                |   2 +-
@@ -37,3 +37,649 @@ Date:   Sat Mar 25 09:03:15 2023 -0700
  src/internal/testenv/testenv_notunix.go            |   2 +-
  src/syscall/syscall_wasip1.go                      |   3 +
  16 files changed, 334 insertions(+), 72 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 01452ba7e5..f3c262ac98 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1476,6 +1476,9 @@ func (t *tester) hasSwig() bool {
+ 	return true
+ }
+ 
++// hasParallelism is a copy of the function
++// internal/testenv.HasParallelism, which can't be used here
++// because cmd/dist can not import internal packages during bootstrap.
+ func (t *tester) hasParallelism() bool {
+ 	switch goos {
+ 	case "js", "wasip1":
+diff --git a/src/internal/poll/fcntl_js.go b/src/internal/poll/fcntl_wasm.go
+similarity index 76%
+rename from src/internal/poll/fcntl_js.go
+rename to src/internal/poll/fcntl_wasm.go
+index 0f42ef61a5..ab77e4d791 100644
+--- a/src/internal/poll/fcntl_js.go
++++ b/src/internal/poll/fcntl_wasm.go
+@@ -2,13 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build js && wasm
++//go:build (js && wasm) || wasip1
+ 
+ package poll
+ 
+ import "syscall"
+ 
+-// fcntl not supported on js/wasm
++// fcntl not supported on js/wasm or wasip1/wasm.
+ func fcntl(fd int, cmd int, arg int) (int, error) {
+ 	return 0, syscall.ENOSYS
+ }
+diff --git a/src/internal/poll/fd_fsync_posix.go b/src/internal/poll/fd_fsync_posix.go
+index 6f17019e73..469ca75b62 100644
+--- a/src/internal/poll/fd_fsync_posix.go
++++ b/src/internal/poll/fd_fsync_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || dragonfly || freebsd || (js && wasm) || linux || netbsd || openbsd || solaris
++//go:build aix || dragonfly || freebsd || (js && wasm) || linux || netbsd || openbsd || solaris || wasip1
+ 
+ package poll
+ 
+diff --git a/src/internal/poll/fd_poll_js.go b/src/internal/poll/fd_poll_wasm.go
+similarity index 94%
+rename from src/internal/poll/fd_poll_js.go
+rename to src/internal/poll/fd_poll_wasm.go
+index 84bfcae633..b5158eba30 100644
+--- a/src/internal/poll/fd_poll_js.go
++++ b/src/internal/poll/fd_poll_wasm.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build js && wasm
++//go:build (js && wasm) || wasip1
+ 
+ package poll
+ 
+@@ -42,7 +42,7 @@ func (pd *pollDesc) wait(mode int, isFile bool) error {
+ 	if pd.closing {
+ 		return errClosing(isFile)
+ 	}
+-	if isFile { // TODO(neelance): wasm: Use callbacks from JS to block until the read/write finished.
++	if isFile { // TODO(neelance): js/wasm: Use callbacks from JS to block until the read/write finished.
+ 		return nil
+ 	}
+ 	return ErrDeadlineExceeded
+diff --git a/src/internal/poll/fd_posix.go b/src/internal/poll/fd_posix.go
+index 778fe1e5c1..5bd333b4da 100644
+--- a/src/internal/poll/fd_posix.go
++++ b/src/internal/poll/fd_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm) || windows
++//go:build unix || (js && wasm) || wasip1 || windows
+ 
+ package poll
+ 
+diff --git a/src/internal/poll/fd_unix.go b/src/internal/poll/fd_unix.go
+index 5373052e65..efc25f6a51 100644
+--- a/src/internal/poll/fd_unix.go
++++ b/src/internal/poll/fd_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm)
++//go:build unix || (js && wasm) || wasip1
+ 
+ package poll
+ 
+@@ -22,12 +22,12 @@ type FD struct {
+ 	// System file descriptor. Immutable until Close.
+ 	Sysfd int
+ 
++	// Platform dependent state of the file descriptor.
++	SysFile
++
+ 	// I/O poller.
+ 	pd pollDesc
+ 
+-	// Writev cache.
+-	iovecs *[]syscall.Iovec
+-
+ 	// Semaphore signaled when file is closed.
+ 	csema uint32
+ 
+@@ -625,38 +625,6 @@ func (fd *FD) Accept() (int, syscall.Sockaddr, string, error) {
+ 	}
+ }
+ 
+-// Seek wraps syscall.Seek.
+-func (fd *FD) Seek(offset int64, whence int) (int64, error) {
+-	if err := fd.incref(); err != nil {
+-		return 0, err
+-	}
+-	defer fd.decref()
+-	return syscall.Seek(fd.Sysfd, offset, whence)
+-}
+-
+-// ReadDirent wraps syscall.ReadDirent.
+-// We treat this like an ordinary system call rather than a call
+-// that tries to fill the buffer.
+-func (fd *FD) ReadDirent(buf []byte) (int, error) {
+-	if err := fd.incref(); err != nil {
+-		return 0, err
+-	}
+-	defer fd.decref()
+-	for {
+-		n, err := ignoringEINTRIO(syscall.ReadDirent, fd.Sysfd, buf)
+-		if err != nil {
+-			n = 0
+-			if err == syscall.EAGAIN && fd.pd.pollable() {
+-				if err = fd.pd.waitRead(fd.isFile); err == nil {
+-					continue
+-				}
+-			}
+-		}
+-		// Do not call eofError; caller does not expect to see io.EOF.
+-		return n, err
+-	}
+-}
+-
+ // Fchmod wraps syscall.Fchmod.
+ func (fd *FD) Fchmod(mode uint32) error {
+ 	if err := fd.incref(); err != nil {
+@@ -668,15 +636,6 @@ func (fd *FD) Fchmod(mode uint32) error {
+ 	})
+ }
+ 
+-// Fchdir wraps syscall.Fchdir.
+-func (fd *FD) Fchdir() error {
+-	if err := fd.incref(); err != nil {
+-		return err
+-	}
+-	defer fd.decref()
+-	return syscall.Fchdir(fd.Sysfd)
+-}
+-
+ // Fstat wraps syscall.Fstat
+ func (fd *FD) Fstat(s *syscall.Stat_t) error {
+ 	if err := fd.incref(); err != nil {
+@@ -711,19 +670,6 @@ func DupCloseOnExec(fd int) (int, string, error) {
+ 	return dupCloseOnExecOld(fd)
+ }
+ 
+-// dupCloseOnExecOld is the traditional way to dup an fd and
+-// set its O_CLOEXEC bit, using two system calls.
+-func dupCloseOnExecOld(fd int) (int, string, error) {
+-	syscall.ForkLock.RLock()
+-	defer syscall.ForkLock.RUnlock()
+-	newfd, err := syscall.Dup(fd)
+-	if err != nil {
+-		return -1, "dup", err
+-	}
+-	syscall.CloseOnExec(newfd)
+-	return newfd, "", nil
+-}
+-
+ // Dup duplicates the file descriptor.
+ func (fd *FD) Dup() (int, string, error) {
+ 	if err := fd.incref(); err != nil {
+diff --git a/src/internal/poll/fd_unixjs.go b/src/internal/poll/fd_unixjs.go
+new file mode 100644
+index 0000000000..07bf13f55c
+--- /dev/null
++++ b/src/internal/poll/fd_unixjs.go
+@@ -0,0 +1,68 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build unix || (js && wasm)
++
++package poll
++
++import "syscall"
++
++type SysFile struct {
++	// Writev cache.
++	iovecs *[]syscall.Iovec
++}
++
++// dupCloseOnExecOld is the traditional way to dup an fd and
++// set its O_CLOEXEC bit, using two system calls.
++func dupCloseOnExecOld(fd int) (int, string, error) {
++	syscall.ForkLock.RLock()
++	defer syscall.ForkLock.RUnlock()
++	newfd, err := syscall.Dup(fd)
++	if err != nil {
++		return -1, "dup", err
++	}
++	syscall.CloseOnExec(newfd)
++	return newfd, "", nil
++}
++
++// Fchdir wraps syscall.Fchdir.
++func (fd *FD) Fchdir() error {
++	if err := fd.incref(); err != nil {
++		return err
++	}
++	defer fd.decref()
++	return syscall.Fchdir(fd.Sysfd)
++}
++
++// ReadDirent wraps syscall.ReadDirent.
++// We treat this like an ordinary system call rather than a call
++// that tries to fill the buffer.
++func (fd *FD) ReadDirent(buf []byte) (int, error) {
++	if err := fd.incref(); err != nil {
++		return 0, err
++	}
++	defer fd.decref()
++	for {
++		n, err := ignoringEINTRIO(syscall.ReadDirent, fd.Sysfd, buf)
++		if err != nil {
++			n = 0
++			if err == syscall.EAGAIN && fd.pd.pollable() {
++				if err = fd.pd.waitRead(fd.isFile); err == nil {
++					continue
++				}
++			}
++		}
++		// Do not call eofError; caller does not expect to see io.EOF.
++		return n, err
++	}
++}
++
++// Seek wraps syscall.Seek.
++func (fd *FD) Seek(offset int64, whence int) (int64, error) {
++	if err := fd.incref(); err != nil {
++		return 0, err
++	}
++	defer fd.decref()
++	return syscall.Seek(fd.Sysfd, offset, whence)
++}
+diff --git a/src/internal/poll/fd_wasip1.go b/src/internal/poll/fd_wasip1.go
+new file mode 100644
+index 0000000000..749fa50220
+--- /dev/null
++++ b/src/internal/poll/fd_wasip1.go
+@@ -0,0 +1,186 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package poll
++
++import (
++	"sync/atomic"
++	"syscall"
++	"unsafe"
++)
++
++type SysFile struct {
++	// Cache for the file type, lazily initialized when Seek is called.
++	Filetype uint32
++
++	// If the file represents a directory, this field contains the current
++	// readdir position. It is reset to zero if the program calls Seek(0, 0).
++	Dircookie uint64
++
++	// Absolute path of the file, as returned by syscall.PathOpen;
++	// this is used by Fchdir to emulate setting the current directory
++	// to an open file descriptor.
++	Path string
++
++	// TODO(achille): it could be meaningful to move isFile from FD to a method
++	// on this struct type, and expose it as `IsFile() bool` which derives the
++	// result from the Filetype field. We would need to ensure that Filetype is
++	// always set instead of being lazily initialized.
++}
++
++// dupCloseOnExecOld always errors on wasip1 because there is no mechanism to
++// duplicate file descriptors.
++func dupCloseOnExecOld(fd int) (int, string, error) {
++	return -1, "dup", syscall.ENOSYS
++}
++
++// Fchdir wraps syscall.Fchdir.
++func (fd *FD) Fchdir() error {
++	if err := fd.incref(); err != nil {
++		return err
++	}
++	defer fd.decref()
++	return syscall.Chdir(fd.Path)
++}
++
++// ReadDir wraps syscall.ReadDir.
++// We treat this like an ordinary system call rather than a call
++// that tries to fill the buffer.
++func (fd *FD) ReadDir(buf []byte, cookie syscall.Dircookie) (int, error) {
++	if err := fd.incref(); err != nil {
++		return 0, err
++	}
++	defer fd.decref()
++	for {
++		n, err := syscall.ReadDir(fd.Sysfd, buf, cookie)
++		if err != nil {
++			n = 0
++			if err == syscall.EAGAIN && fd.pd.pollable() {
++				if err = fd.pd.waitRead(fd.isFile); err == nil {
++					continue
++				}
++			}
++		}
++		// Do not call eofError; caller does not expect to see io.EOF.
++		return n, err
++	}
++}
++
++func (fd *FD) ReadDirent(buf []byte) (int, error) {
++	n, err := fd.ReadDir(buf, fd.Dircookie)
++	if err != nil {
++		return 0, err
++	}
++	if n <= 0 {
++		return n, nil // EOF
++	}
++
++	// We assume that the caller of ReadDirent will consume the entire buffer
++	// up to the last full entry, so we scan through the buffer looking for the
++	// value of the last next cookie.
++	b := buf[:n]
++
++	for len(b) > 0 {
++		next, ok := direntNext(b)
++		if !ok {
++			break
++		}
++		size, ok := direntReclen(b)
++		if !ok {
++			break
++		}
++		if size > uint64(len(b)) {
++			break
++		}
++		fd.Dircookie = syscall.Dircookie(next)
++		b = b[size:]
++	}
++
++	// Trim a potentially incomplete trailing entry; this is necessary because
++	// the code in src/os/dir_unix.go does not deal well with partial values in
++	// calls to direntReclen, etc... and ends up causing an early EOF before all
++	// directory entries were consumed. ReadDirent is called with a large enough
++	// buffer (8 KiB) that at least one entry should always fit, tho this seems
++	// a bit brittle but cannot be addressed without a large change of the
++	// algorithm in the os.(*File).readdir method.
++	return n - len(b), nil
++}
++
++// Seek wraps syscall.Seek.
++func (fd *FD) Seek(offset int64, whence int) (int64, error) {
++	if err := fd.incref(); err != nil {
++		return 0, err
++	}
++	defer fd.decref()
++	// syscall.Filetype is a uint8 but we store it as a uint32 in SysFile in
++	// order to use atomic load/store on the field, which is why we have to
++	// perform this type conversion.
++	fileType := syscall.Filetype(atomic.LoadUint32(&fd.Filetype))
++
++	if fileType == syscall.FILETYPE_UNKNOWN {
++		var stat syscall.Stat_t
++		if err := fd.Fstat(&stat); err != nil {
++			return 0, err
++		}
++		fileType = stat.Filetype
++		atomic.StoreUint32(&fd.Filetype, uint32(fileType))
++	}
++
++	if fileType == syscall.FILETYPE_DIRECTORY {
++		// If the file descriptor is opened on a directory, we reset the readdir
++		// cookie when seeking back to the beginning to allow reusing the file
++		// descriptor to scan the directory again.
++		if offset == 0 && whence == 0 {
++			fd.Dircookie = 0
++			return 0, nil
++		} else {
++			return 0, syscall.EINVAL
++		}
++	}
++
++	return syscall.Seek(fd.Sysfd, offset, whence)
++}
++
++// https://github.com/WebAssembly/WASI/blob/main/legacy/preview1/docs.md#-dirent-record
++const sizeOfDirent = 24
++
++func direntReclen(buf []byte) (uint64, bool) {
++	namelen, ok := direntNamlen(buf)
++	return sizeOfDirent + namelen, ok
++}
++
++func direntNamlen(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(syscall.Dirent{}.Namlen), unsafe.Sizeof(syscall.Dirent{}.Namlen))
++}
++
++func direntNext(buf []byte) (uint64, bool) {
++	return readInt(buf, unsafe.Offsetof(syscall.Dirent{}.Next), unsafe.Sizeof(syscall.Dirent{}.Next))
++}
++
++// readInt returns the size-bytes unsigned integer in native byte order at offset off.
++func readInt(b []byte, off, size uintptr) (u uint64, ok bool) {
++	if len(b) < int(off+size) {
++		return 0, false
++	}
++	return readIntLE(b[off:], size), true
++}
++
++func readIntLE(b []byte, size uintptr) uint64 {
++	switch size {
++	case 1:
++		return uint64(b[0])
++	case 2:
++		_ = b[1] // bounds check hint to compiler; see golang.org/issue/14808
++		return uint64(b[0]) | uint64(b[1])<<8
++	case 4:
++		_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
++		return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24
++	case 8:
++		_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
++		return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24 |
++			uint64(b[4])<<32 | uint64(b[5])<<40 | uint64(b[6])<<48 | uint64(b[7])<<56
++	default:
++		panic("internal/poll: readInt with unsupported size")
++	}
++}
+diff --git a/src/internal/poll/hook_unix.go b/src/internal/poll/hook_unix.go
+index 1a5035675d..b3f4f9eb17 100644
+--- a/src/internal/poll/hook_unix.go
++++ b/src/internal/poll/hook_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm)
++//go:build unix || (js && wasm) || wasip1
+ 
+ package poll
+ 
+diff --git a/src/internal/poll/sys_cloexec.go b/src/internal/poll/sys_cloexec.go
+index 7cd80019f4..2c5da7d3fe 100644
+--- a/src/internal/poll/sys_cloexec.go
++++ b/src/internal/poll/sys_cloexec.go
+@@ -5,7 +5,7 @@
+ // This file implements accept for platforms that do not provide a fast path for
+ // setting SetNonblock and CloseOnExec.
+ 
+-//go:build aix || darwin || (js && wasm)
++//go:build aix || darwin || (js && wasm) || wasip1
+ 
+ package poll
+ 
+diff --git a/src/internal/syscall/unix/net_wasip1.go b/src/internal/syscall/unix/net_wasip1.go
+new file mode 100644
+index 0000000000..8a60e8f7a1
+--- /dev/null
++++ b/src/internal/syscall/unix/net_wasip1.go
+@@ -0,0 +1,44 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build wasip1
++
++package unix
++
++import (
++	"syscall"
++	_ "unsafe"
++)
++
++func RecvfromInet4(fd int, p []byte, flags int, from *syscall.SockaddrInet4) (int, error) {
++	return 0, syscall.ENOSYS
++}
++
++func RecvfromInet6(fd int, p []byte, flags int, from *syscall.SockaddrInet6) (n int, err error) {
++	return 0, syscall.ENOSYS
++}
++
++func SendtoInet4(fd int, p []byte, flags int, to *syscall.SockaddrInet4) (err error) {
++	return syscall.ENOSYS
++}
++
++func SendtoInet6(fd int, p []byte, flags int, to *syscall.SockaddrInet6) (err error) {
++	return syscall.ENOSYS
++}
++
++func SendmsgNInet4(fd int, p, oob []byte, to *syscall.SockaddrInet4, flags int) (n int, err error) {
++	return 0, syscall.ENOSYS
++}
++
++func SendmsgNInet6(fd int, p, oob []byte, to *syscall.SockaddrInet6, flags int) (n int, err error) {
++	return 0, syscall.ENOSYS
++}
++
++func RecvmsgInet4(fd int, p, oob []byte, flags int, from *syscall.SockaddrInet4) (n, oobn int, recvflags int, err error) {
++	return 0, 0, 0, syscall.ENOSYS
++}
++
++func RecvmsgInet6(fd int, p, oob []byte, flags int, from *syscall.SockaddrInet6) (n, oobn int, recvflags int, err error) {
++	return 0, 0, 0, syscall.ENOSYS
++}
+diff --git a/src/internal/syscall/unix/nonblocking_wasip1.go b/src/internal/syscall/unix/nonblocking_wasip1.go
+new file mode 100644
+index 0000000000..49a2a232ba
+--- /dev/null
++++ b/src/internal/syscall/unix/nonblocking_wasip1.go
+@@ -0,0 +1,11 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build wasip1
++
++package unix
++
++func IsNonblock(fd int) (nonblocking bool, err error) {
++	return false, nil
++}
+diff --git a/src/internal/testenv/exec.go b/src/internal/testenv/exec.go
+index 77de59c70a..ec2f2e295c 100644
+--- a/src/internal/testenv/exec.go
++++ b/src/internal/testenv/exec.go
+@@ -20,7 +20,7 @@ import (
+ // using os.StartProcess or (more commonly) exec.Command.
+ func HasExec() bool {
+ 	switch runtime.GOOS {
+-	case "js", "ios":
++	case "wasip1", "js", "ios":
+ 		return false
+ 	}
+ 	return true
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index 565230e24c..9a649e037c 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -46,7 +46,7 @@ func HasGoBuild() bool {
+ 		return false
+ 	}
+ 	switch runtime.GOOS {
+-	case "android", "js", "ios":
++	case "android", "js", "ios", "wasip1":
+ 		return false
+ 	}
+ 	return true
+@@ -80,6 +80,7 @@ func MustHaveGoRun(t testing.TB) {
+ 
+ // HasParallelism reports whether the current system can execute multiple
+ // threads in parallel.
++// There is a copy of this function in cmd/dist/test.go.
+ func HasParallelism() bool {
+ 	switch runtime.GOOS {
+ 	case "js", "wasip1":
+@@ -257,14 +258,14 @@ func HasSrc() bool {
+ // HasExternalNetwork reports whether the current system can use
+ // external (non-localhost) networks.
+ func HasExternalNetwork() bool {
+-	return !testing.Short() && runtime.GOOS != "js"
++	return !testing.Short() && runtime.GOOS != "js" && runtime.GOOS != "wasip1"
+ }
+ 
+ // MustHaveExternalNetwork checks that the current system can use
+ // external (non-localhost) networks.
+ // If not, MustHaveExternalNetwork calls t.Skip with an explanation.
+ func MustHaveExternalNetwork(t testing.TB) {
+-	if runtime.GOOS == "js" {
++	if runtime.GOOS == "js" || runtime.GOOS == "wasip1" {
+ 		t.Skipf("skipping test: no external network on %s", runtime.GOOS)
+ 	}
+ 	if testing.Short() {
+@@ -372,7 +373,7 @@ func SkipFlakyNet(t testing.TB) {
+ // CPUIsSlow reports whether the CPU running the test is suspected to be slow.
+ func CPUIsSlow() bool {
+ 	switch runtime.GOARCH {
+-	case "arm", "mips", "mipsle", "mips64", "mips64le":
++	case "arm", "mips", "mipsle", "mips64", "mips64le", "wasm":
+ 		return true
+ 	}
+ 	return false
+diff --git a/src/internal/testenv/testenv_notunix.go b/src/internal/testenv/testenv_notunix.go
+index 9313c7c827..31abe8d092 100644
+--- a/src/internal/testenv/testenv_notunix.go
++++ b/src/internal/testenv/testenv_notunix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build windows || plan9 || (js && wasm)
++//go:build windows || plan9 || (js && wasm) || wasip1
+ 
+ package testenv
+ 
+diff --git a/src/syscall/syscall_wasip1.go b/src/syscall/syscall_wasip1.go
+index 4572cad79b..d86688f692 100644
+--- a/src/syscall/syscall_wasip1.go
++++ b/src/syscall/syscall_wasip1.go
+@@ -7,6 +7,7 @@
+ package syscall
+ 
+ import (
++	"errors"
+ 	"internal/itoa"
+ 	"internal/oserror"
+ 	"unsafe"
+@@ -81,6 +82,8 @@ func (e Errno) Is(target error) bool {
+ 		return e == EEXIST || e == ENOTEMPTY
+ 	case oserror.ErrNotExist:
+ 		return e == ENOENT
++	case errors.ErrUnsupported:
++		return e == ENOSYS
+ 	}
+ 	return false
+ }

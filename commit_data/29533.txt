@@ -23,8 +23,68 @@ Date:   Wed Aug 24 10:34:16 2016 +0900
     Reviewed-on: https://go-review.googlesource.com/27575
     Reviewed-by: Hiroshi Ioka <hirochachacha@gmail.com>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/internal/syscall/windows/syscall_windows.go  | 1 +
  src/internal/syscall/windows/zsyscall_windows.go | 7 +++++++
  src/os/file_windows.go                           | 8 +++++---
  3 files changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index 47ca602ae1..015862d713 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -138,4 +138,5 @@ func Rename(oldpath, newpath string) error {
+ }
+ 
+ //sys	GetACP() (acp uint32) = kernel32.GetACP
++//sys	GetConsoleCP() (ccp uint32) = kernel32.GetConsoleCP
+ //sys	MultiByteToWideChar(codePage uint32, dwFlags uint32, str *byte, nstr int32, wchar *uint16, nwchar int32) (nwrite int32, err error) = kernel32.MultiByteToWideChar
+diff --git a/src/internal/syscall/windows/zsyscall_windows.go b/src/internal/syscall/windows/zsyscall_windows.go
+index 21fe12fe1b..0b814e9b4a 100644
+--- a/src/internal/syscall/windows/zsyscall_windows.go
++++ b/src/internal/syscall/windows/zsyscall_windows.go
+@@ -43,6 +43,7 @@ var (
+ 	procGetComputerNameExW   = modkernel32.NewProc("GetComputerNameExW")
+ 	procMoveFileExW          = modkernel32.NewProc("MoveFileExW")
+ 	procGetACP               = modkernel32.NewProc("GetACP")
++	procGetConsoleCP         = modkernel32.NewProc("GetConsoleCP")
+ 	procMultiByteToWideChar  = modkernel32.NewProc("MultiByteToWideChar")
+ )
+ 
+@@ -84,6 +85,12 @@ func GetACP() (acp uint32) {
+ 	return
+ }
+ 
++func GetConsoleCP() (ccp uint32) {
++	r0, _, _ := syscall.Syscall(procGetConsoleCP.Addr(), 0, 0, 0, 0)
++	ccp = uint32(r0)
++	return
++}
++
+ func MultiByteToWideChar(codePage uint32, dwFlags uint32, str *byte, nstr int32, wchar *uint16, nwchar int32) (nwrite int32, err error) {
+ 	r0, _, e1 := syscall.Syscall6(procMultiByteToWideChar.Addr(), 6, uintptr(codePage), uintptr(dwFlags), uintptr(unsafe.Pointer(str)), uintptr(nstr), uintptr(unsafe.Pointer(wchar)), uintptr(nwchar))
+ 	nwrite = int32(r0)
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index e1f9f1c33d..efbf0e85fb 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -217,14 +217,16 @@ func (f *File) readConsole(b []byte) (n int, err error) {
+ 			if len(b) > 0 {
+ 				pmb = &mbytes[0]
+ 			}
+-			acp := windows.GetACP()
+-			nwc, err := windows.MultiByteToWideChar(acp, 2, pmb, int32(nmb), nil, 0)
++			ccp := windows.GetConsoleCP()
++			// Convert from 8-bit console encoding to UTF16.
++			// MultiByteToWideChar defaults to Unicode NFC form, which is the expected one.
++			nwc, err := windows.MultiByteToWideChar(ccp, 0, pmb, int32(nmb), nil, 0)
+ 			if err != nil {
+ 				return 0, err
+ 			}
+ 			wchars := make([]uint16, nwc)
+ 			pwc := &wchars[0]
+-			nwc, err = windows.MultiByteToWideChar(acp, 2, pmb, int32(nmb), pwc, nwc)
++			nwc, err = windows.MultiByteToWideChar(ccp, 0, pmb, int32(nmb), pwc, nwc)
+ 			if err != nil {
+ 				return 0, err
+ 			}

@@ -11,7 +11,254 @@ Date:   Tue Jul 31 18:32:25 2018 -0400
     Change-Id: Ib72d751388dfbb50030191ae40f788d1402834b2
     Reviewed-on: https://go-review.googlesource.com/126956
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/modfetch/codehost/git.go  | 99 +++++++++++++++++++++++----
  src/cmd/go/testdata/script/mod_get_pseudo.txt | 68 ++++++++++--------
  2 files changed, 122 insertions(+), 45 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/codehost/git.go b/src/cmd/go/internal/modfetch/codehost/git.go
+index 0f159bd519..06c452ff45 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git.go
++++ b/src/cmd/go/internal/modfetch/codehost/git.go
+@@ -355,19 +355,11 @@ func (r *gitRepo) stat(rev string) (*RevInfo, error) {
+ 	// Last resort.
+ 	// Fetch all heads and tags and hope the hash we want is in the history.
+ 	if r.fetchLevel < fetchAll {
++		// TODO(bcmills): should we wait to upgrade fetchLevel until after we check
++		// err? If there is a temporary server error, we want subsequent fetches to
++		// try again instead of proceeding with an incomplete repo.
+ 		r.fetchLevel = fetchAll
+-
+-		// To work around a protocol version 2 bug that breaks --unshallow,
+-		// add -c protocol.version=0.
+-		// TODO(rsc): The bug is believed to be server-side, meaning only
+-		// on Google's Git servers. Once the servers are fixed, drop the
+-		// protocol.version=0. See Google-internal bug b/110495752.
+-		var protoFlag []string
+-		unshallowFlag := unshallow(r.dir)
+-		if len(unshallowFlag) > 0 {
+-			protoFlag = []string{"-c", "protocol.version=0"}
+-		}
+-		if _, err := Run(r.dir, "git", protoFlag, "fetch", unshallowFlag, "-f", r.remote, "refs/heads/*:refs/heads/*", "refs/tags/*:refs/tags/*"); err != nil {
++		if err := r.fetchUnshallow("refs/heads/*:refs/heads/*", "refs/tags/*:refs/tags/*"); err != nil {
+ 			return nil, err
+ 		}
+ 	}
+@@ -375,6 +367,21 @@ func (r *gitRepo) stat(rev string) (*RevInfo, error) {
+ 	return r.statLocal(rev, rev)
+ }
+ 
++func (r *gitRepo) fetchUnshallow(refSpecs ...string) error {
++	// To work around a protocol version 2 bug that breaks --unshallow,
++	// add -c protocol.version=0.
++	// TODO(rsc): The bug is believed to be server-side, meaning only
++	// on Google's Git servers. Once the servers are fixed, drop the
++	// protocol.version=0. See Google-internal bug b/110495752.
++	var protoFlag []string
++	unshallowFlag := unshallow(r.dir)
++	if len(unshallowFlag) > 0 {
++		protoFlag = []string{"-c", "protocol.version=0"}
++	}
++	_, err := Run(r.dir, "git", protoFlag, "fetch", unshallowFlag, "-f", r.remote, refSpecs)
++	return err
++}
++
+ // statLocal returns a RevInfo describing rev in the local git repository.
+ // It uses version as info.Version.
+ func (r *gitRepo) statLocal(version, rev string) (*RevInfo, error) {
+@@ -512,6 +519,18 @@ func (r *gitRepo) ReadFileRevs(revs []string, file string, maxSize int64) (map[s
+ 		return nil, err
+ 	}
+ 
++	// TODO(bcmills): after the 1.11 freeze, replace the block above with:
++	//	if r.fetchLevel <= fetchSome {
++	//		r.fetchLevel = fetchSome
++	//		var refs []string
++	//		for _, tag := range redo {
++	//			refs = append(refs, "refs/tags/"+tag+":refs/tags/"+tag)
++	//		}
++	//		if _, err := Run(r.dir, "git", "fetch", "--update-shallow", "-f", r.remote, refs); err != nil {
++	//			return nil, err
++	//		}
++	//	}
++
+ 	if _, err := r.readFileRevs(redo, file, files); err != nil {
+ 		return nil, err
+ 	}
+@@ -603,15 +622,65 @@ func (r *gitRepo) readFileRevs(tags []string, file string, fileMap map[string]*F
+ }
+ 
+ func (r *gitRepo) RecentTag(rev, prefix string) (tag string, err error) {
+-	_, err = r.Stat(rev)
++	info, err := r.Stat(rev)
+ 	if err != nil {
+ 		return "", err
+ 	}
+-	out, err := Run(r.dir, "git", "describe", "--first-parent", "--tags", "--always", "--abbrev=0", "--match", prefix+"v[0-9]*.[0-9]*.[0-9]*", "--tags", rev)
++	rev = info.Name // expand hash prefixes
++
++	// describe sets tag and err using 'git describe' and reports whether the
++	// result is definitive.
++	describe := func() (definitive bool) {
++		var out []byte
++		out, err = Run(r.dir, "git", "describe", "--first-parent", "--always", "--abbrev=0", "--match", prefix+"v[0-9]*.[0-9]*.[0-9]*", "--tags", rev)
++		if err != nil {
++			return true // Because we use "--always", describe should never fail.
++		}
++
++		tag = string(bytes.TrimSpace(out))
++		return tag != "" && !AllHex(tag)
++	}
++
++	if describe() {
++		return tag, err
++	}
++
++	// Git didn't find a version tag preceding the requested rev.
++	// See whether any plausible tag exists.
++	tags, err := r.Tags(prefix + "v")
+ 	if err != nil {
+ 		return "", err
+ 	}
+-	return strings.TrimSpace(string(out)), nil
++	if len(tags) == 0 {
++		return "", nil
++	}
++
++	// There are plausible tags, but we don't know if rev is a descendent of any of them.
++	// Fetch the history to find out.
++
++	r.mu.Lock()
++	defer r.mu.Unlock()
++
++	if r.fetchLevel < fetchAll {
++		// Fetch all heads and tags and see if that gives us enough history.
++		if err := r.fetchUnshallow("refs/heads/*:refs/heads/*", "refs/tags/*:refs/tags/*"); err != nil {
++			return "", err
++		}
++		r.fetchLevel = fetchAll
++	}
++
++	// If we've reached this point, we have all of the commits that are reachable
++	// from all heads and tags.
++	//
++	// The only refs we should be missing are those that are no longer reachable
++	// (or never were reachable) from any branch or tag, including the master
++	// branch, and we don't want to resolve them anyway (they're probably
++	// unreachable for a reason).
++	//
++	// Try one last time in case some other goroutine fetched rev while we were
++	// waiting on r.mu.
++	describe()
++	return tag, err
+ }
+ 
+ func (r *gitRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, actualSubdir string, err error) {
+diff --git a/src/cmd/go/testdata/script/mod_get_pseudo.txt b/src/cmd/go/testdata/script/mod_get_pseudo.txt
+index 80bcd4718d..3945fdfa89 100644
+--- a/src/cmd/go/testdata/script/mod_get_pseudo.txt
++++ b/src/cmd/go/testdata/script/mod_get_pseudo.txt
+@@ -5,65 +5,73 @@ env GO111MODULE=on
+ [!exec:git] skip
+ env GOPROXY=
+ 
++# We can resolve the @master branch without unshallowing the local repository
++# (even with older gits), so try that before we do anything else.
++# (This replicates https://golang.org/issue/26713 with git 2.7.4.)
++go get -m github.com/rsc/legacytest@master
++go list -m all
++stdout '^github.com/rsc/legacytest v2\.0\.1-0\.\d{14}-7303f7796364\+incompatible$'
++
+ # get should include incompatible tags in "latest" calculation.
++go get -m github.com/rsc/legacytest@latest
+ go list
+ go list -m all
+ stdout '^github.com/rsc/legacytest v2\.0\.0\+incompatible$'
+ 
+-# v0.0.0-pseudo
+-go get -m ...test@52853eb
++# v2.0.1-0.pseudo+incompatible
++go get -m ...test@7303f77
+ go list -m all
+-stdout '^github.com/rsc/legacytest v0\.0\.0-\d{14}-52853eb7b552$'
++stdout '^github.com/rsc/legacytest v2\.0\.1-0\.\d{14}-7303f7796364\+incompatible$'
+ 
+-# v1.0.0
+-go get -m ...test@7fff7f3
++# v2.0.0+incompatible by tag+incompatible
++go get -m ...test@v2.0.0+incompatible
+ go list -m all
+-stdout '^github.com/rsc/legacytest v1\.0\.0$'
++stdout '^github.com/rsc/legacytest v2\.0\.0\+incompatible$'
+ 
+-# v1.0.1-0.pseudo
+-go get -m ...test@fa4f5d6
++# v2.0.0+incompatible by tag
++go get -m ...test@v2.0.0
+ go list -m all
+-stdout '^github.com/rsc/legacytest v1\.0\.1-0\.\d{14}-fa4f5d6a71c6$'
++stdout '^github.com/rsc/legacytest v2\.0\.0\+incompatible$'
+ 
+-# v1.1.0-pre (no longer on master)
+-go get -m ...test@731e3b1
++# v2.0.0+incompatible by hash (back on master)
++go get -m ...test@d7ae1e4
+ go list -m all
+-stdout '^github.com/rsc/legacytest v1\.1\.0-pre$'
++stdout '^github.com/rsc/legacytest v2\.0\.0\+incompatible$'
+ 
+-# v1.1.0-pre.0.pseudo
+-go get -m ...test@fb3c628
++# v1.2.1-0.pseudo
++go get -m ...test@d2d4c3e
+ go list -m all
+-stdout '^github.com/rsc/legacytest v1\.1\.0-pre\.0\.\d{14}-fb3c628075e3$'
++stdout '^github.com/rsc/legacytest v1\.2\.1-0\.\d{14}-d2d4c3ea6623$'
+ 
+ # v1.2.0
+ go get -m ...test@9f6f860
+ go list -m all
+ stdout '^github.com/rsc/legacytest v1\.2\.0$'
+ 
+-# v1.2.1-0.pseudo
+-go get -m ...test@d2d4c3e
++# v1.1.0-pre.0.pseudo
++go get -m ...test@fb3c628
+ go list -m all
+-stdout '^github.com/rsc/legacytest v1\.2\.1-0\.\d{14}-d2d4c3ea6623$'
++stdout '^github.com/rsc/legacytest v1\.1\.0-pre\.0\.\d{14}-fb3c628075e3$'
+ 
+-# v2.0.0+incompatible by hash (back on master)
+-go get -m ...test@d7ae1e4
++# v1.1.0-pre (no longer on master)
++go get -m ...test@731e3b1
+ go list -m all
+-stdout '^github.com/rsc/legacytest v2\.0\.0\+incompatible$'
++stdout '^github.com/rsc/legacytest v1\.1\.0-pre$'
+ 
+-# v2.0.0+incompatible by tag
+-go get -m ...test@v2.0.0
++# v1.0.1-0.pseudo
++go get -m ...test@fa4f5d6
+ go list -m all
+-stdout '^github.com/rsc/legacytest v2\.0\.0\+incompatible$'
++stdout '^github.com/rsc/legacytest v1\.0\.1-0\.\d{14}-fa4f5d6a71c6$'
+ 
+-# v2.0.0+incompatible by tag+incompatible
+-go get -m ...test@v2.0.0+incompatible
++# v1.0.0
++go get -m ...test@7fff7f3
+ go list -m all
+-stdout '^github.com/rsc/legacytest v2\.0\.0\+incompatible$'
++stdout '^github.com/rsc/legacytest v1\.0\.0$'
+ 
+-# v2.0.1-0.pseudo+incompatible
+-go get -m ...test@7303f77
++# v0.0.0-pseudo
++go get -m ...test@52853eb
+ go list -m all
+-stdout '^github.com/rsc/legacytest v2\.0\.1-0\.\d{14}-7303f7796364\+incompatible$'
++stdout '^github.com/rsc/legacytest v0\.0\.0-\d{14}-52853eb7b552$'
+ 
+ -- go.mod --
+ module x

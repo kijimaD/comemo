@@ -20,6 +20,33 @@ Date:   Wed Oct 2 13:38:25 2024 -0700
     Commit-Queue: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/time.go | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index 6d47ebacb9..3353502fc4 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -1114,6 +1114,11 @@ func (t *timer) unlockAndRun(now int64) {
+ 		// started to send the value. That lets them correctly return
+ 		// true meaning that no value was sent.
+ 		lock(&t.sendLock)
++
++		// We are committed to possibly sending a value based on seq,
++		// so no need to keep telling stop/modify that we are sending.
++		t.isSending.And(^isSendingClear)
++
+ 		if t.seq != seq {
+ 			f = func(any, uintptr, int64) {}
+ 		}
+@@ -1122,9 +1127,6 @@ func (t *timer) unlockAndRun(now int64) {
+ 	f(arg, seq, delay)
+ 
+ 	if !async && t.isChan {
+-		// We are no longer sending a value.
+-		t.isSending.And(^isSendingClear)
+-
+ 		unlock(&t.sendLock)
+ 	}
+ 

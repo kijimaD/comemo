@@ -16,6 +16,36 @@ Date:   Mon Feb 22 11:11:51 2021 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  test/fixedbugs/issue38698.go | 23 +++++++++++++++++++++++
  1 file changed, 23 insertions(+)
+
+diff --git a/test/fixedbugs/issue38698.go b/test/fixedbugs/issue38698.go
+new file mode 100644
+index 0000000000..819e223791
+--- /dev/null
++++ b/test/fixedbugs/issue38698.go
+@@ -0,0 +1,23 @@
++// compile
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This test case caused a panic in the compiler's DWARF gen code.
++
++package p
++
++func ff( /*line :10*/ x string) bool {
++	{
++		var _ /*line :10*/, x int
++		_ = x
++	}
++	return x == ""
++}
++
++
++func h(a string) bool {
++	return ff(a)
++}
++

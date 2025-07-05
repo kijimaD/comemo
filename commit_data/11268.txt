@@ -7,7 +7,7 @@ Date:   Thu Jan 19 11:29:24 2012 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5539063
-
+---
  src/pkg/os/stat_darwin.go  | 3 +++
  src/pkg/os/stat_freebsd.go | 3 +++
  src/pkg/os/stat_linux.go   | 3 +++
@@ -15,3 +15,104 @@ Date:   Thu Jan 19 11:29:24 2012 -0800
  src/pkg/os/stat_openbsd.go | 3 +++
  src/pkg/os/types.go        | 5 +++--
  6 files changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/os/stat_darwin.go b/src/pkg/os/stat_darwin.go
+index efe77cb30b..e1f93fac38 100644
+--- a/src/pkg/os/stat_darwin.go
++++ b/src/pkg/os/stat_darwin.go
+@@ -45,6 +45,9 @@ func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
+ 	if st.Mode&syscall.S_ISUID != 0 {
+ 		fs.mode |= ModeSetuid
+ 	}
++	if st.Mode&syscall.S_ISVTX != 0 {
++		fs.mode |= ModeSticky
++	}
+ 	return fs
+ }
+ 
+diff --git a/src/pkg/os/stat_freebsd.go b/src/pkg/os/stat_freebsd.go
+index b59c53635a..4c1c19729d 100644
+--- a/src/pkg/os/stat_freebsd.go
++++ b/src/pkg/os/stat_freebsd.go
+@@ -45,6 +45,9 @@ func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
+ 	if st.Mode&syscall.S_ISUID != 0 {
+ 		fs.mode |= ModeSetuid
+ 	}
++	if st.Mode&syscall.S_ISVTX != 0 {
++		fs.mode |= ModeSticky
++	}
+ 	return fs
+ }
+ 
+diff --git a/src/pkg/os/stat_linux.go b/src/pkg/os/stat_linux.go
+index b0a569e24c..8d1323af9c 100644
+--- a/src/pkg/os/stat_linux.go
++++ b/src/pkg/os/stat_linux.go
+@@ -45,6 +45,9 @@ func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
+ 	if st.Mode&syscall.S_ISUID != 0 {
+ 		fs.mode |= ModeSetuid
+ 	}
++	if st.Mode&syscall.S_ISVTX != 0 {
++		fs.mode |= ModeSticky
++	}
+ 	return fs
+ }
+ 
+diff --git a/src/pkg/os/stat_netbsd.go b/src/pkg/os/stat_netbsd.go
+index b0a569e24c..8d1323af9c 100644
+--- a/src/pkg/os/stat_netbsd.go
++++ b/src/pkg/os/stat_netbsd.go
+@@ -45,6 +45,9 @@ func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
+ 	if st.Mode&syscall.S_ISUID != 0 {
+ 		fs.mode |= ModeSetuid
+ 	}
++	if st.Mode&syscall.S_ISVTX != 0 {
++		fs.mode |= ModeSticky
++	}
+ 	return fs
+ }
+ 
+diff --git a/src/pkg/os/stat_openbsd.go b/src/pkg/os/stat_openbsd.go
+index b0a569e24c..8d1323af9c 100644
+--- a/src/pkg/os/stat_openbsd.go
++++ b/src/pkg/os/stat_openbsd.go
+@@ -45,6 +45,9 @@ func fileInfoFromStat(st *syscall.Stat_t, name string) FileInfo {
+ 	if st.Mode&syscall.S_ISUID != 0 {
+ 		fs.mode |= ModeSetuid
+ 	}
++	if st.Mode&syscall.S_ISVTX != 0 {
++		fs.mode |= ModeSticky
++	}
+ 	return fs
+ }
+ 
+diff --git a/src/pkg/os/types.go b/src/pkg/os/types.go
+index bf009805fd..a3f187c25c 100644
+--- a/src/pkg/os/types.go
++++ b/src/pkg/os/types.go
+@@ -39,7 +39,7 @@ const (
+ 	ModeDir        FileMode = 1 << (32 - 1 - iota) // d: is a directory
+ 	ModeAppend                                     // a: append-only
+ 	ModeExclusive                                  // l: exclusive use
+-	ModeTemporary                                  // t: temporary file (not backed up)
++	ModeTemporary                                  // T: temporary file (not backed up)
+ 	ModeSymlink                                    // L: symbolic link
+ 	ModeDevice                                     // D: device file
+ 	ModeNamedPipe                                  // p: named pipe (FIFO)
+@@ -47,6 +47,7 @@ const (
+ 	ModeSetuid                                     // u: setuid
+ 	ModeSetgid                                     // g: setgid
+ 	ModeCharDevice                                 // c: Unix character device, when ModeDevice is set
++	ModeSticky                                     // t: sticky
+ 
+ 	// Mask for the type bits. For regular files, none will be set.
+ 	ModeType = ModeDir | ModeSymlink | ModeNamedPipe | ModeSocket | ModeDevice
+@@ -55,7 +56,7 @@ const (
+ )
+ 
+ func (m FileMode) String() string {
+-	const str = "daltLDpSugc"
++	const str = "dalTLDpSugct"
+ 	var buf [20]byte
+ 	w := 0
+ 	for i, c := range str {

@@ -12,7 +12,55 @@ Date:   Fri May 9 14:19:21 2014 -0700
     R=golang-codereviews, adg
     CC=golang-codereviews
     https://golang.org/cl/95160043
-
+---
  src/pkg/encoding/binary/binary.go      |  1 +
  src/pkg/encoding/binary/binary_test.go | 24 ++++++++++++++++++++++++
  2 files changed, 25 insertions(+)
+
+diff --git a/src/pkg/encoding/binary/binary.go b/src/pkg/encoding/binary/binary.go
+index f3466b9af0..a5694876ac 100644
+--- a/src/pkg/encoding/binary/binary.go
++++ b/src/pkg/encoding/binary/binary.go
+@@ -133,6 +133,7 @@ func (bigEndian) GoString() string { return "binary.BigEndian" }
+ // When reading into structs, the field data for fields with
+ // blank (_) field names is skipped; i.e., blank field names
+ // may be used for padding.
++// When reading into a struct, all non-blank fields must be exported.
+ func Read(r io.Reader, order ByteOrder, data interface{}) error {
+ 	// Fast path for basic types and slices.
+ 	if n := intDataSize(data); n != 0 {
+diff --git a/src/pkg/encoding/binary/binary_test.go b/src/pkg/encoding/binary/binary_test.go
+index 1aa6ecd248..c80c90383a 100644
+--- a/src/pkg/encoding/binary/binary_test.go
++++ b/src/pkg/encoding/binary/binary_test.go
+@@ -265,6 +265,30 @@ func TestBlankFields(t *testing.T) {
+ 	}
+ }
+ 
++// An attempt to read into a struct with an unexported field will
++// panic.  This is probably not the best choice, but at this point
++// anything else would be an API change.
++
++type Unexported struct {
++	a int32
++}
++
++func TestUnexportedRead(t *testing.T) {
++	var buf bytes.Buffer
++	u1 := Unexported{a: 1}
++	if err := Write(&buf, LittleEndian, &u1); err != nil {
++		t.Fatal(err)
++	}
++
++	defer func() {
++		if recover() == nil {
++			t.Fatal("did not panic")
++		}
++	}()
++	var u2 Unexported
++	Read(&buf, LittleEndian, &u2)
++}
++
+ type byteSliceReader struct {
+ 	remain []byte
+ }

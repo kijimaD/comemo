@@ -11,6 +11,33 @@ Date:   Wed Jun 10 11:19:14 2015 -0700
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/archive/zip/writer.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/archive/zip/writer.go b/src/archive/zip/writer.go
+index 87ac694a4e..3be2b5fdb2 100644
+--- a/src/archive/zip/writer.go
++++ b/src/archive/zip/writer.go
+@@ -195,14 +195,20 @@ func (w *Writer) Create(name string) (io.Writer, error) {
+ // CreateHeader adds a file to the zip file using the provided FileHeader
+ // for the file metadata.
+ // It returns a Writer to which the file contents should be written.
++//
+ // The file's contents must be written to the io.Writer before the next
+-// call to Create, CreateHeader, or Close.
++// call to Create, CreateHeader, or Close. The provided FileHeader fh
++// must not be modified after a call to CreateHeader.
+ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
+ 	if w.last != nil && !w.last.closed {
+ 		if err := w.last.close(); err != nil {
+ 			return nil, err
+ 		}
+ 	}
++	if len(w.dir) > 0 && w.dir[len(w.dir)-1].FileHeader == fh {
++		// See https://golang.org/issue/11144 confusion.
++		return nil, errors.New("archive/zip: invalid duplicate FileHeader")
++	}
+ 
+ 	fh.Flags |= 0x8 // we will write a data descriptor
+ 

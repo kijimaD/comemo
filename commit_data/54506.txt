@@ -13,10 +13,192 @@ Date:   Sun Sep 25 18:40:54 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/import.go              | 42 ++++++++++------
  .../go/testdata/script/mod_go_version_missing.txt  |  3 +-
  src/cmd/go/testdata/script/mod_issue35270.txt      | 57 ++++++++++++++++++++++
  src/cmd/go/testdata/script/mod_std_vendor.txt      |  5 +-
  src/cmd/go/testdata/script/mod_vendor.txt          |  2 +-
  5 files changed, 90 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 87b0656305..79a0811e3c 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -286,6 +286,10 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
+ 		return module.Version{}, "", "", nil, &invalidImportError{importPath: path, err: err}
+ 	}
+ 
++	// Check each module on the build list.
++	var dirs, roots []string
++	var mods []module.Version
++
+ 	// Is the package in the standard library?
+ 	pathIsStd := search.IsStandardImportPath(path)
+ 	if pathIsStd && modindex.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, path) {
+@@ -303,35 +307,43 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
+ 		if str.HasPathPrefix(path, "cmd") {
+ 			modroot = filepath.Join(cfg.GOROOTsrc, "cmd")
+ 		}
+-		return module.Version{}, modroot, dir, nil, nil
++		dirs = append(dirs, dir)
++		roots = append(roots, modroot)
++		mods = append(mods, module.Version{})
+ 	}
+-
+ 	// -mod=vendor is special.
+ 	// Everything must be in the main module or the main module's vendor directory.
+ 	if cfg.BuildMod == "vendor" {
+ 		mainModule := MainModules.mustGetSingleMainModule()
+ 		modRoot := MainModules.ModRoot(mainModule)
+ 		mainDir, mainOK, mainErr := dirInModule(path, MainModules.PathPrefix(mainModule), modRoot, true)
++		if mainOK {
++			mods = append(mods, mainModule)
++			dirs = append(dirs, mainDir)
++			roots = append(roots, modRoot)
++		}
+ 		vendorDir, vendorOK, _ := dirInModule(path, "", filepath.Join(modRoot, "vendor"), false)
+-		if mainOK && vendorOK {
+-			return module.Version{}, modRoot, "", nil, &AmbiguousImportError{importPath: path, Dirs: []string{mainDir, vendorDir}}
++		if vendorOK {
++			readVendorList(mainModule)
++			mods = append(mods, vendorPkgModule[path])
++			dirs = append(dirs, vendorDir)
++			roots = append(roots, modRoot)
+ 		}
+-		// Prefer to return main directory if there is one,
+-		// Note that we're not checking that the package exists.
+-		// We'll leave that for load.
+-		if !vendorOK && mainDir != "" {
+-			return mainModule, modRoot, mainDir, nil, nil
++
++		if len(dirs) > 1 {
++			return module.Version{}, modRoot, "", nil, &AmbiguousImportError{importPath: path, Dirs: dirs}
+ 		}
++
+ 		if mainErr != nil {
+ 			return module.Version{}, "", "", nil, mainErr
+ 		}
+-		readVendorList(mainModule)
+-		return vendorPkgModule[path], modRoot, vendorDir, nil, nil
+-	}
+ 
+-	// Check each module on the build list.
+-	var dirs, roots []string
+-	var mods []module.Version
++		if len(dirs) == 0 {
++			return module.Version{}, modRoot, "", nil, &ImportMissingError{Path: path}
++		}
++
++		return mods[0], roots[0], dirs[0], nil, nil
++	}
+ 
+ 	// Iterate over possible modules for the path, not all selected modules.
+ 	// Iterating over selected modules would make the overall loading time
+diff --git a/src/cmd/go/testdata/script/mod_go_version_missing.txt b/src/cmd/go/testdata/script/mod_go_version_missing.txt
+index f4e0a96f3e..f40b48fc7f 100644
+--- a/src/cmd/go/testdata/script/mod_go_version_missing.txt
++++ b/src/cmd/go/testdata/script/mod_go_version_missing.txt
+@@ -27,7 +27,8 @@ cmp go.mod go.mod.orig
+ 
+ ! go list -mod=vendor all
+ ! stderr '^go: inconsistent vendoring'
+-stderr 'cannot find package "." in:\n\t.*[/\\]vendor[/\\]example.com[/\\]badedit$'
++stderr 'go: finding module for package example.com/badedit'
++stderr 'cannot query module due to -mod=vendor'
+ 
+ # When we set -mod=mod, the go version should be updated immediately,
+ # to the current version, converting the requirements from eager to lazy.
+diff --git a/src/cmd/go/testdata/script/mod_issue35270.txt b/src/cmd/go/testdata/script/mod_issue35270.txt
+new file mode 100644
+index 0000000000..6c2587a127
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_issue35270.txt
+@@ -0,0 +1,57 @@
++
++cd a
++! go build
++stderr '^ambiguous import: found package image in multiple modules:\s+image\s+.+\s.+image.+\s$'
++
++
++cd ../b
++! go build -mod=vendor
++stderr '^main.go:4:5: ambiguous import: found package image in multiple directories:\s+.+image\s+.+image\s+$'
++
++cd ../c
++! go build -mod=vendor
++stderr 'main.go:4:5: package p is not in GOROOT'
++
++-- a/go.mod --
++module image
++
++-- a/main.go --
++package main
++
++func main() {
++    println("hello world!")
++}
++
++-- b/go.mod --
++module test
++
++-- b/vendor/image/b.go --
++package image
++func Add(a, b int) int {
++    return a + b
++}
++
++-- b/main.go --
++package main
++
++import (
++    "image"
++)
++
++func main() {
++    println(image.Add(1,1))
++}
++
++-- c/go.mod --
++module test
++
++-- c/main.go --
++package main
++
++import (
++    "p"
++)
++
++func main() {
++    println(p.Add(1,1))
++}
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/mod_std_vendor.txt b/src/cmd/go/testdata/script/mod_std_vendor.txt
+index 82e48b6f19..7e4c210d3c 100644
+--- a/src/cmd/go/testdata/script/mod_std_vendor.txt
++++ b/src/cmd/go/testdata/script/mod_std_vendor.txt
+@@ -22,8 +22,9 @@ cd broken
+ ! go build -mod=readonly
+ stderr 'disabled by -mod=readonly'
+ ! go build -mod=vendor
+-stderr 'cannot find package'
+-stderr 'hpack'
++stderr 'go: finding module for package golang.org/x/net/http2/hpack'
++stderr 'http.go:5:2: cannot query module due to -mod=vendor'
++
+ 
+ # ...even if they explicitly use the "cmd/vendor/" or "vendor/" prefix.
+ cd ../importcmd
+diff --git a/src/cmd/go/testdata/script/mod_vendor.txt b/src/cmd/go/testdata/script/mod_vendor.txt
+index a2727ddf7f..a11d7a1397 100644
+--- a/src/cmd/go/testdata/script/mod_vendor.txt
++++ b/src/cmd/go/testdata/script/mod_vendor.txt
+@@ -55,7 +55,7 @@ stderr 'go: module diamondright: can''t resolve module using the vendor director
+ go list -mod=mod -f {{.Dir}} w
+ stdout 'src[\\/]w'
+ ! go list -mod=vendor -f {{.Dir}} w
+-stderr 'src[\\/]vendor[\\/]w'
++stderr 'package w is not in GOROOT'
+ 
+ go list -mod=mod -f {{.Dir}} diamondright
+ stdout 'src[\\/]diamondright'

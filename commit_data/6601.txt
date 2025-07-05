@@ -7,6 +7,21 @@ Date:   Fri Oct 22 05:53:03 2010 +0200
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2666041
-
+---
  src/pkg/Makefile | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 151dec9d5d..6c9bc18880 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -208,9 +208,6 @@ NOTEST+=cmath        # software floating point (lack of) accuracy
+ NOTEST+=math         # software floating point (lack of) accuracy
+ NOTEST+=strconv      # software floating point (lack of) accuracy
+ 
+-NOTEST+=fmt          # spurious uint overflow
+-NOTEST+=gob          # something involving complex
+-NOTEST+=json         # spurious uint overflow
+ NOTEST+=os/signal    # crash
+ endif
+ 

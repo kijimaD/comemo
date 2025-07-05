@@ -13,6 +13,27 @@ Date:   Thu Sep 1 14:43:39 2022 -0700
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/syscall/unix/kernel_version_linux.go | 11 ++---------
  1 file changed, 2 insertions(+), 9 deletions(-)
+
+diff --git a/src/internal/syscall/unix/kernel_version_linux.go b/src/internal/syscall/unix/kernel_version_linux.go
+index bb1d4de3a6..0697feaecd 100644
+--- a/src/internal/syscall/unix/kernel_version_linux.go
++++ b/src/internal/syscall/unix/kernel_version_linux.go
+@@ -37,13 +37,6 @@ func KernelVersion() (major int, minor int) {
+ 			value = 0
+ 		}
+ 	}
+-	switch vi {
+-	case 0:
+-		return 0, 0
+-	case 1:
+-		return values[0], 0
+-	case 2:
+-		return values[0], values[1]
+-	}
+-	return
++
++	return values[0], values[1]
+ }

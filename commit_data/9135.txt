@@ -7,7 +7,7 @@ Date:   Tue Jul 19 08:22:20 2011 -0700
     R=rsc, adg, bradfitz
     CC=golang-dev
     https://golang.org/cl/4750047
-
+---
  lib/godoc/dirlist.html      |   6 +-
  src/cmd/godoc/Makefile      |   1 +
  src/cmd/godoc/filesystem.go |   5 ++
@@ -16,3 +16,419 @@ Date:   Tue Jul 19 08:22:20 2011 -0700
  src/cmd/godoc/main.go       |  32 +++++---
  src/cmd/godoc/zip.go        |  11 ++-
  7 files changed, 252 insertions(+), 35 deletions(-)
+
+diff --git a/lib/godoc/dirlist.html b/lib/godoc/dirlist.html
+index 3c1e3aae01..29b4b24357 100644
+--- a/lib/godoc/dirlist.html
++++ b/lib/godoc/dirlist.html
+@@ -18,11 +18,11 @@
+ </tr>
+ {.repeated section @}
+ <tr>
+-	<td align="left"><a href="{Name|html-esc}{@|dir/}">{Name|html-esc}{@|dir/}</a></td>
++	<td align="left"><a href="{@|fileInfoName}">{@|fileInfoName}</a></td>
+ 	<td></td>
+-	<td align="right">{Size|html-esc}</td>
++	<td align="right">{@|fileInfoSize}</td>
+ 	<td></td>
+-	<td align="left">{Mtime_ns|time}</td>
++	<td align="left">{@|fileInfoTime}</td>
+ </tr>
+ {.end}
+ </table>
+diff --git a/src/cmd/godoc/Makefile b/src/cmd/godoc/Makefile
+index 69341fa4e6..f40d717030 100644
+--- a/src/cmd/godoc/Makefile
++++ b/src/cmd/godoc/Makefile
+@@ -11,6 +11,7 @@ GOFILES=\
+ 	filesystem.go\
+ 	format.go\
+ 	godoc.go\
++	httpzip.go\
+ 	index.go\
+ 	main.go\
+ 	mapping.go\
+diff --git a/src/cmd/godoc/filesystem.go b/src/cmd/godoc/filesystem.go
+index e9b5fe3c82..a68c085927 100644
+--- a/src/cmd/godoc/filesystem.go
++++ b/src/cmd/godoc/filesystem.go
+@@ -19,6 +19,7 @@ import (
+ type FileInfo interface {
+ 	Name() string
+ 	Size() int64
++	Mtime_ns() int64
+ 	IsRegular() bool
+ 	IsDirectory() bool
+ }
+@@ -54,6 +55,10 @@ func (fi osFI) Size() int64 {
+ 	return fi.FileInfo.Size
+ }
+ 
++func (fi osFI) Mtime_ns() int64 {
++	return fi.FileInfo.Mtime_ns
++}
++
+ // osFS is the OS-specific implementation of FileSystem
+ type osFS struct{}
+ 
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 67441f304f..03ac1b98b7 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -67,11 +67,12 @@ var (
+ 	maxResults   = flag.Int("maxresults", 10000, "maximum number of full text search results shown")
+ 
+ 	// file system mapping
+-	fs         FileSystem // the underlying file system
+-	fsMap      Mapping    // user-defined mapping
+-	fsTree     RWValue    // *Directory tree of packages, updated with each sync
+-	pathFilter RWValue    // filter used when building fsMap directory trees
+-	fsModified RWValue    // timestamp of last call to invalidateIndex
++	fs         FileSystem      // the underlying file system for godoc
++	fsHttp     http.FileSystem // the underlying file system for http
++	fsMap      Mapping         // user-defined mapping
++	fsTree     RWValue         // *Directory tree of packages, updated with each sync
++	pathFilter RWValue         // filter used when building fsMap directory trees
++	fsModified RWValue         // timestamp of last call to invalidateIndex
+ 
+ 	// http handlers
+ 	fileServer http.Handler // default file server
+@@ -89,7 +90,7 @@ func initHandlers() {
+ 	}
+ 	fsMap.Init(paths)
+ 
+-	fileServer = http.FileServer(http.Dir(*goroot))
++	fileServer = http.FileServer(fsHttp)
+ 	cmdHandler = httpHandler{"/cmd/", filepath.Join(*goroot, "src", "cmd"), false}
+ 	pkgHandler = httpHandler{"/pkg/", filepath.Join(*goroot, "src", "pkg"), true}
+ }
+@@ -565,22 +566,32 @@ func paddingFmt(w io.Writer, format string, x ...interface{}) {
+ 	}
+ }
+ 
+-// Template formatter for "time" format.
+-func timeFmt(w io.Writer, format string, x ...interface{}) {
+-	template.HTMLEscape(w, []byte(time.SecondsToLocalTime(x[0].(int64)/1e9).String()))
++// Template formatter for "localname" format.
++func localnameFmt(w io.Writer, format string, x ...interface{}) {
++	_, localname := filepath.Split(x[0].(string))
++	template.HTMLEscape(w, []byte(localname))
+ }
+ 
+-// Template formatter for "dir/" format.
+-func dirslashFmt(w io.Writer, format string, x ...interface{}) {
+-	if x[0].(FileInfo).IsDirectory() {
++// Template formatter for "fileInfoName" format.
++func fileInfoNameFmt(w io.Writer, format string, x ...interface{}) {
++	fi := x[0].(FileInfo)
++	template.HTMLEscape(w, []byte(fi.Name()))
++	if fi.IsDirectory() {
+ 		w.Write([]byte{'/'})
+ 	}
+ }
+ 
+-// Template formatter for "localname" format.
+-func localnameFmt(w io.Writer, format string, x ...interface{}) {
+-	_, localname := filepath.Split(x[0].(string))
+-	template.HTMLEscape(w, []byte(localname))
++// Template formatter for "fileInfoSize" format.
++func fileInfoSizeFmt(w io.Writer, format string, x ...interface{}) {
++	fmt.Fprintf(w, "%d", x[0].(FileInfo).Size())
++}
++
++// Template formatter for "fileInfoTime" format.
++func fileInfoTimeFmt(w io.Writer, format string, x ...interface{}) {
++	if t := x[0].(FileInfo).Mtime_ns(); t != 0 {
++		template.HTMLEscape(w, []byte(time.SecondsToLocalTime(t/1e9).String()))
++	}
++	// don't print epoch if time is obviously not set
+ }
+ 
+ // Template formatter for "numlines" format.
+@@ -601,8 +612,9 @@ var fmap = template.FormatterMap{
+ 	"infoLine":     infoLineFmt,
+ 	"infoSnippet":  infoSnippetFmt,
+ 	"padding":      paddingFmt,
+-	"time":         timeFmt,
+-	"dir/":         dirslashFmt,
++	"fileInfoName": fileInfoNameFmt,
++	"fileInfoSize": fileInfoSizeFmt,
++	"fileInfoTime": fileInfoTimeFmt,
+ 	"localname":    localnameFmt,
+ 	"numlines":     numlinesFmt,
+ }
+diff --git a/src/cmd/godoc/httpzip.go b/src/cmd/godoc/httpzip.go
+new file mode 100644
+index 0000000000..97d8569430
+--- /dev/null
++++ b/src/cmd/godoc/httpzip.go
+@@ -0,0 +1,184 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file provides an implementation of the http.FileSystem
++// interface based on the contents of a .zip file.
++//
++// Assumptions:
++//
++// - The file paths stored in the zip file must use a slash ('/') as path
++//   separator; and they must be relative (i.e., they must not start with
++//   a '/' - this is usually the case if the file was created w/o special
++//   options).
++// - The zip file system treats the file paths found in the zip internally
++//   like absolute paths w/o a leading '/'; i.e., the paths are considered
++//   relative to the root of the file system.
++// - All path arguments to file system methods must be absolute paths.
++
++// TODO(gri) Should define a commonly used FileSystem API that is the same
++//           for http and godoc. Then we only need one zip-file based file
++//           system implementation.
++
++package main
++
++import (
++	"archive/zip"
++	"fmt"
++	"http"
++	"io"
++	"os"
++	"path"
++	"sort"
++	"strings"
++)
++
++// We cannot import syscall on app engine.
++// TODO(gri) Once we have a truly abstract FileInfo implementation
++//           this won't be needed anymore.
++const (
++	S_IFDIR = 0x4000 // == syscall.S_IFDIR
++	S_IFREG = 0x8000 // == syscall.S_IFREG
++)
++
++// httpZipFile is the zip-file based implementation of http.File
++type httpZipFile struct {
++	info          os.FileInfo
++	io.ReadCloser // nil for directory
++	list          zipList
++}
++
++func (f *httpZipFile) Close() os.Error {
++	if f.info.IsRegular() {
++		return f.ReadCloser.Close()
++	}
++	f.list = nil
++	return nil
++}
++
++func (f *httpZipFile) Stat() (*os.FileInfo, os.Error) {
++	return &f.info, nil
++}
++
++func (f *httpZipFile) Readdir(count int) ([]os.FileInfo, os.Error) {
++	println("Readdir", f.info.Name)
++	if f.info.IsRegular() {
++		return nil, fmt.Errorf("Readdir called for regular file: %s", f.info.Name)
++	}
++
++	var list []os.FileInfo
++	dirname := zipPath(f.info.Name) + "/"
++	prevname := ""
++	for i, e := range f.list {
++		if count == 0 {
++			f.list = f.list[i:]
++			break
++		}
++		if !strings.HasPrefix(e.Name, dirname) {
++			f.list = nil
++			break // not in the same directory anymore
++		}
++		name := e.Name[len(dirname):] // local name
++		var mode uint32
++		var size, mtime_ns int64
++		if i := strings.IndexRune(name, '/'); i >= 0 {
++			// We infer directories from files in subdirectories.
++			// If we have x/y, return a directory entry for x.
++			name = name[0:i] // keep local directory name only
++			mode = S_IFDIR
++			// no size or mtime_ns for directories
++		} else {
++			mode = S_IFREG
++			size = int64(e.UncompressedSize)
++			mtime_ns = e.Mtime_ns()
++		}
++		// If we have x/y and x/z, don't return two directory entries for x.
++		// TODO(gri): It should be possible to do this more efficiently
++		// by determining the (fs.list) range of local directory entries
++		// (via two binary searches).
++		if name != prevname {
++			list = append(list, os.FileInfo{
++				Name:     name,
++				Mode:     mode,
++				Size:     size,
++				Mtime_ns: mtime_ns,
++			})
++			prevname = name
++			count--
++		}
++	}
++
++	if count >= 0 && len(list) == 0 {
++		return nil, os.EOF
++	}
++
++	return list, nil
++}
++
++func (f *httpZipFile) Read(buf []byte) (int, os.Error) {
++	if f.info.IsRegular() {
++		return f.ReadCloser.Read(buf)
++	}
++	return 0, fmt.Errorf("Read called for directory: %s", f.info.Name)
++}
++
++func (f *httpZipFile) Seek(offset int64, whence int) (int64, os.Error) {
++	return 0, fmt.Errorf("Seek not implemented for zip file entry: %s", f.info.Name)
++}
++
++// httpZipFS is the zip-file based implementation of http.FileSystem
++type httpZipFS struct {
++	*zip.ReadCloser
++	list zipList
++	root string
++}
++
++func (fs *httpZipFS) Open(abspath string) (http.File, os.Error) {
++	name := path.Join(fs.root, abspath)
++	index := fs.list.lookup(name)
++	if index < 0 {
++		return nil, fmt.Errorf("file not found: %s", abspath)
++	}
++
++	if f := fs.list[index]; f.Name == name {
++		// exact match found - must be a file
++		rc, err := f.Open()
++		if err != nil {
++			return nil, err
++		}
++		return &httpZipFile{
++			os.FileInfo{
++				Name:     abspath,
++				Mode:     S_IFREG,
++				Size:     int64(f.UncompressedSize),
++				Mtime_ns: f.Mtime_ns(),
++			},
++			rc,
++			nil,
++		}, nil
++	}
++
++	// not an exact match - must be a directory
++	println("opened directory", abspath, len(fs.list[index:]))
++	return &httpZipFile{
++		os.FileInfo{
++			Name: abspath,
++			Mode: S_IFDIR,
++			// no size or mtime_ns for directories
++		},
++		nil,
++		fs.list[index:],
++	}, nil
++}
++
++func (fs *httpZipFS) Close() os.Error {
++	fs.list = nil
++	return fs.ReadCloser.Close()
++}
++
++func NewHttpZipFS(rc *zip.ReadCloser, root string) http.FileSystem {
++	list := make(zipList, len(rc.File))
++	copy(list, rc.File) // sort a copy of rc.File
++	sort.Sort(list)
++	return &httpZipFS{rc, list, zipPath(root)}
++}
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index f984719659..6f7d9d78dc 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -49,7 +49,7 @@ const defaultAddr = ":6060" // default webserver address
+ 
+ var (
+ 	// file system to serve
+-	// (with e.g.: zip -r go.zip $GOROOT -i \*.go -i \*.html -i \*.css -i \*.js -i \*.txt -i \*.c -i \*.h -i \*.s -i \*.png -i \*.jpg -i \*.sh)
++	// (with e.g.: zip -r go.zip $GOROOT -i \*.go -i \*.html -i \*.css -i \*.js -i \*.txt -i \*.c -i \*.h -i \*.s -i \*.png -i \*.jpg -i \*.sh -i favicon.ico)
+ 	zipfile = flag.String("zip", "", "zip file providing the file system to serve; disabled if empty")
+ 
+ 	// periodic sync
+@@ -219,26 +219,34 @@ func main() {
+ 	flag.Usage = usage
+ 	flag.Parse()
+ 
++	// Check usage: either server and no args, or command line and args
++	if (*httpAddr != "") != (flag.NArg() == 0) {
++		usage()
++	}
++
++	if *tabwidth < 0 {
++		log.Fatalf("negative tabwidth %d", *tabwidth)
++	}
++
+ 	// Clean goroot: normalize path separator.
+ 	*goroot = filepath.Clean(*goroot)
+ 
+ 	// Determine file system to use.
+-	fs = OS
+-	if *zipfile != "" {
++	// TODO(gri) - fs and fsHttp should really be the same. Try to unify.
++	//           - fsHttp doesn't need to be set up in command-line mode,
++	//             same is true for the http handlers in initHandlers.
++	if *zipfile == "" {
++		// use file system of underlying OS
++		fs = OS
++		fsHttp = http.Dir(*goroot)
++	} else {
++		// use file system specified via .zip file
+ 		rc, err := zip.OpenReader(*zipfile)
+ 		if err != nil {
+ 			log.Fatalf("%s: %s\n", *zipfile, err)
+ 		}
+ 		fs = NewZipFS(rc)
+-	}
+-
+-	// Check usage: either server and no args, or command line and args
+-	if (*httpAddr != "") != (flag.NArg() == 0) {
+-		usage()
+-	}
+-
+-	if *tabwidth < 0 {
+-		log.Fatalf("negative tabwidth %d", *tabwidth)
++		fsHttp = NewHttpZipFS(rc, *goroot)
+ 	}
+ 
+ 	initHandlers()
+diff --git a/src/cmd/godoc/zip.go b/src/cmd/godoc/zip.go
+index b2257998d7..eac6992387 100644
+--- a/src/cmd/godoc/zip.go
++++ b/src/cmd/godoc/zip.go
+@@ -40,12 +40,19 @@ func (fi zipFI) Name() string {
+ }
+ 
+ func (fi zipFI) Size() int64 {
+-	if fi.file != nil {
+-		return int64(fi.file.UncompressedSize)
++	if f := fi.file; f != nil {
++		return int64(f.UncompressedSize)
+ 	}
+ 	return 0 // directory
+ }
+ 
++func (fi zipFI) Mtime_ns() int64 {
++	if f := fi.file; f != nil {
++		return f.Mtime_ns()
++	}
++	return 0 // directory has no modified time entry
++}
++
+ func (fi zipFI) IsDirectory() bool {
+ 	return fi.file == nil
+ }

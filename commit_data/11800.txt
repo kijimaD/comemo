@@ -9,6 +9,23 @@ Date:   Sat Feb 11 00:04:37 2012 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5651074
-
+---
  src/cmd/5g/cgen.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 8865027dca..4912dcd99c 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -402,9 +402,9 @@ abop:	// asymmetric binary
+ 		regalloc(&n2, nr->type, N);
+ 		cgen(nr, &n2);
+ 	} else {
+-		regalloc(&n2, nr->type, N);
++		regalloc(&n2, nr->type, res);
+ 		cgen(nr, &n2);
+-		regalloc(&n1, nl->type, res);
++		regalloc(&n1, nl->type, N);
+ 		cgen(nl, &n1);
+ 	}
+ 	gins(a, &n2, &n1);

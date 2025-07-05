@@ -20,6 +20,22 @@ Date:   Wed Dec 13 17:29:28 2017 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/cgo/out.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 8834c3db5a..44a00d8154 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -1652,9 +1652,7 @@ const builtinExportProlog = `
+ #ifndef GO_CGO_EXPORT_PROLOGUE_H
+ #define GO_CGO_EXPORT_PROLOGUE_H
+ 
+-typedef ptrdiff_t intgo;
+-
+-typedef struct { const char *p; intgo n; } _GoString_;
++typedef struct { const char *p; ptrdiff_t n; } _GoString_;
+ 
+ #endif
+ `

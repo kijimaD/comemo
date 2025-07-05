@@ -19,6 +19,21 @@ Date:   Thu May 2 13:38:55 2024 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/go/internal/work/gccgo.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/go/internal/work/gccgo.go b/src/cmd/go/internal/work/gccgo.go
+index 91d744e658..71f37e8d47 100644
+--- a/src/cmd/go/internal/work/gccgo.go
++++ b/src/cmd/go/internal/work/gccgo.go
+@@ -484,6 +484,9 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
+ 
+ 	case "c-shared":
+ 		ldflags = append(ldflags, "-shared", "-nostdlib")
++		if cfg.Goos != "windows" {
++			ldflags = append(ldflags, "-Wl,-z,nodelete")
++		}
+ 		ldflags = append(ldflags, goLibBegin...)
+ 		ldflags = append(ldflags, "-lgo", "-lgcc_s", "-lgcc", "-lc", "-lgcc")
+ 

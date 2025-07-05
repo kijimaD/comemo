@@ -11,7 +11,34 @@ Date:   Sat Jul 30 22:11:32 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/chan.go                   | 2 +-
  src/runtime/testdata/testprog/vdso.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index 993af7063b..ca516ad9e8 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -780,7 +780,7 @@ func (q *waitq) dequeue() *sudog {
+ 		} else {
+ 			y.prev = nil
+ 			q.first = y
+-			sgp.next = nil // mark as removed (see dequeueSudog)
++			sgp.next = nil // mark as removed (see dequeueSudoG)
+ 		}
+ 
+ 		// if a goroutine was put on this queue because of a
+diff --git a/src/runtime/testdata/testprog/vdso.go b/src/runtime/testdata/testprog/vdso.go
+index d2a300d8f2..b18bc74a06 100644
+--- a/src/runtime/testdata/testprog/vdso.go
++++ b/src/runtime/testdata/testprog/vdso.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Invoke signal hander in the VDSO context (see issue 32912).
++// Invoke signal handler in the VDSO context (see issue 32912).
+ 
+ package main
+ 

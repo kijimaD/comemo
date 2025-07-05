@@ -20,7 +20,151 @@ Date:   Fri May 12 11:54:47 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
-
+---
  src/cmd/compile/internal/inline/inl.go  | 32 ----------------
  src/cmd/compile/internal/pgo/irgraph.go | 68 ---------------------------------
  2 files changed, 100 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 528e964611..6677f90741 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -63,10 +63,6 @@ var (
+ 	// TODO(prattmic): Make this non-global.
+ 	candHotEdgeMap = make(map[pgo.CallSiteInfo]struct{})
+ 
+-	// List of inlined call sites. CallSiteInfo.Callee is always nil.
+-	// TODO(prattmic): Make this non-global.
+-	inlinedCallSites = make(map[pgo.CallSiteInfo]struct{})
+-
+ 	// Threshold in percentage for hot callsite inlining.
+ 	inlineHotCallSiteThresholdPercent float64
+ 
+@@ -158,23 +154,6 @@ func hotNodesFromCDF(p *pgo.Profile) (float64, []pgo.NodeMapKey) {
+ 	return 0, nodes
+ }
+ 
+-// pgoInlineEpilogue updates IRGraph after inlining.
+-func pgoInlineEpilogue(p *pgo.Profile, decls []ir.Node) {
+-	if base.Debug.PGOInline >= 2 {
+-		ir.VisitFuncsBottomUp(decls, func(list []*ir.Func, recursive bool) {
+-			for _, f := range list {
+-				name := ir.LinkFuncName(f)
+-				if n, ok := p.WeightedCG.IRNodes[name]; ok {
+-					p.RedirectEdges(n, inlinedCallSites)
+-				}
+-			}
+-		})
+-		// Print the call-graph after inlining. This is a debugging feature.
+-		fmt.Printf("hot-cg after inline in dot:")
+-		p.PrintWeightedCallGraphDOT(inlineHotCallSiteThresholdPercent)
+-	}
+-}
+-
+ // InlinePackage finds functions that can be inlined and clones them before walk expands them.
+ func InlinePackage(p *pgo.Profile) {
+ 	InlineDecls(p, typecheck.Target.Decls, true)
+@@ -223,10 +202,6 @@ func InlineDecls(p *pgo.Profile, decls []ir.Node, doInline bool) {
+ 			}
+ 		}
+ 	})
+-
+-	if p != nil {
+-		pgoInlineEpilogue(p, decls)
+-	}
+ }
+ 
+ // garbageCollectUnreferencedHiddenClosures makes a pass over all the
+@@ -1147,13 +1122,6 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, bigCaller bool, inlCalls *[]*ir.Inli
+ 		fmt.Printf("%v: Before inlining: %+v\n", ir.Line(n), n)
+ 	}
+ 
+-	if base.Debug.PGOInline > 0 {
+-		csi := pgo.CallSiteInfo{LineOffset: pgo.NodeLineOffset(n, fn), Caller: ir.CurFunc}
+-		if _, ok := inlinedCallSites[csi]; !ok {
+-			inlinedCallSites[csi] = struct{}{}
+-		}
+-	}
+-
+ 	res := InlineCall(n, fn, inlIndex)
+ 
+ 	if res == nil {
+diff --git a/src/cmd/compile/internal/pgo/irgraph.go b/src/cmd/compile/internal/pgo/irgraph.go
+index f3f6e3fdc6..b9c39f6090 100644
+--- a/src/cmd/compile/internal/pgo/irgraph.go
++++ b/src/cmd/compile/internal/pgo/irgraph.go
+@@ -415,74 +415,6 @@ func (p *Profile) PrintWeightedCallGraphDOT(edgeThreshold float64) {
+ 	fmt.Printf("}\n")
+ }
+ 
+-// RedirectEdges deletes and redirects out-edges from node cur based on
+-// inlining information via inlinedCallSites.
+-//
+-// CallSiteInfo.Callee must be nil.
+-func (p *Profile) RedirectEdges(cur *IRNode, inlinedCallSites map[CallSiteInfo]struct{}) {
+-	g := p.WeightedCG
+-
+-	i := 0
+-	outs := g.OutEdges[cur]
+-	for i < len(outs) {
+-		outEdge := outs[i]
+-		redirected := false
+-		_, found := inlinedCallSites[CallSiteInfo{LineOffset: outEdge.CallSiteOffset, Caller: cur.AST}]
+-		if !found {
+-			for _, InEdge := range g.InEdges[cur] {
+-				if _, ok := inlinedCallSites[CallSiteInfo{LineOffset: InEdge.CallSiteOffset, Caller: InEdge.Src.AST}]; ok {
+-					weight := g.calculateWeight(InEdge.Src, cur)
+-					g.redirectEdge(InEdge.Src, outEdge, weight)
+-					redirected = true
+-				}
+-			}
+-		}
+-		if found || redirected {
+-			g.remove(cur, i)
+-			outs = g.OutEdges[cur]
+-			continue
+-		}
+-		i++
+-	}
+-}
+-
+-// redirectEdge redirects a node's out-edge to one of its parent nodes, cloning is
+-// required as the node might be inlined in multiple call-sites.
+-// TODO: adjust the in-edges of outEdge.Dst if necessary
+-func (g *IRGraph) redirectEdge(parent *IRNode, outEdge *IREdge, weight int64) {
+-	edge := &IREdge{Src: parent, Dst: outEdge.Dst, Weight: weight * outEdge.Weight, CallSiteOffset: outEdge.CallSiteOffset}
+-	g.OutEdges[parent] = append(g.OutEdges[parent], edge)
+-}
+-
+-// remove deletes the cur-node's out-edges at index idx.
+-func (g *IRGraph) remove(cur *IRNode, i int) {
+-	if len(g.OutEdges[cur]) >= 2 {
+-		g.OutEdges[cur][i] = g.OutEdges[cur][len(g.OutEdges[cur])-1]
+-		g.OutEdges[cur] = g.OutEdges[cur][:len(g.OutEdges[cur])-1]
+-	} else {
+-		delete(g.OutEdges, cur)
+-	}
+-}
+-
+-// calculateWeight calculates the weight of the new redirected edge.
+-func (g *IRGraph) calculateWeight(parent *IRNode, cur *IRNode) int64 {
+-	sum := int64(0)
+-	pw := int64(0)
+-	for _, InEdge := range g.InEdges[cur] {
+-		sum += InEdge.Weight
+-		if InEdge.Src == parent {
+-			pw = InEdge.Weight
+-		}
+-	}
+-	weight := int64(0)
+-	if sum != 0 {
+-		weight = pw / sum
+-	} else {
+-		weight = pw
+-	}
+-	return weight
+-}
+-
+ // inlCallee is same as the implementation for inl.go with one change. The change is that we do not invoke CanInline on a closure.
+ func inlCallee(fn ir.Node) *ir.Func {
+ 	fn = ir.StaticValue(fn)

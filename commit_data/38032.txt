@@ -12,9 +12,84 @@ Date:   Wed Sep 26 20:19:11 2018 +0000
     Change-Id: I80546683b0623124fe4627a71af88add2f6c1c27
     Reviewed-on: https://go-review.googlesource.com/137855
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/bytes/bytes.go          | 9 +++++++++
  src/bytes/bytes_test.go     | 6 ++++++
  src/strings/strings.go      | 9 +++++++++
  src/strings/strings_test.go | 6 ++++++
  4 files changed, 30 insertions(+)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index 876fa3c1ed..6492db088a 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -774,6 +774,15 @@ func Replace(s, old, new []byte, n int) []byte {
+ 	return t[0:w]
+ }
+ 
++// ReplaceAll returns a copy of the slice s with all
++// non-overlapping instances of old replaced by new.
++// If old is empty, it matches at the beginning of the slice
++// and after each UTF-8 sequence, yielding up to k+1 replacements
++// for a k-rune slice.
++func ReplaceAll(s, old, new []byte) []byte {
++	return Replace(s, old, new, -1)
++}
++
+ // EqualFold reports whether s and t, interpreted as UTF-8 strings,
+ // are equal under Unicode case-folding.
+ func EqualFold(s, t []byte) bool {
+diff --git a/src/bytes/bytes_test.go b/src/bytes/bytes_test.go
+index 55a22bae22..f4c0ffd2a9 100644
+--- a/src/bytes/bytes_test.go
++++ b/src/bytes/bytes_test.go
+@@ -1362,6 +1362,12 @@ func TestReplace(t *testing.T) {
+ 		if cap(in) == cap(out) && &in[:1][0] == &out[:1][0] {
+ 			t.Errorf("Replace(%q, %q, %q, %d) didn't copy", tt.in, tt.old, tt.new, tt.n)
+ 		}
++		if tt.n == -1 {
++			out := ReplaceAll(in, []byte(tt.old), []byte(tt.new))
++			if s := string(out); s != tt.out {
++				t.Errorf("ReplaceAll(%q, %q, %q) = %q, want %q", tt.in, tt.old, tt.new, s, tt.out)
++			}
++		}
+ 	}
+ }
+ 
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index b033c38e91..00200e4e24 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -874,6 +874,15 @@ func Replace(s, old, new string, n int) string {
+ 	return string(t[0:w])
+ }
+ 
++// ReplaceAll returns a copy of the string s with all
++// non-overlapping instances of old replaced by new.
++// If old is empty, it matches at the beginning of the string
++// and after each UTF-8 sequence, yielding up to k+1 replacements
++// for a k-rune string.
++func ReplaceAll(s, old, new string) string {
++	return Replace(s, old, new, -1)
++}
++
+ // EqualFold reports whether s and t, interpreted as UTF-8 strings,
+ // are equal under Unicode case-folding.
+ func EqualFold(s, t string) bool {
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index 20bc484f39..bb6a5b931b 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -1243,6 +1243,12 @@ func TestReplace(t *testing.T) {
+ 		if s := Replace(tt.in, tt.old, tt.new, tt.n); s != tt.out {
+ 			t.Errorf("Replace(%q, %q, %q, %d) = %q, want %q", tt.in, tt.old, tt.new, tt.n, s, tt.out)
+ 		}
++		if tt.n == -1 {
++			s := ReplaceAll(tt.in, tt.old, tt.new)
++			if s != tt.out {
++				t.Errorf("ReplaceAll(%q, %q, %q) = %q, want %q", tt.in, tt.old, tt.new, s, tt.out)
++			}
++		}
+ 	}
+ }
+ 

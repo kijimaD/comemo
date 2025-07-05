@@ -8,8 +8,158 @@ Date:   Mon Jan 17 20:39:26 2011 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/4059041
-
+---
  src/cmd/5g/opt.h  |  3 ++-
  src/cmd/5g/peep.c |  2 +-
  src/cmd/5g/reg.c  | 40 ++++++++++++++++++++++++++++++++++------
  3 files changed, 37 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/5g/opt.h b/src/cmd/5g/opt.h
+index 9a4e17571c..a3e3abc135 100644
+--- a/src/cmd/5g/opt.h
++++ b/src/cmd/5g/opt.h
+@@ -69,6 +69,7 @@ struct	Reg
+ 
+ 	uint16	loop;		// x5 for every loop
+ 	uchar	refset;		// diagnostic generated
++	uchar	nomove;		// funny mov instruction
+ 
+ 	Reg*	p1;
+ 	Reg*	p2;
+@@ -128,7 +129,7 @@ Reg*	rega(void);
+ int	rcmp(const void*, const void*);
+ void	regopt(Prog*);
+ void	addmove(Reg*, int, int, int);
+-Bits	mkvar(Reg *r, Adr *a, int);
++Bits	mkvar(Reg *r, Adr *a);
+ void	prop(Reg*, Bits, Bits);
+ void	loopit(Reg*, int32);
+ void	synch(Reg*, Bits);
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index da46f8dda5..b442ee8d16 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -983,7 +983,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 					return 2;
+ 			} else {
+ 		  		if(p->to.reg == v->reg)
+-				return 2;
++					return 2;
+ 			}
+ 		}
+ 		if(s != A) {
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index 1d814d2c66..a6d35f9977 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -83,7 +83,7 @@ setoutvar(void)
+ 		n = nodarg(t, 1);
+ 		a = zprog.from;
+ 		naddr(n, &a, 0);
+-		bit = mkvar(R, &a, 0);
++		bit = mkvar(R, &a);
+ 		for(z=0; z<BITS; z++)
+ 			ovar.b[z] |= bit.b[z];
+ 		t = structnext(&save);
+@@ -143,7 +143,7 @@ regopt(Prog *firstp)
+ 	first++;
+ 
+ 	if(debug['K']) {
+-		if(first != 1)
++		if(first != 4)
+ 			return;
+ //		debug['R'] = 2;
+ //		debug['P'] = 2;
+@@ -165,7 +165,7 @@ regopt(Prog *firstp)
+ 	firstr = R;
+ 	lastr = R;
+ 	nvar = 0;
+-	regbits = 0;
++	regbits = RtoB(REGSP)|RtoB(REGLINK)|RtoB(REGPC);
+ 	for(z=0; z<BITS; z++) {
+ 		externs.b[z] = 0;
+ 		params.b[z] = 0;
+@@ -191,6 +191,21 @@ regopt(Prog *firstp)
+ 		case ANAME:
+ 		case ASIGNAME:
+ 			continue;
++
++		case AMOVW:
++			// mark instructions that set SP
++			if(p->to.type == D_REG) {
++				switch(p->to.reg) {
++				case REGSP:
++				case REGLINK:
++				case REGPC:
++					r->nomove = 1;
++					break;
++				}
++			}
++			if(p->scond != C_SCOND_NONE)
++				r->nomove = 1;
++			break;
+ 		}
+ 		r = rega();
+ 		nr++;
+@@ -220,14 +235,14 @@ regopt(Prog *firstp)
+ 		/*
+ 		 * left side always read
+ 		 */
+-		bit = mkvar(r, &p->from, p->as==AMOVW);
++		bit = mkvar(r, &p->from);
+ 		for(z=0; z<BITS; z++)
+ 			r->use1.b[z] |= bit.b[z];
+ 
+ 		/*
+ 		 * right side depends on opcode
+ 		 */
+-		bit = mkvar(r, &p->to, 0);
++		bit = mkvar(r, &p->to);
+ 		if(bany(&bit))
+ 		switch(p->as) {
+ 		default:
+@@ -567,6 +582,9 @@ addmove(Reg *r, int bn, int rn, int f)
+ 	if(a->etype == TARRAY || a->sym == S)
+ 		a->type = D_CONST;
+ 
++	if(v->addr)
++		fatal("addmove: shouldnt be doing this %A\n", a);
++
+ 	switch(v->etype) {
+ 	default:
+ 		print("What is this %E\n", v->etype);
+@@ -636,7 +654,7 @@ overlap(int32 o1, int w1, int32 o2, int w2)
+ }
+ 
+ Bits
+-mkvar(Reg *r, Adr *a, int docon)
++mkvar(Reg *r, Adr *a)
+ {
+ 	Var *v;
+ 	int i, t, n, et, z, w, flag;
+@@ -1190,8 +1208,15 @@ paint3(Reg *r, int bn, int32 rb, int rn)
+ 		r = r1;
+ 	}
+ 
++	// horrible hack to prevent loading a
++	// variable after a call (to defer) but
++	// before popping the SP.
++	if(r->prog->as == ABL && r->nomove)
++		r = r->p1;
++
+ 	if(LOAD(r) & ~(r->set.b[z] & ~(r->use1.b[z]|r->use2.b[z])) & bb)
+ 		addmove(r, bn, rn, 0);
++
+ 	for(;;) {
+ 		r->act.b[z] |= bb;
+ 		p = r->prog;
+@@ -1240,6 +1265,9 @@ void
+ addreg(Adr *a, int rn)
+ {
+ 
++	if(a->type == D_CONST)
++		fatal("addreg: cant do this %D %d\n", a, rn);
++
+ 	a->sym = 0;
+ 	a->name = D_NONE;
+ 	a->type = D_REG;

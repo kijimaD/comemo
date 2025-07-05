@@ -9,7 +9,32 @@ Date:   Tue Mar 4 08:25:38 2014 -0800
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/71150043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index e70464bd05..6041c7a24b 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -268,6 +268,7 @@ Michał Derkacz <ziutek@lnet.pl>
+ Miek Gieben <miek@miek.nl>
+ Mihai Borobocea <MihaiBorobocea@gmail.com>
+ Mikael Tillenius <mikti42@gmail.com>
++Mike Andrews <mra@xoba.com>
+ Mike Rosset <mike.rosset@gmail.com>
+ Mikhail Panchenko <m@mihasya.com>
+ Miki Tebeka <miki.tebeka@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 0d0f1c51fd..fbcbaeebdb 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -383,6 +383,7 @@ Michał Derkacz <ziutek@lnet.pl>
+ Miek Gieben <miek@miek.nl> <remigius.gieben@gmail.com>
+ Mihai Borobocea <MihaiBorobocea@gmail.com>
+ Mikael Tillenius <mikti42@gmail.com>
++Mike Andrews <mra@xoba.com>
+ Mike Rosset <mike.rosset@gmail.com>
+ Mike Samuel <mikesamuel@gmail.com>
+ Mike Solomon <msolo@gmail.com>

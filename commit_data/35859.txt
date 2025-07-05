@@ -14,8 +14,85 @@ Date:   Sat Mar 10 11:17:05 2018 +0100
     Change-Id: Ica5ef291e7963c4af17c124d4a2869e6c8f7b0c7
     Reviewed-on: https://go-review.googlesource.com/99995
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go        | 14 ++++++++++++--
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  3 ---
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 19 -------------------
  3 files changed, 12 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index fedc525463..6b8fe875a4 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -562,8 +562,18 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Reg = v.Args[0].Reg()
+ 		p.To.Type = obj.TYPE_CONST
+ 		p.To.Offset = v.AuxInt
+-	case ssa.OpAMD64TESTQconst, ssa.OpAMD64TESTLconst, ssa.OpAMD64TESTWconst, ssa.OpAMD64TESTBconst,
+-		ssa.OpAMD64BTLconst, ssa.OpAMD64BTQconst:
++	case ssa.OpAMD64BTLconst, ssa.OpAMD64BTQconst:
++		op := v.Op
++		if op == ssa.OpAMD64BTQconst && v.AuxInt < 32 {
++			// Emit 32-bit version because it's shorter
++			op = ssa.OpAMD64BTLconst
++		}
++		p := s.Prog(op.Asm())
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = v.AuxInt
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Args[0].Reg()
++	case ssa.OpAMD64TESTQconst, ssa.OpAMD64TESTLconst, ssa.OpAMD64TESTWconst, ssa.OpAMD64TESTBconst:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = v.AuxInt
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index ffac45bf66..cabc8f4d20 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -666,9 +666,6 @@
+ (XORLconst [1] (SETBE x)) -> (SETA  x)
+ (XORLconst [1] (SETA  x)) -> (SETBE x)
+ 
+-// Convert BTQconst to BTLconst if possible. It has a shorter encoding.
+-(BTQconst [c] x) && c < 32 -> (BTLconst [c] x)
+-
+ // Special case for floating point - LF/LEF not generated
+ (NE (TESTB (SETGF  cmp) (SETGF  cmp)) yes no) -> (UGT  cmp yes no)
+ (NE (TESTB (SETGEF cmp) (SETGEF cmp)) yes no) -> (UGE  cmp yes no)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index eb2489ac77..9d1d36d14c 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -53,8 +53,6 @@ func rewriteValueAMD64(v *Value) bool {
+ 		return rewriteValueAMD64_OpAMD64ANDQmem_0(v)
+ 	case OpAMD64BSFQ:
+ 		return rewriteValueAMD64_OpAMD64BSFQ_0(v)
+-	case OpAMD64BTQconst:
+-		return rewriteValueAMD64_OpAMD64BTQconst_0(v)
+ 	case OpAMD64CMOVLCC:
+ 		return rewriteValueAMD64_OpAMD64CMOVLCC_0(v)
+ 	case OpAMD64CMOVLCS:
+@@ -3336,23 +3334,6 @@ func rewriteValueAMD64_OpAMD64BSFQ_0(v *Value) bool {
+ 	}
+ 	return false
+ }
+-func rewriteValueAMD64_OpAMD64BTQconst_0(v *Value) bool {
+-	// match: (BTQconst [c] x)
+-	// cond: c < 32
+-	// result: (BTLconst [c] x)
+-	for {
+-		c := v.AuxInt
+-		x := v.Args[0]
+-		if !(c < 32) {
+-			break
+-		}
+-		v.reset(OpAMD64BTLconst)
+-		v.AuxInt = c
+-		v.AddArg(x)
+-		return true
+-	}
+-	return false
+-}
+ func rewriteValueAMD64_OpAMD64CMOVLCC_0(v *Value) bool {
+ 	// match: (CMOVLCC x y (InvertFlags cond))
+ 	// cond:

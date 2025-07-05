@@ -18,6 +18,28 @@ Date:   Thu Jul 11 23:24:35 2013 -0400
     TBR=minux.ma
     CC=golang-dev
     https://golang.org/cl/11201043
-
+---
  misc/cgo/test/issue5337.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/test/issue5337.go b/misc/cgo/test/issue5337.go
+index 7f14ff4261..8013b66a74 100644
+--- a/misc/cgo/test/issue5337.go
++++ b/misc/cgo/test/issue5337.go
+@@ -10,14 +10,14 @@ package cgotest
+ #include <signal.h>
+ #include <pthread.h>
+ 
+-static void *thread(void *p) {
++static void *thread1(void *p) {
+ 	(void)p;
+ 	pthread_kill(pthread_self(), SIGPROF);
+ 	return NULL;
+ }
+ void test5337() {
+ 	pthread_t tid;
+-	pthread_create(&tid, 0, thread, NULL);
++	pthread_create(&tid, 0, thread1, NULL);
+ 	pthread_join(tid, 0);
+ }
+ */

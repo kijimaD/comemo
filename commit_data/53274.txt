@@ -16,8 +16,180 @@ Date:   Fri May 6 18:40:17 2022 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/compile/internal/reflectdata/reflect.go |  6 +-
  src/reflect/type.go                             | 19 ++++--
  src/runtime/mbitmap.go                          | 83 +++++++++++++++++++++----
  3 files changed, 91 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 59085869eb..302d0790fc 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1549,7 +1549,11 @@ func dgcsym(t *types.Type, write bool) (lsym *obj.LSym, useGCProg bool, ptrdata
+ 
+ // dgcptrmask emits and returns the symbol containing a pointer mask for type t.
+ func dgcptrmask(t *types.Type, write bool) *obj.LSym {
+-	ptrmask := make([]byte, (types.PtrDataSize(t)/int64(types.PtrSize)+7)/8)
++	// Bytes we need for the ptrmask.
++	n := (types.PtrDataSize(t)/int64(types.PtrSize) + 7) / 8
++	// Runtime wants ptrmasks padded to a multiple of uintptr in size.
++	n = (n + int64(types.PtrSize) - 1) &^ (int64(types.PtrSize) - 1)
++	ptrmask := make([]byte, n)
+ 	fillptrmask(t, ptrmask)
+ 	p := fmt.Sprintf("runtime.gcbits.%x", ptrmask)
+ 
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index a52d3129df..75994c97a9 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -2265,7 +2265,10 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
+ 
+ 	if ktyp.ptrdata != 0 || etyp.ptrdata != 0 {
+ 		nptr := (bucketSize*(1+ktyp.size+etyp.size) + goarch.PtrSize) / goarch.PtrSize
+-		mask := make([]byte, (nptr+7)/8)
++		n := (nptr + 7) / 8
++		// Runtime needs pointer masks to be a multiple of uintptr in size.
++		n = (n + goarch.PtrSize - 1) &^ (goarch.PtrSize - 1)
++		mask := make([]byte, n)
+ 		base := bucketSize / goarch.PtrSize
+ 
+ 		if ktyp.ptrdata != 0 {
+@@ -2971,7 +2974,10 @@ func ArrayOf(length int, elem Type) Type {
+ 		// Element is small with pointer mask; array is still small.
+ 		// Create direct pointer mask by turning each 1 bit in elem
+ 		// into length 1 bits in larger mask.
+-		mask := make([]byte, (array.ptrdata/goarch.PtrSize+7)/8)
++		n := (array.ptrdata/goarch.PtrSize + 7) / 8
++		// Runtime needs pointer masks to be a multiple of uintptr in size.
++		n = (n + goarch.PtrSize - 1) &^ (goarch.PtrSize - 1)
++		mask := make([]byte, n)
+ 		emitGCMask(mask, 0, typ, array.len)
+ 		array.gcdata = &mask[0]
+ 
+@@ -3140,8 +3146,13 @@ type bitVector struct {
+ 
+ // append a bit to the bitmap.
+ func (bv *bitVector) append(bit uint8) {
+-	if bv.n%8 == 0 {
+-		bv.data = append(bv.data, 0)
++	if bv.n%(8*goarch.PtrSize) == 0 {
++		// Runtime needs pointer masks to be a multiple of uintptr in size.
++		// Since reflect passes bv.data directly to the runtime as a pointer mask,
++		// we append a full uintptr of zeros at a time.
++		for i := 0; i < goarch.PtrSize; i++ {
++			bv.data = append(bv.data, 0)
++		}
+ 	}
+ 	bv.data[bv.n/8] |= bit << (bv.n % 8)
+ 	bv.n++
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 1c7ae8a68e..d454949926 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -893,6 +893,19 @@ func (h writeHeapBits) flush(addr, size uintptr) {
+ 	}
+ }
+ 
++// Read the bytes starting at the aligned pointer p into a uintptr.
++// Read is little-endian.
++func readUintptr(p *byte) uintptr {
++	x := *(*uintptr)(unsafe.Pointer(p))
++	if goarch.BigEndian {
++		if goarch.PtrSize == 8 {
++			return uintptr(sys.Bswap64(uint64(x)))
++		}
++		return uintptr(sys.Bswap32(uint32(x)))
++	}
++	return x
++}
++
+ // heapBitsSetType records that the new allocation [x, x+size)
+ // holds in [x, x+dataSize) one or more values of type typ.
+ // (The number of values is given by dataSize / typ.size.)
+@@ -917,7 +930,7 @@ func (h writeHeapBits) flush(addr, size uintptr) {
+ // machines, callers must execute a store/store (publication) barrier
+ // between calling this function and making the object reachable.
+ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
+-	const doubleCheck = true // slow but helpful; enable to test modifications to this code
++	const doubleCheck = false // slow but helpful; enable to test modifications to this code
+ 
+ 	if doubleCheck && dataSize%typ.size != 0 {
+ 		throw("heapBitsSetType: dataSize not a multiple of typ.size")
+@@ -995,19 +1008,65 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
+ 	// objects with scalar tails, all but the last tail does have to
+ 	// be initialized, because there is no way to say "skip forward".
+ 
+-	for i := uintptr(0); true; i += typ.size {
+-		p := typ.gcdata
+-		var j uintptr
+-		for j = 0; j+8*goarch.PtrSize < typ.ptrdata; j += 8 * goarch.PtrSize {
+-			h = h.write(uintptr(*p), 8)
+-			p = add1(p)
++	ptrs := typ.ptrdata / goarch.PtrSize
++	if typ.size == dataSize { // Single element
++		if ptrs <= ptrBits { // Single small element
++			m := readUintptr(typ.gcdata)
++			h = h.write(m, ptrs)
++		} else { // Single large element
++			p := typ.gcdata
++			for {
++				h = h.write(readUintptr(p), ptrBits)
++				p = addb(p, ptrBits/8)
++				ptrs -= ptrBits
++				if ptrs <= ptrBits {
++					break
++				}
++			}
++			m := readUintptr(p)
++			h = h.write(m, ptrs)
+ 		}
+-		h = h.write(uintptr(*p), (typ.ptrdata-j)/goarch.PtrSize)
+-		if i+typ.size == dataSize {
+-			break // don't need the trailing nonptr bits on the last element.
++	} else { // Repeated element
++		words := typ.size / goarch.PtrSize // total words, including scalar tail
++		if words <= ptrBits {              // Repeated small element
++			n := dataSize / typ.size
++			m := readUintptr(typ.gcdata)
++			// Make larger unit to repeat
++			for words <= ptrBits/2 {
++				if n&1 != 0 {
++					h = h.write(m, words)
++				}
++				n /= 2
++				m |= m << words
++				ptrs += words
++				words *= 2
++				if n == 1 {
++					break
++				}
++			}
++			for n > 1 {
++				h = h.write(m, words)
++				n--
++			}
++			h = h.write(m, ptrs)
++		} else { // Repeated large element
++			for i := uintptr(0); true; i += typ.size {
++				p := typ.gcdata
++				j := ptrs
++				for j > ptrBits {
++					h = h.write(readUintptr(p), ptrBits)
++					p = addb(p, ptrBits/8)
++					j -= ptrBits
++				}
++				m := readUintptr(p)
++				h = h.write(m, j)
++				if i+typ.size == dataSize {
++					break // don't need the trailing nonptr bits on the last element.
++				}
++				// Pad with zeros to the start of the next element.
++				h = h.pad(typ.size - typ.ptrdata)
++			}
+ 		}
+-		// Pad with zeros to the start of the next element.
+-		h = h.pad(typ.size - typ.ptrdata)
+ 	}
+ 	h.flush(x, size)
+ 

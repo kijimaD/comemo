@@ -12,10 +12,854 @@ Date:   Tue Jul 21 13:31:23 2009 -0700
     DELTA=282  (135 added, 90 deleted, 57 changed)
     OCL=31894
     CL=31930
-
+---
  usr/austin/eval/decls.go |  17 +++-
  usr/austin/eval/expr.go  |  36 ++++----
  usr/austin/eval/scope.go |  29 +++++-
  usr/austin/eval/type.go  |  18 ++--
  usr/austin/eval/value.go | 235 +++++++++++++++++++++++++----------------------
  5 files changed, 190 insertions(+), 145 deletions(-)
+
+diff --git a/usr/austin/eval/decls.go b/usr/austin/eval/decls.go
+index f5b667970c..e39a20c43d 100644
+--- a/usr/austin/eval/decls.go
++++ b/usr/austin/eval/decls.go
+@@ -12,6 +12,8 @@ import (
+  * Types
+  */
+ 
++type Value interface
++
+ type Type interface {
+ 	// literal returns this type with all names recursively
+ 	// stripped.
+@@ -28,6 +30,8 @@ type Type interface {
+ 	isFloat() bool;
+ 	// isIdeal returns true if this is an ideal int or float.
+ 	isIdeal() bool;
++	// ZeroVal returns a new zero value of this type.
++	Zero() Value;
+ 	// String returns the string representation of this type.
+ 	String() string;
+ }
+@@ -45,9 +49,12 @@ type BoundedType interface {
+  */
+ 
+ type Value interface {
+-	// TODO(austin) Is Type even necessary?
+-	Type() Type;
+ 	String() string;
++	// Assign copies another value into this one.  It should
++	// assume that the other value satisfies the same specific
++	// value interface (BoolValue, etc.), but must not assume
++	// anything about its specific type.
++	Assign(o Value);
+ }
+ 
+ type BoolValue interface {
+@@ -117,7 +124,6 @@ type Variable struct {
+ }
+ 
+ type Constant struct {
+-	// TODO(austin) Need Type?
+ 	Type Type;
+ 	Value Value;
+ }
+@@ -129,12 +135,13 @@ type Scope struct {
+ 	outer *Scope;
+ 	defs map[string] Def;
+ 	numVars int;
++	varTypes []Type;
+ }
+ 
+ func NewRootScope() *Scope
+ func (s *Scope) Fork() *Scope
+ func (s *Scope) DefineVar(name string, t Type) *Variable
+-func (s *Scope) DefineConst(name string, v Value) *Constant
++func (s *Scope) DefineConst(name string, t Type, v Value) *Constant
+ func (s *Scope) DefineType(name string, t Type) bool
+ func (s *Scope) Lookup(name string) (Def, *Scope)
+ 
+@@ -149,3 +156,5 @@ type Frame struct {
+ }
+ 
+ func (f *Frame) Get(s *Scope, index int) Value
++
++func (s *Scope) NewFrame(outer *Frame) *Frame
+diff --git a/usr/austin/eval/expr.go b/usr/austin/eval/expr.go
+index 3368b44fcc..6c8c9c819e 100644
+--- a/usr/austin/eval/expr.go
++++ b/usr/austin/eval/expr.go
+@@ -632,6 +632,8 @@ func (a *exprCompiler) DoBinaryExpr(x *ast.BinaryExpr) {
+ 	}
+ 
+ 	// Useful type predicates
++	// TODO(austin) The spec is wrong here.  The types must be
++	// identical, not compatible.
+ 	compat := func() bool {
+ 		return l.t.compatible(r.t);
+ 	};
+@@ -829,9 +831,6 @@ func (a *exprCompiler) DoBinaryExpr(x *ast.BinaryExpr) {
+ 		a.genBinOpXor(l, r);
+ 
+ 	case token.AND_NOT:
+-		if l.t.isIdeal() || r.t.isIdeal() {
+-			log.Crashf("&^ for ideals not implemented");
+-		}
+ 		a.genBinOpAndNot(l, r);
+ 
+ 	case token.SHL:
+@@ -911,11 +910,14 @@ func compileExpr(expr ast.Expr, scope *Scope, errors scanner.ErrorHandler) *expr
+  */
+ 
+ type Expr struct {
+-	f func(f *Frame) Value;
++	t Type;
++	f func(f *Frame, out Value);
+ }
+ 
+ func (expr *Expr) Eval(f *Frame) Value {
+-	return expr.f(f);
++	v := expr.t.Zero();
++	expr.f(f, v);
++	return v;
+ }
+ 
+ func CompileExpr(expr ast.Expr, scope *Scope) (*Expr, os.Error) {
+@@ -925,26 +927,23 @@ func CompileExpr(expr ast.Expr, scope *Scope) (*Expr, os.Error) {
+ 	if ec == nil {
+ 		return nil, errors.GetError(scanner.Sorted);
+ 	}
+-	// TODO(austin) This still uses Value as a generic container
+-	// and is the only user of the 'value' methods on each type.
+-	// Need to figure out a better way to do this.
+ 	switch t := ec.t.(type) {
+ 	case *boolType:
+-		return &Expr{func(f *Frame) Value { return t.value(ec.evalBool(f)) }}, nil;
++		return &Expr{t, func(f *Frame, out Value) { out.(BoolValue).Set(ec.evalBool(f)) }}, nil;
+ 	case *uintType:
+-		return &Expr{func(f *Frame) Value { return t.value(ec.evalUint(f)) }}, nil;
++		return &Expr{t, func(f *Frame, out Value) { out.(UintValue).Set(ec.evalUint(f)) }}, nil;
+ 	case *intType:
+-		return &Expr{func(f *Frame) Value { return t.value(ec.evalInt(f)) }}, nil;
++		return &Expr{t, func(f *Frame, out Value) { out.(IntValue).Set(ec.evalInt(f)) }}, nil;
+ 	case *idealIntType:
+-		return &Expr{func(f *Frame) Value { return t.value(ec.evalIdealInt()) }}, nil;
++		return &Expr{t, func(f *Frame, out Value) { out.(*idealIntV).V = ec.evalIdealInt() }}, nil;
+ 	case *floatType:
+-		return &Expr{func(f *Frame) Value { return t.value(ec.evalFloat(f)) }}, nil;
++		return &Expr{t, func(f *Frame, out Value) { out.(FloatValue).Set(ec.evalFloat(f)) }}, nil;
+ 	case *idealFloatType:
+-		return &Expr{func(f *Frame) Value { return t.value(ec.evalIdealFloat()) }}, nil;
++		return &Expr{t, func(f *Frame, out Value) { out.(*idealFloatV).V = ec.evalIdealFloat() }}, nil;
+ 	case *stringType:
+-		return &Expr{func(f *Frame) Value { return t.value(ec.evalString(f)) }}, nil;
++		return &Expr{t, func(f *Frame, out Value) { out.(StringValue).Set(ec.evalString(f)) }}, nil;
+ 	case *PtrType:
+-		return &Expr{func(f *Frame) Value { return t.value(ec.evalPtr(f)) }}, nil;
++		return &Expr{t, func(f *Frame, out Value) { out.(PtrValue).Set(ec.evalPtr(f)) }}, nil;
+ 	}
+ 	log.Crashf("unexpected type %v", ec.t);
+ 	panic();
+@@ -1282,6 +1281,11 @@ func (a *exprCompiler) genBinOpAndNot(l *exprCompiler, r *exprCompiler) {
+ 		lf := l.asInt();
+ 		rf := r.asInt();
+ 		a.evalInt = func(f *Frame) int64 { return lf(f) &^ rf(f) };
++	case *idealIntType:
++		lf := l.asIdealInt();
++		rf := r.asIdealInt();
++		val := lf().AndNot(rf());
++		a.evalIdealInt = func() *bignum.Integer { return val };
+ 	default:
+ 		log.Crashf("unexpected result type %v at %v", l.t.literal(), a.pos);
+ 	}
+diff --git a/usr/austin/eval/scope.go b/usr/austin/eval/scope.go
+index b3622588ca..2b1a968e6f 100644
+--- a/usr/austin/eval/scope.go
++++ b/usr/austin/eval/scope.go
+@@ -9,11 +9,11 @@ import (
+ )
+ 
+ func NewRootScope() *Scope {
+-	return &Scope{nil, make(map[string] Def), 0};
++	return &Scope{defs: make(map[string] Def)};
+ }
+ 
+ func (s *Scope) Fork() *Scope {
+-	return &Scope{s, make(map[string] Def), 0};
++	return &Scope{outer: s, defs: make(map[string] Def)};
+ }
+ 
+ func (s *Scope) DefineVar(name string, t Type) *Variable {
+@@ -26,11 +26,11 @@ func (s *Scope) DefineVar(name string, t Type) *Variable {
+ 	return v;
+ }
+ 
+-func (s *Scope) DefineConst(name string, v Value) *Constant {
++func (s *Scope) DefineConst(name string, t Type, v Value) *Constant {
+ 	if _, ok := s.defs[name]; ok {
+ 		return nil;
+ 	}
+-	c := &Constant{v.Type(), v};
++	c := &Constant{t, v};
+ 	s.defs[name] = c;
+ 	return c;
+ }
+@@ -53,6 +53,27 @@ func (s *Scope) Lookup(name string) (Def, *Scope) {
+ 	return nil, nil;
+ }
+ 
++func (s *Scope) NewFrame(outer *Frame) *Frame {
++	if s.varTypes == nil {
++		// First creation of a frame from this scope.  Compute
++		// and memoize the types of all variables.
++		ts := make([]Type, s.numVars);
++		for _, d := range s.defs {
++			if v, ok := d.(*Variable); ok {
++				ts[v.Index] = v.Type;
++			}
++		}
++		s.varTypes = ts;
++	}
++
++	// Create frame
++	vars := make([]Value, s.numVars);
++	for i, t := range s.varTypes {
++		vars[i] = t.Zero();
++	}
++	return &Frame{outer, s, vars};
++}
++
+ func (f *Frame) Get(s *Scope, index int) Value {
+ 	for f.Scope != s {
+ 		f = f.Outer;
+diff --git a/usr/austin/eval/type.go b/usr/austin/eval/type.go
+index 1638182cd1..76910402e3 100644
+--- a/usr/austin/eval/type.go
++++ b/usr/austin/eval/type.go
+@@ -68,7 +68,7 @@ func (boolType) String() string {
+ 	return "bool";
+ }
+ 
+-func (t *boolType) value(v bool) BoolValue
++func (t *boolType) Zero() Value
+ 
+ type uintType struct {
+ 	commonType;
+@@ -110,7 +110,7 @@ func (t *uintType) String() string {
+ 	return t.name;
+ }
+ 
+-func (t *uintType) value(v uint64) UintValue
++func (t *uintType) Zero() Value
+ 
+ func (t *uintType) minVal() *bignum.Rational {
+ 	return bignum.Rat(0, 1);
+@@ -158,7 +158,7 @@ func (t *intType) String() string {
+ 	return t.name;
+ }
+ 
+-func (t *intType) value(v int64) IntValue
++func (t *intType) Zero() Value
+ 
+ func (t *intType) minVal() *bignum.Rational {
+ 	return bignum.MakeRat(bignum.Int(-1).Shl(t.Bits - 1), bignum.Nat(1));
+@@ -194,7 +194,7 @@ func (t *idealIntType) String() string {
+ 	return "ideal integer";
+ }
+ 
+-func (t *idealIntType) value(v *bignum.Integer) IdealIntValue
++func (t *idealIntType) Zero() Value
+ 
+ type floatType struct {
+ 	commonType;
+@@ -223,7 +223,7 @@ func (t *floatType) String() string {
+ 	return "float";
+ }
+ 
+-func (t *floatType) value(v float64) FloatValue
++func (t *floatType) Zero() Value
+ 
+ var maxFloat32Val = bignum.MakeRat(bignum.Int(0xffffff).Shl(127-23), bignum.Nat(1));
+ var maxFloat64Val = bignum.MakeRat(bignum.Int(0x1fffffffffffff).Shl(1023-52), bignum.Nat(1));
+@@ -278,7 +278,7 @@ func (t *idealFloatType) String() string {
+ 	return "ideal float";
+ }
+ 
+-func (t *idealFloatType) value(v *bignum.Rational) IdealFloatValue
++func (t *idealFloatType) Zero() Value
+ 
+ type stringType struct {
+ 	commonType;
+@@ -298,7 +298,7 @@ func (t *stringType) String() string {
+ 	return "string";
+ }
+ 
+-func (t *stringType) value(v string) StringValue
++func (t *stringType) Zero() Value
+ 
+ type ArrayType struct {
+ 	commonType;
+@@ -338,7 +338,7 @@ func (t *ArrayType) String() string {
+ 	return "[]" + t.Elem.String();
+ }
+ 
+-func (t *ArrayType) value(v []Value) ArrayValue
++func (t *ArrayType) Zero() Value
+ 
+ /*
+ func (t *ArrayType) literal() Type {
+@@ -383,7 +383,7 @@ func (t *PtrType) String() string {
+ 	return "*" + t.Elem.String();
+ }
+ 
+-func (t *PtrType) value(v Value) PtrValue
++func (t *PtrType) Zero() Value
+ 
+ /*
+ type FuncType struct {
+diff --git a/usr/austin/eval/value.go b/usr/austin/eval/value.go
+index 7f58b55f68..9847803729 100644
+--- a/usr/austin/eval/value.go
++++ b/usr/austin/eval/value.go
+@@ -16,14 +16,14 @@ import (
+ 
+ type boolV bool
+ 
+-func (*boolV) Type() Type {
+-	return BoolType;
+-}
+-
+ func (v *boolV) String() string {
+ 	return fmt.Sprint(*v);
+ }
+ 
++func (v *boolV) Assign(o Value) {
++	*v = boolV(o.(BoolValue).Get());
++}
++
+ func (v *boolV) Get() bool {
+ 	return bool(*v);
+ }
+@@ -32,8 +32,8 @@ func (v *boolV) Set(x bool) {
+ 	*v = boolV(x);
+ }
+ 
+-func (t *boolType) value(v bool) BoolValue {
+-	res := boolV(v);
++func (t *boolType) Zero() Value {
++	res := boolV(false);
+ 	return &res;
+ }
+ 
+@@ -43,14 +43,14 @@ func (t *boolType) value(v bool) BoolValue {
+ 
+ type uint8V uint8
+ 
+-func (*uint8V) Type() Type {
+-	return Uint8Type;
+-}
+-
+ func (v *uint8V) String() string {
+ 	return fmt.Sprint(*v);
+ }
+ 
++func (v *uint8V) Assign(o Value) {
++	*v = uint8V(o.(UintValue).Get());
++}
++
+ func (v *uint8V) Get() uint64 {
+ 	return uint64(*v);
+ }
+@@ -61,14 +61,14 @@ func (v *uint8V) Set(x uint64) {
+ 
+ type uint16V uint16
+ 
+-func (*uint16V) Type() Type {
+-	return Uint16Type;
+-}
+-
+ func (v *uint16V) String() string {
+ 	return fmt.Sprint(*v);
+ }
+ 
++func (v *uint16V) Assign(o Value) {
++	*v = uint16V(o.(UintValue).Get());
++}
++
+ func (v *uint16V) Get() uint64 {
+ 	return uint64(*v);
+ }
+@@ -79,14 +79,14 @@ func (v *uint16V) Set(x uint64) {
+ 
+ type uint32V uint32
+ 
+-func (*uint32V) Type() Type {
+-	return Uint32Type;
+-}
+-
+ func (v *uint32V) String() string {
+ 	return fmt.Sprint(*v);
+ }
+ 
++func (v *uint32V) Assign(o Value) {
++	*v = uint32V(o.(UintValue).Get());
++}
++
+ func (v *uint32V) Get() uint64 {
+ 	return uint64(*v);
+ }
+@@ -97,14 +97,14 @@ func (v *uint32V) Set(x uint64) {
+ 
+ type uint64V uint64
+ 
+-func (*uint64V) Type() Type {
+-	return Uint64Type;
+-}
+-
+ func (v *uint64V) String() string {
+ 	return fmt.Sprint(*v);
+ }
+ 
++func (v *uint64V) Assign(o Value) {
++	*v = uint64V(o.(UintValue).Get());
++}
++
+ func (v *uint64V) Get() uint64 {
+ 	return uint64(*v);
+ }
+@@ -115,14 +115,14 @@ func (v *uint64V) Set(x uint64) {
+ 
+ type uintV uint
+ 
+-func (*uintV) Type() Type {
+-	return UintType;
+-}
+-
+ func (v *uintV) String() string {
+ 	return fmt.Sprint(*v);
+ }
+ 
++func (v *uintV) Assign(o Value) {
++	*v = uintV(o.(UintValue).Get());
++}
++
+ func (v *uintV) Get() uint64 {
+ 	return uint64(*v);
+ }
+@@ -133,14 +133,14 @@ func (v *uintV) Set(x uint64) {
+ 
+ type uintptrV uintptr
+ 
+-func (*uintptrV) Type() Type {
+-	return UintptrType;
+-}
+-
+ func (v *uintptrV) String() string {
+ 	return fmt.Sprint(*v);
+ }
+ 
++func (v *uintptrV) Assign(o Value) {
++	*v = uintptrV(o.(UintValue).Get());
++}
++
+ func (v *uintptrV) Get() uint64 {
+ 	return uint64(*v);
+ }
+@@ -149,29 +149,28 @@ func (v *uintptrV) Set(x uint64) {
+ 	*v = uintptrV(x);
+ }
+ 
+-func (t *uintType) value(v uint64) UintValue {
+-	// TODO(austin) The 'value' methods are only used for
+-	// testing right now.  Get rid of them.
+-	// TODO(austin) Deal with named types
++func (t *uintType) Zero() Value {
++	// TODO(austin) t may be a named type instead of one of the
++	// base types.
+ 	switch Type(t) {
+ 	case Uint8Type:
+-		res := uint8V(v);
++		res := uint8V(0);
+ 		return &res;
+ 	case Uint16Type:
+-		res := uint16V(v);
++		res := uint16V(0);
+ 		return &res;
+ 	case Uint32Type:
+-		res := uint32V(v);
++		res := uint32V(0);
+ 		return &res;
+ 	case Uint64Type:
+-		res := uint64V(v);
++		res := uint64V(0);
+ 		return &res;
+ 
+ 	case UintType:
+-		res := uintV(v);
++		res := uintV(0);
+ 		return &res;
+ 	case UintptrType:
+-		res := uintptrV(v);
++		res := uintptrV(0);
+ 		return &res;
+ 	}
+ 	panic("unknown uint type ", t.String());
+@@ -183,14 +182,14 @@ func (t *uintType) value(v uint64) UintValue {
+ 
+ type int8V int8
+ 
+-func (*int8V) Type() Type {
+-	return Int8Type;
+-}
+-
+ func (v *int8V) String() string {
+ 	return fmt.Sprint(*v);
+ }
+ 
++func (v *int8V) Assign(o Value) {
++	*v = int8V(o.(IntValue).Get());
++}
++
+ func (v *int8V) Get() int64 {
+ 	return int64(*v);
+ }
+@@ -201,14 +200,14 @@ func (v *int8V) Set(x int64) {
+ 
+ type int16V int16
+ 
+-func (*int16V) Type() Type {
+-	return Int16Type;
+-}
+-
+ func (v *int16V) String() string {
+ 	return fmt.Sprint(*v);
+ }
+ 
++func (v *int16V) Assign(o Value) {
++	*v = int16V(o.(IntValue).Get());
++}
++
+ func (v *int16V) Get() int64 {
+ 	return int64(*v);
+ }
+@@ -219,14 +218,14 @@ func (v *int16V) Set(x int64) {
+ 
+ type int32V int32
+ 
+-func (*int32V) Type() Type {
+-	return Int32Type;
+-}
+-
+ func (v *int32V) String() string {
+ 	return fmt.Sprint(*v);
+ }
+ 
++func (v *int32V) Assign(o Value) {
++	*v = int32V(o.(IntValue).Get());
++}
++
+ func (v *int32V) Get() int64 {
+ 	return int64(*v);
+ }
+@@ -237,14 +236,14 @@ func (v *int32V) Set(x int64) {
+ 
+ type int64V int64
+ 
+-func (*int64V) Type() Type {
+-	return Int64Type;
+-}
+-
+ func (v *int64V) String() string {
+ 	return fmt.Sprint(*v);
+ }
+ 
++func (v *int64V) Assign(o Value) {
++	*v = int64V(o.(IntValue).Get());
++}
++
+ func (v *int64V) Get() int64 {
+ 	return int64(*v);
+ }
+@@ -255,14 +254,14 @@ func (v *int64V) Set(x int64) {
+ 
+ type intV int
+ 
+-func (*intV) Type() Type {
+-	return IntType;
+-}
+-
+ func (v *intV) String() string {
+ 	return fmt.Sprint(*v);
+ }
+ 
++func (v *intV) Assign(o Value) {
++	*v = intV(o.(IntValue).Get());
++}
++
+ func (v *intV) Get() int64 {
+ 	return int64(*v);
+ }
+@@ -271,23 +270,23 @@ func (v *intV) Set(x int64) {
+ 	*v = intV(x);
+ }
+ 
+-func (t *intType) value(v int64) IntValue {
++func (t *intType) Zero() Value {
+ 	switch Type(t) {
+ 	case Int8Type:
+-		res := int8V(v);
++		res := int8V(0);
+ 		return &res;
+ 	case Int16Type:
+-		res := int16V(v);
++		res := int16V(0);
+ 		return &res;
+ 	case Int32Type:
+-		res := int32V(v);
++		res := int32V(0);
+ 		return &res;
+ 	case Int64Type:
+-		res := int64V(v);
++		res := int64V(0);
+ 		return &res;
+ 
+ 	case IntType:
+-		res := intV(v);
++		res := intV(0);
+ 		return &res;
+ 	}
+ 	panic("unknown int type ", t.String());
+@@ -301,20 +300,20 @@ type idealIntV struct {
+ 	V *bignum.Integer;
+ }
+ 
+-func (*idealIntV) Type() Type {
+-	return IdealIntType;
+-}
+-
+ func (v *idealIntV) String() string {
+ 	return v.V.String();
+ }
+ 
++func (v *idealIntV) Assign(o Value) {
++	v.V = o.(IdealIntValue).Get();
++}
++
+ func (v *idealIntV) Get() *bignum.Integer {
+ 	return v.V;
+ }
+ 
+-func (t *idealIntType) value(v *bignum.Integer) IdealIntValue {
+-	return &idealIntV{v};
++func (t *idealIntType) Zero() Value {
++	return &idealIntV{bignum.Int(0)};
+ }
+ 
+ /*
+@@ -323,14 +322,14 @@ func (t *idealIntType) value(v *bignum.Integer) IdealIntValue {
+ 
+ type float32V float32
+ 
+-func (*float32V) Type() Type {
+-	return Float32Type;
+-}
+-
+ func (v *float32V) String() string {
+ 	return fmt.Sprint(*v);
+ }
+ 
++func (v *float32V) Assign(o Value) {
++	*v = float32V(o.(FloatValue).Get());
++}
++
+ func (v *float32V) Get() float64 {
+ 	return float64(*v);
+ }
+@@ -341,14 +340,14 @@ func (v *float32V) Set(x float64) {
+ 
+ type float64V float64
+ 
+-func (*float64V) Type() Type {
+-	return Float64Type;
+-}
+-
+ func (v *float64V) String() string {
+ 	return fmt.Sprint(*v);
+ }
+ 
++func (v *float64V) Assign(o Value) {
++	*v = float64V(o.(FloatValue).Get());
++}
++
+ func (v *float64V) Get() float64 {
+ 	return float64(*v);
+ }
+@@ -359,14 +358,14 @@ func (v *float64V) Set(x float64) {
+ 
+ type floatV float
+ 
+-func (*floatV) Type() Type {
+-	return FloatType;
+-}
+-
+ func (v *floatV) String() string {
+ 	return fmt.Sprint(*v);
+ }
+ 
++func (v *floatV) Assign(o Value) {
++	*v = floatV(o.(FloatValue).Get());
++}
++
+ func (v *floatV) Get() float64 {
+ 	return float64(*v);
+ }
+@@ -375,16 +374,16 @@ func (v *floatV) Set(x float64) {
+ 	*v = floatV(x);
+ }
+ 
+-func (t *floatType) value(v float64) FloatValue {
++func (t *floatType) Zero() Value {
+ 	switch Type(t) {
+ 	case Float32Type:
+-		res := float32V(v);
++		res := float32V(0);
+ 		return &res;
+ 	case Float64Type:
+-		res := float64V(v);
++		res := float64V(0);
+ 		return &res;
+ 	case FloatType:
+-		res := floatV(v);
++		res := floatV(0);
+ 		return &res;
+ 	}
+ 	panic("unknown float type ", t.String());
+@@ -398,20 +397,20 @@ type idealFloatV struct {
+ 	V *bignum.Rational;
+ }
+ 
+-func (*idealFloatV) Type() Type {
+-	return IdealFloatType;
+-}
+-
+ func (v *idealFloatV) String() string {
+ 	return ratToString(v.V);
+ }
+ 
++func (v *idealFloatV) Assign(o Value) {
++	v.V = o.(IdealFloatValue).Get();
++}
++
+ func (v *idealFloatV) Get() *bignum.Rational {
+ 	return v.V;
+ }
+ 
+-func (t *idealFloatType) value(v *bignum.Rational) IdealFloatValue {
+-	return &idealFloatV{v};
++func (t *idealFloatType) Zero() Value {
++	return &idealFloatV{bignum.Rat(1, 0)};
+ }
+ 
+ /*
+@@ -420,14 +419,14 @@ func (t *idealFloatType) value(v *bignum.Rational) IdealFloatValue {
+ 
+ type stringV string
+ 
+-func (*stringV) Type() Type {
+-	return StringType;
+-}
+-
+ func (v *stringV) String() string {
+ 	return fmt.Sprint(*v);
+ }
+ 
++func (v *stringV) Assign(o Value) {
++	*v = stringV(o.(StringValue).Get());
++}
++
+ func (v *stringV) Get() string {
+ 	return string(*v);
+ }
+@@ -436,8 +435,8 @@ func (v *stringV) Set(x string) {
+ 	*v = stringV(x);
+ }
+ 
+-func (t *stringType) value(v string) StringValue {
+-	res := stringV(v);
++func (t *stringType) Zero() Value {
++	res := stringV("");
+ 	return &res;
+ }
+ 
+@@ -447,14 +446,18 @@ func (t *stringType) value(v string) StringValue {
+ 
+ type arrayV []Value
+ 
+-func (*arrayV) Type() Type {
+-	panic("Not implemented");
+-}
+-
+ func (v *arrayV) String() string {
+ 	return fmt.Sprint(*v);
+ }
+ 
++func (v *arrayV) Assign(o Value) {
++	oa := o.(ArrayValue);
++	l := int64(len(*v));
++	for i := int64(0); i < l; i++ {
++		(*v)[i].Assign(oa.Elem(i));
++	}
++}
++
+ func (v *arrayV) Get() ArrayValue {
+ 	return v;
+ }
+@@ -463,8 +466,16 @@ func (v *arrayV) Elem(i int64) Value {
+ 	return (*v)[i];
+ }
+ 
+-func (t *ArrayType) value(v []Value) ArrayValue {
+-	res := arrayV(v);
++func (t *ArrayType) Zero() Value {
++	res := arrayV(make([]Value, t.Len));
++	// TODO(austin) It's unfortunate that each element is
++	// separately heap allocated.  We could add ZeroArray to
++	// everything, though that doesn't help with multidimensional
++	// arrays.  Or we could do something unsafe.  We'll have this
++	// same problem with structs.
++	for i := int64(0); i < t.Len; i++ {
++		res[i] = t.Elem.Zero();
++	}
+ 	return &res;
+ }
+ 
+@@ -477,14 +488,14 @@ type ptrV struct {
+ 	target Value;
+ }
+ 
+-func (v *ptrV) Type() Type {
+-	return NewPtrType(v.target.Type());
+-}
+-
+ func (v *ptrV) String() string {
+ 	return "&" + v.target.String();
+ }
+ 
++func (v *ptrV) Assign(o Value) {
++	v.target = o.(PtrValue).Get();
++}
++
+ func (v *ptrV) Get() Value {
+ 	return v.target;
+ }
+@@ -493,7 +504,7 @@ func (v *ptrV) Set(x Value) {
+ 	v.target = x;
+ }
+ 
+-func (t *PtrType) value(v Value) PtrValue {
+-	res := ptrV{v};
++func (t *PtrType) Zero() Value {
++	res := ptrV{nil};
+ 	return &res;
+ }

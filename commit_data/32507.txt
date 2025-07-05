@@ -9,7 +9,7 @@ Date:   Thu Apr 27 19:00:09 2017 +0900
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/cgo_unix.go        |  4 ++--
  src/net/interface.go       | 16 ++++++++--------
  src/net/iprawsock_posix.go |  6 +++---
@@ -19,3 +19,193 @@ Date:   Thu Apr 27 19:00:09 2017 +0900
  src/net/tcpsock_posix.go   |  2 +-
  src/net/udpsock_posix.go   |  6 +++---
  8 files changed, 22 insertions(+), 22 deletions(-)
+
+diff --git a/src/net/cgo_unix.go b/src/net/cgo_unix.go
+index 56d34b6d03..d5173d68be 100644
+--- a/src/net/cgo_unix.go
++++ b/src/net/cgo_unix.go
+@@ -192,7 +192,7 @@ func cgoLookupIPCNAME(name string) (addrs []IPAddr, cname string, err error) {
+ 			addrs = append(addrs, addr)
+ 		case C.AF_INET6:
+ 			sa := (*syscall.RawSockaddrInet6)(unsafe.Pointer(r.ai_addr))
+-			addr := IPAddr{IP: copyIP(sa.Addr[:]), Zone: zoneToString(int(sa.Scope_id))}
++			addr := IPAddr{IP: copyIP(sa.Addr[:]), Zone: zoneCache.name(int(sa.Scope_id))}
+ 			addrs = append(addrs, addr)
+ 		}
+ 	}
+@@ -317,7 +317,7 @@ func cgoSockaddr(ip IP, zone string) (*C.struct_sockaddr, C.socklen_t) {
+ 		return cgoSockaddrInet4(ip4), C.socklen_t(syscall.SizeofSockaddrInet4)
+ 	}
+ 	if ip6 := ip.To16(); ip6 != nil {
+-		return cgoSockaddrInet6(ip6, zoneToInt(zone)), C.socklen_t(syscall.SizeofSockaddrInet6)
++		return cgoSockaddrInet6(ip6, zoneCache.index(zone)), C.socklen_t(syscall.SizeofSockaddrInet6)
+ 	}
+ 	return nil, 0
+ }
+diff --git a/src/net/interface.go b/src/net/interface.go
+index b3297f249d..4036a7f475 100644
+--- a/src/net/interface.go
++++ b/src/net/interface.go
+@@ -211,30 +211,30 @@ func (zc *ipv6ZoneCache) update(ift []Interface) {
+ 	}
+ }
+ 
+-func zoneToString(zone int) string {
+-	if zone == 0 {
++func (zc *ipv6ZoneCache) name(index int) string {
++	if index == 0 {
+ 		return ""
+ 	}
+ 	zoneCache.update(nil)
+ 	zoneCache.RLock()
+ 	defer zoneCache.RUnlock()
+-	name, ok := zoneCache.toName[zone]
++	name, ok := zoneCache.toName[index]
+ 	if !ok {
+-		name = uitoa(uint(zone))
++		name = uitoa(uint(index))
+ 	}
+ 	return name
+ }
+ 
+-func zoneToInt(zone string) int {
+-	if zone == "" {
++func (zc *ipv6ZoneCache) index(name string) int {
++	if name == "" {
+ 		return 0
+ 	}
+ 	zoneCache.update(nil)
+ 	zoneCache.RLock()
+ 	defer zoneCache.RUnlock()
+-	index, ok := zoneCache.toIndex[zone]
++	index, ok := zoneCache.toIndex[name]
+ 	if !ok {
+-		index, _, _ = dtoi(zone)
++		index, _, _ = dtoi(name)
+ 	}
+ 	return index
+ }
+diff --git a/src/net/iprawsock_posix.go b/src/net/iprawsock_posix.go
+index 5d76818af9..64c601602f 100644
+--- a/src/net/iprawsock_posix.go
++++ b/src/net/iprawsock_posix.go
+@@ -16,7 +16,7 @@ func sockaddrToIP(sa syscall.Sockaddr) Addr {
+ 	case *syscall.SockaddrInet4:
+ 		return &IPAddr{IP: sa.Addr[0:]}
+ 	case *syscall.SockaddrInet6:
+-		return &IPAddr{IP: sa.Addr[0:], Zone: zoneToString(int(sa.ZoneId))}
++		return &IPAddr{IP: sa.Addr[0:], Zone: zoneCache.name(int(sa.ZoneId))}
+ 	}
+ 	return nil
+ }
+@@ -52,7 +52,7 @@ func (c *IPConn) readFrom(b []byte) (int, *IPAddr, error) {
+ 		addr = &IPAddr{IP: sa.Addr[0:]}
+ 		n = stripIPv4Header(n, b)
+ 	case *syscall.SockaddrInet6:
+-		addr = &IPAddr{IP: sa.Addr[0:], Zone: zoneToString(int(sa.ZoneId))}
++		addr = &IPAddr{IP: sa.Addr[0:], Zone: zoneCache.name(int(sa.ZoneId))}
+ 	}
+ 	return n, addr, err
+ }
+@@ -79,7 +79,7 @@ func (c *IPConn) readMsg(b, oob []byte) (n, oobn, flags int, addr *IPAddr, err e
+ 	case *syscall.SockaddrInet4:
+ 		addr = &IPAddr{IP: sa.Addr[0:]}
+ 	case *syscall.SockaddrInet6:
+-		addr = &IPAddr{IP: sa.Addr[0:], Zone: zoneToString(int(sa.ZoneId))}
++		addr = &IPAddr{IP: sa.Addr[0:], Zone: zoneCache.name(int(sa.ZoneId))}
+ 	}
+ 	return
+ }
+diff --git a/src/net/ipsock_posix.go b/src/net/ipsock_posix.go
+index f1a701329e..d659bf063a 100644
+--- a/src/net/ipsock_posix.go
++++ b/src/net/ipsock_posix.go
+@@ -174,7 +174,7 @@ func ipToSockaddr(family int, ip IP, port int, zone string) (syscall.Sockaddr, e
+ 		if ip6 == nil {
+ 			return nil, &AddrError{Err: "non-IPv6 address", Addr: ip.String()}
+ 		}
+-		sa := &syscall.SockaddrInet6{Port: port, ZoneId: uint32(zoneToInt(zone))}
++		sa := &syscall.SockaddrInet6{Port: port, ZoneId: uint32(zoneCache.index(zone))}
+ 		copy(sa.Addr[:], ip6)
+ 		return sa, nil
+ 	}
+diff --git a/src/net/lookup_windows.go b/src/net/lookup_windows.go
+index 5808293058..0036d89d15 100644
+--- a/src/net/lookup_windows.go
++++ b/src/net/lookup_windows.go
+@@ -107,7 +107,7 @@ func (r *Resolver) lookupIP(ctx context.Context, name string) ([]IPAddr, error)
+ 				addrs = append(addrs, IPAddr{IP: IPv4(a[0], a[1], a[2], a[3])})
+ 			case syscall.AF_INET6:
+ 				a := (*syscall.RawSockaddrInet6)(addr).Addr
+-				zone := zoneToString(int((*syscall.RawSockaddrInet6)(addr).Scope_id))
++				zone := zoneCache.name(int((*syscall.RawSockaddrInet6)(addr).Scope_id))
+ 				addrs = append(addrs, IPAddr{IP: IP{a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], a[13], a[14], a[15]}, Zone: zone})
+ 			default:
+ 				ch <- ret{err: &DNSError{Err: syscall.EWINDOWS.Error(), Name: name}}
+diff --git a/src/net/main_test.go b/src/net/main_test.go
+index 1d3f73a266..bbf32cfcd9 100644
+--- a/src/net/main_test.go
++++ b/src/net/main_test.go
+@@ -95,15 +95,15 @@ func setupTestData() {
+ 	if ifi != nil {
+ 		index := fmt.Sprintf("%v", ifi.Index)
+ 		resolveTCPAddrTests = append(resolveTCPAddrTests, []resolveTCPAddrTest{
+-			{"tcp6", "[fe80::1%" + ifi.Name + "]:1", &TCPAddr{IP: ParseIP("fe80::1"), Port: 1, Zone: zoneToString(ifi.Index)}, nil},
++			{"tcp6", "[fe80::1%" + ifi.Name + "]:1", &TCPAddr{IP: ParseIP("fe80::1"), Port: 1, Zone: zoneCache.name(ifi.Index)}, nil},
+ 			{"tcp6", "[fe80::1%" + index + "]:2", &TCPAddr{IP: ParseIP("fe80::1"), Port: 2, Zone: index}, nil},
+ 		}...)
+ 		resolveUDPAddrTests = append(resolveUDPAddrTests, []resolveUDPAddrTest{
+-			{"udp6", "[fe80::1%" + ifi.Name + "]:1", &UDPAddr{IP: ParseIP("fe80::1"), Port: 1, Zone: zoneToString(ifi.Index)}, nil},
++			{"udp6", "[fe80::1%" + ifi.Name + "]:1", &UDPAddr{IP: ParseIP("fe80::1"), Port: 1, Zone: zoneCache.name(ifi.Index)}, nil},
+ 			{"udp6", "[fe80::1%" + index + "]:2", &UDPAddr{IP: ParseIP("fe80::1"), Port: 2, Zone: index}, nil},
+ 		}...)
+ 		resolveIPAddrTests = append(resolveIPAddrTests, []resolveIPAddrTest{
+-			{"ip6", "fe80::1%" + ifi.Name, &IPAddr{IP: ParseIP("fe80::1"), Zone: zoneToString(ifi.Index)}, nil},
++			{"ip6", "fe80::1%" + ifi.Name, &IPAddr{IP: ParseIP("fe80::1"), Zone: zoneCache.name(ifi.Index)}, nil},
+ 			{"ip6", "fe80::1%" + index, &IPAddr{IP: ParseIP("fe80::1"), Zone: index}, nil},
+ 		}...)
+ 	}
+diff --git a/src/net/tcpsock_posix.go b/src/net/tcpsock_posix.go
+index 9641e5c028..58c7e49a77 100644
+--- a/src/net/tcpsock_posix.go
++++ b/src/net/tcpsock_posix.go
+@@ -18,7 +18,7 @@ func sockaddrToTCP(sa syscall.Sockaddr) Addr {
+ 	case *syscall.SockaddrInet4:
+ 		return &TCPAddr{IP: sa.Addr[0:], Port: sa.Port}
+ 	case *syscall.SockaddrInet6:
+-		return &TCPAddr{IP: sa.Addr[0:], Port: sa.Port, Zone: zoneToString(int(sa.ZoneId))}
++		return &TCPAddr{IP: sa.Addr[0:], Port: sa.Port, Zone: zoneCache.name(int(sa.ZoneId))}
+ 	}
+ 	return nil
+ }
+diff --git a/src/net/udpsock_posix.go b/src/net/udpsock_posix.go
+index 72aadca5dc..a126506d34 100644
+--- a/src/net/udpsock_posix.go
++++ b/src/net/udpsock_posix.go
+@@ -16,7 +16,7 @@ func sockaddrToUDP(sa syscall.Sockaddr) Addr {
+ 	case *syscall.SockaddrInet4:
+ 		return &UDPAddr{IP: sa.Addr[0:], Port: sa.Port}
+ 	case *syscall.SockaddrInet6:
+-		return &UDPAddr{IP: sa.Addr[0:], Port: sa.Port, Zone: zoneToString(int(sa.ZoneId))}
++		return &UDPAddr{IP: sa.Addr[0:], Port: sa.Port, Zone: zoneCache.name(int(sa.ZoneId))}
+ 	}
+ 	return nil
+ }
+@@ -49,7 +49,7 @@ func (c *UDPConn) readFrom(b []byte) (int, *UDPAddr, error) {
+ 	case *syscall.SockaddrInet4:
+ 		addr = &UDPAddr{IP: sa.Addr[0:], Port: sa.Port}
+ 	case *syscall.SockaddrInet6:
+-		addr = &UDPAddr{IP: sa.Addr[0:], Port: sa.Port, Zone: zoneToString(int(sa.ZoneId))}
++		addr = &UDPAddr{IP: sa.Addr[0:], Port: sa.Port, Zone: zoneCache.name(int(sa.ZoneId))}
+ 	}
+ 	return n, addr, err
+ }
+@@ -61,7 +61,7 @@ func (c *UDPConn) readMsg(b, oob []byte) (n, oobn, flags int, addr *UDPAddr, err
+ 	case *syscall.SockaddrInet4:
+ 		addr = &UDPAddr{IP: sa.Addr[0:], Port: sa.Port}
+ 	case *syscall.SockaddrInet6:
+-		addr = &UDPAddr{IP: sa.Addr[0:], Port: sa.Port, Zone: zoneToString(int(sa.ZoneId))}
++		addr = &UDPAddr{IP: sa.Addr[0:], Port: sa.Port, Zone: zoneCache.name(int(sa.ZoneId))}
+ 	}
+ 	return
+ }

@@ -10,7 +10,65 @@ Date:   Wed Jun 22 21:57:52 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/24380
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Run-TryBot: Andrew Gerrand <adg@golang.org>
-
+---
  src/text/template/multi_test.go | 36 ++++++++++++++++++++++++++++++++++++
  src/text/template/template.go   |  2 +-
  2 files changed, 37 insertions(+), 1 deletion(-)
+
+diff --git a/src/text/template/multi_test.go b/src/text/template/multi_test.go
+index c8723cb7a8..8142f008fd 100644
+--- a/src/text/template/multi_test.go
++++ b/src/text/template/multi_test.go
+@@ -349,3 +349,39 @@ func TestParse(t *testing.T) {
+ 		t.Fatalf("parsing test: %s", err)
+ 	}
+ }
++
++func TestEmptyTemplate(t *testing.T) {
++	cases := []struct {
++		defn []string
++		in   string
++		want string
++	}{
++		{[]string{""}, "once", ""},
++		{[]string{"", ""}, "twice", ""},
++		{[]string{"{{.}}", "{{.}}"}, "twice", "twice"},
++		{[]string{"{{/* a comment */}}", "{{/* a comment */}}"}, "comment", ""},
++		{[]string{"{{.}}", ""}, "twice", ""},
++	}
++
++	for _, c := range cases {
++		root := New("root")
++
++		var (
++			m   *Template
++			err error
++		)
++		for _, d := range c.defn {
++			m, err = root.New(c.in).Parse(d)
++			if err != nil {
++				t.Fatal(err)
++			}
++		}
++		buf := &bytes.Buffer{}
++		if err := m.Execute(buf, c.in); err != nil {
++			t.Fatal(err)
++		}
++		if buf.String() != c.want {
++			t.Errorf("expected string %q: got %q", c.want, buf.String())
++		}
++	}
++}
+diff --git a/src/text/template/template.go b/src/text/template/template.go
+index 7a7f42a715..a8ad6279e3 100644
+--- a/src/text/template/template.go
++++ b/src/text/template/template.go
+@@ -208,7 +208,7 @@ func (t *Template) associate(new *Template, tree *parse.Tree) (bool, error) {
+ 	if new.common != t.common {
+ 		panic("internal error: associate not common")
+ 	}
+-	if t.tmpl[new.name] != nil && parse.IsEmptyTree(tree.Root) {
++	if t.tmpl[new.name] != nil && parse.IsEmptyTree(tree.Root) && t.Tree != nil {
+ 		// If a template by that name exists,
+ 		// don't replace it with an empty template.
+ 		return false, nil

@@ -13,9 +13,206 @@ Date:   Mon Sep 9 07:22:14 2019 +0000
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/ARM64.rules   |   5 +-
  src/cmd/compile/internal/ssa/gen/generic.rules |   8 ++
  src/cmd/compile/internal/ssa/rewritegeneric.go | 114 ++++++++++++++++++++++++-
  test/codegen/math.go                           |   4 +-
  4 files changed, 123 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 6539a0ce7b..d4b47bfb0b 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -1863,8 +1863,9 @@
+ (XORshiftLL <t> [c] (UBFX [bfc] x) x2) && c < 32 && t.Size() == 4 && bfc == armBFAuxInt(32-c, c)
+ 	-> (EXTRWconst [32-c] x2 x)
+ 
+-// Rewrite special pairs of shifts to AND.
+-// On ARM64 the bitmask can fit into an instruction.
++// Generic rules rewrite certain AND to a pair of shifts.
++// However, on ARM64 the bitmask can fit into an instruction.
++// Rewrite it back to AND.
+ (SRLconst [c] (SLLconst [c] x)) && 0 < c && c < 64 -> (ANDconst [1<<uint(64-c)-1] x) // mask out high bits
+ (SLLconst [c] (SRLconst [c] x)) && 0 < c && c < 64 -> (ANDconst [^(1<<uint(c)-1)] x) // mask out low bits
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 8696464a70..ef5d7a63ff 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -542,6 +542,14 @@
+ (Slicemask (Const64 [x])) && x > 0 -> (Const64 [-1])
+ (Slicemask (Const64 [0]))          -> (Const64 [0])
+ 
++// Rewrite AND of consts as shifts if possible, slightly faster for 64 bit operands
++// leading zeros can be shifted left, then right
++(And64 <t> (Const64 [y]) x) && nlz(y) + nto(y) == 64 && nto(y) >= 32
++  -> (Rsh64Ux64 (Lsh64x64 <t> x (Const64 <t> [nlz(y)])) (Const64 <t> [nlz(y)]))
++// trailing zeros can be shifted right, then left
++(And64 <t> (Const64 [y]) x) && nlo(y) + ntz(y) == 64 && ntz(y) >= 32
++  -> (Lsh64x64 (Rsh64Ux64 <t> x (Const64 <t> [ntz(y)])) (Const64 <t> [ntz(y)]))
++
+ // simplifications often used for lengths.  e.g. len(s[i:i+5])==5
+ (Sub(64|32|16|8) (Add(64|32|16|8) x y) x) -> y
+ (Sub(64|32|16|8) (Add(64|32|16|8) x y) y) -> x
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index a2d091d3d6..8aa07d20db 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -5735,6 +5735,112 @@ func rewriteValuegeneric_OpAnd64_10(v *Value) bool {
+ 		v.AddArg(y)
+ 		return true
+ 	}
++	// match: (And64 <t> (Const64 [y]) x)
++	// cond: nlz(y) + nto(y) == 64 && nto(y) >= 32
++	// result: (Rsh64Ux64 (Lsh64x64 <t> x (Const64 <t> [nlz(y)])) (Const64 <t> [nlz(y)]))
++	for {
++		t := v.Type
++		x := v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst64 {
++			break
++		}
++		y := v_0.AuxInt
++		if !(nlz(y)+nto(y) == 64 && nto(y) >= 32) {
++			break
++		}
++		v.reset(OpRsh64Ux64)
++		v0 := b.NewValue0(v.Pos, OpLsh64x64, t)
++		v0.AddArg(x)
++		v1 := b.NewValue0(v.Pos, OpConst64, t)
++		v1.AuxInt = nlz(y)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		v2 := b.NewValue0(v.Pos, OpConst64, t)
++		v2.AuxInt = nlz(y)
++		v.AddArg(v2)
++		return true
++	}
++	// match: (And64 <t> x (Const64 [y]))
++	// cond: nlz(y) + nto(y) == 64 && nto(y) >= 32
++	// result: (Rsh64Ux64 (Lsh64x64 <t> x (Const64 <t> [nlz(y)])) (Const64 <t> [nlz(y)]))
++	for {
++		t := v.Type
++		_ = v.Args[1]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		y := v_1.AuxInt
++		if !(nlz(y)+nto(y) == 64 && nto(y) >= 32) {
++			break
++		}
++		v.reset(OpRsh64Ux64)
++		v0 := b.NewValue0(v.Pos, OpLsh64x64, t)
++		v0.AddArg(x)
++		v1 := b.NewValue0(v.Pos, OpConst64, t)
++		v1.AuxInt = nlz(y)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		v2 := b.NewValue0(v.Pos, OpConst64, t)
++		v2.AuxInt = nlz(y)
++		v.AddArg(v2)
++		return true
++	}
++	// match: (And64 <t> (Const64 [y]) x)
++	// cond: nlo(y) + ntz(y) == 64 && ntz(y) >= 32
++	// result: (Lsh64x64 (Rsh64Ux64 <t> x (Const64 <t> [ntz(y)])) (Const64 <t> [ntz(y)]))
++	for {
++		t := v.Type
++		x := v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst64 {
++			break
++		}
++		y := v_0.AuxInt
++		if !(nlo(y)+ntz(y) == 64 && ntz(y) >= 32) {
++			break
++		}
++		v.reset(OpLsh64x64)
++		v0 := b.NewValue0(v.Pos, OpRsh64Ux64, t)
++		v0.AddArg(x)
++		v1 := b.NewValue0(v.Pos, OpConst64, t)
++		v1.AuxInt = ntz(y)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		v2 := b.NewValue0(v.Pos, OpConst64, t)
++		v2.AuxInt = ntz(y)
++		v.AddArg(v2)
++		return true
++	}
++	// match: (And64 <t> x (Const64 [y]))
++	// cond: nlo(y) + ntz(y) == 64 && ntz(y) >= 32
++	// result: (Lsh64x64 (Rsh64Ux64 <t> x (Const64 <t> [ntz(y)])) (Const64 <t> [ntz(y)]))
++	for {
++		t := v.Type
++		_ = v.Args[1]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		y := v_1.AuxInt
++		if !(nlo(y)+ntz(y) == 64 && ntz(y) >= 32) {
++			break
++		}
++		v.reset(OpLsh64x64)
++		v0 := b.NewValue0(v.Pos, OpRsh64Ux64, t)
++		v0.AddArg(x)
++		v1 := b.NewValue0(v.Pos, OpConst64, t)
++		v1.AuxInt = ntz(y)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		v2 := b.NewValue0(v.Pos, OpConst64, t)
++		v2.AuxInt = ntz(y)
++		v.AddArg(v2)
++		return true
++	}
+ 	// match: (And64 (And64 i:(Const64 <t>) z) x)
+ 	// cond: (z.Op != OpConst64 && x.Op != OpConst64)
+ 	// result: (And64 i (And64 <t> z x))
+@@ -5761,6 +5867,10 @@ func rewriteValuegeneric_OpAnd64_10(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	return false
++}
++func rewriteValuegeneric_OpAnd64_20(v *Value) bool {
++	b := v.Block
+ 	// match: (And64 (And64 z i:(Const64 <t>)) x)
+ 	// cond: (z.Op != OpConst64 && x.Op != OpConst64)
+ 	// result: (And64 i (And64 <t> z x))
+@@ -5874,10 +5984,6 @@ func rewriteValuegeneric_OpAnd64_10(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValuegeneric_OpAnd64_20(v *Value) bool {
+-	b := v.Block
+ 	// match: (And64 (Const64 <t> [c]) (And64 x (Const64 <t> [d])))
+ 	// cond:
+ 	// result: (And64 (Const64 <t> [c&d]) x)
+diff --git a/test/codegen/math.go b/test/codegen/math.go
+index 8aa652595b..36252710d1 100644
+--- a/test/codegen/math.go
++++ b/test/codegen/math.go
+@@ -81,7 +81,7 @@ func abs32(x float32) float32 {
+ 
+ // Check that it's using integer registers
+ func copysign(a, b, c float64) {
+-	// amd64:"BTRQ\t[$]63","ANDQ","ORQ"
++	// amd64:"BTRQ\t[$]63","SHRQ\t[$]63","SHLQ\t[$]63","ORQ"
+ 	// s390x:"CPSDR",-"MOVD"         (no integer load/store)
+ 	// ppc64:"FCPSGN"
+ 	// ppc64le:"FCPSGN"
+@@ -100,7 +100,7 @@ func copysign(a, b, c float64) {
+ 	// s390x:"LNDFR\t",-"MOVD\t"     (no integer load/store)
+ 	sink64[2] = math.Float64frombits(math.Float64bits(a) | 1<<63)
+ 
+-	// amd64:"ANDQ","ORQ"
++	// amd64:-"SHLQ\t[$]1",-"SHRQ\t[$]1","SHRQ\t[$]63","SHLQ\t[$]63","ORQ"
+ 	// s390x:"CPSDR\t",-"MOVD\t"     (no integer load/store)
+ 	// ppc64:"FCPSGN"
+ 	// ppc64le:"FCPSGN"

@@ -14,7 +14,7 @@ Date:   Mon Jun 8 12:39:56 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/236917
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.10.html                             |  2 +-
  src/cmd/compile/fmt_test.go                 | 15 +++++++--------
  src/cmd/go/internal/work/gc.go              |  2 +-
@@ -26,3 +26,207 @@ Date:   Mon Jun 8 12:39:56 2020 -0400
  src/runtime/cgo_sigaction.go                | 10 +++++-----
  src/runtime/debugcall.go                    |  2 +-
  10 files changed, 26 insertions(+), 28 deletions(-)
+
+diff --git a/doc/go1.10.html b/doc/go1.10.html
+index 95871e0e5c..853f874ded 100644
+--- a/doc/go1.10.html
++++ b/doc/go1.10.html
+@@ -267,7 +267,7 @@ and the <a href="/cmd/test2json/">test2json documentation</a>.
+ 
+ <p>
+ Options specified by cgo using <code>#cgo CFLAGS</code> and the like
+-are now checked against an allowlist of permitted options.
++are now checked against a list of permitted options.
+ This closes a security hole in which a downloaded package uses
+ compiler options like
+ <span style="white-space: nowrap"><code>-fplugin</code></span>
+diff --git a/src/cmd/compile/fmt_test.go b/src/cmd/compile/fmt_test.go
+index 768ca7fc89..e372259c78 100644
+--- a/src/cmd/compile/fmt_test.go
++++ b/src/cmd/compile/fmt_test.go
+@@ -96,7 +96,7 @@ func TestFormats(t *testing.T) {
+ 			}
+ 
+ 			importPath := filepath.Join("cmd/compile", path)
+-			if blocklistedPackages[filepath.ToSlash(importPath)] {
++			if ignoredPackages[filepath.ToSlash(importPath)] {
+ 				return filepath.SkipDir
+ 			}
+ 
+@@ -344,8 +344,7 @@ func collectPkgFormats(t *testing.T, pkg *build.Package) {
+ 	for index, file := range files {
+ 		ast.Inspect(file, func(n ast.Node) bool {
+ 			if call, ok := n.(*ast.CallExpr); ok {
+-				// ignore blocklisted functions
+-				if blocklistedFunctions[nodeString(call.Fun)] {
++				if ignoredFunctions[nodeString(call.Fun)] {
+ 					return true
+ 				}
+ 				// look for an arguments that might be a format string
+@@ -354,7 +353,7 @@ func collectPkgFormats(t *testing.T, pkg *build.Package) {
+ 						// make sure we have enough arguments
+ 						n := numFormatArgs(s)
+ 						if i+1+n > len(call.Args) {
+-							t.Errorf("%s: not enough format args (blocklist %s?)", posString(call), nodeString(call.Fun))
++							t.Errorf("%s: not enough format args (ignore %s?)", posString(call), nodeString(call.Fun))
+ 							break // ignore this call
+ 						}
+ 						// assume last n arguments are to be formatted;
+@@ -549,14 +548,14 @@ func formatReplace(in string, f func(i int, s string) string) string {
+ 	return string(append(buf, in[i0:]...))
+ }
+ 
+-// blocklistedPackages is the set of packages which can
++// ignoredPackages is the set of packages which can
+ // be ignored.
+-var blocklistedPackages = map[string]bool{}
++var ignoredPackages = map[string]bool{}
+ 
+-// blocklistedFunctions is the set of functions which may have
++// ignoredFunctions is the set of functions which may have
+ // format-like arguments but which don't do any formatting and
+ // thus may be ignored.
+-var blocklistedFunctions = map[string]bool{}
++var ignoredFunctions = map[string]bool{}
+ 
+ func init() {
+ 	// verify that knownFormats entries are correctly formatted
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 9a4fdcda5f..f1d08e0268 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -168,7 +168,7 @@ func gcBackendConcurrency(gcflags []string) int {
+ CheckFlags:
+ 	for _, flag := range gcflags {
+ 		// Concurrent compilation is presumed incompatible with any gcflags,
+-		// except for a small allowlist of commonly used flags.
++		// except for known commonly used flags.
+ 		// If the user knows better, they can manually add their own -c to the gcflags.
+ 		switch flag {
+ 		case "-N", "-l", "-S", "-B", "-C", "-I":
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index b871f664ea..32c342e545 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -634,15 +634,15 @@ func (l *Loader) checkdup(name string, r *oReader, li int, dup Sym) {
+ 	}
+ 	fmt.Fprintf(os.Stderr, "cmd/link: while reading object for '%v': duplicate symbol '%s', previous def at '%v', with mismatched payload: %s\n", r.unit.Lib, name, rdup.unit.Lib, reason)
+ 
+-	// For the moment, allowlist DWARF subprogram DIEs for
++	// For the moment, allow DWARF subprogram DIEs for
+ 	// auto-generated wrapper functions. What seems to happen
+ 	// here is that we get different line numbers on formal
+ 	// params; I am guessing that the pos is being inherited
+ 	// from the spot where the wrapper is needed.
+-	allowlist := strings.HasPrefix(name, "go.info.go.interface") ||
++	allowed := strings.HasPrefix(name, "go.info.go.interface") ||
+ 		strings.HasPrefix(name, "go.info.go.builtin") ||
+ 		strings.HasPrefix(name, "go.debuglines")
+-	if !allowlist {
++	if !allowed {
+ 		l.strictDupMsgs++
+ 	}
+ }
+diff --git a/src/cmd/oldlink/internal/objfile/objfile.go b/src/cmd/oldlink/internal/objfile/objfile.go
+index ae28e9673a..fbd7eb740b 100644
+--- a/src/cmd/oldlink/internal/objfile/objfile.go
++++ b/src/cmd/oldlink/internal/objfile/objfile.go
+@@ -411,16 +411,16 @@ overwrite:
+ 			}
+ 			fmt.Fprintf(os.Stderr, "cmd/link: while reading object for '%v': duplicate symbol '%s', previous def at '%v', with mismatched payload: %s\n", r.lib, dup, dup.Unit.Lib, reason)
+ 
+-			// For the moment, allowlist DWARF subprogram DIEs for
++			// For the moment, allow DWARF subprogram DIEs for
+ 			// auto-generated wrapper functions. What seems to happen
+ 			// here is that we get different line numbers on formal
+ 			// params; I am guessing that the pos is being inherited
+ 			// from the spot where the wrapper is needed.
+-			allowlist := (strings.HasPrefix(dup.Name, "go.info.go.interface") ||
++			allowed := (strings.HasPrefix(dup.Name, "go.info.go.interface") ||
+ 				strings.HasPrefix(dup.Name, "go.info.go.builtin") ||
+ 				strings.HasPrefix(dup.Name, "go.isstmt.go.builtin") ||
+ 				strings.HasPrefix(dup.Name, "go.debuglines"))
+-			if !allowlist {
++			if !allowed {
+ 				r.strictDupMsgs++
+ 			}
+ 		}
+diff --git a/src/html/template/html.go b/src/html/template/html.go
+index d3359cac0a..356b8298ae 100644
+--- a/src/html/template/html.go
++++ b/src/html/template/html.go
+@@ -240,8 +240,7 @@ func htmlNameFilter(args ...interface{}) string {
+ 	}
+ 	s = strings.ToLower(s)
+ 	if t := attrType(s); t != contentTypePlain {
+-		// TODO: Split attr and element name part filters so we can allowlist
+-		// attributes.
++		// TODO: Split attr and element name part filters so we can recognize known attributes.
+ 		return filterFailsafe
+ 	}
+ 	for _, r := range s {
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index e4a00dd569..fe6b60982c 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -503,7 +503,7 @@ func valueOrDefault(value, def string) string {
+ 
+ // NOTE: This is not intended to reflect the actual Go version being used.
+ // It was changed at the time of Go 1.1 release because the former User-Agent
+-// had ended up on a blocklist for some intrusion detection systems.
++// had ended up blocked by some intrusion detection systems.
+ // See https://codereview.appspot.com/7532043.
+ const defaultUserAgent = "Go-http-client/1.1"
+ 
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index a75dd1461f..a995a50658 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1698,9 +1698,9 @@ func (c *conn) closeWriteAndWait() {
+ 	time.Sleep(rstAvoidanceDelay)
+ }
+ 
+-// validNextProto reports whether the proto is not a blocklisted ALPN
+-// protocol name. Empty and built-in protocol types are blocklisted
+-// and can't be overridden with alternate implementations.
++// validNextProto reports whether the proto is a valid ALPN protocol name.
++// Everything is valid except the empty string and built-in protocol types,
++// so that those can't be overridden with alternate implementations.
+ func validNextProto(proto string) bool {
+ 	switch proto {
+ 	case "", "http/1.1", "http/1.0":
+diff --git a/src/runtime/cgo_sigaction.go b/src/runtime/cgo_sigaction.go
+index 967b8b9a0d..de634dc957 100644
+--- a/src/runtime/cgo_sigaction.go
++++ b/src/runtime/cgo_sigaction.go
+@@ -18,12 +18,12 @@ var _cgo_sigaction unsafe.Pointer
+ //go:nosplit
+ //go:nowritebarrierrec
+ func sigaction(sig uint32, new, old *sigactiont) {
+-	// The runtime package is explicitly blocklisted from sanitizer
+-	// instrumentation in racewalk.go, but we might be calling into instrumented C
+-	// functions here — so we need the pointer parameters to be properly marked.
++	// racewalk.go avoids adding sanitizing instrumentation to package runtime,
++	// but we might be calling into instrumented C functions here,
++	// so we need the pointer parameters to be properly marked.
+ 	//
+-	// Mark the input as having been written before the call and the output as
+-	// read after.
++	// Mark the input as having been written before the call
++	// and the output as read after.
+ 	if msanenabled && new != nil {
+ 		msanwrite(unsafe.Pointer(new), unsafe.Sizeof(*new))
+ 	}
+diff --git a/src/runtime/debugcall.go b/src/runtime/debugcall.go
+index 496e6ce8cc..6c285ec829 100644
+--- a/src/runtime/debugcall.go
++++ b/src/runtime/debugcall.go
+@@ -61,7 +61,7 @@ func debugCallCheck(pc uintptr) string {
+ 			"debugCall16384",
+ 			"debugCall32768",
+ 			"debugCall65536":
+-			// These functions are allowlisted so that the debugger can initiate multiple function calls.
++			// These functions are allowed so that the debugger can initiate multiple function calls.
+ 			// See: https://golang.org/cl/161137/
+ 			return
+ 		}

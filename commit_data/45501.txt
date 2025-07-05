@@ -17,7 +17,58 @@ Date:   Tue Oct 27 17:03:48 2020 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  misc/cgo/test/cgo_test.go |  2 ++
  misc/cgo/test/test.go     | 26 ++++++++++++++++++++++++++
  2 files changed, 28 insertions(+)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index b745a4417f..f7a76d047b 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -76,6 +76,8 @@ func TestCheckConst(t *testing.T)            { testCheckConst(t) }
+ func TestConst(t *testing.T)                 { testConst(t) }
+ func TestCthread(t *testing.T)               { testCthread(t) }
+ func TestEnum(t *testing.T)                  { testEnum(t) }
++func TestNamedEnum(t *testing.T)             { testNamedEnum(t) }
++func TestCastToEnum(t *testing.T)            { testCastToEnum(t) }
+ func TestErrno(t *testing.T)                 { testErrno(t) }
+ func TestFpVar(t *testing.T)                 { testFpVar(t) }
+ func TestHelpers(t *testing.T)               { testHelpers(t) }
+diff --git a/misc/cgo/test/test.go b/misc/cgo/test/test.go
+index a78f88499b..65823b1ca0 100644
+--- a/misc/cgo/test/test.go
++++ b/misc/cgo/test/test.go
+@@ -1000,6 +1000,32 @@ func testEnum(t *testing.T) {
+ 	}
+ }
+ 
++func testNamedEnum(t *testing.T) {
++	e := new(C.enum_E)
++
++	*e = C.Enum1
++	if *e != 1 {
++		t.Error("bad enum", C.Enum1)
++	}
++
++	*e = C.Enum2
++	if *e != 2 {
++		t.Error("bad enum", C.Enum2)
++	}
++}
++
++func testCastToEnum(t *testing.T) {
++	e := C.enum_E(C.Enum1)
++	if e != 1 {
++		t.Error("bad enum", C.Enum1)
++	}
++
++	e = C.enum_E(C.Enum2)
++	if e != 2 {
++		t.Error("bad enum", C.Enum2)
++	}
++}
++
+ func testAtol(t *testing.T) {
+ 	l := Atol("123")
+ 	if l != 123 {

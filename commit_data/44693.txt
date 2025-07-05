@@ -15,6 +15,32 @@ Date:   Wed Aug 19 23:01:58 2020 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 5d0098b4e6..4124655b79 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -338,6 +338,10 @@ func buildssa(fn *Node, worker int) *ssa.Func {
+ 	s.panics = map[funcLine]*ssa.Block{}
+ 	s.softFloat = s.config.SoftFloat
+ 
++	// Allocate starting block
++	s.f.Entry = s.f.NewBlock(ssa.BlockPlain)
++	s.f.Entry.Pos = fn.Pos
++
+ 	if printssa {
+ 		s.f.HTMLWriter = ssa.NewHTMLWriter(ssaDumpFile, s.f, ssaDumpCFG)
+ 		// TODO: generate and print a mapping from nodes to values and blocks
+@@ -345,9 +349,6 @@ func buildssa(fn *Node, worker int) *ssa.Func {
+ 		s.f.HTMLWriter.WriteAST("AST", astBuf)
+ 	}
+ 
+-	// Allocate starting block
+-	s.f.Entry = s.f.NewBlock(ssa.BlockPlain)
+-
+ 	// Allocate starting values
+ 	s.labels = map[string]*ssaLabel{}
+ 	s.labeledNodes = map[*Node]*ssaLabel{}

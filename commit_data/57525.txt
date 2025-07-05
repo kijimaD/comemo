@@ -20,8 +20,96 @@ Date:   Fri Aug 4 17:31:43 2023 -0400
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
-
+---
  src/runtime/callers_test.go | 36 ++++++++++++++++++++++++++++++++++++
  src/runtime/export_test.go  |  2 ++
  src/runtime/panic.go        | 12 +++++++++++-
  3 files changed, 49 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/callers_test.go b/src/runtime/callers_test.go
+index 7e2c6c8238..42091b04fc 100644
+--- a/src/runtime/callers_test.go
++++ b/src/runtime/callers_test.go
+@@ -450,3 +450,39 @@ func fpCallersCached(b *testing.B, n int) int {
+ 	}
+ 	return 1 + fpCallersCached(b, n-1)
+ }
++
++func TestFPUnwindAfterRecovery(t *testing.T) {
++	if !runtime.FramePointerEnabled {
++		t.Skip("frame pointers not supported for this architecture")
++	}
++	// Make sure that frame pointer unwinding succeeds from a deferred
++	// function run after recovering from a panic. It can fail if the
++	// recovery does not properly restore the caller's frame pointer before
++	// running the remaining deferred functions.
++	//
++	// This test does not verify the accuracy of the call stack (it
++	// currently includes a frame from runtime.deferreturn which would
++	// normally be omitted). It is only intended to check that producing the
++	// call stack won't crash.
++	defer func() {
++		pcs := make([]uintptr, 32)
++		for i := range pcs {
++			// If runtime.recovery doesn't properly restore the
++			// frame pointer before returning control to this
++			// function, it will point somewhere lower in the stack
++			// from one of the frames of runtime.gopanic() or one of
++			// it's callees prior to recovery.  So, we put some
++			// non-zero values on the stack to ensure that frame
++			// pointer unwinding will crash if it sees the old,
++			// invalid frame pointer.
++			pcs[i] = 10
++		}
++		runtime.FPCallers(pcs)
++	}()
++	defer func() {
++		if recover() == nil {
++			t.Fatal("did not recover from panic")
++		}
++	}()
++	panic(1)
++}
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index bc08b2333c..a89220e0dd 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1922,6 +1922,8 @@ func FPCallers(pcBuf []uintptr) int {
+ 	return fpTracebackPCs(unsafe.Pointer(getfp()), pcBuf)
+ }
+ 
++const FramePointerEnabled = framepointer_enabled
++
+ var (
+ 	IsPinned      = isPinned
+ 	GetPinCounter = pinnerGetPinCounter
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 5b7f35a0a5..59241143d0 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -898,7 +898,7 @@ var paniclk mutex
+ // defers instead.
+ func recovery(gp *g) {
+ 	p := gp._panic
+-	pc, sp := p.retpc, uintptr(p.sp)
++	pc, sp, fp := p.retpc, uintptr(p.sp), uintptr(p.fp)
+ 	p0, saveOpenDeferState := p, p.deferBitsPtr != nil && *p.deferBitsPtr != 0
+ 
+ 	// Unwind the panic stack.
+@@ -990,6 +990,16 @@ func recovery(gp *g) {
+ 	gp.sched.sp = sp
+ 	gp.sched.pc = pc
+ 	gp.sched.lr = 0
++	// fp points to the stack pointer at the caller, which is the top of the
++	// stack frame. The frame pointer used for unwinding is the word
++	// immediately below it.
++	gp.sched.bp = fp - goarch.PtrSize
++	if !usesLR {
++		// on x86, fp actually points one word higher than the top of
++		// the frame since the return address is saved on the stack by
++		// the caller
++		gp.sched.bp -= goarch.PtrSize
++	}
+ 	gp.sched.ret = 1
+ 	gogo(&gp.sched)
+ }

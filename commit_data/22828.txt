@@ -15,6 +15,40 @@ Date:   Fri Mar 27 16:11:11 2015 -0400
     Change-Id: Ibb722cd8360c3ed5a9654482519e3ceb87a8274d
     Reviewed-on: https://go-review.googlesource.com/8205
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/proc1.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 3b09149260..954d242b5f 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -208,6 +208,10 @@ func helpgc(nproc int32) {
+ 	unlock(&sched.lock)
+ }
+ 
++// freezeStopWait is a large value that freezetheworld sets
++// sched.stopwait to in order to request that all Gs permanently stop.
++const freezeStopWait = 0x7fffffff
++
+ // Similar to stoptheworld but best-effort and can be called several times.
+ // There is no reverse operation, used during crashing.
+ // This function must not lock any mutexes.
+@@ -220,7 +224,7 @@ func freezetheworld() {
+ 	// so try several times
+ 	for i := 0; i < 5; i++ {
+ 		// this should tell the scheduler to not start any new goroutines
+-		sched.stopwait = 0x7fffffff
++		sched.stopwait = freezeStopWait
+ 		atomicstore(&sched.gcwaiting, 1)
+ 		// this should stop running goroutines
+ 		if !preemptall() {
+@@ -1864,7 +1868,7 @@ func exitsyscallfast() bool {
+ 	_g_ := getg()
+ 
+ 	// Freezetheworld sets stopwait but does not retake P's.
+-	if sched.stopwait != 0 {
++	if sched.stopwait == freezeStopWait {
+ 		_g_.m.mcache = nil
+ 		_g_.m.p = nil
+ 		return false

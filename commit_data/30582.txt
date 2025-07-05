@@ -9,6 +9,20 @@ Date:   Mon Nov 14 21:46:25 2016 +0100
     Change-Id: Ib16c2fe42b5a8d4606ed719f620923c17839d091
     Reviewed-on: https://go-review.googlesource.com/33203
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/html/template/url.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/html/template/url.go b/src/html/template/url.go
+index 246bfd32cd..02123b2ccc 100644
+--- a/src/html/template/url.go
++++ b/src/html/template/url.go
+@@ -32,7 +32,7 @@ func urlEscaper(args ...interface{}) string {
+ 	return urlProcessor(false, args...)
+ }
+ 
+-// urlEscaper normalizes URL content so it can be embedded in a quote-delimited
++// urlNormalizer normalizes URL content so it can be embedded in a quote-delimited
+ // string or parenthesis delimited url(...).
+ // The normalizer does not encode all HTML specials. Specifically, it does not
+ // encode '&' so correct embedding in an HTML attribute requires escaping of

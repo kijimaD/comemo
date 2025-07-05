@@ -14,8 +14,85 @@ Date:   Mon Sep 8 21:02:36 2014 -0400
     R=khr
     CC=golang-codereviews
     https://golang.org/cl/139380043
-
+---
  src/runtime/panic.go  |  6 +++---
  src/runtime/runtime.h |  2 +-
  src/runtime/stack.c   | 20 +++++++++-----------
  3 files changed, 13 insertions(+), 15 deletions(-)
+
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index a5a8fbd6dd..52ab654646 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -287,9 +287,9 @@ func gopanic(e interface{}) {
+ 		gp._defer = (*_defer)(noescape(unsafe.Pointer(&dabort)))
+ 		p._defer = d
+ 
+-		p.argp = getargp(0)
++		p.argp = unsafe.Pointer(getargp(0))
+ 		reflectcall(unsafe.Pointer(d.fn), unsafe.Pointer(&d.args), uint32(d.siz), uint32(d.siz))
+-		p.argp = 0
++		p.argp = nil
+ 
+ 		// reflectcall did not panic. Remove dabort.
+ 		if gp._defer != &dabort {
+@@ -362,7 +362,7 @@ func gorecover(argp uintptr) interface{} {
+ 	// If they match, the caller is the one who can recover.
+ 	gp := getg()
+ 	p := gp._panic
+-	if p != nil && !p.recovered && argp == p.argp {
++	if p != nil && !p.recovered && argp == uintptr(p.argp) {
+ 		p.recovered = true
+ 		return p.arg
+ 	}
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index e6db8cb836..9584c5dfcc 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -653,7 +653,7 @@ struct Defer
+  */
+ struct Panic
+ {
+-	uintptr	argp;	// pointer to arguments of deferred call run during panic; cannot move - known to liblink
++	void*	argp;	// pointer to arguments of deferred call run during panic; cannot move - known to liblink
+ 	Eface	arg;		// argument to panic
+ 	Panic*	link;		// link to earlier panic
+ 	Defer*	defer;		// current executing defer
+diff --git a/src/runtime/stack.c b/src/runtime/stack.c
+index ca0eed06f9..8461c01f37 100644
+--- a/src/runtime/stack.c
++++ b/src/runtime/stack.c
+@@ -712,6 +712,10 @@ adjustdefers(G *gp, AdjustInfo *adjinfo)
+ 			// get adjusted appropriately.
+ 			// This only happens for runtime.main and runtime.gopanic now,
+ 			// but a compiler optimization could do more of this.
++			// If such an optimization were introduced, Defer.argp should
++			// change to have pointer type so that it will be updated by
++			// the stack copying. Today both of those on-stack defers
++			// set argp = NoArgs, so no adjustment is necessary.
+ 			*dp = (Defer*)((byte*)d + adjinfo->delta);
+ 			continue;
+ 		}
+@@ -751,17 +755,11 @@ adjustdefers(G *gp, AdjustInfo *adjinfo)
+ static void
+ adjustpanics(G *gp, AdjustInfo *adjinfo)
+ {
+-	Panic *p, **l;
+-
+-	// only the topmost panic is on the current stack
+-	for(l = &gp->panic; (p = *l) != nil; ) {
+-		if(adjinfo->oldstk <= (byte*)p && (byte*)p < adjinfo->oldbase)
+-			*l = (Panic*)((byte*)p + adjinfo->delta);
+-		l = &p->link;
+-		
+-		if(adjinfo->oldstk <= (byte*)p->argp && (byte*)p->argp < adjinfo->oldbase)
+-			p->argp += adjinfo->delta;
+-	}
++	// Panic structs are all on the stack
++	// and are adjusted by stack copying.
++	// The only pointer we need to update is gp->panic, the head of the list.
++	if(adjinfo->oldstk <= (byte*)gp->panic && (byte*)gp->panic < adjinfo->oldbase)
++		gp->panic = (Panic*)((byte*)gp->panic + adjinfo->delta);
+ }
+ 
+ static void

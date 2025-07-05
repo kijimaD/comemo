@@ -13,7 +13,7 @@ Date:   Sun Aug 15 20:44:49 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/decl.go       |  4 ++--
  src/go/types/errors.go     |  4 ++--
  src/go/types/lookup.go     |  4 ++--
@@ -26,3 +26,248 @@ Date:   Sun Aug 15 20:44:49 2021 -0400
  src/go/types/union.go      |  2 +-
  src/go/types/universe.go   |  2 +-
  11 files changed, 24 insertions(+), 24 deletions(-)
+
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 831b1da589..6c305caff5 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -339,7 +339,7 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
+ 			// cycle detected
+ 			for i, tn := range path {
+ 				if t.obj.pkg != check.pkg {
+-					panic("internal error: type cycle via package-external type")
++					panic("type cycle via package-external type")
+ 				}
+ 				if tn == t.obj {
+ 					check.cycleError(path[i:])
+@@ -347,7 +347,7 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
+ 					return t.info
+ 				}
+ 			}
+-			panic("internal error: cycle start not found")
++			panic("cycle start not found")
+ 		}
+ 		return t.info
+ 	}
+diff --git a/src/go/types/errors.go b/src/go/types/errors.go
+index 2263106417..7468626b98 100644
+--- a/src/go/types/errors.go
++++ b/src/go/types/errors.go
+@@ -68,7 +68,7 @@ func (check *Checker) sprintf(format string, args ...interface{}) string {
+ 		case nil:
+ 			arg = "<nil>"
+ 		case operand:
+-			panic("internal error: should always pass *operand")
++			panic("got operand instead of *operand")
+ 		case *operand:
+ 			arg = operandString(a, check.qualifier)
+ 		case token.Pos:
+@@ -236,7 +236,7 @@ func (s atPos) Pos() token.Pos {
+ func spanOf(at positioner) posSpan {
+ 	switch x := at.(type) {
+ 	case nil:
+-		panic("internal error: nil")
++		panic("nil positioner")
+ 	case posSpan:
+ 		return x
+ 	case ast.Node:
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 7cab336dbe..28628058c2 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -320,7 +320,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ 				return m, f
+ 			}
+ 			if ftyp.TParams().Len() > 0 {
+-				panic("internal error: method with type parameters")
++				panic("method with type parameters")
+ 			}
+ 
+ 			// If the methods have type parameters we don't care whether they
+@@ -372,7 +372,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ 			return m, f
+ 		}
+ 		if ftyp.TParams().Len() > 0 {
+-			panic("internal error: method with type parameters")
++			panic("method with type parameters")
+ 		}
+ 
+ 		// If V is a (instantiated) generic type, its methods are still
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index f26b50aa81..020b9827e8 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -33,7 +33,7 @@ type Named struct {
+ // The underlying type must not be a *Named.
+ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
+ 	if _, ok := underlying.(*Named); ok {
+-		panic("types.NewNamed: underlying type must not be *Named")
++		panic("underlying type must not be *Named")
+ 	}
+ 	return (*Checker)(nil).newNamed(obj, nil, underlying, nil, methods)
+ }
+@@ -100,7 +100,7 @@ func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tpar
+ 		check.later(func() {
+ 			switch typ.under().(type) {
+ 			case *Named:
+-				panic("internal error: unexpanded underlying type")
++				panic("unexpanded underlying type")
+ 			}
+ 			typ.check = nil
+ 		})
+@@ -144,10 +144,10 @@ func (t *Named) Method(i int) *Func { return t.load().methods[i] }
+ // SetUnderlying sets the underlying type and marks t as complete.
+ func (t *Named) SetUnderlying(underlying Type) {
+ 	if underlying == nil {
+-		panic("types.Named.SetUnderlying: underlying type must not be nil")
++		panic("underlying type must not be nil")
+ 	}
+ 	if _, ok := underlying.(*Named); ok {
+-		panic("types.Named.SetUnderlying: underlying type must not be *Named")
++		panic("underlying type must not be *Named")
+ 	}
+ 	t.load().underlying = underlying
+ }
+@@ -195,7 +195,7 @@ func (n0 *Named) under() Type {
+ 	}
+ 
+ 	if n0.check == nil {
+-		panic("internal error: Named.check == nil but type is incomplete")
++		panic("Named.check == nil but type is incomplete")
+ 	}
+ 
+ 	// Invariant: after this point n0 as well as any named types in its
+@@ -246,7 +246,7 @@ func (n0 *Named) under() Type {
+ 		// Also, doing so would lead to a race condition (was issue #31749).
+ 		// Do this check always, not just in debug mode (it's cheap).
+ 		if n.obj.pkg != check.pkg {
+-			panic("internal error: imported type with unresolved underlying type")
++			panic("imported type with unresolved underlying type")
+ 		}
+ 		n.underlying = u
+ 	}
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index 5a69bb17b5..4624b54acb 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -38,10 +38,10 @@ func NewSignature(recv *Var, params, results *Tuple, variadic bool) *Signature {
+ 	if variadic {
+ 		n := params.Len()
+ 		if n == 0 {
+-			panic("types.NewSignature: variadic function must have at least one parameter")
++			panic("variadic function must have at least one parameter")
+ 		}
+ 		if _, ok := params.At(n - 1).typ.(*Slice); !ok {
+-			panic("types.NewSignature: variadic parameter must be of unnamed slice type")
++			panic("variadic parameter must be of unnamed slice type")
+ 		}
+ 	}
+ 	return &Signature{recv: recv, params: params, results: results, variadic: variadic}
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 4c545efcf9..29c189ec5d 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -15,7 +15,7 @@ import (
+ 
+ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body *ast.BlockStmt, iota constant.Value) {
+ 	if check.conf.IgnoreFuncBodies {
+-		panic("internal error: function body not ignored")
++		panic("function body not ignored")
+ 	}
+ 
+ 	if trace {
+diff --git a/src/go/types/typeparam.go b/src/go/types/typeparam.go
+index cf80eaab38..ce8b4a7073 100644
+--- a/src/go/types/typeparam.go
++++ b/src/go/types/typeparam.go
+@@ -77,7 +77,7 @@ func (t *TypeParam) Constraint() Type {
+ // SetConstraint sets the type constraint for t.
+ func (t *TypeParam) SetConstraint(bound Type) {
+ 	if bound == nil {
+-		panic("types2.TypeParam.SetConstraint: bound must not be nil")
++		panic("nil constraint")
+ 	}
+ 	t.bound = bound
+ }
+@@ -113,7 +113,7 @@ func bindTParams(list []*TypeName) *TypeParams {
+ 	for i, tp := range list {
+ 		typ := tp.Type().(*TypeParam)
+ 		if typ.index >= 0 {
+-			panic("internal error: type parameter bound more than once")
++			panic("type parameter bound more than once")
+ 		}
+ 		typ.index = i
+ 	}
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index 3caba05202..307dae3aed 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -323,10 +323,10 @@ func sortMethods(list []*Func) {
+ 
+ func assertSortedMethods(list []*Func) {
+ 	if !debug {
+-		panic("internal error: assertSortedMethods called outside debug mode")
++		panic("assertSortedMethods called outside debug mode")
+ 	}
+ 	if !sort.IsSorted(byUniqueMethodName(list)) {
+-		panic("internal error: methods not sorted")
++		panic("methods not sorted")
+ 	}
+ }
+ 
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index ae15e1503e..975bba633a 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -132,7 +132,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 		// Unions only appear as (syntactic) embedded elements
+ 		// in interfaces and syntactically cannot be empty.
+ 		if t.NumTerms() == 0 {
+-			panic("internal error: empty union")
++			panic("empty union")
+ 		}
+ 		for i, t := range t.terms {
+ 			if i > 0 {
+@@ -185,7 +185,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 		case RecvOnly:
+ 			s = "<-chan "
+ 		default:
+-			panic("unreachable")
++			unreachable()
+ 		}
+ 		buf.WriteString(s)
+ 		if parens {
+@@ -332,7 +332,7 @@ func writeTuple(buf *bytes.Buffer, tup *Tuple, variadic bool, qf Qualifier, visi
+ 					// special case:
+ 					// append(s, "foo"...) leads to signature func([]byte, string...)
+ 					if t := asBasic(typ); t == nil || t.kind != String {
+-						panic("internal error: string type expected")
++						panic("expected string type")
+ 					}
+ 					writeType(buf, typ, qf, visited)
+ 					buf.WriteString("...")
+diff --git a/src/go/types/union.go b/src/go/types/union.go
+index 7f38c01f40..5419ed821a 100644
+--- a/src/go/types/union.go
++++ b/src/go/types/union.go
+@@ -133,7 +133,7 @@ func overlappingTerm(terms []*term, y *term) int {
+ 		// disjoint requires non-nil, non-top arguments
+ 		if debug {
+ 			if x == nil || x.typ == nil || y == nil || y.typ == nil {
+-				panic("internal error: empty or top union term")
++				panic("empty or top union term")
+ 			}
+ 		}
+ 		if !x.disjoint(y) {
+diff --git a/src/go/types/universe.go b/src/go/types/universe.go
+index 7d48c5d748..b8bf0a0db1 100644
+--- a/src/go/types/universe.go
++++ b/src/go/types/universe.go
+@@ -259,6 +259,6 @@ func def(obj Object) {
+ 		}
+ 	}
+ 	if scope.Insert(obj) != nil {
+-		panic("internal error: double declaration")
++		panic("double declaration of predeclared identifier")
+ 	}
+ }

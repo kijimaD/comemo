@@ -5,6 +5,20 @@ Date:   Wed Jun 25 21:23:14 2008 -0700
     O=6 not O=o
     
     SVN=124763
-
+---
  src/cmd/ar/Makefile | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/ar/Makefile b/src/cmd/ar/Makefile
+index 62d47d4a28..ef87ff38cb 100644
+--- a/src/cmd/ar/Makefile
++++ b/src/cmd/ar/Makefile
+@@ -4,7 +4,7 @@
+ 
+ CFLAGS=-I$(GOROOT)/include
+ BIN=$(HOME)/bin
+-O=o
++O=6
+ 
+ # The directory is ar because the source is portable and general.
+ # We call the binary 6ar to avoid confusion and because this binary

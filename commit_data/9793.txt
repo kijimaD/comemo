@@ -15,8 +15,90 @@ Date:   Mon Sep 26 00:56:49 2011 -0700
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5115041
-
+---
  src/pkg/exp/template/html/escape.go      |  3 +++
  src/pkg/exp/template/html/escape_test.go |  4 ++++
  src/pkg/exp/template/html/transition.go  | 38 ++++++++++++++++++--------------
  3 files changed, 28 insertions(+), 17 deletions(-)
+
+diff --git a/src/pkg/exp/template/html/escape.go b/src/pkg/exp/template/html/escape.go
+index aa5427c098..5ea819fc50 100644
+--- a/src/pkg/exp/template/html/escape.go
++++ b/src/pkg/exp/template/html/escape.go
+@@ -598,6 +598,9 @@ func (e *escaper) escapeText(c context, n *parse.TextNode) context {
+ 			b.Write(s[written:cs])
+ 			written = i1
+ 		}
++		if i == i1 && c.state == c1.state {
++			panic(fmt.Sprintf("infinite loop from %v to %v on %q..%q", c, c1, s[:i], s[i:]))
++		}
+ 		c, i = c1, i1
+ 	}
+ 
+diff --git a/src/pkg/exp/template/html/escape_test.go b/src/pkg/exp/template/html/escape_test.go
+index a3dab4cc85..da3c011961 100644
+--- a/src/pkg/exp/template/html/escape_test.go
++++ b/src/pkg/exp/template/html/escape_test.go
+@@ -904,6 +904,10 @@ func TestErrors(t *testing.T) {
+ 			`<a style=font:'Arial'>`,
+ 			`exp/template/html:z: "'" in unquoted attr: "font:'Arial'"`,
+ 		},
++		{
++			`<a=foo>`,
++			`: expected space, attr name, or end of tag, but got "=foo>"`,
++		},
+ 	}
+ 
+ 	for _, test := range tests {
+diff --git a/src/pkg/exp/template/html/transition.go b/src/pkg/exp/template/html/transition.go
+index 15548043b6..b8e02b239c 100644
+--- a/src/pkg/exp/template/html/transition.go
++++ b/src/pkg/exp/template/html/transition.go
+@@ -100,26 +100,30 @@ func tTag(c context, s []byte) (context, int) {
+ 		return context{state: stateError, err: err}, len(s)
+ 	}
+ 	state, attr := stateTag, attrNone
+-	if i != j {
+-		canonAttrName := strings.ToLower(string(s[i:j]))
+-		switch attrType[canonAttrName] {
+-		case contentTypeURL:
+-			attr = attrURL
+-		case contentTypeCSS:
+-			attr = attrStyle
+-		case contentTypeJS:
++	if i == j {
++		return context{
++			state: stateError,
++			err:   errorf(ErrBadHTML, 0, "expected space, attr name, or end of tag, but got %q", s[i:]),
++		}, len(s)
++	}
++	canonAttrName := strings.ToLower(string(s[i:j]))
++	switch attrType[canonAttrName] {
++	case contentTypeURL:
++		attr = attrURL
++	case contentTypeCSS:
++		attr = attrStyle
++	case contentTypeJS:
++		attr = attrScript
++	default:
++		if strings.HasPrefix(canonAttrName, "on") {
+ 			attr = attrScript
+-		default:
+-			if strings.HasPrefix(canonAttrName, "on") {
+-				attr = attrScript
+-			}
+-		}
+-		if j == len(s) {
+-			state = stateAttrName
+-		} else {
+-			state = stateAfterName
+ 		}
+ 	}
++	if j == len(s) {
++		state = stateAttrName
++	} else {
++		state = stateAfterName
++	}
+ 	return context{state: state, element: c.element, attr: attr}, j
+ }
+ 

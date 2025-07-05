@@ -10,7 +10,59 @@ Date:   Thu Jun 23 07:42:22 2016 +0000
     Reviewed-on: https://go-review.googlesource.com/24390
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/compress/flate/inflate.go      |  2 +-
  src/compress/flate/inflate_test.go | 30 ++++++++++++++++++++++++++++++
  2 files changed, 31 insertions(+), 1 deletion(-)
+
+diff --git a/src/compress/flate/inflate.go b/src/compress/flate/inflate.go
+index c1a4b60cd7..68cc232052 100644
+--- a/src/compress/flate/inflate.go
++++ b/src/compress/flate/inflate.go
+@@ -766,7 +766,7 @@ func (f *decompressor) Reset(r io.Reader, dict []byte) error {
+ 		dict:     f.dict,
+ 		step:     (*decompressor).nextBlock,
+ 	}
+-	f.dict.init(maxMatchOffset, nil)
++	f.dict.init(maxMatchOffset, dict)
+ 	return nil
+ }
+ 
+diff --git a/src/compress/flate/inflate_test.go b/src/compress/flate/inflate_test.go
+index 9f25d30b35..e0bce71d6f 100644
+--- a/src/compress/flate/inflate_test.go
++++ b/src/compress/flate/inflate_test.go
+@@ -37,3 +37,33 @@ func TestReset(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestResetDict(t *testing.T) {
++	dict := []byte("the lorem fox")
++	ss := []string{
++		"lorem ipsum izzle fo rizzle",
++		"the quick brown fox jumped over",
++	}
++
++	deflated := make([]bytes.Buffer, len(ss))
++	for i, s := range ss {
++		w, _ := NewWriterDict(&deflated[i], DefaultCompression, dict)
++		w.Write([]byte(s))
++		w.Close()
++	}
++
++	inflated := make([]bytes.Buffer, len(ss))
++
++	f := NewReader(nil)
++	for i := range inflated {
++		f.(Resetter).Reset(&deflated[i], dict)
++		io.Copy(&inflated[i], f)
++	}
++	f.Close()
++
++	for i, s := range ss {
++		if s != inflated[i].String() {
++			t.Errorf("inflated[%d]:\ngot  %q\nwant %q", i, inflated[i], s)
++		}
++	}
++}

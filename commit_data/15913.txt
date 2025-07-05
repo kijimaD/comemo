@@ -36,7 +36,7 @@ Date:   Sat Mar 23 09:57:40 2013 +0900
     R=rsc, iant
     CC=golang-dev
     https://golang.org/cl/6816116
-
+---
  src/pkg/net/dial.go           |  29 +++++++-----
  src/pkg/net/interface_test.go |  34 ++++++++++++--
  src/pkg/net/ip.go             |  93 ++++++++++++++++++---------------------
@@ -49,3 +49,900 @@ Date:   Sat Mar 23 09:57:40 2013 +0900
  src/pkg/net/udp_test.go       |  99 +++++++++++++++++++++++++++++++++++++++++
  src/pkg/net/udpsock.go        |  14 +++---
  11 files changed, 395 insertions(+), 105 deletions(-)
+
+diff --git a/src/pkg/net/dial.go b/src/pkg/net/dial.go
+index c0e4a2236e..da5f7e3020 100644
+--- a/src/pkg/net/dial.go
++++ b/src/pkg/net/dial.go
+@@ -169,22 +169,27 @@ func resolveAddr(op, net, addr string, deadline time.Time) (Addr, error) {
+ // "unixpacket".
+ //
+ // For TCP and UDP networks, addresses have the form host:port.
+-// If host is a literal IPv6 address, it must be enclosed
+-// in square brackets.  The functions JoinHostPort and SplitHostPort
+-// manipulate addresses in this form.
++// If host is a literal IPv6 address or host name, it must be enclosed
++// in square brackets as in "[::1]:80", "[ipv6-host]:http" or
++// "[ipv6-host%zone]:80".
++// The functions JoinHostPort and SplitHostPort manipulate addresses
++// in this form.
+ //
+ // Examples:
+ //	Dial("tcp", "12.34.56.78:80")
+-//	Dial("tcp", "google.com:80")
+-//	Dial("tcp", "[de:ad:be:ef::ca:fe]:80")
++//	Dial("tcp", "google.com:http")
++//	Dial("tcp", "[2001:db8::1]:http")
++//	Dial("tcp", "[fe80::1%lo0]:80")
+ //
+-// For IP networks, net must be "ip", "ip4" or "ip6" followed
+-// by a colon and a protocol number or name.
++// For IP networks, the net must be "ip", "ip4" or "ip6" followed by a
++// colon and a protocol number or name and the addr must be a literal
++// IP address.
+ //
+ // Examples:
+ //	Dial("ip4:1", "127.0.0.1")
+ //	Dial("ip6:ospf", "::1")
+ //
++// For Unix networks, the addr must be a file system path.
+ func Dial(net, addr string) (Conn, error) {
+ 	return DialOpt(addr, dialNetwork(net))
+ }
+@@ -290,8 +295,9 @@ func (a stringAddr) Network() string { return a.net }
+ func (a stringAddr) String() string  { return a.addr }
+ 
+ // Listen announces on the local network address laddr.
+-// The network string net must be a stream-oriented network:
+-// "tcp", "tcp4", "tcp6", "unix" or "unixpacket".
++// The network net must be a stream-oriented network: "tcp", "tcp4",
++// "tcp6", "unix" or "unixpacket".
++// See Dial for the syntax of laddr.
+ func Listen(net, laddr string) (Listener, error) {
+ 	la, err := resolveAddr("listen", net, laddr, noDeadline)
+ 	if err != nil {
+@@ -307,8 +313,9 @@ func Listen(net, laddr string) (Listener, error) {
+ }
+ 
+ // ListenPacket announces on the local network address laddr.
+-// The network string net must be a packet-oriented network:
+-// "udp", "udp4", "udp6", "ip", "ip4", "ip6" or "unixgram".
++// The network net must be a packet-oriented network: "udp", "udp4",
++// "udp6", "ip", "ip4", "ip6" or "unixgram".
++// See Dial for the syntax of laddr.
+ func ListenPacket(net, laddr string) (PacketConn, error) {
+ 	la, err := resolveAddr("listen", net, laddr, noDeadline)
+ 	if err != nil {
+diff --git a/src/pkg/net/interface_test.go b/src/pkg/net/interface_test.go
+index 7fb3428185..e31894abf7 100644
+--- a/src/pkg/net/interface_test.go
++++ b/src/pkg/net/interface_test.go
+@@ -25,6 +25,32 @@ func loopbackInterface() *Interface {
+ 	return nil
+ }
+ 
++// ipv6LinkLocalUnicastAddr returns an IPv6 link-local unicast address
++// on the given network interface for tests. It returns "" if no
++// suitable address is found.
++func ipv6LinkLocalUnicastAddr(ifi *Interface) string {
++	if ifi == nil {
++		return ""
++	}
++	ifat, err := ifi.Addrs()
++	if err != nil {
++		return ""
++	}
++	for _, ifa := range ifat {
++		switch ifa := ifa.(type) {
++		case *IPAddr:
++			if ifa.IP.To4() == nil && ifa.IP.IsLinkLocalUnicast() {
++				return ifa.IP.String()
++			}
++		case *IPNet:
++			if ifa.IP.To4() == nil && ifa.IP.IsLinkLocalUnicast() {
++				return ifa.IP.String()
++			}
++		}
++	}
++	return ""
++}
++
+ func TestInterfaces(t *testing.T) {
+ 	ift, err := Interfaces()
+ 	if err != nil {
+@@ -81,9 +107,9 @@ func testInterfaceMulticastAddrs(t *testing.T, ifi *Interface) {
+ 
+ func testAddrs(t *testing.T, ifat []Addr) {
+ 	for _, ifa := range ifat {
+-		switch v := ifa.(type) {
++		switch ifa := ifa.(type) {
+ 		case *IPAddr, *IPNet:
+-			if v == nil {
++			if ifa == nil {
+ 				t.Errorf("\tunexpected value: %v", ifa)
+ 			} else {
+ 				t.Logf("\tinterface address %q", ifa.String())
+@@ -96,9 +122,9 @@ func testAddrs(t *testing.T, ifat []Addr) {
+ 
+ func testMulticastAddrs(t *testing.T, ifmat []Addr) {
+ 	for _, ifma := range ifmat {
+-		switch v := ifma.(type) {
++		switch ifma := ifma.(type) {
+ 		case *IPAddr:
+-			if v == nil {
++			if ifma == nil {
+ 				t.Errorf("\tunexpected value: %v", ifma)
+ 			} else {
+ 				t.Logf("\tjoined group address %q", ifma.String())
+diff --git a/src/pkg/net/ip.go b/src/pkg/net/ip.go
+index b92b948784..0e42da2168 100644
+--- a/src/pkg/net/ip.go
++++ b/src/pkg/net/ip.go
+@@ -431,6 +431,9 @@ func (n *IPNet) Contains(ip IP) bool {
+ 	return true
+ }
+ 
++// Network returns the address's network name, "ip+net".
++func (n *IPNet) Network() string { return "ip+net" }
++
+ // String returns the CIDR notation of n like "192.168.100.1/24"
+ // or "2001:DB8::/48" as defined in RFC 4632 and RFC 4291.
+ // If the mask is not in the canonical form, it returns the
+@@ -449,9 +452,6 @@ func (n *IPNet) String() string {
+ 	return nn.String() + "/" + itod(uint(l))
+ }
+ 
+-// Network returns the address's network name, "ip+net".
+-func (n *IPNet) Network() string { return "ip+net" }
+-
+ // Parse IPv4 address (d.d.d.d).
+ func parseIPv4(s string) IP {
+ 	var p [IPv4len]byte
+@@ -483,26 +483,26 @@ func parseIPv4(s string) IP {
+ 	return IPv4(p[0], p[1], p[2], p[3])
+ }
+ 
+-// Parse IPv6 address.  Many forms.
+-// The basic form is a sequence of eight colon-separated
+-// 16-bit hex numbers separated by colons,
+-// as in 0123:4567:89ab:cdef:0123:4567:89ab:cdef.
+-// Two exceptions:
+-//	* A run of zeros can be replaced with "::".
+-//	* The last 32 bits can be in IPv4 form.
+-// Thus, ::ffff:1.2.3.4 is the IPv4 address 1.2.3.4.
+-func parseIPv6(s string) IP {
+-	p := make(IP, IPv6len)
++// parseIPv6 parses s as a literal IPv6 address described in RFC 4291
++// and RFC 5952.  It can also parse a literal scoped IPv6 address with
++// zone identifier which is described in RFC 4007 when zoneAllowed is
++// true.
++func parseIPv6(s string, zoneAllowed bool) (ip IP, zone string) {
++	ip = make(IP, IPv6len)
+ 	ellipsis := -1 // position of ellipsis in p
+ 	i := 0         // index in string s
+ 
++	if zoneAllowed {
++		s, zone = splitHostZone(s)
++	}
++
+ 	// Might have leading ellipsis
+ 	if len(s) >= 2 && s[0] == ':' && s[1] == ':' {
+ 		ellipsis = 0
+ 		i = 2
+ 		// Might be only ellipsis
+ 		if i == len(s) {
+-			return p
++			return ip, zone
+ 		}
+ 	}
+ 
+@@ -512,35 +512,35 @@ func parseIPv6(s string) IP {
+ 		// Hex number.
+ 		n, i1, ok := xtoi(s, i)
+ 		if !ok || n > 0xFFFF {
+-			return nil
++			return nil, zone
+ 		}
+ 
+ 		// If followed by dot, might be in trailing IPv4.
+ 		if i1 < len(s) && s[i1] == '.' {
+ 			if ellipsis < 0 && j != IPv6len-IPv4len {
+ 				// Not the right place.
+-				return nil
++				return nil, zone
+ 			}
+ 			if j+IPv4len > IPv6len {
+ 				// Not enough room.
+-				return nil
++				return nil, zone
+ 			}
+-			p4 := parseIPv4(s[i:])
+-			if p4 == nil {
+-				return nil
++			ip4 := parseIPv4(s[i:])
++			if ip4 == nil {
++				return nil, zone
+ 			}
+-			p[j] = p4[12]
+-			p[j+1] = p4[13]
+-			p[j+2] = p4[14]
+-			p[j+3] = p4[15]
++			ip[j] = ip4[12]
++			ip[j+1] = ip4[13]
++			ip[j+2] = ip4[14]
++			ip[j+3] = ip4[15]
+ 			i = len(s)
+ 			j += IPv4len
+ 			break
+ 		}
+ 
+ 		// Save this 16-bit chunk.
+-		p[j] = byte(n >> 8)
+-		p[j+1] = byte(n)
++		ip[j] = byte(n >> 8)
++		ip[j+1] = byte(n)
+ 		j += 2
+ 
+ 		// Stop at end of string.
+@@ -551,14 +551,14 @@ func parseIPv6(s string) IP {
+ 
+ 		// Otherwise must be followed by colon and more.
+ 		if s[i] != ':' || i+1 == len(s) {
+-			return nil
++			return nil, zone
+ 		}
+ 		i++
+ 
+ 		// Look for ellipsis.
+ 		if s[i] == ':' {
+ 			if ellipsis >= 0 { // already have one
+-				return nil
++				return nil, zone
+ 			}
+ 			ellipsis = j
+ 			if i++; i == len(s) { // can be at end
+@@ -569,23 +569,23 @@ func parseIPv6(s string) IP {
+ 
+ 	// Must have used entire string.
+ 	if i != len(s) {
+-		return nil
++		return nil, zone
+ 	}
+ 
+ 	// If didn't parse enough, expand ellipsis.
+ 	if j < IPv6len {
+ 		if ellipsis < 0 {
+-			return nil
++			return nil, zone
+ 		}
+ 		n := IPv6len - j
+ 		for k := j - 1; k >= ellipsis; k-- {
+-			p[k+n] = p[k]
++			ip[k+n] = ip[k]
+ 		}
+ 		for k := ellipsis + n - 1; k >= ellipsis; k-- {
+-			p[k] = 0
++			ip[k] = 0
+ 		}
+ 	}
+-	return p
++	return ip, zone
+ }
+ 
+ // A ParseError represents a malformed text string and the type of string that was expected.
+@@ -598,26 +598,17 @@ func (e *ParseError) Error() string {
+ 	return "invalid " + e.Type + ": " + e.Text
+ }
+ 
+-func parseIP(s string) IP {
+-	if p := parseIPv4(s); p != nil {
+-		return p
+-	}
+-	if p := parseIPv6(s); p != nil {
+-		return p
+-	}
+-	return nil
+-}
+-
+ // ParseIP parses s as an IP address, returning the result.
+ // The string s can be in dotted decimal ("74.125.19.99")
+ // or IPv6 ("2001:4860:0:2001::68") form.
+ // If s is not a valid textual representation of an IP address,
+ // ParseIP returns nil.
+ func ParseIP(s string) IP {
+-	if p := parseIPv4(s); p != nil {
+-		return p
++	if ip := parseIPv4(s); ip != nil {
++		return ip
+ 	}
+-	return parseIPv6(s)
++	ip, _ := parseIPv6(s, false)
++	return ip
+ }
+ 
+ // ParseCIDR parses s as a CIDR notation IP address and mask,
+@@ -632,15 +623,15 @@ func ParseCIDR(s string) (IP, *IPNet, error) {
+ 	if i < 0 {
+ 		return nil, nil, &ParseError{"CIDR address", s}
+ 	}
+-	ipstr, maskstr := s[:i], s[i+1:]
++	addr, mask := s[:i], s[i+1:]
+ 	iplen := IPv4len
+-	ip := parseIPv4(ipstr)
++	ip := parseIPv4(addr)
+ 	if ip == nil {
+ 		iplen = IPv6len
+-		ip = parseIPv6(ipstr)
++		ip, _ = parseIPv6(addr, false)
+ 	}
+-	n, i, ok := dtoi(maskstr, 0)
+-	if ip == nil || !ok || i != len(maskstr) || n < 0 || n > 8*iplen {
++	n, i, ok := dtoi(mask, 0)
++	if ip == nil || !ok || i != len(mask) || n < 0 || n > 8*iplen {
+ 		return nil, nil, &ParseError{"CIDR address", s}
+ 	}
+ 	m := CIDRMask(n, 8*iplen)
+diff --git a/src/pkg/net/ip_test.go b/src/pkg/net/ip_test.go
+index 886f119630..16f30d446b 100644
+--- a/src/pkg/net/ip_test.go
++++ b/src/pkg/net/ip_test.go
+@@ -22,6 +22,8 @@ var parseIPTests = []struct {
+ 	{"::ffff:127.0.0.1", IPv4(127, 0, 0, 1)},
+ 	{"2001:4860:0:2001::68", IP{0x20, 0x01, 0x48, 0x60, 0, 0, 0x20, 0x01, 0, 0, 0, 0, 0, 0, 0x00, 0x68}},
+ 	{"::ffff:4a7d:1363", IPv4(74, 125, 19, 99)},
++	{"fe80::1%lo0", nil},
++	{"fe80::1%911", nil},
+ 	{"", nil},
+ }
+ 
+@@ -37,7 +39,6 @@ var ipStringTests = []struct {
+ 	in  IP
+ 	out string // see RFC 5952
+ }{
+-
+ 	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0, 0x1, 0x23, 0, 0x12, 0, 0x1}, "2001:db8::123:12:1"},
+ 	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x1}, "2001:db8::1"},
+ 	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0x1, 0, 0, 0, 0x1, 0, 0, 0, 0x1}, "2001:db8:0:1:0:1:0:1"},
+@@ -257,10 +258,13 @@ var splitJoinTests = []struct {
+ 	{"www.google.com", "80", "www.google.com:80"},
+ 	{"127.0.0.1", "1234", "127.0.0.1:1234"},
+ 	{"::1", "80", "[::1]:80"},
+-	{"google.com", "https%foo", "google.com:https%foo"}, // Go 1.0 behavior
++	{"fe80::1%lo0", "80", "[fe80::1%lo0]:80"},
++	{"localhost%lo0", "80", "[localhost%lo0]:80"},
+ 	{"", "0", ":0"},
+-	{"127.0.0.1", "", "127.0.0.1:"},           // Go 1.0 behaviour
+-	{"www.google.com", "", "www.google.com:"}, // Go 1.0 behaviour
++
++	{"google.com", "https%foo", "google.com:https%foo"}, // Go 1.0 behavior
++	{"127.0.0.1", "", "127.0.0.1:"},                     // Go 1.0 behaviour
++	{"www.google.com", "", "www.google.com:"},           // Go 1.0 behaviour
+ }
+ 
+ var splitFailureTests = []struct {
+@@ -270,15 +274,27 @@ var splitFailureTests = []struct {
+ 	{"www.google.com", "missing port in address"},
+ 	{"127.0.0.1", "missing port in address"},
+ 	{"[::1]", "missing port in address"},
++	{"[fe80::1%lo0]", "missing port in address"},
++	{"[localhost%lo0]", "missing port in address"},
++	{"localhost%lo0", "missing port in address"},
++
+ 	{"::1", "too many colons in address"},
++	{"fe80::1%lo0", "too many colons in address"},
++	{"fe80::1%lo0:80", "too many colons in address"},
++
++	{"localhost%lo0:80", "missing brackets in address"},
+ 
+ 	// Test cases that didn't fail in Go 1.0
++
+ 	{"[foo:bar]", "missing port in address"},
+ 	{"[foo:bar]baz", "missing port in address"},
+-	{"[foo]:[bar]:baz", "too many colons in address"},
+ 	{"[foo]bar:baz", "missing port in address"},
++
++	{"[foo]:[bar]:baz", "too many colons in address"},
++
+ 	{"[foo]:[bar]baz", "unexpected '[' in address"},
+ 	{"foo[bar]:baz", "unexpected '[' in address"},
++
+ 	{"foo]bar:baz", "unexpected ']' in address"},
+ }
+ 
+diff --git a/src/pkg/net/ipraw_test.go b/src/pkg/net/ipraw_test.go
+index fa1a535b7f..841b57ab40 100644
+--- a/src/pkg/net/ipraw_test.go
++++ b/src/pkg/net/ipraw_test.go
+@@ -7,6 +7,7 @@ package net
+ import (
+ 	"bytes"
+ 	"errors"
++	"fmt"
+ 	"os"
+ 	"reflect"
+ 	"testing"
+@@ -27,6 +28,11 @@ var resolveIPAddrTests = []struct {
+ 	{"ip6", "::1", &IPAddr{IP: ParseIP("::1")}, nil},
+ 	{"ip6:icmp", "::1", &IPAddr{IP: ParseIP("::1")}, nil},
+ 
++	{"ip", "::1%en0", &IPAddr{IP: ParseIP("::1"), Zone: "en0"}, nil},
++	{"ip6", "::1%911", &IPAddr{IP: ParseIP("::1"), Zone: "911"}, nil},
++	{"ip6", "fe80::1", &IPAddr{IP: ParseIP("fe80::1"), Zone: "name"}, nil},
++	{"ip6", "fe80::1", &IPAddr{IP: ParseIP("fe80::1"), Zone: "index"}, nil},
++
+ 	{"", "127.0.0.1", &IPAddr{IP: IPv4(127, 0, 0, 1)}, nil}, // Go 1.0 behavior
+ 	{"", "::1", &IPAddr{IP: ParseIP("::1")}, nil},           // Go 1.0 behavior
+ 
+@@ -37,6 +43,21 @@ var resolveIPAddrTests = []struct {
+ 
+ func TestResolveIPAddr(t *testing.T) {
+ 	for _, tt := range resolveIPAddrTests {
++		if tt.addr != nil && (tt.addr.Zone == "name" || tt.addr.Zone == "index") {
++			ifi := loopbackInterface()
++			if ifi == nil {
++				continue
++			}
++			switch tt.addr.Zone {
++			case "name":
++				tt.litAddr += "%" + ifi.Name
++				tt.addr.Zone = zoneToString(ifi.Index)
++			case "index":
++				index := fmt.Sprintf("%v", ifi.Index)
++				tt.litAddr += "%" + index
++				tt.addr.Zone = index
++			}
++		}
+ 		addr, err := ResolveIPAddr(tt.net, tt.litAddr)
+ 		if err != tt.err {
+ 			t.Fatalf("ResolveIPAddr(%v, %v) failed: %v", tt.net, tt.litAddr, err)
+diff --git a/src/pkg/net/iprawsock.go b/src/pkg/net/iprawsock.go
+index daccba3669..9d99e7591b 100644
+--- a/src/pkg/net/iprawsock.go
++++ b/src/pkg/net/iprawsock.go
+@@ -19,12 +19,15 @@ func (a *IPAddr) String() string {
+ 	if a == nil {
+ 		return "<nil>"
+ 	}
++	if a.Zone != "" {
++		return a.IP.String() + "%" + a.Zone
++	}
+ 	return a.IP.String()
+ }
+ 
+-// ResolveIPAddr parses addr as an IP address and resolves domain
+-// names to numeric addresses on the network net, which must be
+-// "ip", "ip4" or "ip6".
++// ResolveIPAddr parses addr as an IP address of the form "host" or
++// "ipv6-host%zone" and resolves the domain name on the network net,
++// which must be "ip", "ip4" or "ip6".
+ func ResolveIPAddr(net, addr string) (*IPAddr, error) {
+ 	if net == "" { // a hint wildcard for Go 1.0 undocumented behavior
+ 		net = "ip"
+diff --git a/src/pkg/net/ipsock.go b/src/pkg/net/ipsock.go
+index 1ef4892896..d930595879 100644
+--- a/src/pkg/net/ipsock.go
++++ b/src/pkg/net/ipsock.go
+@@ -68,15 +68,12 @@ func (e InvalidAddrError) Error() string   { return string(e) }
+ func (e InvalidAddrError) Timeout() bool   { return false }
+ func (e InvalidAddrError) Temporary() bool { return false }
+ 
+-// SplitHostPort splits a network address of the form
+-// "host:port" or "[host]:port" into host and port.
+-// The latter form must be used when host contains a colon.
++// SplitHostPort splits a network address of the form "host:port",
++// "[host]:port" or "[ipv6-host%zone]:port" into host or
++// ipv6-host%zone and port.  A literal address or host name for IPv6
++// must be enclosed in square brackets, as in "[::1]:80",
++// "[ipv6-host]:http" or "[ipv6-host%zone]:80".
+ func SplitHostPort(hostport string) (host, port string, err error) {
+-	host, port, _, err = splitHostPort(hostport)
+-	return
+-}
+-
+-func splitHostPort(hostport string) (host, port, zone string, err error) {
+ 	j, k := 0, 0
+ 
+ 	// The port starts after the last colon.
+@@ -110,10 +107,12 @@ func splitHostPort(hostport string) (host, port, zone string, err error) {
+ 		j, k = 1, end+1 // there can't be a '[' resp. ']' before these positions
+ 	} else {
+ 		host = hostport[:i]
+-
+ 		if byteIndex(host, ':') >= 0 {
+ 			goto tooManyColons
+ 		}
++		if byteIndex(host, '%') >= 0 {
++			goto missingBrackets
++		}
+ 	}
+ 	if byteIndex(hostport[j:], '[') >= 0 {
+ 		err = &AddrError{"unexpected '[' in address", hostport}
+@@ -134,13 +133,29 @@ missingPort:
+ tooManyColons:
+ 	err = &AddrError{"too many colons in address", hostport}
+ 	return
++
++missingBrackets:
++	err = &AddrError{"missing brackets in address", hostport}
++	return
++}
++
++func splitHostZone(s string) (host, zone string) {
++	// The IPv6 scoped addressing zone identifer starts after the
++	// last percent sign.
++	if i := last(s, '%'); i > 0 {
++		host, zone = s[:i], s[i+1:]
++	} else {
++		host = s
++	}
++	return
+ }
+ 
+-// JoinHostPort combines host and port into a network address
+-// of the form "host:port" or, if host contains a colon, "[host]:port".
++// JoinHostPort combines host and port into a network address of the
++// form "host:port" or, if host contains a colon or a percent sign,
++// "[host]:port".
+ func JoinHostPort(host, port string) string {
+-	// If host has colons, have to bracket it.
+-	if byteIndex(host, ':') >= 0 {
++	// If host has colons or a percent sign, have to bracket it.
++	if byteIndex(host, ':') >= 0 || byteIndex(host, '%') >= 0 {
+ 		return "[" + host + "]:" + port
+ 	}
+ 	return host + ":" + port
+@@ -155,7 +170,7 @@ func resolveInternetAddr(net, addr string, deadline time.Time) (Addr, error) {
+ 	switch net {
+ 	case "tcp", "tcp4", "tcp6", "udp", "udp4", "udp6":
+ 		if addr != "" {
+-			if host, port, zone, err = splitHostPort(addr); err != nil {
++			if host, port, err = SplitHostPort(addr); err != nil {
+ 				return nil, err
+ 			}
+ 			if portnum, err = parsePort(net, port); err != nil {
+@@ -184,21 +199,25 @@ func resolveInternetAddr(net, addr string, deadline time.Time) (Addr, error) {
+ 		return inetaddr(net, nil, portnum, zone), nil
+ 	}
+ 	// Try as an IP address.
+-	if ip := ParseIP(host); ip != nil {
++	if ip := parseIPv4(host); ip != nil {
++		return inetaddr(net, ip, portnum, zone), nil
++	}
++	if ip, zone := parseIPv6(host, true); ip != nil {
+ 		return inetaddr(net, ip, portnum, zone), nil
+ 	}
++	// Try as a domain name.
++	host, zone = splitHostZone(host)
++	addrs, err := lookupHostDeadline(host, deadline)
++	if err != nil {
++		return nil, err
++	}
+ 	var filter func(IP) IP
+ 	if net != "" && net[len(net)-1] == '4' {
+ 		filter = ipv4only
+ 	}
+-	if net != "" && net[len(net)-1] == '6' {
++	if net != "" && net[len(net)-1] == '6' || zone != "" {
+ 		filter = ipv6only
+ 	}
+-	// Try as a DNS name.
+-	addrs, err := lookupHostDeadline(host, deadline)
+-	if err != nil {
+-		return nil, err
+-	}
+ 	ip := firstFavoriteAddr(filter, addrs)
+ 	if ip == nil {
+ 		// should not happen
+diff --git a/src/pkg/net/tcp_test.go b/src/pkg/net/tcp_test.go
+index 6c4485a948..add8e48234 100644
+--- a/src/pkg/net/tcp_test.go
++++ b/src/pkg/net/tcp_test.go
+@@ -5,6 +5,7 @@
+ package net
+ 
+ import (
++	"fmt"
+ 	"reflect"
+ 	"runtime"
+ 	"testing"
+@@ -158,6 +159,11 @@ var resolveTCPAddrTests = []struct {
+ 	{"tcp", "[::1]:1", &TCPAddr{IP: ParseIP("::1"), Port: 1}, nil},
+ 	{"tcp6", "[::1]:65534", &TCPAddr{IP: ParseIP("::1"), Port: 65534}, nil},
+ 
++	{"tcp", "[::1%en0]:1", &TCPAddr{IP: ParseIP("::1"), Port: 1, Zone: "en0"}, nil},
++	{"tcp6", "[::1%911]:2", &TCPAddr{IP: ParseIP("::1"), Port: 2, Zone: "911"}, nil},
++	{"tcp6", "[fe80::1]:3", &TCPAddr{IP: ParseIP("fe80::1"), Port: 3, Zone: "name"}, nil},
++	{"tcp6", "[fe80::1]:4", &TCPAddr{IP: ParseIP("fe80::1"), Port: 4, Zone: "index"}, nil},
++
+ 	{"", "127.0.0.1:0", &TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 0}, nil}, // Go 1.0 behavior
+ 	{"", "[::1]:0", &TCPAddr{IP: ParseIP("::1"), Port: 0}, nil},         // Go 1.0 behavior
+ 
+@@ -166,6 +172,24 @@ var resolveTCPAddrTests = []struct {
+ 
+ func TestResolveTCPAddr(t *testing.T) {
+ 	for _, tt := range resolveTCPAddrTests {
++		if tt.addr != nil && (tt.addr.Zone == "name" || tt.addr.Zone == "index") {
++			ifi := loopbackInterface()
++			if ifi == nil {
++				continue
++			}
++			i := last(tt.litAddr, ']')
++			if i > 0 {
++				switch tt.addr.Zone {
++				case "name":
++					tt.litAddr = tt.litAddr[:i] + "%" + ifi.Name + tt.litAddr[i:]
++					tt.addr.Zone = zoneToString(ifi.Index)
++				case "index":
++					index := fmt.Sprintf("%v", ifi.Index)
++					tt.litAddr = tt.litAddr[:i] + "%" + index + tt.litAddr[i:]
++					tt.addr.Zone = index
++				}
++			}
++		}
+ 		addr, err := ResolveTCPAddr(tt.net, tt.litAddr)
+ 		if err != tt.err {
+ 			t.Fatalf("ResolveTCPAddr(%v, %v) failed: %v", tt.net, tt.litAddr, err)
+@@ -204,3 +228,79 @@ func TestTCPListenerName(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
++	if testing.Short() || !*testExternal {
++		t.Skip("skipping test to avoid external network")
++	}
++	if !supportsIPv6 {
++		t.Skip("ipv6 is not supported")
++	}
++	ifi := loopbackInterface()
++	if ifi == nil {
++		t.Skip("loopback interface not found")
++	}
++	laddr := ipv6LinkLocalUnicastAddr(ifi)
++	if laddr == "" {
++		t.Skip("ipv6 unicast address on loopback not found")
++	}
++
++	type test struct {
++		net, addr  string
++		nameLookup bool
++	}
++	var tests = []test{
++		{"tcp", "[" + laddr + "%" + ifi.Name + "]:0", false},
++		{"tcp6", "[" + laddr + "%" + ifi.Name + "]:0", false},
++	}
++	switch runtime.GOOS {
++	case "darwin", "freebsd", "opensbd", "netbsd":
++		tests = append(tests, []test{
++			{"tcp", "[localhost%" + ifi.Name + "]:0", true},
++			{"tcp6", "[localhost%" + ifi.Name + "]:0", true},
++		}...)
++	case "linux":
++		tests = append(tests, []test{
++			{"tcp", "[ip6-localhost%" + ifi.Name + "]:0", true},
++			{"tcp6", "[ip6-localhost%" + ifi.Name + "]:0", true},
++		}...)
++	}
++	for _, tt := range tests {
++		ln, err := Listen(tt.net, tt.addr)
++		if err != nil {
++			// It might return "LookupHost returned no
++			// suitable address" error on some platforms.
++			t.Logf("Listen failed: %v", err)
++			continue
++		}
++		defer ln.Close()
++		if la, ok := ln.Addr().(*TCPAddr); !ok || !tt.nameLookup && la.Zone == "" {
++			t.Fatalf("got %v; expected a proper address with zone identifier", la)
++		}
++
++		done := make(chan int)
++		go transponder(t, ln, done)
++
++		c, err := Dial(tt.net, ln.Addr().String())
++		if err != nil {
++			t.Fatalf("Dial failed: %v", err)
++		}
++		defer c.Close()
++		if la, ok := c.LocalAddr().(*TCPAddr); !ok || !tt.nameLookup && la.Zone == "" {
++			t.Fatalf("got %v; expected a proper address with zone identifier", la)
++		}
++		if ra, ok := c.RemoteAddr().(*TCPAddr); !ok || !tt.nameLookup && ra.Zone == "" {
++			t.Fatalf("got %v; expected a proper address with zone identifier", ra)
++		}
++
++		if _, err := c.Write([]byte("TCP OVER IPV6 LINKLOCAL TEST")); err != nil {
++			t.Fatalf("Conn.Write failed: %v", err)
++		}
++		b := make([]byte, 32)
++		if _, err := c.Read(b); err != nil {
++			t.Fatalf("Conn.Read failed: %v", err)
++		}
++
++		<-done
++	}
++}
+diff --git a/src/pkg/net/tcpsock.go b/src/pkg/net/tcpsock.go
+index d5158b22de..27db115686 100644
+--- a/src/pkg/net/tcpsock.go
++++ b/src/pkg/net/tcpsock.go
+@@ -20,14 +20,18 @@ func (a *TCPAddr) String() string {
+ 	if a == nil {
+ 		return "<nil>"
+ 	}
++	if a.Zone != "" {
++		return JoinHostPort(a.IP.String()+"%"+a.Zone, itoa(a.Port))
++	}
+ 	return JoinHostPort(a.IP.String(), itoa(a.Port))
+ }
+ 
+-// ResolveTCPAddr parses addr as a TCP address of the form
+-// host:port and resolves domain names or port names to
+-// numeric addresses on the network net, which must be "tcp",
+-// "tcp4" or "tcp6".  A literal IPv6 host address must be
+-// enclosed in square brackets, as in "[::]:80".
++// ResolveTCPAddr parses addr as a TCP address of the form "host:port"
++// or "[ipv6-host%zone]:port" and resolves a pair of domain name and
++// port name on the network net, which must be "tcp", "tcp4" or
++// "tcp6".  A literal address or host name for IPv6 must be enclosed
++// in square brackets, as in "[::1]:80", "[ipv6-host]:http" or
++// "[ipv6-host%zone]:80".
+ func ResolveTCPAddr(net, addr string) (*TCPAddr, error) {
+ 	switch net {
+ 	case "tcp", "tcp4", "tcp6":
+diff --git a/src/pkg/net/udp_test.go b/src/pkg/net/udp_test.go
+index 220422e132..b3cafb096f 100644
+--- a/src/pkg/net/udp_test.go
++++ b/src/pkg/net/udp_test.go
+@@ -5,6 +5,7 @@
+ package net
+ 
+ import (
++	"fmt"
+ 	"reflect"
+ 	"runtime"
+ 	"testing"
+@@ -22,6 +23,11 @@ var resolveUDPAddrTests = []struct {
+ 	{"udp", "[::1]:1", &UDPAddr{IP: ParseIP("::1"), Port: 1}, nil},
+ 	{"udp6", "[::1]:65534", &UDPAddr{IP: ParseIP("::1"), Port: 65534}, nil},
+ 
++	{"udp", "[::1%en0]:1", &UDPAddr{IP: ParseIP("::1"), Port: 1, Zone: "en0"}, nil},
++	{"udp6", "[::1%911]:2", &UDPAddr{IP: ParseIP("::1"), Port: 2, Zone: "911"}, nil},
++	{"udp6", "[fe80::1]:3", &UDPAddr{IP: ParseIP("fe80::1"), Port: 3, Zone: "name"}, nil},
++	{"udp6", "[fe80::1]:4", &UDPAddr{IP: ParseIP("fe80::1"), Port: 4, Zone: "index"}, nil},
++
+ 	{"", "127.0.0.1:0", &UDPAddr{IP: IPv4(127, 0, 0, 1), Port: 0}, nil}, // Go 1.0 behavior
+ 	{"", "[::1]:0", &UDPAddr{IP: ParseIP("::1"), Port: 0}, nil},         // Go 1.0 behavior
+ 
+@@ -30,6 +36,24 @@ var resolveUDPAddrTests = []struct {
+ 
+ func TestResolveUDPAddr(t *testing.T) {
+ 	for _, tt := range resolveUDPAddrTests {
++		if tt.addr != nil && (tt.addr.Zone == "name" || tt.addr.Zone == "index") {
++			ifi := loopbackInterface()
++			if ifi == nil {
++				continue
++			}
++			i := last(tt.litAddr, ']')
++			if i > 0 {
++				switch tt.addr.Zone {
++				case "name":
++					tt.litAddr = tt.litAddr[:i] + "%" + ifi.Name + tt.litAddr[i:]
++					tt.addr.Zone = zoneToString(ifi.Index)
++				case "index":
++					index := fmt.Sprintf("%v", ifi.Index)
++					tt.litAddr = tt.litAddr[:i] + "%" + index + tt.litAddr[i:]
++					tt.addr.Zone = index
++				}
++			}
++		}
+ 		addr, err := ResolveUDPAddr(tt.net, tt.litAddr)
+ 		if err != tt.err {
+ 			t.Fatalf("ResolveUDPAddr(%v, %v) failed: %v", tt.net, tt.litAddr, err)
+@@ -146,3 +170,78 @@ func TestUDPConnLocalName(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestIPv6LinkLocalUnicastUDP(t *testing.T) {
++	if testing.Short() || !*testExternal {
++		t.Skip("skipping test to avoid external network")
++	}
++	if !supportsIPv6 {
++		t.Skip("ipv6 is not supported")
++	}
++	ifi := loopbackInterface()
++	if ifi == nil {
++		t.Skip("loopback interface not found")
++	}
++	laddr := ipv6LinkLocalUnicastAddr(ifi)
++	if laddr == "" {
++		t.Skip("ipv6 unicast address on loopback not found")
++	}
++
++	type test struct {
++		net, addr  string
++		nameLookup bool
++	}
++	var tests = []test{
++		{"udp", "[" + laddr + "%" + ifi.Name + "]:0", false},
++		{"udp6", "[" + laddr + "%" + ifi.Name + "]:0", false},
++	}
++	switch runtime.GOOS {
++	case "darwin", "freebsd", "openbsd", "netbsd":
++		tests = append(tests, []test{
++			{"udp", "[localhost%" + ifi.Name + "]:0", true},
++			{"udp6", "[localhost%" + ifi.Name + "]:0", true},
++		}...)
++	case "linux":
++		tests = append(tests, []test{
++			{"udp", "[ip6-localhost%" + ifi.Name + "]:0", true},
++			{"udp6", "[ip6-localhost%" + ifi.Name + "]:0", true},
++		}...)
++	}
++	for _, tt := range tests {
++		c1, err := ListenPacket(tt.net, tt.addr)
++		if err != nil {
++			// It might return "LookupHost returned no
++			// suitable address" error on some platforms.
++			t.Logf("ListenPacket failed: %v", err)
++			continue
++		}
++		defer c1.Close()
++		if la, ok := c1.LocalAddr().(*UDPAddr); !ok || !tt.nameLookup && la.Zone == "" {
++			t.Fatalf("got %v; expected a proper address with zone identifier", la)
++		}
++
++		c2, err := Dial(tt.net, c1.LocalAddr().String())
++		if err != nil {
++			t.Fatalf("Dial failed: %v", err)
++		}
++		defer c2.Close()
++		if la, ok := c2.LocalAddr().(*UDPAddr); !ok || !tt.nameLookup && la.Zone == "" {
++			t.Fatalf("got %v; expected a proper address with zone identifier", la)
++		}
++		if ra, ok := c2.RemoteAddr().(*UDPAddr); !ok || !tt.nameLookup && ra.Zone == "" {
++			t.Fatalf("got %v; expected a proper address with zone identifier", ra)
++		}
++
++		if _, err := c2.Write([]byte("UDP OVER IPV6 LINKLOCAL TEST")); err != nil {
++			t.Fatalf("Conn.Write failed: %v", err)
++		}
++		b := make([]byte, 32)
++		if _, from, err := c1.ReadFrom(b); err != nil {
++			t.Fatalf("PacketConn.ReadFrom failed: %v", err)
++		} else {
++			if ra, ok := from.(*UDPAddr); !ok || !tt.nameLookup && ra.Zone == "" {
++				t.Fatalf("got %v; expected a proper address with zone identifier", ra)
++			}
++		}
++	}
++}
+diff --git a/src/pkg/net/udpsock.go b/src/pkg/net/udpsock.go
+index 6e5e902689..277050606d 100644
+--- a/src/pkg/net/udpsock.go
++++ b/src/pkg/net/udpsock.go
+@@ -24,14 +24,18 @@ func (a *UDPAddr) String() string {
+ 	if a == nil {
+ 		return "<nil>"
+ 	}
++	if a.Zone != "" {
++		return JoinHostPort(a.IP.String()+"%"+a.Zone, itoa(a.Port))
++	}
+ 	return JoinHostPort(a.IP.String(), itoa(a.Port))
+ }
+ 
+-// ResolveUDPAddr parses addr as a UDP address of the form
+-// host:port and resolves domain names or port names to
+-// numeric addresses on the network net, which must be "udp",
+-// "udp4" or "udp6".  A literal IPv6 host address must be
+-// enclosed in square brackets, as in "[::]:80".
++// ResolveUDPAddr parses addr as a UDP address of the form "host:port"
++// or "[ipv6-host%zone]:port" and resolves a pair of domain name and
++// port name on the network net, which must be "udp", "udp4" or
++// "udp6".  A literal address or host name for IPv6 must be enclosed
++// in square brackets, as in "[::1]:80", "[ipv6-host]:http" or
++// "[ipv6-host%zone]:80".
+ func ResolveUDPAddr(net, addr string) (*UDPAddr, error) {
+ 	switch net {
+ 	case "udp", "udp4", "udp6":

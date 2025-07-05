@@ -19,7 +19,86 @@ Date:   Fri Sep 24 13:50:22 2021 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/internal/obj/objfile.go    | 16 +++++++++++++++-
  src/cmd/link/internal/ld/symtab.go | 25 ++++++++++++++-----------
  2 files changed, 29 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 0f3356f85e..687cddc70c 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -408,7 +408,21 @@ func contentHashSection(s *LSym) byte {
+ 	name := s.Name
+ 	if s.IsPcdata() {
+ 		return 'P'
+-	} else if strings.HasPrefix(name, "type.") {
++	}
++	if strings.HasPrefix(name, "runtime.gcbits.") {
++		return 'G' // gcbits
++	}
++	if strings.HasPrefix(name, "gcargs.") ||
++		strings.HasPrefix(name, "gclocals.") ||
++		strings.HasPrefix(name, "gclocals·") ||
++		strings.HasSuffix(name, ".opendefer") ||
++		strings.HasSuffix(name, ".arginfo0") ||
++		strings.HasSuffix(name, ".arginfo1") ||
++		strings.HasSuffix(name, ".args_stackmap") ||
++		strings.HasSuffix(name, ".stkobj") {
++		return 'F' // go.func.* or go.funcrel.*
++	}
++	if strings.HasPrefix(name, "type.") {
+ 		return 'T'
+ 	}
+ 	return 0
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 5e7eeeb94f..7fddc59bb5 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -507,13 +507,9 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 		symgcbits   = groupSym("runtime.gcbits.*", sym.SGCBITS)
+ 	)
+ 
+-	var symgofuncrel loader.Sym
+-	if !ctxt.DynlinkingGo() {
+-		if ctxt.UseRelro() {
+-			symgofuncrel = groupSym("go.funcrel.*", sym.SGOFUNCRELRO)
+-		} else {
+-			symgofuncrel = symgofunc
+-		}
++	symgofuncrel := symgofunc
++	if ctxt.UseRelro() {
++		symgofuncrel = groupSym("go.funcrel.*", sym.SGOFUNCRELRO)
+ 	}
+ 
+ 	symt := ldr.CreateSymForUpdate("runtime.symtab", 0)
+@@ -555,7 +551,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 			}
+ 			if ctxt.UseRelro() {
+ 				symGroupType[s] = sym.SGOFUNCRELRO
+-				if symgofuncrel != 0 {
++				if !ctxt.DynlinkingGo() {
+ 					ldr.SetCarrierSym(s, symgofuncrel)
+ 				}
+ 			} else {
+@@ -569,10 +565,17 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 			ldr.SymType(s) == sym.SGOFUNC && s != symgofunc, // inltree, see pcln.go
+ 			strings.HasSuffix(name, ".opendefer"),
+ 			strings.HasSuffix(name, ".arginfo0"),
+-			strings.HasSuffix(name, ".arginfo1"):
+-			symGroupType[s] = sym.SGOFUNC
++			strings.HasSuffix(name, ".arginfo1"),
++			strings.HasSuffix(name, ".args_stackmap"),
++			strings.HasSuffix(name, ".stkobj"):
+ 			ldr.SetAttrNotInSymbolTable(s, true)
+-			ldr.SetCarrierSym(s, symgofunc)
++			if ctxt.UseRelro() && strings.HasSuffix(name, ".stkobj") {
++				symGroupType[s] = sym.SGOFUNCRELRO
++				ldr.SetCarrierSym(s, symgofuncrel)
++			} else {
++				symGroupType[s] = sym.SGOFUNC
++				ldr.SetCarrierSym(s, symgofunc)
++			}
+ 			if ctxt.Debugvlog != 0 {
+ 				align := ldr.SymAlign(s)
+ 				liveness += (ldr.SymSize(s) + int64(align) - 1) &^ (int64(align) - 1)

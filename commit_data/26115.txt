@@ -11,6 +11,20 @@ Date:   Thu Dec 17 01:53:47 2015 -0500
     Change-Id: I8c9d4096903288f7f0e82d6ed1aa78bf038fb81a
     Reviewed-on: https://go-review.googlesource.com/17952
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/vcs.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index 316a7ec79d..946b6ae7bf 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -885,7 +885,7 @@ var vcsPaths = []*vcsPath{
+ 	// General syntax for any server.
+ 	// Must be last.
+ 	{
+-		re:   `^(?P<root>(?P<repo>([a-z0-9.\-]+\.)+[a-z0-9.\-]+(:[0-9]+)?/[A-Za-z0-9_.\-/]*?)\.(?P<vcs>bzr|git|hg|svn))(/[A-Za-z0-9_.\-]+)*$`,
++		re:   `^(?P<root>(?P<repo>([a-z0-9.\-]+\.)+[a-z0-9.\-]+(:[0-9]+)?(/~?[A-Za-z0-9_.\-]+)+?)\.(?P<vcs>bzr|git|hg|svn))(/~?[A-Za-z0-9_.\-]+)*$`,
+ 		ping: true,
+ 	},
+ }

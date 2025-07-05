@@ -10,10 +10,196 @@ Date:   Mon Jan 24 17:49:11 2022 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/380654
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/issues_test.go     | 27 +++++++++++++++
  .../types2/testdata/fixedbugs/issue50646.go2       | 29 ++++++++++++++++
  src/go/types/issues_test.go                        | 27 +++++++++++++++
  src/go/types/testdata/fixedbugs/issue50646.go2     | 29 ++++++++++++++++
  test/typeparam/issue50646.go                       | 39 ++++++++++++++++++++++
  5 files changed, 151 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/issues_test.go b/src/cmd/compile/internal/types2/issues_test.go
+index 9890b79323..6b64251118 100644
+--- a/src/cmd/compile/internal/types2/issues_test.go
++++ b/src/cmd/compile/internal/types2/issues_test.go
+@@ -611,3 +611,30 @@ func TestIssue43124(t *testing.T) {
+ 		t.Errorf("type checking error for c does not disambiguate package template: %q", err)
+ 	}
+ }
++
++func TestIssue50646(t *testing.T) {
++	anyType := Universe.Lookup("any").Type()
++	comparableType := Universe.Lookup("comparable").Type()
++
++	if !Comparable(anyType) {
++		t.Errorf("any is not a comparable type")
++	}
++	if !Comparable(comparableType) {
++		t.Errorf("comparable is not a comparable type")
++	}
++
++	// TODO(gri) should comparable be an alias, like any? (see #50791)
++	if !Implements(anyType, comparableType.Underlying().(*Interface)) {
++		t.Errorf("any does not implement comparable")
++	}
++	if !Implements(comparableType, anyType.(*Interface)) {
++		t.Errorf("comparable does not implement any")
++	}
++
++	if !AssignableTo(anyType, comparableType) {
++		t.Errorf("any not assignable to comparable")
++	}
++	if !AssignableTo(comparableType, anyType) {
++		t.Errorf("comparable not assignable to any")
++	}
++}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50646.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50646.go2
+new file mode 100644
+index 0000000000..6e8419f247
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50646.go2
+@@ -0,0 +1,29 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// Because we can use == and != with values of arbitrary
++// interfaces, all interfaces implement comparable.
++
++func f1[_ comparable]()              {}
++func f2[_ interface{ comparable }]() {}
++
++type T interface{ m() }
++
++func _[P comparable, Q ~int, R any]() {
++	_ = f1[int]
++	_ = f1[T]
++	_ = f1[any]
++	_ = f1[P]
++	_ = f1[Q]
++	_ = f1[R /* ERROR R does not implement comparable */]
++
++	_ = f2[int]
++	_ = f2[T]
++	_ = f2[any]
++	_ = f2[P]
++	_ = f2[Q]
++	_ = f2[R /* ERROR R does not implement comparable */]
++}
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index 51995af30a..613ced92ed 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -638,3 +638,30 @@ var _ T = template /* ERROR cannot use.*text/template.* as T value */.Template{}
+ 	testFiles(t, nil, []string{"c.go"}, [][]byte{[]byte(csrc)}, false, imp)
+ 	testFiles(t, nil, []string{"t.go"}, [][]byte{[]byte(tsrc)}, false, imp)
+ }
++
++func TestIssue50646(t *testing.T) {
++	anyType := Universe.Lookup("any").Type()
++	comparableType := Universe.Lookup("comparable").Type()
++
++	if !Comparable(anyType) {
++		t.Errorf("any is not a comparable type")
++	}
++	if !Comparable(comparableType) {
++		t.Errorf("comparable is not a comparable type")
++	}
++
++	// TODO(gri) should comparable be an alias, like any? (see #50791)
++	if !Implements(anyType, comparableType.Underlying().(*Interface)) {
++		t.Errorf("any does not implement comparable")
++	}
++	if !Implements(comparableType, anyType.(*Interface)) {
++		t.Errorf("comparable does not implement any")
++	}
++
++	if !AssignableTo(anyType, comparableType) {
++		t.Errorf("any not assignable to comparable")
++	}
++	if !AssignableTo(comparableType, anyType) {
++		t.Errorf("comparable not assignable to any")
++	}
++}
+diff --git a/src/go/types/testdata/fixedbugs/issue50646.go2 b/src/go/types/testdata/fixedbugs/issue50646.go2
+new file mode 100644
+index 0000000000..6e8419f247
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue50646.go2
+@@ -0,0 +1,29 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// Because we can use == and != with values of arbitrary
++// interfaces, all interfaces implement comparable.
++
++func f1[_ comparable]()              {}
++func f2[_ interface{ comparable }]() {}
++
++type T interface{ m() }
++
++func _[P comparable, Q ~int, R any]() {
++	_ = f1[int]
++	_ = f1[T]
++	_ = f1[any]
++	_ = f1[P]
++	_ = f1[Q]
++	_ = f1[R /* ERROR R does not implement comparable */]
++
++	_ = f2[int]
++	_ = f2[T]
++	_ = f2[any]
++	_ = f2[P]
++	_ = f2[Q]
++	_ = f2[R /* ERROR R does not implement comparable */]
++}
+diff --git a/test/typeparam/issue50646.go b/test/typeparam/issue50646.go
+new file mode 100644
+index 0000000000..44bbe2ae6f
+--- /dev/null
++++ b/test/typeparam/issue50646.go
+@@ -0,0 +1,39 @@
++// run -gcflags=-G=3
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func eql[P comparable](x, y P) {
++	if x != y {
++		panic("not equal")
++	}
++}
++
++func expectPanic(f func()) {
++	defer func() {
++		if recover() == nil {
++			panic("function succeeded unexpectedly")
++		}
++	}()
++	f()
++}
++
++func main() {
++	eql[int](1, 1)
++	eql(1, 1)
++
++	// all interfaces implement comparable
++	var x, y any = 2, 2
++	eql[any](x, y)
++	eql(x, y)
++
++	// but we may get runtime panics
++	x, y = 1, 2 // x != y
++	expectPanic(func() { eql(x, y) })
++
++	x, y = main, main // functions are not comparable
++	expectPanic(func() { eql(x, y) })
++}

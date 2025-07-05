@@ -9,7 +9,55 @@ Date:   Thu Mar 7 19:06:19 2013 +0900
     R=golang-dev, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/7468043
-
+---
  src/cmd/fix/netipv6zone.go      | 11 ++++++++---
  src/cmd/fix/netipv6zone_test.go |  6 ++++--
  2 files changed, 12 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/fix/netipv6zone.go b/src/cmd/fix/netipv6zone.go
+index 587b9ffec6..bbaf5fc08c 100644
+--- a/src/cmd/fix/netipv6zone.go
++++ b/src/cmd/fix/netipv6zone.go
+@@ -57,10 +57,15 @@ func netipv6zone(f *ast.File) bool {
+ 							Value: e,
+ 						}
+ 					} else {
+-						cl.Elts[i] = &ast.KeyValueExpr{
+-							Key:   ast.NewIdent("Port"),
+-							Value: e,
++						if e.(*ast.BasicLit).Value == "0" {
++							cl.Elts = append(cl.Elts[:i], cl.Elts[i+1:]...)
++						} else {
++							cl.Elts[i] = &ast.KeyValueExpr{
++								Key:   ast.NewIdent("Port"),
++								Value: e,
++							}
+ 						}
++
+ 					}
+ 				}
+ 				fixed = true
+diff --git a/src/cmd/fix/netipv6zone_test.go b/src/cmd/fix/netipv6zone_test.go
+index 229daa386d..569363e1f3 100644
+--- a/src/cmd/fix/netipv6zone_test.go
++++ b/src/cmd/fix/netipv6zone_test.go
+@@ -26,7 +26,8 @@ func f() net.Addr {
+ 	c := &net.IPAddr{ip1}
+ 	sub(&net.UDPAddr{ip2, 12345})
+ 	d := &net.TCPAddr{IP: ip3, Port: 54321}
+-	return &net.TCPAddr{ip4}, nil
++	e := &net.TCPAddr{ip4, 0}
++	return &net.TCPAddr{ip5}, nil
+ }
+ `,
+ 		Out: `package main
+@@ -44,7 +45,8 @@ func f() net.Addr {
+ 	c := &net.IPAddr{IP: ip1}
+ 	sub(&net.UDPAddr{IP: ip2, Port: 12345})
+ 	d := &net.TCPAddr{IP: ip3, Port: 54321}
+-	return &net.TCPAddr{IP: ip4}, nil
++	e := &net.TCPAddr{IP: ip4}
++	return &net.TCPAddr{IP: ip5}, nil
+ }
+ `,
+ 	},

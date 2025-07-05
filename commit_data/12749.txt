@@ -10,6 +10,25 @@ Date:   Mon Mar 26 16:08:21 2012 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5908054
-
+---
  src/run.bash | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/run.bash b/src/run.bash
+index ff2e88f004..ddd55826f7 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -74,6 +74,13 @@ make clean
+ ./test.bash
+ ) || exit $?
+ 
++(xcd ../doc/codewalk
++# TODO: test these too.
++go build pig.go
++go build urlpoll.go
++rm -f pig urlpoll
++) || exit $?
++
+ echo
+ echo '#' ../misc/dashboard/builder ../misc/goplay
+ go build ../misc/dashboard/builder ../misc/goplay

@@ -19,8 +19,74 @@ Date:   Tue Jun 25 17:25:01 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modget/get.go                    |  3 +--
  src/cmd/go/testdata/mod/example.com_tools_v1.0.0.txt | 12 ++++++++++++
  src/cmd/go/testdata/script/mod_get_cmd.txt           | 20 ++++++++++++++++++++
  3 files changed, 33 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 93d6a15dae..491d2891c7 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -472,7 +472,6 @@ func runGet(cmd *base.Command, args []string) {
+ 	// and the load and upgrade operations may only add and upgrade modules
+ 	// in the build list.
+ 	var matches []*search.Match
+-	var install []string
+ 	for {
+ 		var seenPkgs map[string]bool
+ 		seenQuery := make(map[querySpec]bool)
+@@ -664,7 +663,7 @@ func runGet(cmd *base.Command, args []string) {
+ 	}
+ 	work.BuildInit()
+ 	pkgs := load.PackagesForBuild(pkgPatterns)
+-	work.InstallPackages(install, pkgs)
++	work.InstallPackages(pkgPatterns, pkgs)
+ }
+ 
+ // runQueries looks up modules at target versions in parallel. Results will be
+diff --git a/src/cmd/go/testdata/mod/example.com_tools_v1.0.0.txt b/src/cmd/go/testdata/mod/example.com_tools_v1.0.0.txt
+new file mode 100644
+index 0000000000..22e36b993a
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_tools_v1.0.0.txt
+@@ -0,0 +1,12 @@
++-- .info --
++{"Version": "v1.0.0"}
++-- .mod --
++module example.com/tools
++-- cmd/hello/hello.go --
++package main
++
++import "fmt"
++
++func main() {
++	fmt.Println("hello")
++}
+diff --git a/src/cmd/go/testdata/script/mod_get_cmd.txt b/src/cmd/go/testdata/script/mod_get_cmd.txt
+new file mode 100644
+index 0000000000..d31cee1444
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_cmd.txt
+@@ -0,0 +1,20 @@
++env GO111MODULE=on
++[short] skip
++
++# Test that when 'go get' is run from $GOBIN, it does not delete binaries
++# after it installs them. Verifies golang.org/issue/32766.
++
++go get example.com/tools/cmd/hello
++
++# 'go get' should not delete the command when run from $GOPATH/bin
++cd $GOPATH/bin
++exists hello$GOEXE
++go get example.com/tools/cmd/hello
++exists hello$GOEXE
++
++# 'go get' should not delete the command when run from a different $GOBIN
++mkdir $WORK/bin
++cd $WORK/bin
++env GOBIN=$WORK/bin
++go get example.com/tools/cmd/hello
++exists hello$GOEXE

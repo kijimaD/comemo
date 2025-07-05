@@ -123,7 +123,7 @@ Date:   Sun Feb 2 23:42:43 2025 +0100
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go         |  4 ++-
  src/cmd/compile/internal/ssa/_gen/AMD64.rules |  5 ++-
  src/cmd/compile/internal/ssa/_gen/AMD64Ops.go | 10 ++++--
@@ -132,3 +132,254 @@ Date:   Sun Feb 2 23:42:43 2025 +0100
  test/codegen/floats.go                        |  2 ++
  test/codegen/math.go                          |  6 ++--
  7 files changed, 110 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 493369af51..9eef71f760 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -202,7 +202,7 @@ func getgFromTLS(s *ssagen.State, r int16) {
+ 
+ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 	switch v.Op {
+-	case ssa.OpAMD64VFMADD231SD:
++	case ssa.OpAMD64VFMADD231SD, ssa.OpAMD64VFMADD231SS:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[2].Reg()}
+ 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
+@@ -1170,6 +1170,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		case ssa.OpAMD64BSFL, ssa.OpAMD64BSRL, ssa.OpAMD64SQRTSD, ssa.OpAMD64SQRTSS:
+ 			p.To.Reg = v.Reg()
+ 		}
++	case ssa.OpAMD64LoweredRound32F, ssa.OpAMD64LoweredRound64F:
++		// input is already rounded
+ 	case ssa.OpAMD64ROUNDSD:
+ 		p := s.Prog(v.Op.Asm())
+ 		val := v.AuxInt
+diff --git a/src/cmd/compile/internal/ssa/_gen/AMD64.rules b/src/cmd/compile/internal/ssa/_gen/AMD64.rules
+index 0e429b5be7..9177067e52 100644
+--- a/src/cmd/compile/internal/ssa/_gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/AMD64.rules
+@@ -170,7 +170,7 @@
+ (Cvt32Fto64F ...) => (CVTSS2SD ...)
+ (Cvt64Fto32F ...) => (CVTSD2SS ...)
+ 
+-(Round(32|64)F ...) => (Copy ...)
++(Round(32|64)F ...) => (LoweredRound(32|64)F ...)
+ 
+ // Floating-point min is tricky, as the hardware op isn't right for various special
+ // cases (-0 and NaN). We use two hardware ops organized just right to make the
+@@ -1589,6 +1589,9 @@
+ (MULSDload x [off] {sym} ptr (MOVQstore [off] {sym} ptr y _)) => (MULSD x (MOVQi2f y))
+ (MULSSload x [off] {sym} ptr (MOVLstore [off] {sym} ptr y _)) => (MULSS x (MOVLi2f y))
+ 
++// Detect FMA
++(ADDS(S|D) (MULS(S|D) x y) z) && buildcfg.GOAMD64 >= 3 && z.Block.Func.useFMA(v) => (VFMADD231S(S|D) z x y)
++
+ // Redirect stores to use the other register set.
+ (MOVQstore  [off] {sym} ptr (MOVQf2i val) mem) => (MOVSDstore [off] {sym} ptr val mem)
+ (MOVLstore  [off] {sym} ptr (MOVLf2i val) mem) => (MOVSSstore [off] {sym} ptr val mem)
+diff --git a/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
+index 53df7af305..1cce32eba3 100644
+--- a/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
+@@ -692,9 +692,15 @@ func init() {
+ 		// ROUNDSD instruction is only guaraneteed to be available if GOAMD64>=v2.
+ 		// For GOAMD64<v2, any use must be preceded by a successful check of runtime.x86HasSSE41.
+ 		{name: "ROUNDSD", argLength: 1, reg: fp11, aux: "Int8", asm: "ROUNDSD"},
++		// See why we need those in issue #71204
++		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
++		{name: "LoweredRound64F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
+ 
+-		// VFMADD231SD only exists on platforms with the FMA3 instruction set.
+-		// Any use must be preceded by a successful check of runtime.support_fma.
++		// VFMADD231Sx only exist on platforms with the FMA3 instruction set.
++		// Any use must be preceded by a successful check of runtime.x86HasFMA or a check of GOAMD64>=v3.
++		// x==S for float32, x==D for float64
++		// arg0 + arg1*arg2, with no intermediate rounding.
++		{name: "VFMADD231SS", argLength: 3, reg: fp31, resultInArg0: true, asm: "VFMADD231SS"},
+ 		{name: "VFMADD231SD", argLength: 3, reg: fp31, resultInArg0: true, asm: "VFMADD231SD"},
+ 
+ 		// Note that these operations don't exactly match the semantics of Go's
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 13ec9dc9e3..f4f648c53b 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -924,6 +924,9 @@ const (
+ 	OpAMD64SQRTSD
+ 	OpAMD64SQRTSS
+ 	OpAMD64ROUNDSD
++	OpAMD64LoweredRound32F
++	OpAMD64LoweredRound64F
++	OpAMD64VFMADD231SS
+ 	OpAMD64VFMADD231SD
+ 	OpAMD64MINSD
+ 	OpAMD64MINSS
+@@ -12060,6 +12063,50 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:         "LoweredRound32F",
++		argLen:       1,
++		resultInArg0: true,
++		zeroWidth:    true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++			},
++			outputs: []outputInfo{
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++			},
++		},
++	},
++	{
++		name:         "LoweredRound64F",
++		argLen:       1,
++		resultInArg0: true,
++		zeroWidth:    true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++			},
++			outputs: []outputInfo{
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++			},
++		},
++	},
++	{
++		name:         "VFMADD231SS",
++		argLen:       3,
++		resultInArg0: true,
++		asm:          x86.AVFMADD231SS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++			},
++			outputs: []outputInfo{
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++			},
++		},
++	},
+ 	{
+ 		name:         "VFMADD231SD",
+ 		argLen:       3,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 9ea1114d45..63376dcb76 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -1007,10 +1007,10 @@ func rewriteValueAMD64(v *Value) bool {
+ 		v.Op = OpAMD64ROLB
+ 		return true
+ 	case OpRound32F:
+-		v.Op = OpCopy
++		v.Op = OpAMD64LoweredRound32F
+ 		return true
+ 	case OpRound64F:
+-		v.Op = OpCopy
++		v.Op = OpAMD64LoweredRound64F
+ 		return true
+ 	case OpRoundToEven:
+ 		return rewriteValueAMD64_OpRoundToEven(v)
+@@ -2430,6 +2430,26 @@ func rewriteValueAMD64_OpAMD64ADDSD(v *Value) bool {
+ 		}
+ 		break
+ 	}
++	// match: (ADDSD (MULSD x y) z)
++	// cond: buildcfg.GOAMD64 >= 3 && z.Block.Func.useFMA(v)
++	// result: (VFMADD231SD z x y)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			if v_0.Op != OpAMD64MULSD {
++				continue
++			}
++			y := v_0.Args[1]
++			x := v_0.Args[0]
++			z := v_1
++			if !(buildcfg.GOAMD64 >= 3 && z.Block.Func.useFMA(v)) {
++				continue
++			}
++			v.reset(OpAMD64VFMADD231SD)
++			v.AddArg3(z, x, y)
++			return true
++		}
++		break
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64ADDSDload(v *Value) bool {
+@@ -2533,6 +2553,26 @@ func rewriteValueAMD64_OpAMD64ADDSS(v *Value) bool {
+ 		}
+ 		break
+ 	}
++	// match: (ADDSS (MULSS x y) z)
++	// cond: buildcfg.GOAMD64 >= 3 && z.Block.Func.useFMA(v)
++	// result: (VFMADD231SS z x y)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			if v_0.Op != OpAMD64MULSS {
++				continue
++			}
++			y := v_0.Args[1]
++			x := v_0.Args[0]
++			z := v_1
++			if !(buildcfg.GOAMD64 >= 3 && z.Block.Func.useFMA(v)) {
++				continue
++			}
++			v.reset(OpAMD64VFMADD231SS)
++			v.AddArg3(z, x, y)
++			return true
++		}
++		break
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64ADDSSload(v *Value) bool {
+diff --git a/test/codegen/floats.go b/test/codegen/floats.go
+index 1b85eba352..2a5cf39957 100644
+--- a/test/codegen/floats.go
++++ b/test/codegen/floats.go
+@@ -74,6 +74,7 @@ func FusedAdd32(x, y, z float32) float32 {
+ 	// arm64:"FMADDS"
+ 	// loong64:"FMADDF\t"
+ 	// riscv64:"FMADDS\t"
++	// amd64/v3:"VFMADD231SS\t"
+ 	return x*y + z
+ }
+ 
+@@ -98,6 +99,7 @@ func FusedAdd64(x, y, z float64) float64 {
+ 	// arm64:"FMADDD"
+ 	// loong64:"FMADDD\t"
+ 	// riscv64:"FMADDD\t"
++	// amd64/v3:"VFMADD231SD\t"
+ 	return x*y + z
+ }
+ 
+diff --git a/test/codegen/math.go b/test/codegen/math.go
+index 4ce5fa419d..87d9cd7b27 100644
+--- a/test/codegen/math.go
++++ b/test/codegen/math.go
+@@ -240,10 +240,11 @@ func nanGenerate64() float64 {
+ 
+ 	// amd64:"DIVSD"
+ 	z0 := zero / zero
+-	// amd64:"MULSD"
++	// amd64/v1,amd64/v2:"MULSD"
+ 	z1 := zero * inf
+ 	// amd64:"SQRTSD"
+ 	z2 := math.Sqrt(negone)
++	// amd64/v3:"VFMADD231SD"
+ 	return z0 + z1 + z2
+ }
+ 
+@@ -254,7 +255,8 @@ func nanGenerate32() float32 {
+ 
+ 	// amd64:"DIVSS"
+ 	z0 := zero / zero
+-	// amd64:"MULSS"
++	// amd64/v1,amd64/v2:"MULSS"
+ 	z1 := zero * inf
++	// amd64/v3:"VFMADD231SS"
+ 	return z0 + z1
+ }

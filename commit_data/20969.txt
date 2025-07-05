@@ -8,6 +8,20 @@ Date:   Thu Oct 30 14:08:55 2014 -0400
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/169800043
-
+---
  misc/cgo/test/issue9026.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/cgo/test/issue9026.go b/misc/cgo/test/issue9026.go
+index b17440452f..b5d975f17a 100644
+--- a/misc/cgo/test/issue9026.go
++++ b/misc/cgo/test/issue9026.go
+@@ -5,7 +5,7 @@ typedef struct {} git_merge_file_input;
+ 
+ typedef struct {} git_merge_file_options;
+ 
+-int git_merge_file(
++void git_merge_file(
+         git_merge_file_input *in,
+         git_merge_file_options *opts) {}
+ */

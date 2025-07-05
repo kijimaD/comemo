@@ -15,6 +15,22 @@ Date:   Thu Aug 5 13:05:23 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/340269
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/mfinal.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index fd318d49a8..c134a0f22d 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -466,6 +466,10 @@ okarg:
+ // Without the KeepAlive call, the finalizer could run at the start of
+ // syscall.Read, closing the file descriptor before syscall.Read makes
+ // the actual system call.
++//
++// Note: KeepAlive should only be used to prevent finalizers from
++// running prematurely. In particular, when used with unsafe.Pointer,
++// the rules for valid uses of unsafe.Pointer still apply.
+ func KeepAlive(x interface{}) {
+ 	// Introduce a use of x that the compiler can't eliminate.
+ 	// This makes sure x is alive on entry. We need x to be alive

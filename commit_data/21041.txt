@@ -10,6 +10,19 @@ Date:   Sun Nov 9 20:57:44 2014 -0800
     R=golang-codereviews, adg
     CC=golang-codereviews
     https://golang.org/cl/172920043
-
+---
  src/crypto/x509/root_unix.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/crypto/x509/root_unix.go b/src/crypto/x509/root_unix.go
+index c65f626ac8..f77d6c0c57 100644
+--- a/src/crypto/x509/root_unix.go
++++ b/src/crypto/x509/root_unix.go
+@@ -16,6 +16,7 @@ var certFiles = []string{
+ 	"/etc/ssl/cert.pem",                      // OpenBSD
+ 	"/usr/local/share/certs/ca-root-nss.crt", // FreeBSD/DragonFly
+ 	"/etc/pki/tls/cacert.pem",                // OpenELEC
++	"/etc/certs/ca-certificates.crt",         // Solaris 11.2+
+ }
+ 
+ // Possible directories with certificate files; stop after successfully

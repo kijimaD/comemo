@@ -11,7 +11,7 @@ Date:   Tue Mar 23 20:48:23 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/713041
-
+---
  src/pkg/runtime/Makefile   |   1 +
  src/pkg/runtime/extern.go  |  26 +++++-
  src/pkg/runtime/iface.c    |   6 +-
@@ -24,3 +24,667 @@ Date:   Tue Mar 23 20:48:23 2010 -0700
  src/pkg/runtime/slice.c    |   2 +-
  src/pkg/runtime/string.cgo |   6 +-
  11 files changed, 344 insertions(+), 31 deletions(-)
+
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 8327709736..2ea11c0edd 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -65,6 +65,7 @@ OFILES=\
+ 	mgc0.$O\
+ 	mheap.$O\
+ 	mheapmap$(SIZE).$O\
++	mprof.$O\
+ 	msize.$O\
+ 	print.$O\
+ 	proc.$O\
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index 2ee20cd35a..1e8c1b1df0 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -21,11 +21,17 @@ func Goexit()
+ func Breakpoint()
+ 
+ // Caller reports file and line number information about function invocations on
+-// the calling goroutine's stack.  The argument is the number of stack frames to
++// the calling goroutine's stack.  The argument skip is the number of stack frames to
+ // ascend, with 0 identifying the the caller of Caller.  The return values report the
+ // program counter, file name, and line number within the file of the corresponding
+ // call.  The boolean ok is false if it was not possible to recover the information.
+-func Caller(n int) (pc uintptr, file string, line int, ok bool)
++func Caller(skip int) (pc uintptr, file string, line int, ok bool)
++
++// Callers fills the slice pc with the program counters of function invocations
++// on the calling goroutine's stack.  The argument skip is the number of stack frames
++// to skip before recording in pc, with 0 starting at the caller of Caller.
++// It returns the number of entries written to pc.
++func Callers(skip int, pc []int) int
+ 
+ // mid returns the current os thread (m) id.
+ func mid() uint32
+@@ -168,3 +174,19 @@ func GOROOT() string {
+ // A trailing + indicates that the tree had local modifications
+ // at the time of the build.
+ func Version() string { return defaultVersion }
++
++// MemProfileKind specifies how frequently to record
++// memory allocations in the memory profiler.
++type MemProfileKind int
++
++const (
++	MemProfileNone   MemProfileKind = iota // no profiling
++	MemProfileSample                       // profile random sample
++	MemProfileAll                          // profile every allocation
++)
++
++// SetMemProfileKind sets the fraction of memory allocations
++// that are recorded and reported in the memory profile.
++// Profiling an allocation has a small overhead, so the default
++// is to profile only a random sample, weighted by block size.
++func SetMemProfileKind(kind MemProfileKind)
+diff --git a/src/pkg/runtime/iface.c b/src/pkg/runtime/iface.c
+index eb5d76eb85..ce42346272 100644
+--- a/src/pkg/runtime/iface.c
++++ b/src/pkg/runtime/iface.c
+@@ -151,7 +151,7 @@ copyin(Type *t, void *src, void **dst)
+ 	if(wid <= sizeof(*dst))
+ 		algarray[alg].copy(wid, dst, src);
+ 	else {
+-		p = mal(wid);
++		p = malx(wid, 1);
+ 		algarray[alg].copy(wid, p, src);
+ 		*dst = p;
+ 	}
+@@ -641,7 +641,7 @@ unsafe·New(Eface typ, void *ret)
+ 	t = (Type*)((Eface*)typ.data-1);
+ 
+ 	if(t->kind&KindNoPointers)
+-		ret = mallocgc(t->size, RefNoPointers, 1, 1);
++		ret = mallocgc(t->size, RefNoPointers, 1, 1, 1);
+ 	else
+ 		ret = mal(t->size);
+ 	FLUSH(&ret);
+@@ -661,7 +661,7 @@ unsafe·NewArray(Eface typ, uint32 n, void *ret)
+ 	
+ 	size = n*t->size;
+ 	if(t->kind&KindNoPointers)
+-		ret = mallocgc(size, RefNoPointers, 1, 1);
++		ret = mallocgc(size, RefNoPointers, 1, 1, 1);
+ 	else
+ 		ret = mal(size);
+ 	FLUSH(&ret);
+diff --git a/src/pkg/runtime/malloc.cgo b/src/pkg/runtime/malloc.cgo
+index cce2cab43b..f832a0ecba 100644
+--- a/src/pkg/runtime/malloc.cgo
++++ b/src/pkg/runtime/malloc.cgo
+@@ -15,11 +15,26 @@ package runtime
+ MHeap mheap;
+ MStats mstats;
+ 
++// Same algorithm from chan.c, but a different
++// instance of the static uint32 x.
++// Not protected by a lock - let the threads use
++// the same random number if they like.
++static uint32
++fastrand1(void)
++{
++	static uint32 x = 0x49f6428aUL;
++
++	x += x;
++	if(x & 0x80000000L)
++		x ^= 0x88888eefUL;
++	return x;
++}
++
+ // Allocate an object of at least size bytes.
+ // Small objects are allocated from the per-thread cache's free lists.
+ // Large objects (> 32 kB) are allocated straight from the heap.
+ void*
+-mallocgc(uintptr size, uint32 refflag, int32 dogc, int32 zeroed)
++mallocgc(uintptr size, uint32 refflag, int32 dogc, int32 zeroed, int32 skip_depth)
+ {
+ 	int32 sizeclass;
+ 	MCache *c;
+@@ -64,16 +79,34 @@ mallocgc(uintptr size, uint32 refflag, int32 dogc, int32 zeroed)
+ 		s = MHeap_Alloc(&mheap, npages, 0, 1);
+ 		if(s == nil)
+ 			throw("out of memory");
+-		mstats.alloc += npages<<PageShift;
+-		mstats.total_alloc += npages<<PageShift;
++		size = npages<<PageShift;
++		mstats.alloc += size;
++		mstats.total_alloc += size;
+ 		v = (void*)(s->start << PageShift);
+ 
+ 		// setup for mark sweep
+ 		s->gcref0 = RefNone | refflag;
++		ref = &s->gcref0;
+ 	}
+ 
+ 	m->mallocing = 0;
+ 
++	if(!(refflag & RefNoProfiling) && malloc_profile != MProf_None) {
++		switch(malloc_profile) {
++		case MProf_Sample:
++			if(m->mcache->next_sample > size) {
++				m->mcache->next_sample -= size;
++				break;
++			}
++			m->mcache->next_sample = fastrand1() & (256*1024 - 1);	// sample every 128 kB allocated, on average
++			// fall through
++		case MProf_All:
++			*ref |= RefProfiled;
++			MProf_Malloc(skip_depth+1, v, size);
++			break;
++		}
++	}
++
+ 	if(dogc && mstats.heap_alloc >= mstats.next_gc)
+ 		gc(0);
+ 	return v;
+@@ -82,7 +115,7 @@ mallocgc(uintptr size, uint32 refflag, int32 dogc, int32 zeroed)
+ void*
+ malloc(uintptr size)
+ {
+-	return mallocgc(size, 0, 0, 1);
++	return mallocgc(size, 0, 0, 1, 1);
+ }
+ 
+ // Free the object whose base pointer is v.
+@@ -92,7 +125,7 @@ free(void *v)
+ 	int32 sizeclass, size;
+ 	MSpan *s;
+ 	MCache *c;
+-	uint32 *ref;
++	uint32 prof, *ref;
+ 
+ 	if(v == nil)
+ 		return;
+@@ -105,12 +138,15 @@ free(void *v)
+ 		printf("free %p: not an allocated block\n", v);
+ 		throw("free mlookup");
+ 	}
++	prof = *ref & RefProfiled;
+ 	*ref = RefFree;
+ 
+ 	// Find size class for v.
+ 	sizeclass = s->sizeclass;
+ 	if(sizeclass == 0) {
+ 		// Large object.
++		if(prof)
++			MProf_Free(v, s->npages<<PageShift);
+ 		mstats.alloc -= s->npages<<PageShift;
+ 		runtime_memclr(v, s->npages<<PageShift);
+ 		MHeap_Free(&mheap, s, 1);
+@@ -120,6 +156,8 @@ free(void *v)
+ 		size = class_to_size[sizeclass];
+ 		if(size > sizeof(uintptr))
+ 			((uintptr*)v)[1] = 1;	// mark as "needs to be zeroed"
++		if(prof)
++			MProf_Free(v, size);
+ 		mstats.alloc -= size;
+ 		mstats.by_size[sizeclass].nfree++;
+ 		MCache_Free(c, v, sizeclass, size);
+@@ -211,9 +249,15 @@ mallocinit(void)
+ // Runtime stubs.
+ 
+ void*
+-mal(uint32 n)
++mal(uintptr n)
++{
++	return mallocgc(n, 0, 1, 1, 2);
++}
++
++void*
++malx(uintptr n, int32 skip_delta)
+ {
+-	return mallocgc(n, 0, 1, 1);
++	return mallocgc(n, 0, 1, 1, 2+skip_delta);
+ }
+ 
+ // Stack allocator uses malloc/free most of the time,
+@@ -246,7 +290,7 @@ stackalloc(uint32 n)
+ 		unlock(&stacks);
+ 		return v;
+ 	}
+-	v = mallocgc(n, 0, 0, 0);
++	v = mallocgc(n, RefNoProfiling, 0, 0, 0);
+ 	if(!mlookup(v, nil, nil, nil, &ref))
+ 		throw("stackalloc mlookup");
+ 	*ref = RefStack;
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index ae6b70b141..67e7d42eb1 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -227,6 +227,7 @@ struct MCache
+ 	MCacheList list[NumSizeClasses];
+ 	uint64 size;
+ 	int64 local_alloc;	// bytes allocated (or freed) since last lock of heap
++	int32 next_sample;	// trigger heap sample after allocating this many bytes
+ };
+ 
+ void*	MCache_Alloc(MCache *c, int32 sizeclass, uintptr size, int32 zeroed);
+@@ -321,7 +322,7 @@ MSpan*	MHeap_Lookup(MHeap *h, PageID p);
+ MSpan*	MHeap_LookupMaybe(MHeap *h, PageID p);
+ void	MGetSizeClassInfo(int32 sizeclass, int32 *size, int32 *npages, int32 *nobj);
+ 
+-void*	mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed);
++void*	mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed, int32 skip_depth);
+ int32	mlookup(void *v, byte **base, uintptr *size, MSpan **s, uint32 **ref);
+ void	gc(int32 force);
+ 
+@@ -342,4 +343,19 @@ enum
+ 	RefFinalize,	// ready to be finalized
+ 	RefNoPointers = 0x80000000U,	// flag - no pointers here
+ 	RefHasFinalizer = 0x40000000U,	// flag - has finalizer
++	RefProfiled = 0x20000000U,	// flag - is in profiling table
++	RefNoProfiling = 0x10000000U,	// flag - must not profile
++	RefFlags = 0xFFFF0000U,
+ };
++
++void	MProf_Malloc(int32, void*, uintptr);
++void	MProf_Free(void*, uintptr);
++
++// Malloc profiling settings.
++// Must match definition in extern.go.
++enum {
++	MProf_None = 0,
++	MProf_Sample = 1,
++	MProf_All = 2,
++};
++extern int32 malloc_profile;
+diff --git a/src/pkg/runtime/mfinal.c b/src/pkg/runtime/mfinal.c
+index 53a2a4bbe9..817d987372 100644
+--- a/src/pkg/runtime/mfinal.c
++++ b/src/pkg/runtime/mfinal.c
+@@ -133,8 +133,8 @@ addfinalizer(void *p, void (*f)(void*), int32 nret)
+ 			newtab.max *= 3;
+ 		}
+ 
+-		newtab.key = mallocgc(newtab.max*sizeof newtab.key[0], RefNoPointers, 0, 1);
+-		newtab.val = mallocgc(newtab.max*sizeof newtab.val[0], 0, 0, 1);
++		newtab.key = mallocgc(newtab.max*sizeof newtab.key[0], RefNoPointers, 0, 1, 2);
++		newtab.val = mallocgc(newtab.max*sizeof newtab.val[0], 0, 0, 1, 2);
+ 
+ 		for(i=0; i<fintab.max; i++) {
+ 			void *k;
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 2dacf28569..d18965d36e 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -67,7 +67,7 @@ scanblock(int32 depth, byte *b, int64 n)
+ 			continue;
+ 		if(mlookup(obj, &obj, &size, nil, &refp)) {
+ 			ref = *refp;
+-			switch(ref & ~(RefNoPointers|RefHasFinalizer)) {
++			switch(ref & ~RefFlags) {
+ 			case RefFinalize:
+ 				// If marked for finalization already, some other finalization-ready
+ 				// object has a pointer: turn off finalization until that object is gone.
+@@ -77,7 +77,7 @@ scanblock(int32 depth, byte *b, int64 n)
+ 			case RefNone:
+ 				if(Debug > 1)
+ 					printf("%d found at %p: ", depth, &vp[i]);
+-				*refp = RefSome | (ref & (RefNoPointers|RefHasFinalizer));
++				*refp = RefSome | (ref & RefFlags);
+ 				if(!(ref & RefNoPointers))
+ 					scanblock(depth+1, obj, size);
+ 				break;
+@@ -151,9 +151,9 @@ sweepspan0(MSpan *s)
+ 	if(s->sizeclass == 0) {
+ 		// Large block.
+ 		ref = s->gcref0;
+-		if((ref&~RefNoPointers) == (RefNone|RefHasFinalizer)) {
++		if((ref&~(RefFlags^RefHasFinalizer)) == (RefNone|RefHasFinalizer)) {
+ 			// Mark as finalizable.
+-			s->gcref0 = RefFinalize | RefHasFinalizer | (ref&RefNoPointers);
++			s->gcref0 = RefFinalize | RefHasFinalizer | (ref&(RefFlags^RefHasFinalizer));
+ 			if(!(ref & RefNoPointers))
+ 				scanblock(100, p, s->npages<<PageShift);
+ 		}
+@@ -166,9 +166,9 @@ sweepspan0(MSpan *s)
+ 	gcrefep = s->gcref + n;
+ 	for(; gcrefp < gcrefep; gcrefp++) {
+ 		ref = *gcrefp;
+-		if((ref&~RefNoPointers) == (RefNone|RefHasFinalizer)) {
++		if((ref&~(RefFlags^RefHasFinalizer)) == (RefNone|RefHasFinalizer)) {
+ 			// Mark as finalizable.
+-			*gcrefp = RefFinalize | RefHasFinalizer | (ref&RefNoPointers);
++			*gcrefp = RefFinalize | RefHasFinalizer | (ref&(RefFlags^RefHasFinalizer));
+ 			if(!(ref & RefNoPointers))
+ 				scanblock(100, p+(gcrefp-s->gcref)*size, size);
+ 		}
+@@ -188,11 +188,13 @@ sweepspan1(MSpan *s)
+ 	if(s->sizeclass == 0) {
+ 		// Large block.
+ 		ref = s->gcref0;
+-		switch(ref & ~(RefNoPointers|RefHasFinalizer)) {
++		switch(ref & ~RefFlags) {
+ 		case RefNone:
+ 			// Free large object.
+ 			mstats.alloc -= s->npages<<PageShift;
+ 			runtime_memclr(p, s->npages<<PageShift);
++			if(ref & RefProfiled)
++				MProf_Free(p, s->npages<<PageShift);
+ 			s->gcref0 = RefFree;
+ 			MHeap_Free(&mheap, s, 1);
+ 			break;
+@@ -208,7 +210,7 @@ sweepspan1(MSpan *s)
+ 			}
+ 			// fall through
+ 		case RefSome:
+-			s->gcref0 = RefNone | (ref&(RefNoPointers|RefHasFinalizer));
++			s->gcref0 = RefNone | (ref&RefFlags);
+ 			break;
+ 		}
+ 		return;
+@@ -222,9 +224,11 @@ sweepspan1(MSpan *s)
+ 		ref = *gcrefp;
+ 		if(ref < RefNone)	// RefFree or RefStack
+ 			continue;
+-		switch(ref & ~(RefNoPointers|RefHasFinalizer)) {
++		switch(ref & ~RefFlags) {
+ 		case RefNone:
+ 			// Free small object.
++			if(ref & RefProfiled)
++				MProf_Free(p, size);
+ 			*gcrefp = RefFree;
+ 			c = m->mcache;
+ 			if(size > sizeof(uintptr))
+@@ -245,7 +249,7 @@ sweepspan1(MSpan *s)
+ 			}
+ 			// fall through
+ 		case RefSome:
+-			*gcrefp = RefNone | (ref&(RefNoPointers|RefHasFinalizer));
++			*gcrefp = RefNone | (ref&RefFlags);
+ 			break;
+ 		}
+ 	}
+diff --git a/src/pkg/runtime/mprof.cgo b/src/pkg/runtime/mprof.cgo
+new file mode 100644
+index 0000000000..c59eb37218
+--- /dev/null
++++ b/src/pkg/runtime/mprof.cgo
+@@ -0,0 +1,225 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Malloc profiling.
++// Patterned after tcmalloc's algorithms; shorter code.
++
++package runtime
++#include "runtime.h"
++#include "malloc.h"
++#include "defs.h"
++#include "type.h"
++
++int32 malloc_profile = MProf_None;	// no sampling during bootstrap
++
++// NOTE(rsc): Everything here could use cas if contention became an issue.
++static Lock proflock;
++
++// Per-call-stack allocation information.
++// Lookup by hashing call stack into a linked-list hash table.
++typedef struct Bucket Bucket;
++struct Bucket
++{
++	Bucket	*next;	// next in hash list
++	Bucket	*allnext;	// next in list of all buckets
++	uintptr	allocs;
++	uintptr	frees;
++	uintptr	alloc_bytes;
++	uintptr	free_bytes;
++	uintptr	hash;
++	uintptr	nstk;
++	uintptr	stk[1];
++};
++enum {
++	BuckHashSize = 179999,
++};
++static Bucket **buckhash;
++static Bucket *buckets;
++static uintptr bucketmem;
++
++// Return the bucket for stk[0:nstk], allocating new bucket if needed.
++static Bucket*
++stkbucket(uintptr *stk, int32 nstk)
++{
++	int32 i;
++	uintptr h;
++	Bucket *b;
++
++	if(buckhash == nil)
++		buckhash = SysAlloc(BuckHashSize*sizeof buckhash[0]);
++
++	// Hash stack.
++	h = 0;
++	for(i=0; i<nstk; i++) {
++		h += stk[i];
++		h += h<<10;
++		h ^= h>>6;
++	}
++	h += h<<3;
++	h ^= h>>11;
++	
++	i = h%BuckHashSize;
++	for(b = buckhash[i]; b; b=b->next)
++		if(b->hash == h && b->nstk == nstk &&
++		   mcmp((byte*)b->stk, (byte*)stk, nstk*sizeof stk[0]) == 0)
++			return b;
++
++	b = mallocgc(sizeof *b + nstk*sizeof stk[0], RefNoProfiling, 0, 1, 0);
++	bucketmem += sizeof *b + nstk*sizeof stk[0];
++	memmove(b->stk, stk, nstk*sizeof stk[0]);
++	b->hash = h;
++	b->nstk = nstk;
++	b->next = buckhash[i];
++	buckhash[i] = b;
++	b->allnext = buckets;
++	buckets = b;
++	return b;
++}
++
++// Map from pointer to Bucket* that allocated it.
++// Three levels:
++//	Linked-list hash table for top N-20 bits.
++//	Array index for next 13 bits.
++//	Linked list for next 7 bits.
++// This is more efficient than using a general map,
++// because of the typical clustering of the pointer keys.
++
++typedef struct AddrHash AddrHash;
++typedef struct AddrEntry AddrEntry;
++
++struct AddrHash
++{
++	AddrHash *next;	// next in top-level hash table linked list
++	uintptr addr;	// addr>>20
++	AddrEntry *dense[1<<13];
++};
++
++struct AddrEntry
++{
++	AddrEntry *next;	// next in bottom-level linked list
++	uint32 addr;
++	Bucket *b;
++};
++
++enum {
++	AddrHashBits = 12	// 1MB per entry, so good for 4GB of used address space
++};
++static AddrHash *addrhash[1<<AddrHashBits];
++static AddrEntry *addrfree;
++static uintptr addrmem;
++
++// Multiplicative hash function:
++// hashMultiplier is the bottom 32 bits of int((sqrt(5)-1)/2 * (1<<32)).
++// This is a good multiplier as suggested in CLR, Knuth.  The hash
++// value is taken to be the top AddrHashBits bits of the bottom 32 bits
++// of the muliplied value.
++enum {
++	HashMultiplier = 2654435769U
++};
++
++// Set the bucket associated with addr to b.
++static void
++setaddrbucket(uintptr addr, Bucket *b)
++{
++	int32 i;
++	uint32 h;
++	AddrHash *ah;
++	AddrEntry *e;
++
++	h = (uint32)((addr>>20)*HashMultiplier) >> (32-AddrHashBits);
++	for(ah=addrhash[h]; ah; ah=ah->next)
++		if(ah->addr == (addr>>20))
++			goto found;
++
++	ah = mallocgc(sizeof *ah, RefNoProfiling, 0, 1, 0);
++	addrmem += sizeof *ah;
++	ah->next = addrhash[h];
++	ah->addr = addr>>20;
++	addrhash[h] = ah;
++
++found:
++	if((e = addrfree) == nil) {
++		e = mallocgc(64*sizeof *e, RefNoProfiling, 0, 0, 0);
++		addrmem += 64*sizeof *e;
++		for(i=0; i+1<64; i++)
++			e[i].next = &e[i+1];
++		e[63].next = nil;
++	}
++	addrfree = e->next;
++	e->addr = (uint32)~(addr & ((1<<20)-1));
++	e->b = b;
++	h = (addr>>7)&(nelem(ah->dense)-1);	// entry in dense is top 13 bits of low 20.
++	e->next = ah->dense[h];
++	ah->dense[h] = e;
++}
++
++// Get the bucket associated with addr and clear the association.
++static Bucket*
++getaddrbucket(uintptr addr)
++{
++	uint32 h;
++	AddrHash *ah;
++	AddrEntry *e, **l;
++	Bucket *b;
++	
++	h = (uint32)((addr>>20)*HashMultiplier) >> (32-AddrHashBits);
++	for(ah=addrhash[h]; ah; ah=ah->next)
++		if(ah->addr == (addr>>20))
++			goto found;
++	return nil;
++
++found:
++	h = (addr>>7)&(nelem(ah->dense)-1);	// entry in dense is top 13 bits of low 20.
++	for(l=&ah->dense[h]; (e=*l) != nil; l=&e->next) {
++		if(e->addr == (uint32)~(addr & ((1<<20)-1))) {
++			*l = e->next;
++			b = e->b;
++			e->next = addrfree;
++			addrfree = e;
++			return b;
++		}
++	}
++	return nil;
++}
++
++// Called by malloc to record a profiled block.
++void
++MProf_Malloc(int32 skip, void *p, uintptr size)
++{
++	int32 nstk;
++	uintptr stk[32];
++	Bucket *b;
++
++	nstk = callers(1+skip, stk, 32);
++	lock(&proflock);
++	b = stkbucket(stk, nstk);
++	b->allocs++;
++	b->alloc_bytes += size;
++	setaddrbucket((uintptr)p, b);
++	unlock(&proflock);
++}
++
++// Called when freeing a profiled block.
++void
++MProf_Free(void *p, uintptr size)
++{
++	Bucket *b;
++
++	lock(&proflock);
++	b = getaddrbucket((uintptr)p);
++	if(b != nil) {
++		b->frees++;
++		b->free_bytes += size;
++	}
++	unlock(&proflock);
++}
++
++
++// Go interface to profile data.  (Declared in extern.go)
++// Assumes Go sizeof(int) == sizeof(int32)
++
++func SetMemProfileKind(kind int32) {
++	malloc_profile = kind;
++}
++
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 622f680388..c04693899f 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -359,7 +359,8 @@ byte*	mchr(byte*, byte, byte*);
+ void	mcpy(byte*, byte*, uint32);
+ int32	mcmp(byte*, byte*, uint32);
+ void	memmove(void*, void*, uint32);
+-void*	mal(uint32);
++void*	mal(uintptr);
++void*	malx(uintptr size, int32 skip_delta);
+ uint32	cmpstring(String, String);
+ String	gostring(byte*);
+ String	gostringw(uint16*);
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+index 4ee5fc51f5..03572e822b 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.c
+@@ -23,7 +23,7 @@ void
+ 	ret.cap = cap;
+ 
+ 	if((t->elem->kind&KindNoPointers))
+-		ret.array = mallocgc(size, RefNoPointers, 1, 1);
++		ret.array = mallocgc(size, RefNoPointers, 1, 1, 1);
+ 	else
+ 		ret.array = mal(size);
+ 
+diff --git a/src/pkg/runtime/string.cgo b/src/pkg/runtime/string.cgo
+index 2cb518c6f8..4a96b83ec0 100644
+--- a/src/pkg/runtime/string.cgo
++++ b/src/pkg/runtime/string.cgo
+@@ -41,7 +41,7 @@ gostringsize(int32 l)
+ 
+ 	if(l == 0)
+ 		return emptystring;
+-	s.str = mal(l+1);	// leave room for NUL for C runtime (e.g., callers of getenv)
++	s.str = malx(l+1, 1);	// leave room for NUL for C runtime (e.g., callers of getenv)
+ 	s.len = l;
+ 	if(l > maxstring)
+ 		maxstring = l;
+@@ -212,7 +212,7 @@ func slicebytetostring(b Slice) (s String) {
+ }
+ 
+ func stringtoslicebyte(s String) (b Slice) {
+-	b.array = mallocgc(s.len, RefNoPointers, 1, 1);
++	b.array = mallocgc(s.len, RefNoPointers, 1, 1, 1);
+ 	b.len = s.len;
+ 	b.cap = s.len;
+ 	mcpy(b.array, s.str, s.len);
+@@ -255,7 +255,7 @@ func stringtosliceint(s String) (b Slice) {
+ 		n++;
+ 	}
+ 
+-	b.array = mallocgc(n*sizeof(r[0]), RefNoPointers, 1, 1);
++	b.array = mallocgc(n*sizeof(r[0]), RefNoPointers, 1, 1, 1);
+ 	b.len = n;
+ 	b.cap = n;
+ 	p = s.str;

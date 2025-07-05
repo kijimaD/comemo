@@ -8,6 +8,22 @@ Date:   Mon Jul 6 10:58:55 2009 -0700
     DELTA=4  (4 added, 0 deleted, 0 changed)
     OCL=31192
     CL=31198
-
+---
  src/pkg/gob/decode.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index 80d772fd0d..89792dc046 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -295,6 +295,10 @@ func decodeStruct(engine *decEngine, rtyp reflect.StructType, r io.Reader, p uin
+ 	basep := p;
+ 	for state.err == nil {
+ 		delta := int(DecodeUint(state));
++		if delta < 0 {
++			state.err = os.ErrorString("gob decode: corrupted data: negative delta");
++			break
++		}
+ 		if state.err != nil || delta == 0 {	// struct terminator is zero delta fieldnum
+ 			break
+ 		}

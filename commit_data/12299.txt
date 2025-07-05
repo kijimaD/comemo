@@ -9,7 +9,7 @@ Date:   Thu Mar 1 17:36:35 2012 +1100
     R=golang-dev, bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/5707052
-
+---
  src/cmd/cgo/util.go        | 1 -
  src/cmd/godoc/main.go      | 1 -
  src/pkg/net/http/triv.go   | 1 -
@@ -19,3 +19,136 @@ Date:   Thu Mar 1 17:36:35 2012 +1100
  src/pkg/os/exec_windows.go | 5 +++--
  src/pkg/os/os_test.go      | 2 --
  8 files changed, 12 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/cgo/util.go b/src/cmd/cgo/util.go
+index cd7cde2b6e..a0f216614b 100644
+--- a/src/cmd/cgo/util.go
++++ b/src/cmd/cgo/util.go
+@@ -36,7 +36,6 @@ func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
+ 	if err != nil {
+ 		fatalf("%s", err)
+ 	}
+-	defer p.Release()
+ 	r0.Close()
+ 	w1.Close()
+ 	w2.Close()
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index e5717f8005..ee905bb7a0 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -99,7 +99,6 @@ func exec(rw http.ResponseWriter, args []string) (status int) {
+ 		log.Printf("os.StartProcess(%q): %v", bin, err)
+ 		return 2
+ 	}
+-	defer p.Release()
+ 
+ 	var buf bytes.Buffer
+ 	io.Copy(&buf, r)
+diff --git a/src/pkg/net/http/triv.go b/src/pkg/net/http/triv.go
+index c88a0fbce7..269af0ca3d 100644
+--- a/src/pkg/net/http/triv.go
++++ b/src/pkg/net/http/triv.go
+@@ -108,7 +108,6 @@ func DateServer(rw http.ResponseWriter, req *http.Request) {
+ 		fmt.Fprintf(rw, "fork/exec: %s\n", err)
+ 		return
+ 	}
+-	defer p.Release()
+ 	io.Copy(rw, r)
+ 	wait, err := p.Wait(0)
+ 	if err != nil {
+diff --git a/src/pkg/os/doc.go b/src/pkg/os/doc.go
+index ef857c0429..546f864714 100644
+--- a/src/pkg/os/doc.go
++++ b/src/pkg/os/doc.go
+@@ -11,6 +11,13 @@ func FindProcess(pid int) (p *Process, err error) {
+ 	return findProcess(pid)
+ }
+ 
++// Release releases any resources associated with the Process p,
++// rendering it unusable in the future.
++// Release only needs to be called if Wait is not.
++func (p *Process) Release() error {
++	return p.release()
++}
++
+ // Hostname returns the host name reported by the kernel.
+ func Hostname() (name string, err error) {
+ 	return hostname()
+diff --git a/src/pkg/os/exec_plan9.go b/src/pkg/os/exec_plan9.go
+index 1c9e2b997f..a941d12660 100644
+--- a/src/pkg/os/exec_plan9.go
++++ b/src/pkg/os/exec_plan9.go
+@@ -94,8 +94,7 @@ func (p *Process) Wait() (ps *ProcessState, err error) {
+ 	return ps, nil
+ }
+ 
+-// Release releases any resources associated with the Process.
+-func (p *Process) Release() error {
++func (p *Process) release() error {
+ 	// NOOP for Plan 9.
+ 	p.Pid = -1
+ 	// no need for a finalizer anymore
+diff --git a/src/pkg/os/exec_unix.go b/src/pkg/os/exec_unix.go
+index 8d000e9ef1..3f89fe8238 100644
+--- a/src/pkg/os/exec_unix.go
++++ b/src/pkg/os/exec_unix.go
+@@ -51,8 +51,7 @@ func (p *Process) Signal(sig Signal) error {
+ 	return nil
+ }
+ 
+-// Release releases any resources associated with the Process.
+-func (p *Process) Release() error {
++func (p *Process) release() error {
+ 	// NOOP for unix.
+ 	p.Pid = -1
+ 	// no need for a finalizer anymore
+diff --git a/src/pkg/os/exec_windows.go b/src/pkg/os/exec_windows.go
+index dab0dc9757..3d07ab7c92 100644
+--- a/src/pkg/os/exec_windows.go
++++ b/src/pkg/os/exec_windows.go
+@@ -14,6 +14,7 @@ import (
+ 
+ // Wait waits for the Process to exit or stop, and then returns a
+ // ProcessState describing its status and an error, if any.
++// Wait releases any resources associated with the Process.
+ func (p *Process) Wait() (ps *ProcessState, err error) {
+ 	s, e := syscall.WaitForSingleObject(syscall.Handle(p.handle), syscall.INFINITE)
+ 	switch s {
+@@ -30,6 +31,7 @@ func (p *Process) Wait() (ps *ProcessState, err error) {
+ 		return nil, NewSyscallError("GetExitCodeProcess", e)
+ 	}
+ 	p.done = true
++	defer p.Release()
+ 	return &ProcessState{p.Pid, syscall.WaitStatus{Status: s, ExitCode: ec}, new(syscall.Rusage)}, nil
+ }
+ 
+@@ -46,8 +48,7 @@ func (p *Process) Signal(sig Signal) error {
+ 	return syscall.Errno(syscall.EWINDOWS)
+ }
+ 
+-// Release releases any resources associated with the Process.
+-func (p *Process) Release() error {
++func (p *Process) release() error {
+ 	if p.handle == uintptr(syscall.InvalidHandle) {
+ 		return syscall.EINVAL
+ 	}
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 02f75b2a73..d1e241f006 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -530,7 +530,6 @@ func exec(t *testing.T, dir, cmd string, args []string, expect string) {
+ 	if err != nil {
+ 		t.Fatalf("StartProcess: %v", err)
+ 	}
+-	defer p.Release()
+ 	w.Close()
+ 
+ 	var b bytes.Buffer
+@@ -848,7 +847,6 @@ func run(t *testing.T, cmd []string) string {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	defer p.Release()
+ 	w.Close()
+ 
+ 	var b bytes.Buffer

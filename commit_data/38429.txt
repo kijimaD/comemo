@@ -20,6 +20,96 @@ Date:   Sun Oct 28 20:46:58 2018 +0000
     Reviewed-by: Rob Pike <r@golang.org>
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/text/template/parse/parse.go | 72 ++++++++++++++++++----------------------
  1 file changed, 32 insertions(+), 40 deletions(-)
+
+diff --git a/src/text/template/parse/parse.go b/src/text/template/parse/parse.go
+index 5195694d42..7c35b0ff3d 100644
+--- a/src/text/template/parse/parse.go
++++ b/src/text/template/parse/parse.go
+@@ -380,52 +380,44 @@ func (t *Tree) action() (n Node) {
+ // Pipeline:
+ //	declarations? command ('|' command)*
+ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
+-	decl := false
+-	var vars []*VariableNode
+ 	token := t.peekNonSpace()
+-	pos := token.pos
++	pipe = t.newPipeline(token.pos, token.line, nil)
+ 	// Are there declarations or assignments?
+-	// TODO(mvdan): simplify the loop break/continue logic
+-	for {
+-		if v := t.peekNonSpace(); v.typ == itemVariable {
+-			t.next()
+-			// Since space is a token, we need 3-token look-ahead here in the worst case:
+-			// in "$x foo" we need to read "foo" (as opposed to ":=") to know that $x is an
+-			// argument variable rather than a declaration. So remember the token
+-			// adjacent to the variable so we can push it back if necessary.
+-			tokenAfterVariable := t.peek()
+-			next := t.peekNonSpace()
+-			switch {
+-			case next.typ == itemAssign, next.typ == itemDeclare,
+-				next.typ == itemChar && next.val == ",":
+-				t.nextNonSpace()
+-				variable := t.newVariable(v.pos, v.val)
+-				vars = append(vars, variable)
+-				t.vars = append(t.vars, v.val)
+-				if next.typ == itemDeclare {
+-					decl = true
+-				}
+-				if next.typ == itemChar && next.val == "," {
+-					if context == "range" && len(vars) < 2 {
+-						switch t.peekNonSpace().typ {
+-						case itemVariable, itemRightDelim, itemRightParen:
+-							continue
+-						default:
+-							t.errorf("range can only initialize variables")
+-						}
+-					}
+-					t.errorf("too many declarations in %s", context)
++decls:
++	if v := t.peekNonSpace(); v.typ == itemVariable {
++		t.next()
++		// Since space is a token, we need 3-token look-ahead here in the worst case:
++		// in "$x foo" we need to read "foo" (as opposed to ":=") to know that $x is an
++		// argument variable rather than a declaration. So remember the token
++		// adjacent to the variable so we can push it back if necessary.
++		tokenAfterVariable := t.peek()
++		next := t.peekNonSpace()
++		switch {
++		case next.typ == itemAssign, next.typ == itemDeclare:
++			pipe.IsAssign = next.typ == itemAssign
++			t.nextNonSpace()
++			pipe.Decl = append(pipe.Decl, t.newVariable(v.pos, v.val))
++			t.vars = append(t.vars, v.val)
++		case next.typ == itemChar && next.val == ",":
++			t.nextNonSpace()
++			pipe.Decl = append(pipe.Decl, t.newVariable(v.pos, v.val))
++			t.vars = append(t.vars, v.val)
++			if context == "range" && len(pipe.Decl) < 2 {
++				switch t.peekNonSpace().typ {
++				case itemVariable, itemRightDelim, itemRightParen:
++					// second initialized variable in a range pipeline
++					goto decls
++				default:
++					t.errorf("range can only initialize variables")
+ 				}
+-			case tokenAfterVariable.typ == itemSpace:
+-				t.backup3(v, tokenAfterVariable)
+-			default:
+-				t.backup2(v)
+ 			}
++			t.errorf("too many declarations in %s", context)
++		case tokenAfterVariable.typ == itemSpace:
++			t.backup3(v, tokenAfterVariable)
++		default:
++			t.backup2(v)
+ 		}
+-		break
+ 	}
+-	pipe = t.newPipeline(pos, token.line, vars)
+-	pipe.IsAssign = !decl
+ 	for {
+ 		switch token := t.nextNonSpace(); token.typ {
+ 		case itemRightDelim, itemRightParen:

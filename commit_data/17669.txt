@@ -8,9 +8,29 @@ Date:   Sun Sep 22 10:56:06 2013 -0700
     R=golang-dev, dave, alex.brainman, r
     CC=golang-dev
     https://golang.org/cl/13359046
-
+---
  src/pkg/runtime/race/README                  |   2 +-
  src/pkg/runtime/race/race_darwin_amd64.syso  | Bin 186024 -> 192988 bytes
  src/pkg/runtime/race/race_linux_amd64.syso   | Bin 187616 -> 195144 bytes
  src/pkg/runtime/race/race_windows_amd64.syso | Bin 160595 -> 161295 bytes
  4 files changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/race/README b/src/pkg/runtime/race/README
+index c298218a07..0b73bd857e 100644
+--- a/src/pkg/runtime/race/README
++++ b/src/pkg/runtime/race/README
+@@ -9,4 +9,4 @@ $ ./buildgo.sh
+ 
+ Tested with gcc 4.6.1 and 4.7.0.  On Windows it's built with 64-bit MinGW.
+ 
+-Current runtime is built on rev 188542.
++Current runtime is built on rev 191161.
+diff --git a/src/pkg/runtime/race/race_darwin_amd64.syso b/src/pkg/runtime/race/race_darwin_amd64.syso
+index 18fabc217e..96a43c9a92 100644
+Binary files a/src/pkg/runtime/race/race_darwin_amd64.syso and b/src/pkg/runtime/race/race_darwin_amd64.syso differ
+diff --git a/src/pkg/runtime/race/race_linux_amd64.syso b/src/pkg/runtime/race/race_linux_amd64.syso
+index d770031d5b..50bde9648e 100644
+Binary files a/src/pkg/runtime/race/race_linux_amd64.syso and b/src/pkg/runtime/race/race_linux_amd64.syso differ
+diff --git a/src/pkg/runtime/race/race_windows_amd64.syso b/src/pkg/runtime/race/race_windows_amd64.syso
+index 4fd661f5b6..46eb1274fb 100644
+Binary files a/src/pkg/runtime/race/race_windows_amd64.syso and b/src/pkg/runtime/race/race_windows_amd64.syso differ

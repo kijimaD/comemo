@@ -21,10 +21,210 @@ Date:   Thu Jul 23 21:02:05 2020 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/export_test.go | 26 ++++++++++++++++++--------
  src/runtime/mcache.go      | 31 +++++++++++++++++++++++++++++--
  src/runtime/mheap.go       |  7 ++-----
  src/runtime/mstats.go      | 41 +++++++++++++++++++----------------------
  src/runtime/proc.go        |  2 +-
  5 files changed, 69 insertions(+), 38 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index e65b7b8ea7..d5a90ca65b 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -339,18 +339,28 @@ func ReadMemStatsSlow() (base, slow MemStats) {
+ 
+ 		// Add in frees. readmemstats_m flushed the cached stats, so
+ 		// these are up-to-date.
+-		var smallFree uint64
+-		slow.Frees = mheap_.nlargefree
+-		for i := range mheap_.nsmallfree {
+-			slow.Frees += mheap_.nsmallfree[i]
+-			bySize[i].Frees = mheap_.nsmallfree[i]
+-			bySize[i].Mallocs += mheap_.nsmallfree[i]
+-			smallFree += mheap_.nsmallfree[i] * uint64(class_to_size[i])
++		var largeFree, smallFree uint64
++		for _, p := range allp {
++			c := p.mcache
++			if c == nil {
++				continue
++			}
++			// Collect large allocation stats.
++			largeFree += uint64(c.local_largefree)
++			slow.Frees += uint64(c.local_nlargefree)
++
++			// Collect per-sizeclass stats.
++			for i := 0; i < _NumSizeClasses; i++ {
++				slow.Frees += uint64(c.local_nsmallfree[i])
++				bySize[i].Frees += uint64(c.local_nsmallfree[i])
++				bySize[i].Mallocs += uint64(c.local_nsmallfree[i])
++				smallFree += uint64(c.local_nsmallfree[i]) * uint64(class_to_size[i])
++			}
+ 		}
+ 		slow.Frees += memstats.tinyallocs
+ 		slow.Mallocs += slow.Frees
+ 
+-		slow.TotalAlloc = slow.Alloc + mheap_.largefree + smallFree
++		slow.TotalAlloc = slow.Alloc + largeFree + smallFree
+ 
+ 		for i := range slow.BySize {
+ 			slow.BySize[i].Mallocs = bySize[i].Mallocs
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index 7a7d33ccae..5baa7b3da8 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -41,7 +41,13 @@ type mcache struct {
+ 
+ 	stackcache [_NumStackOrders]stackfreelist
+ 
+-	// Local allocator stats, flushed during GC.
++	// Allocator stats (source-of-truth).
++	// Only the P that owns this mcache may write to these
++	// variables, so it's safe for that P to read non-atomically.
++	//
++	// When read with stats from other mcaches and with the world
++	// stopped, the result will accurately reflect the state of the
++	// application.
+ 	local_largefree  uintptr                  // bytes freed for large objects (>maxsmallsize)
+ 	local_nlargefree uintptr                  // number of frees for large objects (>maxsmallsize)
+ 	local_nsmallfree [_NumSizeClasses]uintptr // number of frees for small objects (<=maxsmallsize)
+@@ -97,7 +103,13 @@ func allocmcache() *mcache {
+ 	return c
+ }
+ 
+-func freemcache(c *mcache) {
++// freemcache releases resources associated with this
++// mcache and puts the object onto a free list.
++//
++// In some cases there is no way to simply release
++// resources, such as statistics, so donate them to
++// a different mcache (the recipient).
++func freemcache(c *mcache, recipient *mcache) {
+ 	systemstack(func() {
+ 		c.releaseAll()
+ 		stackcache_clear(c)
+@@ -109,11 +121,26 @@ func freemcache(c *mcache) {
+ 
+ 		lock(&mheap_.lock)
+ 		purgecachedstats(c)
++		// Donate anything else that's left.
++		c.donate(recipient)
+ 		mheap_.cachealloc.free(unsafe.Pointer(c))
+ 		unlock(&mheap_.lock)
+ 	})
+ }
+ 
++// donate flushes data and resources which have no global
++// pool to another mcache.
++func (c *mcache) donate(d *mcache) {
++	d.local_largefree += c.local_largefree
++	c.local_largefree = 0
++	d.local_nlargefree += c.local_nlargefree
++	c.local_nlargefree = 0
++	for i := range c.local_nsmallfree {
++		d.local_nsmallfree[i] += c.local_nsmallfree[i]
++		c.local_nsmallfree[i] = 0
++	}
++}
++
+ // refill acquires a new span of span class spc for c. This span will
+ // have at least one free object. The current span in c must be full.
+ //
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 124bbacd1d..1b41b204ab 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -129,11 +129,8 @@ type mheap struct {
+ 	reclaimCredit uintptr
+ 
+ 	// Malloc stats.
+-	largealloc  uint64                  // bytes allocated for large objects
+-	nlargealloc uint64                  // number of large object allocations
+-	largefree   uint64                  // bytes freed for large objects (>maxsmallsize)
+-	nlargefree  uint64                  // number of frees for large objects (>maxsmallsize)
+-	nsmallfree  [_NumSizeClasses]uint64 // number of frees for small objects (<=maxsmallsize)
++	largealloc  uint64 // bytes allocated for large objects
++	nlargealloc uint64 // number of large object allocations
+ 
+ 	// arenas is the heap arena map. It points to the metadata for
+ 	// the heap for every arena frame of the entire usable virtual
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 8cc20552fb..d81d2ebe81 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -571,21 +571,27 @@ func updatememstats() {
+ 		memstats.by_size[i].nmalloc += c.nmalloc
+ 		totalAlloc += c.nmalloc * uint64(class_to_size[i])
+ 	}
+-	// Collect per-sizeclass stats.
+-	for i := 0; i < _NumSizeClasses; i++ {
+-		if i == 0 {
+-			memstats.nmalloc += mheap_.nlargealloc
+-			totalAlloc += mheap_.largealloc
+-			totalFree += mheap_.largefree
+-			memstats.nfree += mheap_.nlargefree
++
++	for _, p := range allp {
++		c := p.mcache
++		if c == nil {
+ 			continue
+ 		}
+-
+-		// The mcache stats have been flushed to mheap_.
+-		memstats.nfree += mheap_.nsmallfree[i]
+-		memstats.by_size[i].nfree = mheap_.nsmallfree[i]
+-		smallFree += mheap_.nsmallfree[i] * uint64(class_to_size[i])
++		// Collect large allocation stats.
++		totalFree += uint64(c.local_largefree)
++		memstats.nfree += uint64(c.local_nlargefree)
++
++		// Collect per-sizeclass stats.
++		for i := 0; i < _NumSizeClasses; i++ {
++			memstats.nfree += uint64(c.local_nsmallfree[i])
++			memstats.by_size[i].nfree += uint64(c.local_nsmallfree[i])
++			smallFree += uint64(c.local_nsmallfree[i]) * uint64(class_to_size[i])
++		}
+ 	}
++	// Collect remaining large allocation stats.
++	memstats.nmalloc += mheap_.nlargealloc
++	totalAlloc += mheap_.largealloc
++
+ 	totalFree += smallFree
+ 
+ 	memstats.nfree += memstats.tinyallocs
+@@ -641,20 +647,11 @@ func flushallmcaches() {
+ 
+ //go:nosplit
+ func purgecachedstats(c *mcache) {
+-	// Protected by either heap or GC lock.
+-	h := &mheap_
++	// Protected by heap lock.
+ 	atomic.Xadd64(&memstats.heap_scan, int64(c.local_scan))
+ 	c.local_scan = 0
+ 	memstats.tinyallocs += uint64(c.local_tinyallocs)
+ 	c.local_tinyallocs = 0
+-	h.largefree += uint64(c.local_largefree)
+-	c.local_largefree = 0
+-	h.nlargefree += uint64(c.local_nlargefree)
+-	c.local_nlargefree = 0
+-	for i := 0; i < len(c.local_nsmallfree); i++ {
+-		h.nsmallfree[i] += uint64(c.local_nsmallfree[i])
+-		c.local_nsmallfree[i] = 0
+-	}
+ }
+ 
+ // Atomically increases a given *system* memory stat. We are counting on this
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index ebecc92745..4f4cff38aa 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4550,7 +4550,7 @@ func (pp *p) destroy() {
+ 		pp.mspancache.len = 0
+ 		pp.pcache.flush(&mheap_.pages)
+ 	})
+-	freemcache(pp.mcache)
++	freemcache(pp.mcache, allp[0].mcache)
+ 	pp.mcache = nil
+ 	gfpurge(pp)
+ 	traceProcFree(pp)

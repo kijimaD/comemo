@@ -12,6 +12,23 @@ Date:   Tue May 21 10:24:59 2024 -0400
     Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Florian Zenker <floriank@google.com>
-
+---
  src/runtime/{badlinkname_linux_amd64.go => badlinkname_linux.go} | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/badlinkname_linux_amd64.go b/src/runtime/badlinkname_linux.go
+similarity index 94%
+rename from src/runtime/badlinkname_linux_amd64.go
+rename to src/runtime/badlinkname_linux.go
+index 8a2dae93ca..ad74528da2 100644
+--- a/src/runtime/badlinkname_linux_amd64.go
++++ b/src/runtime/badlinkname_linux.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build amd64 || arm64
++
+ package runtime
+ 
+ import _ "unsafe"

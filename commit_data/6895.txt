@@ -10,10 +10,112 @@ Date:   Wed Dec 8 16:35:05 2010 -0500
     R=r
     CC=golang-dev
     https://golang.org/cl/3411043
-
+---
  src/pkg/runtime/cgo/freebsd_386.c   | 7 ++-----
  src/pkg/runtime/cgo/freebsd_amd64.c | 6 ++++--
  src/pkg/runtime/cgo/nacl_386.c      | 6 ++++--
  src/pkg/runtime/cgo/windows_386.c   | 6 ++++--
  src/pkg/runtime/cgo/windows_amd64.c | 6 ++++--
  5 files changed, 18 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/runtime/cgo/freebsd_386.c b/src/pkg/runtime/cgo/freebsd_386.c
+index b445b940ad..449a8ef108 100644
+--- a/src/pkg/runtime/cgo/freebsd_386.c
++++ b/src/pkg/runtime/cgo/freebsd_386.c
+@@ -11,14 +11,11 @@ char *environ[] = { 0 };
+ char *__progname;
+ 
+ static void
+-inittls(void)
++xinitcgo(void)
+ {
+ }
+ 
+-void
+-initcgo(void)
+-{
+-}
++void (*initcgo)(void) = xinitcgo;
+ 
+ void
+ libcgo_sys_thread_start(ThreadStart *ts)
+diff --git a/src/pkg/runtime/cgo/freebsd_amd64.c b/src/pkg/runtime/cgo/freebsd_amd64.c
+index bc3a561868..daac403c11 100644
+--- a/src/pkg/runtime/cgo/freebsd_amd64.c
++++ b/src/pkg/runtime/cgo/freebsd_amd64.c
+@@ -10,11 +10,13 @@ static void* threadentry(void*);
+ char *environ[] = { 0 };
+ char *__progname;
+ 
+-void
+-initcgo(void)
++static void
++xinitcgo(void)
+ {
+ }
+ 
++void (*initcgo)(void) = xinitcgo;
++
+ void
+ libcgo_sys_thread_start(ThreadStart *ts)
+ {
+diff --git a/src/pkg/runtime/cgo/nacl_386.c b/src/pkg/runtime/cgo/nacl_386.c
+index d674aca1df..e556c433ce 100644
+--- a/src/pkg/runtime/cgo/nacl_386.c
++++ b/src/pkg/runtime/cgo/nacl_386.c
+@@ -4,11 +4,13 @@
+ 
+ #include "libcgo.h"
+ 
+-void
+-initcgo(void)
++static void
++xinitcgo(void)
+ {
+ }
+ 
++void (*initcgo)(void) = xinitcgo;
++
+ void
+ libcgo_sys_thread_start(ThreadStart *ts)
+ {
+diff --git a/src/pkg/runtime/cgo/windows_386.c b/src/pkg/runtime/cgo/windows_386.c
+index e221d69981..5f5235bd2d 100755
+--- a/src/pkg/runtime/cgo/windows_386.c
++++ b/src/pkg/runtime/cgo/windows_386.c
+@@ -12,11 +12,13 @@ static void *threadentry(void*);
+    Allocation granularity on Windows is typically 64 KB. */
+ #define STACKSIZE (1*1024*1024)
+ 
+-void
+-initcgo(void)
++static void
++xinitcgo(void)
+ {
+ }
+ 
++void (*initcgo)(void) = xinitcgo;
++
+ void
+ libcgo_sys_thread_start(ThreadStart *ts)
+ {
+diff --git a/src/pkg/runtime/cgo/windows_amd64.c b/src/pkg/runtime/cgo/windows_amd64.c
+index 1f34f85005..dafe8cd9d4 100755
+--- a/src/pkg/runtime/cgo/windows_amd64.c
++++ b/src/pkg/runtime/cgo/windows_amd64.c
+@@ -12,11 +12,13 @@ static void *threadentry(void*);
+    Allocation granularity on Windows is typically 64 KB. */
+ #define STACKSIZE (2*1024*1024)
+ 
+-void
+-initcgo(void)
++static void
++xinitcgo(void)
+ {
+ }
+ 
++void (*initcgo)(void) = xinitcgo;
++
+ void
+ libcgo_sys_thread_start(ThreadStart *ts)
+ {

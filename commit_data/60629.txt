@@ -17,9 +17,76 @@ Date:   Wed Aug 7 15:04:05 2024 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Michael Matloob <matloob@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/go.mod                                  | 2 +-
  src/cmd/go.sum                                  | 4 ++--
  src/cmd/vendor/golang.org/x/mod/modfile/read.go | 7 ++++---
  src/cmd/vendor/modules.txt                      | 2 +-
  4 files changed, 8 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index c13914940f..22722e4078 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -6,7 +6,7 @@ require (
+ 	github.com/google/pprof v0.0.0-20240722153945-304e4f0156b8
+ 	golang.org/x/arch v0.8.1-0.20240716161256-b863392466ea
+ 	golang.org/x/build v0.0.0-20240722200705-b9910f320300
+-	golang.org/x/mod v0.19.1-0.20240718175220-b56a28f8bd83
++	golang.org/x/mod v0.20.0
+ 	golang.org/x/sync v0.7.1-0.20240716160658-411f99ef1213
+ 	golang.org/x/sys v0.23.0
+ 	golang.org/x/telemetry v0.0.0-20240723021908-ccdfb411a0c4
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 2c46e6aa08..4bcb0bac38 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -10,8 +10,8 @@ golang.org/x/arch v0.8.1-0.20240716161256-b863392466ea h1:+dKVGZM+cuxx3fooVKLDxZ
+ golang.org/x/arch v0.8.1-0.20240716161256-b863392466ea/go.mod h1:FEVrYAQjsQXMVJ1nsMoVVXPZg6p2JE2mx8psSWTDQys=
+ golang.org/x/build v0.0.0-20240722200705-b9910f320300 h1:2Cqg4LnvfD2ZpG8+6KbyYUkweWhNS3SgfcN/eeVseJ0=
+ golang.org/x/build v0.0.0-20240722200705-b9910f320300/go.mod h1:YsGhg4JUVUWLzdqU2wCrtpRrOveOql6w56FLDHq/CJ4=
+-golang.org/x/mod v0.19.1-0.20240718175220-b56a28f8bd83 h1:54Tg3p/GyzLNJA1jtQxZSn7GRaB5Exi/C9aOk+XpfhM=
+-golang.org/x/mod v0.19.1-0.20240718175220-b56a28f8bd83/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
++golang.org/x/mod v0.20.0 h1:utOm6MM3R3dnawAiJgn0y+xvuYRsm1RKM/4giyfDgV0=
++golang.org/x/mod v0.20.0/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
+ golang.org/x/sync v0.7.1-0.20240716160658-411f99ef1213 h1:8CBy3wSM3/YRXx26NPKZjPBNsnvI9dRRrSlB4Ps0HWY=
+ golang.org/x/sync v0.7.1-0.20240716160658-411f99ef1213/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+ golang.org/x/sys v0.23.0 h1:YfKFowiIMvtgl1UERQoTPPToxltDeZfbj4H7dVUCwmM=
+diff --git a/src/cmd/vendor/golang.org/x/mod/modfile/read.go b/src/cmd/vendor/golang.org/x/mod/modfile/read.go
+index 2205682591..de1b98211a 100644
+--- a/src/cmd/vendor/golang.org/x/mod/modfile/read.go
++++ b/src/cmd/vendor/golang.org/x/mod/modfile/read.go
+@@ -226,8 +226,9 @@ func (x *FileSyntax) Cleanup() {
+ 				continue
+ 			}
+ 			if ww == 1 && len(stmt.RParen.Comments.Before) == 0 {
+-				// Collapse block into single line.
+-				line := &Line{
++				// Collapse block into single line but keep the Line reference used by the
++				// parsed File structure.
++				*stmt.Line[0] = Line{
+ 					Comments: Comments{
+ 						Before: commentsAdd(stmt.Before, stmt.Line[0].Before),
+ 						Suffix: commentsAdd(stmt.Line[0].Suffix, stmt.Suffix),
+@@ -235,7 +236,7 @@ func (x *FileSyntax) Cleanup() {
+ 					},
+ 					Token: stringsAdd(stmt.Token, stmt.Line[0].Token),
+ 				}
+-				x.Stmt[w] = line
++				x.Stmt[w] = stmt.Line[0]
+ 				w++
+ 				continue
+ 			}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index f5cf6bd218..7b8d210d15 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -25,7 +25,7 @@ golang.org/x/arch/x86/x86asm
+ # golang.org/x/build v0.0.0-20240722200705-b9910f320300
+ ## explicit; go 1.21
+ golang.org/x/build/relnote
+-# golang.org/x/mod v0.19.1-0.20240718175220-b56a28f8bd83
++# golang.org/x/mod v0.20.0
+ ## explicit; go 1.18
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile

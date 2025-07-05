@@ -7,6 +7,20 @@ Date:   Mon Mar 12 13:17:48 2012 -0700
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/5795059
-
+---
  src/pkg/os/types.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/types.go b/src/pkg/os/types.go
+index c7c5199be1..01dddf50de 100644
+--- a/src/pkg/os/types.go
++++ b/src/pkg/os/types.go
+@@ -15,7 +15,7 @@ func Getpagesize() int { return syscall.Getpagesize() }
+ // A FileInfo describes a file and is returned by Stat and Lstat
+ type FileInfo interface {
+ 	Name() string       // base name of the file
+-	Size() int64        // length in bytes
++	Size() int64        // length in bytes for regular files; system-dependent for others
+ 	Mode() FileMode     // file mode bits
+ 	ModTime() time.Time // modification time
+ 	IsDir() bool        // abbreviation for Mode().IsDir()

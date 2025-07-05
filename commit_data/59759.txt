@@ -12,6 +12,19 @@ Date:   Fri Apr 19 11:39:29 2024 -0400
     Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/internal/goexperiment/flags.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/internal/goexperiment/flags.go b/src/internal/goexperiment/flags.go
+index 205741b8d9..064e70a35d 100644
+--- a/src/internal/goexperiment/flags.go
++++ b/src/internal/goexperiment/flags.go
+@@ -116,7 +116,4 @@ type Flags struct {
+ 
+ 	// RangeFunc enables range over func.
+ 	RangeFunc bool
+-
+-	// Range enables range over int and func.
+-	Range bool
+ }

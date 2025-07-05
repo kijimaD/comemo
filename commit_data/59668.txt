@@ -29,10 +29,327 @@ Date:   Fri Mar 8 23:06:41 2024 +0000
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Nicolas Hillegeer <aktau@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/export_test.go  |  6 ++++++
  src/runtime/metrics.go      | 22 ++++++++++-----------
  src/runtime/metrics_test.go | 48 +++++++++++++++++++++++++++++++++++++++------
  src/runtime/mgc.go          | 21 +++++++++++---------
  src/runtime/mstats.go       | 46 +++++++++++++++++++++----------------------
  5 files changed, 94 insertions(+), 49 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 4eb187c007..1ec45b8cc0 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -429,6 +429,12 @@ func (p *ProfBuf) Close() {
+ 	(*profBuf)(p).close()
+ }
+ 
++type CPUStats = cpuStats
++
++func ReadCPUStats() CPUStats {
++	return work.cpuStats
++}
++
+ func ReadMetricsSlow(memStats *MemStats, samplesp unsafe.Pointer, len, cap int) {
+ 	stw := stopTheWorld(stwForTestReadMetricsSlow)
+ 
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index f97a3804ab..417f1071bb 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -95,77 +95,77 @@ func initMetrics() {
+ 			deps: makeStatDepSet(cpuStatsDep),
+ 			compute: func(in *statAggregate, out *metricValue) {
+ 				out.kind = metricKindFloat64
+-				out.scalar = float64bits(nsToSec(in.cpuStats.gcAssistTime))
++				out.scalar = float64bits(nsToSec(in.cpuStats.GCAssistTime))
+ 			},
+ 		},
+ 		"/cpu/classes/gc/mark/dedicated:cpu-seconds": {
+ 			deps: makeStatDepSet(cpuStatsDep),
+ 			compute: func(in *statAggregate, out *metricValue) {
+ 				out.kind = metricKindFloat64
+-				out.scalar = float64bits(nsToSec(in.cpuStats.gcDedicatedTime))
++				out.scalar = float64bits(nsToSec(in.cpuStats.GCDedicatedTime))
+ 			},
+ 		},
+ 		"/cpu/classes/gc/mark/idle:cpu-seconds": {
+ 			deps: makeStatDepSet(cpuStatsDep),
+ 			compute: func(in *statAggregate, out *metricValue) {
+ 				out.kind = metricKindFloat64
+-				out.scalar = float64bits(nsToSec(in.cpuStats.gcIdleTime))
++				out.scalar = float64bits(nsToSec(in.cpuStats.GCIdleTime))
+ 			},
+ 		},
+ 		"/cpu/classes/gc/pause:cpu-seconds": {
+ 			deps: makeStatDepSet(cpuStatsDep),
+ 			compute: func(in *statAggregate, out *metricValue) {
+ 				out.kind = metricKindFloat64
+-				out.scalar = float64bits(nsToSec(in.cpuStats.gcPauseTime))
++				out.scalar = float64bits(nsToSec(in.cpuStats.GCPauseTime))
+ 			},
+ 		},
+ 		"/cpu/classes/gc/total:cpu-seconds": {
+ 			deps: makeStatDepSet(cpuStatsDep),
+ 			compute: func(in *statAggregate, out *metricValue) {
+ 				out.kind = metricKindFloat64
+-				out.scalar = float64bits(nsToSec(in.cpuStats.gcTotalTime))
++				out.scalar = float64bits(nsToSec(in.cpuStats.GCTotalTime))
+ 			},
+ 		},
+ 		"/cpu/classes/idle:cpu-seconds": {
+ 			deps: makeStatDepSet(cpuStatsDep),
+ 			compute: func(in *statAggregate, out *metricValue) {
+ 				out.kind = metricKindFloat64
+-				out.scalar = float64bits(nsToSec(in.cpuStats.idleTime))
++				out.scalar = float64bits(nsToSec(in.cpuStats.IdleTime))
+ 			},
+ 		},
+ 		"/cpu/classes/scavenge/assist:cpu-seconds": {
+ 			deps: makeStatDepSet(cpuStatsDep),
+ 			compute: func(in *statAggregate, out *metricValue) {
+ 				out.kind = metricKindFloat64
+-				out.scalar = float64bits(nsToSec(in.cpuStats.scavengeAssistTime))
++				out.scalar = float64bits(nsToSec(in.cpuStats.ScavengeAssistTime))
+ 			},
+ 		},
+ 		"/cpu/classes/scavenge/background:cpu-seconds": {
+ 			deps: makeStatDepSet(cpuStatsDep),
+ 			compute: func(in *statAggregate, out *metricValue) {
+ 				out.kind = metricKindFloat64
+-				out.scalar = float64bits(nsToSec(in.cpuStats.scavengeBgTime))
++				out.scalar = float64bits(nsToSec(in.cpuStats.ScavengeBgTime))
+ 			},
+ 		},
+ 		"/cpu/classes/scavenge/total:cpu-seconds": {
+ 			deps: makeStatDepSet(cpuStatsDep),
+ 			compute: func(in *statAggregate, out *metricValue) {
+ 				out.kind = metricKindFloat64
+-				out.scalar = float64bits(nsToSec(in.cpuStats.scavengeTotalTime))
++				out.scalar = float64bits(nsToSec(in.cpuStats.ScavengeTotalTime))
+ 			},
+ 		},
+ 		"/cpu/classes/total:cpu-seconds": {
+ 			deps: makeStatDepSet(cpuStatsDep),
+ 			compute: func(in *statAggregate, out *metricValue) {
+ 				out.kind = metricKindFloat64
+-				out.scalar = float64bits(nsToSec(in.cpuStats.totalTime))
++				out.scalar = float64bits(nsToSec(in.cpuStats.TotalTime))
+ 			},
+ 		},
+ 		"/cpu/classes/user:cpu-seconds": {
+ 			deps: makeStatDepSet(cpuStatsDep),
+ 			compute: func(in *statAggregate, out *metricValue) {
+ 				out.kind = metricKindFloat64
+-				out.scalar = float64bits(nsToSec(in.cpuStats.userTime))
++				out.scalar = float64bits(nsToSec(in.cpuStats.UserTime))
+ 			},
+ 		},
+ 		"/gc/cycles/automatic:gc-cycles": {
+diff --git a/src/runtime/metrics_test.go b/src/runtime/metrics_test.go
+index d7f41334cd..1d99b86fe6 100644
+--- a/src/runtime/metrics_test.go
++++ b/src/runtime/metrics_test.go
+@@ -357,11 +357,11 @@ func TestReadMetricsConsistency(t *testing.T) {
+ 		if cpu.idle <= 0 {
+ 			t.Errorf("found no idle time: %f", cpu.idle)
+ 		}
+-		if total := cpu.gcDedicated + cpu.gcAssist + cpu.gcIdle + cpu.gcPause; !withinEpsilon(cpu.gcTotal, total, 0.01) {
+-			t.Errorf("calculated total GC CPU not within 1%% of sampled total: %f vs. %f", total, cpu.gcTotal)
++		if total := cpu.gcDedicated + cpu.gcAssist + cpu.gcIdle + cpu.gcPause; !withinEpsilon(cpu.gcTotal, total, 0.001) {
++			t.Errorf("calculated total GC CPU time not within %%0.1 of total: %f vs. %f", total, cpu.gcTotal)
+ 		}
+-		if total := cpu.scavengeAssist + cpu.scavengeBg; !withinEpsilon(cpu.scavengeTotal, total, 0.01) {
+-			t.Errorf("calculated total scavenge CPU not within 1%% of sampled total: %f vs. %f", total, cpu.scavengeTotal)
++		if total := cpu.scavengeAssist + cpu.scavengeBg; !withinEpsilon(cpu.scavengeTotal, total, 0.001) {
++			t.Errorf("calculated total scavenge CPU not within %%0.1 of total: %f vs. %f", total, cpu.scavengeTotal)
+ 		}
+ 		if cpu.total <= 0 {
+ 			t.Errorf("found no total CPU time passed")
+@@ -369,8 +369,8 @@ func TestReadMetricsConsistency(t *testing.T) {
+ 		if cpu.user <= 0 {
+ 			t.Errorf("found no user time passed")
+ 		}
+-		if total := cpu.gcTotal + cpu.scavengeTotal + cpu.user + cpu.idle; !withinEpsilon(cpu.total, total, 0.02) {
+-			t.Errorf("calculated total CPU not within 2%% of sampled total: %f vs. %f", total, cpu.total)
++		if total := cpu.gcTotal + cpu.scavengeTotal + cpu.user + cpu.idle; !withinEpsilon(cpu.total, total, 0.001) {
++			t.Errorf("calculated total CPU not within %%0.1 of total: %f vs. %f", total, cpu.total)
+ 		}
+ 	}
+ 	if totalVirtual.got != totalVirtual.want {
+@@ -1290,3 +1290,39 @@ func (w *contentionWorker) run() {
+ 	for w.fn() {
+ 	}
+ }
++
++func TestCPUStats(t *testing.T) {
++	// Run a few GC cycles to get some of the stats to be non-zero.
++	runtime.GC()
++	runtime.GC()
++	runtime.GC()
++
++	// Set GOMAXPROCS high then sleep briefly to ensure we generate
++	// some idle time.
++	oldmaxprocs := runtime.GOMAXPROCS(10)
++	time.Sleep(time.Millisecond)
++	runtime.GOMAXPROCS(oldmaxprocs)
++
++	stats := runtime.ReadCPUStats()
++	gcTotal := stats.GCAssistTime + stats.GCDedicatedTime + stats.GCIdleTime + stats.GCPauseTime
++	if gcTotal != stats.GCTotalTime {
++		t.Errorf("manually computed total does not match GCTotalTime: %d cpu-ns vs. %d cpu-ns", gcTotal, stats.GCTotalTime)
++	}
++	scavTotal := stats.ScavengeAssistTime + stats.ScavengeBgTime
++	if scavTotal != stats.ScavengeTotalTime {
++		t.Errorf("manually computed total does not match ScavengeTotalTime: %d cpu-ns vs. %d cpu-ns", scavTotal, stats.ScavengeTotalTime)
++	}
++	total := gcTotal + scavTotal + stats.IdleTime + stats.UserTime
++	if total != stats.TotalTime {
++		t.Errorf("manually computed overall total does not match TotalTime: %d cpu-ns vs. %d cpu-ns", total, stats.TotalTime)
++	}
++	if total == 0 {
++		t.Error("total time is zero")
++	}
++	if gcTotal == 0 {
++		t.Error("GC total time is zero")
++	}
++	if stats.IdleTime == 0 {
++		t.Error("idle time is zero")
++	}
++}
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 1da6114ab8..4ea55eceb6 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -417,7 +417,10 @@ type workType struct {
+ 	stwprocs, maxprocs                 int32
+ 	tSweepTerm, tMark, tMarkTerm, tEnd int64 // nanotime() of phase start
+ 
+-	pauseNS int64 // total STW time this cycle
++	// pauseNS is the total STW time this cycle, measured as the time between
++	// when stopping began (just before trying to stop Ps) and just after the
++	// world started again.
++	pauseNS int64
+ 
+ 	// debug.gctrace heap sizes for this cycle.
+ 	heap0, heap1, heap2 uint64
+@@ -741,19 +744,19 @@ func gcStart(trigger gcTrigger) {
+ 	// returns, so make sure we're not preemptible.
+ 	mp = acquirem()
+ 
++	// Update the CPU stats pause time.
++	//
++	// Use maxprocs instead of stwprocs here because the total time
++	// computed in the CPU stats is based on maxprocs, and we want them
++	// to be comparable.
++	work.cpuStats.accumulateGCPauseTime(nanotime()-work.tSweepTerm, work.maxprocs)
++
+ 	// Concurrent mark.
+ 	systemstack(func() {
+ 		now = startTheWorldWithSema(0, stw)
+ 		work.pauseNS += now - stw.start
+ 		work.tMark = now
+ 
+-		// Update the CPU stats pause time.
+-		//
+-		// Use maxprocs instead of stwprocs here because the total time
+-		// computed in the CPU stats is based on maxprocs, and we want them
+-		// to be comparable.
+-		work.cpuStats.accumulateGCPauseTime(now-work.tSweepTerm, work.maxprocs)
+-
+ 		// Release the CPU limiter.
+ 		gcCPULimiter.finishGCTransition(now)
+ 	})
+@@ -1033,7 +1036,7 @@ func gcMarkTermination(stw worldStop) {
+ 
+ 	// Compute overall GC CPU utilization.
+ 	// Omit idle marking time from the overall utilization here since it's "free".
+-	memstats.gc_cpu_fraction = float64(work.cpuStats.gcTotalTime-work.cpuStats.gcIdleTime) / float64(work.cpuStats.totalTime)
++	memstats.gc_cpu_fraction = float64(work.cpuStats.GCTotalTime-work.cpuStats.GCIdleTime) / float64(work.cpuStats.TotalTime)
+ 
+ 	// Reset assist time and background time stats.
+ 	//
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 3d1471c576..c10ca40221 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -905,20 +905,20 @@ type cpuStats struct {
+ 	// they don't accurately compute on-CPU time (so some of the time
+ 	// could be spent scheduled away by the OS).
+ 
+-	gcAssistTime    int64 // GC assists
+-	gcDedicatedTime int64 // GC dedicated mark workers + pauses
+-	gcIdleTime      int64 // GC idle mark workers
+-	gcPauseTime     int64 // GC pauses (all GOMAXPROCS, even if just 1 is running)
+-	gcTotalTime     int64
++	GCAssistTime    int64 // GC assists
++	GCDedicatedTime int64 // GC dedicated mark workers + pauses
++	GCIdleTime      int64 // GC idle mark workers
++	GCPauseTime     int64 // GC pauses (all GOMAXPROCS, even if just 1 is running)
++	GCTotalTime     int64
+ 
+-	scavengeAssistTime int64 // background scavenger
+-	scavengeBgTime     int64 // scavenge assists
+-	scavengeTotalTime  int64
++	ScavengeAssistTime int64 // background scavenger
++	ScavengeBgTime     int64 // scavenge assists
++	ScavengeTotalTime  int64
+ 
+-	idleTime int64 // Time Ps spent in _Pidle.
+-	userTime int64 // Time Ps spent in _Prunning or _Psyscall that's not any of the above.
++	IdleTime int64 // Time Ps spent in _Pidle.
++	UserTime int64 // Time Ps spent in _Prunning or _Psyscall that's not any of the above.
+ 
+-	totalTime int64 // GOMAXPROCS * (monotonic wall clock time elapsed)
++	TotalTime int64 // GOMAXPROCS * (monotonic wall clock time elapsed)
+ }
+ 
+ // accumulateGCPauseTime add dt*stwProcs to the GC CPU pause time stats. dt should be
+@@ -927,8 +927,8 @@ type cpuStats struct {
+ // from GOMAXPROCS.
+ func (s *cpuStats) accumulateGCPauseTime(dt int64, maxProcs int32) {
+ 	cpu := dt * int64(maxProcs)
+-	s.gcPauseTime += cpu
+-	s.gcTotalTime += cpu
++	s.GCPauseTime += cpu
++	s.GCTotalTime += cpu
+ }
+ 
+ // accumulate takes a cpuStats and adds in the current state of all GC CPU
+@@ -961,19 +961,19 @@ func (s *cpuStats) accumulate(now int64, gcMarkPhase bool) {
+ 	scavBgCpu := scavenge.backgroundTime.Load()
+ 
+ 	// Update cumulative GC CPU stats.
+-	s.gcAssistTime += markAssistCpu
+-	s.gcDedicatedTime += markDedicatedCpu + markFractionalCpu
+-	s.gcIdleTime += markIdleCpu
+-	s.gcTotalTime += markAssistCpu + markDedicatedCpu + markFractionalCpu + markIdleCpu
++	s.GCAssistTime += markAssistCpu
++	s.GCDedicatedTime += markDedicatedCpu + markFractionalCpu
++	s.GCIdleTime += markIdleCpu
++	s.GCTotalTime += markAssistCpu + markDedicatedCpu + markFractionalCpu + markIdleCpu
+ 
+ 	// Update cumulative scavenge CPU stats.
+-	s.scavengeAssistTime += scavAssistCpu
+-	s.scavengeBgTime += scavBgCpu
+-	s.scavengeTotalTime += scavAssistCpu + scavBgCpu
++	s.ScavengeAssistTime += scavAssistCpu
++	s.ScavengeBgTime += scavBgCpu
++	s.ScavengeTotalTime += scavAssistCpu + scavBgCpu
+ 
+ 	// Update total CPU.
+-	s.totalTime = sched.totaltime + (now-sched.procresizetime)*int64(gomaxprocs)
+-	s.idleTime += sched.idleTime.Load()
++	s.TotalTime = sched.totaltime + (now-sched.procresizetime)*int64(gomaxprocs)
++	s.IdleTime += sched.idleTime.Load()
+ 
+ 	// Compute userTime. We compute this indirectly as everything that's not the above.
+ 	//
+@@ -983,5 +983,5 @@ func (s *cpuStats) accumulate(now int64, gcMarkPhase bool) {
+ 	// else via sysmon. Meanwhile if we subtract GC time from whatever's left, we get non-GC
+ 	// _Prunning time. Note that this still leaves time spent in sweeping and in the scheduler,
+ 	// but that's fine. The overwhelming majority of this time will be actual user time.
+-	s.userTime = s.totalTime - (s.gcTotalTime + s.scavengeTotalTime + s.idleTime)
++	s.UserTime = s.TotalTime - (s.GCTotalTime + s.ScavengeTotalTime + s.IdleTime)
+ }

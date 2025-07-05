@@ -8,8 +8,71 @@ Date:   Tue Apr 7 00:40:50 2009 -0700
     DELTA=13  (11 added, 0 deleted, 2 changed)
     OCL=27147
     CL=27154
-
+---
  src/lib/os/dir_amd64_darwin.go | 6 +++++-
  src/lib/os/dir_amd64_linux.go  | 6 +++++-
  src/lib/os/os_test.go          | 3 +++
  3 files changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/src/lib/os/dir_amd64_darwin.go b/src/lib/os/dir_amd64_darwin.go
+index c62f74dfc7..76da8f4d97 100644
+--- a/src/lib/os/dir_amd64_darwin.go
++++ b/src/lib/os/dir_amd64_darwin.go
+@@ -50,6 +50,10 @@ func readdirnames(file *File, count int) (names []string, err *os.Error) {
+ 			if dirent.Ino == 0 {	// File absent in directory.
+ 				continue
+ 			}
++			var name = string(dirent.Name[0:dirent.Namlen]);
++			if name == "." || name == ".." {	// Useless names
++				continue
++			}
+ 			count--;
+ 			if len(names) == cap(names) {
+ 				nnames := make([]string, len(names), 2*len(names));
+@@ -59,7 +63,7 @@ func readdirnames(file *File, count int) (names []string, err *os.Error) {
+ 				names = nnames;
+ 			}
+ 			names = names[0:len(names)+1];
+-			names[len(names)-1] = string(dirent.Name[0:dirent.Namlen]);
++			names[len(names)-1] = name;
+ 		}
+ 	}
+ 	return names, nil
+diff --git a/src/lib/os/dir_amd64_linux.go b/src/lib/os/dir_amd64_linux.go
+index cbb0d13dbd..2b3ce1383b 100644
+--- a/src/lib/os/dir_amd64_linux.go
++++ b/src/lib/os/dir_amd64_linux.go
+@@ -59,6 +59,10 @@ func readdirnames(file *File, count int) (names []string, err *os.Error) {
+ 			if dirent.Ino == 0 {	// File absent in directory.
+ 				continue
+ 			}
++			var name = string(dirent.Name[0:clen(dirent.Namlen)]);
++			if name == "." || name == ".." {	// Useless names
++				continue
++			}
+ 			count--;
+ 			if len(names) == cap(names) {
+ 				nnames := make([]string, len(names), 2*len(names));
+@@ -68,7 +72,7 @@ func readdirnames(file *File, count int) (names []string, err *os.Error) {
+ 				names = nnames;
+ 			}
+ 			names = names[0:len(names)+1];
+-			names[len(names)-1] = string(dirent.Name[0:clen(dirent.Name)]);
++			names[len(names)-1] = name;
+ 		}
+ 	}
+ 	return names, nil;
+diff --git a/src/lib/os/os_test.go b/src/lib/os/os_test.go
+index 2f0cd883c9..93a2c5e089 100644
+--- a/src/lib/os/os_test.go
++++ b/src/lib/os/os_test.go
+@@ -110,6 +110,9 @@ func testReaddirnames(dir string, contents []string, t *testing.T) {
+ 	for i, m := range contents {
+ 		found := false;
+ 		for j, n := range s {
++			if n == "." || n == ".." {
++				t.Errorf("got %s in directory", n);
++			}
+ 			if m == n {
+ 				if found {
+ 					t.Error("present twice:", m);

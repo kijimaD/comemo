@@ -33,6 +33,20 @@ Date:   Wed Jun 29 16:48:06 2022 -0700
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  test/nilcheck.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/test/nilcheck.go b/test/nilcheck.go
+index 6879438e9c..e81db6dcb0 100644
+--- a/test/nilcheck.go
++++ b/test/nilcheck.go
+@@ -184,6 +184,7 @@ func f4(x *[10]int) {
+ 
+ func f5(m map[string]struct{}) bool {
+ 	// Existence-only map lookups should not generate a nil check
+-	_, ok := m[""]
++	tmp1, tmp2 := m[""] // ERROR "removed nil check"
++	_, ok := tmp1, tmp2
+ 	return ok
+ }

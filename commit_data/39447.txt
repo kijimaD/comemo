@@ -19,7 +19,66 @@ Date:   Thu Feb 28 09:10:36 2019 -0800
     Change-Id: I62fd309c8ee9839a69052b0ec7f1808449dcee8e
     Reviewed-on: https://go-review.googlesource.com/c/164557
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/fmt/errors.go      |  3 +--
  src/fmt/errors_test.go | 19 ++++++++++++++++++-
  2 files changed, 19 insertions(+), 3 deletions(-)
+
+diff --git a/src/fmt/errors.go b/src/fmt/errors.go
+index 0fd3e83814..7506b6a20b 100644
+--- a/src/fmt/errors.go
++++ b/src/fmt/errors.go
+@@ -130,8 +130,7 @@ func fmtError(p *pp, verb rune, err error) (handled bool) {
+ 			w = newPrinter()
+ 			defer w.free()
+ 		default:
+-			w.badVerb(verb)
+-			return true
++			return false
+ 		}
+ 	}
+ 
+diff --git a/src/fmt/errors_test.go b/src/fmt/errors_test.go
+index 9e6ad74697..d2957e675b 100644
+--- a/src/fmt/errors_test.go
++++ b/src/fmt/errors_test.go
+@@ -327,7 +327,7 @@ func TestErrorFormatter(t *testing.T) {
+ 	}, {
+ 		err:  &wrapped{"simple", nil},
+ 		fmt:  "%🤪",
+-		want: "%!🤪(*fmt_test.wrapped=&{simple <nil>})",
++		want: "&{%!🤪(string=simple) <nil>}",
+ 	}, {
+ 		err:  formatError("use fmt.Formatter"),
+ 		fmt:  "%#v",
+@@ -345,6 +345,14 @@ func TestErrorFormatter(t *testing.T) {
+ 		err:  fmtTwice("%o %s", panicValue{}, "ok"),
+ 		fmt:  "%s",
+ 		want: "{} ok/{} ok",
++	}, {
++		err:  intError(4),
++		fmt:  "%v",
++		want: "error 4",
++	}, {
++		err:  intError(4),
++		fmt:  "%d",
++		want: "4",
+ 	}}
+ 	for i, tc := range testCases {
+ 		t.Run(fmt.Sprintf("%d/%s", i, tc.fmt), func(t *testing.T) {
+@@ -434,6 +442,15 @@ func (e detail) FormatError(p errors.Printer) (next error) {
+ 	return e.next
+ }
+ 
++type intError int
++
++func (e intError) Error() string { return fmt.Sprint(e) }
++
++func (e intError) FormatError(p errors.Printer) (next error) {
++	p.Printf("error %d", e)
++	return nil
++}
++
+ // formatError is an error implementing Format instead of errors.Formatter.
+ // The implementation mimics the implementation of github.com/pkg/errors.
+ type formatError string

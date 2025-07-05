@@ -10,6 +10,52 @@ Date:   Wed Aug 10 19:01:06 2016 +0200
     Reviewed-on: https://go-review.googlesource.com/26696
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/format/format_test.go | 27 +++++++++++++++++++++++++++
  1 file changed, 27 insertions(+)
+
+diff --git a/src/go/format/format_test.go b/src/go/format/format_test.go
+index b5817a5dd1..72b8d5aeeb 100644
+--- a/src/go/format/format_test.go
++++ b/src/go/format/format_test.go
+@@ -6,9 +6,11 @@ package format
+ 
+ import (
+ 	"bytes"
++	"fmt"
+ 	"go/parser"
+ 	"go/token"
+ 	"io/ioutil"
++	"log"
+ 	"strings"
+ 	"testing"
+ )
+@@ -143,3 +145,28 @@ func TestPartial(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func ExampleNode() {
++	const expr = "(6+2*3)/4"
++
++	// parser.ParseExpr parses the argument and returns the
++	// corresponding ast.Node.
++	node, err := parser.ParseExpr(expr)
++	if err != nil {
++		log.Fatal(err)
++	}
++
++	// Create a FileSet for node. Since the node does not come
++	// from a real source file, fset will be empty.
++	fset := token.NewFileSet()
++
++	var buf bytes.Buffer
++	err = Node(&buf, fset, node)
++	if err != nil {
++		log.Fatal(err)
++	}
++
++	fmt.Println(buf.String())
++
++	// Output: (6 + 2*3) / 4
++}

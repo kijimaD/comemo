@@ -14,6 +14,22 @@ Date:   Mon Aug 7 13:43:52 2023 +0000
     Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/strings/search.go | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/src/strings/search.go b/src/strings/search.go
+index e5bffbbfe8..e1ace3e795 100644
+--- a/src/strings/search.go
++++ b/src/strings/search.go
+@@ -115,10 +115,3 @@ func (f *stringFinder) next(text string) int {
+ 	}
+ 	return -1
+ }
+-
+-func max(a, b int) int {
+-	if a > b {
+-		return a
+-	}
+-	return b
+-}

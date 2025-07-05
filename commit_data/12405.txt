@@ -7,6 +7,21 @@ Date:   Mon Mar 5 22:07:22 2012 -0500
     R=golang-dev, nigeltao
     CC=golang-dev
     https://golang.org/cl/5752048
-
+---
  src/pkg/net/fd_linux.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/fd_linux.go b/src/pkg/net/fd_linux.go
+index a1d62acc78..085e423072 100644
+--- a/src/pkg/net/fd_linux.go
++++ b/src/pkg/net/fd_linux.go
+@@ -84,7 +84,8 @@ func (p *pollster) StopWaiting(fd int, bits uint) {
+ 
+ 	events, already := p.events[fd]
+ 	if !already {
+-		print("Epoll unexpected fd=", fd, "\n")
++		// The fd returned by the kernel may have been
++		// cancelled already; return silently.
+ 		return
+ 	}
+ 

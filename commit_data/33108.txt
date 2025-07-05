@@ -16,6 +16,23 @@ Date:   Wed Jul 12 20:51:15 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/crash_cgo_test.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index c102608748..a5cbbad69b 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -24,7 +24,10 @@ func TestCgoCrashHandler(t *testing.T) {
+ }
+ 
+ func TestCgoSignalDeadlock(t *testing.T) {
+-	t.Parallel()
++	// Don't call t.Parallel, since too much work going on at the
++	// same time can cause the testprogcgo code to overrun its
++	// timeouts (issue #18598).
++
+ 	if testing.Short() && runtime.GOOS == "windows" {
+ 		t.Skip("Skipping in short mode") // takes up to 64 seconds
+ 	}

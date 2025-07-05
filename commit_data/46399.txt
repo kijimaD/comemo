@@ -17,7 +17,99 @@ Date:   Sat Dec 26 22:00:53 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/ir/scc.go            | 49 ++++++++-------------------
  src/cmd/compile/internal/pkginit/initorder.go |  6 +---
  2 files changed, 15 insertions(+), 40 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/scc.go b/src/cmd/compile/internal/ir/scc.go
+index 4f646e22b5..f35c4d44e9 100644
+--- a/src/cmd/compile/internal/ir/scc.go
++++ b/src/cmd/compile/internal/ir/scc.go
+@@ -76,48 +76,27 @@ func (v *bottomUpVisitor) visit(n *Func) uint32 {
+ 	min := v.visitgen
+ 	v.stack = append(v.stack, n)
+ 
++	do := func(defn Node) {
++		if defn != nil {
++			if m := v.visit(defn.(*Func)); m < min {
++				min = m
++			}
++		}
++	}
++
+ 	Visit(n, func(n Node) {
+ 		switch n.Op() {
+ 		case ONAME:
+-			n := n.(*Name)
+-			if n.Class_ == PFUNC {
+-				if n != nil && n.Name().Defn != nil {
+-					if m := v.visit(n.Name().Defn.(*Func)); m < min {
+-						min = m
+-					}
+-				}
++			if n := n.(*Name); n.Class_ == PFUNC {
++				do(n.Defn)
+ 			}
+-		case OMETHEXPR:
+-			n := n.(*MethodExpr)
+-			fn := MethodExprName(n)
+-			if fn != nil && fn.Defn != nil {
+-				if m := v.visit(fn.Defn.(*Func)); m < min {
+-					min = m
+-				}
+-			}
+-		case ODOTMETH:
+-			n := n.(*SelectorExpr)
+-			fn := MethodExprName(n)
+-			if fn != nil && fn.Op() == ONAME && fn.Class_ == PFUNC && fn.Defn != nil {
+-				if m := v.visit(fn.Defn.(*Func)); m < min {
+-					min = m
+-				}
+-			}
+-		case OCALLPART:
+-			n := n.(*CallPartExpr)
+-			fn := AsNode(n.Method.Nname)
+-			if fn != nil && fn.Op() == ONAME {
+-				if fn := fn.(*Name); fn.Class_ == PFUNC && fn.Name().Defn != nil {
+-					if m := v.visit(fn.Name().Defn.(*Func)); m < min {
+-						min = m
+-					}
+-				}
++		case ODOTMETH, OCALLPART, OMETHEXPR:
++			if fn := MethodExprName(n); fn != nil {
++				do(fn.Defn)
+ 			}
+ 		case OCLOSURE:
+ 			n := n.(*ClosureExpr)
+-			if m := v.visit(n.Func); m < min {
+-				min = m
+-			}
++			do(n.Func)
+ 		}
+ 	})
+ 
+diff --git a/src/cmd/compile/internal/pkginit/initorder.go b/src/cmd/compile/internal/pkginit/initorder.go
+index d63c5a4717..c6e223954d 100644
+--- a/src/cmd/compile/internal/pkginit/initorder.go
++++ b/src/cmd/compile/internal/pkginit/initorder.go
+@@ -289,10 +289,6 @@ func (d *initDeps) inspectList(l ir.Nodes) { ir.VisitList(l, d.cachedVisit()) }
+ // referenced by n, if any.
+ func (d *initDeps) visit(n ir.Node) {
+ 	switch n.Op() {
+-	case ir.OMETHEXPR:
+-		n := n.(*ir.MethodExpr)
+-		d.foundDep(ir.MethodExprName(n))
+-
+ 	case ir.ONAME:
+ 		n := n.(*ir.Name)
+ 		switch n.Class_ {
+@@ -304,7 +300,7 @@ func (d *initDeps) visit(n ir.Node) {
+ 		n := n.(*ir.ClosureExpr)
+ 		d.inspectList(n.Func.Body)
+ 
+-	case ir.ODOTMETH, ir.OCALLPART:
++	case ir.ODOTMETH, ir.OCALLPART, ir.OMETHEXPR:
+ 		d.foundDep(ir.MethodExprName(n))
+ 	}
+ }

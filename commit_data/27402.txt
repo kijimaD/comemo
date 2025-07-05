@@ -10,7 +10,32 @@ Date:   Wed Mar 23 17:22:09 2016 +0100
     Reviewed-on: https://go-review.googlesource.com/21042
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
-
+---
  src/cmd/go/doc.go       | 2 ++
  src/cmd/go/mkalldocs.sh | 2 +-
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index bfc80d5dab..829983950f 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:generate ./mkalldocs.sh
++
+ package main
+ 
+ var cmdDoc = &Command{
+diff --git a/src/cmd/go/mkalldocs.sh b/src/cmd/go/mkalldocs.sh
+index 74e3125e65..0f48ff2543 100755
+--- a/src/cmd/go/mkalldocs.sh
++++ b/src/cmd/go/mkalldocs.sh
+@@ -1,5 +1,5 @@
+ #!/bin/bash
+-# Copyright 2012 The Go Authors.  All rights reserved.
++# Copyright 2012 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 

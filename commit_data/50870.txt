@@ -16,9 +16,78 @@ Date:   Mon Nov 15 11:47:55 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/operand.go                  |  4 +++-
  .../internal/types2/testdata/fixedbugs/issue49592.go2       | 11 +++++++++++
  src/go/types/testdata/fixedbugs/issue49592.go2              | 11 +++++++++++
  test/fixedbugs/issue49592.go                                | 13 +++++++++++++
  4 files changed, 38 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/types2/operand.go b/src/cmd/compile/internal/types2/operand.go
+index 8a905f3fd0..6581d80323 100644
+--- a/src/cmd/compile/internal/types2/operand.go
++++ b/src/cmd/compile/internal/types2/operand.go
+@@ -316,7 +316,9 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 	// not an interface.
+ 	if check != nil && check.conf.CompilerErrorMessages {
+ 		if isInterfacePtr(Tu) {
+-			*reason = check.sprintf("%s does not implement %s (%s is pointer to interface, not interface)", x.typ, T, T)
++			if reason != nil {
++				*reason = check.sprintf("%s does not implement %s (%s is pointer to interface, not interface)", x.typ, T, T)
++			}
+ 			return false, _InvalidIfaceAssign
+ 		}
+ 		if Vi, _ := Vu.(*Interface); Vi != nil && Vp == nil {
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49592.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49592.go2
+new file mode 100644
+index 0000000000..846deaa89a
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49592.go2
+@@ -0,0 +1,11 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _() {
++	var x *interface{}
++	var y interface{}
++	_ = x == y
++}
+diff --git a/src/go/types/testdata/fixedbugs/issue49592.go2 b/src/go/types/testdata/fixedbugs/issue49592.go2
+new file mode 100644
+index 0000000000..846deaa89a
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue49592.go2
+@@ -0,0 +1,11 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _() {
++	var x *interface{}
++	var y interface{}
++	_ = x == y
++}
+diff --git a/test/fixedbugs/issue49592.go b/test/fixedbugs/issue49592.go
+new file mode 100644
+index 0000000000..8b5612943a
+--- /dev/null
++++ b/test/fixedbugs/issue49592.go
+@@ -0,0 +1,13 @@
++// compile
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _() {
++	var x *interface{}
++	var y interface{}
++	_ = x == y
++}

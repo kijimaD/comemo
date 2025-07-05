@@ -10,7 +10,34 @@ Date:   Tue Dec 17 20:14:16 2024 +0200
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/alldocs.go               | 2 +-
  src/cmd/go/internal/help/helpdoc.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 3a4473902c..5edd93599e 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -2250,7 +2250,7 @@
+ //
+ // The second is the SWIG program, which is a general tool for
+ // interfacing between languages. For information on SWIG see
+-// http://swig.org/. When running go build, any file with a .swig
++// https://swig.org/. When running go build, any file with a .swig
+ // extension will be passed to SWIG. Any file with a .swigcxx extension
+ // will be passed to SWIG with the -c++ option.
+ //
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index e1240de710..3db3ed06b2 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -17,7 +17,7 @@ information on how to use it see the cgo documentation (go doc cmd/cgo).
+ 
+ The second is the SWIG program, which is a general tool for
+ interfacing between languages. For information on SWIG see
+-http://swig.org/. When running go build, any file with a .swig
++https://swig.org/. When running go build, any file with a .swig
+ extension will be passed to SWIG. Any file with a .swigcxx extension
+ will be passed to SWIG with the -c++ option.
+ 

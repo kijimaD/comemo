@@ -7,6 +7,21 @@ Date:   Tue Apr 9 10:17:35 2013 -0700
     R=r, golang-dev
     CC=golang-dev
     https://golang.org/cl/8575043
-
+---
  src/pkg/io/io.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index 23d05e575a..f901afe423 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -70,6 +70,9 @@ type Writer interface {
+ }
+ 
+ // Closer is the interface that wraps the basic Close method.
++//
++// The behavior of Close after the first call is undefined.
++// Specific implementations may document their own behavior.
+ type Closer interface {
+ 	Close() error
+ }

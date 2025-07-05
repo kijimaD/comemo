@@ -12,6 +12,19 @@ Date:   Thu Oct 27 19:42:32 2011 -0700
     R=agl, bradfitz
     CC=golang-dev
     https://golang.org/cl/5294073
-
+---
  src/pkg/crypto/tls/alert.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/crypto/tls/alert.go b/src/pkg/crypto/tls/alert.go
+index 3b9e0e2415..0856311e4c 100644
+--- a/src/pkg/crypto/tls/alert.go
++++ b/src/pkg/crypto/tls/alert.go
+@@ -71,3 +71,7 @@ func (e alert) String() string {
+ 	}
+ 	return "alert(" + strconv.Itoa(int(e)) + ")"
+ }
++
++func (e alert) Error() string {
++	return e.String()
++}

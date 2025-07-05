@@ -25,7 +25,46 @@ Date:   Wed May 4 15:22:21 2022 -0700
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: thepudds <thepudds1460@gmail.com>
-
+---
  src/regexp/syntax/prog.go      |  4 +++-
  src/regexp/syntax/prog_test.go | 15 +++++++++++++++
  2 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/regexp/syntax/prog.go b/src/regexp/syntax/prog.go
+index 896cdc42c2..66995e2052 100644
+--- a/src/regexp/syntax/prog.go
++++ b/src/regexp/syntax/prog.go
+@@ -106,7 +106,9 @@ func EmptyOpContext(r1, r2 rune) EmptyOp {
+ // during the evaluation of the \b and \B zero-width assertions.
+ // These assertions are ASCII-only: the word characters are [A-Za-z0-9_].
+ func IsWordChar(r rune) bool {
+-	return 'A' <= r && r <= 'Z' || 'a' <= r && r <= 'z' || '0' <= r && r <= '9' || r == '_'
++	// Test for lowercase letters first, as these occur more
++	// frequently than uppercase letters in common cases.
++	return 'a' <= r && r <= 'z' || 'A' <= r && r <= 'Z' || '0' <= r && r <= '9' || r == '_'
+ }
+ 
+ // An Inst is a single instruction in a regular expression program.
+diff --git a/src/regexp/syntax/prog_test.go b/src/regexp/syntax/prog_test.go
+index 5603aea228..54dd1dd38d 100644
+--- a/src/regexp/syntax/prog_test.go
++++ b/src/regexp/syntax/prog_test.go
+@@ -127,3 +127,18 @@ func BenchmarkEmptyOpContext(b *testing.B) {
+ 		EmptyOpContext(r1, -1)
+ 	}
+ }
++
++var sink any
++
++func BenchmarkIsWordChar(b *testing.B) {
++	const chars = "Don't communicate by sharing memory, share memory by communicating."
++	for i := 0; i < b.N; i++ {
++		for _, r := range chars {
++			sink = IsWordChar(r)
++		}
++	}
++	if sink == nil {
++		b.Fatal("Benchmark did not run")
++	}
++	sink = nil
++}

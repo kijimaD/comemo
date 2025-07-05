@@ -9,6 +9,19 @@ Date:   Wed May 18 13:43:50 2016 -0700
     Change-Id: I04bf317ed409478a859355f833d4a5e30db2b9c9
     Reviewed-on: https://go-review.googlesource.com/23226
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.7.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.7.txt b/doc/go1.7.txt
+index d50f1f1032..cf24eeffa0 100644
+--- a/doc/go1.7.txt
++++ b/doc/go1.7.txt
+@@ -27,6 +27,7 @@ API additions and behavior changes:
+ crypto/tls: allow renegotiation to be handled by a client (CL 22475)
+ runtime: support symbolic backtrace of C code in a cgo crash (CL 17761)
+ runtime: add CallerFrames and Frames (CL 19869)
++runtime: add KeepAlive (CL 23102)
+ testing/quick: now generates nil values (CL 16470)
+ net/http/httptest: ResponseRecorder supports trailer (CL 20047) (compat impact: issue 14928)
+ net/url: support query string without values (CL 19931)

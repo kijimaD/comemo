@@ -7,7 +7,7 @@ Date:   Tue Sep 14 11:16:57 2010 -0400
     TBR=lvd
     CC=golang-dev
     https://golang.org/cl/2194041
-
+---
  src/cmd/6l/asm.c   | 44 ++++++++++++++++++++++----------------------
  src/cmd/6l/obj.c   |  2 +-
  src/cmd/8l/asm.c   | 16 ++++++++--------
@@ -16,3 +16,202 @@ Date:   Tue Sep 14 11:16:57 2010 -0400
  src/cmd/ld/go.c    |  4 ++--
  src/cmd/ld/macho.c |  2 +-
  7 files changed, 38 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index e86f516743..53d539363c 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -301,9 +301,9 @@ doelf(void)
+ 		elfstr[ElfStrGosymcounts] = addstring(shstrtab, ".gosymcounts");
+ 		elfstr[ElfStrGosymtab] = addstring(shstrtab, ".gosymtab");
+ 		elfstr[ElfStrGopclntab] = addstring(shstrtab, ".gopclntab");
+-                elfstr[ElfStrSymtab] = addstring(shstrtab, ".symtab");
+-                elfstr[ElfStrStrtab] = addstring(shstrtab, ".strtab");
+-                dwarfaddshstrings(shstrtab);
++		elfstr[ElfStrSymtab] = addstring(shstrtab, ".symtab");
++		elfstr[ElfStrStrtab] = addstring(shstrtab, ".strtab");
++		dwarfaddshstrings(shstrtab);
+ 	}
+ 	elfstr[ElfStrShstrtab] = addstring(shstrtab, ".shstrtab");
+ 
+@@ -644,10 +644,10 @@ asmb(void)
+ 			elfsymsize = elfstro - elfsymo;
+ 			write(cout, elfstrdat, elfstrsize);
+ 
+-                        if(debug['v'])
+-                               Bprint(&bso, "%5.2f dwarf\n", cputime());
++			if(debug['v'])
++			       Bprint(&bso, "%5.2f dwarf\n", cputime());
+ 
+-                        dwarfemitdebugsections();
++			dwarfemitdebugsections();
+ 		}
+ 	} else if(dlm){
+ 		seek(cout, HEADR+textsize+datsize, 0);
+@@ -923,21 +923,21 @@ asmb(void)
+ 			sh->addralign = 1;
+ 			sh->addr = symdatva + 8 + symsize;
+ 
+-                        sh = newElfShdr(elfstr[ElfStrSymtab]);
+-                        sh->type = SHT_SYMTAB;
+-                        sh->off = elfsymo;
+-                        sh->size = elfsymsize;
+-                        sh->addralign = 8;
+-                        sh->entsize = 24;
+-                        sh->link = eh->shnum;	// link to strtab
+-
+-                        sh = newElfShdr(elfstr[ElfStrStrtab]);
+-                        sh->type = SHT_STRTAB;
+-                        sh->off = elfstro;
+-                        sh->size = elfstrsize;
+-                        sh->addralign = 1;
+-
+-                        dwarfaddelfheaders();
++			sh = newElfShdr(elfstr[ElfStrSymtab]);
++			sh->type = SHT_SYMTAB;
++			sh->off = elfsymo;
++			sh->size = elfsymsize;
++			sh->addralign = 8;
++			sh->entsize = 24;
++			sh->link = eh->shnum;	// link to strtab
++
++			sh = newElfShdr(elfstr[ElfStrStrtab]);
++			sh->type = SHT_STRTAB;
++			sh->off = elfstro;
++			sh->size = elfstrsize;
++			sh->addralign = 1;
++
++			dwarfaddelfheaders();
+ 		}
+ 
+ 		sh = newElfShstrtab(elfstr[ElfStrShstrtab]);
+@@ -993,7 +993,7 @@ cflush(void)
+ vlong
+ cpos(void)
+ {
+-        return seek(cout, 0, 1) + sizeof(buf.cbuf) - cbc;
++	return seek(cout, 0, 1) + sizeof(buf.cbuf) - cbc;
+ }
+ 
+ void
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index da2630e630..edd0a66ac1 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -576,7 +576,7 @@ loop:
+ 				histfrogp++;
+ 			} else
+ 				collapsefrog(s);
+-                        dwarfaddfrag(s->value, s->name);
++			dwarfaddfrag(s->value, s->name);
+ 		}
+ 		goto loop;
+ 	}
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 4d5417b4f1..9e5790ecdc 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -294,7 +294,7 @@ doelf(void)
+ 		elfstr[ElfStrGosymcounts] = addstring(shstrtab, ".gosymcounts");
+ 		elfstr[ElfStrGosymtab] = addstring(shstrtab, ".gosymtab");
+ 		elfstr[ElfStrGopclntab] = addstring(shstrtab, ".gopclntab");
+-                dwarfaddshstrings(shstrtab);
++		dwarfaddshstrings(shstrtab);
+ 	}
+ 	elfstr[ElfStrShstrtab] = addstring(shstrtab, ".shstrtab");
+ 
+@@ -660,11 +660,11 @@ asmb(void)
+ 		lputl(symsize);
+ 		lputl(lcsize);
+ 		cflush();
+-                if(HEADTYPE != 10 && !debug['s']) {
+-                        seek(cout, symo+8+symsize+lcsize, 0);
+-                        if(debug['v'])
+-                               Bprint(&bso, "%5.2f dwarf\n", cputime());
+-                        dwarfemitdebugsections();
++		if(HEADTYPE != 10 && !debug['s']) {
++			seek(cout, symo+8+symsize+lcsize, 0);
++			if(debug['v'])
++				Bprint(&bso, "%5.2f dwarf\n", cputime());
++			dwarfemitdebugsections();
+ 		}
+ 	} else if(dlm){
+ 		seek(cout, HEADR+textsize+datsize, 0);
+@@ -1059,7 +1059,7 @@ asmb(void)
+ 			sh->addralign = 1;
+ 			sh->addr = symdatva + 8 + symsize;
+ 
+-                        dwarfaddelfheaders();
++			dwarfaddelfheaders();
+ 		}
+ 
+ 		sh = newElfShstrtab(elfstr[ElfStrShstrtab]);
+@@ -1140,7 +1140,7 @@ cflush(void)
+ vlong
+ cpos(void)
+ {
+-        return seek(cout, 0, 1) + sizeof(buf.cbuf) - cbc;
++	return seek(cout, 0, 1) + sizeof(buf.cbuf) - cbc;
+ }
+ 
+ void
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 006189444b..07ad7da1b9 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -605,7 +605,7 @@ loop:
+ 				histfrogp++;
+ 			} else
+ 				collapsefrog(s);
+-                        dwarfaddfrag(s->value, s->name);
++			dwarfaddfrag(s->value, s->name);
+ 		}
+ 		goto loop;
+ 	}
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index c321728dd2..d21d05789c 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -867,11 +867,11 @@ dwarfaddmachoheaders(void)
+ 
+ 	vlong fakestart;
+ 
+-        // Zero vsize segments won't be loaded in memory, even so they
+-        // have to be page aligned in the file.
++	// Zero vsize segments won't be loaded in memory, even so they
++	// have to be page aligned in the file.
+ 	fakestart = abbrevo & ~0xfff;
+ 
+-        ms = newMachoSeg("__DWARF", 3);
++	ms = newMachoSeg("__DWARF", 3);
+ 	ms->fileoffset = fakestart;
+ 	ms->filesize = abbrevo-fakestart + abbrevsize+linesize+infosize;
+ 
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index e0ea6091f0..b4c467ac3a 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -324,8 +324,8 @@ loop:
+ 		if (*p == ' ' && !inquote)
+ 			break;
+ 
+-                if(*p == '\\')
+-                        p++;
++		if(*p == '\\')
++			p++;
+ 		else if(*p == '"')
+ 			inquote = !inquote;
+ 
+diff --git a/src/cmd/ld/macho.c b/src/cmd/ld/macho.c
+index a14ec41e77..407fb553d4 100644
+--- a/src/cmd/ld/macho.c
++++ b/src/cmd/ld/macho.c
+@@ -619,7 +619,7 @@ asmbmacho(vlong symdatva, vlong symo)
+ 		md->fileoffset = symo+8+symsize;
+ 		md->filesize = lcsize;
+ 
+-                dwarfaddmachoheaders();
++		dwarfaddmachoheaders();
+ 	}
+ 
+ 	a = machowrite();

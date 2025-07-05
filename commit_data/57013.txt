@@ -15,7 +15,87 @@ Date:   Mon May 15 11:34:46 2023 -0400
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go/printer/printer.go      | 18 +++++++++++++-----
  src/go/printer/printer_test.go | 28 ++++++++++++++++++++++++++++
  2 files changed, 41 insertions(+), 5 deletions(-)
+
+diff --git a/src/go/printer/printer.go b/src/go/printer/printer.go
+index 741e3f782c..46131c6697 100644
+--- a/src/go/printer/printer.go
++++ b/src/go/printer/printer.go
+@@ -75,10 +75,11 @@ type printer struct {
+ 	// white space). If there's a difference and SourcePos is set in
+ 	// ConfigMode, //line directives are used in the output to restore
+ 	// original source positions for a reader.
+-	pos     token.Position // current position in AST (source) space
+-	out     token.Position // current position in output space
+-	last    token.Position // value of pos after calling writeString
+-	linePtr *int           // if set, record out.Line for the next token in *linePtr
++	pos          token.Position // current position in AST (source) space
++	out          token.Position // current position in output space
++	last         token.Position // value of pos after calling writeString
++	linePtr      *int           // if set, record out.Line for the next token in *linePtr
++	sourcePosErr error          // if non-nil, the first error emitting a //line directive
+ 
+ 	// The list of all source comments, in order of appearance.
+ 	comments        []*ast.CommentGroup // may be nil
+@@ -196,6 +197,13 @@ func (p *printer) lineFor(pos token.Pos) int {
+ // writeLineDirective writes a //line directive if necessary.
+ func (p *printer) writeLineDirective(pos token.Position) {
+ 	if pos.IsValid() && (p.out.Line != pos.Line || p.out.Filename != pos.Filename) {
++		if strings.ContainsAny(pos.Filename, "\r\n") {
++			if p.sourcePosErr == nil {
++				p.sourcePosErr = fmt.Errorf("go/printer: source filename contains unexpected newline character: %q", pos.Filename)
++			}
++			return
++		}
++
+ 		p.output = append(p.output, tabwriter.Escape) // protect '\n' in //line from tabwriter interpretation
+ 		p.output = append(p.output, fmt.Sprintf("//line %s:%d\n", pos.Filename, pos.Line)...)
+ 		p.output = append(p.output, tabwriter.Escape)
+@@ -1169,7 +1177,7 @@ func (p *printer) printNode(node any) error {
+ 		goto unsupported
+ 	}
+ 
+-	return nil
++	return p.sourcePosErr
+ 
+ unsupported:
+ 	return fmt.Errorf("go/printer: unsupported node type %T", node)
+diff --git a/src/go/printer/printer_test.go b/src/go/printer/printer_test.go
+index cb62b3e4f3..3a8ce60431 100644
+--- a/src/go/printer/printer_test.go
++++ b/src/go/printer/printer_test.go
+@@ -797,3 +797,31 @@ func f() {
+ 		t.Fatalf("got %q, want %q", got, want)
+ 	}
+ }
++
++func TestSourcePosNewline(t *testing.T) {
++	// We don't provide a syntax for escaping or unescaping characters in line
++	// directives (see https://go.dev/issue/24183#issuecomment-372449628).
++	// As a result, we cannot write a line directive with the correct path for a
++	// filename containing newlines. We should return an error rather than
++	// silently dropping or mangling it.
++
++	fname := "foo\nbar/bar.go"
++	src := `package bar`
++	fset := token.NewFileSet()
++	f, err := parser.ParseFile(fset, fname, src, parser.ParseComments|parser.AllErrors|parser.SkipObjectResolution)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	cfg := &Config{
++		Mode:     SourcePos, // emit line comments
++		Tabwidth: 8,
++	}
++	var buf bytes.Buffer
++	if err := cfg.Fprint(&buf, fset, f); err == nil {
++		t.Errorf("Fprint did not error for source file path containing newline")
++	}
++	if buf.Len() != 0 {
++		t.Errorf("unexpected Fprint output:\n%s", buf.Bytes())
++	}
++}

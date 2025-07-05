@@ -7,6 +7,20 @@ Date:   Sat Dec 22 17:04:56 2012 -0500
     R=remyoudompheng
     CC=golang-dev
     https://golang.org/cl/7002052
-
+---
  src/cmd/go/build.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 73dd93fd25..dbe4b2b339 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1311,8 +1311,6 @@ func (gcToolchain) linker() string {
+ 	return tool(archChar + "l")
+ }
+ 
+-var rsc = flag.Bool("rsc", false, "rsc")
+-
+ func (gcToolchain) gc(b *builder, p *Package, obj string, importArgs []string, gofiles []string) (ofile string, err error) {
+ 	out := "_go_." + archChar
+ 	ofile = obj + out

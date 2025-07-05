@@ -11,8 +11,52 @@ Date:   Wed May 27 10:44:44 2015 +0200
     Reviewed-on: https://go-review.googlesource.com/10402
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Symonds <dsymonds@golang.org>
-
+---
  src/archive/tar/reader.go             |   4 ++++
  src/archive/tar/reader_test.go        |  16 ++++++++++++++++
  src/archive/tar/testdata/neg-size.tar | Bin 0 -> 512 bytes
  3 files changed, 20 insertions(+)
+
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index abd8f148a7..cd23fb57d6 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -463,6 +463,10 @@ func (tr *Reader) readHeader() *Header {
+ 	hdr.Uid = int(tr.octal(s.next(8)))
+ 	hdr.Gid = int(tr.octal(s.next(8)))
+ 	hdr.Size = tr.octal(s.next(12))
++	if hdr.Size < 0 {
++		tr.err = ErrHeader
++		return nil
++	}
+ 	hdr.ModTime = time.Unix(tr.octal(s.next(12)), 0)
+ 	s.next(8) // chksum
+ 	hdr.Typeflag = s.next(1)[0]
+diff --git a/src/archive/tar/reader_test.go b/src/archive/tar/reader_test.go
+index 9601ffe459..ab1e8445a4 100644
+--- a/src/archive/tar/reader_test.go
++++ b/src/archive/tar/reader_test.go
+@@ -741,3 +741,19 @@ func TestUninitializedRead(t *testing.T) {
+ 	}
+ 
+ }
++
++// Negative header size should not cause panic.
++// Issues 10959 and 10960.
++func TestNegativeHdrSize(t *testing.T) {
++	f, err := os.Open("testdata/neg-size.tar")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer f.Close()
++	r := NewReader(f)
++	_, err = r.Next()
++	if err != ErrHeader {
++		t.Error("want ErrHeader, got", err)
++	}
++	io.Copy(ioutil.Discard, r)
++}
+diff --git a/src/archive/tar/testdata/neg-size.tar b/src/archive/tar/testdata/neg-size.tar
+new file mode 100644
+index 0000000000..5deea3d05c
+Binary files /dev/null and b/src/archive/tar/testdata/neg-size.tar differ

@@ -7,6 +7,20 @@ Date:   Fri Feb 15 16:41:33 2019 +0800
     Change-Id: I6e7035db4b3e2a09e5655eb7646eea9d99fb7118
     Reviewed-on: https://go-review.googlesource.com/c/162917
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/database/sql/driver/driver.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/database/sql/driver/driver.go b/src/database/sql/driver/driver.go
+index 5ff2bc9735..ecc6547bf3 100644
+--- a/src/database/sql/driver/driver.go
++++ b/src/database/sql/driver/driver.go
+@@ -137,7 +137,7 @@ type Pinger interface {
+ 
+ // Execer is an optional interface that may be implemented by a Conn.
+ //
+-// If a Conn implements neither ExecerContext nor Execer Execer,
++// If a Conn implements neither ExecerContext nor Execer,
+ // the sql package's DB.Exec will first prepare a query, execute the statement,
+ // and then close the statement.
+ //

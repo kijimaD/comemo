@@ -11,6 +11,22 @@ Date:   Wed Nov 30 05:20:25 2016 +0000
     Change-Id: I80f3a0462e6cc431b03927fa919cda4f6eee8d97
     Reviewed-on: https://go-review.googlesource.com/33687
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.8.html | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/doc/go1.8.html b/doc/go1.8.html
+index 4163027a32..257acd3e77 100644
+--- a/doc/go1.8.html
++++ b/doc/go1.8.html
+@@ -1173,10 +1173,6 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
+         in addition to the previous <code>If-None-Match</code>
+         support.
+       </li>
+-
+-      <li> <!-- CL 27950 -->
+-        The server now logs bad requests.
+-      </li>
+     </ul>
+ 
+     <p>

@@ -9,6 +9,24 @@ Date:   Thu Apr 18 14:36:08 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/8841048
-
+---
  src/pkg/builtin/builtin.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/pkg/builtin/builtin.go b/src/pkg/builtin/builtin.go
+index d3c1a5c55a..128a1b5f8f 100644
+--- a/src/pkg/builtin/builtin.go
++++ b/src/pkg/builtin/builtin.go
+@@ -13,6 +13,12 @@ package builtin
+ // bool is the set of boolean values, true and false.
+ type bool bool
+ 
++// true and false are the two untyped boolean values.
++const (
++	true  = 0 == 0 // Untyped bool.
++	false = 0 != 0 // Untyped bool.
++)
++
+ // uint8 is the set of all unsigned 8-bit integers.
+ // Range: 0 through 255.
+ type uint8 uint8

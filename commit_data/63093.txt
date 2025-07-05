@@ -19,10 +19,195 @@ Date:   Fri May 9 19:33:22 2025 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/mcleanup.go | 29 +++++++++++++++++++++++++++++
  src/runtime/mfinal.go   | 26 ++++++++++++++++++++------
  src/runtime/mgc.go      | 13 +++++++++++++
  src/runtime/proc.go     |  2 ++
  src/runtime/runtime2.go |  3 ++-
  5 files changed, 66 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/mcleanup.go b/src/runtime/mcleanup.go
+index 058132de77..5cbae156ba 100644
+--- a/src/runtime/mcleanup.go
++++ b/src/runtime/mcleanup.go
+@@ -336,6 +336,20 @@ type cleanupQueue struct {
+ 	//
+ 	// Read without lock, written only with lock held.
+ 	needg atomic.Uint32
++
++	// Cleanup queue stats.
++
++	// queued represents a monotonic count of queued cleanups. This is sharded across
++	// Ps via the field cleanupsQueued in each p, so reading just this value is insufficient.
++	// In practice, this value only includes the queued count of dead Ps.
++	//
++	// Writes are protected by STW.
++	queued uint64
++
++	// executed is a monotonic count of executed cleanups.
++	//
++	// Read and updated atomically.
++	executed atomic.Uint64
+ }
+ 
+ // addWork indicates that n units of parallelizable work have been added to the queue.
+@@ -387,6 +401,7 @@ func (q *cleanupQueue) enqueue(fn *funcval) {
+ 		pp.cleanups = nil
+ 		q.addWork(1)
+ 	}
++	pp.cleanupsQueued++
+ 	releasem(mp)
+ }
+ 
+@@ -586,6 +601,19 @@ func (q *cleanupQueue) endRunningCleanups() {
+ 	releasem(mp)
+ }
+ 
++func (q *cleanupQueue) readQueueStats() (queued, executed uint64) {
++	executed = q.executed.Load()
++	queued = q.queued
++
++	// N.B. This is inconsistent, but that's intentional. It's just an estimate.
++	// Read this _after_ reading executed to decrease the chance that we observe
++	// an inconsistency in the statistics (executed > queued).
++	for _, pp := range allp {
++		queued += pp.cleanupsQueued
++	}
++	return
++}
++
+ func maxCleanupGs() uint32 {
+ 	// N.B. Left as a function to make changing the policy easier.
+ 	return uint32(max(gomaxprocs/4, 1))
+@@ -636,6 +664,7 @@ func runCleanups() {
+ 			}
+ 		}
+ 		gcCleanups.endRunningCleanups()
++		gcCleanups.executed.Add(int64(b.n))
+ 
+ 		atomic.Store(&b.n, 0) // Synchronize with markroot. See comment in cleanupBlockHeader.
+ 		gcCleanups.free.push(&b.lfnode)
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 49c0a61a9d..44db1fb356 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -44,11 +44,13 @@ const (
+ )
+ 
+ var (
+-	finlock    mutex     // protects the following variables
+-	fing       *g        // goroutine that runs finalizers
+-	finq       *finBlock // list of finalizers that are to be executed
+-	finc       *finBlock // cache of free blocks
+-	finptrmask [finBlockSize / goarch.PtrSize / 8]byte
++	finlock     mutex     // protects the following variables
++	fing        *g        // goroutine that runs finalizers
++	finq        *finBlock // list of finalizers that are to be executed
++	finc        *finBlock // cache of free blocks
++	finptrmask  [finBlockSize / goarch.PtrSize / 8]byte
++	finqueued   uint64 // monotonic count of queued finalizers
++	finexecuted uint64 // monotonic count of executed finalizers
+ )
+ 
+ var allfin *finBlock // list of all blocks
+@@ -108,6 +110,7 @@ func queuefinalizer(p unsafe.Pointer, fn *funcval, nret uintptr, fint *_type, ot
+ 	}
+ 
+ 	lock(&finlock)
++
+ 	if finq == nil || finq.cnt == uint32(len(finq.fin)) {
+ 		if finc == nil {
+ 			finc = (*finBlock)(persistentalloc(finBlockSize, 0, &memstats.gcMiscSys))
+@@ -141,6 +144,7 @@ func queuefinalizer(p unsafe.Pointer, fn *funcval, nret uintptr, fint *_type, ot
+ 	f.fint = fint
+ 	f.ot = ot
+ 	f.arg = p
++	finqueued++
+ 	unlock(&finlock)
+ 	fingStatus.Or(fingWake)
+ }
+@@ -177,6 +181,14 @@ func finalizercommit(gp *g, lock unsafe.Pointer) bool {
+ 	return true
+ }
+ 
++func finReadQueueStats() (queued, executed uint64) {
++	lock(&finlock)
++	queued = finqueued
++	executed = finexecuted
++	unlock(&finlock)
++	return
++}
++
+ // This is the goroutine that runs all of the finalizers.
+ func runFinalizers() {
+ 	var (
+@@ -204,7 +216,8 @@ func runFinalizers() {
+ 			racefingo()
+ 		}
+ 		for fb != nil {
+-			for i := fb.cnt; i > 0; i-- {
++			n := fb.cnt
++			for i := n; i > 0; i-- {
+ 				f := &fb.fin[i-1]
+ 
+ 				var regs abi.RegArgs
+@@ -270,6 +283,7 @@ func runFinalizers() {
+ 			}
+ 			next := fb.next
+ 			lock(&finlock)
++			finexecuted += uint64(n)
+ 			fb.next = finc
+ 			finc = fb
+ 			unlock(&finlock)
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 664acd9250..87b6a748e1 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1337,6 +1337,19 @@ func gcMarkTermination(stw worldStop) {
+ 		printunlock()
+ 	}
+ 
++	// Print finalizer/cleanup queue length. Like gctrace, do this before the next GC starts.
++	// The fact that the next GC might start is not that problematic here, but acts as a convenient
++	// lock on printing this information (so it cannot overlap with itself from the next GC cycle).
++	if debug.checkfinalizers > 0 {
++		fq, fe := finReadQueueStats()
++		fn := max(int64(fq)-int64(fe), 0)
++
++		cq, ce := gcCleanups.readQueueStats()
++		cn := max(int64(cq)-int64(ce), 0)
++
++		println("checkfinalizers: queue:", fn, "finalizers +", cn, "cleanups")
++	}
++
+ 	// Set any arena chunks that were deferred to fault.
+ 	lock(&userArenaState.lock)
+ 	faultList := userArenaState.fault
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index f48373fe7c..89cd70ee88 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -5743,6 +5743,8 @@ func (pp *p) destroy() {
+ 		pp.raceprocctx = 0
+ 	}
+ 	pp.gcAssistTime = 0
++	gcCleanups.queued += pp.cleanupsQueued
++	pp.cleanupsQueued = 0
+ 	pp.status = _Pdead
+ }
+ 
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 2c213d0de4..c8c7c233a6 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -732,7 +732,8 @@ type p struct {
+ 	timers timers
+ 
+ 	// Cleanups.
+-	cleanups *cleanupBlock
++	cleanups       *cleanupBlock
++	cleanupsQueued uint64 // monotonic count of cleanups queued by this P
+ 
+ 	// maxStackScanDelta accumulates the amount of stack space held by
+ 	// live goroutines (i.e. those eligible for stack scanning).

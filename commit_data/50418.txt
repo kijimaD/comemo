@@ -9,6 +9,20 @@ Date:   Mon Oct 25 16:48:07 2021 -0400
     Trust: Cherry Mui <cherryyz@google.com>
     Trust: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/cmd/compile/internal/ssa/regalloc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 126973a6e1..91b04e99f4 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -560,7 +560,7 @@ func isLeaf(f *Func) bool {
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+ 			if v.Op.IsCall() && !v.Op.IsTailCall() {
+-				// tail call is not counted as it does not save retur PC or need a frame
++				// tail call is not counted as it does not save the return PC or need a frame
+ 				return false
+ 			}
+ 		}

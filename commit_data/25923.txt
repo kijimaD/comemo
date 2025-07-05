@@ -14,8 +14,313 @@ Date:   Thu Dec 3 18:32:15 2015 +0000
     Reviewed-on: https://go-review.googlesource.com/17316
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/export_test.go    | 114 ++++++++++++++++++++---------------------
  src/net/http/transport.go      |  50 ++++++++----------
  src/net/http/transport_test.go |  14 ++++-
  3 files changed, 90 insertions(+), 88 deletions(-)
+
+diff --git a/src/net/http/export_test.go b/src/net/http/export_test.go
+index 0dc39a359f..e0ae49afa7 100644
+--- a/src/net/http/export_test.go
++++ b/src/net/http/export_test.go
+@@ -9,11 +9,23 @@ package http
+ 
+ import (
+ 	"net"
+-	"net/url"
+ 	"sync"
+ 	"time"
+ )
+ 
++var (
++	DefaultUserAgent              = defaultUserAgent
++	NewLoggingConn                = newLoggingConn
++	ExportAppendTime              = appendTime
++	ExportRefererForURL           = refererForURL
++	ExportServerNewConn           = (*Server).newConn
++	ExportCloseWriteAndWait       = (*conn).closeWriteAndWait
++	ExportErrRequestCanceled      = errRequestCanceled
++	ExportServeFile               = serveFile
++	ExportHttp2ConfigureTransport = http2ConfigureTransport
++	ExportHttp2ConfigureServer    = http2ConfigureServer
++)
++
+ func init() {
+ 	// We only want to pay for this cost during testing.
+ 	// When not under test, these values are always nil
+@@ -21,11 +33,42 @@ func init() {
+ 	testHookMu = new(sync.Mutex)
+ }
+ 
+-func NewLoggingConn(baseName string, c net.Conn) net.Conn {
+-	return newLoggingConn(baseName, c)
++var (
++	SetInstallConnClosedHook = hookSetter(&testHookPersistConnClosedGotRes)
++	SetEnterRoundTripHook    = hookSetter(&testHookEnterRoundTrip)
++	SetTestHookWaitResLoop   = hookSetter(&testHookWaitResLoop)
++	SetRoundTripRetried      = hookSetter(&testHookRoundTripRetried)
++)
++
++func SetReadLoopBeforeNextReadHook(f func()) {
++	testHookMu.Lock()
++	defer testHookMu.Unlock()
++	unnilTestHook(&f)
++	testHookReadLoopBeforeNextRead = f
++}
++
++// SetPendingDialHooks sets the hooks that run before and after handling
++// pending dials.
++func SetPendingDialHooks(before, after func()) {
++	unnilTestHook(&before)
++	unnilTestHook(&after)
++	testHookPrePendingDial, testHookPostPendingDial = before, after
++}
++
++func SetTestHookServerServe(fn func(*Server, net.Listener)) { testHookServerServe = fn }
++
++func NewTestTimeoutHandler(handler Handler, ch <-chan time.Time) Handler {
++	f := func() <-chan time.Time {
++		return ch
++	}
++	return &timeoutHandler{handler, f, ""}
+ }
+ 
+-var ExportAppendTime = appendTime
++func ResetCachedEnvironment() {
++	httpProxyEnv.reset()
++	httpsProxyEnv.reset()
++	noProxyEnv.reset()
++}
+ 
+ func (t *Transport) NumPendingRequestsForTesting() int {
+ 	t.reqMu.Lock()
+@@ -86,60 +129,17 @@ func (t *Transport) PutIdleTestConn() bool {
+ 	})
+ }
+ 
+-func SetInstallConnClosedHook(f func()) {
+-	testHookPersistConnClosedGotRes = f
+-}
+-
+-func SetEnterRoundTripHook(f func()) {
+-	testHookEnterRoundTrip = f
+-}
+-
+-func SetReadLoopBeforeNextReadHook(f func()) {
+-	testHookMu.Lock()
+-	defer testHookMu.Unlock()
+-	testHookReadLoopBeforeNextRead = f
+-}
+-
+-func NewTestTimeoutHandler(handler Handler, ch <-chan time.Time) Handler {
+-	f := func() <-chan time.Time {
+-		return ch
++// All test hooks must be non-nil so they can be called directly,
++// but the tests use nil to mean hook disabled.
++func unnilTestHook(f *func()) {
++	if *f == nil {
++		*f = nop
+ 	}
+-	return &timeoutHandler{handler, f, ""}
+-}
+-
+-func ResetCachedEnvironment() {
+-	httpProxyEnv.reset()
+-	httpsProxyEnv.reset()
+-	noProxyEnv.reset()
+-}
+-
+-var DefaultUserAgent = defaultUserAgent
+-
+-func ExportRefererForURL(lastReq, newReq *url.URL) string {
+-	return refererForURL(lastReq, newReq)
+-}
+-
+-// SetPendingDialHooks sets the hooks that run before and after handling
+-// pending dials.
+-func SetPendingDialHooks(before, after func()) {
+-	prePendingDial, postPendingDial = before, after
+ }
+ 
+-// SetRetriedHook sets the hook that runs when an idempotent retry occurs.
+-func SetRetriedHook(hook func()) {
+-	retried = hook
++func hookSetter(dst *func()) func(func()) {
++	return func(fn func()) {
++		unnilTestHook(&fn)
++		*dst = fn
++	}
+ }
+-
+-var ExportServerNewConn = (*Server).newConn
+-
+-var ExportCloseWriteAndWait = (*conn).closeWriteAndWait
+-
+-var ExportErrRequestCanceled = errRequestCanceled
+-
+-var ExportServeFile = serveFile
+-
+-var ExportHttp2ConfigureTransport = http2ConfigureTransport
+-
+-var ExportHttp2ConfigureServer = http2ConfigureServer
+-
+-func SetTestHookServerServe(fn func(*Server, net.Listener)) { testHookServerServe = fn }
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 1cd5d84574..1feea28e0a 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -288,9 +288,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+ 		if err := checkTransportResend(err, req, pconn); err != nil {
+ 			return nil, err
+ 		}
+-		if retried != nil {
+-			retried()
+-		}
++		testHookRoundTripRetried()
+ 	}
+ }
+ 
+@@ -600,9 +598,6 @@ func (t *Transport) dial(network, addr string) (c net.Conn, err error) {
+ 	return net.Dial(network, addr)
+ }
+ 
+-// Testing hooks:
+-var prePendingDial, postPendingDial, retried func()
+-
+ // getConn dials and creates a new persistConn to the target as
+ // specified in the connectMethod.  This includes doing a proxy CONNECT
+ // and/or setting up TLS.  If this doesn't return an error, the persistConn
+@@ -624,20 +619,16 @@ func (t *Transport) getConn(req *Request, cm connectMethod) (*persistConn, error
+ 
+ 	// Copy these hooks so we don't race on the postPendingDial in
+ 	// the goroutine we launch. Issue 11136.
+-	prePendingDial := prePendingDial
+-	postPendingDial := postPendingDial
++	testHookPrePendingDial := testHookPrePendingDial
++	testHookPostPendingDial := testHookPostPendingDial
+ 
+ 	handlePendingDial := func() {
+-		if prePendingDial != nil {
+-			prePendingDial()
+-		}
++		testHookPrePendingDial()
+ 		go func() {
+ 			if v := <-dialc; v.err == nil {
+ 				t.putIdleConn(v.pc)
+ 			}
+-			if postPendingDial != nil {
+-				postPendingDial()
+-			}
++			testHookPostPendingDial()
+ 		}()
+ 	}
+ 
+@@ -1128,10 +1119,7 @@ func (pc *persistConn) readLoop() {
+ 				pc.wroteRequest() &&
+ 				pc.t.putIdleConn(pc)
+ 		}
+-
+-		if hook := testHookReadLoopBeforeNextRead; hook != nil {
+-			hook()
+-		}
++		testHookReadLoopBeforeNextRead()
+ 	}
+ 	pc.close()
+ }
+@@ -1258,12 +1246,19 @@ var errTimeout error = &httpError{err: "net/http: timeout awaiting response head
+ var errClosed error = &httpError{err: "net/http: transport closed before response was received"}
+ var errRequestCanceled = errors.New("net/http: request canceled")
+ 
+-// nil except for tests
++func nop() {}
++
++// testHooks. Always non-nil.
+ var (
+-	testHookPersistConnClosedGotRes func()
+-	testHookEnterRoundTrip          func()
+-	testHookMu                      sync.Locker = fakeLocker{} // guards following
+-	testHookReadLoopBeforeNextRead  func()
++	testHookPersistConnClosedGotRes = nop
++	testHookEnterRoundTrip          = nop
++	testHookWaitResLoop             = nop
++	testHookRoundTripRetried        = nop
++	testHookPrePendingDial          = nop
++	testHookPostPendingDial         = nop
++
++	testHookMu                     sync.Locker = fakeLocker{} // guards following
++	testHookReadLoopBeforeNextRead             = nop
+ )
+ 
+ // beforeRespHeaderError is used to indicate when an IO error has occurred before
+@@ -1273,9 +1268,7 @@ type beforeRespHeaderError struct {
+ }
+ 
+ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err error) {
+-	if hook := testHookEnterRoundTrip; hook != nil {
+-		hook()
+-	}
++	testHookEnterRoundTrip()
+ 	if !pc.t.replaceReqCanceler(req.Request, pc.cancelRequest) {
+ 		pc.t.putIdleConn(pc)
+ 		return nil, errRequestCanceled
+@@ -1337,6 +1330,7 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
+ 	cancelChan := req.Request.Cancel
+ WaitResponse:
+ 	for {
++		testHookWaitResLoop()
+ 		select {
+ 		case err := <-writeErrCh:
+ 			if isNetWriteError(err) {
+@@ -1375,9 +1369,7 @@ WaitResponse:
+ 			// with a non-blocking receive.
+ 			select {
+ 			case re = <-resc:
+-				if fn := testHookPersistConnClosedGotRes; fn != nil {
+-					fn()
+-				}
++				testHookPersistConnClosedGotRes()
+ 			default:
+ 				re = responseAndError{err: beforeRespHeaderError{errClosed}}
+ 				if pc.isCanceled() {
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index e5c8501e19..d07e233249 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -2431,10 +2431,10 @@ func TestRetryIdempotentRequestsOnError(t *testing.T) {
+ 
+ 	const N = 2
+ 	retryc := make(chan struct{}, N)
+-	SetRetriedHook(func() {
++	SetRoundTripRetried(func() {
+ 		retryc <- struct{}{}
+ 	})
+-	defer SetRetriedHook(nil)
++	defer SetRoundTripRetried(nil)
+ 
+ 	for n := 0; n < 100; n++ {
+ 		// open 2 conns
+@@ -2681,6 +2681,15 @@ func TestTransportResponseCloseRace(t *testing.T) {
+ 		sawRace = true
+ 	})
+ 	defer SetInstallConnClosedHook(nil)
++
++	SetTestHookWaitResLoop(func() {
++		// Make the select race much more likely by blocking before
++		// the select, so both will be ready by the time the
++		// select runs.
++		time.Sleep(50 * time.Millisecond)
++	})
++	defer SetTestHookWaitResLoop(nil)
++
+ 	tr := &Transport{
+ 		DisableKeepAlives: true,
+ 	}
+@@ -2698,6 +2707,7 @@ func TestTransportResponseCloseRace(t *testing.T) {
+ 		}
+ 		resp.Body.Close()
+ 		if sawRace {
++			t.Logf("saw race after %d iterations", i+1)
+ 			break
+ 		}
+ 	}

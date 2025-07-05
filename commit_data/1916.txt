@@ -15,9 +15,663 @@ Date:   Mon Mar 30 17:52:21 2009 -0700
     R=ken
     OCL=26922
     CL=26922
-
+---
  src/cmd/6g/gg.h    |  30 -------
  src/cmd/6g/gsubr.c | 244 -----------------------------------------------------
  src/cmd/gc/go.h    |  33 +++++++-
  src/cmd/gc/subr.c  | 240 ++++++++++++++++++++++++++++++++++++++++++++++++++++
  4 files changed, 272 insertions(+), 275 deletions(-)
+
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 1aad145c13..8ba4028db8 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -53,24 +53,6 @@ struct	Plist
+ 	Plist*	link;
+ };
+ 
+-typedef	struct	Sig	Sig;
+-struct Sig
+-{
+-	char*	name;
+-	Sym*	sym;
+-	uint32	hash;
+-	int32	perm;
+-	int32	offset;
+-	Sig*	link;
+-};
+-
+-typedef	struct	Pool Pool;
+-struct	Pool
+-{
+-	String*	sval;
+-	Pool*	link;
+-};
+-
+ typedef	struct	Label Label;
+ struct	Label
+ {
+@@ -89,15 +71,9 @@ EXTERN	Prog*	pc;
+ EXTERN	Prog*	firstpc;
+ EXTERN	Plist*	plist;
+ EXTERN	Plist*	plast;
+-EXTERN	Pool*	poolist;
+-EXTERN	Pool*	poolast;
+ EXTERN	Biobuf*	bout;
+ EXTERN	int32	dynloc;
+ EXTERN	uchar	reg[D_NONE];
+-EXTERN	int32	maxround;
+-EXTERN	int32	widthptr;
+-EXTERN	Sym*	symstringo;	// string objects
+-EXTERN	int32	stringo;	// size of string objects
+ EXTERN	int32	pcloc;		// instruction counter
+ EXTERN	String	emptystring;
+ extern	char*	anames[];
+@@ -164,10 +140,7 @@ void	gaddoffset(Node*);
+ void	gconv(int, int);
+ int	conv2pt(Type*);
+ vlong	convvtox(vlong, int);
+-int	brcom(int);
+-int	brrev(int);
+ void	fnparam(Type*, int, int);
+-Sig*	lsort(Sig*, int(*)(Sig*, Sig*));
+ Prog*	gop(int, Node*, Node*, Node*);
+ void	setconst(Addr*, vlong);
+ void	setaddr(Addr*, Node*);
+@@ -182,11 +155,8 @@ void	nodindreg(Node*, Type*, int);
+ void	nodconst(Node*, Type*, vlong);
+ void	gconreg(int, vlong, int);
+ void	buildtxt(void);
+-void	stringpool(Node*);
+-void	tempname(Node*, Type*);
+ Plist*	newplist(void);
+ int	isfat(Type*);
+-void	setmaxarg(Type*);
+ void	sudoclean(void);
+ int	sudoaddable(Node*, Addr*);
+ void	afunclit(Addr*);
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index da0f3256b7..6ce9ade350 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -320,26 +320,6 @@ fatal("shouldnt be used");
+ 	return n;
+ }
+ 
+-void
+-nodconst(Node *n, Type *t, vlong v)
+-{
+-	memset(n, 0, sizeof(*n));
+-	n->op = OLITERAL;
+-	n->addable = 1;
+-	ullmancalc(n);
+-	n->val.u.xval = mal(sizeof(*n->val.u.xval));
+-	mpmovecfix(n->val.u.xval, v);
+-	n->val.ctype = CTINT;
+-	n->type = t;
+-
+-	switch(t->etype) {
+-	case TFLOAT32:
+-	case TFLOAT64:
+-	case TFLOAT80:
+-		fatal("nodconst: bad type %T", t);
+-	}
+-}
+-
+ /*
+  * generate
+  *	as $c, reg
+@@ -1698,230 +1678,6 @@ isfat(Type *t)
+ 	return 0;
+ }
+ 
+-/*
+- * return !(op)
+- * eg == <=> !=
+- */
+-int
+-brcom(int a)
+-{
+-	switch(a) {
+-	case OEQ:	return ONE;
+-	case ONE:	return OEQ;
+-	case OLT:	return OGE;
+-	case OGT:	return OLE;
+-	case OLE:	return OGT;
+-	case OGE:	return OLT;
+-	}
+-	fatal("brcom: no com for %A\n", a);
+-	return a;
+-}
+-
+-/*
+- * return reverse(op)
+- * eg a op b <=> b r(op) a
+- */
+-int
+-brrev(int a)
+-{
+-	switch(a) {
+-	case OEQ:	return OEQ;
+-	case ONE:	return ONE;
+-	case OLT:	return OGT;
+-	case OGT:	return OLT;
+-	case OLE:	return OGE;
+-	case OGE:	return OLE;
+-	}
+-	fatal("brcom: no rev for %A\n", a);
+-	return a;
+-}
+-
+-/*
+- * make a new off the books
+- */
+-void
+-tempname(Node *n, Type *t)
+-{
+-	Sym *s;
+-	uint32 w;
+-
+-	if(t == T) {
+-		yyerror("tempname called with nil type");
+-		t = types[TINT32];
+-	}
+-
+-	s = lookup("!tmpname!");
+-
+-	memset(n, 0, sizeof(*n));
+-	n->op = ONAME;
+-	n->sym = s;
+-	n->type = t;
+-	n->etype = t->etype;
+-	n->class = PAUTO;
+-	n->addable = 1;
+-	n->ullman = 1;
+-	n->noescape = 1;
+-
+-	dowidth(t);
+-	w = t->width;
+-	stksize += w;
+-	stksize = rnd(stksize, w);
+-	n->xoffset = -stksize;
+-}
+-
+-void
+-stringpool(Node *n)
+-{
+-	Pool *p;
+-	int w;
+-
+-	if(n->op != OLITERAL || n->val.ctype != CTSTR) {
+-		if(n->val.ctype == CTNIL)
+-			return;
+-		fatal("stringpool: not string %N", n);
+-	}
+-
+-	p = mal(sizeof(*p));
+-
+-	p->sval = n->val.u.sval;
+-	p->link = nil;
+-
+-	if(poolist == nil)
+-		poolist = p;
+-	else
+-		poolast->link = p;
+-	poolast = p;
+-
+-	w = types[TINT32]->width;
+-	symstringo->offset += w;		// len
+-	symstringo->offset += p->sval->len;	// str[len]
+-	symstringo->offset = rnd(symstringo->offset, w);
+-}
+-
+-Sig*
+-lsort(Sig *l, int(*f)(Sig*, Sig*))
+-{
+-	Sig *l1, *l2, *le;
+-
+-	if(l == 0 || l->link == 0)
+-		return l;
+-
+-	l1 = l;
+-	l2 = l;
+-	for(;;) {
+-		l2 = l2->link;
+-		if(l2 == 0)
+-			break;
+-		l2 = l2->link;
+-		if(l2 == 0)
+-			break;
+-		l1 = l1->link;
+-	}
+-
+-	l2 = l1->link;
+-	l1->link = 0;
+-	l1 = lsort(l, f);
+-	l2 = lsort(l2, f);
+-
+-	/* set up lead element */
+-	if((*f)(l1, l2) < 0) {
+-		l = l1;
+-		l1 = l1->link;
+-	} else {
+-		l = l2;
+-		l2 = l2->link;
+-	}
+-	le = l;
+-
+-	for(;;) {
+-		if(l1 == 0) {
+-			while(l2) {
+-				le->link = l2;
+-				le = l2;
+-				l2 = l2->link;
+-			}
+-			le->link = 0;
+-			break;
+-		}
+-		if(l2 == 0) {
+-			while(l1) {
+-				le->link = l1;
+-				le = l1;
+-				l1 = l1->link;
+-			}
+-			break;
+-		}
+-		if((*f)(l1, l2) < 0) {
+-			le->link = l1;
+-			le = l1;
+-			l1 = l1->link;
+-		} else {
+-			le->link = l2;
+-			le = l2;
+-			l2 = l2->link;
+-		}
+-	}
+-	le->link = 0;
+-	return l;
+-}
+-
+-void
+-setmaxarg(Type *t)
+-{
+-	int32 w;
+-
+-	w = t->argwid;
+-	if(w > maxarg)
+-		maxarg = w;
+-}
+-
+-/*
+- * gather series of offsets
+- * >=0 is direct addressed field
+- * <0 is pointer to next field (+1)
+- */
+-int
+-dotoffset(Node *n, int *oary, Node **nn)
+-{
+-	int i;
+-
+-	switch(n->op) {
+-	case ODOT:
+-		if(n->xoffset == BADWIDTH) {
+-			dump("bad width in dotoffset", n);
+-			fatal("bad width in dotoffset");
+-		}
+-		i = dotoffset(n->left, oary, nn);
+-		if(i > 0) {
+-			if(oary[i-1] >= 0)
+-				oary[i-1] += n->xoffset;
+-			else
+-				oary[i-1] -= n->xoffset;
+-			break;
+-		}
+-		if(i < 10)
+-			oary[i++] = n->xoffset;
+-		break;
+-
+-	case ODOTPTR:
+-		if(n->xoffset == BADWIDTH) {
+-			dump("bad width in dotoffset", n);
+-			fatal("bad width in dotoffset");
+-		}
+-		i = dotoffset(n->left, oary, nn);
+-		if(i < 10)
+-			oary[i++] = -(n->xoffset+1);
+-		break;
+-
+-	default:
+-		*nn = n;
+-		return 0;
+-	}
+-	if(i >= 10)
+-		*nn = N;
+-	return i;
+-}
+-
+ enum
+ {
+ 	ODynam	= 1<<0,
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index c09bc978d2..0a6f1ccbb4 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -452,6 +452,29 @@ struct	Typedef
+ 
+ extern	Typedef	typedefs[];
+ 
++typedef	struct	Sig	Sig;
++struct Sig
++{
++	char*	name;
++	Sym*	sym;
++	uint32	hash;
++	int32	perm;
++	int32	offset;
++	Sig*	link;
++};
++
++typedef	struct	Pool Pool;
++struct	Pool
++{
++	String*	sval;
++	Pool*	link;
++};
++
++EXTERN	Pool*	poolist;
++EXTERN	Pool*	poolast;
++EXTERN	Sym*	symstringo;	// string objects
++EXTERN	int32	stringo;	// size of string objects
++
+ typedef	struct	Io	Io;
+ struct	Io
+ {
+@@ -712,6 +735,7 @@ uint32	typehash(Type*, int, int);
+ void	frame(int);
+ Node*	dobad(void);
+ Node*	nodintconst(int64);
++void	nodconst(Node*, Type*, int64);
+ Node*	nodnil(void);
+ Node*	nodbool(int);
+ void	ullmancalc(Node*);
+@@ -740,6 +764,14 @@ Type*	structnext(Iter*);
+ Type*	funcfirst(Iter*, Type*);
+ Type*	funcnext(Iter*);
+ 
++int	brcom(int);
++int	brrev(int);
++void	setmaxarg(Type*);
++Sig*	lsort(Sig*, int(*)(Sig*, Sig*));
++int	dotoffset(Node*, int*, Node**);
++void	stringpool(Node*);
++void	tempname(Node*, Type*);
++
+ int	Econv(Fmt*);
+ int	Jconv(Fmt*);
+ int	Lconv(Fmt*);
+@@ -917,7 +949,6 @@ void	dumpobj(void);
+ void	dowidth(Type*);
+ void	argspace(int32);
+ Node*	nodarg(Type*, int);
+-void	nodconst(Node*, Type*, vlong);
+ Type*	deep(Type*);
+ Type*	shallow(Type*);
+ 
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index cd7fef9dc3..403f3dd285 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -365,6 +365,22 @@ nodintconst(int64 v)
+ 	return c;
+ }
+ 
++void
++nodconst(Node *n, Type *t, int64 v)
++{
++	memset(n, 0, sizeof(*n));
++	n->op = OLITERAL;
++	n->addable = 1;
++	ullmancalc(n);
++	n->val.u.xval = mal(sizeof(*n->val.u.xval));
++	mpmovecfix(n->val.u.xval, v);
++	n->val.ctype = CTINT;
++	n->type = t;
++
++	if(isfloat[t->etype])
++		fatal("nodconst: bad type %T", t);
++}
++
+ Node*
+ nodnil(void)
+ {
+@@ -2316,6 +2332,230 @@ getinargx(Type *t)
+ 	return *getinarg(t);
+ }
+ 
++/*
++ * return !(op)
++ * eg == <=> !=
++ */
++int
++brcom(int a)
++{
++	switch(a) {
++	case OEQ:	return ONE;
++	case ONE:	return OEQ;
++	case OLT:	return OGE;
++	case OGT:	return OLE;
++	case OLE:	return OGT;
++	case OGE:	return OLT;
++	}
++	fatal("brcom: no com for %A\n", a);
++	return a;
++}
++
++/*
++ * return reverse(op)
++ * eg a op b <=> b r(op) a
++ */
++int
++brrev(int a)
++{
++	switch(a) {
++	case OEQ:	return OEQ;
++	case ONE:	return ONE;
++	case OLT:	return OGT;
++	case OGT:	return OLT;
++	case OLE:	return OGE;
++	case OGE:	return OLE;
++	}
++	fatal("brcom: no rev for %A\n", a);
++	return a;
++}
++
++/*
++ * make a new off the books
++ */
++void
++tempname(Node *n, Type *t)
++{
++	Sym *s;
++	uint32 w;
++
++	if(t == T) {
++		yyerror("tempname called with nil type");
++		t = types[TINT32];
++	}
++
++	s = lookup("!tmpname!");
++
++	memset(n, 0, sizeof(*n));
++	n->op = ONAME;
++	n->sym = s;
++	n->type = t;
++	n->etype = t->etype;
++	n->class = PAUTO;
++	n->addable = 1;
++	n->ullman = 1;
++	n->noescape = 1;
++
++	dowidth(t);
++	w = t->width;
++	stksize += w;
++	stksize = rnd(stksize, w);
++	n->xoffset = -stksize;
++}
++
++void
++stringpool(Node *n)
++{
++	Pool *p;
++	int w;
++
++	if(n->op != OLITERAL || n->val.ctype != CTSTR) {
++		if(n->val.ctype == CTNIL)
++			return;
++		fatal("stringpool: not string %N", n);
++	}
++
++	p = mal(sizeof(*p));
++
++	p->sval = n->val.u.sval;
++	p->link = nil;
++
++	if(poolist == nil)
++		poolist = p;
++	else
++		poolast->link = p;
++	poolast = p;
++
++	w = types[TINT32]->width;
++	symstringo->offset += w;		// len
++	symstringo->offset += p->sval->len;	// str[len]
++	symstringo->offset = rnd(symstringo->offset, w);
++}
++
++Sig*
++lsort(Sig *l, int(*f)(Sig*, Sig*))
++{
++	Sig *l1, *l2, *le;
++
++	if(l == 0 || l->link == 0)
++		return l;
++
++	l1 = l;
++	l2 = l;
++	for(;;) {
++		l2 = l2->link;
++		if(l2 == 0)
++			break;
++		l2 = l2->link;
++		if(l2 == 0)
++			break;
++		l1 = l1->link;
++	}
++
++	l2 = l1->link;
++	l1->link = 0;
++	l1 = lsort(l, f);
++	l2 = lsort(l2, f);
++
++	/* set up lead element */
++	if((*f)(l1, l2) < 0) {
++		l = l1;
++		l1 = l1->link;
++	} else {
++		l = l2;
++		l2 = l2->link;
++	}
++	le = l;
++
++	for(;;) {
++		if(l1 == 0) {
++			while(l2) {
++				le->link = l2;
++				le = l2;
++				l2 = l2->link;
++			}
++			le->link = 0;
++			break;
++		}
++		if(l2 == 0) {
++			while(l1) {
++				le->link = l1;
++				le = l1;
++				l1 = l1->link;
++			}
++			break;
++		}
++		if((*f)(l1, l2) < 0) {
++			le->link = l1;
++			le = l1;
++			l1 = l1->link;
++		} else {
++			le->link = l2;
++			le = l2;
++			l2 = l2->link;
++		}
++	}
++	le->link = 0;
++	return l;
++}
++
++void
++setmaxarg(Type *t)
++{
++	int32 w;
++
++	w = t->argwid;
++	if(w > maxarg)
++		maxarg = w;
++}
++
++/*
++ * gather series of offsets
++ * >=0 is direct addressed field
++ * <0 is pointer to next field (+1)
++ */
++int
++dotoffset(Node *n, int *oary, Node **nn)
++{
++	int i;
++
++	switch(n->op) {
++	case ODOT:
++		if(n->xoffset == BADWIDTH) {
++			dump("bad width in dotoffset", n);
++			fatal("bad width in dotoffset");
++		}
++		i = dotoffset(n->left, oary, nn);
++		if(i > 0) {
++			if(oary[i-1] >= 0)
++				oary[i-1] += n->xoffset;
++			else
++				oary[i-1] -= n->xoffset;
++			break;
++		}
++		if(i < 10)
++			oary[i++] = n->xoffset;
++		break;
++
++	case ODOTPTR:
++		if(n->xoffset == BADWIDTH) {
++			dump("bad width in dotoffset", n);
++			fatal("bad width in dotoffset");
++		}
++		i = dotoffset(n->left, oary, nn);
++		if(i < 10)
++			oary[i++] = -(n->xoffset+1);
++		break;
++
++	default:
++		*nn = n;
++		return 0;
++	}
++	if(i >= 10)
++		*nn = N;
++	return i;
++}
++
+ /*
+  * code to resolve elided DOTs
+  * in embedded types

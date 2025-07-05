@@ -11,7 +11,51 @@ Date:   Mon Aug 19 17:29:19 2024 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/syscall/fs_wasip1.go      |  8 ++++++++
  src/syscall/syscall_wasip1.go | 13 +++++++------
  2 files changed, 15 insertions(+), 6 deletions(-)
+
+diff --git a/src/syscall/fs_wasip1.go b/src/syscall/fs_wasip1.go
+index fc361ee898..c249891dd2 100644
+--- a/src/syscall/fs_wasip1.go
++++ b/src/syscall/fs_wasip1.go
+@@ -542,6 +542,14 @@ func Open(path string, openmode int, perm uint32) (int, error) {
+ 		rights = fileRights
+ 	}
+ 
++	if (openmode & O_DIRECTORY) != 0 {
++		if openmode&(O_WRONLY|O_RDWR) != 0 {
++			return -1, EISDIR
++		}
++		oflags |= OFLAG_DIRECTORY
++		rights &= dirRights
++	}
++
+ 	var fdflags fdflags
+ 	if (openmode & O_APPEND) != 0 {
+ 		fdflags |= FDFLAG_APPEND
+diff --git a/src/syscall/syscall_wasip1.go b/src/syscall/syscall_wasip1.go
+index bcf7676123..b98f99745f 100644
+--- a/src/syscall/syscall_wasip1.go
++++ b/src/syscall/syscall_wasip1.go
+@@ -216,12 +216,13 @@ const (
+ 	O_WRONLY = 1
+ 	O_RDWR   = 2
+ 
+-	O_CREAT  = 0100
+-	O_CREATE = O_CREAT
+-	O_TRUNC  = 01000
+-	O_APPEND = 02000
+-	O_EXCL   = 0200
+-	O_SYNC   = 010000
++	O_CREAT     = 0100
++	O_CREATE    = O_CREAT
++	O_TRUNC     = 01000
++	O_APPEND    = 02000
++	O_EXCL      = 0200
++	O_SYNC      = 010000
++	O_DIRECTORY = 020000
+ 
+ 	O_CLOEXEC = 0
+ )

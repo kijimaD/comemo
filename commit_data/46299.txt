@@ -27,7 +27,7 @@ Date:   Fri Dec 4 18:27:09 2020 -0500
     Reviewed-by: Katie Hockman <katie@golang.org>
     Trust: Katie Hockman <katie@golang.org>
     Trust: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/alldocs.go                          |   2 +
  src/cmd/go/internal/cache/cache.go             |  10 +++
  src/cmd/go/internal/clean/clean.go             |  16 ++++
@@ -40,3 +40,489 @@ Date:   Fri Dec 4 18:27:09 2020 -0500
  src/testing/internal/testdeps/deps.go          |   4 +-
  src/testing/testing.go                         |  30 ++++---
  11 files changed, 194 insertions(+), 57 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index c4913ce695..da5909a04b 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -279,6 +279,8 @@
+ // download cache, including unpacked source code of versioned
+ // dependencies.
+ //
++// The -fuzzcache flag causes clean to remove values used for fuzz testing.
++//
+ // For more about build flags, see 'go help build'.
+ //
+ // For more about specifying packages, see 'go help packages'.
+diff --git a/src/cmd/go/internal/cache/cache.go b/src/cmd/go/internal/cache/cache.go
+index 41f921641d..1a9762bdfb 100644
+--- a/src/cmd/go/internal/cache/cache.go
++++ b/src/cmd/go/internal/cache/cache.go
+@@ -522,3 +522,13 @@ func (c *Cache) copyFile(file io.ReadSeeker, out OutputID, size int64) error {
+ 
+ 	return nil
+ }
++
++// FuzzDir returns a subdirectory within the cache for storing fuzzing data.
++// The subdirectory may not exist.
++//
++// This directory is managed by the internal/fuzz package. Files in this
++// directory aren't removed by the 'go clean -cache' command or by Trim.
++// They may be removed with 'go clean -fuzzcache'.
++func (c *Cache) FuzzDir() string {
++	return filepath.Join(c.dir, "fuzz")
++}
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index b1d40feb27..788c4b1977 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -75,6 +75,8 @@ The -modcache flag causes clean to remove the entire module
+ download cache, including unpacked source code of versioned
+ dependencies.
+ 
++The -fuzzcache flag causes clean to remove values used for fuzz testing.
++
+ For more about build flags, see 'go help build'.
+ 
+ For more about specifying packages, see 'go help packages'.
+@@ -85,6 +87,7 @@ var (
+ 	cleanI         bool // clean -i flag
+ 	cleanR         bool // clean -r flag
+ 	cleanCache     bool // clean -cache flag
++	cleanFuzzcache bool // clean -fuzzcache flag
+ 	cleanModcache  bool // clean -modcache flag
+ 	cleanTestcache bool // clean -testcache flag
+ )
+@@ -96,6 +99,7 @@ func init() {
+ 	CmdClean.Flag.BoolVar(&cleanI, "i", false, "")
+ 	CmdClean.Flag.BoolVar(&cleanR, "r", false, "")
+ 	CmdClean.Flag.BoolVar(&cleanCache, "cache", false, "")
++	CmdClean.Flag.BoolVar(&cleanFuzzcache, "fuzzcache", false, "")
+ 	CmdClean.Flag.BoolVar(&cleanModcache, "modcache", false, "")
+ 	CmdClean.Flag.BoolVar(&cleanTestcache, "testcache", false, "")
+ 
+@@ -206,6 +210,18 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
+ 			}
+ 		}
+ 	}
++
++	if cleanFuzzcache {
++		fuzzDir := cache.Default().FuzzDir()
++		if cfg.BuildN || cfg.BuildX {
++			b.Showcmd("", "rm -rf %s", fuzzDir)
++		}
++		if !cfg.BuildN {
++			if err := os.RemoveAll(fuzzDir); err != nil {
++				base.Errorf("go clean -fuzzcache: %v", err)
++			}
++		}
++	}
+ }
+ 
+ var cleaned = map[*load.Package]bool{}
+diff --git a/src/cmd/go/internal/test/flagdefs_test.go b/src/cmd/go/internal/test/flagdefs_test.go
+index 50711ecff9..f238fc7d33 100644
+--- a/src/cmd/go/internal/test/flagdefs_test.go
++++ b/src/cmd/go/internal/test/flagdefs_test.go
+@@ -17,7 +17,7 @@ func TestPassFlagToTestIncludesAllTestFlags(t *testing.T) {
+ 		}
+ 		name := strings.TrimPrefix(f.Name, "test.")
+ 		switch name {
+-		case "testlogfile", "paniconexit0", "fuzzworker":
++		case "testlogfile", "paniconexit0", "fuzzcachedir", "fuzzworker":
+ 			// These are internal flags.
+ 		default:
+ 			if !passFlagToTest[name] {
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 41e58cb7fe..28e49e44b5 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -1169,7 +1169,12 @@ func (c *runCache) builderRunTest(b *work.Builder, ctx context.Context, a *work.
+ 		testlogArg = []string{"-test.testlogfile=" + a.Objdir + "testlog.txt"}
+ 	}
+ 	panicArg := "-test.paniconexit0"
+-	args := str.StringList(execCmd, a.Deps[0].BuiltTarget(), testlogArg, panicArg, testArgs)
++	fuzzArg := []string{}
++	if testFuzz != "" {
++		fuzzCacheDir := filepath.Join(cache.Default().FuzzDir(), a.Package.ImportPath)
++		fuzzArg = []string{"-test.fuzzcachedir=" + fuzzCacheDir}
++	}
++	args := str.StringList(execCmd, a.Deps[0].BuiltTarget(), testlogArg, panicArg, fuzzArg, testArgs)
+ 
+ 	if testCoverProfile != "" {
+ 		// Write coverage to temporary profile, for merging later.
+diff --git a/src/cmd/go/internal/test/testflag.go b/src/cmd/go/internal/test/testflag.go
+index bba7ede2b2..cb25dc014a 100644
+--- a/src/cmd/go/internal/test/testflag.go
++++ b/src/cmd/go/internal/test/testflag.go
+@@ -56,7 +56,7 @@ func init() {
+ 	cf.String("cpu", "", "")
+ 	cf.StringVar(&testCPUProfile, "cpuprofile", "", "")
+ 	cf.Bool("failfast", false, "")
+-	cf.String("fuzz", "", "")
++	cf.StringVar(&testFuzz, "fuzz", "", "")
+ 	cf.StringVar(&testList, "list", "", "")
+ 	cf.StringVar(&testMemProfile, "memprofile", "", "")
+ 	cf.String("memprofilerate", "", "")
+diff --git a/src/cmd/go/testdata/script/test_fuzz_cache.txt b/src/cmd/go/testdata/script/test_fuzz_cache.txt
+new file mode 100644
+index 0000000000..6fb443e1fd
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_fuzz_cache.txt
+@@ -0,0 +1,62 @@
++[short] skip
++env GOCACHE=$WORK/cache
++
++# Fuzz cache should not exist after a regular test run.
++go test .
++exists $GOCACHE
++! exists $GOCACHE/fuzz
++
++# Fuzzing should write interesting values to the cache.
++go test -fuzz=FuzzY -parallel=1 .
++go run ./contains_files $GOCACHE/fuzz/example.com/y/FuzzY
++
++# 'go clean -cache' should not delete the fuzz cache.
++go clean -cache
++exists $GOCACHE/fuzz
++
++# 'go clean -fuzzcache' should delete the fuzz cache but not the build cache.
++go list -f {{.Stale}} ./empty
++stdout true
++go install ./empty
++go list -f {{.Stale}} ./empty
++stdout false
++go clean -fuzzcache
++! exists $GOCACHE/fuzz
++go list -f {{.Stale}} ./empty
++stdout false
++
++-- go.mod --
++module example.com/y
++
++go 1.16
++-- y_test.go --
++package y
++
++import "testing"
++
++func FuzzY(f *testing.F) {
++	f.Add([]byte("y"))
++	f.Fuzz(func(t *testing.T, b []byte) {})
++}
++-- empty/empty.go --
++package empty
++-- contains_files/contains_files.go --
++package main
++
++import (
++	"fmt"
++	"path/filepath"
++	"io/ioutil"
++	"os"
++)
++
++func main() {
++	infos, err := ioutil.ReadDir(filepath.Clean(os.Args[1]))
++	if err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		os.Exit(1)
++	}
++	if len(infos) == 0 {
++		os.Exit(1)
++	}
++}
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index 88bfc5dddc..2ab16b1189 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -30,12 +30,16 @@ import (
+ //
+ // seed is a list of seed values added by the fuzz target with testing.F.Add and
+ // in testdata.
+-// Seed values from GOFUZZCACHE should not be included in this list; this
+-// function loads them separately.
++//
++// corpusDir is a directory where files containing values that crash the
++// code being tested may be written.
++//
++// cacheDir is a directory containing additional "interesting" values.
++// The fuzzer may derive new values from these, and may write new values here.
+ //
+ // If a crash occurs, the function will return an error containing information
+ // about the crash, which can be reported to the user.
+-func CoordinateFuzzing(parallel int, seed [][]byte, crashDir string) (err error) {
++func CoordinateFuzzing(parallel int, seed [][]byte, corpusDir, cacheDir string) (err error) {
+ 	if parallel == 0 {
+ 		parallel = runtime.GOMAXPROCS(0)
+ 	}
+@@ -44,21 +48,21 @@ func CoordinateFuzzing(parallel int, seed [][]byte, crashDir string) (err error)
+ 	// interrupts.
+ 	duration := 5 * time.Second
+ 
+-	var corpus corpus
+-	var maxSeedLen int
+-	if len(seed) == 0 {
++	corpus, err := readCorpusAndCache(seed, corpusDir, cacheDir)
++	if err != nil {
++		return err
++	}
++	var maxEntryLen int
++	if len(corpus.entries) == 0 {
+ 		corpus.entries = []corpusEntry{{b: []byte{}}}
+-		maxSeedLen = 0
++		maxEntryLen = 0
+ 	} else {
+-		corpus.entries = make([]corpusEntry, len(seed))
+-		for i, v := range seed {
+-			corpus.entries[i].b = v
+-			if len(v) > maxSeedLen {
+-				maxSeedLen = len(v)
++		for _, e := range corpus.entries {
++			if len(e.b) > maxEntryLen {
++				maxEntryLen = len(e.b)
+ 			}
+ 		}
+ 	}
+-	// TODO(jayconrod,katiehockman): read corpus from GOFUZZCACHE.
+ 
+ 	// TODO(jayconrod): do we want to support fuzzing different binaries?
+ 	dir := "" // same as self
+@@ -75,7 +79,7 @@ func CoordinateFuzzing(parallel int, seed [][]byte, crashDir string) (err error)
+ 	}
+ 
+ 	newWorker := func() (*worker, error) {
+-		mem, err := sharedMemTempFile(maxSeedLen)
++		mem, err := sharedMemTempFile(maxEntryLen)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+@@ -140,7 +144,7 @@ func CoordinateFuzzing(parallel int, seed [][]byte, crashDir string) (err error)
+ 
+ 		case crasher := <-c.crasherC:
+ 			// A worker found a crasher. Write it to testdata and return it.
+-			fileName, err := writeToCorpus(crasher.b, crashDir)
++			fileName, err := writeToCorpus(crasher.b, corpusDir)
+ 			if err == nil {
+ 				err = fmt.Errorf("    Crash written to %s\n%s", fileName, crasher.errMsg)
+ 			}
+@@ -153,8 +157,16 @@ func CoordinateFuzzing(parallel int, seed [][]byte, crashDir string) (err error)
+ 			// This is not a crasher, but something interesting that should
+ 			// be added to the on disk corpus and prioritized for future
+ 			// workers to fuzz.
+-			// TODO(jayconrod, katiehockman): Prioritize fuzzing these values which expanded coverage
++			// TODO(jayconrod, katiehockman): Prioritize fuzzing these values which
++			// expanded coverage.
++			// TODO(jayconrod, katiehockman): Don't write a value that's already
++			// in the corpus.
+ 			corpus.entries = append(corpus.entries, entry)
++			if cacheDir != "" {
++				if _, err := writeToCorpus(entry.b, cacheDir); err != nil {
++					return err
++				}
++			}
+ 
+ 		case err := <-c.errC:
+ 			// A worker encountered a fatal error.
+@@ -168,9 +180,8 @@ func CoordinateFuzzing(parallel int, seed [][]byte, crashDir string) (err error)
+ 		}
+ 	}
+ 
+-	// TODO(jayconrod,katiehockman): write crashers to testdata and other inputs
+-	// to GOFUZZCACHE. If the testdata directory is outside the current module,
+-	// always write to GOFUZZCACHE, since the testdata is likely read-only.
++	// TODO(jayconrod,katiehockman): if a crasher can't be written to corpusDir,
++	// write to cacheDir instead.
+ }
+ 
+ type corpus struct {
+@@ -215,6 +226,31 @@ type coordinator struct {
+ 	errC chan error
+ }
+ 
++// readCorpusAndCache creates a combined corpus from seed values, values in the
++// corpus directory (in testdata), and values in the cache (in GOCACHE/fuzz).
++//
++// TODO(jayconrod,katiehockman): if a value in the cache has the wrong type,
++// ignore it instead of reporting an error. Cached values may be used for
++// the same package at a different version or in a different module.
++// TODO(jayconrod,katiehockman): need a mechanism that can remove values that
++// aren't useful anymore, for example, because they have the wrong type.
++func readCorpusAndCache(seed [][]byte, corpusDir, cacheDir string) (corpus, error) {
++	var c corpus
++	for _, b := range seed {
++		c.entries = append(c.entries, corpusEntry{b: b})
++	}
++	for _, dir := range []string{corpusDir, cacheDir} {
++		bs, err := ReadCorpus(dir)
++		if err != nil {
++			return corpus{}, err
++		}
++		for _, b := range bs {
++			c.entries = append(c.entries, corpusEntry{b: b})
++		}
++	}
++	return c, nil
++}
++
+ // ReadCorpus reads the corpus from the testdata directory in this target's
+ // package.
+ func ReadCorpus(dir string) ([][]byte, error) {
+@@ -226,6 +262,11 @@ func ReadCorpus(dir string) ([][]byte, error) {
+ 	}
+ 	var corpus [][]byte
+ 	for _, file := range files {
++		// TODO(jayconrod,katiehockman): determine when a file is a fuzzing input
++		// based on its name. We should only read files created by writeToCorpus.
++		// If we read ALL files, we won't be able to change the file format by
++		// changing the extension. We also won't be able to add files like
++		// README.txt explaining why the directory exists.
+ 		if file.IsDir() {
+ 			continue
+ 		}
+@@ -238,27 +279,18 @@ func ReadCorpus(dir string) ([][]byte, error) {
+ 	return corpus, nil
+ }
+ 
+-// writeToCorpus writes the given bytes to a new file in testdata. If the
+-// directory does not exist, it will create one. It returns the filename that
+-// was written, or an error if it failed.
+-func writeToCorpus(b []byte, crashDir string) (string, error) {
+-	// TODO: Consider not writing a new file if one with those contents already
+-	// exists. Perhaps the filename can be compared to those that already exist
+-	// if all of the filenames are normalized, or by checking the contents of
+-	// all other files.
+-	if _, err := ioutil.ReadDir(crashDir); os.IsNotExist(err) {
+-		// Make the seed corpus directory since it doesn't exist.
+-		err = os.MkdirAll(crashDir, 0777)
+-		if err != nil {
+-			return "", err
+-		}
+-	} else if err != nil {
++// writeToCorpus atomically writes the given bytes to a new file in testdata.
++// If the directory does not exist, it will create one. If the file already
++// exists, writeToCorpus will not rewrite it. writeToCorpus returns the
++// file's name, or an error if it failed.
++func writeToCorpus(b []byte, dir string) (name string, err error) {
++	sum := fmt.Sprintf("%x", sha256.Sum256(b))
++	name = filepath.Join(dir, sum)
++	if err := os.MkdirAll(dir, 0777); err != nil {
+ 		return "", err
+ 	}
+-	sum := fmt.Sprintf("%x", sha256.Sum256(b))
+-	name := filepath.Join(crashDir, sum)
+-	err := ioutil.WriteFile(name, b, 0666)
+-	if err != nil {
++	if err := ioutil.WriteFile(name, b, 0666); err != nil {
++		os.Remove(name) // remove partially written file
+ 		return "", err
+ 	}
+ 	return name, nil
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index 97d64f99be..996e361300 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -16,11 +16,13 @@ import (
+ 
+ func initFuzzFlags() {
+ 	matchFuzz = flag.String("test.fuzz", "", "run the fuzz target matching `regexp`")
++	fuzzCacheDir = flag.String("test.fuzzcachedir", "", "directory where interesting fuzzing inputs are stored")
+ 	isFuzzWorker = flag.Bool("test.fuzzworker", false, "coordinate with the parent process to fuzz random values")
+ }
+ 
+ var (
+ 	matchFuzz    *string
++	fuzzCacheDir *string
+ 	isFuzzWorker *bool
+ 
+ 	// corpusDir is the parent directory of the target's seed corpus within
+@@ -132,7 +134,9 @@ func (f *F) Fuzz(ff interface{}) {
+ 		for i, e := range f.corpus {
+ 			seed[i] = e.b
+ 		}
+-		err := f.context.coordinateFuzzing(*parallel, seed, filepath.Join(corpusDir, f.name))
++		corpusTargetDir := filepath.Join(corpusDir, f.name)
++		cacheTargetDir := filepath.Join(*fuzzCacheDir, f.name)
++		err := f.context.coordinateFuzzing(*parallel, seed, corpusTargetDir, cacheTargetDir)
+ 		if err != nil {
+ 			f.Fail()
+ 			f.result = FuzzResult{Error: err}
+@@ -275,7 +279,7 @@ func (r FuzzResult) String() string {
+ type fuzzContext struct {
+ 	runMatch          *matcher
+ 	fuzzMatch         *matcher
+-	coordinateFuzzing func(int, [][]byte, string) error
++	coordinateFuzzing func(int, [][]byte, string, string) error
+ 	runFuzzWorker     func(func([]byte) error) error
+ 	readCorpus        func(string) ([][]byte, error)
+ }
+diff --git a/src/testing/internal/testdeps/deps.go b/src/testing/internal/testdeps/deps.go
+index 109d925016..dcca6032d0 100644
+--- a/src/testing/internal/testdeps/deps.go
++++ b/src/testing/internal/testdeps/deps.go
+@@ -128,8 +128,8 @@ func (TestDeps) SetPanicOnExit0(v bool) {
+ 	testlog.SetPanicOnExit0(v)
+ }
+ 
+-func (TestDeps) CoordinateFuzzing(parallel int, seed [][]byte, crashDir string) error {
+-	return fuzz.CoordinateFuzzing(parallel, seed, crashDir)
++func (TestDeps) CoordinateFuzzing(parallel int, seed [][]byte, corpusDir, cacheDir string) error {
++	return fuzz.CoordinateFuzzing(parallel, seed, corpusDir, cacheDir)
+ }
+ 
+ func (TestDeps) RunFuzzWorker(fn func([]byte) error) error {
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index c87e0a5b9a..e3e35fa13a 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1353,17 +1353,17 @@ var errMain = errors.New("testing: unexpected use of func Main")
+ 
+ type matchStringOnly func(pat, str string) (bool, error)
+ 
+-func (f matchStringOnly) MatchString(pat, str string) (bool, error)     { return f(pat, str) }
+-func (f matchStringOnly) StartCPUProfile(w io.Writer) error             { return errMain }
+-func (f matchStringOnly) StopCPUProfile()                               {}
+-func (f matchStringOnly) WriteProfileTo(string, io.Writer, int) error   { return errMain }
+-func (f matchStringOnly) ImportPath() string                            { return "" }
+-func (f matchStringOnly) StartTestLog(io.Writer)                        {}
+-func (f matchStringOnly) StopTestLog() error                            { return errMain }
+-func (f matchStringOnly) SetPanicOnExit0(bool)                          {}
+-func (f matchStringOnly) CoordinateFuzzing(int, [][]byte, string) error { return errMain }
+-func (f matchStringOnly) RunFuzzWorker(func([]byte) error) error        { return errMain }
+-func (f matchStringOnly) ReadCorpus(string) ([][]byte, error)           { return nil, errMain }
++func (f matchStringOnly) MatchString(pat, str string) (bool, error)             { return f(pat, str) }
++func (f matchStringOnly) StartCPUProfile(w io.Writer) error                     { return errMain }
++func (f matchStringOnly) StopCPUProfile()                                       {}
++func (f matchStringOnly) WriteProfileTo(string, io.Writer, int) error           { return errMain }
++func (f matchStringOnly) ImportPath() string                                    { return "" }
++func (f matchStringOnly) StartTestLog(io.Writer)                                {}
++func (f matchStringOnly) StopTestLog() error                                    { return errMain }
++func (f matchStringOnly) SetPanicOnExit0(bool)                                  {}
++func (f matchStringOnly) CoordinateFuzzing(int, [][]byte, string, string) error { return errMain }
++func (f matchStringOnly) RunFuzzWorker(func([]byte) error) error                { return errMain }
++func (f matchStringOnly) ReadCorpus(string) ([][]byte, error)                   { return nil, errMain }
+ 
+ // Main is an internal function, part of the implementation of the "go test" command.
+ // It was exported because it is cross-package and predates "internal" packages.
+@@ -1406,7 +1406,7 @@ type testDeps interface {
+ 	StartTestLog(io.Writer)
+ 	StopTestLog() error
+ 	WriteProfileTo(string, io.Writer, int) error
+-	CoordinateFuzzing(int, [][]byte, string) error
++	CoordinateFuzzing(int, [][]byte, string, string) error
+ 	RunFuzzWorker(func([]byte) error) error
+ 	ReadCorpus(string) ([][]byte, error)
+ }
+@@ -1448,6 +1448,12 @@ func (m *M) Run() (code int) {
+ 		m.exitCode = 2
+ 		return
+ 	}
++	if *matchFuzz != "" && *fuzzCacheDir == "" {
++		fmt.Fprintln(os.Stderr, "testing: internal error: -test.fuzzcachedir must be set if -test.fuzz is set")
++		flag.Usage()
++		m.exitCode = 2
++		return
++	}
+ 
+ 	if len(*matchList) != 0 {
+ 		listTests(m.deps.MatchString, m.tests, m.benchmarks, m.fuzzTargets, m.examples)

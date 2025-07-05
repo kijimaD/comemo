@@ -8,7 +8,7 @@ Date:   Wed Sep 30 11:06:35 2009 -0700
     DELTA=791  (0 added, 791 deleted, 0 changed)
     OCL=35154
     CL=35154
-
+---
  usr/rsc/gmp/6c.c        | 117 ----------------
  usr/rsc/gmp/Makefile    |  52 --------
  usr/rsc/gmp/gcc.c       | 349 ------------------------------------------------
@@ -16,3 +16,860 @@ Date:   Wed Sep 30 11:06:35 2009 -0700
  usr/rsc/gmp/main.go     |  28 ----
  usr/rsc/gmp/pidigits.go | 144 --------------------
  6 files changed, 820 deletions(-)
+
+diff --git a/usr/rsc/gmp/6c.c b/usr/rsc/gmp/6c.c
+deleted file mode 100644
+index 996b1e3d9a..0000000000
+--- a/usr/rsc/gmp/6c.c
++++ /dev/null
+@@ -1,117 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "cgocall.h"
+-
+-typedef struct Int Int;
+-struct Int
+-{
+-	void *v;
+-};
+-
+-// turn on ffi
+-#pragma dynld initcgo initcgo "libcgo.so"
+-#pragma dynld cgo cgo "libcgo.so"
+-
+-#pragma dynld c_free free "gmp.so"
+-void (*c_free)(void*);
+-
+-// pull in gmp routines, implemented in gcc.c, from gmp.so
+-#pragma dynld gmp_addInt gmp_addInt "gmp.so"
+-#pragma dynld gmp_stringInt gmp_stringInt "gmp.so"
+-#pragma dynld gmp_newInt gmp_newInt "gmp.so"
+-#pragma dynld gmp_subInt gmp_subInt "gmp.so"
+-#pragma dynld gmp_mulInt gmp_mulInt "gmp.so"
+-#pragma dynld gmp_divInt gmp_divInt "gmp.so"
+-#pragma dynld gmp_modInt gmp_modInt "gmp.so"
+-#pragma dynld gmp_expInt gmp_expInt "gmp.so"
+-#pragma dynld gmp_gcdInt gmp_gcdInt "gmp.so"
+-#pragma dynld gmp_negInt gmp_negInt "gmp.so"
+-#pragma dynld gmp_absInt gmp_absInt "gmp.so"
+-#pragma dynld gmp_cmpInt gmp_cmpInt "gmp.so"
+-#pragma dynld gmp_stringInt gmp_stringInt "gmp.so"
+-#pragma dynld gmp_probablyPrimeInt gmp_probablyPrimeInt "gmp.so"
+-#pragma dynld gmp_lshInt gmp_lshInt "gmp.so"
+-#pragma dynld gmp_rshInt gmp_rshInt "gmp.so"
+-#pragma dynld gmp_lenInt gmp_lenInt "gmp.so"
+-#pragma dynld gmp_setInt gmp_setInt "gmp.so"
+-#pragma dynld gmp_setBytesInt gmp_setBytesInt "gmp.so"
+-#pragma dynld gmp_setStringInt gmp_setStringInt "gmp.so"
+-#pragma dynld gmp_bytesInt gmp_bytesInt "gmp.so"
+-#pragma dynld gmp_divModInt gmp_divModInt "gmp.so"
+-#pragma dynld gmp_setInt64Int gmp_setInt64Int "gmp.so"
+-#pragma dynld gmp_int64Int gmp_int64Int "gmp.so"
+-
+-void (*gmp_addInt)(void*);
+-void (*gmp_stringInt)(void*);
+-void (*gmp_newInt)(void*);
+-void (*gmp_subInt)(void*);
+-void (*gmp_mulInt)(void*);
+-void (*gmp_divInt)(void*);
+-void (*gmp_modInt)(void*);
+-void (*gmp_expInt)(void*);
+-void (*gmp_gcdInt)(void*);
+-void (*gmp_negInt)(void*);
+-void (*gmp_absInt)(void*);
+-void (*gmp_cmpInt)(void*);
+-void (*gmp_stringInt)(void*);
+-void (*gmp_probablyPrimeInt)(void*);
+-void (*gmp_lshInt)(void*);
+-void (*gmp_rshInt)(void*);
+-void (*gmp_lenInt)(void*);
+-void (*gmp_setInt)(void*);
+-void (*gmp_setBytesInt)(void*);
+-void (*gmp_setStringInt)(void*);
+-void (*gmp_bytesInt)(void*);
+-void (*gmp_divModInt)(void*);
+-void (*gmp_setInt64Int)(void*);
+-void (*gmp_int64Int)(void*);
+-
+-void gmp·addInt(Int *z, Int *x, Int *y, Int *ret) { cgocall(gmp_addInt, &z); }
+-void gmp·subInt(Int *z, Int *x, Int *y, Int *ret) { cgocall(gmp_subInt, &z); }
+-void gmp·mulInt(Int *z, Int *x, Int *y, Int *ret) { cgocall(gmp_mulInt, &z); }
+-void gmp·divInt(Int *z, Int *x, Int *y, Int *ret) { cgocall(gmp_divInt, &z); }
+-void gmp·modInt(Int *z, Int *x, Int *y, Int *ret) { cgocall(gmp_modInt, &z); }
+-void gmp·expInt(Int *z, Int *x, Int *y, Int *m, Int *ret) { cgocall(gmp_expInt, &z); }
+-void gmp·GcdInt(Int *d, Int *x, Int *y, Int *a, Int *b) { cgocall(gmp_gcdInt, &d); }
+-void gmp·negInt(Int *z, Int *x, Int *ret) { cgocall(gmp_negInt, &z); }
+-void gmp·absInt(Int *z, Int *x, Int *ret) { cgocall(gmp_absInt, &z); }
+-void gmp·CmpInt(Int *x, Int *y, int32 ret) { cgocall(gmp_cmpInt, &x); }
+-void gmp·probablyPrimeInt(Int *z, int32 nreps, int32 pad, int32 ret) { cgocall(gmp_probablyPrimeInt, &z); }
+-void gmp·lshInt(Int *z, Int *x, uint32 s, Int *ret) { cgocall(gmp_lshInt, &z); }
+-void gmp·rshInt(Int *z, Int *x, uint32 s, Int *ret) { cgocall(gmp_rshInt, &z); }
+-void gmp·lenInt(Int *z, int32 ret) { cgocall(gmp_lenInt, &z); }
+-void gmp·setInt(Int *z, Int *x, Int *ret) { cgocall(gmp_setInt, &z); }
+-void gmp·setBytesInt(Int *z, Array b, Int *ret) { cgocall(gmp_setBytesInt, &z); }
+-void gmp·setStringInt(Int *z, String s, int32 base, int32 ret) { cgocall(gmp_setStringInt, &z); }
+-void gmp·bytesInt(Int *z, Array ret) { cgocall(gmp_bytesInt, &z); }
+-void gmp·DivModInt(Int *q, Int *r, Int *x, Int *y) { cgocall(gmp_divModInt, &q); }
+-void gmp·setInt64Int(Int *z, int64 x, Int *ret) { cgocall(gmp_setInt64Int, &z); }
+-void gmp·int64Int(Int *z, int64 ret) { cgocall(gmp_int64Int, &z); }
+-
+-void
+-gmp·stringInt(Int *z, String ret)
+-{
+-	struct {
+-		Int *z;
+-		byte *p;
+-	} a;
+-	a.z = z;
+-	a.p = nil;
+-	cgocall(gmp_stringInt, &a);
+-	ret = gostring(a.p);
+-	cgocall(c_free, a.p);
+-	FLUSH(&ret);
+-}
+-
+-void
+-gmp·NewInt(uint64 x, Int *z)
+-{
+-if(sizeof(uintptr) != 8) *(int32*)0 = 0;
+-	z = mallocgc(sizeof *z);
+-	FLUSH(&z);
+-	cgocall(gmp_newInt, &x);
+-}
+-
+diff --git a/usr/rsc/gmp/Makefile b/usr/rsc/gmp/Makefile
+deleted file mode 100644
+index 93053d0f4b..0000000000
+--- a/usr/rsc/gmp/Makefile
++++ /dev/null
+@@ -1,52 +0,0 @@
+-# Copyright 2009 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-# FFI demo
+-
+-include ../../../src/Make.$(GOARCH)
+-
+-all: gmp.a gmp.so
+-
+-gcc.o: gcc.c
+-	gcc -fPIC -O2 -o gcc.o -c gcc.c
+-
+-gmp.so: gcc.o
+-	gcc -shared -o gmp.so gcc.o -L$(GOROOT)/pkg/$(GOOS)_$(GOARCH) -lcgo -lgmp
+-
+-gmp.a: 6c.6 go.6
+-	gopack grc gmp.a 6c.6 go.6
+-
+-# from pkg/runtime/Makefile: TODO(rsc): how to deal with this?
+-# Set SIZE to 32 or 64.
+-SIZE_386=32
+-SIZE_amd64=64
+-SIZE_arm=32
+-SIZE=$(SIZE_$(GOARCH))
+-
+-# Setup CFLAGS.  Add -D_64BIT on 64-bit platforms (sorry).
+-CFLAGS_64=-D_64BIT
+-# TODO(kaib): fix register allocation to honor extern register so we
+-# can enable optimizations again.
+-CFLAGS_arm=-N
+-CFLAGS=-I$(GOOS) -I$(GOOS)/$(GOARCH) -wF $(CFLAGS_$(SIZE)) $(CFLAGS_$(GOARCH))
+-
+-6c.6: 6c.c
+-	6c -FVw $(CFLAGS) -I$(GOROOT)/src/pkg/runtime 6c.c
+-
+-go.6: go.go
+-	6g go.go
+-
+-PKG=$(GOROOT)/pkg/$(GOOS)_$(GOARCH)
+-
+-install: $(PKG)/gmp.so $(PKG)/gmp.a
+-
+-$(PKG)/gmp.so: gmp.so
+-	cp gmp.so $@
+-
+-$(PKG)/gmp.a: gmp.a
+-	cp gmp.a $@
+-
+-clean:
+-	rm -f *.6 *.o *.so *.a
+-
+diff --git a/usr/rsc/gmp/gcc.c b/usr/rsc/gmp/gcc.c
+deleted file mode 100644
+index a28266df64..0000000000
+--- a/usr/rsc/gmp/gcc.c
++++ /dev/null
+@@ -1,349 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include <stdint.h>
+-#include <gmp.h>
+-#include <string.h>
+-
+-typedef int32_t int32;
+-typedef uint32_t uint32;
+-typedef int64_t int64;
+-typedef uint64_t uint64;
+-
+-typedef struct Slice Slice;
+-struct Slice
+-{
+-	void *data;
+-	uint32 len;
+-	uint32 cap;
+-};
+-
+-typedef struct String String;
+-struct String
+-{
+-	void *data;
+-	uint32 len;
+-};
+-
+-typedef struct Int Int;
+-struct Int
+-{
+-	mpz_t *mp;
+-};
+-
+-void
+-gmp_newInt(void *v)
+-{
+-	struct {
+-		uint64 x;
+-		Int *z;
+-	} *a = v;
+-
+-	a->z->mp = malloc(sizeof *a->z->mp);
+-	mpz_init_set_ui(*a->z->mp, a->x);
+-}
+-
+-void
+-gmp_addInt(void *v)
+-{
+-	struct {
+-		Int *z;
+-		Int *x;
+-		Int *y;
+-		Int *ret;
+-	} *a = v;
+-
+-	a->ret = a->z;
+-	mpz_add(*a->z->mp, *a->x->mp, *a->y->mp);
+-}
+-
+-void
+-gmp_subInt(void *v)
+-{
+-	struct {
+-		Int *z;
+-		Int *x;
+-		Int *y;
+-		Int *ret;
+-	} *a = v;
+-
+-	a->ret = a->z;
+-	mpz_sub(*a->z->mp, *a->x->mp, *a->y->mp);
+-}
+-
+-void
+-gmp_mulInt(void *v)
+-{
+-	struct {
+-		Int *z;
+-		Int *x;
+-		Int *y;
+-		Int *ret;
+-	} *a = v;
+-
+-	a->ret = a->z;
+-	mpz_mul(*a->z->mp, *a->x->mp, *a->y->mp);
+-}
+-
+-void
+-gmp_setInt64Int(void *v)
+-{
+-	struct {
+-		Int *z;
+-		int64 x;
+-		Int *ret;
+-	} *a = v;
+-
+-	a->ret = a->z;
+-	mpz_set_si(*a->z->mp, a->x);
+-}
+-
+-void
+-gmp_int64Int(void *v)
+-{
+-	struct {
+-		Int *z;
+-		int64 ret;
+-	} *a = v;
+-
+-	a->ret = mpz_get_si(*a->z->mp);
+-}
+-
+-void
+-gmp_divInt(void *v)
+-{
+-	struct {
+-		Int *z;
+-		Int *x;
+-		Int *y;
+-		Int *ret;
+-	} *a = v;
+-
+-	a->ret = a->z;
+-	mpz_div(*a->z->mp, *a->x->mp, *a->y->mp);
+-}
+-
+-void
+-gmp_modInt(void *v)
+-{
+-	struct {
+-		Int *z;
+-		Int *x;
+-		Int *y;
+-		Int *ret;
+-	} *a = v;
+-
+-	a->ret = a->z;
+-	mpz_mod(*a->z->mp, *a->x->mp, *a->y->mp);
+-}
+-
+-void
+-gmp_divModInt(void *v)
+-{
+-	struct {
+-		Int *d;
+-		Int *m;
+-		Int *x;
+-		Int *y;
+-	} *a = v;
+-
+-	mpz_tdiv_qr(*a->d->mp, *a->m->mp, *a->x->mp, *a->y->mp);
+-}
+-
+-void
+-gmp_lshInt(void *v)
+-{
+-	struct {
+-		Int *z;
+-		Int *x;
+-		uint32 s;
+-		Int *ret;
+-	} *a = v;
+-
+-	a->ret = a->z;
+-	mpz_mul_2exp(*a->z->mp, *a->x->mp, a->s);
+-}
+-
+-void
+-gmp_rshInt(void *v)
+-{
+-	struct {
+-		Int *z;
+-		Int *x;
+-		int32 s;
+-		Int *ret;
+-	} *a = v;
+-
+-	a->ret = a->z;
+-	mpz_div_2exp(*a->z->mp, *a->x->mp, a->s);
+-}
+-
+-
+-void
+-gmp_expInt(void *v)
+-{
+-	struct {
+-		Int *z;
+-		Int *x;
+-		Int *y;
+-		Int *w;
+-		Int *ret;
+-	} *a = v;
+-
+-	a->ret = a->z;
+-	mpz_powm(*a->z->mp, *a->x->mp, *a->y->mp, *a->w->mp);
+-}
+-
+-void
+-gmp_gcdInt(void *v)
+-{
+-	struct {
+-		Int *z;
+-		Int *x;
+-		Int *y;
+-		Int *a;
+-		Int *b;
+-		Int *ret;
+-	} *a = v;
+-
+-	a->ret = a->z;
+-	mpz_gcdext(*a->z->mp, *a->x->mp, *a->y->mp, *a->a->mp, *a->b->mp);
+-}
+-
+-void
+-gmp_negInt(void *v)
+-{
+-	struct {
+-		Int *z;
+-		Int *x;
+-		Int *ret;
+-	} *a = v;
+-
+-	a->ret = a->z;
+-	mpz_neg(*a->z->mp, *a->x->mp);
+-}
+-
+-void
+-gmp_absInt(void *v)
+-{
+-	struct {
+-		Int *z;
+-		Int *x;
+-		Int *ret;
+-	} *a = v;
+-
+-	a->ret = a->z;
+-	mpz_abs(*a->z->mp, *a->x->mp);
+-}
+-
+-void
+-gmp_cmpInt(void *v)
+-{
+-	struct {
+-		Int *x;
+-		Int *y;
+-		int32 ret;
+-	} *a = v;
+-
+-	a->ret = mpz_cmp(*a->x->mp, *a->y->mp);
+-}
+-
+-void
+-gmp_stringInt(void *v)
+-{
+-	struct {
+-		Int *z;
+-		char *p;
+-	} *a = v;
+-
+-	a->p = mpz_get_str(NULL, 10, *a->z->mp);
+-}
+-
+-void
+-gmp_setInt(void *v)
+-{
+-	struct {
+-		Int *z;
+-		Int *x;
+-		Int *ret;
+-	} *a = v;
+-
+-	a->ret = a->z;
+-	mpz_set(*a->z->mp, *a->x->mp);
+-}
+-
+-void
+-gmp_setBytesInt(void *v)
+-{
+-	struct {
+-		Int *z;
+-		Slice b;
+-		Int *ret;
+-	} *a = v;
+-
+-	a->ret = a->z;
+-	mpz_import(*a->z->mp, a->b.len, 1, 1, 1, 0, a->b.data);
+-}
+-
+-void
+-gmp_lenInt(void *v)
+-{
+-	struct {
+-		Int *z;
+-		int32 ret;
+-	} *a = v;
+-
+-	a->ret = mpz_sizeinbase(*a->z->mp, 2);
+-}
+-
+-void
+-gmp_bytesInt(void *v)
+-{
+-	struct {
+-		Int *z;
+-		Slice b;
+-	} *a = v;
+-	size_t n;
+-	char *p;
+-
+-	n = (mpz_sizeinbase(*a->z->mp, 2) + 7) >> 3;
+-	p = malloc(n);	// TODO: mallocgc
+-	mpz_export(p, &n, 1, 1, 1, 0, *a->z->mp);
+-	a->b.data = p;
+-	a->b.len = n;
+-	a->b.cap = n;
+-}
+-
+-void
+-gmp_setStringInt(void *v)
+-{
+-	struct {
+-		Int *z;
+-		String s;
+-		int32 base;
+-		int32 pad;
+-		int32 ret;
+-	} *a = v;
+-	char *p;
+-
+-	p = malloc(a->s.len+1);
+-	memmove(p, a->s.data, a->s.len);
+-	p[a->s.len] = 0;
+-	a->ret = mpz_set_str(*a->z->mp, p, a->base);
+-	free(p);
+-}
+-
+-void
+-gmp_probablyPrimeInt(void *v)
+-{
+-	struct {
+-		Int *z;
+-		int32 nreps;
+-		int32 pad;
+-		int32 ret;
+-	} *a = v;
+-
+-	a->ret = mpz_probab_prime_p(*a->z->mp, a->nreps);
+-}
+-
+diff --git a/usr/rsc/gmp/go.go b/usr/rsc/gmp/go.go
+deleted file mode 100644
+index 104070a9d5..0000000000
+--- a/usr/rsc/gmp/go.go
++++ /dev/null
+@@ -1,130 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package gmp
+-
+-import "os"
+-
+-type Int struct {
+-	hidden *byte
+-}
+-
+-func addInt(z, x, y *Int) *Int
+-func stringInt(z *Int) string
+-func divInt(z, x, y *Int) *Int
+-func mulInt(z, x, y *Int) *Int
+-func subInt(z, x, y *Int) *Int
+-func modInt(z, x, y *Int) *Int
+-func rshInt(z, x *Int, s uint) *Int
+-func lshInt(z, x *Int, s uint) *Int
+-func expInt(z, x, y, m *Int) *Int
+-func lenInt(z *Int) int
+-func bytesInt(z *Int) []byte
+-func setInt(z *Int, x *Int) *Int
+-func setBytesInt(z *Int, b []byte) *Int
+-func setStringInt(z *Int, s string, b int) int
+-func setInt64Int(z *Int, x int64) *Int
+-func int64Int(z *Int) int64
+-
+-// NewInt returns a new Int initialized to x.
+-func NewInt(x int64) *Int
+-
+-// z = x + y
+-func (z *Int) Add(x, y *Int) *Int {
+-	return addInt(z, x, y)
+-}
+-
+-// z = x - y
+-func (z *Int) Sub(x, y *Int) *Int {
+-	return subInt(z, x, y)
+-}
+-
+-// z = x * y
+-func (z *Int) Mul(x, y *Int) *Int {
+-	return mulInt(z, x, y)
+-}
+-
+-// z = x
+-func (z *Int) SetInt64(x int64) *Int {
+-	return setInt64Int(z, x);
+-}
+-
+-// z = x / y
+-func (z *Int) Div(x, y *Int) *Int {
+-	return divInt(z, x, y)
+-}
+-
+-// z = x % y
+-func (z *Int) Mod(x, y *Int) *Int {
+-	return modInt(z, x, y)
+-}
+-
+-// z = x^y if m == nil, x^y % m otherwise
+-func (z *Int) Exp(x, y, m *Int) *Int {
+-	return expInt(z, x, y, m);
+-}
+-
+-// z = x << s
+-func (z *Int) Lsh(x *Int, s uint) *Int {
+-	return lshInt(z, x, s);
+-}
+-
+-// z = x >> s
+-func (z *Int) Rsh(x *Int, s uint) *Int {
+-	return rshInt(z, x, s);
+-}
+-
+-// z = x
+-func (z *Int) Set(x *Int) *Int {
+-	return setInt(z, x);
+-}
+-
+-// Len returns length of z in bits.
+-func (z *Int) Len() int {
+-	return lenInt(z);
+-}
+-
+-func (z *Int) String() string {
+-	return stringInt(z)
+-}
+-
+-func (z *Int) Int64() int64 {
+-	return int64Int(z)
+-}
+-
+-// TODO: better name?  Maybe return []byte instead?
+-// Bytes writes a big-endian representation of z into b.
+-// If b is not large enough to contain all of z, the lowest
+-// bits are stored.
+-func (z *Int) Bytes() []byte {
+-	return bytesInt(z);
+-}
+-
+-// SetBytes sets z to the integer represented by the bytes of b
+-// interpreted as a big-endian integer.
+-func (z *Int) SetBytes(b []byte) *Int {
+-	return setBytesInt(z, b);
+-}
+-
+-// SetString parses the string s in base b (8, 10, 16) and sets z to the result.
+-// It returns an error if the string cannot be parsed or the base is invalid.
+-func (z *Int) SetString(s string, b int) os.Error {
+-	if b <= 0 || b > 36 || setStringInt(z, s, b) < 0 {
+-		return os.EINVAL;
+-	}
+-	return nil;
+-}
+-
+-// GcdInt sets d to the greatest common divisor of a and b
+-// and sets x and y such that d = a*x + b*y.
+-// The inputs a and b must be positive.
+-// Pass x == nil and y == nil if only d is needed.
+-// If a <= 0 or b <= 0, GcdInt sets d, x, and y to zero.
+-func GcdInt(d, x, y, a, b *Int)
+-
+-// CmpInt compares x and y.  The result is -1, 0, +1.
+-func CmpInt(x, y *Int) int
+-
+-// DivModInt sets q = x/y, r = x%y.
+-func DivModInt(q, r, x, y *Int)
+diff --git a/usr/rsc/gmp/main.go b/usr/rsc/gmp/main.go
+deleted file mode 100644
+index 0b25d25447..0000000000
+--- a/usr/rsc/gmp/main.go
++++ /dev/null
+@@ -1,28 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-
+-package main
+-
+-import big "gmp"
+-//import "big"
+-import "fmt"
+-
+-func Fib(n int) *big.Int {
+-	a := big.NewInt(0);
+-	b := big.NewInt(1);
+-
+-	for i := 0; i < n; i++ {
+-		a, b = b, a;
+-		b.Add(a, b);
+-	}
+-
+-	return b;
+-}
+-
+-func main() {
+-	for i := 0; i <= 100; i++ {
+-		fmt.Println(5*i, Fib(5*i));
+-	}
+-}
+diff --git a/usr/rsc/gmp/pidigits.go b/usr/rsc/gmp/pidigits.go
+deleted file mode 100644
+index 5a7eeae49c..0000000000
+--- a/usr/rsc/gmp/pidigits.go
++++ /dev/null
+@@ -1,144 +0,0 @@
+-/*
+-Redistribution and use in source and binary forms, with or without
+-modification, are permitted provided that the following conditions are met:
+-
+-    * Redistributions of source code must retain the above copyright
+-    notice, this list of conditions and the following disclaimer.
+-
+-    * Redistributions in binary form must reproduce the above copyright
+-    notice, this list of conditions and the following disclaimer in the
+-    documentation and/or other materials provided with the distribution.
+-
+-    * Neither the name of "The Computer Language Benchmarks Game" nor the
+-    name of "The Computer Language Shootout Benchmarks" nor the names of
+-    its contributors may be used to endorse or promote products derived
+-    from this software without specific prior written permission.
+-
+-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+-ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+-LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+-INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+-CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+-POSSIBILITY OF SUCH DAMAGE.
+-*/
+-
+-/*
+-TODO(rsc): delete this comment
+-TODO(rsc): move to test/bench once package "big" is ready
+-on r45:
+-
+-make clean
+-make install
+-goc pidigits.go
+-ulimit -v 1000000	# 1GB
+-LD_LIBRARY_PATH=$GOROOT/pkg/linux_amd64 6.out
+-*/
+-
+-
+-/* The Computer Language Benchmarks Game
+- * http://shootout.alioth.debian.org/
+- *
+- * contributed by The Go Authors.
+- * based on pidigits.c (by Paolo Bonzini & Sean Bartlett,
+- *                      modified by Michael Mellor)
+- */
+-
+-package main
+-
+-import (
+-	//"big";
+-	big "gmp";
+-	"flag";
+-	"fmt";
+-	"runtime";
+-)
+-
+-var n = flag.Int("n", 27, "number of digits");
+-var silent = flag.Bool("s", false, "don't print result");
+-
+-var (
+-	tmp1 = big.NewInt(0);
+-	tmp2 = big.NewInt(0);
+-	numer = big.NewInt(1);
+-	accum = big.NewInt(0);
+-	denom = big.NewInt(1);
+-	ten = big.NewInt(10);
+-)
+-
+-func extract_digit() int64 {
+-	if big.CmpInt(numer, accum) > 0 {
+-		return -1;
+-	}
+-
+-	// Compute (numer * 3 + accum) / denom
+-	tmp1.Lsh(numer, 1).Add(tmp1, numer).Add(tmp1, accum);
+-	big.DivModInt(tmp1, tmp2, tmp1, denom);
+-
+-	// Now, if (numer * 4 + accum) % denom...
+-	tmp2.Add(tmp2, numer);
+-
+-	// ... is normalized, then the two divisions have the same result.
+-	if big.CmpInt(tmp2, denom) >= 0 {
+-		return -1;
+-	}
+-
+-	return tmp1.Int64();
+-}
+-
+-func next_term(k int64) {
+-	y2 := k*2 + 1;
+-
+-	accum.Add(accum, tmp1.Lsh(numer, 1));
+-	accum.Mul(accum, tmp1.SetInt64(y2));
+-	numer.Mul(numer, tmp1.SetInt64(k));
+-	denom.Mul(denom, tmp1.SetInt64(y2));
+-}
+-
+-func eliminate_digit(d int64) {
+-	accum.Sub(accum, tmp1.Mul(denom, tmp1.SetInt64(d)));
+-	accum.Mul(accum, ten);
+-	numer.Mul(numer, ten);
+-}
+-
+-func printf(s string, arg ...) {
+-	if !*silent {
+-		fmt.Printf(s, arg);
+-	}
+-}
+-
+-func main() {
+-	flag.Parse();
+-
+-	var m int;	// 0 <= m < 10
+-	for i, k := 0, int64(0); ; {
+-		d := int64(-1);
+-		for d < 0 {
+-			k++;
+-			next_term(k);
+-			d = extract_digit();
+-		}
+-
+-		printf("%c", d + '0');
+-
+-		i++;
+-		m = i%10;
+-		if m == 0 {
+-			printf("\t:%d\n", i);
+-		}
+-		if i >= *n {
+-			break;
+-		}
+-		eliminate_digit(d);
+-	}
+-
+-	if m > 0 {
+-		printf("%s\t:%d\n", "          "[m : 10], *n);
+-	}
+-
+-	fmt.Printf("%d calls; %d %d %d\n", runtime.Cgocalls(), numer.Len(), accum.Len(), denom.Len());
+-}

@@ -7,6 +7,19 @@ Date:   Tue Jan 13 10:07:54 2015 +1100
     Change-Id: I5a54a041cfe9ff2d9514f2d6596b53ec7fc91845
     Reviewed-on: https://go-review.googlesource.com/2689
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.5.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index 42c739b4a3..ae703961de 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -4,6 +4,7 @@ bufio: add Reader.Discard (https://golang.org/cl/2260)
+ crypto/cipher: clarify what will happen if len(src) != len(dst) for the Stream interface. (https://golang.org/cl/1754)
+ crypto/tls: change default minimum version to TLS 1.0. (https://golang.org/cl/1791)
+ encoding/base64: add unpadded encodings (https://golang.org/cl/1511)
++log: add global Output function (https://golang.org/cl/2686)
+ net/http: support for setting trailers from a server Handler (https://golang.org/cl/2157)
+ net/smtp: add TLSConnectionState accessor (https://golang.org/cl/2151)
+ 

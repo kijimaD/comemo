@@ -12,7 +12,7 @@ Date:   Tue Mar 24 11:51:24 2015 -0400
     Change-Id: I907f05d3829e24eeb15fa4d020598af36710e87e
     Reviewed-on: https://go-review.googlesource.com/8020
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/os3_plan9.go     | 4 +++-
  src/runtime/signal_386.go    | 4 +++-
  src/runtime/signal_amd64x.go | 4 +++-
@@ -20,3 +20,136 @@ Date:   Tue Mar 24 11:51:24 2015 -0400
  src/runtime/signal_arm64.go  | 4 +++-
  src/runtime/signal_ppc64x.go | 4 +++-
  6 files changed, 18 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/os3_plan9.go b/src/runtime/os3_plan9.go
+index 27519debd3..fa49ad681f 100644
+--- a/src/runtime/os3_plan9.go
++++ b/src/runtime/os3_plan9.go
+@@ -6,6 +6,8 @@ package runtime
+ 
+ import "unsafe"
+ 
++// May run during STW, so write barriers are not allowed.
++//go:nowritebarrier
+ func sighandler(_ureg *ureg, note *byte, gp *g) int {
+ 	_g_ := getg()
+ 	var t sigTabT
+@@ -79,7 +81,7 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
+ 	}
+ Throw:
+ 	_g_.m.throwing = 1
+-	_g_.m.caughtsig = gp
++	setGNoWriteBarrier(&_g_.m.caughtsig, gp)
+ 	startpanic()
+ 	print(notestr, "\n")
+ 	print("PC=", hex(c.pc()), "\n")
+diff --git a/src/runtime/signal_386.go b/src/runtime/signal_386.go
+index 0ca593de02..b63299511f 100644
+--- a/src/runtime/signal_386.go
++++ b/src/runtime/signal_386.go
+@@ -24,6 +24,8 @@ func dumpregs(c *sigctxt) {
+ 	print("gs     ", hex(c.gs()), "\n")
+ }
+ 
++// May run during STW, so write barriers are not allowed.
++//go:nowritebarrier
+ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	_g_ := getg()
+ 	c := &sigctxt{info, ctxt}
+@@ -98,7 +100,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	}
+ 
+ 	_g_.m.throwing = 1
+-	_g_.m.caughtsig = gp
++	setGNoWriteBarrier(&_g_.m.caughtsig, gp)
+ 	startpanic()
+ 
+ 	if sig < uint32(len(sigtable)) {
+diff --git a/src/runtime/signal_amd64x.go b/src/runtime/signal_amd64x.go
+index cd87d76a50..5dc9d8070a 100644
+--- a/src/runtime/signal_amd64x.go
++++ b/src/runtime/signal_amd64x.go
+@@ -37,6 +37,8 @@ func dumpregs(c *sigctxt) {
+ 
+ var crashing int32
+ 
++// May run during STW, so write barriers are not allowed.
++//go:nowritebarrier
+ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	_g_ := getg()
+ 	c := &sigctxt{info, ctxt}
+@@ -134,7 +136,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	}
+ 
+ 	_g_.m.throwing = 1
+-	_g_.m.caughtsig = gp
++	setGNoWriteBarrier(&_g_.m.caughtsig, gp)
+ 
+ 	if crashing == 0 {
+ 		startpanic()
+diff --git a/src/runtime/signal_arm.go b/src/runtime/signal_arm.go
+index c07b45ef18..7d417fa2b3 100644
+--- a/src/runtime/signal_arm.go
++++ b/src/runtime/signal_arm.go
+@@ -32,6 +32,8 @@ func dumpregs(c *sigctxt) {
+ 	print("fault   ", hex(c.fault()), "\n")
+ }
+ 
++// May run during STW, so write barriers are not allowed.
++//go:nowritebarrier
+ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	_g_ := getg()
+ 	c := &sigctxt{info, ctxt}
+@@ -93,7 +95,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	}
+ 
+ 	_g_.m.throwing = 1
+-	_g_.m.caughtsig = gp
++	setGNoWriteBarrier(&_g_.m.caughtsig, gp)
+ 	startpanic()
+ 
+ 	if sig < uint32(len(sigtable)) {
+diff --git a/src/runtime/signal_arm64.go b/src/runtime/signal_arm64.go
+index cc8985872c..efb84029e2 100644
+--- a/src/runtime/signal_arm64.go
++++ b/src/runtime/signal_arm64.go
+@@ -45,6 +45,8 @@ func dumpregs(c *sigctxt) {
+ 	print("fault   ", hex(c.fault()), "\n")
+ }
+ 
++// May run during STW, so write barriers are not allowed.
++//go:nowritebarrier
+ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	_g_ := getg()
+ 	c := &sigctxt{info, ctxt}
+@@ -106,7 +108,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	}
+ 
+ 	_g_.m.throwing = 1
+-	_g_.m.caughtsig = gp
++	setGNoWriteBarrier(&_g_.m.caughtsig, gp)
+ 	startpanic()
+ 
+ 	if sig < uint32(len(sigtable)) {
+diff --git a/src/runtime/signal_ppc64x.go b/src/runtime/signal_ppc64x.go
+index 94b4708dd5..018d7d62ef 100644
+--- a/src/runtime/signal_ppc64x.go
++++ b/src/runtime/signal_ppc64x.go
+@@ -50,6 +50,8 @@ func dumpregs(c *sigctxt) {
+ 	print("trap ", hex(c.trap()), "\n")
+ }
+ 
++// May run during STW, so write barriers are not allowed.
++//go:nowritebarrier
+ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	_g_ := getg()
+ 	c := &sigctxt{info, ctxt}
+@@ -111,7 +113,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	}
+ 
+ 	_g_.m.throwing = 1
+-	_g_.m.caughtsig = gp
++	setGNoWriteBarrier(&_g_.m.caughtsig, gp)
+ 	startpanic()
+ 
+ 	if sig < uint32(len(sigtable)) {

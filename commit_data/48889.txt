@@ -19,6 +19,20 @@ Date:   Tue Jun 22 21:24:57 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/lookup_windows_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/lookup_windows_test.go b/src/net/lookup_windows_test.go
+index 62b61ed6c2..aa95501d02 100644
+--- a/src/net/lookup_windows_test.go
++++ b/src/net/lookup_windows_test.go
+@@ -299,7 +299,7 @@ func lookupPTR(name string) (ptr []string, err error) {
+ 	ptr = make([]string, 0, 10)
+ 	rx := regexp.MustCompile(`(?m)^Pinging\s+([a-zA-Z0-9.\-]+)\s+\[.*$`)
+ 	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
+-		ptr = append(ptr, ans[1]+".")
++		ptr = append(ptr, absDomainName([]byte(ans[1])))
+ 	}
+ 	return
+ }

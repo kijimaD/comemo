@@ -10,6 +10,35 @@ Date:   Wed May 7 18:48:14 2014 +0400
     R=golang-codereviews, iant
     CC=golang-codereviews, rsc
     https://golang.org/cl/96060043
-
+---
  src/pkg/runtime/cpuprof.goc | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/cpuprof.goc b/src/pkg/runtime/cpuprof.goc
+index 9653e4a68d..faaea29435 100644
+--- a/src/pkg/runtime/cpuprof.goc
++++ b/src/pkg/runtime/cpuprof.goc
+@@ -81,7 +81,6 @@ struct Profile {
+ 	uintptr count;		// tick count
+ 	uintptr evicts;		// eviction count
+ 	uintptr lost;		// lost ticks that need to be logged
+-	uintptr totallost;	// total lost ticks
+ 
+ 	// Active recent stack traces.
+ 	Bucket hash[HashSize];
+@@ -244,7 +243,6 @@ add(Profile *p, uintptr *pc, int32 n)
+ 		if(!evict(p, e)) {
+ 			// Could not evict entry.  Record lost stack.
+ 			p->lost++;
+-			p->totallost++;
+ 			return;
+ 		}
+ 		p->evicts++;
+@@ -308,6 +306,7 @@ flushlog(Profile *p)
+ 		*q++ = p->lost;
+ 		*q++ = 1;
+ 		*q++ = (uintptr)LostProfileData;
++		p->lost = 0;
+ 	}
+ 	p->nlog = q - log;
+ 	return true;

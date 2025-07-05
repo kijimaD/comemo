@@ -13,7 +13,192 @@ Date:   Sat Nov 16 16:49:00 2024 -0500
     Auto-Submit: Russ Cox <rsc@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/fsys/fsys.go      | 129 +++++++++++++++++++---------------
  src/cmd/go/internal/fsys/fsys_test.go |   6 +-
  2 files changed, 73 insertions(+), 62 deletions(-)
+
+diff --git a/src/cmd/go/internal/fsys/fsys.go b/src/cmd/go/internal/fsys/fsys.go
+index e18ada0382..261a1d9f6b 100644
+--- a/src/cmd/go/internal/fsys/fsys.go
++++ b/src/cmd/go/internal/fsys/fsys.go
+@@ -88,6 +88,11 @@ type overlayJSON struct {
+ 	Replace map[string]string
+ }
+ 
++type replace struct {
++	from string
++	to   string
++}
++
+ type node struct {
+ 	actual   string           // empty if a directory
+ 	children map[string]*node // path element → file or directory
+@@ -230,78 +235,69 @@ func initFromJSON(js []byte) error {
+ 		return fmt.Errorf("parsing overlay JSON: %v", err)
+ 	}
+ 
+-	// Canonicalize the paths in the overlay map.
+-	// Use reverseCanonicalized to check for collisions:
+-	// no two 'from' paths should abs to the same path.
+-	overlay = make(map[string]*node)
+-	reverseCanonicalized := make(map[string]string) // inverse of abs operation, to check for duplicates
+-	// Build a table of file and directory nodes from the replacement map.
+-
++	seen := make(map[string]string)
++	var list []replace
+ 	for _, from := range slices.Sorted(maps.Keys(ojs.Replace)) {
+-		to := ojs.Replace[from]
+-		// Canonicalize paths and check for a collision.
+ 		if from == "" {
+ 			return fmt.Errorf("empty string key in overlay map")
+ 		}
+-		cfrom := abs(from)
+-		to = abs(to)
+-		if otherFrom, seen := reverseCanonicalized[cfrom]; seen {
+-			return fmt.Errorf(
+-				"duplicate paths %s and %s in overlay map", otherFrom, from)
++		afrom := abs(from)
++		if old, ok := seen[afrom]; ok {
++			return fmt.Errorf("duplicate paths %s and %s in overlay map", old, from)
++		}
++		seen[afrom] = from
++		list = append(list, replace{from: afrom, to: ojs.Replace[from]})
++	}
++
++	slices.SortFunc(list, func(x, y replace) int { return cmp(x.from, y.from) })
++
++	for i, r := range list {
++		if r.to == "" { // deleted
++			continue
+ 		}
+-		reverseCanonicalized[cfrom] = from
+-		from = cfrom
+-
+-		// Create node for overlaid file.
+-		dir, base := filepath.Dir(from), filepath.Base(from)
+-		if n, ok := overlay[from]; ok {
+-			// All 'from' paths in the overlay are file paths. Since the from paths
+-			// are in a map, they are unique, so if the node already exists we added
+-			// it below when we create parent directory nodes. That is, that
+-			// both a file and a path to one of its parent directories exist as keys
+-			// in the Replace map.
+-			//
+-			// This only applies if the overlay directory has any files or directories
+-			// in it: placeholder directories that only contain deleted files don't
+-			// count. They are safe to be overwritten with actual files.
+-			for fname, f := range n.children {
+-				if !f.isDeleted() {
+-					return fmt.Errorf("inconsistent files %s and %s in overlay map", filepath.Join(from, fname), from)
+-				}
++		// have file for r.from; look for child file implying r.from is a directory
++		prefix := r.from + string(filepath.Separator)
++		for _, next := range list[i+1:] {
++			if !strings.HasPrefix(next.from, prefix) {
++				break
++			}
++			if next.to != "" {
++				// found child file
++				return fmt.Errorf("inconsistent files %s and %s in overlay map", r.from, next.from)
+ 			}
+ 		}
+-		overlay[from] = &node{actual: to}
++	}
++
++	overlay = make(map[string]*node)
++	for _, r := range list {
++		n := &node{actual: abs(r.to)}
++		from := r.from
++		overlay[from] = n
+ 
+-		// Add parent directory nodes to overlay structure.
+-		childNode := overlay[from]
+ 		for {
+-			dirNode := overlay[dir]
+-			if dirNode == nil || dirNode.isDeleted() {
+-				dirNode = &node{children: make(map[string]*node)}
+-				overlay[dir] = dirNode
++			dir, base := filepath.Dir(from), filepath.Base(from)
++			if dir == from {
++				break
+ 			}
+-			if childNode.isDeleted() {
+-				// Only create one parent for a deleted file:
+-				// the directory only conditionally exists if
+-				// there are any non-deleted children, so
+-				// we don't create their parents.
+-				if dirNode.isDir() {
+-					dirNode.children[base] = childNode
+-				}
++			dn := overlay[dir]
++			if dn == nil || dn.isDeleted() {
++				dn = &node{children: make(map[string]*node)}
++				overlay[dir] = dn
++			}
++			if n.isDeleted() && !dn.isDir() {
+ 				break
+ 			}
+-			if !dirNode.isDir() {
+-				// This path already exists as a file, so it can't be a parent
+-				// directory. See comment at error above.
+-				return fmt.Errorf("inconsistent files %s and %s in overlay map", dir, from)
++			if !dn.isDir() {
++				panic("fsys inconsistency")
+ 			}
+-			dirNode.children[base] = childNode
+-			parent := filepath.Dir(dir)
+-			if parent == dir {
+-				break // reached the top; there is no parent
++			dn.children[base] = n
++			if n.isDeleted() {
++				// Deletion is recorded now.
++				// Don't need to create entire parent chain,
++				// because we don't need to force parents to exist.
++				break
+ 			}
+-			dir, base = parent, filepath.Base(dir)
+-			childNode = dirNode
++			from, n = dir, dn
+ 		}
+ 	}
+ 
+@@ -591,3 +587,20 @@ func (f fakeDir) Sys() any           { return nil }
+ func (f fakeDir) String() string {
+ 	return fs.FormatFileInfo(f)
+ }
++
++func cmp(x, y string) int {
++	for i := 0; i < len(x) && i < len(y); i++ {
++		xi := int(x[i])
++		yi := int(y[i])
++		if xi == filepath.Separator {
++			xi = -1
++		}
++		if yi == filepath.Separator {
++			yi = -1
++		}
++		if xi != yi {
++			return xi - yi
++		}
++	}
++	return len(x) - len(y)
++}
+diff --git a/src/cmd/go/internal/fsys/fsys_test.go b/src/cmd/go/internal/fsys/fsys_test.go
+index 3f135470c7..7fbe3f1842 100644
+--- a/src/cmd/go/internal/fsys/fsys_test.go
++++ b/src/cmd/go/internal/fsys/fsys_test.go
+@@ -1146,12 +1146,10 @@ var badOverlayTests = []struct {
+ 	{`{"Replace": {"/tmp/x": "y", "x": "y"}}`,
+ 		`duplicate paths /tmp/x and x in overlay map`},
+ 	{`{"Replace": {"/tmp/x/z": "z", "x":"y"}}`,
+-		`inconsistent files /tmp/x/z and /tmp/x in overlay map`},
++		`inconsistent files /tmp/x and /tmp/x/z in overlay map`},
+ 	{`{"Replace": {"/tmp/x/z/z2": "z", "x":"y"}}`,
+-		// TODO: Error should say /tmp/x/z/z2
+-		`inconsistent files /tmp/x/z and /tmp/x in overlay map`},
++		`inconsistent files /tmp/x and /tmp/x/z/z2 in overlay map`},
+ 	{`{"Replace": {"/tmp/x": "y", "x/z/z2": "z"}}`,
+-		// TODO: Error should say /tmp/x/z/z2
+ 		`inconsistent files /tmp/x and /tmp/x/z/z2 in overlay map`},
+ }
+ 

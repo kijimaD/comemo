@@ -16,7 +16,7 @@ Date:   Tue Aug 12 17:41:03 2014 -0400
     R=r, josharian
     CC=golang-codereviews
     https://golang.org/cl/124940043
-
+---
  src/cmd/go/pkg.go                                 |   5 +-
  src/cmd/go/test.bash                              |  36 +++++
  src/cmd/go/testdata/importcom/bad.go              |   3 +
@@ -31,3 +31,353 @@ Date:   Tue Aug 12 17:41:03 2014 -0400
  src/cmd/go/testdata/importcom/wrongplace.go       |   3 +
  src/pkg/go/build/build.go                         | 161 ++++++++++++++++++++--
  13 files changed, 206 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index be691a6bc9..eb8c451783 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -261,11 +261,14 @@ func loadImport(path string, srcDir string, stk *importStack, importPos []token.
+ 	//
+ 	// TODO: After Go 1, decide when to pass build.AllowBinary here.
+ 	// See issue 3268 for mistakes to avoid.
+-	bp, err := buildContext.Import(path, srcDir, 0)
++	bp, err := buildContext.Import(path, srcDir, build.ImportComment)
+ 	bp.ImportPath = importPath
+ 	if gobin != "" {
+ 		bp.BinDir = gobin
+ 	}
++	if err == nil && !isLocal && bp.ImportComment != "" && bp.ImportComment != path {
++		err = fmt.Errorf("directory %s contains package %q", bp.Dir, bp.ImportComment)
++	}
+ 	p.load(stk, bp, err)
+ 	if p.Error != nil && len(importPos) > 0 {
+ 		pos := importPos[0]
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index 411ef1863f..93a7c67c18 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -121,6 +121,42 @@ if ! ./testgo build -v ./testdata/testinternal2; then
+ 	ok=false
+ fi
+ 
++export GOPATH=$(pwd)/testdata/importcom
++TEST 'import comment - match'
++if ! ./testgo build ./testdata/importcom/works.go; then
++	echo 'go build ./testdata/importcom/works.go failed'
++	ok=false
++fi
++TEST 'import comment - mismatch'
++if ./testgo build ./testdata/importcom/wrongplace.go 2>testdata/err; then
++	echo 'go build ./testdata/importcom/wrongplace.go suceeded'
++	ok=false
++elif ! grep 'wrongplace contains package "my/x"' testdata/err >/dev/null; then
++	echo 'go build did not mention incorrect import:'
++	cat testdata/err
++	ok=false
++fi
++TEST 'import comment - syntax error'
++if ./testgo build ./testdata/importcom/bad.go 2>testdata/err; then
++	echo 'go build ./testdata/importcom/bad.go suceeded'
++	ok=false
++elif ! grep 'cannot parse import comment' testdata/err >/dev/null; then
++	echo 'go build did not mention syntax error:'
++	cat testdata/err
++	ok=false
++fi
++TEST 'import comment - conflict'
++if ./testgo build ./testdata/importcom/conflict.go 2>testdata/err; then
++	echo 'go build ./testdata/importcom/conflict.go suceeded'
++	ok=false
++elif ! grep 'found import comments' testdata/err >/dev/null; then
++	echo 'go build did not mention comment conflict:'
++	cat testdata/err
++	ok=false
++fi
++rm -f ./testdata/err
++unset GOPATH
++
+ TEST error message for syntax error in test go file says FAIL
+ export GOPATH=$(pwd)/testdata
+ if ./testgo test syntaxerror 2>testdata/err; then
+diff --git a/src/cmd/go/testdata/importcom/bad.go b/src/cmd/go/testdata/importcom/bad.go
+new file mode 100644
+index 0000000000..e104c2e992
+--- /dev/null
++++ b/src/cmd/go/testdata/importcom/bad.go
+@@ -0,0 +1,3 @@
++package p
++
++import "bad"
+diff --git a/src/cmd/go/testdata/importcom/conflict.go b/src/cmd/go/testdata/importcom/conflict.go
+new file mode 100644
+index 0000000000..995556c511
+--- /dev/null
++++ b/src/cmd/go/testdata/importcom/conflict.go
+@@ -0,0 +1,3 @@
++package p
++
++import "conflict"
+diff --git a/src/cmd/go/testdata/importcom/src/bad/bad.go b/src/cmd/go/testdata/importcom/src/bad/bad.go
+new file mode 100644
+index 0000000000..bc51fd3fde
+--- /dev/null
++++ b/src/cmd/go/testdata/importcom/src/bad/bad.go
+@@ -0,0 +1 @@
++package bad // import
+diff --git a/src/cmd/go/testdata/importcom/src/conflict/a.go b/src/cmd/go/testdata/importcom/src/conflict/a.go
+new file mode 100644
+index 0000000000..2d67703511
+--- /dev/null
++++ b/src/cmd/go/testdata/importcom/src/conflict/a.go
+@@ -0,0 +1 @@
++package conflict // import "a"
+diff --git a/src/cmd/go/testdata/importcom/src/conflict/b.go b/src/cmd/go/testdata/importcom/src/conflict/b.go
+new file mode 100644
+index 0000000000..8fcfb3c8bd
+--- /dev/null
++++ b/src/cmd/go/testdata/importcom/src/conflict/b.go
+@@ -0,0 +1 @@
++package conflict /* import "b" */
+diff --git a/src/cmd/go/testdata/importcom/src/works/x/x.go b/src/cmd/go/testdata/importcom/src/works/x/x.go
+new file mode 100644
+index 0000000000..044c6eca80
+--- /dev/null
++++ b/src/cmd/go/testdata/importcom/src/works/x/x.go
+@@ -0,0 +1 @@
++package x // import "works/x"
+diff --git a/src/cmd/go/testdata/importcom/src/works/x/x1.go b/src/cmd/go/testdata/importcom/src/works/x/x1.go
+new file mode 100644
+index 0000000000..2449b29df5
+--- /dev/null
++++ b/src/cmd/go/testdata/importcom/src/works/x/x1.go
+@@ -0,0 +1 @@
++package x // important! not an import comment
+diff --git a/src/cmd/go/testdata/importcom/src/wrongplace/x.go b/src/cmd/go/testdata/importcom/src/wrongplace/x.go
+new file mode 100644
+index 0000000000..b89849da78
+--- /dev/null
++++ b/src/cmd/go/testdata/importcom/src/wrongplace/x.go
+@@ -0,0 +1 @@
++package x // import "my/x"
+diff --git a/src/cmd/go/testdata/importcom/works.go b/src/cmd/go/testdata/importcom/works.go
+new file mode 100644
+index 0000000000..31b55d08a3
+--- /dev/null
++++ b/src/cmd/go/testdata/importcom/works.go
+@@ -0,0 +1,3 @@
++package p
++
++import _ "works/x"
+diff --git a/src/cmd/go/testdata/importcom/wrongplace.go b/src/cmd/go/testdata/importcom/wrongplace.go
+new file mode 100644
+index 0000000000..e2535e01ae
+--- /dev/null
++++ b/src/cmd/go/testdata/importcom/wrongplace.go
+@@ -0,0 +1,3 @@
++package p
++
++import "wrongplace"
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index 6db0275032..1a133041e8 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -23,6 +23,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"unicode"
++	"unicode/utf8"
+ )
+ 
+ // A Context specifies the supporting context for a build.
+@@ -337,22 +338,29 @@ const (
+ 	// If AllowBinary is set, Import can be satisfied by a compiled
+ 	// package object without corresponding sources.
+ 	AllowBinary
++
++	// If ImportComment is set, parse import comments on package statements.
++	// Import returns an error if it finds a comment it cannot understand
++	// or finds conflicting comments in multiple source files.
++	// See golang.org/s/go14customimport for more information.
++	ImportComment
+ )
+ 
+ // A Package describes the Go package found in a directory.
+ type Package struct {
+-	Dir         string   // directory containing package sources
+-	Name        string   // package name
+-	Doc         string   // documentation synopsis
+-	ImportPath  string   // import path of package ("" if unknown)
+-	Root        string   // root of Go tree where this package lives
+-	SrcRoot     string   // package source root directory ("" if unknown)
+-	PkgRoot     string   // package install root directory ("" if unknown)
+-	BinDir      string   // command install directory ("" if unknown)
+-	Goroot      bool     // package found in Go root
+-	PkgObj      string   // installed .a file
+-	AllTags     []string // tags that can influence file selection in this directory
+-	ConflictDir string   // this directory shadows Dir in $GOPATH
++	Dir           string   // directory containing package sources
++	Name          string   // package name
++	ImportComment string   // path in import comment on package statement
++	Doc           string   // documentation synopsis
++	ImportPath    string   // import path of package ("" if unknown)
++	Root          string   // root of Go tree where this package lives
++	SrcRoot       string   // package source root directory ("" if unknown)
++	PkgRoot       string   // package install root directory ("" if unknown)
++	BinDir        string   // command install directory ("" if unknown)
++	Goroot        bool     // package found in Go root
++	PkgObj        string   // installed .a file
++	AllTags       []string // tags that can influence file selection in this directory
++	ConflictDir   string   // this directory shadows Dir in $GOPATH
+ 
+ 	// Source files
+ 	GoFiles        []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+@@ -597,7 +605,7 @@ Found:
+ 	}
+ 
+ 	var Sfiles []string // files with ".S" (capital S)
+-	var firstFile string
++	var firstFile, firstCommentFile string
+ 	imported := make(map[string][]token.Position)
+ 	testImported := make(map[string][]token.Position)
+ 	xTestImported := make(map[string][]token.Position)
+@@ -684,6 +692,22 @@ Found:
+ 			p.Doc = doc.Synopsis(pf.Doc.Text())
+ 		}
+ 
++		if mode&ImportComment != 0 {
++			qcom, line := findImportComment(data)
++			if line != 0 {
++				com, err := strconv.Unquote(qcom)
++				if err != nil {
++					return p, fmt.Errorf("%s:%d: cannot parse import comment", filename, line)
++				}
++				if p.ImportComment == "" {
++					p.ImportComment = com
++					firstCommentFile = name
++				} else if p.ImportComment != com {
++					return p, fmt.Errorf("found import comments %q (%s) and %q (%s) in %s", p.ImportComment, firstCommentFile, com, name, p.Dir)
++				}
++			}
++		}
++
+ 		// Record imports and information about cgo.
+ 		isCgo := false
+ 		for _, decl := range pf.Decls {
+@@ -764,6 +788,117 @@ Found:
+ 	return p, pkgerr
+ }
+ 
++func findImportComment(data []byte) (s string, line int) {
++	// expect keyword package
++	word, data := parseWord(data)
++	if string(word) != "package" {
++		return "", 0
++	}
++
++	// expect package name
++	_, data = parseWord(data)
++
++	// now ready for import comment, a // or /* */ comment
++	// beginning and ending on the current line.
++	for len(data) > 0 && (data[0] == ' ' || data[0] == '\t' || data[0] == '\r') {
++		data = data[1:]
++	}
++
++	var comment []byte
++	switch {
++	case bytes.HasPrefix(data, slashSlash):
++		i := bytes.Index(data, newline)
++		if i < 0 {
++			i = len(data)
++		}
++		comment = data[2:i]
++	case bytes.HasPrefix(data, slashStar):
++		data = data[2:]
++		i := bytes.Index(data, starSlash)
++		if i < 0 {
++			// malformed comment
++			return "", 0
++		}
++		comment = data[:i]
++		if bytes.Contains(comment, newline) {
++			return "", 0
++		}
++	}
++	comment = bytes.TrimSpace(comment)
++
++	// split comment into `import`, `"pkg"`
++	word, arg := parseWord(comment)
++	if string(word) != "import" {
++		return "", 0
++	}
++
++	line = 1 + bytes.Count(data[:cap(data)-cap(arg)], newline)
++	return strings.TrimSpace(string(arg)), line
++}
++
++var (
++	slashSlash = []byte("//")
++	slashStar  = []byte("/*")
++	starSlash  = []byte("*/")
++	newline    = []byte("\n")
++)
++
++// skipSpaceOrComment returns data with any leading spaces or comments removed.
++func skipSpaceOrComment(data []byte) []byte {
++	for len(data) > 0 {
++		switch data[0] {
++		case ' ', '\t', '\r', '\n':
++			data = data[1:]
++			continue
++		case '/':
++			if bytes.HasPrefix(data, slashSlash) {
++				i := bytes.Index(data, newline)
++				if i < 0 {
++					return nil
++				}
++				data = data[i+1:]
++				continue
++			}
++			if bytes.HasPrefix(data, slashStar) {
++				data = data[2:]
++				i := bytes.Index(data, starSlash)
++				if i < 0 {
++					return nil
++				}
++				data = data[i+2:]
++				continue
++			}
++		}
++		break
++	}
++	return data
++}
++
++// parseWord skips any leading spaces or comments in data
++// and then parses the beginning of data as an identifier or keyword,
++// returning that word and what remains after the word.
++func parseWord(data []byte) (word, rest []byte) {
++	data = skipSpaceOrComment(data)
++
++	// Parse past leading word characters.
++	rest = data
++	for {
++		r, size := utf8.DecodeRune(rest)
++		if unicode.IsLetter(r) || '0' <= r && r <= '9' || r == '_' {
++			rest = rest[size:]
++			continue
++		}
++		break
++	}
++
++	word = data[:len(data)-len(rest)]
++	if len(word) == 0 {
++		return nil, nil
++	}
++
++	return word, rest
++}
++
+ // MatchFile reports whether the file with the given name in the given directory
+ // matches the context and would be included in a Package created by ImportDir
+ // of that directory.

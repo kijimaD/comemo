@@ -16,6 +16,19 @@ Date:   Fri Sep 2 14:28:11 2022 +0200
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/signal_windows_test.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/signal_windows_test.go b/src/runtime/signal_windows_test.go
+index add23cd292..731f22da61 100644
+--- a/src/runtime/signal_windows_test.go
++++ b/src/runtime/signal_windows_test.go
+@@ -1,4 +1,6 @@
+-//go:build windows
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
+ 
+ package runtime_test
+ 

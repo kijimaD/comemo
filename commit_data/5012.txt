@@ -9,7 +9,7 @@ Date:   Mon Mar 8 14:19:28 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/310041
-
+---
  src/cmd/5g/ggen.c        | 56 +++++++++++++++++++++---------------------------
  src/cmd/6g/ggen.c        | 56 +++++++++++++++++++++---------------------------
  src/cmd/8g/gg.h          |  2 ++
@@ -18,3 +18,416 @@ Date:   Mon Mar 8 14:19:28 2010 -0800
  src/cmd/gc/walk.c        |  6 ++++++
  test/fixedbugs/bug261.go | 23 ++++++++++++++++++++
  7 files changed, 105 insertions(+), 96 deletions(-)
+
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 758e140dce..e2313d85b6 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -810,9 +810,9 @@ int
+ cgen_inline(Node *n, Node *res)
+ {
+ 	Node nodes[5];
+-	Node n1, n2, n3, nres, nnode0, ntemp;
++	Node n1, n2, n3, nres, ntemp;
+ 	vlong v;
+-	int i, narg, bad;
++	int i, narg;
+ 
+ 	if(n->op != OCALLFUNC)
+ 		goto no;
+@@ -926,47 +926,39 @@ slicearray:
+ 	return 1;
+ 
+ sliceslice:
+-	getargs(n->list, nodes, narg);
+-
+-	nres = *res;		// result
+-	nnode0 = nodes[0];	// input slice
+-	if(!sleasy(res) || !sleasy(&nodes[0])) {
+-		bad = 0;
+-		if(res->ullman >= UINF)
+-			bad = 1;
+-		for(i=0; i<narg; i++) {
+-			if(nodes[i].ullman >= UINF)
+-				bad = 1;
+-			if(nodes[i].op == OREGISTER)
+-				regfree(&nodes[i]);
+-		}
+-
+-		if(bad)
+-			goto no;
+-
++	ntemp.op = OXXX;
++	if(!sleasy(n->list->n->right)) {
++		Node *n0;
++		
++		n0 = n->list->n->right;
+ 		tempname(&ntemp, res->type);
+-		if(!sleasy(&nodes[0])) {
+-			cgen(&nodes[0], &ntemp);
+-			nnode0 = ntemp;
+-		}
++		cgen(n0, &ntemp);
++		n->list->n->right = &ntemp;
++		getargs(n->list, nodes, narg);
++		n->list->n->right = n0;
++	} else
+ 		getargs(n->list, nodes, narg);
+-		if(!sleasy(res))
+-			nres = ntemp;
++
++	nres = *res;		// result
++	if(!sleasy(res)) {
++		if(ntemp.op == OXXX)
++			tempname(&ntemp, res->type);
++		nres = ntemp;
+ 	}
+-	
++
+ 	if(narg == 3) {	// old[lb:]
+ 		// move width to where it would be for old[lb:hb]
+ 		nodes[3] = nodes[2];
+ 		nodes[2].op = OXXX;
+ 		
+ 		// if(lb[1] > old.nel[0]) goto throw;
+-		n2 = nnode0;
++		n2 = nodes[0];
+ 		n2.xoffset += Array_nel;
+ 		n2.type = types[TUINT32];
+ 		cmpandthrow(&nodes[1], &n2);
+ 
+ 		// ret.nel = old.nel[0]-lb[1];
+-		n2 = nnode0;
++		n2 = nodes[0];
+ 		n2.type = types[TUINT32];
+ 		n2.xoffset += Array_nel;
+ 	
+@@ -982,7 +974,7 @@ sliceslice:
+ 		regfree(&n1);
+ 	} else {	// old[lb:hb]
+ 		// if(hb[2] > old.cap[0]) goto throw;
+-		n2 = nnode0;
++		n2 = nodes[0];
+ 		n2.xoffset += Array_cap;
+ 		n2.type = types[TUINT32];
+ 		cmpandthrow(&nodes[2], &n2);
+@@ -1011,7 +1003,7 @@ sliceslice:
+ 	}
+ 
+ 	// ret.cap = old.cap[0]-lb[1]; (uses hb[2])
+-	n2 = nnode0;
++	n2 = nodes[0];
+ 	n2.type = types[TUINT32];
+ 	n2.xoffset += Array_cap;
+ 
+@@ -1027,7 +1019,7 @@ sliceslice:
+ 	regfree(&n1);
+ 
+ 	// ret.array = old.array[0]+lb[1]*width[3]; (uses lb[1])
+-	n2 = nnode0;
++	n2 = nodes[0];
+ 	n2.type = types[tptr];
+ 	n2.xoffset += Array_array;
+ 	regalloc(&n3, types[tptr], N);
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 45fd17b27e..99a4aea045 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -1138,9 +1138,9 @@ int
+ cgen_inline(Node *n, Node *res)
+ {
+ 	Node nodes[5];
+-	Node n1, n2, nres, nnode0, ntemp;
++	Node n1, n2, nres, ntemp;
+ 	vlong v;
+-	int i, narg, bad;
++	int i, narg;
+ 
+ 	if(n->op != OCALLFUNC)
+ 		goto no;
+@@ -1245,46 +1245,38 @@ slicearray:
+ 	return 1;
+ 
+ sliceslice:
+-	getargs(n->list, nodes, narg);
+-
+-	nres = *res;		// result
+-	nnode0 = nodes[0];	// input slice
+-	if(!sleasy(res) || !sleasy(&nodes[0])) {
+-		bad = 0;
+-		if(res->ullman >= UINF)
+-			bad = 1;
+-		for(i=0; i<narg; i++) {
+-			if(nodes[i].ullman >= UINF)
+-				bad = 1;
+-			if(nodes[i].op == OREGISTER)
+-				regfree(&nodes[i]);
+-		}
+-
+-		if(bad)
+-			goto no;
+-
++	ntemp.op = OXXX;
++	if(!sleasy(n->list->n->right)) {
++		Node *n0;
++		
++		n0 = n->list->n->right;
+ 		tempname(&ntemp, res->type);
+-		if(!sleasy(&nodes[0])) {
+-			cgen(&nodes[0], &ntemp);
+-			nnode0 = ntemp;
+-		}
++		cgen(n0, &ntemp);
++		n->list->n->right = &ntemp;
++		getargs(n->list, nodes, narg);
++		n->list->n->right = n0;
++	} else
+ 		getargs(n->list, nodes, narg);
+-		if(!sleasy(res))
+-			nres = ntemp;
++
++	nres = *res;		// result
++	if(!sleasy(res)) {
++		if(ntemp.op == OXXX)
++			tempname(&ntemp, res->type);
++		nres = ntemp;
+ 	}
+-	
++
+ 	if(narg == 3) {	// old[lb:]
+ 		// move width to where it would be for old[lb:hb]
+ 		nodes[3] = nodes[2];
+ 		nodes[2].op = OXXX;
+ 		
+ 		// if(lb[1] > old.nel[0]) goto throw;
+-		n2 = nnode0;
++		n2 = nodes[0];
+ 		n2.xoffset += Array_nel;
+ 		cmpandthrow(&nodes[1], &n2);
+ 
+ 		// ret.nel = old.nel[0]-lb[1];
+-		n2 = nnode0;
++		n2 = nodes[0];
+ 		n2.xoffset += Array_nel;
+ 	
+ 		regalloc(&n1, types[TUINT32], N);
+@@ -1298,7 +1290,7 @@ sliceslice:
+ 		regfree(&n1);
+ 	} else {	// old[lb:hb]
+ 		// if(hb[2] > old.cap[0]) goto throw;
+-		n2 = nnode0;
++		n2 = nodes[0];
+ 		n2.xoffset += Array_cap;
+ 		cmpandthrow(&nodes[2], &n2);
+ 
+@@ -1325,7 +1317,7 @@ sliceslice:
+ 	}
+ 
+ 	// ret.cap = old.cap[0]-lb[1]; (uses hb[2])
+-	n2 = nnode0;
++	n2 = nodes[0];
+ 	n2.xoffset += Array_cap;
+ 
+ 	regalloc(&n1, types[TUINT32], &nodes[2]);
+@@ -1339,7 +1331,7 @@ sliceslice:
+ 	regfree(&n1);
+ 
+ 	// ret.array = old.array[0]+lb[1]*width[3]; (uses lb[1])
+-	n2 = nnode0;
++	n2 = nodes[0];
+ 	n2.xoffset += Array_array;
+ 
+ 	regalloc(&n1, types[tptr], &nodes[1]);
+diff --git a/src/cmd/8g/gg.h b/src/cmd/8g/gg.h
+index c8d4ad6132..81c2658213 100644
+--- a/src/cmd/8g/gg.h
++++ b/src/cmd/8g/gg.h
+@@ -109,6 +109,8 @@ void	naddr(Node*, Addr*, int);
+ void	cgen_aret(Node*, Node*);
+ int	cgen_inline(Node*, Node*);
+ Node*	ncon(uint32);
++void	mgen(Node*, Node*, Node*);
++void	mfree(Node*);
+ 
+ /*
+  * cgen64.c
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index f6fa7da0b0..23177c2408 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -843,9 +843,9 @@ int
+ cgen_inline(Node *n, Node *res)
+ {
+ 	Node nodes[5];
+-	Node n1, n2, nres, nnode0, ntemp;
++	Node n1, n2, nres, ntemp;
+ 	vlong v;
+-	int i, narg, bad;
++	int i, narg;
+ 
+ 	if(n->op != OCALLFUNC)
+ 		goto no;
+@@ -950,47 +950,38 @@ slicearray:
+ 	return 1;
+ 
+ sliceslice:
+-	getargs(n->list, nodes, narg);
+-
+-	nres = *res;		// result
+-	nnode0 = nodes[0];	// input slice
+ 	ntemp.op = OXXX;
+-	if(!sleasy(res) || !sleasy(&nodes[0])) {
+-		bad = 0;
+-		if(res->ullman >= UINF)
+-			bad = 1;
+-		for(i=0; i<narg; i++) {
+-			if(nodes[i].ullman >= UINF)
+-				bad = 1;
+-			if(nodes[i].op == OREGISTER)
+-				regfree(&nodes[i]);
+-		}
+-
+-		if(bad)
+-			goto no;
+-
++	if(!sleasy(n->list->n->right)) {
++		Node *n0;
++		
++		n0 = n->list->n->right;
+ 		tempname(&ntemp, res->type);
+-		if(!sleasy(&nodes[0])) {
+-			cgen(&nodes[0], &ntemp);
+-			nnode0 = ntemp;
+-		}
++		cgen(n0, &ntemp);
++		n->list->n->right = &ntemp;
++		getargs(n->list, nodes, narg);
++		n->list->n->right = n0;
++	} else
+ 		getargs(n->list, nodes, narg);
+-		if(!sleasy(res))
+-			nres = ntemp;
++
++	nres = *res;		// result
++	if(!sleasy(res)) {
++		if(ntemp.op == OXXX)
++			tempname(&ntemp, res->type);
++		nres = ntemp;
+ 	}
+-	
++
+ 	if(narg == 3) {	// old[lb:]
+ 		// move width to where it would be for old[lb:hb]
+ 		nodes[3] = nodes[2];
+ 		nodes[2].op = OXXX;
+ 		
+ 		// if(lb[1] > old.nel[0]) goto throw;
+-		n2 = nnode0;
++		n2 = nodes[0];
+ 		n2.xoffset += Array_nel;
+ 		cmpandthrow(&nodes[1], &n2);
+ 
+ 		// ret.nel = old.nel[0]-lb[1];
+-		n2 = nnode0;
++		n2 = nodes[0];
+ 		n2.xoffset += Array_nel;
+ 	
+ 		regalloc(&n1, types[TUINT32], N);
+@@ -1004,7 +995,7 @@ sliceslice:
+ 		regfree(&n1);
+ 	} else {	// old[lb:hb]
+ 		// if(hb[2] > old.cap[0]) goto throw;
+-		n2 = nnode0;
++		n2 = nodes[0];
+ 		n2.xoffset += Array_cap;
+ 		cmpandthrow(&nodes[2], &n2);
+ 
+@@ -1031,7 +1022,7 @@ sliceslice:
+ 	}
+ 
+ 	// ret.cap = old.cap[0]-lb[1]; (uses hb[2])
+-	n2 = nnode0;
++	n2 = nodes[0];
+ 	n2.xoffset += Array_cap;
+ 
+ 	regalloc(&n1, types[TUINT32], &nodes[2]);
+@@ -1045,7 +1036,7 @@ sliceslice:
+ 	regfree(&n1);
+ 
+ 	// ret.array = old.array[0]+lb[1]*width[3]; (uses lb[1])
+-	n2 = nnode0;
++	n2 = nodes[0];
+ 	n2.xoffset += Array_array;
+ 
+ 	regalloc(&n1, types[tptr], &nodes[1]);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 2cfca1985c..eaf673f749 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2476,6 +2476,9 @@ safeexpr(Node *n, NodeList **init)
+ 	Node *r;
+ 	Node *a;
+ 
++	if(n == N)
++		return N;
++
+ 	switch(n->op) {
+ 	case ONAME:
+ 	case OLITERAL:
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index fded073a37..ab4f946bdf 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -900,8 +900,11 @@ walkexpr(Node **np, NodeList **init)
+ 
+ 	case OSLICE:
+ 		walkexpr(&n->left, init);
++		n->left = safeexpr(n->left, init);
+ 		walkexpr(&n->right->left, init);
++		n->right->left = safeexpr(n->right->left, init);
+ 		walkexpr(&n->right->right, init);
++		n->right->right = safeexpr(n->right->right, init);
+ 		// dynamic slice
+ 		// sliceslice(old []any, lb int, hb int, width int) (ary []any)
+ 		// sliceslice1(old []any, lb int, width int) (ary []any)
+@@ -928,8 +931,11 @@ walkexpr(Node **np, NodeList **init)
+ 
+ 	case OSLICEARR:
+ 		walkexpr(&n->left, init);
++		n->left = safeexpr(n->left, init);
+ 		walkexpr(&n->right->left, init);
++		n->right->left = safeexpr(n->right->left, init);
+ 		walkexpr(&n->right->right, init);
++		n->right->right = safeexpr(n->right->right, init);
+ 		// static slice
+ 		// slicearray(old *any, nel int, lb int, hb int, width int) (ary []any)
+ 		t = n->type;
+diff --git a/test/fixedbugs/bug261.go b/test/fixedbugs/bug261.go
+new file mode 100644
+index 0000000000..8c3fda1e71
+--- /dev/null
++++ b/test/fixedbugs/bug261.go
+@@ -0,0 +1,23 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var n int
++
++func f() int {
++	n++
++	return n
++}
++
++func main() {
++	x := []int{0,1,2,3,4,5,6,7,8,9,10}
++	n = 5
++	y := x[f():f()]
++	if len(y) != 1 || y[0] != 6 {
++		println("BUG bug261", len(y), y[0])
++	}
++}

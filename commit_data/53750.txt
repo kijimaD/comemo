@@ -15,6 +15,26 @@ Date:   Sat Aug 13 12:53:37 2022 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/syscall/mkall.sh | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/syscall/mkall.sh b/src/syscall/mkall.sh
+index dccb3851de..2ee500a8d1 100755
+--- a/src/syscall/mkall.sh
++++ b/src/syscall/mkall.sh
+@@ -88,11 +88,12 @@ run="sh"
+ 
+ case "$1" in
+ -syscalls)
+-	for i in zsyscall*go
++	shift
++	for i in ${@:-zsyscall*go}
+ 	do
+ 		# Run the command line that appears in the first line
+ 		# of the generated file to regenerate it.
+-		sed 1q $i | sed 's;^// ;;' | sh > _$i && gofmt < _$i > $i
++		sed 1q $i | sed 's;^// ;./;' | sh > _$i && gofmt < _$i > $i
+ 		rm _$i
+ 	done
+ 	exit 0

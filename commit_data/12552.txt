@@ -7,7 +7,32 @@ Date:   Sat Mar 10 14:48:00 2012 -0800
     R=golang-dev, wcn
     CC=golang-dev
     https://golang.org/cl/5777052
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 403ed76d46..e5ca363066 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -84,6 +84,7 @@ Google Inc.
+ Graham Miller <graham.miller@gmail.com>
+ Gustav Paul <gustav.paul@gmail.com>
+ Gustavo Niemeyer <gustavo@niemeyer.net>
++Gwenael Treguier <gwenn.kahz@gmail.com>
+ Harley Laue <losinggeneration@gmail.com>
+ Hector Chu <hectorchu@gmail.com>
+ Hong Ruiqi <hongruiqi@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 7c5ea0a33f..738426c0d3 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -127,6 +127,7 @@ Giles Lean <giles.lean@pobox.com>
+ Graham Miller <graham.miller@gmail.com>
+ Gustav Paul <gustav.paul@gmail.com>
+ Gustavo Niemeyer <gustavo@niemeyer.net> <n13m3y3r@gmail.com>
++Gwenael Treguier <gwenn.kahz@gmail.com>
+ Harley Laue <losinggeneration@gmail.com>
+ Hector Chu <hectorchu@gmail.com>
+ Hong Ruiqi <hongruiqi@gmail.com>

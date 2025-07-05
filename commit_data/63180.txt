@@ -13,9 +13,404 @@ Date:   Tue May 20 17:34:57 2025 +0200
     Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  api/next/63963.txt                               |   4 +
  doc/next/6-stdlib/99-minor/crypto/ecdsa/63963.md |   3 +
  src/crypto/ecdsa/ecdsa.go                        | 174 +++++++++++++++++++++++
  src/crypto/ecdsa/ecdsa_test.go                   | 155 ++++++++++++++++++++
  4 files changed, 336 insertions(+)
+
+diff --git a/api/next/63963.txt b/api/next/63963.txt
+new file mode 100644
+index 0000000000..f64f214c10
+--- /dev/null
++++ b/api/next/63963.txt
+@@ -0,0 +1,4 @@
++pkg crypto/ecdsa, func ParseRawPrivateKey(elliptic.Curve, []uint8) (*PrivateKey, error) #63963
++pkg crypto/ecdsa, func ParseUncompressedPublicKey(elliptic.Curve, []uint8) (*PublicKey, error) #63963
++pkg crypto/ecdsa, method (*PrivateKey) Bytes() ([]uint8, error) #63963
++pkg crypto/ecdsa, method (*PublicKey) Bytes() ([]uint8, error) #63963
+diff --git a/doc/next/6-stdlib/99-minor/crypto/ecdsa/63963.md b/doc/next/6-stdlib/99-minor/crypto/ecdsa/63963.md
+new file mode 100644
+index 0000000000..5c329c7d51
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/crypto/ecdsa/63963.md
+@@ -0,0 +1,3 @@
++The new [ParseRawPrivateKey], [ParseUncompressedPublicKey], [PrivateKey.Bytes],
++and [PublicKey.Bytes] functions and methods implement low-level encodings,
++replacing the need to use crypto/elliptic or math/big functions and methods.
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index 5e670c5081..9affc1ff78 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -23,6 +23,7 @@ import (
+ 	"crypto/internal/boring"
+ 	"crypto/internal/boring/bbig"
+ 	"crypto/internal/fips140/ecdsa"
++	"crypto/internal/fips140/nistec"
+ 	"crypto/internal/fips140cache"
+ 	"crypto/internal/fips140hash"
+ 	"crypto/internal/fips140only"
+@@ -40,6 +41,18 @@ import (
+ // PublicKey represents an ECDSA public key.
+ type PublicKey struct {
+ 	elliptic.Curve
++
++	// X, Y are the coordinates of the public key point.
++	//
++	// Modifying the raw coordinates can produce invalid keys, and may
++	// invalidate internal optimizations; moreover, [big.Int] methods are not
++	// suitable for operating on cryptographic values. To encode and decode
++	// PublicKey values, use [PublicKey.Bytes] and [ParseUncompressedPublicKey]
++	// or [x509.MarshalPKIXPublicKey] and [x509.ParsePKIXPublicKey]. For ECDH,
++	// use [crypto/ecdh]. For lower-level elliptic curve operations, use a
++	// third-party module like filippo.io/nistec.
++	//
++	// These fields will be deprecated in Go 1.26.
+ 	X, Y *big.Int
+ }
+ 
+@@ -78,9 +91,94 @@ func (pub *PublicKey) Equal(x crypto.PublicKey) bool {
+ 		pub.Curve == xx.Curve
+ }
+ 
++// ParseUncompressedPublicKey parses a public key encoded as an uncompressed
++// point according to SEC 1, Version 2.0, Section 2.3.3 (also known as the X9.62
++// uncompressed format). It returns an error if the point is not in uncompressed
++// form, is not on the curve, or is the point at infinity.
++//
++// curve must be one of [elliptic.P224], [elliptic.P256], [elliptic.P384], or
++// [elliptic.P521], or ParseUncompressedPublicKey returns an error.
++//
++// ParseUncompressedPublicKey accepts the same format as
++// [ecdh.Curve.NewPublicKey] does for NIST curves, but returns a [PublicKey]
++// instead of an [ecdh.PublicKey].
++//
++// Note that public keys are more commonly encoded in DER (or PEM) format, which
++// can be parsed with [x509.ParsePKIXPublicKey] (and [encoding/pem]).
++func ParseUncompressedPublicKey(curve elliptic.Curve, data []byte) (*PublicKey, error) {
++	if len(data) < 1 || data[0] != 4 {
++		return nil, errors.New("ecdsa: invalid uncompressed public key")
++	}
++	switch curve {
++	case elliptic.P224():
++		return parseUncompressedPublicKey(ecdsa.P224(), curve, data)
++	case elliptic.P256():
++		return parseUncompressedPublicKey(ecdsa.P256(), curve, data)
++	case elliptic.P384():
++		return parseUncompressedPublicKey(ecdsa.P384(), curve, data)
++	case elliptic.P521():
++		return parseUncompressedPublicKey(ecdsa.P521(), curve, data)
++	default:
++		return nil, errors.New("ecdsa: curve not supported by ParseUncompressedPublicKey")
++	}
++}
++
++func parseUncompressedPublicKey[P ecdsa.Point[P]](c *ecdsa.Curve[P], curve elliptic.Curve, data []byte) (*PublicKey, error) {
++	k, err := ecdsa.NewPublicKey(c, data)
++	if err != nil {
++		return nil, err
++	}
++	return publicKeyFromFIPS(curve, k)
++}
++
++// Bytes encodes the public key as an uncompressed point according to SEC 1,
++// Version 2.0, Section 2.3.3 (also known as the X9.62 uncompressed format).
++// It returns an error if the public key is invalid.
++//
++// PublicKey.Curve must be one of [elliptic.P224], [elliptic.P256],
++// [elliptic.P384], or [elliptic.P521], or Bytes returns an error.
++//
++// Bytes returns the same format as [ecdh.PublicKey.Bytes] does for NIST curves.
++//
++// Note that public keys are more commonly encoded in DER (or PEM) format, which
++// can be generated with [x509.MarshalPKIXPublicKey] (and [encoding/pem]).
++func (pub *PublicKey) Bytes() ([]byte, error) {
++	switch pub.Curve {
++	case elliptic.P224():
++		return publicKeyBytes(ecdsa.P224(), pub)
++	case elliptic.P256():
++		return publicKeyBytes(ecdsa.P256(), pub)
++	case elliptic.P384():
++		return publicKeyBytes(ecdsa.P384(), pub)
++	case elliptic.P521():
++		return publicKeyBytes(ecdsa.P521(), pub)
++	default:
++		return nil, errors.New("ecdsa: curve not supported by PublicKey.Bytes")
++	}
++}
++
++func publicKeyBytes[P ecdsa.Point[P]](c *ecdsa.Curve[P], pub *PublicKey) ([]byte, error) {
++	k, err := publicKeyToFIPS(c, pub)
++	if err != nil {
++		return nil, err
++	}
++	return k.Bytes(), nil
++}
++
+ // PrivateKey represents an ECDSA private key.
+ type PrivateKey struct {
+ 	PublicKey
++
++	// D is the private scalar value.
++	//
++	// Modifying the raw value can produce invalid keys, and may
++	// invalidate internal optimizations; moreover, [big.Int] methods are not
++	// suitable for operating on cryptographic values. To encode and decode
++	// PrivateKey values, use [PrivateKey.Bytes] and [ParseRawPrivateKey]
++	// or [x509.MarshalPKCS8PrivateKey] and [x509.ParsePKCS8PrivateKey].
++	// For ECDH, use [crypto/ecdh].
++	//
++	// This field will be deprecated in Go 1.26.
+ 	D *big.Int
+ }
+ 
+@@ -134,6 +232,82 @@ func bigIntEqual(a, b *big.Int) bool {
+ 	return subtle.ConstantTimeCompare(a.Bytes(), b.Bytes()) == 1
+ }
+ 
++// ParseRawPrivateKey parses a private key encoded as a fixed-length big-endian
++// integer, according to SEC 1, Version 2.0, Section 2.3.6 (sometimes referred
++// to as the raw format). It returns an error if the value is not reduced modulo
++// the curve's order, or if it's zero.
++//
++// curve must be one of [elliptic.P224], [elliptic.P256], [elliptic.P384], or
++// [elliptic.P521], or ParseRawPrivateKey returns an error.
++//
++// ParseRawPrivateKey accepts the same format as [ecdh.Curve.NewPrivateKey] does
++// for NIST curves, but returns a [PrivateKey] instead of an [ecdh.PrivateKey].
++//
++// Note that private keys are more commonly encoded in ASN.1 or PKCS#8 format,
++// which can be parsed with [x509.ParseECPrivateKey] or
++// [x509.ParsePKCS8PrivateKey] (and [encoding/pem]).
++func ParseRawPrivateKey(curve elliptic.Curve, data []byte) (*PrivateKey, error) {
++	switch curve {
++	case elliptic.P224():
++		return parseRawPrivateKey(ecdsa.P224(), nistec.NewP224Point, curve, data)
++	case elliptic.P256():
++		return parseRawPrivateKey(ecdsa.P256(), nistec.NewP256Point, curve, data)
++	case elliptic.P384():
++		return parseRawPrivateKey(ecdsa.P384(), nistec.NewP384Point, curve, data)
++	case elliptic.P521():
++		return parseRawPrivateKey(ecdsa.P521(), nistec.NewP521Point, curve, data)
++	default:
++		return nil, errors.New("ecdsa: curve not supported by ParseRawPrivateKey")
++	}
++}
++
++func parseRawPrivateKey[P ecdsa.Point[P]](c *ecdsa.Curve[P], newPoint func() P, curve elliptic.Curve, data []byte) (*PrivateKey, error) {
++	q, err := newPoint().ScalarBaseMult(data)
++	if err != nil {
++		return nil, err
++	}
++	k, err := ecdsa.NewPrivateKey(c, data, q.Bytes())
++	if err != nil {
++		return nil, err
++	}
++	return privateKeyFromFIPS(curve, k)
++}
++
++// Bytes encodes the private key as a fixed-length big-endian integer according
++// to SEC 1, Version 2.0, Section 2.3.6 (sometimes referred to as the raw
++// format). It returns an error if the private key is invalid.
++//
++// PrivateKey.Curve must be one of [elliptic.P224], [elliptic.P256],
++// [elliptic.P384], or [elliptic.P521], or Bytes returns an error.
++//
++// Bytes returns the same format as [ecdh.PrivateKey.Bytes] does for NIST curves.
++//
++// Note that private keys are more commonly encoded in ASN.1 or PKCS#8 format,
++// which can be generated with [x509.MarshalECPrivateKey] or
++// [x509.MarshalPKCS8PrivateKey] (and [encoding/pem]).
++func (priv *PrivateKey) Bytes() ([]byte, error) {
++	switch priv.Curve {
++	case elliptic.P224():
++		return privateKeyBytes(ecdsa.P224(), priv)
++	case elliptic.P256():
++		return privateKeyBytes(ecdsa.P256(), priv)
++	case elliptic.P384():
++		return privateKeyBytes(ecdsa.P384(), priv)
++	case elliptic.P521():
++		return privateKeyBytes(ecdsa.P521(), priv)
++	default:
++		return nil, errors.New("ecdsa: curve not supported by PrivateKey.Bytes")
++	}
++}
++
++func privateKeyBytes[P ecdsa.Point[P]](c *ecdsa.Curve[P], priv *PrivateKey) ([]byte, error) {
++	k, err := privateKeyToFIPS(c, priv)
++	if err != nil {
++		return nil, err
++	}
++	return k.Bytes(), nil
++}
++
+ // Sign signs a hash (which should be the result of hashing a larger message
+ // with opts.HashFunc()) using the private key, priv. If the hash is longer than
+ // the bit-length of the private key's curve order, the hash will be truncated
+diff --git a/src/crypto/ecdsa/ecdsa_test.go b/src/crypto/ecdsa/ecdsa_test.go
+index 84b127dc0f..87e74f2a0e 100644
+--- a/src/crypto/ecdsa/ecdsa_test.go
++++ b/src/crypto/ecdsa/ecdsa_test.go
+@@ -546,6 +546,161 @@ func testRFC6979(t *testing.T, curve elliptic.Curve, D, X, Y, msg, r, s string)
+ 	}
+ }
+ 
++func TestParseAndBytesRoundTrip(t *testing.T) {
++	testAllCurves(t, testParseAndBytesRoundTrip)
++}
++
++func testParseAndBytesRoundTrip(t *testing.T, curve elliptic.Curve) {
++	if strings.HasSuffix(t.Name(), "/Generic") {
++		t.Skip("these methods don't support generic curves")
++	}
++	priv, _ := GenerateKey(curve, rand.Reader)
++
++	b, err := priv.PublicKey.Bytes()
++	if err != nil {
++		t.Fatalf("failed to serialize private key's public key: %v", err)
++	}
++	if b[0] != 4 {
++		t.Fatalf("public key bytes doesn't start with 0x04 (uncompressed format)")
++	}
++	p, err := ParseUncompressedPublicKey(curve, b)
++	if err != nil {
++		t.Fatalf("failed to parse private key's public key: %v", err)
++	}
++	if !priv.PublicKey.Equal(p) {
++		t.Errorf("parsed private key's public key doesn't match original")
++	}
++
++	bk, err := priv.Bytes()
++	if err != nil {
++		t.Fatalf("failed to serialize private key: %v", err)
++	}
++	k, err := ParseRawPrivateKey(curve, bk)
++	if err != nil {
++		t.Fatalf("failed to parse private key: %v", err)
++	}
++	if !priv.Equal(k) {
++		t.Errorf("parsed private key doesn't match original")
++	}
++
++	if curve != elliptic.P224() {
++		privECDH, err := priv.ECDH()
++		if err != nil {
++			t.Fatalf("failed to convert private key to ECDH: %v", err)
++		}
++
++		pp, err := privECDH.Curve().NewPublicKey(b)
++		if err != nil {
++			t.Fatalf("failed to parse with ECDH: %v", err)
++		}
++		if !privECDH.PublicKey().Equal(pp) {
++			t.Errorf("parsed ECDH public key doesn't match original")
++		}
++		if !bytes.Equal(b, pp.Bytes()) {
++			t.Errorf("encoded ECDH public key doesn't match Bytes")
++		}
++
++		kk, err := privECDH.Curve().NewPrivateKey(bk)
++		if err != nil {
++			t.Fatalf("failed to parse with ECDH: %v", err)
++		}
++		if !privECDH.Equal(kk) {
++			t.Errorf("parsed ECDH private key doesn't match original")
++		}
++		if !bytes.Equal(bk, kk.Bytes()) {
++			t.Errorf("encoded ECDH private key doesn't match Bytes")
++		}
++	}
++}
++
++func TestInvalidPublicKeys(t *testing.T) {
++	testAllCurves(t, testInvalidPublicKeys)
++}
++
++func testInvalidPublicKeys(t *testing.T, curve elliptic.Curve) {
++	t.Run("Infinity", func(t *testing.T) {
++		k := &PublicKey{Curve: curve, X: big.NewInt(0), Y: big.NewInt(0)}
++		if _, err := k.Bytes(); err == nil {
++			t.Errorf("PublicKey.Bytes accepted infinity")
++		}
++
++		b := []byte{0}
++		if _, err := ParseUncompressedPublicKey(curve, b); err == nil {
++			t.Errorf("ParseUncompressedPublicKey accepted infinity")
++		}
++		b = make([]byte, 1+2*(curve.Params().BitSize+7)/8)
++		b[0] = 4
++		if _, err := ParseUncompressedPublicKey(curve, b); err == nil {
++			t.Errorf("ParseUncompressedPublicKey accepted infinity")
++		}
++	})
++	t.Run("NotOnCurve", func(t *testing.T) {
++		k, _ := GenerateKey(curve, rand.Reader)
++		k.X = k.X.Add(k.X, big.NewInt(1))
++		if _, err := k.Bytes(); err == nil {
++			t.Errorf("PublicKey.Bytes accepted not on curve")
++		}
++
++		b := make([]byte, 1+2*(curve.Params().BitSize+7)/8)
++		b[0] = 4
++		k.X.FillBytes(b[1 : 1+len(b)/2])
++		k.Y.FillBytes(b[1+len(b)/2:])
++		if _, err := ParseUncompressedPublicKey(curve, b); err == nil {
++			t.Errorf("ParseUncompressedPublicKey accepted not on curve")
++		}
++	})
++	t.Run("Compressed", func(t *testing.T) {
++		k, _ := GenerateKey(curve, rand.Reader)
++		b := elliptic.MarshalCompressed(curve, k.X, k.Y)
++		if _, err := ParseUncompressedPublicKey(curve, b); err == nil {
++			t.Errorf("ParseUncompressedPublicKey accepted compressed key")
++		}
++	})
++}
++
++func TestInvalidPrivateKeys(t *testing.T) {
++	testAllCurves(t, testInvalidPrivateKeys)
++}
++
++func testInvalidPrivateKeys(t *testing.T, curve elliptic.Curve) {
++	t.Run("Zero", func(t *testing.T) {
++		k := &PrivateKey{PublicKey{curve, big.NewInt(0), big.NewInt(0)}, big.NewInt(0)}
++		if _, err := k.Bytes(); err == nil {
++			t.Errorf("PrivateKey.Bytes accepted zero key")
++		}
++
++		b := make([]byte, (curve.Params().BitSize+7)/8)
++		if _, err := ParseRawPrivateKey(curve, b); err == nil {
++			t.Errorf("ParseRawPrivateKey accepted zero key")
++		}
++	})
++	t.Run("Overflow", func(t *testing.T) {
++		d := new(big.Int).Add(curve.Params().N, big.NewInt(5))
++		x, y := curve.ScalarBaseMult(d.Bytes())
++		k := &PrivateKey{PublicKey{curve, x, y}, d}
++		if _, err := k.Bytes(); err == nil {
++			t.Errorf("PrivateKey.Bytes accepted overflow key")
++		}
++
++		b := make([]byte, (curve.Params().BitSize+7)/8)
++		k.D.FillBytes(b)
++		if _, err := ParseRawPrivateKey(curve, b); err == nil {
++			t.Errorf("ParseRawPrivateKey accepted overflow key")
++		}
++	})
++	t.Run("Length", func(t *testing.T) {
++		b := []byte{1, 2, 3}
++		if _, err := ParseRawPrivateKey(curve, b); err == nil {
++			t.Errorf("ParseRawPrivateKey accepted short key")
++		}
++
++		b = append(b, make([]byte, (curve.Params().BitSize+7)/8)...)
++		if _, err := ParseRawPrivateKey(curve, b); err == nil {
++			t.Errorf("ParseRawPrivateKey accepted long key")
++		}
++	})
++}
++
+ func benchmarkAllCurves(b *testing.B, f func(*testing.B, elliptic.Curve)) {
+ 	tests := []struct {
+ 		name  string

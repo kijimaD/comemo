@@ -23,9 +23,293 @@ Date:   Thu Nov 16 14:11:18 2023 -0500
     Commit-Queue: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/modfetch/codehost/codehost.go  |  7 +-
  src/cmd/go/internal/modload/build.go               | 25 +++---
  src/cmd/go/internal/modload/query.go               | 74 ++++++++++++++++--
  src/cmd/go/testdata/script/mod_list_issue61423.txt | 89 ++++++++++++++++++++++
  4 files changed, 176 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/codehost/codehost.go b/src/cmd/go/internal/modfetch/codehost/codehost.go
+index ca57762786..6ef9d298d4 100644
+--- a/src/cmd/go/internal/modfetch/codehost/codehost.go
++++ b/src/cmd/go/internal/modfetch/codehost/codehost.go
+@@ -95,6 +95,8 @@ type Origin struct {
+ 	URL    string `json:",omitempty"` // URL of repository
+ 	Subdir string `json:",omitempty"` // subdirectory in repo
+ 
++	Hash string `json:",omitempty"` // commit hash or ID
++
+ 	// If TagSum is non-empty, then the resolution of this module version
+ 	// depends on the set of tags present in the repo, specifically the tags
+ 	// of the form TagPrefix + a valid semver version.
+@@ -111,8 +113,7 @@ type Origin struct {
+ 	// and the Hash is the Git object hash the ref maps to.
+ 	// Other VCS might choose differently, but the idea is that Ref is the name
+ 	// with a mutable meaning while Hash is a name with an immutable meaning.
+-	Ref  string `json:",omitempty"`
+-	Hash string `json:",omitempty"`
++	Ref string `json:",omitempty"`
+ 
+ 	// If RepoSum is non-empty, then the resolution of this module version
+ 	// failed due to the repo being available but the version not being present.
+@@ -124,7 +125,7 @@ type Origin struct {
+ // Checkable reports whether the Origin contains anything that can be checked.
+ // If not, the Origin is purely informational and should fail a CheckReuse call.
+ func (o *Origin) Checkable() bool {
+-	return o.TagSum != "" || o.Ref != "" || o.Hash != "" || o.RepoSum != ""
++	return o != nil && (o.TagSum != "" || o.Ref != "" || o.Hash != "" || o.RepoSum != "")
+ }
+ 
+ // ClearCheckable clears the Origin enough to make Checkable return false.
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index ff545ac81d..4244a767a7 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -214,6 +214,10 @@ func mergeOrigin(m1, m2 *codehost.Origin) *codehost.Origin {
+ // Excluded versions will be omitted. If listRetracted is false, retracted
+ // versions will also be omitted.
+ func addVersions(ctx context.Context, m *modinfo.ModulePublic, listRetracted bool) {
++	// TODO(bcmills): Would it make sense to check for reuse here too?
++	// Perhaps that doesn't buy us much, though: we would always have to fetch
++	// all of the version tags to list the available versions anyway.
++
+ 	allowed := CheckAllowed
+ 	if listRetracted {
+ 		allowed = CheckExclusions
+@@ -319,21 +323,23 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
+ 			return
+ 		}
+ 
+-		if old := reuse[module.Version{Path: m.Path, Version: m.Version}]; old != nil {
+-			if err := checkReuse(ctx, m.Path, old.Origin); err == nil {
+-				*m = *old
+-				m.Query = ""
+-				m.Dir = ""
+-				return
+-			}
+-		}
+-
+ 		checksumOk := func(suffix string) bool {
+ 			return rs == nil || m.Version == "" || !mustHaveSums() ||
+ 				modfetch.HaveSum(module.Version{Path: m.Path, Version: m.Version + suffix})
+ 		}
+ 
++		mod := module.Version{Path: m.Path, Version: m.Version}
++
+ 		if m.Version != "" {
++			if old := reuse[mod]; old != nil && old.Origin.Checkable() {
++				if err := checkReuse(ctx, mod, old.Origin); err == nil {
++					*m = *old
++					m.Query = ""
++					m.Dir = ""
++					return
++				}
++			}
++
+ 			if q, err := Query(ctx, m.Path, m.Version, "", nil); err != nil {
+ 				m.Error = &modinfo.ModuleError{Err: err.Error()}
+ 			} else {
+@@ -341,7 +347,6 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
+ 				m.Time = &q.Time
+ 			}
+ 		}
+-		mod := module.Version{Path: m.Path, Version: m.Version}
+ 
+ 		if m.GoVersion == "" && checksumOk("/go.mod") {
+ 			// Load the go.mod file to determine the Go version, since it hasn't
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 9bd9c6b9a4..21e4db87fe 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -98,18 +98,80 @@ func queryReuse(ctx context.Context, path, query, current string, allowed Allowe
+ 	return info, err
+ }
+ 
+-// checkReuse checks whether a revision of a given module or a version list
++// checkReuse checks whether a revision of a given module
+ // for a given module may be reused, according to the information in origin.
+-func checkReuse(ctx context.Context, path string, old *codehost.Origin) error {
++func checkReuse(ctx context.Context, m module.Version, old *codehost.Origin) error {
+ 	return modfetch.TryProxies(func(proxy string) error {
+-		repo, err := lookupRepo(ctx, proxy, path)
++		repo, err := lookupRepo(ctx, proxy, m.Path)
+ 		if err != nil {
+ 			return err
+ 		}
+-		return repo.CheckReuse(ctx, old)
++		return checkReuseRepo(ctx, repo, m.Path, m.Version, old)
+ 	})
+ }
+ 
++func checkReuseRepo(ctx context.Context, repo versionRepo, path, query string, origin *codehost.Origin) error {
++	if !origin.Checkable() {
++		return errors.New("Origin is not checkable")
++	}
++
++	// Ensure that the Origin actually includes enough fields to resolve the query.
++	// If we got the previous Origin data from a proxy, it may be missing something
++	// that we would have needed to resolve the query directly from the repo.
++	switch {
++	case origin.RepoSum != "":
++		// A RepoSum is always acceptable, since it incorporates everything
++		// (and is often associated with an error result).
++
++	case query == module.CanonicalVersion(query):
++		// This query refers to a specific version, and Go module versions
++		// are supposed to be cacheable and immutable (confirmed with checksums).
++		// If the version exists at all, we shouldn't need any extra information
++		// to identify which commit it resolves to.
++		//
++		// It may be associated with a Ref for a semantic-version tag, but if so
++		// we don't expect that tag to change in the future. We also don't need a
++		// TagSum: if a tag is removed from some ancestor commit, the version may
++		// change from valid to invalid, but we're ok with keeping stale versions
++		// as long as they were valid at some point in the past.
++		//
++		// If the version did not successfully resolve, the origin may indicate
++		// a TagSum and/or RepoSum instead of a Hash, in which case we still need
++		// to check those to ensure that the error is still applicable.
++
++	case IsRevisionQuery(path, query):
++		// This query may refer to a branch, non-version tag, or commit ID.
++		//
++		// If it is a commit ID, we expect to see a Hash in the Origin data. On
++		// the other hand, if it is not a commit ID, we expect to see either a Ref
++		// (for a positive result) or a RepoSum (for a negative result), since
++		// we don't expect refs in general to remain stable over time.
++		if origin.Hash == "" && origin.Ref == "" {
++			return fmt.Errorf("query %q requires a Hash or Ref", query)
++		}
++		// Once we resolve the query to a particular commit, we will need to
++		// also identify the most appropriate version to assign to that commit.
++		// (It may correspond to more than one valid version.)
++		//
++		// The most appropriate version depends on the tags associated with
++		// both the commit itself (if the commit is a tagged version)
++		// and its ancestors (if we need to produce a pseudo-version for it).
++		if origin.TagSum == "" {
++			return fmt.Errorf("query %q requires a TagSum", query)
++		}
++
++	default:
++		// The query may be "latest" or a version inequality or prefix.
++		// Its result depends on the absence of higher tags matching the query,
++		// not just the state of an individual ref or tag.
++		if origin.TagSum == "" {
++			return fmt.Errorf("query %q requires a TagSum", query)
++		}
++	}
++
++	return repo.CheckReuse(ctx, origin)
++}
++
+ // AllowedFunc is used by Query and other functions to filter out unsuitable
+ // versions, for example, those listed in exclude directives in the main
+ // module's go.mod file.
+@@ -163,8 +225,8 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
+ 		return nil, err
+ 	}
+ 
+-	if old := reuse[module.Version{Path: path, Version: query}]; old != nil {
+-		if err := repo.CheckReuse(ctx, old.Origin); err == nil {
++	if old := reuse[module.Version{Path: path, Version: query}]; old != nil && old.Origin.Checkable() {
++		if err := checkReuseRepo(ctx, repo, path, query, old.Origin); err == nil {
+ 			info := &modfetch.RevInfo{
+ 				Version: old.Version,
+ 				Origin:  old.Origin,
+diff --git a/src/cmd/go/testdata/script/mod_list_issue61423.txt b/src/cmd/go/testdata/script/mod_list_issue61423.txt
+new file mode 100644
+index 0000000000..b788d70c85
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_list_issue61423.txt
+@@ -0,0 +1,89 @@
++[short] skip 'generates a vcstest git repo'
++[!git] skip
++
++mkdir $WORK/mod1
++mkdir $WORK/mod2
++env GONOSUMDB=vcs-test.golang.org
++
++env GOPROXY=direct
++env GOMODCACHE=$WORK/mod1
++
++
++# If we query a module version from a git repo, we expect its
++# Origin data to be reusable.
++
++go list -m -json vcs-test.golang.org/git/issue61415.git@latest
++cp stdout git-latest.json
++stdout '"Version": "v0.0.0-20231114180001-f213069baa68"'
++stdout '"Origin":'
++stdout '"VCS": "git"'
++stdout '"Hash": "f213069baa68ec26412fb373c7cf6669db1f8e69"'
++stdout '"Ref": "HEAD"'
++stdout '"TagSum": "t1:47DEQpj8HBSa\+/TImW\+5JCeuQeRkm5NMpJWZG3hSuFU="'
++
++go list -reuse=git-latest.json -m -json vcs-test.golang.org/git/issue61415.git@latest
++stdout '"Version": "v0.0.0-20231114180001-f213069baa68"'
++stdout '"Origin":'
++stdout '"VCS": "git"'
++stdout '"Hash": "f213069baa68ec26412fb373c7cf6669db1f8e69"'
++stdout '"Ref": "HEAD"'
++stdout '"TagSum": "t1:47DEQpj8HBSa\+/TImW\+5JCeuQeRkm5NMpJWZG3hSuFU="'
++stdout '"Reuse": true'
++
++
++# Now we construct a filesystem-based module proxy that
++# contains only an older commit.
++
++go clean -modcache
++
++go mod download -json vcs-test.golang.org/git/issue61415.git@08a4fa6bb9c04ffba03b26ae427b0d6335d90a2a
++stdout '"Version": "v0.0.0-20231114180000-08a4fa6bb9c0"'
++stdout '"Origin":'
++stdout '"VCS": "git"'
++stdout '"Hash": "08a4fa6bb9c04ffba03b26ae427b0d6335d90a2a"'
++
++[GOOS:windows] env GOPROXY=file:///$WORK/mod1/cache/download
++[!GOOS:windows] env GOPROXY=file://$WORK/mod1/cache/download
++env GOMODCACHE=$WORK/modcache2
++
++
++# If we resolve the "latest" version query using a proxy,
++# it is only going to have Git origin information about the one
++# commit — not the other tags that would go into resolving
++# the underlying version list.
++
++go list -m -json vcs-test.golang.org/git/issue61415.git@latest
++cp stdout proxy-latest.json
++stdout '"Version": "v0.0.0-20231114180000-08a4fa6bb9c0"'
++stdout '"Origin":'
++stdout '"VCS": "git"'
++stdout '"Hash": "08a4fa6bb9c04ffba03b26ae427b0d6335d90a2a"'
++! stdout '"Ref":'
++! stdout '"TagSum":'
++
++# The -reuse flag has no effect with a proxy, since the proxy can serve
++# metadata about a given module version cheaply anyway.
++go list -reuse=proxy-latest.json -m -json vcs-test.golang.org/git/issue61415.git@latest
++stdout '"Version": "v0.0.0-20231114180000-08a4fa6bb9c0"'
++stdout '"Origin":'
++stdout '"VCS": "git"'
++stdout '"Hash": "08a4fa6bb9c04ffba03b26ae427b0d6335d90a2a"'
++! stdout '"Ref":'
++! stdout '"TagSum":'
++! stdout '"Reuse":'
++
++
++# With GOPROXY=direct, the -reuse flag has an effect, but
++# the Origin data from the proxy should not be sufficient
++# for the proxy response to be reused.
++
++env GOPROXY=direct
++
++go list -reuse=proxy-latest.json -m -json vcs-test.golang.org/git/issue61415.git@latest
++stdout '"Version": "v0.0.0-20231114180001-f213069baa68"'
++stdout '"Origin":'
++stdout '"VCS": "git"'
++stdout '"Hash": "f213069baa68ec26412fb373c7cf6669db1f8e69"'
++stdout '"Ref": "HEAD"'
++stdout '"TagSum": "t1:47DEQpj8HBSa\+/TImW\+5JCeuQeRkm5NMpJWZG3hSuFU="'
++! stdout '"Reuse":'

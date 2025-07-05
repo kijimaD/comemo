@@ -8,7 +8,37 @@ Date:   Wed Mar 7 14:10:49 2012 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5757057
-
+---
  src/pkg/go/build/Makefile   | 11 -----------
  src/pkg/go/build/syslist.go |  4 +++-
  2 files changed, 3 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/go/build/Makefile b/src/pkg/go/build/Makefile
+deleted file mode 100644
+index 3bb3912cbb..0000000000
+--- a/src/pkg/go/build/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-syslist.go: ../../../Make.inc Makefile
+-	echo '// Generated automatically by make.' >$@
+-	echo >>$@
+-	echo 'package build' >>$@
+-	echo >>$@
+-	echo 'const goosList = "$(GOOS_LIST)"' >>$@
+-	echo 'const goarchList = "$(GOARCH_LIST)"' >>$@
+diff --git a/src/pkg/go/build/syslist.go b/src/pkg/go/build/syslist.go
+index 8a2db8fa33..ea21f3c74b 100644
+--- a/src/pkg/go/build/syslist.go
++++ b/src/pkg/go/build/syslist.go
+@@ -1,4 +1,6 @@
+-// Generated automatically by make.
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
+ 
+ package build
+ 

@@ -8,6 +8,21 @@ Date:   Wed Jul 9 10:04:38 2014 -0700
     R=iant, dave
     CC=golang-codereviews
     https://golang.org/cl/112000043
-
+---
  src/cmd/go/build.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 7a09471fa2..7eb9841dae 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1900,8 +1900,7 @@ func (gccgoToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) er
+ 	if pkgpath := gccgoCleanPkgpath(p); pkgpath != "" {
+ 		defs = append(defs, `-D`, `GOPKGPATH="`+pkgpath+`"`)
+ 	}
+-	// TODO: Support using clang here (during gccgo build)?
+-	return b.run(p.Dir, p.ImportPath, nil, "gcc", "-Wall", "-g",
++	return b.run(p.Dir, p.ImportPath, nil, envList("CC", defaultCC), "-Wall", "-g",
+ 		"-I", objdir, "-I", inc, "-o", ofile, defs, "-c", cfile)
+ }
+ 

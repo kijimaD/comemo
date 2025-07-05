@@ -13,7 +13,7 @@ Date:   Wed Aug 23 23:31:08 2023 +0800
     Auto-Submit: Michael Pratt <mpratt@google.com>
     Run-TryBot: Andy Pan <panjf2000@gmail.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/defs_dragonfly.go       | 9 +++++----
  src/runtime/defs_dragonfly_amd64.go | 9 +++++----
  src/runtime/defs_openbsd.go         | 7 ++++---
@@ -26,3 +26,204 @@ Date:   Wed Aug 23 23:31:08 2023 +0800
  src/runtime/defs_openbsd_riscv64.go | 7 ++++---
  src/runtime/netpoll_kqueue.go       | 5 ++++-
  11 files changed, 46 insertions(+), 33 deletions(-)
+
+diff --git a/src/runtime/defs_dragonfly.go b/src/runtime/defs_dragonfly.go
+index 9dcfdf0fd7..0463f1f116 100644
+--- a/src/runtime/defs_dragonfly.go
++++ b/src/runtime/defs_dragonfly.go
+@@ -27,10 +27,11 @@ package runtime
+ import "C"
+ 
+ const (
+-	EINTR  = C.EINTR
+-	EFAULT = C.EFAULT
+-	EBUSY  = C.EBUSY
+-	EAGAIN = C.EAGAIN
++	EINTR     = C.EINTR
++	EFAULT    = C.EFAULT
++	EBUSY     = C.EBUSY
++	EAGAIN    = C.EAGAIN
++	ETIMEDOUT = C.ETIMEDOUT
+ 
+ 	O_WRONLY   = C.O_WRONLY
+ 	O_NONBLOCK = C.O_NONBLOCK
+diff --git a/src/runtime/defs_dragonfly_amd64.go b/src/runtime/defs_dragonfly_amd64.go
+index f1a2302f28..41bfb085d1 100644
+--- a/src/runtime/defs_dragonfly_amd64.go
++++ b/src/runtime/defs_dragonfly_amd64.go
+@@ -6,10 +6,11 @@ package runtime
+ import "unsafe"
+ 
+ const (
+-	_EINTR  = 0x4
+-	_EFAULT = 0xe
+-	_EBUSY  = 0x10
+-	_EAGAIN = 0x23
++	_EINTR     = 0x4
++	_EFAULT    = 0xe
++	_EBUSY     = 0x10
++	_EAGAIN    = 0x23
++	_ETIMEDOUT = 0x3c
+ 
+ 	_O_WRONLY   = 0x1
+ 	_O_NONBLOCK = 0x4
+diff --git a/src/runtime/defs_openbsd.go b/src/runtime/defs_openbsd.go
+index 5db8b67dd0..d93c087a81 100644
+--- a/src/runtime/defs_openbsd.go
++++ b/src/runtime/defs_openbsd.go
+@@ -31,9 +31,10 @@ package runtime
+ import "C"
+ 
+ const (
+-	EINTR  = C.EINTR
+-	EFAULT = C.EFAULT
+-	EAGAIN = C.EAGAIN
++	EINTR     = C.EINTR
++	EFAULT    = C.EFAULT
++	EAGAIN    = C.EAGAIN
++	ETIMEDOUT = C.ETIMEDOUT
+ 
+ 	O_NONBLOCK = C.O_NONBLOCK
+ 	O_CLOEXEC  = C.O_CLOEXEC
+diff --git a/src/runtime/defs_openbsd_386.go b/src/runtime/defs_openbsd_386.go
+index fde8af530f..996745f6f8 100644
+--- a/src/runtime/defs_openbsd_386.go
++++ b/src/runtime/defs_openbsd_386.go
+@@ -6,9 +6,10 @@ package runtime
+ import "unsafe"
+ 
+ const (
+-	_EINTR  = 0x4
+-	_EFAULT = 0xe
+-	_EAGAIN = 0x23
++	_EINTR     = 0x4
++	_EFAULT    = 0xe
++	_EAGAIN    = 0x23
++	_ETIMEDOUT = 0x3c
+ 
+ 	_O_WRONLY   = 0x1
+ 	_O_NONBLOCK = 0x4
+diff --git a/src/runtime/defs_openbsd_amd64.go b/src/runtime/defs_openbsd_amd64.go
+index 0f29d0c2eb..739853bc03 100644
+--- a/src/runtime/defs_openbsd_amd64.go
++++ b/src/runtime/defs_openbsd_amd64.go
+@@ -6,9 +6,10 @@ package runtime
+ import "unsafe"
+ 
+ const (
+-	_EINTR  = 0x4
+-	_EFAULT = 0xe
+-	_EAGAIN = 0x23
++	_EINTR     = 0x4
++	_EFAULT    = 0xe
++	_EAGAIN    = 0x23
++	_ETIMEDOUT = 0x3c
+ 
+ 	_O_WRONLY   = 0x1
+ 	_O_NONBLOCK = 0x4
+diff --git a/src/runtime/defs_openbsd_arm.go b/src/runtime/defs_openbsd_arm.go
+index b56f3b4e34..cdda6b4ad1 100644
+--- a/src/runtime/defs_openbsd_arm.go
++++ b/src/runtime/defs_openbsd_arm.go
+@@ -6,9 +6,10 @@ package runtime
+ import "unsafe"
+ 
+ const (
+-	_EINTR  = 0x4
+-	_EFAULT = 0xe
+-	_EAGAIN = 0x23
++	_EINTR     = 0x4
++	_EFAULT    = 0xe
++	_EAGAIN    = 0x23
++	_ETIMEDOUT = 0x3c
+ 
+ 	_O_WRONLY   = 0x1
+ 	_O_NONBLOCK = 0x4
+diff --git a/src/runtime/defs_openbsd_arm64.go b/src/runtime/defs_openbsd_arm64.go
+index 0a9acc0494..67f35b49fb 100644
+--- a/src/runtime/defs_openbsd_arm64.go
++++ b/src/runtime/defs_openbsd_arm64.go
+@@ -7,9 +7,10 @@ package runtime
+ import "unsafe"
+ 
+ const (
+-	_EINTR  = 0x4
+-	_EFAULT = 0xe
+-	_EAGAIN = 0x23
++	_EINTR     = 0x4
++	_EFAULT    = 0xe
++	_EAGAIN    = 0x23
++	_ETIMEDOUT = 0x3c
+ 
+ 	_O_WRONLY   = 0x1
+ 	_O_NONBLOCK = 0x4
+diff --git a/src/runtime/defs_openbsd_mips64.go b/src/runtime/defs_openbsd_mips64.go
+index 1e469e4fec..7958044d04 100644
+--- a/src/runtime/defs_openbsd_mips64.go
++++ b/src/runtime/defs_openbsd_mips64.go
+@@ -13,9 +13,10 @@ package runtime
+ import "unsafe"
+ 
+ const (
+-	_EINTR  = 0x4
+-	_EFAULT = 0xe
+-	_EAGAIN = 0x23
++	_EINTR     = 0x4
++	_EFAULT    = 0xe
++	_EAGAIN    = 0x23
++	_ETIMEDOUT = 0x3c
+ 
+ 	_O_WRONLY   = 0x1
+ 	_O_NONBLOCK = 0x4
+diff --git a/src/runtime/defs_openbsd_ppc64.go b/src/runtime/defs_openbsd_ppc64.go
+index dd23ce9f1f..83f300cbaa 100644
+--- a/src/runtime/defs_openbsd_ppc64.go
++++ b/src/runtime/defs_openbsd_ppc64.go
+@@ -13,9 +13,10 @@ package runtime
+ import "unsafe"
+ 
+ const (
+-	_EINTR  = 0x4
+-	_EFAULT = 0xe
+-	_EAGAIN = 0x23
++	_EINTR     = 0x4
++	_EFAULT    = 0xe
++	_EAGAIN    = 0x23
++	_ETIMEDOUT = 0x3c
+ 
+ 	_O_WRONLY   = 0x1
+ 	_O_NONBLOCK = 0x4
+diff --git a/src/runtime/defs_openbsd_riscv64.go b/src/runtime/defs_openbsd_riscv64.go
+index 8ec86577be..2a044d5eb0 100644
+--- a/src/runtime/defs_openbsd_riscv64.go
++++ b/src/runtime/defs_openbsd_riscv64.go
+@@ -7,9 +7,10 @@ package runtime
+ import "unsafe"
+ 
+ const (
+-	_EINTR  = 0x4
+-	_EFAULT = 0xe
+-	_EAGAIN = 0x23
++	_EINTR     = 0x4
++	_EFAULT    = 0xe
++	_EAGAIN    = 0x23
++	_ETIMEDOUT = 0x3c
+ 
+ 	_O_WRONLY   = 0x1
+ 	_O_NONBLOCK = 0x4
+diff --git a/src/runtime/netpoll_kqueue.go b/src/runtime/netpoll_kqueue.go
+index 33b9815965..d774dce303 100644
+--- a/src/runtime/netpoll_kqueue.go
++++ b/src/runtime/netpoll_kqueue.go
+@@ -140,7 +140,10 @@ func netpoll(delay int64) (gList, int32) {
+ retry:
+ 	n := kevent(kq, nil, 0, &events[0], int32(len(events)), tp)
+ 	if n < 0 {
+-		if n != -_EINTR {
++		// Ignore the ETIMEDOUT error for now, but try to dive deep and
++		// figure out what really happened with n == ETIMEOUT,
++		// see https://go.dev/issue/59679 for details.
++		if n != -_EINTR && n != -_ETIMEDOUT {
+ 			println("runtime: kevent on fd", kq, "failed with", -n)
+ 			throw("runtime: netpoll failed")
+ 		}

@@ -14,7 +14,7 @@ Date:   Mon Apr 13 16:50:42 2009 -0700
     DELTA=100  (100 added, 0 deleted, 0 changed)
     OCL=27373
     CL=27392
-
+---
  src/lib/exec.go                | 43 ++++++++++++++++++++++++++++++++++++++++++
  src/lib/flag.go                |  5 +++++
  src/lib/os/file.go             | 30 +++++++++++++++++++++++++++++
@@ -22,3 +22,168 @@ Date:   Mon Apr 13 16:50:42 2009 -0700
  src/lib/syscall/file_darwin.go |  6 ++++++
  src/lib/syscall/file_linux.go  |  6 ++++++
  6 files changed, 100 insertions(+)
+
+diff --git a/src/lib/exec.go b/src/lib/exec.go
+index c832c17ffc..effb46fa45 100644
+--- a/src/lib/exec.go
++++ b/src/lib/exec.go
+@@ -7,6 +7,7 @@ package exec
+ 
+ import (
+ 	"os";
++	"strings";
+ )
+ 
+ // Arguments to Run.
+@@ -183,3 +184,45 @@ func (p *Cmd) Close() *os.Error {
+ 	return err;
+ }
+ 
++func canexec(file string) bool{
++	d, err := os.Stat(file);
++	if err != nil {
++		return false;
++	}
++	return d.IsRegular() && d.Permission() & 0111 != 0;
++}
++
++// LookPath searches for an executable binary named file
++// in the directories named by the PATH environment variable.
++// If file contains a slash, it is tried directly and the PATH is not consulted.
++//
++// TODO(rsc): Does LookPath belong in os instead?
++func LookPath(file string) (string, *os.Error) {
++	// NOTE(rsc): I wish we could use the Plan 9 behavior here
++	// (only bypass the path if file begins with / or ./ or ../)
++	// but that would not match all the Unix shells.
++
++	if strings.Index(file, "/") >= 0 {
++		if canexec(file) {
++			return file, nil;
++		}
++		return "", os.ENOENT;
++	}
++	pathenv, err := os.Getenv("PATH");
++	if err != nil {
++		// Unix shell semantics: no $PATH means assume PATH=""
++		// (equivalent to PATH=".").
++		pathenv = "";
++	}
++	for i, dir := range strings.Split(pathenv, ":") {
++		if dir == "" {
++			// Unix shell semantics: path element "" means "."
++			dir = ".";
++		}
++		if canexec(dir+"/"+file) {
++			return dir+"/"+file, nil;
++		}
++	}
++	return "", os.ENOENT;
++}
++
+diff --git a/src/lib/flag.go b/src/lib/flag.go
+index f8e31ca681..d8830c9dc4 100644
+--- a/src/lib/flag.go
++++ b/src/lib/flag.go
+@@ -290,6 +290,11 @@ func NArg() int {
+ 	return len(sys.Args) - flags.first_arg
+ }
+ 
++// Args returns the non-flag command-line arguments.
++func Args() []string {
++	return sys.Args[flags.first_arg:len(sys.Args)];
++}
++
+ func add(name string, value FlagValue, usage string) {
+ 	// Remember the default value as a string; it won't change.
+ 	f := &Flag{name, usage, value, value.String()};
+diff --git a/src/lib/os/file.go b/src/lib/os/file.go
+index 48daf0bce4..80f43bb593 100644
+--- a/src/lib/os/file.go
++++ b/src/lib/os/file.go
+@@ -267,3 +267,33 @@ func Chdir(dir string) *os.Error {
+ 	return ErrnoToError(e);
+ }
+ 
++// Remove removes the named file or directory.
++func Remove(name string) *os.Error {
++	// System call interface forces us to know
++	// whether name is a file or directory.
++	// Try both: it is cheaper on average than
++	// doing a Stat plus the right one.
++	r, e := syscall.Unlink(name);
++	if e == 0 {
++		return nil;
++	}
++	r1, e1 := syscall.Rmdir(name);
++	if e1 == 0 {
++		return nil;
++	}
++
++	// Both failed: figure out which error to return.
++	// OS X and Linux differ on whether unlink(dir)
++	// returns EISDIR, so can't use that.  However,
++	// both agree that rmdir(file) returns ENOTDIR,
++	// so we can use that to decide which error is real.
++	// Rmdir might return ENOTDIR if given a bad
++	// file path, like /etc/passwd/foo, but in that case,
++	// both errors will be ENOTDIR, so it's okay to
++	// use the error from unlink.
++	if e1 != syscall.ENOTDIR {
++		e = e1;
++	}
++	return ErrnoToError(e1);
++}
++
+diff --git a/src/lib/strings.go b/src/lib/strings.go
+index 06a923427a..5ce4a8dae3 100644
+--- a/src/lib/strings.go
++++ b/src/lib/strings.go
+@@ -107,3 +107,13 @@ func Join(a []string, sep string) string {
+ 	}
+ 	return string(b)
+ }
++
++// HasPrefix tests whether the string s begins with prefix.
++func HasPrefix(s, prefix string) bool {
++	return len(s) >= len(prefix) && s[0:len(prefix)] == prefix
++}
++
++// HasSuffix tests whether the string s ends with suffix.
++func HasSuffix(s, suffix string) bool {
++	return len(s) >= len(suffix) && s[len(s)-len(suffix):len(s)] == suffix
++}
+diff --git a/src/lib/syscall/file_darwin.go b/src/lib/syscall/file_darwin.go
+index b0777b5df4..01005d207b 100644
+--- a/src/lib/syscall/file_darwin.go
++++ b/src/lib/syscall/file_darwin.go
+@@ -78,6 +78,12 @@ func Unlink(name string) (ret int64, errno int64) {
+ 	return r1, err;
+ }
+ 
++func Rmdir(name string) (ret int64, errno int64) {
++	namebuf := StringBytePtr(name);
++	r1, r2, err := Syscall(SYS_RMDIR, int64(uintptr(unsafe.Pointer(namebuf))), 0, 0);
++	return r1, err;
++}
++
+ func Fcntl(fd, cmd, arg int64) (ret int64, errno int64) {
+ 	r1, r2, err := Syscall(SYS_FCNTL, fd, cmd, arg);
+ 	return r1, err
+diff --git a/src/lib/syscall/file_linux.go b/src/lib/syscall/file_linux.go
+index 9bf4408846..80800b6158 100644
+--- a/src/lib/syscall/file_linux.go
++++ b/src/lib/syscall/file_linux.go
+@@ -79,6 +79,12 @@ func Unlink(name string) (ret int64, errno int64) {
+ 	return r1, err;
+ }
+ 
++func Rmdir(name string) (ret int64, errno int64) {
++	namebuf := StringBytePtr(name);
++	r1, r2, err := Syscall(SYS_RMDIR, int64(uintptr(unsafe.Pointer(namebuf))), 0, 0);
++	return r1, err;
++}
++
+ func Fcntl(fd, cmd, arg int64) (ret int64, errno int64) {
+ 	r1, r2, err := Syscall(SYS_FCNTL, fd, cmd, arg);
+ 	return r1, err

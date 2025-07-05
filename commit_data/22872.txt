@@ -9,7 +9,58 @@ Date:   Sat Apr 11 19:28:29 2015 -0400
     Change-Id: I1a9f51c572c14b78d35ea62f52927f2bdc46e4c0
     Reviewed-on: https://go-review.googlesource.com/8821
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/go/build/build_test.go | 14 ++++++++++----
  src/go/build/deps_test.go  |  5 +++--
  2 files changed, 13 insertions(+), 6 deletions(-)
+
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index cc51174ef4..92c3fe3764 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -109,8 +109,11 @@ func TestMultiplePackageImport(t *testing.T) {
+ }
+ 
+ func TestLocalDirectory(t *testing.T) {
+-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
+-		t.Skipf("skipping on %s/%s, no valid GOROOT", runtime.GOOS, runtime.GOARCH)
++	if runtime.GOOS == "darwin" {
++		switch runtime.GOARCH {
++		case "arm", "arm64":
++			t.Skipf("skipping on %s/%s, no valid GOROOT", runtime.GOOS, runtime.GOARCH)
++		}
+ 	}
+ 
+ 	cwd, err := os.Getwd()
+@@ -227,8 +230,11 @@ func TestMatchFile(t *testing.T) {
+ }
+ 
+ func TestImportCmd(t *testing.T) {
+-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
+-		t.Skipf("skipping on %s/%s, no valid GOROOT", runtime.GOOS, runtime.GOARCH)
++	if runtime.GOOS == "darwin" {
++		switch runtime.GOARCH {
++		case "arm", "arm64":
++			t.Skipf("skipping on %s/%s, no valid GOROOT", runtime.GOOS, runtime.GOARCH)
++		}
+ 	}
+ 
+ 	p, err := Import("cmd/internal/objfile", "", 0)
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index b826cf0c81..11e8ba8b47 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -376,10 +376,11 @@ var allowedErrors = map[osPkg]bool{
+ }
+ 
+ func TestDependencies(t *testing.T) {
+-	if runtime.GOOS == "nacl" || (runtime.GOOS == "darwin" && runtime.GOARCH == "arm") {
++	iOS := runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64")
++	if runtime.GOOS == "nacl" || iOS {
+ 		// Tests run in a limited file system and we do not
+ 		// provide access to every source file.
+-		t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
++		t.Skipf("skipping on %s/%s, missing full GOROOT", runtime.GOOS, runtime.GOARCH)
+ 	}
+ 	var all []string
+ 

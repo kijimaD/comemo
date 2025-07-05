@@ -18,9 +18,105 @@ Date:   Wed Mar 16 12:12:50 2022 -0400
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/reflect/abi.go            | 7 +++----
  src/runtime/debug_test.go     | 5 ++---
  src/runtime/stubs.go          | 3 +--
  src/runtime/traceback_test.go | 4 ++--
  4 files changed, 8 insertions(+), 11 deletions(-)
+
+diff --git a/src/reflect/abi.go b/src/reflect/abi.go
+index 28204b8193..9957d23768 100644
+--- a/src/reflect/abi.go
++++ b/src/reflect/abi.go
+@@ -7,7 +7,6 @@ package reflect
+ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+-	"internal/goexperiment"
+ 	"unsafe"
+ )
+ 
+@@ -30,9 +29,9 @@ import (
+ // commented out there should be the actual values once
+ // we're ready to use the register ABI everywhere.
+ var (
+-	intArgRegs   = abi.IntArgRegs * goexperiment.RegabiArgsInt
+-	floatArgRegs = abi.FloatArgRegs * goexperiment.RegabiArgsInt
+-	floatRegSize = uintptr(abi.EffectiveFloatRegSize * goexperiment.RegabiArgsInt)
++	intArgRegs   = abi.IntArgRegs
++	floatArgRegs = abi.FloatArgRegs
++	floatRegSize = uintptr(abi.EffectiveFloatRegSize)
+ )
+ 
+ // abiStep represents an ABI "instruction." Each instruction
+diff --git a/src/runtime/debug_test.go b/src/runtime/debug_test.go
+index 5bb0c5cee3..7698eacb59 100644
+--- a/src/runtime/debug_test.go
++++ b/src/runtime/debug_test.go
+@@ -16,7 +16,6 @@ package runtime_test
+ import (
+ 	"fmt"
+ 	"internal/abi"
+-	"internal/goexperiment"
+ 	"math"
+ 	"os"
+ 	"regexp"
+@@ -144,7 +143,7 @@ func TestDebugCall(t *testing.T) {
+ 	intRegs := regs.Ints[:]
+ 	floatRegs := regs.Floats[:]
+ 	fval := float64(42.0)
+-	if goexperiment.RegabiArgs {
++	if len(intRegs) > 0 {
+ 		intRegs[0] = 42
+ 		floatRegs[0] = math.Float64bits(fval)
+ 	} else {
+@@ -159,7 +158,7 @@ func TestDebugCall(t *testing.T) {
+ 	}
+ 	var result0 int
+ 	var result1 float64
+-	if goexperiment.RegabiArgs {
++	if len(intRegs) > 0 {
+ 		result0 = int(intRegs[0])
+ 		result1 = math.Float64frombits(floatRegs[0])
+ 	} else {
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index ad78363bb6..cd7c91029b 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -7,7 +7,6 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+-	"internal/goexperiment"
+ 	"runtime/internal/math"
+ 	"unsafe"
+ )
+@@ -434,4 +433,4 @@ func sigpanic0()
+ // registers the system supports.
+ //
+ // Protected by finlock.
+-var intArgRegs = abi.IntArgRegs * (goexperiment.RegabiArgsInt | goarch.IsAmd64)
++var intArgRegs = abi.IntArgRegs
+diff --git a/src/runtime/traceback_test.go b/src/runtime/traceback_test.go
+index 7d8b04e14b..e50bd95ead 100644
+--- a/src/runtime/traceback_test.go
++++ b/src/runtime/traceback_test.go
+@@ -6,7 +6,7 @@ package runtime_test
+ 
+ import (
+ 	"bytes"
+-	"internal/goexperiment"
++	"internal/abi"
+ 	"internal/testenv"
+ 	"runtime"
+ 	"strings"
+@@ -23,7 +23,7 @@ func TestTracebackArgs(t *testing.T) {
+ 	abiSel := func(x, y string) string {
+ 		// select expected output based on ABI
+ 		// In noopt build we always spill arguments so the output is the same as stack ABI.
+-		if optimized && goexperiment.RegabiArgs {
++		if optimized && abi.IntArgRegs > 0 {
+ 			return x
+ 		}
+ 		return y

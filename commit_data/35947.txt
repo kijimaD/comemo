@@ -14,6 +14,22 @@ Date:   Fri Mar 23 13:12:07 2018 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 030491a550..fe21e635dc 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -731,6 +731,10 @@ func genhash(ctxt *Link, lib *sym.Library) {
+ 		Errorf(nil, "%s: short read on archive file symbol header", lib.File)
+ 		return
+ 	}
++	if arhdr.name != pkgdef {
++		Errorf(nil, "%s: missing package data entry", lib.File)
++		return
++	}
+ 
+ 	h := sha1.New()
+ 

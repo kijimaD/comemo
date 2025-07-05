@@ -7,6 +7,26 @@ Date:   Sat Nov 24 16:53:08 2012 -0800
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/6856084
-
+---
  test/fixedbugs/bug469.go | 13 +++++++++++++
  1 file changed, 13 insertions(+)
+
+diff --git a/test/fixedbugs/bug469.go b/test/fixedbugs/bug469.go
+new file mode 100644
+index 0000000000..71157a4c41
+--- /dev/null
++++ b/test/fixedbugs/bug469.go
+@@ -0,0 +1,13 @@
++// compile
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The gccgo compiler would complain about a redefinition of i, but
++// the spec imposes no requirements on parameter names in a function
++// type.
++
++package p
++
++type F func(i int) (i int)

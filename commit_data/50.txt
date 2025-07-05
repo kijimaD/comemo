@@ -6,7 +6,7 @@ Date:   Mon Mar 31 19:19:37 2008 -0700
     without conversions
     
     SVN=114453
-
+---
  src/c/gen.c   | 28 ++++++++++++++++++----------
  src/c/gen.h   |  2 +-
  src/c/go.h    |  1 +
@@ -14,3 +14,189 @@ Date:   Mon Mar 31 19:19:37 2008 -0700
  src/c/obj.c   | 21 +++++++++++++++++++++
  src/c/subr.c  | 12 ++++++++++++
  6 files changed, 54 insertions(+), 11 deletions(-)
+
+diff --git a/src/c/gen.c b/src/c/gen.c
+index 0644d17651..99993145b7 100644
+--- a/src/c/gen.c
++++ b/src/c/gen.c
+@@ -827,19 +827,19 @@ loop:
+ 			break;
+ 
+ 		case PAS_SINGLE: // single return val used in expr
+-			if(nr == N) {
++			if(nr == N || isnil(nr)) {
+ 				if(nl->addable) {
+ 					gopcodet(PSTOREZ, nl->type, nl);
+ 					break;
+ 				}
+ 				agen(nl);
+-				gopcodet(PSTOREZIP, nl->type, N);
++				gopcodet(PSTOREZI, nl->type, N);
+ 				break;
+ 			}
+ 
+ 			if(nl->addable) {
+ 				cgen(nr);
+-				genconv(nl->type, nr->type);
++				genconv(nl, nr);
+ 				gopcodet(PSTORE, nl->type, nl);
+ 				break;
+ 			}
+@@ -851,7 +851,7 @@ loop:
+ 			}
+ 			if(!usesptr(nr)) {
+ 				cgen(nr);
+-				genconv(nl->type, nr->type);
++				genconv(nl, nr);
+ 				agen(nl);
+ 				gopcodet(PSTOREI, nr->type, N);
+ 				break;
+@@ -860,7 +860,7 @@ loop:
+ 			r = tempname(ptrto(nl->type));
+ 			gopcode(PSTORE, PTADDR, r);
+ 			cgen(nr);
+-			genconv(nl->type, nr->type);
++			genconv(nl, nr);
+ 			gopcode(PLOAD, PTADDR, r);
+ 			gopcodet(PSTOREI, nl->type, N);
+ 			break;
+@@ -964,7 +964,7 @@ cgen_ret(Node *n)
+ 			gopcodet(PSTOREI, arg->type, arg);
+ 		} else {
+ 			cgen(arg);
+-			genconv(f->type, arg->type);
++			genconv(f, arg);
+ 			gopcode(PLOAD, PTADDR, a->nname);
+ 			gopcode(PADDO, PTADDR, f->nname);
+ 			gopcodet(PSTOREI, f->type, N);
+@@ -1010,7 +1010,7 @@ cgen_call(Node *n, int toss)
+ 			gopcodet(PSTOREI, at->type, ae);
+ 		} else {
+ 			cgen(ae);
+-			genconv(at->type, ae->type);
++			genconv(at, ae);
+ 			gopcode(PADDR, PTADDR, sn);
+ 			gopcode(PADDO, PTADDR, at->nname);
+ 			gopcodet(PSTOREI, at->type, N);
+@@ -1120,9 +1120,13 @@ genprint(Node *n)
+ int
+ needconvert(Node *tl, Node *tr)
+ {
+-	if(isinter(tl))
+-		if(isptrto(tr, TSTRUCT) || isinter(tr))
++	if(isinter(tl)) {
++		if(isptrto(tr, TSTRUCT))
+ 			return 1;
++		if(isinter(tr))
++			return 1;
++		return 0;
++	}
+ 	if(isptrto(tl, TSTRUCT))
+ 		if(isinter(tr))
+ 			return 1;
+@@ -1130,8 +1134,12 @@ needconvert(Node *tl, Node *tr)
+ }
+ 
+ void
+-genconv(Node *tl, Node *tr)
++genconv(Node *l, Node *r)
+ {
++	Node *tl, *tr;
++
++	tl = l->type;
++	tr = r->type;
+ 	if(needconvert(tl, tr))
+ 		gopcode(PCONV, PTNIL, nod(OCONV, tl, tr));
+ }
+diff --git a/src/c/gen.h b/src/c/gen.h
+index 13383141ad..9ccef59265 100644
+--- a/src/c/gen.h
++++ b/src/c/gen.h
+@@ -103,7 +103,7 @@ enum
+ 
+ 	PLOAD, PLOADI,
+ 	PSTORE, PSTOREI,
+-	PSTOREZ, PSTOREZIP,
++	PSTOREZ, PSTOREZI,
+ 	PCONV, PADDR, PADDO, PINDEX, PINDEXZ,
+ 	PSLICE,
+ 
+diff --git a/src/c/go.h b/src/c/go.h
+index 73cc8da1c9..003bb0d2e4 100644
+--- a/src/c/go.h
++++ b/src/c/go.h
+@@ -395,6 +395,7 @@ Node*	unrev(Node*);
+ void	dodump(Node*, int);
+ void	dump(char*, Node*);
+ Node*	aindex(Node*, Node*);
++int	isnil(Node*);
+ int	isptrto(Node*, int);
+ int	isinter(Node*);
+ int	isbytearray(Node*);
+diff --git a/src/c/gsubr.c b/src/c/gsubr.c
+index bf6c31b578..2ac8ea8cf0 100644
+--- a/src/c/gsubr.c
++++ b/src/c/gsubr.c
+@@ -236,6 +236,7 @@ pnames[] =
+ 	[PSTORE]	= "STORE",
+ 	[PSTOREI]	= "STOREI",
+ 	[PSTOREZ]	= "STOREZ",
++	[PSTOREZI]	= "STOREZI",
+ 	[PCONV]		= "CONV",
+ 	[PADDR]		= "ADDR",
+ 	[PADDO]		= "ADDO",
+diff --git a/src/c/obj.c b/src/c/obj.c
+index 2c220226cd..f44a0f0832 100644
+--- a/src/c/obj.c
++++ b/src/c/obj.c
+@@ -243,6 +243,27 @@ obj1(Prog *p)
+ 		}
+ 		break;
+ 
++	case PSTOREZI:
++		switch(p->pt) {
++		default:
++			Bprint(bout, "\t*(%Q*)%R = 0;\n", p->pt, PTADDR);
++			break;
++
++		case PTARRAY:
++		case PTSTRUCT:
++			Bprint(bout, "\tmemset((%Q*)%R, 0, sizeof((%Q*)%R));\n", p->pt, PTADDR, p->pt, PTADDR);
++			break;
++
++		case PTINTER:
++			Bprint(bout, "\t((%Q*)%R)->s = 0; ((%Q*)%R)->m = 0;\n", p->pt, PTADDR, p->pt, PTADDR);
++			break;
++
++		case PTSTRING:
++			Bprint(bout, "\t(%Q*)%R = &nilstring;\n", p->pt, PTADDR);
++			break;
++		}
++		break;
++
+ 	case PCONV:
+ 		doconv(p);
+ 		break;
+diff --git a/src/c/subr.c b/src/c/subr.c
+index 052179c9ed..e03cf85850 100644
+--- a/src/c/subr.c
++++ b/src/c/subr.c
+@@ -997,6 +997,18 @@ out:
+ 	return fmtstrcpy(fp, buf);
+ }
+ 
++int
++isnil(Node *n)
++{
++	if(n == N)
++		return 0;
++	if(n->op != OLITERAL)
++		return 0;
++	if(n->val.ctype != CTNIL)
++		return 0;
++	return 1;
++}
++
+ int
+ isptrto(Node *t, int et)
+ {

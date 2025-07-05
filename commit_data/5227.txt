@@ -13,7 +13,34 @@ Date:   Mon Apr 5 23:36:37 2010 -0700
     R=gri
     CC=esko.luontola, golang-dev
     https://golang.org/cl/887043
-
+---
  src/pkg/log/log_test.go   | 2 +-
  src/pkg/runtime/runtime.c | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/log/log_test.go b/src/pkg/log/log_test.go
+index fd0b36c6eb..eb4b69a2e7 100644
+--- a/src/pkg/log/log_test.go
++++ b/src/pkg/log/log_test.go
+@@ -17,7 +17,7 @@ const (
+ 	Rdate         = `[0-9][0-9][0-9][0-9]/[0-9][0-9]/[0-9][0-9]`
+ 	Rtime         = `[0-9][0-9]:[0-9][0-9]:[0-9][0-9]`
+ 	Rmicroseconds = `\.[0-9][0-9][0-9][0-9][0-9][0-9]`
+-	Rline         = `[0-9]+:`
++	Rline         = `(58|60):` // must update if the calls to l.Logf / l.Log below move
+ 	Rlongfile     = `.*/[A-Za-z0-9_\-]+\.go:` + Rline
+ 	Rshortfile    = `[A-Za-z0-9_\-]+\.go:` + Rline
+ )
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index 9a027d430e..c2eee60ca4 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -479,7 +479,7 @@ void
+ {
+ 	Func *f;
+ 
+-	if(callers(skip, &retpc, 1) == 0 || (f = findfunc(retpc-1)) == nil) {
++	if(callers(1+skip, &retpc, 1) == 0 || (f = findfunc(retpc-1)) == nil) {
+ 		retfile = emptystring;
+ 		retline = 0;
+ 		retbool = false;

@@ -9,6 +9,21 @@ Date:   Mon Nov 11 12:02:56 2019 +0530
     Change-Id: Ifb2ad2dc41c449668c0f6a4d4cfb9b583e5591f2
     Reviewed-on: https://go-review.googlesource.com/c/go/+/206126
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/flag/flag.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/flag/flag.go b/src/flag/flag.go
+index 9fed4d82b3..6a51617524 100644
+--- a/src/flag/flag.go
++++ b/src/flag/flag.go
+@@ -314,6 +314,9 @@ const (
+ 
+ // A FlagSet represents a set of defined flags. The zero value of a FlagSet
+ // has no name and has ContinueOnError error handling.
++//
++// Flag names must be unique within a FlagSet. An attempt to define a flag whose
++// name is already in use will cause a panic.
+ type FlagSet struct {
+ 	// Usage is the function called when an error occurs while parsing flags.
+ 	// The field is a function (not a method) that may be changed to point to

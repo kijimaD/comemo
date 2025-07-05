@@ -10,7 +10,68 @@ Date:   Fri May 1 19:50:27 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/9632
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/internal/gc/const.go | 10 ++++++++--
  test/convlit.go              |  7 +++++++
  2 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/gc/const.go b/src/cmd/internal/gc/const.go
+index ad2915812e..5ec54bdffb 100644
+--- a/src/cmd/internal/gc/const.go
++++ b/src/cmd/internal/gc/const.go
+@@ -204,6 +204,9 @@ func convlit1(np **Node, t *Type, explicit bool) {
+ 		}
+ 
+ 	case CTINT, CTRUNE, CTFLT, CTCPLX:
++		if n.Type.Etype == TUNSAFEPTR && t.Etype != TUINTPTR {
++			goto bad
++		}
+ 		ct := int(n.Val.Ctype)
+ 		if Isint[et] {
+ 			switch ct {
+@@ -264,8 +267,6 @@ bad:
+ 		defaultlit(&n, nil)
+ 		*np = n
+ 	}
+-
+-	return
+ }
+ 
+ func copyval(v Val) Val {
+@@ -396,6 +397,11 @@ func overflow(v Val, t *Type) {
+ 		return
+ 	}
+ 
++	// Only uintptrs may be converted to unsafe.Pointer, which cannot overflow.
++	if t.Etype == TUNSAFEPTR {
++		return
++	}
++
+ 	if !doesoverflow(v, t) {
+ 		return
+ 	}
+diff --git a/test/convlit.go b/test/convlit.go
+index 8a6145d2a0..904e1e63b1 100644
+--- a/test/convlit.go
++++ b/test/convlit.go
+@@ -9,6 +9,8 @@
+ 
+ package main
+ 
++import "unsafe"
++
+ // explicit conversion of constants
+ var x1 = string(1)
+ var x2 string = string(1)
+@@ -18,6 +20,11 @@ var x5 = "a" + string(1)
+ var x6 = int(1e100)      // ERROR "overflow"
+ var x7 = float32(1e1000) // ERROR "overflow"
+ 
++// unsafe.Pointer can only convert to/from uintptr
++var _ = string(unsafe.Pointer(uintptr(65)))  // ERROR "convert"
++var _ = float64(unsafe.Pointer(uintptr(65))) // ERROR "convert"
++var _ = int(unsafe.Pointer(uintptr(65)))     // ERROR "convert"
++
+ // implicit conversions merit scrutiny
+ var s string
+ var bad1 string = 1  // ERROR "conver|incompatible|invalid|cannot"

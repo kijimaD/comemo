@@ -7,6 +7,19 @@ Date:   Tue Mar 23 17:34:13 2010 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/711041
-
+---
  src/pkg/go/printer/printer.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 17d9100f4b..f7b55ae3c4 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -13,7 +13,6 @@ import (
+ 	"io"
+ 	"os"
+ 	"path"
+-	"reflect"
+ 	"runtime"
+ 	"tabwriter"
+ )

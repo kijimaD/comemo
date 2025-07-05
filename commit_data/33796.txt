@@ -27,6 +27,29 @@ Date:   Sun Sep 3 19:58:01 2017 +0200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/dist/build.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 76e42a4b6a..fa8492c7b3 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -253,7 +253,7 @@ func chomp(s string) string {
+ func branchtag(branch string) (tag string, precise bool) {
+ 	b := run(goroot, CheckExit, "git", "log", "--decorate=full", "--format=format:%d", "master.."+branch)
+ 	tag = branch
+-	for _, line := range splitlines(b) {
++	for row, line := range splitlines(b) {
+ 		// Each line is either blank, or looks like
+ 		//	  (tag: refs/tags/go1.4rc2, refs/remotes/origin/release-branch.go1.4, refs/heads/release-branch.go1.4)
+ 		// We need to find an element starting with refs/tags/.
+@@ -271,7 +271,7 @@ func branchtag(branch string) (tag string, precise bool) {
+ 			continue // malformed line; ignore it
+ 		}
+ 		tag = line[i : i+j]
+-		if i == 0 {
++		if row == 0 {
+ 			precise = true // tag denotes HEAD
+ 		}
+ 		break

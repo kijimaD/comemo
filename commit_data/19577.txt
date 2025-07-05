@@ -13,7 +13,72 @@ Date:   Thu Jun 19 12:04:59 2014 -0700
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/109090043
-
+---
  src/pkg/encoding/base32/base32.go | 16 ++++++++--------
  src/pkg/encoding/base64/base64.go |  8 ++++----
  2 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/encoding/base32/base32.go b/src/pkg/encoding/base32/base32.go
+index ea5c0ae27c..5a9e86919d 100644
+--- a/src/pkg/encoding/base32/base32.go
++++ b/src/pkg/encoding/base32/base32.go
+@@ -79,26 +79,26 @@ func (enc *Encoding) Encode(dst, src []byte) {
+ 		// destination quantum
+ 		switch len(src) {
+ 		default:
+-			b7 |= src[4] & 0x1F
+-			b6 |= src[4] >> 5
++			b7 = src[4] & 0x1F
++			b6 = src[4] >> 5
+ 			fallthrough
+ 		case 4:
+ 			b6 |= (src[3] << 3) & 0x1F
+-			b5 |= (src[3] >> 2) & 0x1F
+-			b4 |= src[3] >> 7
++			b5 = (src[3] >> 2) & 0x1F
++			b4 = src[3] >> 7
+ 			fallthrough
+ 		case 3:
+ 			b4 |= (src[2] << 1) & 0x1F
+-			b3 |= (src[2] >> 4) & 0x1F
++			b3 = (src[2] >> 4) & 0x1F
+ 			fallthrough
+ 		case 2:
+ 			b3 |= (src[1] << 4) & 0x1F
+-			b2 |= (src[1] >> 1) & 0x1F
+-			b1 |= (src[1] >> 6) & 0x1F
++			b2 = (src[1] >> 1) & 0x1F
++			b1 = (src[1] >> 6) & 0x1F
+ 			fallthrough
+ 		case 1:
+ 			b1 |= (src[0] << 2) & 0x1F
+-			b0 |= src[0] >> 3
++			b0 = src[0] >> 3
+ 		}
+ 
+ 		// Encode 5-bit blocks using the base32 alphabet
+diff --git a/src/pkg/encoding/base64/base64.go b/src/pkg/encoding/base64/base64.go
+index f89afd2b92..ad3abe6623 100644
+--- a/src/pkg/encoding/base64/base64.go
++++ b/src/pkg/encoding/base64/base64.go
+@@ -80,16 +80,16 @@ func (enc *Encoding) Encode(dst, src []byte) {
+ 		// destination quantum
+ 		switch len(src) {
+ 		default:
+-			b3 |= src[2] & 0x3F
+-			b2 |= src[2] >> 6
++			b3 = src[2] & 0x3F
++			b2 = src[2] >> 6
+ 			fallthrough
+ 		case 2:
+ 			b2 |= (src[1] << 2) & 0x3F
+-			b1 |= src[1] >> 4
++			b1 = src[1] >> 4
+ 			fallthrough
+ 		case 1:
+ 			b1 |= (src[0] << 4) & 0x3F
+-			b0 |= src[0] >> 2
++			b0 = src[0] >> 2
+ 		}
+ 
+ 		// Encode 6-bit blocks using the base64 alphabet

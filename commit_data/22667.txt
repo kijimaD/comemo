@@ -35,7 +35,41 @@ Date:   Wed Apr 1 12:37:02 2015 +0200
     Change-Id: Ib72c98a891cdeef34705c22dfbeb0408dcdfddf8
     Reviewed-on: https://go-review.googlesource.com/8340
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/parser/testdata/issue3106.src | 2 +-
  src/go/scanner/errors.go             | 9 ++++++++-
  2 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/parser/testdata/issue3106.src b/src/go/parser/testdata/issue3106.src
+index 82796c8ceb..2db10be235 100644
+--- a/src/go/parser/testdata/issue3106.src
++++ b/src/go/parser/testdata/issue3106.src
+@@ -19,7 +19,7 @@ func f() {
+ 				time.Sleep(1e8)
+ 				m.Lock()
+ 				defer
+-				if /* ERROR "expected operand, found 'if'" */ percent == 100 {
++				if /* ERROR "expected ';', found 'if'" */ percent == 100 {
+ 					m.Unlock()
+ 					break
+ 				}
+diff --git a/src/go/scanner/errors.go b/src/go/scanner/errors.go
+index 22de69c3c1..7c9ab254ee 100644
+--- a/src/go/scanner/errors.go
++++ b/src/go/scanner/errors.go
+@@ -62,7 +62,14 @@ func (p ErrorList) Less(i, j int) bool {
+ 			return true
+ 		}
+ 		if e.Line == f.Line {
+-			return e.Column < f.Column
++			if e.Column < f.Column {
++				return true
++			}
++			if e.Column == f.Column {
++				if p[i].Msg < p[j].Msg {
++					return true
++				}
++			}
+ 		}
+ 	}
+ 	return false

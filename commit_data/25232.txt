@@ -22,7 +22,62 @@ Date:   Tue Sep 22 01:33:11 2015 -0700
     Change-Id: Ib5fec5ae215e977c4e85de5701ce6a473d400af8
     Reviewed-on: https://go-review.googlesource.com/14834
     Reviewed-by: Nigel Tao <nigeltao@golang.org>
-
+---
  src/compress/flate/flate_test.go | 3 ---
  src/compress/flate/inflate.go    | 8 ++++++--
  2 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/compress/flate/flate_test.go b/src/compress/flate/flate_test.go
+index f2362dd84f..341d807131 100644
+--- a/src/compress/flate/flate_test.go
++++ b/src/compress/flate/flate_test.go
+@@ -267,9 +267,6 @@ func TestTruncatedStreams(t *testing.T) {
+ 	for i := 0; i < len(data)-1; i++ {
+ 		r := NewReader(strings.NewReader(data[:i]))
+ 		_, err := io.Copy(ioutil.Discard, r)
+-		if ferr, ok := err.(*ReadError); ok {
+-			err = ferr.Err
+-		}
+ 		if err != io.ErrUnexpectedEOF {
+ 			t.Errorf("io.Copy(%d) on truncated stream: got %v, want %v", i, err, io.ErrUnexpectedEOF)
+ 		}
+diff --git a/src/compress/flate/inflate.go b/src/compress/flate/inflate.go
+index cbc0181240..13855d6bc0 100644
+--- a/src/compress/flate/inflate.go
++++ b/src/compress/flate/inflate.go
+@@ -42,6 +42,8 @@ type InternalError string
+ func (e InternalError) Error() string { return "flate: internal error: " + string(e) }
+ 
+ // A ReadError reports an error encountered while reading input.
++//
++// Deprecated: No longer returned.
+ type ReadError struct {
+ 	Offset int64 // byte offset where error occurred
+ 	Err    error // error returned by underlying Read
+@@ -52,6 +54,8 @@ func (e *ReadError) Error() string {
+ }
+ 
+ // A WriteError reports an error encountered while writing output.
++//
++// Deprecated: No longer returned.
+ type WriteError struct {
+ 	Offset int64 // byte offset where error occurred
+ 	Err    error // error returned by underlying Write
+@@ -640,7 +644,7 @@ func (f *decompressor) dataBlock() {
+ 		if err == io.EOF {
+ 			err = io.ErrUnexpectedEOF
+ 		}
+-		f.err = &ReadError{f.roffset, err}
++		f.err = err
+ 		return
+ 	}
+ 	n := int(f.buf[0]) | int(f.buf[1])<<8
+@@ -675,7 +679,7 @@ func (f *decompressor) copyData() {
+ 			if err == io.EOF {
+ 				err = io.ErrUnexpectedEOF
+ 			}
+-			f.err = &ReadError{f.roffset, err}
++			f.err = err
+ 			return
+ 		}
+ 		n -= m

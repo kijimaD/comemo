@@ -41,7 +41,368 @@ Date:   Tue Jul 14 16:26:38 2015 -0500
     Change-Id: I0f86010e9823aec04aac744fdb589b65ec8acefc
     Reviewed-on: https://go-review.googlesource.com/12332
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/nilcheck.go      | 116 ++++++++++++--
  src/cmd/compile/internal/ssa/nilcheck_test.go | 211 ++++++++++++++++++++++++++
  2 files changed, 316 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index d24340e630..b9964b2980 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -6,6 +6,111 @@ package ssa
+ 
+ // nilcheckelim eliminates unnecessary nil checks.
+ func nilcheckelim(f *Func) {
++	// A nil check is redundant if the same nil check was successful in a
++	// dominating block. The efficacy of this pass depends heavily on the
++	// efficacy of the cse pass.
++	idom := dominators(f)
++	domTree := make([][]*Block, f.NumBlocks())
++
++	// Create a block ID -> [dominees] mapping
++	for _, b := range f.Blocks {
++		if dom := idom[b.ID]; dom != nil {
++			domTree[dom.ID] = append(domTree[dom.ID], b)
++		}
++	}
++
++	// TODO: Eliminate more nil checks.
++	// We can recursively remove any chain of fixed offset calculations,
++	// i.e. struct fields and array elements, even with non-constant
++	// indices: x is non-nil iff x.a.b[i].c is.
++
++	type walkState int
++	const (
++		Work   walkState = iota // clear nil check if we should and traverse to dominees regardless
++		RecPtr                  // record the pointer as being nil checked
++		ClearPtr
++	)
++
++	type bp struct {
++		block *Block // block, or nil in RecPtr/ClearPtr state
++		ptr   *Value // if non-nil, ptr that is to be set/cleared in RecPtr/ClearPtr state
++		op    walkState
++	}
++
++	work := make([]bp, 0, 256)
++	work = append(work, bp{block: f.Entry, ptr: checkedptr(f.Entry)})
++
++	// map from value ID to bool indicating if value is known to be non-nil
++	// in the current dominator path being walked.  This slice is updated by
++	// walkStates to maintain the known non-nil values.
++	nonNilValues := make([]bool, f.NumValues())
++
++	// perform a depth first walk of the dominee tree
++	for len(work) > 0 {
++		node := work[len(work)-1]
++		work = work[:len(work)-1]
++
++		var pushRecPtr bool
++		switch node.op {
++		case Work:
++			if node.ptr != nil {
++				// already have a nilcheck in the dominator path
++				if nonNilValues[node.ptr.ID] {
++					// Eliminate the nil check.
++					// The deadcode pass will remove vestigial values,
++					// and the fuse pass will join this block with its successor.
++					node.block.Kind = BlockPlain
++					node.block.Control = nil
++					f.removePredecessor(node.block, node.block.Succs[1])
++					node.block.Succs = node.block.Succs[:1]
++				} else {
++					// new nilcheck so add a ClearPtr node to clear the
++					// ptr from the map of nil checks once we traverse
++					// back up the tree
++					work = append(work, bp{op: ClearPtr, ptr: node.ptr})
++					// and cause a new setPtr to be appended after the
++					// block's dominees
++					pushRecPtr = true
++				}
++			}
++		case RecPtr:
++			nonNilValues[node.ptr.ID] = true
++			continue
++		case ClearPtr:
++			nonNilValues[node.ptr.ID] = false
++			continue
++		}
++
++		var nilBranch *Block
++		for _, w := range domTree[node.block.ID] {
++			// TODO: Since we handle the false side of OpIsNonNil
++			// correctly, look into rewriting user nil checks into
++			// OpIsNonNil so they can be eliminated also
++
++			// we are about to traverse down the 'ptr is nil' side
++			// of a nilcheck block, so save it for later
++			if node.block.Kind == BlockIf && node.block.Control.Op == OpIsNonNil &&
++				w == node.block.Succs[1] {
++				nilBranch = w
++				continue
++			}
++			work = append(work, bp{block: w, ptr: checkedptr(w)})
++		}
++
++		if nilBranch != nil {
++			// we pop from the back of the work slice, so this sets
++			// up the false branch to be operated on before the
++			// node.ptr is recorded
++			work = append(work, bp{op: RecPtr, ptr: node.ptr})
++			work = append(work, bp{block: nilBranch, ptr: checkedptr(nilBranch)})
++		} else if pushRecPtr {
++			work = append(work, bp{op: RecPtr, ptr: node.ptr})
++		}
++	}
++}
++
++// nilcheckelim0 is the original redundant nilcheck elimination algorithm.
++func nilcheckelim0(f *Func) {
+ 	// Exit early if there are no nil checks to eliminate.
+ 	var found bool
+ 	for _, b := range f.Blocks {
+@@ -50,17 +155,6 @@ func nilcheckelim(f *Func) {
+ 			b.Succs = b.Succs[:1]
+ 		}
+ 	}
+-
+-	// TODO: Eliminate more nil checks.
+-	// For example, pointers to function arguments
+-	// and pointers to static values cannot be nil.
+-	// We could also track pointers constructed by
+-	// taking the address of another value.
+-	// We can also recursively remove any chain of
+-	// fixed offset calculations,
+-	// i.e. struct fields and array elements,
+-	// even with non-constant indices:
+-	// x is non-nil iff x.a.b[i].c is.
+ }
+ 
+ // checkedptr returns the Value, if any,
+diff --git a/src/cmd/compile/internal/ssa/nilcheck_test.go b/src/cmd/compile/internal/ssa/nilcheck_test.go
+index 272fd0c027..0ebf2bc801 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck_test.go
++++ b/src/cmd/compile/internal/ssa/nilcheck_test.go
+@@ -46,6 +46,7 @@ func benchmarkNilCheckDeep(b *testing.B, depth int) {
+ 	CheckFunc(fun.f)
+ 	b.SetBytes(int64(depth)) // helps for eyeballing linearity
+ 	b.ResetTimer()
++	b.ReportAllocs()
+ 
+ 	for i := 0; i < b.N; i++ {
+ 		nilcheckelim(fun.f)
+@@ -55,3 +56,213 @@ func benchmarkNilCheckDeep(b *testing.B, depth int) {
+ func blockn(n int) string { return "b" + strconv.Itoa(n) }
+ func ptrn(n int) string   { return "p" + strconv.Itoa(n) }
+ func booln(n int) string  { return "c" + strconv.Itoa(n) }
++
++func isNilCheck(b *Block) bool {
++	return b.Kind == BlockIf && b.Control.Op == OpIsNonNil
++}
++
++// TestNilcheckSimple verifies that a second repeated nilcheck is removed.
++func TestNilcheckSimple(t *testing.T) {
++	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
++	c := NewConfig("amd64", DummyFrontend{t})
++	fun := Fun(c, "entry",
++		Bloc("entry",
++			Valu("mem", OpArg, TypeMem, 0, ".mem"),
++			Valu("sb", OpSB, TypeInvalid, 0, nil),
++			Goto("checkPtr")),
++		Bloc("checkPtr",
++			Valu("ptr1", OpConstPtr, ptrType, 0, nil, "sb"),
++			Valu("bool1", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
++			If("bool1", "secondCheck", "exit")),
++		Bloc("secondCheck",
++			Valu("bool2", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
++			If("bool2", "extra", "exit")),
++		Bloc("extra",
++			Goto("exit")),
++		Bloc("exit",
++			Exit("mem")))
++
++	CheckFunc(fun.f)
++	nilcheckelim(fun.f)
++
++	// clean up the removed nil check
++	fuse(fun.f)
++	deadcode(fun.f)
++
++	CheckFunc(fun.f)
++	for _, b := range fun.f.Blocks {
++		if b == fun.blocks["secondCheck"] && isNilCheck(b) {
++			t.Errorf("secondCheck was not eliminated")
++		}
++	}
++}
++
++// TestNilcheckDomOrder ensures that the nil check elimination isn't dependant
++// on the order of the dominees.
++func TestNilcheckDomOrder(t *testing.T) {
++	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
++	c := NewConfig("amd64", DummyFrontend{t})
++	fun := Fun(c, "entry",
++		Bloc("entry",
++			Valu("mem", OpArg, TypeMem, 0, ".mem"),
++			Valu("sb", OpSB, TypeInvalid, 0, nil),
++			Goto("checkPtr")),
++		Bloc("checkPtr",
++			Valu("ptr1", OpConstPtr, ptrType, 0, nil, "sb"),
++			Valu("bool1", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
++			If("bool1", "secondCheck", "exit")),
++		Bloc("exit",
++			Exit("mem")),
++		Bloc("secondCheck",
++			Valu("bool2", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
++			If("bool2", "extra", "exit")),
++		Bloc("extra",
++			Goto("exit")))
++
++	CheckFunc(fun.f)
++	nilcheckelim(fun.f)
++
++	// clean up the removed nil check
++	fuse(fun.f)
++	deadcode(fun.f)
++
++	CheckFunc(fun.f)
++	for _, b := range fun.f.Blocks {
++		if b == fun.blocks["secondCheck"] && isNilCheck(b) {
++			t.Errorf("secondCheck was not eliminated")
++		}
++	}
++}
++
++//TODO: Disabled until we track OpAddr constructed values
++// TestNilcheckAddr verifies that nilchecks of OpAddr constructed values are removed.
++func DISABLETestNilcheckAddr(t *testing.T) {
++	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
++	c := NewConfig("amd64", DummyFrontend{t})
++	fun := Fun(c, "entry",
++		Bloc("entry",
++			Valu("mem", OpArg, TypeMem, 0, ".mem"),
++			Valu("sb", OpSB, TypeInvalid, 0, nil),
++			Goto("checkPtr")),
++		Bloc("checkPtr",
++			Valu("ptr1", OpAddr, ptrType, 0, nil, "sb"),
++			Valu("bool1", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
++			If("bool1", "extra", "exit")),
++		Bloc("extra",
++			Goto("exit")),
++		Bloc("exit",
++			Exit("mem")))
++
++	CheckFunc(fun.f)
++	nilcheckelim(fun.f)
++
++	// clean up the removed nil check
++	fuse(fun.f)
++	deadcode(fun.f)
++
++	CheckFunc(fun.f)
++	for _, b := range fun.f.Blocks {
++		if b == fun.blocks["checkPtr"] && isNilCheck(b) {
++			t.Errorf("checkPtr was not eliminated")
++		}
++	}
++}
++
++// TestNilcheckKeepRemove verifies that dupliate checks of the same pointer
++// are removed, but checks of different pointers are not.
++func TestNilcheckKeepRemove(t *testing.T) {
++	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
++	c := NewConfig("amd64", DummyFrontend{t})
++	fun := Fun(c, "entry",
++		Bloc("entry",
++			Valu("mem", OpArg, TypeMem, 0, ".mem"),
++			Valu("sb", OpSB, TypeInvalid, 0, nil),
++			Goto("checkPtr")),
++		Bloc("checkPtr",
++			Valu("ptr1", OpConstPtr, ptrType, 0, nil, "sb"),
++			Valu("bool1", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
++			If("bool1", "differentCheck", "exit")),
++		Bloc("differentCheck",
++			Valu("ptr2", OpConstPtr, ptrType, 0, nil, "sb"),
++			Valu("bool2", OpIsNonNil, TypeBool, 0, nil, "ptr2"),
++			If("bool2", "secondCheck", "exit")),
++		Bloc("secondCheck",
++			Valu("bool3", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
++			If("bool3", "extra", "exit")),
++		Bloc("extra",
++			Goto("exit")),
++		Bloc("exit",
++			Exit("mem")))
++
++	CheckFunc(fun.f)
++	nilcheckelim(fun.f)
++
++	// clean up the removed nil check
++	fuse(fun.f)
++	deadcode(fun.f)
++
++	CheckFunc(fun.f)
++	foundDifferentCheck := false
++	for _, b := range fun.f.Blocks {
++		if b == fun.blocks["secondCheck"] && isNilCheck(b) {
++			t.Errorf("secondCheck was not eliminated")
++		}
++		if b == fun.blocks["differentCheck"] && isNilCheck(b) {
++			foundDifferentCheck = true
++		}
++	}
++	if !foundDifferentCheck {
++		t.Errorf("removed differentCheck, but shouldn't have")
++	}
++}
++
++// TestNilcheckInFalseBranch tests that nil checks in the false branch of an nilcheck
++// block are *not* removed.
++func TestNilcheckInFalseBranch(t *testing.T) {
++	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
++	c := NewConfig("amd64", DummyFrontend{t})
++	fun := Fun(c, "entry",
++		Bloc("entry",
++			Valu("mem", OpArg, TypeMem, 0, ".mem"),
++			Valu("sb", OpSB, TypeInvalid, 0, nil),
++			Goto("checkPtr")),
++		Bloc("checkPtr",
++			Valu("ptr1", OpConstPtr, ptrType, 0, nil, "sb"),
++			Valu("bool1", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
++			If("bool1", "extra", "secondCheck")),
++		Bloc("secondCheck",
++			Valu("bool2", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
++			If("bool2", "extra", "thirdCheck")),
++		Bloc("thirdCheck",
++			Valu("bool3", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
++			If("bool3", "extra", "exit")),
++		Bloc("extra",
++			Goto("exit")),
++		Bloc("exit",
++			Exit("mem")))
++
++	CheckFunc(fun.f)
++	nilcheckelim(fun.f)
++
++	// clean up the removed nil check
++	fuse(fun.f)
++	deadcode(fun.f)
++
++	CheckFunc(fun.f)
++	foundSecondCheck := false
++	foundThirdCheck := false
++	for _, b := range fun.f.Blocks {
++		if b == fun.blocks["secondCheck"] && isNilCheck(b) {
++			foundSecondCheck = true
++		}
++		if b == fun.blocks["thirdCheck"] && isNilCheck(b) {
++			foundThirdCheck = true
++		}
++	}
++	if !foundSecondCheck {
++		t.Errorf("removed secondCheck, but shouldn't have [false branch]")
++	}
++	if !foundThirdCheck {
++		t.Errorf("removed thirdCheck, but shouldn't have [false branch]")
++	}
++}

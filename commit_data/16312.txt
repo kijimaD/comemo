@@ -11,7 +11,54 @@ Date:   Wed May 15 16:48:41 2013 +0400
     R=golang-dev, khr, iant
     CC=golang-dev
     https://golang.org/cl/9196047
-
+---
  src/pkg/runtime/lock_futex.c | 6 +++---
  src/pkg/runtime/lock_sema.c  | 6 +++---
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/runtime/lock_futex.c b/src/pkg/runtime/lock_futex.c
+index 3c2ef4ede0..d20b63c329 100644
+--- a/src/pkg/runtime/lock_futex.c
++++ b/src/pkg/runtime/lock_futex.c
+@@ -91,14 +91,14 @@ runtime·unlock(Lock *l)
+ {
+ 	uint32 v;
+ 
+-	if(--m->locks < 0)
+-		runtime·throw("runtime·unlock: lock count");
+-
+ 	v = runtime·xchg((uint32*)&l->key, MUTEX_UNLOCKED);
+ 	if(v == MUTEX_UNLOCKED)
+ 		runtime·throw("unlock of unlocked lock");
+ 	if(v == MUTEX_SLEEPING)
+ 		runtime·futexwakeup((uint32*)&l->key, 1);
++
++	if(--m->locks < 0)
++		runtime·throw("runtime·unlock: lock count");
+ }
+ 
+ // One-time notifications.
+diff --git a/src/pkg/runtime/lock_sema.c b/src/pkg/runtime/lock_sema.c
+index ec4b15a98a..80674e8a5e 100644
+--- a/src/pkg/runtime/lock_sema.c
++++ b/src/pkg/runtime/lock_sema.c
+@@ -93,9 +93,6 @@ runtime·unlock(Lock *l)
+ 	uintptr v;
+ 	M *mp;
+ 
+-	if(--m->locks < 0)
+-		runtime·throw("runtime·unlock: lock count");
+-
+ 	for(;;) {
+ 		v = (uintptr)runtime·atomicloadp((void**)&l->key);
+ 		if(v == LOCKED) {
+@@ -112,6 +109,9 @@ runtime·unlock(Lock *l)
+ 			}
+ 		}
+ 	}
++
++	if(--m->locks < 0)
++		runtime·throw("runtime·unlock: lock count");
+ }
+ 
+ // One-time notifications.

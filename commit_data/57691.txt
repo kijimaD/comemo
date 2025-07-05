@@ -16,7 +16,84 @@ Date:   Mon Aug 21 22:29:11 2023 +0000
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/mgc.go     |  8 ++++----
  src/runtime/mgcmark.go | 30 ++++++++++++++++++++++++++++++
  2 files changed, 34 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 8efee74243..44ff5fb08b 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1383,7 +1383,7 @@ func gcBgMarkWorker() {
+ 			default:
+ 				throw("gcBgMarkWorker: unexpected gcMarkWorkerMode")
+ 			case gcMarkWorkerDedicatedMode:
+-				gcDrain(&pp.gcw, gcDrainUntilPreempt|gcDrainFlushBgCredit)
++				gcDrainMarkWorkerDedicated(&pp.gcw, true)
+ 				if gp.preempt {
+ 					// We were preempted. This is
+ 					// a useful signal to kick
+@@ -1398,11 +1398,11 @@ func gcBgMarkWorker() {
+ 				}
+ 				// Go back to draining, this time
+ 				// without preemption.
+-				gcDrain(&pp.gcw, gcDrainFlushBgCredit)
++				gcDrainMarkWorkerDedicated(&pp.gcw, false)
+ 			case gcMarkWorkerFractionalMode:
+-				gcDrain(&pp.gcw, gcDrainFractional|gcDrainUntilPreempt|gcDrainFlushBgCredit)
++				gcDrainMarkWorkerFractional(&pp.gcw)
+ 			case gcMarkWorkerIdleMode:
+-				gcDrain(&pp.gcw, gcDrainIdle|gcDrainUntilPreempt|gcDrainFlushBgCredit)
++				gcDrainMarkWorkerIdle(&pp.gcw)
+ 			}
+ 			casgstatus(gp, _Gwaiting, _Grunning)
+ 		})
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 2b4e23823b..9ab3b48f2f 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -1011,6 +1011,28 @@ const (
+ 	gcDrainFractional
+ )
+ 
++// gcDrainMarkWorkerIdle is a wrapper for gcDrain that exists to better account
++// mark time in profiles.
++func gcDrainMarkWorkerIdle(gcw *gcWork) {
++	gcDrain(gcw, gcDrainIdle|gcDrainUntilPreempt|gcDrainFlushBgCredit)
++}
++
++// gcDrainMarkWorkerDedicated is a wrapper for gcDrain that exists to better account
++// mark time in profiles.
++func gcDrainMarkWorkerDedicated(gcw *gcWork, untilPreempt bool) {
++	flags := gcDrainFlushBgCredit
++	if untilPreempt {
++		flags |= gcDrainUntilPreempt
++	}
++	gcDrain(gcw, flags)
++}
++
++// gcDrainMarkWorkerFractional is a wrapper for gcDrain that exists to better account
++// mark time in profiles.
++func gcDrainMarkWorkerFractional(gcw *gcWork) {
++	gcDrain(gcw, gcDrainFractional|gcDrainUntilPreempt|gcDrainFlushBgCredit)
++}
++
+ // gcDrain scans roots and objects in work buffers, blackening grey
+ // objects until it is unable to get more work. It may return before
+ // GC is done; it's the caller's responsibility to balance work from
+@@ -1032,6 +1054,14 @@ const (
+ //
+ // gcDrain will always return if there is a pending STW.
+ //
++// Disabling write barriers is necessary to ensure that after we've
++// confirmed that we've drained gcw, that we don't accidentally end
++// up flipping that condition by immediately adding work in the form
++// of a write barrier buffer flush.
++//
++// Don't set nowritebarrierrec because it's safe for some callees to
++// have write barriers enabled.
++//
+ //go:nowritebarrier
+ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
+ 	if !writeBarrier.needed {

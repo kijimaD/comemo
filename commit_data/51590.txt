@@ -39,7 +39,7 @@ Date:   Wed Feb 16 20:11:52 2022 -0800
     Trust: Dan Scales <danscales@google.com>
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/importer/iimport.go  | 22 +++++++++-
  src/cmd/compile/internal/typecheck/iimport.go | 11 +++--
  src/go/internal/gcimporter/iimport.go         | 23 ++++++++++-
@@ -49,3 +49,266 @@ Date:   Wed Feb 16 20:11:52 2022 -0800
  test/typeparam/issue51219.go                  |  7 ++++
  test/typeparam/issue51219.out                 |  1 +
  8 files changed, 146 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/iimport.go b/src/cmd/compile/internal/importer/iimport.go
+index a827987a48..bed4fbb016 100644
+--- a/src/cmd/compile/internal/importer/iimport.go
++++ b/src/cmd/compile/internal/importer/iimport.go
+@@ -180,6 +180,14 @@ func ImportData(imports map[string]*types2.Package, data, path string) (pkg *typ
+ 		p.doDecl(localpkg, name)
+ 	}
+ 
++	// SetConstraint can't be called if the constraint type is not yet complete.
++	// When type params are created in the 'P' case of (*importReader).obj(),
++	// the associated constraint type may not be complete due to recursion.
++	// Therefore, we defer calling SetConstraint there, and call it here instead
++	// after all types are complete.
++	for _, d := range p.later {
++		d.t.SetConstraint(d.constraint)
++	}
+ 	// record all referenced packages as imports
+ 	list := append(([]*types2.Package)(nil), pkgList[1:]...)
+ 	sort.Sort(byPath(list))
+@@ -191,6 +199,11 @@ func ImportData(imports map[string]*types2.Package, data, path string) (pkg *typ
+ 	return localpkg, nil
+ }
+ 
++type setConstraintArgs struct {
++	t          *types2.TypeParam
++	constraint types2.Type
++}
++
+ type iimporter struct {
+ 	exportVersion int64
+ 	ipath         string
+@@ -206,6 +219,9 @@ type iimporter struct {
+ 	tparamIndex map[ident]*types2.TypeParam
+ 
+ 	interfaceList []*types2.Interface
++
++	// Arguments for calls to SetConstraint that are deferred due to recursive types
++	later []setConstraintArgs
+ }
+ 
+ func (p *iimporter) doDecl(pkg *types2.Package, name string) {
+@@ -401,7 +417,11 @@ func (r *importReader) obj(name string) {
+ 			}
+ 			iface.MarkImplicit()
+ 		}
+-		t.SetConstraint(constraint)
++		// The constraint type may not be complete, if we
++		// are in the middle of a type recursion involving type
++		// constraints. So, we defer SetConstraint until we have
++		// completely set up all types in ImportData.
++		r.p.later = append(r.p.later, setConstraintArgs{t: t, constraint: constraint})
+ 
+ 	case 'V':
+ 		typ := r.typ()
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index bc34d3933a..ef91f550a5 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -354,15 +354,18 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
+ 		// declaration before recursing.
+ 		n := importtype(pos, sym)
+ 		t := n.Type()
++
++		// Because of recursion, we need to defer width calculations and
++		// instantiations on intermediate types until the top-level type is
++		// fully constructed. Note that we can have recursion via type
++		// constraints.
++		types.DeferCheckSize()
++		deferDoInst()
+ 		if tag == 'U' {
+ 			rparams := r.typeList()
+ 			t.SetRParams(rparams)
+ 		}
+ 
+-		// We also need to defer width calculations until
+-		// after the underlying type has been assigned.
+-		types.DeferCheckSize()
+-		deferDoInst()
+ 		underlying := r.typ()
+ 		t.SetUnderlying(underlying)
+ 
+diff --git a/src/go/internal/gcimporter/iimport.go b/src/go/internal/gcimporter/iimport.go
+index 8ec4c5413b..bff1c09cc9 100644
+--- a/src/go/internal/gcimporter/iimport.go
++++ b/src/go/internal/gcimporter/iimport.go
+@@ -181,6 +181,15 @@ func iImportData(fset *token.FileSet, imports map[string]*types.Package, dataRea
+ 		p.doDecl(localpkg, name)
+ 	}
+ 
++	// SetConstraint can't be called if the constraint type is not yet complete.
++	// When type params are created in the 'P' case of (*importReader).obj(),
++	// the associated constraint type may not be complete due to recursion.
++	// Therefore, we defer calling SetConstraint there, and call it here instead
++	// after all types are complete.
++	for _, d := range p.later {
++		d.t.SetConstraint(d.constraint)
++	}
++
+ 	for _, typ := range p.interfaceList {
+ 		typ.Complete()
+ 	}
+@@ -195,6 +204,11 @@ func iImportData(fset *token.FileSet, imports map[string]*types.Package, dataRea
+ 	return localpkg, nil
+ }
+ 
++type setConstraintArgs struct {
++	t          *types.TypeParam
++	constraint types.Type
++}
++
+ type iimporter struct {
+ 	exportVersion int64
+ 	ipath         string
+@@ -211,6 +225,9 @@ type iimporter struct {
+ 
+ 	fake          fakeFileSet
+ 	interfaceList []*types.Interface
++
++	// Arguments for calls to SetConstraint that are deferred due to recursive types
++	later []setConstraintArgs
+ }
+ 
+ func (p *iimporter) doDecl(pkg *types.Package, name string) {
+@@ -391,7 +408,11 @@ func (r *importReader) obj(name string) {
+ 			}
+ 			iface.MarkImplicit()
+ 		}
+-		t.SetConstraint(constraint)
++		// The constraint type may not be complete, if we
++		// are in the middle of a type recursion involving type
++		// constraints. So, we defer SetConstraint until we have
++		// completely set up all types in ImportData.
++		r.p.later = append(r.p.later, setConstraintArgs{t: t, constraint: constraint})
+ 
+ 	case 'V':
+ 		typ := r.typ()
+diff --git a/test/typeparam/issue51219.dir/a.go b/test/typeparam/issue51219.dir/a.go
+new file mode 100644
+index 0000000000..3ed4322dbf
+--- /dev/null
++++ b/test/typeparam/issue51219.dir/a.go
+@@ -0,0 +1,59 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++// Type I is the first basic test for the issue, which relates to a type that is recursive
++// via a type constraint.  (In this test, I -> IConstraint -> MyStruct -> I.)
++type JsonRaw []byte
++
++type MyStruct struct {
++	x *I[JsonRaw]
++}
++
++type IConstraint interface {
++	JsonRaw | MyStruct
++}
++
++type I[T IConstraint] struct {
++}
++
++// The following types form an even more complex recursion (through two type
++// constraints), and model the actual types in the issue (#51219) more closely.
++// However, they don't reveal any new issue. But it seems useful to leave this
++// complex set of types in a test in case it might be broken by future changes.
++
++type Message struct {
++	Interaction *Interaction[JsonRaw] `json:"interaction,omitempty"`
++}
++
++type ResolvedDataConstraint interface {
++	User | Message
++}
++
++type Snowflake uint64
++
++type ResolvedData[T ResolvedDataConstraint] map[Snowflake]T
++
++type User struct {
++}
++
++type Resolved struct {
++	Users ResolvedData[User] `json:"users,omitempty"`
++}
++
++type resolvedInteractionWithOptions struct {
++	Resolved Resolved `json:"resolved,omitempty"`
++}
++
++type UserCommandInteractionData struct {
++	resolvedInteractionWithOptions
++}
++
++type InteractionDataConstraint interface {
++	JsonRaw | UserCommandInteractionData
++}
++
++type Interaction[DataT InteractionDataConstraint] struct {
++}
+diff --git a/test/typeparam/issue51219.dir/b.go b/test/typeparam/issue51219.dir/b.go
+new file mode 100644
+index 0000000000..c1590725b0
+--- /dev/null
++++ b/test/typeparam/issue51219.dir/b.go
+@@ -0,0 +1,11 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "a"
++
++type InteractionRequest[T a.InteractionDataConstraint] struct {
++	a.Interaction[T]
++}
+diff --git a/test/typeparam/issue51219.dir/main.go b/test/typeparam/issue51219.dir/main.go
+new file mode 100644
+index 0000000000..c5cffd111c
+--- /dev/null
++++ b/test/typeparam/issue51219.dir/main.go
+@@ -0,0 +1,18 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"a"
++	"b"
++	"fmt"
++)
++
++func main() {
++	var x a.I[a.JsonRaw]
++	var y b.InteractionRequest[a.JsonRaw]
++
++	fmt.Printf("%v %v\n", x, y)
++}
+diff --git a/test/typeparam/issue51219.go b/test/typeparam/issue51219.go
+new file mode 100644
+index 0000000000..642f4bf49f
+--- /dev/null
++++ b/test/typeparam/issue51219.go
+@@ -0,0 +1,7 @@
++// rundir -G=3
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored
+diff --git a/test/typeparam/issue51219.out b/test/typeparam/issue51219.out
+new file mode 100644
+index 0000000000..99c5b9aa9b
+--- /dev/null
++++ b/test/typeparam/issue51219.out
+@@ -0,0 +1 @@
++{} {{}}

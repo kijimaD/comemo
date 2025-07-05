@@ -15,6 +15,23 @@ Date:   Thu Nov 10 11:45:56 2016 -0500
     Run-TryBot: Quentin Smith <quentin@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/go_test.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 456e1b669a..320c041265 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2345,8 +2345,9 @@ func TestCgoPkgConfig(t *testing.T) {
+ 	tg.parallel()
+ 
+ 	tg.run("env", "PKG_CONFIG")
+-	if _, err := exec.LookPath(strings.TrimSpace(tg.getStdout())); err != nil {
+-		t.Skip("skipping because pkg-config could not be found")
++	pkgConfig := strings.TrimSpace(tg.getStdout())
++	if out, err := exec.Command(pkgConfig, "--atleast-pkgconfig-version", "0.24").CombinedOutput(); err != nil {
++		t.Skipf("%s --atleast-pkgconfig-version 0.24: %v\n%s", pkgConfig, err, out)
+ 	}
+ 
+ 	// OpenBSD's pkg-config is strict about whitespace and only

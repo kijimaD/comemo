@@ -14,7 +14,39 @@ Date:   Mon Nov 22 02:41:07 2021 +0000
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/test_issue45477.txt | 12 ++++++++++++
  src/go/build/build.go                          |  2 +-
  2 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/test_issue45477.txt b/src/cmd/go/testdata/script/test_issue45477.txt
+new file mode 100644
+index 0000000000..f435b6a6f4
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_issue45477.txt
+@@ -0,0 +1,12 @@
++[short] skip  # links and runs a test binary
++
++go test -v .
++
++-- go.mod --
++module example.com/pkg_test
++
++-- pkg.go --
++package pkg_test
++
++-- pkg_test.go --
++package pkg_test
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index eb47ffe285..6f7260b78f 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -894,7 +894,7 @@ Found:
+ 
+ 		isTest := strings.HasSuffix(name, "_test.go")
+ 		isXTest := false
+-		if isTest && strings.HasSuffix(pkg, "_test") {
++		if isTest && strings.HasSuffix(pkg, "_test") && p.Name != pkg {
+ 			isXTest = true
+ 			pkg = pkg[:len(pkg)-len("_test")]
+ 		}

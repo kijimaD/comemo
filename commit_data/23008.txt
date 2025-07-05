@@ -22,8 +22,87 @@ Date:   Sun Apr 5 14:48:42 2015 +1200
     Change-Id: I5fc6e9b1dc2b26f058641e382f9a56a526eca291
     Reviewed-on: https://go-review.googlesource.com/8481
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/build.go            |  3 +++
  src/cmd/internal/gc/reflect.go | 15 +++++++--------
  test/fixedbugs/issue10332.go   | 25 +++++++++++++++++++++++++
  3 files changed, 35 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 05c68fc4ec..6734d53d5b 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1851,6 +1851,9 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool,
+ 	}
+ 
+ 	gcargs := []string{"-p", p.ImportPath}
++	if p.Name == "main" {
++		gcargs[1] = "main"
++	}
+ 	if p.Standard && p.ImportPath == "runtime" {
+ 		// runtime compiles with a special 6g flag to emit
+ 		// additional reflect type data.
+diff --git a/src/cmd/internal/gc/reflect.go b/src/cmd/internal/gc/reflect.go
+index 725f224bf0..47e24a5205 100644
+--- a/src/cmd/internal/gc/reflect.go
++++ b/src/cmd/internal/gc/reflect.go
+@@ -484,13 +484,7 @@ func dimportpath(p *Pkg) {
+ 		dimportpath_gopkg.Name = "go"
+ 	}
+ 
+-	var nam string
+-	if p == localpkg {
+-		// Note: myimportpath != "", or else dgopkgpath won't call dimportpath.
+-		nam = "importpath." + pathtoprefix(myimportpath) + "."
+-	} else {
+-		nam = "importpath." + p.Prefix + "."
+-	}
++	nam := "importpath." + p.Prefix + "."
+ 
+ 	n := Nod(ONAME, nil, nil)
+ 	n.Sym = Pkglookup(nam, dimportpath_gopkg)
+@@ -499,7 +493,12 @@ func dimportpath(p *Pkg) {
+ 	n.Xoffset = 0
+ 	p.Pathsym = n.Sym
+ 
+-	gdatastring(n, p.Path)
++	if p == localpkg {
++		// Note: myimportpath != "", or else dgopkgpath won't call dimportpath.
++		gdatastring(n, myimportpath)
++	} else {
++		gdatastring(n, p.Path)
++	}
+ 	ggloblsym(n.Sym, int32(Types[TSTRING].Width), obj.DUPOK|obj.RODATA)
+ }
+ 
+diff --git a/test/fixedbugs/issue10332.go b/test/fixedbugs/issue10332.go
+new file mode 100644
+index 0000000000..e00a8b4dfb
+--- /dev/null
++++ b/test/fixedbugs/issue10332.go
+@@ -0,0 +1,25 @@
++// run
++
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The PkgPath of unexported fields of types defined in package main was incorrectly ""
++
++package main
++
++import (
++	"fmt"
++	"reflect"
++)
++
++type foo struct {
++	bar int
++}
++
++func main() {
++	pkgpath := reflect.ValueOf(foo{}).Type().Field(0).PkgPath
++	if pkgpath != "main" {
++		fmt.Printf("BUG: incorrect PkgPath: %v", pkgpath)
++	}
++}

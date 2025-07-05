@@ -10,6 +10,23 @@ Date:   Fri May 18 06:50:43 2018 +0530
     Change-Id: I92924b51e8df2ae88e6e50318348f44973addba8
     Reviewed-on: https://go-review.googlesource.com/113696
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/gofmt/gofmt.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index d5b7be327a..ac6852f2e4 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -319,10 +319,7 @@ func backupFile(filename string, data []byte, perm os.FileMode) (string, error)
+ 	}
+ 
+ 	// write data to backup file
+-	n, err := f.Write(data)
+-	if err == nil && n < len(data) {
+-		err = io.ErrShortWrite
+-	}
++	_, err = f.Write(data)
+ 	if err1 := f.Close(); err == nil {
+ 		err = err1
+ 	}

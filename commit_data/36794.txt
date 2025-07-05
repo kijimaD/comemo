@@ -13,7 +13,48 @@ Date:   Tue May 29 17:10:39 2018 +0200
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/work/security.go      | 2 ++
  src/cmd/go/internal/work/security_test.go | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/src/cmd/go/internal/work/security.go b/src/cmd/go/internal/work/security.go
+index 5c67aa945e..880f4fdc79 100644
+--- a/src/cmd/go/internal/work/security.go
++++ b/src/cmd/go/internal/work/security.go
+@@ -94,6 +94,7 @@ var validCompilerFlags = []*regexp.Regexp{
+ 	re(`-?-stdlib=([^@\-].*)`),
+ 	re(`-w`),
+ 	re(`-x([^@\-].*)`),
++	re(`-v`),
+ }
+ 
+ var validCompilerFlagsWithNextArg = []string{
+@@ -127,6 +128,7 @@ var validLinkerFlags = []*regexp.Regexp{
+ 	re(`-shared`),
+ 	re(`-?-static([-a-z0-9+]*)`),
+ 	re(`-?-stdlib=([^@\-].*)`),
++	re(`-v`),
+ 
+ 	// Note that any wildcards in -Wl need to exclude comma,
+ 	// since -Wl splits its argument at commas and passes
+diff --git a/src/cmd/go/internal/work/security_test.go b/src/cmd/go/internal/work/security_test.go
+index bd898c9de6..15eeff9b4b 100644
+--- a/src/cmd/go/internal/work/security_test.go
++++ b/src/cmd/go/internal/work/security_test.go
+@@ -57,6 +57,7 @@ var goodCompilerFlags = [][]string{
+ 	{"-I", "世界"},
+ 	{"-framework", "Chocolate"},
+ 	{"-x", "c"},
++	{"-v"},
+ }
+ 
+ var badCompilerFlags = [][]string{
+@@ -132,6 +133,7 @@ var goodLinkerFlags = [][]string{
+ 	{"-l", "世界"},
+ 	{"-L", "framework"},
+ 	{"-framework", "Chocolate"},
++	{"-v"},
+ 	{"-Wl,-framework", "-Wl,Chocolate"},
+ 	{"-Wl,-framework,Chocolate"},
+ 	{"-Wl,-unresolved-symbols=ignore-all"},

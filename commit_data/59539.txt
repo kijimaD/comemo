@@ -55,7 +55,7 @@ Date:   Tue Feb 20 21:16:33 2024 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
-
+---
  src/internal/trace/v2/event.go                     | 16 +++-
  src/internal/trace/v2/event/go122/event.go         | 21 +++++
  src/internal/trace/v2/order.go                     | 94 +++++++++++++++++++---
@@ -71,3 +71,638 @@ Date:   Tue Feb 20 21:16:33 2024 +0000
  src/runtime/trace2event.go                         |  5 ++
  src/runtime/trace2runtime.go                       | 40 +++++++--
  14 files changed, 306 insertions(+), 43 deletions(-)
+
+diff --git a/src/internal/trace/v2/event.go b/src/internal/trace/v2/event.go
+index ec5e27e57a..55bc88455c 100644
+--- a/src/internal/trace/v2/event.go
++++ b/src/internal/trace/v2/event.go
+@@ -566,8 +566,12 @@ func (e Event) StateTransition() StateTransition {
+ 	case go122.EvProcStatus:
+ 		// N.B. ordering.advance populates e.base.extra.
+ 		s = procStateTransition(ProcID(e.base.args[0]), ProcState(e.base.extra(version.Go122)[0]), go122ProcStatus2ProcState[e.base.args[1]])
+-	case go122.EvGoCreate:
+-		s = goStateTransition(GoID(e.base.args[0]), GoNotExist, GoRunnable)
++	case go122.EvGoCreate, go122.EvGoCreateBlocked:
++		status := GoRunnable
++		if e.base.typ == go122.EvGoCreateBlocked {
++			status = GoWaiting
++		}
++		s = goStateTransition(GoID(e.base.args[0]), GoNotExist, status)
+ 		s.Stack = Stack{table: e.table, id: stackID(e.base.args[1])}
+ 	case go122.EvGoCreateSyscall:
+ 		s = goStateTransition(GoID(e.base.args[0]), GoNotExist, GoSyscall)
+@@ -586,7 +590,10 @@ func (e Event) StateTransition() StateTransition {
+ 		s = goStateTransition(e.ctx.G, GoRunning, GoWaiting)
+ 		s.Reason = e.table.strings.mustGet(stringID(e.base.args[0]))
+ 		s.Stack = e.Stack() // This event references the resource the event happened on.
+-	case go122.EvGoUnblock:
++	case go122.EvGoUnblock, go122.EvGoSwitch, go122.EvGoSwitchDestroy:
++		// N.B. GoSwitch and GoSwitchDestroy both emit additional events, but
++		// the first thing they both do is unblock the goroutine they name,
++		// identically to an unblock event (even their arguments match).
+ 		s = goStateTransition(GoID(e.base.args[0]), GoWaiting, GoRunnable)
+ 	case go122.EvGoSyscallBegin:
+ 		s = goStateTransition(e.ctx.G, GoRunning, GoSyscall)
+@@ -646,6 +653,9 @@ var go122Type2Kind = [...]EventKind{
+ 	go122.EvUserRegionBegin:     EventRegionBegin,
+ 	go122.EvUserRegionEnd:       EventRegionEnd,
+ 	go122.EvUserLog:             EventLog,
++	go122.EvGoSwitch:            EventStateTransition,
++	go122.EvGoSwitchDestroy:     EventStateTransition,
++	go122.EvGoCreateBlocked:     EventStateTransition,
+ 	evSync:                      EventSync,
+ }
+ 
+diff --git a/src/internal/trace/v2/event/go122/event.go b/src/internal/trace/v2/event/go122/event.go
+index f28e918231..ace11be462 100644
+--- a/src/internal/trace/v2/event/go122/event.go
++++ b/src/internal/trace/v2/event/go122/event.go
+@@ -67,6 +67,11 @@ const (
+ 	EvUserRegionBegin // trace.{Start,With}Region [timestamp, internal task ID, name string ID, stack ID]
+ 	EvUserRegionEnd   // trace.{End,With}Region [timestamp, internal task ID, name string ID, stack ID]
+ 	EvUserLog         // trace.Log [timestamp, internal task ID, key string ID, value string ID, stack]
++
++	// Coroutines. Added in Go 1.23.
++	EvGoSwitch        // goroutine switch (coroswitch) [timestamp, goroutine ID, goroutine seq]
++	EvGoSwitchDestroy // goroutine switch and destroy [timestamp, goroutine ID, goroutine seq]
++	EvGoCreateBlocked // goroutine creation (starts blocked) [timestamp, new goroutine ID, new stack ID, stack ID]
+ )
+ 
+ // EventString returns the name of a Go 1.22 event.
+@@ -332,6 +337,22 @@ var specs = [...]event.Spec{
+ 		StackIDs:     []int{4},
+ 		StringIDs:    []int{2, 3},
+ 	},
++	EvGoSwitch: event.Spec{
++		Name:         "GoSwitch",
++		Args:         []string{"dt", "g", "g_seq"},
++		IsTimedEvent: true,
++	},
++	EvGoSwitchDestroy: event.Spec{
++		Name:         "GoSwitchDestroy",
++		Args:         []string{"dt", "g", "g_seq"},
++		IsTimedEvent: true,
++	},
++	EvGoCreateBlocked: event.Spec{
++		Name:         "GoCreateBlocked",
++		Args:         []string{"dt", "new_g", "new_stack", "stack"},
++		IsTimedEvent: true,
++		StackIDs:     []int{3, 2},
++	},
+ }
+ 
+ type GoStatus uint8
+diff --git a/src/internal/trace/v2/order.go b/src/internal/trace/v2/order.go
+index 258f3a3f63..f3fb1fb9a7 100644
+--- a/src/internal/trace/v2/order.go
++++ b/src/internal/trace/v2/order.go
+@@ -334,7 +334,7 @@ func (o *ordering) Advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64)
+ 			curCtx.M = mid
+ 		}
+ 		o.queue.push(currentEvent())
+-	case go122.EvGoCreate:
++	case go122.EvGoCreate, go122.EvGoCreateBlocked:
+ 		// Goroutines must be created on a running P, but may or may not be created
+ 		// by a running goroutine.
+ 		reqs := event.SchedReqs{Thread: event.MustHave, Proc: event.MustHave, Goroutine: event.MayHave}
+@@ -350,7 +350,11 @@ func (o *ordering) Advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64)
+ 		if _, ok := o.gStates[newgid]; ok {
+ 			return false, fmt.Errorf("tried to create goroutine (%v) that already exists", newgid)
+ 		}
+-		o.gStates[newgid] = &gState{id: newgid, status: go122.GoRunnable, seq: makeSeq(gen, 0)}
++		status := go122.GoRunnable
++		if typ == go122.EvGoCreateBlocked {
++			status = go122.GoWaiting
++		}
++		o.gStates[newgid] = &gState{id: newgid, status: status, seq: makeSeq(gen, 0)}
+ 		o.queue.push(currentEvent())
+ 	case go122.EvGoDestroy, go122.EvGoStop, go122.EvGoBlock:
+ 		// These are goroutine events that all require an active running
+@@ -418,6 +422,64 @@ func (o *ordering) Advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64)
+ 		// N.B. No context to validate. Basically anything can unblock
+ 		// a goroutine (e.g. sysmon).
+ 		o.queue.push(currentEvent())
++	case go122.EvGoSwitch, go122.EvGoSwitchDestroy:
++		// GoSwitch and GoSwitchDestroy represent a trio of events:
++		// - Unblock of the goroutine to switch to.
++		// - Block or destroy of the current goroutine.
++		// - Start executing the next goroutine.
++		//
++		// Because it acts like a GoStart for the next goroutine, we can
++		// only advance it if the sequence numbers line up.
++		//
++		// The current goroutine on the thread must be actively running.
++		if err := validateCtx(curCtx, event.UserGoReqs); err != nil {
++			return false, err
++		}
++		curGState, ok := o.gStates[curCtx.G]
++		if !ok {
++			return false, fmt.Errorf("event %s for goroutine (%v) that doesn't exist", go122.EventString(typ), curCtx.G)
++		}
++		if curGState.status != go122.GoRunning {
++			return false, fmt.Errorf("%s event for goroutine that's not %s", go122.EventString(typ), GoRunning)
++		}
++		nextg := GoID(ev.args[0])
++		seq := makeSeq(gen, ev.args[1]) // seq is for nextg, not curCtx.G.
++		nextGState, ok := o.gStates[nextg]
++		if !ok || nextGState.status != go122.GoWaiting || !seq.succeeds(nextGState.seq) {
++			// We can't make an inference as to whether this is bad. We could just be seeing
++			// a GoSwitch on a different M before the goroutine was created, before it had its
++			// state emitted, or before we got to the right point in the trace yet.
++			return false, nil
++		}
++		o.queue.push(currentEvent())
++
++		// Update the state of the executing goroutine and emit an event for it
++		// (GoSwitch and GoSwitchDestroy will be interpreted as GoUnblock events
++		// for nextg).
++		switch typ {
++		case go122.EvGoSwitch:
++			// Goroutine blocked. It's waiting now and not running on this M.
++			curGState.status = go122.GoWaiting
++
++			// Emit a GoBlock event.
++			// TODO(mknyszek): Emit a reason.
++			o.queue.push(makeEvent(evt, curCtx, go122.EvGoBlock, ev.time, 0 /* no reason */, 0 /* no stack */))
++		case go122.EvGoSwitchDestroy:
++			// This goroutine is exiting itself.
++			delete(o.gStates, curCtx.G)
++
++			// Emit a GoDestroy event.
++			o.queue.push(makeEvent(evt, curCtx, go122.EvGoDestroy, ev.time))
++		}
++		// Update the state of the next goroutine.
++		nextGState.status = go122.GoRunning
++		nextGState.seq = seq
++		newCtx.G = nextg
++
++		// Queue an event for the next goroutine starting to run.
++		startCtx := curCtx
++		startCtx.G = NoGoroutine
++		o.queue.push(makeEvent(evt, startCtx, go122.EvGoStart, ev.time, uint64(nextg), ev.args[1]))
+ 	case go122.EvGoSyscallBegin:
+ 		// Entering a syscall requires an active running goroutine with a
+ 		// proc on some thread. It is always advancable.
+@@ -578,15 +640,7 @@ func (o *ordering) Advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64)
+ 			newCtx.P = NoProc
+ 
+ 			// Queue an extra self-ProcSteal event.
+-			extra := Event{
+-				table: evt,
+-				ctx:   curCtx,
+-				base: baseEvent{
+-					typ:  go122.EvProcSteal,
+-					time: ev.time,
+-				},
+-			}
+-			extra.base.args[0] = uint64(curCtx.P)
++			extra := makeEvent(evt, curCtx, go122.EvProcSteal, ev.time, uint64(curCtx.P))
+ 			extra.base.extra(version.Go122)[0] = uint64(go122.ProcSyscall)
+ 			o.queue.push(extra)
+ 		}
+@@ -1155,3 +1209,21 @@ func (q *queue[T]) pop() (T, bool) {
+ 	q.start++
+ 	return value, true
+ }
++
++// makeEvent creates an Event from the provided information.
++//
++// It's just a convenience function; it's always OK to construct
++// an Event manually if this isn't quite the right way to express
++// the contents of the event.
++func makeEvent(table *evTable, ctx schedCtx, typ event.Type, time Time, args ...uint64) Event {
++	ev := Event{
++		table: table,
++		ctx:   ctx,
++		base: baseEvent{
++			typ:  typ,
++			time: time,
++		},
++	}
++	copy(ev.base.args[:], args)
++	return ev
++}
+diff --git a/src/internal/trace/v2/reader.go b/src/internal/trace/v2/reader.go
+index 94a522ce66..45f0d13787 100644
+--- a/src/internal/trace/v2/reader.go
++++ b/src/internal/trace/v2/reader.go
+@@ -46,7 +46,7 @@ func NewReader(r io.Reader) (*Reader, error) {
+ 		return &Reader{
+ 			go121Events: convertOldFormat(tr),
+ 		}, nil
+-	case version.Go122:
++	case version.Go122, version.Go123:
+ 		return &Reader{
+ 			r: br,
+ 			order: ordering{
+diff --git a/src/internal/trace/v2/testdata/testprog/iter-pull.go b/src/internal/trace/v2/testdata/testprog/iter-pull.go
+new file mode 100644
+index 0000000000..ba8f41365e
+--- /dev/null
++++ b/src/internal/trace/v2/testdata/testprog/iter-pull.go
+@@ -0,0 +1,85 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Tests coroutine switches.
++
++//go:build ignore
++
++package main
++
++import (
++	"iter"
++	"log"
++	"os"
++	"runtime/trace"
++	"sync"
++)
++
++func main() {
++	// Start tracing.
++	if err := trace.Start(os.Stdout); err != nil {
++		log.Fatalf("failed to start tracing: %v", err)
++	}
++
++	// Try simple pull iteration.
++	i := pullRange(100)
++	for {
++		_, ok := i.next()
++		if !ok {
++			break
++		}
++	}
++
++	// Try bouncing the pull iterator between two goroutines.
++	var wg sync.WaitGroup
++	var iterChans [2]chan intIter
++	wg.Add(2)
++	iterChans[0] = make(chan intIter)
++	iterChans[1] = make(chan intIter)
++	go func() {
++		defer wg.Done()
++
++		iter := pullRange(100)
++		iterChans[1] <- iter
++
++		for i := range iterChans[0] {
++			_, ok := i.next()
++			if !ok {
++				close(iterChans[1])
++				break
++			}
++			iterChans[1] <- i
++		}
++	}()
++	go func() {
++		defer wg.Done()
++
++		for i := range iterChans[1] {
++			_, ok := i.next()
++			if !ok {
++				close(iterChans[0])
++				break
++			}
++			iterChans[0] <- i
++		}
++	}()
++	wg.Wait()
++
++	// End of traced execution.
++	trace.Stop()
++}
++
++func pullRange(n int) intIter {
++	next, stop := iter.Pull(func(yield func(v int) bool) {
++		for i := range n {
++			yield(i)
++		}
++	})
++	return intIter{next: next, stop: stop}
++}
++
++type intIter struct {
++	next func() (int, bool)
++	stop func()
++}
+diff --git a/src/internal/trace/v2/trace_test.go b/src/internal/trace/v2/trace_test.go
+index 2514f796c8..18971ffd48 100644
+--- a/src/internal/trace/v2/trace_test.go
++++ b/src/internal/trace/v2/trace_test.go
+@@ -531,6 +531,10 @@ func TestTraceWaitOnPipe(t *testing.T) {
+ 	t.Skip("no applicable syscall.Pipe on " + runtime.GOOS)
+ }
+ 
++func TestTraceIterPull(t *testing.T) {
++	testTraceProg(t, "iter-pull.go", nil)
++}
++
+ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace, stderr []byte, stress bool)) {
+ 	testenv.MustHaveGoRun(t)
+ 
+@@ -547,7 +551,7 @@ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace
+ 			cmd.Args = append(cmd.Args, "-race")
+ 		}
+ 		cmd.Args = append(cmd.Args, testPath)
+-		cmd.Env = append(os.Environ(), "GOEXPERIMENT=exectracer2")
++		cmd.Env = append(os.Environ(), "GOEXPERIMENT=exectracer2", "GOEXPERIMENT=rangefunc")
+ 		if stress {
+ 			// Advance a generation constantly.
+ 			cmd.Env = append(cmd.Env, "GODEBUG=traceadvanceperiod=0")
+diff --git a/src/internal/trace/v2/version/version.go b/src/internal/trace/v2/version/version.go
+index f42dbb9eef..e3354eb0c1 100644
+--- a/src/internal/trace/v2/version/version.go
++++ b/src/internal/trace/v2/version/version.go
+@@ -20,7 +20,8 @@ const (
+ 	Go119   Version = 19
+ 	Go121   Version = 21
+ 	Go122   Version = 22
+-	Current         = Go122
++	Go123   Version = 23
++	Current         = Go123
+ )
+ 
+ var versions = map[Version][]event.Spec{
+@@ -31,6 +32,10 @@ var versions = map[Version][]event.Spec{
+ 	Go121: nil,
+ 
+ 	Go122: go122.Specs(),
++	// Go 1.23 adds backwards-incompatible events, but
++	// traces produced by Go 1.22 are also always valid
++	// Go 1.23 traces.
++	Go123: go122.Specs(),
+ }
+ 
+ // Specs returns the set of event.Specs for this version.
+diff --git a/src/runtime/coro.go b/src/runtime/coro.go
+index 0d6666e343..98e789f133 100644
+--- a/src/runtime/coro.go
++++ b/src/runtime/coro.go
+@@ -39,11 +39,9 @@ func newcoro(f func(*coro)) *coro {
+ 	systemstack(func() {
+ 		start := corostart
+ 		startfv := *(**funcval)(unsafe.Pointer(&start))
+-		gp = newproc1(startfv, gp, pc)
++		gp = newproc1(startfv, gp, pc, true, waitReasonCoroutine)
+ 	})
+ 	gp.coroarg = c
+-	gp.waitreason = waitReasonCoroutine
+-	casgstatus(gp, _Grunnable, _Gwaiting)
+ 	c.gp.set(gp)
+ 	return c
+ }
+@@ -94,18 +92,30 @@ func coroswitch(c *coro) {
+ // It is important not to add more atomic operations or other
+ // expensive operations to the fast path.
+ func coroswitch_m(gp *g) {
+-	// TODO(rsc,mknyszek): add tracing support in a lightweight manner.
+-	// Probably the tracer will need a global bool (set and cleared during STW)
+-	// that this code can check to decide whether to use trace.gen.Load();
+-	// we do not want to do the atomic load all the time, especially when
+-	// tracer use is relatively rare.
++	// TODO(go.dev/issue/65889): Something really nasty will happen if either
++	// goroutine in this handoff tries to lock itself to an OS thread.
++	// There's an explicit multiplexing going on here that needs to be
++	// disabled if either the consumer or the iterator ends up in such
++	// a state.
+ 	c := gp.coroarg
+ 	gp.coroarg = nil
+ 	exit := gp.coroexit
+ 	gp.coroexit = false
+ 	mp := gp.m
+ 
++	// Acquire tracer for writing for the duration of this call.
++	//
++	// There's a lot of state manipulation performed with shortcuts
++	// but we need to make sure the tracer can only observe the
++	// start and end states to maintain a coherent model and avoid
++	// emitting an event for every single transition.
++	trace := traceAcquire()
++
+ 	if exit {
++		// TODO(65889): If we're locked to the current OS thread and
++		// we exit here while tracing is enabled, we're going to end up
++		// in a really bad place (traceAcquire also calls acquirem; there's
++		// no releasem before the thread exits).
+ 		gdestroy(gp)
+ 		gp = nil
+ 	} else {
+@@ -148,6 +158,13 @@ func coroswitch_m(gp *g) {
+ 		}
+ 	}
+ 
++	// Emit the trace event after getting gnext but before changing curg.
++	// GoSwitch expects that the current G is running and that we haven't
++	// switched yet for correct status emission.
++	if trace.ok() {
++		trace.GoSwitch(gnext, exit)
++	}
++
+ 	// Start running next, without heavy scheduling machinery.
+ 	// Set mp.curg and gnext.m and then update scheduling state
+ 	// directly if possible.
+@@ -160,6 +177,11 @@ func coroswitch_m(gp *g) {
+ 		casgstatus(gnext, _Grunnable, _Grunning)
+ 	}
+ 
++	// Release the trace locker. We've completed all the necessary transitions..
++	if trace.ok() {
++		traceRelease(trace)
++	}
++
+ 	// Switch to gnext. Does not return.
+ 	gogo(&gnext.sched)
+ }
+diff --git a/src/runtime/debugcall.go b/src/runtime/debugcall.go
+index 5dd83063ff..dcd7a6e2a5 100644
+--- a/src/runtime/debugcall.go
++++ b/src/runtime/debugcall.go
+@@ -124,7 +124,7 @@ func debugCallWrap(dispatch uintptr) {
+ 		// closure and start the goroutine with that closure, but the compiler disallows
+ 		// implicit closure allocation in the runtime.
+ 		fn := debugCallWrap1
+-		newg := newproc1(*(**funcval)(unsafe.Pointer(&fn)), gp, callerpc)
++		newg := newproc1(*(**funcval)(unsafe.Pointer(&fn)), gp, callerpc, false, waitReasonZero)
+ 		args := &debugCallWrapArgs{
+ 			dispatch: dispatch,
+ 			callingG: gp,
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 8e92a5ee8e..7f70100538 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4827,7 +4827,7 @@ func newproc(fn *funcval) {
+ 	gp := getg()
+ 	pc := getcallerpc()
+ 	systemstack(func() {
+-		newg := newproc1(fn, gp, pc)
++		newg := newproc1(fn, gp, pc, false, waitReasonZero)
+ 
+ 		pp := getg().m.p.ptr()
+ 		runqput(pp, newg, true)
+@@ -4838,10 +4838,10 @@ func newproc(fn *funcval) {
+ 	})
+ }
+ 
+-// Create a new g in state _Grunnable, starting at fn. callerpc is the
+-// address of the go statement that created this. The caller is responsible
+-// for adding the new g to the scheduler.
+-func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
++// Create a new g in state _Grunnable (or _Gwaiting if parked is true), starting at fn.
++// callerpc is the address of the go statement that created this. The caller is responsible
++// for adding the new g to the scheduler. If parked is true, waitreason must be non-zero.
++func newproc1(fn *funcval, callergp *g, callerpc uintptr, parked bool, waitreason waitReason) *g {
+ 	if fn == nil {
+ 		fatal("go of nil func value")
+ 	}
+@@ -4910,7 +4910,12 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
+ 
+ 	// Get a goid and switch to runnable. Make all this atomic to the tracer.
+ 	trace := traceAcquire()
+-	casgstatus(newg, _Gdead, _Grunnable)
++	var status uint32 = _Grunnable
++	if parked {
++		status = _Gwaiting
++		newg.waitreason = waitreason
++	}
++	casgstatus(newg, _Gdead, status)
+ 	if pp.goidcache == pp.goidcacheend {
+ 		// Sched.goidgen is the last allocated id,
+ 		// this batch must be [sched.goidgen+1, sched.goidgen+GoidCacheBatch].
+@@ -4923,7 +4928,7 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
+ 	pp.goidcache++
+ 	newg.trace.reset()
+ 	if trace.ok() {
+-		trace.GoCreate(newg, newg.startpc)
++		trace.GoCreate(newg, newg.startpc, parked)
+ 		traceRelease(trace)
+ 	}
+ 
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 948a8da0ca..8d7bf088dd 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -1641,7 +1641,11 @@ func (_ traceLocker) GCMarkAssistDone() {
+ 	traceEvent(traceEvGCMarkAssistDone, -1)
+ }
+ 
+-func (_ traceLocker) GoCreate(newg *g, pc uintptr) {
++// N.B. the last argument is used only for iter.Pull.
++func (_ traceLocker) GoCreate(newg *g, pc uintptr, blocked bool) {
++	if blocked {
++		throw("tried to emit event for newly-created blocked goroutine: unsupported in the v1 tracer")
++	}
+ 	newg.trace.seq = 0
+ 	newg.trace.lastP = getg().m.p
+ 	// +PCQuantum because traceFrameForPC expects return PCs and subtracts PCQuantum.
+@@ -1696,6 +1700,10 @@ func (_ traceLocker) GoUnpark(gp *g, skip int) {
+ 	}
+ }
+ 
++func (_ traceLocker) GoSwitch(_ *g, _ bool) {
++	throw("tried to emit event for a direct goroutine switch: unsupported in the v1 tracer")
++}
++
+ func (_ traceLocker) GoSysCall() {
+ 	var skip int
+ 	switch {
+@@ -1891,7 +1899,7 @@ func (tl traceLocker) OneNewExtraM(gp *g) {
+ 	// Trigger two trace events for the locked g in the extra m,
+ 	// since the next event of the g will be traceEvGoSysExit in exitsyscall,
+ 	// while calling from C thread to Go.
+-	tl.GoCreate(gp, 0) // no start pc
++	tl.GoCreate(gp, 0, false) // no start pc
+ 	gp.trace.seq++
+ 	traceEvent(traceEvGoInSyscall, -1, gp.goid)
+ }
+diff --git a/src/runtime/trace2.go b/src/runtime/trace2.go
+index 94f15dffd5..48f969129a 100644
+--- a/src/runtime/trace2.go
++++ b/src/runtime/trace2.go
+@@ -778,7 +778,7 @@ func readTrace0() (buf []byte, park bool) {
+ 	if !trace.headerWritten {
+ 		trace.headerWritten = true
+ 		unlock(&trace.lock)
+-		return []byte("go 1.22 trace\x00\x00\x00"), false
++		return []byte("go 1.23 trace\x00\x00\x00"), false
+ 	}
+ 
+ 	// Read the next buffer.
+diff --git a/src/runtime/trace2event.go b/src/runtime/trace2event.go
+index 1f2a9f754b..c568874821 100644
+--- a/src/runtime/trace2event.go
++++ b/src/runtime/trace2event.go
+@@ -81,6 +81,11 @@ const (
+ 	traceEvUserRegionBegin // trace.{Start,With}Region [timestamp, internal task ID, name string ID, stack ID]
+ 	traceEvUserRegionEnd   // trace.{End,With}Region [timestamp, internal task ID, name string ID, stack ID]
+ 	traceEvUserLog         // trace.Log [timestamp, internal task ID, key string ID, stack, value string ID]
++
++	// Coroutines.
++	traceEvGoSwitch        // goroutine switch (coroswitch) [timestamp, goroutine ID, goroutine seq]
++	traceEvGoSwitchDestroy // goroutine switch and destroy [timestamp, goroutine ID, goroutine seq]
++	traceEvGoCreateBlocked // goroutine creation (starts blocked) [timestamp, new goroutine ID, new stack ID, stack ID]
+ )
+ 
+ // traceArg is a simple wrapper type to help ensure that arguments passed
+diff --git a/src/runtime/trace2runtime.go b/src/runtime/trace2runtime.go
+index 7b88c258ba..b391fd79ff 100644
+--- a/src/runtime/trace2runtime.go
++++ b/src/runtime/trace2runtime.go
+@@ -389,9 +389,13 @@ func (tl traceLocker) GCMarkAssistDone() {
+ }
+ 
+ // GoCreate emits a GoCreate event.
+-func (tl traceLocker) GoCreate(newg *g, pc uintptr) {
++func (tl traceLocker) GoCreate(newg *g, pc uintptr, blocked bool) {
+ 	newg.trace.setStatusTraced(tl.gen)
+-	tl.eventWriter(traceGoRunning, traceProcRunning).commit(traceEvGoCreate, traceArg(newg.goid), tl.startPC(pc), tl.stack(2))
++	ev := traceEvGoCreate
++	if blocked {
++		ev = traceEvGoCreateBlocked
++	}
++	tl.eventWriter(traceGoRunning, traceProcRunning).commit(ev, traceArg(newg.goid), tl.startPC(pc), tl.stack(2))
+ }
+ 
+ // GoStart emits a GoStart event.
+@@ -442,14 +446,36 @@ func (tl traceLocker) GoPark(reason traceBlockReason, skip int) {
+ func (tl traceLocker) GoUnpark(gp *g, skip int) {
+ 	// Emit a GoWaiting status if necessary for the unblocked goroutine.
+ 	w := tl.eventWriter(traceGoRunning, traceProcRunning)
+-	if !gp.trace.statusWasTraced(tl.gen) && gp.trace.acquireStatus(tl.gen) {
+-		// Careful: don't use the event writer. We never want status or in-progress events
+-		// to trigger more in-progress events.
+-		w.w = w.w.writeGoStatus(gp.goid, -1, traceGoWaiting, gp.inMarkAssist)
+-	}
++	// Careful: don't use the event writer. We never want status or in-progress events
++	// to trigger more in-progress events.
++	w.w = emitUnblockStatus(w.w, gp, tl.gen)
+ 	w.commit(traceEvGoUnblock, traceArg(gp.goid), gp.trace.nextSeq(tl.gen), tl.stack(skip))
+ }
+ 
++// GoCoroswitch emits a GoSwitch event. If destroy is true, the calling goroutine
++// is simultaneously being destroyed.
++func (tl traceLocker) GoSwitch(nextg *g, destroy bool) {
++	// Emit a GoWaiting status if necessary for the unblocked goroutine.
++	w := tl.eventWriter(traceGoRunning, traceProcRunning)
++	// Careful: don't use the event writer. We never want status or in-progress events
++	// to trigger more in-progress events.
++	w.w = emitUnblockStatus(w.w, nextg, tl.gen)
++	ev := traceEvGoSwitch
++	if destroy {
++		ev = traceEvGoSwitchDestroy
++	}
++	w.commit(ev, traceArg(nextg.goid), nextg.trace.nextSeq(tl.gen))
++}
++
++// emitUnblockStatus emits a GoStatus GoWaiting event for a goroutine about to be
++// unblocked to the trace writer.
++func emitUnblockStatus(w traceWriter, gp *g, gen uintptr) traceWriter {
++	if !gp.trace.statusWasTraced(gen) && gp.trace.acquireStatus(gen) {
++		w = w.writeGoStatus(gp.goid, -1, traceGoWaiting, gp.inMarkAssist)
++	}
++	return w
++}
++
+ // GoSysCall emits a GoSyscallBegin event.
+ //
+ // Must be called with a valid P.

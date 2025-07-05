@@ -42,10 +42,226 @@ Date:   Tue Mar 8 15:57:12 2016 +0100
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/hash/crc32/crc32.go          | 10 ++++++-
  src/hash/crc32/crc32_amd64.go    |  8 +++--
  src/hash/crc32/crc32_amd64p32.go |  8 +++--
  src/hash/crc32/crc32_generic.go  | 12 +++++---
  src/hash/crc32/crc32_test.go     | 63 +++++++++++++++++++++-------------------
  5 files changed, 62 insertions(+), 39 deletions(-)
+
+diff --git a/src/hash/crc32/crc32.go b/src/hash/crc32/crc32.go
+index dc5994885f..c3ac7b80c3 100644
+--- a/src/hash/crc32/crc32.go
++++ b/src/hash/crc32/crc32.go
+@@ -20,6 +20,9 @@ import (
+ // The size of a CRC-32 checksum in bytes.
+ const Size = 4
+ 
++// Use "slice by 8" when payload >= this value.
++const sliceBy8Cutoff = 16
++
+ // Predefined polynomials.
+ const (
+ 	// IEEE is by far and away the most common CRC-32 polynomial.
+@@ -45,10 +48,12 @@ type Table [256]uint32
+ // Castagnoli table so we can compare against it to find when the caller is
+ // using this polynomial.
+ var castagnoliTable *Table
++var castagnoliTable8 *slicing8Table
+ var castagnoliOnce sync.Once
+ 
+ func castagnoliInit() {
+ 	castagnoliTable = makeTable(Castagnoli)
++	castagnoliTable8 = makeTable8(Castagnoli)
+ }
+ 
+ // IEEETable is the table for the IEEE polynomial.
+@@ -146,6 +151,9 @@ func updateSlicingBy8(crc uint32, tab *slicing8Table, p []byte) uint32 {
+ 		p = p[8:]
+ 	}
+ 	crc = ^crc
++	if len(p) == 0 {
++		return crc
++	}
+ 	return update(crc, &tab[0], p)
+ }
+ 
+@@ -178,4 +186,4 @@ func Checksum(data []byte, tab *Table) uint32 { return Update(0, tab, data) }
+ 
+ // ChecksumIEEE returns the CRC-32 checksum of data
+ // using the IEEE polynomial.
+-func ChecksumIEEE(data []byte) uint32 { return Update(0, IEEETable, data) }
++func ChecksumIEEE(data []byte) uint32 { return updateIEEE(0, data) }
+diff --git a/src/hash/crc32/crc32_amd64.go b/src/hash/crc32/crc32_amd64.go
+index ab4e2b8c8c..a0180a12de 100644
+--- a/src/hash/crc32/crc32_amd64.go
++++ b/src/hash/crc32/crc32_amd64.go
+@@ -30,6 +30,10 @@ func updateCastagnoli(crc uint32, p []byte) uint32 {
+ 	if sse42 {
+ 		return castagnoliSSE42(crc, p)
+ 	}
++	// Use slicing-by-8 on larger inputs.
++	if len(p) >= sliceBy8Cutoff {
++		return updateSlicingBy8(crc, castagnoliTable8, p)
++	}
+ 	return update(crc, castagnoliTable, p)
+ }
+ 
+@@ -44,8 +48,8 @@ func updateIEEE(crc uint32, p []byte) uint32 {
+ 		return crc
+ 	}
+ 
+-	// only use slicing-by-8 when input is >= 4KB
+-	if len(p) >= 4096 {
++	// Use slicing-by-8 on larger inputs.
++	if len(p) >= sliceBy8Cutoff {
+ 		ieeeTable8Once.Do(func() {
+ 			ieeeTable8 = makeTable8(IEEE)
+ 		})
+diff --git a/src/hash/crc32/crc32_amd64p32.go b/src/hash/crc32/crc32_amd64p32.go
+index 067fbb162f..1f6cd34643 100644
+--- a/src/hash/crc32/crc32_amd64p32.go
++++ b/src/hash/crc32/crc32_amd64p32.go
+@@ -22,12 +22,16 @@ func updateCastagnoli(crc uint32, p []byte) uint32 {
+ 	if sse42 {
+ 		return castagnoliSSE42(crc, p)
+ 	}
++	// Use slicing-by-8 on larger inputs.
++	if len(p) >= sliceBy8Cutoff {
++		return updateSlicingBy8(crc, castagnoliTable8, p)
++	}
+ 	return update(crc, castagnoliTable, p)
+ }
+ 
+ func updateIEEE(crc uint32, p []byte) uint32 {
+-	// only use slicing-by-8 when input is >= 4KB
+-	if len(p) >= 4096 {
++	// Use slicing-by-8 on larger inputs.
++	if len(p) >= sliceBy8Cutoff {
+ 		ieeeTable8Once.Do(func() {
+ 			ieeeTable8 = makeTable8(IEEE)
+ 		})
+diff --git a/src/hash/crc32/crc32_generic.go b/src/hash/crc32/crc32_generic.go
+index 8fc11a75db..08988f4b38 100644
+--- a/src/hash/crc32/crc32_generic.go
++++ b/src/hash/crc32/crc32_generic.go
+@@ -6,16 +6,20 @@
+ 
+ package crc32
+ 
+-// The file contains the generic version of updateCastagnoli which just calls
+-// the software implementation.
++// This file contains the generic version of updateCastagnoli which does
++// slicing-by-8, or uses the fallback for very small sizes.
+ 
+ func updateCastagnoli(crc uint32, p []byte) uint32 {
++	// Use slicing-by-8 on larger inputs.
++	if len(p) >= sliceBy8Cutoff {
++		return updateSlicingBy8(crc, castagnoliTable8, p)
++	}
+ 	return update(crc, castagnoliTable, p)
+ }
+ 
+ func updateIEEE(crc uint32, p []byte) uint32 {
+-	// only use slicing-by-8 when input is >= 4KB
+-	if len(p) >= 4096 {
++	// Use slicing-by-8 on larger inputs.
++	if len(p) >= sliceBy8Cutoff {
+ 		ieeeTable8Once.Do(func() {
+ 			ieeeTable8 = makeTable8(IEEE)
+ 		})
+diff --git a/src/hash/crc32/crc32_test.go b/src/hash/crc32/crc32_test.go
+index 1ca3ac2a27..e2b3557828 100644
+--- a/src/hash/crc32/crc32_test.go
++++ b/src/hash/crc32/crc32_test.go
+@@ -5,6 +5,7 @@
+ package crc32
+ 
+ import (
++	"hash"
+ 	"io"
+ 	"testing"
+ )
+@@ -81,49 +82,51 @@ func TestGolden(t *testing.T) {
+ 	}
+ }
+ 
+-func BenchmarkIEEECrc1KB(b *testing.B) {
+-	b.SetBytes(1024)
+-	data := make([]byte, 1024)
+-	for i := range data {
+-		data[i] = byte(i)
+-	}
+-	h := NewIEEE()
+-	in := make([]byte, 0, h.Size())
++func BenchmarkIEEECrc40B(b *testing.B) {
++	benchmark(b, NewIEEE(), 40)
++}
+ 
+-	b.ResetTimer()
+-	for i := 0; i < b.N; i++ {
+-		h.Reset()
+-		h.Write(data)
+-		h.Sum(in)
+-	}
++func BenchmarkIEEECrc1KB(b *testing.B) {
++	benchmark(b, NewIEEE(), 1<<10)
+ }
+ 
+ func BenchmarkIEEECrc4KB(b *testing.B) {
+-	b.SetBytes(4096)
+-	data := make([]byte, 4096)
+-	for i := range data {
+-		data[i] = byte(i)
+-	}
+-	h := NewIEEE()
+-	in := make([]byte, 0, h.Size())
++	benchmark(b, NewIEEE(), 4<<10)
++}
+ 
+-	b.ResetTimer()
+-	for i := 0; i < b.N; i++ {
+-		h.Reset()
+-		h.Write(data)
+-		h.Sum(in)
+-	}
++func BenchmarkIEEECrc32KB(b *testing.B) {
++	benchmark(b, NewIEEE(), 32<<10)
++}
++
++func BenchmarkCastagnoliCrc40B(b *testing.B) {
++	benchmark(b, New(MakeTable(Castagnoli)), 40)
+ }
+ 
+ func BenchmarkCastagnoliCrc1KB(b *testing.B) {
+-	b.SetBytes(1024)
+-	data := make([]byte, 1024)
++	benchmark(b, New(MakeTable(Castagnoli)), 1<<10)
++}
++
++func BenchmarkCastagnoliCrc4KB(b *testing.B) {
++	benchmark(b, New(MakeTable(Castagnoli)), 4<<10)
++}
++
++func BenchmarkCastagnoliCrc32KB(b *testing.B) {
++	benchmark(b, New(MakeTable(Castagnoli)), 32<<10)
++}
++
++func benchmark(b *testing.B, h hash.Hash32, n int64) {
++	b.SetBytes(n)
++	data := make([]byte, n)
+ 	for i := range data {
+ 		data[i] = byte(i)
+ 	}
+-	h := New(MakeTable(Castagnoli))
+ 	in := make([]byte, 0, h.Size())
+ 
++	// Warm up
++	h.Reset()
++	h.Write(data)
++	h.Sum(in)
++
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+ 		h.Reset()

@@ -16,7 +16,7 @@ Date:   Fri Apr 10 16:45:10 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/8764
     Reviewed-by: Rob Pike <r@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
-
+---
  src/go/{types => }/internal/gcimporter/exportdata.go       | 0
  src/go/{types => }/internal/gcimporter/gcimporter.go       | 2 +-
  src/go/{types => }/internal/gcimporter/gcimporter_test.go  | 0
@@ -34,3 +34,210 @@ Date:   Fri Apr 10 16:45:10 2015 -0700
  src/go/types/stdlib_test.go                                | 2 +-
  src/go/types/typestring_test.go                            | 2 +-
  16 files changed, 16 insertions(+), 16 deletions(-)
+
+diff --git a/src/go/types/internal/gcimporter/exportdata.go b/src/go/internal/gcimporter/exportdata.go
+similarity index 100%
+rename from src/go/types/internal/gcimporter/exportdata.go
+rename to src/go/internal/gcimporter/exportdata.go
+diff --git a/src/go/types/internal/gcimporter/gcimporter.go b/src/go/internal/gcimporter/gcimporter.go
+similarity index 99%
+rename from src/go/types/internal/gcimporter/gcimporter.go
+rename to src/go/internal/gcimporter/gcimporter.go
+index c414bad73b..ac5180a7a1 100644
+--- a/src/go/types/internal/gcimporter/gcimporter.go
++++ b/src/go/internal/gcimporter/gcimporter.go
+@@ -4,7 +4,7 @@
+ 
+ // Package gcimporter implements Import for gc-generated object files.
+ // Importing this package installs Import as go/types.DefaultImport.
+-package gcimporter // import "go/types/internal/gcimporter"
++package gcimporter // import "go/internal/gcimporter"
+ 
+ import (
+ 	"bufio"
+diff --git a/src/go/types/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+similarity index 100%
+rename from src/go/types/internal/gcimporter/gcimporter_test.go
+rename to src/go/internal/gcimporter/gcimporter_test.go
+diff --git a/src/go/types/internal/gcimporter/testdata/exports.go b/src/go/internal/gcimporter/testdata/exports.go
+similarity index 100%
+rename from src/go/types/internal/gcimporter/testdata/exports.go
+rename to src/go/internal/gcimporter/testdata/exports.go
+diff --git a/src/go/types.bash b/src/go/types.bash
+index f39bd7ed3e..a3bfb7e640 100644
+--- a/src/go/types.bash
++++ b/src/go/types.bash
+@@ -40,7 +40,7 @@ function vendor() (
+ 		# copy $f and update imports
+ 		sed -e 's|"golang.org/x/tools/go/exact"|"go/exact"|' \
+ 		    -e 's|"golang.org/x/tools/go/types"|"go/types"|' \
+-		    -e 's|"golang.org/x/tools/go/gcimporter"|"go/types/internal/gcimporter"|' \
++		    -e 's|"golang.org/x/tools/go/gcimporter"|"go/internal/gcimporter"|' \
+ 		    $f | gofmt > tmp.go
+ 		mv -f tmp.go `basename $f`
+ 	done
+@@ -81,9 +81,9 @@ vendor go/types types
+ install types
+ 
+ ### go/gcimporter
+-vendor go/gcimporter types/internal/gcimporter
+-test types/internal/gcimporter
+-install types/internal/gcimporter
++vendor go/gcimporter internal/gcimporter
++test internal/gcimporter
++install internal/gcimporter
+ 
+ ### test go/types (requires gcimporter)
+ test types
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index c3681e9362..a2c304c6f6 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -122,7 +122,7 @@ type Config struct {
+ // DefaultImport is the default importer invoked if Config.Import == nil.
+ // The declaration:
+ //
+-//	import _ "go/types/internal/gcimporter"
++//	import _ "go/internal/gcimporter"
+ //
+ // in a client of go/types will initialize DefaultImport to gcimporter.Import.
+ var DefaultImport Importer
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 983ac950bf..1be7c6af32 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -14,8 +14,8 @@ import (
+ 	"strings"
+ 	"testing"
+ 
++	_ "go/internal/gcimporter"
+ 	. "go/types"
+-	_ "go/types/internal/gcimporter"
+ )
+ 
+ // skipSpecialPlatforms causes the test to be skipped for platforms where
+diff --git a/src/go/types/builtins_test.go b/src/go/types/builtins_test.go
+index fa18277e32..2e939213a4 100644
+--- a/src/go/types/builtins_test.go
++++ b/src/go/types/builtins_test.go
+@@ -10,8 +10,8 @@ import (
+ 	"go/parser"
+ 	"testing"
+ 
++	_ "go/internal/gcimporter"
+ 	. "go/types"
+-	_ "go/types/internal/gcimporter"
+ )
+ 
+ var builtinCalls = []struct {
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index 6d2b5e957b..3c5f36b8fb 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -36,8 +36,8 @@ import (
+ 	"strings"
+ 	"testing"
+ 
++	_ "go/internal/gcimporter"
+ 	. "go/types"
+-	_ "go/types/internal/gcimporter"
+ )
+ 
+ var (
+diff --git a/src/go/types/eval_test.go b/src/go/types/eval_test.go
+index 8fc15034d0..82c011c17e 100644
+--- a/src/go/types/eval_test.go
++++ b/src/go/types/eval_test.go
+@@ -13,8 +13,8 @@ import (
+ 	"strings"
+ 	"testing"
+ 
++	_ "go/internal/gcimporter"
+ 	. "go/types"
+-	_ "go/types/internal/gcimporter"
+ )
+ 
+ func testEval(t *testing.T, pkg *Package, scope *Scope, str string, typ Type, typStr, valStr string) {
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index 3722dc2006..d8d27b8a5b 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -14,8 +14,8 @@ import (
+ 	"strings"
+ 	"testing"
+ 
++	_ "go/internal/gcimporter"
+ 	. "go/types"
+-	_ "go/types/internal/gcimporter"
+ )
+ 
+ func TestIssue5770(t *testing.T) {
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index ee8fff0639..1780c584ab 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -135,7 +135,7 @@ func (check *Checker) collectObjects() {
+ 		} else {
+ 			// Panic if we encounter an import.
+ 			importer = func(map[string]*Package, string) (*Package, error) {
+-				panic(`no Config.Import or DefaultImport (missing import _ "go/types/internal/gcimporter"?)`)
++				panic(`no Config.Import or DefaultImport (missing import _ "go/internal/gcimporter"?)`)
+ 			}
+ 		}
+ 	}
+diff --git a/src/go/types/resolver_test.go b/src/go/types/resolver_test.go
+index cfd04dad1e..52708ae028 100644
+--- a/src/go/types/resolver_test.go
++++ b/src/go/types/resolver_test.go
+@@ -12,8 +12,8 @@ import (
+ 	"sort"
+ 	"testing"
+ 
++	_ "go/internal/gcimporter"
+ 	. "go/types"
+-	_ "go/types/internal/gcimporter"
+ )
+ 
+ var sources = []string{
+diff --git a/src/go/types/self_test.go b/src/go/types/self_test.go
+index dc397b587c..e98af304ed 100644
+--- a/src/go/types/self_test.go
++++ b/src/go/types/self_test.go
+@@ -14,8 +14,8 @@ import (
+ 	"testing"
+ 	"time"
+ 
++	_ "go/internal/gcimporter"
+ 	. "go/types"
+-	_ "go/types/internal/gcimporter"
+ )
+ 
+ var benchmark = flag.Bool("b", false, "run benchmarks")
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 4b66944989..468b419a38 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -22,8 +22,8 @@ import (
+ 	"testing"
+ 	"time"
+ 
++	_ "go/internal/gcimporter"
+ 	. "go/types"
+-	_ "go/types/internal/gcimporter"
+ )
+ 
+ var (
+diff --git a/src/go/types/typestring_test.go b/src/go/types/typestring_test.go
+index b01fe991c4..254867382f 100644
+--- a/src/go/types/typestring_test.go
++++ b/src/go/types/typestring_test.go
+@@ -10,8 +10,8 @@ import (
+ 	"go/token"
+ 	"testing"
+ 
++	_ "go/internal/gcimporter"
+ 	. "go/types"
+-	_ "go/types/internal/gcimporter"
+ )
+ 
+ const filename = "<src>"

@@ -12,7 +12,7 @@ Date:   Fri Nov 3 21:49:19 2023 +0800
     Run-TryBot: shuang cui <imcusg@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/sync/atomic/value.go |  8 ++++----
  src/sync/cond.go         | 10 +++++-----
  src/sync/map.go          | 13 +++++++------
@@ -22,3 +22,298 @@ Date:   Fri Nov 3 21:49:19 2023 +0800
  src/sync/rwmutex.go      | 24 ++++++++++++------------
  src/sync/waitgroup.go    | 16 ++++++++--------
  8 files changed, 44 insertions(+), 43 deletions(-)
+
+diff --git a/src/sync/atomic/value.go b/src/sync/atomic/value.go
+index a57b08a6b8..0cfc5f9496 100644
+--- a/src/sync/atomic/value.go
++++ b/src/sync/atomic/value.go
+@@ -9,8 +9,8 @@ import (
+ )
+ 
+ // A Value provides an atomic load and store of a consistently typed value.
+-// The zero value for a Value returns nil from Load.
+-// Once Store has been called, a Value must not be copied.
++// The zero value for a Value returns nil from [Value.Load].
++// Once [Value.Store] has been called, a Value must not be copied.
+ //
+ // A Value must not be copied after first use.
+ type Value struct {
+@@ -41,7 +41,7 @@ func (v *Value) Load() (val any) {
+ 
+ var firstStoreInProgress byte
+ 
+-// Store sets the value of the Value v to val.
++// Store sets the value of the [Value] v to val.
+ // All calls to Store for a given Value must use values of the same concrete type.
+ // Store of an inconsistent type panics, as does Store(nil).
+ func (v *Value) Store(val any) {
+@@ -127,7 +127,7 @@ func (v *Value) Swap(new any) (old any) {
+ 	}
+ }
+ 
+-// CompareAndSwap executes the compare-and-swap operation for the Value.
++// CompareAndSwap executes the compare-and-swap operation for the [Value].
+ //
+ // All calls to CompareAndSwap for a given Value must use values of the same
+ // concrete type. CompareAndSwap of an inconsistent type panics, as does
+diff --git a/src/sync/cond.go b/src/sync/cond.go
+index 7ef3188a1e..614c5fe5ea 100644
+--- a/src/sync/cond.go
++++ b/src/sync/cond.go
+@@ -13,21 +13,21 @@ import (
+ // for goroutines waiting for or announcing the occurrence
+ // of an event.
+ //
+-// Each Cond has an associated Locker L (often a *Mutex or *RWMutex),
++// Each Cond has an associated Locker L (often a [*Mutex] or [*RWMutex]),
+ // which must be held when changing the condition and
+-// when calling the Wait method.
++// when calling the [Cond.Wait] method.
+ //
+ // A Cond must not be copied after first use.
+ //
+ // In the terminology of the Go memory model, Cond arranges that
+-// a call to Broadcast or Signal “synchronizes before” any Wait call
++// a call to [Cond.Broadcast] or [Cond.Signal] “synchronizes before” any Wait call
+ // that it unblocks.
+ //
+ // For many simple use cases, users will be better off using channels than a
+ // Cond (Broadcast corresponds to closing a channel, and Signal corresponds to
+ // sending on a channel).
+ //
+-// For more on replacements for sync.Cond, see [Roberto Clapis's series on
++// For more on replacements for [sync.Cond], see [Roberto Clapis's series on
+ // advanced concurrency patterns], as well as [Bryan Mills's talk on concurrency
+ // patterns].
+ //
+@@ -51,7 +51,7 @@ func NewCond(l Locker) *Cond {
+ // Wait atomically unlocks c.L and suspends execution
+ // of the calling goroutine. After later resuming execution,
+ // Wait locks c.L before returning. Unlike in other systems,
+-// Wait cannot return unless awoken by Broadcast or Signal.
++// Wait cannot return unless awoken by [Cond.Broadcast] or [Cond.Signal].
+ //
+ // Because c.L is not locked while Wait is waiting, the caller
+ // typically cannot assume that the condition is true when
+diff --git a/src/sync/map.go b/src/sync/map.go
+index ec5ed29ae5..7ae97bce1d 100644
+--- a/src/sync/map.go
++++ b/src/sync/map.go
+@@ -20,18 +20,19 @@ import (
+ // key is only ever written once but read many times, as in caches that only grow,
+ // or (2) when multiple goroutines read, write, and overwrite entries for disjoint
+ // sets of keys. In these two cases, use of a Map may significantly reduce lock
+-// contention compared to a Go map paired with a separate Mutex or RWMutex.
++// contention compared to a Go map paired with a separate [Mutex] or [RWMutex].
+ //
+ // The zero Map is empty and ready for use. A Map must not be copied after first use.
+ //
+ // In the terminology of the Go memory model, Map arranges that a write operation
+ // “synchronizes before” any read operation that observes the effect of the write, where
+ // read and write operations are defined as follows.
+-// Load, LoadAndDelete, LoadOrStore, Swap, CompareAndSwap, and CompareAndDelete
+-// are read operations; Delete, LoadAndDelete, Store, and Swap are write operations;
+-// LoadOrStore is a write operation when it returns loaded set to false;
+-// CompareAndSwap is a write operation when it returns swapped set to true;
+-// and CompareAndDelete is a write operation when it returns deleted set to true.
++// [Map.Load], [Map.LoadAndDelete], [Map.LoadOrStore], [Map.Swap], [Map.CompareAndSwap],
++// and [Map.CompareAndDelete] are read operations;
++// [Map.Delete], [Map.LoadAndDelete], [Map.Store], and [Map.Swap] are write operations;
++// [Map.LoadOrStore] is a write operation when it returns loaded set to false;
++// [Map.CompareAndSwap] is a write operation when it returns swapped set to true;
++// and [Map.CompareAndDelete] is a write operation when it returns deleted set to true.
+ type Map struct {
+ 	mu Mutex
+ 
+diff --git a/src/sync/mutex.go b/src/sync/mutex.go
+index 2ea024e585..654804882f 100644
+--- a/src/sync/mutex.go
++++ b/src/sync/mutex.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package sync provides basic synchronization primitives such as mutual
+-// exclusion locks. Other than the Once and WaitGroup types, most are intended
++// exclusion locks. Other than the [Once] and [WaitGroup] types, most are intended
+ // for use by low-level library routines. Higher-level synchronization is
+ // better done via channels and communication.
+ //
+@@ -26,9 +26,9 @@ func fatal(string)
+ // A Mutex must not be copied after first use.
+ //
+ // In the terminology of the Go memory model,
+-// the n'th call to Unlock “synchronizes before” the m'th call to Lock
++// the n'th call to [Mutex.Unlock] “synchronizes before” the m'th call to [Mutex.Lock]
+ // for any n < m.
+-// A successful call to TryLock is equivalent to a call to Lock.
++// A successful call to [Mutex.TryLock] is equivalent to a call to Lock.
+ // A failed call to TryLock does not establish any “synchronizes before”
+ // relation at all.
+ type Mutex struct {
+@@ -206,7 +206,7 @@ func (m *Mutex) lockSlow() {
+ // Unlock unlocks m.
+ // It is a run-time error if m is not locked on entry to Unlock.
+ //
+-// A locked Mutex is not associated with a particular goroutine.
++// A locked [Mutex] is not associated with a particular goroutine.
+ // It is allowed for one goroutine to lock a Mutex and then
+ // arrange for another goroutine to unlock it.
+ func (m *Mutex) Unlock() {
+diff --git a/src/sync/once.go b/src/sync/once.go
+index 3f58707e1c..de69d70187 100644
+--- a/src/sync/once.go
++++ b/src/sync/once.go
+@@ -26,7 +26,7 @@ type Once struct {
+ }
+ 
+ // Do calls the function f if and only if Do is being called for the
+-// first time for this instance of Once. In other words, given
++// first time for this instance of [Once]. In other words, given
+ //
+ //	var once Once
+ //
+diff --git a/src/sync/pool.go b/src/sync/pool.go
+index 3359aba57b..5f8cffa8bf 100644
+--- a/src/sync/pool.go
++++ b/src/sync/pool.go
+@@ -43,7 +43,7 @@ import (
+ // A Pool must not be copied after first use.
+ //
+ // In the terminology of the Go memory model, a call to Put(x) “synchronizes before”
+-// a call to Get returning that same value x.
++// a call to [Pool.Get] returning that same value x.
+ // Similarly, a call to New returning x “synchronizes before”
+ // a call to Get returning that same value x.
+ type Pool struct {
+@@ -117,10 +117,10 @@ func (p *Pool) Put(x any) {
+ 	}
+ }
+ 
+-// Get selects an arbitrary item from the Pool, removes it from the
++// Get selects an arbitrary item from the [Pool], removes it from the
+ // Pool, and returns it to the caller.
+ // Get may choose to ignore the pool and treat it as empty.
+-// Callers should not assume any relation between values passed to Put and
++// Callers should not assume any relation between values passed to [Pool.Put] and
+ // the values returned by Get.
+ //
+ // If Get would otherwise return nil and p.New is non-nil, Get returns
+diff --git a/src/sync/rwmutex.go b/src/sync/rwmutex.go
+index f445b66fd7..1215c377a1 100644
+--- a/src/sync/rwmutex.go
++++ b/src/sync/rwmutex.go
+@@ -19,18 +19,18 @@ import (
+ //
+ // A RWMutex must not be copied after first use.
+ //
+-// If any goroutine calls Lock while the lock is already held by
+-// one or more readers, concurrent calls to RLock will block until
++// If any goroutine calls [RWMutex.Lock] while the lock is already held by
++// one or more readers, concurrent calls to [RWMutex.RLock] will block until
+ // the writer has acquired (and released) the lock, to ensure that
+ // the lock eventually becomes available to the writer.
+ // Note that this prohibits recursive read-locking.
+ //
+ // In the terminology of the Go memory model,
+-// the n'th call to Unlock “synchronizes before” the m'th call to Lock
+-// for any n < m, just as for Mutex.
++// the n'th call to [RWMutex.Unlock] “synchronizes before” the m'th call to Lock
++// for any n < m, just as for [Mutex].
+ // For any call to RLock, there exists an n such that
+ // the n'th call to Unlock “synchronizes before” that call to RLock,
+-// and the corresponding call to RUnlock “synchronizes before”
++// and the corresponding call to [RWMutex.RUnlock] “synchronizes before”
+ // the n+1'th call to Lock.
+ type RWMutex struct {
+ 	w           Mutex        // held if there are pending writers
+@@ -59,7 +59,7 @@ const rwmutexMaxReaders = 1 << 30
+ //
+ // It should not be used for recursive read locking; a blocked Lock
+ // call excludes new readers from acquiring the lock. See the
+-// documentation on the RWMutex type.
++// documentation on the [RWMutex] type.
+ func (rw *RWMutex) RLock() {
+ 	if race.Enabled {
+ 		_ = rw.w.state
+@@ -103,7 +103,7 @@ func (rw *RWMutex) TryRLock() bool {
+ 	}
+ }
+ 
+-// RUnlock undoes a single RLock call;
++// RUnlock undoes a single [RWMutex.RLock] call;
+ // it does not affect other simultaneous readers.
+ // It is a run-time error if rw is not locked for reading
+ // on entry to RUnlock.
+@@ -191,9 +191,9 @@ func (rw *RWMutex) TryLock() bool {
+ // Unlock unlocks rw for writing. It is a run-time error if rw is
+ // not locked for writing on entry to Unlock.
+ //
+-// As with Mutexes, a locked RWMutex is not associated with a particular
+-// goroutine. One goroutine may RLock (Lock) a RWMutex and then
+-// arrange for another goroutine to RUnlock (Unlock) it.
++// As with Mutexes, a locked [RWMutex] is not associated with a particular
++// goroutine. One goroutine may [RWMutex.RLock] ([RWMutex.Lock]) a RWMutex and then
++// arrange for another goroutine to [RWMutex.RUnlock] ([RWMutex.Unlock]) it.
+ func (rw *RWMutex) Unlock() {
+ 	if race.Enabled {
+ 		_ = rw.w.state
+@@ -231,8 +231,8 @@ func syscall_hasWaitingReaders(rw *RWMutex) bool {
+ 	return r < 0 && r+rwmutexMaxReaders > 0
+ }
+ 
+-// RLocker returns a Locker interface that implements
+-// the Lock and Unlock methods by calling rw.RLock and rw.RUnlock.
++// RLocker returns a [Locker] interface that implements
++// the [RWMutex.Lock] and [RWMutex.Unlock] methods by calling rw.RLock and rw.RUnlock.
+ func (rw *RWMutex) RLocker() Locker {
+ 	return (*rlocker)(rw)
+ }
+diff --git a/src/sync/waitgroup.go b/src/sync/waitgroup.go
+index be21417f9c..7320705b0e 100644
+--- a/src/sync/waitgroup.go
++++ b/src/sync/waitgroup.go
+@@ -11,14 +11,14 @@ import (
+ )
+ 
+ // A WaitGroup waits for a collection of goroutines to finish.
+-// The main goroutine calls Add to set the number of
++// The main goroutine calls [WaitGroup.Add] to set the number of
+ // goroutines to wait for. Then each of the goroutines
+-// runs and calls Done when finished. At the same time,
+-// Wait can be used to block until all goroutines have finished.
++// runs and calls [WaitGroup.Done] when finished. At the same time,
++// [WaitGroup.Wait] can be used to block until all goroutines have finished.
+ //
+ // A WaitGroup must not be copied after first use.
+ //
+-// In the terminology of the Go memory model, a call to Done
++// In the terminology of the Go memory model, a call to [WaitGroup.Done]
+ // “synchronizes before” the return of any Wait call that it unblocks.
+ type WaitGroup struct {
+ 	noCopy noCopy
+@@ -27,8 +27,8 @@ type WaitGroup struct {
+ 	sema  uint32
+ }
+ 
+-// Add adds delta, which may be negative, to the WaitGroup counter.
+-// If the counter becomes zero, all goroutines blocked on Wait are released.
++// Add adds delta, which may be negative, to the [WaitGroup] counter.
++// If the counter becomes zero, all goroutines blocked on [WaitGroup.Wait] are released.
+ // If the counter goes negative, Add panics.
+ //
+ // Note that calls with a positive delta that occur when the counter is zero
+@@ -82,12 +82,12 @@ func (wg *WaitGroup) Add(delta int) {
+ 	}
+ }
+ 
+-// Done decrements the WaitGroup counter by one.
++// Done decrements the [WaitGroup] counter by one.
+ func (wg *WaitGroup) Done() {
+ 	wg.Add(-1)
+ }
+ 
+-// Wait blocks until the WaitGroup counter is zero.
++// Wait blocks until the [WaitGroup] counter is zero.
+ func (wg *WaitGroup) Wait() {
+ 	if race.Enabled {
+ 		race.Disable()

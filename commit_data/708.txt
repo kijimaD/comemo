@@ -7,10 +7,646 @@ Date:   Mon Sep 22 18:26:12 2008 -0700
     R=r
     OCL=15675
     CL=15675
-
+---
  usr/gri/pretty/Makefile   |  22 +++----
  usr/gri/pretty/ast.go     | 108 ++++++++++++++++++++++++++-----
  usr/gri/pretty/parser.go  | 158 ++++++++++++++++++++++++++++------------------
  usr/gri/pretty/pretty.go  |   5 +-
  usr/gri/pretty/printer.go |  61 +++++++++++++++++-
  5 files changed, 264 insertions(+), 90 deletions(-)
+
+diff --git a/usr/gri/pretty/Makefile b/usr/gri/pretty/Makefile
+index 03f3e4f36f..41a3fa0c0d 100644
+--- a/usr/gri/pretty/Makefile
++++ b/usr/gri/pretty/Makefile
+@@ -9,16 +9,16 @@ pretty: pretty.6
+ 	$(L) -o pretty pretty.6
+ 
+ test: pretty
+-	pretty *.go
+-	pretty ../gosrc/*.go
+-	pretty $(GOROOT)/test/sieve.go
+-	pretty $(GOROOT)/src/pkg/*.go
+-	pretty $(GOROOT)/src/lib/flag.go
+-	pretty $(GOROOT)/src/lib/fmt.go
+-	pretty $(GOROOT)/src/lib/rand.go
+-	pretty $(GOROOT)/src/lib/math/*.go
+-	pretty $(GOROOT)/src/lib/container/*.go
+-	pretty $(GOROOT)/src/syscall/*.go
++	pretty -s *.go
++	pretty -s ../gosrc/*.go
++	pretty -s $(GOROOT)/test/sieve.go
++	pretty -s $(GOROOT)/src/pkg/*.go
++	pretty -s $(GOROOT)/src/lib/flag.go
++	pretty -s $(GOROOT)/src/lib/fmt.go
++	pretty -s $(GOROOT)/src/lib/rand.go
++	pretty -s $(GOROOT)/src/lib/math/*.go
++	pretty -s $(GOROOT)/src/lib/container/*.go
++	pretty -s $(GOROOT)/src/syscall/*.go
+ 	echo "DONE"
+ 
+ install: pretty
+@@ -29,7 +29,7 @@ clean:
+ 
+ pretty.6:	parser.6 printer.6 platform.6 scanner.6
+ 
+-parser.6:	ast.6 scanner.6 utils.6
++parser.6:	ast.6 scanner.6 utils.6 printer.6
+ 
+ scanner.6:	utils.6 platform.6
+ 
+diff --git a/usr/gri/pretty/ast.go b/usr/gri/pretty/ast.go
+index 311b91f517..601b9ecc4c 100644
+--- a/usr/gri/pretty/ast.go
++++ b/usr/gri/pretty/ast.go
+@@ -4,36 +4,114 @@
+ 
+ package AST;
+ 
++// ----------------------------------------------------------------------------
++// Lists
++
++export type Element interface {}
++
++
++export type List struct {
++	a *[] Element
++}
++
++
++func (p *List) len() int {
++	return len(p.a);
++}
++
++
++func (p *List) at(i int) Element {
++	return p.a[i];
++}
++
++
++func (p *List) Add (x Element) {
++	a := p.a;
++	n := len(a);
++
++	if n == cap(a) {
++		b := new([] interface {}, 2*n);
++		for i := 0; i < n; i++ {
++			b[i] = a[i];
++		}
++		a = b;
++	}
++
++	a = a[0 : n + 1];
++	a[n] = x;
++	p.a = a;
++}
++
++
++export func NewList() *List {
++	p := new(List);
++	p.a = new([] interface {}, 10);
++	return p;
++}
++
++
++// ----------------------------------------------------------------------------
++// Expressions
+ 
+ export type Expr interface {
+-       pos() int;
+-       print();
+ }
+ 
+ 
+-export type Stat interface {
+-       pos() int;
+-       print();
++export type Selector struct {
++	pos int;
++	x Expr;
++	field string;
+ }
+ 
+ 
+-// ---------------------------------------------------------------------
+-// Concrete nodes
++export type Index struct {
++	pos int;
++	x Expr;
++	index Expr;
++}
++
+ 
+-export type Ident struct {
+-       pos_ int;
+-       val_ string;
++export type Pair struct {
++	pos int;
++	x, y Expr;
+ }
+ 
+ 
+-func (p *Ident) pos() int {
+-     return p.pos_;
++export type Binary struct {
++	pos int;
++	tok int;
++	x, y Expr;
+ }
+ 
+ 
+-func (p *Ident) print() {
+-     print("x");  // TODO fix this
++export type Unary struct {
++	pos int;
++	tok int;
++	x Expr;
++}
++
++
++export type Literal struct {
++	pos int;
++	tok int;
++	val string;
++}
++
++
++// ----------------------------------------------------------------------------
++// Statements
++
++
++// ----------------------------------------------------------------------------
++// Visitor
++
++export type Visitor interface {
++  DoBinary(x *Binary);
++  //DoUnary(x *Unary);
++  //DoLiteral(x *Literal);
+ }
+ 
+ 
+-// TODO: complete this
++func (x *Binary)  Visit(v Visitor)  { v.DoBinary(x); }
++//func (x *Unary)   Visit(v Visitor)  { v.DoUnary(x); }
++//func (x *Literal) Visit(v Visitor)  { v.DoLiteral(x); }
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index f994327492..c846e05dbe 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -6,8 +6,11 @@ package Parser
+ 
+ import Scanner "scanner"
+ import AST "ast"
++import Printer "printer"
++
+ 
+ export type Parser struct {
++	silent bool;
+ 	verbose bool;
+ 	indent uint;
+ 	scanner *Scanner.Scanner;
+@@ -65,8 +68,9 @@ func (P *Parser) Next() {
+ }
+ 
+ 
+-func (P *Parser) Open(verbose bool, scanner *Scanner.Scanner, tokchan *<-chan *Scanner.Token) {
+-     	P.verbose = verbose;
++func (P *Parser) Open(silent, verbose bool, scanner *Scanner.Scanner, tokchan *<-chan *Scanner.Token) {
++	P.silent = silent;
++	P.verbose = verbose;
+ 	P.indent = 0;
+ 	P.scanner = scanner;
+ 	P.tokchan = tokchan;
+@@ -115,16 +119,16 @@ func (P *Parser) TryStatement() bool;
+ func (P *Parser) ParseDeclaration();
+ 
+ 
+-func (P *Parser) ParseIdent() *AST.Ident {
++func (P *Parser) ParseIdent() *AST.Literal {
+ 	P.Trace("Ident");
+ 
+-	ident := new(AST.Ident);
+-	ident.pos_, ident.val_ = P.pos, "";
++	ident := new(AST.Literal);
++	ident.pos, ident.tok, ident.val = P.pos, Scanner.IDENT, "";
+ 	if P.tok == Scanner.IDENT {
+-		ident.val_ = P.val;
++		ident.val = P.val;
+ 		if P.verbose {
+ 			P.PrintIndent();
+-			print("Ident = \"", ident.val_, "\"\n");
++			print("Ident = \"", ident.val, "\"\n");
+ 		}
+ 		P.Next();
+ 	} else {
+@@ -152,19 +156,26 @@ func (P *Parser) ParseIdentList() int {
+ }
+ 
+ 
+-func (P *Parser) ParseQualifiedIdent(ident *AST.Ident) AST.Expr {
++func (P *Parser) ParseQualifiedIdent(ident *AST.Literal) AST.Expr {
+ 	P.Trace("QualifiedIdent");
+ 
+ 	if ident == nil {
+ 		ident = P.ParseIdent();
+ 	}
++
++	var x AST.Expr = ident;
++	
+ 	if P.tok == Scanner.PERIOD {
+ 	   	 P.Next();
+-		 ident = P.ParseIdent();
++		 ident2 := P.ParseIdent();
++		 
++		 z := new(AST.Selector);
++		 z.pos, z.x, z.field = ident.pos, ident, ident2.val;
++		 x = z;
+ 	}
+ 	
+ 	P.Ecart();
+-	return ident;
++	return x;
+ }
+ 
+ 
+@@ -471,16 +482,18 @@ func (P *Parser) ParseBlock() {
+ // ----------------------------------------------------------------------------
+ // Expressions
+ 
+-func (P *Parser) ParseExpressionList() {
++func (P *Parser) ParseExpressionList() *AST.List {
+ 	P.Trace("ExpressionList");
+-	
+-	P.ParseExpression();
++
++	p := AST.NewList();
++	p.Add(P.ParseExpression());
+ 	for P.tok == Scanner.COMMA {
+ 		P.Next();
+-		P.ParseExpression();
++		p.Add(P.ParseExpression());
+ 	}
+ 	
+ 	P.Ecart();
++	return p;
+ }
+ 
+ 
+@@ -497,26 +510,33 @@ func (P *Parser) ParseFunctionLit() AST.Expr {
+ }
+ 
+ 
+-func (P *Parser) ParseExpressionPair() {
++func (P *Parser) ParseExpressionPair() AST.Expr {
+ 	P.Trace("ExpressionPair");
+ 
+-	P.ParseExpression();
++	x := P.ParseExpression();
++	pos := P.pos;
+ 	P.Expect(Scanner.COLON);
+-	P.ParseExpression();
++	y := P.ParseExpression();
++	
++	z := new(AST.Pair);
++	z.pos, z.x, z.y = pos, x, y;
+ 	
+ 	P.Ecart();
++	return z;
+ }
+ 
+ 
+-func (P *Parser) ParseExpressionPairList() {
++func (P *Parser) ParseExpressionPairList() *AST.List {
+ 	P.Trace("ExpressionPairList");
+ 
+-	P.ParseExpressionPair();
++	p := AST.NewList();
++	p.Add(P.ParseExpressionPair());
+ 	for P.tok == Scanner.COMMA {
+-		P.ParseExpressionPair();
++		p.Add(P.ParseExpressionPair());
+ 	}
+ 	
+ 	P.Ecart();
++	return p;
+ }
+ 
+ 
+@@ -546,12 +566,11 @@ func (P *Parser) ParseCompositeLit() AST.Expr {
+ 	P.Expect(Scanner.RBRACE);
+ 
+ 	P.Ecart();
+-	var x AST.Expr;
+-	return x;
++	return nil;
+ }
+ 
+ 
+-func (P *Parser) ParseOperand(ident *AST.Ident) AST.Expr {
++func (P *Parser) ParseOperand(ident *AST.Literal) AST.Expr {
+ 	P.Trace("Operand");
+ 
+ 	if ident == nil && P.tok == Scanner.IDENT {
+@@ -559,39 +578,37 @@ func (P *Parser) ParseOperand(ident *AST.Ident) AST.Expr {
+ 		ident = P.ParseIdent();
+ 	}
+ 
+-	var x AST.Expr;
++	var z AST.Expr;
+ 
+ 	if ident != nil {
+-		// we have an identifier
++		z = ident;
+ 
+ 	} else {
+ 	
+ 		switch P.tok {
+ 		case Scanner.LPAREN:
+ 			P.Next();
+-			x = P.ParseExpression();
++			z = P.ParseExpression();
+ 			P.Expect(Scanner.RPAREN);
+-			
+-		case Scanner.INT:
+-			P.Next();
+-
+-		case Scanner.FLOAT:
+-			P.Next();
+ 
+-		case Scanner.STRING:
++		case Scanner.INT, Scanner.FLOAT, Scanner.STRING:
++			x := new(AST.Literal);
++			x.pos, x.tok, x.val = P.pos, P.tok, P.val;
++			z = x;
+ 			P.Next();
+ 
+ 		case Scanner.FUNC:
+-			P.ParseFunctionLit();
++			z = P.ParseFunctionLit();
+ 			
+ 		case Scanner.HASH:
+ 			P.Next();
+ 			P.ParseType();
+ 			P.ParseCompositeLit();
++			z = nil;
+ 
+ 		default:
+ 			if P.tok != Scanner.IDENT && P.TryType() {
+-				P.ParseCompositeLit();
++				z = P.ParseCompositeLit();
+ 			} else {
+ 				P.Error(P.pos, "operand expected");
+ 				P.Next();  // make progress
+@@ -601,18 +618,23 @@ func (P *Parser) ParseOperand(ident *AST.Ident) AST.Expr {
+ 	}
+ 
+ 	P.Ecart();
+-	return x;
++	return z;
+ }
+ 
+ 
+ func (P *Parser) ParseSelectorOrTypeGuard(x AST.Expr) AST.Expr {
+ 	P.Trace("SelectorOrTypeGuard");
+ 
+-	P.Expect(Scanner.PERIOD);
+ 	pos := P.pos;
++	P.Expect(Scanner.PERIOD);
+ 	
+-	if P.tok >= Scanner.IDENT {
+-		P.ParseIdent();
++	if P.tok == Scanner.IDENT {
++		ident := P.ParseIdent();
++		
++		z := new(AST.Selector);
++		z.pos, z.x, z.field = pos, x, ident.val;
++		x = z;
++		
+ 	} else {
+ 		P.Expect(Scanner.LPAREN);
+ 		P.ParseType();
+@@ -627,16 +649,21 @@ func (P *Parser) ParseSelectorOrTypeGuard(x AST.Expr) AST.Expr {
+ func (P *Parser) ParseIndexOrSlice(x AST.Expr) AST.Expr {
+ 	P.Trace("IndexOrSlice");
+ 	
++	pos := P.pos;
+ 	P.Expect(Scanner.LBRACK);
+ 	i := P.ParseExpression();
+ 	if P.tok == Scanner.COLON {
+ 		P.Next();
+ 		j := P.ParseExpression();
++		// TODO: handle this case
+ 	}
+ 	P.Expect(Scanner.RBRACK);
+-		
++
++	z := new(AST.Index);
++	z.pos, z.x, z.index = pos, x, i;
++	
+ 	P.Ecart();
+-	return x;
++	return z;
+ }
+ 
+ 
+@@ -668,20 +695,19 @@ func (P *Parser) ParseCall(x AST.Expr) AST.Expr {
+ }
+ 
+ 
+-func (P *Parser) ParsePrimaryExpr(ident *AST.Ident) AST.Expr {
++func (P *Parser) ParsePrimaryExpr(ident *AST.Literal) AST.Expr {
+ 	P.Trace("PrimaryExpr");
+ 	
+ 	x := P.ParseOperand(ident);
+-	for {
++	L: for {
+ 		switch P.tok {
+ 		case Scanner.PERIOD: x = P.ParseSelectorOrTypeGuard(x);
+ 		case Scanner.LBRACK: x = P.ParseIndexOrSlice(x);
+ 		case Scanner.LPAREN: x = P.ParseCall(x);
+-		default: goto exit;
++		default: break L;
+ 		}
+ 	}
+ 
+-exit:
+ 	P.Ecart();
+ 	return x;
+ }
+@@ -690,23 +716,26 @@ exit:
+ func (P *Parser) ParseUnaryExpr() AST.Expr {
+ 	P.Trace("UnaryExpr");
+ 	
++	var x AST.Expr;
+ 	switch P.tok {
+-	case Scanner.ADD: fallthrough;
+-	case Scanner.SUB: fallthrough;
+-	case Scanner.NOT: fallthrough;
+-	case Scanner.XOR: fallthrough;
+-	case Scanner.MUL: fallthrough;
+-	case Scanner.ARROW: fallthrough;
+-	case Scanner.AND:
+-		P.Next();
+-		x := P.ParseUnaryExpr();
+-		P.Ecart();
+-		return x;  // TODO fix this
++	case
++		Scanner.ADD, Scanner.SUB,
++		Scanner.NOT, Scanner.XOR,
++		Scanner.MUL, Scanner.ARROW,
++		Scanner.AND:
++			pos, tok := P.pos, P.tok;
++			P.Next();
++			y := P.ParseUnaryExpr();
++
++			x := new(AST.Unary);
++			x.pos, x.tok, x.x = pos, tok, y;
++			
++		default:
++			x = P.ParsePrimaryExpr(nil);
+ 	}
+ 	
+-	x := P.ParsePrimaryExpr(nil);
+ 	P.Ecart();
+-	return x;  // TODO fix this
++	return x;
+ }
+ 
+ 
+@@ -730,7 +759,7 @@ func Precedence(tok int) int {
+ }
+ 
+ 
+-func (P *Parser) ParseBinaryExpr(ident *AST.Ident, prec1 int) AST.Expr {
++func (P *Parser) ParseBinaryExpr(ident *AST.Literal, prec1 int) AST.Expr {
+ 	P.Trace("BinaryExpr");
+ 	
+ 	var x AST.Expr;
+@@ -742,8 +771,13 @@ func (P *Parser) ParseBinaryExpr(ident *AST.Ident, prec1 int) AST.Expr {
+ 
+ 	for prec := Precedence(P.tok); prec >= prec1; prec-- {
+ 		for Precedence(P.tok) == prec {
++			pos, tok := P.pos, P.tok;
+ 			P.Next();
+ 			y := P.ParseBinaryExpr(nil, prec + 1);
++			
++			z := new(AST.Binary);
++			z.pos, z.tok, z.x, z.y = pos, tok, x, y;
++			x = z;
+ 		}
+ 	}
+ 	
+@@ -753,7 +787,7 @@ func (P *Parser) ParseBinaryExpr(ident *AST.Ident, prec1 int) AST.Expr {
+ 
+ 
+ // Expressions where the first token may be an identifier which has already been consumed.
+-func (P *Parser) ParseIdentExpression(ident *AST.Ident) AST.Expr {
++func (P *Parser) ParseIdentExpression(ident *AST.Literal) AST.Expr {
+ 	P.Trace("IdentExpression");
+ 	indent := P.indent;
+ 	
+@@ -772,6 +806,10 @@ func (P *Parser) ParseExpression() AST.Expr {
+ 	P.Trace("Expression");
+ 	
+ 	x := P.ParseIdentExpression(nil);
++	
++	if !P.silent {
++		Printer.Print(x);
++	}
+ 
+ 	P.Ecart();
+ 	return x;
+diff --git a/usr/gri/pretty/pretty.go b/usr/gri/pretty/pretty.go
+index 2a43b72bdb..64624d3a70 100644
+--- a/usr/gri/pretty/pretty.go
++++ b/usr/gri/pretty/pretty.go
+@@ -13,7 +13,8 @@ import Printer "printer"
+ 
+ 
+ var (
+-    verbose = Flag.Bool("v", false, nil, "verbose mode");
++    silent = Flag.Bool("s", false, nil, "silent mode: no pretty print output");
++    verbose = Flag.Bool("v", false, nil, "verbose mode: trace parsing");
+     sixg = Flag.Bool("6g", false, nil, "6g compatibility mode");
+     tokenchan = Flag.Bool("token_chan", false, nil, "use token channel for scanner-parser connection");
+ )
+@@ -53,7 +54,7 @@ func main() {
+ 	    }
+ 
+ 	    parser := new(Parser.Parser);
+-	    parser.Open(verbose.BVal(), scanner, tstream);
++	    parser.Open(silent.BVal(), verbose.BVal(), scanner, tstream);
+ 
+ 	    parser.ParseProgram();
+ 	}
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index e4aa2ef8f1..5541e14824 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -2,7 +2,64 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package Printer;
++package Printer
+ 
++import Scanner "scanner"
++import AST "ast"
+ 
+-// TODO Fill in the code to print the AST
++
++type Printer struct {
++	
++}
++
++
++func (P *Printer) Print(s string) {
++	print(s);
++}
++
++
++func (P *Printer) PrintExpr(x AST.Expr) {
++/*
++	if x == nil {
++		P.Print("<nil>");
++		return;
++	}
++	
++	switch x.tok {
++	case Scanner.IDENT:
++		P.Print(x.val);
++	
++	case Scanner.INT, Scanner.FLOAT, Scanner.STRING:
++		P.Print(x.val);
++		
++	case Scanner.PERIOD:
++		P.PrintExpr(x.x);
++		P.Print(Scanner.TokenName(x.tok));
++		P.PrintExpr(x.y);
++
++	case Scanner.LBRACK:
++		P.PrintExpr(x.x);
++		P.Print("[");
++		P.PrintExpr(x.y);
++		P.Print("]");
++
++	default:
++		// unary or binary expression
++		print("(");
++		if x.x != nil {
++			P.PrintExpr(x.x);
++		}
++		P.Print(" " + Scanner.TokenName(x.tok) + " ");
++		P.PrintExpr(x.y);
++		print(")");
++	}
++*/
++}
++
++
++export func Print(x AST.Expr) {
++	var P Printer;
++	print("expr = ");
++	(&P).PrintExpr(x);
++	print("\n");
++}

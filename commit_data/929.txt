@@ -7,7 +7,43 @@ Date:   Tue Oct 21 18:03:25 2008 -0700
     R=ken
     OCL=17598
     CL=17598
-
+---
  src/cmd/gc/walk.c |  4 ++++
  test/newfn.go     | 14 ++++++++++++++
  2 files changed, 18 insertions(+)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index f63b293344..c78ac1ab7b 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1824,6 +1824,10 @@ newcompat(Node *n)
+ 
+ 	t = t->type;
+ 	switch(t->etype) {
++	case TFUNC:
++		yyerror("cannot make new %T", t);
++		break;
++
+ 	case TMAP:
+ 		r = mapop(n, Erv);
+ 		return r;
+diff --git a/test/newfn.go b/test/newfn.go
+new file mode 100644
+index 0000000000..8aacd8448a
+--- /dev/null
++++ b/test/newfn.go
+@@ -0,0 +1,14 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// errchk $G $D/$F.go
++
++package main
++
++func main()
++{
++	f := new(());	// ERROR "new"
++	g := new((x int, f float) string);	// ERROR "new"
++	h := new(*());	// ok
++}

@@ -9,7 +9,58 @@ Date:   Wed Aug 12 14:51:24 2015 -0700
     Change-Id: Ie0296ced602984d914a70461c76559c507ce2510
     Reviewed-on: https://go-review.googlesource.com/13621
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/check.go    |  4 ++++
  src/cmd/compile/internal/ssa/dom_test.go | 13 ++++++++-----
  2 files changed, 12 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index dfb33dbd07..2631401130 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -157,6 +157,10 @@ func checkFunc(f *Func) {
+ 		}
+ 	}
+ 
++	if len(f.Entry.Preds) > 0 {
++		f.Fatalf("entry block %s of %s has predecessor(s) %v", f.Entry, f.Name, f.Entry.Preds)
++	}
++
+ 	// Check to make sure all Values referenced are in the function.
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+diff --git a/src/cmd/compile/internal/ssa/dom_test.go b/src/cmd/compile/internal/ssa/dom_test.go
+index 6cd2ff440c..e125907929 100644
+--- a/src/cmd/compile/internal/ssa/dom_test.go
++++ b/src/cmd/compile/internal/ssa/dom_test.go
+@@ -317,11 +317,13 @@ func TestDominatorsMultPredRev(t *testing.T) {
+ 	c := testConfig(t)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
++			Goto("first")),
++		Bloc("first",
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+ 			Valu("p", OpConstBool, TypeBool, 0, true),
+ 			Goto("a")),
+ 		Bloc("a",
+-			If("p", "b", "entry")),
++			If("p", "b", "first")),
+ 		Bloc("b",
+ 			Goto("c")),
+ 		Bloc("c",
+@@ -330,10 +332,11 @@ func TestDominatorsMultPredRev(t *testing.T) {
+ 			Exit("mem")))
+ 
+ 	doms := map[string]string{
+-		"a":    "entry",
+-		"b":    "a",
+-		"c":    "b",
+-		"exit": "c",
++		"first": "entry",
++		"a":     "first",
++		"b":     "a",
++		"c":     "b",
++		"exit":  "c",
+ 	}
+ 
+ 	CheckFunc(fun.f)

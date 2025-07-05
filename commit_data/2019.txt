@@ -9,8 +9,111 @@ Date:   Wed Apr 15 00:05:47 2009 -0700
     DELTA=49  (43 added, 6 deleted, 0 changed)
     OCL=27476
     CL=27478
-
+---
  src/lib/template/format.go        | 39 +++++++++++++++++++++++++++++++++------
  src/lib/template/template.go      |  1 +
  src/lib/template/template_test.go | 11 ++++++++++-
  3 files changed, 44 insertions(+), 7 deletions(-)
+
+diff --git a/src/lib/template/format.go b/src/lib/template/format.go
+index de38fb9820..64adba5882 100644
+--- a/src/lib/template/format.go
++++ b/src/lib/template/format.go
+@@ -12,12 +12,6 @@ import (
+ 	"reflect";
+ )
+ 
+-// HtmlFormatter formats arbitrary values for HTML
+-// TODO: do something for real.
+-func HtmlFormatter(w io.Write, value interface{}, format string) {
+-	fmt.Fprint(w, value);
+-}
+-
+ // StringFormatter formats into the default string representation.
+ // It is stored under the name "str" and is the default formatter.
+ // You can override the default formatter by storing your default
+@@ -25,3 +19,36 @@ func HtmlFormatter(w io.Write, value interface{}, format string) {
+ func StringFormatter(w io.Write, value interface{}, format string) {
+ 	fmt.Fprint(w, value);
+ }
++
++
++var esc_amp = io.StringBytes("&amp;")
++var esc_lt = io.StringBytes("&lt;")
++var esc_gt = io.StringBytes("&gt;")
++
++// HtmlEscape writes to w the properly escaped HTML equivalent
++// of the plain text data s.
++func HtmlEscape(w io.Write, s []byte) {
++	last := 0;
++	for i, c := range s {
++		if c == '&' || c == '<' || c == '>' {
++			w.Write(s[last:i]);
++			switch c {
++			case '&':
++				w.Write(esc_amp);
++			case '<':
++				w.Write(esc_lt);
++			case '>':
++				w.Write(esc_gt);
++			}
++			last = i+1;
++		}
++	}
++	w.Write(s[last:len(s)]);
++}
++
++// HtmlFormatter formats arbitrary values for HTML
++func HtmlFormatter(w io.Write, value interface{}, format string) {
++	var b io.ByteBuffer;
++	fmt.Fprint(&b, value);
++	HtmlEscape(w, b.Data());
++}
+diff --git a/src/lib/template/template.go b/src/lib/template/template.go
+index fa0cce7afc..fbffa9562b 100644
+--- a/src/lib/template/template.go
++++ b/src/lib/template/template.go
+@@ -67,6 +67,7 @@ type state struct {
+ 
+ // Report error and stop generation.
+ func (st *state) error(err *os.Error, args ...) {
++	fmt.Fprintf(os.Stderr, "template: %v%s\n", err, fmt.Sprint(args));
+ 	st.errorchan <- err;
+ 	sys.Goexit();
+ }
+diff --git a/src/lib/template/template_test.go b/src/lib/template/template_test.go
+index eec34748d7..2124e8d95a 100644
+--- a/src/lib/template/template_test.go
++++ b/src/lib/template/template_test.go
+@@ -25,6 +25,7 @@ type T struct {
+ type S struct {
+ 	header string;
+ 	integer int;
++	raw string;
+ 	data []T;
+ 	pdata []*T;
+ 	empty []*T;
+@@ -161,7 +162,14 @@ var tests = []*Test {
+ 		"HEADER=78\n"
+ 		"Header=77\n"
+ 	},
+-
++	
++	&Test{
++		"{raw}\n"
++		"{raw|html}\n",
++		
++		"&<>!@ #$%^\n"
++		"&amp;&lt;&gt;!@ #$%^\n"
++	},
+ }
+ 
+ func TestAll(t *testing.T) {
+@@ -169,6 +177,7 @@ func TestAll(t *testing.T) {
+ 	// initialized by hand for clarity.
+ 	s.header = "Header";
+ 	s.integer = 77;
++	s.raw = "&<>!@ #$%^";
+ 	s.data = []T{ t1, t2 };
+ 	s.pdata = []*T{ &t1, &t2 };
+ 	s.empty = []*T{ };

@@ -18,6 +18,31 @@ Date:   Mon Oct 8 17:52:52 2018 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/wasm/wasm_exec.js | 11 +++++++++--
  1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index 94b9552c59..815b3fbeff 100644
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -47,10 +47,17 @@
+ 				}
+ 				return buf.length;
+ 			},
+-			openSync(path, flags, mode) {
++			write(fd, buf, offset, length, position, callback) {
++				if (offset !== 0 || length !== buf.length || position !== null) {
++					throw new Error("not implemented");
++				}
++				const n = this.writeSync(fd, buf);
++				callback(null, n);
++			},
++			open(path, flags, mode, callback) {
+ 				const err = new Error("not implemented");
+ 				err.code = "ENOSYS";
+-				throw err;
++				callback(err);
+ 			},
+ 		};
+ 	}

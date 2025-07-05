@@ -9,6 +9,36 @@ Date:   Mon Jan 10 14:25:17 2011 -0800
     R=r, rsc, iant, ken2, r2
     CC=golang-dev
     https://golang.org/cl/3918041
-
+---
  doc/go_spec.html | 10 +++-------
  1 file changed, 3 insertions(+), 7 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index d12d51344d..e1c7e90e23 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,5 +1,5 @@
+ <!-- title The Go Programming Language Specification -->
+-<!-- subtitle Version of December 2, 2010 -->
++<!-- subtitle Version of January 7, 2011 -->
+ 
+ <!--
+ TODO
+@@ -5212,15 +5212,11 @@ complex128                           16
+ The following minimal alignment properties are guaranteed:
+ </p>
+ <ol>
+-<li>For a variable <code>x</code> of any type: <code>1 <= unsafe.Alignof(x) <= unsafe.Maxalign</code>.
+-</li>
+-
+-<li>For a variable <code>x</code> of numeric type: <code>unsafe.Alignof(x)</code> is the smaller
+-   of <code>unsafe.Sizeof(x)</code> and <code>unsafe.Maxalign</code>, but at least 1.
++<li>For a variable <code>x</code> of any type: <code>unsafe.Alignof(x)</code> is at least 1.
+ </li>
+ 
+ <li>For a variable <code>x</code> of struct type: <code>unsafe.Alignof(x)</code> is the largest of
+-   all the values <code>unsafe.Alignof(x.f)</code> for each field <code>f</code> of x, but at least 1.
++   all the values <code>unsafe.Alignof(x.f)</code> for each field <code>f</code> of <code>x</code>, but at least 1.
+ </li>
+ 
+ <li>For a variable <code>x</code> of array type: <code>unsafe.Alignof(x)</code> is the same as

@@ -7,6 +7,20 @@ Date:   Thu Mar 15 11:31:16 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5781069
-
+---
  src/cmd/godoc/appinit.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/godoc/appinit.go b/src/cmd/godoc/appinit.go
+index 6bffedb5c0..4096a4f224 100644
+--- a/src/cmd/godoc/appinit.go
++++ b/src/cmd/godoc/appinit.go
+@@ -42,7 +42,7 @@ func init() {
+ 		log.Fatalf("%s: %s\n", zipfile, err)
+ 	}
+ 	// rc is never closed (app running forever)
+-	fs.Bind("/", NewZipFS(rc, zipFilename), "/", bindReplace)
++	fs.Bind("/", NewZipFS(rc, zipFilename), *goroot, bindReplace)
+ 
+ 	// initialize http handlers
+ 	readTemplates()

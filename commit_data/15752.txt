@@ -11,6 +11,20 @@ Date:   Wed Mar 13 15:22:59 2013 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7792043
-
+---
  lib/godoc/package.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/godoc/package.txt b/lib/godoc/package.txt
+index de40a749b6..765bd769e1 100644
+--- a/lib/godoc/package.txt
++++ b/lib/godoc/package.txt
+@@ -65,7 +65,7 @@ TYPES
+ 
+ */}}{{with $.Notes}}
+ {{range $marker, $content := .}}
+-{{noteTitle $marker}}s
++{{$marker}}S
+ 
+ {{range $content}}{{comment_text . "    " "\t"}}
+ {{end}}{{end}}{{end}}{{end}}{{/*

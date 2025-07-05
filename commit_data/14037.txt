@@ -8,6 +8,43 @@ Date:   Sun Oct 7 07:15:11 2012 +1100
     R=golang-dev, bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/6624054
-
+---
  src/pkg/text/template/parse/node.go | 11 ++++++++++-
  1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/text/template/parse/node.go b/src/pkg/text/template/parse/node.go
+index 0cb7ceff4d..9d0d09eb5f 100644
+--- a/src/pkg/text/template/parse/node.go
++++ b/src/pkg/text/template/parse/node.go
+@@ -13,7 +13,9 @@ import (
+ 	"strings"
+ )
+ 
+-// A node is an element in the parse tree. The interface is trivial.
++// A Node is an element in the parse tree. The interface is trivial.
++// The interface contains an unexported method so that only
++// types local to this package can satisfy it.
+ type Node interface {
+ 	Type() NodeType
+ 	String() string
+@@ -22,6 +24,8 @@ type Node interface {
+ 	// CopyXxx methods that return *XxxNode.
+ 	Copy() Node
+ 	Position() Pos // byte position of start of node in full original input string
++	// Make sure only functions in this package can create Nodes.
++	unexported()
+ }
+ 
+ // NodeType identifies the type of a parse tree node.
+@@ -35,6 +39,11 @@ func (p Pos) Position() Pos {
+ 	return p
+ }
+ 
++// unexported keeps Node implementations local to the package.
++// All implementations embed Pos, so this takes care of it.
++func (Pos) unexported() {
++}
++
+ // Type returns itself and provides an easy default implementation
+ // for embedding in a Node. Embedded in all non-trivial Nodes.
+ func (t NodeType) Type() NodeType {

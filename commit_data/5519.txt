@@ -7,6 +7,20 @@ Date:   Sun May 23 11:21:47 2010 -0700
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/1266042
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 3f3dea3a42..39067fab8a 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -3297,7 +3297,7 @@ For instance, the value of a variable <code>x</code> of type <code>float32</code
+ may be stored using additional precision beyond that of an IEEE-754 32-bit number,
+ but float32(x) represents the result of rounding <code>x</code>'s value to
+ 32-bit precision. Similarly, <code>x + 0.1</code> may use more than 32 bits
+-of precision, <code>but float32(x + 0.1)</code> does not.
++of precision, but <code>float32(x + 0.1)</code> does not.
+ </li>
+ </ol>
+ 

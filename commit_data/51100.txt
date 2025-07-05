@@ -15,6 +15,21 @@ Date:   Thu Dec 2 13:37:25 2021 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  doc/go1.18.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 4f485143a9..fa65ad604e 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -761,7 +761,8 @@ Do not send CLs removing the interior tags from such phrases.
+     </p>
+ 
+     <p><!-- CL 355570 -->
+-      TODO: <a href="https://golang.org/cl/355570">https://golang.org/cl/355570</a>: add support for SysProcAttr.Pdeathsig on FreeBSD
++      <a href="/pkg/syscall/?GOOS=freebsd#SysProcAttr.Pdeathsig"><code>SysProcAttr.Pdeathsig</code></a>.
++      is now supported in FreeBSD.
+     </p>
+   </dd>
+ </dl><!-- syscall -->

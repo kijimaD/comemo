@@ -45,10 +45,218 @@ Date:   Thu Sep 4 00:10:10 2014 -0400
     R=golang-codereviews, iant
     CC=dvyukov, golang-codereviews, khr, r
     https://golang.org/cl/135400043
-
+---
  src/pkg/runtime/asm_386.s      | 14 +++++++++---
  src/pkg/runtime/asm_amd64.s    | 14 +++++++++---
  src/pkg/runtime/asm_amd64p32.s | 14 +++++++++---
  src/pkg/runtime/asm_arm.s      | 16 +++++++++----
  src/pkg/runtime/stubs.go       | 52 ++++++++++++++++++++++++++++++++++++------
  5 files changed, 90 insertions(+), 20 deletions(-)
+
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index aafe960ce3..3c46b40fee 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -205,18 +205,26 @@ TEXT runtime·switchtoM(SB), NOSPLIT, $0-4
+ 	RET
+ 
+ // func onM(fn func())
+-// calls fn() on the M stack.
+-// switches to the M stack if not already on it, and
+-// switches back when fn() returns.
+ TEXT runtime·onM(SB), NOSPLIT, $0-4
+ 	MOVL	fn+0(FP), DI	// DI = fn
+ 	get_tls(CX)
+ 	MOVL	g(CX), AX	// AX = g
+ 	MOVL	g_m(AX), BX	// BX = m
++
+ 	MOVL	m_g0(BX), DX	// DX = g0
+ 	CMPL	AX, DX
+ 	JEQ	onm
+ 
++	MOVL	m_curg(BX), BP
++	CMPL	AX, BP
++	JEQ	oncurg
++	
++	// Not g0, not curg. Must be gsignal, but that's not allowed.
++	// Hide call from linker nosplit analysis.
++	MOVL	$runtime·badonm(SB), AX
++	CALL	AX
++
++oncurg:
+ 	// save our state in g->sched.  Pretend to
+ 	// be switchtoM if the G stack is scanned.
+ 	MOVL	$runtime·switchtoM(SB), (g_sched+gobuf_pc)(AX)
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 5840b56c81..eb0795ec3a 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -197,18 +197,26 @@ TEXT runtime·switchtoM(SB), NOSPLIT, $0-8
+ 	RET
+ 
+ // func onM(fn func())
+-// calls fn() on the M stack.
+-// switches to the M stack if not already on it, and
+-// switches back when fn() returns.
+ TEXT runtime·onM(SB), NOSPLIT, $0-8
+ 	MOVQ	fn+0(FP), DI	// DI = fn
+ 	get_tls(CX)
+ 	MOVQ	g(CX), AX	// AX = g
+ 	MOVQ	g_m(AX), BX	// BX = m
++
+ 	MOVQ	m_g0(BX), DX	// DX = g0
+ 	CMPQ	AX, DX
+ 	JEQ	onm
+ 
++	MOVQ	m_curg(BX), BP
++	CMPQ	AX, BP
++	JEQ	oncurg
++	
++	// Not g0, not curg. Must be gsignal, but that's not allowed.
++	// Hide call from linker nosplit analysis.
++	MOVQ	$runtime·badonm(SB), AX
++	CALL	AX
++
++oncurg:
+ 	// save our state in g->sched.  Pretend to
+ 	// be switchtoM if the G stack is scanned.
+ 	MOVQ	$runtime·switchtoM(SB), BP
+diff --git a/src/pkg/runtime/asm_amd64p32.s b/src/pkg/runtime/asm_amd64p32.s
+index 5ff89cf068..106a722fe2 100644
+--- a/src/pkg/runtime/asm_amd64p32.s
++++ b/src/pkg/runtime/asm_amd64p32.s
+@@ -175,18 +175,26 @@ TEXT runtime·switchtoM(SB), NOSPLIT, $0-4
+ 	RET
+ 
+ // func onM(fn func())
+-// calls fn() on the M stack.
+-// switches to the M stack if not already on it, and
+-// switches back when fn() returns.
+ TEXT runtime·onM(SB), NOSPLIT, $0-4
+ 	MOVL	fn+0(FP), DI	// DI = fn
+ 	get_tls(CX)
+ 	MOVL	g(CX), AX	// AX = g
+ 	MOVL	g_m(AX), BX	// BX = m
++
+ 	MOVL	m_g0(BX), DX	// DX = g0
+ 	CMPL	AX, DX
+ 	JEQ	onm
+ 
++	MOVL	m_curg(BX), BP
++	CMPL	AX, BP
++	JEQ	oncurg
++	
++	// Not g0, not curg. Must be gsignal, but that's not allowed.
++	// Hide call from linker nosplit analysis.
++	MOVL	$runtime·badonm(SB), AX
++	CALL	AX
++
++oncurg:
+ 	// save our state in g->sched.  Pretend to
+ 	// be switchtoM if the G stack is scanned.
+ 	MOVL	$runtime·switchtoM(SB), SI
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 49a863258c..6acf3f73db 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -190,16 +190,24 @@ TEXT runtime·switchtoM(SB), NOSPLIT, $0-4
+ 	RET
+ 
+ // func onM(fn func())
+-// calls fn() on the M stack.
+-// switches to the M stack if not already on it, and
+-// switches back when fn() returns.
+ TEXT runtime·onM(SB), NOSPLIT, $0-4
+ 	MOVW	fn+0(FP), R0	// R0 = fn
+ 	MOVW	g_m(g), R1	// R1 = m
++
+ 	MOVW	m_g0(R1), R2	// R2 = g0
+ 	CMP	g, R2
+ 	B.EQ	onm
+-	
++
++	MOVW	m_g0(R1), R3
++	CMP	g, R3
++	B.EQ	oncurg
++
++	// Not g0, not curg. Must be gsignal, but that's not allowed.
++	// Hide call from linker nosplit analysis.
++	MOVW	$runtime·badonm(SB), R0
++	BL	(R0)
++
++oncurg:
+ 	// save our state in g->sched.  Pretend to
+ 	// be switchtoM if the G stack is scanned.
+ 	MOVW	$runtime·switchtoM(SB), R3
+diff --git a/src/pkg/runtime/stubs.go b/src/pkg/runtime/stubs.go
+index 14857908fd..287b3df05d 100644
+--- a/src/pkg/runtime/stubs.go
++++ b/src/pkg/runtime/stubs.go
+@@ -58,22 +58,60 @@ func acquirem() *m
+ func releasem(mp *m)
+ func gomcache() *mcache
+ 
+-// in asm_*.s
+-func mcall(func(*g))
++// mcall switches from the g to the g0 stack and invokes fn(g),
++// where g is the goroutine that made the call.
++// mcall saves g's current PC/SP in g->sched so that it can be restored later.
++// It is up to fn to arrange for that later execution, typically by recording
++// g in a data structure, causing something to call ready(g) later.
++// mcall returns to the original goroutine g later, when g has been rescheduled.
++// fn must not return at all; typically it ends by calling schedule, to let the m
++// run other goroutines.
++//
++// mcall can only be called from g stacks (not g0, not gsignal).
++//go:noescape
++func mcall(fn func(*g))
++
++// onM switches from the g to the g0 stack and invokes fn().
++// When fn returns, onM switches back to the g and returns,
++// continuing execution on the g stack.
++// If arguments must be passed to fn, they can be written to
++// g->m->ptrarg (pointers) and g->m->scalararg (non-pointers)
++// before the call and then consulted during fn.
++// Similarly, fn can pass return values back in those locations.
++// If fn is written in Go, it can be a closure, which avoids the need for
++// ptrarg and scalararg entirely.
++// After reading values out of ptrarg and scalararg it is conventional
++// to zero them to avoid (memory or information) leaks.
++//
++// If onM is called from a g0 stack, it invokes fn and returns,
++// without any stack switches.
++//
++// If onM is called from a gsignal stack, it crashes the program.
++// The implication is that functions used in signal handlers must
++// not use onM.
++//
++// NOTE(rsc): We could introduce a separate onMsignal that is
++// like onM but if called from a gsignal stack would just run fn on
++// that stack. The caller of onMsignal would be required to save the
++// old values of ptrarg/scalararg and restore them when the call
++// was finished, in case the signal interrupted an onM sequence
++// in progress on the g or g0 stacks. Until there is a clear need for this,
++// we just reject onM in signal handling contexts entirely.
++//
++//go:noescape
+ func onM(fn func())
+ 
++func badonm() {
++	gothrow("onM called from signal goroutine")
++}
++
+ // C functions that run on the M stack.
+ // Call using mcall.
+-// These functions need to be written to arrange explicitly
+-// for the goroutine to continue execution.
+ func gosched_m(*g)
+ func park_m(*g)
+ 
+ // More C functions that run on the M stack.
+ // Call using onM.
+-// Arguments should be passed in m->scalararg[x] and m->ptrarg[x].
+-// Return values can be passed in those same slots.
+-// These functions return to the goroutine when they return.
+ func mcacheRefill_m()
+ func largeAlloc_m()
+ func gc_m()

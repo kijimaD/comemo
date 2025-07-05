@@ -29,6 +29,31 @@ Date:   Fri Nov 5 23:47:51 2021 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/crash_unix_test.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/runtime/crash_unix_test.go b/src/runtime/crash_unix_test.go
+index 0d9d22aa49..0930a1b365 100644
+--- a/src/runtime/crash_unix_test.go
++++ b/src/runtime/crash_unix_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"runtime"
++	"runtime/debug"
+ 	"strings"
+ 	"sync"
+ 	"syscall"
+@@ -211,6 +212,11 @@ func TestPanicSystemstack(t *testing.T) {
+ 
+ func init() {
+ 	if len(os.Args) >= 2 && os.Args[1] == "testPanicSystemstackInternal" {
++		// Complete any in-flight GCs and disable future ones. We're going to
++		// block goroutines on runtime locks, which aren't ever preemptible for the
++		// GC to scan them.
++		runtime.GC()
++		debug.SetGCPercent(-1)
+ 		// Get two threads running on the system stack with
+ 		// something recognizable in the stack trace.
+ 		runtime.GOMAXPROCS(2)

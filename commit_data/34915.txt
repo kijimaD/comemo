@@ -16,7 +16,7 @@ Date:   Sat Aug 19 13:46:48 2017 +0900
     Change-Id: I9129130aafbfc7d0d7e9b674b6fc6cb31b7381be
     Reviewed-on: https://go-review.googlesource.com/64910
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/install.html                      |  4 ++--
  src/net/platform_test.go              |  2 --
  src/net/sock_bsd.go                   |  4 +++-
@@ -29,3 +29,242 @@ Date:   Sat Aug 19 13:46:48 2017 +0900
  src/syscall/zsyscall_freebsd_amd64.go | 12 ------------
  src/syscall/zsyscall_freebsd_arm.go   | 12 ------------
  11 files changed, 10 insertions(+), 101 deletions(-)
+
+diff --git a/doc/install.html b/doc/install.html
+index 7f32f68cd3..abf7fa6dae 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -16,7 +16,7 @@
+ 
+ <p>
+ <a href="https://golang.org/dl/" target="_blank">Official binary
+-distributions</a> are available for the FreeBSD (release 8-STABLE and above),
++distributions</a> are available for the FreeBSD (release 10-STABLE and above),
+ Linux, Mac OS X (10.8 and above), and Windows operating systems and
+ the 32-bit (<code>386</code>) and 64-bit (<code>amd64</code>) x86 processor
+ architectures.
+@@ -47,7 +47,7 @@ If your OS or architecture is not on the list, you may be able to
+ <th align="center">Notes</th>
+ </tr>
+ <tr><td colspan="3"><hr></td></tr>
+-<tr><td>FreeBSD 9.3 or later</td> <td>amd64, 386</td> <td>Debian GNU/kFreeBSD not supported</td></tr>
++<tr><td>FreeBSD 10.3 or later</td> <td>amd64, 386</td> <td>Debian GNU/kFreeBSD not supported</td></tr>
+ <tr valign='top'><td>Linux 2.6.23 or later with glibc</td> <td>amd64, 386, arm, arm64,<br>s390x, ppc64le</td> <td>CentOS/RHEL 5.x not supported.<br>Install from source for other libc.</td></tr>
+ <tr><td>macOS 10.8 or later</td> <td>amd64</td> <td>use the clang or gcc<sup>&#8224;</sup> that comes with Xcode<sup>&#8225;</sup> for <code>cgo</code> support</td></tr>
+ <tr><td>Windows XP SP2 or later</td> <td>amd64, 386</td> <td>use MinGW gcc<sup>&#8224;</sup>. No need for cygwin or msys.</td></tr>
+diff --git a/src/net/platform_test.go b/src/net/platform_test.go
+index 2b87bf4d0a..eca1202beb 100644
+--- a/src/net/platform_test.go
++++ b/src/net/platform_test.go
+@@ -43,8 +43,6 @@ func testableNetwork(network string) bool {
+ 	case "unixpacket":
+ 		switch runtime.GOOS {
+ 		case "android", "darwin", "nacl", "plan9", "windows":
+-			fallthrough
+-		case "freebsd": // FreeBSD 8 and below don't support unixpacket
+ 			return false
+ 		}
+ 	}
+diff --git a/src/net/sock_bsd.go b/src/net/sock_bsd.go
+index 4e0e9e01f2..dfb0920550 100644
+--- a/src/net/sock_bsd.go
++++ b/src/net/sock_bsd.go
+@@ -17,8 +17,10 @@ func maxListenerBacklog() int {
+ 		err error
+ 	)
+ 	switch runtime.GOOS {
+-	case "darwin", "freebsd":
++	case "darwin":
+ 		n, err = syscall.SysctlUint32("kern.ipc.somaxconn")
++	case "freebsd":
++		n, err = syscall.SysctlUint32("kern.ipc.acceptqueue")
+ 	case "netbsd":
+ 		// NOTE: NetBSD has no somaxconn-like kernel state so far
+ 	case "openbsd":
+diff --git a/src/os/pipe_freebsd.go b/src/os/pipe_freebsd.go
+index 47983065d9..93bd869afd 100644
+--- a/src/os/pipe_freebsd.go
++++ b/src/os/pipe_freebsd.go
+@@ -13,21 +13,7 @@ func Pipe() (r *File, w *File, err error) {
+ 
+ 	e := syscall.Pipe2(p[0:], syscall.O_CLOEXEC)
+ 	if e != nil {
+-		// Fallback support for FreeBSD 9, which lacks Pipe2.
+-		//
+-		// TODO: remove this for Go 1.10 when FreeBSD 9
+-		// is removed (Issue 19072).
+-
+-		// See ../syscall/exec.go for description of lock.
+-		syscall.ForkLock.RLock()
+-		e := syscall.Pipe(p[0:])
+-		if e != nil {
+-			syscall.ForkLock.RUnlock()
+-			return nil, nil, NewSyscallError("pipe", e)
+-		}
+-		syscall.CloseOnExec(p[0])
+-		syscall.CloseOnExec(p[1])
+-		syscall.ForkLock.RUnlock()
++		return nil, nil, NewSyscallError("pipe", e)
+ 	}
+ 
+ 	return newFile(uintptr(p[0]), "|0", kindPipe), newFile(uintptr(p[1]), "|1", kindPipe), nil
+diff --git a/src/os/sys_freebsd.go b/src/os/sys_freebsd.go
+index 273c2df1c1..3ec49faedf 100644
+--- a/src/os/sys_freebsd.go
++++ b/src/os/sys_freebsd.go
+@@ -4,20 +4,7 @@
+ 
+ package os
+ 
+-import "syscall"
+-
+ // supportsCloseOnExec reports whether the platform supports the
+ // O_CLOEXEC flag.
+-var supportsCloseOnExec bool
+-
+-func init() {
+-	osrel, err := syscall.SysctlUint32("kern.osreldate")
+-	if err != nil {
+-		return
+-	}
+-	// The O_CLOEXEC flag was introduced in FreeBSD 8.3.
+-	// See http://www.freebsd.org/doc/en/books/porters-handbook/freebsd-versions.html.
+-	if osrel >= 803000 {
+-		supportsCloseOnExec = true
+-	}
+-}
++// The O_CLOEXEC flag was introduced in FreeBSD 8.3.
++const supportsCloseOnExec bool = true
+diff --git a/src/os/wait_wait6.go b/src/os/wait_wait6.go
+index b30981199e..891f242dac 100644
+--- a/src/os/wait_wait6.go
++++ b/src/os/wait_wait6.go
+@@ -30,11 +30,6 @@ func (p *Process) blockUntilWaitable() (bool, error) {
+ 	}
+ 	runtime.KeepAlive(p)
+ 	if errno != 0 {
+-		// The wait6 system call is supported only on FreeBSD
+-		// 9.3 and above, so it may return an ENOSYS error.
+-		if errno == syscall.ENOSYS {
+-			return false, nil
+-		}
+ 		return false, NewSyscallError("wait6", errno)
+ 	}
+ 	return true, nil
+diff --git a/src/syscall/exec_freebsd.go b/src/syscall/exec_freebsd.go
+index 4ed32c0614..1654b4ba2a 100644
+--- a/src/syscall/exec_freebsd.go
++++ b/src/syscall/exec_freebsd.go
+@@ -5,21 +5,5 @@
+ package syscall
+ 
+ func forkExecPipe(p []int) error {
+-	err := Pipe2(p, O_CLOEXEC)
+-	if err == nil {
+-		return nil
+-	}
+-
+-	// FreeBSD 9 fallback.
+-	// TODO: remove this for Go 1.10 per Issue 19072
+-	err = Pipe(p)
+-	if err != nil {
+-		return err
+-	}
+-	_, err = fcntl(p[0], F_SETFD, FD_CLOEXEC)
+-	if err != nil {
+-		return err
+-	}
+-	_, err = fcntl(p[1], F_SETFD, FD_CLOEXEC)
+-	return err
++	return Pipe2(p, O_CLOEXEC)
+ }
+diff --git a/src/syscall/syscall_freebsd.go b/src/syscall/syscall_freebsd.go
+index 2c7533c157..5fb9655e5a 100644
+--- a/src/syscall/syscall_freebsd.go
++++ b/src/syscall/syscall_freebsd.go
+@@ -66,15 +66,8 @@ func direntNamlen(buf []byte) (uint64, bool) {
+ 	return readInt(buf, unsafe.Offsetof(Dirent{}.Namlen), unsafe.Sizeof(Dirent{}.Namlen))
+ }
+ 
+-//sysnb pipe() (r int, w int, err error)
+-
+ func Pipe(p []int) error {
+-	if len(p) != 2 {
+-		return EINVAL
+-	}
+-	var err error
+-	p[0], p[1], err = pipe()
+-	return err
++	return Pipe2(p, 0)
+ }
+ 
+ //sysnb pipe2(p *[2]_C_int, flags int) (err error)
+diff --git a/src/syscall/zsyscall_freebsd_386.go b/src/syscall/zsyscall_freebsd_386.go
+index e1d371423c..4ada995e54 100644
+--- a/src/syscall/zsyscall_freebsd_386.go
++++ b/src/syscall/zsyscall_freebsd_386.go
+@@ -261,18 +261,6 @@ func fcntl(fd int, cmd int, arg int) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func pipe() (r int, w int, err error) {
+-	r0, r1, e1 := RawSyscall(SYS_PIPE, 0, 0, 0)
+-	r = int(r0)
+-	w = int(r1)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func pipe2(p *[2]_C_int, flags int) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_PIPE2, uintptr(unsafe.Pointer(p)), uintptr(flags), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_freebsd_amd64.go b/src/syscall/zsyscall_freebsd_amd64.go
+index 561870ccce..5bbc5c4f34 100644
+--- a/src/syscall/zsyscall_freebsd_amd64.go
++++ b/src/syscall/zsyscall_freebsd_amd64.go
+@@ -261,18 +261,6 @@ func fcntl(fd int, cmd int, arg int) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func pipe() (r int, w int, err error) {
+-	r0, r1, e1 := RawSyscall(SYS_PIPE, 0, 0, 0)
+-	r = int(r0)
+-	w = int(r1)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func pipe2(p *[2]_C_int, flags int) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_PIPE2, uintptr(unsafe.Pointer(p)), uintptr(flags), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_freebsd_arm.go b/src/syscall/zsyscall_freebsd_arm.go
+index cefebb9417..011ac0e25a 100644
+--- a/src/syscall/zsyscall_freebsd_arm.go
++++ b/src/syscall/zsyscall_freebsd_arm.go
+@@ -261,18 +261,6 @@ func fcntl(fd int, cmd int, arg int) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func pipe() (r int, w int, err error) {
+-	r0, r1, e1 := RawSyscall(SYS_PIPE, 0, 0, 0)
+-	r = int(r0)
+-	w = int(r1)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func pipe2(p *[2]_C_int, flags int) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_PIPE2, uintptr(unsafe.Pointer(p)), uintptr(flags), 0)
+ 	if e1 != 0 {

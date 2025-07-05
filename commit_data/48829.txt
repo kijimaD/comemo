@@ -12,9 +12,248 @@ Date:   Tue Jun 15 17:48:31 2021 -0700
     Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  .../internal/syntax/testdata/go2/linalg.go2        | 16 ++---
  .../internal/syntax/testdata/go2/smoketest.go2     |  6 +-
  .../internal/syntax/testdata/go2/typeinst2.go2     | 10 ++--
  .../internal/syntax/testdata/go2/typeparams.go2    | 68 +++++++++++-----------
  4 files changed, 50 insertions(+), 50 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/testdata/go2/linalg.go2 b/src/cmd/compile/internal/syntax/testdata/go2/linalg.go2
+index 0d27603a58..822d0287e7 100644
+--- a/src/cmd/compile/internal/syntax/testdata/go2/linalg.go2
++++ b/src/cmd/compile/internal/syntax/testdata/go2/linalg.go2
+@@ -9,10 +9,10 @@ import "math"
+ // Numeric is type bound that matches any numeric type.
+ // It would likely be in a constraints package in the standard library.
+ type Numeric interface {
+-	type int, int8, int16, int32, int64,
+-		uint, uint8, uint16, uint32, uint64, uintptr,
+-		float32, float64,
+-		complex64, complex128
++	~int | ~int8 | ~int16 | ~int32 | ~int64 |
++		uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
++		float32 | ~float64 |
++		complex64 | ~complex128
+ }
+ 
+ func DotProduct[T Numeric](s1, s2 []T) T {
+@@ -42,14 +42,14 @@ func AbsDifference[T NumericAbs[T]](a, b T) T {
+ 
+ // OrderedNumeric is a type bound that matches numeric types that support the < operator.
+ type OrderedNumeric interface {
+-	type int, int8, int16, int32, int64,
+-		uint, uint8, uint16, uint32, uint64, uintptr,
+-		float32, float64
++	~int | ~int8 | ~int16 | ~int32 | ~int64 |
++		uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
++		float32 | ~float64
+ }
+ 
+ // Complex is a type bound that matches the two complex types, which do not have a < operator.
+ type Complex interface {
+-	type complex64, complex128
++	~complex64 | ~complex128
+ }
+ 
+ // OrderedAbs is a helper type that defines an Abs method for
+diff --git a/src/cmd/compile/internal/syntax/testdata/go2/smoketest.go2 b/src/cmd/compile/internal/syntax/testdata/go2/smoketest.go2
+index e5cfba0612..42efb42527 100644
+--- a/src/cmd/compile/internal/syntax/testdata/go2/smoketest.go2
++++ b/src/cmd/compile/internal/syntax/testdata/go2/smoketest.go2
+@@ -46,12 +46,12 @@ type _ struct{ T[int] }
+ // interfaces
+ type _ interface{
+ 	m()
+-	type int
++	~int
+ }
+ 
+ type _ interface{
+-	type int, float, string
+-	type complex128
++	~int | ~float | ~string
++	~complex128
+ 	underlying(underlying underlying) underlying
+ }
+ 
+diff --git a/src/cmd/compile/internal/syntax/testdata/go2/typeinst2.go2 b/src/cmd/compile/internal/syntax/testdata/go2/typeinst2.go2
+index 6e2104a515..f3deb703b6 100644
+--- a/src/cmd/compile/internal/syntax/testdata/go2/typeinst2.go2
++++ b/src/cmd/compile/internal/syntax/testdata/go2/typeinst2.go2
+@@ -175,12 +175,12 @@ type _ interface {
+ // Interface type lists can contain any type, incl. *Named types.
+ // Verify that we use the underlying type to compute the operational type.
+ type MyInt int
+-func add1[T interface{type MyInt}](x T) T {
++func add1[T interface{ ~MyInt }](x T) T {
+ 	return x + 1
+ }
+ 
+ type MyString string
+-func double[T interface{type MyInt, MyString}](x T) T {
++func double[T interface{ ~MyInt | ~MyString }](x T) T {
+ 	return x + x
+ }
+ 
+@@ -189,15 +189,15 @@ func double[T interface{type MyInt, MyString}](x T) T {
+ // type lists.
+ 
+ type E0 interface {
+-	type int, bool, string
++	~int | ~bool | ~string
+ }
+ 
+ type E1 interface {
+-	type int, float64, string
++	~int | ~float64 | ~string
+ }
+ 
+ type E2 interface {
+-	type float64
++	~float64
+ }
+ 
+ type I0 interface {
+diff --git a/src/cmd/compile/internal/syntax/testdata/go2/typeparams.go2 b/src/cmd/compile/internal/syntax/testdata/go2/typeparams.go2
+index f78037f0f5..111f7c1004 100644
+--- a/src/cmd/compile/internal/syntax/testdata/go2/typeparams.go2
++++ b/src/cmd/compile/internal/syntax/testdata/go2/typeparams.go2
+@@ -48,22 +48,22 @@ func swapswap[A, B any](a A, b B) (A, B) {
+ 
+ type F[A, B any] func(A, B) (B, A)
+ 
+-func min[T interface{ type int }](x, y T) T {
++func min[T interface{ ~int }](x, y T) T {
+         if x < y {
+                 return x
+         }
+         return y
+ }
+ 
+-func _[T interface{type int, float32}](x, y T) bool { return x < y }
++func _[T interface{ ~int | ~float32 }](x, y T) bool { return x < y }
+ func _[T any](x, y T) bool { return x /* ERROR cannot compare */ < y }
+-func _[T interface{type int, float32, bool}](x, y T) bool { return x /* ERROR cannot compare */ < y }
++func _[T interface{ ~int | ~float32 | ~bool }](x, y T) bool { return x /* ERROR cannot compare */ < y }
+ 
+ func _[T C1[T]](x, y T) bool { return x /* ERROR cannot compare */ < y }
+ func _[T C2[T]](x, y T) bool { return x < y }
+ 
+ type C1[T any] interface{}
+-type C2[T any] interface{ type int, float32 }
++type C2[T any] interface{ ~int | ~float32 }
+ 
+ func new[T any]() *T {
+         var x T
+@@ -91,40 +91,40 @@ var _ = f3[int, rune, bool](1, struct{x rune}{}, nil)
+ // indexing
+ 
+ func _[T any] (x T, i int) { _ = x /* ERROR "cannot index" */ [i] }
+-func _[T interface{ type int }] (x T, i int) { _ = x /* ERROR "cannot index" */ [i] }
+-func _[T interface{ type string }] (x T, i int) { _ = x[i] }
+-func _[T interface{ type []int }] (x T, i int) { _ = x[i] }
+-func _[T interface{ type [10]int, *[20]int, map[string]int }] (x T, i int) { _ = x[i] }
+-func _[T interface{ type string, []byte }] (x T, i int) { _ = x[i] }
+-func _[T interface{ type []int, [1]rune }] (x T, i int) { _ = x /* ERROR "cannot index" */ [i] }
+-func _[T interface{ type string, []rune }] (x T, i int) { _ = x /* ERROR "cannot index" */ [i] }
++func _[T interface{ ~int }] (x T, i int) { _ = x /* ERROR "cannot index" */ [i] }
++func _[T interface{ ~string }] (x T, i int) { _ = x[i] }
++func _[T interface{ ~[]int }] (x T, i int) { _ = x[i] }
++func _[T interface{ ~[10]int | ~*[20]int | ~map[string]int }] (x T, i int) { _ = x[i] }
++func _[T interface{ ~string | ~[]byte }] (x T, i int) { _ = x[i] }
++func _[T interface{ ~[]int | ~[1]rune }] (x T, i int) { _ = x /* ERROR "cannot index" */ [i] }
++func _[T interface{ ~string | ~[]rune }] (x T, i int) { _ = x /* ERROR "cannot index" */ [i] }
+ 
+ // slicing
+ // TODO(gri) implement this
+ 
+-func _[T interface{ type string }] (x T, i, j, k int) { _ = x /* ERROR invalid operation */ [i:j:k] }
++func _[T interface{ ~string }] (x T, i, j, k int) { _ = x /* ERROR invalid operation */ [i:j:k] }
+ 
+ // len/cap built-ins
+ 
+ func _[T any](x T) { _ = len(x /* ERROR invalid argument */ ) }
+-func _[T interface{ type int }](x T) { _ = len(x /* ERROR invalid argument */ ) }
+-func _[T interface{ type string, []byte, int }](x T) { _ = len(x /* ERROR invalid argument */ ) }
+-func _[T interface{ type string }](x T) { _ = len(x) }
+-func _[T interface{ type [10]int }](x T) { _ = len(x) }
+-func _[T interface{ type []byte }](x T) { _ = len(x) }
+-func _[T interface{ type map[int]int }](x T) { _ = len(x) }
+-func _[T interface{ type chan int }](x T) { _ = len(x) }
+-func _[T interface{ type string, []byte, chan int }](x T) { _ = len(x) }
++func _[T interface{ ~int }](x T) { _ = len(x /* ERROR invalid argument */ ) }
++func _[T interface{ ~string | ~[]byte | ~int }](x T) { _ = len(x /* ERROR invalid argument */ ) }
++func _[T interface{ ~string }](x T) { _ = len(x) }
++func _[T interface{ ~[10]int }](x T) { _ = len(x) }
++func _[T interface{ ~[]byte }](x T) { _ = len(x) }
++func _[T interface{ ~map[int]int }](x T) { _ = len(x) }
++func _[T interface{ ~chan int }](x T) { _ = len(x) }
++func _[T interface{ ~string | ~[]byte | ~chan int }](x T) { _ = len(x) }
+ 
+ func _[T any](x T) { _ = cap(x /* ERROR invalid argument */ ) }
+-func _[T interface{ type int }](x T) { _ = cap(x /* ERROR invalid argument */ ) }
+-func _[T interface{ type string, []byte, int }](x T) { _ = cap(x /* ERROR invalid argument */ ) }
+-func _[T interface{ type string }](x T) { _ = cap(x /* ERROR invalid argument */ ) }
+-func _[T interface{ type [10]int }](x T) { _ = cap(x) }
+-func _[T interface{ type []byte }](x T) { _ = cap(x) }
+-func _[T interface{ type map[int]int }](x T) { _ = cap(x /* ERROR invalid argument */ ) }
+-func _[T interface{ type chan int }](x T) { _ = cap(x) }
+-func _[T interface{ type []byte, chan int }](x T) { _ = cap(x) }
++func _[T interface{ ~int }](x T) { _ = cap(x /* ERROR invalid argument */ ) }
++func _[T interface{ ~string | ~[]byte | ~int }](x T) { _ = cap(x /* ERROR invalid argument */ ) }
++func _[T interface{ ~string }](x T) { _ = cap(x /* ERROR invalid argument */ ) }
++func _[T interface{ ~[10]int }](x T) { _ = cap(x) }
++func _[T interface{ ~[]byte }](x T) { _ = cap(x) }
++func _[T interface{ ~map[int]int }](x T) { _ = cap(x /* ERROR invalid argument */ ) }
++func _[T interface{ ~chan int }](x T) { _ = cap(x) }
++func _[T interface{ ~[]byte | ~chan int }](x T) { _ = cap(x) }
+ 
+ // range iteration
+ 
+@@ -132,7 +132,7 @@ func _[T interface{}](x T) {
+         for range x /* ERROR cannot range */ {}
+ }
+ 
+-func _[T interface{ type string, []string }](x T) {
++func _[T interface{ ~string | ~[]string }](x T) {
+         for range x {}
+         for i := range x { _ = i }
+         for i, _ := range x { _ = i }
+@@ -144,23 +144,23 @@ func _[T interface{ type string, []string }](x T) {
+ }
+ 
+ 
+-func _[T interface{ type string, []rune, map[int]rune }](x T) {
++func _[T interface{ ~string | ~[]rune | ~map[int]rune }](x T) {
+         for _, e := range x { _ = e }
+         for i, e := range x { _ = i; _ = e }
+ }
+ 
+-func _[T interface{ type string, []rune, map[string]rune }](x T) {
++func _[T interface{ ~string | ~[]rune | ~map[string]rune }](x T) {
+         for _, e := range x { _ = e }
+         for i, e := range x /* ERROR must have the same key type */ { _ = e }
+ }
+ 
+-func _[T interface{ type string, chan int }](x T) {
++func _[T interface{ ~string | ~chan int }](x T) {
+         for range x {}
+         for i := range x { _ = i }
+         for i, _ := range x { _ = i } // TODO(gri) should get an error here: channels only return one value
+ }
+ 
+-func _[T interface{ type string, chan<-int }](x T) {
++func _[T interface{ ~string | ~chan<-int }](x T) {
+         for i := range x /* ERROR send-only channel */ { _ = i }
+ }
+ 
+@@ -388,7 +388,7 @@ func _[T any](x T) {
+ 	}
+ }
+ 
+-func _[T interface{type int}](x T) {
++func _[T interface{ ~int }](x T) {
+ 	_ = x /* ERROR not an interface */ .(int)
+ 	switch x /* ERROR not an interface */ .(type) {
+ 	}

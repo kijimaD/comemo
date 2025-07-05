@@ -21,7 +21,7 @@ Date:   Fri Sep 30 00:45:12 2022 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/cgo/ast_go1.go                                | 1 -
  src/cmd/cgo/ast_go118.go                              | 1 -
  src/cmd/compile/internal/base/bootstrap_false.go      | 1 -
@@ -56,3 +56,420 @@ Date:   Fri Sep 30 00:45:12 2022 +0200
  src/cmd/link/internal/ld/outbuf_nofallocate.go        | 1 -
  src/cmd/link/internal/ld/outbuf_nommap.go             | 9 ---------
  33 files changed, 53 deletions(-)
+
+diff --git a/src/cmd/cgo/ast_go1.go b/src/cmd/cgo/ast_go1.go
+index f52bf00d7c..ce61d29095 100644
+--- a/src/cmd/cgo/ast_go1.go
++++ b/src/cmd/cgo/ast_go1.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build compiler_bootstrap
+-// +build compiler_bootstrap
+ 
+ package main
+ 
+diff --git a/src/cmd/cgo/ast_go118.go b/src/cmd/cgo/ast_go118.go
+index db0108ed72..9f759b8ee5 100644
+--- a/src/cmd/cgo/ast_go118.go
++++ b/src/cmd/cgo/ast_go118.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !compiler_bootstrap
+-// +build !compiler_bootstrap
+ 
+ package main
+ 
+diff --git a/src/cmd/compile/internal/base/bootstrap_false.go b/src/cmd/compile/internal/base/bootstrap_false.go
+index c77fcd7308..ea6da4348f 100644
+--- a/src/cmd/compile/internal/base/bootstrap_false.go
++++ b/src/cmd/compile/internal/base/bootstrap_false.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !compiler_bootstrap
+-// +build !compiler_bootstrap
+ 
+ package base
+ 
+diff --git a/src/cmd/compile/internal/base/bootstrap_true.go b/src/cmd/compile/internal/base/bootstrap_true.go
+index 1eb58b2f9d..d0c6c88f56 100644
+--- a/src/cmd/compile/internal/base/bootstrap_true.go
++++ b/src/cmd/compile/internal/base/bootstrap_true.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build compiler_bootstrap
+-// +build compiler_bootstrap
+ 
+ package base
+ 
+diff --git a/src/cmd/compile/internal/base/mapfile_mmap.go b/src/cmd/compile/internal/base/mapfile_mmap.go
+index b01d0f4efc..6c5a4213a2 100644
+--- a/src/cmd/compile/internal/base/mapfile_mmap.go
++++ b/src/cmd/compile/internal/base/mapfile_mmap.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd || (solaris && go1.20)
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris,go1.20
+ 
+ package base
+ 
+diff --git a/src/cmd/compile/internal/base/mapfile_read.go b/src/cmd/compile/internal/base/mapfile_read.go
+index e84810ea34..5ac6272dc1 100644
+--- a/src/cmd/compile/internal/base/mapfile_read.go
++++ b/src/cmd/compile/internal/base/mapfile_read.go
+@@ -3,13 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !darwin && !dragonfly && !freebsd && !linux && !netbsd && !openbsd && !(solaris && go1.20)
+-// +build !darwin
+-// +build !dragonfly
+-// +build !freebsd
+-// +build !linux
+-// +build !netbsd
+-// +build !openbsd
+-// +build !solaris !go1.20
+ 
+ package base
+ 
+diff --git a/src/cmd/compile/internal/ir/mknode.go b/src/cmd/compile/internal/ir/mknode.go
+index 68d8999f83..caf4ba0135 100644
+--- a/src/cmd/compile/internal/ir/mknode.go
++++ b/src/cmd/compile/internal/ir/mknode.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ignore
+-// +build ignore
+ 
+ // Note: this program must be run in this directory.
+ //   go run mknode.go
+diff --git a/src/cmd/compile/internal/ssa/flags_test.go b/src/cmd/compile/internal/ssa/flags_test.go
+index 0bc1097199..d0079ac5e8 100644
+--- a/src/cmd/compile/internal/ssa/flags_test.go
++++ b/src/cmd/compile/internal/ssa/flags_test.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build amd64 || arm64
+-// +build amd64 arm64
+ 
+ package ssa
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/386Ops.go b/src/cmd/compile/internal/ssa/gen/386Ops.go
+index 88e061151e..4b7fe9fe37 100644
+--- a/src/cmd/compile/internal/ssa/gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/386Ops.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ignore
+-// +build ignore
+ 
+ package main
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index fc42fa5e28..65456a8f77 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ignore
+-// +build ignore
+ 
+ package main
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index 0e6e6e4a5f..4ef949a179 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ignore
+-// +build ignore
+ 
+ package main
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index 3803f273c1..99684e4e03 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ignore
+-// +build ignore
+ 
+ package main
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/LOONG64Ops.go b/src/cmd/compile/internal/ssa/gen/LOONG64Ops.go
+index a59b592445..fdf42ec944 100644
+--- a/src/cmd/compile/internal/ssa/gen/LOONG64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/LOONG64Ops.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ignore
+-// +build ignore
+ 
+ package main
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go b/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+index 7b18c42ffb..59a9c8c714 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ignore
+-// +build ignore
+ 
+ package main
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPSOps.go b/src/cmd/compile/internal/ssa/gen/MIPSOps.go
+index 523847badc..17ae3d4251 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPSOps.go
++++ b/src/cmd/compile/internal/ssa/gen/MIPSOps.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ignore
+-// +build ignore
+ 
+ package main
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index 30a6f6fe07..4428ea62a7 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ignore
+-// +build ignore
+ 
+ package main
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+index f09910782d..1d2d22643d 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ignore
+-// +build ignore
+ 
+ package main
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index eef8a2557c..29cb260d87 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ignore
+-// +build ignore
+ 
+ package main
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/WasmOps.go b/src/cmd/compile/internal/ssa/gen/WasmOps.go
+index edfba4ee99..1ba94eaa5f 100644
+--- a/src/cmd/compile/internal/ssa/gen/WasmOps.go
++++ b/src/cmd/compile/internal/ssa/gen/WasmOps.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ignore
+-// +build ignore
+ 
+ package main
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/dec64Ops.go b/src/cmd/compile/internal/ssa/gen/dec64Ops.go
+index 78fcea885a..24b23c00b7 100644
+--- a/src/cmd/compile/internal/ssa/gen/dec64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/dec64Ops.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ignore
+-// +build ignore
+ 
+ package main
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/decOps.go b/src/cmd/compile/internal/ssa/gen/decOps.go
+index d5cd79378c..5449727a8a 100644
+--- a/src/cmd/compile/internal/ssa/gen/decOps.go
++++ b/src/cmd/compile/internal/ssa/gen/decOps.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ignore
+-// +build ignore
+ 
+ package main
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index d09b9aab75..df649eeece 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ignore
+-// +build ignore
+ 
+ package main
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/gen/main.go
+index 81740dcf1c..fd00df680d 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/gen/main.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ignore
+-// +build ignore
+ 
+ // The gen command generates Go code (in the parent directory) for all
+ // the architecture-specific opcodes, blocks, and rewrites.
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index fc9b4c9b3e..d7b4cfa612 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build gen
+-// +build gen
+ 
+ // This program generates Go code that applies rewrite rules to a Value.
+ // The generated code implements a function of type func (v *Value) bool
+diff --git a/src/cmd/compile/internal/typecheck/builtin/runtime.go b/src/cmd/compile/internal/typecheck/builtin/runtime.go
+index 310148ce00..83695013c3 100644
+--- a/src/cmd/compile/internal/typecheck/builtin/runtime.go
++++ b/src/cmd/compile/internal/typecheck/builtin/runtime.go
+@@ -7,7 +7,6 @@
+ // to avoid depending on having a working compiler binary.
+ 
+ //go:build ignore
+-// +build ignore
+ 
+ package runtime
+ 
+diff --git a/src/cmd/compile/internal/typecheck/mkbuiltin.go b/src/cmd/compile/internal/typecheck/mkbuiltin.go
+index aa3a94a19a..4def95ebd6 100644
+--- a/src/cmd/compile/internal/typecheck/mkbuiltin.go
++++ b/src/cmd/compile/internal/typecheck/mkbuiltin.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ignore
+-// +build ignore
+ 
+ // Generate builtin.go from builtin/runtime.go.
+ 
+diff --git a/src/cmd/compile/internal/types2/example_test.go b/src/cmd/compile/internal/types2/example_test.go
+index ad0f22fcec..9212c38560 100644
+--- a/src/cmd/compile/internal/types2/example_test.go
++++ b/src/cmd/compile/internal/types2/example_test.go
+@@ -6,7 +6,6 @@
+ // access to compiled packages for import.
+ //
+ //go:build !arm && !arm64
+-// +build !arm,!arm64
+ 
+ package types2_test
+ 
+diff --git a/src/cmd/internal/bio/buf_mmap.go b/src/cmd/internal/bio/buf_mmap.go
+index 3543637154..e428952bc9 100644
+--- a/src/cmd/internal/bio/buf_mmap.go
++++ b/src/cmd/internal/bio/buf_mmap.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd || (solaris && go1.20)
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris,go1.20
+ 
+ package bio
+ 
+diff --git a/src/cmd/internal/bio/buf_nommap.go b/src/cmd/internal/bio/buf_nommap.go
+index dab3435260..e904860983 100644
+--- a/src/cmd/internal/bio/buf_nommap.go
++++ b/src/cmd/internal/bio/buf_nommap.go
+@@ -3,13 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !darwin && !dragonfly && !freebsd && !linux && !netbsd && !openbsd && !(solaris && go1.20)
+-// +build !darwin
+-// +build !dragonfly
+-// +build !freebsd
+-// +build !linux
+-// +build !netbsd
+-// +build !openbsd
+-// +build !solaris !go1.20
+ 
+ package bio
+ 
+diff --git a/src/cmd/link/elf_test.go b/src/cmd/link/elf_test.go
+index 5037f5b6c0..6a94b264a1 100644
+--- a/src/cmd/link/elf_test.go
++++ b/src/cmd/link/elf_test.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build dragonfly || freebsd || linux || netbsd || openbsd
+-// +build dragonfly freebsd linux netbsd openbsd
+ 
+ package main
+ 
+diff --git a/src/cmd/link/internal/ld/outbuf_mmap.go b/src/cmd/link/internal/ld/outbuf_mmap.go
+index d8f8a10db1..7bb728a1f8 100644
+--- a/src/cmd/link/internal/ld/outbuf_mmap.go
++++ b/src/cmd/link/internal/ld/outbuf_mmap.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || (solaris && go1.20)
+-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris,go1.20
+ 
+ package ld
+ 
+diff --git a/src/cmd/link/internal/ld/outbuf_nofallocate.go b/src/cmd/link/internal/ld/outbuf_nofallocate.go
+index 6564bd54a3..dd5afc61db 100644
+--- a/src/cmd/link/internal/ld/outbuf_nofallocate.go
++++ b/src/cmd/link/internal/ld/outbuf_nofallocate.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !darwin && !linux
+-// +build !darwin,!linux
+ 
+ package ld
+ 
+diff --git a/src/cmd/link/internal/ld/outbuf_nommap.go b/src/cmd/link/internal/ld/outbuf_nommap.go
+index 4154981b09..b1d3d2724f 100644
+--- a/src/cmd/link/internal/ld/outbuf_nommap.go
++++ b/src/cmd/link/internal/ld/outbuf_nommap.go
+@@ -3,15 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !aix && !darwin && !dragonfly && !freebsd && !linux && !netbsd && !openbsd && !(solaris && go1.20) && !windows
+-// +build !aix
+-// +build !darwin
+-// +build !dragonfly
+-// +build !freebsd
+-// +build !linux
+-// +build !netbsd
+-// +build !openbsd
+-// +build !solaris !go1.20
+-// +build !windows
+ 
+ package ld
+ 

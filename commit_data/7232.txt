@@ -7,7 +7,7 @@ Date:   Tue Jan 25 17:56:33 2011 +1100
     R=rsc, brainman, lxn
     CC=golang-dev
     https://golang.org/cl/4005045
-
+---
  src/pkg/exp/wingui/gui.go          |  2 +-
  src/pkg/exp/wingui/winapi.go       |  2 +-
  src/pkg/runtime/386/asm.s          |  2 +-
@@ -15,3 +15,181 @@ Date:   Tue Jan 25 17:56:33 2011 +1100
  src/pkg/runtime/windows/thread.c   | 12 ++++++------
  src/pkg/syscall/syscall_windows.go |  5 +++--
  6 files changed, 29 insertions(+), 26 deletions(-)
+
+diff --git a/src/pkg/exp/wingui/gui.go b/src/pkg/exp/wingui/gui.go
+index e46ced962f..cc9dd15ef4 100644
+--- a/src/pkg/exp/wingui/gui.go
++++ b/src/pkg/exp/wingui/gui.go
+@@ -95,7 +95,7 @@ func rungui() int {
+ 	}
+ 
+ 	// Create callback
+-	wproc := syscall.NewCallback(WndProc, 4*4)
++	wproc := syscall.NewCallback(WndProc, 4)
+ 
+ 	// RegisterClassEx
+ 	wcname := syscall.StringToUTF16Ptr("myWindowClass")
+diff --git a/src/pkg/exp/wingui/winapi.go b/src/pkg/exp/wingui/winapi.go
+index 40387f0119..2f480ec9e5 100644
+--- a/src/pkg/exp/wingui/winapi.go
++++ b/src/pkg/exp/wingui/winapi.go
+@@ -28,7 +28,7 @@ func getSysProcAddr(m uint32, pname string) uintptr {
+ type Wndclassex struct {
+ 	Size       uint32
+ 	Style      uint32
+-	WndProc    uint32
++	WndProc    uintptr
+ 	ClsExtra   int32
+ 	WndExtra   int32
+ 	Instance   uint32
+diff --git a/src/pkg/runtime/386/asm.s b/src/pkg/runtime/386/asm.s
+index 4febe27f35..63d5826067 100644
+--- a/src/pkg/runtime/386/asm.s
++++ b/src/pkg/runtime/386/asm.s
+@@ -47,7 +47,7 @@ ok:
+ 	MOVL	CX, m_g0(AX)
+ 
+ 	// create istack out of the OS stack
+-	LEAL	(-16*1024+104)(SP), AX	// TODO: 104?
++	LEAL	(-64*1024+104)(SP), AX	// TODO: 104?
+ 	MOVL	AX, g_stackguard(CX)
+ 	MOVL	SP, g_stackbase(CX)
+ 	CALL	runtime·emptyfunc(SB)	// fault if stack check is wrong
+diff --git a/src/pkg/runtime/windows/386/sys.s b/src/pkg/runtime/windows/386/sys.s
+index ac6c870c4d..098ac9fec2 100644
+--- a/src/pkg/runtime/windows/386/sys.s
++++ b/src/pkg/runtime/windows/386/sys.s
+@@ -84,9 +84,8 @@ TEXT runtime·sigtramp1(SB),0,$16-28
+ 	// call windows default handler early
+ 	MOVL	4(SP), BX		// our SEH frame
+ 	MOVL	0(BX), BX		// SEH frame of default handler
+-	MOVL	4(BX), AX		// handler function pointer
+ 	MOVL	BX, 4(SP)		// set establisher frame
+-	CALL	AX
++	CALL	4(BX)
+ 
+ sigdone:
+ 	RET
+@@ -94,7 +93,7 @@ sigdone:
+ // Called from dynamic function created by ../thread.c compilecallback,
+ // running on Windows stack (not Go stack).
+ // Returns straight to DLL.
+-// EBX, ESI, EDI registers and DF flag are preserved
++// EBX, EBP, ESI, EDI registers and DF flag are preserved
+ // as required by windows callback convention.
+ // On entry to the function the stack looks like:
+ //
+@@ -102,17 +101,19 @@ sigdone:
+ // 4(SP)  - address of go func we need to call
+ // 8(SP)  - total size of arguments
+ // 12(SP) - room to save BX register
+-// 16(SP) - room to save SI
+-// 20(SP) - room to save DI
+-// 24(SP) - return address to DLL
+-// 28(SP) - beginning of arguments
++// 16(SP) - room to save BP
++// 20(SP) - room to save SI
++// 24(SP) - room to save DI
++// 28(SP) - return address to DLL
++// 32(SP) - beginning of arguments
+ //
+ TEXT runtime·callbackasm+0(SB),7,$0
+ 	MOVL	BX, 12(SP)		// save registers as required for windows callback
+-	MOVL	SI, 16(SP)
+-	MOVL	DI, 20(SP)
++	MOVL	BP, 16(SP)
++	MOVL	SI, 20(SP)
++	MOVL	DI, 24(SP)
+ 
+-	LEAL	args+28(SP), AX
++	LEAL	args+32(SP), AX
+ 	MOVL	AX, 0(SP)
+ 
+ 	CLD
+@@ -120,13 +121,14 @@ TEXT runtime·callbackasm+0(SB),7,$0
+ 	CALL	runtime·callback(SB)
+ 
+ 	MOVL	12(SP), BX		// restore registers as required for windows callback
+-	MOVL	16(SP), SI
+-	MOVL	20(SP), DI
++	MOVL	16(SP), BP
++	MOVL	20(SP), SI
++	MOVL	24(SP), DI
+ 	CLD
+ 
+-	MOVL	ret+24(SP), CX
++	MOVL	ret+28(SP), CX
+ 	MOVL	size+8(SP), DX
+-	ADDL	$28, DX
++	ADDL	$32, DX
+ 	ADDL	DX, SP
+ 	JMP	CX
+ 
+@@ -144,7 +146,7 @@ TEXT runtime·tstart(SB),7,$0
+ 	MOVL	SP, AX
+ 	SUBL	$256, AX		// just some space for ourselves
+ 	MOVL	AX, g_stackbase(DX)
+-	SUBL	$(16*1024), AX		// stack size
++	SUBL	$(64*1024), AX		// stack size
+ 	MOVL	AX, g_stackguard(DX)
+ 
+ 	// Set up tls.
+diff --git a/src/pkg/runtime/windows/thread.c b/src/pkg/runtime/windows/thread.c
+index ac237961f4..585f6fc592 100644
+--- a/src/pkg/runtime/windows/thread.c
++++ b/src/pkg/runtime/windows/thread.c
+@@ -276,13 +276,13 @@ runtime·compilecallback(byte *code, void *fn, uint32 argsize)
+ 	byte *p;
+ 
+ 	p = code;
+-	// SUBL $12, SP
++	// SUBL $16, SP
+ 	*p++ = 0x83;
+ 	*p++ = 0xec;
+-	*p++ = 0x0c;
+-	// PUSH argsize
++	*p++ = 0x10;
++	// PUSH argsize * 4
+ 	*p++ = 0x68;
+-	*(uint32*)p = argsize;
++	*(uint32*)p = argsize << 2;
+ 	p += 4;
+ 	// PUSH fn
+ 	*p++ = 0x68;
+@@ -308,8 +308,8 @@ runtime·callback(void *arg, void (*fn)(void), int32 argsize)
+ 	G *g1;
+ 	void *sp, *gostack;
+ 	void **p;
+-	USED(argsize);
+ 
++	USED(argsize);
+ 
+ 	if(g != m->g0)
+ 		runtime·throw("bad g in callback");
+@@ -326,7 +326,7 @@ runtime·callback(void *arg, void (*fn)(void), int32 argsize)
+ 
+ 	if(sp < g1->stackguard - StackGuard + 4) // +4 for return address
+ 		runtime·throw("g stack overflow in callback");
+-	
++
+ 	p = sp;
+ 	p[0] = arg;
+ 
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 5336b7bd9a..b3b1d6e05a 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -104,10 +104,11 @@ type Callback struct {
+ 	code [50]byte // have to be big enough to fit asm written in it by compileCallback
+ }
+ 
+-func (cb *Callback) ExtFnEntry() uint32 {
+-	return uint32(uintptr(unsafe.Pointer(&cb.code[0])))
++func (cb *Callback) ExtFnEntry() uintptr {
++	return uintptr(unsafe.Pointer(&cb.code[0]))
+ }
+ 
++// argsize is in words
+ func NewCallback(fn CallbackFunc, argsize int) *Callback {
+ 	cb := Callback{}
+ 	compileCallback(&cb.code[0], fn, argsize)

@@ -16,6 +16,42 @@ Date:   Fri May 26 11:33:49 2017 +0200
     Reviewed-by: Adam Langley <agl@golang.org>
     Reviewed-by: Avelino <t@avelino.xxx>
     Run-TryBot: Adam Langley <agl@golang.org>
-
+---
  src/crypto/tls/key_agreement.go | 11 ++---------
  1 file changed, 2 insertions(+), 9 deletions(-)
+
+diff --git a/src/crypto/tls/key_agreement.go b/src/crypto/tls/key_agreement.go
+index 1b27c049ed..cf30b43b5b 100644
+--- a/src/crypto/tls/key_agreement.go
++++ b/src/crypto/tls/key_agreement.go
+@@ -319,13 +319,10 @@ func (ka *ecdheKeyAgreement) processClientKeyExchange(config *Config, cert *Cert
+ 	if !ok {
+ 		panic("internal error")
+ 	}
+-	x, y := elliptic.Unmarshal(curve, ckx.ciphertext[1:])
++	x, y := elliptic.Unmarshal(curve, ckx.ciphertext[1:]) // Unmarshal also checks whether the given point is on the curve
+ 	if x == nil {
+ 		return nil, errClientKeyExchange
+ 	}
+-	if !curve.IsOnCurve(x, y) {
+-		return nil, errClientKeyExchange
+-	}
+ 	x, _ = curve.ScalarMult(x, y, ka.privateKey)
+ 	preMasterSecret := make([]byte, (curve.Params().BitSize+7)>>3)
+ 	xBytes := x.Bytes()
+@@ -365,14 +362,10 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
+ 		if !ok {
+ 			return errors.New("tls: server selected unsupported curve")
+ 		}
+-
+-		ka.x, ka.y = elliptic.Unmarshal(curve, publicKey)
++		ka.x, ka.y = elliptic.Unmarshal(curve, publicKey) // Unmarshal also checks whether the given point is on the curve
+ 		if ka.x == nil {
+ 			return errServerKeyExchange
+ 		}
+-		if !curve.IsOnCurve(ka.x, ka.y) {
+-			return errServerKeyExchange
+-		}
+ 	}
+ 
+ 	sigAndHash := signatureAndHash{signature: ka.sigType}

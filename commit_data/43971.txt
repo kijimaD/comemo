@@ -28,7 +28,7 @@ Date:   Wed Apr 29 22:00:28 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/amd64/asm.go     |  2 +-
  src/cmd/link/internal/arm/asm.go       |  2 +-
  src/cmd/link/internal/arm64/asm.go     |  2 +-
@@ -40,3 +40,344 @@ Date:   Wed Apr 29 22:00:28 2020 -0400
  src/cmd/link/internal/s390x/asm.go     |  2 +-
  src/cmd/link/internal/x86/asm.go       |  2 +-
  10 files changed, 55 insertions(+), 67 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index e1daaec2c7..e2c33b8001 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -400,7 +400,7 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
+ 	switch r.Type {
+ 	default:
+ 		return false
+-	case objabi.R_ADDR:
++	case objabi.R_ADDR, objabi.R_DWARFSECREF:
+ 		if r.Siz == 4 {
+ 			ctxt.Out.Write64(uint64(elf.R_X86_64_32) | uint64(elfsym)<<32)
+ 		} else if r.Siz == 8 {
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index c95de0de2f..a2024bcede 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -256,7 +256,7 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
+ 	switch r.Type {
+ 	default:
+ 		return false
+-	case objabi.R_ADDR:
++	case objabi.R_ADDR, objabi.R_DWARFSECREF:
+ 		if r.Siz == 4 {
+ 			ctxt.Out.Write32(uint32(elf.R_ARM_ABS32) | uint32(elfsym)<<8)
+ 		} else {
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index 2d12fc2f59..dc3e45d6c0 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -332,7 +332,7 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
+ 	switch r.Type {
+ 	default:
+ 		return false
+-	case objabi.R_ADDR:
++	case objabi.R_ADDR, objabi.R_DWARFSECREF:
+ 		switch r.Siz {
+ 		case 4:
+ 			ctxt.Out.Write64(uint64(elf.R_AARCH64_ABS32) | uint64(elfsym)<<32)
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index af1b335db7..102fcabe47 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -224,11 +224,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 		var rr loader.ExtReloc
+ 		needExtReloc := false // will set to true below in case it is needed
+ 		if target.IsExternal() {
+-			rr.Sym = rs
+-			rr.Type = rt
+-			rr.Off = off
+-			rr.Siz = uint8(siz)
+-			rr.Add = r.Add()
++			rr.Idx = ri
+ 		}
+ 
+ 		// TODO(mundaym): remove this special case - see issue 14218.
+@@ -282,14 +278,14 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 		case objabi.R_TLS_LE:
+ 			if target.IsExternal() && target.IsElf() {
+ 				needExtReloc = true
+-				if rr.Sym == 0 {
+-					rr.Sym = syms.Tlsg2
++				rr.Xsym = rs
++				if rr.Xsym == 0 {
++					rr.Xsym = syms.Tlsg2
+ 				}
+-				rr.Xsym = rr.Sym
+-				rr.Xadd = rr.Add
++				rr.Xadd = r.Add()
+ 				o = 0
+ 				if !target.IsAMD64() {
+-					o = rr.Add
++					o = r.Add()
+ 				}
+ 				break
+ 			}
+@@ -313,14 +309,14 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 		case objabi.R_TLS_IE:
+ 			if target.IsExternal() && target.IsElf() {
+ 				needExtReloc = true
+-				if rr.Sym == 0 {
+-					rr.Sym = syms.Tlsg2
++				rr.Xsym = rs
++				if rr.Xsym == 0 {
++					rr.Xsym = syms.Tlsg2
+ 				}
+-				rr.Xsym = rr.Sym
+-				rr.Xadd = rr.Add
++				rr.Xadd = r.Add()
+ 				o = 0
+ 				if !target.IsAMD64() {
+-					o = rr.Add
++					o = r.Add()
+ 				}
+ 				break
+ 			}
+@@ -342,7 +338,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 				// set up addend for eventual relocation via outer symbol.
+ 				rs := rs
+ 				rs, off := foldSubSymbolOffset(ldr, rs)
+-				rr.Xadd = rr.Add + off
++				rr.Xadd = r.Add() + off
+ 				rst := ldr.SymType(rs)
+ 				if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && rst != sym.SUNDEFEXT && ldr.SymSect(rs) == nil {
+ 					st.err.Errorf(s, "missing section for relocation target %s", ldr.SymName(rs))
+@@ -361,7 +357,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 				} else if target.IsWindows() {
+ 					// nothing to do
+ 				} else if target.IsAIX() {
+-					o = ldr.SymValue(rr.Sym) + rr.Add
++					o = ldr.SymValue(rs) + r.Add()
+ 				} else {
+ 					st.err.Errorf(s, "unhandled pcrel relocation to %s on %v", ldr.SymName(rs), target.HeadType)
+ 				}
+@@ -413,17 +409,8 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 					needExtReloc = false
+ 				}
+ 
+-				// PE code emits IMAGE_REL_I386_SECREL and IMAGE_REL_AMD64_SECREL
+-				// for R_DWARFSECREF relocations, while R_ADDR is replaced with
+-				// IMAGE_REL_I386_DIR32, IMAGE_REL_AMD64_ADDR64 and IMAGE_REL_AMD64_ADDR32.
+-				// Do not replace R_DWARFSECREF with R_ADDR for windows -
+-				// let PE code emit correct relocations.
+-				if !target.IsWindows() {
+-					rr.Type = objabi.R_ADDR
+-				}
+-
+-				rr.Xsym = loader.Sym(ldr.SymSect(rr.Sym).Sym2)
+-				rr.Xadd = rr.Add + ldr.SymValue(rr.Sym) - int64(ldr.SymSect(rr.Sym).Vaddr)
++				rr.Xsym = loader.Sym(ldr.SymSect(rs).Sym2)
++				rr.Xadd = r.Add() + ldr.SymValue(rs) - int64(ldr.SymSect(rs).Vaddr)
+ 
+ 				o = rr.Xadd
+ 				if target.IsElf() && target.IsAMD64() {
+@@ -455,12 +442,12 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 		case objabi.R_GOTPCREL:
+ 			if target.IsDynlinkingGo() && target.IsDarwin() && rs != 0 && rst != sym.SCONST {
+ 				needExtReloc = true
+-				rr.Xadd = rr.Add
+-				rr.Xadd -= int64(rr.Siz) // relative to address after the relocated chunk
+-				rr.Xsym = rr.Sym
++				rr.Xadd = r.Add()
++				rr.Xadd -= int64(siz) // relative to address after the relocated chunk
++				rr.Xsym = rs
+ 
+ 				o = rr.Xadd
+-				o += int64(rr.Siz)
++				o += int64(siz)
+ 				break
+ 			}
+ 			fallthrough
+@@ -470,9 +457,9 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 				needExtReloc = true
+ 				rr.Xadd = 0
+ 				if target.IsElf() {
+-					rr.Xadd -= int64(rr.Siz)
++					rr.Xadd -= int64(siz)
+ 				}
+-				rr.Xsym = rr.Sym
++				rr.Xsym = rs
+ 				o = 0
+ 				break
+ 			}
+@@ -482,8 +469,8 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 				// set up addend for eventual relocation via outer symbol.
+ 				rs := rs
+ 				rs, off := foldSubSymbolOffset(ldr, rs)
+-				rr.Xadd = rr.Add + off
+-				rr.Xadd -= int64(rr.Siz) // relative to address after the relocated chunk
++				rr.Xadd = r.Add() + off
++				rr.Xadd -= int64(siz) // relative to address after the relocated chunk
+ 				rst := ldr.SymType(rs)
+ 				if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && ldr.SymSect(rs) == nil {
+ 					st.err.Errorf(s, "missing section for relocation target %s", ldr.SymName(rs))
+@@ -496,25 +483,25 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 						o = 0
+ 					}
+ 				} else if target.IsDarwin() {
+-					if rr.Type == objabi.R_CALL {
++					if rt == objabi.R_CALL {
+ 						if target.IsExternal() && rst == sym.SDYNIMPORT {
+ 							if target.IsAMD64() {
+ 								// AMD64 dynamic relocations are relative to the end of the relocation.
+-								o += int64(rr.Siz)
++								o += int64(siz)
+ 							}
+ 						} else {
+ 							if rst != sym.SHOSTOBJ {
+ 								o += int64(uint64(ldr.SymValue(rs)) - ldr.SymSect(rs).Vaddr)
+ 							}
+-							o -= int64(rr.Off) // relative to section offset, not symbol
++							o -= int64(off) // relative to section offset, not symbol
+ 						}
+ 					} else {
+-						o += int64(rr.Siz)
++						o += int64(siz)
+ 					}
+ 				} else if target.IsWindows() && target.IsAMD64() { // only amd64 needs PCREL
+ 					// PE/COFF's PC32 relocation uses the address after the relocated
+ 					// bytes as the base. Compensate by skewing the addend.
+-					o += int64(rr.Siz)
++					o += int64(siz)
+ 				} else {
+ 					st.err.Errorf(s, "unhandled pcrel relocation to %s on %v", ldr.SymName(rs), target.HeadType)
+ 				}
+@@ -539,8 +526,8 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 				st.err.Errorf(s, "find XCOFF R_REF with internal linking")
+ 			}
+ 			needExtReloc = true
+-			rr.Xsym = rr.Sym
+-			rr.Xadd = rr.Add
++			rr.Xsym = rs
++			rr.Xadd = r.Add()
+ 
+ 			// This isn't a real relocation so it must not update
+ 			// its offset value.
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index a7b65e3580..749995bf8e 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -51,11 +51,7 @@ type Reloc struct {
+ 
+ // ExtReloc contains the payload for an external relocation.
+ type ExtReloc struct {
+-	Off  int32            // offset to rewrite
+-	Siz  uint8            // number of bytes to rewrite: 0, 1, 2, or 4
+-	Type objabi.RelocType // the relocation type
+-	Sym  Sym              // global index of symbol the reloc addresses
+-	Add  int64            // addend
++	Idx  int // index of the original relocation
+ 	Xsym Sym
+ 	Xadd int64
+ }
+@@ -2763,25 +2759,30 @@ func (l *Loader) convertExtRelocs(dst *sym.Symbol, src Sym) {
+ 	if int(src) >= len(l.extRelocs) {
+ 		return
+ 	}
+-	relocs := l.extRelocs[src]
+-	if len(relocs) == 0 {
++	extRelocs := l.extRelocs[src]
++	if len(extRelocs) == 0 {
+ 		return
+ 	}
+ 	if len(dst.R) != 0 {
+ 		panic("bad")
+ 	}
+-	dst.R = make([]sym.Reloc, len(relocs))
++	dst.R = make([]sym.Reloc, len(extRelocs))
++	relocs := l.Relocs(src)
+ 	for i := range dst.R {
+-		sr := &relocs[i]
++		er := &extRelocs[i]
++		sr := relocs.At2(er.Idx)
+ 		r := &dst.R[i]
+ 		r.InitExt()
+-		r.Off = sr.Off
+-		r.Siz = sr.Siz
+-		r.Type = sr.Type
+-		r.Sym = l.Syms[sr.Sym]
+-		r.Add = sr.Add
+-		r.Xsym = l.Syms[sr.Xsym]
+-		r.Xadd = sr.Xadd
++		r.Off = sr.Off()
++		r.Siz = sr.Siz()
++		r.Type = sr.Type()
++		r.Sym = l.Syms[l.ResolveABIAlias(sr.Sym())]
++		r.Add = sr.Add()
++		r.Xsym = l.Syms[er.Xsym]
++		r.Xadd = er.Xadd
++		if rv := l.RelocVariant(src, er.Idx); rv != 0 {
++			r.Variant = rv
++		}
+ 	}
+ }
+ 
+diff --git a/src/cmd/link/internal/mips/asm.go b/src/cmd/link/internal/mips/asm.go
+index 53032a7e33..a366e80ea3 100644
+--- a/src/cmd/link/internal/mips/asm.go
++++ b/src/cmd/link/internal/mips/asm.go
+@@ -58,7 +58,7 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
+ 	switch r.Type {
+ 	default:
+ 		return false
+-	case objabi.R_ADDR:
++	case objabi.R_ADDR, objabi.R_DWARFSECREF:
+ 		if r.Siz != 4 {
+ 			return false
+ 		}
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index 33f8b33509..e69db29809 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -69,7 +69,7 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
+ 	switch r.Type {
+ 	default:
+ 		return false
+-	case objabi.R_ADDR:
++	case objabi.R_ADDR, objabi.R_DWARFSECREF:
+ 		switch r.Siz {
+ 		case 4:
+ 			ctxt.Out.Write8(uint8(elf.R_MIPS_32))
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 7a5dc565e6..4dc50eab79 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -457,7 +457,7 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
+ 	switch r.Type {
+ 	default:
+ 		return false
+-	case objabi.R_ADDR:
++	case objabi.R_ADDR, objabi.R_DWARFSECREF:
+ 		switch r.Siz {
+ 		case 4:
+ 			ctxt.Out.Write64(uint64(elf.R_PPC64_ADDR32) | uint64(elfsym)<<32)
+diff --git a/src/cmd/link/internal/s390x/asm.go b/src/cmd/link/internal/s390x/asm.go
+index 4def25868a..bec7705be5 100644
+--- a/src/cmd/link/internal/s390x/asm.go
++++ b/src/cmd/link/internal/s390x/asm.go
+@@ -246,7 +246,7 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
+ 		case 4:
+ 			ctxt.Out.Write64(uint64(elf.R_390_TLS_IEENT) | uint64(elfsym)<<32)
+ 		}
+-	case objabi.R_ADDR:
++	case objabi.R_ADDR, objabi.R_DWARFSECREF:
+ 		switch r.Siz {
+ 		default:
+ 			return false
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index df704a444d..21ea5780cb 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -347,7 +347,7 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
+ 	switch r.Type {
+ 	default:
+ 		return false
+-	case objabi.R_ADDR:
++	case objabi.R_ADDR, objabi.R_DWARFSECREF:
+ 		if r.Siz == 4 {
+ 			ctxt.Out.Write32(uint32(elf.R_386_32) | uint32(elfsym)<<8)
+ 		} else {

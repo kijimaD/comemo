@@ -8,7 +8,28 @@ Date:   Thu Dec 4 20:51:47 2008 -0800
     DELTA=43  (19 added, 24 deleted, 0 changed)
     OCL=20551
     CL=20551
-
+---
  test/{bugs => fixedbugs}/bug128.go | 0
  test/golden.out                    | 5 -----
  2 files changed, 5 deletions(-)
+
+diff --git a/test/bugs/bug128.go b/test/fixedbugs/bug128.go
+similarity index 100%
+rename from test/bugs/bug128.go
+rename to test/fixedbugs/bug128.go
+diff --git a/test/golden.out b/test/golden.out
+index 4489d69cbd..3e70b991ae 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -179,11 +179,6 @@ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug126.go
+ =========== bugs/bug127.go
+ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug127.go
+ 
+-=========== bugs/bug128.go
+-bugs/bug128.go:5: switch statement must have case labels
+-bugs/bug128.go:9: switch statement must have case labels
+-BUG: should compile
+-
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: overflow converting constant to uint
+ 

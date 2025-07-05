@@ -15,7 +15,7 @@ Date:   Wed Aug 9 16:13:09 2017 +0900
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/alg.go       |  4 ++--
  src/cmd/compile/internal/gc/bimport.go   |  2 +-
  src/cmd/compile/internal/gc/closure.go   |  4 ++--
@@ -26,3 +26,226 @@ Date:   Wed Aug 9 16:13:09 2017 +0900
  src/cmd/compile/internal/gc/typecheck.go |  6 ++----
  src/cmd/compile/internal/gc/walk.go      | 10 +++++-----
  9 files changed, 20 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index 0b4c9c7b3f..e98df71b34 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -292,7 +292,7 @@ func genhash(sym *types.Sym, t *types.Type) {
+ 		dumplist("genhash body", fn.Nbody)
+ 	}
+ 
+-	funcbody(fn)
++	funcbody()
+ 	Curfn = fn
+ 	fn.Func.SetDupok(true)
+ 	fn = typecheck(fn, Etop)
+@@ -476,7 +476,7 @@ func geneq(sym *types.Sym, t *types.Type) {
+ 		dumplist("geneq body", fn.Nbody)
+ 	}
+ 
+-	funcbody(fn)
++	funcbody()
+ 	Curfn = fn
+ 	fn.Func.SetDupok(true)
+ 	fn = typecheck(fn, Etop)
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 8cc8903dcd..ba542b4719 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -200,7 +200,7 @@ func Import(imp *types.Pkg, in *bufio.Reader) {
+ 				body = []*Node{nod(OEMPTY, nil, nil)}
+ 			}
+ 			f.Func.Inl.Set(body)
+-			funcbody(f)
++			funcbody()
+ 		} else {
+ 			// function already imported - read body but discard declarations
+ 			dclcontext = PDISCARD // throw away any declarations
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 143e1969c7..a3a0970f71 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -19,7 +19,7 @@ func (p *noder) funcLit(expr *syntax.FuncLit) *Node {
+ 	n.Func.Depth = funcdepth
+ 	n.Func.Outerfunc = Curfn
+ 
+-	old := p.funchdr(n, expr.Pos())
++	old := p.funchdr(n)
+ 
+ 	// steal ntype's argument names and
+ 	// leave a fresh copy in their place.
+@@ -60,7 +60,7 @@ func (p *noder) funcLit(expr *syntax.FuncLit) *Node {
+ 
+ 	n.Nbody.Set(body)
+ 	n.Func.Endlineno = lineno
+-	p.funcbody(n, expr.Body.Rbrace, old)
++	p.funcbody(old)
+ 
+ 	// closure-specific variables are hanging off the
+ 	// ordinary ones in the symbol table; see oldname.
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index b8a5a90a03..78d9184cf3 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -519,7 +519,7 @@ func funcstart(n *Node) {
+ // finish the body.
+ // called in auto-declaration context.
+ // returns in extern-declaration context.
+-func funcbody(n *Node) {
++func funcbody() {
+ 	// change the declaration context from auto to extern
+ 	if dclcontext != PAUTO {
+ 		Fatalf("funcbody: unexpected dclcontext %d", dclcontext)
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index 93ae2410cd..fcdec06ae7 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -198,7 +198,7 @@ func fninit(n []*Node) {
+ 	exportsym(fn.Func.Nname)
+ 
+ 	fn.Nbody.Set(r)
+-	funcbody(fn)
++	funcbody()
+ 
+ 	Curfn = fn
+ 	fn = typecheck(fn, Etop)
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 3977be1d73..5872640eca 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -78,15 +78,15 @@ type noder struct {
+ 	scope      ScopeID
+ }
+ 
+-func (p *noder) funchdr(n *Node, pos src.Pos) ScopeID {
++func (p *noder) funchdr(n *Node) ScopeID {
+ 	old := p.scope
+ 	p.scope = 0
+ 	funchdr(n)
+ 	return old
+ }
+ 
+-func (p *noder) funcbody(n *Node, pos src.Pos, old ScopeID) {
+-	funcbody(n)
++func (p *noder) funcbody(old ScopeID) {
++	funcbody()
+ 	p.scope = old
+ }
+ 
+@@ -382,9 +382,8 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
+ 		declare(f.Func.Nname, PFUNC)
+ 	}
+ 
+-	oldScope := p.funchdr(f, fun.Pos())
++	oldScope := p.funchdr(f)
+ 
+-	endPos := fun.Pos()
+ 	if fun.Body != nil {
+ 		if f.Noescape() {
+ 			yyerrorl(f.Pos, "can only use //go:noescape with external func implementations")
+@@ -396,7 +395,6 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
+ 		}
+ 		f.Nbody.Set(body)
+ 
+-		endPos = fun.Body.Rbrace
+ 		lineno = Ctxt.PosTable.XPos(fun.Body.Rbrace)
+ 		f.Func.Endlineno = lineno
+ 	} else {
+@@ -405,7 +403,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
+ 		}
+ 	}
+ 
+-	p.funcbody(f, endPos, oldScope)
++	p.funcbody(oldScope)
+ 	return f
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index d79789c4fe..309470f7b6 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1765,7 +1765,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym, iface
+ 		dumplist("genwrapper body", fn.Nbody)
+ 	}
+ 
+-	funcbody(fn)
++	funcbody()
+ 	Curfn = fn
+ 	types.Popdcl()
+ 	if debug_dclstack != 0 {
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 795bdcdd35..ab68c515ad 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1096,11 +1096,9 @@ OpSwitch:
+ 	case OSEND:
+ 		ok |= Etop
+ 		n.Left = typecheck(n.Left, Erv)
+-		l := n.Left
+ 		n.Right = typecheck(n.Right, Erv)
+ 		n.Left = defaultlit(n.Left, nil)
+-		l = n.Left
+-		t := l.Type
++		t := n.Left.Type
+ 		if t == nil {
+ 			n.Type = nil
+ 			return n
+@@ -1123,7 +1121,7 @@ OpSwitch:
+ 			n.Type = nil
+ 			return n
+ 		}
+-		n.Right = assignconv(r, l.Type.Elem(), "send")
++		n.Right = assignconv(r, t.Elem(), "send")
+ 
+ 		// TODO: more aggressive
+ 		n.Etype = 0
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 76031d160a..4eefb34994 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -762,7 +762,7 @@ opswitch:
+ 		}
+ 		init.Append(r)
+ 
+-		ll := ascompatet(n.Op, n.List, r.Type)
++		ll := ascompatet(n.List, r.Type)
+ 		n = liststmt(ll)
+ 
+ 	// x, y = <-c
+@@ -1699,7 +1699,7 @@ func reduceSlice(n *Node) *Node {
+ 	return n
+ }
+ 
+-func ascompatee1(op Op, l *Node, r *Node, init *Nodes) *Node {
++func ascompatee1(l *Node, r *Node, init *Nodes) *Node {
+ 	// convas will turn map assigns into function calls,
+ 	// making it impossible for reorder3 to work.
+ 	n := nod(OAS, l, r)
+@@ -1734,7 +1734,7 @@ func ascompatee(op Op, nl, nr []*Node, init *Nodes) []*Node {
+ 		if op == ORETURN && samesafeexpr(nl[i], nr[i]) {
+ 			continue
+ 		}
+-		nn = append(nn, ascompatee1(op, nl[i], nr[i], init))
++		nn = append(nn, ascompatee1(nl[i], nr[i], init))
+ 	}
+ 
+ 	// cannot happen: caller checked that lists had same length
+@@ -1767,7 +1767,7 @@ func fncall(l *Node, rt *types.Type) bool {
+ // check assign type list to
+ // a expression list. called in
+ //	expr-list = func()
+-func ascompatet(op Op, nl Nodes, nr *types.Type) []*Node {
++func ascompatet(nl Nodes, nr *types.Type) []*Node {
+ 	if nl.Len() != nr.NumFields() {
+ 		Fatalf("ascompatet: assignment count mismatch: %d = %d", nl.Len(), nr.NumFields())
+ 	}
+@@ -3853,7 +3853,7 @@ func walkprintfunc(n *Node, init *Nodes) *Node {
+ 
+ 	fn.Nbody.Set1(a)
+ 
+-	funcbody(fn)
++	funcbody()
+ 
+ 	fn = typecheck(fn, Etop)
+ 	typecheckslice(fn.Nbody.Slice(), Etop)

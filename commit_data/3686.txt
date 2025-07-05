@@ -7,7 +7,42 @@ Date:   Sat Oct 31 13:28:22 2009 -0700
     R=rsc
     CC=go-dev
     http://go/go-review/1016005
-
+---
  src/pkg/bytes/buffer.go      | 6 +++++-
  src/pkg/bytes/buffer_test.go | 8 ++++++++
  2 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/bytes/buffer.go b/src/pkg/bytes/buffer.go
+index 7acddc4bcd..6e5887cb0b 100644
+--- a/src/pkg/bytes/buffer.go
++++ b/src/pkg/bytes/buffer.go
+@@ -42,8 +42,12 @@ func (b *Buffer) Bytes() []byte {
+ }
+ 
+ // String returns the contents of the unread portion of the buffer
+-// as a string.
++// as a string.  If the Buffer is a nil pointer, it returns "<nil>".
+ func (b *Buffer) String() string {
++	if b == nil {
++		// Special case, useful in debugging.
++		return "<nil>"
++	}
+ 	return string(b.buf[b.off : len(b.buf)]);
+ }
+ 
+diff --git a/src/pkg/bytes/buffer_test.go b/src/pkg/bytes/buffer_test.go
+index f82c984685..c364eece4f 100644
+--- a/src/pkg/bytes/buffer_test.go
++++ b/src/pkg/bytes/buffer_test.go
+@@ -232,3 +232,11 @@ func TestMixedReadsAndWrites(t *testing.T) {
+ 	}
+ 	empty(t, "TestMixedReadsAndWrites (2)", &buf, s, make([]byte, buf.Len()));
+ }
++
++
++func TestNil(t *testing.T) {
++	var b *Buffer;
++	if b.String() != "<nil>" {
++		t.Error("expcted <nil>; got %q", b.String());
++	}
++}

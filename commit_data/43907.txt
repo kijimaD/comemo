@@ -11,6 +11,19 @@ Date:   Wed Apr 29 14:55:07 2020 +1000
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/image/names.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/image/names.go b/src/image/names.go
+index 8985f49214..8595a35014 100644
+--- a/src/image/names.go
++++ b/src/image/names.go
+@@ -47,6 +47,7 @@ func (c *Uniform) Opaque() bool {
+ 	return a == 0xffff
+ }
+ 
++// NewUniform returns a new Uniform image of the given color.
+ func NewUniform(c color.Color) *Uniform {
+ 	return &Uniform{c}
+ }

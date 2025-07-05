@@ -40,7 +40,7 @@ Date:   Mon Apr 2 16:22:08 2018 -0400
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/arm64/ssa.go        | 15 +++++++++++++++
  src/cmd/compile/internal/gc/ssa.go           |  2 +-
  src/cmd/compile/internal/ssa/gen/ARM64.rules |  3 ++-
@@ -48,3 +48,150 @@ Date:   Mon Apr 2 16:22:08 2018 -0400
  src/cmd/compile/internal/ssa/opGen.go        | 16 ++++++++++++++++
  src/cmd/compile/internal/ssa/rewriteARM64.go | 16 ++++++++++++++++
  6 files changed, 52 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 4984f9a007..b72ead7368 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -413,6 +413,21 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.Reg = v.Args[0].Reg()
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
++	case ssa.OpARM64LoweredMuluhilo:
++		r0 := v.Args[0].Reg()
++		r1 := v.Args[1].Reg()
++		p := s.Prog(arm64.AUMULH)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = r1
++		p.Reg = r0
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg0()
++		p1 := s.Prog(arm64.AMUL)
++		p1.From.Type = obj.TYPE_REG
++		p1.From.Reg = r1
++		p1.Reg = r0
++		p1.To.Type = obj.TYPE_REG
++		p1.To.Reg = v.Reg1()
+ 	case ssa.OpARM64LoweredAtomicExchange64,
+ 		ssa.OpARM64LoweredAtomicExchange32:
+ 		// LDAXR	(Rarg0), Rout
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 7a2de3c8fb..02e8a62467 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3207,7 +3207,7 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue2(ssa.OpMul64uhilo, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1])
+ 		},
+-		sys.ArchAMD64)
++		sys.ArchAMD64, sys.ArchARM64)
+ 	add("math/big", "divWW",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue3(ssa.OpDiv128u, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1], args[2])
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 5eaf76cc8c..edeadfd1d2 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -29,6 +29,7 @@
+ (Hmul64u x y) -> (UMULH x y)
+ (Hmul32 x y) -> (SRAconst (MULL <typ.Int64> x y) [32])
+ (Hmul32u x y) -> (SRAconst (UMULL <typ.UInt64> x y) [32])
++(Mul64uhilo x y) -> (LoweredMuluhilo x y)
+ 
+ (Div64 x y) -> (DIV x y)
+ (Div64u x y) -> (UDIV x y)
+@@ -1791,4 +1792,4 @@
+ (FSUBS a (FNMULS x y)) -> (FMADDS a x y)
+ (FSUBD a (FNMULD x y)) -> (FMADDD a x y)
+ (FSUBS (FNMULS x y) a) -> (FNMADDS a x y)
+-(FSUBD (FNMULD x y) a) -> (FNMADDD a x y)
+\ No newline at end of file
++(FSUBD (FNMULD x y) a) -> (FNMADDD a x y)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index b311359721..ec75ca38c6 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -142,6 +142,7 @@ func init() {
+ 		gp21nog   = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
+ 		gp2flags  = regInfo{inputs: []regMask{gpg, gpg}}
+ 		gp2flags1 = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
++		gp22      = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp, gp}}
+ 		gpload    = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}
+ 		gpstore   = regInfo{inputs: []regMask{gpspsbg, gpg}}
+ 		gpstore0  = regInfo{inputs: []regMask{gpspsbg}}
+@@ -203,6 +204,7 @@ func init() {
+ 		{name: "EON", argLength: 2, reg: gp21, asm: "EON"},                    // arg0 ^ ^arg1
+ 		{name: "ORN", argLength: 2, reg: gp21, asm: "ORN"},                    // arg0 | ^arg1
+ 
++		{name: "LoweredMuluhilo", argLength: 2, reg: gp22, resultNotInArgs: true}, // arg0 * arg1, returns (hi, lo)
+ 		// unary ops
+ 		{name: "MVN", argLength: 1, reg: gp11, asm: "MVN"},         // ^arg0
+ 		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},         // -arg0
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 32c595382a..ef3875ec02 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1050,6 +1050,7 @@ const (
+ 	OpARM64BIC
+ 	OpARM64EON
+ 	OpARM64ORN
++	OpARM64LoweredMuluhilo
+ 	OpARM64MVN
+ 	OpARM64NEG
+ 	OpARM64FNEGS
+@@ -13578,6 +13579,21 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:            "LoweredMuluhilo",
++		argLen:          2,
++		resultNotInArgs: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
++				{1, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
++			},
++			outputs: []outputInfo{
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++				{1, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
++		},
++	},
+ 	{
+ 		name:   "MVN",
+ 		argLen: 1,
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 9508b46072..407719e744 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -591,6 +591,8 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpMul64_0(v)
+ 	case OpMul64F:
+ 		return rewriteValueARM64_OpMul64F_0(v)
++	case OpMul64uhilo:
++		return rewriteValueARM64_OpMul64uhilo_0(v)
+ 	case OpMul8:
+ 		return rewriteValueARM64_OpMul8_0(v)
+ 	case OpNeg16:
+@@ -18906,6 +18908,20 @@ func rewriteValueARM64_OpMul64F_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM64_OpMul64uhilo_0(v *Value) bool {
++	// match: (Mul64uhilo x y)
++	// cond:
++	// result: (LoweredMuluhilo x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARM64LoweredMuluhilo)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
+ func rewriteValueARM64_OpMul8_0(v *Value) bool {
+ 	// match: (Mul8 x y)
+ 	// cond:

@@ -70,6 +70,31 @@ Date:   Thu Feb 23 13:32:10 2023 -0800
     Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
     Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
     Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-
+---
  src/encoding/json/decode.go | 11 ++---------
  1 file changed, 2 insertions(+), 9 deletions(-)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index 01af489b56..7ad66cfeb6 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -540,17 +540,10 @@ func (d *decodeState) array(v reflect.Value) error {
+ 			break
+ 		}
+ 
+-		// Get element of array, growing if necessary.
++		// Expand slice length, growing the slice if necessary.
+ 		if v.Kind() == reflect.Slice {
+-			// Grow slice if necessary
+ 			if i >= v.Cap() {
+-				newcap := v.Cap() + v.Cap()/2
+-				if newcap < 4 {
+-					newcap = 4
+-				}
+-				newv := reflect.MakeSlice(v.Type(), v.Len(), newcap)
+-				reflect.Copy(newv, v)
+-				v.Set(newv)
++				v.Grow(1)
+ 			}
+ 			if i >= v.Len() {
+ 				v.SetLen(i + 1)

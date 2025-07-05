@@ -10,6 +10,20 @@ Date:   Wed Nov 20 11:06:35 2024 -0800
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/godebug.md | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index e912784d92..0418482746 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -383,7 +383,7 @@ There is no plan to remove this setting.
+ 
+ Go 1.18 removed support for SHA1 in most X.509 certificates,
+ controlled by the [`x509sha1` setting](/pkg/crypto/x509#InsecureAlgorithmError).
+-This setting will be removed in a future release, Go 1.22 at the earliest.
++This setting was removed in Go 1.24.
+ 
+ ### Go 1.10
+ 

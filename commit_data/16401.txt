@@ -9,7 +9,32 @@ Date:   Fri May 24 12:36:59 2013 -0400
     R=gobot
     CC=golang-dev
     https://golang.org/cl/9734043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index c4e48fa279..822d6f356d 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -115,6 +115,7 @@ Frederick Kelly Mayle III <frederickmayle@gmail.com>
+ Frithjof Schulze <schulze@math.uni-hannover.de>
+ Gary Burd <gary@beagledreams.com>
+ Georg Reinke <guelfey@gmail.com>
++Gerasimos Dimitriadis <gedimitr@gmail.com>
+ Gideon Jan-Wessel Redelinghuys <gjredelinghuys@gmail.com>
+ Giles Lean <giles.lean@pobox.com>
+ Google Inc.
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 2849b07fc5..324a62f380 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -175,6 +175,7 @@ Fumitoshi Ukai <ukai@google.com>
+ Gaal Yahas <gaal@google.com>
+ Gary Burd <gary@beagledreams.com> <gary.burd@gmail.com>
+ Georg Reinke <guelfey@gmail.com>
++Gerasimos Dimitriadis <gedimitr@gmail.com>
+ Gideon Jan-Wessel Redelinghuys <gjredelinghuys@gmail.com>
+ Giles Lean <giles.lean@pobox.com>
+ Graham Miller <graham.miller@gmail.com>

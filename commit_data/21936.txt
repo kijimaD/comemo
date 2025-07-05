@@ -14,6 +14,37 @@ Date:   Fri Feb 13 11:54:15 2015 -0500
     Change-Id: I4cafd611e2bf8e813e57ad0025e48bde5ae54359
     Reviewed-on: https://go-review.googlesource.com/4830
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/gc/reg.c | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/reg.c b/src/cmd/gc/reg.c
+index a60e71cfb7..f4a88505a6 100644
+--- a/src/cmd/gc/reg.c
++++ b/src/cmd/gc/reg.c
+@@ -351,21 +351,21 @@ loop2:
+ 			bit.b[z] = LOAD(r) & ~(r->act.b[z] | addrs.b[z]);
+ 		while(bany(&bit)) {
+ 			i = bnum(bit);
+-			rgp->enter = f;
+-			rgp->varno = i;
+ 			change = 0;
+ 			paint1(f, i);
+ 			biclr(&bit, i);
+ 			if(change <= 0)
+ 				continue;
+-			rgp->cost = change;
+-			nregion++;
+ 			if(nregion >= NRGN) {
+ 				if(debug['R'] && debug['v'])
+ 					print("too many regions\n");
+ 				goto brk;
+ 			}
++			rgp->enter = f;
++			rgp->varno = i;
++			rgp->cost = change;
+ 			rgp++;
++			nregion++;
+ 		}
+ 	}
+ brk:

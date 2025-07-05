@@ -21,9 +21,78 @@ Date:   Tue Dec 20 11:23:23 2022 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/escape/call.go    |  3 +--
  src/cmd/compile/internal/inline/inl.go     |  2 +-
  src/cmd/compile/internal/typecheck/func.go | 10 ++++++++++
  src/cmd/compile/internal/walk/order.go     |  2 +-
  4 files changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/call.go b/src/cmd/compile/internal/escape/call.go
+index 94bc8874da..f1c2c306a2 100644
+--- a/src/cmd/compile/internal/escape/call.go
++++ b/src/cmd/compile/internal/escape/call.go
+@@ -45,8 +45,7 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
+ 
+ 	case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER:
+ 		call := call.(*ir.CallExpr)
+-		typecheck.FixVariadicCall(call)
+-		typecheck.FixMethodCall(call)
++		typecheck.AssertFixedCall(call)
+ 
+ 		// Pick out the function callee, if statically known.
+ 		//
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 99cbda8e9c..781dae1396 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -981,7 +981,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlCalls *[]*ir.Inlin
+ 		}
+ 	}
+ 
+-	typecheck.FixVariadicCall(n)
++	typecheck.AssertFixedCall(n)
+ 
+ 	inlIndex := base.Ctxt.InlTree.Add(parent, n.Pos(), sym)
+ 
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index bc27f20cd0..065007b04e 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -76,6 +76,15 @@ func FixMethodCall(call *ir.CallExpr) {
+ 	call.Args = args
+ }
+ 
++func AssertFixedCall(call *ir.CallExpr) {
++	if call.X.Type().IsVariadic() && !call.IsDDD {
++		base.FatalfAt(call.Pos(), "missed FixVariadicCall")
++	}
++	if call.Op() == ir.OCALLMETH {
++		base.FatalfAt(call.Pos(), "missed FixMethodCall")
++	}
++}
++
+ // ClosureType returns the struct type used to hold all the information
+ // needed in the closure for clo (clo must be a OCLOSURE node).
+ // The address of a variable of the returned type can be cast to a func.
+@@ -339,6 +348,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
+ 	}
+ 
+ 	typecheckaste(ir.OCALL, n.X, n.IsDDD, t.Params(), n.Args, func() string { return fmt.Sprintf("argument to %v", n.X) })
++	FixVariadicCall(n)
+ 	FixMethodCall(n)
+ 	if t.NumResults() == 0 {
+ 		return n
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index c7c3d97621..d6712ae0fc 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -536,7 +536,7 @@ func (o *orderState) call(nn ir.Node) {
+ 	}
+ 
+ 	n := nn.(*ir.CallExpr)
+-	typecheck.FixVariadicCall(n)
++	typecheck.AssertFixedCall(n)
+ 
+ 	if isFuncPCIntrinsic(n) && isIfaceOfFunc(n.Args[0]) {
+ 		// For internal/abi.FuncPCABIxxx(fn), if fn is a defined function,

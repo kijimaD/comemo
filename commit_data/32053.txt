@@ -17,7 +17,7 @@ Date:   Tue Jan 24 09:48:58 2017 +0000
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/arm/ssa.go            |  2 ++
  src/cmd/compile/internal/ssa/gen/ARM.rules     | 14 ++++++---
  src/cmd/compile/internal/ssa/gen/ARMOps.go     |  4 ++-
@@ -35,3 +35,374 @@ Date:   Tue Jan 24 09:48:58 2017 +0000
  src/cmd/compile/internal/ssa/rewritedec64.go   |  2 ++
  src/cmd/compile/internal/ssa/rewritegeneric.go |  2 ++
  16 files changed, 105 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 47da33613e..d31379a2d6 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -582,6 +582,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		fallthrough
+ 	case ssa.OpARMMVN,
+ 		ssa.OpARMCLZ,
++		ssa.OpARMREV,
++		ssa.OpARMRBIT,
+ 		ssa.OpARMSQRTD,
+ 		ssa.OpARMNEGF,
+ 		ssa.OpARMNEGD,
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index 5ab695c76b..92f2c0b302 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -87,14 +87,17 @@
+ 
+ (Sqrt x) -> (SQRTD x)
+ 
+-// count trailing zero
++// count trailing zero for ARMv5 and ARMv6
+ // 32 - CLZ(x&-x - 1)
+-(Ctz32 <t> x) -> (RSBconst [32] (CLZ <t> (SUBconst <t> (AND <t> x (RSBconst <t> [0] x)) [1])))
++(Ctz32 <t> x) && obj.GOARM<=6 -> (RSBconst [32] (CLZ <t> (SUBconst <t> (AND <t> x (RSBconst <t> [0] x)) [1])))
++
++// count trailing zero for ARMv7
++(Ctz32 <t> x) && obj.GOARM==7 -> (CLZ <t> (RBIT <t> x))
+ 
+ // bit length
+ (BitLen32 <t> x) -> (RSBconst [32] (CLZ <t> x))
+ 
+-// byte swap
++// byte swap for ARMv5
+ // let (a, b, c, d) be the bytes of x from high to low
+ // t1 = x right rotate 16 bits -- (c,   d,   a,   b  )
+ // t2 = x ^ t1                 -- (a^c, b^d, a^c, b^d)
+@@ -103,11 +106,14 @@
+ // t5 = x right rotate 8 bits  -- (d,   a,   b,   c  )
+ // result = t4 ^ t5            -- (d,   c,   b,   a  )
+ // using shifted ops this can be done in 4 instructions.
+-(Bswap32 <t> x) ->
++(Bswap32 <t> x) && obj.GOARM==5 ->
+ 	(XOR <t>
+ 		(SRLconst <t> (BICconst <t> (XOR <t> x (SRRconst <t> [16] x)) [0xff0000]) [8])
+ 		(SRRconst <t> x [8]))
+ 
++// byte swap for ARMv6 and above
++(Bswap32 x) && obj.GOARM>=6 -> (REV x)
++
+ // boolean ops -- booleans are represented with 0=false, 1=true
+ (AndB x y) -> (AND x y)
+ (OrB x y) -> (OR x y)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index f99df3440d..02cb9ce5d7 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -197,7 +197,9 @@ func init() {
+ 		{name: "NEGD", argLength: 1, reg: fp11, asm: "NEGD"},   // -arg0, float64
+ 		{name: "SQRTD", argLength: 1, reg: fp11, asm: "SQRTD"}, // sqrt(arg0), float64
+ 
+-		{name: "CLZ", argLength: 1, reg: gp11, asm: "CLZ"}, // count leading zero
++		{name: "CLZ", argLength: 1, reg: gp11, asm: "CLZ"},   // count leading zero
++		{name: "REV", argLength: 1, reg: gp11, asm: "REV"},   // reverse byte order
++		{name: "RBIT", argLength: 1, reg: gp11, asm: "RBIT"}, // reverse bit order
+ 
+ 		// shifts
+ 		{name: "SLL", argLength: 2, reg: gp21, asm: "SLL"},                    // arg0 << arg1, shift amount is mod 256
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index beabca97d0..0e478d052f 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -153,7 +153,9 @@ func genRules(arch arch) {
+ 	fmt.Fprintln(w)
+ 	fmt.Fprintln(w, "package ssa")
+ 	fmt.Fprintln(w, "import \"math\"")
++	fmt.Fprintln(w, "import \"cmd/internal/obj\"")
+ 	fmt.Fprintln(w, "var _ = math.MinInt8 // in case not otherwise used")
++	fmt.Fprintln(w, "var _ = obj.ANOP     // in case not otherwise used")
+ 
+ 	// Main rewrite routine is a switch on v.Op.
+ 	fmt.Fprintf(w, "func rewriteValue%s(v *Value) bool {\n", arch.name)
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index ce6988e014..74ad2d4eb1 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -696,6 +696,8 @@ const (
+ 	OpARMNEGD
+ 	OpARMSQRTD
+ 	OpARMCLZ
++	OpARMREV
++	OpARMRBIT
+ 	OpARMSLL
+ 	OpARMSLLconst
+ 	OpARMSRL
+@@ -8443,6 +8445,32 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "REV",
++		argLen: 1,
++		asm:    arm.AREV,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 22527}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14
++			},
++			outputs: []outputInfo{
++				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
++			},
++		},
++	},
++	{
++		name:   "RBIT",
++		argLen: 1,
++		asm:    arm.ARBIT,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 22527}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14
++			},
++			outputs: []outputInfo{
++				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
++			},
++		},
++	},
+ 	{
+ 		name:   "SLL",
+ 		argLen: 2,
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index ba5288de2a..9330485813 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -4,8 +4,10 @@
+ package ssa
+ 
+ import "math"
++import "cmd/internal/obj"
+ 
+ var _ = math.MinInt8 // in case not otherwise used
++var _ = obj.ANOP     // in case not otherwise used
+ func rewriteValue386(v *Value) bool {
+ 	switch v.Op {
+ 	case Op386ADCL:
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index e31d3b453a..405be0cc9a 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -4,8 +4,10 @@
+ package ssa
+ 
+ import "math"
++import "cmd/internal/obj"
+ 
+ var _ = math.MinInt8 // in case not otherwise used
++var _ = obj.ANOP     // in case not otherwise used
+ func rewriteValueAMD64(v *Value) bool {
+ 	switch v.Op {
+ 	case OpAMD64ADDL:
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 0b554d79a4..714ec4937a 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -4,8 +4,10 @@
+ package ssa
+ 
+ import "math"
++import "cmd/internal/obj"
+ 
+ var _ = math.MinInt8 // in case not otherwise used
++var _ = obj.ANOP     // in case not otherwise used
+ func rewriteValueARM(v *Value) bool {
+ 	switch v.Op {
+ 	case OpARMADC:
+@@ -12904,11 +12906,14 @@ func rewriteValueARM_OpBswap32(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Bswap32 <t> x)
+-	// cond:
++	// cond: obj.GOARM==5
+ 	// result: (XOR <t> 		(SRLconst <t> (BICconst <t> (XOR <t> x (SRRconst <t> [16] x)) [0xff0000]) [8]) 		(SRRconst <t> x [8]))
+ 	for {
+ 		t := v.Type
+ 		x := v.Args[0]
++		if !(obj.GOARM == 5) {
++			break
++		}
+ 		v.reset(OpARMXOR)
+ 		v.Type = t
+ 		v0 := b.NewValue0(v.Pos, OpARMSRLconst, t)
+@@ -12930,6 +12935,19 @@ func rewriteValueARM_OpBswap32(v *Value) bool {
+ 		v.AddArg(v4)
+ 		return true
+ 	}
++	// match: (Bswap32 x)
++	// cond: obj.GOARM>=6
++	// result: (REV x)
++	for {
++		x := v.Args[0]
++		if !(obj.GOARM >= 6) {
++			break
++		}
++		v.reset(OpARMREV)
++		v.AddArg(x)
++		return true
++	}
++	return false
+ }
+ func rewriteValueARM_OpClosureCall(v *Value) bool {
+ 	// match: (ClosureCall [argwid] entry closure mem)
+@@ -13074,11 +13092,14 @@ func rewriteValueARM_OpCtz32(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (Ctz32 <t> x)
+-	// cond:
++	// cond: obj.GOARM<=6
+ 	// result: (RSBconst [32] (CLZ <t> (SUBconst <t> (AND <t> x (RSBconst <t> [0] x)) [1])))
+ 	for {
+ 		t := v.Type
+ 		x := v.Args[0]
++		if !(obj.GOARM <= 6) {
++			break
++		}
+ 		v.reset(OpARMRSBconst)
+ 		v.AuxInt = 32
+ 		v0 := b.NewValue0(v.Pos, OpARMCLZ, t)
+@@ -13095,6 +13116,23 @@ func rewriteValueARM_OpCtz32(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Ctz32 <t> x)
++	// cond: obj.GOARM==7
++	// result: (CLZ <t> (RBIT <t> x))
++	for {
++		t := v.Type
++		x := v.Args[0]
++		if !(obj.GOARM == 7) {
++			break
++		}
++		v.reset(OpARMCLZ)
++		v.Type = t
++		v0 := b.NewValue0(v.Pos, OpARMRBIT, t)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++	return false
+ }
+ func rewriteValueARM_OpCvt32Fto32(v *Value) bool {
+ 	// match: (Cvt32Fto32 x)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 009e36b90f..d276cbcf10 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -4,8 +4,10 @@
+ package ssa
+ 
+ import "math"
++import "cmd/internal/obj"
+ 
+ var _ = math.MinInt8 // in case not otherwise used
++var _ = obj.ANOP     // in case not otherwise used
+ func rewriteValueARM64(v *Value) bool {
+ 	switch v.Op {
+ 	case OpARM64ADD:
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS.go b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+index 19144108e7..0f8321440b 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+@@ -4,8 +4,10 @@
+ package ssa
+ 
+ import "math"
++import "cmd/internal/obj"
+ 
+ var _ = math.MinInt8 // in case not otherwise used
++var _ = obj.ANOP     // in case not otherwise used
+ func rewriteValueMIPS(v *Value) bool {
+ 	switch v.Op {
+ 	case OpAdd16:
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS64.go b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+index e0f16a9f87..8c13431997 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS64.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+@@ -4,8 +4,10 @@
+ package ssa
+ 
+ import "math"
++import "cmd/internal/obj"
+ 
+ var _ = math.MinInt8 // in case not otherwise used
++var _ = obj.ANOP     // in case not otherwise used
+ func rewriteValueMIPS64(v *Value) bool {
+ 	switch v.Op {
+ 	case OpAdd16:
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 785fbd211f..1c9a8f2667 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -4,8 +4,10 @@
+ package ssa
+ 
+ import "math"
++import "cmd/internal/obj"
+ 
+ var _ = math.MinInt8 // in case not otherwise used
++var _ = obj.ANOP     // in case not otherwise used
+ func rewriteValuePPC64(v *Value) bool {
+ 	switch v.Op {
+ 	case OpAdd16:
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 6740fe4cad..9db644570f 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -4,8 +4,10 @@
+ package ssa
+ 
+ import "math"
++import "cmd/internal/obj"
+ 
+ var _ = math.MinInt8 // in case not otherwise used
++var _ = obj.ANOP     // in case not otherwise used
+ func rewriteValueS390X(v *Value) bool {
+ 	switch v.Op {
+ 	case OpAdd16:
+diff --git a/src/cmd/compile/internal/ssa/rewritedec.go b/src/cmd/compile/internal/ssa/rewritedec.go
+index 2782316c7e..f82a26a417 100644
+--- a/src/cmd/compile/internal/ssa/rewritedec.go
++++ b/src/cmd/compile/internal/ssa/rewritedec.go
+@@ -4,8 +4,10 @@
+ package ssa
+ 
+ import "math"
++import "cmd/internal/obj"
+ 
+ var _ = math.MinInt8 // in case not otherwise used
++var _ = obj.ANOP     // in case not otherwise used
+ func rewriteValuedec(v *Value) bool {
+ 	switch v.Op {
+ 	case OpComplexImag:
+diff --git a/src/cmd/compile/internal/ssa/rewritedec64.go b/src/cmd/compile/internal/ssa/rewritedec64.go
+index 9e7802d431..224bb94262 100644
+--- a/src/cmd/compile/internal/ssa/rewritedec64.go
++++ b/src/cmd/compile/internal/ssa/rewritedec64.go
+@@ -4,8 +4,10 @@
+ package ssa
+ 
+ import "math"
++import "cmd/internal/obj"
+ 
+ var _ = math.MinInt8 // in case not otherwise used
++var _ = obj.ANOP     // in case not otherwise used
+ func rewriteValuedec64(v *Value) bool {
+ 	switch v.Op {
+ 	case OpAdd64:
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 8ab751797b..685d147978 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -4,8 +4,10 @@
+ package ssa
+ 
+ import "math"
++import "cmd/internal/obj"
+ 
+ var _ = math.MinInt8 // in case not otherwise used
++var _ = obj.ANOP     // in case not otherwise used
+ func rewriteValuegeneric(v *Value) bool {
+ 	switch v.Op {
+ 	case OpAdd16:

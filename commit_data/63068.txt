@@ -27,7 +27,36 @@ Date:   Tue May 13 17:53:45 2025 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/layout.go   | 2 +-
  src/cmd/compile/internal/ssa/regalloc.go | 4 ++++
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/layout.go b/src/cmd/compile/internal/ssa/layout.go
+index e4a8c6ffbf..927287dc77 100644
+--- a/src/cmd/compile/internal/ssa/layout.go
++++ b/src/cmd/compile/internal/ssa/layout.go
+@@ -15,7 +15,7 @@ func layout(f *Func) {
+ // imposed by the linear-scan algorithm.
+ func layoutRegallocOrder(f *Func) []*Block {
+ 	// remnant of an experiment; perhaps there will be another.
+-	return layoutOrder(f)
++	return f.Blocks
+ }
+ 
+ func layoutOrder(f *Func) []*Block {
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 2981bceb2e..f1e210fe9b 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -1899,6 +1899,10 @@ func (s *regAllocState) regalloc(f *Func) {
+ 			if s.f.Config.hasGReg && s.regs[s.GReg].v != nil {
+ 				s.freeReg(s.GReg) // Spill value in G register before any merge.
+ 			}
++			if s.blockOrder[b.ID] > s.blockOrder[b.Succs[0].b.ID] {
++				// No point if we've already regalloc'd the destination.
++				goto badloop
++			}
+ 			// For this to be worthwhile, the loop must have no calls in it.
+ 			top := b.Succs[0].b
+ 			loop := s.loopnest.b2l[top.ID]

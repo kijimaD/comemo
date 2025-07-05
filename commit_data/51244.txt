@@ -12,7 +12,34 @@ Date:   Mon Dec 20 05:54:27 2021 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Zhuo Meng <mzh@golangcn.org>
-
+---
  src/runtime/mgcmark.go  | 2 +-
  src/runtime/mgcsweep.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index a15c62cc49..68acfd4d49 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -1561,7 +1561,7 @@ func gcmarknewobject(span *mspan, obj, size, scanSize uintptr) {
+ 	if !goexperiment.PacerRedesign {
+ 		// The old pacer counts newly allocated memory toward
+ 		// heapScanWork because heapScan is continuously updated
+-		// throughout the GC cyle with newly allocated memory. However,
++		// throughout the GC cycle with newly allocated memory. However,
+ 		// these objects are never actually scanned, so we need
+ 		// to account for them in heapScanWork here, "faking" their work.
+ 		// Otherwise the pacer will think it's always behind, potentially
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index fdbec30cf1..a46f4ec2c6 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -393,7 +393,7 @@ func sweepone() uintptr {
+ 		// The scavenger is signaled by the last sweeper because once
+ 		// sweeping is done, we will definitely have useful work for
+ 		// the scavenger to do, since the scavenger only runs over the
+-		// heap once per GC cyle. This update is not done during sweep
++		// heap once per GC cycle. This update is not done during sweep
+ 		// termination because in some cases there may be a long delay
+ 		// between sweep done and sweep termination (e.g. not enough
+ 		// allocations to trigger a GC) which would be nice to fill in

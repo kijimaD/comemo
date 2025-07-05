@@ -14,7 +14,71 @@ Date:   Thu May 8 16:52:36 2014 +1000
     R=golang-codereviews, minux.ma, bradfitz, aram, robert.hencke, r, adg
     CC=golang-codereviews
     https://golang.org/cl/97840044
-
+---
  src/pkg/encoding/json/example_test.go | 32 ++++++++++++++++++++++++++++++++
  src/pkg/encoding/json/indent.go       |  5 +++--
  2 files changed, 35 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/encoding/json/example_test.go b/src/pkg/encoding/json/example_test.go
+index ea0bc149c3..ca4e5ae68d 100644
+--- a/src/pkg/encoding/json/example_test.go
++++ b/src/pkg/encoding/json/example_test.go
+@@ -5,6 +5,7 @@
+ package json_test
+ 
+ import (
++	"bytes"
+ 	"encoding/json"
+ 	"fmt"
+ 	"io"
+@@ -127,3 +128,34 @@ func ExampleRawMessage() {
+ 	// YCbCr &{255 0 -10}
+ 	// RGB &{98 218 255}
+ }
++
++func ExampleIndent() {
++	type Road struct {
++		Name   string
++		Number int
++	}
++	roads := []Road{
++		{"Diamond Fork", 29},
++		{"Sheep Creek", 51},
++	}
++
++	b, err := json.Marshal(roads)
++	if err != nil {
++		log.Fatal(err)
++	}
++
++	var out bytes.Buffer
++	json.Indent(&out, b, "=", "\t")
++	out.WriteTo(os.Stdout)
++	// Output:
++	// [
++	// =	{
++	// =		"Name": "Diamond Fork",
++	// =		"Number": 29
++	// =	},
++	// =	{
++	// =		"Name": "Sheep Creek",
++	// =		"Number": 51
++	// =	}
++	// =]
++}
+diff --git a/src/pkg/encoding/json/indent.go b/src/pkg/encoding/json/indent.go
+index 11ef709cce..e1bacafd6b 100644
+--- a/src/pkg/encoding/json/indent.go
++++ b/src/pkg/encoding/json/indent.go
+@@ -69,8 +69,9 @@ func newline(dst *bytes.Buffer, prefix, indent string, depth int) {
+ // Each element in a JSON object or array begins on a new,
+ // indented line beginning with prefix followed by one or more
+ // copies of indent according to the indentation nesting.
+-// The data appended to dst has no trailing newline, to make it easier
+-// to embed inside other formatted JSON data.
++// The data appended to dst does not begin with the prefix nor
++// any indentation, and has no trailing newline, to make it
++// easier to embed inside other formatted JSON data.
+ func Indent(dst *bytes.Buffer, src []byte, prefix, indent string) error {
+ 	origLen := dst.Len()
+ 	var scan scanner

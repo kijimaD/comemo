@@ -16,7 +16,56 @@ Date:   Wed Mar 8 21:56:57 2017 +0100
     Reviewed-on: https://go-review.googlesource.com/37960
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/user/lookup_stubs.go | 16 ++++++++++++++--
  src/os/user/user_test.go    |  3 ---
  2 files changed, 14 insertions(+), 5 deletions(-)
+
+diff --git a/src/os/user/lookup_stubs.go b/src/os/user/lookup_stubs.go
+index 7279617248..d23870fda8 100644
+--- a/src/os/user/lookup_stubs.go
++++ b/src/os/user/lookup_stubs.go
+@@ -26,7 +26,9 @@ func current() (*User, error) {
+ 		Name:     "", // ignored
+ 		HomeDir:  os.Getenv("HOME"),
+ 	}
+-	if runtime.GOOS == "nacl" {
++	// On NaCL and Android, return a dummy user instead of failing.
++	switch runtime.GOOS {
++	case "nacl":
+ 		if u.Uid == "" {
+ 			u.Uid = "1"
+ 		}
+@@ -34,7 +36,17 @@ func current() (*User, error) {
+ 			u.Username = "nacl"
+ 		}
+ 		if u.HomeDir == "" {
+-			u.HomeDir = "/home/nacl"
++			u.HomeDir = "/"
++		}
++	case "android":
++		if u.Uid == "" {
++			u.Uid = "1"
++		}
++		if u.Username == "" {
++			u.Username = "android"
++		}
++		if u.HomeDir == "" {
++			u.HomeDir = "/sdcard"
+ 		}
+ 	}
+ 	// cgo isn't available, but if we found the minimum information
+diff --git a/src/os/user/user_test.go b/src/os/user/user_test.go
+index 8a12d62273..b3aeed883c 100644
+--- a/src/os/user/user_test.go
++++ b/src/os/user/user_test.go
+@@ -16,9 +16,6 @@ func checkUser(t *testing.T) {
+ }
+ 
+ func TestCurrent(t *testing.T) {
+-	if runtime.GOOS == "android" {
+-		t.Skipf("skipping on %s", runtime.GOOS)
+-	}
+ 	u, err := Current()
+ 	if err != nil {
+ 		t.Fatalf("Current: %v (got %#v)", err, u)

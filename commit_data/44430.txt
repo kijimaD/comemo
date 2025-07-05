@@ -36,10 +36,180 @@ Date:   Mon Jun 29 17:07:17 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  misc/cgo/testshared/shared_test.go               | 16 ++++++++++
  misc/cgo/testshared/testdata/gcdata/main/main.go | 37 ++++++++++++++++++++++++
  misc/cgo/testshared/testdata/gcdata/p/p.go       |  7 +++++
  src/cmd/link/internal/ld/decodesym.go            | 27 ++++++++++++-----
  src/cmd/link/internal/ld/lib.go                  |  4 ++-
  5 files changed, 82 insertions(+), 9 deletions(-)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index fda3d2ce76..f8dabbe7a0 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -38,7 +38,15 @@ var testWork = flag.Bool("testwork", false, "if true, log and do not delete the
+ 
+ // run runs a command and calls t.Errorf if it fails.
+ func run(t *testing.T, msg string, args ...string) {
++	runWithEnv(t, msg, nil, args...)
++}
++
++// runWithEnv runs a command under the given environment and calls t.Errorf if it fails.
++func runWithEnv(t *testing.T, msg string, env []string, args ...string) {
+ 	c := exec.Command(args[0], args[1:]...)
++	if len(env) != 0 {
++		c.Env = append(os.Environ(), env...)
++	}
+ 	if output, err := c.CombinedOutput(); err != nil {
+ 		t.Errorf("executing %s (%s) failed %s:\n%s", strings.Join(args, " "), msg, err, output)
+ 	}
+@@ -1034,3 +1042,11 @@ func TestGeneratedHash(t *testing.T) {
+ func TestPackageOrder(t *testing.T) {
+ 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue39777/a", "./issue39777/b")
+ }
++
++// Test that GC data are generated correctly by the linker when it needs a type defined in
++// a shared library. See issue 39927.
++func TestGCData(t *testing.T) {
++	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./gcdata/p")
++	goCmd(t, "build", "-linkshared", "./gcdata/main")
++	runWithEnv(t, "running gcdata/main", []string{"GODEBUG=clobberfree=1"}, "./main")
++}
+diff --git a/misc/cgo/testshared/testdata/gcdata/main/main.go b/misc/cgo/testshared/testdata/gcdata/main/main.go
+new file mode 100644
+index 0000000000..394862fd94
+--- /dev/null
++++ b/misc/cgo/testshared/testdata/gcdata/main/main.go
+@@ -0,0 +1,37 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that GC data is generated correctly for global
++// variables with types defined in a shared library.
++// See issue 39927.
++
++// This test run under GODEBUG=clobberfree=1. The check
++// *x[i] == 12345 depends on this debug mode to clobber
++// the value if the object is freed prematurely.
++
++package main
++
++import (
++	"fmt"
++	"runtime"
++	"testshared/gcdata/p"
++)
++
++var x p.T
++
++func main() {
++	for i := range x {
++		x[i] = new(int)
++		*x[i] = 12345
++	}
++	runtime.GC()
++	runtime.GC()
++	runtime.GC()
++	for i := range x {
++		if *x[i] != 12345 {
++			fmt.Printf("x[%d] == %d, want 12345\n", i, *x[i])
++			panic("FAIL")
++		}
++	}
++}
+diff --git a/misc/cgo/testshared/testdata/gcdata/p/p.go b/misc/cgo/testshared/testdata/gcdata/p/p.go
+new file mode 100644
+index 0000000000..1fee75429e
+--- /dev/null
++++ b/misc/cgo/testshared/testdata/gcdata/p/p.go
+@@ -0,0 +1,7 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T [10]*int
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index e9c87efe37..21bcc3a726 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -10,6 +10,7 @@ import (
+ 	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
+ 	"debug/elf"
++	"log"
+ )
+ 
+ // Decoding the type.* symbols.	 This has to be in sync with
+@@ -229,8 +230,15 @@ func decodetypeGcmask(ctxt *Link, s loader.Sym) []byte {
+ 		ptrdata := decodetypePtrdata(ctxt.Arch, symData)
+ 		sect := findShlibSection(ctxt, ctxt.loader.SymPkg(s), addr)
+ 		if sect != nil {
+-			r := make([]byte, ptrdata/int64(ctxt.Arch.PtrSize))
+-			sect.ReadAt(r, int64(addr-sect.Addr))
++			bits := ptrdata / int64(ctxt.Arch.PtrSize)
++			r := make([]byte, (bits+7)/8)
++			// ldshlibsyms avoids closing the ELF file so sect.ReadAt works.
++			// If we remove this read (and the ones in decodetypeGcprog), we
++			// can close the file.
++			_, err := sect.ReadAt(r, int64(addr-sect.Addr))
++			if err != nil {
++				log.Fatal(err)
++			}
+ 			return r
+ 		}
+ 		Exitf("cannot find gcmask for %s", ctxt.loader.SymName(s))
+@@ -251,9 +259,15 @@ func decodetypeGcprog(ctxt *Link, s loader.Sym) []byte {
+ 			// A gcprog is a 4-byte uint32 indicating length, followed by
+ 			// the actual program.
+ 			progsize := make([]byte, 4)
+-			sect.ReadAt(progsize, int64(addr-sect.Addr))
++			_, err := sect.ReadAt(progsize, int64(addr-sect.Addr))
++			if err != nil {
++				log.Fatal(err)
++			}
+ 			progbytes := make([]byte, ctxt.Arch.ByteOrder.Uint32(progsize))
+-			sect.ReadAt(progbytes, int64(addr-sect.Addr+4))
++			_, err = sect.ReadAt(progbytes, int64(addr-sect.Addr+4))
++			if err != nil {
++				log.Fatal(err)
++			}
+ 			return append(progsize, progbytes...)
+ 		}
+ 		Exitf("cannot find gcmask for %s", ctxt.loader.SymName(s))
+@@ -268,7 +282,7 @@ func decodetypeGcprog(ctxt *Link, s loader.Sym) []byte {
+ func findShlibSection(ctxt *Link, path string, addr uint64) *elf.Section {
+ 	for _, shlib := range ctxt.Shlibs {
+ 		if shlib.Path == path {
+-			for _, sect := range shlib.File.Sections {
++			for _, sect := range shlib.File.Sections[1:] { // skip the NULL section
+ 				if sect.Addr <= addr && addr <= sect.Addr+sect.Size {
+ 					return sect
+ 				}
+@@ -279,8 +293,5 @@ func findShlibSection(ctxt *Link, path string, addr uint64) *elf.Section {
+ }
+ 
+ func decodetypeGcprogShlib(ctxt *Link, data []byte) uint64 {
+-	if ctxt.Arch.Family == sys.ARM64 {
+-		return 0
+-	}
+ 	return decodeInuxi(ctxt.Arch, data[2*int32(ctxt.Arch.PtrSize)+8+1*int32(ctxt.Arch.PtrSize):], ctxt.Arch.PtrSize)
+ }
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 7b6fd9594d..b0a9613e4f 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2126,7 +2126,9 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 		Errorf(nil, "cannot open shared library: %s", libpath)
+ 		return
+ 	}
+-	defer f.Close()
++	// Keep the file open as decodetypeGcprog needs to read from it.
++	// TODO: fix. Maybe mmap the file.
++	//defer f.Close()
+ 
+ 	hash, err := readnote(f, ELF_NOTE_GO_NAME, ELF_NOTE_GOABIHASH_TAG)
+ 	if err != nil {

@@ -11,7 +11,41 @@ Date:   Fri Nov 16 16:51:33 2018 -0500
     Run-TryBot: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/vendor/README | 4 ++++
  src/cmd/vet/main.go   | 2 --
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/vendor/README b/src/cmd/vendor/README
+index 740905c652..7eb97a1b9b 100644
+--- a/src/cmd/vendor/README
++++ b/src/cmd/vendor/README
+@@ -19,3 +19,7 @@ make govendor work and will create the .cache folder in
+ $GOROOT as a side-effect. Please make sure to delete
+ the directory and not to include the directory in the
+ commit by accident.
++
++The vendored copy of golang.org/x/tools is maintained by
++running the update-xtools.sh script in this directory,
++not by govendor.
+\ No newline at end of file
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index 16ce61980f..3ea781a7d4 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -20,7 +20,6 @@ import (
+ 	"golang.org/x/tools/go/analysis/passes/loopclosure"
+ 	"golang.org/x/tools/go/analysis/passes/lostcancel"
+ 	"golang.org/x/tools/go/analysis/passes/nilfunc"
+-	"golang.org/x/tools/go/analysis/passes/pkgfact"
+ 	"golang.org/x/tools/go/analysis/passes/printf"
+ 	"golang.org/x/tools/go/analysis/passes/shift"
+ 	"golang.org/x/tools/go/analysis/passes/stdmethods"
+@@ -61,7 +60,6 @@ func main() {
+ 		loopclosure.Analyzer,
+ 		lostcancel.Analyzer,
+ 		nilfunc.Analyzer,
+-		pkgfact.Analyzer,
+ 		printf.Analyzer,
+ 		shift.Analyzer,
+ 		stdmethods.Analyzer,

@@ -14,10 +14,1947 @@ Date:   Mon Mar 30 17:13:11 2009 -0700
     R=r
     OCL=26915
     CL=26915
-
+---
  usr/gri/pretty/Makefile      |    6 +-
  usr/gri/pretty/astprinter.go | 1369 ++++++++++++++++++++++++++++++++++++++++++
  usr/gri/pretty/docprinter.go |  167 ++++++
  usr/gri/pretty/gds.go        |   33 +-
  usr/gri/pretty/parser.go     |  158 ++---
  5 files changed, 1660 insertions(+), 73 deletions(-)
+
+diff --git a/usr/gri/pretty/Makefile b/usr/gri/pretty/Makefile
+index 5efec72f77..71754ba215 100644
+--- a/usr/gri/pretty/Makefile
++++ b/usr/gri/pretty/Makefile
+@@ -28,7 +28,7 @@ install: pretty
+ clean:
+ 	rm -f pretty *.6 *.a *~
+ 
+-gds.6:	 utils.6 platform.6 compilation.6 printer.6
++gds.6:	 utils.6 platform.6 compilation.6 printer.6 docprinter.6 astprinter.6
+ 
+ pretty.6:	 platform.6 printer.6 compilation.6
+ 
+@@ -46,5 +46,9 @@ platform.6:	 utils.6
+ 
+ printer.6:	 utils.6 ast.6 symboltable.6 template.6
+ 
++astprinter.6:	 utils.6 ast.6 symboltable.6 template.6
++
++docprinter.6:	ast.6 astprinter.6 template.6
++
+ %.6:	%.go
+ 	$(G) $(F) $<
+diff --git a/usr/gri/pretty/astprinter.go b/usr/gri/pretty/astprinter.go
+new file mode 100644
+index 0000000000..981b70efe4
+--- /dev/null
++++ b/usr/gri/pretty/astprinter.go
+@@ -0,0 +1,1369 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package astPrinter
++
++import (
++	"os";
++	"io";
++	"vector";
++	"tabwriter";
++	"flag";
++	"fmt";
++	"strings";
++	"utf8";
++	"unicode";
++
++	"utils";
++	"token";
++	"ast";
++	"template";
++	"symboltable";
++)
++
++var (
++	debug = flag.Bool("ast_debug", false, "print debugging information");
++
++	// layout control
++	newlines = flag.Bool("ast_newlines", false, "respect newlines in source");
++	maxnewlines = flag.Int("ast_maxnewlines", 3, "max. number of consecutive newlines");
++
++	// formatting control
++	comments = flag.Bool("ast_comments", true, "print comments");
++	optsemicolons = flag.Bool("ast_optsemicolons", false, "print optional semicolons");
++)
++
++
++// When we don't have a position use nopos.
++// TODO make sure we always have a position.
++var nopos token.Position;
++
++
++// ----------------------------------------------------------------------------
++// Elementary support
++
++func unimplemented() {
++	panic("unimplemented");
++}
++
++
++func unreachable() {
++	panic("unreachable");
++}
++
++
++func assert(pred bool) {
++	if !pred {
++		panic("assertion failed");
++	}
++}
++
++
++// TODO this should be an AST method
++func isExported(name *ast.Ident) bool {
++	ch, len := utf8.DecodeRune(name.Lit);
++	return unicode.IsUpper(ch);
++}
++
++
++func hasExportedNames(names []*ast.Ident) bool {
++	for i, name := range names {
++		if isExported(name) {
++			return true;
++		}
++	}
++	return false;
++}
++
++
++// ----------------------------------------------------------------------------
++// ASTPrinter
++
++// Separators - printed in a delayed fashion, depending on context.
++const (
++	none = iota;
++	blank;
++	tab;
++	comma;
++	semicolon;
++)
++
++
++// Semantic states - control formatting.
++const (
++	normal = iota;
++	opening_scope;  // controls indentation, scope level
++	closing_scope;  // controls indentation, scope level
++	inside_list;  // controls extra line breaks
++)
++
++
++type Printer struct {
++	// output
++	text io.Write;
++	
++	// formatting control
++	html bool;
++	full bool;  // if false, print interface only; print all otherwise
++
++	// comments
++	comments []*ast.Comment;  // the list of unassociated comments 
++	cindex int;  // the current comment group index
++	cpos token.Position;  // the position of the next comment group
++
++	// current state
++	lastpos token.Position;  // position after last string
++	level int;  // scope level
++	indentation int;  // indentation level (may be different from scope level)
++
++	// formatting parameters
++	opt_semi bool;  // // true if semicolon separator is optional in statement list
++	separator int;  // pending separator
++	newlines int;  // pending newlines
++
++	// semantic state
++	state int;  // current semantic state
++	laststate int;  // state for last string
++	
++	// expression precedence
++	prec int;
++}
++
++
++func (P *Printer) hasComment(pos token.Position) bool {
++	return *comments && P.cpos.Offset < pos.Offset;
++}
++
++
++func (P *Printer) nextComments() {
++	P.cindex++;
++	if P.comments != nil && P.cindex < len(P.comments) && P.comments[P.cindex] != nil {
++		P.cpos = P.comments[P.cindex].Pos();
++	} else {
++		P.cpos = token.Position{1<<30, 1<<30, 1};  // infinite
++	}
++}
++
++
++func (P *Printer) Init(text io.Write, comments []*ast.Comment, html bool) {
++	// writers
++	P.text = text;
++	
++	// formatting control
++	P.html = html;
++
++	// comments
++	P.comments = comments;
++	P.cindex = -1;
++	P.nextComments();
++
++	// formatting parameters & semantic state initialized correctly by default
++	
++	// expression precedence
++	P.prec = token.LowestPrec;
++}
++
++
++// ----------------------------------------------------------------------------
++// Printing support
++
++func (P *Printer) htmlEscape(s string) string {
++	if P.html {
++		var esc string;
++		for i := 0; i < len(s); i++ {
++			switch s[i] {
++			case '<': esc = "&lt;";
++			case '&': esc = "&amp;";
++			default: continue;
++			}
++			return s[0 : i] + esc + P.htmlEscape(s[i+1 : len(s)]);
++		}
++	}
++	return s;
++}
++
++
++// Reduce contiguous sequences of '\t' in a string to a single '\t'.
++func untabify(s string) string {
++	for i := 0; i < len(s); i++ {
++		if s[i] == '\t' {
++			j := i;
++			for j < len(s) && s[j] == '\t' {
++				j++;
++			}
++			if j-i > 1 {  // more then one tab
++				return s[0 : i+1] + untabify(s[j : len(s)]);
++			}
++		}
++	}
++	return s;
++}
++
++
++func (P *Printer) Printf(format string, s ...) {
++	n, err := fmt.Fprintf(P.text, format, s);
++	if err != nil {
++		panic("print error - exiting");
++	}
++}
++
++
++func (P *Printer) newline(n int) {
++	if n > 0 {
++		m := int(*maxnewlines);
++		if n > m {
++			n = m;
++		}
++		for n > 0 {
++			P.Printf("\n");
++			n--;
++		}
++		for i := P.indentation; i > 0; i-- {
++			P.Printf("\t");
++		}
++	}
++}
++
++
++func (P *Printer) TaggedString(pos token.Position, tag, s, endtag string) {
++	// use estimate for pos if we don't have one
++	offs := pos.Offset;
++	if offs == 0 {
++		offs = P.lastpos.Offset;
++	}
++
++	// --------------------------------
++	// print pending separator, if any
++	// - keep track of white space printed for better comment formatting
++	// TODO print white space separators after potential comments and newlines
++	// (currently, we may get trailing white space before a newline)
++	trailing_char := 0;
++	switch P.separator {
++	case none:	// nothing to do
++	case blank:
++		P.Printf(" ");
++		trailing_char = ' ';
++	case tab:
++		P.Printf("\t");
++		trailing_char = '\t';
++	case comma:
++		P.Printf(",");
++		if P.newlines == 0 {
++			P.Printf(" ");
++			trailing_char = ' ';
++		}
++	case semicolon:
++		if P.level > 0 {	// no semicolons at level 0
++			P.Printf(";");
++			if P.newlines == 0 {
++				P.Printf(" ");
++				trailing_char = ' ';
++			}
++		}
++	default:	panic("UNREACHABLE");
++	}
++	P.separator = none;
++
++	// --------------------------------
++	// interleave comments, if any
++	nlcount := 0;
++	if P.full {
++		for ; P.hasComment(pos); P.nextComments() {
++			// we have a comment group that comes before the string
++			comment := P.comments[P.cindex];
++			ctext := string(comment.Text);  // TODO get rid of string conversion here
++
++			// classify comment (len(ctext) >= 2)
++			//-style comment
++			if nlcount > 0 || P.cpos.Offset == 0 {
++				// only white space before comment on this line
++				// or file starts with comment
++				// - indent
++				if !*newlines && P.cpos.Offset != 0 {
++					nlcount = 1;
++				}
++				P.newline(nlcount);
++				nlcount = 0;
++
++			} else {
++				// black space before comment on this line
++				if ctext[1] == '/' {
++					//-style comment
++					// - put in next cell unless a scope was just opened
++					//   in which case we print 2 blanks (otherwise the
++					//   entire scope gets indented like the next cell)
++					if P.laststate == opening_scope {
++						switch trailing_char {
++						case ' ': P.Printf(" ");  // one space already printed
++						case '\t': // do nothing
++						default: P.Printf("  ");
++						}
++					} else {
++						if trailing_char != '\t' {
++							P.Printf("\t");
++						}
++					}
++				} else {
++					/*-style comment */
++					// - print surrounded by blanks
++					if trailing_char == 0 {
++						P.Printf(" ");
++					}
++					ctext += " ";
++				}
++			}
++
++			// print comment
++			if *debug {
++				P.Printf("[%d]", P.cpos.Offset);
++			}
++			// calling untabify increases the change for idempotent output
++			// since tabs in comments are also interpreted by tabwriter
++			P.Printf("%s", P.htmlEscape(untabify(ctext)));
++		}
++		// At this point we may have nlcount > 0: In this case we found newlines
++		// that were not followed by a comment. They are recognized (or not) when
++		// printing newlines below.
++	}
++
++	// --------------------------------
++	// interpret state
++	// (any pending separator or comment must be printed in previous state)
++	switch P.state {
++	case normal:
++	case opening_scope:
++	case closing_scope:
++		P.indentation--;
++	case inside_list:
++	default:
++		panic("UNREACHABLE");
++	}
++
++	// --------------------------------
++	// print pending newlines
++	if *newlines && (P.newlines > 0 || P.state == inside_list) && nlcount > P.newlines {
++		// Respect additional newlines in the source, but only if we
++		// enabled this feature (newlines.BVal()) and we are expecting
++		// newlines (P.newlines > 0 || P.state == inside_list).
++		// Otherwise - because we don't have all token positions - we
++		// get funny formatting.
++		P.newlines = nlcount;
++	}
++	nlcount = 0;
++	P.newline(P.newlines);
++	P.newlines = 0;
++
++	// --------------------------------
++	// print string
++	if *debug {
++		P.Printf("[%d]", pos);
++	}
++	P.Printf("%s%s%s", tag, P.htmlEscape(s), endtag);
++
++	// --------------------------------
++	// interpret state
++	switch P.state {
++	case normal:
++	case opening_scope:
++		P.level++;
++		P.indentation++;
++	case closing_scope:
++		P.level--;
++	case inside_list:
++	default:
++		panic("UNREACHABLE");
++	}
++	P.laststate = P.state;
++	P.state = none;
++
++	// --------------------------------
++	// done
++	P.opt_semi = false;
++	pos.Offset += len(s);  // rough estimate
++	pos.Column += len(s);  // rough estimate
++	P.lastpos = pos;
++}
++
++
++func (P *Printer) String(pos token.Position, s string) {
++	P.TaggedString(pos, "", s, "");
++}
++
++
++func (P *Printer) Token(pos token.Position, tok token.Token) {
++	P.String(pos, tok.String());
++	//P.TaggedString(pos, "<b>", tok.String(), "</b>");
++}
++
++
++func (P *Printer) Error(pos token.Position, tok token.Token, msg string) {
++	fmt.Printf("\ninternal printing error: pos = %d, tok = %s, %s\n", pos.Offset, tok.String(), msg);
++	panic();
++}
++
++
++// ----------------------------------------------------------------------------
++// HTML support
++
++func (P *Printer) HtmlIdentifier(x *ast.Ident) {
++	P.String(x.Pos(), string(x.Lit));
++	/*
++	obj := x.Obj;
++	if P.html && obj.Kind != symbolTable.NONE {
++		// depending on whether we have a declaration or use, generate different html
++		// - no need to htmlEscape ident
++		id := utils.IntToString(obj.Id, 10);
++		if x.Loc_ == obj.Pos {
++			// probably the declaration of x
++			P.TaggedString(x.Loc_, `<a name="id` + id + `">`, obj.Ident, `</a>`);
++		} else {
++			// probably not the declaration of x
++			P.TaggedString(x.Loc_, `<a href="#id` + id + `">`, obj.Ident, `</a>`);
++		}
++	} else {
++		P.String(x.Loc_, obj.Ident);
++	}
++	*/
++}
++
++
++func (P *Printer) HtmlPackageName(pos token.Position, name string) {
++	if P.html {
++		sname := name[1 : len(name)-1];  // strip quotes  TODO do this elsewhere eventually
++		// TODO CAPITAL HACK BELOW FIX THIS
++		P.TaggedString(pos, `"<a href="/src/lib/` + sname + `.go">`, sname, `</a>"`);
++	} else {
++		P.String(pos, name);
++	}
++}
++
++
++// ----------------------------------------------------------------------------
++// Support
++
++func (P *Printer) Expr(x ast.Expr)
++
++func (P *Printer) Idents(list []*ast.Ident, full bool) int {
++	n := 0;
++	for i, x := range list {
++		if n > 0 {
++			P.Token(nopos, token.COMMA);
++			P.separator = blank;
++			P.state = inside_list;
++		}
++		if full || isExported(x) {
++			P.Expr(x);
++			n++;
++		}
++	}
++	return n;
++}
++
++
++func (P *Printer) Exprs(list []ast.Expr) {
++	for i, x := range list {
++		if i > 0 {
++			P.Token(nopos, token.COMMA);
++			P.separator = blank;
++			P.state = inside_list;
++		}
++		P.Expr(x);
++	}
++}
++
++
++func (P *Printer) Parameters(list []*ast.Field) {
++	P.Token(nopos, token.LPAREN);
++	if len(list) > 0 {
++		for i, par := range list {
++			if i > 0 {
++				P.separator = comma;
++			}
++			n := P.Idents(par.Names, true);
++			if n > 0 {
++				P.separator = blank
++			};
++			P.Expr(par.Type);
++		}
++	}
++	P.Token(nopos, token.RPAREN);
++}
++
++
++// Returns the separator (semicolon or none) required if
++// the type is terminating a declaration or statement.
++func (P *Printer) Signature(params, result []*ast.Field) {
++	P.Parameters(params);
++	if result != nil {
++		P.separator = blank;
++
++		if len(result) == 1 && result[0].Names == nil {
++			// single anonymous result
++			// => no parentheses needed unless it's a function type
++			fld := result[0];
++			if dummy, is_ftyp := fld.Type.(*ast.FunctionType); !is_ftyp {
++				P.Expr(fld.Type);
++				return;
++			}
++		}
++		
++		P.Parameters(result);
++	}
++}
++
++
++func (P *Printer) Fields(lbrace token.Position, list []*ast.Field, rbrace token.Position, is_interface bool) {
++	P.state = opening_scope;
++	P.separator = blank;
++	P.Token(lbrace, token.LBRACE);
++
++	if len(list) > 0 {
++		P.newlines = 1;
++		for i, fld := range list {
++			if i > 0 {
++				P.separator = semicolon;
++				P.newlines = 1;
++			}
++			n := P.Idents(fld.Names, P.full);
++			if n > 0 {
++				// at least one identifier
++				P.separator = tab
++			};
++			if n > 0 || len(fld.Names) == 0 {
++				// at least one identifier or anonymous field
++				if is_interface {
++					if ftyp, is_ftyp := fld.Type.(*ast.FunctionType); is_ftyp {
++						P.Signature(ftyp.Params, ftyp.Results);
++					} else {
++						P.Expr(fld.Type);
++					}
++				} else {
++					P.Expr(fld.Type);
++					if fld.Tag != nil {
++						P.separator = tab;
++						P.Expr(&ast.StringList{fld.Tag});
++					}
++				}
++			}
++		}
++		P.newlines = 1;
++	}
++
++	P.state = closing_scope;
++	P.Token(rbrace, token.RBRACE);
++	P.opt_semi = true;
++}
++
++
++// ----------------------------------------------------------------------------
++// Expressions
++
++func (P *Printer) Expr1(x ast.Expr, prec1 int)
++func (P *Printer) Stmt(s ast.Stmt)
++
++
++func (P *Printer) DoBadExpr(x *ast.BadExpr) {
++	P.String(nopos, "BadExpr");
++}
++
++
++func (P *Printer) DoIdent(x *ast.Ident) {
++	P.HtmlIdentifier(x);
++}
++
++
++func (P *Printer) DoBinaryExpr(x *ast.BinaryExpr) {
++	prec := x.Op.Precedence();
++	if prec < P.prec {
++		P.Token(nopos, token.LPAREN);
++	}
++	P.Expr1(x.X, prec);
++	P.separator = blank;
++	P.Token(x.OpPos, x.Op);
++	P.separator = blank;
++	P.Expr1(x.Y, prec);
++	if prec < P.prec {
++		P.Token(nopos, token.RPAREN);
++	}
++}
++
++
++func (P *Printer) DoKeyValueExpr(x *ast.KeyValueExpr) {
++	P.Expr(x.Key);
++	P.separator = blank;
++	P.Token(x.Colon, token.COLON);
++	P.separator = blank;
++	P.Expr(x.Value);
++}
++
++
++func (P *Printer) DoStarExpr(x *ast.StarExpr) {
++	P.Token(x.Pos(), token.MUL);
++	P.Expr(x.X);
++}
++
++
++func (P *Printer) DoUnaryExpr(x *ast.UnaryExpr) {
++	prec := token.UnaryPrec;
++	if prec < P.prec {
++		P.Token(nopos, token.LPAREN);
++	}
++	P.Token(x.Pos(), x.Op);
++	if x.Op == token.RANGE {
++		P.separator = blank;
++	}
++	P.Expr1(x.X, prec);
++	if prec < P.prec {
++		P.Token(nopos, token.RPAREN);
++	}
++}
++
++
++func (P *Printer) DoIntLit(x *ast.IntLit) {
++	// TODO get rid of string conversion here
++	P.String(x.Pos(), string(x.Lit));
++}
++
++
++func (P *Printer) DoFloatLit(x *ast.FloatLit) {
++	// TODO get rid of string conversion here
++	P.String(x.Pos(), string(x.Lit));
++}
++
++
++func (P *Printer) DoCharLit(x *ast.CharLit) {
++	// TODO get rid of string conversion here
++	P.String(x.Pos(), string(x.Lit));
++}
++
++
++func (P *Printer) DoStringLit(x *ast.StringLit) {
++	// TODO get rid of string conversion here
++	P.String(x.Pos(), string(x.Lit));
++}
++
++
++func (P *Printer) DoStringList(x *ast.StringList) {
++	for i, x := range x.Strings {
++		if i > 0 {
++			P.separator = blank;
++		}
++		P.DoStringLit(x);
++	}
++}
++
++
++func (P *Printer) DoFunctionType(x *ast.FunctionType)
++
++func (P *Printer) DoFunctionLit(x *ast.FunctionLit) {
++	P.DoFunctionType(x.Type);
++	P.separator = blank;
++	P.Stmt(x.Body);
++	P.newlines = 0;
++}
++
++
++func (P *Printer) DoParenExpr(x *ast.ParenExpr) {
++	P.Token(x.Pos(), token.LPAREN);
++	P.Expr(x.X);
++	P.Token(x.Rparen, token.RPAREN);
++}
++
++
++func (P *Printer) DoSelectorExpr(x *ast.SelectorExpr) {
++	P.Expr1(x.X, token.HighestPrec);
++	P.Token(nopos, token.PERIOD);
++	P.Expr1(x.Sel, token.HighestPrec);
++}
++
++
++func (P *Printer) DoTypeAssertExpr(x *ast.TypeAssertExpr) {
++	P.Expr1(x.X, token.HighestPrec);
++	P.Token(nopos, token.PERIOD);
++	P.Token(nopos, token.LPAREN);
++	P.Expr(x.Type);
++	P.Token(nopos, token.RPAREN);
++}
++
++
++func (P *Printer) DoIndexExpr(x *ast.IndexExpr) {
++	P.Expr1(x.X, token.HighestPrec);
++	P.Token(nopos, token.LBRACK);
++	P.Expr(x.Index);
++	P.Token(nopos, token.RBRACK);
++}
++
++
++func (P *Printer) DoSliceExpr(x *ast.SliceExpr) {
++	P.Expr1(x.X, token.HighestPrec);
++	P.Token(nopos, token.LBRACK);
++	P.Expr(x.Begin);
++	P.Token(nopos, token.COLON);
++	P.Expr(x.End);
++	P.Token(nopos, token.RBRACK);
++}
++
++
++func (P *Printer) DoCallExpr(x *ast.CallExpr) {
++	P.Expr1(x.Fun, token.HighestPrec);
++	P.Token(x.Lparen, token.LPAREN);
++	P.Exprs(x.Args);
++	P.Token(x.Rparen, token.RPAREN);
++}
++
++
++func (P *Printer) DoCompositeLit(x *ast.CompositeLit) {
++	P.Expr1(x.Type, token.HighestPrec);
++	P.Token(x.Lbrace, token.LBRACE);
++	P.Exprs(x.Elts);
++	P.Token(x.Rbrace, token.RBRACE);
++}
++
++
++func (P *Printer) DoEllipsis(x *ast.Ellipsis) {
++	P.Token(x.Pos(), token.ELLIPSIS);
++}
++
++
++func (P *Printer) DoArrayType(x *ast.ArrayType) {
++	P.Token(x.Pos(), token.LBRACK);
++	P.Expr(x.Len);
++	P.Token(nopos, token.RBRACK);
++	P.Expr(x.Elt);
++}
++
++
++func (P *Printer) DoSliceType(x *ast.SliceType) {
++	P.Token(x.Pos(), token.LBRACK);
++	P.Token(nopos, token.RBRACK);
++	P.Expr(x.Elt);
++}
++
++
++func (P *Printer) DoStructType(x *ast.StructType) {
++	P.Token(x.Pos(), token.STRUCT);
++	if x.Fields != nil {
++		P.Fields(x.Lbrace, x.Fields, x.Rbrace, false);
++	}
++}
++
++
++func (P *Printer) DoFunctionType(x *ast.FunctionType) {
++	P.Token(x.Pos(), token.FUNC);
++	P.Signature(x.Params, x.Results);
++}
++
++
++func (P *Printer) DoInterfaceType(x *ast.InterfaceType) {
++	P.Token(x.Pos(), token.INTERFACE);
++	if x.Methods != nil {
++		P.Fields(x.Lbrace, x.Methods, x.Rbrace, true);
++	}
++}
++
++
++func (P *Printer) DoMapType(x *ast.MapType) {
++	P.Token(x.Pos(), token.MAP);
++	P.separator = blank;
++	P.Token(nopos, token.LBRACK);
++	P.Expr(x.Key);
++	P.Token(nopos, token.RBRACK);
++	P.Expr(x.Value);
++}
++
++
++func (P *Printer) DoChannelType(x *ast.ChannelType) {
++	switch x.Dir {
++	case ast.SEND | ast.RECV:
++		P.Token(x.Pos(), token.CHAN);
++	case ast.RECV:
++		P.Token(x.Pos(), token.ARROW);
++		P.Token(nopos, token.CHAN);
++	case ast.SEND:
++		P.Token(x.Pos(), token.CHAN);
++		P.separator = blank;
++		P.Token(nopos, token.ARROW);
++	}
++	P.separator = blank;
++	P.Expr(x.Value);
++}
++
++
++func (P *Printer) Expr1(x ast.Expr, prec1 int) {
++	if x == nil {
++		return;  // empty expression list
++	}
++
++	saved_prec := P.prec;
++	P.prec = prec1;
++	x.Visit(P);
++	P.prec = saved_prec;
++}
++
++
++func (P *Printer) Expr(x ast.Expr) {
++	P.Expr1(x, token.LowestPrec);
++}
++
++
++// ----------------------------------------------------------------------------
++// Statements
++
++func (P *Printer) Stmt(s ast.Stmt) {
++	s.Visit(P);
++}
++
++
++func (P *Printer) DoBadStmt(s *ast.BadStmt) {
++	panic();
++}
++
++
++func (P *Printer) Decl(d ast.Decl);
++
++func (P *Printer) DoDeclStmt(s *ast.DeclStmt) {
++	P.Decl(s.Decl);
++}
++
++
++func (P *Printer) DoEmptyStmt(s *ast.EmptyStmt) {
++	P.String(s.Pos(), "");
++}
++
++
++func (P *Printer) DoLabeledStmt(s *ast.LabeledStmt) {
++	P.indentation--;
++	P.Expr(s.Label);
++	P.Token(nopos, token.COLON);
++	P.indentation++;
++	// TODO be more clever if s.Stmt is a labeled stat as well
++	P.separator = tab;
++	P.Stmt(s.Stmt);
++}
++
++
++func (P *Printer) DoExprStmt(s *ast.ExprStmt) {
++	P.Expr(s.X);
++}
++
++
++func (P *Printer) DoIncDecStmt(s *ast.IncDecStmt) {
++	P.Expr(s.X);
++	P.Token(nopos, s.Tok);
++}
++
++
++func (P *Printer) DoAssignStmt(s *ast.AssignStmt) {
++	P.Exprs(s.Lhs);
++	P.separator = blank;
++	P.Token(s.TokPos, s.Tok);
++	P.separator = blank;
++	P.Exprs(s.Rhs);
++}
++
++
++func (P *Printer) DoGoStmt(s *ast.GoStmt) {
++	P.Token(s.Pos(), token.GO);
++	P.separator = blank;
++	P.Expr(s.Call);
++}
++
++
++func (P *Printer) DoDeferStmt(s *ast.DeferStmt) {
++	P.Token(s.Pos(), token.DEFER);
++	P.separator = blank;
++	P.Expr(s.Call);
++}
++
++
++func (P *Printer) DoReturnStmt(s *ast.ReturnStmt) {
++	P.Token(s.Pos(), token.RETURN);
++	P.separator = blank;
++	P.Exprs(s.Results);
++}
++
++
++func (P *Printer) DoBranchStmt(s *ast.BranchStmt) {
++	P.Token(s.Pos(), s.Tok);
++	if s.Label != nil {
++		P.separator = blank;
++		P.Expr(s.Label);
++	}
++}
++
++
++func (P *Printer) StatementList(list []ast.Stmt) {
++	if list != nil {
++		for i, s := range list {
++			if i == 0 {
++				P.newlines = 1;
++			} else {  // i > 0
++				if !P.opt_semi || *optsemicolons {
++					// semicolon is required
++					P.separator = semicolon;
++				}
++			}
++			P.Stmt(s);
++			P.newlines = 1;
++			P.state = inside_list;
++		}
++	}
++}
++
++
++/*
++func (P *Printer) Block(list []ast.Stmt, indent bool) {
++	P.state = opening_scope;
++	P.Token(b.Pos_, b.Tok);
++	if !indent {
++		P.indentation--;
++	}
++	P.StatementList(b.List);
++	if !indent {
++		P.indentation++;
++	}
++	if !*optsemicolons {
++		P.separator = none;
++	}
++	P.state = closing_scope;
++	if b.Tok == token.LBRACE {
++		P.Token(b.Rbrace, token.RBRACE);
++		P.opt_semi = true;
++	} else {
++		P.String(nopos, "");  // process closing_scope state transition!
++	}
++}
++*/
++
++
++func (P *Printer) DoBlockStmt(s *ast.BlockStmt) {
++	P.state = opening_scope;
++	P.Token(s.Pos(), token.LBRACE);
++	P.StatementList(s.List);
++	if !*optsemicolons {
++		P.separator = none;
++	}
++	P.state = closing_scope;
++	P.Token(s.Rbrace, token.RBRACE);
++	P.opt_semi = true;
++}
++
++
++func (P *Printer) ControlClause(isForStmt bool, init ast.Stmt, expr ast.Expr, post ast.Stmt) {
++	P.separator = blank;
++	if init == nil && post == nil {
++		// no semicolons required
++		if expr != nil {
++			P.Expr(expr);
++		}
++	} else {
++		// all semicolons required
++		// (they are not separators, print them explicitly)
++		if init != nil {
++			P.Stmt(init);
++			P.separator = none;
++		}
++		P.Token(nopos, token.SEMICOLON);
++		P.separator = blank;
++		if expr != nil {
++			P.Expr(expr);
++			P.separator = none;
++		}
++		if isForStmt {
++			P.Token(nopos, token.SEMICOLON);
++			P.separator = blank;
++			if post != nil {
++				P.Stmt(post);
++			}
++		}
++	}
++	P.separator = blank;
++}
++
++
++func (P *Printer) DoIfStmt(s *ast.IfStmt) {
++	P.Token(s.Pos(), token.IF);
++	P.ControlClause(false, s.Init, s.Cond, nil);
++	P.Stmt(s.Body);
++	if s.Else != nil {
++		P.separator = blank;
++		P.Token(nopos, token.ELSE);
++		P.separator = blank;
++		P.Stmt(s.Else);
++	}
++}
++
++
++func (P *Printer) DoCaseClause(s *ast.CaseClause) {
++	if s.Values != nil {
++		P.Token(s.Pos(), token.CASE);
++		P.separator = blank;
++		P.Exprs(s.Values);
++	} else {
++		P.Token(s.Pos(), token.DEFAULT);
++	}
++	P.Token(s.Colon, token.COLON);
++	P.indentation++;
++	P.StatementList(s.Body);
++	P.indentation--;
++	P.newlines = 1;
++}
++
++
++func (P *Printer) DoSwitchStmt(s *ast.SwitchStmt) {
++	P.Token(s.Pos(), token.SWITCH);
++	P.ControlClause(false, s.Init, s.Tag, nil);
++	P.Stmt(s.Body);
++}
++
++
++func (P *Printer) DoTypeCaseClause(s *ast.TypeCaseClause) {
++	if s.Type != nil {
++		P.Token(s.Pos(), token.CASE);
++		P.separator = blank;
++		P.Expr(s.Type);
++	} else {
++		P.Token(s.Pos(), token.DEFAULT);
++	}
++	P.Token(s.Colon, token.COLON);
++	P.indentation++;
++	P.StatementList(s.Body);
++	P.indentation--;
++	P.newlines = 1;
++}
++
++
++func (P *Printer) DoTypeSwitchStmt(s *ast.TypeSwitchStmt) {
++	P.Token(s.Pos(), token.SWITCH);
++	P.separator = blank;
++	if s.Init != nil {
++		P.Stmt(s.Init);
++		P.separator = none;
++		P.Token(nopos, token.SEMICOLON);
++	}
++	P.separator = blank;
++	P.Stmt(s.Assign);
++	P.separator = blank;
++	P.Stmt(s.Body);
++}
++
++
++func (P *Printer) DoCommClause(s *ast.CommClause) {
++	if s.Rhs != nil {
++		P.Token(s.Pos(), token.CASE);
++		P.separator = blank;
++		if s.Lhs != nil {
++			P.Expr(s.Lhs);
++			P.separator = blank;
++			P.Token(nopos, s.Tok);
++			P.separator = blank;
++		}
++		P.Expr(s.Rhs);
++	} else {
++		P.Token(s.Pos(), token.DEFAULT);
++	}
++	P.Token(s.Colon, token.COLON);
++	P.indentation++;
++	P.StatementList(s.Body);
++	P.indentation--;
++	P.newlines = 1;
++}
++
++
++func (P *Printer) DoSelectStmt(s *ast.SelectStmt) {
++	P.Token(s.Pos(), token.SELECT);
++	P.separator = blank;
++	P.Stmt(s.Body);
++}
++
++
++func (P *Printer) DoForStmt(s *ast.ForStmt) {
++	P.Token(s.Pos(), token.FOR);
++	P.ControlClause(true, s.Init, s.Cond, s.Post);
++	P.Stmt(s.Body);
++}
++
++
++func (P *Printer) DoRangeStmt(s *ast.RangeStmt) {
++	P.Token(s.Pos(), token.FOR);
++	P.separator = blank;
++	P.Expr(s.Key);
++	if s.Value != nil {
++		P.Token(nopos, token.COMMA);
++		P.separator = blank;
++		P.state = inside_list;
++		P.Expr(s.Value);
++	}
++	P.separator = blank;
++	P.Token(s.TokPos, s.Tok);
++	P.separator = blank;
++	P.Token(nopos, token.RANGE);
++	P.separator = blank;
++	P.Expr(s.X);
++	P.separator = blank;
++	P.Stmt(s.Body);
++}
++
++
++// ----------------------------------------------------------------------------
++// Declarations
++
++func (P *Printer) DoBadDecl(d *ast.BadDecl) {
++	P.String(d.Pos(), "<BAD DECL>");
++}
++
++
++func (P *Printer) DoImportDecl(d *ast.ImportDecl) {
++	if d.Pos().Offset > 0 {
++		P.Token(d.Pos(), token.IMPORT);
++		P.separator = blank;
++	}
++	if d.Name != nil {
++		P.Expr(d.Name);
++	} else {
++		P.String(d.Path[0].Pos(), "");  // flush pending ';' separator/newlines
++	}
++	P.separator = tab;
++	// TODO fix for longer package names
++	if len(d.Path) > 1 {
++		panic();
++	}
++	P.HtmlPackageName(d.Path[0].Pos(), string(d.Path[0].Lit));
++	P.newlines = 2;
++}
++
++
++func (P *Printer) DoConstDecl(d *ast.ConstDecl) {
++	if d.Pos().Offset > 0 {
++		P.Token(d.Pos(), token.CONST);
++		P.separator = blank;
++	}
++	P.Idents(d.Names, P.full);
++	if d.Type != nil {
++		P.separator = blank;  // TODO switch to tab? (indentation problem with structs)
++		P.Expr(d.Type);
++	}
++	if d.Values != nil {
++		P.separator = tab;
++		P.Token(nopos, token.ASSIGN);
++		P.separator = blank;
++		P.Exprs(d.Values);
++	}
++	P.newlines = 2;
++}
++
++
++func (P *Printer) DoTypeDecl(d *ast.TypeDecl) {
++	if d.Pos().Offset > 0 {
++		P.Token(d.Pos(), token.TYPE);
++		P.separator = blank;
++	}
++	P.Expr(d.Name);
++	P.separator = blank;  // TODO switch to tab? (but indentation problem with structs)
++	P.Expr(d.Type);
++	P.newlines = 2;
++}
++
++
++func (P *Printer) DoVarDecl(d *ast.VarDecl) {
++	if d.Pos().Offset > 0 {
++		P.Token(d.Pos(), token.VAR);
++		P.separator = blank;
++	}
++	P.Idents(d.Names, P.full);
++	if d.Type != nil {
++		P.separator = blank;  // TODO switch to tab? (indentation problem with structs)
++		P.Expr(d.Type);
++		//P.separator = P.Type(d.Type);
++	}
++	if d.Values != nil {
++		P.separator = tab;
++		P.Token(nopos, token.ASSIGN);
++		P.separator = blank;
++		P.Exprs(d.Values);
++	}
++	P.newlines = 2;
++}
++
++
++func (P *Printer) DoFuncDecl(d *ast.FuncDecl) {
++	P.Token(d.Pos(), token.FUNC);
++	P.separator = blank;
++	if recv := d.Recv; recv != nil {
++		// method: print receiver
++		P.Token(nopos, token.LPAREN);
++		if len(recv.Names) > 0 {
++			P.Expr(recv.Names[0]);
++			P.separator = blank;
++		}
++		P.Expr(recv.Type);
++		P.Token(nopos, token.RPAREN);
++		P.separator = blank;
++	}
++	P.Expr(d.Name);
++	P.Signature(d.Type.Params, d.Type.Results);
++	if P.full && d.Body != nil {
++		P.separator = blank;
++		P.Stmt(d.Body);
++	}
++	P.newlines = 3;
++}
++
++
++func (P *Printer) DoDeclList(d *ast.DeclList) {
++	P.Token(d.Pos(), d.Tok);
++	P.separator = blank;
++
++	// group of parenthesized declarations
++	P.state = opening_scope;
++	P.Token(nopos, token.LPAREN);
++	if len(d.List) > 0 {
++		P.newlines = 1;
++		for i := 0; i < len(d.List); i++ {
++			if i > 0 {
++				P.separator = semicolon;
++			}
++			P.Decl(d.List[i]);
++			P.newlines = 1;
++		}
++	}
++	P.state = closing_scope;
++	P.Token(d.Rparen, token.RPAREN);
++	P.opt_semi = true;
++	P.newlines = 2;
++}
++
++
++func (P *Printer) Decl(d ast.Decl) {
++	d.Visit(P);
++}
++
++
++// ----------------------------------------------------------------------------
++// Package interface
++
++func stripWhiteSpace(s []byte) []byte {
++	i, j := 0, len(s);
++	for i < len(s) && s[i] <= ' ' {
++		i++;
++	}
++	for j > i && s[j-1] <= ' ' {
++		j--
++	}
++	return s[i : j];
++}
++
++
++func cleanComment(s []byte) []byte {
++	switch s[1] {
++	case '/': s = s[2 : len(s)-1];
++	case '*': s = s[2 : len(s)-2];
++	default : panic("illegal comment");
++	}
++	return stripWhiteSpace(s);
++}
++
++
++func (P *Printer) printComment(comment ast.Comments) {
++	in_paragraph := false;
++	for i, c := range comment {
++		s := cleanComment(c.Text);
++		if len(s) > 0 {
++			if !in_paragraph {
++				P.Printf("<p>\n");
++				in_paragraph = true;
++			}
++			P.Printf("%s\n", P.htmlEscape(untabify(string(s))));
++		} else {
++			if in_paragraph {
++				P.Printf("</p>\n");
++				in_paragraph = false;
++			}
++		}
++	}
++	if in_paragraph {
++		P.Printf("</p>\n");
++	}
++}
++
++
++func (P *Printer) Interface(p *ast.Package) {
++	P.full = false;
++	for i := 0; i < len(p.Decls); i++ {
++		switch d := p.Decls[i].(type) {
++		case *ast.ConstDecl:
++			if hasExportedNames(d.Names) {
++				P.Printf("<h2>Constants</h2>\n");
++				P.Printf("<p><pre>");
++				P.DoConstDecl(d);
++				P.String(nopos, "");
++				P.Printf("</pre></p>\n");
++				if d.Doc != nil {
++					P.printComment(d.Doc);
++				}
++			}
++
++		case *ast.TypeDecl:
++			if isExported(d.Name) {
++				P.Printf("<h2>type %s</h2>\n", d.Name.Lit);
++				P.Printf("<p><pre>");
++				P.DoTypeDecl(d);
++				P.String(nopos, "");
++				P.Printf("</pre></p>\n");
++				if d.Doc != nil {
++					P.printComment(d.Doc);
++				}
++			}
++
++		case *ast.VarDecl:
++			if hasExportedNames(d.Names) {
++				P.Printf("<h2>Variables</h2>\n");
++				P.Printf("<p><pre>");
++				P.DoVarDecl(d);
++				P.String(nopos, "");
++				P.Printf("</pre></p>\n");
++				if d.Doc != nil {
++					P.printComment(d.Doc);
++				}
++			}
++
++		case *ast.FuncDecl:
++			if isExported(d.Name) {
++				if d.Recv != nil {
++					P.Printf("<h3>func (");
++					P.Expr(d.Recv.Type);
++					P.Printf(") %s</h3>\n", d.Name.Lit);
++				} else {
++					P.Printf("<h2>func %s</h2>\n", d.Name.Lit);
++				}
++				P.Printf("<p><code>");
++				P.DoFuncDecl(d);
++				P.String(nopos, "");
++				P.Printf("</code></p>\n");
++				if d.Doc != nil {
++					P.printComment(d.Doc);
++				}
++			}
++			
++		case *ast.DeclList:
++			
++		}
++	}
++}
++
++
++// ----------------------------------------------------------------------------
++// Program
++
++func (P *Printer) Program(p *ast.Package) {
++	P.full = true;
++	P.Token(p.Pos(), token.PACKAGE);
++	P.separator = blank;
++	P.Expr(p.Name);
++	P.newlines = 1;
++	for i := 0; i < len(p.Decls); i++ {
++		P.Decl(p.Decls[i]);
++	}
++	P.newlines = 1;
++}
+diff --git a/usr/gri/pretty/docprinter.go b/usr/gri/pretty/docprinter.go
+new file mode 100644
+index 0000000000..5efef277d3
+--- /dev/null
++++ b/usr/gri/pretty/docprinter.go
+@@ -0,0 +1,167 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package docPrinter
++
++import (
++	"vector";
++	"utf8";
++	"unicode";
++	"io";
++	"fmt";
++
++	"ast";
++	"astprinter";
++	"template";
++)
++
++
++// ----------------------------------------------------------------------------
++// Elementary support
++
++// TODO this should be an AST method
++func isExported(name *ast.Ident) bool {
++	ch, len := utf8.DecodeRune(name.Lit);
++	return unicode.IsUpper(ch);
++}
++
++
++func hasExportedNames(names []*ast.Ident) bool {
++	for i, name := range names {
++		if isExported(name) {
++			return true;
++		}
++	}
++	return false;
++}
++
++
++// ----------------------------------------------------------------------------
++
++type constDoc struct {
++	cast *ast.ConstDecl;
++}
++
++
++type varDoc struct {
++	vast *ast.VarDecl;
++}
++
++
++type funcDoc struct {
++	fast *ast.FuncDecl;
++}
++
++
++type typeDoc struct {
++	tast *ast.TypeDecl;
++	methods map[string] *funcDoc;
++}
++
++
++type PackageDoc struct {
++	name string;  // package name
++	imports map[string] string;
++	consts map[string] *constDoc;
++	types map[string] *typeDoc;
++	vars map[string] *varDoc;
++	funcs map[string] *funcDoc;
++}
++
++
++// PackageDoc initializes a document to collect package documentation.
++// The package name is provided as initial argument. Use AddPackage to
++// add the AST for each source file belonging to the same package.
++//
++func (P *PackageDoc) Init(name string) {
++	P.name = name;
++	P.imports = make(map[string] string);
++	P.consts = make(map[string] *constDoc);
++	P.types = make(map[string] *typeDoc);
++	P.vars = make(map[string] *varDoc);
++	P.funcs = make(map[string] *funcDoc);
++}
++
++
++func (P *PackageDoc) addDecl(decl ast.Decl) {
++	switch d := decl.(type) {
++	case *ast.ImportDecl:
++	case *ast.ConstDecl:
++		if hasExportedNames(d.Names) {
++		}
++	case *ast.TypeDecl:
++		if isExported(d.Name) {
++		}
++	case *ast.VarDecl:
++		if hasExportedNames(d.Names) {
++		}
++	case *ast.FuncDecl:
++		if isExported(d.Name) {
++			if d.Recv != nil {
++				// method
++			} else {
++				// ordinary function
++			}
++		}
++	case *ast.DeclList:
++		for i, decl := range d.List {
++			P.addDecl(decl);
++		}
++	}
++}
++
++
++// AddPackage adds the AST of a source file belonging to the same
++// package. The package names must match. If the package was added
++// before, AddPackage is a no-op.
++//
++func (P *PackageDoc) AddPackage(pak *ast.Package) {
++	if P.name != string(pak.Name.Lit) {
++		panic("package names don't match");
++	}
++	
++	// add all declarations
++	for i, decl := range pak.Decls {
++		P.addDecl(decl);
++	}
++}
++
++
++func (P *PackageDoc) printConsts(p *astPrinter.Printer) {
++}
++
++
++func (P *PackageDoc) printTypes(p *astPrinter.Printer) {
++}
++
++
++func (P *PackageDoc) printVars(p *astPrinter.Printer) {
++}
++
++
++func (P *PackageDoc) printFuncs(p *astPrinter.Printer) {
++}
++
++
++func (P *PackageDoc) printPackage(p *astPrinter.Printer) {
++}
++
++
++// TODO make this a parameter for Init or Print?
++var templ = template.NewTemplateOrDie("template.html");
++
++func (P *PackageDoc) Print(writer io.Write) {
++	var astp astPrinter.Printer;
++	astp.Init(writer, nil, true);
++	
++	err := templ.Apply(writer, "<!--", template.Substitution {
++		"PACKAGE_NAME-->" : func() { fmt.Fprint(writer, P.name); },
++		"PACKAGE_COMMENT-->": func() { },
++		"PACKAGE_INTERFACE-->" : func() { },
++		"PACKAGE_BODY-->" : func() { },
++	});
++	if err != nil {
++		panic("print error - exiting");
++	}
++}
+diff --git a/usr/gri/pretty/gds.go b/usr/gri/pretty/gds.go
+index 0fd331b3e8..3a91a36109 100644
+--- a/usr/gri/pretty/gds.go
++++ b/usr/gri/pretty/gds.go
+@@ -22,6 +22,8 @@ import (
+ 	"platform";
+ 	"compilation";
+ 	"printer";
++	"tabwriter";
++	"docprinter";
+ )
+ 
+ 
+@@ -29,6 +31,11 @@ var (
+ 	verbose = flag.Bool("v", false, "verbose mode");
+ 	port = flag.String("port", "6060", "server port");
+ 	root = flag.String("root", Platform.GOROOT, "go root directory");
++
++	// layout control
++	tabwidth = flag.Int("gds_tabwidth", 4, "tab width");
++	usetabs = flag.Bool("gds_usetabs", false, "align with tabs instead of blanks");
++	newdoc = flag.Bool("newdoc", false, "use new document printing");  // TODO remove once this works
+ )
+ 
+ 
+@@ -159,7 +166,31 @@ func serveFile(c *http.Conn, filename string) {
+ 	}
+ 
+ 	c.SetHeader("content-type", "text/html; charset=utf-8");
+-	Printer.Print(c, prog, true);
++	
++	if *newdoc {
++		// initialize tabwriter for nicely aligned output
++		padchar := byte(' ');
++		if *usetabs {
++			padchar = '\t';
++		}
++		writer := tabwriter.NewWriter(c, *tabwidth, 1, padchar, tabwriter.FilterHTML);
++
++		// write documentation
++		var doc docPrinter.PackageDoc;
++		doc.Init(string(prog.Name.Lit));
++		doc.AddPackage(prog);
++		doc.Print(writer);
++
++		// flush any pending output
++		err := writer.Flush();
++		if err != nil {
++			panic("print error - exiting");
++		}
++	} else {
++		// TODO remove once the new document stuff works better
++		//      than the old code
++		Printer.Print(c, prog, true);
++	}
+ }
+ 
+ 
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index abc0174d3f..8e77ff7cfb 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -1045,85 +1045,101 @@ func (p *parser) parseCompositeLit(typ ast.Expr) ast.Expr {
+ }
+ 
+ 
+-// TODO apply these make functions more thoroughly
+-// (all uses of parseExpression; also should call
+-// them something better - verifyX?)
++// TODO Consider different approach to checking syntax after parsing:
++//      Provide a arguments (set of flags) to parsing functions
++//      restricting what they are syupposed to accept depending
++//      on context.
+ 
+-// makeExpr makes sure x is an expression and not a type.
+-func (p *parser) makeExpr(x ast.Expr) ast.Expr {
++// checkExpr checks that x is an expression (and not a type).
++func (p *parser) checkExpr(x ast.Expr) ast.Expr {
+ 	// TODO should provide predicate in AST nodes
+ 	switch t := x.(type) {
+-	case *ast.BadExpr: return x;
+-	case *ast.Ident: return x;
+-	case *ast.IntLit: return x;
+-	case *ast.FloatLit: return x;
+-	case *ast.CharLit: return x;
+-	case *ast.StringLit: return x;
+-	case *ast.StringList: return x;
+-	case *ast.FunctionLit: return x;
+-	case *ast.CompositeLit: return x;
+-	case *ast.ParenExpr: p.makeExpr(t.X); return x;
+-	case *ast.SelectorExpr: return x;
+-	case *ast.IndexExpr: return x;
+-	case *ast.SliceExpr: return x;
+-	case *ast.TypeAssertExpr: return x;
+-	case *ast.CallExpr: return x;
+-	case *ast.StarExpr: return x;
+-	case *ast.UnaryExpr: return x;
+-	case *ast.BinaryExpr: return x;
++	case *ast.BadExpr:
++	case *ast.Ident:
++	case *ast.IntLit:
++	case *ast.FloatLit:
++	case *ast.CharLit:
++	case *ast.StringLit:
++	case *ast.StringList:
++	case *ast.FunctionLit:
++	case *ast.CompositeLit:
++	case *ast.ParenExpr:
++	case *ast.SelectorExpr:
++	case *ast.IndexExpr:
++	case *ast.SliceExpr:
++	case *ast.TypeAssertExpr:
++	case *ast.CallExpr:
++	case *ast.StarExpr:
++	case *ast.UnaryExpr:
++		if t.Op == token.RANGE {
++			// the range operator is only allowed at the top of a for statement
++			p.error_expected(x.Pos(), "expression");
++			x = &ast.BadExpr{x.Pos()};
++		}
++	case *ast.BinaryExpr:
++	default:
++		// all other nodes are not proper expressions
++		p.error_expected(x.Pos(), "expression");
++		x = &ast.BadExpr{x.Pos()};
+ 	}
+-	
+-	// all other nodes are not proper expressions
+-	p.error_expected(x.Pos(), "expression");
+-	return &ast.BadExpr{x.Pos()};
++	return x;
+ }
+ 
+ 
+-// makeTypeName makes sure that x is type name.
+-func (p *parser) makeTypeName(x ast.Expr) ast.Expr {
++// checkTypeName checks that x is type name.
++func (p *parser) checkTypeName(x ast.Expr) ast.Expr {
+ 	// TODO should provide predicate in AST nodes
+ 	switch t := x.(type) {
+-	case *ast.BadExpr: return x;
+-	case *ast.Ident: return x;
+-	case *ast.ParenExpr: p.makeTypeName(t.X); return x;  // TODO should (TypeName) be illegal?
+-	case *ast.SelectorExpr: p.makeTypeName(t.X); return x;
++	case *ast.BadExpr:
++	case *ast.Ident:
++	case *ast.ParenExpr: p.checkTypeName(t.X);  // TODO should (TypeName) be illegal?
++	case *ast.SelectorExpr: p.checkTypeName(t.X);
++	default:
++		// all other nodes are not type names
++		p.error_expected(x.Pos(), "type name");
++		x = &ast.BadExpr{x.Pos()};
+ 	}
+-
+-	// all other nodes are not type names
+-	p.error_expected(x.Pos(), "type name");
+-	return &ast.BadExpr{x.Pos()};
++	return x;
+ }
+ 
+ 
+-// makeCompositeLitType makes sure x is a legal composite literal type.
+-func (p *parser) makeCompositeLitType(x ast.Expr) ast.Expr {
++// checkCompositeLitType checks that x is a legal composite literal type.
++func (p *parser) checkCompositeLitType(x ast.Expr) ast.Expr {
+ 	// TODO should provide predicate in AST nodes
+ 	switch t := x.(type) {
+ 	case *ast.BadExpr: return x;
+ 	case *ast.Ident: return x;
+-	case *ast.ParenExpr: p.makeCompositeLitType(t.X); return x;
+-	case *ast.SelectorExpr: p.makeTypeName(t.X); return x;
++	case *ast.ParenExpr: p.checkCompositeLitType(t.X);
++	case *ast.SelectorExpr: p.checkTypeName(t.X);
+ 	case *ast.ArrayType: return x;
+ 	case *ast.SliceType: return x;
+ 	case *ast.StructType: return x;
+ 	case *ast.MapType: return x;
++	default:
++		// all other nodes are not legal composite literal types
++		p.error_expected(x.Pos(), "composite literal type");
++		x = &ast.BadExpr{x.Pos()};
+ 	}
+-	
+-	// all other nodes are not legal composite literal types
+-	p.error_expected(x.Pos(), "composite literal type");
+-	return &ast.BadExpr{x.Pos()};
++	return x;
+ }
+ 
+ 
+-// makeExprOrType makes sure that x is an expression or a type
++// checkExprOrType checks that x is an expression or a type
+ // (and not a raw type such as [...]T).
+ //
+-func (p *parser) makeExprOrType(x ast.Expr) ast.Expr {
++func (p *parser) checkExprOrType(x ast.Expr) ast.Expr {
+ 	// TODO should provide predicate in AST nodes
+-	if t, is_array := x.(*ast.ArrayType); is_array {
++	switch t := x.(type) {
++	case *ast.UnaryExpr:
++		if t.Op == token.RANGE {
++			// the range operator is only allowed at the top of a for statement
++			p.error_expected(x.Pos(), "expression");
++			x = &ast.BadExpr{x.Pos()};
++		}
++	case *ast.ArrayType:
+ 		if len, is_ellipsis := t.Len.(*ast.Ellipsis); is_ellipsis {
+ 			p.error(len.Pos(), "expected array length, found '...'");
+-			return &ast.BadExpr{x.Pos()};
++			x = &ast.BadExpr{x.Pos()};
+ 		}
+ 	}
+ 	
+@@ -1140,17 +1156,17 @@ func (p *parser) parsePrimaryExpr() ast.Expr {
+ 	x := p.parseOperand();
+ 	for {
+ 		switch p.tok {
+-		case token.PERIOD: x = p.parseSelectorOrTypeAssertion(p.makeExpr(x));
+-		case token.LBRACK: x = p.parseIndexOrSlice(p.makeExpr(x));
+-		case token.LPAREN: x = p.parseCallOrConversion(p.makeExprOrType(x));
++		case token.PERIOD: x = p.parseSelectorOrTypeAssertion(p.checkExpr(x));
++		case token.LBRACK: x = p.parseIndexOrSlice(p.checkExpr(x));
++		case token.LPAREN: x = p.parseCallOrConversion(p.checkExprOrType(x));
+ 		case token.LBRACE:
+ 			if p.expr_lev >= 0 {
+-				x = p.parseCompositeLit(p.makeCompositeLitType(x));
++				x = p.parseCompositeLit(p.checkCompositeLitType(x));
+ 			} else {
+-				return p.makeExprOrType(x);
++				return p.checkExprOrType(x);
+ 			}
+ 		default:
+-			return p.makeExprOrType(x);
++			return p.checkExprOrType(x);
+ 		}
+ 	}
+ 
+@@ -1169,14 +1185,14 @@ func (p *parser) parseUnaryExpr() ast.Expr {
+ 		pos, op := p.pos, p.tok;
+ 		p.next();
+ 		x := p.parseUnaryExpr();
+-		return &ast.UnaryExpr{pos, op, p.makeExpr(x)};
++		return &ast.UnaryExpr{pos, op, p.checkExpr(x)};
+ 
+ 	case token.MUL:
+ 		// unary "*" expression or pointer type
+ 		pos := p.pos;
+ 		p.next();
+ 		x := p.parseUnaryExpr();
+-		return &ast.StarExpr{pos, p.makeExprOrType(x)};
++		return &ast.StarExpr{pos, p.checkExprOrType(x)};
+ 	}
+ 
+ 	return p.parsePrimaryExpr();
+@@ -1194,7 +1210,7 @@ func (p *parser) parseBinaryExpr(prec1 int) ast.Expr {
+ 			pos, op := p.pos, p.tok;
+ 			p.next();
+ 			y := p.parseBinaryExpr(prec + 1);
+-			x = &ast.BinaryExpr{p.makeExpr(x), pos, op, p.makeExpr(y)};
++			x = &ast.BinaryExpr{p.checkExpr(x), pos, op, p.checkExpr(y)};
+ 		}
+ 	}
+ 
+@@ -1215,7 +1231,7 @@ func (p *parser) parseExpression() ast.Expr {
+ // Statements
+ 
+ 
+-func (p *parser) parseSimpleStmt() ast.Stmt {
++func (p *parser) parseSimpleStmt(label_ok bool) ast.Stmt {
+ 	if p.trace {
+ 		defer un(trace(p, "SimpleStmt"));
+ 	}
+@@ -1225,8 +1241,8 @@ func (p *parser) parseSimpleStmt() ast.Stmt {
+ 	switch p.tok {
+ 	case token.COLON:
+ 		// labeled statement
+-		p.expect(token.COLON);
+-		if len(x) == 1 {
++		p.next();
++		if label_ok && len(x) == 1 {
+ 			if label, is_ident := x[0].(*ast.Ident); is_ident {
+ 				return &ast.LabeledStmt{label, p.parseStatement()};
+ 			}
+@@ -1344,12 +1360,12 @@ func (p *parser) isExpr(s ast.Stmt) bool {
+ }
+ 
+ 
+-func (p *parser) asExpr(s ast.Stmt) ast.Expr {
++func (p *parser) makeExpr(s ast.Stmt) ast.Expr {
+ 	if s == nil {
+ 		return nil;
+ 	}
+ 	if es, is_expr := s.(*ast.ExprStmt); is_expr {
+-		return es.X;
++		return p.checkExpr(es.X);
+ 	}
+ 	p.error(s.Pos(), "expected condition, found simple statement");
+ 	return &ast.BadExpr{s.Pos()};
+@@ -1362,18 +1378,18 @@ func (p *parser) parseControlClause(isForStmt bool) (s1, s2, s3 ast.Stmt) {
+ 		p.expr_lev = -1;
+ 
+ 		if p.tok != token.SEMICOLON {
+-			s1 = p.parseSimpleStmt();
++			s1 = p.parseSimpleStmt(false);
+ 		}
+ 		if p.tok == token.SEMICOLON {
+ 			p.next();
+ 			if p.tok != token.LBRACE && p.tok != token.SEMICOLON {
+-				s2 = p.parseSimpleStmt();
++				s2 = p.parseSimpleStmt(false);
+ 			}
+ 			if isForStmt {
+ 				// for statements have a 3rd section
+ 				p.expect(token.SEMICOLON);
+ 				if p.tok != token.LBRACE {
+-					s3 = p.parseSimpleStmt();
++					s3 = p.parseSimpleStmt(false);
+ 				}
+ 			}
+ 		} else {
+@@ -1401,7 +1417,7 @@ func (p *parser) parseIfStmt() *ast.IfStmt {
+ 		else_ = p.parseStatement();
+ 	}
+ 
+-	return &ast.IfStmt{pos, s1, p.asExpr(s2), body, else_};
++	return &ast.IfStmt{pos, s1, p.makeExpr(s2), body, else_};
+ }
+ 
+ 
+@@ -1467,7 +1483,7 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
+ 		rbrace := p.expect(token.RBRACE);
+ 		p.opt_semi = true;
+ 		body := &ast.BlockStmt{lbrace, makeStmtList(cases), rbrace};
+-		return &ast.SwitchStmt{pos, s1, p.asExpr(s2), body};
++		return &ast.SwitchStmt{pos, s1, p.makeExpr(s2), body};
+ 	}
+ 
+ 	// type switch
+@@ -1585,7 +1601,7 @@ func (p *parser) parseForStmt() ast.Stmt {
+ 		}
+ 	} else {
+ 		// regular for statement
+-		return &ast.ForStmt{pos, s1, p.asExpr(s2), s3, body};
++		return &ast.ForStmt{pos, s1, p.makeExpr(s2), s3, body};
+ 	}
+ 	
+ 	panic();  // unreachable
+@@ -1606,7 +1622,7 @@ func (p *parser) parseStatement() ast.Stmt {
+ 		token.IDENT, token.INT, token.FLOAT, token.CHAR, token.STRING, token.FUNC, token.LPAREN,  // operand
+ 		token.LBRACK, token.STRUCT,  // composite type
+ 		token.MUL, token.AND, token.ARROW:  // unary operators
+-		return p.parseSimpleStmt();
++		return p.parseSimpleStmt(true);
+ 	case token.GO:
+ 		return p.parseGoStmt();
+ 	case token.DEFER:
+@@ -1778,7 +1794,7 @@ func (p *parser) parseReceiver() *ast.Field {
+ 	if ptr, is_ptr := base.(*ast.StarExpr); is_ptr {
+ 		base = ptr.X;
+ 	}
+-	p.makeTypeName(base);
++	p.checkTypeName(base);
+ 
+ 	return recv;
+ }

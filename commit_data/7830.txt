@@ -11,7 +11,7 @@ Date:   Tue Mar 22 11:05:26 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4303042
-
+---
  misc/cgo/test/callback.go                      | 10 +++---
  misc/cgo/test/cgo_test.go                      |  1 -
  misc/cgo/test/issue1560.go                     |  4 +--
@@ -20,3 +20,296 @@ Date:   Tue Mar 22 11:05:26 2011 -0700
  src/pkg/go/printer/testdata/expressions.input  |  2 +-
  src/pkg/go/printer/testdata/expressions.raw    |  6 +---
  7 files changed, 28 insertions(+), 46 deletions(-)
+
+diff --git a/misc/cgo/test/callback.go b/misc/cgo/test/callback.go
+index b4e6c191a2..450a7cbf26 100644
+--- a/misc/cgo/test/callback.go
++++ b/misc/cgo/test/callback.go
+@@ -29,7 +29,7 @@ func goCallback(p unsafe.Pointer) {
+ 
+ func TestCallback(t *testing.T) {
+ 	var x = false
+-	nestedCall(func(){x = true})
++	nestedCall(func() { x = true })
+ 	if !x {
+ 		t.Fatal("nestedCall did not call func")
+ 	}
+@@ -39,7 +39,7 @@ func TestCallbackGC(t *testing.T) {
+ 	nestedCall(runtime.GC)
+ }
+ 
+-func lockedOSThread() bool  // in runtime.c
++func lockedOSThread() bool // in runtime.c
+ 
+ func TestCallbackPanic(t *testing.T) {
+ 	// Make sure panic during callback unwinds properly.
+@@ -58,7 +58,7 @@ func TestCallbackPanic(t *testing.T) {
+ 			t.Fatal("locked OS thread on exit from TestCallbackPanic")
+ 		}
+ 	}()
+-	nestedCall(func(){panic("callback panic")})
++	nestedCall(func() { panic("callback panic") })
+ 	panic("nestedCall returned")
+ }
+ 
+@@ -88,7 +88,7 @@ func TestCallbackPanicLocked(t *testing.T) {
+ 			t.Fatal("lost lock on OS thread after panic")
+ 		}
+ 	}()
+-	nestedCall(func(){panic("callback panic")})
++	nestedCall(func() { panic("callback panic") })
+ 	panic("nestedCall returned")
+ }
+ 
+@@ -125,7 +125,7 @@ func TestBlocking(t *testing.T) {
+ 			c <- <-c
+ 		}
+ 	}()
+-	nestedCall(func(){
++	nestedCall(func() {
+ 		for i := 0; i < 10; i++ {
+ 			c <- i
+ 			if j := <-c; j != i {
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 9b9f1f9d8b..967dc0e924 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -3,4 +3,3 @@ package cgotest
+ // dummy file so gotest thinks there are tests.
+ // the actual tests are in the main go files, next
+ // to the code they test.
+-
+diff --git a/misc/cgo/test/issue1560.go b/misc/cgo/test/issue1560.go
+index b5feafce5d..75d31c0359 100644
+--- a/misc/cgo/test/issue1560.go
++++ b/misc/cgo/test/issue1560.go
+@@ -28,8 +28,8 @@ func parallelSleep(n int) {
+ }
+ 
+ //export BackgroundSleep
+-func BackgroundSleep(n int){
+-	go func(){
++func BackgroundSleep(n int) {
++	go func() {
+ 		C.sleep(C.uint(n))
+ 		sleepDone <- true
+ 	}()
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 5ab9a8bb86..f55a641975 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -367,7 +367,7 @@ func (p *printer) setLineComment(text string) {
+ }
+ 
+ 
+-func (p *printer) fieldList(fields *ast.FieldList, isIncomplete bool, ctxt exprContext) {
++func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) {
+ 	p.nesting++
+ 	defer func() {
+ 		p.nesting--
+@@ -376,15 +376,15 @@ func (p *printer) fieldList(fields *ast.FieldList, isIncomplete bool, ctxt exprC
+ 	lbrace := fields.Opening
+ 	list := fields.List
+ 	rbrace := fields.Closing
++	srcIsOneLine := lbrace.IsValid() && rbrace.IsValid() && p.fset.Position(lbrace).Line == p.fset.Position(rbrace).Line
+ 
+-	if !isIncomplete && !p.commentBefore(p.fset.Position(rbrace)) {
++	if !isIncomplete && !p.commentBefore(p.fset.Position(rbrace)) && srcIsOneLine {
+ 		// possibly a one-line struct/interface
+ 		if len(list) == 0 {
+ 			// no blank between keyword and {} in this case
+ 			p.print(lbrace, token.LBRACE, rbrace, token.RBRACE)
+ 			return
+-		} else if ctxt&(compositeLit|structType) == compositeLit|structType &&
+-			p.isOneLineFieldList(list) { // for now ignore interfaces
++		} else if isStruct && p.isOneLineFieldList(list) { // for now ignore interfaces
+ 			// small enough - print on one line
+ 			// (don't use identList and ignore source line breaks)
+ 			p.print(lbrace, token.LBRACE, blank)
+@@ -406,7 +406,7 @@ func (p *printer) fieldList(fields *ast.FieldList, isIncomplete bool, ctxt exprC
+ 
+ 	// at least one entry or incomplete
+ 	p.print(blank, lbrace, token.LBRACE, indent, formfeed)
+-	if ctxt&structType != 0 {
++	if isStruct {
+ 
+ 		sep := vtab
+ 		if len(list) == 1 {
+@@ -489,15 +489,6 @@ func (p *printer) fieldList(fields *ast.FieldList, isIncomplete bool, ctxt exprC
+ // ----------------------------------------------------------------------------
+ // Expressions
+ 
+-// exprContext describes the syntactic environment in which an expression node is printed.
+-type exprContext uint
+-
+-const (
+-	compositeLit exprContext = 1 << iota
+-	structType
+-)
+-
+-
+ func walkBinary(e *ast.BinaryExpr) (has4, has5 bool, maxProblem int) {
+ 	switch e.Op.Precedence() {
+ 	case 4:
+@@ -642,7 +633,7 @@ func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1, cutoff, depth int, multiL
+ 	printBlank := prec < cutoff
+ 
+ 	ws := indent
+-	p.expr1(x.X, prec, depth+diffPrec(x.X, prec), 0, multiLine)
++	p.expr1(x.X, prec, depth+diffPrec(x.X, prec), multiLine)
+ 	if printBlank {
+ 		p.print(blank)
+ 	}
+@@ -661,7 +652,7 @@ func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1, cutoff, depth int, multiL
+ 	if printBlank {
+ 		p.print(blank)
+ 	}
+-	p.expr1(x.Y, prec+1, depth+1, 0, multiLine)
++	p.expr1(x.Y, prec+1, depth+1, multiLine)
+ 	if ws == ignore {
+ 		p.print(unindent)
+ 	}
+@@ -734,7 +725,7 @@ func selectorExprList(expr ast.Expr) (list []ast.Expr) {
+ 
+ 
+ // Sets multiLine to true if the expression spans multiple lines.
+-func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multiLine *bool) {
++func (p *printer) expr1(expr ast.Expr, prec1, depth int, multiLine *bool) {
+ 	p.print(expr.Pos())
+ 
+ 	switch x := expr.(type) {
+@@ -784,7 +775,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
+ 				// TODO(gri) Remove this code if it cannot be reached.
+ 				p.print(blank)
+ 			}
+-			p.expr1(x.X, prec, depth, 0, multiLine)
++			p.expr1(x.X, prec, depth, multiLine)
+ 		}
+ 
+ 	case *ast.BasicLit:
+@@ -810,7 +801,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
+ 		p.exprList(token.NoPos, parts, depth, periodSep, multiLine, token.NoPos)
+ 
+ 	case *ast.TypeAssertExpr:
+-		p.expr1(x.X, token.HighestPrec, depth, 0, multiLine)
++		p.expr1(x.X, token.HighestPrec, depth, multiLine)
+ 		p.print(token.PERIOD, token.LPAREN)
+ 		if x.Type != nil {
+ 			p.expr(x.Type, multiLine)
+@@ -821,14 +812,14 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
+ 
+ 	case *ast.IndexExpr:
+ 		// TODO(gri): should treat[] like parentheses and undo one level of depth
+-		p.expr1(x.X, token.HighestPrec, 1, 0, multiLine)
++		p.expr1(x.X, token.HighestPrec, 1, multiLine)
+ 		p.print(x.Lbrack, token.LBRACK)
+ 		p.expr0(x.Index, depth+1, multiLine)
+ 		p.print(x.Rbrack, token.RBRACK)
+ 
+ 	case *ast.SliceExpr:
+ 		// TODO(gri): should treat[] like parentheses and undo one level of depth
+-		p.expr1(x.X, token.HighestPrec, 1, 0, multiLine)
++		p.expr1(x.X, token.HighestPrec, 1, multiLine)
+ 		p.print(x.Lbrack, token.LBRACK)
+ 		if x.Low != nil {
+ 			p.expr0(x.Low, depth+1, multiLine)
+@@ -848,7 +839,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
+ 		if len(x.Args) > 1 {
+ 			depth++
+ 		}
+-		p.expr1(x.Fun, token.HighestPrec, depth, 0, multiLine)
++		p.expr1(x.Fun, token.HighestPrec, depth, multiLine)
+ 		p.print(x.Lparen, token.LPAREN)
+ 		p.exprList(x.Lparen, x.Args, depth, commaSep|commaTerm, multiLine, x.Rparen)
+ 		if x.Ellipsis.IsValid() {
+@@ -859,7 +850,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
+ 	case *ast.CompositeLit:
+ 		// composite literal elements that are composite literals themselves may have the type omitted
+ 		if x.Type != nil {
+-			p.expr1(x.Type, token.HighestPrec, depth, compositeLit, multiLine)
++			p.expr1(x.Type, token.HighestPrec, depth, multiLine)
+ 		}
+ 		p.print(x.Lbrace, token.LBRACE)
+ 		p.exprList(x.Lbrace, x.Elts, 1, commaSep|commaTerm, multiLine, x.Rbrace)
+@@ -884,7 +875,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
+ 
+ 	case *ast.StructType:
+ 		p.print(token.STRUCT)
+-		p.fieldList(x.Fields, x.Incomplete, ctxt|structType)
++		p.fieldList(x.Fields, true, x.Incomplete)
+ 
+ 	case *ast.FuncType:
+ 		p.print(token.FUNC)
+@@ -892,7 +883,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
+ 
+ 	case *ast.InterfaceType:
+ 		p.print(token.INTERFACE)
+-		p.fieldList(x.Methods, x.Incomplete, ctxt)
++		p.fieldList(x.Methods, false, x.Incomplete)
+ 
+ 	case *ast.MapType:
+ 		p.print(token.MAP, token.LBRACK)
+@@ -921,14 +912,14 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
+ 
+ 
+ func (p *printer) expr0(x ast.Expr, depth int, multiLine *bool) {
+-	p.expr1(x, token.LowestPrec, depth, 0, multiLine)
++	p.expr1(x, token.LowestPrec, depth, multiLine)
+ }
+ 
+ 
+ // Sets multiLine to true if the expression spans multiple lines.
+ func (p *printer) expr(x ast.Expr, multiLine *bool) {
+ 	const depth = 1
+-	p.expr1(x, token.LowestPrec, depth, 0, multiLine)
++	p.expr1(x, token.LowestPrec, depth, multiLine)
+ }
+ 
+ 
+diff --git a/src/pkg/go/printer/testdata/expressions.golden b/src/pkg/go/printer/testdata/expressions.golden
+index 7f18f338a6..314d3213c7 100644
+--- a/src/pkg/go/printer/testdata/expressions.golden
++++ b/src/pkg/go/printer/testdata/expressions.golden
+@@ -224,11 +224,7 @@ func _() {
+ 	_ = struct{ x int }{0}
+ 	_ = struct{ x, y, z int }{0, 1, 2}
+ 	_ = struct{ int }{0}
+-	_ = struct {
+-		s struct {
+-			int
+-		}
+-	}{struct{ int }{0}}	// compositeLit context not propagated => multiLine result
++	_ = struct{ s struct{ int } }{struct{ int }{0}}
+ }
+ 
+ 
+diff --git a/src/pkg/go/printer/testdata/expressions.input b/src/pkg/go/printer/testdata/expressions.input
+index 6bcd9b5f89..cac22af431 100644
+--- a/src/pkg/go/printer/testdata/expressions.input
++++ b/src/pkg/go/printer/testdata/expressions.input
+@@ -224,7 +224,7 @@ func _() {
+ 	_ = struct{ x int }{0}
+ 	_ = struct{ x, y, z int }{0, 1, 2}
+ 	_ = struct{ int }{0}
+-	_ = struct{ s struct { int } }{struct{ int}{0}}  // compositeLit context not propagated => multiLine result
++	_ = struct{ s struct { int } }{struct{ int}{0} }
+ }
+ 
+ 
+diff --git a/src/pkg/go/printer/testdata/expressions.raw b/src/pkg/go/printer/testdata/expressions.raw
+index f1944c94bb..f22ceeb476 100644
+--- a/src/pkg/go/printer/testdata/expressions.raw
++++ b/src/pkg/go/printer/testdata/expressions.raw
+@@ -224,11 +224,7 @@ func _() {
+ 	_ = struct{ x int }{0}
+ 	_ = struct{ x, y, z int }{0, 1, 2}
+ 	_ = struct{ int }{0}
+-	_ = struct {
+-		s struct {
+-			int
+-		}
+-	}{struct{ int }{0}}	// compositeLit context not propagated => multiLine result
++	_ = struct{ s struct{ int } }{struct{ int }{0}}
+ }
+ 
+ 

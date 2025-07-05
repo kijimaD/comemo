@@ -17,7 +17,207 @@ Date:   Tue May 22 19:13:44 2018 +0300
     Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
-
+---
  src/cmd/asm/internal/asm/testdata/amd64enc_extra.s | 54 ++++++++++++++++++++++
  src/cmd/internal/obj/x86/avx_optabs.go             | 54 ++++++++++++++--------
  2 files changed, 90 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s b/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s
+index 7fd481abf3..647628176a 100644
+--- a/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s
++++ b/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s
+@@ -317,5 +317,59 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	PUSHQ FS // 0fa0
+ 	POPQ FS  // 0fa1
+ 	POPQ GS  // 0fa9
++	// All instructions below semantically have unsigned operands,
++	// but previous assembler permitted negative arguments.
++	// This behavior is preserved for compatibility reasons.
++	VPSHUFD $-79, X7, X7         // c5f970ffb1
++	RORXL $-1, (AX), DX          // c4e37bf010ff
++	RORXQ $-1, (AX), DX          // c4e3fbf010ff
++	VPSHUFD $-1, X1, X2          // c5f970d1ff
++	VPSHUFD $-1, Y1, Y2          // c5fd70d1ff
++	VPSHUFHW $-1, X1, X2         // c5fa70d1ff
++	VPSHUFHW $-1, Y1, Y2         // c5fe70d1ff
++	VPSHUFLW $-1, X1, X2         // c5fb70d1ff
++	VPSHUFLW $-1, Y1, Y2         // c5ff70d1ff
++	VROUNDPD $-1, X1, X2         // c4e37909d1ff
++	VROUNDPS $-1, Y1, Y2         // c4e37d08d1ff
++	VPSLLD $-1, X1, X2           // c5e972f1ff
++	VPSLLD $-1, Y1, Y2           // c5ed72f1ff
++	VPSLLDQ $-1, X1, X2          // c5e973f9ff
++	VPSLLDQ $-1, Y1, Y2          // c5ed73f9ff
++	VPSLLQ $-1, X1, X2           // c5e973f1ff
++	VPSLLQ $-1, Y1, Y2           // c5ed73f1ff
++	VPSRLD $-1, X1, X2           // c5e972d1ff
++	VPSRLD $-1, Y1, Y2           // c5ed72d1ff
++	VPSRLDQ $-1, X1, X2          // c5e973d9ff
++	VPSRLDQ $-1, Y1, Y2          // c5ed73d9ff
++	VPSRLQ $-1, X1, X2           // c5e973d1ff
++	VPSRLQ $-1, Y1, Y2           // c5ed73d1ff
++	VPEXTRW $-1, X1, (AX)        // c4e3791508ff
++	VPEXTRW $-1, X1, AX          // c4e37915c8ff
++	VEXTRACTF128 $-1, Y1, X2     // c4e37d19caff
++	VEXTRACTI128 $-1, Y1, X2     // c4e37d39caff
++	VAESKEYGENASSIST $-1, X1, X2 // c4e379dfd1ff
++	VPCMPESTRI $-1, X1, X2       // c4e37961d1ff
++	VPCMPESTRM $-1, X1, X2       // c4e37960d1ff
++	VPCMPISTRI $-1, X1, X2       // c4e37963d1ff
++	VPCMPISTRM $-1, X1, X2       // c4e37962d1ff
++	VPERMPD $-1, Y1, Y2          // c4e3fd01d1ff
++	VPERMILPD $-1, X1, X2        // c4e37905d1ff
++	VPERMILPD $-1, Y1, Y2        // c4e37d05d1ff
++	VPERMILPS $-1, X1, X2        // c4e37904d1ff
++	VPERMILPS $-1, Y1, Y2        // c4e37d04d1ff
++	VCVTPS2PH $-1, X1, X2        // c4e3791dcaff
++	VCVTPS2PH $-1, Y1, X2        // c4e37d1dcaff
++	VPSLLW $-1, X1, X2           // c5e971f1ff
++	VPSLLW $-1, Y1, Y2           // c5ed71f1ff
++	VPSRAD $-1, X1, X2           // c5e972e1ff
++	VPSRAD $-1, Y1, Y2           // c5ed72e1ff
++	VPSRAW $-1, X1, X2           // c5e971e1ff
++	VPSRAW $-1, Y1, Y2           // c5ed71e1ff
++	VPSRLW $-1, X1, X1           // c5f171d1ff
++	VPSRLW $-1, Y1, Y2           // c5ed71d1ff
++	VEXTRACTPS $-1, X1, AX       // c4e37917c8ff
++	VPEXTRB $-1, X1, AX          // c4e37914c8ff
++	VPEXTRD $-1, X1, AX          // c4e37916c8ff
++	VPEXTRQ $-1, X1, AX          // c4e3f916c8ff
+ 	// End of tests.
+ 	RET
+diff --git a/src/cmd/internal/obj/x86/avx_optabs.go b/src/cmd/internal/obj/x86/avx_optabs.go
+index 1ed28a6a15..b8ff4699d1 100644
+--- a/src/cmd/internal/obj/x86/avx_optabs.go
++++ b/src/cmd/internal/obj/x86/avx_optabs.go
+@@ -72,7 +72,8 @@ var _ykshiftlb = []ytab{
+ }
+ 
+ var _yrorxl = []ytab{
+-	{zcase: Zvex_i_rm_r, zoffset: 2, args: argList{Yu8, Yml, Yrl}},
++	{zcase: Zvex_i_rm_r, zoffset: 0, args: argList{Yu8, Yml, Yrl}},
++	{zcase: Zvex_i_rm_r, zoffset: 2, args: argList{Yi8, Yml, Yrl}},
+ }
+ 
+ var _yv4fmaddps = []ytab{
+@@ -120,7 +121,8 @@ var _yvaesimc = []ytab{
+ }
+ 
+ var _yvaeskeygenassist = []ytab{
+-	{zcase: Zvex_i_rm_r, zoffset: 2, args: argList{Yu8, Yxm, Yxr}},
++	{zcase: Zvex_i_rm_r, zoffset: 0, args: argList{Yu8, Yxm, Yxr}},
++	{zcase: Zvex_i_rm_r, zoffset: 2, args: argList{Yi8, Yxm, Yxr}},
+ }
+ 
+ var _yvalignd = []ytab{
+@@ -314,8 +316,10 @@ var _yvcvtph2ps = []ytab{
+ }
+ 
+ var _yvcvtps2ph = []ytab{
+-	{zcase: Zvex_i_r_rm, zoffset: 2, args: argList{Yu8, Yxr, Yxm}},
+-	{zcase: Zvex_i_r_rm, zoffset: 2, args: argList{Yu8, Yyr, Yxm}},
++	{zcase: Zvex_i_r_rm, zoffset: 0, args: argList{Yu8, Yxr, Yxm}},
++	{zcase: Zvex_i_r_rm, zoffset: 2, args: argList{Yi8, Yxr, Yxm}},
++	{zcase: Zvex_i_r_rm, zoffset: 0, args: argList{Yu8, Yyr, Yxm}},
++	{zcase: Zvex_i_r_rm, zoffset: 2, args: argList{Yi8, Yyr, Yxm}},
+ 	{zcase: Zevex_i_r_rm, zoffset: 0, args: argList{Yu8, Yzr, YymEvex}},
+ 	{zcase: Zevex_i_r_k_rm, zoffset: 3, args: argList{Yu8, Yzr, Yknot0, YymEvex}},
+ 	{zcase: Zevex_i_r_rm, zoffset: 0, args: argList{Yu8, YxrEvex, YxmEvex}},
+@@ -379,7 +383,8 @@ var _yvexpandpd = []ytab{
+ }
+ 
+ var _yvextractf128 = []ytab{
+-	{zcase: Zvex_i_r_rm, zoffset: 2, args: argList{Yu8, Yyr, Yxm}},
++	{zcase: Zvex_i_r_rm, zoffset: 0, args: argList{Yu8, Yyr, Yxm}},
++	{zcase: Zvex_i_r_rm, zoffset: 2, args: argList{Yi8, Yyr, Yxm}},
+ }
+ 
+ var _yvextractf32x4 = []ytab{
+@@ -395,7 +400,8 @@ var _yvextractf32x8 = []ytab{
+ }
+ 
+ var _yvextractps = []ytab{
+-	{zcase: Zvex_i_r_rm, zoffset: 2, args: argList{Yu8, Yxr, Yml}},
++	{zcase: Zvex_i_r_rm, zoffset: 0, args: argList{Yu8, Yxr, Yml}},
++	{zcase: Zvex_i_r_rm, zoffset: 2, args: argList{Yi8, Yxr, Yml}},
+ 	{zcase: Zevex_i_r_rm, zoffset: 3, args: argList{Yu8, YxrEvex, Yml}},
+ }
+ 
+@@ -708,8 +714,10 @@ var _yvpermd = []ytab{
+ }
+ 
+ var _yvpermilpd = []ytab{
+-	{zcase: Zvex_i_rm_r, zoffset: 2, args: argList{Yu8, Yxm, Yxr}},
+-	{zcase: Zvex_i_rm_r, zoffset: 2, args: argList{Yu8, Yym, Yyr}},
++	{zcase: Zvex_i_rm_r, zoffset: 0, args: argList{Yu8, Yxm, Yxr}},
++	{zcase: Zvex_i_rm_r, zoffset: 2, args: argList{Yi8, Yxm, Yxr}},
++	{zcase: Zvex_i_rm_r, zoffset: 0, args: argList{Yu8, Yym, Yyr}},
++	{zcase: Zvex_i_rm_r, zoffset: 2, args: argList{Yi8, Yym, Yyr}},
+ 	{zcase: Zvex_rm_v_r, zoffset: 2, args: argList{Yxm, Yxr, Yxr}},
+ 	{zcase: Zvex_rm_v_r, zoffset: 2, args: argList{Yym, Yyr, Yyr}},
+ 	{zcase: Zevex_i_rm_r, zoffset: 0, args: argList{Yu8, YxmEvex, YxrEvex}},
+@@ -752,8 +760,10 @@ var _yvpermq = []ytab{
+ }
+ 
+ var _yvpextrw = []ytab{
+-	{zcase: Zvex_i_r_rm, zoffset: 2, args: argList{Yu8, Yxr, Yml}},
+-	{zcase: Zvex_i_rm_r, zoffset: 2, args: argList{Yu8, Yxr, Yrl}},
++	{zcase: Zvex_i_r_rm, zoffset: 0, args: argList{Yu8, Yxr, Yml}},
++	{zcase: Zvex_i_r_rm, zoffset: 2, args: argList{Yi8, Yxr, Yml}},
++	{zcase: Zvex_i_rm_r, zoffset: 0, args: argList{Yu8, Yxr, Yrl}},
++	{zcase: Zvex_i_rm_r, zoffset: 2, args: argList{Yi8, Yxr, Yrl}},
+ 	{zcase: Zevex_i_r_rm, zoffset: 3, args: argList{Yu8, YxrEvex, Yml}},
+ 	{zcase: Zevex_i_rm_r, zoffset: 3, args: argList{Yu8, YxrEvex, Yrl}},
+ }
+@@ -824,8 +834,10 @@ var _yvpshufbitqmb = []ytab{
+ }
+ 
+ var _yvpshufd = []ytab{
+-	{zcase: Zvex_i_rm_r, zoffset: 2, args: argList{Yu8, Yxm, Yxr}},
+-	{zcase: Zvex_i_rm_r, zoffset: 2, args: argList{Yu8, Yym, Yyr}},
++	{zcase: Zvex_i_rm_r, zoffset: 0, args: argList{Yu8, Yxm, Yxr}},
++	{zcase: Zvex_i_rm_r, zoffset: 2, args: argList{Yi8, Yxm, Yxr}},
++	{zcase: Zvex_i_rm_r, zoffset: 0, args: argList{Yu8, Yym, Yyr}},
++	{zcase: Zvex_i_rm_r, zoffset: 2, args: argList{Yi8, Yym, Yyr}},
+ 	{zcase: Zevex_i_rm_r, zoffset: 0, args: argList{Yu8, YxmEvex, YxrEvex}},
+ 	{zcase: Zevex_i_rm_k_r, zoffset: 3, args: argList{Yu8, YxmEvex, Yknot0, YxrEvex}},
+ 	{zcase: Zevex_i_rm_r, zoffset: 0, args: argList{Yu8, YymEvex, YyrEvex}},
+@@ -835,8 +847,10 @@ var _yvpshufd = []ytab{
+ }
+ 
+ var _yvpslld = []ytab{
+-	{zcase: Zvex_i_rm_vo, zoffset: 3, args: argList{Yu8, Yxr, Yxr}},
+-	{zcase: Zvex_i_rm_vo, zoffset: 3, args: argList{Yu8, Yyr, Yyr}},
++	{zcase: Zvex_i_rm_vo, zoffset: 0, args: argList{Yu8, Yxr, Yxr}},
++	{zcase: Zvex_i_rm_vo, zoffset: 3, args: argList{Yi8, Yxr, Yxr}},
++	{zcase: Zvex_i_rm_vo, zoffset: 0, args: argList{Yu8, Yyr, Yyr}},
++	{zcase: Zvex_i_rm_vo, zoffset: 3, args: argList{Yi8, Yyr, Yyr}},
+ 	{zcase: Zvex_rm_v_r, zoffset: 2, args: argList{Yxm, Yxr, Yxr}},
+ 	{zcase: Zvex_rm_v_r, zoffset: 2, args: argList{Yxm, Yyr, Yyr}},
+ 	{zcase: Zevex_i_rm_vo, zoffset: 0, args: argList{Yu8, YxmEvex, YxrEvex}},
+@@ -854,8 +868,10 @@ var _yvpslld = []ytab{
+ }
+ 
+ var _yvpslldq = []ytab{
+-	{zcase: Zvex_i_rm_vo, zoffset: 3, args: argList{Yu8, Yxr, Yxr}},
+-	{zcase: Zvex_i_rm_vo, zoffset: 3, args: argList{Yu8, Yyr, Yyr}},
++	{zcase: Zvex_i_rm_vo, zoffset: 0, args: argList{Yu8, Yxr, Yxr}},
++	{zcase: Zvex_i_rm_vo, zoffset: 3, args: argList{Yi8, Yxr, Yxr}},
++	{zcase: Zvex_i_rm_vo, zoffset: 0, args: argList{Yu8, Yyr, Yyr}},
++	{zcase: Zvex_i_rm_vo, zoffset: 3, args: argList{Yi8, Yyr, Yyr}},
+ 	{zcase: Zevex_i_rm_vo, zoffset: 4, args: argList{Yu8, YxmEvex, YxrEvex}},
+ 	{zcase: Zevex_i_rm_vo, zoffset: 4, args: argList{Yu8, YymEvex, YyrEvex}},
+ 	{zcase: Zevex_i_rm_vo, zoffset: 4, args: argList{Yu8, Yzm, Yzr}},
+@@ -886,8 +902,10 @@ var _yvrcpss = []ytab{
+ }
+ 
+ var _yvroundpd = []ytab{
+-	{zcase: Zvex_i_rm_r, zoffset: 2, args: argList{Yu8, Yxm, Yxr}},
+-	{zcase: Zvex_i_rm_r, zoffset: 2, args: argList{Yu8, Yym, Yyr}},
++	{zcase: Zvex_i_rm_r, zoffset: 0, args: argList{Yu8, Yxm, Yxr}},
++	{zcase: Zvex_i_rm_r, zoffset: 2, args: argList{Yi8, Yxm, Yxr}},
++	{zcase: Zvex_i_rm_r, zoffset: 0, args: argList{Yu8, Yym, Yyr}},
++	{zcase: Zvex_i_rm_r, zoffset: 2, args: argList{Yi8, Yym, Yyr}},
+ }
+ 
+ var _yvscalefpd = []ytab{

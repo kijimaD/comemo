@@ -9,7 +9,7 @@ Date:   Sat Mar 20 18:50:01 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/634045
-
+---
  src/cmd/5g/gobj.c  | 21 +++++++++++++++++++++
  src/cmd/6g/gobj.c  | 22 +++++++++++++++++++++-
  src/cmd/8g/gobj.c  | 21 +++++++++++++++++++++
@@ -17,3 +17,177 @@ Date:   Sat Mar 20 18:50:01 2010 -0700
  src/cmd/gc/go.h    |  1 +
  src/cmd/gc/sinit.c |  7 +++++++
  6 files changed, 71 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/5g/gobj.c b/src/cmd/5g/gobj.c
+index fffba011d0..0e82200075 100644
+--- a/src/cmd/5g/gobj.c
++++ b/src/cmd/5g/gobj.c
+@@ -488,6 +488,27 @@ gdata(Node *nam, Node *nr, int wid)
+ 	p->reg = wid;
+ }
+ 
++void
++gdatacomplex(Node *nam, Mpcplx *cval)
++{
++	Prog *p;
++	int w;
++
++	w = cplxsubtype(nam->type->etype);
++	w = types[w]->width;
++
++	p = gins(ADATA, nam, N);
++	p->from.scale = w;
++	p->to.type = D_FCONST;
++	p->to.dval = mpgetflt(&cval->real);
++
++	p = gins(ADATA, nam, N);
++	p->from.scale = w;
++	p->from.offset += w;
++	p->to.type = D_FCONST;
++	p->to.dval = mpgetflt(&cval->imag);
++}
++
+ void
+ gdatastring(Node *nam, Strlit *sval)
+ {
+diff --git a/src/cmd/6g/gobj.c b/src/cmd/6g/gobj.c
+index 0d97c610db..e2db8c315f 100644
+--- a/src/cmd/6g/gobj.c
++++ b/src/cmd/6g/gobj.c
+@@ -487,6 +487,27 @@ gdata(Node *nam, Node *nr, int wid)
+ 	p->from.scale = wid;
+ }
+ 
++void
++gdatacomplex(Node *nam, Mpcplx *cval)
++{
++	Prog *p;
++	int w;
++
++	w = cplxsubtype(nam->type->etype);
++	w = types[w]->width;
++
++	p = gins(ADATA, nam, N);
++	p->from.scale = w;
++	p->to.type = D_FCONST;
++	p->to.dval = mpgetflt(&cval->real);
++
++	p = gins(ADATA, nam, N);
++	p->from.scale = w;
++	p->from.offset += w;
++	p->to.type = D_FCONST;
++	p->to.dval = mpgetflt(&cval->imag);
++}
++
+ void
+ gdatastring(Node *nam, Strlit *sval)
+ {
+@@ -506,7 +527,6 @@ gdatastring(Node *nam, Strlit *sval)
+ 	p->from.offset += types[tptr]->width;
+ }
+ 
+-
+ int
+ dstringptr(Sym *s, int off, char *str)
+ {
+diff --git a/src/cmd/8g/gobj.c b/src/cmd/8g/gobj.c
+index 68ebd3d160..e48d2e1965 100644
+--- a/src/cmd/8g/gobj.c
++++ b/src/cmd/8g/gobj.c
+@@ -495,6 +495,27 @@ gdata(Node *nam, Node *nr, int wid)
+ 	p->from.scale = wid;
+ }
+ 
++void
++gdatacomplex(Node *nam, Mpcplx *cval)
++{
++	Prog *p;
++	int w;
++
++	w = cplxsubtype(nam->type->etype);
++	w = types[w]->width;
++
++	p = gins(ADATA, nam, N);
++	p->from.scale = w;
++	p->to.type = D_FCONST;
++	p->to.dval = mpgetflt(&cval->real);
++
++	p = gins(ADATA, nam, N);
++	p->from.scale = w;
++	p->from.offset += w;
++	p->to.type = D_FCONST;
++	p->to.dval = mpgetflt(&cval->imag);
++}
++
+ void
+ gdatastring(Node *nam, Strlit *sval)
+ {
+diff --git a/src/cmd/gc/cplx.c b/src/cmd/gc/cplx.c
+index d7f29d8370..a98cf49d8d 100644
+--- a/src/cmd/gc/cplx.c
++++ b/src/cmd/gc/cplx.c
+@@ -5,7 +5,6 @@
+ #include "gg.h"
+ 
+ static	void	subnode(Node *nr, Node *ni, Node *nc);
+-static	void	zero(Node *n);
+ static	void	minus(Node *nl, Node *res);
+ 	void	complexminus(Node*, Node*);
+ 	void	complexadd(int op, Node*, Node*, Node*);
+@@ -340,26 +339,6 @@ subnode(Node *nr, Node *ni, Node *nc)
+ 	ni->xoffset += t->width;
+ }
+ 
+-// generate code to zero addable dest nr
+-static void
+-zero(Node *nr)
+-{
+-	Node nc;
+-	Mpflt fval;
+-
+-	memset(&nc, 0, sizeof(nc));
+-	nc.op = OLITERAL;
+-	nc.addable = 1;
+-	ullmancalc(&nc);
+-	nc.val.u.fval = &fval;
+-	nc.val.ctype = CTFLT;
+-	nc.type = nr->type;
+-
+-	mpmovecflt(nc.val.u.fval, 0.0);
+-
+-	cgen(&nc, nr);
+-}
+-
+ // generate code res = -nl
+ static void
+ minus(Node *nl, Node *res)
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index a301a756c8..46be44d5ee 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1218,6 +1218,7 @@ void	cgen(Node*, Node*);
+ void	gused(Node*);
+ void	gdata(Node*, Node*, int);
+ void	gdatastring(Node*, Strlit*);
++void	gdatacomplex(Node*, Mpcplx*);
+ void	dumptypestructs(void);
+ void	dumpfuncs(void);
+ void	dumpdata(void);
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index fd73dc0ad1..6f0772b63e 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -826,6 +826,13 @@ gen_as_init(Node *n)
+ 		gdata(&nam, nr, nr->type->width);
+ 		break;
+ 
++	case TCOMPLEX64:
++	case TCOMPLEX128:
++	case TCOMPLEX:
++		gused(N); // in case the data is the dest of a goto
++		gdatacomplex(&nam, nr->val.u.cval);
++		break;
++
+ 	case TSTRING:
+ 		gused(N); // in case the data is the dest of a goto
+ 		gdatastring(&nam, nr->val.u.sval);

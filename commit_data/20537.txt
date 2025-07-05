@@ -10,7 +10,67 @@ Date:   Tue Sep 16 17:40:33 2014 -0400
     R=bradfitz
     CC=golang-codereviews
     https://golang.org/cl/14990045
-
+---
  src/net/mail/message.go      | 13 ++++++++++++-
  src/net/mail/message_test.go | 10 ++++++++++
  2 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index ba0778caa7..19aa888d87 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -28,6 +28,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"time"
++	"unicode"
+ )
+ 
+ var debug = debugT(false)
+@@ -445,7 +446,7 @@ func decodeRFC2047Word(s string) (string, error) {
+ 		return "", errors.New("address not RFC 2047 encoded")
+ 	}
+ 	charset, enc := strings.ToLower(fields[1]), strings.ToLower(fields[2])
+-	if charset != "iso-8859-1" && charset != "utf-8" {
++	if charset != "us-ascii" && charset != "iso-8859-1" && charset != "utf-8" {
+ 		return "", fmt.Errorf("charset not supported: %q", charset)
+ 	}
+ 
+@@ -466,6 +467,16 @@ func decodeRFC2047Word(s string) (string, error) {
+ 	}
+ 
+ 	switch charset {
++	case "us-ascii":
++		b := new(bytes.Buffer)
++		for _, c := range dec {
++			if c >= 0x80 {
++				b.WriteRune(unicode.ReplacementChar)
++			} else {
++				b.WriteRune(rune(c))
++			}
++		}
++		return b.String(), nil
+ 	case "iso-8859-1":
+ 		b := new(bytes.Buffer)
+ 		for _, c := range dec {
+diff --git a/src/net/mail/message_test.go b/src/net/mail/message_test.go
+index eb9c8cbdc9..6ba48be04f 100644
+--- a/src/net/mail/message_test.go
++++ b/src/net/mail/message_test.go
+@@ -194,6 +194,16 @@ func TestAddressParsing(t *testing.T) {
+ 				},
+ 			},
+ 		},
++		// RFC 2047 "Q"-encoded US-ASCII address. Dumb but legal.
++		{
++			`=?us-ascii?q?J=6Frg_Doe?= <joerg@example.com>`,
++			[]*Address{
++				{
++					Name:    `Jorg Doe`,
++					Address: "joerg@example.com",
++				},
++			},
++		},
+ 		// RFC 2047 "Q"-encoded UTF-8 address.
+ 		{
+ 			`=?utf-8?q?J=C3=B6rg_Doe?= <joerg@example.com>`,

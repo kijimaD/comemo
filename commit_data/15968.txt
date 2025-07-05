@@ -9,6 +9,20 @@ Date:   Wed Mar 27 21:15:05 2013 +0100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/8055045
-
+---
  src/pkg/runtime/race/testdata/mop_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/race/testdata/mop_test.go b/src/pkg/runtime/race/testdata/mop_test.go
+index ae70cbb5f8..fa7abe0ef8 100644
+--- a/src/pkg/runtime/race/testdata/mop_test.go
++++ b/src/pkg/runtime/race/testdata/mop_test.go
+@@ -1477,7 +1477,7 @@ func TestRaceFailingSliceStruct(t *testing.T) {
+ 	<-c
+ }
+ 
+-func TestRaceAppendSliceStruct(t *testing.T) {
++func TestRaceFailingAppendSliceStruct(t *testing.T) {
+ 	type X struct {
+ 		x, y int
+ 	}

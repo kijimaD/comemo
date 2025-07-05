@@ -9,8 +9,105 @@ Date:   Wed May 18 21:54:12 2016 +0000
     Change-Id: I42ab2345443bbaeaf935d683460fc2c941b7679c
     Reviewed-on: https://go-review.googlesource.com/23227
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/fd_unix.go    |  8 ++++++++
  src/net/fd_windows.go |  4 +++-
  src/net/net_test.go   | 54 +++++++++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 65 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/fd_unix.go b/src/net/fd_unix.go
+index 7ef10702ed..0f80bc79ac 100644
+--- a/src/net/fd_unix.go
++++ b/src/net/fd_unix.go
+@@ -201,6 +201,14 @@ func (fd *netFD) Read(p []byte) (n int, err error) {
+ 		return 0, err
+ 	}
+ 	defer fd.readUnlock()
++	if len(p) == 0 {
++		// If the caller wanted a zero byte read, return immediately
++		// without trying. (But after acquiring the readLock.) Otherwise
++		// syscall.Read returns 0, nil and eofError turns that into
++		// io.EOF.
++		// TODO(bradfitz): make it wait for readability? (Issue 15735)
++		return 0, nil
++	}
+ 	if err := fd.pd.prepareRead(); err != nil {
+ 		return 0, err
+ 	}
+diff --git a/src/net/fd_windows.go b/src/net/fd_windows.go
+index 49e79d6a95..b0b6769eb3 100644
+--- a/src/net/fd_windows.go
++++ b/src/net/fd_windows.go
+@@ -427,7 +427,9 @@ func (fd *netFD) Read(buf []byte) (int, error) {
+ 	if race.Enabled {
+ 		race.Acquire(unsafe.Pointer(&ioSync))
+ 	}
+-	err = fd.eofError(n, err)
++	if len(buf) != 0 {
++		err = fd.eofError(n, err)
++	}
+ 	if _, ok := err.(syscall.Errno); ok {
+ 		err = os.NewSyscallError("wsarecv", err)
+ 	}
+diff --git a/src/net/net_test.go b/src/net/net_test.go
+index 94392928c2..b2f825daff 100644
+--- a/src/net/net_test.go
++++ b/src/net/net_test.go
+@@ -360,3 +360,57 @@ func TestAcceptIgnoreAbortedConnRequest(t *testing.T) {
+ 		t.Error(err)
+ 	}
+ }
++
++func TestZeroByteRead(t *testing.T) {
++	for _, network := range []string{"tcp", "unix", "unixpacket"} {
++		if !testableNetwork(network) {
++			t.Logf("skipping %s test", network)
++			continue
++		}
++
++		ln, err := newLocalListener(network)
++		if err != nil {
++			t.Fatal(err)
++		}
++		connc := make(chan Conn, 1)
++		go func() {
++			defer ln.Close()
++			c, err := ln.Accept()
++			if err != nil {
++				t.Error(err)
++			}
++			connc <- c // might be nil
++		}()
++		c, err := Dial(network, ln.Addr().String())
++		if err != nil {
++			t.Fatal(err)
++		}
++		defer c.Close()
++		sc := <-connc
++		if sc == nil {
++			continue
++		}
++		defer sc.Close()
++
++		if runtime.GOOS == "windows" {
++			// A zero byte read on Windows caused a wait for readability first.
++			// Rather than change that behavior, satisfy it in this test.
++			// See Issue 15735.
++			go io.WriteString(sc, "a")
++		}
++
++		n, err := c.Read(nil)
++		if n != 0 || err != nil {
++			t.Errorf("%s: zero byte client read = %v, %v; want 0, nil", network, n, err)
++		}
++
++		if runtime.GOOS == "windows" {
++			// Same as comment above.
++			go io.WriteString(c, "a")
++		}
++		n, err = sc.Read(nil)
++		if n != 0 || err != nil {
++			t.Errorf("%s: zero byte server read = %v, %v; want 0, nil", network, n, err)
++		}
++	}
++}

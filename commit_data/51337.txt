@@ -12,6 +12,20 @@ Date:   Wed Jan 12 16:27:14 2022 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  doc/go1.18.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 03d2b4e346..f23f2b8562 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -149,7 +149,7 @@ Do not send CLs removing the interior tags from such phrases.
+ <h3 id="amd64">AMD64</h3>
+ 
+ <p><!-- CL 349595 -->
+-  Go 1.18 introduces the new <code>GOAMD64</code> environment variable, which selects
++  Go 1.18 introduces the new <code>GOAMD64</code> environment variable, which selects at compile time
+   a mininum target version of the AMD64 architecture. Allowed values are <code>v1</code>,
+   <code>v2</code>, <code>v3</code>, or <code>v4</code>. Each higher level requires,
+   and takes advantage of, additional processor features. A detailed

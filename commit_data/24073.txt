@@ -7,6 +7,19 @@ Date:   Fri Jul 3 20:29:11 2015 -0700
     Change-Id: I4e4200b0fa847a1ff8a8b7d1e318bbc1c5e26b5b
     Reviewed-on: https://go-review.googlesource.com/11874
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 1dba9b22a5..5e254c265b 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -156,6 +156,7 @@ type state struct {
+ 	line []int32
+ }
+ 
++func (s *state) Logf(msg string, args ...interface{})           { s.config.Logf(msg, args...) }
+ func (s *state) Fatalf(msg string, args ...interface{})         { s.config.Fatalf(msg, args...) }
+ func (s *state) Unimplementedf(msg string, args ...interface{}) { s.config.Unimplementedf(msg, args...) }
+ 

@@ -7,6 +7,38 @@ Date:   Wed Feb 7 14:10:48 2018 -0500
     Change-Id: I50928e7747f43858fc863b53cfb5b63e208d6932
     Reviewed-on: https://team-review.git.corp.google.com/213447
     Reviewed-by: Andrew Bonventre <andybons@google.com>
-
+---
  doc/devel/release.html | 13 +++++++++++++
  1 file changed, 13 insertions(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 24fe583062..d82fb0c630 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -57,6 +57,12 @@ See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.9.3">Go
+ 1.9.3 milestone</a> on our issue tracker for details.
+ </p>
+ 
++<p>
++go1.9.4 (released 2018/02/07) includes a security fix to “go get”.
++See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.9.4">Go
++1.9.4</a> milestone on our issue tracker for details.
++</p>
++
+ <h2 id="go1.8">go1.8 (released 2017/02/16)</h2>
+ 
+ <p>
+@@ -114,6 +120,13 @@ See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.8.6">Go
+ 1.8.6 milestone</a> on our issue tracker for details.
+ </p>
+ 
++<p>
++go1.8.7 (released 2018/02/07) includes a security fix to “go get”.
++It contains the same fix as Go 1.9.4 and was released at the same time.
++See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.8.7">Go
++1.8.7</a> milestone on our issue tracker for details.
++</p>
++
+ <h2 id="go1.7">go1.7 (released 2016/08/15)</h2>
+ 
+ <p>

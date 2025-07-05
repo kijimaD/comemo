@@ -9,10 +9,104 @@ Date:   Tue Aug 23 13:13:27 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4930046
-
+---
  src/pkg/runtime/Makefile  |  2 +-
  src/pkg/runtime/chan.c    |  2 +-
  src/pkg/runtime/proc.c    |  2 +-
  src/pkg/runtime/runtime.c | 28 ++++++++++++++--------------
  src/pkg/runtime/runtime.h |  4 ++--
  5 files changed, 19 insertions(+), 19 deletions(-)
+
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 64bd2b7714..df46d0391c 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -13,7 +13,7 @@ SIZE_arm=32
+ SIZE=$(SIZE_$(GOARCH))
+ 
+ CFLAGS_windows=-D__WINDOWS__
+-CFLAGS=-I$(GOOS) -I$(GOARCH) -I$(GOOS)/$(GOARCH) -wF $(CFLAGS_$(GOARCH)) $(CFLAGS_$(GOOS))
++CFLAGS=-I$(GOOS) -I$(GOARCH) -I$(GOOS)/$(GOARCH) -FVw $(CFLAGS_$(GOARCH)) $(CFLAGS_$(GOOS))
+ 
+ GOFILES=\
+ 	debug.go\
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 92a6c288bf..eac2098c39 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -105,7 +105,7 @@ runtime·makechan_c(ChanType *t, int64 hint)
+ 	// allocate memory in one call
+ 	c = (Hchan*)runtime·mal(n + hint*elem->size);
+ 	if(runtime·destroylock)
+-		runtime·addfinalizer(c, destroychan, 0);
++		runtime·addfinalizer(c, (void*)destroychan, 0);
+ 
+ 	c->elemsize = elem->size;
+ 	c->elemalg = &runtime·algarray[elem->alg];
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 3a431ef35e..cc075741d1 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1604,7 +1604,7 @@ os·setenv_c(String k, String v)
+ 	runtime·memmove(arg[1], v.str, v.len);
+ 	arg[1][v.len] = 0;
+ 
+-	runtime·asmcgocall(libcgo_setenv, arg);
++	runtime·asmcgocall((void*)libcgo_setenv, arg);
+ 	runtime·free(arg[0]);
+ 	runtime·free(arg[1]);
+ }
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index c4bd408829..ae6fd877c7 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -638,20 +638,20 @@ runtime·algarray[] =
+ {
+ [AMEM]	{ memhash, memequal, memprint, memcopy },
+ [ANOEQ]	{ runtime·nohash, runtime·noequal, memprint, memcopy },
+-[ASTRING]	{ strhash, strequal, strprint, strcopy },
+-[AINTER]		{ interhash, interequal, interprint, intercopy },
+-[ANILINTER]	{ nilinterhash, nilinterequal, nilinterprint, nilintercopy },
+-[ASLICE]	{ runtime·nohash, runtime·noequal, memprint, slicecopy },
+-[AMEM8]		{ memhash, memequal8, memprint, memcopy8 },
+-[AMEM16]	{ memhash, memequal16, memprint, memcopy16 },
+-[AMEM32]	{ memhash, memequal32, memprint, memcopy32 },
+-[AMEM64]	{ memhash, memequal64, memprint, memcopy64 },
+-[AMEM128]	{ memhash, memequal128, memprint, memcopy128 },
+-[ANOEQ8]	{ runtime·nohash, runtime·noequal, memprint, memcopy8 },
+-[ANOEQ16]	{ runtime·nohash, runtime·noequal, memprint, memcopy16 },
+-[ANOEQ32]	{ runtime·nohash, runtime·noequal, memprint, memcopy32 },
+-[ANOEQ64]	{ runtime·nohash, runtime·noequal, memprint, memcopy64 },
+-[ANOEQ128]	{ runtime·nohash, runtime·noequal, memprint, memcopy128 },
++[ASTRING]	{ (void*)strhash, (void*)strequal, (void*)strprint, (void*)strcopy },
++[AINTER]		{ (void*)interhash, (void*)interequal, (void*)interprint, (void*)intercopy },
++[ANILINTER]	{ (void*)nilinterhash, (void*)nilinterequal, (void*)nilinterprint, (void*)nilintercopy },
++[ASLICE]	{ (void*)runtime·nohash, (void*)runtime·noequal, (void*)memprint, (void*)slicecopy },
++[AMEM8]		{ memhash, (void*)memequal8, memprint, (void*)memcopy8 },
++[AMEM16]	{ memhash, (void*)memequal16, memprint, (void*)memcopy16 },
++[AMEM32]	{ memhash, (void*)memequal32, memprint, (void*)memcopy32 },
++[AMEM64]	{ memhash, (void*)memequal64, memprint, (void*)memcopy64 },
++[AMEM128]	{ memhash, (void*)memequal128, memprint, (void*)memcopy128 },
++[ANOEQ8]	{ runtime·nohash, runtime·noequal, memprint, (void*)memcopy8 },
++[ANOEQ16]	{ runtime·nohash, runtime·noequal, memprint, (void*)memcopy16 },
++[ANOEQ32]	{ runtime·nohash, runtime·noequal, memprint, (void*)memcopy32 },
++[ANOEQ64]	{ runtime·nohash, runtime·noequal, memprint, (void*)memcopy64 },
++[ANOEQ128]	{ runtime·nohash, runtime·noequal, memprint, (void*)memcopy128 },
+ };
+ 
+ int64
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 1e52d76ad0..84bab58772 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -630,8 +630,8 @@ void	runtime·mapiterkeyvalue(struct hash_iter*, void*, void*);
+ Hmap*	runtime·makemap_c(MapType*, int64);
+ 
+ Hchan*	runtime·makechan_c(ChanType*, int64);
+-void	runtime·chansend(ChanType*, Hchan*, void*, bool*);
+-void	runtime·chanrecv(ChanType*, Hchan*, void*, bool*, bool*);
++void	runtime·chansend(ChanType*, Hchan*, byte*, bool*);
++void	runtime·chanrecv(ChanType*, Hchan*, byte*, bool*, bool*);
+ int32	runtime·chanlen(Hchan*);
+ int32	runtime·chancap(Hchan*);
+ bool	runtime·showframe(Func*);

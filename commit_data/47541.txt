@@ -15,6 +15,25 @@ Date:   Thu Mar 25 11:11:03 2021 -0700
     Trust: Damien Neil <dneil@google.com>
     Run-TryBot: Damien Neil <dneil@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/net/http/httptest/server.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/net/http/httptest/server.go b/src/net/http/httptest/server.go
+index 65165d9eb3..a02a6d64c3 100644
+--- a/src/net/http/httptest/server.go
++++ b/src/net/http/httptest/server.go
+@@ -316,6 +316,13 @@ func (s *Server) wrap() {
+ 	s.Config.ConnState = func(c net.Conn, cs http.ConnState) {
+ 		s.mu.Lock()
+ 		defer s.mu.Unlock()
++
++		// Keep Close from returning until the user's ConnState hook
++		// (if any) finishes. Without this, the call to forgetConn
++		// below might send the count to 0 before we run the hook.
++		s.wg.Add(1)
++		defer s.wg.Done()
++
+ 		switch cs {
+ 		case http.StateNew:
+ 			s.wg.Add(1)

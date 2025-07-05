@@ -8,8 +8,58 @@ Date:   Tue Nov 18 09:32:05 2008 -0800
     R=ken
     OCL=19454
     CL=19454
-
+---
  src/cmd/gc/go.h   | 1 +
  src/cmd/gc/lex.c  | 2 ++
  src/cmd/gc/subr.c | 6 +++++-
  3 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 54c47d0c51..c5e35a1e48 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -419,6 +419,7 @@ EXTERN	Dlist	dotlist[10];	// size is max depth of embeddeds
+ EXTERN	Io	curio;
+ EXTERN	Io	pushedio;
+ EXTERN	int32	lineno;
++EXTERN	int32	prevlineno;
+ EXTERN	char*	pathname;
+ EXTERN	Hist*	hist;
+ EXTERN	Hist*	ehist;
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 99a8d7914f..d305fb65ae 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -300,6 +300,8 @@ yylex(void)
+ 	int escflag;
+ 	Sym *s;
+ 
++	prevlineno = lineno;
++
+ l0:
+ 	c = getc();
+ 	if(isspace(c))
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index e1bdde5f58..851f17404f 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -269,6 +269,7 @@ dcl(void)
+ 	return d;
+ }
+ 
++extern int yychar;
+ Node*
+ nod(int op, Node *nleft, Node *nright)
+ {
+@@ -278,7 +279,10 @@ nod(int op, Node *nleft, Node *nright)
+ 	n->op = op;
+ 	n->left = nleft;
+ 	n->right = nright;
+-	n->lineno = lineno;
++	if(yychar <= 0)	// no lookahead
++		n->lineno = lineno;
++	else
++		n->lineno = prevlineno;
+ 	return n;
+ }
+ 

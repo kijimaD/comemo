@@ -15,7 +15,7 @@ Date:   Tue Apr 5 11:22:53 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Joe Tsai <joetsai@digital-static.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/bufio/bufio_test.go                   |  2 +-
  src/bytes/reader.go                       |  6 +++---
  src/bytes/reader_test.go                  |  2 +-
@@ -44,3 +44,589 @@ Date:   Tue Apr 5 11:22:53 2016 -0700
  src/time/sys_unix.go                      |  5 +++--
  src/time/sys_windows.go                   |  5 +++--
  27 files changed, 72 insertions(+), 64 deletions(-)
+
+diff --git a/src/bufio/bufio_test.go b/src/bufio/bufio_test.go
+index d769a6aaa9..858048696e 100644
+--- a/src/bufio/bufio_test.go
++++ b/src/bufio/bufio_test.go
+@@ -1475,7 +1475,7 @@ func BenchmarkReaderWriteToOptimal(b *testing.B) {
+ 		b.Fatal("ioutil.Discard doesn't support ReaderFrom")
+ 	}
+ 	for i := 0; i < b.N; i++ {
+-		r.Seek(0, 0)
++		r.Seek(0, io.SeekStart)
+ 		srcReader.Reset(onlyReader{r})
+ 		n, err := srcReader.WriteTo(ioutil.Discard)
+ 		if err != nil {
+diff --git a/src/bytes/reader.go b/src/bytes/reader.go
+index 83826c80c4..28cfc7a978 100644
+--- a/src/bytes/reader.go
++++ b/src/bytes/reader.go
+@@ -108,11 +108,11 @@ func (r *Reader) Seek(offset int64, whence int) (int64, error) {
+ 	r.prevRune = -1
+ 	var abs int64
+ 	switch whence {
+-	case 0:
++	case io.SeekStart:
+ 		abs = offset
+-	case 1:
++	case io.SeekCurrent:
+ 		abs = r.i + offset
+-	case 2:
++	case io.SeekEnd:
+ 		abs = int64(len(r.s)) + offset
+ 	default:
+ 		return 0, errors.New("bytes.Reader.Seek: invalid whence")
+diff --git a/src/bytes/reader_test.go b/src/bytes/reader_test.go
+index b5c7850618..7b3034d4e0 100644
+--- a/src/bytes/reader_test.go
++++ b/src/bytes/reader_test.go
+@@ -188,7 +188,7 @@ var UnreadRuneErrorTests = []struct {
+ 	{"Read", func(r *Reader) { r.Read([]byte{0}) }},
+ 	{"ReadByte", func(r *Reader) { r.ReadByte() }},
+ 	{"UnreadRune", func(r *Reader) { r.UnreadRune() }},
+-	{"Seek", func(r *Reader) { r.Seek(0, 1) }},
++	{"Seek", func(r *Reader) { r.Seek(0, io.SeekCurrent) }},
+ 	{"WriteTo", func(r *Reader) { r.WriteTo(&Buffer{}) }},
+ }
+ 
+diff --git a/src/cmd/go/note.go b/src/cmd/go/note.go
+index ada8ddded4..fae9536d13 100644
+--- a/src/cmd/go/note.go
++++ b/src/cmd/go/note.go
+@@ -110,7 +110,7 @@ func readELFGoBuildID(filename string, f *os.File, data []byte) (buildid string,
+ 			// or even the first few megabytes of the file
+ 			// due to differences in note segment placement;
+ 			// in that case, extract the note data manually.
+-			_, err = f.Seek(int64(p.Off), 0)
++			_, err = f.Seek(int64(p.Off), io.SeekStart)
+ 			if err != nil {
+ 				return "", err
+ 			}
+diff --git a/src/cmd/internal/goobj/read.go b/src/cmd/internal/goobj/read.go
+index 69fa496110..214f65cbc4 100644
+--- a/src/cmd/internal/goobj/read.go
++++ b/src/cmd/internal/goobj/read.go
+@@ -290,9 +290,9 @@ func importPathToPrefix(s string) string {
+ func (r *objReader) init(f io.ReadSeeker, p *Package) {
+ 	r.f = f
+ 	r.p = p
+-	r.offset, _ = f.Seek(0, 1)
+-	r.limit, _ = f.Seek(0, 2)
+-	f.Seek(r.offset, 0)
++	r.offset, _ = f.Seek(0, io.SeekCurrent)
++	r.limit, _ = f.Seek(0, io.SeekEnd)
++	f.Seek(r.offset, io.SeekStart)
+ 	r.b = bufio.NewReader(f)
+ 	r.pkgprefix = importPathToPrefix(p.ImportPath) + "."
+ }
+@@ -440,7 +440,7 @@ func (r *objReader) skip(n int64) {
+ 		r.readFull(r.tmp[:n])
+ 	} else {
+ 		// Seek, giving up buffered data.
+-		_, err := r.f.Seek(r.offset+n, 0)
++		_, err := r.f.Seek(r.offset+n, io.SeekStart)
+ 		if err != nil {
+ 			r.error(err)
+ 		}
+diff --git a/src/cmd/pack/pack.go b/src/cmd/pack/pack.go
+index 5be42555d0..1c168f946b 100644
+--- a/src/cmd/pack/pack.go
++++ b/src/cmd/pack/pack.go
+@@ -286,7 +286,7 @@ func (ar *Archive) output(entry *Entry, w io.Writer) {
+ 		log.Fatal("short file")
+ 	}
+ 	if entry.size&1 == 1 {
+-		_, err := ar.fd.Seek(1, 1)
++		_, err := ar.fd.Seek(1, io.SeekCurrent)
+ 		if err != nil {
+ 			log.Fatal(err)
+ 		}
+@@ -299,7 +299,7 @@ func (ar *Archive) skip(entry *Entry) {
+ 	if size&1 == 1 {
+ 		size++
+ 	}
+-	_, err := ar.fd.Seek(size, 1)
++	_, err := ar.fd.Seek(size, io.SeekCurrent)
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+diff --git a/src/debug/elf/file_test.go b/src/debug/elf/file_test.go
+index 2fe6febb26..b189219a55 100644
+--- a/src/debug/elf/file_test.go
++++ b/src/debug/elf/file_test.go
+@@ -655,7 +655,7 @@ func TestCompressedSection(t *testing.T) {
+ 	// Test Open method and seeking.
+ 	buf, have, count := make([]byte, len(b)), make([]bool, len(b)), 0
+ 	sf := sec.Open()
+-	if got, err := sf.Seek(0, 2); got != int64(len(b)) || err != nil {
++	if got, err := sf.Seek(0, io.SeekEnd); got != int64(len(b)) || err != nil {
+ 		t.Fatalf("want seek end %d, got %d error %v", len(b), got, err)
+ 	}
+ 	if n, err := sf.Read(buf); n != 0 || err != io.EOF {
+@@ -668,11 +668,11 @@ func TestCompressedSection(t *testing.T) {
+ 		target := rand.Int63n(int64(len(buf)))
+ 		var offset int64
+ 		switch whence {
+-		case 0:
++		case io.SeekStart:
+ 			offset = target
+-		case 1:
++		case io.SeekCurrent:
+ 			offset = target - pos
+-		case 2:
++		case io.SeekEnd:
+ 			offset = target - int64(len(buf))
+ 		}
+ 		pos, err = sf.Seek(offset, whence)
+diff --git a/src/debug/elf/reader.go b/src/debug/elf/reader.go
+index 4dac6d1b29..eab437318d 100644
+--- a/src/debug/elf/reader.go
++++ b/src/debug/elf/reader.go
+@@ -63,11 +63,11 @@ func (r *readSeekerFromReader) Read(p []byte) (n int, err error) {
+ func (r *readSeekerFromReader) Seek(offset int64, whence int) (int64, error) {
+ 	var newOffset int64
+ 	switch whence {
+-	case 0:
++	case io.SeekStart:
+ 		newOffset = offset
+-	case 1:
++	case io.SeekCurrent:
+ 		newOffset = r.offset + offset
+-	case 2:
++	case io.SeekEnd:
+ 		newOffset = r.size + offset
+ 	default:
+ 		return 0, os.ErrInvalid
+diff --git a/src/go/internal/gccgoimporter/importer.go b/src/go/internal/gccgoimporter/importer.go
+index aa0d01afdf..65cc2df686 100644
+--- a/src/go/internal/gccgoimporter/importer.go
++++ b/src/go/internal/gccgoimporter/importer.go
+@@ -90,7 +90,7 @@ func openExportFile(fpath string) (reader io.ReadSeeker, closer io.Closer, err e
+ 	}
+ 	// reset to offset 0 - needed on Plan 9 (see issue #11265)
+ 	// TODO: remove once issue #11265 has been resolved.
+-	_, err = f.Seek(0, 0)
++	_, err = f.Seek(0, io.SeekStart)
+ 	if err != nil {
+ 		return
+ 	}
+@@ -168,7 +168,7 @@ func GetImporter(searchpaths []string, initmap map[*types.Package]InitData) Impo
+ 		if err != nil {
+ 			return
+ 		}
+-		_, err = reader.Seek(0, 0)
++		_, err = reader.Seek(0, io.SeekStart)
+ 		if err != nil {
+ 			return
+ 		}
+diff --git a/src/io/example_test.go b/src/io/example_test.go
+index 412dfb3b92..bf16de8fe2 100644
+--- a/src/io/example_test.go
++++ b/src/io/example_test.go
+@@ -189,7 +189,7 @@ func ExampleSectionReader_Seek() {
+ 	r := strings.NewReader("some io.Reader stream to be read\n")
+ 	s := io.NewSectionReader(r, 5, 16)
+ 
+-	if _, err := s.Seek(10, 0); err != nil {
++	if _, err := s.Seek(10, io.SeekStart); err != nil {
+ 		log.Fatal(err)
+ 	}
+ 
+diff --git a/src/io/io.go b/src/io/io.go
+index c36ec2afbb..3d0a5a485e 100644
+--- a/src/io/io.go
++++ b/src/io/io.go
+@@ -480,11 +480,11 @@ func (s *SectionReader) Seek(offset int64, whence int) (int64, error) {
+ 	switch whence {
+ 	default:
+ 		return 0, errWhence
+-	case 0:
++	case SeekStart:
+ 		offset += s.base
+-	case 1:
++	case SeekCurrent:
+ 		offset += s.off
+-	case 2:
++	case SeekEnd:
+ 		offset += s.limit
+ 	}
+ 	if offset < s.base {
+diff --git a/src/io/io_test.go b/src/io/io_test.go
+index e892574b0b..877e8392e2 100644
+--- a/src/io/io_test.go
++++ b/src/io/io_test.go
+@@ -347,7 +347,7 @@ func TestSectionReader_Seek(t *testing.T) {
+ 	br := bytes.NewReader([]byte("foo"))
+ 	sr := NewSectionReader(br, 0, int64(len("foo")))
+ 
+-	for whence := 0; whence <= 2; whence++ {
++	for _, whence := range []int{SeekStart, SeekCurrent, SeekEnd} {
+ 		for offset := int64(-3); offset <= 4; offset++ {
+ 			brOff, brErr := br.Seek(offset, whence)
+ 			srOff, srErr := sr.Seek(offset, whence)
+@@ -359,7 +359,7 @@ func TestSectionReader_Seek(t *testing.T) {
+ 	}
+ 
+ 	// And verify we can just seek past the end and get an EOF
+-	got, err := sr.Seek(100, 0)
++	got, err := sr.Seek(100, SeekStart)
+ 	if err != nil || got != 100 {
+ 		t.Errorf("Seek = %v, %v; want 100, nil", got, err)
+ 	}
+diff --git a/src/net/file_plan9.go b/src/net/file_plan9.go
+index 892775a024..24efdc5186 100644
+--- a/src/net/file_plan9.go
++++ b/src/net/file_plan9.go
+@@ -60,7 +60,7 @@ func newFileFD(f *os.File) (net *netFD, err error) {
+ 
+ 		dir := netdir + "/" + comp[n-2]
+ 		ctl = os.NewFile(uintptr(fd), dir+"/"+file)
+-		ctl.Seek(0, 0)
++		ctl.Seek(0, io.SeekStart)
+ 		var buf [16]byte
+ 		n, err := ctl.Read(buf[:])
+ 		if err != nil {
+diff --git a/src/net/http/internal/chunked_test.go b/src/net/http/internal/chunked_test.go
+index a136dc99a6..9abe1ab6d9 100644
+--- a/src/net/http/internal/chunked_test.go
++++ b/src/net/http/internal/chunked_test.go
+@@ -122,7 +122,7 @@ func TestChunkReaderAllocs(t *testing.T) {
+ 	byter := bytes.NewReader(buf.Bytes())
+ 	bufr := bufio.NewReader(byter)
+ 	mallocs := testing.AllocsPerRun(100, func() {
+-		byter.Seek(0, 0)
++		byter.Seek(0, io.SeekStart)
+ 		bufr.Reset(byter)
+ 		r := NewChunkedReader(bufr)
+ 		n, err := io.ReadFull(r, readBuf)
+diff --git a/src/net/lookup_plan9.go b/src/net/lookup_plan9.go
+index 73147a2d3f..3f7af2a174 100644
+--- a/src/net/lookup_plan9.go
++++ b/src/net/lookup_plan9.go
+@@ -7,6 +7,7 @@ package net
+ import (
+ 	"context"
+ 	"errors"
++	"io"
+ 	"os"
+ )
+ 
+@@ -17,7 +18,7 @@ func query(ctx context.Context, filename, query string, bufSize int) (res []stri
+ 	}
+ 	defer file.Close()
+ 
+-	_, err = file.Seek(0, 0)
++	_, err = file.Seek(0, io.SeekStart)
+ 	if err != nil {
+ 		return
+ 	}
+@@ -25,7 +26,7 @@ func query(ctx context.Context, filename, query string, bufSize int) (res []stri
+ 	if err != nil {
+ 		return
+ 	}
+-	_, err = file.Seek(0, 0)
++	_, err = file.Seek(0, io.SeekStart)
+ 	if err != nil {
+ 		return
+ 	}
+diff --git a/src/os/file_plan9.go b/src/os/file_plan9.go
+index 0fe1b8213d..fb796a2a89 100644
+--- a/src/os/file_plan9.go
++++ b/src/os/file_plan9.go
+@@ -5,6 +5,7 @@
+ package os
+ 
+ import (
++	"io"
+ 	"runtime"
+ 	"syscall"
+ 	"time"
+@@ -123,7 +124,7 @@ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
+ 	}
+ 
+ 	if append {
+-		if _, e = syscall.Seek(fd, 0, SEEK_END); e != nil {
++		if _, e = syscall.Seek(fd, 0, io.SeekEnd); e != nil {
+ 			return nil, &PathError{"seek", name, e}
+ 		}
+ 	}
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index 137f24a0a9..08aff83a77 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -325,11 +325,11 @@ func (f *File) read(b []byte) (n int, err error) {
+ func (f *File) pread(b []byte, off int64) (n int, err error) {
+ 	f.l.Lock()
+ 	defer f.l.Unlock()
+-	curoffset, e := syscall.Seek(f.fd, 0, 1)
++	curoffset, e := syscall.Seek(f.fd, 0, io.SeekCurrent)
+ 	if e != nil {
+ 		return 0, e
+ 	}
+-	defer syscall.Seek(f.fd, curoffset, 0)
++	defer syscall.Seek(f.fd, curoffset, io.SeekStart)
+ 	o := syscall.Overlapped{
+ 		OffsetHigh: uint32(off >> 32),
+ 		Offset:     uint32(off),
+@@ -405,11 +405,11 @@ func (f *File) write(b []byte) (n int, err error) {
+ func (f *File) pwrite(b []byte, off int64) (n int, err error) {
+ 	f.l.Lock()
+ 	defer f.l.Unlock()
+-	curoffset, e := syscall.Seek(f.fd, 0, 1)
++	curoffset, e := syscall.Seek(f.fd, 0, io.SeekCurrent)
+ 	if e != nil {
+ 		return 0, e
+ 	}
+-	defer syscall.Seek(f.fd, curoffset, 0)
++	defer syscall.Seek(f.fd, curoffset, io.SeekStart)
+ 	o := syscall.Overlapped{
+ 		OffsetHigh: uint32(off >> 32),
+ 		Offset:     uint32(off),
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 8f62902a6c..de25f26614 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1182,14 +1182,14 @@ func TestSeek(t *testing.T) {
+ 		out    int64
+ 	}
+ 	var tests = []test{
+-		{0, 1, int64(len(data))},
+-		{0, 0, 0},
+-		{5, 0, 5},
+-		{0, 2, int64(len(data))},
+-		{0, 0, 0},
+-		{-1, 2, int64(len(data)) - 1},
+-		{1 << 33, 0, 1 << 33},
+-		{1 << 33, 2, 1<<33 + int64(len(data))},
++		{0, io.SeekCurrent, int64(len(data))},
++		{0, io.SeekStart, 0},
++		{5, io.SeekStart, 5},
++		{0, io.SeekEnd, int64(len(data))},
++		{0, io.SeekStart, 0},
++		{-1, io.SeekEnd, int64(len(data)) - 1},
++		{1 << 33, io.SeekStart, 1 << 33},
++		{1 << 33, io.SeekEnd, 1<<33 + int64(len(data))},
+ 	}
+ 	for i, tt := range tests {
+ 		off, err := f.Seek(tt.in, tt.whence)
+@@ -1726,7 +1726,7 @@ var nilFileMethodTests = []struct {
+ 	{"ReadAt", func(f *File) error { _, err := f.ReadAt(make([]byte, 0), 0); return err }},
+ 	{"Readdir", func(f *File) error { _, err := f.Readdir(1); return err }},
+ 	{"Readdirnames", func(f *File) error { _, err := f.Readdirnames(1); return err }},
+-	{"Seek", func(f *File) error { _, err := f.Seek(0, 0); return err }},
++	{"Seek", func(f *File) error { _, err := f.Seek(0, io.SeekStart); return err }},
+ 	{"Stat", func(f *File) error { _, err := f.Stat(); return err }},
+ 	{"Sync", func(f *File) error { return f.Sync() }},
+ 	{"Truncate", func(f *File) error { return f.Truncate(0) }},
+diff --git a/src/runtime/runtime-lldb_test.go b/src/runtime/runtime-lldb_test.go
+index 2bd91c1ec0..4c379b9cdc 100644
+--- a/src/runtime/runtime-lldb_test.go
++++ b/src/runtime/runtime-lldb_test.go
+@@ -232,7 +232,7 @@ func verifyAranges(t *testing.T, byteorder binary.ByteOrder, data io.ReadSeeker)
+ 		SegmentSize uint8
+ 	}
+ 	for {
+-		offset, err := data.Seek(0, 1)
++		offset, err := data.Seek(0, io.SeekCurrent)
+ 		if err != nil {
+ 			t.Fatalf("Seek error: %v", err)
+ 		}
+@@ -246,7 +246,7 @@ func verifyAranges(t *testing.T, byteorder binary.ByteOrder, data io.ReadSeeker)
+ 		if lastTupleOffset%tupleSize != 0 {
+ 			t.Fatalf("Invalid arange length %d, (addr %d, seg %d)", header.UnitLength, header.AddressSize, header.SegmentSize)
+ 		}
+-		if _, err = data.Seek(lastTupleOffset, 0); err != nil {
++		if _, err = data.Seek(lastTupleOffset, io.SeekStart); err != nil {
+ 			t.Fatalf("Seek error: %v", err)
+ 		}
+ 		buf := make([]byte, tupleSize)
+diff --git a/src/strings/reader.go b/src/strings/reader.go
+index e254837c63..6c1a5064c0 100644
+--- a/src/strings/reader.go
++++ b/src/strings/reader.go
+@@ -107,11 +107,11 @@ func (r *Reader) Seek(offset int64, whence int) (int64, error) {
+ 	r.prevRune = -1
+ 	var abs int64
+ 	switch whence {
+-	case 0:
++	case io.SeekStart:
+ 		abs = offset
+-	case 1:
++	case io.SeekCurrent:
+ 		abs = r.i + offset
+-	case 2:
++	case io.SeekEnd:
+ 		abs = int64(len(r.s)) + offset
+ 	default:
+ 		return 0, errors.New("strings.Reader.Seek: invalid whence")
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index 1ed803bf85..d92dfcc874 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -952,7 +952,7 @@ var UnreadRuneErrorTests = []struct {
+ 	{"Read", func(r *Reader) { r.Read([]byte{0}) }},
+ 	{"ReadByte", func(r *Reader) { r.ReadByte() }},
+ 	{"UnreadRune", func(r *Reader) { r.UnreadRune() }},
+-	{"Seek", func(r *Reader) { r.Seek(0, 1) }},
++	{"Seek", func(r *Reader) { r.Seek(0, io.SeekCurrent) }},
+ 	{"WriteTo", func(r *Reader) { r.WriteTo(&bytes.Buffer{}) }},
+ }
+ 
+diff --git a/src/syscall/fd_nacl.go b/src/syscall/fd_nacl.go
+index 715992b1bf..e559793c8b 100644
+--- a/src/syscall/fd_nacl.go
++++ b/src/syscall/fd_nacl.go
+@@ -10,6 +10,7 @@
+ package syscall
+ 
+ import (
++	"io"
+ 	"sync"
+ )
+ 
+@@ -252,15 +253,15 @@ func (f *naclFile) seek(off int64, whence int) (int64, error) {
+ 
+ func (f *naclFile) prw(b []byte, offset int64, rw func([]byte) (int, error)) (int, error) {
+ 	// NaCl has no pread; simulate with seek and hope for no races.
+-	old, err := f.seek(0, 1)
++	old, err := f.seek(0, io.SeekCurrent)
+ 	if err != nil {
+ 		return 0, err
+ 	}
+-	if _, err := f.seek(offset, 0); err != nil {
++	if _, err := f.seek(offset, io.SeekStart); err != nil {
+ 		return 0, err
+ 	}
+ 	n, err := rw(b)
+-	f.seek(old, 0)
++	f.seek(old, io.SeekStart)
+ 	return n, err
+ }
+ 
+diff --git a/src/syscall/fs_nacl.go b/src/syscall/fs_nacl.go
+index 4019fad1a5..cbd9539c92 100644
+--- a/src/syscall/fs_nacl.go
++++ b/src/syscall/fs_nacl.go
+@@ -15,6 +15,7 @@
+ package syscall
+ 
+ import (
++	"io"
+ 	"sync"
+ 	"unsafe"
+ )
+@@ -367,9 +368,9 @@ func (f *fsysFile) seek(offset int64, whence int) (int64, error) {
+ 	f.fsys.mu.Lock()
+ 	defer f.fsys.mu.Unlock()
+ 	switch whence {
+-	case 1:
++	case io.SeekCurrent:
+ 		offset += f.offset
+-	case 2:
++	case io.SeekEnd:
+ 		offset += f.inode.Size
+ 	}
+ 	if offset < 0 {
+diff --git a/src/syscall/syscall_unix_test.go b/src/syscall/syscall_unix_test.go
+index c7b4560b76..80544f3319 100644
+--- a/src/syscall/syscall_unix_test.go
++++ b/src/syscall/syscall_unix_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"internal/testenv"
++	"io"
+ 	"io/ioutil"
+ 	"net"
+ 	"os"
+@@ -244,7 +245,7 @@ func passFDChild() {
+ 	}
+ 
+ 	f.Write([]byte("Hello from child process!\n"))
+-	f.Seek(0, 0)
++	f.Seek(0, io.SeekStart)
+ 
+ 	rights := syscall.UnixRights(int(f.Fd()))
+ 	dummyByte := []byte("x")
+@@ -344,7 +345,7 @@ func TestRlimit(t *testing.T) {
+ }
+ 
+ func TestSeekFailure(t *testing.T) {
+-	_, err := syscall.Seek(-1, 0, 0)
++	_, err := syscall.Seek(-1, 0, io.SeekStart)
+ 	if err == nil {
+ 		t.Fatalf("Seek(-1, 0, 0) did not fail")
+ 	}
+diff --git a/src/time/sys_plan9.go b/src/time/sys_plan9.go
+index 8484729448..507d1159cf 100644
+--- a/src/time/sys_plan9.go
++++ b/src/time/sys_plan9.go
+@@ -8,6 +8,7 @@ package time
+ 
+ import (
+ 	"errors"
++	"io"
+ 	"syscall"
+ )
+ 
+@@ -55,9 +56,9 @@ func closefd(fd uintptr) {
+ }
+ 
+ func preadn(fd uintptr, buf []byte, off int) error {
+-	whence := 0
++	whence := io.SeekStart
+ 	if off < 0 {
+-		whence = 2
++		whence = io.SeekEnd
+ 	}
+ 	if _, err := syscall.Seek(int(fd), int64(off), whence); err != nil {
+ 		return err
+diff --git a/src/time/sys_unix.go b/src/time/sys_unix.go
+index e592415daa..dea03e06d5 100644
+--- a/src/time/sys_unix.go
++++ b/src/time/sys_unix.go
+@@ -8,6 +8,7 @@ package time
+ 
+ import (
+ 	"errors"
++	"io"
+ 	"syscall"
+ )
+ 
+@@ -55,9 +56,9 @@ func closefd(fd uintptr) {
+ }
+ 
+ func preadn(fd uintptr, buf []byte, off int) error {
+-	whence := 0
++	whence := io.SeekStart
+ 	if off < 0 {
+-		whence = 2
++		whence = io.SeekEnd
+ 	}
+ 	if _, err := syscall.Seek(int(fd), int64(off), whence); err != nil {
+ 		return err
+diff --git a/src/time/sys_windows.go b/src/time/sys_windows.go
+index de63b4bf4b..4f41b1a7a3 100644
+--- a/src/time/sys_windows.go
++++ b/src/time/sys_windows.go
+@@ -6,6 +6,7 @@ package time
+ 
+ import (
+ 	"errors"
++	"io"
+ 	"syscall"
+ )
+ 
+@@ -52,9 +53,9 @@ func closefd(fd uintptr) {
+ }
+ 
+ func preadn(fd uintptr, buf []byte, off int) error {
+-	whence := 0
++	whence := io.SeekStart
+ 	if off < 0 {
+-		whence = 2
++		whence = io.SeekEnd
+ 	}
+ 	if _, err := syscall.Seek(syscall.Handle(fd), int64(off), whence); err != nil {
+ 		return err

@@ -7,6 +7,20 @@ Date:   Fri Dec 2 19:09:08 2016 +0000
     Change-Id: If8200e54b3650f789c5312f10cce32201a199b80
     Reviewed-on: https://go-review.googlesource.com/33775
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.8.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.8.html b/doc/go1.8.html
+index 906efe4f7e..397dd0a7a3 100644
+--- a/doc/go1.8.html
++++ b/doc/go1.8.html
+@@ -766,7 +766,7 @@ Optimizations and bug fixes are not listed.
+       X25519 and <!-- CL 30824, CL 30825 -->
+       ChaCha20-Poly1305.  <!-- CL 30957, CL 30958 -->
+       ChaCha20-Poly1305 is now prioritized unless <!-- CL 32871 -->
+-      AES-GCM when hardware support is present.
++      hardware support for AES-GCM is present.
+     </p>
+ 
+     <p> <!-- CL 27315 -->

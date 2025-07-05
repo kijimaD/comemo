@@ -13,7 +13,7 @@ Date:   Sat Jan 9 09:47:45 2010 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/184043
-
+---
  src/pkg/runtime/chan.c     | 12 ++++++++++++
  src/pkg/runtime/hashmap.c  |  9 +++++++++
  src/pkg/runtime/malloc.cgo |  3 ++-
@@ -21,3 +21,153 @@ Date:   Sat Jan 9 09:47:45 2010 -0800
  src/pkg/runtime/proc.c     |  4 ++++
  src/pkg/runtime/runtime.h  |  1 +
  6 files changed, 29 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index b2a0b4facf..ec33d3f1b2 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -174,6 +174,9 @@ chansend(Hchan *c, byte *ep, bool *pres)
+ 	SudoG *sg;
+ 	G* gp;
+ 
++	if(gcwaiting)
++		gosched();
++
+ 	if(debug) {
+ 		prints("chansend: chan=");
+ 		runtime·printpointer(c);
+@@ -277,6 +280,9 @@ chanrecv(Hchan* c, byte *ep, bool* pres)
+ 	SudoG *sg;
+ 	G *gp;
+ 
++	if(gcwaiting)
++		gosched();
++
+ 	if(debug) {
+ 		prints("chanrecv: chan=");
+ 		runtime·printpointer(c);
+@@ -631,6 +637,9 @@ runtime·selectgo(Select *sel)
+ 	G *gp;
+ 	byte *as;
+ 
++	if(gcwaiting)
++		gosched();
++
+ 	if(debug) {
+ 		prints("selectgo: sel=");
+ 		runtime·printpointer(sel);
+@@ -908,6 +917,9 @@ runtime·closechan(Hchan *c)
+ 	SudoG *sg;
+ 	G* gp;
+ 
++	if(gcwaiting)
++		gosched();
++
+ 	lock(c);
+ 	incerr(c);
+ 	c->closed |= Wclosed;
+diff --git a/src/pkg/runtime/hashmap.c b/src/pkg/runtime/hashmap.c
+index 870274ae91..5bcd8bf416 100644
+--- a/src/pkg/runtime/hashmap.c
++++ b/src/pkg/runtime/hashmap.c
+@@ -744,6 +744,9 @@ mapaccess(Hmap *h, byte *ak, byte *av, bool *pres)
+ {
+ 	byte *res;
+ 
++	if(gcwaiting)
++		gosched();
++
+ 	res = nil;
+ 	if(hash_lookup(h, ak, (void**)&res)) {
+ 		*pres = true;
+@@ -812,6 +815,9 @@ mapassign(Hmap *h, byte *ak, byte *av)
+ 	byte *res;
+ 	int32 hit;
+ 
++	if(gcwaiting)
++		gosched();
++
+ 	res = nil;
+ 	if(av == nil) {
+ 		hash_remove(h, ak, (void**)&res);
+@@ -908,6 +914,9 @@ mapiterinit(Hmap *h)
+ void
+ runtime·mapiternext(struct hash_iter *it)
+ {
++	if(gcwaiting)
++		gosched();
++
+ 	it->data = hash_next(it);
+ 	if(debug) {
+ 		prints("runtime·mapiternext: iter=");
+diff --git a/src/pkg/runtime/malloc.cgo b/src/pkg/runtime/malloc.cgo
+index e34393a85b..948257973e 100644
+--- a/src/pkg/runtime/malloc.cgo
++++ b/src/pkg/runtime/malloc.cgo
+@@ -27,10 +27,11 @@ mallocgc(uintptr size, uint32 refflag, int32 dogc)
+ 	void *v;
+ 	uint32 *ref;
+ 
++	if(gcwaiting && g != m->g0)
++		gosched();
+ 	if(m->mallocing)
+ 		throw("malloc/free - deadlock");
+ 	m->mallocing = 1;
+-
+ 	if(size == 0)
+ 		size = 1;
+ 
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index f0eafe3fd6..2a050d3788 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -244,7 +244,7 @@ gc(int32 force)
+ 		sweep();
+ 		mstats.next_gc = mstats.inuse_pages+mstats.inuse_pages*gcpercent/100;
+ 	}
+-	starttheworld();
+ 	m->gcing = 0;
+ 	semrelease(&gcsema);
++	starttheworld();
+ }
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 6ac4090ebe..6324b4be4c 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -14,6 +14,8 @@ G	g0;	// idle goroutine for m0
+ 
+ static	int32	debug	= 0;
+ 
++int32	gcwaiting;
++
+ // Go scheduler
+ //
+ // The go scheduler's job is to match ready-to-run goroutines (`g's)
+@@ -362,6 +364,7 @@ void
+ stoptheworld(void)
+ {
+ 	lock(&sched);
++	gcwaiting = 1;
+ 	sched.mcpumax = 1;
+ 	while(sched.mcpu > 1) {
+ 		noteclear(&sched.stopped);
+@@ -379,6 +382,7 @@ void
+ starttheworld(void)
+ {
+ 	lock(&sched);
++	gcwaiting = 0;
+ 	sched.mcpumax = sched.gomaxprocs;
+ 	matchmg();
+ 	unlock(&sched);
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 2d956ea980..ff0eab6b76 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -316,6 +316,7 @@ extern	int32	gomaxprocs;
+ extern	int32	panicking;
+ extern	int32	maxround;
+ extern	int32	fd;	// usually 1; set to 2 when panicking
++extern	int32	gcwaiting;		// gc is waiting to run
+ int8*	goos;
+ 
+ /*

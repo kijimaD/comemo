@@ -11,8 +11,48 @@ Date:   Fri May 2 09:13:26 2025 +0800
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
     Reviewed-by: Michael Matloob <matloob@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/generate/generate_test.go | 2 +-
  src/cmd/go/internal/list/list.go              | 2 +-
  src/cmd/go/internal/work/shell.go             | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/generate/generate_test.go b/src/cmd/go/internal/generate/generate_test.go
+index 90e6a1f552..2eef917e7e 100644
+--- a/src/cmd/go/internal/generate/generate_test.go
++++ b/src/cmd/go/internal/generate/generate_test.go
+@@ -218,7 +218,7 @@ var splitTestsLines = []splitTestWithLine{
+ 	{"TEST2 ''", []string{"44", "''"}, 44},
+ }
+ 
+-// TestGenerateCommandShortHand - similar to TestGenerateCommandParse,
++// TestGenerateCommandShortHand2 - similar to TestGenerateCommandParse,
+ // except:
+ //  1. if the result starts with -command, record that shorthand
+ //     before moving on to the next test.
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index d7a201a9b7..86a6b1792c 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -930,7 +930,7 @@ func collectDeps(p *load.Package) {
+ 	sort.Strings(p.Deps)
+ }
+ 
+-// collectDeps populates p.DepsErrors by iterating over p.Internal.Imports.
++// collectDepsErrors populates p.DepsErrors by iterating over p.Internal.Imports.
+ // collectDepsErrors must be called on all of p's Imports before being called on p.
+ func collectDepsErrors(p *load.Package) {
+ 	depsErrors := make(map[*load.PackageError]bool)
+diff --git a/src/cmd/go/internal/work/shell.go b/src/cmd/go/internal/work/shell.go
+index 2604b074da..284ed26f22 100644
+--- a/src/cmd/go/internal/work/shell.go
++++ b/src/cmd/go/internal/work/shell.go
+@@ -178,7 +178,7 @@ func (sh *Shell) moveOrCopyFile(dst, src string, perm fs.FileMode, force bool) e
+ 	return sh.CopyFile(dst, src, perm, force)
+ }
+ 
+-// copyFile is like 'cp src dst'.
++// CopyFile is like 'cp src dst'.
+ func (sh *Shell) CopyFile(dst, src string, perm fs.FileMode, force bool) error {
+ 	if cfg.BuildN || cfg.BuildX {
+ 		sh.ShowCmd("", "cp %s %s", src, dst)

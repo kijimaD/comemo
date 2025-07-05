@@ -11,7 +11,7 @@ Date:   Thu Apr 1 18:39:39 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/306770
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/noder/irgen.go       | 1 -
  src/cmd/compile/internal/types2/api.go        | 4 ----
  src/cmd/compile/internal/types2/api_test.go   | 1 -
@@ -19,3 +19,108 @@ Date:   Thu Apr 1 18:39:39 2021 -0700
  src/cmd/compile/internal/types2/check_test.go | 1 -
  src/cmd/compile/internal/types2/infer.go      | 8 +++++---
  6 files changed, 6 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index 2de8c3fa60..3e0d3285ab 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -36,7 +36,6 @@ func check2(noders []*noder) {
+ 	// typechecking
+ 	conf := types2.Config{
+ 		GoVersion:             base.Flag.Lang,
+-		InferFromConstraints:  true,
+ 		IgnoreLabels:          true, // parser already checked via syntax.CheckBranches mode
+ 		CompilerErrorMessages: true, // use error strings matching existing compiler errors
+ 		Error: func(err error) {
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index d356978d5e..63008711bf 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -110,10 +110,6 @@ type Config struct {
+ 	// If AcceptMethodTypeParams is set, methods may have type parameters.
+ 	AcceptMethodTypeParams bool
+ 
+-	// If InferFromConstraints is set, constraint type inference is used
+-	// if some function type arguments are missing.
+-	InferFromConstraints bool
+-
+ 	// If FakeImportC is set, `import "C"` (for packages requiring Cgo)
+ 	// declares an empty "C" package and errors are omitted for qualified
+ 	// identifiers referring to package C (which won't find an object).
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index 42135df1f6..b5990e5d46 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -66,7 +66,6 @@ func mayTypecheck(t *testing.T, path, source string, info *Info) (string, error)
+ 	}
+ 	conf := Config{
+ 		AcceptMethodTypeParams: true,
+-		InferFromConstraints:   true,
+ 		Error:                  func(err error) {},
+ 		Importer:               defaultImporter(),
+ 	}
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 3ffc8c1bef..5ad8ea9f87 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -27,7 +27,7 @@ func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
+ 	// check number of type arguments (got) vs number of type parameters (want)
+ 	sig := x.typ.(*Signature)
+ 	got, want := len(targs), len(sig.tparams)
+-	if !check.conf.InferFromConstraints && got != want || got > want {
++	if !useConstraintTypeInference && got != want || got > want {
+ 		check.errorf(xlist[got-1], "got %d type arguments but want %d", got, want)
+ 		x.mode = invalid
+ 		x.expr = inst
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index ac21c3458e..a6baa71b2a 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -129,7 +129,6 @@ func checkFiles(t *testing.T, filenames []string, goVersion string, colDelta uin
+ 	var conf Config
+ 	conf.GoVersion = goVersion
+ 	conf.AcceptMethodTypeParams = true
+-	conf.InferFromConstraints = true
+ 	// special case for importC.src
+ 	if len(filenames) == 1 && strings.HasSuffix(filenames[0], "importC.src") {
+ 		conf.FakeImportC = true
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index d267787816..995ebd7ea0 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -11,6 +11,8 @@ import (
+ 	"cmd/compile/internal/syntax"
+ )
+ 
++const useConstraintTypeInference = true
++
+ // infer attempts to infer the complete set of type arguments for generic function instantiation/call
+ // based on the given type parameters tparams, type arguments targs, function parameters params, and
+ // function arguments args, if any. There must be at least one type parameter, no more type arguments
+@@ -56,7 +58,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeName, targs []Type, p
+ 	// and types inferred via constraint type inference take precedence over types
+ 	// inferred from function arguments.
+ 	// If we have type arguments, see how far we get with constraint type inference.
+-	if len(targs) > 0 && check.conf.InferFromConstraints {
++	if len(targs) > 0 && useConstraintTypeInference {
+ 		var index int
+ 		targs, index = check.inferB(tparams, targs, report)
+ 		if targs == nil || index < 0 {
+@@ -171,7 +173,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeName, targs []Type, p
+ 	// See how far we get with constraint type inference.
+ 	// Note that even if we don't have any type arguments, constraint type inference
+ 	// may produce results for constraints that explicitly specify a type.
+-	if check.conf.InferFromConstraints {
++	if useConstraintTypeInference {
+ 		targs, index = check.inferB(tparams, targs, report)
+ 		if targs == nil || index < 0 {
+ 			return targs
+@@ -219,7 +221,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeName, targs []Type, p
+ 	}
+ 
+ 	// Again, follow up with constraint type inference.
+-	if check.conf.InferFromConstraints {
++	if useConstraintTypeInference {
+ 		targs, index = check.inferB(tparams, targs, report)
+ 		if targs == nil || index < 0 {
+ 			return targs

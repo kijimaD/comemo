@@ -17,8 +17,103 @@ Date:   Tue May 10 16:06:16 2022 -0700
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/noder/types.go       |  9 ++++-----
  src/cmd/compile/internal/typecheck/iimport.go | 11 ++++-------
  src/cmd/compile/internal/types/type.go        | 17 ++++-------------
  3 files changed, 12 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/types.go b/src/cmd/compile/internal/noder/types.go
+index ff3a4d982d..57b35e602b 100644
+--- a/src/cmd/compile/internal/noder/types.go
++++ b/src/cmd/compile/internal/noder/types.go
+@@ -253,11 +253,10 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
+ 			// this types2-to-types1 translation.
+ 			return sym.Def.Type()
+ 		}
+-		tp := types.NewTypeParam(sym, typ.Index())
+-		nname := ir.NewDeclNameAt(g.pos(typ.Obj().Pos()), ir.OTYPE, sym)
+-		sym.Def = nname
+-		nname.SetType(tp)
+-		tp.SetNod(nname)
++		obj := ir.NewDeclNameAt(g.pos(typ.Obj().Pos()), ir.OTYPE, sym)
++		sym.Def = obj
++		tp := types.NewTypeParam(obj, typ.Index())
++		obj.SetType(tp)
+ 		// Set g.typs[typ] in case the bound methods reference typ.
+ 		g.typs[typ] = tp
+ 
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 851b1ead63..c6d3fc4c6e 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -420,14 +420,11 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
+ 			// this types2-to-types1 translation.
+ 			return sym.Def.(*ir.Name)
+ 		}
++		n := importsym(pos, sym, ir.OTYPE, ir.PTYPEPARAM)
+ 		// The typeparam index is set at the point where the containing type
+ 		// param list is imported.
+-		t := types.NewTypeParam(sym, 0)
+-		// Nname needed to save the pos.
+-		nname := ir.NewDeclNameAt(pos, ir.OTYPE, sym)
+-		sym.Def = nname
+-		nname.SetType(t)
+-		t.SetNod(nname)
++		t := types.NewTypeParam(n, 0)
++		n.SetType(t)
+ 		implicit := false
+ 		if r.p.exportVersion >= iexportVersionGo1_18 {
+ 			implicit = r.bool()
+@@ -437,7 +434,7 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
+ 			bound.MarkImplicit()
+ 		}
+ 		t.SetBound(bound)
+-		return nname
++		return n
+ 
+ 	case 'V':
+ 		typ := r.typ()
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index c8fe31e718..77aae3c4ac 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -238,8 +238,7 @@ func (t *Type) SetHasShape(b bool) { t.flags.set(typeHasShape, b) }
+ func (t *Type) Kind() Kind { return t.kind }
+ 
+ // Sym returns the name of type t.
+-func (t *Type) Sym() *Sym       { return t.sym }
+-func (t *Type) SetSym(sym *Sym) { t.sym = sym }
++func (t *Type) Sym() *Sym { return t.sym }
+ 
+ // OrigType returns the original generic type that t is an
+ // instantiation of, if any.
+@@ -249,15 +248,6 @@ func (t *Type) SetOrigType(orig *Type) { t.origType = orig }
+ // Underlying returns the underlying type of type t.
+ func (t *Type) Underlying() *Type { return t.underlying }
+ 
+-// SetNod associates t with syntax node n.
+-func (t *Type) SetNod(n Object) {
+-	// t.nod can be non-nil already
+-	// in the case of shared *Types, like []byte or interface{}.
+-	if t.nod == nil {
+-		t.nod = n
+-	}
+-}
+-
+ // Pos returns a position associated with t, if any.
+ // This should only be used for diagnostics.
+ func (t *Type) Pos() src.XPos {
+@@ -1853,9 +1843,10 @@ func NewInterface(pkg *Pkg, methods []*Field, implicit bool) *Type {
+ 
+ // NewTypeParam returns a new type param with the specified sym (package and name)
+ // and specified index within the typeparam list.
+-func NewTypeParam(sym *Sym, index int) *Type {
++func NewTypeParam(obj Object, index int) *Type {
+ 	t := newType(TTYPEPARAM)
+-	t.sym = sym
++	t.sym = obj.Sym()
++	t.nod = obj
+ 	t.extra.(*Typeparam).index = index
+ 	t.SetHasTParam(true)
+ 	return t

@@ -17,7 +17,77 @@ Date:   Thu Nov 14 15:43:55 2019 +0100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/207237
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/mem_aix.go | 11 ++++++-----
  src/runtime/os2_aix.go | 12 ++++++++++++
  2 files changed, 18 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/mem_aix.go b/src/runtime/mem_aix.go
+index eeebfa73ad..7e145b072a 100644
+--- a/src/runtime/mem_aix.go
++++ b/src/runtime/mem_aix.go
+@@ -63,14 +63,15 @@ func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
+ 	mSysStatInc(sysStat, n)
+ 
+ 	// AIX does not allow mapping a range that is already mapped.
+-	// So always unmap first even if it is already unmapped.
+-	munmap(v, n)
+-	p, err := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
+-
++	// So, call mprotect to change permissions.
++	// Note that sysMap is always called with a non-nil pointer
++	// since it transitions a Reserved memory region to Prepared,
++	// so mprotect is always possible.
++	_, err := mprotect(v, n, _PROT_READ|_PROT_WRITE)
+ 	if err == _ENOMEM {
+ 		throw("runtime: out of memory")
+ 	}
+-	if p != v || err != 0 {
++	if err != 0 {
+ 		throw("runtime: cannot map pages in arena address space")
+ 	}
+ }
+diff --git a/src/runtime/os2_aix.go b/src/runtime/os2_aix.go
+index 7c3cb27223..31ac6ddf79 100644
+--- a/src/runtime/os2_aix.go
++++ b/src/runtime/os2_aix.go
+@@ -38,6 +38,7 @@ var (
+ //go:cgo_import_dynamic libc_madvise madvise "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_malloc malloc "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_mmap mmap "libc.a/shr_64.o"
++//go:cgo_import_dynamic libc_mprotect mprotect "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_munmap munmap "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_open open "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_pipe pipe "libc.a/shr_64.o"
+@@ -77,6 +78,7 @@ var (
+ //go:linkname libc_madvise libc_madvise
+ //go:linkname libc_malloc libc_malloc
+ //go:linkname libc_mmap libc_mmap
++//go:linkname libc_mprotect libc_mprotect
+ //go:linkname libc_munmap libc_munmap
+ //go:linkname libc_open libc_open
+ //go:linkname libc_pipe libc_pipe
+@@ -118,6 +120,7 @@ var (
+ 	libc_madvise,
+ 	libc_malloc,
+ 	libc_mmap,
++	libc_mprotect,
+ 	libc_munmap,
+ 	libc_open,
+ 	libc_pipe,
+@@ -458,6 +461,15 @@ func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (un
+ 	return unsafe.Pointer(r), int(err0)
+ }
+ 
++//go:nosplit
++func mprotect(addr unsafe.Pointer, n uintptr, prot int32) (unsafe.Pointer, int) {
++	r, err0 := syscall3(&libc_mprotect, uintptr(addr), uintptr(n), uintptr(prot))
++	if r == ^uintptr(0) {
++		return nil, int(err0)
++	}
++	return unsafe.Pointer(r), int(err0)
++}
++
+ //go:nosplit
+ func munmap(addr unsafe.Pointer, n uintptr) {
+ 	r, err := syscall2(&libc_munmap, uintptr(addr), uintptr(n))

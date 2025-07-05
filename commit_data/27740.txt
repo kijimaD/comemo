@@ -13,7 +13,38 @@ Date:   Mon Apr 11 12:22:26 2016 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/compile.go   | 6 +++---
  src/cmd/compile/internal/ssa/decompose.go | 2 +-
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index d52ae9c6da..b4215f119e 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -230,9 +230,9 @@ var passes = [...]pass{
+ 	{name: "early deadcode", fn: deadcode}, // remove generated dead code to avoid doing pointless work during opt
+ 	{name: "short circuit", fn: shortcircuit},
+ 	{name: "decompose user", fn: decomposeUser, required: true},
+-	{name: "opt", fn: opt, required: true},           // TODO: split required rules and optimizing rules
+-	{name: "zero arg cse", fn: zcse, required: true}, // required to merge OpSB values
+-	{name: "opt deadcode", fn: deadcode},             // remove any blocks orphaned during opt
++	{name: "opt", fn: opt, required: true},               // TODO: split required rules and optimizing rules
++	{name: "zero arg cse", fn: zcse, required: true},     // required to merge OpSB values
++	{name: "opt deadcode", fn: deadcode, required: true}, // remove any blocks orphaned during opt
+ 	{name: "generic cse", fn: cse},
+ 	{name: "phiopt", fn: phiopt},
+ 	{name: "nilcheckelim", fn: nilcheckelim},
+diff --git a/src/cmd/compile/internal/ssa/decompose.go b/src/cmd/compile/internal/ssa/decompose.go
+index de02885d76..53116ba593 100644
+--- a/src/cmd/compile/internal/ssa/decompose.go
++++ b/src/cmd/compile/internal/ssa/decompose.go
+@@ -79,7 +79,7 @@ func decomposeBuiltIn(f *Func) {
+ 			}
+ 			delete(f.NamedValues, name)
+ 		case t.Size() > f.Config.IntSize:
+-			f.Unimplementedf("undecomposed named type %s", t)
++			f.Unimplementedf("undecomposed named type %s %s", name, t)
+ 		default:
+ 			newNames = append(newNames, name)
+ 		}

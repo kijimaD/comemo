@@ -12,6 +12,39 @@ Date:   Wed Jan 31 11:58:03 2018 -0500
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
     Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/database/sql/sql.go | 14 --------------
  1 file changed, 14 deletions(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index a6fa153d94..5d62eb2b53 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -2262,13 +2262,6 @@ func resultFromStatement(ctx context.Context, ci driver.Conn, ds *driverStmt, ar
+ 		return nil, err
+ 	}
+ 
+-	// -1 means the driver doesn't know how to count the number of
+-	// placeholders, so we won't sanity check input here and instead let the
+-	// driver deal with errors.
+-	if want := ds.si.NumInput(); want >= 0 && want != len(dargs) {
+-		return nil, fmt.Errorf("sql: statement expects %d inputs; got %d", want, len(dargs))
+-	}
+-
+ 	resi, err := ctxDriverStmtExec(ctx, ds.si, dargs)
+ 	if err != nil {
+ 		return nil, err
+@@ -2440,13 +2433,6 @@ func rowsiFromStatement(ctx context.Context, ci driver.Conn, ds *driverStmt, arg
+ 		return nil, err
+ 	}
+ 
+-	// -1 means the driver doesn't know how to count the number of
+-	// placeholders, so we won't sanity check input here and instead let the
+-	// driver deal with errors.
+-	if want := ds.si.NumInput(); want >= 0 && want != len(dargs) {
+-		return nil, fmt.Errorf("sql: statement expects %d inputs; got %d", want, len(dargs))
+-	}
+-
+ 	rowsi, err := ctxDriverStmtQuery(ctx, ds.si, dargs)
+ 	if err != nil {
+ 		return nil, err

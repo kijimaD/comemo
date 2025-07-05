@@ -18,6 +18,49 @@ Date:   Mon Dec 7 02:12:12 2015 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/walk.go | 20 ++++++++------------
  1 file changed, 8 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 9051be0eeb..efc42fc02c 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -787,14 +787,12 @@ opswitch:
+ 		t := r.Left.Type
+ 		p := ""
+ 		if t.Type.Width <= 128 { // Check ../../runtime/hashmap.go:maxValueSize before changing.
+-			switch Simsimtype(t.Down) {
+-			case TINT32, TUINT32:
++			switch algtype(t.Down) {
++			case AMEM32:
+ 				p = "mapaccess2_fast32"
+-
+-			case TINT64, TUINT64:
++			case AMEM64:
+ 				p = "mapaccess2_fast64"
+-
+-			case TSTRING:
++			case ASTRING:
+ 				p = "mapaccess2_faststr"
+ 			}
+ 		}
+@@ -1203,14 +1201,12 @@ opswitch:
+ 		t := n.Left.Type
+ 		p := ""
+ 		if t.Type.Width <= 128 { // Check ../../runtime/hashmap.go:maxValueSize before changing.
+-			switch Simsimtype(t.Down) {
+-			case TINT32, TUINT32:
++			switch algtype(t.Down) {
++			case AMEM32:
+ 				p = "mapaccess1_fast32"
+-
+-			case TINT64, TUINT64:
++			case AMEM64:
+ 				p = "mapaccess1_fast64"
+-
+-			case TSTRING:
++			case ASTRING:
+ 				p = "mapaccess1_faststr"
+ 			}
+ 		}

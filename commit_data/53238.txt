@@ -20,8 +20,118 @@ Date:   Wed Aug 3 16:13:56 2022 -0700
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/go/internal/gcimporter/gcimporter_test.go | 12 ++----------
  src/go/internal/gcimporter/ureader.go         | 26 ++++++++++++++++++++++----
  src/go/types/eval_test.go                     | 10 +---------
  3 files changed, 25 insertions(+), 23 deletions(-)
+
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index 68a077c190..dd41c2550c 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -461,14 +461,6 @@ func verifyInterfaceMethodRecvs(t *testing.T, named *types.Named, level int) {
+ 		return // not an interface
+ 	}
+ 
+-	// The unified IR importer always sets interface method receiver
+-	// parameters to point to the Interface type, rather than the Named.
+-	// See #49906.
+-	var want types.Type = named
+-	if goexperiment.Unified {
+-		want = iface
+-	}
+-
+ 	// check explicitly declared methods
+ 	for i := 0; i < iface.NumExplicitMethods(); i++ {
+ 		m := iface.ExplicitMethod(i)
+@@ -477,8 +469,8 @@ func verifyInterfaceMethodRecvs(t *testing.T, named *types.Named, level int) {
+ 			t.Errorf("%s: missing receiver type", m)
+ 			continue
+ 		}
+-		if recv.Type() != want {
+-			t.Errorf("%s: got recv type %s; want %s", m, recv.Type(), want)
++		if recv.Type() != named {
++			t.Errorf("%s: got recv type %s; want %s", m, recv.Type(), named)
+ 		}
+ 	}
+ 
+diff --git a/src/go/internal/gcimporter/ureader.go b/src/go/internal/gcimporter/ureader.go
+index 97f0664fe3..d45ea80ecc 100644
+--- a/src/go/internal/gcimporter/ureader.go
++++ b/src/go/internal/gcimporter/ureader.go
+@@ -493,10 +493,6 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
+ 
+ 			named.SetTypeParams(r.typeParamNames())
+ 
+-			// TODO(mdempsky): Rewrite receiver types to underlying is an
+-			// Interface? The go/types importer does this (I think because
+-			// unit tests expected that), but cmd/compile doesn't care
+-			// about it, so maybe we can avoid worrying about that here.
+ 			rhs := r.typ()
+ 			pk := r.p
+ 			pk.laterFor(named, func() {
+@@ -508,6 +504,28 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
+ 					f()                        // initialize RHS
+ 				}
+ 				underlying := rhs.Underlying()
++
++				// If the underlying type is an interface, we need to
++				// duplicate its methods so we can replace the receiver
++				// parameter's type (#49906).
++				if iface, ok := underlying.(*types.Interface); ok && iface.NumExplicitMethods() != 0 {
++					methods := make([]*types.Func, iface.NumExplicitMethods())
++					for i := range methods {
++						fn := iface.ExplicitMethod(i)
++						sig := fn.Type().(*types.Signature)
++
++						recv := types.NewVar(fn.Pos(), fn.Pkg(), "", named)
++						methods[i] = types.NewFunc(fn.Pos(), fn.Pkg(), fn.Name(), types.NewSignature(recv, sig.Params(), sig.Results(), sig.Variadic()))
++					}
++
++					embeds := make([]types.Type, iface.NumEmbeddeds())
++					for i := range embeds {
++						embeds[i] = iface.EmbeddedType(i)
++					}
++
++					underlying = types.NewInterfaceType(methods, embeds)
++				}
++
+ 				named.SetUnderlying(underlying)
+ 			})
+ 
+diff --git a/src/go/types/eval_test.go b/src/go/types/eval_test.go
+index 6f5b548eb2..b0745c16d9 100644
+--- a/src/go/types/eval_test.go
++++ b/src/go/types/eval_test.go
+@@ -12,7 +12,6 @@ import (
+ 	"go/importer"
+ 	"go/parser"
+ 	"go/token"
+-	"internal/goexperiment"
+ 	"internal/testenv"
+ 	"strings"
+ 	"testing"
+@@ -209,7 +208,7 @@ func TestCheckExpr(t *testing.T) {
+ 	// expr is an identifier or selector expression that is passed
+ 	// to CheckExpr at the position of the comment, and object is
+ 	// the string form of the object it denotes.
+-	src := `
++	const src = `
+ package p
+ 
+ import "fmt"
+@@ -236,13 +235,6 @@ func f(a int, s string) S {
+ 	return S{}
+ }`
+ 
+-	// The unified IR importer always sets interface method receiver
+-	// parameters to point to the Interface type, rather than the Named.
+-	// See #49906.
+-	if goexperiment.Unified {
+-		src = strings.ReplaceAll(src, "func (fmt.Stringer).", "func (interface).")
+-	}
+-
+ 	fset := token.NewFileSet()
+ 	f, err := parser.ParseFile(fset, "p", src, parser.ParseComments)
+ 	if err != nil {

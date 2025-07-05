@@ -16,9 +16,74 @@ Date:   Tue Dec 7 17:09:41 2021 -0500
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go.mod                                                      | 2 +-
  src/cmd/go.sum                                                      | 4 ++--
  .../golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go  | 6 ++++--
  src/cmd/vendor/modules.txt                                          | 2 +-
  4 files changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 434081eb2f..f46c770c19 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -8,7 +8,7 @@ require (
+ 	golang.org/x/mod v0.6.0-dev.0.20211102181907-3a5865c02020
+ 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
+ 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
+-	golang.org/x/tools v0.1.8-0.20211202032535-e212aff8fd14
++	golang.org/x/tools v0.1.9-0.20211207220608-fd2bfb79a16a
+ )
+ 
+ require (
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 4b7aa6994c..941011fe09 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -18,7 +18,7 @@ golang.org/x/sys v0.0.0-20211205182925-97ca703d548d h1:FjkYO/PPp4Wi0EAUOVLxePm7q
+ golang.org/x/sys v0.0.0-20211205182925-97ca703d548d/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 h1:JGgROgKl9N8DuW20oFS5gxc+lE67/N3FcwmBPMe7ArY=
+ golang.org/x/term v0.0.0-20210927222741-03fcf44c2211/go.mod h1:jbD1KX2456YbFQfuXm/mYQcufACuNUgVhRMnK/tPxf8=
+-golang.org/x/tools v0.1.8-0.20211202032535-e212aff8fd14 h1:KPFD5zp3T4bZL/kdosp4tGDJ6DKwUmYSWM0twy7w/bg=
+-golang.org/x/tools v0.1.8-0.20211202032535-e212aff8fd14/go.mod h1:nABZi5QlRsZVlzPpHl034qft6wpY4eDcsTt5AaioBiU=
++golang.org/x/tools v0.1.9-0.20211207220608-fd2bfb79a16a h1:G+TZ7v63o8mn+LBWOdnHaiypIhcgFZ6BDDnyX+RXDYg=
++golang.org/x/tools v0.1.9-0.20211207220608-fd2bfb79a16a/go.mod h1:nABZi5QlRsZVlzPpHl034qft6wpY4eDcsTt5AaioBiU=
+ golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 h1:go1bK/D/BFZV2I8cIQd1NKEZ+0owSTG1fDTci4IqFcE=
+ golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go
+index 64a28ac0b9..cc9497179d 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go
+@@ -61,7 +61,7 @@ var Analyzer = &analysis.Analyzer{
+ // we let it go. But if it does have a fmt.ScanState, then the
+ // rest has to match.
+ var canonicalMethods = map[string]struct{ args, results []string }{
+-	"As": {[]string{"interface{}"}, []string{"bool"}}, // errors.As
++	"As": {[]string{"any"}, []string{"bool"}}, // errors.As
+ 	// "Flush": {{}, {"error"}}, // http.Flusher and jpeg.writer conflict
+ 	"Format":        {[]string{"=fmt.State", "rune"}, []string{}},                      // fmt.Formatter
+ 	"GobDecode":     {[]string{"[]byte"}, []string{"error"}},                           // gob.GobDecoder
+@@ -194,7 +194,9 @@ func matchParams(pass *analysis.Pass, expect []string, actual *types.Tuple, pref
+ func matchParamType(expect string, actual types.Type) bool {
+ 	expect = strings.TrimPrefix(expect, "=")
+ 	// Overkill but easy.
+-	return typeString(actual) == expect
++	t := typeString(actual)
++	return t == expect ||
++		(t == "any" || t == "interface{}") && (expect == "any" || expect == "interface{}")
+ }
+ 
+ var errorType = types.Universe.Lookup("error").Type().Underlying().(*types.Interface)
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 5ce2fe2f63..22dd145a55 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -51,7 +51,7 @@ golang.org/x/sys/windows
+ # golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
+ ## explicit; go 1.17
+ golang.org/x/term
+-# golang.org/x/tools v0.1.8-0.20211202032535-e212aff8fd14
++# golang.org/x/tools v0.1.9-0.20211207220608-fd2bfb79a16a
+ ## explicit; go 1.17
+ golang.org/x/tools/cover
+ golang.org/x/tools/go/analysis

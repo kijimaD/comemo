@@ -11,10 +11,315 @@ Date:   Fri Aug 26 08:50:50 2016 -0400
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/build/deps_test.go   |   1 +
  src/plugin/plugin.go        |  70 +++++++++++++++++++++++++
  src/plugin/plugin_dlopen.go | 125 ++++++++++++++++++++++++++++++++++++++++++++
  src/plugin/plugin_stubs.go  |  17 ++++++
  src/runtime/plugin.go       |  51 ++++++++++++++++++
  5 files changed, 264 insertions(+)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index b8ee601f50..d8eb2ee726 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -261,6 +261,7 @@ var pkgDeps = map[string][]string{
+ 	"mime/quotedprintable":     {"L4"},
+ 	"net/internal/socktest":    {"L4", "OS", "syscall"},
+ 	"net/url":                  {"L4"},
++	"plugin":                   {"L0", "OS", "CGO"},
+ 	"text/scanner":             {"L4", "OS"},
+ 	"text/template/parse":      {"L4"},
+ 
+diff --git a/src/plugin/plugin.go b/src/plugin/plugin.go
+new file mode 100644
+index 0000000000..66cf2f98d4
+--- /dev/null
++++ b/src/plugin/plugin.go
+@@ -0,0 +1,70 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package plugin implements loading and symbol resolution of Go plugins.
++//
++// Currently plugins only work on Linux.
++//
++// A plugin is a Go main package with exported functions and variables that
++// has been built with:
++//
++//	go build -buildmode=plugin
++//
++// When a plugin is first opened, the init functions of all packages not
++// already part of the program are called. The main function is not run.
++// A plugin is only initialized once, and cannot be closed.
++package plugin
++
++// Plugin is a loaded Go plugin.
++type Plugin struct {
++	name   string
++	loaded chan struct{} // closed when loaded
++	syms   map[string]interface{}
++}
++
++// Open opens a Go plugin.
++func Open(path string) (*Plugin, error) {
++	return open(path)
++}
++
++// Lookup searches for a symbol named symName in plugin p.
++// A symbol is any exported variable or function.
++// It reports an error if the symbol is not found.
++func (p *Plugin) Lookup(symName string) (Symbol, error) {
++	return lookup(p, symName)
++}
++
++// A Symbol is a pointer to a variable or function.
++//
++// For example, a plugin defined as
++//
++//	package main
++//
++//	// // No C code needed.
++//	import "C"
++//
++//	import "fmt"
++//
++//	var V int
++//
++//	func F() { fmt.Println("Hello, number %d", V) }
++//
++// may be loaded with the Open function and then the exported package
++// symbols V and F can be accessed
++//
++//	p, err := plugin.Open("plugin_name.so")
++//	if err != nil {
++//		panic(err)
++//	}
++//	v, err := p.Lookup("V")
++//	if err != nil {
++//		panic(err)
++//	}
++//	f, err := p.Lookup("F")
++//	if err != nil {
++//		panic(err)
++//	}
++//	*v.(*int) = 7
++//	f.(func())() // prints "Hello, number 7"
++type Symbol interface{}
+diff --git a/src/plugin/plugin_dlopen.go b/src/plugin/plugin_dlopen.go
+new file mode 100644
+index 0000000000..5a9421efcf
+--- /dev/null
++++ b/src/plugin/plugin_dlopen.go
+@@ -0,0 +1,125 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux,cgo
++
++package plugin
++
++/*
++#cgo linux LDFLAGS: -ldl
++#include <dlfcn.h>
++#include <limits.h>
++#include <stdlib.h>
++#include <stdint.h>
++
++static uintptr_t pluginOpen(const char* path, char** err) {
++	void* h = dlopen(path, RTLD_NOW|RTLD_GLOBAL);
++	if (h == NULL) {
++		*err = dlerror();
++	}
++	return (uintptr_t)h;
++}
++
++static void* pluginLookup(uintptr_t h, const char* name, char** err) {
++	void* r = dlsym((void*)h, name);
++	if (r == NULL) {
++		*err = dlerror();
++	}
++	return r;
++}
++*/
++import "C"
++
++import (
++	"errors"
++	"sync"
++	"unsafe"
++)
++
++func open(name string) (*Plugin, error) {
++	pluginsMu.Lock()
++	cRelName := C.CString(name)
++	cPath := C.realpath(cRelName, nil)
++	C.free(unsafe.Pointer(cRelName))
++	defer C.free(unsafe.Pointer(cPath))
++	path := C.GoString(cPath)
++	if p := plugins[path]; p != nil {
++		pluginsMu.Unlock()
++		<-p.loaded
++		return p, nil
++	}
++	var cErr *C.char
++	h := C.pluginOpen(cPath, &cErr)
++	if h == 0 {
++		pluginsMu.Unlock()
++		return nil, errors.New("plugin.Open: " + C.GoString(cErr))
++	}
++	// TODO(crawshaw): look for plugin note, confirm it is a Go plugin
++	// and it was built with the correct toolchain.
++	// TODO(crawshaw): get full plugin name from note.
++	if len(name) > 3 && name[len(name)-3:] == ".so" {
++		name = name[:len(name)-3]
++	}
++	syms := lastmoduleinit()
++	if plugins == nil {
++		plugins = make(map[string]*Plugin)
++	}
++	// This function can be called from the init function of a plugin.
++	// Drop a placeholder in the map so subsequent opens can wait on it.
++	p := &Plugin{
++		name:   name,
++		loaded: make(chan struct{}),
++		syms:   syms,
++	}
++	plugins[path] = p
++	pluginsMu.Unlock()
++
++	initStr := C.CString(name + ".init")
++	initFuncPC := C.pluginLookup(h, initStr, &cErr)
++	C.free(unsafe.Pointer(initStr))
++	if initFuncPC != nil {
++		initFuncP := &initFuncPC
++		initFunc := *(*func())(unsafe.Pointer(&initFuncP))
++		initFunc()
++	}
++
++	// Fill out the value of each plugin symbol.
++	for symName, sym := range syms {
++		isFunc := symName[0] == '.'
++		if isFunc {
++			delete(syms, symName)
++			symName = symName[1:]
++		}
++
++		cname := C.CString(name + "." + symName)
++		p := C.pluginLookup(h, cname, &cErr)
++		C.free(unsafe.Pointer(cname))
++		if p == nil {
++			return nil, errors.New("plugin.Open: could not find symbol " + symName + ": " + C.GoString(cErr))
++		}
++		valp := (*[2]unsafe.Pointer)(unsafe.Pointer(&sym))
++		if isFunc {
++			(*valp)[1] = unsafe.Pointer(&p)
++		} else {
++			(*valp)[1] = p
++		}
++		syms[symName] = sym
++	}
++	close(p.loaded)
++	return p, nil
++}
++
++func lookup(p *Plugin, symName string) (Symbol, error) {
++	if s := p.syms[symName]; s != nil {
++		return s, nil
++	}
++	return nil, errors.New("plugin: symbol " + symName + " not found in plugin " + p.name)
++}
++
++var (
++	pluginsMu sync.Mutex
++	plugins   map[string]*Plugin
++)
++
++func lastmoduleinit() map[string]interface{} // in package runtime
+diff --git a/src/plugin/plugin_stubs.go b/src/plugin/plugin_stubs.go
+new file mode 100644
+index 0000000000..1b935bffa9
+--- /dev/null
++++ b/src/plugin/plugin_stubs.go
+@@ -0,0 +1,17 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !linux !cgo
++
++package plugin
++
++import "errors"
++
++func lookup(p *Plugin, symName string) (interface{}, error) {
++	return nil, errors.New("plugin: not implemented")
++}
++
++func open(name string) (*Plugin, error) {
++	return nil, errors.New("plugin: not implemented")
++}
+diff --git a/src/runtime/plugin.go b/src/runtime/plugin.go
+index f5f3aa2e5b..2e01650824 100644
+--- a/src/runtime/plugin.go
++++ b/src/runtime/plugin.go
+@@ -4,6 +4,57 @@
+ 
+ package runtime
+ 
++import "unsafe"
++
++//go:linkname plugin_lastmoduleinit plugin.lastmoduleinit
++func plugin_lastmoduleinit() map[string]interface{} {
++	md := firstmoduledata.next
++	if md == nil {
++		throw("runtime: no plugin module data")
++	}
++	for md.next != nil {
++		md = md.next
++	}
++	if md.typemap != nil {
++		throw("runtime: plugin already initialized")
++	}
++
++	// Initialize the freshly loaded module.
++	typelinksinit()
++	md.gcdatamask = progToPointerMask((*byte)(unsafe.Pointer(md.gcdata)), md.edata-md.data)
++	md.gcbssmask = progToPointerMask((*byte)(unsafe.Pointer(md.gcbss)), md.ebss-md.bss)
++
++	lock(&ifaceLock)
++	for _, i := range md.itablinks {
++		additab(i, true, false)
++	}
++	unlock(&ifaceLock)
++
++	// Build a map of symbol names to symbols. Here in the runtime
++	// we fill out the first word of the interface, the type. We
++	// pass these zero value interfaces to the plugin package,
++	// where the symbol value is filled in (usually via cgo).
++	//
++	// Because functions are handled specially in the plugin package,
++	// function symbol names are prefixed here with '.' to avoid
++	// a dependency on the reflect package.
++	syms := make(map[string]interface{}, len(md.ptab))
++	for _, ptab := range md.ptab {
++		symName := resolveNameOff(unsafe.Pointer(md.types), ptab.name)
++		t := (*_type)(unsafe.Pointer(md.types)).typeOff(ptab.typ)
++		var val interface{}
++		valp := (*[2]unsafe.Pointer)(unsafe.Pointer(&val))
++		(*valp)[0] = unsafe.Pointer(t)
++
++		name := symName.name()
++		if t.kind&kindMask == kindFunc {
++			name = "." + name
++		}
++		syms[name] = val
++	}
++	return syms
++}
++
+ // A ptabEntry is generated by the compiler for each exported function
+ // and global variable in the main package of a plugin. It is used to
+ // initialize the plugin module's symbol map.

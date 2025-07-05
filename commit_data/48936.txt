@@ -13,8 +13,376 @@ Date:   Sat Jun 19 03:35:15 2021 -0700
     Trust: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/envcmd/env.go        | 210 +++++++++++++++++--------------
  src/cmd/go/main.go                       |  64 +++++-----
  src/cmd/go/testdata/script/env_unset.txt |  23 ++++
  3 files changed, 170 insertions(+), 127 deletions(-)
+
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index b30c37ab27..d88dcce5c0 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -10,6 +10,7 @@ import (
+ 	"encoding/json"
+ 	"fmt"
+ 	"go/build"
++	"internal/buildcfg"
+ 	"io"
+ 	"os"
+ 	"path/filepath"
+@@ -197,6 +198,21 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
+ 	if *envU && *envW {
+ 		base.Fatalf("go env: cannot use -u with -w")
+ 	}
++
++	// Handle 'go env -w' and 'go env -u' before calling buildcfg.Check,
++	// so they can be used to recover from an invalid configuration.
++	if *envW {
++		runEnvW(args)
++		return
++	}
++
++	if *envU {
++		runEnvU(args)
++		return
++	}
++
++	buildcfg.Check()
++
+ 	env := cfg.CmdEnv
+ 	env = append(env, ExtraEnvVars()...)
+ 
+@@ -206,14 +222,7 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	// Do we need to call ExtraEnvVarsCostly, which is a bit expensive?
+ 	needCostly := false
+-	if *envU || *envW {
+-		// We're overwriting or removing default settings,
+-		// so it doesn't really matter what the existing settings are.
+-		//
+-		// Moreover, we haven't validated the new settings yet, so it is
+-		// important that we NOT perform any actions based on them,
+-		// such as initializing the builder to compute other variables.
+-	} else if len(args) == 0 {
++	if len(args) == 0 {
+ 		// We're listing all environment variables ("go env"),
+ 		// including the expensive ones.
+ 		needCostly = true
+@@ -238,95 +247,6 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
+ 		env = append(env, ExtraEnvVarsCostly()...)
+ 	}
+ 
+-	if *envW {
+-		// Process and sanity-check command line.
+-		if len(args) == 0 {
+-			base.Fatalf("go env -w: no KEY=VALUE arguments given")
+-		}
+-		osEnv := make(map[string]string)
+-		for _, e := range cfg.OrigEnv {
+-			if i := strings.Index(e, "="); i >= 0 {
+-				osEnv[e[:i]] = e[i+1:]
+-			}
+-		}
+-		add := make(map[string]string)
+-		for _, arg := range args {
+-			i := strings.Index(arg, "=")
+-			if i < 0 {
+-				base.Fatalf("go env -w: arguments must be KEY=VALUE: invalid argument: %s", arg)
+-			}
+-			key, val := arg[:i], arg[i+1:]
+-			if err := checkEnvWrite(key, val); err != nil {
+-				base.Fatalf("go env -w: %v", err)
+-			}
+-			if _, ok := add[key]; ok {
+-				base.Fatalf("go env -w: multiple values for key: %s", key)
+-			}
+-			add[key] = val
+-			if osVal := osEnv[key]; osVal != "" && osVal != val {
+-				fmt.Fprintf(os.Stderr, "warning: go env -w %s=... does not override conflicting OS environment variable\n", key)
+-			}
+-		}
+-
+-		goos, okGOOS := add["GOOS"]
+-		goarch, okGOARCH := add["GOARCH"]
+-		if okGOOS || okGOARCH {
+-			if !okGOOS {
+-				goos = cfg.Goos
+-			}
+-			if !okGOARCH {
+-				goarch = cfg.Goarch
+-			}
+-			if err := work.CheckGOOSARCHPair(goos, goarch); err != nil {
+-				base.Fatalf("go env -w: %v", err)
+-			}
+-		}
+-
+-		gotmp, okGOTMP := add["GOTMPDIR"]
+-		if okGOTMP {
+-			if !filepath.IsAbs(gotmp) && gotmp != "" {
+-				base.Fatalf("go env -w: GOTMPDIR must be an absolute path")
+-			}
+-		}
+-
+-		updateEnvFile(add, nil)
+-		return
+-	}
+-
+-	if *envU {
+-		// Process and sanity-check command line.
+-		if len(args) == 0 {
+-			base.Fatalf("go env -u: no arguments given")
+-		}
+-		del := make(map[string]bool)
+-		for _, arg := range args {
+-			if err := checkEnvWrite(arg, ""); err != nil {
+-				base.Fatalf("go env -u: %v", err)
+-			}
+-			del[arg] = true
+-		}
+-		if del["GOOS"] || del["GOARCH"] {
+-			goos, goarch := cfg.Goos, cfg.Goarch
+-			if del["GOOS"] {
+-				goos = getOrigEnv("GOOS")
+-				if goos == "" {
+-					goos = build.Default.GOOS
+-				}
+-			}
+-			if del["GOARCH"] {
+-				goarch = getOrigEnv("GOARCH")
+-				if goarch == "" {
+-					goarch = build.Default.GOARCH
+-				}
+-			}
+-			if err := work.CheckGOOSARCHPair(goos, goarch); err != nil {
+-				base.Fatalf("go env -u: %v", err)
+-			}
+-		}
+-		updateEnvFile(nil, del)
+-		return
+-	}
+-
+ 	if len(args) > 0 {
+ 		if *envJson {
+ 			var es []cfg.EnvVar
+@@ -351,6 +271,102 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
+ 	PrintEnv(os.Stdout, env)
+ }
+ 
++func runEnvW(args []string) {
++	// Process and sanity-check command line.
++	if len(args) == 0 {
++		base.Fatalf("go env -w: no KEY=VALUE arguments given")
++	}
++	osEnv := make(map[string]string)
++	for _, e := range cfg.OrigEnv {
++		if i := strings.Index(e, "="); i >= 0 {
++			osEnv[e[:i]] = e[i+1:]
++		}
++	}
++	add := make(map[string]string)
++	for _, arg := range args {
++		i := strings.Index(arg, "=")
++		if i < 0 {
++			base.Fatalf("go env -w: arguments must be KEY=VALUE: invalid argument: %s", arg)
++		}
++		key, val := arg[:i], arg[i+1:]
++		if err := checkEnvWrite(key, val); err != nil {
++			base.Fatalf("go env -w: %v", err)
++		}
++		if _, ok := add[key]; ok {
++			base.Fatalf("go env -w: multiple values for key: %s", key)
++		}
++		add[key] = val
++		if osVal := osEnv[key]; osVal != "" && osVal != val {
++			fmt.Fprintf(os.Stderr, "warning: go env -w %s=... does not override conflicting OS environment variable\n", key)
++		}
++	}
++
++	if err := checkBuildConfig(add, nil); err != nil {
++		base.Fatalf("go env -w: %v", err)
++	}
++
++	gotmp, okGOTMP := add["GOTMPDIR"]
++	if okGOTMP {
++		if !filepath.IsAbs(gotmp) && gotmp != "" {
++			base.Fatalf("go env -w: GOTMPDIR must be an absolute path")
++		}
++	}
++
++	updateEnvFile(add, nil)
++}
++
++func runEnvU(args []string) {
++	// Process and sanity-check command line.
++	if len(args) == 0 {
++		base.Fatalf("go env -u: no arguments given")
++	}
++	del := make(map[string]bool)
++	for _, arg := range args {
++		if err := checkEnvWrite(arg, ""); err != nil {
++			base.Fatalf("go env -u: %v", err)
++		}
++		del[arg] = true
++	}
++
++	if err := checkBuildConfig(nil, del); err != nil {
++		base.Fatalf("go env -u: %v", err)
++	}
++
++	updateEnvFile(nil, del)
++}
++
++// checkBuildConfig checks whether the build configuration is valid
++// after the specified configuration environment changes are applied.
++func checkBuildConfig(add map[string]string, del map[string]bool) error {
++	// get returns the value for key after applying add and del and
++	// reports whether it changed. cur should be the current value
++	// (i.e., before applying changes) and def should be the default
++	// value (i.e., when no environment variables are provided at all).
++	get := func(key, cur, def string) (string, bool) {
++		if val, ok := add[key]; ok {
++			return val, true
++		}
++		if del[key] {
++			val := getOrigEnv(key)
++			if val == "" {
++				val = def
++			}
++			return val, true
++		}
++		return cur, false
++	}
++
++	goos, okGOOS := get("GOOS", cfg.Goos, build.Default.GOOS)
++	goarch, okGOARCH := get("GOARCH", cfg.Goarch, build.Default.GOARCH)
++	if okGOOS || okGOARCH {
++		if err := work.CheckGOOSARCHPair(goos, goarch); err != nil {
++			return err
++		}
++	}
++
++	return nil
++}
++
+ // PrintEnv prints the environment variables to w.
+ func PrintEnv(w io.Writer, env []cfg.EnvVar) {
+ 	for _, e := range env {
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 02174a56ff..16361e02ca 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -145,24 +145,6 @@ func main() {
+ 		os.Exit(2)
+ 	}
+ 
+-	if err := buildcfg.Error; err != nil {
+-		fmt.Fprintf(os.Stderr, "go: %v\n", buildcfg.Error)
+-		os.Exit(2)
+-	}
+-
+-	// Set environment (GOOS, GOARCH, etc) explicitly.
+-	// In theory all the commands we invoke should have
+-	// the same default computation of these as we do,
+-	// but in practice there might be skew
+-	// This makes sure we all agree.
+-	cfg.OrigEnv = os.Environ()
+-	cfg.CmdEnv = envcmd.MkEnv()
+-	for _, env := range cfg.CmdEnv {
+-		if os.Getenv(env.Name) != env.Value {
+-			os.Setenv(env.Name, env.Value)
+-		}
+-	}
+-
+ BigCmdLoop:
+ 	for bigCmd := base.Go; ; {
+ 		for _, cmd := range bigCmd.Commands {
+@@ -188,18 +170,7 @@ BigCmdLoop:
+ 			if !cmd.Runnable() {
+ 				continue
+ 			}
+-			cmd.Flag.Usage = func() { cmd.Usage() }
+-			if cmd.CustomFlags {
+-				args = args[1:]
+-			} else {
+-				base.SetFromGOFLAGS(&cmd.Flag)
+-				cmd.Flag.Parse(args[1:])
+-				args = cmd.Flag.Args()
+-			}
+-			ctx := maybeStartTrace(context.Background())
+-			ctx, span := trace.StartSpan(ctx, fmt.Sprint("Running ", cmd.Name(), " command"))
+-			cmd.Run(ctx, cmd, args)
+-			span.Done()
++			invoke(cmd, args)
+ 			base.Exit()
+ 			return
+ 		}
+@@ -213,6 +184,39 @@ BigCmdLoop:
+ 	}
+ }
+ 
++func invoke(cmd *base.Command, args []string) {
++	// 'go env' handles checking the build config
++	if cmd != envcmd.CmdEnv {
++		buildcfg.Check()
++	}
++
++	// Set environment (GOOS, GOARCH, etc) explicitly.
++	// In theory all the commands we invoke should have
++	// the same default computation of these as we do,
++	// but in practice there might be skew
++	// This makes sure we all agree.
++	cfg.OrigEnv = os.Environ()
++	cfg.CmdEnv = envcmd.MkEnv()
++	for _, env := range cfg.CmdEnv {
++		if os.Getenv(env.Name) != env.Value {
++			os.Setenv(env.Name, env.Value)
++		}
++	}
++
++	cmd.Flag.Usage = func() { cmd.Usage() }
++	if cmd.CustomFlags {
++		args = args[1:]
++	} else {
++		base.SetFromGOFLAGS(&cmd.Flag)
++		cmd.Flag.Parse(args[1:])
++		args = cmd.Flag.Args()
++	}
++	ctx := maybeStartTrace(context.Background())
++	ctx, span := trace.StartSpan(ctx, fmt.Sprint("Running ", cmd.Name(), " command"))
++	cmd.Run(ctx, cmd, args)
++	span.Done()
++}
++
+ func init() {
+ 	base.Usage = mainUsage
+ }
+diff --git a/src/cmd/go/testdata/script/env_unset.txt b/src/cmd/go/testdata/script/env_unset.txt
+new file mode 100644
+index 0000000000..35fbb0a8a2
+--- /dev/null
++++ b/src/cmd/go/testdata/script/env_unset.txt
+@@ -0,0 +1,23 @@
++# Test that we can unset variables, even if initially invalid,
++# as long as resulting config is valid.
++
++env GOENV=badenv
++env GOOS=
++env GOARCH=
++
++! go env
++stderr '^cmd/go: unsupported GOOS/GOARCH pair bados/badarch$'
++
++! go env -u GOOS
++stderr '^go env -u: unsupported GOOS/GOARCH pair \w+/badarch$'
++
++! go env -u GOARCH
++stderr '^go env -u: unsupported GOOS/GOARCH pair bados/\w+$'
++
++go env -u GOOS GOARCH
++
++go env
++
++-- badenv --
++GOOS=bados
++GOARCH=badarch

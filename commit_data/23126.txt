@@ -44,6 +44,40 @@ Date:   Fri Apr 24 22:33:13 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/9332
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
-
+---
  src/runtime/proc1.go | 15 ++++++++++++++-
  1 file changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 350d6bfbdf..aced04aa88 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -1031,7 +1031,17 @@ retry:
+ }
+ 
+ func mspinning() {
+-	getg().m.spinning = true
++	gp := getg()
++	if !runqempty(gp.m.nextp.ptr()) {
++		// Something (presumably the GC) was readied while the
++		// runtime was starting up this M, so the M is no
++		// longer spinning.
++		if int32(xadd(&sched.nmspinning, -1)) < 0 {
++			throw("mspinning: nmspinning underflowed")
++		}
++	} else {
++		gp.m.spinning = true
++	}
+ }
+ 
+ // Schedules some M to run the p (creates an M if necessary).
+@@ -1066,6 +1076,9 @@ func startm(_p_ *p, spinning bool) {
+ 	if mp.nextp != 0 {
+ 		throw("startm: m has p")
+ 	}
++	if spinning && !runqempty(_p_) {
++		throw("startm: p has runnable gs")
++	}
+ 	mp.spinning = spinning
+ 	mp.nextp.set(_p_)
+ 	notewakeup(&mp.park)

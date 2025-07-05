@@ -13,6 +13,31 @@ Date:   Tue Feb 17 21:52:42 2015 -0500
     Change-Id: Icef3d55ccdde0709c02dd0c2b78826f6da33a146
     Reviewed-on: https://go-review.googlesource.com/5170
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/gc/order.c | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/order.c b/src/cmd/gc/order.c
+index 255c94a804..8e670bdc13 100644
+--- a/src/cmd/gc/order.c
++++ b/src/cmd/gc/order.c
+@@ -144,9 +144,6 @@ ordersafeexpr(Node *n, Order *order)
+ 	Node *l, *r, *a;
+ 	
+ 	switch(n->op) {
+-	default:
+-		fatal("ordersafeexpr %O", n->op);
+-
+ 	case ONAME:
+ 	case OLITERAL:
+ 		return n;
+@@ -191,6 +188,9 @@ ordersafeexpr(Node *n, Order *order)
+ 		typecheck(&a, Erv);
+ 		return a;
+ 	}
++
++	fatal("ordersafeexpr %O", n->op);
++	return nil; // not reached
+ }		
+ 
+ // Istemp reports whether n is a temporary variable.

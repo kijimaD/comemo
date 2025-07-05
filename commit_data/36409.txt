@@ -15,7 +15,7 @@ Date:   Fri Mar 2 16:47:54 2018 -0300
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go           |  2 +-
  src/cmd/compile/internal/ppc64/ssa.go        |  2 +-
  src/cmd/compile/internal/ssa/gen/PPC64.rules |  1 +
@@ -27,3 +27,192 @@ Date:   Fri Mar 2 16:47:54 2018 -0300
  src/cmd/internal/obj/ppc64/asm9.go           |  6 ++++++
  test/codegen/math.go                         |  4 ++++
  10 files changed, 43 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index a3d2230964..6d19e47d38 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3005,7 +3005,7 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpRound, types.Types[TFLOAT64], args[0])
+ 		},
+-		sys.ARM64, sys.S390X)
++		sys.ARM64, sys.PPC64, sys.S390X)
+ 	addF("math", "RoundToEven",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpRoundToEven, types.Types[TFLOAT64], args[0])
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 3c10149eab..4c91a04a03 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -581,7 +581,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = ppc64.REGTMP // Ignored; this is for the carry effect.
+ 
+-	case ssa.OpPPC64NEG, ssa.OpPPC64FNEG, ssa.OpPPC64FSQRT, ssa.OpPPC64FSQRTS, ssa.OpPPC64FFLOOR, ssa.OpPPC64FTRUNC, ssa.OpPPC64FCEIL, ssa.OpPPC64FCTIDZ, ssa.OpPPC64FCTIWZ, ssa.OpPPC64FCFID, ssa.OpPPC64FCFIDS, ssa.OpPPC64FRSP, ssa.OpPPC64CNTLZD, ssa.OpPPC64CNTLZW, ssa.OpPPC64POPCNTD, ssa.OpPPC64POPCNTW, ssa.OpPPC64POPCNTB, ssa.OpPPC64MFVSRD, ssa.OpPPC64MTVSRD, ssa.OpPPC64FABS, ssa.OpPPC64FNABS:
++	case ssa.OpPPC64NEG, ssa.OpPPC64FNEG, ssa.OpPPC64FSQRT, ssa.OpPPC64FSQRTS, ssa.OpPPC64FFLOOR, ssa.OpPPC64FTRUNC, ssa.OpPPC64FCEIL, ssa.OpPPC64FCTIDZ, ssa.OpPPC64FCTIWZ, ssa.OpPPC64FCFID, ssa.OpPPC64FCFIDS, ssa.OpPPC64FRSP, ssa.OpPPC64CNTLZD, ssa.OpPPC64CNTLZW, ssa.OpPPC64POPCNTD, ssa.OpPPC64POPCNTW, ssa.OpPPC64POPCNTB, ssa.OpPPC64MFVSRD, ssa.OpPPC64MTVSRD, ssa.OpPPC64FABS, ssa.OpPPC64FNABS, ssa.OpPPC64FROUND:
+ 		r := v.Reg()
+ 		p := s.Prog(v.Op.Asm())
+ 		p.To.Type = obj.TYPE_REG
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 6f3e893d8d..5d416151ee 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -63,6 +63,7 @@
+ (Floor x) -> (FFLOOR x)
+ (Ceil x) -> (FCEIL x)
+ (Trunc x) -> (FTRUNC x)
++(Round x) -> (FROUND x)
+ (Copysign x y) -> (FCPSGN y x)
+ (Abs x) -> (FABS x)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index 567e34ec2a..ad68794de0 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -249,6 +249,7 @@ func init() {
+ 		{name: "FFLOOR", argLength: 1, reg: fp11, asm: "FRIM"},                              // floor(arg0), float64
+ 		{name: "FCEIL", argLength: 1, reg: fp11, asm: "FRIP"},                               // ceil(arg0), float64
+ 		{name: "FTRUNC", argLength: 1, reg: fp11, asm: "FRIZ"},                              // trunc(arg0), float64
++		{name: "FROUND", argLength: 1, reg: fp11, asm: "FRIN"},                              // round(arg0), float64
+ 		{name: "FABS", argLength: 1, reg: fp11, asm: "FABS"},                                // abs(arg0), float64
+ 		{name: "FNABS", argLength: 1, reg: fp11, asm: "FNABS"},                              // -abs(arg0), float64
+ 		{name: "FCPSGN", argLength: 2, reg: fp21, asm: "FCPSGN"},                            // copysign arg0 -> arg1, float64
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index aea2246e84..de04eacfa8 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1541,6 +1541,7 @@ const (
+ 	OpPPC64FFLOOR
+ 	OpPPC64FCEIL
+ 	OpPPC64FTRUNC
++	OpPPC64FROUND
+ 	OpPPC64FABS
+ 	OpPPC64FNABS
+ 	OpPPC64FCPSGN
+@@ -20296,6 +20297,19 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "FROUND",
++		argLen: 1,
++		asm:    ppc64.AFRIN,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []outputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
+ 	{
+ 		name:   "FABS",
+ 		argLen: 1,
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 331a8c9232..8610f08e7f 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -505,6 +505,8 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpPopCount64_0(v)
+ 	case OpPopCount8:
+ 		return rewriteValuePPC64_OpPopCount8_0(v)
++	case OpRound:
++		return rewriteValuePPC64_OpRound_0(v)
+ 	case OpRound32F:
+ 		return rewriteValuePPC64_OpRound32F_0(v)
+ 	case OpRound64F:
+@@ -13466,6 +13468,15 @@ func rewriteValuePPC64_OpPopCount8_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValuePPC64_OpRound_0(v *Value) bool {
++	// match: (Round x)
++	// cond:
++	// result: (FROUND x)
++	x := v.Args[0]
++	v.reset(OpPPC64FROUND)
++	v.AddArg(x)
++	return true
++}
+ func rewriteValuePPC64_OpRound32F_0(v *Value) bool {
+ 	// match: (Round32F x)
+ 	// cond:
+diff --git a/src/cmd/internal/obj/ppc64/a.out.go b/src/cmd/internal/obj/ppc64/a.out.go
+index 8f56da0763..3c374579ec 100644
+--- a/src/cmd/internal/obj/ppc64/a.out.go
++++ b/src/cmd/internal/obj/ppc64/a.out.go
+@@ -643,6 +643,8 @@ const (
+ 	AFRIPCC
+ 	AFRIZ
+ 	AFRIZCC
++	AFRIN
++	AFRINCC
+ 	AFRSQRTE
+ 	AFRSQRTECC
+ 	AFSEL
+diff --git a/src/cmd/internal/obj/ppc64/anames.go b/src/cmd/internal/obj/ppc64/anames.go
+index 6006f15ad6..16a27591c7 100644
+--- a/src/cmd/internal/obj/ppc64/anames.go
++++ b/src/cmd/internal/obj/ppc64/anames.go
+@@ -245,6 +245,8 @@ var Anames = []string{
+ 	"FRIPCC",
+ 	"FRIZ",
+ 	"FRIZCC",
++	"FRIN",
++	"FRINCC",
+ 	"FRSQRTE",
+ 	"FRSQRTECC",
+ 	"FSEL",
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 4dcb52f9ee..72738f1967 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -1671,6 +1671,8 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AFRIPCC, r0)
+ 			opset(AFRIZ, r0)
+ 			opset(AFRIZCC, r0)
++			opset(AFRIN, r0)
++			opset(AFRINCC, r0)
+ 			opset(AFRSQRTE, r0)
+ 			opset(AFRSQRTECC, r0)
+ 			opset(AFSQRT, r0)
+@@ -3898,6 +3900,10 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
+ 		return OPVCC(63, 424, 0, 0)
+ 	case AFRIZCC:
+ 		return OPVCC(63, 424, 0, 1)
++	case AFRIN:
++		return OPVCC(63, 392, 0, 0)
++	case AFRINCC:
++		return OPVCC(63, 392, 0, 1)
+ 	case AFRSP:
+ 		return OPVCC(63, 12, 0, 0)
+ 	case AFRSPCC:
+diff --git a/test/codegen/math.go b/test/codegen/math.go
+index efa3a2bc8f..f73321200b 100644
+--- a/test/codegen/math.go
++++ b/test/codegen/math.go
+@@ -13,18 +13,22 @@ var sink64 [8]float64
+ func approx(x float64) {
+ 	// s390x:"FIDBR\t[$]6"
+ 	// arm64:"FRINTPD"
++	// ppc64le:"FRIP"
+ 	sink64[0] = math.Ceil(x)
+ 
+ 	// s390x:"FIDBR\t[$]7"
+ 	// arm64:"FRINTMD"
++	// ppc64le:"FRIM"
+ 	sink64[1] = math.Floor(x)
+ 
+ 	// s390x:"FIDBR\t[$]1"
+ 	// arm64:"FRINTAD"
++	// ppc64le:"FRIN"
+ 	sink64[2] = math.Round(x)
+ 
+ 	// s390x:"FIDBR\t[$]5"
+ 	// arm64:"FRINTZD"
++	// ppc64le:"FRIZ"
+ 	sink64[3] = math.Trunc(x)
+ 
+ 	// s390x:"FIDBR\t[$]4"

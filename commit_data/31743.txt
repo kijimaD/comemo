@@ -17,7 +17,7 @@ Date:   Fri Mar 10 18:34:41 2017 -0800
     Change-Id: Ia15108ace97201cd84314f1ca916dfeb4f09d61c
     Reviewed-on: https://go-review.googlesource.com/38081
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/amd64/galign.go  |  1 +
  src/cmd/compile/internal/amd64/ssa.go     | 35 ++---------------------
  src/cmd/compile/internal/arm/galign.go    |  1 +
@@ -38,3 +38,600 @@ Date:   Fri Mar 10 18:34:41 2017 -0800
  src/cmd/compile/internal/x86/galign.go    |  1 +
  src/cmd/compile/internal/x86/ssa.go       | 35 ++---------------------
  19 files changed, 88 insertions(+), 285 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/galign.go b/src/cmd/compile/internal/amd64/galign.go
+index bb3830bca5..8ced62fe0f 100644
+--- a/src/cmd/compile/internal/amd64/galign.go
++++ b/src/cmd/compile/internal/amd64/galign.go
+@@ -22,6 +22,7 @@ func Init() {
+ 	gc.Thearch.MAXWIDTH = 1 << 50
+ 
+ 	gc.Thearch.Defframe = defframe
++	gc.Thearch.Ginsnop = ginsnop
+ 	gc.Thearch.Proginfo = proginfo
+ 
+ 	gc.Thearch.SSAMarkMoves = ssaMarkMoves
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 68de874d32..c0de90b7a7 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -743,39 +743,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			q.To.Type = obj.TYPE_REG
+ 			q.To.Reg = r
+ 		}
+-	case ssa.OpAMD64CALLstatic:
+-		if v.Aux.(*obj.LSym) == gc.Deferreturn {
+-			// Deferred calls will appear to be returning to
+-			// the CALL deferreturn(SB) that we are about to emit.
+-			// However, the stack trace code will show the line
+-			// of the instruction byte before the return PC.
+-			// To avoid that being an unrelated instruction,
+-			// insert an actual hardware NOP that will have the right line number.
+-			// This is different from obj.ANOP, which is a virtual no-op
+-			// that doesn't make it into the instruction stream.
+-			ginsnop()
+-		}
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = v.Aux.(*obj.LSym)
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
+-	case ssa.OpAMD64CALLclosure:
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = v.Args[0].Reg()
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
+-	case ssa.OpAMD64CALLinter:
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = v.Args[0].Reg()
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
++	case ssa.OpAMD64CALLstatic, ssa.OpAMD64CALLclosure, ssa.OpAMD64CALLinter:
++		s.Call(v)
+ 	case ssa.OpAMD64NEGQ, ssa.OpAMD64NEGL,
+ 		ssa.OpAMD64BSWAPQ, ssa.OpAMD64BSWAPL,
+ 		ssa.OpAMD64NOTQ, ssa.OpAMD64NOTL:
+diff --git a/src/cmd/compile/internal/arm/galign.go b/src/cmd/compile/internal/arm/galign.go
+index 308b016026..5d9555a246 100644
+--- a/src/cmd/compile/internal/arm/galign.go
++++ b/src/cmd/compile/internal/arm/galign.go
+@@ -16,6 +16,7 @@ func Init() {
+ 	gc.Thearch.MAXWIDTH = (1 << 32) - 1
+ 
+ 	gc.Thearch.Defframe = defframe
++	gc.Thearch.Ginsnop = ginsnop
+ 	gc.Thearch.Proginfo = proginfo
+ 
+ 	gc.Thearch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 5160a32ab8..932c35fc3c 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -625,41 +625,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Offset = v.AuxInt
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+-	case ssa.OpARMCALLstatic:
+-		if v.Aux.(*obj.LSym) == gc.Deferreturn {
+-			// Deferred calls will appear to be returning to
+-			// the CALL deferreturn(SB) that we are about to emit.
+-			// However, the stack trace code will show the line
+-			// of the instruction byte before the return PC.
+-			// To avoid that being an unrelated instruction,
+-			// insert an actual hardware NOP that will have the right line number.
+-			// This is different from obj.ANOP, which is a virtual no-op
+-			// that doesn't make it into the instruction stream.
+-			ginsnop()
+-		}
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = v.Aux.(*obj.LSym)
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
+-	case ssa.OpARMCALLclosure:
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Offset = 0
+-		p.To.Reg = v.Args[0].Reg()
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
+-	case ssa.OpARMCALLinter:
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Offset = 0
+-		p.To.Reg = v.Args[0].Reg()
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
++	case ssa.OpARMCALLstatic, ssa.OpARMCALLclosure, ssa.OpARMCALLinter:
++		s.Call(v)
+ 	case ssa.OpARMDUFFZERO:
+ 		p := gc.Prog(obj.ADUFFZERO)
+ 		p.To.Type = obj.TYPE_MEM
+diff --git a/src/cmd/compile/internal/arm64/galign.go b/src/cmd/compile/internal/arm64/galign.go
+index 20a67e398d..6a8953af36 100644
+--- a/src/cmd/compile/internal/arm64/galign.go
++++ b/src/cmd/compile/internal/arm64/galign.go
+@@ -16,6 +16,7 @@ func Init() {
+ 	gc.Thearch.MAXWIDTH = 1 << 50
+ 
+ 	gc.Thearch.Defframe = defframe
++	gc.Thearch.Ginsnop = ginsnop
+ 	gc.Thearch.Proginfo = proginfo
+ 
+ 	gc.Thearch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 8954bebb10..1b5c913df1 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -622,41 +622,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p4 := gc.Prog(arm64.ABLE)
+ 		p4.To.Type = obj.TYPE_BRANCH
+ 		gc.Patch(p4, p)
+-	case ssa.OpARM64CALLstatic:
+-		if v.Aux.(*obj.LSym) == gc.Deferreturn {
+-			// Deferred calls will appear to be returning to
+-			// the CALL deferreturn(SB) that we are about to emit.
+-			// However, the stack trace code will show the line
+-			// of the instruction byte before the return PC.
+-			// To avoid that being an unrelated instruction,
+-			// insert an actual hardware NOP that will have the right line number.
+-			// This is different from obj.ANOP, which is a virtual no-op
+-			// that doesn't make it into the instruction stream.
+-			ginsnop()
+-		}
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = v.Aux.(*obj.LSym)
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
+-	case ssa.OpARM64CALLclosure:
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Offset = 0
+-		p.To.Reg = v.Args[0].Reg()
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
+-	case ssa.OpARM64CALLinter:
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Offset = 0
+-		p.To.Reg = v.Args[0].Reg()
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
++	case ssa.OpARM64CALLstatic, ssa.OpARM64CALLclosure, ssa.OpARM64CALLinter:
++		s.Call(v)
+ 	case ssa.OpARM64LoweredNilCheck:
+ 		// Issue a load which will fault if arg is nil.
+ 		p := gc.Prog(arm64.AMOVB)
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 5b12aad684..95c7dabc45 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -365,10 +365,11 @@ type Arch struct {
+ 
+ 	REGSP    int
+ 	MAXWIDTH int64
++	Use387   bool // should 386 backend use 387 FP instructions instead of sse2.
+ 
+ 	Defframe func(*obj.Prog)
++	Ginsnop  func()
+ 	Proginfo func(*obj.Prog) ProgInfo
+-	Use387   bool // should 8g use 387 FP instructions instead of sse2.
+ 
+ 	// SSAMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
+ 	SSAMarkMoves func(*SSAGenState, *ssa.Block)
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 4fc5f32067..450be95e06 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4756,6 +4756,42 @@ func (s *SSAGenState) AddrScratch(a *obj.Addr) {
+ 	a.Offset = s.ScratchFpMem.Xoffset
+ }
+ 
++func (s *SSAGenState) Call(v *ssa.Value) *obj.Prog {
++	if sym, _ := v.Aux.(*obj.LSym); sym == Deferreturn {
++		// Deferred calls will appear to be returning to
++		// the CALL deferreturn(SB) that we are about to emit.
++		// However, the stack trace code will show the line
++		// of the instruction byte before the return PC.
++		// To avoid that being an unrelated instruction,
++		// insert an actual hardware NOP that will have the right line number.
++		// This is different from obj.ANOP, which is a virtual no-op
++		// that doesn't make it into the instruction stream.
++		Thearch.Ginsnop()
++	}
++
++	p := Prog(obj.ACALL)
++	if sym, ok := v.Aux.(*obj.LSym); ok {
++		p.To.Type = obj.TYPE_MEM
++		p.To.Name = obj.NAME_EXTERN
++		p.To.Sym = sym
++	} else {
++		// TODO(mdempsky): Can these differences be eliminated?
++		switch Thearch.LinkArch.Family {
++		case sys.AMD64, sys.I386, sys.PPC64, sys.S390X:
++			p.To.Type = obj.TYPE_REG
++		case sys.ARM, sys.ARM64, sys.MIPS, sys.MIPS64:
++			p.To.Type = obj.TYPE_MEM
++		default:
++			Fatalf("unknown indirect call family")
++		}
++		p.To.Reg = v.Args[0].Reg()
++	}
++	if Maxarg < v.AuxInt {
++		Maxarg = v.AuxInt
++	}
++	return p
++}
++
+ // fieldIdx finds the index of the field referred to by the ODOT node n.
+ func fieldIdx(n *Node) int {
+ 	t := n.Left.Type
+diff --git a/src/cmd/compile/internal/mips/galign.go b/src/cmd/compile/internal/mips/galign.go
+index 39f5d2bf64..9c7791740a 100644
+--- a/src/cmd/compile/internal/mips/galign.go
++++ b/src/cmd/compile/internal/mips/galign.go
+@@ -19,6 +19,7 @@ func Init() {
+ 	gc.Thearch.REGSP = mips.REGSP
+ 	gc.Thearch.MAXWIDTH = (1 << 31) - 1
+ 	gc.Thearch.Defframe = defframe
++	gc.Thearch.Ginsnop = ginsnop
+ 	gc.Thearch.Proginfo = proginfo
+ 	gc.Thearch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
+ 	gc.Thearch.SSAGenValue = ssaGenValue
+diff --git a/src/cmd/compile/internal/mips/ssa.go b/src/cmd/compile/internal/mips/ssa.go
+index 0d5a2a2bc8..8ef39b5f60 100644
+--- a/src/cmd/compile/internal/mips/ssa.go
++++ b/src/cmd/compile/internal/mips/ssa.go
+@@ -477,41 +477,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p6.Reg = mips.REG_R1
+ 		p6.To.Type = obj.TYPE_BRANCH
+ 		gc.Patch(p6, p2)
+-	case ssa.OpMIPSCALLstatic:
+-		if v.Aux.(*obj.LSym) == gc.Deferreturn {
+-			// Deferred calls will appear to be returning to
+-			// the CALL deferreturn(SB) that we are about to emit.
+-			// However, the stack trace code will show the line
+-			// of the instruction byte before the return PC.
+-			// To avoid that being an unrelated instruction,
+-			// insert an actual hardware NOP that will have the right line number.
+-			// This is different from obj.ANOP, which is a virtual no-op
+-			// that doesn't make it into the instruction stream.
+-			ginsnop()
+-		}
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = v.Aux.(*obj.LSym)
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
+-	case ssa.OpMIPSCALLclosure:
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Offset = 0
+-		p.To.Reg = v.Args[0].Reg()
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
+-	case ssa.OpMIPSCALLinter:
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Offset = 0
+-		p.To.Reg = v.Args[0].Reg()
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
++	case ssa.OpMIPSCALLstatic, ssa.OpMIPSCALLclosure, ssa.OpMIPSCALLinter:
++		s.Call(v)
+ 	case ssa.OpMIPSLoweredAtomicLoad:
+ 		gc.Prog(mips.ASYNC)
+ 
+diff --git a/src/cmd/compile/internal/mips64/galign.go b/src/cmd/compile/internal/mips64/galign.go
+index 4a36a4ce5b..6392a38793 100644
+--- a/src/cmd/compile/internal/mips64/galign.go
++++ b/src/cmd/compile/internal/mips64/galign.go
+@@ -20,6 +20,7 @@ func Init() {
+ 	gc.Thearch.MAXWIDTH = 1 << 50
+ 
+ 	gc.Thearch.Defframe = defframe
++	gc.Thearch.Ginsnop = ginsnop
+ 	gc.Thearch.Proginfo = proginfo
+ 
+ 	gc.Thearch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
+diff --git a/src/cmd/compile/internal/mips64/ssa.go b/src/cmd/compile/internal/mips64/ssa.go
+index cc97f6865f..42f16be85c 100644
+--- a/src/cmd/compile/internal/mips64/ssa.go
++++ b/src/cmd/compile/internal/mips64/ssa.go
+@@ -480,41 +480,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p6.Reg = mips.REG_R1
+ 		p6.To.Type = obj.TYPE_BRANCH
+ 		gc.Patch(p6, p2)
+-	case ssa.OpMIPS64CALLstatic:
+-		if v.Aux.(*obj.LSym) == gc.Deferreturn {
+-			// Deferred calls will appear to be returning to
+-			// the CALL deferreturn(SB) that we are about to emit.
+-			// However, the stack trace code will show the line
+-			// of the instruction byte before the return PC.
+-			// To avoid that being an unrelated instruction,
+-			// insert an actual hardware NOP that will have the right line number.
+-			// This is different from obj.ANOP, which is a virtual no-op
+-			// that doesn't make it into the instruction stream.
+-			ginsnop()
+-		}
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = v.Aux.(*obj.LSym)
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
+-	case ssa.OpMIPS64CALLclosure:
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Offset = 0
+-		p.To.Reg = v.Args[0].Reg()
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
+-	case ssa.OpMIPS64CALLinter:
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Offset = 0
+-		p.To.Reg = v.Args[0].Reg()
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
++	case ssa.OpMIPS64CALLstatic, ssa.OpMIPS64CALLclosure, ssa.OpMIPS64CALLinter:
++		s.Call(v)
+ 	case ssa.OpMIPS64LoweredNilCheck:
+ 		// Issue a load which will fault if arg is nil.
+ 		p := gc.Prog(mips.AMOVB)
+diff --git a/src/cmd/compile/internal/ppc64/galign.go b/src/cmd/compile/internal/ppc64/galign.go
+index 186aa2946a..7586dd3d99 100644
+--- a/src/cmd/compile/internal/ppc64/galign.go
++++ b/src/cmd/compile/internal/ppc64/galign.go
+@@ -19,6 +19,7 @@ func Init() {
+ 	gc.Thearch.MAXWIDTH = 1 << 50
+ 
+ 	gc.Thearch.Defframe = defframe
++	gc.Thearch.Ginsnop = ginsnop2
+ 	gc.Thearch.Proginfo = proginfo
+ 
+ 	gc.Thearch.SSAMarkMoves = ssaMarkMoves
+diff --git a/src/cmd/compile/internal/ppc64/ggen.go b/src/cmd/compile/internal/ppc64/ggen.go
+index 33686e503f..b9a218d6d4 100644
+--- a/src/cmd/compile/internal/ppc64/ggen.go
++++ b/src/cmd/compile/internal/ppc64/ggen.go
+@@ -98,3 +98,29 @@ func ginsnop() {
+ 	p.To.Type = obj.TYPE_REG
+ 	p.To.Reg = ppc64.REG_R0
+ }
++
++func ginsnop2() {
++	// PPC64 is unusual because TWO nops are required
++	// (see gc/cgen.go, gc/plive.go -- copy of comment below)
++	//
++	// On ppc64, when compiling Go into position
++	// independent code on ppc64le we insert an
++	// instruction to reload the TOC pointer from the
++	// stack as well. See the long comment near
++	// jmpdefer in runtime/asm_ppc64.s for why.
++	// If the MOVD is not needed, insert a hardware NOP
++	// so that the same number of instructions are used
++	// on ppc64 in both shared and non-shared modes.
++
++	ginsnop()
++	if gc.Ctxt.Flag_shared {
++		p := gc.Prog(ppc64.AMOVD)
++		p.From.Type = obj.TYPE_MEM
++		p.From.Offset = 24
++		p.From.Reg = ppc64.REGSP
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = ppc64.REG_R2
++	} else {
++		ginsnop()
++	}
++}
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 7a6bed4f85..dabf0c15e4 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -941,45 +941,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		gc.Patch(p4, p)
+ 
+ 	case ssa.OpPPC64CALLstatic:
+-		if v.Aux.(*obj.LSym) == gc.Deferreturn {
+-			// Deferred calls will appear to be returning to
+-			// the CALL deferreturn(SB) that we are about to emit.
+-			// However, the stack trace code will show the line
+-			// of the instruction byte before the return PC.
+-			// To avoid that being an unrelated instruction,
+-			// insert two actual hardware NOPs that will have the right line number.
+-			// This is different from obj.ANOP, which is a virtual no-op
+-			// that doesn't make it into the instruction stream.
+-			// PPC64 is unusual because TWO nops are required
+-			// (see gc/cgen.go, gc/plive.go -- copy of comment below)
+-			//
+-			// On ppc64, when compiling Go into position
+-			// independent code on ppc64le we insert an
+-			// instruction to reload the TOC pointer from the
+-			// stack as well. See the long comment near
+-			// jmpdefer in runtime/asm_ppc64.s for why.
+-			// If the MOVD is not needed, insert a hardware NOP
+-			// so that the same number of instructions are used
+-			// on ppc64 in both shared and non-shared modes.
+-			ginsnop()
+-			if gc.Ctxt.Flag_shared {
+-				p := gc.Prog(ppc64.AMOVD)
+-				p.From.Type = obj.TYPE_MEM
+-				p.From.Offset = 24
+-				p.From.Reg = ppc64.REGSP
+-				p.To.Type = obj.TYPE_REG
+-				p.To.Reg = ppc64.REG_R2
+-			} else {
+-				ginsnop()
+-			}
+-		}
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = v.Aux.(*obj.LSym)
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
++		s.Call(v)
+ 
+ 	case ssa.OpPPC64CALLclosure, ssa.OpPPC64CALLinter:
+ 		p := gc.Prog(ppc64.AMOVD)
+@@ -1001,8 +963,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			q.To.Reg = ppc64.REG_R12
+ 		}
+ 
+-		pp := gc.Prog(obj.ACALL)
+-		pp.To.Type = obj.TYPE_REG
++		pp := s.Call(v)
+ 		pp.To.Reg = ppc64.REG_CTR
+ 
+ 		if gc.Ctxt.Flag_shared {
+@@ -1018,10 +979,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			q.To.Reg = ppc64.REG_R2
+ 		}
+ 
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
+-
+ 	case ssa.OpPPC64LoweredNilCheck:
+ 		// Issue a load which will fault if arg is nil.
+ 		p := gc.Prog(ppc64.AMOVBZ)
+diff --git a/src/cmd/compile/internal/s390x/galign.go b/src/cmd/compile/internal/s390x/galign.go
+index 91b9ed0777..ba653c8d21 100644
+--- a/src/cmd/compile/internal/s390x/galign.go
++++ b/src/cmd/compile/internal/s390x/galign.go
+@@ -15,6 +15,7 @@ func Init() {
+ 	gc.Thearch.MAXWIDTH = 1 << 50
+ 
+ 	gc.Thearch.Defframe = defframe
++	gc.Thearch.Ginsnop = ginsnop
+ 	gc.Thearch.Proginfo = proginfo
+ 
+ 	gc.Thearch.SSAMarkMoves = ssaMarkMoves
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index bce63c550b..c17106d709 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -481,39 +481,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Reg = s390x.REGG
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+-	case ssa.OpS390XCALLstatic:
+-		if v.Aux.(*obj.LSym) == gc.Deferreturn {
+-			// Deferred calls will appear to be returning to
+-			// the CALL deferreturn(SB) that we are about to emit.
+-			// However, the stack trace code will show the line
+-			// of the instruction byte before the return PC.
+-			// To avoid that being an unrelated instruction,
+-			// insert an actual hardware NOP that will have the right line number.
+-			// This is different from obj.ANOP, which is a virtual no-op
+-			// that doesn't make it into the instruction stream.
+-			ginsnop()
+-		}
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = v.Aux.(*obj.LSym)
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
+-	case ssa.OpS390XCALLclosure:
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = v.Args[0].Reg()
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
+-	case ssa.OpS390XCALLinter:
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = v.Args[0].Reg()
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
++	case ssa.OpS390XCALLstatic, ssa.OpS390XCALLclosure, ssa.OpS390XCALLinter:
++		s.Call(v)
+ 	case ssa.OpS390XFLOGR, ssa.OpS390XNEG, ssa.OpS390XNEGW,
+ 		ssa.OpS390XMOVWBR, ssa.OpS390XMOVDBR:
+ 		p := gc.Prog(v.Op.Asm())
+diff --git a/src/cmd/compile/internal/x86/galign.go b/src/cmd/compile/internal/x86/galign.go
+index edac6a002a..ca28f1a6ab 100644
+--- a/src/cmd/compile/internal/x86/galign.go
++++ b/src/cmd/compile/internal/x86/galign.go
+@@ -26,6 +26,7 @@ func Init() {
+ 	gc.Thearch.MAXWIDTH = (1 << 32) - 1
+ 
+ 	gc.Thearch.Defframe = defframe
++	gc.Thearch.Ginsnop = ginsnop
+ 	gc.Thearch.Proginfo = proginfo
+ 
+ 	gc.Thearch.SSAMarkMoves = ssaMarkMoves
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index 4cd908a94a..73c654cdd4 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -669,39 +669,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			q.To.Type = obj.TYPE_REG
+ 			q.To.Reg = r
+ 		}
+-	case ssa.Op386CALLstatic:
+-		if v.Aux.(*obj.LSym) == gc.Deferreturn {
+-			// Deferred calls will appear to be returning to
+-			// the CALL deferreturn(SB) that we are about to emit.
+-			// However, the stack trace code will show the line
+-			// of the instruction byte before the return PC.
+-			// To avoid that being an unrelated instruction,
+-			// insert an actual hardware NOP that will have the right line number.
+-			// This is different from obj.ANOP, which is a virtual no-op
+-			// that doesn't make it into the instruction stream.
+-			ginsnop()
+-		}
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = v.Aux.(*obj.LSym)
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
+-	case ssa.Op386CALLclosure:
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = v.Args[0].Reg()
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
+-	case ssa.Op386CALLinter:
+-		p := gc.Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = v.Args[0].Reg()
+-		if gc.Maxarg < v.AuxInt {
+-			gc.Maxarg = v.AuxInt
+-		}
++	case ssa.Op386CALLstatic, ssa.Op386CALLclosure, ssa.Op386CALLinter:
++		s.Call(v)
+ 	case ssa.Op386NEGL,
+ 		ssa.Op386BSWAPL,
+ 		ssa.Op386NOTL:

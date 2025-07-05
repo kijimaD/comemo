@@ -15,7 +15,24 @@ Date:   Fri Feb 24 10:35:43 2017 -0800
     Change-Id: I25cf83d060113f6b2a197f243a25614440008f7e
     Reviewed-on: https://go-review.googlesource.com/37408
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  ...cha20poly1305_test_vectors.go => chacha20poly1305_vectors_test.go} | 0
  .../x/crypto/chacha20poly1305/internal/chacha20/chacha_test.go        | 4 ++++
  2 files changed, 4 insertions(+)
+
+diff --git a/src/vendor/golang_org/x/crypto/chacha20poly1305/chacha20poly1305_test_vectors.go b/src/vendor/golang_org/x/crypto/chacha20poly1305/chacha20poly1305_vectors_test.go
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/chacha20poly1305/chacha20poly1305_test_vectors.go
+rename to src/vendor/golang_org/x/crypto/chacha20poly1305/chacha20poly1305_vectors_test.go
+diff --git a/src/vendor/golang_org/x/crypto/chacha20poly1305/internal/chacha20/chacha_test.go b/src/vendor/golang_org/x/crypto/chacha20poly1305/internal/chacha20/chacha_test.go
+index ca9663f52c..b80d34cdd7 100644
+--- a/src/vendor/golang_org/x/crypto/chacha20poly1305/internal/chacha20/chacha_test.go
++++ b/src/vendor/golang_org/x/crypto/chacha20poly1305/internal/chacha20/chacha_test.go
+@@ -1,3 +1,7 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package chacha20
+ 
+ import (

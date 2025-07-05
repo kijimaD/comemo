@@ -7,7 +7,7 @@ Date:   Fri Aug 14 10:46:04 2009 -0700
     R=rsc
     OCL=33273
     CL=33276
-
+---
  include/{mach_amd64.h => mach.h}            | 12 ------------
  src/clean.bash                              |  2 +-
  src/cmd/ar/Makefile                         |  2 +-
@@ -41,3 +41,572 @@ Date:   Fri Aug 14 10:46:04 2009 -0700
  src/{libmach_amd64 => libmach}/sym.c        |  2 +-
  src/make.bash                               |  2 +-
  32 files changed, 48 insertions(+), 84 deletions(-)
+
+diff --git a/include/mach_amd64.h b/include/mach.h
+similarity index 97%
+rename from include/mach_amd64.h
+rename to include/mach.h
+index f99924bbc5..5b1ce7b3a9 100644
+--- a/include/mach_amd64.h
++++ b/include/mach.h
+@@ -29,15 +29,7 @@
+ 
+ /*
+  *	Architecture-dependent application data
+- *	This is just Plan 9's mach.h, tweaked to support only amd64 for now.
+  */
+-/*
+- * Start of Plan 9 a.out.h
+- * Don't use system a.out; instead just lay in the Plan 9 one for now.
+- */
+-/*
+-#include "a.out.h"
+-*/
+ 
+ typedef	struct	Exec	Exec;
+ struct	Exec
+@@ -87,10 +79,6 @@ struct	Sym
+ 	vlong	gotype;
+ 	int	sequence;	// order in file
+ };
+-/*
+- * End of Plan 9 a.out.h
+- * Don't use system a.out; instead just lay in the Plan 9 one for now.
+- */
+ 
+ 
+ /*
+diff --git a/src/clean.bash b/src/clean.bash
+index e67fe14035..cf29029517 100755
+--- a/src/clean.bash
++++ b/src/clean.bash
+@@ -5,7 +5,7 @@
+ 
+ rm -rf $GOROOT/pkg/[0-9a-zA-Z_]*
+ rm -f $GOROOT/lib/*.[6a]
+-for i in lib9 libbio libmach_amd64 libregexp cmd pkg
++for i in lib9 libbio libmach libregexp cmd pkg
+ do
+ 	cd $i
+ 	case $i in
+diff --git a/src/cmd/ar/Makefile b/src/cmd/ar/Makefile
+index b6999aa37a..f0e51afdd4 100644
+--- a/src/cmd/ar/Makefile
++++ b/src/cmd/ar/Makefile
+@@ -13,7 +13,7 @@ OFILES=\
+ 	ar.$O\
+ 
+ $(TARG): $(OFILES)
+-	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lmach_amd64 -lbio -l9
++	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lmach -lbio -l9
+ 
+ clean:
+ 	rm -f $(OFILES) $(TARG)
+diff --git a/src/cmd/ar/ar.c b/src/cmd/ar/ar.c
+index 880f32986c..a9e16bcc00 100644
+--- a/src/cmd/ar/ar.c
++++ b/src/cmd/ar/ar.c
+@@ -39,7 +39,7 @@
+ #include <u.h>
+ #include <libc.h>
+ #include <bio.h>
+-#include <mach_amd64.h>
++#include <mach.h>
+ #include <ar.h>
+ 
+ #undef select
+diff --git a/src/cmd/cov/Makefile b/src/cmd/cov/Makefile
+index fc98974731..4e02547dca 100644
+--- a/src/cmd/cov/Makefile
++++ b/src/cmd/cov/Makefile
+@@ -17,7 +17,7 @@ HFILES=\
+ 	tree.h\
+ 
+ $(TARG): $(OFILES)
+-	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lmach_amd64 -lregexp9 -lbio -l9
++	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lmach -lregexp9 -lbio -l9
+ 
+ clean:
+ 	rm -f $(OFILES) $(TARG)
+diff --git a/src/cmd/cov/main.c b/src/cmd/cov/main.c
+index 073821e937..294bb149f2 100644
+--- a/src/cmd/cov/main.c
++++ b/src/cmd/cov/main.c
+@@ -15,7 +15,7 @@
+ #include "tree.h"
+ 
+ #include <ureg_amd64.h>
+-#include <mach_amd64.h>
++#include <mach.h>
+ typedef struct Ureg Ureg;
+ 
+ void
+diff --git a/src/cmd/nm/Makefile b/src/cmd/nm/Makefile
+index 8ed55ff3fe..00d9beebfe 100644
+--- a/src/cmd/nm/Makefile
++++ b/src/cmd/nm/Makefile
+@@ -13,7 +13,7 @@ OFILES=\
+ 	nm.$O\
+ 
+ $(TARG): $(OFILES)
+-	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lmach_amd64 -lbio -l9
++	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lmach -lbio -l9
+ 
+ clean:
+ 	rm -f $(OFILES) $(TARG)
+diff --git a/src/cmd/nm/nm.c b/src/cmd/nm/nm.c
+index 57e6636a32..52a73d64a2 100644
+--- a/src/cmd/nm/nm.c
++++ b/src/cmd/nm/nm.c
+@@ -1,25 +1,25 @@
+ // Inferno utils/nm/nm.c
+ // http://code.google.com/p/inferno-os/source/browse/utils/nm/nm.c
+-//
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+-//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+-//	Portions Copyright © 1997-1999 Vita Nuova Limited
+-//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+-//	Portions Copyright © 2004,2006 Bruce Ellis
+-//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+-//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
+-//	Portions Copyright © 2009 The Go Authors. All rights reserved.
+-//
++// 
++// 	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++// 	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
++// 	Portions Copyright © 1997-1999 Vita Nuova Limited
++// 	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
++// 	Portions Copyright © 2004,2006 Bruce Ellis
++// 	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
++// 	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
++// 	Portions Copyright © 2009 The Go Authors. All rights reserved.
++// 
+ // Permission is hereby granted, free of charge, to any person obtaining a copy
+ // of this software and associated documentation files (the "Software"), to deal
+ // in the Software without restriction, including without limitation the rights
+ // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ // copies of the Software, and to permit persons to whom the Software is
+ // furnished to do so, subject to the following conditions:
+-//
++// 
+ // The above copyright notice and this permission notice shall be included in
+ // all copies or substantial portions of the Software.
+-//
++// 
+ // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+@@ -35,7 +35,7 @@
+ #include <libc.h>
+ #include <ar.h>
+ #include <bio.h>
+-#include <mach_amd64.h>
++#include <mach.h>
+ 
+ enum{
+ 	CHUNK	=	256	/* must be power of 2 */
+diff --git a/src/cmd/prof/Makefile b/src/cmd/prof/Makefile
+index 8d785b4aaf..193f5896cd 100644
+--- a/src/cmd/prof/Makefile
++++ b/src/cmd/prof/Makefile
+@@ -17,7 +17,7 @@ OFILES=\
+ #	fns.h\
+ 
+ $(TARG): $(OFILES)
+-	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lmach_amd64 -lbio -l9
++	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lmach -lbio -l9
+ 
+ clean:
+ 	rm -f $(OFILES) $(TARG)
+diff --git a/src/cmd/prof/main.c b/src/cmd/prof/main.c
+index 7b9213da8f..462aab9f6c 100644
+--- a/src/cmd/prof/main.c
++++ b/src/cmd/prof/main.c
+@@ -9,7 +9,7 @@
+ #include <ctype.h>
+ 
+ #include <ureg_amd64.h>
+-#include <mach_amd64.h>
++#include <mach.h>
+ 
+ char* file = "6.out";
+ static Fhdr fhdr;
+diff --git a/src/libmach_amd64/5obj.c b/src/libmach/5obj.c
+similarity index 99%
+rename from src/libmach_amd64/5obj.c
+rename to src/libmach/5obj.c
+index 08a7738d2a..034deea2c5 100644
+--- a/src/libmach_amd64/5obj.c
++++ b/src/libmach/5obj.c
+@@ -32,7 +32,7 @@
+ #include <u.h>
+ #include <libc.h>
+ #include <bio.h>
+-#include <mach_amd64.h>
++#include <mach.h>
+ #include "../cmd/5l/5.out.h"
+ #include "obj.h"
+ 
+diff --git a/src/libmach_amd64/6.c b/src/libmach/6.c
+similarity index 99%
+rename from src/libmach_amd64/6.c
+rename to src/libmach/6.c
+index 1d470c37df..0f0636303e 100644
+--- a/src/libmach_amd64/6.c
++++ b/src/libmach/6.c
+@@ -33,7 +33,7 @@
+ #include <libc.h>
+ #include <bio.h>
+ #include "ureg_amd64.h"
+-#include <mach_amd64.h>
++#include <mach.h>
+ 
+ #define	REGOFF(x)	offsetof(struct Ureg, x)
+ 
+diff --git a/src/libmach_amd64/6obj.c b/src/libmach/6obj.c
+similarity index 99%
+rename from src/libmach_amd64/6obj.c
+rename to src/libmach/6obj.c
+index 18a12a1709..578ae2b5ec 100644
+--- a/src/libmach_amd64/6obj.c
++++ b/src/libmach/6obj.c
+@@ -32,7 +32,7 @@
+ #include <u.h>
+ #include <libc.h>
+ #include <bio.h>
+-#include <mach_amd64.h>
++#include <mach.h>
+ #include "../cmd/6l/6.out.h"
+ #include "obj.h"
+ 
+diff --git a/src/libmach_amd64/8.c b/src/libmach/8.c
+similarity index 99%
+rename from src/libmach_amd64/8.c
+rename to src/libmach/8.c
+index 63c3f98f4c..07ec305057 100644
+--- a/src/libmach_amd64/8.c
++++ b/src/libmach/8.c
+@@ -32,7 +32,7 @@
+ #include <u.h>
+ #include <bio.h>
+ #include <ureg_x86.h>
+-#include <mach_amd64.h>
++#include <mach.h>
+ 
+ #define	REGOFF(x)	(uintptr)(&((struct Ureg *) 0)->x)
+ 
+diff --git a/src/libmach_amd64/8db.c b/src/libmach/8db.c
+similarity index 99%
+rename from src/libmach_amd64/8db.c
+rename to src/libmach/8db.c
+index b73275899e..0abf77b106 100644
+--- a/src/libmach_amd64/8db.c
++++ b/src/libmach/8db.c
+@@ -29,7 +29,7 @@
+ #include <u.h>
+ #include <libc.h>
+ #include <bio.h>
+-#include <mach_amd64.h>
++#include <mach.h>
+ #define Ureg UregAmd64
+ #include <ureg_amd64.h>
+ #undef Ureg
+@@ -226,7 +226,7 @@ i386trace(Map *map, uvlong pc, uvlong sp, uvlong link, Tracer trace)
+ 			findsym(pc, CTEXT, &s);
+ 			(*trace)(map, pc, sp, &s1);		// morestack's caller; caller's caller's PC/SP
+ 			continue;
+-		} 
++		}
+ 
+ 		if(pc == lessstack) {
+ 			// ../pkg/runtime/runtime.h
+diff --git a/src/libmach_amd64/8obj.c b/src/libmach/8obj.c
+similarity index 99%
+rename from src/libmach_amd64/8obj.c
+rename to src/libmach/8obj.c
+index e513cf9ebf..f8ca1c4c39 100644
+--- a/src/libmach_amd64/8obj.c
++++ b/src/libmach/8obj.c
+@@ -32,7 +32,7 @@
+ #include <u.h>
+ #include <libc.h>
+ #include <bio.h>
+-#include <mach_amd64.h>
++#include <mach.h>
+ #include "../cmd/8l/8.out.h"
+ #include "obj.h"
+ 
+diff --git a/src/libmach_amd64/Makefile b/src/libmach/Makefile
+similarity index 86%
+rename from src/libmach_amd64/Makefile
+rename to src/libmach/Makefile
+index 66c6e29f29..4a5e3405fc 100644
+--- a/src/libmach_amd64/Makefile
++++ b/src/libmach/Makefile
+@@ -28,7 +28,7 @@
+ 
+ include ../Make.conf
+ 
+-LIB=libmach_amd64.a
++LIB=libmach.a
+ OFILES=\
+ 	executable.$O\
+ 	fakeobj.$O\
+@@ -46,32 +46,8 @@ OFILES=\
+ 	6obj.$O\
+ 	8obj.$O\
+ 	$(GOOS).$O\
+-#	v.$O\
+-#	k.$O\
+-#	u.$O\
+-#	q.$O\
+-#	0.$O\
+-#	2.$O\
+-#	5.$O\
+-#	7.$O\
+-#	9.$O\
+-#	vdb.$O\
+-#	kdb.$O\
+-#	udb.$O\
+-#	qdb.$O\
+-#	2db.$O\
+-#	5db.$O\
+-#	7db.$O\
+-#	vobj.$O\
+-#	kobj.$O\
+-#	uobj.$O\
+-#	2obj.$O\
+-#	7obj.$O\
+-#	9obj.$O\
+-#	qobj.$O\
+-#	vcodas.$O\
+ 
+-HFILES=$(GOROOT)/include/mach_amd64.h elf.h macho.h obj.h
++HFILES=$(GOROOT)/include/mach.h elf.h macho.h obj.h
+ 
+ install: $(LIB)
+ 	cp $(LIB) $(GOROOT)/lib
+diff --git a/src/libmach_amd64/access.c b/src/libmach/access.c
+similarity index 99%
+rename from src/libmach_amd64/access.c
+rename to src/libmach/access.c
+index 0ab01d40c6..0ee75d148a 100644
+--- a/src/libmach_amd64/access.c
++++ b/src/libmach/access.c
+@@ -33,7 +33,7 @@
+ #include <u.h>
+ #include <libc.h>
+ #include <bio.h>
+-#include <mach_amd64.h>
++#include <mach.h>
+ 
+ static	int	mget(Map*, uvlong, void*, int);
+ static	int	mput(Map*, uvlong, void*, int);
+diff --git a/src/libmach_amd64/darwin.c b/src/libmach/darwin.c
+similarity index 99%
+rename from src/libmach_amd64/darwin.c
+rename to src/libmach/darwin.c
+index 11cc3151ed..87fe423def 100644
+--- a/src/libmach_amd64/darwin.c
++++ b/src/libmach/darwin.c
+@@ -28,7 +28,7 @@
+ #include <errno.h>
+ #include <libc.h>
+ #include <bio.h>
+-#include <mach_amd64.h>
++#include <mach.h>
+ #define Ureg Ureg32
+ #include <ureg_x86.h>
+ #undef Ureg
+diff --git a/src/libmach_amd64/elf.h b/src/libmach/elf.h
+similarity index 100%
+rename from src/libmach_amd64/elf.h
+rename to src/libmach/elf.h
+diff --git a/src/libmach_amd64/executable.c b/src/libmach/executable.c
+similarity index 98%
+rename from src/libmach_amd64/executable.c
+rename to src/libmach/executable.c
+index d1ad1fe6c5..0cc7d0f997 100644
+--- a/src/libmach_amd64/executable.c
++++ b/src/libmach/executable.c
+@@ -1,11 +1,11 @@
+ // Inferno libmach/executable.c
+ // http://code.google.com/p/inferno-os/source/browse/utils/libmach/executable.c
+ //
+-//	Copyright © 1994-1999 Lucent Technologies Inc.
+-//	Power PC support Copyright © 1995-2004 C H Forsyth (forsyth@terzarima.net).
+-//	Portions Copyright © 1997-1999 Vita Nuova Limited.
+-//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).
+-//	Revisions Copyright © 2000-2004 Lucent Technologies Inc. and others.
++// 	Copyright © 1994-1999 Lucent Technologies Inc.
++// 	Power PC support Copyright © 1995-2004 C H Forsyth (forsyth@terzarima.net).
++// 	Portions Copyright © 1997-1999 Vita Nuova Limited.
++// 	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).
++// 	Revisions Copyright © 2000-2004 Lucent Technologies Inc. and others.
+ //	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+ //
+ // Permission is hereby granted, free of charge, to any person obtaining a copy
+@@ -30,7 +30,7 @@
+ #include	<libc.h>
+ #include	<bio.h>
+ #include	<bootexec.h>
+-#include	<mach_amd64.h>
++#include	<mach.h>
+ #include	"elf.h"
+ #include	"macho.h"
+ 
+@@ -268,7 +268,7 @@ ExecTable exectab[] =
+ 		sizeof(Machhdr),
+ 		nil,
+ 		machdotout },
+-	{ MACH32_MAG,			/* 64-bit MACH (apple mac) */
++	{ MACH32_MAG,			/* 32-bit MACH (apple mac) */
+ 		"mach executable",
+ 		nil,
+ 		FI386,
+diff --git a/src/libmach_amd64/fakeobj.c b/src/libmach/fakeobj.c
+similarity index 97%
+rename from src/libmach_amd64/fakeobj.c
+rename to src/libmach/fakeobj.c
+index c1a6565a2d..ea7ef012cf 100644
+--- a/src/libmach_amd64/fakeobj.c
++++ b/src/libmach/fakeobj.c
+@@ -10,7 +10,7 @@
+ #include <libc.h>
+ #include <bio.h>
+ #include <ar.h>
+-#include <mach_amd64.h>
++#include <mach.h>
+ #include "obj.h"
+ 
+ int _is2(char* x) { return 0; }
+diff --git a/src/libmach_amd64/linux.c b/src/libmach/linux.c
+similarity index 99%
+rename from src/libmach_amd64/linux.c
+rename to src/libmach/linux.c
+index b1e8d0f97e..20e62ee7a1 100644
+--- a/src/libmach_amd64/linux.c
++++ b/src/libmach/linux.c
+@@ -37,7 +37,7 @@
+ #include <errno.h>
+ #include <libc.h>
+ #include <bio.h>
+-#include <mach_amd64.h>
++#include <mach.h>
+ #define Ureg Ureg32
+ #include <ureg_x86.h>
+ #undef Ureg
+diff --git a/src/libmach_amd64/machdata.c b/src/libmach/machdata.c
+similarity index 99%
+rename from src/libmach_amd64/machdata.c
+rename to src/libmach/machdata.c
+index 2b7368ddeb..425a921794 100644
+--- a/src/libmach_amd64/machdata.c
++++ b/src/libmach/machdata.c
+@@ -33,7 +33,7 @@
+ #include <u.h>
+ #include <libc.h>
+ #include <bio.h>
+-#include <mach_amd64.h>
++#include <mach.h>
+ 
+ #define STARTSYM	"_main"
+ #define PROFSYM		"_mainp"
+diff --git a/src/libmach_amd64/macho.h b/src/libmach/macho.h
+similarity index 100%
+rename from src/libmach_amd64/macho.h
+rename to src/libmach/macho.h
+diff --git a/src/libmach_amd64/map.c b/src/libmach/map.c
+similarity index 99%
+rename from src/libmach_amd64/map.c
+rename to src/libmach/map.c
+index 747969335f..ebfe037027 100644
+--- a/src/libmach_amd64/map.c
++++ b/src/libmach/map.c
+@@ -37,7 +37,7 @@
+ #include <u.h>
+ #include <libc.h>
+ #include <bio.h>
+-#include <mach_amd64.h>
++#include <mach.h>
+ 
+ Map *
+ newmap(Map *map, int n)
+diff --git a/src/libmach_amd64/obj.c b/src/libmach/obj.c
+similarity index 99%
+rename from src/libmach_amd64/obj.c
+rename to src/libmach/obj.c
+index 8bd138421b..aa914e2c76 100644
+--- a/src/libmach_amd64/obj.c
++++ b/src/libmach/obj.c
+@@ -34,7 +34,7 @@
+ #include <libc.h>
+ #include <bio.h>
+ #include <ar.h>
+-#include <mach_amd64.h>
++#include <mach.h>
+ #include "obj.h"
+ 
+ #define islocal(t)	((t)=='a' || (t)=='p')
+@@ -333,7 +333,7 @@ _offset(int id, vlong off)
+ /*
+  * update the type of a global text or data symbol
+  */
+-static void 
++static void
+ objupdate(int id, int type)
+ {
+ 	Sym *s;
+diff --git a/src/libmach_amd64/obj.h b/src/libmach/obj.h
+similarity index 100%
+rename from src/libmach_amd64/obj.h
+rename to src/libmach/obj.h
+diff --git a/src/libmach_amd64/setmach.c b/src/libmach/setmach.c
+similarity index 99%
+rename from src/libmach_amd64/setmach.c
+rename to src/libmach/setmach.c
+index 613ad3c61e..b887781867 100644
+--- a/src/libmach_amd64/setmach.c
++++ b/src/libmach/setmach.c
+@@ -29,7 +29,7 @@
+ #include	<u.h>
+ #include	<libc.h>
+ #include	<bio.h>
+-#include	<mach_amd64.h>
++#include	<mach.h>
+ 		/* table for selecting machine-dependent parameters */
+ 
+ typedef	struct machtab Machtab;
+diff --git a/src/libmach_amd64/swap.c b/src/libmach/swap.c
+similarity index 100%
+rename from src/libmach_amd64/swap.c
+rename to src/libmach/swap.c
+diff --git a/src/libmach_amd64/sym.c b/src/libmach/sym.c
+similarity index 99%
+rename from src/libmach_amd64/sym.c
+rename to src/libmach/sym.c
+index 13bc608fc4..997cc06337 100644
+--- a/src/libmach_amd64/sym.c
++++ b/src/libmach/sym.c
+@@ -29,7 +29,7 @@
+ #include <u.h>
+ #include <libc.h>
+ #include <bio.h>
+-#include <mach_amd64.h>
++#include <mach.h>
+ 
+ #define	HUGEINT	0x7fffffff
+ #define	NNAME	20		/* a relic of the past */
+diff --git a/src/make.bash b/src/make.bash
+index acd4f5af79..5f3643c015 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -19,7 +19,7 @@ rm -f $GOBIN/quietgcc
+ cp quietgcc.bash $GOBIN/quietgcc
+ chmod +x $GOBIN/quietgcc
+ 
+-for i in lib9 libbio libmach_amd64 libregexp cmd pkg cmd/ebnflint cmd/godoc cmd/gofmt
++for i in lib9 libbio libmach libregexp cmd pkg cmd/ebnflint cmd/godoc cmd/gofmt
+ do
+ 	# The ( ) here are to preserve the current directory
+ 	# for the next round despite the cd $i below.

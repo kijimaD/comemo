@@ -13,6 +13,20 @@ Date:   Sun Nov 9 18:55:36 2014 -0800
     R=minux
     CC=golang-codereviews
     https://golang.org/cl/172110043
-
+---
  src/cmd/5g/reg.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index 27d9d3e8be..b78c268df5 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -230,7 +230,7 @@ regopt(Prog *firstp)
+ 
+ 		/* the mod/div runtime routines smash R12 */
+ 		if(p->as == ADIV || p->as == ADIVU || p->as == AMOD || p->as == AMODU)
+-			r->set.b[z] |= RtoB(12);
++			r->set.b[0] |= RtoB(12);
+ 	}
+ 	if(firstr == R)
+ 		return;

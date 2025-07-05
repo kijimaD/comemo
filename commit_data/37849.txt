@@ -11,6 +11,22 @@ Date:   Fri Aug 31 09:14:04 2018 -0600
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/pem/pem_test.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/pem/pem_test.go b/src/encoding/pem/pem_test.go
+index 6a17516218..a1b5afac08 100644
+--- a/src/encoding/pem/pem_test.go
++++ b/src/encoding/pem/pem_test.go
+@@ -213,7 +213,9 @@ func TestFuzz(t *testing.T) {
+ 	}
+ 
+ 	testRoundtrip := func(block Block) bool {
+-		if isBad(block.Type) {
++		// Reject bad Type
++		// Type with colons will proceed as key/val pair and cause an error.
++		if isBad(block.Type) || strings.Contains(block.Type, ":") {
+ 			return true
+ 		}
+ 		for key, val := range block.Headers {

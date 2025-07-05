@@ -7,6 +7,31 @@ Date:   Wed May 1 14:30:51 2013 -0700
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/9060045
-
+---
  src/pkg/runtime/cgo/callbacks.c | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/cgo/callbacks.c b/src/pkg/runtime/cgo/callbacks.c
+index 19f6115a66..524f30428b 100644
+--- a/src/pkg/runtime/cgo/callbacks.c
++++ b/src/pkg/runtime/cgo/callbacks.c
+@@ -45,7 +45,8 @@ _cgo_allocate_internal(uintptr len, byte *ret)
+ 	FLUSH(&ret);
+ }
+ 
+-#pragma dynexport _cgo_allocate _cgo_allocate
++#pragma cgo_export_static _cgo_allocate
++#pragma cgo_export_dynamic _cgo_allocate
+ void
+ _cgo_allocate(void *a, int32 n)
+ {
+@@ -73,7 +74,8 @@ _cgo_panic_internal(byte *p)
+ 	runtime·panic(err);
+ }
+ 
+-#pragma dynexport _cgo_panic _cgo_panic
++#pragma cgo_export_static _cgo_panic
++#pragma cgo_export_dynamic _cgo_panic
+ void
+ _cgo_panic(void *a, int32 n)
+ {

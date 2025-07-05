@@ -21,7 +21,7 @@ Date:   Fri Mar 22 21:42:02 2024 +0000
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/internal/abi/escape.go        | 22 ++++++++++++++++++++++
  src/internal/abi/iface.go         | 10 ++++++++++
  src/internal/abi/type.go          | 11 +++++++++++
@@ -31,3 +31,369 @@ Date:   Fri Mar 22 21:42:02 2024 +0000
  src/reflect/value.go              | 38 ++++++++++++++++++--------------------
  src/strings/builder.go            | 16 ++--------------
  8 files changed, 75 insertions(+), 65 deletions(-)
+
+diff --git a/src/internal/abi/escape.go b/src/internal/abi/escape.go
+new file mode 100644
+index 0000000000..8f3756333c
+--- /dev/null
++++ b/src/internal/abi/escape.go
+@@ -0,0 +1,22 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package abi
++
++import "unsafe"
++
++// NoEscape hides the pointer p from escape analysis, preventing it
++// from escaping to the heap. It compiles down to nothing.
++//
++// WARNING: This is very subtle to use correctly. The caller must
++// ensure that it's truly safe for p to not escape to the heap by
++// maintaining runtime pointer invariants (for example, that globals
++// and the heap may not generally point into a stack).
++//
++//go:nosplit
++//go:nocheckptr
++func NoEscape(p unsafe.Pointer) unsafe.Pointer {
++	x := uintptr(p)
++	return unsafe.Pointer(x ^ 0)
++}
+diff --git a/src/internal/abi/iface.go b/src/internal/abi/iface.go
+index fb25a2d1f3..676a27d204 100644
+--- a/src/internal/abi/iface.go
++++ b/src/internal/abi/iface.go
+@@ -4,6 +4,8 @@
+ 
+ package abi
+ 
++import "unsafe"
++
+ // The first word of every non-empty interface type contains an *ITab.
+ // It records the underlying concrete type (Type), the interface type it
+ // is implementing (Inter), and some ancillary information.
+@@ -15,3 +17,11 @@ type ITab struct {
+ 	Hash  uint32     // copy of Type.Hash. Used for type switches.
+ 	Fun   [1]uintptr // variable sized. fun[0]==0 means Type does not implement Inter.
+ }
++
++// EmptyInterface describes the layout of a "interface{}" or a "any."
++// These are represented differently than non-empty interface, as the first
++// word always points to an abi.Type.
++type EmptyInterface struct {
++	Type *Type
++	Data unsafe.Pointer
++}
+diff --git a/src/internal/abi/type.go b/src/internal/abi/type.go
+index 0686bac4c3..786bafff72 100644
+--- a/src/internal/abi/type.go
++++ b/src/internal/abi/type.go
+@@ -166,6 +166,17 @@ var kindNames = []string{
+ 	UnsafePointer: "unsafe.Pointer",
+ }
+ 
++// TypeOf returns the abi.Type of some value.
++func TypeOf(a any) *Type {
++	eface := *(*EmptyInterface)(unsafe.Pointer(&a))
++	// Types are either static (for compiler-created types) or
++	// heap-allocated but always reachable (for reflection-created
++	// types, held in the central map). So there is no need to
++	// escape types. noescape here help avoid unnecessary escape
++	// of v.
++	return (*Type)(NoEscape(unsafe.Pointer(eface.Type)))
++}
++
+ func (t *Type) Kind() Kind { return t.Kind_ & KindMask }
+ 
+ func (t *Type) HasName() bool {
+diff --git a/src/internal/reflectlite/type.go b/src/internal/reflectlite/type.go
+index 8c47a265b8..085863e3d4 100644
+--- a/src/internal/reflectlite/type.go
++++ b/src/internal/reflectlite/type.go
+@@ -398,10 +398,7 @@ func add(p unsafe.Pointer, x uintptr, whySafe string) unsafe.Pointer {
+ // TypeOf returns the reflection Type that represents the dynamic type of i.
+ // If i is a nil interface value, TypeOf returns nil.
+ func TypeOf(i any) Type {
+-	eface := *(*emptyInterface)(unsafe.Pointer(&i))
+-	// Noescape so this doesn't make i to escape. See the comment
+-	// at Value.typ for why this is safe.
+-	return toType((*abi.Type)(noescape(unsafe.Pointer(eface.typ))))
++	return toType(abi.TypeOf(i))
+ }
+ 
+ func (t rtype) Implements(u Type) bool {
+diff --git a/src/internal/reflectlite/value.go b/src/internal/reflectlite/value.go
+index f4f15d8e5f..f898b86108 100644
+--- a/src/internal/reflectlite/value.go
++++ b/src/internal/reflectlite/value.go
+@@ -94,7 +94,7 @@ func (v Value) typ() *abi.Type {
+ 	// types, held in the central map). So there is no need to
+ 	// escape types. noescape here help avoid unnecessary escape
+ 	// of v.
+-	return (*abi.Type)(noescape(unsafe.Pointer(v.typ_)))
++	return (*abi.Type)(abi.NoEscape(unsafe.Pointer(v.typ_)))
+ }
+ 
+ // pointer returns the underlying pointer represented by v.
+@@ -113,7 +113,7 @@ func (v Value) pointer() unsafe.Pointer {
+ func packEface(v Value) any {
+ 	t := v.typ()
+ 	var i any
+-	e := (*emptyInterface)(unsafe.Pointer(&i))
++	e := (*abi.EmptyInterface)(unsafe.Pointer(&i))
+ 	// First, fill in the data portion of the interface.
+ 	switch {
+ 	case ifaceIndir(t):
+@@ -127,28 +127,28 @@ func packEface(v Value) any {
+ 			typedmemmove(t, c, ptr)
+ 			ptr = c
+ 		}
+-		e.word = ptr
++		e.Data = ptr
+ 	case v.flag&flagIndir != 0:
+ 		// Value is indirect, but interface is direct. We need
+ 		// to load the data at v.ptr into the interface data word.
+-		e.word = *(*unsafe.Pointer)(v.ptr)
++		e.Data = *(*unsafe.Pointer)(v.ptr)
+ 	default:
+ 		// Value is direct, and so is the interface.
+-		e.word = v.ptr
++		e.Data = v.ptr
+ 	}
+ 	// Now, fill in the type portion. We're very careful here not
+ 	// to have any operation between the e.word and e.typ assignments
+ 	// that would let the garbage collector observe the partially-built
+ 	// interface value.
+-	e.typ = t
++	e.Type = t
+ 	return i
+ }
+ 
+ // unpackEface converts the empty interface i to a Value.
+ func unpackEface(i any) Value {
+-	e := (*emptyInterface)(unsafe.Pointer(&i))
++	e := (*abi.EmptyInterface)(unsafe.Pointer(&i))
+ 	// NOTE: don't read e.word until we know whether it is really a pointer or not.
+-	t := e.typ
++	t := e.Type
+ 	if t == nil {
+ 		return Value{}
+ 	}
+@@ -156,7 +156,7 @@ func unpackEface(i any) Value {
+ 	if ifaceIndir(t) {
+ 		f |= flagIndir
+ 	}
+-	return Value{t, e.word, f}
++	return Value{t, e.Data, f}
+ }
+ 
+ // A ValueError occurs when a Value method is invoked on
+@@ -185,12 +185,6 @@ func methodName() string {
+ 	return f.Name()
+ }
+ 
+-// emptyInterface is the header for an interface{} value.
+-type emptyInterface struct {
+-	typ  *abi.Type
+-	word unsafe.Pointer
+-}
+-
+ // mustBeExported panics if f records that the value was obtained using
+ // an unexported field.
+ func (f flag) mustBeExported() {
+@@ -482,9 +476,3 @@ var dummy struct {
+ 	b bool
+ 	x any
+ }
+-
+-//go:nosplit
+-func noescape(p unsafe.Pointer) unsafe.Pointer {
+-	x := uintptr(p)
+-	return unsafe.Pointer(x ^ 0)
+-}
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 4a8c5a1e09..272f0b87d1 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1212,16 +1212,12 @@ func (t *structType) FieldByName(name string) (f StructField, present bool) {
+ // TypeOf returns the reflection [Type] that represents the dynamic type of i.
+ // If i is a nil interface value, TypeOf returns nil.
+ func TypeOf(i any) Type {
+-	eface := *(*emptyInterface)(unsafe.Pointer(&i))
+-	// Noescape so this doesn't make i to escape. See the comment
+-	// at Value.typ for why this is safe.
+-	return toType((*abi.Type)(noescape(unsafe.Pointer(eface.typ))))
++	return toType(abi.TypeOf(i))
+ }
+ 
+ // rtypeOf directly extracts the *rtype of the provided value.
+ func rtypeOf(i any) *abi.Type {
+-	eface := *(*emptyInterface)(unsafe.Pointer(&i))
+-	return eface.typ
++	return abi.TypeOf(i)
+ }
+ 
+ // ptrMap is the cache for PointerTo.
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 3720d63e57..4b936bf5bb 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -99,7 +99,7 @@ func (v Value) typ() *abi.Type {
+ 	// types, held in the central map). So there is no need to
+ 	// escape types. noescape here help avoid unnecessary escape
+ 	// of v.
+-	return (*abi.Type)(noescape(unsafe.Pointer(v.typ_)))
++	return (*abi.Type)(abi.NoEscape(unsafe.Pointer(v.typ_)))
+ }
+ 
+ // pointer returns the underlying pointer represented by v.
+@@ -119,7 +119,7 @@ func (v Value) pointer() unsafe.Pointer {
+ func packEface(v Value) any {
+ 	t := v.typ()
+ 	var i any
+-	e := (*emptyInterface)(unsafe.Pointer(&i))
++	e := (*abi.EmptyInterface)(unsafe.Pointer(&i))
+ 	// First, fill in the data portion of the interface.
+ 	switch {
+ 	case t.IfaceIndir():
+@@ -133,28 +133,28 @@ func packEface(v Value) any {
+ 			typedmemmove(t, c, ptr)
+ 			ptr = c
+ 		}
+-		e.word = ptr
++		e.Data = ptr
+ 	case v.flag&flagIndir != 0:
+ 		// Value is indirect, but interface is direct. We need
+ 		// to load the data at v.ptr into the interface data word.
+-		e.word = *(*unsafe.Pointer)(v.ptr)
++		e.Data = *(*unsafe.Pointer)(v.ptr)
+ 	default:
+ 		// Value is direct, and so is the interface.
+-		e.word = v.ptr
++		e.Data = v.ptr
+ 	}
+ 	// Now, fill in the type portion. We're very careful here not
+ 	// to have any operation between the e.word and e.typ assignments
+ 	// that would let the garbage collector observe the partially-built
+ 	// interface value.
+-	e.typ = t
++	e.Type = t
+ 	return i
+ }
+ 
+ // unpackEface converts the empty interface i to a Value.
+ func unpackEface(i any) Value {
+-	e := (*emptyInterface)(unsafe.Pointer(&i))
++	e := (*abi.EmptyInterface)(unsafe.Pointer(&i))
+ 	// NOTE: don't read e.word until we know whether it is really a pointer or not.
+-	t := e.typ
++	t := e.Type
+ 	if t == nil {
+ 		return Value{}
+ 	}
+@@ -162,7 +162,7 @@ func unpackEface(i any) Value {
+ 	if t.IfaceIndir() {
+ 		f |= flagIndir
+ 	}
+-	return Value{t, e.word, f}
++	return Value{t, e.Data, f}
+ }
+ 
+ // A ValueError occurs when a Value method is invoked on
+@@ -200,12 +200,6 @@ func valueMethodName() string {
+ 	return "unknown method"
+ }
+ 
+-// emptyInterface is the header for an interface{} value.
+-type emptyInterface struct {
+-	typ  *abi.Type
+-	word unsafe.Pointer
+-}
+-
+ // nonEmptyInterface is the header for an interface value with methods.
+ type nonEmptyInterface struct {
+ 	itab *abi.ITab
+@@ -1597,7 +1591,7 @@ func (v Value) IsZero() bool {
+ 			// v.ptr doesn't escape, as Equal functions are compiler generated
+ 			// and never escape. The escape analysis doesn't know, as it is a
+ 			// function pointer call.
+-			return typ.Equal(noescape(v.ptr), unsafe.Pointer(&zeroVal[0]))
++			return typ.Equal(abi.NoEscape(v.ptr), unsafe.Pointer(&zeroVal[0]))
+ 		}
+ 		if typ.TFlag&abi.TFlagRegularMemory != 0 {
+ 			// For some types where the zero value is a value where all bits of this type are 0
+@@ -1623,7 +1617,7 @@ func (v Value) IsZero() bool {
+ 		// If the type is comparable, then compare directly with zero.
+ 		if typ.Equal != nil && typ.Size() <= abi.ZeroValSize {
+ 			// See noescape justification above.
+-			return typ.Equal(noescape(v.ptr), unsafe.Pointer(&zeroVal[0]))
++			return typ.Equal(abi.NoEscape(v.ptr), unsafe.Pointer(&zeroVal[0]))
+ 		}
+ 		if typ.TFlag&abi.TFlagRegularMemory != 0 {
+ 			// For some types where the zero value is a value where all bits of this type are 0
+@@ -1736,7 +1730,7 @@ func (v Value) SetZero() {
+ 	case Slice:
+ 		*(*unsafeheader.Slice)(v.ptr) = unsafeheader.Slice{}
+ 	case Interface:
+-		*(*emptyInterface)(v.ptr) = emptyInterface{}
++		*(*abi.EmptyInterface)(v.ptr) = abi.EmptyInterface{}
+ 	case Chan, Func, Map, Pointer, UnsafePointer:
+ 		*(*unsafe.Pointer)(v.ptr) = nil
+ 	case Array, Struct:
+@@ -4015,8 +4009,12 @@ func contentEscapes(x unsafe.Pointer) {
+ 	}
+ }
+ 
++// This is just a wrapper around abi.NoEscape. The inlining heuristics are
++// finnicky and for whatever reason treat the local call to noescape as much
++// lower cost with respect to the inliner budget. (That is, replacing calls to
++// noescape with abi.NoEscape will cause inlining tests to fail.)
++//
+ //go:nosplit
+ func noescape(p unsafe.Pointer) unsafe.Pointer {
+-	x := uintptr(p)
+-	return unsafe.Pointer(x ^ 0)
++	return abi.NoEscape(p)
+ }
+diff --git a/src/strings/builder.go b/src/strings/builder.go
+index 7c9b686241..e6df08c6f4 100644
+--- a/src/strings/builder.go
++++ b/src/strings/builder.go
+@@ -5,6 +5,7 @@
+ package strings
+ 
+ import (
++	"internal/abi"
+ 	"internal/bytealg"
+ 	"unicode/utf8"
+ 	"unsafe"
+@@ -22,19 +23,6 @@ type Builder struct {
+ 	buf []byte
+ }
+ 
+-// noescape hides a pointer from escape analysis. It is the identity function
+-// but escape analysis doesn't think the output depends on the input.
+-// noescape is inlined and currently compiles down to zero instructions.
+-// USE CAREFULLY!
+-// This was copied from the runtime; see issues 23382 and 7921.
+-//
+-//go:nosplit
+-//go:nocheckptr
+-func noescape(p unsafe.Pointer) unsafe.Pointer {
+-	x := uintptr(p)
+-	return unsafe.Pointer(x ^ 0)
+-}
+-
+ func (b *Builder) copyCheck() {
+ 	if b.addr == nil {
+ 		// This hack works around a failing of Go's escape analysis
+@@ -42,7 +30,7 @@ func (b *Builder) copyCheck() {
+ 		// See issue 23382.
+ 		// TODO: once issue 7921 is fixed, this should be reverted to
+ 		// just "b.addr = b".
+-		b.addr = (*Builder)(noescape(unsafe.Pointer(b)))
++		b.addr = (*Builder)(abi.NoEscape(unsafe.Pointer(b)))
+ 	} else if b.addr != b {
+ 		panic("strings: illegal use of non-zero Builder copied by value")
+ 	}

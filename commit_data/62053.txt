@@ -19,6 +19,19 @@ Date:   Mon Jan 27 14:21:43 2025 +0100
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-
+---
  src/crypto/internal/fips140/rsa/cast.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/crypto/internal/fips140/rsa/cast.go b/src/crypto/internal/fips140/rsa/cast.go
+index ec7b5f3aeb..b900b32c88 100644
+--- a/src/crypto/internal/fips140/rsa/cast.go
++++ b/src/crypto/internal/fips140/rsa/cast.go
+@@ -171,6 +171,7 @@ func testPrivateKey() *PrivateKey {
+ 			N: N, E: 65537,
+ 		},
+ 		d: d, p: p, q: q, qInv: qInv, dP: dP, dQ: dQ,
++		fipsApproved: true,
+ 	}
+ 
+ }

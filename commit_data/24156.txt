@@ -9,6 +9,20 @@ Date:   Tue Jul 14 08:14:03 2015 -0700
     Change-Id: If103f8eca7e53b0120885e2ec086db12176ea078
     Reviewed-on: https://go-review.googlesource.com/12155
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.5.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.5.html b/doc/go1.5.html
+index c54d4ce316..3b8d34a496 100644
+--- a/doc/go1.5.html
++++ b/doc/go1.5.html
+@@ -938,7 +938,7 @@ value to <code>RGBA</code> has become more precise.
+ Previously, the low 8 bits were just an echo of the high 8 bits;
+ now they contain more accurate information.
+ Because of the echo property of the old code, the operation
+-<code>uint8(r)</code> to extract an 8-bit red vaue worked, but is incorrect.
++<code>uint8(r)</code> to extract an 8-bit red value worked, but is incorrect.
+ In Go 1.5, that operation may yield a different value.
+ The correct code is, and always was, to select the high 8 bits:
+ <code>uint8(r&gt;&gt;8)</code>.

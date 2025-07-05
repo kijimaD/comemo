@@ -17,8 +17,140 @@ Date:   Mon Apr 12 18:34:04 2021 -0600
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/testing/benchmark.go      |  7 +++++--
  src/testing/benchmark_test.go | 24 ++++++++++++++++++++++++
  src/testing/testing.go        | 26 ++++++++++++++++----------
  3 files changed, 45 insertions(+), 12 deletions(-)
+
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index a8f75e9712..15b4426c5a 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -238,12 +238,15 @@ func (b *B) run1() bool {
+ 	}
+ 	// Only print the output if we know we are not going to proceed.
+ 	// Otherwise it is printed in processBench.
+-	if atomic.LoadInt32(&b.hasSub) != 0 || b.finished {
++	b.mu.RLock()
++	finished := b.finished
++	b.mu.RUnlock()
++	if atomic.LoadInt32(&b.hasSub) != 0 || finished {
+ 		tag := "BENCH"
+ 		if b.skipped {
+ 			tag = "SKIP"
+ 		}
+-		if b.chatty != nil && (len(b.output) > 0 || b.finished) {
++		if b.chatty != nil && (len(b.output) > 0 || finished) {
+ 			b.trimOutput()
+ 			fmt.Fprintf(b.w, "--- %s: %s\n%s", tag, b.name, b.output)
+ 		}
+diff --git a/src/testing/benchmark_test.go b/src/testing/benchmark_test.go
+index 4c1cbd1933..3b1dc8275b 100644
+--- a/src/testing/benchmark_test.go
++++ b/src/testing/benchmark_test.go
+@@ -102,6 +102,30 @@ func TestRunParallelFail(t *testing.T) {
+ 	})
+ }
+ 
++func TestRunParallelFatal(t *testing.T) {
++	testing.Benchmark(func(b *testing.B) {
++		b.RunParallel(func(pb *testing.PB) {
++			for pb.Next() {
++				if b.N > 1 {
++					b.Fatal("error")
++				}
++			}
++		})
++	})
++}
++
++func TestRunParallelSkipNow(t *testing.T) {
++	testing.Benchmark(func(b *testing.B) {
++		b.RunParallel(func(pb *testing.PB) {
++			for pb.Next() {
++				if b.N > 1 {
++					b.SkipNow()
++				}
++			}
++		})
++	})
++}
++
+ func ExampleB_RunParallel() {
+ 	// Parallel benchmark for text/template.Template.Execute on a single object.
+ 	testing.Benchmark(func(b *testing.B) {
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 851b118df4..2146195956 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -395,10 +395,10 @@ type common struct {
+ 	cleanups    []func()             // optional functions to be called at the end of the test
+ 	cleanupName string               // Name of the cleanup function.
+ 	cleanupPc   []uintptr            // The stack trace at the point where Cleanup was called.
++	finished    bool                 // Test function has completed.
+ 
+ 	chatty     *chattyPrinter // A copy of chattyPrinter, if the chatty flag is set.
+ 	bench      bool           // Whether the current test is a benchmark.
+-	finished   bool           // Test function has completed.
+ 	hasSub     int32          // Written atomically.
+ 	raceErrors int            // Number of races detected during test.
+ 	runner     string         // Function name of tRunner running the test.
+@@ -738,7 +738,9 @@ func (c *common) FailNow() {
+ 	// it would run on a test failure. Because we send on c.signal during
+ 	// a top-of-stack deferred function now, we know that the send
+ 	// only happens after any other stacked defers have completed.
++	c.mu.Lock()
+ 	c.finished = true
++	c.mu.Unlock()
+ 	runtime.Goexit()
+ }
+ 
+@@ -837,15 +839,11 @@ func (c *common) Skipf(format string, args ...interface{}) {
+ // other goroutines created during the test. Calling SkipNow does not stop
+ // those other goroutines.
+ func (c *common) SkipNow() {
+-	c.skip()
+-	c.finished = true
+-	runtime.Goexit()
+-}
+-
+-func (c *common) skip() {
+ 	c.mu.Lock()
+-	defer c.mu.Unlock()
+ 	c.skipped = true
++	c.finished = true
++	c.mu.Unlock()
++	runtime.Goexit()
+ }
+ 
+ // Skipped reports whether the test was skipped.
+@@ -1138,10 +1136,16 @@ func tRunner(t *T, fn func(t *T)) {
+ 		err := recover()
+ 		signal := true
+ 
+-		if !t.finished && err == nil {
++		t.mu.RLock()
++		finished := t.finished
++		t.mu.RUnlock()
++		if !finished && err == nil {
+ 			err = errNilPanicOrGoexit
+ 			for p := t.parent; p != nil; p = p.parent {
+-				if p.finished {
++				p.mu.RLock()
++				finished = p.finished
++				p.mu.RUnlock()
++				if finished {
+ 					t.Errorf("%v: subtest may have called FailNow on a parent test", err)
+ 					err = nil
+ 					signal = false
+@@ -1235,7 +1239,9 @@ func tRunner(t *T, fn func(t *T)) {
+ 	fn(t)
+ 
+ 	// code beyond here will not be executed when FailNow is invoked
++	t.mu.Lock()
+ 	t.finished = true
++	t.mu.Unlock()
+ }
+ 
+ // Run runs f as a subtest of t called name. It runs f in a separate goroutine

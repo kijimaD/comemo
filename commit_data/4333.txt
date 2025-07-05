@@ -16,7 +16,7 @@ Date:   Fri Dec 4 21:44:05 2009 -0800
     
     R=r
     https://golang.org/cl/165064
-
+---
  src/cmd/gc/builtin.c.boot |   2 +-
  src/cmd/gc/reflect.c      | 111 ++++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/gc/runtime.go     |   2 +-
@@ -25,3 +25,349 @@ Date:   Fri Dec 4 21:44:05 2009 -0800
  src/pkg/runtime/type.go   |  33 ++++++++++++++
  src/pkg/runtime/type.h    |  40 +++++++++++++++++
  7 files changed, 201 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index d2ff0ff90e..98c2b8a7ba 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -64,7 +64,7 @@ char *runtimeimport =
+ 	"func runtime.selectrecv (sel *uint8, hchan <-chan any, elem *any) (selected bool)\n"
+ 	"func runtime.selectdefault (sel *uint8) (selected bool)\n"
+ 	"func runtime.selectgo (sel *uint8)\n"
+-	"func runtime.makeslice (nel int, cap int, width int) (ary []any)\n"
++	"func runtime.makeslice (typ *uint8, nel int, cap int) (ary []any)\n"
+ 	"func runtime.sliceslice1 (old []any, lb int, width int) (ary []any)\n"
+ 	"func runtime.sliceslice (old []any, lb int, hb int, width int) (ary []any)\n"
+ 	"func runtime.slicearray (old *any, nel int, lb int, hb int, width int) (ary []any)\n"
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 79065c5de5..50506b9551 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -325,6 +325,67 @@ dextratype(Type *t)
+ 	return s;
+ }
+ 
++enum {
++	KindBool = 1,
++	KindInt,
++	KindInt8,
++	KindInt16,
++	KindInt32,
++	KindInt64,
++	KindUint,
++	KindUint8,
++	KindUint16,
++	KindUint32,
++	KindUint64,
++	KindUintptr,
++	KindFloat,
++	KindFloat32,
++	KindFloat64,
++	KindArray,
++	KindChan,
++	KindDotDotDot,
++	KindFunc,
++	KindInterface,
++	KindMap,
++	KindPtr,
++	KindSlice,
++	KindString,
++	KindStruct,
++	KindUnsafePointer,
++	
++	KindNoPointers = 1<<7,
++};
++
++static int
++kinds[] =
++{
++	[TINT]		= KindInt,
++	[TUINT]		= KindUint,
++	[TINT8]		= KindInt8,
++	[TUINT8]	= KindUint8,
++	[TINT16]	= KindInt16,
++	[TUINT16]	= KindUint16,
++	[TINT32]	= KindInt32,
++	[TUINT32]	= KindUint32,
++	[TINT64]	= KindInt64,
++	[TUINT64]	= KindUint64,
++	[TUINTPTR]	= KindUintptr,
++	[TFLOAT]	= KindFloat,
++	[TFLOAT32]	= KindFloat32,
++	[TFLOAT64]	= KindFloat64,
++	[TBOOL]		= KindBool,
++	[TSTRING]		= KindString,
++	[TDDD]		= KindDotDotDot,
++	[TPTR32]		= KindPtr,
++	[TPTR64]		= KindPtr,
++	[TSTRUCT]	= KindStruct,
++	[TINTER]		= KindInterface,
++	[TCHAN]		= KindChan,
++	[TMAP]		= KindMap,
++	[TARRAY]		= KindArray,
++	[TFUNC]		= KindFunc,
++};
++
+ static char*
+ structnames[] =
+ {
+@@ -377,6 +438,50 @@ typestruct(Type *t)
+ 	return pkglookup(name, "type");
+ }
+ 
++static int
++haspointers(Type *t)
++{
++	Type *t1;
++
++	switch(t->etype) {
++	case TINT:
++	case TUINT:
++	case TINT8:
++	case TUINT8:
++	case TINT16:
++	case TUINT16:
++	case TINT32:
++	case TUINT32:
++	case TINT64:
++	case TUINT64:
++	case TUINTPTR:
++	case TFLOAT:
++	case TFLOAT32:
++	case TFLOAT64:
++	case TBOOL:
++		return 0;
++	case TARRAY:
++		if(t->bound < 0)	// slice
++			return 1;
++		return haspointers(t->type);
++	case TSTRUCT:
++		for(t1=t->type; t1!=T; t1=t1->down)
++			if(haspointers(t1->type))
++				return 1;
++		return 0;
++	case TSTRING:
++	case TDDD:
++	case TPTR32:
++	case TPTR64:
++	case TINTER:
++	case TCHAN:
++	case TMAP:
++	case TFUNC:
++	default:
++		return 1;
++	}
++}
++
+ /*
+  * commonType
+  * ../../pkg/runtime/type.go:/commonType
+@@ -421,6 +526,12 @@ dcommontype(Sym *s, int ot, Type *t)
+ 		i = maxround;
+ 	ot = duint8(s, ot, i);	// align
+ 	ot = duint8(s, ot, i);	// fieldAlign
++	i = kinds[t->etype];
++	if(t->etype == TARRAY && t->bound < 0)
++		i = KindSlice;
++	if(!haspointers(t))
++		i |= KindNoPointers;
++	ot = duint8(s, ot, i);
+ 	p = smprint("%#-T", t);
+ 	ot = dgostringptr(s, ot, p);	// string
+ 	free(p);
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 6413db5e21..baca93c8c6 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -79,7 +79,7 @@ func selectrecv(sel *byte, hchan <-chan any, elem *any) (selected bool)
+ func selectdefault(sel *byte) (selected bool)
+ func selectgo(sel *byte)
+ 
+-func makeslice(nel int, cap int, width int) (ary []any)
++func makeslice(typ *byte, nel int, cap int) (ary []any)
+ func sliceslice1(old []any, lb int, width int) (ary []any)
+ func sliceslice(old []any, lb int, hb int, width int) (ary []any)
+ func slicearray(old *any, nel int, lb int, hb int, width int) (ary []any)
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 771c258d0c..1d52d05cc4 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -994,9 +994,9 @@ walkexpr(Node **np, NodeList **init)
+ 		fn = syslook("makeslice", 1);
+ 		argtype(fn, t->type);			// any-1
+ 		n = mkcall1(fn, n->type, nil,
++			typename(n->type),
+ 			conv(n->left, types[TINT]),
+-			conv(n->right, types[TINT]),
+-			nodintconst(t->type->width));
++			conv(n->right, types[TINT]));
+ 		goto ret;
+ 
+ 	case ORUNESTR:
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+index 17762ae269..d5e524e8a4 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.c
+@@ -3,35 +3,35 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
++#include "type.h"
++#include "malloc.h"
+ 
+ static	int32	debug	= 0;
+ 
+-// makeslice(nel int, cap int, width int) (ary []any);
++// makeslice(typ *Type, nel int, cap int) (ary []any);
+ void
+-runtime·makeslice(uint32 nel, uint32 cap, uint32 width, Slice ret)
++runtime·makeslice(SliceType *t, uint32 nel, uint32 cap, Slice ret)
+ {
+ 	uint64 size;
+ 
+ 	if(cap < nel)
+ 		cap = nel;
+-	size = cap*width;
++	size = cap*t->elem->size;
+ 
+ 	ret.len = nel;
+ 	ret.cap = cap;
+-	ret.array = mal(size);
++
++	if(t->elem->kind&KindNoPointers)
++		ret.array = mallocgc(size, RefNoPointers, 1);
++	else
++		ret.array = mal(size);
+ 
+ 	FLUSH(&ret);
+ 
+ 	if(debug) {
+-		prints("makeslice: nel=");
+-		runtime·printint(nel);
+-		prints("; cap=");
+-		runtime·printint(cap);
+-		prints("; width=");
+-		runtime·printint(width);
+-		prints("; ret=");
+-		runtime·printslice(ret);
+-		prints("\n");
++		printf("makeslice(%S, %d, %d); ret=", 
++			*t->string, nel, cap);
++ 		runtime·printslice(ret);
+ 	}
+ }
+ 
+diff --git a/src/pkg/runtime/type.go b/src/pkg/runtime/type.go
+index a8b70be876..e91544483f 100644
+--- a/src/pkg/runtime/type.go
++++ b/src/pkg/runtime/type.go
+@@ -31,10 +31,43 @@ type commonType struct {
+ 	alg		uint8;		// algorithm for copy+hash+cmp (../runtime/runtime.h:/AMEM)
+ 	align		uint8;		// alignment of variable with this type
+ 	fieldAlign	uint8;		// alignment of struct field with this type
++	kind		uint8;		// enumeration for C
+ 	string		*string;	// string form; unnecessary  but undeniably useful
+ 	*uncommonType;			// (relatively) uncommon fields
+ }
+ 
++// Values for commonType.kind.
++const (
++	kindBool	= 1 + iota;
++	kindInt;
++	kindInt8;
++	kindInt16;
++	kindInt32;
++	kindInt64;
++	kindUint;
++	kindUint8;
++	kindUint16;
++	kindUint32;
++	kindUint64;
++	kindUintptr;
++	kindFloat;
++	kindFloat32;
++	kindFloat64;
++	kindArray;
++	kindChan;
++	kindDotDotDot;
++	kindFunc;
++	kindInterface;
++	kindMap;
++	kindPtr;
++	kindSlice;
++	kindString;
++	kindStruct;
++	kindUnsafePointer;
++
++	kindNoPointers	= 1 << 7;	// OR'ed into kind
++)
++
+ // Method on non-interface type
+ type method struct {
+ 	hash	uint32;		// hash of name + pkg + typ
+diff --git a/src/pkg/runtime/type.h b/src/pkg/runtime/type.h
+index 86e31ba2ae..f81c986352 100644
+--- a/src/pkg/runtime/type.h
++++ b/src/pkg/runtime/type.h
+@@ -13,6 +13,7 @@ typedef struct Method Method;
+ typedef struct IMethod IMethod;
+ typedef struct MapType MapType;
+ typedef struct ChanType ChanType;
++typedef struct SliceType SliceType;
+ 
+ struct CommonType
+ {
+@@ -21,10 +22,42 @@ struct CommonType
+ 	uint8 alg;
+ 	uint8 align;
+ 	uint8 fieldAlign;
++	uint8 kind;
+ 	String *string;
+ 	UncommonType *x;
+ };
+ 
++enum {
++	KindBool = 1,
++	KindInt,
++	KindInt8,
++	KindInt16,
++	KindInt32,
++	KindInt64,
++	KindUint,
++	KindUint8,
++	KindUint16,
++	KindUint32,
++	KindUint64,
++	KindUintptr,
++	KindFloat,
++	KindFloat32,
++	KindFloat64,
++	KindArray,
++	KindChan,
++	KindDotDotDot,
++	KindFunc,
++	KindInterface,
++	KindMap,
++	KindPtr,
++	KindSlice,
++	KindString,
++	KindStruct,
++	KindUnsafePointer,
++	
++	KindNoPointers = 1<<7,
++};
++
+ struct Method
+ {
+ 	uint32 hash;
+@@ -79,3 +112,10 @@ struct ChanType
+ 	Type *elem;
+ 	uintptr dir;
+ };
++
++struct SliceType
++{
++	Type;
++	Type *elem;
++};
++

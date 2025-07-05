@@ -7,7 +7,53 @@ Date:   Fri Sep 26 17:41:23 2008 -0700
     R=r
     OCL=16018
     CL=16022
-
+---
  src/cmd/6g/cgen.c   |  3 +++
  src/cmd/gc/export.c | 19 +++++++++++--------
  2 files changed, 14 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 51cf162f94..c47c016e75 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -386,6 +386,9 @@ agen(Node *n, Node *res)
+ 		// i is in &n1
+ 		// w is width
+ 
++		if(w == 0)
++			fatal("index is zero width");
++
+ 		if(isptrdarray(nl->type)) {
+ 			regalloc(&n2, types[tptr], res);
+ 			gmove(res, &n2);
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index d4e5b0d193..119fc43136 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -506,15 +506,18 @@ importaddtyp(Node *ss, Type *t)
+ 	Sym *s;
+ 
+ 	s = getimportsym(ss);
+-	if(s->otype != T && !eqtype(t, s->otype, 0)) {
+-		if(!isptrto(t, TFORW))
+-			yyerror("import redeclaration of %lS %lT => %lT\n",
+-				s, s->otype, t);
+-		s->otype = t;
++	if(s->otype != T) {
++		// here we should try to discover if
++		// the new type is the same as the old type
++		if(eqtype(t, s->otype, 0))
++			return;
++		if(isptrto(t, TFORW))
++			return;	// hard part
++		warn("redeclare import %S from %lT to %lT",
++			s, s->otype, t);
++		return;
+ 	}
+-
+-	if(s->otype == T)
+-		addtyp(newtype(s), t, PEXTERN);
++	addtyp(newtype(s), t, PEXTERN);
+ }
+ 
+ /*

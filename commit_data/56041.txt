@@ -15,7 +15,53 @@ Date:   Mon Apr 3 11:18:45 2023 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/typecheck/stmt.go |  2 +-
  test/fixedbugs/issue59378.go               | 26 ++++++++++++++++++++++++++
  2 files changed, 27 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/stmt.go b/src/cmd/compile/internal/typecheck/stmt.go
+index eb13175384..3ad116144b 100644
+--- a/src/cmd/compile/internal/typecheck/stmt.go
++++ b/src/cmd/compile/internal/typecheck/stmt.go
+@@ -72,7 +72,7 @@ func typecheckrangeExpr(n *ir.RangeStmt) {
+ 
+ 	do := func(nn ir.Node, t *types.Type) {
+ 		if nn != nil {
+-			if ir.DeclaredBy(nn, n) {
++			if ir.DeclaredBy(nn, n) && nn.Type() == nil {
+ 				nn.SetType(t)
+ 			} else if nn.Type() != nil {
+ 				if op, why := Assignop(t, nn.Type()); op == ir.OXXX {
+diff --git a/test/fixedbugs/issue59378.go b/test/fixedbugs/issue59378.go
+new file mode 100644
+index 0000000000..8ff198eaa7
+--- /dev/null
++++ b/test/fixedbugs/issue59378.go
+@@ -0,0 +1,26 @@
++// compile
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f() {
++	F([]int{}, func(*int) bool { return true })
++}
++
++func F[S []E, E any](a S, fn func(*E) bool) {
++	for _, v := range a {
++		G(a, func(e E) bool { return fn(&v) })
++	}
++}
++
++func G[E any](s []E, f func(E) bool) int {
++	for i, v := range s {
++		if f(v) {
++			return i
++		}
++	}
++	return -1
++}

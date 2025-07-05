@@ -17,6 +17,20 @@ Date:   Tue Aug 29 00:43:43 2023 +0000
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: shuang cui <imcusg@gmail.com>
-
+---
  src/cmd/compile/internal/liveness/plive.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/liveness/plive.go b/src/cmd/compile/internal/liveness/plive.go
+index e5e84a55a8..85e988aeda 100644
+--- a/src/cmd/compile/internal/liveness/plive.go
++++ b/src/cmd/compile/internal/liveness/plive.go
+@@ -1080,7 +1080,7 @@ func clobberWalk(b *ssa.Block, v *ir.Name, offset int64, t *types.Type) {
+ 	}
+ }
+ 
+-// clobberPtr generates a clobber of the pointer at offset in v.
++// clobberPtr generates a clobber of the pointer at offset offset in v.
+ // The clobber instruction is added at the end of b.
+ func clobberPtr(b *ssa.Block, v *ir.Name, offset int64) {
+ 	b.NewValue0IA(src.NoXPos, ssa.OpClobber, types.TypeVoid, offset, v)

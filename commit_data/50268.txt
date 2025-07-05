@@ -13,6 +13,20 @@ Date:   Sun Oct 10 14:30:26 2021 +0100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/354969
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Alexander Rakoczy <alex@golang.org>
-
+---
  src/bytes/bytes.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index d3e01c3de7..926f65cc8f 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -1260,7 +1260,7 @@ func Index(s, sep []byte) int {
+ // Cut slices s around the first instance of sep,
+ // returning the text before and after sep.
+ // The found result reports whether sep appears in s.
+-// If sep does not appear in s, cut returns s, "", false.
++// If sep does not appear in s, cut returns s, nil, false.
+ //
+ // Cut returns slices of the original slice s, not copies.
+ func Cut(s, sep []byte) (before, after []byte, found bool) {

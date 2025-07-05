@@ -12,7 +12,57 @@ Date:   Fri Jan 28 17:17:38 2011 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/3991047
-
+---
  src/pkg/runtime/chan.c | 15 +--------------
  test/chan/select3.go   |  9 +++++++++
  2 files changed, 10 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 1cc589278d..6f9f16826c 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -732,25 +732,12 @@ loop:
+ 
+ 		switch(cas->send) {
+ 		case 0:	// recv
+-			if(c->dataqsiz > 0) {
+-				if(c->qcount > 0)
+-					runtime·throw("select: pass 2 async recv");
+-			} else {
+-				if(dequeue(&c->sendq, c))
+-					runtime·throw("select: pass 2 sync recv");
+-			}
+ 			enqueue(&c->recvq, sg);
+ 			break;
+ 		
+ 		case 1:	// send
+-			if(c->dataqsiz > 0) {
+-				if(c->qcount < c->dataqsiz)
+-					runtime·throw("select: pass 2 async send");
+-			} else {
+-				if(dequeue(&c->recvq, c))
+-					runtime·throw("select: pass 2 sync send");
++			if(c->dataqsiz == 0)
+ 				c->elemalg->copy(c->elemsize, sg->elem, cas->u.elem);
+-			}
+ 			enqueue(&c->sendq, sg);
+ 			break;
+ 		}
+diff --git a/test/chan/select3.go b/test/chan/select3.go
+index 9877b12a98..47941063c0 100644
+--- a/test/chan/select3.go
++++ b/test/chan/select3.go
+@@ -196,4 +196,13 @@ func main() {
+ 		case closedch <- 7:
+ 		}
+ 	})
++	
++	// select should not get confused if it sees itself
++	testBlock(always, func() {
++		c := make(chan int)
++		select {
++		case c <- 1:
++		case <-c:
++		}
++	})
+ }

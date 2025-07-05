@@ -10,7 +10,44 @@ Date:   Mon Mar 18 08:06:49 2019 -0400
     Change-Id: Ia6171c0418584f3cd53ee99d97c687941a9e3109
     Reviewed-on: https://go-review.googlesource.com/c/go/+/168097
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/os/error.go      | 2 ++
  src/os/error_test.go | 8 ++++++++
  2 files changed, 10 insertions(+)
+
+diff --git a/src/os/error.go b/src/os/error.go
+index b4242a4829..16e5cb5786 100644
+--- a/src/os/error.go
++++ b/src/os/error.go
+@@ -32,6 +32,8 @@ type PathError struct {
+ 
+ func (e *PathError) Error() string { return e.Op + " " + e.Path + ": " + e.Err.Error() }
+ 
++func (e *PathError) Unwrap() error { return e.Err }
++
+ // Timeout reports whether this error represents a timeout.
+ func (e *PathError) Timeout() bool {
+ 	t, ok := e.Err.(timeout)
+diff --git a/src/os/error_test.go b/src/os/error_test.go
+index 3499ceec95..0e3570996e 100644
+--- a/src/os/error_test.go
++++ b/src/os/error_test.go
+@@ -5,6 +5,7 @@
+ package os_test
+ 
+ import (
++	"errors"
+ 	"fmt"
+ 	"io/ioutil"
+ 	"os"
+@@ -155,3 +156,10 @@ func TestErrPathNUL(t *testing.T) {
+ 		t.Fatal("Open should have failed")
+ 	}
+ }
++
++func TestPathErrorUnwrap(t *testing.T) {
++	pe := &os.PathError{Err: os.ErrInvalid}
++	if !errors.Is(pe, os.ErrInvalid) {
++		t.Error("errors.Is failed, wanted success")
++	}
++}

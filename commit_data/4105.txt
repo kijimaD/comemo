@@ -6,7 +6,32 @@ Date:   Tue Nov 17 16:22:29 2009 -0800
     
     R=r
     https://golang.org/cl/156045
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index c75341554f..63ecb9ac42 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -13,6 +13,7 @@ Aron Nopanen <aron.nopanen@gmail.com>
+ David G. Andersen <dave.andersen@gmail.com>
+ David Titarenco <david.titarenco@gmail.com>
+ Devon H. O'Dell <devon.odell@gmail.com>
++Josh Goebel <dreamer3@gmail.com>
+ Google Inc.
+ Kevin Ballard <kevin@sb.org>
+ Môshe van der Sterre <moshevds@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index c0c23d1ca5..b488146c45 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -43,6 +43,7 @@ Ian Lance Taylor <iant@golang.org>
+ Ivan Krasin <krasin@golang.org>
+ Jacob Baskin <jbaskin@google.com>
+ James Aguilar <jaguilar@google.com>
++Josh Goebel <dreamer3@gmail.com>
+ Kai Backman <kaib@golang.org>
+ Ken Thompson <ken@golang.org>
+ Kevin Ballard <kevin@sb.org>

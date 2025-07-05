@@ -7,10 +7,85 @@ Date:   Wed Aug 19 11:32:46 2009 -0700
     R=ken
     OCL=33526
     CL=33528
-
+---
  src/cmd/gc/go.h                |  1 -
  src/cmd/gc/subr.c              |  2 +-
  test/fixedbugs/bug191.dir/a.go |  9 +++++++++
  test/fixedbugs/bug191.dir/b.go |  9 +++++++++
  test/fixedbugs/bug191.go       | 13 +++++++++++++
  5 files changed, 32 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 5768a55461..e13d7bdd0d 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -956,7 +956,6 @@ NodeList*	initfix(NodeList*);
+ /*
+  *	export.c
+  */
+-void	renameimports(void);
+ void	autoexport(Node*, int);
+ int	exportname(char*);
+ void	exportsym(Node*);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 8a4cd80d51..c566b7f070 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -239,7 +239,7 @@ importdot(Sym *opkg)
+ 		for(s = hash[h]; s != S; s = s->link) {
+ 			if(s->package[0] != c)
+ 				continue;
+-			if(!exportname(s->name))
++			if(!exportname(s->name) || utfrune(s->name, 0xb7))	// 0xb7 = center dot
+ 				continue;
+ 			if(strcmp(s->package, opkg->name) != 0)
+ 				continue;
+diff --git a/test/fixedbugs/bug191.dir/a.go b/test/fixedbugs/bug191.dir/a.go
+new file mode 100644
+index 0000000000..67340359d6
+--- /dev/null
++++ b/test/fixedbugs/bug191.dir/a.go
+@@ -0,0 +1,9 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++func init() {
++	println("a");
++}
+diff --git a/test/fixedbugs/bug191.dir/b.go b/test/fixedbugs/bug191.dir/b.go
+new file mode 100644
+index 0000000000..a2d559630f
+--- /dev/null
++++ b/test/fixedbugs/bug191.dir/b.go
+@@ -0,0 +1,9 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++func init() {
++	println("b");
++}
+diff --git a/test/fixedbugs/bug191.go b/test/fixedbugs/bug191.go
+new file mode 100644
+index 0000000000..fe03f646d6
+--- /dev/null
++++ b/test/fixedbugs/bug191.go
+@@ -0,0 +1,13 @@
++// $G $D/bug191.dir/a.go && $G $D/bug191.dir/b.go && $G $D/$F.go && $L $F.$A
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import . "./a"
++import . "./b"
++
++func main() {
++}

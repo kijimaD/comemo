@@ -13,9 +13,143 @@ Date:   Fri Jul 9 15:04:15 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/333669
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/noder/reader2.go      |  2 +-
  src/cmd/compile/internal/types2/instance.go    |  4 +--
  src/cmd/compile/internal/types2/instantiate.go | 16 +++++-----
  src/cmd/compile/internal/types2/typexpr.go     | 43 +++++++++-----------------
  4 files changed, 27 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader2.go b/src/cmd/compile/internal/noder/reader2.go
+index 92569ff843..ac29f6f519 100644
+--- a/src/cmd/compile/internal/noder/reader2.go
++++ b/src/cmd/compile/internal/noder/reader2.go
+@@ -224,7 +224,7 @@ func (r *reader2) doTyp() (res types2.Type) {
+ 		obj, targs := r.obj()
+ 		name := obj.(*types2.TypeName)
+ 		if len(targs) != 0 {
+-			return r.p.check.InstantiateLazy(syntax.Pos{}, name.Type(), targs, false)
++			return r.p.check.InstantiateLazy(syntax.Pos{}, name.Type(), targs, nil, false)
+ 		}
+ 		return name.Type()
+ 
+diff --git a/src/cmd/compile/internal/types2/instance.go b/src/cmd/compile/internal/types2/instance.go
+index 65c2015507..798d58811f 100644
+--- a/src/cmd/compile/internal/types2/instance.go
++++ b/src/cmd/compile/internal/types2/instance.go
+@@ -15,7 +15,7 @@ type instance struct {
+ 	pos     syntax.Pos   // position of type instantiation; for error reporting only
+ 	base    *Named       // parameterized type to be instantiated
+ 	targs   []Type       // type arguments
+-	poslist []syntax.Pos // position of each targ; for error reporting only
++	posList []syntax.Pos // position of each targ; for error reporting only
+ 	verify  bool         // if set, constraint satisfaction is verified
+ 	value   Type         // base[targs...] after instantiation or Typ[Invalid]; nil if not yet set
+ }
+@@ -26,7 +26,7 @@ type instance struct {
+ func (t *instance) expand() Type {
+ 	v := t.value
+ 	if v == nil {
+-		v = t.check.Instantiate(t.pos, t.base, t.targs, t.poslist, t.verify)
++		v = t.check.Instantiate(t.pos, t.base, t.targs, t.posList, t.verify)
+ 		if v == nil {
+ 			v = Typ[Invalid]
+ 		}
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index 5ccd511acb..cc96375027 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -112,19 +112,21 @@ func (check *Checker) Instantiate(pos syntax.Pos, typ Type, targs []Type, posLis
+ }
+ 
+ // InstantiateLazy is like Instantiate, but avoids actually
+-// instantiating the type until needed.
+-func (check *Checker) InstantiateLazy(pos syntax.Pos, typ Type, targs []Type, verify bool) (res Type) {
++// instantiating the type until needed. typ must be a *Named
++// type.
++func (check *Checker) InstantiateLazy(pos syntax.Pos, typ Type, targs []Type, posList []syntax.Pos, verify bool) Type {
+ 	base := asNamed(typ)
+ 	if base == nil {
+ 		panic(fmt.Sprintf("%v: cannot instantiate %v", pos, typ))
+ 	}
+ 
+ 	return &instance{
+-		check:  check,
+-		pos:    pos,
+-		base:   base,
+-		targs:  targs,
+-		verify: verify,
++		check:   check,
++		pos:     pos,
++		base:    base,
++		targs:   targs,
++		posList: posList,
++		verify:  verify,
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index d69dd3c496..a14d498cec 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -410,45 +410,32 @@ func (check *Checker) typOrNil(e syntax.Expr) Type {
+ 	return Typ[Invalid]
+ }
+ 
+-func (check *Checker) instantiatedType(x syntax.Expr, targs []syntax.Expr, def *Named) Type {
+-	b := check.genericType(x, true) // TODO(gri) what about cycles?
+-	if b == Typ[Invalid] {
+-		return b // error already reported
++func (check *Checker) instantiatedType(x syntax.Expr, targsx []syntax.Expr, def *Named) Type {
++	base := check.genericType(x, true)
++	if base == Typ[Invalid] {
++		return base // error already reported
+ 	}
+-	base := asNamed(b)
+-	if base == nil {
+-		unreachable() // should have been caught by genericType
+-	}
+-
+-	// create a new type instance rather than instantiate the type
+-	// TODO(gri) should do argument number check here rather than
+-	//           when instantiating the type?
+-	// TODO(gri) use InstantiateLazy here (cleanup)
+-	typ := new(instance)
+-	def.setUnderlying(typ)
+ 
+-	typ.check = check
+-	typ.pos = x.Pos()
+-	typ.base = base
+-	typ.verify = true
+-
+-	// evaluate arguments (always)
+-	typ.targs = check.typeList(targs)
+-	if typ.targs == nil {
++	// evaluate arguments
++	targs := check.typeList(targsx)
++	if targs == nil {
+ 		def.setUnderlying(Typ[Invalid]) // avoid later errors due to lazy instantiation
+ 		return Typ[Invalid]
+ 	}
+ 
+-	// determine argument positions (for error reporting)
+-	typ.poslist = make([]syntax.Pos, len(targs))
+-	for i, arg := range targs {
+-		typ.poslist[i] = syntax.StartPos(arg)
++	// determine argument positions
++	posList := make([]syntax.Pos, len(targs))
++	for i, arg := range targsx {
++		posList[i] = syntax.StartPos(arg)
+ 	}
+ 
++	typ := check.InstantiateLazy(x.Pos(), base, targs, posList, true)
++	def.setUnderlying(typ)
++
+ 	// make sure we check instantiation works at least once
+ 	// and that the resulting type is valid
+ 	check.later(func() {
+-		t := typ.expand()
++		t := typ.(*instance).expand()
+ 		check.validType(t, nil)
+ 	})
+ 

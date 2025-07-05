@@ -7,6 +7,42 @@ Date:   Thu Mar 15 14:15:54 2018 -0700
     Change-Id: I539c9226eb7e493b52c50e1e431954567d43bcfb
     Reviewed-on: https://go-review.googlesource.com/100847
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/context/benchmark_test.go | 24 ++++++++++++++++++++++++
  1 file changed, 24 insertions(+)
+
+diff --git a/src/context/benchmark_test.go b/src/context/benchmark_test.go
+index 6dd8510ff4..5d56863050 100644
+--- a/src/context/benchmark_test.go
++++ b/src/context/benchmark_test.go
+@@ -13,6 +13,30 @@ import (
+ 	"time"
+ )
+ 
++func BenchmarkCommonParentCancel(b *testing.B) {
++	root := WithValue(Background(), "key", "value")
++	shared, sharedcancel := WithCancel(root)
++	defer sharedcancel()
++
++	b.ResetTimer()
++	b.RunParallel(func(pb *testing.PB) {
++		x := 0
++		for pb.Next() {
++			ctx, cancel := WithCancel(shared)
++			if ctx.Value("key").(string) != "value" {
++				b.Fatal("should not be reached")
++			}
++			for i := 0; i < 100; i++ {
++				x /= x + 1
++			}
++			cancel()
++			for i := 0; i < 100; i++ {
++				x /= x + 1
++			}
++		}
++	})
++}
++
+ func BenchmarkWithTimeout(b *testing.B) {
+ 	for concurrency := 40; concurrency <= 4e5; concurrency *= 100 {
+ 		name := fmt.Sprintf("concurrency=%d", concurrency)

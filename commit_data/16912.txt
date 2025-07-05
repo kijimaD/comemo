@@ -7,7 +7,62 @@ Date:   Mon Jul 29 16:42:07 2013 -0400
     R=dvyukov
     CC=golang-dev
     https://golang.org/cl/12028046
-
+---
  src/pkg/runtime/runtime.c  |  2 +-
  src/pkg/runtime/vlrt_arm.c | 25 +++++++++----------------
  2 files changed, 10 insertions(+), 17 deletions(-)
+
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index 03a9daf4c2..5bca6f87b4 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -429,7 +429,7 @@ runtime·timediv(int64 v, int32 div, int32 *rem)
+ 	res = 0;
+ 	for(bit = 0x40000000; bit != 0; bit >>= 1) {
+ 		if(v >= (int64)bit*div) {
+-			v -= (int64)bit*div;
++			v = v - (int64)bit*div;
+ 			res += bit;
+ 		}
+ 	}
+diff --git a/src/pkg/runtime/vlrt_arm.c b/src/pkg/runtime/vlrt_arm.c
+index cc3b90963f..11813f91c4 100644
+--- a/src/pkg/runtime/vlrt_arm.c
++++ b/src/pkg/runtime/vlrt_arm.c
+@@ -66,27 +66,20 @@ void    runtime·abort(void);
+ void
+ _addv(Vlong *r, Vlong a, Vlong b)
+ {
+-	ulong lo, hi;
+-
+-	lo = a.lo + b.lo;
+-	hi = a.hi + b.hi;
+-	if(lo < a.lo)
+-		hi++;
+-	r->lo = lo;
+-	r->hi = hi;
++	r->lo = a.lo + b.lo;
++	r->hi = a.hi + b.hi;
++	if(r->lo < a.lo)
++		r->hi++;
+ }
+ 
++#pragma textflag 7
+ void
+ _subv(Vlong *r, Vlong a, Vlong b)
+ {
+-	ulong lo, hi;
+-
+-	lo = a.lo - b.lo;
+-	hi = a.hi - b.hi;
+-	if(lo > a.lo)
+-		hi--;
+-	r->lo = lo;
+-	r->hi = hi;
++	r->lo = a.lo - b.lo;
++	r->hi = a.hi - b.hi;
++	if(r->lo > a.lo)
++		r->hi--;
+ }
+ 
+ void

@@ -7,6 +7,21 @@ Date:   Wed Feb 25 13:38:42 2015 -0800
     Change-Id: Iee319c9f5375c172fb599da77234c10ccb0fd314
     Reviewed-on: https://go-review.googlesource.com/6020
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/mem_linux.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/mem_linux.go b/src/runtime/mem_linux.go
+index 74de11caea..a78a03ee5c 100644
+--- a/src/runtime/mem_linux.go
++++ b/src/runtime/mem_linux.go
+@@ -67,7 +67,8 @@ func sysAlloc(n uintptr, stat *uint64) unsafe.Pointer {
+ }
+ 
+ func sysUnused(v unsafe.Pointer, n uintptr) {
+-	if hugePageSize != 0 && (uintptr(v)%hugePageSize != 0 || n%hugePageSize != 0) {
++	var s uintptr = hugePageSize // division by constant 0 is a compile-time error :(
++	if s != 0 && (uintptr(v)%s != 0 || n%s != 0) {
+ 		// See issue 8832
+ 		// Linux kernel bug: https://bugzilla.kernel.org/show_bug.cgi?id=93111
+ 		// Mark the region as NOHUGEPAGE so the kernel's khugepaged

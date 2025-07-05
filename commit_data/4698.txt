@@ -7,6 +7,39 @@ Date:   Wed Jan 27 09:35:39 2010 -0800
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/194091
-
+---
  doc/go_spec.html | 14 +++++++++++++-
  1 file changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index b5931c110e..3823876457 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1107,6 +1107,19 @@ SendChannel   = "chan" "&lt;-" ElementType .
+ RecvChannel   = "&lt;-" "chan" ElementType .
+ </pre>
+ 
++<p>
++To avoid a parsing ambiguity in cases such as <code>chan&lt;- chan int</code>,
++the Channel production's ElementType cannot be a RecvChannel.
++To construct such a type, parenthesize the RecvChannel first.
++</p>
++
++<pre>
++chan&lt;- chan int     // same as chan&lt;- (chan int)
++chan&lt;- &lt;-chan int   // same as chan&lt;- (&lt;-chan int)
++&lt;-chan &lt;-chan int   // same as &lt;-chan (&lt;-chan int)
++chan (&lt;-chan int)
++</pre>
++
+ <p>
+ Upon creation, a channel can be used both to send and to receive values.
+ By conversion or assignment, a channel may be constrained only to send or
+@@ -1126,7 +1139,6 @@ value can be made using the built-in function <code>make</code>,
+ which takes the channel type and an optional capacity as arguments:
+ </p>
+ 
+-
+ <pre>
+ make(chan int, 100)
+ </pre>

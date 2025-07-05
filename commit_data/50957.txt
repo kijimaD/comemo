@@ -15,8 +15,91 @@ Date:   Tue Nov 16 12:33:03 2021 -0800
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/x509/internal/macos/security.go | 27 +++++++++++++--------------
  src/crypto/x509/internal/macos/security.s  |  4 ++--
  src/crypto/x509/root_darwin.go             |  7 ++-----
  3 files changed, 17 insertions(+), 21 deletions(-)
+
+diff --git a/src/crypto/x509/internal/macos/security.go b/src/crypto/x509/internal/macos/security.go
+index 661844a805..ef64bda49f 100644
+--- a/src/crypto/x509/internal/macos/security.go
++++ b/src/crypto/x509/internal/macos/security.go
+@@ -92,20 +92,6 @@ func SecTrustSettingsCopyCertificates(domain SecTrustSettingsDomain) (certArray
+ }
+ func x509_SecTrustSettingsCopyCertificates_trampoline()
+ 
+-const kSecFormatX509Cert int32 = 9
+-
+-//go:cgo_import_dynamic x509_SecItemExport SecItemExport "/System/Library/Frameworks/Security.framework/Versions/A/Security"
+-
+-func SecItemExport(cert CFRef) (data CFRef, err error) {
+-	ret := syscall(abi.FuncPCABI0(x509_SecItemExport_trampoline), uintptr(cert), uintptr(kSecFormatX509Cert),
+-		0 /* flags */, 0 /* keyParams */, uintptr(unsafe.Pointer(&data)), 0)
+-	if ret != 0 {
+-		return 0, OSStatus{"SecItemExport", int32(ret)}
+-	}
+-	return data, nil
+-}
+-func x509_SecItemExport_trampoline()
+-
+ const errSecItemNotFound = -25300
+ 
+ //go:cgo_import_dynamic x509_SecTrustSettingsCopyTrustSettings SecTrustSettingsCopyTrustSettings "/System/Library/Frameworks/Security.framework/Versions/A/Security"
+@@ -233,3 +219,16 @@ func SecTrustGetCertificateAtIndex(trustObj CFRef, i int) CFRef {
+ 	return CFRef(ret)
+ }
+ func x509_SecTrustGetCertificateAtIndex_trampoline()
++
++//go:cgo_import_dynamic x509_SecCertificateCopyData SecCertificateCopyData "/System/Library/Frameworks/Security.framework/Versions/A/Security"
++
++func SecCertificateCopyData(cert CFRef) ([]byte, error) {
++	ret := syscall(abi.FuncPCABI0(x509_SecCertificateCopyData_trampoline), uintptr(cert), 0, 0, 0, 0, 0)
++	if ret == 0 {
++		return nil, errors.New("x509: invalid certificate object")
++	}
++	b := CFDataToSlice(CFRef(ret))
++	CFRelease(CFRef(ret))
++	return b, nil
++}
++func x509_SecCertificateCopyData_trampoline()
+diff --git a/src/crypto/x509/internal/macos/security.s b/src/crypto/x509/internal/macos/security.s
+index cdef63f9f9..36f814f3cd 100644
+--- a/src/crypto/x509/internal/macos/security.s
++++ b/src/crypto/x509/internal/macos/security.s
+@@ -11,8 +11,6 @@
+ 
+ TEXT ·x509_SecTrustSettingsCopyCertificates_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	x509_SecTrustSettingsCopyCertificates(SB)
+-TEXT ·x509_SecItemExport_trampoline(SB),NOSPLIT,$0-0
+-	JMP	x509_SecItemExport(SB)
+ TEXT ·x509_SecTrustSettingsCopyTrustSettings_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	x509_SecTrustSettingsCopyTrustSettings(SB)
+ TEXT ·x509_SecPolicyCopyProperties_trampoline(SB),NOSPLIT,$0-0
+@@ -35,3 +33,5 @@ TEXT ·x509_SecTrustGetCertificateCount_trampoline(SB),NOSPLIT,$0-0
+ 	JMP x509_SecTrustGetCertificateCount(SB)
+ TEXT ·x509_SecTrustGetCertificateAtIndex_trampoline(SB),NOSPLIT,$0-0
+ 	JMP x509_SecTrustGetCertificateAtIndex(SB)
++TEXT ·x509_SecCertificateCopyData_trampoline(SB),NOSPLIT,$0-0
++	JMP x509_SecCertificateCopyData(SB)
+diff --git a/src/crypto/x509/root_darwin.go b/src/crypto/x509/root_darwin.go
+index a7ff1e78bb..1ef9c0f71e 100644
+--- a/src/crypto/x509/root_darwin.go
++++ b/src/crypto/x509/root_darwin.go
+@@ -96,14 +96,11 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
+ 
+ // exportCertificate returns a *Certificate for a SecCertificateRef.
+ func exportCertificate(cert macOS.CFRef) (*Certificate, error) {
+-	data, err := macOS.SecItemExport(cert)
++	data, err := macOS.SecCertificateCopyData(cert)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	defer macOS.CFRelease(data)
+-	der := macOS.CFDataToSlice(data)
+-
+-	return ParseCertificate(der)
++	return ParseCertificate(data)
+ }
+ 
+ func loadSystemRoots() (*CertPool, error) {

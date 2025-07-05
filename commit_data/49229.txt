@@ -17,9 +17,185 @@ Date:   Mon Jun 28 15:48:03 2021 -0400
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/import.go |  5 ++++-
  src/cmd/go/internal/modload/init.go   | 33 +++++++++++++++++++++++----------
  src/cmd/go/internal/modload/load.go   |  9 +++++++++
  src/cmd/go/testdata/script/work.txt   |  2 +-
  4 files changed, 37 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 773d8b600b..088d0c14ec 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -32,7 +32,7 @@ type ImportMissingError struct {
+ 	Module   module.Version
+ 	QueryErr error
+ 
+-	ImportingModule module.Version
++	ImportingMainModule module.Version
+ 
+ 	// isStd indicates whether we would expect to find the package in the standard
+ 	// library. This is normally true for all dotless import paths, but replace
+@@ -73,6 +73,9 @@ func (e *ImportMissingError) Error() string {
+ 		if e.QueryErr != nil {
+ 			return fmt.Sprintf("%s: %v", message, e.QueryErr)
+ 		}
++		if e.ImportingMainModule.Path != "" && e.ImportingMainModule != MainModules.ModContainingCWD() {
++			return fmt.Sprintf("%s; to add it:\n\tcd %s\n\tgo get %s", message, MainModules.ModRoot(e.ImportingMainModule), e.Path)
++		}
+ 		return fmt.Sprintf("%s; to add it:\n\tgo get %s", message, e.Path)
+ 	}
+ 
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 53c73cb4a0..18b07cb125 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -89,6 +89,8 @@ type MainModuleSet struct {
+ 
+ 	modFiles map[module.Version]*modfile.File
+ 
++	modContainingCWD module.Version
++
+ 	indexMu sync.Mutex
+ 	indices map[module.Version]*modFileIndex
+ }
+@@ -184,6 +186,13 @@ func (mms *MainModuleSet) Len() int {
+ 	return len(mms.versions)
+ }
+ 
++// ModContainingCWD returns the main module containing the working directory,
++// or module.Version{} if none of the main modules contain the working
++// directory.
++func (mms *MainModuleSet) ModContainingCWD() module.Version {
++	return mms.modContainingCWD
++}
++
+ var MainModules *MainModuleSet
+ 
+ type Root int
+@@ -315,8 +324,7 @@ func Init() {
+ 	} else if inWorkspaceMode() {
+ 		// We're in workspace mode.
+ 	} else {
+-		modRoots = findModuleRoots(base.Cwd())
+-		if modRoots == nil {
++		if modRoot := findModuleRoot(base.Cwd()); modRoot == "" {
+ 			if cfg.ModFile != "" {
+ 				base.Fatalf("go: cannot find main module, but -modfile was set.\n\t-modfile cannot be used to set the module root directory.")
+ 			}
+@@ -328,17 +336,18 @@ func Init() {
+ 				// Stay in GOPATH mode.
+ 				return
+ 			}
+-		} else if search.InDir(modRoots[0], os.TempDir()) == "." {
++		} else if search.InDir(modRoot, os.TempDir()) == "." {
+ 			// If you create /tmp/go.mod for experimenting,
+ 			// then any tests that create work directories under /tmp
+ 			// will find it and get modules when they're not expecting them.
+ 			// It's a bit of a peculiar thing to disallow but quite mysterious
+ 			// when it happens. See golang.org/issue/26708.
+-			modRoots = nil
+ 			fmt.Fprintf(os.Stderr, "go: warning: ignoring go.mod in system temp root %v\n", os.TempDir())
+ 			if !mustUseModules {
+ 				return
+ 			}
++		} else {
++			modRoots = []string{modRoot}
+ 		}
+ 	}
+ 	if cfg.ModFile != "" && !strings.HasSuffix(cfg.ModFile, ".mod") {
+@@ -424,12 +433,11 @@ func WillBeEnabled() bool {
+ 		return false
+ 	}
+ 
+-	if modRoots := findModuleRoots(base.Cwd()); modRoots == nil {
++	if modRoot := findModuleRoot(base.Cwd()); modRoot == "" {
+ 		// GO111MODULE is 'auto', and we can't find a module root.
+ 		// Stay in GOPATH mode.
+ 		return false
+-	} else if search.InDir(modRoots[0], os.TempDir()) == "." {
+-		_ = TODOWorkspaces("modRoots[0] is not right here")
++	} else if search.InDir(modRoot, os.TempDir()) == "." {
+ 		// If you create /tmp/go.mod for experimenting,
+ 		// then any tests that create work directories under /tmp
+ 		// will find it and get modules when they're not expecting them.
+@@ -856,6 +864,7 @@ func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile
+ 			panic("mainModulesCalled with module.Version with non empty Version field: " + fmt.Sprintf("%#v", m))
+ 		}
+ 	}
++	modRootContainingCWD := findModuleRoot(base.Cwd())
+ 	mainModules := &MainModuleSet{
+ 		versions:    ms[:len(ms):len(ms)],
+ 		inGorootSrc: map[module.Version]bool{},
+@@ -870,6 +879,10 @@ func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile
+ 		mainModules.modFiles[m] = modFiles[i]
+ 		mainModules.indices[m] = indices[i]
+ 
++		if mainModules.modRoot[m] == modRootContainingCWD {
++			mainModules.modContainingCWD = m
++		}
++
+ 		if rel := search.InDir(rootDirs[i], cfg.GOROOTsrc); rel != "" {
+ 			mainModules.inGorootSrc[m] = true
+ 			if m.Path == "std" {
+@@ -1108,7 +1121,7 @@ var altConfigs = []string{
+ 	".git/config",
+ }
+ 
+-func findModuleRoots(dir string) (roots []string) {
++func findModuleRoot(dir string) (roots string) {
+ 	if dir == "" {
+ 		panic("dir not set")
+ 	}
+@@ -1117,7 +1130,7 @@ func findModuleRoots(dir string) (roots []string) {
+ 	// Look for enclosing go.mod.
+ 	for {
+ 		if fi, err := fsys.Stat(filepath.Join(dir, "go.mod")); err == nil && !fi.IsDir() {
+-			return []string{dir}
++			return dir
+ 		}
+ 		d := filepath.Dir(dir)
+ 		if d == dir {
+@@ -1125,7 +1138,7 @@ func findModuleRoots(dir string) (roots []string) {
+ 		}
+ 		dir = d
+ 	}
+-	return nil
++	return ""
+ }
+ 
+ func findWorkspaceFile(dir string) (root string) {
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 67d7ec65da..7def3c2625 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -1364,6 +1364,15 @@ func (ld *loader) resolveMissingImports(ctx context.Context) (modAddedBy map[mod
+ 			var err error
+ 			mod, err = queryImport(ctx, pkg.path, ld.requirements)
+ 			if err != nil {
++				var ime *ImportMissingError
++				if errors.As(err, &ime) {
++					for curstack := pkg.stack; curstack != nil; curstack = curstack.stack {
++						if MainModules.Contains(curstack.mod.Path) {
++							ime.ImportingMainModule = curstack.mod
++							break
++						}
++					}
++				}
+ 				// pkg.err was already non-nil, so we can reasonably attribute the error
+ 				// for pkg to either the original error or the one returned by
+ 				// queryImport. The existing error indicates only that we couldn't find
+diff --git a/src/cmd/go/testdata/script/work.txt b/src/cmd/go/testdata/script/work.txt
+index bcbabbacef..9be0958579 100644
+--- a/src/cmd/go/testdata/script/work.txt
++++ b/src/cmd/go/testdata/script/work.txt
+@@ -2,7 +2,7 @@ go mod initwork ./a ./b
+ cmp go.work go.work.want
+ 
+ ! go run  example.com/b
+-stderr 'a(\\|/)a.go:4:8: no required module provides package rsc.io/quote; to add it:\n\tgo get rsc.io/quote'
++stderr 'a(\\|/)a.go:4:8: no required module provides package rsc.io/quote; to add it:\n\tcd '$WORK(\\|/)gopath(\\|/)src(\\|/)a'\n\tgo get rsc.io/quote'
+ cd a
+ go get rsc.io/quote
+ go env GOMOD # go env GOMOD reports the module in a single module context

@@ -9,6 +9,20 @@ Date:   Wed Aug 7 13:36:41 2013 +1000
     R=golang-dev, r, dave
     CC=dvyukov, golang-dev
     https://golang.org/cl/12586043
-
+---
  src/pkg/net/fd_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index 974a542a96..a667de7b9f 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -257,7 +257,7 @@ func (fd *netFD) init() error {
+ 	fd.wop.runtimeCtx = fd.pd.runtimeCtx
+ 	if !canCancelIO {
+ 		fd.rop.errc = make(chan error)
+-		fd.rop.errc = make(chan error)
++		fd.wop.errc = make(chan error)
+ 	}
+ 	return nil
+ }

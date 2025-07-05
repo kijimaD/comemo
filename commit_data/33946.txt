@@ -15,7 +15,60 @@ Date:   Wed Sep 20 13:09:08 2017 -0500
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/cmd/compile/internal/gc/inl_test.go | 12 ++++++++----
  src/runtime/malloc.go                   |  3 +--
  2 files changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl_test.go b/src/cmd/compile/internal/gc/inl_test.go
+index 07e8eea1b8..9f5e3f2a4a 100644
+--- a/src/cmd/compile/internal/gc/inl_test.go
++++ b/src/cmd/compile/internal/gc/inl_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"internal/testenv"
+ 	"os/exec"
++	"runtime"
+ 	"testing"
+ )
+ 
+@@ -34,10 +35,6 @@ func TestIntendedInlining(t *testing.T) {
+ 			"bucketMask",
+ 			"fastrand",
+ 			"noescape",
+-
+-			// TODO: These were modified at some point to be
+-			// made inlineable, but have since been broken.
+-			// "nextFreeFast",
+ 		},
+ 		"unicode/utf8": {
+ 			"FullRune",
+@@ -47,6 +44,13 @@ func TestIntendedInlining(t *testing.T) {
+ 		},
+ 	}
+ 
++	if runtime.GOARCH != "386" {
++		// nextFreeFast calls sys.Ctz64, which on 386 is implemented in asm and is not inlinable.
++		// We currently don't have midstack inlining so nextFreeFast is also not inlinable on 386.
++		// So check for it only on non-386 platforms.
++		want["runtime"] = append(want["runtime"], "nextFreeFast")
++	}
++
+ 	m := make(map[string]bool)
+ 	pkgs := make([]string, 0, len(want))
+ 	for pname, fnames := range want {
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 274ab537fc..d68ebcc5d2 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -529,9 +529,8 @@ func nextFreeFast(s *mspan) gclinkptr {
+ 			}
+ 			s.allocCache >>= uint(theBit + 1)
+ 			s.freeindex = freeidx
+-			v := gclinkptr(result*s.elemsize + s.base())
+ 			s.allocCount++
+-			return v
++			return gclinkptr(result*s.elemsize + s.base())
+ 		}
+ 	}
+ 	return 0

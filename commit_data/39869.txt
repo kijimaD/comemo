@@ -15,6 +15,17 @@ Date:   Tue Mar 26 12:05:25 2019 -0400
     Change-Id: Ic776e1607075c295e409e1c8230aaf55a79a6323
     Reviewed-on: https://go-review.googlesource.com/c/go/+/169161
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  test/fixedbugs/issue30908.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/issue30908.go b/test/fixedbugs/issue30908.go
+index 8863b396aa..60fbd11457 100644
+--- a/test/fixedbugs/issue30908.go
++++ b/test/fixedbugs/issue30908.go
+@@ -1,4 +1,4 @@
+-// rundir -P -l=4 -ldflags -strictdups=2
++// rundir -P -ldflags -strictdups=2 -w=0
+ 
+ // Copyright 2019 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

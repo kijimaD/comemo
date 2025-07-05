@@ -12,6 +12,30 @@ Date:   Tue May 15 11:24:57 2018 -0400
     Reviewed-on: https://go-review.googlesource.com/113676
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/rsa/boring.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/rsa/boring.go b/src/crypto/rsa/boring.go
+index f25f4a5274..0ddff014e6 100644
+--- a/src/crypto/rsa/boring.go
++++ b/src/crypto/rsa/boring.go
+@@ -147,6 +147,7 @@ func boringFakeRandomBlind(random io.Reader, priv *PrivateKey) {
+ 	boring.UnreachableExceptTests()
+ 
+ 	// Copied from func decrypt.
++	ir := new(big.Int)
+ 	for {
+ 		r, err := rand.Int(random, priv.N)
+ 		if err != nil {
+@@ -155,8 +156,8 @@ func boringFakeRandomBlind(random io.Reader, priv *PrivateKey) {
+ 		if r.Cmp(bigZero) == 0 {
+ 			r = bigOne
+ 		}
+-		_, ok := modInverse(r, priv.N)
+-		if ok {
++		ok := ir.ModInverse(r, priv.N)
++		if ok != nil {
+ 			break
+ 		}
+ 	}

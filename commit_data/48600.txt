@@ -19,10 +19,175 @@ Date:   Wed Jun 2 00:03:25 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/typecheck/iexport.go | 44 +++++++++++++++++++++------
  src/cmd/compile/internal/typecheck/iimport.go | 28 ++++++++++++++---
  test/typeparam/fact.go                        |  6 ++--
  test/typeparam/factimp.dir/a.go               |  6 ++--
  test/typeparam/listimp.dir/a.go               |  3 +-
  5 files changed, 65 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index d83f385fcb..66c356ee7c 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -1061,26 +1061,50 @@ func constTypeOf(typ *types.Type) constant.Kind {
+ }
+ 
+ func (w *exportWriter) value(typ *types.Type, v constant.Value) {
+-	ir.AssertValidTypeForConst(typ, v)
+ 	w.typ(typ)
++	var kind constant.Kind
++	var valType *types.Type
++
++	if typ.Kind() == types.TTYPEPARAM {
++		// A constant will have a TYPEPARAM type if it appears in a place
++		// where it must match that typeparam type (e.g. in a binary
++		// operation with a variable of that typeparam type). If so, then
++		// we must write out its actual constant kind as well, so its
++		// constant val can be read in properly during import.
++		kind = v.Kind()
++		w.int64(int64(kind))
++
++		switch kind {
++		case constant.Int:
++			valType = types.Types[types.TINT64]
++		case constant.Float:
++			valType = types.Types[types.TFLOAT64]
++		case constant.Complex:
++			valType = types.Types[types.TCOMPLEX128]
++		}
++	} else {
++		ir.AssertValidTypeForConst(typ, v)
++		kind = constTypeOf(typ)
++		valType = typ
++	}
+ 
+-	// Each type has only one admissible constant representation,
+-	// so we could type switch directly on v.U here. However,
+-	// switching on the type increases symmetry with import logic
+-	// and provides a useful consistency check.
++	// Each type has only one admissible constant representation, so we could
++	// type switch directly on v.Kind() here. However, switching on the type
++	// (in the non-typeparam case) increases symmetry with import logic and
++	// provides a useful consistency check.
+ 
+-	switch constTypeOf(typ) {
++	switch kind {
+ 	case constant.Bool:
+ 		w.bool(constant.BoolVal(v))
+ 	case constant.String:
+ 		w.string(constant.StringVal(v))
+ 	case constant.Int:
+-		w.mpint(v, typ)
++		w.mpint(v, valType)
+ 	case constant.Float:
+-		w.mpfloat(v, typ)
++		w.mpfloat(v, valType)
+ 	case constant.Complex:
+-		w.mpfloat(constant.Real(v), typ)
+-		w.mpfloat(constant.Imag(v), typ)
++		w.mpfloat(constant.Real(v), valType)
++		w.mpfloat(constant.Imag(v), valType)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 4c31e47378..96107b657b 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -400,19 +400,39 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
+ }
+ 
+ func (p *importReader) value(typ *types.Type) constant.Value {
+-	switch constTypeOf(typ) {
++	var kind constant.Kind
++	var valType *types.Type
++
++	if typ.Kind() == types.TTYPEPARAM {
++		// If a constant had a typeparam type, then we wrote out its
++		// actual constant kind as well.
++		kind = constant.Kind(p.int64())
++		switch kind {
++		case constant.Int:
++			valType = types.Types[types.TINT64]
++		case constant.Float:
++			valType = types.Types[types.TFLOAT64]
++		case constant.Complex:
++			valType = types.Types[types.TCOMPLEX128]
++		}
++	} else {
++		kind = constTypeOf(typ)
++		valType = typ
++	}
++
++	switch kind {
+ 	case constant.Bool:
+ 		return constant.MakeBool(p.bool())
+ 	case constant.String:
+ 		return constant.MakeString(p.string())
+ 	case constant.Int:
+ 		var i big.Int
+-		p.mpint(&i, typ)
++		p.mpint(&i, valType)
+ 		return constant.Make(&i)
+ 	case constant.Float:
+-		return p.float(typ)
++		return p.float(valType)
+ 	case constant.Complex:
+-		return makeComplex(p.float(typ), p.float(typ))
++		return makeComplex(p.float(valType), p.float(valType))
+ 	}
+ 
+ 	base.Fatalf("unexpected value type: %v", typ)
+diff --git a/test/typeparam/fact.go b/test/typeparam/fact.go
+index 16b2adf6fb..ea86ae3e02 100644
+--- a/test/typeparam/fact.go
++++ b/test/typeparam/fact.go
+@@ -9,10 +9,10 @@ package main
+ import "fmt"
+ 
+ func fact[T interface { type int, int64, float64 }](n T) T {
+-	if n == T(1) {
+-		return T(1)
++	if n == 1 {
++		return 1
+ 	}
+-	return n * fact(n - T(1))
++	return n * fact(n - 1)
+ }
+ 
+ func main() {
+diff --git a/test/typeparam/factimp.dir/a.go b/test/typeparam/factimp.dir/a.go
+index e11575e66e..3552474382 100644
+--- a/test/typeparam/factimp.dir/a.go
++++ b/test/typeparam/factimp.dir/a.go
+@@ -5,8 +5,8 @@
+ package a
+ 
+ func Fact[T interface { type int, int64, float64 }](n T) T {
+-	if n == T(1) {
+-		return T(1)
++	if n == 1 {
++		return 1
+ 	}
+-	return n * Fact(n - T(1))
++	return n * Fact(n - 1)
+ }
+diff --git a/test/typeparam/listimp.dir/a.go b/test/typeparam/listimp.dir/a.go
+index a4118a0e81..0a4634b7be 100644
+--- a/test/typeparam/listimp.dir/a.go
++++ b/test/typeparam/listimp.dir/a.go
+@@ -42,11 +42,10 @@ type ListNum[T OrderedNum] struct {
+ const Clip = 5
+ 
+ // clippedLargest returns the largest in the list of OrderNums, but a max of 5.
+-// TODO(danscales): fix export/import of an untype constant with typeparam type
+ func (l *ListNum[T]) ClippedLargest() T {
+         var max T
+         for p := l; p != nil; p = p.Next {
+-                if p.Val > max && p.Val < T(Clip) {
++                if p.Val > max && p.Val < Clip {
+                         max = p.Val
+                 }
+         }

@@ -8,6 +8,63 @@ Date:   Wed Jan 7 16:37:43 2009 -0800
     DELTA=27  (23 added, 0 deleted, 4 changed)
     OCL=22245
     CL=22245
-
+---
  src/lib/os/os_error.go | 31 +++++++++++++++++++++++++++----
  1 file changed, 27 insertions(+), 4 deletions(-)
+
+diff --git a/src/lib/os/os_error.go b/src/lib/os/os_error.go
+index 4c03454d94..c8d52dc4ee 100644
+--- a/src/lib/os/os_error.go
++++ b/src/lib/os/os_error.go
+@@ -12,24 +12,47 @@ export type Error struct {
+ 	s string
+ }
+ 
++// Indexed by errno.
++// If we worry about syscall speed (only relevant on failure), we could
++// make it an array, but it's probably not important.
+ var ErrorTab = make(map[int64] *Error);
+ 
++// Table of all known errors in system.  Use the same error string twice,
++// get the same *os.Error.
++var ErrorStringTab = make(map[string] *Error);
++
++// These functions contain a race if two goroutines add identical
++// errors simultaneously but the consequences are unimportant.
++
++// Allocate an Error objecct, but if it's been seen before, share that one.
+ export func NewError(s string) *Error {
+-	return &Error{s}
++	if s == "" {
++		return nil
++	}
++	err, ok := ErrorStringTab[s];
++	if ok {
++		return err
++	}
++	err = &Error{s};
++	ErrorStringTab[s] = err;
++	return err;
+ }
+ 
++// Allocate an Error objecct, but if it's been seen before, share that one.
+ export func ErrnoToError(errno int64) *Error {
+ 	if errno == 0 {
+ 		return nil
+ 	}
++	// Quick lookup by errno.
+ 	err, ok := ErrorTab[errno];
+ 	if ok {
+ 		return err
+ 	}
+-	e := NewError(syscall.errstr(errno));
+-	ErrorTab[errno] = e;
+-	return e;
++	err = NewError(syscall.errstr(errno));
++	ErrorTab[errno] = err;
++	return err;
+ }
++
+ export var (
+ 	ENONE = ErrnoToError(syscall.ENONE);
+ 	EPERM = ErrnoToError(syscall.EPERM);

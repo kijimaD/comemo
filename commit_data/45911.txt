@@ -27,7 +27,7 @@ Date:   Fri Nov 27 23:52:37 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/escape.go         | 28 ++++++++++------
  src/cmd/compile/internal/gc/inl.go            |  8 ++---
  src/cmd/compile/internal/gc/noder.go          |  9 +++--
@@ -37,3 +37,340 @@ Date:   Fri Nov 27 23:52:37 2020 -0500
  src/cmd/compile/internal/types/sizeof_test.go |  2 +-
  src/cmd/compile/internal/types/sym.go         |  5 ++-
  8 files changed, 60 insertions(+), 77 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index 783bc8c41d..34f52c743a 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -85,6 +85,7 @@ import (
+ 
+ type Escape struct {
+ 	allLocs []*EscLocation
++	labels  map[*types.Sym]labelState // known labels
+ 
+ 	curfn ir.Node
+ 
+@@ -229,13 +230,16 @@ func (e *Escape) walkFunc(fn ir.Node) {
+ 	ir.InspectList(fn.Body(), func(n ir.Node) bool {
+ 		switch n.Op() {
+ 		case ir.OLABEL:
+-			n.Sym().Label = nonlooping
++			if e.labels == nil {
++				e.labels = make(map[*types.Sym]labelState)
++			}
++			e.labels[n.Sym()] = nonlooping
+ 
+ 		case ir.OGOTO:
+ 			// If we visited the label before the goto,
+ 			// then this is a looping label.
+-			if n.Sym().Label == nonlooping {
+-				n.Sym().Label = looping
++			if e.labels[n.Sym()] == nonlooping {
++				e.labels[n.Sym()] = looping
+ 			}
+ 		}
+ 
+@@ -245,6 +249,10 @@ func (e *Escape) walkFunc(fn ir.Node) {
+ 	e.curfn = fn
+ 	e.loopDepth = 1
+ 	e.block(fn.Body())
++
++	if len(e.labels) != 0 {
++		base.FatalfAt(fn.Pos(), "leftover labels after walkFunc")
++	}
+ }
+ 
+ // Below we implement the methods for walking the AST and recording
+@@ -310,7 +318,7 @@ func (e *Escape) stmt(n ir.Node) {
+ 		}
+ 
+ 	case ir.OLABEL:
+-		switch ir.AsNode(n.Sym().Label) {
++		switch e.labels[n.Sym()] {
+ 		case nonlooping:
+ 			if base.Flag.LowerM > 2 {
+ 				fmt.Printf("%v:%v non-looping label\n", base.FmtPos(base.Pos), n)
+@@ -323,7 +331,7 @@ func (e *Escape) stmt(n ir.Node) {
+ 		default:
+ 			base.Fatalf("label missing tag")
+ 		}
+-		n.Sym().Label = nil
++		delete(e.labels, n.Sym())
+ 
+ 	case ir.OIF:
+ 		e.discard(n.Left())
+@@ -1615,11 +1623,11 @@ func funcSym(fn ir.Node) *types.Sym {
+ }
+ 
+ // Mark labels that have no backjumps to them as not increasing e.loopdepth.
+-// Walk hasn't generated (goto|label).Left.Sym.Label yet, so we'll cheat
+-// and set it to one of the following two. Then in esc we'll clear it again.
+-var (
+-	looping    = ir.Nod(ir.OXXX, nil, nil)
+-	nonlooping = ir.Nod(ir.OXXX, nil, nil)
++type labelState int
++
++const (
++	looping labelState = 1 + iota
++	nonlooping
+ )
+ 
+ func isSliceSelfAssign(dst, src ir.Node) bool {
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 6310762c1f..d43d0d06af 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -405,16 +405,16 @@ func (v *hairyVisitor) visit(n ir.Node) bool {
+ 		// These nodes don't produce code; omit from inlining budget.
+ 		return false
+ 
+-	case ir.OLABEL:
+-		// TODO(mdempsky): Add support for inlining labeled control statements.
+-		if labeledControl(n) != nil {
++	case ir.OFOR, ir.OFORUNTIL, ir.OSWITCH:
++		// ORANGE, OSELECT in "unhandled" above
++		if n.Sym() != nil {
+ 			v.reason = "labeled control"
+ 			return true
+ 		}
+ 
+ 	case ir.OBREAK, ir.OCONTINUE:
+ 		if n.Sym() != nil {
+-			// Should have short-circuited due to labeledControl above.
++			// Should have short-circuited due to labeled control error above.
+ 			base.Fatalf("unexpected labeled break/continue: %v", n)
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 950d509047..ecd50b87f6 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -1302,14 +1302,19 @@ func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace syntax.Pos) []i
+ }
+ 
+ func (p *noder) labeledStmt(label *syntax.LabeledStmt, fallOK bool) ir.Node {
+-	lhs := p.nodSym(label, ir.OLABEL, nil, p.name(label.Label))
++	sym := p.name(label.Label)
++	lhs := p.nodSym(label, ir.OLABEL, nil, sym)
+ 
+ 	var ls ir.Node
+ 	if label.Stmt != nil { // TODO(mdempsky): Should always be present.
+ 		ls = p.stmtFall(label.Stmt, fallOK)
++		switch label.Stmt.(type) {
++		case *syntax.ForStmt, *syntax.SwitchStmt, *syntax.SelectStmt:
++			// Attach label directly to control statement too.
++			ls.SetSym(sym)
++		}
+ 	}
+ 
+-	lhs.Name().Defn = ls
+ 	l := []ir.Node{lhs}
+ 	if ls != nil {
+ 		if ls.Op() == ir.OBLOCK && ls.Init().Len() == 0 {
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index cb73532b48..bcc126f82e 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -356,7 +356,6 @@ func buildssa(fn ir.Node, worker int) *ssa.Func {
+ 
+ 	// Allocate starting values
+ 	s.labels = map[string]*ssaLabel{}
+-	s.labeledNodes = map[ir.Node]*ssaLabel{}
+ 	s.fwdVars = map[ir.Node]*ssa.Value{}
+ 	s.startmem = s.entryNewValue0(ssa.OpInitMem, types.TypeMem)
+ 
+@@ -596,9 +595,8 @@ type state struct {
+ 	// Node for function
+ 	curfn ir.Node
+ 
+-	// labels and labeled control flow nodes (OFOR, OFORUNTIL, OSWITCH, OSELECT) in f
+-	labels       map[string]*ssaLabel
+-	labeledNodes map[ir.Node]*ssaLabel
++	// labels in f
++	labels map[string]*ssaLabel
+ 
+ 	// unlabeled break and continue statement tracking
+ 	breakTo    *ssa.Block // current target for plain break statement
+@@ -1169,11 +1167,6 @@ func (s *state) stmt(n ir.Node) {
+ 		sym := n.Sym()
+ 		lab := s.label(sym)
+ 
+-		// Associate label with its control flow node, if any
+-		if ctl := labeledControl(n); ctl != nil {
+-			s.labeledNodes[ctl] = lab
+-		}
+-
+ 		// The label might already have a target block via a goto.
+ 		if lab.target == nil {
+ 			lab.target = s.f.NewBlock(ssa.BlockPlain)
+@@ -1431,9 +1424,10 @@ func (s *state) stmt(n ir.Node) {
+ 		prevBreak := s.breakTo
+ 		s.continueTo = bIncr
+ 		s.breakTo = bEnd
+-		lab := s.labeledNodes[n]
+-		if lab != nil {
++		var lab *ssaLabel
++		if sym := n.Sym(); sym != nil {
+ 			// labeled for loop
++			lab = s.label(sym)
+ 			lab.continueTarget = bIncr
+ 			lab.breakTarget = bEnd
+ 		}
+@@ -1489,9 +1483,10 @@ func (s *state) stmt(n ir.Node) {
+ 
+ 		prevBreak := s.breakTo
+ 		s.breakTo = bEnd
+-		lab := s.labeledNodes[n]
+-		if lab != nil {
++		var lab *ssaLabel
++		if sym := n.Sym(); sym != nil {
+ 			// labeled
++			lab = s.label(sym)
+ 			lab.breakTarget = bEnd
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index fcda219737..d174ebd582 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -582,23 +582,6 @@ func backingArrayPtrLen(n ir.Node) (ptr, len ir.Node) {
+ 	return ptr, len
+ }
+ 
+-// labeledControl returns the control flow Node (for, switch, select)
+-// associated with the label n, if any.
+-func labeledControl(n ir.Node) ir.Node {
+-	if n.Op() != ir.OLABEL {
+-		base.Fatalf("labeledControl %v", n.Op())
+-	}
+-	ctl := n.Name().Defn
+-	if ctl == nil {
+-		return nil
+-	}
+-	switch ctl.Op() {
+-	case ir.OFOR, ir.OFORUNTIL, ir.OSWITCH, ir.OSELECT:
+-		return ctl
+-	}
+-	return nil
+-}
+-
+ func syslook(name string) ir.Node {
+ 	s := Runtimepkg.Lookup(name)
+ 	if s == nil || s.Def == nil {
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 4e2f205312..ede3778184 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3759,7 +3759,7 @@ func checkmake(t *types.Type, arg string, np *ir.Node) bool {
+ 	return true
+ }
+ 
+-func markbreak(n ir.Node, implicit ir.Node) {
++func markbreak(labels *map[*types.Sym]ir.Node, n ir.Node, implicit ir.Node) {
+ 	if n == nil {
+ 		return
+ 	}
+@@ -3771,43 +3771,35 @@ func markbreak(n ir.Node, implicit ir.Node) {
+ 				implicit.SetHasBreak(true)
+ 			}
+ 		} else {
+-			lab := ir.AsNode(n.Sym().Label)
+-			if lab != nil {
++			if lab := (*labels)[n.Sym()]; lab != nil {
+ 				lab.SetHasBreak(true)
+ 			}
+ 		}
+ 	case ir.OFOR, ir.OFORUNTIL, ir.OSWITCH, ir.OTYPESW, ir.OSELECT, ir.ORANGE:
+ 		implicit = n
++		if sym := n.Sym(); sym != nil {
++			if *labels == nil {
++				// Map creation delayed until we need it - most functions don't.
++				*labels = make(map[*types.Sym]ir.Node)
++			}
++			(*labels)[sym] = n
++			defer delete(*labels, sym)
++		}
+ 		fallthrough
+ 	default:
+-		markbreak(n.Left(), implicit)
+-		markbreak(n.Right(), implicit)
+-		markbreaklist(n.Init(), implicit)
+-		markbreaklist(n.Body(), implicit)
+-		markbreaklist(n.List(), implicit)
+-		markbreaklist(n.Rlist(), implicit)
++		markbreak(labels, n.Left(), implicit)
++		markbreak(labels, n.Right(), implicit)
++		markbreaklist(labels, n.Init(), implicit)
++		markbreaklist(labels, n.Body(), implicit)
++		markbreaklist(labels, n.List(), implicit)
++		markbreaklist(labels, n.Rlist(), implicit)
+ 	}
+ }
+ 
+-func markbreaklist(l ir.Nodes, implicit ir.Node) {
++func markbreaklist(labels *map[*types.Sym]ir.Node, l ir.Nodes, implicit ir.Node) {
+ 	s := l.Slice()
+ 	for i := 0; i < len(s); i++ {
+-		n := s[i]
+-		if n == nil {
+-			continue
+-		}
+-		if n.Op() == ir.OLABEL && i+1 < len(s) && n.Name().Defn == s[i+1] {
+-			switch n.Name().Defn.Op() {
+-			case ir.OFOR, ir.OFORUNTIL, ir.OSWITCH, ir.OTYPESW, ir.OSELECT, ir.ORANGE:
+-				n.Sym().Label = n.Name().Defn
+-				markbreak(n.Name().Defn, n.Name().Defn)
+-				n.Sym().Label = nil
+-				i++
+-				continue
+-			}
+-		}
+-
+-		markbreak(n, implicit)
++		markbreak(labels, s[i], implicit)
+ 	}
+ }
+ 
+@@ -3874,7 +3866,8 @@ func isTermNode(n ir.Node) bool {
+ // checkreturn makes sure that fn terminates appropriately.
+ func checkreturn(fn ir.Node) {
+ 	if fn.Type().NumResults() != 0 && fn.Body().Len() != 0 {
+-		markbreaklist(fn.Body(), nil)
++		var labels map[*types.Sym]ir.Node
++		markbreaklist(&labels, fn.Body(), nil)
+ 		if !isTermNodes(fn.Body()) {
+ 			base.ErrorfAt(fn.Func().Endlineno, "missing return at end of function")
+ 		}
+diff --git a/src/cmd/compile/internal/types/sizeof_test.go b/src/cmd/compile/internal/types/sizeof_test.go
+index 2821d9a3c7..88a2fbba2f 100644
+--- a/src/cmd/compile/internal/types/sizeof_test.go
++++ b/src/cmd/compile/internal/types/sizeof_test.go
+@@ -20,7 +20,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Sym{}, 60, 104},
++		{Sym{}, 52, 88},
+ 		{Type{}, 56, 96},
+ 		{Map{}, 20, 40},
+ 		{Forward{}, 20, 32},
+diff --git a/src/cmd/compile/internal/types/sym.go b/src/cmd/compile/internal/types/sym.go
+index 046104d0dc..7272f1f786 100644
+--- a/src/cmd/compile/internal/types/sym.go
++++ b/src/cmd/compile/internal/types/sym.go
+@@ -33,13 +33,12 @@ type Sym struct {
+ 	Name string // object name
+ 
+ 	// saved and restored by dcopy
+-	Def        IRNode    // definition: ONAME OTYPE OPACK or OLITERAL
++	Def        IRNode   // definition: ONAME OTYPE OPACK or OLITERAL
+ 	Block      int32    // blocknumber to catch redeclaration
+ 	Lastlineno src.XPos // last declaration for diagnostic
+ 
+ 	flags   bitset8
+-	Label   IRNode // corresponding label (ephemeral)
+-	Origpkg *Pkg  // original package for . import
++	Origpkg *Pkg // original package for . import
+ }
+ 
+ const (

@@ -16,6 +16,26 @@ Date:   Wed Aug 17 20:38:39 2022 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go/types/testdata/examples/types.go | 8 +++-----
  1 file changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/go/types/testdata/examples/types.go b/src/go/types/testdata/examples/types.go
+index 97e84993d5..052d168fc6 100644
+--- a/src/go/types/testdata/examples/types.go
++++ b/src/go/types/testdata/examples/types.go
+@@ -146,11 +146,9 @@ func _() {
+ }
+ 
+ type _ struct {
+-	// TODO(gri) The next 3 lines need to be adjusted to match
+-	//           the corresponding types2 tests. This requires
+-	//           a go/parser fix (issue #51655).
+-	int8
+-	*int16
++	( /* ERROR cannot parenthesize */ int8)
++	( /* ERROR cannot parenthesize */ *int16)
++	*( /* ERROR cannot parenthesize */ int32)
+ 	List[int]
+ 
+ 	int8 /* ERROR int8 redeclared */

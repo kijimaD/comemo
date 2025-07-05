@@ -8,7 +8,64 @@ Date:   Mon Aug 31 21:18:40 2009 -0700
     DELTA=40  (40 added, 0 deleted, 0 changed)
     OCL=34168
     CL=34176
-
+---
  src/pkg/unicode/digit_test.go  |  9 +++++++++
  src/pkg/unicode/letter_test.go | 31 +++++++++++++++++++++++++++++++
  2 files changed, 40 insertions(+)
+
+diff --git a/src/pkg/unicode/digit_test.go b/src/pkg/unicode/digit_test.go
+index a63404ebd8..a95051f3e6 100644
+--- a/src/pkg/unicode/digit_test.go
++++ b/src/pkg/unicode/digit_test.go
+@@ -115,3 +115,12 @@ func TestDigit(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Test that the special case in IsDigit agrees with the table
++func TestDigitOptimization(t *testing.T) {
++	for i := 0; i < 0x100; i++ {
++		if Is(Digit, i) != IsDigit(i) {
++			t.Errorf("IsDigit(U+%04X) disagrees with Is(Digit)", i)
++		}
++	}
++}
+diff --git a/src/pkg/unicode/letter_test.go b/src/pkg/unicode/letter_test.go
+index f5cb72f7f8..b62335456e 100644
+--- a/src/pkg/unicode/letter_test.go
++++ b/src/pkg/unicode/letter_test.go
+@@ -318,3 +318,34 @@ func TestIsSpace(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Check that the optimizations for IsLetter etc. agree with the tables.
++// We only need to check the Latin-1 range.
++func TestLetterOptimizations(t *testing.T) {
++	for i := 0; i < 0x100; i++ {
++		if Is(Letter, i) != IsLetter(i) {
++			t.Errorf("IsLetter(U+%04X) disagrees with Is(Letter)", i)
++		}
++		if Is(Upper, i) != IsUpper(i) {
++			t.Errorf("IsUpper(U+%04X) disagrees with Is(Upper)", i)
++		}
++		if Is(Lower, i) != IsLower(i) {
++			t.Errorf("IsLower(U+%04X) disagrees with Is(Lower)", i)
++		}
++		if Is(Title, i) != IsTitle(i) {
++			t.Errorf("IsTitle(U+%04X) disagrees with Is(Title)", i)
++		}
++		if Is(White_Space, i) != IsSpace(i) {
++			t.Errorf("IsSpace(U+%04X) disagrees with Is(White_Space)", i)
++		}
++		if To(UpperCase, i) != ToUpper(i) {
++			t.Errorf("ToUpper(U+%04X) disagrees with To(Upper)", i)
++		}
++		if To(LowerCase, i) != ToLower(i) {
++			t.Errorf("ToLower(U+%04X) disagrees with To(Lower)", i)
++		}
++		if To(TitleCase, i) != ToTitle(i) {
++			t.Errorf("ToTitle(U+%04X) disagrees with To(Title)", i)
++		}
++	}
++}

@@ -115,10 +115,223 @@ Date:   Wed Sep 20 08:48:34 2017 +0000
     Reviewed-on: https://go-review.googlesource.com/64950
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/arm/ssa.go        |  8 ++++
  src/cmd/compile/internal/ssa/gen/ARM.rules |  7 +++
  src/cmd/compile/internal/ssa/gen/ARMOps.go |  4 ++
  src/cmd/compile/internal/ssa/opGen.go      | 30 ++++++++++++
  src/cmd/compile/internal/ssa/rewriteARM.go | 76 ++++++++++++++++++++++++++++++
  5 files changed, 125 insertions(+)
+
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 4655513fa5..140b9d10ac 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -258,6 +258,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.Reg = r1
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
++	case ssa.OpARMBFX, ssa.OpARMBFXU:
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = v.AuxInt >> 8
++		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: v.AuxInt & 0xff})
++		p.Reg = v.Args[0].Reg()
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg()
+ 	case ssa.OpARMADDconst,
+ 		ssa.OpARMADCconst,
+ 		ssa.OpARMSUBconst,
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index b21cd6f9f3..0c53aa3b77 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -867,6 +867,9 @@
+ (MOVHreg (MOVWconst [c])) -> (MOVWconst [int64(int16(c))])
+ (MOVHUreg (MOVWconst [c])) -> (MOVWconst [int64(uint16(c))])
+ (MOVWreg (MOVWconst [c])) -> (MOVWconst [c])
++// BFX: Width = c >> 8, LSB = c & 0xff, result = d << (32 - Width - LSB) >> (32 - Width)
++(BFX [c] (MOVWconst [d])) -> (MOVWconst [int64(int32(d)<<(32-uint32(c&0xff)-uint32(c>>8))>>(32-uint32(c>>8)))])
++(BFXU [c] (MOVWconst [d])) -> (MOVWconst [int64(uint32(d)<<(32-uint32(c&0xff)-uint32(c>>8))>>(32-uint32(c>>8)))])
+ 
+ // absorb shifts into ops
+ (ADD x (SLLconst [c] y)) -> (ADDshiftLL x y [c])
+@@ -1286,3 +1289,7 @@
+ // floating point optimizations
+ (CMPF x (MOVFconst [0])) -> (CMPF0 x)
+ (CMPD x (MOVDconst [0])) -> (CMPD0 x)
++
++// bit extraction
++(SRAconst (SLLconst x [c]) [d]) && objabi.GOARM==7 && uint64(d)>=uint64(c) && uint64(d)<=31 -> (BFX [(d-c)|(32-d)<<8] x)
++(SRLconst (SLLconst x [c]) [d]) && objabi.GOARM==7 && uint64(d)>=uint64(c) && uint64(d)<=31 -> (BFXU [(d-c)|(32-d)<<8] x)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index 93b50135d4..668ee46a54 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -196,6 +196,10 @@ func init() {
+ 		{name: "BIC", argLength: 2, reg: gp21, asm: "BIC"},                    // arg0 &^ arg1
+ 		{name: "BICconst", argLength: 1, reg: gp11, asm: "BIC", aux: "Int32"}, // arg0 &^ auxInt
+ 
++		// bit extraction, AuxInt = Width<<8 | LSB
++		{name: "BFX", argLength: 1, reg: gp11, asm: "BFX", aux: "Int32"},   // extract W bits from bit L in arg0, then signed extend
++		{name: "BFXU", argLength: 1, reg: gp11, asm: "BFXU", aux: "Int32"}, // extract W bits from bit L in arg0, then unsigned extend
++
+ 		// unary ops
+ 		{name: "MVN", argLength: 1, reg: gp11, asm: "MVN"}, // ^arg0
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index d85ab0aab5..1f0138b610 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -719,6 +719,8 @@ const (
+ 	OpARMXORconst
+ 	OpARMBIC
+ 	OpARMBICconst
++	OpARMBFX
++	OpARMBFXU
+ 	OpARMMVN
+ 	OpARMNEGF
+ 	OpARMNEGD
+@@ -8838,6 +8840,34 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:    "BFX",
++		auxType: auxInt32,
++		argLen:  1,
++		asm:     arm.ABFX,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 22527}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14
++			},
++			outputs: []outputInfo{
++				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
++			},
++		},
++	},
++	{
++		name:    "BFXU",
++		auxType: auxInt32,
++		argLen:  1,
++		asm:     arm.ABFXU,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 22527}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14
++			},
++			outputs: []outputInfo{
++				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
++			},
++		},
++	},
+ 	{
+ 		name:   "MVN",
+ 		argLen: 1,
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 38695c503d..73aeb81ed7 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -81,6 +81,10 @@ func rewriteValueARM(v *Value) bool {
+ 		return rewriteValueARM_OpARMANDshiftRL_0(v)
+ 	case OpARMANDshiftRLreg:
+ 		return rewriteValueARM_OpARMANDshiftRLreg_0(v)
++	case OpARMBFX:
++		return rewriteValueARM_OpARMBFX_0(v)
++	case OpARMBFXU:
++		return rewriteValueARM_OpARMBFXU_0(v)
+ 	case OpARMBIC:
+ 		return rewriteValueARM_OpARMBIC_0(v)
+ 	case OpARMBICconst:
+@@ -3966,6 +3970,40 @@ func rewriteValueARM_OpARMANDshiftRLreg_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM_OpARMBFX_0(v *Value) bool {
++	// match: (BFX [c] (MOVWconst [d]))
++	// cond:
++	// result: (MOVWconst [int64(int32(d)<<(32-uint32(c&0xff)-uint32(c>>8))>>(32-uint32(c>>8)))])
++	for {
++		c := v.AuxInt
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMMOVWconst {
++			break
++		}
++		d := v_0.AuxInt
++		v.reset(OpARMMOVWconst)
++		v.AuxInt = int64(int32(d) << (32 - uint32(c&0xff) - uint32(c>>8)) >> (32 - uint32(c>>8)))
++		return true
++	}
++	return false
++}
++func rewriteValueARM_OpARMBFXU_0(v *Value) bool {
++	// match: (BFXU [c] (MOVWconst [d]))
++	// cond:
++	// result: (MOVWconst [int64(uint32(d)<<(32-uint32(c&0xff)-uint32(c>>8))>>(32-uint32(c>>8)))])
++	for {
++		c := v.AuxInt
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMMOVWconst {
++			break
++		}
++		d := v_0.AuxInt
++		v.reset(OpARMMOVWconst)
++		v.AuxInt = int64(uint32(d) << (32 - uint32(c&0xff) - uint32(c>>8)) >> (32 - uint32(c>>8)))
++		return true
++	}
++	return false
++}
+ func rewriteValueARM_OpARMBIC_0(v *Value) bool {
+ 	// match: (BIC x (MOVWconst [c]))
+ 	// cond:
+@@ -13484,6 +13522,25 @@ func rewriteValueARM_OpARMSRAconst_0(v *Value) bool {
+ 		v.AuxInt = int64(int32(d) >> uint64(c))
+ 		return true
+ 	}
++	// match: (SRAconst (SLLconst x [c]) [d])
++	// cond: objabi.GOARM==7 && uint64(d)>=uint64(c) && uint64(d)<=31
++	// result: (BFX [(d-c)|(32-d)<<8] x)
++	for {
++		d := v.AuxInt
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMSLLconst {
++			break
++		}
++		c := v_0.AuxInt
++		x := v_0.Args[0]
++		if !(objabi.GOARM == 7 && uint64(d) >= uint64(c) && uint64(d) <= 31) {
++			break
++		}
++		v.reset(OpARMBFX)
++		v.AuxInt = (d - c) | (32-d)<<8
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM_OpARMSRL_0(v *Value) bool {
+@@ -13520,6 +13577,25 @@ func rewriteValueARM_OpARMSRLconst_0(v *Value) bool {
+ 		v.AuxInt = int64(uint32(d) >> uint64(c))
+ 		return true
+ 	}
++	// match: (SRLconst (SLLconst x [c]) [d])
++	// cond: objabi.GOARM==7 && uint64(d)>=uint64(c) && uint64(d)<=31
++	// result: (BFXU [(d-c)|(32-d)<<8] x)
++	for {
++		d := v.AuxInt
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMSLLconst {
++			break
++		}
++		c := v_0.AuxInt
++		x := v_0.Args[0]
++		if !(objabi.GOARM == 7 && uint64(d) >= uint64(c) && uint64(d) <= 31) {
++			break
++		}
++		v.reset(OpARMBFXU)
++		v.AuxInt = (d - c) | (32-d)<<8
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM_OpARMSUB_0(v *Value) bool {

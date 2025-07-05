@@ -6,8 +6,144 @@ Date:   Thu Jun 26 17:08:39 2008 -0700
     update golden
     
     SVN=125006
-
+---
  test/golden.out  | 40 ++++++++++++++++++++--------------------
  test/readfile.go | 28 ++++++++++++++++++++++++++++
  test/run         |  2 +-
  3 files changed, 49 insertions(+), 21 deletions(-)
+
+diff --git a/test/golden.out b/test/golden.out
+index 072522f2e4..cb015a37e6 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -1,11 +1,5 @@
+ 
+ =========== ./args.go
+-argc
+-panic on line 171 PC=0x150c
+-0x150c?zi
+-	mainM-BM-7main(0, 0, 0, ...)
+-	mainM-BM-7main(0x0, 0x0, 0x3, ...)
+-0x12e5?zi
+ 
+ =========== ./char_lit.go
+ 
+@@ -50,10 +44,14 @@ hello, world
+ 
+ =========== ./nil.go
+ 
++=========== ./readfile.go
++
+ =========== ./sieve.go
+-sieve.go:8: fatal error: walktype: switch 1 unknown op SEND l(171)
++sieve.go:8: fatal error: walktype: switch 1 unknown op SEND l(176)
+ BUG: known to fail incorrectly
+ 
++=========== ./simasign.go
++
+ =========== ./string_lit.go
+ 
+ =========== ./switch.go
+@@ -76,16 +74,6 @@ test0.go:47: illegal types for operand: AS
+ 	({})
+ BUG: known to fail incorrectly
+ 
+-=========== ./test_integer.go
+-TestConv
+-TestAdd
+-TestSub
+-TestMul
+-TestDiv
+-TestMod
+-TestFact
+-PASSED
+-
+ =========== ./turing.go
+ Hello World!
+ 
+@@ -176,7 +164,7 @@ bugs/bug025.go:7: fatal error: dumpexportvar: oname nil: Foo
+ BUG: known to fail incorrectly or at least with a bad message
+ 
+ =========== bugs/bug026.go
+-traceback: mainM-BM-7sigs_I: not defined
++initsig: main·sigs_I: not defined
+ BUG: known to fail incorrectly
+ 
+ =========== bugs/bug027.go
+@@ -273,8 +261,8 @@ Faulting address: 0x1
+ pc: 0x152c
+ 
+ 0x152c?zi
+-	mainM-BM-7main(0, 0, 0, ...)
+-	mainM-BM-7main(0x0, 0x0, 0x1, ...)
++	main·main(0, 0, 0, ...)
++	main·main(0x0, 0x0, 0x1, ...)
+ 0x12e5?zi
+ 
+ rax     0x1
+@@ -329,6 +317,18 @@ bugs/bug056.go:9: illegal types for operand: AS
+ 	(<int32>INT32)
+ BUG: compilation should succeed
+ 
++=========== bugs/bug057.go
++bugs/bug057.go:13: syntax error
++BUG: compilation should succeed
++
++=========== bugs/bug058.go
++bugs/bug058.go:11: illegal types for operand: INDEX
++	(MAP[<string>*STRING]*<Box>{})
++	(<string>*STRING)
++bugs/bug058.go:11: illegal types for operand: AS
++	(*<Box>{})
++BUG: compilation should succeed
++
+ =========== fixedbugs/bug000.go
+ 
+ =========== fixedbugs/bug001.go
+diff --git a/test/readfile.go b/test/readfile.go
+new file mode 100644
+index 0000000000..bd9430240c
+--- /dev/null
++++ b/test/readfile.go
+@@ -0,0 +1,28 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// $G $F.go && $L $F.$A && ./$A.out readfile.go
++// # This is some data we can recognize
++
++package main
++
++func main() int {
++	var s string
++	var ok bool
++
++	s, ok = sys.readfile("readfile.go");
++	if !ok {
++		print "couldn't readfile\n";
++		return 1
++	}
++	start_of_file :=
++		"// $G $F.go && $L $F.$A && ./$A.out readfile.go\n" +
++		"// # This is some data we can recognize\n" +
++		"\n" +
++		"package main\n";
++	if s[0:102] != start_of_file {
++		print "wrong data\n";
++		return 1
++	}
++}
+diff --git a/test/run b/test/run
+index f01f424483..ee014269ad 100755
+--- a/test/run
++++ b/test/run
+@@ -32,7 +32,7 @@ do
+ 			echo >&2 fail: $i
+ 		fi
+ 	done
+-done | cat -v >run.out
++done > run.out
+ 
+ case $failed in
+ 1)

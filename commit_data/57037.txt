@@ -15,6 +15,20 @@ Date:   Sat Jun 10 17:42:54 2023 -0700
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/url/url.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 9ffd858a86..501b263e87 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -859,7 +859,7 @@ func (u *URL) String() string {
+ }
+ 
+ // Redacted is like String but replaces any password with "xxxxx".
+-// Only the password in u.URL is redacted.
++// Only the password in u.User is redacted.
+ func (u *URL) Redacted() string {
+ 	if u == nil {
+ 		return ""

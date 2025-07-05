@@ -11,7 +11,55 @@ Date:   Tue Dec 13 17:57:06 2016 -0500
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/json/scanner.go      |  5 +++++
  src/encoding/json/scanner_test.go | 20 ++++++++++++++++++++
  2 files changed, 25 insertions(+)
+
+diff --git a/src/encoding/json/scanner.go b/src/encoding/json/scanner.go
+index a6d8706c73..ae34418d1d 100644
+--- a/src/encoding/json/scanner.go
++++ b/src/encoding/json/scanner.go
+@@ -15,6 +15,11 @@ package json
+ 
+ import "strconv"
+ 
++// Valid reports whether data is a valid JSON encoding.
++func Valid(data []byte) bool {
++	return checkValid(data, &scanner{}) == nil
++}
++
+ // checkValid verifies that data is valid JSON-encoded data.
+ // scan is passed in for use by checkValid to avoid an allocation.
+ func checkValid(data []byte, scan *scanner) error {
+diff --git a/src/encoding/json/scanner_test.go b/src/encoding/json/scanner_test.go
+index c5c1be31f1..0d4518a632 100644
+--- a/src/encoding/json/scanner_test.go
++++ b/src/encoding/json/scanner_test.go
+@@ -12,6 +12,26 @@ import (
+ 	"testing"
+ )
+ 
++var validTests = []struct {
++	data string
++	ok   bool
++}{
++	{`foo`, false},
++	{`}{`, false},
++	{`{]`, false},
++	{`{}`, true},
++	{`{"foo":"bar"}`, true},
++	{`{"foo":"bar","bar":{"baz":["qux"]}}`, true},
++}
++
++func TestValid(t *testing.T) {
++	for _, tt := range validTests {
++		if ok := Valid([]byte(tt.data)); ok != tt.ok {
++			t.Errorf("Valid(%#q) = %v, want %v", tt.data, ok, tt.ok)
++		}
++	}
++}
++
+ // Tests of simple examples.
+ 
+ type example struct {

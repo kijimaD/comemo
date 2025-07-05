@@ -18,8 +18,57 @@ Date:   Tue Oct 15 07:12:26 2019 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/time/example_test.go | 1 +
  src/time/time.go         | 2 +-
  src/time/zoneinfo.go     | 5 +++--
  3 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/time/example_test.go b/src/time/example_test.go
+index 4d70471a7d..2f890db2f4 100644
+--- a/src/time/example_test.go
++++ b/src/time/example_test.go
+@@ -363,6 +363,7 @@ func ExampleParse() {
+ func ExampleParseInLocation() {
+ 	loc, _ := time.LoadLocation("Europe/Berlin")
+ 
++	// This will look for the name CEST in the Europe/Berlin time zone.
+ 	const longForm = "Jan 2, 2006 at 3:04pm (MST)"
+ 	t, _ := time.ParseInLocation(longForm, "Jul 9, 2012 at 5:02am (CEST)", loc)
+ 	fmt.Println(t)
+diff --git a/src/time/time.go b/src/time/time.go
+index 0d1cb9e5a1..10a132fa23 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -257,7 +257,7 @@ func (t Time) Before(u Time) bool {
+ 
+ // Equal reports whether t and u represent the same time instant.
+ // Two times can be equal even if they are in different locations.
+-// For example, 6:00 +0200 CEST and 4:00 UTC are Equal.
++// For example, 6:00 +0200 and 4:00 UTC are Equal.
+ // See the documentation on the Time type for the pitfalls of using == with
+ // Time values; most code should use Equal instead.
+ func (t Time) Equal(u Time) bool {
+diff --git a/src/time/zoneinfo.go b/src/time/zoneinfo.go
+index 7dffbfad5e..e6cac620fb 100644
+--- a/src/time/zoneinfo.go
++++ b/src/time/zoneinfo.go
+@@ -14,7 +14,8 @@ import (
+ 
+ // A Location maps time instants to the zone in use at that time.
+ // Typically, the Location represents the collection of time offsets
+-// in use in a geographical area, such as CEST and CET for central Europe.
++// in use in a geographical area. For many Locations the time offset varies
++// depending on whether daylight savings time is in use at the time instant.
+ type Location struct {
+ 	name string
+ 	zone []zone
+@@ -34,7 +35,7 @@ type Location struct {
+ 	cacheZone  *zone
+ }
+ 
+-// A zone represents a single time zone such as CEST or CET.
++// A zone represents a single time zone such as CET.
+ type zone struct {
+ 	name   string // abbreviated name, "CET"
+ 	offset int    // seconds east of UTC

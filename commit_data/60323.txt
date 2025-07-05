@@ -12,6 +12,18 @@ Date:   Mon May 20 12:08:36 2024 -0700
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  doc/next/6-stdlib/99-minor/crypto/x509/62048.md | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/doc/next/6-stdlib/99-minor/crypto/x509/62048.md b/doc/next/6-stdlib/99-minor/crypto/x509/62048.md
+new file mode 100644
+index 0000000000..aaa8c5e350
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/crypto/x509/62048.md
+@@ -0,0 +1,4 @@
++The [`x509sha1` GODEBUG setting](/pkg/crypto/x509#InsecureAlgorithmError) will
++be removed in the next Go major release (Go 1.24). This will mean that crypto/x509
++will no longer support verifying signatures on certificates that use SHA-1 based
++signature algorithms.
+\ No newline at end of file

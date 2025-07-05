@@ -7,7 +7,32 @@ Date:   Mon Oct 10 20:48:24 2011 +0900
     R=adg
     CC=golang-dev
     https://golang.org/cl/5237058
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 02c7854ae0..b47afebfd6 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -33,6 +33,7 @@ Bobby Powers <bobbypowers@gmail.com>
+ Caine Tighe <arctanofyourface@gmail.com>
+ Charles L. Dorian <cldorian@gmail.com>
+ Chris Dollin <ehog.hedge@gmail.com>
++Chris Farmiloe <chrisfarms@gmail.com>
+ Chris Jones <chris@cjones.org>
+ Chris Lennert <calennert@gmail.com>
+ Christian Himpel <chressie@googlemail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index cddbfa851d..9a5e927fc6 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -67,6 +67,7 @@ Caine Tighe <arctanofyourface@gmail.com>
+ Cary Hull <chull@google.com>
+ Charles L. Dorian <cldorian@gmail.com>
+ Chris Dollin <ehog.hedge@gmail.com>
++Chris Farmiloe <chrisfarms@gmail.com>
+ Chris Jones <chris@cjones.org> <chris.jones.yar@gmail.com>
+ Chris Lennert <calennert@gmail.com>
+ Christian Himpel <chressie@googlemail.com> <chressie@gmail.com>

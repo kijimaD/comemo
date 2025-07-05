@@ -11,7 +11,7 @@ Date:   Thu Feb 25 16:07:55 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/223058
-
+---
  src/cmd/cgo/gcc.go                             | 14 ++++----
  src/cmd/godoc/godoc.go                         |  2 +-
  src/pkg/exp/4s/xs.go                           | 14 ++++----
@@ -24,3 +24,368 @@ Date:   Thu Feb 25 16:07:55 2010 -0800
  src/pkg/http/response_test.go                  |  2 +-
  src/pkg/strconv/decimal.go                     | 50 +++++++++++++-------------
  11 files changed, 115 insertions(+), 67 deletions(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index fc2da37c17..d8f35e128a 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -280,14 +280,14 @@ func (p *Prog) gccDebug(stdin []byte) (*dwarf.Data, string) {
+ 	base := []string{
+ 		"gcc",
+ 		machine,
+-		"-Wall", // many warnings
+-		"-Werror", // warnings are errors
+-		"-o" + tmp, // write object to tmp
+-		"-gdwarf-2", // generate DWARF v2 debugging symbols
++		"-Wall",                             // many warnings
++		"-Werror",                           // warnings are errors
++		"-o" + tmp,                          // write object to tmp
++		"-gdwarf-2",                         // generate DWARF v2 debugging symbols
+ 		"-fno-eliminate-unused-debug-types", // gets rid of e.g. untyped enum otherwise
+-		"-c", // do not link
+-		"-xc", // input language is C
+-		"-", // read input from standard input
++		"-c",                                // do not link
++		"-xc",                               // input language is C
++		"-",                                 // read input from standard input
+ 	}
+ 	_, stderr, ok := run(stdin, concat(base, p.GccOptions))
+ 	if !ok {
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 29792d58f7..c6438245eb 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -935,7 +935,7 @@ func redirect(c *http.Conn, r *http.Request) (redirected bool) {
+ // textExt[x] is true if the extension x indicates a text file, and false otherwise.
+ var textExt = map[string]bool{
+ 	".css": false, // must be served raw
+-	".js": false, // must be served raw
++	".js": false,  // must be served raw
+ }
+ 
+ 
+diff --git a/src/pkg/exp/4s/xs.go b/src/pkg/exp/4s/xs.go
+index d8f0ce2a11..c5493e719e 100644
+--- a/src/pkg/exp/4s/xs.go
++++ b/src/pkg/exp/4s/xs.go
+@@ -145,13 +145,13 @@ var txbits = [NCOL][32]byte{
+ }
+ 
+ var txpix = [NCOL]draw.Color{
+-	draw.Yellow, /* yellow */
+-	draw.Cyan, /* cyan */
+-	draw.Green, /* lime green */
+-	draw.GreyBlue, /* slate */
+-	draw.Red, /* red */
+-	draw.GreyGreen, /* olive green */
+-	draw.Blue, /* blue */
++	draw.Yellow,            /* yellow */
++	draw.Cyan,              /* cyan */
++	draw.Green,             /* lime green */
++	draw.GreyBlue,          /* slate */
++	draw.Red,               /* red */
++	draw.GreyGreen,         /* olive green */
++	draw.Blue,              /* blue */
+ 	draw.Color(0xFF55AAFF), /* pink */
+ 	draw.Color(0xFFAAFFFF), /* lavender */
+ 	draw.Color(0xBB005DFF), /* maroon */
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 89b44f598c..b9b8900169 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -92,29 +92,24 @@ func (p *printer) identList(list []*ast.Ident, multiLine *bool) {
+ }
+ 
+ 
+-// Sets multiLine to true if the string list spans multiple lines.
+-func (p *printer) stringList(list []*ast.BasicLit, multiLine *bool) {
+-	// convert into an expression list so we can re-use exprList formatting
+-	xlist := make([]ast.Expr, len(list))
+-	for i, x := range list {
+-		xlist[i] = x
+-	}
+-	p.exprList(noPos, xlist, 1, plusSep, multiLine, noPos)
+-}
+-
+-
+ type exprListMode uint
+ 
+ const (
+ 	blankStart exprListMode = 1 << iota // print a blank before a non-empty list
+ 	blankEnd                // print a blank after a non-empty list
+-	plusSep                 // elements are separared by + operators
+ 	commaSep                // elements are separated by commas
+ 	commaTerm               // list is optionally terminated by a comma
+ 	noIndent                // no extra indentation in multi-line lists
+ )
+ 
+ 
++// isOneLineExpr returns true if x is "small enough" to fit onto a single line.
++func (p *printer) isOneLineExpr(x ast.Expr) bool {
++	const maxSize = 60 // aproximate value, excluding space for comments
++	return p.nodeSize(x, maxSize) <= maxSize
++}
++
++
+ // Print a list of expressions. If the list spans multiple
+ // source lines, the original line breaks are respected between
+ // expressions. Sets multiLine to true if the list spans multiple
+@@ -141,9 +136,6 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, depth int, mode
+ 		// all list entries on a single line
+ 		for i, x := range list {
+ 			if i > 0 {
+-				if mode&plusSep != 0 {
+-					p.print(blank, token.ADD)
+-				}
+ 				if mode&commaSep != 0 {
+ 					p.print(token.COMMA)
+ 				}
+@@ -167,31 +159,42 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, depth int, mode
+ 		ws = indent
+ 	}
+ 
++	// the first linebreak is always a formfeed since this section must not
++	// depend on any previous formatting
+ 	if prev.IsValid() && prev.Line < line && p.linebreak(line, 1, 2, ws, true) {
+ 		ws = ignore
+ 		*multiLine = true
+ 	}
+ 
++	oneLiner := false // true if the previous expression fit on a single line
++	prevBreak := 0    // index of last expression that was followed by a linebreak
+ 	for i, x := range list {
+ 		prev := line
+ 		line = x.Pos().Line
+ 		if i > 0 {
+-			if mode&plusSep != 0 {
+-				p.print(blank, token.ADD)
+-			}
+ 			if mode&commaSep != 0 {
+ 				p.print(token.COMMA)
+ 			}
+ 			if prev < line && prev > 0 && line > 0 {
+-				if p.linebreak(line, 1, 2, ws, true) {
++				// lines are broken using newlines so comments remain aligned,
++				// but if an expression is not a "one-line" expression, or if
++				// multiple expressions are on the same line, the section is
++				// broken with a formfeed
++				if p.linebreak(line, 1, 2, ws, !oneLiner || prevBreak+1 < i) {
+ 					ws = ignore
+ 					*multiLine = true
++					prevBreak = i
+ 				}
+ 			} else {
+ 				p.print(blank)
+ 			}
+ 		}
+ 		p.expr0(x, depth, multiLine)
++		// determine if x satisfies the "one-liner" criteria
++		// TODO(gri): determine if the multiline information returned
++		//            from p.expr0 is precise enough so it could be
++		//            used instead
++		oneLiner = p.isOneLineExpr(x)
+ 	}
+ 
+ 	if mode&commaTerm != 0 && next.IsValid() && p.pos.Line < next.Line {
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 44bc3bb0ba..65979fda7f 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -40,9 +40,9 @@ const (
+ var (
+ 	esc       = []byte{tabwriter.Escape}
+ 	htab      = []byte{'\t'}
+-	htabs     = [...]byte{'\t', '\t', '\t', '\t', '\t', '\t', '\t', '\t'}
+-	newlines  = [...]byte{'\n', '\n', '\n', '\n', '\n', '\n', '\n', '\n'} // more than maxNewlines
+-	formfeeds = [...]byte{'\f', '\f', '\f', '\f', '\f', '\f', '\f', '\f'} // more than maxNewlines
++	htabs     = []byte("\t\t\t\t\t\t\t\t")
++	newlines  = []byte("\n\n\n\n\n\n\n\n") // more than maxNewlines
++	formfeeds = []byte("\f\f\f\f\f\f\f\f") // more than maxNewlines
+ 
+ 	esc_quot = []byte("&#34;") // shorter than "&quot;"
+ 	esc_apos = []byte("&#39;") // shorter than "&apos;"
+@@ -147,7 +147,7 @@ func (p *printer) write(data []byte) {
+ 				// must not be discarded by the tabwriter
+ 				j := p.indent
+ 				for ; j > len(htabs); j -= len(htabs) {
+-					p.write0(&htabs)
++					p.write0(htabs)
+ 				}
+ 				p.write0(htabs[0:j])
+ 
+@@ -526,7 +526,7 @@ func stripCommonPrefix(lines [][]byte) {
+ 	// with the opening /*, otherwise align the text with the other
+ 	// lines.
+ 	last := lines[len(lines)-1]
+-	closing := []byte{'*', '/'}
++	closing := []byte("*/")
+ 	i := bytes.Index(last, closing)
+ 	if isBlank(last[0:i]) {
+ 		// last line only contains closing */
+diff --git a/src/pkg/go/printer/testdata/expressions.golden b/src/pkg/go/printer/testdata/expressions.golden
+index b688c9bc02..6626c546b7 100644
+--- a/src/pkg/go/printer/testdata/expressions.golden
++++ b/src/pkg/go/printer/testdata/expressions.golden
+@@ -337,6 +337,21 @@ func _() {
+ }
+ 
+ 
++// Align comments in multi-line lists of single-line expressions.
++var txpix = [NCOL]draw.Color{
++	draw.Yellow,		// yellow
++	draw.Cyan,		// cyan
++	draw.Green,		// lime green
++	draw.GreyBlue,		// slate
++	draw.Red,		/* red */
++	draw.GreyGreen,		/* olive green */
++	draw.Blue,		/* blue */
++	draw.Color(0xFF55AAFF),	/* pink */
++	draw.Color(0xFFAAFFFF),	/* lavender */
++	draw.Color(0xBB005DFF),	/* maroon */
++}
++
++
+ func same(t, u *Time) bool {
+ 	// respect source lines in multi-line expressions
+ 	return t.Year == u.Year &&
+diff --git a/src/pkg/go/printer/testdata/expressions.input b/src/pkg/go/printer/testdata/expressions.input
+index b05c51ef8a..0b67a763ef 100644
+--- a/src/pkg/go/printer/testdata/expressions.input
++++ b/src/pkg/go/printer/testdata/expressions.input
+@@ -341,6 +341,21 @@ func _() {
+ }
+ 
+ 
++// Align comments in multi-line lists of single-line expressions.
++var txpix = [NCOL]draw.Color{
++	draw.Yellow, // yellow
++	draw.Cyan, // cyan
++	draw.Green, // lime green
++	draw.GreyBlue, // slate
++	draw.Red, /* red */
++	draw.GreyGreen, /* olive green */
++	draw.Blue, /* blue */
++	draw.Color(0xFF55AAFF), /* pink */
++	draw.Color(0xFFAAFFFF), /* lavender */
++	draw.Color(0xBB005DFF), /* maroon */
++}
++
++
+ func same(t, u *Time) bool {
+ 	// respect source lines in multi-line expressions
+ 	return t.Year == u.Year &&
+diff --git a/src/pkg/go/printer/testdata/expressions.raw b/src/pkg/go/printer/testdata/expressions.raw
+index 10964a45e9..406fbf695a 100644
+--- a/src/pkg/go/printer/testdata/expressions.raw
++++ b/src/pkg/go/printer/testdata/expressions.raw
+@@ -337,6 +337,21 @@ func _() {
+ }
+ 
+ 
++// Align comments in multi-line lists of single-line expressions.
++var txpix = [NCOL]draw.Color{
++	draw.Yellow,	// yellow
++	draw.Cyan,	// cyan
++	draw.Green,	// lime green
++	draw.GreyBlue,	// slate
++	draw.Red,	/* red */
++	draw.GreyGreen,	/* olive green */
++	draw.Blue,	/* blue */
++	draw.Color(0xFF55AAFF),	/* pink */
++	draw.Color(0xFFAAFFFF),	/* lavender */
++	draw.Color(0xBB005DFF),	/* maroon */
++}
++
++
+ func same(t, u *Time) bool {
+ 	// respect source lines in multi-line expressions
+ 	return t.Year == u.Year &&
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index fe342bcdf2..ad54dfd1fa 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -431,8 +431,8 @@ var segments = []seg{
+ 	seg{"\n//line File2.go:200\n  line200", "File2.go", 200},
+ 	seg{"\n//line :1\n  line1", "", 1},
+ 	seg{"\n//line foo:42\n  line42", "foo", 42},
+-	seg{"\n //line foo:42\n  line44", "foo", 44}, // bad line comment, ignored
+-	seg{"\n//line foo 42\n  line46", "foo", 46}, // bad line comment, ignored
++	seg{"\n //line foo:42\n  line44", "foo", 44},           // bad line comment, ignored
++	seg{"\n//line foo 42\n  line46", "foo", 46},            // bad line comment, ignored
+ 	seg{"\n//line foo:42 extra text\n  line48", "foo", 48}, // bad line comment, ignored
+ 	seg{"\n//line foo:42\n  line42", "foo", 42},
+ 	seg{"\n//line foo:42\n  line42", "foo", 42},
+diff --git a/src/pkg/http/response_test.go b/src/pkg/http/response_test.go
+index 51126570db..6024a62719 100644
+--- a/src/pkg/http/response_test.go
++++ b/src/pkg/http/response_test.go
+@@ -60,7 +60,7 @@ var respTests = []respTest{
+ 			ProtoMinor: 0,
+ 			RequestMethod: "GET",
+ 			Header: map[string]string{
+-				"Connection": "close", // TODO(rsc): Delete?
++				"Connection": "close",  // TODO(rsc): Delete?
+ 				"Content-Length": "10", // TODO(rsc): Delete?
+ 			},
+ 			Close: true,
+diff --git a/src/pkg/strconv/decimal.go b/src/pkg/strconv/decimal.go
+index 02c6618cb8..3a7ebf926b 100644
+--- a/src/pkg/strconv/decimal.go
++++ b/src/pkg/strconv/decimal.go
+@@ -195,31 +195,31 @@ var leftcheats = []leftCheat{
+ 		}'
+ 	*/
+ 	leftCheat{0, ""},
+-	leftCheat{1, "5"}, // * 2
+-	leftCheat{1, "25"}, // * 4
+-	leftCheat{1, "125"}, // * 8
+-	leftCheat{2, "625"}, // * 16
+-	leftCheat{2, "3125"}, // * 32
+-	leftCheat{2, "15625"}, // * 64
+-	leftCheat{3, "78125"}, // * 128
+-	leftCheat{3, "390625"}, // * 256
+-	leftCheat{3, "1953125"}, // * 512
+-	leftCheat{4, "9765625"}, // * 1024
+-	leftCheat{4, "48828125"}, // * 2048
+-	leftCheat{4, "244140625"}, // * 4096
+-	leftCheat{4, "1220703125"}, // * 8192
+-	leftCheat{5, "6103515625"}, // * 16384
+-	leftCheat{5, "30517578125"}, // * 32768
+-	leftCheat{5, "152587890625"}, // * 65536
+-	leftCheat{6, "762939453125"}, // * 131072
+-	leftCheat{6, "3814697265625"}, // * 262144
+-	leftCheat{6, "19073486328125"}, // * 524288
+-	leftCheat{7, "95367431640625"}, // * 1048576
+-	leftCheat{7, "476837158203125"}, // * 2097152
+-	leftCheat{7, "2384185791015625"}, // * 4194304
+-	leftCheat{7, "11920928955078125"}, // * 8388608
+-	leftCheat{8, "59604644775390625"}, // * 16777216
+-	leftCheat{8, "298023223876953125"}, // * 33554432
++	leftCheat{1, "5"},                   // * 2
++	leftCheat{1, "25"},                  // * 4
++	leftCheat{1, "125"},                 // * 8
++	leftCheat{2, "625"},                 // * 16
++	leftCheat{2, "3125"},                // * 32
++	leftCheat{2, "15625"},               // * 64
++	leftCheat{3, "78125"},               // * 128
++	leftCheat{3, "390625"},              // * 256
++	leftCheat{3, "1953125"},             // * 512
++	leftCheat{4, "9765625"},             // * 1024
++	leftCheat{4, "48828125"},            // * 2048
++	leftCheat{4, "244140625"},           // * 4096
++	leftCheat{4, "1220703125"},          // * 8192
++	leftCheat{5, "6103515625"},          // * 16384
++	leftCheat{5, "30517578125"},         // * 32768
++	leftCheat{5, "152587890625"},        // * 65536
++	leftCheat{6, "762939453125"},        // * 131072
++	leftCheat{6, "3814697265625"},       // * 262144
++	leftCheat{6, "19073486328125"},      // * 524288
++	leftCheat{7, "95367431640625"},      // * 1048576
++	leftCheat{7, "476837158203125"},     // * 2097152
++	leftCheat{7, "2384185791015625"},    // * 4194304
++	leftCheat{7, "11920928955078125"},   // * 8388608
++	leftCheat{8, "59604644775390625"},   // * 16777216
++	leftCheat{8, "298023223876953125"},  // * 33554432
+ 	leftCheat{8, "1490116119384765625"}, // * 67108864
+ 	leftCheat{9, "7450580596923828125"}, // * 134217728
+ }

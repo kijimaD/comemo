@@ -19,7 +19,34 @@ Date:   Tue Nov 20 11:11:59 2018 +0100
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/mime/mediatype.go      | 2 +-
  src/mime/mediatype_test.go | 2 ++
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/mime/mediatype.go b/src/mime/mediatype.go
+index 3d480a9d7e..fc6e0d0673 100644
+--- a/src/mime/mediatype.go
++++ b/src/mime/mediatype.go
+@@ -56,7 +56,7 @@ func FormatMediaType(t string, param map[string]string) string {
+ 
+ 		b.WriteByte('"')
+ 		offset := 0
+-		for index, character := range value {
++		for index, character := range []byte(value) {
+ 			if character == '"' || character == '\\' {
+ 				b.WriteString(value[offset:index])
+ 				offset = index
+diff --git a/src/mime/mediatype_test.go b/src/mime/mediatype_test.go
+index 35b311a4a5..945a8189e1 100644
+--- a/src/mime/mediatype_test.go
++++ b/src/mime/mediatype_test.go
+@@ -481,6 +481,8 @@ var formatTests = []formatTest{
+ 	{"noslash", map[string]string{"X": "Y"}, "noslash; x=Y"}, // e.g. Content-Disposition values (RFC 2183); issue 11289
+ 	{"foo bar/baz", nil, ""},
+ 	{"foo/bar baz", nil, ""},
++	{"attachment", map[string]string{"filename": "ĄĄŽŽČČŠŠ"}, ""},
++	{"attachment", map[string]string{"filename": "ÁÁÊÊÇÇÎÎ"}, ""},
+ 	{"foo/BAR", nil, "foo/bar"},
+ 	{"foo/BAR", map[string]string{"X": "Y"}, "foo/bar; x=Y"},
+ 	{"foo/BAR", map[string]string{"space": "With space"}, `foo/bar; space="With space"`},

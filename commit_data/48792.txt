@@ -14,8 +14,148 @@ Date:   Mon Jun 7 19:50:15 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/parser/parser.go              | 27 ++++++++++++++++++----
  src/go/parser/short_test.go          |  8 ++++---
  src/go/parser/testdata/interface.go2 | 45 +++++++++++++++++++++++++++++++++++-
  3 files changed, 71 insertions(+), 9 deletions(-)
+
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 5ccba02e5c..869d14c2c1 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -1071,10 +1071,13 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
+ 
+ 	pos := p.expect(token.INTERFACE)
+ 	lbrace := p.expect(token.LBRACE)
++
+ 	var list []*ast.Field
+-	for p.tok == token.IDENT || p.parseTypeParams() && (p.tok == token.TYPE || p.tok == token.TILDE) {
+-		switch p.tok {
+-		case token.IDENT:
++
++parseElements:
++	for {
++		switch {
++		case p.tok == token.IDENT:
+ 			f := p.parseMethodSpec()
+ 			if f.Names == nil && p.parseTypeParams() {
+ 				f = p.embeddedElem(f)
+@@ -1082,12 +1085,12 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
+ 			p.expectSemi()
+ 			f.Comment = p.lineComment
+ 			list = append(list, f)
+-		case token.TILDE:
++		case p.tok == token.TILDE && p.parseTypeParams():
+ 			f := p.embeddedElem(nil)
+ 			p.expectSemi()
+ 			f.Comment = p.lineComment
+ 			list = append(list, f)
+-		case token.TYPE:
++		case p.tok == token.TYPE && p.parseTypeParams():
+ 			// TODO(rfindley): remove TypeList syntax and refactor the clauses above.
+ 
+ 			// all types in a type list share the same field name "type"
+@@ -1099,8 +1102,22 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
+ 				list = append(list, &ast.Field{Names: name, Type: typ})
+ 			}
+ 			p.expectSemi()
++		case p.parseTypeParams():
++			if t := p.tryIdentOrType(); t != nil {
++				f := new(ast.Field)
++				f.Type = t
++				f = p.embeddedElem(f)
++				p.expectSemi()
++				f.Comment = p.lineComment
++				list = append(list, f)
++			} else {
++				break parseElements
++			}
++		default:
++			break parseElements
+ 		}
+ 	}
++
+ 	// TODO(rfindley): the error produced here could be improved, since we could
+ 	// accept a identifier, 'type', or a '}' at this point.
+ 	rbrace := p.expect(token.RBRACE)
+diff --git a/src/go/parser/short_test.go b/src/go/parser/short_test.go
+index 67fef15665..2467ccb4a7 100644
+--- a/src/go/parser/short_test.go
++++ b/src/go/parser/short_test.go
+@@ -200,10 +200,12 @@ var invalids = []string{
+ 	`package p; func (type /* ERROR "found 'type'" */ T)(T) _()`,
+ 	`package p; type _[A+B, /* ERROR "expected ']'" */ ] int`,
+ 
+-	// TODO: this error should be positioned on the ':'
++	// TODO(rfindley): this error should be positioned on the ':'
+ 	`package p; var a = a[[]int:[ /* ERROR "expected expression" */ ]int];`,
+-	// TODO: the compiler error is better here: "cannot parenthesize embedded type"
+-	`package p; type I1 interface{}; type I2 interface{ (/* ERROR "expected '}', found '\('" */ I1) }`,
++
++	// TODO(rfindley): the compiler error is better here: "cannot parenthesize embedded type"
++	// TODO(rfindley): confirm that parenthesized types should now be accepted.
++	// `package p; type I1 interface{}; type I2 interface{ (/* ERROR "expected '}', found '\('" */ I1) }`,
+ 
+ 	// issue 8656
+ 	`package p; func f() (a b string /* ERROR "missing ','" */ , ok bool)`,
+diff --git a/src/go/parser/testdata/interface.go2 b/src/go/parser/testdata/interface.go2
+index c631055202..b399d75148 100644
+--- a/src/go/parser/testdata/interface.go2
++++ b/src/go/parser/testdata/interface.go2
+@@ -25,7 +25,6 @@ type _ interface {
+ 	~int | ~string
+ }
+ 
+-
+ type _ interface {
+ 	m()
+ 	~int
+@@ -35,3 +34,47 @@ type _ interface {
+ 	type bool, int, float64
+ }
+ 
++type _ interface {
++	int
++	[]byte
++	[10]int
++	struct{}
++	*int
++	func()
++	interface{}
++	map[string]int
++	chan T
++	chan<- T
++	<-chan T
++	T[int]
++}
++
++type _ interface {
++	int | string
++	[]byte | string
++	[10]int | string
++	struct{} | string
++	*int | string
++	func() | string
++	interface{} | string
++	map[string]int | string
++	chan T | string
++	chan<- T | string
++	<-chan T | string
++	T[int] | string
++}
++
++type _ interface {
++	~int | string
++	~[]byte | string
++	~[10]int | string
++	~struct{} | string
++	~*int | string
++	~func() | string
++	~interface{} | string
++	~map[string]int | string
++	~chan T | string
++	~chan<- T | string
++	~<-chan T | string
++	~T[int] | string
++}

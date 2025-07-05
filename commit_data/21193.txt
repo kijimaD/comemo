@@ -10,7 +10,34 @@ Date:   Fri Dec 5 09:37:56 2014 +0900
     R=golang-codereviews, adg
     CC=golang-codereviews
     https://golang.org/cl/182480043
-
+---
  src/cmd/go/generate.go      | 2 +-
  src/cmd/go/generate_test.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/generate.go b/src/cmd/go/generate.go
+index 88f7efa0f3..baf4d2b55c 100644
+--- a/src/cmd/go/generate.go
++++ b/src/cmd/go/generate.go
+@@ -250,7 +250,7 @@ func isGoGenerate(buf []byte) bool {
+ 
+ // split breaks the line into words, evaluating quoted
+ // strings and evaluating environment variables.
+-// The initial //go:generate element is dropped.
++// The initial //go:generate element is present in line.
+ func (g *Generator) split(line string) []string {
+ 	// Parse line, obeying quoted strings.
+ 	var words []string
+diff --git a/src/cmd/go/generate_test.go b/src/cmd/go/generate_test.go
+index 93c0ae66e9..660ebabbe8 100644
+--- a/src/cmd/go/generate_test.go
++++ b/src/cmd/go/generate_test.go
+@@ -40,7 +40,7 @@ func TestGenerateCommandParse(t *testing.T) {
+ 	}
+ 	g.setShorthand([]string{"-command", "yacc", "go", "tool", "yacc"})
+ 	for _, test := range splitTests {
+-		got := g.split("//go:generate " + test.in)
++		got := g.split("//go:generate " + test.in + "\n")
+ 		if !reflect.DeepEqual(got, test.out) {
+ 			t.Errorf("split(%q): got %q expected %q", test.in, got, test.out)
+ 		}

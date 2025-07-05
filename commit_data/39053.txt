@@ -24,7 +24,40 @@ Date:   Wed Dec 19 17:32:22 2018 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/malloc_test.go | 8 ++++++++
  src/runtime/mem_bsd.go     | 2 +-
  2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/malloc_test.go b/src/runtime/malloc_test.go
+index f25bfa48af..a2d5864d3d 100644
+--- a/src/runtime/malloc_test.go
++++ b/src/runtime/malloc_test.go
+@@ -183,6 +183,14 @@ type acLink struct {
+ var arenaCollisionSink []*acLink
+ 
+ func TestArenaCollision(t *testing.T) {
++	if GOOS == "darwin" && race.Enabled {
++		// Skip this test on Darwin in race mode because Darwin 10.10 has
++		// issues following arena hints and runs out of them in race mode, so
++		// MAP_FIXED is used to ensure we keep the heap in the memory region the
++		// race detector expects.
++		// TODO(mknyszek): Delete this when Darwin 10.10 is no longer supported.
++		t.Skip("disabled on Darwin with race mode since MAP_FIXED is used")
++	}
+ 	testenv.MustHaveExec(t)
+ 
+ 	// Test that mheap.sysAlloc handles collisions with other
+diff --git a/src/runtime/mem_bsd.go b/src/runtime/mem_bsd.go
+index bf2d99678b..84238d7279 100644
+--- a/src/runtime/mem_bsd.go
++++ b/src/runtime/mem_bsd.go
+@@ -43,7 +43,7 @@ func sysFault(v unsafe.Pointer, n uintptr) {
+ 
+ func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+ 	flags := int32(_MAP_ANON | _MAP_PRIVATE)
+-	if raceenabled {
++	if raceenabled && GOOS == "darwin" {
+ 		// Currently the race detector expects memory to live within a certain
+ 		// range, and on Darwin 10.10 mmap is prone to ignoring hints, moreso
+ 		// than later versions and other BSDs (#26475). So, even though it's

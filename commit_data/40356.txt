@@ -13,6 +13,24 @@ Date:   Mon May 6 21:26:08 2019 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/url/url_test.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/net/url/url_test.go b/src/net/url/url_test.go
+index 27e132b1cd..e6d6ef8a83 100644
+--- a/src/net/url/url_test.go
++++ b/src/net/url/url_test.go
+@@ -1634,6 +1634,12 @@ func TestURLHostname(t *testing.T) {
+ 		{"[1:2:3:4]", "1:2:3:4"},
+ 		{"[1:2:3:4]:80", "1:2:3:4"},
+ 		{"[::1]:80", "::1"},
++		{"[::1]", "::1"},
++		{"localhost", "localhost"},
++		{"localhost:443", "localhost"},
++		{"some.super.long.domain.example.org:8080", "some.super.long.domain.example.org"},
++		{"[2001:0db8:85a3:0000:0000:8a2e:0370:7334]:17000", "2001:0db8:85a3:0000:0000:8a2e:0370:7334"},
++		{"[2001:0db8:85a3:0000:0000:8a2e:0370:7334]", "2001:0db8:85a3:0000:0000:8a2e:0370:7334"},
+ 	}
+ 	for _, tt := range tests {
+ 		u := &URL{Host: tt.host}

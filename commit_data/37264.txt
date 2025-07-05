@@ -13,7 +13,56 @@ Date:   Sat Jul 14 04:17:19 2018 +0800
     Reviewed-on: https://go-review.googlesource.com/123778
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modcmd/mod.go |  2 +-
  src/cmd/go/mod_test.go            | 10 +++++-----
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/internal/modcmd/mod.go b/src/cmd/go/internal/modcmd/mod.go
+index d8ae1d95ac..ddf5000dd8 100644
+--- a/src/cmd/go/internal/modcmd/mod.go
++++ b/src/cmd/go/internal/modcmd/mod.go
+@@ -400,7 +400,7 @@ func flagReplace(arg string) {
+ 	if i = strings.Index(arg, "="); i < 0 {
+ 		base.Fatalf("go mod: -replace=%s: need old@v=new[@v] (missing =)", arg)
+ 	}
+-	old, new := strings.TrimSpace(arg[:i]), strings.TrimSpace(arg[i+2:])
++	old, new := strings.TrimSpace(arg[:i]), strings.TrimSpace(arg[i+1:])
+ 	if strings.HasPrefix(new, ">") {
+ 		base.Fatalf("go mod: -replace=%s: separator between old and new is =, not =>", arg)
+ 	}
+diff --git a/src/cmd/go/mod_test.go b/src/cmd/go/mod_test.go
+index f3dc64cc37..6cd9f8a948 100644
+--- a/src/cmd/go/mod_test.go
++++ b/src/cmd/go/mod_test.go
+@@ -383,8 +383,8 @@ func TestModEdit(t *testing.T) {
+ 		"-droprequire=x.2",
+ 		"-exclude=x.1 @ v1.2.0",
+ 		"-exclude=x.1@v1.2.1",
+-		"-replace=x.1@v1.3.0=>y.1@v1.4.0",
+-		"-replace=x.1@v1.4.0 => ../z",
++		"-replace=x.1@v1.3.0=y.1@v1.4.0",
++		"-replace=x.1@v1.4.0 = ../z",
+ 	)
+ 	mustHaveGoMod(`module x.x/y/z
+ 
+@@ -451,8 +451,8 @@ require x.3 v1.99.0
+ 	}
+ 
+ 	tg.run("mod",
+-		"-replace=x.1@v1.3.0=>y.1/v2@v2.3.5",
+-		"-replace=x.1@v1.4.0=>y.1/v2@v2.3.5",
++		"-replace=x.1@v1.3.0=y.1/v2@v2.3.5",
++		"-replace=x.1@v1.4.0=y.1/v2@v2.3.5",
+ 	)
+ 	mustHaveGoMod(`module x.x/y/z
+ 
+@@ -466,7 +466,7 @@ replace (
+ require x.3 v1.99.0
+ `)
+ 	tg.run("mod",
+-		"-replace=x.1=>y.1/v2@v2.3.6",
++		"-replace=x.1=y.1/v2@v2.3.6",
+ 	)
+ 	mustHaveGoMod(`module x.x/y/z
+ 

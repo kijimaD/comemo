@@ -11,7 +11,41 @@ Date:   Thu Apr 6 18:47:01 2017 -0700
     Run-TryBot: Caleb Spare <cespare@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/race/output_test.go | 2 ++
  src/testing/testing.go          | 5 +++--
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/race/output_test.go b/src/runtime/race/output_test.go
+index 587540f5e8..e73e6b3bfc 100644
+--- a/src/runtime/race/output_test.go
++++ b/src/runtime/race/output_test.go
+@@ -181,10 +181,12 @@ func TestFail(t *testing.T) {
+ 	}()
+ 	x = 43
+ 	<-done
++	t.Log(t.Failed())
+ }
+ `, `
+ ==================
+ --- FAIL: TestFail \(0...s\)
++.*main_test.go:13: true
+ .*testing.go:.*: race detected during execution of test
+ FAIL`},
+ 
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index d63d5d85a7..130977f106 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -450,8 +450,9 @@ func (c *common) Fail() {
+ // Failed reports whether the function has failed.
+ func (c *common) Failed() bool {
+ 	c.mu.RLock()
+-	defer c.mu.RUnlock()
+-	return c.failed
++	failed := c.failed
++	c.mu.RUnlock()
++	return failed || c.raceErrors+race.Errors() > 0
+ }
+ 
+ // FailNow marks the function as having failed and stops its execution.

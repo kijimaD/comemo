@@ -11,6 +11,20 @@ Date:   Wed Apr 11 19:57:17 2018 +0000
     GitHub-Pull-Request: golang/go#24807
     Reviewed-on: https://go-review.googlesource.com/106355
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/test/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index b82484a12c..7244717d73 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -1487,7 +1487,7 @@ func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error)
+ 			fmt.Fprintf(h, "env %s %x\n", name, hashGetenv(name))
+ 		case "chdir":
+ 			pwd = name // always absolute
+-			fmt.Fprintf(h, "cbdir %s %x\n", name, hashStat(name))
++			fmt.Fprintf(h, "chdir %s %x\n", name, hashStat(name))
+ 		case "stat":
+ 			if !filepath.IsAbs(name) {
+ 				name = filepath.Join(pwd, name)

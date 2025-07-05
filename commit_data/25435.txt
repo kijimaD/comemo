@@ -7,9 +7,72 @@ Date:   Thu Oct 29 20:24:29 2015 +1300
     Change-Id: Ibddbbf6f4a5bd336a8b234d40fad0fcea574cd6e
     Reviewed-on: https://go-review.googlesource.com/13994
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/lex.go | 3 ++-
  src/cmd/go/build.go                | 4 ++--
  src/cmd/link/internal/arm64/obj.go | 2 +-
  src/cmd/link/internal/ld/lib.go    | 2 +-
  4 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index b6a43ac49e..6ea1482313 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -227,7 +227,8 @@ func Main() {
+ 	if Thearch.Thechar == '6' {
+ 		obj.Flagcount("largemodel", "generate code that assumes a large memory model", &flag_largemodel)
+ 	}
+-	if Thearch.Thechar == '5' || Thearch.Thechar == '6' || Thearch.Thechar == '8' || Thearch.Thechar == '9' {
++	switch Thearch.Thechar {
++	case '5', '6', '7', '8', '9':
+ 		flag.BoolVar(&flag_dynlink, "dynlink", false, "support references to Go symbols defined in other shared libraries")
+ 	}
+ 	obj.Flagstr("cpuprofile", "write cpu profile to `file`", &cpuprofile)
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index e25a56ac30..b1c95220cc 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -388,7 +388,7 @@ func buildModeInit() {
+ 			codegenArg = "-fPIC"
+ 		} else {
+ 			switch platform {
+-			case "linux/386", "linux/amd64", "linux/arm":
++			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64":
+ 				buildAsmflags = append(buildAsmflags, "-D=shared=1")
+ 			default:
+ 				fatalf("-buildmode=shared not supported on %s\n", platform)
+@@ -407,7 +407,7 @@ func buildModeInit() {
+ 			codegenArg = "-fPIC"
+ 		} else {
+ 			switch platform {
+-			case "linux/386", "linux/amd64", "linux/arm":
++			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64":
+ 				buildAsmflags = append(buildAsmflags, "-D=shared=1")
+ 			default:
+ 				fatalf("-buildmode=shared not supported on %s\n", platform)
+diff --git a/src/cmd/link/internal/arm64/obj.go b/src/cmd/link/internal/arm64/obj.go
+index 5c28551d65..ae121c28bf 100644
+--- a/src/cmd/link/internal/arm64/obj.go
++++ b/src/cmd/link/internal/arm64/obj.go
+@@ -104,7 +104,7 @@ func archinit() {
+ 		break
+ 	}
+ 
+-	if ld.Buildmode == ld.BuildmodeCShared {
++	if ld.Buildmode == ld.BuildmodeCShared || ld.DynlinkingGo() {
+ 		ld.Linkmode = ld.LinkExternal
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index a311c780ed..96ead2f044 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -321,7 +321,7 @@ func (mode *BuildMode) Set(s string) error {
+ 		}
+ 		*mode = BuildmodeCShared
+ 	case "shared":
+-		if goos != "linux" || (goarch != "386" && goarch != "amd64" && goarch != "arm") {
++		if goos != "linux" || (goarch != "386" && goarch != "amd64" && goarch != "arm" && goarch != "arm64") {
+ 			return badmode()
+ 		}
+ 		*mode = BuildmodeShared

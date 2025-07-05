@@ -8,6 +8,18 @@ Date:   Thu Aug 7 18:41:37 2014 -0400
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/121370043
-
+---
  src/cmd/9c/Makefile | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/9c/Makefile b/src/cmd/9c/Makefile
+new file mode 100644
+index 0000000000..3f528d7517
+--- /dev/null
++++ b/src/cmd/9c/Makefile
+@@ -0,0 +1,5 @@
++# Copyright 2012 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../Make.dist

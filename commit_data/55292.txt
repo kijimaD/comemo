@@ -13,8 +13,106 @@ Date:   Wed Jan 25 16:19:26 2023 +0100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-
+---
  src/crypto/rand/rand.go                       |  2 +-
  src/crypto/rand/rand_getrandom.go             |  4 +-
  src/internal/syscall/unix/getrandom_netbsd.go | 56 +++++++++++++++++++++++++++
  3 files changed, 59 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/rand/rand.go b/src/crypto/rand/rand.go
+index af85b966df..ac2635d1b3 100644
+--- a/src/crypto/rand/rand.go
++++ b/src/crypto/rand/rand.go
+@@ -11,7 +11,7 @@ import "io"
+ // Reader is a global, shared instance of a cryptographically
+ // secure random number generator.
+ //
+-// On Linux, FreeBSD, Dragonfly and Solaris, Reader uses getrandom(2) if
++// On Linux, FreeBSD, Dragonfly, NetBSD and Solaris, Reader uses getrandom(2) if
+ // available, /dev/urandom otherwise.
+ // On OpenBSD and macOS, Reader uses getentropy(2).
+ // On other Unix-like systems, Reader reads from /dev/urandom.
+diff --git a/src/crypto/rand/rand_getrandom.go b/src/crypto/rand/rand_getrandom.go
+index 478aa5c459..46c4133a73 100644
+--- a/src/crypto/rand/rand_getrandom.go
++++ b/src/crypto/rand/rand_getrandom.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build linux || freebsd || dragonfly || solaris
++//go:build dragonfly || freebsd || linux || netbsd || solaris
+ 
+ package rand
+ 
+@@ -21,7 +21,7 @@ func init() {
+ 		//     is returned by a single call to getrandom() on systems where int
+ 		//     has a size of 32 bits.
+ 		maxGetRandomRead = (1 << 25) - 1
+-	case "freebsd", "dragonfly", "solaris", "illumos":
++	case "dragonfly", "freebsd", "illumos", "netbsd", "solaris":
+ 		maxGetRandomRead = 1 << 8
+ 	default:
+ 		panic("no maximum specified for GetRandom")
+diff --git a/src/internal/syscall/unix/getrandom_netbsd.go b/src/internal/syscall/unix/getrandom_netbsd.go
+new file mode 100644
+index 0000000000..724228b380
+--- /dev/null
++++ b/src/internal/syscall/unix/getrandom_netbsd.go
+@@ -0,0 +1,56 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix
++
++import (
++	"sync"
++	"sync/atomic"
++	"syscall"
++	"unsafe"
++)
++
++// NetBSD getrandom system call number.
++const getrandomTrap uintptr = 91
++
++var getrandomUnsupported int32 // atomic
++
++// GetRandomFlag is a flag supported by the getrandom system call.
++type GetRandomFlag uintptr
++
++// GetRandom calls the getrandom system call.
++func GetRandom(p []byte, flags GetRandomFlag) (n int, err error) {
++	if len(p) == 0 {
++		return 0, nil
++	}
++	if atomic.LoadInt32(&getrandomUnsupported) != 0 {
++		return 0, syscall.ENOSYS
++	}
++	// getrandom(2) was added in NetBSD 10.0
++	if getOSRevision() < 1000000000 {
++		atomic.StoreInt32(&getrandomUnsupported, 1)
++		return 0, syscall.ENOSYS
++	}
++	r1, _, errno := syscall.Syscall(getrandomTrap,
++		uintptr(unsafe.Pointer(&p[0])),
++		uintptr(len(p)),
++		uintptr(flags))
++	if errno != 0 {
++		if errno == syscall.ENOSYS {
++			atomic.StoreInt32(&getrandomUnsupported, 1)
++		}
++		return 0, errno
++	}
++	return int(r1), nil
++}
++
++var (
++	osrevisionOnce sync.Once
++	osrevision     uint32
++)
++
++func getOSRevision() uint32 {
++	osrevisionOnce.Do(func() { osrevision, _ = syscall.SysctlUint32("kern.osrevision") })
++	return osrevision
++}

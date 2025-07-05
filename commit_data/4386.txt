@@ -9,7 +9,51 @@ Date:   Fri Dec 11 12:41:04 2009 -0800
     
     R=gri
     https://golang.org/cl/174064
-
+---
  AUTHORS      | 2 ++
  CONTRIBUTORS | 3 +++
  2 files changed, 5 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index f547477ce1..7471499e62 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -11,6 +11,7 @@
+ Abhinav Gupta <abhinav.g90@gmail.com>
+ Adrian O'Grady <elpollouk@gmail.com>
+ Andrew Skiba <skibaa@gmail.com>
++Andrey Mirtchovski <mirtchovski@gmail.com>
+ Anthony Starks <ajstarks@gmail.com>
+ Aron Nopanen <aron.nopanen@gmail.com>
+ Charles L. Dorian <cldorian@gmail.com>
+@@ -41,3 +42,4 @@ Sergio Luis O. B. Correia <sergio@larces.uece.br>
+ Sven Almgren <sven@tras.se>
+ Tor Andersson <tor.andersson@gmail.com>
+ William Josephson <wjosephson@gmail.com>
++Yongjian Xu <i3dmaster@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 250b8f61ee..2ee7f72d33 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -30,6 +30,7 @@ Abhinav Gupta <abhinav.g90@gmail.com>
+ Adam Langley <agl@golang.org>
+ Adrian O'Grady <elpollouk@gmail.com>
+ Andrew Skiba <skibaa@gmail.com>
++Andrey Mirtchovski <mirtchovski@gmail.com>
+ Anthony Starks <ajstarks@gmail.com>
+ Aron Nopanen <aron.nopanen@gmail.com>
+ Austin Clements <aclements@csail.mit.edu>
+@@ -63,6 +64,7 @@ Kei Son <hey.calmdown@gmail.com>
+ Ken Thompson <ken@golang.org>
+ Kevin Ballard <kevin@sb.org>
+ Larry Hosken <lahosken@golang.org>
++Maxim Ushakov <ushakov@google.com>
+ Michael Elkins <michael.elkins@gmail.com>
+ Michael Hoisie <hoisie@gmail.com>
+ Môshe van der Sterre <moshevds@gmail.com>
+@@ -86,4 +88,5 @@ Tor Andersson <tor.andersson@gmail.com>
+ Trevor Strohman <trevor.strohman@gmail.com>
+ Vish Subramanian <vish@google.com>
+ William Josephson <wjosephson@gmail.com>
++Yongjian Xu <i3dmaster@gmail.com>
+ Yves Junqueira <yves.junqueira@gmail.com>

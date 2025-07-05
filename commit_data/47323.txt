@@ -15,9 +15,283 @@ Date:   Thu Oct 22 16:55:55 2020 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/abi_test.go    | 116 +++++++++++++++++++++++++++++++++++++++++++++
  src/runtime/export_test.go |  15 ++++++
  src/runtime/mfinal.go      |  46 ++++++++++++------
  src/runtime/stubs.go       |  28 +++++++++++
  4 files changed, 191 insertions(+), 14 deletions(-)
+
+diff --git a/src/runtime/abi_test.go b/src/runtime/abi_test.go
+new file mode 100644
+index 0000000000..fa365c0832
+--- /dev/null
++++ b/src/runtime/abi_test.go
+@@ -0,0 +1,116 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build goexperiment.regabi
++//go:build goexperiment.regabi
++
++// This file contains tests specific to making sure the register ABI
++// works in a bunch of contexts in the runtime.
++
++package runtime_test
++
++import (
++	"internal/abi"
++	"internal/testenv"
++	"os"
++	"os/exec"
++	"runtime"
++	"strings"
++	"testing"
++	"time"
++)
++
++var regConfirmRun int
++
++//go:registerparams
++func regFinalizerPointer(v *Tint) (int, float32, [10]byte) {
++	regConfirmRun = *(*int)(v)
++	return 5151, 4.0, [10]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
++}
++
++//go:registerparams
++func regFinalizerIface(v Tinter) (int, float32, [10]byte) {
++	regConfirmRun = *(*int)(v.(*Tint))
++	return 5151, 4.0, [10]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
++}
++
++func TestFinalizerRegisterABI(t *testing.T) {
++	testenv.MustHaveExec(t)
++
++	// Actually run the test in a subprocess because we don't want
++	// finalizers from other tests interfering.
++	if os.Getenv("TEST_FINALIZER_REGABI") != "1" {
++		cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestFinalizerRegisterABI", "-test.v"))
++		cmd.Env = append(cmd.Env, "TEST_FINALIZER_REGABI=1")
++		out, err := cmd.CombinedOutput()
++		if !strings.Contains(string(out), "PASS\n") || err != nil {
++			t.Fatalf("%s\n(exit status %v)", string(out), err)
++		}
++		return
++	}
++
++	// Optimistically clear any latent finalizers from e.g. the testing
++	// package before continuing.
++	//
++	// It's possible that a finalizer only becomes available to run
++	// after this point, which would interfere with the test and could
++	// cause a crash, but because we're running in a separate process
++	// it's extremely unlikely.
++	runtime.GC()
++	runtime.GC()
++
++	// fing will only pick the new IntRegArgs up if it's currently
++	// sleeping and wakes up, so wait for it to go to sleep.
++	success := false
++	for i := 0; i < 100; i++ {
++		if runtime.FinalizerGAsleep() {
++			success = true
++			break
++		}
++		time.Sleep(20 * time.Millisecond)
++	}
++	if !success {
++		t.Fatal("finalizer not asleep?")
++	}
++
++	argRegsBefore := runtime.SetIntArgRegs(abi.IntArgRegs)
++	defer runtime.SetIntArgRegs(argRegsBefore)
++
++	tests := []struct {
++		name         string
++		fin          interface{}
++		confirmValue int
++	}{
++		{"Pointer", regFinalizerPointer, -1},
++		{"Interface", regFinalizerIface, -2},
++	}
++	for i := range tests {
++		test := &tests[i]
++		t.Run(test.name, func(t *testing.T) {
++			regConfirmRun = 0
++
++			x := new(Tint)
++			*x = (Tint)(test.confirmValue)
++			runtime.SetFinalizer(x, test.fin)
++
++			runtime.KeepAlive(x)
++
++			// Queue the finalizer.
++			runtime.GC()
++			runtime.GC()
++
++			for i := 0; i < 100; i++ {
++				time.Sleep(10 * time.Millisecond)
++				if regConfirmRun != 0 {
++					break
++				}
++			}
++			if regConfirmRun == 0 {
++				t.Fatal("finalizer failed to execute")
++			} else if regConfirmRun != test.confirmValue {
++				t.Fatalf("wrong finalizer executed? regConfirmRun = %d", regConfirmRun)
++			}
++		})
++	}
++}
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 5a87024b8a..195b7b0519 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1220,3 +1220,18 @@ func (th *TimeHistogram) Count(bucket, subBucket uint) (uint64, bool) {
+ func (th *TimeHistogram) Record(duration int64) {
+ 	(*timeHistogram)(th).record(duration)
+ }
++
++func SetIntArgRegs(a int) int {
++	lock(&finlock)
++	old := intArgRegs
++	intArgRegs = a
++	unlock(&finlock)
++	return old
++}
++
++func FinalizerGAsleep() bool {
++	lock(&finlock)
++	result := fingwait
++	unlock(&finlock)
++	return result
++}
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index e92ec80e3c..fd318d49a8 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -163,6 +163,7 @@ func runfinq() {
+ 	var (
+ 		frame    unsafe.Pointer
+ 		framecap uintptr
++		argRegs  int
+ 	)
+ 
+ 	for {
+@@ -176,6 +177,7 @@ func runfinq() {
+ 			goparkunlock(&finlock, waitReasonFinalizerWait, traceEvGoBlock, 1)
+ 			continue
+ 		}
++		argRegs = intArgRegs
+ 		unlock(&finlock)
+ 		if raceenabled {
+ 			racefingo()
+@@ -184,7 +186,22 @@ func runfinq() {
+ 			for i := fb.cnt; i > 0; i-- {
+ 				f := &fb.fin[i-1]
+ 
+-				framesz := unsafe.Sizeof((interface{})(nil)) + f.nret
++				var regs abi.RegArgs
++				var framesz uintptr
++				if argRegs > 0 {
++					// The args can always be passed in registers if they're
++					// available, because platforms we support always have no
++					// argument registers available, or more than 2.
++					//
++					// But unfortunately because we can have an arbitrary
++					// amount of returns and it would be complex to try and
++					// figure out how many of those can get passed in registers,
++					// just conservatively assume none of them do.
++					framesz = f.nret
++				} else {
++					// Need to pass arguments on the stack too.
++					framesz = unsafe.Sizeof((interface{})(nil)) + f.nret
++				}
+ 				if framecap < framesz {
+ 					// The frame does not contain pointers interesting for GC,
+ 					// all not yet finalized objects are stored in finq.
+@@ -197,33 +214,34 @@ func runfinq() {
+ 				if f.fint == nil {
+ 					throw("missing type in runfinq")
+ 				}
+-				// frame is effectively uninitialized
+-				// memory. That means we have to clear
+-				// it before writing to it to avoid
+-				// confusing the write barrier.
+-				*(*[2]uintptr)(frame) = [2]uintptr{}
++				r := frame
++				if argRegs > 0 {
++					r = unsafe.Pointer(&regs.Ints)
++				} else {
++					// frame is effectively uninitialized
++					// memory. That means we have to clear
++					// it before writing to it to avoid
++					// confusing the write barrier.
++					*(*[2]uintptr)(frame) = [2]uintptr{}
++				}
+ 				switch f.fint.kind & kindMask {
+ 				case kindPtr:
+ 					// direct use of pointer
+-					*(*unsafe.Pointer)(frame) = f.arg
++					*(*unsafe.Pointer)(r) = f.arg
+ 				case kindInterface:
+ 					ityp := (*interfacetype)(unsafe.Pointer(f.fint))
+ 					// set up with empty interface
+-					(*eface)(frame)._type = &f.ot.typ
+-					(*eface)(frame).data = f.arg
++					(*eface)(r)._type = &f.ot.typ
++					(*eface)(r).data = f.arg
+ 					if len(ityp.mhdr) != 0 {
+ 						// convert to interface with methods
+ 						// this conversion is guaranteed to succeed - we checked in SetFinalizer
+-						(*iface)(frame).tab = assertE2I(ityp, (*eface)(frame)._type)
++						(*iface)(r).tab = assertE2I(ityp, (*eface)(r)._type)
+ 					}
+ 				default:
+ 					throw("bad kind in runfinq")
+ 				}
+ 				fingRunning = true
+-				// Pass a dummy RegArgs for now.
+-				//
+-				// TODO(mknyszek): Pass arguments in registers.
+-				var regs abi.RegArgs
+ 				reflectcall(nil, unsafe.Pointer(f.fn), frame, uint32(framesz), uint32(framesz), uint32(framesz), &regs)
+ 				fingRunning = false
+ 
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 5011d7199e..a2e04a64a5 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -396,3 +396,31 @@ func addmoduledata()
+ // Injected by the signal handler for panicking signals. On many platforms it just
+ // jumps to sigpanic.
+ func sigpanic0()
++
++// intArgRegs is used by the various register assignment
++// algorithm implementations in the runtime. These include:.
++// - Finalizers (mfinal.go)
++// - Windows callbacks (syscall_windows.go)
++//
++// Both are stripped-down versions of the algorithm since they
++// only have to deal with a subset of cases (finalizers only
++// take a pointer or interface argument, Go Windows callbacks
++// don't support floating point).
++//
++// It should be modified with care and are generally only
++// modified when testing this package.
++//
++// It should never be set higher than its internal/abi
++// constant counterparts, because the system relies on a
++// structure that is at least large enough to hold the
++// registers the system supports.
++//
++// Currently it's set to zero because using the actual
++// constant will break every part of the toolchain that
++// uses finalizers or Windows callbacks to call functions
++// The value that is currently commented out there should be
++// the actual value once we're ready to use the register ABI
++// everywhere.
++//
++// Protected by finlock.
++var intArgRegs = 0 // abi.IntArgRegs

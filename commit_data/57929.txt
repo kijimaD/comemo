@@ -15,7 +15,7 @@ Date:   Tue Sep 12 14:48:12 2023 +0200
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
-
+---
  src/archive/zip/struct.go                       | 4 ++--
  src/cmd/dist/sys_windows.go                     | 4 ++--
  src/cmd/go/internal/fsys/fsys.go                | 2 +-
@@ -30,3 +30,229 @@ Date:   Tue Sep 12 14:48:12 2023 +0200
  src/syscall/syscall_windows.go                  | 2 +-
  src/syscall/types_windows.go                    | 2 +-
  13 files changed, 20 insertions(+), 20 deletions(-)
+
+diff --git a/src/archive/zip/struct.go b/src/archive/zip/struct.go
+index bdcc45c729..165ad44caf 100644
+--- a/src/archive/zip/struct.go
++++ b/src/archive/zip/struct.go
+@@ -245,7 +245,7 @@ func timeZone(offset time.Duration) *time.Location {
+ 
+ // msDosTimeToTime converts an MS-DOS date and time into a time.Time.
+ // The resolution is 2s.
+-// See: https://msdn.microsoft.com/en-us/library/ms724247(v=VS.85).aspx
++// See: https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-dosdatetimetofiletime
+ func msDosTimeToTime(dosDate, dosTime uint16) time.Time {
+ 	return time.Date(
+ 		// date bits 0-4: day of month; 5-8: month; 9-15: years since 1980
+@@ -265,7 +265,7 @@ func msDosTimeToTime(dosDate, dosTime uint16) time.Time {
+ 
+ // timeToMsDosTime converts a time.Time to an MS-DOS date and time.
+ // The resolution is 2s.
+-// See: https://msdn.microsoft.com/en-us/library/ms724274(v=VS.85).aspx
++// See: https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-filetimetodosdatetime
+ func timeToMsDosTime(t time.Time) (fDate uint16, fTime uint16) {
+ 	fDate = uint16(t.Day() + int(t.Month())<<5 + (t.Year()-1980)<<9)
+ 	fTime = uint16(t.Second()/2 + t.Minute()<<5 + t.Hour()<<11)
+diff --git a/src/cmd/dist/sys_windows.go b/src/cmd/dist/sys_windows.go
+index 265f729d0f..37dffb8541 100644
+--- a/src/cmd/dist/sys_windows.go
++++ b/src/cmd/dist/sys_windows.go
+@@ -14,7 +14,7 @@ var (
+ 	procGetSystemInfo = modkernel32.NewProc("GetSystemInfo")
+ )
+ 
+-// see https://msdn.microsoft.com/en-us/library/windows/desktop/ms724958(v=vs.85).aspx
++// see https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/ns-sysinfoapi-system_info
+ type systeminfo struct {
+ 	wProcessorArchitecture      uint16
+ 	wReserved                   uint16
+@@ -29,7 +29,7 @@ type systeminfo struct {
+ 	wProcessorRevision          uint16
+ }
+ 
+-// See https://docs.microsoft.com/en-us/windows/win32/api/sysinfoapi/ns-sysinfoapi-system_info
++// See https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/ns-sysinfoapi-system_info
+ const (
+ 	PROCESSOR_ARCHITECTURE_AMD64 = 9
+ 	PROCESSOR_ARCHITECTURE_INTEL = 0
+diff --git a/src/cmd/go/internal/fsys/fsys.go b/src/cmd/go/internal/fsys/fsys.go
+index b83c5a3202..06159dbbb7 100644
+--- a/src/cmd/go/internal/fsys/fsys.go
++++ b/src/cmd/go/internal/fsys/fsys.go
+@@ -690,7 +690,7 @@ func volumeNameLen(path string) int {
+ 	if path[1] == ':' && ('a' <= c && c <= 'z' || 'A' <= c && c <= 'Z') {
+ 		return 2
+ 	}
+-	// is it UNC? https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
++	// is it UNC? https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file
+ 	if l := len(path); l >= 5 && isSlash(path[0]) && isSlash(path[1]) &&
+ 		!isSlash(path[2]) && path[2] != '.' {
+ 		// first, leading `\\` and next shouldn't be `\`. its server name.
+diff --git a/src/internal/syscall/windows/registry/key.go b/src/internal/syscall/windows/registry/key.go
+index ce6397f1e2..b95fa8d332 100644
+--- a/src/internal/syscall/windows/registry/key.go
++++ b/src/internal/syscall/windows/registry/key.go
+@@ -31,7 +31,7 @@ import (
+ 
+ const (
+ 	// Registry key security and access rights.
+-	// See https://msdn.microsoft.com/en-us/library/windows/desktop/ms724878.aspx
++	// See https://learn.microsoft.com/en-us/windows/win32/sysinfo/registry-key-security-and-access-rights
+ 	// for details.
+ 	ALL_ACCESS         = 0xf003f
+ 	CREATE_LINK        = 0x00020
+@@ -98,7 +98,7 @@ func (k Key) ReadSubKeyNames() ([]string, error) {
+ 
+ 	names := make([]string, 0)
+ 	// Registry key size limit is 255 bytes and described there:
+-	// https://msdn.microsoft.com/library/windows/desktop/ms724872.aspx
++	// https://learn.microsoft.com/en-us/windows/win32/sysinfo/registry-element-size-limits
+ 	buf := make([]uint16, 256) //plus extra room for terminating zero byte
+ loopItems:
+ 	for i := uint32(0); ; i++ {
+diff --git a/src/internal/syscall/windows/reparse_windows.go b/src/internal/syscall/windows/reparse_windows.go
+index 6e111392f0..a5bc4963c2 100644
+--- a/src/internal/syscall/windows/reparse_windows.go
++++ b/src/internal/syscall/windows/reparse_windows.go
+@@ -17,8 +17,8 @@ const (
+ )
+ 
+ // These structures are described
+-// in https://msdn.microsoft.com/en-us/library/cc232007.aspx
+-// and https://msdn.microsoft.com/en-us/library/cc232006.aspx.
++// in https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/ca069dad-ed16-42aa-b057-b6b207f447cc
++// and https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/b41f1cbf-10df-4a47-98d4-1c52a833d913.
+ 
+ type REPARSE_DATA_BUFFER struct {
+ 	ReparseTag        uint32
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index 90c1eabd96..f8edaeb876 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -281,7 +281,7 @@ func TestDirectoryJunction(t *testing.T) {
+ 			},
+ 		},
+ 		{
+-			// Do as junction utility https://technet.microsoft.com/en-au/sysinternals/bb896768.aspx does - set PrintNameLength to 0.
++			// Do as junction utility https://learn.microsoft.com/en-us/sysinternals/downloads/junction does - set PrintNameLength to 0.
+ 			name: "have_blank_print_name",
+ 			mklink: func(link, target string) error {
+ 				var t reparseData
+@@ -885,7 +885,7 @@ func main() {
+ 		` \\\\\""x"""y z`,
+ 		"\tb\t\"x\ty\"",
+ 		` "Брад" d e`,
+-		// examples from https://msdn.microsoft.com/en-us/library/17w5ykft.aspx
++		// examples from https://learn.microsoft.com/en-us/cpp/cpp/main-function-command-line-args
+ 		` "abc" d e`,
+ 		` a\\b d"e f"g h`,
+ 		` a\\\"b c d`,
+diff --git a/src/os/path_windows.go b/src/os/path_windows.go
+index ec9a87274d..0522025148 100644
+--- a/src/os/path_windows.go
++++ b/src/os/path_windows.go
+@@ -139,7 +139,7 @@ var canUseLongPaths bool
+ // or contains .. elements), or is short enough, fixLongPath returns
+ // path unmodified.
+ //
+-// See https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx#maxpath
++// See https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file#maximum-path-length-limitation
+ func fixLongPath(path string) string {
+ 	if canUseLongPaths {
+ 		return path
+diff --git a/src/os/user/lookup_windows.go b/src/os/user/lookup_windows.go
+index e64b8ae028..a48fc89720 100644
+--- a/src/os/user/lookup_windows.go
++++ b/src/os/user/lookup_windows.go
+@@ -116,7 +116,7 @@ func lookupGroupName(groupname string) (string, error) {
+ 	if e != nil {
+ 		return "", e
+ 	}
+-	// https://msdn.microsoft.com/en-us/library/cc245478.aspx#gt_0387e636-5654-4910-9519-1f8326cf5ec0
++	// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-samr/7b2aeb27-92fc-41f6-8437-deb65d950921#gt_0387e636-5654-4910-9519-1f8326cf5ec0
+ 	// SidTypeAlias should also be treated as a group type next to SidTypeGroup
+ 	// and SidTypeWellKnownGroup:
+ 	// "alias object -> resource group: A group object..."
+@@ -145,7 +145,7 @@ func listGroupsForUsernameAndDomain(username, domain string) ([]string, error) {
+ 	}
+ 	var p0 *byte
+ 	var entriesRead, totalEntries uint32
+-	// https://msdn.microsoft.com/en-us/library/windows/desktop/aa370655(v=vs.85).aspx
++	// https://learn.microsoft.com/en-us/windows/win32/api/lmaccess/nf-lmaccess-netusergetlocalgroups
+ 	// NetUserGetLocalGroups() would return a list of LocalGroupUserInfo0
+ 	// elements which hold the names of local groups where the user participates.
+ 	// The list does not follow any sorting order.
+@@ -255,7 +255,7 @@ func lookupUserPrimaryGroup(username, domain string) (string, error) {
+ 	//
+ 	// The correct way to obtain the primary group of a domain user is
+ 	// probing the user primaryGroupID attribute in the server Active Directory:
+-	// https://msdn.microsoft.com/en-us/library/ms679375(v=vs.85).aspx
++	// https://learn.microsoft.com/en-us/windows/win32/adschema/a-primarygroupid
+ 	//
+ 	// Note that the primary group of domain users should not be modified
+ 	// on Windows for performance reasons, even if it's possible to do that.
+diff --git a/src/runtime/race_amd64.s b/src/runtime/race_amd64.s
+index 4fa130e861..45c1255509 100644
+--- a/src/runtime/race_amd64.s
++++ b/src/runtime/race_amd64.s
+@@ -24,7 +24,7 @@
+ // Arguments are passed in CX, DX, R8, R9, the rest is on stack.
+ // Callee-saved registers are: BX, BP, DI, SI, R12-R15.
+ // SP must be 16-byte aligned. Windows also requires "stack-backing" for the 4 register arguments:
+-// https://msdn.microsoft.com/en-us/library/ms235286.aspx
++// https://learn.microsoft.com/en-us/cpp/build/x64-calling-convention
+ // We do not do this, because it seems to be intended for vararg/unprototyped functions.
+ // Gcc-compiled race runtime does not try to use that space.
+ 
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index 4a14b45c63..7a7905e56a 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -58,7 +58,7 @@ loadregs:
+ 	// Floating point arguments are passed in the XMM
+ 	// registers. Set them here in case any of the arguments
+ 	// are floating point values. For details see
+-	//	https://msdn.microsoft.com/en-us/library/zthk2dkh.aspx
++	//	https://learn.microsoft.com/en-us/cpp/build/x64-calling-convention?view=msvc-170
+ 	MOVQ	CX, X0
+ 	MOVQ	DX, X1
+ 	MOVQ	R8, X2
+diff --git a/src/syscall/security_windows.go b/src/syscall/security_windows.go
+index 00dc920974..4e988c418a 100644
+--- a/src/syscall/security_windows.go
++++ b/src/syscall/security_windows.go
+@@ -30,7 +30,7 @@ const (
+ )
+ 
+ // This function returns 1 byte BOOLEAN rather than the 4 byte BOOL.
+-// https://blogs.msdn.com/b/drnick/archive/2007/12/19/windows-and-upn-format-credentials.aspx
++// https://learn.microsoft.com/en-gb/archive/blogs/drnick/windows-and-upn-format-credentials
+ //sys	TranslateName(accName *uint16, accNameFormat uint32, desiredNameFormat uint32, translatedName *uint16, nSize *uint32) (err error) [failretval&0xff==0] = secur32.TranslateNameW
+ //sys	GetUserNameEx(nameFormat uint32, nameBuffre *uint16, nSize *uint32) (err error) [failretval&0xff==0] = secur32.GetUserNameExW
+ 
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 28091f7690..8229e252d9 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -475,7 +475,7 @@ var procSetFilePointerEx = modkernel32.NewProc("SetFilePointerEx")
+ const ptrSize = unsafe.Sizeof(uintptr(0))
+ 
+ // setFilePointerEx calls SetFilePointerEx.
+-// See https://msdn.microsoft.com/en-us/library/windows/desktop/aa365542(v=vs.85).aspx
++// See https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-setfilepointerex
+ func setFilePointerEx(handle Handle, distToMove int64, newFilePointer *int64, whence uint32) error {
+ 	var e1 Errno
+ 	if unsafe.Sizeof(uintptr(0)) == 8 {
+diff --git a/src/syscall/types_windows.go b/src/syscall/types_windows.go
+index 384b5b4f2c..b338ec4700 100644
+--- a/src/syscall/types_windows.go
++++ b/src/syscall/types_windows.go
+@@ -586,7 +586,7 @@ const (
+ 	SIO_KEEPALIVE_VALS                 = IOC_IN | IOC_VENDOR | 4
+ 	SIO_UDP_CONNRESET                  = IOC_IN | IOC_VENDOR | 12
+ 
+-	// cf. https://support.microsoft.com/default.aspx?scid=kb;en-us;257460
++	// cf. https://learn.microsoft.com/en-US/troubleshoot/windows/win32/header-library-requirement-socket-ipproto-ip
+ 
+ 	IP_TOS             = 0x3
+ 	IP_TTL             = 0x4

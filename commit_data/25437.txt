@@ -13,6 +13,31 @@ Date:   Fri Oct 16 13:26:20 2015 +0300
     Change-Id: I6b900a8eb868265fbbb846ee6a53e426d90a727d
     Reviewed-on: https://go-review.googlesource.com/15980
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/server.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index a2245fe6bf..e8470efd6b 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1472,6 +1472,9 @@ func StripPrefix(prefix string, h Handler) Handler {
+ 
+ // Redirect replies to the request with a redirect to url,
+ // which may be a path relative to the request path.
++//
++// The provided code should be in the 3xx range and is usually
++// StatusMovedPermanently, StatusFound or StatusSeeOther.
+ func Redirect(w ResponseWriter, r *Request, urlStr string, code int) {
+ 	if u, err := url.Parse(urlStr); err == nil {
+ 		// If url was relative, make absolute by
+@@ -1556,6 +1559,9 @@ func (rh *redirectHandler) ServeHTTP(w ResponseWriter, r *Request) {
+ // RedirectHandler returns a request handler that redirects
+ // each request it receives to the given url using the given
+ // status code.
++//
++// The provided code should be in the 3xx range and is usually
++// StatusMovedPermanently, StatusFound or StatusSeeOther.
+ func RedirectHandler(url string, code int) Handler {
+ 	return &redirectHandler{url, code}
+ }

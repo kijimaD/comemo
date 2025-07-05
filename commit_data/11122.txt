@@ -11,7 +11,118 @@ Date:   Thu Jan 12 12:08:40 2012 +0100
     R=lvd, rsc
     CC=golang-dev, remy
     https://golang.org/cl/5489128
-
+---
  src/cmd/gc/esc.c |  6 +++++-
  test/escape2.go  | 42 ++++++++++++++++++++++++++++++++++++------
  2 files changed, 41 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/gc/esc.c b/src/cmd/gc/esc.c
+index 037067be7f..43986c6af2 100644
+--- a/src/cmd/gc/esc.c
++++ b/src/cmd/gc/esc.c
+@@ -469,10 +469,14 @@ escassign(Node *dst, Node *src)
+ 		escflows(dst, src);
+ 		break;
+ 
++	case ODOT:
++		// A non-pointer escaping from a struct does not concern us.
++		if(src->type && !haspointers(src->type))
++			break;
++		// fallthrough
+ 	case OCONV:
+ 	case OCONVIFACE:
+ 	case OCONVNOP:
+-	case ODOT:
+ 	case ODOTMETH:	// treat recv.meth as a value with recv in it, only happens in ODEFER and OPROC
+ 			// iface.method already leaks iface in esccall, no need to put in extra ODOTINTER edge here
+ 	case ODOTTYPE:
+diff --git a/test/escape2.go b/test/escape2.go
+index c2cbefbe61..73b2a7e589 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -126,10 +126,36 @@ func (b *Bar) NoLeak() int { // ERROR "b does not escape"
+ 	return *(b.ii)
+ }
+ 
++func (b *Bar) Leak() *int { // ERROR "leaking param: b"
++	return &b.i // ERROR "&b.i escapes to heap"
++}
++
+ func (b *Bar) AlsoNoLeak() *int { // ERROR "b does not escape"
+ 	return b.ii
+ }
+ 
++func (b Bar) AlsoLeak() *int { // ERROR "leaking param: b"
++	return b.ii
++}
++
++func (b Bar) LeaksToo() *int { // ERROR "leaking param: b"
++	v := 0	// ERROR "moved to heap: v"
++	b.ii = &v // ERROR "&v escapes"
++	return b.ii
++}
++
++func (b *Bar) LeaksABit() *int { // ERROR "b does not escape"
++	v := 0	// ERROR "moved to heap: v"
++	b.ii = &v // ERROR "&v escapes"
++	return b.ii
++}
++
++func (b Bar) StillNoLeak() int { // ERROR "b does not escape"
++	v := 0
++	b.ii = &v // ERROR "&v does not escape"
++	return b.i
++}
++
+ func goLeak(b *Bar) { // ERROR "leaking param: b"
+ 	go b.NoLeak()
+ }
+@@ -148,20 +174,24 @@ func (b *Bar2) NoLeak() int { // ERROR "b does not escape"
+ }
+ 
+ func (b *Bar2) Leak() []int { // ERROR "leaking param: b"
+-	return b.i[:]  // ERROR "b.i escapes to heap"
++	return b.i[:] // ERROR "b.i escapes to heap"
+ }
+ 
+ func (b *Bar2) AlsoNoLeak() []int { // ERROR "b does not escape"
+ 	return b.ii[0:1]
+ }
+ 
++func (b Bar2) AgainNoLeak() [12]int { // ERROR "b does not escape"
++	return b.i
++}
++
+ func (b *Bar2) LeakSelf() { // ERROR "leaking param: b"
+-	b.ii = b.i[0:4]  // ERROR "b.i escapes to heap"
++	b.ii = b.i[0:4] // ERROR "b.i escapes to heap"
+ }
+ 
+ func (b *Bar2) LeakSelf2() { // ERROR "leaking param: b"
+ 	var buf []int
+-	buf = b.i[0:]  // ERROR "b.i escapes to heap"
++	buf = b.i[0:] // ERROR "b.i escapes to heap"
+ 	b.ii = buf
+ }
+ 
+@@ -1018,7 +1048,7 @@ func foo122() {
+ 
+ 	goto L1
+ L1:
+-	i = new(int)	// ERROR "does not escape"
++	i = new(int) // ERROR "does not escape"
+ 	_ = i
+ }
+ 
+@@ -1027,8 +1057,8 @@ func foo123() {
+ 	var i *int
+ 
+ L1:
+-	i = new(int)  // ERROR "escapes"
++	i = new(int) // ERROR "escapes"
+ 
+ 	goto L1
+ 	_ = i
+-}
+\ No newline at end of file
++}

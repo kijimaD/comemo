@@ -15,7 +15,7 @@ Date:   Wed Jul 24 10:39:48 2024 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/dnsclient_unix_test.go             | 13 +++++++------
  src/net/dnsconfig_unix_test.go             |  3 ++-
  src/net/hosts_test.go                      |  6 +++---
@@ -34,3 +34,525 @@ Date:   Wed Jul 24 10:39:48 2024 +0000
  src/net/resolverdialfunc_test.go           |  2 +-
  src/net/textproto/reader_test.go           |  9 +++++----
  17 files changed, 53 insertions(+), 46 deletions(-)
+
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index 31677573c0..c4e5194a34 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"context"
+ 	"errors"
+ 	"fmt"
++	"maps"
+ 	"os"
+ 	"path"
+ 	"path/filepath"
+@@ -429,7 +430,7 @@ func TestUpdateResolvConf(t *testing.T) {
+ 			wg.Wait()
+ 		}
+ 		servers := conf.servers()
+-		if !reflect.DeepEqual(servers, tt.servers) {
++		if !slices.Equal(servers, tt.servers) {
+ 			t.Errorf("#%d: got %v; want %v", i, servers, tt.servers)
+ 			continue
+ 		}
+@@ -1154,7 +1155,7 @@ func testRotate(t *testing.T, rotate bool, nameservers, wantServers []string) {
+ 		}
+ 	}
+ 
+-	if !reflect.DeepEqual(usedServers, wantServers) {
++	if !slices.Equal(usedServers, wantServers) {
+ 		t.Errorf("rotate=%t got used servers:\n%v\nwant:\n%v", rotate, usedServers, wantServers)
+ 	}
+ }
+@@ -1433,7 +1434,7 @@ func TestStrictErrorsLookupIP(t *testing.T) {
+ 					wantIPs[ip] = struct{}{}
+ 				}
+ 			}
+-			if !reflect.DeepEqual(gotIPs, wantIPs) {
++			if !maps.Equal(gotIPs, wantIPs) {
+ 				t.Errorf("#%d (%s) strict=%v: got ips %v; want %v", i, tt.desc, strict, gotIPs, wantIPs)
+ 			}
+ 		}
+@@ -1940,7 +1941,7 @@ func TestPTRandNonPTR(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("LookupAddr: %v", err)
+ 	}
+-	if want := []string{"golang.org."}; !reflect.DeepEqual(names, want) {
++	if want := []string{"golang.org."}; !slices.Equal(names, want) {
+ 		t.Errorf("names = %q; want %q", names, want)
+ 	}
+ }
+@@ -2207,14 +2208,14 @@ func TestCVE202133195(t *testing.T) {
+ 				if err.Error() != expectedErr.Error() {
+ 					t.Fatalf("unexpected error: %s", err)
+ 				}
+-				if !reflect.DeepEqual(records, expected) {
++				if !slices.Equal(records, expected) {
+ 					t.Error("Unexpected record set")
+ 				}
+ 				records, err = LookupAddr("192.0.2.42")
+ 				if err.Error() != expectedErr.Error() {
+ 					t.Fatalf("unexpected error: %s", err)
+ 				}
+-				if !reflect.DeepEqual(records, expected) {
++				if !slices.Equal(records, expected) {
+ 					t.Error("Unexpected record set")
+ 				}
+ 			},
+diff --git a/src/net/dnsconfig_unix_test.go b/src/net/dnsconfig_unix_test.go
+index 0aae2ba85b..4db1c5a4af 100644
+--- a/src/net/dnsconfig_unix_test.go
++++ b/src/net/dnsconfig_unix_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"io/fs"
+ 	"os"
+ 	"reflect"
++	"slices"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -250,7 +251,7 @@ func TestDNSDefaultSearch(t *testing.T) {
+ 	for _, tt := range dnsDefaultSearchTests {
+ 		getHostname = func() (string, error) { return tt.name, tt.err }
+ 		got := dnsDefaultSearch()
+-		if !reflect.DeepEqual(got, tt.want) {
++		if !slices.Equal(got, tt.want) {
+ 			t.Errorf("dnsDefaultSearch with hostname %q and error %+v = %q, wanted %q", tt.name, tt.err, got, tt.want)
+ 		}
+ 	}
+diff --git a/src/net/hosts_test.go b/src/net/hosts_test.go
+index 5f22920765..2661e79d99 100644
+--- a/src/net/hosts_test.go
++++ b/src/net/hosts_test.go
+@@ -5,7 +5,7 @@
+ package net
+ 
+ import (
+-	"reflect"
++	"slices"
+ 	"strings"
+ 	"testing"
+ )
+@@ -73,7 +73,7 @@ func testStaticHost(t *testing.T, hostsPath string, ent staticHostEntry) {
+ 	ins := []string{ent.in, absDomainName(ent.in), strings.ToLower(ent.in), strings.ToUpper(ent.in)}
+ 	for _, in := range ins {
+ 		addrs, _ := lookupStaticHost(in)
+-		if !reflect.DeepEqual(addrs, ent.out) {
++		if !slices.Equal(addrs, ent.out) {
+ 			t.Errorf("%s, lookupStaticHost(%s) = %v; want %v", hostsPath, in, addrs, ent.out)
+ 		}
+ 	}
+@@ -143,7 +143,7 @@ func testStaticAddr(t *testing.T, hostsPath string, ent staticHostEntry) {
+ 	for i := range ent.out {
+ 		ent.out[i] = absDomainName(ent.out[i])
+ 	}
+-	if !reflect.DeepEqual(hosts, ent.out) {
++	if !slices.Equal(hosts, ent.out) {
+ 		t.Errorf("%s, lookupStaticAddr(%s) = %v; want %v", hostsPath, ent.in, hosts, ent.out)
+ 	}
+ }
+diff --git a/src/net/http/cgi/host_test.go b/src/net/http/cgi/host_test.go
+index 7fe0e6257d..8ecfa19f6b 100644
+--- a/src/net/http/cgi/host_test.go
++++ b/src/net/http/cgi/host_test.go
+@@ -16,9 +16,9 @@ import (
+ 	"net/http/httptest"
+ 	"os"
+ 	"path/filepath"
+-	"reflect"
+ 	"regexp"
+ 	"runtime"
++	"slices"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -510,7 +510,7 @@ func TestRemoveLeadingDuplicates(t *testing.T) {
+ 	}
+ 	for _, tt := range tests {
+ 		got := removeLeadingDuplicates(tt.env)
+-		if !reflect.DeepEqual(got, tt.want) {
++		if !slices.Equal(got, tt.want) {
+ 			t.Errorf("removeLeadingDuplicates(%q) = %q; want %q", tt.env, got, tt.want)
+ 		}
+ 	}
+diff --git a/src/net/http/clientserver_test.go b/src/net/http/clientserver_test.go
+index 3dc440dde1..0c2142a063 100644
+--- a/src/net/http/clientserver_test.go
++++ b/src/net/http/clientserver_test.go
+@@ -274,7 +274,7 @@ func testChunkedResponseHeaders(t *testing.T, mode testMode) {
+ 	if mode == http2Mode {
+ 		wantTE = nil
+ 	}
+-	if !reflect.DeepEqual(res.TransferEncoding, wantTE) {
++	if !slices.Equal(res.TransferEncoding, wantTE) {
+ 		t.Errorf("TransferEncoding = %v; want %v", res.TransferEncoding, wantTE)
+ 	}
+ 	if got, haveCL := res.Header["Content-Length"]; haveCL {
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index 2ffffbf0b3..3149ca35ac 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -24,9 +24,9 @@ import (
+ 	"os/exec"
+ 	"path"
+ 	"path/filepath"
+-	"reflect"
+ 	"regexp"
+ 	"runtime"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"testing"
+@@ -516,7 +516,7 @@ func testServeFileContentType(t *testing.T, mode testMode) {
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+-		if h := resp.Header["Content-Type"]; !reflect.DeepEqual(h, want) {
++		if h := resp.Header["Content-Type"]; !slices.Equal(h, want) {
+ 			t.Errorf("Content-Type mismatch: got %v, want %v", h, want)
+ 		}
+ 		resp.Body.Close()
+@@ -1448,7 +1448,7 @@ func TestFileServerCleanPath(t *testing.T) {
+ 		rr := httptest.NewRecorder()
+ 		req, _ := NewRequest("GET", "http://foo.localhost"+tt.path, nil)
+ 		FileServer(fileServerCleanPathDir{&log}).ServeHTTP(rr, req)
+-		if !reflect.DeepEqual(log, tt.wantOpen) {
++		if !slices.Equal(log, tt.wantOpen) {
+ 			t.Logf("For %s: Opens = %q; want %q", tt.path, log, tt.wantOpen)
+ 		}
+ 		if rr.Code != tt.wantCode {
+diff --git a/src/net/http/http_test.go b/src/net/http/http_test.go
+index 2e7e024e20..df9812fc94 100644
+--- a/src/net/http/http_test.go
++++ b/src/net/http/http_test.go
+@@ -12,8 +12,8 @@ import (
+ 	"io/fs"
+ 	"net/url"
+ 	"os"
+-	"reflect"
+ 	"regexp"
++	"slices"
+ 	"strings"
+ 	"testing"
+ )
+@@ -41,7 +41,7 @@ func TestForeachHeaderElement(t *testing.T) {
+ 		foreachHeaderElement(tt.in, func(v string) {
+ 			got = append(got, v)
+ 		})
+-		if !reflect.DeepEqual(got, tt.want) {
++		if !slices.Equal(got, tt.want) {
+ 			t.Errorf("foreachHeaderElement(%q) = %q; want %q", tt.in, got, tt.want)
+ 		}
+ 	}
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index eac8b7ec81..67d0e50593 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -205,7 +205,7 @@ func TestReverseProxyStripHeadersPresentInConnection(t *testing.T) {
+ 		slices.Sort(cf)
+ 		expectedValues := []string{"Upgrade", someConnHeader, fakeConnectionToken}
+ 		slices.Sort(expectedValues)
+-		if !reflect.DeepEqual(cf, expectedValues) {
++		if !slices.Equal(cf, expectedValues) {
+ 			t.Errorf("handler modified header %q = %q; want %q", "Connection", cf, expectedValues)
+ 		}
+ 	}))
+@@ -765,7 +765,7 @@ func TestReverseProxyGetPutBuffer(t *testing.T) {
+ 	wantLog := []string{"getBuf", "putBuf-" + strconv.Itoa(size)}
+ 	mu.Lock()
+ 	defer mu.Unlock()
+-	if !reflect.DeepEqual(log, wantLog) {
++	if !slices.Equal(log, wantLog) {
+ 		t.Errorf("Log events = %q; want %q", log, wantLog)
+ 	}
+ }
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index 9b6eb6e1a8..37b888313d 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -23,6 +23,7 @@ import (
+ 	"os"
+ 	"reflect"
+ 	"regexp"
++	"slices"
+ 	"strings"
+ 	"testing"
+ )
+@@ -69,22 +70,22 @@ func TestParseFormQuery(t *testing.T) {
+ 	if bz := req.PostFormValue("z"); bz != "post" {
+ 		t.Errorf(`req.PostFormValue("z") = %q, want "post"`, bz)
+ 	}
+-	if qs := req.Form["q"]; !reflect.DeepEqual(qs, []string{"foo", "bar"}) {
++	if qs := req.Form["q"]; !slices.Equal(qs, []string{"foo", "bar"}) {
+ 		t.Errorf(`req.Form["q"] = %q, want ["foo", "bar"]`, qs)
+ 	}
+-	if both := req.Form["both"]; !reflect.DeepEqual(both, []string{"y", "x"}) {
++	if both := req.Form["both"]; !slices.Equal(both, []string{"y", "x"}) {
+ 		t.Errorf(`req.Form["both"] = %q, want ["y", "x"]`, both)
+ 	}
+ 	if prio := req.FormValue("prio"); prio != "2" {
+ 		t.Errorf(`req.FormValue("prio") = %q, want "2" (from body)`, prio)
+ 	}
+-	if orphan := req.Form["orphan"]; !reflect.DeepEqual(orphan, []string{"", "nope"}) {
++	if orphan := req.Form["orphan"]; !slices.Equal(orphan, []string{"", "nope"}) {
+ 		t.Errorf(`req.FormValue("orphan") = %q, want "" (from body)`, orphan)
+ 	}
+-	if empty := req.Form["empty"]; !reflect.DeepEqual(empty, []string{"", "not"}) {
++	if empty := req.Form["empty"]; !slices.Equal(empty, []string{"", "not"}) {
+ 		t.Errorf(`req.FormValue("empty") = %q, want "" (from body)`, empty)
+ 	}
+-	if nokey := req.Form[""]; !reflect.DeepEqual(nokey, []string{"nokey"}) {
++	if nokey := req.Form[""]; !slices.Equal(nokey, []string{"nokey"}) {
+ 		t.Errorf(`req.FormValue("nokey") = %q, want "nokey" (from body)`, nokey)
+ 	}
+ }
+@@ -765,7 +766,7 @@ func TestRequestWriteBufferedWriter(t *testing.T) {
+ 		"User-Agent: " + DefaultUserAgent + "\r\n",
+ 		"\r\n",
+ 	}
+-	if !reflect.DeepEqual(got, want) {
++	if !slices.Equal(got, want) {
+ 		t.Errorf("Writes = %q\n  Want = %q", got, want)
+ 	}
+ }
+@@ -785,7 +786,7 @@ func TestRequestBadHostHeader(t *testing.T) {
+ 		"User-Agent: " + DefaultUserAgent + "\r\n",
+ 		"\r\n",
+ 	}
+-	if !reflect.DeepEqual(got, want) {
++	if !slices.Equal(got, want) {
+ 		t.Errorf("Writes = %q\n  Want = %q", got, want)
+ 	}
+ }
+@@ -804,7 +805,7 @@ func TestRequestBadUserAgent(t *testing.T) {
+ 		"User-Agent: evil  X-Evil: evil\r\n",
+ 		"\r\n",
+ 	}
+-	if !reflect.DeepEqual(got, want) {
++	if !slices.Equal(got, want) {
+ 		t.Errorf("Writes = %q\n  Want = %q", got, want)
+ 	}
+ }
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index b2858ba8f2..cc485d3b89 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -34,6 +34,7 @@ import (
+ 	"reflect"
+ 	"regexp"
+ 	"runtime"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+@@ -4010,7 +4011,7 @@ func testHTTP10ConnectionHeader(t *testing.T, mode testMode) {
+ 		resp.Body.Close()
+ 
+ 		got := resp.Header["Connection"]
+-		if !reflect.DeepEqual(got, tt.expect) {
++		if !slices.Equal(got, tt.expect) {
+ 			t.Errorf("wrong Connection headers for request %q. Got %q expect %q", tt.req, got, tt.expect)
+ 		}
+ 	}
+@@ -4329,7 +4330,7 @@ func testServerConnState(t *testing.T, mode testMode) {
+ 
+ 		<-complete
+ 		sl := <-activeLog
+-		if !reflect.DeepEqual(sl.got, sl.want) {
++		if !slices.Equal(sl.got, sl.want) {
+ 			t.Errorf("Request(s) produced unexpected state sequence.\nGot:  %v\nWant: %v", sl.got, sl.want)
+ 		}
+ 		// Don't return sl to activeLog: we don't expect any further states after
+@@ -4355,7 +4356,7 @@ func testServerConnState(t *testing.T, mode testMode) {
+ 				return
+ 			}
+ 			sl.got = append(sl.got, state)
+-			if sl.complete != nil && (len(sl.got) >= len(sl.want) || !reflect.DeepEqual(sl.got, sl.want[:len(sl.got)])) {
++			if sl.complete != nil && (len(sl.got) >= len(sl.want) || !slices.Equal(sl.got, sl.want[:len(sl.got)])) {
+ 				close(sl.complete)
+ 				sl.complete = nil
+ 			}
+diff --git a/src/net/http/sniff_test.go b/src/net/http/sniff_test.go
+index d6ef40905e..68c8a6af1e 100644
+--- a/src/net/http/sniff_test.go
++++ b/src/net/http/sniff_test.go
+@@ -10,7 +10,7 @@ import (
+ 	"io"
+ 	"log"
+ 	. "net/http"
+-	"reflect"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"testing"
+@@ -144,7 +144,7 @@ func testServerIssue5953(t *testing.T, mode testMode) {
+ 
+ 	got := resp.Header["Content-Type"]
+ 	want := []string{""}
+-	if !reflect.DeepEqual(got, want) {
++	if !slices.Equal(got, want) {
+ 		t.Errorf("Content-Type = %q; want %q", got, want)
+ 	}
+ 	resp.Body.Close()
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index ae7159dab0..2389284249 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -36,6 +36,7 @@ import (
+ 	"os"
+ 	"reflect"
+ 	"runtime"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+@@ -4453,7 +4454,7 @@ func TestTransportFlushesBodyChunks(t *testing.T) {
+ 		"5\r\nnum2\n\r\n",
+ 		"0\r\n\r\n",
+ 	}
+-	if !reflect.DeepEqual(lw.writes, want) {
++	if !slices.Equal(lw.writes, want) {
+ 		t.Errorf("Writes differed.\n Got: %q\nWant: %q\n", lw.writes, want)
+ 	}
+ }
+@@ -5284,7 +5285,7 @@ func testTransportMaxIdleConns(t *testing.T, mode testMode) {
+ 		"|http|host-2.dns-is-faked.golang:" + port,
+ 		"|http|host-3.dns-is-faked.golang:" + port,
+ 	}
+-	if got := tr.IdleConnKeysForTesting(); !reflect.DeepEqual(got, want) {
++	if got := tr.IdleConnKeysForTesting(); !slices.Equal(got, want) {
+ 		t.Fatalf("idle conn keys mismatch.\n got: %q\nwant: %q\n", got, want)
+ 	}
+ 
+@@ -5296,7 +5297,7 @@ func testTransportMaxIdleConns(t *testing.T, mode testMode) {
+ 		"|http|host-3.dns-is-faked.golang:" + port,
+ 		"|http|host-4.dns-is-faked.golang:" + port,
+ 	}
+-	if got := tr.IdleConnKeysForTesting(); !reflect.DeepEqual(got, want) {
++	if got := tr.IdleConnKeysForTesting(); !slices.Equal(got, want) {
+ 		t.Fatalf("idle conn keys mismatch after 5th host.\n got: %q\nwant: %q\n", got, want)
+ 	}
+ }
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 7052f3c9fc..d106f98eef 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -433,7 +433,7 @@ func TestLookupLongTXT(t *testing.T) {
+ 		strings.Repeat("abcdefghijklmnopqrstuvwxyABCDEFGHJIKLMNOPQRSTUVWXY", 10),
+ 		"gophers rule",
+ 	}
+-	if !reflect.DeepEqual(txts, want) {
++	if !slices.Equal(txts, want) {
+ 		t.Fatalf("LookupTXT golang.rsc.io incorrect\nhave %q\nwant %q", txts, want)
+ 	}
+ }
+diff --git a/src/net/lookup_windows_test.go b/src/net/lookup_windows_test.go
+index 8f6e4b238f..4f28790185 100644
+--- a/src/net/lookup_windows_test.go
++++ b/src/net/lookup_windows_test.go
+@@ -144,7 +144,7 @@ func TestNSLookupTXT(t *testing.T) {
+ 		}
+ 		slices.Sort(expected)
+ 		slices.Sort(txt)
+-		if !reflect.DeepEqual(expected, txt) {
++		if !slices.Equal(expected, txt) {
+ 			t.Errorf("different results %s:\texp:%v\tgot:%v", server, toJson(expected), toJson(txt))
+ 		}
+ 	})
+@@ -170,7 +170,7 @@ func TestLookupLocalPTR(t *testing.T) {
+ 	}
+ 	slices.Sort(expected)
+ 	slices.Sort(names)
+-	if !reflect.DeepEqual(expected, names) {
++	if !slices.Equal(expected, names) {
+ 		t.Errorf("different results %s:\texp:%v\tgot:%v", addr, toJson(expected), toJson(names))
+ 	}
+ }
+@@ -201,7 +201,7 @@ func TestLookupPTR(t *testing.T) {
+ 		}
+ 		slices.Sort(expected)
+ 		slices.Sort(names)
+-		if !reflect.DeepEqual(expected, names) {
++		if !slices.Equal(expected, names) {
+ 			t.Errorf("different results %s:\texp:%v\tgot:%v", addr, toJson(expected), toJson(names))
+ 		}
+ 	}
+diff --git a/src/net/mail/message_test.go b/src/net/mail/message_test.go
+index 012d51c3df..dad9c367f3 100644
+--- a/src/net/mail/message_test.go
++++ b/src/net/mail/message_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"io"
+ 	"mime"
+ 	"reflect"
++	"slices"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -115,7 +116,7 @@ func headerEq(a, b Header) bool {
+ 		if !ok {
+ 			return false
+ 		}
+-		if !reflect.DeepEqual(as, bs) {
++		if !slices.Equal(as, bs) {
+ 			return false
+ 		}
+ 	}
+diff --git a/src/net/resolverdialfunc_test.go b/src/net/resolverdialfunc_test.go
+index 9b45cdbcb0..3e8d775266 100644
+--- a/src/net/resolverdialfunc_test.go
++++ b/src/net/resolverdialfunc_test.go
+@@ -59,7 +59,7 @@ func TestResolverDialFunc(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+-		if got, want := sortedIPStrings(ips), []string{"0:200::e00", "1.2.3.4", "1::f", "5.6.7.8"}; !reflect.DeepEqual(got, want) {
++		if got, want := sortedIPStrings(ips), []string{"0:200::e00", "1.2.3.4", "1::f", "5.6.7.8"}; !slices.Equal(got, want) {
+ 			t.Errorf("LookupIP wrong.\n got: %q\nwant: %q\n", got, want)
+ 		}
+ 	})
+diff --git a/src/net/textproto/reader_test.go b/src/net/textproto/reader_test.go
+index f794879bd7..d510f9b338 100644
+--- a/src/net/textproto/reader_test.go
++++ b/src/net/textproto/reader_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"net"
+ 	"reflect"
+ 	"runtime"
++	"slices"
+ 	"strings"
+ 	"sync"
+ 	"testing"
+@@ -95,13 +96,13 @@ func TestReadDotLines(t *testing.T) {
+ 	r := reader("dotlines\r\n.foo\r\n..bar\n...baz\nquux\r\n\r\n.\r\nanother\n")
+ 	s, err := r.ReadDotLines()
+ 	want := []string{"dotlines", "foo", ".bar", "..baz", "quux", ""}
+-	if !reflect.DeepEqual(s, want) || err != nil {
++	if !slices.Equal(s, want) || err != nil {
+ 		t.Fatalf("ReadDotLines: %v, %v", s, err)
+ 	}
+ 
+ 	s, err = r.ReadDotLines()
+ 	want = []string{"another"}
+-	if !reflect.DeepEqual(s, want) || err != io.ErrUnexpectedEOF {
++	if !slices.Equal(s, want) || err != io.ErrUnexpectedEOF {
+ 		t.Fatalf("ReadDotLines2: %v, %v", s, err)
+ 	}
+ }
+@@ -110,13 +111,13 @@ func TestReadDotBytes(t *testing.T) {
+ 	r := reader("dotlines\r\n.foo\r\n..bar\n...baz\nquux\r\n\r\n.\r\nanot.her\r\n")
+ 	b, err := r.ReadDotBytes()
+ 	want := []byte("dotlines\nfoo\n.bar\n..baz\nquux\n\n")
+-	if !reflect.DeepEqual(b, want) || err != nil {
++	if !slices.Equal(b, want) || err != nil {
+ 		t.Fatalf("ReadDotBytes: %q, %v", b, err)
+ 	}
+ 
+ 	b, err = r.ReadDotBytes()
+ 	want = []byte("anot.her\n")
+-	if !reflect.DeepEqual(b, want) || err != io.ErrUnexpectedEOF {
++	if !slices.Equal(b, want) || err != io.ErrUnexpectedEOF {
+ 		t.Fatalf("ReadDotBytes2: %q, %v", b, err)
+ 	}
+ }

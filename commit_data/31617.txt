@@ -22,10 +22,91 @@ Date:   Fri Feb 17 16:20:52 2017 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/internal/obj/line.go      | 6 ++++--
  src/cmd/internal/obj/line_test.go | 2 +-
  src/cmd/internal/obj/link.go      | 6 ------
  src/cmd/internal/obj/sym.go       | 2 +-
  src/cmd/link/internal/ld/pcln.go  | 3 ++-
  5 files changed, 8 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/internal/obj/line.go b/src/cmd/internal/obj/line.go
+index c0a66ba84d..be6b36da41 100644
+--- a/src/cmd/internal/obj/line.go
++++ b/src/cmd/internal/obj/line.go
+@@ -74,14 +74,16 @@ func (ctxt *Link) AddImport(pkg string) {
+ 	ctxt.Imports = append(ctxt.Imports, pkg)
+ }
+ 
++const FileSymPrefix = "gofile.."
++
+ func linkgetlineFromPos(ctxt *Link, xpos src.XPos) (f *LSym, l int32) {
+ 	pos := ctxt.PosTable.Pos(xpos)
+ 	filename := pos.AbsFilename()
+ 	if !pos.IsKnown() || filename == "" {
+-		return Linklookup(ctxt, "??", HistVersion), 0
++		return Linklookup(ctxt, FileSymPrefix+"??", 0), 0
+ 	}
+ 	// TODO(gri) Should this use relative or absolute line number?
+-	return Linklookup(ctxt, filename, HistVersion), int32(pos.RelLine())
++	return Linklookup(ctxt, FileSymPrefix+filename, 0), int32(pos.RelLine())
+ }
+ 
+ func fieldtrack(ctxt *Link, cursym *LSym) {
+diff --git a/src/cmd/internal/obj/line_test.go b/src/cmd/internal/obj/line_test.go
+index 0f9585ed71..928a008001 100644
+--- a/src/cmd/internal/obj/line_test.go
++++ b/src/cmd/internal/obj/line_test.go
+@@ -32,7 +32,7 @@ func TestLinkgetlineFromPos(t *testing.T) {
+ 	for _, test := range tests {
+ 		f, l := linkgetlineFromPos(ctxt, ctxt.PosTable.XPos(test.pos))
+ 		got := fmt.Sprintf("%s:%d", f.Name, l)
+-		if got != test.want {
++		if got != FileSymPrefix+test.want {
+ 			t.Errorf("linkgetline(%v) = %q, want %q", test.pos, got, test.want)
+ 		}
+ 	}
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 2b066cef34..9de26a5a03 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -708,12 +708,6 @@ type Pcdata struct {
+ 	P []byte
+ }
+ 
+-// symbol version, incremented each time a file is loaded.
+-// version==1 is reserved for savehist.
+-const (
+-	HistVersion = 1
+-)
+-
+ // Link holds the context for writing object code from a compiler
+ // to be linker input or for reading that input into the linker.
+ type Link struct {
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 8dd6e8f177..0527397749 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -53,7 +53,7 @@ func Linknew(arch *LinkArch) *Link {
+ 	ctxt := new(Link)
+ 	ctxt.Hash = make(map[SymVer]*LSym)
+ 	ctxt.Arch = arch
+-	ctxt.Version = HistVersion
++	ctxt.Version = 0
+ 	ctxt.Pathname = WorkingDir()
+ 
+ 	ctxt.Headtype.Set(GOOS)
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index a1e28c1536..c944da9f28 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -114,7 +114,8 @@ func numberfile(ctxt *Link, file *Symbol) {
+ 		ctxt.Filesyms = append(ctxt.Filesyms, file)
+ 		file.Value = int64(len(ctxt.Filesyms))
+ 		file.Type = obj.SFILEPATH
+-		file.Name = expandGoroot(file.Name)
++		path := file.Name[len(obj.FileSymPrefix):]
++		file.Name = expandGoroot(path)
+ 	}
+ }
+ 

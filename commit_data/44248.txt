@@ -16,6 +16,20 @@ Date:   Wed Apr 22 21:16:49 2020 -0400
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/time/format.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index b74108f0e7..f11fb7ed30 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -67,7 +67,7 @@ import "errors"
+ // that insist on that format, and RFC3339 should be preferred for new protocols.
+ // RFC3339, RFC822, RFC822Z, RFC1123, and RFC1123Z are useful for formatting;
+ // when used with time.Parse they do not accept all the time formats
+-// permitted by the RFCs.
++// permitted by the RFCs and they do accept time formats not formally defined.
+ // The RFC3339Nano format removes trailing zeros from the seconds field
+ // and thus may not sort correctly once formatted.
+ const (

@@ -9,6 +9,49 @@ Date:   Thu Jul 10 15:15:41 2014 -0400
     R=rsc, iant, crawshaw, dave
     CC=golang-codereviews
     https://golang.org/cl/111780043
-
+---
  src/nacltest.bash | 23 ++++++++++++++++++++++-
  1 file changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/src/nacltest.bash b/src/nacltest.bash
+index 33fc8c1c4e..2b62830a88 100755
+--- a/src/nacltest.bash
++++ b/src/nacltest.bash
+@@ -13,8 +13,23 @@
+ set -e
+ ulimit -c 0
+ 
++# guess GOARCH if not set
++naclGOARCH=$GOARCH
++if [ -z "$naclGOARCH" ]; then
++	case "$(uname -m)" in
++	x86_64)
++		naclGOARCH=amd64p32
++		;;
++	armv7l) # NativeClient on ARM only supports ARMv7A.
++		naclGOARCH=arm
++		;;
++	i?86)
++		naclGOARCH=386
++		;;
++	esac
++fi
++
+ # Check GOARCH.
+-naclGOARCH=${GOARCH:-386}
+ case "$naclGOARCH" in
+ amd64p32)
+ 	if ! which sel_ldr_x86_64 >/dev/null; then
+@@ -28,6 +43,12 @@ amd64p32)
+ 		exit 1
+ 	fi
+ 	;;
++arm)
++	if ! which sel_ldr_arm >/dev/null; then
++		echo 'cannot find sel_ldr_arm' 1>&2
++		exit 1
++	fi
++	;;
+ *)
+ 	echo 'unsupported $GOARCH for nacl: '"$naclGOARCH" 1>&2
+ 	exit 1

@@ -14,7 +14,7 @@ Date:   Mon Jan 29 13:52:11 2024 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/559199
     Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go.mod                                     |   1 +
  src/cmd/go.sum                                     |   2 +
  src/cmd/go/main.go                                 |   7 +-
@@ -34,3 +34,1980 @@ Date:   Mon Jan 29 13:52:11 2024 -0500
  .../x/telemetry/internal/telemetry/mode.go         | 117 ++++
  src/cmd/vendor/modules.txt                         |   6 +
  18 files changed, 1828 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 3fa0051ff0..579ff73cd5 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -9,6 +9,7 @@ require (
+ 	golang.org/x/mod v0.14.0
+ 	golang.org/x/sync v0.6.0
+ 	golang.org/x/sys v0.16.1-0.20240110015235-f69d32aa924f
++	golang.org/x/telemetry v0.0.0-20240130152304-a6426b6a1e6f
+ 	golang.org/x/term v0.16.0
+ 	golang.org/x/tools v0.17.1-0.20240119231502-e1555a36d006
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 5cd6a48eee..c978e9ed12 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -16,6 +16,8 @@ golang.org/x/sync v0.6.0 h1:5BMeUDZ7vkXGfEr1x9B4bRcTH4lpkTkpdh0T/J+qjbQ=
+ golang.org/x/sync v0.6.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+ golang.org/x/sys v0.16.1-0.20240110015235-f69d32aa924f h1:GvGFYRZ5kIldzXQj3UmUiUTMe5spPODuLKQvP38A+Qc=
+ golang.org/x/sys v0.16.1-0.20240110015235-f69d32aa924f/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
++golang.org/x/telemetry v0.0.0-20240130152304-a6426b6a1e6f h1:W4/b7Y2Wq3rD7yh4tQ7CEviemZ5SZdAhiWDNTYz0QpQ=
++golang.org/x/telemetry v0.0.0-20240130152304-a6426b6a1e6f/go.mod h1:ZthVHHkOi8rlMEsfFr3Ie42Ym1NonbFNNRKW3ci0UrU=
+ golang.org/x/term v0.16.0 h1:m+B6fahuftsE9qjo0VWp2FW0mB3MTJvR0BaMQrq0pmE=
+ golang.org/x/term v0.16.0/go.mod h1:yn7UURbUtPyrVJPGPq404EukNFxcm/foM+bV/bfcDsY=
+ golang.org/x/text v0.14.0 h1:ScX5w1eTa3QqT8oi6+ziP7dTV1S2+ALU0bI+0zXKWiQ=
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index d380aae489..2065c9a157 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -7,8 +7,6 @@
+ package main
+ 
+ import (
+-	"cmd/go/internal/toolchain"
+-	"cmd/go/internal/workcmd"
+ 	"context"
+ 	"flag"
+ 	"fmt"
+@@ -38,10 +36,14 @@ import (
+ 	"cmd/go/internal/run"
+ 	"cmd/go/internal/test"
+ 	"cmd/go/internal/tool"
++	"cmd/go/internal/toolchain"
+ 	"cmd/go/internal/trace"
+ 	"cmd/go/internal/version"
+ 	"cmd/go/internal/vet"
+ 	"cmd/go/internal/work"
++	"cmd/go/internal/workcmd"
++
++	"golang.org/x/telemetry/counter"
+ )
+ 
+ func init() {
+@@ -89,6 +91,7 @@ var _ = go11tag
+ 
+ func main() {
+ 	log.SetFlags(0)
++	counter.Open() // Open the telemetry counter file so counters can be written to it.
+ 	handleChdirFlag()
+ 	toolchain.Select()
+ 
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/LICENSE b/src/cmd/vendor/golang.org/x/telemetry/LICENSE
+new file mode 100644
+index 0000000000..6a66aea5ea
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/telemetry/LICENSE
+@@ -0,0 +1,27 @@
++Copyright (c) 2009 The Go Authors. All rights reserved.
++
++Redistribution and use in source and binary forms, with or without
++modification, are permitted provided that the following conditions are
++met:
++
++   * Redistributions of source code must retain the above copyright
++notice, this list of conditions and the following disclaimer.
++   * Redistributions in binary form must reproduce the above
++copyright notice, this list of conditions and the following disclaimer
++in the documentation and/or other materials provided with the
++distribution.
++   * Neither the name of Google Inc. nor the names of its
++contributors may be used to endorse or promote products derived from
++this software without specific prior written permission.
++
++THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/PATENTS b/src/cmd/vendor/golang.org/x/telemetry/PATENTS
+new file mode 100644
+index 0000000000..733099041f
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/telemetry/PATENTS
+@@ -0,0 +1,22 @@
++Additional IP Rights Grant (Patents)
++
++"This implementation" means the copyrightable works distributed by
++Google as part of the Go project.
++
++Google hereby grants to You a perpetual, worldwide, non-exclusive,
++no-charge, royalty-free, irrevocable (except as stated in this section)
++patent license to make, have made, use, offer to sell, sell, import,
++transfer and otherwise run, modify and propagate the contents of this
++implementation of Go, where such license applies only to those patent
++claims, both currently owned or controlled by Google and acquired in
++the future, licensable by Google that are necessarily infringed by this
++implementation of Go.  This grant does not include claims that would be
++infringed only as a consequence of further modification of this
++implementation.  If you or your agent or exclusive licensee institute or
++order or agree to the institution of patent litigation against any
++entity (including a cross-claim or counterclaim in a lawsuit) alleging
++that this implementation of Go or any code incorporated within this
++implementation of Go constitutes direct or contributory patent
++infringement, or inducement of patent infringement, then any patent
++rights granted to you under this License for this implementation of Go
++shall terminate as of the date such litigation is filed.
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/counter/counter.go b/src/cmd/vendor/golang.org/x/telemetry/counter/counter.go
+new file mode 100644
+index 0000000000..4ae16b2578
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/telemetry/counter/counter.go
+@@ -0,0 +1,94 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build go1.19
++
++package counter
++
++// The implementation of this package and tests are located in
++// internal/counter, which can be shared with the upload package.
++// TODO(hyangah): use of type aliases prevents nice documentation
++// rendering in go doc or pkgsite. Fix this either by avoiding
++// type aliasing or restructuring the internal/counter package.
++import (
++	"flag"
++
++	"golang.org/x/telemetry/internal/counter"
++)
++
++// Inc increments the counter with the given name.
++func Inc(name string) {
++	New(name).Inc()
++}
++
++// Add adds n to the counter with the given name.
++func Add(name string, n int64) {
++	New(name).Add(n)
++}
++
++// New returns a counter with the given name.
++// New can be called in global initializers and will be compiled down to
++// linker-initialized data. That is, calling New to initialize a global
++// has no cost at program startup.
++func New(name string) *Counter {
++	// Note: not calling DefaultFile.New in order to keep this
++	// function something the compiler can inline and convert
++	// into static data initializations, with no init-time footprint.
++	// TODO(hyangah): is it trivial enough for the compiler to inline?
++	return counter.New(name)
++}
++
++// A Counter is a single named event counter.
++// A Counter is safe for use by multiple goroutines simultaneously.
++//
++// Counters should typically be created using New
++// and stored as global variables, like:
++//
++//	package mypackage
++//	var errorCount = counter.New("mypackage/errors")
++//
++// (The initialization of errorCount in this example is handled
++// entirely by the compiler and linker; this line executes no code
++// at program startup.)
++//
++// Then code can call Add to increment the counter
++// each time the corresponding event is observed.
++//
++// Although it is possible to use New to create
++// a Counter each time a particular event needs to be recorded,
++// that usage fails to amortize the construction cost over
++// multiple calls to Add, so it is more expensive and not recommended.
++type Counter = counter.Counter
++
++// a StackCounter is the in-memory knowledge about a stack counter.
++// StackCounters are more expensive to use than regular Counters,
++// requiring, at a minimum, a call to runtime.Callers.
++type StackCounter = counter.StackCounter
++
++// NewStack returns a new stack counter with the given name and depth.
++func NewStack(name string, depth int) *StackCounter {
++	return counter.NewStack(name, depth)
++}
++
++// Open prepares telemetry counters for recording to the file system.
++//
++// If the telemetry mode is "off", Open is a no-op. Otherwise, it opens the
++// counter file on disk and starts to mmap telemetry counters to the file.
++// Open also persists any counters already created in the current process.
++//
++// Programs using telemetry should call Open exactly once.
++func Open() {
++	counter.Open()
++}
++
++// CountFlags creates a counter for every flag that is set
++// and increments the counter. The name of the counter is
++// the concatenation of prefix and the flag name.
++//
++//	For instance, CountFlags("gopls:flag-", flag.CommandLine)
++func CountFlags(prefix string, fs flag.FlagSet) {
++	fs.Visit(func(f *flag.Flag) {
++		New(prefix + f.Name).Inc()
++	})
++}
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/counter/counter_go118.go b/src/cmd/vendor/golang.org/x/telemetry/counter/counter_go118.go
+new file mode 100644
+index 0000000000..af1bf13980
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/telemetry/counter/counter_go118.go
+@@ -0,0 +1,34 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !go1.19
++
++package counter
++
++import "fmt"
++
++func Add(string, int64) {}
++func Inc(string)        {}
++func Open()             {}
++
++type Counter struct{ name string }
++
++func New(name string) *Counter  { return &Counter{name} }
++func (c *Counter) Add(n int64)  {}
++func (c *Counter) Inc()         {}
++func (c *Counter) Name() string { return c.name }
++
++type File struct {
++	Meta  map[string]string
++	Count map[string]uint64
++}
++
++func Parse(filename string, data []byte) (*File, error) { return nil, fmt.Errorf("unimplemented") }
++
++type StackCounter struct{ name string }
++
++func NewStack(name string, _ int) *StackCounter { return &StackCounter{name} }
++func (c *StackCounter) Counters() []*Counter    { return nil }
++func (c *StackCounter) Inc()                    {}
++func (c *StackCounter) Names() []string         { return nil }
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/counter/doc.go b/src/cmd/vendor/golang.org/x/telemetry/counter/doc.go
+new file mode 100644
+index 0000000000..4160e84bf2
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/telemetry/counter/doc.go
+@@ -0,0 +1,30 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package counter implements a simple counter system for collecting
++// totally public telemetry data.
++//
++// There are two kinds of counters, simple counters and stack counters.
++// Simple counters are created by New(<counter-name>).
++// Stack counters are created by NewStack(<counter-name>, depth).
++// Both are incremented by calling Inc().
++//
++// Counter files are stored in LocalDir(). Their content can be accessed
++// by Parse().
++//
++// Simple counters are very cheap. Stack counters are more
++// expensive, as they require parsing the stack.
++// (Stack counters are implemented as a set of regular counters whose names
++// are the concatenation of the name and the stack trace. There is an upper
++// limit on the size of this name, about 4K bytes. If the name is too long
++// the stack will be truncated and "truncated" appended.)
++//
++// When counter files expire they are turned into reports by the upload package.
++// The first time any counter file is created for a user, a random
++// day of the week is selected on which counter files will expire.
++// For the first week, that day is more than 7 days (but not more than
++// two weeks) in the future.
++// After that the counter files expire weekly on the same day of
++// the week.
++package counter
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/counter.go b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/counter.go
+new file mode 100644
+index 0000000000..dbd1042951
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/counter.go
+@@ -0,0 +1,328 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package internal/counter implements the internals of the public counter package.
++// In addition to the public API, this package also includes APIs to parse and
++// manage the counter files, needed by the upload package.
++package counter
++
++import (
++	"fmt"
++	"os"
++	"runtime"
++	"strings"
++	"sync/atomic"
++)
++
++// Note: not using internal/godebug, so that internal/godebug can use internal/counter.
++var debugCounter = strings.Contains(os.Getenv("GODEBUG"), "countertrace=1")
++
++func debugPrintf(format string, args ...interface{}) {
++	if debugCounter {
++		if len(format) == 0 || format[len(format)-1] != '\n' {
++			format += "\n"
++		}
++		fmt.Fprintf(os.Stderr, "counter: "+format, args...)
++	}
++}
++
++// A Counter is a single named event counter.
++// A Counter is safe for use by multiple goroutines simultaneously.
++//
++// Counters should typically be created using New
++// and stored as global variables, like:
++//
++//	package mypackage
++//	var errorCount = counter.New("mypackage/errors")
++//
++// (The initialization of errorCount in this example is handled
++// entirely by the compiler and linker; this line executes no code
++// at program startup.)
++//
++// Then code can call Add to increment the counter
++// each time the corresponding event is observed.
++//
++// Although it is possible to use New to create
++// a Counter each time a particular event needs to be recorded,
++// that usage fails to amortize the construction cost over
++// multiple calls to Add, so it is more expensive and not recommended.
++type Counter struct {
++	name string
++	file *file
++
++	next  atomic.Pointer[Counter]
++	state counterState
++	ptr   counterPtr
++}
++
++func (c *Counter) Name() string {
++	return c.name
++}
++
++type counterPtr struct {
++	m     *mappedFile
++	count *atomic.Uint64
++}
++
++type counterState struct {
++	bits atomic.Uint64
++}
++
++func (s *counterState) load() counterStateBits {
++	return counterStateBits(s.bits.Load())
++}
++
++func (s *counterState) update(old *counterStateBits, new counterStateBits) bool {
++	if s.bits.CompareAndSwap(uint64(*old), uint64(new)) {
++		*old = new
++		return true
++	}
++	return false
++}
++
++type counterStateBits uint64
++
++const (
++	stateReaders    counterStateBits = 1<<30 - 1
++	stateLocked     counterStateBits = stateReaders
++	stateHavePtr    counterStateBits = 1 << 30
++	stateExtraShift                  = 31
++	stateExtra      counterStateBits = 1<<64 - 1<<stateExtraShift
++)
++
++func (b counterStateBits) readers() int  { return int(b & stateReaders) }
++func (b counterStateBits) locked() bool  { return b&stateReaders == stateLocked }
++func (b counterStateBits) havePtr() bool { return b&stateHavePtr != 0 }
++func (b counterStateBits) extra() uint64 { return uint64(b&stateExtra) >> stateExtraShift }
++
++func (b counterStateBits) incReader() counterStateBits    { return b + 1 }
++func (b counterStateBits) decReader() counterStateBits    { return b - 1 }
++func (b counterStateBits) setLocked() counterStateBits    { return b | stateLocked }
++func (b counterStateBits) clearLocked() counterStateBits  { return b &^ stateLocked }
++func (b counterStateBits) setHavePtr() counterStateBits   { return b | stateHavePtr }
++func (b counterStateBits) clearHavePtr() counterStateBits { return b &^ stateHavePtr }
++func (b counterStateBits) clearExtra() counterStateBits   { return b &^ stateExtra }
++func (b counterStateBits) addExtra(n uint64) counterStateBits {
++	const maxExtra = uint64(stateExtra) >> stateExtraShift // 0x1ffffffff
++	x := b.extra()
++	if x+n < x || x+n > maxExtra {
++		x = maxExtra
++	} else {
++		x += n
++	}
++	return b.clearExtra() | counterStateBits(x)<<stateExtraShift
++}
++
++// New returns a counter with the given name.
++// New can be called in global initializers and will be compiled down to
++// linker-initialized data. That is, calling New to initialize a global
++// has no cost at program startup.
++func New(name string) *Counter {
++	// Note: not calling defaultFile.New in order to keep this
++	// function something the compiler can inline and convert
++	// into static data initializations, with no init-time footprint.
++	return &Counter{name: name, file: &defaultFile}
++}
++
++// Inc adds 1 to the counter.
++func (c *Counter) Inc() {
++	c.Add(1)
++}
++
++// Add adds n to the counter. n cannot be negative, as counts cannot decrease.
++func (c *Counter) Add(n int64) {
++	debugPrintf("Add %q += %d", c.name, n)
++
++	if n < 0 {
++		panic("Counter.Add negative")
++	}
++	if n == 0 {
++		return
++	}
++	c.file.register(c)
++
++	state := c.state.load()
++	for ; ; state = c.state.load() {
++		switch {
++		case !state.locked() && state.havePtr():
++			if !c.state.update(&state, state.incReader()) {
++				continue
++			}
++			// Counter unlocked or counter shared; has an initialized count pointer; acquired shared lock.
++			if c.ptr.count == nil {
++				for !c.state.update(&state, state.addExtra(uint64(n))) {
++					// keep trying - we already took the reader lock
++					state = c.state.load()
++				}
++				debugPrintf("Add %q += %d: nil extra=%d\n", c.name, n, state.extra())
++			} else {
++				sum := c.add(uint64(n))
++				debugPrintf("Add %q += %d: count=%d\n", c.name, n, sum)
++			}
++			c.releaseReader(state)
++			return
++
++		case state.locked():
++			if !c.state.update(&state, state.addExtra(uint64(n))) {
++				continue
++			}
++			debugPrintf("Add %q += %d: locked extra=%d\n", c.name, n, state.extra())
++			return
++
++		case !state.havePtr():
++			if !c.state.update(&state, state.addExtra(uint64(n)).setLocked()) {
++				continue
++			}
++			debugPrintf("Add %q += %d: noptr extra=%d\n", c.name, n, state.extra())
++			c.releaseLock(state)
++			return
++		}
++	}
++}
++
++func (c *Counter) releaseReader(state counterStateBits) {
++	for ; ; state = c.state.load() {
++		// If we are the last reader and havePtr was cleared
++		// while this batch of readers was using c.ptr,
++		// it's our job to update c.ptr by upgrading to a full lock
++		// and letting releaseLock do the work.
++		// Note: no new reader will attempt to add itself now that havePtr is clear,
++		// so we are only racing against possible additions to extra.
++		if state.readers() == 1 && !state.havePtr() {
++			if !c.state.update(&state, state.setLocked()) {
++				continue
++			}
++			debugPrintf("releaseReader %s: last reader, need ptr\n", c.name)
++			c.releaseLock(state)
++			return
++		}
++
++		// Release reader.
++		if !c.state.update(&state, state.decReader()) {
++			continue
++		}
++		debugPrintf("releaseReader %s: released (%d readers now)\n", c.name, state.readers())
++		return
++	}
++}
++
++func (c *Counter) releaseLock(state counterStateBits) {
++	for ; ; state = c.state.load() {
++		if !state.havePtr() {
++			// Set havePtr before updating ptr,
++			// to avoid race with the next clear of havePtr.
++			if !c.state.update(&state, state.setHavePtr()) {
++				continue
++			}
++			debugPrintf("releaseLock %s: reset havePtr (extra=%d)\n", c.name, state.extra())
++
++			// Optimization: only bother loading a new pointer
++			// if we have a value to add to it.
++			c.ptr = counterPtr{nil, nil}
++			if state.extra() != 0 {
++				c.ptr = c.file.lookup(c.name)
++				debugPrintf("releaseLock %s: ptr=%v\n", c.name, c.ptr)
++			}
++		}
++
++		if extra := state.extra(); extra != 0 && c.ptr.count != nil {
++			if !c.state.update(&state, state.clearExtra()) {
++				continue
++			}
++			sum := c.add(extra)
++			debugPrintf("releaseLock %s: flush extra=%d -> count=%d\n", c.name, extra, sum)
++		}
++
++		// Took care of refreshing ptr and flushing extra.
++		// Now we can release the lock, unless of course
++		// another goroutine cleared havePtr or added to extra,
++		// in which case we go around again.
++		if !c.state.update(&state, state.clearLocked()) {
++			continue
++		}
++		debugPrintf("releaseLock %s: unlocked\n", c.name)
++		return
++	}
++}
++
++func (c *Counter) add(n uint64) uint64 {
++	count := c.ptr.count
++	for {
++		old := count.Load()
++		sum := old + n
++		if sum < old {
++			sum = ^uint64(0)
++		}
++		if count.CompareAndSwap(old, sum) {
++			runtime.KeepAlive(c.ptr.m)
++			return sum
++		}
++	}
++}
++
++func (c *Counter) invalidate() {
++	for {
++		state := c.state.load()
++		if !state.havePtr() {
++			debugPrintf("invalidate %s: no ptr\n", c.name)
++			return
++		}
++		if c.state.update(&state, state.clearHavePtr()) {
++			debugPrintf("invalidate %s: cleared havePtr\n", c.name)
++			return
++		}
++	}
++}
++
++func (c *Counter) refresh() {
++	for {
++		state := c.state.load()
++		if state.havePtr() || state.readers() > 0 || state.extra() == 0 {
++			debugPrintf("refresh %s: havePtr=%v readers=%d extra=%d\n", c.name, state.havePtr(), state.readers(), state.extra())
++			return
++		}
++		if c.state.update(&state, state.setLocked()) {
++			debugPrintf("refresh %s: locked havePtr=%v readers=%d extra=%d\n", c.name, state.havePtr(), state.readers(), state.extra())
++			c.releaseLock(state)
++			return
++		}
++	}
++}
++
++// Read reads the given counter.
++// This is the implementation of x/telemetry/counter/countertest.ReadCounter.
++func Read(c *Counter) (uint64, error) {
++	pf, err := readFile(c.file)
++	if err != nil {
++		return 0, err
++	}
++	// counter doesn't write the entry to file until the value becomes non-zero.
++	return pf.Count[c.name], nil
++}
++
++func readFile(f *file) (*File, error) {
++	if f == nil {
++		debugPrintf("No file")
++		return nil, fmt.Errorf("counter is not initialized - was Open called?")
++	}
++
++	f.rotate()
++	if f.err != nil {
++		return nil, fmt.Errorf("failed to rotate mapped file - %v", f.err)
++	}
++	current := f.current.Load()
++	if current == nil {
++		return nil, fmt.Errorf("counter has no mapped file")
++	}
++	name := current.f.Name()
++	data, err := os.ReadFile(name)
++	if err != nil {
++		return nil, fmt.Errorf("failed to read from file: %v", err)
++	}
++	pf, err := Parse(name, data)
++	if err != nil {
++		return nil, fmt.Errorf("failed to parse: %v", err)
++	}
++	return pf, nil
++}
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
+new file mode 100644
+index 0000000000..f25dc2d144
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
+@@ -0,0 +1,705 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package counter
++
++import (
++	"bytes"
++	"errors"
++	"fmt"
++	"log"
++	"math/rand"
++	"os"
++	"path"
++	"path/filepath"
++	"runtime"
++	"runtime/debug"
++	"strings"
++	"sync"
++	"sync/atomic"
++	"time"
++	"unsafe"
++
++	"golang.org/x/mod/module"
++	"golang.org/x/telemetry/internal/mmap"
++	"golang.org/x/telemetry/internal/telemetry"
++)
++
++// A file is a counter file.
++type file struct {
++	// Linked list of all known counters.
++	// (Linked list insertion is easy to make lock-free,
++	// and we don't want the initial counters incremented
++	// by a program to cause significant contention.)
++	counters atomic.Pointer[Counter] // head of list
++	end      Counter                 // list ends at &end instead of nil
++
++	mu         sync.Mutex
++	namePrefix string
++	err        error
++	meta       string
++	current    atomic.Pointer[mappedFile] // can be read without holding mu, but may be nil
++}
++
++var defaultFile file
++
++// register ensures that the counter c is registered with the file.
++func (f *file) register(c *Counter) {
++	debugPrintf("register %s %p\n", c.Name(), c)
++
++	// If counter is not registered with file, register it.
++	// Doing this lazily avoids init-time work
++	// as well as any execution cost at all for counters
++	// that are not used in a given program.
++	wroteNext := false
++	for wroteNext || c.next.Load() == nil {
++		head := f.counters.Load()
++		next := head
++		if next == nil {
++			next = &f.end
++		}
++		debugPrintf("register %s next %p\n", c.Name(), next)
++		if !wroteNext {
++			if !c.next.CompareAndSwap(nil, next) {
++				debugPrintf("register %s cas failed %p\n", c.Name(), c.next.Load())
++				continue
++			}
++			wroteNext = true
++		} else {
++			c.next.Store(next)
++		}
++		if f.counters.CompareAndSwap(head, c) {
++			debugPrintf("registered %s %p\n", c.Name(), f.counters.Load())
++			return
++		}
++		debugPrintf("register %s cas2 failed %p %p\n", c.Name(), f.counters.Load(), head)
++	}
++}
++
++// invalidateCounters marks as invalid all the pointers
++// held by f's counters and then refreshes them.
++//
++// invalidateCounters cannot be called while holding f.mu,
++// because a counter refresh may call f.lookup.
++func (f *file) invalidateCounters() {
++	// Mark every counter as needing to refresh its count pointer.
++	if head := f.counters.Load(); head != nil {
++		for c := head; c != &f.end; c = c.next.Load() {
++			c.invalidate()
++		}
++		for c := head; c != &f.end; c = c.next.Load() {
++			c.refresh()
++		}
++	}
++}
++
++// lookup looks up the counter with the given name in the file,
++// allocating it if needed, and returns a pointer to the atomic.Uint64
++// containing the counter data.
++// If the file has not been opened yet, lookup returns nil.
++func (f *file) lookup(name string) counterPtr {
++	current := f.current.Load()
++	if current == nil {
++		debugPrintf("lookup %s - no mapped file\n", name)
++		return counterPtr{}
++	}
++	ptr := f.newCounter(name)
++	if ptr == nil {
++		return counterPtr{}
++	}
++	return counterPtr{current, ptr}
++}
++
++// ErrDisabled is the error returned when telemetry is disabled.
++var ErrDisabled = errors.New("counter: disabled by GOTELEMETRY=off")
++
++var (
++	errNoBuildInfo = errors.New("counter: missing build info")
++	errCorrupt     = errors.New("counter: corrupt counter file")
++)
++
++func (f *file) init(begin, end time.Time) {
++	info, ok := debug.ReadBuildInfo()
++	if !ok {
++		f.err = errNoBuildInfo
++		return
++	}
++	if mode, _ := telemetry.Mode(); mode == "off" {
++		f.err = ErrDisabled
++		return
++	}
++	dir := telemetry.LocalDir
++
++	if err := os.MkdirAll(dir, 0777); err != nil {
++		f.err = err
++		return
++	}
++
++	goVers, progPkgPath, prog, progVers := programInfo(info)
++	f.meta = fmt.Sprintf("TimeBegin: %s\nTimeEnd: %s\nProgram: %s\nVersion: %s\nGoVersion: %s\nGOOS: %s\nGOARCH: %s\n\n",
++		begin.Format(time.RFC3339), end.Format(time.RFC3339),
++		progPkgPath, progVers, goVers, runtime.GOOS, runtime.GOARCH)
++	if len(f.meta) > maxMetaLen { // should be impossible for our use
++		f.err = fmt.Errorf("metadata too long")
++		return
++	}
++	if progVers != "" {
++		progVers = "@" + progVers
++	}
++	prefix := fmt.Sprintf("%s%s-%s-%s-%s-", prog, progVers, goVers, runtime.GOOS, runtime.GOARCH)
++	f.namePrefix = filepath.Join(dir, prefix)
++}
++
++func programInfo(info *debug.BuildInfo) (goVers, progPkgPath, prog, progVers string) {
++	goVers = info.GoVersion
++	if strings.Contains(goVers, "devel") || strings.Contains(goVers, "-") {
++		goVers = "devel"
++	}
++	progPkgPath = info.Path
++	if progPkgPath == "" {
++		progPkgPath = strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe")
++	}
++	prog = path.Base(progPkgPath)
++	progVers = info.Main.Version
++	if strings.Contains(progVers, "devel") || module.IsPseudoVersion(progVers) {
++		// we don't want to track pseudo versions, but may want to track prereleases.
++		progVers = "devel"
++	}
++	return goVers, progPkgPath, prog, progVers
++}
++
++// filename returns the name of the file to use for f,
++// given the current time now.
++// It also returns the time when that name will no longer be valid
++// and a new filename should be computed.
++func (f *file) filename(now time.Time) (name string, expire time.Time, err error) {
++	now = now.UTC()
++	year, month, day := now.Date()
++	begin := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
++	// files always begin today, but expire on the next day of the week
++	// from the 'weekends' file.
++	incr, err := fileValidity(now)
++	if err != nil {
++		return "", time.Time{}, err
++	}
++	end := time.Date(year, month, day+incr, 0, 0, 0, 0, time.UTC)
++	if f.namePrefix == "" && f.err == nil {
++		f.init(begin, end)
++		debugPrintf("init: %#q, %v", f.namePrefix, f.err)
++	}
++	// f.err != nil was set in f.init and means it is impossible to
++	// have a counter file
++	if f.err != nil {
++		return "", time.Time{}, f.err
++	}
++
++	name = f.namePrefix + now.Format("2006-01-02") + "." + FileVersion + ".count"
++	return name, end, nil
++}
++
++// fileValidity returns the number of days that a file is valid for.
++// It is the number of days to the next day of the week from the 'weekends' file.
++func fileValidity(now time.Time) (int, error) {
++	// If there is no 'weekends' file create it and initialize it
++	// to a random day of the week. There is a short interval for
++	// a race.
++	weekends := filepath.Join(telemetry.LocalDir, "weekends")
++	day := fmt.Sprintf("%d\n", rand.Intn(7))
++	if _, err := os.ReadFile(weekends); err != nil {
++		if err := os.MkdirAll(telemetry.LocalDir, 0777); err != nil {
++			debugPrintf("%v: could not create telemetry.LocalDir %s", err, telemetry.LocalDir)
++			return 7, err
++		}
++		if err = os.WriteFile(weekends, []byte(day), 0666); err != nil {
++			return 7, err
++		}
++	}
++
++	// race is over, read the file
++	buf, err := os.ReadFile(weekends)
++	// There is no reasonable way of recovering from errors
++	// so we just fail
++	if err != nil {
++		return 7, err
++	}
++	buf = bytes.TrimSpace(buf)
++	if len(buf) == 0 {
++		return 7, err
++	}
++	dayofweek := time.Weekday(buf[0] - '0') // 0 is Sunday
++	// paranoia to make sure the value is legal
++	dayofweek %= 7
++	if dayofweek < 0 {
++		dayofweek += 7
++	}
++	today := now.Weekday()
++	incr := dayofweek - today
++	if incr <= 0 {
++		incr += 7
++	}
++	return int(incr), nil
++}
++
++// rotate checks to see whether the file f needs to be rotated,
++// meaning to start a new counter file with a different date in the name.
++// rotate is also used to open the file initially, meaning f.current can be nil.
++// In general rotate should be called just once for each file.
++// rotate will arrange a timer to call itself again when necessary.
++func (f *file) rotate() {
++	expire, cleanup := f.rotate1()
++	cleanup()
++	if !expire.IsZero() {
++		// TODO(rsc): Does this do the right thing for laptops closing?
++		time.AfterFunc(time.Until(expire), f.rotate)
++	}
++}
++
++func nop() {}
++
++// counterTime returns the current UTC time.
++// Mutable for testing.
++var counterTime = func() time.Time {
++	return time.Now().UTC()
++}
++
++func (f *file) rotate1() (expire time.Time, cleanup func()) {
++	f.mu.Lock()
++	defer f.mu.Unlock()
++
++	var previous *mappedFile
++	cleanup = func() {
++		// convert counters to new mapping (or nil)
++		// from old mapping (or nil)
++		f.invalidateCounters()
++		if previous == nil {
++			// no old mapping to worry about
++			return
++		}
++		// now it is safe to clean up the old mapping
++		if err := previous.f.Close(); err != nil {
++			log.Print(err)
++		}
++		if err := munmap(previous.mapping); err != nil {
++			log.Print(err)
++		}
++	}
++
++	name, expire, err := f.filename(counterTime())
++	if err != nil {
++		// This could be mode == "off" (when rotate is called for the first time)
++		ret := nop
++		if previous = f.current.Load(); previous != nil {
++			// or it could be some strange error
++			f.current.Store(nil)
++			ret = cleanup
++		}
++		debugPrintf("rotate: %v\n", err)
++		return time.Time{}, ret
++	}
++
++	previous = f.current.Load()
++	if previous != nil && name == previous.f.Name() {
++		// the existing file is fine
++		return expire, nop
++	}
++
++	m, err := openMapped(name, f.meta, nil)
++	if err != nil {
++		// Mapping failed:
++		// If there used to be a mapped file, after cleanup
++		// incrementing counters will only change their internal state.
++		// (before cleanup the existing mapped file would be updated)
++		f.current.Store(nil) // invalidate the current mapping
++		debugPrintf("rotate: openMapped: %v\n", err)
++		return time.Time{}, cleanup
++	}
++
++	debugPrintf("using %v", m.f.Name())
++	f.current.Store(m)
++
++	return expire, cleanup
++}
++
++func (f *file) newCounter(name string) *atomic.Uint64 {
++	v, cleanup := f.newCounter1(name)
++	cleanup()
++	return v
++}
++
++func (f *file) newCounter1(name string) (v *atomic.Uint64, cleanup func()) {
++	f.mu.Lock()
++	defer f.mu.Unlock()
++
++	current := f.current.Load()
++	if current == nil {
++		return nil, nop
++	}
++	debugPrintf("newCounter %s in %s\n", name, current.f.Name())
++	if v, _, _, _ := current.lookup(name); v != nil {
++		return v, nop
++	}
++	v, newM, err := current.newCounter(name)
++	if err != nil {
++		debugPrintf("newCounter %s: %v\n", name, err)
++		return nil, nop
++	}
++
++	cleanup = nop
++	if newM != nil {
++		f.current.Store(newM)
++		cleanup = f.invalidateCounters
++	}
++	return v, cleanup
++}
++
++// Open associates counting with the defaultFile.
++// The returned function is for testing only, and should
++// be called after all Inc()s are finished, but before
++// any reports are generated.
++// (Otherwise expired count files will not be deleted on Windows.)
++func Open() func() {
++	if mode, _ := telemetry.Mode(); mode == "off" {
++		// Don't open the file when telemetry is off.
++		defaultFile.err = ErrDisabled
++		return func() {} // No need to clean up.
++	}
++	debugPrintf("Open")
++	defaultFile.rotate()
++	return func() {
++		// Once this has been called, the defaultFile is no longer usable.
++		mf := defaultFile.current.Load()
++		if mf == nil {
++			// telemetry might have been off
++			return
++		}
++		mmap.Munmap(mf.mapping)
++		mf.f.Close() // best effort
++	}
++}
++
++// A mappedFile is a counter file mmapped into memory.
++type mappedFile struct {
++	meta      string
++	hdrLen    uint32
++	zero      [4]byte
++	closeOnce sync.Once
++	f         *os.File
++	mapping   *mmap.Data
++}
++
++// existing should be nil the first time this is called for a file,
++// and when remapping, should be the previous mappedFile.
++func openMapped(name string, meta string, existing *mappedFile) (_ *mappedFile, err error) {
++	hdr, err := mappedHeader(meta)
++	if err != nil {
++		return nil, err
++	}
++
++	f, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE, 0666)
++	if err != nil {
++		return nil, err
++	}
++	// Note: using local variable m here, not return value,
++	// so that return nil, err does not set m = nil and break the code in the defer.
++	m := &mappedFile{
++		f:    f,
++		meta: meta,
++	}
++	runtime.SetFinalizer(m, (*mappedFile).close)
++	defer func() {
++		if err != nil {
++			m.close()
++		}
++	}()
++	info, err := f.Stat()
++	if err != nil {
++		return nil, err
++	}
++
++	// Establish file header and initial data area if not already present.
++	if info.Size() < minFileLen {
++		if _, err := f.WriteAt(hdr, 0); err != nil {
++			return nil, err
++		}
++		// Write zeros at the end of the file to extend it to minFileLen.
++		if _, err := f.WriteAt(m.zero[:], int64(minFileLen-len(m.zero))); err != nil {
++			return nil, err
++		}
++		info, err = f.Stat()
++		if err != nil {
++			return nil, err
++		}
++		if info.Size() < minFileLen {
++			return nil, fmt.Errorf("counter: writing file did not extend it")
++		}
++	}
++
++	// Map into memory.
++	var mapping mmap.Data
++	if existing != nil {
++		mapping, err = memmap(f, existing.mapping)
++	} else {
++		mapping, err = memmap(f, nil)
++	}
++	if err != nil {
++		return nil, err
++	}
++	m.mapping = &mapping
++	if !bytes.HasPrefix(m.mapping.Data, hdr) {
++		return nil, fmt.Errorf("counter: header mismatch")
++	}
++	m.hdrLen = uint32(len(hdr))
++
++	return m, nil
++}
++
++const (
++	FileVersion = "v1"
++	hdrPrefix   = "# telemetry/counter file " + FileVersion + "\n"
++	recordUnit  = 32
++	maxMetaLen  = 512
++	numHash     = 512 // 2kB for hash table
++	maxNameLen  = 4 * 1024
++	limitOff    = 0
++	hashOff     = 4
++	pageSize    = 16 * 1024
++	minFileLen  = 16 * 1024
++)
++
++func mappedHeader(meta string) ([]byte, error) {
++	if len(meta) > maxMetaLen {
++		return nil, fmt.Errorf("counter: metadata too large")
++	}
++	np := round(len(hdrPrefix), 4)
++	n := round(np+4+len(meta), 32)
++	hdr := make([]byte, n)
++	copy(hdr, hdrPrefix)
++	*(*uint32)(unsafe.Pointer(&hdr[np])) = uint32(n)
++	copy(hdr[np+4:], meta)
++	return hdr, nil
++}
++
++func (m *mappedFile) place(limit uint32, name string) (start, end uint32) {
++	if limit == 0 {
++		// first record in file
++		limit = m.hdrLen + hashOff + 4*numHash
++	}
++	n := round(uint32(16+len(name)), recordUnit)
++	start = round(limit, recordUnit) // should already be rounded but just in case
++	if start/pageSize != (start+n)/pageSize {
++		// bump start to next page
++		start = round(limit, pageSize)
++	}
++	return start, start + n
++}
++
++var memmap = mmap.Mmap
++var munmap = mmap.Munmap
++
++func (m *mappedFile) close() {
++	m.closeOnce.Do(func() {
++		if m.mapping != nil {
++			munmap(m.mapping)
++			m.mapping = nil
++		}
++		if m.f != nil {
++			m.f.Close() // best effort
++			m.f = nil
++		}
++	})
++}
++
++// hash returns the hash code for name.
++// The implementation is FNV-1a.
++// This hash function is a fixed detail of the file format.
++// It cannot be changed without also changing the file format version.
++func hash(name string) uint32 {
++	const (
++		offset32 = 2166136261
++		prime32  = 16777619
++	)
++	h := uint32(offset32)
++	for i := 0; i < len(name); i++ {
++		c := name[i]
++		h = (h ^ uint32(c)) * prime32
++	}
++	return (h ^ (h >> 16)) % numHash
++}
++
++func (m *mappedFile) load32(off uint32) uint32 {
++	if int64(off) >= int64(len(m.mapping.Data)) {
++		return 0
++	}
++	return (*atomic.Uint32)(unsafe.Pointer(&m.mapping.Data[off])).Load()
++}
++
++func (m *mappedFile) cas32(off, old, new uint32) bool {
++	if int64(off) >= int64(len(m.mapping.Data)) {
++		panic("bad cas32") // return false would probably loop
++	}
++	return (*atomic.Uint32)(unsafe.Pointer(&m.mapping.Data[off])).CompareAndSwap(old, new)
++}
++
++func (m *mappedFile) entryAt(off uint32) (name []byte, next uint32, v *atomic.Uint64, ok bool) {
++	if off < m.hdrLen+hashOff || int64(off)+16 > int64(len(m.mapping.Data)) {
++		return nil, 0, nil, false
++	}
++	nameLen := m.load32(off+8) & 0x00ffffff
++	if nameLen == 0 || int64(off)+16+int64(nameLen) > int64(len(m.mapping.Data)) {
++		return nil, 0, nil, false
++	}
++	name = m.mapping.Data[off+16 : off+16+nameLen]
++	next = m.load32(off + 12)
++	v = (*atomic.Uint64)(unsafe.Pointer(&m.mapping.Data[off]))
++	return name, next, v, true
++}
++
++func (m *mappedFile) writeEntryAt(off uint32, name string) (next *atomic.Uint32, v *atomic.Uint64, ok bool) {
++	if off < m.hdrLen+hashOff || int64(off)+16+int64(len(name)) > int64(len(m.mapping.Data)) {
++		return nil, nil, false
++	}
++	copy(m.mapping.Data[off+16:], name)
++	atomic.StoreUint32((*uint32)(unsafe.Pointer(&m.mapping.Data[off+8])), uint32(len(name))|0xff000000)
++	next = (*atomic.Uint32)(unsafe.Pointer(&m.mapping.Data[off+12]))
++	v = (*atomic.Uint64)(unsafe.Pointer(&m.mapping.Data[off]))
++	return next, v, true
++}
++
++func (m *mappedFile) lookup(name string) (v *atomic.Uint64, headOff, head uint32, ok bool) {
++	h := hash(name)
++	headOff = m.hdrLen + hashOff + h*4
++	head = m.load32(headOff)
++	off := head
++	for off != 0 {
++		ename, next, v, ok := m.entryAt(off)
++		if !ok {
++			return nil, 0, 0, false
++		}
++		if string(ename) == name {
++			return v, headOff, head, true
++		}
++		off = next
++	}
++	return nil, headOff, head, true
++}
++
++func (m *mappedFile) newCounter(name string) (v *atomic.Uint64, m1 *mappedFile, err error) {
++	if len(name) > maxNameLen {
++		return nil, nil, fmt.Errorf("counter name too long")
++	}
++	orig := m
++	defer func() {
++		if m != orig {
++			if err != nil {
++				m.close()
++			} else {
++				m1 = m
++			}
++		}
++	}()
++
++	v, headOff, head, ok := m.lookup(name)
++	for !ok {
++		// Lookup found an invalid pointer,
++		// perhaps because the file has grown larger than the mapping.
++		limit := m.load32(m.hdrLen + limitOff)
++		if int64(limit) <= int64(len(m.mapping.Data)) {
++			// Mapping doesn't need to grow, so lookup found actual corruption.
++			debugPrintf("corrupt1\n")
++			return nil, nil, errCorrupt
++		}
++		newM, err := openMapped(m.f.Name(), m.meta, m)
++		if err != nil {
++			return nil, nil, err
++		}
++		if m != orig {
++			m.close()
++		}
++		m = newM
++		v, headOff, head, ok = m.lookup(name)
++	}
++	if v != nil {
++		return v, nil, nil
++	}
++
++	// Reserve space for new record.
++	// We are competing against other programs using the same file,
++	// so we use a compare-and-swap on the allocation limit in the header.
++	var start, end uint32
++	for {
++		// Determine where record should end, and grow file if needed.
++		limit := m.load32(m.hdrLen + limitOff)
++		start, end = m.place(limit, name)
++		debugPrintf("place %s at %#x-%#x\n", name, start, end)
++		if int64(end) > int64(len(m.mapping.Data)) {
++			newM, err := m.extend(end)
++			if err != nil {
++				return nil, nil, err
++			}
++			if m != orig {
++				m.close()
++			}
++			m = newM
++			continue
++		}
++
++		// Attempt to reserve that space for our record.
++		if m.cas32(m.hdrLen+limitOff, limit, end) {
++			break
++		}
++	}
++
++	// Write record.
++	next, v, ok := m.writeEntryAt(start, name)
++	if !ok {
++		debugPrintf("corrupt2 %#x+%d vs %#x\n", start, len(name), len(m.mapping.Data))
++		return nil, nil, errCorrupt // more likely our math is wrong
++	}
++
++	// Link record into hash chain, making sure not to introduce a duplicate.
++	// We know name does not appear in the chain starting at head.
++	for {
++		next.Store(head)
++		if m.cas32(headOff, head, start) {
++			return v, nil, nil
++		}
++
++		// Check new elements in chain for duplicates.
++		old := head
++		head = m.load32(headOff)
++		for off := head; off != old; {
++			ename, enext, v, ok := m.entryAt(off)
++			if !ok {
++				return nil, nil, errCorrupt
++			}
++			if string(ename) == name {
++				next.Store(^uint32(0)) // mark ours as dead
++				return v, nil, nil
++			}
++			off = enext
++		}
++	}
++}
++
++func (m *mappedFile) extend(end uint32) (*mappedFile, error) {
++	end = round(end, pageSize)
++	info, err := m.f.Stat()
++	if err != nil {
++		return nil, err
++	}
++	if info.Size() < int64(end) {
++		if _, err := m.f.WriteAt(m.zero[:], int64(end)-int64(len(m.zero))); err != nil {
++			return nil, err
++		}
++	}
++	newM, err := openMapped(m.f.Name(), m.meta, m)
++	m.f.Close()
++	return newM, err
++}
++
++// round returns x rounded up to the next multiple of unit,
++// which must be a power of two.
++func round[T int | uint32](x T, unit T) T {
++	return (x + unit - 1) &^ (unit - 1)
++}
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/parse.go b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/parse.go
+new file mode 100644
+index 0000000000..ee896a45eb
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/parse.go
+@@ -0,0 +1,130 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package counter
++
++import (
++	"bytes"
++	"fmt"
++	"strings"
++	"time"
++	"unsafe"
++
++	"golang.org/x/telemetry/internal/mmap"
++)
++
++type File struct {
++	Meta  map[string]string
++	Count map[string]uint64
++}
++
++func Parse(filename string, data []byte) (*File, error) {
++	if !bytes.HasPrefix(data, []byte(hdrPrefix)) || len(data) < pageSize {
++		if len(data) < pageSize {
++			return nil, fmt.Errorf("%s: file too short (%d<%d)", filename, len(data), pageSize)
++		}
++		return nil, fmt.Errorf("%s: wrong hdr (not %q)", filename, hdrPrefix)
++	}
++	corrupt := func() (*File, error) {
++		return nil, fmt.Errorf("%s: corrupt counter file", filename)
++	}
++
++	f := &File{
++		Meta:  make(map[string]string),
++		Count: make(map[string]uint64),
++	}
++	np := round(len(hdrPrefix), 4)
++	hdrLen := *(*uint32)(unsafe.Pointer(&data[np]))
++	if hdrLen > pageSize {
++		return corrupt()
++	}
++	meta := data[np+4 : hdrLen]
++	if i := bytes.IndexByte(meta, 0); i >= 0 {
++		meta = meta[:i]
++	}
++	m := &mappedFile{
++		meta:    string(meta),
++		hdrLen:  hdrLen,
++		mapping: &mmap.Data{Data: data},
++	}
++
++	lines := strings.Split(m.meta, "\n")
++	for _, line := range lines {
++		if line == "" {
++			continue
++		}
++		k, v, ok := strings.Cut(line, ": ")
++		if !ok {
++			return corrupt()
++		}
++		f.Meta[k] = v
++	}
++	if f.Meta["TimeBegin"] == "" {
++		// Infer from file name.
++		if !strings.HasSuffix(filename, ".v1.count") || len(filename) < len("-2022-11-19") {
++			return corrupt()
++		}
++		short := strings.TrimSuffix(filename, ".v1.count")
++		short = short[len(short)-len("2022-11-19"):]
++		t, err := time.ParseInLocation("2006-01-02", short, time.UTC)
++		if err != nil {
++			return nil, fmt.Errorf("%s: invalid counter file name", filename)
++		}
++		f.Meta["TimeBegin"] = t.Format(time.RFC3339)
++		// TODO(pjw): 1 isn't correct. 7?, but is this ever executed?
++		f.Meta["TimeEnd"] = t.AddDate(0, 0, 1).Format(time.RFC3339)
++	}
++
++	for i := uint32(0); i < numHash; i++ {
++		headOff := hdrLen + hashOff + i*4
++		head := m.load32(headOff)
++		off := head
++		for off != 0 {
++			ename, next, v, ok := m.entryAt(off)
++			if !ok {
++				return corrupt()
++			}
++			if _, ok := f.Count[string(ename)]; ok {
++				return corrupt()
++			}
++			ctrName := expandName(ename)
++			f.Count[ctrName] = v.Load()
++			off = next
++		}
++	}
++	return f, nil
++}
++
++func expandName(ename []byte) string {
++	if !bytes.Contains(ename, []byte{'\n'}) {
++		// not a stack counter
++		return string(ename)
++	}
++	lines := bytes.Split(ename, []byte{'\n'})
++	var lastPath []byte // empty or ends with .
++	for i, line := range lines {
++		path, rest := splitLine(line)
++		if len(path) == 0 {
++			continue // unchanged
++		}
++		if len(path) == 1 && path[0] == '"' {
++			path = append([]byte{}, lastPath...) //need a deep copy
++			lines[i] = append(path, rest...)
++		} else {
++			lastPath = append(path, '.')
++			// line unchanged
++		}
++	}
++	return string(bytes.Join(lines, []byte{'\n'})) // trailing \n?
++}
++
++// input is <import path>.<function name>
++// output is (import path, function name)
++func splitLine(x []byte) ([]byte, []byte) {
++	i := bytes.LastIndex(x, []byte{'.'})
++	if i < 0 {
++		return []byte{}, x
++	}
++	return x[:i], x[i+1:]
++}
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/stackcounter.go b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/stackcounter.go
+new file mode 100644
+index 0000000000..25b37b3d61
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/stackcounter.go
+@@ -0,0 +1,164 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package counter
++
++import (
++	"fmt"
++	"runtime"
++	"strings"
++	"sync"
++)
++
++// On the disk, and upstream, stack counters look like sets of
++// regular counters with names that include newlines.
++
++// a StackCounter is the in-memory knowledge about a stack counter.
++// StackCounters are more expensive to use than regular Counters,
++// requiring, at a minimum, a call to runtime.Callers.
++type StackCounter struct {
++	name  string
++	depth int
++	file  *file
++
++	mu sync.Mutex
++	// as this is a detail of the implementation, it could be replaced
++	// by a more efficient mechanism
++	stacks []stack
++}
++
++type stack struct {
++	pcs     []uintptr
++	counter *Counter
++}
++
++func NewStack(name string, depth int) *StackCounter {
++	return &StackCounter{name: name, depth: depth, file: &defaultFile}
++}
++
++// Inc increments a stack counter. It computes the caller's stack and
++// looks up the corresponding counter. It then increments that counter,
++// creating it if necessary.
++func (c *StackCounter) Inc() {
++	pcs := make([]uintptr, c.depth)
++	n := runtime.Callers(2, pcs) // caller of Inc
++	pcs = pcs[:n]
++	c.mu.Lock()
++	defer c.mu.Unlock()
++	for _, s := range c.stacks {
++		if eq(s.pcs, pcs) {
++			if s.counter != nil {
++				s.counter.Inc()
++			}
++			return
++		}
++	}
++	// have to create the new counter's name, and the new counter itself
++	locs := make([]string, 0, c.depth)
++	lastImport := ""
++	frs := runtime.CallersFrames(pcs)
++	for i := 0; ; i++ {
++		fr, more := frs.Next()
++		pcline := fr.Line
++		entryptr := fr.Entry
++		var locline string
++		path, fname := splitPath(fr.Function)
++		if path == lastImport {
++			path = "\""
++		} else {
++			lastImport = path
++		}
++		if fr.Func != nil {
++			_, entryline := fr.Func.FileLine(entryptr)
++			if pcline >= entryline {
++				locline = fmt.Sprintf("%s.%s:%d", path, fname, pcline-entryline)
++			} else {
++				// unexpected
++				locline = fmt.Sprintf("%s.%s:??%d", path, fname, pcline)
++				lastImport = ""
++			}
++		} else {
++			// might happen if the function is non-Go code or is fully inlined.
++			locline = fmt.Sprintf("%s.%s:?%d", path, fname, pcline)
++			lastImport = ""
++		}
++		locs = append(locs, locline)
++		if !more {
++			break
++		}
++	}
++
++	name := c.name + "\n" + strings.Join(locs, "\n")
++	if len(name) > maxNameLen {
++		const bad = "\ntruncated\n"
++		name = name[:maxNameLen-len(bad)] + bad
++	}
++	ctr := &Counter{name: name, file: c.file}
++	c.stacks = append(c.stacks, stack{pcs: pcs, counter: ctr})
++	ctr.Inc()
++}
++
++// input is <import path>.<function name>
++// output is (import path, function name)
++func splitPath(x string) (string, string) {
++	i := strings.LastIndex(x, ".")
++	if i < 0 {
++		return "", x
++	}
++	return x[:i], x[i+1:]
++}
++
++// Names reports all the counter names associated with a StackCounter.
++func (c *StackCounter) Names() []string {
++	c.mu.Lock()
++	defer c.mu.Unlock()
++	names := make([]string, len(c.stacks))
++	for i, s := range c.stacks {
++		names[i] = s.counter.Name()
++	}
++	return names
++}
++
++// Counters returns the known Counters for a StackCounter.
++// There may be more in the count file.
++func (c *StackCounter) Counters() []*Counter {
++	c.mu.Lock()
++	defer c.mu.Unlock()
++	counters := make([]*Counter, len(c.stacks))
++	for i, s := range c.stacks {
++		counters[i] = s.counter
++	}
++	return counters
++}
++
++func eq(a, b []uintptr) bool {
++	if len(a) != len(b) {
++		return false
++	}
++	for i := range a {
++		if a[i] != b[i] {
++			return false
++		}
++	}
++	return true
++}
++
++// ReadStack reads the given stack counter.
++// This is the implementation of
++// golang.org/x/telemetry/counter/countertest.ReadStackCounter.
++func ReadStack(c *StackCounter) (map[string]uint64, error) {
++	pf, err := readFile(c.file)
++	if err != nil {
++		return nil, err
++	}
++	ret := map[string]uint64{}
++	prefix := c.name + "\n"
++
++	for k, v := range pf.Count {
++		if strings.HasPrefix(k, prefix) {
++			ret[k] = v
++		}
++	}
++	return ret, nil
++}
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/mmap/mmap.go b/src/cmd/vendor/golang.org/x/telemetry/internal/mmap/mmap.go
+new file mode 100644
+index 0000000000..fb3ca9650d
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/mmap/mmap.go
+@@ -0,0 +1,37 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This package is a lightly modified version of the mmap code
++// in github.com/google/codesearch/index.
++
++// The mmap package provides an abstraction for memory mapping files
++// on different platforms.
++package mmap
++
++import (
++	"os"
++)
++
++// The backing file is never closed, so Data
++// remains valid for the lifetime of the process.
++type Data struct {
++	// TODO(pjw): might be better to define versions of Data
++	// for the 3 specializations
++	f    *os.File
++	Data []byte
++	// Some windows magic
++	Windows interface{}
++}
++
++// Mmap maps the given file into memory.
++// When remapping a file, pass the most recently returned Data.
++func Mmap(f *os.File, data *Data) (Data, error) {
++	return mmapFile(f, data)
++}
++
++// Munmap unmaps the given file from memory.
++func Munmap(d *Data) error {
++	// d.f.Close() on Windows still gets an error
++	return munmapFile(*d)
++}
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/mmap/mmap_other.go b/src/cmd/vendor/golang.org/x/telemetry/internal/mmap/mmap_other.go
+new file mode 100644
+index 0000000000..361ca8b01a
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/mmap/mmap_other.go
+@@ -0,0 +1,25 @@
++// Copyright 2022 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build (js && wasm) || wasip1 || plan9 || (solaris && !go1.20)
++
++package mmap
++
++import (
++	"io"
++	"os"
++)
++
++// mmapFile on other systems doesn't mmap the file. It just reads everything.
++func mmapFile(f *os.File, _ *Data) (Data, error) {
++	b, err := io.ReadAll(f)
++	if err != nil {
++		return Data{}, err
++	}
++	return Data{f, b, nil}, nil
++}
++
++func munmapFile(d Data) error {
++	return nil
++}
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/mmap/mmap_unix.go b/src/cmd/vendor/golang.org/x/telemetry/internal/mmap/mmap_unix.go
+new file mode 100644
+index 0000000000..af462ff676
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/mmap/mmap_unix.go
+@@ -0,0 +1,47 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build unix && (!solaris || go1.20)
++
++package mmap
++
++import (
++	"fmt"
++	"io/fs"
++	"os"
++	"syscall"
++)
++
++func mmapFile(f *os.File, _ *Data) (Data, error) {
++	st, err := f.Stat()
++	if err != nil {
++		return Data{}, err
++	}
++	size := st.Size()
++	pagesize := int64(os.Getpagesize())
++	if int64(int(size+(pagesize-1))) != size+(pagesize-1) {
++		return Data{}, fmt.Errorf("%s: too large for mmap", f.Name())
++	}
++	n := int(size)
++	if n == 0 {
++		return Data{f, nil, nil}, nil
++	}
++	mmapLength := int(((size + pagesize - 1) / pagesize) * pagesize) // round up to page size
++	data, err := syscall.Mmap(int(f.Fd()), 0, mmapLength, syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED)
++	if err != nil {
++		return Data{}, &fs.PathError{Op: "mmap", Path: f.Name(), Err: err}
++	}
++	return Data{f, data[:n], nil}, nil
++}
++
++func munmapFile(d Data) error {
++	if len(d.Data) == 0 {
++		return nil
++	}
++	err := syscall.Munmap(d.Data)
++	if err != nil {
++		return &fs.PathError{Op: "munmap", Path: d.f.Name(), Err: err}
++	}
++	return nil
++}
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/mmap/mmap_windows.go b/src/cmd/vendor/golang.org/x/telemetry/internal/mmap/mmap_windows.go
+new file mode 100644
+index 0000000000..d1255fd712
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/mmap/mmap_windows.go
+@@ -0,0 +1,54 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package mmap
++
++import (
++	"fmt"
++	"os"
++	"syscall"
++	"unsafe"
++
++	"golang.org/x/sys/windows"
++)
++
++func mmapFile(f *os.File, previous *Data) (Data, error) {
++	if previous != nil {
++		munmapFile(*previous)
++	}
++	st, err := f.Stat()
++	if err != nil {
++		return Data{}, err
++	}
++	size := st.Size()
++	if size == 0 {
++		return Data{f, nil, nil}, nil
++	}
++	h, err := windows.CreateFileMapping(windows.Handle(f.Fd()), nil, syscall.PAGE_READWRITE, 0, 0, nil)
++	if err != nil {
++		return Data{}, fmt.Errorf("CreateFileMapping %s: %w", f.Name(), err)
++	}
++
++	addr, err := windows.MapViewOfFile(h, syscall.FILE_MAP_READ|syscall.FILE_MAP_WRITE, 0, 0, 0)
++	if err != nil {
++		return Data{}, fmt.Errorf("MapViewOfFile %s: %w", f.Name(), err)
++	}
++	var info windows.MemoryBasicInformation
++	err = windows.VirtualQuery(addr, &info, unsafe.Sizeof(info))
++	if err != nil {
++		return Data{}, fmt.Errorf("VirtualQuery %s: %w", f.Name(), err)
++	}
++	data := unsafe.Slice((*byte)(unsafe.Pointer(addr)), int(info.RegionSize))
++	return Data{f, data, h}, nil
++}
++
++func munmapFile(d Data) error {
++	err := windows.UnmapViewOfFile(uintptr(unsafe.Pointer(&d.Data[0])))
++	x, ok := d.Windows.(windows.Handle)
++	if ok {
++		windows.CloseHandle(x)
++	}
++	d.f.Close()
++	return err
++}
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/mode.go b/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/mode.go
+new file mode 100644
+index 0000000000..b461389049
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/mode.go
+@@ -0,0 +1,117 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package telemetry manages the telemetry mode file.
++package telemetry
++
++import (
++	"fmt"
++	"os"
++	"path/filepath"
++	"strings"
++	"time"
++)
++
++// The followings are the process' default Settings.
++// The values are subdirectories and a file under
++// os.UserConfigDir()/go/telemetry.
++// For convenience, each field is made to global
++// and they are not supposed to be changed.
++var (
++	// Default directory containing count files and local reports (not yet uploaded)
++	LocalDir string
++	// Default directory containing uploaded reports.
++	UploadDir string
++	// Default file path that holds the telemetry mode info.
++	ModeFile ModeFilePath
++)
++
++// ModeFilePath is the telemetry mode file path with methods to manipulate the file contents.
++type ModeFilePath string
++
++func init() {
++	cfgDir, err := os.UserConfigDir()
++	if err != nil {
++		return
++	}
++	gotelemetrydir := filepath.Join(cfgDir, "go", "telemetry")
++	LocalDir = filepath.Join(gotelemetrydir, "local")
++	UploadDir = filepath.Join(gotelemetrydir, "upload")
++	ModeFile = ModeFilePath(filepath.Join(gotelemetrydir, "mode"))
++}
++
++// SetMode updates the telemetry mode with the given mode.
++// Acceptable values for mode are "on", "off", or "local".
++//
++// SetMode always writes the mode file, and explicitly records the date at
++// which the modefile was updated. This means that calling SetMode with "on"
++// effectively resets the timeout before the next telemetry report is uploaded.
++func SetMode(mode string) error {
++	return ModeFile.SetMode(mode)
++}
++
++func (m ModeFilePath) SetMode(mode string) error {
++	return m.SetModeAsOf(mode, time.Now())
++}
++
++// SetModeAsOf is like SetMode, but accepts an explicit time to use to
++// back-date the mode state. This exists only for testing purposes.
++func (m ModeFilePath) SetModeAsOf(mode string, asofTime time.Time) error {
++	mode = strings.TrimSpace(mode)
++	switch mode {
++	case "on", "off", "local":
++	default:
++		return fmt.Errorf("invalid telemetry mode: %q", mode)
++	}
++	fname := string(m)
++	if fname == "" {
++		return fmt.Errorf("cannot determine telemetry mode file name")
++	}
++	if err := os.MkdirAll(filepath.Dir(fname), 0755); err != nil {
++		return fmt.Errorf("cannot create a telemetry mode file: %w", err)
++	}
++
++	asof := asofTime.UTC().Format("2006-01-02")
++	// Defensively guarantee that we can parse the asof time.
++	if _, err := time.Parse("2006-01-02", asof); err != nil {
++		return fmt.Errorf("internal error: invalid mode date %q: %v", asof, err)
++	}
++
++	data := []byte(mode + " " + asof)
++	return os.WriteFile(fname, data, 0666)
++}
++
++// Mode returns the current telemetry mode, as well as the time that the mode
++// was effective.
++//
++// If there is no effective time, the second result is the zero time.
++func Mode() (string, time.Time) {
++	return ModeFile.Mode()
++}
++
++func (m ModeFilePath) Mode() (string, time.Time) {
++	fname := string(m)
++	if fname == "" {
++		return "off", time.Time{} // it's likely LocalDir/UploadDir are empty too. Turn off telemetry.
++	}
++	data, err := os.ReadFile(fname)
++	if err != nil {
++		return "local", time.Time{} // default
++	}
++	mode := string(data)
++	mode = strings.TrimSpace(mode)
++
++	// Forward compatibility for https://go.dev/issue/63142#issuecomment-1734025130
++	//
++	// If the modefile contains a date, return it.
++	if idx := strings.Index(mode, " "); idx >= 0 {
++		d, err := time.Parse("2006-01-02", mode[idx+1:])
++		if err != nil {
++			d = time.Time{}
++		}
++		return mode[:idx], d
++	}
++
++	return mode, time.Time{}
++}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index ff2c4e9c12..6e094ef13a 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -45,6 +45,12 @@ golang.org/x/sync/semaphore
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
++# golang.org/x/telemetry v0.0.0-20240130152304-a6426b6a1e6f
++## explicit; go 1.20
++golang.org/x/telemetry/counter
++golang.org/x/telemetry/internal/counter
++golang.org/x/telemetry/internal/mmap
++golang.org/x/telemetry/internal/telemetry
+ # golang.org/x/term v0.16.0
+ ## explicit; go 1.18
+ golang.org/x/term

@@ -7,7 +7,144 @@ Date:   Wed May 25 15:04:07 2011 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4556059
-
+---
  src/pkg/strconv/quote.go      | 33 ++++++++++++++++++++++++---------
  src/pkg/strconv/quote_test.go | 39 +++++++++++++++++++++++++++++----------
  2 files changed, 53 insertions(+), 19 deletions(-)
+
+diff --git a/src/pkg/strconv/quote.go b/src/pkg/strconv/quote.go
+index ed58897236..bbc0b2658e 100644
+--- a/src/pkg/strconv/quote.go
++++ b/src/pkg/strconv/quote.go
+@@ -14,17 +14,14 @@ import (
+ 
+ const lowerhex = "0123456789abcdef"
+ 
+-// Quote returns a double-quoted Go string literal
+-// representing s.  The returned string s uses Go escape
+-// sequences (\t, \n, \xFF, \u0100) for control characters
+-// and non-ASCII characters.
+-func Quote(s string) string {
++func quoteWith(s string, quote byte) string {
+ 	var buf bytes.Buffer
+-	buf.WriteByte('"')
++	buf.WriteByte(quote)
+ 	for ; len(s) > 0; s = s[1:] {
+ 		switch c := s[0]; {
+-		case c == '"':
+-			buf.WriteString(`\"`)
++		case c == quote:
++			buf.WriteByte('\\')
++			buf.WriteByte(quote)
+ 		case c == '\\':
+ 			buf.WriteString(`\\`)
+ 		case ' ' <= c && c <= '~':
+@@ -69,8 +66,26 @@ func Quote(s string) string {
+ 			buf.WriteByte(lowerhex[c&0xF])
+ 		}
+ 	}
+-	buf.WriteByte('"')
++	buf.WriteByte(quote)
+ 	return buf.String()
++
++}
++
++// Quote returns a double-quoted Go string literal
++// representing s.  The returned string uses Go escape
++// sequences (\t, \n, \xFF, \u0100) for control characters
++// and non-ASCII characters.
++func Quote(s string) string {
++	return quoteWith(s, '"')
++}
++
++// QuoteRune returns a single-quoted Go character literal
++// representing the rune.  The returned string uses Go escape
++// sequences (\t, \n, \xFF, \u0100) for control characters
++// and non-ASCII characters.
++func QuoteRune(rune int) string {
++	// TODO: avoid the allocation here.
++	return quoteWith(string(rune), '\'')
+ }
+ 
+ // CanBackquote returns whether the string s would be
+diff --git a/src/pkg/strconv/quote_test.go b/src/pkg/strconv/quote_test.go
+index 1235fcb9ae..3232d611cf 100644
+--- a/src/pkg/strconv/quote_test.go
++++ b/src/pkg/strconv/quote_test.go
+@@ -25,14 +25,37 @@ var quotetests = []quoteTest{
+ }
+ 
+ func TestQuote(t *testing.T) {
+-	for i := 0; i < len(quotetests); i++ {
+-		tt := quotetests[i]
++	for _, tt := range quotetests {
+ 		if out := Quote(tt.in); out != tt.out {
+ 			t.Errorf("Quote(%s) = %s, want %s", tt.in, out, tt.out)
+ 		}
+ 	}
+ }
+ 
++type quoteRuneTest struct {
++	in  int
++	out string
++}
++
++var quoterunetests = []quoteRuneTest{
++	{'a', `'a'`},
++	{'\a', `'\a'`},
++	{'\\', `'\\'`},
++	{0xFF, `'\u00ff'`},
++	{0x263a, `'\u263a'`},
++	{0x0010ffff, `'\U0010ffff'`},
++	{0x0010ffff + 1, `'\ufffd'`},
++	{0x04, `'\x04'`},
++}
++
++func TestQuoteRune(t *testing.T) {
++	for _, tt := range quoterunetests {
++		if out := QuoteRune(tt.in); out != tt.out {
++			t.Errorf("QuoteRune(%U) = %s, want %s", tt.in, out, tt.out)
++		}
++	}
++}
++
+ type canBackquoteTest struct {
+ 	in  string
+ 	out bool
+@@ -80,8 +103,7 @@ var canbackquotetests = []canBackquoteTest{
+ }
+ 
+ func TestCanBackquote(t *testing.T) {
+-	for i := 0; i < len(canbackquotetests); i++ {
+-		tt := canbackquotetests[i]
++	for _, tt := range canbackquotetests {
+ 		if out := CanBackquote(tt.in); out != tt.out {
+ 			t.Errorf("CanBackquote(%q) = %v, want %v", tt.in, out, tt.out)
+ 		}
+@@ -146,23 +168,20 @@ var misquoted = []string{
+ }
+ 
+ func TestUnquote(t *testing.T) {
+-	for i := 0; i < len(unquotetests); i++ {
+-		tt := unquotetests[i]
++	for _, tt := range unquotetests {
+ 		if out, err := Unquote(tt.in); err != nil && out != tt.out {
+ 			t.Errorf("Unquote(%#q) = %q, %v want %q, nil", tt.in, out, err, tt.out)
+ 		}
+ 	}
+ 
+ 	// run the quote tests too, backward
+-	for i := 0; i < len(quotetests); i++ {
+-		tt := quotetests[i]
++	for _, tt := range quotetests {
+ 		if in, err := Unquote(tt.out); in != tt.in {
+ 			t.Errorf("Unquote(%#q) = %q, %v, want %q, nil", tt.out, in, err, tt.in)
+ 		}
+ 	}
+ 
+-	for i := 0; i < len(misquoted); i++ {
+-		s := misquoted[i]
++	for _, s := range misquoted {
+ 		if out, err := Unquote(s); out != "" || err != os.EINVAL {
+ 			t.Errorf("Unquote(%#q) = %q, %v want %q, %v", s, out, err, "", os.EINVAL)
+ 		}

@@ -21,7 +21,37 @@ Date:   Fri Jan 18 00:14:29 2019 +0000
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/runtime/malloc.go                    | 2 +-
  src/runtime/testdata/testprog/memprof.go | 5 ++++-
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index c1a89dc588..8c617bb42b 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1012,7 +1012,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 	}
+ 
+ 	if rate := MemProfileRate; rate > 0 {
+-		if size < uintptr(rate) && int32(size) < c.next_sample {
++		if rate != 1 && int32(size) < c.next_sample {
+ 			c.next_sample -= int32(size)
+ 		} else {
+ 			mp := acquirem()
+diff --git a/src/runtime/testdata/testprog/memprof.go b/src/runtime/testdata/testprog/memprof.go
+index a22fee61d7..7b134bc078 100644
+--- a/src/runtime/testdata/testprog/memprof.go
++++ b/src/runtime/testdata/testprog/memprof.go
+@@ -21,7 +21,10 @@ var memProfBuf bytes.Buffer
+ var memProfStr string
+ 
+ func MemProf() {
+-	for i := 0; i < 1000; i++ {
++	// Force heap sampling for determinism.
++	runtime.MemProfileRate = 1
++
++	for i := 0; i < 10; i++ {
+ 		fmt.Fprintf(&memProfBuf, "%*d\n", i, i)
+ 	}
+ 	memProfStr = memProfBuf.String()

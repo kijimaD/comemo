@@ -15,7 +15,7 @@ Date:   Sun Feb 19 23:19:20 2023 -0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
     Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
-
+---
  api/next/53693.txt                 |  6 ++++++
  src/encoding/base32/base32.go      | 20 ++++++++++++++++++++
  src/encoding/base32/base32_test.go | 10 +++++++---
@@ -25,3 +25,253 @@ Date:   Sun Feb 19 23:19:20 2023 -0800
  src/encoding/hex/hex_test.go       | 12 ++++++++++++
  src/go/build/deps_test.go          |  2 +-
  8 files changed, 93 insertions(+), 6 deletions(-)
+
+diff --git a/api/next/53693.txt b/api/next/53693.txt
+new file mode 100644
+index 0000000000..5a6f09e6c8
+--- /dev/null
++++ b/api/next/53693.txt
+@@ -0,0 +1,6 @@
++pkg encoding/base32, method (*Encoding) AppendDecode([]uint8, []uint8) ([]uint8, error) #53693
++pkg encoding/base32, method (*Encoding) AppendEncode([]uint8, []uint8) []uint8 #53693
++pkg encoding/base64, method (*Encoding) AppendDecode([]uint8, []uint8) ([]uint8, error) #53693
++pkg encoding/base64, method (*Encoding) AppendEncode([]uint8, []uint8) []uint8 #53693
++pkg encoding/hex, func AppendDecode([]uint8, []uint8) ([]uint8, error) #53693
++pkg encoding/hex, func AppendEncode([]uint8, []uint8) []uint8 #53693
+diff --git a/src/encoding/base32/base32.go b/src/encoding/base32/base32.go
+index 69ced9ca3c..7cccbd17be 100644
+--- a/src/encoding/base32/base32.go
++++ b/src/encoding/base32/base32.go
+@@ -7,6 +7,7 @@ package base32
+ 
+ import (
+ 	"io"
++	"slices"
+ 	"strconv"
+ )
+ 
+@@ -176,6 +177,15 @@ func (enc *Encoding) Encode(dst, src []byte) {
+ 	}
+ }
+ 
++// AppendEncode appends the base32 encoded src to dst
++// and returns the extended buffer.
++func (enc *Encoding) AppendEncode(dst, src []byte) []byte {
++	n := enc.EncodedLen(len(src))
++	dst = slices.Grow(dst, n)
++	enc.Encode(dst[len(dst):][:n], src)
++	return dst[:len(dst)+n]
++}
++
+ // EncodeToString returns the base32 encoding of src.
+ func (enc *Encoding) EncodeToString(src []byte) string {
+ 	buf := make([]byte, enc.EncodedLen(len(src)))
+@@ -378,6 +388,16 @@ func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {
+ 	return
+ }
+ 
++// AppendDecode appends the base32 decoded src to dst
++// and returns the extended buffer.
++// If the input is malformed, it returns the partially decoded src and an error.
++func (enc *Encoding) AppendDecode(dst, src []byte) ([]byte, error) {
++	n := enc.DecodedLen(len(src))
++	dst = slices.Grow(dst, n)
++	n, err := enc.Decode(dst[len(dst):][:n], src)
++	return dst[:len(dst)+n], err
++}
++
+ // DecodeString returns the bytes represented by the base32 string s.
+ func (enc *Encoding) DecodeString(s string) ([]byte, error) {
+ 	buf := []byte(s)
+diff --git a/src/encoding/base32/base32_test.go b/src/encoding/base32/base32_test.go
+index bdb9f0e61f..0132744507 100644
+--- a/src/encoding/base32/base32_test.go
++++ b/src/encoding/base32/base32_test.go
+@@ -57,6 +57,8 @@ func TestEncode(t *testing.T) {
+ 	for _, p := range pairs {
+ 		got := StdEncoding.EncodeToString([]byte(p.decoded))
+ 		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, got, p.encoded)
++		dst := StdEncoding.AppendEncode([]byte("lead"), []byte(p.decoded))
++		testEqual(t, `AppendEncode("lead", %q) = %q, want %q`, p.decoded, string(dst), "lead"+p.encoded)
+ 	}
+ }
+ 
+@@ -99,13 +101,15 @@ func TestDecode(t *testing.T) {
+ 		if len(p.encoded) > 0 {
+ 			testEqual(t, "Decode(%q) = end %v, want %v", p.encoded, end, (p.encoded[len(p.encoded)-1] == '='))
+ 		}
+-		testEqual(t, "Decode(%q) = %q, want %q", p.encoded,
+-			string(dbuf[0:count]),
+-			p.decoded)
++		testEqual(t, "Decode(%q) = %q, want %q", p.encoded, string(dbuf[0:count]), p.decoded)
+ 
+ 		dbuf, err = StdEncoding.DecodeString(p.encoded)
+ 		testEqual(t, "DecodeString(%q) = error %v, want %v", p.encoded, err, error(nil))
+ 		testEqual(t, "DecodeString(%q) = %q, want %q", p.encoded, string(dbuf), p.decoded)
++
++		dst, err := StdEncoding.AppendDecode([]byte("lead"), []byte(p.encoded))
++		testEqual(t, "AppendDecode(%q) = error %v, want %v", p.encoded, err, error(nil))
++		testEqual(t, `AppendDecode("lead", %q) = %q, want %q`, p.encoded, string(dst), "lead"+p.decoded)
+ 	}
+ }
+ 
+diff --git a/src/encoding/base64/base64.go b/src/encoding/base64/base64.go
+index 87f6897062..5db72b91e2 100644
+--- a/src/encoding/base64/base64.go
++++ b/src/encoding/base64/base64.go
+@@ -8,6 +8,7 @@ package base64
+ import (
+ 	"encoding/binary"
+ 	"io"
++	"slices"
+ 	"strconv"
+ )
+ 
+@@ -191,6 +192,15 @@ func (enc *Encoding) Encode(dst, src []byte) {
+ 	}
+ }
+ 
++// AppendEncode appends the base64 encoded src to dst
++// and returns the extended buffer.
++func (enc *Encoding) AppendEncode(dst, src []byte) []byte {
++	n := enc.EncodedLen(len(src))
++	dst = slices.Grow(dst, n)
++	enc.Encode(dst[len(dst):][:n], src)
++	return dst[:len(dst)+n]
++}
++
+ // EncodeToString returns the base64 encoding of src.
+ func (enc *Encoding) EncodeToString(src []byte) string {
+ 	buf := make([]byte, enc.EncodedLen(len(src)))
+@@ -395,6 +405,16 @@ func (enc *Encoding) decodeQuantum(dst, src []byte, si int) (nsi, n int, err err
+ 	return si, dlen - 1, err
+ }
+ 
++// AppendDecode appends the base64 decoded src to dst
++// and returns the extended buffer.
++// If the input is malformed, it returns the partially decoded src and an error.
++func (enc *Encoding) AppendDecode(dst, src []byte) ([]byte, error) {
++	n := enc.DecodedLen(len(src))
++	dst = slices.Grow(dst, n)
++	n, err := enc.Decode(dst[len(dst):][:n], src)
++	return dst[:len(dst)+n], err
++}
++
+ // DecodeString returns the bytes represented by the base64 string s.
+ func (enc *Encoding) DecodeString(s string) ([]byte, error) {
+ 	dbuf := make([]byte, enc.DecodedLen(len(s)))
+diff --git a/src/encoding/base64/base64_test.go b/src/encoding/base64/base64_test.go
+index 97aea845ae..4d7437b919 100644
+--- a/src/encoding/base64/base64_test.go
++++ b/src/encoding/base64/base64_test.go
+@@ -113,8 +113,9 @@ func TestEncode(t *testing.T) {
+ 	for _, p := range pairs {
+ 		for _, tt := range encodingTests {
+ 			got := tt.enc.EncodeToString([]byte(p.decoded))
+-			testEqual(t, "Encode(%q) = %q, want %q", p.decoded,
+-				got, tt.conv(p.encoded))
++			testEqual(t, "Encode(%q) = %q, want %q", p.decoded, got, tt.conv(p.encoded))
++			dst := tt.enc.AppendEncode([]byte("lead"), []byte(p.decoded))
++			testEqual(t, `AppendEncode("lead", %q) = %q, want %q`, p.decoded, string(dst), "lead"+tt.conv(p.encoded))
+ 		}
+ 	}
+ }
+@@ -162,6 +163,10 @@ func TestDecode(t *testing.T) {
+ 			dbuf, err = tt.enc.DecodeString(encoded)
+ 			testEqual(t, "DecodeString(%q) = error %v, want %v", encoded, err, error(nil))
+ 			testEqual(t, "DecodeString(%q) = %q, want %q", encoded, string(dbuf), p.decoded)
++
++			dst, err := tt.enc.AppendDecode([]byte("lead"), []byte(encoded))
++			testEqual(t, "AppendDecode(%q) = error %v, want %v", p.encoded, err, error(nil))
++			testEqual(t, `AppendDecode("lead", %q) = %q, want %q`, p.encoded, string(dst), "lead"+p.decoded)
+ 		}
+ 	}
+ }
+diff --git a/src/encoding/hex/hex.go b/src/encoding/hex/hex.go
+index 375f583170..ccc395e2f7 100644
+--- a/src/encoding/hex/hex.go
++++ b/src/encoding/hex/hex.go
+@@ -9,6 +9,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
++	"slices"
+ 	"strings"
+ )
+ 
+@@ -51,6 +52,15 @@ func Encode(dst, src []byte) int {
+ 	return len(src) * 2
+ }
+ 
++// AppendEncode appends the hexadecimally encoded src to dst
++// and returns the extended buffer.
++func AppendEncode(dst, src []byte) []byte {
++	n := EncodedLen(len(src))
++	dst = slices.Grow(dst, n)
++	Encode(dst[len(dst):][:n], src)
++	return dst[:len(dst)+n]
++}
++
+ // ErrLength reports an attempt to decode an odd-length input
+ // using Decode or DecodeString.
+ // The stream-based Decoder returns io.ErrUnexpectedEOF instead of ErrLength.
+@@ -102,6 +112,16 @@ func Decode(dst, src []byte) (int, error) {
+ 	return i, nil
+ }
+ 
++// AppendDecode appends the hexadecimally decoded src to dst
++// and returns the extended buffer.
++// If the input is malformed, it returns the partially decoded src and an error.
++func AppendDecode(dst, src []byte) ([]byte, error) {
++	n := DecodedLen(len(src))
++	dst = slices.Grow(dst, n)
++	n, err := Decode(dst[len(dst):][:n], src)
++	return dst[:len(dst)+n], err
++}
++
+ // EncodeToString returns the hexadecimal encoding of src.
+ func EncodeToString(src []byte) string {
+ 	dst := make([]byte, EncodedLen(len(src)))
+diff --git a/src/encoding/hex/hex_test.go b/src/encoding/hex/hex_test.go
+index a820fe7a15..03331eaae5 100644
+--- a/src/encoding/hex/hex_test.go
++++ b/src/encoding/hex/hex_test.go
+@@ -37,6 +37,11 @@ func TestEncode(t *testing.T) {
+ 		if string(dst) != test.enc {
+ 			t.Errorf("#%d: got: %#v want: %#v", i, dst, test.enc)
+ 		}
++		dst = []byte("lead")
++		dst = AppendEncode(dst, test.dec)
++		if string(dst) != "lead"+test.enc {
++			t.Errorf("#%d: got: %#v want: %#v", i, dst, "lead"+test.enc)
++		}
+ 	}
+ }
+ 
+@@ -52,6 +57,13 @@ func TestDecode(t *testing.T) {
+ 		} else if !bytes.Equal(dst, test.dec) {
+ 			t.Errorf("#%d: got: %#v want: %#v", i, dst, test.dec)
+ 		}
++		dst = []byte("lead")
++		dst, err = AppendDecode(dst, []byte(test.enc))
++		if err != nil {
++			t.Errorf("#%d: AppendDecode error: %v", i, err)
++		} else if string(dst) != "lead"+string(test.dec) {
++			t.Errorf("#%d: got: %#v want: %#v", i, dst, "lead"+string(test.dec))
++		}
+ 	}
+ }
+ 
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index bdb09737b0..39f22af5f9 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -210,7 +210,7 @@ var depsRules = `
+ 
+ 	# encodings
+ 	# core ones do not use fmt.
+-	io, strconv
++	io, strconv, slices
+ 	< encoding;
+ 
+ 	encoding, reflect

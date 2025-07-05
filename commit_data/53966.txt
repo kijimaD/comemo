@@ -11,7 +11,7 @@ Date:   Thu Sep 8 16:33:08 2022 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/errorcodes.go |  4 ++--
  src/cmd/compile/internal/types2/expr.go       |  2 +-
  src/go/types/builtins.go                      | 10 +++++-----
@@ -21,3 +21,186 @@ Date:   Thu Sep 8 16:33:08 2022 -0700
  src/go/types/typeset.go                       |  4 ++--
  src/go/types/version.go                       |  8 ++++----
  8 files changed, 18 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/errorcodes.go b/src/cmd/compile/internal/types2/errorcodes.go
+index f8118aba87..a1138b7b0d 100644
+--- a/src/cmd/compile/internal/types2/errorcodes.go
++++ b/src/cmd/compile/internal/types2/errorcodes.go
+@@ -279,7 +279,7 @@ const (
+ 
+ 	// _InvalidIfaceEmbed occurs when a non-interface type is embedded in an
+ 	// interface (for go 1.17 or earlier).
+-	_InvalidIfaceEmbed
++	_ // not used anymore
+ 
+ 	// _InvalidPtrEmbed occurs when an embedded field is of the pointer form *T,
+ 	// and T itself is itself a pointer, an unsafe.Pointer, or an interface.
+@@ -1419,5 +1419,5 @@ const (
+ 
+ 	// _InvalidUnsafeStringData occurs if it is used in a package
+ 	// compiled for a language version before go1.20.
+-	_InvalidUnsafeStringData
++	_ // not used anymore
+ )
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index e922118746..9834926b11 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -978,7 +978,7 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
+ 		switch {
+ 		case allInteger(y.typ):
+ 			if !allUnsigned(y.typ) && !check.allowVersion(check.pkg, 1, 13) {
+-				check.errorf(y, _InvalidShiftCount, invalidOp+"signed shift count %s requires go1.13 or later", y)
++				check.versionErrorf(y, "go1.13", invalidOp+"signed shift count %s", y)
+ 				x.mode = invalid
+ 				return
+ 			}
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index eff4f2b027..c06cf448e9 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -604,7 +604,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 	case _Add:
+ 		// unsafe.Add(ptr unsafe.Pointer, len IntegerType) unsafe.Pointer
+ 		if !check.allowVersion(check.pkg, 1, 17) {
+-			check.errorf(call.Fun, _InvalidUnsafeAdd, "unsafe.Add requires go1.17 or later")
++			check.errorf(call.Fun, _UnsupportedFeature, "unsafe.Add requires go1.17 or later")
+ 			return
+ 		}
+ 
+@@ -730,7 +730,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 	case _Slice:
+ 		// unsafe.Slice(ptr *T, len IntegerType) []T
+ 		if !check.allowVersion(check.pkg, 1, 17) {
+-			check.errorf(call.Fun, _InvalidUnsafeSlice, "unsafe.Slice requires go1.17 or later")
++			check.errorf(call.Fun, _UnsupportedFeature, "unsafe.Slice requires go1.17 or later")
+ 			return
+ 		}
+ 
+@@ -755,7 +755,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 	case _SliceData:
+ 		// unsafe.SliceData(slice []T) *T
+ 		if !check.allowVersion(check.pkg, 1, 20) {
+-			check.errorf(call.Fun, _InvalidUnsafeSliceData, "unsafe.SliceData requires go1.20 or later")
++			check.errorf(call.Fun, _UnsupportedFeature, "unsafe.SliceData requires go1.20 or later")
+ 			return
+ 		}
+ 
+@@ -774,7 +774,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 	case _String:
+ 		// unsafe.String(ptr *byte, len IntegerType) string
+ 		if !check.allowVersion(check.pkg, 1, 20) {
+-			check.errorf(call.Fun, _InvalidUnsafeString, "unsafe.String requires go1.20 or later")
++			check.errorf(call.Fun, _UnsupportedFeature, "unsafe.String requires go1.20 or later")
+ 			return
+ 		}
+ 
+@@ -798,7 +798,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 	case _StringData:
+ 		// unsafe.StringData(str string) *byte
+ 		if !check.allowVersion(check.pkg, 1, 20) {
+-			check.errorf(call.Fun, _InvalidUnsafeStringData, "unsafe.StringData requires go1.20 or later")
++			check.errorf(call.Fun, _UnsupportedFeature, "unsafe.StringData requires go1.20 or later")
+ 			return
+ 		}
+ 
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 829aee74b3..a14df45dca 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -569,7 +569,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
+ 	// alias declaration
+ 	if alias {
+ 		if !check.allowVersion(check.pkg, 1, 9) {
+-			check.errorf(atPos(tdecl.Assign), _BadDecl, "type aliases requires go1.9 or later")
++			check.errorf(atPos(tdecl.Assign), _UnsupportedFeature, "type aliases requires go1.9 or later")
+ 		}
+ 
+ 		check.brokenAlias(obj)
+diff --git a/src/go/types/errorcodes.go b/src/go/types/errorcodes.go
+index d1fd2fb01f..b82300f8ad 100644
+--- a/src/go/types/errorcodes.go
++++ b/src/go/types/errorcodes.go
+@@ -279,7 +279,7 @@ const (
+ 
+ 	// _InvalidIfaceEmbed occurs when a non-interface type is embedded in an
+ 	// interface (for go 1.17 or earlier).
+-	_InvalidIfaceEmbed
++	_ // not used anymore
+ 
+ 	// _InvalidPtrEmbed occurs when an embedded field is of the pointer form *T,
+ 	// and T itself is itself a pointer, an unsafe.Pointer, or an interface.
+@@ -1419,5 +1419,5 @@ const (
+ 
+ 	// _InvalidUnsafeStringData occurs if it is used in a package
+ 	// compiled for a language version before go1.20.
+-	_InvalidUnsafeStringData
++	_ // not used anymore
+ )
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 4d3dd9edab..c3cf46c137 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -955,7 +955,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
+ 		switch {
+ 		case allInteger(y.typ):
+ 			if !allUnsigned(y.typ) && !check.allowVersion(check.pkg, 1, 13) {
+-				check.invalidOp(y, _InvalidShiftCount, "signed shift count %s requires go1.13 or later", y)
++				check.invalidOp(y, _UnsupportedFeature, "signed shift count %s requires go1.13 or later", y)
+ 				x.mode = invalid
+ 				return
+ 			}
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index fc4647e850..25408b3178 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -286,7 +286,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 			terms = tset.terms
+ 		case *Union:
+ 			if check != nil && !check.allowVersion(check.pkg, 1, 18) {
+-				check.errorf(atPos(pos), _InvalidIfaceEmbed, "embedding interface element %s requires go1.18 or later", u)
++				check.errorf(atPos(pos), _UnsupportedFeature, "embedding interface element %s requires go1.18 or later", u)
+ 				continue
+ 			}
+ 			tset := computeUnionTypeSet(check, unionSets, pos, u)
+@@ -301,7 +301,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 				continue
+ 			}
+ 			if check != nil && !check.allowVersion(check.pkg, 1, 18) {
+-				check.errorf(atPos(pos), _InvalidIfaceEmbed, "embedding non-interface type %s requires go1.18 or later", typ)
++				check.errorf(atPos(pos), _UnsupportedFeature, "embedding non-interface type %s requires go1.18 or later", typ)
+ 				continue
+ 			}
+ 			terms = termlist{{false, typ}}
+diff --git a/src/go/types/version.go b/src/go/types/version.go
+index 154694169b..71093c6818 100644
+--- a/src/go/types/version.go
++++ b/src/go/types/version.go
+@@ -22,7 +22,7 @@ func (check *Checker) langCompat(lit *ast.BasicLit) {
+ 	}
+ 	// len(s) > 2
+ 	if strings.Contains(s, "_") {
+-		check.errorf(lit, _InvalidLit, "underscores in numeric literals requires go1.13 or later")
++		check.errorf(lit, _UnsupportedFeature, "underscores in numeric literals requires go1.13 or later")
+ 		return
+ 	}
+ 	if s[0] != '0' {
+@@ -30,15 +30,15 @@ func (check *Checker) langCompat(lit *ast.BasicLit) {
+ 	}
+ 	radix := s[1]
+ 	if radix == 'b' || radix == 'B' {
+-		check.errorf(lit, _InvalidLit, "binary literals requires go1.13 or later")
++		check.errorf(lit, _UnsupportedFeature, "binary literals requires go1.13 or later")
+ 		return
+ 	}
+ 	if radix == 'o' || radix == 'O' {
+-		check.errorf(lit, _InvalidLit, "0o/0O-style octal literals requires go1.13 or later")
++		check.errorf(lit, _UnsupportedFeature, "0o/0O-style octal literals requires go1.13 or later")
+ 		return
+ 	}
+ 	if lit.Kind != token.INT && (radix == 'x' || radix == 'X') {
+-		check.errorf(lit, _InvalidLit, "hexadecimal floating-point literals requires go1.13 or later")
++		check.errorf(lit, _UnsupportedFeature, "hexadecimal floating-point literals requires go1.13 or later")
+ 	}
+ }
+ 

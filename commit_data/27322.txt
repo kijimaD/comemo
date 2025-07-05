@@ -12,6 +12,21 @@ Date:   Sun Mar 20 19:41:34 2016 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  test/nosplit.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/test/nosplit.go b/test/nosplit.go
+index 082fc3b0e6..a59a3c3c6c 100644
+--- a/test/nosplit.go
++++ b/test/nosplit.go
+@@ -275,6 +275,9 @@ TestCases:
+ 		case "amd64":
+ 			ptrSize = 8
+ 			fmt.Fprintf(&buf, "#define REGISTER AX\n")
++		case "s390x":
++			ptrSize = 8
++			fmt.Fprintf(&buf, "#define REGISTER R10\n")
+ 		default:
+ 			fmt.Fprintf(&buf, "#define REGISTER AX\n")
+ 		}

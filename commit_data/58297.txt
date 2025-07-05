@@ -13,6 +13,20 @@ Date:   Thu Oct 5 17:29:49 2023 +0200
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/typecheck/expr.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/expr.go b/src/cmd/compile/internal/typecheck/expr.go
+index 24c677e753..12d1743874 100644
+--- a/src/cmd/compile/internal/typecheck/expr.go
++++ b/src/cmd/compile/internal/typecheck/expr.go
+@@ -241,7 +241,7 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
+ 				// walkClosure(), because the instantiated
+ 				// function is compiled as if in the source
+ 				// package of the generic function.
+-				if !(ir.CurFunc != nil && strings.Index(ir.CurFunc.Nname.Sym().Name, "[") >= 0) {
++				if !(ir.CurFunc != nil && strings.Contains(ir.CurFunc.Nname.Sym().Name, "[")) {
+ 					if s != nil && !types.IsExported(s.Name) && s.Pkg != types.LocalPkg {
+ 						base.Errorf("implicit assignment of unexported field '%s' in %v literal", s.Name, t)
+ 					}

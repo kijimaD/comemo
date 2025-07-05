@@ -18,6 +18,42 @@ Date:   Mon Oct 10 14:07:10 2022 -0700
     Reviewed-by: Joedian Reid <joedian@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/debug/elf/file.go | 17 +++++++++++++++++
  1 file changed, 17 insertions(+)
+
+diff --git a/src/debug/elf/file.go b/src/debug/elf/file.go
+index 83a3cbc0b8..d181d340ec 100644
+--- a/src/debug/elf/file.go
++++ b/src/debug/elf/file.go
+@@ -344,6 +344,19 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 		return nil, &FormatError{0, "invalid ELF shstrndx", shstrndx}
+ 	}
+ 
++	var wantPhentsize, wantShentsize int
++	switch f.Class {
++	case ELFCLASS32:
++		wantPhentsize = 8 * 4
++		wantShentsize = 10 * 4
++	case ELFCLASS64:
++		wantPhentsize = 2*4 + 6*8
++		wantShentsize = 4*4 + 6*8
++	}
++	if phnum > 0 && phentsize < wantPhentsize {
++		return nil, &FormatError{0, "invalid ELF phentsize", phentsize}
++	}
++
+ 	// Read program headers
+ 	f.Progs = make([]*Prog, phnum)
+ 	for i := 0; i < phnum; i++ {
+@@ -439,6 +452,10 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 		}
+ 	}
+ 
++	if shnum > 0 && shentsize < wantShentsize {
++		return nil, &FormatError{0, "invalid ELF shentsize", shentsize}
++	}
++
+ 	// Read section headers
+ 	f.Sections = make([]*Section, shnum)
+ 	names := make([]uint32, shnum)

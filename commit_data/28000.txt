@@ -11,10 +11,161 @@ Date:   Fri Apr 22 08:39:56 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/fmt.go  |  8 ++++----
  src/cmd/compile/internal/gc/reg.go  |  8 ++++----
  src/cmd/compile/internal/gc/ssa.go  | 10 +++++-----
  src/cmd/compile/internal/gc/subr.go |  2 +-
  src/cmd/compile/internal/gc/type.go |  2 +-
  5 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index a14b837584..9bba709649 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -586,7 +586,7 @@ func typefmt(t *Type, flag FmtFlag) string {
+ 
+ 	if fmtmode == FDbg {
+ 		fmtmode = 0
+-		str := Econv(t.Etype) + "-" + typefmt(t, flag)
++		str := t.Etype.String() + "-" + typefmt(t, flag)
+ 		fmtmode = FDbg
+ 		return str
+ 	}
+@@ -748,18 +748,18 @@ func typefmt(t *Type, flag FmtFlag) string {
+ 		if fmtmode == FExp {
+ 			Fatalf("cannot use TDDDFIELD with old exporter")
+ 		}
+-		return fmt.Sprintf("%v <%v> %v", Econv(t.Etype), t.Sym, t.DDDField())
++		return fmt.Sprintf("%v <%v> %v", t.Etype, t.Sym, t.DDDField())
+ 
+ 	case Txxx:
+ 		return "Txxx"
+ 	}
+ 
+ 	if fmtmode == FExp {
+-		Fatalf("missing %v case during export", Econv(t.Etype))
++		Fatalf("missing %v case during export", t.Etype)
+ 	}
+ 
+ 	// Don't know how to handle - fall back to detailed prints.
+-	return fmt.Sprintf("%v <%v> %v", Econv(t.Etype), t.Sym, t.Elem())
++	return fmt.Sprintf("%v <%v> %v", t.Etype, t.Sym, t.Elem())
+ }
+ 
+ // Statements which may be rendered with a simplestmt as init.
+diff --git a/src/cmd/compile/internal/gc/reg.go b/src/cmd/compile/internal/gc/reg.go
+index 138ad683c5..5763f79de1 100644
+--- a/src/cmd/compile/internal/gc/reg.go
++++ b/src/cmd/compile/internal/gc/reg.go
+@@ -488,7 +488,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
+ 	}
+ 
+ 	if Debug['R'] != 0 {
+-		fmt.Printf("bit=%2d et=%v w=%d+%d %v %v flag=%d\n", i, Econv(et), o, w, Nconv(node, FmtSharp), Ctxt.Dconv(a), v.addr)
++		fmt.Printf("bit=%2d et=%v w=%d+%d %v %v flag=%d\n", i, et, o, w, Nconv(node, FmtSharp), Ctxt.Dconv(a), v.addr)
+ 	}
+ 	Ostats.Nvar++
+ 
+@@ -652,7 +652,7 @@ func allreg(b uint64, r *Rgn) uint64 {
+ 	r.regno = 0
+ 	switch v.etype {
+ 	default:
+-		Fatalf("unknown etype %d/%v", Bitno(b), Econv(v.etype))
++		Fatalf("unknown etype %d/%v", Bitno(b), v.etype)
+ 
+ 	case TINT8,
+ 		TUINT8,
+@@ -1147,7 +1147,7 @@ func regopt(firstp *obj.Prog) {
+ 		}
+ 
+ 		if Debug['R'] != 0 && Debug['v'] != 0 {
+-			fmt.Printf("bit=%2d addr=%d et=%v w=%-2d s=%v + %d\n", i, v.addr, Econv(v.etype), v.width, v.node, v.offset)
++			fmt.Printf("bit=%2d addr=%d et=%v w=%-2d s=%v + %d\n", i, v.addr, v.etype, v.width, v.node, v.offset)
+ 		}
+ 	}
+ 
+@@ -1358,7 +1358,7 @@ loop2:
+ 		if rgp.regno != 0 {
+ 			if Debug['R'] != 0 && Debug['v'] != 0 {
+ 				v := &vars[rgp.varno]
+-				fmt.Printf("registerize %v+%d (bit=%2d et=%v) in %v usedreg=%#x vreg=%#x\n", v.node, v.offset, rgp.varno, Econv(v.etype), obj.Rconv(int(rgp.regno)), usedreg, vreg)
++				fmt.Printf("registerize %v+%d (bit=%2d et=%v) in %v usedreg=%#x vreg=%#x\n", v.node, v.offset, rgp.varno, v.etype, obj.Rconv(int(rgp.regno)), usedreg, vreg)
+ 			}
+ 
+ 			paint3(rgp.enter, int(rgp.varno), vreg, int(rgp.regno))
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 964818a082..e177ceda01 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1247,7 +1247,7 @@ func (s *state) ssaOp(op Op, t *Type) ssa.Op {
+ 	etype := s.concreteEtype(t)
+ 	x, ok := opToSSA[opAndType{op, etype}]
+ 	if !ok {
+-		s.Unimplementedf("unhandled binary op %s %s", op, Econv(etype))
++		s.Unimplementedf("unhandled binary op %s %s", op, etype)
+ 	}
+ 	return x
+ }
+@@ -1405,7 +1405,7 @@ func (s *state) ssaShiftOp(op Op, t *Type, u *Type) ssa.Op {
+ 	etype2 := s.concreteEtype(u)
+ 	x, ok := shiftOpToSSA[opAndTwoTypes{op, etype1, etype2}]
+ 	if !ok {
+-		s.Unimplementedf("unhandled shift op %s etype=%s/%s", op, Econv(etype1), Econv(etype2))
++		s.Unimplementedf("unhandled shift op %s etype=%s/%s", op, etype1, etype2)
+ 	}
+ 	return x
+ }
+@@ -1414,7 +1414,7 @@ func (s *state) ssaRotateOp(op Op, t *Type) ssa.Op {
+ 	etype1 := s.concreteEtype(t)
+ 	x, ok := opToSSA[opAndType{op, etype1}]
+ 	if !ok {
+-		s.Unimplementedf("unhandled rotate op %s etype=%s", op, Econv(etype1))
++		s.Unimplementedf("unhandled rotate op %s etype=%s", op, etype1)
+ 	}
+ 	return x
+ }
+@@ -1561,7 +1561,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			return nil
+ 		}
+ 		if etypesign(from.Etype) != etypesign(to.Etype) {
+-			s.Fatalf("CONVNOP sign mismatch %v (%s) -> %v (%s)\n", from, Econv(from.Etype), to, Econv(to.Etype))
++			s.Fatalf("CONVNOP sign mismatch %v (%s) -> %v (%s)\n", from, from.Etype, to, to.Etype)
+ 			return nil
+ 		}
+ 
+@@ -1706,7 +1706,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 				s.newValue1(op, ttp, s.newValue1(ssa.OpComplexImag, ftp, x)))
+ 		}
+ 
+-		s.Unimplementedf("unhandled OCONV %s -> %s", Econv(n.Left.Type.Etype), Econv(n.Type.Etype))
++		s.Unimplementedf("unhandled OCONV %s -> %s", n.Left.Type.Etype, n.Type.Etype)
+ 		return nil
+ 
+ 	case ODOTTYPE:
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index cb0c86ee81..5fc16858d9 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -615,7 +615,7 @@ func cplxsubtype(et EType) EType {
+ 		return TFLOAT64
+ 	}
+ 
+-	Fatalf("cplxsubtype: %v\n", Econv(et))
++	Fatalf("cplxsubtype: %v\n", et)
+ 	return 0
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index baac282c0a..1401332632 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -845,7 +845,7 @@ func (t *Type) Alignment() int64 {
+ }
+ 
+ func (t *Type) SimpleString() string {
+-	return Econv(t.Etype)
++	return t.Etype.String()
+ }
+ 
+ // Compare compares types for purposes of the SSA back

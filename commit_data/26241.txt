@@ -17,10 +17,220 @@ Date:   Tue Jan 5 17:21:09 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/18301
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/internal/gcimporter/gcimporter.go      | 48 +++++++++++++++------------
  src/go/internal/gcimporter/gcimporter_test.go | 36 ++++++++++++++++++++
  src/go/internal/gcimporter/testdata/a.go      | 14 ++++++++
  src/go/internal/gcimporter/testdata/b.go      | 11 ++++++
  src/go/types/package.go                       |  3 ++
  5 files changed, 90 insertions(+), 22 deletions(-)
+
+diff --git a/src/go/internal/gcimporter/gcimporter.go b/src/go/internal/gcimporter/gcimporter.go
+index b220c8a3d3..60dff32d1e 100644
+--- a/src/go/internal/gcimporter/gcimporter.go
++++ b/src/go/internal/gcimporter/gcimporter.go
+@@ -349,8 +349,10 @@ func (p *parser) parseQualifiedName() (id, name string) {
+ }
+ 
+ // getPkg returns the package for a given id. If the package is
+-// not found but we have a package name, create the package and
+-// add it to the p.localPkgs and p.sharedPkgs maps.
++// not found, create the package and add it to the p.localPkgs
++// and p.sharedPkgs maps. name is the (expected) name of the
++// package. If name == "", the package name is expected to be
++// set later via an import clause in the export data.
+ //
+ // id identifies a package, usually by a canonical package path like
+ // "encoding/json" but possibly by a non-canonical import path like
+@@ -363,19 +365,28 @@ func (p *parser) getPkg(id, name string) *types.Package {
+ 	}
+ 
+ 	pkg := p.localPkgs[id]
+-	if pkg == nil && name != "" {
++	if pkg == nil {
+ 		// first import of id from this package
+ 		pkg = p.sharedPkgs[id]
+ 		if pkg == nil {
+-			// first import of id by this importer
++			// first import of id by this importer;
++			// add (possibly unnamed) pkg to shared packages
+ 			pkg = types.NewPackage(id, name)
+ 			p.sharedPkgs[id] = pkg
+ 		}
+-
++		// add (possibly unnamed) pkg to local packages
+ 		if p.localPkgs == nil {
+ 			p.localPkgs = make(map[string]*types.Package)
+ 		}
+ 		p.localPkgs[id] = pkg
++	} else if name != "" {
++		// package exists already and we have an expected package name;
++		// make sure names match or set package name if necessary
++		if pname := pkg.Name(); pname == "" {
++			pkg.SetName(name)
++		} else if pname != name {
++			p.errorf("%s package name mismatch: %s (given) vs %s (expected)", pname, name)
++		}
+ 	}
+ 	return pkg
+ }
+@@ -386,9 +397,6 @@ func (p *parser) getPkg(id, name string) *types.Package {
+ func (p *parser) parseExportedName() (pkg *types.Package, name string) {
+ 	id, name := p.parseQualifiedName()
+ 	pkg = p.getPkg(id, "")
+-	if pkg == nil {
+-		p.errorf("%s package not found", id)
+-	}
+ 	return
+ }
+ 
+@@ -434,13 +442,11 @@ func (p *parser) parseMapType() types.Type {
+ 
+ // Name = identifier | "?" | QualifiedName .
+ //
+-// If materializePkg is set, the returned package is guaranteed to be set.
+-// For fully qualified names, the returned package may be a fake package
+-// (without name, scope, and not in the p.sharedPkgs map), created for the
+-// sole purpose of providing a package path. Fake packages are created
+-// when the package id is not found in the p.sharedPkgs map; in that case
+-// we cannot create a real package because we don't have a package name.
+-// For non-qualified names, the returned package is the imported package.
++// For unqualified names, the returned package is the imported package.
++// For qualified names, the returned package is nil (and not created if
++// it doesn't exist yet) unless materializePkg is set (which creates an
++// unnamed package). In the latter case, a subequent import clause is
++// expected to provide a name for the package.
+ //
+ func (p *parser) parseName(materializePkg bool) (pkg *types.Package, name string) {
+ 	switch p.tok {
+@@ -457,12 +463,7 @@ func (p *parser) parseName(materializePkg bool) (pkg *types.Package, name string
+ 		var id string
+ 		id, name = p.parseQualifiedName()
+ 		if materializePkg {
+-			// we don't have a package name - if the package
+-			// doesn't exist yet, create a fake package instead
+ 			pkg = p.getPkg(id, "")
+-			if pkg == nil {
+-				pkg = types.NewPackage(id, "")
+-			}
+ 		}
+ 	default:
+ 		p.error("name expected")
+@@ -904,7 +905,7 @@ func (p *parser) parseMethodDecl() {
+ 	base := deref(recv.Type()).(*types.Named)
+ 
+ 	// parse method name, signature, and possibly inlined body
+-	_, name := p.parseName(true)
++	_, name := p.parseName(false)
+ 	sig := p.parseFunc(recv)
+ 
+ 	// methods always belong to the same package as the base type object
+@@ -981,9 +982,12 @@ func (p *parser) parseExport() *types.Package {
+ 		p.errorf("expected no scanner errors, got %d", n)
+ 	}
+ 
+-	// Record all referenced packages as imports.
++	// Record all locally referenced packages as imports.
+ 	var imports []*types.Package
+ 	for id, pkg2 := range p.localPkgs {
++		if pkg2.Name() == "" {
++			p.errorf("%s package has no name", id)
++		}
+ 		if id == p.id {
+ 			continue // avoid self-edge
+ 		}
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index 316ba1634b..a0ea60e96f 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -275,3 +275,39 @@ func TestCorrectMethodPackage(t *testing.T) {
+ 		t.Errorf("got package path %q; want %q", got, want)
+ 	}
+ }
++
++func TestIssue13566(t *testing.T) {
++	skipSpecialPlatforms(t)
++
++	// This package only handles gc export data.
++	if runtime.Compiler != "gc" {
++		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
++		return
++	}
++
++	// On windows, we have to set the -D option for the compiler to avoid having a drive
++	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
++	if runtime.GOOS == "windows" {
++		t.Skip("avoid dealing with relative paths/drive letters on windows")
++	}
++
++	if f := compile(t, "testdata", "a.go"); f != "" {
++		defer os.Remove(f)
++	}
++	if f := compile(t, "testdata", "b.go"); f != "" {
++		defer os.Remove(f)
++	}
++
++	// import must succeed (test for issue at hand)
++	pkg, err := Import(make(map[string]*types.Package), "./testdata/b")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	// make sure all indirectly imported packages have names
++	for _, imp := range pkg.Imports() {
++		if imp.Name() == "" {
++			t.Errorf("no name for %s package", imp.Path())
++		}
++	}
++}
+diff --git a/src/go/internal/gcimporter/testdata/a.go b/src/go/internal/gcimporter/testdata/a.go
+new file mode 100644
+index 0000000000..56e4292cda
+--- /dev/null
++++ b/src/go/internal/gcimporter/testdata/a.go
+@@ -0,0 +1,14 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Input for TestIssue13566
++
++package a
++
++import "encoding/json"
++
++type A struct {
++	a    *A
++	json json.RawMessage
++}
+diff --git a/src/go/internal/gcimporter/testdata/b.go b/src/go/internal/gcimporter/testdata/b.go
+new file mode 100644
+index 0000000000..4196678200
+--- /dev/null
++++ b/src/go/internal/gcimporter/testdata/b.go
+@@ -0,0 +1,11 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Input for TestIssue13566
++
++package b
++
++import "./a"
++
++type A a.A
+diff --git a/src/go/types/package.go b/src/go/types/package.go
+index 48fe8398fe..4a432b5496 100644
+--- a/src/go/types/package.go
++++ b/src/go/types/package.go
+@@ -36,6 +36,9 @@ func (pkg *Package) Path() string { return pkg.path }
+ // Name returns the package name.
+ func (pkg *Package) Name() string { return pkg.name }
+ 
++// SetName sets the package name.
++func (pkg *Package) SetName(name string) { pkg.name = name }
++
+ // Scope returns the (complete or incomplete) package scope
+ // holding the objects declared at package level (TypeNames,
+ // Consts, Vars, and Funcs).

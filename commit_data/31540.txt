@@ -16,9 +16,180 @@ Date:   Tue Feb 28 11:52:43 2017 -0800
     Change-Id: Id343531b408d42ac45f10c76f60e85bdb977f91e
     Reviewed-on: https://go-review.googlesource.com/37582
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/math/bits/bits.go        | 57 ++++++++++++++++++++++++++++++++++++--------
  src/math/bits/bits_impl.go   | 22 -----------------
  src/math/bits/bits_tables.go | 19 +++++++++++++++
  src/math/bits/make_tables.go | 10 +++++++-
  4 files changed, 75 insertions(+), 33 deletions(-)
+
+diff --git a/src/math/bits/bits.go b/src/math/bits/bits.go
+index 1aaa9eea9d..33a51c9a42 100644
+--- a/src/math/bits/bits.go
++++ b/src/math/bits/bits.go
+@@ -14,19 +14,19 @@ const UintSize = uintSize
+ // --- LeadingZeros ---
+ 
+ // LeadingZeros returns the number of leading zero bits in x; the result is UintSize for x == 0.
+-func LeadingZeros(x uint) int { return UintSize - blen(uint64(x)) }
++func LeadingZeros(x uint) int { return UintSize - Len(x) }
+ 
+ // LeadingZeros8 returns the number of leading zero bits in x; the result is 8 for x == 0.
+-func LeadingZeros8(x uint8) int { return 8 - blen(uint64(x)) }
++func LeadingZeros8(x uint8) int { return 8 - Len8(x) }
+ 
+ // LeadingZeros16 returns the number of leading zero bits in x; the result is 16 for x == 0.
+-func LeadingZeros16(x uint16) int { return 16 - blen(uint64(x)) }
++func LeadingZeros16(x uint16) int { return 16 - Len16(x) }
+ 
+ // LeadingZeros32 returns the number of leading zero bits in x; the result is 32 for x == 0.
+-func LeadingZeros32(x uint32) int { return 32 - blen(uint64(x)) }
++func LeadingZeros32(x uint32) int { return 32 - Len32(x) }
+ 
+ // LeadingZeros64 returns the number of leading zero bits in x; the result is 64 for x == 0.
+-func LeadingZeros64(x uint64) int { return 64 - blen(uint64(x)) }
++func LeadingZeros64(x uint64) int { return 64 - Len64(x) }
+ 
+ // --- TrailingZeros ---
+ 
+@@ -281,16 +281,53 @@ func ReverseBytes64(x uint64) uint64 {
+ // --- Len ---
+ 
+ // Len returns the minimum number of bits required to represent x; the result is 0 for x == 0.
+-func Len(x uint) int { return blen(uint64(x)) }
++func Len(x uint) int {
++	if UintSize == 32 {
++		return Len32(uint32(x))
++	}
++	return Len64(uint64(x))
++}
+ 
+ // Len8 returns the minimum number of bits required to represent x; the result is 0 for x == 0.
+-func Len8(x uint8) int { return blen(uint64(x)) }
++func Len8(x uint8) int {
++	return int(len8tab[x])
++}
+ 
+ // Len16 returns the minimum number of bits required to represent x; the result is 0 for x == 0.
+-func Len16(x uint16) int { return blen(uint64(x)) }
++func Len16(x uint16) (n int) {
++	if x >= 1<<8 {
++		x >>= 8
++		n = 8
++	}
++	return n + int(len8tab[x])
++}
+ 
+ // Len32 returns the minimum number of bits required to represent x; the result is 0 for x == 0.
+-func Len32(x uint32) int { return blen(uint64(x)) }
++func Len32(x uint32) (n int) {
++	if x >= 1<<16 {
++		x >>= 16
++		n = 16
++	}
++	if x >= 1<<8 {
++		x >>= 8
++		n += 8
++	}
++	return n + int(len8tab[x])
++}
+ 
+ // Len64 returns the minimum number of bits required to represent x; the result is 0 for x == 0.
+-func Len64(x uint64) int { return blen(uint64(x)) }
++func Len64(x uint64) (n int) {
++	if x >= 1<<32 {
++		x >>= 32
++		n = 32
++	}
++	if x >= 1<<16 {
++		x >>= 16
++		n += 16
++	}
++	if x >= 1<<8 {
++		x >>= 8
++		n += 8
++	}
++	return n + int(len8tab[x])
++}
+diff --git a/src/math/bits/bits_impl.go b/src/math/bits/bits_impl.go
+index cf5a12af2b..0a1d8d7795 100644
+--- a/src/math/bits/bits_impl.go
++++ b/src/math/bits/bits_impl.go
+@@ -65,25 +65,3 @@ func ntz64(x uint64) int {
+ 	// (Knuth, volume 4, section 7.3.1)
+ 	return int(deBruijn64tab[(x&-x)*deBruijn64>>(64-6)])
+ }
+-
+-func blen(x uint64) (i int) {
+-	for ; x >= 1<<(16-1); x >>= 16 {
+-		i += 16
+-	}
+-	if x >= 1<<(8-1) {
+-		x >>= 8
+-		i += 8
+-	}
+-	if x >= 1<<(4-1) {
+-		x >>= 4
+-		i += 4
+-	}
+-	if x >= 1<<(2-1) {
+-		x >>= 2
+-		i += 2
+-	}
+-	if x >= 1<<(1-1) {
+-		i++
+-	}
+-	return
+-}
+diff --git a/src/math/bits/bits_tables.go b/src/math/bits/bits_tables.go
+index f79f83a01e..f1e15a0d0e 100644
+--- a/src/math/bits/bits_tables.go
++++ b/src/math/bits/bits_tables.go
+@@ -62,3 +62,22 @@ var rev8tab = [256]uint8{
+ 	0x07, 0x87, 0x47, 0xc7, 0x27, 0xa7, 0x67, 0xe7, 0x17, 0x97, 0x57, 0xd7, 0x37, 0xb7, 0x77, 0xf7,
+ 	0x0f, 0x8f, 0x4f, 0xcf, 0x2f, 0xaf, 0x6f, 0xef, 0x1f, 0x9f, 0x5f, 0xdf, 0x3f, 0xbf, 0x7f, 0xff,
+ }
++
++var len8tab = [256]uint8{
++	0x00, 0x01, 0x02, 0x02, 0x03, 0x03, 0x03, 0x03, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04,
++	0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05, 0x05,
++	0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06,
++	0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06,
++	0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
++	0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
++	0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
++	0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
++	0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
++	0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
++	0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
++	0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
++	0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
++	0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
++	0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
++	0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08,
++}
+diff --git a/src/math/bits/make_tables.go b/src/math/bits/make_tables.go
+index c66afb5a96..ff2fe2e385 100644
+--- a/src/math/bits/make_tables.go
++++ b/src/math/bits/make_tables.go
+@@ -33,7 +33,7 @@ func main() {
+ 	gen(buf, "ntz8tab", ntz8)
+ 	gen(buf, "pop8tab", pop8)
+ 	gen(buf, "rev8tab", rev8)
+-	// add more tables as needed
++	gen(buf, "len8tab", len8)
+ 
+ 	out, err := format.Source(buf.Bytes())
+ 	if err != nil {
+@@ -82,3 +82,11 @@ func rev8(x uint8) (r uint8) {
+ 	}
+ 	return
+ }
++
++func len8(x uint8) (n uint8) {
++	for x != 0 {
++		x >>= 1
++		n++
++	}
++	return
++}

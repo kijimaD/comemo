@@ -10,7 +10,40 @@ Date:   Wed Jul 22 11:24:27 2015 +1000
     Reviewed-on: https://go-review.googlesource.com/12501
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/asm.html   | 2 +-
  doc/go1.5.html | 8 ++++++++
  2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/doc/asm.html b/doc/asm.html
+index 11249a3b7f..ba888118b9 100644
+--- a/doc/asm.html
++++ b/doc/asm.html
+@@ -741,7 +741,7 @@ Addressing modes:
+ 
+ </ul>
+ 
+-<h3 id="ppc64">Power64, a.k.a. ppc64</h3>
++<h3 id="ppc64">Power 64, a.k.a. ppc64</h3>
+ 
+ <p>
+ The Power 64 port is in an experimental state.
+diff --git a/doc/go1.5.html b/doc/go1.5.html
+index 3526979c99..b8acdacaf0 100644
+--- a/doc/go1.5.html
++++ b/doc/go1.5.html
+@@ -233,6 +233,14 @@ The new port <code>linux/arm64</code> is mostly in place, but <code>cgo</code>
+ is only supported using external linking.
+ </p>
+ 
++<p>
++Also available as experiments are <code>ppc64</code> (IBM Power 64)
++and <code>ppc64le</code> (IBM Power 64, little-endian).
++Both these ports support <code>cgo</code>,
++but for <code>ppc64</code> it requires external linking while
++for <code>ppc64le</code> it requires internal linking.
++</p>
++
+ <p>
+ On FreeBSD, Go 1.5 requires FreeBSD 8-STABLE+ because of its new use of the <code>SYSCALL</code> instruction.
+ </p>

@@ -17,7 +17,7 @@ Date:   Thu Sep 4 21:12:31 2014 -0400
     R=golang-codereviews, bradfitz, iant, dave
     CC=dvyukov, golang-codereviews, khr, r
     https://golang.org/cl/137160043
-
+---
  src/cmd/api/goapi.go            |   1 +
  src/pkg/runtime/asm_arm.s       |  48 ++++++----
  src/pkg/runtime/atomic.go       |  51 +++++++++++
@@ -35,3 +35,1404 @@ Date:   Thu Sep 4 21:12:31 2014 -0400
  src/pkg/runtime/stubs.go        |  44 +--------
  src/pkg/runtime/vlrt.c          |  33 +++++++
  16 files changed, 478 insertions(+), 280 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 6b21a24e36..18c36bb175 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -411,6 +411,7 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
+ 			"); " +
+ 			"const (" +
+ 			" cb_max = 2000;" +
++			" _CacheLineSize = 64;" +
+ 			" _Gidle = 1;" +
+ 			" _Grunnable = 2;" +
+ 			" _Grunning = 3;" +
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 3f3b9b7bee..54ef836211 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -114,7 +114,7 @@ TEXT runtime·asminit(SB),NOSPLIT,$0-0
+ 
+ // void gosave(Gobuf*)
+ // save state in Gobuf; setjmp
+-TEXT runtime·gosave(SB), NOSPLIT, $-4-4
++TEXT runtime·gosave(SB),NOSPLIT,$-4-4
+ 	MOVW	0(FP), R0		// gobuf
+ 	MOVW	SP, gobuf_sp(R0)
+ 	MOVW	LR, gobuf_pc(R0)
+@@ -127,7 +127,7 @@ TEXT runtime·gosave(SB), NOSPLIT, $-4-4
+ 
+ // void gogo(Gobuf*)
+ // restore state from Gobuf; longjmp
+-TEXT runtime·gogo(SB), NOSPLIT, $-4-4
++TEXT runtime·gogo(SB),NOSPLIT,$-4-4
+ 	MOVW	0(FP), R1		// gobuf
+ 	MOVW	gobuf_g(R1), g
+ 	MOVW	0(g), R2		// make sure g != nil
+@@ -151,7 +151,7 @@ TEXT runtime·gogo(SB), NOSPLIT, $-4-4
+ // Switch to m->g0's stack, call fn(g).
+ // Fn must never return.  It should gogo(&g->sched)
+ // to keep running g.
+-TEXT runtime·mcall(SB), NOSPLIT, $-4-4
++TEXT runtime·mcall(SB),NOSPLIT,$-4-4
+ 	// Save caller state in g->sched.
+ 	MOVW	SP, (g_sched+gobuf_sp)(g)
+ 	MOVW	LR, (g_sched+gobuf_pc)(g)
+@@ -184,13 +184,13 @@ TEXT runtime·mcall(SB), NOSPLIT, $-4-4
+ // lives at the bottom of the G stack from the one that lives
+ // at the top of the M stack because the one at the top of
+ // the M stack terminates the stack walk (see topofstack()).
+-TEXT runtime·switchtoM(SB), NOSPLIT, $0-4
++TEXT runtime·switchtoM(SB),NOSPLIT,$0-4
+ 	MOVW	$0, R0
+ 	BL	(R0) // clobber lr to ensure push {lr} is kept
+ 	RET
+ 
+ // func onM(fn func())
+-TEXT runtime·onM(SB), NOSPLIT, $0-4
++TEXT runtime·onM(SB),NOSPLIT,$0-4
+ 	MOVW	fn+0(FP), R0	// R0 = fn
+ 	MOVW	g_m(g), R1	// R1 = m
+ 
+@@ -300,7 +300,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-4-0
+ // with the desired args running the desired function.
+ //
+ // func call(fn *byte, arg *byte, argsize uint32).
+-TEXT runtime·newstackcall(SB), NOSPLIT, $-4-12
++TEXT runtime·newstackcall(SB),NOSPLIT,$-4-12
+ 	// Save our caller's state as the PC and SP to
+ 	// restore when returning from f.
+ 	MOVW	g_m(g), R8
+@@ -348,7 +348,7 @@ TEXT runtime·newstackcall(SB), NOSPLIT, $-4-12
+ 	MOVW	$NAME(SB), R1;	\
+ 	B	(R1)
+ 
+-TEXT reflect·call(SB), NOSPLIT, $-4-16
++TEXT reflect·call(SB),NOSPLIT,$-4-16
+ 	MOVW	argsize+8(FP), R0
+ 	DISPATCH(runtime·call16, 16)
+ 	DISPATCH(runtime·call32, 32)
+@@ -459,7 +459,7 @@ CALLFN(runtime·call1073741824, 1073741824)
+ //
+ // Lessstack can appear in stack traces for the same reason
+ // as morestack; in that context, it has 0 arguments.
+-TEXT runtime·lessstack(SB), NOSPLIT, $-4-0
++TEXT runtime·lessstack(SB),NOSPLIT,$-4-0
+ 	// Save return value in m->cret
+ 	MOVW	g_m(g), R8
+ 	MOVW	R0, m_cret(R8)
+@@ -478,7 +478,7 @@ TEXT runtime·lessstack(SB), NOSPLIT, $-4-0
+ // to load all registers simultaneously, so that a profiling
+ // interrupt can never see mismatched SP/LR/PC.
+ // (And double-check that pop is atomic in that way.)
+-TEXT runtime·jmpdefer(SB), NOSPLIT, $0-8
++TEXT runtime·jmpdefer(SB),NOSPLIT,$0-8
+ 	MOVW	0(SP), LR
+ 	MOVW	$-4(LR), LR	// BL deferreturn
+ 	MOVW	fv+0(FP), R7
+@@ -638,7 +638,7 @@ havem:
+ 	RET
+ 
+ // void setg(G*); set g. for use by needm.
+-TEXT runtime·setg(SB), NOSPLIT, $0-4
++TEXT runtime·setg(SB),NOSPLIT,$0-4
+ 	MOVW	gg+0(FP), g
+ 
+ 	// Save g to thread-local storage.
+@@ -715,13 +715,13 @@ casfail:
+ 	MOVB	R0, ret+12(FP)
+ 	RET
+ 
+-TEXT runtime·casuintptr(SB), NOSPLIT, $0-13
++TEXT runtime·casuintptr(SB),NOSPLIT,$0-13
+ 	B	runtime·cas(SB)
+ 
+-TEXT runtime·atomicloaduintptr(SB), NOSPLIT, $0-8
++TEXT runtime·atomicloaduintptr(SB),NOSPLIT,$0-8
+ 	B	runtime·atomicload(SB)
+ 
+-TEXT runtime·atomicloaduint(SB), NOSPLIT, $0-8
++TEXT runtime·atomicloaduint(SB),NOSPLIT,$0-8
+ 	B	runtime·atomicload(SB)
+ 
+ TEXT runtime·stackguard(SB),NOSPLIT,$0-8
+@@ -874,7 +874,7 @@ _sib_notfound:
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+-TEXT runtime·timenow(SB), NOSPLIT, $0-0
++TEXT runtime·timenow(SB),NOSPLIT,$0-0
+ 	B	time·now(SB)
+ 
+ // A Duff's device for zeroing memory.
+@@ -885,7 +885,7 @@ TEXT runtime·timenow(SB), NOSPLIT, $0-0
+ // R0: zero
+ // R1: ptr to memory to be zeroed
+ // R1 is updated as a side effect.
+-TEXT runtime·duffzero(SB), NOSPLIT, $0-0
++TEXT runtime·duffzero(SB),NOSPLIT,$0-0
+ 	MOVW.P	R0, 4(R1)
+ 	MOVW.P	R0, 4(R1)
+ 	MOVW.P	R0, 4(R1)
+@@ -1026,7 +1026,7 @@ TEXT runtime·duffzero(SB), NOSPLIT, $0-0
+ // R1: ptr to source memory
+ // R2: ptr to destination memory
+ // R1 and R2 are updated as a side effect
+-TEXT runtime·duffcopy(SB), NOSPLIT, $0-0
++TEXT runtime·duffcopy(SB),NOSPLIT,$0-0
+ 	MOVW.P	4(R1), R0
+ 	MOVW.P	R0, 4(R2)
+ 	MOVW.P	4(R1), R0
+@@ -1285,7 +1285,7 @@ TEXT runtime·duffcopy(SB), NOSPLIT, $0-0
+ 	MOVW.P	R0, 4(R2)
+ 	RET
+ 
+-TEXT runtime·fastrand1(SB), NOSPLIT, $-4-4
++TEXT runtime·fastrand1(SB),NOSPLIT,$-4-4
+ 	MOVW	g_m(g), R1
+ 	MOVW	m_fastrand(R1), R0
+ 	ADD.S	R0, R0
+@@ -1294,9 +1294,19 @@ TEXT runtime·fastrand1(SB), NOSPLIT, $-4-4
+ 	MOVW	R0, ret+0(FP)
+ 	RET
+ 
+-TEXT runtime·gocputicks(SB), NOSPLIT, $0
++TEXT runtime·gocputicks(SB),NOSPLIT,$0
+ 	B runtime·cputicks(SB)
+ 
+-TEXT runtime·return0(SB), NOSPLIT, $0
++TEXT runtime·return0(SB),NOSPLIT,$0
+ 	MOVW	$0, R0
+ 	RET
++
++TEXT runtime·procyield(SB),NOSPLIT,$-4
++	MOVW	cycles+0(FP), R1
++	MOVW	$0, R0
++yieldloop:
++	CMP	R0, R1
++	B.NE	2(PC)
++	RET
++	SUB	$1, R1
++	B yieldloop
+diff --git a/src/pkg/runtime/atomic.go b/src/pkg/runtime/atomic.go
+new file mode 100644
+index 0000000000..7e9d9b3aad
+--- /dev/null
++++ b/src/pkg/runtime/atomic.go
+@@ -0,0 +1,51 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !arm
++
++package runtime
++
++import "unsafe"
++
++//go:noescape
++func xadd(ptr *uint32, delta int32) uint32
++
++//go:noescape
++func xadd64(ptr *uint64, delta int64) uint64
++
++//go:noescape
++func xchg(ptr *uint32, new uint32) uint32
++
++//go:noescape
++func xchg64(ptr *uint64, new uint64) uint64
++
++//go:noescape
++func xchgp(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer
++
++//go:noescape
++func xchguintptr(ptr *uintptr, new uintptr) uintptr
++
++//go:noescape
++func atomicload(ptr *uint32) uint32
++
++//go:noescape
++func atomicload64(ptr *uint64) uint64
++
++//go:noescape
++func atomicloadp(ptr unsafe.Pointer) unsafe.Pointer
++
++//go:noescape
++func atomicor8(ptr *uint8, val uint8)
++
++//go:noescape
++func cas64(ptr *uint64, old, new uint64) bool
++
++//go:noescape
++func atomicstore(ptr *uint32, val uint32)
++
++//go:noescape
++func atomicstore64(ptr *uint64, val uint64)
++
++//go:noescape
++func atomicstorep(ptr unsafe.Pointer, val unsafe.Pointer)
+diff --git a/src/pkg/runtime/atomic_arm.c b/src/pkg/runtime/atomic_arm.c
+deleted file mode 100644
+index 487b128cbb..0000000000
+--- a/src/pkg/runtime/atomic_arm.c
++++ /dev/null
+@@ -1,192 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "arch_GOARCH.h"
+-#include "../../cmd/ld/textflag.h"
+-
+-static struct {
+-	Mutex l;
+-	byte pad[CacheLineSize-sizeof(Mutex)];
+-} locktab[57];
+-
+-#define LOCK(addr) (&locktab[((uintptr)(addr)>>3)%nelem(locktab)].l)
+-
+-// Atomic add and return new value.
+-#pragma textflag NOSPLIT
+-uint32
+-runtime·xadd(uint32 volatile *val, int32 delta)
+-{
+-	uint32 oval, nval;
+-
+-	for(;;){
+-		oval = *val;
+-		nval = oval + delta;
+-		if(runtime·cas(val, oval, nval))
+-			return nval;
+-	}
+-}
+-
+-#pragma textflag NOSPLIT
+-uint32
+-runtime·xchg(uint32 volatile* addr, uint32 v)
+-{
+-	uint32 old;
+-
+-	for(;;) {
+-		old = *addr;
+-		if(runtime·cas(addr, old, v))
+-			return old;
+-	}
+-}
+-
+-#pragma textflag NOSPLIT
+-void*
+-runtime·xchgp(void* volatile* addr, void* v)
+-{
+-	void *old;
+-
+-	for(;;) {
+-		old = *addr;
+-		if(runtime·casp(addr, old, v))
+-			return old;
+-	}
+-}
+-
+-#pragma textflag NOSPLIT
+-void*
+-runtime·xchguintptr(void* volatile* addr, void* v)
+-{
+-	return (void*)runtime·xchg((uint32*)addr, (uint32)v);
+-}
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·procyield(uint32 cnt)
+-{
+-	uint32 volatile i;
+-
+-	for(i = 0; i < cnt; i++) {
+-	}
+-}
+-
+-#pragma textflag NOSPLIT
+-uint32
+-runtime·atomicload(uint32 volatile* addr)
+-{
+-	return runtime·xadd(addr, 0);
+-}
+-
+-#pragma textflag NOSPLIT
+-void*
+-runtime·atomicloadp(void* volatile* addr)
+-{
+-	return (void*)runtime·xadd((uint32 volatile*)addr, 0);
+-}
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·atomicstorep(void* volatile* addr, void* v)
+-{
+-	void *old;
+-
+-	for(;;) {
+-		old = *addr;
+-		if(runtime·casp(addr, old, v))
+-			return;
+-	}
+-}
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·atomicstore(uint32 volatile* addr, uint32 v)
+-{
+-	uint32 old;
+-	
+-	for(;;) {
+-		old = *addr;
+-		if(runtime·cas(addr, old, v))
+-			return;
+-	}
+-}
+-
+-#pragma textflag NOSPLIT
+-bool
+-runtime·cas64(uint64 volatile *addr, uint64 old, uint64 new)
+-{
+-	bool res;
+-	
+-	runtime·lock(LOCK(addr));
+-	if(*addr == old) {
+-		*addr = new;
+-		res = true;
+-	} else {
+-		res = false;
+-	}
+-	runtime·unlock(LOCK(addr));
+-	return res;
+-}
+-
+-#pragma textflag NOSPLIT
+-uint64
+-runtime·xadd64(uint64 volatile *addr, int64 delta)
+-{
+-	uint64 res;
+-	
+-	runtime·lock(LOCK(addr));
+-	res = *addr + delta;
+-	*addr = res;
+-	runtime·unlock(LOCK(addr));
+-	return res;
+-}
+-
+-#pragma textflag NOSPLIT
+-uint64
+-runtime·xchg64(uint64 volatile *addr, uint64 v)
+-{
+-	uint64 res;
+-
+-	runtime·lock(LOCK(addr));
+-	res = *addr;
+-	*addr = v;
+-	runtime·unlock(LOCK(addr));
+-	return res;
+-}
+-
+-#pragma textflag NOSPLIT
+-uint64
+-runtime·atomicload64(uint64 volatile *addr)
+-{
+-	uint64 res;
+-	
+-	runtime·lock(LOCK(addr));
+-	res = *addr;
+-	runtime·unlock(LOCK(addr));
+-	return res;
+-}
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·atomicstore64(uint64 volatile *addr, uint64 v)
+-{
+-	runtime·lock(LOCK(addr));
+-	*addr = v;
+-	runtime·unlock(LOCK(addr));
+-}
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·atomicor8(byte volatile *addr, byte v)
+-{
+-	uint32 *addr32, old, word;
+-
+-	// Align down to 4 bytes and use 32-bit CAS.
+-	addr32 = (uint32*)((uintptr)addr & ~3);
+-	word = ((uint32)v) << (((uintptr)addr & 3) * 8);
+-	for(;;) {
+-		old = *addr32;
+-		if(runtime·cas(addr32, old, old|word))
+-			break;
+-	}
+-}
+diff --git a/src/pkg/runtime/atomic_arm.go b/src/pkg/runtime/atomic_arm.go
+new file mode 100644
+index 0000000000..b1632cdd16
+--- /dev/null
++++ b/src/pkg/runtime/atomic_arm.go
+@@ -0,0 +1,155 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++var locktab [57]struct {
++	l   mutex
++	pad [_CacheLineSize - unsafe.Sizeof(mutex{})]byte
++}
++
++func addrLock(addr *uint64) *mutex {
++	return &locktab[(uintptr(unsafe.Pointer(addr))>>3)%uintptr(len(locktab))].l
++}
++
++// Atomic add and return new value.
++//go:nosplit
++func xadd(val *uint32, delta int32) uint32 {
++	for {
++		oval := *val
++		nval := oval + uint32(delta)
++		if cas(val, oval, nval) {
++			return nval
++		}
++	}
++}
++
++//go:nosplit
++func xchg(addr *uint32, v uint32) uint32 {
++	for {
++		old := *addr
++		if cas(addr, old, v) {
++			return old
++		}
++	}
++}
++
++//go:nosplit
++func xchgp(addr *unsafe.Pointer, v unsafe.Pointer) unsafe.Pointer {
++	for {
++		old := *addr
++		if casp(addr, old, v) {
++			return old
++		}
++	}
++}
++
++//go:nosplit
++func xchguintptr(addr *uintptr, v uintptr) uintptr {
++	return uintptr(xchg((*uint32)(unsafe.Pointer(addr)), uint32(v)))
++}
++
++//go:nosplit
++func atomicload(addr *uint32) uint32 {
++	return xadd(addr, 0)
++}
++
++//go:nosplit
++func atomicloadp(addr unsafe.Pointer) unsafe.Pointer {
++	return unsafe.Pointer(uintptr(xadd((*uint32)(addr), 0)))
++}
++
++//go:nosplit
++func atomicstorep(addr unsafe.Pointer, v unsafe.Pointer) {
++	for {
++		old := *(*unsafe.Pointer)(addr)
++		if casp((*unsafe.Pointer)(addr), old, v) {
++			return
++		}
++	}
++}
++
++//go:nosplit
++func atomicstore(addr *uint32, v uint32) {
++	for {
++		old := *addr
++		if cas(addr, old, v) {
++			return
++		}
++	}
++}
++
++//go:nosplit
++func cas64(addr *uint64, old, new uint64) bool {
++	var ok bool
++	onM(func() {
++		lock(addrLock(addr))
++		if *addr == old {
++			*addr = new
++			ok = true
++		}
++		unlock(addrLock(addr))
++	})
++	return ok
++}
++
++//go:nosplit
++func xadd64(addr *uint64, delta int64) uint64 {
++	var r uint64
++	onM(func() {
++		lock(addrLock(addr))
++		r = *addr + uint64(delta)
++		*addr = r
++		unlock(addrLock(addr))
++	})
++	return r
++}
++
++//go:nosplit
++func xchg64(addr *uint64, v uint64) uint64 {
++	var r uint64
++	onM(func() {
++		lock(addrLock(addr))
++		r = *addr
++		*addr = v
++		unlock(addrLock(addr))
++	})
++	return r
++}
++
++//go:nosplit
++func atomicload64(addr *uint64) uint64 {
++	var r uint64
++	onM(func() {
++		lock(addrLock(addr))
++		r = *addr
++		unlock(addrLock(addr))
++	})
++	return r
++}
++
++//go:nosplit
++func atomicstore64(addr *uint64, v uint64) {
++	onM(func() {
++		lock(addrLock(addr))
++		*addr = v
++		unlock(addrLock(addr))
++	})
++}
++
++//go:nosplit
++func atomicor8(addr *uint8, v uint8) {
++	// Align down to 4 bytes and use 32-bit CAS.
++	uaddr := uintptr(unsafe.Pointer(addr))
++	addr32 := (*uint32)(unsafe.Pointer(uaddr &^ 3))
++	word := uint32(v) << ((uaddr & 3) * 8) // little endian
++	for {
++		old := *addr32
++		if cas(addr32, old, old|word) {
++			return
++		}
++	}
++}
+diff --git a/src/pkg/runtime/malloc.c b/src/pkg/runtime/malloc.c
+index c864bc93c0..86846f3e6d 100644
+--- a/src/pkg/runtime/malloc.c
++++ b/src/pkg/runtime/malloc.c
+@@ -87,6 +87,7 @@ runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp)
+ 	return 1;
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·purgecachedstats(MCache *c)
+ {
+diff --git a/src/pkg/runtime/os_dragonfly.c b/src/pkg/runtime/os_dragonfly.c
+index f93c02ce1c..7bde58f756 100644
+--- a/src/pkg/runtime/os_dragonfly.c
++++ b/src/pkg/runtime/os_dragonfly.c
+@@ -40,13 +40,38 @@ getncpu(void)
+ 		return 1;
+ }
+ 
++static void futexsleep(void);
++
+ #pragma textflag NOSPLIT
+ void
+ runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
+ {
++	void (*fn)(void);
++
++	g->m->ptrarg[0] = addr;
++	g->m->scalararg[0] = val;
++	g->m->ptrarg[1] = &ns;
++
++	fn = futexsleep;
++	runtime·onM(&fn);
++}
++
++static void
++futexsleep(void)
++{
++	uint32 *addr;
++	uint32 val;
++	int64 ns;
+ 	int32 timeout = 0;
+ 	int32 ret;
+ 
++	addr = g->m->ptrarg[0];
++	val = g->m->scalararg[0];
++	ns = *(int64*)g->m->ptrarg[1];
++	g->m->ptrarg[0] = nil;
++	g->m->scalararg[0] = 0;
++	g->m->ptrarg[1] = nil;
++
+ 	if(ns >= 0) {
+ 		// The timeout is specified in microseconds - ensure that we
+ 		// do not end up dividing to zero, which would put us to sleep
+diff --git a/src/pkg/runtime/os_freebsd.c b/src/pkg/runtime/os_freebsd.c
+index ab1edcd93f..4c58b531ce 100644
+--- a/src/pkg/runtime/os_freebsd.c
++++ b/src/pkg/runtime/os_freebsd.c
+@@ -42,12 +42,37 @@ getncpu(void)
+ // FreeBSD's umtx_op syscall is effectively the same as Linux's futex, and
+ // thus the code is largely similar. See linux/thread.c and lock_futex.c for comments.
+ 
++static void futexsleep(void);
++
+ #pragma textflag NOSPLIT
+ void
+ runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
+ {
++	void (*fn)(void);
++
++	g->m->ptrarg[0] = addr;
++	g->m->scalararg[0] = val;
++	g->m->ptrarg[1] = &ns;
++
++	fn = futexsleep;
++	runtime·onM(&fn);
++}
++
++static void
++futexsleep(void)
++{
++	uint32 *addr;
++	uint32 val;
++	int64 ns;
+ 	int32 ret;
+ 	Timespec ts;
++	
++	addr = g->m->ptrarg[0];
++	val = g->m->scalararg[0];
++	ns = *(int64*)g->m->ptrarg[1];
++	g->m->ptrarg[0] = nil;
++	g->m->scalararg[0] = 0;
++	g->m->ptrarg[1] = nil;
+ 
+ 	if(ns < 0) {
+ 		ret = runtime·sys_umtx_op(addr, UMTX_OP_WAIT_UINT_PRIVATE, val, nil, nil);
+diff --git a/src/pkg/runtime/os_netbsd.c b/src/pkg/runtime/os_netbsd.c
+index 29ea0cb427..cee96ebed1 100644
+--- a/src/pkg/runtime/os_netbsd.c
++++ b/src/pkg/runtime/os_netbsd.c
+@@ -57,18 +57,23 @@ getncpu(void)
+ 		return 1;
+ }
+ 
++#pragma textflag NOSPLIT
+ uintptr
+ runtime·semacreate(void)
+ {
+ 	return 1;
+ }
+ 
+-#pragma textflag NOSPLIT
+-int32
+-runtime·semasleep(int64 ns)
++static void
++semasleep(void)
+ {
++	int64 ns;
+ 	Timespec ts;
+ 
++	ns = (int64)(uint32)g->m->scalararg[0] | (int64)(uint32)g->m->scalararg[1]<<32;
++	g->m->scalararg[0] = 0;
++	g->m->scalararg[1] = 0;
++
+ 	// spin-mutex lock
+ 	while(runtime·xchg(&g->m->waitsemalock, 1))
+ 		runtime·osyield();
+@@ -115,7 +120,8 @@ runtime·semasleep(int64 ns)
+ 			g->m->waitsemacount--;
+ 			// spin-mutex unlock
+ 			runtime·atomicstore(&g->m->waitsemalock, 0);
+-			return 0;  // semaphore acquired
++			g->m->scalararg[0] = 0; // semaphore acquired
++			return;
+ 		}
+ 
+ 		// semaphore not available.
+@@ -128,13 +134,36 @@ runtime·semasleep(int64 ns)
+ 	// lock held but giving up
+ 	// spin-mutex unlock
+ 	runtime·atomicstore(&g->m->waitsemalock, 0);
+-	return -1;
++	g->m->scalararg[0] = -1;
++	return;
++}
++
++#pragma textflag NOSPLIT
++int32
++runtime·semasleep(int64 ns)
++{
++	int32 r;
++	void (*fn)(void);
++
++	g->m->scalararg[0] = (uint32)ns;
++	g->m->scalararg[1] = (uint32)(ns>>32);
++	fn = semasleep;
++	runtime·onM(&fn);
++	r = g->m->scalararg[0];
++	g->m->scalararg[0] = 0;
++	return r;
+ }
+ 
++static void badsemawakeup(void);
++
++#pragma textflag NOSPLIT
+ void
+ runtime·semawakeup(M *mp)
+ {
+ 	uint32 ret;
++	void (*fn)(void);
++	void *oldptr;
++	uintptr oldscalar;
+ 
+ 	// spin-mutex lock
+ 	while(runtime·xchg(&mp->waitsemalock, 1))
+@@ -143,12 +172,39 @@ runtime·semawakeup(M *mp)
+ 	// TODO(jsing) - potential deadlock, see semasleep() for details.
+ 	// Confirm that LWP is parked before unparking...
+ 	ret = runtime·lwp_unpark(mp->procid, &mp->waitsemacount);
+-	if(ret != 0 && ret != ESRCH)
+-		runtime·printf("thrwakeup addr=%p sem=%d ret=%d\n", &mp->waitsemacount, mp->waitsemacount, ret);
++	if(ret != 0 && ret != ESRCH) {
++		// semawakeup can be called on signal stack.
++		// Save old ptrarg/scalararg so we can restore them.
++		oldptr = g->m->ptrarg[0];
++		oldscalar = g->m->scalararg[0];
++		g->m->ptrarg[0] = mp;
++		g->m->scalararg[0] = ret;
++		fn = badsemawakeup;
++		if(g == g->m->gsignal)
++			fn();
++		else
++			runtime·onM(&fn);
++		g->m->ptrarg[0] = oldptr;
++		g->m->scalararg[0] = oldscalar;
++	}
+ 	// spin-mutex unlock
+ 	runtime·atomicstore(&mp->waitsemalock, 0);
+ }
+ 
++static void
++badsemawakeup(void)
++{
++	M *mp;
++	int32 ret;
++
++	mp = g->m->ptrarg[0];
++	g->m->ptrarg[0] = nil;
++	ret = g->m->scalararg[0];
++	g->m->scalararg[0] = 0;
++
++	runtime·printf("thrwakeup addr=%p sem=%d ret=%d\n", &mp->waitsemacount, mp->waitsemacount, ret);
++}
++
+ void
+ runtime·newosproc(M *mp, void *stk)
+ {
+diff --git a/src/pkg/runtime/os_openbsd.c b/src/pkg/runtime/os_openbsd.c
+index 728cb88c4c..7c9e478e84 100644
+--- a/src/pkg/runtime/os_openbsd.c
++++ b/src/pkg/runtime/os_openbsd.c
+@@ -54,6 +54,7 @@ getncpu(void)
+ 		return 1;
+ }
+ 
++#pragma textflag NOSPLIT
+ uintptr
+ runtime·semacreate(void)
+ {
+@@ -111,22 +112,55 @@ runtime·semasleep(int64 ns)
+ 	return -1;
+ }
+ 
++static void badsemawakeup(void);
++
++#pragma textflag NOSPLIT
+ void
+ runtime·semawakeup(M *mp)
+ {
+ 	uint32 ret;
++	void *oldptr;
++	uint32 oldscalar;
++	void (*fn)(void);
+ 
+ 	// spin-mutex lock
+ 	while(runtime·xchg(&mp->waitsemalock, 1))
+ 		runtime·osyield();
+ 	mp->waitsemacount++;
+ 	ret = runtime·thrwakeup(&mp->waitsemacount, 1);
+-	if(ret != 0 && ret != ESRCH)
+-		runtime·printf("thrwakeup addr=%p sem=%d ret=%d\n", &mp->waitsemacount, mp->waitsemacount, ret);
++	if(ret != 0 && ret != ESRCH) {
++		// semawakeup can be called on signal stack.
++		// Save old ptrarg/scalararg so we can restore them.
++		oldptr = g->m->ptrarg[0];
++		oldscalar = g->m->scalararg[0];
++		g->m->ptrarg[0] = mp;
++		g->m->scalararg[0] = ret;
++		fn = badsemawakeup;
++		if(g == g->m->gsignal)
++			fn();
++		else
++			runtime·onM(&fn);
++		g->m->ptrarg[0] = oldptr;
++		g->m->scalararg[0] = oldscalar;
++	}
+ 	// spin-mutex unlock
+ 	runtime·atomicstore(&mp->waitsemalock, 0);
+ }
+ 
++static void
++badsemawakeup(void)
++{
++	M *mp;
++	int32 ret;
++
++	mp = g->m->ptrarg[0];
++	g->m->ptrarg[0] = nil;
++	ret = g->m->scalararg[0];
++	g->m->scalararg[0] = 0;
++
++	runtime·printf("thrwakeup addr=%p sem=%d ret=%d\n", &mp->waitsemacount, mp->waitsemacount, ret);
++}
++
+ void
+ runtime·newosproc(M *mp, void *stk)
+ {
+diff --git a/src/pkg/runtime/os_plan9.c b/src/pkg/runtime/os_plan9.c
+index efff24ea09..bae4549a6e 100644
+--- a/src/pkg/runtime/os_plan9.c
++++ b/src/pkg/runtime/os_plan9.c
+@@ -160,6 +160,7 @@ runtime·nanotime(void)
+ 	return ns;
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ time·now(int64 sec, int32 nsec)
+ {
+@@ -172,6 +173,7 @@ time·now(int64 sec, int32 nsec)
+ 	FLUSH(&nsec);
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·itoa(int32 n, byte *p, uint32 len)
+ {
+@@ -252,12 +254,29 @@ runtime·postnote(int32 pid, int8* msg)
+ 	return 0;
+ }
+ 
++static void exit(void);
++
++#pragma textflag NOSPLIT
+ void
+ runtime·exit(int32 e)
+ {
++	void (*fn)(void);
++
++	g->m->scalararg[0] = e;
++	fn = exit;
++	runtime·onM(&fn);
++}
++
++static void
++exit(void)
++{
++	int32 e;
+ 	byte tmp[16];
+ 	int8 *status;
+  
++ 	e = g->m->scalararg[0];
++ 	g->m->scalararg[0] = 0;
++
+ 	if(e == 0)
+ 		status = "";
+ 	else {
+@@ -283,6 +302,7 @@ runtime·newosproc(M *mp, void *stk)
+ 		runtime·throw("newosproc: rfork failed");
+ }
+ 
++#pragma textflag NOSPLIT
+ uintptr
+ runtime·semacreate(void)
+ {
+@@ -312,6 +332,7 @@ runtime·semasleep(int64 ns)
+ 	return 0;  // success
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·semawakeup(M *mp)
+ {
+@@ -396,12 +417,14 @@ runtime·sigpanic(void)
+ 	}
+ }
+ 
++#pragma textflag NOSPLIT
+ int32
+ runtime·read(int32 fd, void *buf, int32 nbytes)
+ {
+ 	return runtime·pread(fd, buf, nbytes, -1LL);
+ }
+ 
++#pragma textflag NOSPLIT
+ int32
+ runtime·write(uintptr fd, void *buf, int32 nbytes)
+ {
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 0c72e4bd06..3fecfe90e4 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -2623,20 +2623,6 @@ runtime·mcount(void)
+ 	return runtime·sched.mcount;
+ }
+ 
+-void
+-runtime·badmcall(void (*fn)(G*))  // called from assembly
+-{
+-	USED(fn); // TODO: print fn?
+-	runtime·throw("runtime: mcall called on m->g0 stack");
+-}
+-
+-void
+-runtime·badmcall2(void (*fn)(G*))  // called from assembly
+-{
+-	USED(fn);
+-	runtime·throw("runtime: mcall function returned");
+-}
+-
+ void
+ runtime·badreflectcall(void) // called from assembly
+ {
+diff --git a/src/pkg/runtime/proc.go b/src/pkg/runtime/proc.go
+index 4789a51b66..d02f7ed7c9 100644
+--- a/src/pkg/runtime/proc.go
++++ b/src/pkg/runtime/proc.go
+@@ -91,3 +91,12 @@ func releaseSudog(s *sudog) {
+ func funcPC(f interface{}) uintptr {
+ 	return **(**uintptr)(add(unsafe.Pointer(&f), ptrSize))
+ }
++
++// called from assembly
++func badmcall(fn func(*g)) {
++	gothrow("runtime: mcall called on m->g0 stack")
++}
++
++func badmcall2(fn func(*g)) {
++	gothrow("runtime: mcall function returned")
++}
+diff --git a/src/pkg/runtime/softfloat_arm.c b/src/pkg/runtime/softfloat_arm.c
+index 6b37160114..5e5f4025ec 100644
+--- a/src/pkg/runtime/softfloat_arm.c
++++ b/src/pkg/runtime/softfloat_arm.c
+@@ -606,20 +606,43 @@ struct Sfregs
+ 	uint32 cspr;
+ };
+ 
++static void sfloat2(void);
++
+ #pragma textflag NOSPLIT
+ uint32*
+ runtime·_sfloat2(uint32 *lr, Sfregs regs)
+ {
++	void (*fn)(void);
++	
++	g->m->ptrarg[0] = lr;
++	g->m->ptrarg[1] = &regs;
++	fn = sfloat2;
++	runtime·onM(&fn);
++	lr = g->m->ptrarg[0];
++	g->m->ptrarg[0] = nil;
++	return lr;
++}
++
++static void
++sfloat2(void)
++{
++	uint32 *lr;
++	Sfregs *regs;
+ 	uint32 skip;
++	
++	lr = g->m->ptrarg[0];
++	regs = g->m->ptrarg[1];
++	g->m->ptrarg[0] = nil;
++	g->m->ptrarg[1] = nil;
+ 
+-	skip = stepflt(lr, (uint32*)&regs.r0);
++	skip = stepflt(lr, (uint32*)&regs->r0);
+ 	if(skip == 0) {
+ 		runtime·printf("sfloat2 %p %x\n", lr, *lr);
+ 		fabort(); // not ok to fail first instruction
+ 	}
+ 
+ 	lr += skip;
+-	while(skip = stepflt(lr, (uint32*)&regs.r0))
++	while(skip = stepflt(lr, (uint32*)&regs->r0))
+ 		lr += skip;
+-	return lr;
++	g->m->ptrarg[0] = lr;
+ }
+diff --git a/src/pkg/runtime/stubs.go b/src/pkg/runtime/stubs.go
+index 7d59b5c19b..8e67114f33 100644
+--- a/src/pkg/runtime/stubs.go
++++ b/src/pkg/runtime/stubs.go
+@@ -174,8 +174,8 @@ func munmap(addr unsafe.Pointer, n uintptr)
+ func madvise(addr unsafe.Pointer, n uintptr, flags int32)
+ func newstackcall(fv *funcval, addr unsafe.Pointer, size uint32)
+ func reflectcall(fn, arg unsafe.Pointer, n uint32, retoffset uint32)
+-func procyield(cycles uint32)
+ func osyield()
++func procyield(cycles uint32)
+ func cgocallback_gofunc(fv *funcval, frame unsafe.Pointer, framesize uintptr)
+ func readgogc() int32
+ func purgecachedstats(c *mcache)
+@@ -188,63 +188,21 @@ func write(fd uintptr, p unsafe.Pointer, n int32) int32
+ //go:noescape
+ func cas(ptr *uint32, old, new uint32) bool
+ 
+-//go:noescape
+-func cas64(ptr *uint64, old, new uint64) bool
+-
+ //go:noescape
+ func casp(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool
+ 
+ //go:noescape
+ func casuintptr(ptr *uintptr, old, new uintptr) bool
+ 
+-//go:noescape
+-func xadd(ptr *uint32, delta int32) uint32
+-
+-//go:noescape
+-func xadd64(ptr *uint64, delta int64) uint64
+-
+-//go:noescape
+-func xchg(ptr *uint32, new uint32) uint32
+-
+-//go:noescape
+-func xchg64(ptr *uint64, new uint64) uint64
+-
+-//go:noescape
+-func xchgp(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer
+-
+-//go:noescape
+-func xchguintptr(ptr *uintptr, new uintptr) uintptr
+-
+-//go:noescape
+-func atomicstore(ptr *uint32, val uint32)
+-
+-//go:noescape
+-func atomicstore64(ptr *uint64, val uint64)
+-
+-//go:noescape
+-func atomicstorep(ptr unsafe.Pointer, val unsafe.Pointer)
+-
+ //go:noescape
+ func atomicstoreuintptr(ptr *uintptr, new uintptr)
+ 
+-//go:noescape
+-func atomicload(ptr *uint32) uint32
+-
+-//go:noescape
+-func atomicload64(ptr *uint64) uint64
+-
+-//go:noescape
+-func atomicloadp(ptr unsafe.Pointer) unsafe.Pointer
+-
+ //go:noescape
+ func atomicloaduintptr(ptr *uintptr) uintptr
+ 
+ //go:noescape
+ func atomicloaduint(ptr *uint) uint
+ 
+-//go:noescape
+-func atomicor8(ptr *uint8, val uint8)
+-
+ //go:noescape
+ func setcallerpc(argp unsafe.Pointer, pc uintptr)
+ 
+diff --git a/src/pkg/runtime/vlrt.c b/src/pkg/runtime/vlrt.c
+index d4367c30e6..486555dda3 100644
+--- a/src/pkg/runtime/vlrt.c
++++ b/src/pkg/runtime/vlrt.c
+@@ -413,6 +413,7 @@ _modv(Vlong n, Vlong d)
+ 	return r;
+ }
+ 
++#pragma textflag NOSPLIT
+ Vlong
+ _rshav(Vlong a, int b)
+ {
+@@ -440,6 +441,7 @@ _rshav(Vlong a, int b)
+ 	return r;
+ }
+ 
++#pragma textflag NOSPLIT
+ Vlong
+ _rshlv(Vlong a, int b)
+ {
+@@ -487,6 +489,7 @@ _lshv(Vlong a, int b)
+ 	return (Vlong){t<<b, (t >> (32-b)) | (a.hi << b)};
+ }
+ 
++#pragma textflag NOSPLIT
+ Vlong
+ _andv(Vlong a, Vlong b)
+ {
+@@ -497,6 +500,7 @@ _andv(Vlong a, Vlong b)
+ 	return r;
+ }
+ 
++#pragma textflag NOSPLIT
+ Vlong
+ _orv(Vlong a, Vlong b)
+ {
+@@ -507,6 +511,7 @@ _orv(Vlong a, Vlong b)
+ 	return r;
+ }
+ 
++#pragma textflag NOSPLIT
+ Vlong
+ _xorv(Vlong a, Vlong b)
+ {
+@@ -529,6 +534,7 @@ _vpp(Vlong *r)
+ 	return l;
+ }
+ 
++#pragma textflag NOSPLIT
+ Vlong
+ _vmm(Vlong *r)
+ {
+@@ -541,6 +547,7 @@ _vmm(Vlong *r)
+ 	return l;
+ }
+ 
++#pragma textflag NOSPLIT
+ Vlong
+ _ppv(Vlong *r)
+ {
+@@ -551,6 +558,7 @@ _ppv(Vlong *r)
+ 	return *r;
+ }
+ 
++#pragma textflag NOSPLIT
+ Vlong
+ _mmv(Vlong *r)
+ {
+@@ -642,6 +650,7 @@ _vasop(void *lv, Vlong fn(Vlong, Vlong), int type, Vlong rv)
+ 	return u;
+ }
+ 
++#pragma textflag NOSPLIT
+ Vlong
+ _p2v(void *p)
+ {
+@@ -654,6 +663,7 @@ _p2v(void *p)
+ 	return ret;
+ }
+ 
++#pragma textflag NOSPLIT
+ Vlong
+ _sl2v(long sl)
+ {
+@@ -666,6 +676,7 @@ _sl2v(long sl)
+ 	return ret;
+ }
+ 
++#pragma textflag NOSPLIT
+ Vlong
+ _ul2v(ulong ul)
+ {
+@@ -685,6 +696,7 @@ _si2v(int si)
+ 	return (Vlong){si, si>>31};
+ }
+ 
++#pragma textflag NOSPLIT
+ Vlong
+ _ui2v(uint ui)
+ {
+@@ -697,6 +709,7 @@ _ui2v(uint ui)
+ 	return ret;
+ }
+ 
++#pragma textflag NOSPLIT
+ Vlong
+ _sh2v(long sh)
+ {
+@@ -709,6 +722,7 @@ _sh2v(long sh)
+ 	return ret;
+ }
+ 
++#pragma textflag NOSPLIT
+ Vlong
+ _uh2v(ulong ul)
+ {
+@@ -721,6 +735,7 @@ _uh2v(ulong ul)
+ 	return ret;
+ }
+ 
++#pragma textflag NOSPLIT
+ Vlong
+ _sc2v(long uc)
+ {
+@@ -733,6 +748,7 @@ _sc2v(long uc)
+ 	return ret;
+ }
+ 
++#pragma textflag NOSPLIT
+ Vlong
+ _uc2v(ulong ul)
+ {
+@@ -745,6 +761,7 @@ _uc2v(ulong ul)
+ 	return ret;
+ }
+ 
++#pragma textflag NOSPLIT
+ long
+ _v2sc(Vlong rv)
+ {
+@@ -754,6 +771,7 @@ _v2sc(Vlong rv)
+ 	return (t << 24) >> 24;
+ }
+ 
++#pragma textflag NOSPLIT
+ long
+ _v2uc(Vlong rv)
+ {
+@@ -761,6 +779,7 @@ _v2uc(Vlong rv)
+ 	return rv.lo & 0xff;
+ }
+ 
++#pragma textflag NOSPLIT
+ long
+ _v2sh(Vlong rv)
+ {
+@@ -770,6 +789,7 @@ _v2sh(Vlong rv)
+ 	return (t << 16) >> 16;
+ }
+ 
++#pragma textflag NOSPLIT
+ long
+ _v2uh(Vlong rv)
+ {
+@@ -777,6 +797,7 @@ _v2uh(Vlong rv)
+ 	return rv.lo & 0xffff;
+ }
+ 
++#pragma textflag NOSPLIT
+ long
+ _v2sl(Vlong rv)
+ {
+@@ -784,6 +805,7 @@ _v2sl(Vlong rv)
+ 	return rv.lo;
+ }
+ 
++#pragma textflag NOSPLIT
+ long
+ _v2ul(Vlong rv)
+ {
+@@ -798,6 +820,7 @@ _v2si(Vlong rv)
+ 	return rv.lo;
+ }
+ 
++#pragma textflag NOSPLIT
+ long
+ _v2ui(Vlong rv)
+ {
+@@ -805,24 +828,28 @@ _v2ui(Vlong rv)
+ 	return rv.lo;
+ }
+ 
++#pragma textflag NOSPLIT
+ int
+ _testv(Vlong rv)
+ {
+ 	return rv.lo || rv.hi;
+ }
+ 
++#pragma textflag NOSPLIT
+ int
+ _eqv(Vlong lv, Vlong rv)
+ {
+ 	return lv.lo == rv.lo && lv.hi == rv.hi;
+ }
+ 
++#pragma textflag NOSPLIT
+ int
+ _nev(Vlong lv, Vlong rv)
+ {
+ 	return lv.lo != rv.lo || lv.hi != rv.hi;
+ }
+ 
++#pragma textflag NOSPLIT
+ int
+ _ltv(Vlong lv, Vlong rv)
+ {
+@@ -830,6 +857,7 @@ _ltv(Vlong lv, Vlong rv)
+ 		(lv.hi == rv.hi && lv.lo < rv.lo);
+ }
+ 
++#pragma textflag NOSPLIT
+ int
+ _lev(Vlong lv, Vlong rv)
+ {
+@@ -837,6 +865,7 @@ _lev(Vlong lv, Vlong rv)
+ 		(lv.hi == rv.hi && lv.lo <= rv.lo);
+ }
+ 
++#pragma textflag NOSPLIT
+ int
+ _gtv(Vlong lv, Vlong rv)
+ {
+@@ -852,6 +881,7 @@ _gev(Vlong lv, Vlong rv)
+ 		(lv.hi == rv.hi && lv.lo >= rv.lo);
+ }
+ 
++#pragma textflag NOSPLIT
+ int
+ _lov(Vlong lv, Vlong rv)
+ {
+@@ -859,6 +889,7 @@ _lov(Vlong lv, Vlong rv)
+ 		(lv.hi == rv.hi && lv.lo < rv.lo);
+ }
+ 
++#pragma textflag NOSPLIT
+ int
+ _lsv(Vlong lv, Vlong rv)
+ {
+@@ -866,6 +897,7 @@ _lsv(Vlong lv, Vlong rv)
+ 		(lv.hi == rv.hi && lv.lo <= rv.lo);
+ }
+ 
++#pragma textflag NOSPLIT
+ int
+ _hiv(Vlong lv, Vlong rv)
+ {
+@@ -873,6 +905,7 @@ _hiv(Vlong lv, Vlong rv)
+ 		(lv.hi == rv.hi && lv.lo > rv.lo);
+ }
+ 
++#pragma textflag NOSPLIT
+ int
+ _hsv(Vlong lv, Vlong rv)
+ {

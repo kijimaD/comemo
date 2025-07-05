@@ -21,7 +21,7 @@ Date:   Thu Mar 28 13:11:53 2019 +0100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/169817
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/internal/obj/x86/obj6.go    | 22 ++++++++----
  src/cmd/link/internal/ld/data.go    | 10 ++----
  src/cmd/link/internal/ld/sym.go     | 17 ++-------
@@ -37,3 +37,581 @@ Date:   Thu Mar 28 13:11:53 2019 +0100
  src/runtime/sys_linux_386.s         |  8 ++---
  src/runtime/sys_linux_amd64.s       |  6 ++--
  14 files changed, 102 insertions(+), 275 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index a6931e8441..eb0e88b494 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -41,13 +41,8 @@ import (
+ 
+ func CanUse1InsnTLS(ctxt *obj.Link) bool {
+ 	if isAndroid {
+-		// For android, we use a disgusting hack that assumes
+-		// the thread-local storage slot for g is allocated
+-		// using pthread_key_create with a fixed offset
+-		// (see src/runtime/cgo/gcc_android_amd64.c).
+-		// This makes access to the TLS storage (for g) doable
+-		// with 1 instruction.
+-		return true
++		// Android uses a global variable for the tls offset.
++		return false
+ 	}
+ 
+ 	if ctxt.Arch.Family == sys.I386 {
+@@ -162,6 +157,18 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 		}
+ 	}
+ 
++	// Android uses a tls offset determined at runtime. Rewrite
++	//	MOVQ TLS, BX
++	// to
++	//	MOVQ runtime.tls_g(SB), BX
++	if isAndroid && (p.As == AMOVQ || p.As == AMOVL) && p.From.Type == obj.TYPE_REG && p.From.Reg == REG_TLS && p.To.Type == obj.TYPE_REG && REG_AX <= p.To.Reg && p.To.Reg <= REG_R15 {
++		p.From.Type = obj.TYPE_MEM
++		p.From.Name = obj.NAME_EXTERN
++		p.From.Reg = REG_NONE
++		p.From.Sym = ctxt.Lookup("runtime.tls_g")
++		p.From.Index = REG_NONE
++	}
++
+ 	// TODO: Remove.
+ 	if ctxt.Headtype == objabi.Hwindows && ctxt.Arch.Family == sys.AMD64 || ctxt.Headtype == objabi.Hplan9 {
+ 		if p.From.Scale == 1 && p.From.Index == REG_TLS {
+@@ -1007,6 +1014,7 @@ func load_g_cx(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) *obj.Prog {
+ 	progedit(ctxt, p, newprog)
+ 	for p.Link != next {
+ 		p = p.Link
++		progedit(ctxt, p, newprog)
+ 	}
+ 
+ 	if p.From.Index == REG_TLS {
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index da75ce8dc4..e421caabce 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -218,9 +218,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
+ 				Errorf(s, "unknown reloc to %v: %d (%s)", r.Sym.Name, r.Type, sym.RelocName(ctxt.Arch, r.Type))
+ 			}
+ 		case objabi.R_TLS_LE:
+-			isAndroidX86 := objabi.GOOS == "android" && (ctxt.Arch.InFamily(sys.AMD64, sys.I386))
+-
+-			if ctxt.LinkMode == LinkExternal && ctxt.IsELF && !isAndroidX86 {
++			if ctxt.LinkMode == LinkExternal && ctxt.IsELF {
+ 				r.Done = false
+ 				if r.Sym == nil {
+ 					r.Sym = ctxt.Tlsg
+@@ -243,7 +241,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
+ 				// related to the fact that our own TLS storage happens
+ 				// to take up 8 bytes.
+ 				o = 8 + r.Sym.Value
+-			} else if ctxt.IsELF || ctxt.HeadType == objabi.Hplan9 || ctxt.HeadType == objabi.Hdarwin || isAndroidX86 {
++			} else if ctxt.IsELF || ctxt.HeadType == objabi.Hplan9 || ctxt.HeadType == objabi.Hdarwin {
+ 				o = int64(ctxt.Tlsoffset) + r.Add
+ 			} else if ctxt.HeadType == objabi.Hwindows {
+ 				o = r.Add
+@@ -251,9 +249,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
+ 				log.Fatalf("unexpected R_TLS_LE relocation for %v", ctxt.HeadType)
+ 			}
+ 		case objabi.R_TLS_IE:
+-			isAndroidX86 := objabi.GOOS == "android" && (ctxt.Arch.InFamily(sys.AMD64, sys.I386))
+-
+-			if ctxt.LinkMode == LinkExternal && ctxt.IsELF && !isAndroidX86 {
++			if ctxt.LinkMode == LinkExternal && ctxt.IsELF {
+ 				r.Done = false
+ 				if r.Sym == nil {
+ 					r.Sym = ctxt.Tlsg
+diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
+index a487b5e5f6..bf7a56aff2 100644
+--- a/src/cmd/link/internal/ld/sym.go
++++ b/src/cmd/link/internal/ld/sym.go
+@@ -61,6 +61,7 @@ func linknew(arch *sys.Arch) *Link {
+ }
+ 
+ // computeTLSOffset records the thread-local storage offset.
++// Not used for Android where the TLS offset is determined at runtime.
+ func (ctxt *Link) computeTLSOffset() {
+ 	switch ctxt.HeadType {
+ 	default:
+@@ -80,21 +81,7 @@ func (ctxt *Link) computeTLSOffset() {
+ 		objabi.Hopenbsd,
+ 		objabi.Hdragonfly,
+ 		objabi.Hsolaris:
+-		if objabi.GOOS == "android" {
+-			switch ctxt.Arch.Family {
+-			case sys.AMD64:
+-				// Android/amd64 constant - offset from 0(FS) to our TLS slot.
+-				// Explained in src/runtime/cgo/gcc_android_*.c
+-				ctxt.Tlsoffset = 0x1d0
+-			case sys.I386:
+-				// Android/386 constant - offset from 0(GS) to our TLS slot.
+-				ctxt.Tlsoffset = 0xf8
+-			default:
+-				ctxt.Tlsoffset = -1 * ctxt.Arch.PtrSize
+-			}
+-		} else {
+-			ctxt.Tlsoffset = -1 * ctxt.Arch.PtrSize
+-		}
++		ctxt.Tlsoffset = -1 * ctxt.Arch.PtrSize
+ 
+ 	case objabi.Hnacl:
+ 		switch ctxt.Arch.Family {
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 8805dbf7d6..8995436184 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -171,9 +171,18 @@ nocpuinfo:
+ 	MOVL	_cgo_init(SB), AX
+ 	TESTL	AX, AX
+ 	JZ	needtls
++#ifdef GOOS_android
++	MOVL	0(TLS), BX
++	MOVL	BX, 12(SP)	// arg 4: TLS base, stored in the first slot (TLS_SLOT_SELF).
++	MOVL	$runtime·tls_g(SB), 8(SP)	// arg 3: &tls_g
++#else
++	MOVL	$0, BX
++	MOVL	BX, 12(SP)	// arg 3,4: not used when using platform's TLS
++	MOVL	BX, 8(SP)
++#endif
+ 	MOVL	$setg_gcc<>(SB), BX
+-	MOVL	BX, 4(SP)
+-	MOVL	BP, 0(SP)
++	MOVL	BX, 4(SP)	// arg 2: setg_gcc
++	MOVL	BP, 0(SP)	// arg 1: g0
+ 	CALL	AX
+ 
+ 	// update stackguard after _cgo_init
+@@ -1553,3 +1562,7 @@ TEXT runtime·panicExtendSlice3CU(SB),NOSPLIT,$0-12
+ 	MOVL	AX, lo+4(FP)
+ 	MOVL	CX, y+8(FP)
+ 	JMP	runtime·goPanicExtendSlice3CU(SB)
++
++#ifdef GOOS_android
++GLOBL runtime·tls_g+0(SB), NOPTR, $4
++#endif
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index d3e5c54378..149b04dfdf 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -132,9 +132,22 @@ nocpuinfo:
+ 	MOVQ	_cgo_init(SB), AX
+ 	TESTQ	AX, AX
+ 	JZ	needtls
+-	// g0 already in DI
+-	MOVQ	DI, CX	// Win64 uses CX for first parameter
+-	MOVQ	$setg_gcc<>(SB), SI
++	// arg 1: g0, already in DI
++	MOVQ	$setg_gcc<>(SB), SI // arg 2: setg_gcc
++#ifdef GOOS_android
++	MOVQ	$runtime·tls_g(SB), DX 	// arg 3: &tls_g
++	MOVQ	0(TLS), CX	// arg 4: TLS base, stored in the first slot (TLS_SLOT_SELF).
++#else
++	MOVQ	$0, DX	// arg 3, 4: not used when using platform's TLS
++	MOVQ	$0, CX
++#endif
++#ifdef GOOS_windows
++	// Adjust for the Win64 calling convention.
++	MOVQ	CX, R9 // arg 4
++	MOVQ	DX, R8 // arg 3
++	MOVQ	SI, DX // arg 2
++	MOVQ	DI, CX // arg 1
++#endif
+ 	CALL	AX
+ 
+ 	// update stackguard after _cgo_init
+@@ -1698,3 +1711,7 @@ TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-16
+ 	MOVQ	AX, x+0(FP)
+ 	MOVQ	CX, y+8(FP)
+ 	JMP	runtime·goPanicSlice3CU(SB)
++
++#ifdef GOOS_android
++GLOBL runtime·tls_g+0(SB), NOPTR, $8
++#endif
+diff --git a/src/runtime/cgo/gcc_android.c b/src/runtime/cgo/gcc_android.c
+index b756edefa9..44bd550a7c 100644
+--- a/src/runtime/cgo/gcc_android.c
++++ b/src/runtime/cgo/gcc_android.c
+@@ -4,6 +4,7 @@
+ 
+ #include <stdarg.h>
+ #include <android/log.h>
++#include <pthread.h>
+ #include "libcgo.h"
+ 
+ void
+@@ -29,3 +30,37 @@ fatalf(const char* format, ...)
+ 
+ 	abort();
+ }
++
++// Truncated to a different magic value on 32-bit; that's ok.
++#define magic1 (0x23581321345589ULL)
++
++// inittls allocates a thread-local storage slot for g.
++//
++// It finds the first available slot using pthread_key_create and uses
++// it as the offset value for runtime.tls_g.
++static void
++inittls(void **tlsg, void **tlsbase)
++{
++	pthread_key_t k;
++	int i, err;
++
++	err = pthread_key_create(&k, nil);
++	if(err != 0) {
++		fatalf("pthread_key_create failed: %d", err);
++	}
++	pthread_setspecific(k, (void*)magic1);
++	// If thread local slots are laid out as we expect, our magic word will
++	// be located at some low offset from tlsbase. However, just in case something went
++	// wrong, the search is limited to sensible offsets. PTHREAD_KEYS_MAX was the
++	// original limit, but issue 19472 made a higher limit necessary.
++	for (i=0; i<384; i++) {
++		if (*(tlsbase+i) == (void*)magic1) {
++			*tlsg = (void*)(i*sizeof(void *));
++			pthread_setspecific(k, 0);
++			return;
++		}
++	}
++	fatalf("could not find pthread key");
++}
++
++void (*x_cgo_inittls)(void **tlsg, void **tlsbase) = inittls;
+diff --git a/src/runtime/cgo/gcc_android_386.c b/src/runtime/cgo/gcc_android_386.c
+deleted file mode 100644
+index d31b37e2f3..0000000000
+--- a/src/runtime/cgo/gcc_android_386.c
++++ /dev/null
+@@ -1,67 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include <string.h> /* for strerror */
+-#include <pthread.h>
+-#include <signal.h>
+-#include "libcgo.h"
+-
+-#define magic1 (0x23581321U)
+-
+-static void
+-inittls(void)
+-{
+-	uint32 x;
+-	pthread_key_t tofree[128], k;
+-	int i, ntofree;
+-
+-	/*
+-	 * Same logic, code as gcc_android_amd64.c:/inittls.
+-	 * Note that this is a temporary hack that should be fixed soon.
+-	 *
+-	 * TODO: fix this.
+-	 *
+-	 * The linker and runtime hard-code this constant offset
+-	 * from %gs where we expect to find g. Disgusting.
+-	 *
+-	 * Known to src/cmd/link/internal/ld/sym.go:/0xf8
+-	 * and to src/runtime/sys_linux_386.s:/0xf8 or /GOOS_android.
+-	 * TODO(hyangah): check 0xb0 works with API23+
+-	 *
+-	 * As disgusting as on the darwin/386, darwin/amd64.
+-	 */
+-	ntofree = 0;
+-	for(;;) {
+-		if(pthread_key_create(&k, nil) != 0) {
+-			fprintf(stderr, "runtime/cgo: pthread_key_create failed\n");
+-			abort();
+-		}
+-		pthread_setspecific(k, (void*)magic1);
+-		asm volatile("movl %%gs:0xf8, %0" : "=r"(x));
+-		pthread_setspecific(k, 0);
+-		if (x == magic1) {
+-			break;
+-		}
+-		if(ntofree >= nelem(tofree)) {
+-			fprintf(stderr, "runtime/cgo: could not obtain pthread_keys\n");
+-			fprintf(stderr, "\ttried");
+-			for(i=0; i<ntofree; i++)
+-				fprintf(stderr, " %#x", (unsigned)tofree[i]);
+-			fprintf(stderr, "\n");
+-			abort();
+-		}
+-		tofree[ntofree++] = k;
+-	}
+-	// TODO: output to stderr is not useful for apps.
+-	// Can we fall back to Android's log library?
+-
+-	/*
+-	 * We got the key we wanted.  Free the others.
+-	 */
+-	for(i=0; i<ntofree; i++) {
+-		pthread_key_delete(tofree[i]);
+-	}
+-}
+-
+-void (*x_cgo_inittls)(void) = inittls;
+diff --git a/src/runtime/cgo/gcc_android_amd64.c b/src/runtime/cgo/gcc_android_amd64.c
+deleted file mode 100644
+index a6c590a5a9..0000000000
+--- a/src/runtime/cgo/gcc_android_amd64.c
++++ /dev/null
+@@ -1,72 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include <string.h> /* for strerror */
+-#include <pthread.h>
+-#include <signal.h>
+-#include "libcgo.h"
+-
+-#define magic1 (0x23581321345589ULL)
+-
+-static void
+-inittls(void)
+-{
+-	uint64 x;
+-	pthread_key_t tofree[128], k;
+-	int i, ntofree;
+-
+-	/*
+-	 * Same logic, code as gcc_darwin_386.c:/inittls.
+-	 * Note that this is a temporary hack that should be fixed soon.
+-	 * Android-L and M bionic's pthread implementation differ
+-	 * significantly, and can change any time.
+-	 * https://android-review.googlesource.com/#/c/134202
+-	 *
+-	 * We chose %fs:0x1d0 which seems to work in testing with Android
+-	 * emulators (API22, API23) but it may break any time.
+-	 *
+-	 * TODO: fix this.
+-	 *
+-	 * The linker and runtime hard-code this constant offset
+-	 * from %fs where we expect to find g. Disgusting.
+-	 *
+-	 * Known to src/cmd/link/internal/ld/sym.go:/0x1d0
+-	 * and to src/runtime/sys_linux_amd64.s:/0x1d0 or /GOOS_android.
+-	 *
+-	 * As disgusting as on the darwin/386, darwin/amd64.
+-	 */
+-	ntofree = 0;
+-	for(;;) {
+-		if(pthread_key_create(&k, nil) != 0) {
+-			fprintf(stderr, "runtime/cgo: pthread_key_create failed\n");
+-			abort();
+-		}
+-		pthread_setspecific(k, (void*)magic1);
+-		asm volatile("movq %%fs:0x1d0, %0" : "=r"(x));
+-		pthread_setspecific(k, 0);
+-		if(x == magic1) {
+-			break;
+-		}
+-		if(ntofree >= nelem(tofree)) {
+-			fprintf(stderr, "runtime/cgo: could not obtain pthread_keys\n");
+-			fprintf(stderr, "\ttried");
+-			for(i=0; i<ntofree; i++)
+-				fprintf(stderr, " %#x", (unsigned)tofree[i]);
+-			fprintf(stderr, "\n");
+-			abort();
+-		}
+-		tofree[ntofree++] = k;
+-	}
+-	// TODO: output to stderr is not useful for apps.
+-	// Can we fall back to Android's log library?
+-
+-	/*
+-	 * We got the key we wanted.  Free the others.
+-	 */
+-	for(i=0; i<ntofree; i++) {
+-		pthread_key_delete(tofree[i]);
+-	}
+-}
+-
+-void (*x_cgo_inittls)(void) = inittls;
+diff --git a/src/runtime/cgo/gcc_android_arm.c b/src/runtime/cgo/gcc_android_arm.c
+deleted file mode 100644
+index d8936ea007..0000000000
+--- a/src/runtime/cgo/gcc_android_arm.c
++++ /dev/null
+@@ -1,42 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include <pthread.h>
+-#include <signal.h>
+-#include <stdio.h>
+-#include <sys/limits.h>
+-#include "libcgo.h"
+-
+-#define magic1 (0x23581321U)
+-
+-// inittls allocates a thread-local storage slot for g.
+-//
+-// It finds the first available slot using pthread_key_create and uses
+-// it as the offset value for runtime.tlsg.
+-static void
+-inittls(void **tlsg, void **tlsbase)
+-{
+-	pthread_key_t k;
+-	int i, err;
+-
+-	err = pthread_key_create(&k, nil);
+-	if(err != 0) {
+-		fatalf("pthread_key_create failed: %d", err);
+-	}
+-	pthread_setspecific(k, (void*)magic1);
+-	// If thread local slots are laid out as we expect, our magic word will
+-	// be located at some low offset from tlsbase. However, just in case something went
+-	// wrong, the search is limited to sensible offsets. PTHREAD_KEYS_MAX was the
+-	// original limit, but issue 19472 made a higher limit necessary.
+-	for (i=0; i<384; i++) {
+-		if (*(tlsbase+i) == (void*)magic1) {
+-			*tlsg = (void*)(i*sizeof(void *));
+-			pthread_setspecific(k, 0);
+-			return;
+-		}
+-	}
+-	fatalf("could not find pthread key");
+-}
+-
+-void (*x_cgo_inittls)(void **tlsg, void **tlsbase) = inittls;
+diff --git a/src/runtime/cgo/gcc_android_arm64.c b/src/runtime/cgo/gcc_android_arm64.c
+deleted file mode 100644
+index 499a11f738..0000000000
+--- a/src/runtime/cgo/gcc_android_arm64.c
++++ /dev/null
+@@ -1,42 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include <pthread.h>
+-#include <signal.h>
+-#include <stdio.h>
+-#include <sys/limits.h>
+-#include "libcgo.h"
+-
+-#define magic1 (0x23581321345589ULL)
+-
+-// inittls allocates a thread-local storage slot for g.
+-//
+-// It finds the first available slot using pthread_key_create and uses
+-// it as the offset value for runtime.tlsg.
+-static void
+-inittls(void **tlsg, void **tlsbase)
+-{
+-	pthread_key_t k;
+-	int i, err;
+-
+-	err = pthread_key_create(&k, nil);
+-	if(err != 0) {
+-		fatalf("pthread_key_create failed: %d", err);
+-	}
+-	pthread_setspecific(k, (void*)magic1);
+-	// If thread local slots are laid out as we expect, our magic word will
+-	// be located at some low offset from tlsbase. However, just in case something went
+-	// wrong, the search is limited to sensible offsets. PTHREAD_KEYS_MAX was the
+-	// original limit, but issue 19472 made a higher limit necessary.
+-	for (i=0; i<384; i++) {
+-		if (*(tlsbase+i) == (void*)magic1) {
+-			*tlsg = (void*)(i*sizeof(void *));
+-			pthread_setspecific(k, 0);
+-			return;
+-		}
+-	}
+-	fatalf("could not find pthread key");
+-}
+-
+-void (*x_cgo_inittls)(void **tlsg, void **tlsbase) = inittls;
+diff --git a/src/runtime/cgo/gcc_linux_386.c b/src/runtime/cgo/gcc_linux_386.c
+index 9156b056ff..ece9f933c5 100644
+--- a/src/runtime/cgo/gcc_linux_386.c
++++ b/src/runtime/cgo/gcc_linux_386.c
+@@ -11,11 +11,11 @@
+ static void *threadentry(void*);
+ static void (*setg_gcc)(void*);
+ 
+-// This will be set in gcc_android_386.c for android-specific customization.
+-void (*x_cgo_inittls)(void);
++// This will be set in gcc_android.c for android-specific customization.
++void (*x_cgo_inittls)(void **tlsg, void **tlsbase);
+ 
+ void
+-x_cgo_init(G *g, void (*setg)(void*))
++x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
+ {
+ 	pthread_attr_t attr;
+ 	size_t size;
+@@ -27,7 +27,7 @@ x_cgo_init(G *g, void (*setg)(void*))
+ 	pthread_attr_destroy(&attr);
+ 
+ 	if (x_cgo_inittls) {
+-		x_cgo_inittls();
++		x_cgo_inittls(tlsg, tlsbase);
+ 	}
+ }
+ 
+diff --git a/src/runtime/cgo/gcc_linux_amd64.c b/src/runtime/cgo/gcc_linux_amd64.c
+index e899447844..9134e0df92 100644
+--- a/src/runtime/cgo/gcc_linux_amd64.c
++++ b/src/runtime/cgo/gcc_linux_amd64.c
+@@ -13,11 +13,11 @@
+ static void* threadentry(void*);
+ static void (*setg_gcc)(void*);
+ 
+-// This will be set in gcc_android_amd64.c for android-specific customization.
+-void (*x_cgo_inittls)(void);
++// This will be set in gcc_android.c for android-specific customization.
++void (*x_cgo_inittls)(void **tlsg, void **tlsbase);
+ 
+ void
+-x_cgo_init(G* g, void (*setg)(void*))
++x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
+ {
+ 	pthread_attr_t *attr;
+ 	size_t size;
+@@ -49,7 +49,7 @@ x_cgo_init(G* g, void (*setg)(void*))
+ 	free(attr);
+ 
+ 	if (x_cgo_inittls) {
+-		x_cgo_inittls();
++		x_cgo_inittls(tlsg, tlsbase);
+ 	}
+ }
+ 
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index 40b55a67eb..8c791b3004 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -575,12 +575,8 @@ TEXT runtime·setldt(SB),NOSPLIT,$32
+ 	MOVL	address+4(FP), DX	// base address
+ 
+ #ifdef GOOS_android
+-	/*
+-	 * Same as in sys_darwin_386.s:/ugliness, different constant.
+-	 * address currently holds m->tls, which must be %gs:0xf8.
+-	 * See cgo/gcc_android_386.c for the derivation of the constant.
+-	 */
+-	SUBL	$0xf8, DX
++	// Android stores the TLS offset in runtime·tls_g.
++	SUBL	runtime·tls_g(SB), DX
+ 	MOVL	DX, 0(DX)
+ #else
+ 	/*
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index b709f77060..5c300f553d 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -605,10 +605,8 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+ // set tls base to DI
+ TEXT runtime·settls(SB),NOSPLIT,$32
+ #ifdef GOOS_android
+-	// Same as in sys_darwin_386.s:/ugliness, different constant.
+-	// DI currently holds m->tls, which must be fs:0x1d0.
+-	// See cgo/gcc_android_amd64.c for the derivation of the constant.
+-	SUBQ	$0x1d0, DI  // In android, the tls base
++	// Android stores the TLS offset in runtime·tls_g.
++	SUBQ	runtime·tls_g(SB), DI
+ #else
+ 	ADDQ	$8, DI	// ELF wants to use -8(FS)
+ #endif

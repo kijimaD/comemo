@@ -17,7 +17,7 @@ Date:   Mon Dec 11 16:41:37 2017 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/file.go         | 10 ++++++++++
  src/os/file_plan9.go   | 11 ++---------
  src/os/file_unix.go    | 11 ++---------
@@ -28,3 +28,318 @@ Date:   Mon Dec 11 16:41:37 2017 -0800
  src/os/stat_unix.go    | 15 ++++-----------
  src/os/stat_windows.go | 15 ++++-----------
  9 files changed, 58 insertions(+), 66 deletions(-)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index cba5d5386a..f9cf2b61ab 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -258,6 +258,16 @@ func Create(name string) (*File, error) {
+ 	return OpenFile(name, O_RDWR|O_CREATE|O_TRUNC, 0666)
+ }
+ 
++// OpenFile is the generalized open call; most users will use Open
++// or Create instead. It opens the named file with specified flag
++// (O_RDONLY etc.) and perm, (0666 etc.) if applicable. If successful,
++// methods on the returned File can be used for I/O.
++// If there is an error, it will be of type *PathError.
++func OpenFile(name string, flag int, perm FileMode) (*File, error) {
++	testlog.Open(name)
++	return openFileNolog(name, flag, perm)
++}
++
+ // lstat is overridden in tests.
+ var lstat = Lstat
+ 
+diff --git a/src/os/file_plan9.go b/src/os/file_plan9.go
+index 3ef0d29aa0..7e28178964 100644
+--- a/src/os/file_plan9.go
++++ b/src/os/file_plan9.go
+@@ -6,7 +6,6 @@ package os
+ 
+ import (
+ 	"internal/poll"
+-	"internal/testlog"
+ 	"io"
+ 	"runtime"
+ 	"syscall"
+@@ -80,14 +79,8 @@ func syscallMode(i FileMode) (o uint32) {
+ 	return
+ }
+ 
+-// OpenFile is the generalized open call; most users will use Open
+-// or Create instead. It opens the named file with specified flag
+-// (O_RDONLY etc.) and perm, (0666 etc.) if applicable. If successful,
+-// methods on the returned File can be used for I/O.
+-// If there is an error, it will be of type *PathError.
+-func OpenFile(name string, flag int, perm FileMode) (*File, error) {
+-	testlog.Open(name)
+-
++// openFileNolog is the Plan 9 implementation of OpenFile.
++func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
+ 	var (
+ 		fd     int
+ 		e      error
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index 47fde5bbcf..39171cdc35 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -8,7 +8,6 @@ package os
+ 
+ import (
+ 	"internal/poll"
+-	"internal/testlog"
+ 	"runtime"
+ 	"syscall"
+ )
+@@ -154,14 +153,8 @@ func epipecheck(file *File, e error) {
+ // On Unix-like systems, it is "/dev/null"; on Windows, "NUL".
+ const DevNull = "/dev/null"
+ 
+-// OpenFile is the generalized open call; most users will use Open
+-// or Create instead. It opens the named file with specified flag
+-// (O_RDONLY etc.) and perm, (0666 etc.) if applicable. If successful,
+-// methods on the returned File can be used for I/O.
+-// If there is an error, it will be of type *PathError.
+-func OpenFile(name string, flag int, perm FileMode) (*File, error) {
+-	testlog.Open(name)
+-
++// openFileNolog is the Unix implementation of OpenFile.
++func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
+ 	chmod := false
+ 	if !supportsCreateWithStickyBit && flag&O_CREATE != 0 && perm&ModeSticky != 0 {
+ 		if _, err := Stat(name); IsNotExist(err) {
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index fdc7e1687d..be19fe273e 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -7,7 +7,6 @@ package os
+ import (
+ 	"internal/poll"
+ 	"internal/syscall/windows"
+-	"internal/testlog"
+ 	"runtime"
+ 	"syscall"
+ 	"unicode/utf16"
+@@ -149,14 +148,8 @@ func openDir(name string) (file *File, err error) {
+ 	return f, nil
+ }
+ 
+-// OpenFile is the generalized open call; most users will use Open
+-// or Create instead. It opens the named file with specified flag
+-// (O_RDONLY etc.) and perm, (0666 etc.) if applicable. If successful,
+-// methods on the returned File can be used for I/O.
+-// If there is an error, it will be of type *PathError.
+-func OpenFile(name string, flag int, perm FileMode) (*File, error) {
+-	testlog.Open(name)
+-
++// openFileNolog is the Windows implementation of OpenFile.
++func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
+ 	if name == "" {
+ 		return nil, &PathError{"open", name, syscall.ENOENT}
+ 	}
+diff --git a/src/os/getwd.go b/src/os/getwd.go
+index 4c3c0d94cb..87ad8eb137 100644
+--- a/src/os/getwd.go
++++ b/src/os/getwd.go
+@@ -30,13 +30,13 @@ func Getwd() (dir string, err error) {
+ 
+ 	// Clumsy but widespread kludge:
+ 	// if $PWD is set and matches ".", use it.
+-	dot, err := Stat(".")
++	dot, err := statNolog(".")
+ 	if err != nil {
+ 		return "", err
+ 	}
+ 	dir = Getenv("PWD")
+ 	if len(dir) > 0 && dir[0] == '/' {
+-		d, err := Stat(dir)
++		d, err := statNolog(dir)
+ 		if err == nil && SameFile(dot, d) {
+ 			return dir, nil
+ 		}
+@@ -56,7 +56,7 @@ func Getwd() (dir string, err error) {
+ 	dir = getwdCache.dir
+ 	getwdCache.Unlock()
+ 	if len(dir) > 0 {
+-		d, err := Stat(dir)
++		d, err := statNolog(dir)
+ 		if err == nil && SameFile(dot, d) {
+ 			return dir, nil
+ 		}
+@@ -64,7 +64,7 @@ func Getwd() (dir string, err error) {
+ 
+ 	// Root is a special case because it has no parent
+ 	// and ends in a slash.
+-	root, err := Stat("/")
++	root, err := statNolog("/")
+ 	if err != nil {
+ 		// Can't stat root - no hope.
+ 		return "", err
+@@ -81,7 +81,7 @@ func Getwd() (dir string, err error) {
+ 		if len(parent) >= 1024 { // Sanity check
+ 			return "", syscall.ENAMETOOLONG
+ 		}
+-		fd, err := Open(parent)
++		fd, err := openFileNolog(parent, O_RDONLY, 0)
+ 		if err != nil {
+ 			return "", err
+ 		}
+@@ -93,7 +93,7 @@ func Getwd() (dir string, err error) {
+ 				return "", err
+ 			}
+ 			for _, name := range names {
+-				d, _ := Lstat(parent + "/" + name)
++				d, _ := lstatNolog(parent + "/" + name)
+ 				if SameFile(d, dot) {
+ 					dir = "/" + name + dir
+ 					goto Found
+diff --git a/src/os/stat.go b/src/os/stat.go
+new file mode 100644
+index 0000000000..af66838e3e
+--- /dev/null
++++ b/src/os/stat.go
+@@ -0,0 +1,23 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import "internal/testlog"
++
++// Stat returns a FileInfo describing the named file.
++// If there is an error, it will be of type *PathError.
++func Stat(name string) (FileInfo, error) {
++	testlog.Stat(name)
++	return statNolog(name)
++}
++
++// Lstat returns a FileInfo describing the named file.
++// If the file is a symbolic link, the returned FileInfo
++// describes the symbolic link. Lstat makes no attempt to follow the link.
++// If there is an error, it will be of type *PathError.
++func Lstat(name string) (FileInfo, error) {
++	testlog.Stat(name)
++	return lstatNolog(name)
++}
+diff --git a/src/os/stat_plan9.go b/src/os/stat_plan9.go
+index b764092ff8..8057fd4a02 100644
+--- a/src/os/stat_plan9.go
++++ b/src/os/stat_plan9.go
+@@ -5,7 +5,6 @@
+ package os
+ 
+ import (
+-	"internal/testlog"
+ 	"syscall"
+ 	"time"
+ )
+@@ -87,10 +86,8 @@ func dirstat(arg interface{}) (*syscall.Dir, error) {
+ 	return nil, &PathError{"stat", name, err}
+ }
+ 
+-// Stat returns a FileInfo describing the named file.
+-// If there is an error, it will be of type *PathError.
+-func Stat(name string) (FileInfo, error) {
+-	testlog.Stat(name)
++// statNolog implements Stat for Plan 9.
++func statNolog(name string) (FileInfo, error) {
+ 	d, err := dirstat(name)
+ 	if err != nil {
+ 		return nil, err
+@@ -98,12 +95,9 @@ func Stat(name string) (FileInfo, error) {
+ 	return fileInfoFromStat(d), nil
+ }
+ 
+-// Lstat returns a FileInfo describing the named file.
+-// If the file is a symbolic link, the returned FileInfo
+-// describes the symbolic link. Lstat makes no attempt to follow the link.
+-// If there is an error, it will be of type *PathError.
+-func Lstat(name string) (FileInfo, error) {
+-	return Stat(name)
++// lstatNolog implements Lstat for Plan 9.
++func lstatNolog(name string) (FileInfo, error) {
++	return statNolog(name)
+ }
+ 
+ // For testing.
+diff --git a/src/os/stat_unix.go b/src/os/stat_unix.go
+index 0050f62b24..b58417150c 100644
+--- a/src/os/stat_unix.go
++++ b/src/os/stat_unix.go
+@@ -7,7 +7,6 @@
+ package os
+ 
+ import (
+-	"internal/testlog"
+ 	"syscall"
+ )
+ 
+@@ -26,10 +25,8 @@ func (f *File) Stat() (FileInfo, error) {
+ 	return &fs, nil
+ }
+ 
+-// Stat returns a FileInfo describing the named file.
+-// If there is an error, it will be of type *PathError.
+-func Stat(name string) (FileInfo, error) {
+-	testlog.Stat(name)
++// statNolog stats a file with no test logging.
++func statNolog(name string) (FileInfo, error) {
+ 	var fs fileStat
+ 	err := syscall.Stat(name, &fs.sys)
+ 	if err != nil {
+@@ -39,12 +36,8 @@ func Stat(name string) (FileInfo, error) {
+ 	return &fs, nil
+ }
+ 
+-// Lstat returns a FileInfo describing the named file.
+-// If the file is a symbolic link, the returned FileInfo
+-// describes the symbolic link. Lstat makes no attempt to follow the link.
+-// If there is an error, it will be of type *PathError.
+-func Lstat(name string) (FileInfo, error) {
+-	testlog.Stat(name)
++// lstatNolog lstats a file with no test logging.
++func lstatNolog(name string) (FileInfo, error) {
+ 	var fs fileStat
+ 	err := syscall.Lstat(name, &fs.sys)
+ 	if err != nil {
+diff --git a/src/os/stat_windows.go b/src/os/stat_windows.go
+index f88d4e9f12..5ec56422fd 100644
+--- a/src/os/stat_windows.go
++++ b/src/os/stat_windows.go
+@@ -6,7 +6,6 @@ package os
+ 
+ import (
+ 	"internal/syscall/windows"
+-	"internal/testlog"
+ 	"syscall"
+ 	"unsafe"
+ )
+@@ -57,10 +56,8 @@ func (file *File) Stat() (FileInfo, error) {
+ 	}, nil
+ }
+ 
+-// Stat returns a FileInfo structure describing the named file.
+-// If there is an error, it will be of type *PathError.
+-func Stat(name string) (FileInfo, error) {
+-	testlog.Stat(name)
++// statNolog implements Stat for Windows.
++func statNolog(name string) (FileInfo, error) {
+ 	if len(name) == 0 {
+ 		return nil, &PathError{"Stat", name, syscall.Errno(syscall.ERROR_PATH_NOT_FOUND)}
+ 	}
+@@ -158,12 +155,8 @@ func statWithFindFirstFile(name string, namep *uint16) (FileInfo, error) {
+ 	}, nil
+ }
+ 
+-// Lstat returns the FileInfo structure describing the named file.
+-// If the file is a symbolic link, the returned FileInfo
+-// describes the symbolic link. Lstat makes no attempt to follow the link.
+-// If there is an error, it will be of type *PathError.
+-func Lstat(name string) (FileInfo, error) {
+-	testlog.Stat(name)
++// lstatNolog implements Lstat for Windows.
++func lstatNolog(name string) (FileInfo, error) {
+ 	if len(name) == 0 {
+ 		return nil, &PathError{"Lstat", name, syscall.Errno(syscall.ERROR_PATH_NOT_FOUND)}
+ 	}

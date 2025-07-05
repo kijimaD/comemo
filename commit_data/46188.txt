@@ -18,9 +18,72 @@ Date:   Wed Dec 9 19:15:15 2020 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/expr.go     | 2 +-
  src/cmd/compile/internal/types2/resolver.go | 3 +++
  src/cmd/compile/internal/types2/typexpr.go  | 3 ++-
  test/run.go                                 | 3 +--
  4 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 252d4814cc..34cbefc864 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1188,7 +1188,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 
+ 	case *syntax.BasicLit:
+ 		if e.Bad {
+-			goto Error // error was reported before
++			goto Error // error reported during parsing
+ 		}
+ 		x.setConst(e.Kind, e.Value)
+ 		if x.mode == invalid {
+diff --git a/src/cmd/compile/internal/types2/resolver.go b/src/cmd/compile/internal/types2/resolver.go
+index 5cd0a3e198..b57b41e2b0 100644
+--- a/src/cmd/compile/internal/types2/resolver.go
++++ b/src/cmd/compile/internal/types2/resolver.go
+@@ -236,6 +236,9 @@ func (check *Checker) collectObjects() {
+ 			switch s := decl.(type) {
+ 			case *syntax.ImportDecl:
+ 				// import package
++				if s.Path.Bad {
++					continue // error reported during parsing
++				}
+ 				path, err := validatedImportPath(s.Path.Value)
+ 				if err != nil {
+ 					check.errorf(s.Path, "invalid import path (%s)", err)
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 39bb3a6b14..22df01b3be 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -1045,7 +1045,8 @@ func (a byUniqueMethodName) Less(i, j int) bool { return a[i].Id() < a[j].Id() }
+ func (a byUniqueMethodName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+ 
+ func (check *Checker) tag(t *syntax.BasicLit) string {
+-	if t != nil {
++	// If t.Bad, an error was reported during parsing.
++	if t != nil && !t.Bad {
+ 		if t.Kind == syntax.StringLit {
+ 			if val, err := strconv.Unquote(t.Value); err == nil {
+ 				return val
+diff --git a/test/run.go b/test/run.go
+index 91bdd629bf..b6c9d6050c 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2014,7 +2014,6 @@ var excluded = map[string]bool{
+ 	"fixedbugs/issue28079b.go": true, // types2 reports follow-on errors
+ 	"fixedbugs/issue28268.go":  true, // types2 reports follow-on errors
+ 	"fixedbugs/issue31747.go":  true, // types2 is missing support for -lang flag
+-	"fixedbugs/issue32133.go":  true, // types2 line numbers off?
+ 	"fixedbugs/issue33460.go":  true, // types2 reports alternative positions in separate error
+ 	"fixedbugs/issue34329.go":  true, // types2 is missing support for -lang flag
+ 	"fixedbugs/issue41575.go":  true, // types2 reports alternative positions in separate error
+@@ -2023,7 +2022,7 @@ var excluded = map[string]bool{
+ 	"fixedbugs/issue4232.go":   true, // types2 reports (correct) extra errors
+ 	"fixedbugs/issue4452.go":   true, // types2 reports (correct) extra errors
+ 	"fixedbugs/issue5609.go":   true, // types2 needs a better error message
+-	"fixedbugs/issue6500.go":   true, // compiler -G is not reporting an error (but types2 does)
++	"fixedbugs/issue6500.go":   true, // error reported by noder (not running for types2 errorcheck test)
+ 	"fixedbugs/issue6889.go":   true, // types2 can handle this without constant overflow
+ 	"fixedbugs/issue7525.go":   true, // types2 reports init cycle error on different line - ok otherwise
+ 	"fixedbugs/issue7525b.go":  true, // types2 reports init cycle error on different line - ok otherwise

@@ -7,6 +7,20 @@ Date:   Wed Jul 29 15:33:12 2009 -0700
     R=rsc
     OCL=32472
     CL=32472
-
+---
  src/pkg/rpc/server.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/rpc/server.go b/src/pkg/rpc/server.go
+index 8ff7d260dd..d1b7de714c 100644
+--- a/src/pkg/rpc/server.go
++++ b/src/pkg/rpc/server.go
+@@ -69,7 +69,7 @@
+ 
+ 		arith := new(Arith);
+ 		rpc.Register(arith);
+-		rrpc.HandleHTTP();
++		rpc.HandleHTTP();
+ 		l, e := net.Listen("tcp", ":1234");
+ 		if e != nil {
+ 			log.Exit("listen error:", e);

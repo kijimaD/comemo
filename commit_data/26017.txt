@@ -11,7 +11,77 @@ Date:   Fri Dec 11 03:28:15 2015 +0000
     Change-Id: Ie4b3022f3a305c3e1f78cc208e50beed212608e6
     Reviewed-on: https://go-review.googlesource.com/17724
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/fmt/scan.go      | 19 +++++++------------
  src/fmt/scan_test.go | 10 +---------
  2 files changed, 8 insertions(+), 21 deletions(-)
+
+diff --git a/src/fmt/scan.go b/src/fmt/scan.go
+index 553deb4327..4618ed4a82 100644
+--- a/src/fmt/scan.go
++++ b/src/fmt/scan.go
+@@ -1108,10 +1108,6 @@ func (s *ss) advance(format string) (i int) {
+ 			// in the input.
+ 			inputc := s.getRune()
+ 			if inputc == eof {
+-				if wasNewline {
+-					// Newlines are mandatory.
+-					return -1
+-				}
+ 				return
+ 			}
+ 			if !isSpace(inputc) {
+@@ -1152,18 +1148,17 @@ func (s *ss) doScanf(format string, a []interface{}) (numProcessed int, err erro
+ 	end := len(format) - 1
+ 	// We process one item per non-trivial format
+ 	for i := 0; i <= end; {
+-		switch w := s.advance(format[i:]); {
+-		case w > 0:
++		w := s.advance(format[i:])
++		if w > 0 {
+ 			i += w
+ 			continue
+-		case w < 0:
+-			// Can't advance format. Why not?
+-			s.errorString("input does not match format")
+ 		}
+-
+-		// Either we have a percent character, or we ran out of input.
+-
++		// Either we failed to advance, we have a percent character, or we ran out of input.
+ 		if format[i] != '%' {
++			// Can't advance format.  Why not?
++			if w < 0 {
++				s.errorString("input does not match format")
++			}
+ 			// Otherwise at EOF; "too many operands" error handled below
+ 			break
+ 		}
+diff --git a/src/fmt/scan_test.go b/src/fmt/scan_test.go
+index bcc2844ef0..7ac74dcb4b 100644
+--- a/src/fmt/scan_test.go
++++ b/src/fmt/scan_test.go
+@@ -1114,22 +1114,14 @@ func TestScanfNewlineMatchFormat(t *testing.T) {
+ 		count  int
+ 		ok     bool
+ 	}{
+-		{"newline in both", "1\n2", "%d\n%d", 2, true},
++		{"newline in both", "1\n2", "%d\n%d\n", 2, true},
+ 		{"newline in input", "1\n2", "%d %d", 1, false},
+-		{"extra newline in format", "1\n2", "%d\n%d\n", 2, false},
+-		{"newline-newline in both", "1\n\n2", "%d\n\n%d", 2, true},
+-		{"newline-newline in format", "1\n2", "%d\n\n%d", 1, false},
+-		{"newline-newline in input", "1\n\n2", "%d\n%d", 1, false},
+ 		{"space-newline in input", "1 \n2", "%d %d", 1, false},
+ 		{"newline in format", "1 2", "%d\n%d", 1, false},
+ 		{"space-newline in format", "1 2", "%d \n%d", 1, false},
+ 		{"space-newline in both", "1 \n2", "%d \n%d", 2, true},
+ 		{"extra space in format", "1\n2", "%d\n %d", 2, true},
+ 		{"two extra spaces in format", "1\n2", "%d \n %d", 2, true},
+-		{"newline start in both", "\n1 2", "\n%d %d", 2, true},
+-		{"newline start in format", "1 2", "\n%d %d", 0, false},
+-		{"newline start in input", "\n1 2", "%d %d", 0, false},
+-		{"space-newline start in input", " \n1 2", "\n%d %d", 2, true},
+ 	}
+ 	for _, test := range tests {
+ 		n, err := Sscanf(test.text, test.format, &a, &b)

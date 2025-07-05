@@ -76,7 +76,88 @@ Date:   Tue Mar 11 23:58:39 2014 -0400
     R=golang-codereviews, dave, r, dvyukov, delpontej, iant
     CC=golang-codereviews, khr
     https://golang.org/cl/74250043
-
+---
  src/pkg/runtime/mgc0.c |  8 ++++++--
  test/gcstring.go       | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 54 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 0bb2badde5..65e51e4d1f 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -778,6 +778,7 @@ scanblock(Workbuf *wbuf, bool keepworking)
+ 	void *obj;
+ 	Type *t;
+ 	Slice *sliceptr;
++	String *stringptr;
+ 	Frame *stack_ptr, stack_top, stack[GC_STACK_CAPACITY+4];
+ 	BufferList *scanbuffers;
+ 	Scanbuf sbuf;
+@@ -948,8 +949,11 @@ scanblock(Workbuf *wbuf, bool keepworking)
+ 			break;
+ 
+ 		case GC_STRING:
+-			obj = *(void**)(stack_top.b + pc[1]);
+-			markonly(obj);
++			stringptr = (String*)(stack_top.b + pc[1]);
++			if(stringptr->len != 0) {
++				obj = stringptr->str;
++				markonly(obj);
++			}
+ 			pc += 2;
+ 			continue;
+ 
+diff --git a/test/gcstring.go b/test/gcstring.go
+new file mode 100644
+index 0000000000..627a426455
+--- /dev/null
++++ b/test/gcstring.go
+@@ -0,0 +1,48 @@
++// run
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that s[len(s):] - which can point past the end of the allocated block -
++// does not confuse the garbage collector.
++
++package main
++
++import (
++	"runtime"
++	"time"
++)
++
++type T struct {
++	ptr **int
++	pad [120]byte
++}
++
++var things []interface{}
++
++func main() {
++	setup()
++	runtime.GC()
++	runtime.GC()
++	time.Sleep(10*time.Millisecond)
++	runtime.GC()
++	runtime.GC()
++	time.Sleep(10*time.Millisecond)
++}
++
++func setup() {
++	var Ts []interface{}
++	buf := make([]byte, 128)
++	
++	for i := 0; i < 10000; i++ {
++		s := string(buf)
++		t := &T{ptr: new(*int)}
++		runtime.SetFinalizer(t.ptr, func(**int) { panic("*int freed too early") })
++		Ts = append(Ts, t)
++		things = append(things, s[len(s):])
++	}
++	
++	things = append(things, Ts...)
++}
++

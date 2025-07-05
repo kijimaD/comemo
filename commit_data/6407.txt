@@ -10,7 +10,7 @@ Date:   Tue Sep 28 13:43:50 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2207045
-
+---
  doc/go_spec.html             |   2 +-
  src/cmd/gc/go.h              |   2 +-
  src/cmd/gc/reflect.c         |  59 ++++++++++++++++++++----
@@ -20,3 +20,478 @@ Date:   Tue Sep 28 13:43:50 2010 -0400
  test/method.go               |  29 ++++++++++--
  test/method2.go              |  14 ++++--
  8 files changed, 219 insertions(+), 48 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 8735d4e8d3..ea7a75c497 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -5168,6 +5168,6 @@ The following minimal alignment properties are guaranteed:
+ <h2 id="Implementation_differences"><span class="alert">Implementation differences - TODO</span></h2>
+ <ul>
+ 	<li><span class="alert">Implementation does not honor the restriction on goto statements and targets (no intervening declarations).</span></li>
+-	<li><span class="alert">Method expressions are partially implemented.</span></li>
++	<li><span class="alert">Gccgo: Method expressions are partially implemented.</span></li>
+ 	<li><span class="alert">Gccgo: allows only one init() function per source file.</span></li>
+ </ul>
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 06bc573733..acbfde4ff7 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1010,7 +1010,7 @@ void	walkrange(Node *n);
+  *	reflect.c
+  */
+ void	dumptypestructs(void);
+-Type*	methodfunc(Type *f, int use_receiver);
++Type*	methodfunc(Type *f, Type*);
+ Node*	typename(Type *t);
+ Sym*	typesym(Type *t);
+ 
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 87b9b04ba2..18b2a4fc65 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -100,16 +100,16 @@ lsort(Sig *l, int(*f)(Sig*, Sig*))
+  * return function type, receiver as first argument (or not).
+  */
+ Type*
+-methodfunc(Type *f, int use_receiver)
++methodfunc(Type *f, Type *receiver)
+ {
+ 	NodeList *in, *out;
+ 	Node *d;
+ 	Type *t;
+ 
+ 	in = nil;
+-	if(use_receiver) {
++	if(receiver) {
+ 		d = nod(ODCLFIELD, N, N);
+-		d->type = getthisx(f)->type->type;
++		d->type = receiver;
+ 		in = list(in, d);
+ 	}
+ 	for(t=getinargx(f)->type; t; t=t->down) {
+@@ -185,8 +185,8 @@ methods(Type *t)
+ 		a->name = method->name;
+ 		a->isym = methodsym(method, it, 1);
+ 		a->tsym = methodsym(method, t, 0);
+-		a->type = methodfunc(f->type, 1);
+-		a->mtype = methodfunc(f->type, 0);
++		a->type = methodfunc(f->type, t);
++		a->mtype = methodfunc(f->type, nil);
+ 
+ 		if(!(a->isym->flags & SymSiggen)) {
+ 			a->isym->flags |= SymSiggen;
+@@ -241,22 +241,27 @@ imethods(Type *t)
+ 	Sig *a, *all, *last;
+ 	int o;
+ 	Type *f;
++	Sym *method, *isym;
++	Prog *oldlist;
+ 
+ 	all = nil;
+ 	last = nil;
+ 	o = 0;
++	oldlist = nil;
+ 	for(f=t->type; f; f=f->down) {
+ 		if(f->etype != TFIELD)
+ 			fatal("imethods: not field");
+ 		if(f->type->etype != TFUNC || f->sym == nil)
+ 			continue;
++		method = f->sym;
+ 		a = mal(sizeof(*a));
+-		a->name = f->sym->name;
+-		if(!exportname(f->sym->name))
+-			a->pkg = f->sym->pkg;
++		a->name = method->name;
++		if(!exportname(method->name))
++			a->pkg = method->pkg;
+ 		a->mtype = f->type;
+ 		a->offset = 0;
+-		a->type = methodfunc(f->type, 0);
++		a->type = methodfunc(f->type, nil);
++
+ 		if(last && sigcmp(last, a) >= 0)
+ 			fatal("sigcmp vs sortinter %s %s", last->name, a->name);
+ 		if(last == nil)
+@@ -264,7 +269,43 @@ imethods(Type *t)
+ 		else
+ 			last->link = a;
+ 		last = a;
++		
++		// Compiler can only refer to wrappers for
++		// named interface types.
++		if(t->sym == S)
++			continue;
++		
++		// NOTE(rsc): Perhaps an oversight that
++		// IfaceType.Method is not in the reflect data.
++		// Generate the method body, so that compiled
++		// code can refer to it.
++		isym = methodsym(method, t, 0);
++		if(!(isym->flags & SymSiggen)) {
++			isym->flags |= SymSiggen;
++			if(oldlist == nil)
++				oldlist = pc;
++			genwrapper(t, f, isym, 0);
++		}
++		
++		// Generate wrapper for pointer to interface type.
++		isym = methodsym(method, ptrto(t), 0);
++		if(!(isym->flags & SymSiggen)) {
++			isym->flags |= SymSiggen;
++			if(oldlist == nil)
++				oldlist = pc;
++			genwrapper(ptrto(t), f, isym, 0);
++		}
+ 	}
++
++	if(oldlist) {
++		// old list ended with AEND; change to ANOP
++		// so that the trampolines that follow can be found.
++		nopout(oldlist);
++
++		// start new data list
++		newplist();
++	}
++
+ 	return all;
+ }
+ 
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 1c736d4329..821d540fa1 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -17,6 +17,7 @@ static void	implicitstar(Node**);
+ static int	onearg(Node*, char*, ...);
+ static int	twoarg(Node*);
+ static int	lookdot(Node*, Type*, int);
++static int	looktypedot(Node*, Type*, int);
+ static void	typecheckaste(int, int, Type*, NodeList*, char*);
+ static Type*	lookdot1(Sym *s, Type *t, Type *f, int);
+ static int	nokeys(NodeList*);
+@@ -497,41 +498,42 @@ reswitch:
+ 			yyerror("rhs of . must be a name");	// impossible
+ 			goto error;
+ 		}
+-		if(isptr[t->etype]) {
+-			t = t->type;
+-			if(t == T)
+-				goto error;
+-			n->op = ODOTPTR;
+-			checkwidth(t);
+-		}
+ 		sym = n->right->sym;
+-		if(!lookdot(n, t, 0)) {
+-			if(lookdot(n, t, 1))
+-				yyerror("%#N undefined (cannot refer to unexported field %S)", n, n->right->sym);
+-			else
+-				yyerror("%#N undefined (type %T has no field %S)", n, t, n->right->sym);
+-			goto error;
+-		}
+ 		if(l->op == OTYPE) {
+-			if(n->type->etype != TFUNC || n->type->thistuple != 1) {
+-				yyerror("type %T has no method %hS", n->left->type, sym);
+-				n->type = T;
++			if(!looktypedot(n, t, 0)) {
++				if(looktypedot(n, t, 1))
++					yyerror("%#N undefined (cannot refer to unexported method %S)", n, n->right->sym);
++				else
++					yyerror("%#N undefined (type %T has no method %S)", n, t, n->right->sym);
+ 				goto error;
+ 			}
+-			if(t->etype == TINTER) {
+-				yyerror("method expression on interface not implemented");
++			if(n->type->etype != TFUNC || n->type->thistuple != 1) {
++				yyerror("type %T has no method %hS", n->left->type, sym);
+ 				n->type = T;
+ 				goto error;
+ 			}
+ 			n->op = ONAME;
+ 			n->sym = methodsym(sym, l->type, 0);
+-			n->type = methodfunc(n->type, 1);
++			n->type = methodfunc(n->type, l->type);
+ 			n->xoffset = 0;
+-			getinargx(n->type)->type->type = l->type;	// fix up receiver
+ 			n->class = PFUNC;
+ 			ok = Erv;
+ 			goto ret;
+ 		}
++		if(isptr[t->etype]) {
++			t = t->type;
++			if(t == T)
++				goto error;
++			n->op = ODOTPTR;
++			checkwidth(t);
++		}
++		if(!lookdot(n, t, 0)) {
++			if(lookdot(n, t, 1))
++				yyerror("%#N undefined (cannot refer to unexported field or method %S)", n, n->right->sym);
++			else
++				yyerror("%#N undefined (type %T has no field or method %S)", n, t, n->right->sym);
++			goto error;
++		}
+ 		switch(n->op) {
+ 		case ODOTINTER:
+ 		case ODOTMETH:
+@@ -1381,6 +1383,55 @@ lookdot1(Sym *s, Type *t, Type *f, int dostrcmp)
+ 	return r;
+ }
+ 
++static int
++looktypedot(Node *n, Type *t, int dostrcmp)
++{
++	Type *f1, *f2, *tt;
++	Sym *s;
++	
++	s = n->right->sym;
++
++	if(t->etype == TINTER) {
++		f1 = lookdot1(s, t, t->type, dostrcmp);
++		if(f1 == T)
++			return 0;
++
++		if(f1->width == BADWIDTH)
++			fatal("lookdot badwidth %T %p", f1, f1);
++		n->right = methodname(n->right, t);
++		n->xoffset = f1->width;
++		n->type = f1->type;
++		n->op = ODOTINTER;
++		return 1;
++	}
++
++	tt = t;
++	if(t->sym == S && isptr[t->etype])
++		tt = t->type;
++
++	f2 = methtype(tt);
++	if(f2 == T)
++		return 0;
++
++	expandmeth(f2->sym, f2);
++	f2 = lookdot1(s, f2, f2->xmethod, dostrcmp);
++
++	// disallow T.m if m requires *T receiver
++	if(isptr[getthisx(f2->type)->type->type->etype]
++	&& !isptr[t->etype]
++	&& f2->embedded != 2
++	&& !isifacemethod(f2->type)) {
++		yyerror("invalid method expression %#N (needs pointer receiver: (*%T).%s)", n, t, f2->sym->name);
++		return 0;
++	}
++
++	n->right = methodname(n->right, t);
++	n->xoffset = f2->width;
++	n->type = f2->type;
++	n->op = ODOTMETH;
++	return 1;
++}
++
+ static int
+ lookdot(Node *n, Type *t, int dostrcmp)
+ {
+@@ -1394,9 +1445,15 @@ lookdot(Node *n, Type *t, int dostrcmp)
+ 	if(t->etype == TSTRUCT || t->etype == TINTER)
+ 		f1 = lookdot1(s, t, t->type, dostrcmp);
+ 
+-	f2 = methtype(n->left->type);
+-	if(f2 != T)
+-		f2 = lookdot1(s, f2, f2->method, dostrcmp);
++	f2 = T;
++	if(n->left->type == t || n->left->type->sym == S) {
++		f2 = methtype(t);
++		if(f2 != T) {
++			// Use f2->method, not f2->xmethod: adddot has
++			// already inserted all the necessary embedded dots.
++			f2 = lookdot1(s, f2, f2->method, dostrcmp);
++		}
++	}
+ 
+ 	if(f1 != T) {
+ 		if(f2 != T)
+@@ -1420,7 +1477,7 @@ lookdot(Node *n, Type *t, int dostrcmp)
+ 		tt = n->left->type;
+ 		dowidth(tt);
+ 		rcvr = getthisx(f2->type)->type->type;
+-		if(n->left->op != OTYPE && !eqtype(rcvr, tt)) {
++		if(!eqtype(rcvr, tt)) {
+ 			if(rcvr->etype == tptr && eqtype(rcvr->type, tt)) {
+ 				checklvalue(n->left, "call pointer method on");
+ 				addrescapes(n->left);
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 61d7f2c247..39d43d17a6 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -1046,6 +1046,11 @@ func TestMethod(t *testing.T) {
+ 		t.Errorf("Type Method returned %d; want 250", i)
+ 	}
+ 
++	i = Typeof(&p).Method(0).Func.Call([]Value{NewValue(&p), NewValue(10)})[0].(*IntValue).Get()
++	if i != 250 {
++		t.Errorf("Pointer Type Method returned %d; want 250", i)
++	}
++
+ 	// Curried method of value.
+ 	i = NewValue(p).Method(0).Call([]Value{NewValue(10)})[0].(*IntValue).Get()
+ 	if i != 250 {
+@@ -1288,9 +1293,12 @@ func TestDotDotDot(t *testing.T) {
+ 	t.Error(s)
+ }
+ 
+-type inner struct{}
++type inner struct {
++	x int
++}
+ 
+ type outer struct {
++	y int
+ 	inner
+ }
+ 
+@@ -1307,3 +1315,42 @@ func TestNestedMethods(t *testing.T) {
+ 		}
+ 	}
+ }
++
++type innerInt struct {
++	x int
++}
++
++type outerInt struct {
++	y int
++	innerInt
++}
++
++func (i *innerInt) m() int {
++	return i.x
++}
++
++func TestEmbeddedMethods(t *testing.T) {
++	typ := Typeof((*outerInt)(nil))
++	if typ.NumMethod() != 1 || typ.Method(0).Func.Get() != NewValue((*outerInt).m).(*FuncValue).Get() {
++		t.Errorf("Wrong method table for outerInt: (m=%p)", (*outerInt).m)
++		for i := 0; i < typ.NumMethod(); i++ {
++			m := typ.Method(i)
++			t.Errorf("\t%d: %s %#x\n", i, m.Name, m.Func.Get())
++		}
++	}
++
++	i := &innerInt{3}
++	if v := NewValue(i).Method(0).Call(nil)[0].(*IntValue).Get(); v != 3 {
++		t.Errorf("i.m() = %d, want 3", v)
++	}
++
++	o := &outerInt{1, innerInt{2}}
++	if v := NewValue(o).Method(0).Call(nil)[0].(*IntValue).Get(); v != 2 {
++		t.Errorf("i.m() = %d, want 2", v)
++	}
++
++	f := (*outerInt).m
++	if v := f(o); v != 2 {
++		t.Errorf("f(o) = %d, want 2", v)
++	}
++}
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index 0defe948fe..455b6ccb91 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -597,10 +597,7 @@ func lookup(v reflect.Value, name string) reflect.Value {
+ 			for i := 0; i < n; i++ {
+ 				m := typ.Method(i)
+ 				mtyp := m.Type
+-				// We must check receiver type because of a bug in the reflection type tables:
+-				// it should not be possible to find a method with the wrong receiver type but
+-				// this can happen due to value/pointer receiver mismatch.
+-				if m.Name == name && mtyp.NumIn() == 1 && mtyp.NumOut() == 1 && mtyp.In(0) == typ {
++				if m.Name == name && mtyp.NumIn() == 1 && mtyp.NumOut() == 1 {
+ 					return v.Method(i).Call(nil)[0]
+ 				}
+ 			}
+diff --git a/test/method.go b/test/method.go
+index c751c1f1b5..b52d97894c 100644
+--- a/test/method.go
++++ b/test/method.go
+@@ -19,7 +19,7 @@ func (s S) val() int   { return 1 }
+ func (s *S1) val() int { return 2 }
+ func (i I) val() int   { return 3 }
+ func (i *I1) val() int { return 4 }
+-//func (t T) val() int { return 7 }
++func (t T) val() int   { return 7 }
+ func (t *T1) val() int { return 8 }
+ 
+ type Val interface {
+@@ -34,6 +34,8 @@ func main() {
+ 	var i I
+ 	var pi *I1
+ 	var pt *T1
++	var t T
++	var v Val
+ 
+ 	if s.val() != 1 {
+ 		println("s.val:", s.val())
+@@ -75,7 +77,10 @@ func main() {
+ 		println("(*I1).val(pi):", (*I1).val(pi))
+ 		panic("fail")
+ 	}
+-	//	if t.val() != 7 { prinln("t.val:", t.val()); panic("fail") }
++	if t.val() != 7 {
++		println("t.val:", t.val())
++		panic("fail")
++	}
+ 	if pt.val() != 8 {
+ 		println("pt.val:", pt.val())
+ 		panic("fail")
+@@ -101,11 +106,27 @@ func main() {
+ 		println("pi.val:", val(pi))
+ 		panic("fail")
+ 	}
+-	//	if val(t) != 7 { println("t.val:", val(t)); panic("fail") }
++	if val(t) != 7 {
++		println("t.val:", val(t))
++		panic("fail")
++	}
+ 	if val(pt) != 8 {
+ 		println("pt.val:", val(pt))
+ 		panic("fail")
+ 	}
+ 
+-	//	if Val.val(i) != 3 { println("Val.val(i):", Val.val(i)); panic("fail") }
++	if Val.val(i) != 3 {
++		println("Val.val(i):", Val.val(i))
++		panic("fail")
++	}
++	v = i
++	if Val.val(v) != 3 {
++		println("Val.val(v):", Val.val(v))
++		panic("fail")
++	}
++	pv := &v
++	if pv.val() != 3 {
++		println("pv.val():", pv.val())
++		panic("fail")
++	}
+ }
+diff --git a/test/method2.go b/test/method2.go
+index 3ee0ae1364..cda6d9aadf 100644
+--- a/test/method2.go
++++ b/test/method2.go
+@@ -6,9 +6,17 @@
+ 
+ package main
+ 
+-type T struct {a int}
++type T struct {
++	a int
++}
+ type P *T
+ type P1 *T
+ 
+-func (p P) val() int { return 1 }  // ERROR "receiver"
+-func (p *P1) val() int { return 1 }  // ERROR "receiver"
++func (p P) val() int   { return 1 } // ERROR "receiver"
++func (p *P1) val() int { return 1 } // ERROR "receiver"
++
++type Val interface {
++	val() int
++}
++
++var _ = (*Val).val // ERROR "method"

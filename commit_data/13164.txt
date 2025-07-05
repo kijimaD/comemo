@@ -8,7 +8,46 @@ Date:   Fri May 25 09:19:21 2012 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/6243045
-
+---
  src/pkg/net/mail/message.go      | 11 ++++++-----
  src/pkg/net/mail/message_test.go |  5 +++++
  2 files changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/net/mail/message.go b/src/pkg/net/mail/message.go
+index 0917bbedf1..b610ccf3f0 100644
+--- a/src/pkg/net/mail/message.go
++++ b/src/pkg/net/mail/message.go
+@@ -69,11 +69,12 @@ var dateLayouts []string
+ func init() {
+ 	// Generate layouts based on RFC 5322, section 3.3.
+ 
+-	dows := [...]string{"", "Mon, "}     // day-of-week
+-	days := [...]string{"2", "02"}       // day = 1*2DIGIT
+-	years := [...]string{"2006", "06"}   // year = 4*DIGIT / 2*DIGIT
+-	seconds := [...]string{":05", ""}    // second
+-	zones := [...]string{"-0700", "MST"} // zone = (("+" / "-") 4DIGIT) / "GMT" / ...
++	dows := [...]string{"", "Mon, "}   // day-of-week
++	days := [...]string{"2", "02"}     // day = 1*2DIGIT
++	years := [...]string{"2006", "06"} // year = 4*DIGIT / 2*DIGIT
++	seconds := [...]string{":05", ""}  // second
++	// "-0700 (MST)" is not in RFC 5322, but is common.
++	zones := [...]string{"-0700", "MST", "-0700 (MST)"} // zone = (("+" / "-") 4DIGIT) / "GMT" / ...
+ 
+ 	for _, dow := range dows {
+ 		for _, day := range days {
+diff --git a/src/pkg/net/mail/message_test.go b/src/pkg/net/mail/message_test.go
+index 671ff2efac..fd17eb414a 100644
+--- a/src/pkg/net/mail/message_test.go
++++ b/src/pkg/net/mail/message_test.go
+@@ -95,6 +95,11 @@ func TestDateParsing(t *testing.T) {
+ 			"21 Nov 97 09:55:06 GMT",
+ 			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("GMT", 0)),
+ 		},
++		// Commonly found format not specified by RFC 5322.
++		{
++			"Fri, 21 Nov 1997 09:55:06 -0600 (MDT)",
++			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("", -6*60*60)),
++		},
+ 	}
+ 	for _, test := range tests {
+ 		hdr := Header{

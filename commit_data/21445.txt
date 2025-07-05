@@ -9,10 +9,138 @@ Date:   Wed Dec 31 13:46:58 2014 +1100
     Change-Id: Id6ca9f259260310c4c6cbdabbc8f2fead8414e6a
     Reviewed-on: https://go-review.googlesource.com/2202
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/export_windows_test.go  |  9 +++++++++
  src/runtime/os1_windows.go          | 13 +++++++++++++
  src/runtime/os1_windows_386.go      |  8 +++++++-
  src/runtime/os1_windows_amd64.go    |  6 ++++++
  src/runtime/syscall_windows_test.go | 18 ++++++++++++++++++
  5 files changed, 53 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/export_windows_test.go b/src/runtime/export_windows_test.go
+new file mode 100644
+index 0000000000..61fcef9c0f
+--- /dev/null
++++ b/src/runtime/export_windows_test.go
+@@ -0,0 +1,9 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Export guts for testing.
++
++package runtime
++
++var TestingWER = &testingWER
+diff --git a/src/runtime/os1_windows.go b/src/runtime/os1_windows.go
+index 9b76051634..7f860a37e1 100644
+--- a/src/runtime/os1_windows.go
++++ b/src/runtime/os1_windows.go
+@@ -29,6 +29,7 @@ import (
+ //go:cgo_import_dynamic runtime._NtWaitForSingleObject NtWaitForSingleObject "ntdll.dll"
+ //go:cgo_import_dynamic runtime._ResumeThread ResumeThread "kernel32.dll"
+ //go:cgo_import_dynamic runtime._SetConsoleCtrlHandler SetConsoleCtrlHandler "kernel32.dll"
++//go:cgo_import_dynamic runtime._SetErrorMode SetErrorMode "kernel32.dll"
+ //go:cgo_import_dynamic runtime._SetEvent SetEvent "kernel32.dll"
+ //go:cgo_import_dynamic runtime._SetProcessPriorityBoost SetProcessPriorityBoost "kernel32.dll"
+ //go:cgo_import_dynamic runtime._SetThreadPriority SetThreadPriority "kernel32.dll"
+@@ -62,6 +63,7 @@ var (
+ 	_NtWaitForSingleObject,
+ 	_ResumeThread,
+ 	_SetConsoleCtrlHandler,
++	_SetErrorMode,
+ 	_SetEvent,
+ 	_SetProcessPriorityBoost,
+ 	_SetThreadPriority,
+@@ -103,6 +105,13 @@ const (
+ 	currentThread  = ^uintptr(1) // -2 = current thread
+ )
+ 
++const (
++	SEM_FAILCRITICALERRORS     = 0x0001
++	SEM_NOGPFAULTERRORBOX      = 0x0002
++	SEM_NOALIGNMENTFAULTEXCEPT = 0x0004
++	SEM_NOOPENFILEERRORBOX     = 0x8000
++)
++
+ var (
+ 	kernel32Name                    = []byte("kernel32.dll\x00")
+ 	addVectoredContinueHandlerName  = []byte("AddVectoredContinueHandler\x00")
+@@ -114,6 +123,10 @@ func osinit() {
+ 
+ 	kernel32 := stdcall1(_LoadLibraryA, uintptr(unsafe.Pointer(&kernel32Name[0])))
+ 
++	// don't display the crash dialog
++	errormode := uint32(stdcall1(_SetErrorMode, SEM_NOGPFAULTERRORBOX))
++	stdcall1(_SetErrorMode, uintptr(errormode)|SEM_FAILCRITICALERRORS|SEM_NOGPFAULTERRORBOX|SEM_NOOPENFILEERRORBOX)
++
+ 	externalthreadhandlerp = funcPC(externalthreadhandler)
+ 
+ 	stdcall2(_AddVectoredExceptionHandler, 1, funcPC(exceptiontramp))
+diff --git a/src/runtime/os1_windows_386.go b/src/runtime/os1_windows_386.go
+index 0afef91566..7b4fdfe94a 100644
+--- a/src/runtime/os1_windows_386.go
++++ b/src/runtime/os1_windows_386.go
+@@ -73,9 +73,15 @@ func exceptionhandler(info *exceptionrecord, r *context, gp *g) int32 {
+ 	return _EXCEPTION_CONTINUE_EXECUTION
+ }
+ 
++var testingWER bool
++
+ // lastcontinuehandler is reached, because runtime cannot handle
+ // current exception. lastcontinuehandler will print crash info and exit.
+-func lastcontinuehandler(info *exceptionrecord, r *context, gp *g) uint32 {
++func lastcontinuehandler(info *exceptionrecord, r *context, gp *g) int32 {
++	if testingWER {
++		return _EXCEPTION_CONTINUE_SEARCH
++	}
++
+ 	_g_ := getg()
+ 
+ 	if panicking != 0 { // traceback already printed
+diff --git a/src/runtime/os1_windows_amd64.go b/src/runtime/os1_windows_amd64.go
+index 0d21b38812..c211f6fd91 100644
+--- a/src/runtime/os1_windows_amd64.go
++++ b/src/runtime/os1_windows_amd64.go
+@@ -92,9 +92,15 @@ func firstcontinuehandler(info *exceptionrecord, r *context, gp *g) int32 {
+ 	return _EXCEPTION_CONTINUE_EXECUTION
+ }
+ 
++var testingWER bool
++
+ // lastcontinuehandler is reached, because runtime cannot handle
+ // current exception. lastcontinuehandler will print crash info and exit.
+ func lastcontinuehandler(info *exceptionrecord, r *context, gp *g) uint32 {
++	if testingWER {
++		return _EXCEPTION_CONTINUE_SEARCH
++	}
++
+ 	_g_ := getg()
+ 
+ 	if panicking != 0 { // traceback already printed
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index c372d2434d..c40641a0dd 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -533,3 +533,21 @@ func main() {
+ 	println(z)
+ }
+ `
++
++func TestWERDialogue(t *testing.T) {
++	if os.Getenv("TESTING_WER_DIALOGUE") == "1" {
++		defer os.Exit(0)
++
++		*runtime.TestingWER = true
++		const EXCEPTION_NONCONTINUABLE = 1
++		mod := syscall.MustLoadDLL("kernel32.dll")
++		proc := mod.MustFindProc("RaiseException")
++		proc.Call(0xbad, EXCEPTION_NONCONTINUABLE, 0, 0)
++		println("RaiseException should not return")
++		return
++	}
++	cmd := exec.Command(os.Args[0], "-test.run=TestWERDialogue")
++	cmd.Env = []string{"TESTING_WER_DIALOGUE=1"}
++	// Child process should not open WER dialogue, but return immediately instead.
++	cmd.CombinedOutput()
++}

@@ -10,7 +10,7 @@ Date:   Fri Sep 19 11:55:46 2008 -0700
     R=r
     OCL=15529
     CL=15537
-
+---
  src/clean.bash                       |  17 +-
  src/cmd/gobuild/Makefile             |  20 +++
  src/cmd/gobuild/gobuild.c            | 340 +++++++++++++++++++++++++++++++++++
@@ -28,3 +28,824 @@ Date:   Fri Sep 19 11:55:46 2008 -0700
  src/runtime/make.bash                |   9 -
  src/lib/math/main.go => test/math.go |   6 +-
  16 files changed, 468 insertions(+), 173 deletions(-)
+
+diff --git a/src/clean.bash b/src/clean.bash
+index cba2129cfa..36b0c99fb5 100755
+--- a/src/clean.bash
++++ b/src/clean.bash
+@@ -3,16 +3,15 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-for i in lib9 libbio libmach_amd64 libregexp syscall
++for i in lib9 libbio libmach_amd64 libregexp syscall cmd runtime lib
+ do
+ 	cd $i
+-	make clean
+-	cd ..
+-done
+-
+-for i in cmd runtime lib
+-do
+-	cd $i
+-	bash clean.bash
++	case $i in
++	cmd | lib)
++		bash clean.bash
++		;;
++	*)
++		make clean
++	esac
+ 	cd ..
+ done
+diff --git a/src/cmd/gobuild/Makefile b/src/cmd/gobuild/Makefile
+new file mode 100644
+index 0000000000..3393990336
+--- /dev/null
++++ b/src/cmd/gobuild/Makefile
+@@ -0,0 +1,20 @@
++# Copyright 2009 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../Make.conf
++
++TARG=gobuild
++OFILES=\
++	gobuild.$O\
++
++$(TARG): $(OFILES)
++	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lbio -l9
++
++clean:
++	rm -f $(OFILES) $(TARG)
++
++install: $(TARG)
++	cp $(TARG) $(BIN)/$(TARG)
++
++$(OFILES): $(HFILES)
+diff --git a/src/cmd/gobuild/gobuild.c b/src/cmd/gobuild/gobuild.c
+new file mode 100644
+index 0000000000..0fdf68e19b
+--- /dev/null
++++ b/src/cmd/gobuild/gobuild.c
+@@ -0,0 +1,340 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Build a collection of go programs into a single package.
++
++#include <u.h>
++#include <unistd.h>
++#include <libc.h>
++#include <bio.h>
++
++void
++usage(void)
++{
++	fprint(2, "usage: gobuild [-m] packagename *.go *.c *.s\n");
++	exits("usage");
++}
++
++int chatty;
++int devnull;	// fd of /dev/null
++int makefile;	// generate Makefile
++char *thechar;	// object character
++
++// Info about when to compile a particular file.
++typedef struct Job Job;
++struct Job
++{
++	char *name;
++	int pass;
++};
++
++// Run the command in argv.
++// Return -1 if it fails (non-zero exit status).
++// Return 0 on success.
++// Showoutput controls whether to let output from command display
++// on standard output and standard error.
++int
++run(char **argv, int showoutput)
++{
++	int pid, i;
++	Waitmsg *w;
++	vlong n0, n1;
++
++	n0 = nsec();
++	pid = fork();
++	if(pid < 0)
++		sysfatal("fork: %r");
++	if(pid == 0){
++		dup(devnull, 0);
++		if(!showoutput){
++			dup(devnull, 1);
++			dup(devnull, 2);
++		}
++		if(devnull > 2)
++			close(devnull);
++		exec(argv[0], argv);
++		fprint(2, "exec %s: %r\n", argv[0]);
++		exit(1);
++	}
++	w = waitfor(pid);
++	n1 = nsec();
++	if(w == nil)
++		sysfatal("waitfor %d: %r", pid);
++	if(chatty > 1){
++		fprint(2, "%5.3f", (n1-n0)/1.e9);
++		for(i=0; argv[i]; i++)
++			fprint(2, " %s", argv[i]);
++		if(w->msg[0])
++			fprint(2, " [%s]", w->msg);
++		fprint(2, "\n");
++	}
++	if(w->msg[0])
++		return -1;
++	return 0;
++}
++
++// Build the file using the compiler cc.
++// Return -1 on error, 0 on success.
++// If show is set, print the command and the output.
++int
++buildcc(char *cc, char *file, int show)
++{
++	char *argv[3];
++
++	if(show)
++		fprint(2, "$ %s %s\n", cc, file);
++	argv[0] = cc;
++	argv[1] = file;
++	argv[2] = nil;
++	return run(argv, show);
++}
++
++// Return bool whether s ends in suffix.
++int
++suffix(char *s, char *suffix)
++{
++	int n1, n2;
++
++	n1 = strlen(s);
++	n2 = strlen(suffix);
++	if(n1>n2 && strcmp(s+n1-n2, suffix) == 0)
++		return 1;
++	return 0;
++}
++
++// Return the name of the compiler for file.
++char*
++compiler(char *file)
++{
++	static char buf[20];
++
++	if(suffix(file, ".go"))
++		snprint(buf, sizeof buf, "%sg", thechar);
++	else if(suffix(file, ".c"))
++		snprint(buf, sizeof buf, "%sc", thechar);
++	else if(suffix(file, ".s"))
++		snprint(buf, sizeof buf, "%sa", thechar);
++	else
++		sysfatal("don't know how to build %s", file);
++	return buf;
++}
++
++// Return the object name for file, replacing the
++// .c or .g or .a with .suffix.
++char*
++goobj(char *file, char *suffix)
++{
++	char *p;
++
++	p = strrchr(file, '.');
++	if(p == nil)
++		sysfatal("don't know object name for %s", file);
++	return smprint("%.*s.%s", utfnlen(file, p-file), file, suffix);
++}
++
++// Makefile preamble template.
++char preamble[] =
++	"O=%s\n"
++	"GC=$(O)g\n"
++	"CC=$(O)c -w\n"
++	"AS=$(O)a\n"
++	"AR=$(O)ar\n"
++	"\n"
++	"PKG=$(GOROOT)/pkg/%s.a\n"
++	"\n"
++	"install: $(PKG)\n"
++	"\n"
++	"nuke: clean\n"
++	"\trm -f $(PKG)\n"
++	"\n"
++	"clean:\n"
++	"\trm -f *.$O *.a\n"
++	"\n"
++	"%%.$O: %%.go\n"
++	"\t$(GC) $*.go\n"
++	"\n"
++	"%%.$O: %%.c\n"
++	"\t$(CC) $*.c\n"
++	"\n"
++	"%%.$O: %%.s\n"
++	"\t$(AS) $*.s\n"
++	"\n"
++;
++
++void
++main(int argc, char **argv)
++{
++	int i, o, p, n, pass, nar, njob, nthis, nnext, oargc;
++	char **ar, **next, **this, **tmp, *goarch, *goroot, *pkgname, *pkgpath, **oargv;
++	Job *job;
++	Biobuf bout;
++
++	oargc = argc;
++	oargv = argv;
++
++	ARGBEGIN{
++	default:
++		usage();
++	case 'm':
++		makefile = 1;
++		break;
++	case 'v':
++		chatty++;
++		break;
++	}ARGEND
++
++	if(argc < 2)
++		usage();
++
++	goarch = getenv("GOARCH");
++	if(goarch == nil)
++		sysfatal("no $GOARCH");
++	if(strcmp(goarch, "amd64") == 0)
++		thechar = "6";
++	else
++		sysfatal("unknown $GOARCH");
++
++	goroot = getenv("GOROOT");
++	if(goroot == nil)
++		sysfatal("no $GOROOT");
++
++	pkgname = argv[0];
++	if(strchr(pkgname, '.')){
++		fprint(2, "pkgname has dot\n");
++		usage();
++	}
++
++	pkgpath = smprint("%s/pkg/%s.a", goroot, pkgname);
++	unlink(pkgpath);
++	if(chatty)
++		fprint(2, "pkg %s\n", pkgpath);
++
++	if((devnull = open("/dev/null", ORDWR)) < 0)
++		sysfatal("open /dev/null: %r");
++
++	// Compile by repeated passes: build as many .6 as you can,
++	// put them all in the archive, and repeat.
++	//
++	// "this" contains the list of files to compile in this pass.
++	// "next" contains the list of files to re-try in the next pass.
++	// "job" contains the list of files that are done, annotated
++	//	with their pass numbers.
++	// "ar" contains the ar command line to run at the end
++	//	of the pass.
++
++	n = argc-1;
++	this = malloc(n*sizeof this[0]);
++	next = malloc(n*sizeof next[0]);
++	job = malloc(n*sizeof job[0]);
++	ar = malloc((n+4)*sizeof job[0]);
++	if(this == nil || next == nil || job == 0 || ar == 0)
++		sysfatal("malloc: %r");
++
++	// Initial "this" is the files given on the command line.
++	for(i=0; i<n; i++)
++		this[i] = argv[i+1];
++	nthis = n;
++
++	ar[0] = smprint("%sar", thechar);
++	ar[1] = "grc";
++	ar[2] = pkgpath;
++
++	njob = 0;
++
++	for(pass=0; nthis > 0; pass++){
++		nnext = 0;
++		nar = 3;
++
++		// Try to build.
++		for(i=0; i<nthis; i++){
++			if(buildcc(compiler(this[i]), this[i], 0) < 0){
++				next[nnext++] = this[i];
++			}else{
++				job[njob].pass = pass;
++				job[njob++].name = this[i];
++				ar[nar++] = goobj(this[i], thechar);
++				if(chatty == 1)
++					fprint(2, "%s ", this[i]);
++			}
++		}
++		if(nthis == nnext){	// they all failed
++			fprint(2, "cannot make progress\n");
++			for(i=0; i<nthis; i++)
++				buildcc(compiler(this[i]), this[i], 1);
++			exits("stalemate");
++		}
++		if(chatty == 1)
++			fprint(2, "\n");
++
++		// Add to archive.
++		ar[nar] = nil;
++		if(run(ar, 1) < 0)
++			sysfatal("ar: %r");
++
++		// Delete objects.
++		for(i=3; i<nar; i++)
++			unlink(ar[i]);
++
++		// Set up for next pass: next = this.
++		tmp = next;
++		next = this;
++		this = tmp;
++		nthis = nnext;
++	}
++
++	if(makefile){
++		// Write makefile.
++		Binit(&bout, 1, OWRITE);
++		Bprint(&bout, "# DO NOT EDIT.  Automatically generated by gobuild.\n");
++		o = Boffset(&bout);
++		Bprint(&bout, "#");
++		for(i=0; i<oargc; i++){
++			if(Boffset(&bout) - o > 60){
++				Bprint(&bout, "\\\n#   ");
++				o = Boffset(&bout);
++			}
++			Bprint(&bout, " %s", oargv[i]);
++		}
++		Bprint(&bout, "\n");
++		Bprint(&bout, preamble, thechar, pkgname);
++
++		// O2=\
++		//	os_file.$O\
++		//	os_time.$O\
++		//
++		p = -1;
++		for(i=0; i<n; i++){
++			if(job[i].pass != p){
++				p = job[i].pass;
++				Bprint(&bout, "\nO%d=\\\n", p+1);
++			}
++			Bprint(&bout, "\t%s\\\n", goobj(job[i].name, "$O"));
++		}
++		Bprint(&bout, "\n");
++
++		// $(PKG): a1 a2
++		Bprint(&bout, "$(PKG):");
++		for(i=0; i<pass; i++)
++			Bprint(&bout, " a%d", i+1);
++		Bprint(&bout, "\n");
++
++		// a1: $(O1)
++		//	$(AS) grc $(PKG) $(O1)
++		for(i=0; i<pass; i++){
++			Bprint(&bout, "a%d:\t$(O%d)\n", i+1, i+1);
++			Bprint(&bout, "\t$(AR) grc $(PKG) $(O%d)\n", i+1);
++		}
++		Bprint(&bout, "\n");
++
++		// $(O1): nuke
++		// $(O2): a1
++		Bprint(&bout, "$(O1): nuke\n");
++		for(i=1; i<pass; i++)
++			Bprint(&bout, "$(O%d): a%d\n", i+1, i);
++		Bprint(&bout, "\n");
++		Bterm(&bout);
++	}
++
++	exits(0);
++}
+diff --git a/src/lib/clean.bash b/src/lib/clean.bash
+index 0f63401c85..3ae43f4a20 100755
+--- a/src/lib/clean.bash
++++ b/src/lib/clean.bash
+@@ -6,7 +6,7 @@
+ 
+ rm -f $GOROOT/pkg/*
+ 
+-for i in os math
++for i in os math net time
+ do
+ 	cd $i
+ 	make nuke
+diff --git a/src/lib/make.bash b/src/lib/make.bash
+index 5714954fa8..6277c93f83 100755
+--- a/src/lib/make.bash
++++ b/src/lib/make.bash
+@@ -6,8 +6,6 @@
+ 
+ set -e
+ 
+-echo; echo; echo %%%% making lib %%%%; echo
+-
+ for i in os math
+ do
+ 	echo; echo; echo %%%% making lib/$i %%%%; echo
+diff --git a/src/lib/math/Makefile b/src/lib/math/Makefile
+index f66cc4161d..c792a8eb1a 100644
+--- a/src/lib/math/Makefile
++++ b/src/lib/math/Makefile
+@@ -2,51 +2,72 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-CFLAGS=
++# DO NOT EDIT.  Automatically generated by gobuild.
++# gobuild -m math asin.go atan.go atan2.go exp.go fabs.go floor.go\
++#    fmod.go hypot.go log.go pow.go pow10.go sin.go sinh.go sqrt.go\
++#    tan.go tanh.go
+ O=6
+-CC=$(O)c
+-AS=$(O)a
+ GC=$(O)g
++CC=$(O)c -w
++AS=$(O)a
++AR=$(O)ar
+ 
+-# TODO(r): building directly in the target makes internal dependencies self-consistent.
+-# need to address this a better way.
+ PKG=$(GOROOT)/pkg/math.a
+ 
+-O1=\
+-	atan.$O fabs.$O floor.$O fmod.$O hypot.$O log.$O pow10.$O sin.$O sqrt.$O tan.$O
+-O2=\
+-	asin.$O atan2.$O exp.$O
+-O3=\
+-	pow.$O sinh.$O
+-O4=\
+-	tanh.$O
+-
+ install: $(PKG)
+ 
+-$(PKG): a1 a2 a3 a4
++nuke: clean
++	rm -f $(PKG)
++
++clean:
++	rm -f *.$O *.a
++
++%.$O: %.go
++	$(GC) $*.go
+ 
+-a1: $(O1)
+-	$(O)ar grc $(PKG) $(O1)
++%.$O: %.c
++	$(CC) $*.c
+ 
+-a2: $(O2)
+-	$(O)ar grc $(PKG) $(O2)
++%.$O: %.s
++	$(AS) $*.s
+ 
+-a3: $(O3)
+-	$(O)ar grc $(PKG) $(O3)
+ 
+-a4: $(O4)
+-	$(O)ar grc $(PKG) $(O4)
++O1=\
++	atan.$O\
++	fabs.$O\
++	floor.$O\
++	fmod.$O\
++	hypot.$O\
++	log.$O\
++	pow10.$O\
++	sin.$O\
++	sqrt.$O\
++	tan.$O\
++
++O2=\
++	asin.$O\
++	atan2.$O\
++	exp.$O\
++
++O3=\
++	pow.$O\
++	sinh.$O\
++
++O4=\
++	tanh.$O\
++
++$(PKG): a1 a2 a3 a4
++a1:	$(O1)
++	$(AR) grc $(PKG) $(O1)
++a2:	$(O2)
++	$(AR) grc $(PKG) $(O2)
++a3:	$(O3)
++	$(AR) grc $(PKG) $(O3)
++a4:	$(O4)
++	$(AR) grc $(PKG) $(O4)
+ 
+ $(O1): nuke
+ $(O2): a1
+ $(O3): a2
+ $(O4): a3
+ 
+-nuke:
+-	rm -f *.$(O) *.a $(PKG)
+-
+-clean:
+-	rm -f *.$(O) *.a
+-
+-%.$O:	%.go
+-	$(GC) $<
+diff --git a/src/lib/math/clean.bash b/src/lib/math/clean.bash
+deleted file mode 100644
+index 9028ac2a3e..0000000000
+--- a/src/lib/math/clean.bash
++++ /dev/null
+@@ -1,7 +0,0 @@
+-# Copyright 2009 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-#!/bin/bash
+-
+-make nuke
+diff --git a/src/lib/math/make.bash b/src/lib/math/make.bash
+deleted file mode 100644
+index 66062b3fa6..0000000000
+--- a/src/lib/math/make.bash
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-#!/bin/bash
+-
+-set -e
+-
+-make install
+-
+-# old way: bash g1 && cp math.a $GOROOT/pkg/math.a
+diff --git a/src/lib/math/math.go b/src/lib/math/math.go
+deleted file mode 100644
+index 9e6be9527a..0000000000
+--- a/src/lib/math/math.go
++++ /dev/null
+@@ -1,48 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package math
+-
+-import
+-(
+-	math	"asin"
+-	math	"atan"
+-	math	"atan2"
+-	math	"exp"
+-	math	"fabs"
+-	math	"floor"
+-	math	"fmod"
+-	math	"hypot"
+-	math	"log"
+-	math	"pow"
+-	math	"pow10"
+-	math	"sin"
+-	math	"sinh"
+-	math	"sqrt"
+-	math	"sys"
+-	math	"tan"
+-	math	"tanh"
+-)
+-
+-export
+-(
+-	asin, acos
+-	atan
+-	atan2
+-	exp
+-	fabs
+-	floor, ceil
+-	fmod
+-	hypot
+-	log, log10
+-	pow
+-	pow10
+-	sin, cos
+-	sinh, cosh
+-	sqrt
+-	modf, frexp, ldexp
+-	NaN, isInf, Inf
+-	tan
+-	tanh
+-)
+diff --git a/src/lib/os/Makefile b/src/lib/os/Makefile
+index 130f62c863..e0ad769888 100644
+--- a/src/lib/os/Makefile
++++ b/src/lib/os/Makefile
+@@ -2,35 +2,47 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++# DO NOT EDIT.  Automatically generated by gobuild.
++# gobuild -m os os_error.go os_file.go os_time.go
+ O=6
+ GC=$(O)g
++CC=$(O)c -w
++AS=$(O)a
++AR=$(O)ar
+ 
+ PKG=$(GOROOT)/pkg/os.a
+ 
++install: $(PKG)
++
++nuke: clean
++	rm -f $(PKG)
++
++clean:
++	rm -f *.$O *.a
++
++%.$O: %.go
++	$(GC) $*.go
++
++%.$O: %.c
++	$(CC) $*.c
++
++%.$O: %.s
++	$(AS) $*.s
++
++
+ O1=\
+-	os_error.$O
++	os_error.$O\
++
+ O2=\
+ 	os_file.$O\
+ 	os_time.$O\
+ 
+-install: nuke $(PKG)
+-
+ $(PKG): a1 a2
+-
+-a1: 	$(O1)
+-	$(O)ar grc $(PKG) $(O1)
+-
+-a2: 	$(O2)
+-	$(O)ar grc $(PKG) $(O2)
++a1:	$(O1)
++	$(AR) grc $(PKG) $(O1)
++a2:	$(O2)
++	$(AR) grc $(PKG) $(O2)
+ 
+ $(O1): nuke
+ $(O2): a1
+ 
+-nuke:
+-	rm -f *.$(O) *.a $(PKG)
+-
+-clean:
+-	rm -f *.$(O) *.a
+-
+-%.$O:	%.go
+-	$(GC) $<
+diff --git a/src/libbio/Makefile b/src/libbio/Makefile
+index 02eaaa684f..9123d03bd5 100644
+--- a/src/libbio/Makefile
++++ b/src/libbio/Makefile
+@@ -61,3 +61,5 @@ y.tab.c: $(YFILES)
+ clean:
+ 	rm -f $(OFILES) *.6 6.out $(LIB)
+ 
++nuke: clean
++	rm -f $(GOROOT)/lib/$(LIB)
+diff --git a/src/libmach_amd64/Makefile b/src/libmach_amd64/Makefile
+index 66ed283b88..de564a03b5 100644
+--- a/src/libmach_amd64/Makefile
++++ b/src/libmach_amd64/Makefile
+@@ -82,4 +82,8 @@ $(LIB): $(OFILES)
+ $(OFILES): $(HFILES)
+ 
+ clean:
+-	rm -f $(OFILES) $(LIB)
++	rm -f *.$O $(LIB)
++
++nuke: clean
++	rm -f $(GOROOT)/lib/$(LIB)
++
+diff --git a/src/make.bash b/src/make.bash
+index b36d515a8b..037457fb8d 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -8,32 +8,17 @@ export MAKEFLAGS=-j4
+ 
+ bash clean.bash
+ 
+-for i in lib9 libbio libmach_amd64 libregexp
+-do
+-	cd $i
+-	make install
+-	cd ..
+-done
+-
+-for i in cmd runtime
+-do
+-	cd $i
+-	bash make.bash
+-	cd ..
+-done
+-
+-# do these after go compiler and runtime are built
+-for i in syscall
++for i in lib9 libbio libmach_amd64 libregexp cmd runtime syscall lib
+ do
+ 	echo; echo; echo %%%% making $i %%%%; echo
+ 	cd $i
+-	make install
++	case $i in
++	cmd | lib)
++		bash make.bash
++		;;
++	*)
++		make install
++	esac
+ 	cd ..
+ done
+ 
+-for i in lib
+-do
+-	cd $i
+-	bash make.bash
+-	cd ..
+-done
+diff --git a/src/runtime/clean.bash b/src/runtime/clean.bash
+deleted file mode 100644
+index a64198096a..0000000000
+--- a/src/runtime/clean.bash
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-set -ex
+-
+-for GOOS in linux darwin
+-do
+-	make nuke
+-done
+-
+diff --git a/src/runtime/make.bash b/src/runtime/make.bash
+deleted file mode 100644
+index 8fa8691d9b..0000000000
+--- a/src/runtime/make.bash
++++ /dev/null
+@@ -1,9 +0,0 @@
+-# Copyright 2009 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-set -ex
+-
+-make clean
+-make install
+-
+diff --git a/src/lib/math/main.go b/test/math.go
+similarity index 98%
+rename from src/lib/math/main.go
+rename to test/math.go
+index bc27e4e5dd..e24421e880 100644
+--- a/src/lib/math/main.go
++++ b/test/math.go
+@@ -1,4 +1,4 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
++// Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+@@ -30,7 +30,7 @@ func	ck(a,b float64);
+ func
+ main()
+ {
+-	for i:=0; i<length; i=i+1 {
++	for i:=0; i<length; i++ {
+ 		f := vf[i];
+ 
+ 		ck(asin[i], math.asin(f/10));
+@@ -66,7 +66,7 @@ ck(a,b float64)
+ 	}
+ 
+ 	if d > e {
+-		panic a, " ", b, "\n";
++		panic(a, " ", b, "\n");
+ 	}
+ }
+ 

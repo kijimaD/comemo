@@ -22,7 +22,85 @@ Date:   Tue Jun 30 13:48:15 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modload/init.go                |  7 ----
  .../go/testdata/script/build_cache_disabled.txt    | 46 ++++++++++++++++++++++
  2 files changed, 46 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 95334211ef..fff060e665 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -20,7 +20,6 @@ import (
+ 	"strings"
+ 
+ 	"cmd/go/internal/base"
+-	"cmd/go/internal/cache"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/lockedfile"
+@@ -162,12 +161,6 @@ func Init() {
+ 
+ 	// We're in module mode. Install the hooks to make it work.
+ 
+-	if c := cache.Default(); c == nil {
+-		// With modules, there are no install locations for packages
+-		// other than the build cache.
+-		base.Fatalf("go: cannot use modules with build cache disabled")
+-	}
+-
+ 	list := filepath.SplitList(cfg.BuildContext.GOPATH)
+ 	if len(list) == 0 || list[0] == "" {
+ 		base.Fatalf("missing $GOPATH")
+diff --git a/src/cmd/go/testdata/script/build_cache_disabled.txt b/src/cmd/go/testdata/script/build_cache_disabled.txt
+new file mode 100644
+index 0000000000..2e1327880b
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_cache_disabled.txt
+@@ -0,0 +1,46 @@
++# The build cache is required to build anything. It also may be needed to
++# initialize the build system, which is needed for commands like 'go env'.
++# However, there are lots of commands the cache is not needed for, and we
++# shouldn't require it when it won't be used.
++#
++# TODO(golang.org/issue/39882): commands below should work, too.
++# * go clean -modcache
++# * go env
++# * go fix
++# * go fmt
++# * go generate
++# * go get -d
++# * go list (without -export or -compiled)
++
++env GOCACHE=off
++
++# Commands that don't completely load packages should work.
++go doc fmt
++stdout Printf
++
++go fmt .
++
++! go tool compile -h
++stderr usage:
++
++go version
++stdout '^go version'
++
++
++# Module commands that don't load packages should work.
++go mod init m
++exists go.mod
++
++go mod edit -require rsc.io/quote@v1.5.2
++
++go mod download rsc.io/quote
++
++go mod graph
++stdout rsc.io/quote
++
++go mod verify
++
++-- main.go --
++package main
++
++func main() {}

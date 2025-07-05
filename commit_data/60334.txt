@@ -12,8 +12,49 @@ Date:   Thu May 2 14:29:16 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/589058
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/internal/godebugs/table.go | 2 +-
  src/runtime/metrics/doc.go     | 4 ++++
  src/time/sleep.go              | 1 +
  3 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index 4c084635fb..a802ac9c37 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -25,7 +25,7 @@ type Info struct {
+ // Note: After adding entries to this table, update the list in doc/godebug.md as well.
+ // (Otherwise the test in this package will fail.)
+ var All = []Info{
+-	{Name: "asynctimerchan", Package: "time", Changed: 23, Old: "1", Opaque: true},
++	{Name: "asynctimerchan", Package: "time", Changed: 23, Old: "1"},
+ 	{Name: "execerrdot", Package: "os/exec"},
+ 	{Name: "gocachehash", Package: "cmd/go"},
+ 	{Name: "gocachetest", Package: "cmd/go"},
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index b8be9f8272..da3d956d48 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -230,6 +230,10 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 	/gc/stack/starting-size:bytes
+ 		The stack size of new goroutines.
+ 
++	/godebug/non-default-behavior/asynctimerchan:events
++		The number of non-default behaviors executed by the time package
++		due to a non-default GODEBUG=asynctimerchan=... setting.
++
+ 	/godebug/non-default-behavior/execerrdot:events
+ 		The number of non-default behaviors executed by the os/exec
+ 		package due to a non-default GODEBUG=execerrdot=... setting.
+diff --git a/src/time/sleep.go b/src/time/sleep.go
+index 2c6495d93a..7e2fa0c20a 100644
+--- a/src/time/sleep.go
++++ b/src/time/sleep.go
+@@ -23,6 +23,7 @@ func syncTimer(c chan Time) unsafe.Pointer {
+ 	// If asynctimerchan=1, we don't even tell the runtime
+ 	// about channel timers, so that we get the pre-Go 1.23 code paths.
+ 	if asynctimerchan.Value() == "1" {
++		asynctimerchan.IncNonDefault()
+ 		return nil
+ 	}
+ 

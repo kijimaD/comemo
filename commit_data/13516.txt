@@ -7,6 +7,21 @@ Date:   Sun Jul 29 17:59:14 2012 -0400
     R=golang-dev, minux.ma, r, rsc
     CC=golang-dev
     https://golang.org/cl/6353069
-
+---
  src/pkg/syscall/mkall.sh | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/syscall/mkall.sh b/src/pkg/syscall/mkall.sh
+index 9e2d98f0d2..4bd562eb5d 100755
+--- a/src/pkg/syscall/mkall.sh
++++ b/src/pkg/syscall/mkall.sh
+@@ -87,7 +87,8 @@ case "$1" in
+ -syscalls)
+ 	for i in zsyscall*go
+ 	do
+-		sed 1q $i | sed 's;^// ;;' | sh | gofmt >_$i && mv _$i $i
++		sed 1q $i | sed 's;^// ;;' | sh > _$i && gofmt < _$i > $i
++		rm _$i
+ 	done
+ 	exit 0
+ 	;;

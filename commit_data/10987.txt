@@ -7,7 +7,7 @@ Date:   Thu Dec 22 15:52:33 2011 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/5498075
-
+---
  src/buildscript_darwin_amd64.sh  | 1 -
  src/buildscript_freebsd_amd64.sh | 1 -
  src/buildscript_linux_amd64.sh   | 1 -
@@ -15,3 +15,76 @@ Date:   Thu Dec 22 15:52:33 2011 -0800
  src/buildscript_openbsd_amd64.sh | 1 -
  src/buildscript_windows_amd64.sh | 1 -
  6 files changed, 6 deletions(-)
+
+diff --git a/src/buildscript_darwin_amd64.sh b/src/buildscript_darwin_amd64.sh
+index 7cb7e421d7..ee4d868f26 100755
+--- a/src/buildscript_darwin_amd64.sh
++++ b/src/buildscript_darwin_amd64.sh
+@@ -19,7 +19,6 @@ mkdir -p "$WORK"/runtime/_obj/
+ cd "$GOROOT"/src/pkg/runtime
+ 6g -o "$WORK"/runtime/_obj/_go_.6 -p runtime -+ -I "$WORK" ./debug.go ./error.go ./extern.go ./mem.go ./sig.go ./softfloat64.go ./type.go ./zgoarch_amd64.go ./zgoos_darwin.go ./zruntime_defs_darwin_amd64.go ./zversion.go
+ cp "$GOROOT"/src/pkg/runtime/arch_amd64.h "$WORK"/runtime/_obj/arch_GOARCH.h
+-cp "$GOROOT"/src/pkg/runtime/asm_amd64.h "$WORK"/runtime/_obj/asm_GOARCH.h
+ cp "$GOROOT"/src/pkg/runtime/defs_darwin_amd64.h "$WORK"/runtime/_obj/defs_GOOS_GOARCH.h
+ cp "$GOROOT"/src/pkg/runtime/os_darwin.h "$WORK"/runtime/_obj/os_GOOS.h
+ cp "$GOROOT"/src/pkg/runtime/signals_darwin.h "$WORK"/runtime/_obj/signals_GOOS.h
+diff --git a/src/buildscript_freebsd_amd64.sh b/src/buildscript_freebsd_amd64.sh
+index e183a2e52f..c1608da070 100755
+--- a/src/buildscript_freebsd_amd64.sh
++++ b/src/buildscript_freebsd_amd64.sh
+@@ -19,7 +19,6 @@ mkdir -p "$WORK"/runtime/_obj/
+ cd "$GOROOT"/src/pkg/runtime
+ 6g -o "$WORK"/runtime/_obj/_go_.6 -p runtime -+ -I "$WORK" ./debug.go ./error.go ./extern.go ./mem.go ./sig.go ./softfloat64.go ./type.go ./zgoarch_amd64.go ./zgoos_freebsd.go ./zruntime_defs_freebsd_amd64.go ./zversion.go
+ cp "$GOROOT"/src/pkg/runtime/arch_amd64.h "$WORK"/runtime/_obj/arch_GOARCH.h
+-cp "$GOROOT"/src/pkg/runtime/asm_amd64.h "$WORK"/runtime/_obj/asm_GOARCH.h
+ cp "$GOROOT"/src/pkg/runtime/defs_freebsd_amd64.h "$WORK"/runtime/_obj/defs_GOOS_GOARCH.h
+ cp "$GOROOT"/src/pkg/runtime/os_freebsd.h "$WORK"/runtime/_obj/os_GOOS.h
+ cp "$GOROOT"/src/pkg/runtime/signals_freebsd.h "$WORK"/runtime/_obj/signals_GOOS.h
+diff --git a/src/buildscript_linux_amd64.sh b/src/buildscript_linux_amd64.sh
+index 8a6df8e0fd..850e6d5853 100755
+--- a/src/buildscript_linux_amd64.sh
++++ b/src/buildscript_linux_amd64.sh
+@@ -19,7 +19,6 @@ mkdir -p "$WORK"/runtime/_obj/
+ cd "$GOROOT"/src/pkg/runtime
+ 6g -o "$WORK"/runtime/_obj/_go_.6 -p runtime -+ -I "$WORK" ./debug.go ./error.go ./extern.go ./mem.go ./sig.go ./softfloat64.go ./type.go ./zgoarch_amd64.go ./zgoos_linux.go ./zruntime_defs_linux_amd64.go ./zversion.go
+ cp "$GOROOT"/src/pkg/runtime/arch_amd64.h "$WORK"/runtime/_obj/arch_GOARCH.h
+-cp "$GOROOT"/src/pkg/runtime/asm_amd64.h "$WORK"/runtime/_obj/asm_GOARCH.h
+ cp "$GOROOT"/src/pkg/runtime/defs_linux_amd64.h "$WORK"/runtime/_obj/defs_GOOS_GOARCH.h
+ cp "$GOROOT"/src/pkg/runtime/os_linux.h "$WORK"/runtime/_obj/os_GOOS.h
+ cp "$GOROOT"/src/pkg/runtime/signals_linux.h "$WORK"/runtime/_obj/signals_GOOS.h
+diff --git a/src/buildscript_netbsd_amd64.sh b/src/buildscript_netbsd_amd64.sh
+index 9b9fc10446..b75992024c 100755
+--- a/src/buildscript_netbsd_amd64.sh
++++ b/src/buildscript_netbsd_amd64.sh
+@@ -19,7 +19,6 @@ mkdir -p "$WORK"/runtime/_obj/
+ cd "$GOROOT"/src/pkg/runtime
+ 6g -o "$WORK"/runtime/_obj/_go_.6 -p runtime -+ -I "$WORK" ./debug.go ./error.go ./extern.go ./mem.go ./sig.go ./softfloat64.go ./type.go ./zgoarch_amd64.go ./zgoos_netbsd.go ./zruntime_defs_netbsd_amd64.go ./zversion.go
+ cp "$GOROOT"/src/pkg/runtime/arch_amd64.h "$WORK"/runtime/_obj/arch_GOARCH.h
+-cp "$GOROOT"/src/pkg/runtime/asm_amd64.h "$WORK"/runtime/_obj/asm_GOARCH.h
+ cp "$GOROOT"/src/pkg/runtime/defs_netbsd_amd64.h "$WORK"/runtime/_obj/defs_GOOS_GOARCH.h
+ cp "$GOROOT"/src/pkg/runtime/os_netbsd.h "$WORK"/runtime/_obj/os_GOOS.h
+ cp "$GOROOT"/src/pkg/runtime/signals_netbsd.h "$WORK"/runtime/_obj/signals_GOOS.h
+diff --git a/src/buildscript_openbsd_amd64.sh b/src/buildscript_openbsd_amd64.sh
+index c1b517789a..7837a0e726 100755
+--- a/src/buildscript_openbsd_amd64.sh
++++ b/src/buildscript_openbsd_amd64.sh
+@@ -19,7 +19,6 @@ mkdir -p "$WORK"/runtime/_obj/
+ cd "$GOROOT"/src/pkg/runtime
+ 6g -o "$WORK"/runtime/_obj/_go_.6 -p runtime -+ -I "$WORK" ./debug.go ./error.go ./extern.go ./mem.go ./sig.go ./softfloat64.go ./type.go ./zgoarch_amd64.go ./zgoos_openbsd.go ./zruntime_defs_openbsd_amd64.go ./zversion.go
+ cp "$GOROOT"/src/pkg/runtime/arch_amd64.h "$WORK"/runtime/_obj/arch_GOARCH.h
+-cp "$GOROOT"/src/pkg/runtime/asm_amd64.h "$WORK"/runtime/_obj/asm_GOARCH.h
+ cp "$GOROOT"/src/pkg/runtime/defs_openbsd_amd64.h "$WORK"/runtime/_obj/defs_GOOS_GOARCH.h
+ cp "$GOROOT"/src/pkg/runtime/os_openbsd.h "$WORK"/runtime/_obj/os_GOOS.h
+ cp "$GOROOT"/src/pkg/runtime/signals_openbsd.h "$WORK"/runtime/_obj/signals_GOOS.h
+diff --git a/src/buildscript_windows_amd64.sh b/src/buildscript_windows_amd64.sh
+index 4f1095f77a..d27df78664 100755
+--- a/src/buildscript_windows_amd64.sh
++++ b/src/buildscript_windows_amd64.sh
+@@ -19,7 +19,6 @@ mkdir -p "$WORK"/runtime/_obj/
+ cd "$GOROOT"/src/pkg/runtime
+ 6g -o "$WORK"/runtime/_obj/_go_.6 -p runtime -+ -I "$WORK" ./debug.go ./error.go ./extern.go ./mem.go ./sig.go ./softfloat64.go ./type.go ./zgoarch_amd64.go ./zgoos_windows.go ./zruntime_defs_windows_amd64.go ./zversion.go
+ cp "$GOROOT"/src/pkg/runtime/arch_amd64.h "$WORK"/runtime/_obj/arch_GOARCH.h
+-cp "$GOROOT"/src/pkg/runtime/asm_amd64.h "$WORK"/runtime/_obj/asm_GOARCH.h
+ cp "$GOROOT"/src/pkg/runtime/defs_windows_amd64.h "$WORK"/runtime/_obj/defs_GOOS_GOARCH.h
+ cp "$GOROOT"/src/pkg/runtime/os_windows.h "$WORK"/runtime/_obj/os_GOOS.h
+ cp "$GOROOT"/src/pkg/runtime/signals_windows.h "$WORK"/runtime/_obj/signals_GOOS.h

@@ -16,7 +16,7 @@ Date:   Wed Oct 9 20:13:40 2019 +0000
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Alexander Rakoczy <alex@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/test/test.go         |  37 +-------
  src/cmd/go/testdata/script/test_exit.txt | 152 -------------------------------
  src/cmd/internal/goobj/goobj_test.go     |   4 +-
@@ -25,3 +25,333 @@ Date:   Wed Oct 9 20:13:40 2019 +0000
  src/go/build/deps_test.go                |   2 +-
  src/internal/testenv/testenv.go          |   9 --
  7 files changed, 12 insertions(+), 200 deletions(-)
+
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index f4ce355189..fb011d4c03 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -1048,18 +1048,6 @@ func (lockedStdout) Write(b []byte) (int, error) {
+ 	return os.Stdout.Write(b)
+ }
+ 
+-type outputChecker struct {
+-	w         io.Writer
+-	anyOutput bool
+-}
+-
+-func (o *outputChecker) Write(p []byte) (int, error) {
+-	if !o.anyOutput && len(bytes.TrimSpace(p)) > 0 {
+-		o.anyOutput = true
+-	}
+-	return o.w.Write(p)
+-}
+-
+ // builderRunTest is the action for running a test binary.
+ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
+ 	if a.Failed {
+@@ -1079,7 +1067,6 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
+ 	}
+ 
+ 	var buf bytes.Buffer
+-	buffered := false
+ 	if len(pkgArgs) == 0 || testBench {
+ 		// Stream test output (no buffering) when no package has
+ 		// been given on the command line (implicit current directory)
+@@ -1106,16 +1093,9 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
+ 			stdout = io.MultiWriter(stdout, &buf)
+ 		} else {
+ 			stdout = &buf
+-			buffered = true
+ 		}
+ 	}
+ 
+-	// Keep track of whether we've seen any output at all. This is useful
+-	// later, to avoid succeeding if the test binary did nothing or didn't
+-	// reach the end of testing.M.Run.
+-	outCheck := outputChecker{w: stdout}
+-	stdout = &outCheck
+-
+ 	if c.buf == nil {
+ 		// We did not find a cached result using the link step action ID,
+ 		// so we ran the link step. Try again now with the link output
+@@ -1129,7 +1109,7 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
+ 		c.tryCacheWithID(b, a, a.Deps[0].BuildContentID())
+ 	}
+ 	if c.buf != nil {
+-		if !buffered {
++		if stdout != &buf {
+ 			stdout.Write(c.buf.Bytes())
+ 			c.buf.Reset()
+ 		}
+@@ -1227,19 +1207,6 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
+ 
+ 	mergeCoverProfile(cmd.Stdout, a.Objdir+"_cover_.out")
+ 
+-	if err == nil && !testList && !outCheck.anyOutput {
+-		// If a test does os.Exit(0) by accident, 'go test' may succeed
+-		// and it can take a while for a human to notice the package's
+-		// tests didn't actually pass.
+-		//
+-		// If a test binary ran without error, it should have at least
+-		// printed something, such as a PASS line.
+-		//
+-		// The only exceptions are when no tests have run, and the
+-		// -test.list flag, which just prints the names of tests
+-		// matching a pattern.
+-		err = fmt.Errorf("test binary succeeded but did not print anything")
+-	}
+ 	if err == nil {
+ 		norun := ""
+ 		if !testShowPass && !testJSON {
+@@ -1260,7 +1227,7 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
+ 		fmt.Fprintf(cmd.Stdout, "FAIL\t%s\t%s\n", a.Package.ImportPath, t)
+ 	}
+ 
+-	if !buffered {
++	if cmd.Stdout != &buf {
+ 		buf.Reset() // cmd.Stdout was going to os.Stdout already
+ 	}
+ 	return nil
+diff --git a/src/cmd/go/testdata/script/test_exit.txt b/src/cmd/go/testdata/script/test_exit.txt
+deleted file mode 100644
+index 2ab3d59b27..0000000000
+--- a/src/cmd/go/testdata/script/test_exit.txt
++++ /dev/null
+@@ -1,152 +0,0 @@
+-env GO111MODULE=on
+-
+-# If a test exits with a zero status code, 'go test' prints its own error
+-# message and fails.
+-! go test ./zero
+-! stdout ^ok
+-! stdout 'exit status'
+-stdout 'did not print anything'
+-stdout ^FAIL
+-
+-# If a test exits with a non-zero status code, 'go test' fails normally.
+-! go test ./one
+-! stdout ^ok
+-stdout 'exit status'
+-! stdout 'did not print anything'
+-stdout ^FAIL
+-
+-# Ensure that other flags still do the right thing.
+-go test -list=. ./zero
+-stdout ExitZero
+-
+-! go test -bench=. ./zero
+-stdout 'did not print anything'
+-
+-# 'go test' with no args streams output without buffering. Ensure that it still
+-# catches a zero exit with missing output.
+-cd zero
+-! go test
+-stdout 'did not print anything'
+-cd ../normal
+-go test
+-stdout ^ok
+-cd ..
+-
+-# If a TestMain prints something and exits with a zero status code, 'go test'
+-# shouldn't complain about that. It's a common way to skip testing a package
+-# entirely.
+-go test ./main_zero_warning
+-! stdout 'skipping all tests'
+-stdout ^ok
+-
+-# With -v, we'll see the warning from TestMain.
+-go test -v ./main_zero_warning
+-stdout 'skipping all tests'
+-stdout ^ok
+-
+-# Listing all tests won't actually give a result if TestMain exits. That's okay,
+-# because this is how TestMain works. If we decide to support -list even when
+-# TestMain is used to skip entire packages, we can change this test case.
+-go test -list=. ./main_zero_warning
+-stdout 'skipping all tests'
+-! stdout TestNotListed
+-
+-# If a TestMain prints nothing and exits with a zero status code, 'go test'
+-# should fail.
+-! go test ./main_zero_nowarning
+-stdout 'did not print anything'
+-
+-# A test that simply prints "PASS" and exits with a zero status code shouldn't
+-# be OK, but we don't catch that at the moment. It's hard to tell if any test
+-# started but didn't finish without using -test.v.
+-go test ./fake_pass
+-stdout ^ok
+-
+--- go.mod --
+-module m
+-
+--- ./normal/normal.go --
+-package normal
+--- ./normal/normal_test.go --
+-package normal
+-
+-import "testing"
+-
+-func TestExitZero(t *testing.T) {
+-}
+-
+--- ./zero/zero.go --
+-package zero
+--- ./zero/zero_test.go --
+-package zero
+-
+-import (
+-	"os"
+-	"testing"
+-)
+-
+-func TestExitZero(t *testing.T) {
+-	os.Exit(0)
+-}
+-
+--- ./one/one.go --
+-package one
+--- ./one/one_test.go --
+-package one
+-
+-import (
+-	"os"
+-	"testing"
+-)
+-
+-func TestExitOne(t *testing.T) {
+-	os.Exit(1)
+-}
+-
+--- ./main_zero_warning/zero.go --
+-package zero
+--- ./main_zero_warning/zero_test.go --
+-package zero
+-
+-import (
+-	"fmt"
+-	"os"
+-	"testing"
+-)
+-
+-func TestMain(m *testing.M) {
+-	fmt.Println("skipping all tests")
+-	os.Exit(0)
+-}
+-
+-func TestNotListed(t *testing.T) {}
+-
+--- ./main_zero_nowarning/zero.go --
+-package zero
+--- ./main_zero_nowarning/zero_test.go --
+-package zero
+-
+-import (
+-	"os"
+-	"testing"
+-)
+-
+-func TestMain(m *testing.M) {
+-	os.Exit(0)
+-}
+-
+--- ./fake_pass/fake.go --
+-package fake
+--- ./fake_pass/fake_test.go --
+-package fake
+-
+-import (
+-	"fmt"
+-	"os"
+-	"testing"
+-)
+-
+-func TestFakePass(t *testing.T) {
+-	fmt.Println("PASS")
+-	os.Exit(0)
+-}
+diff --git a/src/cmd/internal/goobj/goobj_test.go b/src/cmd/internal/goobj/goobj_test.go
+index 4658e7d671..4a4d35a413 100644
+--- a/src/cmd/internal/goobj/goobj_test.go
++++ b/src/cmd/internal/goobj/goobj_test.go
+@@ -29,7 +29,9 @@ var (
+ )
+ 
+ func TestMain(m *testing.M) {
+-	testenv.MainMust(testenv.HasGoBuild)
++	if !testenv.HasGoBuild() {
++		return
++	}
+ 
+ 	if err := buildGoobj(); err != nil {
+ 		fmt.Println(err)
+diff --git a/src/cmd/nm/nm_test.go b/src/cmd/nm/nm_test.go
+index 018252793e..dcd9f36005 100644
+--- a/src/cmd/nm/nm_test.go
++++ b/src/cmd/nm/nm_test.go
+@@ -26,7 +26,9 @@ func TestMain(m *testing.M) {
+ }
+ 
+ func testMain(m *testing.M) int {
+-	testenv.MainMust(testenv.HasGoBuild)
++	if !testenv.HasGoBuild() {
++		return 0
++	}
+ 
+ 	tmpDir, err := ioutil.TempDir("", "TestNM")
+ 	if err != nil {
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index e4ae9babcb..b24371ddea 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -22,7 +22,9 @@ import (
+ var tmp, exe string // populated by buildObjdump
+ 
+ func TestMain(m *testing.M) {
+-	testenv.MainMust(testenv.HasGoBuild)
++	if !testenv.HasGoBuild() {
++		return
++	}
+ 
+ 	var exitcode int
+ 	if err := buildObjdump(); err == nil {
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 30edc38f48..6443094515 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -202,7 +202,7 @@ var pkgDeps = map[string][]string{
+ 	"testing":               {"L2", "flag", "fmt", "internal/race", "os", "runtime/debug", "runtime/pprof", "runtime/trace", "time"},
+ 	"testing/iotest":        {"L2", "log"},
+ 	"testing/quick":         {"L2", "flag", "fmt", "reflect", "time"},
+-	"internal/testenv":      {"L2", "OS", "flag", "fmt", "testing", "syscall", "internal/cfg"},
++	"internal/testenv":      {"L2", "OS", "flag", "testing", "syscall", "internal/cfg"},
+ 	"internal/lazyregexp":   {"L2", "OS", "regexp"},
+ 	"internal/lazytemplate": {"L2", "OS", "text/template"},
+ 
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index 5cb132760e..b036aa6ebc 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -13,7 +13,6 @@ package testenv
+ import (
+ 	"errors"
+ 	"flag"
+-	"fmt"
+ 	"internal/cfg"
+ 	"os"
+ 	"os/exec"
+@@ -33,14 +32,6 @@ func Builder() string {
+ 	return os.Getenv("GO_BUILDER_NAME")
+ }
+ 
+-func MainMust(cond func() bool) {
+-	if !cond() {
+-		fmt.Println("testenv: warning: can't run any tests")
+-		fmt.Println("SKIP")
+-		os.Exit(0)
+-	}
+-}
+-
+ // HasGoBuild reports whether the current system can build programs with ``go build''
+ // and then run them with os.StartProcess or exec.Command.
+ func HasGoBuild() bool {

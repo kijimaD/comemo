@@ -12,9 +12,76 @@ Date:   Wed Mar 25 07:10:45 2015 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/cgo.go       | 7 +++++++
  src/runtime/cgo/iscgo.go | 3 ---
  src/runtime/proc1.go     | 6 +++---
  src/runtime/runtime2.go  | 2 --
  4 files changed, 10 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/cgo.go b/src/runtime/cgo.go
+index 7e6b253af9..5dc83c0be1 100644
+--- a/src/runtime/cgo.go
++++ b/src/runtime/cgo.go
+@@ -21,3 +21,10 @@ var (
+ 	_cgo_free         unsafe.Pointer
+ 	_cgo_thread_start unsafe.Pointer
+ )
++
++// iscgo is set to true by the runtime/cgo package
++var iscgo bool
++
++// cgoHasExtraM is set on startup when an extra M is created for cgo.
++// The extra M must be created before any C/C++ code calls cgocallback.
++var cgoHasExtraM bool
+diff --git a/src/runtime/cgo/iscgo.go b/src/runtime/cgo/iscgo.go
+index 61cba73d22..54f0a1360e 100644
+--- a/src/runtime/cgo/iscgo.go
++++ b/src/runtime/cgo/iscgo.go
+@@ -15,6 +15,3 @@ import _ "unsafe" // for go:linkname
+ 
+ //go:linkname _iscgo runtime.iscgo
+ var _iscgo bool = true
+-
+-//go:linkname _needextram runtime.needextram
+-var _needextram uint32 = 1 // create an extra M on first cgo call
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 325955665b..4459802b15 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -718,8 +718,8 @@ func mstart1() {
+ 	// prepare the thread to be able to handle the signals.
+ 	if _g_.m == &m0 {
+ 		// Create an extra M for callbacks on threads not created by Go.
+-		if needextram == 1 {
+-			needextram = 0
++		if iscgo && !cgoHasExtraM {
++			cgoHasExtraM = true
+ 			newextram()
+ 		}
+ 		initsig()
+@@ -817,7 +817,7 @@ func allocm(_p_ *p) *m {
+ // put the m back on the list.
+ //go:nosplit
+ func needm(x byte) {
+-	if needextram != 0 {
++	if iscgo && !cgoHasExtraM {
+ 		// Can happen if C/C++ code calls Go from a global ctor.
+ 		// Can not throw, because scheduler is not initialized yet.
+ 		write(2, unsafe.Pointer(&earlycgocallback[0]), int32(len(earlycgocallback)))
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 9ea3fd197f..0d3e542882 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -605,11 +605,9 @@ var (
+ 	allm        *m
+ 	allp        [_MaxGomaxprocs + 1]*p
+ 	gomaxprocs  int32
+-	needextram  uint32
+ 	panicking   uint32
+ 	goos        *int8
+ 	ncpu        int32
+-	iscgo       bool
+ 	signote     note
+ 	forcegc     forcegcstate
+ 	sched       schedt

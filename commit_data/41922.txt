@@ -12,6 +12,21 @@ Date:   Fri Nov 1 15:10:25 2019 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/make.bash | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/make.bash b/src/make.bash
+index 92d148110a..880a0f43d5 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -162,7 +162,8 @@ IFS=$'\n'; for go_exe in $(type -ap go); do
+ 		fi
+ 	fi
+ done; unset IFS
+-echo "Building Go cmd/dist using $GOROOT_BOOTSTRAP."
++GOROOT_BOOTSTRAP_VERSION=$($GOROOT_BOOTSTRAP/bin/go version | sed 's/go version //')
++echo "Building Go cmd/dist using $GOROOT_BOOTSTRAP. ($GOROOT_BOOTSTRAP_VERSION)"
+ if $verbose; then
+ 	echo cmd/dist
+ fi

@@ -9,7 +9,32 @@ Date:   Thu May 15 09:10:32 2014 +1000
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/92380043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index c400a4796c..778d455d30 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -78,6 +78,7 @@ Carl Chatfield <carlchatfield@gmail.com>
+ Carlos Castillo <cookieo9@gmail.com>
+ Case Nelson <case.nelson@gmail.com>
+ Casey Marshall <casey.marshall@gmail.com>
++Cezar Sá Espinola <cezarsa@gmail.com>
+ ChaiShushan <chaishushan@gmail.com>
+ Charles L. Dorian <cldorian@gmail.com>
+ Charles Lee <zombie.fml@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 1da9631ae7..d672b07cc5 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -126,6 +126,7 @@ Cary Hull <chull@google.com>
+ Case Nelson <case.nelson@gmail.com>
+ Casey Marshall <casey.marshall@gmail.com>
+ Catalin Patulea <catalinp@google.com>
++Cezar Sá Espinola <cezarsa@gmail.com>
+ ChaiShushan <chaishushan@gmail.com>
+ Charles L. Dorian <cldorian@gmail.com>
+ Charles Lee <zombie.fml@gmail.com>

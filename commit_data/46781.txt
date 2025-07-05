@@ -22,9 +22,102 @@ Date:   Wed Oct 14 13:05:33 2020 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/go/alldocs.go             |  2 +-
  src/cmd/go/internal/cfg/cfg.go    | 24 ++++++++++++------------
  src/cmd/go/internal/work/build.go |  2 +-
  src/cmd/go/internal/work/gc.go    | 17 ++++++++++-------
  4 files changed, 24 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 49d390297c..da06e831ae 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -111,7 +111,7 @@
+ // 	-p n
+ // 		the number of programs, such as build commands or
+ // 		test binaries, that can be run in parallel.
+-// 		The default is the number of CPUs available.
++// 		The default is GOMAXPROCS, normally the number of CPUs available.
+ // 	-race
+ // 		enable data race detection.
+ // 		Supported only on linux/amd64, freebsd/amd64, darwin/amd64, windows/amd64,
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index c48904eacc..322247962f 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -28,18 +28,18 @@ var (
+ 	BuildA                 bool   // -a flag
+ 	BuildBuildmode         string // -buildmode flag
+ 	BuildContext           = defaultContext()
+-	BuildMod               string             // -mod flag
+-	BuildModExplicit       bool               // whether -mod was set explicitly
+-	BuildModReason         string             // reason -mod was set, if set by default
+-	BuildI                 bool               // -i flag
+-	BuildLinkshared        bool               // -linkshared flag
+-	BuildMSan              bool               // -msan flag
+-	BuildN                 bool               // -n flag
+-	BuildO                 string             // -o flag
+-	BuildP                 = runtime.NumCPU() // -p flag
+-	BuildPkgdir            string             // -pkgdir flag
+-	BuildRace              bool               // -race flag
+-	BuildToolexec          []string           // -toolexec flag
++	BuildMod               string                  // -mod flag
++	BuildModExplicit       bool                    // whether -mod was set explicitly
++	BuildModReason         string                  // reason -mod was set, if set by default
++	BuildI                 bool                    // -i flag
++	BuildLinkshared        bool                    // -linkshared flag
++	BuildMSan              bool                    // -msan flag
++	BuildN                 bool                    // -n flag
++	BuildO                 string                  // -o flag
++	BuildP                 = runtime.GOMAXPROCS(0) // -p flag
++	BuildPkgdir            string                  // -pkgdir flag
++	BuildRace              bool                    // -race flag
++	BuildToolexec          []string                // -toolexec flag
+ 	BuildToolchainName     string
+ 	BuildToolchainCompiler func() string
+ 	BuildToolchainLinker   func() string
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 780d639c5d..0e7af6d33f 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -71,7 +71,7 @@ and test commands:
+ 	-p n
+ 		the number of programs, such as build commands or
+ 		test binaries, that can be run in parallel.
+-		The default is the number of CPUs available.
++		The default is GOMAXPROCS, normally the number of CPUs available.
+ 	-race
+ 		enable data race detection.
+ 		Supported only on linux/amd64, freebsd/amd64, darwin/amd64, windows/amd64,
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 3205fcbffc..2087855b3c 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -239,16 +239,19 @@ CheckFlags:
+ 	//   - it has no successor packages to compile (usually package main)
+ 	//   - all paths through the build graph pass through it
+ 	//   - critical path scheduling says it is high priority
+-	// and in such a case, set c to runtime.NumCPU.
++	// and in such a case, set c to runtime.GOMAXPROCS(0).
++	// By default this is the same as runtime.NumCPU.
+ 	// We do this now when p==1.
++	// To limit parallelism, set GOMAXPROCS below numCPU; this may be useful
++	// on a low-memory builder, or if a deterministic build order is required.
++	c := runtime.GOMAXPROCS(0)
+ 	if cfg.BuildP == 1 {
+-		// No process parallelism. Max out c.
+-		return runtime.NumCPU()
++		// No process parallelism, do not cap compiler parallelism.
++		return c
+ 	}
+-	// Some process parallelism. Set c to min(4, numcpu).
+-	c := 4
+-	if ncpu := runtime.NumCPU(); ncpu < c {
+-		c = ncpu
++	// Some process parallelism. Set c to min(4, maxprocs).
++	if c > 4 {
++		c = 4
+ 	}
+ 	return c
+ }

@@ -11,9 +11,72 @@ Date:   Mon Jun 25 02:08:52 2018 +0900
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/example_test.go | 5 +++--
  src/net/fd_unix.go      | 2 +-
  src/net/fd_windows.go   | 2 +-
  src/net/net_fake.go     | 2 +-
  4 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/example_test.go b/src/net/example_test.go
+index 8126a28404..e4d732e68a 100644
+--- a/src/net/example_test.go
++++ b/src/net/example_test.go
+@@ -121,7 +121,8 @@ func ExampleIPv4Mask() {
+ }
+ 
+ func ExampleUDPConn_WriteTo() {
+-	// Create connection in non-pre-connected state
++	// Unlike Dial, ListenPacket creates a connection without any
++	// association with peers.
+ 	conn, err := net.ListenPacket("udp", ":0")
+ 	if err != nil {
+ 		log.Fatal(err)
+@@ -133,7 +134,7 @@ func ExampleUDPConn_WriteTo() {
+ 		log.Fatal(err)
+ 	}
+ 
+-	// Write data to the desired address
++	// The connection can write data to the desired address.
+ 	_, err = conn.WriteTo([]byte("data"), dst)
+ 	if err != nil {
+ 		log.Fatal(err)
+diff --git a/src/net/fd_unix.go b/src/net/fd_unix.go
+index 06439ee200..055ecf0336 100644
+--- a/src/net/fd_unix.go
++++ b/src/net/fd_unix.go
+@@ -22,7 +22,7 @@ type netFD struct {
+ 	// immutable until Close
+ 	family      int
+ 	sotype      int
+-	isConnected bool
++	isConnected bool // handshake completed or use of association with peer
+ 	net         string
+ 	laddr       Addr
+ 	raddr       Addr
+diff --git a/src/net/fd_windows.go b/src/net/fd_windows.go
+index 8a91138a42..3cc4c7a6a2 100644
+--- a/src/net/fd_windows.go
++++ b/src/net/fd_windows.go
+@@ -32,7 +32,7 @@ type netFD struct {
+ 	// immutable until Close
+ 	family      int
+ 	sotype      int
+-	isConnected bool
++	isConnected bool // handshake completed or use of association with peer
+ 	net         string
+ 	laddr       Addr
+ 	raddr       Addr
+diff --git a/src/net/net_fake.go b/src/net/net_fake.go
+index f7595d9bb4..0c48dd5c03 100644
+--- a/src/net/net_fake.go
++++ b/src/net/net_fake.go
+@@ -50,7 +50,7 @@ type netFD struct {
+ 
+ 	// unused
+ 	pfd         poll.FD
+-	isConnected bool
++	isConnected bool // handshake completed or use of association with peer
+ }
+ 
+ // socket returns a network file descriptor that is ready for

@@ -14,6 +14,22 @@ Date:   Thu Apr 21 08:32:58 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4426055
-
+---
  src/pkg/runtime/symtab.c | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index 6f0eea0e76..da4579734f 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -291,7 +291,9 @@ splitpcln(void)
+ 		if(f < ef && pc >= (f+1)->entry) {
+ 			f->pcln.len = p - f->pcln.array;
+ 			f->pcln.cap = f->pcln.len;
+-			f++;
++			do
++				f++;
++			while(f < ef && pc >= (f+1)->entry);
+ 			f->pcln.array = p;
+ 			// pc0 and ln0 are the starting values for
+ 			// the loop over f->pcln, so pc must be 

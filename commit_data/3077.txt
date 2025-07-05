@@ -8,7 +8,7 @@ Date:   Mon Aug 24 17:30:00 2009 -0700
     DELTA=494  (492 added, 0 deleted, 2 changed)
     OCL=33784
     CL=33810
-
+---
  src/libcgo/Makefile               |  24 ++++
  src/libcgo/cgocall.c              | 278 ++++++++++++++++++++++++++++++++++++++
  src/pkg/runtime/Makefile          |   2 +
@@ -21,3 +21,587 @@ Date:   Mon Aug 24 17:30:00 2009 -0700
  usr/rsc/fib/go.go                 |   8 ++
  usr/rsc/fib/main.go               |  13 ++
  11 files changed, 494 insertions(+), 2 deletions(-)
+
+diff --git a/src/libcgo/Makefile b/src/libcgo/Makefile
+new file mode 100644
+index 0000000000..6fbfeb0670
+--- /dev/null
++++ b/src/libcgo/Makefile
+@@ -0,0 +1,24 @@
++# Copyright 2009 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# not linked into build for now
++
++TARG=libcgo.so
++
++all: libcgo.so
++
++cgocall.o: cgocall.c
++	gcc -O2 -fPIC -o cgocall.o -c cgocall.c
++
++libcgo.so: cgocall.o
++	gcc -shared -o libcgo.so cgocall.o -lpthread -lm
++
++install: $(GOROOT)/pkg/$(GOOS)_$(GOARCH)/libcgo.so
++
++$(GOROOT)/pkg/$(GOOS)_$(GOARCH)/libcgo.so: libcgo.so
++	cp libcgo.so $@
++
++clean:
++	rm -f *.o *.so
++
+diff --git a/src/libcgo/cgocall.c b/src/libcgo/cgocall.c
+new file mode 100644
+index 0000000000..c089f1d5d5
+--- /dev/null
++++ b/src/libcgo/cgocall.c
+@@ -0,0 +1,278 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#define _GNU_SOURCE
++#include <stdio.h>
++#include <errno.h>
++#include <linux/futex.h>
++#include <sys/syscall.h>
++#include <sys/time.h>
++#include <pthread.h>
++#include <stdint.h>
++#include <string.h>
++#include <stdlib.h>
++
++#define nil ((void*)0)
++
++/*
++ * gcc implementation of src/pkg/runtime/linux/thread.c
++ */
++typedef struct Lock Lock;
++typedef struct Note Note;
++typedef uint32_t uint32;
++
++struct Lock
++{
++	uint32 key;
++	uint32 sema;	// ignored
++};
++
++struct Note
++{
++	Lock lock;
++	uint32 pad;
++};
++
++static struct timespec longtime =
++{
++	1<<30,	// 34 years
++	0
++};
++
++static int
++cas(uint32 *val, uint32 old, uint32 new)
++{
++	int ret;
++
++	__asm__ __volatile__(
++		"lock; cmpxchgl %2, 0(%3)\n"
++		"setz %%al\n"
++	:	"=a" (ret)
++	:	"a" (old),
++		"r" (new),
++		"r" (val)
++	:	"memory", "cc"
++	);
++
++	return ret & 1;
++}
++
++static void
++futexsleep(uint32 *addr, uint32 val)
++{
++	int ret;
++
++	ret = syscall(SYS_futex, (int*)addr, FUTEX_WAIT, val, &longtime, nil, 0);
++	if(ret >= 0 || errno == EAGAIN || errno == EINTR)
++		return;
++	fprintf(stderr, "futexsleep: %s\n", strerror(errno));
++	*(int*)0 = 0;
++}
++
++static void
++futexwakeup(uint32 *addr)
++{
++	int ret;
++
++	ret = syscall(SYS_futex, (int*)addr, FUTEX_WAKE, 1, nil, nil, 0);
++	if(ret >= 0)
++		return;
++	fprintf(stderr, "futexwakeup: %s\n", strerror(errno));
++	*(int*)0 = 0;
++}
++
++static void
++futexlock(Lock *l)
++{
++	uint32 v;
++
++again:
++	v = l->key;
++	if((v&1) == 0){
++		if(cas(&l->key, v, v|1)){
++			// Lock wasn't held; we grabbed it.
++			return;
++		}
++		goto again;
++	}
++
++	if(!cas(&l->key, v, v+2))
++		goto again;
++
++	futexsleep(&l->key, v+2);
++	for(;;){
++		v = l->key;
++		if((int)v < 2) {
++			fprintf(stderr, "futexsleep: invalid key %d\n", (int)v);
++			*(int*)0 = 0;
++		}
++		if(cas(&l->key, v, v-2))
++			break;
++	}
++	goto again;
++}
++
++static void
++futexunlock(Lock *l)
++{
++	uint32 v;
++
++again:
++	v = l->key;
++	if((v&1) == 0)
++		*(int*)0 = 0;
++	if(!cas(&l->key, v, v&~1))
++		goto again;
++
++	// If there were waiters, wake one.
++	if(v & ~1)
++		futexwakeup(&l->key);
++}
++
++static void
++lock(Lock *l)
++{
++	futexlock(l);
++}
++
++static void
++unlock(Lock *l)
++{
++	futexunlock(l);
++}
++
++void
++noteclear(Note *n)
++{
++	n->lock.key = 0;
++	futexlock(&n->lock);
++}
++
++static void
++notewakeup(Note *n)
++{
++	futexunlock(&n->lock);
++}
++
++static void
++notesleep(Note *n)
++{
++	futexlock(&n->lock);
++	futexunlock(&n->lock);
++}
++
++/*
++ * runtime Cgo server.
++ * gcc half of src/pkg/runtime/cgocall.c
++ */
++
++typedef struct CgoWork CgoWork;
++typedef struct CgoServer CgoServer;
++typedef struct Cgo Cgo;
++
++struct Cgo
++{
++	Lock lock;
++	CgoServer *idle;
++	CgoWork *whead;
++	CgoWork *wtail;
++};
++
++struct CgoServer
++{
++	CgoServer *next;
++	Note note;
++	CgoWork *work;
++};
++
++struct CgoWork
++{
++	CgoWork *next;
++	Note note;
++	void (*fn)(void*);
++	void *arg;
++};
++
++Cgo cgo;
++
++static void newserver(void);
++
++void
++initcgo(void)
++{
++	newserver();
++}
++
++static void* go_pthread(void*);
++
++/*
++ * allocate servers to handle any work that has piled up
++ * and one more server to sit idle and wait for new work.
++ */
++static void
++newserver(void)
++{
++	CgoServer *f;
++	CgoWork *w, *next;
++	pthread_t p;
++
++	lock(&cgo.lock);
++	if(cgo.idle == nil) {
++		// kick off new servers with work to do
++		for(w=cgo.whead; w; w=next) {
++			next = w;
++			w->next = nil;
++			f = malloc(sizeof *f);
++			memset(f, 0, sizeof *f);
++			f->work = w;
++			noteclear(&f->note);
++			notewakeup(&f->note);
++			if(pthread_create(&p, nil, go_pthread, f) < 0) {
++				fprintf(stderr, "pthread_create: %s\n", strerror(errno));
++				*(int*)0 = 0;
++			}
++		}
++		cgo.whead = nil;
++		cgo.wtail = nil;
++
++		// kick off one more server to sit idle
++		f = malloc(sizeof *f);
++		memset(f, 0, sizeof *f);
++		f->next = cgo.idle;
++		noteclear(&f->note);
++		cgo.idle = f;
++		if(pthread_create(&p, nil, go_pthread, f) < 0) {
++			fprintf(stderr, "pthread_create: %s\n", strerror(errno));
++			*(int*)0 = 0;
++		}
++	}
++	unlock(&cgo.lock);
++}
++
++static void*
++go_pthread(void *v)
++{
++	CgoServer *f;
++	CgoWork *w;
++
++	f = v;
++	for(;;) {
++		// wait for work
++		notesleep(&f->note);
++
++		// do work
++		w = f->work;
++		w->fn(w->arg);
++		notewakeup(&w->note);
++
++		// queue f on idle list
++		f->work = nil;
++		noteclear(&f->note);
++		lock(&cgo.lock);
++		f->next = cgo.idle;
++		cgo.idle = f;
++		unlock(&cgo.lock);
++	}
++}
++
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 30f5e85cdf..7356bd765e 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -37,6 +37,7 @@ OFILES_arm=\
+ OFILES=\
+ 	array.$O\
+ 	asm.$O\
++	cgocall.$O\
+ 	chan.$O\
+ 	closure.$O\
+ 	float.$O\
+@@ -67,6 +68,7 @@ OFILES=\
+ 	$(OFILES_$(GOARCH))\
+ 
+ HFILES=\
++	cgocall.h\
+ 	runtime.h\
+ 	hashmap.h\
+ 	malloc.h\
+diff --git a/src/pkg/runtime/cgocall.c b/src/pkg/runtime/cgocall.c
+new file mode 100644
+index 0000000000..b2d1f33d8c
+--- /dev/null
++++ b/src/pkg/runtime/cgocall.c
+@@ -0,0 +1,38 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++#include "cgocall.h"
++
++Cgo *cgo;	/* filled in by dynamic linker when Cgo is available */
++
++void
++cgocall(void (*fn)(void*), void *arg)
++{
++	CgoWork w;
++	CgoServer *s;
++
++	if(cgo == nil)
++		throw("cgocall unavailable");
++
++	noteclear(&w.note);
++	w.next = nil;
++	w.fn = fn;
++	w.arg = arg;
++	lock(&cgo->lock);
++	if((s = cgo->idle) != nil) {
++		cgo->idle = s->next;
++		s->work = &w;
++		unlock(&cgo->lock);
++		notewakeup(&s->note);
++	} else {
++		if(cgo->whead == nil) {
++			cgo->whead = &w;
++		} else
++			cgo->wtail->next = &w;
++		cgo->wtail = &w;
++		unlock(&cgo->lock);
++	}
++	notesleep(&w.note);
++}
+diff --git a/src/pkg/runtime/cgocall.h b/src/pkg/runtime/cgocall.h
+new file mode 100644
+index 0000000000..bf3cf77278
+--- /dev/null
++++ b/src/pkg/runtime/cgocall.h
+@@ -0,0 +1,39 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++ * Cgo interface.
++ * Dynamically linked shared libraries compiled with gcc
++ * know these data structures too.  See ../../libcgo/cgocall.c
++ */
++
++typedef struct CgoWork CgoWork;
++typedef struct CgoServer CgoServer;
++typedef struct Cgo Cgo;
++
++struct Cgo
++{
++	Lock lock;
++	CgoServer *idle;
++	CgoWork *whead;
++	CgoWork *wtail;
++};
++
++struct CgoServer
++{
++	CgoServer *next;
++	Note note;
++	CgoWork *work;
++};
++
++struct CgoWork
++{
++	CgoWork *next;
++	Note note;
++	void (*fn)(void*);
++	void *arg;
++};
++
++void cgocall(void (*fn)(void*), void*);
++
+diff --git a/src/pkg/runtime/linux/amd64/rt0.s b/src/pkg/runtime/linux/amd64/rt0.s
+index 83b68881d1..e04866458a 100644
+--- a/src/pkg/runtime/linux/amd64/rt0.s
++++ b/src/pkg/runtime/linux/amd64/rt0.s
+@@ -5,7 +5,7 @@
+ // Darwin and Linux use the same linkage to main
+ 
+ TEXT	_rt0_amd64_linux(SB),7,$-8
+-	MOVQ	_initffi(SB), AX
++	MOVQ	initcgo(SB), AX
+ 	TESTQ	AX, AX
+ 	JZ	2(PC)
+ 	CALL	AX
+@@ -13,4 +13,4 @@ TEXT	_rt0_amd64_linux(SB),7,$-8
+ 	MOVQ	$_rt0_amd64(SB), AX
+ 	JMP	AX
+ 
+-GLOBL _initffi(SB), $8
++GLOBL initcgo(SB), $8
+diff --git a/usr/rsc/fib/6c.c b/usr/rsc/fib/6c.c
+new file mode 100644
+index 0000000000..23ed846380
+--- /dev/null
++++ b/usr/rsc/fib/6c.c
+@@ -0,0 +1,20 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++#include "cgocall.h"
++
++// turn on ffi
++#pragma dynld initcgo initcgo "libcgo.so"
++#pragma dynld cgo cgo "libcgo.so"
++
++// pull in fib from fib.so
++#pragma dynld extern_c_fib fib "fib.so"
++void (*extern_c_fib)(void*);
++
++void
++fib·Fib(int32 n, int32, int32)
++{
++	cgocall(extern_c_fib, &n);
++}
+diff --git a/usr/rsc/fib/Makefile b/usr/rsc/fib/Makefile
+new file mode 100644
+index 0000000000..0597633aad
+--- /dev/null
++++ b/usr/rsc/fib/Makefile
+@@ -0,0 +1,36 @@
++# Copyright 2009 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# FFI demo
++
++all: fib.a fib.so
++
++gcc.o: gcc.c
++	gcc -fPIC -O2 -o gcc.o -c gcc.c
++
++fib.so: gcc.o
++	gcc -shared -o fib.so gcc.o -L$(GOROOT)/pkg/$(GOOS)_$(GOARCH) -lcgo
++
++fib.a: 6c.6 go.6
++	gopack grc fib.a 6c.6 go.6
++
++6c.6: 6c.c
++	6c -FVw -I$(GOROOT)/src/pkg/runtime 6c.c
++
++go.6: go.go
++	6g go.go
++
++PKG=$(GOROOT)/pkg/$(GOOS)_$(GOARCH)
++
++install: $(PKG)/fib.so $(PKG)/fib.a
++
++$(PKG)/fib.so: fib.so
++	cp fib.so $@
++
++$(PKG)/fib.a: fib.a
++	cp fib.a $@
++
++clean:
++	rm -f *.6 *.o *.so *.a
++
+diff --git a/usr/rsc/fib/gcc.c b/usr/rsc/fib/gcc.c
+new file mode 100644
+index 0000000000..a898390314
+--- /dev/null
++++ b/usr/rsc/fib/gcc.c
+@@ -0,0 +1,34 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <stdint.h>
++
++typedef int32_t int32;
++
++static int32
++fib1(int32 n)
++{
++	int32 a, b, t;
++
++	a = 0;
++	b = 1;
++	for(; n>0; n--) {
++		t = a;
++		a = b;
++		b += t;
++	}
++	return a;
++}
++
++void
++fib(void *v)
++{
++	struct {	// 6g func(n int) int
++		int32 n;
++		int32 pad;
++		int32 ret;
++	} *args = v;
++
++	args->ret = fib1(args->n);
++}
+diff --git a/usr/rsc/fib/go.go b/usr/rsc/fib/go.go
+new file mode 100644
+index 0000000000..8145974f17
+--- /dev/null
++++ b/usr/rsc/fib/go.go
+@@ -0,0 +1,8 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fib
++
++func Fib(n int) int
++
+diff --git a/usr/rsc/fib/main.go b/usr/rsc/fib/main.go
+new file mode 100644
+index 0000000000..3ac5d5914a
+--- /dev/null
++++ b/usr/rsc/fib/main.go
+@@ -0,0 +1,13 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "fib"
++
++func main() {
++	for i := 0; i < 10; i++ {
++		println(fib.Fib(i));
++	}
++}

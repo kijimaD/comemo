@@ -8,6 +8,39 @@ Date:   Mon Dec 8 17:14:08 2008 -0800
     DELTA=6  (5 added, 0 deleted, 1 changed)
     OCL=20777
     CL=20779
-
+---
  src/runtime/proc.c | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index 6e947c5f50..68d06788e4 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -59,6 +59,7 @@ struct Sched {
+ 	int32 predawn;	// running initialization, don't run new gs.
+ 
+ 	Note	stopped;	// one g can wait here for ms to stop
++	int32 waitstop;	// after setting this flag
+ };
+ 
+ Sched sched;
+@@ -352,7 +353,10 @@ nextgandunlock(void)
+ 		throw("all goroutines are asleep - deadlock!");
+ 	m->nextg = nil;
+ 	noteclear(&m->havenextg);
+-	notewakeup(&sched.stopped);
++	if(sched.waitstop) {
++		sched.waitstop = 0;
++		notewakeup(&sched.stopped);
++	}
+ 	unlock(&sched);
+ 
+ 	notesleep(&m->havenextg);
+@@ -376,6 +380,7 @@ stoptheworld(void)
+ 	sched.mcpumax = 1;
+ 	while(sched.mcpu > 1) {
+ 		noteclear(&sched.stopped);
++		sched.waitstop = 1;
+ 		unlock(&sched);
+ 		notesleep(&sched.stopped);
+ 		lock(&sched);

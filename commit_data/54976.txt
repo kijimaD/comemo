@@ -13,6 +13,20 @@ Date:   Tue Nov 22 14:50:57 2022 -0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/reflect/value.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 2c6ce4ad12..42bb5ea527 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -3344,7 +3344,7 @@ func (v Value) Equal(u Value) bool {
+ 		return false
+ 	}
+ 
+-	// Handle ach Kind directly rather than calling valueInterface
++	// Handle each Kind directly rather than calling valueInterface
+ 	// to avoid allocating.
+ 	switch v.Kind() {
+ 	default:

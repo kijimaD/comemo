@@ -24,7 +24,7 @@ Date:   Mon Feb 26 16:45:28 2024 -0800
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/types2/alias.go           | 11 +++---
  src/cmd/compile/internal/types2/check_test.go      |  2 +-
  src/cmd/compile/internal/types2/decl.go            | 44 +++++++++++++++++-----
@@ -40,3 +40,423 @@ Date:   Mon Feb 26 16:45:28 2024 -0800
  .../types/testdata/spec/typeAliases1.23b.go        | 41 ++++++++++++++++++++
  src/internal/types/testdata/spec/typeAliases1.8.go | 10 +++++
  14 files changed, 155 insertions(+), 40 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/alias.go b/src/cmd/compile/internal/types2/alias.go
+index 06dfba1697..149cd3b265 100644
+--- a/src/cmd/compile/internal/types2/alias.go
++++ b/src/cmd/compile/internal/types2/alias.go
+@@ -13,9 +13,10 @@ import "fmt"
+ // Otherwise, the alias information is only in the type name,
+ // which points directly to the actual (aliased) type.
+ type Alias struct {
+-	obj     *TypeName // corresponding declared alias object
+-	fromRHS Type      // RHS of type alias declaration; may be an alias
+-	actual  Type      // actual (aliased) type; never an alias
++	obj     *TypeName      // corresponding declared alias object
++	tparams *TypeParamList // type parameters, or nil
++	fromRHS Type           // RHS of type alias declaration; may be an alias
++	actual  Type           // actual (aliased) type; never an alias
+ }
+ 
+ // NewAlias creates a new Alias type with the given type name and rhs.
+@@ -31,8 +32,6 @@ func (a *Alias) Obj() *TypeName   { return a.obj }
+ func (a *Alias) Underlying() Type { return unalias(a).Underlying() }
+ func (a *Alias) String() string   { return TypeString(a, nil) }
+ 
+-// Type accessors
+-
+ // Unalias returns t if it is not an alias type;
+ // otherwise it follows t's alias chain until it
+ // reaches a non-alias type which is then returned.
+@@ -70,7 +69,7 @@ func asNamed(t Type) *Named {
+ // rhs must not be nil.
+ func (check *Checker) newAlias(obj *TypeName, rhs Type) *Alias {
+ 	assert(rhs != nil)
+-	a := &Alias{obj, rhs, nil}
++	a := &Alias{obj, nil, rhs, nil}
+ 	if obj.typ == nil {
+ 		obj.typ = a
+ 	}
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index a9d6202a33..8b309898d2 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -398,7 +398,7 @@ func TestCheck(t *testing.T) {
+ 	DefPredeclaredTestFuncs()
+ 	testDirFiles(t, "../../../../internal/types/testdata/check", 50, false) // TODO(gri) narrow column tolerance
+ }
+-func TestSpec(t *testing.T) { testDirFiles(t, "../../../../internal/types/testdata/spec", 0, false) }
++func TestSpec(t *testing.T) { testDirFiles(t, "../../../../internal/types/testdata/spec", 20, false) } // TODO(gri) narrow column tolerance
+ func TestExamples(t *testing.T) {
+ 	testDirFiles(t, "../../../../internal/types/testdata/examples", 125, false)
+ } // TODO(gri) narrow column tolerance
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 2d8a09f33e..d8261017df 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -492,37 +492,59 @@ func (check *Checker) isImportedConstraint(typ Type) bool {
+ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *TypeName) {
+ 	assert(obj.typ == nil)
+ 
++	// Only report a version error if we have not reported one already.
++	versionErr := false
++
+ 	var rhs Type
+ 	check.later(func() {
+ 		if t := asNamed(obj.typ); t != nil { // type may be invalid
+ 			check.validType(t)
+ 		}
+ 		// If typ is local, an error was already reported where typ is specified/defined.
+-		_ = check.isImportedConstraint(rhs) && check.verifyVersionf(tdecl.Type, go1_18, "using type constraint %s", rhs)
++		_ = !versionErr && check.isImportedConstraint(rhs) && check.verifyVersionf(tdecl.Type, go1_18, "using type constraint %s", rhs)
+ 	}).describef(obj, "validType(%s)", obj.Name())
+ 
+-	aliasDecl := tdecl.Alias
+-	if aliasDecl && tdecl.TParamList != nil {
+-		// The parser will ensure this but we may still get an invalid AST.
+-		// Complain and continue as regular type definition.
+-		check.error(tdecl, BadDecl, "generic type cannot be alias")
+-		aliasDecl = false
++	// First type parameter, or nil.
++	var tparam0 *syntax.Field
++	if len(tdecl.TParamList) > 0 {
++		tparam0 = tdecl.TParamList[0]
+ 	}
+ 
+ 	// alias declaration
+-	if aliasDecl {
+-		check.verifyVersionf(tdecl, go1_9, "type aliases")
++	if tdecl.Alias {
++		// Report highest version requirement first so that fixing a version issue
++		// avoids possibly two -lang changes (first to Go 1.9 and then to Go 1.23).
++		if !versionErr && tparam0 != nil && !check.verifyVersionf(tparam0, go1_23, "generic type alias") {
++			versionErr = true
++		}
++		if !versionErr && !check.verifyVersionf(tdecl, go1_9, "type alias") {
++			versionErr = true
++		}
++
+ 		if check.enableAlias {
+ 			// TODO(gri) Should be able to use nil instead of Typ[Invalid] to mark
+ 			//           the alias as incomplete. Currently this causes problems
+ 			//           with certain cycles. Investigate.
+ 			alias := check.newAlias(obj, Typ[Invalid])
+ 			setDefType(def, alias)
++
++			// handle type parameters even if not allowed (Alias type is supported)
++			if tparam0 != nil {
++				check.openScope(tdecl, "type parameters")
++				defer check.closeScope()
++				check.collectTypeParams(&alias.tparams, tdecl.TParamList)
++			}
++
+ 			rhs = check.definedType(tdecl.Type, obj)
+ 			assert(rhs != nil)
+ 			alias.fromRHS = rhs
+ 			Unalias(alias) // resolve alias.actual
+ 		} else {
++			if !versionErr && tparam0 != nil {
++				check.error(tdecl, UnsupportedFeature, "generic type alias requires GODEBUG=gotypesalias=1")
++				versionErr = true
++			}
++
+ 			check.brokenAlias(obj)
+ 			rhs = check.typ(tdecl.Type)
+ 			check.validAlias(obj, rhs)
+@@ -531,6 +553,10 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *TypeN
+ 	}
+ 
+ 	// type definition or generic type declaration
++	if !versionErr && tparam0 != nil && !check.verifyVersionf(tparam0, go1_18, "type parameter") {
++		versionErr = true
++	}
++
+ 	named := check.newNamed(obj, nil, nil)
+ 	setDefType(def, named)
+ 
+diff --git a/src/cmd/compile/internal/types2/resolver.go b/src/cmd/compile/internal/types2/resolver.go
+index 3bc29ae8d5..7a412b2954 100644
+--- a/src/cmd/compile/internal/types2/resolver.go
++++ b/src/cmd/compile/internal/types2/resolver.go
+@@ -405,7 +405,6 @@ func (check *Checker) collectObjects() {
+ 				}
+ 
+ 			case *syntax.TypeDecl:
+-				_ = len(s.TParamList) != 0 && check.verifyVersionf(s.TParamList[0], go1_18, "type parameter")
+ 				obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Value, nil)
+ 				check.declarePkgObj(s.Name, obj, &declInfo{file: fileScope, tdecl: s})
+ 
+diff --git a/src/cmd/go/testdata/script/mod_edit_go.txt b/src/cmd/go/testdata/script/mod_edit_go.txt
+index ec04f40f52..007760df5d 100644
+--- a/src/cmd/go/testdata/script/mod_edit_go.txt
++++ b/src/cmd/go/testdata/script/mod_edit_go.txt
+@@ -2,7 +2,7 @@
+ 
+ env GO111MODULE=on
+ ! go build
+-stderr ' type aliases requires'
++stderr ' type alias requires'
+ go mod edit -go=1.9
+ grep 'go 1.9' go.mod
+ go build
+@@ -11,7 +11,7 @@ go build
+ # the cached 1.9 build. (https://golang.org/issue/37804)
+ go mod edit -go=1.8
+ ! go build
+-stderr 'type aliases requires'
++stderr 'type alias requires'
+ 
+ # go=none should drop the line
+ go mod edit -go=none
+diff --git a/src/go/types/alias.go b/src/go/types/alias.go
+index 6043c0a984..739dbf7a87 100644
+--- a/src/go/types/alias.go
++++ b/src/go/types/alias.go
+@@ -15,9 +15,10 @@ import "fmt"
+ // Otherwise, the alias information is only in the type name,
+ // which points directly to the actual (aliased) type.
+ type Alias struct {
+-	obj     *TypeName // corresponding declared alias object
+-	fromRHS Type      // RHS of type alias declaration; may be an alias
+-	actual  Type      // actual (aliased) type; never an alias
++	obj     *TypeName      // corresponding declared alias object
++	tparams *TypeParamList // type parameters, or nil
++	fromRHS Type           // RHS of type alias declaration; may be an alias
++	actual  Type           // actual (aliased) type; never an alias
+ }
+ 
+ // NewAlias creates a new Alias type with the given type name and rhs.
+@@ -33,8 +34,6 @@ func (a *Alias) Obj() *TypeName   { return a.obj }
+ func (a *Alias) Underlying() Type { return unalias(a).Underlying() }
+ func (a *Alias) String() string   { return TypeString(a, nil) }
+ 
+-// Type accessors
+-
+ // Unalias returns t if it is not an alias type;
+ // otherwise it follows t's alias chain until it
+ // reaches a non-alias type which is then returned.
+@@ -72,7 +71,7 @@ func asNamed(t Type) *Named {
+ // rhs must not be nil.
+ func (check *Checker) newAlias(obj *TypeName, rhs Type) *Alias {
+ 	assert(rhs != nil)
+-	a := &Alias{obj, rhs, nil}
++	a := &Alias{obj, nil, rhs, nil}
+ 	if obj.typ == nil {
+ 		obj.typ = a
+ 	}
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 21f90ad3da..4033bbb34d 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -563,37 +563,59 @@ func (check *Checker) isImportedConstraint(typ Type) bool {
+ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *TypeName) {
+ 	assert(obj.typ == nil)
+ 
++	// Only report a version error if we have not reported one already.
++	versionErr := false
++
+ 	var rhs Type
+ 	check.later(func() {
+ 		if t := asNamed(obj.typ); t != nil { // type may be invalid
+ 			check.validType(t)
+ 		}
+ 		// If typ is local, an error was already reported where typ is specified/defined.
+-		_ = check.isImportedConstraint(rhs) && check.verifyVersionf(tdecl.Type, go1_18, "using type constraint %s", rhs)
++		_ = !versionErr && check.isImportedConstraint(rhs) && check.verifyVersionf(tdecl.Type, go1_18, "using type constraint %s", rhs)
+ 	}).describef(obj, "validType(%s)", obj.Name())
+ 
+-	aliasDecl := tdecl.Assign.IsValid()
+-	if aliasDecl && tdecl.TypeParams.NumFields() != 0 {
+-		// The parser will ensure this but we may still get an invalid AST.
+-		// Complain and continue as regular type definition.
+-		check.error(atPos(tdecl.Assign), BadDecl, "generic type cannot be alias")
+-		aliasDecl = false
++	// First type parameter, or nil.
++	var tparam0 *ast.Field
++	if tdecl.TypeParams.NumFields() > 0 {
++		tparam0 = tdecl.TypeParams.List[0]
+ 	}
+ 
+ 	// alias declaration
+-	if aliasDecl {
+-		check.verifyVersionf(atPos(tdecl.Assign), go1_9, "type aliases")
++	if tdecl.Assign.IsValid() {
++		// Report highest version requirement first so that fixing a version issue
++		// avoids possibly two -lang changes (first to Go 1.9 and then to Go 1.23).
++		if !versionErr && tparam0 != nil && !check.verifyVersionf(tparam0, go1_23, "generic type alias") {
++			versionErr = true
++		}
++		if !versionErr && !check.verifyVersionf(atPos(tdecl.Assign), go1_9, "type alias") {
++			versionErr = true
++		}
++
+ 		if check.enableAlias {
+ 			// TODO(gri) Should be able to use nil instead of Typ[Invalid] to mark
+ 			//           the alias as incomplete. Currently this causes problems
+ 			//           with certain cycles. Investigate.
+ 			alias := check.newAlias(obj, Typ[Invalid])
+ 			setDefType(def, alias)
++
++			// handle type parameters even if not allowed (Alias type is supported)
++			if tparam0 != nil {
++				check.openScope(tdecl, "type parameters")
++				defer check.closeScope()
++				check.collectTypeParams(&alias.tparams, tdecl.TypeParams)
++			}
++
+ 			rhs = check.definedType(tdecl.Type, obj)
+ 			assert(rhs != nil)
+ 			alias.fromRHS = rhs
+ 			Unalias(alias) // resolve alias.actual
+ 		} else {
++			if !versionErr && tparam0 != nil {
++				check.error(tdecl, UnsupportedFeature, "generic type alias requires GODEBUG=gotypesalias=1")
++				versionErr = true
++			}
++
+ 			check.brokenAlias(obj)
+ 			rhs = check.typ(tdecl.Type)
+ 			check.validAlias(obj, rhs)
+@@ -602,6 +624,10 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *TypeName
+ 	}
+ 
+ 	// type definition or generic type declaration
++	if !versionErr && tparam0 != nil && !check.verifyVersionf(tparam0, go1_18, "type parameter") {
++		versionErr = true
++	}
++
+ 	named := check.newNamed(obj, nil, nil)
+ 	setDefType(def, named)
+ 
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index d5b0dbf7b2..b3d7f7da13 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -386,7 +386,6 @@ func (check *Checker) collectObjects() {
+ 					check.declarePkgObj(name, obj, di)
+ 				}
+ 			case typeDecl:
+-				_ = d.spec.TypeParams.NumFields() != 0 && check.verifyVersionf(d.spec.TypeParams.List[0], go1_18, "type parameter")
+ 				obj := NewTypeName(d.spec.Name.Pos(), pkg, d.spec.Name.Name, nil)
+ 				check.declarePkgObj(d.spec.Name, obj, &declInfo{file: fileScope, tdecl: d.spec})
+ 			case funcDecl:
+diff --git a/src/internal/types/testdata/check/go1_8.go b/src/internal/types/testdata/check/go1_8.go
+index 6a7e639792..d386d5e60b 100644
+--- a/src/internal/types/testdata/check/go1_8.go
++++ b/src/internal/types/testdata/check/go1_8.go
+@@ -9,4 +9,4 @@
+ package p
+ 
+ // type alias declarations
+-type any = /* ERROR "type aliases requires go1.9 or later" */ interface{}
++type any = /* ERROR "type alias requires go1.9 or later" */ interface{}
+diff --git a/src/internal/types/testdata/check/typeinst0.go b/src/internal/types/testdata/check/typeinst0.go
+index 155f1ef440..3baeb2214a 100644
+--- a/src/internal/types/testdata/check/typeinst0.go
++++ b/src/internal/types/testdata/check/typeinst0.go
+@@ -18,10 +18,6 @@ type T2[P any] struct {
+ 
+ type List[P any] []P
+ 
+-// Alias type declarations cannot have type parameters.
+-// Issue #46477 proposes to change that.
+-type A1[P any] = /* ERROR "cannot be alias" */ struct{}
+-
+ // Pending clarification of #46477 we disallow aliases
+ // of generic types.
+ type A2 = List // ERROR "cannot use generic type"
+diff --git a/src/internal/types/testdata/spec/typeAliases1.22.go b/src/internal/types/testdata/spec/typeAliases1.22.go
+new file mode 100644
+index 0000000000..4b7beeed49
+--- /dev/null
++++ b/src/internal/types/testdata/spec/typeAliases1.22.go
+@@ -0,0 +1,10 @@
++// -lang=go1.22
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package aliasTypes
++
++type _ = int
++type _[P /* ERROR "generic type alias requires go1.23 or later" */ any] = int
+diff --git a/src/internal/types/testdata/spec/typeAliases1.23a.go b/src/internal/types/testdata/spec/typeAliases1.23a.go
+new file mode 100644
+index 0000000000..0ea21a4e32
+--- /dev/null
++++ b/src/internal/types/testdata/spec/typeAliases1.23a.go
+@@ -0,0 +1,10 @@
++// -lang=go1.23 -gotypesalias=0
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package aliasTypes
++
++type _ = int
++type _ /* ERROR "generic type alias requires GODEBUG=gotypesalias=1" */ [P any] = int
+diff --git a/src/internal/types/testdata/spec/typeAliases1.23b.go b/src/internal/types/testdata/spec/typeAliases1.23b.go
+new file mode 100644
+index 0000000000..9dae0ea778
+--- /dev/null
++++ b/src/internal/types/testdata/spec/typeAliases1.23b.go
+@@ -0,0 +1,41 @@
++// -lang=go1.23 -gotypesalias=1
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package aliasTypes
++
++type _ = int
++type _[P any] = int
++
++// A type alias may have fewer type parameters than its RHS.
++type RHS[P any, Q ~int] struct {
++	p P
++	q Q
++}
++
++type _[P any] = RHS[P, int]
++
++// Or it may have more type parameters than its RHS.
++type _[P any, Q ~int, R comparable] = RHS[P, Q]
++
++// The type parameters of a type alias must implement the
++// corresponding type constraints of the type parameters
++// on the RHS (if any)
++type _[P any, Q ~int] = RHS[P, Q]
++type _[P any, Q int] = RHS[P, Q]
++type _[P int | float64] = RHS[P, int]
++type _[P, Q any] = RHS[P, Q /* ERROR "Q does not satisfy ~int" */]
++
++// ----------------------------------------------------------------------------
++// NOTE: The code below does now work yet.
++// TODO: Implement this.
++
++// A generic type alias may be used like any other generic type.
++type A[P any] = RHS[P, int]
++
++func _(a A /* ERROR "not a generic type" */ [string]) {
++	a.p = "foo"
++	a.q = 42
++}
+diff --git a/src/internal/types/testdata/spec/typeAliases1.8.go b/src/internal/types/testdata/spec/typeAliases1.8.go
+new file mode 100644
+index 0000000000..ecc01bbc34
+--- /dev/null
++++ b/src/internal/types/testdata/spec/typeAliases1.8.go
+@@ -0,0 +1,10 @@
++// -lang=go1.8
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package aliasTypes
++
++type _ = /* ERROR "type alias requires go1.9 or later" */ int
++type _[P /* ERROR "generic type alias requires go1.23 or later" */ interface{}] = int

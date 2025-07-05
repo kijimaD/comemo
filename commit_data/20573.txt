@@ -13,10 +13,92 @@ Date:   Fri Sep 19 11:14:51 2014 +1000
     R=golang-codereviews, adg, rsc
     CC=golang-codereviews
     https://golang.org/cl/138630043
-
+---
  src/runtime/defs_windows.go      |  1 -
  src/runtime/defs_windows_386.h   |  1 -
  src/runtime/defs_windows_amd64.h |  1 -
  src/runtime/os_windows_386.c     | 13 -------------
  src/runtime/os_windows_amd64.c   | 10 ----------
  5 files changed, 26 deletions(-)
+
+diff --git a/src/runtime/defs_windows.go b/src/runtime/defs_windows.go
+index 01aea92dee..cb0f54d8ab 100644
+--- a/src/runtime/defs_windows.go
++++ b/src/runtime/defs_windows.go
+@@ -49,7 +49,6 @@ const (
+ 	CONTEXT_FULL    = C.CONTEXT_FULL
+ 
+ 	EXCEPTION_ACCESS_VIOLATION     = C.STATUS_ACCESS_VIOLATION
+-	EXCEPTION_BREAKPOINT           = C.STATUS_BREAKPOINT
+ 	EXCEPTION_FLT_DENORMAL_OPERAND = C.STATUS_FLOAT_DENORMAL_OPERAND
+ 	EXCEPTION_FLT_DIVIDE_BY_ZERO   = C.STATUS_FLOAT_DIVIDE_BY_ZERO
+ 	EXCEPTION_FLT_INEXACT_RESULT   = C.STATUS_FLOAT_INEXACT_RESULT
+diff --git a/src/runtime/defs_windows_386.h b/src/runtime/defs_windows_386.h
+index db3629a1d2..295e422c6b 100644
+--- a/src/runtime/defs_windows_386.h
++++ b/src/runtime/defs_windows_386.h
+@@ -22,7 +22,6 @@ enum {
+ 	CONTEXT_FULL	= 0x10007,
+ 
+ 	EXCEPTION_ACCESS_VIOLATION	= 0xc0000005,
+-	EXCEPTION_BREAKPOINT		= 0x80000003,
+ 	EXCEPTION_FLT_DENORMAL_OPERAND	= 0xc000008d,
+ 	EXCEPTION_FLT_DIVIDE_BY_ZERO	= 0xc000008e,
+ 	EXCEPTION_FLT_INEXACT_RESULT	= 0xc000008f,
+diff --git a/src/runtime/defs_windows_amd64.h b/src/runtime/defs_windows_amd64.h
+index fe26f5a84a..2516c84128 100644
+--- a/src/runtime/defs_windows_amd64.h
++++ b/src/runtime/defs_windows_amd64.h
+@@ -22,7 +22,6 @@ enum {
+ 	CONTEXT_FULL	= 0x10000b,
+ 
+ 	EXCEPTION_ACCESS_VIOLATION	= 0xc0000005,
+-	EXCEPTION_BREAKPOINT		= 0x80000003,
+ 	EXCEPTION_FLT_DENORMAL_OPERAND	= 0xc000008d,
+ 	EXCEPTION_FLT_DIVIDE_BY_ZERO	= 0xc000008e,
+ 	EXCEPTION_FLT_INEXACT_RESULT	= 0xc000008f,
+diff --git a/src/runtime/os_windows_386.c b/src/runtime/os_windows_386.c
+index 15a5ea5d1f..028b09bbc8 100644
+--- a/src/runtime/os_windows_386.c
++++ b/src/runtime/os_windows_386.c
+@@ -54,19 +54,6 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
+ 	if(r->Eip < (uint32)runtime·text || (uint32)runtime·etext < r->Eip)
+ 		return 0;
+ 
+-	switch(info->ExceptionCode) {
+-	case EXCEPTION_BREAKPOINT:
+-		// It is unclear whether this is needed, unclear whether it
+-		// would work, and unclear how to test it. Leave out for now.
+-		// This only handles breakpoint instructions written in the
+-		// assembly sources, not breakpoints set by a debugger, and
+-		// there are very few of the former.
+-		//
+-		// r->Eip--;	// because 8l generates 2 bytes for INT3
+-		// return 0;
+-		break;
+-	}
+-
+ 	if(gp != nil && runtime·issigpanic(info->ExceptionCode)) {
+ 		// Make it look like a call to the signal func.
+ 		// Have to pass arguments out of band since
+diff --git a/src/runtime/os_windows_amd64.c b/src/runtime/os_windows_amd64.c
+index 9a69d73c07..d7b45c5b1d 100644
+--- a/src/runtime/os_windows_amd64.c
++++ b/src/runtime/os_windows_amd64.c
+@@ -62,16 +62,6 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
+ 	if(r->Rip < (uint64)runtime·text || (uint64)runtime·etext < r->Rip)
+ 		return 0;
+ 
+-	switch(info->ExceptionCode) {
+-	case EXCEPTION_BREAKPOINT:
+-		// It is unclear whether this is needed, unclear whether it
+-		// would work, and unclear how to test it. Leave out for now.
+-		// This only handles breakpoint instructions written in the
+-		// assembly sources, not breakpoints set by a debugger, and
+-		// there are very few of the former.
+-		break;
+-	}
+-
+ 	if(gp != nil && runtime·issigpanic(info->ExceptionCode)) {
+ 		// Make it look like a call to the signal func.
+ 		// Have to pass arguments out of band since

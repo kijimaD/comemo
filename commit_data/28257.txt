@@ -9,6 +9,20 @@ Date:   Mon May 9 19:28:28 2016 +0200
     Change-Id: I565342a92de3893b75cdfb76fa39f7fdf15672da
     Reviewed-on: https://go-review.googlesource.com/22952
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/install-source.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/install-source.html b/doc/install-source.html
+index d9157c2b17..9a817676c1 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -33,7 +33,7 @@ compiler using the GCC back end, see
+ </p>
+ 
+ <p>
+-The Go compilers support five instruction sets.
++The Go compilers support six instruction sets.
+ There are important differences in the quality of the compilers for the different
+ architectures.
+ </p>

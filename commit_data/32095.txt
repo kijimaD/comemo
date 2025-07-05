@@ -19,7 +19,88 @@ Date:   Tue Mar 21 10:00:30 2017 -0700
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/text/template/multi_test.go | 37 +++++++++++++++++++++++++++++++++++--
  src/text/template/template.go   |  4 ++--
  2 files changed, 37 insertions(+), 4 deletions(-)
+
+diff --git a/src/text/template/multi_test.go b/src/text/template/multi_test.go
+index 8142f008fd..5d8c08f06f 100644
+--- a/src/text/template/multi_test.go
++++ b/src/text/template/multi_test.go
+@@ -363,7 +363,7 @@ func TestEmptyTemplate(t *testing.T) {
+ 		{[]string{"{{.}}", ""}, "twice", ""},
+ 	}
+ 
+-	for _, c := range cases {
++	for i, c := range cases {
+ 		root := New("root")
+ 
+ 		var (
+@@ -378,10 +378,43 @@ func TestEmptyTemplate(t *testing.T) {
+ 		}
+ 		buf := &bytes.Buffer{}
+ 		if err := m.Execute(buf, c.in); err != nil {
+-			t.Fatal(err)
++			t.Error(i, err)
++			continue
+ 		}
+ 		if buf.String() != c.want {
+ 			t.Errorf("expected string %q: got %q", c.want, buf.String())
+ 		}
+ 	}
+ }
++
++// Issue 19249 was a regression in 1.8 caused by the handling of empty
++// templates added in that release, which got different answers depending
++// on the order templates appeared in the internal map.
++func TestIssue19294(t *testing.T) {
++	// The empty block in "xhtml" should be replaced during execution
++	// by the contents of "stylesheet", but if the internal map associating
++	// names with templates is built in the wrong order, the empty block
++	// looks non-empty and this doesn't happen.
++	var inlined = map[string]string{
++		"stylesheet": `{{define "stylesheet"}}stylesheet{{end}}`,
++		"xhtml":      `{{block "stylesheet" .}}{{end}}`,
++	}
++	all := []string{"stylesheet", "xhtml"}
++	for i := 0; i < 100; i++ {
++		res, err := New("title.xhtml").Parse(`{{template "xhtml" .}}`)
++		if err != nil {
++			t.Fatal(err)
++		}
++		for _, name := range all {
++			_, err := res.New(name).Parse(inlined[name])
++			if err != nil {
++				t.Fatal(err)
++			}
++		}
++		var buf bytes.Buffer
++		res.Execute(&buf, 0)
++		if buf.String() != "stylesheet" {
++			t.Fatalf("iteration %d: got %q; expected %q", i, buf.String(), "stylesheet")
++		}
++	}
++}
+diff --git a/src/text/template/template.go b/src/text/template/template.go
+index ed1ef3cf8d..2246f676e6 100644
+--- a/src/text/template/template.go
++++ b/src/text/template/template.go
+@@ -127,7 +127,7 @@ func (t *Template) AddParseTree(name string, tree *parse.Tree) (*Template, error
+ 	// Even if nt == t, we need to install it in the common.tmpl map.
+ 	if replace, err := t.associate(nt, tree); err != nil {
+ 		return nil, err
+-	} else if replace {
++	} else if replace || nt.Tree == nil {
+ 		nt.Tree = tree
+ 	}
+ 	return nt, nil
+@@ -216,7 +216,7 @@ func (t *Template) associate(new *Template, tree *parse.Tree) (bool, error) {
+ 	if new.common != t.common {
+ 		panic("internal error: associate not common")
+ 	}
+-	if t.tmpl[new.name] != nil && parse.IsEmptyTree(tree.Root) && t.Tree != nil {
++	if old := t.tmpl[new.name]; old != nil && parse.IsEmptyTree(tree.Root) && old.Tree != nil {
+ 		// If a template by that name exists,
+ 		// don't replace it with an empty template.
+ 		return false, nil

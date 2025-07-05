@@ -14,9 +14,134 @@ Date:   Thu Jul 30 00:46:42 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/12890
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/compile/internal/gc/swt.go |  3 ++
  src/runtime/export_test.go         |  2 ++
  src/runtime/gc_test.go             | 57 ++++++++++++++++++++++++++++++++++++++
  src/runtime/iface.go               |  9 ++++--
  4 files changed, 68 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index a736208340..f34b1c614c 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -652,6 +652,9 @@ func (s *typeSwitch) typeone(t *Node) *Node {
+ 	} else {
+ 		name = t.Rlist.N
+ 		init = list1(Nod(ODCL, name, nil))
++		a := Nod(OAS, name, nil)
++		typecheck(&a, Etop)
++		init = list(init, a)
+ 	}
+ 
+ 	a := Nod(OAS2, nil, nil)
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 3fddcc868f..16d54765b7 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -152,3 +152,5 @@ func BenchSetType(n int, x interface{}) {
+ }
+ 
+ const PtrSize = ptrSize
++
++var TestingAssertE2I2GC = &testingAssertE2I2GC
+diff --git a/src/runtime/gc_test.go b/src/runtime/gc_test.go
+index e3e0c3a583..636e5248c8 100644
+--- a/src/runtime/gc_test.go
++++ b/src/runtime/gc_test.go
+@@ -5,6 +5,7 @@
+ package runtime_test
+ 
+ import (
++	"io"
+ 	"os"
+ 	"reflect"
+ 	"runtime"
+@@ -412,3 +413,59 @@ func TestPrintGC(t *testing.T) {
+ 	}
+ 	close(done)
+ }
++
++// The implicit y, ok := x.(error) for the case error
++// in testTypeSwitch used to not initialize the result y
++// before passing &y to assertE2I2GC.
++// Catch this by making assertE2I2 call runtime.GC,
++// which will force a stack scan and failure if there are
++// bad pointers, and then fill the stack with bad pointers
++// and run the type switch.
++func TestAssertE2I2Liveness(t *testing.T) {
++	// Note that this flag is defined in export_test.go
++	// and is not available to ordinary imports of runtime.
++	*runtime.TestingAssertE2I2GC = true
++	defer func() {
++		*runtime.TestingAssertE2I2GC = false
++	}()
++
++	poisonStack()
++	testTypeSwitch(io.EOF)
++	poisonStack()
++	testAssert(io.EOF)
++	poisonStack()
++	testAssertVar(io.EOF)
++}
++
++func poisonStack() uintptr {
++	var x [1000]uintptr
++	for i := range x {
++		x[i] = 0xff
++	}
++	return x[123]
++}
++
++func testTypeSwitch(x interface{}) error {
++	switch y := x.(type) {
++	case nil:
++		// ok
++	case error:
++		return y
++	}
++	return nil
++}
++
++func testAssert(x interface{}) error {
++	if y, ok := x.(error); ok {
++		return y
++	}
++	return nil
++}
++
++func testAssertVar(x interface{}) error {
++	var y, ok = x.(error)
++	if ok {
++		return y
++	}
++	return nil
++}
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 656bb4b8e5..abd7068ed1 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -4,9 +4,7 @@
+ 
+ package runtime
+ 
+-import (
+-	"unsafe"
+-)
++import "unsafe"
+ 
+ const (
+ 	hashSize = 1009
+@@ -356,7 +354,12 @@ func assertE2I(inter *interfacetype, e interface{}, r *fInterface) {
+ 	rp.data = ep.data
+ }
+ 
++var testingAssertE2I2GC bool
++
+ func assertE2I2(inter *interfacetype, e interface{}, r *fInterface) bool {
++	if testingAssertE2I2GC {
++		GC()
++	}
+ 	ep := (*eface)(unsafe.Pointer(&e))
+ 	t := ep._type
+ 	if t == nil {

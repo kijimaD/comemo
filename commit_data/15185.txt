@@ -11,6 +11,21 @@ Date:   Sat Feb 9 13:51:39 2013 -0500
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/7313068
-
+---
  src/pkg/crypto/x509/verify_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/crypto/x509/verify_test.go b/src/pkg/crypto/x509/verify_test.go
+index bb0587e2f6..5103ed814a 100644
+--- a/src/pkg/crypto/x509/verify_test.go
++++ b/src/pkg/crypto/x509/verify_test.go
+@@ -164,6 +164,9 @@ var verifyTests = []verifyTest{
+ 		roots:         []string{comodoRoot},
+ 		currentTime:   1360431182,
+ 
++		// CryptoAPI can find alternative validation paths so we don't
++		// perform this test with system validation.
++		systemSkip: true,
+ 		expectedChains: [][]string{
+ 			{"mega.co.nz", "EssentialSSL CA", "COMODO Certification Authority"},
+ 		},

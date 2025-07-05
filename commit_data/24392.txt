@@ -27,7 +27,56 @@ Date:   Thu Jul 23 17:55:01 2015 -0400
     Change-Id: I586adfbecb3ca042a37966752c1dc757f5c7fc78
     Reviewed-on: https://go-review.googlesource.com/12670
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgc.go     | 4 ++++
  src/runtime/mgcmark.go | 8 ++++++++
  2 files changed, 12 insertions(+)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index eab13a99fc..d669b3bc46 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -706,6 +706,10 @@ func (s *bgMarkSignal) wait() {
+ // complete signals the completion of this phase of marking. This can
+ // be called multiple times during a cycle; only the first call has
+ // any effect.
++//
++// The caller should arrange to deschedule itself as soon as possible
++// after calling complete in order to let the coordinator goroutine
++// run.
+ func (s *bgMarkSignal) complete() {
+ 	if cas(&s.done, 0, 1) {
+ 		// This is the first worker to reach this completion point.
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 62f0881439..a26f93062e 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -202,6 +202,7 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
+ 	}
+ 
+ 	// Perform assist work
++	completed := false
+ 	systemstack(func() {
+ 		if atomicload(&gcBlackenEnabled) == 0 {
+ 			// The gcBlackenEnabled check in malloc races with the
+@@ -255,6 +256,7 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
+ 			} else {
+ 				work.bgMark1.complete()
+ 			}
++			completed = true
+ 		}
+ 		duration := nanotime() - startTime
+ 		_p_ := gp.m.p.ptr()
+@@ -264,6 +266,12 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
+ 			_p_.gcAssistTime = 0
+ 		}
+ 	})
++
++	if completed {
++		// We called complete() above, so we should yield to
++		// the now-runnable GC coordinator.
++		Gosched()
++	}
+ }
+ 
+ //go:nowritebarrier

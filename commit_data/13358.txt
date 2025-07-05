@@ -11,6 +11,21 @@ Date:   Fri Jun 15 16:55:15 2012 -0700
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/6304086
-
+---
  src/pkg/go/ast/walk.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/pkg/go/ast/walk.go b/src/pkg/go/ast/walk.go
+index 181cfd1491..66b1dc2499 100644
+--- a/src/pkg/go/ast/walk.go
++++ b/src/pkg/go/ast/walk.go
+@@ -344,9 +344,6 @@ func Walk(v Visitor, node Node) {
+ 		}
+ 		Walk(v, n.Name)
+ 		walkDeclList(v, n.Decls)
+-		for _, g := range n.Comments {
+-			Walk(v, g)
+-		}
+ 		// don't walk n.Comments - they have been
+ 		// visited already through the individual
+ 		// nodes

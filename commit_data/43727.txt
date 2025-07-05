@@ -31,9 +31,173 @@ Date:   Tue Apr 21 13:07:22 2020 -0400
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/internal/goobj/goobj_test.go | 19 ++++++++++++++-----
  src/cmd/internal/goobj/readnew.go    |  9 ++++++++-
  src/cmd/nm/nm_test.go                | 10 +++++++++-
  src/cmd/objdump/objdump_test.go      | 12 ++++++++----
  4 files changed, 39 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/internal/goobj/goobj_test.go b/src/cmd/internal/goobj/goobj_test.go
+index 4a4d35a413..9f827c6a32 100644
+--- a/src/cmd/internal/goobj/goobj_test.go
++++ b/src/cmd/internal/goobj/goobj_test.go
+@@ -17,6 +17,7 @@ import (
+ 	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -150,6 +151,14 @@ func buildGoobj() error {
+ 	return nil
+ }
+ 
++// Check that a symbol has a given name, accepting both
++// new and old objects.
++// TODO(go115newobj): remove.
++func matchSymName(symname, want string) bool {
++	return symname == want ||
++		strings.HasPrefix(symname, want+"#") // new style, with index
++}
++
+ func TestParseGoobj(t *testing.T) {
+ 	path := go1obj
+ 
+@@ -168,7 +177,7 @@ func TestParseGoobj(t *testing.T) {
+ 	}
+ 	var found bool
+ 	for _, s := range p.Syms {
+-		if s.Name == "mypkg.go1" {
++		if matchSymName(s.Name, "mypkg.go1") {
+ 			found = true
+ 			break
+ 		}
+@@ -197,10 +206,10 @@ func TestParseArchive(t *testing.T) {
+ 	var found1 bool
+ 	var found2 bool
+ 	for _, s := range p.Syms {
+-		if s.Name == "mypkg.go1" {
++		if matchSymName(s.Name, "mypkg.go1") {
+ 			found1 = true
+ 		}
+-		if s.Name == "mypkg.go2" {
++		if matchSymName(s.Name, "mypkg.go2") {
+ 			found2 = true
+ 		}
+ 	}
+@@ -233,10 +242,10 @@ func TestParseCGOArchive(t *testing.T) {
+ 	var found1 bool
+ 	var found2 bool
+ 	for _, s := range p.Syms {
+-		if s.Name == "mycgo.go1" {
++		if matchSymName(s.Name, "mycgo.go1") {
+ 			found1 = true
+ 		}
+-		if s.Name == "mycgo.go2" {
++		if matchSymName(s.Name, "mycgo.go2") {
+ 			found2 = true
+ 		}
+ 	}
+diff --git a/src/cmd/internal/goobj/readnew.go b/src/cmd/internal/goobj/readnew.go
+index 19c810b8b2..5654da44d6 100644
+--- a/src/cmd/internal/goobj/readnew.go
++++ b/src/cmd/internal/goobj/readnew.go
+@@ -54,8 +54,10 @@ func (r *objReader) readNew() {
+ 		case goobj2.PkgIdxSelf:
+ 			i = int(s.SymIdx)
+ 		default:
++			// Symbol from other package, referenced by index.
++			// We don't know the name. Use index.
+ 			pkg := pkglist[p]
+-			return SymID{fmt.Sprintf("%s.<#%d>", pkg, s.SymIdx), 0}
++			return SymID{fmt.Sprintf("%s.#%d", pkg, s.SymIdx), 0}
+ 		}
+ 		sym := rr.Sym(i)
+ 		return SymID{sym.Name(rr), abiToVer(sym.ABI())}
+@@ -66,6 +68,7 @@ func (r *objReader) readNew() {
+ 	// Symbols
+ 	pcdataBase := start + rr.PcdataBase()
+ 	n := rr.NSym() + rr.NNonpkgdef() + rr.NNonpkgref()
++	npkgdef := rr.NSym()
+ 	ndef := rr.NSym() + rr.NNonpkgdef()
+ 	for i := 0; i < n; i++ {
+ 		osym := rr.Sym(i)
+@@ -76,6 +79,10 @@ func (r *objReader) readNew() {
+ 		// prefix for the package in which the object file has been found.
+ 		// Expand it.
+ 		name := strings.ReplaceAll(osym.Name(rr), `"".`, r.pkgprefix)
++		if i < npkgdef {
++			// Indexed symbol. Attach index to the name.
++			name += fmt.Sprintf("#%d", i)
++		}
+ 		symID := SymID{Name: name, Version: abiToVer(osym.ABI())}
+ 		r.p.SymRefs = append(r.p.SymRefs, symID)
+ 
+diff --git a/src/cmd/nm/nm_test.go b/src/cmd/nm/nm_test.go
+index bcfd054150..7dfb482b18 100644
+--- a/src/cmd/nm/nm_test.go
++++ b/src/cmd/nm/nm_test.go
+@@ -315,7 +315,7 @@ func testGoLib(t *testing.T, iscgo bool) {
+ 		}
+ 		for i := range syms {
+ 			sym := &syms[i]
+-			if sym.Type == typ && sym.Name == name && sym.CSym == csym {
++			if sym.Type == typ && matchSymName(name, sym.Name) && sym.CSym == csym {
+ 				if sym.Found {
+ 					t.Fatalf("duplicate symbol %s %s", sym.Type, sym.Name)
+ 				}
+@@ -334,6 +334,14 @@ func TestGoLib(t *testing.T) {
+ 	testGoLib(t, false)
+ }
+ 
++// Check that a symbol has a given name, accepting both
++// new and old objects.
++// TODO(go115newobj): remove.
++func matchSymName(symname, want string) bool {
++	return symname == want ||
++		strings.HasPrefix(symname, want+"#") // new style, with index
++}
++
+ const testexec = `
+ package main
+ 
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index c974d6707b..814cbf4564 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -14,6 +14,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
++	"regexp"
+ 	"runtime"
+ 	"strings"
+ 	"testing"
+@@ -284,9 +285,11 @@ func TestDisasmGoobj(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("go tool compile fmthello.go: %v\n%s", err, out)
+ 	}
++
++	// TODO(go115newobj): drop old object file support.
+ 	need := []string{
+-		"main(SB)",
+-		"fmthello.go:6",
++		`main(#\d+)?\(SB\)`, // either new or old object file
++		`fmthello\.go:6`,
+ 	}
+ 
+ 	args = []string{
+@@ -302,8 +305,9 @@ func TestDisasmGoobj(t *testing.T) {
+ 	text := string(out)
+ 	ok := true
+ 	for _, s := range need {
+-		if !strings.Contains(text, s) {
+-			t.Errorf("disassembly missing '%s'", s)
++		re := regexp.MustCompile(s)
++		if !re.MatchString(text) {
++			t.Errorf("disassembly missing %q", s)
+ 			ok = false
+ 		}
+ 	}

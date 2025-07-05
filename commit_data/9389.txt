@@ -11,7 +11,7 @@ Date:   Wed Aug 17 14:34:48 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4902046
-
+---
  doc/codelab/wiki/final-noclosure.go |   2 +-
  doc/codelab/wiki/final-noerror.go   |   2 +-
  doc/codelab/wiki/final.go           |   2 +-
@@ -31,3 +31,2423 @@ Date:   Wed Aug 17 14:34:48 2011 +1000
  src/pkg/template/template_test.go   | 804 ------------------------------------
  test/chan/select5.go                |  11 +-
  18 files changed, 35 insertions(+), 2115 deletions(-)
+
+diff --git a/doc/codelab/wiki/final-noclosure.go b/doc/codelab/wiki/final-noclosure.go
+index d09a0d7ab9..2e1c3ec86c 100644
+--- a/doc/codelab/wiki/final-noclosure.go
++++ b/doc/codelab/wiki/final-noclosure.go
+@@ -3,9 +3,9 @@ package main
+ import (
+ 	"http"
+ 	"io/ioutil"
++	"old/template"
+ 	"os"
+ 	"regexp"
+-	"template"
+ )
+ 
+ type Page struct {
+diff --git a/doc/codelab/wiki/final-noerror.go b/doc/codelab/wiki/final-noerror.go
+index 5fcf1de76d..d9f5350de1 100644
+--- a/doc/codelab/wiki/final-noerror.go
++++ b/doc/codelab/wiki/final-noerror.go
+@@ -3,8 +3,8 @@ package main
+ import (
+ 	"http"
+ 	"io/ioutil"
++	"old/template"
+ 	"os"
+-	"template"
+ )
+ 
+ type Page struct {
+diff --git a/doc/codelab/wiki/final.go b/doc/codelab/wiki/final.go
+index c97a699d4b..3d79d6e482 100644
+--- a/doc/codelab/wiki/final.go
++++ b/doc/codelab/wiki/final.go
+@@ -3,9 +3,9 @@ package main
+ import (
+ 	"http"
+ 	"io/ioutil"
++	"old/template"
+ 	"os"
+ 	"regexp"
+-	"template"
+ )
+ 
+ type Page struct {
+diff --git a/doc/codelab/wiki/htmlify.go b/doc/codelab/wiki/htmlify.go
+index 456d06fd52..a89d6b7f34 100644
+--- a/doc/codelab/wiki/htmlify.go
++++ b/doc/codelab/wiki/htmlify.go
+@@ -1,8 +1,8 @@
+ package main
+ 
+ import (
++	"old/template"
+ 	"os"
+-	"template"
+ 	"io/ioutil"
+ )
+ 
+diff --git a/doc/codelab/wiki/index.html b/doc/codelab/wiki/index.html
+index cc187ad901..103986a82b 100644
+--- a/doc/codelab/wiki/index.html
++++ b/doc/codelab/wiki/index.html
+@@ -7,7 +7,7 @@ Covered in this codelab:
+ <ul>
+ <li>Creating a data structure with load and save methods</li>
+ <li>Using the <code>http</code> package to build web applications
+-<li>Using the <code>template</code> package to process HTML templates</li>
++<li>Using the <code>old/template</code> package to process HTML templates</li>
+ <li>Using the <code>regexp</code> package to validate user input</li>
+ <li>Using closures</li>
+ </ul>
+@@ -426,25 +426,27 @@ This function will work fine, but all that hard-coded HTML is ugly.
+ Of course, there is a better way.
+ </p>
+  
+-<h2>The <code>template</code> package</h2>
++<h2>The <code>old/template</code> package</h2>
+ 
+ <p>
+-The <code>template</code> package is part of the Go standard library.  We can
+-use <code>template</code> to keep the HTML in a separate file, allowing
++The <code>old/template</code> package is part of the Go standard library.
++(A new template package is coming; this code lab will be updated soon.)
++We can
++use <code>old/template</code> to keep the HTML in a separate file, allowing
+ us to change the layout of our edit page without modifying the underlying Go
+ code.
+ </p>
+ 
+ <p>
+-First, we must add <code>template</code> to the list of imports:
++First, we must add <code>old/template</code> to the list of imports:
+ </p>
+ 
+ <pre>
+ import (
+ 	"http"
+ 	"io/ioutil"
++	<b>"old/template"</b>
+ 	"os"
+-	<b>"template"</b>
+ )
+ </pre>
+ 
+diff --git a/doc/codelab/wiki/srcextract.go b/doc/codelab/wiki/srcextract.go
+index 67294784e0..60d4303df9 100644
+--- a/doc/codelab/wiki/srcextract.go
++++ b/doc/codelab/wiki/srcextract.go
+@@ -8,8 +8,8 @@ import (
+ 	"go/ast"
+ 	"go/token"
+ 	"log"
++	"old/template"
+ 	"os"
+-	"template"
+ )
+ 
+ var (
+diff --git a/doc/codelab/wiki/wiki.html b/doc/codelab/wiki/wiki.html
+index 4db880b9df..91221bd616 100644
+--- a/doc/codelab/wiki/wiki.html
++++ b/doc/codelab/wiki/wiki.html
+@@ -7,7 +7,7 @@ Covered in this codelab:
+ <ul>
+ <li>Creating a data structure with load and save methods</li>
+ <li>Using the <code>http</code> package to build web applications
+-<li>Using the <code>template</code> package to process HTML templates</li>
++<li>Using the <code>old/template</code> package to process HTML templates</li>
+ <li>Using the <code>regexp</code> package to validate user input</li>
+ <li>Using closures</li>
+ </ul>
+@@ -366,25 +366,27 @@ This function will work fine, but all that hard-coded HTML is ugly.
+ Of course, there is a better way.
+ </p>
+  
+-<h2>The <code>template</code> package</h2>
++<h2>The <code>old/template</code> package</h2>
+ 
+ <p>
+-The <code>template</code> package is part of the Go standard library.  We can
+-use <code>template</code> to keep the HTML in a separate file, allowing
++The <code>old/template</code> package is part of the Go standard library.
++(A new template package is coming; this code lab will be updated soon.)
++We can
++use <code>old/template</code> to keep the HTML in a separate file, allowing
+ us to change the layout of our edit page without modifying the underlying Go
+ code.
+ </p>
+ 
+ <p>
+-First, we must add <code>template</code> to the list of imports:
++First, we must add <code>old/template</code> to the list of imports:
+ </p>
+ 
+ <pre>
+ import (
+ 	"http"
+ 	"io/ioutil"
++	<b>"old/template"</b>
+ 	"os"
+-	<b>"template"</b>
+ )
+ </pre>
+ 
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index ab109280f6..37cb516b0f 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -2926,7 +2926,7 @@ import (
+     "http"
+     "io"
+     "log"
+-    "template"
++    "old/template" // New template package coming soon...
+ )
+ 
+ var addr = flag.String("addr", ":1718", "http service address") // Q=17, R=18
+diff --git a/misc/goplay/goplay.go b/misc/goplay/goplay.go
+index f1dc1bca53..4b59bbbe22 100644
+--- a/misc/goplay/goplay.go
++++ b/misc/goplay/goplay.go
+@@ -14,7 +14,7 @@ import (
+ 	"os"
+ 	"runtime"
+ 	"strconv"
+-	"template"
++	"exp/template"
+ )
+ 
+ var (
+@@ -142,18 +142,10 @@ func run(cmd ...string) ([]byte, os.Error) {
+ 	return exec.Command(cmd[0], cmd[1:]...).CombinedOutput()
+ }
+ 
+-var frontPage, output *template.Template // HTML templates
++var frontPage = template.Must(template.New("frontPage").Parse(frontPageText)) // HTML template
++var output = template.Must(template.New("output").Parse(outputText))          // HTML template
+ 
+-func init() {
+-	frontPage = template.New(nil)
+-	frontPage.SetDelims("«", "»")
+-	if err := frontPage.Parse(frontPageText); err != nil {
+-		panic(err)
+-	}
+-	output = template.MustParse(outputText, nil)
+-}
+-
+-var outputText = `<pre>{@|html}</pre>`
++var outputText = `<pre>{{html .}}</pre>`
+ 
+ var frontPageText = `<!doctype html>
+ <html>
+@@ -264,7 +256,7 @@ function compileUpdate() {
+ </head>
+ <body>
+ <table width="100%"><tr><td width="60%" valign="top">
+-<textarea autofocus="true" id="edit" spellcheck="false" onkeydown="keyHandler(event);" onkeyup="autocompile();">«@|html»</textarea>
++<textarea autofocus="true" id="edit" spellcheck="false" onkeydown="keyHandler(event);" onkeyup="autocompile();">{{html .}}</textarea>
+ <div class="hints">
+ (Shift-Enter to compile and run.)&nbsp;&nbsp;&nbsp;&nbsp;
+ <input type="checkbox" id="autocompile" value="checked" /> Compile and run after each keystroke
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 388e2a1d31..6fc4f9e46a 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -131,6 +131,7 @@ DIRS=\
+ 	net/dict\
+ 	net/textproto\
+ 	netchan\
++	old/template\
+ 	os\
+ 	os/signal\
+ 	os/user\
+@@ -156,7 +157,6 @@ DIRS=\
+ 	syscall\
+ 	syslog\
+ 	tabwriter\
+-	template\
+ 	testing\
+ 	testing/iotest\
+ 	testing/quick\
+diff --git a/src/pkg/old/template/Makefile b/src/pkg/old/template/Makefile
+index b0362c0ae8..5772cb4aa8 100644
+--- a/src/pkg/old/template/Makefile
++++ b/src/pkg/old/template/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.inc
++include ../../../Make.inc
+ 
+ TARG=old/template
+ GOFILES=\
+@@ -11,4 +11,4 @@ GOFILES=\
+ 	format.go\
+ 	parse.go\
+ 
+-include ../../Make.pkg
++include ../../../Make.pkg
+diff --git a/src/pkg/template/Makefile b/src/pkg/template/Makefile
+deleted file mode 100644
+index 4f1e06527d..0000000000
+--- a/src/pkg/template/Makefile
++++ /dev/null
+@@ -1,14 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=template
+-GOFILES=\
+-	doc.go\
+-	execute.go\
+-	format.go\
+-	parse.go\
+-
+-include ../../Make.pkg
+diff --git a/src/pkg/template/doc.go b/src/pkg/template/doc.go
+deleted file mode 100644
+index e778d801da..0000000000
+--- a/src/pkg/template/doc.go
++++ /dev/null
+@@ -1,91 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-/*
+-	Package template implements data-driven templates for generating textual
+-	output such as HTML.
+-
+-	Templates are executed by applying them to a data structure.
+-	Annotations in the template refer to elements of the data
+-	structure (typically a field of a struct or a key in a map)
+-	to control execution and derive values to be displayed.
+-	The template walks the structure as it executes and the
+-	"cursor" @ represents the value at the current location
+-	in the structure.
+-
+-	Data items may be values or pointers; the interface hides the
+-	indirection.
+-
+-	In the following, 'Field' is one of several things, according to the data.
+-
+-		- The name of a field of a struct (result = data.Field),
+-		- The value stored in a map under that key (result = data["Field"]), or
+-		- The result of invoking a niladic single-valued method with that name
+-		  (result = data.Field())
+-
+-	If Field is a struct field or method name, it must be an exported
+-	(capitalized) name.
+-
+-	Major constructs ({} are the default delimiters for template actions;
+-	[] are the notation in this comment for optional elements):
+-
+-		{# comment }
+-
+-	A one-line comment.
+-
+-		{.section field} XXX [ {.or} YYY ] {.end}
+-
+-	Set @ to the value of the field.  It may be an explicit @
+-	to stay at the same point in the data. If the field is nil
+-	or empty, execute YYY; otherwise execute XXX.
+-
+-		{.repeated section field} XXX [ {.alternates with} ZZZ ] [ {.or} YYY ] {.end}
+-
+-	Like .section, but field must be an array or slice.  XXX
+-	is executed for each element.  If the array is nil or empty,
+-	YYY is executed instead.  If the {.alternates with} marker
+-	is present, ZZZ is executed between iterations of XXX.
+-
+-		{field}
+-		{field1 field2 ...}
+-		{field|formatter}
+-		{field1 field2...|formatter}
+-		{field|formatter1|formatter2}
+-
+-	Insert the value of the fields into the output. Each field is
+-	first looked for in the cursor, as in .section and .repeated.
+-	If it is not found, the search continues in outer sections
+-	until the top level is reached.
+-
+-	If the field value is a pointer, leading asterisks indicate
+-	that the value to be inserted should be evaluated through the
+-	pointer.  For example, if x.p is of type *int, {x.p} will
+-	insert the value of the pointer but {*x.p} will insert the
+-	value of the underlying integer.  If the value is nil or not a
+-	pointer, asterisks have no effect.
+-
+-	If a formatter is specified, it must be named in the formatter
+-	map passed to the template set up routines or in the default
+-	set ("html","str","") and is used to process the data for
+-	output.  The formatter function has signature
+-		func(wr io.Writer, formatter string, data ...interface{})
+-	where wr is the destination for output, data holds the field
+-	values at the instantiation, and formatter is its name at
+-	the invocation site.  The default formatter just concatenates
+-	the string representations of the fields.
+-
+-	Multiple formatters separated by the pipeline character | are
+-	executed sequentially, with each formatter receiving the bytes
+-	emitted by the one to its left.
+-
+-	As well as field names, one may use literals with Go syntax.
+-	Integer, floating-point, and string literals are supported.
+-	Raw strings may not span newlines.
+-
+-	The delimiter strings get their default value, "{" and "}", from
+-	JSON-template.  They may be set to any non-empty, space-free
+-	string using the SetDelims method.  Their value can be printed
+-	in the output using {.meta-left} and {.meta-right}.
+-*/
+-package template
+diff --git a/src/pkg/template/execute.go b/src/pkg/template/execute.go
+deleted file mode 100644
+index 464b620c98..0000000000
+--- a/src/pkg/template/execute.go
++++ /dev/null
+@@ -1,346 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Code to execute a parsed template.
+-
+-package template
+-
+-import (
+-	"bytes"
+-	"io"
+-	"reflect"
+-	"strings"
+-)
+-
+-// Internal state for executing a Template.  As we evaluate the struct,
+-// the data item descends into the fields associated with sections, etc.
+-// Parent is used to walk upwards to find variables higher in the tree.
+-type state struct {
+-	parent *state          // parent in hierarchy
+-	data   reflect.Value   // the driver data for this section etc.
+-	wr     io.Writer       // where to send output
+-	buf    [2]bytes.Buffer // alternating buffers used when chaining formatters
+-}
+-
+-func (parent *state) clone(data reflect.Value) *state {
+-	return &state{parent: parent, data: data, wr: parent.wr}
+-}
+-
+-// Evaluate interfaces and pointers looking for a value that can look up the name, via a
+-// struct field, method, or map key, and return the result of the lookup.
+-func (t *Template) lookup(st *state, v reflect.Value, name string) reflect.Value {
+-	for v.IsValid() {
+-		typ := v.Type()
+-		if n := v.Type().NumMethod(); n > 0 {
+-			for i := 0; i < n; i++ {
+-				m := typ.Method(i)
+-				mtyp := m.Type
+-				if m.Name == name && mtyp.NumIn() == 1 && mtyp.NumOut() == 1 {
+-					if !isExported(name) {
+-						t.execError(st, t.linenum, "name not exported: %s in type %s", name, st.data.Type())
+-					}
+-					return v.Method(i).Call(nil)[0]
+-				}
+-			}
+-		}
+-		switch av := v; av.Kind() {
+-		case reflect.Ptr:
+-			v = av.Elem()
+-		case reflect.Interface:
+-			v = av.Elem()
+-		case reflect.Struct:
+-			if !isExported(name) {
+-				t.execError(st, t.linenum, "name not exported: %s in type %s", name, st.data.Type())
+-			}
+-			return av.FieldByName(name)
+-		case reflect.Map:
+-			if v := av.MapIndex(reflect.ValueOf(name)); v.IsValid() {
+-				return v
+-			}
+-			return reflect.Zero(typ.Elem())
+-		default:
+-			return reflect.Value{}
+-		}
+-	}
+-	return v
+-}
+-
+-// indirectPtr returns the item numLevels levels of indirection below the value.
+-// It is forgiving: if the value is not a pointer, it returns it rather than giving
+-// an error.  If the pointer is nil, it is returned as is.
+-func indirectPtr(v reflect.Value, numLevels int) reflect.Value {
+-	for i := numLevels; v.IsValid() && i > 0; i++ {
+-		if p := v; p.Kind() == reflect.Ptr {
+-			if p.IsNil() {
+-				return v
+-			}
+-			v = p.Elem()
+-		} else {
+-			break
+-		}
+-	}
+-	return v
+-}
+-
+-// Walk v through pointers and interfaces, extracting the elements within.
+-func indirect(v reflect.Value) reflect.Value {
+-loop:
+-	for v.IsValid() {
+-		switch av := v; av.Kind() {
+-		case reflect.Ptr:
+-			v = av.Elem()
+-		case reflect.Interface:
+-			v = av.Elem()
+-		default:
+-			break loop
+-		}
+-	}
+-	return v
+-}
+-
+-// If the data for this template is a struct, find the named variable.
+-// Names of the form a.b.c are walked down the data tree.
+-// The special name "@" (the "cursor") denotes the current data.
+-// The value coming in (st.data) might need indirecting to reach
+-// a struct while the return value is not indirected - that is,
+-// it represents the actual named field. Leading stars indicate
+-// levels of indirection to be applied to the value.
+-func (t *Template) findVar(st *state, s string) reflect.Value {
+-	data := st.data
+-	flattenedName := strings.TrimLeft(s, "*")
+-	numStars := len(s) - len(flattenedName)
+-	s = flattenedName
+-	if s == "@" {
+-		return indirectPtr(data, numStars)
+-	}
+-	for _, elem := range strings.Split(s, ".") {
+-		// Look up field; data must be a struct or map.
+-		data = t.lookup(st, data, elem)
+-		if !data.IsValid() {
+-			return reflect.Value{}
+-		}
+-	}
+-	return indirectPtr(data, numStars)
+-}
+-
+-// Is there no data to look at?
+-func empty(v reflect.Value) bool {
+-	v = indirect(v)
+-	if !v.IsValid() {
+-		return true
+-	}
+-	switch v.Kind() {
+-	case reflect.Bool:
+-		return v.Bool() == false
+-	case reflect.String:
+-		return v.String() == ""
+-	case reflect.Struct:
+-		return false
+-	case reflect.Map:
+-		return false
+-	case reflect.Array:
+-		return v.Len() == 0
+-	case reflect.Slice:
+-		return v.Len() == 0
+-	}
+-	return false
+-}
+-
+-// Look up a variable or method, up through the parent if necessary.
+-func (t *Template) varValue(name string, st *state) reflect.Value {
+-	field := t.findVar(st, name)
+-	if !field.IsValid() {
+-		if st.parent == nil {
+-			t.execError(st, t.linenum, "name not found: %s in type %s", name, st.data.Type())
+-		}
+-		return t.varValue(name, st.parent)
+-	}
+-	return field
+-}
+-
+-func (t *Template) format(wr io.Writer, fmt string, val []interface{}, v *variableElement, st *state) {
+-	fn := t.formatter(fmt)
+-	if fn == nil {
+-		t.execError(st, v.linenum, "missing formatter %s for variable", fmt)
+-	}
+-	fn(wr, fmt, val...)
+-}
+-
+-// Evaluate a variable, looking up through the parent if necessary.
+-// If it has a formatter attached ({var|formatter}) run that too.
+-func (t *Template) writeVariable(v *variableElement, st *state) {
+-	// Resolve field names
+-	val := make([]interface{}, len(v.args))
+-	for i, arg := range v.args {
+-		if name, ok := arg.(fieldName); ok {
+-			val[i] = t.varValue(string(name), st).Interface()
+-		} else {
+-			val[i] = arg
+-		}
+-	}
+-	for i, fmt := range v.fmts[:len(v.fmts)-1] {
+-		b := &st.buf[i&1]
+-		b.Reset()
+-		t.format(b, fmt, val, v, st)
+-		val = val[0:1]
+-		val[0] = b.Bytes()
+-	}
+-	t.format(st.wr, v.fmts[len(v.fmts)-1], val, v, st)
+-}
+-
+-// Execute element i.  Return next index to execute.
+-func (t *Template) executeElement(i int, st *state) int {
+-	switch elem := t.elems[i].(type) {
+-	case *textElement:
+-		st.wr.Write(elem.text)
+-		return i + 1
+-	case *literalElement:
+-		st.wr.Write(elem.text)
+-		return i + 1
+-	case *variableElement:
+-		t.writeVariable(elem, st)
+-		return i + 1
+-	case *sectionElement:
+-		t.executeSection(elem, st)
+-		return elem.end
+-	case *repeatedElement:
+-		t.executeRepeated(elem, st)
+-		return elem.end
+-	}
+-	e := t.elems[i]
+-	t.execError(st, 0, "internal error: bad directive in execute: %v %T\n", reflect.ValueOf(e).Interface(), e)
+-	return 0
+-}
+-
+-// Execute the template.
+-func (t *Template) execute(start, end int, st *state) {
+-	for i := start; i < end; {
+-		i = t.executeElement(i, st)
+-	}
+-}
+-
+-// Execute a .section
+-func (t *Template) executeSection(s *sectionElement, st *state) {
+-	// Find driver data for this section.  It must be in the current struct.
+-	field := t.varValue(s.field, st)
+-	if !field.IsValid() {
+-		t.execError(st, s.linenum, ".section: cannot find field %s in %s", s.field, st.data.Type())
+-	}
+-	st = st.clone(field)
+-	start, end := s.start, s.or
+-	if !empty(field) {
+-		// Execute the normal block.
+-		if end < 0 {
+-			end = s.end
+-		}
+-	} else {
+-		// Execute the .or block.  If it's missing, do nothing.
+-		start, end = s.or, s.end
+-		if start < 0 {
+-			return
+-		}
+-	}
+-	for i := start; i < end; {
+-		i = t.executeElement(i, st)
+-	}
+-}
+-
+-// Return the result of calling the Iter method on v, or nil.
+-func iter(v reflect.Value) reflect.Value {
+-	for j := 0; j < v.Type().NumMethod(); j++ {
+-		mth := v.Type().Method(j)
+-		fv := v.Method(j)
+-		ft := fv.Type()
+-		// TODO(rsc): NumIn() should return 0 here, because ft is from a curried FuncValue.
+-		if mth.Name != "Iter" || ft.NumIn() != 1 || ft.NumOut() != 1 {
+-			continue
+-		}
+-		ct := ft.Out(0)
+-		if ct.Kind() != reflect.Chan ||
+-			ct.ChanDir()&reflect.RecvDir == 0 {
+-			continue
+-		}
+-		return fv.Call(nil)[0]
+-	}
+-	return reflect.Value{}
+-}
+-
+-// Execute a .repeated section
+-func (t *Template) executeRepeated(r *repeatedElement, st *state) {
+-	// Find driver data for this section.  It must be in the current struct.
+-	field := t.varValue(r.field, st)
+-	if !field.IsValid() {
+-		t.execError(st, r.linenum, ".repeated: cannot find field %s in %s", r.field, st.data.Type())
+-	}
+-	field = indirect(field)
+-
+-	start, end := r.start, r.or
+-	if end < 0 {
+-		end = r.end
+-	}
+-	if r.altstart >= 0 {
+-		end = r.altstart
+-	}
+-	first := true
+-
+-	// Code common to all the loops.
+-	loopBody := func(newst *state) {
+-		// .alternates between elements
+-		if !first && r.altstart >= 0 {
+-			for i := r.altstart; i < r.altend; {
+-				i = t.executeElement(i, newst)
+-			}
+-		}
+-		first = false
+-		for i := start; i < end; {
+-			i = t.executeElement(i, newst)
+-		}
+-	}
+-
+-	if array := field; array.Kind() == reflect.Array || array.Kind() == reflect.Slice {
+-		for j := 0; j < array.Len(); j++ {
+-			loopBody(st.clone(array.Index(j)))
+-		}
+-	} else if m := field; m.Kind() == reflect.Map {
+-		for _, key := range m.MapKeys() {
+-			loopBody(st.clone(m.MapIndex(key)))
+-		}
+-	} else if ch := iter(field); ch.IsValid() {
+-		for {
+-			e, ok := ch.Recv()
+-			if !ok {
+-				break
+-			}
+-			loopBody(st.clone(e))
+-		}
+-	} else {
+-		t.execError(st, r.linenum, ".repeated: cannot repeat %s (type %s)",
+-			r.field, field.Type())
+-	}
+-
+-	if first {
+-		// Empty. Execute the .or block, once.  If it's missing, do nothing.
+-		start, end := r.or, r.end
+-		if start >= 0 {
+-			newst := st.clone(field)
+-			for i := start; i < end; {
+-				i = t.executeElement(i, newst)
+-			}
+-		}
+-		return
+-	}
+-}
+-
+-// A valid delimiter must contain no space and be non-empty.
+-func validDelim(d []byte) bool {
+-	if len(d) == 0 {
+-		return false
+-	}
+-	for _, c := range d {
+-		if isSpace(c) {
+-			return false
+-		}
+-	}
+-	return true
+-}
+diff --git a/src/pkg/template/format.go b/src/pkg/template/format.go
+deleted file mode 100644
+index 9156b08081..0000000000
+--- a/src/pkg/template/format.go
++++ /dev/null
+@@ -1,77 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Template library: default formatters
+-
+-package template
+-
+-import (
+-	"bytes"
+-	"fmt"
+-	"io"
+-)
+-
+-// StringFormatter formats into the default string representation.
+-// It is stored under the name "str" and is the default formatter.
+-// You can override the default formatter by storing your default
+-// under the name "" in your custom formatter map.
+-func StringFormatter(w io.Writer, format string, value ...interface{}) {
+-	if len(value) == 1 {
+-		if b, ok := value[0].([]byte); ok {
+-			w.Write(b)
+-			return
+-		}
+-	}
+-	fmt.Fprint(w, value...)
+-}
+-
+-var (
+-	esc_quot = []byte("&#34;") // shorter than "&quot;"
+-	esc_apos = []byte("&#39;") // shorter than "&apos;"
+-	esc_amp  = []byte("&amp;")
+-	esc_lt   = []byte("&lt;")
+-	esc_gt   = []byte("&gt;")
+-)
+-
+-// HTMLEscape writes to w the properly escaped HTML equivalent
+-// of the plain text data s.
+-func HTMLEscape(w io.Writer, s []byte) {
+-	var esc []byte
+-	last := 0
+-	for i, c := range s {
+-		switch c {
+-		case '"':
+-			esc = esc_quot
+-		case '\'':
+-			esc = esc_apos
+-		case '&':
+-			esc = esc_amp
+-		case '<':
+-			esc = esc_lt
+-		case '>':
+-			esc = esc_gt
+-		default:
+-			continue
+-		}
+-		w.Write(s[last:i])
+-		w.Write(esc)
+-		last = i + 1
+-	}
+-	w.Write(s[last:])
+-}
+-
+-// HTMLFormatter formats arbitrary values for HTML
+-func HTMLFormatter(w io.Writer, format string, value ...interface{}) {
+-	ok := false
+-	var b []byte
+-	if len(value) == 1 {
+-		b, ok = value[0].([]byte)
+-	}
+-	if !ok {
+-		var buf bytes.Buffer
+-		fmt.Fprint(&buf, value...)
+-		b = buf.Bytes()
+-	}
+-	HTMLEscape(w, b)
+-}
+diff --git a/src/pkg/template/parse.go b/src/pkg/template/parse.go
+deleted file mode 100644
+index dedf9ad8e9..0000000000
+--- a/src/pkg/template/parse.go
++++ /dev/null
+@@ -1,743 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Code to parse a template.
+-
+-package template
+-
+-import (
+-	"fmt"
+-	"io"
+-	"io/ioutil"
+-	"os"
+-	"reflect"
+-	"strconv"
+-	"strings"
+-	"unicode"
+-	"utf8"
+-)
+-
+-// Errors returned during parsing and execution.  Users may extract the information and reformat
+-// if they desire.
+-type Error struct {
+-	Line int
+-	Msg  string
+-}
+-
+-func (e *Error) String() string { return fmt.Sprintf("line %d: %s", e.Line, e.Msg) }
+-
+-// checkError is a deferred function to turn a panic with type *Error into a plain error return.
+-// Other panics are unexpected and so are re-enabled.
+-func checkError(error *os.Error) {
+-	if v := recover(); v != nil {
+-		if e, ok := v.(*Error); ok {
+-			*error = e
+-		} else {
+-			// runtime errors should crash
+-			panic(v)
+-		}
+-	}
+-}
+-
+-// Most of the literals are aces.
+-var lbrace = []byte{'{'}
+-var rbrace = []byte{'}'}
+-var space = []byte{' '}
+-var tab = []byte{'\t'}
+-
+-// The various types of "tokens", which are plain text or (usually) brace-delimited descriptors
+-const (
+-	tokAlternates = iota
+-	tokComment
+-	tokEnd
+-	tokLiteral
+-	tokOr
+-	tokRepeated
+-	tokSection
+-	tokText
+-	tokVariable
+-)
+-
+-// FormatterMap is the type describing the mapping from formatter
+-// names to the functions that implement them.
+-type FormatterMap map[string]func(io.Writer, string, ...interface{})
+-
+-// Built-in formatters.
+-var builtins = FormatterMap{
+-	"html": HTMLFormatter,
+-	"str":  StringFormatter,
+-	"":     StringFormatter,
+-}
+-
+-// The parsed state of a template is a vector of xxxElement structs.
+-// Sections have line numbers so errors can be reported better during execution.
+-
+-// Plain text.
+-type textElement struct {
+-	text []byte
+-}
+-
+-// A literal such as .meta-left or .meta-right
+-type literalElement struct {
+-	text []byte
+-}
+-
+-// A variable invocation to be evaluated
+-type variableElement struct {
+-	linenum int
+-	args    []interface{} // The fields and literals in the invocation.
+-	fmts    []string      // Names of formatters to apply. len(fmts) > 0
+-}
+-
+-// A variableElement arg to be evaluated as a field name
+-type fieldName string
+-
+-// A .section block, possibly with a .or
+-type sectionElement struct {
+-	linenum int    // of .section itself
+-	field   string // cursor field for this block
+-	start   int    // first element
+-	or      int    // first element of .or block
+-	end     int    // one beyond last element
+-}
+-
+-// A .repeated block, possibly with a .or and a .alternates
+-type repeatedElement struct {
+-	sectionElement     // It has the same structure...
+-	altstart       int // ... except for alternates
+-	altend         int
+-}
+-
+-// Template is the type that represents a template definition.
+-// It is unchanged after parsing.
+-type Template struct {
+-	fmap FormatterMap // formatters for variables
+-	// Used during parsing:
+-	ldelim, rdelim []byte // delimiters; default {}
+-	buf            []byte // input text to process
+-	p              int    // position in buf
+-	linenum        int    // position in input
+-	// Parsed results:
+-	elems []interface{}
+-}
+-
+-// New creates a new template with the specified formatter map (which
+-// may be nil) to define auxiliary functions for formatting variables.
+-func New(fmap FormatterMap) *Template {
+-	t := new(Template)
+-	t.fmap = fmap
+-	t.ldelim = lbrace
+-	t.rdelim = rbrace
+-	t.elems = make([]interface{}, 0, 16)
+-	return t
+-}
+-
+-// Report error and stop executing.  The line number must be provided explicitly.
+-func (t *Template) execError(st *state, line int, err string, args ...interface{}) {
+-	panic(&Error{line, fmt.Sprintf(err, args...)})
+-}
+-
+-// Report error, panic to terminate parsing.
+-// The line number comes from the template state.
+-func (t *Template) parseError(err string, args ...interface{}) {
+-	panic(&Error{t.linenum, fmt.Sprintf(err, args...)})
+-}
+-
+-// Is this an exported - upper case - name?
+-func isExported(name string) bool {
+-	rune, _ := utf8.DecodeRuneInString(name)
+-	return unicode.IsUpper(rune)
+-}
+-
+-// -- Lexical analysis
+-
+-// Is c a space character?
+-func isSpace(c uint8) bool { return c == ' ' || c == '\t' || c == '\r' || c == '\n' }
+-
+-// Safely, does s[n:n+len(t)] == t?
+-func equal(s []byte, n int, t []byte) bool {
+-	b := s[n:]
+-	if len(t) > len(b) { // not enough space left for a match.
+-		return false
+-	}
+-	for i, c := range t {
+-		if c != b[i] {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+-// isQuote returns true if c is a string- or character-delimiting quote character.
+-func isQuote(c byte) bool {
+-	return c == '"' || c == '`' || c == '\''
+-}
+-
+-// endQuote returns the end quote index for the quoted string that
+-// starts at n, or -1 if no matching end quote is found before the end
+-// of the line.
+-func endQuote(s []byte, n int) int {
+-	quote := s[n]
+-	for n++; n < len(s); n++ {
+-		switch s[n] {
+-		case '\\':
+-			if quote == '"' || quote == '\'' {
+-				n++
+-			}
+-		case '\n':
+-			return -1
+-		case quote:
+-			return n
+-		}
+-	}
+-	return -1
+-}
+-
+-// nextItem returns the next item from the input buffer.  If the returned
+-// item is empty, we are at EOF.  The item will be either a
+-// delimited string or a non-empty string between delimited
+-// strings. Tokens stop at (but include, if plain text) a newline.
+-// Action tokens on a line by themselves drop any space on
+-// either side, up to and including the newline.
+-func (t *Template) nextItem() []byte {
+-	startOfLine := t.p == 0 || t.buf[t.p-1] == '\n'
+-	start := t.p
+-	var i int
+-	newline := func() {
+-		t.linenum++
+-		i++
+-	}
+-	// Leading space up to but not including newline
+-	for i = start; i < len(t.buf); i++ {
+-		if t.buf[i] == '\n' || !isSpace(t.buf[i]) {
+-			break
+-		}
+-	}
+-	leadingSpace := i > start
+-	// What's left is nothing, newline, delimited string, or plain text
+-	switch {
+-	case i == len(t.buf):
+-		// EOF; nothing to do
+-	case t.buf[i] == '\n':
+-		newline()
+-	case equal(t.buf, i, t.ldelim):
+-		left := i         // Start of left delimiter.
+-		right := -1       // Will be (immediately after) right delimiter.
+-		haveText := false // Delimiters contain text.
+-		i += len(t.ldelim)
+-		// Find the end of the action.
+-		for ; i < len(t.buf); i++ {
+-			if t.buf[i] == '\n' {
+-				break
+-			}
+-			if isQuote(t.buf[i]) {
+-				i = endQuote(t.buf, i)
+-				if i == -1 {
+-					t.parseError("unmatched quote")
+-					return nil
+-				}
+-				continue
+-			}
+-			if equal(t.buf, i, t.rdelim) {
+-				i += len(t.rdelim)
+-				right = i
+-				break
+-			}
+-			haveText = true
+-		}
+-		if right < 0 {
+-			t.parseError("unmatched opening delimiter")
+-			return nil
+-		}
+-		// Is this a special action (starts with '.' or '#') and the only thing on the line?
+-		if startOfLine && haveText {
+-			firstChar := t.buf[left+len(t.ldelim)]
+-			if firstChar == '.' || firstChar == '#' {
+-				// It's special and the first thing on the line. Is it the last?
+-				for j := right; j < len(t.buf) && isSpace(t.buf[j]); j++ {
+-					if t.buf[j] == '\n' {
+-						// Yes it is. Drop the surrounding space and return the {.foo}
+-						t.linenum++
+-						t.p = j + 1
+-						return t.buf[left:right]
+-					}
+-				}
+-			}
+-		}
+-		// No it's not. If there's leading space, return that.
+-		if leadingSpace {
+-			// not trimming space: return leading space if there is some.
+-			t.p = left
+-			return t.buf[start:left]
+-		}
+-		// Return the word, leave the trailing space.
+-		start = left
+-		break
+-	default:
+-		for ; i < len(t.buf); i++ {
+-			if t.buf[i] == '\n' {
+-				newline()
+-				break
+-			}
+-			if equal(t.buf, i, t.ldelim) {
+-				break
+-			}
+-		}
+-	}
+-	item := t.buf[start:i]
+-	t.p = i
+-	return item
+-}
+-
+-// Turn a byte array into a space-split array of strings,
+-// taking into account quoted strings.
+-func words(buf []byte) []string {
+-	s := make([]string, 0, 5)
+-	for i := 0; i < len(buf); {
+-		// One word per loop
+-		for i < len(buf) && isSpace(buf[i]) {
+-			i++
+-		}
+-		if i == len(buf) {
+-			break
+-		}
+-		// Got a word
+-		start := i
+-		if isQuote(buf[i]) {
+-			i = endQuote(buf, i)
+-			if i < 0 {
+-				i = len(buf)
+-			} else {
+-				i++
+-			}
+-		}
+-		// Even with quotes, break on space only.  This handles input
+-		// such as {""|} and catches quoting mistakes.
+-		for i < len(buf) && !isSpace(buf[i]) {
+-			i++
+-		}
+-		s = append(s, string(buf[start:i]))
+-	}
+-	return s
+-}
+-
+-// Analyze an item and return its token type and, if it's an action item, an array of
+-// its constituent words.
+-func (t *Template) analyze(item []byte) (tok int, w []string) {
+-	// item is known to be non-empty
+-	if !equal(item, 0, t.ldelim) { // doesn't start with left delimiter
+-		tok = tokText
+-		return
+-	}
+-	if !equal(item, len(item)-len(t.rdelim), t.rdelim) { // doesn't end with right delimiter
+-		t.parseError("internal error: unmatched opening delimiter") // lexing should prevent this
+-		return
+-	}
+-	if len(item) <= len(t.ldelim)+len(t.rdelim) { // no contents
+-		t.parseError("empty directive")
+-		return
+-	}
+-	// Comment
+-	if item[len(t.ldelim)] == '#' {
+-		tok = tokComment
+-		return
+-	}
+-	// Split into words
+-	w = words(item[len(t.ldelim) : len(item)-len(t.rdelim)]) // drop final delimiter
+-	if len(w) == 0 {
+-		t.parseError("empty directive")
+-		return
+-	}
+-	first := w[0]
+-	if first[0] != '.' {
+-		tok = tokVariable
+-		return
+-	}
+-	if len(first) > 1 && first[1] >= '0' && first[1] <= '9' {
+-		// Must be a float.
+-		tok = tokVariable
+-		return
+-	}
+-	switch first {
+-	case ".meta-left", ".meta-right", ".space", ".tab":
+-		tok = tokLiteral
+-		return
+-	case ".or":
+-		tok = tokOr
+-		return
+-	case ".end":
+-		tok = tokEnd
+-		return
+-	case ".section":
+-		if len(w) != 2 {
+-			t.parseError("incorrect fields for .section: %s", item)
+-			return
+-		}
+-		tok = tokSection
+-		return
+-	case ".repeated":
+-		if len(w) != 3 || w[1] != "section" {
+-			t.parseError("incorrect fields for .repeated: %s", item)
+-			return
+-		}
+-		tok = tokRepeated
+-		return
+-	case ".alternates":
+-		if len(w) != 2 || w[1] != "with" {
+-			t.parseError("incorrect fields for .alternates: %s", item)
+-			return
+-		}
+-		tok = tokAlternates
+-		return
+-	}
+-	t.parseError("bad directive: %s", item)
+-	return
+-}
+-
+-// formatter returns the Formatter with the given name in the Template, or nil if none exists.
+-func (t *Template) formatter(name string) func(io.Writer, string, ...interface{}) {
+-	if t.fmap != nil {
+-		if fn := t.fmap[name]; fn != nil {
+-			return fn
+-		}
+-	}
+-	return builtins[name]
+-}
+-
+-// -- Parsing
+-
+-// newVariable allocates a new variable-evaluation element.
+-func (t *Template) newVariable(words []string) *variableElement {
+-	formatters := extractFormatters(words)
+-	args := make([]interface{}, len(words))
+-
+-	// Build argument list, processing any literals
+-	for i, word := range words {
+-		var lerr os.Error
+-		switch word[0] {
+-		case '"', '`', '\'':
+-			v, err := strconv.Unquote(word)
+-			if err == nil && word[0] == '\'' {
+-				args[i] = []int(v)[0]
+-			} else {
+-				args[i], lerr = v, err
+-			}
+-
+-		case '.', '+', '-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+-			v, err := strconv.Btoi64(word, 0)
+-			if err == nil {
+-				args[i] = v
+-			} else {
+-				v, err := strconv.Atof64(word)
+-				args[i], lerr = v, err
+-			}
+-
+-		default:
+-			args[i] = fieldName(word)
+-		}
+-		if lerr != nil {
+-			t.parseError("invalid literal: %q: %s", word, lerr)
+-		}
+-	}
+-
+-	// We could remember the function address here and avoid the lookup later,
+-	// but it's more dynamic to let the user change the map contents underfoot.
+-	// We do require the name to be present, though.
+-
+-	// Is it in user-supplied map?
+-	for _, f := range formatters {
+-		if t.formatter(f) == nil {
+-			t.parseError("unknown formatter: %q", f)
+-		}
+-	}
+-
+-	return &variableElement{t.linenum, args, formatters}
+-}
+-
+-// extractFormatters extracts a list of formatters from words.
+-// After the final space-separated argument in a variable, formatters may be
+-// specified separated by pipe symbols. For example: {a b c|d|e}
+-// The words parameter still has the formatters joined by '|' in the last word.
+-// extractFormatters splits formatters, replaces the last word with the content
+-// found before the first '|' within it, and returns the formatters obtained.
+-// If no formatters are found in words, the default formatter is returned.
+-func extractFormatters(words []string) (formatters []string) {
+-	// "" is the default formatter.
+-	formatters = []string{""}
+-	if len(words) == 0 {
+-		return
+-	}
+-	var bar int
+-	lastWord := words[len(words)-1]
+-	if isQuote(lastWord[0]) {
+-		end := endQuote([]byte(lastWord), 0)
+-		if end < 0 || end+1 == len(lastWord) || lastWord[end+1] != '|' {
+-			return
+-		}
+-		bar = end + 1
+-	} else {
+-		bar = strings.IndexRune(lastWord, '|')
+-		if bar < 0 {
+-			return
+-		}
+-	}
+-	words[len(words)-1] = lastWord[0:bar]
+-	formatters = strings.Split(lastWord[bar+1:], "|")
+-	return
+-}
+-
+-// Grab the next item.  If it's simple, just append it to the template.
+-// Otherwise return its details.
+-func (t *Template) parseSimple(item []byte) (done bool, tok int, w []string) {
+-	tok, w = t.analyze(item)
+-	done = true // assume for simplicity
+-	switch tok {
+-	case tokComment:
+-		return
+-	case tokText:
+-		t.elems = append(t.elems, &textElement{item})
+-		return
+-	case tokLiteral:
+-		switch w[0] {
+-		case ".meta-left":
+-			t.elems = append(t.elems, &literalElement{t.ldelim})
+-		case ".meta-right":
+-			t.elems = append(t.elems, &literalElement{t.rdelim})
+-		case ".space":
+-			t.elems = append(t.elems, &literalElement{space})
+-		case ".tab":
+-			t.elems = append(t.elems, &literalElement{tab})
+-		default:
+-			t.parseError("internal error: unknown literal: %s", w[0])
+-		}
+-		return
+-	case tokVariable:
+-		t.elems = append(t.elems, t.newVariable(w))
+-		return
+-	}
+-	return false, tok, w
+-}
+-
+-// parseRepeated and parseSection are mutually recursive
+-
+-func (t *Template) parseRepeated(words []string) *repeatedElement {
+-	r := new(repeatedElement)
+-	t.elems = append(t.elems, r)
+-	r.linenum = t.linenum
+-	r.field = words[2]
+-	// Scan section, collecting true and false (.or) blocks.
+-	r.start = len(t.elems)
+-	r.or = -1
+-	r.altstart = -1
+-	r.altend = -1
+-Loop:
+-	for {
+-		item := t.nextItem()
+-		if len(item) == 0 {
+-			t.parseError("missing .end for .repeated section")
+-			break
+-		}
+-		done, tok, w := t.parseSimple(item)
+-		if done {
+-			continue
+-		}
+-		switch tok {
+-		case tokEnd:
+-			break Loop
+-		case tokOr:
+-			if r.or >= 0 {
+-				t.parseError("extra .or in .repeated section")
+-				break Loop
+-			}
+-			r.altend = len(t.elems)
+-			r.or = len(t.elems)
+-		case tokSection:
+-			t.parseSection(w)
+-		case tokRepeated:
+-			t.parseRepeated(w)
+-		case tokAlternates:
+-			if r.altstart >= 0 {
+-				t.parseError("extra .alternates in .repeated section")
+-				break Loop
+-			}
+-			if r.or >= 0 {
+-				t.parseError(".alternates inside .or block in .repeated section")
+-				break Loop
+-			}
+-			r.altstart = len(t.elems)
+-		default:
+-			t.parseError("internal error: unknown repeated section item: %s", item)
+-			break Loop
+-		}
+-	}
+-	if r.altend < 0 {
+-		r.altend = len(t.elems)
+-	}
+-	r.end = len(t.elems)
+-	return r
+-}
+-
+-func (t *Template) parseSection(words []string) *sectionElement {
+-	s := new(sectionElement)
+-	t.elems = append(t.elems, s)
+-	s.linenum = t.linenum
+-	s.field = words[1]
+-	// Scan section, collecting true and false (.or) blocks.
+-	s.start = len(t.elems)
+-	s.or = -1
+-Loop:
+-	for {
+-		item := t.nextItem()
+-		if len(item) == 0 {
+-			t.parseError("missing .end for .section")
+-			break
+-		}
+-		done, tok, w := t.parseSimple(item)
+-		if done {
+-			continue
+-		}
+-		switch tok {
+-		case tokEnd:
+-			break Loop
+-		case tokOr:
+-			if s.or >= 0 {
+-				t.parseError("extra .or in .section")
+-				break Loop
+-			}
+-			s.or = len(t.elems)
+-		case tokSection:
+-			t.parseSection(w)
+-		case tokRepeated:
+-			t.parseRepeated(w)
+-		case tokAlternates:
+-			t.parseError(".alternates not in .repeated")
+-		default:
+-			t.parseError("internal error: unknown section item: %s", item)
+-		}
+-	}
+-	s.end = len(t.elems)
+-	return s
+-}
+-
+-func (t *Template) parse() {
+-	for {
+-		item := t.nextItem()
+-		if len(item) == 0 {
+-			break
+-		}
+-		done, tok, w := t.parseSimple(item)
+-		if done {
+-			continue
+-		}
+-		switch tok {
+-		case tokOr, tokEnd, tokAlternates:
+-			t.parseError("unexpected %s", w[0])
+-		case tokSection:
+-			t.parseSection(w)
+-		case tokRepeated:
+-			t.parseRepeated(w)
+-		default:
+-			t.parseError("internal error: bad directive in parse: %s", item)
+-		}
+-	}
+-}
+-
+-// -- Execution
+-
+-// -- Public interface
+-
+-// Parse initializes a Template by parsing its definition.  The string
+-// s contains the template text.  If any errors occur, Parse returns
+-// the error.
+-func (t *Template) Parse(s string) (err os.Error) {
+-	if t.elems == nil {
+-		return &Error{1, "template not allocated with New"}
+-	}
+-	if !validDelim(t.ldelim) || !validDelim(t.rdelim) {
+-		return &Error{1, fmt.Sprintf("bad delimiter strings %q %q", t.ldelim, t.rdelim)}
+-	}
+-	defer checkError(&err)
+-	t.buf = []byte(s)
+-	t.p = 0
+-	t.linenum = 1
+-	t.parse()
+-	return nil
+-}
+-
+-// ParseFile is like Parse but reads the template definition from the
+-// named file.
+-func (t *Template) ParseFile(filename string) (err os.Error) {
+-	b, err := ioutil.ReadFile(filename)
+-	if err != nil {
+-		return err
+-	}
+-	return t.Parse(string(b))
+-}
+-
+-// Execute applies a parsed template to the specified data object,
+-// generating output to wr.
+-func (t *Template) Execute(wr io.Writer, data interface{}) (err os.Error) {
+-	// Extract the driver data.
+-	val := reflect.ValueOf(data)
+-	defer checkError(&err)
+-	t.p = 0
+-	t.execute(0, len(t.elems), &state{parent: nil, data: val, wr: wr})
+-	return nil
+-}
+-
+-// SetDelims sets the left and right delimiters for operations in the
+-// template.  They are validated during parsing.  They could be
+-// validated here but it's better to keep the routine simple.  The
+-// delimiters are very rarely invalid and Parse has the necessary
+-// error-handling interface already.
+-func (t *Template) SetDelims(left, right string) {
+-	t.ldelim = []byte(left)
+-	t.rdelim = []byte(right)
+-}
+-
+-// Parse creates a Template with default parameters (such as {} for
+-// metacharacters).  The string s contains the template text while
+-// the formatter map fmap, which may be nil, defines auxiliary functions
+-// for formatting variables.  The template is returned. If any errors
+-// occur, err will be non-nil.
+-func Parse(s string, fmap FormatterMap) (t *Template, err os.Error) {
+-	t = New(fmap)
+-	err = t.Parse(s)
+-	if err != nil {
+-		t = nil
+-	}
+-	return
+-}
+-
+-// ParseFile is a wrapper function that creates a Template with default
+-// parameters (such as {} for metacharacters).  The filename identifies
+-// a file containing the template text, while the formatter map fmap, which
+-// may be nil, defines auxiliary functions for formatting variables.
+-// The template is returned. If any errors occur, err will be non-nil.
+-func ParseFile(filename string, fmap FormatterMap) (t *Template, err os.Error) {
+-	b, err := ioutil.ReadFile(filename)
+-	if err != nil {
+-		return nil, err
+-	}
+-	return Parse(string(b), fmap)
+-}
+-
+-// MustParse is like Parse but panics if the template cannot be parsed.
+-func MustParse(s string, fmap FormatterMap) *Template {
+-	t, err := Parse(s, fmap)
+-	if err != nil {
+-		panic("template.MustParse error: " + err.String())
+-	}
+-	return t
+-}
+-
+-// MustParseFile is like ParseFile but panics if the file cannot be read
+-// or the template cannot be parsed.
+-func MustParseFile(filename string, fmap FormatterMap) *Template {
+-	b, err := ioutil.ReadFile(filename)
+-	if err != nil {
+-		panic("template.MustParseFile error: " + err.String())
+-	}
+-	return MustParse(string(b), fmap)
+-}
+diff --git a/src/pkg/template/template_test.go b/src/pkg/template/template_test.go
+deleted file mode 100644
+index eae8011eb3..0000000000
+--- a/src/pkg/template/template_test.go
++++ /dev/null
+@@ -1,804 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package template
+-
+-import (
+-	"bytes"
+-	"container/vector"
+-	"fmt"
+-	"io"
+-	"io/ioutil"
+-	"json"
+-	"os"
+-	"strings"
+-	"testing"
+-)
+-
+-type Test struct {
+-	in, out, err string
+-}
+-
+-type T struct {
+-	Item  string
+-	Value string
+-}
+-
+-type U struct {
+-	Mp map[string]int
+-}
+-
+-type S struct {
+-	Header        string
+-	HeaderPtr     *string
+-	Integer       int
+-	IntegerPtr    *int
+-	NilPtr        *int
+-	InnerT        T
+-	InnerPointerT *T
+-	Data          []T
+-	Pdata         []*T
+-	Empty         []*T
+-	Emptystring   string
+-	Null          []*T
+-	Vec           *vector.Vector
+-	True          bool
+-	False         bool
+-	Mp            map[string]string
+-	JSON          interface{}
+-	Innermap      U
+-	Stringmap     map[string]string
+-	Ptrmap        map[string]*string
+-	Iface         interface{}
+-	Ifaceptr      interface{}
+-}
+-
+-func (s *S) PointerMethod() string { return "ptrmethod!" }
+-
+-func (s S) ValueMethod() string { return "valmethod!" }
+-
+-var t1 = T{"ItemNumber1", "ValueNumber1"}
+-var t2 = T{"ItemNumber2", "ValueNumber2"}
+-
+-func uppercase(v interface{}) string {
+-	s := v.(string)
+-	t := ""
+-	for i := 0; i < len(s); i++ {
+-		c := s[i]
+-		if 'a' <= c && c <= 'z' {
+-			c = c + 'A' - 'a'
+-		}
+-		t += string(c)
+-	}
+-	return t
+-}
+-
+-func plus1(v interface{}) string {
+-	i := v.(int)
+-	return fmt.Sprint(i + 1)
+-}
+-
+-func writer(f func(interface{}) string) func(io.Writer, string, ...interface{}) {
+-	return func(w io.Writer, format string, v ...interface{}) {
+-		if len(v) != 1 {
+-			panic("test writer expected one arg")
+-		}
+-		io.WriteString(w, f(v[0]))
+-	}
+-}
+-
+-func multiword(w io.Writer, format string, value ...interface{}) {
+-	for _, v := range value {
+-		fmt.Fprintf(w, "<%v>", v)
+-	}
+-}
+-
+-func printf(w io.Writer, format string, v ...interface{}) {
+-	io.WriteString(w, fmt.Sprintf(v[0].(string), v[1:]...))
+-}
+-
+-var formatters = FormatterMap{
+-	"uppercase": writer(uppercase),
+-	"+1":        writer(plus1),
+-	"multiword": multiword,
+-	"printf":    printf,
+-}
+-
+-var tests = []*Test{
+-	// Simple
+-	&Test{"", "", ""},
+-	&Test{"abc", "abc", ""},
+-	&Test{"abc\ndef\n", "abc\ndef\n", ""},
+-	&Test{" {.meta-left}   \n", "{", ""},
+-	&Test{" {.meta-right}   \n", "}", ""},
+-	&Test{" {.space}   \n", " ", ""},
+-	&Test{" {.tab}   \n", "\t", ""},
+-	&Test{"     {#comment}   \n", "", ""},
+-	&Test{"\tSome Text\t\n", "\tSome Text\t\n", ""},
+-	&Test{" {.meta-right} {.meta-right} {.meta-right} \n", " } } } \n", ""},
+-
+-	// Variables at top level
+-	&Test{
+-		in: "{Header}={Integer}\n",
+-
+-		out: "Header=77\n",
+-	},
+-
+-	&Test{
+-		in: "Pointers: {*HeaderPtr}={*IntegerPtr}\n",
+-
+-		out: "Pointers: Header=77\n",
+-	},
+-
+-	&Test{
+-		in: "Stars but not pointers: {*Header}={*Integer}\n",
+-
+-		out: "Stars but not pointers: Header=77\n",
+-	},
+-
+-	&Test{
+-		in: "nil pointer: {*NilPtr}={*Integer}\n",
+-
+-		out: "nil pointer: <nil>=77\n",
+-	},
+-
+-	&Test{
+-		in: `{"Strings" ":"} {""} {"|"} {"\t\u0123 \x23\\"} {"\"}{\\"}`,
+-
+-		out: "Strings:  | \t\u0123 \x23\\ \"}{\\",
+-	},
+-
+-	&Test{
+-		in: "{`Raw strings` `:`} {``} {`|`} {`\\t\\u0123 \\x23\\`} {`}{\\`}",
+-
+-		out: "Raw strings:  | \\t\\u0123 \\x23\\ }{\\",
+-	},
+-
+-	&Test{
+-		in: "Characters: {'a'} {'\\u0123'} {' '} {'{'} {'|'} {'}'}",
+-
+-		out: "Characters: 97 291 32 123 124 125",
+-	},
+-
+-	&Test{
+-		in: "Integers: {1} {-2} {+42} {0777} {0x0a}",
+-
+-		out: "Integers: 1 -2 42 511 10",
+-	},
+-
+-	&Test{
+-		in: "Floats: {.5} {-.5} {1.1} {-2.2} {+42.1} {1e10} {1.2e-3} {1.2e3} {-1.2e3}",
+-
+-		out: "Floats: 0.5 -0.5 1.1 -2.2 42.1 1e+10 0.0012 1200 -1200",
+-	},
+-
+-	// Method at top level
+-	&Test{
+-		in: "ptrmethod={PointerMethod}\n",
+-
+-		out: "ptrmethod=ptrmethod!\n",
+-	},
+-
+-	&Test{
+-		in: "valmethod={ValueMethod}\n",
+-
+-		out: "valmethod=valmethod!\n",
+-	},
+-
+-	// Section
+-	&Test{
+-		in: "{.section Data }\n" +
+-			"some text for the section\n" +
+-			"{.end}\n",
+-
+-		out: "some text for the section\n",
+-	},
+-	&Test{
+-		in: "{.section Data }\n" +
+-			"{Header}={Integer}\n" +
+-			"{.end}\n",
+-
+-		out: "Header=77\n",
+-	},
+-	&Test{
+-		in: "{.section Pdata }\n" +
+-			"{Header}={Integer}\n" +
+-			"{.end}\n",
+-
+-		out: "Header=77\n",
+-	},
+-	&Test{
+-		in: "{.section Pdata }\n" +
+-			"data present\n" +
+-			"{.or}\n" +
+-			"data not present\n" +
+-			"{.end}\n",
+-
+-		out: "data present\n",
+-	},
+-	&Test{
+-		in: "{.section Empty }\n" +
+-			"data present\n" +
+-			"{.or}\n" +
+-			"data not present\n" +
+-			"{.end}\n",
+-
+-		out: "data not present\n",
+-	},
+-	&Test{
+-		in: "{.section Null }\n" +
+-			"data present\n" +
+-			"{.or}\n" +
+-			"data not present\n" +
+-			"{.end}\n",
+-
+-		out: "data not present\n",
+-	},
+-	&Test{
+-		in: "{.section Pdata }\n" +
+-			"{Header}={Integer}\n" +
+-			"{.section @ }\n" +
+-			"{Header}={Integer}\n" +
+-			"{.end}\n" +
+-			"{.end}\n",
+-
+-		out: "Header=77\n" +
+-			"Header=77\n",
+-	},
+-
+-	&Test{
+-		in: "{.section Data}{.end} {Header}\n",
+-
+-		out: " Header\n",
+-	},
+-
+-	&Test{
+-		in: "{.section Integer}{@}{.end}",
+-
+-		out: "77",
+-	},
+-
+-	// Repeated
+-	&Test{
+-		in: "{.section Pdata }\n" +
+-			"{.repeated section @ }\n" +
+-			"{Item}={Value}\n" +
+-			"{.end}\n" +
+-			"{.end}\n",
+-
+-		out: "ItemNumber1=ValueNumber1\n" +
+-			"ItemNumber2=ValueNumber2\n",
+-	},
+-	&Test{
+-		in: "{.section Pdata }\n" +
+-			"{.repeated section @ }\n" +
+-			"{Item}={Value}\n" +
+-			"{.or}\n" +
+-			"this should not appear\n" +
+-			"{.end}\n" +
+-			"{.end}\n",
+-
+-		out: "ItemNumber1=ValueNumber1\n" +
+-			"ItemNumber2=ValueNumber2\n",
+-	},
+-	&Test{
+-		in: "{.section @ }\n" +
+-			"{.repeated section Empty }\n" +
+-			"{Item}={Value}\n" +
+-			"{.or}\n" +
+-			"this should appear: empty field\n" +
+-			"{.end}\n" +
+-			"{.end}\n",
+-
+-		out: "this should appear: empty field\n",
+-	},
+-	&Test{
+-		in: "{.repeated section Pdata }\n" +
+-			"{Item}\n" +
+-			"{.alternates with}\n" +
+-			"is\nover\nmultiple\nlines\n" +
+-			"{.end}\n",
+-
+-		out: "ItemNumber1\n" +
+-			"is\nover\nmultiple\nlines\n" +
+-			"ItemNumber2\n",
+-	},
+-	&Test{
+-		in: "{.repeated section Pdata }\n" +
+-			"{Item}\n" +
+-			"{.alternates with}\n" +
+-			"is\nover\nmultiple\nlines\n" +
+-			" {.end}\n",
+-
+-		out: "ItemNumber1\n" +
+-			"is\nover\nmultiple\nlines\n" +
+-			"ItemNumber2\n",
+-	},
+-	&Test{
+-		in: "{.section Pdata }\n" +
+-			"{.repeated section @ }\n" +
+-			"{Item}={Value}\n" +
+-			"{.alternates with}DIVIDER\n" +
+-			"{.or}\n" +
+-			"this should not appear\n" +
+-			"{.end}\n" +
+-			"{.end}\n",
+-
+-		out: "ItemNumber1=ValueNumber1\n" +
+-			"DIVIDER\n" +
+-			"ItemNumber2=ValueNumber2\n",
+-	},
+-	&Test{
+-		in: "{.repeated section Vec }\n" +
+-			"{@}\n" +
+-			"{.end}\n",
+-
+-		out: "elt1\n" +
+-			"elt2\n",
+-	},
+-	// Same but with a space before {.end}: was a bug.
+-	&Test{
+-		in: "{.repeated section Vec }\n" +
+-			"{@} {.end}\n",
+-
+-		out: "elt1 elt2 \n",
+-	},
+-	&Test{
+-		in: "{.repeated section Integer}{.end}",
+-
+-		err: "line 1: .repeated: cannot repeat Integer (type int)",
+-	},
+-
+-	// Nested names
+-	&Test{
+-		in: "{.section @ }\n" +
+-			"{InnerT.Item}={InnerT.Value}\n" +
+-			"{.end}",
+-
+-		out: "ItemNumber1=ValueNumber1\n",
+-	},
+-	&Test{
+-		in: "{.section @ }\n" +
+-			"{InnerT.Item}={.section InnerT}{.section Value}{@}{.end}{.end}\n" +
+-			"{.end}",
+-
+-		out: "ItemNumber1=ValueNumber1\n",
+-	},
+-
+-	&Test{
+-		in: "{.section Emptystring}emptystring{.end}\n" +
+-			"{.section Header}header{.end}\n",
+-
+-		out: "\nheader\n",
+-	},
+-
+-	&Test{
+-		in: "{.section True}1{.or}2{.end}\n" +
+-			"{.section False}3{.or}4{.end}\n",
+-
+-		out: "1\n4\n",
+-	},
+-
+-	// Maps
+-
+-	&Test{
+-		in: "{Mp.mapkey}\n",
+-
+-		out: "Ahoy!\n",
+-	},
+-	&Test{
+-		in: "{Innermap.Mp.innerkey}\n",
+-
+-		out: "55\n",
+-	},
+-	&Test{
+-		in: "{.section Innermap}{.section Mp}{innerkey}{.end}{.end}\n",
+-
+-		out: "55\n",
+-	},
+-	&Test{
+-		in: "{.section JSON}{.repeated section maps}{a}{b}{.end}{.end}\n",
+-
+-		out: "1234\n",
+-	},
+-	&Test{
+-		in: "{Stringmap.stringkey1}\n",
+-
+-		out: "stringresult\n",
+-	},
+-	&Test{
+-		in: "{.repeated section Stringmap}\n" +
+-			"{@}\n" +
+-			"{.end}",
+-
+-		out: "stringresult\n" +
+-			"stringresult\n",
+-	},
+-	&Test{
+-		in: "{.repeated section Stringmap}\n" +
+-			"\t{@}\n" +
+-			"{.end}",
+-
+-		out: "\tstringresult\n" +
+-			"\tstringresult\n",
+-	},
+-	&Test{
+-		in: "{*Ptrmap.stringkey1}\n",
+-
+-		out: "pointedToString\n",
+-	},
+-	&Test{
+-		in: "{.repeated section Ptrmap}\n" +
+-			"{*@}\n" +
+-			"{.end}",
+-
+-		out: "pointedToString\n" +
+-			"pointedToString\n",
+-	},
+-
+-	// Interface values
+-
+-	&Test{
+-		in: "{Iface}",
+-
+-		out: "[1 2 3]",
+-	},
+-	&Test{
+-		in: "{.repeated section Iface}{@}{.alternates with} {.end}",
+-
+-		out: "1 2 3",
+-	},
+-	&Test{
+-		in: "{.section Iface}{@}{.end}",
+-
+-		out: "[1 2 3]",
+-	},
+-	&Test{
+-		in: "{.section Ifaceptr}{Item} {Value}{.end}",
+-
+-		out: "Item Value",
+-	},
+-}
+-
+-func TestAll(t *testing.T) {
+-	// Parse
+-	testAll(t, func(test *Test) (*Template, os.Error) { return Parse(test.in, formatters) })
+-	// ParseFile
+-	testAll(t, func(test *Test) (*Template, os.Error) {
+-		err := ioutil.WriteFile("_test/test.tmpl", []byte(test.in), 0600)
+-		if err != nil {
+-			t.Error("unexpected write error:", err)
+-			return nil, err
+-		}
+-		return ParseFile("_test/test.tmpl", formatters)
+-	})
+-	// tmpl.ParseFile
+-	testAll(t, func(test *Test) (*Template, os.Error) {
+-		err := ioutil.WriteFile("_test/test.tmpl", []byte(test.in), 0600)
+-		if err != nil {
+-			t.Error("unexpected write error:", err)
+-			return nil, err
+-		}
+-		tmpl := New(formatters)
+-		return tmpl, tmpl.ParseFile("_test/test.tmpl")
+-	})
+-}
+-
+-func testAll(t *testing.T, parseFunc func(*Test) (*Template, os.Error)) {
+-	s := new(S)
+-	// initialized by hand for clarity.
+-	s.Header = "Header"
+-	s.HeaderPtr = &s.Header
+-	s.Integer = 77
+-	s.IntegerPtr = &s.Integer
+-	s.InnerT = t1
+-	s.Data = []T{t1, t2}
+-	s.Pdata = []*T{&t1, &t2}
+-	s.Empty = []*T{}
+-	s.Null = nil
+-	s.Vec = new(vector.Vector)
+-	s.Vec.Push("elt1")
+-	s.Vec.Push("elt2")
+-	s.True = true
+-	s.False = false
+-	s.Mp = make(map[string]string)
+-	s.Mp["mapkey"] = "Ahoy!"
+-	json.Unmarshal([]byte(`{"maps":[{"a":1,"b":2},{"a":3,"b":4}]}`), &s.JSON)
+-	s.Innermap.Mp = make(map[string]int)
+-	s.Innermap.Mp["innerkey"] = 55
+-	s.Stringmap = make(map[string]string)
+-	s.Stringmap["stringkey1"] = "stringresult" // the same value so repeated section is order-independent
+-	s.Stringmap["stringkey2"] = "stringresult"
+-	s.Ptrmap = make(map[string]*string)
+-	x := "pointedToString"
+-	s.Ptrmap["stringkey1"] = &x // the same value so repeated section is order-independent
+-	s.Ptrmap["stringkey2"] = &x
+-	s.Iface = []int{1, 2, 3}
+-	s.Ifaceptr = &T{"Item", "Value"}
+-
+-	var buf bytes.Buffer
+-	for _, test := range tests {
+-		buf.Reset()
+-		tmpl, err := parseFunc(test)
+-		if err != nil {
+-			t.Error("unexpected parse error: ", err)
+-			continue
+-		}
+-		err = tmpl.Execute(&buf, s)
+-		if test.err == "" {
+-			if err != nil {
+-				t.Error("unexpected execute error:", err)
+-			}
+-		} else {
+-			if err == nil {
+-				t.Errorf("expected execute error %q, got nil", test.err)
+-			} else if err.String() != test.err {
+-				t.Errorf("expected execute error %q, got %q", test.err, err.String())
+-			}
+-		}
+-		if buf.String() != test.out {
+-			t.Errorf("for %q: expected %q got %q", test.in, test.out, buf.String())
+-		}
+-	}
+-}
+-
+-func TestMapDriverType(t *testing.T) {
+-	mp := map[string]string{"footer": "Ahoy!"}
+-	tmpl, err := Parse("template: {footer}", nil)
+-	if err != nil {
+-		t.Error("unexpected parse error:", err)
+-	}
+-	var b bytes.Buffer
+-	err = tmpl.Execute(&b, mp)
+-	if err != nil {
+-		t.Error("unexpected execute error:", err)
+-	}
+-	s := b.String()
+-	expect := "template: Ahoy!"
+-	if s != expect {
+-		t.Errorf("failed passing string as data: expected %q got %q", expect, s)
+-	}
+-}
+-
+-func TestMapNoEntry(t *testing.T) {
+-	mp := make(map[string]int)
+-	tmpl, err := Parse("template: {notthere}!", nil)
+-	if err != nil {
+-		t.Error("unexpected parse error:", err)
+-	}
+-	var b bytes.Buffer
+-	err = tmpl.Execute(&b, mp)
+-	if err != nil {
+-		t.Error("unexpected execute error:", err)
+-	}
+-	s := b.String()
+-	expect := "template: 0!"
+-	if s != expect {
+-		t.Errorf("failed passing string as data: expected %q got %q", expect, s)
+-	}
+-}
+-
+-func TestStringDriverType(t *testing.T) {
+-	tmpl, err := Parse("template: {@}", nil)
+-	if err != nil {
+-		t.Error("unexpected parse error:", err)
+-	}
+-	var b bytes.Buffer
+-	err = tmpl.Execute(&b, "hello")
+-	if err != nil {
+-		t.Error("unexpected execute error:", err)
+-	}
+-	s := b.String()
+-	expect := "template: hello"
+-	if s != expect {
+-		t.Errorf("failed passing string as data: expected %q got %q", expect, s)
+-	}
+-}
+-
+-func TestTwice(t *testing.T) {
+-	tmpl, err := Parse("template: {@}", nil)
+-	if err != nil {
+-		t.Error("unexpected parse error:", err)
+-	}
+-	var b bytes.Buffer
+-	err = tmpl.Execute(&b, "hello")
+-	if err != nil {
+-		t.Error("unexpected parse error:", err)
+-	}
+-	s := b.String()
+-	expect := "template: hello"
+-	if s != expect {
+-		t.Errorf("failed passing string as data: expected %q got %q", expect, s)
+-	}
+-	err = tmpl.Execute(&b, "hello")
+-	if err != nil {
+-		t.Error("unexpected parse error:", err)
+-	}
+-	s = b.String()
+-	expect += expect
+-	if s != expect {
+-		t.Errorf("failed passing string as data: expected %q got %q", expect, s)
+-	}
+-}
+-
+-func TestCustomDelims(t *testing.T) {
+-	// try various lengths.  zero should catch error.
+-	for i := 0; i < 7; i++ {
+-		for j := 0; j < 7; j++ {
+-			tmpl := New(nil)
+-			// first two chars deliberately the same to test equal left and right delims
+-			ldelim := "$!#$%^&"[0:i]
+-			rdelim := "$*&^%$!"[0:j]
+-			tmpl.SetDelims(ldelim, rdelim)
+-			// if braces, this would be template: {@}{.meta-left}{.meta-right}
+-			text := "template: " +
+-				ldelim + "@" + rdelim +
+-				ldelim + ".meta-left" + rdelim +
+-				ldelim + ".meta-right" + rdelim
+-			err := tmpl.Parse(text)
+-			if err != nil {
+-				if i == 0 || j == 0 { // expected
+-					continue
+-				}
+-				t.Error("unexpected parse error:", err)
+-			} else if i == 0 || j == 0 {
+-				t.Errorf("expected parse error for empty delimiter: %d %d %q %q", i, j, ldelim, rdelim)
+-				continue
+-			}
+-			var b bytes.Buffer
+-			err = tmpl.Execute(&b, "hello")
+-			s := b.String()
+-			if s != "template: hello"+ldelim+rdelim {
+-				t.Errorf("failed delim check(%q %q) %q got %q", ldelim, rdelim, text, s)
+-			}
+-		}
+-	}
+-}
+-
+-// Test that a variable evaluates to the field itself and does not further indirection
+-func TestVarIndirection(t *testing.T) {
+-	s := new(S)
+-	// initialized by hand for clarity.
+-	s.InnerPointerT = &t1
+-
+-	var buf bytes.Buffer
+-	input := "{.section @}{InnerPointerT}{.end}"
+-	tmpl, err := Parse(input, nil)
+-	if err != nil {
+-		t.Fatal("unexpected parse error:", err)
+-	}
+-	err = tmpl.Execute(&buf, s)
+-	if err != nil {
+-		t.Fatal("unexpected execute error:", err)
+-	}
+-	expect := fmt.Sprintf("%v", &t1) // output should be hex address of t1
+-	if buf.String() != expect {
+-		t.Errorf("for %q: expected %q got %q", input, expect, buf.String())
+-	}
+-}
+-
+-func TestHTMLFormatterWithByte(t *testing.T) {
+-	s := "Test string."
+-	b := []byte(s)
+-	var buf bytes.Buffer
+-	HTMLFormatter(&buf, "", b)
+-	bs := buf.String()
+-	if bs != s {
+-		t.Errorf("munged []byte, expected: %s got: %s", s, bs)
+-	}
+-}
+-
+-type UF struct {
+-	I int
+-	s string
+-}
+-
+-func TestReferenceToUnexported(t *testing.T) {
+-	u := &UF{3, "hello"}
+-	var buf bytes.Buffer
+-	input := "{.section @}{I}{s}{.end}"
+-	tmpl, err := Parse(input, nil)
+-	if err != nil {
+-		t.Fatal("unexpected parse error:", err)
+-	}
+-	err = tmpl.Execute(&buf, u)
+-	if err == nil {
+-		t.Fatal("expected execute error, got none")
+-	}
+-	if strings.Index(err.String(), "not exported") < 0 {
+-		t.Fatal("expected unexported error; got", err)
+-	}
+-}
+-
+-var formatterTests = []Test{
+-	{
+-		in: "{Header|uppercase}={Integer|+1}\n" +
+-			"{Header|html}={Integer|str}\n",
+-
+-		out: "HEADER=78\n" +
+-			"Header=77\n",
+-	},
+-
+-	{
+-		in: "{Header|uppercase}={Integer Header|multiword}\n" +
+-			"{Header|html}={Header Integer|multiword}\n" +
+-			"{Header|html}={Header Integer}\n",
+-
+-		out: "HEADER=<77><Header>\n" +
+-			"Header=<Header><77>\n" +
+-			"Header=Header77\n",
+-	},
+-	{
+-		in: "{Raw}\n" +
+-			"{Raw|html}\n",
+-
+-		out: "a <&> b\n" +
+-			"a &lt;&amp;&gt; b\n",
+-	},
+-	{
+-		in:  "{Bytes}",
+-		out: "hello",
+-	},
+-	{
+-		in:  "{Raw|uppercase|html|html}",
+-		out: "A &amp;lt;&amp;amp;&amp;gt; B",
+-	},
+-	{
+-		in:  "{Header Integer|multiword|html}",
+-		out: "&lt;Header&gt;&lt;77&gt;",
+-	},
+-	{
+-		in:  "{Integer|no_formatter|html}",
+-		err: `unknown formatter: "no_formatter"`,
+-	},
+-	{
+-		in:  "{Integer|||||}", // empty string is a valid formatter
+-		out: "77",
+-	},
+-	{
+-		in:  `{"%.02f 0x%02X" 1.1 10|printf}`,
+-		out: "1.10 0x0A",
+-	},
+-	{
+-		in:  `{""|}{""||}{""|printf}`, // Issue #1896.
+-		out: "",
+-	},
+-}
+-
+-func TestFormatters(t *testing.T) {
+-	data := map[string]interface{}{
+-		"Header":  "Header",
+-		"Integer": 77,
+-		"Raw":     "a <&> b",
+-		"Bytes":   []byte("hello"),
+-	}
+-	for _, c := range formatterTests {
+-		tmpl, err := Parse(c.in, formatters)
+-		if err != nil {
+-			if c.err == "" {
+-				t.Error("unexpected parse error:", err)
+-				continue
+-			}
+-			if strings.Index(err.String(), c.err) < 0 {
+-				t.Errorf("unexpected error: expected %q, got %q", c.err, err.String())
+-				continue
+-			}
+-		} else {
+-			if c.err != "" {
+-				t.Errorf("For %q, expected error, got none.", c.in)
+-				continue
+-			}
+-			buf := bytes.NewBuffer(nil)
+-			err = tmpl.Execute(buf, data)
+-			if err != nil {
+-				t.Error("unexpected Execute error: ", err)
+-				continue
+-			}
+-			actual := buf.String()
+-			if actual != c.out {
+-				t.Errorf("for %q: expected %q but got %q.", c.in, c.out, actual)
+-			}
+-		}
+-	}
+-}
+diff --git a/test/chan/select5.go b/test/chan/select5.go
+index e7ca9e015c..48ffadfd0c 100644
+--- a/test/chan/select5.go
++++ b/test/chan/select5.go
+@@ -17,8 +17,8 @@ import (
+ 	"bufio"
+ 	"fmt"
+ 	"io"
++	"old/template"
+ 	"os"
+-	"template"
+ )
+ 
+ func main() {
+@@ -37,7 +37,7 @@ func main() {
+ 		}
+ 		fmt.Fprintln(out, `}`)
+ 	}
+-	
++
+ 	do(recv)
+ 	do(send)
+ 	do(recvOrder)
+@@ -54,8 +54,8 @@ func run(t *template.Template, a interface{}, out io.Writer) {
+ 	}
+ }
+ 
+-type arg struct{
+-	def bool
++type arg struct {
++	def    bool
+ 	nreset int
+ }
+ 
+@@ -466,7 +466,7 @@ func next() bool {
+ 	}
+ 
+ 	// increment last choice sequence
+-	cp = len(choices)-1
++	cp = len(choices) - 1
+ 	for cp >= 0 && choices[cp].i == choices[cp].n-1 {
+ 		cp--
+ 	}
+@@ -479,4 +479,3 @@ func next() bool {
+ 	cp = 0
+ 	return true
+ }
+-

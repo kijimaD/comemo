@@ -17,7 +17,60 @@ Date:   Fri Dec 20 06:45:52 2024 +0000
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/go/internal/work/security.go      | 12 ++++++------
  src/cmd/go/internal/work/security_test.go |  7 +++++++
  2 files changed, 13 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/security.go b/src/cmd/go/internal/work/security.go
+index 1e2f81b2d4..50bfd0ab70 100644
+--- a/src/cmd/go/internal/work/security.go
++++ b/src/cmd/go/internal/work/security.go
+@@ -201,23 +201,23 @@ var validLinkerFlags = []*lazyregexp.Regexp{
+ 	re(`-Wl,--end-group`),
+ 	re(`-Wl,--(no-)?export-dynamic`),
+ 	re(`-Wl,-E`),
+-	re(`-Wl,-framework,[^,@\-][^,]+`),
++	re(`-Wl,-framework,[^,@\-][^,]*`),
+ 	re(`-Wl,--hash-style=(sysv|gnu|both)`),
+ 	re(`-Wl,-headerpad_max_install_names`),
+ 	re(`-Wl,--no-undefined`),
+ 	re(`-Wl,--pop-state`),
+ 	re(`-Wl,--push-state`),
+ 	re(`-Wl,-R,?([^@\-,][^,@]*$)`),
+-	re(`-Wl,--just-symbols[=,]([^,@\-][^,@]+)`),
+-	re(`-Wl,-rpath(-link)?[=,]([^,@\-][^,]+)`),
++	re(`-Wl,--just-symbols[=,]([^,@\-][^,@]*)`),
++	re(`-Wl,-rpath(-link)?[=,]([^,@\-][^,]*)`),
+ 	re(`-Wl,-s`),
+ 	re(`-Wl,-search_paths_first`),
+-	re(`-Wl,-sectcreate,([^,@\-][^,]+),([^,@\-][^,]+),([^,@\-][^,]+)`),
++	re(`-Wl,-sectcreate,([^,@\-][^,]*),([^,@\-][^,]*),([^,@\-][^,]*)`),
+ 	re(`-Wl,--start-group`),
+ 	re(`-Wl,-?-static`),
+ 	re(`-Wl,-?-subsystem,(native|windows|console|posix|xbox)`),
+-	re(`-Wl,-syslibroot[=,]([^,@\-][^,]+)`),
+-	re(`-Wl,-undefined[=,]([^,@\-][^,]+)`),
++	re(`-Wl,-syslibroot[=,]([^,@\-][^,]*)`),
++	re(`-Wl,-undefined[=,]([^,@\-][^,]*)`),
+ 	re(`-Wl,-?-unresolved-symbols=[^,]+`),
+ 	re(`-Wl,--(no-)?warn-([^,]+)`),
+ 	re(`-Wl,-?-wrap[=,][^,@\-][^,]*`),
+diff --git a/src/cmd/go/internal/work/security_test.go b/src/cmd/go/internal/work/security_test.go
+index 63dd569f7d..35af621764 100644
+--- a/src/cmd/go/internal/work/security_test.go
++++ b/src/cmd/go/internal/work/security_test.go
+@@ -182,6 +182,13 @@ var goodLinkerFlags = [][]string{
+ 	{"-Wl,--pop-state"},
+ 	{"-Wl,--push-state,--as-needed"},
+ 	{"-Wl,--push-state,--no-as-needed,-Bstatic"},
++	{"-Wl,--just-symbols,."},
++	{"-Wl,-framework,."},
++	{"-Wl,-rpath,."},
++	{"-Wl,-rpath-link,."},
++	{"-Wl,-sectcreate,.,.,."},
++	{"-Wl,-syslibroot,."},
++	{"-Wl,-undefined,."},
+ }
+ 
+ var badLinkerFlags = [][]string{

@@ -9,6 +9,20 @@ Date:   Fri Feb 18 11:35:43 2011 -0500
     R=adg, oerdnj
     CC=golang-dev
     https://golang.org/cl/4171060
-
+---
  src/pkg/runtime/Makefile | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 521c095b99..38e1aa61e3 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -129,7 +129,7 @@ mkversion: mkversion.c
+ 	quietgcc -o $@ -I "$(GOROOT)/include" $< "$(GOROOT)/lib/lib9.a"
+ 
+ version.go: mkversion
+-	./mkversion >version.go
++	GOROOT="$(GOROOT_FINAL)" ./mkversion >version.go
+ 
+ version_$(GOARCH).go:
+ 	(echo 'package runtime'; echo 'const theGoarch = "$(GOARCH)"') >$@

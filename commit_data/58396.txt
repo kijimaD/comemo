@@ -18,10 +18,324 @@ Date:   Wed Nov 1 02:36:36 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-
+---
  src/runtime/internal/atomic/atomic_386.go        | 18 ++++++
  src/runtime/internal/atomic/atomic_386.s         | 81 +++++++++++++++++++++++
  src/runtime/internal/atomic/atomic_amd64.go      | 18 ++++++
  src/runtime/internal/atomic/atomic_amd64.s       | 64 ++++++++++++++++++
  src/runtime/internal/atomic/atomic_andor_test.go | 82 +++++++++++++++++++++++-
  5 files changed, 262 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/internal/atomic/atomic_386.go b/src/runtime/internal/atomic/atomic_386.go
+index bf2f4b9229..e74dcaa92d 100644
+--- a/src/runtime/internal/atomic/atomic_386.go
++++ b/src/runtime/internal/atomic/atomic_386.go
+@@ -76,6 +76,24 @@ func And(ptr *uint32, val uint32)
+ //go:noescape
+ func Or(ptr *uint32, val uint32)
+ 
++//go:noescape
++func And32(ptr *uint32, val uint32) uint32
++
++//go:noescape
++func Or32(ptr *uint32, val uint32) uint32
++
++//go:noescape
++func And64(ptr *uint64, val uint64) uint64
++
++//go:noescape
++func Or64(ptr *uint64, val uint64) uint64
++
++//go:noescape
++func Anduintptr(ptr *uintptr, val uintptr) uintptr
++
++//go:noescape
++func Oruintptr(ptr *uintptr, val uintptr) uintptr
++
+ // NOTE: Do not add atomicxor8 (XOR is not idempotent).
+ 
+ //go:noescape
+diff --git a/src/runtime/internal/atomic/atomic_386.s b/src/runtime/internal/atomic/atomic_386.s
+index 724d515231..08812c37ec 100644
+--- a/src/runtime/internal/atomic/atomic_386.s
++++ b/src/runtime/internal/atomic/atomic_386.s
+@@ -283,3 +283,84 @@ TEXT ·And(SB), NOSPLIT, $0-8
+ 	LOCK
+ 	ANDL	BX, (AX)
+ 	RET
++
++// func And32(addr *uint32, v uint32) old uint32
++TEXT ·And32(SB), NOSPLIT, $0-12
++	MOVL	ptr+0(FP), BX
++	MOVL	val+4(FP), CX
++casloop:
++	MOVL 	CX, DX
++	MOVL	(BX), AX
++	ANDL	AX, DX
++	LOCK
++	CMPXCHGL	DX, (BX)
++	JNZ casloop
++	MOVL 	AX, ret+8(FP)
++	RET
++
++// func Or32(addr *uint32, v uint32) old uint32
++TEXT ·Or32(SB), NOSPLIT, $0-12
++	MOVL	ptr+0(FP), BX
++	MOVL	val+4(FP), CX
++casloop:
++	MOVL 	CX, DX
++	MOVL	(BX), AX
++	ORL	AX, DX
++	LOCK
++	CMPXCHGL	DX, (BX)
++	JNZ casloop
++	MOVL 	AX, ret+8(FP)
++	RET
++
++// func And64(addr *uint64, v uint64) old uint64
++TEXT ·And64(SB), NOSPLIT, $0-20
++	MOVL	ptr+0(FP), BP
++	// DI:SI = v
++	MOVL	val_lo+4(FP), SI
++	MOVL	val_hi+8(FP), DI
++	// DX:AX = *addr
++	MOVL	0(BP), AX
++	MOVL	4(BP), DX
++casloop:
++	// CX:BX = DX:AX (*addr) & DI:SI (mask)
++	MOVL	AX, BX
++	MOVL	DX, CX
++	ANDL	SI, BX
++	ANDL	DI, CX
++	LOCK
++	CMPXCHG8B	0(BP)
++	JNZ casloop
++	MOVL	AX, ret_lo+12(FP)
++	MOVL	DX, ret_hi+16(FP)
++	RET
++
++
++// func Or64(addr *uint64, v uint64) old uint64
++TEXT ·Or64(SB), NOSPLIT, $0-20
++	MOVL	ptr+0(FP), BP
++	// DI:SI = v
++	MOVL	val_lo+4(FP), SI
++	MOVL	val_hi+8(FP), DI
++	// DX:AX = *addr
++	MOVL	0(BP), AX
++	MOVL	4(BP), DX
++casloop:
++	// CX:BX = DX:AX (*addr) | DI:SI (mask)
++	MOVL	AX, BX
++	MOVL	DX, CX
++	ORL	SI, BX
++	ORL	DI, CX
++	LOCK
++	CMPXCHG8B	0(BP)
++	JNZ casloop
++	MOVL	AX, ret_lo+12(FP)
++	MOVL	DX, ret_hi+16(FP)
++	RET
++
++// func Anduintptr(addr *uintptr, v uintptr) old uintptr
++TEXT ·Anduintptr(SB), NOSPLIT, $0-12
++	JMP	·And32(SB)
++
++// func Oruintptr(addr *uintptr, v uintptr) old uintptr
++TEXT ·Oruintptr(SB), NOSPLIT, $0-12
++	JMP	·Or32(SB)
+diff --git a/src/runtime/internal/atomic/atomic_amd64.go b/src/runtime/internal/atomic/atomic_amd64.go
+index 52a83620c8..b439954093 100644
+--- a/src/runtime/internal/atomic/atomic_amd64.go
++++ b/src/runtime/internal/atomic/atomic_amd64.go
+@@ -84,6 +84,24 @@ func And(ptr *uint32, val uint32)
+ //go:noescape
+ func Or(ptr *uint32, val uint32)
+ 
++//go:noescape
++func And32(ptr *uint32, val uint32) uint32
++
++//go:noescape
++func Or32(ptr *uint32, val uint32) uint32
++
++//go:noescape
++func And64(ptr *uint64, val uint64) uint64
++
++//go:noescape
++func Or64(ptr *uint64, val uint64) uint64
++
++//go:noescape
++func Anduintptr(ptr *uintptr, val uintptr) uintptr
++
++//go:noescape
++func Oruintptr(ptr *uintptr, val uintptr) uintptr
++
+ // NOTE: Do not add atomicxor8 (XOR is not idempotent).
+ 
+ //go:noescape
+diff --git a/src/runtime/internal/atomic/atomic_amd64.s b/src/runtime/internal/atomic/atomic_amd64.s
+index d21514b36b..ec75bf9332 100644
+--- a/src/runtime/internal/atomic/atomic_amd64.s
++++ b/src/runtime/internal/atomic/atomic_amd64.s
+@@ -223,3 +223,67 @@ TEXT ·And(SB), NOSPLIT, $0-12
+ 	LOCK
+ 	ANDL	BX, (AX)
+ 	RET
++
++// func Or32(addr *uint32, v uint32) old uint32
++TEXT ·Or32(SB), NOSPLIT, $0-20
++	MOVQ	ptr+0(FP), BX
++	MOVL	val+8(FP), CX
++casloop:
++	MOVL 	CX, DX
++	MOVL	(BX), AX
++	ORL	AX, DX
++	LOCK
++	CMPXCHGL	DX, (BX)
++	JNZ casloop
++	MOVL 	AX, ret+16(FP)
++	RET
++
++// func And32(addr *uint32, v uint32) old uint32
++TEXT ·And32(SB), NOSPLIT, $0-20
++	MOVQ	ptr+0(FP), BX
++	MOVL	val+8(FP), CX
++casloop:
++	MOVL 	CX, DX
++	MOVL	(BX), AX
++	ANDL	AX, DX
++	LOCK
++	CMPXCHGL	DX, (BX)
++	JNZ casloop
++	MOVL 	AX, ret+16(FP)
++	RET
++
++// func Or64(addr *uint64, v uint64) old uint64
++TEXT ·Or64(SB), NOSPLIT, $0-24
++	MOVQ	ptr+0(FP), BX
++	MOVQ	val+8(FP), CX
++casloop:
++	MOVQ 	CX, DX
++	MOVQ	(BX), AX
++	ORQ	AX, DX
++	LOCK
++	CMPXCHGQ	DX, (BX)
++	JNZ casloop
++	MOVQ 	AX, ret+16(FP)
++	RET
++
++// func And64(addr *uint64, v uint64) old uint64
++TEXT ·And64(SB), NOSPLIT, $0-24
++	MOVQ	ptr+0(FP), BX
++	MOVQ	val+8(FP), CX
++casloop:
++	MOVQ 	CX, DX
++	MOVQ	(BX), AX
++	ANDQ	AX, DX
++	LOCK
++	CMPXCHGQ	DX, (BX)
++	JNZ casloop
++	MOVQ 	AX, ret+16(FP)
++	RET
++
++// func Anduintptr(addr *uintptr, v uintptr) old uintptr
++TEXT ·Anduintptr(SB), NOSPLIT, $0-24
++	JMP	·And64(SB)
++
++// func Oruintptr(addr *uintptr, v uintptr) old uintptr
++TEXT ·Oruintptr(SB), NOSPLIT, $0-24
++	JMP	·Or64(SB)
+diff --git a/src/runtime/internal/atomic/atomic_andor_test.go b/src/runtime/internal/atomic/atomic_andor_test.go
+index 73e8a3320d..1c198ba5c4 100644
+--- a/src/runtime/internal/atomic/atomic_andor_test.go
++++ b/src/runtime/internal/atomic/atomic_andor_test.go
+@@ -1,4 +1,4 @@
+-//go:build ppc64 || ppc64le || riscv64 || wasm
++//go:build 386 || amd64 || ppc64 || ppc64le || riscv64 || wasm
+ 
+ //
+ // Copyright 2023 The Go Authors. All rights reserved.
+@@ -167,3 +167,83 @@ func TestOr64(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func BenchmarkAnd32(b *testing.B) {
++	var x [128]uint32 // give x its own cache line
++	sink = &x
++	for i := 0; i < b.N; i++ {
++		atomic.And32(&x[63], uint32(i))
++	}
++}
++
++func BenchmarkAnd32Parallel(b *testing.B) {
++	var x [128]uint32 // give x its own cache line
++	sink = &x
++	b.RunParallel(func(pb *testing.PB) {
++		i := uint32(0)
++		for pb.Next() {
++			atomic.And32(&x[63], i)
++			i++
++		}
++	})
++}
++
++func BenchmarkAnd64(b *testing.B) {
++	var x [128]uint64 // give x its own cache line
++	sink = &x
++	for i := 0; i < b.N; i++ {
++		atomic.And64(&x[63], uint64(i))
++	}
++}
++
++func BenchmarkAnd64Parallel(b *testing.B) {
++	var x [128]uint64 // give x its own cache line
++	sink = &x
++	b.RunParallel(func(pb *testing.PB) {
++		i := uint64(0)
++		for pb.Next() {
++			atomic.And64(&x[63], i)
++			i++
++		}
++	})
++}
++
++func BenchmarkOr32(b *testing.B) {
++	var x [128]uint32 // give x its own cache line
++	sink = &x
++	for i := 0; i < b.N; i++ {
++		atomic.Or32(&x[63], uint32(i))
++	}
++}
++
++func BenchmarkOr32Parallel(b *testing.B) {
++	var x [128]uint32 // give x its own cache line
++	sink = &x
++	b.RunParallel(func(pb *testing.PB) {
++		i := uint32(0)
++		for pb.Next() {
++			atomic.Or32(&x[63], i)
++			i++
++		}
++	})
++}
++
++func BenchmarkOr64(b *testing.B) {
++	var x [128]uint64 // give x its own cache line
++	sink = &x
++	for i := 0; i < b.N; i++ {
++		atomic.Or64(&x[63], uint64(i))
++	}
++}
++
++func BenchmarkOr64Parallel(b *testing.B) {
++	var x [128]uint64 // give x its own cache line
++	sink = &x
++	b.RunParallel(func(pb *testing.PB) {
++		i := uint64(0)
++		for pb.Next() {
++			atomic.Or64(&x[63], i)
++			i++
++		}
++	})
++}

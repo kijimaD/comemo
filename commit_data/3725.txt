@@ -10,6 +10,19 @@ Date:   Mon Nov 2 13:17:12 2009 -0800
     
     R=r, rsc
     http://go/go-review/1018022
-
+---
  test/run | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/test/run b/test/run
+index 164636a3a0..37981d067b 100755
+--- a/test/run
++++ b/test/run
+@@ -28,6 +28,7 @@ esac
+ export G=${A}g
+ export L=${A}l
+ export GOTRACEBACK=0
++export LANG=C
+ 
+ failed=0
+ 

@@ -11,6 +11,27 @@ Date:   Thu May 27 17:30:08 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/323352
     Trust: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.17.html | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index 65d8efdc1b..3e9587dbf7 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -611,6 +611,15 @@ Do not send CLs removing the interior tags from such phrases.
+       On Unix-like systems, the process group of a child process is now set with signals blocked.
+       This avoids sending a <code>SIGTTOU</code> to the child when the parent is in a background process group.
+     </p>
++
++    <p><!-- CL 288298, CL 288300 -->
++      The Windows version of
++      <a href="/pkg/syscall/#SysProcAttr"><code>SysProcAttr</code></a>
++      has two new fields. <code>AdditionalInheritedHandles</code> is
++      a list of additional handles to be inherited by the new child
++      process. <code>ParentProcess</code> permits specifying the
++      parent process of the new process.
++    </p>
+   </dd>
+ </dl><!-- syscall -->
+ 

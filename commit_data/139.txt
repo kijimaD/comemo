@@ -5,7 +5,34 @@ Date:   Sun Jun 8 19:37:22 2008 -0700
     fix bug in closeness for float literal test
     
     SVN=121628
-
+---
  test/float_lit.go | 2 +-
  test/golden.out   | 2 --
  2 files changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/test/float_lit.go b/test/float_lit.go
+index c45de9b4c1..a7ef12390a 100644
+--- a/test/float_lit.go
++++ b/test/float_lit.go
+@@ -23,7 +23,7 @@ close(a, b double) bool
+ 	if e < 0 {
+ 		e = -e;
+ 	}
+-	if e*1.0e-14 < d {
++	if e*1.0e-14 > d {
+ 		return true;
+ 	}
+ 	return false;
+diff --git a/test/golden.out b/test/golden.out
+index 68be563f43..ef00c14da4 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -2,8 +2,6 @@
+ =========== ./char_lit.go
+ 
+ =========== ./float_lit.go
+-+10. is printfloat should be printfloat
+-BUG: known to fail incorrectly
+ 
+ =========== ./for.go
+ 

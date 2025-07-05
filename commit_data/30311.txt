@@ -11,7 +11,132 @@ Date:   Fri Oct 28 16:17:43 2016 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/internal/gcimporter/bimport.go          | 28 ++++++++++++++++++++++----
  src/go/internal/gcimporter/testdata/exports.go | 22 +++++++++++++++++++-
  2 files changed, 45 insertions(+), 5 deletions(-)
+
+diff --git a/src/go/internal/gcimporter/bimport.go b/src/go/internal/gcimporter/bimport.go
+index f7d1ddab4b..60e8c22594 100644
+--- a/src/go/internal/gcimporter/bimport.go
++++ b/src/go/internal/gcimporter/bimport.go
+@@ -222,22 +222,33 @@ func (p *importer) declare(obj types.Object) {
+ }
+ 
+ func (p *importer) obj(tag int) {
++	var aliasPos token.Pos
++	var aliasName string
++	if tag == aliasTag {
++		aliasPos = p.pos()
++		aliasName = p.string()
++		tag = p.tagOrIndex()
++	}
++
++	var obj types.Object
+ 	switch tag {
+ 	case constTag:
+ 		pos := p.pos()
+ 		pkg, name := p.qualifiedName()
+ 		typ := p.typ(nil)
+ 		val := p.value()
+-		p.declare(types.NewConst(pos, pkg, name, typ, val))
++		obj = types.NewConst(pos, pkg, name, typ, val)
++		p.declare(obj)
+ 
+ 	case typeTag:
+-		_ = p.typ(nil)
++		obj = p.typ(nil).(*types.Named).Obj()
+ 
+ 	case varTag:
+ 		pos := p.pos()
+ 		pkg, name := p.qualifiedName()
+ 		typ := p.typ(nil)
+-		p.declare(types.NewVar(pos, pkg, name, typ))
++		obj = types.NewVar(pos, pkg, name, typ)
++		p.declare(obj)
+ 
+ 	case funcTag:
+ 		pos := p.pos()
+@@ -245,11 +256,16 @@ func (p *importer) obj(tag int) {
+ 		params, isddd := p.paramList()
+ 		result, _ := p.paramList()
+ 		sig := types.NewSignature(nil, params, result, isddd)
+-		p.declare(types.NewFunc(pos, pkg, name, sig))
++		obj = types.NewFunc(pos, pkg, name, sig)
++		p.declare(obj)
+ 
+ 	default:
+ 		errorf("unexpected object tag %d", tag)
+ 	}
++
++	if aliasName != "" {
++		p.declare(types.NewAlias(aliasPos, p.pkgList[0], aliasName, 0, obj))
++	}
+ }
+ 
+ func (p *importer) pos() token.Pos {
+@@ -845,7 +861,11 @@ const (
+ 	fractionTag // not used by gc
+ 	complexTag
+ 	stringTag
++	nilTag     // only used by gc (appears in exported inlined function bodies)
+ 	unknownTag // not used by gc (only appears in packages with errors)
++
++	// Aliases
++	aliasTag
+ )
+ 
+ var predeclared = []types.Type{
+diff --git a/src/go/internal/gcimporter/testdata/exports.go b/src/go/internal/gcimporter/testdata/exports.go
+index 8ee28b0942..0033f3027b 100644
+--- a/src/go/internal/gcimporter/testdata/exports.go
++++ b/src/go/internal/gcimporter/testdata/exports.go
+@@ -9,6 +9,8 @@ package exports
+ 
+ import (
+ 	"go/ast"
++	"go/build"
++	"math"
+ )
+ 
+ // Issue 3682: Correctly read dotted identifiers from export data.
+@@ -27,6 +29,10 @@ const (
+ 	C7     = `bar\n`
+ )
+ 
++const (
++	C8 => math.Pi
++)
++
+ type (
+ 	T1  int
+ 	T2  [10]int
+@@ -75,9 +81,19 @@ type (
+ 	T28 func(T28) T28
+ )
+ 
++type (
++	T29 => ast.File
++	T30 => build.Context
++)
++
+ var (
+ 	V0 int
+-	V1 = -991.0
++	V1         = -991.0
++	V2 float32 = 1.2
++)
++
++var (
++	V3 => build.Default
+ )
+ 
+ func F1()         {}
+@@ -87,3 +103,7 @@ func F4() float32 { return 0 }
+ func F5(a, b, c int, u, v, w struct{ x, y T1 }, more ...interface{}) (p, q, r chan<- T10)
+ 
+ func (p *T1) M1()
++
++func F6 => math.Sin
++func F7 => ast.IsExported
++func F8 => build.Import

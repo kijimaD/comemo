@@ -23,7 +23,52 @@ Date:   Wed Mar 22 01:04:45 2023 +0000
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/os/file_windows.go |  2 +-
  src/os/os_test.go      | 20 ++++++++++++++++++++
  2 files changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index e7ee3a5607..7e495069ef 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -160,7 +160,7 @@ func (f *File) seek(offset int64, whence int) (ret int64, err error) {
+ // Truncate changes the size of the named file.
+ // If the file is a symbolic link, it changes the size of the link's target.
+ func Truncate(name string, size int64) error {
+-	f, e := OpenFile(name, O_WRONLY|O_CREATE, 0666)
++	f, e := OpenFile(name, O_WRONLY, 0666)
+ 	if e != nil {
+ 		return e
+ 	}
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index a8488a11f8..af6eb705b2 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1335,6 +1335,26 @@ func TestTruncate(t *testing.T) {
+ 	}
+ }
+ 
++func TestTruncateNonexistentFile(t *testing.T) {
++	t.Parallel()
++
++	assertPathError := func(t testing.TB, path string, err error) {
++		t.Helper()
++		if pe, ok := err.(*os.PathError); !ok || !os.IsNotExist(err) || pe.Path != path {
++			t.Errorf("got error: %v\nwant an ErrNotExist PathError with path %q", err, path)
++		}
++	}
++
++	path := filepath.Join(t.TempDir(), "nonexistent")
++
++	err := os.Truncate(path, 1)
++	assertPathError(t, path, err)
++
++	// Truncate shouldn't create any new file.
++	_, err = os.Stat(path)
++	assertPathError(t, path, err)
++}
++
+ // Use TempDir (via newFile) to make sure we're on a local file system,
+ // so that timings are not distorted by latency and caching.
+ // On NFS, timings can be off due to caching of meta-data on

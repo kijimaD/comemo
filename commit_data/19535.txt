@@ -7,6 +7,17 @@ Date:   Thu Jun 12 17:19:33 2014 -0700
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/105930043
-
+---
  doc/go1.4.txt | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/doc/go1.4.txt b/doc/go1.4.txt
+index 78e4ea0c3e..5127709d60 100644
+--- a/doc/go1.4.txt
++++ b/doc/go1.4.txt
+@@ -4,3 +4,5 @@ and should be mentioned in the Go 1.4 release notes.
+ Please keep the descriptions to a single line, starting with the
+ package or cmd/xxx directory name, and ending in a CL number.
+ Please keep the list sorted (as in sort.Strings of the lines).
++
++time: use the micro symbol (µ (U+00B5)) to print microsecond duration (CL 105030046)

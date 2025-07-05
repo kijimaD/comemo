@@ -11,10 +11,180 @@ Date:   Tue Oct 31 19:18:48 2017 -0400
     Change-Id: I75883b2891c310fe8ce7f08c27b06895c074e123
     Reviewed-on: https://go-review.googlesource.com/74910
     Reviewed-by: Michael Munday <mike.munday@ibm.com>
-
+---
  src/cmd/dist/test.go               |  4 +-
  src/cmd/go/internal/work/init.go   |  2 +-
  src/cmd/link/internal/ld/config.go |  2 +-
  src/runtime/asm_s390x.s            | 77 ++++++++++++++++++++++++++++++++++++++
  src/runtime/rt0_linux_s390x.s      | 21 ++++++-----
  5 files changed, 93 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 69c85f046e..9053d6df77 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -842,14 +842,14 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 		}
+ 		switch pair {
+ 		case "darwin-386", "darwin-amd64", "darwin-arm", "darwin-arm64",
+-			"linux-amd64", "linux-386", "linux-ppc64le",
++			"linux-amd64", "linux-386", "linux-ppc64le", "linux-s390x",
+ 			"windows-amd64", "windows-386":
+ 			return true
+ 		}
+ 		return false
+ 	case "c-shared":
+ 		switch pair {
+-		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le",
++		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-s390x",
+ 			"darwin-amd64", "darwin-386",
+ 			"android-arm", "android-arm64", "android-386",
+ 			"windows-amd64", "windows-386":
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index 425fa94c2c..0e17286cf6 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -97,7 +97,7 @@ func buildModeInit() {
+ 			codegenArg = "-fPIC"
+ 		} else {
+ 			switch platform {
+-			case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/ppc64le",
++			case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/ppc64le", "linux/s390x",
+ 				"android/amd64", "android/arm", "android/arm64", "android/386":
+ 				codegenArg = "-shared"
+ 			case "darwin/amd64", "darwin/386":
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index 2f2f2b07b5..cc95392d77 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -64,7 +64,7 @@ func (mode *BuildMode) Set(s string) error {
+ 		*mode = BuildModeCArchive
+ 	case "c-shared":
+ 		switch objabi.GOARCH {
+-		case "386", "amd64", "arm", "arm64", "ppc64le":
++		case "386", "amd64", "arm", "arm64", "ppc64le", "s390x":
+ 		default:
+ 			return badmode()
+ 		}
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index 487ed62306..6b71830557 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -7,6 +7,83 @@
+ #include "funcdata.h"
+ #include "textflag.h"
+ 
++// _rt0_s390x_lib is common startup code for s390x systems when
++// using -buildmode=c-archive or -buildmode=c-shared. The linker will
++// arrange to invoke this function as a global constructor (for
++// c-archive) or when the shared library is loaded (for c-shared).
++// We expect argc and argv to be passed in the usual C ABI registers
++// R2 and R3.
++TEXT _rt0_s390x_lib(SB), NOSPLIT|NOFRAME, $0
++	STMG	R6, R15, 48(R15)
++	MOVD	R2, _rt0_s390x_lib_argc<>(SB)
++	MOVD	R3, _rt0_s390x_lib_argv<>(SB)
++
++	// Save R6-R15 in the register save area of the calling function.
++	STMG	R6, R15, 48(R15)
++
++	// Allocate 80 bytes on the stack.
++	MOVD	$-80(R15), R15
++
++	// Save F8-F15 in our stack frame.
++	FMOVD	F8, 16(R15)
++	FMOVD	F9, 24(R15)
++	FMOVD	F10, 32(R15)
++	FMOVD	F11, 40(R15)
++	FMOVD	F12, 48(R15)
++	FMOVD	F13, 56(R15)
++	FMOVD	F14, 64(R15)
++	FMOVD	F15, 72(R15)
++
++	// Synchronous initialization.
++	MOVD	$runtime·libpreinit(SB), R1
++	BL	R1
++
++	// Create a new thread to finish Go runtime initialization.
++	MOVD	_cgo_sys_thread_create(SB), R1
++	CMP	R1, $0
++	BEQ	nocgo
++	MOVD	$_rt0_s390x_lib_go(SB), R2
++	MOVD	$0, R3
++	BL	R1
++	BR	restore
++
++nocgo:
++	MOVD	$0x800000, R1              // stacksize
++	MOVD	R1, 0(R15)
++	MOVD	$_rt0_s390x_lib_go(SB), R1
++	MOVD	R1, 8(R15)                 // fn
++	MOVD	$runtime·newosproc(SB), R1
++	BL	R1
++
++restore:
++	// Restore F8-F15 from our stack frame.
++	FMOVD	16(R15), F8
++	FMOVD	24(R15), F9
++	FMOVD	32(R15), F10
++	FMOVD	40(R15), F11
++	FMOVD	48(R15), F12
++	FMOVD	56(R15), F13
++	FMOVD	64(R15), F14
++	FMOVD	72(R15), F15
++	MOVD	$80(R15), R15
++
++	// Restore R6-R15.
++	LMG	48(R15), R6, R15
++	RET
++
++// _rt0_s390x_lib_go initializes the Go runtime.
++// This is started in a separate thread by _rt0_s390x_lib.
++TEXT _rt0_s390x_lib_go(SB), NOSPLIT|NOFRAME, $0
++	MOVD	_rt0_s390x_lib_argc<>(SB), R2
++	MOVD	_rt0_s390x_lib_argv<>(SB), R3
++	MOVD	$runtime·rt0_go(SB), R1
++	BR	R1
++
++DATA _rt0_s390x_lib_argc<>(SB)/8, $0
++GLOBL _rt0_s390x_lib_argc<>(SB), NOPTR, $8
++DATA _rt0_s90x_lib_argv<>(SB)/8, $0
++GLOBL _rt0_s390x_lib_argv<>(SB), NOPTR, $8
++
+ TEXT runtime·rt0_go(SB),NOSPLIT,$0
+ 	// R2 = argc; R3 = argv; R11 = temp; R13 = g; R15 = stack pointer
+ 	// C TLS base pointer in AR0:AR1
+diff --git a/src/runtime/rt0_linux_s390x.s b/src/runtime/rt0_linux_s390x.s
+index aedd6c7ef2..4b62c5a65a 100644
+--- a/src/runtime/rt0_linux_s390x.s
++++ b/src/runtime/rt0_linux_s390x.s
+@@ -4,17 +4,20 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT _rt0_s390x_linux(SB),NOSPLIT|NOFRAME,$0
++TEXT _rt0_s390x_linux(SB), NOSPLIT|NOFRAME, $0
+ 	// In a statically linked binary, the stack contains argc,
+ 	// argv as argc string pointers followed by a NULL, envv as a
+ 	// sequence of string pointers followed by a NULL, and auxv.
+ 	// There is no TLS base pointer.
+-	//
+-	// TODO: Support dynamic linking entry point
+-	MOVD 0(R15), R2 // argc
+-	ADD $8, R15, R3 // argv
+-	BR main(SB)
+ 
+-TEXT main(SB),NOSPLIT|NOFRAME,$0
+-	MOVD	$runtime·rt0_go(SB), R11
+-	BR	R11
++	MOVD 0(R15), R2  // argc
++	ADD  $8, R15, R3 // argv
++	BR   main(SB)
++
++TEXT _rt0_s390x_linux_lib(SB), NOSPLIT, $0
++	MOVD $_rt0_s390x_lib(SB), R1
++	BR   R1
++
++TEXT main(SB), NOSPLIT|NOFRAME, $0
++	MOVD $runtime·rt0_go(SB), R1
++	BR   R1

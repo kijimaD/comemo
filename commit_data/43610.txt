@@ -13,8 +13,167 @@ Date:   Mon Apr 13 12:49:59 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/228157
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/addressingmodes.go    | 29 ++++++++++++++++++++++
  .../compile/internal/ssa/gen/AMD64splitload.rules  |  9 +++++--
  test/codegen/memops.go                             | 28 ++++++++++-----------
  3 files changed, 50 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/addressingmodes.go b/src/cmd/compile/internal/ssa/addressingmodes.go
+index f06f82420d..eff0f8686a 100644
+--- a/src/cmd/compile/internal/ssa/addressingmodes.go
++++ b/src/cmd/compile/internal/ssa/addressingmodes.go
+@@ -87,6 +87,13 @@ func addressingModes(f *Func) {
+ 			v.resetArgs()
+ 			v.Op = c
+ 			v.AddArgs(tmp...)
++			if needSplit[c] {
++				// It turns out that some of the combined instructions have faster two-instruction equivalents,
++				// but not the two instructions that led to them being combined here.  For example
++				// (CMPBconstload c (ADDQ x y)) -> (CMPBconstloadidx1 c x y) -> (CMPB c (MOVBloadidx1 x y))
++				// The final pair of instructions turns out to be notably faster, at least in some benchmarks.
++				f.Config.splitLoad(v)
++			}
+ 		}
+ 	}
+ }
+@@ -101,6 +108,26 @@ func init() {
+ 	}
+ }
+ 
++// needSplit contains instructions that should be postprocessed by splitLoad
++// into a more-efficient two-instruction form.
++var needSplit = map[Op]bool{
++	OpAMD64CMPBloadidx1: true,
++	OpAMD64CMPWloadidx1: true,
++	OpAMD64CMPLloadidx1: true,
++	OpAMD64CMPQloadidx1: true,
++	OpAMD64CMPWloadidx2: true,
++	OpAMD64CMPLloadidx4: true,
++	OpAMD64CMPQloadidx8: true,
++
++	OpAMD64CMPBconstloadidx1: true,
++	OpAMD64CMPWconstloadidx1: true,
++	OpAMD64CMPLconstloadidx1: true,
++	OpAMD64CMPQconstloadidx1: true,
++	OpAMD64CMPWconstloadidx2: true,
++	OpAMD64CMPLconstloadidx4: true,
++	OpAMD64CMPQconstloadidx8: true,
++}
++
+ // For each entry k, v in this map, if we have a value x with:
+ //   x.Op == k[0]
+ //   x.Args[0].Op == k[1]
+@@ -162,6 +189,8 @@ var combine = map[[2]Op]Op{
+ 	[2]Op{OpAMD64MOVQstoreconst, OpAMD64LEAQ1}: OpAMD64MOVQstoreconstidx1,
+ 	[2]Op{OpAMD64MOVQstoreconst, OpAMD64LEAQ8}: OpAMD64MOVQstoreconstidx8,
+ 
++	// These instructions are re-split differently for performance, see needSplit above.
++	// TODO if 386 versions are created, also update needSplit and gen/386splitload.rules
+ 	[2]Op{OpAMD64CMPBload, OpAMD64ADDQ}: OpAMD64CMPBloadidx1,
+ 	[2]Op{OpAMD64CMPWload, OpAMD64ADDQ}: OpAMD64CMPWloadidx1,
+ 	[2]Op{OpAMD64CMPLload, OpAMD64ADDQ}: OpAMD64CMPLloadidx1,
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64splitload.rules b/src/cmd/compile/internal/ssa/gen/AMD64splitload.rules
+index 5fd4429a1b..381feb662e 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64splitload.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64splitload.rules
+@@ -2,14 +2,19 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This file contains rules used by flagalloc to split
+-// a flag-generating merged load op into separate load and op.
++// This file contains rules used by flagalloc and addressingmodes to
++// split a flag-generating merged load op into separate load and op.
+ // Unlike with the other rules files, not all of these
+ // rules will be applied to all values.
+ // Rather, flagalloc will request for rules to be applied
+ // to a particular problematic value.
+ // These are often the exact inverse of rules in AMD64.rules,
+ // only with the conditions removed.
++//
++// For addressingmodes, certain single instructions are slower than the two instruction
++// split generated here (which is different from the inputs to addressingmodes).
++// For example:
++// (CMPBconstload c (ADDQ x y)) -> (CMPBconstloadidx1 c x y) -> (CMPB c (MOVBloadidx1 x y))
+ 
+ (CMP(Q|L|W|B)load {sym} [off] ptr x mem) -> (CMP(Q|L|W|B) (MOV(Q|L|W|B)load {sym} [off] ptr mem) x)
+ 
+diff --git a/test/codegen/memops.go b/test/codegen/memops.go
+index bf5ffb6c4f..dbe4263d8d 100644
+--- a/test/codegen/memops.go
++++ b/test/codegen/memops.go
+@@ -245,59 +245,59 @@ func idxStorePlusOp(x []int32, i int, v int32) {
+ }
+ 
+ func idxCompare(i int) int {
+-	// amd64: `CMPB\t1\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\), [A-Z]+[0-9]*`
++	// amd64: `MOVBLZX\t1\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\), [A-Z]+[0-9]*`
+ 	if x8[i+1] < x8[0] {
+ 		return 0
+ 	}
+-	// amd64: `CMPW\t2\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*2\), [A-Z]+[0-9]*`
++	// amd64: `MOVWLZX\t2\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*2\), [A-Z]+[0-9]*`
+ 	if x16[i+1] < x16[0] {
+ 		return 0
+ 	}
+-	// amd64: `CMPW\t2\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[12]\), [A-Z]+[0-9]*`
++	// amd64: `MOVWLZX\t2\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[12]\), [A-Z]+[0-9]*`
+ 	if x16[16*i+1] < x16[0] {
+ 		return 0
+ 	}
+-	// amd64: `CMPL\t4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), [A-Z]+[0-9]*`
++	// amd64: `MOVL\t4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), [A-Z]+[0-9]*`
+ 	if x32[i+1] < x32[0] {
+ 		return 0
+ 	}
+-	// amd64: `CMPL\t4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[14]\), [A-Z]+[0-9]*`
++	// amd64: `MOVL\t4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[14]\), [A-Z]+[0-9]*`
+ 	if x32[16*i+1] < x32[0] {
+ 		return 0
+ 	}
+-	// amd64: `CMPQ\t8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), [A-Z]+[0-9]*`
++	// amd64: `MOVQ\t8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), [A-Z]+[0-9]*`
+ 	if x64[i+1] < x64[0] {
+ 		return 0
+ 	}
+-	// amd64: `CMPQ\t8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[18]\), [A-Z]+[0-9]*`
++	// amd64: `MOVQ\t8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[18]\), [A-Z]+[0-9]*`
+ 	if x64[16*i+1] < x64[0] {
+ 		return 0
+ 	}
+-	// amd64: `CMPB\t2\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\), \$77`
++	// amd64: `MOVBLZX\t2\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\), [A-Z]+[0-9]*`
+ 	if x8[i+2] < 77 {
+ 		return 0
+ 	}
+-	// amd64: `CMPW\t4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*2\), \$77`
++	// amd64: `MOVWLZX\t4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*2\), [A-Z]+[0-9]*`
+ 	if x16[i+2] < 77 {
+ 		return 0
+ 	}
+-	// amd64: `CMPW\t4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[12]\), \$77`
++	// amd64: `MOVWLZX\t4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[12]\), [A-Z]+[0-9]*`
+ 	if x16[16*i+2] < 77 {
+ 		return 0
+ 	}
+-	// amd64: `CMPL\t8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), \$77`
++	// amd64: `MOVL\t8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), [A-Z]+[0-9]*`
+ 	if x32[i+2] < 77 {
+ 		return 0
+ 	}
+-	// amd64: `CMPL\t8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[14]\), \$77`
++	// amd64: `MOVL\t8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[14]\), [A-Z]+[0-9]*`
+ 	if x32[16*i+2] < 77 {
+ 		return 0
+ 	}
+-	// amd64: `CMPQ\t16\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), \$77`
++	// amd64: `MOVQ\t16\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), [A-Z]+[0-9]*`
+ 	if x64[i+2] < 77 {
+ 		return 0
+ 	}
+-	// amd64: `CMPQ\t16\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[18]\), \$77`
++	// amd64: `MOVQ\t16\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[18]\), [A-Z]+[0-9]*`
+ 	if x64[16*i+2] < 77 {
+ 		return 0
+ 	}

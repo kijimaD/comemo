@@ -9,6 +9,22 @@ Date:   Thu Nov 19 18:36:41 2015 -0500
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/dist/test.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 727f3e2f45..e0bd3cdcc2 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -615,9 +615,8 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 		}
+ 		return false
+ 	case "c-shared":
+-		// TODO(hyangah): add linux-386.
+ 		switch pair {
+-		case "linux-amd64", "darwin-amd64", "android-arm", "linux-arm", "linux-arm64":
++		case "linux-386", "linux-amd64", "darwin-amd64", "android-arm", "linux-arm", "linux-arm64":
+ 			return true
+ 		}
+ 		return false

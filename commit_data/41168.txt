@@ -22,8 +22,173 @@ Date:   Wed Sep 4 15:16:25 2019 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/esc.go    | 44 +++++++++++++++++++++----------
  src/cmd/compile/internal/gc/escape.go | 49 +++++++++++++----------------------
  test/uintptrescapes2.go               |  2 +-
  3 files changed, 49 insertions(+), 46 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 2ade014e79..c350d7c1bc 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -405,19 +405,7 @@ const unsafeUintptrTag = "unsafe-uintptr"
+ // marked go:uintptrescapes.
+ const uintptrEscapesTag = "uintptr-escapes"
+ 
+-func esctag(fn *Node) {
+-	fn.Esc = EscFuncTagged
+-
+-	narg := 0
+-	for _, fs := range types.RecvsParams {
+-		for _, f := range fs(fn.Type).Fields().Slice() {
+-			narg++
+-			f.Note = escparamtag(fn, narg, f)
+-		}
+-	}
+-}
+-
+-func escparamtag(fn *Node, narg int, f *types.Field) string {
++func (e *Escape) paramTag(fn *Node, narg int, f *types.Field) string {
+ 	name := func() string {
+ 		if f.Sym != nil {
+ 			return f.Sym.Name
+@@ -446,8 +434,15 @@ func escparamtag(fn *Node, narg int, f *types.Field) string {
+ 		// External functions are assumed unsafe, unless
+ 		// //go:noescape is given before the declaration.
+ 		if fn.Noescape() {
++			if Debug['m'] != 0 && f.Sym != nil {
++				Warnl(fn.Pos, "%S %v does not escape", funcSym(fn), name())
++			}
+ 			return mktag(EscNone)
+ 		}
++
++		if Debug['m'] != 0 && f.Sym != nil {
++			Warnl(fn.Pos, "leaking param: %v", name())
++		}
+ 		return mktag(EscHeap)
+ 	}
+ 
+@@ -477,5 +472,26 @@ func escparamtag(fn *Node, narg int, f *types.Field) string {
+ 	}
+ 
+ 	n := asNode(f.Nname)
+-	return mktag(int(n.Esc))
++	loc := e.oldLoc(n)
++	esc := finalizeEsc(loc.paramEsc)
++
++	if Debug['m'] != 0 && !loc.escapes {
++		if esc == EscNone {
++			Warnl(n.Pos, "%S %S does not escape", funcSym(fn), n)
++		} else if esc == EscHeap {
++			Warnl(n.Pos, "leaking param: %S", n)
++		} else {
++			if esc&EscContentEscapes != 0 {
++				Warnl(n.Pos, "leaking param content: %S", n)
++			}
++			for i := 0; i < numEscReturns; i++ {
++				if x := getEscReturn(esc, i); x >= 0 {
++					res := n.Name.Curfn.Type.Results().Field(i).Sym
++					Warnl(n.Pos, "leaking param: %S to result %v level=%d", n, res, x)
++				}
++			}
++		}
++	}
++
++	return mktag(int(esc))
+ }
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index c428fb35a0..ff958beef3 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -147,12 +147,7 @@ func escapeFuncs(fns []*Node, recursive bool) {
+ 	e.curfn = nil
+ 
+ 	e.walkAll()
+-	e.finish()
+-
+-	// Record parameter tags for package export data.
+-	for _, fn := range fns {
+-		esctag(fn)
+-	}
++	e.finish(fns)
+ }
+ 
+ func (e *Escape) initFunc(fn *Node) {
+@@ -1258,7 +1253,20 @@ func (l *EscLocation) leakTo(sink *EscLocation, derefs int) {
+ 	}
+ }
+ 
+-func (e *Escape) finish() {
++func (e *Escape) finish(fns []*Node) {
++	// Record parameter tags for package export data.
++	for _, fn := range fns {
++		fn.Esc = EscFuncTagged
++
++		narg := 0
++		for _, fs := range types.RecvsParams {
++			for _, f := range fs(fn.Type).Fields().Slice() {
++				narg++
++				f.Note = e.paramTag(fn, narg, f)
++			}
++		}
++	}
++
+ 	for _, loc := range e.allLocs {
+ 		n := loc.n
+ 		if n == nil {
+@@ -1279,27 +1287,10 @@ func (e *Escape) finish() {
+ 			}
+ 			n.Esc = EscHeap
+ 			addrescapes(n)
+-		} else if loc.isName(PPARAM) {
+-			n.Esc = finalizeEsc(loc.paramEsc)
+-
+-			if Debug['m'] != 0 && types.Haspointers(n.Type) {
+-				if n.Esc == EscNone {
+-					Warnl(n.Pos, "%S %S does not escape", funcSym(loc.curfn), n)
+-				} else if n.Esc == EscHeap {
+-					Warnl(n.Pos, "leaking param: %S", n)
+-				} else {
+-					if n.Esc&EscContentEscapes != 0 {
+-						Warnl(n.Pos, "leaking param content: %S", n)
+-					}
+-					for i := 0; i < numEscReturns; i++ {
+-						if x := getEscReturn(n.Esc, i); x >= 0 {
+-							res := n.Name.Curfn.Type.Results().Field(i).Sym
+-							Warnl(n.Pos, "leaking param: %S to result %v level=%d", n, res, x)
+-						}
+-					}
+-				}
+-			}
+ 		} else {
++			if Debug['m'] != 0 && n.Op != ONAME && n.Op != OTYPESW && n.Op != ORANGE && n.Op != ODEFER {
++				Warnl(n.Pos, "%S %S does not escape", funcSym(loc.curfn), n)
++			}
+ 			n.Esc = EscNone
+ 			if loc.transient {
+ 				switch n.Op {
+@@ -1307,10 +1298,6 @@ func (e *Escape) finish() {
+ 					n.SetNoescape(true)
+ 				}
+ 			}
+-
+-			if Debug['m'] != 0 && n.Op != ONAME && n.Op != OTYPESW && n.Op != ORANGE && n.Op != ODEFER {
+-				Warnl(n.Pos, "%S %S does not escape", funcSym(loc.curfn), n)
+-			}
+ 		}
+ 	}
+ }
+diff --git a/test/uintptrescapes2.go b/test/uintptrescapes2.go
+index b8117b857b..866efd94d8 100644
+--- a/test/uintptrescapes2.go
++++ b/test/uintptrescapes2.go
+@@ -18,7 +18,7 @@ func F1(a uintptr) {} // ERROR "escaping uintptr"
+ 
+ //go:uintptrescapes
+ //go:noinline
+-func F2(a ...uintptr) {} // ERROR "escaping ...uintptr" "a does not escape"
++func F2(a ...uintptr) {} // ERROR "escaping ...uintptr"
+ 
+ //go:uintptrescapes
+ //go:noinline

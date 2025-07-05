@@ -7,6 +7,43 @@ Date:   Tue Nov 10 18:00:27 2009 -0800
     R=agl, agl1
     CC=golang-dev
     https://golang.org/cl/153050
-
+---
  src/pkg/net/server_test.go | 16 ++++++++++------
  1 file changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/net/server_test.go b/src/pkg/net/server_test.go
+index 620911e21c..744f325534 100644
+--- a/src/pkg/net/server_test.go
++++ b/src/pkg/net/server_test.go
+@@ -88,10 +88,12 @@ func doTest(t *testing.T, network, listenaddr, dialaddr string) {
+ 
+ func TestTCPServer(t *testing.T) {
+ 	doTest(t, "tcp", "0.0.0.0", "127.0.0.1");
+-	doTest(t, "tcp", "[::]", "[::ffff:127.0.0.1]");
+-	doTest(t, "tcp", "[::]", "127.0.0.1");
+ 	doTest(t, "tcp", "", "127.0.0.1");
+-	doTest(t, "tcp", "0.0.0.0", "[::ffff:127.0.0.1]");
++	if kernelSupportsIPv6() {
++		doTest(t, "tcp", "[::]", "[::ffff:127.0.0.1]");
++		doTest(t, "tcp", "[::]", "127.0.0.1");
++		doTest(t, "tcp", "0.0.0.0", "[::ffff:127.0.0.1]");
++	}
+ }
+ 
+ func TestUnixServer(t *testing.T) {
+@@ -150,10 +152,12 @@ func doTestPacket(t *testing.T, network, listenaddr, dialaddr string) {
+ 
+ func TestUDPServer(t *testing.T) {
+ 	doTestPacket(t, "udp", "0.0.0.0", "127.0.0.1");
+-	doTestPacket(t, "udp", "[::]", "[::ffff:127.0.0.1]");
+-	doTestPacket(t, "udp", "[::]", "127.0.0.1");
+ 	doTestPacket(t, "udp", "", "127.0.0.1");
+-	doTestPacket(t, "udp", "0.0.0.0", "[::ffff:127.0.0.1]");
++	if kernelSupportsIPv6() {
++		doTestPacket(t, "udp", "[::]", "[::ffff:127.0.0.1]");
++		doTestPacket(t, "udp", "[::]", "127.0.0.1");
++		doTestPacket(t, "udp", "0.0.0.0", "[::ffff:127.0.0.1]");
++	}
+ }
+ 
+ func TestUnixDatagramServer(t *testing.T) {

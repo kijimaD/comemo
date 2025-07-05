@@ -30,7 +30,69 @@ Date:   Sun Aug 26 14:22:39 2018 +0200
     Change-Id: I70e99fa244983c5040756fa4549ac1e8cb6022c3
     Reviewed-on: https://go-review.googlesource.com/c/131495
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/strings/strings.go      | 24 ++++++++++++------------
  src/strings/strings_test.go |  4 ++--
  2 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 00200e4e24..ecc8c97d9e 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -463,27 +463,27 @@ func Map(mapping func(rune) rune, s string) string {
+ 
+ 	for i, c := range s {
+ 		r := mapping(c)
+-		if r == c {
++		if r == c && c != utf8.RuneError {
+ 			continue
+ 		}
+ 
++		var width int
++		if c == utf8.RuneError {
++			c, width = utf8.DecodeRuneInString(s[i:])
++			if width != 1 && r == c {
++				continue
++			}
++		} else {
++			width = utf8.RuneLen(c)
++		}
++
+ 		b.Grow(len(s) + utf8.UTFMax)
+ 		b.WriteString(s[:i])
+ 		if r >= 0 {
+ 			b.WriteRune(r)
+ 		}
+ 
+-		if c == utf8.RuneError {
+-			// RuneError is the result of either decoding
+-			// an invalid sequence or '\uFFFD'. Determine
+-			// the correct number of bytes we need to advance.
+-			_, w := utf8.DecodeRuneInString(s[i:])
+-			i += w
+-		} else {
+-			i += utf8.RuneLen(c)
+-		}
+-
+-		s = s[i:]
++		s = s[i+width:]
+ 		break
+ 	}
+ 
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index bb6a5b931b..eee2dd55df 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -646,10 +646,10 @@ func TestMap(t *testing.T) {
+ 		if unicode.Is(unicode.Latin, r) {
+ 			return r
+ 		}
+-		return '?'
++		return utf8.RuneError
+ 	}
+ 	m = Map(replaceNotLatin, "Hello\255World")
+-	expect = "Hello?World"
++	expect = "Hello\uFFFDWorld"
+ 	if m != expect {
+ 		t.Errorf("replace invalid sequence: expected %q got %q", expect, m)
+ 	}

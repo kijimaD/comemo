@@ -11,7 +11,61 @@ Date:   Tue Sep 6 08:48:14 2016 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 12 ++++++------
  test/intrinsic.dir/atomic.go       | 19 +++++++++++++++++++
  2 files changed, 25 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 83c048f1df..548fd83847 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2706,17 +2706,17 @@ func intrinsicInit() {
+ 		i.std[intrinsicKey{"runtime/internal/atomic", "Store64"}]
+ 
+ 	i.std[intrinsicKey{"sync/atomic", "SwapInt32"}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Swap"}]
++		i.std[intrinsicKey{"runtime/internal/atomic", "Xchg"}]
+ 	i.std[intrinsicKey{"sync/atomic", "SwapInt64"}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Swap64"}]
++		i.std[intrinsicKey{"runtime/internal/atomic", "Xchg64"}]
+ 	i.std[intrinsicKey{"sync/atomic", "SwapUint32"}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Swap"}]
++		i.std[intrinsicKey{"runtime/internal/atomic", "Xchg"}]
+ 	i.std[intrinsicKey{"sync/atomic", "SwapUint64"}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Swap64"}]
++		i.std[intrinsicKey{"runtime/internal/atomic", "Xchg64"}]
+ 	i.ptrSized[sizedIntrinsicKey{"sync/atomic", "SwapUintptr", 4}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Swap"}]
++		i.std[intrinsicKey{"runtime/internal/atomic", "Xchg"}]
+ 	i.ptrSized[sizedIntrinsicKey{"sync/atomic", "SwapUintptr", 8}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Swap64"}]
++		i.std[intrinsicKey{"runtime/internal/atomic", "Xchg64"}]
+ 
+ 	i.std[intrinsicKey{"sync/atomic", "CompareAndSwapInt32"}] =
+ 		i.std[intrinsicKey{"runtime/internal/atomic", "Cas"}]
+diff --git a/test/intrinsic.dir/atomic.go b/test/intrinsic.dir/atomic.go
+new file mode 100644
+index 0000000000..71468a1b38
+--- /dev/null
++++ b/test/intrinsic.dir/atomic.go
+@@ -0,0 +1,19 @@
++// +build amd64
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "sync/atomic"
++
++var x uint32
++
++func atomics() {
++	_ = atomic.LoadUint32(&x)             // ERROR "intrinsic substitution for LoadUint32"
++	atomic.StoreUint32(&x, 1)             // ERROR "intrinsic substitution for StoreUint32"
++	atomic.AddUint32(&x, 1)               // ERROR "intrinsic substitution for AddUint32"
++	atomic.SwapUint32(&x, 1)              // ERROR "intrinsic substitution for SwapUint32"
++	atomic.CompareAndSwapUint32(&x, 1, 2) // ERROR "intrinsic substitution for CompareAndSwapUint32"
++}

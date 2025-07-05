@@ -13,6 +13,20 @@ Date:   Tue Sep 5 03:53:29 2023 +0000
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/testing/testing.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index fcf7048f23..1bc8aff00d 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -398,7 +398,7 @@ var initRan bool
+ // the "go test" command before running test functions, so Init is only needed
+ // when calling functions such as Benchmark without using "go test".
+ //
+-// Init has no effect if it was already called.
++// Init is not safe to call concurrently. It has no effect if it was already called.
+ func Init() {
+ 	if initRan {
+ 		return

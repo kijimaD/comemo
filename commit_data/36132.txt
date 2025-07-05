@@ -12,6 +12,33 @@ Date:   Fri Apr 6 14:40:18 2018 +0200
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/asm/internal/arch/arm64.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arm64.go b/src/cmd/asm/internal/arch/arm64.go
+index 0bbd7f98c7..af45f421e9 100644
+--- a/src/cmd/asm/internal/arch/arm64.go
++++ b/src/cmd/asm/internal/arch/arm64.go
+@@ -85,7 +85,7 @@ func ARM64Suffix(prog *obj.Prog, cond string) bool {
+ 	if cond == "" {
+ 		return true
+ 	}
+-	bits, ok := ParseARM64Suffix(cond)
++	bits, ok := parseARM64Suffix(cond)
+ 	if !ok {
+ 		return false
+ 	}
+@@ -93,10 +93,10 @@ func ARM64Suffix(prog *obj.Prog, cond string) bool {
+ 	return true
+ }
+ 
+-// ParseARM64Suffix parses the suffix attached to an ARM64 instruction.
++// parseARM64Suffix parses the suffix attached to an ARM64 instruction.
+ // The input is a single string consisting of period-separated condition
+ // codes, such as ".P.W". An initial period is ignored.
+-func ParseARM64Suffix(cond string) (uint8, bool) {
++func parseARM64Suffix(cond string) (uint8, bool) {
+ 	if cond == "" {
+ 		return 0, true
+ 	}

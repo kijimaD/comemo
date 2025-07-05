@@ -13,6 +13,20 @@ Date:   Tue Jun 2 13:08:59 2015 +1000
     Change-Id: Ifbebb51ea5e0d86cb8e0422eb184b8634639a733
     Reviewed-on: https://go-review.googlesource.com/10604
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/ftoa.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/math/big/ftoa.go b/src/math/big/ftoa.go
+index 13bb26f0d2..5c5f2cea46 100644
+--- a/src/math/big/ftoa.go
++++ b/src/math/big/ftoa.go
+@@ -289,7 +289,7 @@ func (x *Float) fmtP(buf []byte) []byte {
+ 	m = m[i:]
+ 
+ 	buf = append(buf, "0x."...)
+-	buf = append(buf, strings.TrimRight(x.mant.hexString(), "0")...)
++	buf = append(buf, strings.TrimRight(m.hexString(), "0")...)
+ 	buf = append(buf, 'p')
+ 	if x.exp >= 0 {
+ 		buf = append(buf, '+')

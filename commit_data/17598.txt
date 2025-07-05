@@ -15,8 +15,55 @@ Date:   Sat Sep 14 09:30:36 2013 +0200
     R=golang-dev, daniel.morsing, r, khr, rsc, iant
     CC=golang-dev
     https://golang.org/cl/13698043
-
+---
  src/cmd/gc/go.h      | 1 +
  src/cmd/gc/reflect.c | 2 ++
  src/cmd/gc/subr.c    | 3 +++
  3 files changed, 6 insertions(+)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index ba73508b8f..59e241bbe3 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -141,6 +141,7 @@ struct	Type
+ {
+ 	uchar	etype;
+ 	uchar	nointerface;
++	uchar	noalg;
+ 	uchar	chan;
+ 	uchar	trecur;		// to detect loops
+ 	uchar	printed;
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index d204301b59..ea66eb94b2 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -131,6 +131,7 @@ mapbucket(Type *t)
+ 		valtype = ptrto(valtype);
+ 
+ 	bucket = typ(TSTRUCT);
++	bucket->noalg = 1;
+ 
+ 	// The first field is: uint8 topbits[BUCKETSIZE].
+ 	// We don't need to encode it as GC doesn't care about it.
+@@ -192,6 +193,7 @@ hmap(Type *t)
+ 
+ 	bucket = mapbucket(t);
+ 	h = typ(TSTRUCT);
++	h->noalg = 1;
+ 
+ 	offset = widthint; // count
+ 	offset += 4;       // flags
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 3b3b576312..b529e2cc9a 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -547,6 +547,9 @@ algtype1(Type *t, Type **bad)
+ 	if(bad)
+ 		*bad = T;
+ 
++	if(t->noalg)
++		return ANOEQ;
++
+ 	switch(t->etype) {
+ 	case TANY:
+ 	case TFORW:

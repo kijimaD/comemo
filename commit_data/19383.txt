@@ -10,6 +10,20 @@ Date:   Fri May 16 12:20:03 2014 -0700
     R=gri, r
     CC=golang-codereviews
     https://golang.org/cl/91510044
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 8a7e8ec032..c8d6f362e5 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -471,7 +471,7 @@ string composed of the uninterpreted (implicitly UTF-8-encoded) characters
+ between the quotes;
+ in particular, backslashes have no special meaning and the string may
+ contain newlines.
+-Carriage returns inside raw string literals
++Carriage return characters ('\r') inside raw string literals
+ are discarded from the raw string value.
+ </p>
+ <p>

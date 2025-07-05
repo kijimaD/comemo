@@ -7,7 +7,60 @@ Date:   Wed Jan 18 10:36:43 2012 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5536053
-
+---
  doc/go1.html | 15 +++++++++++++++
  doc/go1.tmpl | 15 +++++++++++++++
  2 files changed, 30 insertions(+)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index af9bbd779a..a20bd13115 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -686,6 +686,21 @@ the correct function or method for the old functionality, but
+ may have the wrong type or require further analysis.
+ </p>
+ 
++<h3 id="hash">The hash package</h3>
++
++<p>
++In Go 1, the definition of <a href="/pkg/hash/#Hash"><code>hash.Hash</code></a> includes
++a new method, <code>BlockSize</code>.  This new method is used primarily in the 
++cryptographic libraries.
++</p>
++
++<p>
++<em>Updating</em>:
++Existing implementations of <code>hash.Hash</code> will need to add a
++<code>BlockSize</code> method.  Hashes that process the input one byte at
++a time can implement <code>BlockSize</code> to return 1.
++</p>
++
+ <h3 id="html">The html package</h3>
+ 
+ <p>
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index 9851704119..40bd7cba93 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -590,6 +590,21 @@ the correct function or method for the old functionality, but
+ may have the wrong type or require further analysis.
+ </p>
+ 
++<h3 id="hash">The hash package</h3>
++
++<p>
++In Go 1, the definition of <a href="/pkg/hash/#Hash"><code>hash.Hash</code></a> includes
++a new method, <code>BlockSize</code>.  This new method is used primarily in the 
++cryptographic libraries.
++</p>
++
++<p>
++<em>Updating</em>:
++Existing implementations of <code>hash.Hash</code> will need to add a
++<code>BlockSize</code> method.  Hashes that process the input one byte at
++a time can implement <code>BlockSize</code> to return 1.
++</p>
++
+ <h3 id="html">The html package</h3>
+ 
+ <p>

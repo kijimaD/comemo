@@ -18,6 +18,20 @@ Date:   Sun Jul 16 10:25:40 2023 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/os/example_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/example_test.go b/src/os/example_test.go
+index 5c7c6eac87..e9657ed1fc 100644
+--- a/src/os/example_test.go
++++ b/src/os/example_test.go
+@@ -15,7 +15,7 @@ import (
+ )
+ 
+ func ExampleOpenFile() {
+-	f, err := os.OpenFile("notes.txt", os.O_RDWR|os.O_CREATE, 0755)
++	f, err := os.OpenFile("notes.txt", os.O_RDWR|os.O_CREATE, 0644)
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}

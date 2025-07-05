@@ -11,6 +11,47 @@ Date:   Wed Jun 15 12:33:47 2016 -0700
     Change-Id: I935b0bc38dbc13e9305f3efeb437dd3a6575d9a1
     Reviewed-on: https://go-review.googlesource.com/24152
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/ast/ast.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index cca2d48bbd..d3dcd7915b 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -418,7 +418,7 @@ type (
+ )
+ 
+ // Pos and End implementations for expression/type nodes.
+-//
++
+ func (x *BadExpr) Pos() token.Pos  { return x.From }
+ func (x *Ident) Pos() token.Pos    { return x.NamePos }
+ func (x *Ellipsis) Pos() token.Pos { return x.Ellipsis }
+@@ -709,7 +709,7 @@ type (
+ )
+ 
+ // Pos and End implementations for statement nodes.
+-//
++
+ func (s *BadStmt) Pos() token.Pos        { return s.From }
+ func (s *DeclStmt) Pos() token.Pos       { return s.Decl.Pos() }
+ func (s *EmptyStmt) Pos() token.Pos      { return s.Semicolon }
+@@ -854,7 +854,7 @@ type (
+ )
+ 
+ // Pos and End implementations for spec nodes.
+-//
++
+ func (s *ImportSpec) Pos() token.Pos {
+ 	if s.Name != nil {
+ 		return s.Name.Pos()
+@@ -931,7 +931,7 @@ type (
+ )
+ 
+ // Pos and End implementations for declaration nodes.
+-//
++
+ func (d *BadDecl) Pos() token.Pos  { return d.From }
+ func (d *GenDecl) Pos() token.Pos  { return d.TokPos }
+ func (d *FuncDecl) Pos() token.Pos { return d.Type.Pos() }

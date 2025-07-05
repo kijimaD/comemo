@@ -9,7 +9,32 @@ Date:   Mon Jun 17 16:42:15 2013 -0700
     R=gobot
     CC=golang-dev
     https://golang.org/cl/10286045
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index b0d3113b6b..0785ba51d3 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -16,6 +16,7 @@ Albert Strasheim <fullung@gmail.com>
+ Alberto García Hierro <alberto@garciahierro.com> <alberto.garcia.hierro@gmail.com>
+ Aleksandar Dezelin <dezelin@gmail.com>
+ Alex Brainman <alex.brainman@gmail.com>
++Alex Jin <toalexjin@gmail.com>
+ Alexander Orlov <alexander.orlov@loxal.net>
+ Alexander Reece <awreece@gmail.com>
+ Alexander Surma <surma@surmair.de>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index eff198dff9..83a9f5f71c 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -43,6 +43,7 @@ Alberto García Hierro <alberto@garciahierro.com> <alberto.garcia.hierro@gmail.c
+ Aleksandar Dezelin <dezelin@gmail.com>
+ Alex Brainman <alex.brainman@gmail.com>
+ Alex Bramley <abramley@google.com>
++Alex Jin <toalexjin@gmail.com>
+ Alexander Orlov <alexander.orlov@loxal.net>
+ Alexander Reece <awreece@gmail.com>
+ Alexander Surma <surma@surmair.de>

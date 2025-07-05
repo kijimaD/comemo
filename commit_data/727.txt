@@ -8,6 +8,20 @@ Date:   Thu Sep 25 10:51:23 2008 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=15858
     CL=15860
-
+---
  src/lib/strings.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/lib/strings.go b/src/lib/strings.go
+index 54aac30c96..a4e81b3544 100644
+--- a/src/lib/strings.go
++++ b/src/lib/strings.go
+@@ -87,7 +87,7 @@ export func split(s, sep string) *[]string {
+ // Join list of strings with separators between them.
+ export func join(a *[]string, sep string) string {
+ 	if len(a) == 0 {
+-		return 0
++		return ""
+ 	}
+ 	if len(a) == 1 {
+ 		return a[0]

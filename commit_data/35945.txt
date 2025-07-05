@@ -35,6 +35,34 @@ Date:   Fri Mar 23 13:00:47 2018 +0000
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/rc4/rc4.go | 13 ++++++++++---
  1 file changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/rc4/rc4.go b/src/crypto/rc4/rc4.go
+index 8274325c81..cf08ba7f8c 100644
+--- a/src/crypto/rc4/rc4.go
++++ b/src/crypto/rc4/rc4.go
+@@ -57,12 +57,19 @@ func (c *Cipher) Reset() {
+ // This is the pure Go version. rc4_{amd64,386,arm}* contain assembly
+ // implementations. This is here for tests and to prevent bitrot.
+ func (c *Cipher) xorKeyStreamGeneric(dst, src []byte) {
++	if len(src) == 0 {
++		return
++	}
+ 	i, j := c.i, c.j
++	_ = dst[len(src)-1]
++	dst = dst[:len(src)] // eliminate bounds check from loop
+ 	for k, v := range src {
+ 		i += 1
+-		j += uint8(c.s[i])
+-		c.s[i], c.s[j] = c.s[j], c.s[i]
+-		dst[k] = v ^ uint8(c.s[uint8(c.s[i]+c.s[j])])
++		x := c.s[i]
++		j += uint8(x)
++		y := c.s[j]
++		c.s[i], c.s[j] = y, x
++		dst[k] = v ^ uint8(c.s[uint8(x+y)])
+ 	}
+ 	c.i, c.j = i, j
+ }

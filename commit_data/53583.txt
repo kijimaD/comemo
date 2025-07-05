@@ -51,6 +51,20 @@ Date:   Wed May 25 12:22:22 2022 +0200
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/ssa/rewrite.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 15a5cf6136..58f1fe9249 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1632,7 +1632,7 @@ func sizeof(t interface{}) int64 {
+ // a register. It assumes float64 values will always fit into registers
+ // even if that isn't strictly true.
+ func registerizable(b *Block, typ *types.Type) bool {
+-	if typ.IsPtrShaped() || typ.IsFloat() {
++	if typ.IsPtrShaped() || typ.IsFloat() || typ.IsBoolean() {
+ 		return true
+ 	}
+ 	if typ.IsInteger() {

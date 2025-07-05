@@ -16,8 +16,74 @@ Date:   Sat Nov 28 00:54:58 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/sinit.go     | 5 +++--
  src/cmd/compile/internal/gc/typecheck.go | 3 +--
  src/cmd/compile/internal/gc/walk.go      | 9 ++++++---
  3 files changed, 10 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index e30663cfbb..fca81763c0 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -959,6 +959,9 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
+ 	}
+ }
+ 
++// oaslit handles special composite literal assignments.
++// It returns true if n's effects have been added to init,
++// in which case n should be dropped from the program by the caller.
+ func oaslit(n ir.Node, init *ir.Nodes) bool {
+ 	if n.Left() == nil || n.Right() == nil {
+ 		// not a special composite literal assignment
+@@ -990,8 +993,6 @@ func oaslit(n ir.Node, init *ir.Nodes) bool {
+ 		anylit(n.Right(), n.Left(), init)
+ 	}
+ 
+-	n.SetOp(ir.OEMPTY)
+-	n.SetRight(nil)
+ 	return true
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 7037eddff0..0c4a3ad833 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1985,8 +1985,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
+ 			// Empty identifier is valid but useless.
+ 			// Eliminate now to simplify life later.
+ 			// See issues 7538, 11589, 11593.
+-			n.SetOp(ir.OEMPTY)
+-			n.SetLeft(nil)
++			n = ir.NodAt(n.Pos(), ir.OEMPTY, nil, nil)
+ 		}
+ 
+ 	case ir.ODEFER:
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index db8791ee05..87fe36b08a 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -152,10 +152,12 @@ func walkstmt(n ir.Node) ir.Node {
+ 		init := n.Init()
+ 		n.PtrInit().Set(nil)
+ 		n = walkexpr(n, &init)
+-		n = addinit(n, init.Slice())
+-		if wascopy && n.Op() == ir.OCONVNOP {
+-			n.SetOp(ir.OEMPTY) // don't leave plain values as statements.
++		if wascopy && n.Op() == ir.ONAME {
++			// copy rewrote to a statement list and a temp for the length.
++			// Throw away the temp to avoid plain values as statements.
++			n = ir.NodAt(n.Pos(), ir.OEMPTY, nil, nil)
+ 		}
++		n = addinit(n, init.Slice())
+ 
+ 	// special case for a receive where we throw away
+ 	// the value received.
+@@ -609,6 +611,7 @@ opswitch:
+ 		}
+ 
+ 		if oaslit(n, init) {
++			n = ir.NodAt(n.Pos(), ir.OEMPTY, nil, nil)
+ 			break
+ 		}
+ 

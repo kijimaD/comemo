@@ -14,7 +14,45 @@ Date:   Wed Dec 2 13:27:44 2015 -0800
     Change-Id: Icb9fd2d17d97e0f04cb18d0cd91640c80fbd3fb4
     Reviewed-on: https://go-review.googlesource.com/17333
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/test.go | 6 +++---
  src/cmd/go/build.go  | 2 +-
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 2e15247d6e..da973a7a06 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -375,8 +375,8 @@ func (t *tester) registerTests() {
+ 			break
+ 		}
+ 
+-		// Darwin ARM64 fails with internal linking.
+-		if t.goos == "darwin" && t.goarch == "arm64" {
++		// Darwin/Android ARM64 fails with internal linking.
++		if (t.goos == "darwin" || t.goos == "android") && t.goarch == "arm64" {
+ 			break
+ 		}
+ 
+@@ -618,7 +618,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 		switch pair {
+ 		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64",
+ 			"darwin-amd64",
+-			"android-arm", "android-386":
++			"android-arm", "android-arm64", "android-386":
+ 			return true
+ 		}
+ 		return false
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 57ca28dd08..c11c062a50 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -351,7 +351,7 @@ func buildModeInit() {
+ 		} else {
+ 			switch platform {
+ 			case "linux/amd64", "linux/arm", "linux/arm64", "linux/386",
+-				"android/amd64", "android/arm", "android/386":
++				"android/amd64", "android/arm", "android/arm64", "android/386":
+ 				codegenArg = "-shared"
+ 			case "darwin/amd64":
+ 			default:

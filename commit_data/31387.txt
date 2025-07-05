@@ -10,6 +10,19 @@ Date:   Wed Feb 15 14:26:42 2017 -0800
     Reviewed-on: https://go-review.googlesource.com/37106
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: David du Colombier <0intro@gmail.com>
-
+---
  src/internal/poll/fd_plan9.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/internal/poll/fd_plan9.go b/src/internal/poll/fd_plan9.go
+index 1529bc6fde..5b2c674b36 100644
+--- a/src/internal/poll/fd_plan9.go
++++ b/src/internal/poll/fd_plan9.go
+@@ -178,3 +178,7 @@ func isHangup(err error) bool {
+ func isInterrupted(err error) bool {
+ 	return err != nil && stringsHasSuffix(err.Error(), "interrupted")
+ }
++
++func PollDescriptor() uintptr {
++	return ^uintptr(0)
++}

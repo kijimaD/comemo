@@ -399,3 +399,1238 @@ Date:   Mon Dec 21 13:41:23 2020 -0800
  test/run.go                                        |   3 +-
  test/sinit_run.go                                  |   2 +-
  327 files changed, 6188 insertions(+), 4611 deletions(-)
+
+diff --cc src/cmd/compile/internal/gc/main.go
+index bbc228b313,7f7cd63cdf..ff5c208d02
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@@ -221,13 -225,9 +225,14 @@@ func Main(archInit func(*Arch)) 
+  
+  	timings.Start("fe", "parse")
+  	lines := parseFiles(flag.Args())
++ 	cgoSymABIs()
+  	timings.Stop()
+  	timings.AddEvent(int64(lines), "lines")
+ +	if base.Flag.G != 0 && base.Flag.G < 3 {
+ +		// can only parse generic code for now
+ +		base.ExitIfErrors()
+ +		return
+ +	}
+  
+  	finishUniverse()
+  
+diff --cc src/cmd/compile/internal/gc/noder.go
+index 65df405e24,ee01423833..e3f3e18132
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@@ -22,17 -20,15 +22,16 @@@ import 
+  	"cmd/compile/internal/ir"
+  	"cmd/compile/internal/syntax"
+  	"cmd/compile/internal/types"
+ +	"cmd/compile/internal/types2"
+- 	"cmd/internal/obj"
+  	"cmd/internal/objabi"
+  	"cmd/internal/src"
+  )
+  
+  // parseFiles concurrently parses files into *syntax.File structures.
+  // Each declaration in every *syntax.File is converted to a syntax tree
+- // and its root represented by *Node is appended to xtop.
++ // and its root represented by *Node is appended to Target.Decls.
+  // Returns the total count of parsed lines.
+ -func parseFiles(filenames []string) uint {
+ +func parseFiles(filenames []string) (lines uint) {
+  	noders := make([]*noder, 0, len(filenames))
+  	// Limit the number of simultaneously open files.
+  	sem := make(chan struct{}, runtime.GOMAXPROCS(0)+10)
+@@@ -253,14 -151,9 +253,15 @@@ type noder struct 
+  
+  	// scopeVars is a stack tracking the number of variables declared in the
+  	// current function at the moment each open scope was opened.
+- 	scopeVars []int
++ 	trackScopes bool
++ 	scopeVars   []int
+  
+ +	// typeInfo provides access to the type information computed by the new
+ +	// typechecker. It is only present if -G is set, and all noders point to
+ +	// the same types.Info. For now this is a local field, if need be we can
+ +	// make it global.
+ +	typeInfo *types2.Info
+ +
+  	lastCloseScopePos syntax.Pos
+  }
+  
+diff --cc test/fixedbugs/issue10975.go
+index 415b71b945,933badfd2f..89ef23c1a8
+--- a/test/fixedbugs/issue10975.go
++++ b/test/fixedbugs/issue10975.go
+@@@ -10,7 -10,7 +10,7 @@@
+  package main
+  
+  type I interface {
+- 	int // ERROR "interface contains embedded non-interface int|not an interface"
+ -	int // ERROR "interface contains embedded non-interface"
+++	int // ERROR "interface contains embedded non-interface|not an interface"
+  }
+  
+  func New() I {
+diff --cc test/fixedbugs/issue11326.go
+index f6cb109ba7,e0c6a9f0ba..7f08e7fa3c
+--- a/test/fixedbugs/issue11326.go
++++ b/test/fixedbugs/issue11326.go
+@@@ -18,14 -18,14 +18,14 @@@ func main() 
+  
+  	// Any implementation must be able to handle these constants at
+  	// compile time (even though they cannot be assigned to a float64).
+- 	var _ = 1e646456992  // ERROR "1e\+?646456992 .*overflows float64"
+- 	var _ = 1e64645699   // ERROR "1e\+?64645699 .*overflows float64"
+- 	var _ = 1e6464569    // ERROR "1e\+?6464569 .*overflows float64"
+- 	var _ = 1e646456     // ERROR "1e\+?646456 .*overflows float64"
+- 	var _ = 1e64645      // ERROR "1e\+?64645 .*overflows float64"
+- 	var _ = 1e6464       // ERROR "1e\+?6464 .*overflows float64"
+- 	var _ = 1e646        // ERROR "1e\+?646 .*overflows float64"
+- 	var _ = 1e309        // ERROR "1e\+?309 .*overflows float64"
+ -	var _ = 1e646456992  // ERROR "1e\+646456992 overflows float64|floating-point constant overflow|exponent too large"
+ -	var _ = 1e64645699   // ERROR "1e\+64645699 overflows float64|floating-point constant overflow|exponent too large"
+ -	var _ = 1e6464569    // ERROR "1e\+6464569 overflows float64|floating-point constant overflow|exponent too large"
+ -	var _ = 1e646456     // ERROR "1e\+646456 overflows float64|floating-point constant overflow|exponent too large"
+ -	var _ = 1e64645      // ERROR "1e\+64645 overflows float64|floating-point constant overflow|exponent too large"
+ -	var _ = 1e6464       // ERROR "1e\+6464 overflows float64|floating-point constant overflow"
+ -	var _ = 1e646        // ERROR "1e\+646 overflows float64|floating-point constant overflow"
+ -	var _ = 1e309        // ERROR "1e\+309 overflows float64|floating-point constant overflow"
+++	var _ = 1e646456992  // ERROR "1e\+646456992 overflows float64|floating-point constant overflow|exponent too large|overflows float64"
+++	var _ = 1e64645699   // ERROR "1e\+64645699 overflows float64|floating-point constant overflow|exponent too large|overflows float64"
+++	var _ = 1e6464569    // ERROR "1e\+6464569 overflows float64|floating-point constant overflow|exponent too large|overflows float64"
+++	var _ = 1e646456     // ERROR "1e\+646456 overflows float64|floating-point constant overflow|exponent too large|overflows float64"
+++	var _ = 1e64645      // ERROR "1e\+64645 overflows float64|floating-point constant overflow|exponent too large|overflows float64"
+++	var _ = 1e6464       // ERROR "1e\+6464 overflows float64|floating-point constant overflow|overflows float64"
+++	var _ = 1e646        // ERROR "1e\+646 overflows float64|floating-point constant overflow|overflows float64"
+++	var _ = 1e309        // ERROR "1e\+309 overflows float64|floating-point constant overflow|overflows float64"
+  
+  	var _ = 1e308
+  }
+diff --cc test/fixedbugs/issue11361.go
+index 2544adb55b,63dbf05d73..1ef8735a52
+--- a/test/fixedbugs/issue11361.go
++++ b/test/fixedbugs/issue11361.go
+@@@ -6,6 -6,6 +6,6 @@@
+  
+  package a
+  
+- import "fmt"  // ERROR "imported and not used|imported but not used"
++ import "fmt"  // GC_ERROR "imported and not used"
+  
+- const n = fmt // ERROR "fmt without selector|not in selector"
+ -const n = fmt // ERROR "fmt without selector|unexpected reference to package"
+++const n = fmt // ERROR "fmt without selector|unexpected reference to package|use of package fmt not in selector"
+diff --cc test/fixedbugs/issue11371.go
+index c0fc117687,8acd18fccb..0965e88d74
+--- a/test/fixedbugs/issue11371.go
++++ b/test/fixedbugs/issue11371.go
+@@@ -9,9 -9,9 +9,9 @@@
+  
+  package issue11371
+  
+- const a int = 1.1        // ERROR "constant 1.1 truncated to integer|truncated to int"
+- const b int = 1e20       // ERROR "overflows int|truncated to int"
+- const c int = 1 + 1e-100 // ERROR "constant truncated to integer|truncated to int"
+- const d int = 1 - 1e-100 // ERROR "constant truncated to integer|truncated to int"
+ -const a int = 1.1        // ERROR "constant 1.1 truncated to integer|floating-point constant truncated to integer"
+ -const b int = 1e20       // ERROR "overflows int|integer constant overflow"
+ -const c int = 1 + 1e-70  // ERROR "constant truncated to integer"
+ -const d int = 1 - 1e-70  // ERROR "constant truncated to integer"
+ -const e int = 1.00000001 // ERROR "constant truncated to integer"
+ -const f int = 0.00000001 // ERROR "constant 1e-08 truncated to integer|floating-point constant truncated to integer"
+++const a int = 1.1        // ERROR "constant 1.1 truncated to integer|floating-point constant truncated to integer|truncated to int"
+++const b int = 1e20       // ERROR "overflows int|integer constant overflow|truncated to int"
+++const c int = 1 + 1e-70  // ERROR "constant truncated to integer|truncated to int"
+++const d int = 1 - 1e-70  // ERROR "constant truncated to integer|truncated to int"
+ +const e int = 1.00000001 // ERROR "constant truncated to integer|truncated to int"
+- const f int = 0.00000001 // ERROR "constant 1e-08 truncated to integer|truncated to int"
+++const f int = 0.00000001 // ERROR "constant 1e-08 truncated to integer|floating-point constant truncated to integer|truncated to int"
+diff --cc test/fixedbugs/issue11674.go
+index 62e8e8f962,b43032deac..183ed133de
+--- a/test/fixedbugs/issue11674.go
++++ b/test/fixedbugs/issue11674.go
+@@@ -13,28 -13,28 +13,28 @@@ const x complex64 = 
+  const y complex128 = 0
+  
+  var _ = x / 1e-20
+- var _ = x / 1e-50   // ERROR "(complex )?division by zero"
+- var _ = x / 1e-1000 // ERROR "(complex )?division by zero"
+ -var _ = x / 1e-50   // GC_ERROR "complex division by zero"
+ -var _ = x / 1e-1000 // GC_ERROR "complex division by zero"
+++var _ = x / 1e-50   // GC_ERROR "division by zero"
+++var _ = x / 1e-1000 // GC_ERROR "division by zero"
+  var _ = x / 1e-20i
+- var _ = x / 1e-50i   // ERROR "(complex )?division by zero"
+- var _ = x / 1e-1000i // ERROR "(complex )?division by zero"
+ -var _ = x / 1e-50i   // GC_ERROR "complex division by zero"
+ -var _ = x / 1e-1000i // GC_ERROR "complex division by zero"
+++var _ = x / 1e-50i   // GC_ERROR "division by zero"
+++var _ = x / 1e-1000i // GC_ERROR "division by zero"
+  
+  var _ = x / 1e-45 // smallest positive float32
+  
+  var _ = x / (1e-20 + 1e-20i)
+  var _ = x / (1e-50 + 1e-20i)
+  var _ = x / (1e-20 + 1e-50i)
+- var _ = x / (1e-50 + 1e-50i)     // ERROR "(complex )?division by zero"
+- var _ = x / (1e-1000 + 1e-1000i) // ERROR "(complex )?division by zero"
+ -var _ = x / (1e-50 + 1e-50i)     // GC_ERROR "complex division by zero"
+ -var _ = x / (1e-1000 + 1e-1000i) // GC_ERROR "complex division by zero"
+++var _ = x / (1e-50 + 1e-50i)     // GC_ERROR "division by zero"
+++var _ = x / (1e-1000 + 1e-1000i) // GC_ERROR "division by zero"
+  
+  var _ = y / 1e-50
+- var _ = y / 1e-1000 // ERROR "(complex )?division by zero"
+ -var _ = y / 1e-1000 // GC_ERROR "complex division by zero"
+++var _ = y / 1e-1000 // GC_ERROR "division by zero"
+  var _ = y / 1e-50i
+- var _ = y / 1e-1000i // ERROR "(complex )?division by zero"
+ -var _ = y / 1e-1000i // GC_ERROR "complex division by zero"
+++var _ = y / 1e-1000i // GC_ERROR "division by zero"
+  
+  var _ = y / 5e-324 // smallest positive float64
+  
+  var _ = y / (1e-50 + 1e-50)
+  var _ = y / (1e-1000 + 1e-50i)
+  var _ = y / (1e-50 + 1e-1000i)
+- var _ = y / (1e-1000 + 1e-1000i) // ERROR "(complex )?division by zero"
+ -var _ = y / (1e-1000 + 1e-1000i) // GC_ERROR "complex division by zero"
+++var _ = y / (1e-1000 + 1e-1000i) // GC_ERROR "division by zero"
+diff --cc test/fixedbugs/issue13365.go
+index 5b07e1a6be,31a663eb1f..b22fa0fb4e
+--- a/test/fixedbugs/issue13365.go
++++ b/test/fixedbugs/issue13365.go
+@@@ -11,15 -11,15 +11,15 @@@ package mai
+  var t struct{}
+  
+  func main() {
+- 	_ = []int{-1: 0}    // ERROR "index must be non\-negative integer constant|must not be negative"
+- 	_ = [10]int{-1: 0}  // ERROR "index must be non\-negative integer constant|must not be negative"
+- 	_ = [...]int{-1: 0} // ERROR "index must be non\-negative integer constant|must not be negative"
+ -	_ = []int{-1: 0}    // ERROR "index must be non\-negative integer constant|index expression is negative"
+ -	_ = [10]int{-1: 0}  // ERROR "index must be non\-negative integer constant|index expression is negative"
+ -	_ = [...]int{-1: 0} // ERROR "index must be non\-negative integer constant|index expression is negative"
+++	_ = []int{-1: 0}    // ERROR "index must be non\-negative integer constant|index expression is negative|must not be negative"
+++	_ = [10]int{-1: 0}  // ERROR "index must be non\-negative integer constant|index expression is negative|must not be negative"
+++	_ = [...]int{-1: 0} // ERROR "index must be non\-negative integer constant|index expression is negative|must not be negative"
+  
+  	_ = []int{100: 0}
+- 	_ = [10]int{100: 0} // ERROR "array index 100 out of bounds"
++ 	_ = [10]int{100: 0} // ERROR "array index 100 out of bounds|out of range"
+  	_ = [...]int{100: 0}
+  
+- 	_ = []int{t}    // ERROR "cannot use .* as (type )?int( in slice literal)?"
+- 	_ = [10]int{t}  // ERROR "cannot use .* as (type )?int( in array literal)?"
+- 	_ = [...]int{t} // ERROR "cannot use .* as (type )?int( in array literal)?"
+ -	_ = []int{t}    // ERROR "cannot use .* as type int in slice literal|incompatible type"
+ -	_ = [10]int{t}  // ERROR "cannot use .* as type int in array literal|incompatible type"
+ -	_ = [...]int{t} // ERROR "cannot use .* as type int in array literal|incompatible type"
+++	_ = []int{t}    // ERROR "cannot use .* as (type )?int( in slice literal)?|incompatible type"
+++	_ = [10]int{t}  // ERROR "cannot use .* as (type )?int( in array literal)?|incompatible type"
+++	_ = [...]int{t} // ERROR "cannot use .* as (type )?int( in array literal)?|incompatible type"
+  }
+diff --cc test/fixedbugs/issue13471.go
+index 8382c670ed,9069412ffa..cab6bedee5
+--- a/test/fixedbugs/issue13471.go
++++ b/test/fixedbugs/issue13471.go
+@@@ -9,17 -9,17 +9,17 @@@
+  package main
+  
+  func main() {
+- 	const _ int64 = 1e646456992 // ERROR "integer too large|truncated to .*"
+- 	const _ int32 = 1e64645699  // ERROR "integer too large|truncated to .*"
+- 	const _ int16 = 1e6464569   // ERROR "integer too large|truncated to .*"
+- 	const _ int8 = 1e646456     // ERROR "integer too large|truncated to .*"
+- 	const _ int = 1e64645       // ERROR "integer too large|truncated to .*"
+ -	const _ int64 = 1e646456992 // ERROR "integer too large|floating-point constant truncated to integer|exponent too large"
+ -	const _ int32 = 1e64645699  // ERROR "integer too large|floating-point constant truncated to integer|exponent too large"
+ -	const _ int16 = 1e6464569   // ERROR "integer too large|floating-point constant truncated to integer|exponent too large"
+ -	const _ int8 = 1e646456     // ERROR "integer too large|floating-point constant truncated to integer|exponent too large"
+ -	const _ int = 1e64645       // ERROR "integer too large|floating-point constant truncated to integer|exponent too large"
+++	const _ int64 = 1e646456992 // ERROR "integer too large|floating-point constant truncated to integer|exponent too large|truncated"
+++	const _ int32 = 1e64645699  // ERROR "integer too large|floating-point constant truncated to integer|exponent too large|truncated"
+++	const _ int16 = 1e6464569   // ERROR "integer too large|floating-point constant truncated to integer|exponent too large|truncated"
+++	const _ int8 = 1e646456     // ERROR "integer too large|floating-point constant truncated to integer|exponent too large|truncated"
+++	const _ int = 1e64645       // ERROR "integer too large|floating-point constant truncated to integer|exponent too large|truncated"
+  
+- 	const _ uint64 = 1e646456992 // ERROR "integer too large|truncated to .*"
+- 	const _ uint32 = 1e64645699  // ERROR "integer too large|truncated to .*"
+- 	const _ uint16 = 1e6464569   // ERROR "integer too large|truncated to .*"
+- 	const _ uint8 = 1e646456     // ERROR "integer too large|truncated to .*"
+- 	const _ uint = 1e64645       // ERROR "integer too large|truncated to .*"
+ -	const _ uint64 = 1e646456992 // ERROR "integer too large|floating-point constant truncated to integer|exponent too large"
+ -	const _ uint32 = 1e64645699  // ERROR "integer too large|floating-point constant truncated to integer|exponent too large"
+ -	const _ uint16 = 1e6464569   // ERROR "integer too large|floating-point constant truncated to integer|exponent too large"
+ -	const _ uint8 = 1e646456     // ERROR "integer too large|floating-point constant truncated to integer|exponent too large"
+ -	const _ uint = 1e64645       // ERROR "integer too large|floating-point constant truncated to integer|exponent too large"
+++	const _ uint64 = 1e646456992 // ERROR "integer too large|floating-point constant truncated to integer|exponent too large|truncated"
+++	const _ uint32 = 1e64645699  // ERROR "integer too large|floating-point constant truncated to integer|exponent too large|truncated"
+++	const _ uint16 = 1e6464569   // ERROR "integer too large|floating-point constant truncated to integer|exponent too large|truncated"
+++	const _ uint8 = 1e646456     // ERROR "integer too large|floating-point constant truncated to integer|exponent too large|truncated"
+++	const _ uint = 1e64645       // ERROR "integer too large|floating-point constant truncated to integer|exponent too large|truncated"
+  
+- 	const _ rune = 1e64645 // ERROR "integer too large|truncated to .*"
+ -	const _ rune = 1e64645 // ERROR "integer too large|floating-point constant truncated to integer|exponent too large"
+++	const _ rune = 1e64645 // ERROR "integer too large|floating-point constant truncated to integer|exponent too large|truncated"
+  }
+diff --cc test/fixedbugs/issue14136.go
+index ff54a246f1,38308cd75c..a066d2664f
+--- a/test/fixedbugs/issue14136.go
++++ b/test/fixedbugs/issue14136.go
+@@@ -14,8 -14,6 +14,8 @@@ package mai
+  type T struct{}
+  
+  func main() {
+- 	t := T{X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1} // ERROR "unknown field 'X' in struct literal of type T|unknown field X"
++ 	t := T{X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1} // ERROR "unknown field 'X' in struct literal of type T|unknown field .*X.* in .*T.*"
+ -	var s string = 1 // ERROR "cannot use 1|incompatible type"
+ +	_ = t
+- 	var s string = 1 // ERROR "cannot use 1|cannot convert"
+++	var s string = 1 // ERROR "cannot use 1|incompatible type|cannot convert"
+ +	_ = s
+  }
+diff --cc test/fixedbugs/issue14321.go
+index 925b0b7a40,e1149c3f9d..0791819907
+--- a/test/fixedbugs/issue14321.go
++++ b/test/fixedbugs/issue14321.go
+@@@ -27,7 -27,7 +27,7 @@@ type C struct 
+  	B
+  }
+  
+- var _ = C.F // ERROR "ambiguous selector"
+- var _ = C.G // ERROR "ambiguous selector"
+- var _ = C.H // ERROR "ambiguous selector"
+- var _ = C.I // ERROR "no method I|C.I undefined"
++ var _ = C.F // ERROR "ambiguous"
++ var _ = C.G // ERROR "ambiguous"
++ var _ = C.H // ERROR "ambiguous"
+ -var _ = C.I // ERROR "no method .*I.*"
+++var _ = C.I // ERROR "no method .*I.*|C.I undefined"
+diff --cc test/fixedbugs/issue14729.go
+index 52201f34e2,9b30fd2715..e5c8235849
+--- a/test/fixedbugs/issue14729.go
++++ b/test/fixedbugs/issue14729.go
+@@@ -10,5 -10,5 +10,5 @@@ package mai
+  
+  import "unsafe"
+  
+- type s struct { unsafe.Pointer } // ERROR "embedded type cannot be a pointer|embedded field type cannot be unsafe.Pointer"
+ -type s struct { unsafe.Pointer } // ERROR "embedded type cannot be a pointer|embedded type may not be a pointer"
+++type s struct { unsafe.Pointer } // ERROR "embedded type cannot be a pointer|embedded type may not be a pointer||embedded field type cannot be unsafe.Pointer"
+  type s1 struct { p unsafe.Pointer }
+diff --cc test/fixedbugs/issue15898.go
+index 7739bafccc,94369f9345..09f906ae58
+--- a/test/fixedbugs/issue15898.go
++++ b/test/fixedbugs/issue15898.go
+@@@ -8,11 -8,11 +8,11 @@@ package 
+  
+  func f(e interface{}) {
+  	switch e.(type) {
+- 	case nil, nil: // ERROR "multiple nil cases in type switch|duplicate case nil in type switch"
+ -	case nil, nil: // ERROR "multiple nil cases in type switch|duplicate type in switch"
+++	case nil, nil: // ERROR "multiple nil cases in type switch|duplicate type in switch|duplicate case nil in type switch"
+  	}
+  
+  	switch e.(type) {
+  	case nil:
+- 	case nil: // ERROR "multiple nil cases in type switch|duplicate case nil in type switch"
+ -	case nil: // ERROR "multiple nil cases in type switch|duplicate type in switch"
+++	case nil: // ERROR "multiple nil cases in type switch|duplicate type in switch|duplicate case nil in type switch"
+  	}
+  }
+diff --cc test/fixedbugs/issue16439.go
+index 0a842ca1fb,704b6b15a6..77baa1f4e8
+--- a/test/fixedbugs/issue16439.go
++++ b/test/fixedbugs/issue16439.go
+@@@ -7,12 -7,12 +7,12 @@@
+  package p
+  
+  var a []int = []int{1: 1}
+- var b []int = []int{-1: 1} // ERROR "must be non-negative integer constant|must not be negative"
+ -var b []int = []int{-1: 1} // ERROR "must be non-negative integer constant|index expression is negative"
+++var b []int = []int{-1: 1} // ERROR "must be non-negative integer constant|index expression is negative|must not be negative"
+  
+  var c []int = []int{2.0: 2}
+- var d []int = []int{-2.0: 2} // ERROR "must be non-negative integer constant|must not be negative"
+ -var d []int = []int{-2.0: 2} // ERROR "must be non-negative integer constant|index expression is negative"
+++var d []int = []int{-2.0: 2} // ERROR "must be non-negative integer constant|index expression is negative|must not be negative"
+  
+  var e []int = []int{3 + 0i: 3}
+- var f []int = []int{3i: 3} // ERROR "truncated to integer|truncated to int"
+ -var f []int = []int{3i: 3} // ERROR "truncated to integer|index expression is not integer constant"
+++var f []int = []int{3i: 3} // ERROR "truncated to integer|index expression is not integer constant|truncated to int"
+  
+- var g []int = []int{"a": 4} // ERROR "must be non-negative integer constant|cannot convert"
+ -var g []int = []int{"a": 4} // ERROR "must be non-negative integer constant|index expression is not integer constant"
+++var g []int = []int{"a": 4} // ERROR "must be non-negative integer constant|index expression is not integer constant|cannot convert"
+diff --cc test/fixedbugs/issue17588.go
+index 77efaf7ef1,0e3a14ef7c..ed5312fa21
+--- a/test/fixedbugs/issue17588.go
++++ b/test/fixedbugs/issue17588.go
+@@@ -11,7 -11,7 +11,7 @@@
+  
+  package p
+  
+- type F func(b T)  // ERROR "T .*is not a type"
+ -type F func(b T)  // ERROR "T is not a type|expected type"
+++type F func(b T)  // ERROR "T .*is not a type|expected type"
+  
+  func T(fn F) {
+      func() {
+diff --cc test/fixedbugs/issue19323.go
+index a225d157b2,71365e10dd..77cac3ee16
+--- a/test/fixedbugs/issue19323.go
++++ b/test/fixedbugs/issue19323.go
+@@@ -9,11 -9,11 +9,11 @@@ package 
+  func g() {}
+  
+  func f() {
+- 	g()[:] // ERROR "g.* used as value"
+ -	g()[:] // ERROR "g.. used as value|attempt to slice object that is not"
+++	g()[:] // ERROR "g.* used as value|attempt to slice object that is not"
+  }
+  
+  func g2() ([]byte, []byte) { return nil, nil }
+  
+  func f2() {
+- 	g2()[:] // ERROR "multiple-value g2.. in single-value context|2-valued g"
+ -	g2()[:] // ERROR "multiple-value g2.. in single-value context|attempt to slice object that is not"
+++	g2()[:] // ERROR "multiple-value g2.. in single-value context|attempt to slice object that is not|2\-valued g"
+  }
+diff --cc test/fixedbugs/issue19482.go
+index d2a0edd0a9,4c2c19ec9d..ee0d340aa3
+--- a/test/fixedbugs/issue19482.go
++++ b/test/fixedbugs/issue19482.go
+@@@ -22,13 -22,13 +22,13 @@@ func ok() 
+  
+  var (
+  	y = T{"stare"}
+- 	w = T{_: "look"} // ERROR "invalid field name _ in struct initializer|unknown field '_' in struct literal of type T"
+ -	w = T{_: "look"} // ERROR "invalid field name _ in struct initializer|expected struct field name"
+++	w = T{_: "look"} // ERROR "invalid field name _ in struct initializer|expected struct field name|unknown field '_' in struct literal of type T"
+  	_ = T{"page"}
+- 	_ = T{_: "out"} // ERROR "invalid field name _ in struct initializer|unknown field '_' in struct literal of type T"
+ -	_ = T{_: "out"} // ERROR "invalid field name _ in struct initializer|expected struct field name"
+++	_ = T{_: "out"} // ERROR "invalid field name _ in struct initializer|expected struct field name|unknown field '_' in struct literal of type T"
+  )
+  
+  func bad() {
+- 	var z = T{_: "verse"} // ERROR "invalid field name _ in struct initializer|unknown field '_' in struct literal of type T"
+ -	var z = T{_: "verse"} // ERROR "invalid field name _ in struct initializer|expected struct field name"
+++	var z = T{_: "verse"} // ERROR "invalid field name _ in struct initializer|expected struct field name|unknown field '_' in struct literal of type T"
+  	_ = z
+- 	_ = T{_: "itinerary"} // ERROR "invalid field name _ in struct initializer|unknown field '_' in struct literal of type T"
+ -	_ = T{_: "itinerary"} // ERROR "invalid field name _ in struct initializer|expected struct field name"
+++	_ = T{_: "itinerary"} // ERROR "invalid field name _ in struct initializer|expected struct field name|unknown field '_' in struct literal of type T"
+  }
+diff --cc test/fixedbugs/issue19880.go
+index c2d81e6631,3d83cf3a12..57cdc93ef6
+--- a/test/fixedbugs/issue19880.go
++++ b/test/fixedbugs/issue19880.go
+@@@ -11,7 -11,7 +11,7 @@@ type T struct 
+  }
+  
+  func a() {
+- 	_ = T // ERROR "type T is not an expression|T \(type\) is not an expression"
+ -	_ = T // ERROR "type T is not an expression|invalid use of type"
+++	_ = T // ERROR "type T is not an expression|invalid use of type|not an expression"
+  }
+  
+  func b() {
+diff --cc test/fixedbugs/issue20185.go
+index 86fe0ef8c6,9065868d7f..ee60cabd6f
+--- a/test/fixedbugs/issue20185.go
++++ b/test/fixedbugs/issue20185.go
+@@@ -10,7 -10,7 +10,7 @@@
+  package p
+  
+  func F() {
+- 	switch t := nil.(type) { // ERROR "cannot type switch on non-interface value nil|not an interface"
+ -	switch t := nil.(type) { // ERROR "cannot type switch on non-interface value"
+++	switch t := nil.(type) { // ERROR "cannot type switch on non-interface value|not an interface"
+  	default:
+  		_ = t
+  	}
+@@@ -19,7 -19,7 +19,7 @@@
+  const x = 1
+  
+  func G() {
+- 	switch t := x.(type) { // ERROR "cannot type switch on non-interface value x \(type untyped int\)|not an interface"
+ -	switch t := x.(type) { // ERROR "cannot type switch on non-interface value|declared but not used"
+++	switch t := x.(type) { // ERROR "cannot type switch on non-interface value|declared but not used|not an interface"
+  	default:
+  	}
+  }
+diff --cc test/fixedbugs/issue20415.go
+index 8a4b528a89,1d9a745ab4..71f34bba57
+--- a/test/fixedbugs/issue20415.go
++++ b/test/fixedbugs/issue20415.go
+@@@ -11,7 -11,7 +11,7 @@@ package 
+  // 1
+  var f byte
+  
+- var f interface{} // ERROR "previous declaration at issue20415.go:12|f redeclared"
+ -var f interface{} // ERROR "issue20415.go:12: previous declaration|redefinition"
+++var f interface{} // ERROR "issue20415.go:12: previous declaration|redefinition|f redeclared"
+  
+  func _(f int) {
+  }
+@@@ -22,7 -22,7 +22,7 @@@ var g byt
+  func _(g int) {
+  }
+  
+- var g interface{} // ERROR "previous declaration at issue20415.go:20|g redeclared"
+ -var g interface{} // ERROR "issue20415.go:20: previous declaration|redefinition"
+++var g interface{} // ERROR "issue20415.go:20: previous declaration|redefinition|g redeclared"
+  
+  // 3
+  func _(h int) {
+@@@ -30,4 -30,4 +30,4 @@@
+  
+  var h byte
+  
+- var h interface{} // ERROR "previous declaration at issue20415.go:31|h redeclared"
+ -var h interface{} // ERROR "issue20415.go:31: previous declaration|redefinition"
+++var h interface{} // ERROR "issue20415.go:31: previous declaration|redefinition|h redeclared"
+diff --cc test/fixedbugs/issue20749.go
+index a670d6ffcd,de2d3ad16a..2ca1f43d02
+--- a/test/fixedbugs/issue20749.go
++++ b/test/fixedbugs/issue20749.go
+@@@ -9,7 -9,7 +9,7 @@@ package 
+  // Verify that the compiler complains even if the array
+  // has length 0.
+  var a [0]int
+- var _ = a[2:] // ERROR "invalid slice index 2|index 2 out of bounds"
+ -var _ = a[2:] // ERROR "invalid slice index 2|array index out of bounds"
+++var _ = a[2:] // ERROR "invalid slice index 2|array index out of bounds|index 2 out of bounds"
+  
+  var b [1]int
+- var _ = b[2:] // ERROR "invalid slice index 2|index 2 out of bounds"
+ -var _ = b[2:] // ERROR "invalid slice index 2|array index out of bounds"
+++var _ = b[2:] // ERROR "invalid slice index 2|array index out of bounds|index 2 out of bounds"
+diff --cc test/fixedbugs/issue22794.go
+index 0c10208d81,2ac31ef0c7..e13e470a01
+--- a/test/fixedbugs/issue22794.go
++++ b/test/fixedbugs/issue22794.go
+@@@ -13,9 -13,8 +13,9 @@@ type it struct 
+  
+  func main() {
+  	i1 := it{Floats: true}
+- 	if i1.floats { // ERROR "(type it .* field or method floats, but does have Floats)"
++ 	if i1.floats { // ERROR "(type it .* field or method floats, but does have Floats)|undefined field or method"
+  	}
+- 	i2 := &it{floats: false} // ERROR "(but does have Floats)|unknown field"
++ 	i2 := &it{floats: false} // ERROR "(but does have Floats)|unknown field|declared but not used"
+  	_ = &it{InneR: "foo"}    // ERROR "(but does have inner)|unknown field"
+ +	_ = i2
+  }
+diff --cc test/fixedbugs/issue22822.go
+index 27c873ab10,dc86c97fe5..9483c9cab0
+--- a/test/fixedbugs/issue22822.go
++++ b/test/fixedbugs/issue22822.go
+@@@ -11,9 -11,8 +11,9 @@@ package mai
+  
+  func F() {
+  	slice := []int{1, 2, 3}
+ +	_ = slice
+  	len := int(2)
+- 	println(len(slice)) // ERROR "cannot call non-function len .type int., declared at LINE-1|cannot call non-function len"
+ -	println(len(slice)) // ERROR "cannot call non-function len .type int., declared at LINE-1|expected function"
+++	println(len(slice)) // ERROR "cannot call non-function len .type int., declared at LINE-1|expected function|cannot call non-function len"
+  	const iota = 1
+- 	println(iota(slice)) // ERROR "cannot call non-function iota .type int., declared at LINE-1|cannot call non-function iota"
+ -	println(iota(slice)) // ERROR "cannot call non-function iota .type int., declared at LINE-1|expected function"
+++	println(iota(slice)) // ERROR "cannot call non-function iota .type int., declared at LINE-1|expected function|cannot call non-function iota"
+  }
+diff --cc test/fixedbugs/issue23823.go
+index 4e3cd163b6,067a8f1638..c53415f7b9
+--- a/test/fixedbugs/issue23823.go
++++ b/test/fixedbugs/issue23823.go
+@@@ -11,6 -11,6 +11,6 @@@ type I1 = interface 
+  }
+  
+  // BAD: type loop should mention I1; see also #41669
+- type I2 interface { // ERROR "invalid recursive type I2\n\tLINE: I2 refers to\n\tLINE: I2$|invalid recursive type"
+- 	I1
+ -type I2 interface { // GC_ERROR "invalid recursive type I2\n\tLINE: I2 refers to\n\tLINE: I2$"
+++type I2 interface { // GC_ERROR "invalid recursive type I2\n\tLINE: I2 refers to\n\tLINE: I2$|invalid recursive type I2"
++ 	I1 // GCCGO_ERROR "invalid recursive interface"
+  }
+diff --cc test/fixedbugs/issue25727.go
+index 9e4da6ddba,936b9f8ff5..5599a83dd0
+--- a/test/fixedbugs/issue25727.go
++++ b/test/fixedbugs/issue25727.go
+@@@ -9,13 -9,13 +9,13 @@@ package mai
+  import "net/http"
+  
+  var s = http.Server{}
+- var _ = s.doneChan                  // ERROR "s.doneChan undefined .cannot refer to unexported field or method doneChan.$|s.doneChan undefined"
+- var _ = s.DoneChan                  // ERROR "s.DoneChan undefined .type http.Server has no field or method DoneChan.$"
+- var _ = http.Server{tlsConfig: nil} // ERROR "unknown field 'tlsConfig' in struct literal.+ .but does have TLSConfig.$|unknown field 'tlsConfig'"
+- var _ = http.Server{DoneChan: nil}  // ERROR "unknown field 'DoneChan' in struct literal of type http.Server$"
+ -var _ = s.doneChan                  // ERROR "s.doneChan undefined .cannot refer to unexported field or method doneChan.$|unexported field or method"
+++var _ = s.doneChan                  // ERROR "s.doneChan undefined .cannot refer to unexported field or method doneChan.$|unexported field or method|s.doneChan undefined"
++ var _ = s.DoneChan                  // ERROR "s.DoneChan undefined .type http.Server has no field or method DoneChan.$|undefined field or method"
+ -var _ = http.Server{tlsConfig: nil} // ERROR "unknown field 'tlsConfig' in struct literal.+ .but does have TLSConfig.$|unknown field .?tlsConfig.? in .?http.Server"
+++var _ = http.Server{tlsConfig: nil} // ERROR "unknown field 'tlsConfig' in struct literal.+ .but does have TLSConfig.$|unknown field .?tlsConfig.? in .?http.Server|unknown field"
++ var _ = http.Server{DoneChan: nil}  // ERROR "unknown field 'DoneChan' in struct literal of type http.Server$|unknown field .?DoneChan.? in .?http.Server"
+  
+  type foo struct {
+  	bar int
+  }
+  
+- var _ = &foo{bAr: 10} // ERROR "unknown field 'bAr' in struct literal.+ .but does have bar.$|unknown field 'bAr'"
+ -var _ = &foo{bAr: 10} // ERROR "unknown field 'bAr' in struct literal.+ .but does have bar.$|unknown field .?bAr.? in .?foo"
+++var _ = &foo{bAr: 10} // ERROR "unknown field 'bAr' in struct literal.+ .but does have bar.$|unknown field .?bAr.? in .?foo|unknown field"
+diff --cc test/fixedbugs/issue26616.go
+index d20d4518c0,87c0293661..d5210e87b0
+--- a/test/fixedbugs/issue26616.go
++++ b/test/fixedbugs/issue26616.go
+@@@ -6,14 -6,14 +6,13 @@@
+  
+  package p
+  
+- var x int = three() // ERROR "assignment mismatch: 1 variable but three returns 3 values|3\-valued"
+ -var x int = three() // ERROR "assignment mismatch: 1 variable but three returns 3 values|multiple-value function call in single-value context"
+++var x int = three() // ERROR "assignment mismatch: 1 variable but three returns 3 values|multiple-value function call in single-value context|3\-valued"
+  
+  func f() {
+- 	var _ int = three() // ERROR "assignment mismatch: 1 variable but three returns 3 values|3\-valued"
+- 	var a int = three() // ERROR "assignment mismatch: 1 variable but three returns 3 values|3\-valued"
+- 	a = three()         // ERROR "assignment mismatch: 1 variable but three returns 3 values|cannot assign"
+- 	b := three()        // ERROR "assignment mismatch: 1 variable but three returns 3 values|cannot initialize"
+ -	var _ int = three() // ERROR "assignment mismatch: 1 variable but three returns 3 values|multiple-value function call in single-value context"
+ -	var a int = three() // ERROR "assignment mismatch: 1 variable but three returns 3 values|multiple-value function call in single-value context"
+ -	a = three()         // ERROR "assignment mismatch: 1 variable but three returns 3 values|multiple-value function call in single-value context"
+ -	b := three()        // ERROR "assignment mismatch: 1 variable but three returns 3 values|single variable set to multiple-value|multiple-value function call in single-value context"
+--
+++	var _ int = three() // ERROR "assignment mismatch: 1 variable but three returns 3 values|multiple-value function call in single-value context|3\-valued"
+++	var a int = three() // ERROR "assignment mismatch: 1 variable but three returns 3 values|multiple-value function call in single-value context|3\-valued"
+++	a = three()         // ERROR "assignment mismatch: 1 variable but three returns 3 values|multiple-value function call in single-value context|cannot assign"
+++	b := three()        // ERROR "assignment mismatch: 1 variable but three returns 3 values|single variable set to multiple-value|multiple-value function call in single-value context|cannot initialize"
+  	_, _ = a, b
+  }
+  
+diff --cc test/fixedbugs/issue28079c.go
+index ec650848ae,dfac8d0155..f6954eda42
+--- a/test/fixedbugs/issue28079c.go
++++ b/test/fixedbugs/issue28079c.go
+@@@ -11,5 -11,5 +11,5 @@@ package 
+  import "unsafe"
+  
+  func f() {
+- 	_ = complex(1<<uintptr(unsafe.Pointer(nil)), 0) // ERROR "invalid operation: .*shift of type float64.*|shifted operand .* must be integer"
+ -	_ = complex(1<<uintptr(unsafe.Pointer(nil)), 0) // ERROR "invalid operation: .*shift of type float64.*|non-integer type for left operand of shift"
+++	_ = complex(1<<uintptr(unsafe.Pointer(nil)), 0) // ERROR "invalid operation: .*shift of type float64.*|non-integer type for left operand of shift|shifted operand .* must be integer"
+  }
+diff --cc test/fixedbugs/issue28450.go
+index 1fae40ad08,2acfe39177..ca7ba14b1c
+--- a/test/fixedbugs/issue28450.go
++++ b/test/fixedbugs/issue28450.go
+@@@ -6,13 -6,13 +6,13 @@@
+  
+  package p
+  
+- func f(a, b, c, d ...int)       {} // ERROR "non-final parameter a|can only use ... with final parameter"
+- func g(a ...int, b ...int)      {} // ERROR "non-final parameter a|can only use ... with final parameter"
+- func h(...int, ...int, float32) {} // ERROR "non-final parameter|can only use ... with final parameter"
+ -func f(a, b, c, d ...int)       {} // ERROR "non-final parameter a|only permits one name"
+ -func g(a ...int, b ...int)      {} // ERROR "non-final parameter a|must be last parameter"
+ -func h(...int, ...int, float32) {} // ERROR "non-final parameter|must be last parameter"
+++func f(a, b, c, d ...int)       {} // ERROR "non-final parameter a|only permits one name|can only use ... with final parameter"
+++func g(a ...int, b ...int)      {} // ERROR "non-final parameter a|must be last parameter|can only use ... with final parameter"
+++func h(...int, ...int, float32) {} // ERROR "non-final parameter|must be last parameter|can only use ... with final parameter"
+  
+- type a func(...float32, ...interface{}) // ERROR "non-final parameter|can only use ... with final parameter"
+ -type a func(...float32, ...interface{}) // ERROR "non-final parameter|must be last parameter"
+++type a func(...float32, ...interface{}) // ERROR "non-final parameter|must be last parameter|can only use ... with final parameter"
+  type b interface {
+- 	f(...int, ...int)                // ERROR "non-final parameter|can only use ... with final parameter"
+- 	g(a ...int, b ...int, c float32) // ERROR "non-final parameter a|can only use ... with final parameter"
+ -	f(...int, ...int)                // ERROR "non-final parameter|must be last parameter"
+ -	g(a ...int, b ...int, c float32) // ERROR "non-final parameter a|must be last parameter"
+++	f(...int, ...int)                // ERROR "non-final parameter|must be last parameter|can only use ... with final parameter"
+++	g(a ...int, b ...int, c float32) // ERROR "non-final parameter a|must be last parameter|can only use ... with final parameter"
+  	valid(...int)
+  }
+diff --cc test/fixedbugs/issue30085.go
+index ae977e65f9,d2ac4cfbfa..512355a443
+--- a/test/fixedbugs/issue30085.go
++++ b/test/fixedbugs/issue30085.go
+@@@ -7,7 -7,6 +7,7 @@@
+  package main
+  
+  func main() {
+- 	var c, d = 1, 2, 3 // ERROR "assignment mismatch: 2 variables but 3 values|extra init expr"
+- 	var e, f, g = 1, 2 // ERROR "assignment mismatch: 3 variables but 2 values|missing init expr"
+ -	var c, d = 1, 2, 3 // ERROR "assignment mismatch: 2 variables but 3 values|wrong number of initializations"
+ -	var e, f, g = 1, 2 // ERROR "assignment mismatch: 3 variables but 2 values|wrong number of initializations"
+++	var c, d = 1, 2, 3 // ERROR "assignment mismatch: 2 variables but 3 values|wrong number of initializations|extra init expr"
+++	var e, f, g = 1, 2 // ERROR "assignment mismatch: 3 variables but 2 values|wrong number of initializations|missing init expr"
+ +	_, _, _, _ = c, d, e, f
+  }
+diff --cc test/fixedbugs/issue30087.go
+index c9280b689f,3ad9c8c8d9..e2aec63a52
+--- a/test/fixedbugs/issue30087.go
++++ b/test/fixedbugs/issue30087.go
+@@@ -7,9 -7,8 +7,9 @@@
+  package main
+  
+  func main() {
+- 	var a, b = 1    // ERROR "assignment mismatch: 2 variables but 1 values|cannot initialize"
+- 	_ = 1, 2        // ERROR "assignment mismatch: 1 variables but 2 values|cannot assign"
+- 	c, d := 1       // ERROR "assignment mismatch: 2 variables but 1 values|cannot initialize"
+- 	e, f := 1, 2, 3 // ERROR "assignment mismatch: 2 variables but 3 values|cannot initialize"
+ -	var a, b = 1    // ERROR "assignment mismatch: 2 variables but 1 values|wrong number of initializations"
+ -	_ = 1, 2        // ERROR "assignment mismatch: 1 variables but 2 values|number of variables does not match"
+ -	c, d := 1       // ERROR "assignment mismatch: 2 variables but 1 values|wrong number of initializations"
+ -	e, f := 1, 2, 3 // ERROR "assignment mismatch: 2 variables but 3 values|wrong number of initializations"
+++	var a, b = 1    // ERROR "assignment mismatch: 2 variables but 1 values|wrong number of initializations|cannot initialize"
+++	_ = 1, 2        // ERROR "assignment mismatch: 1 variables but 2 values|number of variables does not match|cannot assign"
+++	c, d := 1       // ERROR "assignment mismatch: 2 variables but 1 values|wrong number of initializations|cannot initialize"
+++	e, f := 1, 2, 3 // ERROR "assignment mismatch: 2 variables but 3 values|wrong number of initializations|cannot initialize"
+ +	_, _, _, _ = c, d, e, f
+  }
+diff --cc test/fixedbugs/issue35291.go
+index eb6c4ce807,5d8381c244..f6cd45573c
+--- a/test/fixedbugs/issue35291.go
++++ b/test/fixedbugs/issue35291.go
+@@@ -10,5 -10,5 +10,5 @@@ package 
+  
+  var s = []string{
+  	1: "dup",
+- 	1: "dup", // ERROR "duplicate index in slice literal: 1|duplicate index 1 in array or slice literal"
+ -	1: "dup", // ERROR "duplicate index in slice literal: 1|duplicate value for index 1"
+++	1: "dup", // ERROR "duplicate index in slice literal: 1|duplicate value for index 1|duplicate index 1"
+  }
+diff --cc test/fixedbugs/issue38745.go
+index 78a9165354,7d4283b845..3a84a5622b
+--- a/test/fixedbugs/issue38745.go
++++ b/test/fixedbugs/issue38745.go
+@@@ -9,8 -9,8 +9,8 @@@ package 
+  type t struct{ x int }
+  
+  func f1() {
+- 	t{}.M()     // ERROR "t{}.M undefined \(type t has no field or method M\)"
+- 	t{x: 1}.M() // ERROR "t{(...|…)}.M undefined \(type t has no field or method M\)"
++ 	t{}.M()     // ERROR "t{}.M undefined \(type t has no field or method M\)|undefined field or method .*M"
+ -	t{x: 1}.M() // ERROR "t{...}.M undefined \(type t has no field or method M\)|undefined field or method .*M"
+++	t{x: 1}.M() // ERROR "t{...}.M undefined \(type t has no field or method M\)|undefined field or method .*M|no field or method M"
+  }
+  
+  func f2() (*t, error) {
+diff --cc test/fixedbugs/issue41500.go
+index bd51de29be,82dca34820..3ec23a0dfe
+--- a/test/fixedbugs/issue41500.go
++++ b/test/fixedbugs/issue41500.go
+@@@ -13,8 -13,8 +13,8 @@@ type s struct 
+  func f() {
+  	var x *s
+  
+- 	_ = x == nil || len(x.slice) // ERROR "invalid operation: .+ \(operator \|\| not defined on int\)|cannot convert x == nil"
+- 	_ = len(x.slice) || x == nil // ERROR "invalid operation: .+ \(operator \|\| not defined on int\)|cannot convert x == nil"
+- 	_ = x == nil && len(x.slice) // ERROR "invalid operation: .+ \(operator && not defined on int\)|cannot convert x == nil"
+- 	_ = len(x.slice) && x == nil // ERROR "invalid operation: .+ \(operator && not defined on int\)|cannot convert x == nil"
+ -	_ = x == nil || len(x.slice) // ERROR "invalid operation: .+ \(operator \|\| not defined on int\)|incompatible types"
+ -	_ = len(x.slice) || x == nil // ERROR "invalid operation: .+ \(operator \|\| not defined on int\)|incompatible types"
+ -	_ = x == nil && len(x.slice) // ERROR "invalid operation: .+ \(operator && not defined on int\)|incompatible types"
+ -	_ = len(x.slice) && x == nil // ERROR "invalid operation: .+ \(operator && not defined on int\)|incompatible types"
+++	_ = x == nil || len(x.slice) // ERROR "invalid operation: .+ \(operator \|\| not defined on int\)|incompatible types|cannot convert"
+++	_ = len(x.slice) || x == nil // ERROR "invalid operation: .+ \(operator \|\| not defined on int\)|incompatible types|cannot convert"
+++	_ = x == nil && len(x.slice) // ERROR "invalid operation: .+ \(operator && not defined on int\)|incompatible types|cannot convert"
+++	_ = len(x.slice) && x == nil // ERROR "invalid operation: .+ \(operator && not defined on int\)|incompatible types|cannot convert"
+  }
+diff --cc test/fixedbugs/issue4215.go
+index df986c179d,be9fc7434a..7201591f3f
+--- a/test/fixedbugs/issue4215.go
++++ b/test/fixedbugs/issue4215.go
+@@@ -7,28 -7,28 +7,28 @@@
+  package main
+  
+  func foo() (int, int) {
+- 	return 2.3 // ERROR "not enough arguments to return\n\thave \(number\)\n\twant \(int, int\)|wrong number of return values"
+ -	return 2.3 // ERROR "not enough arguments to return\n\thave \(number\)\n\twant \(int, int\)|not enough arguments to return"
+++	return 2.3 // ERROR "not enough arguments to return\n\thave \(number\)\n\twant \(int, int\)|not enough arguments to return|wrong number of return values"
+  }
+  
+  func foo2() {
+- 	return int(2), 2 // ERROR "too many arguments to return\n\thave \(int, number\)\n\twant \(\)|no result values expected"
+ -	return int(2), 2 // ERROR "too many arguments to return\n\thave \(int, number\)\n\twant \(\)|return with value in function with no return type"
+++	return int(2), 2 // ERROR "too many arguments to return\n\thave \(int, number\)\n\twant \(\)|return with value in function with no return type|no result values expected"
+  }
+  
+  func foo3(v int) (a, b, c, d int) {
+  	if v >= 0 {
+- 		return 1 // ERROR "not enough arguments to return\n\thave \(number\)\n\twant \(int, int, int, int\)|wrong number of return values"
+ -		return 1 // ERROR "not enough arguments to return\n\thave \(number\)\n\twant \(int, int, int, int\)|not enough arguments to return"
+++		return 1 // ERROR "not enough arguments to return\n\thave \(number\)\n\twant \(int, int, int, int\)|not enough arguments to return|wrong number of return values"
+  	}
+- 	return 2, 3 // ERROR "not enough arguments to return\n\thave \(number, number\)\n\twant \(int, int, int, int\)|wrong number of return values"
+ -	return 2, 3 // ERROR "not enough arguments to return\n\thave \(number, number\)\n\twant \(int, int, int, int\)|not enough arguments to return"
+++	return 2, 3 // ERROR "not enough arguments to return\n\thave \(number, number\)\n\twant \(int, int, int, int\)|not enough arguments to return|wrong number of return values"
+  }
+  
+  func foo4(name string) (string, int) {
+  	switch name {
+  	case "cow":
+- 		return "moo" // ERROR "not enough arguments to return\n\thave \(string\)\n\twant \(string, int\)|wrong number of return values"
+ -		return "moo" // ERROR "not enough arguments to return\n\thave \(string\)\n\twant \(string, int\)|not enough arguments to return"
+++		return "moo" // ERROR "not enough arguments to return\n\thave \(string\)\n\twant \(string, int\)|not enough arguments to return|wrong number of return values"
+  	case "dog":
+- 		return "dog", 10, true // ERROR "too many arguments to return\n\thave \(string, number, bool\)\n\twant \(string, int\)|wrong number of return values"
+ -		return "dog", 10, true // ERROR "too many arguments to return\n\thave \(string, number, bool\)\n\twant \(string, int\)|too many values in return statement"
+++		return "dog", 10, true // ERROR "too many arguments to return\n\thave \(string, number, bool\)\n\twant \(string, int\)|too many values in return statement|wrong number of return values"
+  	case "fish":
+- 		return "" // ERROR "not enough arguments to return\n\thave \(string\)\n\twant \(string, int\)|wrong number of return values"
+ -		return "" // ERROR "not enough arguments to return\n\thave \(string\)\n\twant \(string, int\)|not enough arguments to return"
+++		return "" // ERROR "not enough arguments to return\n\thave \(string\)\n\twant \(string, int\)|not enough arguments to return|wrong number of return values"
+  	default:
+  		return "lizard", 10
+  	}
+@@@ -40,14 -40,14 +40,14 @@@ type U float6
+  
+  func foo5() (S, T, U) {
+  	if false {
+- 		return "" // ERROR "not enough arguments to return\n\thave \(string\)\n\twant \(S, T, U\)|wrong number of return values"
+ -		return "" // ERROR "not enough arguments to return\n\thave \(string\)\n\twant \(S, T, U\)|not enough arguments to return"
+++		return "" // ERROR "not enough arguments to return\n\thave \(string\)\n\twant \(S, T, U\)|not enough arguments to return|wrong number of return values"
+  	} else {
+  		ptr := new(T)
+- 		return ptr // ERROR "not enough arguments to return\n\thave \(\*T\)\n\twant \(S, T, U\)|wrong number of return values"
+ -		return ptr // ERROR "not enough arguments to return\n\thave \(\*T\)\n\twant \(S, T, U\)|not enough arguments to return"
+++		return ptr // ERROR "not enough arguments to return\n\thave \(\*T\)\n\twant \(S, T, U\)|not enough arguments to return|wrong number of return values"
+  	}
+- 	return new(S), 12.34, 1 + 0i, 'r', true // ERROR "too many arguments to return\n\thave \(\*S, number, number, number, bool\)\n\twant \(S, T, U\)|wrong number of return values"
+ -	return new(S), 12.34, 1 + 0i, 'r', true // ERROR "too many arguments to return\n\thave \(\*S, number, number, number, bool\)\n\twant \(S, T, U\)|too many values in return statement"
+++	return new(S), 12.34, 1 + 0i, 'r', true // ERROR "too many arguments to return\n\thave \(\*S, number, number, number, bool\)\n\twant \(S, T, U\)|too many values in return statement|wrong number of return values"
+  }
+  
+  func foo6() (T, string) {
+- 	return "T", true, true // ERROR "too many arguments to return\n\thave \(string, bool, bool\)\n\twant \(T, string\)|wrong number of return values"
+ -	return "T", true, true // ERROR "too many arguments to return\n\thave \(string, bool, bool\)\n\twant \(T, string\)|too many values in return statement"
+++	return "T", true, true // ERROR "too many arguments to return\n\thave \(string, bool, bool\)\n\twant \(T, string\)|too many values in return statement|wrong number of return values"
+  }
+diff --cc test/fixedbugs/issue6402.go
+index 027291a0ea,ecde9ae510..db83e94b86
+--- a/test/fixedbugs/issue6402.go
++++ b/test/fixedbugs/issue6402.go
+@@@ -9,5 -9,5 +9,5 @@@
+  package p
+  
+  func f() uintptr {
+- 	return nil // ERROR "cannot use nil as type uintptr in return argument|cannot convert nil"
+ -	return nil // ERROR "cannot use nil as type uintptr in return argument|incompatible type"
+++	return nil // ERROR "cannot use nil as type uintptr in return argument|incompatible type|cannot convert nil"
+  }
+diff --cc test/fixedbugs/issue6772.go
+index cb8d0a11f2,5bd15ba72e..5cc89b47b5
+--- a/test/fixedbugs/issue6772.go
++++ b/test/fixedbugs/issue6772.go
+@@@ -7,14 -7,14 +7,14 @@@
+  package p
+  
+  func f1() {
+- 	for a, a := range []int{1, 2, 3} { // ERROR "a repeated on left side of :=|a redeclared"
+ -	for a, a := range []int{1, 2, 3} { // ERROR "a.* repeated on left side of :="
+++	for a, a := range []int{1, 2, 3} { // ERROR "a.* repeated on left side of :=|a redeclared"
+  		println(a)
+  	}
+  }
+  
+  func f2() {
+  	var a int
+- 	for a, a := range []int{1, 2, 3} { // ERROR "a repeated on left side of :=|a redeclared"
+ -	for a, a := range []int{1, 2, 3} { // ERROR "a.* repeated on left side of :="
+++	for a, a := range []int{1, 2, 3} { // ERROR "a.* repeated on left side of :=|a redeclared"
+  		println(a)
+  	}
+  	println(a)
+diff --cc test/fixedbugs/issue7129.go
+index 14fc418150,2765200ac8..70dc26303e
+--- a/test/fixedbugs/issue7129.go
++++ b/test/fixedbugs/issue7129.go
+@@@ -15,7 -15,7 +15,7 @@@ func g() bool { return true 
+  func h(int, int) {}
+  
+  func main() {
+--	f(g())        // ERROR "in argument to f|incompatible type"
+- 	f(true)       // ERROR "in argument to f|cannot convert"
+- 	h(true, true) // ERROR "in argument to h|cannot convert"
+ -	f(true)       // ERROR "in argument to f|incompatible type"
+ -	h(true, true) // ERROR "in argument to h|incompatible type"
+++	f(g())        // ERROR "in argument to f|incompatible type|cannot convert"
+++	f(true)       // ERROR "in argument to f|incompatible type|cannot convert"
+++	h(true, true) // ERROR "in argument to h|incompatible type|cannot convert"
+  }
+diff --cc test/fixedbugs/issue7150.go
+index 4bd9de8645,7cddf4875e..52eed93756
+--- a/test/fixedbugs/issue7150.go
++++ b/test/fixedbugs/issue7150.go
+@@@ -9,9 -9,9 +9,9 @@@
+  package main
+  
+  func main() {
+- 	_ = [0]int{-1: 50}              // ERROR "index must be non-negative integer constant|must not be negative"
+- 	_ = [0]int{0: 0}                // ERROR "index 0 out of bounds \[0:0\]"
+- 	_ = [0]int{5: 25}               // ERROR "index 5 out of bounds \[0:0\]"
+- 	_ = [10]int{2: 10, 15: 30}      // ERROR "index 15 out of bounds \[0:10\]"
+- 	_ = [10]int{5: 5, 1: 1, 12: 12} // ERROR "index 12 out of bounds \[0:10\]"
+ -	_ = [0]int{-1: 50}              // ERROR "index must be non-negative integer constant|index expression is negative"
+++	_ = [0]int{-1: 50}              // ERROR "index must be non-negative integer constant|index expression is negative|must not be negative"
++ 	_ = [0]int{0: 0}                // ERROR "index 0 out of bounds \[0:0\]|out of range"
++ 	_ = [0]int{5: 25}               // ERROR "index 5 out of bounds \[0:0\]|out of range"
++ 	_ = [10]int{2: 10, 15: 30}      // ERROR "index 15 out of bounds \[0:10\]|out of range"
++ 	_ = [10]int{5: 5, 1: 1, 12: 12} // ERROR "index 12 out of bounds \[0:10\]|out of range"
+  }
+diff --cc test/fixedbugs/issue7153.go
+index 7a85fb8779,e8b95d5db8..12cd62b653
+--- a/test/fixedbugs/issue7153.go
++++ b/test/fixedbugs/issue7153.go
+@@@ -8,4 -8,4 +8,4 @@@
+  
+  package p
+  
+- var _ = []int{a: true, true} // ERROR "undefined: a" "cannot use true \(type untyped bool\) as type int in slice literal|cannot convert true"
+ -var _ = []int{a: true, true} // ERROR "undefined: a" "cannot use true \(type untyped bool\) as type int in slice literal|undefined name .*a|incompatible type"
+++var _ = []int{a: true, true} // ERROR "undefined: a" "cannot use true \(type untyped bool\) as type int in slice literal|undefined name .*a|incompatible type|cannot convert"
+diff --cc test/fixedbugs/issue7310.go
+index ef099ce41e,ba50e4237b..4d10e47e64
+--- a/test/fixedbugs/issue7310.go
++++ b/test/fixedbugs/issue7310.go
+@@@ -9,7 -9,7 +9,7 @@@
+  package main
+  
+  func main() {
+- 	_ = copy(nil, []int{}) // ERROR "use of untyped nil|untyped nil"
+- 	_ = copy([]int{}, nil) // ERROR "use of untyped nil|untyped nil"
+- 	_ = 1 + true           // ERROR "mismatched types untyped int and untyped bool|untyped int .* untyped bool"
+ -	_ = copy(nil, []int{}) // ERROR "use of untyped nil|left argument must be a slice"
+ -	_ = copy([]int{}, nil) // ERROR "use of untyped nil|second argument must be slice or string"
+ -	_ = 1 + true           // ERROR "mismatched types untyped int and untyped bool|incompatible types"
+++	_ = copy(nil, []int{}) // ERROR "use of untyped nil|left argument must be a slice|expects slice arguments"
+++	_ = copy([]int{}, nil) // ERROR "use of untyped nil|second argument must be slice or string|expects slice arguments"
+++	_ = 1 + true           // ERROR "mismatched types untyped int and untyped bool|incompatible types|cannot convert"
+  }
+diff --cc test/fixedbugs/issue8183.go
+index 01954dd107,caac667346..fe2dff786c
+--- a/test/fixedbugs/issue8183.go
++++ b/test/fixedbugs/issue8183.go
+@@@ -12,12 -12,12 +12,12 @@@ const 
+  	ok = byte(iota + 253)
+  	bad
+  	barn
+- 	bard // ERROR "constant 256 overflows byte|cannot convert"
+ -	bard // ERROR "constant 256 overflows byte|integer constant overflow"
+++	bard // ERROR "constant 256 overflows byte|integer constant overflow|cannot convert"
+  )
+  
+  const (
+  	c = len([1 - iota]int{})
+  	d
+- 	e // ERROR "array bound must be non-negative|invalid array length"
+- 	f // ERROR "array bound must be non-negative|invalid array length"
+ -	e // ERROR "array bound must be non-negative|negative array bound"
+ -	f // ERROR "array bound must be non-negative|negative array bound"
+++	e // ERROR "array bound must be non-negative|negative array bound|invalid array length"
+++	f // ERROR "array bound must be non-negative|negative array bound|invalid array length"
+  )
+diff --cc test/fixedbugs/issue8438.go
+index 1a223e701f,f433e36924..fcbb4f86ec
+--- a/test/fixedbugs/issue8438.go
++++ b/test/fixedbugs/issue8438.go
+@@@ -10,8 -10,8 +10,8 @@@
+  package main
+  
+  func main() {
+- 	_ = []byte{"foo"}   // ERROR "cannot use|cannot convert"
+- 	_ = []int{"foo"}    // ERROR "cannot use|cannot convert"
+- 	_ = []rune{"foo"}   // ERROR "cannot use|cannot convert"
+ -	_ = []byte{"foo"}   // ERROR "cannot use|incompatible type"
+ -	_ = []int{"foo"}    // ERROR "cannot use|incompatible type"
+ -	_ = []rune{"foo"}   // ERROR "cannot use|incompatible type"
+++	_ = []byte{"foo"}   // ERROR "cannot use|incompatible type|cannot convert"
+++	_ = []int{"foo"}    // ERROR "cannot use|incompatible type|cannot convert"
+++	_ = []rune{"foo"}   // ERROR "cannot use|incompatible type|cannot convert"
+  	_ = []string{"foo"} // OK
+  }
+diff --cc test/fixedbugs/issue8440.go
+index da482b4483,e9c5b54d51..1d9fa936c4
+--- a/test/fixedbugs/issue8440.go
++++ b/test/fixedbugs/issue8440.go
+@@@ -7,5 -7,5 +7,5 @@@
+  package main
+  
+  func main() {
+- 	n.foo = 6 // ERROR "undefined: n in n.foo|undefined: n"
+ -	n.foo = 6 // ERROR "undefined: n in n.foo|undefined name .*n"
+++	n.foo = 6 // ERROR "undefined: n in n.foo|undefined name .*n|undefined: n"
+  }
+diff --cc test/fixedbugs/issue9370.go
+index 4724b6e2d9,6cc8d5b9e5..1a4510316d
+--- a/test/fixedbugs/issue9370.go
++++ b/test/fixedbugs/issue9370.go
+@@@ -33,95 -33,95 +33,95 @@@ var 
+  var (
+  	_ = e == c
+  	_ = e != c
+- 	_ = e >= c // ERROR "invalid operation.*not defined"
+ -	_ = e >= c // ERROR "invalid operation.*not defined|invalid comparison"
+++	_ = e >= c // ERROR "invalid operation.*not defined|invalid comparison|cannot compare"
+  	_ = c == e
+  	_ = c != e
+- 	_ = c >= e // ERROR "invalid operation.*not defined"
+ -	_ = c >= e // ERROR "invalid operation.*not defined|invalid comparison"
+++	_ = c >= e // ERROR "invalid operation.*not defined|invalid comparison|cannot compare"
+  
+  	_ = i == c
+  	_ = i != c
+- 	_ = i >= c // ERROR "invalid operation.*not defined"
+ -	_ = i >= c // ERROR "invalid operation.*not defined|invalid comparison"
+++	_ = i >= c // ERROR "invalid operation.*not defined|invalid comparison|cannot compare"
+  	_ = c == i
+  	_ = c != i
+- 	_ = c >= i // ERROR "invalid operation.*not defined"
+ -	_ = c >= i // ERROR "invalid operation.*not defined|invalid comparison"
+++	_ = c >= i // ERROR "invalid operation.*not defined|invalid comparison|cannot compare"
+  
+  	_ = e == n
+  	_ = e != n
+- 	_ = e >= n // ERROR "invalid operation.*not defined"
+ -	_ = e >= n // ERROR "invalid operation.*not defined|invalid comparison"
+++	_ = e >= n // ERROR "invalid operation.*not defined|invalid comparison|cannot compare"
+  	_ = n == e
+  	_ = n != e
+- 	_ = n >= e // ERROR "invalid operation.*not defined"
+ -	_ = n >= e // ERROR "invalid operation.*not defined|invalid comparison"
+++	_ = n >= e // ERROR "invalid operation.*not defined|invalid comparison|cannot compare"
+  
+  	// i and n are not assignable to each other
+- 	_ = i == n // ERROR "invalid operation.*mismatched types"
+- 	_ = i != n // ERROR "invalid operation.*mismatched types"
+- 	_ = i >= n // ERROR "invalid operation.*mismatched types"
+- 	_ = n == i // ERROR "invalid operation.*mismatched types"
+- 	_ = n != i // ERROR "invalid operation.*mismatched types"
+- 	_ = n >= i // ERROR "invalid operation.*mismatched types"
++ 	_ = i == n // ERROR "invalid operation.*mismatched types|incompatible types"
++ 	_ = i != n // ERROR "invalid operation.*mismatched types|incompatible types"
++ 	_ = i >= n // ERROR "invalid operation.*mismatched types|incompatible types"
++ 	_ = n == i // ERROR "invalid operation.*mismatched types|incompatible types"
++ 	_ = n != i // ERROR "invalid operation.*mismatched types|incompatible types"
++ 	_ = n >= i // ERROR "invalid operation.*mismatched types|incompatible types"
+  
+  	_ = e == 1
+  	_ = e != 1
+- 	_ = e >= 1 // ERROR "invalid operation.*not defined"
++ 	_ = e >= 1 // ERROR "invalid operation.*not defined|invalid comparison"
+  	_ = 1 == e
+  	_ = 1 != e
+- 	_ = 1 >= e // ERROR "invalid operation.*not defined"
+- 
+- 	_ = i == 1 // ERROR "invalid operation.*mismatched types|cannot convert"
+- 	_ = i != 1 // ERROR "invalid operation.*mismatched types|cannot convert"
+- 	_ = i >= 1 // ERROR "invalid operation.*mismatched types|cannot convert"
+- 	_ = 1 == i // ERROR "invalid operation.*mismatched types|cannot convert"
+- 	_ = 1 != i // ERROR "invalid operation.*mismatched types|cannot convert"
+- 	_ = 1 >= i // ERROR "invalid operation.*mismatched types|cannot convert"
+- 
+- 	_ = e == f // ERROR "invalid operation.*not defined"
+- 	_ = e != f // ERROR "invalid operation.*not defined"
+- 	_ = e >= f // ERROR "invalid operation.*not defined"
+- 	_ = f == e // ERROR "invalid operation.*not defined"
+- 	_ = f != e // ERROR "invalid operation.*not defined"
+- 	_ = f >= e // ERROR "invalid operation.*not defined"
+- 
+- 	_ = i == f // ERROR "invalid operation.*mismatched types"
+- 	_ = i != f // ERROR "invalid operation.*mismatched types"
+- 	_ = i >= f // ERROR "invalid operation.*mismatched types"
+- 	_ = f == i // ERROR "invalid operation.*mismatched types"
+- 	_ = f != i // ERROR "invalid operation.*mismatched types"
+- 	_ = f >= i // ERROR "invalid operation.*mismatched types"
+- 
+- 	_ = e == g // ERROR "invalid operation.*not defined"
+- 	_ = e != g // ERROR "invalid operation.*not defined"
+- 	_ = e >= g // ERROR "invalid operation.*not defined"
+- 	_ = g == e // ERROR "invalid operation.*not defined"
+- 	_ = g != e // ERROR "invalid operation.*not defined"
+- 	_ = g >= e // ERROR "invalid operation.*not defined"
+- 
+- 	_ = i == g // ERROR "invalid operation.*not defined"
+- 	_ = i != g // ERROR "invalid operation.*not defined"
+- 	_ = i >= g // ERROR "invalid operation.*not defined"
+- 	_ = g == i // ERROR "invalid operation.*not defined"
+- 	_ = g != i // ERROR "invalid operation.*not defined"
+- 	_ = g >= i // ERROR "invalid operation.*not defined"
+- 
+- 	_ = _ == e // ERROR "cannot use _ as value"
+- 	_ = _ == i // ERROR "cannot use _ as value"
+- 	_ = _ == c // ERROR "cannot use _ as value"
+- 	_ = _ == n // ERROR "cannot use _ as value"
+- 	_ = _ == f // ERROR "cannot use _ as value"
+- 	_ = _ == g // ERROR "cannot use _ as value"
+- 
+- 	_ = e == _ // ERROR "cannot use _ as value"
+- 	_ = i == _ // ERROR "cannot use _ as value"
+- 	_ = c == _ // ERROR "cannot use _ as value"
+- 	_ = n == _ // ERROR "cannot use _ as value"
+- 	_ = f == _ // ERROR "cannot use _ as value"
+- 	_ = g == _ // ERROR "cannot use _ as value"
+- 
+- 	_ = _ == _ // ERROR "cannot use _ as value"
+- 
+- 	_ = e ^ c // ERROR "invalid operation.*mismatched types"
+- 	_ = c ^ e // ERROR "invalid operation.*mismatched types"
+- 	_ = 1 ^ e // ERROR "invalid operation.*mismatched types"
+- 	_ = e ^ 1 // ERROR "invalid operation.*mismatched types"
++ 	_ = 1 >= e // ERROR "invalid operation.*not defined|invalid comparison"
++ 
+ -	_ = i == 1 // ERROR "invalid operation.*mismatched types|incompatible types"
+ -	_ = i != 1 // ERROR "invalid operation.*mismatched types|incompatible types"
+ -	_ = i >= 1 // ERROR "invalid operation.*mismatched types|incompatible types"
+ -	_ = 1 == i // ERROR "invalid operation.*mismatched types|incompatible types"
+ -	_ = 1 != i // ERROR "invalid operation.*mismatched types|incompatible types"
+ -	_ = 1 >= i // ERROR "invalid operation.*mismatched types|incompatible types"
+++	_ = i == 1 // ERROR "invalid operation.*mismatched types|incompatible types|cannot convert"
+++	_ = i != 1 // ERROR "invalid operation.*mismatched types|incompatible types|cannot convert"
+++	_ = i >= 1 // ERROR "invalid operation.*mismatched types|incompatible types|cannot convert"
+++	_ = 1 == i // ERROR "invalid operation.*mismatched types|incompatible types|cannot convert"
+++	_ = 1 != i // ERROR "invalid operation.*mismatched types|incompatible types|cannot convert"
+++	_ = 1 >= i // ERROR "invalid operation.*mismatched types|incompatible types|cannot convert"
++ 
++ 	_ = e == f // ERROR "invalid operation.*not defined|invalid operation"
++ 	_ = e != f // ERROR "invalid operation.*not defined|invalid operation"
++ 	_ = e >= f // ERROR "invalid operation.*not defined|invalid comparison"
++ 	_ = f == e // ERROR "invalid operation.*not defined|invalid operation"
++ 	_ = f != e // ERROR "invalid operation.*not defined|invalid operation"
++ 	_ = f >= e // ERROR "invalid operation.*not defined|invalid comparison"
++ 
++ 	_ = i == f // ERROR "invalid operation.*mismatched types|incompatible types"
++ 	_ = i != f // ERROR "invalid operation.*mismatched types|incompatible types"
++ 	_ = i >= f // ERROR "invalid operation.*mismatched types|incompatible types"
++ 	_ = f == i // ERROR "invalid operation.*mismatched types|incompatible types"
++ 	_ = f != i // ERROR "invalid operation.*mismatched types|incompatible types"
++ 	_ = f >= i // ERROR "invalid operation.*mismatched types|incompatible types"
++ 
++ 	_ = e == g // ERROR "invalid operation.*not defined|invalid operation"
++ 	_ = e != g // ERROR "invalid operation.*not defined|invalid operation"
++ 	_ = e >= g // ERROR "invalid operation.*not defined|invalid comparison"
++ 	_ = g == e // ERROR "invalid operation.*not defined|invalid operation"
++ 	_ = g != e // ERROR "invalid operation.*not defined|invalid operation"
++ 	_ = g >= e // ERROR "invalid operation.*not defined|invalid comparison"
++ 
++ 	_ = i == g // ERROR "invalid operation.*not defined|invalid operation"
++ 	_ = i != g // ERROR "invalid operation.*not defined|invalid operation"
++ 	_ = i >= g // ERROR "invalid operation.*not defined|invalid comparison"
++ 	_ = g == i // ERROR "invalid operation.*not defined|invalid operation"
++ 	_ = g != i // ERROR "invalid operation.*not defined|invalid operation"
++ 	_ = g >= i // ERROR "invalid operation.*not defined|invalid comparison"
++ 
++ 	_ = _ == e // ERROR "cannot use .*_.* as value"
++ 	_ = _ == i // ERROR "cannot use .*_.* as value"
++ 	_ = _ == c // ERROR "cannot use .*_.* as value"
++ 	_ = _ == n // ERROR "cannot use .*_.* as value"
++ 	_ = _ == f // ERROR "cannot use .*_.* as value"
++ 	_ = _ == g // ERROR "cannot use .*_.* as value"
++ 
++ 	_ = e == _ // ERROR "cannot use .*_.* as value"
++ 	_ = i == _ // ERROR "cannot use .*_.* as value"
++ 	_ = c == _ // ERROR "cannot use .*_.* as value"
++ 	_ = n == _ // ERROR "cannot use .*_.* as value"
++ 	_ = f == _ // ERROR "cannot use .*_.* as value"
++ 	_ = g == _ // ERROR "cannot use .*_.* as value"
++ 
++ 	_ = _ == _ // ERROR "cannot use .*_.* as value"
++ 
++ 	_ = e ^ c // ERROR "invalid operation.*mismatched types|incompatible types"
++ 	_ = c ^ e // ERROR "invalid operation.*mismatched types|incompatible types"
++ 	_ = 1 ^ e // ERROR "invalid operation.*mismatched types|incompatible types"
++ 	_ = e ^ 1 // ERROR "invalid operation.*mismatched types|incompatible types"
+  	_ = 1 ^ c
+  	_ = c ^ 1
+  )
+diff --cc test/run.go
+index 01e67e8db8,db3e9f6c2f..5ec33f16f2
+--- a/test/run.go
++++ b/test/run.go
+@@@ -1922,78 -1846,3 +1922,79 @@@ func overlayDir(dstRoot, srcRoot string
+  		return err
+  	})
+  }
+ +
+ +// List of files that the compiler cannot errorcheck with the new typechecker (compiler -G option).
+ +// Temporary scaffolding until we pass all the tests at which point this map can be removed.
+ +var excluded = map[string]bool{
+ +	"complit1.go":     true, // types2 reports extra errors
+ +	"const2.go":       true, // types2 not run after syntax errors
+ +	"ddd1.go":         true, // issue #42987
+ +	"directive.go":    true, // misplaced compiler directive checks
+ +	"float_lit3.go":   true, // types2 reports extra errors
+ +	"import1.go":      true, // types2 reports extra errors
+ +	"import5.go":      true, // issue #42988
+ +	"import6.go":      true, // issue #43109
+ +	"initializerr.go": true, // types2 reports extra errors
+ +	"linkname2.go":    true, // error reported by noder (not running for types2 errorcheck test)
+++	"mainsig.go":      true, // issue #43308
+ +	"shift1.go":       true, // issue #42989
+ +	"switch4.go":      true, // error reported by noder (not running for types2 errorcheck test)
+ +	"typecheck.go":    true, // invalid function is not causing errors when called
+ +
+ +	"fixedbugs/bug176.go":    true, // types2 reports all errors (pref: types2)
+ +	"fixedbugs/bug193.go":    true, // types2 bug: shift error not reported (fixed in go/types)
+ +	"fixedbugs/bug195.go":    true, // types2 reports slightly different (but correct) bugs
+ +	"fixedbugs/bug213.go":    true, // error reported by noder (not running for types2 errorcheck test)
+ +	"fixedbugs/bug228.go":    true, // types2 not run after syntax errors
+ +	"fixedbugs/bug231.go":    true, // types2 bug? (same error reported twice)
+ +	"fixedbugs/bug255.go":    true, // types2 reports extra errors
+ +	"fixedbugs/bug351.go":    true, // types2 reports extra errors
+ +	"fixedbugs/bug374.go":    true, // types2 reports extra errors
+ +	"fixedbugs/bug385_32.go": true, // types2 doesn't produce "stack frame too large" error (32-bit specific)
+ +	"fixedbugs/bug385_64.go": true, // types2 doesn't produce "stack frame too large" error
+ +	"fixedbugs/bug388.go":    true, // types2 not run due to syntax errors
+ +	"fixedbugs/bug412.go":    true, // types2 produces a follow-on error
+ +
+ +	"fixedbugs/issue11362.go":  true, // types2 import path handling
+ +	"fixedbugs/issue11590.go":  true, // types2 doesn't report a follow-on error (pref: types2)
+ +	"fixedbugs/issue11610.go":  true, // types2 not run after syntax errors
+ +	"fixedbugs/issue11614.go":  true, // types2 reports an extra error
+ +	"fixedbugs/issue13415.go":  true, // declared but not used conflict
+ +	"fixedbugs/issue14520.go":  true, // missing import path error by types2
+ +	"fixedbugs/issue14540.go":  true, // error reported by noder (not running for types2 errorcheck test)
+ +	"fixedbugs/issue16428.go":  true, // types2 reports two instead of one error
+ +	"fixedbugs/issue17038.go":  true, // types2 doesn't report a follow-on error (pref: types2)
+ +	"fixedbugs/issue17645.go":  true, // multiple errors on same line
+ +	"fixedbugs/issue18393.go":  true, // types2 not run after syntax errors
+ +	"fixedbugs/issue19012.go":  true, // multiple errors on same line
+ +	"fixedbugs/issue20233.go":  true, // types2 reports two instead of one error (pref: compiler)
+ +	"fixedbugs/issue20245.go":  true, // types2 reports two instead of one error (pref: compiler)
+ +	"fixedbugs/issue20529.go":  true, // types2 doesn't produce "stack frame too large" error
+ +	"fixedbugs/issue20780.go":  true, // types2 doesn't produce "stack frame too large" error
+ +	"fixedbugs/issue21979.go":  true, // types2 doesn't report a follow-on error (pref: types2)
+ +	"fixedbugs/issue22200.go":  true, // types2 doesn't produce "stack frame too large" error
+ +	"fixedbugs/issue22200b.go": true, // types2 doesn't produce "stack frame too large" error
+ +	"fixedbugs/issue23732.go":  true, // types2 reports different (but ok) line numbers
+ +	"fixedbugs/issue25507.go":  true, // types2 doesn't produce "stack frame too large" error
+ +	"fixedbugs/issue25958.go":  true, // types2 doesn't report a follow-on error (pref: types2)
+ +	"fixedbugs/issue28079b.go": true, // types2 reports follow-on errors
+ +	"fixedbugs/issue28268.go":  true, // types2 reports follow-on errors
+ +	"fixedbugs/issue31747.go":  true, // types2 is missing support for -lang flag
+ +	"fixedbugs/issue33460.go":  true, // types2 reports alternative positions in separate error
+ +	"fixedbugs/issue34329.go":  true, // types2 is missing support for -lang flag
+ +	"fixedbugs/issue41575.go":  true, // types2 reports alternative positions in separate error
+ +	"fixedbugs/issue42058a.go": true, // types2 doesn't report "channel element type too large"
+ +	"fixedbugs/issue42058b.go": true, // types2 doesn't report "channel element type too large"
+ +	"fixedbugs/issue4232.go":   true, // types2 reports (correct) extra errors
+ +	"fixedbugs/issue4452.go":   true, // types2 reports (correct) extra errors
+ +	"fixedbugs/issue5609.go":   true, // types2 needs a better error message
+ +	"fixedbugs/issue6500.go":   true, // error reported by noder (not running for types2 errorcheck test)
+ +	"fixedbugs/issue6889.go":   true, // types2 can handle this without constant overflow
+ +	"fixedbugs/issue7525.go":   true, // types2 reports init cycle error on different line - ok otherwise
+ +	"fixedbugs/issue7525b.go":  true, // types2 reports init cycle error on different line - ok otherwise
+ +	"fixedbugs/issue7525c.go":  true, // types2 reports init cycle error on different line - ok otherwise
+ +	"fixedbugs/issue7525d.go":  true, // types2 reports init cycle error on different line - ok otherwise
+ +	"fixedbugs/issue7525e.go":  true, // types2 reports init cycle error on different line - ok otherwise
+ +	"fixedbugs/issue7742.go":   true, // types2 type-checking doesn't terminate
+ +	"fixedbugs/issue7746.go":   true, // types2 type-checking doesn't terminate
+ +}

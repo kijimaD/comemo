@@ -23,8 +23,130 @@ Date:   Mon Oct 21 17:45:01 2024 -0400
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/malloc.go      | 11 ++++++++++-
  src/runtime/mem_nonsbrk.go | 15 +++++++++++++++
  src/runtime/mem_sbrk.go    | 42 +++++++++++++++++++++++++++++++++++++++++-
  3 files changed, 66 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 74decd54c4..0700d0d1cd 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -470,7 +470,10 @@ func mallocinit() {
+ 	lockInit(&globalAlloc.mutex, lockRankGlobalAlloc)
+ 
+ 	// Create initial arena growth hints.
+-	if goarch.PtrSize == 8 {
++	if isSbrkPlatform {
++		// Don't generate hints on sbrk platforms. We can
++		// only grow the break sequentially.
++	} else if goarch.PtrSize == 8 {
+ 		// On a 64-bit machine, we pick the following hints
+ 		// because:
+ 		//
+@@ -828,6 +831,12 @@ mapped:
+ // aligned to align bytes. It may reserve either n or n+align bytes,
+ // so it returns the size that was reserved.
+ func sysReserveAligned(v unsafe.Pointer, size, align uintptr) (unsafe.Pointer, uintptr) {
++	if isSbrkPlatform {
++		if v != nil {
++			throw("unexpected heap arena hint on sbrk platform")
++		}
++		return sysReserveAlignedSbrk(size, align)
++	}
+ 	// Since the alignment is rather large in uses of this
+ 	// function, we're not likely to get it by chance, so we ask
+ 	// for a larger region and remove the parts we don't need.
+diff --git a/src/runtime/mem_nonsbrk.go b/src/runtime/mem_nonsbrk.go
+new file mode 100644
+index 0000000000..41b7260eac
+--- /dev/null
++++ b/src/runtime/mem_nonsbrk.go
+@@ -0,0 +1,15 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !plan9 && !wasm
++
++package runtime
++
++import "unsafe"
++
++const isSbrkPlatform = false
++
++func sysReserveAlignedSbrk(size, align uintptr) (unsafe.Pointer, uintptr) {
++	panic("unreachable")
++}
+diff --git a/src/runtime/mem_sbrk.go b/src/runtime/mem_sbrk.go
+index 1f0b9bf1d7..cfca891086 100644
+--- a/src/runtime/mem_sbrk.go
++++ b/src/runtime/mem_sbrk.go
+@@ -8,6 +8,8 @@ package runtime
+ 
+ import "unsafe"
+ 
++const isSbrkPlatform = true
++
+ const memDebug = false
+ 
+ // Memory management on sbrk systems (including the linear memory
+@@ -47,6 +49,13 @@ func (p memHdrPtr) ptr() *memHdr   { return (*memHdr)(unsafe.Pointer(p)) }
+ func (p *memHdrPtr) set(x *memHdr) { *p = memHdrPtr(unsafe.Pointer(x)) }
+ 
+ func memAlloc(n uintptr) unsafe.Pointer {
++	if p := memAllocNoGrow(n); p != nil {
++		return p
++	}
++	return sbrk(n)
++}
++
++func memAllocNoGrow(n uintptr) unsafe.Pointer {
+ 	n = memRound(n)
+ 	var prevp *memHdr
+ 	for p := memFreelist.ptr(); p != nil; p = p.next.ptr() {
+@@ -66,7 +75,7 @@ func memAlloc(n uintptr) unsafe.Pointer {
+ 		}
+ 		prevp = p
+ 	}
+-	return sbrk(n)
++	return nil
+ }
+ 
+ func memFree(ap unsafe.Pointer, n uintptr) {
+@@ -207,3 +216,34 @@ func sysReserveOS(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+ 	unlock(&memlock)
+ 	return p
+ }
++
++func sysReserveAlignedSbrk(size, align uintptr) (unsafe.Pointer, uintptr) {
++	lock(&memlock)
++	if p := memAllocNoGrow(size + align); p != nil {
++		// We can satisfy the reservation from the free list.
++		// Trim off the unaligned parts.
++		pAligned := alignUp(uintptr(p), align)
++		if startLen := pAligned - uintptr(p); startLen > 0 {
++			memFree(p, startLen)
++		}
++		end := pAligned + size
++		if endLen := (uintptr(p) + size + align) - end; endLen > 0 {
++			memFree(unsafe.Pointer(end), endLen)
++		}
++		memCheck()
++		return unsafe.Pointer(pAligned), size
++	}
++
++	// Round up bloc to align, then allocate size.
++	p := alignUp(bloc, align)
++	r := sbrk(p + size - bloc)
++	if r == nil {
++		p, size = 0, 0
++	} else if l := p - uintptr(r); l > 0 {
++		// Free the area we skipped over for alignment.
++		memFree(r, l)
++		memCheck()
++	}
++	unlock(&memlock)
++	return unsafe.Pointer(p), size
++}

@@ -32,6 +32,31 @@ Date:   Wed Mar 11 20:17:14 2020 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  test/run.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/test/run.go b/test/run.go
+index 6a52fe1a22..781c8d75dd 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -462,6 +462,10 @@ func goGcflags() string {
+ 	return "-gcflags=all=" + os.Getenv("GO_GCFLAGS")
+ }
+ 
++func goGcflagsIsEmpty() bool {
++       return "" == os.Getenv("GO_GCFLAGS")
++}
++
+ // run runs a test.
+ func (t *test) run() {
+ 	start := time.Now()
+@@ -1002,7 +1006,7 @@ func (t *test) run() {
+ 		useTmp = false
+ 		var out []byte
+ 		var err error
+-		if len(flags)+len(args) == 0 && goGcflags() == "" && !*linkshared {
++		if len(flags)+len(args) == 0 && goGcflagsIsEmpty() && !*linkshared && goarch == runtime.GOARCH && goos == runtime.GOOS {
+ 			// If we're not using special go command flags,
+ 			// skip all the go command machinery.
+ 			// This avoids any time the go command would

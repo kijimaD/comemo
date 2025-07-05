@@ -27,6 +27,25 @@ Date:   Tue Jan 31 17:04:08 2023 +0100
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/x86/obj6.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 33c02d59e8..79c584f4e2 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -695,11 +695,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		// Move current frame to BP
+ 		p = obj.Appendp(p, newprog)
+ 
+-		p.As = ALEAQ
+-		p.From.Type = obj.TYPE_MEM
++		p.As = AMOVQ
++		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = REG_SP
+-		p.From.Scale = 1
+-		p.From.Offset = 0
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = REG_BP
+ 	}

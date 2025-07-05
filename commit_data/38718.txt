@@ -11,6 +11,27 @@ Date:   Fri Nov 16 13:27:55 2018 -0500
     Change-Id: Icac703b944de55df42c996dc2f672005014ad57a
     Reviewed-on: https://go-review.googlesource.com/c/149960
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/work/exec.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index d6f9021c35..ca588911fe 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -881,6 +881,7 @@ func (b *Builder) loadCachedSrcFiles(a *Action) bool {
+ 
+ // vetConfig is the configuration passed to vet describing a single package.
+ type vetConfig struct {
++	ID         string   // package ID (example: "fmt [fmt.test]")
+ 	Compiler   string   // compiler name (gc, gccgo)
+ 	Dir        string   // directory containing package
+ 	ImportPath string   // canonical import path ("package path")
+@@ -914,6 +915,7 @@ func buildVetConfig(a *Action, srcfiles []string) {
+ 	// so that we can reformat them relative to the directory
+ 	// in which the go command is invoked.
+ 	vcfg := &vetConfig{
++		ID:          a.Package.ImportPath,
+ 		Compiler:    cfg.BuildToolchainName,
+ 		Dir:         a.Package.Dir,
+ 		GoFiles:     mkAbsFiles(a.Package.Dir, gofiles),

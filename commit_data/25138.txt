@@ -9,10 +9,347 @@ Date:   Mon Sep 28 14:42:21 2015 -0700
     Change-Id: I32edd39e79f7c9bdc132c49bd06081f35dac245d
     Reviewed-on: https://go-review.googlesource.com/15114
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/gofmt/gofmt.go                             |   5 +-
  src/cmd/gofmt/internal.go                          | 166 +++++++++++++++++++++
  src/cmd/gofmt/long_test.go                         |   5 +-
  src/go/format/format.go                            |   5 +-
  .../format/format.go => go/format/internal.go}     |  25 ++--
  5 files changed, 186 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index b2805ac05f..cfebeffe4a 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -13,7 +13,6 @@ import (
+ 	"go/printer"
+ 	"go/scanner"
+ 	"go/token"
+-	"internal/format"
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
+@@ -88,7 +87,7 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
+ 		return err
+ 	}
+ 
+-	file, sourceAdj, indentAdj, err := format.Parse(fileSet, filename, src, stdin)
++	file, sourceAdj, indentAdj, err := parse(fileSet, filename, src, stdin)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -107,7 +106,7 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
+ 		simplify(file)
+ 	}
+ 
+-	res, err := format.Format(fileSet, file, sourceAdj, indentAdj, src, printer.Config{Mode: printerMode, Tabwidth: tabWidth})
++	res, err := format(fileSet, file, sourceAdj, indentAdj, src, printer.Config{Mode: printerMode, Tabwidth: tabWidth})
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/src/cmd/gofmt/internal.go b/src/cmd/gofmt/internal.go
+new file mode 100644
+index 0000000000..fc7f976af9
+--- /dev/null
++++ b/src/cmd/gofmt/internal.go
+@@ -0,0 +1,166 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// TODO(gri): This file and the file src/go/format/internal.go are
++// the same (but for this comment and the package name). Do not modify
++// one without the other. Determine if we can factor out functionality
++// in a public API. See also #11844 for context.
++
++package main
++
++import (
++	"bytes"
++	"go/ast"
++	"go/parser"
++	"go/printer"
++	"go/token"
++	"strings"
++)
++
++// parse parses src, which was read from the named file,
++// as a Go source file, declaration, or statement list.
++func parse(fset *token.FileSet, filename string, src []byte, fragmentOk bool) (
++	file *ast.File,
++	sourceAdj func(src []byte, indent int) []byte,
++	indentAdj int,
++	err error,
++) {
++	// Try as whole source file.
++	file, err = parser.ParseFile(fset, filename, src, parserMode)
++	// If there's no error, return.  If the error is that the source file didn't begin with a
++	// package line and source fragments are ok, fall through to
++	// try as a source fragment.  Stop and return on any other error.
++	if err == nil || !fragmentOk || !strings.Contains(err.Error(), "expected 'package'") {
++		return
++	}
++
++	// If this is a declaration list, make it a source file
++	// by inserting a package clause.
++	// Insert using a ;, not a newline, so that the line numbers
++	// in psrc match the ones in src.
++	psrc := append([]byte("package p;"), src...)
++	file, err = parser.ParseFile(fset, filename, psrc, parserMode)
++	if err == nil {
++		sourceAdj = func(src []byte, indent int) []byte {
++			// Remove the package clause.
++			// Gofmt has turned the ; into a \n.
++			src = src[indent+len("package p\n"):]
++			return bytes.TrimSpace(src)
++		}
++		return
++	}
++	// If the error is that the source file didn't begin with a
++	// declaration, fall through to try as a statement list.
++	// Stop and return on any other error.
++	if !strings.Contains(err.Error(), "expected declaration") {
++		return
++	}
++
++	// If this is a statement list, make it a source file
++	// by inserting a package clause and turning the list
++	// into a function body.  This handles expressions too.
++	// Insert using a ;, not a newline, so that the line numbers
++	// in fsrc match the ones in src. Add an extra '\n' before the '}'
++	// to make sure comments are flushed before the '}'.
++	fsrc := append(append([]byte("package p; func _() {"), src...), '\n', '\n', '}')
++	file, err = parser.ParseFile(fset, filename, fsrc, parserMode)
++	if err == nil {
++		sourceAdj = func(src []byte, indent int) []byte {
++			// Cap adjusted indent to zero.
++			if indent < 0 {
++				indent = 0
++			}
++			// Remove the wrapping.
++			// Gofmt has turned the ; into a \n\n.
++			// There will be two non-blank lines with indent, hence 2*indent.
++			src = src[2*indent+len("package p\n\nfunc _() {"):]
++			// Remove only the "}\n" suffix: remaining whitespaces will be trimmed anyway
++			src = src[:len(src)-len("}\n")]
++			return bytes.TrimSpace(src)
++		}
++		// Gofmt has also indented the function body one level.
++		// Adjust that with indentAdj.
++		indentAdj = -1
++	}
++
++	// Succeeded, or out of options.
++	return
++}
++
++// format formats the given package file originally obtained from src
++// and adjusts the result based on the original source via sourceAdj
++// and indentAdj.
++func format(
++	fset *token.FileSet,
++	file *ast.File,
++	sourceAdj func(src []byte, indent int) []byte,
++	indentAdj int,
++	src []byte,
++	cfg printer.Config,
++) ([]byte, error) {
++	if sourceAdj == nil {
++		// Complete source file.
++		var buf bytes.Buffer
++		err := cfg.Fprint(&buf, fset, file)
++		if err != nil {
++			return nil, err
++		}
++		return buf.Bytes(), nil
++	}
++
++	// Partial source file.
++	// Determine and prepend leading space.
++	i, j := 0, 0
++	for j < len(src) && isSpace(src[j]) {
++		if src[j] == '\n' {
++			i = j + 1 // byte offset of last line in leading space
++		}
++		j++
++	}
++	var res []byte
++	res = append(res, src[:i]...)
++
++	// Determine and prepend indentation of first code line.
++	// Spaces are ignored unless there are no tabs,
++	// in which case spaces count as one tab.
++	indent := 0
++	hasSpace := false
++	for _, b := range src[i:j] {
++		switch b {
++		case ' ':
++			hasSpace = true
++		case '\t':
++			indent++
++		}
++	}
++	if indent == 0 && hasSpace {
++		indent = 1
++	}
++	for i := 0; i < indent; i++ {
++		res = append(res, '\t')
++	}
++
++	// Format the source.
++	// Write it without any leading and trailing space.
++	cfg.Indent = indent + indentAdj
++	var buf bytes.Buffer
++	err := cfg.Fprint(&buf, fset, file)
++	if err != nil {
++		return nil, err
++	}
++	res = append(res, sourceAdj(buf.Bytes(), cfg.Indent)...)
++
++	// Determine and append trailing space.
++	i = len(src)
++	for i > 0 && isSpace(src[i-1]) {
++		i--
++	}
++	return append(res, src[i:]...), nil
++}
++
++// isSpace reports whether the byte is a space character.
++// isSpace defines a space as being among the following bytes: ' ', '\t', '\n' and '\r'.
++func isSpace(b byte) bool {
++	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
++}
+diff --git a/src/cmd/gofmt/long_test.go b/src/cmd/gofmt/long_test.go
+index df9a878df4..237b86021b 100644
+--- a/src/cmd/gofmt/long_test.go
++++ b/src/cmd/gofmt/long_test.go
+@@ -15,7 +15,6 @@ import (
+ 	"go/ast"
+ 	"go/printer"
+ 	"go/token"
+-	"internal/format"
+ 	"io"
+ 	"os"
+ 	"path/filepath"
+@@ -33,7 +32,7 @@ var (
+ )
+ 
+ func gofmt(fset *token.FileSet, filename string, src *bytes.Buffer) error {
+-	f, _, _, err := format.Parse(fset, filename, src.Bytes(), false)
++	f, _, _, err := parse(fset, filename, src.Bytes(), false)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -61,7 +60,7 @@ func testFile(t *testing.T, b1, b2 *bytes.Buffer, filename string) {
+ 
+ 	// exclude files w/ syntax errors (typically test cases)
+ 	fset := token.NewFileSet()
+-	if _, _, _, err = format.Parse(fset, filename, b1.Bytes(), false); err != nil {
++	if _, _, _, err = parse(fset, filename, b1.Bytes(), false); err != nil {
+ 		if *verbose {
+ 			fmt.Fprintf(os.Stderr, "ignoring %s\n", err)
+ 		}
+diff --git a/src/go/format/format.go b/src/go/format/format.go
+index 1adfd7d45e..b9cacfebd8 100644
+--- a/src/go/format/format.go
++++ b/src/go/format/format.go
+@@ -12,7 +12,6 @@ import (
+ 	"go/parser"
+ 	"go/printer"
+ 	"go/token"
+-	"internal/format"
+ 	"io"
+ )
+ 
+@@ -82,7 +81,7 @@ func Node(dst io.Writer, fset *token.FileSet, node interface{}) error {
+ //
+ func Source(src []byte) ([]byte, error) {
+ 	fset := token.NewFileSet()
+-	file, sourceAdj, indentAdj, err := format.Parse(fset, "", src, true)
++	file, sourceAdj, indentAdj, err := parse(fset, "", src, true)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -93,7 +92,7 @@ func Source(src []byte) ([]byte, error) {
+ 		ast.SortImports(fset, file)
+ 	}
+ 
+-	return format.Format(fset, file, sourceAdj, indentAdj, src, config)
++	return format(fset, file, sourceAdj, indentAdj, src, config)
+ }
+ 
+ func hasUnsortedImports(file *ast.File) bool {
+diff --git a/src/internal/format/format.go b/src/go/format/internal.go
+similarity index 86%
+rename from src/internal/format/format.go
+rename to src/go/format/internal.go
+index a8270ba669..2850a43068 100644
+--- a/src/internal/format/format.go
++++ b/src/go/format/internal.go
+@@ -2,6 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// TODO(gri): This file and the file src/cmd/gofmt/internal.go are
++// the same (but for this comment and the package name). Do not modify
++// one without the other. Determine if we can factor out functionality
++// in a public API. See also #11844 for context.
++
+ package format
+ 
+ import (
+@@ -13,11 +18,9 @@ import (
+ 	"strings"
+ )
+ 
+-const parserMode = parser.ParseComments
+-
+-// Parse parses src, which was read from the named file,
++// parse parses src, which was read from the named file,
+ // as a Go source file, declaration, or statement list.
+-func Parse(fset *token.FileSet, filename string, src []byte, fragmentOk bool) (
++func parse(fset *token.FileSet, filename string, src []byte, fragmentOk bool) (
+ 	file *ast.File,
+ 	sourceAdj func(src []byte, indent int) []byte,
+ 	indentAdj int,
+@@ -85,10 +88,10 @@ func Parse(fset *token.FileSet, filename string, src []byte, fragmentOk bool) (
+ 	return
+ }
+ 
+-// Format formats the given package file originally obtained from src
++// format formats the given package file originally obtained from src
+ // and adjusts the result based on the original source via sourceAdj
+ // and indentAdj.
+-func Format(
++func format(
+ 	fset *token.FileSet,
+ 	file *ast.File,
+ 	sourceAdj func(src []byte, indent int) []byte,
+@@ -109,7 +112,7 @@ func Format(
+ 	// Partial source file.
+ 	// Determine and prepend leading space.
+ 	i, j := 0, 0
+-	for j < len(src) && IsSpace(src[j]) {
++	for j < len(src) && isSpace(src[j]) {
+ 		if src[j] == '\n' {
+ 			i = j + 1 // byte offset of last line in leading space
+ 		}
+@@ -150,14 +153,14 @@ func Format(
+ 
+ 	// Determine and append trailing space.
+ 	i = len(src)
+-	for i > 0 && IsSpace(src[i-1]) {
++	for i > 0 && isSpace(src[i-1]) {
+ 		i--
+ 	}
+ 	return append(res, src[i:]...), nil
+ }
+ 
+-// IsSpace reports whether the byte is a space character.
+-// IsSpace defines a space as being among the following bytes: ' ', '\t', '\n' and '\r'.
+-func IsSpace(b byte) bool {
++// isSpace reports whether the byte is a space character.
++// isSpace defines a space as being among the following bytes: ' ', '\t', '\n' and '\r'.
++func isSpace(b byte) bool {
+ 	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
+ }

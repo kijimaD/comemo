@@ -9,6 +9,23 @@ Date:   Mon Mar 20 10:58:40 2017 -0700
     Change-Id: I0ac450ff717ec1f16eb12758c6bf5e98b5de20e8
     Reviewed-on: https://go-review.googlesource.com/38374
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/gofmt/doc.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gofmt/doc.go b/src/cmd/gofmt/doc.go
+index a552d4cde4..13994fdeec 100644
+--- a/src/cmd/gofmt/doc.go
++++ b/src/cmd/gofmt/doc.go
+@@ -4,7 +4,10 @@
+ 
+ /*
+ Gofmt formats Go programs.
+-It uses tabs (width = 8) for indentation and blanks for alignment.
++It uses tabs for indentation and blanks for alignment.
++
++Alignment assumes that an editor is using a fixed-width
++font and that a tab corresponds to 8 spaces.
+ 
+ Without an explicit path, it processes the standard input.  Given a file,
+ it operates on that file; given a directory, it operates on all .go files in

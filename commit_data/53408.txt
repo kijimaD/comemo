@@ -26,7 +26,54 @@ Date:   Tue Aug 9 19:30:47 2022 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/stencil.go |  6 ++++--
  test/fixedbugs/issue54348.go              | 22 ++++++++++++++++++++++
  2 files changed, 26 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 6fcb31b472..5a41d2f1f0 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -1656,9 +1656,11 @@ func (g *genInst) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool
+ 				var nameNode *ir.Name
+ 				se := call.X.(*ir.SelectorExpr)
+ 				if se.X.Type().IsShape() {
+-					// This is a method call enabled by a type bound.
+ 					tparam := se.X.Type()
+-					if call.X.Op() == ir.ODOTMETH {
++					// Ensure methods on all instantiating types are computed.
++					typecheck.CalcMethods(tparam)
++					if typecheck.Lookdot1(nil, se.Sel, tparam, tparam.AllMethods(), 0) != nil {
++						// This is a method call enabled by a type bound.
+ 						// We need this extra check for method expressions,
+ 						// which don't add in the implicit XDOTs.
+ 						tmpse := ir.NewSelectorExpr(src.NoXPos, ir.OXDOT, se.X, se.Sel)
+diff --git a/test/fixedbugs/issue54348.go b/test/fixedbugs/issue54348.go
+new file mode 100644
+index 0000000000..15b2f758ef
+--- /dev/null
++++ b/test/fixedbugs/issue54348.go
+@@ -0,0 +1,22 @@
++// run
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	F[T[int]]()
++}
++
++func F[X interface{ M() }]() {
++	var x X
++	x.M()
++}
++
++type T[X any] struct{ E }
++
++type E struct{}
++
++func (h E) M() {}

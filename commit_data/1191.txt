@@ -7,6 +7,19 @@ Date:   Wed Nov 19 14:27:48 2008 -0800
     R=ken
     OCL=19617
     CL=19617
-
+---
  src/cmd/gc/go.y | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 0772318101..fd02a328ef 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1624,7 +1624,6 @@ import_stmt_list_r:
+ |	import_stmt_list_r osemi import_stmt
+ 
+ hidden_import_list_r:
+-	hidden_import
+ |	hidden_import_list_r hidden_import
+ 
+ hidden_funarg_list_r:

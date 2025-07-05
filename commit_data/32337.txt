@@ -13,7 +13,7 @@ Date:   Thu Apr 20 10:31:39 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/amd64/galign.go  |  2 +-
  src/cmd/compile/internal/amd64/ggen.go    | 92 ++++++++-----------------------
  src/cmd/compile/internal/arm/galign.go    |  2 +-
@@ -33,3 +33,962 @@ Date:   Thu Apr 20 10:31:39 2017 -0700
  src/cmd/compile/internal/x86/galign.go    |  2 +-
  src/cmd/compile/internal/x86/ggen.go      | 55 ++----------------
  18 files changed, 126 insertions(+), 456 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/galign.go b/src/cmd/compile/internal/amd64/galign.go
+index 14defb2cac..d75a20dbfc 100644
+--- a/src/cmd/compile/internal/amd64/galign.go
++++ b/src/cmd/compile/internal/amd64/galign.go
+@@ -21,7 +21,7 @@ func Init(arch *gc.Arch) {
+ 	arch.REGSP = x86.REGSP
+ 	arch.MAXWIDTH = 1 << 50
+ 
+-	arch.Defframe = defframe
++	arch.ZeroRange = zerorange
+ 	arch.Ginsnop = ginsnop
+ 
+ 	arch.SSAMarkMoves = ssaMarkMoves
+diff --git a/src/cmd/compile/internal/amd64/ggen.go b/src/cmd/compile/internal/amd64/ggen.go
+index 85d9567c72..41356a7943 100644
+--- a/src/cmd/compile/internal/amd64/ggen.go
++++ b/src/cmd/compile/internal/amd64/ggen.go
+@@ -14,56 +14,6 @@ import (
+ // no floating point in note handlers on Plan 9
+ var isPlan9 = objabi.GOOS == "plan9"
+ 
+-func defframe(pp *gc.Progs, fn *gc.Node, sz int64) {
+-	// fill in argument size, stack size
+-	pp.Text.To.Type = obj.TYPE_TEXTSIZE
+-
+-	pp.Text.To.Val = int32(gc.Rnd(fn.Type.ArgWidth(), int64(gc.Widthptr)))
+-	frame := uint32(gc.Rnd(sz, int64(gc.Widthreg)))
+-	pp.Text.To.Offset = int64(frame)
+-
+-	// insert code to zero ambiguously live variables
+-	// so that the garbage collector only sees initialized values
+-	// when it looks for pointers.
+-	p := pp.Text
+-
+-	hi := int64(0)
+-	lo := hi
+-	ax := uint32(0)
+-	x0 := uint32(0)
+-
+-	// iterate through declarations - they are sorted in decreasing xoffset order.
+-	for _, n := range fn.Func.Dcl {
+-		if !n.Name.Needzero() {
+-			continue
+-		}
+-		if n.Class != gc.PAUTO {
+-			gc.Fatalf("needzero class %d", n.Class)
+-		}
+-		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
+-			gc.Fatalf("var %L has size %d offset %d", n, int(n.Type.Width), int(n.Xoffset))
+-		}
+-
+-		if lo != hi && n.Xoffset+n.Type.Width >= lo-int64(2*gc.Widthreg) {
+-			// merge with range we already have
+-			lo = n.Xoffset
+-
+-			continue
+-		}
+-
+-		// zero old range
+-		p = zerorange(pp, p, int64(frame), lo, hi, &ax, &x0)
+-
+-		// set new range
+-		hi = n.Xoffset + n.Type.Width
+-
+-		lo = n.Xoffset
+-	}
+-
+-	// zero final range
+-	zerorange(pp, p, int64(frame), lo, hi, &ax, &x0)
+-}
+-
+ // DUFFZERO consists of repeated blocks of 4 MOVUPSs + ADD,
+ // See runtime/mkduff.go.
+ const (
+@@ -101,8 +51,12 @@ func dzDI(b int64) int64 {
+ 	return -dzClearStep * (dzBlockLen - tailSteps)
+ }
+ 
+-func zerorange(pp *gc.Progs, p *obj.Prog, frame int64, lo int64, hi int64, ax *uint32, x0 *uint32) *obj.Prog {
+-	cnt := hi - lo
++func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.Prog {
++	const (
++		ax = 1 << iota
++		x0
++	)
++
+ 	if cnt == 0 {
+ 		return p
+ 	}
+@@ -112,40 +66,40 @@ func zerorange(pp *gc.Progs, p *obj.Prog, frame int64, lo int64, hi int64, ax *u
+ 		if cnt%int64(gc.Widthptr) != 0 {
+ 			gc.Fatalf("zerorange count not a multiple of widthptr %d", cnt)
+ 		}
+-		if *ax == 0 {
++		if *state&ax == 0 {
+ 			p = pp.Appendpp(p, x86.AMOVQ, obj.TYPE_CONST, 0, 0, obj.TYPE_REG, x86.REG_AX, 0)
+-			*ax = 1
++			*state |= ax
+ 		}
+-		p = pp.Appendpp(p, x86.AMOVL, obj.TYPE_REG, x86.REG_AX, 0, obj.TYPE_MEM, x86.REG_SP, frame+lo)
+-		lo += int64(gc.Widthptr)
++		p = pp.Appendpp(p, x86.AMOVL, obj.TYPE_REG, x86.REG_AX, 0, obj.TYPE_MEM, x86.REG_SP, off)
++		off += int64(gc.Widthptr)
+ 		cnt -= int64(gc.Widthptr)
+ 	}
+ 
+ 	if cnt == 8 {
+-		if *ax == 0 {
++		if *state&ax == 0 {
+ 			p = pp.Appendpp(p, x86.AMOVQ, obj.TYPE_CONST, 0, 0, obj.TYPE_REG, x86.REG_AX, 0)
+-			*ax = 1
++			*state |= ax
+ 		}
+-		p = pp.Appendpp(p, x86.AMOVQ, obj.TYPE_REG, x86.REG_AX, 0, obj.TYPE_MEM, x86.REG_SP, frame+lo)
++		p = pp.Appendpp(p, x86.AMOVQ, obj.TYPE_REG, x86.REG_AX, 0, obj.TYPE_MEM, x86.REG_SP, off)
+ 	} else if !isPlan9 && cnt <= int64(8*gc.Widthreg) {
+-		if *x0 == 0 {
++		if *state&x0 == 0 {
+ 			p = pp.Appendpp(p, x86.AXORPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_REG, x86.REG_X0, 0)
+-			*x0 = 1
++			*state |= x0
+ 		}
+ 
+ 		for i := int64(0); i < cnt/16; i++ {
+-			p = pp.Appendpp(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_MEM, x86.REG_SP, frame+lo+i*16)
++			p = pp.Appendpp(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_MEM, x86.REG_SP, off+i*16)
+ 		}
+ 
+ 		if cnt%16 != 0 {
+-			p = pp.Appendpp(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_MEM, x86.REG_SP, frame+lo+cnt-int64(16))
++			p = pp.Appendpp(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_MEM, x86.REG_SP, off+cnt-int64(16))
+ 		}
+ 	} else if !gc.Nacl && !isPlan9 && (cnt <= int64(128*gc.Widthreg)) {
+-		if *x0 == 0 {
++		if *state&x0 == 0 {
+ 			p = pp.Appendpp(p, x86.AXORPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_REG, x86.REG_X0, 0)
+-			*x0 = 1
++			*state |= x0
+ 		}
+-		p = pp.Appendpp(p, leaptr, obj.TYPE_MEM, x86.REG_SP, frame+lo+dzDI(cnt), obj.TYPE_REG, x86.REG_DI, 0)
++		p = pp.Appendpp(p, leaptr, obj.TYPE_MEM, x86.REG_SP, off+dzDI(cnt), obj.TYPE_REG, x86.REG_DI, 0)
+ 		p = pp.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_ADDR, 0, dzOff(cnt))
+ 		p.To.Sym = gc.Duffzero
+ 
+@@ -153,13 +107,13 @@ func zerorange(pp *gc.Progs, p *obj.Prog, frame int64, lo int64, hi int64, ax *u
+ 			p = pp.Appendpp(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_MEM, x86.REG_DI, -int64(8))
+ 		}
+ 	} else {
+-		if *ax == 0 {
++		if *state&ax == 0 {
+ 			p = pp.Appendpp(p, x86.AMOVQ, obj.TYPE_CONST, 0, 0, obj.TYPE_REG, x86.REG_AX, 0)
+-			*ax = 1
++			*state |= ax
+ 		}
+ 
+ 		p = pp.Appendpp(p, x86.AMOVQ, obj.TYPE_CONST, 0, cnt/int64(gc.Widthreg), obj.TYPE_REG, x86.REG_CX, 0)
+-		p = pp.Appendpp(p, leaptr, obj.TYPE_MEM, x86.REG_SP, frame+lo, obj.TYPE_REG, x86.REG_DI, 0)
++		p = pp.Appendpp(p, leaptr, obj.TYPE_MEM, x86.REG_SP, off, obj.TYPE_REG, x86.REG_DI, 0)
+ 		p = pp.Appendpp(p, x86.AREP, obj.TYPE_NONE, 0, 0, obj.TYPE_NONE, 0, 0)
+ 		p = pp.Appendpp(p, x86.ASTOSQ, obj.TYPE_NONE, 0, 0, obj.TYPE_NONE, 0, 0)
+ 	}
+diff --git a/src/cmd/compile/internal/arm/galign.go b/src/cmd/compile/internal/arm/galign.go
+index 809a142262..9a4ed754d1 100644
+--- a/src/cmd/compile/internal/arm/galign.go
++++ b/src/cmd/compile/internal/arm/galign.go
+@@ -15,7 +15,7 @@ func Init(arch *gc.Arch) {
+ 	arch.REGSP = arm.REGSP
+ 	arch.MAXWIDTH = (1 << 32) - 1
+ 
+-	arch.Defframe = defframe
++	arch.ZeroRange = zerorange
+ 	arch.Ginsnop = ginsnop
+ 
+ 	arch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
+diff --git a/src/cmd/compile/internal/arm/ggen.go b/src/cmd/compile/internal/arm/ggen.go
+index 71dd7c2471..13f98eb4d0 100644
+--- a/src/cmd/compile/internal/arm/ggen.go
++++ b/src/cmd/compile/internal/arm/ggen.go
+@@ -10,54 +10,7 @@ import (
+ 	"cmd/internal/obj/arm"
+ )
+ 
+-func defframe(pp *gc.Progs, fn *gc.Node, sz int64) {
+-	// fill in argument size, stack size
+-	pp.Text.To.Type = obj.TYPE_TEXTSIZE
+-
+-	pp.Text.To.Val = int32(gc.Rnd(fn.Type.ArgWidth(), int64(gc.Widthptr)))
+-	frame := uint32(gc.Rnd(sz, int64(gc.Widthreg)))
+-	pp.Text.To.Offset = int64(frame)
+-
+-	// insert code to contain ambiguously live variables
+-	// so that garbage collector only sees initialized values
+-	// when it looks for pointers.
+-	p := pp.Text
+-
+-	hi := int64(0)
+-	lo := hi
+-	r0 := uint32(0)
+-	for _, n := range fn.Func.Dcl {
+-		if !n.Name.Needzero() {
+-			continue
+-		}
+-		if n.Class != gc.PAUTO {
+-			gc.Fatalf("needzero class %d", n.Class)
+-		}
+-		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
+-			gc.Fatalf("var %L has size %d offset %d", n, int(n.Type.Width), int(n.Xoffset))
+-		}
+-		if lo != hi && n.Xoffset+n.Type.Width >= lo-int64(2*gc.Widthptr) {
+-			// merge with range we already have
+-			lo = gc.Rnd(n.Xoffset, int64(gc.Widthptr))
+-
+-			continue
+-		}
+-
+-		// zero old range
+-		p = zerorange(pp, p, int64(frame), lo, hi, &r0)
+-
+-		// set new range
+-		hi = n.Xoffset + n.Type.Width
+-
+-		lo = n.Xoffset
+-	}
+-
+-	// zero final range
+-	zerorange(pp, p, int64(frame), lo, hi, &r0)
+-}
+-
+-func zerorange(pp *gc.Progs, p *obj.Prog, frame int64, lo int64, hi int64, r0 *uint32) *obj.Prog {
+-	cnt := hi - lo
++func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, r0 *uint32) *obj.Prog {
+ 	if cnt == 0 {
+ 		return p
+ 	}
+@@ -68,17 +21,17 @@ func zerorange(pp *gc.Progs, p *obj.Prog, frame int64, lo int64, hi int64, r0 *u
+ 
+ 	if cnt < int64(4*gc.Widthptr) {
+ 		for i := int64(0); i < cnt; i += int64(gc.Widthptr) {
+-			p = pp.Appendpp(p, arm.AMOVW, obj.TYPE_REG, arm.REG_R0, 0, obj.TYPE_MEM, arm.REGSP, 4+frame+lo+i)
++			p = pp.Appendpp(p, arm.AMOVW, obj.TYPE_REG, arm.REG_R0, 0, obj.TYPE_MEM, arm.REGSP, 4+off+i)
+ 		}
+ 	} else if !gc.Nacl && (cnt <= int64(128*gc.Widthptr)) {
+-		p = pp.Appendpp(p, arm.AADD, obj.TYPE_CONST, 0, 4+frame+lo, obj.TYPE_REG, arm.REG_R1, 0)
++		p = pp.Appendpp(p, arm.AADD, obj.TYPE_CONST, 0, 4+off, obj.TYPE_REG, arm.REG_R1, 0)
+ 		p.Reg = arm.REGSP
+ 		p = pp.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
+ 		p.To.Name = obj.NAME_EXTERN
+ 		p.To.Sym = gc.Duffzero
+ 		p.To.Offset = 4 * (128 - cnt/int64(gc.Widthptr))
+ 	} else {
+-		p = pp.Appendpp(p, arm.AADD, obj.TYPE_CONST, 0, 4+frame+lo, obj.TYPE_REG, arm.REG_R1, 0)
++		p = pp.Appendpp(p, arm.AADD, obj.TYPE_CONST, 0, 4+off, obj.TYPE_REG, arm.REG_R1, 0)
+ 		p.Reg = arm.REGSP
+ 		p = pp.Appendpp(p, arm.AADD, obj.TYPE_CONST, 0, cnt, obj.TYPE_REG, arm.REG_R2, 0)
+ 		p.Reg = arm.REG_R1
+diff --git a/src/cmd/compile/internal/arm64/galign.go b/src/cmd/compile/internal/arm64/galign.go
+index 31448c6c3a..b2d23e9447 100644
+--- a/src/cmd/compile/internal/arm64/galign.go
++++ b/src/cmd/compile/internal/arm64/galign.go
+@@ -15,7 +15,8 @@ func Init(arch *gc.Arch) {
+ 	arch.REGSP = arm64.REGSP
+ 	arch.MAXWIDTH = 1 << 50
+ 
+-	arch.Defframe = defframe
++	arch.PadFrame = padframe
++	arch.ZeroRange = zerorange
+ 	arch.Ginsnop = ginsnop
+ 
+ 	arch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
+diff --git a/src/cmd/compile/internal/arm64/ggen.go b/src/cmd/compile/internal/arm64/ggen.go
+index caf8545417..7bbd8dd064 100644
+--- a/src/cmd/compile/internal/arm64/ggen.go
++++ b/src/cmd/compile/internal/arm64/ggen.go
+@@ -11,82 +11,35 @@ import (
+ 	"cmd/internal/objabi"
+ )
+ 
+-func defframe(pp *gc.Progs, fn *gc.Node, sz int64) {
+-	// fill in argument size, stack size
+-	pp.Text.To.Type = obj.TYPE_TEXTSIZE
+-
+-	pp.Text.To.Val = int32(gc.Rnd(fn.Type.ArgWidth(), int64(gc.Widthptr)))
+-	frame := uint32(gc.Rnd(sz, int64(gc.Widthreg)))
++var darwin = objabi.GOOS == "darwin"
+ 
++func padframe(frame int64) int64 {
+ 	// arm64 requires that the frame size (not counting saved LR)
+ 	// be empty or be 8 mod 16. If not, pad it.
+ 	if frame != 0 && frame%16 != 8 {
+ 		frame += 8
+ 	}
+-
+-	pp.Text.To.Offset = int64(frame)
+-
+-	// insert code to zero ambiguously live variables
+-	// so that the garbage collector only sees initialized values
+-	// when it looks for pointers.
+-	p := pp.Text
+-
+-	hi := int64(0)
+-	lo := hi
+-
+-	// iterate through declarations - they are sorted in decreasing xoffset order.
+-	for _, n := range fn.Func.Dcl {
+-		if !n.Name.Needzero() {
+-			continue
+-		}
+-		if n.Class != gc.PAUTO {
+-			gc.Fatalf("needzero class %d", n.Class)
+-		}
+-		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
+-			gc.Fatalf("var %L has size %d offset %d", n, int(n.Type.Width), int(n.Xoffset))
+-		}
+-
+-		if lo != hi && n.Xoffset+n.Type.Width >= lo-int64(2*gc.Widthreg) {
+-			// merge with range we already have
+-			lo = n.Xoffset
+-
+-			continue
+-		}
+-
+-		// zero old range
+-		p = zerorange(pp, p, int64(frame), lo, hi)
+-
+-		// set new range
+-		hi = n.Xoffset + n.Type.Width
+-
+-		lo = n.Xoffset
+-	}
+-
+-	// zero final range
+-	zerorange(pp, p, int64(frame), lo, hi)
++	return frame
+ }
+ 
+-var darwin = objabi.GOOS == "darwin"
+-
+-func zerorange(pp *gc.Progs, p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
+-	cnt := hi - lo
++func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
+ 	if cnt == 0 {
+ 		return p
+ 	}
+ 	if cnt < int64(4*gc.Widthptr) {
+ 		for i := int64(0); i < cnt; i += int64(gc.Widthptr) {
+-			p = pp.Appendpp(p, arm64.AMOVD, obj.TYPE_REG, arm64.REGZERO, 0, obj.TYPE_MEM, arm64.REGSP, 8+frame+lo+i)
++			p = pp.Appendpp(p, arm64.AMOVD, obj.TYPE_REG, arm64.REGZERO, 0, obj.TYPE_MEM, arm64.REGSP, 8+off+i)
+ 		}
+ 	} else if cnt <= int64(128*gc.Widthptr) && !darwin { // darwin ld64 cannot handle BR26 reloc with non-zero addend
+ 		p = pp.Appendpp(p, arm64.AMOVD, obj.TYPE_REG, arm64.REGSP, 0, obj.TYPE_REG, arm64.REGRT1, 0)
+-		p = pp.Appendpp(p, arm64.AADD, obj.TYPE_CONST, 0, 8+frame+lo-8, obj.TYPE_REG, arm64.REGRT1, 0)
++		p = pp.Appendpp(p, arm64.AADD, obj.TYPE_CONST, 0, 8+off-8, obj.TYPE_REG, arm64.REGRT1, 0)
+ 		p.Reg = arm64.REGRT1
+ 		p = pp.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
+ 		p.To.Name = obj.NAME_EXTERN
+ 		p.To.Sym = gc.Duffzero
+ 		p.To.Offset = 4 * (128 - cnt/int64(gc.Widthptr))
+ 	} else {
+-		p = pp.Appendpp(p, arm64.AMOVD, obj.TYPE_CONST, 0, 8+frame+lo-8, obj.TYPE_REG, arm64.REGTMP, 0)
++		p = pp.Appendpp(p, arm64.AMOVD, obj.TYPE_CONST, 0, 8+off-8, obj.TYPE_REG, arm64.REGTMP, 0)
+ 		p = pp.Appendpp(p, arm64.AMOVD, obj.TYPE_REG, arm64.REGSP, 0, obj.TYPE_REG, arm64.REGRT1, 0)
+ 		p = pp.Appendpp(p, arm64.AADD, obj.TYPE_REG, arm64.REGTMP, 0, obj.TYPE_REG, arm64.REGRT1, 0)
+ 		p.Reg = arm64.REGRT1
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 7ff45a70b7..9957fba575 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -230,8 +230,9 @@ type Arch struct {
+ 	MAXWIDTH int64
+ 	Use387   bool // should 386 backend use 387 FP instructions instead of sse2.
+ 
+-	Defframe func(*Progs, *Node, int64)
+-	Ginsnop  func(*Progs)
++	PadFrame  func(int64) int64
++	ZeroRange func(*Progs, *obj.Prog, int64, int64, *uint32) *obj.Prog
++	Ginsnop   func(*Progs)
+ 
+ 	// SSAMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
+ 	SSAMarkMoves func(*SSAGenState, *ssa.Block)
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 476a329459..961d080442 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4456,8 +4456,7 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 		}
+ 	}
+ 
+-	// Add frame prologue. Zero ambiguously live variables.
+-	thearch.Defframe(s.pp, e.curfn, e.stksize+s.maxarg)
++	defframe(&s, e)
+ 	if Debug['f'] != 0 {
+ 		frame(0)
+ 	}
+@@ -4466,6 +4465,59 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 	f.HTMLWriter = nil
+ }
+ 
++func defframe(s *SSAGenState, e *ssafn) {
++	pp := s.pp
++
++	frame := Rnd(s.maxarg+e.stksize, int64(Widthreg))
++	if thearch.PadFrame != nil {
++		frame = thearch.PadFrame(frame)
++	}
++
++	// Fill in argument and frame size.
++	pp.Text.To.Type = obj.TYPE_TEXTSIZE
++	pp.Text.To.Val = int32(Rnd(e.curfn.Type.ArgWidth(), int64(Widthreg)))
++	pp.Text.To.Offset = frame
++
++	// Insert code to zero ambiguously live variables so that the
++	// garbage collector only sees initialized values when it
++	// looks for pointers.
++	p := pp.Text
++	var lo, hi int64
++
++	// Opaque state for backend to use. Current backends use it to
++	// keep track of which helper registers have been zeroed.
++	var state uint32
++
++	// Iterate through declarations. They are sorted in decreasing Xoffset order.
++	for _, n := range e.curfn.Func.Dcl {
++		if !n.Name.Needzero() {
++			continue
++		}
++		if n.Class != PAUTO {
++			Fatalf("needzero class %d", n.Class)
++		}
++		if n.Type.Size()%int64(Widthptr) != 0 || n.Xoffset%int64(Widthptr) != 0 || n.Type.Size() == 0 {
++			Fatalf("var %L has size %d offset %d", n, n.Type.Size(), n.Xoffset)
++		}
++
++		if lo != hi && n.Xoffset+n.Type.Size() >= lo-int64(2*Widthreg) {
++			// Merge with range we already have.
++			lo = n.Xoffset
++			continue
++		}
++
++		// Zero old range
++		p = thearch.ZeroRange(pp, p, frame+lo, hi-lo, &state)
++
++		// Set new range.
++		lo = n.Xoffset
++		hi = lo + n.Type.Size()
++	}
++
++	// Zero final range.
++	thearch.ZeroRange(pp, p, frame+lo, hi-lo, &state)
++}
++
+ type FloatingEQNEJump struct {
+ 	Jump  obj.As
+ 	Index int
+diff --git a/src/cmd/compile/internal/mips/galign.go b/src/cmd/compile/internal/mips/galign.go
+index cb72b6d728..f0ef6cd100 100644
+--- a/src/cmd/compile/internal/mips/galign.go
++++ b/src/cmd/compile/internal/mips/galign.go
+@@ -18,7 +18,7 @@ func Init(arch *gc.Arch) {
+ 	}
+ 	arch.REGSP = mips.REGSP
+ 	arch.MAXWIDTH = (1 << 31) - 1
+-	arch.Defframe = defframe
++	arch.ZeroRange = zerorange
+ 	arch.Ginsnop = ginsnop
+ 	arch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
+ 	arch.SSAGenValue = ssaGenValue
+diff --git a/src/cmd/compile/internal/mips/ggen.go b/src/cmd/compile/internal/mips/ggen.go
+index 05a1bb56ec..dafa341a13 100644
+--- a/src/cmd/compile/internal/mips/ggen.go
++++ b/src/cmd/compile/internal/mips/ggen.go
+@@ -10,64 +10,15 @@ import (
+ 	"cmd/internal/obj/mips"
+ )
+ 
+-func defframe(pp *gc.Progs, fn *gc.Node, sz int64) {
+-	// fill in argument size, stack size
+-	pp.Text.To.Type = obj.TYPE_TEXTSIZE
+-
+-	pp.Text.To.Val = int32(gc.Rnd(fn.Type.ArgWidth(), int64(gc.Widthptr)))
+-	frame := uint32(gc.Rnd(sz, int64(gc.Widthreg)))
+-	pp.Text.To.Offset = int64(frame)
+-
+-	// insert code to zero ambiguously live variables
+-	// so that the garbage collector only sees initialized values
+-	// when it looks for pointers.
+-	p := pp.Text
+-
+-	hi := int64(0)
+-	lo := hi
+-
+-	// iterate through declarations - they are sorted in decreasing xoffset order.
+-	for _, n := range fn.Func.Dcl {
+-		if !n.Name.Needzero() {
+-			continue
+-		}
+-		if n.Class != gc.PAUTO {
+-			gc.Fatalf("needzero class %d", n.Class)
+-		}
+-		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
+-			gc.Fatalf("var %L has size %d offset %d", n, int(n.Type.Width), int(n.Xoffset))
+-		}
+-
+-		if lo != hi && n.Xoffset+n.Type.Width >= lo-int64(2*gc.Widthreg) {
+-			// merge with range we already have
+-			lo = n.Xoffset
+-
+-			continue
+-		}
+-
+-		// zero old range
+-		p = zerorange(pp, p, int64(frame), lo, hi)
+-
+-		// set new range
+-		hi = n.Xoffset + n.Type.Width
+-
+-		lo = n.Xoffset
+-	}
+-
+-	// zero final range
+-	zerorange(pp, p, int64(frame), lo, hi)
+-}
+-
+ // TODO(mips): implement DUFFZERO
+-func zerorange(pp *gc.Progs, p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
++func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
+ 
+-	cnt := hi - lo
+ 	if cnt == 0 {
+ 		return p
+ 	}
+ 	if cnt < int64(4*gc.Widthptr) {
+ 		for i := int64(0); i < cnt; i += int64(gc.Widthptr) {
+-			p = pp.Appendpp(p, mips.AMOVW, obj.TYPE_REG, mips.REGZERO, 0, obj.TYPE_MEM, mips.REGSP, gc.Ctxt.FixedFrameSize()+frame+lo+i)
++			p = pp.Appendpp(p, mips.AMOVW, obj.TYPE_REG, mips.REGZERO, 0, obj.TYPE_MEM, mips.REGSP, gc.Ctxt.FixedFrameSize()+off+i)
+ 		}
+ 	} else {
+ 		//fmt.Printf("zerorange frame:%v, lo: %v, hi:%v \n", frame ,lo, hi)
+@@ -77,7 +28,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, frame int64, lo int64, hi int64) *obj.
+ 		//	MOVW	R0, (Widthptr)r1
+ 		//	ADD 	$Widthptr, r1
+ 		//	BNE		r1, r2, loop
+-		p = pp.Appendpp(p, mips.AADD, obj.TYPE_CONST, 0, gc.Ctxt.FixedFrameSize()+frame+lo-4, obj.TYPE_REG, mips.REGRT1, 0)
++		p = pp.Appendpp(p, mips.AADD, obj.TYPE_CONST, 0, gc.Ctxt.FixedFrameSize()+off-4, obj.TYPE_REG, mips.REGRT1, 0)
+ 		p.Reg = mips.REGSP
+ 		p = pp.Appendpp(p, mips.AADD, obj.TYPE_CONST, 0, cnt, obj.TYPE_REG, mips.REGRT2, 0)
+ 		p.Reg = mips.REGRT1
+diff --git a/src/cmd/compile/internal/mips64/galign.go b/src/cmd/compile/internal/mips64/galign.go
+index 698f60573d..91986ce694 100644
+--- a/src/cmd/compile/internal/mips64/galign.go
++++ b/src/cmd/compile/internal/mips64/galign.go
+@@ -19,7 +19,7 @@ func Init(arch *gc.Arch) {
+ 	arch.REGSP = mips.REGSP
+ 	arch.MAXWIDTH = 1 << 50
+ 
+-	arch.Defframe = defframe
++	arch.ZeroRange = zerorange
+ 	arch.Ginsnop = ginsnop
+ 
+ 	arch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
+diff --git a/src/cmd/compile/internal/mips64/ggen.go b/src/cmd/compile/internal/mips64/ggen.go
+index 9714a584ed..41b86ebdd1 100644
+--- a/src/cmd/compile/internal/mips64/ggen.go
++++ b/src/cmd/compile/internal/mips64/ggen.go
+@@ -10,65 +10,16 @@ import (
+ 	"cmd/internal/obj/mips"
+ )
+ 
+-func defframe(pp *gc.Progs, fn *gc.Node, sz int64) {
+-	// fill in argument size, stack size
+-	pp.Text.To.Type = obj.TYPE_TEXTSIZE
+-
+-	pp.Text.To.Val = int32(gc.Rnd(fn.Type.ArgWidth(), int64(gc.Widthptr)))
+-	frame := uint32(gc.Rnd(sz, int64(gc.Widthreg)))
+-	pp.Text.To.Offset = int64(frame)
+-
+-	// insert code to zero ambiguously live variables
+-	// so that the garbage collector only sees initialized values
+-	// when it looks for pointers.
+-	p := pp.Text
+-
+-	hi := int64(0)
+-	lo := hi
+-
+-	// iterate through declarations - they are sorted in decreasing xoffset order.
+-	for _, n := range fn.Func.Dcl {
+-		if !n.Name.Needzero() {
+-			continue
+-		}
+-		if n.Class != gc.PAUTO {
+-			gc.Fatalf("needzero class %d", n.Class)
+-		}
+-		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
+-			gc.Fatalf("var %L has size %d offset %d", n, int(n.Type.Width), int(n.Xoffset))
+-		}
+-
+-		if lo != hi && n.Xoffset+n.Type.Width >= lo-int64(2*gc.Widthreg) {
+-			// merge with range we already have
+-			lo = n.Xoffset
+-
+-			continue
+-		}
+-
+-		// zero old range
+-		p = zerorange(pp, p, int64(frame), lo, hi)
+-
+-		// set new range
+-		hi = n.Xoffset + n.Type.Width
+-
+-		lo = n.Xoffset
+-	}
+-
+-	// zero final range
+-	zerorange(pp, p, int64(frame), lo, hi)
+-}
+-
+-func zerorange(pp *gc.Progs, p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
+-	cnt := hi - lo
++func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
+ 	if cnt == 0 {
+ 		return p
+ 	}
+ 	if cnt < int64(4*gc.Widthptr) {
+ 		for i := int64(0); i < cnt; i += int64(gc.Widthptr) {
+-			p = pp.Appendpp(p, mips.AMOVV, obj.TYPE_REG, mips.REGZERO, 0, obj.TYPE_MEM, mips.REGSP, 8+frame+lo+i)
++			p = pp.Appendpp(p, mips.AMOVV, obj.TYPE_REG, mips.REGZERO, 0, obj.TYPE_MEM, mips.REGSP, 8+off+i)
+ 		}
+ 	} else if cnt <= int64(128*gc.Widthptr) {
+-		p = pp.Appendpp(p, mips.AADDV, obj.TYPE_CONST, 0, 8+frame+lo-8, obj.TYPE_REG, mips.REGRT1, 0)
++		p = pp.Appendpp(p, mips.AADDV, obj.TYPE_CONST, 0, 8+off-8, obj.TYPE_REG, mips.REGRT1, 0)
+ 		p.Reg = mips.REGSP
+ 		p = pp.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
+ 		p.To.Name = obj.NAME_EXTERN
+@@ -81,7 +32,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, frame int64, lo int64, hi int64) *obj.
+ 		//	MOVV	R0, (Widthptr)r1
+ 		//	ADDV	$Widthptr, r1
+ 		//	BNE		r1, r2, loop
+-		p = pp.Appendpp(p, mips.AADDV, obj.TYPE_CONST, 0, 8+frame+lo-8, obj.TYPE_REG, mips.REGRT1, 0)
++		p = pp.Appendpp(p, mips.AADDV, obj.TYPE_CONST, 0, 8+off-8, obj.TYPE_REG, mips.REGRT1, 0)
+ 		p.Reg = mips.REGSP
+ 		p = pp.Appendpp(p, mips.AADDV, obj.TYPE_CONST, 0, cnt, obj.TYPE_REG, mips.REGRT2, 0)
+ 		p.Reg = mips.REGRT1
+diff --git a/src/cmd/compile/internal/ppc64/galign.go b/src/cmd/compile/internal/ppc64/galign.go
+index 3dbe8ff35c..0f8122df6b 100644
+--- a/src/cmd/compile/internal/ppc64/galign.go
++++ b/src/cmd/compile/internal/ppc64/galign.go
+@@ -18,7 +18,7 @@ func Init(arch *gc.Arch) {
+ 	arch.REGSP = ppc64.REGSP
+ 	arch.MAXWIDTH = 1 << 50
+ 
+-	arch.Defframe = defframe
++	arch.ZeroRange = zerorange
+ 	arch.Ginsnop = ginsnop2
+ 
+ 	arch.SSAMarkMoves = ssaMarkMoves
+diff --git a/src/cmd/compile/internal/ppc64/ggen.go b/src/cmd/compile/internal/ppc64/ggen.go
+index 538ed962ec..194e2a4192 100644
+--- a/src/cmd/compile/internal/ppc64/ggen.go
++++ b/src/cmd/compile/internal/ppc64/ggen.go
+@@ -10,72 +10,23 @@ import (
+ 	"cmd/internal/obj/ppc64"
+ )
+ 
+-func defframe(pp *gc.Progs, fn *gc.Node, sz int64) {
+-	// fill in argument size, stack size
+-	pp.Text.To.Type = obj.TYPE_TEXTSIZE
+-
+-	pp.Text.To.Val = int32(gc.Rnd(fn.Type.ArgWidth(), int64(gc.Widthptr)))
+-	frame := uint32(gc.Rnd(sz, int64(gc.Widthreg)))
+-	pp.Text.To.Offset = int64(frame)
+-
+-	// insert code to zero ambiguously live variables
+-	// so that the garbage collector only sees initialized values
+-	// when it looks for pointers.
+-	p := pp.Text
+-
+-	hi := int64(0)
+-	lo := hi
+-
+-	// iterate through declarations - they are sorted in decreasing xoffset order.
+-	for _, n := range fn.Func.Dcl {
+-		if !n.Name.Needzero() {
+-			continue
+-		}
+-		if n.Class != gc.PAUTO {
+-			gc.Fatalf("needzero class %d", n.Class)
+-		}
+-		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
+-			gc.Fatalf("var %L has size %d offset %d", n, int(n.Type.Width), int(n.Xoffset))
+-		}
+-
+-		if lo != hi && n.Xoffset+n.Type.Width >= lo-int64(2*gc.Widthreg) {
+-			// merge with range we already have
+-			lo = n.Xoffset
+-
+-			continue
+-		}
+-
+-		// zero old range
+-		p = zerorange(pp, p, int64(frame), lo, hi)
+-
+-		// set new range
+-		hi = n.Xoffset + n.Type.Width
+-
+-		lo = n.Xoffset
+-	}
+-
+-	// zero final range
+-	zerorange(pp, p, int64(frame), lo, hi)
+-}
+-
+-func zerorange(pp *gc.Progs, p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
+-	cnt := hi - lo
++func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
+ 	if cnt == 0 {
+ 		return p
+ 	}
+ 	if cnt < int64(4*gc.Widthptr) {
+ 		for i := int64(0); i < cnt; i += int64(gc.Widthptr) {
+-			p = pp.Appendpp(p, ppc64.AMOVD, obj.TYPE_REG, ppc64.REGZERO, 0, obj.TYPE_MEM, ppc64.REGSP, gc.Ctxt.FixedFrameSize()+frame+lo+i)
++			p = pp.Appendpp(p, ppc64.AMOVD, obj.TYPE_REG, ppc64.REGZERO, 0, obj.TYPE_MEM, ppc64.REGSP, gc.Ctxt.FixedFrameSize()+off+i)
+ 		}
+ 	} else if cnt <= int64(128*gc.Widthptr) {
+-		p = pp.Appendpp(p, ppc64.AADD, obj.TYPE_CONST, 0, gc.Ctxt.FixedFrameSize()+frame+lo-8, obj.TYPE_REG, ppc64.REGRT1, 0)
++		p = pp.Appendpp(p, ppc64.AADD, obj.TYPE_CONST, 0, gc.Ctxt.FixedFrameSize()+off-8, obj.TYPE_REG, ppc64.REGRT1, 0)
+ 		p.Reg = ppc64.REGSP
+ 		p = pp.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
+ 		p.To.Name = obj.NAME_EXTERN
+ 		p.To.Sym = gc.Duffzero
+ 		p.To.Offset = 4 * (128 - cnt/int64(gc.Widthptr))
+ 	} else {
+-		p = pp.Appendpp(p, ppc64.AMOVD, obj.TYPE_CONST, 0, gc.Ctxt.FixedFrameSize()+frame+lo-8, obj.TYPE_REG, ppc64.REGTMP, 0)
++		p = pp.Appendpp(p, ppc64.AMOVD, obj.TYPE_CONST, 0, gc.Ctxt.FixedFrameSize()+off-8, obj.TYPE_REG, ppc64.REGTMP, 0)
+ 		p = pp.Appendpp(p, ppc64.AADD, obj.TYPE_REG, ppc64.REGTMP, 0, obj.TYPE_REG, ppc64.REGRT1, 0)
+ 		p.Reg = ppc64.REGSP
+ 		p = pp.Appendpp(p, ppc64.AMOVD, obj.TYPE_CONST, 0, cnt, obj.TYPE_REG, ppc64.REGTMP, 0)
+diff --git a/src/cmd/compile/internal/s390x/galign.go b/src/cmd/compile/internal/s390x/galign.go
+index 3d08de2cdd..67ef14a4c6 100644
+--- a/src/cmd/compile/internal/s390x/galign.go
++++ b/src/cmd/compile/internal/s390x/galign.go
+@@ -14,7 +14,7 @@ func Init(arch *gc.Arch) {
+ 	arch.REGSP = s390x.REGSP
+ 	arch.MAXWIDTH = 1 << 50
+ 
+-	arch.Defframe = defframe
++	arch.ZeroRange = zerorange
+ 	arch.Ginsnop = ginsnop
+ 
+ 	arch.SSAMarkMoves = ssaMarkMoves
+diff --git a/src/cmd/compile/internal/s390x/ggen.go b/src/cmd/compile/internal/s390x/ggen.go
+index 4672f83e0d..d492895702 100644
+--- a/src/cmd/compile/internal/s390x/ggen.go
++++ b/src/cmd/compile/internal/s390x/ggen.go
+@@ -16,83 +16,33 @@ import (
+ // Must be between 256 and 4096.
+ const clearLoopCutoff = 1024
+ 
+-func defframe(pp *gc.Progs, fn *gc.Node, sz int64) {
+-	// fill in argument size, stack size
+-	pp.Text.To.Type = obj.TYPE_TEXTSIZE
+-
+-	pp.Text.To.Val = int32(gc.Rnd(fn.Type.ArgWidth(), int64(gc.Widthptr)))
+-	frame := uint32(gc.Rnd(sz, int64(gc.Widthreg)))
+-	pp.Text.To.Offset = int64(frame)
+-
+-	// insert code to zero ambiguously live variables
+-	// so that the garbage collector only sees initialized values
+-	// when it looks for pointers.
+-	p := pp.Text
+-
+-	hi := int64(0)
+-	lo := hi
+-
+-	// iterate through declarations - they are sorted in decreasing xoffset order.
+-	for _, n := range fn.Func.Dcl {
+-		if !n.Name.Needzero() {
+-			continue
+-		}
+-		if n.Class != gc.PAUTO {
+-			gc.Fatalf("needzero class %d", n.Class)
+-		}
+-		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
+-			gc.Fatalf("var %L has size %d offset %d", n, int(n.Type.Width), int(n.Xoffset))
+-		}
+-
+-		if lo != hi && n.Xoffset+n.Type.Width >= lo-int64(2*gc.Widthreg) {
+-			// merge with range we already have
+-			lo = n.Xoffset
+-
+-			continue
+-		}
+-
+-		// zero old range
+-		p = zerorange(pp, p, int64(frame), lo, hi)
+-
+-		// set new range
+-		hi = n.Xoffset + n.Type.Width
+-
+-		lo = n.Xoffset
+-	}
+-
+-	// zero final range
+-	zerorange(pp, p, int64(frame), lo, hi)
+-}
+-
+ // zerorange clears the stack in the given range.
+-func zerorange(pp *gc.Progs, p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
+-	cnt := hi - lo
++func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
+ 	if cnt == 0 {
+ 		return p
+ 	}
+ 
+ 	// Adjust the frame to account for LR.
+-	frame += gc.Ctxt.FixedFrameSize()
+-	offset := frame + lo
++	off += gc.Ctxt.FixedFrameSize()
+ 	reg := int16(s390x.REGSP)
+ 
+-	// If the offset cannot fit in a 12-bit unsigned displacement then we
++	// If the off cannot fit in a 12-bit unsigned displacement then we
+ 	// need to create a copy of the stack pointer that we can adjust.
+ 	// We also need to do this if we are going to loop.
+-	if offset < 0 || offset > 4096-clearLoopCutoff || cnt > clearLoopCutoff {
+-		p = pp.Appendpp(p, s390x.AADD, obj.TYPE_CONST, 0, offset, obj.TYPE_REG, s390x.REGRT1, 0)
++	if off < 0 || off > 4096-clearLoopCutoff || cnt > clearLoopCutoff {
++		p = pp.Appendpp(p, s390x.AADD, obj.TYPE_CONST, 0, off, obj.TYPE_REG, s390x.REGRT1, 0)
+ 		p.Reg = int16(s390x.REGSP)
+ 		reg = s390x.REGRT1
+-		offset = 0
++		off = 0
+ 	}
+ 
+ 	// Generate a loop of large clears.
+ 	if cnt > clearLoopCutoff {
+ 		n := cnt - (cnt % 256)
+ 		end := int16(s390x.REGRT2)
+-		p = pp.Appendpp(p, s390x.AADD, obj.TYPE_CONST, 0, offset+n, obj.TYPE_REG, end, 0)
++		p = pp.Appendpp(p, s390x.AADD, obj.TYPE_CONST, 0, off+n, obj.TYPE_REG, end, 0)
+ 		p.Reg = reg
+-		p = pp.Appendpp(p, s390x.AXC, obj.TYPE_MEM, reg, offset, obj.TYPE_MEM, reg, offset)
++		p = pp.Appendpp(p, s390x.AXC, obj.TYPE_MEM, reg, off, obj.TYPE_MEM, reg, off)
+ 		p.From3 = new(obj.Addr)
+ 		p.From3.Type = obj.TYPE_CONST
+ 		p.From3.Offset = 256
+@@ -126,18 +76,18 @@ func zerorange(pp *gc.Progs, p *obj.Prog, frame int64, lo int64, hi int64) *obj.
+ 			case 2:
+ 				ins = s390x.AMOVH
+ 			}
+-			p = pp.Appendpp(p, ins, obj.TYPE_CONST, 0, 0, obj.TYPE_MEM, reg, offset)
++			p = pp.Appendpp(p, ins, obj.TYPE_CONST, 0, 0, obj.TYPE_MEM, reg, off)
+ 
+ 		// Handle clears that would require multiple move instructions with XC.
+ 		default:
+-			p = pp.Appendpp(p, s390x.AXC, obj.TYPE_MEM, reg, offset, obj.TYPE_MEM, reg, offset)
++			p = pp.Appendpp(p, s390x.AXC, obj.TYPE_MEM, reg, off, obj.TYPE_MEM, reg, off)
+ 			p.From3 = new(obj.Addr)
+ 			p.From3.Type = obj.TYPE_CONST
+ 			p.From3.Offset = n
+ 		}
+ 
+ 		cnt -= n
+-		offset += n
++		off += n
+ 	}
+ 
+ 	return p
+diff --git a/src/cmd/compile/internal/x86/galign.go b/src/cmd/compile/internal/x86/galign.go
+index 69f2011d25..6b32e1e27a 100644
+--- a/src/cmd/compile/internal/x86/galign.go
++++ b/src/cmd/compile/internal/x86/galign.go
+@@ -29,7 +29,7 @@ func Init(arch *gc.Arch) {
+ 	}
+ 	arch.MAXWIDTH = (1 << 32) - 1
+ 
+-	arch.Defframe = defframe
++	arch.ZeroRange = zerorange
+ 	arch.Ginsnop = ginsnop
+ 
+ 	arch.SSAMarkMoves = ssaMarkMoves
+diff --git a/src/cmd/compile/internal/x86/ggen.go b/src/cmd/compile/internal/x86/ggen.go
+index 550893936f..0c183cb374 100644
+--- a/src/cmd/compile/internal/x86/ggen.go
++++ b/src/cmd/compile/internal/x86/ggen.go
+@@ -10,54 +10,7 @@ import (
+ 	"cmd/internal/obj/x86"
+ )
+ 
+-func defframe(pp *gc.Progs, fn *gc.Node, sz int64) {
+-	// fill in argument size, stack size
+-	pp.Text.To.Type = obj.TYPE_TEXTSIZE
+-
+-	pp.Text.To.Val = int32(gc.Rnd(fn.Type.ArgWidth(), int64(gc.Widthptr)))
+-	frame := uint32(gc.Rnd(sz, int64(gc.Widthreg)))
+-	pp.Text.To.Offset = int64(frame)
+-
+-	// insert code to zero ambiguously live variables
+-	// so that the garbage collector only sees initialized values
+-	// when it looks for pointers.
+-	p := pp.Text
+-
+-	hi := int64(0)
+-	lo := hi
+-	ax := uint32(0)
+-	for _, n := range fn.Func.Dcl {
+-		if !n.Name.Needzero() {
+-			continue
+-		}
+-		if n.Class != gc.PAUTO {
+-			gc.Fatalf("needzero class %d", n.Class)
+-		}
+-		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
+-			gc.Fatalf("var %L has size %d offset %d", n, int(n.Type.Width), int(n.Xoffset))
+-		}
+-		if lo != hi && n.Xoffset+n.Type.Width >= lo-int64(2*gc.Widthptr) {
+-			// merge with range we already have
+-			lo = n.Xoffset
+-
+-			continue
+-		}
+-
+-		// zero old range
+-		p = zerorange(pp, p, int64(frame), lo, hi, &ax)
+-
+-		// set new range
+-		hi = n.Xoffset + n.Type.Width
+-
+-		lo = n.Xoffset
+-	}
+-
+-	// zero final range
+-	zerorange(pp, p, int64(frame), lo, hi, &ax)
+-}
+-
+-func zerorange(pp *gc.Progs, p *obj.Prog, frame int64, lo int64, hi int64, ax *uint32) *obj.Prog {
+-	cnt := hi - lo
++func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, ax *uint32) *obj.Prog {
+ 	if cnt == 0 {
+ 		return p
+ 	}
+@@ -68,15 +21,15 @@ func zerorange(pp *gc.Progs, p *obj.Prog, frame int64, lo int64, hi int64, ax *u
+ 
+ 	if cnt <= int64(4*gc.Widthreg) {
+ 		for i := int64(0); i < cnt; i += int64(gc.Widthreg) {
+-			p = pp.Appendpp(p, x86.AMOVL, obj.TYPE_REG, x86.REG_AX, 0, obj.TYPE_MEM, x86.REG_SP, frame+lo+i)
++			p = pp.Appendpp(p, x86.AMOVL, obj.TYPE_REG, x86.REG_AX, 0, obj.TYPE_MEM, x86.REG_SP, off+i)
+ 		}
+ 	} else if !gc.Nacl && cnt <= int64(128*gc.Widthreg) {
+-		p = pp.Appendpp(p, x86.ALEAL, obj.TYPE_MEM, x86.REG_SP, frame+lo, obj.TYPE_REG, x86.REG_DI, 0)
++		p = pp.Appendpp(p, x86.ALEAL, obj.TYPE_MEM, x86.REG_SP, off, obj.TYPE_REG, x86.REG_DI, 0)
+ 		p = pp.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_ADDR, 0, 1*(128-cnt/int64(gc.Widthreg)))
+ 		p.To.Sym = gc.Duffzero
+ 	} else {
+ 		p = pp.Appendpp(p, x86.AMOVL, obj.TYPE_CONST, 0, cnt/int64(gc.Widthreg), obj.TYPE_REG, x86.REG_CX, 0)
+-		p = pp.Appendpp(p, x86.ALEAL, obj.TYPE_MEM, x86.REG_SP, frame+lo, obj.TYPE_REG, x86.REG_DI, 0)
++		p = pp.Appendpp(p, x86.ALEAL, obj.TYPE_MEM, x86.REG_SP, off, obj.TYPE_REG, x86.REG_DI, 0)
+ 		p = pp.Appendpp(p, x86.AREP, obj.TYPE_NONE, 0, 0, obj.TYPE_NONE, 0, 0)
+ 		p = pp.Appendpp(p, x86.ASTOSL, obj.TYPE_NONE, 0, 0, obj.TYPE_NONE, 0, 0)
+ 	}

@@ -14,7 +14,59 @@ Date:   Sun Mar 5 18:04:30 2017 +0100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/base64/base64.go      | 6 ++++--
  src/encoding/base64/base64_test.go | 2 ++
  2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/base64/base64.go b/src/encoding/base64/base64.go
+index d2efad4518..b15754ee93 100644
+--- a/src/encoding/base64/base64.go
++++ b/src/encoding/base64/base64.go
+@@ -254,6 +254,7 @@ func (e CorruptInputError) Error() string {
+ // indicates if end-of-message padding or a partial quantum was encountered
+ // and thus any additional data is an error.
+ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
++	var inIdx int
+ 	si := 0
+ 
+ 	// skip over newlines
+@@ -275,6 +276,7 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
+ 				break
+ 			}
+ 			in := src[si]
++			inIdx = si
+ 
+ 			si++
+ 			// skip over newlines
+@@ -287,7 +289,7 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
+ 				switch j {
+ 				case 0, 1:
+ 					// incorrect padding
+-					return n, false, CorruptInputError(si - 1)
++					return n, false, CorruptInputError(inIdx)
+ 				case 2:
+ 					// "==" is expected, the first "=" is already consumed.
+ 					if si == len(src) {
+@@ -314,7 +316,7 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
+ 			}
+ 			dbuf[j] = enc.decodeMap[in]
+ 			if dbuf[j] == 0xFF {
+-				return n, false, CorruptInputError(si - 1)
++				return n, false, CorruptInputError(inIdx)
+ 			}
+ 		}
+ 
+diff --git a/src/encoding/base64/base64_test.go b/src/encoding/base64/base64_test.go
+index e2e1d59f3c..00b3d6171f 100644
+--- a/src/encoding/base64/base64_test.go
++++ b/src/encoding/base64/base64_test.go
+@@ -220,6 +220,8 @@ func TestDecodeCorrupt(t *testing.T) {
+ 		{"AAAA", -1},
+ 		{"AAAAAA=", 7},
+ 		{"YWJjZA=====", 8},
++		{"A!\n", 1},
++		{"A=\n", 1},
+ 	}
+ 	for _, tc := range testCases {
+ 		dbuf := make([]byte, StdEncoding.DecodedLen(len(tc.input)))

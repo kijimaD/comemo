@@ -13,6 +13,23 @@ Date:   Fri Sep 16 18:53:46 2016 -0400
     Change-Id: I4cc56ddf47e7597213462e48d4934a765168bd07
     Reviewed-on: https://go-review.googlesource.com/29363
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/test.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 2c114be93f..42fd914bb1 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -746,8 +746,10 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 		}
+ 		return false
+ 	case "plugin":
++		// linux-arm64 is missing because it causes the external linker
++		// to crash, see https://golang.org/issue/17138
+ 		switch pair {
+-		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64":
++		case "linux-386", "linux-amd64", "linux-arm":
+ 			return true
+ 		}
+ 		return false

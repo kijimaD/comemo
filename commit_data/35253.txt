@@ -20,10 +20,91 @@ Date:   Fri Jan 12 12:03:49 2018 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/os3_plan9.go         | 5 +++++
  src/runtime/panic.go             | 3 +++
  src/runtime/signal_sighandler.go | 5 +++++
  src/runtime/signal_unix.go       | 6 ++++++
  src/runtime/signal_windows.go    | 6 ++++++
  5 files changed, 25 insertions(+)
+
+diff --git a/src/runtime/os3_plan9.go b/src/runtime/os3_plan9.go
+index 3b65a2c9ba..0b313d75e3 100644
+--- a/src/runtime/os3_plan9.go
++++ b/src/runtime/os3_plan9.go
+@@ -45,6 +45,11 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
+ 			break
+ 		}
+ 	}
++	if flags&_SigPanic != 0 && gp.throwsplit {
++		// We can't safely sigpanic because it may grow the
++		// stack. Abort in the signal handler instead.
++		flags = (flags &^ _SigPanic) | _SigThrow
++	}
+ 	if flags&_SigGoExit != 0 {
+ 		exits((*byte)(add(unsafe.Pointer(note), 9))) // Strip "go: exit " prefix.
+ 	}
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 6fa99d6493..106ca5bffc 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -752,6 +752,9 @@ func dopanic_m(gp *g, pc, sp uintptr) {
+ 	exit(2)
+ }
+ 
++// canpanic returns false if a signal should throw instead of
++// panicking.
++//
+ //go:nosplit
+ func canpanic(gp *g) bool {
+ 	// Note that g is m->gsignal, different from gp.
+diff --git a/src/runtime/signal_sighandler.go b/src/runtime/signal_sighandler.go
+index f24a117fcd..bf2237c981 100644
+--- a/src/runtime/signal_sighandler.go
++++ b/src/runtime/signal_sighandler.go
+@@ -38,6 +38,11 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	if sig < uint32(len(sigtable)) {
+ 		flags = sigtable[sig].flags
+ 	}
++	if flags&_SigPanic != 0 && gp.throwsplit {
++		// We can't safely sigpanic because it may grow the
++		// stack. Abort in the signal handler instead.
++		flags = (flags &^ _SigPanic) | _SigThrow
++	}
+ 	if c.sigcode() != _SI_USER && flags&_SigPanic != 0 {
+ 		// The signal is going to cause a panic.
+ 		// Arrange the stack so that it looks like the point
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index ac191f302f..78649c52a9 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -360,6 +360,12 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ // the signal handler. The effect is that the program will act as
+ // though the function that got the signal simply called sigpanic
+ // instead.
++//
++// This must NOT be nosplit because the linker doesn't know where
++// sigpanic calls can be injected.
++//
++// The signal handler must not inject a call to sigpanic if
++// getg().throwsplit, since sigpanic may need to grow the stack.
+ func sigpanic() {
+ 	g := getg()
+ 	if !canpanic(g) {
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index 7d230517f6..518aac3c48 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -71,6 +71,12 @@ func exceptionhandler(info *exceptionrecord, r *context, gp *g) int32 {
+ 		return _EXCEPTION_CONTINUE_SEARCH
+ 	}
+ 
++	if gp.throwsplit {
++		// We can't safely sigpanic because it may grow the
++		// stack. Let it fall through.
++		return _EXCEPTION_CONTINUE_SEARCH
++	}
++
+ 	// Make it look like a call to the signal func.
+ 	// Have to pass arguments out of band since
+ 	// augmenting the stack frame would break

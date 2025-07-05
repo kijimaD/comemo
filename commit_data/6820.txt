@@ -7,9 +7,60 @@ Date:   Fri Dec 3 06:57:30 2010 +0900
     R=r
     CC=golang-dev
     https://golang.org/cl/3391042
-
+---
  doc/docs.html     |   8 ++++++++
  doc/frontpage.css |   3 +++
  doc/root.html     |   2 +-
  doc/video-004.png | Bin 0 -> 22713 bytes
  4 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/doc/docs.html b/doc/docs.html
+index 90e20f74e3..c74ae035f4 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -120,6 +120,14 @@ examples demonstrating features particular to Go.  These include concurrency,
+ embedded types, methods on any type, and program construction using interfaces. 
+ </p>
+ 
++<h3 id="practical_go_programming"><a href="http://osdc.blip.tv/file/4432146/">Practical Go Programming</a></h3>
++<p>
++This talk presents the development of a complete web application in Go.
++It looks at design, storage, concurrency, and scaling issues in detail, using
++the simple example of an URL shortening service.
++See the <a href="http://wh3rd.net/practical-go/">presentation slides</a>.
++</p>
++
+ <h3 id="techtalk"><a href="http://www.youtube.com/watch?v=rKnDgT73v8s">The Go Tech Talk</a></h3>
+ <p>
+ An hour-long talk delivered by Rob Pike at Google in October 2009. 
+diff --git a/doc/frontpage.css b/doc/frontpage.css
+index debc9aa44d..bcdca64011 100644
+--- a/doc/frontpage.css
++++ b/doc/frontpage.css
+@@ -77,6 +77,9 @@ span.keyword {
+ #content-videos .thumbnail._003 {
+   background: url(/doc/video-003.png);
+ }
++#content-videos .thumbnail._004 {
++  background: url(/doc/video-004.png);
++}
+ #content-videos a.video {
+   display: inline-block;
+   width: 150px;
+diff --git a/doc/root.html b/doc/root.html
+index 3bc781a678..f98f9c243c 100644
+--- a/doc/root.html
++++ b/doc/root.html
+@@ -60,7 +60,7 @@ google.setOnLoadCallback(loadFeed);
+       <div id="content-rotating">
+       <div id="content-videos">
+         <h2>Go Videos <span class="more">| <a href="/doc/docs.html#videos_talks">More...</a></span></h2>
+-        <a class="video" href="http://www.youtube.com/watch?v=jgVhBThJdXc"><img src="/doc/play_overlay.png" class="thumbnail _001" /> <span class="caption title">&ldquo;Go Programming&rdquo;</span> <span class="caption description">Google I/O Tech Talk</span></a>
++        <a class="video" href="http://osdc.blip.tv/file/4432146/"><img src="/doc/play_overlay.png" class="thumbnail _004" /> <span class="caption title">&ldquo;Practical Go Programming&rdquo;</span> <span class="caption description">OSDC Tech Talk</span></a>
+       </div>
+       <h2>Go Blog <span class="more">| <a href="http://blog.golang.org/">More...</a></span></h2>
+       <div id="content-blog">
+diff --git a/doc/video-004.png b/doc/video-004.png
+new file mode 100644
+index 0000000000..92144549ab
+Binary files /dev/null and b/doc/video-004.png differ

@@ -21,7 +21,56 @@ Date:   Sun Nov 13 21:20:58 2016 -0500
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testplugin/src/plugin1/plugin1.go | 10 +++++++++-
  src/cmd/link/internal/ld/data.go           | 14 +++++++++++++-
  2 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/testplugin/src/plugin1/plugin1.go b/misc/cgo/testplugin/src/plugin1/plugin1.go
+index c3966f3401..7a62242134 100644
+--- a/misc/cgo/testplugin/src/plugin1/plugin1.go
++++ b/misc/cgo/testplugin/src/plugin1/plugin1.go
+@@ -17,9 +17,17 @@ func ReadCommonX() int {
+ 
+ var Seven int
+ 
++func call(fn func()) {
++	fn()
++}
++
++func g() {
++	common.X *= Seven
++}
++
+ func init() {
+ 	Seven = 7
+-	common.X *= Seven
++	call(g)
+ }
+ 
+ func main() {
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 7dff9baaea..de043305d0 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -599,7 +599,19 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 			}
+ 
+ 			// r->sym can be null when CALL $(constant) is transformed from absolute PC to relative PC call.
+-		case obj.R_CALL, obj.R_GOTPCREL, obj.R_PCREL:
++		case obj.R_GOTPCREL:
++			if ctxt.DynlinkingGo() && Headtype == obj.Hdarwin && r.Sym != nil && r.Sym.Type != obj.SCONST {
++				r.Done = 0
++				r.Xadd = r.Add
++				r.Xadd -= int64(r.Siz) // relative to address after the relocated chunk
++				r.Xsym = r.Sym
++
++				o = r.Xadd
++				o += int64(r.Siz)
++				break
++			}
++			fallthrough
++		case obj.R_CALL, obj.R_PCREL:
+ 			if Linkmode == LinkExternal && r.Sym != nil && r.Sym.Type != obj.SCONST && (r.Sym.Sect != s.Sect || r.Type == obj.R_GOTPCREL) {
+ 				r.Done = 0
+ 

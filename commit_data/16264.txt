@@ -7,6 +7,18 @@ Date:   Fri May 3 17:15:43 2013 +0800
     TBR=iant
     CC=golang-dev
     https://golang.org/cl/9048048
-
+---
  src/pkg/runtime/cgo/gcc_arm.S | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/cgo/gcc_arm.S b/src/pkg/runtime/cgo/gcc_arm.S
+index 3bc5bd338f..3ec6e5d97b 100644
+--- a/src/pkg/runtime/cgo/gcc_arm.S
++++ b/src/pkg/runtime/cgo/gcc_arm.S
+@@ -35,5 +35,5 @@ EXT(__stack_chk_fail_local):
+ 	b 1b
+ 
+ #ifdef __ELF__
+-.section .note.GNU-stack,"",@progbits
++.section .note.GNU-stack,"",%progbits
+ #endif

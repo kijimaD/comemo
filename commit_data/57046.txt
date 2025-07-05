@@ -15,7 +15,54 @@ Date:   Mon Jun 12 11:26:28 2023 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/ssa/expand_calls.go |  4 ++--
  test/codegen/issue60673.go                   | 18 ++++++++++++++++++
  2 files changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index 26a944dfae..dcd8078353 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -1115,7 +1115,7 @@ func (x *expandState) rewriteArgs(v *Value, firstArg int) {
+ 			}
+ 			// "Dereference" of addressed (probably not-SSA-eligible) value becomes Move
+ 			// TODO(register args) this will be more complicated with registers in the picture.
+-			mem = x.rewriteDereference(v.Block, sp, a, mem, aOffset, aux.SizeOfArg(auxI), aType, a.Pos)
++			mem = x.rewriteDereference(v.Block, sp, a, mem, aOffset, aux.SizeOfArg(auxI), aType, v.Pos)
+ 		} else {
+ 			var rc registerCursor
+ 			var result *[]*Value
+@@ -1137,7 +1137,7 @@ func (x *expandState) rewriteArgs(v *Value, firstArg int) {
+ 				x.Printf("...storeArg %s, %v, %d\n", a.LongString(), aType, aOffset)
+ 			}
+ 			rc.init(aRegs, aux.abiInfo, result, sp)
+-			mem = x.storeArgOrLoad(a.Pos, v.Block, a, mem, aType, aOffset, 0, rc)
++			mem = x.storeArgOrLoad(v.Pos, v.Block, a, mem, aType, aOffset, 0, rc)
+ 		}
+ 	}
+ 	var preArgStore [2]*Value
+diff --git a/test/codegen/issue60673.go b/test/codegen/issue60673.go
+new file mode 100644
+index 0000000000..2df031a9cf
+--- /dev/null
++++ b/test/codegen/issue60673.go
+@@ -0,0 +1,18 @@
++// asmcheck
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package codegen
++
++//go:noinline
++func f(x int32) {
++}
++
++func g(p *int32) {
++	// argument marshaling code should live at line 17, not line 15.
++	x := *p
++	// 386: `MOVL\s[A-Z]+,\s\(SP\)`
++	f(x)
++}

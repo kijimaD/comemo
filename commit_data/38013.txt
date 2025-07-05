@@ -9,7 +9,76 @@ Date:   Thu Sep 20 11:43:42 2018 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/malloc.go   | 18 +++++++++---------
  src/runtime/mgcsweep.go |  8 ++++----
  2 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 07e0a67240..c6c969a3bf 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -328,27 +328,27 @@ var physPageSize uintptr
+ // may use larger alignment, so the caller must be careful to realign the
+ // memory obtained by sysAlloc.
+ //
+-// SysUnused notifies the operating system that the contents
++// sysUnused notifies the operating system that the contents
+ // of the memory region are no longer needed and can be reused
+ // for other purposes.
+-// SysUsed notifies the operating system that the contents
++// sysUsed notifies the operating system that the contents
+ // of the memory region are needed again.
+ //
+-// SysFree returns it unconditionally; this is only used if
++// sysFree returns it unconditionally; this is only used if
+ // an out-of-memory error has been detected midway through
+-// an allocation. It is okay if SysFree is a no-op.
++// an allocation. It is okay if sysFree is a no-op.
+ //
+-// SysReserve reserves address space without allocating memory.
++// sysReserve reserves address space without allocating memory.
+ // If the pointer passed to it is non-nil, the caller wants the
+-// reservation there, but SysReserve can still choose another
++// reservation there, but sysReserve can still choose another
+ // location if that one is unavailable.
+-// NOTE: SysReserve returns OS-aligned memory, but the heap allocator
++// NOTE: sysReserve returns OS-aligned memory, but the heap allocator
+ // may use larger alignment, so the caller must be careful to realign the
+ // memory obtained by sysAlloc.
+ //
+-// SysMap maps previously reserved address space for use.
++// sysMap maps previously reserved address space for use.
+ //
+-// SysFault marks a (already sysAlloc'd) region to fault
++// sysFault marks a (already sysAlloc'd) region to fault
+ // if accessed. Used only for debugging the runtime.
+ 
+ func mallocinit() {
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index c7baa455fe..71f5c4b3a9 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -339,18 +339,18 @@ func (s *mspan) sweep(preserve bool) bool {
+ 		// Free large span to heap
+ 
+ 		// NOTE(rsc,dvyukov): The original implementation of efence
+-		// in CL 22060046 used SysFree instead of SysFault, so that
++		// in CL 22060046 used sysFree instead of sysFault, so that
+ 		// the operating system would eventually give the memory
+ 		// back to us again, so that an efence program could run
+ 		// longer without running out of memory. Unfortunately,
+-		// calling SysFree here without any kind of adjustment of the
++		// calling sysFree here without any kind of adjustment of the
+ 		// heap data structures means that when the memory does
+ 		// come back to us, we have the wrong metadata for it, either in
+ 		// the MSpan structures or in the garbage collection bitmap.
+-		// Using SysFault here means that the program will run out of
++		// Using sysFault here means that the program will run out of
+ 		// memory fairly quickly in efence mode, but at least it won't
+ 		// have mysterious crashes due to confused memory reuse.
+-		// It should be possible to switch back to SysFree if we also
++		// It should be possible to switch back to sysFree if we also
+ 		// implement and then call some kind of MHeap_DeleteSpan.
+ 		if debug.efence > 0 {
+ 			s.limit = 0 // prevent mlookup from finding this span

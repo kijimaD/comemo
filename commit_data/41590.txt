@@ -12,6 +12,52 @@ Date:   Wed Oct 18 21:27:48 2017 -0400
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/fs.go | 26 +++++++++++++++-----------
  1 file changed, 15 insertions(+), 11 deletions(-)
+
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index 80c391d1c3..d2144857e8 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -384,15 +384,18 @@ func checkIfUnmodifiedSince(r *Request, modtime time.Time) condResult {
+ 	if ius == "" || isZeroTime(modtime) {
+ 		return condNone
+ 	}
+-	if t, err := ParseTime(ius); err == nil {
+-		// The Date-Modified header truncates sub-second precision, so
+-		// use mtime < t+1s instead of mtime <= t to check for unmodified.
+-		if modtime.Before(t.Add(1 * time.Second)) {
+-			return condTrue
+-		}
+-		return condFalse
++	t, err := ParseTime(ius)
++	if err != nil {
++		return condNone
+ 	}
+-	return condNone
++
++	// The Last-Modified header truncates sub-second precision so
++	// the modtime needs to be truncated too.
++	modtime = modtime.Truncate(time.Second)
++	if modtime.Before(t) || modtime.Equal(t) {
++		return condTrue
++	}
++	return condFalse
+ }
+ 
+ func checkIfNoneMatch(w ResponseWriter, r *Request) condResult {
+@@ -436,9 +439,10 @@ func checkIfModifiedSince(r *Request, modtime time.Time) condResult {
+ 	if err != nil {
+ 		return condNone
+ 	}
+-	// The Date-Modified header truncates sub-second precision, so
+-	// use mtime < t+1s instead of mtime <= t to check for unmodified.
+-	if modtime.Before(t.Add(1 * time.Second)) {
++	// The Last-Modified header truncates sub-second precision so
++	// the modtime needs to be truncated too.
++	modtime = modtime.Truncate(time.Second)
++	if modtime.Before(t) || modtime.Equal(t) {
+ 		return condFalse
+ 	}
+ 	return condTrue

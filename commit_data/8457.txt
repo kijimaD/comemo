@@ -7,6 +7,33 @@ Date:   Sun May 22 09:23:22 2011 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4526073
-
+---
  src/pkg/crypto/x509/x509_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/crypto/x509/x509_test.go b/src/pkg/crypto/x509/x509_test.go
+index 89d60f6a49..fd137a6f5e 100644
+--- a/src/pkg/crypto/x509/x509_test.go
++++ b/src/pkg/crypto/x509/x509_test.go
+@@ -313,7 +313,7 @@ func TestParseCertificateWithDSASignatureAlgorithm(t *testing.T) {
+ 	pemBlock, _ := pem.Decode([]byte(dsaCertPem))
+ 	cert, err := ParseCertificate(pemBlock.Bytes)
+ 	if err != nil {
+-		t.Fatal("Failed to parse certificate: %s", err)
++		t.Fatalf("Failed to parse certificate: %s", err)
+ 	}
+ 	if cert.SignatureAlgorithm != DSAWithSHA1 {
+ 		t.Errorf("Parsed signature algorithm was not DSAWithSHA1")
+@@ -324,10 +324,10 @@ func TestVerifyCertificateWithDSASignature(t *testing.T) {
+ 	pemBlock, _ := pem.Decode([]byte(dsaCertPem))
+ 	cert, err := ParseCertificate(pemBlock.Bytes)
+ 	if err != nil {
+-		t.Fatal("Failed to parse certificate: %s", err)
++		t.Fatalf("Failed to parse certificate: %s", err)
+ 	}
+ 	// test cert is self-signed
+ 	if err = cert.CheckSignatureFrom(cert); err != nil {
+-		t.Fatal("DSA Certificate verfication failed: %s", err)
++		t.Fatalf("DSA Certificate verfication failed: %s", err)
+ 	}
+ }

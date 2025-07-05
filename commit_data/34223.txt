@@ -18,8 +18,136 @@ Date:   Thu Oct 5 21:28:01 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/proc.go              | 25 ++++++++++++++-----------
  src/runtime/runtime2.go          |  4 ++--
  src/runtime/signal_sighandler.go |  2 +-
  3 files changed, 17 insertions(+), 14 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 0fa0cf965e..1ad95ae9a6 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -518,7 +518,7 @@ func dumpgstatus(gp *g) {
+ 
+ func checkmcount() {
+ 	// sched lock is held
+-	if sched.mcount > sched.maxmcount {
++	if mcount() > sched.maxmcount {
+ 		print("runtime: program exceeds ", sched.maxmcount, "-thread limit\n")
+ 		throw("thread exhaustion")
+ 	}
+@@ -533,8 +533,11 @@ func mcommoninit(mp *m) {
+ 	}
+ 
+ 	lock(&sched.lock)
+-	mp.id = sched.mcount
+-	sched.mcount++
++	if sched.mnext+1 < sched.mnext {
++		throw("runtime: thread ID overflow")
++	}
++	mp.id = sched.mnext
++	sched.mnext++
+ 	checkmcount()
+ 
+ 	mp.fastrand[0] = 1597334677 * uint32(mp.id)
+@@ -3374,7 +3377,7 @@ func gcount() int32 {
+ }
+ 
+ func mcount() int32 {
+-	return sched.mcount
++	return int32(sched.mnext)
+ }
+ 
+ var prof struct {
+@@ -3854,7 +3857,7 @@ func acquirep1(_p_ *p) {
+ 		throw("acquirep: already in go")
+ 	}
+ 	if _p_.m != 0 || _p_.status != _Pidle {
+-		id := int32(0)
++		id := int64(0)
+ 		if _p_.m != 0 {
+ 			id = _p_.m.ptr().id
+ 		}
+@@ -3915,12 +3918,12 @@ func checkdead() {
+ 		return
+ 	}
+ 
+-	run := sched.mcount - sched.nmidle - sched.nmidlelocked - sched.nmsys
++	run := mcount() - sched.nmidle - sched.nmidlelocked - sched.nmsys
+ 	if run > 0 {
+ 		return
+ 	}
+ 	if run < 0 {
+-		print("runtime: checkdead: nmidle=", sched.nmidle, " nmidlelocked=", sched.nmidlelocked, " mcount=", sched.mcount, " nmsys=", sched.nmsys, "\n")
++		print("runtime: checkdead: nmidle=", sched.nmidle, " nmidlelocked=", sched.nmidlelocked, " mcount=", mcount(), " nmsys=", sched.nmsys, "\n")
+ 		throw("checkdead: inconsistent counts")
+ 	}
+ 
+@@ -4234,7 +4237,7 @@ func schedtrace(detailed bool) {
+ 	}
+ 
+ 	lock(&sched.lock)
+-	print("SCHED ", (now-starttime)/1e6, "ms: gomaxprocs=", gomaxprocs, " idleprocs=", sched.npidle, " threads=", sched.mcount, " spinningthreads=", sched.nmspinning, " idlethreads=", sched.nmidle, " runqueue=", sched.runqsize)
++	print("SCHED ", (now-starttime)/1e6, "ms: gomaxprocs=", gomaxprocs, " idleprocs=", sched.npidle, " threads=", mcount(), " spinningthreads=", sched.nmspinning, " idlethreads=", sched.nmidle, " runqueue=", sched.runqsize)
+ 	if detailed {
+ 		print(" gcwaiting=", sched.gcwaiting, " nmidlelocked=", sched.nmidlelocked, " stopwait=", sched.stopwait, " sysmonwait=", sched.sysmonwait, "\n")
+ 	}
+@@ -4246,7 +4249,7 @@ func schedtrace(detailed bool) {
+ 		h := atomic.Load(&_p_.runqhead)
+ 		t := atomic.Load(&_p_.runqtail)
+ 		if detailed {
+-			id := int32(-1)
++			id := int64(-1)
+ 			if mp != nil {
+ 				id = mp.id
+ 			}
+@@ -4294,11 +4297,11 @@ func schedtrace(detailed bool) {
+ 		gp := allgs[gi]
+ 		mp := gp.m
+ 		lockedm := gp.lockedm.ptr()
+-		id1 := int32(-1)
++		id1 := int64(-1)
+ 		if mp != nil {
+ 			id1 = mp.id
+ 		}
+-		id2 := int32(-1)
++		id2 := int64(-1)
+ 		if lockedm != nil {
+ 			id2 = lockedm.id
+ 		}
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 3f99de65d5..e652f5be64 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -399,7 +399,7 @@ type m struct {
+ 	caughtsig     guintptr // goroutine running during fatal signal
+ 	p             puintptr // attached p for executing go code (nil if not executing go code)
+ 	nextp         puintptr
+-	id            int32
++	id            int64
+ 	mallocing     int32
+ 	throwing      int32
+ 	preemptoff    string // if != "", keep curg running on this m
+@@ -531,7 +531,7 @@ type schedt struct {
+ 	midle        muintptr // idle m's waiting for work
+ 	nmidle       int32    // number of idle m's waiting for work
+ 	nmidlelocked int32    // number of locked m's waiting for work
+-	mcount       int32    // number of m's that have been created
++	mnext        int64    // number of m's that have been created and next M ID
+ 	maxmcount    int32    // maximum number of m's allowed (or die)
+ 	nmsys        int32    // number of system m's not counted for deadlock
+ 
+diff --git a/src/runtime/signal_sighandler.go b/src/runtime/signal_sighandler.go
+index 672d7828ff..f24a117fcd 100644
+--- a/src/runtime/signal_sighandler.go
++++ b/src/runtime/signal_sighandler.go
+@@ -111,7 +111,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 
+ 	if docrash {
+ 		crashing++
+-		if crashing < sched.mcount-int32(extraMCount) {
++		if crashing < mcount()-int32(extraMCount) {
+ 			// There are other m's that need to dump their stacks.
+ 			// Relay SIGQUIT to the next m by sending it to the current process.
+ 			// All m's that have already received SIGQUIT have signal masks blocking

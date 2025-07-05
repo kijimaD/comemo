@@ -12,6 +12,20 @@ Date:   Thu Dec 13 16:21:25 2012 +0900
     R=fullung, dave, rsc
     CC=golang-dev
     https://golang.org/cl/6873069
-
+---
  src/pkg/net/dial_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/dial_test.go b/src/pkg/net/dial_test.go
+index 3241f34cf0..325bd4b874 100644
+--- a/src/pkg/net/dial_test.go
++++ b/src/pkg/net/dial_test.go
+@@ -241,7 +241,7 @@ func TestDialTimeoutFDLeak(t *testing.T) {
+ 	}
+ 	dials := listenerBacklog + 100
+ 	// used to be listenerBacklog + 5, but was found to be unreliable, issue 4384.
+-	maxGoodConnect := 150
++	maxGoodConnect := listenerBacklog + runtime.NumCPU()*10
+ 	resc := make(chan connErr)
+ 	for i := 0; i < dials; i++ {
+ 		go func() {

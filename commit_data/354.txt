@@ -6,7 +6,38 @@ Date:   Mon Jul 14 19:31:06 2008 -0700
     add a new one: go func() { print "ok\n" } ();
     
     SVN=127144
-
+---
  test/bugs/bug067.go                | 11 +++++++++++
  test/bugs/{bug065.go => bug068.go} |  2 +-
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/test/bugs/bug067.go b/test/bugs/bug067.go
+new file mode 100644
+index 0000000000..e66b48c6d0
+--- /dev/null
++++ b/test/bugs/bug067.go
+@@ -0,0 +1,11 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	go func() { print "ok\n" } ();
++}
+diff --git a/test/bugs/bug065.go b/test/bugs/bug068.go
+similarity index 91%
+rename from test/bugs/bug065.go
+rename to test/bugs/bug068.go
+index d7d5f74a88..9fe0656523 100644
+--- a/test/bugs/bug065.go
++++ b/test/bugs/bug068.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// errchk $G $D/$F.go
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

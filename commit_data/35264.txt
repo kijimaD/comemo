@@ -9,6 +9,15 @@ Date:   Thu Jan 25 11:22:38 2018 -0500
     Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Chris Broadfoot <cbro@golang.org>
-
+---
  VERSION | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/VERSION b/VERSION
+new file mode 100644
+index 0000000000..a251e054bd
+--- /dev/null
++++ b/VERSION
+@@ -0,0 +1 @@
++go1.10rc1
+\ No newline at end of file

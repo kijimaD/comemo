@@ -10,6 +10,29 @@ Date:   Tue Aug 4 11:13:56 2015 -0700
     Change-Id: I1646b3930a07d0ea01840736ccd449b7fd24f06e
     Reviewed-on: https://go-review.googlesource.com/13141
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 46bcfab7e4..247eacbee4 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -20,7 +20,7 @@ import (
+ // it will never return nil, and the bool can be removed.
+ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
+ 	name := fn.Func.Nname.Sym.Name
+-	usessa = strings.HasSuffix(name, "_ssa")
++	usessa = strings.HasSuffix(name, "_ssa") || name == os.Getenv("GOSSAFUNC")
+ 
+ 	if usessa {
+ 		fmt.Println("generating SSA for", name)
+@@ -150,7 +150,7 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
+ 
+ 	// TODO: enable codegen more broadly once the codegen stabilizes
+ 	// and runtime support is in (gc maps, write barriers, etc.)
+-	return s.f, usessa || name == os.Getenv("GOSSAFUNC") || localpkg.Name == os.Getenv("GOSSAPKG")
++	return s.f, usessa || localpkg.Name == os.Getenv("GOSSAPKG")
+ }
+ 
+ type state struct {

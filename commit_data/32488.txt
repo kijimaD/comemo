@@ -284,6 +284,24 @@ Date:   Sat Apr 15 07:07:18 2017 -0700
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/pgen.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index f98289bf0b..363d53393a 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -253,6 +253,12 @@ func compileSSA(fn *Node, worker int) {
+ // and waits for them to complete.
+ func compileFunctions() {
+ 	if len(compilequeue) != 0 {
++		// Compile the longest functions first,
++		// since they're most likely to be the slowest.
++		// This helps avoid stragglers.
++		obj.SortSlice(compilequeue, func(i, j int) bool {
++			return compilequeue[i].Nbody.Len() > compilequeue[j].Nbody.Len()
++		})
+ 		var wg sync.WaitGroup
+ 		c := make(chan *Node)
+ 		for i := 0; i < nBackendWorkers; i++ {

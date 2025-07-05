@@ -28,6 +28,28 @@ Date:   Wed Mar 30 20:37:51 2016 +1100
     Change-Id: I6782659fadd605ce9931bf5c737c7058b96a29eb
     Reviewed-on: https://go-review.googlesource.com/21296
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/type.go | 9 ++++++---
  1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 6dbfaf1886..a910b105ef 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -209,10 +209,13 @@ func (f *Fields) Slice() []*Field {
+ // Set sets f to a slice.
+ // This takes ownership of the slice.
+ func (f *Fields) Set(s []*Field) {
+-	if len(s) != 0 {
+-		f.s = &s
+-	} else {
++	if len(s) == 0 {
+ 		f.s = nil
++	} else {
++		// Copy s and take address of t rather than s to avoid
++		// allocation in the case where len(s) == 0.
++		t := s
++		f.s = &t
+ 	}
+ }
+ 

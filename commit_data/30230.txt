@@ -15,8 +15,126 @@ Date:   Fri Oct 28 10:53:41 2016 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/internal/trace/mkcanned.bash | 19 +++++++++++++++++++
  src/internal/trace/parser.go     |  2 ++
  src/runtime/trace/trace_test.go  | 20 ++++++++++++++++++++
  3 files changed, 41 insertions(+)
+
+diff --git a/src/internal/trace/mkcanned.bash b/src/internal/trace/mkcanned.bash
+new file mode 100755
+index 0000000000..78c5572065
+--- /dev/null
++++ b/src/internal/trace/mkcanned.bash
+@@ -0,0 +1,19 @@
++#!/usr/bin/env bash
++# Copyright 2016 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# mkcanned.bash creates canned traces for the trace test suite using
++# the current Go version.
++
++set -e
++
++if [ $# != 1 ]; then
++    echo "usage: $0 <label>" >&2
++    exit 1
++fi
++
++go test -run ClientServerParallel4 -trace "testdata/http_$1_good" net/http
++go test -run 'TraceStress$|TraceStressStartStop$' runtime/trace -savetraces
++mv ../../runtime/trace/TestTraceStress.trace "testdata/stress_$1_good"
++mv ../../runtime/trace/TestTraceStressStartStop.trace "testdata/stress_start_stop_$1_good"
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+index 4017623749..efa85409a2 100644
+--- a/src/internal/trace/parser.go
++++ b/src/internal/trace/parser.go
+@@ -128,6 +128,8 @@ func readTrace(r io.Reader) (ver int, events []rawEvent, strings map[uint64]stri
+ 	}
+ 	switch ver {
+ 	case 1005, 1007, 1008:
++		// Note: When adding a new version, add canned traces
++		// from the old version to the test suite using mkcanned.bash.
+ 		break
+ 	default:
+ 		err = fmt.Errorf("unsupported trace file version %v.%v (update Go toolchain) %v", ver/1000, ver%1000, ver)
+diff --git a/src/runtime/trace/trace_test.go b/src/runtime/trace/trace_test.go
+index 5fad3fb7f0..191bdd939a 100644
+--- a/src/runtime/trace/trace_test.go
++++ b/src/runtime/trace/trace_test.go
+@@ -6,8 +6,10 @@ package trace_test
+ 
+ import (
+ 	"bytes"
++	"flag"
+ 	"internal/trace"
+ 	"io"
++	"io/ioutil"
+ 	"net"
+ 	"os"
+ 	"runtime"
+@@ -17,6 +19,10 @@ import (
+ 	"time"
+ )
+ 
++var (
++	saveTraces = flag.Bool("savetraces", false, "save traces collected by tests")
++)
++
+ func TestTraceStartStop(t *testing.T) {
+ 	buf := new(bytes.Buffer)
+ 	if err := Start(buf); err != nil {
+@@ -31,6 +37,7 @@ func TestTraceStartStop(t *testing.T) {
+ 	if size != buf.Len() {
+ 		t.Fatalf("trace writes after stop: %v -> %v", size, buf.Len())
+ 	}
++	saveTrace(t, buf, "TestTraceStartStop")
+ }
+ 
+ func TestTraceDoubleStart(t *testing.T) {
+@@ -52,6 +59,7 @@ func TestTrace(t *testing.T) {
+ 		t.Fatalf("failed to start tracing: %v", err)
+ 	}
+ 	Stop()
++	saveTrace(t, buf, "TestTrace")
+ 	_, err := trace.Parse(buf, "")
+ 	if err == trace.ErrTimeOrder {
+ 		t.Skipf("skipping trace: %v", err)
+@@ -233,6 +241,7 @@ func TestTraceStress(t *testing.T) {
+ 	runtime.GOMAXPROCS(procs)
+ 
+ 	Stop()
++	saveTrace(t, buf, "TestTraceStress")
+ 	trace := buf.Bytes()
+ 	parseTrace(t, buf)
+ 	testBrokenTimestamps(t, trace)
+@@ -376,6 +385,7 @@ func TestTraceStressStartStop(t *testing.T) {
+ 		}
+ 		time.Sleep(time.Millisecond)
+ 		Stop()
++		saveTrace(t, buf, "TestTraceStressStartStop")
+ 		trace := buf.Bytes()
+ 		parseTrace(t, buf)
+ 		testBrokenTimestamps(t, trace)
+@@ -436,6 +446,7 @@ func TestTraceFutileWakeup(t *testing.T) {
+ 	done.Wait()
+ 
+ 	Stop()
++	saveTrace(t, buf, "TestTraceFutileWakeup")
+ 	events, _ := parseTrace(t, buf)
+ 	// Check that (1) trace does not contain EvFutileWakeup events and
+ 	// (2) there are no consecutive EvGoBlock/EvGCStart/EvGoBlock events
+@@ -464,3 +475,12 @@ func TestTraceFutileWakeup(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func saveTrace(t *testing.T, buf *bytes.Buffer, name string) {
++	if !*saveTraces {
++		return
++	}
++	if err := ioutil.WriteFile(name+".trace", buf.Bytes(), 0600); err != nil {
++		t.Errorf("failed to write trace file: %s", err)
++	}
++}

@@ -10,6 +10,22 @@ Date:   Thu Feb 11 18:13:17 2016 -0600
     Change-Id: Ifaf96bdb25462c9df7ba01fdfdbf0d379631f555
     Reviewed-on: https://go-review.googlesource.com/19476
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/value.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index 0d6c19b80a..c2ea6ee202 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -113,6 +113,10 @@ func (v *Value) LongString() string {
+ 		s += fmt.Sprintf(" [%g]", v.AuxFloat())
+ 	case auxString:
+ 		s += fmt.Sprintf(" {%s}", v.Aux)
++	case auxSym:
++		if v.Aux != nil {
++			s += fmt.Sprintf(" {%s}", v.Aux)
++		}
+ 	case auxSymOff:
+ 		if v.Aux != nil {
+ 			s += fmt.Sprintf(" {%s}", v.Aux)

@@ -13,7 +13,7 @@ Date:   Wed Sep 4 16:12:10 2019 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/export_test.go | 178 +-----------
  src/runtime/gc_test.go     |  23 --
  src/runtime/malloc.go      |   3 -
@@ -23,3 +23,1859 @@ Date:   Wed Sep 4 16:12:10 2019 +0000
  src/runtime/mheap.go       | 474 ++------------------------------
  src/runtime/treap_test.go  | 270 -------------------
  8 files changed, 27 insertions(+), 1606 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index fa0a77e43b..48628370db 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -12,8 +12,6 @@ import (
+ 	"unsafe"
+ )
+ 
+-const OldPageAllocator = oldPageAllocator
+-
+ var Fadd64 = fadd64
+ var Fsub64 = fsub64
+ var Fmul64 = fmul64
+@@ -356,15 +354,9 @@ func ReadMemStatsSlow() (base, slow MemStats) {
+ 			slow.BySize[i].Frees = bySize[i].Frees
+ 		}
+ 
+-		if oldPageAllocator {
+-			for i := mheap_.free.start(0, 0); i.valid(); i = i.next() {
+-				slow.HeapReleased += uint64(i.span().released())
+-			}
+-		} else {
+-			for i := mheap_.pages.start; i < mheap_.pages.end; i++ {
+-				pg := mheap_.pages.chunks[i].scavenged.popcntRange(0, pallocChunkPages)
+-				slow.HeapReleased += uint64(pg) * pageSize
+-			}
++		for i := mheap_.pages.start; i < mheap_.pages.end; i++ {
++			pg := mheap_.pages.chunks[i].scavenged.popcntRange(0, pallocChunkPages)
++			slow.HeapReleased += uint64(pg) * pageSize
+ 		}
+ 
+ 		// Unused space in the current arena also counts as released space.
+@@ -543,170 +535,6 @@ func MapTombstoneCheck(m map[int]int) {
+ 	}
+ }
+ 
+-// UnscavHugePagesSlow returns the value of mheap_.freeHugePages
+-// and the number of unscavenged huge pages calculated by
+-// scanning the heap.
+-func UnscavHugePagesSlow() (uintptr, uintptr) {
+-	var base, slow uintptr
+-	// Run on the system stack to avoid deadlock from stack growth
+-	// trying to acquire the heap lock.
+-	systemstack(func() {
+-		lock(&mheap_.lock)
+-		base = mheap_.free.unscavHugePages
+-		for _, s := range mheap_.allspans {
+-			if s.state.get() == mSpanFree && !s.scavenged {
+-				slow += s.hugePages()
+-			}
+-		}
+-		unlock(&mheap_.lock)
+-	})
+-	return base, slow
+-}
+-
+-// Span is a safe wrapper around an mspan, whose memory
+-// is managed manually.
+-type Span struct {
+-	*mspan
+-}
+-
+-func AllocSpan(base, npages uintptr, scavenged bool) Span {
+-	var s *mspan
+-	systemstack(func() {
+-		lock(&mheap_.lock)
+-		s = (*mspan)(mheap_.spanalloc.alloc())
+-		unlock(&mheap_.lock)
+-	})
+-	s.init(base, npages)
+-	s.scavenged = scavenged
+-	return Span{s}
+-}
+-
+-func (s *Span) Free() {
+-	systemstack(func() {
+-		lock(&mheap_.lock)
+-		mheap_.spanalloc.free(unsafe.Pointer(s.mspan))
+-		unlock(&mheap_.lock)
+-	})
+-	s.mspan = nil
+-}
+-
+-func (s Span) Base() uintptr {
+-	return s.mspan.base()
+-}
+-
+-func (s Span) Pages() uintptr {
+-	return s.mspan.npages
+-}
+-
+-type TreapIterType treapIterType
+-
+-const (
+-	TreapIterScav TreapIterType = TreapIterType(treapIterScav)
+-	TreapIterHuge               = TreapIterType(treapIterHuge)
+-	TreapIterBits               = treapIterBits
+-)
+-
+-type TreapIterFilter treapIterFilter
+-
+-func TreapFilter(mask, match TreapIterType) TreapIterFilter {
+-	return TreapIterFilter(treapFilter(treapIterType(mask), treapIterType(match)))
+-}
+-
+-func (s Span) MatchesIter(mask, match TreapIterType) bool {
+-	return treapFilter(treapIterType(mask), treapIterType(match)).matches(s.treapFilter())
+-}
+-
+-type TreapIter struct {
+-	treapIter
+-}
+-
+-func (t TreapIter) Span() Span {
+-	return Span{t.span()}
+-}
+-
+-func (t TreapIter) Valid() bool {
+-	return t.valid()
+-}
+-
+-func (t TreapIter) Next() TreapIter {
+-	return TreapIter{t.next()}
+-}
+-
+-func (t TreapIter) Prev() TreapIter {
+-	return TreapIter{t.prev()}
+-}
+-
+-// Treap is a safe wrapper around mTreap for testing.
+-//
+-// It must never be heap-allocated because mTreap is
+-// notinheap.
+-//
+-//go:notinheap
+-type Treap struct {
+-	mTreap
+-}
+-
+-func (t *Treap) Start(mask, match TreapIterType) TreapIter {
+-	return TreapIter{t.start(treapIterType(mask), treapIterType(match))}
+-}
+-
+-func (t *Treap) End(mask, match TreapIterType) TreapIter {
+-	return TreapIter{t.end(treapIterType(mask), treapIterType(match))}
+-}
+-
+-func (t *Treap) Insert(s Span) {
+-	// mTreap uses a fixalloc in mheap_ for treapNode
+-	// allocation which requires the mheap_ lock to manipulate.
+-	// Locking here is safe because the treap itself never allocs
+-	// or otherwise ends up grabbing this lock.
+-	systemstack(func() {
+-		lock(&mheap_.lock)
+-		t.insert(s.mspan)
+-		unlock(&mheap_.lock)
+-	})
+-	t.CheckInvariants()
+-}
+-
+-func (t *Treap) Find(npages uintptr) TreapIter {
+-	return TreapIter{t.find(npages)}
+-}
+-
+-func (t *Treap) Erase(i TreapIter) {
+-	// mTreap uses a fixalloc in mheap_ for treapNode
+-	// freeing which requires the mheap_ lock to manipulate.
+-	// Locking here is safe because the treap itself never allocs
+-	// or otherwise ends up grabbing this lock.
+-	systemstack(func() {
+-		lock(&mheap_.lock)
+-		t.erase(i.treapIter)
+-		unlock(&mheap_.lock)
+-	})
+-	t.CheckInvariants()
+-}
+-
+-func (t *Treap) RemoveSpan(s Span) {
+-	// See Erase about locking.
+-	systemstack(func() {
+-		lock(&mheap_.lock)
+-		t.removeSpan(s.mspan)
+-		unlock(&mheap_.lock)
+-	})
+-	t.CheckInvariants()
+-}
+-
+-func (t *Treap) Size() int {
+-	i := 0
+-	t.mTreap.treap.walkTreap(func(t *treapNode) {
+-		i++
+-	})
+-	return i
+-}
+-
+-func (t *Treap) CheckInvariants() {
+-	t.mTreap.treap.walkTreap(checkTreapNode)
+-	t.mTreap.treap.validateInvariants()
+-}
+-
+ func RunGetgThreadSwitchTest() {
+ 	// Test that getg works correctly with thread switch.
+ 	// With gccgo, if we generate getg inlined, the backend
+diff --git a/src/runtime/gc_test.go b/src/runtime/gc_test.go
+index efabc05a43..54a0e7d604 100644
+--- a/src/runtime/gc_test.go
++++ b/src/runtime/gc_test.go
+@@ -464,29 +464,6 @@ func TestReadMemStats(t *testing.T) {
+ 	}
+ }
+ 
+-func TestUnscavHugePages(t *testing.T) {
+-	if !runtime.OldPageAllocator {
+-		// This test is only relevant for the old page allocator.
+-		return
+-	}
+-	// Allocate 20 MiB and immediately free it a few times to increase
+-	// the chance that unscavHugePages isn't zero and that some kind of
+-	// accounting had to happen in the runtime.
+-	for j := 0; j < 3; j++ {
+-		var large [][]byte
+-		for i := 0; i < 5; i++ {
+-			large = append(large, make([]byte, runtime.PhysHugePageSize))
+-		}
+-		runtime.KeepAlive(large)
+-		runtime.GC()
+-	}
+-	base, slow := runtime.UnscavHugePagesSlow()
+-	if base != slow {
+-		logDiff(t, "unscavHugePages", reflect.ValueOf(base), reflect.ValueOf(slow))
+-		t.Fatal("unscavHugePages mismatch")
+-	}
+-}
+-
+ func logDiff(t *testing.T, prefix string, got, want reflect.Value) {
+ 	typ := got.Type()
+ 	switch typ.Kind() {
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index ef1c975cea..754cfb72fb 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -317,9 +317,6 @@ const (
+ 	//
+ 	// This should agree with minZeroPage in the compiler.
+ 	minLegalPointer uintptr = 4096
+-
+-	// Whether to use the old page allocator or not.
+-	oldPageAllocator = false
+ )
+ 
+ // physPageSize is the size in bytes of the OS's physical pages.
+diff --git a/src/runtime/malloc_test.go b/src/runtime/malloc_test.go
+index 9831dbe079..1040fb6a8f 100644
+--- a/src/runtime/malloc_test.go
++++ b/src/runtime/malloc_test.go
+@@ -177,10 +177,6 @@ func TestPhysicalMemoryUtilization(t *testing.T) {
+ }
+ 
+ func TestScavengedBitsCleared(t *testing.T) {
+-	if OldPageAllocator {
+-		// This test is only relevant for the new page allocator.
+-		return
+-	}
+ 	var mismatches [128]BitsMismatch
+ 	if n, ok := CheckScavengedBitsCleared(mismatches[:]); !ok {
+ 		t.Errorf("uncleared scavenged bits")
+diff --git a/src/runtime/mgclarge.go b/src/runtime/mgclarge.go
+deleted file mode 100644
+index 414db10019..0000000000
+--- a/src/runtime/mgclarge.go
++++ /dev/null
+@@ -1,657 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Page heap.
+-//
+-// See malloc.go for the general overview.
+-//
+-// Allocation policy is the subject of this file. All free spans live in
+-// a treap for most of their time being free. See
+-// https://en.wikipedia.org/wiki/Treap or
+-// https://faculty.washington.edu/aragon/pubs/rst89.pdf for an overview.
+-// sema.go also holds an implementation of a treap.
+-//
+-// Each treapNode holds a single span. The treap is sorted by base address
+-// and each span necessarily has a unique base address.
+-// Spans are returned based on a first-fit algorithm, acquiring the span
+-// with the lowest base address which still satisfies the request.
+-//
+-// The first-fit algorithm is possible due to an augmentation of each
+-// treapNode to maintain the size of the largest span in the subtree rooted
+-// at that treapNode. Below we refer to this invariant as the maxPages
+-// invariant.
+-//
+-// The primary routines are
+-// insert: adds a span to the treap
+-// remove: removes the span from that treap that best fits the required size
+-// removeSpan: which removes a specific span from the treap
+-//
+-// Whenever a pointer to a span which is owned by the treap is acquired, that
+-// span must not be mutated. To mutate a span in the treap, remove it first.
+-//
+-// mheap_.lock must be held when manipulating this data structure.
+-
+-package runtime
+-
+-import (
+-	"unsafe"
+-)
+-
+-//go:notinheap
+-type mTreap struct {
+-	treap           *treapNode
+-	unscavHugePages uintptr // number of unscavenged huge pages in the treap
+-}
+-
+-//go:notinheap
+-type treapNode struct {
+-	right    *treapNode      // all treapNodes > this treap node
+-	left     *treapNode      // all treapNodes < this treap node
+-	parent   *treapNode      // direct parent of this node, nil if root
+-	key      uintptr         // base address of the span, used as primary sort key
+-	span     *mspan          // span at base address key
+-	maxPages uintptr         // the maximum size of any span in this subtree, including the root
+-	priority uint32          // random number used by treap algorithm to keep tree probabilistically balanced
+-	types    treapIterFilter // the types of spans available in this subtree
+-}
+-
+-// updateInvariants is a helper method which has a node recompute its own
+-// maxPages and types values by looking at its own span as well as the
+-// values of its direct children.
+-//
+-// Returns true if anything changed.
+-func (t *treapNode) updateInvariants() bool {
+-	m, i := t.maxPages, t.types
+-	t.maxPages = t.span.npages
+-	t.types = t.span.treapFilter()
+-	if t.left != nil {
+-		t.types |= t.left.types
+-		if t.maxPages < t.left.maxPages {
+-			t.maxPages = t.left.maxPages
+-		}
+-	}
+-	if t.right != nil {
+-		t.types |= t.right.types
+-		if t.maxPages < t.right.maxPages {
+-			t.maxPages = t.right.maxPages
+-		}
+-	}
+-	return m != t.maxPages || i != t.types
+-}
+-
+-// findMinimal finds the minimal (lowest base addressed) node in the treap
+-// which matches the criteria set out by the filter f and returns nil if
+-// none exists.
+-//
+-// This algorithm is functionally the same as (*mTreap).find, so see that
+-// method for more details.
+-func (t *treapNode) findMinimal(f treapIterFilter) *treapNode {
+-	if t == nil || !f.matches(t.types) {
+-		return nil
+-	}
+-	for t != nil {
+-		if t.left != nil && f.matches(t.left.types) {
+-			t = t.left
+-		} else if f.matches(t.span.treapFilter()) {
+-			break
+-		} else if t.right != nil && f.matches(t.right.types) {
+-			t = t.right
+-		} else {
+-			println("runtime: f=", f)
+-			throw("failed to find minimal node matching filter")
+-		}
+-	}
+-	return t
+-}
+-
+-// findMaximal finds the maximal (highest base addressed) node in the treap
+-// which matches the criteria set out by the filter f and returns nil if
+-// none exists.
+-//
+-// This algorithm is the logical inversion of findMinimal and just changes
+-// the order of the left and right tests.
+-func (t *treapNode) findMaximal(f treapIterFilter) *treapNode {
+-	if t == nil || !f.matches(t.types) {
+-		return nil
+-	}
+-	for t != nil {
+-		if t.right != nil && f.matches(t.right.types) {
+-			t = t.right
+-		} else if f.matches(t.span.treapFilter()) {
+-			break
+-		} else if t.left != nil && f.matches(t.left.types) {
+-			t = t.left
+-		} else {
+-			println("runtime: f=", f)
+-			throw("failed to find minimal node matching filter")
+-		}
+-	}
+-	return t
+-}
+-
+-// pred returns the predecessor of t in the treap subject to the criteria
+-// specified by the filter f. Returns nil if no such predecessor exists.
+-func (t *treapNode) pred(f treapIterFilter) *treapNode {
+-	if t.left != nil && f.matches(t.left.types) {
+-		// The node has a left subtree which contains at least one matching
+-		// node, find the maximal matching node in that subtree.
+-		return t.left.findMaximal(f)
+-	}
+-	// Lacking a left subtree, look to the parents.
+-	p := t // previous node
+-	t = t.parent
+-	for t != nil {
+-		// Walk up the tree until we find a node that has a left subtree
+-		// that we haven't already visited.
+-		if t.right == p {
+-			if f.matches(t.span.treapFilter()) {
+-				// If this node matches, then it's guaranteed to be the
+-				// predecessor since everything to its left is strictly
+-				// greater.
+-				return t
+-			} else if t.left != nil && f.matches(t.left.types) {
+-				// Failing the root of this subtree, if its left subtree has
+-				// something, that's where we'll find our predecessor.
+-				return t.left.findMaximal(f)
+-			}
+-		}
+-		p = t
+-		t = t.parent
+-	}
+-	// If the parent is nil, then we've hit the root without finding
+-	// a suitable left subtree containing the node (and the predecessor
+-	// wasn't on the path). Thus, there's no predecessor, so just return
+-	// nil.
+-	return nil
+-}
+-
+-// succ returns the successor of t in the treap subject to the criteria
+-// specified by the filter f. Returns nil if no such successor exists.
+-func (t *treapNode) succ(f treapIterFilter) *treapNode {
+-	// See pred. This method is just the logical inversion of it.
+-	if t.right != nil && f.matches(t.right.types) {
+-		return t.right.findMinimal(f)
+-	}
+-	p := t
+-	t = t.parent
+-	for t != nil {
+-		if t.left == p {
+-			if f.matches(t.span.treapFilter()) {
+-				return t
+-			} else if t.right != nil && f.matches(t.right.types) {
+-				return t.right.findMinimal(f)
+-			}
+-		}
+-		p = t
+-		t = t.parent
+-	}
+-	return nil
+-}
+-
+-// isSpanInTreap is handy for debugging. One should hold the heap lock, usually
+-// mheap_.lock().
+-func (t *treapNode) isSpanInTreap(s *mspan) bool {
+-	if t == nil {
+-		return false
+-	}
+-	return t.span == s || t.left.isSpanInTreap(s) || t.right.isSpanInTreap(s)
+-}
+-
+-// walkTreap is handy for debugging and testing.
+-// Starting at some treapnode t, for example the root, do a depth first preorder walk of
+-// the tree executing fn at each treap node. One should hold the heap lock, usually
+-// mheap_.lock().
+-func (t *treapNode) walkTreap(fn func(tn *treapNode)) {
+-	if t == nil {
+-		return
+-	}
+-	fn(t)
+-	t.left.walkTreap(fn)
+-	t.right.walkTreap(fn)
+-}
+-
+-// checkTreapNode when used in conjunction with walkTreap can usually detect a
+-// poorly formed treap.
+-func checkTreapNode(t *treapNode) {
+-	if t == nil {
+-		return
+-	}
+-	if t.span.next != nil || t.span.prev != nil || t.span.list != nil {
+-		throw("span may be on an mSpanList while simultaneously in the treap")
+-	}
+-	if t.span.base() != t.key {
+-		println("runtime: checkTreapNode treapNode t=", t, "     t.key=", t.key,
+-			"t.span.base()=", t.span.base())
+-		throw("why does span.base() and treap.key do not match?")
+-	}
+-	if t.left != nil && t.key < t.left.key {
+-		throw("found out-of-order spans in treap (left child has greater base address)")
+-	}
+-	if t.right != nil && t.key > t.right.key {
+-		throw("found out-of-order spans in treap (right child has lesser base address)")
+-	}
+-}
+-
+-// validateInvariants is handy for debugging and testing.
+-// It ensures that the various invariants on each treap node are
+-// appropriately maintained throughout the treap by walking the
+-// treap in a post-order manner.
+-func (t *treapNode) validateInvariants() (uintptr, treapIterFilter) {
+-	if t == nil {
+-		return 0, 0
+-	}
+-	leftMax, leftTypes := t.left.validateInvariants()
+-	rightMax, rightTypes := t.right.validateInvariants()
+-	max := t.span.npages
+-	if leftMax > max {
+-		max = leftMax
+-	}
+-	if rightMax > max {
+-		max = rightMax
+-	}
+-	if max != t.maxPages {
+-		println("runtime: t.maxPages=", t.maxPages, "want=", max)
+-		throw("maxPages invariant violated in treap")
+-	}
+-	typ := t.span.treapFilter() | leftTypes | rightTypes
+-	if typ != t.types {
+-		println("runtime: t.types=", t.types, "want=", typ)
+-		throw("types invariant violated in treap")
+-	}
+-	return max, typ
+-}
+-
+-// treapIterType represents the type of iteration to perform
+-// over the treap. Each different flag is represented by a bit
+-// in the type, and types may be combined together by a bitwise
+-// or operation.
+-//
+-// Note that only 5 bits are available for treapIterType, do not
+-// use the 3 higher-order bits. This constraint is to allow for
+-// expansion into a treapIterFilter, which is a uint32.
+-type treapIterType uint8
+-
+-const (
+-	treapIterScav treapIterType = 1 << iota // scavenged spans
+-	treapIterHuge                           // spans containing at least one huge page
+-	treapIterBits = iota
+-)
+-
+-// treapIterFilter is a bitwise filter of different spans by binary
+-// properties. Each bit of a treapIterFilter represents a unique
+-// combination of bits set in a treapIterType, in other words, it
+-// represents the power set of a treapIterType.
+-//
+-// The purpose of this representation is to allow the existence of
+-// a specific span type to bubble up in the treap (see the types
+-// field on treapNode).
+-//
+-// More specifically, any treapIterType may be transformed into a
+-// treapIterFilter for a specific combination of flags via the
+-// following operation: 1 << (0x1f&treapIterType).
+-type treapIterFilter uint32
+-
+-// treapFilterAll represents the filter which allows all spans.
+-const treapFilterAll = ^treapIterFilter(0)
+-
+-// treapFilter creates a new treapIterFilter from two treapIterTypes.
+-// mask represents a bitmask for which flags we should check against
+-// and match for the expected result after applying the mask.
+-func treapFilter(mask, match treapIterType) treapIterFilter {
+-	allow := treapIterFilter(0)
+-	for i := treapIterType(0); i < 1<<treapIterBits; i++ {
+-		if mask&i == match {
+-			allow |= 1 << i
+-		}
+-	}
+-	return allow
+-}
+-
+-// matches returns true if m and f intersect.
+-func (f treapIterFilter) matches(m treapIterFilter) bool {
+-	return f&m != 0
+-}
+-
+-// treapFilter returns the treapIterFilter exactly matching this span,
+-// i.e. popcount(result) == 1.
+-func (s *mspan) treapFilter() treapIterFilter {
+-	have := treapIterType(0)
+-	if s.scavenged {
+-		have |= treapIterScav
+-	}
+-	if s.hugePages() > 0 {
+-		have |= treapIterHuge
+-	}
+-	return treapIterFilter(uint32(1) << (0x1f & have))
+-}
+-
+-// treapIter is a bidirectional iterator type which may be used to iterate over a
+-// an mTreap in-order forwards (increasing order) or backwards (decreasing order).
+-// Its purpose is to hide details about the treap from users when trying to iterate
+-// over it.
+-//
+-// To create iterators over the treap, call start or end on an mTreap.
+-type treapIter struct {
+-	f treapIterFilter
+-	t *treapNode
+-}
+-
+-// span returns the span at the current position in the treap.
+-// If the treap is not valid, span will panic.
+-func (i *treapIter) span() *mspan {
+-	return i.t.span
+-}
+-
+-// valid returns whether the iterator represents a valid position
+-// in the mTreap.
+-func (i *treapIter) valid() bool {
+-	return i.t != nil
+-}
+-
+-// next moves the iterator forward by one. Once the iterator
+-// ceases to be valid, calling next will panic.
+-func (i treapIter) next() treapIter {
+-	i.t = i.t.succ(i.f)
+-	return i
+-}
+-
+-// prev moves the iterator backwards by one. Once the iterator
+-// ceases to be valid, calling prev will panic.
+-func (i treapIter) prev() treapIter {
+-	i.t = i.t.pred(i.f)
+-	return i
+-}
+-
+-// start returns an iterator which points to the start of the treap (the
+-// left-most node in the treap) subject to mask and match constraints.
+-func (root *mTreap) start(mask, match treapIterType) treapIter {
+-	f := treapFilter(mask, match)
+-	return treapIter{f, root.treap.findMinimal(f)}
+-}
+-
+-// end returns an iterator which points to the end of the treap (the
+-// right-most node in the treap) subject to mask and match constraints.
+-func (root *mTreap) end(mask, match treapIterType) treapIter {
+-	f := treapFilter(mask, match)
+-	return treapIter{f, root.treap.findMaximal(f)}
+-}
+-
+-// mutate allows one to mutate the span without removing it from the treap via a
+-// callback. The span's base and size are allowed to change as long as the span
+-// remains in the same order relative to its predecessor and successor.
+-//
+-// Note however that any operation that causes a treap rebalancing inside of fn
+-// is strictly forbidden, as that may cause treap node metadata to go
+-// out-of-sync.
+-func (root *mTreap) mutate(i treapIter, fn func(span *mspan)) {
+-	s := i.span()
+-	// Save some state about the span for later inspection.
+-	hpages := s.hugePages()
+-	scavenged := s.scavenged
+-	// Call the mutator.
+-	fn(s)
+-	// Update unscavHugePages appropriately.
+-	if !scavenged {
+-		mheap_.free.unscavHugePages -= hpages
+-	}
+-	if !s.scavenged {
+-		mheap_.free.unscavHugePages += s.hugePages()
+-	}
+-	// Update the key in case the base changed.
+-	i.t.key = s.base()
+-	// Updating invariants up the tree needs to happen if
+-	// anything changed at all, so just go ahead and do it
+-	// unconditionally.
+-	//
+-	// If it turns out nothing changed, it'll exit quickly.
+-	t := i.t
+-	for t != nil && t.updateInvariants() {
+-		t = t.parent
+-	}
+-}
+-
+-// insert adds span to the large span treap.
+-func (root *mTreap) insert(span *mspan) {
+-	if !span.scavenged {
+-		root.unscavHugePages += span.hugePages()
+-	}
+-	base := span.base()
+-	var last *treapNode
+-	pt := &root.treap
+-	for t := *pt; t != nil; t = *pt {
+-		last = t
+-		if t.key < base {
+-			pt = &t.right
+-		} else if t.key > base {
+-			pt = &t.left
+-		} else {
+-			throw("inserting span already in treap")
+-		}
+-	}
+-
+-	// Add t as new leaf in tree of span size and unique addrs.
+-	// The balanced tree is a treap using priority as the random heap priority.
+-	// That is, it is a binary tree ordered according to the key,
+-	// but then among the space of possible binary trees respecting those
+-	// keys, it is kept balanced on average by maintaining a heap ordering
+-	// on the priority: s.priority <= both s.right.priority and s.right.priority.
+-	// https://en.wikipedia.org/wiki/Treap
+-	// https://faculty.washington.edu/aragon/pubs/rst89.pdf
+-
+-	t := (*treapNode)(mheap_.treapalloc.alloc())
+-	t.key = span.base()
+-	t.priority = fastrand()
+-	t.span = span
+-	t.maxPages = span.npages
+-	t.types = span.treapFilter()
+-	t.parent = last
+-	*pt = t // t now at a leaf.
+-
+-	// Update the tree to maintain the various invariants.
+-	i := t
+-	for i.parent != nil && i.parent.updateInvariants() {
+-		i = i.parent
+-	}
+-
+-	// Rotate up into tree according to priority.
+-	for t.parent != nil && t.parent.priority > t.priority {
+-		if t != nil && t.span.base() != t.key {
+-			println("runtime: insert t=", t, "t.key=", t.key)
+-			println("runtime:      t.span=", t.span, "t.span.base()=", t.span.base())
+-			throw("span and treap node base addresses do not match")
+-		}
+-		if t.parent.left == t {
+-			root.rotateRight(t.parent)
+-		} else {
+-			if t.parent.right != t {
+-				throw("treap insert finds a broken treap")
+-			}
+-			root.rotateLeft(t.parent)
+-		}
+-	}
+-}
+-
+-func (root *mTreap) removeNode(t *treapNode) {
+-	if !t.span.scavenged {
+-		root.unscavHugePages -= t.span.hugePages()
+-	}
+-	if t.span.base() != t.key {
+-		throw("span and treap node base addresses do not match")
+-	}
+-	// Rotate t down to be leaf of tree for removal, respecting priorities.
+-	for t.right != nil || t.left != nil {
+-		if t.right == nil || t.left != nil && t.left.priority < t.right.priority {
+-			root.rotateRight(t)
+-		} else {
+-			root.rotateLeft(t)
+-		}
+-	}
+-	// Remove t, now a leaf.
+-	if t.parent != nil {
+-		p := t.parent
+-		if p.left == t {
+-			p.left = nil
+-		} else {
+-			p.right = nil
+-		}
+-		// Walk up the tree updating invariants until no updates occur.
+-		for p != nil && p.updateInvariants() {
+-			p = p.parent
+-		}
+-	} else {
+-		root.treap = nil
+-	}
+-	// Return the found treapNode's span after freeing the treapNode.
+-	mheap_.treapalloc.free(unsafe.Pointer(t))
+-}
+-
+-// find searches for, finds, and returns the treap iterator over all spans
+-// representing the position of the span with the smallest base address which is
+-// at least npages in size. If no span has at least npages it returns an invalid
+-// iterator.
+-//
+-// This algorithm is as follows:
+-// * If there's a left child and its subtree can satisfy this allocation,
+-//   continue down that subtree.
+-// * If there's no such left child, check if the root of this subtree can
+-//   satisfy the allocation. If so, we're done.
+-// * If the root cannot satisfy the allocation either, continue down the
+-//   right subtree if able.
+-// * Else, break and report that we cannot satisfy the allocation.
+-//
+-// The preference for left, then current, then right, results in us getting
+-// the left-most node which will contain the span with the lowest base
+-// address.
+-//
+-// Note that if a request cannot be satisfied the fourth case will be
+-// reached immediately at the root, since neither the left subtree nor
+-// the right subtree will have a sufficient maxPages, whilst the root
+-// node is also unable to satisfy it.
+-func (root *mTreap) find(npages uintptr) treapIter {
+-	t := root.treap
+-	for t != nil {
+-		if t.span == nil {
+-			throw("treap node with nil span found")
+-		}
+-		// Iterate over the treap trying to go as far left
+-		// as possible while simultaneously ensuring that the
+-		// subtrees we choose always have a span which can
+-		// satisfy the allocation.
+-		if t.left != nil && t.left.maxPages >= npages {
+-			t = t.left
+-		} else if t.span.npages >= npages {
+-			// Before going right, if this span can satisfy the
+-			// request, stop here.
+-			break
+-		} else if t.right != nil && t.right.maxPages >= npages {
+-			t = t.right
+-		} else {
+-			t = nil
+-		}
+-	}
+-	return treapIter{treapFilterAll, t}
+-}
+-
+-// removeSpan searches for, finds, deletes span along with
+-// the associated treap node. If the span is not in the treap
+-// then t will eventually be set to nil and the t.span
+-// will throw.
+-func (root *mTreap) removeSpan(span *mspan) {
+-	base := span.base()
+-	t := root.treap
+-	for t.span != span {
+-		if t.key < base {
+-			t = t.right
+-		} else if t.key > base {
+-			t = t.left
+-		}
+-	}
+-	root.removeNode(t)
+-}
+-
+-// erase removes the element referred to by the current position of the
+-// iterator. This operation consumes the given iterator, so it should no
+-// longer be used. It is up to the caller to get the next or previous
+-// iterator before calling erase, if need be.
+-func (root *mTreap) erase(i treapIter) {
+-	root.removeNode(i.t)
+-}
+-
+-// rotateLeft rotates the tree rooted at node x.
+-// turning (x a (y b c)) into (y (x a b) c).
+-func (root *mTreap) rotateLeft(x *treapNode) {
+-	// p -> (x a (y b c))
+-	p := x.parent
+-	a, y := x.left, x.right
+-	b, c := y.left, y.right
+-
+-	y.left = x
+-	x.parent = y
+-	y.right = c
+-	if c != nil {
+-		c.parent = y
+-	}
+-	x.left = a
+-	if a != nil {
+-		a.parent = x
+-	}
+-	x.right = b
+-	if b != nil {
+-		b.parent = x
+-	}
+-
+-	y.parent = p
+-	if p == nil {
+-		root.treap = y
+-	} else if p.left == x {
+-		p.left = y
+-	} else {
+-		if p.right != x {
+-			throw("large span treap rotateLeft")
+-		}
+-		p.right = y
+-	}
+-
+-	x.updateInvariants()
+-	y.updateInvariants()
+-}
+-
+-// rotateRight rotates the tree rooted at node y.
+-// turning (y (x a b) c) into (x a (y b c)).
+-func (root *mTreap) rotateRight(y *treapNode) {
+-	// p -> (y (x a b) c)
+-	p := y.parent
+-	x, c := y.left, y.right
+-	a, b := x.left, x.right
+-
+-	x.left = a
+-	if a != nil {
+-		a.parent = x
+-	}
+-	x.right = y
+-	y.parent = x
+-	y.left = b
+-	if b != nil {
+-		b.parent = y
+-	}
+-	y.right = c
+-	if c != nil {
+-		c.parent = y
+-	}
+-
+-	x.parent = p
+-	if p == nil {
+-		root.treap = x
+-	} else if p.left == y {
+-		p.left = x
+-	} else {
+-		if p.right != y {
+-			throw("large span treap rotateRight")
+-		}
+-		p.right = x
+-	}
+-
+-	y.updateInvariants()
+-	x.updateInvariants()
+-}
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 3190cec219..8592ccaa77 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -136,9 +136,7 @@ func gcPaceScavenger() {
+ 		return
+ 	}
+ 	mheap_.scavengeGoal = retainedGoal
+-	if !oldPageAllocator {
+-		mheap_.pages.resetScavengeAddr()
+-	}
++	mheap_.pages.resetScavengeAddr()
+ }
+ 
+ // Sleep/wait state of the background scavenger.
+@@ -252,22 +250,12 @@ func bgscavenge(c chan int) {
+ 				unlock(&mheap_.lock)
+ 				return
+ 			}
++			unlock(&mheap_.lock)
+ 
+-			if oldPageAllocator {
+-				// Scavenge one page, and measure the amount of time spent scavenging.
+-				start := nanotime()
+-				released = mheap_.scavengeLocked(physPageSize)
+-				crit = nanotime() - start
+-
+-				unlock(&mheap_.lock)
+-			} else {
+-				unlock(&mheap_.lock)
+-
+-				// Scavenge one page, and measure the amount of time spent scavenging.
+-				start := nanotime()
+-				released = mheap_.pages.scavengeOne(physPageSize, false)
+-				crit = nanotime() - start
+-			}
++			// Scavenge one page, and measure the amount of time spent scavenging.
++			start := nanotime()
++			released = mheap_.pages.scavengeOne(physPageSize, false)
++			crit = nanotime() - start
+ 		})
+ 
+ 		if debug.gctrace > 0 {
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 8a06e93511..6ff82a7089 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -32,7 +32,6 @@ type mheap struct {
+ 	// lock must only be acquired on the system stack, otherwise a g
+ 	// could self-deadlock if its stack grows with the lock held.
+ 	lock      mutex
+-	free      mTreap    // free spans
+ 	pages     pageAlloc // page allocation data structure
+ 	sweepgen  uint32    // sweep generation, see comment in mspan
+ 	sweepdone uint32    // all spans are swept
+@@ -192,7 +191,6 @@ type mheap struct {
+ 
+ 	spanalloc             fixalloc // allocator for span*
+ 	cachealloc            fixalloc // allocator for mcache*
+-	treapalloc            fixalloc // allocator for treapNodes*
+ 	specialfinalizeralloc fixalloc // allocator for specialfinalizer*
+ 	specialprofilealloc   fixalloc // allocator for specialprofile*
+ 	speciallock           mutex    // lock for special record allocators.
+@@ -313,7 +311,6 @@ const (
+ 	mSpanDead   mSpanState = iota
+ 	mSpanInUse             // allocated for garbage collected heap
+ 	mSpanManual            // allocated for manual management (e.g., stack allocator)
+-	mSpanFree
+ )
+ 
+ // mSpanStateNames are the names of the span states, indexed by
+@@ -429,7 +426,6 @@ type mspan struct {
+ 	needzero    uint8         // needs to be zeroed before allocation
+ 	divShift    uint8         // for divide by elemsize - divMagic.shift
+ 	divShift2   uint8         // for divide by elemsize - divMagic.shift2
+-	scavenged   bool          // whether this span has had its pages released to the OS
+ 	elemsize    uintptr       // computed from sizeclass or from npages
+ 	limit       uintptr       // end of data in span
+ 	speciallock mutex         // guards specials list
+@@ -449,181 +445,6 @@ func (s *mspan) layout() (size, n, total uintptr) {
+ 	return
+ }
+ 
+-// physPageBounds returns the start and end of the span
+-// rounded in to the physical page size.
+-func (s *mspan) physPageBounds() (uintptr, uintptr) {
+-	start := s.base()
+-	end := start + s.npages<<_PageShift
+-	if physPageSize > _PageSize {
+-		// Round start and end in.
+-		start = alignUp(start, physPageSize)
+-		end = alignDown(end, physPageSize)
+-	}
+-	return start, end
+-}
+-
+-func (h *mheap) coalesce(s *mspan) {
+-	// merge is a helper which merges other into s, deletes references to other
+-	// in heap metadata, and then discards it. other must be adjacent to s.
+-	merge := func(a, b, other *mspan) {
+-		// Caller must ensure a.startAddr < b.startAddr and that either a or
+-		// b is s. a and b must be adjacent. other is whichever of the two is
+-		// not s.
+-
+-		if pageSize < physPageSize && a.scavenged && b.scavenged {
+-			// If we're merging two scavenged spans on systems where
+-			// pageSize < physPageSize, then their boundary should always be on
+-			// a physical page boundary, due to the realignment that happens
+-			// during coalescing. Throw if this case is no longer true, which
+-			// means the implementation should probably be changed to scavenge
+-			// along the boundary.
+-			_, start := a.physPageBounds()
+-			end, _ := b.physPageBounds()
+-			if start != end {
+-				println("runtime: a.base=", hex(a.base()), "a.npages=", a.npages)
+-				println("runtime: b.base=", hex(b.base()), "b.npages=", b.npages)
+-				println("runtime: physPageSize=", physPageSize, "pageSize=", pageSize)
+-				throw("neighboring scavenged spans boundary is not a physical page boundary")
+-			}
+-		}
+-
+-		// Adjust s via base and npages and also in heap metadata.
+-		s.npages += other.npages
+-		s.needzero |= other.needzero
+-		if a == s {
+-			h.setSpan(s.base()+s.npages*pageSize-1, s)
+-		} else {
+-			s.startAddr = other.startAddr
+-			h.setSpan(s.base(), s)
+-		}
+-
+-		// The size is potentially changing so the treap needs to delete adjacent nodes and
+-		// insert back as a combined node.
+-		h.free.removeSpan(other)
+-		other.state.set(mSpanDead)
+-		h.spanalloc.free(unsafe.Pointer(other))
+-	}
+-
+-	// realign is a helper which shrinks other and grows s such that their
+-	// boundary is on a physical page boundary.
+-	realign := func(a, b, other *mspan) {
+-		// Caller must ensure a.startAddr < b.startAddr and that either a or
+-		// b is s. a and b must be adjacent. other is whichever of the two is
+-		// not s.
+-
+-		// If pageSize >= physPageSize then spans are always aligned
+-		// to physical page boundaries, so just exit.
+-		if pageSize >= physPageSize {
+-			return
+-		}
+-		// Since we're resizing other, we must remove it from the treap.
+-		h.free.removeSpan(other)
+-
+-		// Round boundary to the nearest physical page size, toward the
+-		// scavenged span.
+-		boundary := b.startAddr
+-		if a.scavenged {
+-			boundary = alignDown(boundary, physPageSize)
+-		} else {
+-			boundary = alignUp(boundary, physPageSize)
+-		}
+-		a.npages = (boundary - a.startAddr) / pageSize
+-		b.npages = (b.startAddr + b.npages*pageSize - boundary) / pageSize
+-		b.startAddr = boundary
+-
+-		h.setSpan(boundary-1, a)
+-		h.setSpan(boundary, b)
+-
+-		// Re-insert other now that it has a new size.
+-		h.free.insert(other)
+-	}
+-
+-	hpMiddle := s.hugePages()
+-
+-	// Coalesce with earlier, later spans.
+-	var hpBefore uintptr
+-	if before := spanOf(s.base() - 1); before != nil && before.state.get() == mSpanFree {
+-		if s.scavenged == before.scavenged {
+-			hpBefore = before.hugePages()
+-			merge(before, s, before)
+-		} else {
+-			realign(before, s, before)
+-		}
+-	}
+-
+-	// Now check to see if next (greater addresses) span is free and can be coalesced.
+-	var hpAfter uintptr
+-	if after := spanOf(s.base() + s.npages*pageSize); after != nil && after.state.get() == mSpanFree {
+-		if s.scavenged == after.scavenged {
+-			hpAfter = after.hugePages()
+-			merge(s, after, after)
+-		} else {
+-			realign(s, after, after)
+-		}
+-	}
+-	if !s.scavenged && s.hugePages() > hpBefore+hpMiddle+hpAfter {
+-		// If s has grown such that it now may contain more huge pages than it
+-		// and its now-coalesced neighbors did before, then mark the whole region
+-		// as huge-page-backable.
+-		//
+-		// Otherwise, on systems where we break up huge pages (like Linux)
+-		// s may not be backed by huge pages because it could be made up of
+-		// pieces which are broken up in the underlying VMA. The primary issue
+-		// with this is that it can lead to a poor estimate of the amount of
+-		// free memory backed by huge pages for determining the scavenging rate.
+-		//
+-		// TODO(mknyszek): Measure the performance characteristics of sysHugePage
+-		// and determine whether it makes sense to only sysHugePage on the pages
+-		// that matter, or if it's better to just mark the whole region.
+-		sysHugePage(unsafe.Pointer(s.base()), s.npages*pageSize)
+-	}
+-}
+-
+-// hugePages returns the number of aligned physical huge pages in the memory
+-// regioned owned by this mspan.
+-func (s *mspan) hugePages() uintptr {
+-	if physHugePageSize == 0 || s.npages < physHugePageSize/pageSize {
+-		return 0
+-	}
+-	start := s.base()
+-	end := start + s.npages*pageSize
+-	if physHugePageSize > pageSize {
+-		// Round start and end in.
+-		start = alignUp(start, physHugePageSize)
+-		end = alignDown(end, physHugePageSize)
+-	}
+-	if start < end {
+-		return (end - start) >> physHugePageShift
+-	}
+-	return 0
+-}
+-
+-func (s *mspan) scavenge() uintptr {
+-	// start and end must be rounded in, otherwise madvise
+-	// will round them *out* and release more memory
+-	// than we want.
+-	start, end := s.physPageBounds()
+-	if end <= start {
+-		// start and end don't span a whole physical page.
+-		return 0
+-	}
+-	released := end - start
+-	memstats.heap_released += uint64(released)
+-	s.scavenged = true
+-	sysUnused(unsafe.Pointer(start), released)
+-	return released
+-}
+-
+-// released returns the number of bytes in this span
+-// which were returned back to the OS.
+-func (s *mspan) released() uintptr {
+-	if !s.scavenged {
+-		return 0
+-	}
+-	start, end := s.physPageBounds()
+-	return end - start
+-}
+-
+ // recordspan adds a newly allocated span to h.allspans.
+ //
+ // This only happens the first time a span is allocated from
+@@ -840,7 +661,6 @@ func pageIndexOf(p uintptr) (arena *heapArena, pageIdx uintptr, pageMask uint8)
+ 
+ // Initialize the heap.
+ func (h *mheap) init() {
+-	h.treapalloc.init(unsafe.Sizeof(treapNode{}), nil, nil, &memstats.other_sys)
+ 	h.spanalloc.init(unsafe.Sizeof(mspan{}), recordspan, unsafe.Pointer(h), &memstats.mspan_sys)
+ 	h.cachealloc.init(unsafe.Sizeof(mcache{}), nil, nil, &memstats.mcache_sys)
+ 	h.specialfinalizeralloc.init(unsafe.Sizeof(specialfinalizer{}), nil, nil, &memstats.other_sys)
+@@ -862,9 +682,7 @@ func (h *mheap) init() {
+ 		h.central[i].mcentral.init(spanClass(i))
+ 	}
+ 
+-	if !oldPageAllocator {
+-		h.pages.init(&h.lock, &memstats.gc_sys)
+-	}
++	h.pages.init(&h.lock, &memstats.gc_sys)
+ }
+ 
+ // reclaim sweeps and reclaims at least npage pages into the heap.
+@@ -1195,12 +1013,6 @@ func (h *mheap) allocManual(npage uintptr, stat *uint64) *mspan {
+ 	return s
+ }
+ 
+-// setSpan modifies the span map so spanOf(base) is s.
+-func (h *mheap) setSpan(base uintptr, s *mspan) {
+-	ai := arenaIndex(base)
+-	h.arenas[ai.l1()][ai.l2()].spans[(base/pageSize)%pagesPerArena] = s
+-}
+-
+ // setSpans modifies the span map so [spanOf(base), spanOf(base+npage*pageSize))
+ // is s.
+ func (h *mheap) setSpans(base, npage uintptr, s *mspan) {
+@@ -1274,9 +1086,6 @@ func (h *mheap) allocNeedsZero(base, npage uintptr) (needZero bool) {
+ // The returned span has been removed from the
+ // free structures, but its state is still mSpanFree.
+ func (h *mheap) allocSpanLocked(npage uintptr, stat *uint64) *mspan {
+-	if oldPageAllocator {
+-		return h.allocSpanLockedOld(npage, stat)
+-	}
+ 	base, scav := h.pages.alloc(npage)
+ 	if base != 0 {
+ 		goto HaveBase
+@@ -1311,97 +1120,13 @@ HaveBase:
+ 	return s
+ }
+ 
+-// Allocates a span of the given size.  h must be locked.
+-// The returned span has been removed from the
+-// free structures, but its state is still mSpanFree.
+-func (h *mheap) allocSpanLockedOld(npage uintptr, stat *uint64) *mspan {
+-	t := h.free.find(npage)
+-	if t.valid() {
+-		goto HaveSpan
+-	}
+-	if !h.grow(npage) {
+-		return nil
+-	}
+-	t = h.free.find(npage)
+-	if t.valid() {
+-		goto HaveSpan
+-	}
+-	throw("grew heap, but no adequate free span found")
+-
+-HaveSpan:
+-	s := t.span()
+-	if s.state.get() != mSpanFree {
+-		throw("candidate mspan for allocation is not free")
+-	}
+-
+-	// First, subtract any memory that was released back to
+-	// the OS from s. We will add back what's left if necessary.
+-	memstats.heap_released -= uint64(s.released())
+-
+-	if s.npages == npage {
+-		h.free.erase(t)
+-	} else if s.npages > npage {
+-		// Trim off the lower bits and make that our new span.
+-		// Do this in-place since this operation does not
+-		// affect the original span's location in the treap.
+-		n := (*mspan)(h.spanalloc.alloc())
+-		h.free.mutate(t, func(s *mspan) {
+-			n.init(s.base(), npage)
+-			s.npages -= npage
+-			s.startAddr = s.base() + npage*pageSize
+-			h.setSpan(s.base()-1, n)
+-			h.setSpan(s.base(), s)
+-			h.setSpan(n.base(), n)
+-			n.needzero = s.needzero
+-			// n may not be big enough to actually be scavenged, but that's fine.
+-			// We still want it to appear to be scavenged so that we can do the
+-			// right bookkeeping later on in this function (i.e. sysUsed).
+-			n.scavenged = s.scavenged
+-			// Check if s is still scavenged.
+-			if s.scavenged {
+-				start, end := s.physPageBounds()
+-				if start < end {
+-					memstats.heap_released += uint64(end - start)
+-				} else {
+-					s.scavenged = false
+-				}
+-			}
+-		})
+-		s = n
+-	} else {
+-		throw("candidate mspan for allocation is too small")
+-	}
+-	// "Unscavenge" s only AFTER splitting so that
+-	// we only sysUsed whatever we actually need.
+-	if s.scavenged {
+-		// sysUsed all the pages that are actually available
+-		// in the span. Note that we don't need to decrement
+-		// heap_released since we already did so earlier.
+-		sysUsed(unsafe.Pointer(s.base()), s.npages<<_PageShift)
+-		s.scavenged = false
+-	}
+-
+-	h.setSpans(s.base(), npage, s)
+-
+-	*stat += uint64(npage << _PageShift)
+-	memstats.heap_idle -= uint64(npage << _PageShift)
+-
+-	if s.inList() {
+-		throw("still in list")
+-	}
+-	return s
+-}
+-
+ // Try to add at least npage pages of memory to the heap,
+ // returning whether it worked.
+ //
+ // h must be locked.
+ func (h *mheap) grow(npage uintptr) bool {
+-	ask := npage << _PageShift
+-	if !oldPageAllocator {
+-		// We must grow the heap in whole palloc chunks.
+-		ask = alignUp(ask, pallocChunkBytes)
+-	}
++	// We must grow the heap in whole palloc chunks.
++	ask := alignUp(npage, pallocChunkPages) * pageSize
+ 
+ 	totalGrowth := uintptr(0)
+ 	nBase := alignUp(h.curArena.base+ask, physPageSize)
+@@ -1424,11 +1149,7 @@ func (h *mheap) grow(npage uintptr) bool {
+ 			// remains of the current space and switch to
+ 			// the new space. This should be rare.
+ 			if size := h.curArena.end - h.curArena.base; size != 0 {
+-				if oldPageAllocator {
+-					h.growAddSpan(unsafe.Pointer(h.curArena.base), size)
+-				} else {
+-					h.pages.grow(h.curArena.base, size)
+-				}
++				h.pages.grow(h.curArena.base, size)
+ 				totalGrowth += size
+ 			}
+ 			// Switch to the new space.
+@@ -1441,10 +1162,7 @@ func (h *mheap) grow(npage uintptr) bool {
+ 		//
+ 		// The allocation is always aligned to the heap arena
+ 		// size which is always > physPageSize, so its safe to
+-		// just add directly to heap_released. Coalescing, if
+-		// possible, will also always be correct in terms of
+-		// accounting, because s.base() must be a physical
+-		// page boundary.
++		// just add directly to heap_released.
+ 		memstats.heap_released += uint64(asize)
+ 		memstats.heap_idle += uint64(asize)
+ 
+@@ -1455,50 +1173,23 @@ func (h *mheap) grow(npage uintptr) bool {
+ 	// Grow into the current arena.
+ 	v := h.curArena.base
+ 	h.curArena.base = nBase
+-	if oldPageAllocator {
+-		h.growAddSpan(unsafe.Pointer(v), nBase-v)
+-	} else {
+-		h.pages.grow(v, nBase-v)
+-		totalGrowth += nBase - v
+-
+-		// We just caused a heap growth, so scavenge down what will soon be used.
+-		// By scavenging inline we deal with the failure to allocate out of
+-		// memory fragments by scavenging the memory fragments that are least
+-		// likely to be re-used.
+-		if retained := heapRetained(); retained+uint64(totalGrowth) > h.scavengeGoal {
+-			todo := totalGrowth
+-			if overage := uintptr(retained + uint64(totalGrowth) - h.scavengeGoal); todo > overage {
+-				todo = overage
+-			}
+-			h.pages.scavenge(todo, true)
++	h.pages.grow(v, nBase-v)
++	totalGrowth += nBase - v
++
++	// We just caused a heap growth, so scavenge down what will soon be used.
++	// By scavenging inline we deal with the failure to allocate out of
++	// memory fragments by scavenging the memory fragments that are least
++	// likely to be re-used.
++	if retained := heapRetained(); retained+uint64(totalGrowth) > h.scavengeGoal {
++		todo := totalGrowth
++		if overage := uintptr(retained + uint64(totalGrowth) - h.scavengeGoal); todo > overage {
++			todo = overage
+ 		}
++		h.pages.scavenge(todo, true)
+ 	}
+ 	return true
+ }
+ 
+-// growAddSpan adds a free span when the heap grows into [v, v+size).
+-// This memory must be in the Prepared state (not Ready).
+-//
+-// h must be locked.
+-func (h *mheap) growAddSpan(v unsafe.Pointer, size uintptr) {
+-	// Scavenge some pages to make up for the virtual memory space
+-	// we just allocated, but only if we need to.
+-	h.scavengeIfNeededLocked(size)
+-
+-	s := (*mspan)(h.spanalloc.alloc())
+-	s.init(uintptr(v), size/pageSize)
+-	h.setSpans(s.base(), s.npages, s)
+-	s.state.set(mSpanFree)
+-	// [v, v+size) is always in the Prepared state. The new span
+-	// must be marked scavenged so the allocator transitions it to
+-	// Ready when allocating from it.
+-	s.scavenged = true
+-	// This span is both released and idle, but grow already
+-	// updated both memstats.
+-	h.coalesce(s)
+-	h.free.insert(s)
+-}
+-
+ // Free the span back into the heap.
+ //
+ // large must match the value of large passed to mheap.alloc. This is
+@@ -1577,17 +1268,6 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool) {
+ 		memstats.heap_idle += uint64(s.npages << _PageShift)
+ 	}
+ 
+-	if oldPageAllocator {
+-		s.state.set(mSpanFree)
+-
+-		// Coalesce span with neighbors.
+-		h.coalesce(s)
+-
+-		// Insert s into the treap.
+-		h.free.insert(s)
+-		return
+-	}
+-
+ 	// Mark the space as free.
+ 	h.pages.free(s.base(), s.npages)
+ 
+@@ -1596,118 +1276,6 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool) {
+ 	h.spanalloc.free(unsafe.Pointer(s))
+ }
+ 
+-// scavengeSplit takes t.span() and attempts to split off a span containing size
+-// (in bytes) worth of physical pages from the back.
+-//
+-// The split point is only approximately defined by size since the split point
+-// is aligned to physPageSize and pageSize every time. If physHugePageSize is
+-// non-zero and the split point would break apart a huge page in the span, then
+-// the split point is also aligned to physHugePageSize.
+-//
+-// If the desired split point ends up at the base of s, or if size is obviously
+-// much larger than s, then a split is not possible and this method returns nil.
+-// Otherwise if a split occurred it returns the newly-created span.
+-func (h *mheap) scavengeSplit(t treapIter, size uintptr) *mspan {
+-	s := t.span()
+-	start, end := s.physPageBounds()
+-	if end <= start || end-start <= size {
+-		// Size covers the whole span.
+-		return nil
+-	}
+-	// The span is bigger than what we need, so compute the base for the new
+-	// span if we decide to split.
+-	base := end - size
+-	// Round down to the next physical or logical page, whichever is bigger.
+-	base &^= (physPageSize - 1) | (pageSize - 1)
+-	if base <= start {
+-		return nil
+-	}
+-	if physHugePageSize > pageSize && alignDown(base, physHugePageSize) >= start {
+-		// We're in danger of breaking apart a huge page, so include the entire
+-		// huge page in the bound by rounding down to the huge page size.
+-		// base should still be aligned to pageSize.
+-		base = alignDown(base, physHugePageSize)
+-	}
+-	if base == start {
+-		// After all that we rounded base down to s.base(), so no need to split.
+-		return nil
+-	}
+-	if base < start {
+-		print("runtime: base=", base, ", s.npages=", s.npages, ", s.base()=", s.base(), ", size=", size, "\n")
+-		print("runtime: physPageSize=", physPageSize, ", physHugePageSize=", physHugePageSize, "\n")
+-		throw("bad span split base")
+-	}
+-
+-	// Split s in-place, removing from the back.
+-	n := (*mspan)(h.spanalloc.alloc())
+-	nbytes := s.base() + s.npages*pageSize - base
+-	h.free.mutate(t, func(s *mspan) {
+-		n.init(base, nbytes/pageSize)
+-		s.npages -= nbytes / pageSize
+-		h.setSpan(n.base()-1, s)
+-		h.setSpan(n.base(), n)
+-		h.setSpan(n.base()+nbytes-1, n)
+-		n.needzero = s.needzero
+-		n.state.set(s.state.get())
+-	})
+-	return n
+-}
+-
+-// scavengeLocked scavenges nbytes worth of spans in the free treap by
+-// starting from the span with the highest base address and working down.
+-// It then takes those spans and places them in scav.
+-//
+-// Returns the amount of memory scavenged in bytes. h must be locked.
+-func (h *mheap) scavengeLocked(nbytes uintptr) uintptr {
+-	released := uintptr(0)
+-	// Iterate over spans with huge pages first, then spans without.
+-	const mask = treapIterScav | treapIterHuge
+-	for _, match := range []treapIterType{treapIterHuge, 0} {
+-		// Iterate over the treap backwards (from highest address to lowest address)
+-		// scavenging spans until we've reached our quota of nbytes.
+-		for t := h.free.end(mask, match); released < nbytes && t.valid(); {
+-			s := t.span()
+-			start, end := s.physPageBounds()
+-			if start >= end {
+-				// This span doesn't cover at least one physical page, so skip it.
+-				t = t.prev()
+-				continue
+-			}
+-			n := t.prev()
+-			if span := h.scavengeSplit(t, nbytes-released); span != nil {
+-				s = span
+-			} else {
+-				h.free.erase(t)
+-			}
+-			released += s.scavenge()
+-			// Now that s is scavenged, we must eagerly coalesce it
+-			// with its neighbors to prevent having two spans with
+-			// the same scavenged state adjacent to each other.
+-			h.coalesce(s)
+-			t = n
+-			h.free.insert(s)
+-		}
+-	}
+-	return released
+-}
+-
+-// scavengeIfNeededLocked scavenges memory assuming that size bytes of memory
+-// will become unscavenged soon. It only scavenges enough to bring heapRetained
+-// back down to the scavengeGoal.
+-//
+-// h must be locked.
+-func (h *mheap) scavengeIfNeededLocked(size uintptr) {
+-	if r := heapRetained(); r+uint64(size) > h.scavengeGoal {
+-		todo := uint64(size)
+-		// If we're only going to go a little bit over, just request what
+-		// we actually need done.
+-		if overage := r + uint64(size) - h.scavengeGoal; overage < todo {
+-			todo = overage
+-		}
+-		h.scavengeLocked(uintptr(todo))
+-	}
+-}
+-
+ // scavengeAll visits each node in the free treap and scavenges the
+ // treapNode's span. It then removes the scavenged span from
+ // unscav and adds it into scav before continuing.
+@@ -1718,12 +1286,7 @@ func (h *mheap) scavengeAll() {
+ 	gp := getg()
+ 	gp.m.mallocing++
+ 	lock(&h.lock)
+-	var released uintptr
+-	if oldPageAllocator {
+-		released = h.scavengeLocked(^uintptr(0))
+-	} else {
+-		released = h.pages.scavenge(^uintptr(0), true)
+-	}
++	released := h.pages.scavenge(^uintptr(0), true)
+ 	unlock(&h.lock)
+ 	gp.m.mallocing--
+ 
+@@ -1752,7 +1315,6 @@ func (span *mspan) init(base uintptr, npages uintptr) {
+ 	span.allocCount = 0
+ 	span.spanclass = 0
+ 	span.elemsize = 0
+-	span.scavenged = false
+ 	span.speciallock.key = 0
+ 	span.specials = nil
+ 	span.needzero = 0
+diff --git a/src/runtime/treap_test.go b/src/runtime/treap_test.go
+deleted file mode 100644
+index 110f51c811..0000000000
+--- a/src/runtime/treap_test.go
++++ /dev/null
+@@ -1,270 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package runtime_test
+-
+-import (
+-	"fmt"
+-	"runtime"
+-	"testing"
+-)
+-
+-var spanDesc = map[uintptr]struct {
+-	pages uintptr
+-	scav  bool
+-}{
+-	0xc0000000: {2, false},
+-	0xc0006000: {1, false},
+-	0xc0010000: {8, false},
+-	0xc0022000: {7, false},
+-	0xc0034000: {4, true},
+-	0xc0040000: {5, false},
+-	0xc0050000: {5, true},
+-	0xc0060000: {5000, false},
+-}
+-
+-// Wrap the Treap one more time because go:notinheap doesn't
+-// actually follow a structure across package boundaries.
+-//
+-//go:notinheap
+-type treap struct {
+-	runtime.Treap
+-}
+-
+-func maskMatchName(mask, match runtime.TreapIterType) string {
+-	return fmt.Sprintf("%0*b-%0*b", runtime.TreapIterBits, uint8(mask), runtime.TreapIterBits, uint8(match))
+-}
+-
+-func TestTreapFilter(t *testing.T) {
+-	var iterTypes = [...]struct {
+-		mask, match runtime.TreapIterType
+-		filter      runtime.TreapIterFilter // expected filter
+-	}{
+-		{0, 0, 0xf},
+-		{runtime.TreapIterScav, 0, 0x5},
+-		{runtime.TreapIterScav, runtime.TreapIterScav, 0xa},
+-		{runtime.TreapIterScav | runtime.TreapIterHuge, runtime.TreapIterHuge, 0x4},
+-		{runtime.TreapIterScav | runtime.TreapIterHuge, 0, 0x1},
+-		{0, runtime.TreapIterScav, 0x0},
+-	}
+-	for _, it := range iterTypes {
+-		t.Run(maskMatchName(it.mask, it.match), func(t *testing.T) {
+-			if f := runtime.TreapFilter(it.mask, it.match); f != it.filter {
+-				t.Fatalf("got %#x, want %#x", f, it.filter)
+-			}
+-		})
+-	}
+-}
+-
+-// This test ensures that the treap implementation in the runtime
+-// maintains all stated invariants after different sequences of
+-// insert, removeSpan, find, and erase. Invariants specific to the
+-// treap data structure are checked implicitly: after each mutating
+-// operation, treap-related invariants are checked for the entire
+-// treap.
+-func TestTreap(t *testing.T) {
+-	// Set up a bunch of spans allocated into mheap_.
+-	// Also, derive a set of typeCounts of each type of span
+-	// according to runtime.TreapIterType so we can verify against
+-	// them later.
+-	spans := make([]runtime.Span, 0, len(spanDesc))
+-	typeCounts := [1 << runtime.TreapIterBits][1 << runtime.TreapIterBits]int{}
+-	for base, de := range spanDesc {
+-		s := runtime.AllocSpan(base, de.pages, de.scav)
+-		defer s.Free()
+-		spans = append(spans, s)
+-
+-		for i := runtime.TreapIterType(0); i < 1<<runtime.TreapIterBits; i++ {
+-			for j := runtime.TreapIterType(0); j < 1<<runtime.TreapIterBits; j++ {
+-				if s.MatchesIter(i, j) {
+-					typeCounts[i][j]++
+-				}
+-			}
+-		}
+-	}
+-	t.Run("TypeCountsSanity", func(t *testing.T) {
+-		// Just sanity check type counts for a few values.
+-		check := func(mask, match runtime.TreapIterType, count int) {
+-			tc := typeCounts[mask][match]
+-			if tc != count {
+-				name := maskMatchName(mask, match)
+-				t.Fatalf("failed a sanity check for mask/match %s counts: got %d, wanted %d", name, tc, count)
+-			}
+-		}
+-		check(0, 0, len(spanDesc))
+-		check(runtime.TreapIterScav, 0, 6)
+-		check(runtime.TreapIterScav, runtime.TreapIterScav, 2)
+-	})
+-	t.Run("Insert", func(t *testing.T) {
+-		tr := treap{}
+-		// Test just a very basic insert/remove for sanity.
+-		tr.Insert(spans[0])
+-		tr.RemoveSpan(spans[0])
+-	})
+-	t.Run("FindTrivial", func(t *testing.T) {
+-		tr := treap{}
+-		// Test just a very basic find operation for sanity.
+-		tr.Insert(spans[0])
+-		i := tr.Find(1)
+-		if i.Span() != spans[0] {
+-			t.Fatal("found unknown span in treap")
+-		}
+-		tr.RemoveSpan(spans[0])
+-	})
+-	t.Run("FindFirstFit", func(t *testing.T) {
+-		// Run this 10 times, recreating the treap each time.
+-		// Because of the non-deterministic structure of a treap,
+-		// we'll be able to test different structures this way.
+-		for i := 0; i < 10; i++ {
+-			tr := runtime.Treap{}
+-			for _, s := range spans {
+-				tr.Insert(s)
+-			}
+-			i := tr.Find(5)
+-			if i.Span().Base() != 0xc0010000 {
+-				t.Fatalf("expected span at lowest address which could fit 5 pages, instead found span at %x", i.Span().Base())
+-			}
+-			for _, s := range spans {
+-				tr.RemoveSpan(s)
+-			}
+-		}
+-	})
+-	t.Run("Iterate", func(t *testing.T) {
+-		for mask := runtime.TreapIterType(0); mask < 1<<runtime.TreapIterBits; mask++ {
+-			for match := runtime.TreapIterType(0); match < 1<<runtime.TreapIterBits; match++ {
+-				iterName := maskMatchName(mask, match)
+-				t.Run(iterName, func(t *testing.T) {
+-					t.Run("StartToEnd", func(t *testing.T) {
+-						// Ensure progressing an iterator actually goes over the whole treap
+-						// from the start and that it iterates over the elements in order.
+-						// Furthermore, ensure that it only iterates over the relevant parts
+-						// of the treap.
+-						// Finally, ensures that Start returns a valid iterator.
+-						tr := treap{}
+-						for _, s := range spans {
+-							tr.Insert(s)
+-						}
+-						nspans := 0
+-						lastBase := uintptr(0)
+-						for i := tr.Start(mask, match); i.Valid(); i = i.Next() {
+-							nspans++
+-							if lastBase > i.Span().Base() {
+-								t.Fatalf("not iterating in correct order: encountered base %x before %x", lastBase, i.Span().Base())
+-							}
+-							lastBase = i.Span().Base()
+-							if !i.Span().MatchesIter(mask, match) {
+-								t.Fatalf("found non-matching span while iteration over mask/match %s: base %x", iterName, i.Span().Base())
+-							}
+-						}
+-						if nspans != typeCounts[mask][match] {
+-							t.Fatal("failed to iterate forwards over full treap")
+-						}
+-						for _, s := range spans {
+-							tr.RemoveSpan(s)
+-						}
+-					})
+-					t.Run("EndToStart", func(t *testing.T) {
+-						// See StartToEnd tests.
+-						tr := treap{}
+-						for _, s := range spans {
+-							tr.Insert(s)
+-						}
+-						nspans := 0
+-						lastBase := ^uintptr(0)
+-						for i := tr.End(mask, match); i.Valid(); i = i.Prev() {
+-							nspans++
+-							if lastBase < i.Span().Base() {
+-								t.Fatalf("not iterating in correct order: encountered base %x before %x", lastBase, i.Span().Base())
+-							}
+-							lastBase = i.Span().Base()
+-							if !i.Span().MatchesIter(mask, match) {
+-								t.Fatalf("found non-matching span while iteration over mask/match %s: base %x", iterName, i.Span().Base())
+-							}
+-						}
+-						if nspans != typeCounts[mask][match] {
+-							t.Fatal("failed to iterate backwards over full treap")
+-						}
+-						for _, s := range spans {
+-							tr.RemoveSpan(s)
+-						}
+-					})
+-				})
+-			}
+-		}
+-		t.Run("Prev", func(t *testing.T) {
+-			// Test the iterator invariant that i.prev().next() == i.
+-			tr := treap{}
+-			for _, s := range spans {
+-				tr.Insert(s)
+-			}
+-			i := tr.Start(0, 0).Next().Next()
+-			p := i.Prev()
+-			if !p.Valid() {
+-				t.Fatal("i.prev() is invalid")
+-			}
+-			if p.Next().Span() != i.Span() {
+-				t.Fatal("i.prev().next() != i")
+-			}
+-			for _, s := range spans {
+-				tr.RemoveSpan(s)
+-			}
+-		})
+-		t.Run("Next", func(t *testing.T) {
+-			// Test the iterator invariant that i.next().prev() == i.
+-			tr := treap{}
+-			for _, s := range spans {
+-				tr.Insert(s)
+-			}
+-			i := tr.Start(0, 0).Next().Next()
+-			n := i.Next()
+-			if !n.Valid() {
+-				t.Fatal("i.next() is invalid")
+-			}
+-			if n.Prev().Span() != i.Span() {
+-				t.Fatal("i.next().prev() != i")
+-			}
+-			for _, s := range spans {
+-				tr.RemoveSpan(s)
+-			}
+-		})
+-	})
+-	t.Run("EraseOne", func(t *testing.T) {
+-		// Test that erasing one iterator correctly retains
+-		// all relationships between elements.
+-		tr := treap{}
+-		for _, s := range spans {
+-			tr.Insert(s)
+-		}
+-		i := tr.Start(0, 0).Next().Next().Next()
+-		s := i.Span()
+-		n := i.Next()
+-		p := i.Prev()
+-		tr.Erase(i)
+-		if n.Prev().Span() != p.Span() {
+-			t.Fatal("p, n := i.Prev(), i.Next(); n.prev() != p after i was erased")
+-		}
+-		if p.Next().Span() != n.Span() {
+-			t.Fatal("p, n := i.Prev(), i.Next(); p.next() != n after i was erased")
+-		}
+-		tr.Insert(s)
+-		for _, s := range spans {
+-			tr.RemoveSpan(s)
+-		}
+-	})
+-	t.Run("EraseAll", func(t *testing.T) {
+-		// Test that erasing iterators actually removes nodes from the treap.
+-		tr := treap{}
+-		for _, s := range spans {
+-			tr.Insert(s)
+-		}
+-		for i := tr.Start(0, 0); i.Valid(); {
+-			n := i.Next()
+-			tr.Erase(i)
+-			i = n
+-		}
+-		if size := tr.Size(); size != 0 {
+-			t.Fatalf("should have emptied out treap, %d spans left", size)
+-		}
+-	})
+-}

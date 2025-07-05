@@ -14,6 +14,25 @@ Date:   Wed Jun 28 10:33:15 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/time/time.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/time/time.go b/src/time/time.go
+index 3f13e3431c..0a83543e8a 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -23,10 +23,10 @@
+ // approximately 20 milliseconds, even if the wall clock is changed during
+ // the operation being timed:
+ //
+-//	t := time.Now()
++//	start := time.Now()
+ //	... operation that takes 20 milliseconds ...
+-//	u := time.Now()
+-//	elapsed := t.Sub(u)
++//	t := time.Now()
++//	elapsed := t.Sub(start)
+ //
+ // Other idioms, such as time.Since(start), time.Until(deadline), and
+ // time.Now().Before(deadline), are similarly robust against wall clock

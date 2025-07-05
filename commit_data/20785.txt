@@ -8,6 +8,19 @@ Date:   Thu Oct 9 15:00:23 2014 +0200
     R=golang-codereviews, crawshaw
     CC=golang-codereviews, iant
     https://golang.org/cl/150690043
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index a44e4be2e8..a24178b528 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -256,6 +256,7 @@ Gustav Paul <gustav.paul@gmail.com>
+ Gustavo Franco <gustavorfranco@gmail.com>
+ Gustavo Niemeyer <gustavo@niemeyer.net> <n13m3y3r@gmail.com>
+ Gwenael Treguier <gwenn.kahz@gmail.com>
++Hana Kim <hyangah@gmail.com>
+ Han-Wen Nienhuys <hanwen@google.com>
+ Harley Laue <losinggeneration@gmail.com>
+ Hector Chu <hectorchu@gmail.com>

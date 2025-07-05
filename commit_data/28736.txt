@@ -16,7 +16,45 @@ Date:   Thu Jul 7 16:41:29 2016 -0700
     Change-Id: Ibe5ad50a2c5b125e92b5a4e787db4b5179f6b723
     Reviewed-on: https://go-review.googlesource.com/24812
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/sys_darwin_386.s   | 5 +++++
  src/runtime/sys_darwin_amd64.s | 7 ++++++-
  2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/sys_darwin_386.s b/src/runtime/sys_darwin_386.s
+index 9e45f8a002..83f4709f38 100644
+--- a/src/runtime/sys_darwin_386.s
++++ b/src/runtime/sys_darwin_386.s
+@@ -201,6 +201,11 @@ systime:
+ 	MOVL	$0, 8(SP)	// time zone pointer
+ 	MOVL	$116, AX
+ 	INT	$0x80
++	CMPL	AX, $0
++	JNE	inreg
++	MOVL	12(SP), AX
++	MOVL	16(SP), DX
++inreg:
+ 	// sec is in AX, usec in DX
+ 	// convert to DX:AX nsec
+ 	MOVL	DX, BX
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index 7b9cf6a3bc..e09b906ba5 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -155,10 +155,15 @@ timeloop:
+ 
+ systime:
+ 	// Fall back to system call (usually first call in this thread).
+-	MOVQ	SP, DI	// must be non-nil, unused
++	MOVQ	SP, DI
+ 	MOVQ	$0, SI
+ 	MOVL	$(0x2000000+116), AX
+ 	SYSCALL
++	CMPQ	AX, $0
++	JNE	inreg
++	MOVQ	0(SP), AX
++	MOVL	8(SP), DX
++inreg:
+ 	// sec is in AX, usec in DX
+ 	// return nsec in AX
+ 	IMULQ	$1000000000, AX

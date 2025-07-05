@@ -22,7 +22,7 @@ Date:   Wed Sep 21 14:25:34 2022 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/assignments.go     | 10 ++---
  src/cmd/compile/internal/types2/errorcodes.go      |  2 +-
  src/cmd/compile/internal/types2/issues_test.go     | 10 ++---
@@ -60,3 +60,842 @@ Date:   Wed Sep 21 14:25:34 2022 -0700
  test/import4.dir/import4.go                        | 12 +++---
  test/typeswitch2b.go                               |  4 +-
  36 files changed, 110 insertions(+), 118 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index 1396284bad..10e3575b4d 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -142,7 +142,7 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) Type {
+ 		}
+ 		// Note: This was reverted in go/types (https://golang.org/cl/292751).
+ 		// TODO(gri): decide what to do (also affects test/run.go exclusion list)
+-		lhs.used = true // avoid follow-on "declared but not used" errors
++		lhs.used = true // avoid follow-on "declared and not used" errors
+ 		return nil
+ 	}
+ 
+@@ -163,7 +163,7 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) Type {
+ 
+ 	check.assignment(x, lhs.typ, context)
+ 	if x.mode == invalid {
+-		lhs.used = true // avoid follow-on "declared but not used" errors
++		lhs.used = true // avoid follow-on "declared and not used" errors
+ 		return nil
+ 	}
+ 
+@@ -325,7 +325,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt sy
+ 	if len(lhs) != len(rhs) {
+ 		// invalidate lhs
+ 		for _, obj := range lhs {
+-			obj.used = true // avoid declared but not used errors
++			obj.used = true // avoid declared and not used errors
+ 			if obj.typ == nil {
+ 				obj.typ = Typ[Invalid]
+ 			}
+@@ -382,7 +382,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt sy
+ 		}
+ 	}
+ 
+-	// avoid follow-on "declared but not used" errors if any initialization failed
++	// avoid follow-on "declared and not used" errors if any initialization failed
+ 	if !ok {
+ 		for _, lhs := range lhs {
+ 			lhs.used = true
+@@ -425,7 +425,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
+ 		}
+ 	}
+ 
+-	// avoid follow-on "declared but not used" errors if any assignment failed
++	// avoid follow-on "declared and not used" errors if any assignment failed
+ 	if !ok {
+ 		// don't call check.use to avoid re-evaluation of the lhs expressions
+ 		for _, lhs := range lhs {
+diff --git a/src/cmd/compile/internal/types2/errorcodes.go b/src/cmd/compile/internal/types2/errorcodes.go
+index 6b3e6d6f24..f24388920a 100644
+--- a/src/cmd/compile/internal/types2/errorcodes.go
++++ b/src/cmd/compile/internal/types2/errorcodes.go
+@@ -1154,7 +1154,7 @@ const (
+ 	//  }
+ 	_MisplacedLabel
+ 
+-	// _UnusedLabel occurs when a label is declared but not used.
++	// _UnusedLabel occurs when a label is declared and not used.
+ 	//
+ 	// Example:
+ 	//  func f() {
+diff --git a/src/cmd/compile/internal/types2/issues_test.go b/src/cmd/compile/internal/types2/issues_test.go
+index 78691b9bf4..efd27bf7cc 100644
+--- a/src/cmd/compile/internal/types2/issues_test.go
++++ b/src/cmd/compile/internal/types2/issues_test.go
+@@ -285,11 +285,11 @@ func TestIssue22525(t *testing.T) {
+ 	conf := Config{Error: func(err error) { got += err.Error() + "\n" }}
+ 	conf.Check(f.PkgName.Value, []*syntax.File{f}, nil) // do not crash
+ 	want := `
+-:1:27: a declared but not used
+-:1:30: b declared but not used
+-:1:33: c declared but not used
+-:1:36: d declared but not used
+-:1:39: e declared but not used
++:1:27: a declared and not used
++:1:30: b declared and not used
++:1:33: c declared and not used
++:1:36: d declared and not used
++:1:39: e declared and not used
+ `
+ 	if got != want {
+ 		t.Errorf("got: %swant: %s", got, want)
+diff --git a/src/cmd/compile/internal/types2/labels.go b/src/cmd/compile/internal/types2/labels.go
+index 24349e3c57..9163a58c18 100644
+--- a/src/cmd/compile/internal/types2/labels.go
++++ b/src/cmd/compile/internal/types2/labels.go
+@@ -38,7 +38,7 @@ func (check *Checker) labels(body *syntax.BlockStmt) {
+ 	for name, obj := range all.elems {
+ 		obj = resolve(name, obj)
+ 		if lbl := obj.(*Label); !lbl.used {
+-			check.softErrorf(lbl.pos, _UnusedLabel, "label %s declared but not used", lbl.name)
++			check.softErrorf(lbl.pos, _UnusedLabel, "label %s declared and not used", lbl.name)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/types2/resolver.go b/src/cmd/compile/internal/types2/resolver.go
+index ac89124fbb..f9aa3adad8 100644
+--- a/src/cmd/compile/internal/types2/resolver.go
++++ b/src/cmd/compile/internal/types2/resolver.go
+@@ -727,17 +727,9 @@ func (check *Checker) errorUnusedPkg(obj *PkgName) {
+ 		elem = elem[i+1:]
+ 	}
+ 	if obj.name == "" || obj.name == "." || obj.name == elem {
+-		if check.conf.CompilerErrorMessages {
+-			check.softErrorf(obj, _UnusedImport, "imported and not used: %q", path)
+-		} else {
+-			check.softErrorf(obj, _UnusedImport, "%q imported but not used", path)
+-		}
++		check.softErrorf(obj, _UnusedImport, "%q imported and not used", path)
+ 	} else {
+-		if check.conf.CompilerErrorMessages {
+-			check.softErrorf(obj, _UnusedImport, "imported and not used: %q as %s", path, obj.name)
+-		} else {
+-			check.softErrorf(obj, _UnusedImport, "%q imported but not used as %s", path, obj.name)
+-		}
++		check.softErrorf(obj, _UnusedImport, "%q imported as %s and not used", path, obj.name)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 6502315e99..3ff80e8908 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -66,7 +66,7 @@ func (check *Checker) usage(scope *Scope) {
+ 		return unused[i].pos.Cmp(unused[j].pos) < 0
+ 	})
+ 	for _, v := range unused {
+-		check.softErrorf(v.pos, _UnusedVar, "%s declared but not used", v.name)
++		check.softErrorf(v.pos, _UnusedVar, "%s declared and not used", v.name)
+ 	}
+ 
+ 	for _, scope := range scope.children {
+@@ -741,7 +741,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
+ 		if lhs.Value == "_" {
+ 			// _ := x.(type) is an invalid short variable declaration
+ 			check.softErrorf(lhs, _NoNewVar, "no new variable on left side of :=")
+-			lhs = nil // avoid declared but not used error below
++			lhs = nil // avoid declared and not used error below
+ 		} else {
+ 			check.recordDef(lhs, nil) // lhs variable is implicitly declared in each cause clause
+ 		}
+@@ -802,7 +802,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
+ 			}
+ 			check.declare(check.scope, nil, obj, scopePos)
+ 			check.recordImplicit(clause, obj)
+-			// For the "declared but not used" error, all lhs variables act as
++			// For the "declared and not used" error, all lhs variables act as
+ 			// one; i.e., if any one of them is 'used', all of them are 'used'.
+ 			// Collect them for later analysis.
+ 			lhsVars = append(lhsVars, obj)
+@@ -824,7 +824,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
+ 			v.used = true // avoid usage error when checking entire function
+ 		}
+ 		if !used {
+-			check.softErrorf(lhs, _UnusedVar, "%s declared but not used", lhs.Value)
++			check.softErrorf(lhs, _UnusedVar, "%s declared and not used", lhs.Value)
+ 		}
+ 	}
+ }
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index 98d75630ef..89b3e1b93f 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -320,7 +320,7 @@ func (check *Checker) initVars(lhs []*Var, origRHS []ast.Expr, returnStmt ast.St
+ 	if len(lhs) != len(rhs) {
+ 		// invalidate lhs
+ 		for _, obj := range lhs {
+-			obj.used = true // avoid declared but not used errors
++			obj.used = true // avoid declared and not used errors
+ 			if obj.typ == nil {
+ 				obj.typ = Typ[Invalid]
+ 			}
+diff --git a/src/go/types/errorcodes.go b/src/go/types/errorcodes.go
+index 3c224a1366..7b5548be60 100644
+--- a/src/go/types/errorcodes.go
++++ b/src/go/types/errorcodes.go
+@@ -1154,7 +1154,7 @@ const (
+ 	//  }
+ 	_MisplacedLabel
+ 
+-	// _UnusedLabel occurs when a label is declared but not used.
++	// _UnusedLabel occurs when a label is declared and not used.
+ 	//
+ 	// Example:
+ 	//  func f() {
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index b033460770..85362fb7b9 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -288,11 +288,11 @@ func TestIssue22525(t *testing.T) {
+ 	conf := Config{Error: func(err error) { got += err.Error() + "\n" }}
+ 	conf.Check(f.Name.Name, fset, []*ast.File{f}, nil) // do not crash
+ 	want := `
+-1:27: a declared but not used
+-1:30: b declared but not used
+-1:33: c declared but not used
+-1:36: d declared but not used
+-1:39: e declared but not used
++1:27: a declared and not used
++1:30: b declared and not used
++1:33: c declared and not used
++1:36: d declared and not used
++1:39: e declared and not used
+ `
+ 	if got != want {
+ 		t.Errorf("got: %swant: %s", got, want)
+diff --git a/src/go/types/labels.go b/src/go/types/labels.go
+index f3b7f211f3..46055cb4e4 100644
+--- a/src/go/types/labels.go
++++ b/src/go/types/labels.go
+@@ -39,7 +39,7 @@ func (check *Checker) labels(body *ast.BlockStmt) {
+ 	for name, obj := range all.elems {
+ 		obj = resolve(name, obj)
+ 		if lbl := obj.(*Label); !lbl.used {
+-			check.softErrorf(lbl, _UnusedLabel, "label %s declared but not used", lbl.name)
++			check.softErrorf(lbl, _UnusedLabel, "label %s declared and not used", lbl.name)
+ 		}
+ 	}
+ }
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index 12ec55a144..b09083bbaa 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -69,11 +69,11 @@ func (check *Checker) arityMatch(s, init *ast.ValueSpec) {
+ 			// init exprs from s
+ 			n := s.Values[l]
+ 			check.errorf(n, code, "extra init expr %s", n)
+-			// TODO(gri) avoid declared but not used error here
++			// TODO(gri) avoid declared and not used error here
+ 		} else {
+ 			// init exprs "inherited"
+ 			check.errorf(s, code, "extra init expr at %s", check.fset.Position(init.Pos()))
+-			// TODO(gri) avoid declared but not used error here
++			// TODO(gri) avoid declared and not used error here
+ 		}
+ 	case l > r && (init != nil || r != 1):
+ 		n := s.Names[r]
+@@ -706,9 +706,9 @@ func (check *Checker) errorUnusedPkg(obj *PkgName) {
+ 		elem = elem[i+1:]
+ 	}
+ 	if obj.name == "" || obj.name == "." || obj.name == elem {
+-		check.softErrorf(obj, _UnusedImport, "%q imported but not used", path)
++		check.softErrorf(obj, _UnusedImport, "%q imported and not used", path)
+ 	} else {
+-		check.softErrorf(obj, _UnusedImport, "%q imported but not used as %s", path, obj.name)
++		check.softErrorf(obj, _UnusedImport, "%q imported as %s and not used", path, obj.name)
+ 	}
+ }
+ 
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 9bfc1cd216..30e9480783 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -67,7 +67,7 @@ func (check *Checker) usage(scope *Scope) {
+ 		return unused[i].pos < unused[j].pos
+ 	})
+ 	for _, v := range unused {
+-		check.softErrorf(v, _UnusedVar, "%s declared but not used", v.name)
++		check.softErrorf(v, _UnusedVar, "%s declared and not used", v.name)
+ 	}
+ 
+ 	for _, scope := range scope.children {
+@@ -666,7 +666,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 			if lhs.Name == "_" {
+ 				// _ := x.(type) is an invalid short variable declaration
+ 				check.softErrorf(lhs, _NoNewVar, "no new variable on left side of :=")
+-				lhs = nil // avoid declared but not used error below
++				lhs = nil // avoid declared and not used error below
+ 			} else {
+ 				check.recordDef(lhs, nil) // lhs variable is implicitly declared in each cause clause
+ 			}
+@@ -731,7 +731,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 				}
+ 				check.declare(check.scope, nil, obj, scopePos)
+ 				check.recordImplicit(clause, obj)
+-				// For the "declared but not used" error, all lhs variables act as
++				// For the "declared and not used" error, all lhs variables act as
+ 				// one; i.e., if any one of them is 'used', all of them are 'used'.
+ 				// Collect them for later analysis.
+ 				lhsVars = append(lhsVars, obj)
+@@ -750,7 +750,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 				v.used = true // avoid usage error when checking entire function
+ 			}
+ 			if !used {
+-				check.softErrorf(lhs, _UnusedVar, "%s declared but not used", lhs.Name)
++				check.softErrorf(lhs, _UnusedVar, "%s declared and not used", lhs.Name)
+ 			}
+ 		}
+ 
+@@ -819,7 +819,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 			check.softErrorf(s, _InvalidPostDecl, "cannot declare in post statement")
+ 			// Don't call useLHS here because we want to use the lhs in
+ 			// this erroneous statement so that we don't get errors about
+-			// these lhs variables being declared but not used.
++			// these lhs variables being declared and not used.
+ 			check.use(s.Lhs...) // avoid follow-up errors
+ 		}
+ 		check.stmt(inner, s.Body)
+diff --git a/src/internal/types/testdata/check/importdecl0/importdecl0a.go b/src/internal/types/testdata/check/importdecl0/importdecl0a.go
+index 5ceb96e1fa..d514ae4cb7 100644
+--- a/src/internal/types/testdata/check/importdecl0/importdecl0a.go
++++ b/src/internal/types/testdata/check/importdecl0/importdecl0a.go
+@@ -13,16 +13,16 @@ import (
+ 	init /* ERROR "cannot import package as init" */ "fmt"
+ 	// reflect defines a type "flag" which shows up in the gc export data
+ 	"reflect"
+-	. /* ERROR "imported but not used" */ "reflect"
++	. /* ERROR "imported and not used" */ "reflect"
+ )
+ 
+-import "math" /* ERROR "imported but not used" */
+-import m /* ERROR "imported but not used as m" */ "math"
++import "math" /* ERROR "imported and not used" */
++import m /* ERROR "imported as m and not used" */ "math"
+ import _ "math"
+ 
+ import (
+-	"math/big" /* ERROR "imported but not used" */
+-	b /* ERROR "imported but not used" */ "math/big"
++	"math/big" /* ERROR "imported and not used" */
++	b /* ERROR "imported as b and not used" */ "math/big"
+ 	_ "math/big"
+ )
+ 
+diff --git a/src/internal/types/testdata/check/importdecl0/importdecl0b.go b/src/internal/types/testdata/check/importdecl0/importdecl0b.go
+index 19b55aff76..904faff681 100644
+--- a/src/internal/types/testdata/check/importdecl0/importdecl0b.go
++++ b/src/internal/types/testdata/check/importdecl0/importdecl0b.go
+@@ -8,7 +8,7 @@ import "math"
+ import m "math"
+ 
+ import . "testing" // declares T in file scope
+-import . /* ERROR .unsafe. imported but not used */ "unsafe"
++import . /* ERROR .unsafe. imported and not used */ "unsafe"
+ import . "fmt"     // declares Println in file scope
+ 
+ import (
+diff --git a/src/internal/types/testdata/check/importdecl1/importdecl1b.go b/src/internal/types/testdata/check/importdecl1/importdecl1b.go
+index 43a7bcd753..ce8b983d28 100644
+--- a/src/internal/types/testdata/check/importdecl1/importdecl1b.go
++++ b/src/internal/types/testdata/check/importdecl1/importdecl1b.go
+@@ -4,7 +4,7 @@
+ 
+ package importdecl1
+ 
+-import . /* ERROR .unsafe. imported but not used */ "unsafe"
++import . /* ERROR .unsafe. imported and not used */ "unsafe"
+ 
+ type B interface {
+ 	A
+diff --git a/src/internal/types/testdata/check/issues0.go b/src/internal/types/testdata/check/issues0.go
+index fc0c028276..5f46021b94 100644
+--- a/src/internal/types/testdata/check/issues0.go
++++ b/src/internal/types/testdata/check/issues0.go
+@@ -204,7 +204,7 @@ func issue15755() {
+ 	_ = v
+ }
+ 
+-// Test that we don't get "declared but not used"
++// Test that we don't get "declared and not used"
+ // errors in the context of invalid/C objects.
+ func issue20358() {
+ 	var F C /* ERROR "undefined" */ .F
+diff --git a/src/internal/types/testdata/check/labels.go b/src/internal/types/testdata/check/labels.go
+index 9f42406965..5948952fbe 100644
+--- a/src/internal/types/testdata/check/labels.go
++++ b/src/internal/types/testdata/check/labels.go
+@@ -10,19 +10,19 @@ package labels
+ var x int
+ 
+ func f0() {
+-L1 /* ERROR "label L1 declared but not used" */ :
++L1 /* ERROR "label L1 declared and not used" */ :
+ 	for {
+ 	}
+-L2 /* ERROR "label L2 declared but not used" */ :
++L2 /* ERROR "label L2 declared and not used" */ :
+ 	select {
+ 	}
+-L3 /* ERROR "label L3 declared but not used" */ :
++L3 /* ERROR "label L3 declared and not used" */ :
+ 	switch {
+ 	}
+-L4 /* ERROR "label L4 declared but not used" */ :
++L4 /* ERROR "label L4 declared and not used" */ :
+ 	if true {
+ 	}
+-L5 /* ERROR "label L5 declared but not used" */ :
++L5 /* ERROR "label L5 declared and not used" */ :
+ 	f0()
+ L6:
+ 	f0()
+@@ -41,7 +41,7 @@ L7:
+ // A label must be directly associated with a switch, select, or
+ // for statement; it cannot be the label of a labeled statement.
+ 
+-L7a /* ERROR "declared but not used" */ : L7b:
++L7a /* ERROR "declared and not used" */ : L7b:
+ 	for {
+ 		break L7a /* ERROR "invalid break label L7a" */
+ 		continue L7a /* ERROR "invalid continue label L7a" */
+@@ -60,7 +60,7 @@ L9:
+ 	switch {
+ 	case true:
+ 		break L9
+-	defalt /* ERROR "label defalt declared but not used" */ :
++	defalt /* ERROR "label defalt declared and not used" */ :
+ 	}
+ 
+ L10:
+@@ -157,7 +157,7 @@ L5:
+ // Additional tests not in the original files.
+ 
+ func f2() {
+-L1 /* ERROR "label L1 declared but not used" */ :
++L1 /* ERROR "label L1 declared and not used" */ :
+ 	if x == 0 {
+ 		for {
+ 			continue L1 /* ERROR "invalid continue label L1" */
+diff --git a/src/internal/types/testdata/check/stmt0.go b/src/internal/types/testdata/check/stmt0.go
+index 799f5e7ebb..3dc5681cb8 100644
+--- a/src/internal/types/testdata/check/stmt0.go
++++ b/src/internal/types/testdata/check/stmt0.go
+@@ -222,7 +222,7 @@ func selects() {
+ 	ch2 := make(chan int)
+ 	select {
+ 	case <-ch1:
+-		var ch2 /* ERROR ch2 declared but not used */ chan bool
++		var ch2 /* ERROR ch2 declared and not used */ chan bool
+ 	case i := <-ch2:
+ 		print(i + 1)
+ 	}
+@@ -688,7 +688,7 @@ func typeswitches() {
+ 	default /* ERROR "multiple defaults" */ :
+ 	}
+ 
+-	switch x /* ERROR "declared but not used" */ := x.(type) {}
++	switch x /* ERROR "declared and not used" */ := x.(type) {}
+ 	switch _ /* ERROR "no new variable on left side of :=" */ := x.(type) {}
+ 
+ 	switch x := x.(type) {
+@@ -697,7 +697,7 @@ func typeswitches() {
+ 		_ = y
+ 	}
+ 
+-	switch x /* ERROR "x declared but not used" */ := i /* ERROR "not an interface" */ .(type) {}
++	switch x /* ERROR "x declared and not used" */ := i /* ERROR "not an interface" */ .(type) {}
+ 
+ 	switch t := x.(type) {
+ 	case nil:
+@@ -950,7 +950,7 @@ func issue6766b() {
+ // the loop body is still type-checked (and thus
+ // errors reported).
+ func issue10148() {
+-	for y /* ERROR declared but not used */ := range "" {
++	for y /* ERROR declared and not used */ := range "" {
+ 		_ = "" /* ERROR mismatched types untyped string and untyped int */ + 1
+ 	}
+ 	for range 1 /* ERROR cannot range over 1 */ {
+diff --git a/src/internal/types/testdata/check/vardecl.go b/src/internal/types/testdata/check/vardecl.go
+index 6f059fe6ec..6b6a45bc77 100644
+--- a/src/internal/types/testdata/check/vardecl.go
++++ b/src/internal/types/testdata/check/vardecl.go
+@@ -64,45 +64,45 @@ var (
+ // Variables declared in function bodies must be 'used'.
+ type T struct{}
+ func (r T) _(a, b, c int) (u, v, w int) {
+-	var x1 /* ERROR "declared but not used" */ int
+-	var x2 /* ERROR "declared but not used" */ int
++	var x1 /* ERROR "declared and not used" */ int
++	var x2 /* ERROR "declared and not used" */ int
+ 	x1 = 1
+ 	(x2) = 2
+ 
+-	y1 /* ERROR "declared but not used" */ := 1
+-	y2 /* ERROR "declared but not used" */ := 2
++	y1 /* ERROR "declared and not used" */ := 1
++	y2 /* ERROR "declared and not used" */ := 2
+ 	y1 = 1
+ 	(y1) = 2
+ 
+ 	{
+-		var x1 /* ERROR "declared but not used" */ int
+-		var x2 /* ERROR "declared but not used" */ int
++		var x1 /* ERROR "declared and not used" */ int
++		var x2 /* ERROR "declared and not used" */ int
+ 		x1 = 1
+ 		(x2) = 2
+ 
+-		y1 /* ERROR "declared but not used" */ := 1
+-		y2 /* ERROR "declared but not used" */ := 2
++		y1 /* ERROR "declared and not used" */ := 1
++		y2 /* ERROR "declared and not used" */ := 2
+ 		y1 = 1
+ 		(y1) = 2
+ 	}
+ 
+-	if x /* ERROR "declared but not used" */ := 0; a < b {}
++	if x /* ERROR "declared and not used" */ := 0; a < b {}
+ 
+-	switch x /* ERROR "declared but not used" */, y := 0, 1; a {
++	switch x /* ERROR "declared and not used" */, y := 0, 1; a {
+ 	case 0:
+ 		_ = y
+ 	case 1:
+-		x /* ERROR "declared but not used" */ := 0
++		x /* ERROR "declared and not used" */ := 0
+ 	}
+ 
+ 	var t interface{}
+-	switch t /* ERROR "declared but not used" */ := t.(type) {}
++	switch t /* ERROR "declared and not used" */ := t.(type) {}
+ 
+-	switch t /* ERROR "declared but not used" */ := t.(type) {
++	switch t /* ERROR "declared and not used" */ := t.(type) {
+ 	case int:
+ 	}
+ 
+-	switch t /* ERROR "declared but not used" */ := t.(type) {
++	switch t /* ERROR "declared and not used" */ := t.(type) {
+ 	case int:
+ 	case float32, complex64:
+ 		t = nil
+@@ -123,9 +123,9 @@ func (r T) _(a, b, c int) (u, v, w int) {
+ 		}
+ 	}
+ 
+-	switch t := t; t /* ERROR "declared but not used" */ := t.(type) {}
++	switch t := t; t /* ERROR "declared and not used" */ := t.(type) {}
+ 
+-	var z1 /* ERROR "declared but not used" */ int
++	var z1 /* ERROR "declared and not used" */ int
+ 	var z2 int
+ 	_ = func(a, b, c int) (u, v, w int) {
+ 		z1 = a
+@@ -135,12 +135,12 @@ func (r T) _(a, b, c int) (u, v, w int) {
+ 	}
+ 
+ 	var s []int
+-	var i /* ERROR "declared but not used" */ , j int
++	var i /* ERROR "declared and not used" */ , j int
+ 	for i, j = range s {
+ 		_ = j
+ 	}
+ 
+-	for i, j /* ERROR "declared but not used" */ := range s {
++	for i, j /* ERROR "declared and not used" */ := range s {
+ 		_ = func() int {
+ 			return i
+ 		}
+@@ -151,12 +151,12 @@ func (r T) _(a, b, c int) (u, v, w int) {
+ // Unused variables in function literals must lead to only one error (issue #22524).
+ func _() {
+ 	_ = func() {
+-		var x /* ERROR declared but not used */ int
++		var x /* ERROR declared and not used */ int
+ 	}
+ }
+ 
+-// Invalid variable declarations must not lead to "declared but not used errors".
+-// TODO(gri) enable these tests once go/types follows types2 logic for declared but not used variables
++// Invalid variable declarations must not lead to "declared and not used errors".
++// TODO(gri) enable these tests once go/types follows types2 logic for declared and not used variables
+ // func _() {
+ //	var a x                        // DISABLED_ERROR undefined: x
+ //	var b = x                      // DISABLED_ERROR undefined: x
+@@ -164,10 +164,10 @@ func _() {
+ //	var d, e, f x                  /* DISABLED_ERROR x */ /* DISABLED_ERROR x */ /* DISABLED_ERROR x */
+ //	var g, h, i = x, x, x          /* DISABLED_ERROR x */ /* DISABLED_ERROR x */ /* DISABLED_ERROR x */
+ //	var j, k, l float32 = x, x, x  /* DISABLED_ERROR x */ /* DISABLED_ERROR x */ /* DISABLED_ERROR x */
+-//	// but no "declared but not used" errors
++//	// but no "declared and not used" errors
+ // }
+ 
+-// Invalid (unused) expressions must not lead to spurious "declared but not used errors".
++// Invalid (unused) expressions must not lead to spurious "declared and not used errors".
+ func _() {
+ 	var a, b, c int
+ 	var x, y int
+diff --git a/src/internal/types/testdata/fixedbugs/issue39634.go b/src/internal/types/testdata/fixedbugs/issue39634.go
+index f89fe37015..7b458f22f2 100644
+--- a/src/internal/types/testdata/fixedbugs/issue39634.go
++++ b/src/internal/types/testdata/fixedbugs/issue39634.go
+@@ -42,7 +42,7 @@ func _() { var _ = new(foo9[int]) }
+ var u /* ERROR cycle */ , i [func /* ERROR used as value */ /* ERROR used as value */ (u, c /* ERROR undefined */ /* ERROR undefined */ ) {}(0, len /* ERROR must be called */ /* ERROR must be called */ )]c /* ERROR undefined */ /* ERROR undefined */
+ 
+ // crash 15
+-func y15() { var a /* ERROR declared but not used */ interface{ p() } = G15[string]{} }
++func y15() { var a /* ERROR declared and not used */ interface{ p() } = G15[string]{} }
+ type G15[X any] s /* ERROR undefined */
+ func (G15 /* ERROR generic type .* without instantiation */ ) p()
+ 
+diff --git a/src/internal/types/testdata/fixedbugs/issue43109.go b/src/internal/types/testdata/fixedbugs/issue43109.go
+index a4533c9bf7..f242f16ca6 100644
+--- a/src/internal/types/testdata/fixedbugs/issue43109.go
++++ b/src/internal/types/testdata/fixedbugs/issue43109.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Ensure there is no "imported but not used" error
++// Ensure there is no "imported and not used" error
+ // if a package wasn't imported in the first place.
+ 
+ package p
+diff --git a/test/fixedbugs/bug373.go b/test/fixedbugs/bug373.go
+index 6b7a312097..aa0f5d1efa 100644
+--- a/test/fixedbugs/bug373.go
++++ b/test/fixedbugs/bug373.go
+@@ -9,7 +9,7 @@
+ package foo
+ 
+ func f(x interface{}) {
+-	switch t := x.(type) {  // ERROR "declared but not used"
++	switch t := x.(type) {  // ERROR "declared and not used"
+ 	case int:
+ 	}
+ }
+diff --git a/test/fixedbugs/bug450.go b/test/fixedbugs/bug450.go
+index af27b72365..f64063a26c 100644
+--- a/test/fixedbugs/bug450.go
++++ b/test/fixedbugs/bug450.go
+@@ -5,7 +5,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Issue 3899: 8g incorrectly thinks a variable is
+-// "set but not used" and elides an assignment, causing
++// "set and not used" and elides an assignment, causing
+ // variables to end up with wrong data.
+ //
+ // The reason is a miscalculation of variable width.
+diff --git a/test/fixedbugs/issue13415.go b/test/fixedbugs/issue13415.go
+index 4c4655e547..cc17b84086 100644
+--- a/test/fixedbugs/issue13415.go
++++ b/test/fixedbugs/issue13415.go
+@@ -11,7 +11,7 @@ package p
+ 
+ func f() {
+     select {
+-    case x, x := <-func() chan int { // ERROR "x repeated on left side of :=|redefinition|declared but not used"
++    case x, x := <-func() chan int { // ERROR "x repeated on left side of :=|redefinition|declared and not used"
+             c := make(chan int)
+             return c
+     }():
+diff --git a/test/fixedbugs/issue13539.go b/test/fixedbugs/issue13539.go
+index 181fbef9bf..72c3ab0ae0 100644
+--- a/test/fixedbugs/issue13539.go
++++ b/test/fixedbugs/issue13539.go
+@@ -10,7 +10,7 @@
+ 
+ package main
+ 
+-import "math" // ERROR "imported and not used|imported but not used"
++import "math" // ERROR "imported and not used"
+ 
+ func main() {
+ math:
+diff --git a/test/fixedbugs/issue18915.go b/test/fixedbugs/issue18915.go
+index 22f97c6b62..cf248b1f0b 100644
+--- a/test/fixedbugs/issue18915.go
++++ b/test/fixedbugs/issue18915.go
+@@ -10,12 +10,12 @@
+ package p
+ 
+ func _() {
+-	if a := 10 { // ERROR "cannot use a := 10 as value|expected .*;|declared but not used"
++	if a := 10 { // ERROR "cannot use a := 10 as value|expected .*;|declared and not used"
+ 	}
+ 
+-	for b := 10 { // ERROR "cannot use b := 10 as value|parse error|declared but not used"
++	for b := 10 { // ERROR "cannot use b := 10 as value|parse error|declared and not used"
+ 	}
+ 
+-	switch c := 10 { // ERROR "cannot use c := 10 as value|expected .*;|declared but not used"
++	switch c := 10 { // ERROR "cannot use c := 10 as value|expected .*;|declared and not used"
+ 	}
+ }
+diff --git a/test/fixedbugs/issue20185.go b/test/fixedbugs/issue20185.go
+index ee60cabd6f..3f79b75ed5 100644
+--- a/test/fixedbugs/issue20185.go
++++ b/test/fixedbugs/issue20185.go
+@@ -19,7 +19,7 @@ func F() {
+ const x = 1
+ 
+ func G() {
+-	switch t := x.(type) { // ERROR "cannot type switch on non-interface value|declared but not used|not an interface"
++	switch t := x.(type) { // ERROR "cannot type switch on non-interface value|declared and not used|not an interface"
+ 	default:
+ 	}
+ }
+diff --git a/test/fixedbugs/issue21317.go b/test/fixedbugs/issue21317.go
+index fe51ef1738..80797f73ed 100644
+--- a/test/fixedbugs/issue21317.go
++++ b/test/fixedbugs/issue21317.go
+@@ -44,8 +44,8 @@ func main() {
+ 		log.Fatalf("expected cmd/compile to fail")
+ 	}
+ 	wantErrs := []string{
+-		"7:9: n declared but not used",
+-		"7:12: err declared but not used",
++		"7:9: n declared and not used",
++		"7:12: err declared and not used",
+ 	}
+ 	outStr := string(out)
+ 	for _, want := range wantErrs {
+diff --git a/test/fixedbugs/issue22794.go b/test/fixedbugs/issue22794.go
+index e13e470a01..636af26e84 100644
+--- a/test/fixedbugs/issue22794.go
++++ b/test/fixedbugs/issue22794.go
+@@ -15,7 +15,7 @@ func main() {
+ 	i1 := it{Floats: true}
+ 	if i1.floats { // ERROR "(type it .* field or method floats, but does have Floats)|undefined field or method"
+ 	}
+-	i2 := &it{floats: false} // ERROR "(but does have Floats)|unknown field|declared but not used"
++	i2 := &it{floats: false} // ERROR "(but does have Floats)|unknown field|declared and not used"
+ 	_ = &it{InneR: "foo"}    // ERROR "(but does have inner)|unknown field"
+ 	_ = i2
+ }
+diff --git a/test/fixedbugs/issue23116.go b/test/fixedbugs/issue23116.go
+index b4b36d4ba9..1737fee2c8 100644
+--- a/test/fixedbugs/issue23116.go
++++ b/test/fixedbugs/issue23116.go
+@@ -10,6 +10,6 @@ func f(x interface{}) {
+ 	switch x.(type) {
+ 	}
+ 
+-	switch t := x.(type) { // ERROR "declared but not used"
++	switch t := x.(type) { // ERROR "declared and not used"
+ 	}
+ }
+diff --git a/test/fixedbugs/issue23586.go b/test/fixedbugs/issue23586.go
+index c2d4c9ffb5..c7c82b6c37 100644
+--- a/test/fixedbugs/issue23586.go
++++ b/test/fixedbugs/issue23586.go
+@@ -7,7 +7,7 @@
+ // Test that we type-check deferred/go functions even
+ // if they are not called (a common error). Specifically,
+ // we don't want to see errors such as import or variable
+-// declared but not used.
++// declared and not used.
+ 
+ package p
+ 
+diff --git a/test/fixedbugs/issue29870b.go b/test/fixedbugs/issue29870b.go
+index 0a83489d96..c7cdd8c8c7 100644
+--- a/test/fixedbugs/issue29870b.go
++++ b/test/fixedbugs/issue29870b.go
+@@ -10,5 +10,5 @@
+ package main
+ 
+ func _() {
+-	x := 7 // ERROR ".*x.* declared but not used"
++	x := 7 // ERROR ".*x.* declared and not used"
+ }
+diff --git a/test/fixedbugs/issue5957.dir/c.go b/test/fixedbugs/issue5957.dir/c.go
+index 821b37e4ca..382e234537 100644
+--- a/test/fixedbugs/issue5957.dir/c.go
++++ b/test/fixedbugs/issue5957.dir/c.go
+@@ -1,12 +1,12 @@
+ package p
+ 
+ import (
+-	"./a" // ERROR "imported and not used: \x22test/a\x22 as surprise|imported and not used: surprise"
+-	"./b" // ERROR "imported and not used: \x22test/b\x22 as surprise2|imported and not used: surprise2"
+-	b "./b" // ERROR "imported and not used: \x22test/b\x22$|imported and not used: surprise2"
+-	foo "math" // ERROR "imported and not used: \x22math\x22 as foo|imported and not used: math"
++	"./a" // ERROR "imported and not used: \x22test/a\x22 as surprise|imported and not used: surprise|\x22test/a\x22 imported as surprise and not used"
++	"./b" // ERROR "imported and not used: \x22test/b\x22 as surprise2|imported and not used: surprise2|\x22test/b\x22 imported as surprise2 and not used"
++	b "./b" // ERROR "imported and not used: \x22test/b\x22$|imported and not used: surprise2|\x22test/b\x22 imported and not used"
++	foo "math" // ERROR "imported and not used: \x22math\x22 as foo|imported and not used: math|\x22math\x22 imported as foo and not used"
+ 	"fmt" // actually used
+-	"strings" // ERROR "imported and not used: \x22strings\x22|imported and not used: strings"
++	"strings" // ERROR "imported and not used: \x22strings\x22|imported and not used: strings|\x22strings\x22 imported and not used"
+ )
+ 
+ var _ = fmt.Printf
+diff --git a/test/import1.go b/test/import1.go
+index 294ef3a46b..8a4534bbfe 100644
+--- a/test/import1.go
++++ b/test/import1.go
+@@ -10,10 +10,10 @@
+ package main
+ 
+ import "bufio"	// ERROR "previous|not used"
+-import bufio "os"	// ERROR "redeclared|redefinition|incompatible" "imported and not used"
++import bufio "os"	// ERROR "redeclared|redefinition|incompatible" "imported and not used|imported as bufio and not used"
+ 
+ import (
+ 	"fmt"	// ERROR "previous|not used"
+-	fmt "math"	// ERROR "redeclared|redefinition|incompatible" "imported and not used: \x22math\x22 as fmt"
+-	. "math"	// GC_ERROR "imported and not used: \x22math\x22$"
++	fmt "math"	// ERROR "redeclared|redefinition|incompatible" "imported and not used: \x22math\x22 as fmt|imported as fmt and not used"
++	. "math"	// GC_ERROR "imported and not used: \x22math\x22$|imported and not used"
+ )
+diff --git a/test/import4.dir/import4.go b/test/import4.dir/import4.go
+index b9f973f172..dafc5e4b00 100644
+--- a/test/import4.dir/import4.go
++++ b/test/import4.dir/import4.go
+@@ -9,16 +9,16 @@
+ package main
+ 
+ // standard
+-import "fmt"	// ERROR "imported and not used.*fmt"
++import "fmt"	// ERROR "imported and not used.*fmt|\x22fmt\x22 imported and not used"
+ 
+ // renamed
+-import X "math"	// ERROR "imported and not used.*math"
++import X "math"	// ERROR "imported and not used.*math|\x22math\x22 imported as X and not used"
+ 
+ // import dot
+-import . "bufio"	// ERROR "imported and not used.*bufio"
++import . "bufio"	// ERROR "imported and not used.*bufio|imported and not used"
+ 
+ // again, package without anything in it
+-import "./empty"	// ERROR "imported and not used.*empty"
+-import Z "./empty"	// ERROR "imported and not used.*empty"
+-import . "./empty"	// ERROR "imported and not used.*empty"
++import "./empty"	// ERROR "imported and not used.*empty|imported and not used"
++import Z "./empty"	// ERROR "imported and not used.*empty|imported as Z and not used"
++import . "./empty"	// ERROR "imported and not used.*empty|imported and not used"
+ 
+diff --git a/test/typeswitch2b.go b/test/typeswitch2b.go
+index 6da0d5fa6e..135ae86cff 100644
+--- a/test/typeswitch2b.go
++++ b/test/typeswitch2b.go
+@@ -11,9 +11,9 @@ package main
+ 
+ func notused(x interface{}) {
+ 	// The first t is in a different scope than the 2nd t; it cannot
+-	// be accessed (=> declared but not used error); but it is legal
++	// be accessed (=> declared and not used error); but it is legal
+ 	// to declare it.
+-	switch t := 0; t := x.(type) { // ERROR "declared but not used"
++	switch t := 0; t := x.(type) { // ERROR "declared and not used"
+ 	case int:
+ 		_ = t // this is using the t of "t := x.(type)"
+ 	}

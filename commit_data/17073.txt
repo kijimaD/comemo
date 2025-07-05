@@ -13,6 +13,151 @@ Date:   Wed Aug 7 11:05:19 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12614043
-
+---
  test/return.go | 84 ----------------------------------------------------------
  1 file changed, 84 deletions(-)
+
+diff --git a/test/return.go b/test/return.go
+index dcf32f86ff..6e02b782d4 100644
+--- a/test/return.go
++++ b/test/return.go
+@@ -666,17 +666,6 @@ func _() int {
+ 	}
+ }
+ 
+-func _() int {
+-	print(1)
+-	switch x.(type) {
+-	case int:
+-		print(2)
+-		fallthrough
+-	default:
+-		return 4
+-	}
+-}
+-
+ // if no default or some case doesn't terminate, switch is no longer okay
+ 
+ func _() int {
+@@ -708,17 +697,6 @@ func _() int {
+ 	}
+ } // ERROR "missing return"
+ 
+-func _() int {
+-	print(1)
+-	switch x.(type) {
+-	case int:
+-		print(2)
+-		fallthrough
+-	case float64:
+-		return 4
+-	}
+-} // ERROR "missing return"
+-
+ func _() int {
+ 	print(1)
+ 	switch x.(type) {
+@@ -1356,16 +1334,6 @@ func _() int {
+ 	}
+ }
+ 
+-func _() int {
+-	switch x.(type) {
+-	case int:
+-		print(2)
+-		fallthrough
+-	default:
+-		return 4
+-	}
+-}
+-
+ // if no default or some case doesn't terminate, switch is no longer okay
+ 
+ func _() int {
+@@ -1394,16 +1362,6 @@ func _() int {
+ 	}
+ } // ERROR "missing return"
+ 
+-func _() int {
+-	switch x.(type) {
+-	case int:
+-		print(2)
+-		fallthrough
+-	case float64:
+-		return 4
+-	}
+-} // ERROR "missing return"
+-
+ func _() int {
+ 	switch x.(type) {
+ 	case int:
+@@ -2102,17 +2060,6 @@ var _ = func() int {
+ 	}
+ }
+ 
+-var _ = func() int {
+-	print(1)
+-	switch x.(type) {
+-	case int:
+-		print(2)
+-		fallthrough
+-	default:
+-		return 4
+-	}
+-}
+-
+ // if no default or some case doesn't terminate, switch is no longer okay
+ 
+ var _ = func() int {
+@@ -2144,17 +2091,6 @@ var _ = func() int {
+ 	}
+ } // ERROR "missing return"
+ 
+-var _ = func() int {
+-	print(1)
+-	switch x.(type) {
+-	case int:
+-		print(2)
+-		fallthrough
+-	case float64:
+-		return 4
+-	}
+-} // ERROR "missing return"
+-
+ var _ = func() int {
+ 	print(1)
+ 	switch x.(type) {
+@@ -2792,16 +2728,6 @@ var _ = func() int {
+ 	}
+ }
+ 
+-var _ = func() int {
+-	switch x.(type) {
+-	case int:
+-		print(2)
+-		fallthrough
+-	default:
+-		return 4
+-	}
+-}
+-
+ // if no default or some case doesn't terminate, switch is no longer okay
+ 
+ var _ = func() int {
+@@ -2830,16 +2756,6 @@ var _ = func() int {
+ 	}
+ } // ERROR "missing return"
+ 
+-var _ = func() int {
+-	switch x.(type) {
+-	case int:
+-		print(2)
+-		fallthrough
+-	case float64:
+-		return 4
+-	}
+-} // ERROR "missing return"
+-
+ var _ = func() int {
+ 	switch x.(type) {
+ 	case int:

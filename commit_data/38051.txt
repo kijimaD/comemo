@@ -10,10 +10,85 @@ Date:   Fri Sep 28 09:26:20 2018 +0100
     Change-Id: Ie4b4f07abfc24c73dcd51c8ef1edf4f73514a21c
     Reviewed-on: https://go-review.googlesource.com/138335
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/go/internal/modload/query.go | 2 +-
  src/crypto/x509/cert_pool.go         | 2 +-
  src/net/http/transport.go            | 2 +-
  src/net/http/transport_test.go       | 4 ++--
  src/os/os_unix_test.go               | 2 +-
  5 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 3b550f1db7..0921d683f0 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -207,7 +207,7 @@ func matchSemverPrefix(p, v string) bool {
+ // If multiple modules with revisions matching the query provide the requested
+ // package, QueryPackage picks the one with the longest module path.
+ //
+-// If the path is in the the main module and the query is "latest",
++// If the path is in the main module and the query is "latest",
+ // QueryPackage returns Target as the version.
+ func QueryPackage(path, query string, allowed func(module.Version) bool) (module.Version, *modfetch.RevInfo, error) {
+ 	if _, ok := dirInModule(path, Target.Path, ModRoot, true); ok {
+diff --git a/src/crypto/x509/cert_pool.go b/src/crypto/x509/cert_pool.go
+index 86aba6710d..7cc1dd4eb6 100644
+--- a/src/crypto/x509/cert_pool.go
++++ b/src/crypto/x509/cert_pool.go
+@@ -50,7 +50,7 @@ func (s *CertPool) copy() *CertPool {
+ // Any mutations to the returned pool are not written to disk and do
+ // not affect any other pool returned by SystemCertPool.
+ //
+-// New changes in the the system cert pool might not be reflected
++// New changes in the system cert pool might not be reflected
+ // in subsequent calls.
+ func SystemCertPool() (*CertPool, error) {
+ 	if runtime.GOOS == "windows" {
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index b8788654b7..7f8fd505bd 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -278,7 +278,7 @@ func (t *Transport) onceSetNextProtoDefaults() {
+ 
+ 	// If they've already configured http2 with
+ 	// golang.org/x/net/http2 instead of the bundled copy, try to
+-	// get at its http2.Transport value (via the the "https"
++	// get at its http2.Transport value (via the "https"
+ 	// altproto map) so we can call CloseIdleConnections on it if
+ 	// requested. (Issue 22891)
+ 	altProto, _ := t.altProto.Load().(map[string]RoundTripper)
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 327b3b4996..739fe5f597 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -4753,7 +4753,7 @@ func TestClientTimeoutKillsConn_BeforeHeaders(t *testing.T) {
+ 		}
+ 	case <-time.After(timeout * 10):
+ 		// If we didn't get into the Handler in 50ms, that probably means
+-		// the builder was just slow and the the Get failed in that time
++		// the builder was just slow and the Get failed in that time
+ 		// but never made it to the server. That's fine. We'll usually
+ 		// test the part above on faster machines.
+ 		t.Skip("skipping test on slow builder")
+@@ -4764,7 +4764,7 @@ func TestClientTimeoutKillsConn_BeforeHeaders(t *testing.T) {
+ // conn is closed so that it's not reused.
+ //
+ // This is the test variant that has the server send response headers
+-// first, and time out during the the write of the response body.
++// first, and time out during the write of the response body.
+ func TestClientTimeoutKillsConn_AfterHeaders(t *testing.T) {
+ 	setParallel(t)
+ 	defer afterTest(t)
+diff --git a/src/os/os_unix_test.go b/src/os/os_unix_test.go
+index 54f121ef4c..1077d78613 100644
+--- a/src/os/os_unix_test.go
++++ b/src/os/os_unix_test.go
+@@ -234,7 +234,7 @@ func newFileTest(t *testing.T, blocking bool) {
+ 	}
+ 	defer syscall.Close(p[1])
+ 
+-	// Set the the read-side to non-blocking.
++	// Set the read-side to non-blocking.
+ 	if !blocking {
+ 		if err := syscall.SetNonblock(p[0], true); err != nil {
+ 			syscall.Close(p[0])

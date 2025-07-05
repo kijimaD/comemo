@@ -7,6 +7,10 @@ Date:   Sun Mar 3 08:56:08 2013 +1100
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/7422055
-
+---
  src/pkg/archive/tar/common.go | 0
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/pkg/archive/tar/common.go b/src/pkg/archive/tar/common.go
+old mode 100755
+new mode 100644

@@ -12,7 +12,85 @@ Date:   Tue Feb 25 11:22:22 2014 -0500
     R=bradfitz
     CC=golang-codereviews
     https://golang.org/cl/68520044
-
+---
  src/cmd/go/discovery.go |  3 +++
  src/cmd/go/pkg_test.go  | 48 +++++++++++++++++++++++++++++++++++++++++++++++-
  2 files changed, 50 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/discovery.go b/src/cmd/go/discovery.go
+index 75228b52a5..b9f4279954 100644
+--- a/src/cmd/go/discovery.go
++++ b/src/cmd/go/discovery.go
+@@ -43,6 +43,9 @@ func parseMetaGoImports(r io.Reader) (imports []metaImport, err error) {
+ 	for {
+ 		t, err = d.Token()
+ 		if err != nil {
++			if err == io.EOF {
++				err = nil
++			}
+ 			return
+ 		}
+ 		if e, ok := t.(xml.StartElement); ok && strings.EqualFold(e.Name.Local, "body") {
+diff --git a/src/cmd/go/pkg_test.go b/src/cmd/go/pkg_test.go
+index f3590b9632..06b9f0ac6e 100644
+--- a/src/cmd/go/pkg_test.go
++++ b/src/cmd/go/pkg_test.go
+@@ -4,7 +4,11 @@
+ 
+ package main
+ 
+-import "testing"
++import (
++	"reflect"
++	"strings"
++	"testing"
++)
+ 
+ var foldDupTests = []struct {
+ 	list   []string
+@@ -25,3 +29,45 @@ func TestFoldDup(t *testing.T) {
+ 		}
+ 	}
+ }
++
++var parseMetaGoImportsTests = []struct {
++	in  string
++	out []metaImport
++}{
++	{
++		`<meta name="go-import" content="foo/bar git https://github.com/rsc/foo/bar">`,
++		[]metaImport{{"foo/bar", "git", "https://github.com/rsc/foo/bar"}},
++	},
++	{
++		`<meta name="go-import" content="foo/bar git https://github.com/rsc/foo/bar">
++		<meta name="go-import" content="baz/quux git http://github.com/rsc/baz/quux">`,
++		[]metaImport{
++			{"foo/bar", "git", "https://github.com/rsc/foo/bar"},
++			{"baz/quux", "git", "http://github.com/rsc/baz/quux"},
++		},
++	},
++	{
++		`<head>
++		<meta name="go-import" content="foo/bar git https://github.com/rsc/foo/bar">
++		</head>`,
++		[]metaImport{{"foo/bar", "git", "https://github.com/rsc/foo/bar"}},
++	},
++	{
++		`<meta name="go-import" content="foo/bar git https://github.com/rsc/foo/bar">
++		<body>`,
++		[]metaImport{{"foo/bar", "git", "https://github.com/rsc/foo/bar"}},
++	},
++}
++
++func TestParseMetaGoImports(t *testing.T) {
++	for i, tt := range parseMetaGoImportsTests {
++		out, err := parseMetaGoImports(strings.NewReader(tt.in))
++		if err != nil {
++			t.Errorf("test#%d: %v", i, err)
++			continue
++		}
++		if !reflect.DeepEqual(out, tt.out) {
++			t.Errorf("test#%d:\n\thave %q\n\twant %q", i, out, tt.out)
++		}
++	}
++}

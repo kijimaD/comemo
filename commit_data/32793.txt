@@ -19,9 +19,194 @@ Date:   Wed May 31 08:30:25 2017 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/ARM64.rules | 14 +++++------
  src/cmd/compile/internal/ssa/gen/MIPS.rules  | 10 ++++----
  src/cmd/compile/internal/ssa/rewriteMIPS.go  | 36 +++++++++++++---------------
  test/fixedbugs/issue20530.go                 | 18 +++++++++++++-
  4 files changed, 45 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 5b2b462220..4831ff2f3f 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -668,14 +668,14 @@
+ (MOVWstore [off] {sym} ptr (MOVDconst [0]) mem) -> (MOVWstorezero [off] {sym} ptr mem)
+ (MOVDstore [off] {sym} ptr (MOVDconst [0]) mem) -> (MOVDstorezero [off] {sym} ptr mem)
+ 
+-// replace load from same location as preceding store with copy
++// replace load from same location as preceding store with zero/sign extension (or copy in case of full width)
+ // these seem to have bad interaction with other rules, resulting in slower code
+-//(MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+-//(MOVBUload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+-//(MOVHload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+-//(MOVHUload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+-//(MOVWload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+-//(MOVWUload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
++//(MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVBreg x)
++//(MOVBUload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVBUreg x)
++//(MOVHload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVHreg x)
++//(MOVHUload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVHUreg x)
++//(MOVWload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVWreg x)
++//(MOVWUload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVWUreg x)
+ //(MOVDload [off] {sym} ptr (MOVDstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+ //(FMOVSload [off] {sym} ptr (FMOVSstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+ //(FMOVDload [off] {sym} ptr (FMOVDstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS.rules b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+index bb09d2334b..60a3722408 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+@@ -524,11 +524,11 @@
+ (MOVWstorezero [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+ 	(MOVWstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ 
+-// replace load from same location as preceding store with copy
+-(MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && isSigned(x.Type) -> x
+-(MOVBUload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && !isSigned(x.Type) -> x
+-(MOVHload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && isSigned(x.Type) -> x
+-(MOVHUload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && !isSigned(x.Type) -> x
++// replace load from same location as preceding store with zero/sign extension (or copy in case of full width)
++(MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVBreg x)
++(MOVBUload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVBUreg x)
++(MOVHload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVHreg x)
++(MOVHUload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVHUreg x)
+ (MOVWload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+ (MOVFload [off] {sym} ptr (MOVFstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+ (MOVDload [off] {sym} ptr (MOVDstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS.go b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+index 77142aa83e..08749751e1 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+@@ -3392,8 +3392,8 @@ func rewriteValueMIPS_OpMIPSMOVBUload_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVBUload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _))
+-	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && !isSigned(x.Type)
+-	// result: x
++	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
++	// result: (MOVBUreg x)
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+@@ -3408,11 +3408,10 @@ func rewriteValueMIPS_OpMIPSMOVBUload_0(v *Value) bool {
+ 		_ = v_1.Args[2]
+ 		ptr2 := v_1.Args[0]
+ 		x := v_1.Args[1]
+-		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && !isSigned(x.Type)) {
++		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpMIPSMOVBUreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -3554,8 +3553,8 @@ func rewriteValueMIPS_OpMIPSMOVBload_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _))
+-	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && isSigned(x.Type)
+-	// result: x
++	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
++	// result: (MOVBreg x)
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+@@ -3570,11 +3569,10 @@ func rewriteValueMIPS_OpMIPSMOVBload_0(v *Value) bool {
+ 		_ = v_1.Args[2]
+ 		ptr2 := v_1.Args[0]
+ 		x := v_1.Args[1]
+-		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && isSigned(x.Type)) {
++		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpMIPSMOVBreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -4226,8 +4224,8 @@ func rewriteValueMIPS_OpMIPSMOVHUload_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVHUload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _))
+-	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && !isSigned(x.Type)
+-	// result: x
++	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
++	// result: (MOVHUreg x)
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+@@ -4242,11 +4240,10 @@ func rewriteValueMIPS_OpMIPSMOVHUload_0(v *Value) bool {
+ 		_ = v_1.Args[2]
+ 		ptr2 := v_1.Args[0]
+ 		x := v_1.Args[1]
+-		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && !isSigned(x.Type)) {
++		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpMIPSMOVHUreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -4413,8 +4410,8 @@ func rewriteValueMIPS_OpMIPSMOVHload_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVHload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _))
+-	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && isSigned(x.Type)
+-	// result: x
++	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
++	// result: (MOVHreg x)
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+@@ -4429,11 +4426,10 @@ func rewriteValueMIPS_OpMIPSMOVHload_0(v *Value) bool {
+ 		_ = v_1.Args[2]
+ 		ptr2 := v_1.Args[0]
+ 		x := v_1.Args[1]
+-		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && isSigned(x.Type)) {
++		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpMIPSMOVHreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+diff --git a/test/fixedbugs/issue20530.go b/test/fixedbugs/issue20530.go
+index 7027b10745..51f0bd8e39 100644
+--- a/test/fixedbugs/issue20530.go
++++ b/test/fixedbugs/issue20530.go
+@@ -8,7 +8,8 @@ package main
+ 
+ var a uint8
+ 
+-func main() {
++//go:noinline
++func f() {
+ 	b := int8(func() int32 { return -1 }())
+ 	a = uint8(b)
+ 	if int32(a) != 255 {
+@@ -16,3 +17,18 @@ func main() {
+ 		println("got", a, "expected 255")
+ 	}
+ }
++
++//go:noinline
++func g() {
++	b := int8(func() uint32 { return 0xffffffff }())
++	a = uint8(b)
++	if int32(a) != 255 {
++		// Failing case prints 'got 255 expected 255'
++		println("got", a, "expected 255")
++	}
++}
++
++func main() {
++	f()
++	g()
++}

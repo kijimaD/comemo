@@ -8,6 +8,38 @@ Date:   Sun Feb 16 19:14:06 2014 -0800
     R=golang-codereviews, r
     CC=golang-codereviews
     https://golang.org/cl/64090043
-
+---
  src/cmd/gc/sinit.c | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index f2100d53b7..c4128a61bc 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -857,7 +857,7 @@ ctxt = 0;
+ 		r = l->n;
+ 
+ 		if(r->op != OKEY)
+-			fatal("slicelit: rhs not OKEY: %N", r);
++			fatal("maplit: rhs not OKEY: %N", r);
+ 		index = r->left;
+ 		value = r->right;
+ 
+@@ -901,7 +901,7 @@ ctxt = 0;
+ 			r = l->n;
+ 
+ 			if(r->op != OKEY)
+-				fatal("slicelit: rhs not OKEY: %N", r);
++				fatal("maplit: rhs not OKEY: %N", r);
+ 			index = r->left;
+ 			value = r->right;
+ 
+@@ -965,7 +965,7 @@ ctxt = 0;
+ 		r = l->n;
+ 
+ 		if(r->op != OKEY)
+-			fatal("slicelit: rhs not OKEY: %N", r);
++			fatal("maplit: rhs not OKEY: %N", r);
+ 		index = r->left;
+ 		value = r->right;
+ 

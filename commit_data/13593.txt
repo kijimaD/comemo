@@ -12,7 +12,35 @@ Date:   Tue Aug 7 13:36:08 2012 +1000
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/6449101
-
+---
  src/pkg/exp/html/parse.go                | 2 +-
  src/pkg/exp/html/testlogs/tests7.dat.log | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/exp/html/parse.go b/src/pkg/exp/html/parse.go
+index 6b1f40cb8e..0bde2fe0e7 100644
+--- a/src/pkg/exp/html/parse.go
++++ b/src/pkg/exp/html/parse.go
+@@ -669,7 +669,7 @@ func afterHeadIM(p *parser) bool {
+ 			return true
+ 		case a.Base, a.Basefont, a.Bgsound, a.Link, a.Meta, a.Noframes, a.Script, a.Style, a.Title:
+ 			p.oe = append(p.oe, p.head)
+-			defer p.oe.pop()
++			defer p.oe.remove(p.head)
+ 			return inHeadIM(p)
+ 		case a.Head:
+ 			// Ignore the token.
+diff --git a/src/pkg/exp/html/testlogs/tests7.dat.log b/src/pkg/exp/html/testlogs/tests7.dat.log
+index 85d6c77088..dfb956b01f 100644
+--- a/src/pkg/exp/html/testlogs/tests7.dat.log
++++ b/src/pkg/exp/html/testlogs/tests7.dat.log
+@@ -1,7 +1,7 @@
+ PASS "<!doctype html><body><title>X</title>"
+ PASS "<!doctype html><table><title>X</title></table>"
+-FAIL "<!doctype html><head></head><title>X</title>"
+-FAIL "<!doctype html></head><title>X</title>"
++PASS "<!doctype html><head></head><title>X</title>"
++PASS "<!doctype html></head><title>X</title>"
+ PASS "<!doctype html><table><meta></table>"
+ PASS "<!doctype html><table>X<tr><td><table> <meta></table></table>"
+ PASS "<!doctype html><html> <head>"

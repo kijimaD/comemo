@@ -14,7 +14,7 @@ Date:   Thu Jul 15 22:06:38 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/check.go       |  2 +-
  src/go/types/decl.go        |  7 ++--
  src/go/types/instantiate.go | 18 ++++++++-
@@ -33,3 +33,608 @@ Date:   Thu Jul 15 22:06:38 2021 -0400
  src/go/types/typestring.go  |  4 +-
  src/go/types/typexpr.go     |  2 +-
  17 files changed, 186 insertions(+), 43 deletions(-)
+
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index aea319f463..3e534de08a 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -73,7 +73,7 @@ type importKey struct {
+ // A dotImportKey describes a dot-imported object in the given scope.
+ type dotImportKey struct {
+ 	scope *Scope
+-	obj   Object
++	name  string
+ }
+ 
+ // A Checker maintains the state of the type checker.
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 12ee51b920..761418c4fb 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -576,7 +576,7 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
+ // is detected, the result is Typ[Invalid]. If a cycle is detected and
+ // n0.check != nil, the cycle is reported.
+ func (n0 *Named) under() Type {
+-	u := n0.underlying
++	u := n0.Underlying()
+ 
+ 	if u == Typ[Invalid] {
+ 		return u
+@@ -614,7 +614,7 @@ func (n0 *Named) under() Type {
+ 	seen := map[*Named]int{n0: 0}
+ 	path := []Object{n0.obj}
+ 	for {
+-		u = n.underlying
++		u = n.Underlying()
+ 		if u == nil {
+ 			u = Typ[Invalid]
+ 			break
+@@ -814,7 +814,7 @@ func (check *Checker) collectMethods(obj *TypeName) {
+ 	// and field names must be distinct."
+ 	base := asNamed(obj.typ) // shouldn't fail but be conservative
+ 	if base != nil {
+-		if t, _ := base.underlying.(*Struct); t != nil {
++		if t, _ := base.Underlying().(*Struct); t != nil {
+ 			for _, fld := range t.fields {
+ 				if fld.name != "_" {
+ 					assert(mset.insert(fld) == nil)
+@@ -850,6 +850,7 @@ func (check *Checker) collectMethods(obj *TypeName) {
+ 		}
+ 
+ 		if base != nil {
++			base.expand() // TODO(mdempsky): Probably unnecessary.
+ 			base.methods = append(base.methods, m)
+ 		}
+ 	}
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index 6f8c4983f4..1c15ac199c 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -23,7 +23,7 @@ func Instantiate(pos token.Pos, typ Type, targs []Type) (res Type) {
+ 	var tparams []*TypeName
+ 	switch t := typ.(type) {
+ 	case *Named:
+-		tparams = t.tparams
++		tparams = t.TParams()
+ 	case *Signature:
+ 		tparams = t.tparams
+ 		defer func() {
+@@ -61,3 +61,19 @@ func Instantiate(pos token.Pos, typ Type, targs []Type) (res Type) {
+ 	smap := makeSubstMap(tparams, targs)
+ 	return (*Checker)(nil).subst(pos, typ, smap)
+ }
++
++// InstantiateLazy is like Instantiate, but avoids actually
++// instantiating the type until needed.
++func (check *Checker) InstantiateLazy(pos token.Pos, typ Type, targs []Type) (res Type) {
++	base := asNamed(typ)
++	if base == nil {
++		panic(fmt.Sprintf("%v: cannot instantiate %v", pos, typ))
++	}
++
++	return &instance{
++		check: check,
++		pos:   pos,
++		base:  base,
++		targs: targs,
++	}
++}
+diff --git a/src/go/types/labels.go b/src/go/types/labels.go
+index 8cf6e63645..f3b7f211f3 100644
+--- a/src/go/types/labels.go
++++ b/src/go/types/labels.go
+@@ -36,7 +36,8 @@ func (check *Checker) labels(body *ast.BlockStmt) {
+ 	}
+ 
+ 	// spec: "It is illegal to define a label that is never used."
+-	for _, obj := range all.elems {
++	for name, obj := range all.elems {
++		obj = resolve(name, obj)
+ 		if lbl := obj.(*Label); !lbl.used {
+ 			check.softErrorf(lbl, _UnusedLabel, "label %s declared but not used", lbl.name)
+ 		}
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 3e89b6cc2b..5b22c4744e 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -56,7 +56,7 @@ func (check *Checker) lookupFieldOrMethod(T Type, addressable bool, pkg *Package
+ 	// pointer type but discard the result if it is a method since we would
+ 	// not have found it for T (see also issue 8590).
+ 	if t := asNamed(T); t != nil {
+-		if p, _ := t.underlying.(*Pointer); p != nil {
++		if p, _ := t.Underlying().(*Pointer); p != nil {
+ 			obj, index, indirect = check.rawLookupFieldOrMethod(p, false, pkg, name)
+ 			if _, ok := obj.(*Func); ok {
+ 				return nil, nil, false
+@@ -128,6 +128,7 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
+ 				seen[named] = true
+ 
+ 				// look for a matching attached method
++				named.expand()
+ 				if i, m := lookupMethod(named.methods, pkg, name); m != nil {
+ 					// potential match
+ 					// caution: method may not have a proper signature yet
+@@ -400,7 +401,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ 		// In order to compare the signatures, substitute the receiver
+ 		// type parameters of ftyp with V's instantiation type arguments.
+ 		// This lazily instantiates the signature of method f.
+-		if Vn != nil && len(Vn.tparams) > 0 {
++		if Vn != nil && len(Vn.TParams()) > 0 {
+ 			// Be careful: The number of type arguments may not match
+ 			// the number of receiver parameters. If so, an error was
+ 			// reported earlier but the length discrepancy is still
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index 50346ec691..7913008814 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -230,6 +230,14 @@ func NewTypeName(pos token.Pos, pkg *Package, name string, typ Type) *TypeName {
+ 	return &TypeName{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}}
+ }
+ 
++// _NewTypeNameLazy returns a new defined type like NewTypeName, but it
++// lazily calls resolve to finish constructing the Named object.
++func _NewTypeNameLazy(pos token.Pos, pkg *Package, name string, resolve func(named *Named) (tparams []*TypeName, underlying Type, methods []*Func)) *TypeName {
++	obj := NewTypeName(pos, pkg, name, nil)
++	NewNamed(obj, nil, nil).resolve = resolve
++	return obj
++}
++
+ // IsAlias reports whether obj is an alias name for a type.
+ func (obj *TypeName) IsAlias() bool {
+ 	switch t := obj.typ.(type) {
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 6aa5825943..9f3e324597 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -25,7 +25,7 @@ func isNamed(typ Type) bool {
+ func isGeneric(typ Type) bool {
+ 	// A parameterized type is only instantiated if it doesn't have an instantiation already.
+ 	named, _ := typ.(*Named)
+-	return named != nil && named.obj != nil && named.tparams != nil && named.targs == nil
++	return named != nil && named.obj != nil && named.TParams() != nil && named.targs == nil
+ }
+ 
+ func is(typ Type, what BasicInfo) bool {
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index 1434e6deb1..5e58c3dcfd 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -309,20 +309,24 @@ func (check *Checker) collectObjects() {
+ 						check.dotImportMap = make(map[dotImportKey]*PkgName)
+ 					}
+ 					// merge imported scope with file scope
+-					for _, obj := range imp.scope.elems {
++					for name, obj := range imp.scope.elems {
++						// Note: Avoid eager resolve(name, obj) here, so we only
++						// resolve dot-imported objects as needed.
++
+ 						// A package scope may contain non-exported objects,
+ 						// do not import them!
+-						if obj.Exported() {
++						if token.IsExported(name) {
+ 							// declare dot-imported object
+ 							// (Do not use check.declare because it modifies the object
+ 							// via Object.setScopePos, which leads to a race condition;
+ 							// the object may be imported into more than one file scope
+ 							// concurrently. See issue #32154.)
+-							if alt := fileScope.Insert(obj); alt != nil {
+-								check.errorf(d.spec.Name, _DuplicateDecl, "%s redeclared in this block", obj.Name())
++							if alt := fileScope.Lookup(name); alt != nil {
++								check.errorf(d.spec.Name, _DuplicateDecl, "%s redeclared in this block", alt.Name())
+ 								check.reportAltDecl(alt)
+ 							} else {
+-								check.dotImportMap[dotImportKey{fileScope, obj}] = pkgName
++								fileScope.insert(name, obj)
++								check.dotImportMap[dotImportKey{fileScope, name}] = pkgName
+ 							}
+ 						}
+ 					}
+@@ -443,8 +447,9 @@ func (check *Checker) collectObjects() {
+ 
+ 	// verify that objects in package and file scopes have different names
+ 	for _, scope := range fileScopes {
+-		for _, obj := range scope.elems {
+-			if alt := pkg.scope.Lookup(obj.Name()); alt != nil {
++		for name, obj := range scope.elems {
++			if alt := pkg.scope.Lookup(name); alt != nil {
++				obj = resolve(name, obj)
+ 				if pkg, ok := obj.(*PkgName); ok {
+ 					check.errorf(alt, _DuplicateDecl, "%s already declared through import of %s", alt.Name(), pkg.Imported())
+ 					check.reportAltDecl(pkg)
+diff --git a/src/go/types/sanitize.go b/src/go/types/sanitize.go
+index 05e7d8b4bf..f54ab68624 100644
+--- a/src/go/types/sanitize.go
++++ b/src/go/types/sanitize.go
+@@ -135,6 +135,7 @@ func (s sanitizer) typ(typ Type) Type {
+ 		if debug && t.check != nil {
+ 			panic("internal error: Named.check != nil")
+ 		}
++		t.expand()
+ 		if orig := s.typ(t.fromRHS); orig != t.fromRHS {
+ 			t.fromRHS = orig
+ 		}
+diff --git a/src/go/types/scope.go b/src/go/types/scope.go
+index 26c28d1c4e..fa6e0ecb8f 100644
+--- a/src/go/types/scope.go
++++ b/src/go/types/scope.go
+@@ -13,6 +13,7 @@ import (
+ 	"io"
+ 	"sort"
+ 	"strings"
++	"sync"
+ )
+ 
+ // A Scope maintains a set of objects and links to its containing
+@@ -66,7 +67,7 @@ func (s *Scope) Child(i int) *Scope { return s.children[i] }
+ // Lookup returns the object in scope s with the given name if such an
+ // object exists; otherwise the result is nil.
+ func (s *Scope) Lookup(name string) Object {
+-	return s.elems[name]
++	return resolve(name, s.elems[name])
+ }
+ 
+ // LookupParent follows the parent chain of scopes starting with s until
+@@ -81,7 +82,7 @@ func (s *Scope) Lookup(name string) Object {
+ // whose scope is the scope of the package that exported them.
+ func (s *Scope) LookupParent(name string, pos token.Pos) (*Scope, Object) {
+ 	for ; s != nil; s = s.parent {
+-		if obj := s.elems[name]; obj != nil && (!pos.IsValid() || obj.scopePos() <= pos) {
++		if obj := s.Lookup(name); obj != nil && (!pos.IsValid() || obj.scopePos() <= pos) {
+ 			return s, obj
+ 		}
+ 	}
+@@ -95,19 +96,38 @@ func (s *Scope) LookupParent(name string, pos token.Pos) (*Scope, Object) {
+ // if not already set, and returns nil.
+ func (s *Scope) Insert(obj Object) Object {
+ 	name := obj.Name()
+-	if alt := s.elems[name]; alt != nil {
++	if alt := s.Lookup(name); alt != nil {
+ 		return alt
+ 	}
+-	if s.elems == nil {
+-		s.elems = make(map[string]Object)
+-	}
+-	s.elems[name] = obj
++	s.insert(name, obj)
+ 	if obj.Parent() == nil {
+ 		obj.setParent(s)
+ 	}
+ 	return nil
+ }
+ 
++// _InsertLazy is like Insert, but allows deferring construction of the
++// inserted object until it's accessed with Lookup. The Object
++// returned by resolve must have the same name as given to _InsertLazy.
++// If s already contains an alternative object with the same name,
++// _InsertLazy leaves s unchanged and returns false. Otherwise it
++// records the binding and returns true. The object's parent scope
++// will be set to s after resolve is called.
++func (s *Scope) _InsertLazy(name string, resolve func() Object) bool {
++	if s.elems[name] != nil {
++		return false
++	}
++	s.insert(name, &lazyObject{parent: s, resolve: resolve})
++	return true
++}
++
++func (s *Scope) insert(name string, obj Object) {
++	if s.elems == nil {
++		s.elems = make(map[string]Object)
++	}
++	s.elems[name] = obj
++}
++
+ // squash merges s with its parent scope p by adding all
+ // objects of s to p, adding all children of s to the
+ // children of p, and removing s from p's children.
+@@ -117,7 +137,8 @@ func (s *Scope) Insert(obj Object) Object {
+ func (s *Scope) squash(err func(obj, alt Object)) {
+ 	p := s.parent
+ 	assert(p != nil)
+-	for _, obj := range s.elems {
++	for name, obj := range s.elems {
++		obj = resolve(name, obj)
+ 		obj.setParent(nil)
+ 		if alt := p.Insert(obj); alt != nil {
+ 			err(obj, alt)
+@@ -196,7 +217,7 @@ func (s *Scope) WriteTo(w io.Writer, n int, recurse bool) {
+ 
+ 	indn1 := indn + ind
+ 	for _, name := range s.Names() {
+-		fmt.Fprintf(w, "%s%s\n", indn1, s.elems[name])
++		fmt.Fprintf(w, "%s%s\n", indn1, s.Lookup(name))
+ 	}
+ 
+ 	if recurse {
+@@ -214,3 +235,57 @@ func (s *Scope) String() string {
+ 	s.WriteTo(&buf, 0, false)
+ 	return buf.String()
+ }
++
++// A lazyObject represents an imported Object that has not been fully
++// resolved yet by its importer.
++type lazyObject struct {
++	parent  *Scope
++	resolve func() Object
++	obj     Object
++	once    sync.Once
++}
++
++// resolve returns the Object represented by obj, resolving lazy
++// objects as appropriate.
++func resolve(name string, obj Object) Object {
++	if lazy, ok := obj.(*lazyObject); ok {
++		lazy.once.Do(func() {
++			obj := lazy.resolve()
++
++			if _, ok := obj.(*lazyObject); ok {
++				panic("recursive lazy object")
++			}
++			if obj.Name() != name {
++				panic("lazy object has unexpected name")
++			}
++
++			if obj.Parent() == nil {
++				obj.setParent(lazy.parent)
++			}
++			lazy.obj = obj
++		})
++
++		obj = lazy.obj
++	}
++	return obj
++}
++
++// stub implementations so *lazyObject implements Object and we can
++// store them directly into Scope.elems.
++func (*lazyObject) Parent() *Scope                        { panic("unreachable") }
++func (*lazyObject) Pos() token.Pos                        { panic("unreachable") }
++func (*lazyObject) Pkg() *Package                         { panic("unreachable") }
++func (*lazyObject) Name() string                          { panic("unreachable") }
++func (*lazyObject) Type() Type                            { panic("unreachable") }
++func (*lazyObject) Exported() bool                        { panic("unreachable") }
++func (*lazyObject) Id() string                            { panic("unreachable") }
++func (*lazyObject) String() string                        { panic("unreachable") }
++func (*lazyObject) order() uint32                         { panic("unreachable") }
++func (*lazyObject) color() color                          { panic("unreachable") }
++func (*lazyObject) setType(Type)                          { panic("unreachable") }
++func (*lazyObject) setOrder(uint32)                       { panic("unreachable") }
++func (*lazyObject) setColor(color color)                  { panic("unreachable") }
++func (*lazyObject) setParent(*Scope)                      { panic("unreachable") }
++func (*lazyObject) sameId(pkg *Package, name string) bool { panic("unreachable") }
++func (*lazyObject) scopePos() token.Pos                   { panic("unreachable") }
++func (*lazyObject) setScopePos(pos token.Pos)             { panic("unreachable") }
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index f56fe047c8..9be2cce752 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -57,7 +57,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 				//       again when we type-check the signature.
+ 				// TODO(gri) maybe the receiver should be marked as invalid instead?
+ 				if recv := asNamed(check.genericType(rname, false)); recv != nil {
+-					recvTParams = recv.tparams
++					recvTParams = recv.TParams()
+ 				}
+ 			}
+ 			// provide type parameter bounds
+diff --git a/src/go/types/sizeof_test.go b/src/go/types/sizeof_test.go
+index 9459f67769..9710edab15 100644
+--- a/src/go/types/sizeof_test.go
++++ b/src/go/types/sizeof_test.go
+@@ -30,7 +30,7 @@ func TestSizeof(t *testing.T) {
+ 		{Interface{}, 52, 104},
+ 		{Map{}, 16, 32},
+ 		{Chan{}, 12, 24},
+-		{Named{}, 68, 136},
++		{Named{}, 84, 160},
+ 		{_TypeParam{}, 28, 48},
+ 		{instance{}, 44, 88},
+ 		{top{}, 0, 0},
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 9dcaceaca7..afef833490 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -65,7 +65,8 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
+ 
+ func (check *Checker) usage(scope *Scope) {
+ 	var unused []*Var
+-	for _, elem := range scope.elems {
++	for name, elem := range scope.elems {
++		elem = resolve(name, elem)
+ 		if v, _ := elem.(*Var); v != nil && !v.used {
+ 			unused = append(unused, v)
+ 		}
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index 025eba0f8c..dc30bfbe67 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -79,7 +79,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
+ 	var tparams []*TypeName
+ 	switch t := typ.(type) {
+ 	case *Named:
+-		tparams = t.tparams
++		tparams = t.TParams()
+ 	case *Signature:
+ 		tparams = t.tparams
+ 		defer func() {
+@@ -351,7 +351,7 @@ func (subst *subster) typ(typ Type) Type {
+ 			}
+ 		}
+ 
+-		if t.tparams == nil {
++		if t.TParams() == nil {
+ 			dump(">>> %s is not parameterized", t)
+ 			return t // type is not parameterized
+ 		}
+@@ -361,7 +361,7 @@ func (subst *subster) typ(typ Type) Type {
+ 		if len(t.targs) > 0 {
+ 			// already instantiated
+ 			dump(">>> %s already instantiated", t)
+-			assert(len(t.targs) == len(t.tparams))
++			assert(len(t.targs) == len(t.TParams()))
+ 			// For each (existing) type argument targ, determine if it needs
+ 			// to be substituted; i.e., if it is or contains a type parameter
+ 			// that has a type argument for it.
+@@ -371,7 +371,7 @@ func (subst *subster) typ(typ Type) Type {
+ 				if newTarg != targ {
+ 					dump(">>> substituted %d targ %s => %s", i, targ, newTarg)
+ 					if newTargs == nil {
+-						newTargs = make([]Type, len(t.tparams))
++						newTargs = make([]Type, len(t.TParams()))
+ 						copy(newTargs, t.targs)
+ 					}
+ 					newTargs[i] = newTarg
+@@ -402,7 +402,7 @@ func (subst *subster) typ(typ Type) Type {
+ 
+ 		// create a new named type and populate caches to avoid endless recursion
+ 		tname := NewTypeName(subst.pos, t.obj.pkg, t.obj.name, nil)
+-		named := subst.check.newNamed(tname, t, t.underlying, t.tparams, t.methods) // method signatures are updated lazily
++		named := subst.check.newNamed(tname, t, t.Underlying(), t.TParams(), t.methods) // method signatures are updated lazily
+ 		named.targs = newTargs
+ 		if subst.check != nil {
+ 			subst.check.typMap[h] = named
+@@ -411,7 +411,7 @@ func (subst *subster) typ(typ Type) Type {
+ 
+ 		// do the substitution
+ 		dump(">>> subst %s with %s (new: %s)", t.underlying, subst.smap, newTargs)
+-		named.underlying = subst.typOrNil(t.underlying)
++		named.underlying = subst.typOrNil(t.Underlying())
+ 		named.fromRHS = named.underlying // for cycle detection (Checker.validType)
+ 
+ 		return named
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index 7429056865..d555a8f684 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -6,6 +6,7 @@ package types
+ 
+ import (
+ 	"go/token"
++	"sync"
+ 	"sync/atomic"
+ )
+ 
+@@ -504,6 +505,9 @@ type Named struct {
+ 	tparams    []*TypeName // type parameters, or nil
+ 	targs      []Type      // type arguments (after instantiation), or nil
+ 	methods    []*Func     // methods declared for this type (not the method set of this type); signatures are type-checked lazily
++
++	resolve func(*Named) ([]*TypeName, Type, []*Func)
++	once    sync.Once
+ }
+ 
+ // NewNamed returns a new named type for the given type name, underlying type, and associated methods.
+@@ -516,6 +520,35 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
+ 	return (*Checker)(nil).newNamed(obj, nil, underlying, nil, methods)
+ }
+ 
++func (t *Named) expand() *Named {
++	if t.resolve == nil {
++		return t
++	}
++
++	t.once.Do(func() {
++		// TODO(mdempsky): Since we're passing t to resolve anyway
++		// (necessary because types2 expects the receiver type for methods
++		// on defined interface types to be the Named rather than the
++		// underlying Interface), maybe it should just handle calling
++		// SetTParams, SetUnderlying, and AddMethod instead?  Those
++		// methods would need to support reentrant calls though.  It would
++		// also make the API more future-proof towards further extensions
++		// (like SetTParams).
++
++		tparams, underlying, methods := t.resolve(t)
++
++		switch underlying.(type) {
++		case nil, *Named:
++			panic("invalid underlying type")
++		}
++
++		t.tparams = tparams
++		t.underlying = underlying
++		t.methods = methods
++	})
++	return t
++}
++
+ func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tparams []*TypeName, methods []*Func) *Named {
+ 	typ := &Named{check: check, obj: obj, orig: orig, fromRHS: underlying, underlying: underlying, tparams: tparams, methods: methods}
+ 	if typ.orig == nil {
+@@ -556,10 +589,10 @@ func (t *Named) _Orig() *Named { return t.orig }
+ 
+ // _TParams returns the type parameters of the named type t, or nil.
+ // The result is non-nil for an (originally) parameterized type even if it is instantiated.
+-func (t *Named) _TParams() []*TypeName { return t.tparams }
++func (t *Named) _TParams() []*TypeName { return t.expand().tparams }
+ 
+ // _SetTParams sets the type parameters of the named type t.
+-func (t *Named) _SetTParams(tparams []*TypeName) { t.tparams = tparams }
++func (t *Named) _SetTParams(tparams []*TypeName) { t.expand().tparams = tparams }
+ 
+ // _TArgs returns the type arguments after instantiation of the named type t, or nil if not instantiated.
+ func (t *Named) _TArgs() []Type { return t.targs }
+@@ -568,10 +601,10 @@ func (t *Named) _TArgs() []Type { return t.targs }
+ func (t *Named) _SetTArgs(args []Type) { t.targs = args }
+ 
+ // NumMethods returns the number of explicit methods whose receiver is named type t.
+-func (t *Named) NumMethods() int { return len(t.methods) }
++func (t *Named) NumMethods() int { return len(t.expand().methods) }
+ 
+ // Method returns the i'th method of named type t for 0 <= i < t.NumMethods().
+-func (t *Named) Method(i int) *Func { return t.methods[i] }
++func (t *Named) Method(i int) *Func { return t.expand().methods[i] }
+ 
+ // SetUnderlying sets the underlying type and marks t as complete.
+ func (t *Named) SetUnderlying(underlying Type) {
+@@ -581,11 +614,12 @@ func (t *Named) SetUnderlying(underlying Type) {
+ 	if _, ok := underlying.(*Named); ok {
+ 		panic("types.Named.SetUnderlying: underlying type must not be *Named")
+ 	}
+-	t.underlying = underlying
++	t.expand().underlying = underlying
+ }
+ 
+ // AddMethod adds method m unless it is already in the method list.
+ func (t *Named) AddMethod(m *Func) {
++	t.expand()
+ 	if i, _ := lookupMethod(t.methods, m.pkg, m.name); i < 0 {
+ 		t.methods = append(t.methods, m)
+ 	}
+@@ -736,7 +770,7 @@ func (t *Signature) Underlying() Type  { return t }
+ func (t *Interface) Underlying() Type  { return t }
+ func (t *Map) Underlying() Type        { return t }
+ func (t *Chan) Underlying() Type       { return t }
+-func (t *Named) Underlying() Type      { return t.underlying }
++func (t *Named) Underlying() Type      { return t.expand().underlying }
+ func (t *_TypeParam) Underlying() Type { return t }
+ func (t *instance) Underlying() Type   { return t }
+ func (t *top) Underlying() Type        { return t }
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index 73465a35b7..79b4f74ff3 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -273,9 +273,9 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 			buf.WriteByte('[')
+ 			writeTypeList(buf, t.targs, qf, visited)
+ 			buf.WriteByte(']')
+-		} else if t.tparams != nil {
++		} else if t.TParams() != nil {
+ 			// parameterized type
+-			writeTParamList(buf, t.tparams, qf, visited)
++			writeTParamList(buf, t.TParams(), qf, visited)
+ 		}
+ 
+ 	case *_TypeParam:
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index f62b41831e..249a3ac5c5 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -56,7 +56,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
+ 	// If so, mark the respective package as used.
+ 	// (This code is only needed for dot-imports. Without them,
+ 	// we only have to mark variables, see *Var case below).
+-	if pkgName := check.dotImportMap[dotImportKey{scope, obj}]; pkgName != nil {
++	if pkgName := check.dotImportMap[dotImportKey{scope, obj.Name()}]; pkgName != nil {
+ 		pkgName.used = true
+ 	}
+ 

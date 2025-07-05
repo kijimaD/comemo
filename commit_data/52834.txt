@@ -15,7 +15,89 @@ Date:   Thu Jun 2 05:09:09 2022 +1000
     Run-TryBot: Joel Sing <joel@sing.id.au>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/RISCV64.rules |  6 +++---
  src/cmd/compile/internal/ssa/rewriteRISCV64.go | 16 ++++++++--------
  2 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index 7aea622c5e..dd20be2aeb 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -735,9 +735,9 @@
+ (NEGW (MOVDconst [x])) => (MOVDconst [int64(int32(-x))])
+ 
+ // Shift of a constant.
+-(SLLI [x] (MOVDconst [y])) && is32Bit(y << x) => (MOVDconst [y << x])
+-(SRLI [x] (MOVDconst [y])) => (MOVDconst [int64(uint64(y) >> x)])
+-(SRAI [x] (MOVDconst [y])) => (MOVDconst [int64(y) >> x])
++(SLLI [x] (MOVDconst [y])) && is32Bit(y << uint32(x)) => (MOVDconst [y << uint32(x)])
++(SRLI [x] (MOVDconst [y])) => (MOVDconst [int64(uint64(y) >> uint32(x))])
++(SRAI [x] (MOVDconst [y])) => (MOVDconst [int64(y) >> uint32(x)])
+ 
+ // SLTI/SLTIU with constants.
+ (SLTI  [x] (MOVDconst [y])) => (MOVDconst [b2i(int64(y) < int64(x))])
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index 6828d97ff8..2677e99dc0 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -4843,19 +4843,19 @@ func rewriteValueRISCV64_OpRISCV64SLL(v *Value) bool {
+ func rewriteValueRISCV64_OpRISCV64SLLI(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (SLLI [x] (MOVDconst [y]))
+-	// cond: is32Bit(y << x)
+-	// result: (MOVDconst [y << x])
++	// cond: is32Bit(y << uint32(x))
++	// result: (MOVDconst [y << uint32(x)])
+ 	for {
+ 		x := auxIntToInt64(v.AuxInt)
+ 		if v_0.Op != OpRISCV64MOVDconst {
+ 			break
+ 		}
+ 		y := auxIntToInt64(v_0.AuxInt)
+-		if !(is32Bit(y << x)) {
++		if !(is32Bit(y << uint32(x))) {
+ 			break
+ 		}
+ 		v.reset(OpRISCV64MOVDconst)
+-		v.AuxInt = int64ToAuxInt(y << x)
++		v.AuxInt = int64ToAuxInt(y << uint32(x))
+ 		return true
+ 	}
+ 	return false
+@@ -4913,7 +4913,7 @@ func rewriteValueRISCV64_OpRISCV64SRA(v *Value) bool {
+ func rewriteValueRISCV64_OpRISCV64SRAI(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (SRAI [x] (MOVDconst [y]))
+-	// result: (MOVDconst [int64(y) >> x])
++	// result: (MOVDconst [int64(y) >> uint32(x)])
+ 	for {
+ 		x := auxIntToInt64(v.AuxInt)
+ 		if v_0.Op != OpRISCV64MOVDconst {
+@@ -4921,7 +4921,7 @@ func rewriteValueRISCV64_OpRISCV64SRAI(v *Value) bool {
+ 		}
+ 		y := auxIntToInt64(v_0.AuxInt)
+ 		v.reset(OpRISCV64MOVDconst)
+-		v.AuxInt = int64ToAuxInt(int64(y) >> x)
++		v.AuxInt = int64ToAuxInt(int64(y) >> uint32(x))
+ 		return true
+ 	}
+ 	return false
+@@ -4947,7 +4947,7 @@ func rewriteValueRISCV64_OpRISCV64SRL(v *Value) bool {
+ func rewriteValueRISCV64_OpRISCV64SRLI(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (SRLI [x] (MOVDconst [y]))
+-	// result: (MOVDconst [int64(uint64(y) >> x)])
++	// result: (MOVDconst [int64(uint64(y) >> uint32(x))])
+ 	for {
+ 		x := auxIntToInt64(v.AuxInt)
+ 		if v_0.Op != OpRISCV64MOVDconst {
+@@ -4955,7 +4955,7 @@ func rewriteValueRISCV64_OpRISCV64SRLI(v *Value) bool {
+ 		}
+ 		y := auxIntToInt64(v_0.AuxInt)
+ 		v.reset(OpRISCV64MOVDconst)
+-		v.AuxInt = int64ToAuxInt(int64(uint64(y) >> x))
++		v.AuxInt = int64ToAuxInt(int64(uint64(y) >> uint32(x)))
+ 		return true
+ 	}
+ 	return false

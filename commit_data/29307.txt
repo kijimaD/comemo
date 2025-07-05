@@ -7,6 +7,56 @@ Date:   Tue Aug 30 14:21:33 2016 -0700
     Change-Id: I59e18fab37fd688fc1e578e2192e32e29fdf37f0
     Reviewed-on: https://go-review.googlesource.com/28331
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/fmt.go | 25 +++++++++++++++++++------
  1 file changed, 19 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 816ccce1c2..798a7fd9c6 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -213,25 +213,38 @@ var goopnames = []string{
+ }
+ 
+ func (o Op) String() string {
+-	return oconv(o, 0)
++	return fmt.Sprintf("%v", o)
+ }
+ 
+ func (o Op) GoString() string {
+-	return oconv(o, FmtSharp)
++	return fmt.Sprintf("%#v", o)
+ }
+ 
+-func oconv(o Op, flag FmtFlag) string {
++func (o Op) Format(s fmt.State, format rune) {
++	switch format {
++	case 's', 'v':
++		o.oconv(s)
++
++	default:
++		fmt.Fprintf(s, "%%!%c(Op=%d)", format, o)
++	}
++}
++
++func (o Op) oconv(s fmt.State) {
++	flag := fmtFlag(s)
+ 	if (flag&FmtSharp != 0) || fmtmode != FDbg {
+ 		if o >= 0 && int(o) < len(goopnames) && goopnames[o] != "" {
+-			return goopnames[o]
++			fmt.Fprint(s, goopnames[o])
++			return
+ 		}
+ 	}
+ 
+ 	if o >= 0 && int(o) < len(opnames) && opnames[o] != "" {
+-		return opnames[o]
++		fmt.Fprint(s, opnames[o])
++		return
+ 	}
+ 
+-	return fmt.Sprintf("O-%d", o)
++	fmt.Sprintf("O-%d", o)
+ }
+ 
+ var classnames = []string{

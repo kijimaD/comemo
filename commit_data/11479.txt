@@ -10,6 +10,20 @@ Date:   Mon Jan 30 12:08:35 2012 -0800
     R=rsc, rsc
     CC=golang-dev
     https://golang.org/cl/5599047
-
+---
  src/buildscript.sh | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/buildscript.sh b/src/buildscript.sh
+index 1afdb69593..905077c99a 100755
+--- a/src/buildscript.sh
++++ b/src/buildscript.sh
+@@ -35,6 +35,8 @@ set -e
+ 		s/\$WORK/"$WORK"/g
+ 		s;"\$GOBIN"/go;&_bootstrap;g
+ 		s;\\;/;g
++		s/go_bootstrap-tool/go-tool/g
++		s;"\$GOBIN"/go-tool;"$GOROOT"/bin/go-tool;g
+ 	'
+ 	)>$targ
+ 	chmod +x $targ

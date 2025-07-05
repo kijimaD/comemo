@@ -15,8 +15,197 @@ Date:   Thu Apr 7 17:51:05 2022 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/export_test.go   |   1 +
  src/runtime/mgcpacer.go      |  16 +++---
  src/runtime/mgcpacer_test.go | 119 ++++++++++++++++++++++++++++++++++++++++++-
  3 files changed, 126 insertions(+), 10 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 0e64b87317..6d1cf645d2 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1262,6 +1262,7 @@ const Raceenabled = raceenabled
+ const (
+ 	GCBackgroundUtilization = gcBackgroundUtilization
+ 	GCGoalUtilization       = gcGoalUtilization
++	DefaultHeapMinimum      = defaultHeapMinimum
+ )
+ 
+ type GCController struct {
+diff --git a/src/runtime/mgcpacer.go b/src/runtime/mgcpacer.go
+index 57c2215b4f..40cf67c747 100644
+--- a/src/runtime/mgcpacer.go
++++ b/src/runtime/mgcpacer.go
+@@ -984,19 +984,19 @@ func (c *gcControllerState) commit() {
+ 		minTrigger = triggerBound
+ 	}
+ 
+-	// For small heaps, set the max trigger point at 95% of the heap goal.
+-	// This ensures we always have *some* headroom when the GC actually starts.
+-	// For larger heaps, set the max trigger point at the goal, minus the
+-	// minimum heap size.
++	// For small heaps, set the max trigger point at 95% of the way from the
++	// live heap to the heap goal. This ensures we always have *some* headroom
++	// when the GC actually starts. For larger heaps, set the max trigger point
++	// at the goal, minus the minimum heap size.
++	//
+ 	// This choice follows from the fact that the minimum heap size is chosen
+ 	// to reflect the costs of a GC with no work to do. With a large heap but
+ 	// very little scan work to perform, this gives us exactly as much runway
+ 	// as we would need, in the worst case.
+-	maxRunway := uint64(0.95 * float64(goal-c.heapMarked))
+-	if largeHeapMaxRunway := goal - c.heapMinimum; goal > c.heapMinimum && maxRunway < largeHeapMaxRunway {
+-		maxRunway = largeHeapMaxRunway
++	maxTrigger := uint64(0.95*float64(goal-c.heapMarked)) + c.heapMarked
++	if goal > defaultHeapMinimum && goal-defaultHeapMinimum > maxTrigger {
++		maxTrigger = goal - defaultHeapMinimum
+ 	}
+-	maxTrigger := maxRunway + c.heapMarked
+ 	if maxTrigger < minTrigger {
+ 		maxTrigger = minTrigger
+ 	}
+diff --git a/src/runtime/mgcpacer_test.go b/src/runtime/mgcpacer_test.go
+index 23628898d4..fa60ddcc59 100644
+--- a/src/runtime/mgcpacer_test.go
++++ b/src/runtime/mgcpacer_test.go
+@@ -34,8 +34,7 @@ func TestGcPacer(t *testing.T) {
+ 			checker: func(t *testing.T, c []gcCycleResult) {
+ 				n := len(c)
+ 				if n >= 25 {
+-					// For the pacer redesign, assert something even stronger: at this alloc/scan rate,
+-					// it should be extremely close to the goal utilization.
++					// At this alloc/scan rate, the pacer should be extremely close to the goal utilization.
+ 					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, GCGoalUtilization, 0.005)
+ 
+ 					// Make sure the pacer settles into a non-degenerate state in at least 25 GC cycles.
+@@ -280,6 +279,114 @@ func TestGcPacer(t *testing.T) {
+ 				}
+ 			},
+ 		},
++		{
++			// This test sets a slow allocation rate and a small heap (close to the minimum heap size)
++			// to try to minimize the difference between the trigger and the goal.
++			name:          "SmallHeapSlowAlloc",
++			gcPercent:     100,
++			globalsBytes:  32 << 10,
++			nCores:        8,
++			allocRate:     constant(1.0),
++			scanRate:      constant(2048.0),
++			growthRate:    constant(2.0).sum(ramp(-1.0, 3)),
++			scannableFrac: constant(0.01),
++			stackBytes:    constant(8192),
++			length:        50,
++			checker: func(t *testing.T, c []gcCycleResult) {
++				n := len(c)
++				if n > 4 {
++					// After the 4th GC, the heap will stop growing.
++					// First, let's make sure we're finishing near the goal, with some extra
++					// room because we're probably going to be triggering early.
++					assertInRange(t, "goal ratio", c[n-1].goalRatio(), 0.925, 1.025)
++					// Next, let's make sure there's some minimum distance between the goal
++					// and the trigger.
++					//
++					// TODO(mknyszek): This is not quite intentional. For small heaps we should
++					// be within 5%.
++					assertInRange(t, "runway", c[n-1].runway(), 32<<10, 64<<10)
++				}
++				if n > 25 {
++					// Double-check that GC utilization looks OK.
++
++					// At this alloc/scan rate, the pacer should be extremely close to the goal utilization.
++					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, GCGoalUtilization, 0.005)
++					// Make sure GC utilization has mostly levelled off.
++					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, c[n-2].gcUtilization, 0.05)
++					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, c[11].gcUtilization, 0.05)
++				}
++			},
++		},
++		{
++			// This test sets a slow allocation rate and a medium heap (around 10x the min heap size)
++			// to try to minimize the difference between the trigger and the goal.
++			name:          "MediumHeapSlowAlloc",
++			gcPercent:     100,
++			globalsBytes:  32 << 10,
++			nCores:        8,
++			allocRate:     constant(1.0),
++			scanRate:      constant(2048.0),
++			growthRate:    constant(2.0).sum(ramp(-1.0, 8)),
++			scannableFrac: constant(0.01),
++			stackBytes:    constant(8192),
++			length:        50,
++			checker: func(t *testing.T, c []gcCycleResult) {
++				n := len(c)
++				if n > 9 {
++					// After the 4th GC, the heap will stop growing.
++					// First, let's make sure we're finishing near the goal, with some extra
++					// room because we're probably going to be triggering early.
++					assertInRange(t, "goal ratio", c[n-1].goalRatio(), 0.925, 1.025)
++					// Next, let's make sure there's some minimum distance between the goal
++					// and the trigger. It should be proportional to the runway (hence the
++					// trigger ratio check, instead of a check against the runway).
++					assertInRange(t, "trigger ratio", c[n-1].triggerRatio(), 0.925, 0.975)
++				}
++				if n > 25 {
++					// Double-check that GC utilization looks OK.
++
++					// At this alloc/scan rate, the pacer should be extremely close to the goal utilization.
++					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, GCGoalUtilization, 0.005)
++					// Make sure GC utilization has mostly levelled off.
++					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, c[n-2].gcUtilization, 0.05)
++					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, c[11].gcUtilization, 0.05)
++				}
++			},
++		},
++		{
++			// This test sets a slow allocation rate and a large heap to try to minimize the
++			// difference between the trigger and the goal.
++			name:          "LargeHeapSlowAlloc",
++			gcPercent:     100,
++			globalsBytes:  32 << 10,
++			nCores:        8,
++			allocRate:     constant(1.0),
++			scanRate:      constant(2048.0),
++			growthRate:    constant(4.0).sum(ramp(-3.0, 12)),
++			scannableFrac: constant(0.01),
++			stackBytes:    constant(8192),
++			length:        50,
++			checker: func(t *testing.T, c []gcCycleResult) {
++				n := len(c)
++				if n > 13 {
++					// After the 4th GC, the heap will stop growing.
++					// First, let's make sure we're finishing near the goal.
++					assertInRange(t, "goal ratio", c[n-1].goalRatio(), 0.95, 1.05)
++					// Next, let's make sure there's some minimum distance between the goal
++					// and the trigger. It should be around the default minimum heap size.
++					assertInRange(t, "runway", c[n-1].runway(), DefaultHeapMinimum-64<<10, DefaultHeapMinimum+64<<10)
++				}
++				if n > 25 {
++					// Double-check that GC utilization looks OK.
++
++					// At this alloc/scan rate, the pacer should be extremely close to the goal utilization.
++					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, GCGoalUtilization, 0.005)
++					// Make sure GC utilization has mostly levelled off.
++					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, c[n-2].gcUtilization, 0.05)
++					assertInEpsilon(t, "GC utilization", c[n-1].gcUtilization, c[11].gcUtilization, 0.05)
++				}
++			},
++		},
+ 		// TODO(mknyszek): Write a test that exercises the pacer's hard goal.
+ 		// This is difficult in the idealized model this testing framework places
+ 		// the pacer in, because the calculated overshoot is directly proportional
+@@ -532,6 +639,14 @@ func (r *gcCycleResult) goalRatio() float64 {
+ 	return float64(r.heapPeak) / float64(r.heapGoal)
+ }
+ 
++func (r *gcCycleResult) runway() float64 {
++	return float64(r.heapGoal - r.heapTrigger)
++}
++
++func (r *gcCycleResult) triggerRatio() float64 {
++	return float64(r.heapTrigger-r.heapLive) / float64(r.heapGoal-r.heapLive)
++}
++
+ func (r *gcCycleResult) String() string {
+ 	return fmt.Sprintf("%d %2.1f%% %d->%d->%d (goal: %d)", r.cycle, r.gcUtilization*100, r.heapLive, r.heapTrigger, r.heapPeak, r.heapGoal)
+ }

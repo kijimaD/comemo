@@ -40,8 +40,43 @@ Date:   Wed Jun 17 18:28:50 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/11222
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/debug/elf/file.go                                   |   2 +-
  src/debug/elf/file_test.go                              |   6 ++++++
  src/debug/elf/testdata/go-relocation-test-clang-arm.obj | Bin 0 -> 3092 bytes
  3 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/debug/elf/file.go b/src/debug/elf/file.go
+index 8e02c8bbd5..40625435fd 100644
+--- a/src/debug/elf/file.go
++++ b/src/debug/elf/file.go
+@@ -653,7 +653,7 @@ func (f *File) applyRelocationsARM(dst []byte, rels []byte) error {
+ 		sym := &symbols[symNo-1]
+ 
+ 		switch t {
+-		case R_ARM_REL32:
++		case R_ARM_ABS32:
+ 			if rel.Off+4 >= uint32(len(dst)) {
+ 				continue
+ 			}
+diff --git a/src/debug/elf/file_test.go b/src/debug/elf/file_test.go
+index 48fe9d26e1..1ad43146ac 100644
+--- a/src/debug/elf/file_test.go
++++ b/src/debug/elf/file_test.go
+@@ -272,6 +272,12 @@ var relocationTests = []relocationTest{
+ 			{0, &dwarf.Entry{Offset: 0xb, Tag: dwarf.TagCompileUnit, Children: true, Field: []dwarf.Field{{Attr: dwarf.AttrProducer, Val: "GNU C 4.9.2 20141224 (prerelease) -march=armv7-a -mfloat-abi=hard -mfpu=vfpv3-d16 -mtls-dialect=gnu -g", Class: dwarf.ClassString}, {Attr: dwarf.AttrLanguage, Val: int64(1), Class: dwarf.ClassConstant}, {Attr: dwarf.AttrName, Val: "go-relocation-test-gcc492.c", Class: dwarf.ClassString}, {Attr: dwarf.AttrCompDir, Val: "/root/go/src/debug/elf/testdata", Class: dwarf.ClassString}, {Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress}, {Attr: dwarf.AttrHighpc, Val: int64(0x28), Class: dwarf.ClassConstant}, {Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr}}}},
+ 		},
+ 	},
++	{
++		"testdata/go-relocation-test-clang-arm.obj",
++		[]relocationTestEntry{
++			{0, &dwarf.Entry{Offset: 0xb, Tag: dwarf.TagCompileUnit, Children: true, Field: []dwarf.Field{dwarf.Field{Attr: dwarf.AttrProducer, Val: "Debian clang version 3.5.0-10 (tags/RELEASE_350/final) (based on LLVM 3.5.0)", Class: dwarf.ClassString}, dwarf.Field{Attr: dwarf.AttrLanguage, Val: int64(12), Class: dwarf.ClassConstant}, dwarf.Field{Attr: dwarf.AttrName, Val: "hello.c", Class: dwarf.ClassString}, dwarf.Field{Attr: dwarf.AttrStmtList, Val: int64(0x0), Class: dwarf.ClassLinePtr}, dwarf.Field{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString}, dwarf.Field{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress}, dwarf.Field{Attr: dwarf.AttrHighpc, Val: int64(48), Class: dwarf.ClassConstant}}}},
++		},
++	},
+ 	{
+ 		"testdata/go-relocation-test-gcc5-ppc.obj",
+ 		[]relocationTestEntry{
+diff --git a/src/debug/elf/testdata/go-relocation-test-clang-arm.obj b/src/debug/elf/testdata/go-relocation-test-clang-arm.obj
+new file mode 100644
+index 0000000000..1cc7e4b111
+Binary files /dev/null and b/src/debug/elf/testdata/go-relocation-test-clang-arm.obj differ

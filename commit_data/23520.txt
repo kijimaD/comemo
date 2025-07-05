@@ -15,8 +15,86 @@ Date:   Wed May 20 15:49:23 2015 -0400
     Change-Id: I223c0c0589e7ceb7207ae951b8f71b9275a1eb73
     Reviewed-on: https://go-review.googlesource.com/10269
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/parser/interface.go   |  5 ++++-
  src/go/parser/parser.go      |  3 ++-
  src/go/parser/parser_test.go | 39 +++++++++++++++++++++++++++++++++++++++
  3 files changed, 45 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/parser/interface.go b/src/go/parser/interface.go
+index 49103058b5..f3bc4b9cc8 100644
+--- a/src/go/parser/interface.go
++++ b/src/go/parser/interface.go
+@@ -91,7 +91,10 @@ func ParseFile(fset *token.FileSet, filename string, src interface{}, mode Mode)
+ 	var p parser
+ 	defer func() {
+ 		if e := recover(); e != nil {
+-			_ = e.(bailout) // re-panics if it's not a bailout
++			// resume same panic if it's not a bailout
++			if _, ok := e.(bailout); !ok {
++				panic(e)
++			}
+ 		}
+ 
+ 		// set result values
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index fb6ca76a77..18278ba4b7 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -1472,7 +1472,8 @@ L:
+ 				pos := p.pos
+ 				p.errorExpected(pos, "selector or type assertion")
+ 				p.next() // make progress
+-				x = &ast.BadExpr{From: pos, To: p.pos}
++				sel := &ast.Ident{NamePos: pos, Name: "_"}
++				x = &ast.SelectorExpr{X: x, Sel: sel}
+ 			}
+ 		case token.LBRACK:
+ 			if lhs {
+diff --git a/src/go/parser/parser_test.go b/src/go/parser/parser_test.go
+index 4b960d9e57..c7bb36d789 100644
+--- a/src/go/parser/parser_test.go
++++ b/src/go/parser/parser_test.go
+@@ -492,3 +492,42 @@ func TestIssue9979(t *testing.T) {
+ 		})
+ 	}
+ }
++
++// TestIncompleteSelection ensures that an incomplete selector
++// expression is parsed as a (blank) *ast.SelectorExpr, not a
++// *ast.BadExpr.
++func TestIncompleteSelection(t *testing.T) {
++	for _, src := range []string{
++		"package p; var _ = fmt.",             // at EOF
++		"package p; var _ = fmt.\ntype X int", // not at EOF
++	} {
++		fset := token.NewFileSet()
++		f, err := ParseFile(fset, "", src, 0)
++		if err == nil {
++			t.Errorf("ParseFile(%s) succeeded unexpectedly", src)
++			continue
++		}
++
++		const wantErr = "expected selector or type assertion"
++		if !strings.Contains(err.Error(), wantErr) {
++			t.Errorf("ParseFile returned wrong error %q, want %q", err, wantErr)
++		}
++
++		var sel *ast.SelectorExpr
++		ast.Inspect(f, func(n ast.Node) bool {
++			if n, ok := n.(*ast.SelectorExpr); ok {
++				sel = n
++			}
++			return true
++		})
++		if sel == nil {
++			t.Error("found no *ast.SelectorExpr")
++			continue
++		}
++		const wantSel = "&{fmt _}"
++		if fmt.Sprint(sel) != wantSel {
++			t.Errorf("found selector %s, want %s", sel, wantSel)
++			continue
++		}
++	}
++}

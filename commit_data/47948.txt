@@ -37,7 +37,112 @@ Date:   Sat Apr 17 22:50:13 2021 -0400
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/ssa/regalloc.go | 54 +++++++++++++++++++++++++++++---
  test/codegen/regabi_regalloc.go          | 23 ++++++++++++++
  2 files changed, 73 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 336cd3d737..8ddb3d045b 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -1377,12 +1377,58 @@ func (s *regAllocState) regalloc(f *Func) {
+ 				}
+ 			}
+ 
+-			// Move arguments to registers. Process in an ordering defined
++			// Move arguments to registers.
++			// First, if an arg must be in a specific register and it is already
++			// in place, keep it.
++			args = append(args[:0], make([]*Value, len(v.Args))...)
++			for i, a := range v.Args {
++				if !s.values[a.ID].needReg {
++					args[i] = a
++				}
++			}
++			for _, i := range regspec.inputs {
++				mask := i.regs
++				if countRegs(mask) == 1 && mask&s.values[v.Args[i.idx].ID].regs != 0 {
++					args[i.idx] = s.allocValToReg(v.Args[i.idx], mask, true, v.Pos)
++				}
++			}
++			// Then, if an arg must be in a specific register and that
++			// register is free, allocate that one. Otherwise when processing
++			// another input we may kick a value into the free register, which
++			// then will be kicked out again.
++			// This is a common case for passing-in-register arguments for
++			// function calls.
++			for {
++				freed := false
++				for _, i := range regspec.inputs {
++					if args[i.idx] != nil {
++						continue // already allocated
++					}
++					mask := i.regs
++					if countRegs(mask) == 1 && mask&^s.used != 0 {
++						args[i.idx] = s.allocValToReg(v.Args[i.idx], mask, true, v.Pos)
++						// If the input is in other registers that will be clobbered by v,
++						// or the input is dead, free the registers. This may make room
++						// for other inputs.
++						oldregs := s.values[v.Args[i.idx].ID].regs
++						if oldregs&^regspec.clobbers == 0 || !s.liveAfterCurrentInstruction(v.Args[i.idx]) {
++							s.freeRegs(oldregs &^ mask &^ s.nospill)
++							freed = true
++						}
++					}
++				}
++				if !freed {
++					break
++				}
++			}
++			// Last, allocate remaining ones, in an ordering defined
+ 			// by the register specification (most constrained first).
+-			args = append(args[:0], v.Args...)
+ 			for _, i := range regspec.inputs {
++				if args[i.idx] != nil {
++					continue // already allocated
++				}
+ 				mask := i.regs
+-				if mask&s.values[args[i.idx].ID].regs == 0 {
++				if mask&s.values[v.Args[i.idx].ID].regs == 0 {
+ 					// Need a new register for the input.
+ 					mask &= s.allocatable
+ 					mask &^= s.nospill
+@@ -1401,7 +1447,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 						mask &^= desired.avoid
+ 					}
+ 				}
+-				args[i.idx] = s.allocValToReg(args[i.idx], mask, true, v.Pos)
++				args[i.idx] = s.allocValToReg(v.Args[i.idx], mask, true, v.Pos)
+ 			}
+ 
+ 			// If the output clobbers the input register, make sure we have
+diff --git a/test/codegen/regabi_regalloc.go b/test/codegen/regabi_regalloc.go
+new file mode 100644
+index 0000000000..a7b7bd52bc
+--- /dev/null
++++ b/test/codegen/regabi_regalloc.go
+@@ -0,0 +1,23 @@
++// asmcheck
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package codegen
++
++//go:registerparams
++func f1(a, b int) {
++	// amd64:"MOVQ\tBX, CX", "MOVQ\tAX, BX", "MOVL\t\\$1, AX", -"MOVQ\t.*DX"
++	g(1, a, b)
++}
++
++//go:registerparams
++func f2(a, b int) {
++	// amd64:"MOVQ\tBX, AX", "MOVQ\t[AB]X, CX", -"MOVQ\t.*, BX"
++	g(b, b, b)
++}
++
++//go:noinline
++//go:registerparams
++func g(int, int, int) {}

@@ -20,8 +20,73 @@ Date:   Fri Sep 9 08:48:34 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: hopehook <hopehook@golangcn.org>
-
+---
  src/cmd/compile/internal/base/mapfile_mmap.go | 6 +++---
  src/cmd/link/internal/ld/outbuf_windows.go    | 6 +++---
  src/reflect/value.go                          | 2 +-
  3 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/mapfile_mmap.go b/src/cmd/compile/internal/base/mapfile_mmap.go
+index e154a3f9e0..3a5f4cfe21 100644
+--- a/src/cmd/compile/internal/base/mapfile_mmap.go
++++ b/src/cmd/compile/internal/base/mapfile_mmap.go
+@@ -8,8 +8,8 @@
+ package base
+ 
+ import (
++	"internal/unsafeheader"
+ 	"os"
+-	"reflect"
+ 	"runtime"
+ 	"syscall"
+ 	"unsafe"
+@@ -34,10 +34,10 @@ func MapFile(f *os.File, offset, length int64) (string, error) {
+ 	}
+ 
+ 	buf = buf[x:]
+-	pSlice := (*reflect.SliceHeader)(unsafe.Pointer(&buf))
++	pSlice := (*unsafeheader.Slice)(unsafe.Pointer(&buf))
+ 
+ 	var res string
+-	pString := (*reflect.StringHeader)(unsafe.Pointer(&res))
++	pString := (*unsafeheader.String)(unsafe.Pointer(&res))
+ 
+ 	pString.Data = pSlice.Data
+ 	pString.Len = pSlice.Len
+diff --git a/src/cmd/link/internal/ld/outbuf_windows.go b/src/cmd/link/internal/ld/outbuf_windows.go
+index a568a17011..95937e781c 100644
+--- a/src/cmd/link/internal/ld/outbuf_windows.go
++++ b/src/cmd/link/internal/ld/outbuf_windows.go
+@@ -5,7 +5,7 @@
+ package ld
+ 
+ import (
+-	"reflect"
++	"internal/unsafeheader"
+ 	"syscall"
+ 	"unsafe"
+ )
+@@ -35,8 +35,8 @@ func (out *OutBuf) Mmap(filesize uint64) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	bufHdr := (*reflect.SliceHeader)(unsafe.Pointer(&out.buf))
+-	bufHdr.Data = ptr
++	bufHdr := (*unsafeheader.Slice)(unsafe.Pointer(&out.buf))
++	bufHdr.Data = unsafe.Pointer(ptr)
+ 	bufHdr.Len = int(filesize)
+ 	bufHdr.Cap = int(filesize)
+ 
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 917a5a69c9..4e5d3977ec 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -2155,7 +2155,7 @@ func (v Value) Pointer() uintptr {
+ 		return uintptr(p)
+ 
+ 	case Slice:
+-		return (*SliceHeader)(v.ptr).Data
++		return uintptr((*unsafeheader.Slice)(v.ptr).Data)
+ 	}
+ 	panic(&ValueError{"reflect.Value.Pointer", v.kind()})
+ }

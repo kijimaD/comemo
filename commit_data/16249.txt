@@ -8,6 +8,20 @@ Date:   Tue Apr 30 13:17:37 2013 -0700
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/9057043
-
+---
  src/pkg/os/exec/exec_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/os/exec/exec_test.go b/src/pkg/os/exec/exec_test.go
+index bdfe69a21b..6f5860e955 100644
+--- a/src/pkg/os/exec/exec_test.go
++++ b/src/pkg/os/exec/exec_test.go
+@@ -196,6 +196,8 @@ func basefds() uintptr {
+ }
+ 
+ func TestExtraFilesFDShuffle(t *testing.T) {
++	t.Skip("TODO: TestExtraFilesFDShuffle is too non-portable; skipping")
++
+ 	// syscall.StartProcess maps all the FDs passed to it in
+ 	// ProcAttr.Files (the concatenation of stdin,stdout,stderr and
+ 	// ExtraFiles) into consecutive FDs in the child, that is:

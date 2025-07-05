@@ -11,7 +11,57 @@ Date:   Mon Nov 28 12:22:15 2011 -0500
     R=gri, lvd, rsc
     CC=golang-dev, remy
     https://golang.org/cl/5435064
-
+---
  src/cmd/gc/const.c       |  5 ++++-
  test/fixedbugs/bug379.go | 18 ++++++++++++++++++
  2 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 055f856d17..96abf1a655 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -424,7 +424,7 @@ isconst(Node *n, int ct)
+ void
+ evconst(Node *n)
+ {
+-	Node *nl, *nr;
++	Node *nl, *nr, *norig;
+ 	int32 len;
+ 	Strlit *str;
+ 	int wl, wr, lno, et;
+@@ -842,8 +842,11 @@ unary:
+ 	}
+ 
+ ret:
++	norig = n->orig;
+ 	// rewrite n in place.
+ 	*n = *nl;
++	// restore value of n->orig.
++	n->orig = norig;
+ 	n->val = v;
+ 
+ 	// check range.
+diff --git a/test/fixedbugs/bug379.go b/test/fixedbugs/bug379.go
+new file mode 100644
+index 0000000000..9b93578e53
+--- /dev/null
++++ b/test/fixedbugs/bug379.go
+@@ -0,0 +1,18 @@
++// errchk $G $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 2452.
++
++// Check that the error messages says 
++//	bug378.go:17: 3 not used
++// and not
++//	bug378.go:17: 1 not used
++
++package main
++
++func main() {
++	1 + 2 // ERROR "3 not used|value computed is not used"
++}

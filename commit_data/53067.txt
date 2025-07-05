@@ -25,7 +25,7 @@ Date:   Wed Jun 8 23:56:28 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modcmd/download.go            |   2 +-
  src/cmd/go/internal/modfetch/cache.go             |  44 +++++----
  src/cmd/go/internal/modfetch/codehost/codehost.go |  90 +++++++++++++++++-
@@ -39,3 +39,1134 @@ Date:   Wed Jun 8 23:56:28 2022 -0400
  src/cmd/go/internal/modload/mvs.go                |   4 +-
  src/cmd/go/internal/modload/query.go              |  27 +++---
  12 files changed, 435 insertions(+), 121 deletions(-)
+
+diff --git a/src/cmd/go/internal/modcmd/download.go b/src/cmd/go/internal/modcmd/download.go
+index 5bc6cbc4bb..ea4f9f8663 100644
+--- a/src/cmd/go/internal/modcmd/download.go
++++ b/src/cmd/go/internal/modcmd/download.go
+@@ -149,7 +149,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	downloadModule := func(m *moduleJSON) {
+ 		var err error
+-		m.Info, err = modfetch.InfoFile(m.Path, m.Version)
++		_, m.Info, err = modfetch.InfoFile(m.Path, m.Version)
+ 		if err != nil {
+ 			m.Error = err.Error()
+ 			return
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index b0dae1cb3d..417c5598fb 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -164,7 +164,7 @@ func SideLock() (unlock func(), err error) {
+ }
+ 
+ // A cachingRepo is a cache around an underlying Repo,
+-// avoiding redundant calls to ModulePath, Versions, Stat, Latest, and GoMod (but not Zip).
++// avoiding redundant calls to ModulePath, Versions, Stat, Latest, and GoMod (but not CheckReuse or Zip).
+ // It is also safe for simultaneous use by multiple goroutines
+ // (so that it can be returned from Lookup multiple times).
+ // It serializes calls to the underlying Repo.
+@@ -195,24 +195,32 @@ func (r *cachingRepo) repo() Repo {
+ 	return r.r
+ }
+ 
++func (r *cachingRepo) CheckReuse(old *codehost.Origin) error {
++	return r.repo().CheckReuse(old)
++}
++
+ func (r *cachingRepo) ModulePath() string {
+ 	return r.path
+ }
+ 
+-func (r *cachingRepo) Versions(prefix string) ([]string, error) {
++func (r *cachingRepo) Versions(prefix string) (*Versions, error) {
+ 	type cached struct {
+-		list []string
+-		err  error
++		v   *Versions
++		err error
+ 	}
+ 	c := r.cache.Do("versions:"+prefix, func() any {
+-		list, err := r.repo().Versions(prefix)
+-		return cached{list, err}
++		v, err := r.repo().Versions(prefix)
++		return cached{v, err}
+ 	}).(cached)
+ 
+ 	if c.err != nil {
+ 		return nil, c.err
+ 	}
+-	return append([]string(nil), c.list...), nil
++	v := &Versions{
++		Origin: c.v.Origin,
++		List:   append([]string(nil), c.v.List...),
++	}
++	return v, nil
+ }
+ 
+ type cachedInfo struct {
+@@ -310,31 +318,35 @@ func (r *cachingRepo) Zip(dst io.Writer, version string) error {
+ 	return r.repo().Zip(dst, version)
+ }
+ 
+-// InfoFile is like Lookup(path).Stat(version) but returns the name of the file
++// InfoFile is like Lookup(path).Stat(version) but also returns the name of the file
+ // containing the cached information.
+-func InfoFile(path, version string) (string, error) {
++func InfoFile(path, version string) (*RevInfo, string, error) {
+ 	if !semver.IsValid(version) {
+-		return "", fmt.Errorf("invalid version %q", version)
++		return nil, "", fmt.Errorf("invalid version %q", version)
+ 	}
+ 
+-	if file, _, err := readDiskStat(path, version); err == nil {
+-		return file, nil
++	if file, info, err := readDiskStat(path, version); err == nil {
++		return info, file, nil
+ 	}
+ 
++	var info *RevInfo
+ 	err := TryProxies(func(proxy string) error {
+-		_, err := Lookup(proxy, path).Stat(version)
++		i, err := Lookup(proxy, path).Stat(version)
++		if err == nil {
++			info = i
++		}
+ 		return err
+ 	})
+ 	if err != nil {
+-		return "", err
++		return nil, "", err
+ 	}
+ 
+ 	// Stat should have populated the disk cache for us.
+ 	file, err := CachePath(module.Version{Path: path, Version: version}, "info")
+ 	if err != nil {
+-		return "", err
++		return nil, "", err
+ 	}
+-	return file, nil
++	return info, file, nil
+ }
+ 
+ // GoMod is like Lookup(path).GoMod(rev) but avoids the
+diff --git a/src/cmd/go/internal/modfetch/codehost/codehost.go b/src/cmd/go/internal/modfetch/codehost/codehost.go
+index e08a84b32c..3d9eb0c712 100644
+--- a/src/cmd/go/internal/modfetch/codehost/codehost.go
++++ b/src/cmd/go/internal/modfetch/codehost/codehost.go
+@@ -22,6 +22,9 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/str"
++
++	"golang.org/x/mod/module"
++	"golang.org/x/mod/semver"
+ )
+ 
+ // Downloaded size limits.
+@@ -36,8 +39,15 @@ const (
+ // remote version control servers, and code hosting sites.
+ // A Repo must be safe for simultaneous use by multiple goroutines.
+ type Repo interface {
++	// CheckReuse checks whether the old origin information
++	// remains up to date. If so, whatever cached object it was
++	// taken from can be reused.
++	// The subdir gives subdirectory name where the module root is expected to be found,
++	// "" for the root or "sub/dir" for a subdirectory (no trailing slash).
++	CheckReuse(old *Origin, subdir string) error
++
+ 	// List lists all tags with the given prefix.
+-	Tags(prefix string) (tags []string, err error)
++	Tags(prefix string) (*Tags, error)
+ 
+ 	// Stat returns information about the revision rev.
+ 	// A revision can be any identifier known to the underlying service:
+@@ -74,8 +84,84 @@ type Repo interface {
+ 	DescendsFrom(rev, tag string) (bool, error)
+ }
+ 
+-// A Rev describes a single revision in a source code repository.
++// An Origin describes the provenance of a given repo method result.
++// It can be passed to CheckReuse (usually in a different go command invocation)
++// to see whether the result remains up-to-date.
++type Origin struct {
++	VCS    string `json:",omitempty"` // "git" etc
++	URL    string `json:",omitempty"` // URL of repository
++	Subdir string `json:",omitempty"` // subdirectory in repo
++
++	// If TagSum is non-empty, then the resolution of this module version
++	// depends on the set of tags present in the repo, specifically the tags
++	// of the form TagPrefix + a valid semver version.
++	// If the matching repo tags and their commit hashes still hash to TagSum,
++	// the Origin is still valid (at least as far as the tags are concerned).
++	// The exact checksum is up to the Repo implementation; see (*gitRepo).Tags.
++	TagPrefix string `json:",omitempty"`
++	TagSum    string `json:",omitempty"`
++
++	// If Ref is non-empty, then the resolution of this module version
++	// depends on Ref resolving to the revision identified by Hash.
++	// If Ref still resolves to Hash, the Origin is still valid (at least as far as Ref is concerned).
++	// For Git, the Ref is a full ref like "refs/heads/main" or "refs/tags/v1.2.3",
++	// and the Hash is the Git object hash the ref maps to.
++	// Other VCS might choose differently, but the idea is that Ref is the name
++	// with a mutable meaning while Hash is a name with an immutable meaning.
++	Ref  string `json:",omitempty"`
++	Hash string `json:",omitempty"`
++}
++
++// Checkable reports whether the Origin contains anything that can be checked.
++// If not, it's purely informational and should fail a CheckReuse call.
++func (o *Origin) Checkable() bool {
++	return o.TagSum != "" || o.Ref != "" || o.Hash != ""
++}
++
++func (o *Origin) Merge(other *Origin) {
++	if o.TagSum == "" {
++		o.TagPrefix = other.TagPrefix
++		o.TagSum = other.TagSum
++	}
++	if o.Ref == "" {
++		o.Ref = other.Ref
++		o.Hash = other.Hash
++	}
++}
++
++// A Tags describes the available tags in a code repository.
++type Tags struct {
++	Origin *Origin
++	List   []Tag
++}
++
++// A Tag describes a single tag in a code repository.
++type Tag struct {
++	Name string
++	Hash string // content hash identifying tag's content, if available
++}
++
++// isOriginTag reports whether tag should be preserved
++// in the Tags method's Origin calculation.
++// We can safely ignore tags that are not look like pseudo-versions,
++// because ../coderepo.go's (*codeRepo).Versions ignores them too.
++// We can also ignore non-semver tags, but we have to include semver
++// tags with extra suffixes, because the pseudo-version base finder uses them.
++func isOriginTag(tag string) bool {
++	// modfetch.(*codeRepo).Versions uses Canonical == tag,
++	// but pseudo-version calculation has a weaker condition that
++	// the canonical is a prefix of the tag.
++	// Include those too, so that if any new one appears, we'll invalidate the cache entry.
++	// This will lead to spurious invalidation of version list results,
++	// but tags of this form being created should be fairly rare
++	// (and invalidate pseudo-version results anyway).
++	c := semver.Canonical(tag)
++	return c != "" && strings.HasPrefix(tag, c) && !module.IsPseudoVersion(tag)
++}
++
++// A RevInfo describes a single revision in a source code repository.
+ type RevInfo struct {
++	Origin  *Origin
+ 	Name    string    // complete ID in underlying repository
+ 	Short   string    // shortened ID, for use in pseudo-version
+ 	Version string    // version used in lookup
+diff --git a/src/cmd/go/internal/modfetch/codehost/git.go b/src/cmd/go/internal/modfetch/codehost/git.go
+index 034abf360b..3129a31786 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git.go
++++ b/src/cmd/go/internal/modfetch/codehost/git.go
+@@ -6,6 +6,8 @@ package codehost
+ 
+ import (
+ 	"bytes"
++	"crypto/sha256"
++	"encoding/base64"
+ 	"errors"
+ 	"fmt"
+ 	"io"
+@@ -169,6 +171,53 @@ func (r *gitRepo) loadLocalTags() {
+ 	}
+ }
+ 
++func (r *gitRepo) CheckReuse(old *Origin, subdir string) error {
++	if old == nil {
++		return fmt.Errorf("missing origin")
++	}
++	if old.VCS != "git" || old.URL != r.remoteURL {
++		return fmt.Errorf("origin moved from %v %q to %v %q", old.VCS, old.URL, "git", r.remoteURL)
++	}
++	if old.Subdir != subdir {
++		return fmt.Errorf("origin moved from %v %q %q to %v %q %q", old.VCS, old.URL, old.Subdir, "git", r.remoteURL, subdir)
++	}
++
++	// Note: Can have Hash with no Ref and no TagSum,
++	// meaning the Hash simply has to remain in the repo.
++	// In that case we assume it does in the absence of any real way to check.
++	// But if neither Hash nor TagSum is present, we have nothing to check,
++	// which we take to mean we didn't record enough information to be sure.
++	if old.Hash == "" && old.TagSum == "" {
++		return fmt.Errorf("non-specific origin")
++	}
++
++	r.loadRefs()
++	if r.refsErr != nil {
++		return r.refsErr
++	}
++
++	if old.Ref != "" {
++		hash, ok := r.refs[old.Ref]
++		if !ok {
++			return fmt.Errorf("ref %q deleted", old.Ref)
++		}
++		if hash != old.Hash {
++			return fmt.Errorf("ref %q moved from %s to %s", old.Ref, old.Hash, hash)
++		}
++	}
++	if old.TagSum != "" {
++		tags, err := r.Tags(old.TagPrefix)
++		if err != nil {
++			return err
++		}
++		if tags.Origin.TagSum != old.TagSum {
++			return fmt.Errorf("tags changed")
++		}
++	}
++
++	return nil
++}
++
+ // loadRefs loads heads and tags references from the remote into the map r.refs.
+ // The result is cached in memory.
+ func (r *gitRepo) loadRefs() (map[string]string, error) {
+@@ -219,14 +268,21 @@ func (r *gitRepo) loadRefs() (map[string]string, error) {
+ 	return r.refs, r.refsErr
+ }
+ 
+-func (r *gitRepo) Tags(prefix string) ([]string, error) {
++func (r *gitRepo) Tags(prefix string) (*Tags, error) {
+ 	refs, err := r.loadRefs()
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 
+-	tags := []string{}
+-	for ref := range refs {
++	tags := &Tags{
++		Origin: &Origin{
++			VCS:       "git",
++			URL:       r.remoteURL,
++			TagPrefix: prefix,
++		},
++		List: []Tag{},
++	}
++	for ref, hash := range refs {
+ 		if !strings.HasPrefix(ref, "refs/tags/") {
+ 			continue
+ 		}
+@@ -234,9 +290,20 @@ func (r *gitRepo) Tags(prefix string) ([]string, error) {
+ 		if !strings.HasPrefix(tag, prefix) {
+ 			continue
+ 		}
+-		tags = append(tags, tag)
++		tags.List = append(tags.List, Tag{tag, hash})
+ 	}
+-	sort.Strings(tags)
++	sort.Slice(tags.List, func(i, j int) bool {
++		return tags.List[i].Name < tags.List[j].Name
++	})
++
++	dir := prefix[:strings.LastIndex(prefix, "/")+1]
++	h := sha256.New()
++	for _, tag := range tags.List {
++		if isOriginTag(strings.TrimPrefix(tag.Name, dir)) {
++			fmt.Fprintf(h, "%q %s\n", tag.Name, tag.Hash)
++		}
++	}
++	tags.Origin.TagSum = "t1:" + base64.StdEncoding.EncodeToString(h.Sum(nil))
+ 	return tags, nil
+ }
+ 
+@@ -248,7 +315,13 @@ func (r *gitRepo) Latest() (*RevInfo, error) {
+ 	if refs["HEAD"] == "" {
+ 		return nil, ErrNoCommits
+ 	}
+-	return r.Stat(refs["HEAD"])
++	info, err := r.Stat(refs["HEAD"])
++	if err != nil {
++		return nil, err
++	}
++	info.Origin.Ref = "HEAD"
++	info.Origin.Hash = refs["HEAD"]
++	return info, nil
+ }
+ 
+ // findRef finds some ref name for the given hash,
+@@ -278,7 +351,7 @@ const minHashDigits = 7
+ 
+ // stat stats the given rev in the local repository,
+ // or else it fetches more info from the remote repository and tries again.
+-func (r *gitRepo) stat(rev string) (*RevInfo, error) {
++func (r *gitRepo) stat(rev string) (info *RevInfo, err error) {
+ 	if r.local {
+ 		return r.statLocal(rev, rev)
+ 	}
+@@ -348,6 +421,13 @@ func (r *gitRepo) stat(rev string) (*RevInfo, error) {
+ 		return nil, &UnknownRevisionError{Rev: rev}
+ 	}
+ 
++	defer func() {
++		if info != nil {
++			info.Origin.Ref = ref
++			info.Origin.Hash = info.Name
++		}
++	}()
++
+ 	// Protect r.fetchLevel and the "fetch more and more" sequence.
+ 	unlock, err := r.mu.Lock()
+ 	if err != nil {
+@@ -465,11 +545,19 @@ func (r *gitRepo) statLocal(version, rev string) (*RevInfo, error) {
+ 	}
+ 
+ 	info := &RevInfo{
++		Origin: &Origin{
++			VCS:  "git",
++			URL:  r.remoteURL,
++			Hash: hash,
++		},
+ 		Name:    hash,
+ 		Short:   ShortenSHA1(hash),
+ 		Time:    time.Unix(t, 0).UTC(),
+ 		Version: hash,
+ 	}
++	if !strings.HasPrefix(hash, rev) {
++		info.Origin.Ref = rev
++	}
+ 
+ 	// Add tags. Output looks like:
+ 	//	ede458df7cd0fdca520df19a33158086a8a68e81 1523994202 HEAD -> master, tag: v1.2.4-annotated, tag: v1.2.3, origin/master, origin/HEAD
+@@ -580,7 +668,7 @@ func (r *gitRepo) RecentTag(rev, prefix string, allowed func(tag string) bool) (
+ 	if err != nil {
+ 		return "", err
+ 	}
+-	if len(tags) == 0 {
++	if len(tags.List) == 0 {
+ 		return "", nil
+ 	}
+ 
+@@ -634,7 +722,7 @@ func (r *gitRepo) DescendsFrom(rev, tag string) (bool, error) {
+ 	if err != nil {
+ 		return false, err
+ 	}
+-	if len(tags) == 0 {
++	if len(tags.List) == 0 {
+ 		return false, nil
+ 	}
+ 
+diff --git a/src/cmd/go/internal/modfetch/codehost/git_test.go b/src/cmd/go/internal/modfetch/codehost/git_test.go
+index a684fa1a9b..6a4212fc5a 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git_test.go
++++ b/src/cmd/go/internal/modfetch/codehost/git_test.go
+@@ -43,7 +43,7 @@ var altRepos = []string{
+ // For now, at least the hgrepo1 tests check the general vcs.go logic.
+ 
+ // localGitRepo is like gitrepo1 but allows archive access.
+-var localGitRepo string
++var localGitRepo, localGitURL string
+ 
+ func testMain(m *testing.M) int {
+ 	dir, err := os.MkdirTemp("", "gitrepo-test-")
+@@ -65,6 +65,15 @@ func testMain(m *testing.M) int {
+ 			if _, err := Run(localGitRepo, "git", "config", "daemon.uploadarch", "true"); err != nil {
+ 				log.Fatal(err)
+ 			}
++
++			// Convert absolute path to file URL. LocalGitRepo will not accept
++			// Windows absolute paths because they look like a host:path remote.
++			// TODO(golang.org/issue/32456): use url.FromFilePath when implemented.
++			if strings.HasPrefix(localGitRepo, "/") {
++				localGitURL = "file://" + localGitRepo
++			} else {
++				localGitURL = "file:///" + filepath.ToSlash(localGitRepo)
++			}
+ 		}
+ 	}
+ 
+@@ -73,17 +82,8 @@ func testMain(m *testing.M) int {
+ 
+ func testRepo(t *testing.T, remote string) (Repo, error) {
+ 	if remote == "localGitRepo" {
+-		// Convert absolute path to file URL. LocalGitRepo will not accept
+-		// Windows absolute paths because they look like a host:path remote.
+-		// TODO(golang.org/issue/32456): use url.FromFilePath when implemented.
+-		var url string
+-		if strings.HasPrefix(localGitRepo, "/") {
+-			url = "file://" + localGitRepo
+-		} else {
+-			url = "file:///" + filepath.ToSlash(localGitRepo)
+-		}
+ 		testenv.MustHaveExecPath(t, "git")
+-		return LocalGitRepo(url)
++		return LocalGitRepo(localGitURL)
+ 	}
+ 	vcs := "git"
+ 	for _, k := range []string{"hg"} {
+@@ -98,13 +98,28 @@ func testRepo(t *testing.T, remote string) (Repo, error) {
+ var tagsTests = []struct {
+ 	repo   string
+ 	prefix string
+-	tags   []string
++	tags   []Tag
+ }{
+-	{gitrepo1, "xxx", []string{}},
+-	{gitrepo1, "", []string{"v1.2.3", "v1.2.4-annotated", "v2.0.1", "v2.0.2", "v2.3"}},
+-	{gitrepo1, "v", []string{"v1.2.3", "v1.2.4-annotated", "v2.0.1", "v2.0.2", "v2.3"}},
+-	{gitrepo1, "v1", []string{"v1.2.3", "v1.2.4-annotated"}},
+-	{gitrepo1, "2", []string{}},
++	{gitrepo1, "xxx", []Tag{}},
++	{gitrepo1, "", []Tag{
++		{"v1.2.3", "ede458df7cd0fdca520df19a33158086a8a68e81"},
++		{"v1.2.4-annotated", "ede458df7cd0fdca520df19a33158086a8a68e81"},
++		{"v2.0.1", "76a00fb249b7f93091bc2c89a789dab1fc1bc26f"},
++		{"v2.0.2", "9d02800338b8a55be062c838d1f02e0c5780b9eb"},
++		{"v2.3", "76a00fb249b7f93091bc2c89a789dab1fc1bc26f"},
++	}},
++	{gitrepo1, "v", []Tag{
++		{"v1.2.3", "ede458df7cd0fdca520df19a33158086a8a68e81"},
++		{"v1.2.4-annotated", "ede458df7cd0fdca520df19a33158086a8a68e81"},
++		{"v2.0.1", "76a00fb249b7f93091bc2c89a789dab1fc1bc26f"},
++		{"v2.0.2", "9d02800338b8a55be062c838d1f02e0c5780b9eb"},
++		{"v2.3", "76a00fb249b7f93091bc2c89a789dab1fc1bc26f"},
++	}},
++	{gitrepo1, "v1", []Tag{
++		{"v1.2.3", "ede458df7cd0fdca520df19a33158086a8a68e81"},
++		{"v1.2.4-annotated", "ede458df7cd0fdca520df19a33158086a8a68e81"},
++	}},
++	{gitrepo1, "2", []Tag{}},
+ }
+ 
+ func TestTags(t *testing.T) {
+@@ -121,13 +136,24 @@ func TestTags(t *testing.T) {
+ 			if err != nil {
+ 				t.Fatal(err)
+ 			}
+-			if !reflect.DeepEqual(tags, tt.tags) {
+-				t.Errorf("Tags: incorrect tags\nhave %v\nwant %v", tags, tt.tags)
++			if tags == nil || !reflect.DeepEqual(tags.List, tt.tags) {
++				t.Errorf("Tags(%q): incorrect tags\nhave %v\nwant %v", tt.prefix, tags, tt.tags)
+ 			}
+ 		}
+ 		t.Run(path.Base(tt.repo)+"/"+tt.prefix, f)
+ 		if tt.repo == gitrepo1 {
++			// Clear hashes.
++			clearTags := []Tag{}
++			for _, tag := range tt.tags {
++				clearTags = append(clearTags, Tag{tag.Name, ""})
++			}
++			tags := tt.tags
+ 			for _, tt.repo = range altRepos {
++				if strings.Contains(tt.repo, "Git") {
++					tt.tags = tags
++				} else {
++					tt.tags = clearTags
++				}
+ 				t.Run(path.Base(tt.repo)+"/"+tt.prefix, f)
+ 			}
+ 		}
+@@ -141,6 +167,12 @@ var latestTests = []struct {
+ 	{
+ 		gitrepo1,
+ 		&RevInfo{
++			Origin: &Origin{
++				VCS:  "git",
++				URL:  "https://vcs-test.golang.org/git/gitrepo1",
++				Ref:  "HEAD",
++				Hash: "ede458df7cd0fdca520df19a33158086a8a68e81",
++			},
+ 			Name:    "ede458df7cd0fdca520df19a33158086a8a68e81",
+ 			Short:   "ede458df7cd0",
+ 			Version: "ede458df7cd0fdca520df19a33158086a8a68e81",
+@@ -151,6 +183,11 @@ var latestTests = []struct {
+ 	{
+ 		hgrepo1,
+ 		&RevInfo{
++			Origin: &Origin{
++				VCS:  "hg",
++				URL:  "https://vcs-test.golang.org/hg/hgrepo1",
++				Hash: "18518c07eb8ed5c80221e997e518cccaa8c0c287",
++			},
+ 			Name:    "18518c07eb8ed5c80221e997e518cccaa8c0c287",
+ 			Short:   "18518c07eb8e",
+ 			Version: "18518c07eb8ed5c80221e997e518cccaa8c0c287",
+@@ -174,12 +211,17 @@ func TestLatest(t *testing.T) {
+ 				t.Fatal(err)
+ 			}
+ 			if !reflect.DeepEqual(info, tt.info) {
+-				t.Errorf("Latest: incorrect info\nhave %+v\nwant %+v", *info, *tt.info)
++				t.Errorf("Latest: incorrect info\nhave %+v (origin %+v)\nwant %+v (origin %+v)", info, info.Origin, tt.info, tt.info.Origin)
+ 			}
+ 		}
+ 		t.Run(path.Base(tt.repo), f)
+ 		if tt.repo == gitrepo1 {
+ 			tt.repo = "localGitRepo"
++			info := *tt.info
++			tt.info = &info
++			o := *info.Origin
++			info.Origin = &o
++			o.URL = localGitURL
+ 			t.Run(path.Base(tt.repo), f)
+ 		}
+ 	}
+@@ -590,11 +632,12 @@ func TestStat(t *testing.T) {
+ 				if !strings.Contains(err.Error(), tt.err) {
+ 					t.Fatalf("Stat: wrong error %q, want %q", err, tt.err)
+ 				}
+-				if info != nil {
+-					t.Errorf("Stat: non-nil info with error %q", err)
++				if info != nil && info.Origin == nil {
++					t.Errorf("Stat: non-nil info with nil Origin with error %q", err)
+ 				}
+ 				return
+ 			}
++			info.Origin = nil // TestLatest and ../../../testdata/script/reuse_git.txt test Origin well enough
+ 			if !reflect.DeepEqual(info, tt.info) {
+ 				t.Errorf("Stat: incorrect info\nhave %+v\nwant %+v", *info, *tt.info)
+ 			}
+diff --git a/src/cmd/go/internal/modfetch/codehost/vcs.go b/src/cmd/go/internal/modfetch/codehost/vcs.go
+index de62265efc..f1c40998b2 100644
+--- a/src/cmd/go/internal/modfetch/codehost/vcs.go
++++ b/src/cmd/go/internal/modfetch/codehost/vcs.go
+@@ -290,7 +290,13 @@ func (r *vcsRepo) loadBranches() {
+ 	}
+ }
+ 
+-func (r *vcsRepo) Tags(prefix string) ([]string, error) {
++var ErrNoRepoHash = errors.New("RepoHash not supported")
++
++func (r *vcsRepo) CheckReuse(old *Origin, subdir string) error {
++	return fmt.Errorf("vcs %s does not implement CheckReuse", r.cmd.vcs)
++}
++
++func (r *vcsRepo) Tags(prefix string) (*Tags, error) {
+ 	unlock, err := r.mu.Lock()
+ 	if err != nil {
+ 		return nil, err
+@@ -298,14 +304,24 @@ func (r *vcsRepo) Tags(prefix string) ([]string, error) {
+ 	defer unlock()
+ 
+ 	r.tagsOnce.Do(r.loadTags)
+-
+-	tags := []string{}
++	tags := &Tags{
++		// None of the other VCS provide a reasonable way to compute TagSum
++		// without downloading the whole repo, so we only include VCS and URL
++		// in the Origin.
++		Origin: &Origin{
++			VCS: r.cmd.vcs,
++			URL: r.remote,
++		},
++		List: []Tag{},
++	}
+ 	for tag := range r.tags {
+ 		if strings.HasPrefix(tag, prefix) {
+-			tags = append(tags, tag)
++			tags.List = append(tags.List, Tag{tag, ""})
+ 		}
+ 	}
+-	sort.Strings(tags)
++	sort.Slice(tags.List, func(i, j int) bool {
++		return tags.List[i].Name < tags.List[j].Name
++	})
+ 	return tags, nil
+ }
+ 
+@@ -352,7 +368,16 @@ func (r *vcsRepo) statLocal(rev string) (*RevInfo, error) {
+ 	if err != nil {
+ 		return nil, &UnknownRevisionError{Rev: rev}
+ 	}
+-	return r.cmd.parseStat(rev, string(out))
++	info, err := r.cmd.parseStat(rev, string(out))
++	if err != nil {
++		return nil, err
++	}
++	if info.Origin == nil {
++		info.Origin = new(Origin)
++	}
++	info.Origin.VCS = r.cmd.vcs
++	info.Origin.URL = r.remote
++	return info, nil
+ }
+ 
+ func (r *vcsRepo) Latest() (*RevInfo, error) {
+@@ -491,6 +516,9 @@ func hgParseStat(rev, out string) (*RevInfo, error) {
+ 	sort.Strings(tags)
+ 
+ 	info := &RevInfo{
++		Origin: &Origin{
++			Hash: hash,
++		},
+ 		Name:    hash,
+ 		Short:   ShortenSHA1(hash),
+ 		Time:    time.Unix(t, 0).UTC(),
+@@ -569,6 +597,9 @@ func fossilParseStat(rev, out string) (*RevInfo, error) {
+ 				version = hash // extend to full hash
+ 			}
+ 			info := &RevInfo{
++				Origin: &Origin{
++					Hash: hash,
++				},
+ 				Name:    hash,
+ 				Short:   ShortenSHA1(hash),
+ 				Time:    t,
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index ff1cea1d94..a994f79d4b 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -130,12 +130,16 @@ func (r *codeRepo) ModulePath() string {
+ 	return r.modPath
+ }
+ 
+-func (r *codeRepo) Versions(prefix string) ([]string, error) {
++func (r *codeRepo) CheckReuse(old *codehost.Origin) error {
++	return r.code.CheckReuse(old, r.codeDir)
++}
++
++func (r *codeRepo) Versions(prefix string) (*Versions, error) {
+ 	// Special case: gopkg.in/macaroon-bakery.v2-unstable
+ 	// does not use the v2 tags (those are for macaroon-bakery.v2).
+ 	// It has no possible tags at all.
+ 	if strings.HasPrefix(r.modPath, "gopkg.in/") && strings.HasSuffix(r.modPath, "-unstable") {
+-		return nil, nil
++		return &Versions{}, nil
+ 	}
+ 
+ 	p := prefix
+@@ -151,14 +155,16 @@ func (r *codeRepo) Versions(prefix string) ([]string, error) {
+ 	}
+ 
+ 	var list, incompatible []string
+-	for _, tag := range tags {
+-		if !strings.HasPrefix(tag, p) {
++	for _, tag := range tags.List {
++		if !strings.HasPrefix(tag.Name, p) {
+ 			continue
+ 		}
+-		v := tag
++		v := tag.Name
+ 		if r.codeDir != "" {
+ 			v = v[len(r.codeDir)+1:]
+ 		}
++		// Note: ./codehost/codehost.go's isOriginTag knows about these conditions too.
++		// If these are relaxed, isOriginTag will need to be relaxed as well.
+ 		if v == "" || v != semver.Canonical(v) {
+ 			// Ignore non-canonical tags: Stat rewrites those to canonical
+ 			// pseudo-versions. Note that we compare against semver.Canonical here
+@@ -186,7 +192,7 @@ func (r *codeRepo) Versions(prefix string) ([]string, error) {
+ 	semver.Sort(list)
+ 	semver.Sort(incompatible)
+ 
+-	return r.appendIncompatibleVersions(list, incompatible)
++	return r.appendIncompatibleVersions(tags.Origin, list, incompatible)
+ }
+ 
+ // appendIncompatibleVersions appends "+incompatible" versions to list if
+@@ -196,10 +202,14 @@ func (r *codeRepo) Versions(prefix string) ([]string, error) {
+ // prefix.
+ //
+ // Both list and incompatible must be sorted in semantic order.
+-func (r *codeRepo) appendIncompatibleVersions(list, incompatible []string) ([]string, error) {
++func (r *codeRepo) appendIncompatibleVersions(origin *codehost.Origin, list, incompatible []string) (*Versions, error) {
++	versions := &Versions{
++		Origin: origin,
++		List:   list,
++	}
+ 	if len(incompatible) == 0 || r.pathMajor != "" {
+ 		// No +incompatible versions are possible, so no need to check them.
+-		return list, nil
++		return versions, nil
+ 	}
+ 
+ 	versionHasGoMod := func(v string) (bool, error) {
+@@ -232,7 +242,7 @@ func (r *codeRepo) appendIncompatibleVersions(list, incompatible []string) ([]st
+ 			// (github.com/russross/blackfriday@v2.0.0 and
+ 			// github.com/libp2p/go-libp2p@v6.0.23), and (as of 2019-10-29) have no
+ 			// concrete examples for which it is undesired.
+-			return list, nil
++			return versions, nil
+ 		}
+ 	}
+ 
+@@ -271,10 +281,10 @@ func (r *codeRepo) appendIncompatibleVersions(list, incompatible []string) ([]st
+ 			// bounds.
+ 			continue
+ 		}
+-		list = append(list, v+"+incompatible")
++		versions.List = append(versions.List, v+"+incompatible")
+ 	}
+ 
+-	return list, nil
++	return versions, nil
+ }
+ 
+ func (r *codeRepo) Stat(rev string) (*RevInfo, error) {
+@@ -439,7 +449,28 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
+ 			return nil, errIncompatible
+ 		}
+ 
++		origin := info.Origin
++		if module.IsPseudoVersion(v) {
++			// Add tags that are relevant to pseudo-version calculation to origin.
++			prefix := ""
++			if r.codeDir != "" {
++				prefix = r.codeDir + "/"
++			}
++			if r.pathMajor != "" { // "/v2" or "/.v2"
++				prefix += r.pathMajor[1:] + "." // += "v2."
++			}
++			tags, err := r.code.Tags(prefix)
++			if err != nil {
++				return nil, err
++			}
++			o := *origin
++			origin = &o
++			origin.TagPrefix = tags.Origin.TagPrefix
++			origin.TagSum = tags.Origin.TagSum
++		}
++
+ 		return &RevInfo{
++			Origin:  origin,
+ 			Name:    info.Name,
+ 			Short:   info.Short,
+ 			Time:    info.Time,
+@@ -674,11 +705,11 @@ func (r *codeRepo) validatePseudoVersion(info *codehost.RevInfo, version string)
+ 
+ 	var lastTag string // Prefer to log some real tag rather than a canonically-equivalent base.
+ 	ancestorFound := false
+-	for _, tag := range tags {
+-		versionOnly := strings.TrimPrefix(tag, tagPrefix)
++	for _, tag := range tags.List {
++		versionOnly := strings.TrimPrefix(tag.Name, tagPrefix)
+ 		if semver.Compare(versionOnly, base) == 0 {
+-			lastTag = tag
+-			ancestorFound, err = r.code.DescendsFrom(info.Name, tag)
++			lastTag = tag.Name
++			ancestorFound, err = r.code.DescendsFrom(info.Name, tag.Name)
+ 			if ancestorFound {
+ 				break
+ 			}
+@@ -922,10 +953,11 @@ func (r *codeRepo) modPrefix(rev string) string {
+ }
+ 
+ func (r *codeRepo) retractedVersions() (func(string) bool, error) {
+-	versions, err := r.Versions("")
++	vs, err := r.Versions("")
+ 	if err != nil {
+ 		return nil, err
+ 	}
++	versions := vs.List
+ 
+ 	for i, v := range versions {
+ 		if strings.HasSuffix(v, "+incompatible") {
+diff --git a/src/cmd/go/internal/modfetch/coderepo_test.go b/src/cmd/go/internal/modfetch/coderepo_test.go
+index 8d0eb00544..967978cd4d 100644
+--- a/src/cmd/go/internal/modfetch/coderepo_test.go
++++ b/src/cmd/go/internal/modfetch/coderepo_test.go
+@@ -823,7 +823,7 @@ func TestCodeRepoVersions(t *testing.T) {
+ 				if err != nil {
+ 					t.Fatalf("Versions(%q): %v", tt.prefix, err)
+ 				}
+-				if !reflect.DeepEqual(list, tt.versions) {
++				if !reflect.DeepEqual(list.List, tt.versions) {
+ 					t.Fatalf("Versions(%q):\nhave %v\nwant %v", tt.prefix, list, tt.versions)
+ 				}
+ 			})
+@@ -921,7 +921,13 @@ type fixedTagsRepo struct {
+ 	codehost.Repo
+ }
+ 
+-func (ch *fixedTagsRepo) Tags(string) ([]string, error) { return ch.tags, nil }
++func (ch *fixedTagsRepo) Tags(string) (*codehost.Tags, error) {
++	tags := &codehost.Tags{}
++	for _, t := range ch.tags {
++		tags.List = append(tags.List, codehost.Tag{Name: t})
++	}
++	return tags, nil
++}
+ 
+ func TestNonCanonicalSemver(t *testing.T) {
+ 	root := "golang.org/x/issue24476"
+@@ -945,7 +951,7 @@ func TestNonCanonicalSemver(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	if len(v) != 1 || v[0] != "v1.0.1" {
++	if len(v.List) != 1 || v.List[0] != "v1.0.1" {
+ 		t.Fatal("unexpected versions returned:", v)
+ 	}
+ }
+diff --git a/src/cmd/go/internal/modfetch/proxy.go b/src/cmd/go/internal/modfetch/proxy.go
+index 2491b7d185..d2374680d8 100644
+--- a/src/cmd/go/internal/modfetch/proxy.go
++++ b/src/cmd/go/internal/modfetch/proxy.go
+@@ -225,6 +225,12 @@ func (p *proxyRepo) ModulePath() string {
+ 	return p.path
+ }
+ 
++var errProxyReuse = fmt.Errorf("proxy does not support CheckReuse")
++
++func (p *proxyRepo) CheckReuse(old *codehost.Origin) error {
++	return errProxyReuse
++}
++
+ // versionError returns err wrapped in a ModuleError for p.path.
+ func (p *proxyRepo) versionError(version string, err error) error {
+ 	if version != "" && version != module.CanonicalVersion(version) {
+@@ -279,7 +285,7 @@ func (p *proxyRepo) getBody(path string) (r io.ReadCloser, err error) {
+ 	return resp.Body, nil
+ }
+ 
+-func (p *proxyRepo) Versions(prefix string) ([]string, error) {
++func (p *proxyRepo) Versions(prefix string) (*Versions, error) {
+ 	data, err := p.getBytes("@v/list")
+ 	if err != nil {
+ 		p.listLatestOnce.Do(func() {
+@@ -299,7 +305,7 @@ func (p *proxyRepo) Versions(prefix string) ([]string, error) {
+ 		p.listLatest, p.listLatestErr = p.latestFromList(allLine)
+ 	})
+ 	semver.Sort(list)
+-	return list, nil
++	return &Versions{List: list}, nil
+ }
+ 
+ func (p *proxyRepo) latest() (*RevInfo, error) {
+@@ -317,9 +323,8 @@ func (p *proxyRepo) latest() (*RevInfo, error) {
+ 
+ func (p *proxyRepo) latestFromList(allLine []string) (*RevInfo, error) {
+ 	var (
+-		bestTime             time.Time
+-		bestTimeIsFromPseudo bool
+-		bestVersion          string
++		bestTime    time.Time
++		bestVersion string
+ 	)
+ 	for _, line := range allLine {
+ 		f := strings.Fields(line)
+@@ -327,14 +332,12 @@ func (p *proxyRepo) latestFromList(allLine []string) (*RevInfo, error) {
+ 			// If the proxy includes timestamps, prefer the timestamp it reports.
+ 			// Otherwise, derive the timestamp from the pseudo-version.
+ 			var (
+-				ft             time.Time
+-				ftIsFromPseudo = false
++				ft time.Time
+ 			)
+ 			if len(f) >= 2 {
+ 				ft, _ = time.Parse(time.RFC3339, f[1])
+ 			} else if module.IsPseudoVersion(f[0]) {
+ 				ft, _ = module.PseudoVersionTime(f[0])
+-				ftIsFromPseudo = true
+ 			} else {
+ 				// Repo.Latest promises that this method is only called where there are
+ 				// no tagged versions. Ignore any tagged versions that were added in the
+@@ -343,7 +346,6 @@ func (p *proxyRepo) latestFromList(allLine []string) (*RevInfo, error) {
+ 			}
+ 			if bestTime.Before(ft) {
+ 				bestTime = ft
+-				bestTimeIsFromPseudo = ftIsFromPseudo
+ 				bestVersion = f[0]
+ 			}
+ 		}
+@@ -352,22 +354,8 @@ func (p *proxyRepo) latestFromList(allLine []string) (*RevInfo, error) {
+ 		return nil, p.versionError("", codehost.ErrNoCommits)
+ 	}
+ 
+-	if bestTimeIsFromPseudo {
+-		// We parsed bestTime from the pseudo-version, but that's in UTC and we're
+-		// supposed to report the timestamp as reported by the VCS.
+-		// Stat the selected version to canonicalize the timestamp.
+-		//
+-		// TODO(bcmills): Should we also stat other versions to ensure that we
+-		// report the correct Name and Short for the revision?
+-		return p.Stat(bestVersion)
+-	}
+-
+-	return &RevInfo{
+-		Version: bestVersion,
+-		Name:    bestVersion,
+-		Short:   bestVersion,
+-		Time:    bestTime,
+-	}, nil
++	// Call Stat to get all the other fields, including Origin information.
++	return p.Stat(bestVersion)
+ }
+ 
+ func (p *proxyRepo) Stat(rev string) (*RevInfo, error) {
+diff --git a/src/cmd/go/internal/modfetch/repo.go b/src/cmd/go/internal/modfetch/repo.go
+index 1b42ecb6ed..d4c57bb300 100644
+--- a/src/cmd/go/internal/modfetch/repo.go
++++ b/src/cmd/go/internal/modfetch/repo.go
+@@ -29,6 +29,12 @@ type Repo interface {
+ 	// ModulePath returns the module path.
+ 	ModulePath() string
+ 
++	// CheckReuse checks whether the validation criteria in the origin
++	// are still satisfied on the server corresponding to this module.
++	// If so, the caller can reuse any cached Versions or RevInfo containing
++	// this origin rather than redownloading those from the server.
++	CheckReuse(old *codehost.Origin) error
++
+ 	// Versions lists all known versions with the given prefix.
+ 	// Pseudo-versions are not included.
+ 	//
+@@ -42,7 +48,7 @@ type Repo interface {
+ 	//
+ 	// If the underlying repository does not exist,
+ 	// Versions returns an error matching errors.Is(_, os.NotExist).
+-	Versions(prefix string) ([]string, error)
++	Versions(prefix string) (*Versions, error)
+ 
+ 	// Stat returns information about the revision rev.
+ 	// A revision can be any identifier known to the underlying service:
+@@ -61,7 +67,14 @@ type Repo interface {
+ 	Zip(dst io.Writer, version string) error
+ }
+ 
+-// A Rev describes a single revision in a module repository.
++// A Versions describes the available versions in a module repository.
++type Versions struct {
++	Origin *codehost.Origin `json:",omitempty"` // origin information for reuse
++
++	List []string // semver versions
++}
++
++// A RevInfo describes a single revision in a module repository.
+ type RevInfo struct {
+ 	Version string    // suggested version string for this revision
+ 	Time    time.Time // commit time
+@@ -70,6 +83,8 @@ type RevInfo struct {
+ 	// but they are not recorded when talking about module versions.
+ 	Name  string `json:"-"` // complete ID in underlying repository
+ 	Short string `json:"-"` // shortened ID, for use in pseudo-version
++
++	Origin *codehost.Origin `json:",omitempty"` // provenance for reuse
+ }
+ 
+ // Re: module paths, import paths, repository roots, and lookups
+@@ -320,7 +335,14 @@ func (l *loggingRepo) ModulePath() string {
+ 	return l.r.ModulePath()
+ }
+ 
+-func (l *loggingRepo) Versions(prefix string) (tags []string, err error) {
++func (l *loggingRepo) CheckReuse(old *codehost.Origin) (err error) {
++	defer func() {
++		logCall("CheckReuse[%s]: %v", l.r.ModulePath(), err)
++	}()
++	return l.r.CheckReuse(old)
++}
++
++func (l *loggingRepo) Versions(prefix string) (*Versions, error) {
+ 	defer logCall("Repo[%s]: Versions(%q)", l.r.ModulePath(), prefix)()
+ 	return l.r.Versions(prefix)
+ }
+@@ -360,11 +382,12 @@ type errRepo struct {
+ 
+ func (r errRepo) ModulePath() string { return r.modulePath }
+ 
+-func (r errRepo) Versions(prefix string) (tags []string, err error) { return nil, r.err }
+-func (r errRepo) Stat(rev string) (*RevInfo, error)                 { return nil, r.err }
+-func (r errRepo) Latest() (*RevInfo, error)                         { return nil, r.err }
+-func (r errRepo) GoMod(version string) ([]byte, error)              { return nil, r.err }
+-func (r errRepo) Zip(dst io.Writer, version string) error           { return r.err }
++func (r errRepo) CheckReuse(old *codehost.Origin) error     { return r.err }
++func (r errRepo) Versions(prefix string) (*Versions, error) { return nil, r.err }
++func (r errRepo) Stat(rev string) (*RevInfo, error)         { return nil, r.err }
++func (r errRepo) Latest() (*RevInfo, error)                 { return nil, r.err }
++func (r errRepo) GoMod(version string) ([]byte, error)      { return nil, r.err }
++func (r errRepo) Zip(dst io.Writer, version string) error   { return r.err }
+ 
+ // A notExistError is like fs.ErrNotExist, but with a custom message
+ type notExistError struct {
+diff --git a/src/cmd/go/internal/modload/mvs.go b/src/cmd/go/internal/modload/mvs.go
+index 588bcf4bdc..2055303efe 100644
+--- a/src/cmd/go/internal/modload/mvs.go
++++ b/src/cmd/go/internal/modload/mvs.go
+@@ -91,8 +91,8 @@ func versions(ctx context.Context, path string, allowed AllowedFunc) ([]string,
+ 		if err != nil {
+ 			return err
+ 		}
+-		allowedVersions := make([]string, 0, len(allVersions))
+-		for _, v := range allVersions {
++		allowedVersions := make([]string, 0, len(allVersions.List))
++		for _, v := range allVersions.List {
+ 			if err := allowed(ctx, module.Version{Path: path, Version: v}); err == nil {
+ 				allowedVersions = append(allowedVersions, v)
+ 			} else if !errors.Is(err, ErrDisallowed) {
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index ae5304f87e..051a4fe822 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -177,7 +177,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	releases, prereleases, err := qm.filterVersions(ctx, versions)
++	releases, prereleases, err := qm.filterVersions(ctx, versions.List)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -991,7 +991,7 @@ func versionHasGoMod(_ context.Context, m module.Version) (bool, error) {
+ // available versions, but cannot fetch specific source files.
+ type versionRepo interface {
+ 	ModulePath() string
+-	Versions(prefix string) ([]string, error)
++	Versions(prefix string) (*modfetch.Versions, error)
+ 	Stat(rev string) (*modfetch.RevInfo, error)
+ 	Latest() (*modfetch.RevInfo, error)
+ }
+@@ -1023,8 +1023,10 @@ type emptyRepo struct {
+ 
+ var _ versionRepo = emptyRepo{}
+ 
+-func (er emptyRepo) ModulePath() string                         { return er.path }
+-func (er emptyRepo) Versions(prefix string) ([]string, error)   { return nil, nil }
++func (er emptyRepo) ModulePath() string { return er.path }
++func (er emptyRepo) Versions(prefix string) (*modfetch.Versions, error) {
++	return &modfetch.Versions{}, nil
++}
+ func (er emptyRepo) Stat(rev string) (*modfetch.RevInfo, error) { return nil, er.err }
+ func (er emptyRepo) Latest() (*modfetch.RevInfo, error)         { return nil, er.err }
+ 
+@@ -1044,13 +1046,16 @@ func (rr *replacementRepo) ModulePath() string { return rr.repo.ModulePath() }
+ 
+ // Versions returns the versions from rr.repo augmented with any matching
+ // replacement versions.
+-func (rr *replacementRepo) Versions(prefix string) ([]string, error) {
++func (rr *replacementRepo) Versions(prefix string) (*modfetch.Versions, error) {
+ 	repoVersions, err := rr.repo.Versions(prefix)
+-	if err != nil && !errors.Is(err, os.ErrNotExist) {
+-		return nil, err
++	if err != nil {
++		if !errors.Is(err, os.ErrNotExist) {
++			return nil, err
++		}
++		repoVersions = new(modfetch.Versions)
+ 	}
+ 
+-	versions := repoVersions
++	versions := repoVersions.List
+ 	for _, mm := range MainModules.Versions() {
+ 		if index := MainModules.Index(mm); index != nil && len(index.replace) > 0 {
+ 			path := rr.ModulePath()
+@@ -1062,15 +1067,15 @@ func (rr *replacementRepo) Versions(prefix string) ([]string, error) {
+ 		}
+ 	}
+ 
+-	if len(versions) == len(repoVersions) { // No replacement versions added.
+-		return versions, nil
++	if len(versions) == len(repoVersions.List) { // replacement versions added
++		return repoVersions, nil
+ 	}
+ 
+ 	sort.Slice(versions, func(i, j int) bool {
+ 		return semver.Compare(versions[i], versions[j]) < 0
+ 	})
+ 	str.Uniq(&versions)
+-	return versions, nil
++	return &modfetch.Versions{List: versions}, nil
+ }
+ 
+ func (rr *replacementRepo) Stat(rev string) (*modfetch.RevInfo, error) {

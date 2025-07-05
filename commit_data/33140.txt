@@ -15,6 +15,34 @@ Date:   Sat Jul 15 13:28:12 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/48910
     Reviewed-by: Dmitri Shuralyov <shurcool@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/json/example_test.go | 16 ++++++++--------
  1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/encoding/json/example_test.go b/src/encoding/json/example_test.go
+index e4dffd942d..fa1846bb1b 100644
+--- a/src/encoding/json/example_test.go
++++ b/src/encoding/json/example_test.go
+@@ -123,14 +123,14 @@ func ExampleDecoder_Token() {
+ // This example uses a Decoder to decode a streaming array of JSON objects.
+ func ExampleDecoder_Decode_stream() {
+ 	const jsonStream = `
+-		[
+-			{"Name": "Ed", "Text": "Knock knock."},
+-			{"Name": "Sam", "Text": "Who's there?"},
+-			{"Name": "Ed", "Text": "Go fmt."},
+-			{"Name": "Sam", "Text": "Go fmt who?"},
+-			{"Name": "Ed", "Text": "Go fmt yourself!"}
+-		]
+-	`
++	[
++		{"Name": "Ed", "Text": "Knock knock."},
++		{"Name": "Sam", "Text": "Who's there?"},
++		{"Name": "Ed", "Text": "Go fmt."},
++		{"Name": "Sam", "Text": "Go fmt who?"},
++		{"Name": "Ed", "Text": "Go fmt yourself!"}
++	]
++`
+ 	type Message struct {
+ 		Name, Text string
+ 	}

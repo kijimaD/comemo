@@ -25,6 +25,29 @@ Date:   Sat Dec 3 13:50:45 2022 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/cgo_unix.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/cgo_unix.go b/src/net/cgo_unix.go
+index 6a2c369c66..38bf20cbb1 100644
+--- a/src/net/cgo_unix.go
++++ b/src/net/cgo_unix.go
+@@ -222,7 +222,7 @@ func cgoLookupIP(ctx context.Context, network, name string) (addrs []IPAddr, err
+ 	case r := <-result:
+ 		return r.addrs, r.err, true
+ 	case <-ctx.Done():
+-		return nil, mapErr(ctx.Err()), false
++		return nil, mapErr(ctx.Err()), true
+ 	}
+ }
+ 
+@@ -262,7 +262,7 @@ func cgoLookupPTR(ctx context.Context, addr string) (names []string, err error,
+ 	case r := <-result:
+ 		return r.names, r.err, true
+ 	case <-ctx.Done():
+-		return nil, mapErr(ctx.Err()), false
++		return nil, mapErr(ctx.Err()), true
+ 	}
+ }
+ 

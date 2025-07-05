@@ -9,6 +9,20 @@ Date:   Mon Nov 7 19:08:51 2016 -0500
     Change-Id: I73cf89c21b418158c7014c3271cd1103a17a5c86
     Reviewed-on: https://go-review.googlesource.com/32882
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/devel/release.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 6c1cb996bd..773f889e8b 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -83,7 +83,7 @@ See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.6.2">Go
+ <p>
+ go1.6.3 (released 2016/07/17) includes security fixes to the
+ <code>net/http/cgi</code> package and <code>net/http</code> package when used in
+-a CGI environment. This release also adds support for macOS Sierra.
++a CGI environment.
+ See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.6.3">Go
+ 1.6.3 milestone</a> on our issue tracker for details.
+ </p>

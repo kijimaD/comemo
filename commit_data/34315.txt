@@ -13,6 +13,40 @@ Date:   Mon Oct 16 18:01:47 2017 -0700
     Change-Id: I47f6c47b43baf790907f55ed97a947661687a9db
     Reviewed-on: https://go-review.googlesource.com/71252
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go | 12 +++---------
  1 file changed, 3 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 3d14b70eba..e2d5817dc8 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -368,17 +368,12 @@ func (p *parser) list(open, sep, close token, f func() bool) src.Pos {
+ 	var done bool
+ 	for p.tok != _EOF && p.tok != close && !done {
+ 		done = f()
+-		switch p.tok {
+-		case sep:
+-			p.next()
+-		case _Rparen, _Rbrace:
+-			// comma is optional before ) or } - nothing to do
+-			// TODO(gri): consider restricting this case
+-			//            to the expected close token only
+-		default:
++		// sep is optional before close
++		if !p.got(sep) && p.tok != close {
+ 			p.syntax_error(fmt.Sprintf("expecting %s or %s", tokstring(sep), tokstring(close)))
+ 			p.advance(_Rparen, _Rbrack, _Rbrace)
+ 			if p.tok != close {
++				// position could be better but we had an error so we don't care
+ 				return p.pos()
+ 			}
+ 		}
+@@ -386,7 +381,6 @@ func (p *parser) list(open, sep, close token, f func() bool) src.Pos {
+ 
+ 	pos := p.pos()
+ 	p.want(close)
+-
+ 	return pos
+ }
+ 

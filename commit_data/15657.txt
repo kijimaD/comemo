@@ -10,6 +10,19 @@ Date:   Sat Mar 9 14:51:57 2013 -0800
     R=golang-dev, lucio.dere, devon.odell, rsc
     CC=golang-dev
     https://golang.org/cl/7664044
-
+---
  src/cmd/6l/obj.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 6ced8be7fd..cf54b2b4f5 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -141,6 +141,7 @@ main(int argc, char *argv[])
+ 		default:
+ 			sysfatal("cannot use -hostobj with -H %s", headstr(HEADTYPE));
+ 		case Hlinux:
++		case Hfreebsd:
+ 			break;
+ 		}
+ 	}

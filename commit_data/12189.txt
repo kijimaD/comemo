@@ -9,6 +9,20 @@ Date:   Thu Feb 23 22:45:44 2012 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5698056
-
+---
  src/pkg/net/rpc/client.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/rpc/client.go b/src/pkg/net/rpc/client.go
+index 34f9ae317e..f7abf21f15 100644
+--- a/src/pkg/net/rpc/client.go
++++ b/src/pkg/net/rpc/client.go
+@@ -140,7 +140,7 @@ func (client *Client) input() {
+ 	}
+ 	client.mutex.Unlock()
+ 	client.sending.Unlock()
+-	if err != io.EOF || !closing {
++	if err != io.EOF && !closing {
+ 		log.Println("rpc: client protocol error:", err)
+ 	}
+ }

@@ -16,9 +16,93 @@ Date:   Mon Jan 13 10:43:09 2020 -0500
     Change-Id: I490748271b10a85cbe1d34f9dbecb86ccf0101a7
     Reviewed-on: https://go-review.googlesource.com/c/go/+/214423
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                              |  7 ------
  src/cmd/go/testdata/norunexample/example_test.go   | 11 ---------
  src/cmd/go/testdata/norunexample/test_test.go      | 10 ---------
  src/cmd/go/testdata/script/test_no_run_example.txt | 26 ++++++++++++++++++++++
  4 files changed, 26 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index a8ef36e6bb..89b27b90b7 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1832,13 +1832,6 @@ func TestListTemplateContextFunction(t *testing.T) {
+ 	}
+ }
+ 
+-func TestGoTestBuildsAnXtestContainingOnlyNonRunnableExamples(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.run("test", "-v", "./testdata/norunexample")
+-	tg.grepStdout("File with non-runnable example was built.", "file with non-runnable example was not built")
+-}
+-
+ // Test that you cannot use a local import in a package
+ // accessed by a non-local import (found in a GOPATH/GOROOT).
+ // See golang.org/issue/17475.
+diff --git a/src/cmd/go/testdata/norunexample/example_test.go b/src/cmd/go/testdata/norunexample/example_test.go
+deleted file mode 100644
+index e158305a6c..0000000000
+--- a/src/cmd/go/testdata/norunexample/example_test.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-package pkg_test
+-
+-import "os"
+-
+-func init() {
+-	os.Stdout.Write([]byte("File with non-runnable example was built.\n"))
+-}
+-
+-func Example_test() {
+-	// This test will not be run, it has no "Output:" comment.
+-}
+diff --git a/src/cmd/go/testdata/norunexample/test_test.go b/src/cmd/go/testdata/norunexample/test_test.go
+deleted file mode 100644
+index d2e919838f..0000000000
+--- a/src/cmd/go/testdata/norunexample/test_test.go
++++ /dev/null
+@@ -1,10 +0,0 @@
+-package pkg
+-
+-import (
+-	"os"
+-	"testing"
+-)
+-
+-func TestBuilt(t *testing.T) {
+-	os.Stdout.Write([]byte("A normal test was executed.\n"))
+-}
+diff --git a/src/cmd/go/testdata/script/test_no_run_example.txt b/src/cmd/go/testdata/script/test_no_run_example.txt
+new file mode 100644
+index 0000000000..66daa310fa
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_no_run_example.txt
+@@ -0,0 +1,26 @@
++go test -v norunexample
++stdout 'File with non-runnable example was built.'
++
++-- norunexample/example_test.go --
++package pkg_test
++
++import "os"
++
++func init() {
++	os.Stdout.Write([]byte("File with non-runnable example was built.\n"))
++}
++
++func Example_test() {
++	// This test will not be run, it has no "Output:" comment.
++}
++-- norunexample/test_test.go --
++package pkg
++
++import (
++	"os"
++	"testing"
++)
++
++func TestBuilt(t *testing.T) {
++	os.Stdout.Write([]byte("A normal test was executed.\n"))
++}

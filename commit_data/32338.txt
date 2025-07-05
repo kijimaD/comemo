@@ -16,8 +16,53 @@ Date:   Thu Apr 13 10:57:04 2017 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/html/template/attr.go        | 3 +--
  src/html/template/escape_test.go | 5 +++++
  src/html/template/transition.go  | 2 +-
  3 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/html/template/attr.go b/src/html/template/attr.go
+index d65d340073..7438f51f6a 100644
+--- a/src/html/template/attr.go
++++ b/src/html/template/attr.go
+@@ -135,9 +135,8 @@ var attrTypeMap = map[string]contentType{
+ }
+ 
+ // attrType returns a conservative (upper-bound on authority) guess at the
+-// type of the named attribute.
++// type of the lowercase named attribute.
+ func attrType(name string) contentType {
+-	name = strings.ToLower(name)
+ 	if strings.HasPrefix(name, "data-") {
+ 		// Strip data- so that custom attribute heuristics below are
+ 		// widely applied.
+diff --git a/src/html/template/escape_test.go b/src/html/template/escape_test.go
+index 0a6a9e49c7..43869276c0 100644
+--- a/src/html/template/escape_test.go
++++ b/src/html/template/escape_test.go
+@@ -1404,6 +1404,11 @@ func TestEscapeText(t *testing.T) {
+ 			`<script type="TEXT/JAVASCRIPT">`,
+ 			context{state: stateJS, element: elementScript},
+ 		},
++		// covering issue 19965
++		{
++			`<script TYPE="text/template">`,
++			context{state: stateText},
++		},
+ 		{
+ 			`<script type="notjs">`,
+ 			context{state: stateText},
+diff --git a/src/html/template/transition.go b/src/html/template/transition.go
+index 4a4716d782..5d34d6947e 100644
+--- a/src/html/template/transition.go
++++ b/src/html/template/transition.go
+@@ -106,7 +106,7 @@ func tTag(c context, s []byte) (context, int) {
+ 		}, len(s)
+ 	}
+ 
+-	attrName := string(s[i:j])
++	attrName := strings.ToLower(string(s[i:j]))
+ 	if c.element == elementScript && attrName == "type" {
+ 		attr = attrScriptType
+ 	} else {

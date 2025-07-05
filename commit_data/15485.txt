@@ -9,7 +9,136 @@ Date:   Thu Feb 28 13:46:26 2013 +1100
     R=dsymonds
     CC=dr.volker.dobler, golang-dev
     https://golang.org/cl/7425043
-
+---
  src/pkg/exp/cookiejar/jar.go      | 11 ++++--
  src/pkg/exp/cookiejar/jar_test.go | 74 +++++++++++++++++++++++++++++++++++++++
  2 files changed, 82 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/exp/cookiejar/jar.go b/src/pkg/exp/cookiejar/jar.go
+index 8fb6c1d284..5d1aeb87fd 100644
+--- a/src/pkg/exp/cookiejar/jar.go
++++ b/src/pkg/exp/cookiejar/jar.go
+@@ -121,7 +121,7 @@ func (e *entry) domainMatch(host string) bool {
+ 	if e.Domain == host {
+ 		return true
+ 	}
+-	return !e.HostOnly && strings.HasSuffix(host, "."+e.Domain)
++	return !e.HostOnly && hasDotSuffix(host, e.Domain)
+ }
+ 
+ // pathMatch implements "path-match" according to RFC 6265 section 5.1.4.
+@@ -139,6 +139,11 @@ func (e *entry) pathMatch(requestPath string) bool {
+ 	return false
+ }
+ 
++// hasDotSuffix returns whether s ends in "."+suffix.
++func hasDotSuffix(s, suffix string) bool {
++	return len(s) > len(suffix) && s[len(s)-len(suffix)-1] == '.' && s[len(s)-len(suffix):] == suffix
++}
++
+ // byPathLength is a []entry sort.Interface that sorts according to RFC 6265
+ // section 5.4 point 2: by longest path and then by earliest creation time.
+ type byPathLength []entry
+@@ -469,7 +474,7 @@ func (j *Jar) domainAndType(host, domain string) (string, bool, error) {
+ 
+ 	// See RFC 6265 section 5.3 #5.
+ 	if j.psList != nil {
+-		if ps := j.psList.PublicSuffix(domain); ps != "" && !strings.HasSuffix(domain, "."+ps) {
++		if ps := j.psList.PublicSuffix(domain); ps != "" && !hasDotSuffix(domain, ps) {
+ 			if host == domain {
+ 				// This is the one exception in which a cookie
+ 				// with a domain attribute is a host cookie.
+@@ -481,7 +486,7 @@ func (j *Jar) domainAndType(host, domain string) (string, bool, error) {
+ 
+ 	// The domain must domain-match host: www.mycompany.com cannot
+ 	// set cookies for .ourcompetitors.com.
+-	if host != domain && !strings.HasSuffix(host, "."+domain) {
++	if host != domain && !hasDotSuffix(host, domain) {
+ 		return "", false, errIllegalDomain
+ 	}
+ 
+diff --git a/src/pkg/exp/cookiejar/jar_test.go b/src/pkg/exp/cookiejar/jar_test.go
+index 7e19692078..3aa601586e 100644
+--- a/src/pkg/exp/cookiejar/jar_test.go
++++ b/src/pkg/exp/cookiejar/jar_test.go
+@@ -40,6 +40,80 @@ func newTestJar() *Jar {
+ 	return jar
+ }
+ 
++var hasDotSuffixTests = [...]struct {
++	s, suffix string
++}{
++	{"", ""},
++	{"", "."},
++	{"", "x"},
++	{".", ""},
++	{".", "."},
++	{".", ".."},
++	{".", "x"},
++	{".", "x."},
++	{".", ".x"},
++	{".", ".x."},
++	{"x", ""},
++	{"x", "."},
++	{"x", ".."},
++	{"x", "x"},
++	{"x", "x."},
++	{"x", ".x"},
++	{"x", ".x."},
++	{".x", ""},
++	{".x", "."},
++	{".x", ".."},
++	{".x", "x"},
++	{".x", "x."},
++	{".x", ".x"},
++	{".x", ".x."},
++	{"x.", ""},
++	{"x.", "."},
++	{"x.", ".."},
++	{"x.", "x"},
++	{"x.", "x."},
++	{"x.", ".x"},
++	{"x.", ".x."},
++	{"com", ""},
++	{"com", "m"},
++	{"com", "om"},
++	{"com", "com"},
++	{"com", ".com"},
++	{"com", "x.com"},
++	{"com", "xcom"},
++	{"com", "xorg"},
++	{"com", "org"},
++	{"com", "rg"},
++	{"foo.com", ""},
++	{"foo.com", "m"},
++	{"foo.com", "om"},
++	{"foo.com", "com"},
++	{"foo.com", ".com"},
++	{"foo.com", "o.com"},
++	{"foo.com", "oo.com"},
++	{"foo.com", "foo.com"},
++	{"foo.com", ".foo.com"},
++	{"foo.com", "x.foo.com"},
++	{"foo.com", "xfoo.com"},
++	{"foo.com", "xfoo.org"},
++	{"foo.com", "foo.org"},
++	{"foo.com", "oo.org"},
++	{"foo.com", "o.org"},
++	{"foo.com", ".org"},
++	{"foo.com", "org"},
++	{"foo.com", "rg"},
++}
++
++func TestHasDotSuffix(t *testing.T) {
++	for _, tc := range hasDotSuffixTests {
++		got := hasDotSuffix(tc.s, tc.suffix)
++		want := strings.HasSuffix(tc.s, "."+tc.suffix)
++		if got != want {
++			t.Errorf("s=%q, suffix=%q: got %v, want %v", tc.s, tc.suffix, got, want)
++		}
++	}
++}
++
+ var canonicalHostTests = map[string]string{
+ 	"www.example.com":         "www.example.com",
+ 	"WWW.EXAMPLE.COM":         "www.example.com",

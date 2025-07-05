@@ -17,9 +17,110 @@ Date:   Fri Dec 1 16:17:16 2017 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/asn1/asn1.go         | 17 +++++++++++++----
  src/encoding/asn1/asn1_test.go    |  2 ++
  src/encoding/asn1/marshal.go      |  7 +++++--
  src/encoding/asn1/marshal_test.go |  1 +
  4 files changed, 21 insertions(+), 6 deletions(-)
+
+diff --git a/src/encoding/asn1/asn1.go b/src/encoding/asn1/asn1.go
+index 4459ce4ed6..26868a3bd7 100644
+--- a/src/encoding/asn1/asn1.go
++++ b/src/encoding/asn1/asn1.go
+@@ -397,7 +397,7 @@ func isNumeric(b byte) bool {
+ // array and returns it.
+ func parsePrintableString(bytes []byte) (ret string, err error) {
+ 	for _, b := range bytes {
+-		if !isPrintable(b, allowAsterisk) {
++		if !isPrintable(b, allowAsterisk, allowAmpersand) {
+ 			err = SyntaxError{"PrintableString contains invalid character"}
+ 			return
+ 		}
+@@ -407,16 +407,20 @@ func parsePrintableString(bytes []byte) (ret string, err error) {
+ }
+ 
+ type asteriskFlag bool
++type ampersandFlag bool
+ 
+ const (
+ 	allowAsterisk  asteriskFlag = true
+ 	rejectAsterisk asteriskFlag = false
++
++	allowAmpersand  ampersandFlag = true
++	rejectAmpersand ampersandFlag = false
+ )
+ 
+ // isPrintable reports whether the given b is in the ASN.1 PrintableString set.
+ // If asterisk is allowAsterisk then '*' is also allowed, reflecting existing
+-// practice.
+-func isPrintable(b byte, asterisk asteriskFlag) bool {
++// practice. If ampersand is allowAmpersand then '&' is allowed as well.
++func isPrintable(b byte, asterisk asteriskFlag, ampersand ampersandFlag) bool {
+ 	return 'a' <= b && b <= 'z' ||
+ 		'A' <= b && b <= 'Z' ||
+ 		'0' <= b && b <= '9' ||
+@@ -429,7 +433,12 @@ func isPrintable(b byte, asterisk asteriskFlag) bool {
+ 		// This is technically not allowed in a PrintableString.
+ 		// However, x509 certificates with wildcard strings don't
+ 		// always use the correct string type so we permit it.
+-		(bool(asterisk) && b == '*')
++		(bool(asterisk) && b == '*') ||
++		// This is not technically allowed either. However, not
++		// only is it relatively common, but there are also a
++		// handful of CA certificates that contain it. At least
++		// one of which will not expire until 2027.
++		(bool(ampersand) && b == '&')
+ }
+ 
+ // IA5String
+diff --git a/src/encoding/asn1/asn1_test.go b/src/encoding/asn1/asn1_test.go
+index 56129530f5..5e67dc5ee4 100644
+--- a/src/encoding/asn1/asn1_test.go
++++ b/src/encoding/asn1/asn1_test.go
+@@ -487,6 +487,8 @@ var unmarshalTestData = []struct {
+ 	{[]byte{0x02, 0x01, 0x10}, newInt(16)},
+ 	{[]byte{0x13, 0x04, 't', 'e', 's', 't'}, newString("test")},
+ 	{[]byte{0x16, 0x04, 't', 'e', 's', 't'}, newString("test")},
++	// Ampersand is allowed in PrintableString due to mistakes by major CAs.
++	{[]byte{0x13, 0x05, 't', 'e', 's', 't', '&'}, newString("test&")},
+ 	{[]byte{0x16, 0x04, 't', 'e', 's', 't'}, &RawValue{0, 22, false, []byte("test"), []byte("\x16\x04test")}},
+ 	{[]byte{0x04, 0x04, 1, 2, 3, 4}, &RawValue{0, 4, false, []byte{1, 2, 3, 4}, []byte{4, 4, 1, 2, 3, 4}}},
+ 	{[]byte{0x30, 0x03, 0x81, 0x01, 0x01}, &TestContextSpecificTags{1}},
+diff --git a/src/encoding/asn1/marshal.go b/src/encoding/asn1/marshal.go
+index 422614f657..3e85651ffd 100644
+--- a/src/encoding/asn1/marshal.go
++++ b/src/encoding/asn1/marshal.go
+@@ -271,7 +271,10 @@ func makePrintableString(s string) (e encoder, err error) {
+ 		// The asterisk is often used in PrintableString, even though
+ 		// it is invalid. If a PrintableString was specifically
+ 		// requested then the asterisk is permitted by this code.
+-		if !isPrintable(s[i], allowAsterisk) {
++		// Ampersand is allowed in parsing due a handful of CA
++		// certificates, however when making new certificates
++		// it is rejected.
++		if !isPrintable(s[i], allowAsterisk, rejectAmpersand) {
+ 			return nil, StructuralError{"PrintableString contains invalid character"}
+ 		}
+ 	}
+@@ -591,7 +594,7 @@ func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
+ 			// a PrintableString if the character set in the string is
+ 			// sufficiently limited, otherwise we'll use a UTF8String.
+ 			for _, r := range v.String() {
+-				if r >= utf8.RuneSelf || !isPrintable(byte(r), rejectAsterisk) {
++				if r >= utf8.RuneSelf || !isPrintable(byte(r), rejectAsterisk, rejectAmpersand) {
+ 					if !utf8.ValidString(v.String()) {
+ 						return nil, errors.New("asn1: string not valid UTF-8")
+ 					}
+diff --git a/src/encoding/asn1/marshal_test.go b/src/encoding/asn1/marshal_test.go
+index ac3d31ff9e..4f755a1f39 100644
+--- a/src/encoding/asn1/marshal_test.go
++++ b/src/encoding/asn1/marshal_test.go
+@@ -157,6 +157,7 @@ var marshalTests = []marshalTest{
+ 	{printableStringTest{"test*"}, "30071305746573742a"},
+ 	{genericStringTest{"test"}, "3006130474657374"},
+ 	{genericStringTest{"test*"}, "30070c05746573742a"},
++	{genericStringTest{"test&"}, "30070c057465737426"},
+ 	{rawContentsStruct{nil, 64}, "3003020140"},
+ 	{rawContentsStruct{[]byte{0x30, 3, 1, 2, 3}, 64}, "3003010203"},
+ 	{RawValue{Tag: 1, Class: 2, IsCompound: false, Bytes: []byte{1, 2, 3}}, "8103010203"},

@@ -9,7 +9,42 @@ Date:   Fri Jan 6 14:34:16 2012 -0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/5498088
-
+---
  src/cmd/gc/typecheck.c   |  1 +
  test/fixedbugs/bug390.go | 16 ++++++++++++++++
  2 files changed, 17 insertions(+)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 077f9bbb6f..bbe1b28643 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -79,6 +79,7 @@ static char* _typekind[] = {
+ 	[TSTRING]	= "string",
+ 	[TPTR32]	= "pointer",
+ 	[TPTR64]	= "pointer",
++	[TUNSAFEPTR]	= "unsafe.Pointer",
+ 	[TSTRUCT]	= "struct",
+ 	[TINTER]	= "interface",
+ 	[TCHAN]		= "chan",
+diff --git a/test/fixedbugs/bug390.go b/test/fixedbugs/bug390.go
+new file mode 100644
+index 0000000000..9ee5bc9d6c
+--- /dev/null
++++ b/test/fixedbugs/bug390.go
+@@ -0,0 +1,16 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 2627 -- unsafe.Pointer type isn't handled nicely in some errors
++
++package main
++
++import "unsafe"
++
++func main() {
++	var x *int
++	_ = unsafe.Pointer(x) - unsafe.Pointer(x) // ERROR "operator - not defined on unsafe.Pointer"
++}

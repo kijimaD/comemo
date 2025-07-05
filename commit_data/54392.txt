@@ -13,7 +13,32 @@ Date:   Sat Oct 8 17:00:39 2022 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Joedian Reid <joedian@golang.org>
-
+---
  src/crypto/x509/parser.go      | 1 +
  src/crypto/x509/parser_test.go | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/crypto/x509/parser.go b/src/crypto/x509/parser.go
+index a2d3d80964..402bac95e8 100644
+--- a/src/crypto/x509/parser.go
++++ b/src/crypto/x509/parser.go
+@@ -1,6 +1,7 @@
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
++
+ package x509
+ 
+ import (
+diff --git a/src/crypto/x509/parser_test.go b/src/crypto/x509/parser_test.go
+index d7cf7ea758..b31f9cdb24 100644
+--- a/src/crypto/x509/parser_test.go
++++ b/src/crypto/x509/parser_test.go
+@@ -1,6 +1,7 @@
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
++
+ package x509
+ 
+ import (

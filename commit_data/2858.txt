@@ -7,6 +7,30 @@ Date:   Fri Jul 31 18:05:07 2009 -0700
     DELTA=5  (5 added, 0 deleted, 0 changed)
     OCL=32484
     CL=32617
-
+---
  doc/go_spec.html | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 372f91ac76..008a8f88c0 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -9,6 +9,8 @@ Open issues:
+ 
+ 
+ Todo's:
++[ ] need explicit language about the result type of operations
++[ ] may want to have some examples for the types of shift operations
+ [ ] document illegality of package-external tuple assignments to structs
+ 	w/ private fields: P.T(1, 2) illegal since same as P.T(a: 1, b: 2) for
+ 	a T struct { a b int }.
+@@ -2440,6 +2442,9 @@ The operand types in binary operations must be compatible, with the following ex
+ 	  ideal float, the other is converted to ideal float
+ 	  (relevant for <code>/</code> and <code>%</code>).</li>
+ 
++	<li>In shift operations, the above rules apply to the left operand of the shift as
++	  if the shift operator and the right operand where not present.
++
+ 	<li>The right operand in a shift operation must be always be of unsigned integer type
+ 	  or an ideal number that can be safely converted into an unsigned integer type
+ 	  (§Arithmetic operators).</li>

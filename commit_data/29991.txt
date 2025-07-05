@@ -12,7 +12,7 @@ Date:   Wed Oct 19 12:58:16 2016 -0700
     Change-Id: Ifa70f4f3c9feae10c723cbec81a0a47c39610090
     Reviewed-on: https://go-review.googlesource.com/31497
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/align.go    |  7 ++-----
  src/cmd/compile/internal/gc/bexport.go  | 15 ++++++---------
  src/cmd/compile/internal/gc/bimport.go  |  2 +-
@@ -22,3 +22,178 @@ Date:   Wed Oct 19 12:58:16 2016 -0700
  src/cmd/compile/internal/gc/pgen.go     |  3 ---
  src/cmd/compile/internal/gc/universe.go |  4 ++--
  8 files changed, 13 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 375870ee80..eee801fb8e 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -227,12 +227,9 @@ func dowidth(t *Type) {
+ 		}
+ 		w = 1 // anything will do
+ 
+-	// dummy type; should be replaced before use.
+ 	case TANY:
+-		if Debug['A'] == 0 {
+-			Fatalf("dowidth any")
+-		}
+-		w = 1 // anything will do
++		// dummy type; should be replaced before use.
++		Fatalf("dowidth any")
+ 
+ 	case TSTRING:
+ 		if sizeof_String == 0 {
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 03223b421e..c40a338a8d 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -132,9 +132,9 @@ package gc
+ import (
+ 	"bufio"
+ 	"bytes"
+-	"math/big"
+ 	"encoding/binary"
+ 	"fmt"
++	"math/big"
+ 	"sort"
+ 	"strings"
+ )
+@@ -204,14 +204,11 @@ type exporter struct {
+ // export writes the exportlist for localpkg to out and returns the number of bytes written.
+ func export(out *bufio.Writer, trace bool) int {
+ 	p := exporter{
+-		out:      out,
+-		strIndex: map[string]int{"": 0}, // empty string is mapped to 0
+-		pkgIndex: make(map[*Pkg]int),
+-		typIndex: make(map[*Type]int),
+-		// don't emit pos info for builtin packages
+-		// (not needed and avoids path name diffs in builtin.go between
+-		// Windows and non-Windows machines, exposed via builtin_test.go)
+-		posInfoFormat: Debug['A'] == 0,
++		out:           out,
++		strIndex:      map[string]int{"": 0}, // empty string is mapped to 0
++		pkgIndex:      make(map[*Pkg]int),
++		typIndex:      make(map[*Type]int),
++		posInfoFormat: true,
+ 		trace:         trace,
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 3c75b8f087..562f31b82b 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -10,9 +10,9 @@ package gc
+ 
+ import (
+ 	"bufio"
+-	"math/big"
+ 	"encoding/binary"
+ 	"fmt"
++	"math/big"
+ 	"strconv"
+ 	"strings"
+ )
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 972101f910..8df871d08e 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -82,8 +82,7 @@ func autoexport(n *Node, ctxt Class) {
+ 		return
+ 	}
+ 
+-	// -A is for cmd/gc/mkbuiltin script, so export everything
+-	if Debug['A'] != 0 || exportname(n.Sym.Name) || initname(n.Sym.Name) {
++	if exportname(n.Sym.Name) || initname(n.Sym.Name) {
+ 		exportsym(n)
+ 	}
+ 	if asmhdr != "" && n.Sym.Pkg == localpkg && n.Sym.Flags&SymAsm == 0 {
+@@ -271,7 +270,7 @@ func importsym(s *Sym, op Op) {
+ 
+ 	// mark the symbol so it is not reexported
+ 	if s.Def == nil {
+-		if Debug['A'] != 0 || exportname(s.Name) || initname(s.Name) {
++		if exportname(s.Name) || initname(s.Name) {
+ 			s.Flags |= SymExport
+ 		} else {
+ 			s.Flags |= SymPackage // package scope
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index 6b3f5600af..5693052fdf 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -75,11 +75,6 @@ func anyinit(n []*Node) bool {
+ }
+ 
+ func fninit(n []*Node) {
+-	if Debug['A'] != 0 {
+-		// sys.go or unsafe.go during compiler build
+-		return
+-	}
+-
+ 	nf := initfix(n)
+ 	if !anyinit(nf) {
+ 		return
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index b19319963a..0e6965c4bd 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -152,7 +152,6 @@ func Main() {
+ 
+ 	flag.BoolVar(&compiling_runtime, "+", false, "compiling runtime")
+ 	obj.Flagcount("%", "debug non-static initializers", &Debug['%'])
+-	obj.Flagcount("A", "for bootstrapping, allow 'any' type", &Debug['A'])
+ 	obj.Flagcount("B", "disable bounds checking", &Debug['B'])
+ 	flag.StringVar(&localimport, "D", "", "set relative `path` for local imports")
+ 	obj.Flagcount("E", "debug symbol export", &Debug['E'])
+@@ -677,10 +676,6 @@ func findpkg(name string) (file string, ok bool) {
+ // so that the compiler can generate calls to them,
+ // but does not make them visible to user code.
+ func loadsys() {
+-	if Debug['A'] != 0 {
+-		return
+-	}
+-
+ 	block = 1
+ 	iota_ = -1000000
+ 
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index f88e370277..8c5925ff04 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -321,9 +321,6 @@ func compile(fn *Node) {
+ 			return
+ 		}
+ 
+-		if Debug['A'] != 0 {
+-			return
+-		}
+ 		emitptrargsmap()
+ 		return
+ 	}
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index 5ac29d305c..6798a9a906 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -27,7 +27,6 @@ var basicTypes = [...]struct {
+ 	{"complex128", TCOMPLEX128},
+ 	{"bool", TBOOL},
+ 	{"string", TSTRING},
+-	{"any", TANY},
+ }
+ 
+ var typedefs = [...]struct {
+@@ -117,6 +116,7 @@ func lexinit() {
+ 
+ 	idealstring = typ(TSTRING)
+ 	idealbool = typ(TBOOL)
++	Types[TANY] = typ(TANY)
+ 
+ 	s := Pkglookup("true", builtinpkg)
+ 	s.Def = nodbool(true)
+@@ -461,7 +461,7 @@ func finishUniverse() {
+ 	// package block rather than emitting a redeclared symbol error.
+ 
+ 	for _, s := range builtinpkg.Syms {
+-		if s.Def == nil || (s.Name == "any" && Debug['A'] == 0) {
++		if s.Def == nil {
+ 			continue
+ 		}
+ 		s1 := lookup(s.Name)

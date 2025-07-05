@@ -20,7 +20,7 @@ Date:   Mon Nov 28 13:59:49 2022 -0500
     Auto-Submit: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/archive/tar/reader.go               |   7 +-
  src/archive/zip/reader.go               |   7 +-
  src/crypto/x509/root.go                 |   9 +-
@@ -42,3 +42,1305 @@ Date:   Mon Nov 28 13:59:49 2022 -0500
  src/runtime/panicnil_test.go            |  18 +++
  src/runtime/runtime.go                  |  33 +++++
  20 files changed, 618 insertions(+), 223 deletions(-)
+
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index 768ca1968d..cfa50446ed 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -57,8 +57,11 @@ func (tr *Reader) Next() (*Header, error) {
+ 	}
+ 	hdr, err := tr.next()
+ 	tr.err = err
+-	if err == nil && tarinsecurepath.Value() == "0" && !filepath.IsLocal(hdr.Name) {
+-		err = ErrInsecurePath
++	if err == nil && !filepath.IsLocal(hdr.Name) {
++		if tarinsecurepath.Value() == "0" {
++			tarinsecurepath.IncNonDefault()
++			err = ErrInsecurePath
++		}
+ 	}
+ 	return hdr, err
+ }
+diff --git a/src/archive/zip/reader.go b/src/archive/zip/reader.go
+index a1554d2c52..c29837836b 100644
+--- a/src/archive/zip/reader.go
++++ b/src/archive/zip/reader.go
+@@ -108,12 +108,13 @@ func NewReader(r io.ReaderAt, size int64) (*Reader, error) {
+ 			// Zip permits an empty file name field.
+ 			continue
+ 		}
+-		if zipinsecurepath.Value() != "0" {
+-			continue
+-		}
+ 		// The zip specification states that names must use forward slashes,
+ 		// so consider any backslashes in the name insecure.
+ 		if !filepath.IsLocal(f.Name) || strings.Contains(f.Name, `\`) {
++			if zipinsecurepath.Value() != "0" {
++				continue
++			}
++			zipinsecurepath.IncNonDefault()
+ 			return zr, ErrInsecurePath
+ 		}
+ 	}
+diff --git a/src/crypto/x509/root.go b/src/crypto/x509/root.go
+index d6b07a18dc..b454af2c4c 100644
+--- a/src/crypto/x509/root.go
++++ b/src/crypto/x509/root.go
+@@ -33,7 +33,7 @@ func initSystemRoots() {
+ 	}
+ }
+ 
+-var forceFallback = godebug.New("x509usefallbackroots")
++var x509usefallbackroots = godebug.New("x509usefallbackroots")
+ 
+ // SetFallbackRoots sets the roots to use during certificate verification, if no
+ // custom roots are specified and a platform verifier or a system certificate
+@@ -65,8 +65,11 @@ func SetFallbackRoots(roots *CertPool) {
+ 	}
+ 	fallbacksSet = true
+ 
+-	if systemRoots != nil && (systemRoots.len() > 0 || systemRoots.systemPool) && forceFallback.Value() != "1" {
+-		return
++	if systemRoots != nil && (systemRoots.len() > 0 || systemRoots.systemPool) {
++		if x509usefallbackroots.Value() != "1" {
++			return
++		}
++		x509usefallbackroots.IncNonDefault()
+ 	}
+ 	systemRoots, systemRootsErr = roots, nil
+ }
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 36229bba4f..a4713beb1c 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -893,8 +893,11 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
+ 		return InsecureAlgorithmError(algo)
+ 	case crypto.SHA1:
+ 		// SHA-1 signatures are mostly disabled. See go.dev/issue/41682.
+-		if !allowSHA1 && x509sha1.Value() != "1" {
+-			return InsecureAlgorithmError(algo)
++		if !allowSHA1 {
++			if x509sha1.Value() != "1" {
++				return InsecureAlgorithmError(algo)
++			}
++			x509sha1.IncNonDefault()
+ 		}
+ 		fallthrough
+ 	default:
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 420873c256..789e8bc2c7 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -786,6 +786,9 @@ Found:
+ 
+ 			// Set the install target if applicable.
+ 			if !p.Goroot || (installgoroot.Value() == "all" && p.ImportPath != "unsafe" && p.ImportPath != "builtin") {
++				if p.Goroot {
++					installgoroot.IncNonDefault()
++				}
+ 				p.PkgObj = ctxt.joinPath(p.Root, pkga)
+ 			}
+ 		}
+diff --git a/src/internal/godebug/godebug.go b/src/internal/godebug/godebug.go
+index dbcd98042d..443868c384 100644
+--- a/src/internal/godebug/godebug.go
++++ b/src/internal/godebug/godebug.go
+@@ -20,6 +20,13 @@
+ //		}
+ //		...
+ //	}
++//
++// Each time a non-default setting causes a change in program behavior,
++// code should call [Setting.IncNonDefault] to increment a counter that can
++// be reported by [runtime/metrics.Read].
++// Note that counters used with IncNonDefault must be added to
++// various tables in other packages. See the [Setting.IncNonDefault]
++// documentation for details.
+ package godebug
+ 
+ import (
+@@ -30,9 +37,15 @@ import (
+ 
+ // A Setting is a single setting in the $GODEBUG environment variable.
+ type Setting struct {
+-	name  string
+-	once  sync.Once
+-	value *atomic.Pointer[string]
++	name string
++	once sync.Once
++	*setting
++}
++
++type setting struct {
++	value          atomic.Pointer[string]
++	nonDefaultOnce sync.Once
++	nonDefault     atomic.Int64
+ }
+ 
+ // New returns a new Setting for the $GODEBUG setting with the given name.
+@@ -50,6 +63,28 @@ func (s *Setting) String() string {
+ 	return s.name + "=" + s.Value()
+ }
+ 
++// IncNonDefault increments the non-default behavior counter
++// associated with the given setting.
++// This counter is exposed in the runtime/metrics value
++// /godebug/non-default-behavior/<name>:events.
++//
++// Note that Value must be called at least once before IncNonDefault.
++//
++// Any GODEBUG setting that can call IncNonDefault must be listed
++// in three more places:
++//
++//	- the table in ../runtime/metrics.go (search for non-default-behavior)
++//	- the table in ../../runtime/metrics/description.go (search for non-default-behavior; run 'go generate' afterward)
++//	- the table in ../../cmd/go/internal/load/godebug.go (search for defaultGodebugs)
++func (s *Setting) IncNonDefault() {
++	s.nonDefaultOnce.Do(s.register)
++	s.nonDefault.Add(1)
++}
++
++func (s *Setting) register() {
++	registerMetric("/godebug/non-default-behavior/"+s.name+":events", s.nonDefault.Load)
++}
++
+ // cache is a cache of all the GODEBUG settings,
+ // a locked map[string]*atomic.Pointer[string].
+ //
+@@ -76,17 +111,26 @@ var empty string
+ // caching of Value's result.
+ func (s *Setting) Value() string {
+ 	s.once.Do(func() {
+-		v, ok := cache.Load(s.name)
+-		if !ok {
+-			p := new(atomic.Pointer[string])
+-			p.Store(&empty)
+-			v, _ = cache.LoadOrStore(s.name, p)
+-		}
+-		s.value = v.(*atomic.Pointer[string])
++		s.setting = lookup(s.name)
+ 	})
+ 	return *s.value.Load()
+ }
+ 
++// lookup returns the unique *setting value for the given name.
++func lookup(name string) *setting {
++	if v, ok := cache.Load(name); ok {
++		return v.(*setting)
++	}
++	s := new(setting)
++	s.value.Store(&empty)
++	if v, loaded := cache.LoadOrStore(name, s); loaded {
++		// Lost race: someone else created it. Use theirs.
++		return v.(*setting)
++	}
++
++	return s
++}
++
+ // setUpdate is provided by package runtime.
+ // It calls update(def, env), where def is the default GODEBUG setting
+ // and env is the current value of the $GODEBUG environment variable.
+@@ -97,8 +141,31 @@ func (s *Setting) Value() string {
+ //go:linkname setUpdate
+ func setUpdate(update func(string, string))
+ 
++// registerMetric is provided by package runtime.
++// It forwards registrations to runtime/metrics.
++//
++//go:linkname registerMetric
++func registerMetric(name string, read func() int64)
++
++// setNewNonDefaultInc is provided by package runtime.
++// The runtime can do
++//	inc := newNonDefaultInc(name)
++// instead of
++//	inc := godebug.New(name).IncNonDefault
++// since it cannot import godebug.
++//
++//go:linkname setNewIncNonDefault
++func setNewIncNonDefault(newIncNonDefault func(string) func())
++
+ func init() {
+ 	setUpdate(update)
++	setNewIncNonDefault(newIncNonDefault)
++}
++
++func newIncNonDefault(name string) func() {
++	s := New(name)
++	s.Value()
++	return s.IncNonDefault
+ }
+ 
+ var updateMu sync.Mutex
+@@ -119,9 +186,9 @@ func update(def, env string) {
+ 	parse(did, def)
+ 
+ 	// Clear any cached values that are no longer present.
+-	cache.Range(func(name, v any) bool {
++	cache.Range(func(name, s any) bool {
+ 		if !did[name.(string)] {
+-			v.(*atomic.Pointer[string]).Store(&empty)
++			s.(*setting).value.Store(&empty)
+ 		}
+ 		return true
+ 	})
+@@ -146,13 +213,7 @@ func parse(did map[string]bool, s string) {
+ 				name, value := s[i+1:eq], s[eq+1:end]
+ 				if !did[name] {
+ 					did[name] = true
+-					v, ok := cache.Load(name)
+-					if !ok {
+-						p := new(atomic.Pointer[string])
+-						p.Store(&empty)
+-						v, _ = cache.LoadOrStore(name, p)
+-					}
+-					v.(*atomic.Pointer[string]).Store(&value)
++					lookup(name).value.Store(&value)
+ 				}
+ 			}
+ 			eq = -1
+diff --git a/src/internal/godebug/godebug_test.go b/src/internal/godebug/godebug_test.go
+index 319229dac9..2f311106b1 100644
+--- a/src/internal/godebug/godebug_test.go
++++ b/src/internal/godebug/godebug_test.go
+@@ -6,6 +6,7 @@ package godebug_test
+ 
+ import (
+ 	. "internal/godebug"
++	"runtime/metrics"
+ 	"testing"
+ )
+ 
+@@ -37,3 +38,27 @@ func TestGet(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestMetrics(t *testing.T) {
++	const name = "http2client" // must be a real name so runtime will accept it
++
++	var m [1]metrics.Sample
++	m[0].Name = "/godebug/non-default-behavior/" + name + ":events"
++	metrics.Read(m[:])
++	if kind := m[0].Value.Kind(); kind != metrics.KindUint64 {
++		t.Fatalf("NonDefault kind = %v, want uint64", kind)
++	}
++
++	s := New(name)
++	s.Value()
++	s.IncNonDefault()
++	s.IncNonDefault()
++	s.IncNonDefault()
++	metrics.Read(m[:])
++	if kind := m[0].Value.Kind(); kind != metrics.KindUint64 {
++		t.Fatalf("NonDefault kind = %v, want uint64", kind)
++	}
++	if count := m[0].Value.Uint64(); count != 3 {
++		t.Fatalf("NonDefault value = %d, want 3", count)
++	}
++}
+diff --git a/src/math/rand/rand.go b/src/math/rand/rand.go
+index 77d7e86fb2..7448ee1751 100644
+--- a/src/math/rand/rand.go
++++ b/src/math/rand/rand.go
+@@ -416,6 +416,7 @@ func (r *lockedSource) source() *rngSource {
+ 	if r.s == nil {
+ 		var seed int64
+ 		if randautoseed.Value() == "0" {
++			randautoseed.IncNonDefault()
+ 			seed = 1
+ 		} else {
+ 			seed = int64(fastrand64())
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index c3c3f91d9a..a9ba911aa3 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -3319,7 +3319,11 @@ var http2server = godebug.New("http2server")
+ // configured otherwise. (by setting srv.TLSNextProto non-nil)
+ // It must only be called via srv.nextProtoOnce (use srv.setupHTTP2_*).
+ func (srv *Server) onceSetNextProtoDefaults() {
+-	if omitBundledHTTP2 || http2server.Value() == "0" {
++	if omitBundledHTTP2 {
++		return
++	}
++	if http2server.Value() == "0" {
++		http2server.IncNonDefault()
+ 		return
+ 	}
+ 	// Enable HTTP/2 by default if the user hasn't otherwise
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index ddcb64815c..a90f36ff73 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -369,6 +369,7 @@ var http2client = godebug.New("http2client")
+ func (t *Transport) onceSetNextProtoDefaults() {
+ 	t.tlsNextProtoWasNil = (t.TLSNextProto == nil)
+ 	if http2client.Value() == "0" {
++		http2client.IncNonDefault()
+ 		return
+ 	}
+ 
+diff --git a/src/os/exec/lp_plan9.go b/src/os/exec/lp_plan9.go
+index 59538d98a3..9344b14e8c 100644
+--- a/src/os/exec/lp_plan9.go
++++ b/src/os/exec/lp_plan9.go
+@@ -53,8 +53,11 @@ func LookPath(file string) (string, error) {
+ 	for _, dir := range filepath.SplitList(path) {
+ 		path := filepath.Join(dir, file)
+ 		if err := findExecutable(path); err == nil {
+-			if !filepath.IsAbs(path) && execerrdot.Value() != "0" {
+-				return path, &Error{file, ErrDot}
++			if !filepath.IsAbs(path) {
++				if execerrdot.Value() != "0" {
++					return path, &Error{file, ErrDot}
++				}
++				execerrdot.IncNonDefault()
+ 			}
+ 			return path, nil
+ 		}
+diff --git a/src/os/exec/lp_unix.go b/src/os/exec/lp_unix.go
+index 2af9b01cf6..fd2c6efbef 100644
+--- a/src/os/exec/lp_unix.go
++++ b/src/os/exec/lp_unix.go
+@@ -69,8 +69,11 @@ func LookPath(file string) (string, error) {
+ 		}
+ 		path := filepath.Join(dir, file)
+ 		if err := findExecutable(path); err == nil {
+-			if !filepath.IsAbs(path) && execerrdot.Value() != "0" {
+-				return path, &Error{file, ErrDot}
++			if !filepath.IsAbs(path) {
++				if execerrdot.Value() != "0" {
++					return path, &Error{file, ErrDot}
++				}
++				execerrdot.IncNonDefault()
+ 			}
+ 			return path, nil
+ 		}
+diff --git a/src/os/exec/lp_windows.go b/src/os/exec/lp_windows.go
+index 97bfa58244..066d38dfdb 100644
+--- a/src/os/exec/lp_windows.go
++++ b/src/os/exec/lp_windows.go
+@@ -103,6 +103,7 @@ func LookPath(file string) (string, error) {
+ 	if _, found := syscall.Getenv("NoDefaultCurrentDirectoryInExePath"); !found {
+ 		if f, err := findExecutable(filepath.Join(".", file), exts); err == nil {
+ 			if execerrdot.Value() == "0" {
++				execerrdot.IncNonDefault()
+ 				return f, nil
+ 			}
+ 			dotf, dotErr = f, &Error{file, ErrDot}
+@@ -127,8 +128,11 @@ func LookPath(file string) (string, error) {
+ 				}
+ 			}
+ 
+-			if !filepath.IsAbs(f) && execerrdot.Value() != "0" {
+-				return f, &Error{file, ErrDot}
++			if !filepath.IsAbs(f) {
++				if execerrdot.Value() != "0" {
++					return f, &Error{file, ErrDot}
++				}
++				execerrdot.IncNonDefault()
+ 			}
+ 			return f, nil
+ 		}
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index 2061dc0cf0..d4f7196f9f 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -286,6 +286,16 @@ func initMetrics() {
+ 				out.scalar = uint64(startingStackSize)
+ 			},
+ 		},
++		"/godebug/non-default-behavior/execerrdot:events":           {compute: compute0},
++		"/godebug/non-default-behavior/http2client:events":          {compute: compute0},
++		"/godebug/non-default-behavior/http2server:events":          {compute: compute0},
++		"/godebug/non-default-behavior/installgoroot:events":        {compute: compute0},
++		"/godebug/non-default-behavior/panicnil:events":             {compute: compute0},
++		"/godebug/non-default-behavior/randautoseed:events":         {compute: compute0},
++		"/godebug/non-default-behavior/tarinsecurepath:events":      {compute: compute0},
++		"/godebug/non-default-behavior/x509sha1:events":             {compute: compute0},
++		"/godebug/non-default-behavior/x509usefallbackroots:events": {compute: compute0},
++		"/godebug/non-default-behavior/zipinsecurepath:events":      {compute: compute0},
+ 		"/memory/classes/heap/free:bytes": {
+ 			deps: makeStatDepSet(heapStatsDep),
+ 			compute: func(in *statAggregate, out *metricValue) {
+@@ -421,6 +431,35 @@ func initMetrics() {
+ 	metricsInit = true
+ }
+ 
++func compute0(_ *statAggregate, out *metricValue) {
++	out.kind = metricKindUint64
++	out.scalar = 0
++}
++
++type metricReader func() uint64
++
++func (f metricReader) compute(_ *statAggregate, out *metricValue) {
++	out.kind = metricKindUint64
++	out.scalar = f()
++}
++
++var godebugNonDefaults = []string{
++	"panicnil",
++}
++
++//go:linkname godebug_registerMetric internal/godebug.registerMetric
++func godebug_registerMetric(name string, read func() uint64) {
++	metricsLock()
++	initMetrics()
++	d, ok := metrics[name]
++	if !ok {
++		throw("runtime: unexpected metric registration for " + name)
++	}
++	d.compute = metricReader(read).compute
++	metrics[name] = d
++	metricsUnlock()
++}
++
+ // statDep is a dependency on a group of statistics
+ // that a metric might have.
+ type statDep uint
+@@ -687,6 +726,32 @@ type metricFloat64Histogram struct {
+ // like to avoid it escaping to the heap.
+ var agg statAggregate
+ 
++type metricName struct {
++	name string
++	kind metricKind
++}
++
++// readMetricNames is the implementation of runtime/metrics.readMetricNames,
++// used by the runtime/metrics test and otherwise unreferenced.
++//
++//go:linkname readMetricNames runtime/metrics_test.runtime_readMetricNames
++func readMetricNames() []string {
++	metricsLock()
++	initMetrics()
++	n := len(metrics)
++	metricsUnlock()
++
++	list := make([]string, 0, n)
++
++	metricsLock()
++	for name := range metrics {
++		list = append(list, name)
++	}
++	metricsUnlock()
++
++	return list
++}
++
+ // readMetrics is the implementation of runtime/metrics.Read.
+ //
+ //go:linkname readMetrics runtime/metrics.runtime_readMetrics
+diff --git a/src/runtime/metrics/description.go b/src/runtime/metrics/description.go
+index dcfe01e67c..251a4c3842 100644
+--- a/src/runtime/metrics/description.go
++++ b/src/runtime/metrics/description.go
+@@ -277,6 +277,76 @@ var allDesc = []Description{
+ 		Kind:        KindUint64,
+ 		Cumulative:  false,
+ 	},
++	{
++		Name: "/godebug/non-default-behavior/execerrdot:events",
++		Description: "The number of non-default behaviors executed by the os/exec package " +
++			"due to a non-default GODEBUG=execerrdot=... setting.",
++		Kind:       KindUint64,
++		Cumulative: true,
++	},
++	{
++		Name: "/godebug/non-default-behavior/http2client:events",
++		Description: "The number of non-default behaviors executed by the net/http package " +
++			"due to a non-default GODEBUG=http2client=... setting.",
++		Kind:       KindUint64,
++		Cumulative: true,
++	},
++	{
++		Name: "/godebug/non-default-behavior/http2server:events",
++		Description: "The number of non-default behaviors executed by the net/http package " +
++			"due to a non-default GODEBUG=http2server=... setting.",
++		Kind:       KindUint64,
++		Cumulative: true,
++	},
++	{
++		Name: "/godebug/non-default-behavior/installgoroot:events",
++		Description: "The number of non-default behaviors executed by the go/build package " +
++			"due to a non-default GODEBUG=installgoroot=... setting.",
++		Kind:       KindUint64,
++		Cumulative: true,
++	},
++	{
++		Name: "/godebug/non-default-behavior/panicnil:events",
++		Description: "The number of non-default behaviors executed by the runtime package " +
++			"due to a non-default GODEBUG=panicnil=... setting.",
++		Kind:       KindUint64,
++		Cumulative: true,
++	},
++	{
++		Name: "/godebug/non-default-behavior/randautoseed:events",
++		Description: "The number of non-default behaviors executed by the math/rand package " +
++			"due to a non-default GODEBUG=randautoseed=... setting.",
++		Kind:       KindUint64,
++		Cumulative: true,
++	},
++	{
++		Name: "/godebug/non-default-behavior/tarinsecurepath:events",
++		Description: "The number of non-default behaviors executed by the archive/tar package " +
++			"due to a non-default GODEBUG=tarinsecurepath=... setting.",
++		Kind:       KindUint64,
++		Cumulative: true,
++	},
++	{
++		Name: "/godebug/non-default-behavior/x509sha1:events",
++		Description: "The number of non-default behaviors executed by the crypto/x509 package " +
++			"due to a non-default GODEBUG=x509sha1=... setting.",
++		Kind:       KindUint64,
++		Cumulative: true,
++	},
++	{
++		Name: "/godebug/non-default-behavior/x509usefallbackroots:events",
++		Description: "The number of non-default behaviors executed by the crypto/x509 package " +
++			"due to a non-default GODEBUG=x509usefallbackroots=... setting.",
++		Kind:       KindUint64,
++		Cumulative: true,
++	},
++	{
++		Name: "/godebug/non-default-behavior/zipinsecurepath:events",
++		Description: "The number of non-default behaviors executed by the archive/zip package " +
++			"due to a non-default GODEBUG=zipinsecurepath=... setting.",
++		Kind:       KindUint64,
++		Cumulative: true,
++	},
+ 	{
+ 		Name: "/memory/classes/heap/free:bytes",
+ 		Description: "Memory that is completely free and eligible to be returned to the underlying system, " +
+diff --git a/src/runtime/metrics/description_test.go b/src/runtime/metrics/description_test.go
+index 192c1f29cc..3df3acf8b0 100644
+--- a/src/runtime/metrics/description_test.go
++++ b/src/runtime/metrics/description_test.go
+@@ -5,111 +5,153 @@
+ package metrics_test
+ 
+ import (
+-	"bufio"
++	"bytes"
++	"flag"
++	"fmt"
++	"go/ast"
++	"go/doc"
++	"go/doc/comment"
++	"go/format"
++	"go/parser"
++	"go/token"
++	"internal/diff"
+ 	"os"
+ 	"regexp"
+ 	"runtime/metrics"
++	"sort"
+ 	"strings"
+ 	"testing"
++	_ "unsafe"
+ )
+ 
+-func TestDescriptionNameFormat(t *testing.T) {
++// Implemented in the runtime.
++//go:linkname runtime_readMetricNames
++func runtime_readMetricNames() []string
++
++func TestNames(t *testing.T) {
++	// Note that this regexp is promised in the package docs for Description. Do not change.
+ 	r := regexp.MustCompile("^(?P<name>/[^:]+):(?P<unit>[^:*/]+(?:[*/][^:*/]+)*)$")
+-	descriptions := metrics.All()
+-	for _, desc := range descriptions {
+-		if !r.MatchString(desc.Name) {
+-			t.Errorf("metrics %q does not match regexp %s", desc.Name, r)
++	all := metrics.All()
++	for i, d := range all {
++		if !r.MatchString(d.Name) {
++			t.Errorf("name %q does not match regexp %#q", d.Name, r)
++		}
++		if i > 0 && all[i-1].Name >= all[i].Name {
++			t.Fatalf("allDesc not sorted: %s ≥ %s", all[i-1].Name, all[i].Name)
+ 		}
+ 	}
+-}
+ 
+-func extractMetricDocs(t *testing.T) map[string]string {
+-	f, err := os.Open("doc.go")
+-	if err != nil {
+-		t.Fatalf("failed to open doc.go in runtime/metrics package: %v", err)
++	names := runtime_readMetricNames()
++	sort.Strings(names)
++	samples := make([]metrics.Sample, len(names))
++	for i, name := range names {
++		samples[i].Name = name
+ 	}
+-	const (
+-		stateSearch          = iota // look for list of metrics
+-		stateNextMetric             // look for next metric
+-		stateNextDescription        // build description
+-	)
+-	state := stateSearch
+-	s := bufio.NewScanner(f)
+-	result := make(map[string]string)
+-	var metric string
+-	var prevMetric string
+-	var desc strings.Builder
+-	for s.Scan() {
+-		line := strings.TrimSpace(s.Text())
+-		switch state {
+-		case stateSearch:
+-			if line == "Below is the full list of supported metrics, ordered lexicographically." {
+-				state = stateNextMetric
+-			}
+-		case stateNextMetric:
+-			// Ignore empty lines until we find a non-empty
+-			// one. This will be our metric name.
+-			if len(line) != 0 {
+-				prevMetric = metric
+-				metric = line
+-				if prevMetric > metric {
+-					t.Errorf("metrics %s and %s are out of lexicographical order", prevMetric, metric)
+-				}
+-				state = stateNextDescription
+-			}
+-		case stateNextDescription:
+-			if len(line) == 0 || line == `*/` {
+-				// An empty line means we're done.
+-				// Write down the description and look
+-				// for a new metric.
+-				result[metric] = desc.String()
+-				desc.Reset()
+-				state = stateNextMetric
+-			} else {
+-				// As long as we're seeing data, assume that's
+-				// part of the description and append it.
+-				if desc.Len() != 0 {
+-					// Turn previous newlines into spaces.
+-					desc.WriteString(" ")
+-				}
+-				desc.WriteString(line)
+-			}
++	metrics.Read(samples)
++
++	for _, d := range all {
++		for len(samples) > 0 && samples[0].Name < d.Name {
++			t.Errorf("%s: reported by runtime but not listed in All", samples[0].Name)
++			samples = samples[1:]
+ 		}
+-		if line == `*/` {
+-			break
++		if len(samples) == 0 || d.Name < samples[0].Name {
++			t.Errorf("%s: listed in All but not reported by runtime", d.Name)
++			continue
+ 		}
++		if samples[0].Value.Kind() != d.Kind {
++			t.Errorf("%s: runtime reports %v but All reports %v", d.Name, samples[0].Value.Kind(), d.Kind)
++		}
++		samples = samples[1:]
+ 	}
+-	if state == stateSearch {
+-		t.Fatalf("failed to find supported metrics docs in %s", f.Name())
+-	}
+-	return result
+ }
+ 
+-func TestDescriptionDocs(t *testing.T) {
+-	docs := extractMetricDocs(t)
+-	descriptions := metrics.All()
+-	for _, d := range descriptions {
+-		want := d.Description
+-		got, ok := docs[d.Name]
+-		if !ok {
+-			t.Errorf("no docs found for metric %s", d.Name)
+-			continue
+-		}
+-		if got != want {
+-			t.Errorf("mismatched description and docs for metric %s", d.Name)
+-			t.Errorf("want: %q, got %q", want, got)
+-			continue
++func wrap(prefix, text string, width int) string {
++	doc := &comment.Doc{Content: []comment.Block{&comment.Paragraph{Text: []comment.Text{comment.Plain(text)}}}}
++	pr := &comment.Printer{TextPrefix: prefix, TextWidth: width}
++	return string(pr.Text(doc))
++}
++
++func formatDesc(t *testing.T) string {
++	var b strings.Builder
++	for i, d := range metrics.All() {
++		if i > 0 {
++			fmt.Fprintf(&b, "\n")
+ 		}
++		fmt.Fprintf(&b, "%s\n", d.Name)
++		fmt.Fprintf(&b, "%s", wrap("\t", d.Description, 80-2*8))
+ 	}
+-	if len(docs) > len(descriptions) {
+-	docsLoop:
+-		for name := range docs {
+-			for _, d := range descriptions {
+-				if name == d.Name {
+-					continue docsLoop
++	return b.String()
++}
++
++var generate = flag.Bool("generate", false, "update doc.go for go generate")
++
++func TestDocs(t *testing.T) {
++	want := formatDesc(t)
++
++	src, err := os.ReadFile("doc.go")
++	if err != nil {
++		t.Fatal(err)
++	}
++	fset := token.NewFileSet()
++	f, err := parser.ParseFile(fset, "doc.go", src, parser.ParseComments)
++	if err != nil {
++		t.Fatal(err)
++	}
++	fdoc := f.Doc
++	if fdoc == nil {
++		t.Fatal("no doc comment in doc.go")
++	}
++	pkg, err := doc.NewFromFiles(fset, []*ast.File{f}, "runtime/metrics")
++	if err != nil {
++		t.Fatal(err)
++	}
++	if pkg.Doc == "" {
++		t.Fatal("doc.NewFromFiles lost doc comment")
++	}
++	doc := new(comment.Parser).Parse(pkg.Doc)
++	expectCode := false
++	foundCode := false
++	updated := false
++	for _, block := range doc.Content {
++		switch b := block.(type) {
++		case *comment.Heading:
++			expectCode = false
++			if b.Text[0] == comment.Plain("Supported metrics") {
++				expectCode = true
++			}
++		case *comment.Code:
++			if expectCode {
++				foundCode = true
++				if b.Text != want {
++					if !*generate {
++						t.Fatalf("doc comment out of date; use go generate to rebuild\n%s", diff.Diff("old", []byte(b.Text), "want", []byte(want)))
++					}
++					b.Text = want
++					updated = true
+ 				}
+ 			}
+-			t.Errorf("stale documentation for non-existent metric: %s", name)
+ 		}
+ 	}
++
++	if !foundCode {
++		t.Fatalf("did not find Supported metrics list in doc.go")
++	}
++	if updated {
++		fmt.Fprintf(os.Stderr, "go test -generate: writing new doc.go\n")
++		var buf bytes.Buffer
++		buf.Write(src[:fdoc.Pos()-f.FileStart])
++		buf.WriteString("/*\n")
++		buf.Write(new(comment.Printer).Comment(doc))
++		buf.WriteString("*/")
++		buf.Write(src[fdoc.End()-f.FileStart:])
++		src, err := format.Source(buf.Bytes())
++		if err != nil {
++			t.Fatal(err)
++		}
++		if err := os.WriteFile("doc.go", src, 0666); err != nil {
++			t.Fatal(err)
++		}
++	} else if *generate {
++		fmt.Fprintf(os.Stderr, "go test -generate: doc.go already up-to-date\n")
++	}
+ }
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index b593d8d812..6bf7451fb1 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Note: run 'go generate' (which will run 'go test -generate') to update the "Supported metrics" list.
++//go:generate go test -run=Docs -generate
++
+ /*
+ Package metrics provides a stable interface to access implementation-defined
+ metrics exported by the Go runtime. This package is similar to existing functions
+@@ -55,88 +58,85 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		Count of calls made from Go to C by the current process.
+ 
+ 	/cpu/classes/gc/mark/assist:cpu-seconds
+-		Estimated total CPU time goroutines spent performing GC tasks
+-		to assist the GC and prevent it from falling behind the application.
+-		This metric is an overestimate, and not directly comparable to
+-		system CPU time measurements. Compare only with other /cpu/classes
+-		metrics.
++		Estimated total CPU time goroutines spent performing GC
++		tasks to assist the GC and prevent it from falling behind the
++		application. This metric is an overestimate, and not directly
++		comparable to system CPU time measurements. Compare only with
++		other /cpu/classes metrics.
+ 
+ 	/cpu/classes/gc/mark/dedicated:cpu-seconds
+-		Estimated total CPU time spent performing GC tasks on
+-		processors (as defined by GOMAXPROCS) dedicated to those tasks.
+-		This includes time spent with the world stopped due to the GC.
+-		This metric is an overestimate, and not directly comparable to
+-		system CPU time measurements. Compare only with other /cpu/classes
++		Estimated total CPU time spent performing GC tasks on processors
++		(as defined by GOMAXPROCS) dedicated to those tasks. This
++		includes time spent with the world stopped due to the GC. This
++		metric is an overestimate, and not directly comparable to system
++		CPU time measurements. Compare only with other /cpu/classes
+ 		metrics.
+ 
+ 	/cpu/classes/gc/mark/idle:cpu-seconds
+-		Estimated total CPU time spent performing GC tasks on
+-		spare CPU resources that the Go scheduler could not otherwise find
+-		a use for. This should be subtracted from the total GC CPU time to
+-		obtain a measure of compulsory GC CPU time.
+-		This metric is an overestimate, and not directly comparable to
+-		system CPU time measurements. Compare only with other /cpu/classes
+-		metrics.
++		Estimated total CPU time spent performing GC tasks on spare CPU
++		resources that the Go scheduler could not otherwise find a use
++		for. This should be subtracted from the total GC CPU time to
++		obtain a measure of compulsory GC CPU time. This metric is an
++		overestimate, and not directly comparable to system CPU time
++		measurements. Compare only with other /cpu/classes metrics.
+ 
+ 	/cpu/classes/gc/pause:cpu-seconds
+ 		Estimated total CPU time spent with the application paused by
+-		the GC. Even if only one thread is running during the pause, this is
+-		computed as GOMAXPROCS times the pause latency because nothing else
+-		can be executing. This is the exact sum of samples in /gc/pause:seconds
+-		if each sample is multiplied by GOMAXPROCS at the time it is taken.
+-		This metric is an overestimate, and not directly comparable to
+-		system CPU time measurements. Compare only with other /cpu/classes
+-		metrics.
++		the GC. Even if only one thread is running during the pause,
++		this is computed as GOMAXPROCS times the pause latency because
++		nothing else can be executing. This is the exact sum of samples
++		in /gc/pause:seconds if each sample is multiplied by GOMAXPROCS
++		at the time it is taken. This metric is an overestimate,
++		and not directly comparable to system CPU time measurements.
++		Compare only with other /cpu/classes metrics.
+ 
+ 	/cpu/classes/gc/total:cpu-seconds
+-		Estimated total CPU time spent performing GC tasks.
+-		This metric is an overestimate, and not directly comparable to
+-		system CPU time measurements. Compare only with other /cpu/classes
+-		metrics. Sum of all metrics in /cpu/classes/gc.
++		Estimated total CPU time spent performing GC tasks. This metric
++		is an overestimate, and not directly comparable to system CPU
++		time measurements. Compare only with other /cpu/classes metrics.
++		Sum of all metrics in /cpu/classes/gc.
+ 
+ 	/cpu/classes/idle:cpu-seconds
+-		Estimated total available CPU time not spent executing any Go or Go
+-		runtime code. In other words, the part of /cpu/classes/total:cpu-seconds
+-		that was unused.
+-		This metric is an overestimate, and not directly comparable to
+-		system CPU time measurements. Compare only with other /cpu/classes
+-		metrics.
++		Estimated total available CPU time not spent executing
++		any Go or Go runtime code. In other words, the part of
++		/cpu/classes/total:cpu-seconds that was unused. This metric is
++		an overestimate, and not directly comparable to system CPU time
++		measurements. Compare only with other /cpu/classes metrics.
+ 
+ 	/cpu/classes/scavenge/assist:cpu-seconds
+ 		Estimated total CPU time spent returning unused memory to the
+-		underlying platform in response eagerly in response to memory pressure.
+-		This metric is an overestimate, and not directly comparable to
+-		system CPU time measurements. Compare only with other /cpu/classes
+-		metrics.
++		underlying platform in response eagerly in response to memory
++		pressure. This metric is an overestimate, and not directly
++		comparable to system CPU time measurements. Compare only with
++		other /cpu/classes metrics.
+ 
+ 	/cpu/classes/scavenge/background:cpu-seconds
+-		Estimated total CPU time spent performing background tasks
+-		to return unused memory to the underlying platform.
+-		This metric is an overestimate, and not directly comparable to
+-		system CPU time measurements. Compare only with other /cpu/classes
+-		metrics.
++		Estimated total CPU time spent performing background tasks to
++		return unused memory to the underlying platform. This metric is
++		an overestimate, and not directly comparable to system CPU time
++		measurements. Compare only with other /cpu/classes metrics.
+ 
+ 	/cpu/classes/scavenge/total:cpu-seconds
+ 		Estimated total CPU time spent performing tasks that return
+-		unused memory to the underlying platform.
+-		This metric is an overestimate, and not directly comparable to
+-		system CPU time measurements. Compare only with other /cpu/classes
+-		metrics. Sum of all metrics in /cpu/classes/scavenge.
++		unused memory to the underlying platform. This metric is an
++		overestimate, and not directly comparable to system CPU time
++		measurements. Compare only with other /cpu/classes metrics.
++		Sum of all metrics in /cpu/classes/scavenge.
+ 
+ 	/cpu/classes/total:cpu-seconds
+-		Estimated total available CPU time for user Go code or the Go runtime, as
+-		defined by GOMAXPROCS. In other words, GOMAXPROCS integrated over the
+-		wall-clock duration this process has been executing for.
+-		This metric is an overestimate, and not directly comparable to
+-		system CPU time measurements. Compare only with other /cpu/classes
+-		metrics. Sum of all metrics in /cpu/classes.
++		Estimated total available CPU time for user Go code or the Go
++		runtime, as defined by GOMAXPROCS. In other words, GOMAXPROCS
++		integrated over the wall-clock duration this process has been
++		executing for. This metric is an overestimate, and not directly
++		comparable to system CPU time measurements. Compare only with
++		other /cpu/classes metrics. Sum of all metrics in /cpu/classes.
+ 
+ 	/cpu/classes/user:cpu-seconds
+ 		Estimated total CPU time spent running user Go code. This may
+ 		also include some small amount of time spent in the Go runtime.
+-		This metric is an overestimate, and not directly comparable to
+-		system CPU time measurements. Compare only with other /cpu/classes
+-		metrics.
++		This metric is an overestimate, and not directly comparable
++		to system CPU time measurements. Compare only with other
++		/cpu/classes metrics.
+ 
+ 	/gc/cycles/automatic:gc-cycles
+ 		Count of completed GC cycles generated by the Go runtime.
+@@ -149,29 +149,31 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 
+ 	/gc/heap/allocs-by-size:bytes
+ 		Distribution of heap allocations by approximate size.
+-		Note that this does not include tiny objects as defined by /gc/heap/tiny/allocs:objects,
+-		only tiny blocks.
++		Note that this does not include tiny objects as defined by
++		/gc/heap/tiny/allocs:objects, only tiny blocks.
+ 
+ 	/gc/heap/allocs:bytes
+-		Cumulative sum of memory allocated to the heap by the application.
++		Cumulative sum of memory allocated to the heap by the
++		application.
+ 
+ 	/gc/heap/allocs:objects
+-		Cumulative count of heap allocations triggered by the application.
+-		Note that this does not include tiny objects as defined by /gc/heap/tiny/allocs:objects,
+-		only tiny blocks.
++		Cumulative count of heap allocations triggered by the
++		application. Note that this does not include tiny objects as
++		defined by /gc/heap/tiny/allocs:objects, only tiny blocks.
+ 
+ 	/gc/heap/frees-by-size:bytes
+ 		Distribution of freed heap allocations by approximate size.
+-		Note that this does not include tiny objects as defined by /gc/heap/tiny/allocs:objects,
+-		only tiny blocks.
++		Note that this does not include tiny objects as defined by
++		/gc/heap/tiny/allocs:objects, only tiny blocks.
+ 
+ 	/gc/heap/frees:bytes
+ 		Cumulative sum of heap memory freed by the garbage collector.
+ 
+ 	/gc/heap/frees:objects
+-		Cumulative count of heap allocations whose storage was freed by the garbage collector.
+-		Note that this does not include tiny objects as defined by /gc/heap/tiny/allocs:objects,
+-		only tiny blocks.
++		Cumulative count of heap allocations whose storage was freed
++		by the garbage collector. Note that this does not include tiny
++		objects as defined by /gc/heap/tiny/allocs:objects, only tiny
++		blocks.
+ 
+ 	/gc/heap/goal:bytes
+ 		Heap size target for the end of the GC cycle.
+@@ -182,23 +184,68 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 	/gc/heap/tiny/allocs:objects
+ 		Count of small allocations that are packed together into blocks.
+ 		These allocations are counted separately from other allocations
+-		because each individual allocation is not tracked by the runtime,
+-		only their block. Each block is already accounted for in
+-		allocs-by-size and frees-by-size.
++		because each individual allocation is not tracked by the
++		runtime, only their block. Each block is already accounted for
++		in allocs-by-size and frees-by-size.
+ 
+ 	/gc/limiter/last-enabled:gc-cycle
+ 		GC cycle the last time the GC CPU limiter was enabled.
+-		This metric is useful for diagnosing the root cause of an out-of-memory
+-		error, because the limiter trades memory for CPU time when the GC's CPU
+-		time gets too high. This is most likely to occur with use of SetMemoryLimit.
+-		The first GC cycle is cycle 1, so a value of 0 indicates that it was never enabled.
++		This metric is useful for diagnosing the root cause of an
++		out-of-memory error, because the limiter trades memory for CPU
++		time when the GC's CPU time gets too high. This is most likely
++		to occur with use of SetMemoryLimit. The first GC cycle is cycle
++		1, so a value of 0 indicates that it was never enabled.
+ 
+ 	/gc/pauses:seconds
+-		Distribution individual GC-related stop-the-world pause latencies.
++		Distribution individual GC-related stop-the-world pause
++		latencies.
+ 
+ 	/gc/stack/starting-size:bytes
+ 		The stack size of new goroutines.
+ 
++	/godebug/non-default-behavior/execerrdot:events
++		The number of non-default behaviors executed by the os/exec
++		package due to a non-default GODEBUG=execerrdot=... setting.
++
++	/godebug/non-default-behavior/http2client:events
++		The number of non-default behaviors executed by the net/http
++		package due to a non-default GODEBUG=http2client=... setting.
++
++	/godebug/non-default-behavior/http2server:events
++		The number of non-default behaviors executed by the net/http
++		package due to a non-default GODEBUG=http2server=... setting.
++
++	/godebug/non-default-behavior/installgoroot:events
++		The number of non-default behaviors executed by the go/build
++		package due to a non-default GODEBUG=installgoroot=... setting.
++
++	/godebug/non-default-behavior/panicnil:events
++		The number of non-default behaviors executed by the runtime
++		package due to a non-default GODEBUG=panicnil=... setting.
++
++	/godebug/non-default-behavior/randautoseed:events
++		The number of non-default behaviors executed by the math/rand
++		package due to a non-default GODEBUG=randautoseed=... setting.
++
++	/godebug/non-default-behavior/tarinsecurepath:events
++		The number of non-default behaviors executed by the archive/tar
++		package due to a non-default GODEBUG=tarinsecurepath=...
++		setting.
++
++	/godebug/non-default-behavior/x509sha1:events
++		The number of non-default behaviors executed by the crypto/x509
++		package due to a non-default GODEBUG=x509sha1=... setting.
++
++	/godebug/non-default-behavior/x509usefallbackroots:events
++		The number of non-default behaviors executed by the crypto/x509
++		package due to a non-default GODEBUG=x509usefallbackroots=...
++		setting.
++
++	/godebug/non-default-behavior/zipinsecurepath:events
++		The number of non-default behaviors executed by the archive/zip
++		package due to a non-default GODEBUG=zipinsecurepath=...
++		setting.
++
+ 	/memory/classes/heap/free:bytes
+ 		Memory that is completely free and eligible to be returned to
+ 		the underlying system, but has not been. This metric is the
+@@ -206,50 +253,48 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		physical memory.
+ 
+ 	/memory/classes/heap/objects:bytes
+-		Memory occupied by live objects and dead objects that have
+-		not yet been marked free by the garbage collector.
++		Memory occupied by live objects and dead objects that have not
++		yet been marked free by the garbage collector.
+ 
+ 	/memory/classes/heap/released:bytes
+-		Memory that is completely free and has been returned to
+-		the underlying system. This metric is the runtime's estimate of
+-		free address space that is still mapped into the process, but
+-		is not backed by physical memory.
++		Memory that is completely free and has been returned to the
++		underlying system. This metric is the runtime's estimate of free
++		address space that is still mapped into the process, but is not
++		backed by physical memory.
+ 
+ 	/memory/classes/heap/stacks:bytes
+-		Memory allocated from the heap that is reserved for stack
+-		space, whether or not it is currently in-use.
++		Memory allocated from the heap that is reserved for stack space,
++		whether or not it is currently in-use.
+ 
+ 	/memory/classes/heap/unused:bytes
+ 		Memory that is reserved for heap objects but is not currently
+ 		used to hold heap objects.
+ 
+ 	/memory/classes/metadata/mcache/free:bytes
+-		Memory that is reserved for runtime mcache structures, but
+-		not in-use.
++		Memory that is reserved for runtime mcache structures, but not
++		in-use.
+ 
+ 	/memory/classes/metadata/mcache/inuse:bytes
+-		Memory that is occupied by runtime mcache structures that
+-		are currently being used.
++		Memory that is occupied by runtime mcache structures that are
++		currently being used.
+ 
+ 	/memory/classes/metadata/mspan/free:bytes
+-		Memory that is reserved for runtime mspan structures, but
+-		not in-use.
++		Memory that is reserved for runtime mspan structures, but not
++		in-use.
+ 
+ 	/memory/classes/metadata/mspan/inuse:bytes
+ 		Memory that is occupied by runtime mspan structures that are
+ 		currently being used.
+ 
+ 	/memory/classes/metadata/other:bytes
+-		Memory that is reserved for or used to hold runtime
+-		metadata.
++		Memory that is reserved for or used to hold runtime metadata.
+ 
+ 	/memory/classes/os-stacks:bytes
+ 		Stack memory allocated by the underlying operating system.
+ 
+ 	/memory/classes/other:bytes
+-		Memory used by execution trace buffers, structures for
+-		debugging the runtime, finalizer and profiler specials, and
+-		more.
++		Memory used by execution trace buffers, structures for debugging
++		the runtime, finalizer and profiler specials, and more.
+ 
+ 	/memory/classes/profiling/buckets:bytes
+ 		Memory that is used by the stack trace hash map used for
+@@ -258,8 +303,8 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 	/memory/classes/total:bytes
+ 		All memory mapped by the Go runtime into the current process
+ 		as read-write. Note that this does not include memory mapped
+-		by code called via cgo or via the syscall package.
+-		Sum of all metrics in /memory/classes.
++		by code called via cgo or via the syscall package. Sum of all
++		metrics in /memory/classes.
+ 
+ 	/sched/gomaxprocs:threads
+ 		The current runtime.GOMAXPROCS setting, or the number of
+@@ -274,10 +319,10 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		in a runnable state before actually running.
+ 
+ 	/sync/mutex/wait/total:seconds
+-		Approximate cumulative time goroutines have spent blocked on a
+-		sync.Mutex or sync.RWMutex. This metric is useful for identifying
+-		global changes in lock contention. Collect a mutex or block
+-		profile using the runtime/pprof package for more detailed
+-		contention data.
++		Approximate cumulative time goroutines have spent blocked
++		on a sync.Mutex or sync.RWMutex. This metric is useful for
++		identifying global changes in lock contention. Collect a mutex
++		or block profile using the runtime/pprof package for more
++		detailed contention data.
+ */
+ package metrics
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 905515f822..e7059af15f 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -818,11 +818,18 @@ type PanicNilError struct {
+ func (*PanicNilError) Error() string { return "panic called with nil argument" }
+ func (*PanicNilError) RuntimeError() {}
+ 
++var panicnil = &godebugInc{name: "panicnil"}
++
+ // The implementation of the predeclared function panic.
+ func gopanic(e any) {
+-	if e == nil && debug.panicnil.Load() != 1 {
+-		e = new(PanicNilError)
++	if e == nil {
++		if debug.panicnil.Load() != 1 {
++			e = new(PanicNilError)
++		} else {
++			panicnil.IncNonDefault()
++		}
+ 	}
++
+ 	gp := getg()
+ 	if gp.m.curg != gp {
+ 		print("panic: ")
+diff --git a/src/runtime/panicnil_test.go b/src/runtime/panicnil_test.go
+index 441bef3b07..7ed98e9591 100644
+--- a/src/runtime/panicnil_test.go
++++ b/src/runtime/panicnil_test.go
+@@ -7,6 +7,7 @@ package runtime_test
+ import (
+ 	"reflect"
+ 	"runtime"
++	"runtime/metrics"
+ 	"testing"
+ )
+ 
+@@ -25,11 +26,28 @@ func TestPanicNil(t *testing.T) {
+ }
+ 
+ func checkPanicNil(t *testing.T, want any) {
++	name := "/godebug/non-default-behavior/panicnil:events"
++	s := []metrics.Sample{{Name: name}}
++	metrics.Read(s)
++	v1 := s[0].Value.Uint64()
++
+ 	defer func() {
+ 		e := recover()
+ 		if reflect.TypeOf(e) != reflect.TypeOf(want) {
+ 			println(e, want)
+ 			t.Errorf("recover() = %v, want %v", e, want)
++			panic(e)
++		}
++		metrics.Read(s)
++		v2 := s[0].Value.Uint64()
++		if want == nil {
++			if v2 != v1+1 {
++				t.Errorf("recover() with panicnil=1 did not increment metric %s", name)
++			}
++		} else {
++			if v2 != v1 {
++				t.Errorf("recover() with panicnil=0 incremented metric %s: %d -> %d", name, v1, v2)
++			}
+ 		}
+ 	}()
+ 	panic(nil)
+diff --git a/src/runtime/runtime.go b/src/runtime/runtime.go
+index ab2a54f00b..f240d7ae70 100644
+--- a/src/runtime/runtime.go
++++ b/src/runtime/runtime.go
+@@ -69,6 +69,7 @@ func syscall_Exit(code int) {
+ var godebugDefault string
+ var godebugUpdate atomic.Pointer[func(string, string)]
+ var godebugEnv atomic.Pointer[string] // set by parsedebugvars
++var godebugNewIncNonDefault atomic.Pointer[func(string) func()]
+ 
+ //go:linkname godebug_setUpdate internal/godebug.setUpdate
+ func godebug_setUpdate(update func(string, string)) {
+@@ -78,6 +79,38 @@ func godebug_setUpdate(update func(string, string)) {
+ 	godebugNotify(false)
+ }
+ 
++//go:linkname godebug_setNewIncNonDefault internal/godebug.setNewIncNonDefault
++func godebug_setNewIncNonDefault(newIncNonDefault func(string) func()) {
++	p := new(func(string) func())
++	*p = newIncNonDefault
++	godebugNewIncNonDefault.Store(p)
++}
++
++// A godebugInc provides access to internal/godebug's IncNonDefault function
++// for a given GODEBUG setting.
++// Calls before internal/godebug registers itself are dropped on the floor.
++type godebugInc struct {
++	name string
++	inc  atomic.Pointer[func()]
++}
++
++func (g *godebugInc) IncNonDefault() {
++	inc := g.inc.Load()
++	if inc == nil {
++		newInc := godebugNewIncNonDefault.Load()
++		if newInc == nil {
++			return
++		}
++		// If other goroutines are racing here, no big deal. One will win,
++		// and all the inc functions will be using the same underlying
++		// *godebug.Setting.
++		inc = new(func())
++		*inc = (*newInc)(g.name)
++		g.inc.Store(inc)
++	}
++	(*inc)()
++}
++
+ func godebugNotify(envChanged bool) {
+ 	update := godebugUpdate.Load()
+ 	var env string

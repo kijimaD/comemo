@@ -13,7 +13,107 @@ Date:   Thu Oct 18 13:40:45 2012 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6747043
-
+---
  src/pkg/encoding/xml/marshal_test.go | 21 +++++++++++++++++++++
  src/pkg/encoding/xml/xml.go          | 35 ++++++++++++++++++++---------------
  2 files changed, 41 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/encoding/xml/marshal_test.go b/src/pkg/encoding/xml/marshal_test.go
+index e729a247af..668fea6f85 100644
+--- a/src/pkg/encoding/xml/marshal_test.go
++++ b/src/pkg/encoding/xml/marshal_test.go
+@@ -687,6 +687,27 @@ var marshalTests = []struct {
+ 		Value:         &IgnoreTest{},
+ 		UnmarshalOnly: true,
+ 	},
++
++	// Test escaping.
++	{
++		ExpectXML: `<a><nested><value>dquote: &#34;; squote: &#39;; ampersand: &amp;; less: &lt;; greater: &gt;;</value></nested></a>`,
++		Value: &AnyTest{
++			Nested: `dquote: "; squote: '; ampersand: &; less: <; greater: >;`,
++		},
++	},
++	{
++		ExpectXML: `<a><nested><value>newline: &#xA;; cr: &#xD;; tab: &#x9;;</value></nested></a>`,
++		Value: &AnyTest{
++			Nested: "newline: \n; cr: \r; tab: \t;",
++		},
++	},
++	{
++		ExpectXML: "<a><nested><value>1\r2\r\n3\n\r4\n5</value></nested></a>",
++		Value: &AnyTest{
++			Nested: "1\n2\n3\n\n4\n5",
++		},
++		UnmarshalOnly: true,
++	},
+ }
+ 
+ func TestMarshal(t *testing.T) {
+diff --git a/src/pkg/encoding/xml/xml.go b/src/pkg/encoding/xml/xml.go
+index fbd2208e33..ab853c61a4 100644
+--- a/src/pkg/encoding/xml/xml.go
++++ b/src/pkg/encoding/xml/xml.go
+@@ -964,7 +964,16 @@ Input:
+ 			b0, b1 = 0, 0
+ 			continue Input
+ 		}
+-		d.buf.WriteByte(b)
++
++		// We must rewrite unescaped \r and \r\n into \n.
++		if b == '\r' {
++			d.buf.WriteByte('\n')
++		} else if b1 == '\r' && b == '\n' {
++			// Skip \r\n--we already wrote \n.
++		} else {
++			d.buf.WriteByte(b)
++		}
++
+ 		b0, b1 = b1, b
+ 	}
+ 	data := d.buf.Bytes()
+@@ -985,20 +994,7 @@ Input:
+ 		}
+ 	}
+ 
+-	// Must rewrite \r and \r\n into \n.
+-	w := 0
+-	for r := 0; r < len(data); r++ {
+-		b := data[r]
+-		if b == '\r' {
+-			if r+1 < len(data) && data[r+1] == '\n' {
+-				continue
+-			}
+-			b = '\n'
+-		}
+-		data[w] = b
+-		w++
+-	}
+-	return data[0:w]
++	return data
+ }
+ 
+ // Decide whether the given rune is in the XML Character Range, per
+@@ -1689,6 +1685,9 @@ var (
+ 	esc_amp  = []byte("&amp;")
+ 	esc_lt   = []byte("&lt;")
+ 	esc_gt   = []byte("&gt;")
++	esc_tab  = []byte("&#x9;")
++	esc_nl   = []byte("&#xA;")
++	esc_cr   = []byte("&#xD;")
+ )
+ 
+ // Escape writes to w the properly escaped XML equivalent
+@@ -1708,6 +1707,12 @@ func Escape(w io.Writer, s []byte) {
+ 			esc = esc_lt
+ 		case '>':
+ 			esc = esc_gt
++		case '\t':
++			esc = esc_tab
++		case '\n':
++			esc = esc_nl
++		case '\r':
++			esc = esc_cr
+ 		default:
+ 			continue
+ 		}

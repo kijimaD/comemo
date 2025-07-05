@@ -11,7 +11,43 @@ Date:   Tue Dec 17 20:47:17 2024 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/crypto/tls/common.go           | 4 ++--
  src/crypto/tls/handshake_client.go | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index f98d24b879..d6942d2ef1 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -456,7 +456,7 @@ type ClientHelloInfo struct {
+ 	SupportedVersions []uint16
+ 
+ 	// Extensions lists the IDs of the extensions presented by the client
+-	// in the client hello.
++	// in the ClientHello.
+ 	Extensions []uint16
+ 
+ 	// Conn is the underlying net.Conn for the connection. Do not read
+@@ -821,7 +821,7 @@ type Config struct {
+ 
+ 	// EncryptedClientHelloRejectionVerify, if not nil, is called when ECH is
+ 	// rejected by the remote server, in order to verify the ECH provider
+-	// certificate in the outer Client Hello. If it returns a non-nil error, the
++	// certificate in the outer ClientHello. If it returns a non-nil error, the
+ 	// handshake is aborted and that error results.
+ 	//
+ 	// On the server side this field is not used.
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index ecc62ff2ed..3bf703e4b9 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -944,7 +944,7 @@ func (hs *clientHandshakeState) processServerHello() (bool, error) {
+ }
+ 
+ // checkALPN ensure that the server's choice of ALPN protocol is compatible with
+-// the protocols that we advertised in the Client Hello.
++// the protocols that we advertised in the ClientHello.
+ func checkALPN(clientProtos []string, serverProto string, quic bool) error {
+ 	if serverProto == "" {
+ 		if quic && len(clientProtos) > 0 {

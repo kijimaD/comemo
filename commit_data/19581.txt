@@ -9,7 +9,89 @@ Date:   Thu Jun 19 22:19:56 2014 -0700
     R=ruiu
     CC=golang-codereviews
     https://golang.org/cl/92720045
-
+---
  src/pkg/sync/rwmutex.go      | 10 +++++++++-
  src/pkg/sync/rwmutex_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 51 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/sync/rwmutex.go b/src/pkg/sync/rwmutex.go
+index 3db5419957..0e8a58e5f0 100644
+--- a/src/pkg/sync/rwmutex.go
++++ b/src/pkg/sync/rwmutex.go
+@@ -51,7 +51,11 @@ func (rw *RWMutex) RUnlock() {
+ 		raceReleaseMerge(unsafe.Pointer(&rw.writerSem))
+ 		raceDisable()
+ 	}
+-	if atomic.AddInt32(&rw.readerCount, -1) < 0 {
++	if r := atomic.AddInt32(&rw.readerCount, -1); r < 0 {
++		if r+1 == 0 || r+1 == -rwmutexMaxReaders {
++			raceEnable()
++			panic("sync: RUnlock of unlocked RWMutex")
++		}
+ 		// A writer is pending.
+ 		if atomic.AddInt32(&rw.readerWait, -1) == 0 {
+ 			// The last reader unblocks the writer.
+@@ -105,6 +109,10 @@ func (rw *RWMutex) Unlock() {
+ 
+ 	// Announce to readers there is no active writer.
+ 	r := atomic.AddInt32(&rw.readerCount, rwmutexMaxReaders)
++	if r >= rwmutexMaxReaders {
++		raceEnable()
++		panic("sync: Unlock of unlocked RWMutex")
++	}
+ 	// Unblock blocked readers, if any.
+ 	for i := 0; i < int(r); i++ {
+ 		runtime_Semrelease(&rw.readerSem)
+diff --git a/src/pkg/sync/rwmutex_test.go b/src/pkg/sync/rwmutex_test.go
+index 0436f97239..f625bc3a58 100644
+--- a/src/pkg/sync/rwmutex_test.go
++++ b/src/pkg/sync/rwmutex_test.go
+@@ -155,6 +155,48 @@ func TestRLocker(t *testing.T) {
+ 	}
+ }
+ 
++func TestUnlockPanic(t *testing.T) {
++	defer func() {
++		if recover() == nil {
++			t.Fatalf("unlock of unlocked RWMutex did not panic")
++		}
++	}()
++	var mu RWMutex
++	mu.Unlock()
++}
++
++func TestUnlockPanic2(t *testing.T) {
++	defer func() {
++		if recover() == nil {
++			t.Fatalf("unlock of unlocked RWMutex did not panic")
++		}
++	}()
++	var mu RWMutex
++	mu.RLock()
++	mu.Unlock()
++}
++
++func TestRUnlockPanic(t *testing.T) {
++	defer func() {
++		if recover() == nil {
++			t.Fatalf("read unlock of unlocked RWMutex did not panic")
++		}
++	}()
++	var mu RWMutex
++	mu.RUnlock()
++}
++
++func TestRUnlockPanic2(t *testing.T) {
++	defer func() {
++		if recover() == nil {
++			t.Fatalf("read unlock of unlocked RWMutex did not panic")
++		}
++	}()
++	var mu RWMutex
++	mu.Lock()
++	mu.RUnlock()
++}
++
+ func BenchmarkRWMutexUncontended(b *testing.B) {
+ 	type PaddedRWMutex struct {
+ 		RWMutex

@@ -11,7 +11,48 @@ Date:   Wed Jun 28 23:02:51 2017 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  api/go1.9.txt  | 6 ++++++
  doc/go1.9.html | 7 +++++++
  2 files changed, 13 insertions(+)
+
+diff --git a/api/go1.9.txt b/api/go1.9.txt
+index 8fe861b3e8..c23a17ea1a 100644
+--- a/api/go1.9.txt
++++ b/api/go1.9.txt
+@@ -131,11 +131,17 @@ pkg syscall (freebsd-arm-cgo), type Credential struct, NoSetGroups bool
+ pkg syscall (freebsd-arm), func Pipe2([]int, int) error
+ pkg syscall (freebsd-arm), type Credential struct, NoSetGroups bool
+ pkg syscall (linux-386-cgo), type Credential struct, NoSetGroups bool
++pkg syscall (linux-386-cgo), type SysProcAttr struct, AmbientCaps []uintptr
+ pkg syscall (linux-386), type Credential struct, NoSetGroups bool
++pkg syscall (linux-386), type SysProcAttr struct, AmbientCaps []uintptr
+ pkg syscall (linux-amd64-cgo), type Credential struct, NoSetGroups bool
++pkg syscall (linux-amd64-cgo), type SysProcAttr struct, AmbientCaps []uintptr
+ pkg syscall (linux-amd64), type Credential struct, NoSetGroups bool
++pkg syscall (linux-amd64), type SysProcAttr struct, AmbientCaps []uintptr
+ pkg syscall (linux-arm-cgo), type Credential struct, NoSetGroups bool
++pkg syscall (linux-arm-cgo), type SysProcAttr struct, AmbientCaps []uintptr
+ pkg syscall (linux-arm), type Credential struct, NoSetGroups bool
++pkg syscall (linux-arm), type SysProcAttr struct, AmbientCaps []uintptr
+ pkg syscall (netbsd-386-cgo), type Credential struct, NoSetGroups bool
+ pkg syscall (netbsd-386), type Credential struct, NoSetGroups bool
+ pkg syscall (netbsd-amd64-cgo), type Credential struct, NoSetGroups bool
+diff --git a/doc/go1.9.html b/doc/go1.9.html
+index b02faac88b..32acf25253 100644
+--- a/doc/go1.9.html
++++ b/doc/go1.9.html
+@@ -784,6 +784,13 @@ CL 40331: https://golang.org/cl/40331: cmd/link,runtime/cgo: enable PT_TLS gener
+       to set supplementary groups when starting a new process.
+     </p>
+ 
++    <p><!-- CL 43512 -->
++      The new field
++      <a href="/pkg/syscall/#SysProcAttr.AmbientCaps"><code>SysProcAttr.AmbientCaps</code></a>
++      allows setting ambient capabilities on Linux 4.3+ when creating
++      a new process.
++    </p>
++
+     <p><!-- CL 37439 -->
+       On 64-bit x86 Linux, process creation latency has been optimized with
+       use of <code>CLONE_VFORK</code> and <code>CLONE_VM</code>.

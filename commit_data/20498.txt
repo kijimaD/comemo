@@ -8,6 +8,20 @@ Date:   Fri Sep 12 07:52:56 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/140590043
-
+---
  src/runtime/mgc0.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgc0.c b/src/runtime/mgc0.c
+index 47659be266..c976b09c36 100644
+--- a/src/runtime/mgc0.c
++++ b/src/runtime/mgc0.c
+@@ -997,7 +997,7 @@ runtime·MSpan_Sweep(MSpan *s, bool preserve)
+ }
+ 
+ // State of background runtime·sweep.
+-// Pretected by runtime·gclock.
++// Protected by runtime·gclock.
+ // Must match mgc0.go.
+ struct
+ {

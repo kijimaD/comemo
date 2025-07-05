@@ -12,7 +12,47 @@ Date:   Thu Mar 6 16:25:51 2025 +0100
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     Auto-Submit: Damien Neil <dneil@google.com>
-
+---
  src/os/os_test.go   | 1 +
  src/os/root_test.go | 8 +++++---
  2 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 81c9fddf5f..424c5286ea 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -3199,6 +3199,7 @@ func TestRootDirFS(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
++	defer r.Close()
+ 	testDirFS(t, r.FS())
+ }
+ 
+diff --git a/src/os/root_test.go b/src/os/root_test.go
+index a7ea0025ec..5560d435de 100644
+--- a/src/os/root_test.go
++++ b/src/os/root_test.go
+@@ -539,17 +539,19 @@ func TestRootOpenFileAsRoot(t *testing.T) {
+ 	if err := os.WriteFile(target, nil, 0o666); err != nil {
+ 		t.Fatal(err)
+ 	}
+-	_, err := os.OpenRoot(target)
++	r, err := os.OpenRoot(target)
+ 	if err == nil {
++		r.Close()
+ 		t.Fatal("os.OpenRoot(file) succeeded; want failure")
+ 	}
+-	r, err := os.OpenRoot(dir)
++	r, err = os.OpenRoot(dir)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	defer r.Close()
+-	_, err = r.OpenRoot("target")
++	rr, err := r.OpenRoot("target")
+ 	if err == nil {
++		rr.Close()
+ 		t.Fatal("Root.OpenRoot(file) succeeded; want failure")
+ 	}
+ }

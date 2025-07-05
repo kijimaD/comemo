@@ -26,10 +26,134 @@ Date:   Fri Jan 20 17:14:09 2012 -0500
     TBR=lvd
     CC=golang-dev
     https://golang.org/cl/5555063
-
+---
  src/cmd/gc/dcl.c                   |  9 +--------
  src/cmd/gc/export.c                |  9 +--------
  src/cmd/gc/fmt.c                   |  8 +-------
  test/{fixedbugs => bugs}/bug395.go | 15 +++++++++++----
  test/golden.out                    |  3 +++
  5 files changed, 17 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 94258a0c59..66edab9b94 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -940,19 +940,13 @@ interfacefield(Node *n)
+ Type*
+ tointerface(NodeList *l)
+ {
+-	Type *t, *f, **tp, **otp, *t1;
++	Type *t, *f, **tp, *t1;
+ 
+ 	t = typ(TINTER);
+-	t->orig = typ(TINTER);
+ 
+ 	tp = &t->type;
+-	otp = &t->orig->type;
+-
+ 	for(; l; l=l->next) {
+ 		f = interfacefield(l->n);
+-		*otp = typ(TFIELD);
+-		**otp = *f;
+-		otp = &(*otp)->down;
+ 
+ 		if (l->n->left == N && f->type->etype == TINTER) {
+ 			// embedded interface, inline methods
+@@ -961,7 +955,6 @@ tointerface(NodeList *l)
+ 				f->type = t1->type;
+ 				f->broke = t1->broke;
+ 				f->sym = t1->sym;
+-				f->embedded = 1;
+ 				if(f->sym)
+ 					f->nname = newname(f->sym);
+ 				*tp = f;
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 965b745a80..05fdcbf32b 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -241,13 +241,6 @@ dumpexporttype(Type *t)
+ 	if(t->sym != S && t->etype != TFIELD)
+ 		dumppkg(t->sym->pkg);
+ 
+-	// fmt will print the ->orig of an interface, which has the original embedded interfaces.
+-	// be sure to dump them here
+-	if(t->etype == TINTER)
+-		for(f=t->orig->type; f; f=f->down)
+-			if(f->sym == S)
+-				dumpexporttype(f->type);
+-
+ 	dumpexporttype(t->type);
+ 	dumpexporttype(t->down);
+ 
+@@ -477,7 +470,7 @@ importtype(Type *pt, Type *t)
+ 		pt->sym->lastlineno = parserline();
+ 		declare(n, PEXTERN);
+ 		checkwidth(pt);
+-	} else if(!eqtype(pt->orig, t->orig))
++	} else if(!eqtype(pt->orig, t))
+ 		yyerror("inconsistent definition for type %S during import\n\t%lT\n\t%lT", pt->sym, pt, t);
+ 
+ 	if(debug['E'])
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 6f2041c1c5..b7a648789a 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -640,15 +640,9 @@ typefmt(Fmt *fp, Type *t)
+ 		return fmtprint(fp, "map[%T]%T", t->down, t->type);
+ 
+ 	case TINTER:
+-		t = t->orig;
+ 		fmtstrcpy(fp, "interface {");
+ 		for(t1=t->type; t1!=T; t1=t1->down)
+-			if(!t1->sym) {
+-				if(t1->down)
+-					fmtprint(fp, " %T;", t1->type);
+-				else
+-					fmtprint(fp, " %T ", t1->type);
+-			} else if(exportname(t1->sym->name)) {
++			if(exportname(t1->sym->name)) {
+ 				if(t1->down)
+ 					fmtprint(fp, " %hS%hT;", t1->sym, t1->type);
+ 				else
+diff --git a/test/fixedbugs/bug395.go b/test/bugs/bug395.go
+similarity index 63%
+rename from test/fixedbugs/bug395.go
+rename to test/bugs/bug395.go
+index d0af3f9fce..adf74497cd 100644
+--- a/test/fixedbugs/bug395.go
++++ b/test/bugs/bug395.go
+@@ -1,4 +1,5 @@
+-// $G $D/$F.go || echo "Bug395"
++// echo bug395 is broken  # takes 90+ seconds to break
++// # $G $D/$F.go || echo bug395
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -9,7 +10,13 @@
+ package test
+ 
+ type Foo interface {
+-       Bar() interface{Foo}
+-       Baz() interface{Foo}
+-       Bug() interface{Foo}
++	Bar() interface {
++		Foo
++	}
++	Baz() interface {
++		Foo
++	}
++	Bug() interface {
++		Foo
++	}
+ }
+diff --git a/test/golden.out b/test/golden.out
+index d7ecbdc878..e0b4cf6e2a 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -14,3 +14,6 @@
+ == fixedbugs/
+ 
+ == bugs/
++
++=========== bugs/bug395.go
++bug395 is broken

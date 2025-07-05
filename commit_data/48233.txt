@@ -19,8 +19,90 @@ Date:   Sat May 1 15:00:03 2021 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/316049
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/asmb.go   | 23 ++++++-----------------
  src/cmd/link/internal/ld/lib.go    |  3 ---
  src/cmd/link/internal/ppc64/obj.go | 13 ++++++-------
  3 files changed, 12 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/asmb.go b/src/cmd/link/internal/ld/asmb.go
+index fda0439455..3754669555 100644
+--- a/src/cmd/link/internal/ld/asmb.go
++++ b/src/cmd/link/internal/ld/asmb.go
+@@ -29,8 +29,6 @@ func asmb(ctxt *Link) {
+ 	}
+ 
+ 	var wg sync.WaitGroup
+-	sect := Segtext.Sections[0]
+-	offset := sect.Vaddr - Segtext.Vaddr + Segtext.Fileoff
+ 	f := func(ctxt *Link, out *OutBuf, start, length int64) {
+ 		pad := thearch.CodePad
+ 		if pad == nil {
+@@ -39,23 +37,14 @@ func asmb(ctxt *Link) {
+ 		CodeblkPad(ctxt, out, start, length, pad)
+ 	}
+ 
+-	if !thearch.WriteTextBlocks {
+-		writeParallel(&wg, f, ctxt, offset, sect.Vaddr, sect.Length)
+-		for _, sect := range Segtext.Sections[1:] {
+-			offset := sect.Vaddr - Segtext.Vaddr + Segtext.Fileoff
++	for _, sect := range Segtext.Sections {
++		offset := sect.Vaddr - Segtext.Vaddr + Segtext.Fileoff
++		// Handle text sections with Codeblk
++		if sect.Name == ".text" {
++			writeParallel(&wg, f, ctxt, offset, sect.Vaddr, sect.Length)
++		} else {
+ 			writeParallel(&wg, datblk, ctxt, offset, sect.Vaddr, sect.Length)
+ 		}
+-	} else {
+-		// TODO why can't we handle all sections this way?
+-		for _, sect := range Segtext.Sections {
+-			offset := sect.Vaddr - Segtext.Vaddr + Segtext.Fileoff
+-			// Handle additional text sections with Codeblk
+-			if sect.Name == ".text" {
+-				writeParallel(&wg, f, ctxt, offset, sect.Vaddr, sect.Length)
+-			} else {
+-				writeParallel(&wg, datblk, ctxt, offset, sect.Vaddr, sect.Length)
+-			}
+-		}
+ 	}
+ 
+ 	if Segrodata.Filelen > 0 {
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index fd687df9ef..e8f001ba8e 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -203,9 +203,6 @@ type Arch struct {
+ 	// are padded with zeros.
+ 	CodePad []byte
+ 
+-	// Set to true to write all text blocks in with CodeBlkWrite
+-	WriteTextBlocks bool
+-
+ 	// Plan 9 variables.
+ 	Plan9Magic  uint32
+ 	Plan9_64Bit bool
+diff --git a/src/cmd/link/internal/ppc64/obj.go b/src/cmd/link/internal/ppc64/obj.go
+index f56fa76b5b..b6d5ad92af 100644
+--- a/src/cmd/link/internal/ppc64/obj.go
++++ b/src/cmd/link/internal/ppc64/obj.go
+@@ -44,13 +44,12 @@ func Init() (*sys.Arch, ld.Arch) {
+ 	}
+ 
+ 	theArch := ld.Arch{
+-		Funcalign:       funcAlign,
+-		Maxalign:        maxAlign,
+-		Minalign:        minAlign,
+-		Dwarfregsp:      dwarfRegSP,
+-		Dwarfreglr:      dwarfRegLR,
+-		TrampLimit:      0x1c00000,
+-		WriteTextBlocks: true,
++		Funcalign:  funcAlign,
++		Maxalign:   maxAlign,
++		Minalign:   minAlign,
++		Dwarfregsp: dwarfRegSP,
++		Dwarfreglr: dwarfRegLR,
++		TrampLimit: 0x1c00000,
+ 
+ 		Adddynrel:        adddynrel,
+ 		Archinit:         archinit,

@@ -12,6 +12,21 @@ Date:   Mon Aug 22 15:56:27 2016 -0700
     Change-Id: Ie0c3d3774bd55002f6d2781b1212d070f083e6b2
     Reviewed-on: https://go-review.googlesource.com/27556
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/fmt.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index cbc4c93a13..bad8867be4 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -113,8 +113,7 @@ func setfmode(flags *FmtFlag) (fm int, fb bool) {
+ 	if *flags&FmtSign != 0 {
+ 		fmtmode = FDbg
+ 	} else if *flags&FmtSharp != 0 {
+-		// for textual export format - no longer supported
+-		Fatalf("textual export format request")
++		// ignore (textual export format no longer supported)
+ 	} else if *flags&FmtLeft != 0 {
+ 		fmtmode = FTypeId
+ 	}

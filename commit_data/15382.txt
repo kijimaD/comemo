@@ -9,10 +9,278 @@ Date:   Fri Feb 22 15:24:29 2013 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7393049
-
+---
  src/pkg/runtime/sys_freebsd_arm.s |  13 -----
  src/pkg/runtime/sys_linux_arm.s   |  10 ----
  src/pkg/runtime/sys_netbsd_arm.s  |  13 -----
  src/pkg/runtime/traceback_arm.c   |  39 +--------------
  src/pkg/runtime/traceback_x86.c   | 103 +-------------------------------------
  5 files changed, 3 insertions(+), 175 deletions(-)
+
+diff --git a/src/pkg/runtime/sys_freebsd_arm.s b/src/pkg/runtime/sys_freebsd_arm.s
+index 2c90a7ea52..c67d597f5a 100644
+--- a/src/pkg/runtime/sys_freebsd_arm.s
++++ b/src/pkg/runtime/sys_freebsd_arm.s
+@@ -244,19 +244,6 @@ TEXT runtime·sigprocmask(SB),7,$0
+ 	MOVW.CS R9, (R9)
+ 	RET
+ 
+-TEXT runtime·cacheflush(SB),7,$8
+-	MOVW $1, R0 // drain_writebuf
+-	SWI $165 // sysarch
+-	MOVW $0, R0 // icacheflush
+-	MOVW 0(FP), R1 // start
+-	MOVW R1, 4(R13)
+-	MOVW 4(FP), R2 // end
+-	SUB R1, R2 // R2 = length
+-	MOVW R2, 8(R13)
+-	MOVW $4(R13), R1
+-	SWI $165 // sysarch
+-	RET
+-
+ TEXT runtime·casp(SB),7,$0
+ 	B	runtime·cas(SB)
+ 
+diff --git a/src/pkg/runtime/sys_linux_arm.s b/src/pkg/runtime/sys_linux_arm.s
+index 53eb7b19d8..1001e44553 100644
+--- a/src/pkg/runtime/sys_linux_arm.s
++++ b/src/pkg/runtime/sys_linux_arm.s
+@@ -38,7 +38,6 @@
+ #define SYS_clock_gettime (SYS_BASE + 263)
+ 
+ #define ARM_BASE (SYS_BASE + 0x0f0000)
+-#define SYS_ARM_cacheflush (ARM_BASE + 2)
+ 
+ TEXT runtime·open(SB),7,$0
+ 	MOVW	0(FP), R0
+@@ -267,15 +266,6 @@ TEXT runtime·clone(SB),7,$0
+ 	MOVW	$1005, R1
+ 	MOVW	R0, (R1)
+ 
+-
+-TEXT runtime·cacheflush(SB),7,$0
+-	MOVW	0(FP), R0
+-	MOVW	4(FP), R1
+-	MOVW	$0, R2
+-	MOVW	$SYS_ARM_cacheflush, R7
+-	SWI	$0
+-	RET
+-
+ TEXT runtime·sigaltstack(SB),7,$0
+ 	MOVW	0(FP), R0
+ 	MOVW	4(FP), R1
+diff --git a/src/pkg/runtime/sys_netbsd_arm.s b/src/pkg/runtime/sys_netbsd_arm.s
+index fe0c2b2e77..0393568fae 100644
+--- a/src/pkg/runtime/sys_netbsd_arm.s
++++ b/src/pkg/runtime/sys_netbsd_arm.s
+@@ -265,19 +265,6 @@ TEXT runtime·sysctl(SB),7,$8
+ 	SUB $4, R13
+ 	RET
+ 
+-TEXT runtime·cacheflush(SB),7,$8
+-	MOVW $1, R0 // drain_writebuf
+-	SWI $0xa000a5 // sysarch
+-	MOVW $0, R0 // icacheflush
+-	MOVW 0(FP), R1 // start
+-	MOVW R1, 4(R13)
+-	MOVW 4(FP), R2 // end
+-	SUB R1, R2 // R2 = length
+-	MOVW R2, 8(R13)
+-	MOVW $4(R13), R1
+-	SWI $0xa000a5 // sysarch
+-	RET
+-
+ TEXT runtime·casp(SB),7,$0
+ 	B	runtime·cas(SB)
+ 
+diff --git a/src/pkg/runtime/traceback_arm.c b/src/pkg/runtime/traceback_arm.c
+index cafab3f79d..dd85cc02c4 100644
+--- a/src/pkg/runtime/traceback_arm.c
++++ b/src/pkg/runtime/traceback_arm.c
+@@ -21,7 +21,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
+ {
+ 	int32 i, n, iter;
+ 	uintptr pc, lr, tracepc, x;
+-	byte *fp, *p;
++	byte *fp;
+ 	bool waspanic;
+ 	Stktop *stk;
+ 	Func *f;
+@@ -66,43 +66,8 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
+ 			continue;
+ 		}
+ 		
+-		if(pc <= 0x1000 || (f = runtime·findfunc(pc)) == nil) {
+-			// Dangerous, but worthwhile: see if this is a closure by
+-			// decoding the instruction stream.
+-			//
+-			// We check p < p+4 to avoid wrapping and faulting if
+-			// we have lost track of where we are.
+-			p = (byte*)pc;
+-			if((pc&3) == 0 && p < p+4 &&
+-			   runtime·mheap->arena_start < p &&
+-			   p+4 < runtime·mheap->arena_used) {
+-			   	x = *(uintptr*)p;
+-				if((x&0xfffff000) == 0xe49df000) {
+-					// End of closure:
+-					// MOVW.P frame(R13), R15
+-					pc = *(uintptr*)sp;
+-					lr = 0;
+-					sp += x & 0xfff;
+-					fp = nil;
+-					continue;
+-				}
+-				if((x&0xfffff000) == 0xe52de000 && lr == (uintptr)runtime·goexit) {
+-					// Beginning of closure.
+-					// Closure at top of stack, not yet started.
+-					p += 5*4;
+-					if((x&0xfff) != 4) {
+-						// argument copying
+-						p += 7*4;
+-					}
+-					if((byte*)pc < p && p < p+4 && p+4 < runtime·mheap->arena_used) {
+-						pc = *(uintptr*)p;
+-						fp = nil;
+-						continue;
+-					}
+-				}
+-			}
++		if(pc <= 0x1000 || (f = runtime·findfunc(pc)) == nil)
+ 			break;
+-		}
+ 		
+ 		// Found an actual function.
+ 		if(lr == 0)
+diff --git a/src/pkg/runtime/traceback_x86.c b/src/pkg/runtime/traceback_x86.c
+index 4ee5f0df36..72603ae8ee 100644
+--- a/src/pkg/runtime/traceback_x86.c
++++ b/src/pkg/runtime/traceback_x86.c
+@@ -8,7 +8,6 @@
+ #include "arch_GOARCH.h"
+ #include "malloc.h"
+ 
+-static uintptr isclosureentry(uintptr);
+ void runtime·deferproc(void);
+ void runtime·newproc(void);
+ void runtime·newstack(void);
+@@ -25,7 +24,6 @@ void runtime·sigpanic(void);
+ int32
+ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr *pcbuf, int32 max)
+ {
+-	byte *p;
+ 	int32 i, n, iter, sawnewstack;
+ 	uintptr pc, lr, tracepc;
+ 	byte *fp;
+@@ -75,33 +73,8 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
+ 			stk = (Stktop*)stk->stackbase;
+ 			continue;
+ 		}
+-		if(pc <= 0x1000 || (f = runtime·findfunc(pc)) == nil) {
+-			// Dangerous, but worthwhile: see if this is a closure:
+-			//	ADDQ $wwxxyyzz, SP; RET
+-			//	[48] 81 c4 zz yy xx ww c3
+-			// The 0x48 byte is only on amd64.
+-			p = (byte*)pc;
+-			// We check p < p+8 to avoid wrapping and faulting if we lose track.
+-			if(runtime·mheap->arena_start < p && p < p+8 && p+8 < runtime·mheap->arena_used &&  // pointer in allocated memory
+-			   (sizeof(uintptr) != 8 || *p++ == 0x48) &&  // skip 0x48 byte on amd64
+-			   p[0] == 0x81 && p[1] == 0xc4 && p[6] == 0xc3) {
+-				sp += *(uint32*)(p+2);
+-				pc = *(uintptr*)sp;
+-				sp += sizeof(uintptr);
+-				lr = 0;
+-				fp = nil;
+-				continue;
+-			}
+-			
+-			// Closure at top of stack, not yet started.
+-			if(lr == (uintptr)runtime·goexit && (pc = isclosureentry(pc)) != 0) {
+-				fp = sp;
+-				continue;
+-			}
+-
+-			// Unknown pc: stop.
++		if(pc <= 0x1000 || (f = runtime·findfunc(pc)) == nil)
+ 			break;
+-		}
+ 
+ 		// Found an actual function.
+ 		if(fp == nil) {
+@@ -228,77 +201,3 @@ runtime·callers(int32 skip, uintptr *pcbuf, int32 m)
+ 
+ 	return runtime·gentraceback(pc, sp, nil, g, skip, pcbuf, m);
+ }
+-
+-static uintptr
+-isclosureentry(uintptr pc)
+-{
+-	byte *p;
+-	int32 i, siz;
+-	
+-	p = (byte*)pc;
+-	if(p < runtime·mheap->arena_start || p+32 > runtime·mheap->arena_used)
+-		return 0;
+-
+-	if(*p == 0xe8) {
+-		// CALL fn
+-		return pc+5+*(int32*)(p+1);
+-	}
+-	
+-	if(sizeof(uintptr) == 8 && p[0] == 0x48 && p[1] == 0xb9 && p[10] == 0xff && p[11] == 0xd1) {
+-		// MOVQ $fn, CX; CALL *CX
+-		return *(uintptr*)(p+2);
+-	}
+-
+-	// SUBQ $siz, SP
+-	if((sizeof(uintptr) == 8 && *p++ != 0x48) || *p++ != 0x81 || *p++ != 0xec)
+-		return 0;
+-	siz = *(uint32*)p;
+-	p += 4;
+-	
+-	// MOVQ $q, SI
+-	if((sizeof(uintptr) == 8 && *p++ != 0x48) || *p++ != 0xbe)
+-		return 0;
+-	p += sizeof(uintptr);
+-
+-	// MOVQ SP, DI
+-	if((sizeof(uintptr) == 8 && *p++ != 0x48) || *p++ != 0x89 || *p++ != 0xe7)
+-		return 0;
+-
+-	// CLD on 32-bit
+-	if(sizeof(uintptr) == 4 && *p++ != 0xfc)
+-		return 0;
+-
+-	if(siz <= 4*sizeof(uintptr)) {
+-		// MOVSQ...
+-		for(i=0; i<siz; i+=sizeof(uintptr))
+-			if((sizeof(uintptr) == 8 && *p++ != 0x48) || *p++ != 0xa5)
+-				return 0;
+-	} else {
+-		// MOVQ $(siz/8), CX  [32-bit immediate siz/8]
+-		if((sizeof(uintptr) == 8 && *p++ != 0x48) || *p++ != 0xc7 || *p++ != 0xc1)
+-			return 0;
+-		p += 4;
+-		
+-		// REP MOVSQ
+-		if(*p++ != 0xf3 || (sizeof(uintptr) == 8 && *p++ != 0x48) || *p++ != 0xa5)
+-			return 0;
+-	}
+-	
+-	// CALL fn
+-	if(*p == 0xe8) {
+-		p++;
+-		return (uintptr)p+4 + *(int32*)p;
+-	}
+-	
+-	// MOVQ $fn, CX; CALL *CX
+-	if(sizeof(uintptr) != 8 || *p++ != 0x48 || *p++ != 0xb9)
+-		return 0;
+-
+-	pc = *(uintptr*)p;
+-	p += 8;
+-	
+-	if(*p++ != 0xff || *p != 0xd1)
+-		return 0;
+-
+-	return pc;
+-}

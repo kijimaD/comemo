@@ -13,7 +13,7 @@ Date:   Mon Dec 13 16:22:19 2010 -0500
     R=ken2, r
     CC=golang-dev
     https://golang.org/cl/3563042
-
+---
  src/cmd/5c/swt.c                   | 30 ++++++++++++++++++++----------
  src/cmd/5c/txt.c                   | 10 +++++-----
  src/cmd/6c/cgen.c                  |  4 ++--
@@ -37,3 +37,805 @@ Date:   Mon Dec 13 16:22:19 2010 -0500
  test/{bugs => fixedbugs}/bug260.go | 18 ++++++++++++------
  test/golden.out                    |  4 ----
  22 files changed, 148 insertions(+), 91 deletions(-)
+
+diff --git a/src/cmd/5c/swt.c b/src/cmd/5c/swt.c
+index 7740ad2e5f..43eb73c943 100644
+--- a/src/cmd/5c/swt.c
++++ b/src/cmd/5c/swt.c
+@@ -606,7 +606,7 @@ zaddr(char *bp, Adr *a, int s)
+ }
+ 
+ int32
+-align(int32 i, Type *t, int op)
++align(int32 i, Type *t, int op, int32 *maxalign)
+ {
+ 	int32 o;
+ 	Type *v;
+@@ -620,7 +620,9 @@ align(int32 i, Type *t, int op)
+ 		break;
+ 
+ 	case Asu2:	/* padding at end of a struct */
+-		w = SZ_LONG;
++		w = *maxalign;
++		if(w < 1)
++			w = 1;
+ 		if(packflg)
+ 			w = packflg;
+ 		break;
+@@ -628,10 +630,16 @@ align(int32 i, Type *t, int op)
+ 	case Ael1:	/* initial align of struct element */
+ 		for(v=t; v->etype==TARRAY; v=v->link)
+ 			;
+-		w = ewidth[v->etype];
+-		if(w <= 0 || w >= SZ_LONG)
+-			w = SZ_LONG;
+-		if(packflg)
++		if(v->etype == TSTRUCT || v->etype == TUNION)
++			w = v->align;
++		else {
++			w = ewidth[v->etype];
++			if(w == 8)
++				w = 4;
++		}
++		if(w < 1 || w > SZ_LONG)
++			fatal(Z, "align");
++		if(packflg) 
+ 			w = packflg;
+ 		break;
+ 
+@@ -641,8 +649,8 @@ align(int32 i, Type *t, int op)
+ 
+ 	case Aarg0:	/* initial passbyptr argument in arg list */
+ 		if(typesuv[t->etype]) {
+-			o = align(o, types[TIND], Aarg1);
+-			o = align(o, types[TIND], Aarg2);
++			o = align(o, types[TIND], Aarg1, nil);
++			o = align(o, types[TIND], Aarg2, nil);
+ 		}
+ 		break;
+ 
+@@ -661,12 +669,14 @@ align(int32 i, Type *t, int op)
+ 		break;
+ 
+ 	case Aaut3:	/* total align of automatic */
+-		o = align(o, t, Ael2);
+-		o = align(o, t, Ael1);
++		o = align(o, t, Ael2, nil);
++		o = align(o, t, Ael1, nil);
+ 		w = SZ_LONG;	/* because of a pun in cc/dcl.c:contig() */
+ 		break;
+ 	}
+ 	o = xround(o, w);
++	if(maxalign != nil && *maxalign < w)
++		*maxalign = w;
+ 	if(debug['A'])
+ 		print("align %s %d %T = %d\n", bnames[op], i, t, o);
+ 	return o;
+diff --git a/src/cmd/5c/txt.c b/src/cmd/5c/txt.c
+index 1ba8ae2c4e..0f17cea89b 100644
+--- a/src/cmd/5c/txt.c
++++ b/src/cmd/5c/txt.c
+@@ -388,7 +388,7 @@ err:
+ void
+ regsalloc(Node *n, Node *nn)
+ {
+-	cursafe = align(cursafe, nn->type, Aaut3);
++	cursafe = align(cursafe, nn->type, Aaut3, nil);
+ 	maxargsafe = maxround(maxargsafe, cursafe+curarg);
+ 	*n = *nodsafe;
+ 	n->xoffset = -(stkoff + cursafe);
+@@ -402,22 +402,22 @@ regaalloc1(Node *n, Node *nn)
+ {
+ 	nodreg(n, nn, REGARG);
+ 	reg[REGARG]++;
+-	curarg = align(curarg, nn->type, Aarg1);
+-	curarg = align(curarg, nn->type, Aarg2);
++	curarg = align(curarg, nn->type, Aarg1, nil);
++	curarg = align(curarg, nn->type, Aarg2, nil);
+ 	maxargsafe = maxround(maxargsafe, cursafe+curarg);
+ }
+ 
+ void
+ regaalloc(Node *n, Node *nn)
+ {
+-	curarg = align(curarg, nn->type, Aarg1);
++	curarg = align(curarg, nn->type, Aarg1, nil);
+ 	*n = *nn;
+ 	n->op = OINDREG;
+ 	n->reg = REGSP;
+ 	n->xoffset = curarg + SZ_LONG;
+ 	n->complex = 0;
+ 	n->addable = 20;
+-	curarg = align(curarg, nn->type, Aarg2);
++	curarg = align(curarg, nn->type, Aarg2, nil);
+ 	maxargsafe = maxround(maxargsafe, cursafe+curarg);
+ }
+ 
+diff --git a/src/cmd/6c/cgen.c b/src/cmd/6c/cgen.c
+index dd8573c075..90394884f6 100644
+--- a/src/cmd/6c/cgen.c
++++ b/src/cmd/6c/cgen.c
+@@ -1928,7 +1928,7 @@ vaddr(Node *n, int a)
+ int32
+ hi64v(Node *n)
+ {
+-	if(align(0, types[TCHAR], Aarg1))	/* isbigendian */
++	if(align(0, types[TCHAR], Aarg1, nil))	/* isbigendian */
+ 		return (int32)(n->vconst) & ~0L;
+ 	else
+ 		return (int32)((uvlong)n->vconst>>32) & ~0L;
+@@ -1937,7 +1937,7 @@ hi64v(Node *n)
+ int32
+ lo64v(Node *n)
+ {
+-	if(align(0, types[TCHAR], Aarg1))	/* isbigendian */
++	if(align(0, types[TCHAR], Aarg1, nil))	/* isbigendian */
+ 		return (int32)((uvlong)n->vconst>>32) & ~0L;
+ 	else
+ 		return (int32)(n->vconst) & ~0L;
+diff --git a/src/cmd/6c/swt.c b/src/cmd/6c/swt.c
+index 1597fdf34e..47975a0c8e 100644
+--- a/src/cmd/6c/swt.c
++++ b/src/cmd/6c/swt.c
+@@ -503,7 +503,7 @@ zaddr(Biobuf *b, Adr *a, int s)
+ }
+ 
+ int32
+-align(int32 i, Type *t, int op)
++align(int32 i, Type *t, int op, int32 *maxalign)
+ {
+ 	int32 o;
+ 	Type *v;
+@@ -517,7 +517,9 @@ align(int32 i, Type *t, int op)
+ 		break;
+ 
+ 	case Asu2:	/* padding at end of a struct */
+-		w = SZ_VLONG;
++		w = *maxalign;
++		if(w < 1)
++			w = 1;
+ 		if(packflg)
+ 			w = packflg;
+ 		break;
+@@ -525,10 +527,13 @@ align(int32 i, Type *t, int op)
+ 	case Ael1:	/* initial align of struct element */
+ 		for(v=t; v->etype==TARRAY; v=v->link)
+ 			;
+-		w = ewidth[v->etype];
+-		if(w <= 0 || w >= SZ_VLONG)
+-			w = SZ_VLONG;
+-		if(packflg)
++		if(v->etype == TSTRUCT || v->etype == TUNION)
++			w = v->align;
++		else
++			w = ewidth[v->etype];
++		if(w < 1 || w > SZ_VLONG)
++			fatal(Z, "align");
++		if(packflg) 
+ 			w = packflg;
+ 		break;
+ 
+@@ -538,8 +543,8 @@ align(int32 i, Type *t, int op)
+ 
+ 	case Aarg0:	/* initial passbyptr argument in arg list */
+ 		if(typesu[t->etype]) {
+-			o = align(o, types[TIND], Aarg1);
+-			o = align(o, types[TIND], Aarg2);
++			o = align(o, types[TIND], Aarg1, nil);
++			o = align(o, types[TIND], Aarg2, nil);
+ 		}
+ 		break;
+ 
+@@ -560,11 +565,13 @@ align(int32 i, Type *t, int op)
+ 		break;
+ 
+ 	case Aaut3:	/* total align of automatic */
+-		o = align(o, t, Ael1);
+-		o = align(o, t, Ael2);
++		o = align(o, t, Ael1, nil);
++		o = align(o, t, Ael2, nil);
+ 		break;
+ 	}
+ 	o = xround(o, w);
++	if(maxalign && *maxalign < w)
++		*maxalign = w;
+ 	if(debug['A'])
+ 		print("align %s %d %T = %d\n", bnames[op], i, t, o);
+ 	return o;
+diff --git a/src/cmd/6c/txt.c b/src/cmd/6c/txt.c
+index 29b2e1312d..a78ba227bc 100644
+--- a/src/cmd/6c/txt.c
++++ b/src/cmd/6c/txt.c
+@@ -424,7 +424,7 @@ err:
+ void
+ regsalloc(Node *n, Node *nn)
+ {
+-	cursafe = align(cursafe, nn->type, Aaut3);
++	cursafe = align(cursafe, nn->type, Aaut3, nil);
+ 	maxargsafe = maxround(maxargsafe, cursafe+curarg);
+ 	*n = *nodsafe;
+ 	n->xoffset = -(stkoff + cursafe);
+@@ -440,22 +440,22 @@ regaalloc1(Node *n, Node *nn)
+ 		diag(n, "regaalloc1 and REGARG<0");
+ 	nodreg(n, nn, REGARG);
+ 	reg[REGARG]++;
+-	curarg = align(curarg, nn->type, Aarg1);
+-	curarg = align(curarg, nn->type, Aarg2);
++	curarg = align(curarg, nn->type, Aarg1, nil);
++	curarg = align(curarg, nn->type, Aarg2, nil);
+ 	maxargsafe = maxround(maxargsafe, cursafe+curarg);
+ }
+ 
+ void
+ regaalloc(Node *n, Node *nn)
+ {
+-	curarg = align(curarg, nn->type, Aarg1);
++	curarg = align(curarg, nn->type, Aarg1, nil);
+ 	*n = *nn;
+ 	n->op = OINDREG;
+ 	n->reg = REGSP;
+ 	n->xoffset = curarg;
+ 	n->complex = 0;
+ 	n->addable = 20;
+-	curarg = align(curarg, nn->type, Aarg2);
++	curarg = align(curarg, nn->type, Aarg2, nil);
+ 	maxargsafe = maxround(maxargsafe, cursafe+curarg);
+ }
+ 
+diff --git a/src/cmd/8c/cgen64.c b/src/cmd/8c/cgen64.c
+index ce1512c51a..3424f762c5 100644
+--- a/src/cmd/8c/cgen64.c
++++ b/src/cmd/8c/cgen64.c
+@@ -57,7 +57,7 @@ vaddr(Node *n, int a)
+ int32
+ hi64v(Node *n)
+ {
+-	if(align(0, types[TCHAR], Aarg1))	/* isbigendian */
++	if(align(0, types[TCHAR], Aarg1, nil))	/* isbigendian */
+ 		return (int32)(n->vconst) & ~0L;
+ 	else
+ 		return (int32)((uvlong)n->vconst>>32) & ~0L;
+@@ -66,7 +66,7 @@ hi64v(Node *n)
+ int32
+ lo64v(Node *n)
+ {
+-	if(align(0, types[TCHAR], Aarg1))	/* isbigendian */
++	if(align(0, types[TCHAR], Aarg1, nil))	/* isbigendian */
+ 		return (int32)((uvlong)n->vconst>>32) & ~0L;
+ 	else
+ 		return (int32)(n->vconst) & ~0L;
+diff --git a/src/cmd/8c/swt.c b/src/cmd/8c/swt.c
+index 46a0290d9d..be48885f81 100644
+--- a/src/cmd/8c/swt.c
++++ b/src/cmd/8c/swt.c
+@@ -501,7 +501,7 @@ zaddr(Biobuf *b, Adr *a, int s)
+ }
+ 
+ int32
+-align(int32 i, Type *t, int op)
++align(int32 i, Type *t, int op, int32 *maxalign)
+ {
+ 	int32 o;
+ 	Type *v;
+@@ -515,7 +515,9 @@ align(int32 i, Type *t, int op)
+ 		break;
+ 
+ 	case Asu2:	/* padding at end of a struct */
+-		w = SZ_LONG;
++		w = *maxalign;
++		if(w < 1)
++			w = 1;
+ 		if(packflg)
+ 			w = packflg;
+ 		break;
+@@ -523,10 +525,16 @@ align(int32 i, Type *t, int op)
+ 	case Ael1:	/* initial align of struct element */
+ 		for(v=t; v->etype==TARRAY; v=v->link)
+ 			;
+-		w = ewidth[v->etype];
+-		if(w <= 0 || w >= SZ_LONG)
+-			w = SZ_LONG;
+-		if(packflg)
++		if(v->etype == TSTRUCT || v->etype == TUNION)
++			w = v->align;
++		else {
++			w = ewidth[v->etype];
++			if(w == 8)
++				w = 4;
++		}
++		if(w < 1 || w > SZ_LONG)
++			fatal(Z, "align");
++		if(packflg) 
+ 			w = packflg;
+ 		break;
+ 
+@@ -536,8 +544,8 @@ align(int32 i, Type *t, int op)
+ 
+ 	case Aarg0:	/* initial passbyptr argument in arg list */
+ 		if(typesuv[t->etype]) {
+-			o = align(o, types[TIND], Aarg1);
+-			o = align(o, types[TIND], Aarg2);
++			o = align(o, types[TIND], Aarg1, nil);
++			o = align(o, types[TIND], Aarg2, nil);
+ 		}
+ 		break;
+ 
+@@ -558,11 +566,13 @@ align(int32 i, Type *t, int op)
+ 		break;
+ 
+ 	case Aaut3:	/* total align of automatic */
+-		o = align(o, t, Ael1);
+-		o = align(o, t, Ael2);
++		o = align(o, t, Ael1, nil);
++		o = align(o, t, Ael2, nil);
+ 		break;
+ 	}
+ 	o = xround(o, w);
++	if(maxalign && *maxalign < w)
++		*maxalign = w;
+ 	if(debug['A'])
+ 		print("align %s %d %T = %d\n", bnames[op], i, t, o);
+ 	return o;
+diff --git a/src/cmd/8c/txt.c b/src/cmd/8c/txt.c
+index 4cfd7bc1e6..0dd387d11a 100644
+--- a/src/cmd/8c/txt.c
++++ b/src/cmd/8c/txt.c
+@@ -385,7 +385,7 @@ err:
+ void
+ regsalloc(Node *n, Node *nn)
+ {
+-	cursafe = align(cursafe, nn->type, Aaut3);
++	cursafe = align(cursafe, nn->type, Aaut3, nil);
+ 	maxargsafe = maxround(maxargsafe, cursafe+curarg);
+ 	*n = *nodsafe;
+ 	n->xoffset = -(stkoff + cursafe);
+@@ -399,22 +399,22 @@ regaalloc1(Node *n, Node *nn)
+ {
+ 	nodreg(n, nn, REGARG);
+ 	reg[REGARG]++;
+-	curarg = align(curarg, nn->type, Aarg1);
+-	curarg = align(curarg, nn->type, Aarg2);
++	curarg = align(curarg, nn->type, Aarg1, nil);
++	curarg = align(curarg, nn->type, Aarg2, nil);
+ 	maxargsafe = maxround(maxargsafe, cursafe+curarg);
+ }
+ 
+ void
+ regaalloc(Node *n, Node *nn)
+ {
+-	curarg = align(curarg, nn->type, Aarg1);
++	curarg = align(curarg, nn->type, Aarg1, nil);
+ 	*n = *nn;
+ 	n->op = OINDREG;
+ 	n->reg = REGSP;
+ 	n->xoffset = curarg;
+ 	n->complex = 0;
+ 	n->addable = 20;
+-	curarg = align(curarg, nn->type, Aarg2);
++	curarg = align(curarg, nn->type, Aarg2, nil);
+ 	maxargsafe = maxround(maxargsafe, cursafe+curarg);
+ }
+ 
+diff --git a/src/cmd/cc/cc.h b/src/cmd/cc/cc.h
+index 69adcccb00..3649bf5f6a 100644
+--- a/src/cmd/cc/cc.h
++++ b/src/cmd/cc/cc.h
+@@ -166,6 +166,7 @@ struct	Type
+ 	uchar	nbits;
+ 	uchar	etype;
+ 	uchar	garb;
++	uchar	align;
+ };
+ 
+ #define	T	((Type*)0)
+@@ -785,7 +786,7 @@ int32	outlstring(ushort*, int32);
+ void	sextern(Sym*, Node*, int32, int32);
+ void	xcom(Node*);
+ int32	exreg(Type*);
+-int32	align(int32, Type*, int);
++int32	align(int32, Type*, int, int32*);
+ int32	maxround(int32, int32);
+ 
+ extern	schar	ewidth[];
+diff --git a/src/cmd/cc/dcl.c b/src/cmd/cc/dcl.c
+index 3aaa2c1559..f629925d1c 100644
+--- a/src/cmd/cc/dcl.c
++++ b/src/cmd/cc/dcl.c
+@@ -552,9 +552,10 @@ void
+ sualign(Type *t)
+ {
+ 	Type *l;
+-	int32 o, w;
++	int32 o, w, maxal;
+ 
+ 	o = 0;
++	maxal = 0;
+ 	switch(t->etype) {
+ 
+ 	case TSTRUCT:
+@@ -577,13 +578,14 @@ sualign(Type *t)
+ 							l->sym->name);
+ 					else
+ 						diag(Z, "incomplete structure element");
+-				w = align(w, l, Ael1);
++				w = align(w, l, Ael1, &maxal);
+ 				l->offset = w;
+-				w = align(w, l, Ael2);
++				w = align(w, l, Ael2, &maxal);
+ 			}
+ 		}
+-		w = align(w, t, Asu2);
++		w = align(w, t, Asu2, &maxal);
+ 		t->width = w;
++		t->align = maxal;
+ 		acidtype(t);
+ 		pickletype(t);
+ 		return;
+@@ -600,12 +602,13 @@ sualign(Type *t)
+ 					diag(Z, "incomplete union element");
+ 			l->offset = 0;
+ 			l->shift = 0;
+-			o = align(align(0, l, Ael1), l, Ael2);
++			o = align(align(0, l, Ael1, &maxal), l, Ael2, &maxal);
+ 			if(o > w)
+ 				w = o;
+ 		}
+-		w = align(w, t, Asu2);
++		w = align(w, t, Asu2, &maxal);
+ 		t->width = w;
++		t->align = maxal;
+ 		acidtype(t);
+ 		pickletype(t);
+ 		return;
+@@ -663,7 +666,7 @@ argmark(Node *n, int pass)
+ {
+ 	Type *t;
+ 
+-	autoffset = align(0, thisfn->link, Aarg0);
++	autoffset = align(0, thisfn->link, Aarg0, nil);
+ 	stkoff = 0;
+ 	for(; n->left != Z; n = n->left) {
+ 		if(n->op != OFUNC || n->left->op != ONAME)
+@@ -745,9 +748,9 @@ loop:
+ 				firstarg = s;
+ 				firstargtype = s->type;
+ 			}
+-			autoffset = align(autoffset, s->type, Aarg1);
++			autoffset = align(autoffset, s->type, Aarg1, nil);
+ 			s->offset = autoffset;
+-			autoffset = align(autoffset, s->type, Aarg2);
++			autoffset = align(autoffset, s->type, Aarg2, nil);
+ 		} else
+ 			dodecl(pdecl, CXXX, types[TINT], n);
+ 		break;
+@@ -1275,7 +1278,7 @@ adecl(int c, Type *t, Sym *s)
+ 	}
+ 	switch(c) {
+ 	case CAUTO:
+-		autoffset = align(autoffset, t, Aaut3);
++		autoffset = align(autoffset, t, Aaut3, nil);
+ 		stkoff = maxround(stkoff, autoffset);
+ 		s->offset = -autoffset;
+ 		break;
+@@ -1285,10 +1288,10 @@ adecl(int c, Type *t, Sym *s)
+ 			firstarg = s;
+ 			firstargtype = t;
+ 		}
+-		autoffset = align(autoffset, t, Aarg1);
++		autoffset = align(autoffset, t, Aarg1, nil);
+ 		if(s)
+ 			s->offset = autoffset;
+-		autoffset = align(autoffset, t, Aarg2);
++		autoffset = align(autoffset, t, Aarg2, nil);
+ 		break;
+ 	}
+ }
+@@ -1587,7 +1590,7 @@ contig(Sym *s, Node *n, int32 v)
+ 		if(v != 0)
+ 			diag(n, "automatic adjustable array: %s", s->name);
+ 		v = s->offset;
+-		autoffset = align(autoffset, s->type, Aaut3);
++		autoffset = align(autoffset, s->type, Aaut3, nil);
+ 		s->offset = -autoffset;
+ 		stkoff = maxround(stkoff, autoffset);
+ 		symadjust(s, n, v - s->offset);
+diff --git a/src/cmd/cc/pgen.c b/src/cmd/cc/pgen.c
+index cd6fffc578..a9d7f1ef4c 100644
+--- a/src/cmd/cc/pgen.c
++++ b/src/cmd/cc/pgen.c
+@@ -37,7 +37,7 @@ argsize(void)
+ 	int32 s;
+ 
+ //print("t=%T\n", thisfn);
+-	s = align(0, thisfn->link, Aarg0);
++	s = align(0, thisfn->link, Aarg0, nil);
+ 	for(t=thisfn->down; t!=T; t=t->down) {
+ 		switch(t->etype) {
+ 		case TVOID:
+@@ -47,8 +47,8 @@ argsize(void)
+ 			s += 64;
+ 			break;
+ 		default:
+-			s = align(s, t, Aarg1);
+-			s = align(s, t, Aarg2);
++			s = align(s, t, Aarg1, nil);
++			s = align(s, t, Aarg2, nil);
+ 			break;
+ 		}
+ //print("	%d %T\n", s, t);
+@@ -99,7 +99,7 @@ codgen(Node *n, Node *nn)
+ 			nod1 = *nodret->left;
+ 			nod1.sym = firstarg;
+ 			nod1.type = firstargtype;
+-			nod1.xoffset = align(0, firstargtype, Aarg1);
++			nod1.xoffset = align(0, firstargtype, Aarg1, nil);
+ 			nod1.etype = firstargtype->etype;
+ 			nodreg(&nod, &nod1, REGARG);
+ 			gmove(&nod, &nod1);
+diff --git a/src/cmd/cc/pswt.c b/src/cmd/cc/pswt.c
+index 891836c543..0e402dea71 100644
+--- a/src/cmd/cc/pswt.c
++++ b/src/cmd/cc/pswt.c
+@@ -115,7 +115,7 @@ outlstring(ushort *s, int32 n)
+ 	r = nstring;
+ 	while(n > 0) {
+ 		c = *s++;
+-		if(align(0, types[TCHAR], Aarg1)) {
++		if(align(0, types[TCHAR], Aarg1, nil)) {
+ 			buf[0] = c>>8;
+ 			buf[1] = c;
+ 		} else {
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index 4b6d92e786..a3785e8718 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -49,8 +49,8 @@ widstruct(Type *t, uint32 o, int flag)
+ 		if(f->etype != TFIELD)
+ 			fatal("widstruct: not TFIELD: %lT", f);
+ 		dowidth(f->type);
+-		if(f->align > maxalign)
+-			maxalign = f->align;
++		if(f->type->align > maxalign)
++			maxalign = f->type->align;
+ 		if(f->type->width < 0)
+ 			fatal("invalid width %lld", f->type->width);
+ 		w = f->type->width;
+@@ -248,9 +248,11 @@ dowidth(Type *t)
+ 	case TSTRUCT:
+ 		if(t->funarg)
+ 			fatal("dowidth fn struct %T", t);
+-		w = widstruct(t, 0, widthptr);
++		w = widstruct(t, 0, 1);
+ 		if(w == 0)
+ 			w = 1;
++		//if(t->align < widthptr)
++		//	warn("align %d: %T\n", t->align, t);
+ 		break;
+ 
+ 	case TFUNC:
+@@ -272,6 +274,8 @@ dowidth(Type *t)
+ 		w = widstruct(*getinarg(t1), w, widthptr);
+ 		w = widstruct(*getoutarg(t1), w, widthptr);
+ 		t1->argwid = w;
++		if(w%widthptr)
++			warn("bad type %T %d\n", t1, w);
+ 		t->align = 1;
+ 		break;
+ 	}
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 5450862213..4dd0d706bd 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1124,7 +1124,7 @@ reswitch:
+ 	case OPRINT:
+ 	case OPRINTN:
+ 		ok |= Etop;
+-		typechecklist(n->list, Erv);
++		typechecklist(n->list, Erv | Eindir);  // Eindir: address does not escape
+ 		goto ret;
+ 
+ 	case OPANIC:
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index a80112d342..8b2c1a9530 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -730,8 +730,6 @@ type tiny struct {
+ // Call calls the function fv with input parameters in.
+ // It returns the function's output parameters as Values.
+ func (fv *FuncValue) Call(in []Value) []Value {
+-	var structAlign = Typeof((*tiny)(nil)).(*PtrType).Elem().Size()
+-
+ 	t := fv.Type().(*FuncType)
+ 	nin := len(in)
+ 	if fv.first != nil && !fv.isInterface {
+@@ -757,7 +755,7 @@ func (fv *FuncValue) Call(in []Value) []Value {
+ 		size = (size + a - 1) &^ (a - 1)
+ 		size += tv.Size()
+ 	}
+-	size = (size + structAlign - 1) &^ (structAlign - 1)
++	size = (size + ptrSize - 1) &^ (ptrSize - 1)
+ 	for i := 0; i < nout; i++ {
+ 		tv := t.Out(i)
+ 		a := uintptr(tv.Align())
+@@ -767,9 +765,9 @@ func (fv *FuncValue) Call(in []Value) []Value {
+ 
+ 	// size must be > 0 in order for &args[0] to be valid.
+ 	// the argument copying is going to round it up to
+-	// a multiple of 8 anyway, so make it 8 to begin with.
+-	if size < 8 {
+-		size = 8
++	// a multiple of ptrSize anyway, so make it ptrSize to begin with.
++	if size < ptrSize {
++		size = ptrSize
+ 	}
+ 
+ 	// round to pointer size
+@@ -811,7 +809,7 @@ func (fv *FuncValue) Call(in []Value) []Value {
+ 		memmove(addr(ptr+off), v.getAddr(), n)
+ 		off += n
+ 	}
+-	off = (off + structAlign - 1) &^ (structAlign - 1)
++	off = (off + ptrSize - 1) &^ (ptrSize - 1)
+ 
+ 	// Call
+ 	call(*(**byte)(fv.addr), (*byte)(addr(ptr)), uint32(size))
+diff --git a/src/pkg/runtime/debug.go b/src/pkg/runtime/debug.go
+index 3cc5472f6b..3ce35cc5ba 100644
+--- a/src/pkg/runtime/debug.go
++++ b/src/pkg/runtime/debug.go
+@@ -4,6 +4,8 @@
+ 
+ package runtime
+ 
++import "unsafe"
++
+ // Breakpoint() executes a breakpoint trap.
+ func Breakpoint()
+ 
+@@ -73,6 +75,15 @@ type MemStatsType struct {
+ 	}
+ }
+ 
++var sizeof_C_MStats int // filled in by malloc.goc
++
++func init() {
++	if sizeof_C_MStats != unsafe.Sizeof(MemStats) {
++		println(sizeof_C_MStats, unsafe.Sizeof(MemStats))
++		panic("MStats vs MemStatsType size mismatch")
++	}
++}
++
+ // MemStats holds statistics about the memory system.
+ // The statistics are only approximate, as they are not interlocked on update.
+ var MemStats MemStatsType
+diff --git a/src/pkg/runtime/hashmap.h b/src/pkg/runtime/hashmap.h
+index 40dac6e9bd..0737535b55 100644
+--- a/src/pkg/runtime/hashmap.h
++++ b/src/pkg/runtime/hashmap.h
+@@ -64,7 +64,6 @@
+  */
+ 
+ #define	malloc		runtime·mal
+-#define	offsetof(s,m)	(uint32)(&(((s*)0)->m))
+ #define	memset(a,b,c)	runtime·memclr((byte*)(a), (uint32)(c))
+ #define	memcpy(a,b,c)	runtime·mcpy((byte*)(a),(byte*)(b),(uint32)(c))
+ #define	assert(a)	if(!(a)) runtime·throw("assert")
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 405b05ee96..f5ca9f9183 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -244,6 +244,8 @@ runtime·allocmcache(void)
+ 	return c;
+ }
+ 
++int32 runtime·sizeof_C_MStats = sizeof(MStats);
++
+ void
+ runtime·mallocinit(void)
+ {
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index f2b6c587e9..a2e31d806f 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -258,6 +258,13 @@ runtime·check(void)
+ 	float64 j;
+ 	void* k;
+ 	uint16* l;
++	struct x1 {
++		byte x;
++	};
++	struct y1 {
++		struct x1 x1;
++		byte y;
++	};
+ 
+ 	if(sizeof(a) != 1) runtime·throw("bad a");
+ 	if(sizeof(b) != 1) runtime·throw("bad b");
+@@ -271,7 +278,9 @@ runtime·check(void)
+ 	if(sizeof(j) != 8) runtime·throw("bad j");
+ 	if(sizeof(k) != sizeof(uintptr)) runtime·throw("bad k");
+ 	if(sizeof(l) != sizeof(uintptr)) runtime·throw("bad l");
+-//	prints(1"check ok\n");
++	if(sizeof(struct x1) != 1) runtime·throw("bad sizeof x1");
++	if(offsetof(struct y1, y) != 1) runtime·throw("bad offsetof y1.y");
++	if(sizeof(struct y1) != 2) runtime·throw("bad sizeof y1");
+ 
+ 	uint32 z;
+ 	z = 1;
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index b0fa3891e6..37c8103f34 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -306,6 +306,7 @@ enum {
+  */
+ #define	nelem(x)	(sizeof(x)/sizeof((x)[0]))
+ #define	nil		((void*)0)
++#define	offsetof(s,m)	(uint32)(&(((s*)0)->m))
+ 
+ /*
+  * known to compiler
+diff --git a/test/bugs/bug260.go b/test/fixedbugs/bug260.go
+similarity index 88%
+rename from test/bugs/bug260.go
+rename to test/fixedbugs/bug260.go
+index 6a6331e65b..34757c70ee 100644
+--- a/test/bugs/bug260.go
++++ b/test/fixedbugs/bug260.go
+@@ -10,9 +10,15 @@ import (
+ 	"strconv"
+ )
+ 
+-type T1 struct { x uint8 }
+-type T2 struct { x uint16 }
+-type T4 struct { x uint32 }
++type T1 struct {
++	x uint8
++}
++type T2 struct {
++	x uint16
++}
++type T4 struct {
++	x uint32
++}
+ 
+ func main() {
+ 	report := len(os.Args) > 1
+@@ -20,7 +26,7 @@ func main() {
+ 	var b1 [10]T1
+ 	a0, _ := strconv.Btoui64(fmt.Sprintf("%p", &b1[0])[2:], 16)
+ 	a1, _ := strconv.Btoui64(fmt.Sprintf("%p", &b1[1])[2:], 16)
+-	if a1 != a0 + 1 {
++	if a1 != a0+1 {
+ 		fmt.Println("FAIL")
+ 		if report {
+ 			fmt.Println("alignment should be 1, is", a1-a0)
+@@ -30,7 +36,7 @@ func main() {
+ 	var b2 [10]T2
+ 	a0, _ = strconv.Btoui64(fmt.Sprintf("%p", &b2[0])[2:], 16)
+ 	a1, _ = strconv.Btoui64(fmt.Sprintf("%p", &b2[1])[2:], 16)
+-	if a1 != a0 + 2 {
++	if a1 != a0+2 {
+ 		if status == 0 {
+ 			fmt.Println("FAIL")
+ 			status = 1
+@@ -42,7 +48,7 @@ func main() {
+ 	var b4 [10]T4
+ 	a0, _ = strconv.Btoui64(fmt.Sprintf("%p", &b4[0])[2:], 16)
+ 	a1, _ = strconv.Btoui64(fmt.Sprintf("%p", &b4[1])[2:], 16)
+-	if a1 != a0 + 4 {
++	if a1 != a0+4 {
+ 		if status == 0 {
+ 			fmt.Println("FAIL")
+ 			status = 1
+diff --git a/test/golden.out b/test/golden.out
+index 49bca4b874..e587912a48 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -173,7 +173,3 @@ panic: interface conversion: interface is main.T, not main.T
+ panic PC=xxx
+ 
+ == bugs/
+-
+-=========== bugs/bug260.go
+-FAIL
+-BUG: bug260 failed

@@ -17,6 +17,22 @@ Date:   Thu Aug 22 06:51:44 2019 +0000
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
     Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/server.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index bcc283b66c..2eb16ff632 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -3177,8 +3177,8 @@ func (srv *Server) onceSetNextProtoDefaults() {
+ // After such a timeout, writes by h to its ResponseWriter will return
+ // ErrHandlerTimeout.
+ //
+-// TimeoutHandler buffers all Handler writes to memory and does not
+-// support the Hijacker or Flusher interfaces.
++// TimeoutHandler supports the Flusher and Pusher interfaces but does not
++// support the Hijacker interface.
+ func TimeoutHandler(h Handler, dt time.Duration, msg string) Handler {
+ 	return &timeoutHandler{
+ 		handler: h,

@@ -7,6 +7,20 @@ Date:   Thu Sep 11 15:44:45 2008 -0700
     R=r
     OCL=15169
     CL=15169
-
+---
  src/cmd/gc/walk.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index abb7ce0bd8..8850867db7 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -54,7 +54,7 @@ walk(Node *fn)
+ 	}
+ 	if(curfn->type->outtuple)
+ 		if(walkret(curfn->nbody))
+-			warn("function ends without a return statement");
++			yyerror("function ends without a return statement");
+ 	walkstate(curfn->nbody);
+ 	if(debug['W']) {
+ 		snprint(s, sizeof(s), "after %S", curfn->nname->sym);

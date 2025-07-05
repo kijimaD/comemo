@@ -7,7 +7,7 @@ Date:   Thu Jan 19 17:13:33 2012 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5532100
-
+---
  src/cmd/6l/obj.c                       | 6 +++---
  src/cmd/8l/obj.c                       | 6 +++---
  src/make.bash                          | 2 +-
@@ -18,3 +18,164 @@ Date:   Thu Jan 19 17:13:33 2012 -0500
  src/pkg/runtime/sys_darwin_386.s       | 2 +-
  src/pkg/runtime/sys_darwin_amd64.s     | 4 ++--
  9 files changed, 20 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index a1f9e2d111..d258f05c9c 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -190,7 +190,7 @@ main(int argc, char *argv[])
+ 	case Hdarwin:	/* apple MACH */
+ 		/*
+ 		 * OS X system constant - offset from 0(GS) to our TLS.
+-		 * Explained in ../../libcgo/darwin_amd64.c.
++		 * Explained in ../../pkg/runtime/cgo/gcc_darwin_amd64.c.
+ 		 */
+ 		tlsoffset = 0x8a0;
+ 		machoinit();
+@@ -209,8 +209,8 @@ main(int argc, char *argv[])
+ 		/*
+ 		 * ELF uses TLS offset negative from FS.
+ 		 * Translate 0(FS) and 8(FS) into -16(FS) and -8(FS).
+-		 * Also known to ../../pkg/runtime/linux/amd64/sys.s
+-		 * and ../../libcgo/linux_amd64.s.
++		 * Also known to ../../pkg/runtime/sys_linux_amd64.s
++		 * and ../../pkg/runtime/cgo/gcc_linux_amd64.c.
+ 		 */
+ 		tlsoffset = -16;
+ 		elfinit();
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 99726ec180..1d0f1ec0fc 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -218,7 +218,7 @@ main(int argc, char *argv[])
+ 	case Hdarwin:	/* apple MACH */
+ 		/*
+ 		 * OS X system constant - offset from %gs to our TLS.
+-		 * Explained in ../../libcgo/darwin_386.c.
++		 * Explained in ../../pkg/runtime/cgo/gcc_darwin_386.c.
+ 		 */
+ 		tlsoffset = 0x468;
+ 		machoinit();
+@@ -237,8 +237,8 @@ main(int argc, char *argv[])
+ 		/*
+ 		 * ELF uses TLS offsets negative from %gs.
+ 		 * Translate 0(GS) and 4(GS) into -8(GS) and -4(GS).
+-		 * Also known to ../../pkg/runtime/linux/386/sys.s
+-		 * and ../../libcgo/linux_386.c.
++		 * Also known to ../../pkg/runtime/sys_linux_386.s
++		 * and ../../pkg/runtime/cgo/gcc_linux_386.c.
+ 		 */
+ 		tlsoffset = -8;
+ 		elfinit();
+diff --git a/src/make.bash b/src/make.bash
+index becf86d851..3878d263f2 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -75,7 +75,7 @@ $USE_GO_TOOL ||
+ ) || exit 1
+ bash "$GOROOT"/src/clean.bash
+ 
+-# pkg builds libcgo and the Go programs in cmd.
++# pkg builds runtime/cgo and the Go programs in cmd.
+ for i in lib9 libbio libmach cmd
+ do
+ 	echo; echo; echo %%%% making $i %%%%; echo
+diff --git a/src/pkg/runtime/cgo/gcc_darwin_386.c b/src/pkg/runtime/cgo/gcc_darwin_386.c
+index dfeb9e11f6..d9f25347a5 100644
+--- a/src/pkg/runtime/cgo/gcc_darwin_386.c
++++ b/src/pkg/runtime/cgo/gcc_darwin_386.c
+@@ -39,8 +39,8 @@ inittls(void)
+ 	 *
+ 	 * The linker and runtime hard-code these constant offsets
+ 	 * from %gs where we expect to find m and g.
+-	 * Known to ../cmd/8l/obj.c:/468
+-	 * and to ../pkg/runtime/darwin/386/sys.s:/468
++	 * Known to ../../../cmd/8l/obj.c:/468
++	 * and to ../sys_darwin_386.s:/468
+ 	 *
+ 	 * This is truly disgusting and a bit fragile, but taking care
+ 	 * of it here protects the rest of the system from damage.
+diff --git a/src/pkg/runtime/cgo/gcc_darwin_amd64.c b/src/pkg/runtime/cgo/gcc_darwin_amd64.c
+index 46546f1457..a0b026ee2b 100644
+--- a/src/pkg/runtime/cgo/gcc_darwin_amd64.c
++++ b/src/pkg/runtime/cgo/gcc_darwin_amd64.c
+@@ -27,8 +27,8 @@ inittls(void)
+ 	 *
+ 	 * The linker and runtime hard-code these constant offsets
+ 	 * from %gs where we expect to find m and g.
+-	 * Known to ../cmd/6l/obj.c:/8a0
+-	 * and to ../pkg/runtime/darwin/amd64/sys.s:/8a0
++	 * Known to ../../../cmd/6l/obj.c:/8a0
++	 * and to ../sys_darwin_amd64.s:/8a0
+ 	 *
+ 	 * As disgusting as on the 386; same justification.
+ 	 */
+diff --git a/src/pkg/runtime/mkasmh.sh b/src/pkg/runtime/mkasmh.sh
+index bc6b31ccc5..ba48d0a137 100755
+--- a/src/pkg/runtime/mkasmh.sh
++++ b/src/pkg/runtime/mkasmh.sh
+@@ -34,8 +34,8 @@ case "$GOARCH" in
+ 386)
+ 	# The offsets 0 and 4 are also known to:
+ 	#	../../cmd/8l/pass.c:/D_GS
+-	#	../../libcgo/linux_386.c:/^threadentry
+-	#	../../libcgo/darwin_386.c:/^threadentry
++	#	cgo/gcc_linux_386.c:/^threadentry
++	#	cgo/gcc_darwin_386.c:/^threadentry
+ 	case "$GOOS" in
+ 	windows)
+ 		echo '#define	get_tls(r)	MOVL 0x14(FS), r'
+@@ -89,8 +89,8 @@ amd64)
+ 	*)
+ 		# The offsets 0 and 8 are known to:
+ 		#	../../cmd/6l/pass.c:/D_GS
+-		#	../../libcgo/linux_amd64.c:/^threadentry
+-		#	../../libcgo/darwin_amd64.c:/^threadentry
++		#	cgo/gcc_linux_amd64.c:/^threadentry
++		#	cgo/gcc_darwin_amd64.c:/^threadentry
+ 		#
+ 		echo '#define	get_tls(r)'
+ 		echo '#define	g(r) 0(GS)'
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 7f1cb59eb5..dc54285c72 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -168,8 +168,8 @@ struct	Gobuf
+ };
+ struct	G
+ {
+-	byte*	stackguard;	// cannot move - also known to linker, libmach, libcgo
+-	byte*	stackbase;	// cannot move - also known to libmach, libcgo
++	byte*	stackguard;	// cannot move - also known to linker, libmach, runtime/cgo
++	byte*	stackbase;	// cannot move - also known to libmach, runtime/cgo
+ 	Defer*	defer;
+ 	Panic*	panic;
+ 	Gobuf	sched;
+diff --git a/src/pkg/runtime/sys_darwin_386.s b/src/pkg/runtime/sys_darwin_386.s
+index b358509b19..24eac766aa 100644
+--- a/src/pkg/runtime/sys_darwin_386.s
++++ b/src/pkg/runtime/sys_darwin_386.s
+@@ -338,7 +338,7 @@ TEXT runtime·setldt(SB),7,$32
+ 	 * To accommodate that rewrite, we translate the
+ 	 * address and limit here so that 0x468(GS) maps to 0(address).
+ 	 *
+-	 * See ../../../../libcgo/darwin_386.c for the derivation
++	 * See cgo/gcc_darwin_386.c:/468 for the derivation
+ 	 * of the constant.
+ 	 */
+ 	SUBL	$0x468, BX
+diff --git a/src/pkg/runtime/sys_darwin_amd64.s b/src/pkg/runtime/sys_darwin_amd64.s
+index 095ba2fa53..9d2ecbe2a5 100644
+--- a/src/pkg/runtime/sys_darwin_amd64.s
++++ b/src/pkg/runtime/sys_darwin_amd64.s
+@@ -327,8 +327,8 @@ TEXT runtime·mach_semaphore_signal_all(SB),7,$0
+ // set tls base to DI
+ TEXT runtime·settls(SB),7,$32
+ 	/*
+-	* Same as in ../386/sys.s:/ugliness, different constant.
+-	* See ../../../../libcgo/darwin_amd64.c for the derivation
++	* Same as in sys_darwin_386.s:/ugliness, different constant.
++	* See cgo/gcc_darwin_amd64.c for the derivation
+ 	* of the constant.
+ 	*/
+ 	SUBQ $0x8a0, DI

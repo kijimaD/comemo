@@ -15,6 +15,20 @@ Date:   Sat Nov 11 01:33:17 2023 +0000
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/log/slog/json_handler.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/log/slog/json_handler.go b/src/log/slog/json_handler.go
+index c3b4882f41..da3eae1a8e 100644
+--- a/src/log/slog/json_handler.go
++++ b/src/log/slog/json_handler.go
+@@ -226,7 +226,7 @@ func appendEscapedJSONString(buf []byte, s string) []byte {
+ 	return buf
+ }
+ 
+-var hex = "0123456789abcdef"
++const hex = "0123456789abcdef"
+ 
+ // Copied from encoding/json/tables.go.
+ //

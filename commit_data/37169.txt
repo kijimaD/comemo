@@ -19,6 +19,31 @@ Date:   Thu Jul 5 21:38:02 2018 -0400
     Reviewed-on: https://go-review.googlesource.com/122407
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  src/go/doc/comment.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/doc/comment.go b/src/go/doc/comment.go
+index 4228e8cd9c..7c4490e7c3 100644
+--- a/src/go/doc/comment.go
++++ b/src/go/doc/comment.go
+@@ -231,8 +231,8 @@ func heading(line string) string {
+ 		return ""
+ 	}
+ 
+-	// exclude lines with illegal characters
+-	if strings.ContainsAny(line, ",.;:!?+*/=()[]{}_^°&§~%#@<\">\\") {
++	// exclude lines with illegal characters. we allow "(),"
++	if strings.ContainsAny(line, ".;:!?+*/=[]{}_^°&§~%#@<\">\\") {
+ 		return ""
+ 	}
+ 
+@@ -281,7 +281,7 @@ func anchorID(line string) string {
+ // a single paragraph. There is one exception to the rule: a span that
+ // consists of a single line, is followed by another paragraph span,
+ // begins with a capital letter, and contains no punctuation
+-// is formatted as a heading.
++// other than parentheses and commas is formatted as a heading.
+ //
+ // A span of indented lines is converted into a <pre> block,
+ // with the common indent prefix removed.

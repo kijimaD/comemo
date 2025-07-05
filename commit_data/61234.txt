@@ -28,7 +28,69 @@ Date:   Thu Jun 20 17:22:43 2024 +0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  1 +
  src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 38 +++++++++++++++++++++++++
  2 files changed, 39 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+index 64cbe76295..923e8ef0e4 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+@@ -453,6 +453,7 @@
+ (GetCallerPC ...) => (LoweredGetCallerPC ...)
+ 
+ (If cond yes no) => (NE (MOVBUreg <typ.UInt64> cond) yes no)
++(MOVBUreg x:(XOR (MOVVconst [1]) ((SGT|SGTU) _ _))) => x
+ 
+ // Write barrier.
+ (WB ...) => (LoweredWB ...)
+diff --git a/src/cmd/compile/internal/ssa/rewriteLOONG64.go b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+index df5043b949..abc92b1893 100644
+--- a/src/cmd/compile/internal/ssa/rewriteLOONG64.go
++++ b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+@@ -1907,6 +1907,44 @@ func rewriteValueLOONG64_OpLOONG64MOVBUreg(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVBUreg x:(XOR (MOVVconst [1]) (SGT _ _)))
++	// result: x
++	for {
++		x := v_0
++		if x.Op != OpLOONG64XOR {
++			break
++		}
++		_ = x.Args[1]
++		x_0 := x.Args[0]
++		x_1 := x.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, x_0, x_1 = _i0+1, x_1, x_0 {
++			if x_0.Op != OpLOONG64MOVVconst || auxIntToInt64(x_0.AuxInt) != 1 || x_1.Op != OpLOONG64SGT {
++				continue
++			}
++			v.copyOf(x)
++			return true
++		}
++		break
++	}
++	// match: (MOVBUreg x:(XOR (MOVVconst [1]) (SGTU _ _)))
++	// result: x
++	for {
++		x := v_0
++		if x.Op != OpLOONG64XOR {
++			break
++		}
++		_ = x.Args[1]
++		x_0 := x.Args[0]
++		x_1 := x.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, x_0, x_1 = _i0+1, x_1, x_0 {
++			if x_0.Op != OpLOONG64MOVVconst || auxIntToInt64(x_0.AuxInt) != 1 || x_1.Op != OpLOONG64SGTU {
++				continue
++			}
++			v.copyOf(x)
++			return true
++		}
++		break
++	}
+ 	// match: (MOVBUreg x:(SGT _ _))
+ 	// result: x
+ 	for {

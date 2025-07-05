@@ -16,6 +16,22 @@ Date:   Mon Jun 29 01:50:50 2020 -0400
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David du Colombier <0intro@gmail.com>
-
+---
  src/net/interface_plan9.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/interface_plan9.go b/src/net/interface_plan9.go
+index 1295017a1b..31bbaca467 100644
+--- a/src/net/interface_plan9.go
++++ b/src/net/interface_plan9.go
+@@ -68,8 +68,8 @@ func readInterface(i int) (*Interface, error) {
+ 	}
+ 	ifc.MTU = mtu
+ 
+-	// Not a loopback device
+-	if device != "/dev/null" {
++	// Not a loopback device ("/dev/null") or packet interface (e.g. "pkt2")
++	if stringsHasPrefix(device, netdir+"/") {
+ 		deviceaddrf, err := open(device + "/addr")
+ 		if err != nil {
+ 			return nil, err

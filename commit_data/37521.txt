@@ -23,7 +23,7 @@ Date:   Tue Aug 7 12:01:36 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modcmd/download.go      | 123 ++++++++++++++++++++++++++++
  src/cmd/go/internal/modcmd/mod.go           |   1 +
  src/cmd/go/internal/modfetch/cache.go       |  41 ++++++++++
@@ -32,3 +32,428 @@ Date:   Tue Aug 7 12:01:36 2018 -0400
  src/cmd/go/internal/modload/build.go        |  32 ++++----
  src/cmd/go/testdata/script/mod_download.txt |  62 ++++++++++++++
  7 files changed, 291 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/go/internal/modcmd/download.go b/src/cmd/go/internal/modcmd/download.go
+new file mode 100644
+index 0000000000..0a457a56f2
+--- /dev/null
++++ b/src/cmd/go/internal/modcmd/download.go
+@@ -0,0 +1,123 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package modcmd
++
++import (
++	"cmd/go/internal/base"
++	"cmd/go/internal/modfetch"
++	"cmd/go/internal/modload"
++	"cmd/go/internal/module"
++	"cmd/go/internal/par"
++	"encoding/json"
++	"os"
++)
++
++var cmdDownload = &base.Command{
++	UsageLine: "go mod download [-dir] [-json] [modules]",
++	Short:     "download modules to local cache",
++	Long: `
++Download downloads the named modules, which can be module patterns selecting
++dependencies of the main module or module queries of the form path@version.
++With no arguments, download applies to all dependencies of the main module.
++
++The go command will automatically download modules as needed during ordinary
++execution. The "go mod download" command is useful mainly for pre-filling
++the local cache or to compute the answers for a Go module proxy.
++
++By default, download reports errors to standard error but is otherwise silent.
++The -json flag causes download to print a sequence of JSON objects
++to standard output, describing each downloaded module (or failure),
++corresponding to this Go struct:
++
++    type Module struct {
++        Path    string // module path
++        Version string // module version
++        Error   string // error loading module
++        Info    string // absolute path to cached .info file
++        GoMod   string // absolute path to cached .mod file
++        Zip     string // absolute path to cached .zip file
++        Dir     string // absolute path to cached source root directory
++    }
++
++See 'go help module' for more about module queries.
++	`,
++}
++
++var downloadJSON = cmdDownload.Flag.Bool("json", false, "")
++
++func init() {
++	cmdDownload.Run = runDownload // break init cycle
++}
++
++type moduleJSON struct {
++	Path    string `json:",omitempty"`
++	Version string `json:",omitempty"`
++	Error   string `json:",omitempty"`
++	Info    string `json:",omitempty"`
++	GoMod   string `json:",omitempty"`
++	Zip     string `json:",omitempty"`
++	Dir     string `json:",omitempty"`
++}
++
++func runDownload(cmd *base.Command, args []string) {
++	if len(args) == 0 {
++		args = []string{"all"}
++	}
++
++	var mods []*moduleJSON
++	var work par.Work
++	listU := false
++	listVersions := false
++	for _, info := range modload.ListModules(args, listU, listVersions) {
++		if info.Replace != nil {
++			info = info.Replace
++		}
++		if info.Version == "" {
++			continue
++		}
++		m := &moduleJSON{
++			Path:    info.Path,
++			Version: info.Version,
++		}
++		mods = append(mods, m)
++		work.Add(m)
++	}
++
++	work.Do(10, func(item interface{}) {
++		m := item.(*moduleJSON)
++		var err error
++		m.Info, err = modfetch.InfoFile(m.Path, m.Version)
++		if err != nil {
++			m.Error = err.Error()
++			return
++		}
++		m.GoMod, err = modfetch.GoModFile(m.Path, m.Version)
++		if err != nil {
++			m.Error = err.Error()
++			return
++		}
++		mod := module.Version{Path: m.Path, Version: m.Version}
++		m.Zip, err = modfetch.DownloadZip(mod)
++		if err != nil {
++			m.Error = err.Error()
++			return
++		}
++		m.Dir, err = modfetch.Download(mod)
++		if err != nil {
++			m.Error = err.Error()
++			return
++		}
++	})
++
++	if *downloadJSON {
++		for _, m := range mods {
++			b, err := json.MarshalIndent(m, "", "\t")
++			if err != nil {
++				base.Fatalf("%v", err)
++			}
++			os.Stdout.Write(append(b, '\n'))
++		}
++	}
++}
+diff --git a/src/cmd/go/internal/modcmd/mod.go b/src/cmd/go/internal/modcmd/mod.go
+index c1a0ddc7e1..0f78cc3b41 100644
+--- a/src/cmd/go/internal/modcmd/mod.go
++++ b/src/cmd/go/internal/modcmd/mod.go
+@@ -19,6 +19,7 @@ See 'go help modules' for an overview of module functionality.
+ 	`,
+ 
+ 	Commands: []*base.Command{
++		cmdDownload,
+ 		cmdEdit,
+ 		cmdFix,
+ 		cmdGraph,
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index b801f6485c..efcd4854e8 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -232,6 +232,23 @@ func Stat(path, rev string) (*RevInfo, error) {
+ 	return repo.Stat(rev)
+ }
+ 
++// InfoFile is like Stat but returns the name of the file containing
++// the cached information.
++func InfoFile(path, version string) (string, error) {
++	if !semver.IsValid(version) {
++		return "", fmt.Errorf("invalid version %q", version)
++	}
++	if _, err := Stat(path, version); err != nil {
++		return "", err
++	}
++	// Stat should have populated the disk cache for us.
++	file, _, err := readDiskStat(path, version)
++	if err != nil {
++		return "", err
++	}
++	return file, nil
++}
++
+ // GoMod is like Lookup(path).GoMod(rev) but avoids the
+ // repository path resolution in Lookup if the result is
+ // already cached on local disk.
+@@ -256,6 +273,23 @@ func GoMod(path, rev string) ([]byte, error) {
+ 	return repo.GoMod(rev)
+ }
+ 
++// GoModFile is like GoMod but returns the name of the file containing
++// the cached information.
++func GoModFile(path, version string) (string, error) {
++	if !semver.IsValid(version) {
++		return "", fmt.Errorf("invalid version %q", version)
++	}
++	if _, err := GoMod(path, version); err != nil {
++		return "", err
++	}
++	// GoMod should have populated the disk cache for us.
++	file, _, err := readDiskGoMod(path, version)
++	if err != nil {
++		return "", err
++	}
++	return file, nil
++}
++
+ var errNotCached = fmt.Errorf("not in cache")
+ 
+ // readDiskStat reads a cached stat result from disk,
+@@ -274,6 +308,13 @@ func readDiskStat(path, rev string) (file string, info *RevInfo, err error) {
+ 	if err := json.Unmarshal(data, info); err != nil {
+ 		return file, nil, errNotCached
+ 	}
++	// The disk might have stale .info files that have Name and Short fields set.
++	// We want to canonicalize to .info files with those fields omitted.
++	// Remarshal and update the cache file if needed.
++	data2, err := json.Marshal(info)
++	if err == nil && !bytes.Equal(data2, data) {
++		writeDiskCache(file, data)
++	}
+ 	return file, info, nil
+ }
+ 
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index b4944af8c2..480579156f 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -17,6 +17,7 @@ import (
+ 	"sync"
+ 
+ 	"cmd/go/internal/base"
++	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/dirhash"
+ 	"cmd/go/internal/module"
+ 	"cmd/go/internal/par"
+@@ -46,24 +47,10 @@ func Download(mod module.Version) (dir string, err error) {
+ 			return cached{"", err}
+ 		}
+ 		if files, _ := ioutil.ReadDir(dir); len(files) == 0 {
+-			zipfile, err := CachePath(mod, "zip")
++			zipfile, err := DownloadZip(mod)
+ 			if err != nil {
+ 				return cached{"", err}
+ 			}
+-			if _, err := os.Stat(zipfile); err == nil {
+-				// Use it.
+-				// This should only happen if the mod/cache directory is preinitialized
+-				// or if pkg/mod/path was removed but not pkg/mod/cache/download.
+-				fmt.Fprintf(os.Stderr, "go: extracting %s %s\n", mod.Path, mod.Version)
+-			} else {
+-				if err := os.MkdirAll(filepath.Dir(zipfile), 0777); err != nil {
+-					return cached{"", err}
+-				}
+-				fmt.Fprintf(os.Stderr, "go: downloading %s %s\n", mod.Path, mod.Version)
+-				if err := downloadZip(mod, zipfile); err != nil {
+-					return cached{"", err}
+-				}
+-			}
+ 			modpath := mod.Path + "@" + mod.Version
+ 			if err := Unzip(dir, zipfile, modpath, 0); err != nil {
+ 				fmt.Fprintf(os.Stderr, "-> %s\n", err)
+@@ -76,6 +63,46 @@ func Download(mod module.Version) (dir string, err error) {
+ 	return c.dir, c.err
+ }
+ 
++var downloadZipCache par.Cache
++
++// DownloadZip downloads the specific module version to the
++// local zip cache and returns the name of the zip file.
++func DownloadZip(mod module.Version) (zipfile string, err error) {
++	// The par.Cache here avoids duplicate work but also
++	// avoids conflicts from simultaneous calls by multiple goroutines
++	// for the same version.
++	type cached struct {
++		zipfile string
++		err     error
++	}
++	c := downloadZipCache.Do(mod, func() interface{} {
++		zipfile, err := CachePath(mod, "zip")
++		if err != nil {
++			return cached{"", err}
++		}
++		if _, err := os.Stat(zipfile); err == nil {
++			// Use it.
++			// This should only happen if the mod/cache directory is preinitialized
++			// or if pkg/mod/path was removed but not pkg/mod/cache/download.
++			if cfg.CmdName != "mod download" {
++				fmt.Fprintf(os.Stderr, "go: extracting %s %s\n", mod.Path, mod.Version)
++			}
++		} else {
++			if err := os.MkdirAll(filepath.Dir(zipfile), 0777); err != nil {
++				return cached{"", err}
++			}
++			if cfg.CmdName != "mod download" {
++				fmt.Fprintf(os.Stderr, "go: downloading %s %s\n", mod.Path, mod.Version)
++			}
++			if err := downloadZip(mod, zipfile); err != nil {
++				return cached{"", err}
++			}
++		}
++		return cached{zipfile, nil}
++	}).(cached)
++	return c.zipfile, c.err
++}
++
+ func downloadZip(mod module.Version, target string) error {
+ 	repo, err := Lookup(mod.Path)
+ 	if err != nil {
+diff --git a/src/cmd/go/internal/modfetch/repo.go b/src/cmd/go/internal/modfetch/repo.go
+index f6f47bb998..003479461c 100644
+--- a/src/cmd/go/internal/modfetch/repo.go
++++ b/src/cmd/go/internal/modfetch/repo.go
+@@ -55,9 +55,12 @@ type Repo interface {
+ // A Rev describes a single revision in a module repository.
+ type RevInfo struct {
+ 	Version string    // version string
+-	Name    string    // complete ID in underlying repository
+-	Short   string    // shortened ID, for use in pseudo-version
+ 	Time    time.Time // commit time
++
++	// These fields are used for Stat of arbitrary rev,
++	// but they are not recorded when talking about module versions.
++	Name  string `json:"-"` // complete ID in underlying repository
++	Short string `json:"-"` // shortened ID, for use in pseudo-version
+ }
+ 
+ // Re: module paths, import paths, repository roots, and lookups
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index b989af28da..5893db14aa 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -144,23 +144,25 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
+ 
+ 	complete(info)
+ 
+-	if r := Replacement(m); r.Path != "" {
+-		info.Replace = &modinfo.ModulePublic{
+-			Path:      r.Path,
+-			Version:   r.Version,
+-			GoVersion: info.GoVersion,
+-		}
+-		if r.Version == "" {
+-			if filepath.IsAbs(r.Path) {
+-				info.Replace.Dir = r.Path
+-			} else {
+-				info.Replace.Dir = filepath.Join(ModRoot, r.Path)
++	if fromBuildList {
++		if r := Replacement(m); r.Path != "" {
++			info.Replace = &modinfo.ModulePublic{
++				Path:      r.Path,
++				Version:   r.Version,
++				GoVersion: info.GoVersion,
++			}
++			if r.Version == "" {
++				if filepath.IsAbs(r.Path) {
++					info.Replace.Dir = r.Path
++				} else {
++					info.Replace.Dir = filepath.Join(ModRoot, r.Path)
++				}
+ 			}
++			complete(info.Replace)
++			info.Dir = info.Replace.Dir
++			info.GoMod = filepath.Join(info.Dir, "go.mod")
++			info.Error = nil // ignore error loading original module version (it has been replaced)
+ 		}
+-		complete(info.Replace)
+-		info.Dir = info.Replace.Dir
+-		info.GoMod = filepath.Join(info.Dir, "go.mod")
+-		info.Error = nil // ignore error loading original module version (it has been replaced)
+ 	}
+ 
+ 	return info
+diff --git a/src/cmd/go/testdata/script/mod_download.txt b/src/cmd/go/testdata/script/mod_download.txt
+new file mode 100644
+index 0000000000..ef931cfd30
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_download.txt
+@@ -0,0 +1,62 @@
++env GO111MODULE=on
++
++# download with version should print nothing
++go mod download rsc.io/quote@v1.5.0
++! stdout .
++
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.info
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.mod
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.zip
++
++# download -json with version should print JSON
++go mod download -json 'rsc.io/quote@<=v1.5.0'
++stdout '^\t"Path": "rsc.io/quote"'
++stdout '^\t"Version": "v1.5.0"'
++stdout '^\t"Info": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.0.info"'
++stdout '^\t"GoMod": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.0.mod"'
++stdout '^\t"Zip": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.0.zip"'
++! stdout '"Error"'
++
++# download queries above should not have added to go.mod.
++go list -m all
++! stdout rsc.io
++
++# add to go.mod so we can test non-query downloads
++go mod edit -require rsc.io/quote@v1.5.2
++! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
++! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
++! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
++
++# module loading will page in the info and mod files
++go list -m all
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
++! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
++
++# download will fetch and unpack the zip file
++go mod download
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.info
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
++exists $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
++
++go mod download -json
++stdout '^\t"Path": "rsc.io/quote"'
++stdout '^\t"Version": "v1.5.2"'
++stdout '^\t"Info": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.2.info"'
++stdout '^\t"GoMod": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.2.mod"'
++stdout '^\t"Zip": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)cache(\\\\|/)download(\\\\|/)rsc.io(\\\\|/)quote(\\\\|/)@v(\\\\|/)v1.5.2.zip"'
++stdout '^\t"Dir": ".*(\\\\|/)pkg(\\\\|/)mod(\\\\|/)rsc.io(\\\\|/)quote@v1.5.2"'
++
++# download will follow replacements
++go mod edit -require rsc.io/quote@v1.5.1 -replace rsc.io/quote@v1.5.1=rsc.io/quote@v1.5.3-pre1
++go mod download
++! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.1.zip
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.zip
++
++# download will not follow replacements for explicit module queries
++go mod download -json rsc.io/quote@v1.5.1
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.1.zip
++
++-- go.mod --
++module m

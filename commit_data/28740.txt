@@ -11,6 +11,19 @@ Date:   Fri Jul 8 11:42:19 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/syscall/exec_linux_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/syscall/exec_linux_test.go b/src/syscall/exec_linux_test.go
+index cb24c590f9..aaffa067bc 100644
+--- a/src/syscall/exec_linux_test.go
++++ b/src/syscall/exec_linux_test.go
+@@ -238,6 +238,7 @@ func TestGroupCleanupUserNamespace(t *testing.T) {
+ 		"uid=0(root) gid=0(root) groups=0(root)",
+ 		"uid=0(root) gid=0(root) groups=0(root),65534(nobody)",
+ 		"uid=0(root) gid=0(root) groups=0(root),65534(nogroup)",
++		"uid=0(root) gid=0(root) groups=0(root),65534",
+ 	}
+ 	for _, e := range expected {
+ 		if strOut == e {

@@ -14,7 +14,34 @@ Date:   Sun Aug 26 20:57:47 2012 +1000
     R=minux.ma
     CC=golang-dev
     https://golang.org/cl/6476068
-
+---
  src/pkg/runtime/sys_netbsd_386.s   | 2 +-
  src/pkg/runtime/sys_netbsd_amd64.s | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/sys_netbsd_386.s b/src/pkg/runtime/sys_netbsd_386.s
+index 8b5d201e6b..75a38f820e 100644
+--- a/src/pkg/runtime/sys_netbsd_386.s
++++ b/src/pkg/runtime/sys_netbsd_386.s
+@@ -164,7 +164,7 @@ TEXT runtime·sigaction(SB),7,$24
+ 	MOVSL				// arg 3 - oact
+ 	LEAL	runtime·sigreturn_tramp(SB), AX
+ 	STOSL				// arg 4 - tramp
+-	MOVL	$3, AX
++	MOVL	$2, AX
+ 	STOSL				// arg 5 - vers
+ 	MOVL	$340, AX		// sys___sigaction_sigtramp
+ 	INT	$0x80
+diff --git a/src/pkg/runtime/sys_netbsd_amd64.s b/src/pkg/runtime/sys_netbsd_amd64.s
+index b13800c47e..f5feb48418 100644
+--- a/src/pkg/runtime/sys_netbsd_amd64.s
++++ b/src/pkg/runtime/sys_netbsd_amd64.s
+@@ -183,7 +183,7 @@ TEXT runtime·sigaction(SB),7,$-8
+ 	MOVQ	24(SP), DX		// arg 3 - osa
+ 					// arg 4 - tramp
+ 	LEAQ	runtime·sigreturn_tramp(SB), R10
+-	MOVQ	$3, R8			// arg 5 - version
++	MOVQ	$2, R8			// arg 5 - vers
+ 	MOVL	$340, AX		// sys___sigaction_sigtramp
+ 	SYSCALL
+ 	JCC	2(PC)

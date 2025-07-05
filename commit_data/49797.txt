@@ -13,7 +13,36 @@ Date:   Thu Sep 9 18:41:30 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/predicates.go | 3 ---
  src/go/types/unify.go      | 3 ---
  2 files changed, 6 deletions(-)
+
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 73d240241e..9aa565b68a 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -302,9 +302,6 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 		// Two named types are identical if their type names originate
+ 		// in the same type declaration.
+ 		if y, ok := y.(*Named); ok {
+-			x.expand(nil)
+-			y.expand(nil)
+-
+ 			xargs := x.TypeArgs().list()
+ 			yargs := y.TypeArgs().list()
+ 
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index ed769aafe8..6d10f71a90 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -425,9 +425,6 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+ 
+ 	case *Named:
+ 		if y, ok := y.(*Named); ok {
+-			x.expand(nil)
+-			y.expand(nil)
+-
+ 			xargs := x.targs.list()
+ 			yargs := y.targs.list()
+ 

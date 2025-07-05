@@ -18,6 +18,20 @@ Date:   Thu Sep 4 00:54:37 2014 -0400
     R=golang-codereviews, dave, bradfitz
     CC=dvyukov, golang-codereviews, iant, khr, r
     https://golang.org/cl/134410043
-
+---
  src/pkg/runtime/traceback_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/traceback_windows.go b/src/pkg/runtime/traceback_windows.go
+index 892bed04ca..89dc1336e3 100644
+--- a/src/pkg/runtime/traceback_windows.go
++++ b/src/pkg/runtime/traceback_windows.go
+@@ -10,7 +10,7 @@ import "unsafe"
+ // The traceback needs to recognize it on link register architectures.
+ var sigtrampPC uintptr
+ 
+-var sigtramp struct{} // assembly function
++func sigtramp()
+ 
+ func init() {
+ 	sigtrampPC = funcPC(sigtramp)

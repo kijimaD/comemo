@@ -15,8 +15,62 @@ Date:   Mon Oct 12 17:19:49 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  test/fixedbugs/issue35739.dir/a.go | 15 +++++++++++++++
  test/fixedbugs/issue35739.dir/b.go | 11 +++++++++++
  test/fixedbugs/issue35739.go       |  9 +++++++++
  3 files changed, 35 insertions(+)
+
+diff --git a/test/fixedbugs/issue35739.dir/a.go b/test/fixedbugs/issue35739.dir/a.go
+new file mode 100644
+index 0000000000..b79503e996
+--- /dev/null
++++ b/test/fixedbugs/issue35739.dir/a.go
+@@ -0,0 +1,15 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type myError string
++
++func (e myError) Error() string { return string(e) }
++
++const myErrorVal myError = "error"
++
++func IsMyError(err error) bool {
++	return err == error(myErrorVal)
++}
+diff --git a/test/fixedbugs/issue35739.dir/b.go b/test/fixedbugs/issue35739.dir/b.go
+new file mode 100644
+index 0000000000..8d22aac8d6
+--- /dev/null
++++ b/test/fixedbugs/issue35739.dir/b.go
+@@ -0,0 +1,11 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++func F(err error) bool {
++	return a.IsMyError(err)
++}
+diff --git a/test/fixedbugs/issue35739.go b/test/fixedbugs/issue35739.go
+new file mode 100644
+index 0000000000..26f09d8c1b
+--- /dev/null
++++ b/test/fixedbugs/issue35739.go
+@@ -0,0 +1,9 @@
++// compiledir
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 35739: gccgo inlining error with constant with method.
++
++package ignored

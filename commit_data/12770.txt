@@ -9,6 +9,20 @@ Date:   Tue Mar 27 14:03:46 2012 +1100
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/5918045
-
+---
  doc/Makefile | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/Makefile b/doc/Makefile
+index 37deecab3e..03f341ac9a 100644
+--- a/doc/Makefile
++++ b/doc/Makefile
+@@ -8,7 +8,7 @@ RAWHTML=\
+ 	articles/slices_usage_and_internals.rawhtml\
+ 	articles/laws_of_reflection.rawhtml\
+ 	articles/c_go_cgo.rawhtml\
+-	articles/go_concurrency_patterns_timing_out_moving_on.rawhtml\
++	articles/concurrency_patterns.rawhtml\
+ 	articles/godoc_documenting_go_code.rawhtml\
+ 	articles/gobs_of_data.rawhtml\
+ 	articles/json_and_go.rawhtml\

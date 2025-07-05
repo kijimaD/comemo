@@ -25,10 +25,199 @@ Date:   Fri Dec 22 16:17:56 2017 -0500
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/doc/reader.go                                   |  6 +++---
  .../{issue18063.0.golden => issue22856.0.golden}       | 18 +++++++++---------
  .../{issue18063.1.golden => issue22856.1.golden}       | 18 +++++++++---------
  .../{issue18063.2.golden => issue22856.2.golden}       | 18 +++++++++---------
  src/go/doc/testdata/{issue18063.go => issue22856.go}   | 12 +++---------
  5 files changed, 33 insertions(+), 39 deletions(-)
+
+diff --git a/src/go/doc/reader.go b/src/go/doc/reader.go
+index 5d6f6e8fb0..05c3786ef6 100644
+--- a/src/go/doc/reader.go
++++ b/src/go/doc/reader.go
+@@ -399,9 +399,9 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
+ 			// with the first type in result signature (there may
+ 			// be more than one result)
+ 			factoryType := res.Type
+-			if t, ok := factoryType.(*ast.ArrayType); ok && t.Len == nil {
+-				// We consider functions that return slices of type T (or
+-				// pointers to T) as factory functions of T.
++			if t, ok := factoryType.(*ast.ArrayType); ok {
++				// We consider functions that return slices or arrays of type
++				// T (or pointers to T) as factory functions of T.
+ 				factoryType = t.Elt
+ 			}
+ 			if n, imp := baseTypeName(factoryType); !imp && r.isVisible(n) {
+diff --git a/src/go/doc/testdata/issue18063.0.golden b/src/go/doc/testdata/issue22856.0.golden
+similarity index 73%
+rename from src/go/doc/testdata/issue18063.0.golden
+rename to src/go/doc/testdata/issue22856.0.golden
+index 0afbc169c2..a88f43f4bd 100644
+--- a/src/go/doc/testdata/issue18063.0.golden
++++ b/src/go/doc/testdata/issue22856.0.golden
+@@ -1,19 +1,13 @@
+ // 
+-PACKAGE issue18063
++PACKAGE issue22856
+ 
+ IMPORTPATH
+-	testdata/issue18063
++	testdata/issue22856
+ 
+ FILENAMES
+-	testdata/issue18063.go
++	testdata/issue22856.go
+ 
+ FUNCTIONS
+-	// NewArray is not a factory function because arrays of type T are ...
+-	func NewArray() [1]T
+-
+-	// NewPointerArray is not a factory function because arrays of ...
+-	func NewPointerArray() [1]*T
+-
+ 	// NewPointerSliceOfSlice is not a factory function because slices ...
+ 	func NewPointerSliceOfSlice() [][]*T
+ 
+@@ -31,9 +25,15 @@ TYPES
+ 	// 
+ 	func New() T
+ 
++	// 
++	func NewArray() [1]T
++
+ 	// 
+ 	func NewPointer() *T
+ 
++	// 
++	func NewPointerArray() [1]*T
++
+ 	// 
+ 	func NewPointerOfPointer() **T
+ 
+diff --git a/src/go/doc/testdata/issue18063.1.golden b/src/go/doc/testdata/issue22856.1.golden
+similarity index 73%
+rename from src/go/doc/testdata/issue18063.1.golden
+rename to src/go/doc/testdata/issue22856.1.golden
+index 0afbc169c2..a88f43f4bd 100644
+--- a/src/go/doc/testdata/issue18063.1.golden
++++ b/src/go/doc/testdata/issue22856.1.golden
+@@ -1,19 +1,13 @@
+ // 
+-PACKAGE issue18063
++PACKAGE issue22856
+ 
+ IMPORTPATH
+-	testdata/issue18063
++	testdata/issue22856
+ 
+ FILENAMES
+-	testdata/issue18063.go
++	testdata/issue22856.go
+ 
+ FUNCTIONS
+-	// NewArray is not a factory function because arrays of type T are ...
+-	func NewArray() [1]T
+-
+-	// NewPointerArray is not a factory function because arrays of ...
+-	func NewPointerArray() [1]*T
+-
+ 	// NewPointerSliceOfSlice is not a factory function because slices ...
+ 	func NewPointerSliceOfSlice() [][]*T
+ 
+@@ -31,9 +25,15 @@ TYPES
+ 	// 
+ 	func New() T
+ 
++	// 
++	func NewArray() [1]T
++
+ 	// 
+ 	func NewPointer() *T
+ 
++	// 
++	func NewPointerArray() [1]*T
++
+ 	// 
+ 	func NewPointerOfPointer() **T
+ 
+diff --git a/src/go/doc/testdata/issue18063.2.golden b/src/go/doc/testdata/issue22856.2.golden
+similarity index 73%
+rename from src/go/doc/testdata/issue18063.2.golden
+rename to src/go/doc/testdata/issue22856.2.golden
+index 0afbc169c2..a88f43f4bd 100644
+--- a/src/go/doc/testdata/issue18063.2.golden
++++ b/src/go/doc/testdata/issue22856.2.golden
+@@ -1,19 +1,13 @@
+ // 
+-PACKAGE issue18063
++PACKAGE issue22856
+ 
+ IMPORTPATH
+-	testdata/issue18063
++	testdata/issue22856
+ 
+ FILENAMES
+-	testdata/issue18063.go
++	testdata/issue22856.go
+ 
+ FUNCTIONS
+-	// NewArray is not a factory function because arrays of type T are ...
+-	func NewArray() [1]T
+-
+-	// NewPointerArray is not a factory function because arrays of ...
+-	func NewPointerArray() [1]*T
+-
+ 	// NewPointerSliceOfSlice is not a factory function because slices ...
+ 	func NewPointerSliceOfSlice() [][]*T
+ 
+@@ -31,9 +25,15 @@ TYPES
+ 	// 
+ 	func New() T
+ 
++	// 
++	func NewArray() [1]T
++
+ 	// 
+ 	func NewPointer() *T
+ 
++	// 
++	func NewPointerArray() [1]*T
++
+ 	// 
+ 	func NewPointerOfPointer() **T
+ 
+diff --git a/src/go/doc/testdata/issue18063.go b/src/go/doc/testdata/issue22856.go
+similarity index 74%
+rename from src/go/doc/testdata/issue18063.go
+rename to src/go/doc/testdata/issue22856.go
+index 1193af51e7..f4569981aa 100644
+--- a/src/go/doc/testdata/issue18063.go
++++ b/src/go/doc/testdata/issue22856.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package issue18063
++package issue22856
+ 
+ type T struct{}
+ 
+@@ -11,14 +11,8 @@ func NewPointer() *T           { return &T{} }
+ func NewPointerSlice() []*T    { return []*T{&T{}} }
+ func NewSlice() []T            { return []T{T{}} }
+ func NewPointerOfPointer() **T { x := &T{}; return &x }
+-
+-// NewArray is not a factory function because arrays of type T are not
+-// factory functions of type T.
+-func NewArray() [1]T { return [1]T{T{}} }
+-
+-// NewPointerArray is not a factory function because arrays of type *T are not
+-// factory functions of type T.
+-func NewPointerArray() [1]*T { return [1]*T{&T{}} }
++func NewArray() [1]T           { return [1]T{T{}} }
++func NewPointerArray() [1]*T   { return [1]*T{&T{}} }
+ 
+ // NewSliceOfSlice is not a factory function because slices of a slice of
+ // type *T are not factory functions of type T.

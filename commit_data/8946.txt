@@ -9,6 +9,20 @@ Date:   Wed Jul 6 00:02:03 2011 +0200
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/4675052
-
+---
  src/cmd/gc/subr.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 7c472147a2..40b0c4fd15 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1124,7 +1124,7 @@ Sconv(Fmt *fp)
+ 		return 0;
+ 	}
+ 
+-	if(s->pkg != localpkg || longsymnames || (fp->flags & FmtLong)) {
++	if(s->pkg && s->pkg != localpkg || longsymnames || (fp->flags & FmtLong)) {
+ 		// This one is for the user.  If the package name
+ 		// was used by multiple packages, give the full
+ 		// import path to disambiguate.

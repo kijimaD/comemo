@@ -8,7 +8,67 @@ Date:   Wed Oct 14 22:09:47 2020 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/262444
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/syntax/printer.go      | 10 +++++++++-
  src/cmd/compile/internal/syntax/printer_test.go | 26 ++++++++++++++++++++-----
  2 files changed, 30 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/printer.go b/src/cmd/compile/internal/syntax/printer.go
+index 8ff3bfa794..c8bf59675a 100644
+--- a/src/cmd/compile/internal/syntax/printer.go
++++ b/src/cmd/compile/internal/syntax/printer.go
+@@ -484,7 +484,15 @@ func (p *printer) printRawNode(n Node) {
+ 		if n.Dir == SendOnly {
+ 			p.print(_Arrow)
+ 		}
+-		p.print(blank, n.Elem)
++		p.print(blank)
++		if e, _ := n.Elem.(*ChanType); n.Dir == 0 && e != nil && e.Dir == RecvOnly {
++			// don't print chan (<-chan T) as chan <-chan T
++			p.print(_Lparen)
++			p.print(n.Elem)
++			p.print(_Rparen)
++		} else {
++			p.print(n.Elem)
++		}
+ 
+ 	// statements
+ 	case *DeclStmt:
+diff --git a/src/cmd/compile/internal/syntax/printer_test.go b/src/cmd/compile/internal/syntax/printer_test.go
+index c3b9aca229..cae2c40f6c 100644
+--- a/src/cmd/compile/internal/syntax/printer_test.go
++++ b/src/cmd/compile/internal/syntax/printer_test.go
+@@ -30,12 +30,28 @@ func TestPrint(t *testing.T) {
+ 	}
+ }
+ 
++var stringTests = []string{
++	"package p",
++	"package p; type _ int; type T1 = struct{}; type ( _ *struct{}; T2 = float32 )",
++
++	// channels
++	"package p; type _ chan chan int",
++	"package p; type _ chan (<-chan int)",
++	"package p; type _ chan chan<- int",
++
++	"package p; type _ <-chan chan int",
++	"package p; type _ <-chan <-chan int",
++	"package p; type _ <-chan chan<- int",
++
++	"package p; type _ chan<- chan int",
++	"package p; type _ chan<- <-chan int",
++	"package p; type _ chan<- chan<- int",
++
++	// TODO(gri) expand
++}
++
+ func TestPrintString(t *testing.T) {
+-	for _, want := range []string{
+-		"package p",
+-		"package p; type _ = int; type T1 = struct{}; type ( _ = *struct{}; T2 = float32 )",
+-		// TODO(gri) expand
+-	} {
++	for _, want := range stringTests {
+ 		ast, err := Parse(nil, strings.NewReader(want), nil, nil, 0)
+ 		if err != nil {
+ 			t.Error(err)

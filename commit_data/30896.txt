@@ -9,6 +9,23 @@ Date:   Thu Dec 15 17:46:44 2016 +0100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  test/fixedbugs/issue11656.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/fixedbugs/issue11656.go b/test/fixedbugs/issue11656.go
+index e0ef097600..c04a66202b 100644
+--- a/test/fixedbugs/issue11656.go
++++ b/test/fixedbugs/issue11656.go
+@@ -61,9 +61,9 @@ func f(n int) {
+ 		binary.BigEndian.PutUint32(ill, 0x7fe00008) // trap
+ 	case "ppc64le":
+ 		binary.LittleEndian.PutUint32(ill, 0x7fe00008) // trap
+-	case "mips64":
++	case "mips", "mips64":
+ 		binary.BigEndian.PutUint32(ill, 0x00000034) // trap
+-	case "mips64le":
++	case "mipsle", "mips64le":
+ 		binary.LittleEndian.PutUint32(ill, 0x00000034) // trap
+ 	case "s390x":
+ 		binary.BigEndian.PutUint32(ill, 0) // undefined instruction

@@ -9,6 +9,38 @@ Date:   Thu Jul 16 20:31:41 2009 -0700
     DELTA=4  (2 added, 0 deleted, 2 changed)
     OCL=31751
     CL=31756
-
+---
  doc/go_spec.html | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index ef86dda2cf..372f91ac76 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -14,6 +14,8 @@ Todo's:
+ 	a T struct { a b int }.
+ [ ] should probably write something about evaluation order of statements even
+ 	though obvious
++[ ] specify iteration direction for range clause
++[ ] review language on implicit dereferencing
+ [ ] document T.m mechanism to obtain a function from a method
+ -->
+ 
+@@ -1545,7 +1547,7 @@ var f = 3.1415  // f has type float
+ A <i>short variable declaration</i> uses the syntax
+ 
+ <pre class="ebnf">
+-SimpleVarDecl = IdentifierList ":=" ExpressionList .
++ShortVarDecl = IdentifierList ":=" ExpressionList .
+ </pre>
+ 
+ and is shorthand for the declaration syntax
+@@ -3008,7 +3010,7 @@ Statement =
+ 	FallthroughStmt | Block | IfStmt | SwitchStmt | SelectStmt | ForStmt |
+ 	DeferStmt .
+ 
+-SimpleStmt = ExpressionStmt | IncDecStmt | Assignment | SimpleVarDecl .
++SimpleStmt = ExpressionStmt | IncDecStmt | Assignment | ShortVarDecl .
+ 
+ StatementList = Statement { Separator Statement } .
+ Separator     = [ ";" ] .

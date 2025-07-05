@@ -17,6 +17,20 @@ Date:   Tue May 23 02:52:55 2023 +0000
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/go/internal/modfetch/coderepo.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index 50f4bb2b37..8fe432a9f5 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -1013,7 +1013,7 @@ func (r *codeRepo) retractedVersions(ctx context.Context) (func(string) bool, er
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	retractions := make([]modfile.VersionInterval, len(f.Retract))
++	retractions := make([]modfile.VersionInterval, 0, len(f.Retract))
+ 	for _, r := range f.Retract {
+ 		retractions = append(retractions, r.VersionInterval)
+ 	}

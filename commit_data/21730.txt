@@ -9,7 +9,16 @@ Date:   Tue Jan 27 19:50:00 2015 +1100
     Change-Id: I50c971418b07cafc983242833a196ba2028a2723
     Reviewed-on: https://go-review.googlesource.com/3603
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/logo-153x55.png | Bin 3382 -> 0 bytes
  doc/sieve.gif       | Bin 11019 -> 0 bytes
  2 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/doc/logo-153x55.png b/doc/logo-153x55.png
+deleted file mode 100644
+index 8ec22aa6dd..0000000000
+Binary files a/doc/logo-153x55.png and /dev/null differ
+diff --git a/doc/sieve.gif b/doc/sieve.gif
+deleted file mode 100644
+index 8018ae225e..0000000000
+Binary files a/doc/sieve.gif and /dev/null differ

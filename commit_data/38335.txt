@@ -9,6 +9,20 @@ Date:   Mon Oct 22 11:21:38 2018 -0700
     Change-Id: Ia5a08f1acd9f37c466829754990733330264f546
     Reviewed-on: https://go-review.googlesource.com/c/143758
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/walk.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 29d9abd702..9ec6f8286e 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -2895,7 +2895,7 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
+ 	ls := n.List.Slice()[1:]
+ 	for i, n := range ls {
+ 		n = cheapexpr(n, init)
+-		if !eqtype(n.Type, nsrc.Type.Elem()) {
++		if !types.Identical(n.Type, nsrc.Type.Elem()) {
+ 			n = assignconv(n, nsrc.Type.Elem(), "append")
+ 			n = walkexpr(n, init)
+ 		}

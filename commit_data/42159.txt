@@ -14,6 +14,25 @@ Date:   Mon Nov 11 16:30:35 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/206557
     Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/dwarf_test.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/cmd/link/dwarf_test.go b/src/cmd/link/dwarf_test.go
+index f33082e7f7..db9f384e7f 100644
+--- a/src/cmd/link/dwarf_test.go
++++ b/src/cmd/link/dwarf_test.go
+@@ -139,6 +139,13 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string)
+ 				}
+ 			}
+ 
++			// Until there is a fix for issue 35512, don't try to use
++			// SeekPC or look at the line table on Windows under
++			// c-archive build mode.
++			if buildmode == "c-archive" && runtime.GOOS == "windows" {
++				t.Skip("avoiding SeekPC until 35512 fixed")
++			}
++
+ 			// TODO: We'd like to use filepath.Join here.
+ 			// Also related: golang.org/issue/19784.
+ 			wantFile := path.Join(prog, "main.go")

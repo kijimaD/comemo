@@ -9,7 +9,7 @@ Date:   Mon Aug 17 22:03:13 2009 -0700
     DELTA=204  (204 added, 0 deleted, 0 changed)
     OCL=33437
     CL=33440
-
+---
  src/pkg/Make.deps                    |   1 +
  src/pkg/Makefile                     |   2 +
  src/pkg/compress/gzip/gunzip.go      |   1 +
@@ -17,3 +17,266 @@ Date:   Mon Aug 17 22:03:13 2009 -0700
  src/pkg/compress/zlib/reader.go      |  87 ++++++++++++++++++++++++++++++
  src/pkg/compress/zlib/reader_test.go | 102 +++++++++++++++++++++++++++++++++++
  6 files changed, 204 insertions(+)
+
+diff --git a/src/pkg/Make.deps b/src/pkg/Make.deps
+index 25dd17093a..b600bcb467 100644
+--- a/src/pkg/Make.deps
++++ b/src/pkg/Make.deps
+@@ -6,6 +6,7 @@ bufio.install: io.install os.install strconv.install utf8.install
+ bytes.install: os.install utf8.install
+ compress/flate.install: bufio.install io.install os.install strconv.install
+ compress/gzip.install: bufio.install compress/flate.install hash.install hash/crc32.install io.install os.install
++compress/zlib.install: bufio.install compress/flate.install hash.install hash/adler32.install io.install os.install
+ container/list.install:
+ container/ring.install:
+ container/vector.install:
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index e6fdb06bd2..6aecc9c52a 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -20,6 +20,7 @@ DIRS=\
+ 	bytes\
+ 	compress/flate\
+ 	compress/gzip\
++	compress/zlib\
+ 	container/list\
+ 	container/ring\
+ 	container/vector\
+@@ -81,6 +82,7 @@ TEST=\
+ 	bytes\
+ 	compress/flate\
+ 	compress/gzip\
++	compress/zlib\
+ 	container/list\
+ 	container/ring\
+ 	container/vector\
+diff --git a/src/pkg/compress/gzip/gunzip.go b/src/pkg/compress/gzip/gunzip.go
+index f4accf1a82..4455561fee 100644
+--- a/src/pkg/compress/gzip/gunzip.go
++++ b/src/pkg/compress/gzip/gunzip.go
+@@ -84,6 +84,7 @@ func NewGzipInflater(r io.Reader) (*GzipInflater, os.Error) {
+ 	return z, nil;
+ }
+ 
++// GZIP (RFC 1952) is little-endian, unlike ZLIB (RFC 1950).
+ func get4(p []byte) uint32 {
+ 	return uint32(p[0]) | uint32(p[1])<<8 | uint32(p[2])<<16 | uint32(p[3])<<24;
+ }
+diff --git a/src/pkg/compress/zlib/Makefile b/src/pkg/compress/zlib/Makefile
+new file mode 100644
+index 0000000000..20f0e8aa1a
+--- /dev/null
++++ b/src/pkg/compress/zlib/Makefile
+@@ -0,0 +1,11 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include $(GOROOT)/src/Make.$(GOARCH)
++
++TARG=compress/zlib
++GOFILES=\
++	reader.go\
++
++include $(GOROOT)/src/Make.pkg
+diff --git a/src/pkg/compress/zlib/reader.go b/src/pkg/compress/zlib/reader.go
+new file mode 100644
+index 0000000000..a407aa8916
+--- /dev/null
++++ b/src/pkg/compress/zlib/reader.go
+@@ -0,0 +1,87 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The zlib package implements reading (and eventually writing) of
++// zlib format compressed files, as specified in RFC 1950.
++package zlib
++
++import (
++	"bufio";
++	"compress/flate";
++	"hash";
++	"hash/adler32";
++	"io";
++	"os";
++)
++
++const zlibDeflate = 8
++
++var ChecksumError os.Error = os.ErrorString("zlib checksum error")
++var HeaderError os.Error = os.ErrorString("invalid zlib header")
++var UnsupportedError os.Error = os.ErrorString("unsupported zlib format")
++
++type reader struct {
++	r flate.Reader;
++	inflater io.Reader;
++	digest hash.Hash32;
++	err os.Error;
++}
++
++// NewZlibInflater creates a new io.Reader that satisfies reads by decompressing data read from r.
++// The implementation buffers input and may read more data than necessary from r.
++func NewZlibInflater(r io.Reader) (io.Reader, os.Error) {
++	z := new(reader);
++	if fr, ok := r.(flate.Reader); ok {
++		z.r = fr;
++	} else {
++		z.r = bufio.NewReader(r);
++	}
++	var buf [2]byte;
++	n, err := io.ReadFull(z.r, buf[0:2]);
++	if err != nil {
++		return nil, err;
++	}
++	h := uint(buf[0])<<8 | uint(buf[1]);
++	if (buf[0] & 0x0f != zlibDeflate) || (h % 31 != 0) {
++		return nil, HeaderError;
++	}
++	if buf[1] & 0x20 != 0 {
++		// BUG(nigeltao): The zlib package does not implement the FDICT flag.
++		return nil, UnsupportedError;
++	}
++	z.digest = adler32.New();
++	z.inflater = flate.NewInflater(z.r);
++	return z, nil;
++}
++
++func (z *reader) Read(p []byte) (n int, err os.Error) {
++	if z.err != nil {
++		return 0, z.err;
++	}
++	if len(p) == 0 {
++		return 0, nil;
++	}
++
++	n, err = z.inflater.Read(p);
++	z.digest.Write(p[0:n]);
++	if n != 0 || err != os.EOF {
++		z.err = err;
++		return;
++	}
++
++	// Finished file; check checksum.
++	var buf [4]byte;
++	if _, err := io.ReadFull(z.r, buf[0:4]); err != nil {
++		z.err = err;
++		return 0, err;
++	}
++	// ZLIB (RFC 1950) is big-endian, unlike GZIP (RFC 1952).
++	checksum := uint32(buf[0])<<24 | uint32(buf[1])<<16 | uint32(buf[2])<<8 | uint32(buf[3]);
++	if checksum != z.digest.Sum32() {
++		z.err = ChecksumError;
++		return 0, z.err;
++	}
++	return;
++}
++
+diff --git a/src/pkg/compress/zlib/reader_test.go b/src/pkg/compress/zlib/reader_test.go
+new file mode 100644
+index 0000000000..f178cb5f0e
+--- /dev/null
++++ b/src/pkg/compress/zlib/reader_test.go
+@@ -0,0 +1,102 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package zlib
++
++import (
++	"bytes";
++	"io";
++	"os";
++	"testing";
++)
++
++type zlibTest struct {
++	desc string;
++	raw string;
++	compressed []byte;
++	err os.Error;
++}
++
++// Compare-to-golden test data was generated by the ZLIB example program at
++// http://www.zlib.net/zpipe.c
++
++var zlibTests = []zlibTest {
++	zlibTest {
++		"empty",
++		"",
++		[]byte {
++			0x78, 0x9c, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01,
++		},
++		nil
++	},
++	zlibTest {
++		"goodbye",
++		"goodbye, world",
++		[]byte {
++			0x78, 0x9c, 0x4b, 0xcf, 0xcf, 0x4f, 0x49, 0xaa,
++			0x4c, 0xd5, 0x51, 0x28, 0xcf, 0x2f, 0xca, 0x49,
++			0x01, 0x00, 0x28, 0xa5, 0x05, 0x5e,
++		},
++		nil
++	},
++	zlibTest {
++		"bad header",
++		"",
++		[]byte {
++			0x78, 0x9f, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01,
++		},
++		HeaderError
++	},
++	zlibTest {
++		"bad checksum",
++		"",
++		[]byte {
++			0x78, 0x9c, 0x03, 0x00, 0x00, 0x00, 0x00, 0xff,
++		},
++		ChecksumError,
++	},
++	zlibTest {
++		"not enough data",
++		"",
++		[]byte {
++			0x78, 0x9c, 0x03, 0x00, 0x00, 0x00,
++		},
++		io.ErrUnexpectedEOF,
++	},
++	zlibTest {
++		"excess data is silently ignored",
++		"",
++		[]byte {
++			0x78, 0x9c, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01,
++			0x78, 0x9c, 0xff,
++		},
++		nil,
++	},
++}
++
++func TestZlibInflater(t *testing.T) {
++	b := new(bytes.Buffer);
++	for i, tt := range zlibTests {
++		in := io.NewByteReader(tt.compressed);
++		zlib, err := NewZlibInflater(in);
++		if err != nil {
++			if err != tt.err {
++				t.Errorf("%s: NewZlibInflater: %s", tt.desc, err);
++			}
++			continue;
++		}
++		b.Reset();
++		n, err := io.Copy(zlib, b);
++		if err != nil {
++			if err != tt.err {
++				t.Errorf("%s: io.Copy: %v want %v", tt.desc, err, tt.err);
++			}
++			continue;
++		}
++		s := string(b.Data());
++		if s != tt.raw {
++			t.Errorf("%s: got %d-byte %q want %d-byte %q", tt.desc, n, s, len(tt.raw), tt.raw);
++		}
++	}
++}

@@ -10,6 +10,21 @@ Date:   Fri Sep 8 14:38:10 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/62291
     Reviewed-by: Giovanni Bajo <rasky@develer.com>
     Reviewed-by: Chris Broadfoot <cbro@golang.org>
-
+---
  doc/install-source.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/install-source.html b/doc/install-source.html
+index 5a9c84c22b..8275bb8854 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -148,7 +148,8 @@ which contains the Go 1.4 source code plus accumulated fixes
+ to keep the tools running on newer operating systems.
+ (Go 1.4 was the last distribution in which the tool chain was written in C.)
+ After unpacking the Go 1.4 source, <code>cd</code> to
+-the <code>src</code> subdirectory and run <code>make.bash</code> (or,
++the <code>src</code> subdirectory, set <code>CGO_ENABLED=0</code> in
++the environment, and run <code>make.bash</code> (or,
+ on Windows, <code>make.bat</code>).
+ </p>
+ 

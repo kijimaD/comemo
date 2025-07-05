@@ -10,6 +10,25 @@ Date:   Sat Apr 6 22:27:54 2013 -0700
     R=golang-dev, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/8459043
-
+---
  src/pkg/runtime/proc.c | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 0a131871f3..018a453d62 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -875,6 +875,13 @@ handoffp(P *p)
+ 		startm(p, false);
+ 		return;
+ 	}
++	// If this is the last running P and nobody is polling network,
++	// need to wakeup another M to poll network.
++	if(runtime·sched.npidle == runtime·gomaxprocs-1 && runtime·atomicload64(&runtime·sched.lastpoll) != 0) {
++		runtime·unlock(&runtime·sched);
++		startm(p, false);
++		return;
++	}
+ 	pidleput(p);
+ 	runtime·unlock(&runtime·sched);
+ }

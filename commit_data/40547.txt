@@ -10,6 +10,22 @@ Date:   Fri May 24 15:04:28 2019 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/160417
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/image/draw/draw.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/image/draw/draw.go b/src/image/draw/draw.go
+index 3ff1828dc0..932a544483 100644
+--- a/src/image/draw/draw.go
++++ b/src/image/draw/draw.go
+@@ -90,8 +90,8 @@ func clip(dst Image, r *image.Rectangle, src image.Image, sp *image.Point, mask
+ 	}
+ }
+ 
+-func processBackward(dst Image, r image.Rectangle, src image.Image, sp image.Point) bool {
+-	return image.Image(dst) == src &&
++func processBackward(dst image.Image, r image.Rectangle, src image.Image, sp image.Point) bool {
++	return dst == src &&
+ 		r.Overlaps(r.Add(sp.Sub(r.Min))) &&
+ 		(sp.Y < r.Min.Y || (sp.Y == r.Min.Y && sp.X < r.Min.X))
+ }

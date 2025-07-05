@@ -32,7 +32,7 @@ Date:   Fri Mar 4 13:24:04 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/HACKING.md     |  3 +++
  src/runtime/map.go         | 18 +++++++++---------
  src/runtime/map_fast32.go  | 16 ++++++++--------
@@ -44,3 +44,468 @@ Date:   Fri Mar 4 13:24:04 2022 -0500
  src/sync/mutex.go          |  6 ++++--
  src/sync/rwmutex.go        |  4 ++--
  10 files changed, 76 insertions(+), 46 deletions(-)
+
+diff --git a/src/runtime/HACKING.md b/src/runtime/HACKING.md
+index 61755241c5..d3d00ae06c 100644
+--- a/src/runtime/HACKING.md
++++ b/src/runtime/HACKING.md
+@@ -90,6 +90,9 @@ avoid allocating in perilous situations. By convention, additional
+ details are printed before `throw` using `print` or `println` and the
+ messages are prefixed with "runtime:".
+ 
++For unrecoverable errors where user code is expected to be at fault for the
++failure (such as racing map writes), use `fatal`.
++
+ For runtime error debugging, it's useful to run with
+ `GOTRACEBACK=system` or `GOTRACEBACK=crash`.
+ 
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index 2e513e2d52..65be4727fd 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -412,7 +412,7 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+ 		return unsafe.Pointer(&zeroVal[0])
+ 	}
+ 	if h.flags&hashWriting != 0 {
+-		throw("concurrent map read and map write")
++		fatal("concurrent map read and map write")
+ 	}
+ 	hash := t.hasher(key, uintptr(h.hash0))
+ 	m := bucketMask(h.B)
+@@ -473,7 +473,7 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool)
+ 		return unsafe.Pointer(&zeroVal[0]), false
+ 	}
+ 	if h.flags&hashWriting != 0 {
+-		throw("concurrent map read and map write")
++		fatal("concurrent map read and map write")
+ 	}
+ 	hash := t.hasher(key, uintptr(h.hash0))
+ 	m := bucketMask(h.B)
+@@ -592,7 +592,7 @@ func mapassign(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+ 		asanread(key, t.key.size)
+ 	}
+ 	if h.flags&hashWriting != 0 {
+-		throw("concurrent map writes")
++		fatal("concurrent map writes")
+ 	}
+ 	hash := t.hasher(key, uintptr(h.hash0))
+ 
+@@ -683,7 +683,7 @@ bucketloop:
+ 
+ done:
+ 	if h.flags&hashWriting == 0 {
+-		throw("concurrent map writes")
++		fatal("concurrent map writes")
+ 	}
+ 	h.flags &^= hashWriting
+ 	if t.indirectelem() {
+@@ -712,7 +712,7 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
+ 		return
+ 	}
+ 	if h.flags&hashWriting != 0 {
+-		throw("concurrent map writes")
++		fatal("concurrent map writes")
+ 	}
+ 
+ 	hash := t.hasher(key, uintptr(h.hash0))
+@@ -803,7 +803,7 @@ search:
+ 	}
+ 
+ 	if h.flags&hashWriting == 0 {
+-		throw("concurrent map writes")
++		fatal("concurrent map writes")
+ 	}
+ 	h.flags &^= hashWriting
+ }
+@@ -870,7 +870,7 @@ func mapiternext(it *hiter) {
+ 		racereadpc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapiternext))
+ 	}
+ 	if h.flags&hashWriting != 0 {
+-		throw("concurrent map iteration and map write")
++		fatal("concurrent map iteration and map write")
+ 	}
+ 	t := it.t
+ 	bucket := it.bucket
+@@ -1002,7 +1002,7 @@ func mapclear(t *maptype, h *hmap) {
+ 	}
+ 
+ 	if h.flags&hashWriting != 0 {
+-		throw("concurrent map writes")
++		fatal("concurrent map writes")
+ 	}
+ 
+ 	h.flags ^= hashWriting
+@@ -1033,7 +1033,7 @@ func mapclear(t *maptype, h *hmap) {
+ 	}
+ 
+ 	if h.flags&hashWriting == 0 {
+-		throw("concurrent map writes")
++		fatal("concurrent map writes")
+ 	}
+ 	h.flags &^= hashWriting
+ }
+diff --git a/src/runtime/map_fast32.go b/src/runtime/map_fast32.go
+index e80caeef55..01ea330950 100644
+--- a/src/runtime/map_fast32.go
++++ b/src/runtime/map_fast32.go
+@@ -19,7 +19,7 @@ func mapaccess1_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
+ 		return unsafe.Pointer(&zeroVal[0])
+ 	}
+ 	if h.flags&hashWriting != 0 {
+-		throw("concurrent map read and map write")
++		fatal("concurrent map read and map write")
+ 	}
+ 	var b *bmap
+ 	if h.B == 0 {
+@@ -59,7 +59,7 @@ func mapaccess2_fast32(t *maptype, h *hmap, key uint32) (unsafe.Pointer, bool) {
+ 		return unsafe.Pointer(&zeroVal[0]), false
+ 	}
+ 	if h.flags&hashWriting != 0 {
+-		throw("concurrent map read and map write")
++		fatal("concurrent map read and map write")
+ 	}
+ 	var b *bmap
+ 	if h.B == 0 {
+@@ -99,7 +99,7 @@ func mapassign_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
+ 		racewritepc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapassign_fast32))
+ 	}
+ 	if h.flags&hashWriting != 0 {
+-		throw("concurrent map writes")
++		fatal("concurrent map writes")
+ 	}
+ 	hash := t.hasher(noescape(unsafe.Pointer(&key)), uintptr(h.hash0))
+ 
+@@ -174,7 +174,7 @@ bucketloop:
+ done:
+ 	elem := add(unsafe.Pointer(insertb), dataOffset+bucketCnt*4+inserti*uintptr(t.elemsize))
+ 	if h.flags&hashWriting == 0 {
+-		throw("concurrent map writes")
++		fatal("concurrent map writes")
+ 	}
+ 	h.flags &^= hashWriting
+ 	return elem
+@@ -189,7 +189,7 @@ func mapassign_fast32ptr(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer
+ 		racewritepc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapassign_fast32))
+ 	}
+ 	if h.flags&hashWriting != 0 {
+-		throw("concurrent map writes")
++		fatal("concurrent map writes")
+ 	}
+ 	hash := t.hasher(noescape(unsafe.Pointer(&key)), uintptr(h.hash0))
+ 
+@@ -264,7 +264,7 @@ bucketloop:
+ done:
+ 	elem := add(unsafe.Pointer(insertb), dataOffset+bucketCnt*4+inserti*uintptr(t.elemsize))
+ 	if h.flags&hashWriting == 0 {
+-		throw("concurrent map writes")
++		fatal("concurrent map writes")
+ 	}
+ 	h.flags &^= hashWriting
+ 	return elem
+@@ -279,7 +279,7 @@ func mapdelete_fast32(t *maptype, h *hmap, key uint32) {
+ 		return
+ 	}
+ 	if h.flags&hashWriting != 0 {
+-		throw("concurrent map writes")
++		fatal("concurrent map writes")
+ 	}
+ 
+ 	hash := t.hasher(noescape(unsafe.Pointer(&key)), uintptr(h.hash0))
+@@ -355,7 +355,7 @@ search:
+ 	}
+ 
+ 	if h.flags&hashWriting == 0 {
+-		throw("concurrent map writes")
++		fatal("concurrent map writes")
+ 	}
+ 	h.flags &^= hashWriting
+ }
+diff --git a/src/runtime/map_fast64.go b/src/runtime/map_fast64.go
+index 69d8872885..2967360b76 100644
+--- a/src/runtime/map_fast64.go
++++ b/src/runtime/map_fast64.go
+@@ -19,7 +19,7 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
+ 		return unsafe.Pointer(&zeroVal[0])
+ 	}
+ 	if h.flags&hashWriting != 0 {
+-		throw("concurrent map read and map write")
++		fatal("concurrent map read and map write")
+ 	}
+ 	var b *bmap
+ 	if h.B == 0 {
+@@ -59,7 +59,7 @@ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
+ 		return unsafe.Pointer(&zeroVal[0]), false
+ 	}
+ 	if h.flags&hashWriting != 0 {
+-		throw("concurrent map read and map write")
++		fatal("concurrent map read and map write")
+ 	}
+ 	var b *bmap
+ 	if h.B == 0 {
+@@ -99,7 +99,7 @@ func mapassign_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
+ 		racewritepc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapassign_fast64))
+ 	}
+ 	if h.flags&hashWriting != 0 {
+-		throw("concurrent map writes")
++		fatal("concurrent map writes")
+ 	}
+ 	hash := t.hasher(noescape(unsafe.Pointer(&key)), uintptr(h.hash0))
+ 
+@@ -174,7 +174,7 @@ bucketloop:
+ done:
+ 	elem := add(unsafe.Pointer(insertb), dataOffset+bucketCnt*8+inserti*uintptr(t.elemsize))
+ 	if h.flags&hashWriting == 0 {
+-		throw("concurrent map writes")
++		fatal("concurrent map writes")
+ 	}
+ 	h.flags &^= hashWriting
+ 	return elem
+@@ -189,7 +189,7 @@ func mapassign_fast64ptr(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer
+ 		racewritepc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapassign_fast64))
+ 	}
+ 	if h.flags&hashWriting != 0 {
+-		throw("concurrent map writes")
++		fatal("concurrent map writes")
+ 	}
+ 	hash := t.hasher(noescape(unsafe.Pointer(&key)), uintptr(h.hash0))
+ 
+@@ -264,7 +264,7 @@ bucketloop:
+ done:
+ 	elem := add(unsafe.Pointer(insertb), dataOffset+bucketCnt*8+inserti*uintptr(t.elemsize))
+ 	if h.flags&hashWriting == 0 {
+-		throw("concurrent map writes")
++		fatal("concurrent map writes")
+ 	}
+ 	h.flags &^= hashWriting
+ 	return elem
+@@ -279,7 +279,7 @@ func mapdelete_fast64(t *maptype, h *hmap, key uint64) {
+ 		return
+ 	}
+ 	if h.flags&hashWriting != 0 {
+-		throw("concurrent map writes")
++		fatal("concurrent map writes")
+ 	}
+ 
+ 	hash := t.hasher(noescape(unsafe.Pointer(&key)), uintptr(h.hash0))
+@@ -357,7 +357,7 @@ search:
+ 	}
+ 
+ 	if h.flags&hashWriting == 0 {
+-		throw("concurrent map writes")
++		fatal("concurrent map writes")
+ 	}
+ 	h.flags &^= hashWriting
+ }
+diff --git a/src/runtime/map_faststr.go b/src/runtime/map_faststr.go
+index 4dca882c63..006c24cee2 100644
+--- a/src/runtime/map_faststr.go
++++ b/src/runtime/map_faststr.go
+@@ -19,7 +19,7 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
+ 		return unsafe.Pointer(&zeroVal[0])
+ 	}
+ 	if h.flags&hashWriting != 0 {
+-		throw("concurrent map read and map write")
++		fatal("concurrent map read and map write")
+ 	}
+ 	key := stringStructOf(&ky)
+ 	if h.B == 0 {
+@@ -114,7 +114,7 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
+ 		return unsafe.Pointer(&zeroVal[0]), false
+ 	}
+ 	if h.flags&hashWriting != 0 {
+-		throw("concurrent map read and map write")
++		fatal("concurrent map read and map write")
+ 	}
+ 	key := stringStructOf(&ky)
+ 	if h.B == 0 {
+@@ -209,7 +209,7 @@ func mapassign_faststr(t *maptype, h *hmap, s string) unsafe.Pointer {
+ 		racewritepc(unsafe.Pointer(h), callerpc, abi.FuncPCABIInternal(mapassign_faststr))
+ 	}
+ 	if h.flags&hashWriting != 0 {
+-		throw("concurrent map writes")
++		fatal("concurrent map writes")
+ 	}
+ 	key := stringStructOf(&s)
+ 	hash := t.hasher(noescape(unsafe.Pointer(&s)), uintptr(h.hash0))
+@@ -292,7 +292,7 @@ bucketloop:
+ done:
+ 	elem := add(unsafe.Pointer(insertb), dataOffset+bucketCnt*2*goarch.PtrSize+inserti*uintptr(t.elemsize))
+ 	if h.flags&hashWriting == 0 {
+-		throw("concurrent map writes")
++		fatal("concurrent map writes")
+ 	}
+ 	h.flags &^= hashWriting
+ 	return elem
+@@ -307,7 +307,7 @@ func mapdelete_faststr(t *maptype, h *hmap, ky string) {
+ 		return
+ 	}
+ 	if h.flags&hashWriting != 0 {
+-		throw("concurrent map writes")
++		fatal("concurrent map writes")
+ 	}
+ 
+ 	key := stringStructOf(&ky)
+@@ -383,7 +383,7 @@ search:
+ 	}
+ 
+ 	if h.flags&hashWriting == 0 {
+-		throw("concurrent map writes")
++		fatal("concurrent map writes")
+ 	}
+ 	h.flags &^= hashWriting
+ }
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index a6e7a33191..154f27c961 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -880,7 +880,7 @@ func runPerThreadSyscall() {
+ 	if errno != 0 || r1 != args.r1 || r2 != args.r2 {
+ 		print("trap:", args.trap, ", a123456=[", args.a1, ",", args.a2, ",", args.a3, ",", args.a4, ",", args.a5, ",", args.a6, "]\n")
+ 		print("results: got {r1=", r1, ",r2=", r2, ",errno=", errno, "}, want {r1=", args.r1, ",r2=", args.r2, ",errno=0\n")
+-		throw("AllThreadsSyscall6 results differ between threads; runtime corrupted")
++		fatal("AllThreadsSyscall6 results differ between threads; runtime corrupted")
+ 	}
+ 
+ 	gp.m.needPerThreadSyscall.Store(0)
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index e4cc7bfb31..2e6f7af2ce 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -986,6 +986,15 @@ func sync_throw(s string) {
+ 	throw(s)
+ }
+ 
++//go:linkname sync_fatal sync.fatal
++func sync_fatal(s string) {
++	fatal(s)
++}
++
++// throw triggers a fatal error that dumps a stack trace and exits.
++//
++// throw should be used for runtime-internal fatal errors where Go itself,
++// rather than user code, may be at fault for the failure.
+ //go:nosplit
+ func throw(s string) {
+ 	// Everything throw does should be recursively nosplit so it
+@@ -993,12 +1002,23 @@ func throw(s string) {
+ 	systemstack(func() {
+ 		print("fatal error: ", s, "\n")
+ 	})
+-	gp := getg()
+-	if gp.m.throwing == 0 {
+-		gp.m.throwing = 1
+-	}
++
++	fatalthrow()
++}
++
++// fatal triggers a fatal error that dumps a stack trace and exits.
++//
++// fatal is equivalent to throw, but is used when user code is expected to be
++// at fault for the failure, such as racing map writes.
++//go:nosplit
++func fatal(s string) {
++	// Everything fatal does should be recursively nosplit so it
++	// can be called even when it's unsafe to grow the stack.
++	systemstack(func() {
++		print("fatal error: ", s, "\n")
++	})
++
+ 	fatalthrow()
+-	*(*int)(nil) = 0 // not reached
+ }
+ 
+ // runningPanicDefers is non-zero while running deferred functions for panic.
+@@ -1047,8 +1067,13 @@ func fatalthrow() {
+ 	pc := getcallerpc()
+ 	sp := getcallersp()
+ 	gp := getg()
+-	// Switch to the system stack to avoid any stack growth, which
+-	// may make things worse if the runtime is in a bad state.
++
++	if gp.m.throwing == 0 {
++		gp.m.throwing = 1
++	}
++
++	// Switch to the system stack to avoid any stack growth, which may make
++	// things worse if the runtime is in a bad state.
+ 	systemstack(func() {
+ 		startpanic_m()
+ 
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index b72194c76a..7ea3f9c56e 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4089,7 +4089,7 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
+ 
+ 	if fn == nil {
+ 		_g_.m.throwing = -1 // do not dump full stacks
+-		throw("go of nil func value")
++		fatal("go of nil func value")
+ 	}
+ 	acquirem() // disable preemption because it can be holding p in a local var
+ 
+@@ -5012,7 +5012,7 @@ func checkdead() {
+ 	})
+ 	if grunning == 0 { // possible if main goroutine calls runtime·Goexit()
+ 		unlock(&sched.lock) // unlock so that GODEBUG=scheddetail=1 doesn't hang
+-		throw("no goroutines (main called runtime.Goexit) - deadlock!")
++		fatal("no goroutines (main called runtime.Goexit) - deadlock!")
+ 	}
+ 
+ 	// Maybe jump time forward for playground.
+@@ -5047,7 +5047,7 @@ func checkdead() {
+ 
+ 	getg().m.throwing = -1 // do not dump full stacks
+ 	unlock(&sched.lock)    // unlock so that GODEBUG=scheddetail=1 doesn't hang
+-	throw("all goroutines are asleep - deadlock!")
++	fatal("all goroutines are asleep - deadlock!")
+ }
+ 
+ // forcegcperiod is the maximum time in nanoseconds between garbage
+diff --git a/src/sync/mutex.go b/src/sync/mutex.go
+index 18b2cedba7..80bb827054 100644
+--- a/src/sync/mutex.go
++++ b/src/sync/mutex.go
+@@ -16,7 +16,9 @@ import (
+ 	"unsafe"
+ )
+ 
+-func throw(string) // provided by runtime
++// Provided by runtime via linkname.
++func throw(string)
++func fatal(string)
+ 
+ // A Mutex is a mutual exclusion lock.
+ // The zero value for a Mutex is an unlocked mutex.
+@@ -217,7 +219,7 @@ func (m *Mutex) Unlock() {
+ 
+ func (m *Mutex) unlockSlow(new int32) {
+ 	if (new+mutexLocked)&mutexLocked == 0 {
+-		throw("sync: unlock of unlocked mutex")
++		fatal("sync: unlock of unlocked mutex")
+ 	}
+ 	if new&mutexStarving == 0 {
+ 		old := new
+diff --git a/src/sync/rwmutex.go b/src/sync/rwmutex.go
+index f0d4c9771a..7b10808ec4 100644
+--- a/src/sync/rwmutex.go
++++ b/src/sync/rwmutex.go
+@@ -118,7 +118,7 @@ func (rw *RWMutex) RUnlock() {
+ func (rw *RWMutex) rUnlockSlow(r int32) {
+ 	if r+1 == 0 || r+1 == -rwmutexMaxReaders {
+ 		race.Enable()
+-		throw("sync: RUnlock of unlocked RWMutex")
++		fatal("sync: RUnlock of unlocked RWMutex")
+ 	}
+ 	// A writer is pending.
+ 	if atomic.AddInt32(&rw.readerWait, -1) == 0 {
+@@ -198,7 +198,7 @@ func (rw *RWMutex) Unlock() {
+ 	r := atomic.AddInt32(&rw.readerCount, rwmutexMaxReaders)
+ 	if r >= rwmutexMaxReaders {
+ 		race.Enable()
+-		throw("sync: Unlock of unlocked RWMutex")
++		fatal("sync: Unlock of unlocked RWMutex")
+ 	}
+ 	// Unblock blocked readers, if any.
+ 	for i := 0; i < int(r); i++ {

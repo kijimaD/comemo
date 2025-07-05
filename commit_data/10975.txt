@@ -8,6 +8,20 @@ Date:   Thu Dec 22 11:23:10 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5498070
-
+---
  src/pkg/testing/testing.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index 0411a5f480..c7f0992df3 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -241,7 +241,7 @@ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalT
+ 		// We build a new channel tree for each run of the loop.
+ 		// collector merges in one channel all the upstream signals from parallel tests.
+ 		// If all tests pump to the same channel, a bug can occur where a test
+-		// kicks off a gouroutine that Fails, yet the test still delivers a completion signal,
++		// kicks off a goroutine that Fails, yet the test still delivers a completion signal,
+ 		// which skews the counting.
+ 		var collector = make(chan interface{})
+ 

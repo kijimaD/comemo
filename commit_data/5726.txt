@@ -7,7 +7,124 @@ Date:   Tue Jun 29 12:04:04 2010 -0700
     R=iant
     CC=golang-dev, rsc
     https://golang.org/cl/1748041
-
+---
  src/pkg/net/fd.go            | 44 ++++++++++++++++++++++++++++++++++++++++++
  src/pkg/net/newpollserver.go | 46 --------------------------------------------
  2 files changed, 44 insertions(+), 46 deletions(-)
+
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index b371378170..4673a94e42 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -194,6 +194,50 @@ func (s *pollServer) CheckDeadlines() {
+ 	s.deadline = next_deadline
+ }
+ 
++func (s *pollServer) Run() {
++	var scratch [100]byte
++	for {
++		var t = s.deadline
++		if t > 0 {
++			t = t - s.Now()
++			if t <= 0 {
++				s.CheckDeadlines()
++				continue
++			}
++		}
++		fd, mode, err := s.poll.WaitFD(t)
++		if err != nil {
++			print("pollServer WaitFD: ", err.String(), "\n")
++			return
++		}
++		if fd < 0 {
++			// Timeout happened.
++			s.CheckDeadlines()
++			continue
++		}
++		if fd == s.pr.Fd() {
++			// Drain our wakeup pipe.
++			for nn, _ := s.pr.Read(scratch[0:]); nn > 0; {
++				nn, _ = s.pr.Read(scratch[0:])
++			}
++			// Read from channels
++			for fd, ok := <-s.cr; ok; fd, ok = <-s.cr {
++				s.AddFD(fd, 'r')
++			}
++			for fd, ok := <-s.cw; ok; fd, ok = <-s.cw {
++				s.AddFD(fd, 'w')
++			}
++		} else {
++			netfd := s.LookupFD(fd, mode)
++			if netfd == nil {
++				print("pollServer: unexpected wakeup for fd=", netfd, " mode=", string(mode), "\n")
++				continue
++			}
++			s.WakeFD(netfd, mode)
++		}
++	}
++}
++
+ var wakeupbuf [1]byte
+ 
+ func (s *pollServer) Wakeup() { s.pw.Write(wakeupbuf[0:]) }
+diff --git a/src/pkg/net/newpollserver.go b/src/pkg/net/newpollserver.go
+index 67355ae9a7..820e70b46f 100644
+--- a/src/pkg/net/newpollserver.go
++++ b/src/pkg/net/newpollserver.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// TODO(rsc): All the prints in this file should go to standard error.
+-
+ package net
+ 
+ import (
+@@ -41,47 +39,3 @@ func newPollServer() (s *pollServer, err os.Error) {
+ 	go s.Run()
+ 	return s, nil
+ }
+-
+-func (s *pollServer) Run() {
+-	var scratch [100]byte
+-	for {
+-		var t = s.deadline
+-		if t > 0 {
+-			t = t - s.Now()
+-			if t <= 0 {
+-				s.CheckDeadlines()
+-				continue
+-			}
+-		}
+-		fd, mode, err := s.poll.WaitFD(t)
+-		if err != nil {
+-			print("pollServer WaitFD: ", err.String(), "\n")
+-			return
+-		}
+-		if fd < 0 {
+-			// Timeout happened.
+-			s.CheckDeadlines()
+-			continue
+-		}
+-		if fd == s.pr.Fd() {
+-			// Drain our wakeup pipe.
+-			for nn, _ := s.pr.Read(scratch[0:]); nn > 0; {
+-				nn, _ = s.pr.Read(scratch[0:])
+-			}
+-			// Read from channels
+-			for fd, ok := <-s.cr; ok; fd, ok = <-s.cr {
+-				s.AddFD(fd, 'r')
+-			}
+-			for fd, ok := <-s.cw; ok; fd, ok = <-s.cw {
+-				s.AddFD(fd, 'w')
+-			}
+-		} else {
+-			netfd := s.LookupFD(fd, mode)
+-			if netfd == nil {
+-				print("pollServer: unexpected wakeup for fd=", netfd, " mode=", string(mode), "\n")
+-				continue
+-			}
+-			s.WakeFD(netfd, mode)
+-		}
+-	}
+-}

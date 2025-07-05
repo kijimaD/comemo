@@ -28,6 +28,29 @@ Date:   Fri Aug 26 12:19:50 2022 +0700
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ssa/expand_calls.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index 90ea2d5040..a85d763a30 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -1742,7 +1742,7 @@ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64,
+ 			toReplace.Type = t
+ 			w = toReplace
+ 		} else {
+-			w = baseArg.Block.NewValue0IA(pos, OpArg, t, auxInt, aux)
++			w = baseArg.Block.NewValue0IA(baseArg.Pos, OpArg, t, auxInt, aux)
+ 		}
+ 		x.commonArgs[key] = w
+ 		if toReplace != nil {
+@@ -1773,7 +1773,7 @@ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64,
+ 		toReplace.Type = t
+ 		w = toReplace
+ 	} else {
+-		w = baseArg.Block.NewValue0IA(pos, op, t, auxInt, aux)
++		w = baseArg.Block.NewValue0IA(baseArg.Pos, op, t, auxInt, aux)
+ 	}
+ 	x.commonArgs[key] = w
+ 	if toReplace != nil {

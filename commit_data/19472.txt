@@ -8,6 +8,20 @@ Date:   Sat May 31 01:55:11 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/102920047
-
+---
  CONTRIBUTORS | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 022679fdae..372229848f 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -516,7 +516,7 @@ Sergio Luis O. B. Correia <sergio@correia.cc>
+ Shane Hansen <shanemhansen@gmail.com>
+ Shawn Ledbetter <sledbetter@google.com>
+ Shawn Smith <shawn.p.smith@gmail.com>
+-Shenghou Ma <minux.ma@gmail.com>
++Shenghou Ma <minux@golang.org> <minux.ma@gmail.com>
+ Shivakumar GN <shivakumar.gn@gmail.com>
+ Sokolov Yura <funny.falcon@gmail.com>
+ Spring Mc <heresy.mc@gmail.com>

@@ -7,6 +7,23 @@ Date:   Mon Jan 9 11:22:26 2012 -0800
     R=rsc, borman
     CC=golang-dev
     https://golang.org/cl/5525043
-
+---
  src/cmd/cgo/gcc.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 3c95d28be4..75ce1782a0 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -453,6 +453,11 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 	for i, b := range isConst {
+ 		if b {
+ 			names[i].Kind = "const"
++			if toSniff[i] != nil && names[i].Const == "" {
++				j := len(needType)
++				needType = needType[0 : j+1]
++				needType[j] = names[i]
++			}
+ 		}
+ 	}
+ 	for _, n := range toSniff {

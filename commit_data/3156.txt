@@ -9,10 +9,125 @@ Date:   Mon Aug 31 16:38:50 2009 -0700
     DELTA=10  (1 added, 0 deleted, 9 changed)
     OCL=34140
     CL=34146
-
+---
  include/fmt.h         |  8 ++++----
  src/lib9/fmt/dofmt.c  | 17 +++++++++--------
  src/lib9/utf/utf.h    |  2 +-
  src/libbio/bgetrune.c |  2 +-
  src/libbio/bputrune.c |  2 +-
  5 files changed, 16 insertions(+), 15 deletions(-)
+
+diff --git a/include/fmt.h b/include/fmt.h
+index 480ccad58d..2280f25250 100644
+--- a/include/fmt.h
++++ b/include/fmt.h
+@@ -1,7 +1,7 @@
+ #ifndef _FMT_H_
+ #define _FMT_H_ 1
+ #if defined(__cplusplus)
+-extern "C" { 
++extern "C" {
+ #endif
+ /*
+  * The authors of this software are Rob Pike and Ken Thompson.
+@@ -30,7 +30,7 @@ struct Fmt{
+ 	void	*farg;			/* to make flush a closure */
+ 	int	nfmt;			/* num chars formatted so far */
+ 	va_list	args;			/* args passed to dofmt */
+-	int	r;			/* % format Rune */
++	Rune	r;			/* % format Rune */
+ 	int	width;
+ 	int	prec;
+ 	unsigned long	flags;
+@@ -38,8 +38,8 @@ struct Fmt{
+ 
+ 	/* For %'d */
+ 	char *thousands;	/* separator for thousands */
+-	
+-	/* 
++
++	/*
+ 	 * Each char is an integer indicating #digits before next separator. Values:
+ 	 *	\xFF: no more grouping (or \x7F; defined to be CHAR_MAX in POSIX)
+ 	 *	\x00: repeat previous indefinitely
+diff --git a/src/lib9/fmt/dofmt.c b/src/lib9/fmt/dofmt.c
+index ea43940d85..51f0f079b7 100644
+--- a/src/lib9/fmt/dofmt.c
++++ b/src/lib9/fmt/dofmt.c
+@@ -4,15 +4,15 @@
+  *
+  *     Copyright (c) 2002-2006 by Lucent Technologies.
+  *     Portions Copyright (c) 2004 Google Inc.
+- * 
++ *
+  * Permission to use, copy, modify, and distribute this software for any
+  * purpose without fee is hereby granted, provided that this entire notice
+  * is included in all copies of any software which is or includes a copy
+  * or modification of this software and in all copies of the supporting
+  * documentation for such software.
+  * THIS SOFTWARE IS BEING PROVIDED "AS IS", WITHOUT ANY EXPRESS OR IMPLIED
+- * WARRANTY.  IN PARTICULAR, NEITHER THE AUTHORS NOR LUCENT TECHNOLOGIES 
+- * NOR GOOGLE INC MAKE ANY REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING 
++ * WARRANTY.  IN PARTICULAR, NEITHER THE AUTHORS NOR LUCENT TECHNOLOGIES
++ * NOR GOOGLE INC MAKE ANY REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING
+  * THE MERCHANTABILITY OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
+  */
+ 
+@@ -618,12 +618,13 @@ __flagfmt(Fmt *f)
+ int
+ __badfmt(Fmt *f)
+ {
+-	char x[3];
++	char x[2+UTFmax];
++	int n;
+ 
+ 	x[0] = '%';
+-	x[1] = f->r;
+-	x[2] = '%';
+-	f->prec = 3;
+-	__fmtcpy(f, (const void*)x, 3, 3);
++	n = 1 + runetochar(x+1, &f->r);
++	x[n++] = '%';
++	f->prec = n;
++	__fmtcpy(f, (const void*)x, n, n);
+ 	return 0;
+ }
+diff --git a/src/lib9/utf/utf.h b/src/lib9/utf/utf.h
+index ff5193ad40..1479e9f218 100644
+--- a/src/lib9/utf/utf.h
++++ b/src/lib9/utf/utf.h
+@@ -18,7 +18,7 @@
+ 
+ #include <stdint.h>
+ 
+-typedef signed int Rune;	/* Code-point values in Unicode 4.0 are 21 bits wide.*/
++typedef unsigned int Rune;	/* Code-point values in Unicode 4.0 are 21 bits wide.*/
+ 
+ enum
+ {
+diff --git a/src/libbio/bgetrune.c b/src/libbio/bgetrune.c
+index caeb0a88ff..1538f3ea74 100644
+--- a/src/libbio/bgetrune.c
++++ b/src/libbio/bgetrune.c
+@@ -33,7 +33,7 @@ Bgetrune(Biobuf *bp)
+ {
+ 	int c, i;
+ 	Rune rune;
+-	char str[4];
++	char str[UTFmax];
+ 
+ 	c = Bgetc(bp);
+ 	if(c < Runeself) {		/* one char */
+diff --git a/src/libbio/bputrune.c b/src/libbio/bputrune.c
+index 9c588db9df..e46f3c7101 100644
+--- a/src/libbio/bputrune.c
++++ b/src/libbio/bputrune.c
+@@ -32,7 +32,7 @@ int
+ Bputrune(Biobuf *bp, long c)
+ {
+ 	Rune rune;
+-	char str[4];
++	char str[UTFmax];
+ 	int n;
+ 
+ 	rune = c;

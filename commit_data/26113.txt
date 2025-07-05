@@ -9,6 +9,26 @@ Date:   Thu Dec 17 02:24:07 2015 -0500
     Change-Id: I2caeac7fdddc7f29015d6db8d4b3e296c8b9c423
     Reviewed-on: https://go-review.googlesource.com/17954
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/help.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/cmd/go/help.go b/src/cmd/go/help.go
+index e9b34c92a9..7f81241045 100644
+--- a/src/cmd/go/help.go
++++ b/src/cmd/go/help.go
+@@ -79,6 +79,14 @@ internally at Google all begin with 'google', and paths
+ denoting remote repositories begin with the path to the code,
+ such as 'github.com/user/repo'.
+ 
++Packages in a program need not have unique package names,
++but there are two reserved package names with special meaning.
++The name main indicates a command, not a library.
++Commands are built into binaries and cannot be imported.
++The name documentation indicates documentation for
++a non-Go program in the directory. Files in package documentation
++are ignored by the go command.
++
+ As a special case, if the package list is a list of .go files from a
+ single directory, the command is applied to a single synthesized
+ package made up of exactly those files, ignoring any build constraints

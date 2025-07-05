@@ -24,9 +24,151 @@ Date:   Wed Jun 3 12:31:47 2015 -0700
     Change-Id: I13e567a39f5f6909fc33434d55c17a7e3884a704
     Reviewed-on: https://go-review.googlesource.com/11430
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/compile/internal/ssa/TODO        |  5 +++
  src/cmd/compile/internal/ssa/compile.go  |  7 ++++
  src/cmd/compile/internal/ssa/cse.go      |  6 ++-
  src/cmd/compile/internal/ssa/nilcheck.go | 72 ++++++++++++++++++++++++++++++++
  4 files changed, 89 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/TODO b/src/cmd/compile/internal/ssa/TODO
+index 64b581fac0..66841c36f0 100644
+--- a/src/cmd/compile/internal/ssa/TODO
++++ b/src/cmd/compile/internal/ssa/TODO
+@@ -35,11 +35,16 @@ Rewrites
+  - <regwidth ops.  For example, x+y on int32s on amd64 needs (MOVLQSX (ADDL x y)).
+    Then add rewrites like (MOVLstore (MOVLQSX x) m) -> (MOVLstore x m)
+    to get rid of most of the MOVLQSX.
++ - Determine which nil checks can be done implicitly (by faulting)
++   and which need code generated, and do the code generation.
+ 
+ Common-Subexpression Elimination
++ - Canonicalize types.
+  - Make better decision about which value in an equivalence class we should
+    choose to replace other values in that class.
+  - Can we move control values out of their basic block?
++   This would break nilcheckelim as currently implemented,
++   but it could be replaced by a similar CFG simplication pass.
+ 
+ Other
+  - Write barriers
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 896be01b68..27cc0d0609 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -52,6 +52,7 @@ var passes = [...]pass{
+ 	{"copyelim", copyelim},
+ 	{"opt", opt},
+ 	{"generic cse", cse},
++	{"nilcheckelim", nilcheckelim},
+ 	{"generic deadcode", deadcode},
+ 	{"dse", dse},
+ 	{"fuse", fuse},
+@@ -77,6 +78,12 @@ var passOrder = [...]constraint{
+ 	// common-subexpression before dead-store elim, so that we recognize
+ 	// when two address expressions are the same.
+ 	{"generic cse", "dse"},
++	// cse substantially improves nilcheckelim efficacy
++	{"generic cse", "nilcheckelim"},
++	// allow deadcode to clean up after nilcheckelim
++	{"nilcheckelim", "generic deadcode"},
++	// nilcheckelim generates sequences of plain basic blocks
++	{"nilcheckelim", "fuse"},
+ 	// don't layout blocks until critical edges have been removed
+ 	{"critical", "layout"},
+ 	// regalloc requires the removal of all critical edges
+diff --git a/src/cmd/compile/internal/ssa/cse.go b/src/cmd/compile/internal/ssa/cse.go
+index 660712612a..403c845152 100644
+--- a/src/cmd/compile/internal/ssa/cse.go
++++ b/src/cmd/compile/internal/ssa/cse.go
+@@ -24,7 +24,11 @@ func cse(f *Func) {
+ 	// until it reaches a fixed point.
+ 
+ 	// Make initial partition based on opcode/type/aux/nargs
+-	// TODO(khr): types are not canonical, so we may split unnecessarily.  Fix that.
++	// TODO(khr): types are not canonical, so we split unnecessarily.
++	// For example, all pointer types are distinct. Fix this.
++	// As a data point, using v.Type.String() instead of
++	// v.Type here (which is unsound) allows removal of
++	// about 50% more nil checks in the nilcheck elim pass.
+ 	type key struct {
+ 		op     Op
+ 		typ    Type
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+new file mode 100644
+index 0000000000..28544d5900
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -0,0 +1,72 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++// nilcheckelim eliminates unnecessary nil checks.
++func nilcheckelim(f *Func) {
++	// Exit early if there are no nil checks to eliminate.
++	var found bool
++	for _, b := range f.Blocks {
++		if checkedptr(b) != nil {
++			found = true
++			break
++		}
++	}
++	if !found {
++		return
++	}
++
++	// Eliminate redundant nil checks.
++	// A nil check is redundant if the same
++	// nil check has been performed by a
++	// dominating block.
++	// The efficacy of this pass depends
++	// heavily on the efficacy of the cse pass.
++	idom := dominators(f) // TODO: cache the dominator tree in the function, clearing when the CFG changes?
++	for _, b := range f.Blocks {
++		ptr := checkedptr(b)
++		if ptr == nil {
++			continue
++		}
++		var elim bool
++		// Walk up the dominator tree,
++		// looking for identical nil checks.
++		for c := idom[b.ID]; c != nil; c = idom[c.ID] {
++			if checkedptr(c) == ptr {
++				elim = true
++				break
++			}
++		}
++		if elim {
++			// Eliminate the nil check.
++			// The deadcode pass will remove vestigial values,
++			// and the fuse pass will join this block with its successor.
++			b.Kind = BlockPlain
++			b.Control = nil
++			removePredecessor(b, b.Succs[1])
++			b.Succs = b.Succs[:1]
++		}
++	}
++
++	// TODO: Eliminate more nil checks.
++	// For example, pointers to function arguments
++	// and pointers to static values cannot be nil.
++	// We could also track pointers constructed by
++	// taking the address of another value.
++	// We can also recursively remove any chain of
++	// fixed offset calculations,
++	// i.e. struct fields and array elements,
++	// even with non-constant indices:
++	// x is non-nil iff x.a.b[i].c is.
++}
++
++// checkedptr returns the Value, if any,
++// that is used in a nil check in b's Control op.
++func checkedptr(b *Block) *Value {
++	if b.Kind == BlockIf && b.Control.Op == OpIsNonNil {
++		return b.Control.Args[0]
++	}
++	return nil
++}

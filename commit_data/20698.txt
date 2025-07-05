@@ -10,6 +10,20 @@ Date:   Tue Sep 30 13:38:48 2014 -0700
     R=agl
     CC=golang-codereviews
     https://golang.org/cl/143320043
-
+---
  src/crypto/x509/x509.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index c347fb384d..6e57e913ac 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -1328,7 +1328,7 @@ func buildExtensions(template *Certificate) (ret []pkix.Extension, err error) {
+ 
+ 			dp := distributionPoint{
+ 				DistributionPoint: distributionPointName{
+-					FullName: asn1.RawValue{Tag: 0, Class: 2, Bytes: rawFullName},
++					FullName: asn1.RawValue{Tag: 0, Class: 2, IsCompound: true, Bytes: rawFullName},
+ 				},
+ 			}
+ 			crlDp = append(crlDp, dp)

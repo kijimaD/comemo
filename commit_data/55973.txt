@@ -39,6 +39,19 @@ Date:   Sat Mar 25 10:58:05 2023 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/encoding/gob/type.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/encoding/gob/type.go b/src/encoding/gob/type.go
+index 59cab6e143..41204bfb7f 100644
+--- a/src/encoding/gob/type.go
++++ b/src/encoding/gob/type.go
+@@ -623,7 +623,6 @@ func bootstrapType(name string, e any) typeId {
+ 	typ := &CommonType{Name: name}
+ 	types[rt] = typ
+ 	setTypeId(typ)
+-	userType(rt) // might as well cache it now
+ 	return typ.id()
+ }
+ 

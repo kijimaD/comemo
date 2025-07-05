@@ -9,6 +9,28 @@ Date:   Thu Jun 20 15:48:29 2019 -0400
     Change-Id: I11ffe0a62743292367b3adb103956e61bad57cc4
     Reviewed-on: https://go-review.googlesource.com/c/go/+/183243
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/crypto/x509/example_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/crypto/x509/example_test.go b/src/crypto/x509/example_test.go
+index 97c2ea2442..19d249af7a 100644
+--- a/src/crypto/x509/example_test.go
++++ b/src/crypto/x509/example_test.go
+@@ -7,6 +7,7 @@ package x509_test
+ import (
+ 	"crypto/dsa"
+ 	"crypto/ecdsa"
++	"crypto/ed25519"
+ 	"crypto/rsa"
+ 	"crypto/x509"
+ 	"encoding/pem"
+@@ -128,6 +129,8 @@ AIU+2GKjyT3iMuzZxxFxPFMCAwEAAQ==
+ 		fmt.Println("pub is of type DSA:", pub)
+ 	case *ecdsa.PublicKey:
+ 		fmt.Println("pub is of type ECDSA:", pub)
++	case ed25519.PublicKey:
++		fmt.Println("pub is of type Ed25519:", pub)
+ 	default:
+ 		panic("unknown type of public key")
+ 	}

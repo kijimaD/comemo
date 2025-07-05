@@ -31,6 +31,35 @@ Date:   Thu Apr 23 16:22:37 2020 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/schedule.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index 89407f27df..8facb91100 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -5,6 +5,7 @@
+ package ssa
+ 
+ import (
++	"cmd/compile/internal/types"
+ 	"container/heap"
+ 	"sort"
+ )
+@@ -62,6 +63,15 @@ func (h ValHeap) Less(i, j int) bool {
+ 	if c := x.Uses - y.Uses; c != 0 {
+ 		return c < 0 // smaller uses come later
+ 	}
++	// These comparisons are fairly arbitrary.
++	// The goal here is stability in the face
++	// of unrelated changes elsewhere in the compiler.
++	if c := x.AuxInt - y.AuxInt; c != 0 {
++		return c > 0
++	}
++	if cmp := x.Type.Compare(y.Type); cmp != types.CMPeq {
++		return cmp == types.CMPgt
++	}
+ 	return x.ID > y.ID
+ }
+ 

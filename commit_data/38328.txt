@@ -18,6 +18,24 @@ Date:   Mon Oct 22 14:04:18 2018 +1100
     Change-Id: I4a32d56c9e782f17578565d90b22ce531e3d8667
     Reviewed-on: https://go-review.googlesource.com/c/143677
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/effective_go.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 89c1d08782..38d09f4c73 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -1402,11 +1402,11 @@ the moment, the following snippet would also read the first 32 bytes of the buff
+     var err error
+     for i := 0; i &lt; 32; i++ {
+         nbytes, e := f.Read(buf[i:i+1])  // Read one byte.
++        n += nbytes
+         if nbytes == 0 || e != nil {
+             err = e
+             break
+         }
+-        n += nbytes
+     }
+ </pre>
+ <p>

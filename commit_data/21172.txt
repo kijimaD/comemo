@@ -8,10 +8,187 @@ Date:   Sat Nov 22 22:09:11 2014 +1100
     R=rsc, minux
     CC=golang-codereviews
     https://golang.org/cl/177170043
-
+---
  src/runtime/defs1_netbsd_386.go  | 22 +++++++++++++++++-----
  src/runtime/os1_netbsd_386.go    | 16 ++++++++++++++++
  src/runtime/os_netbsd_386.c      | 17 -----------------
  src/runtime/signal_netbsd_386.go | 38 ++++++++++++++++++++++++++++++++++++++
  src/runtime/signal_netbsd_386.h  | 23 -----------------------
  5 files changed, 71 insertions(+), 45 deletions(-)
+
+diff --git a/src/runtime/defs1_netbsd_386.go b/src/runtime/defs1_netbsd_386.go
+index e39fd04c7a..f222bed996 100644
+--- a/src/runtime/defs1_netbsd_386.go
++++ b/src/runtime/defs1_netbsd_386.go
+@@ -84,8 +84,8 @@ const (
+ )
+ 
+ type sigaltstackt struct {
+-	ss_sp    *byte
+-	ss_size  uint32
++	ss_sp    uintptr
++	ss_size  uintptr
+ 	ss_flags int32
+ }
+ 
+@@ -101,8 +101,8 @@ type siginfo struct {
+ }
+ 
+ type stackt struct {
+-	ss_sp    *byte
+-	ss_size  uint32
++	ss_sp    uintptr
++	ss_size  uintptr
+ 	ss_flags int32
+ }
+ 
+@@ -111,18 +111,30 @@ type timespec struct {
+ 	tv_nsec int32
+ }
+ 
++func (ts *timespec) set_sec(x int32) {
++	ts.tv_sec = int64(x)
++}
++
++func (ts *timespec) set_nsec(x int32) {
++	ts.tv_nsec = x
++}
++
+ type timeval struct {
+ 	tv_sec  int64
+ 	tv_usec int32
+ }
+ 
++func (tv *timeval) set_usec(x int32) {
++	tv.tv_usec = x
++}
++
+ type itimerval struct {
+ 	it_interval timeval
+ 	it_value    timeval
+ }
+ 
+ type mcontextt struct {
+-	__gregs     [19]int32
++	__gregs     [19]uint32
+ 	__fpregs    [644]byte
+ 	_mc_tlsbase int32
+ }
+diff --git a/src/runtime/os1_netbsd_386.go b/src/runtime/os1_netbsd_386.go
+new file mode 100644
+index 0000000000..037f7e36dc
+--- /dev/null
++++ b/src/runtime/os1_netbsd_386.go
+@@ -0,0 +1,16 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++func lwp_mcontext_init(mc *mcontextt, stk unsafe.Pointer, mp *m, gp *g, fn uintptr) {
++	// Machine dependent mcontext initialisation for LWP.
++	mc.__gregs[_REG_EIP] = uint32(funcPC(lwp_tramp))
++	mc.__gregs[_REG_UESP] = uint32(uintptr(stk))
++	mc.__gregs[_REG_EBX] = uint32(uintptr(unsafe.Pointer(mp)))
++	mc.__gregs[_REG_EDX] = uint32(uintptr(unsafe.Pointer(gp)))
++	mc.__gregs[_REG_ESI] = uint32(fn)
++}
+diff --git a/src/runtime/os_netbsd_386.c b/src/runtime/os_netbsd_386.c
+deleted file mode 100644
+index 23e9db3c1c..0000000000
+--- a/src/runtime/os_netbsd_386.c
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "os_GOOS.h"
+-
+-void
+-runtime·lwp_mcontext_init(McontextT *mc, void *stack, M *mp, G *gp, void (*fn)(void))
+-{
+-	mc->__gregs[REG_EIP] = (uint32)runtime·lwp_tramp;
+-	mc->__gregs[REG_UESP] = (uint32)stack;
+-	mc->__gregs[REG_EBX] = (uint32)mp;
+-	mc->__gregs[REG_EDX] = (uint32)gp;
+-	mc->__gregs[REG_ESI] = (uint32)fn;
+-}
+diff --git a/src/runtime/signal_netbsd_386.go b/src/runtime/signal_netbsd_386.go
+new file mode 100644
+index 0000000000..6702336abe
+--- /dev/null
++++ b/src/runtime/signal_netbsd_386.go
+@@ -0,0 +1,38 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++type sigctxt struct {
++	info *siginfo
++	ctxt unsafe.Pointer
++}
++
++func (c *sigctxt) regs() *mcontextt { return &(*ucontextt)(c.ctxt).uc_mcontext }
++func (c *sigctxt) eax() uint32      { return c.regs().__gregs[_REG_EAX] }
++func (c *sigctxt) ebx() uint32      { return c.regs().__gregs[_REG_EBX] }
++func (c *sigctxt) ecx() uint32      { return c.regs().__gregs[_REG_ECX] }
++func (c *sigctxt) edx() uint32      { return c.regs().__gregs[_REG_EDX] }
++func (c *sigctxt) edi() uint32      { return c.regs().__gregs[_REG_EDI] }
++func (c *sigctxt) esi() uint32      { return c.regs().__gregs[_REG_ESI] }
++func (c *sigctxt) ebp() uint32      { return c.regs().__gregs[_REG_EBP] }
++func (c *sigctxt) esp() uint32      { return c.regs().__gregs[_REG_UESP] }
++func (c *sigctxt) eip() uint32      { return c.regs().__gregs[_REG_EIP] }
++func (c *sigctxt) eflags() uint32   { return c.regs().__gregs[_REG_EFL] }
++func (c *sigctxt) cs() uint32       { return uint32(c.regs().__gregs[_REG_CS]) }
++func (c *sigctxt) fs() uint32       { return uint32(c.regs().__gregs[_REG_FS]) }
++func (c *sigctxt) gs() uint32       { return uint32(c.regs().__gregs[_REG_GS]) }
++func (c *sigctxt) sigcode() uint32  { return uint32(c.info._code) }
++func (c *sigctxt) sigaddr() uint32 {
++	return uint32(*(*uint32)(unsafe.Pointer(&c.info._reason[0])))
++}
++
++func (c *sigctxt) set_eip(x uint32)     { c.regs().__gregs[_REG_EIP] = x }
++func (c *sigctxt) set_esp(x uint32)     { c.regs().__gregs[_REG_UESP] = x }
++func (c *sigctxt) set_sigcode(x uint32) { c.info._code = int32(x) }
++func (c *sigctxt) set_sigaddr(x uint32) {
++	*(*uint32)(unsafe.Pointer(&c.info._reason[0])) = x
++}
+diff --git a/src/runtime/signal_netbsd_386.h b/src/runtime/signal_netbsd_386.h
+deleted file mode 100644
+index d5a8a0c4bc..0000000000
+--- a/src/runtime/signal_netbsd_386.h
++++ /dev/null
+@@ -1,23 +0,0 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#define SIG_REGS(ctxt) (((UcontextT*)(ctxt))->uc_mcontext)
+-
+-#define SIG_EAX(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_EAX])
+-#define SIG_EBX(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_EBX])
+-#define SIG_ECX(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_ECX])
+-#define SIG_EDX(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_EDX])
+-#define SIG_EDI(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_EDI])
+-#define SIG_ESI(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_ESI])
+-#define SIG_EBP(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_EBP])
+-#define SIG_ESP(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_UESP])
+-#define SIG_EIP(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_EIP])
+-#define SIG_EFLAGS(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_EFL])
+-
+-#define SIG_CS(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_CS])
+-#define SIG_FS(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_FS])
+-#define SIG_GS(info, ctxt) (SIG_REGS(ctxt).__gregs[REG_GS])
+-
+-#define SIG_CODE0(info, ctxt) ((info)->_code)
+-#define SIG_CODE1(info, ctxt) (*(uintptr*)&(info)->_reason[0])

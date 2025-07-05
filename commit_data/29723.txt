@@ -14,7 +14,52 @@ Date:   Tue Oct 4 23:58:42 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/context/context.go  |  6 +++---
  src/context/net_test.go | 21 +++++++++++++++++++++
  2 files changed, 24 insertions(+), 3 deletions(-)
+
+diff --git a/src/context/context.go b/src/context/context.go
+index 41a5cefef9..54ad49a721 100644
+--- a/src/context/context.go
++++ b/src/context/context.go
+@@ -159,9 +159,9 @@ var DeadlineExceeded error = deadlineExceededError{}
+ 
+ type deadlineExceededError struct{}
+ 
+-func (deadlineExceededError) Error() string { return "context deadline exceeded" }
+-
+-func (deadlineExceededError) Timeout() bool { return true }
++func (deadlineExceededError) Error() string   { return "context deadline exceeded" }
++func (deadlineExceededError) Timeout() bool   { return true }
++func (deadlineExceededError) Temporary() bool { return true }
+ 
+ // An emptyCtx is never canceled, has no values, and has no deadline. It is not
+ // struct{}, since vars of this type must have distinct addresses.
+diff --git a/src/context/net_test.go b/src/context/net_test.go
+new file mode 100644
+index 0000000000..a007689d36
+--- /dev/null
++++ b/src/context/net_test.go
+@@ -0,0 +1,21 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package context_test
++
++import (
++	"context"
++	"net"
++	"testing"
++)
++
++func TestDeadlineExceededIsNetError(t *testing.T) {
++	err, ok := context.DeadlineExceeded.(net.Error)
++	if !ok {
++		t.Fatal("DeadlineExceeded does not implement net.Error")
++	}
++	if !err.Timeout() || !err.Temporary() {
++		t.Fatalf("Timeout() = %v, Temporary() = %v, want true, true", err.Timeout(), err.Temporary())
++	}
++}

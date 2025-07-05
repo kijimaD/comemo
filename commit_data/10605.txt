@@ -9,6 +9,20 @@ Date:   Mon Dec 5 10:05:29 2011 +1100
     R=golang-dev, bradfitz, alex.brainman
     CC=golang-dev
     https://golang.org/cl/5449084
-
+---
  src/pkg/net/mail/message_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/mail/message_test.go b/src/pkg/net/mail/message_test.go
+index e6aa26b2e9..671ff2efac 100644
+--- a/src/pkg/net/mail/message_test.go
++++ b/src/pkg/net/mail/message_test.go
+@@ -105,7 +105,7 @@ func TestDateParsing(t *testing.T) {
+ 			t.Errorf("Failed parsing %q: %v", test.dateStr, err)
+ 			continue
+ 		}
+-		if !reflect.DeepEqual(date, test.exp) {
++		if !date.Equal(test.exp) {
+ 			t.Errorf("Parse of %q: got %+v, want %+v", test.dateStr, date, test.exp)
+ 		}
+ 	}

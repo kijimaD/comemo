@@ -20,10 +20,147 @@ Date:   Wed Jun 12 04:57:02 2019 +0800
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/test/cgo_test.go                     |  1 +
  misc/cgo/test/issue31891.c                    | 13 +++++++++++++
  misc/cgo/test/testdata/issue9026/issue9026.go |  2 +-
  misc/cgo/test/testx.go                        | 23 +++++++++++++++++++++++
  src/cmd/cgo/gcc.go                            | 15 +++++++++++----
  5 files changed, 49 insertions(+), 5 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 85f00a3653..b745a4417f 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -58,6 +58,7 @@ func Test27660(t *testing.T)                 { test27660(t) }
+ func Test28896(t *testing.T)                 { test28896(t) }
+ func Test30065(t *testing.T)                 { test30065(t) }
+ func Test32579(t *testing.T)                 { test32579(t) }
++func Test31891(t *testing.T)                 { test31891(t) }
+ func TestAlign(t *testing.T)                 { testAlign(t) }
+ func TestAtol(t *testing.T)                  { testAtol(t) }
+ func TestBlocking(t *testing.T)              { testBlocking(t) }
+diff --git a/misc/cgo/test/issue31891.c b/misc/cgo/test/issue31891.c
+new file mode 100644
+index 0000000000..67a0dda2d6
+--- /dev/null
++++ b/misc/cgo/test/issue31891.c
+@@ -0,0 +1,13 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "_cgo_export.h"
++
++void callIssue31891() {
++    Issue31891A a;
++    useIssue31891A(&a);
++
++    Issue31891B b;
++    useIssue31891B(&b);
++}
+diff --git a/misc/cgo/test/testdata/issue9026/issue9026.go b/misc/cgo/test/testdata/issue9026/issue9026.go
+index 149c26562a..0af86e64da 100644
+--- a/misc/cgo/test/testdata/issue9026/issue9026.go
++++ b/misc/cgo/test/testdata/issue9026/issue9026.go
+@@ -29,7 +29,7 @@ func Test(t *testing.T) {
+ 	// Brittle: the assertion may fail spuriously when the algorithm
+ 	// changes, but should remain stable otherwise.
+ 	got := fmt.Sprintf("%T %T", in, opts)
+-	want := "issue9026._Ctype_struct___0 *issue9026._Ctype_struct___0"
++	want := "issue9026._Ctype_struct___0 *issue9026._Ctype_struct___1"
+ 	if got != want {
+ 		t.Errorf("Non-deterministic type names: got %s, want %s", got, want)
+ 	}
+diff --git a/misc/cgo/test/testx.go b/misc/cgo/test/testx.go
+index 67def903ab..bb1b50802b 100644
+--- a/misc/cgo/test/testx.go
++++ b/misc/cgo/test/testx.go
+@@ -108,6 +108,17 @@ void callMulti(void);
+ // issue 28772 part 2 - part 1 in issuex.go
+ #define issue28772Constant2 2
+ 
++
++// issue 31891
++typedef struct {
++	long obj;
++} Issue31891A;
++
++typedef struct {
++	long obj;
++} Issue31891B;
++
++void callIssue31891(void);
+ */
+ import "C"
+ 
+@@ -517,3 +528,15 @@ func test20910(t *testing.T) {
+ // issue 28772 part 2
+ 
+ const issue28772Constant2 = C.issue28772Constant2
++
++// issue 31891
++
++//export useIssue31891A
++func useIssue31891A(c *C.Issue31891A) {}
++
++//export useIssue31891B
++func useIssue31891B(c *C.Issue31891B) {}
++
++func test31891(t *testing.T) {
++	C.callIssue31891()
++}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 12d4749677..fcab494ea0 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -2189,6 +2189,11 @@ func (c *typeConv) FinishType(pos token.Pos) {
+ // Type returns a *Type with the same memory layout as
+ // dtype when used as the type of a variable or a struct field.
+ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
++	return c.loadType(dtype, pos, "")
++}
++
++// loadType recursively loads the requested dtype and its dependency graph.
++func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Type {
+ 	// Always recompute bad pointer typedefs, as the set of such
+ 	// typedefs changes as we see more types.
+ 	checkCache := true
+@@ -2196,7 +2201,9 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 		checkCache = false
+ 	}
+ 
+-	key := dtype.String()
++	// The cache key should be relative to its parent.
++	// See issue https://golang.org/issue/31891
++	key := parent + " > " + dtype.String()
+ 
+ 	if checkCache {
+ 		if t, ok := c.m[key]; ok {
+@@ -2236,7 +2243,7 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 			// Translate to zero-length array instead.
+ 			count = 0
+ 		}
+-		sub := c.Type(dt.Type, pos)
++		sub := c.loadType(dt.Type, pos, key)
+ 		t.Align = sub.Align
+ 		t.Go = &ast.ArrayType{
+ 			Len: c.intExpr(count),
+@@ -2381,7 +2388,7 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 		c.ptrs[key] = append(c.ptrs[key], t)
+ 
+ 	case *dwarf.QualType:
+-		t1 := c.Type(dt.Type, pos)
++		t1 := c.loadType(dt.Type, pos, key)
+ 		t.Size = t1.Size
+ 		t.Align = t1.Align
+ 		t.Go = t1.Go
+@@ -2465,7 +2472,7 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 		}
+ 		name := c.Ident("_Ctype_" + dt.Name)
+ 		goIdent[name.Name] = name
+-		sub := c.Type(dt.Type, pos)
++		sub := c.loadType(dt.Type, pos, key)
+ 		if c.badPointerTypedef(dt) {
+ 			// Treat this typedef as a uintptr.
+ 			s := *sub

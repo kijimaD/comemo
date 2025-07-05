@@ -14,7 +14,7 @@ Date:   Wed Aug 10 15:34:12 2011 +0200
     R=r
     CC=golang-dev
     https://golang.org/cl/4844053
-
+---
  .hgignore                          |   1 +
  src/pkg/exp/norm/Makefile          |  17 ++-
  src/pkg/exp/norm/maketables.go     | 186 +++--------------------------
@@ -24,3 +24,978 @@ Date:   Wed Aug 10 15:34:12 2011 +0200
  src/pkg/exp/norm/triedata_test.go  |  61 ++++++++++
  src/pkg/exp/norm/triegen.go        | 210 +++++++++++++++++++++++++++++++++
  8 files changed, 683 insertions(+), 175 deletions(-)
+
+diff --git a/.hgignore b/.hgignore
+index 635bc35d6f..71dadfbcd1 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -42,6 +42,7 @@ src/cmd/gc/yerr.h
+ src/cmd/goinstall/syslist.go
+ src/pkg/Make.deps
+ src/pkg/exp/norm/maketables
++src/pkg/exp/norm/maketesttables
+ src/pkg/exp/ogle/ogle
+ src/pkg/go/build/syslist.go
+ src/pkg/os/signal/unix.go
+diff --git a/src/pkg/exp/norm/Makefile b/src/pkg/exp/norm/Makefile
+index 906661d282..f14bc7025d 100644
+--- a/src/pkg/exp/norm/Makefile
++++ b/src/pkg/exp/norm/Makefile
+@@ -7,22 +7,31 @@ include ../../../Make.inc
+ TARG=exp/norm
+ GOFILES=\
+ 	tables.go\
++	trie.go\
+ 
+ include ../../../Make.pkg
+ 
+-CLEANFILES+=maketables
++CLEANFILES+=maketables maketesttables
+ 
+-maketables: maketables.go
+-	$(GC) maketables.go
++maketables: maketables.go triegen.go
++	$(GC) maketables.go triegen.go
+ 	$(LD) -o maketables maketables.$O
+ 
++maketesttables: maketesttables.go triegen.go
++	$(GC) maketesttables.go triegen.go
++	$(LD) -o maketesttables maketesttables.$O
++
+ tables:	maketables
+ 	./maketables > tables.go
+ 	gofmt -w tables.go
+ 
++trietesttables: maketesttables
++	./maketesttables > triedata_test.go
++	gofmt -w triedata_test.go
++
+ # Build (but do not run) maketables during testing,
+ # just to make sure it still compiles.
+-testshort: maketables
++testshort: maketables maketesttables
+ 
+ # Downloads from www.unicode.org, so not part
+ # of standard test scripts.
+diff --git a/src/pkg/exp/norm/maketables.go b/src/pkg/exp/norm/maketables.go
+index 0064b2cbe0..a6e3aa5e1a 100644
+--- a/src/pkg/exp/norm/maketables.go
++++ b/src/pkg/exp/norm/maketables.go
+@@ -12,7 +12,6 @@ import (
+ 	"bytes"
+ 	"flag"
+ 	"fmt"
+-	"hash/crc32"
+ 	"http"
+ 	"io"
+ 	"log"
+@@ -20,7 +19,6 @@ import (
+ 	"regexp"
+ 	"strconv"
+ 	"strings"
+-	"utf8"
+ )
+ 
+ func main() {
+@@ -535,130 +533,6 @@ func completeCharFields(form int) {
+ 	}
+ }
+ 
+-// Intermediate trie structure
+-type trieNode struct {
+-	table [256]*trieNode
+-	value uint16
+-	b     byte
+-	leaf  bool
+-}
+-
+-func newNode() *trieNode {
+-	return new(trieNode)
+-}
+-
+-type nodeIndex struct {
+-	lookupBlocks []*trieNode
+-	valueBlocks  []*trieNode
+-
+-	lookupBlockIdx map[uint32]uint16
+-	valueBlockIdx  map[uint32]uint16
+-}
+-
+-func newIndex() *nodeIndex {
+-	index := &nodeIndex{}
+-	index.lookupBlocks = make([]*trieNode, 0)
+-	index.valueBlocks = make([]*trieNode, 0)
+-	index.lookupBlockIdx = make(map[uint32]uint16)
+-	index.valueBlockIdx = make(map[uint32]uint16)
+-	return index
+-}
+-
+-func (n trieNode) isInternal() bool {
+-	internal := true
+-	for i := 0; i < 256; i++ {
+-		if nn := n.table[i]; nn != nil {
+-			if !internal && !nn.leaf {
+-				panic("Node contains both leaf and non-leaf children.")
+-			}
+-			internal = internal && !nn.leaf
+-		}
+-	}
+-	return internal
+-}
+-
+-func (n *trieNode) insert(rune int, value uint16) {
+-	var p [utf8.UTFMax]byte
+-	sz := utf8.EncodeRune(p[:], rune)
+-
+-	for i := 0; i < sz; i++ {
+-		if n.leaf {
+-			panic("Node should not be a leaf")
+-		}
+-		nn := n.table[int(p[i])]
+-		if nn == nil {
+-			nn = newNode()
+-			nn.b = p[i]
+-			n.table[int(p[i])] = nn
+-		}
+-		n = nn
+-	}
+-	n.value = value
+-	n.leaf = true
+-}
+-
+-func computeOffsets(index *nodeIndex, n *trieNode) uint16 {
+-	if n.leaf {
+-		return n.value
+-	}
+-	hasher := crc32.New(crc32.MakeTable(crc32.IEEE))
+-	// We only index continuation bytes.
+-	for i := 0; i < 64; i++ {
+-		var v uint16 = 0
+-		if nn := n.table[0x80+i]; nn != nil {
+-			v = computeOffsets(index, nn)
+-		}
+-		hasher.Write([]byte{uint8(v >> 8), uint8(v)})
+-	}
+-	h := hasher.Sum32()
+-	if n.isInternal() {
+-		v, ok := index.lookupBlockIdx[h]
+-		if !ok {
+-			v = uint16(len(index.lookupBlocks))
+-			index.lookupBlocks = append(index.lookupBlocks, n)
+-			index.lookupBlockIdx[h] = v
+-		}
+-		n.value = v
+-	} else {
+-		v, ok := index.valueBlockIdx[h]
+-		if !ok {
+-			v = uint16(len(index.valueBlocks))
+-			index.valueBlocks = append(index.valueBlocks, n)
+-			index.valueBlockIdx[h] = v
+-		}
+-		n.value = v
+-	}
+-	return n.value
+-}
+-
+-func printValueBlock(nr int, n *trieNode, offset int) {
+-	fmt.Printf("\n// Block %X", nr)
+-	for i := 0; i < 64; i++ {
+-		if i%8 == 0 {
+-			fmt.Printf("\n")
+-		}
+-		var v uint16 = 0
+-		if nn := n.table[i+offset]; nn != nil {
+-			v = nn.value
+-		}
+-		fmt.Printf("0x%.4X, ", v)
+-	}
+-}
+-
+-func printLookupBlock(nr int, n *trieNode, offset int) {
+-	fmt.Printf("\n// Block %X", nr)
+-	for i := 0; i < 64; i++ {
+-		if i%8 == 0 {
+-			fmt.Printf("\n")
+-		}
+-		var v uint16 = 0
+-		if nn := n.table[i+offset]; nn != nil {
+-			v = nn.value
+-		}
+-		fmt.Printf("0x%.2X, ", v)
+-	}
+-}
+-
+ func printBytes(b []byte, name string) {
+ 	fmt.Printf("// %s: %d bytes\n", name, len(b))
+ 	fmt.Printf("var %s = [...]byte {", name)
+@@ -674,48 +548,6 @@ func printBytes(b []byte, name string) {
+ 	fmt.Print("\n}\n\n")
+ }
+ 
+-// printTrieTables returns the size of the generated tables.
+-func printTrieTables(t *trieNode, name string) int {
+-	index := newIndex()
+-	// Directly add first 128 values of UTF-8, followed by nil block.
+-	index.valueBlocks = append(index.valueBlocks, nil, nil, nil)
+-	// First byte of multi-byte UTF-8 codepoints are indexed in 4th block.
+-	index.lookupBlocks = append(index.lookupBlocks, nil, nil, nil, nil)
+-	// Index starter bytes of multi-byte UTF-8.
+-	for i := 0xC0; i < 0x100; i++ {
+-		if t.table[i] != nil {
+-			computeOffsets(index, t.table[i])
+-		}
+-	}
+-
+-	nv := len(index.valueBlocks) * 64
+-
+-	fmt.Printf("// %sValues: %d entries, %d bytes\n", name, nv, nv*2)
+-	fmt.Printf("// Block 2 is the null block.\n")
+-	fmt.Printf("var %sValues = [...]uint16 {", name)
+-	printValueBlock(0, t, 0)
+-	printValueBlock(1, t, 64)
+-	printValueBlock(2, newNode(), 0)
+-	for i := 3; i < len(index.valueBlocks); i++ {
+-		printValueBlock(i, index.valueBlocks[i], 0x80)
+-	}
+-	fmt.Print("\n}\n\n")
+-
+-	ni := len(index.lookupBlocks) * 64
+-	fmt.Printf("// %sLookup: %d bytes\n", name, ni)
+-	fmt.Printf("// Block 0 is the null block.\n")
+-	fmt.Printf("var %sLookup = [...]uint8 {", name)
+-	printLookupBlock(0, newNode(), 0)
+-	printLookupBlock(1, newNode(), 0)
+-	printLookupBlock(2, newNode(), 0)
+-	printLookupBlock(3, t, 0xC0)
+-	for i := 4; i < len(index.lookupBlocks); i++ {
+-		printLookupBlock(i, index.lookupBlocks[i], 0x80)
+-	}
+-	fmt.Print("\n}\n\n")
+-	return nv*2 + ni
+-}
+-
+ // See forminfo.go for format.
+ func makeEntry(f *FormInfo) uint16 {
+ 	e := uint16(0)
+@@ -757,7 +589,7 @@ func printCharInfoTables() int {
+ 			t.insert(i, v)
+ 		}
+ 	}
+-	return printTrieTables(t, "charInfo")
++	return t.printTables("charInfo")
+ }
+ 
+ func printDecompositionTables() int {
+@@ -791,14 +623,26 @@ func printDecompositionTables() int {
+ 		d := c.forms[FCanonical].expandedDecomp
+ 		if len(d) != 0 {
+ 			nfcT.insert(i, positionMap[string([]int(d))])
++			if ccc(c.codePoint) != ccc(d[0]) {
++				// We assume the lead ccc of a decomposition is !=0 in this case.
++				if ccc(d[0]) == 0 {
++					logger.Fatal("Expected differing CCC to be non-zero.")
++				}
++			}
+ 		}
+ 		d = c.forms[FCompatibility].expandedDecomp
+ 		if len(d) != 0 {
+ 			nfkcT.insert(i, positionMap[string([]int(d))])
++			if ccc(c.codePoint) != ccc(d[0]) {
++				// We assume the lead ccc of a decomposition is !=0 in this case.
++				if ccc(d[0]) == 0 {
++					logger.Fatal("Expected differing CCC to be non-zero.")
++				}
++			}
+ 		}
+ 	}
+-	size += printTrieTables(nfcT, "nfcDecomp")
+-	size += printTrieTables(nfkcT, "nfkcDecomp")
++	size += nfcT.printTables("nfcDecomp")
++	size += nfkcT.printTables("nfkcDecomp")
+ 	return size
+ }
+ 
+diff --git a/src/pkg/exp/norm/maketesttables.go b/src/pkg/exp/norm/maketesttables.go
+new file mode 100644
+index 0000000000..c5f6a64368
+--- /dev/null
++++ b/src/pkg/exp/norm/maketesttables.go
+@@ -0,0 +1,42 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Generate test data for trie code.
++
++package main
++
++import (
++	"fmt"
++)
++
++func main() {
++	printTestTables()
++}
++
++// We take the smallest, largest and an arbitrary value for each 
++// of the UTF-8 sequence lengths.
++var testRunes = []int{
++	0x01, 0x0C, 0x7F, // 1-byte sequences
++	0x80, 0x100, 0x7FF, // 2-byte sequences
++	0x800, 0x999, 0xFFFF, // 3-byte sequences
++	0x10000, 0x10101, 0x10FFFF, // 4-byte sequences
++}
++
++const fileHeader = `// Generated by running
++//	maketesttables
++// DO NOT EDIT
++
++package norm
++
++`
++
++func printTestTables() {
++	fmt.Print(fileHeader)
++	fmt.Printf("var testRunes = %#v\n\n", testRunes)
++	t := newNode()
++	for i, r := range testRunes {
++		t.insert(r, uint16(i))
++	}
++	t.printTables("testdata")
++}
+diff --git a/src/pkg/exp/norm/trie.go b/src/pkg/exp/norm/trie.go
+new file mode 100644
+index 0000000000..6b65401875
+--- /dev/null
++++ b/src/pkg/exp/norm/trie.go
+@@ -0,0 +1,234 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package norm
++
++type trie struct {
++	index  []uint8
++	values []uint16
++}
++
++const (
++	t1 = 0x00 // 0000 0000
++	tx = 0x80 // 1000 0000
++	t2 = 0xC0 // 1100 0000
++	t3 = 0xE0 // 1110 0000
++	t4 = 0xF0 // 1111 0000
++	t5 = 0xF8 // 1111 1000
++	t6 = 0xFC // 1111 1100
++	te = 0xFE // 1111 1110
++
++	maskx = 0x3F // 0011 1111
++	mask2 = 0x1F // 0001 1111
++	mask3 = 0x0F // 0000 1111
++	mask4 = 0x07 // 0000 0111
++)
++
++// lookup returns the trie value for the first UTF-8 encoding in s and
++// the width in bytes of this encoding. The size will be 0 if s does not
++// hold enough bytes to complete the encoding. len(s) must be greater than 0.
++func (t *trie) lookup(s []byte) (v uint16, sz int) {
++	c0 := s[0]
++	switch {
++	case c0 < tx:
++		return t.values[c0], 1
++	case c0 < t2:
++		return 0, 1
++	case c0 < t3:
++		if len(s) < 2 {
++			return 0, 0
++		}
++		i := t.index[c0]
++		c1 := s[1]
++		if c1 < tx || t2 <= c1 {
++			return 0, 1
++		}
++		o := uint16(i)<<6 + uint16(c1)&maskx
++		return t.values[o], 2
++	case c0 < t4:
++		if len(s) < 3 {
++			return 0, 0
++		}
++		i := t.index[c0]
++		c1 := s[1]
++		if c1 < tx || t2 <= c1 {
++			return 0, 1
++		}
++		o := uint16(i)<<6 + uint16(c1)&maskx
++		i = t.index[o]
++		c2 := s[2]
++		if c2 < tx || t2 <= c2 {
++			return 0, 2
++		}
++		o = uint16(i)<<6 + uint16(c2)&maskx
++		return t.values[o], 3
++	case c0 < t5:
++		if len(s) < 4 {
++			return 0, 0
++		}
++		i := t.index[c0]
++		c1 := s[1]
++		if c1 < tx || t2 <= c1 {
++			return 0, 1
++		}
++		o := uint16(i)<<6 + uint16(c1)&maskx
++		i = t.index[o]
++		c2 := s[2]
++		if c2 < tx || t2 <= c2 {
++			return 0, 2
++		}
++		o = uint16(i)<<6 + uint16(c2)&maskx
++		i = t.index[o]
++		c3 := s[3]
++		if c3 < tx || t2 <= c3 {
++			return 0, 3
++		}
++		o = uint16(i)<<6 + uint16(c3)&maskx
++		return t.values[o], 4
++	case c0 < t6:
++		if len(s) < 5 {
++			return 0, 0
++		}
++		return 0, 5
++	case c0 < te:
++		if len(s) < 6 {
++			return 0, 0
++		}
++		return 0, 6
++	}
++	// Illegal rune
++	return 0, 1
++}
++
++// lookupString returns the trie value for the first UTF-8 encoding in s and
++// the width in bytes of this encoding. The size will be 0 if s does not
++// hold enough bytes to complete the encoding. len(s) must be greater than 0.
++func (t *trie) lookupString(s string) (v uint16, sz int) {
++	c0 := s[0]
++	switch {
++	case c0 < tx:
++		return t.values[c0], 1
++	case c0 < t2:
++		return 0, 1
++	case c0 < t3:
++		if len(s) < 2 {
++			return 0, 0
++		}
++		i := t.index[c0]
++		c1 := s[1]
++		if c1 < tx || t2 <= c1 {
++			return 0, 1
++		}
++		o := uint16(i)<<6 + uint16(c1)&maskx
++		return t.values[o], 2
++	case c0 < t4:
++		if len(s) < 3 {
++			return 0, 0
++		}
++		i := t.index[c0]
++		c1 := s[1]
++		if c1 < tx || t2 <= c1 {
++			return 0, 1
++		}
++		o := uint16(i)<<6 + uint16(c1)&maskx
++		i = t.index[o]
++		c2 := s[2]
++		if c2 < tx || t2 <= c2 {
++			return 0, 2
++		}
++		o = uint16(i)<<6 + uint16(c2)&maskx
++		return t.values[o], 3
++	case c0 < t5:
++		if len(s) < 4 {
++			return 0, 0
++		}
++		i := t.index[c0]
++		c1 := s[1]
++		if c1 < tx || t2 <= c1 {
++			return 0, 1
++		}
++		o := uint16(i)<<6 + uint16(c1)&maskx
++		i = t.index[o]
++		c2 := s[2]
++		if c2 < tx || t2 <= c2 {
++			return 0, 2
++		}
++		o = uint16(i)<<6 + uint16(c2)&maskx
++		i = t.index[o]
++		c3 := s[3]
++		if c3 < tx || t2 <= c3 {
++			return 0, 3
++		}
++		o = uint16(i)<<6 + uint16(c3)&maskx
++		return t.values[o], 4
++	case c0 < t6:
++		if len(s) < 5 {
++			return 0, 0
++		}
++		return 0, 5
++	case c0 < te:
++		if len(s) < 6 {
++			return 0, 0
++		}
++		return 0, 6
++	}
++	// Illegal rune
++	return 0, 1
++}
++
++// lookupUnsafe returns the trie value for the first UTF-8 encoding in s.
++// s must hold a full encoding.
++func (t *trie) lookupUnsafe(s []byte) uint16 {
++	c0 := s[0]
++	if c0 < tx {
++		return t.values[c0]
++	}
++	if c0 < t2 {
++		return 0
++	}
++	i := t.index[c0]
++	o := uint16(i)<<6 + uint16(s[1])&maskx
++	if c0 < t3 {
++		return t.values[o]
++	}
++	i = t.index[o]
++	o = uint16(i)<<6 + uint16(s[2])&maskx
++	if c0 < t4 {
++		return t.values[o]
++	}
++	i = t.index[o]
++	o = uint16(i)<<6 + uint16(s[3])&maskx
++	if c0 < t5 {
++		return t.values[o]
++	}
++	return 0
++}
++
++// lookupStringUnsafe returns the trie value for the first UTF-8 encoding in s.
++// s must hold a full encoding.
++func (t *trie) lookupStringUnsafe(s string) uint16 {
++	c0 := s[0]
++	if c0 < tx {
++		return t.values[c0]
++	}
++	if c0 < t2 {
++		return 0
++	}
++	i := t.index[c0]
++	o := uint16(i)<<6 + uint16(s[1])&maskx
++	if c0 < t3 {
++		return t.values[o]
++	}
++	i = t.index[o]
++	o = uint16(i)<<6 + uint16(s[2])&maskx
++	if c0 < t4 {
++		return t.values[o]
++	}
++	i = t.index[o]
++	o = uint16(i)<<6 + uint16(s[3])&maskx
++	if c0 < t5 {
++		return t.values[o]
++	}
++	return 0
++}
+diff --git a/src/pkg/exp/norm/trie_test.go b/src/pkg/exp/norm/trie_test.go
+new file mode 100644
+index 0000000000..1480b7c88b
+--- /dev/null
++++ b/src/pkg/exp/norm/trie_test.go
+@@ -0,0 +1,107 @@
++package norm
++
++import (
++	"testing"
++	"utf8"
++)
++
++// Test data is located in triedata_test.go, generated by maketesttables.
++var testdata = &trie{testdataLookup[:], testdataValues[:]}
++
++// Test cases for illegal runes.
++type trietest struct {
++	size  int
++	bytes []byte
++}
++
++var tests = []trietest{
++	// illegal runes
++	{1, []byte{0x80}},
++	{1, []byte{0xFF}},
++	{1, []byte{t2, tx - 1}},
++	{1, []byte{t2, t2}},
++	{2, []byte{t3, tx, tx - 1}},
++	{2, []byte{t3, tx, t2}},
++	{1, []byte{t3, tx - 1, tx}},
++	{3, []byte{t4, tx, tx, tx - 1}},
++	{3, []byte{t4, tx, tx, t2}},
++	{1, []byte{t4, t2, tx, tx - 1}},
++	{2, []byte{t4, tx, t2, tx - 1}},
++
++	// short runes
++	{0, []byte{t2}},
++	{0, []byte{t3, tx}},
++	{0, []byte{t4, tx, tx}},
++	{0, []byte{t5, tx, tx, tx}},
++	{0, []byte{t6, tx, tx, tx, tx}},
++}
++
++func mkUtf8(rune int) ([]byte, int) {
++	var b [utf8.UTFMax]byte
++	sz := utf8.EncodeRune(b[:], rune)
++	return b[:sz], sz
++}
++
++func TestLookup(t *testing.T) {
++	for i, tt := range testRunes {
++		b, szg := mkUtf8(tt)
++		v, szt := testdata.lookup(b)
++		if int(v) != i {
++			t.Errorf("lookup(%U): found value %#x, expected %#x", i, v, i)
++		}
++		if szt != szg {
++			t.Errorf("lookup(%U): found size %d, expected %d", i, szt, szg)
++		}
++	}
++	for i, tt := range tests {
++		v, sz := testdata.lookup(tt.bytes)
++		if int(v) != 0 {
++			t.Errorf("lookup of illegal rune, case %d: found value %#x, expected 0", i, v)
++		}
++		if sz != tt.size {
++			t.Errorf("lookup of illegal rune, case %d: found size %d, expected %d", i, sz, tt.size)
++		}
++	}
++}
++
++func TestLookupUnsafe(t *testing.T) {
++	for i, tt := range testRunes {
++		b, _ := mkUtf8(tt)
++		v := testdata.lookupUnsafe(b)
++		if int(v) != i {
++			t.Errorf("lookupUnsafe(%U): found value %#x, expected %#x", i, v, i)
++		}
++	}
++}
++
++func TestLookupString(t *testing.T) {
++	for i, tt := range testRunes {
++		b, szg := mkUtf8(tt)
++		v, szt := testdata.lookupString(string(b))
++		if int(v) != i {
++			t.Errorf("lookup(%U): found value %#x, expected %#x", i, v, i)
++		}
++		if szt != szg {
++			t.Errorf("lookup(%U): found size %d, expected %d", i, szt, szg)
++		}
++	}
++	for i, tt := range tests {
++		v, sz := testdata.lookupString(string(tt.bytes))
++		if int(v) != 0 {
++			t.Errorf("lookup of illegal rune, case %d: found value %#x, expected 0", i, v)
++		}
++		if sz != tt.size {
++			t.Errorf("lookup of illegal rune, case %d: found size %d, expected %d", i, sz, tt.size)
++		}
++	}
++}
++
++func TestLookupStringUnsafe(t *testing.T) {
++	for i, tt := range testRunes {
++		b, _ := mkUtf8(tt)
++		v := testdata.lookupStringUnsafe(string(b))
++		if int(v) != i {
++			t.Errorf("lookupUnsafe(%U): found value %#x, expected %#x", i, v, i)
++		}
++	}
++}
+diff --git a/src/pkg/exp/norm/triedata_test.go b/src/pkg/exp/norm/triedata_test.go
+new file mode 100644
+index 0000000000..2f04597b1b
+--- /dev/null
++++ b/src/pkg/exp/norm/triedata_test.go
+@@ -0,0 +1,61 @@
++// Generated by running
++//	maketesttables
++// DO NOT EDIT
++
++package norm
++
++var testRunes = []int{1, 12, 127, 128, 256, 2047, 2048, 2457, 65535, 65536, 65793, 1114111}
++
++// testdataValues: 768 entries, 1536 bytes
++// Block 2 is the null block.
++var testdataValues = [768]uint16{
++	// Block 0x0, offset 0x0
++	0x000c: 0x0001,
++	// Block 0x1, offset 0x40
++	0x007f: 0x0002,
++	// Block 0x2, offset 0x80
++	// Block 0x3, offset 0xc0
++	0x00c0: 0x0003,
++	// Block 0x4, offset 0x100
++	0x0100: 0x0004,
++	// Block 0x5, offset 0x140
++	0x017f: 0x0005,
++	// Block 0x6, offset 0x180
++	0x0180: 0x0006,
++	// Block 0x7, offset 0x1c0
++	0x01d9: 0x0007,
++	// Block 0x8, offset 0x200
++	0x023f: 0x0008,
++	// Block 0x9, offset 0x240
++	0x0240: 0x0009,
++	// Block 0xa, offset 0x280
++	0x0281: 0x000a,
++	// Block 0xb, offset 0x2c0
++	0x02ff: 0x000b,
++}
++
++// testdataLookup: 640 bytes
++// Block 0 is the null block.
++var testdataLookup = [640]uint8{
++	// Block 0x0, offset 0x0
++	// Block 0x1, offset 0x40
++	// Block 0x2, offset 0x80
++	// Block 0x3, offset 0xc0
++	0x0c2: 0x03, 0x0c4: 0x04,
++	0x0df: 0x05,
++	0x0e0: 0x04,
++	0x0ef: 0x05,
++	0x0f0: 0x07, 0x0f4: 0x09,
++	// Block 0x4, offset 0x100
++	0x120: 0x06, 0x126: 0x07,
++	// Block 0x5, offset 0x140
++	0x17f: 0x08,
++	// Block 0x6, offset 0x180
++	0x180: 0x09, 0x184: 0x0a,
++	// Block 0x7, offset 0x1c0
++	0x1d0: 0x06,
++	// Block 0x8, offset 0x200
++	0x23f: 0x0b,
++	// Block 0x9, offset 0x240
++	0x24f: 0x08,
++}
+diff --git a/src/pkg/exp/norm/triegen.go b/src/pkg/exp/norm/triegen.go
+new file mode 100644
+index 0000000000..3471a30d8a
+--- /dev/null
++++ b/src/pkg/exp/norm/triegen.go
+@@ -0,0 +1,210 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Trie table generator.
++// Used by make*tables tools to generate a go file with trie data structures
++// for mapping UTF-8 to a 16-bit value. All but the last byte in a UTF-8 byte
++// sequence are used to lookup offsets in the index table to be used for the
++// next byte. The last byte is used to index into a table with 16-bit values.
++
++package main
++
++import (
++	"fmt"
++	"hash/crc32"
++	"log"
++	"utf8"
++)
++
++// Intermediate trie structure
++type trieNode struct {
++	table [256]*trieNode
++	value uint16
++	b     byte
++	leaf  bool
++}
++
++func newNode() *trieNode {
++	return new(trieNode)
++}
++
++func (n trieNode) String() string {
++	s := fmt.Sprint("trieNode{table: { non-nil at index: ")
++	for i, v := range n.table {
++		if v != nil {
++			s += fmt.Sprintf("%d, ", i)
++		}
++	}
++	s += fmt.Sprintf("}, value:%#x, b:%#x leaf:%v}", n.value, n.b, n.leaf)
++	return s
++}
++
++func (n trieNode) isInternal() bool {
++	internal := true
++	for i := 0; i < 256; i++ {
++		if nn := n.table[i]; nn != nil {
++			if !internal && !nn.leaf {
++				log.Fatalf("triegen: isInternal: node contains both leaf and non-leaf children (%v)", n)
++			}
++			internal = internal && !nn.leaf
++		}
++	}
++	return internal
++}
++
++func (n *trieNode) insert(rune int, value uint16) {
++	var p [utf8.UTFMax]byte
++	sz := utf8.EncodeRune(p[:], rune)
++
++	for i := 0; i < sz; i++ {
++		if n.leaf {
++			log.Fatalf("triegen: insert: node (%#v) should not be a leaf", n)
++		}
++		nn := n.table[p[i]]
++		if nn == nil {
++			nn = newNode()
++			nn.b = p[i]
++			n.table[p[i]] = nn
++		}
++		n = nn
++	}
++	n.value = value
++	n.leaf = true
++}
++
++type nodeIndex struct {
++	lookupBlocks []*trieNode
++	valueBlocks  []*trieNode
++
++	lookupBlockIdx map[uint32]uint16
++	valueBlockIdx  map[uint32]uint16
++}
++
++func newIndex() *nodeIndex {
++	index := &nodeIndex{}
++	index.lookupBlocks = make([]*trieNode, 0)
++	index.valueBlocks = make([]*trieNode, 0)
++	index.lookupBlockIdx = make(map[uint32]uint16)
++	index.valueBlockIdx = make(map[uint32]uint16)
++	return index
++}
++
++func computeOffsets(index *nodeIndex, n *trieNode) uint16 {
++	if n.leaf {
++		return n.value
++	}
++	hasher := crc32.New(crc32.MakeTable(crc32.IEEE))
++	// We only index continuation bytes.
++	for i := 0; i < 64; i++ {
++		var v uint16 = 0
++		if nn := n.table[0x80+i]; nn != nil {
++			v = computeOffsets(index, nn)
++		}
++		hasher.Write([]byte{uint8(v >> 8), uint8(v)})
++	}
++	h := hasher.Sum32()
++	if n.isInternal() {
++		v, ok := index.lookupBlockIdx[h]
++		if !ok {
++			v = uint16(len(index.lookupBlocks))
++			index.lookupBlocks = append(index.lookupBlocks, n)
++			index.lookupBlockIdx[h] = v
++		}
++		n.value = v
++	} else {
++		v, ok := index.valueBlockIdx[h]
++		if !ok {
++			v = uint16(len(index.valueBlocks))
++			index.valueBlocks = append(index.valueBlocks, n)
++			index.valueBlockIdx[h] = v
++		}
++		n.value = v
++	}
++	return n.value
++}
++
++func printValueBlock(nr int, n *trieNode, offset int) {
++	boff := nr * 64
++	fmt.Printf("\n// Block %#x, offset %#x", nr, boff)
++	var printnewline bool
++	for i := 0; i < 64; i++ {
++		if i%6 == 0 {
++			printnewline = true
++		}
++		v := uint16(0)
++		if nn := n.table[i+offset]; nn != nil {
++			v = nn.value
++		}
++		if v != 0 {
++			if printnewline {
++				fmt.Printf("\n")
++				printnewline = false
++			}
++			fmt.Printf("%#04x:%#04x, ", nr*64+i, v)
++		}
++	}
++}
++
++func printLookupBlock(nr int, n *trieNode, offset int) {
++	boff := nr * 64
++	fmt.Printf("\n// Block %#x, offset %#x", nr, boff)
++	var printnewline bool
++	for i := 0; i < 64; i++ {
++		if i%8 == 0 {
++			printnewline = true
++		}
++		v := uint16(0)
++		if nn := n.table[i+offset]; nn != nil {
++			v = nn.value
++		}
++		if v != 0 {
++			if printnewline {
++				fmt.Printf("\n")
++				printnewline = false
++			}
++			fmt.Printf("%#03x:%#02x, ", boff+i, v)
++		}
++	}
++}
++
++// printTables returns the size in bytes of the generated tables.
++func (t *trieNode) printTables(name string) int {
++	index := newIndex()
++	// Values for 7-bit ASCII are stored in first two block, followed by nil block.
++	index.valueBlocks = append(index.valueBlocks, nil, nil, nil)
++	// First byte of multi-byte UTF-8 codepoints are indexed in 4th block.
++	index.lookupBlocks = append(index.lookupBlocks, nil, nil, nil, nil)
++	// Index starter bytes of multi-byte UTF-8.
++	for i := 0xC0; i < 0x100; i++ {
++		if t.table[i] != nil {
++			computeOffsets(index, t.table[i])
++		}
++	}
++
++	nv := len(index.valueBlocks) * 64
++	fmt.Printf("// %sValues: %d entries, %d bytes\n", name, nv, nv*2)
++	fmt.Printf("// Block 2 is the null block.\n")
++	fmt.Printf("var %sValues = [%d]uint16 {", name, nv)
++	printValueBlock(0, t, 0)
++	printValueBlock(1, t, 64)
++	printValueBlock(2, newNode(), 0)
++	for i := 3; i < len(index.valueBlocks); i++ {
++		printValueBlock(i, index.valueBlocks[i], 0x80)
++	}
++	fmt.Print("\n}\n\n")
++
++	ni := len(index.lookupBlocks) * 64
++	fmt.Printf("// %sLookup: %d bytes\n", name, ni)
++	fmt.Printf("// Block 0 is the null block.\n")
++	fmt.Printf("var %sLookup = [%d]uint8 {", name, ni)
++	printLookupBlock(0, newNode(), 0)
++	printLookupBlock(1, newNode(), 0)
++	printLookupBlock(2, newNode(), 0)
++	printLookupBlock(3, t, 0xC0)
++	for i := 4; i < len(index.lookupBlocks); i++ {
++		printLookupBlock(i, index.lookupBlocks[i], 0x80)
++	}
++	fmt.Print("\n}\n\n")
++	return nv*2 + ni
++}

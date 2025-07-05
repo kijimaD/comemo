@@ -29,8 +29,157 @@ Date:   Fri Apr 16 21:45:02 2021 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/go/script_test.go                          |  2 -
  src/cmd/go/testdata/script/README                  |  1 -
  .../go/testdata/script/build_tag_goexperiment.txt  | 93 +++-------------------
  3 files changed, 11 insertions(+), 85 deletions(-)
+
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 87b5971aa7..2274335a75 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -13,7 +13,6 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"go/build"
+-	"internal/buildcfg"
+ 	"internal/testenv"
+ 	"io/fs"
+ 	"os"
+@@ -165,7 +164,6 @@ func (ts *testScript) setup() {
+ 		"GOCACHE=" + testGOCACHE,
+ 		"GODEBUG=" + os.Getenv("GODEBUG"),
+ 		"GOEXE=" + cfg.ExeSuffix,
+-		"GOEXPERIMENT=" + buildcfg.GOEXPERIMENT(),
+ 		"GOOS=" + runtime.GOOS,
+ 		"GOPATH=" + filepath.Join(ts.workdir, "gopath"),
+ 		"GOPROXY=" + proxyURL,
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index b4dcb1f5a2..d7e67bb7b6 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -29,7 +29,6 @@ Scripts also have access to these other environment variables:
+ 	GOARCH=<target GOARCH>
+ 	GOCACHE=<actual GOCACHE being used outside the test>
+ 	GOEXE=<executable file suffix: .exe on Windows, empty on other systems>
+-	GOEXPERIMENT=<value of objabi.GOEXPERIMENT>
+ 	GOOS=<target GOOS>
+ 	GOPATH=$WORK/gopath
+ 	GOPROXY=<local module proxy serving from cmd/go/testdata/mod>
+diff --git a/src/cmd/go/testdata/script/build_tag_goexperiment.txt b/src/cmd/go/testdata/script/build_tag_goexperiment.txt
+index dfda3d2629..bee218f4c1 100644
+--- a/src/cmd/go/testdata/script/build_tag_goexperiment.txt
++++ b/src/cmd/go/testdata/script/build_tag_goexperiment.txt
+@@ -1,83 +1,20 @@
+-# compile_ext will fail if the buildtags that are enabled (or not enabled) for the
+-# framepointer and fieldtrack experiments are not consistent with the value of
+-# objabi.GOEXPERIMENT.
+-
+ [short] skip
++# Reset all experiments so fieldtrack is definitely off.
++env GOEXPERIMENT=none
+ go run m
+-
+--- expt_main.go --
+-package main
+-
+-import (
+-	"os"
+-	"strings"
+-)
+-
+-func main() {
+-  fp()
+-  ft()
+-}
+-
+-func hasExpEntry(s string) bool {
+-	// script_test.go defines GOEXPERIMENT to be the enabled experiments.
+-	g := os.Getenv("GOEXPERIMENT")
+-	for _, f := range strings.Split(g, ",") {
+-		if f == s {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+--- fp_off.go --
+-// +build !goexperiment.framepointer
+-
+-package main
+-
+-import (
+-	"fmt"
+-	"os"
+-)
+-
+-func fp() {
+-	if hasExpEntry("framepointer") {
+-		fmt.Println("in !framepointer build, but objabi.GOEXPERIMENT has 'framepointer'")
+-		os.Exit(1)
+-	}
+-}
+-
+--- fp_on.go --
+-// +build goexperiment.framepointer
+-
+-package main
+-
+-import (
+-	"fmt"
+-	"os"
+-)
+-
+-func fp() {
+-	if !hasExpEntry("framepointer") {
+-		fmt.Println("in framepointer build, but objabi.GOEXPERIMENT does not have 'framepointer', is", os.Getenv("GOEXPERIMENT"))
+-		os.Exit(1)
+-	}
+-}
++stderr 'fieldtrack off'
++# Turn fieldtrack on.
++env GOEXPERIMENT=none,fieldtrack
++go run m
++stderr 'fieldtrack on'
+ 
+ -- ft_off.go --
+ // +build !goexperiment.fieldtrack
+ 
+ package main
+ 
+-import (
+-	"fmt"
+-	"os"
+-)
+-
+-func ft() {
+-	if hasExpEntry("fieldtrack") {
+-		fmt.Println("in !fieldtrack build, but objabi.GOEXPERIMENT has 'fieldtrack'")
+-		os.Exit(1)
+-	}
++func main() {
++	println("fieldtrack off")
+ }
+ 
+ -- ft_on.go --
+@@ -85,16 +22,8 @@ func ft() {
+ 
+ package main
+ 
+-import (
+-	"fmt"
+-	"os"
+-)
+-
+-func ft() {
+-	if !hasExpEntry("fieldtrack") {
+-		fmt.Println("in fieldtrack build, but objabi.GOEXPERIMENT does not have 'fieldtrack', is", os.Getenv("GOEXPERIMENT"))
+-		os.Exit(1)
+-	}
++func main() {
++	println("fieldtrack on")
+ }
+ 
+ -- go.mod --

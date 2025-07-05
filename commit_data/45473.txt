@@ -22,7 +22,45 @@ Date:   Wed Oct 21 21:29:43 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/264343
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Joel Sing <joel@sing.id.au>
-
+---
  src/cmd/internal/obj/arm/obj5.go   | 2 ++
  src/cmd/internal/obj/s390x/objz.go | 6 ++++--
  2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index f2bfb9679f..29d3a5867d 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -487,6 +487,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			// If there are instructions following
+ 			// this ARET, they come from a branch
+ 			// with the same stackframe, so no spadj.
++
+ 			if p.To.Sym != nil { // retjmp
+ 				p.To.Reg = REGLINK
+ 				q2 = obj.Appendp(p, newprog)
+@@ -494,6 +495,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				q2.To.Type = obj.TYPE_BRANCH
+ 				q2.To.Sym = p.To.Sym
+ 				p.To.Sym = nil
++				p.To.Name = obj.NAME_NONE
+ 				p = q2
+ 			}
+ 
+diff --git a/src/cmd/internal/obj/s390x/objz.go b/src/cmd/internal/obj/s390x/objz.go
+index 3af5425b36..970cf827d6 100644
+--- a/src/cmd/internal/obj/s390x/objz.go
++++ b/src/cmd/internal/obj/s390x/objz.go
+@@ -497,8 +497,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Reg = REGSP
+ 			p.From.Offset = 0
+-			p.To.Type = obj.TYPE_REG
+-			p.To.Reg = REG_LR
++			p.To = obj.Addr{
++				Type: obj.TYPE_REG,
++				Reg:  REG_LR,
++			}
+ 
+ 			q = p
+ 

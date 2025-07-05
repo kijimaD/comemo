@@ -20,7 +20,73 @@ Date:   Wed Feb 10 12:43:18 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/290950
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/walk.go | 16 +++++++++++++++-
  test/reflectmethod7.go              | 24 ++++++++++++++++++++++++
  2 files changed, 39 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 2133a160b2..98ebb23991 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -550,8 +550,12 @@ opswitch:
+ 	case OCLOSUREVAR, OCFUNC:
+ 
+ 	case OCALLINTER, OCALLFUNC, OCALLMETH:
+-		if n.Op == OCALLINTER {
++		if n.Op == OCALLINTER || n.Op == OCALLMETH {
++			// We expect both interface call reflect.Type.Method and concrete
++			// call reflect.(*rtype).Method.
+ 			usemethod(n)
++		}
++		if n.Op == OCALLINTER {
+ 			markUsedIfaceMethod(n)
+ 		}
+ 
+@@ -3710,6 +3714,16 @@ func usemethod(n *Node) {
+ 		}
+ 	}
+ 
++	// Don't mark reflect.(*rtype).Method, etc. themselves in the reflect package.
++	// Those functions may be alive via the itab, which should not cause all methods
++	// alive. We only want to mark their callers.
++	if myimportpath == "reflect" {
++		switch Curfn.Func.Nname.Sym.Name { // TODO: is there a better way than hardcoding the names?
++		case "(*rtype).Method", "(*rtype).MethodByName", "(*interfaceType).Method", "(*interfaceType).MethodByName":
++			return
++		}
++	}
++
+ 	// Note: Don't rely on res0.Type.String() since its formatting depends on multiple factors
+ 	//       (including global variables such as numImports - was issue #19028).
+ 	// Also need to check for reflect package itself (see Issue #38515).
+diff --git a/test/reflectmethod7.go b/test/reflectmethod7.go
+new file mode 100644
+index 0000000000..42429978b4
+--- /dev/null
++++ b/test/reflectmethod7.go
+@@ -0,0 +1,24 @@
++// run
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// See issue 44207.
++
++package main
++
++import "reflect"
++
++type S int
++
++func (s S) M() {}
++
++func main() {
++	t := reflect.TypeOf(S(0))
++	fn, ok := reflect.PtrTo(t).MethodByName("M")
++	if !ok {
++		panic("FAIL")
++	}
++	fn.Func.Call([]reflect.Value{reflect.New(t)})
++}

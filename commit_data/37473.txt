@@ -45,6 +45,28 @@ Date:   Wed Aug 1 21:05:03 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/test/test.go | 10 +---------
  1 file changed, 1 insertion(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index d6fcc2a474..3b6ad049ed 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -1448,15 +1448,7 @@ func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error)
+ }
+ 
+ func inDir(path, dir string) bool {
+-	if str.HasFilePathPrefix(path, dir) {
+-		return true
+-	}
+-	xpath, err1 := filepath.EvalSymlinks(path)
+-	xdir, err2 := filepath.EvalSymlinks(dir)
+-	if err1 == nil && err2 == nil && str.HasFilePathPrefix(xpath, xdir) {
+-		return true
+-	}
+-	return false
++	return str.HasFilePathPrefix(path, dir)
+ }
+ 
+ func hashGetenv(name string) cache.ActionID {

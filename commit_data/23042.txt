@@ -34,7 +34,7 @@ Date:   Mon Mar 23 21:07:33 2015 -0400
     Change-Id: I0936ff907d2cee6cb687a208f2df47e8988e3157
     Reviewed-on: https://go-review.googlesource.com/8850
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go               | 244 +++++++++++++++++++++++++++++++++++++--
  src/runtime/mgcmark.go           |  66 +++++++++++
  src/runtime/proc1.go             |  28 +++++
@@ -42,3 +42,542 @@ Date:   Mon Mar 23 21:07:33 2015 -0400
  src/runtime/runtime_unix_test.go |   2 +-
  src/runtime/traceback.go         |   5 +-
  6 files changed, 335 insertions(+), 14 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 32f9b4d852..33b4430cbf 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -209,6 +209,20 @@ type gcControllerState struct {
+ 	// throughout the cycle.
+ 	assistTime int64
+ 
++	// bgMarkTime is the nanoseconds spent in background marking
++	// during this cycle. This is updated atomically throughout
++	// the cycle.
++	bgMarkTime int64
++
++	// idleMarkTime is the nanoseconds spent in idle marking
++	// during this cycle. This is udpated atomically throughout
++	// the cycle.
++	idleMarkTime int64
++
++	// bgMarkStartTime is the absolute start time in nanoseconds
++	// that the background mark phase started.
++	bgMarkStartTime int64
++
+ 	// workRatioAvg is a moving average of the scan work ratio
+ 	// (scan work per byte marked).
+ 	workRatioAvg float64
+@@ -217,6 +231,15 @@ type gcControllerState struct {
+ 	// that should be performed by mutator assists. This is
+ 	// computed at the beginning of each cycle.
+ 	assistRatio float64
++
++	_ [_CacheLineSize]byte
++
++	// bgMarkCount is the number of Ps currently running
++	// background marking. This is updated at every scheduling
++	// point (hence it gets it own cache line).
++	bgMarkCount uint32
++
++	_ [_CacheLineSize]byte
+ }
+ 
+ // startCycle resets the GC controller's state and computes estimates
+@@ -225,6 +248,8 @@ func (c *gcControllerState) startCycle() {
+ 	c.scanWork = 0
+ 	c.bgScanCredit = 0
+ 	c.assistTime = 0
++	c.bgMarkTime = 0
++	c.idleMarkTime = 0
+ 
+ 	// If this is the first GC cycle or we're operating on a very
+ 	// small heap, fake heap_marked so it looks like next_gc is
+@@ -277,8 +302,91 @@ func (c *gcControllerState) endCycle() {
+ 
+ 	// Update EWMA of recent scan work ratios.
+ 	c.workRatioAvg = workRatioWeight*workRatio + (1-workRatioWeight)*c.workRatioAvg
++
++	// Check that there aren't any background workers left.
++	if atomicload(&c.bgMarkCount) != 0 {
++		throw("endCycle: bgMarkCount != 0")
++	}
+ }
+ 
++// findRunnable returns the background mark worker for _p_ if it
++// should be run. This must only be called when gcphase == _GCmark.
++func (c *gcControllerState) findRunnable(_p_ *p) *g {
++	if gcphase != _GCmark {
++		throw("gcControllerState.findRunnable: not in mark phase")
++	}
++	if _p_.gcBgMarkWorker == nil {
++		throw("gcControllerState.findRunnable: no background mark worker")
++	}
++	if work.bgMarkDone != 0 {
++		// Background mark is done. Don't schedule background
++		// mark worker any more. (This is not just an
++		// optimization. Without this we can spin scheduling
++		// the background worker and having it return
++		// immediately with no work to do.)
++		return nil
++	}
++	if work.full == 0 && work.partial == 0 {
++		// No work to be done right now. This can happen at
++		// the end of the mark phase when there are still
++		// assists tapering off. Don't bother running
++		// background mark because it'll just return and
++		// bgMarkCount might hover above zero.
++		return nil
++	}
++
++	// Get the count of Ps currently running background mark and
++	// take a slot for this P (which we may undo below).
++	//
++	// TODO(austin): Fast path for case where we don't run background GC?
++	count := xadd(&c.bgMarkCount, +1) - 1
++
++	runBg := false
++	if c.bgMarkTime == 0 {
++		// At the beginning of a cycle, the common case logic
++		// below is right on the edge depending on whether
++		// assists have slipped in. Give background GC a
++		// little kick in the beginning.
++		runBg = count == 0 || count <= uint32(gomaxprocs/int32(1/gcGoalUtilization))
++	} else {
++		// If this P were to run background GC in addition to
++		// the Ps that currently are, then, as of the next
++		// scheduling tick, would the assist+background
++		// utilization be <= the goal utilization?
++		//
++		// TODO(austin): This assumes all Ps currently running
++		// background GC have a whole schedule quantum left.
++		// Can we do something with real time to alleviate
++		// that?
++		timeUsed := c.assistTime + c.bgMarkTime
++		timeUsedIfRun := timeUsed + int64(count+1)*forcePreemptNS
++		timeLimit := (nanotime() - gcController.bgMarkStartTime + forcePreemptNS) * int64(gomaxprocs) / int64(1/gcGoalUtilization)
++
++		runBg = timeUsedIfRun <= timeLimit
++	}
++
++	if runBg {
++		_p_.gcBgMarkIdle = false
++		gp := _p_.gcBgMarkWorker
++		casgstatus(gp, _Gwaiting, _Grunnable)
++		if trace.enabled {
++			traceGoUnpark(gp, 0)
++		}
++		return gp
++	}
++
++	// Return unused ticket
++	xadd(&c.bgMarkCount, -1)
++	return nil
++}
++
++// gcGoalUtilization is the goal CPU utilization for mutator assists
++// plus background marking as a fraction of GOMAXPROCS.
++//
++// This must be 1/N for some integer N. This limitation is not
++// fundamental, but this lets us use integer math.
++const gcGoalUtilization = 0.25
++
+ // gcBgCreditSlack is the amount of scan work credit background
+ // scanning can accumulate locally before updating
+ // gcController.bgScanCredit. Lower values give mutator assists more
+@@ -315,6 +423,10 @@ var work struct {
+ 	alldone note
+ 	markfor *parfor
+ 
++	bgMarkReady note   // signal background mark worker has started
++	bgMarkDone  uint32 // cas to 1 when at a background mark completion point
++	bgMarkNote  note   // signal background mark completion
++
+ 	// Copy of mheap.allspans for marker or sweeper.
+ 	spans []*mspan
+ 
+@@ -435,6 +547,7 @@ func gc(mode int) {
+ 
+ 	gctimer.count++
+ 	if mode == gcBackgroundMode {
++		gcBgMarkStartWorkers()
+ 		gctimer.cycle.sweepterm = nanotime()
+ 	}
+ 	if debug.gctrace > 0 {
+@@ -479,10 +592,16 @@ func gc(mode int) {
+ 
+ 			// Enter mark phase, enabling write barriers
+ 			// and mutator assists.
++			//
++			// TODO: Elimate this STW. This requires
++			// enabling write barriers in all mutators
++			// before enabling any mutator assists or
++			// background marking.
+ 			if debug.gctrace > 0 {
+ 				tInstallWB = nanotime()
+ 			}
+ 			stoptheworld()
++			gcBgMarkPrepare()
+ 			gcphase = _GCmark
+ 
+ 			// Concurrent mark.
+@@ -492,15 +611,8 @@ func gc(mode int) {
+ 		if debug.gctrace > 0 {
+ 			tMark = nanotime()
+ 		}
+-		var gcw gcWork
+-		gcDrain(&gcw, gcBgCreditSlack)
+-		gcw.dispose()
+-		// Despite the barrier in gcDrain, gcDrainNs may still
+-		// be doing work at this point. This is okay because
+-		// 1) the gcDrainNs happen on the system stack, so
+-		// they will flush their work to the global queues
+-		// before we can stop the world, and 2) it's fine if
+-		// we go into mark termination with some work queued.
++		notetsleepg(&work.bgMarkNote, -1)
++		noteclear(&work.bgMarkNote)
+ 
+ 		// Begin mark termination.
+ 		gctimer.cycle.markterm = nanotime()
+@@ -625,7 +737,9 @@ func gc(mode int) {
+ 		sweepTermCpu := int64(stwprocs) * (tScan - tSweepTerm)
+ 		scanCpu := tInstallWB - tScan
+ 		installWBCpu := int64(stwprocs) * (tMark - tInstallWB)
+-		markCpu := tMarkTerm - tMark
++		// We report idle marking time below, but omit it from
++		// the overall utilization here since it's "free".
++		markCpu := gcController.assistTime + gcController.bgMarkTime
+ 		markTermCpu := int64(stwprocs) * (tEnd - tMarkTerm)
+ 		cycleCpu := sweepTermCpu + scanCpu + installWBCpu + markCpu + markTermCpu
+ 		work.totaltime += cycleCpu
+@@ -647,7 +761,9 @@ func gc(mode int) {
+ 			sweepTermCpu/1e6,
+ 			"+", scanCpu/1e6,
+ 			"+", installWBCpu/1e6,
+-			"+", markCpu/1e6,
++			"+", gcController.assistTime/1e6,
++			"/", gcController.bgMarkTime/1e6,
++			"/", gcController.idleMarkTime/1e6,
+ 			"+", markTermCpu/1e6, " ms cpu, ",
+ 			heap0>>20, "->", heap1>>20, "->", heap2>>20, " MB, ",
+ 			maxprocs, " P")
+@@ -667,6 +783,112 @@ func gc(mode int) {
+ 	}
+ }
+ 
++// gcBgMarkStartWorkers prepares background mark worker goroutines.
++// These goroutines will not run until the mark phase, but they must
++// be started while the work is not stopped and from a regular G
++// stack. The caller must hold worldsema.
++func gcBgMarkStartWorkers() {
++	// Background marking is performed by per-P G's. Ensure that
++	// each P has a background GC G.
++	for _, p := range &allp {
++		if p == nil || p.status == _Pdead {
++			break
++		}
++		if p.gcBgMarkWorker == nil {
++			go gcBgMarkWorker(p)
++			notetsleepg(&work.bgMarkReady, -1)
++			noteclear(&work.bgMarkReady)
++		}
++	}
++}
++
++// gcBgMarkPrepare sets up state for background marking.
++// Mutator assists must not yet be enabled.
++func gcBgMarkPrepare() {
++	// Background marking will stop when the work queues are empty
++	// and there are no more workers (note that, since this is
++	// concurrent, this may be a transient state, but mark
++	// termination will clean it up). Between background workers
++	// and assists, we don't really know how many workers there
++	// will be, so we pretend to have an arbitrarily large number
++	// of workers, almost all of which are "waiting". While a
++	// worker is working it decrements nwait. If nproc == nwait,
++	// there are no workers.
++	work.nproc = ^uint32(0)
++	work.nwait = ^uint32(0)
++
++	// Background GC and assists race to set this to 1 on
++	// completion so that this only gets one "done" signal.
++	work.bgMarkDone = 0
++
++	gcController.bgMarkStartTime = nanotime()
++}
++
++func gcBgMarkWorker(p *p) {
++	// Register this G as the background mark worker for p.
++	if p.gcBgMarkWorker != nil {
++		throw("P already has a background mark worker")
++	}
++	gp := getg()
++
++	mp := acquirem()
++	p.gcBgMarkWorker = gp
++	// After this point, the background mark worker is scheduled
++	// cooperatively by gcController.findRunnable. Hence, it must
++	// never be preempted, as this would put it into _Grunnable
++	// and put it on a run queue. Instead, when the preempt flag
++	// is set, this puts itself into _Gwaiting to be woken up by
++	// gcController.findRunnable at the appropriate time.
++	notewakeup(&work.bgMarkReady)
++	var gcw gcWork
++	for {
++		// Go to sleep until woken by gcContoller.findRunnable.
++		// We can't releasem yet since even the call to gopark
++		// may be preempted.
++		gopark(func(g *g, mp unsafe.Pointer) bool {
++			releasem((*m)(mp))
++			return true
++		}, unsafe.Pointer(mp), "background mark (idle)", traceEvGoBlock, 0)
++
++		// Loop until the P dies and disassociates this
++		// worker. (The P may later be reused, in which case
++		// it will get a new worker.)
++		if p.gcBgMarkWorker != gp {
++			break
++		}
++
++		// Disable preemption so we can use the gcw. If the
++		// scheduler wants to preempt us, we'll stop draining,
++		// dispose the gcw, and then preempt.
++		mp = acquirem()
++
++		startTime := nanotime()
++
++		xadd(&work.nwait, -1)
++
++		gcDrainUntilPreempt(&gcw, gcBgCreditSlack)
++		gcw.dispose()
++
++		// If this is the last worker and we ran out of work,
++		// signal a completion point.
++		if xadd(&work.nwait, +1) == work.nproc && work.full == 0 && work.partial == 0 {
++			// This has reached a background completion
++			// point. Is it the first this cycle?
++			if cas(&work.bgMarkDone, 0, 1) {
++				notewakeup(&work.bgMarkNote)
++			}
++		}
++
++		duration := nanotime() - startTime
++		if p.gcBgMarkIdle {
++			xaddint64(&gcController.idleMarkTime, duration)
++		} else {
++			xaddint64(&gcController.bgMarkTime, duration)
++			xadd(&gcController.bgMarkCount, -1)
++		}
++	}
++}
++
+ // gcMark runs the mark (or, for concurrent GC, mark termination)
+ // STW is in effect at this point.
+ //TODO go:nowritebarrier
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 966cc28c8c..c53747c893 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -226,6 +226,8 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
+ 		// just measure start and end time.
+ 		startTime := nanotime()
+ 
++		xadd(&work.nwait, -1)
++
+ 		// drain own current wbuf first in the hopes that it
+ 		// will be more cache friendly.
+ 		var gcw gcWork
+@@ -240,6 +242,16 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
+ 		// write barrier wbuf cache).
+ 		gcw.dispose()
+ 
++		// If this is the last worker and we ran out of work,
++		// signal a completion point.
++		if xadd(&work.nwait, +1) == work.nproc && work.full == 0 && work.partial == 0 {
++			// This has reached a background completion
++			// point. Is it the first this cycle?
++			if cas(&work.bgMarkDone, 0, 1) {
++				notewakeup(&work.bgMarkNote)
++			}
++		}
++
+ 		duration := nanotime() - startTime
+ 		_p_ := gp.m.p.ptr()
+ 		_p_.gcAssistTime += duration
+@@ -398,6 +410,8 @@ func scanframeworker(frame *stkframe, unused unsafe.Pointer, gcw *gcWork) {
+ 	}
+ }
+ 
++// TODO(austin): Can we consolidate the gcDrain* functions?
++
+ // gcDrain scans objects in work buffers, blackening grey
+ // objects until all work buffers have been drained.
+ // If flushScanCredit != -1, gcDrain flushes accumulated scan work
+@@ -453,6 +467,58 @@ func gcDrain(gcw *gcWork, flushScanCredit int64) {
+ 	checknocurrentwbuf()
+ }
+ 
++// gcDrainUntilPreempt blackens grey objects until g.preempt is set.
++// This is best-effort, so it will return as soon as it is unable to
++// get work, even though there may be more work in the system.
++//go:nowritebarrier
++func gcDrainUntilPreempt(gcw *gcWork, flushScanCredit int64) {
++	if gcphase != _GCmark {
++		println("gcphase =", gcphase)
++		throw("gcDrainUntilPreempt phase incorrect")
++	}
++
++	var lastScanFlush, nextScanFlush int64
++	if flushScanCredit != -1 {
++		lastScanFlush = gcw.scanWork
++		nextScanFlush = lastScanFlush + flushScanCredit
++	} else {
++		nextScanFlush = int64(^uint64(0) >> 1)
++	}
++
++	gp := getg()
++	for !gp.preempt {
++		// If the work queue is empty, balance. During
++		// concurrent mark we don't really know if anyone else
++		// can make use of this work, but even if we're the
++		// only worker, the total cost of this per cycle is
++		// only O(_WorkbufSize) pointer copies.
++		if work.full == 0 && work.partial == 0 {
++			gcw.balance()
++		}
++
++		b := gcw.tryGet()
++		if b == 0 {
++			// No more work
++			break
++		}
++		scanobject(b, 0, nil, gcw)
++
++		// Flush background scan work credit to the global
++		// account if we've accumulated enough locally so
++		// mutator assists can draw on it.
++		if gcw.scanWork >= nextScanFlush {
++			credit := gcw.scanWork - lastScanFlush
++			xaddint64(&gcController.bgScanCredit, credit)
++			lastScanFlush = gcw.scanWork
++			nextScanFlush = lastScanFlush + flushScanCredit
++		}
++	}
++	if flushScanCredit != -1 {
++		credit := gcw.scanWork - lastScanFlush
++		xaddint64(&gcController.bgScanCredit, credit)
++	}
++}
++
+ // gcDrainN blackens grey objects until it has performed roughly
+ // scanWork units of scan work. This is best-effort, so it may perform
+ // less work if it fails to get a work buffer. Otherwise, it will
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index cf6e604ed0..9e2e300541 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -1335,6 +1335,18 @@ top:
+ 	}
+ stop:
+ 
++	// We have nothing to do. If we're in the GC mark phase, run
++	// idle-time marking rather than give up the P.
++	if _p_ := _g_.m.p.ptr(); gcphase == _GCmark && _p_.gcBgMarkWorker != nil {
++		_p_.gcBgMarkIdle = true
++		gp := _p_.gcBgMarkWorker
++		casgstatus(gp, _Gwaiting, _Grunnable)
++		if trace.enabled {
++			traceGoUnpark(gp, 0)
++		}
++		return gp
++	}
++
+ 	// return P and block
+ 	lock(&sched.lock)
+ 	if sched.gcwaiting != 0 {
+@@ -1474,6 +1486,12 @@ top:
+ 			resetspinning()
+ 		}
+ 	}
++	if gp == nil && gcphase == _GCmark {
++		gp = gcController.findRunnable(_g_.m.p.ptr())
++		if gp != nil {
++			resetspinning()
++		}
++	}
+ 	if gp == nil {
+ 		// Check the global runnable queue once in a while to ensure fairness.
+ 		// Otherwise two goroutines can completely occupy the local runqueue
+@@ -2585,6 +2603,16 @@ func procresize(nprocs int32) *p {
+ 			}
+ 			sched.runqsize++
+ 		}
++		// if there's a background worker, make it runnable and put
++		// it on the global queue so it can clean itself up
++		if p.gcBgMarkWorker != nil {
++			casgstatus(p.gcBgMarkWorker, _Gwaiting, _Grunnable)
++			if trace.enabled {
++				traceGoUnpark(p.gcBgMarkWorker, 0)
++			}
++			globrunqput(p.gcBgMarkWorker)
++			p.gcBgMarkWorker = nil
++		}
+ 		for i := range p.sudogbuf {
+ 			p.sudogbuf[i] = nil
+ 		}
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index fe3d0326c2..fdd9733b2b 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -367,7 +367,9 @@ type p struct {
+ 	palloc persistentAlloc // per-P to avoid mutex
+ 
+ 	// Per-P GC state
+-	gcAssistTime int64 // Nanoseconds in assistAlloc
++	gcAssistTime   int64 // Nanoseconds in assistAlloc
++	gcBgMarkWorker *g
++	gcBgMarkIdle   bool
+ 
+ 	pad [64]byte
+ }
+diff --git a/src/runtime/runtime_unix_test.go b/src/runtime/runtime_unix_test.go
+index 963de8cdb8..cfec3326bd 100644
+--- a/src/runtime/runtime_unix_test.go
++++ b/src/runtime/runtime_unix_test.go
+@@ -42,7 +42,7 @@ func TestGoroutineProfile(t *testing.T) {
+ 	if testing.Short() {
+ 		max = 100
+ 	}
+-	stk := make([]runtime.StackRecord, 100)
++	stk := make([]runtime.StackRecord, 128)
+ 	for n := 0; n < max; n++ {
+ 		_, ok := runtime.GoroutineProfile(stk)
+ 		if !ok {
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 91541fabce..512ccd4e94 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -44,6 +44,7 @@ var (
+ 	bgsweepPC            uintptr
+ 	forcegchelperPC      uintptr
+ 	timerprocPC          uintptr
++	gcBgMarkWorkerPC     uintptr
+ 	systemstack_switchPC uintptr
+ 
+ 	externalthreadhandlerp uintptr // initialized elsewhere
+@@ -66,6 +67,7 @@ func tracebackinit() {
+ 	bgsweepPC = funcPC(bgsweep)
+ 	forcegchelperPC = funcPC(forcegchelper)
+ 	timerprocPC = funcPC(timerproc)
++	gcBgMarkWorkerPC = funcPC(gcBgMarkWorker)
+ 	systemstack_switchPC = funcPC(systemstack_switch)
+ }
+ 
+@@ -654,5 +656,6 @@ func isSystemGoroutine(gp *g) bool {
+ 		pc == backgroundgcPC ||
+ 		pc == bgsweepPC ||
+ 		pc == forcegchelperPC ||
+-		pc == timerprocPC
++		pc == timerprocPC ||
++		pc == gcBgMarkWorkerPC
+ }

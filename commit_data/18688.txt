@@ -32,7 +32,7 @@ Date:   Thu Feb 27 20:37:00 2014 -0500
     R=dave, bradfitz, iant
     CC=golang-codereviews
     https://golang.org/cl/69040044
-
+---
  include/link.h             |   7 ++
  src/cmd/5l/l.h             |   1 +
  src/cmd/5l/obj.c           |   6 ++
@@ -59,3 +59,1758 @@ Date:   Thu Feb 27 20:37:00 2014 -0500
  src/pkg/runtime/type.h     |   2 +-
  src/pkg/runtime/typekind.h |   3 -
  25 files changed, 633 insertions(+), 115 deletions(-)
+
+diff --git a/include/link.h b/include/link.h
+index fa8b249dff..53c5c55822 100644
+--- a/include/link.h
++++ b/include/link.h
+@@ -108,6 +108,7 @@ struct	Prog
+ 	char	ft;	/* 6l, 8l oclass cache */
+ 	char	tt;	// 6l, 8l
+ 	uchar	optab;	// 5l
++	uchar	isize;	// 6l, 8l
+ 
+ 	char	width;	/* fake for DATA */
+ 	char	mode;	/* 16, 32, or 64 in 6l, 8l; internal use in 5g, 6g, 8g */
+@@ -363,6 +364,9 @@ struct	Link
+ 	Prog*	blitrl;
+ 	Prog*	elitrl;
+ 	int	rexflag;
++	int	rep; // for nacl
++	int	repn; // for nacl
++	int	lock; // for nacl
+ 	int	asmode;
+ 	uchar*	andptr;
+ 	uchar	and[100];
+@@ -412,6 +416,7 @@ struct LinkArch
+ 
+ 	int	minlc;
+ 	int	ptrsize;
++	int	regsize;
+ 	
+ 	// TODO: Give these the same values on all systems.
+ 	int	D_ADDR;
+@@ -447,6 +452,7 @@ enum {
+ 	Helf,
+ 	Hfreebsd,
+ 	Hlinux,
++	Hnacl,
+ 	Hnetbsd,
+ 	Hopenbsd,
+ 	Hplan9,
+@@ -563,6 +569,7 @@ extern	char*	anames8[];
+ 
+ extern	LinkArch	link386;
+ extern	LinkArch	linkamd64;
++extern	LinkArch	linkamd64p32;
+ extern	LinkArch	linkarm;
+ 
+ #pragma	varargck	type	"A"	int
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index 66a7abc9f3..761bc861aa 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -39,6 +39,7 @@ enum
+ 	thechar = '5',
+ 	PtrSize = 4,
+ 	IntSize = 4,
++	RegSize = 4,
+ 	MaxAlign = 8,	// max data alignment
+ 	FuncAlign = 4  // single-instruction alignment
+ };
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index c004744f2d..a866b1f69b 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -39,6 +39,11 @@
+ char *thestring = "arm";
+ LinkArch *thelinkarch = &linkarm;
+ 
++void
++linkarchinit(void)
++{
++}
++
+ void
+ archinit(void)
+ {
+@@ -76,6 +81,7 @@ archinit(void)
+ 	case Hlinux:	/* arm elf */
+ 	case Hfreebsd:
+ 	case Hnetbsd:
++	case Hnacl:
+ 		debug['d'] = 0;	// with dynamic linking
+ 		elfinit();
+ 		HEADR = ELFRESERVE;
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 08209c4e0b..9474aff168 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -661,6 +661,7 @@ asmb(void)
+ 	case Hsolaris:
+ 		debug['8'] = 1;	/* 64-bit addresses */
+ 		break;
++	case Hnacl:
+ 	case Hwindows:
+ 		break;
+ 	}
+@@ -689,6 +690,7 @@ asmb(void)
+ 		case Hopenbsd:
+ 		case Hdragonfly:
+ 		case Hsolaris:
++		case Hnacl:
+ 			symo = rnd(HEADR+segtext.len, INITRND)+rnd(segrodata.len, INITRND)+segdata.filelen;
+ 			symo = rnd(symo, INITRND);
+ 			break;
+@@ -770,6 +772,7 @@ asmb(void)
+ 	case Hopenbsd:
+ 	case Hdragonfly:
+ 	case Hsolaris:
++	case Hnacl:
+ 		asmbelf(symo);
+ 		break;
+ 	case Hwindows:
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 5db70159d0..7303910a6e 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -41,8 +41,6 @@
+ enum
+ {
+ 	thechar = '6',
+-	PtrSize = 8,
+-	IntSize = 8,
+ 	MaxAlign = 32,	// max data alignment
+ 	
+ 	// Loop alignment constants:
+@@ -64,6 +62,10 @@ enum
+ 	FuncAlign = 16
+ };
+ 
++EXTERN	int	PtrSize;
++EXTERN	int	IntSize;
++EXTERN	int	RegSize;
++
+ #define	P		((Prog*)0)
+ #define	S		((LSym*)0)
+ #define	TNAME		(ctxt->cursym?ctxt->cursym->name:noname)
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 92c0c747a0..0d872eaebd 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -41,6 +41,16 @@
+ char*	thestring 	= "amd64";
+ LinkArch*	thelinkarch = &linkamd64;
+ 
++void
++linkarchinit(void)
++{
++	if(strcmp(getgoarch(), "amd64p32") == 0)
++		thelinkarch = &linkamd64p32;
++	PtrSize = thelinkarch->ptrsize;
++	IntSize = PtrSize;
++	RegSize = thelinkarch->regsize;
++}
++
+ void
+ archinit(void)
+ {
+@@ -63,6 +73,7 @@ archinit(void)
+ 	case Hdragonfly:
+ 	case Hfreebsd:
+ 	case Hlinux:
++	case Hnacl:
+ 	case Hnetbsd:
+ 	case Hopenbsd:
+ 	case Hsolaris:
+@@ -117,6 +128,18 @@ archinit(void)
+ 		if(INITRND == -1)
+ 			INITRND = 4096;
+ 		break;
++	case Hnacl:
++		elfinit();
++		debug['w']++; // disable dwarf, which gets confused and is useless anyway
++		HEADR = 0x10000;
++		funcalign = 32;
++		if(INITTEXT == -1)
++			INITTEXT = 0x20000;
++		if(INITDAT == -1)
++			INITDAT = 0;
++		if(INITRND == -1)
++			INITRND = 0x10000;
++		break;
+ 	case Hwindows:		/* PE executable */
+ 		peinit();
+ 		HEADR = PEFILEHEADR;
+@@ -128,6 +151,7 @@ archinit(void)
+ 			INITRND = PESECTALIGN;
+ 		break;
+ 	}
++
+ 	if(INITDAT != 0 && INITRND != 0)
+ 		print("warning: -D0x%llux is ignored because of -R0x%ux\n",
+ 			INITDAT, INITRND);
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 03f9e95c9b..cc4ec564bd 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -696,6 +696,7 @@ asmb(void)
+ 	case Hnetbsd:
+ 	case Hopenbsd:
+ 	case Hdragonfly:
++	case Hnacl:
+ 		asmbelf(symo);
+ 		break;
+ 	case Hwindows:
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index f19c570c8b..c9695ade0a 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -43,6 +43,7 @@ enum
+ 	thechar = '8',
+ 	PtrSize = 4,
+ 	IntSize = 4,
++	RegSize = 4,
+ 	MaxAlign = 32,	// max data alignment
+ 	FuncAlign = 16
+ };
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 8acb5cab11..ddbd96aa03 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -41,6 +41,11 @@
+ char*	thestring 	= "386";
+ LinkArch*	thelinkarch = &link386;
+ 
++void
++linkarchinit(void)
++{
++}
++
+ void
+ archinit(void)
+ {
+@@ -104,6 +109,19 @@ archinit(void)
+ 		if(INITRND == -1)
+ 			INITRND = 4096;
+ 		break;
++	
++	case Hnacl:
++		elfinit();
++		HEADR = 0x10000;
++		funcalign = 32;
++		if(INITTEXT == -1)
++			INITTEXT = 0x20000;
++		if(INITDAT == -1)
++			INITDAT = 0;
++		if(INITRND == -1)
++			INITRND = 0x10000;
++		break;
++	
+ 	case Hwindows: /* PE executable */
+ 		peinit();
+ 		HEADR = PEFILEHEADR;
+diff --git a/src/cmd/gc/doc.go b/src/cmd/gc/doc.go
+index 3cb0ea42ca..03df93a3eb 100644
+--- a/src/cmd/gc/doc.go
++++ b/src/cmd/gc/doc.go
+@@ -52,12 +52,14 @@ Flags:
+ 		add dir1 and dir2 to the list of paths to check for imported packages
+ 	-N
+ 		disable optimizations
++	-nolocalimports
++		disallow local (relative) imports
+ 	-S
+ 		write assembly language text to standard output (code only)
+ 	-S -S
+ 		write assembly language text to standard output (code and data)
+ 	-u
+-		disallow importing packages not marked as safe
++		disallow importing packages not marked as safe; implies -nolocalimports
+ 	-V
+ 		print the compiler version
+ 	-race
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 8935621705..7c4c985324 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -1047,7 +1047,7 @@ textaddress(void)
+ 	// Could parallelize, by assigning to text
+ 	// and then letting threads copy down, but probably not worth it.
+ 	sect = segtext.sect;
+-	sect->align = FuncAlign;
++	sect->align = funcalign;
+ 	linklookup(ctxt, "text", 0)->sect = sect;
+ 	linklookup(ctxt, "etext", 0)->sect = sect;
+ 	va = INITTEXT;
+@@ -1058,6 +1058,8 @@ textaddress(void)
+ 			continue;
+ 		if(sym->align != 0)
+ 			va = rnd(va, sym->align);
++		else
++			va = rnd(va, funcalign);
+ 		sym->value = 0;
+ 		for(sub = sym; sub != S; sub = sub->sub)
+ 			sub->value += va;
+@@ -1083,13 +1085,14 @@ address(void)
+ 	segtext.vaddr = va;
+ 	segtext.fileoff = HEADR;
+ 	for(s=segtext.sect; s != nil; s=s->next) {
+-//print("%s at %#llux + %#llux\n", s->name, va, (vlong)s->len);
+ 		va = rnd(va, s->align);
+ 		s->vaddr = va;
+ 		va += s->len;
+ 	}
+ 	segtext.len = va - INITTEXT;
+ 	segtext.filelen = segtext.len;
++	if(HEADTYPE == Hnacl)
++		va += 32; // room for the "halt sled"
+ 
+ 	if(segrodata.sect != nil) {
+ 		// align to page boundary so as not to mix
+diff --git a/src/cmd/ld/decodesym.c b/src/cmd/ld/decodesym.c
+index 3859d1c6d8..da48d3786e 100644
+--- a/src/cmd/ld/decodesym.c
++++ b/src/cmd/ld/decodesym.c
+@@ -67,6 +67,12 @@ decode_inuxi(uchar* p, int sz)
+ 	return l;
+ }
+ 
++static int
++commonsize(void)
++{
++	return 7*PtrSize + 8;
++}
++
+ // Type.commonType.kind
+ uint8
+ decodetype_kind(LSym *s)
+@@ -92,59 +98,59 @@ decodetype_gc(LSym *s)
+ LSym*
+ decodetype_arrayelem(LSym *s)
+ {
+-	return decode_reloc_sym(s, CommonSize);	// 0x1c / 0x30
++	return decode_reloc_sym(s, commonsize());	// 0x1c / 0x30
+ }
+ 
+ vlong
+ decodetype_arraylen(LSym *s)
+ {
+-	return decode_inuxi(s->p + CommonSize+PtrSize, PtrSize);
++	return decode_inuxi(s->p + commonsize()+PtrSize, PtrSize);
+ }
+ 
+ // Type.PtrType.elem
+ LSym*
+ decodetype_ptrelem(LSym *s)
+ {
+-	return decode_reloc_sym(s, CommonSize);	// 0x1c / 0x30
++	return decode_reloc_sym(s, commonsize());	// 0x1c / 0x30
+ }
+ 
+ // Type.MapType.key, elem
+ LSym*
+ decodetype_mapkey(LSym *s)
+ {
+-	return decode_reloc_sym(s, CommonSize);	// 0x1c / 0x30
++	return decode_reloc_sym(s, commonsize());	// 0x1c / 0x30
+ }
+ LSym*
+ decodetype_mapvalue(LSym *s)
+ {
+-	return decode_reloc_sym(s, CommonSize+PtrSize);	// 0x20 / 0x38
++	return decode_reloc_sym(s, commonsize()+PtrSize);	// 0x20 / 0x38
+ }
+ 
+ // Type.ChanType.elem
+ LSym*
+ decodetype_chanelem(LSym *s)
+ {
+-	return decode_reloc_sym(s, CommonSize);	// 0x1c / 0x30
++	return decode_reloc_sym(s, commonsize());	// 0x1c / 0x30
+ }
+ 
+ // Type.FuncType.dotdotdot
+ int
+ decodetype_funcdotdotdot(LSym *s)
+ {
+-	return s->p[CommonSize];
++	return s->p[commonsize()];
+ }
+ 
+ // Type.FuncType.in.len
+ int
+ decodetype_funcincount(LSym *s)
+ {
+-	return decode_inuxi(s->p + CommonSize+2*PtrSize, IntSize);
++	return decode_inuxi(s->p + commonsize()+2*PtrSize, IntSize);
+ }
+ 
+ int
+ decodetype_funcoutcount(LSym *s)
+ {
+-	return decode_inuxi(s->p + CommonSize+3*PtrSize + 2*IntSize, IntSize);
++	return decode_inuxi(s->p + commonsize()+3*PtrSize + 2*IntSize, IntSize);
+ }
+ 
+ LSym*
+@@ -152,7 +158,7 @@ decodetype_funcintype(LSym *s, int i)
+ {
+ 	Reloc *r;
+ 
+-	r = decode_reloc(s, CommonSize + PtrSize);
++	r = decode_reloc(s, commonsize() + PtrSize);
+ 	if (r == nil)
+ 		return nil;
+ 	return decode_reloc_sym(r->sym, r->add + i * PtrSize);
+@@ -163,7 +169,7 @@ decodetype_funcouttype(LSym *s, int i)
+ {
+ 	Reloc *r;
+ 
+-	r = decode_reloc(s, CommonSize + 2*PtrSize + 2*IntSize);
++	r = decode_reloc(s, commonsize() + 2*PtrSize + 2*IntSize);
+ 	if (r == nil)
+ 		return nil;
+ 	return decode_reloc_sym(r->sym, r->add + i * PtrSize);
+@@ -173,12 +179,15 @@ decodetype_funcouttype(LSym *s, int i)
+ int
+ decodetype_structfieldcount(LSym *s)
+ {
+-	return decode_inuxi(s->p + CommonSize + PtrSize, IntSize);
++	return decode_inuxi(s->p + commonsize() + PtrSize, IntSize);
++}
++
++static int
++structfieldsize(void)
++{
++	return 5*PtrSize;
+ }
+ 
+-enum {
+-	StructFieldSize = 5*PtrSize
+-};
+ // Type.StructType.fields[]-> name, typ and offset.
+ char*
+ decodetype_structfieldname(LSym *s, int i)
+@@ -186,7 +195,7 @@ decodetype_structfieldname(LSym *s, int i)
+ 	Reloc *r;
+ 
+ 	// go.string."foo"  0x28 / 0x40
+-	s = decode_reloc_sym(s, CommonSize + PtrSize + 2*IntSize + i*StructFieldSize);
++	s = decode_reloc_sym(s, commonsize() + PtrSize + 2*IntSize + i*structfieldsize());
+ 	if (s == nil)			// embedded structs have a nil name.
+ 		return nil;
+ 	r = decode_reloc(s, 0);		// s has a pointer to the string data at offset 0
+@@ -198,18 +207,18 @@ decodetype_structfieldname(LSym *s, int i)
+ LSym*
+ decodetype_structfieldtype(LSym *s, int i)
+ {
+-	return decode_reloc_sym(s, CommonSize + PtrSize + 2*IntSize + i*StructFieldSize + 2*PtrSize);
++	return decode_reloc_sym(s, commonsize() + PtrSize + 2*IntSize + i*structfieldsize() + 2*PtrSize);
+ }
+ 
+ vlong
+ decodetype_structfieldoffs(LSym *s, int i)
+ {
+-	return decode_inuxi(s->p + CommonSize + PtrSize + 2*IntSize + i*StructFieldSize + 4*PtrSize, IntSize);
++	return decode_inuxi(s->p + commonsize() + PtrSize + 2*IntSize + i*structfieldsize() + 4*PtrSize, IntSize);
+ }
+ 
+ // InterfaceTYpe.methods.len
+ vlong
+ decodetype_ifacemethodcount(LSym *s)
+ {
+-	return decode_inuxi(s->p + CommonSize + PtrSize, IntSize);
++	return decode_inuxi(s->p + commonsize() + PtrSize, IntSize);
+ }
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index dd992e4204..4c0d071733 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -814,12 +814,12 @@ elfshreloc(Section *sect)
+ 	snprint(buf, sizeof buf, "%s%s", prefix, sect->name);
+ 	sh = elfshname(buf);
+ 	sh->type = typ;
+-	sh->entsize = PtrSize*(2+(typ==SHT_RELA));
++	sh->entsize = RegSize*(2+(typ==SHT_RELA));
+ 	sh->link = elfshname(".symtab")->shnum;
+ 	sh->info = sect->elfsect->shnum;
+ 	sh->off = sect->reloff;
+ 	sh->size = sect->rellen;
+-	sh->addralign = PtrSize;
++	sh->addralign = RegSize;
+ 	return sh;
+ }
+ 
+@@ -1163,7 +1163,7 @@ asmbelf(vlong symo)
+ 	/* program header info */
+ 	pph = newElfPhdr();
+ 	pph->type = PT_PHDR;
+-	pph->flags = PF_R + PF_X;
++	pph->flags = PF_R;
+ 	pph->off = eh->ehsize;
+ 	pph->vaddr = INITTEXT - HEADR + pph->off;
+ 	pph->paddr = INITTEXT - HEADR + pph->off;
+@@ -1172,13 +1172,16 @@ asmbelf(vlong symo)
+ 	/*
+ 	 * PHDR must be in a loaded segment. Adjust the text
+ 	 * segment boundaries downwards to include it.
++	 * Except on NaCl where it must not be loaded.
+ 	 */
+-	o = segtext.vaddr - pph->vaddr;
+-	segtext.vaddr -= o;
+-	segtext.len += o;
+-	o = segtext.fileoff - pph->off;
+-	segtext.fileoff -= o;
+-	segtext.filelen += o;
++	if(HEADTYPE != Hnacl) {
++		o = segtext.vaddr - pph->vaddr;
++		segtext.vaddr -= o;
++		segtext.len += o;
++		o = segtext.fileoff - pph->off;
++		segtext.fileoff -= o;
++		segtext.filelen += o;
++	}
+ 
+ 	if(!debug['d']) {
+ 		/* interpreter */
+@@ -1261,11 +1264,11 @@ asmbelf(vlong symo)
+ 		sh = elfshname(".dynsym");
+ 		sh->type = SHT_DYNSYM;
+ 		sh->flags = SHF_ALLOC;
+-		if(PtrSize == 8)
++		if(elf64)
+ 			sh->entsize = ELF64SYMSIZE;
+ 		else
+ 			sh->entsize = ELF32SYMSIZE;
+-		sh->addralign = PtrSize;
++		sh->addralign = RegSize;
+ 		sh->link = elfshname(".dynstr")->shnum;
+ 		// sh->info = index of first non-local symbol (number of local symbols)
+ 		shsym(sh, linklookup(ctxt, ".dynsym", 0));
+@@ -1288,7 +1291,7 @@ asmbelf(vlong symo)
+ 			sh = elfshname(".gnu.version_r");
+ 			sh->type = SHT_GNU_VERNEED;
+ 			sh->flags = SHF_ALLOC;
+-			sh->addralign = PtrSize;
++			sh->addralign = RegSize;
+ 			sh->info = elfverneed;
+ 			sh->link = elfshname(".dynstr")->shnum;
+ 			shsym(sh, linklookup(ctxt, ".gnu.version_r", 0));
+@@ -1300,7 +1303,7 @@ asmbelf(vlong symo)
+ 			sh->type = SHT_RELA;
+ 			sh->flags = SHF_ALLOC;
+ 			sh->entsize = ELF64RELASIZE;
+-			sh->addralign = PtrSize;
++			sh->addralign = RegSize;
+ 			sh->link = elfshname(".dynsym")->shnum;
+ 			sh->info = elfshname(".plt")->shnum;
+ 			shsym(sh, linklookup(ctxt, ".rela.plt", 0));
+@@ -1345,22 +1348,22 @@ asmbelf(vlong symo)
+ 		sh = elfshname(".got");
+ 		sh->type = SHT_PROGBITS;
+ 		sh->flags = SHF_ALLOC+SHF_WRITE;
+-		sh->entsize = PtrSize;
+-		sh->addralign = PtrSize;
++		sh->entsize = RegSize;
++		sh->addralign = RegSize;
+ 		shsym(sh, linklookup(ctxt, ".got", 0));
+ 
+ 		sh = elfshname(".got.plt");
+ 		sh->type = SHT_PROGBITS;
+ 		sh->flags = SHF_ALLOC+SHF_WRITE;
+-		sh->entsize = PtrSize;
+-		sh->addralign = PtrSize;
++		sh->entsize = RegSize;
++		sh->addralign = RegSize;
+ 		shsym(sh, linklookup(ctxt, ".got.plt", 0));
+ 		
+ 		sh = elfshname(".hash");
+ 		sh->type = SHT_HASH;
+ 		sh->flags = SHF_ALLOC;
+ 		sh->entsize = 4;
+-		sh->addralign = PtrSize;
++		sh->addralign = RegSize;
+ 		sh->link = elfshname(".dynsym")->shnum;
+ 		shsym(sh, linklookup(ctxt, ".hash", 0));
+ 
+@@ -1368,8 +1371,8 @@ asmbelf(vlong symo)
+ 		sh = elfshname(".dynamic");
+ 		sh->type = SHT_DYNAMIC;
+ 		sh->flags = SHF_ALLOC+SHF_WRITE;
+-		sh->entsize = 2*PtrSize;
+-		sh->addralign = PtrSize;
++		sh->entsize = 2*RegSize;
++		sh->addralign = RegSize;
+ 		sh->link = elfshname(".dynstr")->shnum;
+ 		shsym(sh, linklookup(ctxt, ".dynamic", 0));
+ 		ph = newElfPhdr();
+@@ -1388,7 +1391,7 @@ asmbelf(vlong symo)
+ 			ph->type = PT_TLS;
+ 			ph->flags = PF_R;
+ 			ph->memsz = -ctxt->tlsoffset;
+-			ph->align = PtrSize;
++			ph->align = RegSize;
+ 		}
+ 	}
+ 
+@@ -1396,12 +1399,12 @@ asmbelf(vlong symo)
+ 		ph = newElfPhdr();
+ 		ph->type = PT_GNU_STACK;
+ 		ph->flags = PF_W+PF_R;
+-		ph->align = PtrSize;
++		ph->align = RegSize;
+ 		
+ 		ph = newElfPhdr();
+ 		ph->type = PT_PAX_FLAGS;
+ 		ph->flags = 0x2a00; // mprotect, randexec, emutramp disabled
+-		ph->align = PtrSize;
++		ph->align = RegSize;
+ 	}
+ 
+ elfobj:
+@@ -1443,7 +1446,7 @@ elfobj:
+ 	if(linkmode == LinkInternal && !debug['d'] && HEADTYPE != Hopenbsd) {
+ 		sh = elfshname(".tbss");
+ 		sh->type = SHT_NOBITS;
+-		sh->addralign = PtrSize;
++		sh->addralign = RegSize;
+ 		sh->size = -ctxt->tlsoffset;
+ 		sh->flags = SHF_ALLOC | SHF_TLS | SHF_WRITE;
+ 	}
+@@ -1453,8 +1456,8 @@ elfobj:
+ 		sh->type = SHT_SYMTAB;
+ 		sh->off = symo;
+ 		sh->size = symsize;
+-		sh->addralign = PtrSize;
+-		sh->entsize = 8+2*PtrSize;
++		sh->addralign = RegSize;
++		sh->entsize = 8+2*RegSize;
+ 		sh->link = elfshname(".strtab")->shnum;
+ 		sh->info = elfglobalsymndx;
+ 
+@@ -1480,7 +1483,7 @@ elfobj:
+ 		eh->ident[EI_OSABI] = ELFOSABI_OPENBSD;
+ 	else if(HEADTYPE == Hdragonfly)
+ 		eh->ident[EI_OSABI] = ELFOSABI_NONE;
+-	if(PtrSize == 8)
++	if(elf64)
+ 		eh->ident[EI_CLASS] = ELFCLASS64;
+ 	else
+ 		eh->ident[EI_CLASS] = ELFCLASS32;
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index f91cb6a6c7..e0fcd15da5 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -85,12 +85,11 @@ libinit(void)
+ {
+ 	char *suffix, *suffixsep;
+ 
++	funcalign = FuncAlign;
+ 	fmtinstall('i', iconv);
+ 	fmtinstall('Y', Yconv);
+ 	fmtinstall('Z', Zconv);
+ 	mywhatsys();	// get goroot, goarch, goos
+-	if(strcmp(goarch, thestring) != 0)
+-		print("goarch is not known: %s\n", goarch);
+ 
+ 	// add goroot to the end of the libdir list.
+ 	suffix = "";
+@@ -726,8 +725,8 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, char *file, int whence)
+ 		return;
+ 	}
+ 	
+-	// First, check that the basic goos, string, and version match.
+-	t = smprint("%s %s %s ", goos, thestring, getgoversion());
++	// First, check that the basic goos, goarch, and version match.
++	t = smprint("%s %s %s ", goos, getgoarch(), getgoversion());
+ 	line[n] = ' ';
+ 	if(strncmp(line+10, t, strlen(t)) != 0 && !debug['f']) {
+ 		line[n] = '\0';
+@@ -796,7 +795,10 @@ mywhatsys(void)
+ {
+ 	goroot = getgoroot();
+ 	goos = getgoos();
+-	goarch = thestring;	// ignore $GOARCH - we know who we are
++	goarch = getgoarch();
++
++	if(strncmp(goarch, thestring, strlen(thestring)) != 0)
++		sysfatal("cannot use %cc with GOARCH=%s", thechar, goarch);
+ }
+ 
+ int
+@@ -985,12 +987,19 @@ static LSym *newstack;
+ enum
+ {
+ 	HasLinkRegister = (thechar == '5'),
+-	CallSize = (!HasLinkRegister)*PtrSize,	// bytes of stack required for a call
+ };
+ 
+ // TODO: Record enough information in new object files to
+ // allow stack checks here.
+ 
++static int
++callsize(void)
++{
++	if(thechar == '5')
++		return 0;
++	return RegSize;
++}
++
+ void
+ dostkcheck(void)
+ {
+@@ -1008,7 +1017,7 @@ dostkcheck(void)
+ 		ctxt->cursym = s;
+ 		ch.up = nil;
+ 		ch.sym = s;
+-		ch.limit = StackLimit - CallSize;
++		ch.limit = StackLimit - callsize();
+ 		stkcheck(&ch, 0);
+ 		s->stkcheck = 1;
+ 	}
+@@ -1024,7 +1033,7 @@ dostkcheck(void)
+ 		ctxt->cursym = s;
+ 		ch.up = nil;
+ 		ch.sym = s;
+-		ch.limit = StackLimit - CallSize;
++		ch.limit = StackLimit - callsize();
+ 		stkcheck(&ch, 0);
+ 	}
+ }
+@@ -1042,7 +1051,7 @@ stkcheck(Chain *up, int depth)
+ 	p = s->text;
+ 	
+ 	// Small optimization: don't repeat work at top.
+-	if(s->stkcheck && limit == StackLimit-CallSize)
++	if(s->stkcheck && limit == StackLimit-callsize())
+ 		return 0;
+ 	
+ 	if(depth > 100) {
+@@ -1092,7 +1101,7 @@ stkcheck(Chain *up, int depth)
+ 			return -1;
+ 		}
+ 		if(ctxt->arch->iscall(p)) {
+-			limit -= CallSize;
++			limit -= callsize();
+ 			ch.limit = limit;
+ 			if(p->to.type == D_BRANCH) {
+ 				// Direct call.
+@@ -1102,16 +1111,16 @@ stkcheck(Chain *up, int depth)
+ 			} else {
+ 				// Indirect call.  Assume it is a splitting function,
+ 				// so we have to make sure it can call morestack.
+-				limit -= CallSize;
++				limit -= callsize();
+ 				ch.sym = nil;
+ 				ch1.limit = limit;
+ 				ch1.up = &ch;
+ 				ch1.sym = morestack;
+ 				if(stkcheck(&ch1, depth+2) < 0)
+ 					return -1;
+-				limit += CallSize;
++				limit += callsize();
+ 			}
+-			limit += CallSize;
++			limit += callsize();
+ 		}
+ 		
+ 	}
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 2d90807d2c..d3c29a1415 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -74,6 +74,7 @@ EXTERN	LSym**	dynexp;
+ EXTERN	int	nldflag;
+ EXTERN	char**	ldflag;
+ EXTERN	int	havedynamic;
++EXTERN	int	funcalign;
+ EXTERN	int	iscgo;
+ EXTERN	int	elfglobalsymndx;
+ EXTERN	char*	flag_installsuffix;
+@@ -223,6 +224,7 @@ void	hostlink(void);
+ void	hostobjs(void);
+ int	iconv(Fmt *fp);
+ void	importcycles(void);
++void	linkarchinit(void);
+ void	ldelf(Biobuf *f, char *pkg, int64 len, char *pn);
+ void	ldhostobj(void (*ld)(Biobuf*, char*, int64, char*), Biobuf *f, char *pkg, int64 len, char *pn, char *file);
+ void	ldmacho(Biobuf *f, char *pkg, int64 len, char *pn);
+diff --git a/src/cmd/ld/pcln.c b/src/cmd/ld/pcln.c
+index 50bd56ed85..71587f7784 100644
+--- a/src/cmd/ld/pcln.c
++++ b/src/cmd/ld/pcln.c
+@@ -203,7 +203,7 @@ pclntab(void)
+ 		}
+ 
+ 		if(off != end) {
+-			diag("bad math in functab: funcstart=%d off=%d but end=%d (npcdata=%d nfuncdata=%d)", funcstart, off, end, pcln->npcdata, pcln->nfuncdata);
++			diag("bad math in functab: funcstart=%d off=%d but end=%d (npcdata=%d nfuncdata=%d ptrsize=%d)", funcstart, off, end, pcln->npcdata, pcln->nfuncdata, PtrSize);
+ 			errorexit();
+ 		}
+ 	
+diff --git a/src/cmd/ld/pobj.c b/src/cmd/ld/pobj.c
+index 0ce23eb993..b04f4cbab0 100644
+--- a/src/cmd/ld/pobj.c
++++ b/src/cmd/ld/pobj.c
+@@ -45,6 +45,7 @@ char*	paramspace	= "FP";
+ void
+ main(int argc, char *argv[])
+ {
++	linkarchinit();
+ 	ctxt = linknew(thelinkarch);
+ 	ctxt->thechar = thechar;
+ 	ctxt->thestring = thestring;
+diff --git a/src/liblink/asm6.c b/src/liblink/asm6.c
+index 0d56307af4..b2690bf0e4 100644
+--- a/src/liblink/asm6.c
++++ b/src/liblink/asm6.c
+@@ -1540,7 +1540,8 @@ static uchar nop[][16] = {
+ 	{0x0F, 0x1F, 0x80, 0x00, 0x00, 0x00, 0x00},
+ 	{0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00},
+ 	{0x66, 0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00},
+-	{0x66, 0x66, 0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00},
++	// Native Client rejects the repeated 0x66 prefix.
++	// {0x66, 0x66, 0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00},
+ };
+ 
+ static void
+@@ -1560,6 +1561,22 @@ fillnop(uchar *p, int n)
+ 
+ static void instinit(void);
+ 
++static int32
++naclpad(Link *ctxt, LSym *s, int32 c, int32 pad)
++{
++	symgrow(ctxt, s, c+pad);
++	fillnop(s->p+c, pad);
++	return c+pad;
++}
++
++static int
++spadjop(Link *ctxt, Prog *p, int l, int q)
++{
++	if(p->mode != 64 || ctxt->arch->ptrsize == 4)
++		return l;
++	return q;
++}
++
+ void
+ span6(Link *ctxt, LSym *s)
+ {
+@@ -1575,7 +1592,7 @@ span6(Link *ctxt, LSym *s)
+ 	
+ 	if(ycover[0] == 0)
+ 		instinit();
+-
++	
+ 	for(p = ctxt->cursym->text; p != nil; p = p->link) {
+ 		n = 0;
+ 		if(p->to.type == D_BRANCH)
+@@ -1589,9 +1606,9 @@ span6(Link *ctxt, LSym *s)
+ 			p->to.type = D_SP;
+ 			v = -p->from.offset;
+ 			p->from.offset = v;
+-			p->as = p->mode != 64? AADDL: AADDQ;
++			p->as = spadjop(ctxt, p, AADDL, AADDQ);
+ 			if(v < 0) {
+-				p->as = p->mode != 64? ASUBL: ASUBQ;
++				p->as = spadjop(ctxt, p, ASUBL, ASUBQ);
+ 				v = -v;
+ 				p->from.offset = v;
+ 			}
+@@ -1611,9 +1628,9 @@ span6(Link *ctxt, LSym *s)
+ 			p->to.type = D_SP;
+ 			v = -p->from.offset;
+ 			p->from.offset = v;
+-			p->as = p->mode != 64? AADDL: AADDQ;
++			p->as = spadjop(ctxt, p, AADDL, AADDQ);
+ 			if(v < 0) {
+-				p->as = p->mode != 64? ASUBL: ASUBQ;
++				p->as = spadjop(ctxt, p, ASUBL, ASUBQ);
+ 				v = -v;
+ 				p->from.offset = v;
+ 			}
+@@ -1630,6 +1647,38 @@ span6(Link *ctxt, LSym *s)
+ 		s->np = 0;
+ 		c = 0;
+ 		for(p = s->text; p != nil; p = p->link) {
++			if(ctxt->headtype == Hnacl && p->isize > 0) {
++				static LSym *deferreturn;
++				
++				if(deferreturn == nil)
++					deferreturn = linklookup(ctxt, "runtime.deferreturn", 0);
++
++				// pad everything to avoid crossing 32-byte boundary
++				if((c>>5) != ((c+p->isize-1)>>5))
++					c = naclpad(ctxt, s, c, -c&31);
++				// pad call deferreturn to start at 32-byte boundary
++				// so that subtracting 5 in jmpdefer will jump back
++				// to that boundary and rerun the call.
++				if(p->as == ACALL && p->to.sym == deferreturn)
++					c = naclpad(ctxt, s, c, -c&31);
++				// pad call to end at 32-byte boundary
++				if(p->as == ACALL)
++					c = naclpad(ctxt, s, c, -(c+p->isize)&31);
++				
++				// the linker treats REP and STOSQ as different instructions
++				// but in fact the REP is a prefix on the STOSQ.
++				// make sure REP has room for 2 more bytes, so that
++				// padding will not be inserted before the next instruction.
++				if((p->as == AREP || p->as == AREPN) && (c>>5) != ((c+3-1)>>5))
++					c = naclpad(ctxt, s, c, -c&31);
++				
++				// same for LOCK.
++				// various instructions follow; the longest is 4 bytes.
++				// give ourselves 8 bytes so as to avoid surprises.
++				if(p->as == ALOCK && (c>>5) != ((c+8-1)>>5))
++					c = naclpad(ctxt, s, c, -c&31);
++			}
++
+ 			if((p->back & 4) && (c&(LoopAlign-1)) != 0) {
+ 				// pad with NOPs
+ 				v = -c&(LoopAlign-1);
+@@ -1664,9 +1713,13 @@ span6(Link *ctxt, LSym *s)
+ 			}
+ 			p->comefrom = nil;
+ 
+-			asmins(ctxt, p);
+ 			p->pc = c;
++			asmins(ctxt, p);
+ 			m = ctxt->andptr-ctxt->and;
++			if(p->isize != m) {
++				p->isize = m;
++				loop++;
++			}
+ 			symgrow(ctxt, s, p->pc+m);
+ 			memmove(s->p+p->pc, ctxt->and, m);
+ 			p->mark = m;
+@@ -1677,6 +1730,10 @@ span6(Link *ctxt, LSym *s)
+ 			sysfatal("loop");
+ 		}
+ 	} while(loop);
++	
++	if(ctxt->headtype == Hnacl)
++		c = naclpad(ctxt, s, c, -c&31);
++	
+ 	c += -c&(FuncAlign-1);
+ 	s->size = c;
+ 
+@@ -1847,7 +1904,7 @@ oclass(Link *ctxt, Addr *a)
+ 				switch(a->index) {
+ 				case D_EXTERN:
+ 				case D_STATIC:
+-					if(ctxt->flag_shared)
++					if(ctxt->flag_shared || ctxt->headtype == Hnacl)
+ 						return Yiauto;
+ 					else
+ 						return Yi32;	/* TO DO: Yi64 */
+@@ -2204,7 +2261,7 @@ vaddr(Link *ctxt, Addr *a, Reloc *r)
+ 		r->sym = s;
+ 		r->add = v;
+ 		v = 0;
+-		if(ctxt->flag_shared) {
++		if(ctxt->flag_shared || ctxt->headtype == Hnacl) {
+ 			if(s->type == STLSBSS) {
+ 				r->xadd = r->add - r->siz;
+ 				r->type = D_TLS;
+@@ -2236,7 +2293,7 @@ asmandsz(Link *ctxt, Addr *a, int r, int rex, int m64)
+ 				goto bad;
+ 			case D_STATIC:
+ 			case D_EXTERN:
+-				if(ctxt->flag_shared)
++				if(ctxt->flag_shared || ctxt->headtype == Hnacl)
+ 					goto bad;
+ 				t = D_NONE;
+ 				v = vaddr(ctxt, a, &rel);
+@@ -2298,7 +2355,7 @@ asmandsz(Link *ctxt, Addr *a, int r, int rex, int m64)
+ 
+ 	ctxt->rexflag |= (regrex[t] & Rxb) | rex;
+ 	if(t == D_NONE || (D_CS <= t && t <= D_GS)) {
+-		if(ctxt->flag_shared && t == D_NONE && (a->type == D_STATIC || a->type == D_EXTERN) || ctxt->asmode != 64) {
++		if((ctxt->flag_shared || ctxt->headtype == Hnacl) && t == D_NONE && (a->type == D_STATIC || a->type == D_EXTERN) || ctxt->asmode != 64) {
+ 			*ctxt->andptr++ = (0 << 6) | (5 << 0) | (r << 3);
+ 			goto putrelv;
+ 		}
+@@ -3248,14 +3305,140 @@ mfound:
+ 	}
+ }
+ 
++static uchar naclret[] = {
++	0x5e, // POPL SI
++	// 0x8b, 0x7d, 0x00, // MOVL (BP), DI - catch return to invalid address, for debugging
++	0x83, 0xe6, 0xe0,	// ANDL $~31, SI
++	0x4c, 0x01, 0xfe,	// ADDQ R15, SI
++	0xff, 0xe6, // JMP SI
++};
++
++static uchar naclspfix[] = {
++	0x4c, 0x01, 0xfc, // ADDQ R15, SP
++};
++
++static uchar naclbpfix[] = {
++	0x4c, 0x01, 0xfd, // ADDQ R15, BP
++};
++
++static uchar naclmovs[] = {
++	0x89, 0xf6,	// MOVL SI, SI
++	0x49, 0x8d, 0x34, 0x37,	// LEAQ (R15)(SI*1), SI
++	0x89, 0xff,	// MOVL DI, DI
++	0x49, 0x8d, 0x3c, 0x3f,	// LEAQ (R15)(DI*1), DI
++};
++
++static uchar naclstos[] = {
++	0x89, 0xff,	// MOVL DI, DI
++	0x49, 0x8d, 0x3c, 0x3f,	// LEAQ (R15)(DI*1), DI
++};
++
++static void
++nacltrunc(Link *ctxt, int reg)
++{	
++	if(reg >= D_R8)
++		*ctxt->andptr++ = 0x45;
++	reg = (reg - D_AX) & 7;
++	*ctxt->andptr++ = 0x89;
++	*ctxt->andptr++ = (3<<6) | (reg<<3) | reg;
++}
++
+ static void
+ asmins(Link *ctxt, Prog *p)
+ {
+ 	int n, np, c;
++	uchar *and0;
+ 	Reloc *r;
++	
++	ctxt->andptr = ctxt->and;
++	ctxt->asmode = p->mode;
++	
++	if(ctxt->headtype == Hnacl) {
++		if(p->as == AREP) {
++			ctxt->rep++;
++			return;
++		}
++		if(p->as == AREPN) {
++			ctxt->repn++;
++			return;
++		}
++		if(p->as == ALOCK) {
++			ctxt->lock++;
++			return;
++		}
++		if(p->as != ALEAQ && p->as != ALEAL) {
++			if(p->from.index != D_NONE && p->from.scale > 0)
++				nacltrunc(ctxt, p->from.index);
++			if(p->to.index != D_NONE && p->to.scale > 0)
++				nacltrunc(ctxt, p->to.index);
++		}
++		switch(p->as) {
++		case ARET:
++			memmove(ctxt->andptr, naclret, sizeof naclret);
++			ctxt->andptr += sizeof naclret;
++			return;
++		case ACALL:
++		case AJMP:
++			if(D_AX <= p->to.type && p->to.type <= D_DI) {
++				// ANDL $~31, reg
++				*ctxt->andptr++ = 0x83;
++				*ctxt->andptr++ = 0xe0 | (p->to.type - D_AX);
++				*ctxt->andptr++ = 0xe0;
++				// ADDQ R15, reg
++				*ctxt->andptr++ = 0x4c;
++				*ctxt->andptr++ = 0x01;
++				*ctxt->andptr++ = 0xf8 | (p->to.type - D_AX);
++			}
++			if(D_R8 <= p->to.type && p->to.type <= D_R15) {
++				// ANDL $~31, reg
++				*ctxt->andptr++ = 0x41;
++				*ctxt->andptr++ = 0x83;
++				*ctxt->andptr++ = 0xe0 | (p->to.type - D_R8);
++				*ctxt->andptr++ = 0xe0;
++				// ADDQ R15, reg
++				*ctxt->andptr++ = 0x4d;
++				*ctxt->andptr++ = 0x01;
++				*ctxt->andptr++ = 0xf8 | (p->to.type - D_R8);
++			}
++			break;
++		case AINT:
++			*ctxt->andptr++ = 0xf4;
++			return;
++		case ASCASB:
++		case ASCASW:
++		case ASCASL:
++		case ASCASQ:
++		case ASTOSB:
++		case ASTOSW:
++		case ASTOSL:
++		case ASTOSQ:
++			memmove(ctxt->andptr, naclstos, sizeof naclstos);
++			ctxt->andptr += sizeof naclstos;
++			break;
++		case AMOVSB:
++		case AMOVSW:
++		case AMOVSL:
++		case AMOVSQ:
++			memmove(ctxt->andptr, naclmovs, sizeof naclmovs);
++			ctxt->andptr += sizeof naclmovs;
++			break;
++		}
++		if(ctxt->rep) {
++			*ctxt->andptr++ = 0xf3;
++			ctxt->rep = 0;
++		}
++		if(ctxt->repn) {
++			*ctxt->andptr++ = 0xf2;
++			ctxt->repn = 0;
++		}
++		if(ctxt->lock) {
++			*ctxt->andptr++ = 0xf0;
++			ctxt->lock = 0;
++		}
++	}		
+ 
+ 	ctxt->rexflag = 0;
+-	ctxt->andptr = ctxt->and;
++	and0 = ctxt->andptr;
+ 	ctxt->asmode = p->mode;
+ 	doasm(ctxt, p);
+ 	if(ctxt->rexflag){
+@@ -3268,14 +3451,14 @@ asmins(Link *ctxt, Prog *p)
+ 		 */
+ 		if(p->mode != 64)
+ 			ctxt->diag("asmins: illegal in mode %d: %P", p->mode, p);
+-		n = ctxt->andptr - ctxt->and;
++		n = ctxt->andptr - and0;
+ 		for(np = 0; np < n; np++) {
+-			c = ctxt->and[np];
++			c = and0[np];
+ 			if(c != 0xf2 && c != 0xf3 && (c < 0x64 || c > 0x67) && c != 0x2e && c != 0x3e && c != 0x26)
+ 				break;
+ 		}
+-		memmove(ctxt->and+np+1, ctxt->and+np, n-np);
+-		ctxt->and[np] = 0x40 | ctxt->rexflag;
++		memmove(and0+np+1, and0+np, n-np);
++		and0[np] = 0x40 | ctxt->rexflag;
+ 		ctxt->andptr++;
+ 	}
+ 	n = ctxt->andptr - ctxt->and;
+@@ -3287,4 +3470,17 @@ asmins(Link *ctxt, Prog *p)
+ 		if(r->type == D_PCREL)
+ 			r->add -= p->pc + n - (r->off + r->siz);
+ 	}
++
++	if(ctxt->headtype == Hnacl && p->as != ACMPL && p->as != ACMPQ) {
++		switch(p->to.type) {
++		case D_SP:
++			memmove(ctxt->andptr, naclspfix, sizeof naclspfix);
++			ctxt->andptr += sizeof naclspfix;
++			break;
++		case D_BP:
++			memmove(ctxt->andptr, naclbpfix, sizeof naclbpfix);
++			ctxt->andptr += sizeof naclbpfix;
++			break;
++		}
++	}
+ }
+diff --git a/src/liblink/asm8.c b/src/liblink/asm8.c
+index f16faa0480..15d9c038c5 100644
+--- a/src/liblink/asm8.c
++++ b/src/liblink/asm8.c
+@@ -1153,6 +1153,46 @@ static Optab optab[] =
+ 
+ static int32	vaddr(Link*, Addr*, Reloc*);
+ 
++// single-instruction no-ops of various lengths.
++// constructed by hand and disassembled with gdb to verify.
++// see http://www.agner.org/optimize/optimizing_assembly.pdf for discussion.
++static uchar nop[][16] = {
++	{0x90},
++	{0x66, 0x90},
++	{0x0F, 0x1F, 0x00},
++	{0x0F, 0x1F, 0x40, 0x00},
++	{0x0F, 0x1F, 0x44, 0x00, 0x00},
++	{0x66, 0x0F, 0x1F, 0x44, 0x00, 0x00},
++	{0x0F, 0x1F, 0x80, 0x00, 0x00, 0x00, 0x00},
++	{0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00},
++	{0x66, 0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00},
++	// Native Client rejects the repeated 0x66 prefix.
++	// {0x66, 0x66, 0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00},
++};
++
++static void
++fillnop(uchar *p, int n)
++{
++	int m;
++
++	while(n > 0) {
++		m = n;
++		if(m > nelem(nop))
++			m = nelem(nop);
++		memmove(p, nop[m-1], m);
++		p += m;
++		n -= m;
++	}
++}
++
++static int32
++naclpad(Link *ctxt, LSym *s, int32 c, int32 pad)
++{
++	symgrow(ctxt, s, c+pad);
++	fillnop(s->p+c, pad);
++	return c+pad;
++}
++
+ static void instinit(void);
+ 
+ void
+@@ -1223,6 +1263,38 @@ span8(Link *ctxt, LSym *s)
+ 		s->np = 0;
+ 		c = 0;
+ 		for(p = s->text; p != nil; p = p->link) {
++			if(ctxt->headtype == Hnacl && p->isize > 0) {
++				static LSym *deferreturn;
++				
++				if(deferreturn == nil)
++					deferreturn = linklookup(ctxt, "runtime.deferreturn", 0);
++
++				// pad everything to avoid crossing 32-byte boundary
++				if((c>>5) != ((c+p->isize-1)>>5))
++					c = naclpad(ctxt, s, c, -c&31);
++				// pad call deferreturn to start at 32-byte boundary
++				// so that subtracting 5 in jmpdefer will jump back
++				// to that boundary and rerun the call.
++				if(p->as == ACALL && p->to.sym == deferreturn)
++					c = naclpad(ctxt, s, c, -c&31);
++				// pad call to end at 32-byte boundary
++				if(p->as == ACALL)
++					c = naclpad(ctxt, s, c, -(c+p->isize)&31);
++				
++				// the linker treats REP and STOSQ as different instructions
++				// but in fact the REP is a prefix on the STOSQ.
++				// make sure REP has room for 2 more bytes, so that
++				// padding will not be inserted before the next instruction.
++				if(p->as == AREP && (c>>5) != ((c+3-1)>>5))
++					c = naclpad(ctxt, s, c, -c&31);
++				
++				// same for LOCK.
++				// various instructions follow; the longest is 4 bytes.
++				// give ourselves 8 bytes so as to avoid surprises.
++				if(p->as == ALOCK && (c>>5) != ((c+8-1)>>5))
++					c = naclpad(ctxt, s, c, -c&31);
++			}
++			
+ 			p->pc = c;
+ 
+ 			// process forward jumps to p
+@@ -1247,9 +1319,13 @@ span8(Link *ctxt, LSym *s)
+ 			}
+ 			p->comefrom = nil;
+ 
+-			asmins(ctxt, p);
+ 			p->pc = c;
++			asmins(ctxt, p);
+ 			m = ctxt->andptr-ctxt->and;
++			if(p->isize != m) {
++				p->isize = m;
++				loop++;
++			}
+ 			symgrow(ctxt, s, p->pc+m);
+ 			memmove(s->p+p->pc, ctxt->and, m);
+ 			p->mark = m;
+@@ -1260,6 +1336,9 @@ span8(Link *ctxt, LSym *s)
+ 			sysfatal("bad code");
+ 		}
+ 	} while(loop);
++	
++	if(ctxt->headtype == Hnacl)
++		c = naclpad(ctxt, s, c, -c&31);
+ 	c += -c&(FuncAlign-1);
+ 	s->size = c;
+ 
+@@ -1644,7 +1723,7 @@ vaddr(Link *ctxt, Addr *a, Reloc *r)
+ static int
+ istls(Link *ctxt, Addr *a)
+ {
+-	if(ctxt->headtype == Hlinux)
++	if(ctxt->headtype == Hlinux || ctxt->headtype == Hnacl)
+ 		return a->index == D_GS;
+ 	return a->type == D_INDIR+D_GS;
+ }
+@@ -2565,10 +2644,38 @@ mfound:
+ 	}
+ }
+ 
++static uchar naclret[] = {
++	0x5d, // POPL BP
++	// 0x8b, 0x7d, 0x00, // MOVL (BP), DI - catch return to invalid address, for debugging
++	0x83, 0xe5, 0xe0,	// ANDL $~31, BP
++	0xff, 0xe5, // JMP BP
++};
++
+ static void
+ asmins(Link *ctxt, Prog *p)
+ {
+ 	ctxt->andptr = ctxt->and;
++
++	if(ctxt->headtype == Hnacl) {
++		switch(p->as) {
++		case ARET:
++			memmove(ctxt->andptr, naclret, sizeof naclret);
++			ctxt->andptr += sizeof naclret;
++			return;
++		case ACALL:
++		case AJMP:
++			if(D_AX <= p->to.type && p->to.type <= D_DI) {
++				*ctxt->andptr++ = 0x83;
++				*ctxt->andptr++ = 0xe0 | (p->to.type - D_AX);
++				*ctxt->andptr++ = 0xe0;
++			}
++			break;
++		case AINT:
++			*ctxt->andptr++ = 0xf4;
++			return;
++		}
++	}
++
+ 	doasm(ctxt, p);
+ 	if(ctxt->andptr > ctxt->and+sizeof ctxt->and) {
+ 		print("and[] is too short - %ld byte instruction\n", ctxt->andptr - ctxt->and);
+diff --git a/src/liblink/obj5.c b/src/liblink/obj5.c
+index 2af23358fd..ce9d4f6541 100644
+--- a/src/liblink/obj5.c
++++ b/src/liblink/obj5.c
+@@ -1034,6 +1034,7 @@ LinkArch linkarm = {
+ 
+ 	.minlc = 4,
+ 	.ptrsize = 4,
++	.regsize = 4,
+ 
+ 	.D_ADDR = D_ADDR,
+ 	.D_BRANCH = D_BRANCH,
+diff --git a/src/liblink/obj6.c b/src/liblink/obj6.c
+index e8967f3ec7..9b99a59951 100644
+--- a/src/liblink/obj6.c
++++ b/src/liblink/obj6.c
+@@ -97,6 +97,8 @@ settextflag(Prog *p, int f)
+ 	p->from.scale = f;
+ }
+ 
++static void nacladdr(Link*, Prog*, Addr*);
++
+ static void
+ progedit(Link *ctxt, Prog *p)
+ {
+@@ -104,6 +106,11 @@ progedit(Link *ctxt, Prog *p)
+ 	LSym *s;
+ 	Prog *q;
+ 
++	if(ctxt->headtype == Hnacl) {
++		nacladdr(ctxt, p, &p->from);
++		nacladdr(ctxt, p, &p->to);
++	}
++
+ 	if(p->from.type == D_INDIR+D_GS || p->from.index == D_GS)
+ 		p->from.offset += ctxt->tlsoffset;
+ 	if(p->to.type == D_INDIR+D_GS || p->to.index == D_GS)
+@@ -298,6 +305,39 @@ progedit(Link *ctxt, Prog *p)
+ 	}
+ }
+ 
++static void
++nacladdr(Link *ctxt, Prog *p, Addr *a)
++{
++	if(p->as == ALEAL || p->as == ALEAQ)
++		return;
++	
++	if(a->type == D_BP || a->type == D_INDIR+D_BP) {
++		ctxt->diag("invalid address: %P", p);
++		return;
++	}
++	if(a->type == D_INDIR+D_GS)
++		a->type = D_INDIR+D_BP;
++	else if(a->type == D_GS)
++		a->type = D_BP;
++	if(D_INDIR <= a->type && a->type <= D_INDIR+D_INDIR) {
++		switch(a->type) {
++		case D_INDIR+D_BP:
++		case D_INDIR+D_SP:
++		case D_INDIR+D_R15:
++			// all ok
++			break;
++		default:
++			if(a->index != D_NONE)
++				ctxt->diag("invalid address %P", p);
++			a->index = a->type - D_INDIR;
++			if(a->index != D_NONE)
++				a->scale = 1;
++			a->type = D_INDIR+D_R15;
++			break;
++		}
++	}
++}
++
+ static char*
+ morename[] =
+ {
+@@ -316,6 +356,7 @@ morename[] =
+ 
+ static Prog*	load_g_cx(Link*, Prog*);
+ static Prog*	stacksplit(Link*, Prog*, int32, int32, Prog**);
++static void	indir_cx(Link*, Addr*);
+ 
+ static void
+ parsetextconst(vlong arg, vlong *textstksiz, vlong *textarg)
+@@ -369,7 +410,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 	noleaf:;
+ 	}
+ 
+-	if((p->from.scale & NOSPLIT) && autoffset >= StackSmall)
++	if((p->from.scale & NOSPLIT) && autoffset >= StackLimit)
+ 		ctxt->diag("nosplit func likely to overflow stack");
+ 
+ 	q = nil;
+@@ -381,6 +422,8 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 		p = stacksplit(ctxt, p, autoffset, textarg, &q); // emit split check
+ 
+ 	if(autoffset) {
++		if(autoffset%ctxt->arch->regsize != 0)
++			ctxt->diag("unaligned stack size %d", autoffset);
+ 		p = appendp(ctxt, p);
+ 		p->as = AADJSP;
+ 		p->from.type = D_CONST;
+@@ -402,12 +445,12 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 	deltasp = autoffset;
+ 	
+ 	if(cursym->text->from.scale & WRAPPER) {
+-		// g->panicwrap += autoffset + ctxt->arch->ptrsize;
++		// g->panicwrap += autoffset + ctxt->arch->regsize;
+ 		p = appendp(ctxt, p);
+ 		p->as = AADDL;
+ 		p->from.type = D_CONST;
+-		p->from.offset = autoffset + ctxt->arch->ptrsize;
+-		p->to.type = D_INDIR+D_CX;
++		p->from.offset = autoffset + ctxt->arch->regsize;
++		indir_cx(ctxt, &p->to);
+ 		p->to.offset = 2*ctxt->arch->ptrsize;
+ 	}
+ 
+@@ -417,7 +460,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 		// function is marked as nosplit.
+ 		p = appendp(ctxt, p);
+ 		p->as = AMOVQ;
+-		p->from.type = D_INDIR+D_CX;
++		indir_cx(ctxt, &p->from);
+ 		p->from.offset = 0;
+ 		p->to.type = D_BX;
+ 
+@@ -531,11 +574,11 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 		if(cursym->text->from.scale & WRAPPER) {
+ 			p = load_g_cx(ctxt, p);
+ 			p = appendp(ctxt, p);
+-			// g->panicwrap -= autoffset + ctxt->arch->ptrsize;
++			// g->panicwrap -= autoffset + ctxt->arch->regsize;
+ 			p->as = ASUBL;
+ 			p->from.type = D_CONST;
+-			p->from.offset = autoffset + ctxt->arch->ptrsize;
+-			p->to.type = D_INDIR+D_CX;
++			p->from.offset = autoffset + ctxt->arch->regsize;
++			indir_cx(ctxt, &p->to);
+ 			p->to.offset = 2*ctxt->arch->ptrsize;
+ 			p = appendp(ctxt, p);
+ 			p->as = ARET;
+@@ -559,6 +602,19 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 	}
+ }
+ 
++static void
++indir_cx(Link *ctxt, Addr *a)
++{
++	if(ctxt->headtype == Hnacl) {
++		a->type = D_INDIR + D_R15;
++		a->index = D_CX;
++		a->scale = 1;
++		return;
++	}
++
++	a->type = D_INDIR+D_CX;
++}
++
+ // Append code to p to load g into cx.
+ // Overwrites p with the first instruction (no first appendp).
+ // Overwriting p is unusual but it lets use this in both the
+@@ -582,12 +638,15 @@ load_g_cx(Link *ctxt, Prog *p)
+ 	|| ctxt->headtype == Hsolaris)
+ 		// ELF uses FS
+ 		p->from.type = D_INDIR+D_FS;
+-	else
++	else if(ctxt->headtype == Hnacl) {
++		p->as = AMOVL;
++		p->from.type = D_INDIR+D_BP;
++	} else
+ 		p->from.type = D_INDIR+D_GS;
+ 	if(ctxt->flag_shared) {
+ 		// Add TLS offset stored in CX
+ 		p->from.index = p->from.type - D_INDIR;
+-		p->from.type = D_INDIR + D_CX;
++		indir_cx(ctxt, &p->from);
+ 	}
+ 	p->from.offset = ctxt->tlsoffset+0;
+ 	p->to.type = D_CX;
+@@ -601,7 +660,7 @@ load_g_cx(Link *ctxt, Prog *p)
+ 
+ 		p = appendp(ctxt, p);
+ 		p->as = AMOVQ;
+-		p->from.type = D_INDIR+D_CX;
++		indir_cx(ctxt, &p->from);
+ 		p->from.offset = 0;
+ 		p->to.type = D_CX;
+ 	}
+@@ -619,6 +678,19 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, Prog **jmpok)
+ {
+ 	Prog *q, *q1;
+ 	uint32 moreconst1, moreconst2, i;
++	int cmp, lea, mov, sub;
++
++	cmp = ACMPQ;
++	lea = ALEAQ;
++	mov = AMOVQ;
++	sub = ASUBQ;
++
++	if(ctxt->headtype == Hnacl) {
++		cmp = ACMPL;
++		lea = ALEAL;
++		mov = AMOVL;
++		sub = ASUBL;
++	}
+ 
+ 	if(ctxt->debugstack) {
+ 		// 6l -K means check not only for stack
+@@ -628,8 +700,8 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, Prog **jmpok)
+ 		// catches out-of-sync stack guard info
+ 
+ 		p = appendp(ctxt, p);
+-		p->as = ACMPQ;
+-		p->from.type = D_INDIR+D_CX;
++		p->as = cmp;
++		indir_cx(ctxt, &p->from);
+ 		p->from.offset = 8;
+ 		p->to.type = D_SP;
+ 
+@@ -654,23 +726,23 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, Prog **jmpok)
+ 		// small stack: SP <= stackguard
+ 		//	CMPQ SP, stackguard
+ 		p = appendp(ctxt, p);
+-		p->as = ACMPQ;
++		p->as = cmp;
+ 		p->from.type = D_SP;
+-		p->to.type = D_INDIR+D_CX;
++		indir_cx(ctxt, &p->to);
+ 	} else if(framesize <= StackBig) {
+ 		// large stack: SP-framesize <= stackguard-StackSmall
+ 		//	LEAQ -xxx(SP), AX
+ 		//	CMPQ AX, stackguard
+ 		p = appendp(ctxt, p);
+-		p->as = ALEAQ;
++		p->as = lea;
+ 		p->from.type = D_INDIR+D_SP;
+ 		p->from.offset = -(framesize-StackSmall);
+ 		p->to.type = D_AX;
+ 
+ 		p = appendp(ctxt, p);
+-		p->as = ACMPQ;
++		p->as = cmp;
+ 		p->from.type = D_AX;
+-		p->to.type = D_INDIR+D_CX;
++		indir_cx(ctxt, &p->to);
+ 	} else {
+ 		// Such a large stack we need to protect against wraparound.
+ 		// If SP is close to zero:
+@@ -688,13 +760,13 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, Prog **jmpok)
+ 		//	CMPQ	AX, $(framesize+(StackGuard-StackSmall))
+ 
+ 		p = appendp(ctxt, p);
+-		p->as = AMOVQ;
+-		p->from.type = D_INDIR+D_CX;
++		p->as = mov;
++		indir_cx(ctxt, &p->from);
+ 		p->from.offset = 0;
+ 		p->to.type = D_SI;
+ 
+ 		p = appendp(ctxt, p);
+-		p->as = ACMPQ;
++		p->as = cmp;
+ 		p->from.type = D_SI;
+ 		p->to.type = D_CONST;
+ 		p->to.offset = StackPreempt;
+@@ -705,18 +777,18 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, Prog **jmpok)
+ 		q1 = p;
+ 
+ 		p = appendp(ctxt, p);
+-		p->as = ALEAQ;
++		p->as = lea;
+ 		p->from.type = D_INDIR+D_SP;
+ 		p->from.offset = StackGuard;
+ 		p->to.type = D_AX;
+ 		
+ 		p = appendp(ctxt, p);
+-		p->as = ASUBQ;
++		p->as = sub;
+ 		p->from.type = D_SI;
+ 		p->to.type = D_AX;
+ 		
+ 		p = appendp(ctxt, p);
+-		p->as = ACMPQ;
++		p->as = cmp;
+ 		p->from.type = D_AX;
+ 		p->to.type = D_CONST;
+ 		p->to.offset = framesize+(StackGuard-StackSmall);
+@@ -780,7 +852,7 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, Prog **jmpok)
+ 		p->to.type = D_BRANCH;
+ 		p->to.sym = ctxt->symmorestack[2];
+ 	} else {
+-		p->as = AMOVQ;
++		p->as = mov;
+ 		p->from.type = D_CONST;
+ 		p->from.offset = (uint64)moreconst2 << 32;
+ 		p->from.offset |= moreconst1;
+@@ -1035,6 +1107,52 @@ LinkArch linkamd64 = {
+ 
+ 	.minlc = 1,
+ 	.ptrsize = 8,
++	.regsize = 8,
++
++	.D_ADDR = D_ADDR,
++	.D_BRANCH = D_BRANCH,
++	.D_CONST = D_CONST,
++	.D_EXTERN = D_EXTERN,
++	.D_FCONST = D_FCONST,
++	.D_NONE = D_NONE,
++	.D_PCREL = D_PCREL,
++	.D_SCONST = D_SCONST,
++	.D_SIZE = D_SIZE,
++	.D_STATIC = D_STATIC,
++
++	.ACALL = ACALL,
++	.ADATA = ADATA,
++	.AEND = AEND,
++	.AFUNCDATA = AFUNCDATA,
++	.AGLOBL = AGLOBL,
++	.AJMP = AJMP,
++	.ANOP = ANOP,
++	.APCDATA = APCDATA,
++	.ARET = ARET,
++	.ATEXT = ATEXT,
++	.ATYPE = ATYPE,
++	.AUSEFIELD = AUSEFIELD,
++};
++
++LinkArch linkamd64p32 = {
++	.name = "amd64p32",
++	.thechar = '6',
++
++	.addstacksplit = addstacksplit,
++	.assemble = span6,
++	.datasize = datasize,
++	.follow = follow,
++	.iscall = iscall,
++	.isdata = isdata,
++	.prg = prg,
++	.progedit = progedit,
++	.settextflag = settextflag,
++	.symtype = symtype,
++	.textflag = textflag,
++
++	.minlc = 1,
++	.ptrsize = 4,
++	.regsize = 8,
+ 
+ 	.D_ADDR = D_ADDR,
+ 	.D_BRANCH = D_BRANCH,
+diff --git a/src/liblink/obj8.c b/src/liblink/obj8.c
+index f81ba03c6b..adee8c6c5b 100644
+--- a/src/liblink/obj8.c
++++ b/src/liblink/obj8.c
+@@ -124,7 +124,7 @@ progedit(Link *ctxt, Prog *p)
+ 			p->from.offset = 0x14;
+ 		}
+ 	}
+-	if(ctxt->headtype == Hlinux) {
++	if(ctxt->headtype == Hlinux || ctxt->headtype == Hnacl) {
+ 		// Running binaries under Xen requires using
+ 		//	MOVL 0(GS), reg
+ 		// and then off(reg) instead of saying off(GS) directly
+@@ -448,6 +448,7 @@ load_g_cx(Link *ctxt, Prog *p)
+ 		break;
+ 	
+ 	case Hlinux:
++	case Hnacl:
+ 		if(ctxt->linkmode != LinkExternal) {
+ 			p->as = AMOVL;
+ 			p->from.type = D_INDIR+D_GS;
+@@ -869,6 +870,7 @@ LinkArch link386 = {
+ 
+ 	.minlc = 1,
+ 	.ptrsize = 4,
++	.regsize = 4,
+ 
+ 	.D_ADDR = D_ADDR,
+ 	.D_BRANCH = D_BRANCH,
+diff --git a/src/liblink/sym.c b/src/liblink/sym.c
+index 7ff64350df..0c7aae00a1 100644
+--- a/src/liblink/sym.c
++++ b/src/liblink/sym.c
+@@ -49,6 +49,7 @@ static struct {
+ 	"elf",		Helf,
+ 	"freebsd",	Hfreebsd,
+ 	"linux",	Hlinux,
++	"nacl",		Hnacl,
+ 	"netbsd",	Hnetbsd,
+ 	"openbsd",	Hopenbsd,
+ 	"plan9",	Hplan9,
+@@ -96,8 +97,8 @@ linknew(LinkArch *arch)
+ 	ctxt->version = HistVersion;
+ 
+ 	p = getgoarch();
+-	if(strncmp(p, arch->name, strlen(arch->name)) != 0)
+-		sysfatal("invalid goarch %s (want %s or derivative)", p, arch->name);
++	if(strcmp(p, arch->name) != 0)
++		sysfatal("invalid goarch %s (want %s)", p, arch->name);
+ 	
+ 	if(getwd(buf, sizeof buf) == 0)
+ 		strcpy(buf, "/???");
+@@ -138,6 +139,10 @@ linknew(LinkArch *arch)
+ 		 */
+ 		ctxt->tlsoffset = -2*ctxt->arch->ptrsize;
+ 		break;
++	
++	case Hnacl:
++		ctxt->tlsoffset = 0;
++		break;
+ 
+ 	case Hdarwin:
+ 		/*
+diff --git a/src/pkg/runtime/type.h b/src/pkg/runtime/type.h
+index ff0505be87..1598acc180 100644
+--- a/src/pkg/runtime/type.h
++++ b/src/pkg/runtime/type.h
+@@ -16,7 +16,7 @@ typedef struct IMethod IMethod;
+ typedef struct SliceType SliceType;
+ typedef struct FuncType FuncType;
+ 
+-// Needs to be in sync with typekind.h/CommonSize
++// Needs to be in sync with ../../cmd/ld/decodesym.c:/^commonsize
+ struct Type
+ {
+ 	uintptr size;
+diff --git a/src/pkg/runtime/typekind.h b/src/pkg/runtime/typekind.h
+index df53f20c84..3f0ba9acb8 100644
+--- a/src/pkg/runtime/typekind.h
++++ b/src/pkg/runtime/typekind.h
+@@ -34,8 +34,5 @@ enum {
+ 	KindUnsafePointer,
+ 
+ 	KindNoPointers = 1<<7,
+-
+-	// size of Type structure.
+-	CommonSize = 7*PtrSize + 8,
+ };
+ 

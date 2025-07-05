@@ -14,6 +14,29 @@ Date:   Wed Jan 10 10:50:19 2018 +0000
     Reviewed-on: https://go-review.googlesource.com/87095
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Peter Weinberger <pjw@google.com>
-
+---
  src/sync/rwmutex.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/sync/rwmutex.go b/src/sync/rwmutex.go
+index 4e9e8197c1..9dbebfeed7 100644
+--- a/src/sync/rwmutex.go
++++ b/src/sync/rwmutex.go
+@@ -47,7 +47,7 @@ func (rw *RWMutex) RLock() {
+ 	}
+ 	if atomic.AddInt32(&rw.readerCount, 1) < 0 {
+ 		// A writer is pending, wait for it.
+-		runtime_Semacquire(&rw.readerSem)
++		runtime_SemacquireMutex(&rw.readerSem, false)
+ 	}
+ 	if race.Enabled {
+ 		race.Enable()
+@@ -95,7 +95,7 @@ func (rw *RWMutex) Lock() {
+ 	r := atomic.AddInt32(&rw.readerCount, -rwmutexMaxReaders) + rwmutexMaxReaders
+ 	// Wait for active readers.
+ 	if r != 0 && atomic.AddInt32(&rw.readerWait, r) != 0 {
+-		runtime_Semacquire(&rw.writerSem)
++		runtime_SemacquireMutex(&rw.writerSem, false)
+ 	}
+ 	if race.Enabled {
+ 		race.Enable()

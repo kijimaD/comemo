@@ -17,7 +17,7 @@ Date:   Wed Oct 14 18:41:16 2020 -0700
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/encoding/asn1/asn1.go    |  2 +-
  src/encoding/asn1/marshal.go |  2 +-
  src/encoding/json/encode.go  |  5 ++--
@@ -27,3 +27,250 @@ Date:   Wed Oct 14 18:41:16 2020 -0700
  src/reflect/type.go          | 19 +++++++++++----
  src/text/template/exec.go    |  2 +-
  8 files changed, 68 insertions(+), 21 deletions(-)
+
+diff --git a/src/encoding/asn1/asn1.go b/src/encoding/asn1/asn1.go
+index f9b9cb4930..cffc06dc9c 100644
+--- a/src/encoding/asn1/asn1.go
++++ b/src/encoding/asn1/asn1.go
+@@ -914,7 +914,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 		structType := fieldType
+ 
+ 		for i := 0; i < structType.NumField(); i++ {
+-			if structType.Field(i).PkgPath != "" {
++			if !structType.Field(i).IsExported() {
+ 				err = StructuralError{"struct contains unexported fields"}
+ 				return
+ 			}
+diff --git a/src/encoding/asn1/marshal.go b/src/encoding/asn1/marshal.go
+index 0d34d5aa1e..5b4d786d49 100644
+--- a/src/encoding/asn1/marshal.go
++++ b/src/encoding/asn1/marshal.go
+@@ -488,7 +488,7 @@ func makeBody(value reflect.Value, params fieldParameters) (e encoder, err error
+ 		t := v.Type()
+ 
+ 		for i := 0; i < t.NumField(); i++ {
+-			if t.Field(i).PkgPath != "" {
++			if !t.Field(i).IsExported() {
+ 				return nil, StructuralError{"struct contains unexported fields"}
+ 			}
+ 		}
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 483b9d8f2d..751f03d33d 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -1239,19 +1239,18 @@ func typeFields(t reflect.Type) structFields {
+ 			// Scan f.typ for fields to include.
+ 			for i := 0; i < f.typ.NumField(); i++ {
+ 				sf := f.typ.Field(i)
+-				isUnexported := sf.PkgPath != ""
+ 				if sf.Anonymous {
+ 					t := sf.Type
+ 					if t.Kind() == reflect.Ptr {
+ 						t = t.Elem()
+ 					}
+-					if isUnexported && t.Kind() != reflect.Struct {
++					if !sf.IsExported() && t.Kind() != reflect.Struct {
+ 						// Ignore embedded fields of unexported non-struct types.
+ 						continue
+ 					}
+ 					// Do not ignore embedded fields of unexported struct types
+ 					// since they may have exported fields.
+-				} else if isUnexported {
++				} else if !sf.IsExported() {
+ 					// Ignore unexported non-embedded fields.
+ 					continue
+ 				}
+diff --git a/src/encoding/xml/typeinfo.go b/src/encoding/xml/typeinfo.go
+index f30fe58590..162724ef1a 100644
+--- a/src/encoding/xml/typeinfo.go
++++ b/src/encoding/xml/typeinfo.go
+@@ -60,7 +60,7 @@ func getTypeInfo(typ reflect.Type) (*typeInfo, error) {
+ 		n := typ.NumField()
+ 		for i := 0; i < n; i++ {
+ 			f := typ.Field(i)
+-			if (f.PkgPath != "" && !f.Anonymous) || f.Tag.Get("xml") == "-" {
++			if (!f.IsExported() && !f.Anonymous) || f.Tag.Get("xml") == "-" {
+ 				continue // Private field
+ 			}
+ 
+diff --git a/src/net/rpc/server.go b/src/net/rpc/server.go
+index 9cb928240f..074c5b9b0d 100644
+--- a/src/net/rpc/server.go
++++ b/src/net/rpc/server.go
+@@ -283,7 +283,7 @@ func suitableMethods(typ reflect.Type, reportErr bool) map[string]*methodType {
+ 		mtype := method.Type
+ 		mname := method.Name
+ 		// Method must be exported.
+-		if method.PkgPath != "" {
++		if !method.IsExported() {
+ 			continue
+ 		}
+ 		// Method needs three ins: receiver, *args, *reply.
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 1225d6177d..35cc469d74 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -2900,6 +2900,7 @@ func TestFieldPkgPath(t *testing.T) {
+ 		index    []int
+ 		pkgPath  string
+ 		embedded bool
++		exported bool
+ 	}
+ 
+ 	checkPkgPath := func(name string, s []pkgpathTest) {
+@@ -2911,27 +2912,63 @@ func TestFieldPkgPath(t *testing.T) {
+ 			if got, want := f.Anonymous, test.embedded; got != want {
+ 				t.Errorf("%s: Field(%d).Anonymous = %v, want %v", name, test.index, got, want)
+ 			}
++			if got, want := f.IsExported(), test.exported; got != want {
++				t.Errorf("%s: Field(%d).IsExported = %v, want %v", name, test.index, got, want)
++			}
+ 		}
+ 	}
+ 
+ 	checkPkgPath("testStruct", []pkgpathTest{
+-		{[]int{0}, "", false},             // Exported
+-		{[]int{1}, "reflect_test", false}, // unexported
+-		{[]int{2}, "", true},              // OtherPkgFields
+-		{[]int{2, 0}, "", false},          // OtherExported
+-		{[]int{2, 1}, "reflect", false},   // otherUnexported
+-		{[]int{3}, "reflect_test", true},  // int
+-		{[]int{4}, "reflect_test", true},  // *x
++		{[]int{0}, "", false, true},              // Exported
++		{[]int{1}, "reflect_test", false, false}, // unexported
++		{[]int{2}, "", true, true},               // OtherPkgFields
++		{[]int{2, 0}, "", false, true},           // OtherExported
++		{[]int{2, 1}, "reflect", false, false},   // otherUnexported
++		{[]int{3}, "reflect_test", true, false},  // int
++		{[]int{4}, "reflect_test", true, false},  // *x
+ 	})
+ 
+ 	type localOtherPkgFields OtherPkgFields
+ 	typ = TypeOf(localOtherPkgFields{})
+ 	checkPkgPath("localOtherPkgFields", []pkgpathTest{
+-		{[]int{0}, "", false},        // OtherExported
+-		{[]int{1}, "reflect", false}, // otherUnexported
++		{[]int{0}, "", false, true},         // OtherExported
++		{[]int{1}, "reflect", false, false}, // otherUnexported
+ 	})
+ }
+ 
++func TestMethodPkgPath(t *testing.T) {
++	type I interface {
++		x()
++		X()
++	}
++	typ := TypeOf((*interface {
++		I
++		y()
++		Y()
++	})(nil)).Elem()
++
++	tests := []struct {
++		name     string
++		pkgPath  string
++		exported bool
++	}{
++		{"X", "", true},
++		{"Y", "", true},
++		{"x", "reflect_test", false},
++		{"y", "reflect_test", false},
++	}
++
++	for _, test := range tests {
++		m, _ := typ.MethodByName(test.name)
++		if got, want := m.PkgPath, test.pkgPath; got != want {
++			t.Errorf("MethodByName(%q).PkgPath = %q, want %q", test.name, got, want)
++		}
++		if got, want := m.IsExported(), test.exported; got != want {
++			t.Errorf("MethodByName(%q).IsExported = %v, want %v", test.name, got, want)
++		}
++	}
++}
++
+ func TestVariadicType(t *testing.T) {
+ 	// Test example from Type documentation.
+ 	var f func(x int, y ...float64)
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index eb2030063a..dc235ea8f7 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -568,12 +568,13 @@ func newName(n, tag string, exported bool) name {
+ // Method represents a single method.
+ type Method struct {
+ 	// Name is the method name.
++	Name string
++
+ 	// PkgPath is the package path that qualifies a lower case (unexported)
+ 	// method name. It is empty for upper case (exported) method names.
+ 	// The combination of PkgPath and Name uniquely identifies a method
+ 	// in a method set.
+ 	// See https://golang.org/ref/spec#Uniqueness_of_identifiers
+-	Name    string
+ 	PkgPath string
+ 
+ 	Type  Type  // method type
+@@ -581,6 +582,11 @@ type Method struct {
+ 	Index int   // index for Type.Method
+ }
+ 
++// IsExported reports whether the method is exported.
++func (m Method) IsExported() bool {
++	return m.PkgPath == ""
++}
++
+ const (
+ 	kindDirectIface = 1 << 5
+ 	kindGCProg      = 1 << 6 // Type.gc points to GC program
+@@ -1090,6 +1096,7 @@ func (t *interfaceType) MethodByName(name string) (m Method, ok bool) {
+ type StructField struct {
+ 	// Name is the field name.
+ 	Name string
++
+ 	// PkgPath is the package path that qualifies a lower case (unexported)
+ 	// field name. It is empty for upper case (exported) field names.
+ 	// See https://golang.org/ref/spec#Uniqueness_of_identifiers
+@@ -1102,6 +1109,11 @@ type StructField struct {
+ 	Anonymous bool      // is an embedded field
+ }
+ 
++// IsExported reports whether the field is exported.
++func (f StructField) IsExported() bool {
++	return f.PkgPath == ""
++}
++
+ // A StructTag is the tag string in a struct field.
+ //
+ // By convention, tag strings are a concatenation of
+@@ -2771,8 +2783,7 @@ func runtimeStructField(field StructField) (structField, string) {
+ 		panic("reflect.StructOf: field \"" + field.Name + "\" is anonymous but has PkgPath set")
+ 	}
+ 
+-	exported := field.PkgPath == ""
+-	if exported {
++	if field.IsExported() {
+ 		// Best-effort check for misuse.
+ 		// Since this field will be treated as exported, not much harm done if Unicode lowercase slips through.
+ 		c := field.Name[0]
+@@ -2788,7 +2799,7 @@ func runtimeStructField(field StructField) (structField, string) {
+ 
+ 	resolveReflectType(field.Type.common()) // install in runtime
+ 	f := structField{
+-		name:        newName(field.Name, string(field.Tag), exported),
++		name:        newName(field.Name, string(field.Tag), field.IsExported()),
+ 		typ:         field.Type.common(),
+ 		offsetEmbed: offsetEmbed,
+ 	}
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index 19154fc640..4637b2035f 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -615,7 +615,7 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node,
+ 		tField, ok := receiver.Type().FieldByName(fieldName)
+ 		if ok {
+ 			field := receiver.FieldByIndex(tField.Index)
+-			if tField.PkgPath != "" { // field is unexported
++			if !tField.IsExported() {
+ 				s.errorf("%s is an unexported field of struct type %s", fieldName, typ)
+ 			}
+ 			// If it's a function, we must call it.

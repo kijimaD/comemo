@@ -11,6 +11,20 @@ Date:   Sun Nov 16 14:25:33 2014 -0500
     R=khr, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/177780043
-
+---
  src/runtime/heapdump.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/heapdump.c b/src/runtime/heapdump.c
+index eddbc1d1c9..7eba8c0057 100644
+--- a/src/runtime/heapdump.c
++++ b/src/runtime/heapdump.c
+@@ -7,7 +7,7 @@
+ // finalizers, etc.) to a file.
+ 
+ // The format of the dumped file is described at
+-// http://code.google.com/p/go-wiki/wiki/heapdump14
++// http://golang.org/s/go14heapdump.
+ 
+ #include "runtime.h"
+ #include "arch_GOARCH.h"

@@ -32,7 +32,73 @@ Date:   Sun Mar 6 11:26:11 2022 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/flag/export_test.go | 6 +++++-
  src/flag/flag_test.go   | 9 ++++++---
  2 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/src/flag/export_test.go b/src/flag/export_test.go
+index 838cfaf6a4..9ef93ed6c5 100644
+--- a/src/flag/export_test.go
++++ b/src/flag/export_test.go
+@@ -4,7 +4,10 @@
+ 
+ package flag
+ 
+-import "os"
++import (
++	"io"
++	"os"
++)
+ 
+ // Additional routines compiled into the package only during testing.
+ 
+@@ -15,6 +18,7 @@ var DefaultUsage = Usage
+ // exit the program.
+ func ResetForTesting(usage func()) {
+ 	CommandLine = NewFlagSet(os.Args[0], ContinueOnError)
++	CommandLine.SetOutput(io.Discard)
+ 	CommandLine.Usage = commandLineUsage
+ 	Usage = usage
+ }
+diff --git a/src/flag/flag_test.go b/src/flag/flag_test.go
+index 5835fcf22c..d5c443d3c6 100644
+--- a/src/flag/flag_test.go
++++ b/src/flag/flag_test.go
+@@ -246,6 +246,7 @@ func (f *flagVar) Set(value string) error {
+ func TestUserDefined(t *testing.T) {
+ 	var flags FlagSet
+ 	flags.Init("test", ContinueOnError)
++	flags.SetOutput(io.Discard)
+ 	var v flagVar
+ 	flags.Var(&v, "v", "usage")
+ 	if err := flags.Parse([]string{"-v", "1", "-v", "2", "-v=3"}); err != nil {
+@@ -261,8 +262,8 @@ func TestUserDefined(t *testing.T) {
+ }
+ 
+ func TestUserDefinedFunc(t *testing.T) {
+-	var flags FlagSet
+-	flags.Init("test", ContinueOnError)
++	flags := NewFlagSet("test", ContinueOnError)
++	flags.SetOutput(io.Discard)
+ 	var ss []string
+ 	flags.Func("v", "usage", func(s string) error {
+ 		ss = append(ss, s)
+@@ -286,7 +287,8 @@ func TestUserDefinedFunc(t *testing.T) {
+ 		t.Errorf("usage string not included: %q", usage)
+ 	}
+ 	// test Func error
+-	flags = *NewFlagSet("test", ContinueOnError)
++	flags = NewFlagSet("test", ContinueOnError)
++	flags.SetOutput(io.Discard)
+ 	flags.Func("v", "usage", func(s string) error {
+ 		return fmt.Errorf("test error")
+ 	})
+@@ -335,6 +337,7 @@ func (b *boolFlagVar) IsBoolFlag() bool {
+ func TestUserDefinedBool(t *testing.T) {
+ 	var flags FlagSet
+ 	flags.Init("test", ContinueOnError)
++	flags.SetOutput(io.Discard)
+ 	var b boolFlagVar
+ 	var err error
+ 	flags.Var(&b, "b", "usage")

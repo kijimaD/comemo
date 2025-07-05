@@ -23,8 +23,82 @@ Date:   Wed Feb 24 09:12:51 2016 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/dcl.go   |  5 +++++
  src/cmd/compile/internal/gc/gsubr.go | 12 ++++++++++++
  src/cmd/internal/obj/objfile.go      | 16 +++++++++++-----
  3 files changed, 28 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index fc47a39ee6..7e44a4756d 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -1449,8 +1449,13 @@ func funccompile(n *Node) {
+ 	Funcdepth = n.Func.Depth + 1
+ 	compile(n)
+ 	Curfn = nil
++	Pc = nil
++	continpc = nil
++	breakpc = nil
+ 	Funcdepth = 0
+ 	dclcontext = PEXTERN
++	flushdata()
++	obj.Flushplist(Ctxt) // convert from Prog list to machine code
+ }
+ 
+ func funcsym(s *Sym) *Sym {
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 30bf736e3e..04e986562d 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -173,6 +173,18 @@ func dumpdata() {
+ 	Clearp(Pc)
+ }
+ 
++func flushdata() {
++	if dfirst == nil {
++		return
++	}
++	newplist()
++	*Pc = *dfirst
++	Pc = dpc
++	Clearp(Pc)
++	dfirst = nil
++	dpc = nil
++}
++
+ // Fixup instructions after allocauto (formerly compactframe) has moved all autos around.
+ func fixautoused(p *obj.Prog) {
+ 	for lp := &p; ; {
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 40c92dd152..3dc5152f54 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -302,16 +302,22 @@ func Flushplist(ctxt *Link) {
+ 		ctxt.Arch.Assemble(ctxt, s)
+ 		fieldtrack(ctxt, s)
+ 		linkpcln(ctxt, s)
++		s.Text = nil
++		s.Etext = nil
+ 	}
+ 
+ 	// Add to running list in ctxt.
+-	if ctxt.Etext == nil {
+-		ctxt.Text = text
+-	} else {
+-		ctxt.Etext.Next = text
++	if text != nil {
++		if ctxt.Text == nil {
++			ctxt.Text = text
++		} else {
++			ctxt.Etext.Next = text
++		}
++		ctxt.Etext = etext
+ 	}
+-	ctxt.Etext = etext
+ 	ctxt.Plist = nil
++	ctxt.Plast = nil
++	ctxt.Curp = nil
+ }
+ 
+ func Writeobjfile(ctxt *Link, b *Biobuf) {

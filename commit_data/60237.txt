@@ -14,6 +14,19 @@ Date:   Thu May 30 20:51:15 2024 -0700
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/rand.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/runtime/rand.go b/src/runtime/rand.go
+index 021883dab1..a66553feeb 100644
+--- a/src/runtime/rand.go
++++ b/src/runtime/rand.go
+@@ -182,7 +182,6 @@ func randn(n uint32) uint32 {
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+ //   - github.com/bytedance/gopkg
+-//   - github.com/zhangyunhao116/fastrand
+ //
+ // Do not remove or change the type signature.
+ // See go.dev/issue/67401.

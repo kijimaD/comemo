@@ -16,7 +16,69 @@ Date:   Wed Apr 24 15:22:52 2024 +0200
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/encoding/base32/base32.go      |  2 +-
  src/encoding/base32/base32_test.go | 37 +++++++++++++++++++++++++++++++++++++
  2 files changed, 38 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/base32/base32.go b/src/encoding/base32/base32.go
+index 4a61199a59..9e988ef39b 100644
+--- a/src/encoding/base32/base32.go
++++ b/src/encoding/base32/base32.go
+@@ -467,7 +467,7 @@ func (d *decoder) Read(p []byte) (n int, err error) {
+ 	}
+ 
+ 	// Read a chunk.
+-	nn := len(p) / 5 * 8
++	nn := (len(p) + 4) / 5 * 8
+ 	if nn < 8 {
+ 		nn = 8
+ 	}
+diff --git a/src/encoding/base32/base32_test.go b/src/encoding/base32/base32_test.go
+index 33638adeac..f5d3c49e38 100644
+--- a/src/encoding/base32/base32_test.go
++++ b/src/encoding/base32/base32_test.go
+@@ -92,6 +92,43 @@ func TestEncoderBuffering(t *testing.T) {
+ 	}
+ }
+ 
++func TestDecoderBufferingWithPadding(t *testing.T) {
++	for bs := 0; bs <= 12; bs++ {
++		for _, s := range pairs {
++			decoder := NewDecoder(StdEncoding, strings.NewReader(s.encoded))
++			buf := make([]byte, len(s.decoded)+bs)
++
++			var n int
++			var err error
++			n, err = decoder.Read(buf)
++
++			if err != nil && err != io.EOF {
++				t.Errorf("Read from %q at pos %d = %d, unexpected error %v", s.encoded, len(s.decoded), n, err)
++			}
++			testEqual(t, "Decoding/%d of %q = %q, want %q\n", bs, s.encoded, string(buf[:n]), s.decoded)
++		}
++	}
++}
++
++func TestDecoderBufferingWithoutPadding(t *testing.T) {
++	for bs := 0; bs <= 12; bs++ {
++		for _, s := range pairs {
++			encoded := strings.TrimRight(s.encoded, "=")
++			decoder := NewDecoder(StdEncoding.WithPadding(NoPadding), strings.NewReader(encoded))
++			buf := make([]byte, len(s.decoded)+bs)
++
++			var n int
++			var err error
++			n, err = decoder.Read(buf)
++
++			if err != nil && err != io.EOF {
++				t.Errorf("Read from %q at pos %d = %d, unexpected error %v", encoded, len(s.decoded), n, err)
++			}
++			testEqual(t, "Decoding/%d of %q = %q, want %q\n", bs, encoded, string(buf[:n]), s.decoded)
++		}
++	}
++}
++
+ func TestDecode(t *testing.T) {
+ 	for _, p := range pairs {
+ 		dbuf := make([]byte, StdEncoding.DecodedLen(len(p.encoded)))

@@ -11,6 +11,20 @@ Date:   Tue Sep 9 11:45:36 2014 -0700
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/137380043
-
+---
  src/strconv/quote.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/strconv/quote.go b/src/strconv/quote.go
+index 4469c688b0..53d51b5a46 100644
+--- a/src/strconv/quote.go
++++ b/src/strconv/quote.go
+@@ -143,7 +143,7 @@ func AppendQuoteRuneToASCII(dst []byte, r rune) []byte {
+ 
+ // CanBackquote reports whether the string s can be represented
+ // unchanged as a single-line backquoted string without control
+-// characters other than space and tab.
++// characters other than tab.
+ func CanBackquote(s string) bool {
+ 	for len(s) > 0 {
+ 		r, wid := utf8.DecodeRuneInString(s)

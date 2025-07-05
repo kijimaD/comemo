@@ -7,6 +7,20 @@ Date:   Thu Feb 16 17:39:04 2012 +1100
     TBR=golang-dev
     CC=golang-dev
     https://golang.org/cl/5674070
-
+---
  src/pkg/os/path_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/path_test.go b/src/pkg/os/path_test.go
+index 7744380678..8a786008c0 100644
+--- a/src/pkg/os/path_test.go
++++ b/src/pkg/os/path_test.go
+@@ -13,7 +13,7 @@ import (
+ 
+ func TestMkdirAll(t *testing.T) {
+ 	tmpDir := TempDir()
+-	path := tmpDir + "_/_TestMkdirAll_/dir/./dir2"
++	path := tmpDir + "/_TestMkdirAll_/dir/./dir2"
+ 	err := MkdirAll(path, 0777)
+ 	if err != nil {
+ 		t.Fatalf("MkdirAll %q: %s", path, err)

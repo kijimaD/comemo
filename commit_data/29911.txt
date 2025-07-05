@@ -14,7 +14,50 @@ Date:   Fri Oct 14 15:13:30 2016 -0400
     Change-Id: I2456f50f2ad3830f37e545f4f6774ced9fe609d7
     Reviewed-on: https://go-review.googlesource.com/31210
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/strconv/quote.go      | 10 ++++++++++
  src/strconv/quote_test.go |  3 ++-
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/strconv/quote.go b/src/strconv/quote.go
+index becfe1df07..76c5c2a1cb 100644
+--- a/src/strconv/quote.go
++++ b/src/strconv/quote.go
+@@ -362,6 +362,16 @@ func Unquote(s string) (string, error) {
+ 		if contains(s, '`') {
+ 			return "", ErrSyntax
+ 		}
++		if contains(s, '\r') {
++			// -1 because we know there is at least one \r to remove.
++			buf := make([]byte, 0, len(s)-1)
++			for i := 0; i < len(s); i++ {
++				if s[i] != '\r' {
++					buf = append(buf, s[i])
++				}
++			}
++			return string(buf), nil
++		}
+ 		return s, nil
+ 	}
+ 	if quote != '"' && quote != '\'' {
+diff --git a/src/strconv/quote_test.go b/src/strconv/quote_test.go
+index 10735e316c..a4b5804fc8 100644
+--- a/src/strconv/quote_test.go
++++ b/src/strconv/quote_test.go
+@@ -274,6 +274,7 @@ var unquotetests = []unQuoteTest{
+ 	{"`\n`", "\n"},
+ 	{"`	`", `	`},
+ 	{"` `", ` `},
++	{"`a\rb`", "ab"},
+ }
+ 
+ var misquoted = []string{
+@@ -306,7 +307,7 @@ var misquoted = []string{
+ 
+ func TestUnquote(t *testing.T) {
+ 	for _, tt := range unquotetests {
+-		if out, err := Unquote(tt.in); err != nil && out != tt.out {
++		if out, err := Unquote(tt.in); err != nil || out != tt.out {
+ 			t.Errorf("Unquote(%#q) = %q, %v want %q, nil", tt.in, out, err, tt.out)
+ 		}
+ 	}

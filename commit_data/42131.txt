@@ -9,6 +9,35 @@ Date:   Tue Oct 29 14:44:54 2019 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/escape.go | 10 ++++++++--
  1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index bd4df1d84f..0f71f9990b 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -5,6 +5,7 @@
+ package gc
+ 
+ import (
++	"cmd/compile/internal/logopt"
+ 	"cmd/compile/internal/types"
+ 	"fmt"
+ 	"math"
+@@ -1379,8 +1380,13 @@ func (e *Escape) finish(fns []*Node) {
+ 		// Update n.Esc based on escape analysis results.
+ 
+ 		if loc.escapes {
+-			if Debug['m'] != 0 && n.Op != ONAME {
+-				Warnl(n.Pos, "%S escapes to heap", n)
++			if n.Op != ONAME {
++				if Debug['m'] != 0 {
++					Warnl(n.Pos, "%S escapes to heap", n)
++				}
++				if logopt.Enabled() {
++					logopt.LogOpt(n.Pos, "escape", "escape", e.curfn.funcname())
++				}
+ 			}
+ 			n.Esc = EscHeap
+ 			addrescapes(n)

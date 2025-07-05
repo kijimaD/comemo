@@ -10,6 +10,33 @@ Date:   Thu May 27 18:22:49 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/internal/abi/abi_arm64.go | 20 ++++++++++++++++++++
  1 file changed, 20 insertions(+)
+
+diff --git a/src/internal/abi/abi_arm64.go b/src/internal/abi/abi_arm64.go
+new file mode 100644
+index 0000000000..7544d7506e
+--- /dev/null
++++ b/src/internal/abi/abi_arm64.go
+@@ -0,0 +1,20 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build goexperiment.regabireflect
++// +build goexperiment.regabireflect
++
++package abi
++
++const (
++	// See abi_generic.go.
++
++	// R0 - R15.
++	IntArgRegs = 16
++
++	// F0 - F15.
++	FloatArgRegs = 16
++
++	EffectiveFloatRegSize = 8
++)

@@ -7,6 +7,20 @@ Date:   Wed Jan 14 08:43:32 2009 -0800
     R=presotto
     OCL=22733
     CL=22733
-
+---
  doc/progs/helloworld2.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/progs/helloworld2.go b/doc/progs/helloworld2.go
+index b409055659..66b32ed542 100644
+--- a/doc/progs/helloworld2.go
++++ b/doc/progs/helloworld2.go
+@@ -4,7 +4,7 @@
+ 
+ package main
+ 
+-import "os"    // this package contains features for basic I/O
++import os "os"    // this package contains features for basic I/O
+ 
+ func main() {
+ 	os.Stdout.WriteString("Hello, world; or Καλημέρα κόσμε; or こんにちは 世界\n");

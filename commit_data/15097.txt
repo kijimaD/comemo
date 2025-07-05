@@ -11,10 +11,141 @@ Date:   Sat Feb 2 16:26:12 2013 -0500
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/7229071
-
+---
  src/cmd/go/test.bash                 |  3 +++
  src/cmd/go/test.go                   | 10 +++++++++-
  src/cmd/go/testdata/example1_test.go | 23 +++++++++++++++++++++++
  src/cmd/go/testdata/example2_test.go | 21 +++++++++++++++++++++
  src/pkg/go/doc/example.go            |  5 +++++
  5 files changed, 61 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index 5b0defdef8..22bada529c 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -279,6 +279,9 @@ fi
+ unset GOPATH
+ rm -rf $d
+ 
++# Only succeeds if source order is preserved.
++./testgo test testdata/example[12]_test.go
++
+ # clean up
+ rm -rf testdata/bin testdata/bin1
+ rm -f testgo
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 10082ce001..d3cfd1ad4c 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -809,7 +809,9 @@ func (t *testFuncs) load(filename, pkg string, seen *bool) error {
+ 			*seen = true
+ 		}
+ 	}
+-	for _, e := range doc.Examples(f) {
++	ex := doc.Examples(f)
++	sort.Sort(byOrder(ex))
++	for _, e := range ex {
+ 		if e.Output == "" && !e.EmptyOutput {
+ 			// Don't run examples with no output.
+ 			continue
+@@ -820,6 +822,12 @@ func (t *testFuncs) load(filename, pkg string, seen *bool) error {
+ 	return nil
+ }
+ 
++type byOrder []*doc.Example
++
++func (x byOrder) Len() int           { return len(x) }
++func (x byOrder) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
++func (x byOrder) Less(i, j int) bool { return x[i].Order < x[j].Order }
++
+ var testmainTmpl = template.Must(template.New("main").Parse(`
+ package main
+ 
+diff --git a/src/cmd/go/testdata/example1_test.go b/src/cmd/go/testdata/example1_test.go
+new file mode 100644
+index 0000000000..ec7092e972
+--- /dev/null
++++ b/src/cmd/go/testdata/example1_test.go
+@@ -0,0 +1,23 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Make sure that go test runs Example_Z before Example_A, preserving source order.
++
++package p
++
++import "fmt"
++
++var n int
++
++func Example_Z() {
++	n++
++	fmt.Println(n)
++	// Output: 1
++}
++
++func Example_A() {
++	n++
++	fmt.Println(n)
++	// Output: 2
++}
+diff --git a/src/cmd/go/testdata/example2_test.go b/src/cmd/go/testdata/example2_test.go
+new file mode 100644
+index 0000000000..1e0e80b80f
+--- /dev/null
++++ b/src/cmd/go/testdata/example2_test.go
+@@ -0,0 +1,21 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Make sure that go test runs Example_Y before Example_B, preserving source order.
++
++package p
++
++import "fmt"
++
++func Example_Y() {
++	n++
++	fmt.Println(n)
++	// Output: 3
++}
++
++func Example_B() {
++	n++
++	fmt.Println(n)
++	// Output: 4
++}
+diff --git a/src/pkg/go/doc/example.go b/src/pkg/go/doc/example.go
+index f634e16770..693ad5b948 100644
+--- a/src/pkg/go/doc/example.go
++++ b/src/pkg/go/doc/example.go
+@@ -18,6 +18,7 @@ import (
+ 	"unicode/utf8"
+ )
+ 
++// An Example represents an example function found in a source files.
+ type Example struct {
+ 	Name        string // name of the item being exemplified
+ 	Doc         string // example function doc string
+@@ -26,8 +27,11 @@ type Example struct {
+ 	Comments    []*ast.CommentGroup
+ 	Output      string // expected output
+ 	EmptyOutput bool   // expect empty output
++	Order       int    // original source code order
+ }
+ 
++// Examples returns the examples found in the files, sorted by Name field.
++// The Order fields record the order in which the examples were encountered.
+ func Examples(files ...*ast.File) []*Example {
+ 	var list []*Example
+ 	for _, file := range files {
+@@ -65,6 +69,7 @@ func Examples(files ...*ast.File) []*Example {
+ 				Comments:    file.Comments,
+ 				Output:      output,
+ 				EmptyOutput: output == "" && hasOutput,
++				Order:       len(flist),
+ 			})
+ 		}
+ 		if !hasTests && numDecl > 1 && len(flist) == 1 {

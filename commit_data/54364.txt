@@ -9,7 +9,7 @@ Date:   Mon Oct 10 14:45:12 2022 -0400
     Change-Id: Ie475d57735a83351a4977f0dd4bc1387ce06a20e
     Reviewed-on: https://go-review.googlesource.com/c/go/+/441935
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  .../coverage/decodecounter/decodecounterfile.go    | 12 --------
  src/internal/coverage/encodecounter/encode.go      |  4 +--
  src/internal/coverage/encodemeta/encode.go         |  2 +-
@@ -20,3 +20,309 @@ Date:   Mon Oct 10 14:45:12 2022 -0400
  src/internal/coverage/test/counter_test.go         | 14 ++++++++--
  src/internal/coverage/test/roundtrip_test.go       |  7 +++--
  9 files changed, 42 insertions(+), 44 deletions(-)
+
+diff --git a/src/internal/coverage/decodecounter/decodecounterfile.go b/src/internal/coverage/decodecounter/decodecounterfile.go
+index 8a905d9c34..d1ae5e8386 100644
+--- a/src/internal/coverage/decodecounter/decodecounterfile.go
++++ b/src/internal/coverage/decodecounter/decodecounterfile.go
+@@ -25,7 +25,6 @@ type CounterDataReader struct {
+ 	osargs   []string
+ 	goarch   string // GOARCH setting from run that produced counter data
+ 	goos     string // GOOS setting from run that produced counter data
+-	nsegs    int
+ 	mr       io.ReadSeeker
+ 	hdr      coverage.CounterFileHeader
+ 	ftr      coverage.CounterFileFooter
+@@ -73,17 +72,6 @@ func NewCounterDataReader(fn string, rs io.ReadSeeker) (*CounterDataReader, erro
+ 	return cdr, nil
+ }
+ 
+-func (cdr *CounterDataReader) readBytes(b []byte) error {
+-	nr, err := cdr.mr.Read(b)
+-	if err != nil {
+-		return err
+-	}
+-	if nr != len(b) {
+-		return io.EOF
+-	}
+-	return nil
+-}
+-
+ func checkMagic(v [4]byte) bool {
+ 	g := coverage.CovCounterMagic
+ 	return v[0] == g[0] && v[1] == g[1] && v[2] == g[2] && v[3] == g[3]
+diff --git a/src/internal/coverage/encodecounter/encode.go b/src/internal/coverage/encodecounter/encode.go
+index a3812c7187..40e24418d4 100644
+--- a/src/internal/coverage/encodecounter/encode.go
++++ b/src/internal/coverage/encodecounter/encode.go
+@@ -179,7 +179,7 @@ func (cfw *CoverageDataWriter) AppendSegment(args map[string]string, visitor Cou
+ 		return err
+ 	}
+ 	if err := cfw.w.Flush(); err != nil {
+-		return fmt.Errorf("write error: %v\n", err)
++		return fmt.Errorf("write error: %v", err)
+ 	}
+ 	cfw.stab = nil
+ 	return nil
+@@ -209,7 +209,7 @@ func (cfw *CoverageDataWriter) writeBytes(b []byte) error {
+ 		return fmt.Errorf("error writing counter data: %v", err)
+ 	}
+ 	if len(b) != nw {
+-		return fmt.Errorf("error writing counter data: short write\n")
++		return fmt.Errorf("error writing counter data: short write")
+ 	}
+ 	return nil
+ }
+diff --git a/src/internal/coverage/encodemeta/encode.go b/src/internal/coverage/encodemeta/encode.go
+index 686042036a..d211c7c08e 100644
+--- a/src/internal/coverage/encodemeta/encode.go
++++ b/src/internal/coverage/encodemeta/encode.go
+@@ -146,7 +146,7 @@ func (b *CoverageMetaDataBuilder) Emit(w io.WriteSeeker) ([16]byte, error) {
+ 		fmt.Fprintf(os.Stderr, "=-= writing header: %+v\n", mh)
+ 	}
+ 	if err := binary.Write(w, binary.LittleEndian, mh); err != nil {
+-		return digest, fmt.Errorf("error writing meta-file header: %v\n", err)
++		return digest, fmt.Errorf("error writing meta-file header: %v", err)
+ 	}
+ 	off := int64(coverage.CovMetaHeaderSize)
+ 
+diff --git a/src/internal/coverage/encodemeta/encodefile.go b/src/internal/coverage/encodemeta/encodefile.go
+index d6e0938566..38ae46e4f5 100644
+--- a/src/internal/coverage/encodemeta/encodefile.go
++++ b/src/internal/coverage/encodemeta/encodefile.go
+@@ -70,7 +70,7 @@ func (m *CoverageMetaFileWriter) Write(finalHash [16]byte, blobs [][]byte, mode
+ 	}
+ 	var err error
+ 	if err = binary.Write(m.w, binary.LittleEndian, mh); err != nil {
+-		return fmt.Errorf("error writing %s: %v\n", m.mfname, err)
++		return fmt.Errorf("error writing %s: %v", m.mfname, err)
+ 	}
+ 
+ 	if m.debug {
+@@ -84,7 +84,7 @@ func (m *CoverageMetaFileWriter) Write(finalHash [16]byte, blobs [][]byte, mode
+ 	for _, blob := range blobs {
+ 		binary.LittleEndian.PutUint64(buf, off)
+ 		if _, err = m.w.Write(buf); err != nil {
+-			return fmt.Errorf("error writing %s: %v\n", m.mfname, err)
++			return fmt.Errorf("error writing %s: %v", m.mfname, err)
+ 		}
+ 		if m.debug {
+ 			fmt.Fprintf(os.Stderr, "=+= pkg offset %d 0x%x\n", off, off)
+@@ -96,7 +96,7 @@ func (m *CoverageMetaFileWriter) Write(finalHash [16]byte, blobs [][]byte, mode
+ 		bl := uint64(len(blob))
+ 		binary.LittleEndian.PutUint64(buf, bl)
+ 		if _, err = m.w.Write(buf); err != nil {
+-			return fmt.Errorf("error writing %s: %v\n", m.mfname, err)
++			return fmt.Errorf("error writing %s: %v", m.mfname, err)
+ 		}
+ 		if m.debug {
+ 			fmt.Fprintf(os.Stderr, "=+= pkg len %d 0x%x\n", bl, bl)
+@@ -115,7 +115,7 @@ func (m *CoverageMetaFileWriter) Write(finalHash [16]byte, blobs [][]byte, mode
+ 			fmt.Fprintf(os.Stderr, "=+= writing blob %d len %d at off=%d hash %s\n", k, len(blob), off2, fmt.Sprintf("%x", md5.Sum(blob)))
+ 		}
+ 		if _, err = m.w.Write(blob); err != nil {
+-			return fmt.Errorf("error writing %s: %v\n", m.mfname, err)
++			return fmt.Errorf("error writing %s: %v", m.mfname, err)
+ 		}
+ 		if m.debug {
+ 			fmt.Fprintf(os.Stderr, "=+= wrote package payload of %d bytes\n",
+@@ -126,7 +126,7 @@ func (m *CoverageMetaFileWriter) Write(finalHash [16]byte, blobs [][]byte, mode
+ 
+ 	// Flush writer, and we're done.
+ 	if err = m.w.Flush(); err != nil {
+-		return fmt.Errorf("error writing %s: %v\n", m.mfname, err)
++		return fmt.Errorf("error writing %s: %v", m.mfname, err)
+ 	}
+ 	return nil
+ }
+diff --git a/src/internal/coverage/pods/pods_test.go b/src/internal/coverage/pods/pods_test.go
+index 5ce9edf6e2..28914c53cd 100644
+--- a/src/internal/coverage/pods/pods_test.go
++++ b/src/internal/coverage/pods/pods_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"fmt"
+ 	"internal/coverage"
+ 	"internal/coverage/pods"
+-	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
+@@ -29,7 +28,7 @@ func TestPodCollection(t *testing.T) {
+ 
+ 	mkfile := func(d string, fn string) string {
+ 		fp := filepath.Join(d, fn)
+-		if err := ioutil.WriteFile(fp, []byte("foo"), 0666); err != nil {
++		if err := os.WriteFile(fp, []byte("foo"), 0666); err != nil {
+ 			t.Fatal(err)
+ 		}
+ 		return fp
+diff --git a/src/internal/coverage/slicewriter/slw_test.go b/src/internal/coverage/slicewriter/slw_test.go
+index f4553afa68..f4e75f40d9 100644
+--- a/src/internal/coverage/slicewriter/slw_test.go
++++ b/src/internal/coverage/slicewriter/slw_test.go
+@@ -5,7 +5,7 @@
+ package slicewriter
+ 
+ import (
+-	"os"
++	"io"
+ 	"testing"
+ )
+ 
+@@ -74,57 +74,57 @@ func TestSliceWriter(t *testing.T) {
+ 	rf(t, ws, []byte{})
+ 
+ 	// seeks and reads.
+-	sk(t, ws, 1, os.SEEK_SET)
++	sk(t, ws, 1, io.SeekStart)
+ 	rf(t, ws, []byte{2, 7})
+-	sk(t, ws, -2, os.SEEK_CUR)
++	sk(t, ws, -2, io.SeekCurrent)
+ 	rf(t, ws, []byte{2, 7})
+-	sk(t, ws, -4, os.SEEK_END)
++	sk(t, ws, -4, io.SeekEnd)
+ 	rf(t, ws, []byte{2, 7})
+ 
+ 	// seek back and overwrite
+-	sk(t, ws, 1, os.SEEK_SET)
++	sk(t, ws, 1, io.SeekStart)
+ 	wf(t, ws, []byte{9, 11})
+ 	wpex = []byte{1, 9, 11, 8, 9}
+ 	sleq(t, ws.BytesWritten(), wpex)
+ 
+ 	// seeks on empty writer.
+ 	ws2 := &WriteSeeker{}
+-	sk(t, ws2, 0, os.SEEK_SET)
+-	sk(t, ws2, 0, os.SEEK_CUR)
+-	sk(t, ws2, 0, os.SEEK_END)
++	sk(t, ws2, 0, io.SeekStart)
++	sk(t, ws2, 0, io.SeekCurrent)
++	sk(t, ws2, 0, io.SeekEnd)
+ 
+ 	// check for seek errors.
+-	_, err := ws.Seek(-1, os.SEEK_SET)
++	_, err := ws.Seek(-1, io.SeekStart)
+ 	if err == nil {
+ 		t.Fatalf("expected error on invalid -1 seek")
+ 	}
+-	_, err = ws.Seek(int64(len(ws.BytesWritten())), os.SEEK_SET)
++	_, err = ws.Seek(int64(len(ws.BytesWritten())), io.SeekStart)
+ 	if err == nil {
+ 		t.Fatalf("expected error on invalid %d seek", len(ws.BytesWritten()))
+ 	}
+ 
+-	ws.Seek(0, os.SEEK_SET)
+-	_, err = ws.Seek(-1, os.SEEK_CUR)
++	ws.Seek(0, io.SeekStart)
++	_, err = ws.Seek(-1, io.SeekCurrent)
+ 	if err == nil {
+ 		t.Fatalf("expected error on invalid -1 seek")
+ 	}
+-	_, err = ws.Seek(int64(len(ws.BytesWritten())), os.SEEK_CUR)
++	_, err = ws.Seek(int64(len(ws.BytesWritten())), io.SeekCurrent)
+ 	if err == nil {
+ 		t.Fatalf("expected error on invalid %d seek", len(ws.BytesWritten()))
+ 	}
+ 
+-	_, err = ws.Seek(1, os.SEEK_END)
++	_, err = ws.Seek(1, io.SeekEnd)
+ 	if err == nil {
+ 		t.Fatalf("expected error on invalid 1 seek")
+ 	}
+ 	bsamt := int64(-1*len(ws.BytesWritten()) - 1)
+-	_, err = ws.Seek(bsamt, os.SEEK_END)
++	_, err = ws.Seek(bsamt, io.SeekEnd)
+ 	if err == nil {
+ 		t.Fatalf("expected error on invalid %d seek", bsamt)
+ 	}
+ 
+ 	// bad seek mode
+-	_, err = ws.Seek(-1, os.SEEK_SET+9)
++	_, err = ws.Seek(-1, io.SeekStart+9)
+ 	if err == nil {
+ 		t.Fatalf("expected error on invalid seek mode")
+ 	}
+diff --git a/src/internal/coverage/stringtab/stringtab.go b/src/internal/coverage/stringtab/stringtab.go
+index 405c4c1f18..156c8ad188 100644
+--- a/src/internal/coverage/stringtab/stringtab.go
++++ b/src/internal/coverage/stringtab/stringtab.go
+@@ -86,7 +86,7 @@ func (stw *Writer) Write(w io.Writer) error {
+ 			return err
+ 		}
+ 		if nw, err := w.Write([]byte(s)); err != nil {
+-			return fmt.Errorf("writing string table: %v\n", err)
++			return fmt.Errorf("writing string table: %v", err)
+ 		} else if nw != len([]byte(s)) {
+ 			return fmt.Errorf("short write emitting stringtab")
+ 		}
+diff --git a/src/internal/coverage/test/counter_test.go b/src/internal/coverage/test/counter_test.go
+index 67c2b4802a..09ce235e2a 100644
+--- a/src/internal/coverage/test/counter_test.go
++++ b/src/internal/coverage/test/counter_test.go
+@@ -91,7 +91,12 @@ func TestCounterDataWriterReader(t *testing.T) {
+ 		// Decode the same file.
+ 		var cdr *decodecounter.CounterDataReader
+ 		inf, err := os.Open(cfpath)
+-		defer inf.Close()
++		defer func() {
++			if err := inf.Close(); err != nil {
++				t.Fatalf("close failed with: %v", err)
++			}
++		}()
++
+ 		if err != nil {
+ 			t.Fatalf("reopening covcounters file: %v", err)
+ 		}
+@@ -182,7 +187,12 @@ func TestCounterDataAppendSegment(t *testing.T) {
+ 	// Read the result file.
+ 	var cdr *decodecounter.CounterDataReader
+ 	inf, err := os.Open(cfpath)
+-	defer inf.Close()
++	defer func() {
++		if err := inf.Close(); err != nil {
++			t.Fatalf("close failed with: %v", err)
++		}
++	}()
++
+ 	if err != nil {
+ 		t.Fatalf("reopening covcounters file: %v", err)
+ 	}
+diff --git a/src/internal/coverage/test/roundtrip_test.go b/src/internal/coverage/test/roundtrip_test.go
+index 0bcca8e1bc..b26993ffd5 100644
+--- a/src/internal/coverage/test/roundtrip_test.go
++++ b/src/internal/coverage/test/roundtrip_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"internal/coverage/decodemeta"
+ 	"internal/coverage/encodemeta"
+ 	"internal/coverage/slicewriter"
++	"io"
+ 	"os"
+ 	"path/filepath"
+ 	"testing"
+@@ -36,7 +37,7 @@ func TestMetaDataEmptyPackage(t *testing.T) {
+ 	}
+ 	drws := &slicewriter.WriteSeeker{}
+ 	b.Emit(drws)
+-	drws.Seek(0, os.SEEK_SET)
++	drws.Seek(0, io.SeekStart)
+ 	dec, err := decodemeta.NewCoverageMetaDataDecoder(drws.BytesWritten(), false)
+ 	if err != nil {
+ 		t.Fatalf("making decoder: %v", err)
+@@ -100,7 +101,7 @@ func TestMetaDataEncoderDecoder(t *testing.T) {
+ 	b.Emit(drws)
+ 
+ 	// Test decode path.
+-	drws.Seek(0, os.SEEK_SET)
++	drws.Seek(0, io.SeekStart)
+ 	dec, err := decodemeta.NewCoverageMetaDataDecoder(drws.BytesWritten(), false)
+ 	if err != nil {
+ 		t.Fatalf("NewCoverageMetaDataDecoder error: %v", err)
+@@ -220,7 +221,7 @@ func TestMetaDataWriterReader(t *testing.T) {
+ 			if _, err := inf.Read(fileView); err != nil {
+ 				t.Fatalf("read() on meta-file: %v", err)
+ 			}
+-			if _, err := inf.Seek(int64(0), os.SEEK_SET); err != nil {
++			if _, err := inf.Seek(int64(0), io.SeekStart); err != nil {
+ 				t.Fatalf("seek() on meta-file: %v", err)
+ 			}
+ 		}

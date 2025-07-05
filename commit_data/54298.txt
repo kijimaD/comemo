@@ -12,6 +12,39 @@ Date:   Tue Oct 4 09:43:29 2022 -0400
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/ehooks_test.go | 14 ++++++++------
  1 file changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/ehooks_test.go b/src/runtime/ehooks_test.go
+index afb17eac08..ee286ecb9a 100644
+--- a/src/runtime/ehooks_test.go
++++ b/src/runtime/ehooks_test.go
+@@ -5,6 +5,7 @@
+ package runtime_test
+ 
+ import (
++	"internal/platform"
+ 	"internal/testenv"
+ 	"os/exec"
+ 	"runtime"
+@@ -14,12 +15,13 @@ import (
+ 
+ func TestExitHooks(t *testing.T) {
+ 	bmodes := []string{""}
+-	// Race detector is not supported everywhere -- limit to just
+-	// linux/amd64 to keep things simple. Note the HasCGO() test
+-	// below; this is to prevent the test running if CGO_ENABLED=0
+-	// is in effect.
+-	if !testing.Short() && runtime.GOARCH == "amd64" &&
+-		runtime.GOOS == "linux" && testenv.HasCGO() {
++	if testing.Short() {
++		t.Skip("skipping due to -short")
++	}
++	// Note the HasCGO() test below; this is to prevent the test
++	// running if CGO_ENABLED=0 is in effect.
++	haverace := platform.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH)
++	if haverace && testenv.HasCGO() {
+ 		bmodes = append(bmodes, "-race")
+ 	}
+ 	for _, bmode := range bmodes {

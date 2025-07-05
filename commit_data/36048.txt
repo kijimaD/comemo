@@ -12,6 +12,20 @@ Date:   Fri Mar 30 23:21:50 2018 +0000
     GitHub-Pull-Request: golang/go#24613
     Reviewed-on: https://go-review.googlesource.com/103835
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/testing/testing.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index edee89c999..686e77029a 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -34,7 +34,7 @@
+ // its -bench flag is provided. Benchmarks are run sequentially.
+ //
+ // For a description of the testing flags, see
+-// https://golang.org/cmd/go/#hdr-Description_of_testing_flags.
++// https://golang.org/cmd/go/#hdr-Testing_flags
+ //
+ // A sample benchmark function looks like this:
+ //     func BenchmarkHello(b *testing.B) {

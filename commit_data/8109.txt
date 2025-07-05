@@ -7,6 +7,19 @@ Date:   Fri Apr 15 12:35:19 2011 +1000
     R=adg
     CC=golang-dev
     https://golang.org/cl/4426041
-
+---
  misc/dashboard/builder/main.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index 25cc5d3c2c..3924ff2a00 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -34,6 +34,7 @@ var extraEnv = []string{
+ 	"GOHOSTARCH",
+ 	"PATH",
+ 	"DISABLE_NET_TESTS",
++	"MAKEFLAGS",
+ 	"GOARM",
+ }
+ 

@@ -28,10 +28,317 @@ Date:   Wed Mar 24 10:45:20 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/runtime/export_test.go | 21 ++++++++++
  src/runtime/gc_test.go     | 75 ++++++++++++++++++++++++++++++++++++
  src/runtime/mgc.go         | 96 ++++++++++++++++++++++++++++++++++++++++++++++
  src/runtime/mgcsweep.go    | 16 ++++++--
  src/runtime/mheap.go       | 17 ++++++++
  5 files changed, 221 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 1650541fda..961c1c1a26 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1244,3 +1244,24 @@ func FinalizerGAsleep() bool {
+ 	unlock(&finlock)
+ 	return result
+ }
++
++// For GCTestMoveStackOnNextCall, it's important not to introduce an
++// extra layer of call, since then there's a return before the "real"
++// next call.
++var GCTestMoveStackOnNextCall = gcTestMoveStackOnNextCall
++
++// For GCTestIsReachable, it's important that we do this as a call so
++// escape analysis can see through it.
++func GCTestIsReachable(ptrs ...unsafe.Pointer) (mask uint64) {
++	return gcTestIsReachable(ptrs...)
++}
++
++// For GCTestPointerClass, it's important that we do this as a call so
++// escape analysis can see through it.
++//
++// This is nosplit because gcTestPointerClass is.
++//
++//go:nosplit
++func GCTestPointerClass(p unsafe.Pointer) string {
++	return gcTestPointerClass(p)
++}
+diff --git a/src/runtime/gc_test.go b/src/runtime/gc_test.go
+index 7870f31ae9..1ea1c2c745 100644
+--- a/src/runtime/gc_test.go
++++ b/src/runtime/gc_test.go
+@@ -202,6 +202,81 @@ func TestGcZombieReporting(t *testing.T) {
+ 	}
+ }
+ 
++func TestGCTestMoveStackOnNextCall(t *testing.T) {
++	t.Parallel()
++	var onStack int
++	runtime.GCTestMoveStackOnNextCall()
++	moveStackCheck(t, &onStack, uintptr(unsafe.Pointer(&onStack)))
++}
++
++// This must not be inlined because the point is to force a stack
++// growth check and move the stack.
++//
++//go:noinline
++func moveStackCheck(t *testing.T, new *int, old uintptr) {
++	// new should have been updated by the stack move;
++	// old should not have.
++
++	// Capture new's value before doing anything that could
++	// further move the stack.
++	new2 := uintptr(unsafe.Pointer(new))
++
++	t.Logf("old stack pointer %x, new stack pointer %x", old, new2)
++	if new2 == old {
++		// Check that we didn't screw up the test's escape analysis.
++		if cls := runtime.GCTestPointerClass(unsafe.Pointer(new)); cls != "stack" {
++			t.Fatalf("test bug: new (%#x) should be a stack pointer, not %s", new2, cls)
++		}
++		// This was a real failure.
++		t.Fatal("stack did not move")
++	}
++}
++
++func TestGCTestIsReachable(t *testing.T) {
++	var all, half []unsafe.Pointer
++	var want uint64
++	for i := 0; i < 16; i++ {
++		// The tiny allocator muddies things, so we use a
++		// scannable type.
++		p := unsafe.Pointer(new(*int))
++		all = append(all, p)
++		if i%2 == 0 {
++			half = append(half, p)
++			want |= 1 << i
++		}
++	}
++
++	got := runtime.GCTestIsReachable(all...)
++	if want != got {
++		t.Fatalf("did not get expected reachable set; want %b, got %b", want, got)
++	}
++	runtime.KeepAlive(half)
++}
++
++var pointerClassSink *int
++var pointerClassData = 42
++
++func TestGCTestPointerClass(t *testing.T) {
++	t.Parallel()
++	check := func(p unsafe.Pointer, want string) {
++		t.Helper()
++		got := runtime.GCTestPointerClass(p)
++		if got != want {
++			// Convert the pointer to a uintptr to avoid
++			// escaping it.
++			t.Errorf("for %#x, want class %s, got %s", uintptr(p), want, got)
++		}
++	}
++	var onStack int
++	var notOnStack int
++	pointerClassSink = &notOnStack
++	check(unsafe.Pointer(&onStack), "stack")
++	check(unsafe.Pointer(&notOnStack), "heap")
++	check(unsafe.Pointer(&pointerClassSink), "bss")
++	check(unsafe.Pointer(&pointerClassData), "data")
++	check(nil, "other")
++}
++
+ func BenchmarkSetTypePtr(b *testing.B) {
+ 	benchSetType(b, new(*byte))
+ }
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 4b99d755c4..ecac354d83 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -2339,3 +2339,99 @@ func fmtNSAsMS(buf []byte, ns uint64) []byte {
+ 	}
+ 	return itoaDiv(buf, x, dec)
+ }
++
++// Helpers for testing GC.
++
++// gcTestMoveStackOnNextCall causes the stack to be moved on a call
++// immediately following the call to this. It may not work correctly
++// if any other work appears after this call (such as returning).
++// Typically the following call should be marked go:noinline so it
++// performs a stack check.
++func gcTestMoveStackOnNextCall() {
++	gp := getg()
++	gp.stackguard0 = getcallersp()
++}
++
++// gcTestIsReachable performs a GC and returns a bit set where bit i
++// is set if ptrs[i] is reachable.
++func gcTestIsReachable(ptrs ...unsafe.Pointer) (mask uint64) {
++	// This takes the pointers as unsafe.Pointers in order to keep
++	// them live long enough for us to attach specials. After
++	// that, we drop our references to them.
++
++	if len(ptrs) > 64 {
++		panic("too many pointers for uint64 mask")
++	}
++
++	// Block GC while we attach specials and drop our references
++	// to ptrs. Otherwise, if a GC is in progress, it could mark
++	// them reachable via this function before we have a chance to
++	// drop them.
++	semacquire(&gcsema)
++
++	// Create reachability specials for ptrs.
++	specials := make([]*specialReachable, len(ptrs))
++	for i, p := range ptrs {
++		lock(&mheap_.speciallock)
++		s := (*specialReachable)(mheap_.specialReachableAlloc.alloc())
++		unlock(&mheap_.speciallock)
++		s.special.kind = _KindSpecialReachable
++		if !addspecial(p, &s.special) {
++			throw("already have a reachable special (duplicate pointer?)")
++		}
++		specials[i] = s
++		// Make sure we don't retain ptrs.
++		ptrs[i] = nil
++	}
++
++	semrelease(&gcsema)
++
++	// Force a full GC and sweep.
++	GC()
++
++	// Process specials.
++	for i, s := range specials {
++		if !s.done {
++			printlock()
++			println("runtime: object", i, "was not swept")
++			throw("IsReachable failed")
++		}
++		if s.reachable {
++			mask |= 1 << i
++		}
++		lock(&mheap_.speciallock)
++		mheap_.specialReachableAlloc.free(unsafe.Pointer(s))
++		unlock(&mheap_.speciallock)
++	}
++
++	return mask
++}
++
++// gcTestPointerClass returns the category of what p points to, one of:
++// "heap", "stack", "data", "bss", "other". This is useful for checking
++// that a test is doing what it's intended to do.
++//
++// This is nosplit simply to avoid extra pointer shuffling that may
++// complicate a test.
++//
++//go:nosplit
++func gcTestPointerClass(p unsafe.Pointer) string {
++	p2 := uintptr(noescape(p))
++	gp := getg()
++	if gp.stack.lo <= p2 && p2 < gp.stack.hi {
++		return "stack"
++	}
++	if base, _, _ := findObject(p2, 0, 0); base != 0 {
++		return "heap"
++	}
++	for _, datap := range activeModules() {
++		if datap.data <= p2 && p2 < datap.edata || datap.noptrdata <= p2 && p2 < datap.enoptrdata {
++			return "data"
++		}
++		if datap.bss <= p2 && p2 < datap.ebss || datap.noptrbss <= p2 && p2 <= datap.enoptrbss {
++			return "bss"
++		}
++	}
++	KeepAlive(p)
++	return "other"
++}
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 723217caa9..8d254702ed 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -385,14 +385,22 @@ func (s *mspan) sweep(preserve bool) bool {
+ 					siter.unlinkAndNext()
+ 					freeSpecial(special, unsafe.Pointer(p), size)
+ 				} else {
+-					// This is profile record, but the object has finalizers (so kept alive).
+-					// Keep special record.
++					// The object has finalizers, so we're keeping it alive.
++					// All other specials only apply when an object is freed,
++					// so just keep the special record.
+ 					siter.next()
+ 				}
+ 			}
+ 		} else {
+-			// object is still live: keep special record
+-			siter.next()
++			// object is still live
++			if siter.s.kind == _KindSpecialReachable {
++				special := siter.unlinkAndNext()
++				(*specialReachable)(unsafe.Pointer(special)).reachable = true
++				freeSpecial(special, unsafe.Pointer(p), size)
++			} else {
++				// keep special record
++				siter.next()
++			}
+ 		}
+ 	}
+ 	if hadSpecials && s.specials == nil {
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index d7f6a88cc9..da3772cdb6 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -212,6 +212,7 @@ type mheap struct {
+ 	cachealloc            fixalloc // allocator for mcache*
+ 	specialfinalizeralloc fixalloc // allocator for specialfinalizer*
+ 	specialprofilealloc   fixalloc // allocator for specialprofile*
++	specialReachableAlloc fixalloc // allocator for specialReachable
+ 	speciallock           mutex    // lock for special record allocators.
+ 	arenaHintAlloc        fixalloc // allocator for arenaHints
+ 
+@@ -703,6 +704,7 @@ func (h *mheap) init() {
+ 	h.cachealloc.init(unsafe.Sizeof(mcache{}), nil, nil, &memstats.mcache_sys)
+ 	h.specialfinalizeralloc.init(unsafe.Sizeof(specialfinalizer{}), nil, nil, &memstats.other_sys)
+ 	h.specialprofilealloc.init(unsafe.Sizeof(specialprofile{}), nil, nil, &memstats.other_sys)
++	h.specialReachableAlloc.init(unsafe.Sizeof(specialReachable{}), nil, nil, &memstats.other_sys)
+ 	h.arenaHintAlloc.init(unsafe.Sizeof(arenaHint{}), nil, nil, &memstats.other_sys)
+ 
+ 	// Don't zero mspan allocations. Background sweeping can
+@@ -1649,6 +1651,9 @@ func (list *mSpanList) takeAll(other *mSpanList) {
+ const (
+ 	_KindSpecialFinalizer = 1
+ 	_KindSpecialProfile   = 2
++	// _KindSpecialReachable is a special used for tracking
++	// reachability during testing.
++	_KindSpecialReachable = 3
+ 	// Note: The finalizer special must be first because if we're freeing
+ 	// an object, a finalizer special will cause the freeing operation
+ 	// to abort, and we want to keep the other special records around
+@@ -1854,6 +1859,14 @@ func setprofilebucket(p unsafe.Pointer, b *bucket) {
+ 	}
+ }
+ 
++// specialReachable tracks whether an object is reachable on the next
++// GC cycle. This is used by testing.
++type specialReachable struct {
++	special   special
++	done      bool
++	reachable bool
++}
++
+ // specialsIter helps iterate over specials lists.
+ type specialsIter struct {
+ 	pprev **special
+@@ -1898,6 +1911,10 @@ func freeSpecial(s *special, p unsafe.Pointer, size uintptr) {
+ 		lock(&mheap_.speciallock)
+ 		mheap_.specialprofilealloc.free(unsafe.Pointer(sp))
+ 		unlock(&mheap_.speciallock)
++	case _KindSpecialReachable:
++		sp := (*specialReachable)(unsafe.Pointer(s))
++		sp.done = true
++		// The creator frees these.
+ 	default:
+ 		throw("bad special kind")
+ 		panic("not reached")

@@ -8,6 +8,20 @@ Date:   Tue Jun 24 16:59:33 2014 -0700
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/110110045
-
+---
  src/pkg/fmt/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/fmt/doc.go b/src/pkg/fmt/doc.go
+index 02642d6ae7..5af8d3e717 100644
+--- a/src/pkg/fmt/doc.go
++++ b/src/pkg/fmt/doc.go
+@@ -160,7 +160,7 @@
+ 
+ 	For example,
+ 		fmt.Sprintf("%[2]d %[1]d\n", 11, 22)
+-	will yield "22, 11", while
++	will yield "22 11", while
+ 		fmt.Sprintf("%[3]*.[2]*[1]f", 12.0, 2, 6),
+ 	equivalent to
+ 		fmt.Sprintf("%6.2f", 12.0),

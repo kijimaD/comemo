@@ -9,6 +9,20 @@ Date:   Tue Nov 22 15:50:03 2016 -0800
     Change-Id: Idc49be2bb20d6f0e392cb472a63267ffee2ca22c
     Reviewed-on: https://go-review.googlesource.com/33476
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-
+---
  src/reflect/type.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 7216fb63c8..9d6e7a6846 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -2582,7 +2582,7 @@ func StructOf(fields []StructField) Type {
+ 		// This is a non-zero sized struct that ends in a
+ 		// zero-sized field. We add an extra byte of padding,
+ 		// to ensure that taking the address of the final
+-		// zero-sized field can't manufacture a poitner to the
++		// zero-sized field can't manufacture a pointer to the
+ 		// next object in the heap. See issue 9401.
+ 		size++
+ 	}

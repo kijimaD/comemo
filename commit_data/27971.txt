@@ -17,7 +17,109 @@ Date:   Fri Apr 22 12:44:31 2016 +0200
     Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/phiopt.go | 17 ++++++++++++++
  test/phiopt.go                         | 43 ++++++++++++++++++++++++++++++----
  2 files changed, 55 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/phiopt.go b/src/cmd/compile/internal/ssa/phiopt.go
+index 4efd497bdb..aae83bacf2 100644
+--- a/src/cmd/compile/internal/ssa/phiopt.go
++++ b/src/cmd/compile/internal/ssa/phiopt.go
+@@ -26,6 +26,7 @@ package ssa
+ func phiopt(f *Func) {
+ 	for _, b := range f.Blocks {
+ 		if len(b.Preds) != 2 || len(b.Values) == 0 {
++			// TODO: handle more than 2 predecessors, e.g. a || b || c.
+ 			continue
+ 		}
+ 
+@@ -91,6 +92,22 @@ func phiopt(f *Func) {
+ 					continue
+ 				}
+ 			}
++
++			// Replaces
++			//   if a { x = value } else { x = false } with x = a && value.
++			// Requires that value dominates x, meaning that regardless of a,
++			// value is always computed. This guarantees that the side effects
++			// of value are not seen if a is false.
++			if v.Args[1-reverse].Op == OpConstBool && v.Args[1-reverse].AuxInt == 0 {
++				if tmp := v.Args[reverse]; f.sdom.isAncestorEq(tmp.Block, b) {
++					v.reset(OpAnd8)
++					v.SetArgs2(b0.Control, tmp)
++					if f.pass.debug > 0 {
++						f.Config.Warnl(b.Line, "converted OpPhi to %v", v.Op)
++					}
++					continue
++				}
++			}
+ 		}
+ 	}
+ 
+diff --git a/test/phiopt.go b/test/phiopt.go
+index 37caab0b51..4347909752 100644
+--- a/test/phiopt.go
++++ b/test/phiopt.go
+@@ -53,23 +53,56 @@ func f4(a, b bool) bool {
+ }
+ 
+ //go:noinline
+-func f5(a int, b bool) bool {
+-	x := b
++func f5or(a int, b bool) bool {
++	var x bool
+ 	if a == 0 {
+ 		x = true
++	} else {
++		x = b
+ 	}
+ 	return x // ERROR "converted OpPhi to Or8$"
+ }
+ 
+ //go:noinline
+-func f6(a int, b bool) bool {
++func f5and(a int, b bool) bool {
++	var x bool
++	if a == 0 {
++		x = b
++	} else {
++		x = false
++	}
++	return x // ERROR "converted OpPhi to And8$"
++}
++
++//go:noinline
++func f6or(a int, b bool) bool {
+ 	x := b
+ 	if a == 0 {
+-		// f6 has side effects so the OpPhi should not be converted.
+-		x = f6(a, b)
++		// f6or has side effects so the OpPhi should not be converted.
++		x = f6or(a, b)
+ 	}
+ 	return x
+ }
+ 
++//go:noinline
++func f6and(a int, b bool) bool {
++	x := b
++	if a == 0 {
++		// f6and has side effects so the OpPhi should not be converted.
++		x = f6and(a, b)
++	}
++	return x
++}
++
++//go:noinline
++func f7or(a bool, b bool) bool {
++	return a || b // ERROR "converted OpPhi to Or8$"
++}
++
++//go:noinline
++func f7and(a bool, b bool) bool {
++	return a && b // ERROR "converted OpPhi to And8$"
++}
++
+ func main() {
+ }

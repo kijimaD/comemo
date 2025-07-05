@@ -10,9 +10,242 @@ Date:   Mon Jun 27 13:31:40 2011 -0400
     R=r, r, rsc
     CC=golang-dev
     https://golang.org/cl/4662046
-
+---
  src/cmd/gotest/doc.go        | 11 ++++++-
  src/cmd/gotest/flag.go       |  4 +++
  src/pkg/testing/benchmark.go | 28 ++++++++++-------
  src/pkg/testing/testing.go   | 72 ++++++++++++++++++++++++++++++--------------
  4 files changed, 80 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/gotest/doc.go b/src/cmd/gotest/doc.go
+index 9dba390c13..5be06f8176 100644
+--- a/src/cmd/gotest/doc.go
++++ b/src/cmd/gotest/doc.go
+@@ -53,7 +53,9 @@ The resulting test binary, called (for amd64) 6.out, has several flags.
+ Usage:
+ 	6.out [-test.v] [-test.run pattern] [-test.bench pattern] \
+ 		[-test.cpuprofile=cpu.out] \
+-		[-test.memprofile=mem.out] [-test.memprofilerate=1]
++		[-test.memprofile=mem.out] [-test.memprofilerate=1] \
++		[-test.timeout=10] [-test.short] \
++		[-test.benchtime=3] [-test.cpu=1,2,3,4]
+ 
+ The -test.v flag causes the tests to be logged as they run.  The
+ -test.run flag causes only those tests whose names match the regular
+@@ -93,6 +95,13 @@ The -test.timeout flag sets a timeout for the test in seconds.  If the
+ test runs for longer than that, it will panic, dumping a stack trace
+ of all existing goroutines.
+ 
++The -test.benchtime flag specifies the number of seconds to run each benchmark.
++The default is one second.
++
++The -test.cpu flag specifies a list of GOMAXPROCS values for which
++the tests or benchmarks are executed.  The default is the current
++value of GOMAXPROCS.
++
+ For convenience, each of these -test.X flags of the test binary is
+ also available as the flag -X in gotest itself.  Flags not listed here
+ are unaffected.  For instance, the command
+diff --git a/src/cmd/gotest/flag.go b/src/cmd/gotest/flag.go
+index 780c78b9c8..c3a28f9a30 100644
+--- a/src/cmd/gotest/flag.go
++++ b/src/cmd/gotest/flag.go
+@@ -23,6 +23,8 @@ var usageMessage = `Usage of %s:
+ 
+   // These flags can be passed with or without a "test." prefix: -v or -test.v.
+   -bench="": passes -test.bench to test
++  -benchtime=1: passes -test.benchtime to test
++  -cpu="": passes -test.cpu to test
+   -cpuprofile="": passes -test.cpuprofile to test
+   -memprofile="": passes -test.memprofile to test
+   -memprofilerate=0: passes -test.memprofilerate to test
+@@ -56,6 +58,8 @@ var flagDefn = []*flagSpec{
+ 
+ 	// passed to 6.out, adding a "test." prefix to the name if necessary: -v becomes -test.v.
+ 	&flagSpec{name: "bench", passToTest: true},
++	&flagSpec{name: "benchtime", passToTest: true},
++	&flagSpec{name: "cpu", passToTest: true},
+ 	&flagSpec{name: "cpuprofile", passToTest: true},
+ 	&flagSpec{name: "memprofile", passToTest: true},
+ 	&flagSpec{name: "memprofilerate", passToTest: true},
+diff --git a/src/pkg/testing/benchmark.go b/src/pkg/testing/benchmark.go
+index f8b53e63ae..0ee879709d 100644
+--- a/src/pkg/testing/benchmark.go
++++ b/src/pkg/testing/benchmark.go
+@@ -13,6 +13,7 @@ import (
+ )
+ 
+ var matchBenchmarks = flag.String("test.bench", "", "regular expression to select benchmarks to run")
++var benchTime = flag.Float64("test.benchtime", 1, "approximate run time for each benchmark, in seconds")
+ 
+ // An internal type but exported because it is cross-package; part of the implementation
+ // of gotest.
+@@ -125,14 +126,15 @@ func (b *B) run() BenchmarkResult {
+ 	// Run the benchmark for a single iteration in case it's expensive.
+ 	n := 1
+ 	b.runN(n)
+-	// Run the benchmark for at least a second.
+-	for b.ns < 1e9 && n < 1e9 {
++	// Run the benchmark for at least the specified amount of time.
++	time := int64(*benchTime * 1e9)
++	for b.ns < time && n < 1e9 {
+ 		last := n
+ 		// Predict iterations/sec.
+ 		if b.nsPerOp() == 0 {
+ 			n = 1e9
+ 		} else {
+-			n = 1e9 / int(b.nsPerOp())
++			n = int(time / b.nsPerOp())
+ 		}
+ 		// Run more iterations than we think we'll need for a second (1.5x).
+ 		// Don't grow too fast in case we had timing errors previously.
+@@ -182,7 +184,6 @@ func RunBenchmarks(matchString func(pat, str string) (bool, os.Error), benchmark
+ 	if len(*matchBenchmarks) == 0 {
+ 		return
+ 	}
+-	procs := runtime.GOMAXPROCS(-1)
+ 	for _, Benchmark := range benchmarks {
+ 		matched, err := matchString(*matchBenchmarks, Benchmark.Name)
+ 		if err != nil {
+@@ -192,14 +193,19 @@ func RunBenchmarks(matchString func(pat, str string) (bool, os.Error), benchmark
+ 		if !matched {
+ 			continue
+ 		}
+-		b := &B{benchmark: Benchmark}
+-		r := b.run()
+-		print(fmt.Sprintf("%s\t%v\n", Benchmark.Name, r))
+-		if p := runtime.GOMAXPROCS(-1); p != procs {
+-			print(fmt.Sprintf("%s left GOMAXPROCS set to %d\n", Benchmark.Name, p))
+-			procs = p
++		for _, procs := range cpuList {
++			runtime.GOMAXPROCS(procs)
++			b := &B{benchmark: Benchmark}
++			r := b.run()
++			benchName := Benchmark.Name
++			if procs != 1 {
++				benchName = fmt.Sprintf("%s-%d", Benchmark.Name, procs)
++			}
++			print(fmt.Sprintf("%s\t%v\n", benchName, r))
++			if p := runtime.GOMAXPROCS(-1); p != procs {
++				print(fmt.Sprintf("%s left GOMAXPROCS set to %d\n", benchName, p))
++			}
+ 		}
+-
+ 	}
+ }
+ 
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index 3b2dd377af..297f6ad0dc 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -44,6 +44,8 @@ import (
+ 	"os"
+ 	"runtime"
+ 	"runtime/pprof"
++	"strings"
++	"strconv"
+ 	"time"
+ )
+ 
+@@ -62,6 +64,9 @@ var (
+ 	memProfileRate = flag.Int("test.memprofilerate", 0, "if >=0, sets runtime.MemProfileRate")
+ 	cpuProfile     = flag.String("test.cpuprofile", "", "write a cpu profile to the named file during execution")
+ 	timeout        = flag.Int64("test.timeout", 0, "if > 0, sets time limit for tests in seconds")
++	cpuListStr     = flag.String("test.cpu", "", "comma-separated list of number of CPUs to use for each test")
++
++	cpuList []int
+ )
+ 
+ // Short reports whether the -test.short flag is set.
+@@ -157,6 +162,7 @@ func tRunner(t *T, test *InternalTest) {
+ // of gotest.
+ func Main(matchString func(pat, str string) (bool, os.Error), tests []InternalTest, benchmarks []InternalBenchmark) {
+ 	flag.Parse()
++	parseCpuList()
+ 
+ 	before()
+ 	startAlarm()
+@@ -171,7 +177,6 @@ func RunTests(matchString func(pat, str string) (bool, os.Error), tests []Intern
+ 	if len(tests) == 0 {
+ 		println("testing: warning: no tests to run")
+ 	}
+-	procs := runtime.GOMAXPROCS(-1)
+ 	for i := 0; i < len(tests); i++ {
+ 		matched, err := matchString(*match, tests[i].Name)
+ 		if err != nil {
+@@ -181,28 +186,34 @@ func RunTests(matchString func(pat, str string) (bool, os.Error), tests []Intern
+ 		if !matched {
+ 			continue
+ 		}
+-		if *chatty {
+-			println("=== RUN ", tests[i].Name)
+-		}
+-		ns := -time.Nanoseconds()
+-		t := new(T)
+-		t.ch = make(chan *T)
+-		go tRunner(t, &tests[i])
+-		<-t.ch
+-		ns += time.Nanoseconds()
+-		tstr := fmt.Sprintf("(%.2f seconds)", float64(ns)/1e9)
+-		if p := runtime.GOMAXPROCS(-1); t.failed == false && p != procs {
+-			t.failed = true
+-			t.errors = fmt.Sprintf("%s left GOMAXPROCS set to %d\n", tests[i].Name, p)
+-			procs = p
+-		}
+-		if t.failed {
+-			println("--- FAIL:", tests[i].Name, tstr)
+-			print(t.errors)
+-			ok = false
+-		} else if *chatty {
+-			println("--- PASS:", tests[i].Name, tstr)
+-			print(t.errors)
++		for _, procs := range cpuList {
++			runtime.GOMAXPROCS(procs)
++			testName := tests[i].Name
++			if procs != 1 {
++				testName = fmt.Sprintf("%s-%d", tests[i].Name, procs)
++			}
++			if *chatty {
++				println("=== RUN ", testName)
++			}
++			ns := -time.Nanoseconds()
++			t := new(T)
++			t.ch = make(chan *T)
++			go tRunner(t, &tests[i])
++			<-t.ch
++			ns += time.Nanoseconds()
++			tstr := fmt.Sprintf("(%.2f seconds)", float64(ns)/1e9)
++			if p := runtime.GOMAXPROCS(-1); t.failed == false && p != procs {
++				t.failed = true
++				t.errors = fmt.Sprintf("%s left GOMAXPROCS set to %d\n", testName, p)
++			}
++			if t.failed {
++				println("--- FAIL:", testName, tstr)
++				print(t.errors)
++				ok = false
++			} else if *chatty {
++				println("--- PASS:", testName, tstr)
++				print(t.errors)
++			}
+ 		}
+ 	}
+ 	if !ok {
+@@ -271,3 +282,18 @@ func stopAlarm() {
+ func alarm() {
+ 	panic("test timed out")
+ }
++
++func parseCpuList() {
++	if len(*cpuListStr) == 0 {
++		cpuList = append(cpuList, runtime.GOMAXPROCS(-1))
++	} else {
++		for _, val := range strings.Split(*cpuListStr, ",", -1) {
++			cpu, err := strconv.Atoi(val)
++			if err != nil || cpu <= 0 {
++				println("invalid value for -test.cpu")
++				os.Exit(1)
++			}
++			cpuList = append(cpuList, cpu)
++		}
++	}
++}

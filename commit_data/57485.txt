@@ -16,6 +16,25 @@ Date:   Thu Aug 10 02:01:04 2023 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/math/big/ftoa.go | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/src/math/big/ftoa.go b/src/math/big/ftoa.go
+index 5506e6e425..6daea34496 100644
+--- a/src/math/big/ftoa.go
++++ b/src/math/big/ftoa.go
+@@ -444,13 +444,6 @@ func (x *Float) fmtP(buf []byte) []byte {
+ 	return strconv.AppendInt(buf, int64(x.exp), 10)
+ }
+ 
+-func min(x, y int) int {
+-	if x < y {
+-		return x
+-	}
+-	return y
+-}
+-
+ var _ fmt.Formatter = &floatZero // *Float must implement fmt.Formatter
+ 
+ // Format implements fmt.Formatter. It accepts all the regular

@@ -10,8 +10,156 @@ Date:   Tue Apr 21 10:46:29 2015 -0700
     Change-Id: Id6f95af755992b209aff770440ca9819b74113ab
     Reviewed-on: https://go-review.googlesource.com/9166
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  misc/cgo/testcshared/main2.c              | 56 +++++++++++++++++++++++++++++++
  misc/cgo/testcshared/src/libgo2/libgo2.go | 52 ++++++++++++++++++++++++++++
  misc/cgo/testcshared/test.bash            | 12 ++++++-
  3 files changed, 119 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testcshared/main2.c b/misc/cgo/testcshared/main2.c
+new file mode 100644
+index 0000000000..24bc62e757
+--- /dev/null
++++ b/misc/cgo/testcshared/main2.c
+@@ -0,0 +1,56 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <errno.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <time.h>
++#include <unistd.h>
++
++#define fd (10)
++
++// Tests libgo2.so, which does not export any functions.
++// Read a string from the file descriptor and print it.
++int main(void) {
++  int i;
++  ssize_t n;
++  char buf[20];
++  struct timespec ts;
++
++  // The descriptor will be initialized in a thread, so we have to
++  // give a chance to get opened.
++  for (i = 0; i < 10; i++) {
++    n = read(fd, buf, sizeof buf);
++    if (n >= 0)
++      break;
++    if (errno != EBADF) {
++      fprintf(stderr, "BUG: read: %s\n", strerror(errno));
++      return 2;
++    }
++
++    // An EBADF error means that the shared library has not opened the
++    // descriptor yet.
++    ts.tv_sec = 0;
++    ts.tv_nsec = 1000000;
++    nanosleep(&ts, NULL);
++  }
++
++  if (n < 0) {
++    fprintf(stderr, "BUG: failed to read any data from pipe\n");
++    return 2;
++  }
++
++  if (n == 0) {
++    fprintf(stderr, "BUG: unexpected EOF\n");
++    return 2;
++  }
++
++  if (n == sizeof buf) {
++    n--;
++  }
++  buf[n] = '\0';
++  printf("%s\n", buf);
++  return 0;
++}
+diff --git a/misc/cgo/testcshared/src/libgo2/libgo2.go b/misc/cgo/testcshared/src/libgo2/libgo2.go
+new file mode 100644
+index 0000000000..6096860d63
+--- /dev/null
++++ b/misc/cgo/testcshared/src/libgo2/libgo2.go
+@@ -0,0 +1,52 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++
++package main
++
++// Test a shared library created by -buildmode=c-shared that does not
++// export anything.
++
++import (
++	"fmt"
++	"os"
++	"syscall"
++)
++
++// To test this we want to communicate between the main program and
++// the shared library without using any exported symbols.  The init
++// function creates a pipe and Dups the read end to a known number
++// that the C code can also use.
++
++const (
++	fd = 10
++)
++
++func init() {
++	var p [2]int
++	if e := syscall.Pipe(p[0:]); e != nil {
++		fmt.Fprintf(os.Stderr, "pipe: %v\n", e)
++		os.Exit(2)
++	}
++
++	if e := syscall.Dup2(p[0], fd); e != nil {
++		fmt.Fprintf(os.Stderr, "dup2: %v\n", e)
++		os.Exit(2)
++	}
++
++	const str = "PASS"
++	if n, e := syscall.Write(p[1], []byte(str)); e != nil || n != len(str) {
++		fmt.Fprintf(os.Stderr, "write: %d %v\n", n, e)
++		os.Exit(2)
++	}
++
++	if e := syscall.Close(p[1]); e != nil {
++		fmt.Fprintf(os.Stderr, "close: %v\n", e)
++		os.Exit(2)
++	}
++}
++
++func main() {
++}
+diff --git a/misc/cgo/testcshared/test.bash b/misc/cgo/testcshared/test.bash
+index 61f80ea9a2..1c2e3c23f2 100755
+--- a/misc/cgo/testcshared/test.bash
++++ b/misc/cgo/testcshared/test.bash
+@@ -6,7 +6,7 @@
+ set -e
+ 
+ function cleanup() {
+-	rm libgo.so testp
++	rm -f libgo.so libgo2.so testp testp2
+ }
+ trap cleanup EXIT
+ 
+@@ -27,3 +27,13 @@ if [ "$output" != "PASS" ]; then
+ 	echo "FAIL: got $output"
+ 	exit 1
+ fi
++
++GOPATH=$(pwd) go build -buildmode=c-shared -o libgo2.so src/libgo2/libgo2.go
++
++$(go env CC) $(go env GOGCCFLAGS) -o testp2 main2.c -Wl,--no-as-needed libgo2.so
++output=$(LD_LIBRARY_PATH=$LD_LIBRARY_PATH:. ./testp2)
++# testp2 prints PASS at the end of its execution.
++if [ "$output" != "PASS" ]; then
++	echo "FAIL: got $output"
++	exit 1
++fi

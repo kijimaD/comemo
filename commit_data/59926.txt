@@ -12,7 +12,7 @@ Date:   Fri Mar 1 17:40:50 2024 -0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  api/next/61899.txt                         |   8 ++
  doc/next/6-stdlib/3-iter.md                |  17 +++
  doc/next/6-stdlib/99-minor/slices/61899.md |   1 +
@@ -22,3 +22,430 @@ Date:   Fri Mar 1 17:40:50 2024 -0800
  src/slices/iter_test.go                    | 184 +++++++++++++++++++++++++++++
  src/slices/sort_test.go                    |  19 ++-
  8 files changed, 319 insertions(+), 14 deletions(-)
+
+diff --git a/api/next/61899.txt b/api/next/61899.txt
+new file mode 100644
+index 0000000000..60b04ceed7
+--- /dev/null
++++ b/api/next/61899.txt
+@@ -0,0 +1,8 @@
++pkg slices, func All[$0 interface{ ~[]$1 }, $1 interface{}]($0) iter.Seq2[int, $1] #61899
++pkg slices, func AppendSeq[$0 interface{ ~[]$1 }, $1 interface{}]($0, iter.Seq[$1]) $0 #61899
++pkg slices, func Backward[$0 interface{ ~[]$1 }, $1 interface{}]($0) iter.Seq2[int, $1] #61899
++pkg slices, func Collect[$0 interface{}](iter.Seq[$0]) []$0 #61899
++pkg slices, func SortedFunc[$0 interface{}](iter.Seq[$0], func($0, $0) int) []$0 #61899
++pkg slices, func SortedStableFunc[$0 interface{}](iter.Seq[$0], func($0, $0) int) []$0 #61899
++pkg slices, func Sorted[$0 cmp.Ordered](iter.Seq[$0]) []$0 #61899
++pkg slices, func Values[$0 interface{ ~[]$1 }, $1 interface{}]($0) iter.Seq[$1] #61899
+diff --git a/doc/next/6-stdlib/3-iter.md b/doc/next/6-stdlib/3-iter.md
+index 15ae7d47db..bc74f4556c 100644
+--- a/doc/next/6-stdlib/3-iter.md
++++ b/doc/next/6-stdlib/3-iter.md
+@@ -2,3 +2,20 @@
+ 
+ The new [`iter` package](/pkg/iter/) provides the basic definitions for
+ working with user-defined iterators.
++
++The [`slices` package](/pkg/slices/) adds several functions that work
++with iterators:
++- [All](/pkg/slices#All) returns an iterator over slice indexes and values.
++- [Values](/pkg/slices#Values) returns an iterator over slice elements.
++- [Backward](/pkg/slices#Backward) returns an iterator that loops over
++  a slice backward.
++- [Collect](/pkg/slices#Collect) collects values from an iterator into
++  a new slice.
++- [AppendSeq](/pkg/slices#AppendSeq) appends values from an iterator to
++  an existing slice.
++- [Sorted](/pkg/slices#Sorted) collects values from an iterator into a
++  new slice, and then sorts the slice.
++- [SortedFunc](/pkg/slices#SortedFunc) is like `Sorted` but with a
++  comparison function.
++- [SortedStableFunc](/pkg/slices#SortedStableFunc) is like `SortFunc`
++  but uses a stable sort algorithm.
+diff --git a/doc/next/6-stdlib/99-minor/slices/61899.md b/doc/next/6-stdlib/99-minor/slices/61899.md
+new file mode 100644
+index 0000000000..02d77cd11d
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/slices/61899.md
+@@ -0,0 +1 @@
++<!-- see ../../3-iter.md -->
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index a87c2a1aae..b0a3bd7e52 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -713,13 +713,15 @@ func (t *tester) registerTests() {
+ 
+ 	// GOEXPERIMENT=rangefunc tests
+ 	if !t.compileOnly {
+-		t.registerTest("GOEXPERIMENT=rangefunc go test iter",
+-			&goTest{
+-				variant: "iter",
+-				short:   t.short,
+-				env:     []string{"GOEXPERIMENT=rangefunc"},
+-				pkg:     "iter",
+-			})
++		for _, pkg := range []string{"iter", "slices"} {
++			t.registerTest("GOEXPERIMENT=rangefunc",
++				&goTest{
++					variant: pkg,
++					short:   t.short,
++					env:     []string{"GOEXPERIMENT=rangefunc"},
++					pkg:     pkg,
++				})
++		}
+ 	}
+ 
+ 	// GODEBUG=gcstoptheworld=2 tests. We only run these in long-test
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 3b8434fef4..3ff7eb2ce2 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -90,7 +90,7 @@ var depsRules = `
+ 
+ 	# slices depends on unsafe for overlapping check, cmp for comparison
+ 	# semantics, and math/bits for # calculating bitlength of numbers.
+-	unsafe, cmp, math/bits
++	RUNTIME, unsafe, cmp, math/bits
+ 	< slices;
+ 
+ 	RUNTIME, slices
+diff --git a/src/slices/iter.go b/src/slices/iter.go
+new file mode 100644
+index 0000000000..985bd27a10
+--- /dev/null
++++ b/src/slices/iter.go
+@@ -0,0 +1,86 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package slices
++
++import (
++	"cmp"
++	"iter"
++)
++
++// All returns an iterator over index-value pairs in the slice.
++// The indexes range in the usual order, from 0 through len(s)-1.
++func All[Slice ~[]E, E any](s Slice) iter.Seq2[int, E] {
++	return func(yield func(int, E) bool) {
++		for i, v := range s {
++			if !yield(i, v) {
++				return
++			}
++		}
++	}
++}
++
++// Backward returns an iterator over index-value pairs in the slice,
++// traversing it backward. The indexes range from len(s)-1 down to 0.
++func Backward[Slice ~[]E, E any](s Slice) iter.Seq2[int, E] {
++	return func(yield func(int, E) bool) {
++		for i := len(s) - 1; i >= 0; i-- {
++			if !yield(i, s[i]) {
++				return
++			}
++		}
++	}
++}
++
++// Values returns an iterator over the slice elements.
++// starting with s[0].
++func Values[Slice ~[]E, E any](s Slice) iter.Seq[E] {
++	return func(yield func(E) bool) {
++		for _, v := range s {
++			if !yield(v) {
++				return
++			}
++		}
++	}
++}
++
++// AppendSeq appends the values from seq to the slice and
++// returns the extended slice.
++func AppendSeq[Slice ~[]E, E any](s Slice, seq iter.Seq[E]) Slice {
++	for v := range seq {
++		s = append(s, v)
++	}
++	return s
++}
++
++// Collect collects values from seq into a new slice and returns it.
++func Collect[E any](seq iter.Seq[E]) []E {
++	return AppendSeq([]E(nil), seq)
++}
++
++// Sorted collects values from seq into a new slice, sorts the slice,
++// and returns it.
++func Sorted[E cmp.Ordered](seq iter.Seq[E]) []E {
++	s := Collect(seq)
++	Sort(s)
++	return s
++}
++
++// SortedFunc collects values from seq into a new slice, sorts the slice
++// using the comparison function, and returns it.
++func SortedFunc[E any](seq iter.Seq[E], cmp func(E, E) int) []E {
++	s := Collect(seq)
++	SortFunc(s, cmp)
++	return s
++}
++
++// SortedStableFunc collects values from seq into a new slice.
++// It then sorts the slice while keeping the original order of equal elements,
++// using the comparison function to compare elements.
++// It returns the new slice.
++func SortedStableFunc[E any](seq iter.Seq[E], cmp func(E, E) int) []E {
++	s := Collect(seq)
++	SortStableFunc(s, cmp)
++	return s
++}
+diff --git a/src/slices/iter_test.go b/src/slices/iter_test.go
+new file mode 100644
+index 0000000000..67520f60c9
+--- /dev/null
++++ b/src/slices/iter_test.go
+@@ -0,0 +1,184 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package slices_test
++
++import (
++	"iter"
++	"math/rand/v2"
++	. "slices"
++	"testing"
++)
++
++func TestAll(t *testing.T) {
++	for size := 0; size < 10; size++ {
++		var s []int
++		for i := range size {
++			s = append(s, i)
++		}
++		ei, ev := 0, 0
++		cnt := 0
++		for i, v := range All(s) {
++			if i != ei || v != ev {
++				t.Errorf("at iteration %d got %d, %d want %d, %d", cnt, i, v, ei, ev)
++			}
++			ei++
++			ev++
++			cnt++
++		}
++		if cnt != size {
++			t.Errorf("read %d values expected %d", cnt, size)
++		}
++	}
++}
++
++func TestBackward(t *testing.T) {
++	for size := 0; size < 10; size++ {
++		var s []int
++		for i := range size {
++			s = append(s, i)
++		}
++		ei, ev := size-1, size-1
++		cnt := 0
++		for i, v := range Backward(s) {
++			if i != ei || v != ev {
++				t.Errorf("at iteration %d got %d, %d want %d, %d", cnt, i, v, ei, ev)
++			}
++			ei--
++			ev--
++			cnt++
++		}
++		if cnt != size {
++			t.Errorf("read %d values expected %d", cnt, size)
++		}
++	}
++}
++
++func TestValues(t *testing.T) {
++	for size := 0; size < 10; size++ {
++		var s []int
++		for i := range size {
++			s = append(s, i)
++		}
++		ev := 0
++		cnt := 0
++		for v := range Values(s) {
++			if v != ev {
++				t.Errorf("at iteration %d got %d want %d", cnt, v, ev)
++			}
++			ev++
++			cnt++
++		}
++		if cnt != size {
++			t.Errorf("read %d values expected %d", cnt, size)
++		}
++	}
++}
++
++func testSeq(yield func(int) bool) {
++	for i := 0; i < 10; i += 2 {
++		if !yield(i) {
++			return
++		}
++	}
++}
++
++var testSeqResult = []int{0, 2, 4, 6, 8}
++
++func TestAppendSeq(t *testing.T) {
++	s := AppendSeq([]int{1, 2}, testSeq)
++	want := append([]int{1, 2}, testSeqResult...)
++	if !Equal(s, want) {
++		t.Errorf("got %v, want %v", s, want)
++	}
++}
++
++func TestCollect(t *testing.T) {
++	s := Collect(testSeq)
++	want := testSeqResult
++	if !Equal(s, want) {
++		t.Errorf("got %v, want %v", s, want)
++	}
++}
++
++var iterTests = [][]string{
++	nil,
++	{"a"},
++	{"a", "b"},
++	{"b", "a"},
++	strs[:],
++}
++
++func TestValuesAppendSeq(t *testing.T) {
++	for _, prefix := range iterTests {
++		for _, s := range iterTests {
++			got := AppendSeq(prefix, Values(s))
++			want := append(prefix, s...)
++			if !Equal(got, want) {
++				t.Errorf("AppendSeq(%v, Values(%v)) == %v, want %v", prefix, s, got, want)
++			}
++		}
++	}
++}
++
++func TestValuesCollect(t *testing.T) {
++	for _, s := range iterTests {
++		got := Collect(Values(s))
++		if !Equal(got, s) {
++			t.Errorf("Collect(Values(%v)) == %v, want %v", s, got, s)
++		}
++	}
++}
++
++func TestSorted(t *testing.T) {
++	s := Sorted(Values(ints[:]))
++	if !IsSorted(s) {
++		t.Errorf("sorted %v", ints)
++		t.Errorf("   got %v", s)
++	}
++}
++
++func TestSortedFunc(t *testing.T) {
++	s := SortedFunc(Values(ints[:]), func(a, b int) int { return a - b })
++	if !IsSorted(s) {
++		t.Errorf("sorted %v", ints)
++		t.Errorf("   got %v", s)
++	}
++}
++
++func TestSortedStableFunc(t *testing.T) {
++	n, m := 1000, 100
++	data := make(intPairs, n)
++	for i := range data {
++		data[i].a = rand.IntN(m)
++	}
++	data.initB()
++
++	s := intPairs(SortedStableFunc(Values(data), intPairCmp))
++	if !IsSortedFunc(s, intPairCmp) {
++		t.Errorf("SortedStableFunc didn't sort %d ints", n)
++	}
++	if !s.inOrder(false) {
++		t.Errorf("SortedStableFunc wasn't stable on %d ints", n)
++	}
++
++	// iterVal converts a Seq2 to a Seq.
++	iterVal := func(seq iter.Seq2[int, intPair]) iter.Seq[intPair] {
++		return func(yield func(intPair) bool) {
++			for _, v := range seq {
++				if !yield(v) {
++					return
++				}
++			}
++		}
++	}
++
++	s = intPairs(SortedStableFunc(iterVal(Backward(data)), intPairCmp))
++	if !IsSortedFunc(s, intPairCmp) {
++		t.Errorf("SortedStableFunc didn't sort %d reverse ints", n)
++	}
++	if !s.inOrder(true) {
++		t.Errorf("SortedStableFunc wasn't stable on %d reverse ints", n)
++	}
++}
+diff --git a/src/slices/sort_test.go b/src/slices/sort_test.go
+index 7aaf954214..2e045e2af8 100644
+--- a/src/slices/sort_test.go
++++ b/src/slices/sort_test.go
+@@ -92,7 +92,8 @@ func (d intPairs) initB() {
+ }
+ 
+ // InOrder checks if a-equal elements were not reordered.
+-func (d intPairs) inOrder() bool {
++// If reversed is true, expect reverse ordering.
++func (d intPairs) inOrder(reversed bool) bool {
+ 	lastA, lastB := -1, 0
+ 	for i := 0; i < len(d); i++ {
+ 		if lastA != d[i].a {
+@@ -100,8 +101,14 @@ func (d intPairs) inOrder() bool {
+ 			lastB = d[i].b
+ 			continue
+ 		}
+-		if d[i].b <= lastB {
+-			return false
++		if !reversed {
++			if d[i].b <= lastB {
++				return false
++			}
++		} else {
++			if d[i].b >= lastB {
++				return false
++			}
+ 		}
+ 		lastB = d[i].b
+ 	}
+@@ -127,7 +134,7 @@ func TestStability(t *testing.T) {
+ 	if !IsSortedFunc(data, intPairCmp) {
+ 		t.Errorf("Stable didn't sort %d ints", n)
+ 	}
+-	if !data.inOrder() {
++	if !data.inOrder(false) {
+ 		t.Errorf("Stable wasn't stable on %d ints", n)
+ 	}
+ 
+@@ -137,7 +144,7 @@ func TestStability(t *testing.T) {
+ 	if !IsSortedFunc(data, intPairCmp) {
+ 		t.Errorf("Stable shuffled sorted %d ints (order)", n)
+ 	}
+-	if !data.inOrder() {
++	if !data.inOrder(false) {
+ 		t.Errorf("Stable shuffled sorted %d ints (stability)", n)
+ 	}
+ 
+@@ -150,7 +157,7 @@ func TestStability(t *testing.T) {
+ 	if !IsSortedFunc(data, intPairCmp) {
+ 		t.Errorf("Stable didn't sort %d ints", n)
+ 	}
+-	if !data.inOrder() {
++	if !data.inOrder(false) {
+ 		t.Errorf("Stable wasn't stable on %d ints", n)
+ 	}
+ }

@@ -27,8 +27,106 @@ Date:   Thu Jun 8 18:40:31 2023 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/internal/testdir/testdir_test.go |  2 +-
  src/reflect/arena.go                     |  2 +-
  test/arenas/smoke.go                     | 65 ++++++++++++++++++++++++++++++++
  3 files changed, 67 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/testdir/testdir_test.go b/src/cmd/internal/testdir/testdir_test.go
+index f5bd44eef2..7ab1143584 100644
+--- a/src/cmd/internal/testdir/testdir_test.go
++++ b/src/cmd/internal/testdir/testdir_test.go
+@@ -64,7 +64,7 @@ var (
+ 
+ 	// dirs are the directories to look for *.go files in.
+ 	// TODO(bradfitz): just use all directories?
+-	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "codegen", "runtime", "abi", "typeparam", "typeparam/mdempsky"}
++	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "codegen", "runtime", "abi", "typeparam", "typeparam/mdempsky", "arenas"}
+ )
+ 
+ // Test is the main entrypoint that runs tests in the GOROOT/test directory.
+diff --git a/src/reflect/arena.go b/src/reflect/arena.go
+index 694a3a136c..cac1a1da5e 100644
+--- a/src/reflect/arena.go
++++ b/src/reflect/arena.go
+@@ -12,7 +12,7 @@ import "arena"
+ // specified type, allocating storage for it in the provided arena. That is,
+ // the returned Value's Type is PointerTo(typ).
+ func ArenaNew(a *arena.Arena, typ Type) Value {
+-	return ValueOf(arena_New(a, typ))
++	return ValueOf(arena_New(a, PointerTo(typ)))
+ }
+ 
+ func arena_New(a *arena.Arena, typ any) any
+diff --git a/test/arenas/smoke.go b/test/arenas/smoke.go
+new file mode 100644
+index 0000000000..56dad53fd0
+--- /dev/null
++++ b/test/arenas/smoke.go
+@@ -0,0 +1,65 @@
++// build -goexperiment arenas
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"arena"
++	"log"
++	"reflect"
++)
++
++func main() {
++	a := arena.NewArena()
++	defer a.Free()
++
++	const iValue = 10
++
++	i := arena.New[int](a)
++	*i = iValue
++
++	if *i != iValue {
++		// This test doesn't reasonably expect this to fail. It's more likely
++		// that *i crashes for some reason. Still, why not check it.
++		log.Fatalf("bad i value: got %d, want %d", *i, iValue)
++	}
++
++	const wantLen = 125
++	const wantCap = 1912
++
++	sl := arena.MakeSlice[*int](a, wantLen, wantCap)
++	if len(sl) != wantLen {
++		log.Fatalf("bad arena slice length: got %d, want %d", len(sl), wantLen)
++	}
++	if cap(sl) != wantCap {
++		log.Fatalf("bad arena slice capacity: got %d, want %d", cap(sl), wantCap)
++	}
++	sl = sl[:cap(sl)]
++	for j := range sl {
++		sl[j] = i
++	}
++	for j := range sl {
++		if *sl[j] != iValue {
++			// This test doesn't reasonably expect this to fail. It's more likely
++			// that sl[j] crashes for some reason. Still, why not check it.
++			log.Fatalf("bad sl[j] value: got %d, want %d", *sl[j], iValue)
++		}
++	}
++
++	t := reflect.TypeOf(int(0))
++	v := reflect.ArenaNew(a, t)
++	if want := reflect.PointerTo(t); v.Type() != want {
++		log.Fatalf("unexpected type for arena-allocated value: got %s, want %s", v.Type(), want)
++	}
++	i2 := v.Interface().(*int)
++	*i2 = iValue
++
++	if *i2 != iValue {
++		// This test doesn't reasonably expect this to fail. It's more likely
++		// that *i crashes for some reason. Still, why not check it.
++		log.Fatalf("bad i2 value: got %d, want %d", *i2, iValue)
++	}
++}

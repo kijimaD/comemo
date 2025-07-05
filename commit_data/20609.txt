@@ -6,6 +6,19 @@ Date:   Wed Sep 24 15:10:54 2014 -0400
     
     CC=golang-codereviews
     https://golang.org/cl/145890046
-
+---
  doc/go1.4.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.4.txt b/doc/go1.4.txt
+index f69b7fa5f0..d09a154a3d 100644
+--- a/doc/go1.4.txt
++++ b/doc/go1.4.txt
+@@ -13,6 +13,7 @@ cmd/6l, liblink: use pc-relative addressing for all memory references, so that l
+ cmd/go: import comments (CL 124940043)
+ cmd/go: implement "internal" (CL 120600043)
+ cmd/go: implement "generate" (CL 125580044)
++cmd/go: disallow C sources except when using cgo (CL 149720043)
+ 
+ asm: make textflag.h available outside of cmd/ld (CL 128050043)
+ crypto/tls: add support for ALPN (RFC 7301) (CL 108710046)

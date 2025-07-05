@@ -7,7 +7,32 @@ Date:   Mon Oct 17 14:18:04 2011 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5275050
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 8721d28d2e..d653caf4ed 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -58,6 +58,7 @@ Eivind Uggedal <eivind@uggedal.com>
+ Eoghan Sherry <ejsherry@gmail.com>
+ Eric Clark <zerohp@gmail.com>
+ Eric Eisner <eric.d.eisner@gmail.com>
++Esko Luontola <esko.luontola@gmail.com>
+ Evan Shaw <chickencha@gmail.com>
+ Fan Hongjian <fan.howard@gmail.com>
+ Fazlul Shahriar <fshahriar@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 06396d7a76..fdffc82651 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -99,6 +99,7 @@ Eivind Uggedal <eivind@uggedal.com>
+ Eoghan Sherry <ejsherry@gmail.com>
+ Eric Clark <zerohp@gmail.com>
+ Eric Eisner <eric.d.eisner@gmail.com>
++Esko Luontola <esko.luontola@gmail.com>
+ Evan Martin <evan.martin@gmail.com>
+ Evan Shaw <chickencha@gmail.com>
+ Fan Hongjian <fan.howard@gmail.com>

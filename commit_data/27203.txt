@@ -18,8 +18,146 @@ Date:   Wed Mar 9 18:16:00 2016 +0900
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/error_unix_test.go   | 15 ++++++++-
  src/net/fd_unix.go           | 11 +++++-
  src/net/tcpsock_unix_test.go | 79 ++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 103 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/error_unix_test.go b/src/net/error_unix_test.go
+index db66d0acf1..9ce9e12c5e 100644
+--- a/src/net/error_unix_test.go
++++ b/src/net/error_unix_test.go
+@@ -6,7 +6,10 @@
+ 
+ package net
+ 
+-import "syscall"
++import (
++	"os"
++	"syscall"
++)
+ 
+ var (
+ 	errTimedout       = syscall.ETIMEDOUT
+@@ -19,3 +22,13 @@ func isPlatformError(err error) bool {
+ 	_, ok := err.(syscall.Errno)
+ 	return ok
+ }
++
++func samePlatformError(err, want error) bool {
++	if op, ok := err.(*OpError); ok {
++		err = op.Err
++	}
++	if sys, ok := err.(*os.SyscallError); ok {
++		err = sys.Err
++	}
++	return err == want
++}
+diff --git a/src/net/fd_unix.go b/src/net/fd_unix.go
+index 6c385dbef2..82590c27d0 100644
+--- a/src/net/fd_unix.go
++++ b/src/net/fd_unix.go
+@@ -139,7 +139,16 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time, cancel <-c
+ 		switch err := syscall.Errno(nerr); err {
+ 		case syscall.EINPROGRESS, syscall.EALREADY, syscall.EINTR:
+ 		case syscall.Errno(0), syscall.EISCONN:
+-			return nil
++			if runtime.GOOS != "darwin" {
++				return nil
++			}
++			// See golang.org/issue/14548.
++			// On Darwin, multiple connect system calls on
++			// a non-blocking socket never harm SO_ERROR.
++			switch err := connectFunc(fd.sysfd, ra); err {
++			case nil, syscall.EISCONN:
++				return nil
++			}
+ 		default:
+ 			return os.NewSyscallError("getsockopt", err)
+ 		}
+diff --git a/src/net/tcpsock_unix_test.go b/src/net/tcpsock_unix_test.go
+new file mode 100644
+index 0000000000..c07f7d7889
+--- /dev/null
++++ b/src/net/tcpsock_unix_test.go
+@@ -0,0 +1,79 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin
++
++package net
++
++import (
++	"runtime"
++	"sync"
++	"syscall"
++	"testing"
++	"time"
++)
++
++// See golang.org/issue/14548.
++func TestTCPSupriousConnSetupCompletion(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping in short mode")
++	}
++
++	ln, err := newLocalListener("tcp")
++	if err != nil {
++		t.Fatal(err)
++	}
++	var wg sync.WaitGroup
++	wg.Add(1)
++	go func(ln Listener) {
++		defer wg.Done()
++		for {
++			c, err := ln.Accept()
++			if err != nil {
++				return
++			}
++			wg.Add(1)
++			go func(c Conn) {
++				var b [1]byte
++				c.Read(b[:])
++				c.Close()
++				wg.Done()
++			}(c)
++		}
++	}(ln)
++
++	attempts := int(1e4) // larger is better
++	wg.Add(attempts)
++	throttle := make(chan struct{}, runtime.GOMAXPROCS(-1)*2)
++	for i := 0; i < attempts; i++ {
++		throttle <- struct{}{}
++		go func(i int) {
++			defer func() {
++				<-throttle
++				wg.Done()
++			}()
++			d := Dialer{Timeout: 50 * time.Millisecond}
++			c, err := d.Dial(ln.Addr().Network(), ln.Addr().String())
++			if err != nil {
++				if perr := parseDialError(err); perr != nil {
++					t.Errorf("#%d: %v", i, err)
++				}
++				return
++			}
++			var b [1]byte
++			if _, err := c.Write(b[:]); err != nil {
++				if perr := parseWriteError(err); perr != nil {
++					t.Errorf("#%d: %v", i, err)
++				}
++				if samePlatformError(err, syscall.ENOTCONN) {
++					t.Errorf("#%d: %v", i, err)
++				}
++			}
++			c.Close()
++		}(i)
++	}
++
++	ln.Close()
++	wg.Wait()
++}

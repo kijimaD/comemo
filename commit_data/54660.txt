@@ -13,6 +13,32 @@ Date:   Tue Nov 8 04:30:38 2022 +0100
     Run-TryBot: Than McIntosh <thanm@google.com>
     Auto-Submit: Than McIntosh <thanm@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/internal/coverage/slicereader/slicereader.go | 9 +--------
  1 file changed, 1 insertion(+), 8 deletions(-)
+
+diff --git a/src/internal/coverage/slicereader/slicereader.go b/src/internal/coverage/slicereader/slicereader.go
+index c949e1723d..3d117bae37 100644
+--- a/src/internal/coverage/slicereader/slicereader.go
++++ b/src/internal/coverage/slicereader/slicereader.go
+@@ -6,7 +6,6 @@ package slicereader
+ 
+ import (
+ 	"encoding/binary"
+-	"internal/unsafeheader"
+ 	"unsafe"
+ )
+ 
+@@ -95,11 +94,5 @@ func toString(b []byte) string {
+ 	if len(b) == 0 {
+ 		return ""
+ 	}
+-
+-	var s string
+-	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
+-	hdr.Data = unsafe.Pointer(&b[0])
+-	hdr.Len = len(b)
+-
+-	return s
++	return unsafe.String(&b[0], len(b))
+ }

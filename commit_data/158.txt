@@ -5,6 +5,14 @@ Date:   Thu Jun 12 13:31:17 2008 -0700
     add missing include file
     
     SVN=122485
-
+---
  include/utf.h | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/include/utf.h b/include/utf.h
+new file mode 100644
+index 0000000000..be1c46e7f2
+--- /dev/null
++++ b/include/utf.h
+@@ -0,0 +1 @@
++#include "../src/lib9/utf/utf.h"

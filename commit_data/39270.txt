@@ -8,6 +8,25 @@ Date:   Tue Feb 12 18:33:24 2019 +0000
     Reviewed-on: https://go-review.googlesource.com/c/162019
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.12.html | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.12.html b/doc/go1.12.html
+index 3b086e7001..75315d1b52 100644
+--- a/doc/go1.12.html
++++ b/doc/go1.12.html
+@@ -493,8 +493,11 @@ for {
+ <dl id="crypto/rc4"><dt><a href="/pkg/crypto/rc4/">crypto/rc4</a></dt>
+   <dd>
+     <p><!-- CL 130397 -->
+-      This release removes the optimized assembly implementations. RC4 is insecure
+-      and should only be used for compatibility with legacy systems.
++      This release removes the assembly implementations, leaving only
++      the pure Go version. The Go compiler generates code that is
++      either slightly better or slightly worse, depending on the exact
++      CPU. RC4 is insecure and should only be used for compatibility
++      with legacy systems.
+     </p>
+ 
+ </dl><!-- crypto/rc4 -->

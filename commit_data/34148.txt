@@ -11,6 +11,20 @@ Date:   Wed Oct 4 15:32:40 2017 -0700
     Change-Id: I982040b81bff202976743edc7fe53247533a9d81
     Reviewed-on: https://go-review.googlesource.com/68312
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mheap.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 3aaa09d703..698dbd7479 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -160,6 +160,8 @@ type mheap struct {
+ 	specialfinalizeralloc fixalloc // allocator for specialfinalizer*
+ 	specialprofilealloc   fixalloc // allocator for specialprofile*
+ 	speciallock           mutex    // lock for special record allocators.
++
++	unused *specialfinalizer // never set, just here to force the specialfinalizer type into DWARF
+ }
+ 
+ var mheap_ mheap

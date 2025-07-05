@@ -10,10 +10,87 @@ Date:   Mon Mar 2 13:55:13 2015 -0800
     Change-Id: Id745dcee6f0769604cabde04887c6d0c94855405
     Reviewed-on: https://go-review.googlesource.com/6521
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/obj/arm/obj5.go   | 1 -
  src/cmd/internal/obj/i386/obj8.go  | 1 -
  src/cmd/internal/obj/link.go       | 1 -
  src/cmd/internal/obj/ppc64/obj9.go | 2 --
  src/cmd/internal/obj/x86/obj6.go   | 2 --
  5 files changed, 7 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index 09c9368f6b..5a1d6b9c0b 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -1045,7 +1045,6 @@ var unaryDst = map[int]bool{
+ }
+ 
+ var Linkarm = obj.LinkArch{
+-	Rconv:      Rconv,
+ 	ByteOrder:  binary.LittleEndian,
+ 	Pconv:      Pconv,
+ 	Name:       "arm",
+diff --git a/src/cmd/internal/obj/i386/obj8.go b/src/cmd/internal/obj/i386/obj8.go
+index e3acae91b5..5663afb1fe 100644
+--- a/src/cmd/internal/obj/i386/obj8.go
++++ b/src/cmd/internal/obj/i386/obj8.go
+@@ -928,7 +928,6 @@ var unaryDst = map[int]bool{
+ }
+ 
+ var Link386 = obj.LinkArch{
+-	Rconv:      Rconv,
+ 	ByteOrder:  binary.LittleEndian,
+ 	Pconv:      Pconv,
+ 	Name:       "386",
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 86535e5f30..4bac11e3fe 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -242,7 +242,6 @@ type Plist struct {
+ 
+ type LinkArch struct {
+ 	Pconv      func(*Prog) string
+-	Rconv      func(int) string
+ 	ByteOrder  binary.ByteOrder
+ 	Name       string
+ 	Thechar    int
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index f858bb3017..67057f09df 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -948,7 +948,6 @@ loop:
+ }
+ 
+ var Linkppc64 = obj.LinkArch{
+-	Rconv:      Rconv,
+ 	ByteOrder:  binary.BigEndian,
+ 	Pconv:      Pconv,
+ 	Name:       "ppc64",
+@@ -963,7 +962,6 @@ var Linkppc64 = obj.LinkArch{
+ }
+ 
+ var Linkppc64le = obj.LinkArch{
+-	Rconv:      Rconv,
+ 	ByteOrder:  binary.LittleEndian,
+ 	Pconv:      Pconv,
+ 	Name:       "ppc64le",
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 86bebe073d..434a120bd6 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -1134,7 +1134,6 @@ var unaryDst = map[int]bool{
+ }
+ 
+ var Linkamd64 = obj.LinkArch{
+-	Rconv:      Rconv,
+ 	ByteOrder:  binary.LittleEndian,
+ 	Pconv:      Pconv,
+ 	Name:       "amd64",
+@@ -1150,7 +1149,6 @@ var Linkamd64 = obj.LinkArch{
+ }
+ 
+ var Linkamd64p32 = obj.LinkArch{
+-	Rconv:      Rconv,
+ 	ByteOrder:  binary.LittleEndian,
+ 	Pconv:      Pconv,
+ 	Name:       "amd64p32",

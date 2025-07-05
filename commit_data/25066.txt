@@ -10,7 +10,7 @@ Date:   Thu Sep 17 16:54:15 2015 -0700
     Change-Id: I71b9b73f4f1ebce1220fdc1e7b7f65cfcf4b7bae
     Reviewed-on: https://go-review.googlesource.com/14726
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 26 ++++++---------------
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |  2 --
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  2 --
@@ -18,3 +18,210 @@ Date:   Thu Sep 17 16:54:15 2015 -0700
  src/cmd/compile/internal/ssa/opGen.go          | 20 ----------------
  src/cmd/compile/internal/ssa/rewriteAMD64.go   | 32 --------------------------
  6 files changed, 9 insertions(+), 79 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 4b71d1f880..b9da5eda7c 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2312,7 +2312,7 @@ func (s *state) boundsCheck(idx, len *ssa.Value) {
+ 
+ 	// bounds check
+ 	cmp := s.newValue2(ssa.OpIsInBounds, Types[TBOOL], idx, len)
+-	s.check(cmp, ssa.OpPanicIndexCheck)
++	s.check(cmp, Panicindex)
+ }
+ 
+ // sliceBoundsCheck generates slice bounds checking code.  Checks if 0 <= idx <= len, branches to exit if not.
+@@ -2326,11 +2326,11 @@ func (s *state) sliceBoundsCheck(idx, len *ssa.Value) {
+ 
+ 	// bounds check
+ 	cmp := s.newValue2(ssa.OpIsSliceInBounds, Types[TBOOL], idx, len)
+-	s.check(cmp, ssa.OpPanicSliceCheck)
++	s.check(cmp, panicslice)
+ }
+ 
+-// If cmp (a bool) is true, panic using the given op.
+-func (s *state) check(cmp *ssa.Value, panicOp ssa.Op) {
++// If cmp (a bool) is true, panic using the given function.
++func (s *state) check(cmp *ssa.Value, fn *Node) {
+ 	b := s.endBlock()
+ 	b.Kind = ssa.BlockIf
+ 	b.Control = cmp
+@@ -2340,12 +2340,10 @@ func (s *state) check(cmp *ssa.Value, panicOp ssa.Op) {
+ 	b.AddEdgeTo(bNext)
+ 	b.AddEdgeTo(bPanic)
+ 	s.startBlock(bPanic)
+-	// The panic check takes/returns memory to ensure that the right
++	// The panic call takes/returns memory to ensure that the right
+ 	// memory state is observed if the panic happens.
+-	chk := s.newValue1(panicOp, ssa.TypeMem, s.mem())
+-	s.endBlock()
+-	bPanic.Kind = ssa.BlockExit
+-	bPanic.Control = chk
++	s.rtcall(fn, false, nil)
++
+ 	s.startBlock(bNext)
+ }
+ 
+@@ -3700,16 +3698,6 @@ func (s *genState) genValue(v *ssa.Value) {
+ 		q.From.Reg = x86.REG_AX
+ 		q.To.Type = obj.TYPE_MEM
+ 		q.To.Reg = r
+-	case ssa.OpAMD64LoweredPanicIndexCheck:
+-		p := Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = Linksym(Panicindex.Sym)
+-	case ssa.OpAMD64LoweredPanicSliceCheck:
+-		p := Prog(obj.ACALL)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = Linksym(panicslice.Sym)
+ 	case ssa.OpAMD64LoweredGetG:
+ 		r := regnum(v)
+ 		// See the comments in cmd/internal/obj/x86/obj6.go
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 26ad70278f..5b83c9781f 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -287,8 +287,6 @@
+ (IsSliceInBounds idx len) -> (SETBE (CMPQ idx len))
+ 
+ (PanicNilCheck ptr mem) -> (LoweredPanicNilCheck ptr mem)
+-(PanicIndexCheck mem) -> (LoweredPanicIndexCheck mem)
+-(PanicSliceCheck mem) -> (LoweredPanicSliceCheck mem)
+ (GetG) -> (LoweredGetG)
+ 
+ (Move [size] dst src mem) -> (REPMOVSB dst src (MOVQconst <config.Frontend().TypeUInt64()> [size]) mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index b46dbca6c7..79d45e990a 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -403,8 +403,6 @@ func init() {
+ 
+ 		// Pseudo-ops
+ 		{name: "LoweredPanicNilCheck", reg: gp10},
+-		{name: "LoweredPanicIndexCheck"},
+-		{name: "LoweredPanicSliceCheck"},
+ 		{name: "LoweredGetG", reg: gp01},
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 1b9006e4e1..ff63fa880c 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -325,10 +325,8 @@ var genericOps = []opData{
+ 	{name: "IsSliceInBounds", typ: "Bool"}, // 0 <= arg0 <= arg1
+ 
+ 	// Pseudo-ops
+-	{name: "PanicNilCheck"},   // trigger a dereference fault; arg0=nil ptr, arg1=mem, returns mem
+-	{name: "PanicIndexCheck"}, // trigger a bounds check failure, arg0=mem, returns mem
+-	{name: "PanicSliceCheck"}, // trigger a slice bounds check failure, arg0=mem, returns mem
+-	{name: "GetG"},            // runtime.getg() (read g pointer)
++	{name: "PanicNilCheck"}, // trigger a dereference fault; arg0=nil ptr, arg1=mem, returns mem
++	{name: "GetG"},          // runtime.getg() (read g pointer)
+ 
+ 	// Indexing operations
+ 	{name: "ArrayIndex"},   // arg0=array, arg1=index.  Returns a[i]
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 7e17b7d552..8617cf3e62 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -270,8 +270,6 @@ const (
+ 	OpAMD64REPMOVSB
+ 	OpAMD64InvertFlags
+ 	OpAMD64LoweredPanicNilCheck
+-	OpAMD64LoweredPanicIndexCheck
+-	OpAMD64LoweredPanicSliceCheck
+ 	OpAMD64LoweredGetG
+ 
+ 	OpAdd8
+@@ -513,8 +511,6 @@ const (
+ 	OpIsInBounds
+ 	OpIsSliceInBounds
+ 	OpPanicNilCheck
+-	OpPanicIndexCheck
+-	OpPanicSliceCheck
+ 	OpGetG
+ 	OpArrayIndex
+ 	OpPtrIndex
+@@ -3115,14 +3111,6 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
+-	{
+-		name: "LoweredPanicIndexCheck",
+-		reg:  regInfo{},
+-	},
+-	{
+-		name: "LoweredPanicSliceCheck",
+-		reg:  regInfo{},
+-	},
+ 	{
+ 		name: "LoweredGetG",
+ 		reg: regInfo{
+@@ -4088,14 +4076,6 @@ var opcodeTable = [...]opInfo{
+ 		name:    "PanicNilCheck",
+ 		generic: true,
+ 	},
+-	{
+-		name:    "PanicIndexCheck",
+-		generic: true,
+-	},
+-	{
+-		name:    "PanicSliceCheck",
+-		generic: true,
+-	},
+ 	{
+ 		name:    "GetG",
+ 		generic: true,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index d4b13f3b9a..50510d2351 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -6905,22 +6905,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto end6f8a8c559a167d1f0a5901d09a1fb248
+ 	end6f8a8c559a167d1f0a5901d09a1fb248:
+ 		;
+-	case OpPanicIndexCheck:
+-		// match: (PanicIndexCheck mem)
+-		// cond:
+-		// result: (LoweredPanicIndexCheck mem)
+-		{
+-			mem := v.Args[0]
+-			v.Op = OpAMD64LoweredPanicIndexCheck
+-			v.AuxInt = 0
+-			v.Aux = nil
+-			v.resetArgs()
+-			v.AddArg(mem)
+-			return true
+-		}
+-		goto enda5014ba73d3550a5b66424044395c70f
+-	enda5014ba73d3550a5b66424044395c70f:
+-		;
+ 	case OpPanicNilCheck:
+ 		// match: (PanicNilCheck ptr mem)
+ 		// cond:
+@@ -6939,22 +6923,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto enda02b1ad5a6f929b782190145f2c8628b
+ 	enda02b1ad5a6f929b782190145f2c8628b:
+ 		;
+-	case OpPanicSliceCheck:
+-		// match: (PanicSliceCheck mem)
+-		// cond:
+-		// result: (LoweredPanicSliceCheck mem)
+-		{
+-			mem := v.Args[0]
+-			v.Op = OpAMD64LoweredPanicSliceCheck
+-			v.AuxInt = 0
+-			v.Aux = nil
+-			v.resetArgs()
+-			v.AddArg(mem)
+-			return true
+-		}
+-		goto end238ed0074810b55bd2bba7b45cdeed68
+-	end238ed0074810b55bd2bba7b45cdeed68:
+-		;
+ 	case OpRsh16Ux16:
+ 		// match: (Rsh16Ux16 <t> x y)
+ 		// cond:

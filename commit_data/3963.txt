@@ -7,6 +7,23 @@ Date:   Tue Nov 10 17:47:38 2009 -0800
     R=agl, agl1
     CC=golang-dev
     https://golang.org/cl/153048
-
+---
  src/pkg/net/dialgoogle_test.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/dialgoogle_test.go b/src/pkg/net/dialgoogle_test.go
+index 8d8848b04f..192540f669 100644
+--- a/src/pkg/net/dialgoogle_test.go
++++ b/src/pkg/net/dialgoogle_test.go
+@@ -80,6 +80,10 @@ func TestDialGoogle(t *testing.T) {
+ 				preferIPv4 = false;
+ 			}
+ 		}
+-		doDial(t, "tcp6", addr);
++
++		// Only run tcp6 if the kernel will take it.
++		if kernelSupportsIPv6() {
++			doDial(t, "tcp6", addr)
++		}
+ 	}
+ }

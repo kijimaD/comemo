@@ -13,7 +13,34 @@ Date:   Wed May 10 07:04:58 2023 -0400
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Than McIntosh <thanm@google.com>
-
+---
  src/internal/coverage/cformat/fmt_test.go | 2 +-
  src/internal/coverage/cformat/format.go   | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/coverage/cformat/fmt_test.go b/src/internal/coverage/cformat/fmt_test.go
+index 4d6da44286..576ed2c18c 100644
+--- a/src/internal/coverage/cformat/fmt_test.go
++++ b/src/internal/coverage/cformat/fmt_test.go
+@@ -66,7 +66,7 @@ q.go:33.0,40.0 7 2`)
+ 		t.Fatalf("EmitPercent returned %v", err)
+ 	}
+ 	wantPercent := strings.TrimSpace(`
+-my/pack	coverage: 62.5% of statements
++my/pack		coverage: 62.5% of statements
+ `)
+ 	gotPercent := strings.TrimSpace(b2.String())
+ 	if wantPercent != gotPercent {
+diff --git a/src/internal/coverage/cformat/format.go b/src/internal/coverage/cformat/format.go
+index a8276ff124..0e1d8caf99 100644
+--- a/src/internal/coverage/cformat/format.go
++++ b/src/internal/coverage/cformat/format.go
+@@ -218,7 +218,7 @@ func (fm *Formatter) EmitPercent(w io.Writer, covpkgs string, noteEmpty bool) er
+ 				coveredStmts += nx
+ 			}
+ 		}
+-		if _, err := fmt.Fprintf(w, "\t%s\t", importpath); err != nil {
++		if _, err := fmt.Fprintf(w, "\t%s\t\t", importpath); err != nil {
+ 			return err
+ 		}
+ 		if totalStmts == 0 {

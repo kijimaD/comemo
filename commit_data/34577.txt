@@ -9,6 +9,27 @@ Date:   Wed Nov 1 13:38:05 2017 -0700
     Change-Id: Ib03ee9dbe1b44c2fecd51f2f2c23a88482158e7e
     Reviewed-on: https://go-review.googlesource.com/75250
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/os/file.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index d842ce6ef0..542b07447f 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -60,12 +60,13 @@ var (
+ )
+ 
+ // Flags to OpenFile wrapping those of the underlying system. Not all
+-// flags may be implemented on a given system. Each call to OpenFile
+-// should specify exactly one of O_RDONLY, O_WRONLY, or O_RDWR.
++// flags may be implemented on a given system.
+ const (
++	// Exactly one of O_RDONLY, O_WRONLY, or O_RDWR must be specified.
+ 	O_RDONLY int = syscall.O_RDONLY // open the file read-only.
+ 	O_WRONLY int = syscall.O_WRONLY // open the file write-only.
+ 	O_RDWR   int = syscall.O_RDWR   // open the file read-write.
++	// The remaining values may be or'ed in to control behavior.
+ 	O_APPEND int = syscall.O_APPEND // append data to the file when writing.
+ 	O_CREATE int = syscall.O_CREAT  // create a new file if none exists.
+ 	O_EXCL   int = syscall.O_EXCL   // used with O_CREATE, file must not exist.

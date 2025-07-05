@@ -10,8 +10,84 @@ Date:   Thu Dec 16 16:55:26 2010 -0800
     R=gri, rsc
     CC=golang-dev
     https://golang.org/cl/3728041
-
+---
  src/pkg/regexp/all_test.go  | 12 ++++++++++++
  src/pkg/regexp/find_test.go |  6 +++++-
  src/pkg/regexp/regexp.go    | 17 +++++++++++++++++
  3 files changed, 34 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/regexp/all_test.go b/src/pkg/regexp/all_test.go
+index d5a0e7da6a..5b614de163 100644
+--- a/src/pkg/regexp/all_test.go
++++ b/src/pkg/regexp/all_test.go
+@@ -269,6 +269,18 @@ func TestQuoteMeta(t *testing.T) {
+ 	}
+ }
+ 
++func TestHasMeta(t *testing.T) {
++	for _, tc := range quoteMetaTests {
++		// HasMeta should be false if QuoteMeta returns the original string;
++		// true otherwise.
++		quoted := QuoteMeta(tc.pattern)
++		if HasMeta(tc.pattern) != (quoted != tc.pattern) {
++			t.Errorf("HasMeta(`%s`) = %t; want %t",
++				tc.pattern, HasMeta(tc.pattern), quoted != tc.pattern)
++		}
++	}
++}
++
+ type numSubexpCase struct {
+ 	input    string
+ 	expected int
+diff --git a/src/pkg/regexp/find_test.go b/src/pkg/regexp/find_test.go
+index 07f5586f2b..27c5a54f79 100644
+--- a/src/pkg/regexp/find_test.go
++++ b/src/pkg/regexp/find_test.go
+@@ -119,7 +119,11 @@ func build(n int, x ...int) [][]int {
+ 
+ func TestFind(t *testing.T) {
+ 	for _, test := range findTests {
+-		result := MustCompile(test.pat).Find([]byte(test.text))
++		re := MustCompile(test.pat)
++		if re.Expr() != test.pat {
++			t.Errorf("Expr() = `%s`; should be `%s`", re.Expr(), test.pat)
++		}
++		result := re.Find([]byte(test.text))
+ 		switch {
+ 		case len(test.matches) == 0 && len(result) == 0:
+ 			// ok
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index 1728c7ec26..74572383c8 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -599,6 +599,11 @@ Loop:
+ 	re.prefix = string(b)
+ }
+ 
++// Expr returns the source text used to compile the regular expression.
++func (re *Regexp) Expr() string {
++	return re.expr
++}
++
+ // Compile parses a regular expression and returns, if successful, a Regexp
+ // object that can be used to match against text.
+ func Compile(str string) (regexp *Regexp, error os.Error) {
+@@ -998,6 +1003,18 @@ func QuoteMeta(s string) string {
+ 	return string(b[0:j])
+ }
+ 
++// HasMeta returns a boolean indicating whether the string contains
++// any regular expression metacharacters.
++func HasMeta(s string) bool {
++	// A byte loop is correct because all metacharacters are ASCII.
++	for i := 0; i < len(s); i++ {
++		if special(int(s[i])) {
++			return true
++		}
++	}
++	return false
++}
++
+ // Find matches in slice b if b is non-nil, otherwise find matches in string s.
+ func (re *Regexp) allMatches(s string, b []byte, n int, deliver func([]int)) {
+ 	var end int

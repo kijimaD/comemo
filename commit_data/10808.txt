@@ -9,10 +9,154 @@ Date:   Thu Dec 15 11:06:10 2011 -0500
     R=rsc, agl
     CC=golang-dev
     https://golang.org/cl/5477059
-
+---
  src/pkg/exp/ssh/client_auth.go      |  4 ++--
  src/pkg/exp/ssh/client_auth_test.go | 10 +++++-----
  src/pkg/exp/ssh/client_func_test.go |  2 +-
  src/pkg/exp/ssh/server.go           | 12 ++++++------
  src/pkg/exp/ssh/session_test.go     |  2 +-
  5 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/exp/ssh/client_auth.go b/src/pkg/exp/ssh/client_auth.go
+index 1a382357b4..3a7e9fb980 100644
+--- a/src/pkg/exp/ssh/client_auth.go
++++ b/src/pkg/exp/ssh/client_auth.go
+@@ -283,8 +283,8 @@ func (p *publickeyAuth) method() string {
+ 	return "publickey"
+ }
+ 
+-// ClientAuthPublickey returns a ClientAuth using public key authentication.
+-func ClientAuthPublickey(impl ClientKeyring) ClientAuth {
++// ClientAuthKeyring returns a ClientAuth using public key authentication.
++func ClientAuthKeyring(impl ClientKeyring) ClientAuth {
+ 	return &publickeyAuth{impl}
+ }
+ 
+diff --git a/src/pkg/exp/ssh/client_auth_test.go b/src/pkg/exp/ssh/client_auth_test.go
+index 2b89e9728c..c41a93b5c7 100644
+--- a/src/pkg/exp/ssh/client_auth_test.go
++++ b/src/pkg/exp/ssh/client_auth_test.go
+@@ -122,7 +122,7 @@ var (
+ 		PasswordCallback: func(user, pass string) bool {
+ 			return user == "testuser" && pass == string(clientPassword)
+ 		},
+-		PubKeyCallback: func(user, algo string, pubkey []byte) bool {
++		PublicKeyCallback: func(user, algo string, pubkey []byte) bool {
+ 			key := clientKeychain.keys[0].(*rsa.PrivateKey).PublicKey
+ 			expected := []byte(serializePublickey(key))
+ 			algoname := algoName(key)
+@@ -179,7 +179,7 @@ func TestClientAuthPublickey(t *testing.T) {
+ 	config := &ClientConfig{
+ 		User: "testuser",
+ 		Auth: []ClientAuth{
+-			ClientAuthPublickey(clientKeychain),
++			ClientAuthKeyring(clientKeychain),
+ 		},
+ 	}
+ 	c, err := Dial("tcp", newMockAuthServer(t), config)
+@@ -210,7 +210,7 @@ func TestClientAuthWrongPassword(t *testing.T) {
+ 		User: "testuser",
+ 		Auth: []ClientAuth{
+ 			ClientAuthPassword(wrongPw),
+-			ClientAuthPublickey(clientKeychain),
++			ClientAuthKeyring(clientKeychain),
+ 		},
+ 	}
+ 
+@@ -228,7 +228,7 @@ func TestClientAuthInvalidPublickey(t *testing.T) {
+ 	config := &ClientConfig{
+ 		User: "testuser",
+ 		Auth: []ClientAuth{
+-			ClientAuthPublickey(kc),
++			ClientAuthKeyring(kc),
+ 		},
+ 	}
+ 
+@@ -246,7 +246,7 @@ func TestClientAuthRSAandDSA(t *testing.T) {
+ 	config := &ClientConfig{
+ 		User: "testuser",
+ 		Auth: []ClientAuth{
+-			ClientAuthPublickey(kc),
++			ClientAuthKeyring(kc),
+ 		},
+ 	}
+ 	c, err := Dial("tcp", newMockAuthServer(t), config)
+diff --git a/src/pkg/exp/ssh/client_func_test.go b/src/pkg/exp/ssh/client_func_test.go
+index 24e3a6334e..b4bdba9539 100644
+--- a/src/pkg/exp/ssh/client_func_test.go
++++ b/src/pkg/exp/ssh/client_func_test.go
+@@ -50,7 +50,7 @@ func TestFuncPublickeyAuth(t *testing.T) {
+ 	config := &ClientConfig{
+ 		User: *sshuser,
+ 		Auth: []ClientAuth{
+-			ClientAuthPublickey(kc),
++			ClientAuthKeyring(kc),
+ 		},
+ 	}
+ 	conn, err := Dial("tcp", "localhost:22", config)
+diff --git a/src/pkg/exp/ssh/server.go b/src/pkg/exp/ssh/server.go
+index 1eee9a4a97..31011c6617 100644
+--- a/src/pkg/exp/ssh/server.go
++++ b/src/pkg/exp/ssh/server.go
+@@ -36,10 +36,10 @@ type ServerConfig struct {
+ 	// several goroutines.
+ 	PasswordCallback func(user, password string) bool
+ 
+-	// PubKeyCallback, if non-nil, is called when a client attempts public
++	// PublicKeyCallback, if non-nil, is called when a client attempts public
+ 	// key authentication. It must return true iff the given public key is
+ 	// valid for the given user.
+-	PubKeyCallback func(user, algo string, pubkey []byte) bool
++	PublicKeyCallback func(user, algo string, pubkey []byte) bool
+ 
+ 	// Cryptographic-related configuration.
+ 	Crypto CryptoConfig
+@@ -359,7 +359,7 @@ func isAcceptableAlgo(algo string) bool {
+ 
+ // testPubKey returns true if the given public key is acceptable for the user.
+ func (s *ServerConn) testPubKey(user, algo string, pubKey []byte) bool {
+-	if s.config.PubKeyCallback == nil || !isAcceptableAlgo(algo) {
++	if s.config.PublicKeyCallback == nil || !isAcceptableAlgo(algo) {
+ 		return false
+ 	}
+ 
+@@ -369,7 +369,7 @@ func (s *ServerConn) testPubKey(user, algo string, pubKey []byte) bool {
+ 		}
+ 	}
+ 
+-	result := s.config.PubKeyCallback(user, algo, pubKey)
++	result := s.config.PublicKeyCallback(user, algo, pubKey)
+ 	if len(s.cachedPubKeys) < maxCachedPubKeys {
+ 		c := cachedPubKey{
+ 			user:   user,
+@@ -425,7 +425,7 @@ userAuthLoop:
+ 				break userAuthLoop
+ 			}
+ 		case "publickey":
+-			if s.config.PubKeyCallback == nil {
++			if s.config.PublicKeyCallback == nil {
+ 				break
+ 			}
+ 			payload := userAuthReq.Payload
+@@ -499,7 +499,7 @@ userAuthLoop:
+ 		if s.config.PasswordCallback != nil {
+ 			failureMsg.Methods = append(failureMsg.Methods, "password")
+ 		}
+-		if s.config.PubKeyCallback != nil {
++		if s.config.PublicKeyCallback != nil {
+ 			failureMsg.Methods = append(failureMsg.Methods, "publickey")
+ 		}
+ 
+diff --git a/src/pkg/exp/ssh/session_test.go b/src/pkg/exp/ssh/session_test.go
+index a28ead0873..2882620b0b 100644
+--- a/src/pkg/exp/ssh/session_test.go
++++ b/src/pkg/exp/ssh/session_test.go
+@@ -20,7 +20,7 @@ func dial(handler serverType, t *testing.T) *ClientConn {
+ 	serverConfig.PasswordCallback = func(user, pass string) bool {
+ 		return user == "testuser" && pass == string(pw)
+ 	}
+-	serverConfig.PubKeyCallback = nil
++	serverConfig.PublicKeyCallback = nil
+ 
+ 	l, err := Listen("tcp", "127.0.0.1:0", serverConfig)
+ 	if err != nil {

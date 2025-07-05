@@ -7,6 +7,20 @@ Date:   Wed Dec 21 08:28:54 2011 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5489097
-
+---
  misc/dashboard/builder/main.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index 85bbe9686e..6e571ad35c 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -52,7 +52,7 @@ type Builder struct {
+ var (
+ 	buildroot     = flag.String("buildroot", path.Join(os.TempDir(), "gobuilder"), "Directory under which to build")
+ 	commitFlag    = flag.Bool("commit", false, "upload information about new commits")
+-	dashboard     = flag.String("dashboard", "godashboard.appspot.com", "Go Dashboard Host")
++	dashboard     = flag.String("dashboard", "go-build.appspot.com", "Go Dashboard Host")
+ 	buildRelease  = flag.Bool("release", false, "Build and upload binary release archives")
+ 	buildRevision = flag.String("rev", "", "Build specified revision and exit")
+ 	buildCmd      = flag.String("cmd", "./all.bash", "Build command (specify absolute or relative to go/src/)")

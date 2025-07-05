@@ -16,7 +16,7 @@ Date:   Wed Jun 8 10:52:19 2022 -0500
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/cgo/gcc_mmap.c      |  2 +-
  src/runtime/cgo/mmap.go         |  2 +-
  src/runtime/cgo_mmap.go         |  2 +-
@@ -24,3 +24,129 @@ Date:   Wed Jun 8 10:52:19 2022 -0500
  src/runtime/msan/msan.go        |  2 +-
  src/runtime/sys_freebsd_amd64.s | 35 +++++++++++++++++++++++++++++++++--
  6 files changed, 38 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/cgo/gcc_mmap.c b/src/runtime/cgo/gcc_mmap.c
+index 698a7e3cd2..83d857f0d1 100644
+--- a/src/runtime/cgo/gcc_mmap.c
++++ b/src/runtime/cgo/gcc_mmap.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux,amd64 linux,arm64 linux,ppc64le
++// +build linux,amd64 linux,arm64 linux,ppc64le freebsd,amd64
+ 
+ #include <errno.h>
+ #include <stdint.h>
+diff --git a/src/runtime/cgo/mmap.go b/src/runtime/cgo/mmap.go
+index eae0a9e7cc..2f7e83bcb7 100644
+--- a/src/runtime/cgo/mmap.go
++++ b/src/runtime/cgo/mmap.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (linux && amd64) || (linux && arm64)
++//go:build (linux && amd64) || (linux && arm64) || (freebsd && amd64)
+ 
+ package cgo
+ 
+diff --git a/src/runtime/cgo_mmap.go b/src/runtime/cgo_mmap.go
+index 4cb3e65f14..30660f7784 100644
+--- a/src/runtime/cgo_mmap.go
++++ b/src/runtime/cgo_mmap.go
+@@ -4,7 +4,7 @@
+ 
+ // Support for memory sanitizer. See runtime/cgo/mmap.go.
+ 
+-//go:build (linux && amd64) || (linux && arm64)
++//go:build (linux && amd64) || (linux && arm64) || (freebsd && amd64)
+ 
+ package runtime
+ 
+diff --git a/src/runtime/mmap.go b/src/runtime/mmap.go
+index 3280a62e8d..f0183f61cf 100644
+--- a/src/runtime/mmap.go
++++ b/src/runtime/mmap.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !aix && !darwin && !js && (!linux || !amd64) && (!linux || !arm64) && !openbsd && !plan9 && !solaris && !windows
++//go:build !aix && !darwin && !js && (!linux || !amd64) && (!linux || !arm64) && (!freebsd || !amd64) && !openbsd && !plan9 && !solaris && !windows
+ 
+ package runtime
+ 
+diff --git a/src/runtime/msan/msan.go b/src/runtime/msan/msan.go
+index f1bf4e1065..4e41f8528d 100644
+--- a/src/runtime/msan/msan.go
++++ b/src/runtime/msan/msan.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build msan && linux && (amd64 || arm64)
++//go:build msan && ((linux && (amd64 || arm64)) || (freebsd && amd64))
+ 
+ package msan
+ 
+diff --git a/src/runtime/sys_freebsd_amd64.s b/src/runtime/sys_freebsd_amd64.s
+index 35311398da..c266d73ea2 100644
+--- a/src/runtime/sys_freebsd_amd64.s
++++ b/src/runtime/sys_freebsd_amd64.s
+@@ -385,7 +385,7 @@ sigtrampnog:
+ 	MOVQ	_cgo_callers(SB), AX
+ 	JMP	AX
+ 
+-TEXT runtime·mmap(SB),NOSPLIT,$0
++TEXT runtime·sysMmap(SB),NOSPLIT,$0
+ 	MOVQ	addr+0(FP), DI		// arg 1 addr
+ 	MOVQ	n+8(FP), SI		// arg 2 len
+ 	MOVL	prot+16(FP), DX		// arg 3 prot
+@@ -403,7 +403,25 @@ ok:
+ 	MOVQ	$0, err+40(FP)
+ 	RET
+ 
+-TEXT runtime·munmap(SB),NOSPLIT,$0
++// Call the function stored in _cgo_mmap using the GCC calling convention.
++// This must be called on the system stack.
++TEXT runtime·callCgoMmap(SB),NOSPLIT,$16
++	MOVQ	addr+0(FP), DI
++	MOVQ	n+8(FP), SI
++	MOVL	prot+16(FP), DX
++	MOVL	flags+20(FP), CX
++	MOVL	fd+24(FP), R8
++	MOVL	off+28(FP), R9
++	MOVQ	_cgo_mmap(SB), AX
++	MOVQ	SP, BX
++	ANDQ	$~15, SP	// alignment as per amd64 psABI
++	MOVQ	BX, 0(SP)
++	CALL	AX
++	MOVQ	0(SP), SP
++	MOVQ	AX, ret+32(FP)
++	RET
++
++TEXT runtime·sysMunmap(SB),NOSPLIT,$0
+ 	MOVQ	addr+0(FP), DI		// arg 1 addr
+ 	MOVQ	n+8(FP), SI		// arg 2 len
+ 	MOVL	$SYS_munmap, AX
+@@ -412,6 +430,19 @@ TEXT runtime·munmap(SB),NOSPLIT,$0
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
++// Call the function stored in _cgo_munmap using the GCC calling convention.
++// This must be called on the system stack.
++TEXT runtime·callCgoMunmap(SB),NOSPLIT,$16-16
++	MOVQ	addr+0(FP), DI
++	MOVQ	n+8(FP), SI
++	MOVQ	_cgo_munmap(SB), AX
++	MOVQ	SP, BX
++	ANDQ	$~15, SP	// alignment as per amd64 psABI
++	MOVQ	BX, 0(SP)
++	CALL	AX
++	MOVQ	0(SP), SP
++	RET
++
+ TEXT runtime·madvise(SB),NOSPLIT,$0
+ 	MOVQ	addr+0(FP), DI
+ 	MOVQ	n+8(FP), SI

@@ -29,10 +29,149 @@ Date:   Fri Sep 8 16:21:17 2023 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/const.go     |  5 +++++
  src/cmd/compile/internal/noder/codes.go  |  3 +++
  src/cmd/compile/internal/noder/reader.go | 20 +++++++++++++++++++
  src/cmd/compile/internal/noder/writer.go | 33 ++++++++++++++++++++++++++++++++
  test/fixedbugs/issue62515.go             | 27 ++++++++++++++++++++++++++
  5 files changed, 88 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ir/const.go b/src/cmd/compile/internal/ir/const.go
+index 74e55511e4..e297671449 100644
+--- a/src/cmd/compile/internal/ir/const.go
++++ b/src/cmd/compile/internal/ir/const.go
+@@ -29,6 +29,11 @@ func NewString(pos src.XPos, s string) Node {
+ 	return NewBasicLit(pos, types.UntypedString, constant.MakeString(s))
+ }
+ 
++// NewUintptr returns an OLITERAL representing v as a uintptr.
++func NewUintptr(pos src.XPos, v int64) Node {
++	return NewBasicLit(pos, types.Types[types.TUINTPTR], constant.MakeInt64(v))
++}
++
+ // NewOne returns an OLITERAL representing 1 with the given type.
+ func NewOne(pos src.XPos, typ *types.Type) Node {
+ 	var val constant.Value
+diff --git a/src/cmd/compile/internal/noder/codes.go b/src/cmd/compile/internal/noder/codes.go
+index c1ee8d15c5..764d53e9c5 100644
+--- a/src/cmd/compile/internal/noder/codes.go
++++ b/src/cmd/compile/internal/noder/codes.go
+@@ -55,6 +55,9 @@ const (
+ 	exprConvert
+ 	exprNew
+ 	exprMake
++	exprSizeof
++	exprAlignof
++	exprOffsetof
+ 	exprNil
+ 	exprFuncInst
+ 	exprRecv
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 4b26eb4668..4c7b2e3e51 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -2459,6 +2459,26 @@ func (r *reader) expr() (res ir.Node) {
+ 		typ := r.exprType()
+ 		return typecheck.Expr(ir.NewUnaryExpr(pos, ir.ONEW, typ))
+ 
++	case exprSizeof:
++		return ir.NewUintptr(r.pos(), r.typ().Size())
++
++	case exprAlignof:
++		return ir.NewUintptr(r.pos(), r.typ().Alignment())
++
++	case exprOffsetof:
++		pos := r.pos()
++		typ := r.typ()
++		types.CalcSize(typ)
++
++		var offset int64
++		for i := r.Len(); i >= 0; i-- {
++			field := typ.Field(r.Len())
++			offset += field.Offset
++			typ = field.Type
++		}
++
++		return ir.NewUintptr(pos, offset)
++
+ 	case exprReshape:
+ 		typ := r.typ()
+ 		x := r.expr()
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 044771609d..c9162e880a 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1965,6 +1965,39 @@ func (w *writer) expr(expr syntax.Expr) {
+ 				w.exprType(nil, expr.ArgList[0])
+ 				return
+ 
++			case "Sizeof":
++				assert(len(expr.ArgList) == 1)
++				assert(!expr.HasDots)
++
++				w.Code(exprSizeof)
++				w.pos(expr)
++				w.typ(w.p.typeOf(expr.ArgList[0]))
++				return
++
++			case "Alignof":
++				assert(len(expr.ArgList) == 1)
++				assert(!expr.HasDots)
++
++				w.Code(exprAlignof)
++				w.pos(expr)
++				w.typ(w.p.typeOf(expr.ArgList[0]))
++				return
++
++			case "Offsetof":
++				assert(len(expr.ArgList) == 1)
++				assert(!expr.HasDots)
++				selector := syntax.Unparen(expr.ArgList[0]).(*syntax.SelectorExpr)
++				index := w.p.info.Selections[selector].Index()
++
++				w.Code(exprOffsetof)
++				w.pos(expr)
++				w.typ(deref2(w.p.typeOf(selector.X)))
++				w.Len(len(index) - 1)
++				for _, idx := range index {
++					w.Len(idx)
++				}
++				return
++
+ 			case "append":
+ 				rtype = sliceElem(w.p.typeOf(expr))
+ 			case "copy":
+diff --git a/test/fixedbugs/issue62515.go b/test/fixedbugs/issue62515.go
+new file mode 100644
+index 0000000000..8d9a5800e4
+--- /dev/null
++++ b/test/fixedbugs/issue62515.go
+@@ -0,0 +1,27 @@
++// compile
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Unified frontend generated unnecessary temporaries for expressions
++// within unsafe.Sizeof, etc functions.
++
++package main
++
++import "unsafe"
++
++func F[G int](g G) (uintptr, uintptr, uintptr) {
++	var c chan func() int
++	type s struct {
++		g G
++		x []int
++	}
++	return unsafe.Sizeof(s{g, make([]int, (<-c)())}),
++		unsafe.Alignof(s{g, make([]int, (<-c)())}),
++		unsafe.Offsetof(s{g, make([]int, (<-c)())}.x)
++}
++
++func main() {
++	F(0)
++}

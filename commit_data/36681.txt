@@ -14,6 +14,20 @@ Date:   Fri May 18 10:45:10 2018 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/composite.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/vet/composite.go b/src/cmd/vet/composite.go
+index 965d73753a..861e040aac 100644
+--- a/src/cmd/vet/composite.go
++++ b/src/cmd/vet/composite.go
+@@ -18,7 +18,7 @@ var compositeWhiteList = flag.Bool("compositewhitelist", true, "use composite wh
+ 
+ func init() {
+ 	register("composites",
+-		"check that composite literals used field-keyed elements",
++		"check that composite literals of types from imported packages use field-keyed elements",
+ 		checkUnkeyedLiteral,
+ 		compositeLit)
+ }

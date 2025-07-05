@@ -9,7 +9,7 @@ Date:   Wed Mar 2 17:34:42 2016 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/align.go     |  9 +++------
  src/cmd/compile/internal/gc/closure.go   |  8 ++++----
  src/cmd/compile/internal/gc/const.go     | 15 +++++++--------
@@ -24,3 +24,572 @@ Date:   Wed Mar 2 17:34:42 2016 -0800
  src/cmd/compile/internal/gc/typecheck.go | 26 +++++++++++++-------------
  src/cmd/compile/internal/gc/walk.go      |  4 ++--
  13 files changed, 58 insertions(+), 62 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 3d2d12ec31..03c6a0e936 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -123,15 +123,12 @@ func dowidth(t *Type) {
+ 	}
+ 
+ 	if t.Width == -2 {
+-		lno := int(lineno)
+-		lineno = int32(t.Lineno)
+ 		if !t.Broke {
+ 			t.Broke = true
+-			Yyerror("invalid recursive type %v", t)
++			yyerrorl(int32(t.Lineno), "invalid recursive type %v", t)
+ 		}
+ 
+ 		t.Width = 0
+-		lineno = int32(lno)
+ 		return
+ 	}
+ 
+@@ -144,7 +141,7 @@ func dowidth(t *Type) {
+ 	// defer checkwidth calls until after we're done
+ 	defercalc++
+ 
+-	lno := int(lineno)
++	lno := lineno
+ 	lineno = int32(t.Lineno)
+ 	t.Width = -2
+ 	t.Align = 0
+@@ -320,7 +317,7 @@ func dowidth(t *Type) {
+ 		t.Align = uint8(w)
+ 	}
+ 
+-	lineno = int32(lno)
++	lineno = lno
+ 
+ 	if defercalc == 1 {
+ 		resumecheckwidth()
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 72b5a74f6a..40829d0e31 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -219,7 +219,7 @@ func makeclosure(func_ *Node) *Node {
+ func capturevars(xfunc *Node) {
+ 	var outer *Node
+ 
+-	lno := int(lineno)
++	lno := lineno
+ 	lineno = xfunc.Lineno
+ 
+ 	func_ := xfunc.Func.Closure
+@@ -268,13 +268,13 @@ func capturevars(xfunc *Node) {
+ 		func_.Func.Enter.Append(outer)
+ 	}
+ 
+-	lineno = int32(lno)
++	lineno = lno
+ }
+ 
+ // transformclosure is called in a separate phase after escape analysis.
+ // It transform closure bodies to properly reference captured variables.
+ func transformclosure(xfunc *Node) {
+-	lno := int(lineno)
++	lno := lineno
+ 	lineno = xfunc.Lineno
+ 	func_ := xfunc.Func.Closure
+ 
+@@ -401,7 +401,7 @@ func transformclosure(xfunc *Node) {
+ 		}
+ 	}
+ 
+-	lineno = int32(lno)
++	lineno = lno
+ }
+ 
+ func walkclosure(func_ *Node, init **NodeList) *Node {
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 059f832fa7..ed39dde724 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -630,7 +630,7 @@ func evconst(n *Node) {
+ 
+ 	nr := n.Right
+ 	var rv Val
+-	var lno int
++	var lno int32
+ 	var wr EType
+ 	var v Val
+ 	var norig *Node
+@@ -1104,10 +1104,9 @@ ret:
+ 	n.SetVal(v)
+ 
+ 	// check range.
+-	lno = int(setlineno(n))
+-
++	lno = setlineno(n)
+ 	overflow(v, n.Type)
+-	lineno = int32(lno)
++	lineno = lno
+ 
+ 	// truncate precision for non-ideal float.
+ 	if v.Ctype() == CTFLT && n.Type.Etype != TIDEAL {
+@@ -1258,7 +1257,7 @@ func defaultlit(np **Node, t *Type) {
+ 		*np = n
+ 	}
+ 
+-	lno := int(setlineno(n))
++	lno := setlineno(n)
+ 	ctype := idealkind(n)
+ 	var t1 *Type
+ 	switch ctype {
+@@ -1269,7 +1268,7 @@ func defaultlit(np **Node, t *Type) {
+ 		}
+ 
+ 		if n.Val().Ctype() == CTNIL {
+-			lineno = int32(lno)
++			lineno = lno
+ 			if n.Diag == 0 {
+ 				Yyerror("use of untyped nil")
+ 				n.Diag = 1
+@@ -1314,7 +1313,7 @@ func defaultlit(np **Node, t *Type) {
+ 		goto num
+ 	}
+ 
+-	lineno = int32(lno)
++	lineno = lno
+ 	return
+ 
+ num:
+@@ -1341,7 +1340,7 @@ num:
+ 		overflow(n.Val(), t1)
+ 	}
+ 	Convlit(np, t1)
+-	lineno = int32(lno)
++	lineno = lno
+ 	return
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index da0c4575bf..893fb6bf69 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -755,7 +755,7 @@ func checkembeddedtype(t *Type) {
+ }
+ 
+ func structfield(n *Node) *Type {
+-	lno := int(lineno)
++	lno := lineno
+ 	lineno = n.Lineno
+ 
+ 	if n.Op != ODCLFIELD {
+@@ -802,14 +802,14 @@ func structfield(n *Node) *Type {
+ 		f.Sym = f.Nname.Sym
+ 	}
+ 
+-	lineno = int32(lno)
++	lineno = lno
+ 	return f
+ }
+ 
+ var uniqgen uint32
+ 
+ func checkdupfields(t *Type, what string) {
+-	lno := int(lineno)
++	lno := lineno
+ 
+ 	for ; t != nil; t = t.Down {
+ 		if t.Sym != nil && t.Nname != nil && !isblank(t.Nname) {
+@@ -822,7 +822,7 @@ func checkdupfields(t *Type, what string) {
+ 		}
+ 	}
+ 
+-	lineno = int32(lno)
++	lineno = lno
+ }
+ 
+ // convert a parsed id/type list into
+@@ -888,7 +888,7 @@ func tofunargs(l *NodeList) *Type {
+ }
+ 
+ func interfacefield(n *Node) *Type {
+-	lno := int(lineno)
++	lno := lineno
+ 	lineno = n.Lineno
+ 
+ 	if n.Op != ODCLFIELD {
+@@ -950,7 +950,7 @@ func interfacefield(n *Node) *Type {
+ 		f.Broke = true
+ 	}
+ 
+-	lineno = int32(lno)
++	lineno = lno
+ 	return f
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 30eacc6670..aa74408705 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -602,7 +602,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 		return
+ 	}
+ 
+-	lno := int(setlineno(n))
++	lno := setlineno(n)
+ 
+ 	// ninit logically runs at a different loopdepth than the rest of the for loop.
+ 	esclist(e, n.Ninit, n)
+@@ -944,7 +944,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 		}
+ 	}
+ 
+-	lineno = int32(lno)
++	lineno = lno
+ }
+ 
+ // Assert that expr somehow gets assigned to dst, if non nil.  for
+@@ -1012,7 +1012,7 @@ func escassign(e *EscState, dst *Node, src *Node) {
+ 		dst = &e.theSink
+ 	}
+ 
+-	lno := int(setlineno(src))
++	lno := setlineno(src)
+ 	e.pdepth++
+ 
+ 	switch src.Op {
+@@ -1120,7 +1120,7 @@ func escassign(e *EscState, dst *Node, src *Node) {
+ 	}
+ 
+ 	e.pdepth--
+-	lineno = int32(lno)
++	lineno = lno
+ }
+ 
+ // Common case for escapes is 16 bits 000000000xxxEEEE
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 13fac83875..92ee2aed14 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -162,7 +162,7 @@ func checkgoto(from *Node, to *Node) {
+ 		fs = fs.Link
+ 	}
+ 	if fs != to.Sym {
+-		lno := int(lineno)
++		lno := lineno
+ 		setlineno(from)
+ 
+ 		// decide what to complain about.
+@@ -196,7 +196,7 @@ func checkgoto(from *Node, to *Node) {
+ 		} else {
+ 			Yyerror("goto %v jumps over declaration of %v at %v", from.Left.Sym, dcl, linestr(dcl.Lastlineno))
+ 		}
+-		lineno = int32(lno)
++		lineno = lno
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 88a19f9015..5071d3e495 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -485,7 +485,7 @@ func orderstmt(n *Node, order *Order) {
+ 		return
+ 	}
+ 
+-	lno := int(setlineno(n))
++	lno := setlineno(n)
+ 
+ 	orderinit(n, order)
+ 
+@@ -975,7 +975,7 @@ func orderstmt(n *Node, order *Order) {
+ 		cleantemp(t, order)
+ 	}
+ 
+-	lineno = int32(lno)
++	lineno = lno
+ }
+ 
+ // Orderexprlist orders the expression list l into order.
+@@ -1007,7 +1007,7 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
+ 		return
+ 	}
+ 
+-	lno := int(setlineno(n))
++	lno := setlineno(n)
+ 	orderinit(n, order)
+ 
+ 	switch n.Op {
+@@ -1218,7 +1218,7 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
+ 		}
+ 	}
+ 
+-	lineno = int32(lno)
++	lineno = lno
+ 
+ 	*np = n
+ }
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index 2270d71621..b6fd388b0a 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -143,7 +143,7 @@ func walkrange(n *Node) {
+ 	t := n.Type
+ 
+ 	a := n.Right
+-	lno := int(setlineno(a))
++	lno := setlineno(a)
+ 	n.Right = nil
+ 
+ 	var v1 *Node
+@@ -167,7 +167,7 @@ func walkrange(n *Node) {
+ 
+ 	case TARRAY:
+ 		if memclrrange(n, v1, v2, a) {
+-			lineno = int32(lno)
++			lineno = lno
+ 			return
+ 		}
+ 
+@@ -323,7 +323,7 @@ func walkrange(n *Node) {
+ 	n.Nbody.Set(append(body, n.Nbody.Slice()...))
+ 	walkstmt(&n)
+ 
+-	lineno = int32(lno)
++	lineno = lno
+ }
+ 
+ // Lower n into runtime·memclr if possible, for
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index 0243947500..5c3eea8efb 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -10,7 +10,7 @@ func typecheckselect(sel *Node) {
+ 	var n *Node
+ 
+ 	var def *Node
+-	lno := int(setlineno(sel))
++	lno := setlineno(sel)
+ 	count := 0
+ 	typechecklist(sel.Ninit, Etop)
+ 	for l := sel.List; l != nil; l = l.Next {
+@@ -83,7 +83,7 @@ func typecheckselect(sel *Node) {
+ 	}
+ 
+ 	sel.Xoffset = int64(count)
+-	lineno = int32(lno)
++	lineno = lno
+ }
+ 
+ func walkselect(sel *Node) {
+@@ -91,7 +91,7 @@ func walkselect(sel *Node) {
+ 		Fatalf("double walkselect") // already rewrote
+ 	}
+ 
+-	lno := int(setlineno(sel))
++	lno := setlineno(sel)
+ 	i := count(sel.List)
+ 
+ 	// optimization: zero-case select
+@@ -322,7 +322,7 @@ func walkselect(sel *Node) {
+ out:
+ 	sel.List = nil
+ 	walkstmtslice(sel.Nbody.Slice())
+-	lineno = int32(lno)
++	lineno = lno
+ }
+ 
+ // Keep in sync with src/runtime/runtime2.go and src/runtime/select.go.
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index bee045f567..c3b2b66b62 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -246,9 +246,9 @@ func initreorder(l *NodeList, out *[]*Node) {
+ func initfix(l *NodeList) []*Node {
+ 	var lout []*Node
+ 	initplans = make(map[*Node]*InitPlan)
+-	lno := int(lineno)
++	lno := lineno
+ 	initreorder(l, &lout)
+-	lineno = int32(lno)
++	lineno = lno
+ 	initplans = nil
+ 	return lout
+ }
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 7ad66c3e70..1835642b95 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -58,7 +58,7 @@ type caseClause struct {
+ 
+ // typecheckswitch typechecks a switch statement.
+ func typecheckswitch(n *Node) {
+-	lno := int(lineno)
++	lno := lineno
+ 	typechecklist(n.Ninit, Etop)
+ 
+ 	var nilonly string
+@@ -184,7 +184,7 @@ func typecheckswitch(n *Node) {
+ 		typecheckslice(ncase.Nbody.Slice(), Etop)
+ 	}
+ 
+-	lineno = int32(lno)
++	lineno = lno
+ }
+ 
+ // walkswitch walks a switch statement.
+@@ -290,7 +290,7 @@ func (s *exprSwitch) walkCases(cc []*caseClause) *Node {
+ 		var cas *NodeList
+ 		for _, c := range cc {
+ 			n := c.node
+-			lno := int(setlineno(n))
++			lno := setlineno(n)
+ 
+ 			a := Nod(OIF, nil, nil)
+ 			if (s.kind != switchKindTrue && s.kind != switchKindFalse) || assignop(n.Left.Type, s.exprname.Type, nil) == OCONVIFACE || assignop(s.exprname.Type, n.Left.Type, nil) == OCONVIFACE {
+@@ -306,7 +306,7 @@ func (s *exprSwitch) walkCases(cc []*caseClause) *Node {
+ 			a.Nbody.Set([]*Node{n.Right}) // goto l
+ 
+ 			cas = list(cas, a)
+-			lineno = int32(lno)
++			lineno = lno
+ 		}
+ 		return liststmt(cas)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 05a1b26f74..17ea693d31 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -122,7 +122,7 @@ func typecheck(np **Node, top int) *Node {
+ 		return nil
+ 	}
+ 
+-	lno := int(setlineno(n))
++	lno := setlineno(n)
+ 
+ 	// Skip over parens.
+ 	for n.Op == OPAREN {
+@@ -142,7 +142,7 @@ func typecheck(np **Node, top int) *Node {
+ 			break
+ 
+ 		default:
+-			lineno = int32(lno)
++			lineno = lno
+ 			return n
+ 		}
+ 	}
+@@ -176,7 +176,7 @@ func typecheck(np **Node, top int) *Node {
+ 			Yyerror("typechecking loop involving %v%s", n, fmt_)
+ 		}
+ 
+-		lineno = int32(lno)
++		lineno = lno
+ 		return n
+ 	}
+ 
+@@ -192,7 +192,7 @@ func typecheck(np **Node, top int) *Node {
+ 	typecheck_tcstack[last] = nil
+ 	typecheck_tcstack = typecheck_tcstack[:last]
+ 
+-	lineno = int32(lno)
++	lineno = lno
+ 	return n
+ }
+ 
+@@ -2612,7 +2612,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl *NodeList, d
+ 	var n1 int
+ 	var n2 int
+ 
+-	lno := int(lineno)
++	lno := lineno
+ 
+ 	if tstruct.Broke {
+ 		goto out
+@@ -2749,7 +2749,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl *NodeList, d
+ 	}
+ 
+ out:
+-	lineno = int32(lno)
++	lineno = lno
+ 	return
+ 
+ notenough:
+@@ -3552,7 +3552,7 @@ func copytype(n *Node, t *Type) {
+ 	}
+ 
+ 	// Double-check use of type as embedded type.
+-	lno := int(lineno)
++	lno := lineno
+ 
+ 	if embedlineno != 0 {
+ 		lineno = int32(embedlineno)
+@@ -3561,7 +3561,7 @@ func copytype(n *Node, t *Type) {
+ 		}
+ 	}
+ 
+-	lineno = int32(lno)
++	lineno = lno
+ 
+ 	// Queue check for map until all the types are done settling.
+ 	if maplineno != 0 {
+@@ -3572,7 +3572,7 @@ func copytype(n *Node, t *Type) {
+ 
+ func typecheckdeftype(n *Node) {
+ 	ntypecheckdeftype++
+-	lno := int(lineno)
++	lno := lineno
+ 	setlineno(n)
+ 	n.Type.Sym = n.Sym
+ 	n.Typecheck = 1
+@@ -3596,7 +3596,7 @@ func typecheckdeftype(n *Node) {
+ 	copytype(n, t)
+ 
+ ret:
+-	lineno = int32(lno)
++	lineno = lno
+ 
+ 	// if there are no type definitions going on, it's safe to
+ 	// try to resolve the method types for the interfaces
+@@ -3619,7 +3619,7 @@ ret:
+ 			maptype(l.N.Type, Types[TBOOL])
+ 		}
+ 
+-		lineno = int32(lno)
++		lineno = lno
+ 	}
+ 
+ 	ntypecheckdeftype--
+@@ -3635,7 +3635,7 @@ func queuemethod(n *Node) {
+ }
+ 
+ func typecheckdef(n *Node) *Node {
+-	lno := int(lineno)
++	lno := lineno
+ 	setlineno(n)
+ 
+ 	if n.Op == ONONAME {
+@@ -3806,7 +3806,7 @@ ret:
+ 	typecheckdefstack[last] = nil
+ 	typecheckdefstack = typecheckdefstack[:last]
+ 
+-	lineno = int32(lno)
++	lineno = lno
+ 	n.Walkdef = 1
+ 	return n
+ }
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index f72176b6c9..2abc8df43c 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -25,7 +25,7 @@ func walk(fn *Node) {
+ 		dumpslice(s, Curfn.Nbody.Slice())
+ 	}
+ 
+-	lno := int(lineno)
++	lno := lineno
+ 
+ 	// Final typecheck for any unused variables.
+ 	// It's hard to be on the heap when not-used, but best to be consistent about &~PHEAP here and below.
+@@ -60,7 +60,7 @@ func walk(fn *Node) {
+ 		}
+ 	}
+ 
+-	lineno = int32(lno)
++	lineno = lno
+ 	if nerrors != 0 {
+ 		return
+ 	}

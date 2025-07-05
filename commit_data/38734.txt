@@ -12,7 +12,33 @@ Date:   Wed Nov 7 15:14:20 2018 -0800
     Change-Id: I98655c62584a822953df71fba32b4a2cafe7a04b
     Reviewed-on: https://go-review.googlesource.com/c/148835
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/semver/semver.go      | 2 +-
  src/cmd/go/internal/semver/semver_test.go | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/semver/semver.go b/src/cmd/go/internal/semver/semver.go
+index 4af7118e55..122e612dd4 100644
+--- a/src/cmd/go/internal/semver/semver.go
++++ b/src/cmd/go/internal/semver/semver.go
+@@ -263,7 +263,7 @@ func parseBuild(v string) (t, rest string, ok bool) {
+ 	i := 1
+ 	start := 1
+ 	for i < len(v) {
+-		if !isIdentChar(v[i]) {
++		if !isIdentChar(v[i]) && v[i] != '.' {
+ 			return
+ 		}
+ 		if v[i] == '.' {
+diff --git a/src/cmd/go/internal/semver/semver_test.go b/src/cmd/go/internal/semver/semver_test.go
+index 96b64a5807..77025a44ab 100644
+--- a/src/cmd/go/internal/semver/semver_test.go
++++ b/src/cmd/go/internal/semver/semver_test.go
+@@ -44,6 +44,7 @@ var tests = []struct {
+ 	{"v1.2.3", "v1.2.3"},
+ 	{"v1.2.3+meta", "v1.2.3"},
+ 	{"v1.2.3+meta-pre", "v1.2.3"},
++	{"v1.2.3+meta-pre.sha.256a", "v1.2.3"},
+ }
+ 
+ func TestIsValid(t *testing.T) {

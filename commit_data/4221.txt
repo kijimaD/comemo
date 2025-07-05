@@ -9,7 +9,208 @@ Date:   Tue Nov 24 17:20:13 2009 -0800
     
     R=rsc
     https://golang.org/cl/157166
-
+---
  src/pkg/container/heap/heap.go      | 30 ++++++++-----
  src/pkg/container/heap/heap_test.go | 90 ++++++++++++++++++++++++++++++++++---
  2 files changed, 103 insertions(+), 17 deletions(-)
+
+diff --git a/src/pkg/container/heap/heap.go b/src/pkg/container/heap/heap.go
+index ecaa7481f6..7a7cb9b803 100644
+--- a/src/pkg/container/heap/heap.go
++++ b/src/pkg/container/heap/heap.go
+@@ -10,10 +10,10 @@ package heap
+ import "sort"
+ 
+ // Any type that implements heap.Interface may be used as a
+-// heap with the following invariants (established after Init
+-// has been called):
++// min-heap with the following invariants (established after
++// Init has been called):
+ //
+-//	h.Less(i, j) for 0 <= i < h.Len() and j = 2*i+1 or 2*i+2 and j < h.Len()
++//	!h.Less(j, i) for 0 <= i < h.Len() and j = 2*i+1 or 2*i+2 and j < h.Len()
+ //
+ type Interface interface {
+ 	sort.Interface;
+@@ -25,9 +25,15 @@ type Interface interface {
+ // A heaper must be initialized before any of the heap operations
+ // can be used. Init is idempotent with respect to the heap invariants
+ // and may be called whenever the heap invariants may have been invalidated.
+-// Its complexity is O(n*log(n)) where n = h.Len().
++// Its complexity is O(n) where n = h.Len().
+ //
+-func Init(h Interface)	{ sort.Sort(h) }
++func Init(h Interface) {
++	// heapify
++	n := h.Len();
++	for i := n/2 - 1; i >= 0; i-- {
++		down(h, i, n)
++	}
++}
+ 
+ 
+ // Push pushes the element x onto the heap. The complexity is
+@@ -41,6 +47,7 @@ func Push(h Interface, x interface{}) {
+ 
+ // Pop removes the minimum element (according to Less) from the heap
+ // and returns it. The complexity is O(log(n)) where n = h.Len().
++// Same as Remove(h, 0).
+ //
+ func Pop(h Interface) interface{} {
+ 	n := h.Len() - 1;
+@@ -56,7 +63,7 @@ func Pop(h Interface) interface{} {
+ func Remove(h Interface, i int) interface{} {
+ 	n := h.Len() - 1;
+ 	if n != i {
+-		h.Swap(n, i);
++		h.Swap(i, n);
+ 		down(h, i, n);
+ 		up(h, i);
+ 	}
+@@ -66,7 +73,7 @@ func Remove(h Interface, i int) interface{} {
+ 
+ func up(h Interface, j int) {
+ 	for {
+-		i := (j - 1) / 2;
++		i := (j - 1) / 2;	// parent
+ 		if i == j || h.Less(i, j) {
+ 			break
+ 		}
+@@ -78,12 +85,13 @@ func up(h Interface, j int) {
+ 
+ func down(h Interface, i, n int) {
+ 	for {
+-		j := 2*i + 1;
+-		if j >= n {
++		j1 := 2*i + 1;
++		if j1 >= n {
+ 			break
+ 		}
+-		if j1 := j + 1; j1 < n && !h.Less(j, j1) {
+-			j = j1	// = 2*i + 2
++		j := j1;	// left child
++		if j2 := j1 + 1; j2 < n && !h.Less(j1, j2) {
++			j = j2	// = 2*i + 2  // right child
+ 		}
+ 		if h.Less(i, j) {
+ 			break
+diff --git a/src/pkg/container/heap/heap_test.go b/src/pkg/container/heap/heap_test.go
+index 12e952f88b..dc13201cd3 100644
+--- a/src/pkg/container/heap/heap_test.go
++++ b/src/pkg/container/heap/heap_test.go
+@@ -11,10 +11,15 @@ import (
+ 
+ 
+ type myHeap struct {
+-	vector.IntVector;
++	// A vector.Vector implements sort.Interface except for Less,
++	// and it implements Push and Pop as required for heap.Interface.
++	vector.Vector;
+ }
+ 
+ 
++func (h *myHeap) Less(i, j int) bool	{ return h.At(i).(int) < h.At(j).(int) }
++
++
+ func (h *myHeap) verify(t *testing.T, i int) {
+ 	n := h.Len();
+ 	j1 := 2*i + 1;
+@@ -36,16 +41,28 @@ func (h *myHeap) verify(t *testing.T, i int) {
+ }
+ 
+ 
+-func (h *myHeap) Push(x interface{})	{ h.IntVector.Push(x.(int)) }
+-
++func TestInit0(t *testing.T) {
++	h := new(myHeap);
++	for i := 20; i > 0; i-- {
++		h.Push(0)	// all elements are the same
++	}
++	Init(h);
++	h.verify(t, 0);
+ 
+-func (h *myHeap) Pop() interface{}	{ return h.IntVector.Pop() }
++	for i := 1; h.Len() > 0; i++ {
++		x := Pop(h).(int);
++		h.verify(t, 0);
++		if x != 0 {
++			t.Errorf("%d.th pop got %d; want %d", i, x, 0)
++		}
++	}
++}
+ 
+ 
+-func TestInit(t *testing.T) {
++func TestInit1(t *testing.T) {
+ 	h := new(myHeap);
+ 	for i := 20; i > 0; i-- {
+-		h.Push(i)
++		h.Push(i)	// all elements are different
+ 	}
+ 	Init(h);
+ 	h.verify(t, 0);
+@@ -86,3 +103,64 @@ func Test(t *testing.T) {
+ 		}
+ 	}
+ }
++
++
++func TestRemove0(t *testing.T) {
++	h := new(myHeap);
++	for i := 0; i < 10; i++ {
++		h.Push(i)
++	}
++	h.verify(t, 0);
++
++	for h.Len() > 0 {
++		i := h.Len() - 1;
++		x := Remove(h, i).(int);
++		if x != i {
++			t.Errorf("Remove(%d) got %d; want %d", i, x, i)
++		}
++		h.verify(t, 0);
++	}
++}
++
++
++func TestRemove1(t *testing.T) {
++	h := new(myHeap);
++	for i := 0; i < 10; i++ {
++		h.Push(i)
++	}
++	h.verify(t, 0);
++
++	for i := 0; h.Len() > 0; i++ {
++		x := Remove(h, 0).(int);
++		if x != i {
++			t.Errorf("Remove(0) got %d; want %d", x, i)
++		}
++		h.verify(t, 0);
++	}
++}
++
++
++func TestRemove2(t *testing.T) {
++	N := 10;
++
++	h := new(myHeap);
++	for i := 0; i < N; i++ {
++		h.Push(i)
++	}
++	h.verify(t, 0);
++
++	m := make(map[int]int);
++	for h.Len() > 0 {
++		m[Remove(h, (h.Len()-1)/2).(int)] = 1;
++		h.verify(t, 0);
++	}
++
++	if len(m) != N {
++		t.Errorf("len(m) = %d; want %d", len(m), N)
++	}
++	for i := 0; i < len(m); i++ {
++		if _, exists := m[i]; !exists {
++			t.Errorf("m[%d] doesn't exist", i)
++		}
++	}
++}

@@ -8,7 +8,7 @@ Date:   Sun Mar 7 20:52:39 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/299670
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/link/dwarf_test.go                    |   7 +-
  src/cmd/link/elf_test.go                      |  18 +---
  src/cmd/link/internal/ld/deadcode_test.go     |   8 +-
@@ -23,3 +23,899 @@ Date:   Sun Mar 7 20:52:39 2021 -0800
  src/cmd/link/link_test.go                     | 129 ++++++--------------------
  src/cmd/link/linkbig_test.go                  |   9 +-
  13 files changed, 75 insertions(+), 279 deletions(-)
+
+diff --git a/src/cmd/link/dwarf_test.go b/src/cmd/link/dwarf_test.go
+index d0284ad4f5..0419613cbe 100644
+--- a/src/cmd/link/dwarf_test.go
++++ b/src/cmd/link/dwarf_test.go
+@@ -10,7 +10,6 @@ import (
+ 	"cmd/internal/objfile"
+ 	"debug/dwarf"
+ 	"internal/testenv"
+-	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path"
+@@ -59,11 +58,7 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string)
+ 		t.Run(prog, func(t *testing.T) {
+ 			t.Parallel()
+ 
+-			tmpDir, err := ioutil.TempDir("", "go-link-TestDWARF")
+-			if err != nil {
+-				t.Fatal(err)
+-			}
+-			defer os.RemoveAll(tmpDir)
++			tmpDir := t.TempDir()
+ 
+ 			exe := filepath.Join(tmpDir, prog+".exe")
+ 			dir := "../../runtime/testdata/" + prog
+diff --git a/src/cmd/link/elf_test.go b/src/cmd/link/elf_test.go
+index b4441297e6..012c0b5169 100644
+--- a/src/cmd/link/elf_test.go
++++ b/src/cmd/link/elf_test.go
+@@ -70,11 +70,7 @@ func TestSectionsWithSameName(t *testing.T) {
+ 		t.Skipf("can't find objcopy: %v", err)
+ 	}
+ 
+-	dir, err := ioutil.TempDir("", "go-link-TestSectionsWithSameName")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	gopath := filepath.Join(dir, "GOPATH")
+ 	env := append(os.Environ(), "GOPATH="+gopath)
+@@ -144,11 +140,7 @@ func TestMinusRSymsWithSameName(t *testing.T) {
+ 	testenv.MustHaveCGO(t)
+ 	t.Parallel()
+ 
+-	dir, err := ioutil.TempDir("", "go-link-TestMinusRSymsWithSameName")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	gopath := filepath.Join(dir, "GOPATH")
+ 	env := append(os.Environ(), "GOPATH="+gopath)
+@@ -271,11 +263,7 @@ func TestPIESize(t *testing.T) {
+ 		t.Run(name, func(t *testing.T) {
+ 			t.Parallel()
+ 
+-			dir, err := ioutil.TempDir("", "go-link-"+name)
+-			if err != nil {
+-				t.Fatal(err)
+-			}
+-			defer os.RemoveAll(dir)
++			dir := t.TempDir()
+ 
+ 			writeGo(t, dir)
+ 
+diff --git a/src/cmd/link/internal/ld/deadcode_test.go b/src/cmd/link/internal/ld/deadcode_test.go
+index b756091613..bd74205a1a 100644
+--- a/src/cmd/link/internal/ld/deadcode_test.go
++++ b/src/cmd/link/internal/ld/deadcode_test.go
+@@ -7,8 +7,6 @@ package ld
+ import (
+ 	"bytes"
+ 	"internal/testenv"
+-	"io/ioutil"
+-	"os"
+ 	"os/exec"
+ 	"path/filepath"
+ 	"testing"
+@@ -18,11 +16,7 @@ func TestDeadcode(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 	t.Parallel()
+ 
+-	tmpdir, err := ioutil.TempDir("", "TestDeadcode")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 
+ 	tests := []struct {
+ 		src      string
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index a66506d392..d16cff911b 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -39,11 +39,7 @@ func TestRuntimeTypesPresent(t *testing.T) {
+ 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+ 	}
+ 
+-	dir, err := ioutil.TempDir("", "TestRuntimeTypesPresent")
+-	if err != nil {
+-		t.Fatalf("could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	f := gobuild(t, dir, `package main; func main() { }`, NoOpt)
+ 	defer f.Close()
+@@ -171,11 +167,7 @@ func main() {
+ 		"main.Baz": {"Foo": true, "name": false},
+ 	}
+ 
+-	dir, err := ioutil.TempDir("", "TestEmbeddedStructMarker")
+-	if err != nil {
+-		t.Fatalf("could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	f := gobuild(t, dir, prog, NoOpt)
+ 
+@@ -255,11 +247,8 @@ func main() {
+ 	y[0] = nil
+ }
+ `
+-	dir, err := ioutil.TempDir("", "TestSizes")
+-	if err != nil {
+-		t.Fatalf("could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
++
+ 	f := gobuild(t, dir, prog, NoOpt)
+ 	defer f.Close()
+ 	d, err := f.DWARF()
+@@ -303,11 +292,7 @@ func main() {
+ 	c <- "foo"
+ }
+ `
+-	dir, err := ioutil.TempDir("", "TestFieldOverlap")
+-	if err != nil {
+-		t.Fatalf("could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	f := gobuild(t, dir, prog, NoOpt)
+ 	defer f.Close()
+@@ -351,13 +336,10 @@ func varDeclCoordsAndSubrogramDeclFile(t *testing.T, testpoint string, expectFil
+ 
+ 	prog := fmt.Sprintf("package main\n%s\nfunc main() {\n\nvar i int\ni = i\n}\n", directive)
+ 
+-	dir, err := ioutil.TempDir("", testpoint)
+-	if err != nil {
+-		t.Fatalf("could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	f := gobuild(t, dir, prog, NoOpt)
++	defer f.Close()
+ 
+ 	d, err := f.DWARF()
+ 	if err != nil {
+@@ -653,11 +635,7 @@ func main() {
+     G = x
+ }
+ `
+-	dir, err := ioutil.TempDir("", "TestInlinedRoutineRecords")
+-	if err != nil {
+-		t.Fatalf("could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	// Note: this is a build with "-l=4", as opposed to "-l -N". The
+ 	// test is intended to verify DWARF that is only generated when
+@@ -665,6 +643,7 @@ func main() {
+ 	// main.main, however, hence we build with "-gcflags=-l=4" as opposed
+ 	// to "-gcflags=all=-l=4".
+ 	f := gobuild(t, dir, prog, OptInl4)
++	defer f.Close()
+ 
+ 	d, err := f.DWARF()
+ 	if err != nil {
+@@ -788,14 +767,11 @@ func main() {
+ func abstractOriginSanity(t *testing.T, pkgDir string, flags string) {
+ 	t.Parallel()
+ 
+-	dir, err := ioutil.TempDir("", "TestAbstractOriginSanity")
+-	if err != nil {
+-		t.Fatalf("could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	// Build with inlining, to exercise DWARF inlining support.
+ 	f := gobuildTestdata(t, dir, filepath.Join(pkgDir, "main"), flags)
++	defer f.Close()
+ 
+ 	d, err := f.DWARF()
+ 	if err != nil {
+@@ -973,13 +949,11 @@ func main() {
+ 	print(p)
+ }
+ `
+-	dir, err := ioutil.TempDir("", "TestRuntimeType")
+-	if err != nil {
+-		t.Fatalf("could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	f := gobuild(t, dir, prog, flags)
++	defer f.Close()
++
+ 	out, err := exec.Command(f.path).CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("could not run test program: %v", err)
+@@ -1043,11 +1017,7 @@ func TestIssue27614(t *testing.T) {
+ 
+ 	t.Parallel()
+ 
+-	dir, err := ioutil.TempDir("", "go-build")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	const prog = `package main
+ 
+@@ -1161,11 +1131,7 @@ func TestStaticTmp(t *testing.T) {
+ 
+ 	t.Parallel()
+ 
+-	dir, err := ioutil.TempDir("", "go-build")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	const prog = `package main
+ 
+@@ -1243,11 +1209,7 @@ func TestPackageNameAttr(t *testing.T) {
+ 
+ 	t.Parallel()
+ 
+-	dir, err := ioutil.TempDir("", "go-build")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	const prog = "package main\nfunc main() {\nprintln(\"hello world\")\n}\n"
+ 
+@@ -1307,14 +1269,10 @@ func TestMachoIssue32233(t *testing.T) {
+ 		t.Skip("skipping; test only interesting on darwin")
+ 	}
+ 
+-	tmpdir, err := ioutil.TempDir("", "TestMachoIssue32233")
+-	if err != nil {
+-		t.Fatalf("could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 
+-	wd, err2 := os.Getwd()
+-	if err2 != nil {
++	wd, err := os.Getwd()
++	if err != nil {
+ 		t.Fatalf("where am I? %v", err)
+ 	}
+ 	pdir := filepath.Join(wd, "testdata", "issue32233", "main")
+@@ -1328,11 +1286,7 @@ func TestWindowsIssue36495(t *testing.T) {
+ 		t.Skip("skipping: test only on windows")
+ 	}
+ 
+-	dir, err := ioutil.TempDir("", "TestEmbeddedStructMarker")
+-	if err != nil {
+-		t.Fatalf("could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	prog := `
+ package main
+@@ -1347,6 +1301,7 @@ func main() {
+ 	if err != nil {
+ 		t.Fatalf("error opening pe file: %v", err)
+ 	}
++	defer exe.Close()
+ 	dw, err := exe.DWARF()
+ 	if err != nil {
+ 		t.Fatalf("error parsing DWARF: %v", err)
+@@ -1397,17 +1352,14 @@ func TestIssue38192(t *testing.T) {
+ 
+ 	// Build a test program that contains a translation unit whose
+ 	// text (from am assembly source) contains only a single instruction.
+-	tmpdir, err := ioutil.TempDir("", "TestIssue38192")
+-	if err != nil {
+-		t.Fatalf("could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 	wd, err := os.Getwd()
+ 	if err != nil {
+ 		t.Fatalf("where am I? %v", err)
+ 	}
+ 	pdir := filepath.Join(wd, "testdata", "issue38192")
+ 	f := gobuildTestdata(t, tmpdir, pdir, DefaultOpt)
++	defer f.Close()
+ 
+ 	// Open the resulting binary and examine the DWARF it contains.
+ 	// Look for the function of interest ("main.singleInstruction")
+@@ -1520,17 +1472,15 @@ func TestIssue39757(t *testing.T) {
+ 	// compiler/runtime in ways that aren't happening now, so this
+ 	// might be something to check for if it does start failing.
+ 
+-	tmpdir, err := ioutil.TempDir("", "TestIssue38192")
+-	if err != nil {
+-		t.Fatalf("could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
++
+ 	wd, err := os.Getwd()
+ 	if err != nil {
+ 		t.Fatalf("where am I? %v", err)
+ 	}
+ 	pdir := filepath.Join(wd, "testdata", "issue39757")
+ 	f := gobuildTestdata(t, tmpdir, pdir, DefaultOpt)
++	defer f.Close()
+ 
+ 	syms, err := f.Symbols()
+ 	if err != nil {
+diff --git a/src/cmd/link/internal/ld/elf_test.go b/src/cmd/link/internal/ld/elf_test.go
+index 70e743fa65..d86ebb89e0 100644
+--- a/src/cmd/link/internal/ld/elf_test.go
++++ b/src/cmd/link/internal/ld/elf_test.go
+@@ -22,11 +22,7 @@ import (
+ func TestDynSymShInfo(t *testing.T) {
+ 	t.Parallel()
+ 	testenv.MustHaveGoBuild(t)
+-	dir, err := ioutil.TempDir("", "go-build-issue33358")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	const prog = `
+ package main
+@@ -52,6 +48,7 @@ func main() {
+ 	if err != nil {
+ 		t.Fatalf("failed to open built file: %v", err)
+ 	}
++	defer fi.Close()
+ 
+ 	elfFile, err := elf.NewFile(fi)
+ 	if err != nil {
+@@ -96,11 +93,7 @@ func TestNoDuplicateNeededEntries(t *testing.T) {
+ 
+ 	t.Parallel()
+ 
+-	dir, err := ioutil.TempDir("", "no-dup-needed")
+-	if err != nil {
+-		t.Fatalf("Failed to create temp dir: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	wd, err := os.Getwd()
+ 	if err != nil {
+diff --git a/src/cmd/link/internal/ld/fallocate_test.go b/src/cmd/link/internal/ld/fallocate_test.go
+index 56d2321826..1ed0eb2ca7 100644
+--- a/src/cmd/link/internal/ld/fallocate_test.go
++++ b/src/cmd/link/internal/ld/fallocate_test.go
+@@ -8,7 +8,6 @@
+ package ld
+ 
+ import (
+-	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+ 	"syscall"
+@@ -16,14 +15,10 @@ import (
+ )
+ 
+ func TestFallocate(t *testing.T) {
+-	dir, err := ioutil.TempDir("", "TestFallocate")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 	filename := filepath.Join(dir, "a.out")
+ 	out := NewOutBuf(nil)
+-	err = out.Open(filename)
++	err := out.Open(filename)
+ 	if err != nil {
+ 		t.Fatalf("Open file failed: %v", err)
+ 	}
+diff --git a/src/cmd/link/internal/ld/go_test.go b/src/cmd/link/internal/ld/go_test.go
+index 0197196023..230f85a0e5 100644
+--- a/src/cmd/link/internal/ld/go_test.go
++++ b/src/cmd/link/internal/ld/go_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"cmd/internal/objabi"
+ 	"internal/testenv"
+ 	"io/ioutil"
+-	"os"
+ 	"os/exec"
+ 	"path/filepath"
+ 	"reflect"
+@@ -86,11 +85,7 @@ func TestDedupLibrariesOpenBSDLink(t *testing.T) {
+ 	testenv.MustHaveCGO(t)
+ 	t.Parallel()
+ 
+-	dir, err := ioutil.TempDir("", "dedup-build")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	// cgo_import_dynamic both the unversioned libraries and pull in the
+ 	// net package to get a cgo package with a versioned library.
+diff --git a/src/cmd/link/internal/ld/issue33808_test.go b/src/cmd/link/internal/ld/issue33808_test.go
+index 92a47faa4a..43f4540a02 100644
+--- a/src/cmd/link/internal/ld/issue33808_test.go
++++ b/src/cmd/link/internal/ld/issue33808_test.go
+@@ -6,8 +6,6 @@ package ld
+ 
+ import (
+ 	"internal/testenv"
+-	"io/ioutil"
+-	"os"
+ 	"runtime"
+ 	"strings"
+ 	"testing"
+@@ -31,11 +29,7 @@ func TestIssue33808(t *testing.T) {
+ 	testenv.MustHaveCGO(t)
+ 	t.Parallel()
+ 
+-	dir, err := ioutil.TempDir("", "TestIssue33808")
+-	if err != nil {
+-		t.Fatalf("could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	f := gobuild(t, dir, prog, "-ldflags=-linkmode=external")
+ 	f.Close()
+diff --git a/src/cmd/link/internal/ld/ld_test.go b/src/cmd/link/internal/ld/ld_test.go
+index cdfaadb17d..836d9bff3d 100644
+--- a/src/cmd/link/internal/ld/ld_test.go
++++ b/src/cmd/link/internal/ld/ld_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"fmt"
+ 	"internal/testenv"
+ 	"io/ioutil"
+-	"os"
+ 	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
+@@ -25,11 +24,6 @@ func TestUndefinedRelocErrors(t *testing.T) {
+ 	testenv.MustInternalLink(t)
+ 
+ 	t.Parallel()
+-	dir, err := ioutil.TempDir("", "go-build")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(dir)
+ 
+ 	out, err := exec.Command(testenv.GoToolPath(t), "build", "./testdata/issue10978").CombinedOutput()
+ 	if err == nil {
+@@ -108,11 +102,7 @@ func TestArchiveBuildInvokeWithExec(t *testing.T) {
+ 	case "openbsd", "windows":
+ 		t.Skip("c-archive unsupported")
+ 	}
+-	dir, err := ioutil.TempDir("", "go-build")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	srcfile := filepath.Join(dir, "test.go")
+ 	arfile := filepath.Join(dir, "test.a")
+@@ -150,11 +140,7 @@ func TestPPC64LargeTextSectionSplitting(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 	testenv.MustHaveCGO(t)
+ 	t.Parallel()
+-	dir, err := ioutil.TempDir("", "go-build")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	// NB: the use of -ldflags=-debugppc64textsize=1048576 tells the linker to
+ 	// split text sections at a size threshold of 1M instead of the
+@@ -168,7 +154,7 @@ func TestPPC64LargeTextSectionSplitting(t *testing.T) {
+ 	}
+ 
+ 	// Result should be runnable.
+-	_, err = exec.Command(exe, "version").CombinedOutput()
++	_, err := exec.Command(exe, "version").CombinedOutput()
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -194,11 +180,7 @@ func testWindowsBuildmodeCSharedASLR(t *testing.T, useASLR bool) {
+ 	t.Parallel()
+ 	testenv.MustHaveGoBuild(t)
+ 
+-	dir, err := ioutil.TempDir("", "go-build")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	srcfile := filepath.Join(dir, "test.go")
+ 	objfile := filepath.Join(dir, "test.dll")
+diff --git a/src/cmd/link/internal/ld/nooptcgolink_test.go b/src/cmd/link/internal/ld/nooptcgolink_test.go
+index 4d2ff1acf2..73548dabd4 100644
+--- a/src/cmd/link/internal/ld/nooptcgolink_test.go
++++ b/src/cmd/link/internal/ld/nooptcgolink_test.go
+@@ -6,8 +6,6 @@ package ld
+ 
+ import (
+ 	"internal/testenv"
+-	"io/ioutil"
+-	"os"
+ 	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
+@@ -22,11 +20,7 @@ func TestNooptCgoBuild(t *testing.T) {
+ 
+ 	testenv.MustHaveGoBuild(t)
+ 	testenv.MustHaveCGO(t)
+-	dir, err := ioutil.TempDir("", "go-build")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=-N -l", "-o", filepath.Join(dir, "a.out"))
+ 	cmd.Dir = filepath.Join(runtime.GOROOT(), "src", "runtime", "testdata", "testprogcgo")
+ 	out, err := cmd.CombinedOutput()
+diff --git a/src/cmd/link/internal/ld/outbuf_test.go b/src/cmd/link/internal/ld/outbuf_test.go
+index e6643da396..a7b105f887 100644
+--- a/src/cmd/link/internal/ld/outbuf_test.go
++++ b/src/cmd/link/internal/ld/outbuf_test.go
+@@ -5,8 +5,6 @@
+ package ld
+ 
+ import (
+-	"io/ioutil"
+-	"os"
+ 	"path/filepath"
+ 	"runtime"
+ 	"testing"
+@@ -19,11 +17,7 @@ func TestMMap(t *testing.T) {
+ 		t.Skip("unsupported OS")
+ 	case "aix", "darwin", "ios", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "windows":
+ 	}
+-	dir, err := ioutil.TempDir("", "TestMMap")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 	filename := filepath.Join(dir, "foo.out")
+ 	ob := NewOutBuf(nil)
+ 	if err := ob.Open(filename); err != nil {
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index 9c69ccca43..9369e550f4 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -48,13 +48,9 @@ const X = "\n!\n"
+ func main() {}
+ `
+ 
+-	tmpdir, err := ioutil.TempDir("", "issue21703")
+-	if err != nil {
+-		t.Fatalf("failed to create temp dir: %v\n", err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 
+-	err = ioutil.WriteFile(filepath.Join(tmpdir, "main.go"), []byte(source), 0666)
++	err := ioutil.WriteFile(filepath.Join(tmpdir, "main.go"), []byte(source), 0666)
+ 	if err != nil {
+ 		t.Fatalf("failed to write main.go: %v\n", err)
+ 	}
+@@ -83,11 +79,7 @@ func TestIssue28429(t *testing.T) {
+ 
+ 	testenv.MustHaveGoBuild(t)
+ 
+-	tmpdir, err := ioutil.TempDir("", "issue28429-")
+-	if err != nil {
+-		t.Fatalf("failed to create temp dir: %v", err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 
+ 	write := func(name, content string) {
+ 		err := ioutil.WriteFile(filepath.Join(tmpdir, name), []byte(content), 0666)
+@@ -126,11 +118,7 @@ func TestUnresolved(t *testing.T) {
+ 
+ 	t.Parallel()
+ 
+-	tmpdir, err := ioutil.TempDir("", "unresolved-")
+-	if err != nil {
+-		t.Fatalf("failed to create temp dir: %v", err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 
+ 	write := func(name, content string) {
+ 		err := ioutil.WriteFile(filepath.Join(tmpdir, name), []byte(content), 0666)
+@@ -195,11 +183,7 @@ func TestIssue33979(t *testing.T) {
+ 
+ 	t.Parallel()
+ 
+-	tmpdir, err := ioutil.TempDir("", "unresolved-")
+-	if err != nil {
+-		t.Fatalf("failed to create temp dir: %v", err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 
+ 	write := func(name, content string) {
+ 		err := ioutil.WriteFile(filepath.Join(tmpdir, name), []byte(content), 0666)
+@@ -300,11 +284,7 @@ func TestBuildForTvOS(t *testing.T) {
+ 		"-framework", "CoreFoundation",
+ 	}
+ 	lib := filepath.Join("testdata", "testBuildFortvOS", "lib.go")
+-	tmpDir, err := ioutil.TempDir("", "go-link-TestBuildFortvOS")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpDir)
++	tmpDir := t.TempDir()
+ 
+ 	ar := filepath.Join(tmpDir, "lib.a")
+ 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=c-archive", "-o", ar, lib)
+@@ -339,14 +319,10 @@ func TestXFlag(t *testing.T) {
+ 
+ 	t.Parallel()
+ 
+-	tmpdir, err := ioutil.TempDir("", "TestXFlag")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 
+ 	src := filepath.Join(tmpdir, "main.go")
+-	err = ioutil.WriteFile(src, []byte(testXFlagSrc), 0666)
++	err := ioutil.WriteFile(src, []byte(testXFlagSrc), 0666)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -367,14 +343,10 @@ func TestMacOSVersion(t *testing.T) {
+ 
+ 	t.Parallel()
+ 
+-	tmpdir, err := ioutil.TempDir("", "TestMacOSVersion")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 
+ 	src := filepath.Join(tmpdir, "main.go")
+-	err = ioutil.WriteFile(src, []byte(testMacOSVersionSrc), 0666)
++	err := ioutil.WriteFile(src, []byte(testMacOSVersionSrc), 0666)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -393,6 +365,7 @@ func TestMacOSVersion(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
++	defer exef.Close()
+ 	exem, err := macho.NewFile(exef)
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -446,14 +419,10 @@ func TestIssue34788Android386TLSSequence(t *testing.T) {
+ 
+ 	t.Parallel()
+ 
+-	tmpdir, err := ioutil.TempDir("", "TestIssue34788Android386TLSSequence")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 
+ 	src := filepath.Join(tmpdir, "blah.go")
+-	err = ioutil.WriteFile(src, []byte(Issue34788src), 0666)
++	err := ioutil.WriteFile(src, []byte(Issue34788src), 0666)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -506,14 +475,10 @@ func TestStrictDup(t *testing.T) {
+ 
+ 	t.Parallel()
+ 
+-	tmpdir, err := ioutil.TempDir("", "TestStrictDup")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 
+ 	src := filepath.Join(tmpdir, "x.go")
+-	err = ioutil.WriteFile(src, []byte(testStrictDupGoSrc), 0666)
++	err := ioutil.WriteFile(src, []byte(testStrictDupGoSrc), 0666)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -592,14 +557,10 @@ func TestFuncAlign(t *testing.T) {
+ 
+ 	t.Parallel()
+ 
+-	tmpdir, err := ioutil.TempDir("", "TestFuncAlign")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 
+ 	src := filepath.Join(tmpdir, "go.mod")
+-	err = ioutil.WriteFile(src, []byte("module cmd/link/TestFuncAlign/falign"), 0666)
++	err := ioutil.WriteFile(src, []byte("module cmd/link/TestFuncAlign/falign"), 0666)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -665,14 +626,10 @@ func TestTrampoline(t *testing.T) {
+ 
+ 	t.Parallel()
+ 
+-	tmpdir, err := ioutil.TempDir("", "TestTrampoline")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 
+ 	src := filepath.Join(tmpdir, "hello.go")
+-	err = ioutil.WriteFile(src, []byte(testTrampSrc), 0666)
++	err := ioutil.WriteFile(src, []byte(testTrampSrc), 0666)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -701,11 +658,7 @@ func TestIndexMismatch(t *testing.T) {
+ 
+ 	t.Parallel()
+ 
+-	tmpdir, err := ioutil.TempDir("", "TestIndexMismatch")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 
+ 	aSrc := filepath.Join("testdata", "testIndexMismatch", "a.go")
+ 	bSrc := filepath.Join("testdata", "testIndexMismatch", "b.go")
+@@ -764,11 +717,7 @@ func TestPErsrcBinutils(t *testing.T) {
+ 
+ 	t.Parallel()
+ 
+-	tmpdir, err := ioutil.TempDir("", "TestPErsrcBinutils")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 
+ 	pkgdir := filepath.Join("testdata", "pe-binutils")
+ 	exe := filepath.Join(tmpdir, "a.exe")
+@@ -800,11 +749,7 @@ func TestPErsrcLLVM(t *testing.T) {
+ 
+ 	t.Parallel()
+ 
+-	tmpdir, err := ioutil.TempDir("", "TestPErsrcLLVM")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 
+ 	pkgdir := filepath.Join("testdata", "pe-llvm")
+ 	exe := filepath.Join(tmpdir, "a.exe")
+@@ -832,12 +777,6 @@ func TestContentAddressableSymbols(t *testing.T) {
+ 
+ 	t.Parallel()
+ 
+-	tmpdir, err := ioutil.TempDir("", "TestContentAddressableSymbols")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpdir)
+-
+ 	src := filepath.Join("testdata", "testHashedSyms", "p.go")
+ 	cmd := exec.Command(testenv.GoToolPath(t), "run", src)
+ 	out, err := cmd.CombinedOutput()
+@@ -881,14 +820,10 @@ func TestIssue38554(t *testing.T) {
+ 
+ 	t.Parallel()
+ 
+-	tmpdir, err := ioutil.TempDir("", "TestIssue38554")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 
+ 	src := filepath.Join(tmpdir, "x.go")
+-	err = ioutil.WriteFile(src, []byte(testIssue38554Src), 0666)
++	err := ioutil.WriteFile(src, []byte(testIssue38554Src), 0666)
+ 	if err != nil {
+ 		t.Fatalf("failed to write source file: %v", err)
+ 	}
+@@ -935,14 +870,10 @@ func TestIssue42396(t *testing.T) {
+ 
+ 	t.Parallel()
+ 
+-	tmpdir, err := ioutil.TempDir("", "TestIssue42396")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 
+ 	src := filepath.Join(tmpdir, "main.go")
+-	err = ioutil.WriteFile(src, []byte(testIssue42396src), 0666)
++	err := ioutil.WriteFile(src, []byte(testIssue42396src), 0666)
+ 	if err != nil {
+ 		t.Fatalf("failed to write source file: %v", err)
+ 	}
+@@ -992,14 +923,10 @@ func TestLargeReloc(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 	t.Parallel()
+ 
+-	tmpdir, err := ioutil.TempDir("", "TestIssue42396")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 
+ 	src := filepath.Join(tmpdir, "x.go")
+-	err = ioutil.WriteFile(src, []byte(testLargeRelocSrc), 0666)
++	err := ioutil.WriteFile(src, []byte(testLargeRelocSrc), 0666)
+ 	if err != nil {
+ 		t.Fatalf("failed to write source file: %v", err)
+ 	}
+diff --git a/src/cmd/link/linkbig_test.go b/src/cmd/link/linkbig_test.go
+index 78d2bc1afe..d5d77d6c72 100644
+--- a/src/cmd/link/linkbig_test.go
++++ b/src/cmd/link/linkbig_test.go
+@@ -27,12 +27,7 @@ func TestLargeText(t *testing.T) {
+ 
+ 	var w bytes.Buffer
+ 	const FN = 4
+-	tmpdir, err := ioutil.TempDir("", "bigtext")
+-	if err != nil {
+-		t.Fatalf("can't create temp directory: %v\n", err)
+-	}
+-
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 
+ 	// Generate the scenario where the total amount of text exceeds the
+ 	// limit for the jmp/call instruction, on RISC architectures like ppc64le,
+@@ -79,7 +74,7 @@ func TestLargeText(t *testing.T) {
+ 	fmt.Fprintf(&w, "\t}\n")
+ 	fmt.Fprintf(&w, "\tfmt.Printf(\"PASS\\n\")\n")
+ 	fmt.Fprintf(&w, "}")
+-	err = ioutil.WriteFile(tmpdir+"/bigfn.go", w.Bytes(), 0666)
++	err := ioutil.WriteFile(tmpdir+"/bigfn.go", w.Bytes(), 0666)
+ 	if err != nil {
+ 		t.Fatalf("can't write output: %v\n", err)
+ 	}

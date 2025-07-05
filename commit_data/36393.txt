@@ -11,10 +11,171 @@ Date:   Tue Apr 24 17:26:32 2018 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/closure.go |  1 -
  src/cmd/compile/internal/gc/dcl.go     |  5 -----
  src/cmd/compile/internal/gc/fmt.go     | 12 ++++++------
  src/cmd/compile/internal/gc/walk.go    | 21 +++++----------------
  src/cmd/compile/internal/types/type.go |  1 -
  5 files changed, 11 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index f92223511c..ce575a6418 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -252,7 +252,6 @@ func transformclosure(xfunc *Node) {
+ 			decls = append(decls, v)
+ 
+ 			fld := types.NewField()
+-			fld.Funarg = types.FunargParams
+ 			fld.Nname = asTypesNode(v)
+ 			fld.Type = v.Type
+ 			fld.Sym = v.Sym
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 3a744a20c2..ece257116f 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -631,7 +631,6 @@ func tofunargs(l []*Node, funarg types.Funarg) *types.Type {
+ 	fields := make([]*types.Field, len(l))
+ 	for i, n := range l {
+ 		f := structfield(n)
+-		f.Funarg = funarg
+ 		f.SetIsddd(n.Isddd())
+ 		if n.Right != nil {
+ 			n.Right.Type = f.Type
+@@ -649,10 +648,6 @@ func tofunargs(l []*Node, funarg types.Funarg) *types.Type {
+ func tofunargsfield(fields []*types.Field, funarg types.Funarg) *types.Type {
+ 	t := types.New(TSTRUCT)
+ 	t.StructType().Funarg = funarg
+-
+-	for _, f := range fields {
+-		f.Funarg = funarg
+-	}
+ 	t.SetFields(fields)
+ 	return t
+ }
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index b30111aab5..7df2242226 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -818,7 +818,7 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
+ 		}
+ 
+ 		buf := make([]byte, 0, 64)
+-		if t.IsFuncArgStruct() {
++		if funarg := t.StructType().Funarg; funarg != types.FunargNone {
+ 			buf = append(buf, '(')
+ 			var flag1 FmtFlag
+ 			switch mode {
+@@ -830,7 +830,7 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
+ 				if i != 0 {
+ 					buf = append(buf, ", "...)
+ 				}
+-				buf = append(buf, fldconv(f, flag1, mode, depth)...)
++				buf = append(buf, fldconv(f, flag1, mode, depth, funarg)...)
+ 			}
+ 			buf = append(buf, ')')
+ 		} else {
+@@ -840,7 +840,7 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
+ 					buf = append(buf, ';')
+ 				}
+ 				buf = append(buf, ' ')
+-				buf = append(buf, fldconv(f, FmtLong, mode, depth)...)
++				buf = append(buf, fldconv(f, FmtLong, mode, depth, funarg)...)
+ 			}
+ 			if t.NumFields() != 0 {
+ 				buf = append(buf, ' ')
+@@ -1668,7 +1668,7 @@ func tmodeString(t *types.Type, mode fmtMode, depth int) string {
+ 	return tconv(t, 0, mode, depth)
+ }
+ 
+-func fldconv(f *types.Field, flag FmtFlag, mode fmtMode, depth int) string {
++func fldconv(f *types.Field, flag FmtFlag, mode fmtMode, depth int, funarg types.Funarg) string {
+ 	if f == nil {
+ 		return "<T>"
+ 	}
+@@ -1688,7 +1688,7 @@ func fldconv(f *types.Field, flag FmtFlag, mode fmtMode, depth int) string {
+ 		}
+ 
+ 		if s != nil && f.Embedded == 0 {
+-			if f.Funarg != types.FunargNone {
++			if funarg != types.FunargNone {
+ 				name = asNode(f.Nname).modeString(mode)
+ 			} else if flag&FmtLong != 0 {
+ 				name = mode.Sprintf("%0S", s)
+@@ -1717,7 +1717,7 @@ func fldconv(f *types.Field, flag FmtFlag, mode fmtMode, depth int) string {
+ 		str = name + " " + typ
+ 	}
+ 
+-	if flag&FmtShort == 0 && f.Funarg == types.FunargNone && f.Note != "" {
++	if flag&FmtShort == 0 && funarg == types.FunargNone && f.Note != "" {
+ 		str += " " + strconv.Quote(f.Note)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 6373dcc672..c2e5f69d1f 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1895,7 +1895,6 @@ func ascompatet(nl Nodes, nr *types.Type) []*Node {
+ func nodarg(t interface{}, fp int) *Node {
+ 	var n *Node
+ 
+-	var funarg types.Funarg
+ 	switch t := t.(type) {
+ 	default:
+ 		Fatalf("bad nodarg %T(%v)", t, t)
+@@ -1905,7 +1904,6 @@ func nodarg(t interface{}, fp int) *Node {
+ 		if !t.IsFuncArgStruct() {
+ 			Fatalf("nodarg: bad type %v", t)
+ 		}
+-		funarg = t.StructType().Funarg
+ 
+ 		// Build fake variable name for whole arg struct.
+ 		n = newname(lookup(".args"))
+@@ -1920,7 +1918,6 @@ func nodarg(t interface{}, fp int) *Node {
+ 		n.Xoffset = first.Offset
+ 
+ 	case *types.Field:
+-		funarg = t.Funarg
+ 		if fp == 1 {
+ 			// NOTE(rsc): This should be using t.Nname directly,
+ 			// except in the case where t.Nname.Sym is the blank symbol and
+@@ -1971,21 +1968,13 @@ func nodarg(t interface{}, fp int) *Node {
+ 		n.Sym = lookup("__")
+ 	}
+ 
+-	switch fp {
+-	default:
+-		Fatalf("bad fp")
+-
+-	case 0: // preparing arguments for call
+-		n.Op = OINDREGSP
+-		n.Xoffset += Ctxt.FixedFrameSize()
+-
+-	case 1: // reading arguments inside call
+-		n.SetClass(PPARAM)
+-		if funarg == types.FunargResults {
+-			n.SetClass(PPARAMOUT)
+-		}
++	if fp != 0 {
++		Fatalf("bad fp: %v", fp)
+ 	}
+ 
++	// preparing arguments for call
++	n.Op = OINDREGSP
++	n.Xoffset += Ctxt.FixedFrameSize()
+ 	n.SetTypecheck(1)
+ 	n.SetAddrtaken(true) // keep optimizers at bay
+ 	return n
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index edc6683d4a..d367cd1944 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -357,7 +357,6 @@ type Field struct {
+ 	flags bitset8
+ 
+ 	Embedded uint8 // embedded field
+-	Funarg   Funarg
+ 
+ 	Pos  src.XPos
+ 	Sym  *Sym

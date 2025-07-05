@@ -5,10 +5,207 @@ Date:   Sat Jul 5 17:43:25 2008 -0700
     random little bugs
     
     SVN=126049
-
+---
  src/cmd/gc/const.c  | 16 ++++++++++------
  src/cmd/gc/dcl.c    |  2 +-
  src/cmd/gc/export.c | 13 +++++++++----
  src/cmd/gc/lex.c    |  3 ++-
  src/cmd/gc/walk.c   | 52 +++++++++++++++++++++++++++++++---------------------
  5 files changed, 53 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 9bd3e742ef..12a7ef83b8 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -140,12 +140,16 @@ evconst(Node *n)
+ 	}
+ 
+ 	if(wl != wr) {
+-		if(wl == Wlitfloat && wr == Wlitint)
+-			convlit(n->right, n->left->type);
+-		else
+-		if(wl == Wlitint && wr == Wlitfloat)
+-			convlit(n->left, n->right->type);
+-		else {
++		if(wl == Wlitfloat && wr == Wlitint) {
++			nr->val.dval = nr->val.vval;
++			nr->val.ctype = CTFLT;
++			wr = whatis(nr);
++		} else
++		if(wl == Wlitint && wr == Wlitfloat) {
++			nl->val.dval = nl->val.vval;
++			nl->val.ctype = CTFLT;
++			wl = whatis(nl);
++		} else {
+ 			yyerror("illegal combination of literals %d %d", nl->etype, nr->etype);
+ 			return;
+ 		}
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 0bb3580691..01d27b514e 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -71,7 +71,7 @@ loop:
+ 
+ 	if(e->op != OLITERAL) {
+ 		yyerror("expression must be a constant");
+-		goto loop;
++		return;
+ 	}
+ 	s = n->sym;
+ 
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 3d81b6bb95..2ec84908e4 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -117,8 +117,10 @@ dumpexportvar(Sym *s)
+ 	s->exported = 1;
+ 
+ 	n = s->oname;
+-	if(n == N || n->type == T)
+-		fatal("dumpexportvar: oname nil: %S\n", s);
++	if(n == N || n->type == T) {
++		yyerror("variable exported but not defined: %S\n", s);
++		return;
++	}
+ 
+ 	t = n->type;
+ 	reexport(t);
+@@ -141,8 +143,11 @@ dumpexporttype(Sym *s)
+ 	s->exported = 1;
+ 
+ 	t = s->otype;
+-	if(t == T)
+-		fatal("dumpexporttype: otype nil: %S\n", s);
++	if(t == T) {
++		yyerror("type exported but not defined: %S\n", s);
++		return;
++	}
++
+ 	if(t->sym != s)
+ 		fatal("dumpexporttype: cross reference: %S\n", s);
+ 
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 2642bc88e4..eec8d0febb 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -83,7 +83,8 @@ mainlex(int argc, char *argv[])
+ 	yyparse();
+ 
+ 	linehist(nil, 0);
+-	Bterm(curio.bin);
++	if(curio.bin != nil)
++		Bterm(curio.bin);
+ 
+ 	if(nerrors)
+ 		errorexit();
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index f8c10c3ec9..7d5dcd8bb4 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -427,11 +427,11 @@ loop:
+ 		walktype(n->right, Erv);
+ 		if(n->left == N || n->right == N)
+ 			goto ret;
+-		convlit(n->left, n->right->type);
+-		convlit(n->right, n->left->type);
+ 		evconst(n);
+ 		if(n->op == OLITERAL)
+ 			goto ret;
++		convlit(n->left, n->right->type);
++		convlit(n->right, n->left->type);
+ 		if(n->left->type == T || n->right->type == T)
+ 			goto ret;
+ 		if(!ascompat(n->left->type, n->right->type))
+@@ -503,6 +503,24 @@ loop:
+ 		if(t == T)
+ 			goto ret;
+ 
++// BOTCH - convert each index opcode
++// to look like this and get rid of OINDEXPTR
++		if(isptr[t->etype])
++		if(isptrto(t, TSTRING) || isptrto(t->type, TSTRING)) {
++			// right side must be an int
++			if(top != Erv)
++				goto nottop;
++			if(n->right->type == T) {
++				convlit(n->right, types[TINT32]);
++				if(n->right->type == T)
++					goto ret;
++			}
++			if(!isint[n->right->type->etype])
++				goto badt;
++			*n = *stringop(n, top);
++			goto ret;
++		}
++
+ 		// left side is indirect
+ 		if(isptr[t->etype]) {
+ 			t = t->type;
+@@ -530,20 +548,6 @@ loop:
+ 				*n = *mapop(n, top);
+ 			break;
+ 
+-		case TSTRING:
+-			// right side must be an int
+-			if(top != Erv)
+-				goto nottop;
+-			if(n->right->type == T) {
+-				convlit(n->right, types[TINT32]);
+-				if(n->right->type == T)
+-					break;
+-			}
+-			if(!isint[n->right->type->etype])
+-				goto badt;
+-			*n = *stringop(n, top);
+-			break;
+-
+ 		case TARRAY:
+ 		case TDARRAY:
+ 			// right side must be an int
+@@ -989,7 +993,7 @@ ascompatee(int op, Node **nl, Node **nr)
+ loop:
+ 	if(l == N || r == N) {
+ 		if(l != r)
+-			yyerror("error in shape across assignment");
++			yyerror("error in shape across %O", op);
+ 		return rev(nn);
+ 	}
+ 
+@@ -1030,7 +1034,7 @@ ascompatet(int op, Node **nl, Type **nr, int fp)
+ loop:
+ 	if(l == N || r == T) {
+ 		if(l != N || r != T)
+-			yyerror("error in shape across assignment");
++			yyerror("error in shape across %O", op);
+ 		return rev(nn);
+ 	}
+ 
+@@ -1072,7 +1076,7 @@ ascompatte(int op, Type **nl, Node **nr, int fp)
+ loop:
+ 	if(l == T || r == N) {
+ 		if(l != T || r != N)
+-			yyerror("error in shape across assignment");
++			yyerror("error in shape across %O", op);
+ 		return rev(nn);
+ 	}
+ 	convlit(r, l->type);
+@@ -1293,11 +1297,17 @@ stringop(Node *n, int top)
+ 		r = nod(OCALL, on, r);
+ 		break;
+ 
+-	case OINDEXPTR:
++	case OINDEX:
+ 		// sys_indexstring(s, i)
++		c = n->left;
++		if(isptrto(c->type->type, TSTRING)) {
++			// lhs is string or *string
++			c = nod(OIND, c, N);
++			c->type = c->left->type->type;
++		}
+ 		r = nod(OCONV, n->right, N);
+ 		r->type = types[TINT32];
+-		r = nod(OLIST, n->left, r);
++		r = nod(OLIST, c, r);
+ 		on = syslook("indexstring", 0);
+ 		r = nod(OCALL, on, r);
+ 		break;

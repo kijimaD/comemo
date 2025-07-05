@@ -18,8 +18,147 @@ Date:   Fri Jun 3 12:49:11 2022 -0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/noder/codes.go  |  9 ++++-----
  src/cmd/compile/internal/noder/reader.go | 16 ++++++++++------
  src/cmd/compile/internal/noder/writer.go | 17 +++++++++++------
  3 files changed, 25 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/codes.go b/src/cmd/compile/internal/noder/codes.go
+index 28991e7b9c..7fe6e39c15 100644
+--- a/src/cmd/compile/internal/noder/codes.go
++++ b/src/cmd/compile/internal/noder/codes.go
+@@ -38,11 +38,10 @@ func (c codeExpr) Value() int                 { return int(c) }
+ 
+ // TODO(mdempsky): Split expr into addr, for lvalues.
+ const (
+-	exprNone codeExpr = iota
+-	exprConst
+-	exprType   // type expression
+-	exprLocal  // local variable
+-	exprGlobal // global variable or function
++	exprConst  codeExpr = iota
++	exprType            // type expression
++	exprLocal           // local variable
++	exprGlobal          // global variable or function
+ 	exprBlank
+ 	exprCompLit
+ 	exprFuncLit
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index a231fe5d50..d4ab6a975f 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1380,7 +1380,7 @@ func (r *reader) forStmt(label *types.Sym) ir.Node {
+ 
+ 	pos := r.pos()
+ 	init := r.stmt()
+-	cond := r.expr()
++	cond := r.optExpr()
+ 	post := r.stmt()
+ 	body := r.blockStmt()
+ 	r.closeAnotherScope()
+@@ -1450,7 +1450,7 @@ func (r *reader) switchStmt(label *types.Sym) ir.Node {
+ 		iface = x.Type()
+ 		tag = ir.NewTypeSwitchGuard(pos, ident, x)
+ 	} else {
+-		tag = r.expr()
++		tag = r.optExpr()
+ 	}
+ 
+ 	clauses := make([]*ir.CaseClause, r.Len())
+@@ -1551,9 +1551,6 @@ func (r *reader) expr() (res ir.Node) {
+ 	default:
+ 		panic("unhandled expression")
+ 
+-	case exprNone:
+-		return nil
+-
+ 	case exprBlank:
+ 		// blank only allowed in LHS of assignments
+ 		// TODO(mdempsky): Handle directly in assignList instead?
+@@ -1622,7 +1619,7 @@ func (r *reader) expr() (res ir.Node) {
+ 		pos := r.pos()
+ 		var index [3]ir.Node
+ 		for i := range index {
+-			index[i] = r.expr()
++			index[i] = r.optExpr()
+ 		}
+ 		op := ir.OSLICE
+ 		if index[2] != nil {
+@@ -1701,6 +1698,13 @@ func (r *reader) expr() (res ir.Node) {
+ 	}
+ }
+ 
++func (r *reader) optExpr() ir.Node {
++	if r.Bool() {
++		return r.expr()
++	}
++	return nil
++}
++
+ func (r *reader) compLit() ir.Node {
+ 	r.Sync(pkgbits.SyncCompLit)
+ 	pos := r.pos()
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 3bf6717117..ac1ec97285 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1077,7 +1077,7 @@ func (w *writer) forStmt(stmt *syntax.ForStmt) {
+ 	} else {
+ 		w.pos(stmt)
+ 		w.stmt(stmt.Init)
+-		w.expr(stmt.Cond)
++		w.optExpr(stmt.Cond)
+ 		w.stmt(stmt.Post)
+ 	}
+ 
+@@ -1136,7 +1136,7 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
+ 		}
+ 		w.expr(guard.X)
+ 	} else {
+-		w.expr(stmt.Tag)
++		w.optExpr(stmt.Tag)
+ 	}
+ 
+ 	w.Len(len(stmt.Body))
+@@ -1201,6 +1201,8 @@ func (w *writer) optLabel(label *syntax.Name) {
+ // @@@ Expressions
+ 
+ func (w *writer) expr(expr syntax.Expr) {
++	base.Assertf(expr != nil, "missing expression")
++
+ 	expr = unparen(expr) // skip parens; unneeded after typecheck
+ 
+ 	obj, inst := lookupObj(w.p.info, expr)
+@@ -1254,9 +1256,6 @@ func (w *writer) expr(expr syntax.Expr) {
+ 	default:
+ 		w.p.unexpected("expression", expr)
+ 
+-	case nil: // absent slice index, for condition, or switch tag
+-		w.Code(exprNone)
+-
+ 	case *syntax.Name:
+ 		assert(expr.Value == "_")
+ 		w.Code(exprBlank)
+@@ -1292,7 +1291,7 @@ func (w *writer) expr(expr syntax.Expr) {
+ 		w.expr(expr.X)
+ 		w.pos(expr)
+ 		for _, n := range &expr.Index {
+-			w.expr(n)
++			w.optExpr(n)
+ 		}
+ 
+ 	case *syntax.AssertExpr:
+@@ -1356,6 +1355,12 @@ func (w *writer) expr(expr syntax.Expr) {
+ 	}
+ }
+ 
++func (w *writer) optExpr(expr syntax.Expr) {
++	if w.Bool(expr != nil) {
++		w.expr(expr)
++	}
++}
++
+ func (w *writer) compLit(lit *syntax.CompositeLit) {
+ 	tv, ok := w.p.info.Types[lit]
+ 	assert(ok)

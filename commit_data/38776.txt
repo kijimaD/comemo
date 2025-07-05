@@ -9,6 +9,28 @@ Date:   Mon Nov 26 12:11:34 2018 -0800
     Change-Id: I738ad0c76f7bf8fc504a48cf55d3becd5ed7a9d6
     Reviewed-on: https://go-review.googlesource.com/c/151337
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/stubs.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index bb4fd2cc83..0d5503a6f5 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -68,12 +68,12 @@ func badsystemstack() {
+ // used only when the caller knows that *ptr contains no heap pointers
+ // because either:
+ //
+-// 1. *ptr is initialized memory and its type is pointer-free.
++// *ptr is initialized memory and its type is pointer-free, or
+ //
+-// 2. *ptr is uninitialized memory (e.g., memory that's being reused
+-//    for a new allocation) and hence contains only "junk".
++// *ptr is uninitialized memory (e.g., memory that's being reused
++// for a new allocation) and hence contains only "junk".
+ //
+-// in memclr_*.s
++// The (CPU-specific) implementations of this function are in memclr_*.s.
+ //go:noescape
+ func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+ 

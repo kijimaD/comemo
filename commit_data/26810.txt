@@ -13,8 +13,58 @@ Date:   Fri Feb 26 13:48:24 2016 -0800
     Change-Id: I824fa7d5cb2d93f6f59938ccd86114abcbea0043
     Reviewed-on: https://go-review.googlesource.com/19968
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/inl.go    |  13 ++++++++++---
  src/cmd/compile/internal/gc/syntax.go |   2 +-
  src/cmd/compile/internal/gc/test      | Bin 0 -> 2243120 bytes
  3 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 17cc61a823..f5c3265a82 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -150,7 +150,10 @@ func caninl(fn *Node) {
+ 
+ 	fn.Func.Nname.Func.Inl = fn.Nbody
+ 	fn.Nbody = inlcopylist(fn.Func.Nname.Func.Inl)
+-	fn.Func.Nname.Func.Inldcl = inlcopyslice(fn.Func.Nname.Name.Defn.Func.Dcl)
++	inldcl := inlcopyslice(fn.Func.Nname.Name.Defn.Func.Dcl)
++	if len(inldcl) > 0 {
++		fn.Func.Nname.Func.Inldcl = &inldcl
++	}
+ 	fn.Func.Nname.Func.InlCost = int32(maxBudget - budget)
+ 
+ 	// hack, TODO, check for better way to link method nodes back to the thing with the ->inl
+@@ -569,9 +572,13 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 	//dumplist("ninit pre", ninit);
+ 
+ 	var dcl []*Node
+-	if fn.Name.Defn != nil { // local function
+-		dcl = fn.Func.Inldcl // imported function
++	if fn.Name.Defn != nil {
++		// local function
++		if fn.Func.Inldcl != nil {
++			dcl = *fn.Func.Inldcl
++		}
+ 	} else {
++		// imported function
+ 		dcl = fn.Func.Dcl
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 8b4fe8708a..edc3f3ca10 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -153,7 +153,7 @@ type Func struct {
+ 	Exit       *NodeList
+ 	cvars      *[]*Node // closure params
+ 	Dcl        []*Node  // autodcl for this func/closure
+-	Inldcl     []*Node  // copy of dcl for use in inlining
++	Inldcl     *[]*Node // copy of dcl for use in inlining
+ 	Closgen    int
+ 	Outerfunc  *Node
+ 	Fieldtrack []*Type
+diff --git a/src/cmd/compile/internal/gc/test b/src/cmd/compile/internal/gc/test
+new file mode 100755
+index 0000000000..5c696bc509
+Binary files /dev/null and b/src/cmd/compile/internal/gc/test differ

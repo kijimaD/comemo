@@ -17,7 +17,7 @@ Date:   Thu May 28 10:47:24 2015 -0700
     Change-Id: Ia6a3fe2bf57e5a2e5e883032e2a2a3fdd566c038
     Reviewed-on: https://go-review.googlesource.com/10465
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/internal/gc/ssa.go                     | 125 ++++++----
  src/cmd/internal/ssa/TODO                      |  47 ++++
  src/cmd/internal/ssa/func.go                   |   2 +
@@ -31,3 +31,1302 @@ Date:   Thu May 28 10:47:24 2015 -0700
  src/cmd/internal/ssa/rulegen/lower_amd64.rules |  42 ++--
  src/cmd/internal/ssa/stackalloc.go             |  58 ++++-
  12 files changed, 454 insertions(+), 266 deletions(-)
+
+diff --git a/src/cmd/internal/gc/ssa.go b/src/cmd/internal/gc/ssa.go
+index 8e81163ad4..bb4d278383 100644
+--- a/src/cmd/internal/gc/ssa.go
++++ b/src/cmd/internal/gc/ssa.go
+@@ -287,6 +287,14 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		a := s.expr(n.Left)
+ 		b := s.expr(n.Right)
+ 		return s.curBlock.NewValue2(ssa.OpSub, a.Type, nil, a, b)
++	case OLSH:
++		a := s.expr(n.Left)
++		b := s.expr(n.Right)
++		return s.curBlock.NewValue2(ssa.OpLsh, a.Type, nil, a, b)
++	case ORSH:
++		a := s.expr(n.Left)
++		b := s.expr(n.Right)
++		return s.curBlock.NewValue2(ssa.OpRsh, a.Type, nil, a, b)
+ 
+ 	case OADDR:
+ 		return s.addr(n.Left)
+@@ -519,25 +527,15 @@ type branch struct {
+ // gcargs and gclocals are filled in with pointer maps for the frame.
+ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 	// TODO: line numbers
+-	// TODO: layout frame
+-	stkSize := int64(64)
+-
+-	if Hasdefer != 0 {
+-		// deferreturn pretends to have one uintptr argument.
+-		// Reserve space for it so stack scanner is happy.
+-		if Maxarg < int64(Widthptr) {
+-			Maxarg = int64(Widthptr)
+-		}
+-	}
+-	if stkSize+Maxarg > 1<<31 {
++
++	if f.FrameSize > 1<<31 {
+ 		Yyerror("stack frame too large (>2GB)")
+ 		return
+ 	}
+-	frameSize := stkSize + Maxarg
+ 
+ 	ptxt.To.Type = obj.TYPE_TEXTSIZE
+ 	ptxt.To.Val = int32(Rnd(Curfn.Type.Argwid, int64(Widthptr))) // arg size
+-	ptxt.To.Offset = frameSize - 8                               // TODO: arch-dependent
++	ptxt.To.Offset = f.FrameSize - 8                             // TODO: arch-dependent
+ 
+ 	// Remember where each block starts.
+ 	bstart := make([]*obj.Prog, f.NumBlocks())
+@@ -551,7 +549,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 		bstart[b.ID] = Pc
+ 		// Emit values in block
+ 		for _, v := range b.Values {
+-			genValue(v, frameSize)
++			genValue(v)
+ 		}
+ 		// Emit control flow instructions for block
+ 		var next *ssa.Block
+@@ -578,7 +576,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 	liveness(Curfn, ptxt, gcargs, gclocals)
+ }
+ 
+-func genValue(v *ssa.Value, frameSize int64) {
++func genValue(v *ssa.Value) {
+ 	switch v.Op {
+ 	case ssa.OpADDQ:
+ 		// TODO: use addq instead of leaq if target is in the right register.
+@@ -589,7 +587,7 @@ func genValue(v *ssa.Value, frameSize int64) {
+ 		p.From.Index = regnum(v.Args[1])
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = regnum(v)
+-	case ssa.OpADDCQ:
++	case ssa.OpADDQconst:
+ 		// TODO: use addq instead of leaq if target is in the right register.
+ 		p := Prog(x86.ALEAQ)
+ 		p.From.Type = obj.TYPE_MEM
+@@ -597,7 +595,17 @@ func genValue(v *ssa.Value, frameSize int64) {
+ 		p.From.Offset = v.Aux.(int64)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = regnum(v)
+-	case ssa.OpSUBCQ:
++	case ssa.OpMULQconst:
++		// TODO: this isn't right.  doasm fails on it.  I don't think obj
++		// has ever been taught to compile imul $c, r1, r2.
++		p := Prog(x86.AIMULQ)
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = v.Aux.(int64)
++		p.From3.Type = obj.TYPE_REG
++		p.From3.Reg = regnum(v.Args[0])
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = regnum(v)
++	case ssa.OpSUBQconst:
+ 		// This code compensates for the fact that the register allocator
+ 		// doesn't understand 2-address instructions yet.  TODO: fix that.
+ 		x := regnum(v.Args[0])
+@@ -615,13 +623,38 @@ func genValue(v *ssa.Value, frameSize int64) {
+ 		p.From.Offset = v.Aux.(int64)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
++	case ssa.OpSHLQconst:
++		x := regnum(v.Args[0])
++		r := regnum(v)
++		if x != r {
++			p := Prog(x86.AMOVQ)
++			p.From.Type = obj.TYPE_REG
++			p.From.Reg = x
++			p.To.Type = obj.TYPE_REG
++			p.To.Reg = r
++			x = r
++		}
++		p := Prog(x86.ASHLQ)
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = v.Aux.(int64)
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = r
++	case ssa.OpLEAQ:
++		p := Prog(x86.ALEAQ)
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = regnum(v.Args[0])
++		p.From.Scale = 1
++		p.From.Index = regnum(v.Args[1])
++		p.From.Offset = v.Aux.(int64)
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = regnum(v)
+ 	case ssa.OpCMPQ:
+ 		p := Prog(x86.ACMPQ)
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = regnum(v.Args[0])
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = regnum(v.Args[1])
+-	case ssa.OpCMPCQ:
++	case ssa.OpCMPQconst:
+ 		p := Prog(x86.ACMPQ)
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = regnum(v.Args[0])
+@@ -643,38 +676,22 @@ func genValue(v *ssa.Value, frameSize int64) {
+ 	case ssa.OpMOVQload:
+ 		p := Prog(x86.AMOVQ)
+ 		p.From.Type = obj.TYPE_MEM
+-		if v.Block.Func.RegAlloc[v.Args[0].ID].Name() == "FP" {
+-			// TODO: do the fp/sp adjustment somewhere else?
+-			p.From.Reg = x86.REG_SP
+-			p.From.Offset = v.Aux.(int64) + frameSize
+-		} else {
+-			p.From.Reg = regnum(v.Args[0])
+-			p.From.Offset = v.Aux.(int64)
+-		}
++		p.From.Reg = regnum(v.Args[0])
++		p.From.Offset = v.Aux.(int64)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = regnum(v)
+ 	case ssa.OpMOVBload:
+ 		p := Prog(x86.AMOVB)
+ 		p.From.Type = obj.TYPE_MEM
+-		if v.Block.Func.RegAlloc[v.Args[0].ID].Name() == "FP" {
+-			p.From.Reg = x86.REG_SP
+-			p.From.Offset = v.Aux.(int64) + frameSize
+-		} else {
+-			p.From.Reg = regnum(v.Args[0])
+-			p.From.Offset = v.Aux.(int64)
+-		}
++		p.From.Reg = regnum(v.Args[0])
++		p.From.Offset = v.Aux.(int64)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = regnum(v)
+ 	case ssa.OpMOVQloadidx8:
+ 		p := Prog(x86.AMOVQ)
+ 		p.From.Type = obj.TYPE_MEM
+-		if v.Block.Func.RegAlloc[v.Args[0].ID].Name() == "FP" {
+-			p.From.Reg = x86.REG_SP
+-			p.From.Offset = v.Aux.(int64) + frameSize
+-		} else {
+-			p.From.Reg = regnum(v.Args[0])
+-			p.From.Offset = v.Aux.(int64)
+-		}
++		p.From.Reg = regnum(v.Args[0])
++		p.From.Offset = v.Aux.(int64)
+ 		p.From.Scale = 8
+ 		p.From.Index = regnum(v.Args[1])
+ 		p.To.Type = obj.TYPE_REG
+@@ -684,13 +701,8 @@ func genValue(v *ssa.Value, frameSize int64) {
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = regnum(v.Args[1])
+ 		p.To.Type = obj.TYPE_MEM
+-		if v.Block.Func.RegAlloc[v.Args[0].ID].Name() == "FP" {
+-			p.To.Reg = x86.REG_SP
+-			p.To.Offset = v.Aux.(int64) + frameSize
+-		} else {
+-			p.To.Reg = regnum(v.Args[0])
+-			p.To.Offset = v.Aux.(int64)
+-		}
++		p.To.Reg = regnum(v.Args[0])
++		p.To.Offset = v.Aux.(int64)
+ 	case ssa.OpCopy:
+ 		x := regnum(v.Args[0])
+ 		y := regnum(v)
+@@ -705,7 +717,7 @@ func genValue(v *ssa.Value, frameSize int64) {
+ 		p := Prog(x86.AMOVQ)
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Reg = x86.REG_SP
+-		p.From.Offset = frameSize - localOffset(v.Args[0])
++		p.From.Offset = localOffset(v.Args[0])
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = regnum(v)
+ 	case ssa.OpStoreReg8:
+@@ -714,7 +726,7 @@ func genValue(v *ssa.Value, frameSize int64) {
+ 		p.From.Reg = regnum(v.Args[0])
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Reg = x86.REG_SP
+-		p.To.Offset = frameSize - localOffset(v)
++		p.To.Offset = localOffset(v)
+ 	case ssa.OpPhi:
+ 		// just check to make sure regalloc did it right
+ 		f := v.Block.Func
+@@ -740,10 +752,15 @@ func genValue(v *ssa.Value, frameSize int64) {
+ 		p.From.Offset = g.Offset
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = regnum(v)
++	case ssa.OpStaticCall:
++		p := Prog(obj.ACALL)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Name = obj.NAME_EXTERN
++		p.To.Sym = Linksym(v.Aux.(*Sym))
+ 	case ssa.OpFP, ssa.OpSP:
+ 		// nothing to do
+ 	default:
+-		log.Fatalf("value %s not implemented yet", v.LongString())
++		log.Fatalf("value %s not implemented", v.LongString())
+ 	}
+ }
+ 
+@@ -757,6 +774,12 @@ func genBlock(b, next *ssa.Block, branches []branch) []branch {
+ 		}
+ 	case ssa.BlockExit:
+ 		Prog(obj.ARET)
++	case ssa.BlockCall:
++		if b.Succs[0] != next {
++			p := Prog(obj.AJMP)
++			p.To.Type = obj.TYPE_BRANCH
++			branches = append(branches, branch{p, b.Succs[0]})
++		}
+ 	case ssa.BlockEQ:
+ 		if b.Succs[0] == next {
+ 			p := Prog(x86.AJNE)
+@@ -844,7 +867,7 @@ func genBlock(b, next *ssa.Block, branches []branch) []branch {
+ 		}
+ 
+ 	default:
+-		log.Fatalf("branch %s not implemented yet", b.LongString())
++		log.Fatalf("branch %s not implemented", b.LongString())
+ 	}
+ 	return branches
+ }
+diff --git a/src/cmd/internal/ssa/TODO b/src/cmd/internal/ssa/TODO
+new file mode 100644
+index 0000000000..afb723ae4c
+--- /dev/null
++++ b/src/cmd/internal/ssa/TODO
+@@ -0,0 +1,47 @@
++This is a list of things that need to be worked on.  It is by no means complete.
++
++Allocation
++- Allocation of decls in stackalloc.  Decls survive if they are
++  addrtaken or are too large for registerization.
++
++Scheduling
++ - Make sure loads are scheduled correctly with respect to stores.
++   Same for flag type values.  We can't have more than one value of
++   mem or flag types live at once.
++ - Reduce register pressure.  Schedule instructions which kill
++   variables first.
++
++Values
++ - Add a line number field.  Figure out how to populate it and
++   maintain it during rewrites.
++ - Store *Type instead of Type?  Keep an array of used Types in Func
++   and reference by id?  Unify with the type ../gc so we just use a
++   pointer instead of an interface?
++ - Recycle dead values instead of using GC to do that.
++ - A lot of Aux fields are just int64.  Add a separate AuxInt field?
++   If not that, then cache the interfaces that wrap int64s.
++ - OpStore uses 3 args.  Increase the size of argstorage to 3?
++
++Opcodes
++ - Rename ops to prevent cross-arch conflicts.  MOVQ -> MOVQamd64 (or
++   MOVQ6?).  Other option: build opcode table in Config instead of globally.
++ - Remove asm string from opinfo, no longer needed.
++ - It's annoying to list the opcode both in the opcode list and an
++   opInfo map entry.  Specify it one place and use go:generate to
++   produce both?
++
++Regalloc
++ - Make less arch-dependent
++ - Don't spill everything at every basic block boundary.
++ - Allow args and return values to be ssa-able.
++ - Handle 2-address instructions.
++
++Rewrites
++ - Strength reduction (both arch-indep and arch-dependent?)
++ - Code sequence for shifts >= wordsize
++ - Start another architecture (arm?)
++
++Common-Subexpression Elimination
++ - Make better decision about which value in an equivalence class we should
++   choose to replace other values in that class.
++ - Can we move control values out of their basic block?
+diff --git a/src/cmd/internal/ssa/func.go b/src/cmd/internal/ssa/func.go
+index bdc8815e1a..3e41ef3bc1 100644
+--- a/src/cmd/internal/ssa/func.go
++++ b/src/cmd/internal/ssa/func.go
+@@ -17,6 +17,8 @@ type Func struct {
+ 
+ 	// when register allocation is done, maps value ids to locations
+ 	RegAlloc []Location
++	// when stackalloc is done, the size of the stack frame
++	FrameSize int64
+ }
+ 
+ // NumBlocks returns an integer larger than the id of any Block in the Func.
+diff --git a/src/cmd/internal/ssa/location.go b/src/cmd/internal/ssa/location.go
+index 528956e681..1b6f6d66c1 100644
+--- a/src/cmd/internal/ssa/location.go
++++ b/src/cmd/internal/ssa/location.go
+@@ -26,19 +26,9 @@ func (r *Register) Name() string {
+ 
+ // A LocalSlot is a location in the stack frame.
+ type LocalSlot struct {
+-	Idx int64 // offset in locals area (distance down from FP == caller's SP)
++	Idx int64 // offset in locals area (distance up from SP)
+ }
+ 
+ func (s *LocalSlot) Name() string {
+-	return fmt.Sprintf("-%d(FP)", s.Idx)
+-}
+-
+-// An ArgSlot is a location in the parents' stack frame where it passed us an argument.
+-type ArgSlot struct {
+-	idx int64 // offset in argument area
+-}
+-
+-// A CalleeSlot is a location in the stack frame where we pass an argument to a callee.
+-type CalleeSlot struct {
+-	idx int64 // offset in callee area
++	return fmt.Sprintf("%d(SP)", s.Idx)
+ }
+diff --git a/src/cmd/internal/ssa/lower.go b/src/cmd/internal/ssa/lower.go
+index 84379c00de..44f0b83fa8 100644
+--- a/src/cmd/internal/ssa/lower.go
++++ b/src/cmd/internal/ssa/lower.go
+@@ -4,6 +4,8 @@
+ 
+ package ssa
+ 
++import "log"
++
+ //go:generate go run rulegen/rulegen.go rulegen/lower_amd64.rules lowerAmd64 lowerAmd64.go
+ 
+ // convert to machine-dependent ops
+@@ -11,7 +13,14 @@ func lower(f *Func) {
+ 	// repeat rewrites until we find no more rewrites
+ 	applyRewrite(f, f.Config.lower)
+ 
+-	// TODO: check for unlowered opcodes, fail if we find one
++	// Check for unlowered opcodes, fail if we find one.
++	for _, b := range f.Blocks {
++		for _, v := range b.Values {
++			if v.Op < OpGenericEnd && v.Op != OpFP && v.Op != OpSP && v.Op != OpArg && v.Op != OpCopy && v.Op != OpPhi {
++				log.Panicf("%s not lowered", v.LongString())
++			}
++		}
++	}
+ 
+ 	// additional pass for 386/amd64, link condition codes directly to blocks
+ 	// TODO: do generically somehow?  Special "block" rewrite rules?
+diff --git a/src/cmd/internal/ssa/lowerAmd64.go b/src/cmd/internal/ssa/lowerAmd64.go
+index 356f646dcc..51cef97b30 100644
+--- a/src/cmd/internal/ssa/lowerAmd64.go
++++ b/src/cmd/internal/ssa/lowerAmd64.go
+@@ -4,98 +4,57 @@ package ssa
+ 
+ func lowerAmd64(v *Value) bool {
+ 	switch v.Op {
+-	case OpADDCQ:
+-		// match: (ADDCQ [c] (LEAQ8 [d] x y))
+-		// cond:
+-		// result: (LEAQ8 [addOff(c, d)] x y)
+-		{
+-			c := v.Aux
+-			if v.Args[0].Op != OpLEAQ8 {
+-				goto end3bc1457811adc0cb81ad6b88a7461c60
+-			}
+-			d := v.Args[0].Aux
+-			x := v.Args[0].Args[0]
+-			y := v.Args[0].Args[1]
+-			v.Op = OpLEAQ8
+-			v.Aux = nil
+-			v.resetArgs()
+-			v.Aux = addOff(c, d)
+-			v.AddArg(x)
+-			v.AddArg(y)
+-			return true
+-		}
+-		goto end3bc1457811adc0cb81ad6b88a7461c60
+-	end3bc1457811adc0cb81ad6b88a7461c60:
+-		;
+-		// match: (ADDCQ [off] x)
+-		// cond: off.(int64) == 0
+-		// result: (Copy x)
+-		{
+-			off := v.Aux
+-			x := v.Args[0]
+-			if !(off.(int64) == 0) {
+-				goto end6710a6679c47b70577ecea7ad00dae87
+-			}
+-			v.Op = OpCopy
+-			v.Aux = nil
+-			v.resetArgs()
+-			v.AddArg(x)
+-			return true
+-		}
+-		goto end6710a6679c47b70577ecea7ad00dae87
+-	end6710a6679c47b70577ecea7ad00dae87:
+-		;
+ 	case OpADDQ:
+ 		// match: (ADDQ x (MOVQconst [c]))
+ 		// cond:
+-		// result: (ADDCQ [c] x)
++		// result: (ADDQconst [c] x)
+ 		{
+ 			x := v.Args[0]
+ 			if v.Args[1].Op != OpMOVQconst {
+-				goto end39b79e84f20a6d44b5c4136aae220ac2
++				goto endacffd55e74ee0ff59ad58a18ddfc9973
+ 			}
+ 			c := v.Args[1].Aux
+-			v.Op = OpADDCQ
++			v.Op = OpADDQconst
+ 			v.Aux = nil
+ 			v.resetArgs()
+ 			v.Aux = c
+ 			v.AddArg(x)
+ 			return true
+ 		}
+-		goto end39b79e84f20a6d44b5c4136aae220ac2
+-	end39b79e84f20a6d44b5c4136aae220ac2:
++		goto endacffd55e74ee0ff59ad58a18ddfc9973
++	endacffd55e74ee0ff59ad58a18ddfc9973:
+ 		;
+ 		// match: (ADDQ (MOVQconst [c]) x)
+ 		// cond:
+-		// result: (ADDCQ [c] x)
++		// result: (ADDQconst [c] x)
+ 		{
+ 			if v.Args[0].Op != OpMOVQconst {
+-				goto endc05ff5a2a132241b69d00c852001d820
++				goto end7166f476d744ab7a51125959d3d3c7e2
+ 			}
+ 			c := v.Args[0].Aux
+ 			x := v.Args[1]
+-			v.Op = OpADDCQ
++			v.Op = OpADDQconst
+ 			v.Aux = nil
+ 			v.resetArgs()
+ 			v.Aux = c
+ 			v.AddArg(x)
+ 			return true
+ 		}
+-		goto endc05ff5a2a132241b69d00c852001d820
+-	endc05ff5a2a132241b69d00c852001d820:
++		goto end7166f476d744ab7a51125959d3d3c7e2
++	end7166f476d744ab7a51125959d3d3c7e2:
+ 		;
+-		// match: (ADDQ x (SHLCQ [shift] y))
++		// match: (ADDQ x (SHLQconst [shift] y))
+ 		// cond: shift.(int64) == 3
+ 		// result: (LEAQ8 [int64(0)] x y)
+ 		{
+ 			x := v.Args[0]
+-			if v.Args[1].Op != OpSHLCQ {
+-				goto end7fa0d837edd248748cef516853fd9475
++			if v.Args[1].Op != OpSHLQconst {
++				goto endaf4f724e1e17f2b116d336c07da0165d
+ 			}
+ 			shift := v.Args[1].Aux
+ 			y := v.Args[1].Args[0]
+ 			if !(shift.(int64) == 3) {
+-				goto end7fa0d837edd248748cef516853fd9475
++				goto endaf4f724e1e17f2b116d336c07da0165d
+ 			}
+ 			v.Op = OpLEAQ8
+ 			v.Aux = nil
+@@ -105,8 +64,49 @@ func lowerAmd64(v *Value) bool {
+ 			v.AddArg(y)
+ 			return true
+ 		}
+-		goto end7fa0d837edd248748cef516853fd9475
+-	end7fa0d837edd248748cef516853fd9475:
++		goto endaf4f724e1e17f2b116d336c07da0165d
++	endaf4f724e1e17f2b116d336c07da0165d:
++		;
++	case OpADDQconst:
++		// match: (ADDQconst [c] (LEAQ8 [d] x y))
++		// cond:
++		// result: (LEAQ8 [addOff(c, d)] x y)
++		{
++			c := v.Aux
++			if v.Args[0].Op != OpLEAQ8 {
++				goto ende2cc681c9abf9913288803fb1b39e639
++			}
++			d := v.Args[0].Aux
++			x := v.Args[0].Args[0]
++			y := v.Args[0].Args[1]
++			v.Op = OpLEAQ8
++			v.Aux = nil
++			v.resetArgs()
++			v.Aux = addOff(c, d)
++			v.AddArg(x)
++			v.AddArg(y)
++			return true
++		}
++		goto ende2cc681c9abf9913288803fb1b39e639
++	ende2cc681c9abf9913288803fb1b39e639:
++		;
++		// match: (ADDQconst [off] x)
++		// cond: off.(int64) == 0
++		// result: (Copy x)
++		{
++			off := v.Aux
++			x := v.Args[0]
++			if !(off.(int64) == 0) {
++				goto endfa1c7cc5ac4716697e891376787f86ce
++			}
++			v.Op = OpCopy
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			return true
++		}
++		goto endfa1c7cc5ac4716697e891376787f86ce
++	endfa1c7cc5ac4716697e891376787f86ce:
+ 		;
+ 	case OpAdd:
+ 		// match: (Add <t> x y)
+@@ -152,44 +152,44 @@ func lowerAmd64(v *Value) bool {
+ 	case OpCMPQ:
+ 		// match: (CMPQ x (MOVQconst [c]))
+ 		// cond:
+-		// result: (CMPCQ x [c])
++		// result: (CMPQconst x [c])
+ 		{
+ 			x := v.Args[0]
+ 			if v.Args[1].Op != OpMOVQconst {
+-				goto endf180bae15b3d24c0213520d7f7aa98b4
++				goto end32ef1328af280ac18fa8045a3502dae9
+ 			}
+ 			c := v.Args[1].Aux
+-			v.Op = OpCMPCQ
++			v.Op = OpCMPQconst
+ 			v.Aux = nil
+ 			v.resetArgs()
+ 			v.AddArg(x)
+ 			v.Aux = c
+ 			return true
+ 		}
+-		goto endf180bae15b3d24c0213520d7f7aa98b4
+-	endf180bae15b3d24c0213520d7f7aa98b4:
++		goto end32ef1328af280ac18fa8045a3502dae9
++	end32ef1328af280ac18fa8045a3502dae9:
+ 		;
+ 		// match: (CMPQ (MOVQconst [c]) x)
+ 		// cond:
+-		// result: (InvertFlags (CMPCQ <TypeFlags> x [c]))
++		// result: (InvertFlags (CMPQconst <TypeFlags> x [c]))
+ 		{
+ 			if v.Args[0].Op != OpMOVQconst {
+-				goto end8fc58bffa73b3df80b3de72c91844884
++				goto endf8ca12fe79290bc82b11cfa463bc9413
+ 			}
+ 			c := v.Args[0].Aux
+ 			x := v.Args[1]
+ 			v.Op = OpInvertFlags
+ 			v.Aux = nil
+ 			v.resetArgs()
+-			v0 := v.Block.NewValue(OpCMPCQ, TypeInvalid, nil)
++			v0 := v.Block.NewValue(OpCMPQconst, TypeInvalid, nil)
+ 			v0.Type = TypeFlags
+ 			v0.AddArg(x)
+ 			v0.Aux = c
+ 			v.AddArg(v0)
+ 			return true
+ 		}
+-		goto end8fc58bffa73b3df80b3de72c91844884
+-	end8fc58bffa73b3df80b3de72c91844884:
++		goto endf8ca12fe79290bc82b11cfa463bc9413
++	endf8ca12fe79290bc82b11cfa463bc9413:
+ 		;
+ 	case OpConst:
+ 		// match: (Const <t> [val])
+@@ -330,14 +330,35 @@ func lowerAmd64(v *Value) bool {
+ 		goto end581ce5a20901df1b8143448ba031685b
+ 	end581ce5a20901df1b8143448ba031685b:
+ 		;
++	case OpLsh:
++		// match: (Lsh <t> x y)
++		// cond: is64BitInt(t)
++		// result: (SHLQ x y)
++		{
++			t := v.Type
++			x := v.Args[0]
++			y := v.Args[1]
++			if !(is64BitInt(t)) {
++				goto end9f05c9539e51db6ad557989e0c822e9b
++			}
++			v.Op = OpSHLQ
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			v.AddArg(y)
++			return true
++		}
++		goto end9f05c9539e51db6ad557989e0c822e9b
++	end9f05c9539e51db6ad557989e0c822e9b:
++		;
+ 	case OpMOVQload:
+-		// match: (MOVQload [off1] (ADDCQ [off2] ptr) mem)
++		// match: (MOVQload [off1] (ADDQconst [off2] ptr) mem)
+ 		// cond:
+ 		// result: (MOVQload [addOff(off1, off2)] ptr mem)
+ 		{
+ 			off1 := v.Aux
+-			if v.Args[0].Op != OpADDCQ {
+-				goto end218ceec16b8299d573d3c9ccaa69b086
++			if v.Args[0].Op != OpADDQconst {
++				goto end843d29b538c4483b432b632e5666d6e3
+ 			}
+ 			off2 := v.Args[0].Aux
+ 			ptr := v.Args[0].Args[0]
+@@ -350,8 +371,8 @@ func lowerAmd64(v *Value) bool {
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto end218ceec16b8299d573d3c9ccaa69b086
+-	end218ceec16b8299d573d3c9ccaa69b086:
++		goto end843d29b538c4483b432b632e5666d6e3
++	end843d29b538c4483b432b632e5666d6e3:
+ 		;
+ 		// match: (MOVQload [off1] (LEAQ8 [off2] ptr idx) mem)
+ 		// cond:
+@@ -378,13 +399,13 @@ func lowerAmd64(v *Value) bool {
+ 	end02f5ad148292c46463e7c20d3b821735:
+ 		;
+ 	case OpMOVQloadidx8:
+-		// match: (MOVQloadidx8 [off1] (ADDCQ [off2] ptr) idx mem)
++		// match: (MOVQloadidx8 [off1] (ADDQconst [off2] ptr) idx mem)
+ 		// cond:
+ 		// result: (MOVQloadidx8 [addOff(off1, off2)] ptr idx mem)
+ 		{
+ 			off1 := v.Aux
+-			if v.Args[0].Op != OpADDCQ {
+-				goto ende47e8d742e2615f39fb6509a5749e414
++			if v.Args[0].Op != OpADDQconst {
++				goto ende81e44bcfb11f90916ccb440c590121f
+ 			}
+ 			off2 := v.Args[0].Aux
+ 			ptr := v.Args[0].Args[0]
+@@ -399,17 +420,17 @@ func lowerAmd64(v *Value) bool {
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto ende47e8d742e2615f39fb6509a5749e414
+-	ende47e8d742e2615f39fb6509a5749e414:
++		goto ende81e44bcfb11f90916ccb440c590121f
++	ende81e44bcfb11f90916ccb440c590121f:
+ 		;
+ 	case OpMOVQstore:
+-		// match: (MOVQstore [off1] (ADDCQ [off2] ptr) val mem)
++		// match: (MOVQstore [off1] (ADDQconst [off2] ptr) val mem)
+ 		// cond:
+ 		// result: (MOVQstore [addOff(off1, off2)] ptr val mem)
+ 		{
+ 			off1 := v.Aux
+-			if v.Args[0].Op != OpADDCQ {
+-				goto enddfd4c7a20fd3b84eb9dcf84b98c661fc
++			if v.Args[0].Op != OpADDQconst {
++				goto end2108c693a43c79aed10b9246c39c80aa
+ 			}
+ 			off2 := v.Args[0].Aux
+ 			ptr := v.Args[0].Args[0]
+@@ -424,8 +445,8 @@ func lowerAmd64(v *Value) bool {
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto enddfd4c7a20fd3b84eb9dcf84b98c661fc
+-	enddfd4c7a20fd3b84eb9dcf84b98c661fc:
++		goto end2108c693a43c79aed10b9246c39c80aa
++	end2108c693a43c79aed10b9246c39c80aa:
+ 		;
+ 		// match: (MOVQstore [off1] (LEAQ8 [off2] ptr idx) val mem)
+ 		// cond:
+@@ -454,13 +475,13 @@ func lowerAmd64(v *Value) bool {
+ 	endce1db8c8d37c8397c500a2068a65c215:
+ 		;
+ 	case OpMOVQstoreidx8:
+-		// match: (MOVQstoreidx8 [off1] (ADDCQ [off2] ptr) idx val mem)
++		// match: (MOVQstoreidx8 [off1] (ADDQconst [off2] ptr) idx val mem)
+ 		// cond:
+ 		// result: (MOVQstoreidx8 [addOff(off1, off2)] ptr idx val mem)
+ 		{
+ 			off1 := v.Aux
+-			if v.Args[0].Op != OpADDCQ {
+-				goto endcdb222707a568ad468f7fff2fc42fc39
++			if v.Args[0].Op != OpADDQconst {
++				goto end01c970657b0fdefeab82458c15022163
+ 			}
+ 			off2 := v.Args[0].Aux
+ 			ptr := v.Args[0].Args[0]
+@@ -477,67 +498,89 @@ func lowerAmd64(v *Value) bool {
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto endcdb222707a568ad468f7fff2fc42fc39
+-	endcdb222707a568ad468f7fff2fc42fc39:
+-		;
+-	case OpMULCQ:
+-		// match: (MULCQ [c] x)
+-		// cond: c.(int64) == 8
+-		// result: (SHLCQ [int64(3)] x)
+-		{
+-			c := v.Aux
+-			x := v.Args[0]
+-			if !(c.(int64) == 8) {
+-				goto end90a1c055d9658aecacce5e101c1848b4
+-			}
+-			v.Op = OpSHLCQ
+-			v.Aux = nil
+-			v.resetArgs()
+-			v.Aux = int64(3)
+-			v.AddArg(x)
+-			return true
+-		}
+-		goto end90a1c055d9658aecacce5e101c1848b4
+-	end90a1c055d9658aecacce5e101c1848b4:
++		goto end01c970657b0fdefeab82458c15022163
++	end01c970657b0fdefeab82458c15022163:
+ 		;
+ 	case OpMULQ:
+ 		// match: (MULQ x (MOVQconst [c]))
+-		// cond:
+-		// result: (MULCQ [c] x)
++		// cond: c.(int64) == int64(int32(c.(int64)))
++		// result: (MULQconst [c] x)
+ 		{
+ 			x := v.Args[0]
+ 			if v.Args[1].Op != OpMOVQconst {
+-				goto endce35d001482ea209e62e9394bd07c7cb
++				goto ende8c09b194fcde7d9cdc69f2deff86304
+ 			}
+ 			c := v.Args[1].Aux
+-			v.Op = OpMULCQ
++			if !(c.(int64) == int64(int32(c.(int64)))) {
++				goto ende8c09b194fcde7d9cdc69f2deff86304
++			}
++			v.Op = OpMULQconst
+ 			v.Aux = nil
+ 			v.resetArgs()
+ 			v.Aux = c
+ 			v.AddArg(x)
+ 			return true
+ 		}
+-		goto endce35d001482ea209e62e9394bd07c7cb
+-	endce35d001482ea209e62e9394bd07c7cb:
++		goto ende8c09b194fcde7d9cdc69f2deff86304
++	ende8c09b194fcde7d9cdc69f2deff86304:
+ 		;
+ 		// match: (MULQ (MOVQconst [c]) x)
+ 		// cond:
+-		// result: (MULCQ [c] x)
++		// result: (MULQconst [c] x)
+ 		{
+ 			if v.Args[0].Op != OpMOVQconst {
+-				goto end804f58b1f6a7cce19d48379999ec03f1
++				goto endc6e18d6968175d6e58eafa6dcf40c1b8
+ 			}
+ 			c := v.Args[0].Aux
+ 			x := v.Args[1]
+-			v.Op = OpMULCQ
++			v.Op = OpMULQconst
+ 			v.Aux = nil
+ 			v.resetArgs()
+ 			v.Aux = c
+ 			v.AddArg(x)
+ 			return true
+ 		}
+-		goto end804f58b1f6a7cce19d48379999ec03f1
+-	end804f58b1f6a7cce19d48379999ec03f1:
++		goto endc6e18d6968175d6e58eafa6dcf40c1b8
++	endc6e18d6968175d6e58eafa6dcf40c1b8:
++		;
++	case OpMULQconst:
++		// match: (MULQconst [c] x)
++		// cond: c.(int64) == 8
++		// result: (SHLQconst [int64(3)] x)
++		{
++			c := v.Aux
++			x := v.Args[0]
++			if !(c.(int64) == 8) {
++				goto end7e16978c56138324ff2abf91fd6d94d4
++			}
++			v.Op = OpSHLQconst
++			v.Aux = nil
++			v.resetArgs()
++			v.Aux = int64(3)
++			v.AddArg(x)
++			return true
++		}
++		goto end7e16978c56138324ff2abf91fd6d94d4
++	end7e16978c56138324ff2abf91fd6d94d4:
++		;
++		// match: (MULQconst [c] x)
++		// cond: c.(int64) == 64
++		// result: (SHLQconst [int64(5)] x)
++		{
++			c := v.Aux
++			x := v.Args[0]
++			if !(c.(int64) == 64) {
++				goto end2c7a02f230e4b311ac3a4e22f70a4f08
++			}
++			v.Op = OpSHLQconst
++			v.Aux = nil
++			v.resetArgs()
++			v.Aux = int64(5)
++			v.AddArg(x)
++			return true
++		}
++		goto end2c7a02f230e4b311ac3a4e22f70a4f08
++	end2c7a02f230e4b311ac3a4e22f70a4f08:
+ 		;
+ 	case OpMove:
+ 		// match: (Move [size] dst src mem)
+@@ -587,19 +630,19 @@ func lowerAmd64(v *Value) bool {
+ 	case OpOffPtr:
+ 		// match: (OffPtr [off] ptr)
+ 		// cond:
+-		// result: (ADDCQ [off] ptr)
++		// result: (ADDQconst [off] ptr)
+ 		{
+ 			off := v.Aux
+ 			ptr := v.Args[0]
+-			v.Op = OpADDCQ
++			v.Op = OpADDQconst
+ 			v.Aux = nil
+ 			v.resetArgs()
+ 			v.Aux = off
+ 			v.AddArg(ptr)
+ 			return true
+ 		}
+-		goto endfe8f713b1d237a23311fb721ee46bedb
+-	endfe8f713b1d237a23311fb721ee46bedb:
++		goto end0429f947ee7ac49ff45a243e461a5290
++	end0429f947ee7ac49ff45a243e461a5290:
+ 		;
+ 	case OpSETL:
+ 		// match: (SETL (InvertFlags x))
+@@ -619,48 +662,68 @@ func lowerAmd64(v *Value) bool {
+ 		goto end456c7681d48305698c1ef462d244bdc6
+ 	end456c7681d48305698c1ef462d244bdc6:
+ 		;
++	case OpSHLQ:
++		// match: (SHLQ x (MOVQconst [c]))
++		// cond:
++		// result: (SHLQconst [c] x)
++		{
++			x := v.Args[0]
++			if v.Args[1].Op != OpMOVQconst {
++				goto endcca412bead06dc3d56ef034a82d184d6
++			}
++			c := v.Args[1].Aux
++			v.Op = OpSHLQconst
++			v.Aux = nil
++			v.resetArgs()
++			v.Aux = c
++			v.AddArg(x)
++			return true
++		}
++		goto endcca412bead06dc3d56ef034a82d184d6
++	endcca412bead06dc3d56ef034a82d184d6:
++		;
+ 	case OpSUBQ:
+ 		// match: (SUBQ x (MOVQconst [c]))
+ 		// cond:
+-		// result: (SUBCQ x [c])
++		// result: (SUBQconst x [c])
+ 		{
+ 			x := v.Args[0]
+ 			if v.Args[1].Op != OpMOVQconst {
+-				goto endc96cd1cb2dd98427c34fb9543feca4fe
++				goto end5a74a63bd9ad15437717c6df3b25eebb
+ 			}
+ 			c := v.Args[1].Aux
+-			v.Op = OpSUBCQ
++			v.Op = OpSUBQconst
+ 			v.Aux = nil
+ 			v.resetArgs()
+ 			v.AddArg(x)
+ 			v.Aux = c
+ 			return true
+ 		}
+-		goto endc96cd1cb2dd98427c34fb9543feca4fe
+-	endc96cd1cb2dd98427c34fb9543feca4fe:
++		goto end5a74a63bd9ad15437717c6df3b25eebb
++	end5a74a63bd9ad15437717c6df3b25eebb:
+ 		;
+ 		// match: (SUBQ <t> (MOVQconst [c]) x)
+ 		// cond:
+-		// result: (NEGQ (SUBCQ <t> x [c]))
++		// result: (NEGQ (SUBQconst <t> x [c]))
+ 		{
+ 			t := v.Type
+ 			if v.Args[0].Op != OpMOVQconst {
+-				goto end900aaaf28cefac6bb62e76b5151611cf
++				goto end78e66b6fc298684ff4ac8aec5ce873c9
+ 			}
+ 			c := v.Args[0].Aux
+ 			x := v.Args[1]
+ 			v.Op = OpNEGQ
+ 			v.Aux = nil
+ 			v.resetArgs()
+-			v0 := v.Block.NewValue(OpSUBCQ, TypeInvalid, nil)
++			v0 := v.Block.NewValue(OpSUBQconst, TypeInvalid, nil)
+ 			v0.Type = t
+ 			v0.AddArg(x)
+ 			v0.Aux = c
+ 			v.AddArg(v0)
+ 			return true
+ 		}
+-		goto end900aaaf28cefac6bb62e76b5151611cf
+-	end900aaaf28cefac6bb62e76b5151611cf:
++		goto end78e66b6fc298684ff4ac8aec5ce873c9
++	end78e66b6fc298684ff4ac8aec5ce873c9:
+ 		;
+ 	case OpStore:
+ 		// match: (Store ptr val mem)
+diff --git a/src/cmd/internal/ssa/op.go b/src/cmd/internal/ssa/op.go
+index e0dc531fc9..f02c1ae0c0 100644
+--- a/src/cmd/internal/ssa/op.go
++++ b/src/cmd/internal/ssa/op.go
+@@ -34,6 +34,8 @@ const (
+ 	OpAdd // arg0 + arg1
+ 	OpSub // arg0 - arg1
+ 	OpMul // arg0 * arg1
++	OpLsh // arg0 << arg1
++	OpRsh // arg0 >> arg1 (signed/unsigned depending on signedness of type)
+ 
+ 	// 2-input comparisons
+ 	OpLess // arg0 < arg1
+@@ -83,10 +85,6 @@ const (
+ 
+ 	OpOffPtr // arg0 + aux.(int64) (arg0 and result are pointers)
+ 
+-	// These ops return a pointer to a location on the stack.
+-	OpFPAddr // FP + aux.(int64) (+ == args from caller, - == locals)
+-	OpSPAddr // SP + aux.(int64)
+-
+ 	// spill&restore ops for the register allocator.  These are
+ 	// semantically identical to OpCopy; they do not take/return
+ 	// stores like regular memory ops do.  We can get away without memory
+@@ -96,6 +94,8 @@ const (
+ 
+ 	// used during ssa construction.  Like OpCopy, but the arg has not been specified yet.
+ 	OpFwdRef
++
++	OpGenericEnd
+ )
+ 
+ // GlobalOffset represents a fixed offset within a global variable
+diff --git a/src/cmd/internal/ssa/op_string.go b/src/cmd/internal/ssa/op_string.go
+index 9b22f664ef..c8f27bb2e4 100644
+--- a/src/cmd/internal/ssa/op_string.go
++++ b/src/cmd/internal/ssa/op_string.go
+@@ -6,16 +6,16 @@ import "fmt"
+ 
+ const (
+ 	_Op_name_0 = "opInvalid"
+-	_Op_name_1 = "opGenericBaseOpAddOpSubOpMulOpLessOpConstOpArgOpGlobalOpFuncOpFPOpSPOpCopyOpMoveOpPhiOpSliceMakeOpSlicePtrOpSliceLenOpSliceCapOpStringMakeOpStringPtrOpStringLenOpLoadOpStoreOpArrayIndexOpPtrIndexOpIsNonNilOpIsInBoundsOpCallOpStaticCallOpConvertOpConvNopOpOffPtrOpFPAddrOpSPAddrOpStoreReg8OpLoadReg8OpFwdRef"
+-	_Op_name_2 = "opAMD64BaseOpADDQOpSUBQOpADDCQOpSUBCQOpMULQOpMULCQOpSHLQOpSHLCQOpNEGQOpADDLOpCMPQOpCMPCQOpTESTQOpTESTBOpSETEQOpSETNEOpSETLOpSETGEOpSETBOpInvertFlagsOpLEAQOpLEAQ2OpLEAQ4OpLEAQ8OpLEAQglobalOpMOVBloadOpMOVBQZXloadOpMOVBQSXloadOpMOVQloadOpMOVQstoreOpMOVQloadidx8OpMOVQstoreidx8OpMOVQloadglobalOpMOVQstoreglobalOpMOVQconstOpREPMOVSB"
++	_Op_name_1 = "opGenericBaseOpAddOpSubOpMulOpLshOpRshOpLessOpConstOpArgOpGlobalOpFuncOpFPOpSPOpCopyOpMoveOpPhiOpSliceMakeOpSlicePtrOpSliceLenOpSliceCapOpStringMakeOpStringPtrOpStringLenOpLoadOpStoreOpArrayIndexOpPtrIndexOpIsNonNilOpIsInBoundsOpCallOpStaticCallOpConvertOpConvNopOpOffPtrOpStoreReg8OpLoadReg8OpFwdRefOpGenericEnd"
++	_Op_name_2 = "opAMD64BaseOpADDQOpADDQconstOpSUBQOpSUBQconstOpMULQOpMULQconstOpSHLQOpSHLQconstOpNEGQOpADDLOpCMPQOpCMPQconstOpTESTQOpTESTBOpSETEQOpSETNEOpSETLOpSETGEOpSETBOpInvertFlagsOpLEAQOpLEAQ2OpLEAQ4OpLEAQ8OpLEAQglobalOpMOVBloadOpMOVBQZXloadOpMOVBQSXloadOpMOVQloadOpMOVQstoreOpMOVQloadidx8OpMOVQstoreidx8OpMOVQloadglobalOpMOVQstoreglobalOpMOVQconstOpREPMOVSB"
+ 	_Op_name_3 = "op386Base"
+ 	_Op_name_4 = "opMax"
+ )
+ 
+ var (
+ 	_Op_index_0 = [...]uint8{0, 9}
+-	_Op_index_1 = [...]uint16{0, 13, 18, 23, 28, 34, 41, 46, 54, 60, 64, 68, 74, 80, 85, 96, 106, 116, 126, 138, 149, 160, 166, 173, 185, 195, 205, 217, 223, 235, 244, 253, 261, 269, 277, 288, 298, 306}
+-	_Op_index_2 = [...]uint16{0, 11, 17, 23, 30, 37, 43, 50, 56, 63, 69, 75, 81, 88, 95, 102, 109, 116, 122, 129, 135, 148, 154, 161, 168, 175, 187, 197, 210, 223, 233, 244, 258, 273, 289, 306, 317, 327}
++	_Op_index_1 = [...]uint16{0, 13, 18, 23, 28, 33, 38, 44, 51, 56, 64, 70, 74, 78, 84, 90, 95, 106, 116, 126, 136, 148, 159, 170, 176, 183, 195, 205, 215, 227, 233, 245, 254, 263, 271, 282, 292, 300, 312}
++	_Op_index_2 = [...]uint16{0, 11, 17, 28, 34, 45, 51, 62, 68, 79, 85, 91, 97, 108, 115, 122, 129, 136, 142, 149, 155, 168, 174, 181, 188, 195, 207, 217, 230, 243, 253, 264, 278, 293, 309, 326, 337, 347}
+ 	_Op_index_3 = [...]uint8{0, 9}
+ 	_Op_index_4 = [...]uint8{0, 5}
+ )
+@@ -24,7 +24,7 @@ func (i Op) String() string {
+ 	switch {
+ 	case i == 0:
+ 		return _Op_name_0
+-	case 1001 <= i && i <= 1037:
++	case 1001 <= i && i <= 1038:
+ 		i -= 1001
+ 		return _Op_name_1[_Op_index_1[i]:_Op_index_1[i+1]]
+ 	case 2001 <= i && i <= 2037:
+diff --git a/src/cmd/internal/ssa/opamd64.go b/src/cmd/internal/ssa/opamd64.go
+index 46f0a69dfb..46a0069a18 100644
+--- a/src/cmd/internal/ssa/opamd64.go
++++ b/src/cmd/internal/ssa/opamd64.go
+@@ -13,24 +13,24 @@ const (
+ 	// Q = 64 bit, L = 32 bit, W = 16 bit, B = 8 bit
+ 
+ 	// arithmetic
+-	OpADDQ  // arg0 + arg1
+-	OpSUBQ  // arg0 - arg1
+-	OpADDCQ // arg + aux.(int64)
+-	OpSUBCQ // arg - aux.(int64)
+-	OpMULQ  // arg0 * arg1
+-	OpMULCQ // arg * aux.(int64)
+-	OpSHLQ  // arg0 << arg1
+-	OpSHLCQ // arg << aux.(int64)
+-	OpNEGQ  // -arg
+-	OpADDL  // arg0 + arg1
++	OpADDQ      // arg0 + arg1
++	OpADDQconst // arg + aux.(int64)
++	OpSUBQ      // arg0 - arg1
++	OpSUBQconst // arg - aux.(int64)
++	OpMULQ      // arg0 * arg1
++	OpMULQconst // arg * aux.(int64)
++	OpSHLQ      // arg0 << arg1
++	OpSHLQconst // arg << aux.(int64)
++	OpNEGQ      // -arg
++	OpADDL      // arg0 + arg1
+ 
+ 	// Flags value generation.
+ 	// We pretend the flags type is an opaque thing that comparisons generate
+ 	// and from which we can extract boolean conditions like <, ==, etc.
+-	OpCMPQ  // arg0 compare to arg1
+-	OpCMPCQ // arg0 compare to aux.(int64)
+-	OpTESTQ // (arg0 & arg1) compare to 0
+-	OpTESTB // (arg0 & arg1) compare to 0
++	OpCMPQ      // arg0 compare to arg1
++	OpCMPQconst // arg0 compare to aux.(int64)
++	OpTESTQ     // (arg0 & arg1) compare to 0
++	OpTESTB     // (arg0 & arg1) compare to 0
+ 
+ 	// These opcodes extract a particular boolean condition from a flags value.
+ 	OpSETEQ // extract == condition from arg0
+@@ -96,7 +96,8 @@ var regsAMD64 = [...]string{
+ 	"OVERWRITE0", // the same register as the first input
+ }
+ 
+-var gp regMask = 0x1ffff // all integer registers (including SP&FP)
++var gp regMask = 0x1ffff   // all integer registers including SP&FP
++var gpout regMask = 0xffef // integer registers not including SP&FP
+ var cx regMask = 1 << 1
+ var si regMask = 1 << 6
+ var di regMask = 1 << 7
+@@ -104,37 +105,37 @@ var flags regMask = 1 << 17
+ 
+ var (
+ 	// gp = general purpose (integer) registers
+-	gp21      = [2][]regMask{{gp, gp}, {gp}}    // 2 input, 1 output
+-	gp11      = [2][]regMask{{gp}, {gp}}        // 1 input, 1 output
+-	gp01      = [2][]regMask{{}, {gp}}          // 0 input, 1 output
+-	shift     = [2][]regMask{{gp, cx}, {gp}}    // shift operations
++	gp21      = [2][]regMask{{gp, gp}, {gpout}} // 2 input, 1 output
++	gp11      = [2][]regMask{{gp}, {gpout}}     // 1 input, 1 output
++	gp01      = [2][]regMask{{}, {gpout}}       // 0 input, 1 output
++	shift     = [2][]regMask{{gp, cx}, {gpout}} // shift operations
+ 	gp2_flags = [2][]regMask{{gp, gp}, {flags}} // generate flags from 2 gp regs
+ 	gp1_flags = [2][]regMask{{gp}, {flags}}     // generate flags from 1 gp reg
+ 
+-	gpload     = [2][]regMask{{gp, 0}, {gp}}
+-	gploadidx  = [2][]regMask{{gp, gp, 0}, {gp}}
++	gpload     = [2][]regMask{{gp, 0}, {gpout}}
++	gploadidx  = [2][]regMask{{gp, gp, 0}, {gpout}}
+ 	gpstore    = [2][]regMask{{gp, gp, 0}, {0}}
+ 	gpstoreidx = [2][]regMask{{gp, gp, gp, 0}, {0}}
+ 
+-	gpload_stack  = [2][]regMask{{0}, {gp}}
++	gpload_stack  = [2][]regMask{{0}, {gpout}}
+ 	gpstore_stack = [2][]regMask{{gp, 0}, {0}}
+ )
+ 
+ // Opcodes that appear in an output amd64 program
+ var amd64Table = map[Op]opInfo{
+-	OpADDQ:  {flags: OpFlagCommutative, asm: "ADDQ\t%I0,%I1,%O0", reg: gp21}, // TODO: overwrite
+-	OpADDCQ: {asm: "ADDQ\t$%A,%I0,%O0", reg: gp11},                           // aux = int64 constant to add
+-	OpSUBQ:  {asm: "SUBQ\t%I0,%I1,%O0", reg: gp21},
+-	OpSUBCQ: {asm: "SUBQ\t$%A,%I0,%O0", reg: gp11},
+-	OpMULQ:  {asm: "MULQ\t%I0,%I1,%O0", reg: gp21},
+-	OpMULCQ: {asm: "MULQ\t$%A,%I0,%O0", reg: gp11},
+-	OpSHLQ:  {asm: "SHLQ\t%I0,%I1,%O0", reg: gp21},
+-	OpSHLCQ: {asm: "SHLQ\t$%A,%I0,%O0", reg: gp11},
+-
+-	OpCMPQ:  {asm: "CMPQ\t%I0,%I1", reg: gp2_flags}, // compute arg[0]-arg[1] and produce flags
+-	OpCMPCQ: {asm: "CMPQ\t$%A,%I0", reg: gp1_flags},
+-	OpTESTQ: {asm: "TESTQ\t%I0,%I1", reg: gp2_flags},
+-	OpTESTB: {asm: "TESTB\t%I0,%I1", reg: gp2_flags},
++	OpADDQ:      {flags: OpFlagCommutative, asm: "ADDQ\t%I0,%I1,%O0", reg: gp21}, // TODO: overwrite
++	OpADDQconst: {asm: "ADDQ\t$%A,%I0,%O0", reg: gp11},                           // aux = int64 constant to add
++	OpSUBQ:      {asm: "SUBQ\t%I0,%I1,%O0", reg: gp21},
++	OpSUBQconst: {asm: "SUBQ\t$%A,%I0,%O0", reg: gp11},
++	OpMULQ:      {asm: "MULQ\t%I0,%I1,%O0", reg: gp21},
++	OpMULQconst: {asm: "IMULQ\t$%A,%I0,%O0", reg: gp11},
++	OpSHLQ:      {asm: "SHLQ\t%I0,%I1,%O0", reg: gp21},
++	OpSHLQconst: {asm: "SHLQ\t$%A,%I0,%O0", reg: gp11},
++
++	OpCMPQ:      {asm: "CMPQ\t%I0,%I1", reg: gp2_flags}, // compute arg[0]-arg[1] and produce flags
++	OpCMPQconst: {asm: "CMPQ\t$%A,%I0", reg: gp1_flags},
++	OpTESTQ:     {asm: "TESTQ\t%I0,%I1", reg: gp2_flags},
++	OpTESTB:     {asm: "TESTB\t%I0,%I1", reg: gp2_flags},
+ 
+ 	OpLEAQ:       {flags: OpFlagCommutative, asm: "LEAQ\t%A(%I0)(%I1*1),%O0", reg: gp21}, // aux = int64 constant to add
+ 	OpLEAQ2:      {asm: "LEAQ\t%A(%I0)(%I1*2),%O0"},
+diff --git a/src/cmd/internal/ssa/rewrite.go b/src/cmd/internal/ssa/rewrite.go
+index 75e910d690..671270d7f2 100644
+--- a/src/cmd/internal/ssa/rewrite.go
++++ b/src/cmd/internal/ssa/rewrite.go
+@@ -68,8 +68,9 @@ func typeSize(t Type) int64 {
+ 
+ // addOff adds two offset aux values.  Each should be an int64.  Fails if wraparound happens.
+ func addOff(a, b interface{}) interface{} {
+-	x := a.(int64)
+-	y := b.(int64)
++	return addOffset(a.(int64), b.(int64))
++}
++func addOffset(x, y int64) int64 {
+ 	z := x + y
+ 	// x and y have same sign and z has a different sign => overflow
+ 	if x^y >= 0 && x^z < 0 {
+diff --git a/src/cmd/internal/ssa/rulegen/lower_amd64.rules b/src/cmd/internal/ssa/rulegen/lower_amd64.rules
+index 0fed21e740..dc910b70b1 100644
+--- a/src/cmd/internal/ssa/rulegen/lower_amd64.rules
++++ b/src/cmd/internal/ssa/rulegen/lower_amd64.rules
+@@ -27,7 +27,7 @@
+ (Sub <t> x y) && is64BitInt(t) -> (SUBQ x y)
+ 
+ (Mul <t> x y) && is64BitInt(t) -> (MULQ x y)
+-
++(Lsh <t> x y) && is64BitInt(t) -> (SHLQ x y) // TODO: check y>63
+ (Less x y) && is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type) -> (SETL (CMPQ <TypeFlags> x y))
+ 
+ (Load <t> ptr mem) && t.IsBoolean() -> (MOVBload [int64(0)] ptr mem)
+@@ -40,7 +40,7 @@
+ 
+ (Move [size] dst src mem) -> (REPMOVSB dst src (Const <TypeUInt64> [size.(int64)]) mem)
+ 
+-(OffPtr [off] ptr) -> (ADDCQ [off] ptr)
++(OffPtr [off] ptr) -> (ADDQconst [off] ptr)
+ 
+ (Const <t> [val]) && is64BitInt(t) -> (MOVQconst [val])
+ 
+@@ -51,39 +51,41 @@
+ (Global [sym]) -> (LEAQglobal [GlobalOffset{sym,0}])
+ 
+ // fold constants into instructions
+-(ADDQ x (MOVQconst [c])) -> (ADDCQ [c] x) // TODO: restrict c to int32 range?
+-(ADDQ (MOVQconst [c]) x) -> (ADDCQ [c] x)
+-(SUBQ x (MOVQconst [c])) -> (SUBCQ x [c])
+-(SUBQ <t> (MOVQconst [c]) x) -> (NEGQ (SUBCQ <t> x [c]))
+-(MULQ x (MOVQconst [c])) -> (MULCQ [c] x)
+-(MULQ (MOVQconst [c]) x) -> (MULCQ [c] x)
+-(CMPQ x (MOVQconst [c])) -> (CMPCQ x [c])
+-(CMPQ (MOVQconst [c]) x) -> (InvertFlags (CMPCQ <TypeFlags> x [c]))
++(ADDQ x (MOVQconst [c])) -> (ADDQconst [c] x) // TODO: restrict c to int32 range?
++(ADDQ (MOVQconst [c]) x) -> (ADDQconst [c] x)
++(SUBQ x (MOVQconst [c])) -> (SUBQconst x [c])
++(SUBQ <t> (MOVQconst [c]) x) -> (NEGQ (SUBQconst <t> x [c]))
++(MULQ x (MOVQconst [c])) && c.(int64) == int64(int32(c.(int64))) -> (MULQconst [c] x)
++(MULQ (MOVQconst [c]) x) -> (MULQconst [c] x)
++(SHLQ x (MOVQconst [c])) -> (SHLQconst [c] x)
++(CMPQ x (MOVQconst [c])) -> (CMPQconst x [c])
++(CMPQ (MOVQconst [c]) x) -> (InvertFlags (CMPQconst <TypeFlags> x [c]))
+ 
+ // strength reduction
+ // TODO: do this a lot more generically
+-(MULCQ [c] x) && c.(int64) == 8 -> (SHLCQ [int64(3)] x)
++(MULQconst [c] x) && c.(int64) == 8 -> (SHLQconst [int64(3)] x)
++(MULQconst [c] x) && c.(int64) == 64 -> (SHLQconst [int64(5)] x)
+ 
+ // fold add/shift into leaq
+-(ADDQ x (SHLCQ [shift] y)) && shift.(int64) == 3 -> (LEAQ8 [int64(0)] x y)
+-(ADDCQ [c] (LEAQ8 [d] x y)) -> (LEAQ8 [addOff(c, d)] x y)
++(ADDQ x (SHLQconst [shift] y)) && shift.(int64) == 3 -> (LEAQ8 [int64(0)] x y)
++(ADDQconst [c] (LEAQ8 [d] x y)) -> (LEAQ8 [addOff(c, d)] x y)
+ 
+ // reverse ordering of compare instruction
+ (SETL (InvertFlags x)) -> (SETGE x)
+ 
+ // fold constants into memory operations
+ // Note that this is not always a good idea because if not all the uses of
+-// the ADDCQ get eliminated, we still have to compute the ADDCQ and we now
+-// have potentially two live values (ptr and (ADDCQ [off] ptr)) instead of one.
++// the ADDQconst get eliminated, we still have to compute the ADDQconst and we now
++// have potentially two live values (ptr and (ADDQconst [off] ptr)) instead of one.
+ // Nevertheless, let's do it!
+-(MOVQload [off1] (ADDCQ [off2] ptr) mem) -> (MOVQload [addOff(off1, off2)] ptr mem)
+-(MOVQstore [off1] (ADDCQ [off2] ptr) val mem) -> (MOVQstore [addOff(off1, off2)] ptr val mem)
++(MOVQload [off1] (ADDQconst [off2] ptr) mem) -> (MOVQload [addOff(off1, off2)] ptr mem)
++(MOVQstore [off1] (ADDQconst [off2] ptr) val mem) -> (MOVQstore [addOff(off1, off2)] ptr val mem)
+ 
+ // indexed loads and stores
+ (MOVQload [off1] (LEAQ8 [off2] ptr idx) mem) -> (MOVQloadidx8 [addOff(off1, off2)] ptr idx mem)
+ (MOVQstore [off1] (LEAQ8 [off2] ptr idx) val mem) -> (MOVQstoreidx8 [addOff(off1, off2)] ptr idx val mem)
+ 
+-(MOVQloadidx8 [off1] (ADDCQ [off2] ptr) idx mem) -> (MOVQloadidx8 [addOff(off1, off2)] ptr idx mem)
+-(MOVQstoreidx8 [off1] (ADDCQ [off2] ptr) idx val mem) -> (MOVQstoreidx8 [addOff(off1, off2)] ptr idx val mem)
++(MOVQloadidx8 [off1] (ADDQconst [off2] ptr) idx mem) -> (MOVQloadidx8 [addOff(off1, off2)] ptr idx mem)
++(MOVQstoreidx8 [off1] (ADDQconst [off2] ptr) idx val mem) -> (MOVQstoreidx8 [addOff(off1, off2)] ptr idx val mem)
+ 
+-(ADDCQ [off] x) && off.(int64) == 0 -> (Copy x)
++(ADDQconst [off] x) && off.(int64) == 0 -> (Copy x)
+diff --git a/src/cmd/internal/ssa/stackalloc.go b/src/cmd/internal/ssa/stackalloc.go
+index 8a315e1045..ab686470be 100644
+--- a/src/cmd/internal/ssa/stackalloc.go
++++ b/src/cmd/internal/ssa/stackalloc.go
+@@ -1,11 +1,22 @@
+ package ssa
+ 
++import "log"
++
+ // stackalloc allocates storage in the stack frame for
+ // all Values that did not get a register.
+ func stackalloc(f *Func) {
+ 	home := f.RegAlloc
+ 
+-	var n int64 = 8 // 8 = space for return address.  TODO: arch-dependent
++	// First compute the size of the outargs section.
++	n := int64(16) //TODO: compute max of all callsites
++
++	// Include one slot for deferreturn.
++	if false && n < f.Config.ptrSize { //TODO: check for deferreturn
++		n = f.Config.ptrSize
++	}
++
++	// TODO: group variables by ptr/nonptr, size, etc.  Emit ptr vars last
++	// so stackmap is smaller.
+ 
+ 	// Assign stack locations to phis first, because we
+ 	// must also assign the same locations to the phi copies
+@@ -52,10 +63,49 @@ func stackalloc(f *Func) {
+ 			home = setloc(home, v, loc)
+ 		}
+ 	}
++
++	// TODO: align n
++	n += f.Config.ptrSize // space for return address.  TODO: arch-dependent
+ 	f.RegAlloc = home
++	f.FrameSize = n
+ 
+ 	// TODO: share stack slots among noninterfering (& gc type compatible) values
+-	// TODO: align final n
+-	// TODO: compute total frame size: n + max paramout space
+-	// TODO: save total size somewhere
++
++	// adjust all uses of FP to SP now that we have the frame size.
++	var fp *Value
++	for _, b := range f.Blocks {
++		for _, v := range b.Values {
++			if v.Op == OpFP {
++				if fp != nil {
++					log.Panicf("multiple FP ops: %s %s", fp, v)
++				}
++				fp = v
++			}
++			for i, a := range v.Args {
++				if a.Op != OpFP {
++					continue
++				}
++				// TODO: do this with arch-specific rewrite rules somehow?
++				switch v.Op {
++				case OpADDQ:
++					// (ADDQ (FP) x) -> (LEAQ [n] (SP) x)
++					v.Op = OpLEAQ
++					v.Aux = n
++				case OpLEAQ, OpMOVQload, OpMOVQstore, OpMOVBload, OpMOVQloadidx8:
++					if v.Op == OpMOVQloadidx8 && i == 1 {
++						// Note: we could do it, but it is probably an error
++						log.Panicf("can't do FP->SP adjust on index slot of load %s", v.Op)
++					}
++					// eg: (MOVQload [c] (FP) mem) -> (MOVQload [c+n] (SP) mem)
++					v.Aux = addOffset(v.Aux.(int64), n)
++				default:
++					log.Panicf("can't do FP->SP adjust on %s", v.Op)
++				}
++			}
++		}
++	}
++	if fp != nil {
++		fp.Op = OpSP
++		home[fp.ID] = &registers[4] // TODO: arch-dependent
++	}
+ }

@@ -10,9 +10,96 @@ Date:   Wed Nov 7 11:55:35 2012 -0800
     R=rsc
     CC=gobot, golang-dev
     https://golang.org/cl/6826063
-
+---
  src/pkg/reflect/type.go         | 15 +++++++++++++--
  test/fixedbugs/bug468.dir/p1.go |  7 +++++++
  test/fixedbugs/bug468.dir/p2.go | 25 +++++++++++++++++++++++++
  test/fixedbugs/bug468.go        | 10 ++++++++++
  4 files changed, 55 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index 5e3856b1c3..3a2146ce8d 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -1257,8 +1257,19 @@ func haveIdenticalUnderlyingType(T, V *commonType) bool {
+ 		for i := range t.fields {
+ 			tf := &t.fields[i]
+ 			vf := &v.fields[i]
+-			if tf.name != vf.name || tf.pkgPath != vf.pkgPath ||
+-				tf.typ != vf.typ || tf.tag != vf.tag || tf.offset != vf.offset {
++			if tf.name != vf.name && (tf.name == nil || vf.name == nil || *tf.name != *vf.name) {
++				return false
++			}
++			if tf.pkgPath != vf.pkgPath && (tf.pkgPath == nil || vf.pkgPath == nil || *tf.pkgPath != *vf.pkgPath) {
++				return false
++			}
++			if tf.typ != vf.typ {
++				return false
++			}
++			if tf.tag != vf.tag && (tf.tag == nil || vf.tag == nil || *tf.tag != *vf.tag) {
++				return false
++			}
++			if tf.offset != vf.offset {
+ 				return false
+ 			}
+ 		}
+diff --git a/test/fixedbugs/bug468.dir/p1.go b/test/fixedbugs/bug468.dir/p1.go
+new file mode 100644
+index 0000000000..ca175770fc
+--- /dev/null
++++ b/test/fixedbugs/bug468.dir/p1.go
+@@ -0,0 +1,7 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p1
++
++type S struct { X, Y int }
+diff --git a/test/fixedbugs/bug468.dir/p2.go b/test/fixedbugs/bug468.dir/p2.go
+new file mode 100644
+index 0000000000..1793c0e534
+--- /dev/null
++++ b/test/fixedbugs/bug468.dir/p2.go
+@@ -0,0 +1,25 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"reflect"
++
++	"./p1"
++)
++
++func main() {
++	var v1 = p1.S{1, 2}
++	var v2 = struct { X, Y int }{1, 2}
++	v1 = v2
++	t1 := reflect.TypeOf(v1)
++	t2 := reflect.TypeOf(v2)
++	if !t1.AssignableTo(t2) {
++		panic(0)
++	}
++	if !t2.AssignableTo(t1) {
++		panic(1)
++	}
++}
+diff --git a/test/fixedbugs/bug468.go b/test/fixedbugs/bug468.go
+new file mode 100644
+index 0000000000..12e4997d36
+--- /dev/null
++++ b/test/fixedbugs/bug468.go
+@@ -0,0 +1,10 @@
++// rundir
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The reflect package was not correctly checking field names
++// when checking for struct assignability.
++
++package ignored

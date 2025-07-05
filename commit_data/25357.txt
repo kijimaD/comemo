@@ -9,7 +9,41 @@ Date:   Wed Oct 21 20:09:08 2015 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/runtime/proc.go     | 1 -
  src/runtime/runtime2.go | 4 ----
  2 files changed, 5 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index e4ca9407f6..714421f5f3 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -336,7 +336,6 @@ func allgadd(gp *g) {
+ 
+ 	lock(&allglock)
+ 	allgs = append(allgs, gp)
+-	allg = &allgs[0]
+ 	allglen = uintptr(len(allgs))
+ 	unlock(&allglock)
+ }
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 7d6c441ef5..6b61cd62fa 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -612,16 +612,12 @@ const (
+ 
+ var (
+ 	emptystring string
+-	allg        **g
+ 	allglen     uintptr
+-	lastg       *g
+ 	allm        *m
+ 	allp        [_MaxGomaxprocs + 1]*p
+ 	gomaxprocs  int32
+ 	panicking   uint32
+-	goos        *int8
+ 	ncpu        int32
+-	signote     note
+ 	forcegc     forcegcstate
+ 	sched       schedt
+ 	newprocs    int32

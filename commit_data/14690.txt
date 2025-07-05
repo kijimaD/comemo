@@ -11,6 +11,47 @@ Date:   Tue Dec 18 16:38:00 2012 -0800
     R=dvyukov, gri
     CC=fullung, golang-dev
     https://golang.org/cl/6940078
-
+---
  src/pkg/go/token/position_test.go | 25 +++++++++++++++++++++++++
  1 file changed, 25 insertions(+)
+
+diff --git a/src/pkg/go/token/position_test.go b/src/pkg/go/token/position_test.go
+index 160107df40..3e7d552b75 100644
+--- a/src/pkg/go/token/position_test.go
++++ b/src/pkg/go/token/position_test.go
+@@ -6,6 +6,8 @@ package token
+ 
+ import (
+ 	"fmt"
++	"math/rand"
++	"sync"
+ 	"testing"
+ )
+ 
+@@ -179,3 +181,26 @@ func TestFiles(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// issue 4345. Test concurrent use of FileSet.Pos does not trigger a
++// race in the FileSet position cache.
++func TestFileSetRace(t *testing.T) {
++	fset := NewFileSet()
++	for i := 0; i < 100; i++ {
++		fset.AddFile(fmt.Sprintf("file-%d", i), fset.Base(), 1031)
++	}
++	max := int32(fset.Base())
++	var stop sync.WaitGroup
++	r := rand.New(rand.NewSource(7))
++	for i := 0; i < 2; i++ {
++		r := rand.New(rand.NewSource(r.Int63()))
++		stop.Add(1)
++		go func() {
++			for i := 0; i < 1000; i++ {
++				fset.Position(Pos(r.Int31n(max)))
++			}
++			stop.Done()
++		}()
++	}
++	stop.Wait()
++}

@@ -7,8 +7,396 @@ Date:   Wed Feb 9 13:13:17 2011 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/4173041
-
+---
  src/cmd/5g/list.c |   6 +-
  src/cmd/5g/peep.c | 173 +++++++++++++++++++++++-------------------------------
  src/cmd/5g/reg.c  |  68 +++++++++++++++++++++
  3 files changed, 145 insertions(+), 102 deletions(-)
+
+diff --git a/src/cmd/5g/list.c b/src/cmd/5g/list.c
+index ce74d6478d..0c6dbbf718 100644
+--- a/src/cmd/5g/list.c
++++ b/src/cmd/5g/list.c
+@@ -87,6 +87,10 @@ Dconv(Fmt *fp)
+ 	int32 v;
+ 
+ 	a = va_arg(fp->args, Addr*);
++	if(a == A) {
++		sprint(str, "<nil>");
++		goto conv;
++	}
+ 	i = a->type;
+ 	switch(i) {
+ 
+@@ -183,7 +187,7 @@ Dconv(Fmt *fp)
+ //		a->type = D_ADDR;
+ //		goto conv;
+ 	}
+-//conv:
++conv:
+ 	return fmtstrcpy(fp, str);
+ }
+ 
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index b4421a1b42..1aac1a8302 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -48,7 +48,6 @@ peep(void)
+ /*
+  * complete R structure
+  */
+-	t = 0;
+ 	for(r=firstr; r!=R; r=r1) {
+ 		r1 = r->link;
+ 		if(r1 == R)
+@@ -68,7 +67,6 @@ peep(void)
+ 			r1->p1 = r2;
+ 
+ 			r = r2;
+-			t++;
+ 
+ 		case ADATA:
+ 		case AGLOBL:
+@@ -77,8 +75,10 @@ peep(void)
+ 			p = p->link;
+ 		}
+ 	}
++//dumpit("begin", firstr);
+ 
+ loop1:
++
+ 	t = 0;
+ 	for(r=firstr; r!=R; r=r->link) {
+ 		p = r->prog;
+@@ -99,40 +99,38 @@ loop1:
+ 		case AMOVW:
+ 		case AMOVF:
+ 		case AMOVD:
+-			if(p->scond != C_SCOND_NONE)
+-				break;
+-			if(!regtyp(&p->to))
+-				break;
+-//			if(isdconst(&p->from)) {
+-//				constprop(&p->from, &p->to, r->s1);
+-//				break;
+-//			}
+-			if(!regtyp(&p->from))
+-				break;
+-			if(p->from.type != p->to.type)
+-				break;
+-			if(copyprop(r)) {
+-				excise(r);
+-				t++;
+-				break;
++			if(regtyp(&p->from))
++			if(p->from.type == p->to.type)
++			if(p->scond == C_SCOND_NONE) {
++				if(copyprop(r)) {
++					excise(r);
++					t++;
++					break;
++				}
++				if(subprop(r) && copyprop(r)) {
++					excise(r);
++					t++;
++					break;
++				}
+ 			}
+-			if(subprop(r) && copyprop(r)) {
+-				excise(r);
+-				t++;
+-				break;
++			break;
++
++			if(p->scond == C_SCOND_NONE)
++			if(regtyp(&p->to))
++			if(isdconst(&p->from)) {
++				constprop(&p->from, &p->to, r->s1);
+ 			}
++			break;
+ 		}
+ 	}
+ 	if(t)
+ 		goto loop1;
+-	/*
+-	 * look for MOVB x,R; MOVB R,R
+-	 */
++
++return;
++
+ 	for(r=firstr; r!=R; r=r->link) {
+ 		p = r->prog;
+ 		switch(p->as) {
+-		default:
+-			continue;
+ //		case AEOR:
+ //			/*
+ //			 * EOR -1,x,y => MVN x,y
+@@ -146,26 +144,30 @@ loop1:
+ //					p->from.reg = p->to.reg;
+ //				p->reg = NREG;
+ //			}
+-//			continue;
++//			break;
++
+ 		case AMOVH:
+ 		case AMOVHU:
+ 		case AMOVB:
+ 		case AMOVBU:
++			/*
++			 * look for MOVB x,R; MOVB R,R
++			 */
+ 			if(p->to.type != D_REG)
+-				continue;
++				break;
++			if(r1 == R)
++				break;
++			p1 = r1->prog;
++			if(p1->as != p->as)
++				break;
++			if(p1->from.type != D_REG || p1->from.reg != p->to.reg)
++				break;
++			if(p1->to.type != D_REG || p1->to.reg != p->to.reg)
++				break;
++			excise(r1);
+ 			break;
+ 		}
+ 		r1 = r->link;
+-		if(r1 == R)
+-			continue;
+-		p1 = r1->prog;
+-		if(p1->as != p->as)
+-			continue;
+-		if(p1->from.type != D_REG || p1->from.reg != p->to.reg)
+-			continue;
+-		if(p1->to.type != D_REG || p1->to.reg != p->to.reg)
+-			continue;
+-		excise(r1);
+ 	}
+ 
+ //	for(r=firstr; r!=R; r=r->link) {
+@@ -975,7 +977,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 		}
+ 		return 0;
+ 
+-	case ANOP:	/* read, write */
++	case ANOP:	/* read,, write */
+ 	case AMOVW:
+ 	case AMOVF:
+ 	case AMOVD:
+@@ -1047,12 +1049,12 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 	case ADIVF:
+ 	case ADIVD:
+ 
+-	case ACMPF:
++	case ACMPF:	/* read, read, */
+ 	case ACMPD:
+-	case ATST:
+ 	case ACMP:
+ 	case ACMN:
+ 	case ACASE:
++	case ATST:	/* read,, */
+ 		if(s != A) {
+ 			if(copysub(&p->from, v, s, 1))
+ 				return 1;
+@@ -1154,53 +1156,6 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 	return 0;
+ }
+ 
+-int
+-a2type(Prog *p)
+-{
+-
+-	switch(p->as) {
+-
+-	case ATST:
+-	case ACMP:
+-	case ACMN:
+-
+-	case AMULLU:
+-	case AMULA:
+-
+-	case AADD:
+-	case ASUB:
+-	case ARSB:
+-	case ASLL:
+-	case ASRL:
+-	case ASRA:
+-	case AORR:
+-	case AAND:
+-	case AEOR:
+-//	case AMVN:
+-	case AMUL:
+-	case AMULU:
+-	case ADIV:
+-	case ADIVU:
+-	case AMOD:
+-	case AMODU:
+-		return D_REG;
+-
+-	case ACMPF:
+-	case ACMPD:
+-
+-	case AADDF:
+-	case AADDD:
+-	case ASUBF:
+-	case ASUBD:
+-	case AMULF:
+-	case AMULD:
+-	case ADIVF:
+-	case ADIVD:
+-		return D_FREG;
+-	}
+-	return D_NONE;
+-}
+-
+ /*
+  * direct reference,
+  * could be set/use depending on
+@@ -1260,17 +1215,33 @@ copyau(Adr *a, Adr *v)
+ 	return 0;
+ }
+ 
++/*
++ * compare v to the center
++ * register in p (p->reg)
++ * the trick is that this
++ * register might be D_REG
++ * D_FREG. there are basically
++ * two cases,
++ *	ADD r,r,r
++ *	CMP r,r,
++ */
+ int
+ copyau1(Prog *p, Adr *v)
+ {
+ 
+-	if(regtyp(v)) {
+-		if(a2type(p) == v->type)
+-		if(p->reg == v->reg) {
+-			if(a2type(p) != v->type)
+-				print("botch a2type %P\n", p);
+-			return 1;
++	if(regtyp(v))
++	if(p->reg == v->reg) {
++		if(p->to.type != D_NONE) {
++			if(v->type == p->to.type)
++				return 1;
++			return 0;
++		}
++		if(p->from.type != D_NONE) {
++			if(v->type == p->from.type)
++				return 1;
++			return 0;
+ 		}
++		print("copyau1: cant tell %P\n", p);
+ 	}
+ 	return 0;
+ }
+@@ -1483,24 +1454,24 @@ applypred(Reg *rstart, Joininfo *j, int cond, int branch)
+ 		pred = predinfo[rstart->prog->as - ABEQ].notscond;
+ 
+ 	for(r = j->start;; r = successor(r)) {
+-		if (r->prog->as == AB) {
+-			if (r != j->last || branch == Delbranch)
++		if(r->prog->as == AB) {
++			if(r != j->last || branch == Delbranch)
+ 				excise(r);
+ 			else {
+-				if (cond == Truecond)
++				if(cond == Truecond)
+ 					r->prog->as = predinfo[rstart->prog->as - ABEQ].opcode;
+ 				else
+ 					r->prog->as = predinfo[rstart->prog->as - ABEQ].notopcode;
+ 			}
+ 		}
+ 		else
+-		if (predicable(r->prog))
++		if(predicable(r->prog))
+ 			r->prog->scond = (r->prog->scond&~C_SCOND)|pred;
+-		if (r->s1 != r->link) {
++		if(r->s1 != r->link) {
+ 			r->s1 = r->link;
+ 			r->link->p1 = r;
+ 		}
+-		if (r == j->last)
++		if(r == j->last)
+ 			break;
+ 	}
+ }
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index 104c1b7728..c80c0774bf 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -1375,3 +1375,71 @@ noreturn(Prog *p)
+ 			return 1;
+ 	return 0;
+ }
++
++void
++dumpone(Reg *r)
++{
++	int z;
++	Bits bit;
++
++	print("%d:%P", r->loop, r->prog);
++	for(z=0; z<BITS; z++)
++		bit.b[z] =
++			r->set.b[z] |
++			r->use1.b[z] |
++			r->use2.b[z] |
++			r->refbehind.b[z] |
++			r->refahead.b[z] |
++			r->calbehind.b[z] |
++			r->calahead.b[z] |
++			r->regdiff.b[z] |
++			r->act.b[z] |
++				0;
++//	if(bany(&bit)) {
++//		print("\t");
++//		if(bany(&r->set))
++//			print(" s:%Q", r->set);
++//		if(bany(&r->use1))
++//			print(" u1:%Q", r->use1);
++//		if(bany(&r->use2))
++//			print(" u2:%Q", r->use2);
++//		if(bany(&r->refbehind))
++//			print(" rb:%Q ", r->refbehind);
++//		if(bany(&r->refahead))
++//			print(" ra:%Q ", r->refahead);
++//		if(bany(&r->calbehind))
++//			print("cb:%Q ", r->calbehind);
++//		if(bany(&r->calahead))
++//			print(" ca:%Q ", r->calahead);
++//		if(bany(&r->regdiff))
++//			print(" d:%Q ", r->regdiff);
++//		if(bany(&r->act))
++//			print(" a:%Q ", r->act);
++//	}
++	print("\n");
++}
++
++void
++dumpit(char *str, Reg *r0)
++{
++	Reg *r, *r1;
++
++	print("\n%s\n", str);
++	for(r = r0; r != R; r = r->link) {
++		dumpone(r);
++		r1 = r->p2;
++		if(r1 != R) {
++			print("	pred:");
++			for(; r1 != R; r1 = r1->p2link)
++				print(" %.4ud", r1->prog->loc);
++			print("\n");
++		}
++//		r1 = r->s1;
++//		if(r1 != R) {
++//			print("	succ:");
++//			for(; r1 != R; r1 = r1->s1)
++//				print(" %.4ud", r1->prog->loc);
++//			print("\n");
++//		}
++	}
++}

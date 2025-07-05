@@ -13,10 +13,166 @@ Date:   Tue Jul 7 09:07:16 2020 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/build/deps_test.go |  5 ++---
  src/net/dnsclient.go      | 19 ++++++++++++++++---
  src/net/dnsclient_test.go |  5 +----
  src/net/dnsclient_unix.go |  3 +--
  src/runtime/stubs.go      |  3 +++
  5 files changed, 23 insertions(+), 12 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 42382d583c..ec2a2f9328 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -318,7 +318,6 @@ var depsRules = `
+ 	# so large dependencies must be kept out.
+ 	# This is a long-looking list but most of these
+ 	# are small with few dependencies.
+-	# math/rand should probably be removed at some point.
+ 	CGO,
+ 	golang.org/x/net/dns/dnsmessage,
+ 	golang.org/x/net/lif,
+@@ -327,11 +326,11 @@ var depsRules = `
+ 	internal/poll,
+ 	internal/singleflight,
+ 	internal/race,
+-	math/rand,
+ 	os
+ 	< net;
+ 
+ 	fmt, unicode !< net;
++	math/rand !< net; # net uses runtime instead
+ 
+ 	# NET is net plus net-helper packages.
+ 	FMT, net
+@@ -479,7 +478,7 @@ var depsRules = `
+ 	CGO, OS, fmt
+ 	< os/signal/internal/pty;
+ 
+-	NET, testing
++	NET, testing, math/rand
+ 	< golang.org/x/net/nettest;
+ 
+ 	FMT, container/heap, math/rand
+diff --git a/src/net/dnsclient.go b/src/net/dnsclient.go
+index b5bb3a4d11..e9c73845d7 100644
+--- a/src/net/dnsclient.go
++++ b/src/net/dnsclient.go
+@@ -5,12 +5,25 @@
+ package net
+ 
+ import (
+-	"math/rand"
+ 	"sort"
+ 
+ 	"golang.org/x/net/dns/dnsmessage"
+ )
+ 
++// provided by runtime
++func fastrand() uint32
++
++func randInt() int {
++	x, y := fastrand(), fastrand()    // 32-bit halves
++	u := uint(x)<<31 ^ uint(int32(y)) // full uint, even on 64-bit systems; avoid 32-bit shift on 32-bit systems
++	i := int(u >> 1)                  // clear sign bit, even on 32-bit systems
++	return i
++}
++
++func randIntn(n int) int {
++	return randInt() % n
++}
++
+ // reverseaddr returns the in-addr.arpa. or ip6.arpa. hostname of the IP
+ // address addr suitable for rDNS (PTR) record lookup or an error if it fails
+ // to parse the IP address.
+@@ -162,7 +175,7 @@ func (addrs byPriorityWeight) shuffleByWeight() {
+ 	}
+ 	for sum > 0 && len(addrs) > 1 {
+ 		s := 0
+-		n := rand.Intn(sum)
++		n := randIntn(sum)
+ 		for i := range addrs {
+ 			s += int(addrs[i].Weight)
+ 			if s > n {
+@@ -206,7 +219,7 @@ func (s byPref) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+ // sort reorders MX records as specified in RFC 5321.
+ func (s byPref) sort() {
+ 	for i := range s {
+-		j := rand.Intn(i + 1)
++		j := randIntn(i + 1)
+ 		s[i], s[j] = s[j], s[i]
+ 	}
+ 	sort.Sort(s)
+diff --git a/src/net/dnsclient_test.go b/src/net/dnsclient_test.go
+index f3ed62db36..24cd69e13b 100644
+--- a/src/net/dnsclient_test.go
++++ b/src/net/dnsclient_test.go
+@@ -5,7 +5,6 @@
+ package net
+ 
+ import (
+-	"math/rand"
+ 	"testing"
+ )
+ 
+@@ -17,7 +16,7 @@ func checkDistribution(t *testing.T, data []*SRV, margin float64) {
+ 
+ 	results := make(map[string]int)
+ 
+-	count := 1000
++	count := 10000
+ 	for j := 0; j < count; j++ {
+ 		d := make([]*SRV, len(data))
+ 		copy(d, data)
+@@ -39,7 +38,6 @@ func checkDistribution(t *testing.T, data []*SRV, margin float64) {
+ }
+ 
+ func testUniformity(t *testing.T, size int, margin float64) {
+-	rand.Seed(1)
+ 	data := make([]*SRV, size)
+ 	for i := 0; i < size; i++ {
+ 		data[i] = &SRV{Target: string('a' + rune(i)), Weight: 1}
+@@ -55,7 +53,6 @@ func TestDNSSRVUniformity(t *testing.T) {
+ }
+ 
+ func testWeighting(t *testing.T, margin float64) {
+-	rand.Seed(1)
+ 	data := []*SRV{
+ 		{Target: "a", Weight: 60},
+ 		{Target: "b", Weight: 30},
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index 8dd32ccc7b..d7db0c8133 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -18,7 +18,6 @@ import (
+ 	"context"
+ 	"errors"
+ 	"io"
+-	"math/rand"
+ 	"os"
+ 	"sync"
+ 	"time"
+@@ -47,7 +46,7 @@ var (
+ )
+ 
+ func newRequest(q dnsmessage.Question) (id uint16, udpReq, tcpReq []byte, err error) {
+-	id = uint16(rand.Int()) ^ uint16(time.Now().UnixNano())
++	id = uint16(randInt())
+ 	b := dnsmessage.NewBuilder(make([]byte, 2, 514), dnsmessage.Header{ID: id, RecursionDesired: true})
+ 	b.EnableCompression()
+ 	if err := b.StartQuestions(); err != nil {
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index bd2514e862..6290142a41 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -130,6 +130,9 @@ func fastrandn(n uint32) uint32 {
+ //go:linkname sync_fastrand sync.fastrand
+ func sync_fastrand() uint32 { return fastrand() }
+ 
++//go:linkname net_fastrand net.fastrand
++func net_fastrand() uint32 { return fastrand() }
++
+ // in internal/bytealg/equal_*.s
+ //go:noescape
+ func memequal(a, b unsafe.Pointer, size uintptr) bool

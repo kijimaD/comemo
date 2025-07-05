@@ -19,6 +19,20 @@ Date:   Fri Mar 24 22:25:18 2023 -0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-
+---
  src/cmd/compile/internal/noder/noder.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index c846130976..483ff64686 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -237,7 +237,7 @@ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.P
+ 			p.error(syntax.Error{Pos: pos, Msg: "usage: //go:wasmimport importmodule importname"})
+ 			break
+ 		}
+-		if !base.Flag.CompilingRuntime && base.Ctxt.Pkgpath != "syscall/js" && base.Ctxt.Pkgpath != "syscall/js_test" {
++		if !base.Flag.CompilingRuntime && base.Ctxt.Pkgpath != "syscall/js" && base.Ctxt.Pkgpath != "syscall/js_test" && base.Ctxt.Pkgpath != "syscall" {
+ 			p.error(syntax.Error{Pos: pos, Msg: "//go:wasmimport directive cannot be used outside of runtime or syscall/js"})
+ 			break
+ 		}

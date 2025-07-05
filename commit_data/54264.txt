@@ -14,10 +14,76 @@ Date:   Fri Sep 30 03:22:55 2022 +0000
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/internal/obj/arm64/asm7.go              | 2 +-
  src/runtime/mem_plan9.go                        | 2 +-
  src/runtime/pprof/proto.go                      | 2 +-
  src/runtime/pprof/protobuf.go                   | 2 +-
  src/runtime/testdata/testprog/numcpu_freebsd.go | 2 +-
  5 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 1e36985654..62b34e2464 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -7450,7 +7450,7 @@ func (c *ctxt7) opldpstp(p *obj.Prog, o *Optab, vo int32, rbase, rl, rh, ldp uin
+ 	case ALDP, ALDPW, ALDPSW:
+ 		c.checkUnpredictable(p, true, wback, p.From.Reg, p.To.Reg, int16(p.To.Offset))
+ 	case ASTP, ASTPW:
+-		if wback == true {
++		if wback {
+ 			c.checkUnpredictable(p, false, true, p.To.Reg, p.From.Reg, int16(p.From.Offset))
+ 		}
+ 	case AFLDPD, AFLDPQ, AFLDPS:
+diff --git a/src/runtime/mem_plan9.go b/src/runtime/mem_plan9.go
+index 0e8bf74746..88e7d92a7c 100644
+--- a/src/runtime/mem_plan9.go
++++ b/src/runtime/mem_plan9.go
+@@ -92,7 +92,7 @@ func memFree(ap unsafe.Pointer, n uintptr) {
+ }
+ 
+ func memCheck() {
+-	if memDebug == false {
++	if !memDebug {
+ 		return
+ 	}
+ 	for p := memFreelist.ptr(); p != nil && p.next != 0; p = p.next.ptr() {
+diff --git a/src/runtime/pprof/proto.go b/src/runtime/pprof/proto.go
+index 7e3c5f1c18..e856c7643e 100644
+--- a/src/runtime/pprof/proto.go
++++ b/src/runtime/pprof/proto.go
+@@ -230,7 +230,7 @@ func allFrames(addr uintptr) ([]runtime.Frame, symbolizeFlag) {
+ 		frame.PC = addr - 1
+ 	}
+ 	ret := []runtime.Frame{frame}
+-	for frame.Function != "runtime.goexit" && more == true {
++	for frame.Function != "runtime.goexit" && more {
+ 		frame, more = frames.Next()
+ 		ret = append(ret, frame)
+ 	}
+diff --git a/src/runtime/pprof/protobuf.go b/src/runtime/pprof/protobuf.go
+index 7b99095a13..f7ec1ac59c 100644
+--- a/src/runtime/pprof/protobuf.go
++++ b/src/runtime/pprof/protobuf.go
+@@ -116,7 +116,7 @@ func (b *protobuf) bool(tag int, x bool) {
+ }
+ 
+ func (b *protobuf) boolOpt(tag int, x bool) {
+-	if x == false {
++	if !x {
+ 		return
+ 	}
+ 	b.bool(tag, x)
+diff --git a/src/runtime/testdata/testprog/numcpu_freebsd.go b/src/runtime/testdata/testprog/numcpu_freebsd.go
+index 7209f67959..310c21244c 100644
+--- a/src/runtime/testdata/testprog/numcpu_freebsd.go
++++ b/src/runtime/testdata/testprog/numcpu_freebsd.go
+@@ -48,7 +48,7 @@ func FreeBSDNumCPU() {
+ 		fmt.Printf("fail to launch '%s', error: %s, output: %s\n", strings.Join(cmd.Args, " "), err, output)
+ 		return
+ 	}
+-	if bytes.Equal(output, []byte("1\n")) == false {
++	if !bytes.Equal(output, []byte("1\n")) {
+ 		// SMP mode deactivated in kernel.
+ 		fmt.Println("OK")
+ 		return

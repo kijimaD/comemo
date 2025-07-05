@@ -79,7 +79,7 @@ Date:   Mon Mar 7 23:45:04 2016 -0500
     Change-Id: Iabe90e210e813b08c3f8fd605f841f0458973396
     Reviewed-on: https://go-review.googlesource.com/20483
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go |  14 +-
  src/cmd/internal/obj/link.go           |   5 +
  src/cmd/link/internal/ld/deadcode.go   | 320 +++++++++++++++++++++++++++++++++
@@ -87,3 +87,705 @@ Date:   Mon Mar 7 23:45:04 2016 -0500
  src/cmd/link/internal/ld/go.go         | 129 +------------
  src/cmd/link/internal/ld/pobj.go       |  11 +-
  6 files changed, 458 insertions(+), 140 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index b83e2ad263..131ee266b2 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -530,12 +530,12 @@ func dextratypeData(s *Sym, ot int, t *Type) int {
+ 		ot = dsymptr(s, ot, dtypesym(a.mtype), 0)
+ 		ot = dsymptr(s, ot, dtypesym(a.type_), 0)
+ 		if a.isym != nil {
+-			ot = dsymptr(s, ot, a.isym, 0)
++			ot = dmethodptr(s, ot, a.isym)
+ 		} else {
+ 			ot = duintptr(s, ot, 0)
+ 		}
+ 		if a.tsym != nil {
+-			ot = dsymptr(s, ot, a.tsym, 0)
++			ot = dmethodptr(s, ot, a.tsym)
+ 		} else {
+ 			ot = duintptr(s, ot, 0)
+ 		}
+@@ -543,6 +543,16 @@ func dextratypeData(s *Sym, ot int, t *Type) int {
+ 	return ot
+ }
+ 
++func dmethodptr(s *Sym, off int, x *Sym) int {
++	duintptr(s, off, 0)
++	r := obj.Addrel(Linksym(s))
++	r.Off = int32(off)
++	r.Siz = uint8(Widthptr)
++	r.Sym = Linksym(x)
++	r.Type = obj.R_METHOD
++	return off + Widthptr
++}
++
+ var kinds = []int{
+ 	TINT:        obj.KindInt,
+ 	TUINT:       obj.KindUint,
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 81bfe55780..be2fa7959a 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -469,6 +469,11 @@ const (
+ 	// should be linked into the final binary, even if there are no other
+ 	// direct references. (This is used for types reachable by reflection.)
+ 	R_USETYPE
++	// R_METHOD resolves to an *rtype for a method.
++	// It is used when linking from the uncommonType of another *rtype, and
++	// may be set to zero by the linker if it determines the method text is
++	// unreachable by the linked program.
++	R_METHOD
+ 	R_POWER_TOC
+ 	R_GOTPCREL
+ 	// R_JMPMIPS (only used on mips64) resolves to non-PC-relative target address
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+new file mode 100644
+index 0000000000..6ae2ecf2ae
+--- /dev/null
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -0,0 +1,320 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ld
++
++import (
++	"cmd/internal/obj"
++	"fmt"
++	"strings"
++	"unicode"
++)
++
++// deadcode marks all reachable symbols.
++//
++// The basis of the dead code elimination is a flood fill of symbols,
++// following their relocations, begining at INITENTRY.
++//
++// This flood fill is wrapped in logic for pruning unused methods.
++// All methods are mentioned by relocations on their receiver's *rtype.
++// These relocations are specially defined as R_METHOD by the compiler
++// so we can detect and manipulated them here.
++//
++// There are three ways a method of a reachable type can be invoked:
++//
++//	1. direct call
++//	2. through a reachable interface type
++//	3. reflect.Value.Call
++//
++// The first case is handled by the flood fill, a directly called method
++// is marked as reachable.
++//
++// The second case is handled by decomposing all reachable interface
++// types into method signatures. Each encountered method is compared
++// against the interface method signatures, if it matches it is marked
++// as reachable. This is extremely conservative, but easy and correct.
++//
++// The third case is handled by looking to see if reflect.Value.Call is
++// ever marked reachable. If it is, all bets are off and all exported
++// methods of reachable types are marked reachable.
++//
++// Any unreached text symbols are removed from ctxt.Textp.
++func deadcode(ctxt *Link) {
++	if Debug['v'] != 0 {
++		fmt.Fprintf(ctxt.Bso, "%5.2f deadcode\n", obj.Cputime())
++	}
++
++	d := &deadcodepass{
++		ctxt:        ctxt,
++		ifaceMethod: make(map[methodsig]bool),
++	}
++
++	// First, flood fill any symbols directly reachable in the call
++	// graph from INITENTRY. Ignore all methods not directly called.
++	d.init()
++	d.flood()
++
++	callSym := Linkrlookup(ctxt, "reflect.Value.Call", 0)
++	callSymSeen := false
++
++	for {
++		if callSym != nil && callSym.Attr.Reachable() {
++			// Methods are called via reflection. Give up on
++			// static analysis, mark all exported methods of
++			// all reachable types as reachable.
++			callSymSeen = true
++		}
++
++		// Mark all methods that could satisfy a discovered
++		// interface as reachable. We recheck old marked interfaces
++		// as new types (with new methods) may have been discovered
++		// in the last pass.
++		var rem []methodref
++		for _, m := range d.markableMethods {
++			if (callSymSeen && m.isExported()) || d.ifaceMethod[m.m] {
++				d.markMethod(m)
++			} else {
++				rem = append(rem, m)
++			}
++		}
++		d.markableMethods = rem
++
++		if len(d.markQueue) == 0 {
++			// No new work was discovered. Done.
++			break
++		}
++		d.flood()
++	}
++
++	// Remove all remaining unreached R_METHOD relocations.
++	for _, m := range d.markableMethods {
++		d.cleanupReloc(m.r0)
++		d.cleanupReloc(m.r1)
++	}
++
++	if Buildmode != BuildmodeShared {
++		// Keep a typelink if the symbol it points at is being kept.
++		// (When BuildmodeShared, always keep typelinks.)
++		for _, s := range ctxt.Allsym {
++			if strings.HasPrefix(s.Name, "go.typelink.") {
++				s.Attr.Set(AttrReachable, len(s.R) == 1 && s.R[0].Sym.Attr.Reachable())
++			}
++		}
++	}
++
++	// Remove dead text but keep file information (z symbols).
++	var last *LSym
++	for s := ctxt.Textp; s != nil; s = s.Next {
++		if !s.Attr.Reachable() {
++			continue
++		}
++		if last == nil {
++			ctxt.Textp = s
++		} else {
++			last.Next = s
++		}
++		last = s
++	}
++	if last == nil {
++		ctxt.Textp = nil
++		ctxt.Etextp = nil
++	} else {
++		last.Next = nil
++		ctxt.Etextp = last
++	}
++}
++
++var markextra = []string{
++	"runtime.morestack",
++	"runtime.morestackx",
++	"runtime.morestack00",
++	"runtime.morestack10",
++	"runtime.morestack01",
++	"runtime.morestack11",
++	"runtime.morestack8",
++	"runtime.morestack16",
++	"runtime.morestack24",
++	"runtime.morestack32",
++	"runtime.morestack40",
++	"runtime.morestack48",
++
++	// on arm, lock in the div/mod helpers too
++	"_div",
++	"_divu",
++	"_mod",
++	"_modu",
++}
++
++// methodref holds the relocations from a receiver type symbol to its
++// method. There are two relocations, one for the method type without
++// receiver, one with receiver
++type methodref struct {
++	m   methodsig
++	src *LSym // receiver type symbol
++	r0  *Reloc
++	r1  *Reloc
++}
++
++func (m methodref) isExported() bool {
++	for _, r := range m.m {
++		return unicode.IsUpper(r)
++	}
++	panic("methodref has no signature")
++}
++
++// deadcodepass holds state for the deadcode flood fill.
++type deadcodepass struct {
++	ctxt            *Link
++	markQueue       []*LSym            // symbols to flood fill in next pass
++	ifaceMethod     map[methodsig]bool // methods declared in reached interfaces
++	markableMethods []methodref        // methods of reached types
++}
++
++func (d *deadcodepass) cleanupReloc(r *Reloc) {
++	if r.Sym.Attr.Reachable() {
++		r.Type = obj.R_ADDR
++	} else {
++		if Debug['v'] > 1 {
++			fmt.Fprintf(d.ctxt.Bso, "removing method %s\n", r.Sym.Name)
++		}
++		r.Sym = nil
++		r.Siz = 0
++	}
++}
++
++// mark appends a symbol to the mark queue for flood filling.
++func (d *deadcodepass) mark(s, parent *LSym) {
++	if s == nil || s.Attr.Reachable() {
++		return
++	}
++	s.Attr |= AttrReachable
++	s.Reachparent = parent
++	d.markQueue = append(d.markQueue, s)
++}
++
++// markMethod marks a method as reachable and preps its R_METHOD relocations.
++func (d *deadcodepass) markMethod(m methodref) {
++	d.mark(m.r0.Sym, m.src)
++	d.mark(m.r1.Sym, m.src)
++	m.r0.Type = obj.R_ADDR
++	m.r1.Type = obj.R_ADDR
++}
++
++// init marks all initial symbols as reachable.
++// In a typical binary, this is INITENTRY.
++func (d *deadcodepass) init() {
++	var names []string
++
++	if Thearch.Thechar == '5' {
++		// mark some functions that are only referenced after linker code editing
++		if d.ctxt.Goarm == 5 {
++			names = append(names, "_sfloat")
++		}
++		names = append(names, "runtime.read_tls_fallback")
++	}
++
++	if Buildmode == BuildmodeShared {
++		// Mark all symbols defined in this library as reachable when
++		// building a shared library.
++		for _, s := range d.ctxt.Allsym {
++			if s.Type != 0 && s.Type != obj.SDYNIMPORT {
++				d.mark(s, nil)
++			}
++		}
++	} else {
++		// In a normal binary, start at main.main and the init
++		// functions and mark what is reachable from there.
++		names = append(names, INITENTRY)
++		if Linkshared && Buildmode == BuildmodeExe {
++			names = append(names, "main.main", "main.init")
++		}
++		for _, name := range markextra {
++			names = append(names, name)
++		}
++		for _, s := range dynexp {
++			d.mark(s, nil)
++		}
++	}
++
++	for _, name := range names {
++		d.mark(Linkrlookup(d.ctxt, name, 0), nil)
++	}
++}
++
++// flood flood fills symbols reachable from the markQueue symbols.
++// As it goes, it collects methodref and interface method declarations.
++func (d *deadcodepass) flood() {
++	for len(d.markQueue) > 0 {
++		s := d.markQueue[0]
++		d.markQueue = d.markQueue[1:]
++		if s.Type == obj.STEXT {
++			if Debug['v'] > 1 {
++				fmt.Fprintf(d.ctxt.Bso, "marktext %s\n", s.Name)
++			}
++			for _, a := range s.Autom {
++				d.mark(a.Gotype, s)
++			}
++		}
++
++		if strings.HasPrefix(s.Name, "type.") && s.Name[5] != '.' {
++			if decodetype_kind(s)&kindMask == kindInterface {
++				for _, sig := range decodetype_ifacemethods(s) {
++					if Debug['v'] > 1 {
++						fmt.Fprintf(d.ctxt.Bso, "reached iface method: %s\n", sig)
++					}
++					d.ifaceMethod[sig] = true
++				}
++			}
++		}
++
++		var methods []methodref
++		for i := 0; i < len(s.R); i++ {
++			r := &s.R[i]
++			if r.Sym == nil {
++				continue
++			}
++			if r.Type != obj.R_METHOD {
++				d.mark(r.Sym, s)
++				continue
++			}
++			// Collect rtype pointers to methods for
++			// later processing in deadcode.
++			if len(methods) > 0 {
++				mref := &methods[len(methods)-1]
++				if mref.r1 == nil {
++					mref.r1 = r
++					continue
++				}
++			}
++			methods = append(methods, methodref{src: s, r0: r})
++		}
++		if len(methods) > 0 {
++			// Decode runtime type information for type methods
++			// to help work out which methods can be called
++			// dynamically via interfaces.
++			methodsigs := decodetype_methods(s)
++			if len(methods) != len(methodsigs) {
++				panic(fmt.Sprintf("%q has %d method relocations for %d methods", s.Name, len(methods), len(methodsigs)))
++			}
++			for i, m := range methodsigs {
++				name := string(m)
++				name = name[:strings.Index(name, "(")]
++				if !strings.HasSuffix(methods[i].r0.Sym.Name, name) {
++					panic(fmt.Sprintf("%q relocation for %q does not match method %q", s.Name, methods[i].r0.Sym.Name, name))
++				}
++				methods[i].m = m
++			}
++			d.markableMethods = append(d.markableMethods, methods...)
++		}
++
++		if s.Pcln != nil {
++			for i := 0; i < s.Pcln.Nfuncdata; i++ {
++				d.mark(s.Pcln.Funcdata[i], s)
++			}
++		}
++		d.mark(s.Gotype, s)
++		d.mark(s.Sub, s)
++		d.mark(s.Outer, s)
++	}
++}
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index 78da6848b5..98590d3677 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -5,8 +5,10 @@
+ package ld
+ 
+ import (
++	"bytes"
+ 	"cmd/internal/obj"
+ 	"debug/elf"
++	"fmt"
+ )
+ 
+ // Decoding the type.* symbols.	 This has to be in sync with
+@@ -213,10 +215,9 @@ func decodetype_structfieldarrayoff(s *LSym, i int) int {
+ 	return off
+ }
+ 
+-func decodetype_structfieldname(s *LSym, i int) string {
+-	off := decodetype_structfieldarrayoff(s, i)
++func decodetype_stringptr(s *LSym, off int) string {
+ 	s = decode_reloc_sym(s, int32(off))
+-	if s == nil { // embedded structs have a nil name.
++	if s == nil {
+ 		return ""
+ 	}
+ 	r := decode_reloc(s, 0) // s has a pointer to the string data at offset 0
+@@ -227,6 +228,11 @@ func decodetype_structfieldname(s *LSym, i int) string {
+ 	return string(r.Sym.P[r.Add : r.Add+strlen])
+ }
+ 
++func decodetype_structfieldname(s *LSym, i int) string {
++	off := decodetype_structfieldarrayoff(s, i)
++	return decodetype_stringptr(s, off)
++}
++
+ func decodetype_structfieldtype(s *LSym, i int) *LSym {
+ 	off := decodetype_structfieldarrayoff(s, i)
+ 	return decode_reloc_sym(s, int32(off+2*Thearch.Ptrsize))
+@@ -241,3 +247,110 @@ func decodetype_structfieldoffs(s *LSym, i int) int64 {
+ func decodetype_ifacemethodcount(s *LSym) int64 {
+ 	return int64(decode_inuxi(s.P[commonsize()+Thearch.Ptrsize:], Thearch.Intsize))
+ }
++
++// methodsig is a fully qualified typed method signature, like
++// "Visit(type.go/ast.Node) (type.go/ast.Visitor)".
++type methodsig string
++
++// Matches runtime/typekind.go and reflect.Kind.
++const (
++	kindArray     = 17
++	kindChan      = 18
++	kindFunc      = 19
++	kindInterface = 20
++	kindMap       = 21
++	kindPtr       = 22
++	kindSlice     = 23
++	kindStruct    = 25
++	kindMask      = (1 << 5) - 1
++)
++
++// decode_methodsig decodes an array of method signature information.
++// Each element of the array is size bytes. The first word is a *string
++// for the name, the third word is a *rtype for the funcType.
++//
++// Conveniently this is the layout of both runtime.method and runtime.imethod.
++func decode_methodsig(s *LSym, off, size, count int) []methodsig {
++	var buf bytes.Buffer
++	var methods []methodsig
++	for i := 0; i < count; i++ {
++		buf.WriteString(decodetype_stringptr(s, off))
++		mtypSym := decode_reloc_sym(s, int32(off+2*Thearch.Ptrsize))
++
++		buf.WriteRune('(')
++		inCount := decodetype_funcincount(mtypSym)
++		for i := 0; i < inCount; i++ {
++			if i > 0 {
++				buf.WriteString(", ")
++			}
++			buf.WriteString(decodetype_funcintype(mtypSym, i).Name)
++		}
++		buf.WriteString(") (")
++		outCount := decodetype_funcoutcount(mtypSym)
++		for i := 0; i < outCount; i++ {
++			if i > 0 {
++				buf.WriteString(", ")
++			}
++			buf.WriteString(decodetype_funcouttype(mtypSym, i).Name)
++		}
++		buf.WriteRune(')')
++
++		off += size
++		methods = append(methods, methodsig(buf.String()))
++		buf.Reset()
++	}
++	return methods
++}
++
++func decodetype_ifacemethods(s *LSym) []methodsig {
++	if decodetype_kind(s)&kindMask != kindInterface {
++		panic(fmt.Sprintf("symbol %q is not an interface", s.Name))
++	}
++	r := decode_reloc(s, int32(commonsize()))
++	if r == nil {
++		return nil
++	}
++	if r.Sym != s {
++		panic(fmt.Sprintf("imethod slice pointer in %q leads to a different symbol", s.Name))
++	}
++	off := int(r.Add) // array of reflect.imethod values
++	numMethods := int(decodetype_ifacemethodcount(s))
++	sizeofIMethod := 3 * Thearch.Ptrsize
++	return decode_methodsig(s, off, sizeofIMethod, numMethods)
++}
++
++func decodetype_methods(s *LSym) []methodsig {
++	if !decodetype_hasUncommon(s) {
++		panic(fmt.Sprintf("no methods on %q", s.Name))
++	}
++	off := commonsize() // reflect.rtype
++	switch decodetype_kind(s) & kindMask {
++	case kindStruct: // reflect.structType
++		off += Thearch.Ptrsize + 2*Thearch.Intsize
++	case kindPtr: // reflect.ptrType
++		off += Thearch.Ptrsize
++	case kindFunc: // reflect.funcType
++		off += Thearch.Ptrsize // 4 bytes, pointer aligned
++	case kindSlice: // reflect.sliceType
++		off += Thearch.Ptrsize
++	case kindArray: // reflect.arrayType
++		off += 3 * Thearch.Ptrsize
++	case kindChan: // reflect.chanType
++		off += 2 * Thearch.Ptrsize
++	case kindMap: // reflect.mapType
++		off += 4*Thearch.Ptrsize + 8
++	case kindInterface: // reflect.interfaceType
++		off += Thearch.Ptrsize + 2*Thearch.Intsize
++	default:
++		// just Sizeof(rtype)
++	}
++
++	numMethods := int(decode_inuxi(s.P[off+2*Thearch.Ptrsize:], Thearch.Intsize))
++	r := decode_reloc(s, int32(off+Thearch.Ptrsize))
++	if r.Sym != s {
++		panic(fmt.Sprintf("method slice pointer in %q leads to a different symbol", s.Name))
++	}
++	off = int(r.Add) // array of reflect.method values
++	sizeofMethod := 6 * Thearch.Ptrsize
++	return decode_methodsig(s, off, sizeofMethod, numMethods)
++}
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 2895915506..027e05d845 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -367,133 +367,10 @@ func Adddynsym(ctxt *Link, s *LSym) {
+ 	}
+ }
+ 
+-var markQueue []*LSym
+-
+-func mark1(s *LSym, parent *LSym) {
+-	if s == nil || s.Attr.Reachable() {
+-		return
+-	}
+-	s.Attr |= AttrReachable
+-	s.Reachparent = parent
+-	markQueue = append(markQueue, s)
+-}
+-
+-func mark(s *LSym) {
+-	mark1(s, nil)
+-}
+-
+-// markflood makes the dependencies of any reachable symable also reachable.
+-func markflood() {
+-	for len(markQueue) > 0 {
+-		s := markQueue[0]
+-		markQueue = markQueue[1:]
+-		if s.Type == obj.STEXT {
+-			if Debug['v'] > 1 {
+-				fmt.Fprintf(&Bso, "marktext %s\n", s.Name)
+-			}
+-			for _, a := range s.Autom {
+-				mark1(a.Gotype, s)
+-			}
+-		}
+-		for i := 0; i < len(s.R); i++ {
+-			mark1(s.R[i].Sym, s)
+-		}
+-		if s.Pcln != nil {
+-			for i := 0; i < s.Pcln.Nfuncdata; i++ {
+-				mark1(s.Pcln.Funcdata[i], s)
+-			}
+-		}
+-		mark1(s.Gotype, s)
+-		mark1(s.Sub, s)
+-		mark1(s.Outer, s)
+-	}
+-}
+-
+-var markextra = []string{
+-	"runtime.morestack",
+-	"runtime.morestackx",
+-	"runtime.morestack00",
+-	"runtime.morestack10",
+-	"runtime.morestack01",
+-	"runtime.morestack11",
+-	"runtime.morestack8",
+-	"runtime.morestack16",
+-	"runtime.morestack24",
+-	"runtime.morestack32",
+-	"runtime.morestack40",
+-	"runtime.morestack48",
+-	// on arm, lock in the div/mod helpers too
+-	"_div",
+-	"_divu",
+-	"_mod",
+-	"_modu",
+-}
+-
+-func deadcode() {
+-	if Debug['v'] != 0 {
+-		fmt.Fprintf(&Bso, "%5.2f deadcode\n", obj.Cputime())
+-	}
+-
+-	if Buildmode == BuildmodeShared {
+-		// Mark all symbols defined in this library as reachable when
+-		// building a shared library.
+-		for _, s := range Ctxt.Allsym {
+-			if s.Type != 0 && s.Type != obj.SDYNIMPORT {
+-				mark(s)
+-			}
+-		}
+-		markflood()
+-	} else {
+-		mark(Linklookup(Ctxt, INITENTRY, 0))
+-		if Linkshared && Buildmode == BuildmodeExe {
+-			mark(Linkrlookup(Ctxt, "main.main", 0))
+-			mark(Linkrlookup(Ctxt, "main.init", 0))
+-		}
+-		for i := 0; i < len(markextra); i++ {
+-			mark(Linklookup(Ctxt, markextra[i], 0))
+-		}
+-
+-		for i := 0; i < len(dynexp); i++ {
+-			mark(dynexp[i])
+-		}
+-		markflood()
+-
+-		// keep each beginning with 'typelink.' if the symbol it points at is being kept.
+-		for _, s := range Ctxt.Allsym {
+-			if strings.HasPrefix(s.Name, "go.typelink.") {
+-				s.Attr.Set(AttrReachable, len(s.R) == 1 && s.R[0].Sym.Attr.Reachable())
+-			}
+-		}
+-
+-		// remove dead text but keep file information (z symbols).
+-		var last *LSym
+-
+-		for s := Ctxt.Textp; s != nil; s = s.Next {
+-			if !s.Attr.Reachable() {
+-				continue
+-			}
+-
+-			// NOTE: Removing s from old textp and adding to new, shorter textp.
+-			if last == nil {
+-				Ctxt.Textp = s
+-			} else {
+-				last.Next = s
+-			}
+-			last = s
+-		}
+-
+-		if last == nil {
+-			Ctxt.Textp = nil
+-			Ctxt.Etextp = nil
+-		} else {
+-			last.Next = nil
+-			Ctxt.Etextp = last
+-		}
+-	}
+-
++func fieldtrack(ctxt *Link) {
+ 	// record field tracking references
+ 	var buf bytes.Buffer
+-	for _, s := range Ctxt.Allsym {
++	for _, s := range ctxt.Allsym {
+ 		if strings.HasPrefix(s.Name, "go.track.") {
+ 			s.Attr |= AttrSpecial // do not lay out in data segment
+ 			s.Attr |= AttrHidden
+@@ -514,7 +391,7 @@ func deadcode() {
+ 	if tracksym == "" {
+ 		return
+ 	}
+-	s := Linklookup(Ctxt, tracksym, 0)
++	s := Linklookup(ctxt, tracksym, 0)
+ 	if !s.Attr.Reachable() {
+ 		return
+ 	}
+diff --git a/src/cmd/link/internal/ld/pobj.go b/src/cmd/link/internal/ld/pobj.go
+index 0509eff236..eeb012d9f8 100644
+--- a/src/cmd/link/internal/ld/pobj.go
++++ b/src/cmd/link/internal/ld/pobj.go
+@@ -186,16 +186,9 @@ func Ldmain() {
+ 	}
+ 	loadlib()
+ 
+-	if Thearch.Thechar == '5' {
+-		// mark some functions that are only referenced after linker code editing
+-		if Ctxt.Goarm == 5 {
+-			mark(Linkrlookup(Ctxt, "_sfloat", 0))
+-		}
+-		mark(Linklookup(Ctxt, "runtime.read_tls_fallback", 0))
+-	}
+-
+ 	checkstrdata()
+-	deadcode()
++	deadcode(Ctxt)
++	fieldtrack(Ctxt)
+ 	callgraph()
+ 
+ 	doelf()

@@ -32,7 +32,7 @@ Date:   Tue Sep 5 16:10:02 2023 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Austin Clements <austin@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/import_test.go     |  6 +++++-
  src/runtime/test_amd64.go      |  7 +++++++
  src/runtime/test_amd64.s       |  7 +++++++
@@ -40,3 +40,152 @@ Date:   Tue Sep 5 16:10:02 2023 -0400
  src/runtime/traceback.go       | 44 ++++++++++++++++++++++++++----------------
  src/runtime/tracebackx_test.go | 18 +++++++++++++++++
  6 files changed, 73 insertions(+), 18 deletions(-)
+
+diff --git a/src/runtime/import_test.go b/src/runtime/import_test.go
+index a0a7ab945c..2bf80aaf49 100644
+--- a/src/runtime/import_test.go
++++ b/src/runtime/import_test.go
+@@ -10,7 +10,7 @@
+ //
+ // There are a few limitations on runtime package tests that this bridges:
+ //
+-// 1. Tests use the signature "XTest<name>(t T)". Since runtime can't import
++// 1. Tests use the signature "XTest<name>(t TestingT)". Since runtime can't import
+ // testing, test functions can't use testing.T, so instead we have the T
+ // interface, which *testing.T satisfies. And we start names with "XTest"
+ // because otherwise go test will complain about Test functions with the wrong
+@@ -39,3 +39,7 @@ func init() {
+ func TestInlineUnwinder(t *testing.T) {
+ 	runtime.XTestInlineUnwinder(t)
+ }
++
++func TestSPWrite(t *testing.T) {
++	runtime.XTestSPWrite(t)
++}
+diff --git a/src/runtime/test_amd64.go b/src/runtime/test_amd64.go
+new file mode 100644
+index 0000000000..70c7a4fd84
+--- /dev/null
++++ b/src/runtime/test_amd64.go
+@@ -0,0 +1,7 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++func testSPWrite()
+diff --git a/src/runtime/test_amd64.s b/src/runtime/test_amd64.s
+new file mode 100644
+index 0000000000..80fa8c9948
+--- /dev/null
++++ b/src/runtime/test_amd64.s
+@@ -0,0 +1,7 @@
++// Create a large frame to force stack growth. See #62326.
++TEXT ·testSPWrite(SB),0,$16384-0
++	// Write to SP
++	MOVQ SP, AX
++	ANDQ $~0xf, SP
++	MOVQ AX, SP
++	RET
+diff --git a/src/runtime/test_stubs.go b/src/runtime/test_stubs.go
+new file mode 100644
+index 0000000000..cefc32481d
+--- /dev/null
++++ b/src/runtime/test_stubs.go
+@@ -0,0 +1,9 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !amd64
++
++package runtime
++
++func testSPWrite() {}
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 5dfac4fa01..0b173deb93 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -333,30 +333,40 @@ func (u *unwinder) resolveInternal(innermost, isSyscall bool) {
+ 	if flag&abi.FuncFlagTopFrame != 0 {
+ 		// This function marks the top of the stack. Stop the traceback.
+ 		frame.lr = 0
+-	} else if flag&abi.FuncFlagSPWrite != 0 {
++	} else if flag&abi.FuncFlagSPWrite != 0 && (!innermost || u.flags&(unwindPrintErrors|unwindSilentErrors) != 0) {
+ 		// The function we are in does a write to SP that we don't know
+ 		// how to encode in the spdelta table. Examples include context
+ 		// switch routines like runtime.gogo but also any code that switches
+ 		// to the g0 stack to run host C code.
+-		if u.flags&(unwindPrintErrors|unwindSilentErrors) != 0 {
+-			// We can't reliably unwind the SP (we might
+-			// not even be on the stack we think we are),
+-			// so stop the traceback here.
+-			frame.lr = 0
+-		} else {
+-			// For a GC stack traversal, we should only see
+-			// an SPWRITE function when it has voluntarily preempted itself on entry
+-			// during the stack growth check. In that case, the function has
+-			// not yet had a chance to do any writes to SP and is safe to unwind.
+-			// isAsyncSafePoint does not allow assembly functions to be async preempted,
+-			// and preemptPark double-checks that SPWRITE functions are not async preempted.
+-			// So for GC stack traversal, we can safely ignore SPWRITE for the innermost frame,
+-			// but farther up the stack we'd better not find any.
+-			if !innermost {
+-				println("traceback: unexpected SPWRITE function", funcname(f))
++		// We can't reliably unwind the SP (we might not even be on
++		// the stack we think we are), so stop the traceback here.
++		//
++		// The one exception (encoded in the complex condition above) is that
++		// we assume if we're doing a precise traceback, and this is the
++		// innermost frame, that the SPWRITE function voluntarily preempted itself on entry
++		// during the stack growth check. In that case, the function has
++		// not yet had a chance to do any writes to SP and is safe to unwind.
++		// isAsyncSafePoint does not allow assembly functions to be async preempted,
++		// and preemptPark double-checks that SPWRITE functions are not async preempted.
++		// So for GC stack traversal, we can safely ignore SPWRITE for the innermost frame,
++		// but farther up the stack we'd better not find any.
++		// This is somewhat imprecise because we're just guessing that we're in the stack
++		// growth check. It would be better if SPWRITE were encoded in the spdelta
++		// table so we would know for sure that we were still in safe code.
++		//
++		// uSE uPE inn | action
++		//  T   _   _  | frame.lr = 0
++		//  F   T   F  | frame.lr = 0; print
++		//  F   T   T  | frame.lr = 0
++		//  F   F   F  | print; panic
++		//  F   F   T  | ignore SPWrite
++		if u.flags&unwindSilentErrors == 0 && !innermost {
++			println("traceback: unexpected SPWRITE function", funcname(f))
++			if u.flags&unwindPrintErrors == 0 {
+ 				throw("traceback")
+ 			}
+ 		}
++		frame.lr = 0
+ 	} else {
+ 		var lrPtr uintptr
+ 		if usesLR {
+diff --git a/src/runtime/tracebackx_test.go b/src/runtime/tracebackx_test.go
+new file mode 100644
+index 0000000000..b318fa31e2
+--- /dev/null
++++ b/src/runtime/tracebackx_test.go
+@@ -0,0 +1,18 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++func XTestSPWrite(t TestingT) {
++	// Test that we can traceback from the stack check prologue of a function
++	// that writes to SP. See #62326.
++
++	// Start a goroutine to minimize the initial stack and ensure we grow the stack.
++	done := make(chan bool)
++	go func() {
++		testSPWrite() // Defined in assembly
++		done <- true
++	}()
++	<-done
++}

@@ -7,6 +7,37 @@ Date:   Mon Dec 9 18:48:44 2013 -0500
     R=golang-dev, 0intro, rsc
     CC=golang-dev
     https://golang.org/cl/39680044
-
+---
  src/liblink/obj8.c | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/liblink/obj8.c b/src/liblink/obj8.c
+index e744abe55e..e22a1b912f 100644
+--- a/src/liblink/obj8.c
++++ b/src/liblink/obj8.c
+@@ -271,10 +271,11 @@ progedit(Link *ctxt, Prog *p)
+ 			}
+ 		}
+ 	}
+-	/* TODO 
+ 	if(ctxt->headtype == Hplan9) {
+ 		if(p->from.type == D_INDIR+D_GS
+ 		&& p->to.type >= D_AX && p->to.type <= D_DI) {
++			if(ctxt->plan9tos == nil)
++				ctxt->plan9tos = linklookup(ctxt, "_tos", 0);
+ 			q = appendp(ctxt, p);
+ 			q->from = p->from;
+ 			q->from.type = D_INDIR + p->to.type;
+@@ -282,11 +283,10 @@ progedit(Link *ctxt, Prog *p)
+ 			q->as = p->as;
+ 			p->as = AMOVL;
+ 			p->from.type = D_EXTERN;
+-			p->from.sym = plan9_tos;
++			p->from.sym = ctxt->plan9tos;
+ 			p->from.offset = 0;
+ 		}
+ 	}
+-	*/
+ }
+ 
+ static Prog*

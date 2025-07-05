@@ -9,6 +9,54 @@ Date:   Tue Jul 14 00:34:36 2015 -0400
     Change-Id: I88cbe200c13f452713be73d2e00337ddb793b8c6
     Reviewed-on: https://go-review.googlesource.com/12172
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.5.html | 26 ++++++++++++++++++++------
  1 file changed, 20 insertions(+), 6 deletions(-)
+
+diff --git a/doc/go1.5.html b/doc/go1.5.html
+index 7c3a2f294a..da1d05abce 100644
+--- a/doc/go1.5.html
++++ b/doc/go1.5.html
+@@ -465,15 +465,16 @@ A new <code>cmd</code> wildcard covers the commands.
+ </li>
+ 
+ <li>
+-A new <code>-toolexec</code> flag for building
+-allows substitution of a different command to invoke
+-the compiler and so on.
+-This acts as a custom replacement for <code>go tool</code>.
++A new <code>-asmflags</code> build option
++sets flags to pass to the assembler.
++However, 
++the <code>-ccflags</code> build option has been dropped;
++it was specific to the old, now deleted C compiler .
+ </li>
+ 
+ <li>
+-The build subcommand has a <code>-buildmode</code> option tied to the linker,
+-as described above.
++A new <code>-buildmode</code> build option
++sets the build mode, described above.
+ </li>
+ 
+ <li>
+@@ -484,6 +485,19 @@ the <code>-ccflags</code> build option has been dropped;
+ it was specific to the old, now deleted C compiler .
+ </li>
+ 
++<li>
++A new <code>-pkgdir</code> build option
++sets the location of installed package archives,
++to help isolate custom builds.
++</li>
++
++<li>
++A new <code>-toolexec</code> build option
++allows substitution of a different command to invoke
++the compiler and so on.
++This acts as a custom replacement for <code>go tool</code>.
++</li>
++
+ <li>
+ The <code>test</code> subcommand now has a <code>-count</code>
+ flag to specify how many times to run each test and benchmark.

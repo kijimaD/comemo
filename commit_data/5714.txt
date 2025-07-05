@@ -9,8 +9,404 @@ Date:   Mon Jun 28 14:11:38 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1729045
-
+---
  src/pkg/fmt/fmt_test.go |  8 ++++
  src/pkg/fmt/format.go   | 25 ++++---------
  src/pkg/fmt/print.go    | 98 ++++++++++++++++++++++++++-----------------------
  3 files changed, 68 insertions(+), 63 deletions(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index e48e874b15..7e59d4073e 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -289,6 +289,14 @@ var fmttests = []fmtTest{
+ 	fmtTest{"%#v", make(chan int), "(chan int)(PTR)"},
+ 	fmtTest{"%#v", uint64(1<<64 - 1), "0xffffffffffffffff"},
+ 	fmtTest{"%#v", 1000000000, "1000000000"},
++	fmtTest{"%#v", map[string]int{"a": 1, "b": 2}, `map[string] int{"a":1, "b":2}`},
++	fmtTest{"%#v", map[string]B{"a": B{1, 2}, "b": B{3, 4}}, `map[string] fmt_test.B{"a":fmt_test.B{i:1, j:2}, "b":fmt_test.B{i:3, j:4}}`},
++	fmtTest{"%#v", []string{"a", "b"}, `[]string{"a", "b"}`},
++
++	// slices with other formats
++	fmtTest{"%#x", []int{1, 2, 15}, `[0x1 0x2 0xf]`},
++	fmtTest{"%x", []int{1, 2, 15}, `[1 2 f]`},
++	fmtTest{"%q", []string{"a", "b"}, `["a" "b"]`},
+ 
+ 	// renamings
+ 	fmtTest{"%v", renamedBool(true), "true"},
+diff --git a/src/pkg/fmt/format.go b/src/pkg/fmt/format.go
+index 62fc9ff1c7..3ec1cf1394 100644
+--- a/src/pkg/fmt/format.go
++++ b/src/pkg/fmt/format.go
+@@ -43,14 +43,13 @@ type fmt struct {
+ 	wid  int
+ 	prec int
+ 	// flags
+-	widPresent    bool
+-	precPresent   bool
+-	minus         bool
+-	plus          bool
+-	sharp         bool
+-	space         bool
+-	zero          bool
+-	preserveFlags bool // don't clear flags after this print; used to carry over in complex prints
++	widPresent  bool
++	precPresent bool
++	minus       bool
++	plus        bool
++	sharp       bool
++	space       bool
++	zero        bool
+ }
+ 
+ func (f *fmt) clearflags() {
+@@ -120,9 +119,6 @@ func (f *fmt) pad(b []byte) {
+ 	if right > 0 {
+ 		f.writePadding(right, padding)
+ 	}
+-	if !f.preserveFlags {
+-		f.clearflags()
+-	}
+ }
+ 
+ // append s to buf, padded on left (w > 0) or right (w < 0 or f.minus).
+@@ -140,9 +136,6 @@ func (f *fmt) padString(s string) {
+ 	if right > 0 {
+ 		f.writePadding(right, padding)
+ 	}
+-	if !f.preserveFlags {
+-		f.clearflags()
+-	}
+ }
+ 
+ func putint(buf []byte, base, val uint64, digits string) int {
+@@ -345,7 +338,6 @@ func (f *fmt) fmt_fb32(v float32) { f.padString(strconv.Ftoa32(v, 'b', 0)) }
+ func (f *fmt) fmt_c64(v complex64, verb int) {
+ 	f.buf.WriteByte('(')
+ 	r := real(v)
+-	f.preserveFlags = true
+ 	for i := 0; ; i++ {
+ 		switch verb {
+ 		case 'e':
+@@ -359,7 +351,6 @@ func (f *fmt) fmt_c64(v complex64, verb int) {
+ 		case 'G':
+ 			f.fmt_G32(r)
+ 		}
+-		f.preserveFlags = false
+ 		if i != 0 {
+ 			break
+ 		}
+@@ -373,7 +364,6 @@ func (f *fmt) fmt_c64(v complex64, verb int) {
+ func (f *fmt) fmt_c128(v complex128, verb int) {
+ 	f.buf.WriteByte('(')
+ 	r := real(v)
+-	f.preserveFlags = true
+ 	for i := 0; ; i++ {
+ 		switch verb {
+ 		case 'e':
+@@ -387,7 +377,6 @@ func (f *fmt) fmt_c128(v complex128, verb int) {
+ 		case 'G':
+ 			f.fmt_G64(r)
+ 		}
+-		f.preserveFlags = false
+ 		if i != 0 {
+ 			break
+ 		}
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index bb2f08ea7b..20bfa9107f 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -443,7 +443,7 @@ func (p *pp) fmt0x64(v uint64) {
+ 	p.fmt.sharp = sharp
+ }
+ 
+-func (p *pp) fmtUint64(v uint64, verb int, sharp bool, value interface{}) {
++func (p *pp) fmtUint64(v uint64, verb int, goSyntax bool, value interface{}) {
+ 	switch verb {
+ 	case 'b':
+ 		p.fmt.integer(int64(v), 2, unsigned, ldigits)
+@@ -452,7 +452,7 @@ func (p *pp) fmtUint64(v uint64, verb int, sharp bool, value interface{}) {
+ 	case 'd':
+ 		p.fmt.integer(int64(v), 10, unsigned, ldigits)
+ 	case 'v':
+-		if sharp {
++		if goSyntax {
+ 			p.fmt0x64(v)
+ 		} else {
+ 			p.fmt.integer(int64(v), 10, unsigned, ldigits)
+@@ -528,10 +528,10 @@ func (p *pp) fmtComplex128(v complex128, verb int, value interface{}) {
+ 	}
+ }
+ 
+-func (p *pp) fmtString(v string, verb int, sharp bool, value interface{}) {
++func (p *pp) fmtString(v string, verb int, goSyntax bool, value interface{}) {
+ 	switch verb {
+ 	case 'v':
+-		if sharp {
++		if goSyntax {
+ 			p.fmt.fmt_q(v)
+ 		} else {
+ 			p.fmt.fmt_s(v)
+@@ -549,24 +549,24 @@ func (p *pp) fmtString(v string, verb int, sharp bool, value interface{}) {
+ 	}
+ }
+ 
+-func (p *pp) fmtBytes(v []byte, verb int, sharp bool, depth int, value interface{}) {
++func (p *pp) fmtBytes(v []byte, verb int, goSyntax bool, depth int, value interface{}) {
+ 	if verb == 'v' {
+-		if p.fmt.sharp {
++		if goSyntax {
+ 			p.buf.Write(bytesBytes)
+ 		} else {
+ 			p.buf.WriteByte('[')
+ 		}
+ 		for i, c := range v {
+ 			if i > 0 {
+-				if p.fmt.sharp {
++				if goSyntax {
+ 					p.buf.Write(commaSpaceBytes)
+ 				} else {
+ 					p.buf.WriteByte(' ')
+ 				}
+ 			}
+-			p.printField(c, 'v', p.fmt.plus, p.fmt.sharp, depth+1)
++			p.printField(c, 'v', p.fmt.plus, goSyntax, depth+1)
+ 		}
+-		if sharp {
++		if goSyntax {
+ 			p.buf.WriteByte('}')
+ 		} else {
+ 			p.buf.WriteByte(']')
+@@ -618,17 +618,17 @@ var (
+ 	uintptrBits = reflect.Typeof(uintptr(0)).Bits()
+ )
+ 
+-func (p *pp) printField(field interface{}, verb int, plus, sharp bool, depth int) (was_string bool) {
++func (p *pp) printField(field interface{}, verb int, plus, goSyntax bool, depth int) (was_string bool) {
+ 	if field != nil {
+ 		switch {
+ 		default:
+ 			if stringer, ok := field.(Stringer); ok {
+-				p.printField(stringer.String(), verb, plus, sharp, depth)
++				p.printField(stringer.String(), verb, plus, goSyntax, depth)
+ 				return false // this value is not a string
+ 			}
+-		case sharp:
++		case goSyntax:
+ 			if stringer, ok := field.(GoStringer); ok {
+-				p.printField(stringer.GoString(), verb, plus, sharp, depth)
++				p.printField(stringer.GoString(), verb, plus, goSyntax, depth)
+ 				return false // this value is not a string
+ 			}
+ 		}
+@@ -681,28 +681,28 @@ func (p *pp) printField(field interface{}, verb int, plus, sharp bool, depth int
+ 		p.fmtInt64(f, verb, field)
+ 		return false
+ 	case uint:
+-		p.fmtUint64(uint64(f), verb, sharp, field)
++		p.fmtUint64(uint64(f), verb, goSyntax, field)
+ 		return false
+ 	case uint8:
+-		p.fmtUint64(uint64(f), verb, sharp, field)
++		p.fmtUint64(uint64(f), verb, goSyntax, field)
+ 		return false
+ 	case uint16:
+-		p.fmtUint64(uint64(f), verb, sharp, field)
++		p.fmtUint64(uint64(f), verb, goSyntax, field)
+ 		return false
+ 	case uint32:
+-		p.fmtUint64(uint64(f), verb, sharp, field)
++		p.fmtUint64(uint64(f), verb, goSyntax, field)
+ 		return false
+ 	case uint64:
+-		p.fmtUint64(f, verb, sharp, field)
++		p.fmtUint64(f, verb, goSyntax, field)
+ 		return false
+ 	case uintptr:
+-		p.fmtUint64(uint64(f), verb, sharp, field)
++		p.fmtUint64(uint64(f), verb, goSyntax, field)
+ 		return false
+ 	case string:
+-		p.fmtString(f, verb, sharp, field)
++		p.fmtString(f, verb, goSyntax, field)
+ 		return verb == 's' || verb == 'v'
+ 	case []byte:
+-		p.fmtBytes(f, verb, sharp, depth, field)
++		p.fmtBytes(f, verb, goSyntax, depth, field)
+ 		return verb == 's'
+ 	}
+ 
+@@ -718,7 +718,7 @@ func (p *pp) printField(field interface{}, verb int, plus, sharp bool, depth int
+ 	value := reflect.NewValue(field)
+ 	// Need to use reflection
+ 	// Special case for reflection values that know how to print with %p.
+-	if verb == 'p' && p.fmtUintptrGetter(field, value, verb, sharp) {
++	if verb == 'p' && p.fmtUintptrGetter(field, value, verb, goSyntax) { // TODO: is this goSyntax right?
+ 		return false
+ 	}
+ 
+@@ -729,7 +729,7 @@ BigSwitch:
+ 	case *reflect.IntValue:
+ 		p.fmtInt64(f.Get(), verb, field)
+ 	case *reflect.UintValue:
+-		p.fmtUint64(uint64(f.Get()), verb, sharp, field)
++		p.fmtUint64(uint64(f.Get()), verb, goSyntax, field)
+ 	case *reflect.FloatValue:
+ 		if f.Type().Size() == 4 {
+ 			p.fmtFloat32(float32(f.Get()), verb, field)
+@@ -743,9 +743,9 @@ BigSwitch:
+ 			p.fmtComplex128(complex128(f.Get()), verb, field)
+ 		}
+ 	case *reflect.StringValue:
+-		p.fmtString(f.Get(), verb, sharp, field)
++		p.fmtString(f.Get(), verb, goSyntax, field)
+ 	case *reflect.MapValue:
+-		if sharp {
++		if goSyntax {
+ 			p.buf.WriteString(f.Type().String())
+ 			p.buf.WriteByte('{')
+ 		} else {
+@@ -754,60 +754,59 @@ BigSwitch:
+ 		keys := f.Keys()
+ 		for i, key := range keys {
+ 			if i > 0 {
+-				if sharp {
++				if goSyntax {
+ 					p.buf.Write(commaSpaceBytes)
+ 				} else {
+ 					p.buf.WriteByte(' ')
+ 				}
+ 			}
+-			p.printField(key.Interface(), verb, plus, sharp, depth+1)
++			p.printField(key.Interface(), verb, plus, goSyntax, depth+1)
+ 			p.buf.WriteByte(':')
+-			p.printField(f.Elem(key).Interface(), verb, plus, sharp, depth+1)
++			p.printField(f.Elem(key).Interface(), verb, plus, goSyntax, depth+1)
+ 		}
+-		if sharp {
++		if goSyntax {
+ 			p.buf.WriteByte('}')
+ 		} else {
+ 			p.buf.WriteByte(']')
+ 		}
+ 	case *reflect.StructValue:
+-		if sharp {
++		if goSyntax {
+ 			p.buf.WriteString(reflect.Typeof(field).String())
+ 		}
+ 		p.add('{')
+ 		v := f
+ 		t := v.Type().(*reflect.StructType)
+-		p.fmt.clearflags() // clear flags for p.printField
+ 		for i := 0; i < v.NumField(); i++ {
+ 			if i > 0 {
+-				if sharp {
++				if goSyntax {
+ 					p.buf.Write(commaSpaceBytes)
+ 				} else {
+ 					p.buf.WriteByte(' ')
+ 				}
+ 			}
+-			if plus || sharp {
++			if plus || goSyntax {
+ 				if f := t.Field(i); f.Name != "" {
+ 					p.buf.WriteString(f.Name)
+ 					p.buf.WriteByte(':')
+ 				}
+ 			}
+-			p.printField(getField(v, i).Interface(), verb, plus, sharp, depth+1)
++			p.printField(getField(v, i).Interface(), verb, plus, goSyntax, depth+1)
+ 		}
+ 		p.buf.WriteByte('}')
+ 	case *reflect.InterfaceValue:
+ 		value := f.Elem()
+ 		if value == nil {
+-			if sharp {
++			if goSyntax {
+ 				p.buf.WriteString(reflect.Typeof(field).String())
+ 				p.buf.Write(nilParenBytes)
+ 			} else {
+ 				p.buf.Write(nilAngleBytes)
+ 			}
+ 		} else {
+-			return p.printField(value.Interface(), verb, plus, sharp, depth+1)
++			return p.printField(value.Interface(), verb, plus, goSyntax, depth+1)
+ 		}
+ 	case reflect.ArrayOrSliceValue:
+-		if sharp {
++		if goSyntax {
+ 			p.buf.WriteString(reflect.Typeof(field).String())
+ 			p.buf.WriteByte('{')
+ 		} else {
+@@ -815,15 +814,15 @@ BigSwitch:
+ 		}
+ 		for i := 0; i < f.Len(); i++ {
+ 			if i > 0 {
+-				if sharp {
++				if goSyntax {
+ 					p.buf.Write(commaSpaceBytes)
+ 				} else {
+ 					p.buf.WriteByte(' ')
+ 				}
+ 			}
+-			p.printField(f.Elem(i).Interface(), verb, plus, sharp, depth+1)
++			p.printField(f.Elem(i).Interface(), verb, plus, goSyntax, depth+1)
+ 		}
+-		if sharp {
++		if goSyntax {
+ 			p.buf.WriteByte('}')
+ 		} else {
+ 			p.buf.WriteByte(']')
+@@ -836,15 +835,15 @@ BigSwitch:
+ 			switch a := f.Elem().(type) {
+ 			case reflect.ArrayOrSliceValue:
+ 				p.buf.WriteByte('&')
+-				p.printField(a.Interface(), verb, plus, sharp, depth+1)
++				p.printField(a.Interface(), verb, plus, goSyntax, depth+1)
+ 				break BigSwitch
+ 			case *reflect.StructValue:
+ 				p.buf.WriteByte('&')
+-				p.printField(a.Interface(), verb, plus, sharp, depth+1)
++				p.printField(a.Interface(), verb, plus, goSyntax, depth+1)
+ 				break BigSwitch
+ 			}
+ 		}
+-		if sharp {
++		if goSyntax {
+ 			p.buf.WriteByte('(')
+ 			p.buf.WriteString(reflect.Typeof(field).String())
+ 			p.buf.WriteByte(')')
+@@ -863,7 +862,7 @@ BigSwitch:
+ 		}
+ 		p.fmt0x64(uint64(v))
+ 	case uintptrGetter:
+-		if p.fmtUintptrGetter(field, value, verb, sharp) {
++		if p.fmtUintptrGetter(field, value, verb, goSyntax) {
+ 			break
+ 		}
+ 		p.unknownType(f)
+@@ -948,7 +947,15 @@ func (p *pp) doPrintf(format string, a []interface{}) {
+ 			}
+ 		}
+ 
+-		p.printField(field, c, p.fmt.plus, p.fmt.sharp, 0)
++		goSyntax := c == 'v' && p.fmt.sharp
++		if goSyntax {
++			p.fmt.sharp = false
++		}
++		plus := c == 'v' && p.fmt.plus
++		if plus {
++			p.fmt.plus = false
++		}
++		p.printField(field, c, plus, goSyntax, 0)
+ 	}
+ 
+ 	if fieldnum < len(a) {
+@@ -971,6 +978,7 @@ func (p *pp) doPrintf(format string, a []interface{}) {
+ func (p *pp) doPrint(a []interface{}, addspace, addnewline bool) {
+ 	prev_string := false
+ 	for fieldnum := 0; fieldnum < len(a); fieldnum++ {
++		p.fmt.clearflags()
+ 		// always add spaces if we're doing println
+ 		field := a[fieldnum]
+ 		if fieldnum > 0 {

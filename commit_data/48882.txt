@@ -32,7 +32,7 @@ Date:   Mon Jun 21 22:35:01 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/escape/call.go   | 237 +++++++++++++++++++---
  src/cmd/compile/internal/escape/escape.go |   9 +-
  src/cmd/compile/internal/escape/expr.go   |   8 +-
@@ -44,3 +44,904 @@ Date:   Mon Jun 21 22:35:01 2021 -0700
  test/escape2n.go                          |  12 +-
  test/fixedbugs/issue31573.go              |  30 +--
  10 files changed, 259 insertions(+), 400 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/call.go b/src/cmd/compile/internal/escape/call.go
+index 1f2d59af35..7b9dbe0dbc 100644
+--- a/src/cmd/compile/internal/escape/call.go
++++ b/src/cmd/compile/internal/escape/call.go
+@@ -9,30 +9,35 @@ import (
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
++	"cmd/internal/src"
+ )
+ 
+ // call evaluates a call expressions, including builtin calls. ks
+ // should contain the holes representing where the function callee's
+ // results flows.
+ func (e *escape) call(ks []hole, call ir.Node) {
+-	e.callCommon(ks, call, nil)
++	var init ir.Nodes
++	e.callCommon(ks, call, &init, nil)
++	if len(init) != 0 {
++		call.(*ir.CallExpr).PtrInit().Append(init...)
++	}
+ }
+ 
+-func (e *escape) callCommon(ks []hole, call ir.Node, where *ir.GoDeferStmt) {
+-	argument := func(k hole, argp *ir.Node) {
+-		if where != nil {
+-			if where.Esc() == ir.EscNever {
+-				// Top-level defers arguments don't escape to heap,
+-				// but they do need to last until end of function.
+-				k = e.later(k)
+-			} else {
+-				k = e.heapHole()
+-			}
+-		}
++func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir.Func) {
++
++	// argumentPragma handles escape analysis of argument *argp to the
++	// given hole. If the function callee is known, pragma is the
++	// function's pragma flags; otherwise 0.
++	argumentFunc := func(fn *ir.Name, k hole, argp *ir.Node) {
++		e.rewriteArgument(argp, init, call, fn, wrapper)
+ 
+ 		e.expr(k.note(call, "call parameter"), *argp)
+ 	}
+ 
++	argument := func(k hole, argp *ir.Node) {
++		argumentFunc(nil, k, argp)
++	}
++
+ 	switch call.Op() {
+ 	default:
+ 		ir.Dump("esc", call)
+@@ -43,6 +48,11 @@ func (e *escape) callCommon(ks []hole, call ir.Node, where *ir.GoDeferStmt) {
+ 		typecheck.FixVariadicCall(call)
+ 
+ 		// Pick out the function callee, if statically known.
++		//
++		// TODO(mdempsky): Change fn from *ir.Name to *ir.Func, but some
++		// functions (e.g., runtime builtins, method wrappers, generated
++		// eq/hash functions) don't have it set. Investigate whether
++		// that's a concern.
+ 		var fn *ir.Name
+ 		switch call.Op() {
+ 		case ir.OCALLFUNC:
+@@ -68,15 +78,20 @@ func (e *escape) callCommon(ks []hole, call ir.Node, where *ir.GoDeferStmt) {
+ 		}
+ 
+ 		if r := fntype.Recv(); r != nil {
+-			argument(e.tagHole(ks, fn, r), &call.X.(*ir.SelectorExpr).X)
++			dot := call.X.(*ir.SelectorExpr)
++			argumentFunc(fn, e.tagHole(ks, fn, r), &dot.X)
+ 		} else {
+ 			// Evaluate callee function expression.
++			//
++			// Note: We use argument and not argumentFunc, because call.X
++			// here may be an argument to runtime.{new,defer}proc, but it's
++			// not an argument to fn itself.
+ 			argument(e.discardHole(), &call.X)
+ 		}
+ 
+ 		args := call.Args
+ 		for i, param := range fntype.Params().FieldSlice() {
+-			argument(e.tagHole(ks, fn, param), &args[i])
++			argumentFunc(fn, e.tagHole(ks, fn, param), &args[i])
+ 		}
+ 
+ 	case ir.OAPPEND:
+@@ -142,16 +157,196 @@ func (e *escape) callCommon(ks []hole, call ir.Node, where *ir.GoDeferStmt) {
+ 	}
+ }
+ 
++// goDeferStmt analyzes a "go" or "defer" statement.
++//
++// In the process, it also normalizes the statement to always use a
++// simple function call with no arguments and no results. For example,
++// it rewrites:
++//
++//	defer f(x, y)
++//
++// into:
++//
++//	x1, y1 := x, y
++//	defer func() { f(x1, y1) }()
+ func (e *escape) goDeferStmt(n *ir.GoDeferStmt) {
+-	topLevelDefer := n.Op() == ir.ODEFER && e.loopDepth == 1
+-	if topLevelDefer {
++	k := e.heapHole()
++	if n.Op() == ir.ODEFER && e.loopDepth == 1 {
++		// Top-level defer arguments don't escape to the heap,
++		// but they do need to last until they're invoked.
++		k = e.later(e.discardHole())
++
+ 		// force stack allocation of defer record, unless
+ 		// open-coded defers are used (see ssa.go)
+ 		n.SetEsc(ir.EscNever)
+ 	}
+ 
+-	e.stmts(n.Call.Init())
+-	e.callCommon(nil, n.Call, n)
++	call := n.Call
++
++	init := n.PtrInit()
++	init.Append(ir.TakeInit(call)...)
++	e.stmts(*init)
++
++	// If the function is already a zero argument/result function call,
++	// just escape analyze it normally.
++	if call, ok := call.(*ir.CallExpr); ok && call.Op() == ir.OCALLFUNC {
++		if sig := call.X.Type(); sig.NumParams()+sig.NumResults() == 0 {
++			if clo, ok := call.X.(*ir.ClosureExpr); ok && n.Op() == ir.OGO {
++				clo.IsGoWrap = true
++			}
++			e.expr(k, call.X)
++			return
++		}
++	}
++
++	// Create a new no-argument function that we'll hand off to defer.
++	fn := ir.NewClosureFunc(n.Pos(), true)
++	fn.SetWrapper(true)
++	fn.Nname.SetType(types.NewSignature(types.LocalPkg, nil, nil, nil, nil))
++	fn.Body = []ir.Node{call}
++
++	clo := fn.OClosure
++	if n.Op() == ir.OGO {
++		clo.IsGoWrap = true
++	}
++
++	e.callCommon(nil, call, init, fn)
++	e.closures = append(e.closures, closure{e.spill(k, clo), clo})
++
++	// Create new top level call to closure.
++	n.Call = ir.NewCallExpr(call.Pos(), ir.OCALL, clo, nil)
++	ir.WithFunc(e.curfn, func() {
++		typecheck.Stmt(n.Call)
++	})
++}
++
++// rewriteArgument rewrites the argument *argp of the given call expression.
++// fn is the static callee function, if known.
++// wrapper is the go/defer wrapper function for call, if any.
++func (e *escape) rewriteArgument(argp *ir.Node, init *ir.Nodes, call ir.Node, fn *ir.Name, wrapper *ir.Func) {
++	var pragma ir.PragmaFlag
++	if fn != nil && fn.Func != nil {
++		pragma = fn.Func.Pragma
++	}
++
++	// unsafeUintptr rewrites "uintptr(ptr)" arguments to syscall-like
++	// functions, so that ptr is kept alive and/or escaped as
++	// appropriate. unsafeUintptr also reports whether it modified arg0.
++	unsafeUintptr := func(arg0 ir.Node) bool {
++		if pragma&(ir.UintptrKeepAlive|ir.UintptrEscapes) == 0 {
++			return false
++		}
++
++		// If the argument is really a pointer being converted to uintptr,
++		// arrange for the pointer to be kept alive until the call returns,
++		// by copying it into a temp and marking that temp
++		// still alive when we pop the temp stack.
++		if arg0.Op() != ir.OCONVNOP || !arg0.Type().IsUintptr() {
++			return false
++		}
++		arg := arg0.(*ir.ConvExpr)
++
++		if !arg.X.Type().IsUnsafePtr() {
++			return false
++		}
++
++		// Create and declare a new pointer-typed temp variable.
++		tmp := e.wrapExpr(arg.Pos(), &arg.X, init, call, wrapper)
++
++		if pragma&ir.UintptrEscapes != 0 {
++			e.flow(e.heapHole().note(arg, "//go:uintptrescapes"), e.oldLoc(tmp))
++		}
++
++		if pragma&ir.UintptrKeepAlive != 0 {
++			call := call.(*ir.CallExpr)
++
++			// SSA implements CallExpr.KeepAlive using OpVarLive, which
++			// doesn't support PAUTOHEAP variables. I tried changing it to
++			// use OpKeepAlive, but that ran into issues of its own.
++			// For now, the easy solution is to explicitly copy to (yet
++			// another) new temporary variable.
++			keep := tmp
++			if keep.Class == ir.PAUTOHEAP {
++				keep = e.copyExpr(arg.Pos(), tmp, call.PtrInit(), wrapper, false)
++			}
++
++			keep.SetAddrtaken(true) // ensure SSA keeps the tmp variable
++			call.KeepAlive = append(call.KeepAlive, keep)
++		}
++
++		return true
++	}
++
++	visit := func(pos src.XPos, argp *ir.Node) {
++		if unsafeUintptr(*argp) {
++			return
++		}
++
++		if wrapper != nil {
++			e.wrapExpr(pos, argp, init, call, wrapper)
++		}
++	}
++
++	// Peel away any slice lits.
++	if arg := *argp; arg.Op() == ir.OSLICELIT {
++		list := arg.(*ir.CompLitExpr).List
++		for i := range list {
++			visit(arg.Pos(), &list[i])
++		}
++	} else {
++		visit(call.Pos(), argp)
++	}
++}
++
++// wrapExpr replaces *exprp with a temporary variable copy. If wrapper
++// is non-nil, the variable will be captured for use within that
++// function.
++func (e *escape) wrapExpr(pos src.XPos, exprp *ir.Node, init *ir.Nodes, call ir.Node, wrapper *ir.Func) *ir.Name {
++	tmp := e.copyExpr(pos, *exprp, init, e.curfn, true)
++
++	if wrapper != nil {
++		// Currently for "defer i.M()" if i is nil it panics at the point
++		// of defer statement, not when deferred function is called.  We
++		// need to do the nil check outside of the wrapper.
++		if call.Op() == ir.OCALLINTER && exprp == &call.(*ir.CallExpr).X.(*ir.SelectorExpr).X {
++			check := ir.NewUnaryExpr(pos, ir.OCHECKNIL, ir.NewUnaryExpr(pos, ir.OITAB, tmp))
++			init.Append(typecheck.Stmt(check))
++		}
++
++		e.oldLoc(tmp).captured = true
++
++		cv := ir.NewClosureVar(pos, wrapper, tmp)
++		cv.SetType(tmp.Type())
++		tmp = typecheck.Expr(cv).(*ir.Name)
++	}
++
++	*exprp = tmp
++	return tmp
++}
++
++// copyExpr creates and returns a new temporary variable within fn;
++// appends statements to init to declare and initialize it to expr;
++// and escape analyzes the data flow if analyze is true.
++func (e *escape) copyExpr(pos src.XPos, expr ir.Node, init *ir.Nodes, fn *ir.Func, analyze bool) *ir.Name {
++	if ir.HasUniquePos(expr) {
++		pos = expr.Pos()
++	}
++
++	tmp := typecheck.TempAt(pos, fn, expr.Type())
++
++	stmts := []ir.Node{
++		ir.NewDecl(pos, ir.ODCL, tmp),
++		ir.NewAssignStmt(pos, tmp, expr),
++	}
++	typecheck.Stmts(stmts)
++	init.Append(stmts...)
++
++	if analyze {
++		e.newLoc(tmp, false)
++		e.stmts(stmts)
++	}
++
++	return tmp
+ }
+ 
+ // tagHole returns a hole for evaluating an argument passed to param.
+@@ -170,12 +365,6 @@ func (e *escape) tagHole(ks []hole, fn *ir.Name, param *types.Field) hole {
+ 
+ 	// Call to previously tagged function.
+ 
+-	if fn.Func != nil && fn.Func.Pragma&ir.UintptrEscapes != 0 && (param.Type.IsUintptr() || param.IsDDD() && param.Type.Elem().IsUintptr()) {
+-		k := e.heapHole()
+-		k.uintptrEscapesHack = true
+-		return k
+-	}
+-
+ 	var tagKs []hole
+ 
+ 	esc := parseLeaks(param.Note)
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index 8f75ae8b42..324d0da3fe 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -282,6 +282,11 @@ func (b *batch) finish(fns []*ir.Func) {
+ 
+ 		// Update n.Esc based on escape analysis results.
+ 
++		// Omit escape diagnostics for go/defer wrappers, at least for now.
++		// Historically, we haven't printed them, and test cases don't expect them.
++		// TODO(mdempsky): Update tests to expect this.
++		goDeferWrapper := n.Op() == ir.OCLOSURE && n.(*ir.ClosureExpr).Func.Wrapper()
++
+ 		if loc.escapes {
+ 			if n.Op() == ir.ONAME {
+ 				if base.Flag.CompilingRuntime {
+@@ -291,7 +296,7 @@ func (b *batch) finish(fns []*ir.Func) {
+ 					base.WarnfAt(n.Pos(), "moved to heap: %v", n)
+ 				}
+ 			} else {
+-				if base.Flag.LowerM != 0 {
++				if base.Flag.LowerM != 0 && !goDeferWrapper {
+ 					base.WarnfAt(n.Pos(), "%v escapes to heap", n)
+ 				}
+ 				if logopt.Enabled() {
+@@ -301,7 +306,7 @@ func (b *batch) finish(fns []*ir.Func) {
+ 			}
+ 			n.SetEsc(ir.EscHeap)
+ 		} else {
+-			if base.Flag.LowerM != 0 && n.Op() != ir.ONAME {
++			if base.Flag.LowerM != 0 && n.Op() != ir.ONAME && !goDeferWrapper {
+ 				base.WarnfAt(n.Pos(), "%v does not escape", n)
+ 			}
+ 			n.SetEsc(ir.EscNone)
+diff --git a/src/cmd/compile/internal/escape/expr.go b/src/cmd/compile/internal/escape/expr.go
+index c10e866990..71c8eec6ef 100644
+--- a/src/cmd/compile/internal/escape/expr.go
++++ b/src/cmd/compile/internal/escape/expr.go
+@@ -30,12 +30,7 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
+ 		base.Pos = lno
+ 	}()
+ 
+-	uintptrEscapesHack := k.uintptrEscapesHack
+-	k.uintptrEscapesHack = false
+-
+-	if uintptrEscapesHack && n.Op() == ir.OCONVNOP && n.(*ir.ConvExpr).X.Type().IsUnsafePtr() {
+-		// nop
+-	} else if k.derefs >= 0 && !n.Type().HasPointers() {
++	if k.derefs >= 0 && !n.Type().HasPointers() {
+ 		k.dst = &e.blankLoc
+ 	}
+ 
+@@ -198,7 +193,6 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
+ 	case ir.OSLICELIT:
+ 		n := n.(*ir.CompLitExpr)
+ 		k = e.spill(k, n)
+-		k.uintptrEscapesHack = uintptrEscapesHack // for ...uintptr parameters
+ 
+ 		for _, elt := range n.List {
+ 			if elt.Op() == ir.OKEY {
+diff --git a/src/cmd/compile/internal/escape/graph.go b/src/cmd/compile/internal/escape/graph.go
+index 3581fce30d..6316435dfe 100644
+--- a/src/cmd/compile/internal/escape/graph.go
++++ b/src/cmd/compile/internal/escape/graph.go
+@@ -129,10 +129,6 @@ type hole struct {
+ 	// the expression, independent of whether the address will actually
+ 	// be stored into a variable.
+ 	addrtaken bool
+-
+-	// uintptrEscapesHack indicates this context is evaluating an
+-	// argument for a //go:uintptrescapes function.
+-	uintptrEscapesHack bool
+ }
+ 
+ type note struct {
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 6480becc93..3501f83ab1 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -278,6 +278,17 @@ func PkgFuncName(f *Func) string {
+ 
+ var CurFunc *Func
+ 
++// WithFunc invokes do with CurFunc and base.Pos set to curfn and
++// curfn.Pos(), respectively, and then restores their previous values
++// before returning.
++func WithFunc(curfn *Func, do func()) {
++	oldfn, oldpos := CurFunc, base.Pos
++	defer func() { CurFunc, base.Pos = oldfn, oldpos }()
++
++	CurFunc, base.Pos = curfn, curfn.Pos()
++	do()
++}
++
+ func FuncSymName(s *types.Sym) string {
+ 	return s.Name + "·f"
+ }
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index ff8e95b330..62d9b95be9 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -552,48 +552,6 @@ func (o *orderState) call(nn ir.Node) {
+ 
+ 	n.X = o.expr(n.X, nil)
+ 	o.exprList(n.Args)
+-
+-	// Pick out the function callee, if statically known.
+-	// TODO(mdempsky): De-duplicate with similar code in escape analysis.
+-	var callee *ir.Func
+-	switch n.Op() {
+-	case ir.OCALLFUNC:
+-		if fn, ok := n.X.(*ir.Name); ok && fn.Op() == ir.ONAME && fn.Class == ir.PFUNC {
+-			callee = fn.Func
+-		}
+-	case ir.OCALLMETH:
+-		callee = ir.MethodExprName(n.X).Func
+-	}
+-
+-	if callee == nil || callee.Pragma&ir.UintptrKeepAlive == 0 {
+-		return
+-	}
+-
+-	keepAlive := func(args []ir.Node) {
+-		// If the argument is really a pointer being converted to uintptr,
+-		// arrange for the pointer to be kept alive until the call returns,
+-		// by copying it into a temp and marking that temp
+-		// still alive when we pop the temp stack.
+-		for _, arg := range args {
+-			if arg.Op() == ir.OCONVNOP && arg.Type().IsUintptr() {
+-				arg := arg.(*ir.ConvExpr)
+-				if arg.X.Type().IsUnsafePtr() {
+-					x := o.copyExpr(arg.X)
+-					arg.X = x
+-					x.SetAddrtaken(true) // ensure SSA keeps the x variable
+-					n.KeepAlive = append(n.KeepAlive, x)
+-				}
+-			}
+-		}
+-	}
+-
+-	last := len(n.Args) - 1
+-	if n.IsDDD && n.Args[last].Op() == ir.OSLICELIT {
+-		keepAlive(n.Args[:last])
+-		keepAlive(n.Args[last].(*ir.CompLitExpr).List)
+-	} else {
+-		keepAlive(n.Args)
+-	}
+ }
+ 
+ // mapAssign appends n to o.out.
+@@ -790,7 +748,6 @@ func (o *orderState) stmt(n ir.Node) {
+ 		t := o.markTemp()
+ 		o.init(n.Call)
+ 		o.call(n.Call)
+-		o.wrapGoDefer(n)
+ 		o.out = append(o.out, n)
+ 		o.cleanTemp(t)
+ 
+@@ -1486,280 +1443,6 @@ func (o *orderState) as2ok(n *ir.AssignListStmt) {
+ 	o.stmt(typecheck.Stmt(as))
+ }
+ 
+-var wrapGoDefer_prgen int
+-
+-// wrapGoDefer wraps the target of a "go" or "defer" statement with a
+-// new "function with no arguments" closure. Specifically, it converts
+-//
+-//   defer f(x, y)
+-//
+-// to
+-//
+-//   x1, y1 := x, y
+-//   defer func() { f(x1, y1) }()
+-//
+-// This is primarily to enable a quicker bringup of defers under the
+-// new register ABI; by doing this conversion, we can simplify the
+-// code in the runtime that invokes defers on the panic path.
+-func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
+-	call := n.Call
+-
+-	var callX ir.Node        // thing being called
+-	var callArgs []ir.Node   // call arguments
+-	var keepAlive []*ir.Name // KeepAlive list from call, if present
+-
+-	// A helper to recreate the call within the closure.
+-	var mkNewCall func(pos src.XPos, op ir.Op, fun ir.Node, args []ir.Node) ir.Node
+-
+-	// Defer calls come in many shapes and sizes; not all of them
+-	// are ir.CallExpr's. Examine the type to see what we're dealing with.
+-	switch x := call.(type) {
+-	case *ir.CallExpr:
+-		callX = x.X
+-		callArgs = x.Args
+-		keepAlive = x.KeepAlive
+-		mkNewCall = func(pos src.XPos, op ir.Op, fun ir.Node, args []ir.Node) ir.Node {
+-			newcall := ir.NewCallExpr(pos, op, fun, args)
+-			newcall.IsDDD = x.IsDDD
+-			return ir.Node(newcall)
+-		}
+-	case *ir.UnaryExpr: // ex: OCLOSE
+-		callArgs = []ir.Node{x.X}
+-		mkNewCall = func(pos src.XPos, op ir.Op, fun ir.Node, args []ir.Node) ir.Node {
+-			if len(args) != 1 {
+-				panic("internal error, expecting single arg")
+-			}
+-			return ir.Node(ir.NewUnaryExpr(pos, op, args[0]))
+-		}
+-	case *ir.BinaryExpr: // ex: OCOPY
+-		callArgs = []ir.Node{x.X, x.Y}
+-		mkNewCall = func(pos src.XPos, op ir.Op, fun ir.Node, args []ir.Node) ir.Node {
+-			if len(args) != 2 {
+-				panic("internal error, expecting two args")
+-			}
+-			return ir.Node(ir.NewBinaryExpr(pos, op, args[0], args[1]))
+-		}
+-	default:
+-		panic("unhandled op")
+-	}
+-
+-	// No need to wrap if called func has no args, no receiver, and no results.
+-	// However in the case of "defer func() { ... }()" we need to
+-	// protect against the possibility of directClosureCall rewriting
+-	// things so that the call does have arguments.
+-	//
+-	// Do wrap method calls (OCALLMETH, OCALLINTER), because it has
+-	// a receiver.
+-	//
+-	// Also do wrap builtin functions, because they may be expanded to
+-	// calls with arguments (e.g. ORECOVER).
+-	//
+-	// TODO: maybe not wrap if the called function has no arguments and
+-	// only in-register results?
+-	if len(callArgs) == 0 && call.Op() == ir.OCALLFUNC && callX.Type().NumResults() == 0 {
+-		if callX.Op() == ir.OCLOSURE {
+-			clo := callX.(*ir.ClosureExpr)
+-			clo.IsGoWrap = true
+-		}
+-		return
+-	}
+-
+-	if c, ok := call.(*ir.CallExpr); ok {
+-		// To simplify things, turn f(a, b, []T{c, d, e}...) back
+-		// into f(a, b, c, d, e) -- when the final call is run through the
+-		// type checker below, it will rebuild the proper slice literal.
+-		undoVariadic(c)
+-		callX = c.X
+-		callArgs = c.Args
+-	}
+-
+-	// This is set to true if the closure we're generating escapes
+-	// (needs heap allocation).
+-	cloEscapes := func() bool {
+-		if n.Op() == ir.OGO {
+-			// For "go", assume that all closures escape.
+-			return true
+-		}
+-		// For defer, just use whatever result escape analysis
+-		// has determined for the defer.
+-		return n.Esc() != ir.EscNever
+-	}()
+-
+-	// A helper for making a copy of an argument. Note that it is
+-	// not safe to use o.copyExpr(arg) if we're putting a
+-	// reference to the temp into the closure (as opposed to
+-	// copying it in by value), since in the by-reference case we
+-	// need a temporary whose lifetime extends to the end of the
+-	// function (as opposed to being local to the current block or
+-	// statement being ordered).
+-	mkArgCopy := func(arg ir.Node) *ir.Name {
+-		t := arg.Type()
+-		byval := t.Size() <= 128 || cloEscapes
+-		var argCopy *ir.Name
+-		if byval {
+-			argCopy = o.copyExpr(arg)
+-		} else {
+-			argCopy = typecheck.Temp(t)
+-			o.append(ir.NewAssignStmt(base.Pos, argCopy, arg))
+-		}
+-		// The value of 128 below is meant to be consistent with code
+-		// in escape analysis that picks byval/byaddr based on size.
+-		argCopy.SetByval(byval)
+-		return argCopy
+-	}
+-
+-	// getUnsafeArg looks for an unsafe.Pointer arg that has been
+-	// previously captured into the call's keepalive list, returning
+-	// the name node for it if found.
+-	getUnsafeArg := func(arg ir.Node) *ir.Name {
+-		// Look for uintptr(unsafe.Pointer(name))
+-		if arg.Op() != ir.OCONVNOP {
+-			return nil
+-		}
+-		if !arg.Type().IsUintptr() {
+-			return nil
+-		}
+-		if !arg.(*ir.ConvExpr).X.Type().IsUnsafePtr() {
+-			return nil
+-		}
+-		arg = arg.(*ir.ConvExpr).X
+-		argname, ok := arg.(*ir.Name)
+-		if !ok {
+-			return nil
+-		}
+-		for i := range keepAlive {
+-			if argname == keepAlive[i] {
+-				return argname
+-			}
+-		}
+-		return nil
+-	}
+-
+-	// Copy the arguments to the function into temps.
+-	//
+-	// For calls with uintptr(unsafe.Pointer(...)) args that are being
+-	// kept alive (see code in (*orderState).call that does this), use
+-	// the existing arg copy instead of creating a new copy.
+-	unsafeArgs := make([]*ir.Name, len(callArgs))
+-	origArgs := callArgs
+-	var newNames []*ir.Name
+-	for i := range callArgs {
+-		arg := callArgs[i]
+-		var argname *ir.Name
+-		unsafeArgName := getUnsafeArg(arg)
+-		if unsafeArgName != nil {
+-			// arg has been copied already, use keepalive copy
+-			argname = unsafeArgName
+-			unsafeArgs[i] = unsafeArgName
+-		} else {
+-			argname = mkArgCopy(arg)
+-		}
+-		newNames = append(newNames, argname)
+-	}
+-
+-	// Deal with cases where the function expression (what we're
+-	// calling) is not a simple function symbol.
+-	var fnExpr *ir.Name
+-	var methSelectorExpr *ir.SelectorExpr
+-	if callX != nil {
+-		switch {
+-		case callX.Op() == ir.ODOTMETH || callX.Op() == ir.ODOTINTER:
+-			// Handle defer of a method call, e.g. "defer v.MyMethod(x, y)"
+-			n := callX.(*ir.SelectorExpr)
+-			n.X = mkArgCopy(n.X)
+-			methSelectorExpr = n
+-			if callX.Op() == ir.ODOTINTER {
+-				// Currently for "defer i.M()" if i is nil it panics at the
+-				// point of defer statement, not when deferred function is called.
+-				// (I think there is an issue discussing what is the intended
+-				// behavior but I cannot find it.)
+-				// We need to do the nil check outside of the wrapper.
+-				tab := typecheck.Expr(ir.NewUnaryExpr(base.Pos, ir.OITAB, n.X))
+-				c := ir.NewUnaryExpr(n.Pos(), ir.OCHECKNIL, tab)
+-				c.SetTypecheck(1)
+-				o.append(c)
+-			}
+-		case !(callX.Op() == ir.ONAME && callX.(*ir.Name).Class == ir.PFUNC):
+-			// Deal with "defer returnsafunc()(x, y)" (for
+-			// example) by copying the callee expression.
+-			fnExpr = mkArgCopy(callX)
+-		}
+-	}
+-
+-	// Create a new no-argument function that we'll hand off to defer.
+-	fn := ir.NewClosureFunc(base.Pos, true)
+-	fn.Nname.SetType(types.NewSignature(types.LocalPkg, nil, nil, nil, nil))
+-	fn.SetWrapper(true)
+-
+-	// helper for capturing reference to a var declared in an outer scope.
+-	capName := func(pos src.XPos, fn *ir.Func, n *ir.Name) *ir.Name {
+-		t := n.Type()
+-		cv := ir.CaptureName(pos, fn, n)
+-		cv.SetType(t)
+-		return typecheck.Expr(cv).(*ir.Name)
+-	}
+-
+-	// Call args (x1, y1) need to be captured as part of the newly
+-	// created closure.
+-	newCallArgs := []ir.Node{}
+-	for i := range newNames {
+-		var arg ir.Node
+-		arg = capName(callArgs[i].Pos(), fn, newNames[i])
+-		if unsafeArgs[i] != nil {
+-			arg = ir.NewConvExpr(arg.Pos(), origArgs[i].Op(), origArgs[i].Type(), arg)
+-		}
+-		newCallArgs = append(newCallArgs, arg)
+-	}
+-	// Also capture the function or method expression (if needed) into
+-	// the closure.
+-	if fnExpr != nil {
+-		callX = capName(callX.Pos(), fn, fnExpr)
+-	}
+-	if methSelectorExpr != nil {
+-		methSelectorExpr.X = capName(callX.Pos(), fn, methSelectorExpr.X.(*ir.Name))
+-	}
+-
+-	// This flags a builtin as opposed to a regular call.
+-	irregular := (call.Op() != ir.OCALLFUNC &&
+-		call.Op() != ir.OCALLMETH &&
+-		call.Op() != ir.OCALLINTER)
+-
+-	// Construct new function body:  f(x1, y1)
+-	op := ir.OCALL
+-	if irregular {
+-		op = call.Op()
+-	}
+-	newcall := mkNewCall(call.Pos(), op, callX, newCallArgs)
+-
+-	// Finalize body, register function on the main decls list.
+-	fn.Body = []ir.Node{newcall}
+-	ir.FinishCaptureNames(n.Pos(), ir.CurFunc, fn)
+-
+-	// Create closure expr
+-	clo := typecheck.Expr(fn.OClosure).(*ir.ClosureExpr)
+-
+-	// Set escape properties for closure.
+-	if n.Op() == ir.OGO {
+-		// For "go", assume that the closure is going to escape.
+-		clo.SetEsc(ir.EscHeap)
+-		clo.IsGoWrap = true
+-	} else {
+-		// For defer, just use whatever result escape analysis
+-		// has determined for the defer.
+-		if n.Esc() == ir.EscNever {
+-			clo.SetTransient(true)
+-			clo.SetEsc(ir.EscNone)
+-		}
+-	}
+-
+-	// Create new top level call to closure over argless function.
+-	topcall := ir.NewCallExpr(n.Pos(), ir.OCALL, clo, nil)
+-	typecheck.Call(topcall)
+-
+-	// Finally, point the defer statement at the newly generated call.
+-	n.Call = topcall
+-}
+-
+ // isFuncPCIntrinsic returns whether n is a direct call of internal/abi.FuncPCABIxxx functions.
+ func isFuncPCIntrinsic(n *ir.CallExpr) bool {
+ 	if n.Op() != ir.OCALLFUNC || n.X.Op() != ir.ONAME {
+diff --git a/src/cmd/compile/internal/walk/stmt.go b/src/cmd/compile/internal/walk/stmt.go
+index bcc0a3e517..0c216d2e8a 100644
+--- a/src/cmd/compile/internal/walk/stmt.go
++++ b/src/cmd/compile/internal/walk/stmt.go
+@@ -222,22 +222,3 @@ func walkIf(n *ir.IfStmt) ir.Node {
+ 	walkStmtList(n.Else)
+ 	return n
+ }
+-
+-// undoVariadic turns a call to a variadic function of the form
+-//
+-//      f(a, b, []T{c, d, e}...)
+-//
+-// back into
+-//
+-//      f(a, b, c, d, e)
+-//
+-func undoVariadic(call *ir.CallExpr) {
+-	if call.IsDDD {
+-		last := len(call.Args) - 1
+-		if va := call.Args[last]; va.Op() == ir.OSLICELIT {
+-			va := va.(*ir.CompLitExpr)
+-			call.Args = append(call.Args[:last], va.List...)
+-			call.IsDDD = false
+-		}
+-	}
+-}
+diff --git a/test/escape2.go b/test/escape2.go
+index 04ab635aa5..e3e5904cde 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -667,13 +667,13 @@ func foo76e() {
+ func foo76f() {
+ 	for {
+ 		// TODO: This one really only escapes its scope, but we don't distinguish yet.
+-		defer myprint(nil, 1, 2, 3) // ERROR "... argument escapes to heap$" "1 escapes to heap$" "2 escapes to heap$" "3 escapes to heap$"
++		defer myprint(nil, 1, 2, 3) // ERROR "... argument does not escape$" "1 escapes to heap$" "2 escapes to heap$" "3 escapes to heap$"
+ 	}
+ }
+ 
+ func foo76g() {
+ 	for {
+-		defer myprint1(nil, 1, 2, 3) // ERROR "... argument escapes to heap$" "1 escapes to heap$" "2 escapes to heap$" "3 escapes to heap$"
++		defer myprint1(nil, 1, 2, 3) // ERROR "... argument does not escape$" "1 escapes to heap$" "2 escapes to heap$" "3 escapes to heap$"
+ 	}
+ }
+ 
+@@ -1148,16 +1148,16 @@ L100:
+ 
+ func foo121() {
+ 	for i := 0; i < 10; i++ {
+-		defer myprint(nil, i) // ERROR "... argument escapes to heap$" "i escapes to heap$"
+-		go myprint(nil, i)    // ERROR "... argument escapes to heap$" "i escapes to heap$"
++		defer myprint(nil, i) // ERROR "... argument does not escape$" "i escapes to heap$"
++		go myprint(nil, i)    // ERROR "... argument does not escape$" "i escapes to heap$"
+ 	}
+ }
+ 
+ // same as foo121 but check across import
+ func foo121b() {
+ 	for i := 0; i < 10; i++ {
+-		defer fmt.Printf("%d", i) // ERROR "... argument escapes to heap$" "i escapes to heap$"
+-		go fmt.Printf("%d", i)    // ERROR "... argument escapes to heap$" "i escapes to heap$"
++		defer fmt.Printf("%d", i) // ERROR "... argument does not escape$" "i escapes to heap$"
++		go fmt.Printf("%d", i)    // ERROR "... argument does not escape$" "i escapes to heap$"
+ 	}
+ }
+ 
+diff --git a/test/escape2n.go b/test/escape2n.go
+index 01a25795f4..57cc1a0163 100644
+--- a/test/escape2n.go
++++ b/test/escape2n.go
+@@ -667,13 +667,13 @@ func foo76e() {
+ func foo76f() {
+ 	for {
+ 		// TODO: This one really only escapes its scope, but we don't distinguish yet.
+-		defer myprint(nil, 1, 2, 3) // ERROR "... argument escapes to heap$" "1 escapes to heap$" "2 escapes to heap$" "3 escapes to heap$"
++		defer myprint(nil, 1, 2, 3) // ERROR "... argument does not escape$" "1 escapes to heap$" "2 escapes to heap$" "3 escapes to heap$"
+ 	}
+ }
+ 
+ func foo76g() {
+ 	for {
+-		defer myprint1(nil, 1, 2, 3) // ERROR "... argument escapes to heap$" "1 escapes to heap$" "2 escapes to heap$" "3 escapes to heap$"
++		defer myprint1(nil, 1, 2, 3) // ERROR "... argument does not escape$" "1 escapes to heap$" "2 escapes to heap$" "3 escapes to heap$"
+ 	}
+ }
+ 
+@@ -1148,16 +1148,16 @@ L100:
+ 
+ func foo121() {
+ 	for i := 0; i < 10; i++ {
+-		defer myprint(nil, i) // ERROR "... argument escapes to heap$" "i escapes to heap$"
+-		go myprint(nil, i)    // ERROR "... argument escapes to heap$" "i escapes to heap$"
++		defer myprint(nil, i) // ERROR "... argument does not escape$" "i escapes to heap$"
++		go myprint(nil, i)    // ERROR "... argument does not escape$" "i escapes to heap$"
+ 	}
+ }
+ 
+ // same as foo121 but check across import
+ func foo121b() {
+ 	for i := 0; i < 10; i++ {
+-		defer fmt.Printf("%d", i) // ERROR "... argument escapes to heap$" "i escapes to heap$"
+-		go fmt.Printf("%d", i)    // ERROR "... argument escapes to heap$" "i escapes to heap$"
++		defer fmt.Printf("%d", i) // ERROR "... argument does not escape$" "i escapes to heap$"
++		go fmt.Printf("%d", i)    // ERROR "... argument does not escape$" "i escapes to heap$"
+ 	}
+ }
+ 
+diff --git a/test/fixedbugs/issue31573.go b/test/fixedbugs/issue31573.go
+index 005910e00d..eaab563431 100644
+--- a/test/fixedbugs/issue31573.go
++++ b/test/fixedbugs/issue31573.go
+@@ -19,31 +19,31 @@ func g() {
+ 	defer f([]*int{new(int), new(int)}...) // ERROR "\[\]\*int{...} does not escape$" "new\(int\) does not escape$"
+ 
+ 	go f()
+-	go f(new(int))           // ERROR "... argument escapes to heap$" "new\(int\) escapes to heap$"
+-	go f(new(int), new(int)) // ERROR "... argument escapes to heap$" "new\(int\) escapes to heap$"
++	go f(new(int))           // ERROR "... argument does not escape$" "new\(int\) escapes to heap$"
++	go f(new(int), new(int)) // ERROR "... argument does not escape$" "new\(int\) escapes to heap$"
+ 
+ 	go f(nil...)
+-	go f([]*int{}...)                   // ERROR "\[\]\*int{} escapes to heap$"
+-	go f([]*int{new(int)}...)           // ERROR "\[\]\*int{...} escapes to heap$" "new\(int\) escapes to heap$"
+-	go f([]*int{new(int), new(int)}...) // ERROR "\[\]\*int{...} escapes to heap$" "new\(int\) escapes to heap$"
++	go f([]*int{}...)                   // ERROR "\[\]\*int{} does not escape$"
++	go f([]*int{new(int)}...)           // ERROR "\[\]\*int{...} does not escape$" "new\(int\) escapes to heap$"
++	go f([]*int{new(int), new(int)}...) // ERROR "\[\]\*int{...} does not escape$" "new\(int\) escapes to heap$"
+ 
+ 	for {
+ 		defer f()
+-		defer f(new(int))           // ERROR "... argument escapes to heap$" "new\(int\) escapes to heap$"
+-		defer f(new(int), new(int)) // ERROR "... argument escapes to heap$" "new\(int\) escapes to heap$"
++		defer f(new(int))           // ERROR "... argument does not escape$" "new\(int\) escapes to heap$"
++		defer f(new(int), new(int)) // ERROR "... argument does not escape$" "new\(int\) escapes to heap$"
+ 
+ 		defer f(nil...)
+-		defer f([]*int{}...)                   // ERROR "\[\]\*int{} escapes to heap$"
+-		defer f([]*int{new(int)}...)           // ERROR "\[\]\*int{...} escapes to heap$" "new\(int\) escapes to heap$"
+-		defer f([]*int{new(int), new(int)}...) // ERROR "\[\]\*int{...} escapes to heap$" "new\(int\) escapes to heap$"
++		defer f([]*int{}...)                   // ERROR "\[\]\*int{} does not escape$"
++		defer f([]*int{new(int)}...)           // ERROR "\[\]\*int{...} does not escape$" "new\(int\) escapes to heap$"
++		defer f([]*int{new(int), new(int)}...) // ERROR "\[\]\*int{...} does not escape$" "new\(int\) escapes to heap$"
+ 
+ 		go f()
+-		go f(new(int))           // ERROR "... argument escapes to heap$" "new\(int\) escapes to heap$"
+-		go f(new(int), new(int)) // ERROR "... argument escapes to heap$" "new\(int\) escapes to heap$"
++		go f(new(int))           // ERROR "... argument does not escape$" "new\(int\) escapes to heap$"
++		go f(new(int), new(int)) // ERROR "... argument does not escape$" "new\(int\) escapes to heap$"
+ 
+ 		go f(nil...)
+-		go f([]*int{}...)                   // ERROR "\[\]\*int{} escapes to heap$"
+-		go f([]*int{new(int)}...)           // ERROR "\[\]\*int{...} escapes to heap$" "new\(int\) escapes to heap$"
+-		go f([]*int{new(int), new(int)}...) // ERROR "\[\]\*int{...} escapes to heap$" "new\(int\) escapes to heap$"
++		go f([]*int{}...)                   // ERROR "\[\]\*int{} does not escape$"
++		go f([]*int{new(int)}...)           // ERROR "\[\]\*int{...} does not escape$" "new\(int\) escapes to heap$"
++		go f([]*int{new(int), new(int)}...) // ERROR "\[\]\*int{...} does not escape$" "new\(int\) escapes to heap$"
+ 	}
+ }

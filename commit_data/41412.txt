@@ -12,8 +12,74 @@ Date:   Wed Sep 11 16:11:31 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/asm/main.go                | 8 +++-----
  src/cmd/compile/internal/gc/obj.go | 2 +-
  src/cmd/internal/obj/objfile.go    | 4 +++-
  3 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index fc6acc74c0..91b48975d2 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -46,12 +46,11 @@ func main() {
+ 	architecture.Init(ctxt)
+ 
+ 	// Create object file, write header.
+-	out, err := os.Create(*flags.OutputFile)
++	buf, err := bio.Create(*flags.OutputFile)
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+-	defer bio.MustClose(out)
+-	buf := bufio.NewWriter(bio.MustWriter(out))
++	defer buf.Close()
+ 
+ 	if !*flags.SymABIs {
+ 		fmt.Fprintf(buf, "go object %s %s %s\n", objabi.GOOS, objabi.GOARCH, objabi.Version)
+@@ -91,9 +90,8 @@ func main() {
+ 		} else {
+ 			log.Print("assembly failed")
+ 		}
+-		out.Close()
++		buf.Close()
+ 		os.Remove(*flags.OutputFile)
+ 		os.Exit(1)
+ 	}
+-	buf.Flush()
+ }
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index e703e8a302..ae0fc1dbc1 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -166,7 +166,7 @@ func dumpLinkerObj(bout *bio.Writer) {
+ 
+ 	fmt.Fprintf(bout, "\n!\n")
+ 
+-	obj.WriteObjFile(Ctxt, bout.Writer, myimportpath)
++	obj.WriteObjFile(Ctxt, bout, myimportpath)
+ }
+ 
+ func addptabs() {
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index ab5627c0dd..c51a11c51f 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -8,6 +8,7 @@ package obj
+ 
+ import (
+ 	"bufio"
++	"cmd/internal/bio"
+ 	"cmd/internal/dwarf"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+@@ -80,7 +81,8 @@ func newObjWriter(ctxt *Link, b *bufio.Writer, pkgpath string) *objWriter {
+ 	}
+ }
+ 
+-func WriteObjFile(ctxt *Link, b *bufio.Writer, pkgpath string) {
++func WriteObjFile(ctxt *Link, bout *bio.Writer, pkgpath string) {
++	b := bout.Writer
+ 	w := newObjWriter(ctxt, b, pkgpath)
+ 
+ 	// Magic header

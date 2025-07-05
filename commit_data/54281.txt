@@ -12,7 +12,7 @@ Date:   Fri Sep 30 10:29:30 2022 +0800
     Run-TryBot: hopehook <hopehook@golangcn.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/go/doc/testdata/benchmark.go    | 2 +-
  src/go/doc/testdata/example.go      | 2 +-
  src/go/doc/testdata/testing.go      | 2 +-
@@ -22,3 +22,117 @@ Date:   Fri Sep 30 10:29:30 2022 +0800
  src/runtime/runtime_test.go         | 2 +-
  src/runtime/testdata/testprog/gc.go | 2 +-
  8 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/go/doc/testdata/benchmark.go b/src/go/doc/testdata/benchmark.go
+index d27bf116aa..dbf6b4ffad 100644
+--- a/src/go/doc/testdata/benchmark.go
++++ b/src/go/doc/testdata/benchmark.go
+@@ -48,7 +48,7 @@ func (b *B) StartTimer() {
+ // want to measure.
+ func (b *B) StopTimer() {
+ 	if b.timerOn {
+-		b.duration += time.Now().Sub(b.start)
++		b.duration += time.Since(b.start)
+ 		b.timerOn = false
+ 	}
+ }
+diff --git a/src/go/doc/testdata/example.go b/src/go/doc/testdata/example.go
+index fdeda137e7..0b70339801 100644
+--- a/src/go/doc/testdata/example.go
++++ b/src/go/doc/testdata/example.go
+@@ -59,7 +59,7 @@ func RunExamples(examples []InternalExample) (ok bool) {
+ 		// run example
+ 		t0 := time.Now()
+ 		eg.F()
+-		dt := time.Now().Sub(t0)
++		dt := time.Since(t0)
+ 
+ 		// close pipe, restore stdout/stderr, get output
+ 		w.Close()
+diff --git a/src/go/doc/testdata/testing.go b/src/go/doc/testdata/testing.go
+index 6365ffceed..d3076c95b5 100644
+--- a/src/go/doc/testdata/testing.go
++++ b/src/go/doc/testdata/testing.go
+@@ -219,7 +219,7 @@ func tRunner(t *T, test *InternalTest) {
+ 	// a call to runtime.Goexit, record the duration and send
+ 	// a signal saying that the test is done.
+ 	defer func() {
+-		t.duration = time.Now().Sub(t.start)
++		t.duration = time.Since(t.start)
+ 		t.signal <- t
+ 	}()
+ 
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index 1256867da8..23e4a7a10c 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -171,7 +171,7 @@ func dialClosedPort(t *testing.T) (dialLatency time.Duration) {
+ 	if err == nil {
+ 		c.Close()
+ 	}
+-	elapsed := time.Now().Sub(startTime)
++	elapsed := time.Since(startTime)
+ 	t.Logf("dialClosedPort: measured delay %v", elapsed)
+ 	return elapsed
+ }
+@@ -366,7 +366,7 @@ func TestDialerFallbackDelay(t *testing.T) {
+ 
+ 		startTime := time.Now()
+ 		c, err := d.Dial("tcp", JoinHostPort("slow6loopback4", dss.port))
+-		elapsed := time.Now().Sub(startTime)
++		elapsed := time.Since(startTime)
+ 		if err == nil {
+ 			c.Close()
+ 		} else if tt.dualstack {
+diff --git a/src/runtime/gc_test.go b/src/runtime/gc_test.go
+index 122818fbfe..0b2c972d3f 100644
+--- a/src/runtime/gc_test.go
++++ b/src/runtime/gc_test.go
+@@ -689,7 +689,7 @@ func BenchmarkReadMemStatsLatency(b *testing.B) {
+ 		time.Sleep(100 * time.Millisecond)
+ 		start := time.Now()
+ 		runtime.ReadMemStats(&ms)
+-		latencies = append(latencies, time.Now().Sub(start))
++		latencies = append(latencies, time.Since(start))
+ 	}
+ 	// Make sure to stop the timer before we wait! The load created above
+ 	// is very heavy-weight and not easy to stop, so we could end up
+diff --git a/src/runtime/metrics_test.go b/src/runtime/metrics_test.go
+index b4d921b82e..d981c8ee00 100644
+--- a/src/runtime/metrics_test.go
++++ b/src/runtime/metrics_test.go
+@@ -375,7 +375,7 @@ func BenchmarkReadMetricsLatency(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		start := time.Now()
+ 		metrics.Read(samples)
+-		latencies = append(latencies, time.Now().Sub(start))
++		latencies = append(latencies, time.Since(start))
+ 	}
+ 	// Make sure to stop the timer before we wait! The load created above
+ 	// is very heavy-weight and not easy to stop, so we could end up
+diff --git a/src/runtime/runtime_test.go b/src/runtime/runtime_test.go
+index 018a8dbaa6..2faf06e2b9 100644
+--- a/src/runtime/runtime_test.go
++++ b/src/runtime/runtime_test.go
+@@ -377,7 +377,7 @@ func BenchmarkGoroutineProfile(b *testing.B) {
+ 				if !ok {
+ 					b.Fatal("goroutine profile failed")
+ 				}
+-				latencies = append(latencies, time.Now().Sub(start))
++				latencies = append(latencies, time.Since(start))
+ 			}
+ 			b.StopTimer()
+ 
+diff --git a/src/runtime/testdata/testprog/gc.go b/src/runtime/testdata/testprog/gc.go
+index 0f44575381..5dc85fbb62 100644
+--- a/src/runtime/testdata/testprog/gc.go
++++ b/src/runtime/testdata/testprog/gc.go
+@@ -396,7 +396,7 @@ func gcMemoryLimit(gcPercent int) {
+ 		// should do considerably better than this bound.
+ 		bound := int64(myLimit + 16<<20)
+ 		start := time.Now()
+-		for time.Now().Sub(start) < 200*time.Millisecond {
++		for time.Since(start) < 200*time.Millisecond {
+ 			metrics.Read(m[:])
+ 			retained := int64(m[0].Value.Uint64() - m[1].Value.Uint64())
+ 			if retained > bound {

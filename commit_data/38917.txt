@@ -7,6 +7,20 @@ Date:   Sun Dec 9 00:20:50 2018 +0200
     Change-Id: I34877ac1d6d7fe9ffa7eabe46b4032af84d33794
     Reviewed-on: https://go-review.googlesource.com/c/153337
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/ecdsa/ecdsa.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index 2bab14cbb9..e059f181c7 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -12,7 +12,7 @@ package ecdsa
+ 
+ // References:
+ //   [NSA]: Suite B implementer's guide to FIPS 186-3,
+-//     http://www.nsa.gov/ia/_files/ecdsa.pdf
++//     https://apps.nsa.gov/iaarchive/library/ia-guidance/ia-solutions-for-classified/algorithm-guidance/suite-b-implementers-guide-to-fips-186-3-ecdsa.cfm
+ //   [SECG]: SECG, SEC1
+ //     http://www.secg.org/sec1-v2.pdf
+ 

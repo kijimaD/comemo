@@ -15,6 +15,21 @@ Date:   Sun Jan 13 22:11:44 2019 +0100
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/lookup_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 6dc5f61728..85bcb2b896 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -207,6 +207,9 @@ var lookupGmailTXTTests = []struct {
+ }
+ 
+ func TestLookupGmailTXT(t *testing.T) {
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping on plan9; see https://golang.org/issue/29722")
++	}
+ 	t.Parallel()
+ 	mustHaveExternalNetwork(t)
+ 

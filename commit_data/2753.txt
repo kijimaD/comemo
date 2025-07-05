@@ -8,7 +8,165 @@ Date:   Fri Jul 17 17:32:34 2009 -0700
     DELTA=51  (41 added, 0 deleted, 10 changed)
     OCL=31815
     CL=31818
-
+---
  src/cmd/6l/asm.c   | 25 +++++++++++++++--------
  src/cmd/ld/elf64.h | 60 ++++++++++++++++++++++++++++++++++++++++++------------
  2 files changed, 63 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 2fdae8b3c1..eb3a8921cd 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -126,8 +126,10 @@ asmb(void)
+ 	uchar *op1;
+ 	vlong vl, va, fo, w, symo;
+ 	vlong symdatva = 0x99LL<<32;
++	int strtabindex;
+ 	Elf64PHdr *ph;
+ 	Elf64SHdr *sh;
++	char eident[EI_NIDENT];
+ 
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f asmb\n", cputime());
+@@ -501,6 +503,7 @@ asmb(void)
+ 
+ 		w = STRTABSIZE;
+ 
++		strtabindex = nume64shdr;
+ 		sh = newElf64SHdr(".shstrtab");
+ 		sh->type = SHT_STRTAB;
+ 		sh->off = fo;
+@@ -531,15 +534,19 @@ asmb(void)
+ 		sh->entsize = 24;
+ 
+ 		// write out the main header */
+-		strnput("\177ELF", 4);		/* e_ident */
+-		cput(2);			/* class = 64 bit */
+-		cput(1);			/* data = LSB */
+-		cput(1);			/* version = CURRENT */
+-		strnput("", 9);
+-
+-		wputl(2);			/* type = EXEC */
++		memset(eident, 0, sizeof eident);
++		eident[EI_MAG0] = '\177';
++		eident[EI_MAG1] = 'E';
++		eident[EI_MAG2] = 'L';
++		eident[EI_MAG3] = 'F';
++		eident[EI_CLASS] = ELFCLASS64;
++		eident[EI_DATA] = ELFDATA2LSB;
++		eident[EI_VERSION] = EV_CURRENT;
++		strnput(eident, EI_NIDENT);
++
++		wputl(ET_EXEC);			/* type = EXEC */
+ 		wputl(62);			/* machine = AMD64 */
+-		lputl(1L);			/* version = CURRENT */
++		lputl(EV_CURRENT);			/* version = CURRENT */
+ 		vputl(entryvalue());		/* entry vaddr */
+ 		vputl(64L);			/* offset to first phdr */
+ 		vputl(64L+56*nume64phdr);		/* offset to first shdr */
+@@ -549,7 +556,7 @@ asmb(void)
+ 		wputl(nume64phdr);			/* # of Phdrs */
+ 		wputl(64);			/* Shdr size */
+ 		wputl(nume64shdr);			/* # of Shdrs */
+-		wputl(4);			/* Shdr with strings */
++		wputl(strtabindex);			/* Shdr with strings */
+ 
+ 		elf64writephdrs();
+ 		elf64writeshdrs();
+diff --git a/src/cmd/ld/elf64.h b/src/cmd/ld/elf64.h
+index 34348a1dbc..f7af0f07c9 100644
+--- a/src/cmd/ld/elf64.h
++++ b/src/cmd/ld/elf64.h
+@@ -49,9 +49,10 @@ typedef struct Elf64Hdr		Elf64Hdr;
+ typedef struct Elf64SHdr	Elf64SHdr;
+ typedef struct Elf64PHdr	Elf64PHdr;
+ 
++#define	EI_NIDENT	16
+ struct Elf64Hdr
+ {
+-	uchar ident[16];	/* ELF identification */
++	uchar ident[EI_NIDENT];	/* ELF identification */
+ 	Elf64_Half	type;	/* Object file type */
+ 	Elf64_Half	machine;	/* Machine type */
+ 	Elf64_Word	version;	/* Object file version */
+@@ -67,16 +68,49 @@ struct Elf64Hdr
+ 	Elf64_Half	shstrndx;	/* Section name string table index */
+ };
+ 
++/* E ident indexes */
++#define	EI_MAG0	0 	/* File identification */
++#define	EI_MAG1	1
++#define	EI_MAG2	2
++#define	EI_MAG3	3
++#define	EI_CLASS	4	/* File class */
++#define	EI_DATA		5	/* Data encoding */
++#define	EI_VERSION	6	/* File version */
++#define	EI_OSABI	7	/* OS/ABI identification */
++#define	EI_ABIVERSION	8	/* ABI version */
++#define	EI_PAD	9	/*Start of padding bytes */
++
++/* E types */
++#define	ET_NONE	0	/* No file type */
++#define	ET_REL	1	/* Relocatable object file */
++#define	ET_EXEC	2	/* Executable file */
++#define	ET_DYN	3	/* Shared object file */
++#define	ET_CORE	4	/* Core file */
++#define	ET_LOOS 0xFE00	/* Environment-specific use */
++#define	ET_HIOS 0xFEFF
++#define	ET_LOPROC 0xFF00	/* Processor-specific use */
++#define	ET_HIPROC 0xFFFF
++
++/* E classes */
++#define	ELFCLASS32	1 	/* 32-bit objects */
++#define	ELFCLASS64	2	/* 64-bit objects */
++
++/* E endians */
++#define	ELFDATA2LSB	1	/* little-endian */
++#define	ELFDATA2MSB	2	/* big-endian */
++
++#define	EV_CURRENT	1	/* current version of format */
++
+ struct Elf64PHdr
+ {
+-	Elf64_Word	type;	/* Type of segment */ 
+-	Elf64_Word	flags;	/* Segment attributes */ 
+-	Elf64_Off	off;	/* Offset in file */ 
+-	Elf64_Addr	vaddr;	/* Virtual address in memory */ 
+-	Elf64_Addr	paddr;	/* Reserved */ 
+-	Elf64_Xword	filesz;	/* Size of segment in file */ 
+-	Elf64_Xword	memsz;	/* Size of segment in memory */ 
+-	Elf64_Xword	align;	/* Alignment of segment */ 
++	Elf64_Word	type;	/* Type of segment */
++	Elf64_Word	flags;	/* Segment attributes */
++	Elf64_Off	off;	/* Offset in file */
++	Elf64_Addr	vaddr;	/* Virtual address in memory */
++	Elf64_Addr	paddr;	/* Reserved */
++	Elf64_Xword	filesz;	/* Size of segment in file */
++	Elf64_Xword	memsz;	/* Size of segment in memory */
++	Elf64_Xword	align;	/* Alignment of segment */
+ };
+ 
+ /* P types */
+@@ -116,18 +150,18 @@ struct Elf64SHdr
+ #define SHT_HASH	5	/* Symbol hash table */
+ #define SHT_DYNAMIC	6	/* Dynamic linking tables */
+ #define SHT_NOTE	7	/* Note information */
+-#define SHT_NOBITS	8	/* Uninitialized space; does not occupy any space in the file */ 
++#define SHT_NOBITS	8	/* Uninitialized space; does not occupy any space in the file */
+ #define SHT_REL		9	/* "Rel" type relocation entries */
+ #define SHT_SHLIB	10	/* Reserved */
+-#define SHT_DYNSYM	11	/* A dynamic loader symbol table */ 
++#define SHT_DYNSYM	11	/* A dynamic loader symbol table */
+ #define SHT_LOOS	0x60000000	/* Environment-specific use */
+-#define SHT_HIOS	0x6FFFFFFF 
++#define SHT_HIOS	0x6FFFFFFF
+ #define SHT_LOPROC	0x70000000	/* Processor-specific use */
+ #define SHT_HIPROC 0x7FFFFFFF
+ 
+ /* S flags */
+ #define	SHF_WRITE	0x1 /* Writable data */
+-#define	SHF_ALLOC	0x2 /* Allocated in memory image of program */ 
++#define	SHF_ALLOC	0x2 /* Allocated in memory image of program */
+ #define	SHF_EXECINSTR	0x4 /* Executable instructions */
+ #define	SHF_MASKOS	0x0F000000	/* Environment-specific use */
+ #define	SHF_MASKPROC	0xF0000000	/* Processor-specific use */

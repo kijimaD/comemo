@@ -25,9 +25,300 @@ Date:   Mon Jun 22 13:26:15 2020 -0400
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/internal/obj/dwarf.go                      |  46 ++++----
  src/cmd/link/internal/ld/dwarf.go                  |  30 +-----
  src/cmd/link/internal/ld/dwarf_test.go             | 119 +++++++++++++++++++++
  .../ld/testdata/issue39757/issue39757main.go       |  15 +++
  4 files changed, 159 insertions(+), 51 deletions(-)
+
+diff --git a/src/cmd/internal/obj/dwarf.go b/src/cmd/internal/obj/dwarf.go
+index 1811ac7881..3fc93081fa 100644
+--- a/src/cmd/internal/obj/dwarf.go
++++ b/src/cmd/internal/obj/dwarf.go
+@@ -51,14 +51,12 @@ func (ctxt *Link) generateDebugLinesSymbol(s, lines *LSym) {
+ 	dctxt.AddUint8(lines, dwarf.DW_LNE_set_address)
+ 	dctxt.AddAddress(lines, s, 0)
+ 
+-	// Set up the debug_lines state machine.
+-	// NB: This state machine is reset to this state when we've finished
+-	// generating the line table. See below.
+-	// TODO: Once delve can support multiple DW_LNS_end_statements, we don't have
+-	// to do this.
++	// Set up the debug_lines state machine to the default values
++	// we expect at the start of a new sequence.
+ 	stmt := true
+ 	line := int64(1)
+ 	pc := s.Func.Text.Pc
++	var lastpc int64 // last PC written to line table, not last PC in func
+ 	name := ""
+ 	prologue, wrotePrologue := false, false
+ 	// Walk the progs, generating the DWARF table.
+@@ -93,30 +91,32 @@ func (ctxt *Link) generateDebugLinesSymbol(s, lines *LSym) {
+ 
+ 		if line != int64(newLine) || wrote {
+ 			pcdelta := p.Pc - pc
++			lastpc = p.Pc
+ 			putpclcdelta(ctxt, dctxt, lines, uint64(pcdelta), int64(newLine)-line)
+ 			line, pc = int64(newLine), p.Pc
+ 		}
+ 	}
+ 
+-	// Because these symbols will be concatenated together by the linker, we need
+-	// to reset the state machine that controls the debug symbols. The fields in
+-	// the state machine that need to be reset are:
+-	//   file = 1
+-	//   line = 1
+-	//   column = 0
+-	//   stmt = set in header, we assume true
+-	//   basic_block = false
+-	// Careful readers of the DWARF specification will note that we don't reset
+-	// the address of the state machine -- but this will happen at the beginning
+-	// of the NEXT block of opcodes.
+-	dctxt.AddUint8(lines, dwarf.DW_LNS_set_file)
++	// Because these symbols will be concatenated together by the
++	// linker, we need to reset the state machine that controls the
++	// debug symbols. Do this using an end-of-sequence operator.
++	//
++	// Note: at one point in time, Delve did not support multiple end
++	// sequence ops within a compilation unit (bug for this:
++	// https://github.com/go-delve/delve/issues/1694), however the bug
++	// has since been fixed (Oct 2019).
++	//
++	// Issue 38192: the DWARF standard specifies that when you issue
++	// an end-sequence op, the PC value should be one past the last
++	// text address in the translation unit, so apply a delta to the
++	// text address before the end sequence op. If this isn't done,
++	// GDB will assign a line number of zero the last row in the line
++	// table, which we don't want.
++	lastlen := uint64(s.Size - (lastpc - s.Func.Text.Pc))
++	putpclcdelta(ctxt, dctxt, lines, lastlen, 0)
++	dctxt.AddUint8(lines, 0) // start extended opcode
+ 	dwarf.Uleb128put(dctxt, lines, 1)
+-	dctxt.AddUint8(lines, dwarf.DW_LNS_advance_line)
+-	dwarf.Sleb128put(dctxt, lines, int64(1-line))
+-	if !stmt {
+-		dctxt.AddUint8(lines, dwarf.DW_LNS_negate_stmt)
+-	}
+-	dctxt.AddUint8(lines, dwarf.DW_LNS_copy)
++	dctxt.AddUint8(lines, dwarf.DW_LNE_end_sequence)
+ }
+ 
+ func putpclcdelta(linkctxt *Link, dctxt dwCtxt, s *LSym, deltaPC uint64, deltaLC int64) {
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 39c273a7e5..d15cde4e38 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1181,7 +1181,7 @@ func expandFile(fname string) string {
+ // (one per live function), and finally an epilog symbol containing an
+ // end-of-sequence operator. The prolog and epilog symbols are passed
+ // in (having been created earlier); here we add content to them.
+-func (d *dwctxt) writelines(unit *sym.CompilationUnit, lineProlog loader.Sym, lineEpilog loader.Sym) []loader.Sym {
++func (d *dwctxt) writelines(unit *sym.CompilationUnit, lineProlog loader.Sym) []loader.Sym {
+ 	is_stmt := uint8(1) // initially = recommended default_is_stmt = 1, tracks is_stmt toggles.
+ 
+ 	unitstart := int64(-1)
+@@ -1268,30 +1268,6 @@ func (d *dwctxt) writelines(unit *sym.CompilationUnit, lineProlog loader.Sym, li
+ 		}
+ 	}
+ 
+-	// NB: at some point if we have an end sequence op
+-	// after each function (to enable reordering) generated
+-	// in the compiler, we can get rid of this.
+-	syms = append(syms, lineEpilog)
+-	elsu := d.ldr.MakeSymbolUpdater(lineEpilog)
+-	elsDwsym := dwSym(lineEpilog)
+-
+-	// Issue 38192: the DWARF standard specifies that when you issue
+-	// an end-sequence op, the PC value should be one past the last
+-	// text address in the translation unit, so apply a delta to the
+-	// text address before the end sequence op. If this isn't done,
+-	// GDB will assign a line number of zero the last row in the line
+-	// table, which we don't want. The 1 + ptrsize amount is somewhat
+-	// arbitrary, this is chosen to be consistent with the way LLVM
+-	// emits its end sequence ops.
+-	elsu.AddUint8(dwarf.DW_LNS_advance_pc)
+-	dwarf.Uleb128put(d, elsDwsym, int64(1+d.arch.PtrSize))
+-
+-	// Emit an end-sequence at the end of the unit.
+-	elsu.AddUint8(0) // start extended opcode
+-	dwarf.Uleb128put(d, elsDwsym, 1)
+-	elsu.AddUint8(dwarf.DW_LNE_end_sequence)
+-	unitlen += elsu.Size()
+-
+ 	if d.linkctxt.HeadType == objabi.Haix {
+ 		addDwsectCUSize(".debug_line", unit.Lib.Pkg, uint64(unitlen))
+ 	}
+@@ -1959,7 +1935,6 @@ func dwarfGenerateDebugSyms(ctxt *Link) {
+ type dwUnitSyms struct {
+ 	// Inputs for a given unit.
+ 	lineProlog  loader.Sym
+-	lineEpilog  loader.Sym
+ 	rangeProlog loader.Sym
+ 	infoEpilog  loader.Sym
+ 
+@@ -1977,7 +1952,7 @@ type dwUnitSyms struct {
+ // hence they have to happen before the call to writeUnitInfo.
+ func (d *dwctxt) dwUnitPortion(u *sym.CompilationUnit, abbrevsym loader.Sym, us *dwUnitSyms) {
+ 	if u.DWInfo.Abbrev != dwarf.DW_ABRV_COMPUNIT_TEXTLESS {
+-		us.linesyms = d.writelines(u, us.lineProlog, us.lineEpilog)
++		us.linesyms = d.writelines(u, us.lineProlog)
+ 		base := loader.Sym(u.Textp[0])
+ 		us.rangessyms = d.writepcranges(u, base, u.PCs, us.rangeProlog)
+ 		us.locsyms = d.collectUnitLocs(u)
+@@ -2034,7 +2009,6 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
+ 	for i := 0; i < ncu; i++ {
+ 		us := &unitSyms[i]
+ 		us.lineProlog = mkAnonSym(sym.SDWARFLINES)
+-		us.lineEpilog = mkAnonSym(sym.SDWARFLINES)
+ 		us.rangeProlog = mkAnonSym(sym.SDWARFRANGE)
+ 		us.infoEpilog = mkAnonSym(sym.SDWARFFCN)
+ 	}
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index fb9c45b07d..f3dd53792a 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -1479,3 +1479,122 @@ func TestIssue38192(t *testing.T) {
+ 		t.Logf("row %d: A=%x F=%s L=%d\n", i, r.Address, r.File.Name, r.Line)
+ 	}
+ }
++
++func TestIssue39757(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping on plan9; no DWARF symbol table in executables")
++	}
++
++	// In this bug the DWARF line table contents for the last couple of
++	// instructions in a function were incorrect (bad file/line). This
++	// test verifies that all of the line table rows for a function
++	// of interest have the same file (no "autogenerated").
++	//
++	// Note: the function in this test was written with an eye towards
++	// ensuring that there are no inlined routines from other packages
++	// (which could introduce other source files into the DWARF); it's
++	// possible that at some point things could evolve in the
++	// compiler/runtime in ways that aren't happening now, so this
++	// might be something to check for if it does start failing.
++
++	tmpdir, err := ioutil.TempDir("", "TestIssue38192")
++	if err != nil {
++		t.Fatalf("could not create directory: %v", err)
++	}
++	defer os.RemoveAll(tmpdir)
++	wd, err := os.Getwd()
++	if err != nil {
++		t.Fatalf("where am I? %v", err)
++	}
++	pdir := filepath.Join(wd, "testdata", "issue39757")
++	f := gobuildTestdata(t, tmpdir, pdir, DefaultOpt)
++
++	syms, err := f.Symbols()
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	var addr uint64
++	for _, sym := range syms {
++		if sym.Name == "main.main" {
++			addr = sym.Addr
++			break
++		}
++	}
++	if addr == 0 {
++		t.Fatal("cannot find main.main in symbols")
++	}
++
++	// Open the resulting binary and examine the DWARF it contains.
++	// Look for the function of interest ("main.main")
++	// and verify that all line table entries show the same source
++	// file.
++	dw, err := f.DWARF()
++	if err != nil {
++		t.Fatalf("error parsing DWARF: %v", err)
++	}
++	rdr := dw.Reader()
++	ex := examiner{}
++	if err := ex.populate(rdr); err != nil {
++		t.Fatalf("error reading DWARF: %v", err)
++	}
++
++	// Locate the main.main DIE
++	mains := ex.Named("main.main")
++	if len(mains) == 0 {
++		t.Fatalf("unable to locate DIE for main.main")
++	}
++	if len(mains) != 1 {
++		t.Fatalf("more than one main.main DIE")
++	}
++	maindie := mains[0]
++
++	// Collect the start/end PC for main.main
++	lowpc := maindie.Val(dwarf.AttrLowpc).(uint64)
++	highpc := maindie.Val(dwarf.AttrHighpc).(uint64)
++
++	// Now read the line table for the 'main' compilation unit.
++	mainIdx := ex.idxFromOffset(maindie.Offset)
++	cuentry := ex.Parent(mainIdx)
++	if cuentry == nil {
++		t.Fatalf("main.main DIE appears orphaned")
++	}
++	lnrdr, lerr := dw.LineReader(cuentry)
++	if lerr != nil {
++		t.Fatalf("error creating DWARF line reader: %v", err)
++	}
++	if lnrdr == nil {
++		t.Fatalf("no line table for main.main compilation unit")
++	}
++	rows := []dwarf.LineEntry{}
++	mainrows := 0
++	var lne dwarf.LineEntry
++	for {
++		err := lnrdr.Next(&lne)
++		if err == io.EOF {
++			break
++		}
++		rows = append(rows, lne)
++		if err != nil {
++			t.Fatalf("error reading next DWARF line: %v", err)
++		}
++		if lne.Address < lowpc || lne.Address > highpc {
++			continue
++		}
++		if !strings.HasSuffix(lne.File.Name, "issue39757main.go") {
++			t.Errorf("found row with file=%s (not issue39757main.go)", lne.File.Name)
++		}
++		mainrows++
++	}
++	f.Close()
++
++	// Make sure we saw a few rows.
++	if mainrows < 3 {
++		t.Errorf("not enough line table rows for main.main (got %d, wanted > 3", mainrows)
++		for i, r := range rows {
++			t.Logf("row %d: A=%x F=%s L=%d\n", i, r.Address, r.File.Name, r.Line)
++		}
++	}
++}
+diff --git a/src/cmd/link/internal/ld/testdata/issue39757/issue39757main.go b/src/cmd/link/internal/ld/testdata/issue39757/issue39757main.go
+new file mode 100644
+index 0000000000..76e0ea1b08
+--- /dev/null
++++ b/src/cmd/link/internal/ld/testdata/issue39757/issue39757main.go
+@@ -0,0 +1,15 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var G int
++
++func main() {
++	if G != 101 {
++		println("not 101")
++	} else {
++		println("well now that's interesting")
++	}
++}

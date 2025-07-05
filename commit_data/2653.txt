@@ -7,7 +7,58 @@ Date:   Thu Jul 9 12:08:50 2009 -0700
     R=ken
     OCL=31399
     CL=31399
-
+---
  src/cmd/8g/cgen.c        | 13 ++++---------
  test/fixedbugs/bug168.go | 18 ++++++++++++++++++
  2 files changed, 22 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 8c90ad544e..474d0713f4 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -91,17 +91,12 @@ cgen(Node *n, Node *res)
+ 
+ 	// if both are not addressable, use a temporary.
+ 	if(!n->addable && !res->addable) {
+-		if(is64(n->type)) {
+-			tempalloc(&n1, n->type);
+-			cgen(n, &n1);
+-			cgen(&n1, res);
+-			tempfree(&n1);
+-			return;
+-		}
+-		regalloc(&n1, n->type, N);
++		// could use regalloc here sometimes,
++		// but have to check for ullman >= UINF.
++		tempalloc(&n1, n->type);
+ 		cgen(n, &n1);
+ 		cgen(&n1, res);
+-		regfree(&n1);
++		tempfree(&n1);
+ 		return;
+ 	}
+ 
+diff --git a/test/fixedbugs/bug168.go b/test/fixedbugs/bug168.go
+new file mode 100644
+index 0000000000..221eb55585
+--- /dev/null
++++ b/test/fixedbugs/bug168.go
+@@ -0,0 +1,18 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug168
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var g byte = 123;
++var f *byte = &g;
++var b = make([]byte, 5);
++
++func main() {
++	b[0:1][0] = *f;
++	if b[0] != 123 {
++		panic("want 123 got ", b[0]);
++	}	
++}

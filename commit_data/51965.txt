@@ -18,8 +18,109 @@ Date:   Wed Mar 23 12:10:02 2022 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/go/build/deps_test.go       | 10 +++++-----
  src/internal/pkgbits/decoder.go | 10 ++++++++--
  src/internal/pkgbits/encoder.go | 12 +++++++++++-
  3 files changed, 24 insertions(+), 8 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index d541f0926d..5794e3d25e 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -310,11 +310,6 @@ var depsRules = `
+ 	go/build/constraint, go/doc, go/parser, internal/buildcfg, internal/goroot, internal/goversion
+ 	< go/build;
+ 
+-	DEBUG, go/build, go/types, text/scanner
+-  < internal/pkgbits
+-	< go/internal/gcimporter, go/internal/gccgoimporter, go/internal/srcimporter
+-	< go/importer;
+-
+ 	# databases
+ 	FMT
+ 	< database/sql/internal
+@@ -449,6 +444,11 @@ var depsRules = `
+ 
+ 	# crypto-aware packages
+ 
++	CRYPTO, DEBUG, go/build, go/types, text/scanner
++	< internal/pkgbits
++	< go/internal/gcimporter, go/internal/gccgoimporter, go/internal/srcimporter
++	< go/importer;
++
+ 	NET, crypto/rand, mime/quotedprintable
+ 	< mime/multipart;
+ 
+diff --git a/src/internal/pkgbits/decoder.go b/src/internal/pkgbits/decoder.go
+index 9c8ad446ca..5b4e8f69af 100644
+--- a/src/internal/pkgbits/decoder.go
++++ b/src/internal/pkgbits/decoder.go
+@@ -22,7 +22,7 @@ type PkgDecoder struct {
+ 
+ 	elemEndsEnds [numRelocs]uint32
+ 	elemEnds     []uint32
+-	elemData     string
++	elemData     string // last 8 bytes are fingerprint
+ }
+ 
+ func (pr *PkgDecoder) PkgPath() string { return pr.pkgPath }
+@@ -50,7 +50,7 @@ func NewPkgDecoder(pkgPath, input string) PkgDecoder {
+ 	assert(err == nil)
+ 
+ 	pr.elemData = input[pos:]
+-	assert(len(pr.elemData) == int(pr.elemEnds[len(pr.elemEnds)-1]))
++	assert(len(pr.elemData)-8 == int(pr.elemEnds[len(pr.elemEnds)-1]))
+ 
+ 	return pr
+ }
+@@ -67,6 +67,12 @@ func (pr *PkgDecoder) TotalElems() int {
+ 	return len(pr.elemEnds)
+ }
+ 
++func (pr *PkgDecoder) Fingerprint() [8]byte {
++	var fp [8]byte
++	copy(fp[:], pr.elemData[len(pr.elemData)-8:])
++	return fp
++}
++
+ func (pr *PkgDecoder) AbsIdx(k RelocKind, idx int) int {
+ 	absIdx := idx
+ 	if k > 0 {
+diff --git a/src/internal/pkgbits/encoder.go b/src/internal/pkgbits/encoder.go
+index 820c707940..4780f01c39 100644
+--- a/src/internal/pkgbits/encoder.go
++++ b/src/internal/pkgbits/encoder.go
+@@ -8,6 +8,7 @@ package pkgbits
+ 
+ import (
+ 	"bytes"
++	"crypto/md5"
+ 	"encoding/binary"
+ 	"go/constant"
+ 	"io"
+@@ -30,7 +31,10 @@ func NewPkgEncoder(syncFrames int) PkgEncoder {
+ 	}
+ }
+ 
+-func (pw *PkgEncoder) DumpTo(out io.Writer) {
++func (pw *PkgEncoder) DumpTo(out0 io.Writer) (fingerprint [8]byte) {
++	h := md5.New()
++	out := io.MultiWriter(out0, h)
++
+ 	writeUint32 := func(x uint32) {
+ 		assert(binary.Write(out, binary.LittleEndian, x) == nil)
+ 	}
+@@ -57,6 +61,12 @@ func (pw *PkgEncoder) DumpTo(out io.Writer) {
+ 			assert(err == nil)
+ 		}
+ 	}
++
++	copy(fingerprint[:], h.Sum(nil))
++	_, err := out0.Write(fingerprint[:])
++	assert(err == nil)
++
++	return
+ }
+ 
+ func (pw *PkgEncoder) StringIdx(s string) int {

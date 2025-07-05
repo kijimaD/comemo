@@ -9,6 +9,33 @@ Date:   Tue Sep 15 11:16:58 2015 -0700
     Change-Id: I8871d4e525168fed35115855483a237bbd6e5445
     Reviewed-on: https://go-review.googlesource.com/14596
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/const.go | 15 ++-------------
  1 file changed, 2 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index de23190678..a6428ac427 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -434,19 +434,8 @@ func overflow(v Val, t *Type) {
+ 		return
+ 	}
+ 
+-	if !doesoverflow(v, t) {
+-		return
+-	}
+-
+-	switch v.Ctype() {
+-	case CTINT, CTRUNE:
+-		Yyerror("constant %v overflows %v", v.U.(*Mpint), t)
+-
+-	case CTFLT:
+-		Yyerror("constant %v overflows %v", Fconv(v.U.(*Mpflt), obj.FmtSharp), t)
+-
+-	case CTCPLX:
+-		Yyerror("constant %v overflows %v", Fconv(v.U.(*Mpflt), obj.FmtSharp), t)
++	if doesoverflow(v, t) {
++		Yyerror("constant %s overflows %v", Vconv(v, 0), t)
+ 	}
+ }
+ 

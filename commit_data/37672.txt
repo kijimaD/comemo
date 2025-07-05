@@ -27,7 +27,74 @@ Date:   Sun Jun 24 13:42:59 2018 +0200
     Change-Id: I2f08ca9aa41ea4c6149ed35ed2dd8f23eeb42bff
     Reviewed-on: https://go-review.googlesource.com/120558
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/time/format.go      |  9 +++++----
  src/time/format_test.go | 14 ++++++++++++--
  2 files changed, 17 insertions(+), 6 deletions(-)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index 237f28738b..f9cdbab3b8 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -1120,7 +1120,8 @@ func parseTimeZone(value string) (length int, ok bool) {
+ 	// Special Case 3: Some time zones are not named, but have +/-00 format
+ 	if value[0] == '+' || value[0] == '-' {
+ 		length = parseSignedOffset(value)
+-		return length, true
++		ok := length > 0 // parseSignedOffset returns 0 in case of bad input
++		return length, ok
+ 	}
+ 	// How many upper-case letters are there? Need at least three, at most five.
+ 	var nUpper int
+@@ -1152,7 +1153,7 @@ func parseTimeZone(value string) (length int, ok bool) {
+ 
+ // parseGMT parses a GMT time zone. The input string is known to start "GMT".
+ // The function checks whether that is followed by a sign and a number in the
+-// range -14 through 12 excluding zero.
++// range -23 through +23 excluding zero.
+ func parseGMT(value string) int {
+ 	value = value[3:]
+ 	if len(value) == 0 {
+@@ -1163,7 +1164,7 @@ func parseGMT(value string) int {
+ }
+ 
+ // parseSignedOffset parses a signed timezone offset (e.g. "+03" or "-04").
+-// The function checks for a signed number in the range -14 through +12 excluding zero.
++// The function checks for a signed number in the range -23 through +23 excluding zero.
+ // Returns length of the found offset string or 0 otherwise
+ func parseSignedOffset(value string) int {
+ 	sign := value[0]
+@@ -1177,7 +1178,7 @@ func parseSignedOffset(value string) int {
+ 	if sign == '-' {
+ 		x = -x
+ 	}
+-	if x == 0 || x < -14 || 12 < x {
++	if x == 0 || x < -23 || 23 < x {
+ 		return 0
+ 	}
+ 	return len(value) - len(rem)
+diff --git a/src/time/format_test.go b/src/time/format_test.go
+index 68a4d3ddb0..c3552f4161 100644
+--- a/src/time/format_test.go
++++ b/src/time/format_test.go
+@@ -427,8 +427,18 @@ var parseTimeZoneTests = []ParseTimeZoneTest{
+ 	{"ESASTT hi", 0, false}, // run of upper-case letters too long.
+ 	{"ESATY hi", 0, false},  // five letters must end in T.
+ 	{"WITA hi", 4, true},    // Issue #18251
+-	{"+03 hi", 3, true},     // Issue #24071
+-	{"-04 hi", 3, true},     // Issue #24071
++	// Issue #24071
++	{"+03 hi", 3, true},
++	{"-04 hi", 3, true},
++	// Issue #26032
++	{"-11", 3, true},
++	{"-12", 3, true},
++	{"-23", 3, true},
++	{"-24", 0, false},
++	{"+13", 3, true},
++	{"+14", 3, true},
++	{"+23", 3, true},
++	{"+24", 0, false},
+ }
+ 
+ func TestParseTimeZone(t *testing.T) {

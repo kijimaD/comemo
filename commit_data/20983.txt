@@ -14,6 +14,33 @@ Date:   Fri Oct 31 16:58:12 2014 -0400
     R=rsc, dave
     CC=golang-codereviews
     https://golang.org/cl/162620044
-
+---
  src/runtime/gcinfo_test.go | 8 +-------
  1 file changed, 1 insertion(+), 7 deletions(-)
+
+diff --git a/src/runtime/gcinfo_test.go b/src/runtime/gcinfo_test.go
+index 7d432983b1..2c6d4d662f 100644
+--- a/src/runtime/gcinfo_test.go
++++ b/src/runtime/gcinfo_test.go
+@@ -137,7 +137,7 @@ func infoBigStruct() []byte {
+ 			BitsScalar, BitsScalar, BitsScalar, BitsScalar, // t int; y uint16; u uint64
+ 			BitsPointer, BitsDead, // i string
+ 		}
+-	case "amd64":
++	case "amd64", "power64", "power64le":
+ 		return []byte{
+ 			BitsPointer,                        // q *int
+ 			BitsScalar, BitsScalar, BitsScalar, // w byte; e [17]byte
+@@ -153,12 +153,6 @@ func infoBigStruct() []byte {
+ 			BitsScalar, BitsScalar, BitsDead, BitsScalar, BitsScalar, // t int; y uint16; u uint64
+ 			BitsPointer, BitsDead, // i string
+ 		}
+-	case "power64", "power64le":
+-		return []byte{
+-			BitsPointer, BitsScalar, BitsScalar, BitsScalar,
+-			BitsMultiWord, BitsSlice, BitsScalar, BitsScalar,
+-			BitsScalar, BitsScalar, BitsMultiWord, BitsString,
+-		}
+ 	default:
+ 		panic("unknown arch")
+ 	}

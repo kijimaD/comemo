@@ -51,8 +51,99 @@ Date:   Wed Nov 2 19:41:01 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cgo/ast.go |  1 +
  src/cmd/cgo/gcc.go |  1 +
  src/cmd/cgo/out.go | 13 +++++++++++++
  3 files changed, 15 insertions(+)
+
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 000ecd4468..1d6354ad9d 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -87,6 +87,7 @@ func (f *File) ReadGo(name string) {
+ 			if cg != nil {
+ 				f.Preamble += fmt.Sprintf("#line %d %q\n", sourceLine(cg), name)
+ 				f.Preamble += commentText(cg) + "\n"
++				f.Preamble += "#line 1 \"cgo-generated-wrapper\"\n"
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index de87df0798..8fd490ce95 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -429,6 +429,7 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
+ 	var b bytes.Buffer
+ 	b.WriteString(f.Preamble)
+ 	b.WriteString(builtinProlog)
++	b.WriteString("#line 1 \"cgo-dwarf-inference\"\n")
+ 	for i, n := range names {
+ 		fmt.Fprintf(&b, "__typeof__(%s) *__cgo__%d;\n", n.C, i)
+ 		if n.Kind == "const" {
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 95f90920bf..1940f9176c 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -126,6 +126,13 @@ func (p *Package) writeDefs() {
+ 		fmt.Fprint(fgo2, goProlog)
+ 	}
+ 
++	if fc != nil {
++		fmt.Fprintf(fc, "#line 1 \"cgo-generated-wrappers\"\n")
++	}
++	if fm != nil {
++		fmt.Fprintf(fm, "#line 1 \"cgo-generated-wrappers\"\n")
++	}
++
+ 	gccgoSymbolPrefix := p.gccgoSymbolPrefix()
+ 
+ 	cVars := make(map[string]bool)
+@@ -1301,6 +1308,7 @@ func (p *Package) cgoType(e ast.Expr) *Type {
+ }
+ 
+ const gccProlog = `
++#line 1 "cgo-gcc-prolog"
+ /*
+   If x and y are not equal, the type will be invalid
+   (have a negative array count) and an inscrutable error will come
+@@ -1334,6 +1342,7 @@ const noTsanProlog = `
+ 
+ // This must match the TSAN code in runtime/cgo/libcgo.h.
+ const yesTsanProlog = `
++#line 1 "cgo-tsan-prolog"
+ #define CGO_NO_SANITIZE_THREAD __attribute__ ((no_sanitize_thread))
+ 
+ long long _cgo_sync __attribute__ ((common));
+@@ -1356,6 +1365,7 @@ static void _cgo_tsan_release() {
+ var tsanProlog = noTsanProlog
+ 
+ const builtinProlog = `
++#line 1 "cgo-builtin-prolog"
+ #include <stddef.h> /* for ptrdiff_t and size_t below */
+ 
+ /* Define intgo when compiling with GCC.  */
+@@ -1508,6 +1518,7 @@ func (p *Package) cPrologGccgo() string {
+ }
+ 
+ const cPrologGccgo = `
++#line 1 "cgo-c-prolog-gccgo"
+ #include <stdint.h>
+ #include <stdlib.h>
+ #include <string.h>
+@@ -1605,6 +1616,7 @@ func (p *Package) gccExportHeaderProlog() string {
+ 
+ const gccExportHeaderProlog = `
+ /* Start of boilerplate cgo prologue.  */
++#line 1 "cgo-gcc-export-header-prolog"
+ 
+ #ifndef GO_CGO_PROLOGUE_H
+ #define GO_CGO_PROLOGUE_H
+@@ -1658,6 +1670,7 @@ const gccExportHeaderEpilog = `
+ // We use weak declarations, and test the addresses, so that this code
+ // works with older versions of gccgo.
+ const gccgoExportFileProlog = `
++#line 1 "cgo-gccgo-export-file-prolog"
+ extern _Bool runtime_iscgo __attribute__ ((weak));
+ 
+ static void GoInit(void) __attribute__ ((constructor));

@@ -8,6 +8,20 @@ Date:   Fri Oct 5 23:51:40 2012 +0800
     R=adg
     CC=golang-dev
     https://golang.org/cl/6592073
-
+---
  doc/codewalk/codewalk.js | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/codewalk/codewalk.js b/doc/codewalk/codewalk.js
+index f780bc7a57..eb4667ac0c 100644
+--- a/doc/codewalk/codewalk.js
++++ b/doc/codewalk/codewalk.js
+@@ -297,7 +297,7 @@ CodewalkViewer.prototype.updateHeight = function() {
+ };
+ 
+ jQuery(document).ready(function() {
+-  var viewer = new CodewalkViewer(jQuery());
++  var viewer = new CodewalkViewer(jQuery('#codewalk-main'));
+   viewer.selectFirstComment();
+   viewer.targetCommentLinksAtBlank();
+   viewer.installEventHandlers();

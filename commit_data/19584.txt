@@ -10,6 +10,10 @@ Date:   Sat Jun 21 03:54:16 2014 +0400
     R=iant, minux
     CC=golang-codereviews
     https://golang.org/cl/101370052
-
+---
  src/pkg/runtime/race/race_linux_amd64.syso | Bin 267968 -> 265024 bytes
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/pkg/runtime/race/race_linux_amd64.syso b/src/pkg/runtime/race/race_linux_amd64.syso
+index 32b5c52594..8fd77ae58b 100644
+Binary files a/src/pkg/runtime/race/race_linux_amd64.syso and b/src/pkg/runtime/race/race_linux_amd64.syso differ

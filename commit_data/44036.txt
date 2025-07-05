@@ -11,6 +11,19 @@ Date:   Tue May 5 16:20:56 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/deadcode_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/link/internal/ld/deadcode_test.go b/src/cmd/link/internal/ld/deadcode_test.go
+index 23a8685bbb..460bc16e56 100644
+--- a/src/cmd/link/internal/ld/deadcode_test.go
++++ b/src/cmd/link/internal/ld/deadcode_test.go
+@@ -32,6 +32,7 @@ func TestDeadcode(t *testing.T) {
+ 		{"typedesc", "type.main.T"},
+ 	}
+ 	for _, test := range tests {
++		test := test
+ 		t.Run(test.src, func(t *testing.T) {
+ 			t.Parallel()
+ 			src := filepath.Join("testdata", "deadcode", test.src+".go")

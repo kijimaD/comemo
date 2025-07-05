@@ -21,6 +21,23 @@ Date:   Thu Aug 20 13:46:19 2015 +1000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Martin Capitanio <capnm9@gmail.com>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/crash_cgo_test.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 2e65e4c754..8e23006414 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -222,7 +222,10 @@ static void *thr(void *arg) {
+ 
+ static void foo() {
+     pthread_t th;
+-    pthread_create(&th, 0, thr, 0);
++    pthread_attr_t attr;
++    pthread_attr_init(&attr);
++    pthread_attr_setstacksize(&attr, 256 << 10);
++    pthread_create(&th, &attr, thr, 0);
+     pthread_join(th, 0);
+ }
+ */

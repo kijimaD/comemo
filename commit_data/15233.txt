@@ -11,6 +11,28 @@ Date:   Wed Feb 13 22:31:45 2013 -0500
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/7300106
-
+---
  src/pkg/runtime/mgc0.c | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 031a63c489..c9295bbc27 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1255,13 +1255,14 @@ static void
+ addfinroots(void *v)
+ {
+ 	uintptr size;
++	void *base;
+ 
+ 	size = 0;
+-	if(!runtime·mlookup(v, &v, &size, nil) || !runtime·blockspecial(v))
++	if(!runtime·mlookup(v, &base, &size, nil) || !runtime·blockspecial(base))
+ 		runtime·throw("mark - finalizer inconsistency");
+ 
+ 	// do not mark the finalizer block itself.  just mark the things it points at.
+-	addroot((Obj){v, size, 0});
++	addroot((Obj){base, size, 0});
+ }
+ 
+ static void

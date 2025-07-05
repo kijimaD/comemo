@@ -11,6 +11,20 @@ Date:   Fri Apr 4 08:15:27 2014 -0700
     R=0intro, aram
     CC=golang-codereviews
     https://golang.org/cl/84410043
-
+---
  src/pkg/runtime/os_plan9_amd64.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/os_plan9_amd64.c b/src/pkg/runtime/os_plan9_amd64.c
+index b497056c67..a4e5ba8194 100644
+--- a/src/pkg/runtime/os_plan9_amd64.c
++++ b/src/pkg/runtime/os_plan9_amd64.c
+@@ -95,7 +95,7 @@ runtime·sighandler(void *v, int8 *note, G *gp)
+ 		if(ureg->ip != 0) {
+ 			sp = (uintptr*)ureg->sp;
+ 			*--sp = ureg->ip;
+-			ureg->sp = (uint32)sp;
++			ureg->sp = (uint64)sp;
+ 		}
+ 		ureg->ip = (uintptr)runtime·sigpanic;
+ 		return NCONT;

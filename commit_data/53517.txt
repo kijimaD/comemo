@@ -13,6 +13,27 @@ Date:   Wed Jul 13 18:31:30 2022 -0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-
+---
  test/fixedbugs/issue23868.go | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/test/fixedbugs/issue23868.go b/test/fixedbugs/issue23868.go
+new file mode 100644
+index 0000000000..af15c5fb39
+--- /dev/null
++++ b/test/fixedbugs/issue23868.go
+@@ -0,0 +1,14 @@
++// compile
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Crashed gccgo.
++
++package p
++
++var F func([0]int) int
++var G func() [0]int
++
++var V = make([]int, F(G()))

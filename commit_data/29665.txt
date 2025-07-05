@@ -108,8 +108,168 @@ Date:   Sat Jul 23 15:41:57 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/typecheck.go | 46 ++++++++++++++++++++++++---
  test/fixedbugs/issue4215.go              | 53 ++++++++++++++++++++++++++++++++
  test/fixedbugs/issue6750.go              | 22 +++++++++++++
  3 files changed, 116 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 7bf577cdc8..3455319e77 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2685,12 +2685,12 @@ notenough:
+ 			// Method expressions have the form T.M, and the compiler has
+ 			// rewritten those to ONAME nodes but left T in Left.
+ 			if call.Op == ONAME && call.Left != nil && call.Left.Op == OTYPE {
+-				yyerror("not enough arguments in call to method expression %v", call)
++				yyerror("not enough arguments in call to method expression %v, got %s want %v", call, nl.retsigerr(), tstruct)
+ 			} else {
+-				yyerror("not enough arguments in call to %v", call)
++				yyerror("not enough arguments in call to %v, got %s want %v", call, nl.retsigerr(), tstruct)
+ 			}
+ 		} else {
+-			yyerror("not enough arguments to %v", op)
++			yyerror("not enough arguments to %v, got %s want %v", op, nl.retsigerr(), tstruct)
+ 		}
+ 		if n != nil {
+ 			n.Diag = 1
+@@ -2701,13 +2701,49 @@ notenough:
+ 
+ toomany:
+ 	if call != nil {
+-		yyerror("too many arguments in call to %v", call)
++		yyerror("too many arguments in call to %v, got %s want %v", call, nl.retsigerr(), tstruct)
+ 	} else {
+-		yyerror("too many arguments to %v", op)
++		yyerror("too many arguments to %v, got %s want %v", op, nl.retsigerr(), tstruct)
+ 	}
+ 	goto out
+ }
+ 
++// sigrepr is a type's representation to the outside world,
++// in string representations of return signatures
++// e.g in error messages about wrong arguments to return.
++func (t *Type) sigrepr() string {
++	switch t {
++	default:
++		return t.String()
++
++	case Types[TIDEAL]:
++		// "untyped number" is not commonly used
++		// outside of the compiler, so let's use "number".
++		return "number"
++
++	case idealstring:
++		return "string"
++
++	case idealbool:
++		return "bool"
++	}
++}
++
++// retsigerr returns the signature of the types
++// at the respective return call site of a function.
++func (nl Nodes) retsigerr() string {
++	if nl.Len() < 1 {
++		return "()"
++	}
++
++	var typeStrings []string
++	for _, n := range nl.Slice() {
++		typeStrings = append(typeStrings, n.Type.sigrepr())
++	}
++
++	return fmt.Sprintf("(%s)", strings.Join(typeStrings, ", "))
++}
++
+ // type check composite
+ func fielddup(n *Node, hash map[string]bool) {
+ 	if n.Op != ONAME {
+diff --git a/test/fixedbugs/issue4215.go b/test/fixedbugs/issue4215.go
+new file mode 100644
+index 0000000000..7b8903fede
+--- /dev/null
++++ b/test/fixedbugs/issue4215.go
+@@ -0,0 +1,53 @@
++// errorcheck
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func foo() (int, int) {
++	return 2.3 // ERROR "not enough arguments to return, got \(number\) want \(int, int\)"
++}
++
++func foo2() {
++	return int(2), 2 // ERROR "too many arguments to return, got \(int, number\) want \(\)"
++}
++
++func foo3(v int) (a, b, c, d int) {
++	if v >= 0 {
++		return 1 // ERROR "not enough arguments to return, got \(number\) want \(int, int, int, int\)"
++	}
++	return 2, 3 // ERROR "not enough arguments to return, got \(number, number\) want \(int, int, int, int\)"
++}
++
++func foo4(name string) (string, int) {
++	switch name {
++	case "cow":
++		return "moo" // ERROR "not enough arguments to return, got \(string\) want \(string, int\)"
++	case "dog":
++		return "dog", 10, true // ERROR "too many arguments to return, got \(string, number, bool\) want \(string, int\)"
++	case "fish":
++		return "" // ERROR "not enough arguments to return, got \(string\) want \(string, int\)"
++	default:
++		return "lizard", 10
++	}
++}
++
++type S int
++type T string
++type U float64
++
++func foo5() (S, T, U) {
++	if false {
++		return "" // ERROR "not enough arguments to return, got \(string\) want \(S, T, U\)"
++	} else {
++		ptr := new(T)
++		return ptr // ERROR "not enough arguments to return, got \(\*T\) want \(S, T, U\)"
++	}
++	return new(S), 12.34, 1 + 0i, 'r', true // ERROR "too many arguments to return, got \(\*S, number, number, number, bool\) want \(S, T, U\)"
++}
++
++func foo6() (T, string) {
++	return "T", true, true // ERROR "too many arguments to return, got \(string, bool, bool\) want \(T, string\)"
++}
+diff --git a/test/fixedbugs/issue6750.go b/test/fixedbugs/issue6750.go
+new file mode 100644
+index 0000000000..8854bf9e09
+--- /dev/null
++++ b/test/fixedbugs/issue6750.go
+@@ -0,0 +1,22 @@
++// errorcheck
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "fmt"
++
++func printmany(nums ...int) {
++	for i, n := range nums {
++		fmt.Printf("%d: %d\n", i, n)
++	}
++	fmt.Printf("\n")
++}
++
++func main() {
++	printmany(1, 2, 3)
++	printmany([]int{1, 2, 3}...)
++	printmany(1, "abc", []int{2, 3}...) // ERROR "too many arguments in call to printmany, got \(number, string, \[\]int\) want \(...int\)"
++}

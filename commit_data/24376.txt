@@ -15,7 +15,7 @@ Date:   Fri Jul 24 16:16:39 2015 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/crash_unix_test.go    | 135 ++++++++++++++++++++++++++++++++++++++
  src/runtime/signal_386.go         |  34 +++++-----
  src/runtime/signal_amd64x.go      |  34 +++++-----
@@ -36,3 +36,729 @@ Date:   Fri Jul 24 16:16:39 2015 -0700
  src/runtime/sys_openbsd_amd64.s   |   9 +++
  src/runtime/sys_openbsd_arm.s     |   9 +++
  19 files changed, 380 insertions(+), 51 deletions(-)
+
+diff --git a/src/runtime/crash_unix_test.go b/src/runtime/crash_unix_test.go
+new file mode 100644
+index 0000000000..b925d028aa
+--- /dev/null
++++ b/src/runtime/crash_unix_test.go
+@@ -0,0 +1,135 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++
++package runtime_test
++
++import (
++	"bytes"
++	"internal/testenv"
++	"io/ioutil"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"runtime"
++	"syscall"
++	"testing"
++)
++
++func TestCrashDumpsAllThreads(t *testing.T) {
++	switch runtime.GOOS {
++	case "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
++	default:
++		t.Skipf("skipping; not supported on %v", runtime.GOOS)
++	}
++
++	// We don't use executeTest because we need to kill the
++	// program while it is running.
++
++	testenv.MustHaveGoBuild(t)
++
++	checkStaleRuntime(t)
++
++	dir, err := ioutil.TempDir("", "go-build")
++	if err != nil {
++		t.Fatalf("failed to create temp directory: %v", err)
++	}
++	defer os.RemoveAll(dir)
++
++	if err := ioutil.WriteFile(filepath.Join(dir, "main.go"), []byte(crashDumpsAllThreadsSource), 0666); err != nil {
++		t.Fatalf("failed to create Go file: %v", err)
++	}
++
++	cmd := exec.Command("go", "build", "-o", "a.exe")
++	cmd.Dir = dir
++	out, err := testEnv(cmd).CombinedOutput()
++	if err != nil {
++		t.Fatalf("building source: %v\n%s", err, out)
++	}
++
++	cmd = exec.Command(filepath.Join(dir, "a.exe"))
++	cmd = testEnv(cmd)
++	cmd.Env = append(cmd.Env, "GOTRACEBACK=crash")
++	var outbuf bytes.Buffer
++	cmd.Stdout = &outbuf
++	cmd.Stderr = &outbuf
++
++	rp, wp, err := os.Pipe()
++	if err != nil {
++		t.Fatal(err)
++	}
++	cmd.ExtraFiles = []*os.File{wp}
++
++	if err := cmd.Start(); err != nil {
++		t.Fatalf("starting program: %v", err)
++	}
++
++	if err := wp.Close(); err != nil {
++		t.Logf("closing write pipe: %v", err)
++	}
++	if _, err := rp.Read(make([]byte, 1)); err != nil {
++		t.Fatalf("reading from pipe: %v", err)
++	}
++
++	if err := cmd.Process.Signal(syscall.SIGQUIT); err != nil {
++		t.Fatalf("signal: %v", err)
++	}
++
++	// No point in checking the error return from Wait--we expect
++	// it to fail.
++	cmd.Wait()
++
++	// We want to see a stack trace for each thread.
++	// Before https://golang.org/cl/2811 running threads would say
++	// "goroutine running on other thread; stack unavailable".
++	out = outbuf.Bytes()
++	n := bytes.Count(out, []byte("main.loop("))
++	if n != 4 {
++		t.Errorf("found %d instances of main.loop; expected 4", n)
++		t.Logf("%s", out)
++	}
++}
++
++const crashDumpsAllThreadsSource = `
++package main
++
++import (
++	"fmt"
++	"os"
++	"runtime"
++)
++
++func main() {
++	const count = 4
++	runtime.GOMAXPROCS(count + 1)
++
++	chans := make([]chan bool, count)
++	for i := range chans {
++		chans[i] = make(chan bool)
++		go loop(i, chans[i])
++	}
++
++	// Wait for all the goroutines to start executing.
++	for _, c := range chans {
++		<-c
++	}
++
++	// Tell our parent that all the goroutines are executing.
++	if _, err := os.NewFile(3, "pipe").WriteString("x"); err != nil {
++		fmt.Fprintf(os.Stderr, "write to pipe failed: %v\n", err)
++		os.Exit(2)
++	}
++
++	select {}
++}
++
++func loop(i int, c chan bool) {
++	close(c)
++	for {
++		for j := 0; j < 0x7fffffff; j++ {
++		}
++	}
++}
++`
+diff --git a/src/runtime/signal_386.go b/src/runtime/signal_386.go
+index b6f55ffedf..ca189421f7 100644
+--- a/src/runtime/signal_386.go
++++ b/src/runtime/signal_386.go
+@@ -170,25 +170,21 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	}
+ 
+ 	if docrash {
+-		// TODO(rsc): Implement raiseproc on other systems
+-		// and then add to this if condition.
+-		if GOOS == "linux" {
+-			crashing++
+-			if crashing < sched.mcount {
+-				// There are other m's that need to dump their stacks.
+-				// Relay SIGQUIT to the next m by sending it to the current process.
+-				// All m's that have already received SIGQUIT have signal masks blocking
+-				// receipt of any signals, so the SIGQUIT will go to an m that hasn't seen it yet.
+-				// When the last m receives the SIGQUIT, it will fall through to the call to
+-				// crash below. Just in case the relaying gets botched, each m involved in
+-				// the relay sleeps for 5 seconds and then does the crash/exit itself.
+-				// In expected operation, the last m has received the SIGQUIT and run
+-				// crash/exit and the process is gone, all long before any of the
+-				// 5-second sleeps have finished.
+-				print("\n-----\n\n")
+-				raiseproc(_SIGQUIT)
+-				usleep(5 * 1000 * 1000)
+-			}
++		crashing++
++		if crashing < sched.mcount {
++			// There are other m's that need to dump their stacks.
++			// Relay SIGQUIT to the next m by sending it to the current process.
++			// All m's that have already received SIGQUIT have signal masks blocking
++			// receipt of any signals, so the SIGQUIT will go to an m that hasn't seen it yet.
++			// When the last m receives the SIGQUIT, it will fall through to the call to
++			// crash below. Just in case the relaying gets botched, each m involved in
++			// the relay sleeps for 5 seconds and then does the crash/exit itself.
++			// In expected operation, the last m has received the SIGQUIT and run
++			// crash/exit and the process is gone, all long before any of the
++			// 5-second sleeps have finished.
++			print("\n-----\n\n")
++			raiseproc(_SIGQUIT)
++			usleep(5 * 1000 * 1000)
+ 		}
+ 		crash()
+ 	}
+diff --git a/src/runtime/signal_amd64x.go b/src/runtime/signal_amd64x.go
+index 13ee5af0c1..3e14480ac3 100644
+--- a/src/runtime/signal_amd64x.go
++++ b/src/runtime/signal_amd64x.go
+@@ -181,25 +181,21 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	}
+ 
+ 	if docrash {
+-		// TODO(rsc): Implement raiseproc on other systems
+-		// and then add to this if condition.
+-		if GOOS == "darwin" || GOOS == "linux" {
+-			crashing++
+-			if crashing < sched.mcount {
+-				// There are other m's that need to dump their stacks.
+-				// Relay SIGQUIT to the next m by sending it to the current process.
+-				// All m's that have already received SIGQUIT have signal masks blocking
+-				// receipt of any signals, so the SIGQUIT will go to an m that hasn't seen it yet.
+-				// When the last m receives the SIGQUIT, it will fall through to the call to
+-				// crash below. Just in case the relaying gets botched, each m involved in
+-				// the relay sleeps for 5 seconds and then does the crash/exit itself.
+-				// In expected operation, the last m has received the SIGQUIT and run
+-				// crash/exit and the process is gone, all long before any of the
+-				// 5-second sleeps have finished.
+-				print("\n-----\n\n")
+-				raiseproc(_SIGQUIT)
+-				usleep(5 * 1000 * 1000)
+-			}
++		crashing++
++		if crashing < sched.mcount {
++			// There are other m's that need to dump their stacks.
++			// Relay SIGQUIT to the next m by sending it to the current process.
++			// All m's that have already received SIGQUIT have signal masks blocking
++			// receipt of any signals, so the SIGQUIT will go to an m that hasn't seen it yet.
++			// When the last m receives the SIGQUIT, it will fall through to the call to
++			// crash below. Just in case the relaying gets botched, each m involved in
++			// the relay sleeps for 5 seconds and then does the crash/exit itself.
++			// In expected operation, the last m has received the SIGQUIT and run
++			// crash/exit and the process is gone, all long before any of the
++			// 5-second sleeps have finished.
++			print("\n-----\n\n")
++			raiseproc(_SIGQUIT)
++			usleep(5 * 1000 * 1000)
+ 		}
+ 		crash()
+ 	}
+diff --git a/src/runtime/signal_arm.go b/src/runtime/signal_arm.go
+index f1f3c60699..1b8a2f5277 100644
+--- a/src/runtime/signal_arm.go
++++ b/src/runtime/signal_arm.go
+@@ -32,6 +32,8 @@ func dumpregs(c *sigctxt) {
+ 	print("fault   ", hex(c.fault()), "\n")
+ }
+ 
++var crashing int32
++
+ // May run during STW, so write barriers are not allowed.
+ //go:nowritebarrier
+ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+@@ -106,7 +108,10 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 
+ 	_g_.m.throwing = 1
+ 	_g_.m.caughtsig.set(gp)
+-	startpanic()
++
++	if crashing == 0 {
++		startpanic()
++	}
+ 
+ 	if sig < uint32(len(sigtable)) {
+ 		print(sigtable[sig].name, "\n")
+@@ -114,7 +119,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 		print("Signal ", sig, "\n")
+ 	}
+ 
+-	print("PC=", hex(c.pc()), "\n")
++	print("PC=", hex(c.pc()), " m=", _g_.m.id, "\n")
+ 	if _g_.m.lockedg != nil && _g_.m.ncgo > 0 && gp == _g_.m.g0 {
+ 		print("signal arrived during cgo execution\n")
+ 		gp = _g_.m.lockedg
+@@ -125,12 +130,34 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	if gotraceback(&docrash) > 0 {
+ 		goroutineheader(gp)
+ 		tracebacktrap(uintptr(c.pc()), uintptr(c.sp()), uintptr(c.lr()), gp)
+-		tracebackothers(gp)
+-		print("\n")
++		if crashing > 0 && gp != _g_.m.curg && _g_.m.curg != nil && readgstatus(_g_.m.curg)&^_Gscan == _Grunning {
++			// tracebackothers on original m skipped this one; trace it now.
++			goroutineheader(_g_.m.curg)
++			traceback(^uintptr(0), ^uintptr(0), 0, gp)
++		} else if crashing == 0 {
++			tracebackothers(gp)
++			print("\n")
++		}
+ 		dumpregs(c)
+ 	}
+ 
+ 	if docrash {
++		crashing++
++		if crashing < sched.mcount {
++			// There are other m's that need to dump their stacks.
++			// Relay SIGQUIT to the next m by sending it to the current process.
++			// All m's that have already received SIGQUIT have signal masks blocking
++			// receipt of any signals, so the SIGQUIT will go to an m that hasn't seen it yet.
++			// When the last m receives the SIGQUIT, it will fall through to the call to
++			// crash below. Just in case the relaying gets botched, each m involved in
++			// the relay sleeps for 5 seconds and then does the crash/exit itself.
++			// In expected operation, the last m has received the SIGQUIT and run
++			// crash/exit and the process is gone, all long before any of the
++			// 5-second sleeps have finished.
++			print("\n-----\n\n")
++			raiseproc(_SIGQUIT)
++			usleep(5 * 1000 * 1000)
++		}
+ 		crash()
+ 	}
+ 
+diff --git a/src/runtime/signal_arm64.go b/src/runtime/signal_arm64.go
+index 07ab638c26..4a7c8b980b 100644
+--- a/src/runtime/signal_arm64.go
++++ b/src/runtime/signal_arm64.go
+@@ -45,6 +45,8 @@ func dumpregs(c *sigctxt) {
+ 	print("fault   ", hex(c.fault()), "\n")
+ }
+ 
++var crashing int32
++
+ // May run during STW, so write barriers are not allowed.
+ //go:nowritebarrier
+ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+@@ -119,7 +121,10 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 
+ 	_g_.m.throwing = 1
+ 	_g_.m.caughtsig.set(gp)
+-	startpanic()
++
++	if crashing == 0 {
++		startpanic()
++	}
+ 
+ 	if sig < uint32(len(sigtable)) {
+ 		print(sigtable[sig].name, "\n")
+@@ -127,7 +132,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 		print("Signal ", sig, "\n")
+ 	}
+ 
+-	print("PC=", hex(c.pc()), "\n")
++	print("PC=", hex(c.pc()), " m=", _g_.m.id, "\n")
+ 	if _g_.m.lockedg != nil && _g_.m.ncgo > 0 && gp == _g_.m.g0 {
+ 		print("signal arrived during cgo execution\n")
+ 		gp = _g_.m.lockedg
+@@ -138,12 +143,34 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	if gotraceback(&docrash) > 0 {
+ 		goroutineheader(gp)
+ 		tracebacktrap(uintptr(c.pc()), uintptr(c.sp()), uintptr(c.lr()), gp)
+-		tracebackothers(gp)
+-		print("\n")
++		if crashing > 0 && gp != _g_.m.curg && _g_.m.curg != nil && readgstatus(_g_.m.curg)&^_Gscan == _Grunning {
++			// tracebackothers on original m skipped this one; trace it now.
++			goroutineheader(_g_.m.curg)
++			traceback(^uintptr(0), ^uintptr(0), 0, gp)
++		} else if crashing == 0 {
++			tracebackothers(gp)
++			print("\n")
++		}
+ 		dumpregs(c)
+ 	}
+ 
+ 	if docrash {
++		crashing++
++		if crashing < sched.mcount {
++			// There are other m's that need to dump their stacks.
++			// Relay SIGQUIT to the next m by sending it to the current process.
++			// All m's that have already received SIGQUIT have signal masks blocking
++			// receipt of any signals, so the SIGQUIT will go to an m that hasn't seen it yet.
++			// When the last m receives the SIGQUIT, it will fall through to the call to
++			// crash below. Just in case the relaying gets botched, each m involved in
++			// the relay sleeps for 5 seconds and then does the crash/exit itself.
++			// In expected operation, the last m has received the SIGQUIT and run
++			// crash/exit and the process is gone, all long before any of the
++			// 5-second sleeps have finished.
++			print("\n-----\n\n")
++			raiseproc(_SIGQUIT)
++			usleep(5 * 1000 * 1000)
++		}
+ 		crash()
+ 	}
+ 
+diff --git a/src/runtime/signal_ppc64x.go b/src/runtime/signal_ppc64x.go
+index 4462e0ccf8..bad9fe6de4 100644
+--- a/src/runtime/signal_ppc64x.go
++++ b/src/runtime/signal_ppc64x.go
+@@ -50,6 +50,8 @@ func dumpregs(c *sigctxt) {
+ 	print("trap ", hex(c.trap()), "\n")
+ }
+ 
++var crashing int32
++
+ // May run during STW, so write barriers are not allowed.
+ //go:nowritebarrier
+ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+@@ -124,7 +126,10 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 
+ 	_g_.m.throwing = 1
+ 	_g_.m.caughtsig.set(gp)
+-	startpanic()
++
++	if crashing == 0 {
++		startpanic()
++	}
+ 
+ 	if sig < uint32(len(sigtable)) {
+ 		print(sigtable[sig].name, "\n")
+@@ -132,7 +137,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 		print("Signal ", sig, "\n")
+ 	}
+ 
+-	print("PC=", hex(c.pc()), "\n")
++	print("PC=", hex(c.pc()), " m=", _g_.m.id, "\n")
+ 	if _g_.m.lockedg != nil && _g_.m.ncgo > 0 && gp == _g_.m.g0 {
+ 		print("signal arrived during cgo execution\n")
+ 		gp = _g_.m.lockedg
+@@ -143,12 +148,34 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	if gotraceback(&docrash) > 0 {
+ 		goroutineheader(gp)
+ 		tracebacktrap(uintptr(c.pc()), uintptr(c.sp()), uintptr(c.link()), gp)
+-		tracebackothers(gp)
+-		print("\n")
++		if crashing > 0 && gp != _g_.m.curg && _g_.m.curg != nil && readgstatus(_g_.m.curg)&^_Gscan == _Grunning {
++			// tracebackothers on original m skipped this one; trace it now.
++			goroutineheader(_g_.m.curg)
++			traceback(^uintptr(0), ^uintptr(0), 0, gp)
++		} else if crashing == 0 {
++			tracebackothers(gp)
++			print("\n")
++		}
+ 		dumpregs(c)
+ 	}
+ 
+ 	if docrash {
++		crashing++
++		if crashing < sched.mcount {
++			// There are other m's that need to dump their stacks.
++			// Relay SIGQUIT to the next m by sending it to the current process.
++			// All m's that have already received SIGQUIT have signal masks blocking
++			// receipt of any signals, so the SIGQUIT will go to an m that hasn't seen it yet.
++			// When the last m receives the SIGQUIT, it will fall through to the call to
++			// crash below. Just in case the relaying gets botched, each m involved in
++			// the relay sleeps for 5 seconds and then does the crash/exit itself.
++			// In expected operation, the last m has received the SIGQUIT and run
++			// crash/exit and the process is gone, all long before any of the
++			// 5-second sleeps have finished.
++			print("\n-----\n\n")
++			raiseproc(_SIGQUIT)
++			usleep(5 * 1000 * 1000)
++		}
+ 		crash()
+ 	}
+ 
+diff --git a/src/runtime/sys_darwin_arm.s b/src/runtime/sys_darwin_arm.s
+index 55ae8f3a46..be35d37bc8 100644
+--- a/src/runtime/sys_darwin_arm.s
++++ b/src/runtime/sys_darwin_arm.s
+@@ -97,7 +97,12 @@ TEXT runtime·exit1(SB),NOSPLIT,$0
+ 	MOVW	$1003, R1
+ 	MOVW	R0, (R1)	// fail hard
+ 
+-TEXT runtime·raise(SB),NOSPLIT,$24
++TEXT runtime·raise(SB),NOSPLIT,$0
++	// Ideally we'd send the signal to the current thread,
++	// not the whole process, but that's too hard on OS X.
++	JMP	runtime·raiseproc(SB)
++
++TEXT runtime·raiseproc(SB),NOSPLIT,$24
+ 	MOVW	$SYS_getpid, R12
+ 	SWI	$0x80
+ 	// arg 1 pid already in R0 from getpid
+diff --git a/src/runtime/sys_darwin_arm64.s b/src/runtime/sys_darwin_arm64.s
+index 7aaf6b681b..11b28d774a 100644
+--- a/src/runtime/sys_darwin_arm64.s
++++ b/src/runtime/sys_darwin_arm64.s
+@@ -98,6 +98,11 @@ TEXT runtime·exit1(SB),NOSPLIT,$0
+ 	MOVD	R0, (R1)	// fail hard
+ 
+ TEXT runtime·raise(SB),NOSPLIT,$0
++	// Ideally we'd send the signal to the current thread,
++	// not the whole process, but that's too hard on OS X.
++	JMP	runtime·raiseproc(SB)
++
++TEXT runtime·raiseproc(SB),NOSPLIT,$0
+ 	MOVW	$SYS_getpid, R16
+ 	SVC	$0x80
+ 	// arg 1 pid already in R0 from getpid
+diff --git a/src/runtime/sys_dragonfly_amd64.s b/src/runtime/sys_dragonfly_amd64.s
+index 7e8dc1bbc3..26c97848f2 100644
+--- a/src/runtime/sys_dragonfly_amd64.s
++++ b/src/runtime/sys_dragonfly_amd64.s
+@@ -131,6 +131,15 @@ TEXT runtime·raise(SB),NOSPLIT,$16
+ 	SYSCALL
+ 	RET
+ 
++TEXT runtime·raiseproc(SB),NOSPLIT,$0
++	MOVL	$20, AX		// getpid
++	SYSCALL
++	MOVQ	AX, DI		// arg 1 - pid
++	MOVL	sig+0(FP), SI	// arg 2 - signum
++	MOVL	$37, AX		// kill
++	SYSCALL
++	RET
++
+ TEXT runtime·setitimer(SB), NOSPLIT, $-8
+ 	MOVL	mode+0(FP), DI
+ 	MOVQ	new+8(FP), SI
+diff --git a/src/runtime/sys_freebsd_386.s b/src/runtime/sys_freebsd_386.s
+index be20808a0e..b2dd7802df 100644
+--- a/src/runtime/sys_freebsd_386.s
++++ b/src/runtime/sys_freebsd_386.s
+@@ -112,6 +112,18 @@ TEXT runtime·raise(SB),NOSPLIT,$16
+ 	INT	$0x80
+ 	RET
+ 
++TEXT runtime·raiseproc(SB),NOSPLIT,$16
++	// getpid
++	MOVL	$20, AX
++	INT	$0x80
++	// kill(self, sig)
++	MOVL	AX, 4(SP)
++	MOVL	sig+0(FP), AX
++	MOVL	AX, 8(SP)
++	MOVL	$37, AX
++	INT	$0x80
++	RET
++
+ TEXT runtime·mmap(SB),NOSPLIT,$32
+ 	LEAL addr+0(FP), SI
+ 	LEAL	4(SP), DI
+diff --git a/src/runtime/sys_freebsd_amd64.s b/src/runtime/sys_freebsd_amd64.s
+index 8ef04588c3..b1c67c7dfc 100644
+--- a/src/runtime/sys_freebsd_amd64.s
++++ b/src/runtime/sys_freebsd_amd64.s
+@@ -123,6 +123,17 @@ TEXT runtime·raise(SB),NOSPLIT,$16
+ 	SYSCALL
+ 	RET
+ 
++TEXT runtime·raiseproc(SB),NOSPLIT,$0
++	// getpid
++	MOVL	$20, AX
++	SYSCALL
++	// kill(self, sig)
++	MOVQ	AX, DI		// arg 1 pid
++	MOVL	sig+0(FP), SI	// arg 2 sig
++	MOVL	$37, AX
++	SYSCALL
++	RET
++
+ TEXT runtime·setitimer(SB), NOSPLIT, $-8
+ 	MOVL	mode+0(FP), DI
+ 	MOVQ	new+8(FP), SI
+diff --git a/src/runtime/sys_freebsd_arm.s b/src/runtime/sys_freebsd_arm.s
+index 298900c9a2..0441d81b25 100644
+--- a/src/runtime/sys_freebsd_arm.s
++++ b/src/runtime/sys_freebsd_arm.s
+@@ -18,6 +18,8 @@
+ #define SYS_write (SYS_BASE + 4)
+ #define SYS_open (SYS_BASE + 5)
+ #define SYS_close (SYS_BASE + 6)
++#define SYS_getpid (SYS_BASE + 20)
++#define SYS_kill (SYS_BASE + 37)
+ #define SYS_sigaltstack (SYS_BASE + 53)
+ #define SYS_munmap (SYS_BASE + 73)
+ #define SYS_madvise (SYS_BASE + 75)
+@@ -145,6 +147,17 @@ TEXT runtime·raise(SB),NOSPLIT,$8
+ 	SWI $0
+ 	RET
+ 
++TEXT runtime·raiseproc(SB),NOSPLIT,$0
++	// getpid
++	MOVW $SYS_getpid, R7
++	SWI $0
++	// kill(self, sig)
++				// arg 1 - pid, now in R0
++	MOVW sig+0(FP), R1	// arg 2 - signal
++	MOVW $SYS_kill, R7
++	SWI $0
++	RET
++
+ TEXT runtime·setitimer(SB), NOSPLIT, $-8
+ 	MOVW mode+0(FP), R0
+ 	MOVW new+4(FP), R1
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index 6e5cdcdf33..998484f121 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -32,7 +32,9 @@
+ #define SYS_getrlimit		163
+ #define SYS_madvise		233
+ #define SYS_mincore		232
++#define SYS_getpid		172
+ #define SYS_gettid		178
++#define SYS_kill		129
+ #define SYS_tkill		130
+ #define SYS_futex		98
+ #define SYS_sched_getaffinity	123
+@@ -151,6 +153,15 @@ TEXT runtime·raise(SB),NOSPLIT,$-8
+ 	SVC
+ 	RET
+ 
++TEXT runtime·raiseproc(SB),NOSPLIT,$-8
++	MOVD	$SYS_getpid, R8
++	SVC
++	MOVW	R0, R0		// arg 1 pid
++	MOVW	sig+0(FP), R1	// arg 2
++	MOVD	$SYS_kill, R8
++	SVC
++	RET
++
+ TEXT runtime·setitimer(SB),NOSPLIT,$-8-24
+ 	MOVW	mode+0(FP), R0
+ 	MOVD	new+8(FP), R1
+diff --git a/src/runtime/sys_netbsd_386.s b/src/runtime/sys_netbsd_386.s
+index b43a72e60f..13b842840e 100644
+--- a/src/runtime/sys_netbsd_386.s
++++ b/src/runtime/sys_netbsd_386.s
+@@ -86,6 +86,17 @@ TEXT runtime·raise(SB),NOSPLIT,$12
+ 	INT	$0x80
+ 	RET
+ 
++TEXT runtime·raiseproc(SB),NOSPLIT,$12
++	MOVL	$20, AX			// sys_getpid
++	INT	$0x80
++	MOVL	$0, 0(SP)
++	MOVL	AX, 4(SP)		// arg 1 - pid
++	MOVL	sig+0(FP), AX
++	MOVL	AX, 8(SP)		// arg 2 - signo
++	MOVL	$37, AX			// sys_kill
++	INT	$0x80
++	RET
++
+ TEXT runtime·mmap(SB),NOSPLIT,$36
+ 	LEAL	addr+0(FP), SI
+ 	LEAL	4(SP), DI
+diff --git a/src/runtime/sys_netbsd_amd64.s b/src/runtime/sys_netbsd_amd64.s
+index 5c1d957b37..d0640dbfac 100644
+--- a/src/runtime/sys_netbsd_amd64.s
++++ b/src/runtime/sys_netbsd_amd64.s
+@@ -152,6 +152,15 @@ TEXT runtime·raise(SB),NOSPLIT,$16
+ 	SYSCALL
+ 	RET
+ 
++TEXT runtime·raiseproc(SB),NOSPLIT,$16
++	MOVL	$20, AX			// sys_getpid
++	SYSCALL
++	MOVQ	AX, DI			// arg 1 - pid
++	MOVL	sig+0(FP), SI		// arg 2 - signo
++	MOVL	$37, AX			// sys_kill
++	SYSCALL
++	RET
++
+ TEXT runtime·setitimer(SB),NOSPLIT,$-8
+ 	MOVL	mode+0(FP), DI		// arg 1 - which
+ 	MOVQ	new+8(FP), SI		// arg 2 - itv
+diff --git a/src/runtime/sys_netbsd_arm.s b/src/runtime/sys_netbsd_arm.s
+index 5832f6d15c..24c32a6158 100644
+--- a/src/runtime/sys_netbsd_arm.s
++++ b/src/runtime/sys_netbsd_arm.s
+@@ -127,6 +127,12 @@ TEXT runtime·raise(SB),NOSPLIT,$16
+ 	SWI $0xa0013e	// sys__lwp_kill
+ 	RET
+ 
++TEXT runtime·raiseproc(SB),NOSPLIT,$16
++	SWI $0xa00014	// sys_getpid, the returned R0 is arg 1
++	MOVW	sig+0(FP), R1	// arg 2 - signal
++	SWI $0xa00025	// sys_kill
++	RET
++
+ TEXT runtime·setitimer(SB),NOSPLIT,$-4
+ 	MOVW mode+0(FP), R0	// arg 1 - which
+ 	MOVW new+4(FP), R1	// arg 2 - itv
+diff --git a/src/runtime/sys_openbsd_386.s b/src/runtime/sys_openbsd_386.s
+index fa3f0d9bee..bdf18d88f9 100644
+--- a/src/runtime/sys_openbsd_386.s
++++ b/src/runtime/sys_openbsd_386.s
+@@ -90,6 +90,17 @@ TEXT runtime·raise(SB),NOSPLIT,$12
+ 	INT	$0x80
+ 	RET
+ 
++TEXT runtime·raiseproc(SB),NOSPLIT,$12
++	MOVL	$20, AX			// sys_getpid
++	INT	$0x80
++	MOVL	$0, 0(SP)
++	MOVL	AX, 4(SP)		// arg 1 - pid
++	MOVL	sig+0(FP), AX
++	MOVL	AX, 8(SP)		// arg 2 - signum
++	MOVL	$37, AX			// sys_kill
++	INT	$0x80
++	RET
++
+ TEXT runtime·mmap(SB),NOSPLIT,$36
+ 	LEAL	addr+0(FP), SI
+ 	LEAL	4(SP), DI
+diff --git a/src/runtime/sys_openbsd_amd64.s b/src/runtime/sys_openbsd_amd64.s
+index 185b82db1a..213ffc1937 100644
+--- a/src/runtime/sys_openbsd_amd64.s
++++ b/src/runtime/sys_openbsd_amd64.s
+@@ -162,6 +162,15 @@ TEXT runtime·raise(SB),NOSPLIT,$16
+ 	SYSCALL
+ 	RET
+ 
++TEXT runtime·raiseproc(SB),NOSPLIT,$16
++	MOVL	$20, AX			// sys_getpid
++	SYSCALL
++	MOVQ	AX, DI			// arg 1 - pid
++	MOVL	sig+0(FP), SI		// arg 2 - signum
++	MOVL	$37, AX			// sys_kill
++	SYSCALL
++	RET
++
+ TEXT runtime·setitimer(SB),NOSPLIT,$-8
+ 	MOVL	mode+0(FP), DI		// arg 1 - which
+ 	MOVQ	new+8(FP), SI		// arg 2 - itv
+diff --git a/src/runtime/sys_openbsd_arm.s b/src/runtime/sys_openbsd_arm.s
+index d231f0fdb3..ab7f2ae01f 100644
+--- a/src/runtime/sys_openbsd_arm.s
++++ b/src/runtime/sys_openbsd_arm.s
+@@ -96,6 +96,15 @@ TEXT runtime·raise(SB),NOSPLIT,$12
+ 	SWI	$0
+ 	RET
+ 
++TEXT runtime·raiseproc(SB),NOSPLIT,$12
++	MOVW	$20, R12
++	SWI	$0			// sys_getpid
++					// arg 1 - pid, already in R0
++	MOVW	sig+0(FP), R1		// arg 2 - signum
++	MOVW	$37, R12		// sys_kill
++	SWI	$0
++	RET
++
+ TEXT runtime·mmap(SB),NOSPLIT,$16
+ 	MOVW	addr+0(FP), R0		// arg 1 - addr
+ 	MOVW	len+4(FP), R1		// arg 2 - len

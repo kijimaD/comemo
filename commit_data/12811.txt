@@ -7,6 +7,19 @@ Date:   Mon Apr 2 12:06:05 2012 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5969051
-
+---
  src/pkg/exp/utf8string/string.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/exp/utf8string/string.go b/src/pkg/exp/utf8string/string.go
+index da1e2de1ea..99778b2e8a 100644
+--- a/src/pkg/exp/utf8string/string.go
++++ b/src/pkg/exp/utf8string/string.go
+@@ -199,5 +199,5 @@ func (s *String) At(i int) rune {
+ 	return r
+ }
+ 
+-var outOfRange = errors.New("utf8.String: index out of range")
+-var sliceOutOfRange = errors.New("utf8.String: slice index out of range")
++var outOfRange = errors.New("utf8string: index out of range")
++var sliceOutOfRange = errors.New("utf8string: slice index out of range")

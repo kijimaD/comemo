@@ -9,7 +9,140 @@ Date:   Thu Sep 15 14:29:59 2011 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5037041
-
+---
  src/pkg/net/textproto/reader.go      | 33 ++++++++++++++++------
  src/pkg/net/textproto/reader_test.go | 53 ++++++++++++++++++++++++++++++++++++
  2 files changed, 78 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/net/textproto/reader.go b/src/pkg/net/textproto/reader.go
+index ce0ddc73f8..a404f4758a 100644
+--- a/src/pkg/net/textproto/reader.go
++++ b/src/pkg/net/textproto/reader.go
+@@ -11,6 +11,7 @@ import (
+ 	"io/ioutil"
+ 	"os"
+ 	"strconv"
++	"strings"
+ )
+ 
+ // BUG(rsc): To let callers manage exposure to denial of service
+@@ -182,6 +183,10 @@ func (r *Reader) readCodeLine(expectCode int) (code int, continued bool, message
+ 	if err != nil {
+ 		return
+ 	}
++	return parseCodeLine(line, expectCode)
++}
++
++func parseCodeLine(line string, expectCode int) (code int, continued bool, message string, err os.Error) {
+ 	if len(line) < 4 || line[3] != ' ' && line[3] != '-' {
+ 		err = ProtocolError("short response: " + line)
+ 		return
+@@ -224,15 +229,20 @@ func (r *Reader) ReadCodeLine(expectCode int) (code int, message string, err os.
+ 	return
+ }
+ 
+-// ReadResponse reads a multi-line response of the form
++// ReadResponse reads a multi-line response of the form:
++//
+ //	code-message line 1
+ //	code-message line 2
+ //	...
+ //	code message line n
+-// where code is a 3-digit status code. Each line should have the same code.
+-// The response is terminated by a line that uses a space between the code and
+-// the message line rather than a dash. Each line in message is separated by
+-// a newline (\n).
++//
++// where code is a 3-digit status code. The first line starts with the
++// code and a hyphen. The response is terminated by a line that starts
++// with the same code followed by a space. Each line in message is
++// separated by a newline (\n).
++//
++// See page 36 of RFC 959 (http://www.ietf.org/rfc/rfc959.txt) for
++// details.
+ //
+ // If the prefix of the status does not match the digits in expectCode,
+ // ReadResponse returns with err set to &Error{code, message}.
+@@ -244,11 +254,18 @@ func (r *Reader) ReadCodeLine(expectCode int) (code int, message string, err os.
+ func (r *Reader) ReadResponse(expectCode int) (code int, message string, err os.Error) {
+ 	code, continued, message, err := r.readCodeLine(expectCode)
+ 	for err == nil && continued {
++		line, err := r.ReadLine()
++		if err != nil {
++			return
++		}
++
+ 		var code2 int
+ 		var moreMessage string
+-		code2, continued, moreMessage, err = r.readCodeLine(expectCode)
+-		if code != code2 {
+-			err = ProtocolError("status code mismatch: " + strconv.Itoa(code) + ", " + strconv.Itoa(code2))
++		code2, continued, moreMessage, err = parseCodeLine(line, expectCode)
++		if err != nil || code2 != code {
++			message += "\n" + strings.TrimRight(line, "\r\n")
++			continued = true
++			continue
+ 		}
+ 		message += "\n" + moreMessage
+ 	}
+diff --git a/src/pkg/net/textproto/reader_test.go b/src/pkg/net/textproto/reader_test.go
+index 0658e58b82..23ebc3f61e 100644
+--- a/src/pkg/net/textproto/reader_test.go
++++ b/src/pkg/net/textproto/reader_test.go
+@@ -138,3 +138,56 @@ func TestReadMIMEHeader(t *testing.T) {
+ 		t.Fatalf("ReadMIMEHeader: %v, %v; want %v", m, err, want)
+ 	}
+ }
++
++type readResponseTest struct {
++	in       string
++	inCode   int
++	wantCode int
++	wantMsg  string
++}
++
++var readResponseTests = []readResponseTest{
++	{"230-Anonymous access granted, restrictions apply\n" +
++		"Read the file README.txt,\n" +
++		"230  please",
++		23,
++		230,
++		"Anonymous access granted, restrictions apply\nRead the file README.txt,\n please",
++	},
++
++	{"230 Anonymous access granted, restrictions apply\n",
++		23,
++		230,
++		"Anonymous access granted, restrictions apply",
++	},
++
++	{"400-A\n400-B\n400 C",
++		4,
++		400,
++		"A\nB\nC",
++	},
++
++	{"400-A\r\n400-B\r\n400 C\r\n",
++		4,
++		400,
++		"A\nB\nC",
++	},
++}
++
++// See http://www.ietf.org/rfc/rfc959.txt page 36.
++func TestRFC959Lines(t *testing.T) {
++	for i, tt := range readResponseTests {
++		r := reader(tt.in + "\nFOLLOWING DATA")
++		code, msg, err := r.ReadResponse(tt.inCode)
++		if err != nil {
++			t.Errorf("#%d: ReadResponse: %v", i, err)
++			continue
++		}
++		if code != tt.wantCode {
++			t.Errorf("#%d: code=%d, want %d", i, code, tt.wantCode)
++		}
++		if msg != tt.wantMsg {
++			t.Errorf("%#d: msg=%q, want %q", i, msg, tt.wantMsg)
++		}
++	}
++}

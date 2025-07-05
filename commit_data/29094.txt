@@ -20,7 +20,7 @@ Date:   Wed Aug 24 20:44:09 2016 +1000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/internal/obj/arm64/obj7.go  |  2 +-
  src/cmd/internal/obj/mips/obj0.go   |  2 +-
  src/cmd/internal/obj/ppc64/obj9.go  |  2 +-
@@ -36,3 +36,527 @@ Date:   Wed Aug 24 20:44:09 2016 +1000
  src/cmd/link/internal/s390x/asm.go  | 10 +++++-----
  src/cmd/link/internal/x86/asm.go    | 10 +++++-----
  14 files changed, 47 insertions(+), 48 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index 3f606dd697..e251408aa7 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -714,8 +714,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			if ctxt.Autosize == 0 && !(cursym.Text.Mark&LEAF != 0) {
+ 				if ctxt.Debugvlog != 0 {
+ 					fmt.Fprintf(ctxt.Bso, "save suppressed in: %s\n", cursym.Text.From.Sym.Name)
++					ctxt.Bso.Flush()
+ 				}
+-				ctxt.Bso.Flush()
+ 				cursym.Text.Mark |= LEAF
+ 			}
+ 
+diff --git a/src/cmd/internal/obj/mips/obj0.go b/src/cmd/internal/obj/mips/obj0.go
+index ade1ee566e..56a47f9c1b 100644
+--- a/src/cmd/internal/obj/mips/obj0.go
++++ b/src/cmd/internal/obj/mips/obj0.go
+@@ -145,8 +145,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 	 */
+ 	if ctxt.Debugvlog != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "%5.2f noops\n", obj.Cputime())
++		ctxt.Bso.Flush()
+ 	}
+-	ctxt.Bso.Flush()
+ 
+ 	var q *obj.Prog
+ 	var q1 *obj.Prog
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 5f88307a2f..6a5f050c67 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -276,8 +276,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 	 */
+ 	if ctxt.Debugvlog != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "%5.2f noops\n", obj.Cputime())
++		ctxt.Bso.Flush()
+ 	}
+-	ctxt.Bso.Flush()
+ 
+ 	var q *obj.Prog
+ 	var q1 *obj.Prog
+diff --git a/src/cmd/internal/obj/s390x/objz.go b/src/cmd/internal/obj/s390x/objz.go
+index 0526a35953..c9fca1b36f 100644
+--- a/src/cmd/internal/obj/s390x/objz.go
++++ b/src/cmd/internal/obj/s390x/objz.go
+@@ -243,8 +243,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 	 */
+ 	if ctxt.Debugvlog != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "%5.2f noops\n", obj.Cputime())
++		ctxt.Bso.Flush()
+ 	}
+-	ctxt.Bso.Flush()
+ 
+ 	var q *obj.Prog
+ 	var q1 *obj.Prog
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 3392b4ab00..f64a309c8c 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -601,13 +601,13 @@ func addgotsym(ctxt *ld.Link, s *ld.Symbol) {
+ func asmb(ctxt *ld.Link) {
+ 	if ctxt.Debugvlog != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "%5.2f asmb\n", obj.Cputime())
++		ctxt.Bso.Flush()
+ 	}
+-	ctxt.Bso.Flush()
+ 
+ 	if ctxt.Debugvlog != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "%5.2f codeblk\n", obj.Cputime())
++		ctxt.Bso.Flush()
+ 	}
+-	ctxt.Bso.Flush()
+ 
+ 	if ld.Iself {
+ 		ld.Asmbelfsetup(ctxt)
+@@ -625,8 +625,8 @@ func asmb(ctxt *ld.Link) {
+ 	if ld.Segrodata.Filelen > 0 {
+ 		if ctxt.Debugvlog != 0 {
+ 			fmt.Fprintf(ctxt.Bso, "%5.2f rodatblk\n", obj.Cputime())
++			ctxt.Bso.Flush()
+ 		}
+-		ctxt.Bso.Flush()
+ 
+ 		ld.Cseek(int64(ld.Segrodata.Fileoff))
+ 		ld.Datblk(ctxt, int64(ld.Segrodata.Vaddr), int64(ld.Segrodata.Filelen))
+@@ -634,8 +634,8 @@ func asmb(ctxt *ld.Link) {
+ 
+ 	if ctxt.Debugvlog != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "%5.2f datblk\n", obj.Cputime())
++		ctxt.Bso.Flush()
+ 	}
+-	ctxt.Bso.Flush()
+ 
+ 	ld.Cseek(int64(ld.Segdata.Fileoff))
+ 	ld.Datblk(ctxt, int64(ld.Segdata.Vaddr), int64(ld.Segdata.Filelen))
+@@ -679,8 +679,8 @@ func asmb(ctxt *ld.Link) {
+ 	if !*ld.FlagS {
+ 		if ctxt.Debugvlog != 0 {
+ 			fmt.Fprintf(ctxt.Bso, "%5.2f sym\n", obj.Cputime())
++			ctxt.Bso.Flush()
+ 		}
+-		ctxt.Bso.Flush()
+ 		switch ld.HEADTYPE {
+ 		default:
+ 		case obj.Hplan9:
+@@ -751,8 +751,8 @@ func asmb(ctxt *ld.Link) {
+ 
+ 	if ctxt.Debugvlog != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "%5.2f headr\n", obj.Cputime())
++		ctxt.Bso.Flush()
+ 	}
+-	ctxt.Bso.Flush()
+ 	ld.Cseek(0)
+ 	switch ld.HEADTYPE {
+ 	default:
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index b1a0545390..111fe2894e 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -584,8 +584,8 @@ func addgotsym(ctxt *ld.Link, s *ld.Symbol) {
+ func asmb(ctxt *ld.Link) {
+ 	if ctxt.Debugvlog != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "%5.2f asmb\n", obj.Cputime())
++		ctxt.Bso.Flush()
+ 	}
+-	ctxt.Bso.Flush()
+ 
+ 	if ld.Iself {
+ 		ld.Asmbelfsetup(ctxt)
+@@ -602,8 +602,8 @@ func asmb(ctxt *ld.Link) {
+ 	if ld.Segrodata.Filelen > 0 {
+ 		if ctxt.Debugvlog != 0 {
+ 			fmt.Fprintf(ctxt.Bso, "%5.2f rodatblk\n", obj.Cputime())
++			ctxt.Bso.Flush()
+ 		}
+-		ctxt.Bso.Flush()
+ 
+ 		ld.Cseek(int64(ld.Segrodata.Fileoff))
+ 		ld.Datblk(ctxt, int64(ld.Segrodata.Vaddr), int64(ld.Segrodata.Filelen))
+@@ -611,8 +611,8 @@ func asmb(ctxt *ld.Link) {
+ 
+ 	if ctxt.Debugvlog != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "%5.2f datblk\n", obj.Cputime())
++		ctxt.Bso.Flush()
+ 	}
+-	ctxt.Bso.Flush()
+ 
+ 	ld.Cseek(int64(ld.Segdata.Fileoff))
+ 	ld.Datblk(ctxt, int64(ld.Segdata.Vaddr), int64(ld.Segdata.Filelen))
+@@ -634,8 +634,8 @@ func asmb(ctxt *ld.Link) {
+ 		// TODO: rationalize
+ 		if ctxt.Debugvlog != 0 {
+ 			fmt.Fprintf(ctxt.Bso, "%5.2f sym\n", obj.Cputime())
++			ctxt.Bso.Flush()
+ 		}
+-		ctxt.Bso.Flush()
+ 		switch ld.HEADTYPE {
+ 		default:
+ 			if ld.Iself {
+@@ -690,8 +690,8 @@ func asmb(ctxt *ld.Link) {
+ 	ctxt.Cursym = nil
+ 	if ctxt.Debugvlog != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "%5.2f header\n", obj.Cputime())
++		ctxt.Bso.Flush()
+ 	}
+-	ctxt.Bso.Flush()
+ 	ld.Cseek(0)
+ 	switch ld.HEADTYPE {
+ 	default:
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index a25a01dd49..5bba3f0e24 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -393,8 +393,8 @@ func archrelocvariant(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, t int64) int64 {
+ func asmb(ctxt *ld.Link) {
+ 	if ctxt.Debugvlog != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "%5.2f asmb\n", obj.Cputime())
++		ctxt.Bso.Flush()
+ 	}
+-	ctxt.Bso.Flush()
+ 
+ 	if ld.Iself {
+ 		ld.Asmbelfsetup(ctxt)
+@@ -411,8 +411,8 @@ func asmb(ctxt *ld.Link) {
+ 	if ld.Segrodata.Filelen > 0 {
+ 		if ctxt.Debugvlog != 0 {
+ 			fmt.Fprintf(ctxt.Bso, "%5.2f rodatblk\n", obj.Cputime())
++			ctxt.Bso.Flush()
+ 		}
+-		ctxt.Bso.Flush()
+ 
+ 		ld.Cseek(int64(ld.Segrodata.Fileoff))
+ 		ld.Datblk(ctxt, int64(ld.Segrodata.Vaddr), int64(ld.Segrodata.Filelen))
+@@ -420,8 +420,8 @@ func asmb(ctxt *ld.Link) {
+ 
+ 	if ctxt.Debugvlog != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "%5.2f datblk\n", obj.Cputime())
++		ctxt.Bso.Flush()
+ 	}
+-	ctxt.Bso.Flush()
+ 
+ 	ld.Cseek(int64(ld.Segdata.Fileoff))
+ 	ld.Datblk(ctxt, int64(ld.Segdata.Vaddr), int64(ld.Segdata.Filelen))
+@@ -443,8 +443,8 @@ func asmb(ctxt *ld.Link) {
+ 		// TODO: rationalize
+ 		if ctxt.Debugvlog != 0 {
+ 			fmt.Fprintf(ctxt.Bso, "%5.2f sym\n", obj.Cputime())
++			ctxt.Bso.Flush()
+ 		}
+-		ctxt.Bso.Flush()
+ 		switch ld.HEADTYPE {
+ 		default:
+ 			if ld.Iself {
+@@ -499,8 +499,8 @@ func asmb(ctxt *ld.Link) {
+ 	ctxt.Cursym = nil
+ 	if ctxt.Debugvlog != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "%5.2f header\n", obj.Cputime())
++		ctxt.Bso.Flush()
+ 	}
+-	ctxt.Bso.Flush()
+ 	ld.Cseek(0)
+ 	switch ld.HEADTYPE {
+ 	default:
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 59617386ab..aeb7a75f1a 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -649,8 +649,8 @@ func relocsym(ctxt *Link, s *Symbol) {
+ func (ctxt *Link) reloc() {
+ 	if ctxt.Debugvlog != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "%5.2f reloc\n", obj.Cputime())
++		ctxt.Bso.Flush()
+ 	}
+-	ctxt.Bso.Flush()
+ 
+ 	for _, s := range ctxt.Textp {
+ 		relocsym(ctxt, s)
+@@ -725,8 +725,8 @@ func dynreloc(ctxt *Link, data *[obj.SXREF][]*Symbol) {
+ 	}
+ 	if ctxt.Debugvlog != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "%5.2f reloc\n", obj.Cputime())
++		ctxt.Bso.Flush()
+ 	}
+-	ctxt.Bso.Flush()
+ 
+ 	for _, s := range ctxt.Textp {
+ 		dynrelocsym(ctxt, s)
+@@ -805,9 +805,8 @@ func CodeblkPad(ctxt *Link, addr int64, size int64, pad []byte) {
+ 		for ; addr < eaddr; addr++ {
+ 			fmt.Fprintf(ctxt.Bso, " %.2x", 0)
+ 		}
++		ctxt.Bso.Flush()
+ 	}
+-
+-	ctxt.Bso.Flush()
+ }
+ 
+ func blk(ctxt *Link, syms []*Symbol, addr, size int64, pad []byte) {
+@@ -1191,8 +1190,8 @@ var datap []*Symbol
+ func (ctxt *Link) dodata() {
+ 	if ctxt.Debugvlog != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "%5.2f dodata\n", obj.Cputime())
++		ctxt.Bso.Flush()
+ 	}
+-	ctxt.Bso.Flush()
+ 
+ 	// Collect data symbols by type into data.
+ 	var data [obj.SXREF][]*Symbol
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 7603c81319..ba1c6da34f 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -655,8 +655,8 @@ func objfile(ctxt *Link, lib *Library) {
+ 
+ 	if ctxt.Debugvlog > 1 {
+ 		fmt.Fprintf(ctxt.Bso, "%5.2f ldobj: %s (%s)\n", obj.Cputime(), lib.File, pkg)
++		ctxt.Bso.Flush()
+ 	}
+-	ctxt.Bso.Flush()
+ 	f, err := bio.Open(lib.File)
+ 	if err != nil {
+ 		Exitf("cannot open file %s: %v", lib.File, err)
+@@ -1945,8 +1945,8 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, int, int64, int64, i
+ 	// Something underhanded is going on. Say nothing.
+ 	if ctxt.Debugvlog != 0 || *flagN {
+ 		fmt.Fprintf(ctxt.Bso, "%5.2f symsize = %d\n", obj.Cputime(), uint32(Symsize))
++		ctxt.Bso.Flush()
+ 	}
+-	ctxt.Bso.Flush()
+ }
+ 
+ func Symaddr(ctxt *Link, s *Symbol) int64 {
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 349542bde1..ab1160184f 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -176,8 +176,8 @@ func Main() {
+ 
+ 	if ctxt.Debugvlog != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "HEADER = -H%d -T0x%x -D0x%x -R0x%x\n", HEADTYPE, uint64(*FlagTextAddr), uint64(*FlagDataAddr), uint32(*FlagRound))
++		ctxt.Bso.Flush()
+ 	}
+-	ctxt.Bso.Flush()
+ 
+ 	if Buildmode == BuildmodeShared {
+ 		for i := 0; i < flag.NArg(); i++ {
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index 0b0479e336..42c1ecbe5b 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -185,8 +185,8 @@ func archrelocvariant(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, t int64) int64 {
+ func asmb(ctxt *ld.Link) {
+ 	if ctxt.Debugvlog != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "%5.2f asmb\n", obj.Cputime())
++		ctxt.Bso.Flush()
+ 	}
+-	ctxt.Bso.Flush()
+ 
+ 	if ld.Iself {
+ 		ld.Asmbelfsetup(ctxt)
+@@ -203,8 +203,8 @@ func asmb(ctxt *ld.Link) {
+ 	if ld.Segrodata.Filelen > 0 {
+ 		if ctxt.Debugvlog != 0 {
+ 			fmt.Fprintf(ctxt.Bso, "%5.2f rodatblk\n", obj.Cputime())
++			ctxt.Bso.Flush()
+ 		}
+-		ctxt.Bso.Flush()
+ 
+ 		ld.Cseek(int64(ld.Segrodata.Fileoff))
+ 		ld.Datblk(ctxt, int64(ld.Segrodata.Vaddr), int64(ld.Segrodata.Filelen))
+@@ -212,8 +212,8 @@ func asmb(ctxt *ld.Link) {
+ 
+ 	if ctxt.Debugvlog != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "%5.2f datblk\n", obj.Cputime())
++		ctxt.Bso.Flush()
+ 	}
+-	ctxt.Bso.Flush()
+ 
+ 	ld.Cseek(int64(ld.Segdata.Fileoff))
+ 	ld.Datblk(ctxt, int64(ld.Segdata.Vaddr), int64(ld.Segdata.Filelen))
+@@ -230,8 +230,8 @@ func asmb(ctxt *ld.Link) {
+ 		// TODO: rationalize
+ 		if ctxt.Debugvlog != 0 {
+ 			fmt.Fprintf(ctxt.Bso, "%5.2f sym\n", obj.Cputime())
++			ctxt.Bso.Flush()
+ 		}
+-		ctxt.Bso.Flush()
+ 		switch ld.HEADTYPE {
+ 		default:
+ 			if ld.Iself {
+@@ -278,8 +278,8 @@ func asmb(ctxt *ld.Link) {
+ 	ctxt.Cursym = nil
+ 	if ctxt.Debugvlog != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "%5.2f header\n", obj.Cputime())
++		ctxt.Bso.Flush()
+ 	}
+-	ctxt.Bso.Flush()
+ 	ld.Cseek(0)
+ 	switch ld.HEADTYPE {
+ 	default:
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 3bfa63a27f..996b968d28 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -806,8 +806,8 @@ func ensureglinkresolver(ctxt *ld.Link) *ld.Symbol {
+ func asmb(ctxt *ld.Link) {
+ 	if ctxt.Debugvlog != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "%5.2f asmb\n", obj.Cputime())
++		ctxt.Bso.Flush()
+ 	}
+-	ctxt.Bso.Flush()
+ 
+ 	if ld.Iself {
+ 		ld.Asmbelfsetup(ctxt)
+@@ -824,8 +824,8 @@ func asmb(ctxt *ld.Link) {
+ 	if ld.Segrodata.Filelen > 0 {
+ 		if ctxt.Debugvlog != 0 {
+ 			fmt.Fprintf(ctxt.Bso, "%5.2f rodatblk\n", obj.Cputime())
++			ctxt.Bso.Flush()
+ 		}
+-		ctxt.Bso.Flush()
+ 
+ 		ld.Cseek(int64(ld.Segrodata.Fileoff))
+ 		ld.Datblk(ctxt, int64(ld.Segrodata.Vaddr), int64(ld.Segrodata.Filelen))
+@@ -833,8 +833,8 @@ func asmb(ctxt *ld.Link) {
+ 
+ 	if ctxt.Debugvlog != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "%5.2f datblk\n", obj.Cputime())
++		ctxt.Bso.Flush()
+ 	}
+-	ctxt.Bso.Flush()
+ 
+ 	ld.Cseek(int64(ld.Segdata.Fileoff))
+ 	ld.Datblk(ctxt, int64(ld.Segdata.Vaddr), int64(ld.Segdata.Filelen))
+@@ -851,8 +851,8 @@ func asmb(ctxt *ld.Link) {
+ 		// TODO: rationalize
+ 		if ctxt.Debugvlog != 0 {
+ 			fmt.Fprintf(ctxt.Bso, "%5.2f sym\n", obj.Cputime())
++			ctxt.Bso.Flush()
+ 		}
+-		ctxt.Bso.Flush()
+ 		switch ld.HEADTYPE {
+ 		default:
+ 			if ld.Iself {
+@@ -899,8 +899,8 @@ func asmb(ctxt *ld.Link) {
+ 	ctxt.Cursym = nil
+ 	if ctxt.Debugvlog != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "%5.2f header\n", obj.Cputime())
++		ctxt.Bso.Flush()
+ 	}
+-	ctxt.Bso.Flush()
+ 	ld.Cseek(0)
+ 	switch ld.HEADTYPE {
+ 	default:
+diff --git a/src/cmd/link/internal/s390x/asm.go b/src/cmd/link/internal/s390x/asm.go
+index 2e0dfbb640..4441e3840a 100644
+--- a/src/cmd/link/internal/s390x/asm.go
++++ b/src/cmd/link/internal/s390x/asm.go
+@@ -501,8 +501,8 @@ func addgotsym(ctxt *ld.Link, s *ld.Symbol) {
+ func asmb(ctxt *ld.Link) {
+ 	if ctxt.Debugvlog != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "%5.2f asmb\n", obj.Cputime())
++		ctxt.Bso.Flush()
+ 	}
+-	ctxt.Bso.Flush()
+ 
+ 	if ld.Iself {
+ 		ld.Asmbelfsetup(ctxt)
+@@ -519,8 +519,8 @@ func asmb(ctxt *ld.Link) {
+ 	if ld.Segrodata.Filelen > 0 {
+ 		if ctxt.Debugvlog != 0 {
+ 			fmt.Fprintf(ctxt.Bso, "%5.2f rodatblk\n", obj.Cputime())
++			ctxt.Bso.Flush()
+ 		}
+-		ctxt.Bso.Flush()
+ 
+ 		ld.Cseek(int64(ld.Segrodata.Fileoff))
+ 		ld.Datblk(ctxt, int64(ld.Segrodata.Vaddr), int64(ld.Segrodata.Filelen))
+@@ -528,8 +528,8 @@ func asmb(ctxt *ld.Link) {
+ 
+ 	if ctxt.Debugvlog != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "%5.2f datblk\n", obj.Cputime())
++		ctxt.Bso.Flush()
+ 	}
+-	ctxt.Bso.Flush()
+ 
+ 	ld.Cseek(int64(ld.Segdata.Fileoff))
+ 	ld.Datblk(ctxt, int64(ld.Segdata.Vaddr), int64(ld.Segdata.Filelen))
+@@ -548,8 +548,8 @@ func asmb(ctxt *ld.Link) {
+ 		}
+ 		if ctxt.Debugvlog != 0 {
+ 			fmt.Fprintf(ctxt.Bso, "%5.2f sym\n", obj.Cputime())
++			ctxt.Bso.Flush()
+ 		}
+-		ctxt.Bso.Flush()
+ 		symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+ 		symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
+ 
+@@ -573,8 +573,8 @@ func asmb(ctxt *ld.Link) {
+ 	ctxt.Cursym = nil
+ 	if ctxt.Debugvlog != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "%5.2f header\n", obj.Cputime())
++		ctxt.Bso.Flush()
+ 	}
+-	ctxt.Bso.Flush()
+ 	ld.Cseek(0)
+ 	switch ld.HEADTYPE {
+ 	default:
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index 63a7e1537e..28bd247275 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -627,8 +627,8 @@ func addgotsym(ctxt *ld.Link, s *ld.Symbol) {
+ func asmb(ctxt *ld.Link) {
+ 	if ctxt.Debugvlog != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "%5.2f asmb\n", obj.Cputime())
++		ctxt.Bso.Flush()
+ 	}
+-	ctxt.Bso.Flush()
+ 
+ 	if ld.Iself {
+ 		ld.Asmbelfsetup(ctxt)
+@@ -646,8 +646,8 @@ func asmb(ctxt *ld.Link) {
+ 	if ld.Segrodata.Filelen > 0 {
+ 		if ctxt.Debugvlog != 0 {
+ 			fmt.Fprintf(ctxt.Bso, "%5.2f rodatblk\n", obj.Cputime())
++			ctxt.Bso.Flush()
+ 		}
+-		ctxt.Bso.Flush()
+ 
+ 		ld.Cseek(int64(ld.Segrodata.Fileoff))
+ 		ld.Datblk(ctxt, int64(ld.Segrodata.Vaddr), int64(ld.Segrodata.Filelen))
+@@ -655,8 +655,8 @@ func asmb(ctxt *ld.Link) {
+ 
+ 	if ctxt.Debugvlog != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "%5.2f datblk\n", obj.Cputime())
++		ctxt.Bso.Flush()
+ 	}
+-	ctxt.Bso.Flush()
+ 
+ 	ld.Cseek(int64(ld.Segdata.Fileoff))
+ 	ld.Datblk(ctxt, int64(ld.Segdata.Vaddr), int64(ld.Segdata.Filelen))
+@@ -677,8 +677,8 @@ func asmb(ctxt *ld.Link) {
+ 		// TODO: rationalize
+ 		if ctxt.Debugvlog != 0 {
+ 			fmt.Fprintf(ctxt.Bso, "%5.2f sym\n", obj.Cputime())
++			ctxt.Bso.Flush()
+ 		}
+-		ctxt.Bso.Flush()
+ 		switch ld.HEADTYPE {
+ 		default:
+ 			if ld.Iself {
+@@ -741,8 +741,8 @@ func asmb(ctxt *ld.Link) {
+ 
+ 	if ctxt.Debugvlog != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "%5.2f headr\n", obj.Cputime())
++		ctxt.Bso.Flush()
+ 	}
+-	ctxt.Bso.Flush()
+ 	ld.Cseek(0)
+ 	switch ld.HEADTYPE {
+ 	default:

@@ -21,6 +21,32 @@ Date:   Thu May 23 13:43:45 2024 -0700
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/syscall/rlimit.go | 11 -----------
  1 file changed, 11 deletions(-)
+
+diff --git a/src/syscall/rlimit.go b/src/syscall/rlimit.go
+index f94b894b90..8184f17ab6 100644
+--- a/src/syscall/rlimit.go
++++ b/src/syscall/rlimit.go
+@@ -8,20 +8,9 @@ package syscall
+ 
+ import (
+ 	"sync/atomic"
+-	_ "unsafe"
+ )
+ 
+ // origRlimitNofile, if non-nil, is the original soft RLIMIT_NOFILE.
+-//
+-// origRlimitNofile should be an internal detail,
+-// but widely used packages access it using linkname.
+-// Notable members of the hall of shame include:
+-//   - github.com/opencontainers/runc
+-//
+-// Do not remove or change the type signature.
+-// See go.dev/issue/67401.
+-//
+-//go:linkname origRlimitNofile
+ var origRlimitNofile atomic.Pointer[Rlimit]
+ 
+ // Some systems set an artificially low soft limit on open file count, for compatibility

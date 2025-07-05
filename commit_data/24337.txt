@@ -22,6 +22,23 @@ Date:   Wed Jul 15 14:38:19 2015 -0600
     Change-Id: I8be020b2f69352234587eeadeba923481bf43fcc
     Reviewed-on: https://go-review.googlesource.com/12244
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/cse.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/cse.go b/src/cmd/compile/internal/ssa/cse.go
+index 9212aaf314..ebc25151b2 100644
+--- a/src/cmd/compile/internal/ssa/cse.go
++++ b/src/cmd/compile/internal/ssa/cse.go
+@@ -69,7 +69,10 @@ func cse(f *Func) {
+ 	for {
+ 		changed := false
+ 
+-		for i, e := range partition {
++		// partition can grow in the loop. By not using a range loop here,
++		// we process new additions as they arrive, avoiding O(n^2) behavior.
++		for i := 0; i < len(partition); i++ {
++			e := partition[i]
+ 			v := e[0]
+ 			// all values in this equiv class that are not equivalent to v get moved
+ 			// into another equiv class q.

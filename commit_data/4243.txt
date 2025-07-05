@@ -7,7 +7,73 @@ Date:   Mon Nov 30 12:03:43 2009 -0800
     R=r, rsc
     CC=agl1
     https://golang.org/cl/161070
-
+---
  src/pkg/crypto/tls/handshake_client.go   |  4 ++--
  src/pkg/crypto/tls/handshake_messages.go | 10 +++++-----
  2 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/handshake_client.go b/src/pkg/crypto/tls/handshake_client.go
+index db9bb8cb33..1c6bd4b81b 100644
+--- a/src/pkg/crypto/tls/handshake_client.go
++++ b/src/pkg/crypto/tls/handshake_client.go
+@@ -46,7 +46,7 @@ func (h *clientHandshake) loop(writeChan chan<- interface{}, controlChan chan<-
+ 	hello.random[1] = byte(currentTime >> 16);
+ 	hello.random[2] = byte(currentTime >> 8);
+ 	hello.random[3] = byte(currentTime);
+-	_, err := io.ReadFull(config.Rand, hello.random[4:len(hello.random)]);
++	_, err := io.ReadFull(config.Rand, hello.random[4:]);
+ 	if err != nil {
+ 		h.error(alertInternalError);
+ 		return;
+@@ -132,7 +132,7 @@ func (h *clientHandshake) loop(writeChan chan<- interface{}, controlChan chan<-
+ 	// version offered in the ClientHello.
+ 	preMasterSecret[0] = defaultMajor;
+ 	preMasterSecret[1] = defaultMinor;
+-	_, err = io.ReadFull(config.Rand, preMasterSecret[2:len(preMasterSecret)]);
++	_, err = io.ReadFull(config.Rand, preMasterSecret[2:]);
+ 	if err != nil {
+ 		h.error(alertInternalError);
+ 		return;
+diff --git a/src/pkg/crypto/tls/handshake_messages.go b/src/pkg/crypto/tls/handshake_messages.go
+index 65dae87625..b5f2aa731f 100644
+--- a/src/pkg/crypto/tls/handshake_messages.go
++++ b/src/pkg/crypto/tls/handshake_messages.go
+@@ -133,7 +133,7 @@ func (m *serverHelloMsg) unmarshal(data []byte) bool {
+ 		return false
+ 	}
+ 	m.sessionId = data[39 : 39+sessionIdLen];
+-	data = data[39+sessionIdLen : len(data)];
++	data = data[39+sessionIdLen:];
+ 	if len(data) < 3 {
+ 		return false
+ 	}
+@@ -196,7 +196,7 @@ func (m *certificateMsg) unmarshal(data []byte) bool {
+ 	}
+ 
+ 	numCerts := 0;
+-	d := data[7:len(data)];
++	d := data[7:];
+ 	for certsLen > 0 {
+ 		if len(d) < 4 {
+ 			return false
+@@ -205,17 +205,17 @@ func (m *certificateMsg) unmarshal(data []byte) bool {
+ 		if uint32(len(d)) < 3+certLen {
+ 			return false
+ 		}
+-		d = d[3+certLen : len(d)];
++		d = d[3+certLen:];
+ 		certsLen -= 3 + certLen;
+ 		numCerts++;
+ 	}
+ 
+ 	m.certificates = make([][]byte, numCerts);
+-	d = data[7:len(data)];
++	d = data[7:];
+ 	for i := 0; i < numCerts; i++ {
+ 		certLen := uint32(d[0])<<24 | uint32(d[1])<<8 | uint32(d[2]);
+ 		m.certificates[i] = d[3 : 3+certLen];
+-		d = d[3+certLen : len(d)];
++		d = d[3+certLen:];
+ 	}
+ 
+ 	return true;

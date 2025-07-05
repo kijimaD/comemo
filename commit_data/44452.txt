@@ -15,7 +15,98 @@ Date:   Sun Jul 5 01:03:16 2020 -0400
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David du Colombier <0intro@gmail.com>
-
+---
  src/net/ipsock_plan9.go      | 20 +++++++++++++-------
  src/net/ipsock_plan9_test.go | 29 +++++++++++++++++++++++++++++
  2 files changed, 42 insertions(+), 7 deletions(-)
+
+diff --git a/src/net/ipsock_plan9.go b/src/net/ipsock_plan9.go
+index 9db01b090d..99d3e3971a 100644
+--- a/src/net/ipsock_plan9.go
++++ b/src/net/ipsock_plan9.go
+@@ -67,7 +67,7 @@ func parsePlan9Addr(s string) (ip IP, iport int, err error) {
+ 	return addr, p, nil
+ }
+ 
+-func readPlan9Addr(proto, filename string) (addr Addr, err error) {
++func readPlan9Addr(net, filename string) (addr Addr, err error) {
+ 	var buf [128]byte
+ 
+ 	f, err := os.Open(filename)
+@@ -83,13 +83,19 @@ func readPlan9Addr(proto, filename string) (addr Addr, err error) {
+ 	if err != nil {
+ 		return
+ 	}
+-	switch proto {
+-	case "tcp":
++	switch net {
++	case "tcp4", "udp4":
++		if ip.Equal(IPv6zero) {
++			ip = ip[:IPv4len]
++		}
++	}
++	switch net {
++	case "tcp", "tcp4", "tcp6":
+ 		addr = &TCPAddr{IP: ip, Port: port}
+-	case "udp":
++	case "udp", "udp4", "udp6":
+ 		addr = &UDPAddr{IP: ip, Port: port}
+ 	default:
+-		return nil, UnknownNetworkError(proto)
++		return nil, UnknownNetworkError(net)
+ 	}
+ 	return addr, nil
+ }
+@@ -213,7 +219,7 @@ func dialPlan9Blocking(ctx context.Context, net string, laddr, raddr Addr) (fd *
+ 		f.Close()
+ 		return nil, err
+ 	}
+-	laddr, err = readPlan9Addr(proto, netdir+"/"+proto+"/"+name+"/local")
++	laddr, err = readPlan9Addr(net, netdir+"/"+proto+"/"+name+"/local")
+ 	if err != nil {
+ 		data.Close()
+ 		f.Close()
+@@ -233,7 +239,7 @@ func listenPlan9(ctx context.Context, net string, laddr Addr) (fd *netFD, err er
+ 		f.Close()
+ 		return nil, &OpError{Op: "announce", Net: net, Source: laddr, Addr: nil, Err: err}
+ 	}
+-	laddr, err = readPlan9Addr(proto, netdir+"/"+proto+"/"+name+"/local")
++	laddr, err = readPlan9Addr(net, netdir+"/"+proto+"/"+name+"/local")
+ 	if err != nil {
+ 		f.Close()
+ 		return nil, err
+diff --git a/src/net/ipsock_plan9_test.go b/src/net/ipsock_plan9_test.go
+new file mode 100644
+index 0000000000..e5fb9ff965
+--- /dev/null
++++ b/src/net/ipsock_plan9_test.go
+@@ -0,0 +1,29 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import "testing"
++
++func TestTCP4ListenZero(t *testing.T) {
++	l, err := Listen("tcp4", "0.0.0.0:0")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer l.Close()
++	if a := l.Addr(); isNotIPv4(a) {
++		t.Errorf("address does not contain IPv4: %v", a)
++	}
++}
++
++func TestUDP4ListenZero(t *testing.T) {
++	c, err := ListenPacket("udp4", "0.0.0.0:0")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer c.Close()
++	if a := c.LocalAddr(); isNotIPv4(a) {
++		t.Errorf("address does not contain IPv4: %v", a)
++	}
++}

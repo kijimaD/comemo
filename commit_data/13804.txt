@@ -8,7 +8,56 @@ Date:   Wed Sep 12 21:47:05 2012 +1000
     R=remyoudompheng, rsc
     CC=golang-dev
     https://golang.org/cl/6496106
-
+---
  src/cmd/6g/cgen.c | 6 ------
  src/cmd/8g/cgen.c | 6 ------
  2 files changed, 12 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 1839040f20..891d0bab03 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -1325,9 +1325,6 @@ componentgen(Node *nr, Node *nl)
+ 
+ 	switch(nl->type->etype) {
+ 	case TARRAY:
+-		if(!isslice(nl->type))
+-			goto no;
+-
+ 		nodl.xoffset += Array_array;
+ 		nodl.type = ptrto(nl->type->type);
+ 
+@@ -1405,9 +1402,6 @@ componentgen(Node *nr, Node *nl)
+ 		gmove(&nodr, &nodl);
+ 
+ 		goto yes;
+-
+-	case TSTRUCT:
+-		goto no;
+ 	}
+ 
+ no:
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index fc9c183beb..fb0f441b35 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -1339,9 +1339,6 @@ componentgen(Node *nr, Node *nl)
+ 
+ 	switch(nl->type->etype) {
+ 	case TARRAY:
+-		if(!isslice(nl->type))
+-			goto no;
+-
+ 		nodl.xoffset += Array_array;
+ 		nodl.type = ptrto(nl->type->type);
+ 
+@@ -1419,9 +1416,6 @@ componentgen(Node *nr, Node *nl)
+ 		gmove(&nodr, &nodl);
+ 
+ 		goto yes;
+-
+-	case TSTRUCT:
+-		goto no;
+ 	}
+ 
+ no:

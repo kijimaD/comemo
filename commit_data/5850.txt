@@ -7,6 +7,18 @@ Date:   Tue Jul 20 16:20:35 2010 +0300
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1742048
-
+---
  test/nul1.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/nul1.go b/test/nul1.go
+index bcd8b89c3b..bf637f7eb0 100644
+--- a/test/nul1.go
++++ b/test/nul1.go
+@@ -1,5 +1,5 @@
+ // [ $GOOS != nacl ] || exit 0  # NaCl runner elides NUL in output
+-// [ $GORUN != "a" ] || exit 0  # Android runner gets confused by the NUL output 
++// [ "$GORUN" != "a" ] || exit 0  # Android runner gets confused by the NUL output 
+ // $G $D/$F.go && $L $F.$A && ./$A.out >tmp.go &&
+ // errchk $G -e tmp.go
+ // rm -f tmp.go

@@ -9,7 +9,7 @@ Date:   Wed Nov 9 14:55:52 2011 +1100
     R=golang-dev, mikioh.mikioh, bradfitz, andybalholm, rsc
     CC=golang-dev
     https://golang.org/cl/5345041
-
+---
  src/pkg/net/http/chunked.go               | 125 ++++++++++++++++++++++++--
  src/pkg/net/http/chunked_test.go          |  39 +++++++++
  src/pkg/net/http/httputil/chunked.go      | 140 ++++++++++++++++++++++++------
@@ -17,3 +17,536 @@ Date:   Wed Nov 9 14:55:52 2011 +1100
  src/pkg/net/http/request.go               |  90 -------------------
  src/pkg/net/http/response_test.go         |   2 +-
  6 files changed, 280 insertions(+), 124 deletions(-)
+
+diff --git a/src/pkg/net/http/chunked.go b/src/pkg/net/http/chunked.go
+index b012dd1849..74c41aabd4 100644
+--- a/src/pkg/net/http/chunked.go
++++ b/src/pkg/net/http/chunked.go
+@@ -2,20 +2,137 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// The wire protocol for HTTP's "chunked" Transfer-Encoding.
++
++// This code is duplicated in httputil/chunked.go.
++// Please make any changes in both files.
++
+ package http
+ 
+ import (
+ 	"bufio"
++	"bytes"
++	"errors"
+ 	"io"
+ 	"strconv"
+ )
+ 
++const maxLineLength = 4096 // assumed <= bufio.defaultBufSize
++
++var ErrLineTooLong = errors.New("header line too long")
++
++// newChunkedReader returns a new chunkedReader that translates the data read from r
++// out of HTTP "chunked" format before returning it. 
++// The chunkedReader returns io.EOF when the final 0-length chunk is read.
++//
++// newChunkedReader is not needed by normal applications. The http package
++// automatically decodes chunking when reading response bodies.
++func newChunkedReader(r io.Reader) io.Reader {
++	br, ok := r.(*bufio.Reader)
++	if !ok {
++		br = bufio.NewReader(r)
++	}
++	return &chunkedReader{r: br}
++}
++
++type chunkedReader struct {
++	r   *bufio.Reader
++	n   uint64 // unread bytes in chunk
++	err error
++}
++
++func (cr *chunkedReader) beginChunk() {
++	// chunk-size CRLF
++	var line string
++	line, cr.err = readLine(cr.r)
++	if cr.err != nil {
++		return
++	}
++	cr.n, cr.err = strconv.Btoui64(line, 16)
++	if cr.err != nil {
++		return
++	}
++	if cr.n == 0 {
++		cr.err = io.EOF
++	}
++}
++
++func (cr *chunkedReader) Read(b []uint8) (n int, err error) {
++	if cr.err != nil {
++		return 0, cr.err
++	}
++	if cr.n == 0 {
++		cr.beginChunk()
++		if cr.err != nil {
++			return 0, cr.err
++		}
++	}
++	if uint64(len(b)) > cr.n {
++		b = b[0:cr.n]
++	}
++	n, cr.err = cr.r.Read(b)
++	cr.n -= uint64(n)
++	if cr.n == 0 && cr.err == nil {
++		// end of chunk (CRLF)
++		b := make([]byte, 2)
++		if _, cr.err = io.ReadFull(cr.r, b); cr.err == nil {
++			if b[0] != '\r' || b[1] != '\n' {
++				cr.err = errors.New("malformed chunked encoding")
++			}
++		}
++	}
++	return n, cr.err
++}
++
++// Read a line of bytes (up to \n) from b.
++// Give up if the line exceeds maxLineLength.
++// The returned bytes are a pointer into storage in
++// the bufio, so they are only valid until the next bufio read.
++func readLineBytes(b *bufio.Reader) (p []byte, err error) {
++	if p, err = b.ReadSlice('\n'); err != nil {
++		// We always know when EOF is coming.
++		// If the caller asked for a line, there should be a line.
++		if err == io.EOF {
++			err = io.ErrUnexpectedEOF
++		} else if err == bufio.ErrBufferFull {
++			err = ErrLineTooLong
++		}
++		return nil, err
++	}
++	if len(p) >= maxLineLength {
++		return nil, ErrLineTooLong
++	}
++
++	// Chop off trailing white space.
++	p = bytes.TrimRight(p, " \r\t\n")
++
++	return p, nil
++}
++
++// readLineBytes, but convert the bytes into a string.
++func readLine(b *bufio.Reader) (s string, err error) {
++	p, e := readLineBytes(b)
++	if e != nil {
++		return "", e
++	}
++	return string(p), nil
++}
++
++// newChunkedWriter returns a new chunkedWriter that translates writes into HTTP
++// "chunked" format before writing them to w. Closing the returned chunkedWriter
++// sends the final 0-length chunk that marks the end of the stream.
++//
++// newChunkedWriter is not needed by normal applications. The http
++// package adds chunking automatically if handlers don't set a
++// Content-Length header. Using newChunkedWriter inside a handler
++// would result in double chunking or chunking with a Content-Length
++// length, both of which are wrong.
+ func newChunkedWriter(w io.Writer) io.WriteCloser {
+ 	return &chunkedWriter{w}
+ }
+ 
+-// Writing to ChunkedWriter translates to writing in HTTP chunked Transfer
+-// Encoding wire format to the underlying Wire writer.
++// Writing to chunkedWriter translates to writing in HTTP chunked Transfer
++// Encoding wire format to the underlying Wire chunkedWriter.
+ type chunkedWriter struct {
+ 	Wire io.Writer
+ }
+@@ -51,7 +168,3 @@ func (cw *chunkedWriter) Close() error {
+ 	_, err := io.WriteString(cw.Wire, "0\r\n")
+ 	return err
+ }
+-
+-func newChunkedReader(r *bufio.Reader) io.Reader {
+-	return &chunkedReader{r: r}
+-}
+diff --git a/src/pkg/net/http/chunked_test.go b/src/pkg/net/http/chunked_test.go
+new file mode 100644
+index 0000000000..b77ee2ff26
+--- /dev/null
++++ b/src/pkg/net/http/chunked_test.go
+@@ -0,0 +1,39 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This code is duplicated in httputil/chunked_test.go.
++// Please make any changes in both files.
++
++package http
++
++import (
++	"bytes"
++	"io/ioutil"
++	"testing"
++)
++
++func TestChunk(t *testing.T) {
++	var b bytes.Buffer
++
++	w := newChunkedWriter(&b)
++	const chunk1 = "hello, "
++	const chunk2 = "world! 0123456789abcdef"
++	w.Write([]byte(chunk1))
++	w.Write([]byte(chunk2))
++	w.Close()
++
++	if g, e := b.String(), "7\r\nhello, \r\n17\r\nworld! 0123456789abcdef\r\n0\r\n"; g != e {
++		t.Fatalf("chunk writer wrote %q; want %q", g, e)
++	}
++
++	r := newChunkedReader(&b)
++	data, err := ioutil.ReadAll(r)
++	if err != nil {
++		t.Logf(`data: "%s"`, data)
++		t.Fatalf("ReadAll from reader: %v", err)
++	}
++	if g, e := string(data), chunk1+chunk2; g != e {
++		t.Errorf("chunk reader read %q; want %q", g, e)
++	}
++}
+diff --git a/src/pkg/net/http/httputil/chunked.go b/src/pkg/net/http/httputil/chunked.go
+index 34e47c796c..69bcc0e816 100644
+--- a/src/pkg/net/http/httputil/chunked.go
++++ b/src/pkg/net/http/httputil/chunked.go
+@@ -2,18 +2,126 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// The wire protocol for HTTP's "chunked" Transfer-Encoding.
++
++// This code is a duplicate of ../chunked.go with these edits:
++//	s/newChunked/NewChunked/g
++//	s/package http/package httputil/
++// Please make any changes in both files.
++
+ package httputil
+ 
+ import (
+ 	"bufio"
++	"bytes"
++	"errors"
+ 	"io"
+-	"net/http"
+ 	"strconv"
+-	"strings"
+ )
+ 
+-// NewChunkedWriter returns a new writer that translates writes into HTTP
+-// "chunked" format before writing them to w. Closing the returned writer
++const maxLineLength = 4096 // assumed <= bufio.defaultBufSize
++
++var ErrLineTooLong = errors.New("header line too long")
++
++// NewChunkedReader returns a new chunkedReader that translates the data read from r
++// out of HTTP "chunked" format before returning it. 
++// The chunkedReader returns io.EOF when the final 0-length chunk is read.
++//
++// NewChunkedReader is not needed by normal applications. The http package
++// automatically decodes chunking when reading response bodies.
++func NewChunkedReader(r io.Reader) io.Reader {
++	br, ok := r.(*bufio.Reader)
++	if !ok {
++		br = bufio.NewReader(r)
++	}
++	return &chunkedReader{r: br}
++}
++
++type chunkedReader struct {
++	r   *bufio.Reader
++	n   uint64 // unread bytes in chunk
++	err error
++}
++
++func (cr *chunkedReader) beginChunk() {
++	// chunk-size CRLF
++	var line string
++	line, cr.err = readLine(cr.r)
++	if cr.err != nil {
++		return
++	}
++	cr.n, cr.err = strconv.Btoui64(line, 16)
++	if cr.err != nil {
++		return
++	}
++	if cr.n == 0 {
++		cr.err = io.EOF
++	}
++}
++
++func (cr *chunkedReader) Read(b []uint8) (n int, err error) {
++	if cr.err != nil {
++		return 0, cr.err
++	}
++	if cr.n == 0 {
++		cr.beginChunk()
++		if cr.err != nil {
++			return 0, cr.err
++		}
++	}
++	if uint64(len(b)) > cr.n {
++		b = b[0:cr.n]
++	}
++	n, cr.err = cr.r.Read(b)
++	cr.n -= uint64(n)
++	if cr.n == 0 && cr.err == nil {
++		// end of chunk (CRLF)
++		b := make([]byte, 2)
++		if _, cr.err = io.ReadFull(cr.r, b); cr.err == nil {
++			if b[0] != '\r' || b[1] != '\n' {
++				cr.err = errors.New("malformed chunked encoding")
++			}
++		}
++	}
++	return n, cr.err
++}
++
++// Read a line of bytes (up to \n) from b.
++// Give up if the line exceeds maxLineLength.
++// The returned bytes are a pointer into storage in
++// the bufio, so they are only valid until the next bufio read.
++func readLineBytes(b *bufio.Reader) (p []byte, err error) {
++	if p, err = b.ReadSlice('\n'); err != nil {
++		// We always know when EOF is coming.
++		// If the caller asked for a line, there should be a line.
++		if err == io.EOF {
++			err = io.ErrUnexpectedEOF
++		} else if err == bufio.ErrBufferFull {
++			err = ErrLineTooLong
++		}
++		return nil, err
++	}
++	if len(p) >= maxLineLength {
++		return nil, ErrLineTooLong
++	}
++
++	// Chop off trailing white space.
++	p = bytes.TrimRight(p, " \r\t\n")
++
++	return p, nil
++}
++
++// readLineBytes, but convert the bytes into a string.
++func readLine(b *bufio.Reader) (s string, err error) {
++	p, e := readLineBytes(b)
++	if e != nil {
++		return "", e
++	}
++	return string(p), nil
++}
++
++// NewChunkedWriter returns a new chunkedWriter that translates writes into HTTP
++// "chunked" format before writing them to w. Closing the returned chunkedWriter
+ // sends the final 0-length chunk that marks the end of the stream.
+ //
+ // NewChunkedWriter is not needed by normal applications. The http
+@@ -25,8 +133,8 @@ func NewChunkedWriter(w io.Writer) io.WriteCloser {
+ 	return &chunkedWriter{w}
+ }
+ 
+-// Writing to ChunkedWriter translates to writing in HTTP chunked Transfer
+-// Encoding wire format to the underlying Wire writer.
++// Writing to chunkedWriter translates to writing in HTTP chunked Transfer
++// Encoding wire format to the underlying Wire chunkedWriter.
+ type chunkedWriter struct {
+ 	Wire io.Writer
+ }
+@@ -62,23 +170,3 @@ func (cw *chunkedWriter) Close() error {
+ 	_, err := io.WriteString(cw.Wire, "0\r\n")
+ 	return err
+ }
+-
+-// NewChunkedReader returns a new reader that translates the data read from r
+-// out of HTTP "chunked" format before returning it. 
+-// The reader returns io.EOF when the final 0-length chunk is read.
+-//
+-// NewChunkedReader is not needed by normal applications. The http package
+-// automatically decodes chunking when reading response bodies.
+-func NewChunkedReader(r io.Reader) io.Reader {
+-	// This is a bit of a hack so we don't have to copy chunkedReader into
+-	// httputil.  It's a bit more complex than chunkedWriter, which is copied
+-	// above.
+-	req, err := http.ReadRequest(bufio.NewReader(io.MultiReader(
+-		strings.NewReader("POST / HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n"),
+-		r,
+-		strings.NewReader("\r\n"))))
+-	if err != nil {
+-		panic("bad fake request: " + err.Error())
+-	}
+-	return req.Body
+-}
+diff --git a/src/pkg/net/http/httputil/chunked_test.go b/src/pkg/net/http/httputil/chunked_test.go
+index 258d39b93c..155a32bdf9 100644
+--- a/src/pkg/net/http/httputil/chunked_test.go
++++ b/src/pkg/net/http/httputil/chunked_test.go
+@@ -2,6 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// This code is a duplicate of ../chunked_test.go with these edits:
++//	s/newChunked/NewChunked/g
++//	s/package http/package httputil/
++// Please make any changes in both files.
++
+ package httputil
+ 
+ import (
+@@ -27,7 +32,8 @@ func TestChunk(t *testing.T) {
+ 	r := NewChunkedReader(&b)
+ 	data, err := ioutil.ReadAll(r)
+ 	if err != nil {
+-		t.Fatalf("ReadAll from NewChunkedReader: %v", err)
++		t.Logf(`data: "%s"`, data)
++		t.Fatalf("ReadAll from reader: %v", err)
+ 	}
+ 	if g, e := string(data), chunk1+chunk2; g != e {
+ 		t.Errorf("chunk reader read %q; want %q", g, e)
+diff --git a/src/pkg/net/http/request.go b/src/pkg/net/http/request.go
+index 4410ca1d11..66178490e3 100644
+--- a/src/pkg/net/http/request.go
++++ b/src/pkg/net/http/request.go
+@@ -19,12 +19,10 @@ import (
+ 	"mime/multipart"
+ 	"net/textproto"
+ 	"net/url"
+-	"strconv"
+ 	"strings"
+ )
+ 
+ const (
+-	maxLineLength    = 4096 // assumed <= bufio.defaultBufSize
+ 	maxValueLength   = 4096
+ 	maxHeaderLines   = 1024
+ 	chunkSize        = 4 << 10  // 4 KB chunks
+@@ -43,7 +41,6 @@ type ProtocolError struct {
+ func (err *ProtocolError) Error() string { return err.ErrorString }
+ 
+ var (
+-	ErrLineTooLong          = &ProtocolError{"header line too long"}
+ 	ErrHeaderTooLong        = &ProtocolError{"header too long"}
+ 	ErrShortBody            = &ProtocolError{"entity body too short"}
+ 	ErrNotSupported         = &ProtocolError{"feature not supported"}
+@@ -375,44 +372,6 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header) err
+ 	return nil
+ }
+ 
+-// Read a line of bytes (up to \n) from b.
+-// Give up if the line exceeds maxLineLength.
+-// The returned bytes are a pointer into storage in
+-// the bufio, so they are only valid until the next bufio read.
+-func readLineBytes(b *bufio.Reader) (p []byte, err error) {
+-	if p, err = b.ReadSlice('\n'); err != nil {
+-		// We always know when EOF is coming.
+-		// If the caller asked for a line, there should be a line.
+-		if err == io.EOF {
+-			err = io.ErrUnexpectedEOF
+-		} else if err == bufio.ErrBufferFull {
+-			err = ErrLineTooLong
+-		}
+-		return nil, err
+-	}
+-	if len(p) >= maxLineLength {
+-		return nil, ErrLineTooLong
+-	}
+-
+-	// Chop off trailing white space.
+-	var i int
+-	for i = len(p); i > 0; i-- {
+-		if c := p[i-1]; c != ' ' && c != '\r' && c != '\t' && c != '\n' {
+-			break
+-		}
+-	}
+-	return p[0:i], nil
+-}
+-
+-// readLineBytes, but convert the bytes into a string.
+-func readLine(b *bufio.Reader) (s string, err error) {
+-	p, e := readLineBytes(b)
+-	if e != nil {
+-		return "", e
+-	}
+-	return string(p), nil
+-}
+-
+ // Convert decimal at s[i:len(s)] to integer,
+ // returning value, string position where the digits stopped,
+ // and whether there was a valid number (digits, not too big).
+@@ -448,55 +407,6 @@ func ParseHTTPVersion(vers string) (major, minor int, ok bool) {
+ 	return major, minor, true
+ }
+ 
+-type chunkedReader struct {
+-	r   *bufio.Reader
+-	n   uint64 // unread bytes in chunk
+-	err error
+-}
+-
+-func (cr *chunkedReader) beginChunk() {
+-	// chunk-size CRLF
+-	var line string
+-	line, cr.err = readLine(cr.r)
+-	if cr.err != nil {
+-		return
+-	}
+-	cr.n, cr.err = strconv.Btoui64(line, 16)
+-	if cr.err != nil {
+-		return
+-	}
+-	if cr.n == 0 {
+-		cr.err = io.EOF
+-	}
+-}
+-
+-func (cr *chunkedReader) Read(b []uint8) (n int, err error) {
+-	if cr.err != nil {
+-		return 0, cr.err
+-	}
+-	if cr.n == 0 {
+-		cr.beginChunk()
+-		if cr.err != nil {
+-			return 0, cr.err
+-		}
+-	}
+-	if uint64(len(b)) > cr.n {
+-		b = b[0:cr.n]
+-	}
+-	n, cr.err = cr.r.Read(b)
+-	cr.n -= uint64(n)
+-	if cr.n == 0 && cr.err == nil {
+-		// end of chunk (CRLF)
+-		b := make([]byte, 2)
+-		if _, cr.err = io.ReadFull(cr.r, b); cr.err == nil {
+-			if b[0] != '\r' || b[1] != '\n' {
+-				cr.err = errors.New("malformed chunked encoding")
+-			}
+-		}
+-	}
+-	return n, cr.err
+-}
+-
+ // NewRequest returns a new Request given a method, URL, and optional body.
+ func NewRequest(method, urlStr string, body io.Reader) (*Request, error) {
+ 	u, err := url.Parse(urlStr)
+diff --git a/src/pkg/net/http/response_test.go b/src/pkg/net/http/response_test.go
+index be717aa83c..79dd8b8271 100644
+--- a/src/pkg/net/http/response_test.go
++++ b/src/pkg/net/http/response_test.go
+@@ -315,7 +315,7 @@ func TestReadResponseCloseInMiddle(t *testing.T) {
+ 		}
+ 		var wr io.Writer = &buf
+ 		if test.chunked {
+-			wr = &chunkedWriter{wr}
++			wr = newChunkedWriter(wr)
+ 		}
+ 		if test.compressed {
+ 			buf.WriteString("Content-Encoding: gzip\r\n")

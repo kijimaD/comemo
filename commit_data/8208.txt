@@ -10,6 +10,28 @@ Date:   Sat Apr 23 11:34:08 2011 -0700
     R=rsc1, peterGo, brainman, Mr_Dark, r
     CC=golang-dev
     https://golang.org/cl/4452042
-
+---
  src/env.bash | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/env.bash b/src/env.bash
+index c1055d561b..ca3ecebe87 100644
+--- a/src/env.bash
++++ b/src/env.bash
+@@ -3,6 +3,16 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++# If set to a Windows-style path convert to an MSYS-Unix 
++# one using the built-in shell commands.   
++if [[ "$GOROOT" == *:* ]]; then
++	GOROOT=$(cd "$GOROOT"; pwd)
++fi
++
++if [[ "$GOBIN" == *:* ]]; then
++	GOBIN=$(cd "$GOBIN"; pwd)
++fi
++
+ export GOROOT=${GOROOT:-$(cd ..; pwd)}
+ 
+ if ! test -f "$GOROOT"/include/u.h

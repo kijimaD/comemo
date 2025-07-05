@@ -11,6 +11,19 @@ Date:   Fri Nov 2 16:56:42 2018 +0000
     GitHub-Pull-Request: golang/go#28560
     Reviewed-on: https://go-review.googlesource.com/c/147040
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/database/sql/sql.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 31db7a47d6..16f1c9fce8 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -133,6 +133,7 @@ const (
+ 	LevelLinearizable
+ )
+ 
++// String returns the name of the transaction isolation level.
+ func (i IsolationLevel) String() string {
+ 	switch i {
+ 	case LevelDefault:

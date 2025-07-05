@@ -13,7 +13,85 @@ Date:   Sun Dec 21 13:31:23 2014 -0800
     Change-Id: I3920bcc04b6dd89efa5da89db5594d4434426d74
     Reviewed-on: https://go-review.googlesource.com/1924
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/pem/pem.go      |  8 +++++---
  src/encoding/pem/pem_test.go | 19 +++++++++++++++++++
  2 files changed, 24 insertions(+), 3 deletions(-)
+
+diff --git a/src/encoding/pem/pem.go b/src/encoding/pem/pem.go
+index 8ff7ee8c33..90fe3dc50c 100644
+--- a/src/encoding/pem/pem.go
++++ b/src/encoding/pem/pem.go
+@@ -171,6 +171,8 @@ type lineBreaker struct {
+ 	out  io.Writer
+ }
+ 
++var nl = []byte{'\n'}
++
+ func (l *lineBreaker) Write(b []byte) (n int, err error) {
+ 	if l.used+len(b) < pemLineLength {
+ 		copy(l.line[l.used:], b)
+@@ -190,7 +192,7 @@ func (l *lineBreaker) Write(b []byte) (n int, err error) {
+ 		return
+ 	}
+ 
+-	n, err = l.out.Write([]byte{'\n'})
++	n, err = l.out.Write(nl)
+ 	if err != nil {
+ 		return
+ 	}
+@@ -204,7 +206,7 @@ func (l *lineBreaker) Close() (err error) {
+ 		if err != nil {
+ 			return
+ 		}
+-		_, err = l.out.Write([]byte{'\n'})
++		_, err = l.out.Write(nl)
+ 	}
+ 
+ 	return
+@@ -248,7 +250,7 @@ func Encode(out io.Writer, b *Block) error {
+ 				return err
+ 			}
+ 		}
+-		if _, err := out.Write([]byte{'\n'}); err != nil {
++		if _, err := out.Write(nl); err != nil {
+ 			return err
+ 		}
+ 	}
+diff --git a/src/encoding/pem/pem_test.go b/src/encoding/pem/pem_test.go
+index ccce42cf1f..92451feff8 100644
+--- a/src/encoding/pem/pem_test.go
++++ b/src/encoding/pem/pem_test.go
+@@ -6,6 +6,7 @@ package pem
+ 
+ import (
+ 	"bytes"
++	"io/ioutil"
+ 	"reflect"
+ 	"testing"
+ )
+@@ -116,6 +117,24 @@ func TestLineBreaker(t *testing.T) {
+ 	}
+ }
+ 
++func BenchmarkEncode(b *testing.B) {
++	data := &Block{Bytes: make([]byte, 65536)}
++	b.SetBytes(int64(len(data.Bytes)))
++	for i := 0; i < b.N; i++ {
++		Encode(ioutil.Discard, data)
++	}
++}
++
++func BenchmarkDecode(b *testing.B) {
++	block := &Block{Bytes: make([]byte, 65536)}
++	data := EncodeToMemory(block)
++	b.SetBytes(int64(len(data)))
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		Decode(data)
++	}
++}
++
+ var pemData = `verify return:0
+ -----BEGIN CERTIFICATE-----
+ sdlfkjskldfj

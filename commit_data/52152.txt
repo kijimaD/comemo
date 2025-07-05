@@ -17,7 +17,7 @@ Date:   Sun Apr 3 16:40:03 2022 -0400
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go/doc/comment/html.go            |  5 ++
  src/go/doc/comment/markdown.go        | 12 +++++
  src/go/doc/comment/parse.go           | 43 ++++++++++++++--
@@ -28,3 +28,390 @@ Date:   Sun Apr 3 16:40:03 2022 -0400
  src/go/doc/comment/testdata/text9.txt | 12 +++++
  src/go/doc/comment/text.go            | 30 ++++++++---
  9 files changed, 263 insertions(+), 9 deletions(-)
+
+diff --git a/src/go/doc/comment/html.go b/src/go/doc/comment/html.go
+index f6ea588b3d..14a20b91e5 100644
+--- a/src/go/doc/comment/html.go
++++ b/src/go/doc/comment/html.go
+@@ -51,6 +51,11 @@ func (p *htmlPrinter) block(out *bytes.Buffer, x Block) {
+ 		out.WriteString("</h")
+ 		out.WriteString(h)
+ 		out.WriteString(">\n")
++
++	case *Code:
++		out.WriteString("<pre>")
++		p.escape(out, x.Text)
++		out.WriteString("</pre>\n")
+ 	}
+ }
+ 
+diff --git a/src/go/doc/comment/markdown.go b/src/go/doc/comment/markdown.go
+index 44ea727dae..9e86cd8aef 100644
+--- a/src/go/doc/comment/markdown.go
++++ b/src/go/doc/comment/markdown.go
+@@ -54,6 +54,18 @@ func (p *mdPrinter) block(out *bytes.Buffer, x Block) {
+ 			out.WriteString("}")
+ 		}
+ 		out.WriteString("\n")
++
++	case *Code:
++		md := x.Text
++		for md != "" {
++			var line string
++			line, md, _ = strings.Cut(md, "\n")
++			if line != "" {
++				out.WriteString("\t")
++				out.WriteString(line)
++			}
++			out.WriteString("\n")
++		}
+ 	}
+ }
+ 
+diff --git a/src/go/doc/comment/parse.go b/src/go/doc/comment/parse.go
+index 25b5f10f2f..7f97e41a62 100644
+--- a/src/go/doc/comment/parse.go
++++ b/src/go/doc/comment/parse.go
+@@ -309,6 +309,9 @@ func (p *Parser) Parse(text string) *Doc {
+ 		case line == "":
+ 			// emit nothing
+ 
++		case isIndented(line):
++			b, lines = d.code(lines)
++
+ 		case (len(lines) == 1 || lines[1] == "") && !didHeading && isOldHeading(line, all, len(all)-n):
+ 			b = d.oldHeading(line)
+ 			didHeading = true
+@@ -473,17 +476,51 @@ func (d *parseDoc) heading(line string) Block {
+ 	return &Heading{Text: []Text{Plain(strings.TrimSpace(line[1:]))}}
+ }
+ 
++// code returns a code block built from the indented text
++// at the start of lines, along with the remainder of the lines.
++// If there is no indented text at the start, or if the indented
++// text consists only of empty lines, code returns a nil Block.
++func (d *parseDoc) code(lines []string) (b Block, rest []string) {
++	lines, rest = indented(lines)
++	body := unindent(lines)
++	if len(body) == 0 {
++		return nil, rest
++	}
++	body = append(body, "") // to get final \n from Join
++	return &Code{Text: strings.Join(body, "\n")}, rest
++}
++
++// isIndented reports whether the line is indented,
++// meaning it starts with a space or tab.
++func isIndented(line string) bool {
++	return line != "" && (line[0] == ' ' || line[0] == '\t')
++}
++
++// indented splits lines into an initial indented section
++// and the remaining lines, returning the two halves.
++func indented(lines []string) (indented, rest []string) {
++	// Blank lines mid-run are OK, but not at the end.
++	i := 0
++	for i < len(lines) && (isIndented(lines[i]) || lines[i] == "") {
++		i++
++	}
++	for i > 0 && lines[i-1] == "" {
++		i--
++	}
++	return lines[:i], lines[i:]
++}
++
+ // paragraph returns a paragraph block built from the
+ // unindented text at the start of lines, along with the remainder of the lines.
+ // If there is no unindented text at the start of lines,
+ // then paragraph returns a nil Block.
+ func (d *parseDoc) paragraph(lines []string) (b Block, rest []string) {
+-	// TODO: Paragraph should be interrupted by any indented line,
++	// Paragraph is interrupted by any indented line,
+ 	// which is either a list or a code block,
+ 	// and of course by a blank line.
+-	// It should not be interrupted by a # line - headings must stand alone.
++	// It is not interrupted by a # line - headings must stand alone.
+ 	i := 0
+-	for i < len(lines) && lines[i] != "" {
++	for i < len(lines) && lines[i] != "" && !isIndented(lines[i]) {
+ 		i++
+ 	}
+ 	lines, rest = lines[:i], lines[i:]
+diff --git a/src/go/doc/comment/print.go b/src/go/doc/comment/print.go
+index db520e8192..d426b81761 100644
+--- a/src/go/doc/comment/print.go
++++ b/src/go/doc/comment/print.go
+@@ -213,6 +213,18 @@ func (p *commentPrinter) block(out *bytes.Buffer, x Block) {
+ 		out.WriteString("# ")
+ 		p.text(out, "", x.Text)
+ 		out.WriteString("\n")
++
++	case *Code:
++		md := x.Text
++		for md != "" {
++			var line string
++			line, md, _ = strings.Cut(md, "\n")
++			if line != "" {
++				out.WriteString("\t")
++				out.WriteString(line)
++			}
++			out.WriteString("\n")
++		}
+ 	}
+ }
+ 
+diff --git a/src/go/doc/comment/testdata/code.txt b/src/go/doc/comment/testdata/code.txt
+new file mode 100644
+index 0000000000..06b1519574
+--- /dev/null
++++ b/src/go/doc/comment/testdata/code.txt
+@@ -0,0 +1,94 @@
++-- input --
++Text.
++	A tab-indented
++	(no, not eight-space indented)
++	code block and haiku.
++More text.
++ One space
++  is
++   enough
++    to
++     start
++      a
++       block.
++More text.
++
++      Blocks
++    can
++
++  have
++    blank
++      lines.
++-- gofmt --
++Text.
++
++	A tab-indented
++	(no, not eight-space indented)
++	code block and haiku.
++
++More text.
++
++	One space
++	 is
++	  enough
++	   to
++	    start
++	     a
++	      block.
++
++More text.
++
++	    Blocks
++	  can
++
++	have
++	  blank
++	    lines.
++-- markdown --
++Text.
++
++	A tab-indented
++	(no, not eight-space indented)
++	code block and haiku.
++
++More text.
++
++	One space
++	 is
++	  enough
++	   to
++	    start
++	     a
++	      block.
++
++More text.
++
++	    Blocks
++	  can
++
++	have
++	  blank
++	    lines.
++-- html --
++<p>Text.
++<pre>A tab-indented
++(no, not eight-space indented)
++code block and haiku.
++</pre>
++<p>More text.
++<pre>One space
++ is
++  enough
++   to
++    start
++     a
++      block.
++</pre>
++<p>More text.
++<pre>    Blocks
++  can
++
++have
++  blank
++    lines.
++</pre>
+diff --git a/src/go/doc/comment/testdata/code2.txt b/src/go/doc/comment/testdata/code2.txt
+new file mode 100644
+index 0000000000..0810bed41c
+--- /dev/null
++++ b/src/go/doc/comment/testdata/code2.txt
+@@ -0,0 +1,31 @@
++-- input --
++Text.
++
++	A tab-indented
++	(no, not eight-space indented)
++	code block and haiku.
++
++More text.
++-- gofmt --
++Text.
++
++	A tab-indented
++	(no, not eight-space indented)
++	code block and haiku.
++
++More text.
++-- markdown --
++Text.
++
++	A tab-indented
++	(no, not eight-space indented)
++	code block and haiku.
++
++More text.
++-- html --
++<p>Text.
++<pre>A tab-indented
++(no, not eight-space indented)
++code block and haiku.
++</pre>
++<p>More text.
+diff --git a/src/go/doc/comment/testdata/code3.txt b/src/go/doc/comment/testdata/code3.txt
+new file mode 100644
+index 0000000000..4a96a0e9ab
+--- /dev/null
++++ b/src/go/doc/comment/testdata/code3.txt
+@@ -0,0 +1,33 @@
++-- input --
++Text.
++
++	$
++	A tab-indented
++	(surrounded by more blank lines)
++	code block and haiku.
++	$
++
++More text.
++-- gofmt --
++Text.
++
++	A tab-indented
++	(surrounded by more blank lines)
++	code block and haiku.
++
++More text.
++-- markdown --
++Text.
++
++	A tab-indented
++	(surrounded by more blank lines)
++	code block and haiku.
++
++More text.
++-- html --
++<p>Text.
++<pre>A tab-indented
++(surrounded by more blank lines)
++code block and haiku.
++</pre>
++<p>More text.
+diff --git a/src/go/doc/comment/testdata/text9.txt b/src/go/doc/comment/testdata/text9.txt
+new file mode 100644
+index 0000000000..07a64aa227
+--- /dev/null
++++ b/src/go/doc/comment/testdata/text9.txt
+@@ -0,0 +1,12 @@
++{"TextPrefix":"|", "TextCodePrefix": "@"}
++-- input --
++Hello, world
++ Code block here.
++-- gofmt --
++Hello, world
++
++	Code block here.
++-- text --
++|Hello, world
++|
++@Code block here.
+diff --git a/src/go/doc/comment/text.go b/src/go/doc/comment/text.go
+index 1eddad30fd..e35e5ccfd1 100644
+--- a/src/go/doc/comment/text.go
++++ b/src/go/doc/comment/text.go
+@@ -15,18 +15,23 @@ import (
+ // A textPrinter holds the state needed for printing a Doc as plain text.
+ type textPrinter struct {
+ 	*Printer
+-	long   strings.Builder
+-	prefix string
+-	width  int
++	long       strings.Builder
++	prefix     string
++	codePrefix string
++	width      int
+ }
+ 
+ // Text returns a textual formatting of the Doc.
+ // See the [Printer] documentation for ways to customize the text output.
+ func (p *Printer) Text(d *Doc) []byte {
+ 	tp := &textPrinter{
+-		Printer: p,
+-		prefix:  p.TextPrefix,
+-		width:   p.TextWidth,
++		Printer:    p,
++		prefix:     p.TextPrefix,
++		codePrefix: p.TextCodePrefix,
++		width:      p.TextWidth,
++	}
++	if tp.codePrefix == "" {
++		tp.codePrefix = p.TextPrefix + "\t"
+ 	}
+ 	if tp.width == 0 {
+ 		tp.width = 80 - utf8.RuneCountInString(tp.prefix)
+@@ -35,6 +40,7 @@ func (p *Printer) Text(d *Doc) []byte {
+ 	var out bytes.Buffer
+ 	for i, x := range d.Content {
+ 		if i > 0 && blankBefore(x) {
++			out.WriteString(tp.prefix)
+ 			writeNL(&out)
+ 		}
+ 		tp.block(&out, x)
+@@ -86,6 +92,18 @@ func (p *textPrinter) block(out *bytes.Buffer, x Block) {
+ 		out.WriteString(p.prefix)
+ 		out.WriteString("# ")
+ 		p.text(out, x.Text)
++
++	case *Code:
++		text := x.Text
++		for text != "" {
++			var line string
++			line, text, _ = strings.Cut(text, "\n")
++			if line != "" {
++				out.WriteString(p.codePrefix)
++				out.WriteString(line)
++			}
++			writeNL(out)
++		}
+ 	}
+ }
+ 

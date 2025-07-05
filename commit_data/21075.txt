@@ -10,8 +10,48 @@ Date:   Tue Nov 11 23:19:59 2014 -0500
     TBR=r
     CC=golang-codereviews
     https://golang.org/cl/171580044
-
+---
  src/runtime/cgo/freebsd.go | 2 ++
  src/runtime/cgo/netbsd.go  | 2 ++
  src/runtime/cgo/openbsd.go | 2 ++
  3 files changed, 6 insertions(+)
+
+diff --git a/src/runtime/cgo/freebsd.go b/src/runtime/cgo/freebsd.go
+index 09ffa2377a..f0628b7aa0 100644
+--- a/src/runtime/cgo/freebsd.go
++++ b/src/runtime/cgo/freebsd.go
+@@ -6,6 +6,8 @@
+ 
+ package cgo
+ 
++import _ "unsafe"
++
+ // Supply environ and __progname, because we don't
+ // link against the standard FreeBSD crt0.o and the
+ // libc dynamic library needs them.
+diff --git a/src/runtime/cgo/netbsd.go b/src/runtime/cgo/netbsd.go
+index 9088e35d47..67f96530c1 100644
+--- a/src/runtime/cgo/netbsd.go
++++ b/src/runtime/cgo/netbsd.go
+@@ -6,6 +6,8 @@
+ 
+ package cgo
+ 
++import _ "unsafe"
++
+ // Supply environ and __progname, because we don't
+ // link against the standard NetBSD crt0.o and the
+ // libc dynamic library needs them.
+diff --git a/src/runtime/cgo/openbsd.go b/src/runtime/cgo/openbsd.go
+index b59a7c2c2a..29ebcf83aa 100644
+--- a/src/runtime/cgo/openbsd.go
++++ b/src/runtime/cgo/openbsd.go
+@@ -6,6 +6,8 @@
+ 
+ package cgo
+ 
++import _ "unsafe"
++
+ // Supply environ, __progname and __guard_local, because
+ // we don't link against the standard OpenBSD crt0.o and
+ // the libc dynamic library needs them.

@@ -10,7 +10,114 @@ Date:   Fri Jan 31 14:22:03 2020 -0500
     Change-Id: I8cd93908a795c03b8c44df47f66728017c542f4a
     Reviewed-on: https://go-review.googlesource.com/c/go/+/217317
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/internal/obj/objfile2.go       |  4 +--
  src/cmd/link/internal/ld/dwarf_test.go | 66 ++++++++++++++++++++++++++++++++++
  2 files changed, 68 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/obj/objfile2.go b/src/cmd/internal/obj/objfile2.go
+index 69019e033d..cb7ee4b649 100644
+--- a/src/cmd/internal/obj/objfile2.go
++++ b/src/cmd/internal/obj/objfile2.go
+@@ -60,7 +60,7 @@ func WriteObjFile2(ctxt *Link, b *bio.Writer, pkgpath string) {
+ 	// DWARF file table
+ 	h.Offsets[goobj2.BlkDwarfFile] = w.Offset()
+ 	for _, f := range ctxt.PosTable.DebugLinesFileTable() {
+-		w.StringRef(f)
++		w.StringRef(filepath.ToSlash(f))
+ 	}
+ 
+ 	// Symbol definitions
+@@ -207,7 +207,7 @@ func (w *writer) StringTable() {
+ 		}
+ 	})
+ 	for _, f := range w.ctxt.PosTable.DebugLinesFileTable() {
+-		w.AddString(f)
++		w.AddString(filepath.ToSlash(f))
+ 	}
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index 22df2e4c38..c2b6121c00 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -8,9 +8,11 @@ import (
+ 	intdwarf "cmd/internal/dwarf"
+ 	objfilepkg "cmd/internal/objfile" // renamed to avoid conflict with objfile function
+ 	"debug/dwarf"
++	"debug/pe"
+ 	"errors"
+ 	"fmt"
+ 	"internal/testenv"
++	"io"
+ 	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+@@ -1282,3 +1284,67 @@ func TestMachoIssue32233(t *testing.T) {
+ 	f := gobuildTestdata(t, tmpdir, pdir, DefaultOpt)
+ 	f.Close()
+ }
++
++func TestWindowsIssue36495(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	if runtime.GOOS != "windows" {
++		t.Skip("skipping: test only on windows")
++	}
++
++	dir, err := ioutil.TempDir("", "TestEmbeddedStructMarker")
++	if err != nil {
++		t.Fatalf("could not create directory: %v", err)
++	}
++	defer os.RemoveAll(dir)
++
++	prog := `
++package main
++
++import "fmt"
++
++func main() {
++  fmt.Println("Hello World")
++}`
++	f := gobuild(t, dir, prog, NoOpt)
++	exe, err := pe.Open(f.path)
++	if err != nil {
++		t.Fatalf("error opening pe file: %v", err)
++	}
++	dw, err := exe.DWARF()
++	if err != nil {
++		t.Fatalf("error parsing DWARF: %v", err)
++	}
++	rdr := dw.Reader()
++	for {
++		e, err := rdr.Next()
++		if err != nil {
++			t.Fatalf("error reading DWARF: %v", err)
++		}
++		if e == nil {
++			break
++		}
++		if e.Tag != dwarf.TagCompileUnit {
++			continue
++		}
++		lnrdr, err := dw.LineReader(e)
++		if err != nil {
++			t.Fatalf("error creating DWARF line reader: %v", err)
++		}
++		if lnrdr != nil {
++			var lne dwarf.LineEntry
++			for {
++				err := lnrdr.Next(&lne)
++				if err == io.EOF {
++					break
++				}
++				if err != nil {
++					t.Fatalf("error reading next DWARF line: %v", err)
++				}
++				if strings.Contains(lne.File.Name, `\`) {
++					t.Errorf("filename should not contain backslash: %v", lne.File.Name)
++				}
++			}
++		}
++		rdr.SkipChildren()
++	}
++}

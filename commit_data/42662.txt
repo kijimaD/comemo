@@ -471,3 +471,43 @@ Date:   Fri Jan 31 14:45:52 2020 -0500
  test/live.go                                       |    1 +
  test/nosplit.go                                    |    3 +
  452 files changed, 18281 insertions(+), 11327 deletions(-)
+
+diff --cc src/cmd/link/internal/loadelf/ldelf.go
+index 7d613c7a6d,1962d76338..b1e420cc30
+--- a/src/cmd/link/internal/loadelf/ldelf.go
++++ b/src/cmd/link/internal/loadelf/ldelf.go
+@@@ -934,23 -950,23 +947,23 @@@ func Load(l *loader.Loader, arch *sys.A
+  				continue
+  			}
+  
+- 			if info>>32 == 0 { // absolute relocation, don't bother reading the null symbol
++ 			if symIdx == 0 { // absolute relocation, don't bother reading the null symbol
+ -				rp.Sym = nil
+ +				rp.Sym = 0
+  			} else {
+  				var elfsym ElfSym
+- 				if err := readelfsym(newSym, lookup, l, arch, elfobj, int(info>>32), &elfsym, 0, 0); err != nil {
+ -				if err := readelfsym(newSym, lookup, arch, elfobj, symIdx, &elfsym, 0, 0); err != nil {
+++				if err := readelfsym(newSym, lookup, l, arch, elfobj, int(symIdx), &elfsym, 0, 0); err != nil {
+  					return errorf("malformed elf file: %v", err)
+  				}
+- 				elfsym.sym = symbols[info>>32]
++ 				elfsym.sym = symbols[symIdx]
+ -				if elfsym.sym == nil {
+ -					return errorf("malformed elf file: %s#%d: reloc of invalid sym #%d %s shndx=%d type=%d", sect.sym.Name, j, symIdx, elfsym.name, elfsym.shndx, elfsym.type_)
+ +				if elfsym.sym == 0 {
+- 					return errorf("malformed elf file: %s#%d: reloc of invalid sym #%d %s shndx=%d type=%d", l.SymName(sect.sym), j, int(info>>32), elfsym.name, elfsym.shndx, elfsym.type_)
+++					return errorf("malformed elf file: %s#%d: reloc of invalid sym #%d %s shndx=%d type=%d", l.SymName(sect.sym), j, int(symIdx), elfsym.name, elfsym.shndx, elfsym.type_)
+  				}
+  
+  				rp.Sym = elfsym.sym
+  			}
+  
+- 			rp.Type = objabi.ElfRelocOffset + objabi.RelocType(info)
+- 			rp.Size, err = relSize(arch, pn, uint32(info))
++ 			rp.Type = objabi.ElfRelocOffset + objabi.RelocType(relocType)
+ -			rp.Siz, err = relSize(arch, pn, uint32(relocType))
+++			rp.Size, err = relSize(arch, pn, uint32(relocType))
+  			if err != nil {
+  				return nil, 0, err
+  			}

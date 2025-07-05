@@ -12,10 +12,139 @@ Date:   Thu Apr 28 10:59:00 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/22559
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
-
+---
  src/runtime/heapdump.go | 6 +++---
  src/runtime/mfinal.go   | 2 +-
  src/runtime/mgcmark.go  | 2 +-
  src/runtime/mheap.go    | 8 ++++----
  src/runtime/stack.go    | 6 +++---
  5 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 6085c6866c..4afe663418 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -447,7 +447,7 @@ func dumproots() {
+ 					continue
+ 				}
+ 				spf := (*specialfinalizer)(unsafe.Pointer(sp))
+-				p := unsafe.Pointer((uintptr(s.start) << _PageShift) + uintptr(spf.special.offset))
++				p := unsafe.Pointer(s.base() + uintptr(spf.special.offset))
+ 				dumpfinalizer(p, spf.fn, spf.fint, spf.ot)
+ 			}
+ 		}
+@@ -467,7 +467,7 @@ func dumpobjs() {
+ 		if s.state != _MSpanInUse {
+ 			continue
+ 		}
+-		p := uintptr(s.start << _PageShift)
++		p := s.base()
+ 		size := s.elemsize
+ 		n := (s.npages << _PageShift) / size
+ 		if n > uintptr(len(freemark)) {
+@@ -619,7 +619,7 @@ func dumpmemprof() {
+ 				continue
+ 			}
+ 			spp := (*specialprofile)(unsafe.Pointer(sp))
+-			p := uintptr(s.start<<_PageShift) + uintptr(spp.special.offset)
++			p := s.base() + uintptr(spp.special.offset)
+ 			dumpint(tagAllocSample)
+ 			dumpint(uint64(p))
+ 			dumpint(uint64(uintptr(unsafe.Pointer(spp.b))))
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index e81650d842..6dce6d7501 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -402,7 +402,7 @@ func findObject(v unsafe.Pointer) (s *mspan, x unsafe.Pointer, n uintptr) {
+ 	if s == nil {
+ 		return
+ 	}
+-	x = unsafe.Pointer(uintptr(s.start) << pageShift)
++	x = unsafe.Pointer(s.base())
+ 
+ 	if uintptr(v) < uintptr(x) || uintptr(v) >= uintptr(unsafe.Pointer(s.limit)) || s.state != mSpanInUse {
+ 		s = nil
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 18f930f89a..14449c3d4b 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -1247,7 +1247,7 @@ func gcDumpObject(label string, obj, off uintptr) {
+ 		print(" s=nil\n")
+ 		return
+ 	}
+-	print(" s.start*_PageSize=", hex(s.start*_PageSize), " s.limit=", hex(s.limit), " s.sizeclass=", s.sizeclass, " s.elemsize=", s.elemsize, "\n")
++	print(" s.base()=", hex(s.base()), " s.limit=", hex(s.limit), " s.sizeclass=", s.sizeclass, " s.elemsize=", s.elemsize, "\n")
+ 	skipped := false
+ 	for i := uintptr(0); i < s.elemsize; i += sys.PtrSize {
+ 		// For big objects, just print the beginning (because
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index e4946ff8e9..40ed466038 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -808,7 +808,7 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince i
+ 		}
+ 	case _MSpanInUse:
+ 		if s.allocCount != 0 || s.sweepgen != h.sweepgen {
+-			print("MHeap_FreeSpanLocked - span ", s, " ptr ", hex(s.start<<_PageShift), " allocCount ", s.allocCount, " sweepgen ", s.sweepgen, "/", h.sweepgen, "\n")
++			print("MHeap_FreeSpanLocked - span ", s, " ptr ", hex(s.base()), " allocCount ", s.allocCount, " sweepgen ", s.sweepgen, "/", h.sweepgen, "\n")
+ 			throw("MHeap_FreeSpanLocked - invalid free")
+ 		}
+ 		h.pagesInUse -= uint64(s.npages)
+@@ -892,7 +892,7 @@ func scavengelist(list *mSpanList, now, limit uint64) uintptr {
+ 	var sumreleased uintptr
+ 	for s := list.first; s != nil; s = s.next {
+ 		if (now-uint64(s.unusedsince)) > limit && s.npreleased != s.npages {
+-			start := uintptr(s.start) << _PageShift
++			start := s.base()
+ 			end := start + s.npages<<_PageShift
+ 			if sys.PhysPageSize > _PageSize {
+ 				// We can only release pages in
+@@ -1062,7 +1062,7 @@ func addspecial(p unsafe.Pointer, s *special) bool {
+ 	mp := acquirem()
+ 	span.ensureSwept()
+ 
+-	offset := uintptr(p) - uintptr(span.start<<_PageShift)
++	offset := uintptr(p) - span.base()
+ 	kind := s.kind
+ 
+ 	lock(&span.speciallock)
+@@ -1110,7 +1110,7 @@ func removespecial(p unsafe.Pointer, kind uint8) *special {
+ 	mp := acquirem()
+ 	span.ensureSwept()
+ 
+-	offset := uintptr(p) - uintptr(span.start<<_PageShift)
++	offset := uintptr(p) - span.base()
+ 
+ 	lock(&span.speciallock)
+ 	t := &span.specials
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index ac4efc114b..f68c513fd6 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -198,7 +198,7 @@ func stackpoolalloc(order uint8) gclinkptr {
+ 			throw("bad stackfreelist")
+ 		}
+ 		for i := uintptr(0); i < _StackCacheSize; i += _FixedStack << order {
+-			x := gclinkptr(uintptr(s.start)<<_PageShift + i)
++			x := gclinkptr(s.base() + i)
+ 			x.ptr().next = s.stackfreelist
+ 			s.stackfreelist = x
+ 		}
+@@ -391,7 +391,7 @@ func stackalloc(n uint32) (stack, []stkbar) {
+ 				throw("out of memory")
+ 			}
+ 		}
+-		v = unsafe.Pointer(s.start << _PageShift)
++		v = unsafe.Pointer(s.base())
+ 	}
+ 
+ 	if raceenabled {
+@@ -456,7 +456,7 @@ func stackfree(stk stack, n uintptr) {
+ 	} else {
+ 		s := mheap_.lookup(v)
+ 		if s.state != _MSpanStack {
+-			println(hex(s.start<<_PageShift), v)
++			println(hex(s.base()), v)
+ 			throw("bad span state")
+ 		}
+ 		if gcphase == _GCoff {

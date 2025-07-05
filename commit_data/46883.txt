@@ -32,7 +32,7 @@ Date:   Wed Feb 10 15:26:40 2021 -0800
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/noder/stencil.go | 16 +++++++++--
  test/typeparam/index.go                   | 46 +++++++++++++++++++++++++++++++
  test/typeparam/map.go                     |  4 +--
@@ -42,3 +42,315 @@ Date:   Wed Feb 10 15:26:40 2021 -0800
  test/typeparam/stringer.go                |  6 ++--
  test/typeparam/sum.go                     |  8 +++---
  8 files changed, 166 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 2995496da1..74ea2e0927 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -80,7 +80,7 @@ func makeInstName(inst *ir.InstExpr) *types.Sym {
+ 		if i > 0 {
+ 			b.WriteString(",")
+ 		}
+-		b.WriteString(targ.Name().Sym().Name)
++		b.WriteString(targ.Type().String())
+ 	}
+ 	b.WriteString("]")
+ 	return typecheck.Lookup(b.String())
+@@ -107,6 +107,7 @@ func genericSubst(name *types.Sym, inst *ir.InstExpr) *ir.Func {
+ 	newf.Nname = ir.NewNameAt(inst.Pos(), name)
+ 	newf.Nname.Func = newf
+ 	newf.Nname.Defn = newf
++	name.Def = newf.Nname
+ 
+ 	subst := &subster{
+ 		newf:    newf,
+@@ -160,6 +161,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 			m.SetType(newt)
+ 			m.Curfn = subst.newf
+ 			m.Class = name.Class
++			m.Func = name.Func
+ 			subst.vars[name] = m
+ 			m.SetTypecheck(1)
+ 			return m
+@@ -170,7 +172,17 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 		}
+ 		m := ir.Copy(x)
+ 		if _, isExpr := m.(ir.Expr); isExpr {
+-			m.SetType(subst.typ(x.Type()))
++			t := x.Type()
++			if t == nil {
++				// t can be nil only if this is a call that has no
++				// return values, so allow that and otherwise give
++				// an error.
++				if _, isCallExpr := m.(*ir.CallExpr); !isCallExpr {
++					base.Fatalf(fmt.Sprintf("Nil type for %v", x))
++				}
++			} else {
++				m.SetType(subst.typ(x.Type()))
++			}
+ 		}
+ 		ir.EditChildren(m, edit)
+ 
+diff --git a/test/typeparam/index.go b/test/typeparam/index.go
+new file mode 100644
+index 0000000000..83e65acdd0
+--- /dev/null
++++ b/test/typeparam/index.go
+@@ -0,0 +1,46 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++)
++
++// Index returns the index of x in s, or -1 if not found.
++func index[T comparable](s []T, x T) int {
++	for i, v := range s {
++		// v and x are type T, which has the comparable
++		// constraint, so we can use == here.
++		if v == x {
++			return i
++		}
++	}
++	return -1
++}
++
++type obj struct {
++	x int
++}
++
++func main() {
++	want := 2
++
++	vec1 := []string{"ab", "cd", "ef"}
++	if got := index(vec1, "ef"); got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
++	}
++
++	vec2 := []byte{'c', '6', '@'}
++	if got := index(vec2, '@'); got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
++	}
++
++	vec3 := []*obj{&obj{2}, &obj{42}, &obj{1}}
++	if got := index(vec3, vec3[2]); got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
++	}
++}
+diff --git a/test/typeparam/map.go b/test/typeparam/map.go
+index 720a52ffbd..72d05f0872 100644
+--- a/test/typeparam/map.go
++++ b/test/typeparam/map.go
+@@ -26,7 +26,7 @@ func main() {
+ 	got := mapper([]int{1, 2, 3}, strconv.Itoa)
+ 	want := []string{"1", "2", "3"}
+ 	if !reflect.DeepEqual(got, want) {
+-		panic(fmt.Sprintf("Got %s, want %s", got, want))
++		panic(fmt.Sprintf("got %s, want %s", got, want))
+ 	}
+ 
+ 	fgot := mapper([]float64{2.5, 2.3, 3.5}, func(f float64) string {
+@@ -34,6 +34,6 @@ func main() {
+ 	})
+ 	fwant := []string{"2.5", "2.3", "3.5"}
+ 	if !reflect.DeepEqual(fgot, fwant) {
+-		panic(fmt.Sprintf("Got %s, want %s", fgot, fwant))
++		panic(fmt.Sprintf("got %s, want %s", fgot, fwant))
+ 	}
+ }
+diff --git a/test/typeparam/min.go b/test/typeparam/min.go
+index 3bd92c5f3e..a3e4464a30 100644
+--- a/test/typeparam/min.go
++++ b/test/typeparam/min.go
+@@ -10,8 +10,11 @@ import (
+ 	"fmt"
+ )
+ 
++type Ordered interface {
++	type int, int64, float64
++}
+ 
+-func min[T interface{ type int }](x, y T) T {
++func min[T Ordered](x, y T) T {
+ 	if x < y {
+ 		return x
+ 	}
+@@ -19,14 +22,20 @@ func min[T interface{ type int }](x, y T) T {
+ }
+ 
+ func main() {
+-	want := 2
+-	got := min[int](2, 3)
+-	if want != got {
+-		panic(fmt.Sprintf("Want %d, got %d", want, got))
++	const want = 2
++	if got := min[int](2, 3); got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
++	}
++
++	if got := min(2, 3); got != want {
++		panic(fmt.Sprintf("want %d, got %d", want, got))
++	}
++
++	if got := min[float64](3.5, 2.0); got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
+ 	}
+ 
+-	got = min(2, 3)
+-	if want != got {
+-		panic(fmt.Sprintf("Want %d, got %d", want, got))
++	if got := min(3.5, 2.0); got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
+ 	}
+ }
+diff --git a/test/typeparam/settable.go b/test/typeparam/settable.go
+new file mode 100644
+index 0000000000..3bd141f784
+--- /dev/null
++++ b/test/typeparam/settable.go
+@@ -0,0 +1,38 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"strconv"
++)
++
++func fromStrings3[T any](s []string, set func(*T, string)) []T {
++        results := make([]T, len(s))
++        for i, v := range s {
++                set(&results[i], v)
++        }
++        return results
++}
++
++type Settable int
++
++func (p *Settable) Set(s string) {
++        i, err := strconv.Atoi(s)
++        if err != nil {
++                panic(err)
++        }
++        *p = Settable(i)
++}
++
++func main() {
++        s := fromStrings3([]string{"1"},
++                func(p *Settable, s string) { p.Set(s) })
++        if len(s) != 1 || s[0] != 1 {
++                panic(fmt.Sprintf("got %v, want %v", s, []int{1}))
++        }
++}
+diff --git a/test/typeparam/smallest.go b/test/typeparam/smallest.go
+new file mode 100644
+index 0000000000..63dd9ddb70
+--- /dev/null
++++ b/test/typeparam/smallest.go
+@@ -0,0 +1,42 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++)
++
++type Ordered interface {
++	type int, int8, int16, int32, int64,
++		uint, uint8, uint16, uint32, uint64, uintptr,
++		float32, float64,
++		string
++}
++
++func smallest[T Ordered](s []T) T {
++	r := s[0] // panics if slice is empty
++	for _, v := range s[1:] {
++		if v < r {
++			r = v
++		}
++	}
++	return r
++}
++
++func main() {
++	vec1 := []float64{5.3, 1.2, 32.8}
++	vec2 := []string{"abc", "def", "aaa"}
++
++	want1 := 1.2
++	if got := smallest(vec1); got != want1 {
++		panic(fmt.Sprintf("got %d, want %d", got, want1))
++	}
++	want2 := "aaa"
++	if got := smallest(vec2); got != want2 {
++		panic(fmt.Sprintf("got %d, want %d", got, want2))
++	}
++}
+diff --git a/test/typeparam/stringer.go b/test/typeparam/stringer.go
+index 5086ac72f8..81290d599e 100644
+--- a/test/typeparam/stringer.go
++++ b/test/typeparam/stringer.go
+@@ -73,16 +73,16 @@ func main() {
+ 	got := stringify(x)
+ 	want := []string{"1", "2", "3"}
+ 	if !reflect.DeepEqual(got, want) {
+-		panic(fmt.Sprintf("Got %s, want %s", got, want))
++		panic(fmt.Sprintf("got %s, want %s", got, want))
+ 	}
+ 
+ 	got = stringify2(x)
+ 	if !reflect.DeepEqual(got, want) {
+-		panic(fmt.Sprintf("Got %s, want %s", got, want))
++		panic(fmt.Sprintf("got %s, want %s", got, want))
+ 	}
+ 
+ 	got = stringify3(x)
+ 	if !reflect.DeepEqual(got, want) {
+-		panic(fmt.Sprintf("Got %s, want %s", got, want))
++		panic(fmt.Sprintf("got %s, want %s", got, want))
+ 	}
+ }
+diff --git a/test/typeparam/sum.go b/test/typeparam/sum.go
+index 72511c2fe5..f0f5e6aa07 100644
+--- a/test/typeparam/sum.go
++++ b/test/typeparam/sum.go
+@@ -31,20 +31,20 @@ func main() {
+ 	got := sum[int](vec1)
+ 	want := vec1[0] + vec1[1]
+ 	if got != want {
+-		panic(fmt.Sprintf("Got %d, want %d", got, want))
++		panic(fmt.Sprintf("got %d, want %d", got, want))
+ 	}
+ 	got = sum(vec1)
+ 	if want != got {
+-		panic(fmt.Sprintf("Got %d, want %d", got, want))
++		panic(fmt.Sprintf("got %d, want %d", got, want))
+ 	}
+ 
+ 	fwant := vec2[0] + vec2[1]
+ 	fgot := sum[float64](vec2)
+ 	if abs(fgot - fwant) > 1e-10 {
+-		panic(fmt.Sprintf("Got %f, want %f", fgot, fwant))
++		panic(fmt.Sprintf("got %f, want %f", fgot, fwant))
+ 	}
+ 	fgot = sum(vec2)
+ 	if abs(fgot - fwant) > 1e-10 {
+-		panic(fmt.Sprintf("Got %f, want %f", fgot, fwant))
++		panic(fmt.Sprintf("got %f, want %f", fgot, fwant))
+ 	}
+ }

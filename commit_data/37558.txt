@@ -18,6 +18,25 @@ Date:   Fri Aug 17 15:53:35 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/modfetch/coderepo_test.go | 7 +++----
  1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/coderepo_test.go b/src/cmd/go/internal/modfetch/coderepo_test.go
+index c46705105d..79b82786cb 100644
+--- a/src/cmd/go/internal/modfetch/coderepo_test.go
++++ b/src/cmd/go/internal/modfetch/coderepo_test.go
+@@ -228,10 +228,9 @@ var codeRepoTests = []struct {
+ 		path:    "swtch.com/testmod",
+ 		rev:     "v1.0.0",
+ 		version: "v1.0.0",
+-		name:    "v1.0.0",
+-		short:   "v1.0.0",
+-		time:    time.Date(1972, 7, 18, 12, 34, 56, 0, time.UTC),
+-		gomod:   "module \"swtch.com/testmod\"\n",
++		// NO name or short - we intentionally ignore those in the proxy protocol
++		time:  time.Date(1972, 7, 18, 12, 34, 56, 0, time.UTC),
++		gomod: "module \"swtch.com/testmod\"\n",
+ 	},
+ 	{
+ 		// redirect to googlesource

@@ -8,6 +8,20 @@ Date:   Sat Jun 6 00:01:47 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=29971
     CL=29975
-
+---
  src/lib/strconv/fp_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/lib/strconv/fp_test.go b/src/lib/strconv/fp_test.go
+index a7a159b64a..60d7ce6cfb 100644
+--- a/src/lib/strconv/fp_test.go
++++ b/src/lib/strconv/fp_test.go
+@@ -142,7 +142,7 @@ func TestFp(t *testing.T) {
+ 		}
+ 		if s != a[3] {
+ 			t.Error("testfp.txt:", lineno, ": ", a[0], " ", a[1], " ", a[2], " (", v, ") ",
+-				"want ", a[3], " got ", s, "\n");
++				"want ", a[3], " got ", s);
+ 		}
+ //else print("testfp.txt:", lineno, ": worked! ", s, "\n");
+ 	}

@@ -11,6 +11,21 @@ Date:   Tue Feb 19 13:24:03 2013 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7305100
-
+---
  src/pkg/path/filepath/path.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/path/filepath/path.go b/src/pkg/path/filepath/path.go
+index bcb81824ab..c065b03beb 100644
+--- a/src/pkg/path/filepath/path.go
++++ b/src/pkg/path/filepath/path.go
+@@ -437,7 +437,8 @@ func Base(path string) string {
+ }
+ 
+ // Dir returns all but the last element of path, typically the path's directory.
+-// Trailing path separators are removed before processing.
++// After dropping the final element, the path is Cleaned and trailing
++// slashes are removed.
+ // If the path is empty, Dir returns ".".
+ // If the path consists entirely of separators, Dir returns a single separator.
+ // The returned path does not end in a separator unless it is the root directory.

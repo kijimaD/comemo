@@ -13,7 +13,7 @@ Date:   Tue Feb 13 19:00:17 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testcarchive/carchive_test.go           |  5 +-
  misc/cgo/testcarchive/main5.c                    |  2 +
  misc/cgo/testcshared/cshared_test.go             | 12 ++-
@@ -36,3 +36,776 @@ Date:   Tue Feb 13 19:00:17 2018 -0800
  src/runtime/sys_freebsd_amd64.s                  | 96 ++++++++++++++++++++++-
  src/runtime/sys_freebsd_arm.s                    |  7 +-
  21 files changed, 356 insertions(+), 52 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/carchive_test.go b/misc/cgo/testcarchive/carchive_test.go
+index 79633659da..06e74fa2fe 100644
+--- a/misc/cgo/testcarchive/carchive_test.go
++++ b/misc/cgo/testcarchive/carchive_test.go
+@@ -260,6 +260,9 @@ func TestSignalForwarding(t *testing.T) {
+ }
+ 
+ func TestSignalForwardingExternal(t *testing.T) {
++	if GOOS == "freebsd" {
++		t.Skipf("skipping on %s/%s; signal always goes to the Go runtime", GOOS, GOARCH)
++	}
+ 	checkSignalForwardingTest(t)
+ 
+ 	defer func() {
+@@ -433,7 +436,7 @@ func TestSigaltstack(t *testing.T) {
+ }
+ 
+ const testar = `#!/usr/bin/env bash
+-while expr $1 : '[-]' >/dev/null; do
++while [[ $1 == -* ]] >/dev/null; do
+   shift
+ done
+ echo "testar" > $1
+diff --git a/misc/cgo/testcarchive/main5.c b/misc/cgo/testcarchive/main5.c
+index 2437bf07c5..897b70d2fa 100644
+--- a/misc/cgo/testcarchive/main5.c
++++ b/misc/cgo/testcarchive/main5.c
+@@ -85,6 +85,8 @@ int main(int argc, char** argv) {
+ 				printf("write(2) unexpectedly succeeded\n");
+ 				return 0;
+ 			}
++			printf("did not receieve SIGPIPE\n");
++			return 0;
+ 		}
+ 		default:
+ 			printf("Unknown test: %d\n", test);
+diff --git a/misc/cgo/testcshared/cshared_test.go b/misc/cgo/testcshared/cshared_test.go
+index e43422de6e..77cefc5a66 100644
+--- a/misc/cgo/testcshared/cshared_test.go
++++ b/misc/cgo/testcshared/cshared_test.go
+@@ -322,7 +322,11 @@ func TestExportedSymbolsWithDynamicLoad(t *testing.T) {
+ 
+ 	createHeadersOnce(t)
+ 
+-	runCC(t, "-o", cmd, "main1.c", "-ldl")
++	if GOOS != "freebsd" {
++		runCC(t, "-o", cmd, "main1.c", "-ldl")
++	} else {
++		runCC(t, "-o", cmd, "main1.c")
++	}
+ 	adbPush(t, cmd)
+ 
+ 	defer os.Remove(bin)
+@@ -411,7 +415,11 @@ func testSignalHandlers(t *testing.T, pkgname, cfile, cmd string) {
+ 		"-o", libname, pkgname,
+ 	)
+ 	adbPush(t, libname)
+-	runCC(t, "-pthread", "-o", cmd, cfile, "-ldl")
++	if GOOS != "freebsd" {
++		runCC(t, "-pthread", "-o", cmd, cfile, "-ldl")
++	} else {
++		runCC(t, "-pthread", "-o", cmd, cfile)
++	}
+ 	adbPush(t, cmd)
+ 
+ 	bin := cmdToRun(cmd)
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index fe9dcc216e..1c1d8b6ffb 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -912,6 +912,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 		switch pair {
+ 		case "darwin-386", "darwin-amd64", "darwin-arm", "darwin-arm64",
+ 			"linux-amd64", "linux-386", "linux-ppc64le", "linux-s390x",
++			"freebsd-amd64",
+ 			"windows-amd64", "windows-386":
+ 			return true
+ 		}
+@@ -920,6 +921,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 		switch pair {
+ 		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-s390x",
+ 			"darwin-amd64", "darwin-386",
++			"freebsd-amd64",
+ 			"android-arm", "android-arm64", "android-386",
+ 			"windows-amd64", "windows-386":
+ 			return true
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index 7f894f5c6d..527e81103e 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -98,7 +98,8 @@ func buildModeInit() {
+ 		} else {
+ 			switch platform {
+ 			case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/ppc64le", "linux/s390x",
+-				"android/amd64", "android/arm", "android/arm64", "android/386":
++				"android/amd64", "android/arm", "android/arm64", "android/386",
++				"freebsd/amd64":
+ 				codegenArg = "-shared"
+ 			case "darwin/amd64", "darwin/386":
+ 			case "windows/amd64", "windows/386":
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 0fbc552dda..783252a551 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -4615,7 +4615,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 							log.Fatalf("unknown TLS base location for %v", ctxt.Headtype)
+ 
+ 						case objabi.Hlinux,
+-							objabi.Hnacl:
++							objabi.Hnacl, objabi.Hfreebsd:
+ 							if ctxt.Flag_shared {
+ 								// Note that this is not generating the same insns as the other cases.
+ 								//     MOV TLS, dst
+@@ -4687,9 +4687,9 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 					default:
+ 						log.Fatalf("unknown TLS base location for %v", ctxt.Headtype)
+ 
+-					case objabi.Hlinux:
++					case objabi.Hlinux, objabi.Hfreebsd:
+ 						if !ctxt.Flag_shared {
+-							log.Fatalf("unknown TLS base location for linux without -shared")
++							log.Fatalf("unknown TLS base location for linux/freebsd without -shared")
+ 						}
+ 						// Note that this is not generating the same insn as the other cases.
+ 						//     MOV TLS, R_to
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 7c17514e86..2ff92ccca4 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -64,7 +64,7 @@ func CanUse1InsnTLS(ctxt *obj.Link) bool {
+ 	switch ctxt.Headtype {
+ 	case objabi.Hplan9, objabi.Hwindows:
+ 		return false
+-	case objabi.Hlinux:
++	case objabi.Hlinux, objabi.Hfreebsd:
+ 		return !ctxt.Flag_shared
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index cc95392d77..302dabecb7 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -52,6 +52,12 @@ func (mode *BuildMode) Set(s string) error {
+ 	case "c-archive":
+ 		switch objabi.GOOS {
+ 		case "darwin", "linux":
++		case "freebsd":
++			switch objabi.GOARCH {
++			case "amd64":
++			default:
++				return badmode()
++			}
+ 		case "windows":
+ 			switch objabi.GOARCH {
+ 			case "amd64", "386":
+diff --git a/src/runtime/cgo/gcc_fatalf.c b/src/runtime/cgo/gcc_fatalf.c
+index 5ac419b412..fdcf6f5e52 100644
+--- a/src/runtime/cgo/gcc_fatalf.c
++++ b/src/runtime/cgo/gcc_fatalf.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !android,linux
++// +build !android,linux freebsd
+ 
+ #include <stdarg.h>
+ #include <stdio.h>
+diff --git a/src/runtime/cgo/gcc_freebsd_amd64.c b/src/runtime/cgo/gcc_freebsd_amd64.c
+index d25db91900..514a2f8a23 100644
+--- a/src/runtime/cgo/gcc_freebsd_amd64.c
++++ b/src/runtime/cgo/gcc_freebsd_amd64.c
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include <sys/types.h>
++#include <errno.h>
+ #include <sys/signalvar.h>
+ #include <pthread.h>
+ #include <signal.h>
+@@ -16,14 +17,21 @@ static void (*setg_gcc)(void*);
+ void
+ x_cgo_init(G *g, void (*setg)(void*))
+ {
+-	pthread_attr_t attr;
++	pthread_attr_t *attr;
+ 	size_t size;
+ 
++	// Deal with memory sanitizer/clang interaction.
++	// See gcc_linux_amd64.c for details.
+ 	setg_gcc = setg;
+-	pthread_attr_init(&attr);
+-	pthread_attr_getstacksize(&attr, &size);
++	attr = (pthread_attr_t*)malloc(sizeof *attr);
++	if (attr == NULL) {
++		fatalf("malloc failed: %s", strerror(errno));
++	}
++	pthread_attr_init(attr);
++	pthread_attr_getstacksize(attr, &size);
+ 	g->stacklo = (uintptr)&attr - size + 4096;
+-	pthread_attr_destroy(&attr);
++	pthread_attr_destroy(attr);
++	free(attr);
+ }
+ 
+ void
+@@ -40,7 +48,6 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+-
+ 	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+ 	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+@@ -48,8 +55,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if (err != 0) {
+-		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+-		abort();
++		fatalf("pthread_create failed: %s", strerror(err));
+ 	}
+ }
+ 
+@@ -59,7 +65,9 @@ threadentry(void *v)
+ 	ThreadStart ts;
+ 
+ 	ts = *(ThreadStart*)v;
++	_cgo_tsan_acquire();
+ 	free(v);
++	_cgo_tsan_release();
+ 
+ 	/*
+ 	 * Set specific keys.
+diff --git a/src/runtime/cgo/gcc_freebsd_sigaction.c b/src/runtime/cgo/gcc_freebsd_sigaction.c
+new file mode 100644
+index 0000000000..d1bf3c0b52
+--- /dev/null
++++ b/src/runtime/cgo/gcc_freebsd_sigaction.c
+@@ -0,0 +1,80 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build freebsd,amd64
++
++#include <errno.h>
++#include <stddef.h>
++#include <stdint.h>
++#include <string.h>
++#include <signal.h>
++
++#include "libcgo.h"
++
++// go_sigaction_t is a C version of the sigactiont struct from
++// os_freebsd.go.  This definition — and its conversion to and from struct
++// sigaction — are specific to freebsd/amd64.
++typedef struct {
++        uint32_t __bits[_SIG_WORDS];
++} go_sigset_t;
++typedef struct {
++	uintptr_t handler;
++	int32_t flags;
++	go_sigset_t mask;
++} go_sigaction_t;
++
++int32_t
++x_cgo_sigaction(intptr_t signum, const go_sigaction_t *goact, go_sigaction_t *oldgoact) {
++	int32_t ret;
++	struct sigaction act;
++	struct sigaction oldact;
++	int i;
++
++	_cgo_tsan_acquire();
++
++	memset(&act, 0, sizeof act);
++	memset(&oldact, 0, sizeof oldact);
++
++	if (goact) {
++		if (goact->flags & SA_SIGINFO) {
++			act.sa_sigaction = (void(*)(int, siginfo_t*, void*))(goact->handler);
++		} else {
++			act.sa_handler = (void(*)(int))(goact->handler);
++		}
++		sigemptyset(&act.sa_mask);
++		for (i = 0; i < 8 * sizeof(goact->mask); i++) {
++			if (goact->mask.__bits[i/32] & ((uint32_t)(1)<<(i&31))) {
++				sigaddset(&act.sa_mask, i+1);
++			}
++		}
++		act.sa_flags = goact->flags;
++	}
++
++	ret = sigaction(signum, goact ? &act : NULL, oldgoact ? &oldact : NULL);
++	if (ret == -1) {
++		// runtime.sigaction expects _cgo_sigaction to return errno on error.
++		_cgo_tsan_release();
++		return errno;
++	}
++
++	if (oldgoact) {
++		if (oldact.sa_flags & SA_SIGINFO) {
++			oldgoact->handler = (uintptr_t)(oldact.sa_sigaction);
++		} else {
++			oldgoact->handler = (uintptr_t)(oldact.sa_handler);
++		}
++		for (i = 0 ; i < _SIG_WORDS; i++) {
++			oldgoact->mask.__bits[i] = 0;
++		}
++		for (i = 0; i < 8 * sizeof(oldgoact->mask); i++) {
++			if (sigismember(&oldact.sa_mask, i+1) == 1) {
++				oldgoact->mask.__bits[i/32] |= (uint32_t)(1)<<(i&31);
++			}
++		}
++		oldgoact->flags = oldact.sa_flags;
++	}
++
++	_cgo_tsan_release();
++	return ret;
++}
+diff --git a/src/runtime/cgo/sigaction.go b/src/runtime/cgo/sigaction.go
+index 30d3f14c14..e25f4ff2f3 100644
+--- a/src/runtime/cgo/sigaction.go
++++ b/src/runtime/cgo/sigaction.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux,amd64
++// +build linux,amd64 freebsd,amd64
+ 
+ package cgo
+ 
+diff --git a/src/runtime/cgo_sigaction.go b/src/runtime/cgo_sigaction.go
+index 0908f863a4..9832d35f03 100644
+--- a/src/runtime/cgo_sigaction.go
++++ b/src/runtime/cgo_sigaction.go
+@@ -4,7 +4,7 @@
+ 
+ // Support for memory sanitizer. See runtime/cgo/sigaction.go.
+ 
+-// +build linux,amd64
++// +build linux,amd64 freebsd,amd64
+ 
+ package runtime
+ 
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index 230da3e755..b09dc04433 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -12,14 +12,11 @@ import (
+ type mOS struct{}
+ 
+ //go:noescape
+-func thr_new(param *thrparam, size int32)
++func thr_new(param *thrparam, size int32) int32
+ 
+ //go:noescape
+ func sigaltstack(new, old *stackt)
+ 
+-//go:noescape
+-func sigaction(sig uint32, new, old *sigactiont)
+-
+ //go:noescape
+ func sigprocmask(how int32, new, old *sigset)
+ 
+@@ -185,13 +182,11 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ 		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " thr_start=", funcPC(thr_start), " id=", mp.id, " ostk=", &mp, "\n")
+ 	}
+ 
+-	// NOTE(rsc): This code is confused. stackbase is the top of the stack
+-	// and is equal to stk. However, it's working, so I'm not changing it.
+ 	param := thrparam{
+ 		start_func: funcPC(thr_start),
+ 		arg:        unsafe.Pointer(mp),
+-		stack_base: mp.g0.stack.hi,
+-		stack_size: uintptr(stk) - mp.g0.stack.hi,
++		stack_base: mp.g0.stack.lo,
++		stack_size: uintptr(stk) - mp.g0.stack.lo,
+ 		child_tid:  unsafe.Pointer(&mp.procid),
+ 		parent_tid: nil,
+ 		tls_base:   unsafe.Pointer(&mp.tls[0]),
+@@ -201,8 +196,59 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ 	var oset sigset
+ 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
+ 	// TODO: Check for error.
+-	thr_new(&param, int32(unsafe.Sizeof(param)))
++	ret := thr_new(&param, int32(unsafe.Sizeof(param)))
++	sigprocmask(_SIG_SETMASK, &oset, nil)
++	if ret < 0 {
++		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", -ret, ")\n")
++		throw("newosproc")
++	}
++}
++
++// Version of newosproc that doesn't require a valid G.
++//go:nosplit
++func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
++	stack := sysAlloc(stacksize, &memstats.stacks_sys)
++	if stack == nil {
++		write(2, unsafe.Pointer(&failallocatestack[0]), int32(len(failallocatestack)))
++		exit(1)
++	}
++	// This code "knows" it's being called once from the library
++	// initialization code, and so it's using the static m0 for the
++	// tls and procid (thread) pointers. thr_new() requires the tls
++	// pointers, though the tid pointers can be nil.
++	// However, newosproc0 is currently unreachable because builds
++	// utilizing c-shared/c-archive force external linking.
++	param := thrparam{
++		start_func: funcPC(fn),
++		arg:        nil,
++		stack_base: uintptr(stack), //+stacksize?
++		stack_size: stacksize,
++		child_tid:  unsafe.Pointer(&m0.procid),
++		parent_tid: nil,
++		tls_base:   unsafe.Pointer(&m0.tls[0]),
++		tls_size:   unsafe.Sizeof(m0.tls),
++	}
++
++	var oset sigset
++	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
++	ret := thr_new(&param, int32(unsafe.Sizeof(param)))
+ 	sigprocmask(_SIG_SETMASK, &oset, nil)
++	if ret < 0 {
++		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
++		exit(1)
++	}
++}
++
++var failallocatestack = []byte("runtime: failed to allocate stack for the new OS thread\n")
++var failthreadcreate = []byte("runtime: failed to create new OS thread\n")
++
++// Called to do synchronous initialization of Go code built with
++// -buildmode=c-archive or -buildmode=c-shared.
++// None of the Go runtime is initialized.
++//go:nosplit
++//go:nowritebarrierrec
++func libpreinit() {
++	initsig(true)
+ }
+ 
+ func osinit() {
+@@ -274,25 +320,20 @@ type sigactiont struct {
+ 	sa_mask    sigset
+ }
+ 
++// See os_freebsd2.go, os_freebsd_amd64.go for setsig function
++
+ //go:nosplit
+ //go:nowritebarrierrec
+-func setsig(i uint32, fn uintptr) {
++func setsigstack(i uint32) {
+ 	var sa sigactiont
+-	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
+-	sa.sa_mask = sigset_all
+-	if fn == funcPC(sighandler) {
+-		fn = funcPC(sigtramp)
++	sigaction(i, nil, &sa)
++	if sa.sa_flags&_SA_ONSTACK != 0 {
++		return
+ 	}
+-	sa.sa_handler = fn
++	sa.sa_flags |= _SA_ONSTACK
+ 	sigaction(i, &sa, nil)
+ }
+ 
+-//go:nosplit
+-//go:nowritebarrierrec
+-func setsigstack(i uint32) {
+-	throw("setsigstack")
+-}
+-
+ //go:nosplit
+ //go:nowritebarrierrec
+ func getsig(i uint32) uintptr {
+@@ -354,3 +395,18 @@ func sysauxv(auxv []uintptr) {
+ 		archauxv(tag, val)
+ 	}
+ }
++
++// sysSigaction calls the sigaction system call.
++//go:nosplit
++func sysSigaction(sig uint32, new, old *sigactiont) {
++	// Use system stack to avoid split stack overflow on amd64
++	if asmSigaction(uintptr(sig), new, old) != 0 {
++		systemstack(func() {
++			throw("sigaction failed")
++		})
++	}
++}
++
++// asmSigaction is implemented in assembly.
++//go:noescape
++func asmSigaction(sig uintptr, new, old *sigactiont) int32
+diff --git a/src/runtime/os_freebsd2.go b/src/runtime/os_freebsd2.go
+new file mode 100644
+index 0000000000..6947a05d04
+--- /dev/null
++++ b/src/runtime/os_freebsd2.go
+@@ -0,0 +1,20 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build freebsd,!amd64
++
++package runtime
++
++//go:nosplit
++//go:nowritebarrierrec
++func setsig(i uint32, fn uintptr) {
++	var sa sigactiont
++	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
++	sa.sa_mask = sigset_all
++	if fn == funcPC(sighandler) {
++		fn = funcPC(sigtramp)
++	}
++	sa.sa_handler = fn
++	sigaction(i, &sa, nil)
++}
+diff --git a/src/runtime/os_freebsd_amd64.go b/src/runtime/os_freebsd_amd64.go
+new file mode 100644
+index 0000000000..dc0bb9ff96
+--- /dev/null
++++ b/src/runtime/os_freebsd_amd64.go
+@@ -0,0 +1,24 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++func cgoSigtramp()
++
++//go:nosplit
++//go:nowritebarrierrec
++func setsig(i uint32, fn uintptr) {
++	var sa sigactiont
++	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
++	sa.sa_mask = sigset_all
++	if fn == funcPC(sighandler) {
++		if iscgo {
++			fn = funcPC(cgoSigtramp)
++		} else {
++			fn = funcPC(sigtramp)
++		}
++	}
++	sa.sa_handler = fn
++	sigaction(i, &sa, nil)
++}
+diff --git a/src/runtime/sigaction_linux.go b/src/runtime/sigaction.go
+similarity index 65%
+rename from src/runtime/sigaction_linux.go
+rename to src/runtime/sigaction.go
+index 4775f64123..eb454f9327 100644
+--- a/src/runtime/sigaction_linux.go
++++ b/src/runtime/sigaction.go
+@@ -2,12 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !amd64
++// +build linux,!amd64 freebsd,!amd64
+ 
+ package runtime
+ 
+-// This version is used on Linux systems on which we don't use cgo to
+-// call the C version of sigaction.
++// This version is used on Linux and FreeBSD systems on which we don't
++// use cgo to call the C version of sigaction.
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 78649c52a9..d87f1bed16 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -484,7 +484,10 @@ func raisebadsignal(sig uint32, c *sigctxt) {
+ 	// re-installing sighandler. At this point we can just
+ 	// return and the signal will be re-raised and caught by
+ 	// the default handler with the correct context.
+-	if (isarchive || islibrary) && handler == _SIG_DFL && c.sigcode() != _SI_USER {
++	//
++	// On FreeBSD, the libthr sigaction code prevents
++	// this from working so we fall through to raise.
++	if GOOS != "freebsd" && (isarchive || islibrary) && handler == _SIG_DFL && c.sigcode() != _SI_USER {
+ 		return
+ 	}
+ 
+diff --git a/src/runtime/sys_freebsd_386.s b/src/runtime/sys_freebsd_386.s
+index 94b2357c62..dba2f206db 100644
+--- a/src/runtime/sys_freebsd_386.s
++++ b/src/runtime/sys_freebsd_386.s
+@@ -19,6 +19,7 @@ TEXT runtime·sys_umtx_op(SB),NOSPLIT,$-4
+ TEXT runtime·thr_new(SB),NOSPLIT,$-4
+ 	MOVL	$455, AX
+ 	INT	$0x80
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+ TEXT runtime·thr_start(SB),NOSPLIT,$0
+@@ -211,11 +212,10 @@ TEXT runtime·nanotime(SB), NOSPLIT, $32
+ 	RET
+ 
+ 
+-TEXT runtime·sigaction(SB),NOSPLIT,$-4
++TEXT runtime·asmSigaction(SB),NOSPLIT,$-4
+ 	MOVL	$416, AX
+ 	INT	$0x80
+-	JAE	2(PC)
+-	MOVL	$0xf1, 0xf1  // crash
++	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
+diff --git a/src/runtime/sys_freebsd_amd64.s b/src/runtime/sys_freebsd_amd64.s
+index c2c71784dd..4d3e88b482 100644
+--- a/src/runtime/sys_freebsd_amd64.s
++++ b/src/runtime/sys_freebsd_amd64.s
+@@ -26,6 +26,7 @@ TEXT runtime·thr_new(SB),NOSPLIT,$0
+ 	MOVL size+8(FP), SI
+ 	MOVL $455, AX
+ 	SYSCALL
++	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+ TEXT runtime·thr_start(SB),NOSPLIT,$0
+@@ -169,14 +170,27 @@ TEXT runtime·nanotime(SB), NOSPLIT, $32
+ 	MOVQ	AX, ret+0(FP)
+ 	RET
+ 
+-TEXT runtime·sigaction(SB),NOSPLIT,$-8
+-	MOVL	sig+0(FP), DI		// arg 1 sig
++TEXT runtime·asmSigaction(SB),NOSPLIT,$0
++	MOVQ	sig+0(FP), DI		// arg 1 sig
+ 	MOVQ	new+8(FP), SI		// arg 2 act
+ 	MOVQ	old+16(FP), DX		// arg 3 oact
+ 	MOVL	$416, AX
+ 	SYSCALL
+ 	JCC	2(PC)
+-	MOVL	$0xf1, 0xf1  // crash
++	MOVL	$-1, AX
++	MOVL	AX, ret+24(FP)
++	RET
++
++TEXT runtime·callCgoSigaction(SB),NOSPLIT,$16
++	MOVQ	sig+0(FP), DI		// arg 1 sig
++	MOVQ	new+8(FP), SI		// arg 2 act
++	MOVQ	old+16(FP), DX		// arg 3 oact
++	MOVQ	_cgo_sigaction(SB), AX
++	MOVQ	SP, BX			// callee-saved
++	ANDQ	$~15, SP		// alignment as per amd64 psABI
++	CALL	AX
++	MOVQ	BX, SP
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+@@ -216,6 +230,82 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$72
+ 	MOVQ	bx-8(SP),   BX
+ 	RET
+ 
++// Used instead of sigtramp in programs that use cgo.
++// Arguments from kernel are in DI, SI, DX.
++TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
++	// If no traceback function, do usual sigtramp.
++	MOVQ	runtime·cgoTraceback(SB), AX
++	TESTQ	AX, AX
++	JZ	sigtramp
++
++	// If no traceback support function, which means that
++	// runtime/cgo was not linked in, do usual sigtramp.
++	MOVQ	_cgo_callers(SB), AX
++	TESTQ	AX, AX
++	JZ	sigtramp
++
++	// Figure out if we are currently in a cgo call.
++	// If not, just do usual sigtramp.
++	get_tls(CX)
++	MOVQ	g(CX),AX
++	TESTQ	AX, AX
++	JZ	sigtrampnog     // g == nil
++	MOVQ	g_m(AX), AX
++	TESTQ	AX, AX
++	JZ	sigtramp        // g.m == nil
++	MOVL	m_ncgo(AX), CX
++	TESTL	CX, CX
++	JZ	sigtramp        // g.m.ncgo == 0
++	MOVQ	m_curg(AX), CX
++	TESTQ	CX, CX
++	JZ	sigtramp        // g.m.curg == nil
++	MOVQ	g_syscallsp(CX), CX
++	TESTQ	CX, CX
++	JZ	sigtramp        // g.m.curg.syscallsp == 0
++	MOVQ	m_cgoCallers(AX), R8
++	TESTQ	R8, R8
++	JZ	sigtramp        // g.m.cgoCallers == nil
++	MOVL	m_cgoCallersUse(AX), CX
++	TESTL	CX, CX
++	JNZ	sigtramp	// g.m.cgoCallersUse != 0
++
++	// Jump to a function in runtime/cgo.
++	// That function, written in C, will call the user's traceback
++	// function with proper unwind info, and will then call back here.
++	// The first three arguments, and the fifth, are already in registers.
++	// Set the two remaining arguments now.
++	MOVQ	runtime·cgoTraceback(SB), CX
++	MOVQ	$runtime·sigtramp(SB), R9
++	MOVQ	_cgo_callers(SB), AX
++	JMP	AX
++
++sigtramp:
++	JMP	runtime·sigtramp(SB)
++
++sigtrampnog:
++	// Signal arrived on a non-Go thread. If this is SIGPROF, get a
++	// stack trace.
++	CMPL	DI, $27 // 27 == SIGPROF
++	JNZ	sigtramp
++
++	// Lock sigprofCallersUse.
++	MOVL	$0, AX
++	MOVL	$1, CX
++	MOVQ	$runtime·sigprofCallersUse(SB), R11
++	LOCK
++	CMPXCHGL	CX, 0(R11)
++	JNZ	sigtramp  // Skip stack trace if already locked.
++
++	// Jump to the traceback function in runtime/cgo.
++	// It will call back to sigprofNonGo, which will ignore the
++	// arguments passed in registers.
++	// First three arguments to traceback function are in registers already.
++	MOVQ	runtime·cgoTraceback(SB), CX
++	MOVQ	$runtime·sigprofCallers(SB), R8
++	MOVQ	$runtime·sigprofNonGo(SB), R9
++	MOVQ	_cgo_callers(SB), AX
++	JMP	AX
++
+ TEXT runtime·mmap(SB),NOSPLIT,$0
+ 	MOVQ	addr+0(FP), DI		// arg 1 addr
+ 	MOVQ	n+8(FP), SI		// arg 2 len
+diff --git a/src/runtime/sys_freebsd_arm.s b/src/runtime/sys_freebsd_arm.s
+index d0b1e96a1a..1a76f1767f 100644
+--- a/src/runtime/sys_freebsd_arm.s
++++ b/src/runtime/sys_freebsd_arm.s
+@@ -59,6 +59,7 @@ TEXT runtime·thr_new(SB),NOSPLIT,$0
+ 	MOVW size+4(FP), R1
+ 	MOVW $SYS_thr_new, R7
+ 	SWI $0
++	MOVW	R0, ret+8(FP)
+ 	RET
+ 
+ TEXT runtime·thr_start(SB),NOSPLIT,$0
+@@ -207,14 +208,14 @@ TEXT runtime·nanotime(SB), NOSPLIT, $32
+ 	MOVW R1, ret_hi+4(FP)
+ 	RET
+ 
+-TEXT runtime·sigaction(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·asmSigaction(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW sig+0(FP), R0		// arg 1 sig
+ 	MOVW new+4(FP), R1		// arg 2 act
+ 	MOVW old+8(FP), R2		// arg 3 oact
+ 	MOVW $SYS_sigaction, R7
+ 	SWI $0
+-	MOVW.CS $0, R8 // crash on syscall failure
+-	MOVW.CS R8, (R8)
++	MOVW.CS	$-1, R0
++	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·sigtramp(SB),NOSPLIT,$12

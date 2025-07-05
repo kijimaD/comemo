@@ -11,6 +11,20 @@ Date:   Mon Dec 2 16:54:29 2013 -0800
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/36320043
-
+---
  src/pkg/reflect/value.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 7e709e6207..7764ffade2 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -2175,7 +2175,7 @@ func Zero(typ Type) Value {
+ 	if t.size <= ptrSize {
+ 		return Value{t, nil, fl}
+ 	}
+-	return Value{t, t.zero, fl | flagIndir}
++	return Value{t, unsafe_New(typ.(*rtype)), fl | flagIndir}
+ }
+ 
+ // New returns a Value representing a pointer to a new zero value

@@ -12,9 +12,143 @@ Date:   Tue Nov 9 14:20:11 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/expr.go                           |  6 ++++
  src/go/types/struct.go                         | 14 ++++++--
  src/go/types/subst.go                          |  4 ++-
  src/go/types/testdata/fixedbugs/issue49276.go2 | 46 ++++++++++++++++++++++++++
  4 files changed, 67 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 83022ed660..224185b6a9 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1230,6 +1230,12 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 
+ 		switch utyp := structure(base).(type) {
+ 		case *Struct:
++			// Prevent crash if the struct referred to is not yet set up.
++			// See analogous comment for *Array.
++			if utyp.fields == nil {
++				check.error(e, _Todo, "illegal cycle in type declaration")
++				goto Error
++			}
+ 			if len(e.Elts) == 0 {
+ 				break
+ 			}
+diff --git a/src/go/types/struct.go b/src/go/types/struct.go
+index 442c7a66e3..60640ac578 100644
+--- a/src/go/types/struct.go
++++ b/src/go/types/struct.go
+@@ -15,7 +15,7 @@ import (
+ 
+ // A Struct represents a struct type.
+ type Struct struct {
+-	fields []*Var
++	fields []*Var   // fields != nil indicates the struct is set up (possibly with len(fields) == 0)
+ 	tags   []string // field tags; nil if there are no tags
+ }
+ 
+@@ -33,7 +33,9 @@ func NewStruct(fields []*Var, tags []string) *Struct {
+ 	if len(tags) > len(fields) {
+ 		panic("more tags than fields")
+ 	}
+-	return &Struct{fields: fields, tags: tags}
++	s := &Struct{fields: fields, tags: tags}
++	s.markComplete()
++	return s
+ }
+ 
+ // NumFields returns the number of fields in the struct (including blank and embedded fields).
+@@ -56,9 +58,16 @@ func (t *Struct) String() string   { return TypeString(t, nil) }
+ // ----------------------------------------------------------------------------
+ // Implementation
+ 
++func (s *Struct) markComplete() {
++	if s.fields == nil {
++		s.fields = make([]*Var, 0)
++	}
++}
++
+ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
+ 	list := e.Fields
+ 	if list == nil {
++		styp.markComplete()
+ 		return
+ 	}
+ 
+@@ -161,6 +170,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
+ 
+ 	styp.fields = fields
+ 	styp.tags = tags
++	styp.markComplete()
+ }
+ 
+ func embeddedFieldIdent(e ast.Expr) *ast.Ident {
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index f0b79f60c6..1fac82fe8a 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -91,7 +91,9 @@ func (subst *subster) typ(typ Type) Type {
+ 
+ 	case *Struct:
+ 		if fields, copied := subst.varList(t.fields); copied {
+-			return &Struct{fields: fields, tags: t.tags}
++			s := &Struct{fields: fields, tags: t.tags}
++			s.markComplete()
++			return s
+ 		}
+ 
+ 	case *Pointer:
+diff --git a/src/go/types/testdata/fixedbugs/issue49276.go2 b/src/go/types/testdata/fixedbugs/issue49276.go2
+new file mode 100644
+index 0000000000..8839087b50
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue49276.go2
+@@ -0,0 +1,46 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import "unsafe"
++
++type S /* ERROR illegal cycle in declaration of S */ struct {
++	_ [unsafe.Sizeof(s)]byte
++}
++
++var s S
++
++// Since f is a pointer, this case could be valid.
++// But it's pathological and not worth the expense.
++type T struct {
++	f *[unsafe.Sizeof(T /* ERROR illegal cycle in type declaration */ {})]int
++}
++
++// a mutually recursive case using unsafe.Sizeof
++type (
++	A1 struct {
++		_ [unsafe.Sizeof(B1{})]int
++	}
++
++	B1 struct {
++		_ [unsafe.Sizeof(A1 /* ERROR illegal cycle in type declaration */ {})]int
++	}
++)
++
++// a mutually recursive case using len
++type (
++	A2 struct {
++		f [len(B2{}.f)]int
++	}
++
++	B2 struct {
++		f [len(A2 /* ERROR illegal cycle in type declaration */ {}.f)]int
++	}
++)
++
++// test case from issue
++type a struct {
++	_ [42 - unsafe.Sizeof(a /* ERROR illegal cycle in type declaration */ {})]byte
++}

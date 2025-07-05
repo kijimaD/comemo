@@ -269,3 +269,23 @@ Date:   Mon Dec 21 19:23:41 2020 +0000
  test/run.go                                        |   2 +-
  test/sinit_run.go                                  |   2 +-
  263 files changed, 2764 insertions(+), 1852 deletions(-)
+
+diff --cc src/cmd/compile/internal/gc/order.go
+index 7915e4b2f7,888e8ea907..9c03a5843c
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@@ -892,12 -892,12 +892,12 @@@ func (o *Order) stmt(n ir.Node) 
+  
+  			case ir.OSELRECV2:
+  				// case x, ok = <-c
+ +				r := r.(*ir.AssignListStmt)
+  				recv := r.Rlist().First().(*ir.UnaryExpr)
+  				recv.SetLeft(o.expr(recv.Left(), nil))
+- 				if recv.Left().Op() != ir.ONAME {
++ 				if !ir.IsAutoTmp(recv.Left()) {
+  					recv.SetLeft(o.copyExpr(recv.Left()))
+  				}
+ -				r := r.(*ir.AssignListStmt)
+  				init := r.PtrInit().Slice()
+  				r.PtrInit().Set(nil)
+  

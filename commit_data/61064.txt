@@ -15,7 +15,52 @@ Date:   Fri Sep 27 09:42:41 2024 -0700
     Commit-Queue: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/compile/internal/types2/call.go | 4 ++--
  src/go/types/call.go                    | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index ea4b174f65..4ff5fe49e7 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -701,7 +701,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
+ 				for _, prefix := range cgoPrefixes {
+ 					// cgo objects are part of the current package (in file
+ 					// _cgo_gotypes.go). Use regular lookup.
+-					_, exp = check.scope.LookupParent(prefix+sel, check.pos)
++					exp = check.lookup(prefix + sel)
+ 					if exp != nil {
+ 						break
+ 					}
+@@ -963,7 +963,7 @@ func (check *Checker) use1(e syntax.Expr, lhs bool) bool {
+ 		var v *Var
+ 		var v_used bool
+ 		if lhs {
+-			if _, obj := check.scope.LookupParent(n.Value, nopos); obj != nil {
++			if obj := check.lookup(n.Value); obj != nil {
+ 				// It's ok to mark non-local variables, but ignore variables
+ 				// from other packages to avoid potential race conditions with
+ 				// dot-imported variables.
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index f14b408829..e4d0d927f5 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -704,7 +704,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *TypeName, w
+ 				for _, prefix := range cgoPrefixes {
+ 					// cgo objects are part of the current package (in file
+ 					// _cgo_gotypes.go). Use regular lookup.
+-					_, exp = check.scope.LookupParent(prefix+sel, check.pos)
++					exp = check.lookup(prefix + sel)
+ 					if exp != nil {
+ 						break
+ 					}
+@@ -1012,7 +1012,7 @@ func (check *Checker) use1(e ast.Expr, lhs bool) bool {
+ 		var v *Var
+ 		var v_used bool
+ 		if lhs {
+-			if _, obj := check.scope.LookupParent(n.Name, nopos); obj != nil {
++			if obj := check.lookup(n.Name); obj != nil {
+ 				// It's ok to mark non-local variables, but ignore variables
+ 				// from other packages to avoid potential race conditions with
+ 				// dot-imported variables.

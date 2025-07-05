@@ -12,7 +12,7 @@ Date:   Tue Aug 15 17:29:40 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/cgo/gcc_freebsd_amd64.c | 10 +++++-----
  src/runtime/cgo/gcc_libinit.c       | 18 +++++++-----------
  src/runtime/cgo/gcc_linux_amd64.c   | 10 +++++-----
@@ -20,3 +20,161 @@ Date:   Tue Aug 15 17:29:40 2023 -0700
  src/runtime/cgo/libcgo.h            |  5 +++++
  src/runtime/cgo/libcgo_unix.h       |  2 +-
  6 files changed, 28 insertions(+), 27 deletions(-)
+
+diff --git a/src/runtime/cgo/gcc_freebsd_amd64.c b/src/runtime/cgo/gcc_freebsd_amd64.c
+index 81943881c2..31905f2aa3 100644
+--- a/src/runtime/cgo/gcc_freebsd_amd64.c
++++ b/src/runtime/cgo/gcc_freebsd_amd64.c
+@@ -17,17 +17,17 @@ static void (*setg_gcc)(void*);
+ void
+ x_cgo_init(G *g, void (*setg)(void*))
+ {
+-	pthread_attr_t *attr;
++	uintptr *pbounds;
+ 
+ 	// Deal with memory sanitizer/clang interaction.
+ 	// See gcc_linux_amd64.c for details.
+ 	setg_gcc = setg;
+-	attr = (pthread_attr_t*)malloc(sizeof *attr);
+-	if (attr == NULL) {
++	pbounds = (uintptr*)malloc(2 * sizeof(uintptr));
++	if (pbounds == NULL) {
+ 		fatalf("malloc failed: %s", strerror(errno));
+ 	}
+-	_cgo_set_stacklo(g, attr);
+-	free(attr);
++	_cgo_set_stacklo(g, pbounds);
++	free(pbounds);
+ }
+ 
+ void
+diff --git a/src/runtime/cgo/gcc_libinit.c b/src/runtime/cgo/gcc_libinit.c
+index f6c930209e..68f4a02379 100644
+--- a/src/runtime/cgo/gcc_libinit.c
++++ b/src/runtime/cgo/gcc_libinit.c
+@@ -85,20 +85,18 @@ _cgo_wait_runtime_init_done(void) {
+ // _cgo_set_stacklo sets g->stacklo based on the stack size.
+ // This is common code called from x_cgo_init, which is itself
+ // called by rt0_go in the runtime package.
+-void _cgo_set_stacklo(G *g, pthread_attr_t *pattr)
++void _cgo_set_stacklo(G *g, uintptr *pbounds)
+ {
+-	pthread_attr_t attr;
+-	size_t size;
++	uintptr bounds[2];
+ 
+-	// pattr can be passed in by the caller; see gcc_linux_amd64.c.
+-	if (pattr == NULL) {
+-		pattr = &attr;
++	// pbounds can be passed in by the caller; see gcc_linux_amd64.c.
++	if (pbounds == NULL) {
++		pbounds = &bounds[0];
+ 	}
+ 
+-	pthread_attr_init(pattr);
+-	pthread_attr_getstacksize(pattr, &size);
++	x_cgo_getstackbound(pbounds);
+ 
+-	g->stacklo = (uintptr)(__builtin_frame_address(0)) - size + 4096;
++	g->stacklo = *pbounds;
+ 
+ 	// Sanity check the results now, rather than getting a
+ 	// morestack on g0 crash.
+@@ -106,8 +104,6 @@ void _cgo_set_stacklo(G *g, pthread_attr_t *pattr)
+ 		fprintf(stderr, "runtime/cgo: bad stack bounds: lo=%p hi=%p\n", (void*)(g->stacklo), (void*)(g->stackhi));
+ 		abort();
+ 	}
+-
+-	pthread_attr_destroy(pattr);
+ }
+ 
+ // Store the g into a thread-specific value associated with the pthread key pthread_g.
+diff --git a/src/runtime/cgo/gcc_linux_amd64.c b/src/runtime/cgo/gcc_linux_amd64.c
+index 405f3e1d5e..dcb596e213 100644
+--- a/src/runtime/cgo/gcc_linux_amd64.c
++++ b/src/runtime/cgo/gcc_linux_amd64.c
+@@ -19,7 +19,7 @@ void (*x_cgo_inittls)(void **tlsg, void **tlsbase) __attribute__((common));
+ void
+ x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
+ {
+-	pthread_attr_t *attr;
++	uintptr *pbounds;
+ 
+ 	/* The memory sanitizer distributed with versions of clang
+ 	   before 3.8 has a bug: if you call mmap before malloc, mmap
+@@ -37,12 +37,12 @@ x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
+ 	   malloc, so we actually use the memory we allocate.  */
+ 
+ 	setg_gcc = setg;
+-	attr = (pthread_attr_t*)malloc(sizeof *attr);
+-	if (attr == NULL) {
++	pbounds = (uintptr*)malloc(2 * sizeof(uintptr));
++	if (pbounds == NULL) {
+ 		fatalf("malloc failed: %s", strerror(errno));
+ 	}
+-	_cgo_set_stacklo(g, attr);
+-	free(attr);
++	_cgo_set_stacklo(g, pbounds);
++	free(pbounds);
+ 
+ 	if (x_cgo_inittls) {
+ 		x_cgo_inittls(tlsg, tlsbase);
+diff --git a/src/runtime/cgo/gcc_linux_arm64.c b/src/runtime/cgo/gcc_linux_arm64.c
+index 8b822fe8a3..0dcff2c090 100644
+--- a/src/runtime/cgo/gcc_linux_arm64.c
++++ b/src/runtime/cgo/gcc_linux_arm64.c
+@@ -56,7 +56,7 @@ threadentry(void *v)
+ void
+ x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
+ {
+-	pthread_attr_t *attr;
++	uintptr *pbounds;
+ 
+ 	/* The memory sanitizer distributed with versions of clang
+ 	   before 3.8 has a bug: if you call mmap before malloc, mmap
+@@ -74,12 +74,12 @@ x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
+ 	   malloc, so we actually use the memory we allocate.  */
+ 
+ 	setg_gcc = setg;
+-	attr = (pthread_attr_t*)malloc(sizeof *attr);
+-	if (attr == NULL) {
++	pbounds = (uintptr*)malloc(2 * sizeof(uintptr));
++	if (pbounds == NULL) {
+ 		fatalf("malloc failed: %s", strerror(errno));
+ 	}
+-	_cgo_set_stacklo(g, attr);
+-	free(attr);
++	_cgo_set_stacklo(g, pbounds);
++	free(pbounds);
+ 
+ 	if (x_cgo_inittls) {
+ 		x_cgo_inittls(tlsg, tlsbase);
+diff --git a/src/runtime/cgo/libcgo.h b/src/runtime/cgo/libcgo.h
+index 443aa2696d..295c12c53c 100644
+--- a/src/runtime/cgo/libcgo.h
++++ b/src/runtime/cgo/libcgo.h
+@@ -68,6 +68,11 @@ void _cgo_sys_thread_start(ThreadStart *ts);
+  */
+ uintptr_t _cgo_wait_runtime_init_done(void);
+ 
++/*
++ * Get the low and high boundaries of the stack.
++ */
++void x_cgo_getstackbound(uintptr bounds[2]);
++
+ /*
+  * Prints error then calls abort. For linux and android.
+  */
+diff --git a/src/runtime/cgo/libcgo_unix.h b/src/runtime/cgo/libcgo_unix.h
+index 6d30769542..b8f8d30d30 100644
+--- a/src/runtime/cgo/libcgo_unix.h
++++ b/src/runtime/cgo/libcgo_unix.h
+@@ -5,7 +5,7 @@
+ /*
+  * Initialize g->stacklo.
+  */
+-extern void _cgo_set_stacklo(G *, pthread_attr_t*);
++extern void _cgo_set_stacklo(G *, uintptr *);
+ 
+ /*
+  * Call pthread_create, retrying on EAGAIN.

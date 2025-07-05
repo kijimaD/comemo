@@ -10,7 +10,98 @@ Date:   Tue May 24 13:53:44 2016 +0300
     Reviewed-on: https://go-review.googlesource.com/23351
     Run-TryBot: Rob Pike <r@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/print.go          | 34 ++++++++++++++++++----------------
  src/cmd/vet/testdata/print.go | 18 ++++++++++++++++++
  2 files changed, 36 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/vet/print.go b/src/cmd/vet/print.go
+index 07499e6ae6..f4b985cfbd 100644
+--- a/src/cmd/vet/print.go
++++ b/src/cmd/vet/print.go
+@@ -587,22 +587,24 @@ func (f *File) argCanBeChecked(call *ast.CallExpr, formatArg int, isStar bool, s
+ func (f *File) checkPrint(call *ast.CallExpr, name string) {
+ 	firstArg := 0
+ 	typ := f.pkg.types[call.Fun].Type
+-	if typ != nil {
+-		if sig, ok := typ.(*types.Signature); ok {
+-			if !sig.Variadic() {
+-				// Skip checking non-variadic functions.
+-				return
+-			}
+-			params := sig.Params()
+-			firstArg = params.Len() - 1
+-
+-			typ := params.At(firstArg).Type()
+-			typ = typ.(*types.Slice).Elem()
+-			it, ok := typ.(*types.Interface)
+-			if !ok || !it.Empty() {
+-				// Skip variadic functions accepting non-interface{} args.
+-				return
+-			}
++	if typ == nil {
++		// Skip checking functions with unknown type.
++		return
++	}
++	if sig, ok := typ.(*types.Signature); ok {
++		if !sig.Variadic() {
++			// Skip checking non-variadic functions.
++			return
++		}
++		params := sig.Params()
++		firstArg = params.Len() - 1
++
++		typ := params.At(firstArg).Type()
++		typ = typ.(*types.Slice).Elem()
++		it, ok := typ.(*types.Interface)
++		if !ok || !it.Empty() {
++			// Skip variadic functions accepting non-interface{} args.
++			return
+ 		}
+ 	}
+ 	args := call.Args
+diff --git a/src/cmd/vet/testdata/print.go b/src/cmd/vet/testdata/print.go
+index 261ee788c7..ab97256c08 100644
+--- a/src/cmd/vet/testdata/print.go
++++ b/src/cmd/vet/testdata/print.go
+@@ -8,6 +8,7 @@ package testdata
+ 
+ import (
+ 	"fmt"
++	"io"
+ 	"math"
+ 	"os"
+ 	"unsafe" // just for test case printing unsafe.Pointer
+@@ -272,11 +273,21 @@ func Printf(format string, args ...interface{}) {
+ 	panic("don't call - testing only")
+ }
+ 
++// Println is used by the test so we must declare it.
++func Println(args ...interface{}) {
++	panic("don't call - testing only")
++}
++
+ // Logf is used by the test so we must declare it.
+ func Logf(format string, args ...interface{}) {
+ 	panic("don't call - testing only")
+ }
+ 
++// Log is used by the test so we must declare it.
++func Log(args ...interface{}) {
++	panic("don't call - testing only")
++}
++
+ // printf is used by the test so we must declare it.
+ func printf(format string, args ...interface{}) {
+ 	panic("don't call - testing only")
+@@ -415,3 +426,10 @@ var recursiveStruct1V = &RecursiveStruct1{}
+ func (int) String() {
+ 	return ""
+ }
++
++func (s *unknownStruct) Fprintln(w io.Writer, s string) {}
++
++func UnknownStructFprintln() {
++	s := unknownStruct{}
++	s.Fprintln(os.Stdout, "hello, world!") // OK
++}

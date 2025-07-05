@@ -9,6 +9,27 @@ Date:   Wed Oct 12 11:36:18 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/archive/tar/strconv.go | 7 +++----
  1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/archive/tar/strconv.go b/src/archive/tar/strconv.go
+index 2619bcdde4..45e46b13b8 100644
+--- a/src/archive/tar/strconv.go
++++ b/src/archive/tar/strconv.go
+@@ -156,12 +156,11 @@ func (p *parser) parseOctal(b []byte) int64 {
+ 	return int64(x)
+ }
+ 
+-// Encode x as an octal ASCII string and write it into b with leading zeros.
+ func (f *formatter) formatOctal(b []byte, x int64) {
+ 	s := strconv.FormatInt(x, 8)
+-	// leading zeros, but leave room for a NUL.
+-	for len(s)+1 < len(b) {
+-		s = "0" + s
++	// Add leading zeros, but leave room for a NUL.
++	if n := len(b) - len(s) - 1; n > 0 {
++		s = strings.Repeat("0", n) + s
+ 	}
+ 	f.formatString(b, s)
+ }

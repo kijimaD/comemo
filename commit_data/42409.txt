@@ -16,6 +16,30 @@ Date:   Fri Dec 13 12:07:06 2019 +0100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/211277
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go_spec.html | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 724b044aa4..4fff107c9b 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of Sep 4, 2019",
++	"Subtitle": "Version of Dec 13, 2019",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -20,8 +20,8 @@ dependencies.
+ </p>
+ 
+ <p>
+-The grammar is compact and regular, allowing for easy analysis by
+-automatic tools such as integrated development environments.
++The grammar is compact and simple to parse, allowing for easy analysis
++by automatic tools such as integrated development environments.
+ </p>
+ 
+ <h2 id="Notation">Notation</h2>

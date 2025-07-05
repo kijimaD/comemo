@@ -7,6 +7,21 @@ Date:   Mon Feb 16 14:22:22 2015 -0500
     Change-Id: Idc88b1ee950e33cfe757a27e9a3383d879793af7
     Reviewed-on: https://go-review.googlesource.com/4934
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/tool.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/go/tool.go b/src/cmd/go/tool.go
+index dc8d34ba08..29feb1d3b2 100644
+--- a/src/cmd/go/tool.go
++++ b/src/cmd/go/tool.go
+@@ -50,6 +50,9 @@ func tool(toolName string) string {
+ 	if toolIsWindows {
+ 		toolPath += toolWindowsExtension
+ 	}
++	if len(buildToolExec) > 0 {
++		return toolPath
++	}
+ 	// Give a nice message if there is no tool with that name.
+ 	if _, err := os.Stat(toolPath); err != nil {
+ 		if isInGoToolsRepo(toolName) {

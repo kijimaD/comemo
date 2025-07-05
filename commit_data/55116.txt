@@ -18,6 +18,20 @@ Date:   Mon Jan 9 13:59:54 2023 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
-
+---
  src/cmd/compile/internal/pgo/irgraph.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/pgo/irgraph.go b/src/cmd/compile/internal/pgo/irgraph.go
+index 311f20ed81..bf11e365f1 100644
+--- a/src/cmd/compile/internal/pgo/irgraph.go
++++ b/src/cmd/compile/internal/pgo/irgraph.go
+@@ -217,7 +217,7 @@ func (p *Profile) processprofileGraph(g *Graph) bool {
+ 		// TODO(prattic): If Function.start_line is missing we could
+ 		// fall back to using absolute line numbers, which is better
+ 		// than nothing.
+-		log.Fatal("PGO profile missing Function.start_line data")
++		log.Fatal("PGO profile missing Function.start_line data (Go version of profiled application too old? Go 1.20+ automatically adds this to profiles)")
+ 	}
+ 
+ 	return true

@@ -24,6 +24,20 @@ Date:   Thu Feb 23 11:04:37 2017 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/proc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 8dede3fb23..ae19120a31 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3791,7 +3791,7 @@ func sysmon() {
+ 		}
+ 		// check if we need to force a GC
+ 		lastgc := int64(atomic.Load64(&memstats.last_gc_nanotime))
+-		if gcphase == _GCoff && lastgc != 0 && now-lastgc > forcegcperiod && atomic.Load(&forcegc.idle) != 0 {
++		if gcShouldStart(true) && lastgc != 0 && now-lastgc > forcegcperiod && atomic.Load(&forcegc.idle) != 0 {
+ 			lock(&forcegc.lock)
+ 			forcegc.idle = 0
+ 			forcegc.g.schedlink = 0

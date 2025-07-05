@@ -7,7 +7,40 @@ Date:   Fri Aug 7 13:17:28 2009 -0700
     R=ken
     OCL=32887
     CL=32887
-
+---
  src/cmd/gc/typecheck.c   |  2 +-
  test/fixedbugs/bug182.go | 13 +++++++++++++
  2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index ff8b2056c0..3488faf48f 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -879,7 +879,7 @@ reswitch:
+ 		typechecklist(n->ninit, Etop);
+ 		typecheck(&n->ntest, Erv);
+ 		if(n->ntest != N && (t = n->ntest->type) != T && t->etype != TBOOL)
+-			yyerror("non-bool %+N used as if condition");
++			yyerror("non-bool %+N used as if condition", n->ntest);
+ 		typechecklist(n->nbody, Etop);
+ 		typechecklist(n->nelse, Etop);
+ 		goto ret;
+diff --git a/test/fixedbugs/bug182.go b/test/fixedbugs/bug182.go
+new file mode 100644
+index 0000000000..3e3d3c4b1e
+--- /dev/null
++++ b/test/fixedbugs/bug182.go
+@@ -0,0 +1,13 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	x := 0;
++	if x {	// ERROR "x.*int"
++	}
++}

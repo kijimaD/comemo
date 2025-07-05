@@ -9,6 +9,20 @@ Date:   Mon Sep 8 17:01:40 2014 -0400
     TBR=brainman, iant
     CC=golang-codereviews
     https://golang.org/cl/137370043
-
+---
  src/runtime/sys_windows_386.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index 7d4dc6a69c..fc19f5650a 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -161,7 +161,7 @@ TEXT runtime·profileloop(SB),NOSPLIT,$0
+ 	PUSHL	$runtime·profileloop1(SB)
+ 	CALL	runtime·externalthreadhandler(SB)
+ 	MOVL	4(SP), CX
+-	ADDL	$40, SP
++	ADDL	$12, SP
+ 	JMP	CX
+ 
+ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0

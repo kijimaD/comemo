@@ -12,6 +12,32 @@ Date:   Mon Dec 11 12:29:32 2023 -0500
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  doc/go1.22.html | 13 ++++++-------
  1 file changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/doc/go1.22.html b/doc/go1.22.html
+index 3722dfbcc0..437e86e6b6 100644
+--- a/doc/go1.22.html
++++ b/doc/go1.22.html
+@@ -83,14 +83,13 @@ func main() {
+   but not both.
+ </p>
+ 
+-<!-- CL 518775 -->
++<!-- CL 518775, https://go.dev/issue/60915 -->
+ <p>
+-  <!-- cmd/go: delete GOPATH-mode get -->
+-</p>
+-
+-<!-- https://go.dev/issue/60915 -->
+-<p>
+-  <!-- preserve basic GOPATH mode indefinitely -->
++  <code>go</code> <code>get</code> is no longer supported outside of a module in the
++  legacy <code>GOPATH</code> mode (that is, with <code>GO111MODULE=off</code>).
++  Other build commands, such as <code>go</code> <code>build</code> and
++  <code>go</code> <code>test</code>, will continue to work indefinitely
++  for legacy <code>GOPATH</code> programs.
+ </p>
+ 
+ <!-- CL 518776 -->

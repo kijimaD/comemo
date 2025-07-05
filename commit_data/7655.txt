@@ -15,7 +15,7 @@ Date:   Sun Mar 6 17:33:23 2011 -0500
     R=rsc, gri, mattn, brainman
     CC=golang-dev
     https://golang.org/cl/4252044
-
+---
  src/cmd/ebnflint/ebnflint.go        |   4 +-
  src/cmd/godoc/dirtrees.go           |   8 +-
  src/cmd/godoc/godoc.go              |  63 +++---
@@ -50,3 +50,2552 @@ Date:   Sun Mar 6 17:33:23 2011 -0500
  src/pkg/path/path_unix.go           |  11 -
  src/pkg/path/path_windows.go        |  11 -
  33 files changed, 1228 insertions(+), 481 deletions(-)
+
+diff --git a/src/cmd/ebnflint/ebnflint.go b/src/cmd/ebnflint/ebnflint.go
+index 5eb3987354..cac39179f2 100644
+--- a/src/cmd/ebnflint/ebnflint.go
++++ b/src/cmd/ebnflint/ebnflint.go
+@@ -13,7 +13,7 @@ import (
+ 	"go/token"
+ 	"io/ioutil"
+ 	"os"
+-	"path"
++	"path/filepath"
+ )
+ 
+ 
+@@ -91,7 +91,7 @@ func main() {
+ 		os.Exit(1)
+ 	}
+ 
+-	if path.Ext(filename) == ".html" {
++	if filepath.Ext(filename) == ".html" {
+ 		src = extractEBNF(src)
+ 	}
+ 
+diff --git a/src/cmd/godoc/dirtrees.go b/src/cmd/godoc/dirtrees.go
+index d6d88c2f9a..3ad7c8cfc5 100644
+--- a/src/cmd/godoc/dirtrees.go
++++ b/src/cmd/godoc/dirtrees.go
+@@ -14,7 +14,7 @@ import (
+ 	"io/ioutil"
+ 	"log"
+ 	"os"
+-	pathutil "path"
++	"path/filepath"
+ 	"strings"
+ 	"unicode"
+ )
+@@ -32,7 +32,7 @@ type Directory struct {
+ func isGoFile(f *os.FileInfo) bool {
+ 	return f.IsRegular() &&
+ 		!strings.HasPrefix(f.Name, ".") && // ignore .files
+-		pathutil.Ext(f.Name) == ".go"
++		filepath.Ext(f.Name) == ".go"
+ }
+ 
+ 
+@@ -123,7 +123,7 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
+ 			// though the directory doesn't contain any real package files - was bug)
+ 			if synopses[0] == "" {
+ 				// no "optimal" package synopsis yet; continue to collect synopses
+-				file, err := parser.ParseFile(fset, pathutil.Join(path, d.Name), nil,
++				file, err := parser.ParseFile(fset, filepath.Join(path, d.Name), nil,
+ 					parser.ParseComments|parser.PackageClauseOnly)
+ 				if err == nil {
+ 					hasPkgFiles = true
+@@ -156,7 +156,7 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
+ 		i := 0
+ 		for _, d := range list {
+ 			if isPkgDir(d) {
+-				dd := b.newDirTree(fset, pathutil.Join(path, d.Name), d.Name, depth+1)
++				dd := b.newDirTree(fset, filepath.Join(path, d.Name), d.Name, depth+1)
+ 				if dd != nil {
+ 					dirs[i] = dd
+ 					i++
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index efb386f06e..9dce5edf94 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -18,7 +18,8 @@ import (
+ 	"io/ioutil"
+ 	"log"
+ 	"os"
+-	pathutil "path"
++	"path"
++	"path/filepath"
+ 	"regexp"
+ 	"runtime"
+ 	"sort"
+@@ -81,8 +82,8 @@ var (
+ func initHandlers() {
+ 	fsMap.Init(*pkgPath)
+ 	fileServer = http.FileServer(*goroot, "")
+-	cmdHandler = httpHandler{"/cmd/", pathutil.Join(*goroot, "src/cmd"), false}
+-	pkgHandler = httpHandler{"/pkg/", pathutil.Join(*goroot, "src/pkg"), true}
++	cmdHandler = httpHandler{"/cmd/", filepath.Join(*goroot, "src", "cmd"), false}
++	pkgHandler = httpHandler{"/pkg/", filepath.Join(*goroot, "src", "pkg"), true}
+ }
+ 
+ 
+@@ -97,7 +98,7 @@ func registerPublicHandlers(mux *http.ServeMux) {
+ 
+ 
+ func initFSTree() {
+-	fsTree.set(newDirectory(pathutil.Join(*goroot, *testDir), nil, -1))
++	fsTree.set(newDirectory(filepath.Join(*goroot, *testDir), nil, -1))
+ 	invalidateIndex()
+ }
+ 
+@@ -246,27 +247,30 @@ func initDirTrees() {
+ // ----------------------------------------------------------------------------
+ // Path mapping
+ 
+-func absolutePath(path, defaultRoot string) string {
+-	abspath := fsMap.ToAbsolute(path)
++// Absolute paths are file system paths (backslash-separated on Windows),
++// but relative paths are always slash-separated.
++
++func absolutePath(relpath, defaultRoot string) string {
++	abspath := fsMap.ToAbsolute(relpath)
+ 	if abspath == "" {
+ 		// no user-defined mapping found; use default mapping
+-		abspath = pathutil.Join(defaultRoot, path)
++		abspath = filepath.Join(defaultRoot, filepath.FromSlash(relpath))
+ 	}
+ 	return abspath
+ }
+ 
+ 
+-func relativePath(path string) string {
+-	relpath := fsMap.ToRelative(path)
++func relativeURL(abspath string) string {
++	relpath := fsMap.ToRelative(abspath)
+ 	if relpath == "" {
+-		// prefix must end in '/'
++		// prefix must end in a path separator
+ 		prefix := *goroot
+-		if len(prefix) > 0 && prefix[len(prefix)-1] != '/' {
+-			prefix += "/"
++		if len(prefix) > 0 && prefix[len(prefix)-1] != filepath.Separator {
++			prefix += string(filepath.Separator)
+ 		}
+-		if strings.HasPrefix(path, prefix) {
++		if strings.HasPrefix(abspath, prefix) {
+ 			// no user-defined mapping found; use default mapping
+-			relpath = path[len(prefix):]
++			relpath = filepath.ToSlash(abspath[len(prefix):])
+ 		}
+ 	}
+ 	// Only if path is an invalid absolute path is relpath == ""
+@@ -481,7 +485,7 @@ func urlFmt(w io.Writer, format string, x ...interface{}) {
+ 	}
+ 
+ 	// map path
+-	relpath := relativePath(path)
++	relpath := relativeURL(path)
+ 
+ 	// convert to relative URLs so that they can also
+ 	// be used as relative file names in .txt templates
+@@ -598,7 +602,7 @@ func dirslashFmt(w io.Writer, format string, x ...interface{}) {
+ 
+ // Template formatter for "localname" format.
+ func localnameFmt(w io.Writer, format string, x ...interface{}) {
+-	_, localname := pathutil.Split(x[0].(string))
++	_, localname := filepath.Split(x[0].(string))
+ 	template.HTMLEscape(w, []byte(localname))
+ }
+ 
+@@ -630,7 +634,7 @@ var fmap = template.FormatterMap{
+ 
+ 
+ func readTemplate(name string) *template.Template {
+-	path := pathutil.Join(*goroot, "lib/godoc/"+name)
++	path := filepath.Join(*goroot, "lib", "godoc", name)
+ 	data, err := ioutil.ReadFile(path)
+ 	if err != nil {
+ 		log.Fatalf("ReadFile %s: %v", path, err)
+@@ -767,14 +771,13 @@ func applyTemplate(t *template.Template, name string, data interface{}) []byte {
+ 
+ 
+ func redirect(w http.ResponseWriter, r *http.Request) (redirected bool) {
+-	if canonical := pathutil.Clean(r.URL.Path) + "/"; r.URL.Path != canonical {
++	if canonical := path.Clean(r.URL.Path) + "/"; r.URL.Path != canonical {
+ 		http.Redirect(w, r, canonical, http.StatusMovedPermanently)
+ 		redirected = true
+ 	}
+ 	return
+ }
+ 
+-
+ func serveTextFile(w http.ResponseWriter, r *http.Request, abspath, relpath, title string) {
+ 	src, err := ioutil.ReadFile(abspath)
+ 	if err != nil {
+@@ -785,7 +788,7 @@ func serveTextFile(w http.ResponseWriter, r *http.Request, abspath, relpath, tit
+ 
+ 	var buf bytes.Buffer
+ 	buf.WriteString("<pre>")
+-	FormatText(&buf, src, 1, pathutil.Ext(abspath) == ".go", r.FormValue("h"), rangeSelection(r.FormValue("s")))
++	FormatText(&buf, src, 1, filepath.Ext(abspath) == ".go", r.FormValue("h"), rangeSelection(r.FormValue("s")))
+ 	buf.WriteString("</pre>")
+ 
+ 	servePage(w, title+" "+relpath, "", "", buf.Bytes())
+@@ -822,7 +825,7 @@ func serveFile(w http.ResponseWriter, r *http.Request) {
+ 	// pick off special cases and hand the rest to the standard file server
+ 	switch r.URL.Path {
+ 	case "/":
+-		serveHTMLDoc(w, r, pathutil.Join(*goroot, "doc/root.html"), "doc/root.html")
++		serveHTMLDoc(w, r, filepath.Join(*goroot, "doc", "root.html"), "doc/root.html")
+ 		return
+ 
+ 	case "/doc/root.html":
+@@ -831,9 +834,9 @@ func serveFile(w http.ResponseWriter, r *http.Request) {
+ 		return
+ 	}
+ 
+-	switch pathutil.Ext(abspath) {
++	switch path.Ext(relpath) {
+ 	case ".html":
+-		if strings.HasSuffix(abspath, "/index.html") {
++		if strings.HasSuffix(relpath, "/index.html") {
+ 			// We'll show index.html for the directory.
+ 			// Use the dir/ version as canonical instead of dir/index.html.
+ 			http.Redirect(w, r, r.URL.Path[0:len(r.URL.Path)-len("index.html")], http.StatusMovedPermanently)
+@@ -858,8 +861,8 @@ func serveFile(w http.ResponseWriter, r *http.Request) {
+ 		if redirect(w, r) {
+ 			return
+ 		}
+-		if index := abspath + "/index.html"; isTextFile(index) {
+-			serveHTMLDoc(w, r, index, relativePath(index))
++		if index := filepath.Join(abspath, "index.html"); isTextFile(index) {
++			serveHTMLDoc(w, r, index, relativeURL(index))
+ 			return
+ 		}
+ 		serveDirectory(w, r, abspath, relpath)
+@@ -955,13 +958,13 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
+ 		// the package with dirname, and the 3rd choice is a package
+ 		// that is not called "main" if there is exactly one such
+ 		// package. Otherwise, don't select a package.
+-		dirpath, dirname := pathutil.Split(abspath)
++		dirpath, dirname := filepath.Split(abspath)
+ 
+ 		// If the dirname is "go" we might be in a sub-directory for
+ 		// .go files - use the outer directory name instead for better
+ 		// results.
+ 		if dirname == "go" {
+-			_, dirname = pathutil.Split(pathutil.Clean(dirpath))
++			_, dirname = filepath.Split(filepath.Clean(dirpath))
+ 		}
+ 
+ 		var choice3 *ast.Package
+@@ -1002,7 +1005,7 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
+ 			ast.PackageExports(pkg)
+ 		}
+ 		if mode&genDoc != 0 {
+-			pdoc = doc.NewPackageDoc(pkg, pathutil.Clean(relpath)) // no trailing '/' in importpath
++			pdoc = doc.NewPackageDoc(pkg, path.Clean(relpath)) // no trailing '/' in importpath
+ 		} else {
+ 			past = ast.MergePackageFiles(pkg, ast.FilterUnassociatedComments)
+ 		}
+@@ -1088,13 +1091,13 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+ 			title = "Package " + info.PDoc.PackageName
+ 		case info.PDoc.PackageName == fakePkgName:
+ 			// assume that the directory name is the command name
+-			_, pkgname := pathutil.Split(pathutil.Clean(relpath))
++			_, pkgname := path.Split(path.Clean(relpath))
+ 			title = "Command " + pkgname
+ 		default:
+ 			title = "Command " + info.PDoc.PackageName
+ 		}
+ 	default:
+-		title = "Directory " + relativePath(info.Dirname)
++		title = "Directory " + relativeURL(info.Dirname)
+ 		if *showTimestamps {
+ 			subtitle = "Last update: " + time.SecondsToLocalTime(info.DirTime).String()
+ 		}
+diff --git a/src/cmd/godoc/index.go b/src/cmd/godoc/index.go
+index 56f31f5cf0..5af4d15cb5 100644
+--- a/src/cmd/godoc/index.go
++++ b/src/cmd/godoc/index.go
+@@ -47,7 +47,7 @@ import (
+ 	"index/suffixarray"
+ 	"io/ioutil"
+ 	"os"
+-	"path"
++	"path/filepath"
+ 	"regexp"
+ 	"sort"
+ 	"strings"
+@@ -718,7 +718,7 @@ var whitelisted = map[string]bool{
+ // of "permitted" files for indexing. The filename must
+ // be the directory-local name of the file.
+ func isWhitelisted(filename string) bool {
+-	key := path.Ext(filename)
++	key := filepath.Ext(filename)
+ 	if key == "" {
+ 		// file has no extension - use entire filename
+ 		key = filename
+@@ -732,7 +732,7 @@ func (x *Indexer) visitFile(dirname string, f *os.FileInfo, fulltextIndex bool)
+ 		return
+ 	}
+ 
+-	filename := path.Join(dirname, f.Name)
++	filename := filepath.Join(dirname, f.Name)
+ 	goFile := false
+ 
+ 	switch {
+@@ -757,7 +757,7 @@ func (x *Indexer) visitFile(dirname string, f *os.FileInfo, fulltextIndex bool)
+ 	if fast != nil {
+ 		// we've got a Go file to index
+ 		x.current = file
+-		dir, _ := path.Split(filename)
++		dir, _ := filepath.Split(filename)
+ 		pak := Pak{dir, fast.Name.Name}
+ 		x.file = &File{filename, pak}
+ 		ast.Walk(x, fast)
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index ea1e3c42e1..1ebb802790 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -36,7 +36,7 @@ import (
+ 	"io"
+ 	"log"
+ 	"os"
+-	pathutil "path"
++	"path/filepath"
+ 	"regexp"
+ 	"runtime"
+ 	"strings"
+@@ -314,14 +314,14 @@ func main() {
+ 	if len(path) > 0 && path[0] == '.' {
+ 		// assume cwd; don't assume -goroot
+ 		cwd, _ := os.Getwd() // ignore errors
+-		path = pathutil.Join(cwd, path)
++		path = filepath.Join(cwd, path)
+ 	}
+ 	relpath := path
+ 	abspath := path
+-	if !pathutil.IsAbs(path) {
++	if !filepath.IsAbs(path) {
+ 		abspath = absolutePath(path, pkgHandler.fsRoot)
+ 	} else {
+-		relpath = relativePath(path)
++		relpath = relativeURL(path)
+ 	}
+ 
+ 	var mode PageInfoMode
+@@ -339,7 +339,7 @@ func main() {
+ 
+ 	if info.IsEmpty() {
+ 		// try again, this time assume it's a command
+-		if !pathutil.IsAbs(path) {
++		if !filepath.IsAbs(path) {
+ 			abspath = absolutePath(path, cmdHandler.fsRoot)
+ 		}
+ 		cmdInfo := cmdHandler.getPageInfo(abspath, relpath, "", mode)
+diff --git a/src/cmd/godoc/mapping.go b/src/cmd/godoc/mapping.go
+index 1d87bbc76e..6ae9032e48 100644
+--- a/src/cmd/godoc/mapping.go
++++ b/src/cmd/godoc/mapping.go
+@@ -10,7 +10,8 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"os"
+-	pathutil "path"
++	"path"
++	"path/filepath"
+ 	"sort"
+ 	"strings"
+ )
+@@ -59,10 +60,10 @@ type mapping struct {
+ }
+ 
+ 
+-// Init initializes the Mapping from a list of ':'-separated
+-// paths. Empty paths are ignored; relative paths are assumed
+-// to be relative to the current working directory and converted
+-// to absolute paths. For each path of the form:
++// Init initializes the Mapping from a list of paths separated by
++// filepath.ListSeparator. Empty paths are ignored; relative paths
++// are assumed to be relative to the current working directory and
++// converted to absolute paths. For each path of the form:
+ //
+ //	dirname/localname
+ //
+@@ -71,7 +72,7 @@ type mapping struct {
+ //	localname -> path
+ //
+ // is added to the Mapping object, in the order of occurrence.
+-// For instance, the argument:
++// For instance, under Unix, the argument:
+ //
+ //	/home/user:/home/build/public
+ //
+@@ -81,12 +82,12 @@ type mapping struct {
+ //	public -> /home/build/public
+ //
+ func (m *Mapping) Init(paths string) {
+-	pathlist := canonicalizePaths(strings.Split(paths, ":", -1), nil)
++	pathlist := canonicalizePaths(filepath.SplitList(paths), nil)
+ 	list := make([]mapping, len(pathlist))
+ 
+ 	// create mapping list
+ 	for i, path := range pathlist {
+-		_, prefix := pathutil.Split(path)
++		_, prefix := filepath.Split(path)
+ 		list[i] = mapping{prefix, path, new(RWValue)}
+ 	}
+ 
+@@ -147,7 +148,7 @@ func (m *Mapping) Fprint(w io.Writer) {
+ 
+ 
+ func splitFirst(path string) (head, tail string) {
+-	i := strings.Index(path, "/")
++	i := strings.Index(path, string(filepath.Separator))
+ 	if i > 0 {
+ 		// 0 < i < len(path)
+ 		return path[0:i], path[i+1:]
+@@ -156,22 +157,23 @@ func splitFirst(path string) (head, tail string) {
+ }
+ 
+ 
+-// ToAbsolute maps a relative path to an absolute path using the Mapping
+-// specified by the receiver. If the path cannot be mapped, the empty
+-// string is returned.
++// ToAbsolute maps a slash-separated relative path to an absolute filesystem
++// path using the Mapping specified by the receiver. If the path cannot
++// be mapped, the empty string is returned.
+ //
+-func (m *Mapping) ToAbsolute(path string) string {
+-	prefix, tail := splitFirst(path)
++func (m *Mapping) ToAbsolute(spath string) string {
++	fpath := filepath.FromSlash(spath)
++	prefix, tail := splitFirst(fpath)
+ 	for _, e := range m.list {
+ 		switch {
+ 		case e.prefix == prefix:
+ 			// use tail
+ 		case e.prefix == "":
+-			tail = path
++			tail = fpath
+ 		default:
+ 			continue // no match
+ 		}
+-		abspath := pathutil.Join(e.path, tail)
++		abspath := filepath.Join(e.path, tail)
+ 		if _, err := os.Stat(abspath); err == nil {
+ 			return abspath
+ 		}
+@@ -181,15 +183,16 @@ func (m *Mapping) ToAbsolute(path string) string {
+ }
+ 
+ 
+-// ToRelative maps an absolute path to a relative path using the Mapping
+-// specified by the receiver. If the path cannot be mapped, the empty
+-// string is returned.
++// ToRelative maps an absolute filesystem path to a relative slash-separated
++// path using the Mapping specified by the receiver. If the path cannot
++// be mapped, the empty string is returned.
+ //
+-func (m *Mapping) ToRelative(path string) string {
++func (m *Mapping) ToRelative(fpath string) string {
+ 	for _, e := range m.list {
+-		if strings.HasPrefix(path, e.path) {
++		if strings.HasPrefix(fpath, e.path) {
++			spath := filepath.ToSlash(fpath)
+ 			// /absolute/prefix/foo -> prefix/foo
+-			return pathutil.Join(e.prefix, path[len(e.path):]) // Join will remove a trailing '/'
++			return path.Join(e.prefix, spath[len(e.path):]) // Join will remove a trailing '/'
+ 		}
+ 	}
+ 	return "" // no match
+diff --git a/src/cmd/godoc/utils.go b/src/cmd/godoc/utils.go
+index d21e7e9863..9517aee7ab 100644
+--- a/src/cmd/godoc/utils.go
++++ b/src/cmd/godoc/utils.go
+@@ -10,7 +10,7 @@ import (
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
+-	pathutil "path"
++	"path/filepath"
+ 	"sort"
+ 	"strings"
+ 	"sync"
+@@ -60,10 +60,10 @@ func canonicalizePaths(list []string, filter func(path string) bool) []string {
+ 			continue // ignore empty paths (don't assume ".")
+ 		}
+ 		// len(path) > 0: normalize path
+-		if pathutil.IsAbs(path) {
+-			path = pathutil.Clean(path)
++		if filepath.IsAbs(path) {
++			path = filepath.Clean(path)
+ 		} else {
+-			path = pathutil.Join(cwd, path)
++			path = filepath.Join(cwd, path)
+ 		}
+ 		// we have a non-empty absolute path
+ 		if filter != nil && !filter(path) {
+@@ -95,7 +95,7 @@ func canonicalizePaths(list []string, filter func(path string) bool) []string {
+ // atomically renames that file to the file named by filename.
+ //
+ func writeFileAtomically(filename string, data []byte) os.Error {
+-	f, err := ioutil.TempFile(pathutil.Split(filename))
++	f, err := ioutil.TempFile(filepath.Split(filename))
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -149,7 +149,7 @@ var textExt = map[string]bool{
+ //
+ func isTextFile(filename string) bool {
+ 	// if the extension is known, use it for decision making
+-	if isText, found := textExt[pathutil.Ext(filename)]; found {
++	if isText, found := textExt[filepath.Ext(filename)]; found {
+ 		return isText
+ 	}
+ 
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 41c12b88de..224aee717d 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -15,7 +15,7 @@ import (
+ 	"go/token"
+ 	"io/ioutil"
+ 	"os"
+-	pathutil "path"
++	"path/filepath"
+ 	"strings"
+ )
+ 
+@@ -181,7 +181,7 @@ func walkDir(path string) {
+ 		done <- true
+ 	}()
+ 	// walk the tree
+-	pathutil.Walk(path, v, v)
++	filepath.Walk(path, v, v)
+ 	close(v) // terminate error handler loop
+ 	<-done   // wait for all errors to be reported
+ }
+diff --git a/src/cmd/goinstall/download.go b/src/cmd/goinstall/download.go
+index 889f9d857b..88befc0dc7 100644
+--- a/src/cmd/goinstall/download.go
++++ b/src/cmd/goinstall/download.go
+@@ -9,7 +9,7 @@ package main
+ import (
+ 	"http"
+ 	"os"
+-	"path"
++	"path/filepath"
+ 	"regexp"
+ 	"strings"
+ )
+@@ -42,7 +42,7 @@ func download(pkg string) (string, os.Error) {
+ 		return "", os.ErrorString("invalid path (contains ..)")
+ 	}
+ 	if m := bitbucket.FindStringSubmatch(pkg); m != nil {
+-		if err := vcsCheckout(&hg, root+m[1], "http://"+m[1], m[1]); err != nil {
++		if err := vcsCheckout(&hg, m[1], "http://"+m[1], m[1]); err != nil {
+ 			return "", err
+ 		}
+ 		return root + pkg, nil
+@@ -58,7 +58,7 @@ func download(pkg string) (string, os.Error) {
+ 			// regexp only allows hg, svn to get through
+ 			panic("missing case in download: " + pkg)
+ 		}
+-		if err := vcsCheckout(v, root+m[1], "https://"+m[1], m[1]); err != nil {
++		if err := vcsCheckout(v, m[1], "https://"+m[1], m[1]); err != nil {
+ 			return "", err
+ 		}
+ 		return root + pkg, nil
+@@ -67,7 +67,7 @@ func download(pkg string) (string, os.Error) {
+ 		if strings.HasSuffix(m[1], ".git") {
+ 			return "", os.ErrorString("repository " + pkg + " should not have .git suffix")
+ 		}
+-		if err := vcsCheckout(&git, root+m[1], "http://"+m[1]+".git", m[1]); err != nil {
++		if err := vcsCheckout(&git, m[1], "http://"+m[1]+".git", m[1]); err != nil {
+ 			return "", err
+ 		}
+ 		return root + pkg, nil
+@@ -75,7 +75,7 @@ func download(pkg string) (string, os.Error) {
+ 	if m := launchpad.FindStringSubmatch(pkg); m != nil {
+ 		// Either lp.net/<project>[/<series>[/<path>]]
+ 		//	 or lp.net/~<user or team>/<project>/<branch>[/<path>]
+-		if err := vcsCheckout(&bzr, root+m[1], "https://"+m[1], m[1]); err != nil {
++		if err := vcsCheckout(&bzr, m[1], "https://"+m[1], m[1]); err != nil {
+ 			return "", err
+ 		}
+ 		return root + pkg, nil
+@@ -172,17 +172,18 @@ func (v *vcs) updateRepo(dst string) os.Error {
+ // exists and -u was specified on the command line)
+ // the repository at tag/branch "release".  If there is no
+ // such tag or branch, it falls back to the repository tip.
+-func vcsCheckout(vcs *vcs, dst, repo, dashpath string) os.Error {
+-	dir, err := os.Stat(dst + "/" + vcs.metadir)
++func vcsCheckout(vcs *vcs, pkgprefix, repo, dashpath string) os.Error {
++	dst := filepath.Join(root, filepath.FromSlash(pkgprefix))
++	dir, err := os.Stat(filepath.Join(dst, vcs.metadir))
+ 	if err == nil && !dir.IsDirectory() {
+ 		return os.ErrorString("not a directory: " + dst)
+ 	}
+ 	if err != nil {
+-		parent, _ := path.Split(dst)
++		parent, _ := filepath.Split(dst)
+ 		if err := os.MkdirAll(parent, 0777); err != nil {
+ 			return err
+ 		}
+-		if err := run("/", nil, vcs.cmd, vcs.clone, repo, dst); err != nil {
++		if err := run(string(filepath.Separator), nil, vcs.cmd, vcs.clone, repo, dst); err != nil {
+ 			return err
+ 		}
+ 		if err := vcs.updateRepo(dst); err != nil {
+diff --git a/src/cmd/goinstall/main.go b/src/cmd/goinstall/main.go
+index f13aeb3bc0..34441be45d 100644
+--- a/src/cmd/goinstall/main.go
++++ b/src/cmd/goinstall/main.go
+@@ -15,7 +15,7 @@ import (
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
+-	"path"
++	"path/filepath"
+ 	"runtime"
+ 	"strings"
+ )
+@@ -34,7 +34,7 @@ var (
+ 	parents       = make(map[string]string)
+ 	root          = runtime.GOROOT()
+ 	visit         = make(map[string]status)
+-	logfile       = path.Join(root, "goinstall.log")
++	logfile       = filepath.Join(root, "goinstall.log")
+ 	installedPkgs = make(map[string]bool)
+ 
+ 	allpkg            = flag.Bool("a", false, "install all previously installed packages")
+@@ -59,7 +59,7 @@ func main() {
+ 		fmt.Fprintf(os.Stderr, "%s: no $GOROOT\n", argv0)
+ 		os.Exit(1)
+ 	}
+-	root += "/src/pkg/"
++	root += filepath.FromSlash("/src/pkg/")
+ 
+ 	// special case - "unsafe" is already installed
+ 	visit["unsafe"] = done
+@@ -160,7 +160,7 @@ func install(pkg, parent string) {
+ 		dir = pkg
+ 		local = true
+ 	} else if isStandardPath(pkg) {
+-		dir = path.Join(root, pkg)
++		dir = filepath.Join(root, filepath.FromSlash(pkg))
+ 		local = true
+ 	} else {
+ 		var err os.Error
+@@ -216,7 +216,8 @@ func install(pkg, parent string) {
+ 
+ // Is this a local path?  /foo ./foo ../foo . ..
+ func isLocalPath(s string) bool {
+-	return strings.HasPrefix(s, "/") || strings.HasPrefix(s, "./") || strings.HasPrefix(s, "../") || s == "." || s == ".."
++	const sep = string(filepath.Separator)
++	return strings.HasPrefix(s, sep) || strings.HasPrefix(s, "."+sep) || strings.HasPrefix(s, ".."+sep) || s == "." || s == ".."
+ }
+ 
+ // Is this a standard package path?  strings container/vector etc.
+diff --git a/src/cmd/goinstall/parse.go b/src/cmd/goinstall/parse.go
+index 679edfabca..014b8fcb20 100644
+--- a/src/cmd/goinstall/parse.go
++++ b/src/cmd/goinstall/parse.go
+@@ -7,13 +7,13 @@
+ package main
+ 
+ import (
+-	"path"
+-	"os"
+-	"log"
+-	"strings"
+-	"strconv"
+ 	"go/ast"
+ 	"go/parser"
++	"log"
++	"os"
++	"path/filepath"
++	"strconv"
++	"strings"
+ )
+ 
+ 
+@@ -64,7 +64,7 @@ func scanDir(dir string, allowMain bool) (info *dirInfo, err os.Error) {
+ 		if !strings.HasSuffix(d.Name, ".go") || strings.HasSuffix(d.Name, "_test.go") {
+ 			continue
+ 		}
+-		filename := path.Join(dir, d.Name)
++		filename := filepath.Join(dir, d.Name)
+ 		pf, err := parser.ParseFile(fset, filename, nil, parser.ImportsOnly)
+ 		if err != nil {
+ 			return nil, err
+diff --git a/src/cmd/govet/govet.go b/src/cmd/govet/govet.go
+index 5619b12bad..ff6421de89 100644
+--- a/src/cmd/govet/govet.go
++++ b/src/cmd/govet/govet.go
+@@ -15,7 +15,7 @@ import (
+ 	"go/parser"
+ 	"go/token"
+ 	"os"
+-	"path"
++	"path/filepath"
+ 	"strconv"
+ 	"strings"
+ )
+@@ -99,7 +99,7 @@ func doFile(name string, reader io.Reader) {
+ 	file.checkFile(name, parsedFile)
+ }
+ 
+-// Visitor for path.Walk - trivial.  Just calls doFile on each file.
++// Visitor for filepath.Walk - trivial.  Just calls doFile on each file.
+ // TODO: if govet becomes richer, might want to process
+ // a directory (package) at a time.
+ type V struct{}
+@@ -124,7 +124,7 @@ func walkDir(root string) {
+ 		}
+ 		done <- true
+ 	}()
+-	path.Walk(root, V{}, errors)
++	filepath.Walk(root, V{}, errors)
+ 	close(errors)
+ 	<-done
+ }
+diff --git a/src/cmd/hgpatch/main.go b/src/cmd/hgpatch/main.go
+index bd4b563f92..2dcb5234c7 100644
+--- a/src/cmd/hgpatch/main.go
++++ b/src/cmd/hgpatch/main.go
+@@ -14,7 +14,7 @@ import (
+ 	"io/ioutil"
+ 	"os"
+ 	"patch"
+-	"path"
++	"path/filepath"
+ 	"sort"
+ 	"strings"
+ )
+@@ -186,7 +186,7 @@ func main() {
+ 
+ // make parent directory for name, if necessary
+ func makeParent(name string) {
+-	parent, _ := path.Split(name)
++	parent, _ := filepath.Split(name)
+ 	chk(mkdirAll(parent, 0755))
+ }
+ 
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 331bb68e5a..6e70690d1b 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -118,6 +118,7 @@ DIRS=\
+ 	os/signal\
+ 	patch\
+ 	path\
++	path/filepath\
+ 	rand\
+ 	reflect\
+ 	regexp\
+diff --git a/src/pkg/go/parser/interface.go b/src/pkg/go/parser/interface.go
+index 84d699a679..6f35b495ef 100644
+--- a/src/pkg/go/parser/interface.go
++++ b/src/pkg/go/parser/interface.go
+@@ -14,7 +14,7 @@ import (
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
+-	pathutil "path"
++	"path/filepath"
+ )
+ 
+ 
+@@ -198,7 +198,7 @@ func ParseDir(fset *token.FileSet, path string, filter func(*os.FileInfo) bool,
+ 	for i := 0; i < len(list); i++ {
+ 		d := &list[i]
+ 		if filter == nil || filter(d) {
+-			filenames[n] = pathutil.Join(path, d.Name)
++			filenames[n] = filepath.Join(path, d.Name)
+ 			n++
+ 		}
+ 	}
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 48e2af1b73..90d9784ac9 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -12,7 +12,7 @@ import (
+ 	"go/token"
+ 	"io"
+ 	"os"
+-	"path"
++	"path/filepath"
+ 	"runtime"
+ 	"tabwriter"
+ )
+@@ -244,7 +244,7 @@ func (p *printer) writeItem(pos token.Position, data []byte) {
+ 	}
+ 	if debug {
+ 		// do not update p.pos - use write0
+-		_, filename := path.Split(pos.Filename)
++		_, filename := filepath.Split(pos.Filename)
+ 		p.write0([]byte(fmt.Sprintf("[%s:%d:%d]", filename, pos.Line, pos.Column)))
+ 	}
+ 	p.write(data)
+diff --git a/src/pkg/go/printer/printer_test.go b/src/pkg/go/printer/printer_test.go
+index 565075aa20..62b7269131 100644
+--- a/src/pkg/go/printer/printer_test.go
++++ b/src/pkg/go/printer/printer_test.go
+@@ -11,7 +11,7 @@ import (
+ 	"go/ast"
+ 	"go/parser"
+ 	"go/token"
+-	"path"
++	"path/filepath"
+ 	"testing"
+ )
+ 
+@@ -129,8 +129,8 @@ var data = []entry{
+ 
+ func TestFiles(t *testing.T) {
+ 	for _, e := range data {
+-		source := path.Join(dataDir, e.source)
+-		golden := path.Join(dataDir, e.golden)
++		source := filepath.Join(dataDir, e.source)
++		golden := filepath.Join(dataDir, e.golden)
+ 		check(t, source, golden, e.mode)
+ 		// TODO(gri) check that golden is idempotent
+ 		//check(t, golden, golden, e.mode);
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index 2ae296b3f1..153707f598 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -23,7 +23,7 @@ package scanner
+ import (
+ 	"bytes"
+ 	"go/token"
+-	"path"
++	"path/filepath"
+ 	"strconv"
+ 	"unicode"
+ 	"utf8"
+@@ -118,7 +118,7 @@ func (S *Scanner) Init(file *token.File, src []byte, err ErrorHandler, mode uint
+ 		panic("file size does not match src len")
+ 	}
+ 	S.file = file
+-	S.dir, _ = path.Split(file.Name())
++	S.dir, _ = filepath.Split(file.Name())
+ 	S.src = src
+ 	S.err = err
+ 	S.mode = mode
+@@ -180,10 +180,10 @@ func (S *Scanner) interpretLineComment(text []byte) {
+ 		if i := bytes.Index(text, []byte{':'}); i > 0 {
+ 			if line, err := strconv.Atoi(string(text[i+1:])); err == nil && line > 0 {
+ 				// valid //line filename:line comment;
+-				filename := path.Clean(string(text[len(prefix):i]))
++				filename := filepath.Clean(string(text[len(prefix):i]))
+ 				if filename[0] != '/' {
+ 					// make filename relative to current directory
+-					filename = path.Join(S.dir, filename)
++					filename = filepath.Join(S.dir, filename)
+ 				}
+ 				// update scanner position
+ 				S.file.AddLineInfo(S.lineOffset, filename, line-1) // -1 since comment applies to next line
+diff --git a/src/pkg/http/fs.go b/src/pkg/http/fs.go
+index 8e16992e0f..a4cd7072e1 100644
+--- a/src/pkg/http/fs.go
++++ b/src/pkg/http/fs.go
+@@ -11,7 +11,7 @@ import (
+ 	"io"
+ 	"mime"
+ 	"os"
+-	"path"
++	"path/filepath"
+ 	"strconv"
+ 	"strings"
+ 	"time"
+@@ -112,7 +112,7 @@ func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
+ 
+ 	// use contents of index.html for directory, if present
+ 	if d.IsDirectory() {
+-		index := name + indexPage
++		index := name + filepath.FromSlash(indexPage)
+ 		ff, err := os.Open(index, os.O_RDONLY, 0)
+ 		if err == nil {
+ 			defer ff.Close()
+@@ -135,7 +135,7 @@ func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
+ 	code := StatusOK
+ 
+ 	// use extension to find content type.
+-	ext := path.Ext(name)
++	ext := filepath.Ext(name)
+ 	if ctype := mime.TypeByExtension(ext); ctype != "" {
+ 		w.SetHeader("Content-Type", ctype)
+ 	} else {
+@@ -202,7 +202,7 @@ func (f *fileHandler) ServeHTTP(w ResponseWriter, r *Request) {
+ 		return
+ 	}
+ 	path = path[len(f.prefix):]
+-	serveFile(w, r, f.root+"/"+path, true)
++	serveFile(w, r, filepath.Join(f.root, filepath.FromSlash(path)), true)
+ }
+ 
+ // httpRange specifies the byte range to be sent to the client.
+diff --git a/src/pkg/io/ioutil/tempfile.go b/src/pkg/io/ioutil/tempfile.go
+index c7cc67b1b7..62f8849c0a 100644
+--- a/src/pkg/io/ioutil/tempfile.go
++++ b/src/pkg/io/ioutil/tempfile.go
+@@ -6,6 +6,7 @@ package ioutil
+ 
+ import (
+ 	"os"
++	"path/filepath"
+ 	"strconv"
+ )
+ 
+@@ -46,8 +47,7 @@ func TempFile(dir, prefix string) (f *os.File, err os.Error) {
+ 
+ 	nconflict := 0
+ 	for i := 0; i < 10000; i++ {
+-		// TODO(rsc): use filepath.Join
+-		name := dir + "/" + prefix + nextSuffix()
++		name := filepath.Join(dir, prefix+nextSuffix())
+ 		f, err = os.Open(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
+ 		if pe, ok := err.(*os.PathError); ok && pe.Error == os.EEXIST {
+ 			if nconflict++; nconflict > 10 {
+@@ -74,8 +74,7 @@ func TempDir(dir, prefix string) (name string, err os.Error) {
+ 
+ 	nconflict := 0
+ 	for i := 0; i < 10000; i++ {
+-		// TODO(rsc): use filepath.Join
+-		try := dir + "/" + prefix + nextSuffix()
++		try := filepath.Join(dir, prefix+nextSuffix())
+ 		err = os.Mkdir(try, 0700)
+ 		if pe, ok := err.(*os.PathError); ok && pe.Error == os.EEXIST {
+ 			if nconflict++; nconflict > 10 {
+diff --git a/src/pkg/path/Makefile b/src/pkg/path/Makefile
+index 4371913e85..fc3e2519ce 100644
+--- a/src/pkg/path/Makefile
++++ b/src/pkg/path/Makefile
+@@ -9,18 +9,6 @@ GOFILES=\
+ 	match.go\
+ 	path.go\
+ 
+-GOFILES_freebsd=\
+-	path_unix.go
+-
+-GOFILES_darwin=\
+-	path_unix.go
+-
+-GOFILES_linux=\
+-	path_unix.go
+-
+-GOFILES_windows=\
+-	path_windows.go
+-
+ GOFILES+=$(GOFILES_$(GOOS))
+ 
+ include ../../Make.pkg
+diff --git a/src/pkg/path/filepath/Makefile b/src/pkg/path/filepath/Makefile
+new file mode 100644
+index 0000000000..2330fc09de
+--- /dev/null
++++ b/src/pkg/path/filepath/Makefile
+@@ -0,0 +1,26 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../../Make.inc
++
++TARG=path/filepath
++GOFILES=\
++	match.go\
++	path.go\
++
++GOFILES_freebsd=\
++	path_unix.go
++
++GOFILES_darwin=\
++	path_unix.go
++
++GOFILES_linux=\
++	path_unix.go
++
++GOFILES_windows=\
++	path_unix.go
++
++GOFILES+=$(GOFILES_$(GOOS))
++
++include ../../../Make.pkg
+diff --git a/src/pkg/path/filepath/match.go b/src/pkg/path/filepath/match.go
+new file mode 100644
+index 0000000000..ad4053fa24
+--- /dev/null
++++ b/src/pkg/path/filepath/match.go
+@@ -0,0 +1,282 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package filepath
++
++import (
++	"os"
++	"sort"
++	"strings"
++	"utf8"
++)
++
++var ErrBadPattern = os.NewError("syntax error in pattern")
++
++// Match returns true if name matches the shell file name pattern.
++// The pattern syntax is:
++//
++//	pattern:
++//		{ term }
++//	term:
++//		'*'         matches any sequence of non-Separator characters
++//		'?'         matches any single non-Separator character
++//		'[' [ '^' ] { character-range } ']'
++//		            character class (must be non-empty)
++//		c           matches character c (c != '*', '?', '\\', '[')
++//		'\\' c      matches character c
++//
++//	character-range:
++//		c           matches character c (c != '\\', '-', ']')
++//		'\\' c      matches character c
++//		lo '-' hi   matches character c for lo <= c <= hi
++//
++// Match requires pattern to match all of name, not just a substring.
++// The only possible error return is when pattern is malformed.
++//
++func Match(pattern, name string) (matched bool, err os.Error) {
++Pattern:
++	for len(pattern) > 0 {
++		var star bool
++		var chunk string
++		star, chunk, pattern = scanChunk(pattern)
++		if star && chunk == "" {
++			// Trailing * matches rest of string unless it has a /.
++			return strings.Index(name, string(Separator)) < 0, nil
++		}
++		// Look for match at current position.
++		t, ok, err := matchChunk(chunk, name)
++		// if we're the last chunk, make sure we've exhausted the name
++		// otherwise we'll give a false result even if we could still match
++		// using the star
++		if ok && (len(t) == 0 || len(pattern) > 0) {
++			name = t
++			continue
++		}
++		if err != nil {
++			return false, err
++		}
++		if star {
++			// Look for match skipping i+1 bytes.
++			// Cannot skip /.
++			for i := 0; i < len(name) && name[i] != Separator; i++ {
++				t, ok, err := matchChunk(chunk, name[i+1:])
++				if ok {
++					// if we're the last chunk, make sure we exhausted the name
++					if len(pattern) == 0 && len(t) > 0 {
++						continue
++					}
++					name = t
++					continue Pattern
++				}
++				if err != nil {
++					return false, err
++				}
++			}
++		}
++		return false, nil
++	}
++	return len(name) == 0, nil
++}
++
++// scanChunk gets the next segment of pattern, which is a non-star string
++// possibly preceded by a star.
++func scanChunk(pattern string) (star bool, chunk, rest string) {
++	for len(pattern) > 0 && pattern[0] == '*' {
++		pattern = pattern[1:]
++		star = true
++	}
++	inrange := false
++	var i int
++Scan:
++	for i = 0; i < len(pattern); i++ {
++		switch pattern[i] {
++		case '\\':
++			// error check handled in matchChunk: bad pattern.
++			if i+1 < len(pattern) {
++				i++
++			}
++		case '[':
++			inrange = true
++		case ']':
++			inrange = false
++		case '*':
++			if !inrange {
++				break Scan
++			}
++		}
++	}
++	return star, pattern[0:i], pattern[i:]
++}
++
++// matchChunk checks whether chunk matches the beginning of s.
++// If so, it returns the remainder of s (after the match).
++// Chunk is all single-character operators: literals, char classes, and ?.
++func matchChunk(chunk, s string) (rest string, ok bool, err os.Error) {
++	for len(chunk) > 0 {
++		if len(s) == 0 {
++			return
++		}
++		switch chunk[0] {
++		case '[':
++			// character class
++			r, n := utf8.DecodeRuneInString(s)
++			s = s[n:]
++			chunk = chunk[1:]
++			// possibly negated
++			notNegated := true
++			if len(chunk) > 0 && chunk[0] == '^' {
++				notNegated = false
++				chunk = chunk[1:]
++			}
++			// parse all ranges
++			match := false
++			nrange := 0
++			for {
++				if len(chunk) > 0 && chunk[0] == ']' && nrange > 0 {
++					chunk = chunk[1:]
++					break
++				}
++				var lo, hi int
++				if lo, chunk, err = getEsc(chunk); err != nil {
++					return
++				}
++				hi = lo
++				if chunk[0] == '-' {
++					if hi, chunk, err = getEsc(chunk[1:]); err != nil {
++						return
++					}
++				}
++				if lo <= r && r <= hi {
++					match = true
++				}
++				nrange++
++			}
++			if match != notNegated {
++				return
++			}
++
++		case '?':
++			if s[0] == Separator {
++				return
++			}
++			_, n := utf8.DecodeRuneInString(s)
++			s = s[n:]
++			chunk = chunk[1:]
++
++		case '\\':
++			chunk = chunk[1:]
++			if len(chunk) == 0 {
++				err = ErrBadPattern
++				return
++			}
++			fallthrough
++
++		default:
++			if chunk[0] != s[0] {
++				return
++			}
++			s = s[1:]
++			chunk = chunk[1:]
++		}
++	}
++	return s, true, nil
++}
++
++// getEsc gets a possibly-escaped character from chunk, for a character class.
++func getEsc(chunk string) (r int, nchunk string, err os.Error) {
++	if len(chunk) == 0 || chunk[0] == '-' || chunk[0] == ']' {
++		err = ErrBadPattern
++		return
++	}
++	if chunk[0] == '\\' {
++		chunk = chunk[1:]
++		if len(chunk) == 0 {
++			err = ErrBadPattern
++			return
++		}
++	}
++	r, n := utf8.DecodeRuneInString(chunk)
++	if r == utf8.RuneError && n == 1 {
++		err = ErrBadPattern
++	}
++	nchunk = chunk[n:]
++	if len(nchunk) == 0 {
++		err = ErrBadPattern
++	}
++	return
++}
++
++// Glob returns the names of all files matching pattern or nil
++// if there is no matching file. The syntax of patterns is the same
++// as in Match. The pattern may describe hierarchical names such as
++// /usr/*/bin/ed (assuming the Separator is '/').
++//
++func Glob(pattern string) (matches []string) {
++	if !hasMeta(pattern) {
++		if _, err := os.Stat(pattern); err == nil {
++			return []string{pattern}
++		}
++		return nil
++	}
++
++	dir, file := Split(pattern)
++	switch dir {
++	case "":
++		dir = "."
++	case string(Separator):
++		// nothing
++	default:
++		dir = dir[0 : len(dir)-1] // chop off trailing separator
++	}
++
++	if hasMeta(dir) {
++		for _, d := range Glob(dir) {
++			matches = glob(d, file, matches)
++		}
++	} else {
++		return glob(dir, file, nil)
++	}
++	return matches
++}
++
++// glob searches for files matching pattern in the directory dir
++// and appends them to matches.
++func glob(dir, pattern string, matches []string) []string {
++	fi, err := os.Stat(dir)
++	if err != nil {
++		return nil
++	}
++	if !fi.IsDirectory() {
++		return matches
++	}
++	d, err := os.Open(dir, os.O_RDONLY, 0666)
++	if err != nil {
++		return nil
++	}
++	defer d.Close()
++
++	names, err := d.Readdirnames(-1)
++	if err != nil {
++		return nil
++	}
++	sort.SortStrings(names)
++
++	for _, n := range names {
++		matched, err := Match(pattern, n)
++		if err != nil {
++			return matches
++		}
++		if matched {
++			matches = append(matches, Join(dir, n))
++		}
++	}
++	return matches
++}
++
++// hasMeta returns true if path contains any of the magic characters
++// recognized by Match.
++func hasMeta(path string) bool {
++	// TODO(niemeyer): Should other magic characters be added here?
++	return strings.IndexAny(path, "*?[") >= 0
++}
+diff --git a/src/pkg/path/filepath/match_test.go b/src/pkg/path/filepath/match_test.go
+new file mode 100644
+index 0000000000..ad0c90b75c
+--- /dev/null
++++ b/src/pkg/path/filepath/match_test.go
+@@ -0,0 +1,106 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package filepath_test
++
++import (
++	"os"
++	"path/filepath"
++	"testing"
++)
++
++type MatchTest struct {
++	pattern, s string
++	match      bool
++	err        os.Error
++}
++
++var matchTests = []MatchTest{
++	{"abc", "abc", true, nil},
++	{"*", "abc", true, nil},
++	{"*c", "abc", true, nil},
++	{"a*", "a", true, nil},
++	{"a*", "abc", true, nil},
++	{"a*", "ab/c", false, nil},
++	{"a*/b", "abc/b", true, nil},
++	{"a*/b", "a/c/b", false, nil},
++	{"a*b*c*d*e*/f", "axbxcxdxe/f", true, nil},
++	{"a*b*c*d*e*/f", "axbxcxdxexxx/f", true, nil},
++	{"a*b*c*d*e*/f", "axbxcxdxe/xxx/f", false, nil},
++	{"a*b*c*d*e*/f", "axbxcxdxexxx/fff", false, nil},
++	{"a*b?c*x", "abxbbxdbxebxczzx", true, nil},
++	{"a*b?c*x", "abxbbxdbxebxczzy", false, nil},
++	{"ab[c]", "abc", true, nil},
++	{"ab[b-d]", "abc", true, nil},
++	{"ab[e-g]", "abc", false, nil},
++	{"ab[^c]", "abc", false, nil},
++	{"ab[^b-d]", "abc", false, nil},
++	{"ab[^e-g]", "abc", true, nil},
++	{"a\\*b", "a*b", true, nil},
++	{"a\\*b", "ab", false, nil},
++	{"a?b", "a☺b", true, nil},
++	{"a[^a]b", "a☺b", true, nil},
++	{"a???b", "a☺b", false, nil},
++	{"a[^a][^a][^a]b", "a☺b", false, nil},
++	{"[a-ζ]*", "α", true, nil},
++	{"*[a-ζ]", "A", false, nil},
++	{"a?b", "a/b", false, nil},
++	{"a*b", "a/b", false, nil},
++	{"[\\]a]", "]", true, nil},
++	{"[\\-]", "-", true, nil},
++	{"[x\\-]", "x", true, nil},
++	{"[x\\-]", "-", true, nil},
++	{"[x\\-]", "z", false, nil},
++	{"[\\-x]", "x", true, nil},
++	{"[\\-x]", "-", true, nil},
++	{"[\\-x]", "a", false, nil},
++	{"[]a]", "]", false, filepath.ErrBadPattern},
++	{"[-]", "-", false, filepath.ErrBadPattern},
++	{"[x-]", "x", false, filepath.ErrBadPattern},
++	{"[x-]", "-", false, filepath.ErrBadPattern},
++	{"[x-]", "z", false, filepath.ErrBadPattern},
++	{"[-x]", "x", false, filepath.ErrBadPattern},
++	{"[-x]", "-", false, filepath.ErrBadPattern},
++	{"[-x]", "a", false, filepath.ErrBadPattern},
++	{"\\", "a", false, filepath.ErrBadPattern},
++	{"[a-b-c]", "a", false, filepath.ErrBadPattern},
++	{"*x", "xxx", true, nil},
++}
++
++func TestMatch(t *testing.T) {
++	for _, tt := range matchTests {
++		ok, err := filepath.Match(tt.pattern, tt.s)
++		if ok != tt.match || err != tt.err {
++			t.Errorf("Match(%#q, %#q) = %v, %v want %v, nil", tt.pattern, tt.s, ok, err, tt.match)
++		}
++	}
++}
++
++// contains returns true if vector contains the string s.
++func contains(vector []string, s string) bool {
++	for _, elem := range vector {
++		if elem == s {
++			return true
++		}
++	}
++	return false
++}
++
++var globTests = []struct {
++	pattern, result string
++}{
++	{"match.go", "match.go"},
++	{"mat?h.go", "match.go"},
++	{"*", "match.go"},
++	{"../*/match.go", "../filepath/match.go"},
++}
++
++func TestGlob(t *testing.T) {
++	for _, tt := range globTests {
++		matches := filepath.Glob(tt.pattern)
++		if !contains(matches, tt.result) {
++			t.Errorf("Glob(%#q) = %#v want %v", tt.pattern, matches, tt.result)
++		}
++	}
++}
+diff --git a/src/pkg/path/filepath/path.go b/src/pkg/path/filepath/path.go
+new file mode 100644
+index 0000000000..414df7d208
+--- /dev/null
++++ b/src/pkg/path/filepath/path.go
+@@ -0,0 +1,270 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The filepath package implements utility routines for manipulating
++// filename paths in a way compatible with the target operating
++// system-defined file paths.
++package filepath
++
++import (
++	"os"
++	"sort"
++	"strings"
++)
++
++// BUG(niemeyer): Package filepath does not yet work on Windows.
++
++// Clean returns the shortest path name equivalent to path
++// by purely lexical processing.  It applies the following rules
++// iteratively until no further processing can be done:
++//
++//	1. Replace multiple Separator elements with a single one.
++//	2. Eliminate each . path name element (the current directory).
++//	3. Eliminate each inner .. path name element (the parent directory)
++//	   along with the non-.. element that precedes it.
++//	4. Eliminate .. elements that begin a rooted path:
++//	   that is, replace "/.." by "/" at the beginning of a path,
++//         assuming Separator is '/'.
++//
++// If the result of this process is an empty string, Clean
++// returns the string ".".
++//
++// See also Rob Pike, ``Lexical File Names in Plan 9 or
++// Getting Dot-Dot right,''
++// http://plan9.bell-labs.com/sys/doc/lexnames.html
++func Clean(path string) string {
++	if path == "" {
++		return "."
++	}
++
++	rooted := path[0] == Separator
++	n := len(path)
++
++	// Invariants:
++	//	reading from path; r is index of next byte to process.
++	//	writing to buf; w is index of next byte to write.
++	//	dotdot is index in buf where .. must stop, either because
++	//		it is the leading slash or it is a leading ../../.. prefix.
++	buf := []byte(path)
++	r, w, dotdot := 0, 0, 0
++	if rooted {
++		r, w, dotdot = 1, 1, 1
++	}
++
++	for r < n {
++		switch {
++		case path[r] == Separator:
++			// empty path element
++			r++
++		case path[r] == '.' && (r+1 == n || path[r+1] == Separator):
++			// . element
++			r++
++		case path[r] == '.' && path[r+1] == '.' && (r+2 == n || path[r+2] == Separator):
++			// .. element: remove to last separator
++			r += 2
++			switch {
++			case w > dotdot:
++				// can backtrack
++				w--
++				for w > dotdot && buf[w] != Separator {
++					w--
++				}
++			case !rooted:
++				// cannot backtrack, but not rooted, so append .. element.
++				if w > 0 {
++					buf[w] = Separator
++					w++
++				}
++				buf[w] = '.'
++				w++
++				buf[w] = '.'
++				w++
++				dotdot = w
++			}
++		default:
++			// real path element.
++			// add slash if needed
++			if rooted && w != 1 || !rooted && w != 0 {
++				buf[w] = Separator
++				w++
++			}
++			// copy element
++			for ; r < n && path[r] != Separator; r++ {
++				buf[w] = path[r]
++				w++
++			}
++		}
++	}
++
++	// Turn empty string into "."
++	if w == 0 {
++		buf[w] = '.'
++		w++
++	}
++
++	return string(buf[0:w])
++}
++
++// ToSlash returns the result of replacing each separator character
++// in path with a slash ('/') character.
++func ToSlash(path string) string {
++	if Separator == '/' {
++		return path
++	}
++	return strings.Replace(path, string(Separator), "/", -1)
++}
++
++// FromSlash returns the result of replacing each slash ('/') character
++// in path with a separator character.
++func FromSlash(path string) string {
++	if Separator == '/' {
++		return path
++	}
++	return strings.Replace(path, "/", string(Separator), -1)
++}
++
++// SplitList splits a list of paths joined by the OS-specific ListSeparator.
++func SplitList(path string) []string {
++	if path == "" {
++		return []string{}
++	}
++	return strings.Split(path, string(ListSeparator), -1)
++}
++
++// Split splits path immediately following the final Separator,
++// partitioning it into a directory and a file name components.
++// If there are no separators in path, Split returns an empty base
++// and file set to path.
++func Split(path string) (dir, file string) {
++	i := strings.LastIndex(path, string(Separator))
++	return path[:i+1], path[i+1:]
++}
++
++// Join joins any number of path elements into a single path, adding
++// a Separator if necessary.  All empty strings are ignored.
++func Join(elem ...string) string {
++	for i, e := range elem {
++		if e != "" {
++			return Clean(strings.Join(elem[i:], string(Separator)))
++		}
++	}
++	return ""
++}
++
++// Ext returns the file name extension used by path.
++// The extension is the suffix beginning at the final dot
++// in the final element of path; it is empty if there is
++// no dot.
++func Ext(path string) string {
++	for i := len(path) - 1; i >= 0 && path[i] != Separator; i-- {
++		if path[i] == '.' {
++			return path[i:]
++		}
++	}
++	return ""
++}
++
++// Visitor methods are invoked for corresponding file tree entries
++// visited by Walk. The parameter path is the full path of f relative
++// to root.
++type Visitor interface {
++	VisitDir(path string, f *os.FileInfo) bool
++	VisitFile(path string, f *os.FileInfo)
++}
++
++func walk(path string, f *os.FileInfo, v Visitor, errors chan<- os.Error) {
++	if !f.IsDirectory() {
++		v.VisitFile(path, f)
++		return
++	}
++
++	if !v.VisitDir(path, f) {
++		return // skip directory entries
++	}
++
++	list, err := readDir(path)
++	if err != nil {
++		if errors != nil {
++			errors <- err
++		}
++	}
++
++	for _, e := range list {
++		walk(Join(path, e.Name), e, v, errors)
++	}
++}
++
++// readDir reads the directory named by dirname and returns
++// a list of sorted directory entries.
++// Copied from io/ioutil to avoid the circular import.
++func readDir(dirname string) ([]*os.FileInfo, os.Error) {
++	f, err := os.Open(dirname, os.O_RDONLY, 0)
++	if err != nil {
++		return nil, err
++	}
++	list, err := f.Readdir(-1)
++	f.Close()
++	if err != nil {
++		return nil, err
++	}
++	fi := make(fileInfoList, len(list))
++	for i := range list {
++		fi[i] = &list[i]
++	}
++	sort.Sort(fi)
++	return fi, nil
++}
++
++// A dirList implements sort.Interface.
++type fileInfoList []*os.FileInfo
++
++func (f fileInfoList) Len() int           { return len(f) }
++func (f fileInfoList) Less(i, j int) bool { return f[i].Name < f[j].Name }
++func (f fileInfoList) Swap(i, j int)      { f[i], f[j] = f[j], f[i] }
++
++// Walk walks the file tree rooted at root, calling v.VisitDir or
++// v.VisitFile for each directory or file in the tree, including root.
++// If v.VisitDir returns false, Walk skips the directory's entries;
++// otherwise it invokes itself for each directory entry in sorted order.
++// An error reading a directory does not abort the Walk.
++// If errors != nil, Walk sends each directory read error
++// to the channel.  Otherwise Walk discards the error.
++func Walk(root string, v Visitor, errors chan<- os.Error) {
++	f, err := os.Lstat(root)
++	if err != nil {
++		if errors != nil {
++			errors <- err
++		}
++		return // can't progress
++	}
++	walk(root, f, v, errors)
++}
++
++// Base returns the last element of path.
++// Trailing path separators are removed before extracting the last element.
++// If the path is empty, Base returns ".".
++// If the path consists entirely of separators, Base returns a single separator.
++func Base(path string) string {
++	if path == "" {
++		return "."
++	}
++	// Strip trailing slashes.
++	for len(path) > 0 && path[len(path)-1] == Separator {
++		path = path[0 : len(path)-1]
++	}
++	// Find the last element
++	if i := strings.LastIndex(path, string(Separator)); i >= 0 {
++		path = path[i+1:]
++	}
++	// If empty now, it had only slashes.
++	if path == "" {
++		return string(Separator)
++	}
++	return path
++}
++
++// IsAbs returns true if the path is absolute.
++func IsAbs(path string) bool {
++	return len(path) > 0 && path[0] == Separator
++}
+diff --git a/src/pkg/path/filepath/path_test.go b/src/pkg/path/filepath/path_test.go
+new file mode 100644
+index 0000000000..469ca6a802
+--- /dev/null
++++ b/src/pkg/path/filepath/path_test.go
+@@ -0,0 +1,387 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package filepath_test
++
++import (
++	"os"
++	"path/filepath"
++	"reflect"
++	"testing"
++)
++
++type PathTest struct {
++	path, result string
++}
++
++var cleantests = []PathTest{
++	// Already clean
++	{"", "."},
++	{"abc", "abc"},
++	{"abc/def", "abc/def"},
++	{"a/b/c", "a/b/c"},
++	{".", "."},
++	{"..", ".."},
++	{"../..", "../.."},
++	{"../../abc", "../../abc"},
++	{"/abc", "/abc"},
++	{"/", "/"},
++
++	// Remove trailing slash
++	{"abc/", "abc"},
++	{"abc/def/", "abc/def"},
++	{"a/b/c/", "a/b/c"},
++	{"./", "."},
++	{"../", ".."},
++	{"../../", "../.."},
++	{"/abc/", "/abc"},
++
++	// Remove doubled slash
++	{"abc//def//ghi", "abc/def/ghi"},
++	{"//abc", "/abc"},
++	{"///abc", "/abc"},
++	{"//abc//", "/abc"},
++	{"abc//", "abc"},
++
++	// Remove . elements
++	{"abc/./def", "abc/def"},
++	{"/./abc/def", "/abc/def"},
++	{"abc/.", "abc"},
++
++	// Remove .. elements
++	{"abc/def/ghi/../jkl", "abc/def/jkl"},
++	{"abc/def/../ghi/../jkl", "abc/jkl"},
++	{"abc/def/..", "abc"},
++	{"abc/def/../..", "."},
++	{"/abc/def/../..", "/"},
++	{"abc/def/../../..", ".."},
++	{"/abc/def/../../..", "/"},
++	{"abc/def/../../../ghi/jkl/../../../mno", "../../mno"},
++
++	// Combinations
++	{"abc/./../def", "def"},
++	{"abc//./../def", "def"},
++	{"abc/../../././../def", "../../def"},
++}
++
++func TestClean(t *testing.T) {
++	for _, test := range cleantests {
++		if s := filepath.Clean(test.path); s != test.result {
++			t.Errorf("Clean(%q) = %q, want %q", test.path, s, test.result)
++		}
++	}
++}
++
++const sep = filepath.Separator
++
++var slashtests = []PathTest{
++	{"", ""},
++	{"/", string(sep)},
++	{"/a/b", string([]byte{sep, 'a', sep, 'b'})},
++	{"a//b", string([]byte{'a', sep, sep, 'b'})},
++}
++
++func TestFromAndToSlash(t *testing.T) {
++	for _, test := range slashtests {
++		if s := filepath.FromSlash(test.path); s != test.result {
++			t.Errorf("FromSlash(%q) = %q, want %q", test.path, s, test.result)
++		}
++		if s := filepath.ToSlash(test.result); s != test.path {
++			t.Errorf("ToSlash(%q) = %q, want %q", test.result, s, test.path)
++		}
++	}
++}
++
++type SplitListTest struct {
++	list   string
++	result []string
++}
++
++const lsep = filepath.ListSeparator
++
++var splitlisttests = []SplitListTest{
++	{"", []string{}},
++	{string([]byte{'a', lsep, 'b'}), []string{"a", "b"}},
++	{string([]byte{lsep, 'a', lsep, 'b'}), []string{"", "a", "b"}},
++}
++
++func TestSplitList(t *testing.T) {
++	for _, test := range splitlisttests {
++		if l := filepath.SplitList(test.list); !reflect.DeepEqual(l, test.result) {
++			t.Errorf("SplitList(%q) = %s, want %s", test.list, l, test.result)
++		}
++	}
++}
++
++type SplitTest struct {
++	path, dir, file string
++}
++
++var unixsplittests = []SplitTest{
++	{"a/b", "a/", "b"},
++	{"a/b/", "a/b/", ""},
++	{"a/", "a/", ""},
++	{"a", "", "a"},
++	{"/", "/", ""},
++}
++
++func TestSplit(t *testing.T) {
++	var splittests []SplitTest
++	splittests = unixsplittests
++	for _, test := range splittests {
++		if d, f := filepath.Split(test.path); d != test.dir || f != test.file {
++			t.Errorf("Split(%q) = %q, %q, want %q, %q", test.path, d, f, test.dir, test.file)
++		}
++	}
++}
++
++type JoinTest struct {
++	elem []string
++	path string
++}
++
++var jointests = []JoinTest{
++	// zero parameters
++	{[]string{}, ""},
++
++	// one parameter
++	{[]string{""}, ""},
++	{[]string{"a"}, "a"},
++
++	// two parameters
++	{[]string{"a", "b"}, "a/b"},
++	{[]string{"a", ""}, "a"},
++	{[]string{"", "b"}, "b"},
++	{[]string{"/", "a"}, "/a"},
++	{[]string{"/", ""}, "/"},
++	{[]string{"a/", "b"}, "a/b"},
++	{[]string{"a/", ""}, "a"},
++	{[]string{"", ""}, ""},
++}
++
++// join takes a []string and passes it to Join.
++func join(elem []string, args ...string) string {
++	args = elem
++	return filepath.Join(args...)
++}
++
++func TestJoin(t *testing.T) {
++	for _, test := range jointests {
++		if p := join(test.elem); p != test.path {
++			t.Errorf("join(%q) = %q, want %q", test.elem, p, test.path)
++		}
++	}
++}
++
++type ExtTest struct {
++	path, ext string
++}
++
++var exttests = []ExtTest{
++	{"path.go", ".go"},
++	{"path.pb.go", ".go"},
++	{"a.dir/b", ""},
++	{"a.dir/b.go", ".go"},
++	{"a.dir/", ""},
++}
++
++func TestExt(t *testing.T) {
++	for _, test := range exttests {
++		if x := filepath.Ext(test.path); x != test.ext {
++			t.Errorf("Ext(%q) = %q, want %q", test.path, x, test.ext)
++		}
++	}
++}
++
++type Node struct {
++	name    string
++	entries []*Node // nil if the entry is a file
++	mark    int
++}
++
++var tree = &Node{
++	"testdata",
++	[]*Node{
++		&Node{"a", nil, 0},
++		&Node{"b", []*Node{}, 0},
++		&Node{"c", nil, 0},
++		&Node{
++			"d",
++			[]*Node{
++				&Node{"x", nil, 0},
++				&Node{"y", []*Node{}, 0},
++				&Node{
++					"z",
++					[]*Node{
++						&Node{"u", nil, 0},
++						&Node{"v", nil, 0},
++					},
++					0,
++				},
++			},
++			0,
++		},
++	},
++	0,
++}
++
++func walkTree(n *Node, path string, f func(path string, n *Node)) {
++	f(path, n)
++	for _, e := range n.entries {
++		walkTree(e, filepath.Join(path, e.name), f)
++	}
++}
++
++func makeTree(t *testing.T) {
++	walkTree(tree, tree.name, func(path string, n *Node) {
++		if n.entries == nil {
++			fd, err := os.Open(path, os.O_CREAT, 0660)
++			if err != nil {
++				t.Errorf("makeTree: %v", err)
++			}
++			fd.Close()
++		} else {
++			os.Mkdir(path, 0770)
++		}
++	})
++}
++
++func markTree(n *Node) { walkTree(n, "", func(path string, n *Node) { n.mark++ }) }
++
++func checkMarks(t *testing.T) {
++	walkTree(tree, tree.name, func(path string, n *Node) {
++		if n.mark != 1 {
++			t.Errorf("node %s mark = %d; expected 1", path, n.mark)
++		}
++		n.mark = 0
++	})
++}
++
++// Assumes that each node name is unique. Good enough for a test.
++func mark(name string) {
++	walkTree(tree, tree.name, func(path string, n *Node) {
++		if n.name == name {
++			n.mark++
++		}
++	})
++}
++
++type TestVisitor struct{}
++
++func (v *TestVisitor) VisitDir(path string, f *os.FileInfo) bool {
++	mark(f.Name)
++	return true
++}
++
++func (v *TestVisitor) VisitFile(path string, f *os.FileInfo) {
++	mark(f.Name)
++}
++
++func TestWalk(t *testing.T) {
++	makeTree(t)
++
++	// 1) ignore error handling, expect none
++	v := &TestVisitor{}
++	filepath.Walk(tree.name, v, nil)
++	checkMarks(t)
++
++	// 2) handle errors, expect none
++	errors := make(chan os.Error, 64)
++	filepath.Walk(tree.name, v, errors)
++	select {
++	case err := <-errors:
++		t.Errorf("no error expected, found: %s", err)
++	default:
++		// ok
++	}
++	checkMarks(t)
++
++	if os.Getuid() != 0 {
++		// introduce 2 errors: chmod top-level directories to 0
++		os.Chmod(filepath.Join(tree.name, tree.entries[1].name), 0)
++		os.Chmod(filepath.Join(tree.name, tree.entries[3].name), 0)
++		// mark respective subtrees manually
++		markTree(tree.entries[1])
++		markTree(tree.entries[3])
++		// correct double-marking of directory itself
++		tree.entries[1].mark--
++		tree.entries[3].mark--
++
++		// 3) handle errors, expect two
++		errors = make(chan os.Error, 64)
++		os.Chmod(filepath.Join(tree.name, tree.entries[1].name), 0)
++		filepath.Walk(tree.name, v, errors)
++	Loop:
++		for i := 1; i <= 2; i++ {
++			select {
++			case <-errors:
++				// ok
++			default:
++				t.Errorf("%d. error expected, none found", i)
++				break Loop
++			}
++		}
++		select {
++		case err := <-errors:
++			t.Errorf("only two errors expected, found 3rd: %v", err)
++		default:
++			// ok
++		}
++		// the inaccessible subtrees were marked manually
++		checkMarks(t)
++	}
++
++	// cleanup
++	os.Chmod(filepath.Join(tree.name, tree.entries[1].name), 0770)
++	os.Chmod(filepath.Join(tree.name, tree.entries[3].name), 0770)
++	if err := os.RemoveAll(tree.name); err != nil {
++		t.Errorf("removeTree: %v", err)
++	}
++}
++
++var basetests = []PathTest{
++	{"", "."},
++	{".", "."},
++	{"/.", "."},
++	{"/", "/"},
++	{"////", "/"},
++	{"x/", "x"},
++	{"abc", "abc"},
++	{"abc/def", "def"},
++	{"a/b/.x", ".x"},
++	{"a/b/c.", "c."},
++	{"a/b/c.x", "c.x"},
++}
++
++func TestBase(t *testing.T) {
++	for _, test := range basetests {
++		if s := filepath.Base(test.path); s != test.result {
++			t.Errorf("Base(%q) = %q, want %q", test.path, s, test.result)
++		}
++	}
++}
++
++type IsAbsTest struct {
++	path  string
++	isAbs bool
++}
++
++var isAbsTests = []IsAbsTest{
++	{"", false},
++	{"/", true},
++	{"/usr/bin/gcc", true},
++	{"..", false},
++	{"/a/../bb", true},
++	{".", false},
++	{"./", false},
++	{"lala", false},
++}
++
++func TestIsAbs(t *testing.T) {
++	for _, test := range isAbsTests {
++		if r := filepath.IsAbs(test.path); r != test.isAbs {
++			t.Errorf("IsAbs(%q) = %v, want %v", test.path, r, test.isAbs)
++		}
++	}
++}
+diff --git a/src/pkg/path/filepath/path_unix.go b/src/pkg/path/filepath/path_unix.go
+new file mode 100644
+index 0000000000..7d07794e3f
+--- /dev/null
++++ b/src/pkg/path/filepath/path_unix.go
+@@ -0,0 +1,10 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package filepath
++
++const (
++	Separator     = '/' // OS-specific path separator
++	ListSeparator = ':' // OS-specific path list separator
++)
+diff --git a/src/pkg/path/match.go b/src/pkg/path/match.go
+index dd3422c425..efb8c5ce7f 100644
+--- a/src/pkg/path/match.go
++++ b/src/pkg/path/match.go
+@@ -1,8 +1,11 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package path
+ 
+ import (
+ 	"os"
+-	"sort"
+ 	"strings"
+ 	"utf8"
+ )
+@@ -10,7 +13,7 @@ import (
+ var ErrBadPattern = os.NewError("syntax error in pattern")
+ 
+ // Match returns true if name matches the shell file name pattern.
+-// The syntax used by pattern is:
++// The pattern syntax is:
+ //
+ //	pattern:
+ //		{ term }
+@@ -75,7 +78,7 @@ Pattern:
+ 	return len(name) == 0, nil
+ }
+ 
+-// scanChunk gets the next section of pattern, which is a non-star string
++// scanChunk gets the next segment of pattern, which is a non-star string
+ // possibly preceded by a star.
+ func scanChunk(pattern string) (star bool, chunk, rest string) {
+ 	for len(pattern) > 0 && pattern[0] == '*' {
+@@ -92,7 +95,6 @@ Scan:
+ 			if i+1 < len(pattern) {
+ 				i++
+ 			}
+-			continue
+ 		case '[':
+ 			inrange = true
+ 		case ']':
+@@ -203,76 +205,3 @@ func getEsc(chunk string) (r int, nchunk string, err os.Error) {
+ 	}
+ 	return
+ }
+-
+-// Glob returns the names of all files matching pattern or nil
+-// if there is no matching file. The syntax of patterns is the same
+-// as in Match. The pattern may describe hierarchical names such as
+-// /usr/*/bin/ed.
+-//
+-func Glob(pattern string) (matches []string) {
+-	if !hasMeta(pattern) {
+-		if _, err := os.Stat(pattern); err == nil {
+-			return []string{pattern}
+-		}
+-		return nil
+-	}
+-
+-	dir, file := Split(pattern)
+-	switch dir {
+-	case "":
+-		dir = "."
+-	case "/":
+-		// nothing
+-	default:
+-		dir = dir[0 : len(dir)-1] // chop off trailing '/'
+-	}
+-
+-	if hasMeta(dir) {
+-		for _, d := range Glob(dir) {
+-			matches = glob(d, file, matches)
+-		}
+-	} else {
+-		return glob(dir, file, nil)
+-	}
+-	return matches
+-}
+-
+-// glob searches for files matching pattern in the directory dir
+-// and appends them to matches.
+-func glob(dir, pattern string, matches []string) []string {
+-	fi, err := os.Stat(dir)
+-	if err != nil {
+-		return nil
+-	}
+-	if !fi.IsDirectory() {
+-		return matches
+-	}
+-	d, err := os.Open(dir, os.O_RDONLY, 0666)
+-	if err != nil {
+-		return nil
+-	}
+-	defer d.Close()
+-
+-	names, err := d.Readdirnames(-1)
+-	if err != nil {
+-		return nil
+-	}
+-	sort.SortStrings(names)
+-
+-	for _, n := range names {
+-		matched, err := Match(pattern, n)
+-		if err != nil {
+-			return matches
+-		}
+-		if matched {
+-			matches = append(matches, Join(dir, n))
+-		}
+-	}
+-	return matches
+-}
+-
+-// hasMeta returns true if path contains any of the magic characters
+-// recognized by Match.
+-func hasMeta(path string) bool {
+-	return strings.IndexAny(path, "*?[") != -1
+-}
+diff --git a/src/pkg/path/match_test.go b/src/pkg/path/match_test.go
+index a1bf508e3f..f377f1083b 100644
+--- a/src/pkg/path/match_test.go
++++ b/src/pkg/path/match_test.go
+@@ -75,31 +75,3 @@ func TestMatch(t *testing.T) {
+ 		}
+ 	}
+ }
+-
+-// contains returns true if vector contains the string s.
+-func contains(vector []string, s string) bool {
+-	for _, elem := range vector {
+-		if elem == s {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+-var globTests = []struct {
+-	pattern, result string
+-}{
+-	{"match.go", "match.go"},
+-	{"mat?h.go", "match.go"},
+-	{"*", "match.go"},
+-	{"../*/match.go", "../path/match.go"},
+-}
+-
+-func TestGlob(t *testing.T) {
+-	for _, tt := range globTests {
+-		matches := Glob(tt.pattern)
+-		if !contains(matches, tt.result) {
+-			t.Errorf("Glob(%#q) = %#v want %v", tt.pattern, matches, tt.result)
+-		}
+-	}
+-}
+diff --git a/src/pkg/path/path.go b/src/pkg/path/path.go
+index 61eea88588..658eec0938 100644
+--- a/src/pkg/path/path.go
++++ b/src/pkg/path/path.go
+@@ -7,8 +7,6 @@
+ package path
+ 
+ import (
+-	"io/ioutil"
+-	"os"
+ 	"strings"
+ )
+ 
+@@ -107,7 +105,7 @@ func Clean(path string) string {
+ // If there is no separator in path, Split returns an empty dir and
+ // file set to path.
+ func Split(path string) (dir, file string) {
+-	i := strings.LastIndexAny(path, PathSeps)
++	i := strings.LastIndex(path, "/")
+ 	return path[:i+1], path[i+1:]
+ }
+ 
+@@ -135,78 +133,30 @@ func Ext(path string) string {
+ 	return ""
+ }
+ 
+-// Visitor methods are invoked for corresponding file tree entries
+-// visited by Walk. The parameter path is the full path of f relative
+-// to root.
+-type Visitor interface {
+-	VisitDir(path string, f *os.FileInfo) bool
+-	VisitFile(path string, f *os.FileInfo)
+-}
+-
+-func walk(path string, f *os.FileInfo, v Visitor, errors chan<- os.Error) {
+-	if !f.IsDirectory() {
+-		v.VisitFile(path, f)
+-		return
+-	}
+-
+-	if !v.VisitDir(path, f) {
+-		return // skip directory entries
+-	}
+-
+-	list, err := ioutil.ReadDir(path)
+-	if err != nil {
+-		if errors != nil {
+-			errors <- err
+-		}
+-	}
+-
+-	for _, e := range list {
+-		walk(Join(path, e.Name), e, v, errors)
+-	}
+-}
+-
+-// Walk walks the file tree rooted at root, calling v.VisitDir or
+-// v.VisitFile for each directory or file in the tree, including root.
+-// If v.VisitDir returns false, Walk skips the directory's entries;
+-// otherwise it invokes itself for each directory entry in sorted order.
+-// An error reading a directory does not abort the Walk.
+-// If errors != nil, Walk sends each directory read error
+-// to the channel.  Otherwise Walk discards the error.
+-func Walk(root string, v Visitor, errors chan<- os.Error) {
+-	f, err := os.Lstat(root)
+-	if err != nil {
+-		if errors != nil {
+-			errors <- err
+-		}
+-		return // can't progress
+-	}
+-	walk(root, f, v, errors)
+-}
+-
+-// Base returns the last path element of the slash-separated name.
+-// Trailing slashes are removed before extracting the last element.  If the name is
+-// empty, "." is returned.  If it consists entirely of slashes, "/" is returned.
+-func Base(name string) string {
+-	if name == "" {
++// Base returns the last element of path.
++// Trailing slashes are removed before extracting the last element.
++// If the path is empty, Base returns ".".
++// If the path consists entirely of slashes, Base returns "/".
++func Base(path string) string {
++	if path == "" {
+ 		return "."
+ 	}
+ 	// Strip trailing slashes.
+-	for len(name) > 0 && name[len(name)-1] == '/' {
+-		name = name[0 : len(name)-1]
++	for len(path) > 0 && path[len(path)-1] == '/' {
++		path = path[0 : len(path)-1]
+ 	}
+ 	// Find the last element
+-	if i := strings.LastIndex(name, "/"); i >= 0 {
+-		name = name[i+1:]
++	if i := strings.LastIndex(path, "/"); i >= 0 {
++		path = path[i+1:]
+ 	}
+ 	// If empty now, it had only slashes.
+-	if name == "" {
++	if path == "" {
+ 		return "/"
+ 	}
+-	return name
++	return path
+ }
+ 
+ // IsAbs returns true if the path is absolute.
+ func IsAbs(path string) bool {
+-	// TODO: Add Windows support
+-	return strings.HasPrefix(path, "/")
++	return len(path) > 0 && path[0] == '/'
+ }
+diff --git a/src/pkg/path/path_test.go b/src/pkg/path/path_test.go
+index ab0b48ad6a..1fd57cc800 100644
+--- a/src/pkg/path/path_test.go
++++ b/src/pkg/path/path_test.go
+@@ -5,8 +5,6 @@
+ package path
+ 
+ import (
+-	"os"
+-	"runtime"
+ 	"testing"
+ )
+ 
+@@ -84,18 +82,7 @@ var splittests = []SplitTest{
+ 	{"/", "/", ""},
+ }
+ 
+-var winsplittests = []SplitTest{
+-	{`C:\Windows\System32`, `C:\Windows\`, `System32`},
+-	{`C:\Windows\`, `C:\Windows\`, ``},
+-	{`C:\Windows`, `C:\`, `Windows`},
+-	{`C:Windows`, `C:`, `Windows`},
+-	{`\\?\c:\`, `\\?\c:\`, ``},
+-}
+-
+ func TestSplit(t *testing.T) {
+-	if runtime.GOOS == "windows" {
+-		splittests = append(splittests, winsplittests...)
+-	}
+ 	for _, test := range splittests {
+ 		if d, f := Split(test.path); d != test.dir || f != test.file {
+ 			t.Errorf("Split(%q) = %q, %q, want %q, %q", test.path, d, f, test.dir, test.file)
+@@ -161,152 +148,6 @@ func TestExt(t *testing.T) {
+ 	}
+ }
+ 
+-type Node struct {
+-	name    string
+-	entries []*Node // nil if the entry is a file
+-	mark    int
+-}
+-
+-var tree = &Node{
+-	"testdata",
+-	[]*Node{
+-		&Node{"a", nil, 0},
+-		&Node{"b", []*Node{}, 0},
+-		&Node{"c", nil, 0},
+-		&Node{
+-			"d",
+-			[]*Node{
+-				&Node{"x", nil, 0},
+-				&Node{"y", []*Node{}, 0},
+-				&Node{
+-					"z",
+-					[]*Node{
+-						&Node{"u", nil, 0},
+-						&Node{"v", nil, 0},
+-					},
+-					0,
+-				},
+-			},
+-			0,
+-		},
+-	},
+-	0,
+-}
+-
+-func walkTree(n *Node, path string, f func(path string, n *Node)) {
+-	f(path, n)
+-	for _, e := range n.entries {
+-		walkTree(e, Join(path, e.name), f)
+-	}
+-}
+-
+-func makeTree(t *testing.T) {
+-	walkTree(tree, tree.name, func(path string, n *Node) {
+-		if n.entries == nil {
+-			fd, err := os.Open(path, os.O_CREAT, 0660)
+-			if err != nil {
+-				t.Errorf("makeTree: %v", err)
+-			}
+-			fd.Close()
+-		} else {
+-			os.Mkdir(path, 0770)
+-		}
+-	})
+-}
+-
+-func markTree(n *Node) { walkTree(n, "", func(path string, n *Node) { n.mark++ }) }
+-
+-func checkMarks(t *testing.T) {
+-	walkTree(tree, tree.name, func(path string, n *Node) {
+-		if n.mark != 1 {
+-			t.Errorf("node %s mark = %d; expected 1", path, n.mark)
+-		}
+-		n.mark = 0
+-	})
+-}
+-
+-// Assumes that each node name is unique. Good enough for a test.
+-func mark(name string) {
+-	walkTree(tree, tree.name, func(path string, n *Node) {
+-		if n.name == name {
+-			n.mark++
+-		}
+-	})
+-}
+-
+-type TestVisitor struct{}
+-
+-func (v *TestVisitor) VisitDir(path string, f *os.FileInfo) bool {
+-	mark(f.Name)
+-	return true
+-}
+-
+-func (v *TestVisitor) VisitFile(path string, f *os.FileInfo) {
+-	mark(f.Name)
+-}
+-
+-func TestWalk(t *testing.T) {
+-	makeTree(t)
+-
+-	// 1) ignore error handling, expect none
+-	v := &TestVisitor{}
+-	Walk(tree.name, v, nil)
+-	checkMarks(t)
+-
+-	// 2) handle errors, expect none
+-	errors := make(chan os.Error, 64)
+-	Walk(tree.name, v, errors)
+-	select {
+-	case err := <-errors:
+-		t.Errorf("no error expected, found: %s", err)
+-	default:
+-		// ok
+-	}
+-	checkMarks(t)
+-
+-	if os.Getuid() != 0 {
+-		// introduce 2 errors: chmod top-level directories to 0
+-		os.Chmod(Join(tree.name, tree.entries[1].name), 0)
+-		os.Chmod(Join(tree.name, tree.entries[3].name), 0)
+-		// mark respective subtrees manually
+-		markTree(tree.entries[1])
+-		markTree(tree.entries[3])
+-		// correct double-marking of directory itself
+-		tree.entries[1].mark--
+-		tree.entries[3].mark--
+-
+-		// 3) handle errors, expect two
+-		errors = make(chan os.Error, 64)
+-		os.Chmod(Join(tree.name, tree.entries[1].name), 0)
+-		Walk(tree.name, v, errors)
+-	Loop:
+-		for i := 1; i <= 2; i++ {
+-			select {
+-			case <-errors:
+-				// ok
+-			default:
+-				t.Errorf("%d. error expected, none found", i)
+-				break Loop
+-			}
+-		}
+-		select {
+-		case err := <-errors:
+-			t.Errorf("only two errors expected, found 3rd: %v", err)
+-		default:
+-			// ok
+-		}
+-		// the inaccessible subtrees were marked manually
+-		checkMarks(t)
+-	}
+-
+-	// cleanup
+-	os.Chmod(Join(tree.name, tree.entries[1].name), 0770)
+-	os.Chmod(Join(tree.name, tree.entries[3].name), 0770)
+-	if err := os.RemoveAll(tree.name); err != nil {
+-		t.Errorf("removeTree: %v", err)
+-	}
+-}
+-
+ var basetests = []CleanTest{
+ 	// Already clean
+ 	{"", "."},
+diff --git a/src/pkg/path/path_unix.go b/src/pkg/path/path_unix.go
+deleted file mode 100644
+index 7e8c5eb8b9..0000000000
+--- a/src/pkg/path/path_unix.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package path
+-
+-const (
+-	DirSeps    = `/`                  // directory separators
+-	VolumeSeps = ``                   // volume separators
+-	PathSeps   = DirSeps + VolumeSeps // all path separators
+-)
+diff --git a/src/pkg/path/path_windows.go b/src/pkg/path/path_windows.go
+deleted file mode 100644
+index 966eb49fb5..0000000000
+--- a/src/pkg/path/path_windows.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package path
+-
+-const (
+-	DirSeps    = `\/`                 // directory separators
+-	VolumeSeps = `:`                  // volume separators
+-	PathSeps   = DirSeps + VolumeSeps // all path separators
+-)

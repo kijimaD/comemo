@@ -11,8 +11,132 @@ Date:   Mon May 22 18:28:06 2017 +0200
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/math/sqrt_mipsx.s       |  4 ++++
  src/runtime/cgo/asm_mipsx.s | 13 ++++++++++---
  src/runtime/cgo/gcc_mipsx.S | 17 ++++++++++++-----
  3 files changed, 26 insertions(+), 8 deletions(-)
+
+diff --git a/src/math/sqrt_mipsx.s b/src/math/sqrt_mipsx.s
+index 1b27d494b5..a63ea9ec9f 100644
+--- a/src/math/sqrt_mipsx.s
++++ b/src/math/sqrt_mipsx.s
+@@ -8,7 +8,11 @@
+ 
+ // func Sqrt(x float64) float64
+ TEXT ·Sqrt(SB),NOSPLIT,$0
++#ifdef GOMIPS_softfloat
++	JMP ·sqrt(SB)
++#else
+ 	MOVD	x+0(FP), F0
+ 	SQRTD	F0, F0
+ 	MOVD	F0, ret+8(FP)
++#endif
+ 	RET
+diff --git a/src/runtime/cgo/asm_mipsx.s b/src/runtime/cgo/asm_mipsx.s
+index dd16af6fbe..2483bdd7d4 100644
+--- a/src/runtime/cgo/asm_mipsx.s
++++ b/src/runtime/cgo/asm_mipsx.s
+@@ -20,7 +20,11 @@ TEXT crosscall2(SB),NOSPLIT,$-4
+ 
+ 	// Space for 9 caller-saved GPR + LR + 6 caller-saved FPR.
+ 	// O32 ABI allows us to smash 16 bytes argument area of caller frame.
++#ifndef GOMIPS_softfloat
+ 	SUBU	$(4*14+8*6-16), R29
++#else
++	SUBU	$(4*14-16), R29	// For soft-float, no FPR.
++#endif
+ 	MOVW	R5, (4*1)(R29)
+ 	MOVW	R6, (4*2)(R29)
+ 	MOVW	R7, (4*3)(R29)
+@@ -34,14 +38,14 @@ TEXT crosscall2(SB),NOSPLIT,$-4
+ 	MOVW	R23, (4*11)(R29)
+ 	MOVW	g, (4*12)(R29)
+ 	MOVW	R31, (4*13)(R29)
+-
++#ifndef GOMIPS_softfloat
+ 	MOVD	F20, (4*14)(R29)
+ 	MOVD	F22, (4*14+8*1)(R29)
+ 	MOVD	F24, (4*14+8*2)(R29)
+ 	MOVD	F26, (4*14+8*3)(R29)
+ 	MOVD	F28, (4*14+8*4)(R29)
+ 	MOVD	F30, (4*14+8*5)(R29)
+-
++#endif
+ 	JAL	runtime·load_g(SB)
+ 	JAL	(R4)
+ 
+@@ -55,7 +59,7 @@ TEXT crosscall2(SB),NOSPLIT,$-4
+ 	MOVW	(4*11)(R29), R23
+ 	MOVW	(4*12)(R29), g
+ 	MOVW	(4*13)(R29), R31
+-
++#ifndef GOMIPS_softfloat
+ 	MOVD	(4*14)(R29), F20
+ 	MOVD	(4*14+8*1)(R29), F22
+ 	MOVD	(4*14+8*2)(R29), F24
+@@ -64,4 +68,7 @@ TEXT crosscall2(SB),NOSPLIT,$-4
+ 	MOVD	(4*14+8*5)(R29), F30
+ 
+ 	ADDU	$(4*14+8*6-16), R29
++#else
++	ADDU	$(4*14-16), R29
++#endif
+ 	RET
+diff --git a/src/runtime/cgo/gcc_mipsx.S b/src/runtime/cgo/gcc_mipsx.S
+index c51c36a9b7..54f4b8201a 100644
+--- a/src/runtime/cgo/gcc_mipsx.S
++++ b/src/runtime/cgo/gcc_mipsx.S
+@@ -14,8 +14,11 @@
+ .globl crosscall1
+ .set noat
+ crosscall1:
++#ifndef __mips_soft_float
+ 	addiu	$29, $29, -88
+-
++#else
++	addiu	$29, $29, -40 // For soft-float, no need to make room for FP registers
++#endif
+ 	sw	$31, 0($29)
+ 	sw	$16, 4($29)
+ 	sw	$17, 8($29)
+@@ -27,14 +30,14 @@ crosscall1:
+ 	sw	$23, 32($29)
+ 	sw	$30, 36($29)
+ 
++#ifndef __mips_soft_float
+ 	sdc1	$f20, 40($29)
+ 	sdc1	$f22, 48($29)
+ 	sdc1	$f24, 56($29)
+ 	sdc1	$f26, 64($29)
+ 	sdc1	$f28, 72($29)
+ 	sdc1	$f30, 80($29)
+-
+-
++#endif
+ 	move	$20, $4 // save R4
+ 	move	$4, $6
+ 	jalr	$5	// call setg_gcc
+@@ -49,16 +52,20 @@ crosscall1:
+ 	lw	$22, 28($29)
+ 	lw	$23, 32($29)
+ 	lw	$30, 36($29)
++#ifndef __mips_soft_float
+ 	ldc1	$f20, 40($29)
+ 	ldc1	$f22, 48($29)
+ 	ldc1	$f24, 56($29)
+ 	ldc1	$f26, 64($29)
+ 	ldc1	$f28, 72($29)
+ 	ldc1	$f30, 80($29)
+-
++#endif
+ 	lw	$31, 0($29)
+-
++#ifndef __mips_soft_float
+ 	addiu	$29, $29, 88
++#else
++	addiu	$29, $29, 40
++#endif
+ 	jr	$31
+ 
+ .set at

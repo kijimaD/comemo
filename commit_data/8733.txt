@@ -7,6 +7,20 @@ Date:   Wed Jun 15 16:39:17 2011 +1000
     R=adg
     CC=golang-dev
     https://golang.org/cl/4584060
-
+---
  src/pkg/go/build/Makefile | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/build/Makefile b/src/pkg/go/build/Makefile
+index 4411940ae4..5bb2c86ed2 100644
+--- a/src/pkg/go/build/Makefile
++++ b/src/pkg/go/build/Makefile
+@@ -11,7 +11,7 @@ GOFILES=\
+ 	path.go\
+ 	syslist.go\
+ 
+-CLEANFILES+=syslist.go
++CLEANFILES+=syslist.go cgotest/_obj
+ 
+ include ../../../Make.pkg
+ 

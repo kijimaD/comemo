@@ -13,6 +13,20 @@ Date:   Thu Sep 29 20:29:41 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/cover/cover.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cover/cover.go b/src/cmd/cover/cover.go
+index 530d40d458..7b9d79eb38 100644
+--- a/src/cmd/cover/cover.go
++++ b/src/cmd/cover/cover.go
+@@ -582,7 +582,7 @@ func (p *Package) annotateFile(name string, fd io.Writer, last bool) {
+ 	}
+ 	if pkgconfig.PkgName == "main" {
+ 		file.edit.Insert(file.offset(file.astFile.Name.End()),
+-			fmt.Sprintf("; import _ \"runtime/coverage\""))
++			"; import _ \"runtime/coverage\"")
+ 	}
+ 
+ 	if counterStmt != nil {

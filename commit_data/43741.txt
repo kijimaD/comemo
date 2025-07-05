@@ -22,7 +22,39 @@ Date:   Wed Apr 22 16:24:30 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/net/http/pprof/pprof.go      | 8 ++++++--
  src/net/http/pprof/pprof_test.go | 1 +
  2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/pprof/pprof.go b/src/net/http/pprof/pprof.go
+index 36b0af452d..4fd19eb539 100644
+--- a/src/net/http/pprof/pprof.go
++++ b/src/net/http/pprof/pprof.go
+@@ -334,8 +334,12 @@ func collectProfile(p *pprof.Profile) (*profile.Profile, error) {
+ }
+ 
+ var profileSupportsDelta = map[handler]bool{
+-	"block": true,
+-	"mutex": true,
++	"allocs":       true,
++	"block":        true,
++	"goroutine":    true,
++	"heap":         true,
++	"mutex":        true,
++	"threadcreate": true,
+ }
+ 
+ var profileDescriptions = map[string]string{
+diff --git a/src/net/http/pprof/pprof_test.go b/src/net/http/pprof/pprof_test.go
+index 49c4c81caa..f6f9ef5b04 100644
+--- a/src/net/http/pprof/pprof_test.go
++++ b/src/net/http/pprof/pprof_test.go
+@@ -49,6 +49,7 @@ func TestHandlers(t *testing.T) {
+ 		{"/debug/pprof/trace", Trace, http.StatusOK, "application/octet-stream", `attachment; filename="trace"`, nil},
+ 		{"/debug/pprof/mutex", Index, http.StatusOK, "application/octet-stream", `attachment; filename="mutex"`, nil},
+ 		{"/debug/pprof/block?seconds=1", Index, http.StatusOK, "application/octet-stream", `attachment; filename="block-delta"`, nil},
++		{"/debug/pprof/goroutine?seconds=1", Index, http.StatusOK, "application/octet-stream", `attachment; filename="goroutine-delta"`, nil},
+ 		{"/debug/pprof/", Index, http.StatusOK, "text/html; charset=utf-8", "", []byte("Types of profiles available:")},
+ 	}
+ 	for _, tc := range testCases {

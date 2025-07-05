@@ -7,6 +7,20 @@ Date:   Thu Jul 12 18:34:34 2018 +0800
     Change-Id: I6c8699cd71b41cf8d178a0af3a745a19dcf60905
     Reviewed-on: https://go-review.googlesource.com/123536
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/funcdata.h | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/funcdata.h b/src/runtime/funcdata.h
+index 4c290b9b9a..e6e0306e65 100644
+--- a/src/runtime/funcdata.h
++++ b/src/runtime/funcdata.h
+@@ -6,7 +6,7 @@
+ // in Go binaries. It is included by assembly sources, so it must
+ // be written using #defines.
+ //
+-// These must agree with symtab.go and ../cmd/internal/obj/funcdata.go.
++// These must agree with symtab.go and ../cmd/internal/objabi/funcdata.go.
+ 
+ #define PCDATA_StackMapIndex 0
+ #define PCDATA_InlTreeIndex 1

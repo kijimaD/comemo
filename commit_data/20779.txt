@@ -13,7 +13,56 @@ Date:   Wed Oct 8 17:22:34 2014 -0700
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/151610043
-
+---
  src/runtime/chan.go | 11 +++++++----
  src/runtime/stack.c |  1 +
  2 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index 10503f4e10..0049701826 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -174,6 +174,10 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
+ 		goparkunlock(&c.lock, "chan send")
+ 
+ 		// someone woke us up.
++		if mysg != gp.waiting {
++			gothrow("G waiting list is corrupted!")
++		}
++		gp.waiting = nil
+ 		if gp.param == nil {
+ 			if c.closed == 0 {
+ 				gothrow("chansend: spurious wakeup")
+@@ -184,10 +188,6 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
+ 		if mysg.releasetime > 0 {
+ 			blockevent(int64(mysg.releasetime)-t0, 2)
+ 		}
+-		if mysg != gp.waiting {
+-			gothrow("G waiting list is corrupted!")
+-		}
+-		gp.waiting = nil
+ 		releaseSudog(mysg)
+ 		return true
+ 	}
+@@ -410,6 +410,9 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
+ 		goparkunlock(&c.lock, "chan receive")
+ 
+ 		// someone woke us up
++		if mysg != gp.waiting {
++			gothrow("G waiting list is corrupted!")
++		}
+ 		gp.waiting = nil
+ 		if mysg.releasetime > 0 {
+ 			blockevent(mysg.releasetime-t0, 2)
+diff --git a/src/runtime/stack.c b/src/runtime/stack.c
+index d1ea3ff73b..e402691f45 100644
+--- a/src/runtime/stack.c
++++ b/src/runtime/stack.c
+@@ -725,6 +725,7 @@ runtime·newstack(void)
+ 	g->m->morebuf.pc = (uintptr)nil;
+ 	g->m->morebuf.lr = (uintptr)nil;
+ 	g->m->morebuf.sp = (uintptr)nil;
++	g->m->morebuf.g = (G*)nil;
+ 
+ 	runtime·casgstatus(gp, Grunning, Gwaiting);
+ 	gp->waitreason = runtime·gostringnocopy((byte*)"stack growth");

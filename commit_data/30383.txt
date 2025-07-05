@@ -11,6 +11,20 @@ Date:   Wed Nov 2 17:55:53 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/subr.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 7655a9ecdc..fb5419f533 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1183,7 +1183,7 @@ func ullmancalc(n *Node) {
+ 			goto out
+ 		}
+ 	case OINDEX, OSLICE, OSLICEARR, OSLICE3, OSLICE3ARR, OSLICESTR,
+-		OIND, ODOTPTR, ODOTTYPE, ODIV:
++		OIND, ODOTPTR, ODOTTYPE, ODIV, OMOD:
+ 		// These ops might panic, make sure they are done
+ 		// before we start marshaling args for a call. See issue 16760.
+ 		ul = UINF

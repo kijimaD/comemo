@@ -12,6 +12,35 @@ Date:   Sat Apr 22 21:02:53 2017 +0100
     Reviewed-on: https://go-review.googlesource.com/41474
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/base64/base64_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/encoding/base64/base64_test.go b/src/encoding/base64/base64_test.go
+index 00b3d6171f..ce52202dd8 100644
+--- a/src/encoding/base64/base64_test.go
++++ b/src/encoding/base64/base64_test.go
+@@ -63,7 +63,7 @@ func rawRef(ref string) string {
+ }
+ 
+ // Both URL and unpadding conversions
+-func rawUrlRef(ref string) string {
++func rawURLRef(ref string) string {
+ 	return rawRef(urlRef(ref))
+ }
+ 
+@@ -83,12 +83,12 @@ var encodingTests = []encodingTest{
+ 	{StdEncoding, stdRef},
+ 	{URLEncoding, urlRef},
+ 	{RawStdEncoding, rawRef},
+-	{RawURLEncoding, rawUrlRef},
++	{RawURLEncoding, rawURLRef},
+ 	{funnyEncoding, funnyRef},
+ 	{StdEncoding.Strict(), stdRef},
+ 	{URLEncoding.Strict(), urlRef},
+ 	{RawStdEncoding.Strict(), rawRef},
+-	{RawURLEncoding.Strict(), rawUrlRef},
++	{RawURLEncoding.Strict(), rawURLRef},
+ 	{funnyEncoding.Strict(), funnyRef},
+ }
+ 

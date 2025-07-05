@@ -9,6 +9,21 @@ Date:   Sat Feb 13 08:48:55 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/cgocheck.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/runtime/cgocheck.go b/src/runtime/cgocheck.go
+index 0077e22332..aebce1506d 100644
+--- a/src/runtime/cgocheck.go
++++ b/src/runtime/cgocheck.go
+@@ -135,9 +135,6 @@ func cgoCheckTypedBlock(typ *_type, src unsafe.Pointer, off, size uintptr) {
+ 	hbits := heapBitsForAddr(uintptr(src))
+ 	for i := uintptr(0); i < off+size; i += sys.PtrSize {
+ 		bits := hbits.bits()
+-		if bits != 0 {
+-			println(i, bits)
+-		}
+ 		if i >= off && bits&bitPointer != 0 {
+ 			v := *(*unsafe.Pointer)(add(src, i))
+ 			if cgoIsGoPointer(v) {

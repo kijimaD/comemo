@@ -71,10 +71,212 @@ Date:   Fri Mar 18 11:27:59 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/20829
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mbarrier.go | 19 +++++++++++++++----
  src/runtime/mbitmap.go  | 50 +++++++++++++++++++++++++++++++++++++++++++++++--
  src/runtime/mgc.go      |  7 -------
  src/runtime/mgcmark.go  | 24 ++++++++++++++----------
  test/writebarrier.go    | 15 +++++++++++++++
  5 files changed, 92 insertions(+), 23 deletions(-)
+
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index f03bf18ebc..637d9b886a 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -87,6 +87,17 @@ import (
+ // frames that have potentially been active since the concurrent scan,
+ // so it depends on write barriers to track changes to pointers in
+ // stack frames that have not been active.
++//
++//
++// Global writes:
++//
++// The Go garbage collector requires write barriers when heap pointers
++// are stored in globals. Many garbage collectors ignore writes to
++// globals and instead pick up global -> heap pointers during
++// termination. This increases pause time, so we instead rely on write
++// barriers for writes to globals so that we don't have to rescan
++// global during mark termination.
++//
+ //go:nowritebarrierrec
+ func gcmarkwb_m(slot *uintptr, ptr uintptr) {
+ 	if writeBarrier.needed {
+@@ -185,7 +196,7 @@ func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size
+ 	if writeBarrier.cgo {
+ 		cgoCheckMemmove(typ, dst, src, off, size)
+ 	}
+-	if !writeBarrier.needed || typ.kind&kindNoPointers != 0 || size < sys.PtrSize || !inheap(uintptr(dst)) {
++	if !writeBarrier.needed || typ.kind&kindNoPointers != 0 || size < sys.PtrSize {
+ 		return
+ 	}
+ 
+@@ -201,11 +212,11 @@ func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size
+ // values have just been copied to frame, starting at retoffset
+ // and continuing to framesize. The entire frame (not just the return
+ // values) is described by typ. Because the copy has already
+-// happened, we call writebarrierptr_nostore, and we must be careful
+-// not to be preempted before the write barriers have been run.
++// happened, we call writebarrierptr_nostore, and this is nosplit so
++// the copy and write barrier appear atomic to GC.
+ //go:nosplit
+ func callwritebarrier(typ *_type, frame unsafe.Pointer, framesize, retoffset uintptr) {
+-	if !writeBarrier.needed || typ == nil || typ.kind&kindNoPointers != 0 || framesize-retoffset < sys.PtrSize || !inheap(uintptr(frame)) {
++	if !writeBarrier.needed || typ == nil || typ.kind&kindNoPointers != 0 || framesize-retoffset < sys.PtrSize {
+ 		return
+ 	}
+ 	heapBitsBulkBarrier(uintptr(add(frame, retoffset)), framesize-retoffset)
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index e8eb6a7e22..3df697ee5c 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -384,10 +384,10 @@ func (h heapBits) setCheckmarked(size uintptr) {
+ 
+ // heapBitsBulkBarrier executes writebarrierptr_nostore
+ // for every pointer slot in the memory range [p, p+size),
+-// using the heap bitmap to locate those pointer slots.
++// using the heap, data, or BSS bitmap to locate those pointer slots.
+ // This executes the write barriers necessary after a memmove.
+ // Both p and size must be pointer-aligned.
+-// The range [p, p+size) must lie within a single allocation.
++// The range [p, p+size) must lie within a single object.
+ //
+ // Callers should call heapBitsBulkBarrier immediately after
+ // calling memmove(p, src, size). This function is marked nosplit
+@@ -431,6 +431,22 @@ func heapBitsBulkBarrier(p, size uintptr) {
+ 			systemstack(func() {
+ 				gcUnwindBarriers(gp, p)
+ 			})
++			return
++		}
++
++		// If p is a global, use the data or BSS bitmaps to
++		// execute write barriers.
++		for datap := &firstmoduledata; datap != nil; datap = datap.next {
++			if datap.data <= p && p < datap.edata {
++				bulkBarrierBitmap(p, size, p-datap.data, datap.gcdatamask.bytedata)
++				return
++			}
++		}
++		for datap := &firstmoduledata; datap != nil; datap = datap.next {
++			if datap.bss <= p && p < datap.ebss {
++				bulkBarrierBitmap(p, size, p-datap.bss, datap.gcbssmask.bytedata)
++				return
++			}
+ 		}
+ 		return
+ 	}
+@@ -445,6 +461,36 @@ func heapBitsBulkBarrier(p, size uintptr) {
+ 	}
+ }
+ 
++// bulkBarrierBitmap executes write barriers for [p, p+size) using a
++// 1-bit pointer bitmap. p is assumed to start maskOffset bytes into
++// the data covered by the bitmap in bits.
++//
++// This is used by heapBitsBulkBarrier for writes to data and BSS.
++//
++//go:nosplit
++func bulkBarrierBitmap(p, size, maskOffset uintptr, bits *uint8) {
++	word := maskOffset / sys.PtrSize
++	bits = addb(bits, word/8)
++	mask := uint8(1) << (word % 8)
++
++	for i := uintptr(0); i < size; i += sys.PtrSize {
++		if mask == 0 {
++			bits = addb(bits, 1)
++			if *bits == 0 {
++				// Skip 8 words.
++				i += 7 * sys.PtrSize
++				continue
++			}
++			mask = 1
++		}
++		if *bits&mask != 0 {
++			x := (*uintptr)(unsafe.Pointer(p + i))
++			writebarrierptr_nostore(x, *x)
++		}
++		mask <<= 1
++	}
++}
++
+ // typeBitsBulkBarrier executes writebarrierptr_nostore
+ // for every pointer slot in the memory range [p, p+size),
+ // using the type bitmap to locate those pointer slots.
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 328ff4cd88..ae8338ac10 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1086,13 +1086,6 @@ top:
+ 		// cached workbufs.
+ 		atomic.Xadd(&work.nwait, -1)
+ 
+-		// Rescan global data and BSS. There may still work
+-		// workers running at this point, so bump "jobs" down
+-		// before "next" so they won't try running root jobs
+-		// until we set next.
+-		atomic.Store(&work.markrootJobs, uint32(fixedRootCount+work.nDataRoots+work.nBSSRoots))
+-		atomic.Store(&work.markrootNext, fixedRootCount)
+-
+ 		// GC is set up for mark 2. Let Gs blocked on the
+ 		// transition lock go while we flush caches.
+ 		semrelease(&work.markDoneSema)
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 7f481dee22..b5a9ff9b56 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -42,18 +42,22 @@ func gcMarkRootPrepare() {
+ 	}
+ 
+ 	work.nDataRoots = 0
+-	for datap := &firstmoduledata; datap != nil; datap = datap.next {
+-		nDataRoots := nBlocks(datap.edata - datap.data)
+-		if nDataRoots > work.nDataRoots {
+-			work.nDataRoots = nDataRoots
++	work.nBSSRoots = 0
++
++	// Only scan globals once per cycle; preferably concurrently.
++	if !work.markrootDone {
++		for datap := &firstmoduledata; datap != nil; datap = datap.next {
++			nDataRoots := nBlocks(datap.edata - datap.data)
++			if nDataRoots > work.nDataRoots {
++				work.nDataRoots = nDataRoots
++			}
+ 		}
+-	}
+ 
+-	work.nBSSRoots = 0
+-	for datap := &firstmoduledata; datap != nil; datap = datap.next {
+-		nBSSRoots := nBlocks(datap.ebss - datap.bss)
+-		if nBSSRoots > work.nBSSRoots {
+-			work.nBSSRoots = nBSSRoots
++		for datap := &firstmoduledata; datap != nil; datap = datap.next {
++			nBSSRoots := nBlocks(datap.ebss - datap.bss)
++			if nBSSRoots > work.nBSSRoots {
++				work.nBSSRoots = nBSSRoots
++			}
+ 		}
+ 	}
+ 
+diff --git a/test/writebarrier.go b/test/writebarrier.go
+index 2ff0ee9584..f2431ed5ca 100644
+--- a/test/writebarrier.go
++++ b/test/writebarrier.go
+@@ -196,3 +196,18 @@ func f20(x, y *int, i int) []*int {
+ 	a := []*int{x, y} // ERROR "write barrier"
+ 	return a
+ }
++
++var x21 *int
++var y21 struct {
++	x *int
++}
++var z21 int
++
++func f21(x *int) {
++	// Global -> heap pointer updates must have write barriers.
++	x21 = x                   // ERROR "write barrier"
++	y21.x = x                 // ERROR "write barrier"
++	x21 = &z21                // no barrier
++	y21.x = &z21              // no barrier
++	y21 = struct{ x *int }{x} // ERROR "write barrier"
++}

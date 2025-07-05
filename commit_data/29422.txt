@@ -91,6 +91,45 @@ Date:   Thu Jul 7 16:50:46 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/internal/obj/x86/obj6.go | 20 ++++++++++++++++++--
  1 file changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 7738d79b1b..c479a07fe4 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -660,8 +660,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 		for q := p; q != nil; q = q.Link {
+ 			switch q.As {
+ 			case obj.ACALL:
+-				leaf = false
+-				break LeafSearch
++				// Treat common runtime calls that take no arguments
++				// the same as duffcopy and duffzero.
++				if !isZeroArgRuntimeCall(q.To.Sym) {
++					leaf = false
++					break LeafSearch
++				}
++				fallthrough
+ 			case obj.ADUFFCOPY, obj.ADUFFZERO:
+ 				if autoffset >= obj.StackSmall-8 {
+ 					leaf = false
+@@ -928,6 +933,17 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 	}
+ }
+ 
++func isZeroArgRuntimeCall(s *obj.LSym) bool {
++	if s == nil {
++		return false
++	}
++	switch s.Name {
++	case "runtime.panicindex", "runtime.panicslice", "runtime.panicdivide":
++		return true
++	}
++	return false
++}
++
+ func indir_cx(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
+ 	if ctxt.Headtype == obj.Hnacl && p.Mode == 64 {
+ 		a.Type = obj.TYPE_MEM

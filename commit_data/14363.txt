@@ -9,7 +9,43 @@ Date:   Fri Nov 9 08:50:10 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6840043
-
+---
  src/pkg/archive/tar/reader.go   | 12 ++++++++++++
  src/pkg/archive/tar/tar_test.go |  1 +
  2 files changed, 13 insertions(+)
+
+diff --git a/src/pkg/archive/tar/reader.go b/src/pkg/archive/tar/reader.go
+index 1b40af812a..ad825c6be0 100644
+--- a/src/pkg/archive/tar/reader.go
++++ b/src/pkg/archive/tar/reader.go
+@@ -72,6 +72,18 @@ func cString(b []byte) string {
+ }
+ 
+ func (tr *Reader) octal(b []byte) int64 {
++	// Check for binary format first.
++	if len(b) > 0 && b[0]&0x80 != 0 {
++		var x int64
++		for i, c := range b {
++			if i == 0 {
++				c &= 0x7f // ignore signal bit in first byte
++			}
++			x = x<<8 | int64(c)
++		}
++		return x
++	}
++
+ 	// Removing leading spaces.
+ 	for len(b) > 0 && b[0] == ' ' {
+ 		b = b[1:]
+diff --git a/src/pkg/archive/tar/tar_test.go b/src/pkg/archive/tar/tar_test.go
+index a509f3c00a..7b190b6a8b 100644
+--- a/src/pkg/archive/tar/tar_test.go
++++ b/src/pkg/archive/tar/tar_test.go
+@@ -65,6 +65,7 @@ func TestRoundTrip(t *testing.T) {
+ 	tw := NewWriter(&b)
+ 	hdr := &Header{
+ 		Name:    "file.txt",
++		Uid:     1 << 21, // too big for 8 octal digits
+ 		Size:    int64(len(data)),
+ 		ModTime: time.Now(),
+ 	}

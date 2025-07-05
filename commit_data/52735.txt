@@ -24,7 +24,7 @@ Date:   Wed May 18 08:54:30 2022 +0000
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/obj.go           |  4 +--
  src/cmd/compile/internal/ir/name.go          |  6 ++---
  src/cmd/compile/internal/ssa/writebarrier.go |  2 +-
@@ -40,3 +40,420 @@ Date:   Wed May 18 08:54:30 2022 +0000
  src/runtime/libfuzzer_amd64.s                | 23 +++++++++++++++++
  src/runtime/libfuzzer_arm64.s                | 21 +++++++++++++++
  14 files changed, 143 insertions(+), 56 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index e33f726e34..5008aa212a 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -313,8 +313,8 @@ func ggloblnod(nam *ir.Name) {
+ 	} else {
+ 		base.Ctxt.Globl(s, size, flags)
+ 	}
+-	if nam.LibfuzzerExtraCounter() {
+-		s.Type = objabi.SLIBFUZZER_EXTRA_COUNTER
++	if nam.Libfuzzer8BitCounter() {
++		s.Type = objabi.SLIBFUZZER_8BIT_COUNTER
+ 	}
+ 	if nam.Sym().Linkname != "" {
+ 		// Make sure linkname'd symbol is non-package. When a symbol is
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 59269ff271..711d1dedc5 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -235,7 +235,7 @@ const (
+ 	nameInlFormal                // PAUTO created by inliner, derived from callee formal
+ 	nameInlLocal                 // PAUTO created by inliner, derived from callee local
+ 	nameOpenDeferSlot            // if temporary var storing info for open-coded defers
+-	nameLibfuzzerExtraCounter    // if PEXTERN should be assigned to __libfuzzer_extra_counters section
++	nameLibfuzzer8BitCounter     // if PEXTERN should be assigned to __sancov_cntrs section
+ 	nameAlias                    // is type name an alias
+ )
+ 
+@@ -250,7 +250,7 @@ func (n *Name) Addrtaken() bool                { return n.flags&nameAddrtaken !=
+ func (n *Name) InlFormal() bool                { return n.flags&nameInlFormal != 0 }
+ func (n *Name) InlLocal() bool                 { return n.flags&nameInlLocal != 0 }
+ func (n *Name) OpenDeferSlot() bool            { return n.flags&nameOpenDeferSlot != 0 }
+-func (n *Name) LibfuzzerExtraCounter() bool    { return n.flags&nameLibfuzzerExtraCounter != 0 }
++func (n *Name) Libfuzzer8BitCounter() bool     { return n.flags&nameLibfuzzer8BitCounter != 0 }
+ 
+ func (n *Name) setReadonly(b bool)                 { n.flags.set(nameReadonly, b) }
+ func (n *Name) SetNeedzero(b bool)                 { n.flags.set(nameNeedzero, b) }
+@@ -263,7 +263,7 @@ func (n *Name) SetAddrtaken(b bool)                { n.flags.set(nameAddrtaken,
+ func (n *Name) SetInlFormal(b bool)                { n.flags.set(nameInlFormal, b) }
+ func (n *Name) SetInlLocal(b bool)                 { n.flags.set(nameInlLocal, b) }
+ func (n *Name) SetOpenDeferSlot(b bool)            { n.flags.set(nameOpenDeferSlot, b) }
+-func (n *Name) SetLibfuzzerExtraCounter(b bool)    { n.flags.set(nameLibfuzzerExtraCounter, b) }
++func (n *Name) SetLibfuzzer8BitCounter(b bool)     { n.flags.set(nameLibfuzzer8BitCounter, b) }
+ 
+ // OnStack reports whether variable n may reside on the stack.
+ func (n *Name) OnStack() bool {
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index 86ae583eab..42ecde1d23 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -658,7 +658,7 @@ func IsSanitizerSafeAddr(v *Value) bool {
+ 		// read-only once initialized.
+ 		return true
+ 	case OpAddr:
+-		return v.Aux.(*obj.LSym).Type == objabi.SRODATA || v.Aux.(*obj.LSym).Type == objabi.SLIBFUZZER_EXTRA_COUNTER
++		return v.Aux.(*obj.LSym).Type == objabi.SRODATA || v.Aux.(*obj.LSym).Type == objabi.SLIBFUZZER_8BIT_COUNTER
+ 	}
+ 	return false
+ }
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index d4abd1af77..8d1089dcc1 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -446,21 +446,31 @@ func (o *orderState) edge() {
+ 		return
+ 	}
+ 
+-	// Create a new uint8 counter to be allocated in section
+-	// __libfuzzer_extra_counters.
++	// Create a new uint8 counter to be allocated in section __sancov_cntrs
+ 	counter := staticinit.StaticName(types.Types[types.TUINT8])
+-	counter.SetLibfuzzerExtraCounter(true)
+-	// As well as setting SetLibfuzzerExtraCounter, we preemptively set the
+-	// symbol type to SLIBFUZZER_EXTRA_COUNTER so that the race detector
++	counter.SetLibfuzzer8BitCounter(true)
++	// As well as setting SetLibfuzzer8BitCounter, we preemptively set the
++	// symbol type to SLIBFUZZER_8BIT_COUNTER so that the race detector
+ 	// instrumentation pass (which does not have access to the flags set by
+-	// SetLibfuzzerExtraCounter) knows to ignore them. This information is
+-	// lost by the time it reaches the compile step, so SetLibfuzzerExtraCounter
++	// SetLibfuzzer8BitCounter) knows to ignore them. This information is
++	// lost by the time it reaches the compile step, so SetLibfuzzer8BitCounter
+ 	// is still necessary.
+-	counter.Linksym().Type = objabi.SLIBFUZZER_EXTRA_COUNTER
+-
+-	// counter += 1
+-	incr := ir.NewAssignOpStmt(base.Pos, ir.OADD, counter, ir.NewInt(1))
+-	o.append(incr)
++	counter.Linksym().Type = objabi.SLIBFUZZER_8BIT_COUNTER
++
++	// We guarantee that the counter never becomes zero again once it has been
++	// incremented once. This implementation follows the NeverZero optimization
++	// presented by the paper:
++	// "AFL++: Combining Incremental Steps of Fuzzing Research"
++	// The NeverZero policy avoids the overflow to 0 by setting the counter to one
++	// after it reaches 255 and so, if an edge is executed at least one time, the entry is
++	// never 0.
++	// Another policy presented in the paper is the Saturated Counters policy which
++	// freezes the counter when it reaches the value of 255. However, a range
++	// of experiments showed that that decreases overall performance.
++	o.append(ir.NewIfStmt(base.Pos,
++		ir.NewBinaryExpr(base.Pos, ir.OEQ, counter, ir.NewInt(0xff)),
++		[]ir.Node{ir.NewAssignStmt(base.Pos, counter, ir.NewInt(1))},
++		[]ir.Node{ir.NewAssignOpStmt(base.Pos, ir.OADD, counter, ir.NewInt(1))}))
+ }
+ 
+ // orderBlock orders the block of statements in n into a new slice,
+diff --git a/src/cmd/internal/objabi/symkind.go b/src/cmd/internal/objabi/symkind.go
+index dba23a54bd..ba1e4d50d6 100644
+--- a/src/cmd/internal/objabi/symkind.go
++++ b/src/cmd/internal/objabi/symkind.go
+@@ -67,7 +67,7 @@ const (
+ 	SDWARFLOC
+ 	SDWARFLINES
+ 	// Coverage instrumentation counter for libfuzzer.
+-	SLIBFUZZER_EXTRA_COUNTER
++	SLIBFUZZER_8BIT_COUNTER
+ 	// Update cmd/link/internal/sym/AbiSymKindToSymKind for new SymKind values.
+ 
+ )
+diff --git a/src/cmd/internal/objabi/symkind_string.go b/src/cmd/internal/objabi/symkind_string.go
+index c90cf43b50..d0606aa2da 100644
+--- a/src/cmd/internal/objabi/symkind_string.go
++++ b/src/cmd/internal/objabi/symkind_string.go
+@@ -1,4 +1,4 @@
+-// Code generated by "stringer -type=SymKind"; DO NOT EDIT.
++// Code generated by "stringer -type=SymKind symkind.go"; DO NOT EDIT.
+ 
+ package objabi
+ 
+@@ -25,12 +25,12 @@ func _() {
+ 	_ = x[SDWARFRANGE-14]
+ 	_ = x[SDWARFLOC-15]
+ 	_ = x[SDWARFLINES-16]
+-	_ = x[SLIBFUZZER_EXTRA_COUNTER-17]
++	_ = x[SLIBFUZZER_8BIT_COUNTER-17]
+ }
+ 
+-const _SymKind_name = "SxxxSTEXTSRODATASNOPTRDATASDATASBSSSNOPTRBSSSTLSBSSSDWARFCUINFOSDWARFCONSTSDWARFFCNSDWARFABSFCNSDWARFTYPESDWARFVARSDWARFRANGESDWARFLOCSDWARFLINESSLIBFUZZER_EXTRA_COUNTER"
++const _SymKind_name = "SxxxSTEXTSRODATASNOPTRDATASDATASBSSSNOPTRBSSSTLSBSSSDWARFCUINFOSDWARFCONSTSDWARFFCNSDWARFABSFCNSDWARFTYPESDWARFVARSDWARFRANGESDWARFLOCSDWARFLINESSLIBFUZZER_8BIT_COUNTER"
+ 
+-var _SymKind_index = [...]uint8{0, 4, 9, 16, 26, 31, 35, 44, 51, 63, 74, 83, 95, 105, 114, 125, 134, 145, 169}
++var _SymKind_index = [...]uint8{0, 4, 9, 16, 26, 31, 35, 44, 51, 63, 74, 83, 95, 105, 114, 125, 134, 145, 168}
+ 
+ func (i SymKind) String() string {
+ 	if i >= SymKind(len(_SymKind_index)-1) {
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 43f71c0400..503a9cd20c 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1782,10 +1782,10 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
+ 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.end", 0), sect)
+ 
+ 	// Coverage instrumentation counters for libfuzzer.
+-	if len(state.data[sym.SLIBFUZZER_EXTRA_COUNTER]) > 0 {
+-		sect := state.allocateNamedSectionAndAssignSyms(&Segdata, "__libfuzzer_extra_counters", sym.SLIBFUZZER_EXTRA_COUNTER, sym.Sxxx, 06)
+-		ldr.SetSymSect(ldr.LookupOrCreateSym("internal/fuzz._counters", 0), sect)
+-		ldr.SetSymSect(ldr.LookupOrCreateSym("internal/fuzz._ecounters", 0), sect)
++	if len(state.data[sym.SLIBFUZZER_8BIT_COUNTER]) > 0 {
++		sect := state.allocateNamedSectionAndAssignSyms(&Segdata, "__sancov_cntrs", sym.SLIBFUZZER_8BIT_COUNTER, sym.Sxxx, 06)
++		ldr.SetSymSect(ldr.LookupOrCreateSym("__start___sancov_cntrs", 0), sect)
++		ldr.SetSymSect(ldr.LookupOrCreateSym("__stop___sancov_cntrs", 0), sect)
+ 	}
+ 
+ 	if len(state.data[sym.STLSBSS]) > 0 {
+@@ -2558,7 +2558,7 @@ func (ctxt *Link) address() []*sym.Segment {
+ 			bss = s
+ 		case ".noptrbss":
+ 			noptrbss = s
+-		case "__libfuzzer_extra_counters":
++		case "__sancov_cntrs":
+ 			fuzzCounters = s
+ 		}
+ 	}
+@@ -2677,8 +2677,8 @@ func (ctxt *Link) address() []*sym.Segment {
+ 	ctxt.xdefine("runtime.end", sym.SBSS, int64(Segdata.Vaddr+Segdata.Length))
+ 
+ 	if fuzzCounters != nil {
+-		ctxt.xdefine("internal/fuzz._counters", sym.SLIBFUZZER_EXTRA_COUNTER, int64(fuzzCounters.Vaddr))
+-		ctxt.xdefine("internal/fuzz._ecounters", sym.SLIBFUZZER_EXTRA_COUNTER, int64(fuzzCounters.Vaddr+fuzzCounters.Length))
++		ctxt.xdefine("__start___sancov_cntrs", sym.SLIBFUZZER_8BIT_COUNTER, int64(fuzzCounters.Vaddr))
++		ctxt.xdefine("__stop___sancov_cntrs", sym.SLIBFUZZER_8BIT_COUNTER, int64(fuzzCounters.Vaddr+fuzzCounters.Length))
+ 	}
+ 
+ 	if ctxt.IsSolaris() {
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index e57071d4ee..2566ded58d 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1304,7 +1304,7 @@ func (ctxt *Link) doelf() {
+ 	shstrtab.Addstring(".data")
+ 	shstrtab.Addstring(".bss")
+ 	shstrtab.Addstring(".noptrbss")
+-	shstrtab.Addstring("__libfuzzer_extra_counters")
++	shstrtab.Addstring("__sancov_cntrs")
+ 	shstrtab.Addstring(".go.buildinfo")
+ 	if ctxt.IsMIPS() {
+ 		shstrtab.Addstring(".MIPS.abiflags")
+diff --git a/src/cmd/link/internal/ld/xcoff.go b/src/cmd/link/internal/ld/xcoff.go
+index 955289b7af..259db131af 100644
+--- a/src/cmd/link/internal/ld/xcoff.go
++++ b/src/cmd/link/internal/ld/xcoff.go
+@@ -1117,7 +1117,7 @@ func (f *xcoffFile) asmaixsym(ctxt *Link) {
+ 				putaixsym(ctxt, s, TLSSym)
+ 			}
+ 
+-		case st == sym.SBSS, st == sym.SNOPTRBSS, st == sym.SLIBFUZZER_EXTRA_COUNTER:
++		case st == sym.SBSS, st == sym.SNOPTRBSS, st == sym.SLIBFUZZER_8BIT_COUNTER:
+ 			if ldr.AttrReachable(s) {
+ 				data := ldr.Data(s)
+ 				if len(data) > 0 {
+diff --git a/src/cmd/link/internal/sym/symkind.go b/src/cmd/link/internal/sym/symkind.go
+index 3ed04c49af..0f8fbed878 100644
+--- a/src/cmd/link/internal/sym/symkind.go
++++ b/src/cmd/link/internal/sym/symkind.go
+@@ -97,7 +97,7 @@ const (
+ 	SXCOFFTOC
+ 	SBSS
+ 	SNOPTRBSS
+-	SLIBFUZZER_EXTRA_COUNTER
++	SLIBFUZZER_8BIT_COUNTER
+ 	STLSBSS
+ 	SXREF
+ 	SMACHOSYMSTR
+@@ -126,24 +126,24 @@ const (
+ // AbiSymKindToSymKind maps values read from object files (which are
+ // of type cmd/internal/objabi.SymKind) to values of type SymKind.
+ var AbiSymKindToSymKind = [...]SymKind{
+-	objabi.Sxxx:                     Sxxx,
+-	objabi.STEXT:                    STEXT,
+-	objabi.SRODATA:                  SRODATA,
+-	objabi.SNOPTRDATA:               SNOPTRDATA,
+-	objabi.SDATA:                    SDATA,
+-	objabi.SBSS:                     SBSS,
+-	objabi.SNOPTRBSS:                SNOPTRBSS,
+-	objabi.STLSBSS:                  STLSBSS,
+-	objabi.SDWARFCUINFO:             SDWARFCUINFO,
+-	objabi.SDWARFCONST:              SDWARFCONST,
+-	objabi.SDWARFFCN:                SDWARFFCN,
+-	objabi.SDWARFABSFCN:             SDWARFABSFCN,
+-	objabi.SDWARFTYPE:               SDWARFTYPE,
+-	objabi.SDWARFVAR:                SDWARFVAR,
+-	objabi.SDWARFRANGE:              SDWARFRANGE,
+-	objabi.SDWARFLOC:                SDWARFLOC,
+-	objabi.SDWARFLINES:              SDWARFLINES,
+-	objabi.SLIBFUZZER_EXTRA_COUNTER: SLIBFUZZER_EXTRA_COUNTER,
++	objabi.Sxxx:                    Sxxx,
++	objabi.STEXT:                   STEXT,
++	objabi.SRODATA:                 SRODATA,
++	objabi.SNOPTRDATA:              SNOPTRDATA,
++	objabi.SDATA:                   SDATA,
++	objabi.SBSS:                    SBSS,
++	objabi.SNOPTRBSS:               SNOPTRBSS,
++	objabi.STLSBSS:                 STLSBSS,
++	objabi.SDWARFCUINFO:            SDWARFCUINFO,
++	objabi.SDWARFCONST:             SDWARFCONST,
++	objabi.SDWARFFCN:               SDWARFFCN,
++	objabi.SDWARFABSFCN:            SDWARFABSFCN,
++	objabi.SDWARFTYPE:              SDWARFTYPE,
++	objabi.SDWARFVAR:               SDWARFVAR,
++	objabi.SDWARFRANGE:             SDWARFRANGE,
++	objabi.SDWARFLOC:               SDWARFLOC,
++	objabi.SDWARFLINES:             SDWARFLINES,
++	objabi.SLIBFUZZER_8BIT_COUNTER: SLIBFUZZER_8BIT_COUNTER,
+ }
+ 
+ // ReadOnly are the symbol kinds that form read-only sections. In some
+diff --git a/src/cmd/link/internal/sym/symkind_string.go b/src/cmd/link/internal/sym/symkind_string.go
+index bf8eda713e..14b57db41f 100644
+--- a/src/cmd/link/internal/sym/symkind_string.go
++++ b/src/cmd/link/internal/sym/symkind_string.go
+@@ -1,4 +1,4 @@
+-// Code generated by "stringer -type=SymKind"; DO NOT EDIT.
++// Code generated by "stringer -type=SymKind symkind.go"; DO NOT EDIT.
+ 
+ package sym
+ 
+@@ -44,7 +44,7 @@ func _() {
+ 	_ = x[SXCOFFTOC-33]
+ 	_ = x[SBSS-34]
+ 	_ = x[SNOPTRBSS-35]
+-	_ = x[SLIBFUZZER_EXTRA_COUNTER-36]
++	_ = x[SLIBFUZZER_8BIT_COUNTER-36]
+ 	_ = x[STLSBSS-37]
+ 	_ = x[SXREF-38]
+ 	_ = x[SMACHOSYMSTR-39]
+@@ -67,9 +67,9 @@ func _() {
+ 	_ = x[SDWARFLINES-56]
+ }
+ 
+-const _SymKind_name = "SxxxSTEXTSELFRXSECTSMACHOPLTSTYPESSTRINGSGOSTRINGSGOFUNCSGCBITSSRODATASFUNCTABSELFROSECTSTYPERELROSSTRINGRELROSGOSTRINGRELROSGOFUNCRELROSGCBITSRELROSRODATARELROSFUNCTABRELROSTYPELINKSITABLINKSSYMTABSPCLNTABSFirstWritableSBUILDINFOSELFSECTSMACHOSMACHOGOTSWINDOWSSELFGOTSNOPTRDATASINITARRSDATASXCOFFTOCSBSSSNOPTRBSSSLIBFUZZER_EXTRA_COUNTERSTLSBSSSXREFSMACHOSYMSTRSMACHOSYMTABSMACHOINDIRECTPLTSMACHOINDIRECTGOTSFILEPATHSDYNIMPORTSHOSTOBJSUNDEFEXTSDWARFSECTSDWARFCUINFOSDWARFCONSTSDWARFFCNSDWARFABSFCNSDWARFTYPESDWARFVARSDWARFRANGESDWARFLOCSDWARFLINES"
++const _SymKind_name = "SxxxSTEXTSELFRXSECTSMACHOPLTSTYPESSTRINGSGOSTRINGSGOFUNCSGCBITSSRODATASFUNCTABSELFROSECTSTYPERELROSSTRINGRELROSGOSTRINGRELROSGOFUNCRELROSGCBITSRELROSRODATARELROSFUNCTABRELROSTYPELINKSITABLINKSSYMTABSPCLNTABSFirstWritableSBUILDINFOSELFSECTSMACHOSMACHOGOTSWINDOWSSELFGOTSNOPTRDATASINITARRSDATASXCOFFTOCSBSSSNOPTRBSSSLIBFUZZER_8BIT_COUNTERSTLSBSSSXREFSMACHOSYMSTRSMACHOSYMTABSMACHOINDIRECTPLTSMACHOINDIRECTGOTSFILEPATHSDYNIMPORTSHOSTOBJSUNDEFEXTSDWARFSECTSDWARFCUINFOSDWARFCONSTSDWARFFCNSDWARFABSFCNSDWARFTYPESDWARFVARSDWARFRANGESDWARFLOCSDWARFLINES"
+ 
+-var _SymKind_index = [...]uint16{0, 4, 9, 19, 28, 33, 40, 49, 56, 63, 70, 78, 88, 98, 110, 124, 136, 148, 160, 173, 182, 191, 198, 206, 220, 230, 238, 244, 253, 261, 268, 278, 286, 291, 300, 304, 313, 337, 344, 349, 361, 373, 390, 407, 416, 426, 434, 443, 453, 465, 476, 485, 497, 507, 516, 527, 536, 547}
++var _SymKind_index = [...]uint16{0, 4, 9, 19, 28, 33, 40, 49, 56, 63, 70, 78, 88, 98, 110, 124, 136, 148, 160, 173, 182, 191, 198, 206, 220, 230, 238, 244, 253, 261, 268, 278, 286, 291, 300, 304, 313, 336, 343, 348, 360, 372, 389, 406, 415, 425, 433, 442, 452, 464, 475, 484, 496, 506, 515, 526, 535, 546}
+ 
+ func (i SymKind) String() string {
+ 	if i >= SymKind(len(_SymKind_index)-1) {
+diff --git a/src/runtime/libfuzzer.go b/src/runtime/libfuzzer.go
+index e7b3cdc46a..920ac575f5 100644
+--- a/src/runtime/libfuzzer.go
++++ b/src/runtime/libfuzzer.go
+@@ -6,8 +6,9 @@
+ 
+ package runtime
+ 
+-import _ "unsafe" // for go:linkname
++import "unsafe"
+ 
++func libfuzzerCallWithTwoByteBuffers(fn, start, end *byte)
+ func libfuzzerCall(fn *byte, arg0, arg1 uintptr)
+ 
+ func libfuzzerTraceCmp1(arg0, arg1 uint8) {
+@@ -42,6 +43,22 @@ func libfuzzerTraceConstCmp8(arg0, arg1 uint64) {
+ 	libfuzzerCall(&__sanitizer_cov_trace_const_cmp8, uintptr(arg0), uintptr(arg1))
+ }
+ 
++var pcTables []byte
++
++func init() {
++	libfuzzerCallWithTwoByteBuffers(&__sanitizer_cov_8bit_counters_init, &__start___sancov_cntrs, &__stop___sancov_cntrs)
++	start := unsafe.Pointer(&__start___sancov_cntrs)
++	end := unsafe.Pointer(&__stop___sancov_cntrs)
++
++	// PC tables are arrays of ptr-sized integers representing pairs [PC,PCFlags] for every instrumented block.
++	// The number of PCs and PCFlags is the same as the number of 8-bit counters. Each PC table entry has
++	// the size of two ptr-sized integers. We allocate one more byte than what we actually need so that we can
++	// get a pointer representing the end of the PC table array.
++	size := (uintptr(end)-uintptr(start))*unsafe.Sizeof(uintptr(0))*2 + 1
++	pcTables = make([]byte, size)
++	libfuzzerCallWithTwoByteBuffers(&__sanitizer_cov_pcs_init, &pcTables[0], &pcTables[size-1])
++}
++
+ //go:linkname __sanitizer_cov_trace_cmp1 __sanitizer_cov_trace_cmp1
+ //go:cgo_import_static __sanitizer_cov_trace_cmp1
+ var __sanitizer_cov_trace_cmp1 byte
+@@ -73,3 +90,19 @@ var __sanitizer_cov_trace_const_cmp4 byte
+ //go:linkname __sanitizer_cov_trace_const_cmp8 __sanitizer_cov_trace_const_cmp8
+ //go:cgo_import_static __sanitizer_cov_trace_const_cmp8
+ var __sanitizer_cov_trace_const_cmp8 byte
++
++//go:linkname __sanitizer_cov_8bit_counters_init __sanitizer_cov_8bit_counters_init
++//go:cgo_import_static __sanitizer_cov_8bit_counters_init
++var __sanitizer_cov_8bit_counters_init byte
++
++//go:linkname __start___sancov_cntrs __start___sancov_cntrs
++//go:cgo_import_static __start___sancov_cntrs
++var __start___sancov_cntrs byte
++
++//go:linkname __stop___sancov_cntrs __stop___sancov_cntrs
++//go:cgo_import_static __stop___sancov_cntrs
++var __stop___sancov_cntrs byte
++
++//go:linkname __sanitizer_cov_pcs_init __sanitizer_cov_pcs_init
++//go:cgo_import_static __sanitizer_cov_pcs_init
++var __sanitizer_cov_pcs_init byte
+diff --git a/src/runtime/libfuzzer_amd64.s b/src/runtime/libfuzzer_amd64.s
+index 253fe15198..5ea77f59de 100644
+--- a/src/runtime/libfuzzer_amd64.s
++++ b/src/runtime/libfuzzer_amd64.s
+@@ -40,3 +40,26 @@ call:
+ 	CALL	AX
+ 	MOVQ	R12, SP
+ 	RET
++
++// void runtime·libfuzzerCallWithTwoByteBuffers(fn, start, end *byte)
++// Calls C function fn from libFuzzer and passes 2 arguments of type *byte to it.
++TEXT	runtime·libfuzzerCallWithTwoByteBuffers(SB), NOSPLIT, $0-24
++	MOVQ	fn+0(FP), AX
++	MOVQ	start+8(FP), RARG0
++	MOVQ	end+16(FP), RARG1
++
++	get_tls(R12)
++	MOVQ	g(R12), R14
++	MOVQ	g_m(R14), R13
++
++	// Switch to g0 stack.
++	MOVQ	SP, R12		// callee-saved, preserved across the CALL
++	MOVQ	m_g0(R13), R10
++	CMPQ	R10, R14
++	JE	call	// already on g0
++	MOVQ	(g_sched+gobuf_sp)(R10), SP
++call:
++	ANDQ	$~15, SP	// alignment for gcc ABI
++	CALL	AX
++	MOVQ	R12, SP
++	RET
+diff --git a/src/runtime/libfuzzer_arm64.s b/src/runtime/libfuzzer_arm64.s
+index ae0efd8c9b..b0146682a2 100644
+--- a/src/runtime/libfuzzer_arm64.s
++++ b/src/runtime/libfuzzer_arm64.s
+@@ -29,3 +29,24 @@ call:
+ 	BL	R9
+ 	MOVD	R19, RSP
+ 	RET
++
++// void runtime·libfuzzerCallWithTwoByteBuffers(fn, start, end *byte)
++// Calls C function fn from libFuzzer and passes 2 arguments of type *byte to it.
++TEXT	runtime·libfuzzerCallWithTwoByteBuffers(SB), NOSPLIT, $0-24
++	MOVD	fn+0(FP), R9
++	MOVD	start+8(FP), R0
++	MOVD	end+16(FP), R1
++
++	MOVD	g_m(g), R10
++
++	// Switch to g0 stack.
++	MOVD	RSP, R19	// callee-saved, preserved across the CALL
++	MOVD	m_g0(R10), R11
++	CMP	R11, g
++	BEQ	call	// already on g0
++	MOVD	(g_sched+gobuf_sp)(R11), R12
++	MOVD	R12, RSP
++call:
++	BL	R9
++	MOVD	R19, RSP
++	RET

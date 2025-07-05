@@ -15,7 +15,35 @@ Date:   Fri Jan 8 16:56:24 2021 +0000
     Trust: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  api/go1.16.txt                     | 1 -
  src/runtime/metrics/description.go | 4 ----
  2 files changed, 5 deletions(-)
+
+diff --git a/api/go1.16.txt b/api/go1.16.txt
+index baac5379f8..8a8c6b8860 100644
+--- a/api/go1.16.txt
++++ b/api/go1.16.txt
+@@ -395,7 +395,6 @@ pkg runtime/metrics, type Description struct, Cumulative bool
+ pkg runtime/metrics, type Description struct, Description string
+ pkg runtime/metrics, type Description struct, Kind ValueKind
+ pkg runtime/metrics, type Description struct, Name string
+-pkg runtime/metrics, type Description struct, StopTheWorld bool
+ pkg runtime/metrics, type Float64Histogram struct
+ pkg runtime/metrics, type Float64Histogram struct, Buckets []float64
+ pkg runtime/metrics, type Float64Histogram struct, Counts []uint64
+diff --git a/src/runtime/metrics/description.go b/src/runtime/metrics/description.go
+index 01c8a685ee..716802e9a2 100644
+--- a/src/runtime/metrics/description.go
++++ b/src/runtime/metrics/description.go
+@@ -46,10 +46,6 @@ type Description struct {
+ 	//
+ 	// This flag thus indicates whether or not it's useful to compute a rate from this value.
+ 	Cumulative bool
+-
+-	// StopTheWorld is whether or not the metric requires a stop-the-world
+-	// event in order to collect it.
+-	StopTheWorld bool
+ }
+ 
+ // The English language descriptions below must be kept in sync with the

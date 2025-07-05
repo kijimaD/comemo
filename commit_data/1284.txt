@@ -10,10 +10,260 @@ Date:   Thu Dec 4 18:18:41 2008 -0800
     R=r
     OCL=20550
     CL=20550
-
+---
  usr/gri/pretty/Makefile      |  2 +-
  usr/gri/pretty/htmlwriter.go | 43 +++++++++++++++++++++++
  usr/gri/pretty/parser.go     |  4 +--
  usr/gri/pretty/printer.go    | 84 +++++++++++++++++++++++++++++++-------------
  usr/gri/pretty/selftest2.go  |  2 +-
  5 files changed, 107 insertions(+), 28 deletions(-)
+
+diff --git a/usr/gri/pretty/Makefile b/usr/gri/pretty/Makefile
+index 50585fe102..d949329f07 100644
+--- a/usr/gri/pretty/Makefile
++++ b/usr/gri/pretty/Makefile
+@@ -37,7 +37,7 @@ parser.6:	 scanner.6 ast.6
+ 
+ platform.6:	 utils.6
+ 
+-printer.6:	 scanner.6 ast.6
++printer.6:	 scanner.6 ast.6 htmlwriter.6
+ 
+ %.6:	%.go
+ 	$(G) $(F) $<
+diff --git a/usr/gri/pretty/htmlwriter.go b/usr/gri/pretty/htmlwriter.go
+new file mode 100644
+index 0000000000..0e4cf6a4ec
+--- /dev/null
++++ b/usr/gri/pretty/htmlwriter.go
+@@ -0,0 +1,43 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package htmlwriter
++
++import (
++	"os";
++	"io";
++	"array";
++	"utf8";
++)
++
++// Writer is a filter implementing the io.Write interface.
++// It provides facilities to generate HTML tags and does
++// proper HTML-escaping for text written through it.
++
++export type Writer struct {
++	// TODO should not export any of the fields
++	writer io.Write;
++}
++
++
++func (b *Writer) Init(writer io.Write) *Writer {
++	b.writer = writer;
++	return b;
++}
++
++
++/* export */ func (b *Writer) Flush() *os.Error {
++	return nil;
++}
++
++
++/* export */ func (b *Writer) Write(buf *[]byte) (written int, err *os.Error) {
++	written, err = b.writer.Write(buf);  // BUG 6g - should just have return
++	return written, err;
++}
++
++
++export func New(writer io.Write) *Writer {
++	return new(Writer).Init(writer);
++}
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index c16a1be27c..bb9b91e855 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -1348,11 +1348,11 @@ func (P *Parser) ParseConstSpec(exported bool, pos int) *AST.Decl {
+ 	P.Trace("ConstSpec");
+ 	
+ 	d := AST.NewDecl(pos, Scanner.CONST, exported);
+-	d.ident = P.ParseIdent();
++	d.ident = P.ParseIdentList();
+ 	d.typ = P.TryType();
+ 	if P.tok == Scanner.ASSIGN {
+ 		P.Next();
+-		d.val = P.ParseExpression(1);
++		d.val = P.ParseExpressionList();
+ 	}
+ 	
+ 	P.Ecart();
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index 3be4be0c2c..5114a6d2a9 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -10,6 +10,7 @@ import (
+ 	"tabwriter";
+ 	"flag";
+ 	"fmt";
++	"htmlwriter";
+ 	Scanner "scanner";
+ 	AST "ast";
+ )
+@@ -24,6 +25,7 @@ var (
+ 	maxnewlines = flag.Int("maxnewlines", 3, nil, "max. number of consecutive newlines");
+ 
+ 	// formatting control
++	html = flag.Bool("html", false, nil, "generate html");
+ 	comments = flag.Bool("comments", true, nil, "print comments");
+ 	optsemicolons = flag.Bool("optsemicolons", false, nil, "print optional semicolons");
+ )
+@@ -53,7 +55,7 @@ const (
+ 
+ type Printer struct {
+ 	// output
+-	writer *tabwriter.Writer;
++	writer *htmlwriter.Writer;
+ 	
+ 	// comments
+ 	comments *array.Array;  // the list of all comments
+@@ -90,14 +92,10 @@ func (P *Printer) NextComment() {
+ }
+ 
+ 
+-func (P *Printer) Init(writer *tabwriter.Writer, comments *array.Array) {
++func (P *Printer) Init(writer *htmlwriter.Writer, comments *array.Array) {
+ 	// writer
+-	padchar := byte(' ');
+-	if usetabs.BVal() {
+-		padchar = '\t';
+-	}
+-	P.writer = tabwriter.New(os.Stdout, int(tabwidth.IVal()), 1, padchar, true);
+-
++	P.writer = writer;
++	
+ 	// comments
+ 	P.comments = comments;
+ 	P.cindex = -1;
+@@ -299,12 +297,6 @@ func (P *Printer) String(pos int, s string) {
+ }
+ 
+ 
+-func (P *Printer) Separator(separator int) {
+-	P.separator = separator;
+-	P.String(0, "");
+-}
+-
+-
+ func (P *Printer) Token(pos int, tok int) {
+ 	P.String(pos, Scanner.TokenString(tok));
+ }
+@@ -317,6 +309,47 @@ func (P *Printer) Error(pos int, tok int, msg string) {
+ }
+ 
+ 
++// ----------------------------------------------------------------------------
++// HTML support
++// TODO Move this to html writer
++
++func (P *Printer) HtmlPrologue(title string) {
++	if html.BVal() {
++		P.String(0,
++			"<html>\n"
++			"<head>\n"
++			"	<META HTTP-EQUIV=\"Content-Type\" CONTENT=\"text/html; charset=UTF-8\">\n"
++			"	<title>" + title + "</title>\n"
++			"	<style type=\"text/css\">\n"
++			"	</style>\n"
++			"</head>\n"
++			"<body>\n"
++			"<pre>\n"
++		)
++	}
++}
++
++
++func (P *Printer) HtmlEpilogue() {
++	if html.BVal() {
++		P.String(0,
++			"</pre>\n"
++			"</body>\n"
++			"<html>\n"
++		)
++	}
++}
++
++
++func (P *Printer) HtmlIdentifier(pos int, ident string) {
++	if html.BVal() {
++		P.String(pos, `<a href="#` + ident + `">` + ident + `</a>`);
++	} else {
++		P.String(pos, ident);
++	}
++}
++
++
+ // ----------------------------------------------------------------------------
+ // Types
+ 
+@@ -331,9 +364,9 @@ func (P *Printer) Parameters(pos int, list *array.Array) {
+ 			x := list.At(i).(*AST.Expr);
+ 			if i > 0 {
+ 				if prev == x.tok || prev == Scanner.TYPE {
+-					P.Separator(comma);
++					P.separator = comma;
+ 				} else {
+-					P.Separator(blank);
++					P.separator = blank;
+ 				}
+ 			}
+ 			P.Expr(x);
+@@ -458,7 +491,10 @@ func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
+ 		// type expr
+ 		P.Type(x.t);
+ 
+-	case Scanner.IDENT, Scanner.INT, Scanner.STRING, Scanner.FLOAT:
++	case Scanner.IDENT:
++		P.HtmlIdentifier(x.pos, x.s);
++	
++	case Scanner.INT, Scanner.STRING, Scanner.FLOAT:
+ 		// literal
+ 		P.String(x.pos, x.s);
+ 
+@@ -799,16 +835,16 @@ export func Print(prog *AST.Program) {
+ 	if usetabs.BVal() {
+ 		padchar = '\t';
+ 	}
+-	writer := tabwriter.New(os.Stdout, int(tabwidth.IVal()), 1, padchar, true);
++	twriter := tabwriter.New(os.Stdout, int(tabwidth.IVal()), 1, padchar, true);
++	hwriter := htmlwriter.New(twriter);
+ 	var P Printer;
+-	P.Init(writer, prog.comments);
++	P.Init(hwriter, prog.comments);
+ 
++	P.HtmlPrologue("<the source>");
+ 	P.Program(prog);
++	P.HtmlEpilogue();
+ 	
+-	// flush
+ 	P.String(0, "");  // flush pending separator/newlines
+-	err := P.writer.Flush();
+-	if err != nil {
+-		panic("print error - exiting");
+-	}
++	hwriter.Flush();  // ignore errors
++	twriter.Flush();  // ignore errors
+ }
+diff --git a/usr/gri/pretty/selftest2.go b/usr/gri/pretty/selftest2.go
+index 1c0e7389ae..368c0dc5b2 100644
+--- a/usr/gri/pretty/selftest2.go
++++ b/usr/gri/pretty/selftest2.go
+@@ -61,7 +61,7 @@ func f1(tag int) {
+ 
+ 
+ func f2(tag int) {
+-	type T1 struct {}
++	type T struct {}
+ 	var x T
+ }
+ 

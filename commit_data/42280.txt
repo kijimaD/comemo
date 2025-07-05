@@ -25,6 +25,33 @@ Date:   Tue Nov 19 16:04:32 2019 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/testdata/testprog/preempt.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/testdata/testprog/preempt.go b/src/runtime/testdata/testprog/preempt.go
+index c08b29b65a..1454095cde 100644
+--- a/src/runtime/testdata/testprog/preempt.go
++++ b/src/runtime/testdata/testprog/preempt.go
+@@ -26,6 +26,8 @@ func AsyncPreempt() {
+ 	go func() {
+ 		for {
+ 			atomic.StoreUint32(&ready, 1)
++			dummy()
++			dummy()
+ 		}
+ 	}()
+ 	// Also start one with a frameless function.
+@@ -53,8 +55,11 @@ func AsyncPreempt() {
+ //go:noinline
+ func frameless() {
+ 	for i := int64(0); i < 1<<62; i++ {
+-		out += i
++		out += i * i * i * i * i * 12345
+ 	}
+ }
+ 
+ var out int64
++
++//go:noinline
++func dummy() {}

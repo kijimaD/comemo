@@ -11,6 +11,20 @@ Date:   Wed Apr 20 21:46:39 2016 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/rewrite.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index c2f8ceadaf..9c625825b9 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -40,8 +40,6 @@ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool)
+ 			}
+ 			curb = nil
+ 			for _, v := range b.Values {
+-				change = phielimValue(v) || change
+-
+ 				// Eliminate copy inputs.
+ 				// If any copy input becomes unused, mark it
+ 				// as invalid and discard its argument. Repeat

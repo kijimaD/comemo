@@ -8,7 +8,78 @@ Date:   Fri Sep 7 09:31:51 2012 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6488093
-
+---
  src/cmd/yacc/units.y | 10 +++++-----
  src/cmd/yacc/yacc.go |  6 +++---
  2 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/yacc/units.y b/src/cmd/yacc/units.y
+index eaa3fb18a4..32d37e5039 100644
+--- a/src/cmd/yacc/units.y
++++ b/src/cmd/yacc/units.y
+@@ -78,7 +78,7 @@ var vflag bool
+ 
+ %token	<vval>	VAL
+ %token	<vvar>	VAR
+-%token	<numb>	SUP
++%token	<numb>	_SUP // tests leading underscore in token name
+ %%
+ prog:
+ 	':' VAR expr
+@@ -159,7 +159,7 @@ expr3:
+ 
+ expr2:
+ 	expr1
+-|	expr2 SUP
++|	expr2 _SUP
+ 	{
+ 		xpn(&$$, &$1, $2)
+ 	}
+@@ -236,13 +236,13 @@ loop:
+ 		return '/'
+ 	case '¹', 'ⁱ':
+ 		yylval.numb = 1
+-		return SUP
++		return _SUP
+ 	case '²', '⁲':
+ 		yylval.numb = 2
+-		return SUP
++		return _SUP
+ 	case '³', '⁳':
+ 		yylval.numb = 3
+-		return SUP
++		return _SUP
+ 	}
+ 	return int(c)
+ 
+diff --git a/src/cmd/yacc/yacc.go b/src/cmd/yacc/yacc.go
+index cca5570fb8..a4ae35349a 100644
+--- a/src/cmd/yacc/yacc.go
++++ b/src/cmd/yacc/yacc.go
+@@ -988,7 +988,7 @@ func gettok() int {
+ 
+ func getword(c rune) {
+ 	tokname = ""
+-	for isword(c) || isdigit(c) || c == '_' || c == '.' || c == '$' {
++	for isword(c) || isdigit(c) || c == '.' || c == '$' {
+ 		tokname += string(c)
+ 		c = getrune(finput)
+ 	}
+@@ -1338,7 +1338,7 @@ loop:
+ 				if j >= max {
+ 					errorf("Illegal use of $%v", j)
+ 				}
+-			} else if isword(c) || c == '_' || c == '.' {
++			} else if isword(c) || c == '.' {
+ 				// look for $name
+ 				ungetrune(finput, c)
+ 				if gettok() != IDENTIFIER {
+@@ -3090,7 +3090,7 @@ var peekrune rune
+ func isdigit(c rune) bool { return c >= '0' && c <= '9' }
+ 
+ func isword(c rune) bool {
+-	return c >= 0xa0 || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
++	return c >= 0xa0 || c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+ }
+ 
+ func mktemp(t string) string { return t }

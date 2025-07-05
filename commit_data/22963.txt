@@ -10,6 +10,32 @@ Date:   Thu Apr 16 15:23:17 2015 -0400
     Change-Id: Ic0db5fd8fb4fe8252b5aa320818df0c7aec3db8f
     Reviewed-on: https://go-review.googlesource.com/8989
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/asm_arm64.s | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index a78bdc8afb..d124f9b7b3 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -469,6 +469,20 @@ TEXT runtime·atomicloaduint(SB), NOSPLIT, $-8-16
+ TEXT runtime·atomicstoreuintptr(SB), NOSPLIT, $0-16
+ 	B	runtime·atomicstore64(SB)
+ 
++// AES hashing not implemented for ARM64, issue #10109.
++TEXT runtime·aeshash(SB),NOSPLIT,$-8-0
++	MOVW	$0, R0
++	MOVW	(R0), R1
++TEXT runtime·aeshash32(SB),NOSPLIT,$-8-0
++	MOVW	$0, R0
++	MOVW	(R0), R1
++TEXT runtime·aeshash64(SB),NOSPLIT,$-8-0
++	MOVW	$0, R0
++	MOVW	(R0), R1
++TEXT runtime·aeshashstr(SB),NOSPLIT,$-8-0
++	MOVW	$0, R0
++	MOVW	(R0), R1
++
+ // bool casp(void **val, void *old, void *new)
+ // Atomically:
+ //	if(*val == old){

@@ -10,9 +10,69 @@ Date:   Tue Sep 30 12:31:18 2014 -0400
     R=golang-codereviews, r
     CC=golang-codereviews, iant
     https://golang.org/cl/147380043
-
+---
  src/compress/bzip2/bzip2.go   | 2 ++
  src/compress/flate/inflate.go | 8 +++++---
  src/compress/gzip/gunzip.go   | 3 ++-
  src/compress/lzw/reader.go    | 2 ++
  4 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/src/compress/bzip2/bzip2.go b/src/compress/bzip2/bzip2.go
+index d318116a18..15575d2202 100644
+--- a/src/compress/bzip2/bzip2.go
++++ b/src/compress/bzip2/bzip2.go
+@@ -42,6 +42,8 @@ type reader struct {
+ }
+ 
+ // NewReader returns an io.Reader which decompresses bzip2 data from r.
++// If r does not also implement io.ByteReader,
++// the decompressor may read more data than necessary from r.
+ func NewReader(r io.Reader) io.Reader {
+ 	bz2 := new(reader)
+ 	bz2.br = newBitReader(r)
+diff --git a/src/compress/flate/inflate.go b/src/compress/flate/inflate.go
+index 769ef42997..a7fe94c50c 100644
+--- a/src/compress/flate/inflate.go
++++ b/src/compress/flate/inflate.go
+@@ -680,9 +680,11 @@ func makeReader(r io.Reader) Reader {
+ }
+ 
+ // NewReader returns a new ReadCloser that can be used
+-// to read the uncompressed version of r.  It is the caller's
+-// responsibility to call Close on the ReadCloser when
+-// finished reading.
++// to read the uncompressed version of r.
++// If r does not also implement io.ByteReader,
++// the decompressor may read more data than necessary from r.
++// It is the caller's responsibility to call Close on the ReadCloser
++// when finished reading.
+ func NewReader(r io.Reader) io.ReadCloser {
+ 	var f decompressor
+ 	f.bits = new([maxLit + maxDist]int)
+diff --git a/src/compress/gzip/gunzip.go b/src/compress/gzip/gunzip.go
+index 4f398b194a..fc08c7a48c 100644
+--- a/src/compress/gzip/gunzip.go
++++ b/src/compress/gzip/gunzip.go
+@@ -77,7 +77,8 @@ type Reader struct {
+ }
+ 
+ // NewReader creates a new Reader reading the given reader.
+-// The implementation buffers input and may read more data than necessary from r.
++// If r does not also implement io.ByteReader,
++// the decompressor may read more data than necessary from r.
+ // It is the caller's responsibility to call Close on the Reader when done.
+ func NewReader(r io.Reader) (*Reader, error) {
+ 	z := new(Reader)
+diff --git a/src/compress/lzw/reader.go b/src/compress/lzw/reader.go
+index cd90c9c63a..0835bd8b90 100644
+--- a/src/compress/lzw/reader.go
++++ b/src/compress/lzw/reader.go
+@@ -222,6 +222,8 @@ func (d *decoder) Close() error {
+ 
+ // NewReader creates a new io.ReadCloser.
+ // Reads from the returned io.ReadCloser read and decompress data from r.
++// If r does not also implement io.ByteReader,
++// the decompressor may read more data than necessary from r.
+ // It is the caller's responsibility to call Close on the ReadCloser when
+ // finished reading.
+ // The number of bits to use for literal codes, litWidth, must be in the

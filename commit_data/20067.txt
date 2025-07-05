@@ -8,6 +8,19 @@ Date:   Wed Aug 13 14:52:11 2014 -0400
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/128180044
-
+---
  src/pkg/runtime/sys_linux_power64x.s | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/runtime/sys_linux_power64x.s b/src/pkg/runtime/sys_linux_power64x.s
+index f5149eaeaf..df808a83c3 100644
+--- a/src/pkg/runtime/sys_linux_power64x.s
++++ b/src/pkg/runtime/sys_linux_power64x.s
+@@ -222,7 +222,6 @@ TEXT runtime·mmap(SB),NOSPLIT,$-8
+ 	MOVW	36(R1), R8
+ 
+ 	SYSCALL	$SYS_mmap
+-	BVC	2(PC)
+ 	RETURN
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$-8

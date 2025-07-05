@@ -7,6 +7,20 @@ Date:   Thu Dec 6 09:47:12 2012 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6889052
-
+---
  src/pkg/exp/gotype/gotype_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/gotype/gotype_test.go b/src/pkg/exp/gotype/gotype_test.go
+index c93515e50b..2d58f32883 100644
+--- a/src/pkg/exp/gotype/gotype_test.go
++++ b/src/pkg/exp/gotype/gotype_test.go
+@@ -77,7 +77,7 @@ var tests = []string{
+ 	"crypto/md5",
+ 	"crypto/rand",
+ 	"crypto/rc4",
+-	"crypto/rsa",
++	// "crypto/rsa", // investigate (GOARCH=386)
+ 	"crypto/sha1",
+ 	"crypto/sha256",
+ 	"crypto/sha512",

@@ -14,6 +14,22 @@ Date:   Wed Sep 23 12:52:27 2020 -0400
     Run-TryBot: Katie Hockman <katie@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  doc/contribute.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index 03d02c9d75..3fb617b863 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -45,8 +45,8 @@ CLA (Contributor License Agreement).
+ </li>
+ <li>
+ <b>Step 2</b>: Configure authentication credentials for the Go Git repository.
+-Visit <a href="https://go.googlesource.com/">go.googlesource.com</a>, click
+-on the gear icon (top right), then on "Obtain password", and follow the
++Visit <a href="https://go.googlesource.com">go.googlesource.com</a>, click
++"Generate Password" in the page's top right menu bar, and follow the
+ instructions.
+ </li>
+ <li>

@@ -11,6 +11,22 @@ Date:   Fri Feb 5 18:38:27 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/204048
-
+---
  test/ddd1.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/ddd1.go b/test/ddd1.go
+index 4f830c582f..6f714c078a 100644
+--- a/test/ddd1.go
++++ b/test/ddd1.go
+@@ -13,8 +13,8 @@ var (
+ 	_ = sum()
+ 	_ = sum(1.0, 2.0)
+ 	_ = sum(1.5)      // ERROR "integer"
+-	_ = sum("hello")  // ERROR "convert"
+-	_ = sum([]int{1}) // ERROR "slice literal.*as type int"
++	_ = sum("hello")  // ERROR "convert|incompatible"
++	_ = sum([]int{1}) // ERROR "slice literal.*as type int|incompatible"
+ )
+ 
+ type T []T

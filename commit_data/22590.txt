@@ -10,6 +10,31 @@ Date:   Wed Mar 25 13:22:32 2015 -0400
     Change-Id: I6eb4ee5f1431539f00fa707e8cde6f3cf86983fc
     Reviewed-on: https://go-review.googlesource.com/8083
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  misc/ios/go_darwin_arm_exec.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/misc/ios/go_darwin_arm_exec.go b/misc/ios/go_darwin_arm_exec.go
+index f81e07e85b..431ddcc70b 100644
+--- a/misc/ios/go_darwin_arm_exec.go
++++ b/misc/ios/go_darwin_arm_exec.go
+@@ -150,10 +150,8 @@ func run(bin string, args []string) (err error) {
+ 	// Manage the -test.timeout here, outside of the test. There is a lot
+ 	// of moving parts in an iOS test harness (notably lldb) that can
+ 	// swallow useful stdio or cause its own ruckus.
+-	brTimeout := 5 * time.Second
+ 	var timedout chan struct{}
+ 	if t := parseTimeout(args); t > 1*time.Second {
+-		brTimeout = t / 4
+ 		timedout = make(chan struct{})
+ 		time.AfterFunc(t-1*time.Second, func() {
+ 			close(timedout)
+@@ -209,7 +207,7 @@ func run(bin string, args []string) (err error) {
+ 	fmt.Fprintln(lldb, `run`)
+ 	// Sometimes we don't see "reason = breakpoint", so we time out
+ 	// and try to continue.
+-	if err := waitFor("br getwd", "stop reason = breakpoint", brTimeout); err != nil {
++	if err := waitFor("br getwd", "stop reason = breakpoint", 10*time.Second); err != nil {
+ 		return err
+ 	}
+ 	if err := waitFor("br getwd prompt", "(lldb)", 0); err != nil {

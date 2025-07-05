@@ -13,6 +13,20 @@ Date:   Tue Nov 1 13:04:56 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/32535
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-
+---
  src/cmd/go/build.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 641fa09360..e3a23b8d26 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -2797,7 +2797,7 @@ func (tools gccgoToolchain) link(b *builder, root *action, out string, allaction
+ 			if !apackagePathsSeen[a.p.ImportPath] {
+ 				apackagePathsSeen[a.p.ImportPath] = true
+ 				target := a.target
+-				if len(a.p.CgoFiles) > 0 {
++				if len(a.p.CgoFiles) > 0 || a.p.usesSwig() {
+ 					target, err = readAndRemoveCgoFlags(target)
+ 					if err != nil {
+ 						return

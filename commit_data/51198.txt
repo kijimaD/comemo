@@ -12,6 +12,50 @@ Date:   Tue Dec 14 16:15:30 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/371816
     Trust: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  doc/go1.18.html | 25 ++++++++++++-------------
  1 file changed, 12 insertions(+), 13 deletions(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index e5222b7fcc..e156f21eb2 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -393,6 +393,18 @@ Do not send CLs removing the interior tags from such phrases.
+   generic functions.
+ </p>
+ 
++<h3 id="debug/buildinfo">New <code>debug/buildinfo</code> package</h3>
++
++<p><!-- golang.org/issue/39301 -->
++  The new <a href="/pkg/debug/buildinfo"><code>debug/buildinfo</code></a> package
++  provides access to module versions, version control information, and build
++  flags embedded in executable files built by the <code>go</code> command.
++  The same information is also available via
++  <a href="/pkg/runtime/debug#ReadBuildInfo"><code>runtime/debug.ReadBuildInfo</code></a>
++  for the currently running binary and via <code>go</code>
++  <code>version</code> <code>-m</code> on the command line.
++</p>
++
+ <h3 id="netip">New <code>net/netip</code> package</h3>
+ 
+ <p>
+@@ -484,19 +496,6 @@ Do not send CLs removing the interior tags from such phrases.
+   </dd>
+ </dl><!-- crypto/tls -->
+ 
+-<dl id="debug/buildinfo"><dt><a href="/pkg/debug/buildinfo">debug/buildinfo</a></dt>
+-  <dd>
+-    <p><!-- golang.org/issue/39301 -->
+-      This new package provides access to module versions, version control
+-      information, and build flags embedded in executable files built by
+-      the <code>go</code> command. The same information is also available via
+-      <a href="/pkg/runtime/debug#ReadBuildInfo"><code>runtime/debug.ReadBuildInfo</code></a>
+-      for the currently running binary and via <code>go</code>
+-      <code>version</code> <code>-m</code> on the command line.
+-    </p>
+-  </dd>
+-</dl>
+-
+ <dl id="go/ast"><dt><a href="/pkg/go/ast/">go/ast</a></dt>
+   <dd>
+     <p><!-- https://golang.org/issue/47781, CL 325689, CL 327149, CL 348375, CL 348609 -->

@@ -8,6 +8,20 @@ Date:   Mon Jul 12 16:57:11 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1803043
-
+---
  src/pkg/fmt/print.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 20bfa9107f..e5066fa915 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -53,7 +53,7 @@
+ 		+	always print a sign for numeric values
+ 		-	pad with spaces on the right rather than the left (left-justify the field)
+ 		#	alternate format: add leading 0 for octal (%#o), 0x for hex (%#x);
+-			suppress 0x for %p (%#p);
++			0X for hex (%#X); suppress 0x for %p (%#p);
+ 			print a raw (backquoted) string if possible for %q (%#q)
+ 		' '	(space) leave a space for elided sign in numbers (% d);
+ 			put spaces between bytes printing strings or slices in hex (% x)

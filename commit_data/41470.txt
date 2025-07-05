@@ -12,6 +12,35 @@ Date:   Thu Oct 3 12:15:14 2019 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/compile/internal/gc/fmt.go | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 3bb2df9917..87e0e40dca 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -6,6 +6,7 @@ package gc
+ 
+ import (
+ 	"cmd/compile/internal/types"
++	"cmd/internal/src"
+ 	"fmt"
+ 	"io"
+ 	"strconv"
+@@ -425,7 +426,14 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
+ 	}
+ 
+ 	if n.Pos.IsKnown() {
+-		fmt.Fprintf(s, " l(%d)", n.Pos.Line())
++		pfx := ""
++		switch n.Pos.IsStmt() {
++		case src.PosNotStmt:
++			pfx = "_" // "-" would be confusing
++		case src.PosIsStmt:
++			pfx = "+"
++		}
++		fmt.Fprintf(s, " l(%s%d)", pfx, n.Pos.Line())
+ 	}
+ 
+ 	if c == 0 && n.Xoffset != BADWIDTH {

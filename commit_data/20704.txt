@@ -10,6 +10,20 @@ Date:   Wed Oct 1 13:19:40 2014 -0700
     R=r
     CC=golang-codereviews
     https://golang.org/cl/146680043
-
+---
  src/testing/testing.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 21460b0ed4..f91d860a94 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -44,7 +44,7 @@
+ //     }
+ //
+ // The benchmark function must run the target code b.N times.
+-// The benchmark package will vary b.N until the benchmark function lasts
++// During benchark execution, b.N is adjusted until the benchmark function lasts
+ // long enough to be timed reliably.  The output
+ //     BenchmarkHello    10000000    282 ns/op
+ // means that the loop ran 10000000 times at a speed of 282 ns per loop.

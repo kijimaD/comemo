@@ -13,7 +13,155 @@ Date:   Thu Jun 6 11:26:55 2019 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  2 -
  src/cmd/compile/internal/ssa/rewritegeneric.go | 88 +++-----------------------
  2 files changed, 8 insertions(+), 82 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 347bf2a00f..8f2ff28879 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -1916,8 +1916,6 @@
+ 
+ (EqPtr  (LocalAddr _ _) (Addr _)) -> (ConstBool [0])
+ (NeqPtr (LocalAddr _ _) (Addr _)) -> (ConstBool [1])
+-(EqPtr  (Addr _) (LocalAddr _ _)) -> (ConstBool [0])
+-(NeqPtr (Addr _) (LocalAddr _ _)) -> (ConstBool [1])
+ 
+ // Simplify address comparisons.
+ (EqPtr  (AddPtr p1 o1) p2) && isSamePtr(p1, p2) -> (Not (IsNonNil o1))
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 6b0cd05047..e3a123e1d2 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -27319,42 +27319,6 @@ func rewriteValuegeneric_OpEqPtr_10(v *Value) bool {
+ 		v.AuxInt = 0
+ 		return true
+ 	}
+-	// match: (EqPtr (Addr _) (LocalAddr _ _))
+-	// cond:
+-	// result: (ConstBool [0])
+-	for {
+-		_ = v.Args[1]
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpAddr {
+-			break
+-		}
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpLocalAddr {
+-			break
+-		}
+-		_ = v_1.Args[1]
+-		v.reset(OpConstBool)
+-		v.AuxInt = 0
+-		return true
+-	}
+-	// match: (EqPtr (LocalAddr _ _) (Addr _))
+-	// cond:
+-	// result: (ConstBool [0])
+-	for {
+-		_ = v.Args[1]
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpLocalAddr {
+-			break
+-		}
+-		_ = v_0.Args[1]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpAddr {
+-			break
+-		}
+-		v.reset(OpConstBool)
+-		v.AuxInt = 0
+-		return true
+-	}
+ 	// match: (EqPtr (AddPtr p1 o1) p2)
+ 	// cond: isSamePtr(p1, p2)
+ 	// result: (Not (IsNonNil o1))
+@@ -27414,11 +27378,6 @@ func rewriteValuegeneric_OpEqPtr_10(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValuegeneric_OpEqPtr_20(v *Value) bool {
+-	b := v.Block
+-	typ := &b.Func.Config.Types
+ 	// match: (EqPtr p (Const32 [0]))
+ 	// cond:
+ 	// result: (Not (IsNonNil p))
+@@ -27456,6 +27415,11 @@ func rewriteValuegeneric_OpEqPtr_20(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	return false
++}
++func rewriteValuegeneric_OpEqPtr_20(v *Value) bool {
++	b := v.Block
++	typ := &b.Func.Config.Types
+ 	// match: (EqPtr p (Const64 [0]))
+ 	// cond:
+ 	// result: (Not (IsNonNil p))
+@@ -38662,42 +38626,6 @@ func rewriteValuegeneric_OpNeqPtr_10(v *Value) bool {
+ 		v.AuxInt = 1
+ 		return true
+ 	}
+-	// match: (NeqPtr (Addr _) (LocalAddr _ _))
+-	// cond:
+-	// result: (ConstBool [1])
+-	for {
+-		_ = v.Args[1]
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpAddr {
+-			break
+-		}
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpLocalAddr {
+-			break
+-		}
+-		_ = v_1.Args[1]
+-		v.reset(OpConstBool)
+-		v.AuxInt = 1
+-		return true
+-	}
+-	// match: (NeqPtr (LocalAddr _ _) (Addr _))
+-	// cond:
+-	// result: (ConstBool [1])
+-	for {
+-		_ = v.Args[1]
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpLocalAddr {
+-			break
+-		}
+-		_ = v_0.Args[1]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpAddr {
+-			break
+-		}
+-		v.reset(OpConstBool)
+-		v.AuxInt = 1
+-		return true
+-	}
+ 	// match: (NeqPtr (AddPtr p1 o1) p2)
+ 	// cond: isSamePtr(p1, p2)
+ 	// result: (IsNonNil o1)
+@@ -38751,9 +38679,6 @@ func rewriteValuegeneric_OpNeqPtr_10(v *Value) bool {
+ 		v.AddArg(p)
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValuegeneric_OpNeqPtr_20(v *Value) bool {
+ 	// match: (NeqPtr p (Const32 [0]))
+ 	// cond:
+ 	// result: (IsNonNil p)
+@@ -38787,6 +38712,9 @@ func rewriteValuegeneric_OpNeqPtr_20(v *Value) bool {
+ 		v.AddArg(p)
+ 		return true
+ 	}
++	return false
++}
++func rewriteValuegeneric_OpNeqPtr_20(v *Value) bool {
+ 	// match: (NeqPtr p (Const64 [0]))
+ 	// cond:
+ 	// result: (IsNonNil p)

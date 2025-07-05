@@ -16,7 +16,102 @@ Date:   Mon Jul 31 08:50:43 2023 +0000
     Reviewed-by: Robert Griesemer <gri@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/syntax/printer_test.go | 17 +++++++++++++++--
  src/go/types/exprstring_test.go                 | 19 +++++++++++++++----
  2 files changed, 30 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/printer_test.go b/src/cmd/compile/internal/syntax/printer_test.go
+index ceb512ef89..99baf7f5b6 100644
+--- a/src/cmd/compile/internal/syntax/printer_test.go
++++ b/src/cmd/compile/internal/syntax/printer_test.go
+@@ -169,6 +169,7 @@ var exprTests = [][2]string{
+ 	dup(`'a'`),
+ 	dup(`"foo"`),
+ 	dup("`bar`"),
++	dup("any"),
+ 
+ 	// func and composite literals
+ 	dup("func() {}"),
+@@ -197,12 +198,18 @@ var exprTests = [][2]string{
+ 	// new interfaces
+ 	dup("interface{int}"),
+ 	dup("interface{~int}"),
+-	dup("interface{~int}"),
++
++	// generic constraints
++	dup("interface{~a | ~b | ~c; ~int | ~string; float64; m()}"),
+ 	dup("interface{int | string}"),
+ 	dup("interface{~int | ~string; float64; m()}"),
+-	dup("interface{~a | ~b | ~c; ~int | ~string; float64; m()}"),
+ 	dup("interface{~T[int, string] | string}"),
+ 
++	// generic types
++	dup("x[T]"),
++	dup("x[N | A | S]"),
++	dup("x[N, A]"),
++
+ 	// non-type expressions
+ 	dup("(x)"),
+ 	dup("x.f"),
+@@ -250,6 +257,12 @@ var exprTests = [][2]string{
+ 	dup("f(s...)"),
+ 	dup("f(a, s...)"),
+ 
++	// generic functions
++	dup("f[T]()"),
++	dup("f[T](T)"),
++	dup("f[T, T1]()"),
++	dup("f[T, T1](T, T1)"),
++
+ 	dup("*x"),
+ 	dup("&x"),
+ 	dup("x + y"),
+diff --git a/src/go/types/exprstring_test.go b/src/go/types/exprstring_test.go
+index 604ceb9807..75bdc0e513 100644
+--- a/src/go/types/exprstring_test.go
++++ b/src/go/types/exprstring_test.go
+@@ -21,6 +21,7 @@ var testExprs = []testEntry{
+ 	dup(`'a'`),
+ 	dup(`"foo"`),
+ 	dup("`bar`"),
++	dup("any"),
+ 
+ 	// func and composite literals
+ 	{"func(){}", "(func() literal)"},
+@@ -46,14 +47,18 @@ var testExprs = []testEntry{
+ 	// new interfaces
+ 	dup("interface{int}"),
+ 	dup("interface{~int}"),
+-	dup("interface{~int}"),
++
++	// generic constraints
++	dup("interface{~a | ~b | ~c; ~int | ~string; float64; m()}"),
+ 	dup("interface{int | string}"),
+ 	dup("interface{~int | ~string; float64; m()}"),
+-
+-	// See above.
+-	// dup("interface{type a, b, c; ~int | ~string; float64; m()}"),
+ 	dup("interface{~T[int, string] | string}"),
+ 
++	// generic types
++	dup("x[T]"),
++	dup("x[N | A | S]"),
++	dup("x[N, A]"),
++
+ 	// non-type expressions
+ 	dup("(x)"),
+ 	dup("x.f"),
+@@ -101,6 +106,12 @@ var testExprs = []testEntry{
+ 	dup("f(s...)"),
+ 	dup("f(a, s...)"),
+ 
++	// generic functions
++	dup("f[T]()"),
++	dup("f[T](T)"),
++	dup("f[T, T1]()"),
++	dup("f[T, T1](T, T1)"),
++
+ 	dup("*x"),
+ 	dup("&x"),
+ 	dup("x + y"),

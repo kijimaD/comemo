@@ -20,8 +20,146 @@ Date:   Tue Nov 20 15:55:02 2018 -0800
     Reviewed-on: https://go-review.googlesource.com/c/150602
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  misc/cgo/test/cgo_test.go   |  1 +
  misc/cgo/test/issue28896.go | 83 +++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/cgo/gcc.go          | 18 +++++++---
  3 files changed, 97 insertions(+), 5 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index ae856a37d6..242ba6c0e5 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -93,6 +93,7 @@ func Test23356(t *testing.T)                 { test23356(t) }
+ func Test26066(t *testing.T)                 { test26066(t) }
+ func Test26213(t *testing.T)                 { test26213(t) }
+ func Test27660(t *testing.T)                 { test27660(t) }
++func Test28896(t *testing.T)                 { test28896(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B)  { benchCgoCall(b) }
+ func BenchmarkGoString(b *testing.B) { benchGoString(b) }
+diff --git a/misc/cgo/test/issue28896.go b/misc/cgo/test/issue28896.go
+new file mode 100644
+index 0000000000..8796040f18
+--- /dev/null
++++ b/misc/cgo/test/issue28896.go
+@@ -0,0 +1,83 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// cgo was incorrectly adding padding after a packed struct.
++
++package cgotest
++
++/*
++#include <stddef.h>
++#include <stdint.h>
++#include <stdlib.h>
++
++typedef struct {
++	void *f1;
++	uint32_t f2;
++} __attribute__((__packed__)) innerPacked;
++
++typedef struct {
++	innerPacked g1;
++	uint64_t g2;
++} outerPacked;
++
++typedef struct {
++	void *f1;
++	uint32_t f2;
++} innerUnpacked;
++
++typedef struct {
++	innerUnpacked g1;
++	uint64_t g2;
++} outerUnpacked;
++
++size_t offset(int x) {
++	switch (x) {
++	case 0:
++		return offsetof(innerPacked, f2);
++	case 1:
++		return offsetof(outerPacked, g2);
++	case 2:
++		return offsetof(innerUnpacked, f2);
++	case 3:
++		return offsetof(outerUnpacked, g2);
++	default:
++		abort();
++	}
++}
++*/
++import "C"
++
++import (
++	"testing"
++	"unsafe"
++)
++
++func offset(i int) uintptr {
++	var pi C.innerPacked
++	var po C.outerPacked
++	var ui C.innerUnpacked
++	var uo C.outerUnpacked
++	switch i {
++	case 0:
++		return unsafe.Offsetof(pi.f2)
++	case 1:
++		return unsafe.Offsetof(po.g2)
++	case 2:
++		return unsafe.Offsetof(ui.f2)
++	case 3:
++		return unsafe.Offsetof(uo.g2)
++	default:
++		panic("can't happen")
++	}
++}
++
++func test28896(t *testing.T) {
++	for i := 0; i < 4; i++ {
++		c := uintptr(C.offset(C.int(i)))
++		g := offset(i)
++		if c != g {
++			t.Errorf("%d: C: %d != Go %d", i, c, g)
++		}
++	}
++}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 56a4775746..b5bc87dde6 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -2717,11 +2717,6 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
+ 
+ 	anon := 0
+ 	for _, f := range dt.Field {
+-		if f.ByteOffset > off {
+-			fld, sizes = c.pad(fld, sizes, f.ByteOffset-off)
+-			off = f.ByteOffset
+-		}
+-
+ 		name := f.Name
+ 		ft := f.Type
+ 
+@@ -2770,6 +2765,19 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
+ 			// structs are in system headers that cannot be corrected.
+ 			continue
+ 		}
++
++		// Round off up to talign, assumed to be a power of 2.
++		off = (off + talign - 1) &^ (talign - 1)
++
++		if f.ByteOffset > off {
++			fld, sizes = c.pad(fld, sizes, f.ByteOffset-off)
++			off = f.ByteOffset
++		}
++		if f.ByteOffset < off {
++			// Drop a packed field that we can't represent.
++			continue
++		}
++
+ 		n := len(fld)
+ 		fld = fld[0 : n+1]
+ 		if name == "" {

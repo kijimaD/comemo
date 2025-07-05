@@ -26,7 +26,75 @@ Date:   Tue Mar 6 07:57:19 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/cover/cover.go      | 13 +++++++++----
  src/cmd/cover/cover_test.go | 12 ++++++++++++
  2 files changed, 21 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/cover/cover.go b/src/cmd/cover/cover.go
+index 500027ee0d..f496f4cff6 100644
+--- a/src/cmd/cover/cover.go
++++ b/src/cmd/cover/cover.go
+@@ -238,23 +238,28 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
+ 		//		if y {
+ 		//		}
+ 		//	}
+-		f.edit.Insert(f.offset(n.Body.End()), "else{")
+ 		elseOffset := f.findText(n.Body.End(), "else")
+ 		if elseOffset < 0 {
+ 			panic("lost else")
+ 		}
+-		f.edit.Delete(elseOffset, elseOffset+4)
++		f.edit.Insert(elseOffset+4, "{")
+ 		f.edit.Insert(f.offset(n.Else.End()), "}")
++
++		// We just created a block, now walk it.
++		// Adjust the position of the new block to start after
++		// the "else". That will cause it to follow the "{"
++		// we inserted above.
++		pos := f.fset.File(n.Body.End()).Pos(elseOffset + 4)
+ 		switch stmt := n.Else.(type) {
+ 		case *ast.IfStmt:
+ 			block := &ast.BlockStmt{
+-				Lbrace: n.Body.End(), // Start at end of the "if" block so the covered part looks like it starts at the "else".
++				Lbrace: pos,
+ 				List:   []ast.Stmt{stmt},
+ 				Rbrace: stmt.End(),
+ 			}
+ 			n.Else = block
+ 		case *ast.BlockStmt:
+-			stmt.Lbrace = n.Body.End() // Start at end of the "if" block so the covered part looks like it starts at the "else".
++			stmt.Lbrace = pos
+ 		default:
+ 			panic("unexpected node type in if")
+ 		}
+diff --git a/src/cmd/cover/cover_test.go b/src/cmd/cover/cover_test.go
+index 79ddf4f465..f20fbb4b71 100644
+--- a/src/cmd/cover/cover_test.go
++++ b/src/cmd/cover/cover_test.go
+@@ -59,6 +59,17 @@ func TestCover(t *testing.T) {
+ 	for i, line := range lines {
+ 		lines[i] = bytes.Replace(line, []byte("LINE"), []byte(fmt.Sprint(i+1)), -1)
+ 	}
++
++	// Add a function that is not gofmt'ed. This used to cause a crash.
++	// We don't put it in test.go because then we would have to gofmt it.
++	// Issue 23927.
++	lines = append(lines, []byte("func unFormatted() {"),
++		[]byte("\tif true {"),
++		[]byte("\t}else{"),
++		[]byte("\t}"),
++		[]byte("}"))
++	lines = append(lines, []byte("func unFormatted2(b bool) {if b{}else{}}"))
++
+ 	if err := ioutil.WriteFile(coverInput, bytes.Join(lines, []byte("\n")), 0666); err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -246,6 +257,7 @@ func TestCoverFunc(t *testing.T) {
+ }
+ 
+ func run(c *exec.Cmd, t *testing.T) {
++	t.Helper()
+ 	c.Stdout = os.Stdout
+ 	c.Stderr = os.Stderr
+ 	err := c.Run()

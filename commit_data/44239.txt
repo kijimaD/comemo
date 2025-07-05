@@ -7,6 +7,27 @@ Date:   Mon Jun 1 11:58:54 2020 +0200
     Change-Id: I3557f6726afe325db79b2c972d107b3bcc103b8f
     Reviewed-on: https://go-review.googlesource.com/c/go/+/235819
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.15.html | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index aedf5281b4..eccd9c29a0 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -55,6 +55,15 @@ Do not send CLs removing the interior tags from such phrases.
+   on Windows.
+ </p>
+ 
++<h3 id="android">Android</h3>
++
++<p> <!-- golang.org/cl/235017 golang.org/issue/38838 -->
++	When linking binaries for Android, Go 1.15 explicitly selects
++	the <code>lld</code> linker available in recent versions of the NDK.
++	The <code>lld</code> linker avoids crashes on some devices, and is
++	planned to become the default NDK linker in a future NDK version.
++</p>
++
+ <p>
+ TODO
+ </p>

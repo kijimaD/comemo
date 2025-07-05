@@ -18,8 +18,145 @@ Date:   Tue Feb 2 13:20:03 2021 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/noder/noder.go | 14 ++++++
  src/cmd/compile/internal/types2/expr.go | 17 ++++++++
  test/const7.go                          | 77 +++++++++++++++++++++++++++++++++
  3 files changed, 108 insertions(+)
+
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 1c38f1a934..d692bf97aa 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -1455,6 +1455,20 @@ func (p *noder) basicLit(lit *syntax.BasicLit) constant.Value {
+ 	switch lit.Kind {
+ 	case syntax.IntLit, syntax.FloatLit, syntax.ImagLit:
+ 		checkLangCompat(lit)
++		// The max. mantissa precision for untyped numeric values
++		// is 512 bits, or 4048 bits for each of the two integer
++		// parts of a fraction for floating-point numbers that are
++		// represented accurately in the go/constant package.
++		// Constant literals that are longer than this many bits
++		// are not meaningful; and excessively long constants may
++		// consume a lot of space and time for a useless conversion.
++		// Cap constant length with a generous upper limit that also
++		// allows for separators between all digits.
++		const limit = 10000
++		if len(lit.Value) > limit {
++			p.errorAt(lit.Pos(), "excessively long constant: %s... (%d chars)", lit.Value[:10], len(lit.Value))
++			return constant.MakeUnknown()
++		}
+ 	}
+ 
+ 	v := constant.MakeFromLiteral(lit.Value, tokenForLitKind[lit.Kind], 0)
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index c66e115c1f..a1a626fb33 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1154,6 +1154,23 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 		if e.Bad {
+ 			goto Error // error reported during parsing
+ 		}
++		switch e.Kind {
++		case syntax.IntLit, syntax.FloatLit, syntax.ImagLit:
++			// The max. mantissa precision for untyped numeric values
++			// is 512 bits, or 4048 bits for each of the two integer
++			// parts of a fraction for floating-point numbers that are
++			// represented accurately in the go/constant package.
++			// Constant literals that are longer than this many bits
++			// are not meaningful; and excessively long constants may
++			// consume a lot of space and time for a useless conversion.
++			// Cap constant length with a generous upper limit that also
++			// allows for separators between all digits.
++			const limit = 10000
++			if len(e.Value) > limit {
++				check.errorf(e, "excessively long constant: %s... (%d chars)", e.Value[:10], len(e.Value))
++				goto Error
++			}
++		}
+ 		x.setConst(e.Kind, e.Value)
+ 		if x.mode == invalid {
+ 			// The parser already establishes syntactic correctness.
+diff --git a/test/const7.go b/test/const7.go
+new file mode 100644
+index 0000000000..9ffd678fc5
+--- /dev/null
++++ b/test/const7.go
+@@ -0,0 +1,77 @@
++// run
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check that the compiler refuses excessively long constants.
++
++package main
++
++import (
++	"bytes"
++	"fmt"
++	"io/ioutil"
++	"log"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"runtime"
++	"strings"
++)
++
++// testProg creates a package called name, with path dir/name.go,
++// which declares an untyped constant of the given length.
++// testProg compiles this package and checks for the absence or
++// presence of a constant literal error.
++func testProg(dir, name string, G_option, length int, ok bool) {
++	var buf bytes.Buffer
++
++	fmt.Fprintf(&buf,
++		"package %s; const _ = %s // %d digits",
++		name, strings.Repeat("9", length), length,
++	)
++
++	filename := filepath.Join(dir, fmt.Sprintf("%s.go", name))
++	if err := os.WriteFile(filename, buf.Bytes(), 0666); err != nil {
++		log.Fatal(err)
++	}
++
++	cmd := exec.Command("go", "tool", "compile", fmt.Sprintf("-G=%d", G_option), filename)
++	cmd.Dir = dir
++	output, err := cmd.CombinedOutput()
++
++	if ok {
++		// no error expected
++		if err != nil {
++			log.Fatalf("%s: compile failed unexpectedly: %v", name, err)
++		}
++		return
++	}
++
++	// error expected
++	if err == nil {
++		log.Fatalf("%s: compile succeeded unexpectedly", name)
++	}
++	if !bytes.Contains(output, []byte("excessively long constant")) {
++		log.Fatalf("%s: wrong compiler error message:\n%s\n", name, output)
++	}
++}
++
++func main() {
++	if runtime.GOOS == "js" || runtime.Compiler != "gc" {
++		return
++	}
++
++	dir, err := ioutil.TempDir("", "const7_")
++	if err != nil {
++		log.Fatalf("creating temp dir: %v\n", err)
++	}
++	defer os.RemoveAll(dir)
++
++	const limit = 10000 // compiler-internal constant length limit
++	testProg(dir, "x1", 0, limit, true)    // -G=0
++	testProg(dir, "x2", 0, limit+1, false) // -G=0
++	testProg(dir, "x1", 1, limit, true)    // -G=1 (new type checker)
++	testProg(dir, "x2", 1, limit+1, false) // -G=1 (new type checker)
++}

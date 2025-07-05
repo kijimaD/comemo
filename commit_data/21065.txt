@@ -17,7 +17,7 @@ Date:   Tue Nov 11 17:07:37 2014 -0500
     R=r
     CC=austin, dvyukov, golang-codereviews, iant, khr
     https://golang.org/cl/171490043
-
+---
  src/runtime/defs1_netbsd_386.go     | 171 ++++++++++++++++
  src/runtime/defs1_netbsd_amd64.go   | 183 +++++++++++++++++
  src/runtime/defs1_netbsd_arm.go     | 170 ++++++++++++++++
@@ -66,3 +66,8343 @@ Date:   Tue Nov 11 17:07:37 2014 -0500
  src/runtime/defs_windows_amd64.go   | 124 +++++++++++
  src/runtime/defs_windows_amd64.h    | 131 ------------
  47 files changed, 3914 insertions(+), 4143 deletions(-)
+
+diff --git a/src/runtime/defs1_netbsd_386.go b/src/runtime/defs1_netbsd_386.go
+new file mode 100644
+index 0000000000..e39fd04c7a
+--- /dev/null
++++ b/src/runtime/defs1_netbsd_386.go
+@@ -0,0 +1,171 @@
++// created by cgo -cdefs and then converted to Go
++// cgo -cdefs defs_netbsd.go defs_netbsd_386.go
++
++package runtime
++
++const (
++	_EINTR  = 0x4
++	_EFAULT = 0xe
++
++	_PROT_NONE  = 0x0
++	_PROT_READ  = 0x1
++	_PROT_WRITE = 0x2
++	_PROT_EXEC  = 0x4
++
++	_MAP_ANON    = 0x1000
++	_MAP_PRIVATE = 0x2
++	_MAP_FIXED   = 0x10
++
++	_MADV_FREE = 0x6
++
++	_SA_SIGINFO = 0x40
++	_SA_RESTART = 0x2
++	_SA_ONSTACK = 0x1
++
++	_SIGHUP    = 0x1
++	_SIGINT    = 0x2
++	_SIGQUIT   = 0x3
++	_SIGILL    = 0x4
++	_SIGTRAP   = 0x5
++	_SIGABRT   = 0x6
++	_SIGEMT    = 0x7
++	_SIGFPE    = 0x8
++	_SIGKILL   = 0x9
++	_SIGBUS    = 0xa
++	_SIGSEGV   = 0xb
++	_SIGSYS    = 0xc
++	_SIGPIPE   = 0xd
++	_SIGALRM   = 0xe
++	_SIGTERM   = 0xf
++	_SIGURG    = 0x10
++	_SIGSTOP   = 0x11
++	_SIGTSTP   = 0x12
++	_SIGCONT   = 0x13
++	_SIGCHLD   = 0x14
++	_SIGTTIN   = 0x15
++	_SIGTTOU   = 0x16
++	_SIGIO     = 0x17
++	_SIGXCPU   = 0x18
++	_SIGXFSZ   = 0x19
++	_SIGVTALRM = 0x1a
++	_SIGPROF   = 0x1b
++	_SIGWINCH  = 0x1c
++	_SIGINFO   = 0x1d
++	_SIGUSR1   = 0x1e
++	_SIGUSR2   = 0x1f
++
++	_FPE_INTDIV = 0x1
++	_FPE_INTOVF = 0x2
++	_FPE_FLTDIV = 0x3
++	_FPE_FLTOVF = 0x4
++	_FPE_FLTUND = 0x5
++	_FPE_FLTRES = 0x6
++	_FPE_FLTINV = 0x7
++	_FPE_FLTSUB = 0x8
++
++	_BUS_ADRALN = 0x1
++	_BUS_ADRERR = 0x2
++	_BUS_OBJERR = 0x3
++
++	_SEGV_MAPERR = 0x1
++	_SEGV_ACCERR = 0x2
++
++	_ITIMER_REAL    = 0x0
++	_ITIMER_VIRTUAL = 0x1
++	_ITIMER_PROF    = 0x2
++
++	_EV_ADD       = 0x1
++	_EV_DELETE    = 0x2
++	_EV_CLEAR     = 0x20
++	_EV_RECEIPT   = 0
++	_EV_ERROR     = 0x4000
++	_EVFILT_READ  = 0x0
++	_EVFILT_WRITE = 0x1
++)
++
++type sigaltstackt struct {
++	ss_sp    *byte
++	ss_size  uint32
++	ss_flags int32
++}
++
++type sigset struct {
++	__bits [4]uint32
++}
++
++type siginfo struct {
++	_signo  int32
++	_code   int32
++	_errno  int32
++	_reason [20]byte
++}
++
++type stackt struct {
++	ss_sp    *byte
++	ss_size  uint32
++	ss_flags int32
++}
++
++type timespec struct {
++	tv_sec  int64
++	tv_nsec int32
++}
++
++type timeval struct {
++	tv_sec  int64
++	tv_usec int32
++}
++
++type itimerval struct {
++	it_interval timeval
++	it_value    timeval
++}
++
++type mcontextt struct {
++	__gregs     [19]int32
++	__fpregs    [644]byte
++	_mc_tlsbase int32
++}
++
++type ucontextt struct {
++	uc_flags    uint32
++	uc_link     *ucontextt
++	uc_sigmask  sigset
++	uc_stack    stackt
++	uc_mcontext mcontextt
++	__uc_pad    [4]int32
++}
++
++type keventt struct {
++	ident  uint32
++	filter uint32
++	flags  uint32
++	fflags uint32
++	data   int64
++	udata  *byte
++}
++
++// created by cgo -cdefs and then converted to Go
++// cgo -cdefs defs_netbsd.go defs_netbsd_386.go
++
++const (
++	_REG_GS     = 0x0
++	_REG_FS     = 0x1
++	_REG_ES     = 0x2
++	_REG_DS     = 0x3
++	_REG_EDI    = 0x4
++	_REG_ESI    = 0x5
++	_REG_EBP    = 0x6
++	_REG_ESP    = 0x7
++	_REG_EBX    = 0x8
++	_REG_EDX    = 0x9
++	_REG_ECX    = 0xa
++	_REG_EAX    = 0xb
++	_REG_TRAPNO = 0xc
++	_REG_ERR    = 0xd
++	_REG_EIP    = 0xe
++	_REG_CS     = 0xf
++	_REG_EFL    = 0x10
++	_REG_UESP   = 0x11
++	_REG_SS     = 0x12
++)
+diff --git a/src/runtime/defs1_netbsd_amd64.go b/src/runtime/defs1_netbsd_amd64.go
+new file mode 100644
+index 0000000000..cca701e5bc
+--- /dev/null
++++ b/src/runtime/defs1_netbsd_amd64.go
+@@ -0,0 +1,183 @@
++// created by cgo -cdefs and then converted to Go
++// cgo -cdefs defs_netbsd.go defs_netbsd_amd64.go
++
++package runtime
++
++const (
++	_EINTR  = 0x4
++	_EFAULT = 0xe
++
++	_PROT_NONE  = 0x0
++	_PROT_READ  = 0x1
++	_PROT_WRITE = 0x2
++	_PROT_EXEC  = 0x4
++
++	_MAP_ANON    = 0x1000
++	_MAP_PRIVATE = 0x2
++	_MAP_FIXED   = 0x10
++
++	_MADV_FREE = 0x6
++
++	_SA_SIGINFO = 0x40
++	_SA_RESTART = 0x2
++	_SA_ONSTACK = 0x1
++
++	_SIGHUP    = 0x1
++	_SIGINT    = 0x2
++	_SIGQUIT   = 0x3
++	_SIGILL    = 0x4
++	_SIGTRAP   = 0x5
++	_SIGABRT   = 0x6
++	_SIGEMT    = 0x7
++	_SIGFPE    = 0x8
++	_SIGKILL   = 0x9
++	_SIGBUS    = 0xa
++	_SIGSEGV   = 0xb
++	_SIGSYS    = 0xc
++	_SIGPIPE   = 0xd
++	_SIGALRM   = 0xe
++	_SIGTERM   = 0xf
++	_SIGURG    = 0x10
++	_SIGSTOP   = 0x11
++	_SIGTSTP   = 0x12
++	_SIGCONT   = 0x13
++	_SIGCHLD   = 0x14
++	_SIGTTIN   = 0x15
++	_SIGTTOU   = 0x16
++	_SIGIO     = 0x17
++	_SIGXCPU   = 0x18
++	_SIGXFSZ   = 0x19
++	_SIGVTALRM = 0x1a
++	_SIGPROF   = 0x1b
++	_SIGWINCH  = 0x1c
++	_SIGINFO   = 0x1d
++	_SIGUSR1   = 0x1e
++	_SIGUSR2   = 0x1f
++
++	_FPE_INTDIV = 0x1
++	_FPE_INTOVF = 0x2
++	_FPE_FLTDIV = 0x3
++	_FPE_FLTOVF = 0x4
++	_FPE_FLTUND = 0x5
++	_FPE_FLTRES = 0x6
++	_FPE_FLTINV = 0x7
++	_FPE_FLTSUB = 0x8
++
++	_BUS_ADRALN = 0x1
++	_BUS_ADRERR = 0x2
++	_BUS_OBJERR = 0x3
++
++	_SEGV_MAPERR = 0x1
++	_SEGV_ACCERR = 0x2
++
++	_ITIMER_REAL    = 0x0
++	_ITIMER_VIRTUAL = 0x1
++	_ITIMER_PROF    = 0x2
++
++	_EV_ADD       = 0x1
++	_EV_DELETE    = 0x2
++	_EV_CLEAR     = 0x20
++	_EV_RECEIPT   = 0
++	_EV_ERROR     = 0x4000
++	_EVFILT_READ  = 0x0
++	_EVFILT_WRITE = 0x1
++)
++
++type sigaltstackt struct {
++	ss_sp     *byte
++	ss_size   uint64
++	ss_flags  int32
++	pad_cgo_0 [4]byte
++}
++
++type sigset struct {
++	__bits [4]uint32
++}
++
++type siginfo struct {
++	_signo  int32
++	_code   int32
++	_errno  int32
++	_pad    int32
++	_reason [24]byte
++}
++
++type stackt struct {
++	ss_sp     *byte
++	ss_size   uint64
++	ss_flags  int32
++	pad_cgo_0 [4]byte
++}
++
++type timespec struct {
++	tv_sec  int64
++	tv_nsec int64
++}
++
++type timeval struct {
++	tv_sec    int64
++	tv_usec   int32
++	pad_cgo_0 [4]byte
++}
++
++type itimerval struct {
++	it_interval timeval
++	it_value    timeval
++}
++
++type mcontextt struct {
++	__gregs     [26]uint64
++	_mc_tlsbase uint64
++	__fpregs    [512]int8
++}
++
++type ucontextt struct {
++	uc_flags    uint32
++	pad_cgo_0   [4]byte
++	uc_link     *ucontextt
++	uc_sigmask  sigset
++	uc_stack    stackt
++	uc_mcontext mcontextt
++}
++
++type keventt struct {
++	ident     uint64
++	filter    uint32
++	flags     uint32
++	fflags    uint32
++	pad_cgo_0 [4]byte
++	data      int64
++	udata     *byte
++}
++
++// created by cgo -cdefs and then converted to Go
++// cgo -cdefs defs_netbsd.go defs_netbsd_amd64.go
++
++const (
++	_REG_RDI    = 0x0
++	_REG_RSI    = 0x1
++	_REG_RDX    = 0x2
++	_REG_RCX    = 0x3
++	_REG_R8     = 0x4
++	_REG_R9     = 0x5
++	_REG_R10    = 0x6
++	_REG_R11    = 0x7
++	_REG_R12    = 0x8
++	_REG_R13    = 0x9
++	_REG_R14    = 0xa
++	_REG_R15    = 0xb
++	_REG_RBP    = 0xc
++	_REG_RBX    = 0xd
++	_REG_RAX    = 0xe
++	_REG_GS     = 0xf
++	_REG_FS     = 0x10
++	_REG_ES     = 0x11
++	_REG_DS     = 0x12
++	_REG_TRAPNO = 0x13
++	_REG_ERR    = 0x14
++	_REG_RIP    = 0x15
++	_REG_CS     = 0x16
++	_REG_RFLAGS = 0x17
++	_REG_RSP    = 0x18
++	_REG_SS     = 0x19
++)
+diff --git a/src/runtime/defs1_netbsd_arm.go b/src/runtime/defs1_netbsd_arm.go
+new file mode 100644
+index 0000000000..54ddf3882e
+--- /dev/null
++++ b/src/runtime/defs1_netbsd_arm.go
+@@ -0,0 +1,170 @@
++// created by cgo -cdefs and then converted to Go
++// cgo -cdefs defs_netbsd.go defs_netbsd_arm.go
++
++package runtime
++
++const (
++	_EINTR  = 0x4
++	_EFAULT = 0xe
++
++	_PROT_NONE  = 0x0
++	_PROT_READ  = 0x1
++	_PROT_WRITE = 0x2
++	_PROT_EXEC  = 0x4
++
++	_MAP_ANON    = 0x1000
++	_MAP_PRIVATE = 0x2
++	_MAP_FIXED   = 0x10
++
++	_MADV_FREE = 0x6
++
++	_SA_SIGINFO = 0x40
++	_SA_RESTART = 0x2
++	_SA_ONSTACK = 0x1
++
++	_SIGHUP    = 0x1
++	_SIGINT    = 0x2
++	_SIGQUIT   = 0x3
++	_SIGILL    = 0x4
++	_SIGTRAP   = 0x5
++	_SIGABRT   = 0x6
++	_SIGEMT    = 0x7
++	_SIGFPE    = 0x8
++	_SIGKILL   = 0x9
++	_SIGBUS    = 0xa
++	_SIGSEGV   = 0xb
++	_SIGSYS    = 0xc
++	_SIGPIPE   = 0xd
++	_SIGALRM   = 0xe
++	_SIGTERM   = 0xf
++	_SIGURG    = 0x10
++	_SIGSTOP   = 0x11
++	_SIGTSTP   = 0x12
++	_SIGCONT   = 0x13
++	_SIGCHLD   = 0x14
++	_SIGTTIN   = 0x15
++	_SIGTTOU   = 0x16
++	_SIGIO     = 0x17
++	_SIGXCPU   = 0x18
++	_SIGXFSZ   = 0x19
++	_SIGVTALRM = 0x1a
++	_SIGPROF   = 0x1b
++	_SIGWINCH  = 0x1c
++	_SIGINFO   = 0x1d
++	_SIGUSR1   = 0x1e
++	_SIGUSR2   = 0x1f
++
++	_FPE_INTDIV = 0x1
++	_FPE_INTOVF = 0x2
++	_FPE_FLTDIV = 0x3
++	_FPE_FLTOVF = 0x4
++	_FPE_FLTUND = 0x5
++	_FPE_FLTRES = 0x6
++	_FPE_FLTINV = 0x7
++	_FPE_FLTSUB = 0x8
++
++	_BUS_ADRALN = 0x1
++	_BUS_ADRERR = 0x2
++	_BUS_OBJERR = 0x3
++
++	_SEGV_MAPERR = 0x1
++	_SEGV_ACCERR = 0x2
++
++	_ITIMER_REAL    = 0x0
++	_ITIMER_VIRTUAL = 0x1
++	_ITIMER_PROF    = 0x2
++
++	_EV_ADD       = 0x1
++	_EV_DELETE    = 0x2
++	_EV_CLEAR     = 0x20
++	_EV_RECEIPT   = 0
++	_EV_ERROR     = 0x4000
++	_EVFILT_READ  = 0x0
++	_EVFILT_WRITE = 0x1
++)
++
++type sigaltstackt struct {
++	ss_sp    *byte
++	ss_size  uint32
++	ss_flags int32
++}
++
++type sigset struct {
++	__bits [4]uint32
++}
++
++type siginfo struct {
++	_signo  int32
++	_code   int32
++	_errno  int32
++	_reason [20]byte
++}
++
++type stackt struct {
++	ss_sp    *byte
++	ss_size  uint32
++	ss_flags int32
++}
++
++type timespec struct {
++	tv_sec  int64
++	tv_nsec int32
++}
++
++type timeval struct {
++	tv_sec  int64
++	tv_usec int32
++}
++
++type itimerval struct {
++	it_interval timeval
++	it_value    timeval
++}
++
++type mcontextt struct {
++	__gregs [17]uint32
++	__fpu   [4 + 8*32 + 4]byte // EABI
++	// __fpu [4+4*33+4]byte // not EABI
++	_mc_tlsbase uint32
++}
++
++type ucontextt struct {
++	uc_flags    uint32
++	uc_link     *ucontextt
++	uc_sigmask  sigset
++	uc_stack    stackt
++	uc_mcontext mcontextt
++	__uc_pad    [2]int32
++}
++
++type keventt struct {
++	ident  uint32
++	filter uint32
++	flags  uint32
++	fflags uint32
++	data   int64
++	udata  *byte
++}
++
++// created by cgo -cdefs and then converted to Go
++// cgo -cdefs defs_netbsd.go defs_netbsd_arm.go
++
++const (
++	_REG_R0   = 0x0
++	_REG_R1   = 0x1
++	_REG_R2   = 0x2
++	_REG_R3   = 0x3
++	_REG_R4   = 0x4
++	_REG_R5   = 0x5
++	_REG_R6   = 0x6
++	_REG_R7   = 0x7
++	_REG_R8   = 0x8
++	_REG_R9   = 0x9
++	_REG_R10  = 0xa
++	_REG_R11  = 0xb
++	_REG_R12  = 0xc
++	_REG_R13  = 0xd
++	_REG_R14  = 0xe
++	_REG_R15  = 0xf
++	_REG_CPSR = 0x10
++)
+diff --git a/src/runtime/defs1_solaris_amd64.go b/src/runtime/defs1_solaris_amd64.go
+new file mode 100644
+index 0000000000..280cf815f9
+--- /dev/null
++++ b/src/runtime/defs1_solaris_amd64.go
+@@ -0,0 +1,240 @@
++// created by cgo -cdefs and then converted to Go
++// cgo -cdefs defs_solaris.go defs_solaris_amd64.go
++
++package runtime
++
++const (
++	_EINTR       = 0x4
++	_EBADF       = 0x9
++	_EFAULT      = 0xe
++	_EAGAIN      = 0xb
++	_ETIMEDOUT   = 0x91
++	_EWOULDBLOCK = 0xb
++	_EINPROGRESS = 0x96
++
++	_PROT_NONE  = 0x0
++	_PROT_READ  = 0x1
++	_PROT_WRITE = 0x2
++	_PROT_EXEC  = 0x4
++
++	_MAP_ANON    = 0x100
++	_MAP_PRIVATE = 0x2
++	_MAP_FIXED   = 0x10
++
++	_MADV_FREE = 0x5
++
++	_SA_SIGINFO = 0x8
++	_SA_RESTART = 0x4
++	_SA_ONSTACK = 0x1
++
++	_SIGHUP    = 0x1
++	_SIGINT    = 0x2
++	_SIGQUIT   = 0x3
++	_SIGILL    = 0x4
++	_SIGTRAP   = 0x5
++	_SIGABRT   = 0x6
++	_SIGEMT    = 0x7
++	_SIGFPE    = 0x8
++	_SIGKILL   = 0x9
++	_SIGBUS    = 0xa
++	_SIGSEGV   = 0xb
++	_SIGSYS    = 0xc
++	_SIGPIPE   = 0xd
++	_SIGALRM   = 0xe
++	_SIGTERM   = 0xf
++	_SIGURG    = 0x15
++	_SIGSTOP   = 0x17
++	_SIGTSTP   = 0x18
++	_SIGCONT   = 0x19
++	_SIGCHLD   = 0x12
++	_SIGTTIN   = 0x1a
++	_SIGTTOU   = 0x1b
++	_SIGIO     = 0x16
++	_SIGXCPU   = 0x1e
++	_SIGXFSZ   = 0x1f
++	_SIGVTALRM = 0x1c
++	_SIGPROF   = 0x1d
++	_SIGWINCH  = 0x14
++	_SIGUSR1   = 0x10
++	_SIGUSR2   = 0x11
++
++	_FPE_INTDIV = 0x1
++	_FPE_INTOVF = 0x2
++	_FPE_FLTDIV = 0x3
++	_FPE_FLTOVF = 0x4
++	_FPE_FLTUND = 0x5
++	_FPE_FLTRES = 0x6
++	_FPE_FLTINV = 0x7
++	_FPE_FLTSUB = 0x8
++
++	_BUS_ADRALN = 0x1
++	_BUS_ADRERR = 0x2
++	_BUS_OBJERR = 0x3
++
++	_SEGV_MAPERR = 0x1
++	_SEGV_ACCERR = 0x2
++
++	_ITIMER_REAL    = 0x0
++	_ITIMER_VIRTUAL = 0x1
++	_ITIMER_PROF    = 0x2
++
++	__SC_NPROCESSORS_ONLN = 0xf
++
++	_PTHREAD_CREATE_DETACHED = 0x40
++
++	_FORK_NOSIGCHLD = 0x1
++	_FORK_WAITPID   = 0x2
++
++	_MAXHOSTNAMELEN = 0x100
++
++	_O_NONBLOCK = 0x80
++	_FD_CLOEXEC = 0x1
++	_F_GETFL    = 0x3
++	_F_SETFL    = 0x4
++	_F_SETFD    = 0x2
++
++	_POLLIN  = 0x1
++	_POLLOUT = 0x4
++	_POLLHUP = 0x10
++	_POLLERR = 0x8
++
++	_PORT_SOURCE_FD = 0x4
++)
++
++type semt struct {
++	sem_count uint32
++	sem_type  uint16
++	sem_magic uint16
++	sem_pad1  [3]uint64
++	sem_pad2  [2]uint64
++}
++
++type sigaltstackt struct {
++	ss_sp     *byte
++	ss_size   uint64
++	ss_flags  int32
++	pad_cgo_0 [4]byte
++}
++
++type sigset struct {
++	__sigbits [4]uint32
++}
++
++type stackt struct {
++	ss_sp     *byte
++	ss_size   uint64
++	ss_flags  int32
++	pad_cgo_0 [4]byte
++}
++
++type siginfo struct {
++	si_signo int32
++	si_code  int32
++	si_errno int32
++	si_pad   int32
++	__data   [240]byte
++}
++
++type sigactiont struct {
++	sa_flags  int32
++	pad_cgo_0 [4]byte
++	_funcptr  [8]byte
++	sa_mask   sigset
++}
++
++type fpregset struct {
++	fp_reg_set [528]byte
++}
++
++type mcontext struct {
++	gregs  [28]int64
++	fpregs fpregset
++}
++
++type ucontext struct {
++	uc_flags    uint64
++	uc_link     *ucontext
++	uc_sigmask  sigset
++	uc_stack    stackt
++	pad_cgo_0   [8]byte
++	uc_mcontext mcontext
++	uc_filler   [5]int64
++	pad_cgo_1   [8]byte
++}
++
++type timespec struct {
++	tv_sec  int64
++	tv_nsec int64
++}
++
++type timeval struct {
++	tv_sec  int64
++	tv_usec int64
++}
++
++type itimerval struct {
++	it_interval timeval
++	it_value    timeval
++}
++
++type portevent struct {
++	portev_events int32
++	portev_source uint16
++	portev_pad    uint16
++	portev_object uint64
++	portev_user   *byte
++}
++
++type pthreadattr struct {
++	__pthread_attrp *byte
++}
++
++type stat struct {
++	st_dev     uint64
++	st_ino     uint64
++	st_mode    uint32
++	st_nlink   uint32
++	st_uid     uint32
++	st_gid     uint32
++	st_rdev    uint64
++	st_size    int64
++	st_atim    timespec
++	st_mtim    timespec
++	st_ctim    timespec
++	st_blksize int32
++	pad_cgo_0  [4]byte
++	st_blocks  int64
++	st_fstype  [16]int8
++}
++
++// created by cgo -cdefs and then converted to Go
++// cgo -cdefs defs_solaris.go defs_solaris_amd64.go
++
++const (
++	_REG_RDI    = 0x8
++	_REG_RSI    = 0x9
++	_REG_RDX    = 0xc
++	_REG_RCX    = 0xd
++	_REG_R8     = 0x7
++	_REG_R9     = 0x6
++	_REG_R10    = 0x5
++	_REG_R11    = 0x4
++	_REG_R12    = 0x3
++	_REG_R13    = 0x2
++	_REG_R14    = 0x1
++	_REG_R15    = 0x0
++	_REG_RBP    = 0xa
++	_REG_RBX    = 0xb
++	_REG_RAX    = 0xe
++	_REG_GS     = 0x17
++	_REG_FS     = 0x16
++	_REG_ES     = 0x18
++	_REG_DS     = 0x19
++	_REG_TRAPNO = 0xf
++	_REG_ERR    = 0x10
++	_REG_RIP    = 0x11
++	_REG_CS     = 0x12
++	_REG_RFLAGS = 0x13
++	_REG_RSP    = 0x14
++	_REG_SS     = 0x15
++)
+diff --git a/src/runtime/defs_android_arm.h b/src/runtime/defs_android_arm.h
+deleted file mode 100644
+index 3611b3a103..0000000000
+--- a/src/runtime/defs_android_arm.h
++++ /dev/null
+@@ -1,3 +0,0 @@
+-// TODO: Generate using cgo like defs_linux_{386,amd64}.h
+-
+-#include "defs_linux_arm.h"
+diff --git a/src/runtime/defs_darwin_386.go b/src/runtime/defs_darwin_386.go
+new file mode 100644
+index 0000000000..cf4812f9fa
+--- /dev/null
++++ b/src/runtime/defs_darwin_386.go
+@@ -0,0 +1,382 @@
++// created by cgo -cdefs and then converted to Go
++// cgo -cdefs defs_darwin.go
++
++package runtime
++
++import "unsafe"
++
++const (
++	_EINTR  = 0x4
++	_EFAULT = 0xe
++
++	_PROT_NONE  = 0x0
++	_PROT_READ  = 0x1
++	_PROT_WRITE = 0x2
++	_PROT_EXEC  = 0x4
++
++	_MAP_ANON    = 0x1000
++	_MAP_PRIVATE = 0x2
++	_MAP_FIXED   = 0x10
++
++	_MADV_DONTNEED = 0x4
++	_MADV_FREE     = 0x5
++
++	_MACH_MSG_TYPE_MOVE_RECEIVE   = 0x10
++	_MACH_MSG_TYPE_MOVE_SEND      = 0x11
++	_MACH_MSG_TYPE_MOVE_SEND_ONCE = 0x12
++	_MACH_MSG_TYPE_COPY_SEND      = 0x13
++	_MACH_MSG_TYPE_MAKE_SEND      = 0x14
++	_MACH_MSG_TYPE_MAKE_SEND_ONCE = 0x15
++	_MACH_MSG_TYPE_COPY_RECEIVE   = 0x16
++
++	_MACH_MSG_PORT_DESCRIPTOR         = 0x0
++	_MACH_MSG_OOL_DESCRIPTOR          = 0x1
++	_MACH_MSG_OOL_PORTS_DESCRIPTOR    = 0x2
++	_MACH_MSG_OOL_VOLATILE_DESCRIPTOR = 0x3
++
++	_MACH_MSGH_BITS_COMPLEX = 0x80000000
++
++	_MACH_SEND_MSG  = 0x1
++	_MACH_RCV_MSG   = 0x2
++	_MACH_RCV_LARGE = 0x4
++
++	_MACH_SEND_TIMEOUT   = 0x10
++	_MACH_SEND_INTERRUPT = 0x40
++	_MACH_SEND_ALWAYS    = 0x10000
++	_MACH_SEND_TRAILER   = 0x20000
++	_MACH_RCV_TIMEOUT    = 0x100
++	_MACH_RCV_NOTIFY     = 0x200
++	_MACH_RCV_INTERRUPT  = 0x400
++	_MACH_RCV_OVERWRITE  = 0x1000
++
++	_NDR_PROTOCOL_2_0      = 0x0
++	_NDR_INT_BIG_ENDIAN    = 0x0
++	_NDR_INT_LITTLE_ENDIAN = 0x1
++	_NDR_FLOAT_IEEE        = 0x0
++	_NDR_CHAR_ASCII        = 0x0
++
++	_SA_SIGINFO   = 0x40
++	_SA_RESTART   = 0x2
++	_SA_ONSTACK   = 0x1
++	_SA_USERTRAMP = 0x100
++	_SA_64REGSET  = 0x200
++
++	_SIGHUP    = 0x1
++	_SIGINT    = 0x2
++	_SIGQUIT   = 0x3
++	_SIGILL    = 0x4
++	_SIGTRAP   = 0x5
++	_SIGABRT   = 0x6
++	_SIGEMT    = 0x7
++	_SIGFPE    = 0x8
++	_SIGKILL   = 0x9
++	_SIGBUS    = 0xa
++	_SIGSEGV   = 0xb
++	_SIGSYS    = 0xc
++	_SIGPIPE   = 0xd
++	_SIGALRM   = 0xe
++	_SIGTERM   = 0xf
++	_SIGURG    = 0x10
++	_SIGSTOP   = 0x11
++	_SIGTSTP   = 0x12
++	_SIGCONT   = 0x13
++	_SIGCHLD   = 0x14
++	_SIGTTIN   = 0x15
++	_SIGTTOU   = 0x16
++	_SIGIO     = 0x17
++	_SIGXCPU   = 0x18
++	_SIGXFSZ   = 0x19
++	_SIGVTALRM = 0x1a
++	_SIGPROF   = 0x1b
++	_SIGWINCH  = 0x1c
++	_SIGINFO   = 0x1d
++	_SIGUSR1   = 0x1e
++	_SIGUSR2   = 0x1f
++
++	_FPE_INTDIV = 0x7
++	_FPE_INTOVF = 0x8
++	_FPE_FLTDIV = 0x1
++	_FPE_FLTOVF = 0x2
++	_FPE_FLTUND = 0x3
++	_FPE_FLTRES = 0x4
++	_FPE_FLTINV = 0x5
++	_FPE_FLTSUB = 0x6
++
++	_BUS_ADRALN = 0x1
++	_BUS_ADRERR = 0x2
++	_BUS_OBJERR = 0x3
++
++	_SEGV_MAPERR = 0x1
++	_SEGV_ACCERR = 0x2
++
++	_ITIMER_REAL    = 0x0
++	_ITIMER_VIRTUAL = 0x1
++	_ITIMER_PROF    = 0x2
++
++	_EV_ADD       = 0x1
++	_EV_DELETE    = 0x2
++	_EV_CLEAR     = 0x20
++	_EV_RECEIPT   = 0x40
++	_EV_ERROR     = 0x4000
++	_EVFILT_READ  = -0x1
++	_EVFILT_WRITE = -0x2
++)
++
++type machbody struct {
++	msgh_descriptor_count uint32
++}
++
++type machheader struct {
++	msgh_bits        uint32
++	msgh_size        uint32
++	msgh_remote_port uint32
++	msgh_local_port  uint32
++	msgh_reserved    uint32
++	msgh_id          int32
++}
++
++type machndr struct {
++	mig_vers     uint8
++	if_vers      uint8
++	reserved1    uint8
++	mig_encoding uint8
++	int_rep      uint8
++	char_rep     uint8
++	float_rep    uint8
++	reserved2    uint8
++}
++
++type machport struct {
++	name        uint32
++	pad1        uint32
++	pad2        uint16
++	disposition uint8
++	_type       uint8
++}
++
++type stackt struct {
++	ss_sp    *byte
++	ss_size  uintptr
++	ss_flags int32
++}
++
++type sigactiont struct {
++	__sigaction_u [4]byte
++	sa_tramp      unsafe.Pointer
++	sa_mask       uint32
++	sa_flags      int32
++}
++
++type siginfo struct {
++	si_signo  int32
++	si_errno  int32
++	si_code   int32
++	si_pid    int32
++	si_uid    uint32
++	si_status int32
++	si_addr   *byte
++	si_value  [4]byte
++	si_band   int32
++	__pad     [7]uint32
++}
++
++type timeval struct {
++	tv_sec  int32
++	tv_usec int32
++}
++
++func (tv *timeval) set_usec(x int32) {
++	tv.tv_usec = x
++}
++
++type itimerval struct {
++	it_interval timeval
++	it_value    timeval
++}
++
++type timespec struct {
++	tv_sec  int32
++	tv_nsec int32
++}
++
++type fpcontrol struct {
++	pad_cgo_0 [2]byte
++}
++
++type fpstatus struct {
++	pad_cgo_0 [2]byte
++}
++
++type regmmst struct {
++	mmst_reg  [10]int8
++	mmst_rsrv [6]int8
++}
++
++type regxmm struct {
++	xmm_reg [16]int8
++}
++
++type regs64 struct {
++	rax    uint64
++	rbx    uint64
++	rcx    uint64
++	rdx    uint64
++	rdi    uint64
++	rsi    uint64
++	rbp    uint64
++	rsp    uint64
++	r8     uint64
++	r9     uint64
++	r10    uint64
++	r11    uint64
++	r12    uint64
++	r13    uint64
++	r14    uint64
++	r15    uint64
++	rip    uint64
++	rflags uint64
++	cs     uint64
++	fs     uint64
++	gs     uint64
++}
++
++type floatstate64 struct {
++	fpu_reserved  [2]int32
++	fpu_fcw       fpcontrol
++	fpu_fsw       fpstatus
++	fpu_ftw       uint8
++	fpu_rsrv1     uint8
++	fpu_fop       uint16
++	fpu_ip        uint32
++	fpu_cs        uint16
++	fpu_rsrv2     uint16
++	fpu_dp        uint32
++	fpu_ds        uint16
++	fpu_rsrv3     uint16
++	fpu_mxcsr     uint32
++	fpu_mxcsrmask uint32
++	fpu_stmm0     regmmst
++	fpu_stmm1     regmmst
++	fpu_stmm2     regmmst
++	fpu_stmm3     regmmst
++	fpu_stmm4     regmmst
++	fpu_stmm5     regmmst
++	fpu_stmm6     regmmst
++	fpu_stmm7     regmmst
++	fpu_xmm0      regxmm
++	fpu_xmm1      regxmm
++	fpu_xmm2      regxmm
++	fpu_xmm3      regxmm
++	fpu_xmm4      regxmm
++	fpu_xmm5      regxmm
++	fpu_xmm6      regxmm
++	fpu_xmm7      regxmm
++	fpu_xmm8      regxmm
++	fpu_xmm9      regxmm
++	fpu_xmm10     regxmm
++	fpu_xmm11     regxmm
++	fpu_xmm12     regxmm
++	fpu_xmm13     regxmm
++	fpu_xmm14     regxmm
++	fpu_xmm15     regxmm
++	fpu_rsrv4     [96]int8
++	fpu_reserved1 int32
++}
++
++type exceptionstate64 struct {
++	trapno     uint16
++	cpu        uint16
++	err        uint32
++	faultvaddr uint64
++}
++
++type mcontext64 struct {
++	es exceptionstate64
++	ss regs64
++	fs floatstate64
++}
++
++type regs32 struct {
++	eax    uint32
++	ebx    uint32
++	ecx    uint32
++	edx    uint32
++	edi    uint32
++	esi    uint32
++	ebp    uint32
++	esp    uint32
++	ss     uint32
++	eflags uint32
++	eip    uint32
++	cs     uint32
++	ds     uint32
++	es     uint32
++	fs     uint32
++	gs     uint32
++}
++
++type floatstate32 struct {
++	fpu_reserved  [2]int32
++	fpu_fcw       fpcontrol
++	fpu_fsw       fpstatus
++	fpu_ftw       uint8
++	fpu_rsrv1     uint8
++	fpu_fop       uint16
++	fpu_ip        uint32
++	fpu_cs        uint16
++	fpu_rsrv2     uint16
++	fpu_dp        uint32
++	fpu_ds        uint16
++	fpu_rsrv3     uint16
++	fpu_mxcsr     uint32
++	fpu_mxcsrmask uint32
++	fpu_stmm0     regmmst
++	fpu_stmm1     regmmst
++	fpu_stmm2     regmmst
++	fpu_stmm3     regmmst
++	fpu_stmm4     regmmst
++	fpu_stmm5     regmmst
++	fpu_stmm6     regmmst
++	fpu_stmm7     regmmst
++	fpu_xmm0      regxmm
++	fpu_xmm1      regxmm
++	fpu_xmm2      regxmm
++	fpu_xmm3      regxmm
++	fpu_xmm4      regxmm
++	fpu_xmm5      regxmm
++	fpu_xmm6      regxmm
++	fpu_xmm7      regxmm
++	fpu_rsrv4     [224]int8
++	fpu_reserved1 int32
++}
++
++type exceptionstate32 struct {
++	trapno     uint16
++	cpu        uint16
++	err        uint32
++	faultvaddr uint32
++}
++
++type mcontext32 struct {
++	es exceptionstate32
++	ss regs32
++	fs floatstate32
++}
++
++type ucontext struct {
++	uc_onstack  int32
++	uc_sigmask  uint32
++	uc_stack    stackt
++	uc_link     *ucontext
++	uc_mcsize   uint32
++	uc_mcontext *mcontext32
++}
++
++type keventt struct {
++	ident  uint32
++	filter int16
++	flags  uint16
++	fflags uint32
++	data   int32
++	udata  *byte
++}
+diff --git a/src/runtime/defs_darwin_386.h b/src/runtime/defs_darwin_386.h
+deleted file mode 100644
+index 0e0b4fbf79..0000000000
+--- a/src/runtime/defs_darwin_386.h
++++ /dev/null
+@@ -1,392 +0,0 @@
+-// Created by cgo -cdefs - DO NOT EDIT
+-// cgo -cdefs defs_darwin.go
+-
+-
+-enum {
+-	EINTR	= 0x4,
+-	EFAULT	= 0xe,
+-
+-	PROT_NONE	= 0x0,
+-	PROT_READ	= 0x1,
+-	PROT_WRITE	= 0x2,
+-	PROT_EXEC	= 0x4,
+-
+-	MAP_ANON	= 0x1000,
+-	MAP_PRIVATE	= 0x2,
+-	MAP_FIXED	= 0x10,
+-
+-	MADV_DONTNEED	= 0x4,
+-	MADV_FREE	= 0x5,
+-
+-	MACH_MSG_TYPE_MOVE_RECEIVE	= 0x10,
+-	MACH_MSG_TYPE_MOVE_SEND		= 0x11,
+-	MACH_MSG_TYPE_MOVE_SEND_ONCE	= 0x12,
+-	MACH_MSG_TYPE_COPY_SEND		= 0x13,
+-	MACH_MSG_TYPE_MAKE_SEND		= 0x14,
+-	MACH_MSG_TYPE_MAKE_SEND_ONCE	= 0x15,
+-	MACH_MSG_TYPE_COPY_RECEIVE	= 0x16,
+-
+-	MACH_MSG_PORT_DESCRIPTOR		= 0x0,
+-	MACH_MSG_OOL_DESCRIPTOR			= 0x1,
+-	MACH_MSG_OOL_PORTS_DESCRIPTOR		= 0x2,
+-	MACH_MSG_OOL_VOLATILE_DESCRIPTOR	= 0x3,
+-
+-	MACH_MSGH_BITS_COMPLEX	= 0x80000000,
+-
+-	MACH_SEND_MSG	= 0x1,
+-	MACH_RCV_MSG	= 0x2,
+-	MACH_RCV_LARGE	= 0x4,
+-
+-	MACH_SEND_TIMEOUT	= 0x10,
+-	MACH_SEND_INTERRUPT	= 0x40,
+-	MACH_SEND_ALWAYS	= 0x10000,
+-	MACH_SEND_TRAILER	= 0x20000,
+-	MACH_RCV_TIMEOUT	= 0x100,
+-	MACH_RCV_NOTIFY		= 0x200,
+-	MACH_RCV_INTERRUPT	= 0x400,
+-	MACH_RCV_OVERWRITE	= 0x1000,
+-
+-	NDR_PROTOCOL_2_0	= 0x0,
+-	NDR_INT_BIG_ENDIAN	= 0x0,
+-	NDR_INT_LITTLE_ENDIAN	= 0x1,
+-	NDR_FLOAT_IEEE		= 0x0,
+-	NDR_CHAR_ASCII		= 0x0,
+-
+-	SA_SIGINFO	= 0x40,
+-	SA_RESTART	= 0x2,
+-	SA_ONSTACK	= 0x1,
+-	SA_USERTRAMP	= 0x100,
+-	SA_64REGSET	= 0x200,
+-
+-	SIGHUP		= 0x1,
+-	SIGINT		= 0x2,
+-	SIGQUIT		= 0x3,
+-	SIGILL		= 0x4,
+-	SIGTRAP		= 0x5,
+-	SIGABRT		= 0x6,
+-	SIGEMT		= 0x7,
+-	SIGFPE		= 0x8,
+-	SIGKILL		= 0x9,
+-	SIGBUS		= 0xa,
+-	SIGSEGV		= 0xb,
+-	SIGSYS		= 0xc,
+-	SIGPIPE		= 0xd,
+-	SIGALRM		= 0xe,
+-	SIGTERM		= 0xf,
+-	SIGURG		= 0x10,
+-	SIGSTOP		= 0x11,
+-	SIGTSTP		= 0x12,
+-	SIGCONT		= 0x13,
+-	SIGCHLD		= 0x14,
+-	SIGTTIN		= 0x15,
+-	SIGTTOU		= 0x16,
+-	SIGIO		= 0x17,
+-	SIGXCPU		= 0x18,
+-	SIGXFSZ		= 0x19,
+-	SIGVTALRM	= 0x1a,
+-	SIGPROF		= 0x1b,
+-	SIGWINCH	= 0x1c,
+-	SIGINFO		= 0x1d,
+-	SIGUSR1		= 0x1e,
+-	SIGUSR2		= 0x1f,
+-
+-	FPE_INTDIV	= 0x7,
+-	FPE_INTOVF	= 0x8,
+-	FPE_FLTDIV	= 0x1,
+-	FPE_FLTOVF	= 0x2,
+-	FPE_FLTUND	= 0x3,
+-	FPE_FLTRES	= 0x4,
+-	FPE_FLTINV	= 0x5,
+-	FPE_FLTSUB	= 0x6,
+-
+-	BUS_ADRALN	= 0x1,
+-	BUS_ADRERR	= 0x2,
+-	BUS_OBJERR	= 0x3,
+-
+-	SEGV_MAPERR	= 0x1,
+-	SEGV_ACCERR	= 0x2,
+-
+-	ITIMER_REAL	= 0x0,
+-	ITIMER_VIRTUAL	= 0x1,
+-	ITIMER_PROF	= 0x2,
+-
+-	EV_ADD		= 0x1,
+-	EV_DELETE	= 0x2,
+-	EV_CLEAR	= 0x20,
+-	EV_RECEIPT	= 0x40,
+-	EV_ERROR	= 0x4000,
+-	EVFILT_READ	= -0x1,
+-	EVFILT_WRITE	= -0x2,
+-};
+-
+-typedef struct MachBody MachBody;
+-typedef struct MachHeader MachHeader;
+-typedef struct MachNDR MachNDR;
+-typedef struct MachPort MachPort;
+-typedef struct StackT StackT;
+-typedef struct SigactionT SigactionT;
+-typedef struct Siginfo Siginfo;
+-typedef struct Timeval Timeval;
+-typedef struct Itimerval Itimerval;
+-typedef struct Timespec Timespec;
+-typedef struct FPControl FPControl;
+-typedef struct FPStatus FPStatus;
+-typedef struct RegMMST RegMMST;
+-typedef struct RegXMM RegXMM;
+-typedef struct Regs64 Regs64;
+-typedef struct FloatState64 FloatState64;
+-typedef struct ExceptionState64 ExceptionState64;
+-typedef struct Mcontext64 Mcontext64;
+-typedef struct Regs32 Regs32;
+-typedef struct FloatState32 FloatState32;
+-typedef struct ExceptionState32 ExceptionState32;
+-typedef struct Mcontext32 Mcontext32;
+-typedef struct Ucontext Ucontext;
+-typedef struct KeventT KeventT;
+-
+-#pragma pack on
+-
+-struct MachBody {
+-	uint32	msgh_descriptor_count;
+-};
+-struct MachHeader {
+-	uint32	msgh_bits;
+-	uint32	msgh_size;
+-	uint32	msgh_remote_port;
+-	uint32	msgh_local_port;
+-	uint32	msgh_reserved;
+-	int32	msgh_id;
+-};
+-struct MachNDR {
+-	uint8	mig_vers;
+-	uint8	if_vers;
+-	uint8	reserved1;
+-	uint8	mig_encoding;
+-	uint8	int_rep;
+-	uint8	char_rep;
+-	uint8	float_rep;
+-	uint8	reserved2;
+-};
+-struct MachPort {
+-	uint32	name;
+-	uint32	pad1;
+-	uint16	pad2;
+-	uint8	disposition;
+-	uint8	type;
+-};
+-
+-struct StackT {
+-	byte	*ss_sp;
+-	uint32	ss_size;
+-	int32	ss_flags;
+-};
+-typedef	byte	Sighandler[4];
+-
+-struct SigactionT {
+-	byte	__sigaction_u[4];
+-	void	*sa_tramp;
+-	uint32	sa_mask;
+-	int32	sa_flags;
+-};
+-
+-typedef	byte	Sigval[4];
+-struct Siginfo {
+-	int32	si_signo;
+-	int32	si_errno;
+-	int32	si_code;
+-	int32	si_pid;
+-	uint32	si_uid;
+-	int32	si_status;
+-	byte	*si_addr;
+-	byte	si_value[4];
+-	int32	si_band;
+-	uint32	__pad[7];
+-};
+-struct Timeval {
+-	int32	tv_sec;
+-	int32	tv_usec;
+-};
+-struct Itimerval {
+-	Timeval	it_interval;
+-	Timeval	it_value;
+-};
+-struct Timespec {
+-	int32	tv_sec;
+-	int32	tv_nsec;
+-};
+-
+-struct FPControl {
+-	byte	Pad_cgo_0[2];
+-};
+-struct FPStatus {
+-	byte	Pad_cgo_0[2];
+-};
+-struct RegMMST {
+-	int8	mmst_reg[10];
+-	int8	mmst_rsrv[6];
+-};
+-struct RegXMM {
+-	int8	xmm_reg[16];
+-};
+-
+-struct Regs64 {
+-	uint64	rax;
+-	uint64	rbx;
+-	uint64	rcx;
+-	uint64	rdx;
+-	uint64	rdi;
+-	uint64	rsi;
+-	uint64	rbp;
+-	uint64	rsp;
+-	uint64	r8;
+-	uint64	r9;
+-	uint64	r10;
+-	uint64	r11;
+-	uint64	r12;
+-	uint64	r13;
+-	uint64	r14;
+-	uint64	r15;
+-	uint64	rip;
+-	uint64	rflags;
+-	uint64	cs;
+-	uint64	fs;
+-	uint64	gs;
+-};
+-struct FloatState64 {
+-	int32	fpu_reserved[2];
+-	FPControl	fpu_fcw;
+-	FPStatus	fpu_fsw;
+-	uint8	fpu_ftw;
+-	uint8	fpu_rsrv1;
+-	uint16	fpu_fop;
+-	uint32	fpu_ip;
+-	uint16	fpu_cs;
+-	uint16	fpu_rsrv2;
+-	uint32	fpu_dp;
+-	uint16	fpu_ds;
+-	uint16	fpu_rsrv3;
+-	uint32	fpu_mxcsr;
+-	uint32	fpu_mxcsrmask;
+-	RegMMST	fpu_stmm0;
+-	RegMMST	fpu_stmm1;
+-	RegMMST	fpu_stmm2;
+-	RegMMST	fpu_stmm3;
+-	RegMMST	fpu_stmm4;
+-	RegMMST	fpu_stmm5;
+-	RegMMST	fpu_stmm6;
+-	RegMMST	fpu_stmm7;
+-	RegXMM	fpu_xmm0;
+-	RegXMM	fpu_xmm1;
+-	RegXMM	fpu_xmm2;
+-	RegXMM	fpu_xmm3;
+-	RegXMM	fpu_xmm4;
+-	RegXMM	fpu_xmm5;
+-	RegXMM	fpu_xmm6;
+-	RegXMM	fpu_xmm7;
+-	RegXMM	fpu_xmm8;
+-	RegXMM	fpu_xmm9;
+-	RegXMM	fpu_xmm10;
+-	RegXMM	fpu_xmm11;
+-	RegXMM	fpu_xmm12;
+-	RegXMM	fpu_xmm13;
+-	RegXMM	fpu_xmm14;
+-	RegXMM	fpu_xmm15;
+-	int8	fpu_rsrv4[96];
+-	int32	fpu_reserved1;
+-};
+-struct ExceptionState64 {
+-	uint16	trapno;
+-	uint16	cpu;
+-	uint32	err;
+-	uint64	faultvaddr;
+-};
+-struct Mcontext64 {
+-	ExceptionState64	es;
+-	Regs64	ss;
+-	FloatState64	fs;
+-};
+-
+-struct Regs32 {
+-	uint32	eax;
+-	uint32	ebx;
+-	uint32	ecx;
+-	uint32	edx;
+-	uint32	edi;
+-	uint32	esi;
+-	uint32	ebp;
+-	uint32	esp;
+-	uint32	ss;
+-	uint32	eflags;
+-	uint32	eip;
+-	uint32	cs;
+-	uint32	ds;
+-	uint32	es;
+-	uint32	fs;
+-	uint32	gs;
+-};
+-struct FloatState32 {
+-	int32	fpu_reserved[2];
+-	FPControl	fpu_fcw;
+-	FPStatus	fpu_fsw;
+-	uint8	fpu_ftw;
+-	uint8	fpu_rsrv1;
+-	uint16	fpu_fop;
+-	uint32	fpu_ip;
+-	uint16	fpu_cs;
+-	uint16	fpu_rsrv2;
+-	uint32	fpu_dp;
+-	uint16	fpu_ds;
+-	uint16	fpu_rsrv3;
+-	uint32	fpu_mxcsr;
+-	uint32	fpu_mxcsrmask;
+-	RegMMST	fpu_stmm0;
+-	RegMMST	fpu_stmm1;
+-	RegMMST	fpu_stmm2;
+-	RegMMST	fpu_stmm3;
+-	RegMMST	fpu_stmm4;
+-	RegMMST	fpu_stmm5;
+-	RegMMST	fpu_stmm6;
+-	RegMMST	fpu_stmm7;
+-	RegXMM	fpu_xmm0;
+-	RegXMM	fpu_xmm1;
+-	RegXMM	fpu_xmm2;
+-	RegXMM	fpu_xmm3;
+-	RegXMM	fpu_xmm4;
+-	RegXMM	fpu_xmm5;
+-	RegXMM	fpu_xmm6;
+-	RegXMM	fpu_xmm7;
+-	int8	fpu_rsrv4[224];
+-	int32	fpu_reserved1;
+-};
+-struct ExceptionState32 {
+-	uint16	trapno;
+-	uint16	cpu;
+-	uint32	err;
+-	uint32	faultvaddr;
+-};
+-struct Mcontext32 {
+-	ExceptionState32	es;
+-	Regs32	ss;
+-	FloatState32	fs;
+-};
+-
+-struct Ucontext {
+-	int32	uc_onstack;
+-	uint32	uc_sigmask;
+-	StackT	uc_stack;
+-	Ucontext	*uc_link;
+-	uint32	uc_mcsize;
+-	Mcontext32	*uc_mcontext;
+-};
+-
+-struct KeventT {
+-	uint32	ident;
+-	int16	filter;
+-	uint16	flags;
+-	uint32	fflags;
+-	int32	data;
+-	byte	*udata;
+-};
+-
+-
+-#pragma pack off
+diff --git a/src/runtime/defs_darwin_amd64.go b/src/runtime/defs_darwin_amd64.go
+new file mode 100644
+index 0000000000..2cd4c0cd05
+--- /dev/null
++++ b/src/runtime/defs_darwin_amd64.go
+@@ -0,0 +1,385 @@
++// created by cgo -cdefs and then converted to Go
++// cgo -cdefs defs_darwin.go
++
++package runtime
++
++import "unsafe"
++
++const (
++	_EINTR  = 0x4
++	_EFAULT = 0xe
++
++	_PROT_NONE  = 0x0
++	_PROT_READ  = 0x1
++	_PROT_WRITE = 0x2
++	_PROT_EXEC  = 0x4
++
++	_MAP_ANON    = 0x1000
++	_MAP_PRIVATE = 0x2
++	_MAP_FIXED   = 0x10
++
++	_MADV_DONTNEED = 0x4
++	_MADV_FREE     = 0x5
++
++	_MACH_MSG_TYPE_MOVE_RECEIVE   = 0x10
++	_MACH_MSG_TYPE_MOVE_SEND      = 0x11
++	_MACH_MSG_TYPE_MOVE_SEND_ONCE = 0x12
++	_MACH_MSG_TYPE_COPY_SEND      = 0x13
++	_MACH_MSG_TYPE_MAKE_SEND      = 0x14
++	_MACH_MSG_TYPE_MAKE_SEND_ONCE = 0x15
++	_MACH_MSG_TYPE_COPY_RECEIVE   = 0x16
++
++	_MACH_MSG_PORT_DESCRIPTOR         = 0x0
++	_MACH_MSG_OOL_DESCRIPTOR          = 0x1
++	_MACH_MSG_OOL_PORTS_DESCRIPTOR    = 0x2
++	_MACH_MSG_OOL_VOLATILE_DESCRIPTOR = 0x3
++
++	_MACH_MSGH_BITS_COMPLEX = 0x80000000
++
++	_MACH_SEND_MSG  = 0x1
++	_MACH_RCV_MSG   = 0x2
++	_MACH_RCV_LARGE = 0x4
++
++	_MACH_SEND_TIMEOUT   = 0x10
++	_MACH_SEND_INTERRUPT = 0x40
++	_MACH_SEND_ALWAYS    = 0x10000
++	_MACH_SEND_TRAILER   = 0x20000
++	_MACH_RCV_TIMEOUT    = 0x100
++	_MACH_RCV_NOTIFY     = 0x200
++	_MACH_RCV_INTERRUPT  = 0x400
++	_MACH_RCV_OVERWRITE  = 0x1000
++
++	_NDR_PROTOCOL_2_0      = 0x0
++	_NDR_INT_BIG_ENDIAN    = 0x0
++	_NDR_INT_LITTLE_ENDIAN = 0x1
++	_NDR_FLOAT_IEEE        = 0x0
++	_NDR_CHAR_ASCII        = 0x0
++
++	_SA_SIGINFO   = 0x40
++	_SA_RESTART   = 0x2
++	_SA_ONSTACK   = 0x1
++	_SA_USERTRAMP = 0x100
++	_SA_64REGSET  = 0x200
++
++	_SIGHUP    = 0x1
++	_SIGINT    = 0x2
++	_SIGQUIT   = 0x3
++	_SIGILL    = 0x4
++	_SIGTRAP   = 0x5
++	_SIGABRT   = 0x6
++	_SIGEMT    = 0x7
++	_SIGFPE    = 0x8
++	_SIGKILL   = 0x9
++	_SIGBUS    = 0xa
++	_SIGSEGV   = 0xb
++	_SIGSYS    = 0xc
++	_SIGPIPE   = 0xd
++	_SIGALRM   = 0xe
++	_SIGTERM   = 0xf
++	_SIGURG    = 0x10
++	_SIGSTOP   = 0x11
++	_SIGTSTP   = 0x12
++	_SIGCONT   = 0x13
++	_SIGCHLD   = 0x14
++	_SIGTTIN   = 0x15
++	_SIGTTOU   = 0x16
++	_SIGIO     = 0x17
++	_SIGXCPU   = 0x18
++	_SIGXFSZ   = 0x19
++	_SIGVTALRM = 0x1a
++	_SIGPROF   = 0x1b
++	_SIGWINCH  = 0x1c
++	_SIGINFO   = 0x1d
++	_SIGUSR1   = 0x1e
++	_SIGUSR2   = 0x1f
++
++	_FPE_INTDIV = 0x7
++	_FPE_INTOVF = 0x8
++	_FPE_FLTDIV = 0x1
++	_FPE_FLTOVF = 0x2
++	_FPE_FLTUND = 0x3
++	_FPE_FLTRES = 0x4
++	_FPE_FLTINV = 0x5
++	_FPE_FLTSUB = 0x6
++
++	_BUS_ADRALN = 0x1
++	_BUS_ADRERR = 0x2
++	_BUS_OBJERR = 0x3
++
++	_SEGV_MAPERR = 0x1
++	_SEGV_ACCERR = 0x2
++
++	_ITIMER_REAL    = 0x0
++	_ITIMER_VIRTUAL = 0x1
++	_ITIMER_PROF    = 0x2
++
++	_EV_ADD       = 0x1
++	_EV_DELETE    = 0x2
++	_EV_CLEAR     = 0x20
++	_EV_RECEIPT   = 0x40
++	_EV_ERROR     = 0x4000
++	_EVFILT_READ  = -0x1
++	_EVFILT_WRITE = -0x2
++)
++
++type machbody struct {
++	msgh_descriptor_count uint32
++}
++
++type machheader struct {
++	msgh_bits        uint32
++	msgh_size        uint32
++	msgh_remote_port uint32
++	msgh_local_port  uint32
++	msgh_reserved    uint32
++	msgh_id          int32
++}
++
++type machndr struct {
++	mig_vers     uint8
++	if_vers      uint8
++	reserved1    uint8
++	mig_encoding uint8
++	int_rep      uint8
++	char_rep     uint8
++	float_rep    uint8
++	reserved2    uint8
++}
++
++type machport struct {
++	name        uint32
++	pad1        uint32
++	pad2        uint16
++	disposition uint8
++	_type       uint8
++}
++
++type stackt struct {
++	ss_sp     *byte
++	ss_size   uintptr
++	ss_flags  int32
++	pad_cgo_0 [4]byte
++}
++
++type sigactiont struct {
++	__sigaction_u [8]byte
++	sa_tramp      unsafe.Pointer
++	sa_mask       uint32
++	sa_flags      int32
++}
++
++type siginfo struct {
++	si_signo  int32
++	si_errno  int32
++	si_code   int32
++	si_pid    int32
++	si_uid    uint32
++	si_status int32
++	si_addr   *byte
++	si_value  [8]byte
++	si_band   int64
++	__pad     [7]uint64
++}
++
++type timeval struct {
++	tv_sec    int64
++	tv_usec   int32
++	pad_cgo_0 [4]byte
++}
++
++func (tv *timeval) set_usec(x int32) {
++	tv.tv_usec = x
++}
++
++type itimerval struct {
++	it_interval timeval
++	it_value    timeval
++}
++
++type timespec struct {
++	tv_sec  int64
++	tv_nsec int64
++}
++
++type fpcontrol struct {
++	pad_cgo_0 [2]byte
++}
++
++type fpstatus struct {
++	pad_cgo_0 [2]byte
++}
++
++type regmmst struct {
++	mmst_reg  [10]int8
++	mmst_rsrv [6]int8
++}
++
++type regxmm struct {
++	xmm_reg [16]int8
++}
++
++type regs64 struct {
++	rax    uint64
++	rbx    uint64
++	rcx    uint64
++	rdx    uint64
++	rdi    uint64
++	rsi    uint64
++	rbp    uint64
++	rsp    uint64
++	r8     uint64
++	r9     uint64
++	r10    uint64
++	r11    uint64
++	r12    uint64
++	r13    uint64
++	r14    uint64
++	r15    uint64
++	rip    uint64
++	rflags uint64
++	cs     uint64
++	fs     uint64
++	gs     uint64
++}
++
++type floatstate64 struct {
++	fpu_reserved  [2]int32
++	fpu_fcw       fpcontrol
++	fpu_fsw       fpstatus
++	fpu_ftw       uint8
++	fpu_rsrv1     uint8
++	fpu_fop       uint16
++	fpu_ip        uint32
++	fpu_cs        uint16
++	fpu_rsrv2     uint16
++	fpu_dp        uint32
++	fpu_ds        uint16
++	fpu_rsrv3     uint16
++	fpu_mxcsr     uint32
++	fpu_mxcsrmask uint32
++	fpu_stmm0     regmmst
++	fpu_stmm1     regmmst
++	fpu_stmm2     regmmst
++	fpu_stmm3     regmmst
++	fpu_stmm4     regmmst
++	fpu_stmm5     regmmst
++	fpu_stmm6     regmmst
++	fpu_stmm7     regmmst
++	fpu_xmm0      regxmm
++	fpu_xmm1      regxmm
++	fpu_xmm2      regxmm
++	fpu_xmm3      regxmm
++	fpu_xmm4      regxmm
++	fpu_xmm5      regxmm
++	fpu_xmm6      regxmm
++	fpu_xmm7      regxmm
++	fpu_xmm8      regxmm
++	fpu_xmm9      regxmm
++	fpu_xmm10     regxmm
++	fpu_xmm11     regxmm
++	fpu_xmm12     regxmm
++	fpu_xmm13     regxmm
++	fpu_xmm14     regxmm
++	fpu_xmm15     regxmm
++	fpu_rsrv4     [96]int8
++	fpu_reserved1 int32
++}
++
++type exceptionstate64 struct {
++	trapno     uint16
++	cpu        uint16
++	err        uint32
++	faultvaddr uint64
++}
++
++type mcontext64 struct {
++	es        exceptionstate64
++	ss        regs64
++	fs        floatstate64
++	pad_cgo_0 [4]byte
++}
++
++type regs32 struct {
++	eax    uint32
++	ebx    uint32
++	ecx    uint32
++	edx    uint32
++	edi    uint32
++	esi    uint32
++	ebp    uint32
++	esp    uint32
++	ss     uint32
++	eflags uint32
++	eip    uint32
++	cs     uint32
++	ds     uint32
++	es     uint32
++	fs     uint32
++	gs     uint32
++}
++
++type floatstate32 struct {
++	fpu_reserved  [2]int32
++	fpu_fcw       fpcontrol
++	fpu_fsw       fpstatus
++	fpu_ftw       uint8
++	fpu_rsrv1     uint8
++	fpu_fop       uint16
++	fpu_ip        uint32
++	fpu_cs        uint16
++	fpu_rsrv2     uint16
++	fpu_dp        uint32
++	fpu_ds        uint16
++	fpu_rsrv3     uint16
++	fpu_mxcsr     uint32
++	fpu_mxcsrmask uint32
++	fpu_stmm0     regmmst
++	fpu_stmm1     regmmst
++	fpu_stmm2     regmmst
++	fpu_stmm3     regmmst
++	fpu_stmm4     regmmst
++	fpu_stmm5     regmmst
++	fpu_stmm6     regmmst
++	fpu_stmm7     regmmst
++	fpu_xmm0      regxmm
++	fpu_xmm1      regxmm
++	fpu_xmm2      regxmm
++	fpu_xmm3      regxmm
++	fpu_xmm4      regxmm
++	fpu_xmm5      regxmm
++	fpu_xmm6      regxmm
++	fpu_xmm7      regxmm
++	fpu_rsrv4     [224]int8
++	fpu_reserved1 int32
++}
++
++type exceptionstate32 struct {
++	trapno     uint16
++	cpu        uint16
++	err        uint32
++	faultvaddr uint32
++}
++
++type mcontext32 struct {
++	es exceptionstate32
++	ss regs32
++	fs floatstate32
++}
++
++type ucontext struct {
++	uc_onstack  int32
++	uc_sigmask  uint32
++	uc_stack    stackt
++	uc_link     *ucontext
++	uc_mcsize   uint64
++	uc_mcontext *mcontext64
++}
++
++type keventt struct {
++	ident  uint64
++	filter int16
++	flags  uint16
++	fflags uint32
++	data   int64
++	udata  *byte
++}
+diff --git a/src/runtime/defs_darwin_amd64.h b/src/runtime/defs_darwin_amd64.h
+deleted file mode 100644
+index 4bf83c1cb9..0000000000
+--- a/src/runtime/defs_darwin_amd64.h
++++ /dev/null
+@@ -1,395 +0,0 @@
+-// Created by cgo -cdefs - DO NOT EDIT
+-// cgo -cdefs defs_darwin.go
+-
+-
+-enum {
+-	EINTR	= 0x4,
+-	EFAULT	= 0xe,
+-
+-	PROT_NONE	= 0x0,
+-	PROT_READ	= 0x1,
+-	PROT_WRITE	= 0x2,
+-	PROT_EXEC	= 0x4,
+-
+-	MAP_ANON	= 0x1000,
+-	MAP_PRIVATE	= 0x2,
+-	MAP_FIXED	= 0x10,
+-
+-	MADV_DONTNEED	= 0x4,
+-	MADV_FREE	= 0x5,
+-
+-	MACH_MSG_TYPE_MOVE_RECEIVE	= 0x10,
+-	MACH_MSG_TYPE_MOVE_SEND		= 0x11,
+-	MACH_MSG_TYPE_MOVE_SEND_ONCE	= 0x12,
+-	MACH_MSG_TYPE_COPY_SEND		= 0x13,
+-	MACH_MSG_TYPE_MAKE_SEND		= 0x14,
+-	MACH_MSG_TYPE_MAKE_SEND_ONCE	= 0x15,
+-	MACH_MSG_TYPE_COPY_RECEIVE	= 0x16,
+-
+-	MACH_MSG_PORT_DESCRIPTOR		= 0x0,
+-	MACH_MSG_OOL_DESCRIPTOR			= 0x1,
+-	MACH_MSG_OOL_PORTS_DESCRIPTOR		= 0x2,
+-	MACH_MSG_OOL_VOLATILE_DESCRIPTOR	= 0x3,
+-
+-	MACH_MSGH_BITS_COMPLEX	= 0x80000000,
+-
+-	MACH_SEND_MSG	= 0x1,
+-	MACH_RCV_MSG	= 0x2,
+-	MACH_RCV_LARGE	= 0x4,
+-
+-	MACH_SEND_TIMEOUT	= 0x10,
+-	MACH_SEND_INTERRUPT	= 0x40,
+-	MACH_SEND_ALWAYS	= 0x10000,
+-	MACH_SEND_TRAILER	= 0x20000,
+-	MACH_RCV_TIMEOUT	= 0x100,
+-	MACH_RCV_NOTIFY		= 0x200,
+-	MACH_RCV_INTERRUPT	= 0x400,
+-	MACH_RCV_OVERWRITE	= 0x1000,
+-
+-	NDR_PROTOCOL_2_0	= 0x0,
+-	NDR_INT_BIG_ENDIAN	= 0x0,
+-	NDR_INT_LITTLE_ENDIAN	= 0x1,
+-	NDR_FLOAT_IEEE		= 0x0,
+-	NDR_CHAR_ASCII		= 0x0,
+-
+-	SA_SIGINFO	= 0x40,
+-	SA_RESTART	= 0x2,
+-	SA_ONSTACK	= 0x1,
+-	SA_USERTRAMP	= 0x100,
+-	SA_64REGSET	= 0x200,
+-
+-	SIGHUP		= 0x1,
+-	SIGINT		= 0x2,
+-	SIGQUIT		= 0x3,
+-	SIGILL		= 0x4,
+-	SIGTRAP		= 0x5,
+-	SIGABRT		= 0x6,
+-	SIGEMT		= 0x7,
+-	SIGFPE		= 0x8,
+-	SIGKILL		= 0x9,
+-	SIGBUS		= 0xa,
+-	SIGSEGV		= 0xb,
+-	SIGSYS		= 0xc,
+-	SIGPIPE		= 0xd,
+-	SIGALRM		= 0xe,
+-	SIGTERM		= 0xf,
+-	SIGURG		= 0x10,
+-	SIGSTOP		= 0x11,
+-	SIGTSTP		= 0x12,
+-	SIGCONT		= 0x13,
+-	SIGCHLD		= 0x14,
+-	SIGTTIN		= 0x15,
+-	SIGTTOU		= 0x16,
+-	SIGIO		= 0x17,
+-	SIGXCPU		= 0x18,
+-	SIGXFSZ		= 0x19,
+-	SIGVTALRM	= 0x1a,
+-	SIGPROF		= 0x1b,
+-	SIGWINCH	= 0x1c,
+-	SIGINFO		= 0x1d,
+-	SIGUSR1		= 0x1e,
+-	SIGUSR2		= 0x1f,
+-
+-	FPE_INTDIV	= 0x7,
+-	FPE_INTOVF	= 0x8,
+-	FPE_FLTDIV	= 0x1,
+-	FPE_FLTOVF	= 0x2,
+-	FPE_FLTUND	= 0x3,
+-	FPE_FLTRES	= 0x4,
+-	FPE_FLTINV	= 0x5,
+-	FPE_FLTSUB	= 0x6,
+-
+-	BUS_ADRALN	= 0x1,
+-	BUS_ADRERR	= 0x2,
+-	BUS_OBJERR	= 0x3,
+-
+-	SEGV_MAPERR	= 0x1,
+-	SEGV_ACCERR	= 0x2,
+-
+-	ITIMER_REAL	= 0x0,
+-	ITIMER_VIRTUAL	= 0x1,
+-	ITIMER_PROF	= 0x2,
+-
+-	EV_ADD		= 0x1,
+-	EV_DELETE	= 0x2,
+-	EV_CLEAR	= 0x20,
+-	EV_RECEIPT	= 0x40,
+-	EV_ERROR	= 0x4000,
+-	EVFILT_READ	= -0x1,
+-	EVFILT_WRITE	= -0x2,
+-};
+-
+-typedef struct MachBody MachBody;
+-typedef struct MachHeader MachHeader;
+-typedef struct MachNDR MachNDR;
+-typedef struct MachPort MachPort;
+-typedef struct StackT StackT;
+-typedef struct SigactionT SigactionT;
+-typedef struct Siginfo Siginfo;
+-typedef struct Timeval Timeval;
+-typedef struct Itimerval Itimerval;
+-typedef struct Timespec Timespec;
+-typedef struct FPControl FPControl;
+-typedef struct FPStatus FPStatus;
+-typedef struct RegMMST RegMMST;
+-typedef struct RegXMM RegXMM;
+-typedef struct Regs64 Regs64;
+-typedef struct FloatState64 FloatState64;
+-typedef struct ExceptionState64 ExceptionState64;
+-typedef struct Mcontext64 Mcontext64;
+-typedef struct Regs32 Regs32;
+-typedef struct FloatState32 FloatState32;
+-typedef struct ExceptionState32 ExceptionState32;
+-typedef struct Mcontext32 Mcontext32;
+-typedef struct Ucontext Ucontext;
+-typedef struct KeventT KeventT;
+-
+-#pragma pack on
+-
+-struct MachBody {
+-	uint32	msgh_descriptor_count;
+-};
+-struct MachHeader {
+-	uint32	msgh_bits;
+-	uint32	msgh_size;
+-	uint32	msgh_remote_port;
+-	uint32	msgh_local_port;
+-	uint32	msgh_reserved;
+-	int32	msgh_id;
+-};
+-struct MachNDR {
+-	uint8	mig_vers;
+-	uint8	if_vers;
+-	uint8	reserved1;
+-	uint8	mig_encoding;
+-	uint8	int_rep;
+-	uint8	char_rep;
+-	uint8	float_rep;
+-	uint8	reserved2;
+-};
+-struct MachPort {
+-	uint32	name;
+-	uint32	pad1;
+-	uint16	pad2;
+-	uint8	disposition;
+-	uint8	type;
+-};
+-
+-struct StackT {
+-	byte	*ss_sp;
+-	uint64	ss_size;
+-	int32	ss_flags;
+-	byte	Pad_cgo_0[4];
+-};
+-typedef	byte	Sighandler[8];
+-
+-struct SigactionT {
+-	byte	__sigaction_u[8];
+-	void	*sa_tramp;
+-	uint32	sa_mask;
+-	int32	sa_flags;
+-};
+-
+-typedef	byte	Sigval[8];
+-struct Siginfo {
+-	int32	si_signo;
+-	int32	si_errno;
+-	int32	si_code;
+-	int32	si_pid;
+-	uint32	si_uid;
+-	int32	si_status;
+-	byte	*si_addr;
+-	byte	si_value[8];
+-	int64	si_band;
+-	uint64	__pad[7];
+-};
+-struct Timeval {
+-	int64	tv_sec;
+-	int32	tv_usec;
+-	byte	Pad_cgo_0[4];
+-};
+-struct Itimerval {
+-	Timeval	it_interval;
+-	Timeval	it_value;
+-};
+-struct Timespec {
+-	int64	tv_sec;
+-	int64	tv_nsec;
+-};
+-
+-struct FPControl {
+-	byte	Pad_cgo_0[2];
+-};
+-struct FPStatus {
+-	byte	Pad_cgo_0[2];
+-};
+-struct RegMMST {
+-	int8	mmst_reg[10];
+-	int8	mmst_rsrv[6];
+-};
+-struct RegXMM {
+-	int8	xmm_reg[16];
+-};
+-
+-struct Regs64 {
+-	uint64	rax;
+-	uint64	rbx;
+-	uint64	rcx;
+-	uint64	rdx;
+-	uint64	rdi;
+-	uint64	rsi;
+-	uint64	rbp;
+-	uint64	rsp;
+-	uint64	r8;
+-	uint64	r9;
+-	uint64	r10;
+-	uint64	r11;
+-	uint64	r12;
+-	uint64	r13;
+-	uint64	r14;
+-	uint64	r15;
+-	uint64	rip;
+-	uint64	rflags;
+-	uint64	cs;
+-	uint64	fs;
+-	uint64	gs;
+-};
+-struct FloatState64 {
+-	int32	fpu_reserved[2];
+-	FPControl	fpu_fcw;
+-	FPStatus	fpu_fsw;
+-	uint8	fpu_ftw;
+-	uint8	fpu_rsrv1;
+-	uint16	fpu_fop;
+-	uint32	fpu_ip;
+-	uint16	fpu_cs;
+-	uint16	fpu_rsrv2;
+-	uint32	fpu_dp;
+-	uint16	fpu_ds;
+-	uint16	fpu_rsrv3;
+-	uint32	fpu_mxcsr;
+-	uint32	fpu_mxcsrmask;
+-	RegMMST	fpu_stmm0;
+-	RegMMST	fpu_stmm1;
+-	RegMMST	fpu_stmm2;
+-	RegMMST	fpu_stmm3;
+-	RegMMST	fpu_stmm4;
+-	RegMMST	fpu_stmm5;
+-	RegMMST	fpu_stmm6;
+-	RegMMST	fpu_stmm7;
+-	RegXMM	fpu_xmm0;
+-	RegXMM	fpu_xmm1;
+-	RegXMM	fpu_xmm2;
+-	RegXMM	fpu_xmm3;
+-	RegXMM	fpu_xmm4;
+-	RegXMM	fpu_xmm5;
+-	RegXMM	fpu_xmm6;
+-	RegXMM	fpu_xmm7;
+-	RegXMM	fpu_xmm8;
+-	RegXMM	fpu_xmm9;
+-	RegXMM	fpu_xmm10;
+-	RegXMM	fpu_xmm11;
+-	RegXMM	fpu_xmm12;
+-	RegXMM	fpu_xmm13;
+-	RegXMM	fpu_xmm14;
+-	RegXMM	fpu_xmm15;
+-	int8	fpu_rsrv4[96];
+-	int32	fpu_reserved1;
+-};
+-struct ExceptionState64 {
+-	uint16	trapno;
+-	uint16	cpu;
+-	uint32	err;
+-	uint64	faultvaddr;
+-};
+-struct Mcontext64 {
+-	ExceptionState64	es;
+-	Regs64	ss;
+-	FloatState64	fs;
+-	byte	Pad_cgo_0[4];
+-};
+-
+-struct Regs32 {
+-	uint32	eax;
+-	uint32	ebx;
+-	uint32	ecx;
+-	uint32	edx;
+-	uint32	edi;
+-	uint32	esi;
+-	uint32	ebp;
+-	uint32	esp;
+-	uint32	ss;
+-	uint32	eflags;
+-	uint32	eip;
+-	uint32	cs;
+-	uint32	ds;
+-	uint32	es;
+-	uint32	fs;
+-	uint32	gs;
+-};
+-struct FloatState32 {
+-	int32	fpu_reserved[2];
+-	FPControl	fpu_fcw;
+-	FPStatus	fpu_fsw;
+-	uint8	fpu_ftw;
+-	uint8	fpu_rsrv1;
+-	uint16	fpu_fop;
+-	uint32	fpu_ip;
+-	uint16	fpu_cs;
+-	uint16	fpu_rsrv2;
+-	uint32	fpu_dp;
+-	uint16	fpu_ds;
+-	uint16	fpu_rsrv3;
+-	uint32	fpu_mxcsr;
+-	uint32	fpu_mxcsrmask;
+-	RegMMST	fpu_stmm0;
+-	RegMMST	fpu_stmm1;
+-	RegMMST	fpu_stmm2;
+-	RegMMST	fpu_stmm3;
+-	RegMMST	fpu_stmm4;
+-	RegMMST	fpu_stmm5;
+-	RegMMST	fpu_stmm6;
+-	RegMMST	fpu_stmm7;
+-	RegXMM	fpu_xmm0;
+-	RegXMM	fpu_xmm1;
+-	RegXMM	fpu_xmm2;
+-	RegXMM	fpu_xmm3;
+-	RegXMM	fpu_xmm4;
+-	RegXMM	fpu_xmm5;
+-	RegXMM	fpu_xmm6;
+-	RegXMM	fpu_xmm7;
+-	int8	fpu_rsrv4[224];
+-	int32	fpu_reserved1;
+-};
+-struct ExceptionState32 {
+-	uint16	trapno;
+-	uint16	cpu;
+-	uint32	err;
+-	uint32	faultvaddr;
+-};
+-struct Mcontext32 {
+-	ExceptionState32	es;
+-	Regs32	ss;
+-	FloatState32	fs;
+-};
+-
+-struct Ucontext {
+-	int32	uc_onstack;
+-	uint32	uc_sigmask;
+-	StackT	uc_stack;
+-	Ucontext	*uc_link;
+-	uint64	uc_mcsize;
+-	Mcontext64	*uc_mcontext;
+-};
+-
+-struct KeventT {
+-	uint64	ident;
+-	int16	filter;
+-	uint16	flags;
+-	uint32	fflags;
+-	int64	data;
+-	byte	*udata;
+-};
+-
+-
+-#pragma pack off
+diff --git a/src/runtime/defs_dragonfly_386.go b/src/runtime/defs_dragonfly_386.go
+new file mode 100644
+index 0000000000..1768dbac41
+--- /dev/null
++++ b/src/runtime/defs_dragonfly_386.go
+@@ -0,0 +1,190 @@
++// created by cgo -cdefs and then converted to Go
++// cgo -cdefs defs_dragonfly.go
++
++package runtime
++
++import "unsafe"
++
++const (
++	_EINTR  = 0x4
++	_EFAULT = 0xe
++	_EBUSY  = 0x10
++	_EAGAIN = 0x23
++
++	_PROT_NONE  = 0x0
++	_PROT_READ  = 0x1
++	_PROT_WRITE = 0x2
++	_PROT_EXEC  = 0x4
++
++	_MAP_ANON    = 0x1000
++	_MAP_PRIVATE = 0x2
++	_MAP_FIXED   = 0x10
++
++	_MADV_FREE = 0x5
++
++	_SA_SIGINFO = 0x40
++	_SA_RESTART = 0x2
++	_SA_ONSTACK = 0x1
++
++	_SIGHUP    = 0x1
++	_SIGINT    = 0x2
++	_SIGQUIT   = 0x3
++	_SIGILL    = 0x4
++	_SIGTRAP   = 0x5
++	_SIGABRT   = 0x6
++	_SIGEMT    = 0x7
++	_SIGFPE    = 0x8
++	_SIGKILL   = 0x9
++	_SIGBUS    = 0xa
++	_SIGSEGV   = 0xb
++	_SIGSYS    = 0xc
++	_SIGPIPE   = 0xd
++	_SIGALRM   = 0xe
++	_SIGTERM   = 0xf
++	_SIGURG    = 0x10
++	_SIGSTOP   = 0x11
++	_SIGTSTP   = 0x12
++	_SIGCONT   = 0x13
++	_SIGCHLD   = 0x14
++	_SIGTTIN   = 0x15
++	_SIGTTOU   = 0x16
++	_SIGIO     = 0x17
++	_SIGXCPU   = 0x18
++	_SIGXFSZ   = 0x19
++	_SIGVTALRM = 0x1a
++	_SIGPROF   = 0x1b
++	_SIGWINCH  = 0x1c
++	_SIGINFO   = 0x1d
++	_SIGUSR1   = 0x1e
++	_SIGUSR2   = 0x1f
++
++	_FPE_INTDIV = 0x2
++	_FPE_INTOVF = 0x1
++	_FPE_FLTDIV = 0x3
++	_FPE_FLTOVF = 0x4
++	_FPE_FLTUND = 0x5
++	_FPE_FLTRES = 0x6
++	_FPE_FLTINV = 0x7
++	_FPE_FLTSUB = 0x8
++
++	_BUS_ADRALN = 0x1
++	_BUS_ADRERR = 0x2
++	_BUS_OBJERR = 0x3
++
++	_SEGV_MAPERR = 0x1
++	_SEGV_ACCERR = 0x2
++
++	_ITIMER_REAL    = 0x0
++	_ITIMER_VIRTUAL = 0x1
++	_ITIMER_PROF    = 0x2
++
++	_EV_ADD       = 0x1
++	_EV_DELETE    = 0x2
++	_EV_CLEAR     = 0x20
++	_EV_ERROR     = 0x4000
++	_EVFILT_READ  = -0x1
++	_EVFILT_WRITE = -0x2
++)
++
++type rtprio struct {
++	_type uint16
++	prio  uint16
++}
++
++type lwpparams struct {
++	_type unsafe.Pointer
++	arg   *byte
++	stack *byte
++	tid1  *int32
++	tid2  *int32
++}
++
++type sigaltstackt struct {
++	ss_sp    *int8
++	ss_size  uint32
++	ss_flags int32
++}
++
++type sigset struct {
++	__bits [4]uint32
++}
++
++type stackt struct {
++	ss_sp    *int8
++	ss_size  uint32
++	ss_flags int32
++}
++
++type siginfo struct {
++	si_signo  int32
++	si_errno  int32
++	si_code   int32
++	si_pid    int32
++	si_uid    uint32
++	si_status int32
++	si_addr   *byte
++	si_value  [4]byte
++	si_band   int32
++	__spare__ [7]int32
++}
++
++type mcontext struct {
++	mc_onstack  int32
++	mc_gs       int32
++	mc_fs       int32
++	mc_es       int32
++	mc_ds       int32
++	mc_edi      int32
++	mc_esi      int32
++	mc_ebp      int32
++	mc_isp      int32
++	mc_ebx      int32
++	mc_edx      int32
++	mc_ecx      int32
++	mc_eax      int32
++	mc_xflags   int32
++	mc_trapno   int32
++	mc_err      int32
++	mc_eip      int32
++	mc_cs       int32
++	mc_eflags   int32
++	mc_esp      int32
++	mc_ss       int32
++	mc_len      int32
++	mc_fpformat int32
++	mc_ownedfp  int32
++	mc_fpregs   [128]int32
++	__spare__   [16]int32
++}
++
++type ucontext struct {
++	uc_sigmask  sigset
++	uc_mcontext mcontext
++	uc_link     *ucontext
++	uc_stack    stackt
++	__spare__   [8]int32
++}
++
++type timespec struct {
++	tv_sec  int32
++	tv_nsec int32
++}
++
++type timeval struct {
++	tv_sec  int32
++	tv_usec int32
++}
++
++type itimerval struct {
++	it_interval timeval
++	it_value    timeval
++}
++
++type keventt struct {
++	ident  uint32
++	filter int16
++	flags  uint16
++	fflags uint32
++	data   int32
++	udata  *byte
++}
+diff --git a/src/runtime/defs_dragonfly_386.h b/src/runtime/defs_dragonfly_386.h
+deleted file mode 100644
+index f86b9c6b94..0000000000
+--- a/src/runtime/defs_dragonfly_386.h
++++ /dev/null
+@@ -1,198 +0,0 @@
+-// Created by cgo -cdefs - DO NOT EDIT
+-// cgo -cdefs defs_dragonfly.go
+-
+-
+-enum {
+-	EINTR	= 0x4,
+-	EFAULT	= 0xe,
+-	EBUSY	= 0x10,
+-	EAGAIN	= 0x23,
+-
+-	PROT_NONE	= 0x0,
+-	PROT_READ	= 0x1,
+-	PROT_WRITE	= 0x2,
+-	PROT_EXEC	= 0x4,
+-
+-	MAP_ANON	= 0x1000,
+-	MAP_PRIVATE	= 0x2,
+-	MAP_FIXED	= 0x10,
+-
+-	MADV_FREE	= 0x5,
+-
+-	SA_SIGINFO	= 0x40,
+-	SA_RESTART	= 0x2,
+-	SA_ONSTACK	= 0x1,
+-
+-	SIGHUP		= 0x1,
+-	SIGINT		= 0x2,
+-	SIGQUIT		= 0x3,
+-	SIGILL		= 0x4,
+-	SIGTRAP		= 0x5,
+-	SIGABRT		= 0x6,
+-	SIGEMT		= 0x7,
+-	SIGFPE		= 0x8,
+-	SIGKILL		= 0x9,
+-	SIGBUS		= 0xa,
+-	SIGSEGV		= 0xb,
+-	SIGSYS		= 0xc,
+-	SIGPIPE		= 0xd,
+-	SIGALRM		= 0xe,
+-	SIGTERM		= 0xf,
+-	SIGURG		= 0x10,
+-	SIGSTOP		= 0x11,
+-	SIGTSTP		= 0x12,
+-	SIGCONT		= 0x13,
+-	SIGCHLD		= 0x14,
+-	SIGTTIN		= 0x15,
+-	SIGTTOU		= 0x16,
+-	SIGIO		= 0x17,
+-	SIGXCPU		= 0x18,
+-	SIGXFSZ		= 0x19,
+-	SIGVTALRM	= 0x1a,
+-	SIGPROF		= 0x1b,
+-	SIGWINCH	= 0x1c,
+-	SIGINFO		= 0x1d,
+-	SIGUSR1		= 0x1e,
+-	SIGUSR2		= 0x1f,
+-
+-	FPE_INTDIV	= 0x2,
+-	FPE_INTOVF	= 0x1,
+-	FPE_FLTDIV	= 0x3,
+-	FPE_FLTOVF	= 0x4,
+-	FPE_FLTUND	= 0x5,
+-	FPE_FLTRES	= 0x6,
+-	FPE_FLTINV	= 0x7,
+-	FPE_FLTSUB	= 0x8,
+-
+-	BUS_ADRALN	= 0x1,
+-	BUS_ADRERR	= 0x2,
+-	BUS_OBJERR	= 0x3,
+-
+-	SEGV_MAPERR	= 0x1,
+-	SEGV_ACCERR	= 0x2,
+-
+-	ITIMER_REAL	= 0x0,
+-	ITIMER_VIRTUAL	= 0x1,
+-	ITIMER_PROF	= 0x2,
+-
+-	EV_ADD		= 0x1,
+-	EV_DELETE	= 0x2,
+-	EV_CLEAR	= 0x20,
+-	EV_ERROR	= 0x4000,
+-	EVFILT_READ	= -0x1,
+-	EVFILT_WRITE	= -0x2,
+-};
+-
+-typedef struct Rtprio Rtprio;
+-typedef struct Lwpparams Lwpparams;
+-typedef struct SigaltstackT SigaltstackT;
+-typedef struct Sigset Sigset;
+-typedef struct StackT StackT;
+-typedef struct Siginfo Siginfo;
+-typedef struct Mcontext Mcontext;
+-typedef struct Ucontext Ucontext;
+-typedef struct Timespec Timespec;
+-typedef struct Timeval Timeval;
+-typedef struct Itimerval Itimerval;
+-typedef struct KeventT KeventT;
+-
+-#pragma pack on
+-
+-struct Rtprio {
+-	uint16	type;
+-	uint16	prio;
+-};
+-struct Lwpparams {
+-	void	*func;
+-	byte	*arg;
+-	byte	*stack;
+-	int32	*tid1;
+-	int32	*tid2;
+-};
+-struct SigaltstackT {
+-	int8	*ss_sp;
+-	uint32	ss_size;
+-	int32	ss_flags;
+-};
+-struct Sigset {
+-	uint32	__bits[4];
+-};
+-struct StackT {
+-	int8	*ss_sp;
+-	uint32	ss_size;
+-	int32	ss_flags;
+-};
+-
+-struct Siginfo {
+-	int32	si_signo;
+-	int32	si_errno;
+-	int32	si_code;
+-	int32	si_pid;
+-	uint32	si_uid;
+-	int32	si_status;
+-	byte	*si_addr;
+-	byte	si_value[4];
+-	int32	si_band;
+-	int32	__spare__[7];
+-};
+-
+-struct Mcontext {
+-	int32	mc_onstack;
+-	int32	mc_gs;
+-	int32	mc_fs;
+-	int32	mc_es;
+-	int32	mc_ds;
+-	int32	mc_edi;
+-	int32	mc_esi;
+-	int32	mc_ebp;
+-	int32	mc_isp;
+-	int32	mc_ebx;
+-	int32	mc_edx;
+-	int32	mc_ecx;
+-	int32	mc_eax;
+-	int32	mc_xflags;
+-	int32	mc_trapno;
+-	int32	mc_err;
+-	int32	mc_eip;
+-	int32	mc_cs;
+-	int32	mc_eflags;
+-	int32	mc_esp;
+-	int32	mc_ss;
+-	int32	mc_len;
+-	int32	mc_fpformat;
+-	int32	mc_ownedfp;
+-	int32	mc_fpregs[128];
+-	int32	__spare__[16];
+-};
+-struct Ucontext {
+-	Sigset	uc_sigmask;
+-	Mcontext	uc_mcontext;
+-	Ucontext	*uc_link;
+-	StackT	uc_stack;
+-	int32	__spare__[8];
+-};
+-
+-struct Timespec {
+-	int32	tv_sec;
+-	int32	tv_nsec;
+-};
+-struct Timeval {
+-	int32	tv_sec;
+-	int32	tv_usec;
+-};
+-struct Itimerval {
+-	Timeval	it_interval;
+-	Timeval	it_value;
+-};
+-
+-struct KeventT {
+-	uint32	ident;
+-	int16	filter;
+-	uint16	flags;
+-	uint32	fflags;
+-	int32	data;
+-	byte	*udata;
+-};
+-
+-
+-#pragma pack off
+diff --git a/src/runtime/defs_dragonfly_amd64.go b/src/runtime/defs_dragonfly_amd64.go
+new file mode 100644
+index 0000000000..0081f7aa67
+--- /dev/null
++++ b/src/runtime/defs_dragonfly_amd64.go
+@@ -0,0 +1,200 @@
++// created by cgo -cdefs and then converted to Go
++// cgo -cdefs defs_dragonfly.go
++
++package runtime
++
++import "unsafe"
++
++const (
++	_EINTR  = 0x4
++	_EFAULT = 0xe
++	_EBUSY  = 0x10
++	_EAGAIN = 0x23
++
++	_PROT_NONE  = 0x0
++	_PROT_READ  = 0x1
++	_PROT_WRITE = 0x2
++	_PROT_EXEC  = 0x4
++
++	_MAP_ANON    = 0x1000
++	_MAP_PRIVATE = 0x2
++	_MAP_FIXED   = 0x10
++
++	_MADV_FREE = 0x5
++
++	_SA_SIGINFO = 0x40
++	_SA_RESTART = 0x2
++	_SA_ONSTACK = 0x1
++
++	_SIGHUP    = 0x1
++	_SIGINT    = 0x2
++	_SIGQUIT   = 0x3
++	_SIGILL    = 0x4
++	_SIGTRAP   = 0x5
++	_SIGABRT   = 0x6
++	_SIGEMT    = 0x7
++	_SIGFPE    = 0x8
++	_SIGKILL   = 0x9
++	_SIGBUS    = 0xa
++	_SIGSEGV   = 0xb
++	_SIGSYS    = 0xc
++	_SIGPIPE   = 0xd
++	_SIGALRM   = 0xe
++	_SIGTERM   = 0xf
++	_SIGURG    = 0x10
++	_SIGSTOP   = 0x11
++	_SIGTSTP   = 0x12
++	_SIGCONT   = 0x13
++	_SIGCHLD   = 0x14
++	_SIGTTIN   = 0x15
++	_SIGTTOU   = 0x16
++	_SIGIO     = 0x17
++	_SIGXCPU   = 0x18
++	_SIGXFSZ   = 0x19
++	_SIGVTALRM = 0x1a
++	_SIGPROF   = 0x1b
++	_SIGWINCH  = 0x1c
++	_SIGINFO   = 0x1d
++	_SIGUSR1   = 0x1e
++	_SIGUSR2   = 0x1f
++
++	_FPE_INTDIV = 0x2
++	_FPE_INTOVF = 0x1
++	_FPE_FLTDIV = 0x3
++	_FPE_FLTOVF = 0x4
++	_FPE_FLTUND = 0x5
++	_FPE_FLTRES = 0x6
++	_FPE_FLTINV = 0x7
++	_FPE_FLTSUB = 0x8
++
++	_BUS_ADRALN = 0x1
++	_BUS_ADRERR = 0x2
++	_BUS_OBJERR = 0x3
++
++	_SEGV_MAPERR = 0x1
++	_SEGV_ACCERR = 0x2
++
++	_ITIMER_REAL    = 0x0
++	_ITIMER_VIRTUAL = 0x1
++	_ITIMER_PROF    = 0x2
++
++	_EV_ADD       = 0x1
++	_EV_DELETE    = 0x2
++	_EV_CLEAR     = 0x20
++	_EV_ERROR     = 0x4000
++	_EVFILT_READ  = -0x1
++	_EVFILT_WRITE = -0x2
++)
++
++type rtprio struct {
++	_type uint16
++	prio  uint16
++}
++
++type lwpparams struct {
++	_type unsafe.Pointer
++	arg   *byte
++	stack *byte
++	tid1  *int32
++	tid2  *int32
++}
++
++type sigaltstackt struct {
++	ss_sp     *int8
++	ss_size   uint64
++	ss_flags  int32
++	pad_cgo_0 [4]byte
++}
++
++type sigset struct {
++	__bits [4]uint32
++}
++
++type stackt struct {
++	ss_sp     *int8
++	ss_size   uint64
++	ss_flags  int32
++	pad_cgo_0 [4]byte
++}
++
++type siginfo struct {
++	si_signo  int32
++	si_errno  int32
++	si_code   int32
++	si_pid    int32
++	si_uid    uint32
++	si_status int32
++	si_addr   *byte
++	si_value  [8]byte
++	si_band   int64
++	__spare__ [7]int32
++	pad_cgo_0 [4]byte
++}
++
++type mcontext struct {
++	mc_onstack  int64
++	mc_rdi      int64
++	mc_rsi      int64
++	mc_rdx      int64
++	mc_rcx      int64
++	mc_r8       int64
++	mc_r9       int64
++	mc_rax      int64
++	mc_rbx      int64
++	mc_rbp      int64
++	mc_r10      int64
++	mc_r11      int64
++	mc_r12      int64
++	mc_r13      int64
++	mc_r14      int64
++	mc_r15      int64
++	mc_xflags   int64
++	mc_trapno   int64
++	mc_addr     int64
++	mc_flags    int64
++	mc_err      int64
++	mc_rip      int64
++	mc_cs       int64
++	mc_rflags   int64
++	mc_rsp      int64
++	mc_ss       int64
++	mc_len      uint32
++	mc_fpformat uint32
++	mc_ownedfp  uint32
++	mc_reserved uint32
++	mc_unused   [8]uint32
++	mc_fpregs   [256]int32
++}
++
++type ucontext struct {
++	uc_sigmask  sigset
++	pad_cgo_0   [48]byte
++	uc_mcontext mcontext
++	uc_link     *ucontext
++	uc_stack    stackt
++	__spare__   [8]int32
++}
++
++type timespec struct {
++	tv_sec  int64
++	tv_nsec int64
++}
++
++type timeval struct {
++	tv_sec  int64
++	tv_usec int64
++}
++
++type itimerval struct {
++	it_interval timeval
++	it_value    timeval
++}
++
++type keventt struct {
++	ident  uint64
++	filter int16
++	flags  uint16
++	fflags uint32
++	data   int64
++	udata  *byte
++}
+diff --git a/src/runtime/defs_dragonfly_amd64.h b/src/runtime/defs_dragonfly_amd64.h
+deleted file mode 100644
+index 671555241d..0000000000
+--- a/src/runtime/defs_dragonfly_amd64.h
++++ /dev/null
+@@ -1,208 +0,0 @@
+-// Created by cgo -cdefs - DO NOT EDIT
+-// cgo -cdefs defs_dragonfly.go
+-
+-
+-enum {
+-	EINTR	= 0x4,
+-	EFAULT	= 0xe,
+-	EBUSY	= 0x10,
+-	EAGAIN	= 0x23,
+-
+-	PROT_NONE	= 0x0,
+-	PROT_READ	= 0x1,
+-	PROT_WRITE	= 0x2,
+-	PROT_EXEC	= 0x4,
+-
+-	MAP_ANON	= 0x1000,
+-	MAP_PRIVATE	= 0x2,
+-	MAP_FIXED	= 0x10,
+-
+-	MADV_FREE	= 0x5,
+-
+-	SA_SIGINFO	= 0x40,
+-	SA_RESTART	= 0x2,
+-	SA_ONSTACK	= 0x1,
+-
+-	SIGHUP		= 0x1,
+-	SIGINT		= 0x2,
+-	SIGQUIT		= 0x3,
+-	SIGILL		= 0x4,
+-	SIGTRAP		= 0x5,
+-	SIGABRT		= 0x6,
+-	SIGEMT		= 0x7,
+-	SIGFPE		= 0x8,
+-	SIGKILL		= 0x9,
+-	SIGBUS		= 0xa,
+-	SIGSEGV		= 0xb,
+-	SIGSYS		= 0xc,
+-	SIGPIPE		= 0xd,
+-	SIGALRM		= 0xe,
+-	SIGTERM		= 0xf,
+-	SIGURG		= 0x10,
+-	SIGSTOP		= 0x11,
+-	SIGTSTP		= 0x12,
+-	SIGCONT		= 0x13,
+-	SIGCHLD		= 0x14,
+-	SIGTTIN		= 0x15,
+-	SIGTTOU		= 0x16,
+-	SIGIO		= 0x17,
+-	SIGXCPU		= 0x18,
+-	SIGXFSZ		= 0x19,
+-	SIGVTALRM	= 0x1a,
+-	SIGPROF		= 0x1b,
+-	SIGWINCH	= 0x1c,
+-	SIGINFO		= 0x1d,
+-	SIGUSR1		= 0x1e,
+-	SIGUSR2		= 0x1f,
+-
+-	FPE_INTDIV	= 0x2,
+-	FPE_INTOVF	= 0x1,
+-	FPE_FLTDIV	= 0x3,
+-	FPE_FLTOVF	= 0x4,
+-	FPE_FLTUND	= 0x5,
+-	FPE_FLTRES	= 0x6,
+-	FPE_FLTINV	= 0x7,
+-	FPE_FLTSUB	= 0x8,
+-
+-	BUS_ADRALN	= 0x1,
+-	BUS_ADRERR	= 0x2,
+-	BUS_OBJERR	= 0x3,
+-
+-	SEGV_MAPERR	= 0x1,
+-	SEGV_ACCERR	= 0x2,
+-
+-	ITIMER_REAL	= 0x0,
+-	ITIMER_VIRTUAL	= 0x1,
+-	ITIMER_PROF	= 0x2,
+-
+-	EV_ADD		= 0x1,
+-	EV_DELETE	= 0x2,
+-	EV_CLEAR	= 0x20,
+-	EV_ERROR	= 0x4000,
+-	EVFILT_READ	= -0x1,
+-	EVFILT_WRITE	= -0x2,
+-};
+-
+-typedef struct Rtprio Rtprio;
+-typedef struct Lwpparams Lwpparams;
+-typedef struct SigaltstackT SigaltstackT;
+-typedef struct Sigset Sigset;
+-typedef struct StackT StackT;
+-typedef struct Siginfo Siginfo;
+-typedef struct Mcontext Mcontext;
+-typedef struct Ucontext Ucontext;
+-typedef struct Timespec Timespec;
+-typedef struct Timeval Timeval;
+-typedef struct Itimerval Itimerval;
+-typedef struct KeventT KeventT;
+-
+-#pragma pack on
+-
+-struct Rtprio {
+-	uint16	type;
+-	uint16	prio;
+-};
+-struct Lwpparams {
+-	void	*func;
+-	byte	*arg;
+-	byte	*stack;
+-	int32	*tid1;
+-	int32	*tid2;
+-};
+-struct SigaltstackT {
+-	int8	*ss_sp;
+-	uint64	ss_size;
+-	int32	ss_flags;
+-	byte	Pad_cgo_0[4];
+-};
+-struct Sigset {
+-	uint32	__bits[4];
+-};
+-struct StackT {
+-	int8	*ss_sp;
+-	uint64	ss_size;
+-	int32	ss_flags;
+-	byte	Pad_cgo_0[4];
+-};
+-
+-struct Siginfo {
+-	int32	si_signo;
+-	int32	si_errno;
+-	int32	si_code;
+-	int32	si_pid;
+-	uint32	si_uid;
+-	int32	si_status;
+-	byte	*si_addr;
+-	byte	si_value[8];
+-	int64	si_band;
+-	int32	__spare__[7];
+-	byte	Pad_cgo_0[4];
+-};
+-
+-struct Mcontext {
+-	int64	mc_onstack;
+-	int64	mc_rdi;
+-	int64	mc_rsi;
+-	int64	mc_rdx;
+-	int64	mc_rcx;
+-	int64	mc_r8;
+-	int64	mc_r9;
+-	int64	mc_rax;
+-	int64	mc_rbx;
+-	int64	mc_rbp;
+-	int64	mc_r10;
+-	int64	mc_r11;
+-	int64	mc_r12;
+-	int64	mc_r13;
+-	int64	mc_r14;
+-	int64	mc_r15;
+-	int64	mc_xflags;
+-	int64	mc_trapno;
+-	int64	mc_addr;
+-	int64	mc_flags;
+-	int64	mc_err;
+-	int64	mc_rip;
+-	int64	mc_cs;
+-	int64	mc_rflags;
+-	int64	mc_rsp;
+-	int64	mc_ss;
+-	uint32	mc_len;
+-	uint32	mc_fpformat;
+-	uint32	mc_ownedfp;
+-	uint32	mc_reserved;
+-	uint32	mc_unused[8];
+-	int32	mc_fpregs[256];
+-};
+-struct Ucontext {
+-	Sigset	uc_sigmask;
+-	byte	Pad_cgo_0[48];
+-	Mcontext	uc_mcontext;
+-	Ucontext	*uc_link;
+-	StackT	uc_stack;
+-	int32	__spare__[8];
+-};
+-
+-struct Timespec {
+-	int64	tv_sec;
+-	int64	tv_nsec;
+-};
+-struct Timeval {
+-	int64	tv_sec;
+-	int64	tv_usec;
+-};
+-struct Itimerval {
+-	Timeval	it_interval;
+-	Timeval	it_value;
+-};
+-
+-struct KeventT {
+-	uint64	ident;
+-	int16	filter;
+-	uint16	flags;
+-	uint32	fflags;
+-	int64	data;
+-	byte	*udata;
+-};
+-
+-
+-#pragma pack off
+diff --git a/src/runtime/defs_freebsd_386.go b/src/runtime/defs_freebsd_386.go
+new file mode 100644
+index 0000000000..96fd563149
+--- /dev/null
++++ b/src/runtime/defs_freebsd_386.go
+@@ -0,0 +1,205 @@
++// created by cgo -cdefs and then converted to Go
++// cgo -cdefs defs_freebsd.go
++
++package runtime
++
++import "unsafe"
++
++const (
++	_EINTR  = 0x4
++	_EFAULT = 0xe
++
++	_PROT_NONE  = 0x0
++	_PROT_READ  = 0x1
++	_PROT_WRITE = 0x2
++	_PROT_EXEC  = 0x4
++
++	_MAP_ANON    = 0x1000
++	_MAP_PRIVATE = 0x2
++	_MAP_FIXED   = 0x10
++
++	_MADV_FREE = 0x5
++
++	_SA_SIGINFO = 0x40
++	_SA_RESTART = 0x2
++	_SA_ONSTACK = 0x1
++
++	_UMTX_OP_WAIT_UINT         = 0xb
++	_UMTX_OP_WAIT_UINT_PRIVATE = 0xf
++	_UMTX_OP_WAKE              = 0x3
++	_UMTX_OP_WAKE_PRIVATE      = 0x10
++
++	_SIGHUP    = 0x1
++	_SIGINT    = 0x2
++	_SIGQUIT   = 0x3
++	_SIGILL    = 0x4
++	_SIGTRAP   = 0x5
++	_SIGABRT   = 0x6
++	_SIGEMT    = 0x7
++	_SIGFPE    = 0x8
++	_SIGKILL   = 0x9
++	_SIGBUS    = 0xa
++	_SIGSEGV   = 0xb
++	_SIGSYS    = 0xc
++	_SIGPIPE   = 0xd
++	_SIGALRM   = 0xe
++	_SIGTERM   = 0xf
++	_SIGURG    = 0x10
++	_SIGSTOP   = 0x11
++	_SIGTSTP   = 0x12
++	_SIGCONT   = 0x13
++	_SIGCHLD   = 0x14
++	_SIGTTIN   = 0x15
++	_SIGTTOU   = 0x16
++	_SIGIO     = 0x17
++	_SIGXCPU   = 0x18
++	_SIGXFSZ   = 0x19
++	_SIGVTALRM = 0x1a
++	_SIGPROF   = 0x1b
++	_SIGWINCH  = 0x1c
++	_SIGINFO   = 0x1d
++	_SIGUSR1   = 0x1e
++	_SIGUSR2   = 0x1f
++
++	_FPE_INTDIV = 0x2
++	_FPE_INTOVF = 0x1
++	_FPE_FLTDIV = 0x3
++	_FPE_FLTOVF = 0x4
++	_FPE_FLTUND = 0x5
++	_FPE_FLTRES = 0x6
++	_FPE_FLTINV = 0x7
++	_FPE_FLTSUB = 0x8
++
++	_BUS_ADRALN = 0x1
++	_BUS_ADRERR = 0x2
++	_BUS_OBJERR = 0x3
++
++	_SEGV_MAPERR = 0x1
++	_SEGV_ACCERR = 0x2
++
++	_ITIMER_REAL    = 0x0
++	_ITIMER_VIRTUAL = 0x1
++	_ITIMER_PROF    = 0x2
++
++	_EV_ADD       = 0x1
++	_EV_DELETE    = 0x2
++	_EV_CLEAR     = 0x20
++	_EV_RECEIPT   = 0x40
++	_EV_ERROR     = 0x4000
++	_EVFILT_READ  = -0x1
++	_EVFILT_WRITE = -0x2
++)
++
++type rtprio struct {
++	_type uint16
++	prio  uint16
++}
++
++type thrparam struct {
++	start_func unsafe.Pointer
++	arg        *byte
++	stack_base *int8
++	stack_size uint32
++	tls_base   *int8
++	tls_size   uint32
++	child_tid  *int32
++	parent_tid *int32
++	flags      int32
++	rtp        *rtprio
++	spare      [3]uintptr
++}
++
++type sigaltstackt struct {
++	ss_sp    *int8
++	ss_size  uint32
++	ss_flags int32
++}
++
++type sigset struct {
++	__bits [4]uint32
++}
++
++type stackt struct {
++	ss_sp    *int8
++	ss_size  uint32
++	ss_flags int32
++}
++
++type siginfo struct {
++	si_signo  int32
++	si_errno  int32
++	si_code   int32
++	si_pid    int32
++	si_uid    uint32
++	si_status int32
++	si_addr   *byte
++	si_value  [4]byte
++	_reason   [32]byte
++}
++
++type mcontext struct {
++	mc_onstack       int32
++	mc_gs            int32
++	mc_fs            int32
++	mc_es            int32
++	mc_ds            int32
++	mc_edi           int32
++	mc_esi           int32
++	mc_ebp           int32
++	mc_isp           int32
++	mc_ebx           int32
++	mc_edx           int32
++	mc_ecx           int32
++	mc_eax           int32
++	mc_trapno        int32
++	mc_err           int32
++	mc_eip           int32
++	mc_cs            int32
++	mc_eflags        int32
++	mc_esp           int32
++	mc_ss            int32
++	mc_len           int32
++	mc_fpformat      int32
++	mc_ownedfp       int32
++	mc_flags         int32
++	mc_fpstate       [128]int32
++	mc_fsbase        int32
++	mc_gsbase        int32
++	mc_xfpustate     int32
++	mc_xfpustate_len int32
++	mc_spare2        [4]int32
++}
++
++type ucontext struct {
++	uc_sigmask  sigset
++	uc_mcontext mcontext
++	uc_link     *ucontext
++	uc_stack    stackt
++	uc_flags    int32
++	__spare__   [4]int32
++	pad_cgo_0   [12]byte
++}
++
++type timespec struct {
++	tv_sec  int32
++	tv_nsec int32
++}
++
++type timeval struct {
++	tv_sec  int32
++	tv_usec int32
++}
++
++type itimerval struct {
++	it_interval timeval
++	it_value    timeval
++}
++
++type keventt struct {
++	ident  uint32
++	filter int16
++	flags  uint16
++	fflags uint32
++	data   int32
++	udata  *byte
++}
+diff --git a/src/runtime/defs_freebsd_386.h b/src/runtime/defs_freebsd_386.h
+deleted file mode 100644
+index 156dccba48..0000000000
+--- a/src/runtime/defs_freebsd_386.h
++++ /dev/null
+@@ -1,213 +0,0 @@
+-// Created by cgo -cdefs - DO NOT EDIT
+-// cgo -cdefs defs_freebsd.go
+-
+-
+-enum {
+-	EINTR	= 0x4,
+-	EFAULT	= 0xe,
+-
+-	PROT_NONE	= 0x0,
+-	PROT_READ	= 0x1,
+-	PROT_WRITE	= 0x2,
+-	PROT_EXEC	= 0x4,
+-
+-	MAP_ANON	= 0x1000,
+-	MAP_PRIVATE	= 0x2,
+-	MAP_FIXED	= 0x10,
+-
+-	MADV_FREE	= 0x5,
+-
+-	SA_SIGINFO	= 0x40,
+-	SA_RESTART	= 0x2,
+-	SA_ONSTACK	= 0x1,
+-
+-	UMTX_OP_WAIT_UINT		= 0xb,
+-	UMTX_OP_WAIT_UINT_PRIVATE	= 0xf,
+-	UMTX_OP_WAKE			= 0x3,
+-	UMTX_OP_WAKE_PRIVATE		= 0x10,
+-
+-	SIGHUP		= 0x1,
+-	SIGINT		= 0x2,
+-	SIGQUIT		= 0x3,
+-	SIGILL		= 0x4,
+-	SIGTRAP		= 0x5,
+-	SIGABRT		= 0x6,
+-	SIGEMT		= 0x7,
+-	SIGFPE		= 0x8,
+-	SIGKILL		= 0x9,
+-	SIGBUS		= 0xa,
+-	SIGSEGV		= 0xb,
+-	SIGSYS		= 0xc,
+-	SIGPIPE		= 0xd,
+-	SIGALRM		= 0xe,
+-	SIGTERM		= 0xf,
+-	SIGURG		= 0x10,
+-	SIGSTOP		= 0x11,
+-	SIGTSTP		= 0x12,
+-	SIGCONT		= 0x13,
+-	SIGCHLD		= 0x14,
+-	SIGTTIN		= 0x15,
+-	SIGTTOU		= 0x16,
+-	SIGIO		= 0x17,
+-	SIGXCPU		= 0x18,
+-	SIGXFSZ		= 0x19,
+-	SIGVTALRM	= 0x1a,
+-	SIGPROF		= 0x1b,
+-	SIGWINCH	= 0x1c,
+-	SIGINFO		= 0x1d,
+-	SIGUSR1		= 0x1e,
+-	SIGUSR2		= 0x1f,
+-
+-	FPE_INTDIV	= 0x2,
+-	FPE_INTOVF	= 0x1,
+-	FPE_FLTDIV	= 0x3,
+-	FPE_FLTOVF	= 0x4,
+-	FPE_FLTUND	= 0x5,
+-	FPE_FLTRES	= 0x6,
+-	FPE_FLTINV	= 0x7,
+-	FPE_FLTSUB	= 0x8,
+-
+-	BUS_ADRALN	= 0x1,
+-	BUS_ADRERR	= 0x2,
+-	BUS_OBJERR	= 0x3,
+-
+-	SEGV_MAPERR	= 0x1,
+-	SEGV_ACCERR	= 0x2,
+-
+-	ITIMER_REAL	= 0x0,
+-	ITIMER_VIRTUAL	= 0x1,
+-	ITIMER_PROF	= 0x2,
+-
+-	EV_ADD		= 0x1,
+-	EV_DELETE	= 0x2,
+-	EV_CLEAR	= 0x20,
+-	EV_RECEIPT	= 0x40,
+-	EV_ERROR	= 0x4000,
+-	EVFILT_READ	= -0x1,
+-	EVFILT_WRITE	= -0x2,
+-};
+-
+-typedef struct Rtprio Rtprio;
+-typedef struct ThrParam ThrParam;
+-typedef struct SigaltstackT SigaltstackT;
+-typedef struct Sigset Sigset;
+-typedef struct StackT StackT;
+-typedef struct Siginfo Siginfo;
+-typedef struct Mcontext Mcontext;
+-typedef struct Ucontext Ucontext;
+-typedef struct Timespec Timespec;
+-typedef struct Timeval Timeval;
+-typedef struct Itimerval Itimerval;
+-typedef struct KeventT KeventT;
+-
+-#pragma pack on
+-
+-struct Rtprio {
+-	uint16	type;
+-	uint16	prio;
+-};
+-struct ThrParam {
+-	void	*start_func;
+-	byte	*arg;
+-	int8	*stack_base;
+-	uint32	stack_size;
+-	int8	*tls_base;
+-	uint32	tls_size;
+-	int32	*child_tid;
+-	int32	*parent_tid;
+-	int32	flags;
+-	Rtprio	*rtp;
+-	void	*spare[3];
+-};
+-struct SigaltstackT {
+-	int8	*ss_sp;
+-	uint32	ss_size;
+-	int32	ss_flags;
+-};
+-struct Sigset {
+-	uint32	__bits[4];
+-};
+-struct StackT {
+-	int8	*ss_sp;
+-	uint32	ss_size;
+-	int32	ss_flags;
+-};
+-
+-struct Siginfo {
+-	int32	si_signo;
+-	int32	si_errno;
+-	int32	si_code;
+-	int32	si_pid;
+-	uint32	si_uid;
+-	int32	si_status;
+-	byte	*si_addr;
+-	byte	si_value[4];
+-	byte	_reason[32];
+-};
+-
+-struct Mcontext {
+-	int32	mc_onstack;
+-	int32	mc_gs;
+-	int32	mc_fs;
+-	int32	mc_es;
+-	int32	mc_ds;
+-	int32	mc_edi;
+-	int32	mc_esi;
+-	int32	mc_ebp;
+-	int32	mc_isp;
+-	int32	mc_ebx;
+-	int32	mc_edx;
+-	int32	mc_ecx;
+-	int32	mc_eax;
+-	int32	mc_trapno;
+-	int32	mc_err;
+-	int32	mc_eip;
+-	int32	mc_cs;
+-	int32	mc_eflags;
+-	int32	mc_esp;
+-	int32	mc_ss;
+-	int32	mc_len;
+-	int32	mc_fpformat;
+-	int32	mc_ownedfp;
+-	int32	mc_flags;
+-	int32	mc_fpstate[128];
+-	int32	mc_fsbase;
+-	int32	mc_gsbase;
+-	int32	mc_xfpustate;
+-	int32	mc_xfpustate_len;
+-	int32	mc_spare2[4];
+-};
+-struct Ucontext {
+-	Sigset	uc_sigmask;
+-	Mcontext	uc_mcontext;
+-	Ucontext	*uc_link;
+-	StackT	uc_stack;
+-	int32	uc_flags;
+-	int32	__spare__[4];
+-	byte	Pad_cgo_0[12];
+-};
+-
+-struct Timespec {
+-	int32	tv_sec;
+-	int32	tv_nsec;
+-};
+-struct Timeval {
+-	int32	tv_sec;
+-	int32	tv_usec;
+-};
+-struct Itimerval {
+-	Timeval	it_interval;
+-	Timeval	it_value;
+-};
+-
+-struct KeventT {
+-	uint32	ident;
+-	int16	filter;
+-	uint16	flags;
+-	uint32	fflags;
+-	int32	data;
+-	byte	*udata;
+-};
+-
+-
+-#pragma pack off
+diff --git a/src/runtime/defs_freebsd_amd64.go b/src/runtime/defs_freebsd_amd64.go
+new file mode 100644
+index 0000000000..b308f9ef62
+--- /dev/null
++++ b/src/runtime/defs_freebsd_amd64.go
+@@ -0,0 +1,216 @@
++// created by cgo -cdefs and then converted to Go
++// cgo -cdefs defs_freebsd.go
++
++package runtime
++
++import "unsafe"
++
++const (
++	_EINTR  = 0x4
++	_EFAULT = 0xe
++
++	_PROT_NONE  = 0x0
++	_PROT_READ  = 0x1
++	_PROT_WRITE = 0x2
++	_PROT_EXEC  = 0x4
++
++	_MAP_ANON    = 0x1000
++	_MAP_PRIVATE = 0x2
++	_MAP_FIXED   = 0x10
++
++	_MADV_FREE = 0x5
++
++	_SA_SIGINFO = 0x40
++	_SA_RESTART = 0x2
++	_SA_ONSTACK = 0x1
++
++	_UMTX_OP_WAIT_UINT         = 0xb
++	_UMTX_OP_WAIT_UINT_PRIVATE = 0xf
++	_UMTX_OP_WAKE              = 0x3
++	_UMTX_OP_WAKE_PRIVATE      = 0x10
++
++	_SIGHUP    = 0x1
++	_SIGINT    = 0x2
++	_SIGQUIT   = 0x3
++	_SIGILL    = 0x4
++	_SIGTRAP   = 0x5
++	_SIGABRT   = 0x6
++	_SIGEMT    = 0x7
++	_SIGFPE    = 0x8
++	_SIGKILL   = 0x9
++	_SIGBUS    = 0xa
++	_SIGSEGV   = 0xb
++	_SIGSYS    = 0xc
++	_SIGPIPE   = 0xd
++	_SIGALRM   = 0xe
++	_SIGTERM   = 0xf
++	_SIGURG    = 0x10
++	_SIGSTOP   = 0x11
++	_SIGTSTP   = 0x12
++	_SIGCONT   = 0x13
++	_SIGCHLD   = 0x14
++	_SIGTTIN   = 0x15
++	_SIGTTOU   = 0x16
++	_SIGIO     = 0x17
++	_SIGXCPU   = 0x18
++	_SIGXFSZ   = 0x19
++	_SIGVTALRM = 0x1a
++	_SIGPROF   = 0x1b
++	_SIGWINCH  = 0x1c
++	_SIGINFO   = 0x1d
++	_SIGUSR1   = 0x1e
++	_SIGUSR2   = 0x1f
++
++	_FPE_INTDIV = 0x2
++	_FPE_INTOVF = 0x1
++	_FPE_FLTDIV = 0x3
++	_FPE_FLTOVF = 0x4
++	_FPE_FLTUND = 0x5
++	_FPE_FLTRES = 0x6
++	_FPE_FLTINV = 0x7
++	_FPE_FLTSUB = 0x8
++
++	_BUS_ADRALN = 0x1
++	_BUS_ADRERR = 0x2
++	_BUS_OBJERR = 0x3
++
++	_SEGV_MAPERR = 0x1
++	_SEGV_ACCERR = 0x2
++
++	_ITIMER_REAL    = 0x0
++	_ITIMER_VIRTUAL = 0x1
++	_ITIMER_PROF    = 0x2
++
++	_EV_ADD       = 0x1
++	_EV_DELETE    = 0x2
++	_EV_CLEAR     = 0x20
++	_EV_RECEIPT   = 0x40
++	_EV_ERROR     = 0x4000
++	_EVFILT_READ  = -0x1
++	_EVFILT_WRITE = -0x2
++)
++
++type rtprio struct {
++	_type uint16
++	prio  uint16
++}
++
++type thrparam struct {
++	start_func unsafe.Pointer
++	arg        *byte
++	stack_base *int8
++	stack_size uint64
++	tls_base   *int8
++	tls_size   uint64
++	child_tid  *int64
++	parent_tid *int64
++	flags      int32
++	pad_cgo_0  [4]byte
++	rtp        *rtprio
++	spare      [3]uintptr
++}
++
++type sigaltstackt struct {
++	ss_sp     *int8
++	ss_size   uint64
++	ss_flags  int32
++	pad_cgo_0 [4]byte
++}
++
++type sigset struct {
++	__bits [4]uint32
++}
++
++type stackt struct {
++	ss_sp     *int8
++	ss_size   uint64
++	ss_flags  int32
++	pad_cgo_0 [4]byte
++}
++
++type siginfo struct {
++	si_signo  int32
++	si_errno  int32
++	si_code   int32
++	si_pid    int32
++	si_uid    uint32
++	si_status int32
++	si_addr   *byte
++	si_value  [8]byte
++	_reason   [40]byte
++}
++
++type mcontext struct {
++	mc_onstack       int64
++	mc_rdi           int64
++	mc_rsi           int64
++	mc_rdx           int64
++	mc_rcx           int64
++	mc_r8            int64
++	mc_r9            int64
++	mc_rax           int64
++	mc_rbx           int64
++	mc_rbp           int64
++	mc_r10           int64
++	mc_r11           int64
++	mc_r12           int64
++	mc_r13           int64
++	mc_r14           int64
++	mc_r15           int64
++	mc_trapno        uint32
++	mc_fs            uint16
++	mc_gs            uint16
++	mc_addr          int64
++	mc_flags         uint32
++	mc_es            uint16
++	mc_ds            uint16
++	mc_err           int64
++	mc_rip           int64
++	mc_cs            int64
++	mc_rflags        int64
++	mc_rsp           int64
++	mc_ss            int64
++	mc_len           int64
++	mc_fpformat      int64
++	mc_ownedfp       int64
++	mc_fpstate       [64]int64
++	mc_fsbase        int64
++	mc_gsbase        int64
++	mc_xfpustate     int64
++	mc_xfpustate_len int64
++	mc_spare         [4]int64
++}
++
++type ucontext struct {
++	uc_sigmask  sigset
++	uc_mcontext mcontext
++	uc_link     *ucontext
++	uc_stack    stackt
++	uc_flags    int32
++	__spare__   [4]int32
++	pad_cgo_0   [12]byte
++}
++
++type timespec struct {
++	tv_sec  int64
++	tv_nsec int64
++}
++
++type timeval struct {
++	tv_sec  int64
++	tv_usec int64
++}
++
++type itimerval struct {
++	it_interval timeval
++	it_value    timeval
++}
++
++type keventt struct {
++	ident  uint64
++	filter int16
++	flags  uint16
++	fflags uint32
++	data   int64
++	udata  *byte
++}
+diff --git a/src/runtime/defs_freebsd_amd64.h b/src/runtime/defs_freebsd_amd64.h
+deleted file mode 100644
+index 4ba8956a2c..0000000000
+--- a/src/runtime/defs_freebsd_amd64.h
++++ /dev/null
+@@ -1,224 +0,0 @@
+-// Created by cgo -cdefs - DO NOT EDIT
+-// cgo -cdefs defs_freebsd.go
+-
+-
+-enum {
+-	EINTR	= 0x4,
+-	EFAULT	= 0xe,
+-
+-	PROT_NONE	= 0x0,
+-	PROT_READ	= 0x1,
+-	PROT_WRITE	= 0x2,
+-	PROT_EXEC	= 0x4,
+-
+-	MAP_ANON	= 0x1000,
+-	MAP_PRIVATE	= 0x2,
+-	MAP_FIXED	= 0x10,
+-
+-	MADV_FREE	= 0x5,
+-
+-	SA_SIGINFO	= 0x40,
+-	SA_RESTART	= 0x2,
+-	SA_ONSTACK	= 0x1,
+-
+-	UMTX_OP_WAIT_UINT		= 0xb,
+-	UMTX_OP_WAIT_UINT_PRIVATE	= 0xf,
+-	UMTX_OP_WAKE			= 0x3,
+-	UMTX_OP_WAKE_PRIVATE		= 0x10,
+-
+-	SIGHUP		= 0x1,
+-	SIGINT		= 0x2,
+-	SIGQUIT		= 0x3,
+-	SIGILL		= 0x4,
+-	SIGTRAP		= 0x5,
+-	SIGABRT		= 0x6,
+-	SIGEMT		= 0x7,
+-	SIGFPE		= 0x8,
+-	SIGKILL		= 0x9,
+-	SIGBUS		= 0xa,
+-	SIGSEGV		= 0xb,
+-	SIGSYS		= 0xc,
+-	SIGPIPE		= 0xd,
+-	SIGALRM		= 0xe,
+-	SIGTERM		= 0xf,
+-	SIGURG		= 0x10,
+-	SIGSTOP		= 0x11,
+-	SIGTSTP		= 0x12,
+-	SIGCONT		= 0x13,
+-	SIGCHLD		= 0x14,
+-	SIGTTIN		= 0x15,
+-	SIGTTOU		= 0x16,
+-	SIGIO		= 0x17,
+-	SIGXCPU		= 0x18,
+-	SIGXFSZ		= 0x19,
+-	SIGVTALRM	= 0x1a,
+-	SIGPROF		= 0x1b,
+-	SIGWINCH	= 0x1c,
+-	SIGINFO		= 0x1d,
+-	SIGUSR1		= 0x1e,
+-	SIGUSR2		= 0x1f,
+-
+-	FPE_INTDIV	= 0x2,
+-	FPE_INTOVF	= 0x1,
+-	FPE_FLTDIV	= 0x3,
+-	FPE_FLTOVF	= 0x4,
+-	FPE_FLTUND	= 0x5,
+-	FPE_FLTRES	= 0x6,
+-	FPE_FLTINV	= 0x7,
+-	FPE_FLTSUB	= 0x8,
+-
+-	BUS_ADRALN	= 0x1,
+-	BUS_ADRERR	= 0x2,
+-	BUS_OBJERR	= 0x3,
+-
+-	SEGV_MAPERR	= 0x1,
+-	SEGV_ACCERR	= 0x2,
+-
+-	ITIMER_REAL	= 0x0,
+-	ITIMER_VIRTUAL	= 0x1,
+-	ITIMER_PROF	= 0x2,
+-
+-	EV_ADD		= 0x1,
+-	EV_DELETE	= 0x2,
+-	EV_CLEAR	= 0x20,
+-	EV_RECEIPT	= 0x40,
+-	EV_ERROR	= 0x4000,
+-	EVFILT_READ	= -0x1,
+-	EVFILT_WRITE	= -0x2,
+-};
+-
+-typedef struct Rtprio Rtprio;
+-typedef struct ThrParam ThrParam;
+-typedef struct SigaltstackT SigaltstackT;
+-typedef struct Sigset Sigset;
+-typedef struct StackT StackT;
+-typedef struct Siginfo Siginfo;
+-typedef struct Mcontext Mcontext;
+-typedef struct Ucontext Ucontext;
+-typedef struct Timespec Timespec;
+-typedef struct Timeval Timeval;
+-typedef struct Itimerval Itimerval;
+-typedef struct KeventT KeventT;
+-
+-#pragma pack on
+-
+-struct Rtprio {
+-	uint16	type;
+-	uint16	prio;
+-};
+-struct ThrParam {
+-	void	*start_func;
+-	byte	*arg;
+-	int8	*stack_base;
+-	uint64	stack_size;
+-	int8	*tls_base;
+-	uint64	tls_size;
+-	int64	*child_tid;
+-	int64	*parent_tid;
+-	int32	flags;
+-	byte	Pad_cgo_0[4];
+-	Rtprio	*rtp;
+-	void	*spare[3];
+-};
+-struct SigaltstackT {
+-	int8	*ss_sp;
+-	uint64	ss_size;
+-	int32	ss_flags;
+-	byte	Pad_cgo_0[4];
+-};
+-struct Sigset {
+-	uint32	__bits[4];
+-};
+-struct StackT {
+-	int8	*ss_sp;
+-	uint64	ss_size;
+-	int32	ss_flags;
+-	byte	Pad_cgo_0[4];
+-};
+-
+-struct Siginfo {
+-	int32	si_signo;
+-	int32	si_errno;
+-	int32	si_code;
+-	int32	si_pid;
+-	uint32	si_uid;
+-	int32	si_status;
+-	byte	*si_addr;
+-	byte	si_value[8];
+-	byte	_reason[40];
+-};
+-
+-struct Mcontext {
+-	int64	mc_onstack;
+-	int64	mc_rdi;
+-	int64	mc_rsi;
+-	int64	mc_rdx;
+-	int64	mc_rcx;
+-	int64	mc_r8;
+-	int64	mc_r9;
+-	int64	mc_rax;
+-	int64	mc_rbx;
+-	int64	mc_rbp;
+-	int64	mc_r10;
+-	int64	mc_r11;
+-	int64	mc_r12;
+-	int64	mc_r13;
+-	int64	mc_r14;
+-	int64	mc_r15;
+-	uint32	mc_trapno;
+-	uint16	mc_fs;
+-	uint16	mc_gs;
+-	int64	mc_addr;
+-	uint32	mc_flags;
+-	uint16	mc_es;
+-	uint16	mc_ds;
+-	int64	mc_err;
+-	int64	mc_rip;
+-	int64	mc_cs;
+-	int64	mc_rflags;
+-	int64	mc_rsp;
+-	int64	mc_ss;
+-	int64	mc_len;
+-	int64	mc_fpformat;
+-	int64	mc_ownedfp;
+-	int64	mc_fpstate[64];
+-	int64	mc_fsbase;
+-	int64	mc_gsbase;
+-	int64	mc_xfpustate;
+-	int64	mc_xfpustate_len;
+-	int64	mc_spare[4];
+-};
+-struct Ucontext {
+-	Sigset	uc_sigmask;
+-	Mcontext	uc_mcontext;
+-	Ucontext	*uc_link;
+-	StackT	uc_stack;
+-	int32	uc_flags;
+-	int32	__spare__[4];
+-	byte	Pad_cgo_0[12];
+-};
+-
+-struct Timespec {
+-	int64	tv_sec;
+-	int64	tv_nsec;
+-};
+-struct Timeval {
+-	int64	tv_sec;
+-	int64	tv_usec;
+-};
+-struct Itimerval {
+-	Timeval	it_interval;
+-	Timeval	it_value;
+-};
+-
+-struct KeventT {
+-	uint64	ident;
+-	int16	filter;
+-	uint16	flags;
+-	uint32	fflags;
+-	int64	data;
+-	byte	*udata;
+-};
+-
+-
+-#pragma pack off
+diff --git a/src/runtime/defs_freebsd_arm.go b/src/runtime/defs_freebsd_arm.go
+new file mode 100644
+index 0000000000..3162411c8a
+--- /dev/null
++++ b/src/runtime/defs_freebsd_arm.go
+@@ -0,0 +1,178 @@
++// created by cgo -cdefs and then converted to Go
++// cgo -cdefs defs_freebsd.go
++
++package runtime
++
++import "unsafe"
++
++const (
++	_EINTR  = 0x4
++	_EFAULT = 0xe
++
++	_PROT_NONE  = 0x0
++	_PROT_READ  = 0x1
++	_PROT_WRITE = 0x2
++	_PROT_EXEC  = 0x4
++
++	_MAP_ANON    = 0x1000
++	_MAP_PRIVATE = 0x2
++	_MAP_FIXED   = 0x10
++
++	_MADV_FREE = 0x5
++
++	_SA_SIGINFO = 0x40
++	_SA_RESTART = 0x2
++	_SA_ONSTACK = 0x1
++
++	_UMTX_OP_WAIT_UINT         = 0xb
++	_UMTX_OP_WAIT_UINT_PRIVATE = 0xf
++	_UMTX_OP_WAKE              = 0x3
++	_UMTX_OP_WAKE_PRIVATE      = 0x10
++
++	_SIGHUP    = 0x1
++	_SIGINT    = 0x2
++	_SIGQUIT   = 0x3
++	_SIGILL    = 0x4
++	_SIGTRAP   = 0x5
++	_SIGABRT   = 0x6
++	_SIGEMT    = 0x7
++	_SIGFPE    = 0x8
++	_SIGKILL   = 0x9
++	_SIGBUS    = 0xa
++	_SIGSEGV   = 0xb
++	_SIGSYS    = 0xc
++	_SIGPIPE   = 0xd
++	_SIGALRM   = 0xe
++	_SIGTERM   = 0xf
++	_SIGURG    = 0x10
++	_SIGSTOP   = 0x11
++	_SIGTSTP   = 0x12
++	_SIGCONT   = 0x13
++	_SIGCHLD   = 0x14
++	_SIGTTIN   = 0x15
++	_SIGTTOU   = 0x16
++	_SIGIO     = 0x17
++	_SIGXCPU   = 0x18
++	_SIGXFSZ   = 0x19
++	_SIGVTALRM = 0x1a
++	_SIGPROF   = 0x1b
++	_SIGWINCH  = 0x1c
++	_SIGINFO   = 0x1d
++	_SIGUSR1   = 0x1e
++	_SIGUSR2   = 0x1f
++
++	_FPE_INTDIV = 0x2
++	_FPE_INTOVF = 0x1
++	_FPE_FLTDIV = 0x3
++	_FPE_FLTOVF = 0x4
++	_FPE_FLTUND = 0x5
++	_FPE_FLTRES = 0x6
++	_FPE_FLTINV = 0x7
++	_FPE_FLTSUB = 0x8
++
++	_BUS_ADRALN = 0x1
++	_BUS_ADRERR = 0x2
++	_BUS_OBJERR = 0x3
++
++	_SEGV_MAPERR = 0x1
++	_SEGV_ACCERR = 0x2
++
++	_ITIMER_REAL    = 0x0
++	_ITIMER_VIRTUAL = 0x1
++	_ITIMER_PROF    = 0x2
++
++	_EV_ADD       = 0x1
++	_EV_DELETE    = 0x2
++	_EV_CLEAR     = 0x20
++	_EV_RECEIPT   = 0x40
++	_EV_ERROR     = 0x4000
++	_EVFILT_READ  = -0x1
++	_EVFILT_WRITE = -0x2
++)
++
++type rtprio struct {
++	_type uint16
++	prio  uint16
++}
++
++type thrparam struct {
++	start_func unsafe.Pointer
++	arg        *byte
++	stack_base *uint8
++	stack_size uint32
++	tls_base   *uint8
++	tls_size   uint32
++	child_tid  *int32
++	parent_tid *int32
++	flags      int32
++	rtp        *rtprio
++	spare      [3]uintptr
++}
++
++type sigaltstackt struct {
++	ss_sp    *uint8
++	ss_size  uint32
++	ss_flags int32
++}
++
++type sigset struct {
++	__bits [4]uint32
++}
++
++type stackt struct {
++	ss_sp    *uint8
++	ss_size  uint32
++	ss_flags int32
++}
++
++type siginfo struct {
++	si_signo  int32
++	si_errno  int32
++	si_code   int32
++	si_pid    int32
++	si_uid    uint32
++	si_status int32
++	si_addr   *byte
++	si_value  [4]byte
++	_reason   [32]byte
++}
++
++type mcontext struct {
++	__gregs [17]uint32
++	__fpu   [140]byte
++}
++
++type ucontext struct {
++	uc_sigmask  sigset
++	uc_mcontext mcontext
++	uc_link     *ucontext
++	uc_stack    stackt
++	uc_flags    int32
++	__spare__   [4]int32
++}
++
++type timespec struct {
++	tv_sec    int64
++	tv_nsec   int32
++	pad_cgo_0 [4]byte
++}
++
++type timeval struct {
++	tv_sec    int64
++	tv_usec   int32
++	pad_cgo_0 [4]byte
++}
++
++type itimerval struct {
++	it_interval timeval
++	it_value    timeval
++}
++
++type keventt struct {
++	ident  uint32
++	filter int16
++	flags  uint16
++	fflags uint32
++	data   int32
++	udata  *byte
++}
+diff --git a/src/runtime/defs_freebsd_arm.h b/src/runtime/defs_freebsd_arm.h
+deleted file mode 100644
+index 17deba68d1..0000000000
+--- a/src/runtime/defs_freebsd_arm.h
++++ /dev/null
+@@ -1,186 +0,0 @@
+-// Created by cgo -cdefs - DO NOT EDIT
+-// cgo -cdefs defs_freebsd.go
+-
+-
+-enum {
+-	EINTR	= 0x4,
+-	EFAULT	= 0xe,
+-
+-	PROT_NONE	= 0x0,
+-	PROT_READ	= 0x1,
+-	PROT_WRITE	= 0x2,
+-	PROT_EXEC	= 0x4,
+-
+-	MAP_ANON	= 0x1000,
+-	MAP_PRIVATE	= 0x2,
+-	MAP_FIXED	= 0x10,
+-
+-	MADV_FREE	= 0x5,
+-
+-	SA_SIGINFO	= 0x40,
+-	SA_RESTART	= 0x2,
+-	SA_ONSTACK	= 0x1,
+-
+-	UMTX_OP_WAIT_UINT		= 0xb,
+-	UMTX_OP_WAIT_UINT_PRIVATE	= 0xf,
+-	UMTX_OP_WAKE			= 0x3,
+-	UMTX_OP_WAKE_PRIVATE		= 0x10,
+-
+-	SIGHUP		= 0x1,
+-	SIGINT		= 0x2,
+-	SIGQUIT		= 0x3,
+-	SIGILL		= 0x4,
+-	SIGTRAP		= 0x5,
+-	SIGABRT		= 0x6,
+-	SIGEMT		= 0x7,
+-	SIGFPE		= 0x8,
+-	SIGKILL		= 0x9,
+-	SIGBUS		= 0xa,
+-	SIGSEGV		= 0xb,
+-	SIGSYS		= 0xc,
+-	SIGPIPE		= 0xd,
+-	SIGALRM		= 0xe,
+-	SIGTERM		= 0xf,
+-	SIGURG		= 0x10,
+-	SIGSTOP		= 0x11,
+-	SIGTSTP		= 0x12,
+-	SIGCONT		= 0x13,
+-	SIGCHLD		= 0x14,
+-	SIGTTIN		= 0x15,
+-	SIGTTOU		= 0x16,
+-	SIGIO		= 0x17,
+-	SIGXCPU		= 0x18,
+-	SIGXFSZ		= 0x19,
+-	SIGVTALRM	= 0x1a,
+-	SIGPROF		= 0x1b,
+-	SIGWINCH	= 0x1c,
+-	SIGINFO		= 0x1d,
+-	SIGUSR1		= 0x1e,
+-	SIGUSR2		= 0x1f,
+-
+-	FPE_INTDIV	= 0x2,
+-	FPE_INTOVF	= 0x1,
+-	FPE_FLTDIV	= 0x3,
+-	FPE_FLTOVF	= 0x4,
+-	FPE_FLTUND	= 0x5,
+-	FPE_FLTRES	= 0x6,
+-	FPE_FLTINV	= 0x7,
+-	FPE_FLTSUB	= 0x8,
+-
+-	BUS_ADRALN	= 0x1,
+-	BUS_ADRERR	= 0x2,
+-	BUS_OBJERR	= 0x3,
+-
+-	SEGV_MAPERR	= 0x1,
+-	SEGV_ACCERR	= 0x2,
+-
+-	ITIMER_REAL	= 0x0,
+-	ITIMER_VIRTUAL	= 0x1,
+-	ITIMER_PROF	= 0x2,
+-
+-	EV_ADD		= 0x1,
+-	EV_DELETE	= 0x2,
+-	EV_CLEAR	= 0x20,
+-	EV_RECEIPT	= 0x40,
+-	EV_ERROR	= 0x4000,
+-	EVFILT_READ	= -0x1,
+-	EVFILT_WRITE	= -0x2,
+-};
+-
+-typedef struct Rtprio Rtprio;
+-typedef struct ThrParam ThrParam;
+-typedef struct SigaltstackT SigaltstackT;
+-typedef struct Sigset Sigset;
+-typedef struct StackT StackT;
+-typedef struct Siginfo Siginfo;
+-typedef struct Mcontext Mcontext;
+-typedef struct Ucontext Ucontext;
+-typedef struct Timespec Timespec;
+-typedef struct Timeval Timeval;
+-typedef struct Itimerval Itimerval;
+-typedef struct KeventT KeventT;
+-
+-#pragma pack on
+-
+-struct Rtprio {
+-	uint16	type;
+-	uint16	prio;
+-};
+-struct ThrParam {
+-	void	*start_func;
+-	byte	*arg;
+-	uint8	*stack_base;
+-	uint32	stack_size;
+-	uint8	*tls_base;
+-	uint32	tls_size;
+-	int32	*child_tid;
+-	int32	*parent_tid;
+-	int32	flags;
+-	Rtprio	*rtp;
+-	void	*spare[3];
+-};
+-struct SigaltstackT {
+-	uint8	*ss_sp;
+-	uint32	ss_size;
+-	int32	ss_flags;
+-};
+-struct Sigset {
+-	uint32	__bits[4];
+-};
+-struct StackT {
+-	uint8	*ss_sp;
+-	uint32	ss_size;
+-	int32	ss_flags;
+-};
+-
+-struct Siginfo {
+-	int32	si_signo;
+-	int32	si_errno;
+-	int32	si_code;
+-	int32	si_pid;
+-	uint32	si_uid;
+-	int32	si_status;
+-	byte	*si_addr;
+-	byte	si_value[4];
+-	byte	_reason[32];
+-};
+-
+-struct Mcontext {
+-	uint32	__gregs[17];
+-	byte	__fpu[140];
+-};
+-struct Ucontext {
+-	Sigset	uc_sigmask;
+-	Mcontext	uc_mcontext;
+-	Ucontext	*uc_link;
+-	StackT	uc_stack;
+-	int32	uc_flags;
+-	int32	__spare__[4];
+-};
+-
+-struct Timespec {
+-	int64	tv_sec;
+-	int32	tv_nsec;
+-	byte	Pad_cgo_0[4];
+-};
+-struct Timeval {
+-	int64	tv_sec;
+-	int32	tv_usec;
+-	byte	Pad_cgo_0[4];
+-};
+-struct Itimerval {
+-	Timeval	it_interval;
+-	Timeval	it_value;
+-};
+-
+-struct KeventT {
+-	uint32	ident;
+-	int16	filter;
+-	uint16	flags;
+-	uint32	fflags;
+-	int32	data;
+-	byte	*udata;
+-};
+-
+-
+-#pragma pack off
+diff --git a/src/runtime/defs_linux_386.go b/src/runtime/defs_linux_386.go
+new file mode 100644
+index 0000000000..be5e5b3ad9
+--- /dev/null
++++ b/src/runtime/defs_linux_386.go
+@@ -0,0 +1,213 @@
++// created by cgo -cdefs and then converted to Go
++// cgo -cdefs defs2_linux.go
++
++package runtime
++
++const (
++	_EINTR  = 0x4
++	_EAGAIN = 0xb
++	_ENOMEM = 0xc
++
++	_PROT_NONE  = 0x0
++	_PROT_READ  = 0x1
++	_PROT_WRITE = 0x2
++	_PROT_EXEC  = 0x4
++
++	_MAP_ANON    = 0x20
++	_MAP_PRIVATE = 0x2
++	_MAP_FIXED   = 0x10
++
++	_MADV_DONTNEED = 0x4
++
++	_SA_RESTART  = 0x10000000
++	_SA_ONSTACK  = 0x8000000
++	_SA_RESTORER = 0x4000000
++	_SA_SIGINFO  = 0x4
++
++	_SIGHUP    = 0x1
++	_SIGINT    = 0x2
++	_SIGQUIT   = 0x3
++	_SIGILL    = 0x4
++	_SIGTRAP   = 0x5
++	_SIGABRT   = 0x6
++	_SIGBUS    = 0x7
++	_SIGFPE    = 0x8
++	_SIGKILL   = 0x9
++	_SIGUSR1   = 0xa
++	_SIGSEGV   = 0xb
++	_SIGUSR2   = 0xc
++	_SIGPIPE   = 0xd
++	_SIGALRM   = 0xe
++	_SIGSTKFLT = 0x10
++	_SIGCHLD   = 0x11
++	_SIGCONT   = 0x12
++	_SIGSTOP   = 0x13
++	_SIGTSTP   = 0x14
++	_SIGTTIN   = 0x15
++	_SIGTTOU   = 0x16
++	_SIGURG    = 0x17
++	_SIGXCPU   = 0x18
++	_SIGXFSZ   = 0x19
++	_SIGVTALRM = 0x1a
++	_SIGPROF   = 0x1b
++	_SIGWINCH  = 0x1c
++	_SIGIO     = 0x1d
++	_SIGPWR    = 0x1e
++	_SIGSYS    = 0x1f
++
++	_FPE_INTDIV = 0x1
++	_FPE_INTOVF = 0x2
++	_FPE_FLTDIV = 0x3
++	_FPE_FLTOVF = 0x4
++	_FPE_FLTUND = 0x5
++	_FPE_FLTRES = 0x6
++	_FPE_FLTINV = 0x7
++	_FPE_FLTSUB = 0x8
++
++	_BUS_ADRALN = 0x1
++	_BUS_ADRERR = 0x2
++	_BUS_OBJERR = 0x3
++
++	_SEGV_MAPERR = 0x1
++	_SEGV_ACCERR = 0x2
++
++	_ITIMER_REAL    = 0x0
++	_ITIMER_VIRTUAL = 0x1
++	_ITIMER_PROF    = 0x2
++
++	_O_RDONLY  = 0x0
++	_O_CLOEXEC = 0x80000
++
++	_EPOLLIN       = 0x1
++	_EPOLLOUT      = 0x4
++	_EPOLLERR      = 0x8
++	_EPOLLHUP      = 0x10
++	_EPOLLRDHUP    = 0x2000
++	_EPOLLET       = 0x80000000
++	_EPOLL_CLOEXEC = 0x80000
++	_EPOLL_CTL_ADD = 0x1
++	_EPOLL_CTL_DEL = 0x2
++	_EPOLL_CTL_MOD = 0x3
++)
++
++type fpreg struct {
++	significand [4]uint16
++	exponent    uint16
++}
++
++type fpxreg struct {
++	significand [4]uint16
++	exponent    uint16
++	padding     [3]uint16
++}
++
++type xmmreg struct {
++	element [4]uint32
++}
++
++type fpstate struct {
++	cw        uint32
++	sw        uint32
++	tag       uint32
++	ipoff     uint32
++	cssel     uint32
++	dataoff   uint32
++	datasel   uint32
++	_st       [8]fpreg
++	status    uint16
++	magic     uint16
++	_fxsr_env [6]uint32
++	mxcsr     uint32
++	reserved  uint32
++	_fxsr_st  [8]fpxreg
++	_xmm      [8]xmmreg
++	padding1  [44]uint32
++	anon0     [48]byte
++}
++
++type timespec struct {
++	tv_sec  int32
++	tv_nsec int32
++}
++
++func (ts *timespec) set_sec(x int32) {
++	ts.tv_sec = x
++}
++
++type timeval struct {
++	tv_sec  int32
++	tv_usec int32
++}
++
++func (tv *timeval) set_usec(x int32) {
++	tv.tv_usec = x
++}
++
++type sigactiont struct {
++	sa_handler  uintptr
++	sa_flags    uint32
++	sa_restorer uintptr
++	sa_mask     uint64
++}
++
++type siginfo struct {
++	si_signo  int32
++	si_errno  int32
++	si_code   int32
++	_sifields [116]byte
++}
++
++type sigaltstackt struct {
++	ss_sp    *byte
++	ss_flags int32
++	ss_size  uintptr
++}
++
++type sigcontext struct {
++	gs            uint16
++	__gsh         uint16
++	fs            uint16
++	__fsh         uint16
++	es            uint16
++	__esh         uint16
++	ds            uint16
++	__dsh         uint16
++	edi           uint32
++	esi           uint32
++	ebp           uint32
++	esp           uint32
++	ebx           uint32
++	edx           uint32
++	ecx           uint32
++	eax           uint32
++	trapno        uint32
++	err           uint32
++	eip           uint32
++	cs            uint16
++	__csh         uint16
++	eflags        uint32
++	esp_at_signal uint32
++	ss            uint16
++	__ssh         uint16
++	fpstate       *fpstate
++	oldmask       uint32
++	cr2           uint32
++}
++
++type ucontext struct {
++	uc_flags    uint32
++	uc_link     *ucontext
++	uc_stack    sigaltstackt
++	uc_mcontext sigcontext
++	uc_sigmask  uint32
++}
++
++type itimerval struct {
++	it_interval timeval
++	it_value    timeval
++}
++
++type epollevent struct {
++	events uint32
++	data   [8]byte // to match amd64
++}
+diff --git a/src/runtime/defs_linux_386.h b/src/runtime/defs_linux_386.h
+deleted file mode 100644
+index 24a05d862a..0000000000
+--- a/src/runtime/defs_linux_386.h
++++ /dev/null
+@@ -1,211 +0,0 @@
+-// Created by cgo -cdefs - DO NOT EDIT
+-// cgo -cdefs defs2_linux.go
+-
+-
+-enum {
+-	EINTR	= 0x4,
+-	EAGAIN	= 0xb,
+-	ENOMEM	= 0xc,
+-
+-	PROT_NONE	= 0x0,
+-	PROT_READ	= 0x1,
+-	PROT_WRITE	= 0x2,
+-	PROT_EXEC	= 0x4,
+-
+-	MAP_ANON	= 0x20,
+-	MAP_PRIVATE	= 0x2,
+-	MAP_FIXED	= 0x10,
+-
+-	MADV_DONTNEED	= 0x4,
+-
+-	SA_RESTART	= 0x10000000,
+-	SA_ONSTACK	= 0x8000000,
+-	SA_RESTORER	= 0x4000000,
+-	SA_SIGINFO	= 0x4,
+-
+-	SIGHUP		= 0x1,
+-	SIGINT		= 0x2,
+-	SIGQUIT		= 0x3,
+-	SIGILL		= 0x4,
+-	SIGTRAP		= 0x5,
+-	SIGABRT		= 0x6,
+-	SIGBUS		= 0x7,
+-	SIGFPE		= 0x8,
+-	SIGKILL		= 0x9,
+-	SIGUSR1		= 0xa,
+-	SIGSEGV		= 0xb,
+-	SIGUSR2		= 0xc,
+-	SIGPIPE		= 0xd,
+-	SIGALRM		= 0xe,
+-	SIGSTKFLT	= 0x10,
+-	SIGCHLD		= 0x11,
+-	SIGCONT		= 0x12,
+-	SIGSTOP		= 0x13,
+-	SIGTSTP		= 0x14,
+-	SIGTTIN		= 0x15,
+-	SIGTTOU		= 0x16,
+-	SIGURG		= 0x17,
+-	SIGXCPU		= 0x18,
+-	SIGXFSZ		= 0x19,
+-	SIGVTALRM	= 0x1a,
+-	SIGPROF		= 0x1b,
+-	SIGWINCH	= 0x1c,
+-	SIGIO		= 0x1d,
+-	SIGPWR		= 0x1e,
+-	SIGSYS		= 0x1f,
+-
+-	FPE_INTDIV	= 0x1,
+-	FPE_INTOVF	= 0x2,
+-	FPE_FLTDIV	= 0x3,
+-	FPE_FLTOVF	= 0x4,
+-	FPE_FLTUND	= 0x5,
+-	FPE_FLTRES	= 0x6,
+-	FPE_FLTINV	= 0x7,
+-	FPE_FLTSUB	= 0x8,
+-
+-	BUS_ADRALN	= 0x1,
+-	BUS_ADRERR	= 0x2,
+-	BUS_OBJERR	= 0x3,
+-
+-	SEGV_MAPERR	= 0x1,
+-	SEGV_ACCERR	= 0x2,
+-
+-	ITIMER_REAL	= 0x0,
+-	ITIMER_VIRTUAL	= 0x1,
+-	ITIMER_PROF	= 0x2,
+-
+-	O_RDONLY	= 0x0,
+-	O_CLOEXEC	= 0x80000,
+-
+-	EPOLLIN		= 0x1,
+-	EPOLLOUT	= 0x4,
+-	EPOLLERR	= 0x8,
+-	EPOLLHUP	= 0x10,
+-	EPOLLRDHUP	= 0x2000,
+-	EPOLLET		= -0x80000000,
+-	EPOLL_CLOEXEC	= 0x80000,
+-	EPOLL_CTL_ADD	= 0x1,
+-	EPOLL_CTL_DEL	= 0x2,
+-	EPOLL_CTL_MOD	= 0x3,
+-};
+-
+-typedef struct Fpreg Fpreg;
+-typedef struct Fpxreg Fpxreg;
+-typedef struct Xmmreg Xmmreg;
+-typedef struct Fpstate Fpstate;
+-typedef struct Timespec Timespec;
+-typedef struct Timeval Timeval;
+-typedef struct SigactionT SigactionT;
+-typedef struct Siginfo Siginfo;
+-typedef struct SigaltstackT SigaltstackT;
+-typedef struct Sigcontext Sigcontext;
+-typedef struct Ucontext Ucontext;
+-typedef struct Itimerval Itimerval;
+-typedef struct EpollEvent EpollEvent;
+-
+-#pragma pack on
+-
+-struct Fpreg {
+-	uint16	significand[4];
+-	uint16	exponent;
+-};
+-struct Fpxreg {
+-	uint16	significand[4];
+-	uint16	exponent;
+-	uint16	padding[3];
+-};
+-struct Xmmreg {
+-	uint32	element[4];
+-};
+-struct Fpstate {
+-	uint32	cw;
+-	uint32	sw;
+-	uint32	tag;
+-	uint32	ipoff;
+-	uint32	cssel;
+-	uint32	dataoff;
+-	uint32	datasel;
+-	Fpreg	_st[8];
+-	uint16	status;
+-	uint16	magic;
+-	uint32	_fxsr_env[6];
+-	uint32	mxcsr;
+-	uint32	reserved;
+-	Fpxreg	_fxsr_st[8];
+-	Xmmreg	_xmm[8];
+-	uint32	padding1[44];
+-	byte	anon0[48];
+-};
+-struct Timespec {
+-	int32	tv_sec;
+-	int32	tv_nsec;
+-};
+-struct Timeval {
+-	int32	tv_sec;
+-	int32	tv_usec;
+-};
+-struct SigactionT {
+-	void	*k_sa_handler;
+-	uint32	sa_flags;
+-	void	*sa_restorer;
+-	uint64	sa_mask;
+-};
+-struct Siginfo {
+-	int32	si_signo;
+-	int32	si_errno;
+-	int32	si_code;
+-	byte	_sifields[116];
+-};
+-struct SigaltstackT {
+-	byte	*ss_sp;
+-	int32	ss_flags;
+-	uint32	ss_size;
+-};
+-struct Sigcontext {
+-	uint16	gs;
+-	uint16	__gsh;
+-	uint16	fs;
+-	uint16	__fsh;
+-	uint16	es;
+-	uint16	__esh;
+-	uint16	ds;
+-	uint16	__dsh;
+-	uint32	edi;
+-	uint32	esi;
+-	uint32	ebp;
+-	uint32	esp;
+-	uint32	ebx;
+-	uint32	edx;
+-	uint32	ecx;
+-	uint32	eax;
+-	uint32	trapno;
+-	uint32	err;
+-	uint32	eip;
+-	uint16	cs;
+-	uint16	__csh;
+-	uint32	eflags;
+-	uint32	esp_at_signal;
+-	uint16	ss;
+-	uint16	__ssh;
+-	Fpstate	*fpstate;
+-	uint32	oldmask;
+-	uint32	cr2;
+-};
+-struct Ucontext {
+-	uint32	uc_flags;
+-	Ucontext	*uc_link;
+-	SigaltstackT	uc_stack;
+-	Sigcontext	uc_mcontext;
+-	uint32	uc_sigmask;
+-};
+-struct Itimerval {
+-	Timeval	it_interval;
+-	Timeval	it_value;
+-};
+-struct EpollEvent {
+-	uint32	events;
+-	byte	data[8]; // to match amd64
+-};
+-
+-
+-#pragma pack off
+diff --git a/src/runtime/defs_linux_amd64.go b/src/runtime/defs_linux_amd64.go
+new file mode 100644
+index 0000000000..386926fbdb
+--- /dev/null
++++ b/src/runtime/defs_linux_amd64.go
+@@ -0,0 +1,249 @@
++// created by cgo -cdefs and then converted to Go
++// cgo -cdefs defs_linux.go defs1_linux.go
++
++package runtime
++
++const (
++	_EINTR  = 0x4
++	_EAGAIN = 0xb
++	_ENOMEM = 0xc
++
++	_PROT_NONE  = 0x0
++	_PROT_READ  = 0x1
++	_PROT_WRITE = 0x2
++	_PROT_EXEC  = 0x4
++
++	_MAP_ANON    = 0x20
++	_MAP_PRIVATE = 0x2
++	_MAP_FIXED   = 0x10
++
++	_MADV_DONTNEED = 0x4
++
++	_SA_RESTART  = 0x10000000
++	_SA_ONSTACK  = 0x8000000
++	_SA_RESTORER = 0x4000000
++	_SA_SIGINFO  = 0x4
++
++	_SIGHUP    = 0x1
++	_SIGINT    = 0x2
++	_SIGQUIT   = 0x3
++	_SIGILL    = 0x4
++	_SIGTRAP   = 0x5
++	_SIGABRT   = 0x6
++	_SIGBUS    = 0x7
++	_SIGFPE    = 0x8
++	_SIGKILL   = 0x9
++	_SIGUSR1   = 0xa
++	_SIGSEGV   = 0xb
++	_SIGUSR2   = 0xc
++	_SIGPIPE   = 0xd
++	_SIGALRM   = 0xe
++	_SIGSTKFLT = 0x10
++	_SIGCHLD   = 0x11
++	_SIGCONT   = 0x12
++	_SIGSTOP   = 0x13
++	_SIGTSTP   = 0x14
++	_SIGTTIN   = 0x15
++	_SIGTTOU   = 0x16
++	_SIGURG    = 0x17
++	_SIGXCPU   = 0x18
++	_SIGXFSZ   = 0x19
++	_SIGVTALRM = 0x1a
++	_SIGPROF   = 0x1b
++	_SIGWINCH  = 0x1c
++	_SIGIO     = 0x1d
++	_SIGPWR    = 0x1e
++	_SIGSYS    = 0x1f
++
++	_FPE_INTDIV = 0x1
++	_FPE_INTOVF = 0x2
++	_FPE_FLTDIV = 0x3
++	_FPE_FLTOVF = 0x4
++	_FPE_FLTUND = 0x5
++	_FPE_FLTRES = 0x6
++	_FPE_FLTINV = 0x7
++	_FPE_FLTSUB = 0x8
++
++	_BUS_ADRALN = 0x1
++	_BUS_ADRERR = 0x2
++	_BUS_OBJERR = 0x3
++
++	_SEGV_MAPERR = 0x1
++	_SEGV_ACCERR = 0x2
++
++	_ITIMER_REAL    = 0x0
++	_ITIMER_VIRTUAL = 0x1
++	_ITIMER_PROF    = 0x2
++
++	_EPOLLIN       = 0x1
++	_EPOLLOUT      = 0x4
++	_EPOLLERR      = 0x8
++	_EPOLLHUP      = 0x10
++	_EPOLLRDHUP    = 0x2000
++	_EPOLLET       = 0x80000000
++	_EPOLL_CLOEXEC = 0x80000
++	_EPOLL_CTL_ADD = 0x1
++	_EPOLL_CTL_DEL = 0x2
++	_EPOLL_CTL_MOD = 0x3
++)
++
++type timespec struct {
++	tv_sec  int64
++	tv_nsec int64
++}
++
++func (ts *timespec) set_sec(x int32) {
++	ts.tv_sec = int64(x)
++}
++
++type timeval struct {
++	tv_sec  int64
++	tv_usec int64
++}
++
++func (tv *timeval) set_usec(x int32) {
++	tv.tv_usec = int64(x)
++}
++
++type sigactiont struct {
++	sa_handler  uintptr
++	sa_flags    uint64
++	sa_restorer uintptr
++	sa_mask     uint64
++}
++
++type siginfo struct {
++	si_signo  int32
++	si_errno  int32
++	si_code   int32
++	pad_cgo_0 [4]byte
++	_sifields [112]byte
++}
++
++type itimerval struct {
++	it_interval timeval
++	it_value    timeval
++}
++
++type epollevent struct {
++	events uint32
++	data   [8]byte // unaligned uintptr
++}
++
++// created by cgo -cdefs and then converted to Go
++// cgo -cdefs defs_linux.go defs1_linux.go
++
++const (
++	_O_RDONLY  = 0x0
++	_O_CLOEXEC = 0x80000
++)
++
++type usigset struct {
++	__val [16]uint64
++}
++
++type fpxreg struct {
++	significand [4]uint16
++	exponent    uint16
++	padding     [3]uint16
++}
++
++type xmmreg struct {
++	element [4]uint32
++}
++
++type fpstate struct {
++	cwd       uint16
++	swd       uint16
++	ftw       uint16
++	fop       uint16
++	rip       uint64
++	rdp       uint64
++	mxcsr     uint32
++	mxcr_mask uint32
++	_st       [8]fpxreg
++	_xmm      [16]xmmreg
++	padding   [24]uint32
++}
++
++type fpxreg1 struct {
++	significand [4]uint16
++	exponent    uint16
++	padding     [3]uint16
++}
++
++type xmmreg1 struct {
++	element [4]uint32
++}
++
++type fpstate1 struct {
++	cwd       uint16
++	swd       uint16
++	ftw       uint16
++	fop       uint16
++	rip       uint64
++	rdp       uint64
++	mxcsr     uint32
++	mxcr_mask uint32
++	_st       [8]fpxreg1
++	_xmm      [16]xmmreg1
++	padding   [24]uint32
++}
++
++type fpreg1 struct {
++	significand [4]uint16
++	exponent    uint16
++}
++
++type sigaltstackt struct {
++	ss_sp     *byte
++	ss_flags  int32
++	pad_cgo_0 [4]byte
++	ss_size   uintptr
++}
++
++type mcontext struct {
++	gregs       [23]uint64
++	fpregs      *fpstate
++	__reserved1 [8]uint64
++}
++
++type ucontext struct {
++	uc_flags     uint64
++	uc_link      *ucontext
++	uc_stack     sigaltstackt
++	uc_mcontext  mcontext
++	uc_sigmask   usigset
++	__fpregs_mem fpstate
++}
++
++type sigcontext struct {
++	r8          uint64
++	r9          uint64
++	r10         uint64
++	r11         uint64
++	r12         uint64
++	r13         uint64
++	r14         uint64
++	r15         uint64
++	rdi         uint64
++	rsi         uint64
++	rbp         uint64
++	rbx         uint64
++	rdx         uint64
++	rax         uint64
++	rcx         uint64
++	rsp         uint64
++	rip         uint64
++	eflags      uint64
++	cs          uint16
++	gs          uint16
++	fs          uint16
++	__pad0      uint16
++	err         uint64
++	trapno      uint64
++	oldmask     uint64
++	cr2         uint64
++	fpstate     *fpstate1
++	__reserved1 [8]uint64
++}
+diff --git a/src/runtime/defs_linux_amd64.h b/src/runtime/defs_linux_amd64.h
+deleted file mode 100644
+index 14616dffed..0000000000
+--- a/src/runtime/defs_linux_amd64.h
++++ /dev/null
+@@ -1,254 +0,0 @@
+-// Created by cgo -cdefs - DO NOT EDIT
+-// cgo -cdefs defs_linux.go defs1_linux.go
+-
+-
+-enum {
+-	EINTR	= 0x4,
+-	EAGAIN	= 0xb,
+-	ENOMEM	= 0xc,
+-
+-	PROT_NONE	= 0x0,
+-	PROT_READ	= 0x1,
+-	PROT_WRITE	= 0x2,
+-	PROT_EXEC	= 0x4,
+-
+-	MAP_ANON	= 0x20,
+-	MAP_PRIVATE	= 0x2,
+-	MAP_FIXED	= 0x10,
+-
+-	MADV_DONTNEED	= 0x4,
+-
+-	SA_RESTART	= 0x10000000,
+-	SA_ONSTACK	= 0x8000000,
+-	SA_RESTORER	= 0x4000000,
+-	SA_SIGINFO	= 0x4,
+-
+-	SIGHUP		= 0x1,
+-	SIGINT		= 0x2,
+-	SIGQUIT		= 0x3,
+-	SIGILL		= 0x4,
+-	SIGTRAP		= 0x5,
+-	SIGABRT		= 0x6,
+-	SIGBUS		= 0x7,
+-	SIGFPE		= 0x8,
+-	SIGKILL		= 0x9,
+-	SIGUSR1		= 0xa,
+-	SIGSEGV		= 0xb,
+-	SIGUSR2		= 0xc,
+-	SIGPIPE		= 0xd,
+-	SIGALRM		= 0xe,
+-	SIGSTKFLT	= 0x10,
+-	SIGCHLD		= 0x11,
+-	SIGCONT		= 0x12,
+-	SIGSTOP		= 0x13,
+-	SIGTSTP		= 0x14,
+-	SIGTTIN		= 0x15,
+-	SIGTTOU		= 0x16,
+-	SIGURG		= 0x17,
+-	SIGXCPU		= 0x18,
+-	SIGXFSZ		= 0x19,
+-	SIGVTALRM	= 0x1a,
+-	SIGPROF		= 0x1b,
+-	SIGWINCH	= 0x1c,
+-	SIGIO		= 0x1d,
+-	SIGPWR		= 0x1e,
+-	SIGSYS		= 0x1f,
+-
+-	FPE_INTDIV	= 0x1,
+-	FPE_INTOVF	= 0x2,
+-	FPE_FLTDIV	= 0x3,
+-	FPE_FLTOVF	= 0x4,
+-	FPE_FLTUND	= 0x5,
+-	FPE_FLTRES	= 0x6,
+-	FPE_FLTINV	= 0x7,
+-	FPE_FLTSUB	= 0x8,
+-
+-	BUS_ADRALN	= 0x1,
+-	BUS_ADRERR	= 0x2,
+-	BUS_OBJERR	= 0x3,
+-
+-	SEGV_MAPERR	= 0x1,
+-	SEGV_ACCERR	= 0x2,
+-
+-	ITIMER_REAL	= 0x0,
+-	ITIMER_VIRTUAL	= 0x1,
+-	ITIMER_PROF	= 0x2,
+-
+-	EPOLLIN		= 0x1,
+-	EPOLLOUT	= 0x4,
+-	EPOLLERR	= 0x8,
+-	EPOLLHUP	= 0x10,
+-	EPOLLRDHUP	= 0x2000,
+-	EPOLLET		= -0x80000000,
+-	EPOLL_CLOEXEC	= 0x80000,
+-	EPOLL_CTL_ADD	= 0x1,
+-	EPOLL_CTL_DEL	= 0x2,
+-	EPOLL_CTL_MOD	= 0x3,
+-};
+-
+-typedef struct Timespec Timespec;
+-typedef struct Timeval Timeval;
+-typedef struct SigactionT SigactionT;
+-typedef struct Siginfo Siginfo;
+-typedef struct Itimerval Itimerval;
+-typedef struct EpollEvent EpollEvent;
+-
+-#pragma pack on
+-
+-struct Timespec {
+-	int64	tv_sec;
+-	int64	tv_nsec;
+-};
+-struct Timeval {
+-	int64	tv_sec;
+-	int64	tv_usec;
+-};
+-struct SigactionT {
+-	void	*sa_handler;
+-	uint64	sa_flags;
+-	void	*sa_restorer;
+-	uint64	sa_mask;
+-};
+-struct Siginfo {
+-	int32	si_signo;
+-	int32	si_errno;
+-	int32	si_code;
+-	byte	Pad_cgo_0[4];
+-	byte	_sifields[112];
+-};
+-struct Itimerval {
+-	Timeval	it_interval;
+-	Timeval	it_value;
+-};
+-struct EpollEvent {
+-	uint32	events;
+-	byte	data[8]; // unaligned uintptr
+-};
+-
+-
+-#pragma pack off
+-// Created by cgo -cdefs - DO NOT EDIT
+-// cgo -cdefs defs_linux.go defs1_linux.go
+-
+-
+-enum {
+-	O_RDONLY	= 0x0,
+-	O_CLOEXEC	= 0x80000,
+-};
+-
+-typedef struct Usigset Usigset;
+-typedef struct Fpxreg Fpxreg;
+-typedef struct Xmmreg Xmmreg;
+-typedef struct Fpstate Fpstate;
+-typedef struct Fpxreg1 Fpxreg1;
+-typedef struct Xmmreg1 Xmmreg1;
+-typedef struct Fpstate1 Fpstate1;
+-typedef struct Fpreg1 Fpreg1;
+-typedef struct SigaltstackT SigaltstackT;
+-typedef struct Mcontext Mcontext;
+-typedef struct Ucontext Ucontext;
+-typedef struct Sigcontext Sigcontext;
+-
+-#pragma pack on
+-
+-struct Usigset {
+-	uint64	__val[16];
+-};
+-struct Fpxreg {
+-	uint16	significand[4];
+-	uint16	exponent;
+-	uint16	padding[3];
+-};
+-struct Xmmreg {
+-	uint32	element[4];
+-};
+-struct Fpstate {
+-	uint16	cwd;
+-	uint16	swd;
+-	uint16	ftw;
+-	uint16	fop;
+-	uint64	rip;
+-	uint64	rdp;
+-	uint32	mxcsr;
+-	uint32	mxcr_mask;
+-	Fpxreg	_st[8];
+-	Xmmreg	_xmm[16];
+-	uint32	padding[24];
+-};
+-struct Fpxreg1 {
+-	uint16	significand[4];
+-	uint16	exponent;
+-	uint16	padding[3];
+-};
+-struct Xmmreg1 {
+-	uint32	element[4];
+-};
+-struct Fpstate1 {
+-	uint16	cwd;
+-	uint16	swd;
+-	uint16	ftw;
+-	uint16	fop;
+-	uint64	rip;
+-	uint64	rdp;
+-	uint32	mxcsr;
+-	uint32	mxcr_mask;
+-	Fpxreg1	_st[8];
+-	Xmmreg1	_xmm[16];
+-	uint32	padding[24];
+-};
+-struct Fpreg1 {
+-	uint16	significand[4];
+-	uint16	exponent;
+-};
+-struct SigaltstackT {
+-	byte	*ss_sp;
+-	int32	ss_flags;
+-	byte	Pad_cgo_0[4];
+-	uint64	ss_size;
+-};
+-struct Mcontext {
+-	int64	gregs[23];
+-	Fpstate	*fpregs;
+-	uint64	__reserved1[8];
+-};
+-struct Ucontext {
+-	uint64	uc_flags;
+-	Ucontext	*uc_link;
+-	SigaltstackT	uc_stack;
+-	Mcontext	uc_mcontext;
+-	Usigset	uc_sigmask;
+-	Fpstate	__fpregs_mem;
+-};
+-struct Sigcontext {
+-	uint64	r8;
+-	uint64	r9;
+-	uint64	r10;
+-	uint64	r11;
+-	uint64	r12;
+-	uint64	r13;
+-	uint64	r14;
+-	uint64	r15;
+-	uint64	rdi;
+-	uint64	rsi;
+-	uint64	rbp;
+-	uint64	rbx;
+-	uint64	rdx;
+-	uint64	rax;
+-	uint64	rcx;
+-	uint64	rsp;
+-	uint64	rip;
+-	uint64	eflags;
+-	uint16	cs;
+-	uint16	gs;
+-	uint16	fs;
+-	uint16	__pad0;
+-	uint64	err;
+-	uint64	trapno;
+-	uint64	oldmask;
+-	uint64	cr2;
+-	Fpstate1	*fpstate;
+-	uint64	__reserved1[8];
+-};
+-
+-
+-#pragma pack off
+diff --git a/src/runtime/defs_linux_arm.go b/src/runtime/defs_linux_arm.go
+new file mode 100644
+index 0000000000..1e7c6797a2
+--- /dev/null
++++ b/src/runtime/defs_linux_arm.go
+@@ -0,0 +1,163 @@
++package runtime
++
++// Constants
++const (
++	_EINTR  = 0x4
++	_ENOMEM = 0xc
++	_EAGAIN = 0xb
++
++	_PROT_NONE      = 0
++	_PROT_READ      = 0x1
++	_PROT_WRITE     = 0x2
++	_PROT_EXEC      = 0x4
++	_MAP_ANON       = 0x20
++	_MAP_PRIVATE    = 0x2
++	_MAP_FIXED      = 0x10
++	_MADV_DONTNEED  = 0x4
++	_SA_RESTART     = 0x10000000
++	_SA_ONSTACK     = 0x8000000
++	_SA_RESTORER    = 0 // unused on ARM
++	_SA_SIGINFO     = 0x4
++	_SIGHUP         = 0x1
++	_SIGINT         = 0x2
++	_SIGQUIT        = 0x3
++	_SIGILL         = 0x4
++	_SIGTRAP        = 0x5
++	_SIGABRT        = 0x6
++	_SIGBUS         = 0x7
++	_SIGFPE         = 0x8
++	_SIGKILL        = 0x9
++	_SIGUSR1        = 0xa
++	_SIGSEGV        = 0xb
++	_SIGUSR2        = 0xc
++	_SIGPIPE        = 0xd
++	_SIGALRM        = 0xe
++	_SIGSTKFLT      = 0x10
++	_SIGCHLD        = 0x11
++	_SIGCONT        = 0x12
++	_SIGSTOP        = 0x13
++	_SIGTSTP        = 0x14
++	_SIGTTIN        = 0x15
++	_SIGTTOU        = 0x16
++	_SIGURG         = 0x17
++	_SIGXCPU        = 0x18
++	_SIGXFSZ        = 0x19
++	_SIGVTALRM      = 0x1a
++	_SIGPROF        = 0x1b
++	_SIGWINCH       = 0x1c
++	_SIGIO          = 0x1d
++	_SIGPWR         = 0x1e
++	_SIGSYS         = 0x1f
++	_FPE_INTDIV     = 0x1
++	_FPE_INTOVF     = 0x2
++	_FPE_FLTDIV     = 0x3
++	_FPE_FLTOVF     = 0x4
++	_FPE_FLTUND     = 0x5
++	_FPE_FLTRES     = 0x6
++	_FPE_FLTINV     = 0x7
++	_FPE_FLTSUB     = 0x8
++	_BUS_ADRALN     = 0x1
++	_BUS_ADRERR     = 0x2
++	_BUS_OBJERR     = 0x3
++	_SEGV_MAPERR    = 0x1
++	_SEGV_ACCERR    = 0x2
++	_ITIMER_REAL    = 0
++	_ITIMER_PROF    = 0x2
++	_ITIMER_VIRTUAL = 0x1
++	_O_RDONLY       = 0
++	_O_CLOEXEC      = 02000000
++
++	_EPOLLIN       = 0x1
++	_EPOLLOUT      = 0x4
++	_EPOLLERR      = 0x8
++	_EPOLLHUP      = 0x10
++	_EPOLLRDHUP    = 0x2000
++	_EPOLLET       = 0x80000000
++	_EPOLL_CLOEXEC = 0x80000
++	_EPOLL_CTL_ADD = 0x1
++	_EPOLL_CTL_DEL = 0x2
++	_EPOLL_CTL_MOD = 0x3
++)
++
++type timespec struct {
++	tv_sec  int32
++	tv_nsec int32
++}
++
++func (ts *timespec) set_sec(x int32) {
++	ts.tv_sec = x
++}
++
++type sigaltstackt struct {
++	ss_sp    *byte
++	ss_flags int32
++	ss_size  uintptr
++}
++
++type sigcontext struct {
++	trap_no       uint32
++	error_code    uint32
++	oldmask       uint32
++	r0            uint32
++	r1            uint32
++	r2            uint32
++	r3            uint32
++	r4            uint32
++	r5            uint32
++	r6            uint32
++	r7            uint32
++	r8            uint32
++	r9            uint32
++	r10           uint32
++	fp            uint32
++	ip            uint32
++	sp            uint32
++	lr            uint32
++	pc            uint32
++	cpsr          uint32
++	fault_address uint32
++}
++
++type ucontext struct {
++	uc_flags    uint32
++	uc_link     *ucontext
++	uc_stack    sigaltstackt
++	uc_mcontext sigcontext
++	uc_sigmask  uint32
++	__unused    [31]int32
++	uc_regspace [128]uint32
++}
++
++type timeval struct {
++	tv_sec  int32
++	tv_usec int32
++}
++
++func (tv *timeval) set_usec(x int32) {
++	tv.tv_usec = x
++}
++
++type itimerval struct {
++	it_interval timeval
++	it_value    timeval
++}
++
++type siginfo struct {
++	si_signo  int32
++	si_errno  int32
++	si_code   int32
++	_sifields [4]uint8
++}
++
++type sigactiont struct {
++	sa_handler  uintptr
++	sa_flags    uint32
++	sa_restorer uintptr
++	sa_mask     uint64
++}
++
++type epollevent struct {
++	events uint32
++	_pad   uint32
++	data   [8]byte // to match amd64
++}
+diff --git a/src/runtime/defs_linux_arm.h b/src/runtime/defs_linux_arm.h
+deleted file mode 100644
+index 50b3c919ed..0000000000
+--- a/src/runtime/defs_linux_arm.h
++++ /dev/null
+@@ -1,168 +0,0 @@
+-// TODO: Generate using cgo like defs_linux_{386,amd64}.h
+-
+-// Constants
+-enum {
+-	EINTR  = 0x4,
+-	ENOMEM = 0xc,
+-	EAGAIN = 0xb,
+-
+-	PROT_NONE = 0,
+-	PROT_READ = 0x1,
+-	PROT_WRITE = 0x2,
+-	PROT_EXEC = 0x4,
+-	MAP_ANON = 0x20,
+-	MAP_PRIVATE = 0x2,
+-	MAP_FIXED = 0x10,
+-	MADV_DONTNEED = 0x4,
+-	SA_RESTART = 0x10000000,
+-	SA_ONSTACK = 0x8000000,
+-	SA_RESTORER = 0, // unused on ARM
+-	SA_SIGINFO = 0x4,
+-	SIGHUP = 0x1,
+-	SIGINT = 0x2,
+-	SIGQUIT = 0x3,
+-	SIGILL = 0x4,
+-	SIGTRAP = 0x5,
+-	SIGABRT = 0x6,
+-	SIGBUS = 0x7,
+-	SIGFPE = 0x8,
+-	SIGKILL = 0x9,
+-	SIGUSR1 = 0xa,
+-	SIGSEGV = 0xb,
+-	SIGUSR2 = 0xc,
+-	SIGPIPE = 0xd,
+-	SIGALRM = 0xe,
+-	SIGSTKFLT = 0x10,
+-	SIGCHLD = 0x11,
+-	SIGCONT = 0x12,
+-	SIGSTOP = 0x13,
+-	SIGTSTP = 0x14,
+-	SIGTTIN = 0x15,
+-	SIGTTOU = 0x16,
+-	SIGURG = 0x17,
+-	SIGXCPU = 0x18,
+-	SIGXFSZ = 0x19,
+-	SIGVTALRM = 0x1a,
+-	SIGPROF = 0x1b,
+-	SIGWINCH = 0x1c,
+-	SIGIO = 0x1d,
+-	SIGPWR = 0x1e,
+-	SIGSYS = 0x1f,
+-	FPE_INTDIV = 0x1,
+-	FPE_INTOVF = 0x2,
+-	FPE_FLTDIV = 0x3,
+-	FPE_FLTOVF = 0x4,
+-	FPE_FLTUND = 0x5,
+-	FPE_FLTRES = 0x6,
+-	FPE_FLTINV = 0x7,
+-	FPE_FLTSUB = 0x8,
+-	BUS_ADRALN = 0x1,
+-	BUS_ADRERR = 0x2,
+-	BUS_OBJERR = 0x3,
+-	SEGV_MAPERR = 0x1,
+-	SEGV_ACCERR = 0x2,
+-	ITIMER_REAL = 0,
+-	ITIMER_PROF = 0x2,
+-	ITIMER_VIRTUAL = 0x1,
+-	O_RDONLY = 0,
+-	O_CLOEXEC = 02000000,
+-
+-	EPOLLIN		= 0x1,
+-	EPOLLOUT	= 0x4,
+-	EPOLLERR	= 0x8,
+-	EPOLLHUP	= 0x10,
+-	EPOLLRDHUP	= 0x2000,
+-	EPOLLET		= -0x80000000,
+-	EPOLL_CLOEXEC	= 0x80000,
+-	EPOLL_CTL_ADD	= 0x1,
+-	EPOLL_CTL_DEL	= 0x2,
+-	EPOLL_CTL_MOD	= 0x3,
+-};
+-
+-// Types
+-#pragma pack on
+-
+-typedef struct Timespec Timespec;
+-struct Timespec {
+-	int32 tv_sec;
+-	int32 tv_nsec;
+-};
+-
+-typedef struct SigaltstackT SigaltstackT;
+-struct SigaltstackT {
+-	void *ss_sp;
+-	int32 ss_flags;
+-	uint32 ss_size;
+-};
+-
+-typedef struct Sigcontext Sigcontext;
+-struct Sigcontext {
+-	uint32 trap_no;
+-	uint32 error_code;
+-	uint32 oldmask;
+-	uint32 arm_r0;
+-	uint32 arm_r1;
+-	uint32 arm_r2;
+-	uint32 arm_r3;
+-	uint32 arm_r4;
+-	uint32 arm_r5;
+-	uint32 arm_r6;
+-	uint32 arm_r7;
+-	uint32 arm_r8;
+-	uint32 arm_r9;
+-	uint32 arm_r10;
+-	uint32 arm_fp;
+-	uint32 arm_ip;
+-	uint32 arm_sp;
+-	uint32 arm_lr;
+-	uint32 arm_pc;
+-	uint32 arm_cpsr;
+-	uint32 fault_address;
+-};
+-
+-typedef struct Ucontext Ucontext;
+-struct Ucontext {
+-	uint32 uc_flags;
+-	Ucontext *uc_link;
+-	SigaltstackT uc_stack;
+-	Sigcontext uc_mcontext;
+-	uint32 uc_sigmask;
+-	int32 __unused[31];
+-	uint32 uc_regspace[128];
+-};
+-
+-typedef struct Timeval Timeval;
+-struct Timeval {
+-	int32 tv_sec;
+-	int32 tv_usec;
+-};
+-
+-typedef struct Itimerval Itimerval;
+-struct Itimerval {
+-	Timeval it_interval;
+-	Timeval it_value;
+-};
+-
+-typedef struct Siginfo Siginfo;
+-struct Siginfo {
+-	int32 si_signo;
+-	int32 si_errno;
+-	int32 si_code;
+-	uint8 _sifields[4];
+-};
+-
+-typedef struct SigactionT SigactionT;
+-struct SigactionT {
+-	void *sa_handler;
+-	uint32 sa_flags;
+-	void *sa_restorer;
+-	uint64 sa_mask;
+-};
+-
+-typedef struct EpollEvent EpollEvent;
+-struct EpollEvent {
+-	uint32	events;
+-	uint32	_pad;
+-	byte	data[8]; // to match amd64
+-};
+-#pragma pack off
+diff --git a/src/runtime/defs_nacl_386.go b/src/runtime/defs_nacl_386.go
+new file mode 100644
+index 0000000000..498882904d
+--- /dev/null
++++ b/src/runtime/defs_nacl_386.go
+@@ -0,0 +1,42 @@
++package runtime
++
++const (
++	// These values are referred to in the source code
++	// but really don't matter. Even so, use the standard numbers.
++	_SIGSEGV = 11
++	_SIGPROF = 27
++)
++
++type timespec struct {
++	tv_sec  int64
++	tv_nsec int32
++}
++
++type excregs386 struct {
++	eax    uint32
++	ecx    uint32
++	edx    uint32
++	ebx    uint32
++	esp    uint32
++	ebp    uint32
++	esi    uint32
++	edi    uint32
++	eip    uint32
++	eflags uint32
++}
++
++type exccontext struct {
++	size                    uint32
++	portable_context_offset uint32
++	portable_context_size   uint32
++	arch                    uint32
++	regs_size               uint32
++	reserved                [11]uint32
++	regs                    excregs386
++}
++
++type excportablecontext struct {
++	pc uint32
++	sp uint32
++	fp uint32
++}
+diff --git a/src/runtime/defs_nacl_386.h b/src/runtime/defs_nacl_386.h
+deleted file mode 100644
+index e8fbb38e18..0000000000
+--- a/src/runtime/defs_nacl_386.h
++++ /dev/null
+@@ -1,63 +0,0 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Created by hand, not machine generated.
+-
+-enum
+-{
+-	// These values are referred to in the source code
+-	// but really don't matter. Even so, use the standard numbers.
+-	SIGSEGV = 11,
+-	SIGPROF = 27,
+-};
+-
+-typedef struct Siginfo Siginfo;
+-
+-// native_client/src/trusted/service_runtime/include/machine/_types.h
+-typedef struct Timespec Timespec;
+-
+-struct Timespec
+-{
+-	int64 tv_sec;
+-	int32 tv_nsec;
+-};
+-
+-// native_client/src/trusted/service_runtime/nacl_exception.h
+-// native_client/src/include/nacl/nacl_exception.h
+-
+-typedef struct ExcContext ExcContext;
+-typedef struct ExcPortable ExcPortable;
+-typedef struct ExcRegs386 ExcRegs386;
+-
+-struct ExcRegs386
+-{
+-	uint32	eax;
+-	uint32	ecx;
+-	uint32	edx;
+-	uint32	ebx;
+-	uint32	esp;
+-	uint32	ebp;
+-	uint32	esi;
+-	uint32	edi;
+-	uint32	eip;
+-	uint32	eflags;
+-};
+-
+-struct ExcContext
+-{
+-	uint32	size;
+-	uint32	portable_context_offset;
+-	uint32	portable_context_size;
+-	uint32	arch;
+-	uint32	regs_size;
+-	uint32	reserved[11];
+-	ExcRegs386	regs;
+-};
+-
+-struct ExcPortableContext
+-{
+-	uint32	pc;
+-	uint32	sp;
+-	uint32	fp;
+-};
+diff --git a/src/runtime/defs_nacl_amd64p32.go b/src/runtime/defs_nacl_amd64p32.go
+new file mode 100644
+index 0000000000..add11fe068
+--- /dev/null
++++ b/src/runtime/defs_nacl_amd64p32.go
+@@ -0,0 +1,63 @@
++package runtime
++
++const (
++	// These values are referred to in the source code
++	// but really don't matter. Even so, use the standard numbers.
++	_SIGSEGV = 11
++	_SIGPROF = 27
++)
++
++type timespec struct {
++	tv_sec  int64
++	tv_nsec int32
++}
++
++type excregs386 struct {
++	eax    uint32
++	ecx    uint32
++	edx    uint32
++	ebx    uint32
++	esp    uint32
++	ebp    uint32
++	esi    uint32
++	edi    uint32
++	eip    uint32
++	eflags uint32
++}
++
++type excregsamd64 struct {
++	rax    uint64
++	rcx    uint64
++	rdx    uint64
++	rbx    uint64
++	rsp    uint64
++	rbp    uint64
++	rsi    uint64
++	rdi    uint64
++	r8     uint64
++	r9     uint64
++	r10    uint64
++	r11    uint64
++	r12    uint64
++	r13    uint64
++	r14    uint64
++	r15    uint64
++	rip    uint64
++	rflags uint32
++}
++
++type exccontext struct {
++	size                    uint32
++	portable_context_offset uint32
++	portable_context_size   uint32
++	arch                    uint32
++	regs_size               uint32
++	reserved                [11]uint32
++	regs                    excregsamd64
++}
++
++type excportablecontext struct {
++	pc uint32
++	sp uint32
++	fp uint32
++}
+diff --git a/src/runtime/defs_nacl_amd64p32.h b/src/runtime/defs_nacl_amd64p32.h
+deleted file mode 100644
+index 45663d40af..0000000000
+--- a/src/runtime/defs_nacl_amd64p32.h
++++ /dev/null
+@@ -1,90 +0,0 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Created by hand, not machine generated.
+-
+-enum
+-{
+-	// These values are referred to in the source code
+-	// but really don't matter. Even so, use the standard numbers.
+-	SIGSEGV = 11,
+-	SIGPROF = 27,
+-};
+-
+-typedef struct Siginfo Siginfo;
+-
+-
+-// native_client/src/trusted/service_runtime/include/machine/_types.h
+-typedef struct Timespec Timespec;
+-
+-struct Timespec
+-{
+-	int64 tv_sec;
+-	int32 tv_nsec;
+-};
+-
+-// native_client/src/trusted/service_runtime/nacl_exception.h
+-// native_client/src/include/nacl/nacl_exception.h
+-
+-typedef struct ExcContext ExcContext;
+-typedef struct ExcPortable ExcPortable;
+-typedef struct ExcRegs386 ExcRegs386;
+-typedef struct ExcRegsAmd64 ExcRegsAmd64;
+-
+-struct ExcRegs386
+-{
+-	uint32	eax;
+-	uint32	ecx;
+-	uint32	edx;
+-	uint32	ebx;
+-	uint32	esp;
+-	uint32	ebp;
+-	uint32	esi;
+-	uint32	edi;
+-	uint32	eip;
+-	uint32	eflags;
+-};
+-
+-struct ExcRegsAmd64
+-{
+-	uint64	rax;
+-	uint64	rcx;
+-	uint64	rdx;
+-	uint64	rbx;
+-	uint64	rsp;
+-	uint64	rbp;
+-	uint64	rsi;
+-	uint64	rdi;
+-	uint64	r8;
+-	uint64	r9;
+-	uint64	r10;
+-	uint64	r11;
+-	uint64	r12;
+-	uint64	r13;
+-	uint64	r14;
+-	uint64	r15;
+-	uint64	rip;
+-	uint32	rflags;
+-};
+-
+-struct ExcContext
+-{
+-	uint32	size;
+-	uint32	portable_context_offset;
+-	uint32	portable_context_size;
+-	uint32	arch;
+-	uint32	regs_size;
+-	uint32	reserved[11];
+-	union {
+-		ExcRegs386	regs;
+-		ExcRegsAmd64	regs64;
+-	} regs;
+-};
+-
+-struct ExcPortableContext
+-{
+-	uint32	pc;
+-	uint32	sp;
+-	uint32	fp;
+-};
+diff --git a/src/runtime/defs_nacl_arm.go b/src/runtime/defs_nacl_arm.go
+new file mode 100644
+index 0000000000..c983cffb9d
+--- /dev/null
++++ b/src/runtime/defs_nacl_arm.go
+@@ -0,0 +1,49 @@
++package runtime
++
++const (
++	// These values are referred to in the source code
++	// but really don't matter. Even so, use the standard numbers.
++	_SIGSEGV = 11
++	_SIGPROF = 27
++)
++
++type timespec struct {
++	tv_sec  int64
++	tv_nsec int32
++}
++
++type excregsarm struct {
++	r0   uint32
++	r1   uint32
++	r2   uint32
++	r3   uint32
++	r4   uint32
++	r5   uint32
++	r6   uint32
++	r7   uint32
++	r8   uint32
++	r9   uint32 // the value reported here is undefined.
++	r10  uint32
++	r11  uint32
++	r12  uint32
++	sp   uint32 /* r13 */
++	lr   uint32 /* r14 */
++	pc   uint32 /* r15 */
++	cpsr uint32
++}
++
++type exccontext struct {
++	size                    uint32
++	portable_context_offset uint32
++	portable_context_size   uint32
++	arch                    uint32
++	regs_size               uint32
++	reserved                [11]uint32
++	regs                    excregsarm
++}
++
++type excportablecontext struct {
++	pc uint32
++	sp uint32
++	fp uint32
++}
+diff --git a/src/runtime/defs_nacl_arm.h b/src/runtime/defs_nacl_arm.h
+deleted file mode 100644
+index 9ce07ccb21..0000000000
+--- a/src/runtime/defs_nacl_arm.h
++++ /dev/null
+@@ -1,70 +0,0 @@
+-// Copyright 2014 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Created by hand, not machine generated.
+-
+-enum
+-{
+-	// These values are referred to in the source code
+-	// but really don't matter. Even so, use the standard numbers.
+-	SIGSEGV = 11,
+-	SIGPROF = 27,
+-};
+-
+-typedef struct Siginfo Siginfo;
+-
+-// native_client/src/trusted/service_runtime/include/machine/_types.h
+-typedef struct Timespec Timespec;
+-
+-struct Timespec
+-{
+-	int64 tv_sec;
+-	int32 tv_nsec;
+-};
+-
+-// native_client/src/trusted/service_runtime/nacl_exception.h
+-// native_client/src/include/nacl/nacl_exception.h
+-
+-typedef struct ExcContext ExcContext;
+-typedef struct ExcPortable ExcPortable;
+-typedef struct ExcRegsARM ExcRegsARM;
+-
+-struct ExcRegsARM
+-{
+-	uint32	r0;
+-	uint32	r1;
+-	uint32	r2;
+-	uint32	r3;
+-	uint32	r4;
+-	uint32	r5;
+-	uint32	r6;
+-	uint32	r7;
+-	uint32	r8;
+-	uint32	r9;	// the value reported here is undefined.
+-	uint32	r10;
+-	uint32	r11;
+-	uint32	r12;
+-	uint32	sp;	/* r13 */
+-	uint32	lr;	/* r14 */
+-	uint32	pc;	/* r15 */
+-	uint32	cpsr;
+-};
+-
+-struct ExcContext
+-{
+-	uint32	size;
+-	uint32	portable_context_offset;
+-	uint32	portable_context_size;
+-	uint32	arch;
+-	uint32	regs_size;
+-	uint32	reserved[11];
+-	ExcRegsARM	regs;
+-};
+-
+-struct ExcPortableContext
+-{
+-	uint32	pc;
+-	uint32	sp;
+-	uint32	fp;
+-};
+diff --git a/src/runtime/defs_netbsd_386.h b/src/runtime/defs_netbsd_386.h
+deleted file mode 100644
+index fd87804f90..0000000000
+--- a/src/runtime/defs_netbsd_386.h
++++ /dev/null
+@@ -1,182 +0,0 @@
+-// Created by cgo -cdefs - DO NOT EDIT
+-// cgo -cdefs defs_netbsd.go defs_netbsd_386.go
+-
+-
+-enum {
+-	EINTR	= 0x4,
+-	EFAULT	= 0xe,
+-
+-	PROT_NONE	= 0x0,
+-	PROT_READ	= 0x1,
+-	PROT_WRITE	= 0x2,
+-	PROT_EXEC	= 0x4,
+-
+-	MAP_ANON	= 0x1000,
+-	MAP_PRIVATE	= 0x2,
+-	MAP_FIXED	= 0x10,
+-
+-	MADV_FREE	= 0x6,
+-
+-	SA_SIGINFO	= 0x40,
+-	SA_RESTART	= 0x2,
+-	SA_ONSTACK	= 0x1,
+-
+-	SIGHUP		= 0x1,
+-	SIGINT		= 0x2,
+-	SIGQUIT		= 0x3,
+-	SIGILL		= 0x4,
+-	SIGTRAP		= 0x5,
+-	SIGABRT		= 0x6,
+-	SIGEMT		= 0x7,
+-	SIGFPE		= 0x8,
+-	SIGKILL		= 0x9,
+-	SIGBUS		= 0xa,
+-	SIGSEGV		= 0xb,
+-	SIGSYS		= 0xc,
+-	SIGPIPE		= 0xd,
+-	SIGALRM		= 0xe,
+-	SIGTERM		= 0xf,
+-	SIGURG		= 0x10,
+-	SIGSTOP		= 0x11,
+-	SIGTSTP		= 0x12,
+-	SIGCONT		= 0x13,
+-	SIGCHLD		= 0x14,
+-	SIGTTIN		= 0x15,
+-	SIGTTOU		= 0x16,
+-	SIGIO		= 0x17,
+-	SIGXCPU		= 0x18,
+-	SIGXFSZ		= 0x19,
+-	SIGVTALRM	= 0x1a,
+-	SIGPROF		= 0x1b,
+-	SIGWINCH	= 0x1c,
+-	SIGINFO		= 0x1d,
+-	SIGUSR1		= 0x1e,
+-	SIGUSR2		= 0x1f,
+-
+-	FPE_INTDIV	= 0x1,
+-	FPE_INTOVF	= 0x2,
+-	FPE_FLTDIV	= 0x3,
+-	FPE_FLTOVF	= 0x4,
+-	FPE_FLTUND	= 0x5,
+-	FPE_FLTRES	= 0x6,
+-	FPE_FLTINV	= 0x7,
+-	FPE_FLTSUB	= 0x8,
+-
+-	BUS_ADRALN	= 0x1,
+-	BUS_ADRERR	= 0x2,
+-	BUS_OBJERR	= 0x3,
+-
+-	SEGV_MAPERR	= 0x1,
+-	SEGV_ACCERR	= 0x2,
+-
+-	ITIMER_REAL	= 0x0,
+-	ITIMER_VIRTUAL	= 0x1,
+-	ITIMER_PROF	= 0x2,
+-
+-	EV_ADD		= 0x1,
+-	EV_DELETE	= 0x2,
+-	EV_CLEAR	= 0x20,
+-	EV_RECEIPT	= 0,
+-	EV_ERROR	= 0x4000,
+-	EVFILT_READ	= 0x0,
+-	EVFILT_WRITE	= 0x1,
+-};
+-
+-typedef struct SigaltstackT SigaltstackT;
+-typedef struct Sigset Sigset;
+-typedef struct Siginfo Siginfo;
+-typedef struct StackT StackT;
+-typedef struct Timespec Timespec;
+-typedef struct Timeval Timeval;
+-typedef struct Itimerval Itimerval;
+-typedef struct McontextT McontextT;
+-typedef struct UcontextT UcontextT;
+-typedef struct KeventT KeventT;
+-
+-#pragma pack on
+-
+-struct SigaltstackT {
+-	byte	*ss_sp;
+-	uint32	ss_size;
+-	int32	ss_flags;
+-};
+-struct Sigset {
+-	uint32	__bits[4];
+-};
+-struct Siginfo {
+-	int32	_signo;
+-	int32	_code;
+-	int32	_errno;
+-	byte	_reason[20];
+-};
+-
+-struct StackT {
+-	byte	*ss_sp;
+-	uint32	ss_size;
+-	int32	ss_flags;
+-};
+-
+-struct Timespec {
+-	int64	tv_sec;
+-	int32	tv_nsec;
+-};
+-struct Timeval {
+-	int64	tv_sec;
+-	int32	tv_usec;
+-};
+-struct Itimerval {
+-	Timeval	it_interval;
+-	Timeval	it_value;
+-};
+-
+-struct McontextT {
+-	int32	__gregs[19];
+-	byte	__fpregs[644];
+-	int32	_mc_tlsbase;
+-};
+-struct UcontextT {
+-	uint32	uc_flags;
+-	UcontextT	*uc_link;
+-	Sigset	uc_sigmask;
+-	StackT	uc_stack;
+-	McontextT	uc_mcontext;
+-	int32	__uc_pad[4];
+-};
+-
+-struct KeventT {
+-	uint32	ident;
+-	uint32	filter;
+-	uint32	flags;
+-	uint32	fflags;
+-	int64	data;
+-	byte	*udata;
+-};
+-
+-
+-#pragma pack off
+-// Created by cgo -cdefs - DO NOT EDIT
+-// cgo -cdefs defs_netbsd.go defs_netbsd_386.go
+-
+-
+-enum {
+-	REG_GS		= 0x0,
+-	REG_FS		= 0x1,
+-	REG_ES		= 0x2,
+-	REG_DS		= 0x3,
+-	REG_EDI		= 0x4,
+-	REG_ESI		= 0x5,
+-	REG_EBP		= 0x6,
+-	REG_ESP		= 0x7,
+-	REG_EBX		= 0x8,
+-	REG_EDX		= 0x9,
+-	REG_ECX		= 0xa,
+-	REG_EAX		= 0xb,
+-	REG_TRAPNO	= 0xc,
+-	REG_ERR		= 0xd,
+-	REG_EIP		= 0xe,
+-	REG_CS		= 0xf,
+-	REG_EFL		= 0x10,
+-	REG_UESP	= 0x11,
+-	REG_SS		= 0x12,
+-};
+-
+diff --git a/src/runtime/defs_netbsd_amd64.h b/src/runtime/defs_netbsd_amd64.h
+deleted file mode 100644
+index dac94b113b..0000000000
+--- a/src/runtime/defs_netbsd_amd64.h
++++ /dev/null
+@@ -1,194 +0,0 @@
+-// Created by cgo -cdefs - DO NOT EDIT
+-// cgo -cdefs defs_netbsd.go defs_netbsd_amd64.go
+-
+-
+-enum {
+-	EINTR	= 0x4,
+-	EFAULT	= 0xe,
+-
+-	PROT_NONE	= 0x0,
+-	PROT_READ	= 0x1,
+-	PROT_WRITE	= 0x2,
+-	PROT_EXEC	= 0x4,
+-
+-	MAP_ANON	= 0x1000,
+-	MAP_PRIVATE	= 0x2,
+-	MAP_FIXED	= 0x10,
+-
+-	MADV_FREE	= 0x6,
+-
+-	SA_SIGINFO	= 0x40,
+-	SA_RESTART	= 0x2,
+-	SA_ONSTACK	= 0x1,
+-
+-	SIGHUP		= 0x1,
+-	SIGINT		= 0x2,
+-	SIGQUIT		= 0x3,
+-	SIGILL		= 0x4,
+-	SIGTRAP		= 0x5,
+-	SIGABRT		= 0x6,
+-	SIGEMT		= 0x7,
+-	SIGFPE		= 0x8,
+-	SIGKILL		= 0x9,
+-	SIGBUS		= 0xa,
+-	SIGSEGV		= 0xb,
+-	SIGSYS		= 0xc,
+-	SIGPIPE		= 0xd,
+-	SIGALRM		= 0xe,
+-	SIGTERM		= 0xf,
+-	SIGURG		= 0x10,
+-	SIGSTOP		= 0x11,
+-	SIGTSTP		= 0x12,
+-	SIGCONT		= 0x13,
+-	SIGCHLD		= 0x14,
+-	SIGTTIN		= 0x15,
+-	SIGTTOU		= 0x16,
+-	SIGIO		= 0x17,
+-	SIGXCPU		= 0x18,
+-	SIGXFSZ		= 0x19,
+-	SIGVTALRM	= 0x1a,
+-	SIGPROF		= 0x1b,
+-	SIGWINCH	= 0x1c,
+-	SIGINFO		= 0x1d,
+-	SIGUSR1		= 0x1e,
+-	SIGUSR2		= 0x1f,
+-
+-	FPE_INTDIV	= 0x1,
+-	FPE_INTOVF	= 0x2,
+-	FPE_FLTDIV	= 0x3,
+-	FPE_FLTOVF	= 0x4,
+-	FPE_FLTUND	= 0x5,
+-	FPE_FLTRES	= 0x6,
+-	FPE_FLTINV	= 0x7,
+-	FPE_FLTSUB	= 0x8,
+-
+-	BUS_ADRALN	= 0x1,
+-	BUS_ADRERR	= 0x2,
+-	BUS_OBJERR	= 0x3,
+-
+-	SEGV_MAPERR	= 0x1,
+-	SEGV_ACCERR	= 0x2,
+-
+-	ITIMER_REAL	= 0x0,
+-	ITIMER_VIRTUAL	= 0x1,
+-	ITIMER_PROF	= 0x2,
+-
+-	EV_ADD		= 0x1,
+-	EV_DELETE	= 0x2,
+-	EV_CLEAR	= 0x20,
+-	EV_RECEIPT	= 0,
+-	EV_ERROR	= 0x4000,
+-	EVFILT_READ	= 0x0,
+-	EVFILT_WRITE	= 0x1,
+-};
+-
+-typedef struct SigaltstackT SigaltstackT;
+-typedef struct Sigset Sigset;
+-typedef struct Siginfo Siginfo;
+-typedef struct StackT StackT;
+-typedef struct Timespec Timespec;
+-typedef struct Timeval Timeval;
+-typedef struct Itimerval Itimerval;
+-typedef struct McontextT McontextT;
+-typedef struct UcontextT UcontextT;
+-typedef struct KeventT KeventT;
+-
+-#pragma pack on
+-
+-struct SigaltstackT {
+-	byte	*ss_sp;
+-	uint64	ss_size;
+-	int32	ss_flags;
+-	byte	Pad_cgo_0[4];
+-};
+-struct Sigset {
+-	uint32	__bits[4];
+-};
+-struct Siginfo {
+-	int32	_signo;
+-	int32	_code;
+-	int32	_errno;
+-	int32	_pad;
+-	byte	_reason[24];
+-};
+-
+-struct StackT {
+-	byte	*ss_sp;
+-	uint64	ss_size;
+-	int32	ss_flags;
+-	byte	Pad_cgo_0[4];
+-};
+-
+-struct Timespec {
+-	int64	tv_sec;
+-	int64	tv_nsec;
+-};
+-struct Timeval {
+-	int64	tv_sec;
+-	int32	tv_usec;
+-	byte	Pad_cgo_0[4];
+-};
+-struct Itimerval {
+-	Timeval	it_interval;
+-	Timeval	it_value;
+-};
+-
+-struct McontextT {
+-	uint64	__gregs[26];
+-	uint64	_mc_tlsbase;
+-	int8	__fpregs[512];
+-};
+-struct UcontextT {
+-	uint32	uc_flags;
+-	byte	Pad_cgo_0[4];
+-	UcontextT	*uc_link;
+-	Sigset	uc_sigmask;
+-	StackT	uc_stack;
+-	McontextT	uc_mcontext;
+-};
+-
+-struct KeventT {
+-	uint64	ident;
+-	uint32	filter;
+-	uint32	flags;
+-	uint32	fflags;
+-	byte	Pad_cgo_0[4];
+-	int64	data;
+-	byte	*udata;
+-};
+-
+-
+-#pragma pack off
+-// Created by cgo -cdefs - DO NOT EDIT
+-// cgo -cdefs defs_netbsd.go defs_netbsd_amd64.go
+-
+-
+-enum {
+-	REG_RDI		= 0x0,
+-	REG_RSI		= 0x1,
+-	REG_RDX		= 0x2,
+-	REG_RCX		= 0x3,
+-	REG_R8		= 0x4,
+-	REG_R9		= 0x5,
+-	REG_R10		= 0x6,
+-	REG_R11		= 0x7,
+-	REG_R12		= 0x8,
+-	REG_R13		= 0x9,
+-	REG_R14		= 0xa,
+-	REG_R15		= 0xb,
+-	REG_RBP		= 0xc,
+-	REG_RBX		= 0xd,
+-	REG_RAX		= 0xe,
+-	REG_GS		= 0xf,
+-	REG_FS		= 0x10,
+-	REG_ES		= 0x11,
+-	REG_DS		= 0x12,
+-	REG_TRAPNO	= 0x13,
+-	REG_ERR		= 0x14,
+-	REG_RIP		= 0x15,
+-	REG_CS		= 0x16,
+-	REG_RFLAGS	= 0x17,
+-	REG_RSP		= 0x18,
+-	REG_SS		= 0x19,
+-};
+-
+diff --git a/src/runtime/defs_netbsd_arm.h b/src/runtime/defs_netbsd_arm.h
+deleted file mode 100644
+index 70f34af47b..0000000000
+--- a/src/runtime/defs_netbsd_arm.h
++++ /dev/null
+@@ -1,184 +0,0 @@
+-// Created by cgo -cdefs - DO NOT EDIT
+-// cgo -cdefs defs_netbsd.go defs_netbsd_arm.go
+-
+-
+-enum {
+-	EINTR	= 0x4,
+-	EFAULT	= 0xe,
+-
+-	PROT_NONE	= 0x0,
+-	PROT_READ	= 0x1,
+-	PROT_WRITE	= 0x2,
+-	PROT_EXEC	= 0x4,
+-
+-	MAP_ANON	= 0x1000,
+-	MAP_PRIVATE	= 0x2,
+-	MAP_FIXED	= 0x10,
+-
+-	MADV_FREE	= 0x6,
+-
+-	SA_SIGINFO	= 0x40,
+-	SA_RESTART	= 0x2,
+-	SA_ONSTACK	= 0x1,
+-
+-	SIGHUP		= 0x1,
+-	SIGINT		= 0x2,
+-	SIGQUIT		= 0x3,
+-	SIGILL		= 0x4,
+-	SIGTRAP		= 0x5,
+-	SIGABRT		= 0x6,
+-	SIGEMT		= 0x7,
+-	SIGFPE		= 0x8,
+-	SIGKILL		= 0x9,
+-	SIGBUS		= 0xa,
+-	SIGSEGV		= 0xb,
+-	SIGSYS		= 0xc,
+-	SIGPIPE		= 0xd,
+-	SIGALRM		= 0xe,
+-	SIGTERM		= 0xf,
+-	SIGURG		= 0x10,
+-	SIGSTOP		= 0x11,
+-	SIGTSTP		= 0x12,
+-	SIGCONT		= 0x13,
+-	SIGCHLD		= 0x14,
+-	SIGTTIN		= 0x15,
+-	SIGTTOU		= 0x16,
+-	SIGIO		= 0x17,
+-	SIGXCPU		= 0x18,
+-	SIGXFSZ		= 0x19,
+-	SIGVTALRM	= 0x1a,
+-	SIGPROF		= 0x1b,
+-	SIGWINCH	= 0x1c,
+-	SIGINFO		= 0x1d,
+-	SIGUSR1		= 0x1e,
+-	SIGUSR2		= 0x1f,
+-
+-	FPE_INTDIV	= 0x1,
+-	FPE_INTOVF	= 0x2,
+-	FPE_FLTDIV	= 0x3,
+-	FPE_FLTOVF	= 0x4,
+-	FPE_FLTUND	= 0x5,
+-	FPE_FLTRES	= 0x6,
+-	FPE_FLTINV	= 0x7,
+-	FPE_FLTSUB	= 0x8,
+-
+-	BUS_ADRALN	= 0x1,
+-	BUS_ADRERR	= 0x2,
+-	BUS_OBJERR	= 0x3,
+-
+-	SEGV_MAPERR	= 0x1,
+-	SEGV_ACCERR	= 0x2,
+-
+-	ITIMER_REAL	= 0x0,
+-	ITIMER_VIRTUAL	= 0x1,
+-	ITIMER_PROF	= 0x2,
+-
+-	EV_ADD		= 0x1,
+-	EV_DELETE	= 0x2,
+-	EV_CLEAR	= 0x20,
+-	EV_RECEIPT	= 0,
+-	EV_ERROR	= 0x4000,
+-	EVFILT_READ	= 0x0,
+-	EVFILT_WRITE	= 0x1,
+-};
+-
+-typedef struct SigaltstackT SigaltstackT;
+-typedef struct Sigset Sigset;
+-typedef struct Siginfo Siginfo;
+-typedef struct StackT StackT;
+-typedef struct Timespec Timespec;
+-typedef struct Timeval Timeval;
+-typedef struct Itimerval Itimerval;
+-typedef struct McontextT McontextT;
+-typedef struct UcontextT UcontextT;
+-typedef struct KeventT KeventT;
+-
+-#pragma pack on
+-
+-struct SigaltstackT {
+-	byte	*ss_sp;
+-	uint32	ss_size;
+-	int32	ss_flags;
+-};
+-struct Sigset {
+-	uint32	__bits[4];
+-};
+-struct Siginfo {
+-	int32	_signo;
+-	int32	_code;
+-	int32	_errno;
+-	byte	_reason[20];
+-};
+-
+-struct StackT {
+-	byte	*ss_sp;
+-	uint32	ss_size;
+-	int32	ss_flags;
+-};
+-
+-struct Timespec {
+-	int64	tv_sec;
+-	int32	tv_nsec;
+-};
+-struct Timeval {
+-	int64	tv_sec;
+-	int32	tv_usec;
+-};
+-struct Itimerval {
+-	Timeval	it_interval;
+-	Timeval	it_value;
+-};
+-
+-struct McontextT {
+-	uint32	__gregs[17];
+-#ifdef __ARM_EABI__
+-	byte	__fpu[4+8*32+4];
+-#else
+-	byte	__fpu[4+4*33+4];
+-#endif
+-	uint32	_mc_tlsbase;
+-};
+-struct UcontextT {
+-	uint32	uc_flags;
+-	UcontextT	*uc_link;
+-	Sigset	uc_sigmask;
+-	StackT	uc_stack;
+-	McontextT	uc_mcontext;
+-	int32	__uc_pad[2];
+-};
+-
+-struct KeventT {
+-	uint32	ident;
+-	uint32	filter;
+-	uint32	flags;
+-	uint32	fflags;
+-	int64	data;
+-	byte	*udata;
+-};
+-
+-
+-#pragma pack off
+-// Created by cgo -cdefs - DO NOT EDIT
+-// cgo -cdefs defs_netbsd.go defs_netbsd_arm.go
+-
+-
+-enum {
+-	REG_R0		= 0x0,
+-	REG_R1		= 0x1,
+-	REG_R2		= 0x2,
+-	REG_R3		= 0x3,
+-	REG_R4		= 0x4,
+-	REG_R5		= 0x5,
+-	REG_R6		= 0x6,
+-	REG_R7		= 0x7,
+-	REG_R8		= 0x8,
+-	REG_R9		= 0x9,
+-	REG_R10		= 0xa,
+-	REG_R11		= 0xb,
+-	REG_R12		= 0xc,
+-	REG_R13		= 0xd,
+-	REG_R14		= 0xe,
+-	REG_R15		= 0xf,
+-	REG_CPSR	= 0x10,
+-};
+-
+diff --git a/src/runtime/defs_openbsd_386.go b/src/runtime/defs_openbsd_386.go
+new file mode 100644
+index 0000000000..a6194a4be8
+--- /dev/null
++++ b/src/runtime/defs_openbsd_386.go
+@@ -0,0 +1,158 @@
++// created by cgo -cdefs and then converted to Go
++// cgo -cdefs defs_openbsd.go
++
++package runtime
++
++import "unsafe"
++
++const (
++	_EINTR  = 0x4
++	_EFAULT = 0xe
++
++	_PROT_NONE  = 0x0
++	_PROT_READ  = 0x1
++	_PROT_WRITE = 0x2
++	_PROT_EXEC  = 0x4
++
++	_MAP_ANON    = 0x1000
++	_MAP_PRIVATE = 0x2
++	_MAP_FIXED   = 0x10
++
++	_MADV_FREE = 0x6
++
++	_SA_SIGINFO = 0x40
++	_SA_RESTART = 0x2
++	_SA_ONSTACK = 0x1
++
++	_SIGHUP    = 0x1
++	_SIGINT    = 0x2
++	_SIGQUIT   = 0x3
++	_SIGILL    = 0x4
++	_SIGTRAP   = 0x5
++	_SIGABRT   = 0x6
++	_SIGEMT    = 0x7
++	_SIGFPE    = 0x8
++	_SIGKILL   = 0x9
++	_SIGBUS    = 0xa
++	_SIGSEGV   = 0xb
++	_SIGSYS    = 0xc
++	_SIGPIPE   = 0xd
++	_SIGALRM   = 0xe
++	_SIGTERM   = 0xf
++	_SIGURG    = 0x10
++	_SIGSTOP   = 0x11
++	_SIGTSTP   = 0x12
++	_SIGCONT   = 0x13
++	_SIGCHLD   = 0x14
++	_SIGTTIN   = 0x15
++	_SIGTTOU   = 0x16
++	_SIGIO     = 0x17
++	_SIGXCPU   = 0x18
++	_SIGXFSZ   = 0x19
++	_SIGVTALRM = 0x1a
++	_SIGPROF   = 0x1b
++	_SIGWINCH  = 0x1c
++	_SIGINFO   = 0x1d
++	_SIGUSR1   = 0x1e
++	_SIGUSR2   = 0x1f
++
++	_FPE_INTDIV = 0x1
++	_FPE_INTOVF = 0x2
++	_FPE_FLTDIV = 0x3
++	_FPE_FLTOVF = 0x4
++	_FPE_FLTUND = 0x5
++	_FPE_FLTRES = 0x6
++	_FPE_FLTINV = 0x7
++	_FPE_FLTSUB = 0x8
++
++	_BUS_ADRALN = 0x1
++	_BUS_ADRERR = 0x2
++	_BUS_OBJERR = 0x3
++
++	_SEGV_MAPERR = 0x1
++	_SEGV_ACCERR = 0x2
++
++	_ITIMER_REAL    = 0x0
++	_ITIMER_VIRTUAL = 0x1
++	_ITIMER_PROF    = 0x2
++
++	_EV_ADD       = 0x1
++	_EV_DELETE    = 0x2
++	_EV_CLEAR     = 0x20
++	_EV_ERROR     = 0x4000
++	_EVFILT_READ  = -0x1
++	_EVFILT_WRITE = -0x2
++)
++
++type tforkt struct {
++	tf_tcb   *byte
++	tf_tid   *int32
++	tf_stack *byte
++}
++
++type sigaltstackt struct {
++	ss_sp    *byte
++	ss_size  uint32
++	ss_flags int32
++}
++
++type sigcontext struct {
++	sc_gs       int32
++	sc_fs       int32
++	sc_es       int32
++	sc_ds       int32
++	sc_edi      int32
++	sc_esi      int32
++	sc_ebp      int32
++	sc_ebx      int32
++	sc_edx      int32
++	sc_ecx      int32
++	sc_eax      int32
++	sc_eip      int32
++	sc_cs       int32
++	sc_eflags   int32
++	sc_esp      int32
++	sc_ss       int32
++	__sc_unused int32
++	sc_mask     int32
++	sc_trapno   int32
++	sc_err      int32
++	sc_fpstate  unsafe.Pointer
++}
++
++type siginfo struct {
++	si_signo int32
++	si_code  int32
++	si_errno int32
++	_data    [116]byte
++}
++
++type stackt struct {
++	ss_sp    *byte
++	ss_size  uint32
++	ss_flags int32
++}
++
++type timespec struct {
++	tv_sec  int64
++	tv_nsec int32
++}
++
++type timeval struct {
++	tv_sec  int64
++	tv_usec int32
++}
++
++type itimerval struct {
++	it_interval timeval
++	it_value    timeval
++}
++
++type keventt struct {
++	ident  uint32
++	filter int16
++	flags  uint16
++	fflags uint32
++	data   int64
++	udata  *byte
++}
+diff --git a/src/runtime/defs_openbsd_386.h b/src/runtime/defs_openbsd_386.h
+deleted file mode 100644
+index 6b77e0084a..0000000000
+--- a/src/runtime/defs_openbsd_386.h
++++ /dev/null
+@@ -1,168 +0,0 @@
+-// Created by cgo -cdefs - DO NOT EDIT
+-// cgo -cdefs defs_openbsd.go
+-
+-
+-enum {
+-	EINTR	= 0x4,
+-	EFAULT	= 0xe,
+-
+-	PROT_NONE	= 0x0,
+-	PROT_READ	= 0x1,
+-	PROT_WRITE	= 0x2,
+-	PROT_EXEC	= 0x4,
+-
+-	MAP_ANON	= 0x1000,
+-	MAP_PRIVATE	= 0x2,
+-	MAP_FIXED	= 0x10,
+-
+-	MADV_FREE	= 0x6,
+-
+-	SA_SIGINFO	= 0x40,
+-	SA_RESTART	= 0x2,
+-	SA_ONSTACK	= 0x1,
+-
+-	SIGHUP		= 0x1,
+-	SIGINT		= 0x2,
+-	SIGQUIT		= 0x3,
+-	SIGILL		= 0x4,
+-	SIGTRAP		= 0x5,
+-	SIGABRT		= 0x6,
+-	SIGEMT		= 0x7,
+-	SIGFPE		= 0x8,
+-	SIGKILL		= 0x9,
+-	SIGBUS		= 0xa,
+-	SIGSEGV		= 0xb,
+-	SIGSYS		= 0xc,
+-	SIGPIPE		= 0xd,
+-	SIGALRM		= 0xe,
+-	SIGTERM		= 0xf,
+-	SIGURG		= 0x10,
+-	SIGSTOP		= 0x11,
+-	SIGTSTP		= 0x12,
+-	SIGCONT		= 0x13,
+-	SIGCHLD		= 0x14,
+-	SIGTTIN		= 0x15,
+-	SIGTTOU		= 0x16,
+-	SIGIO		= 0x17,
+-	SIGXCPU		= 0x18,
+-	SIGXFSZ		= 0x19,
+-	SIGVTALRM	= 0x1a,
+-	SIGPROF		= 0x1b,
+-	SIGWINCH	= 0x1c,
+-	SIGINFO		= 0x1d,
+-	SIGUSR1		= 0x1e,
+-	SIGUSR2		= 0x1f,
+-
+-	FPE_INTDIV	= 0x1,
+-	FPE_INTOVF	= 0x2,
+-	FPE_FLTDIV	= 0x3,
+-	FPE_FLTOVF	= 0x4,
+-	FPE_FLTUND	= 0x5,
+-	FPE_FLTRES	= 0x6,
+-	FPE_FLTINV	= 0x7,
+-	FPE_FLTSUB	= 0x8,
+-
+-	BUS_ADRALN	= 0x1,
+-	BUS_ADRERR	= 0x2,
+-	BUS_OBJERR	= 0x3,
+-
+-	SEGV_MAPERR	= 0x1,
+-	SEGV_ACCERR	= 0x2,
+-
+-	ITIMER_REAL	= 0x0,
+-	ITIMER_VIRTUAL	= 0x1,
+-	ITIMER_PROF	= 0x2,
+-
+-	EV_ADD		= 0x1,
+-	EV_DELETE	= 0x2,
+-	EV_CLEAR	= 0x20,
+-	EV_ERROR	= 0x4000,
+-	EVFILT_READ	= -0x1,
+-	EVFILT_WRITE	= -0x2,
+-};
+-
+-typedef struct TforkT TforkT;
+-typedef struct SigaltstackT SigaltstackT;
+-typedef struct Sigcontext Sigcontext;
+-typedef struct Siginfo Siginfo;
+-typedef struct StackT StackT;
+-typedef struct Timespec Timespec;
+-typedef struct Timeval Timeval;
+-typedef struct Itimerval Itimerval;
+-typedef struct KeventT KeventT;
+-
+-#pragma pack on
+-
+-struct TforkT {
+-	byte	*tf_tcb;
+-	int32	*tf_tid;
+-	byte	*tf_stack;
+-};
+-
+-struct SigaltstackT {
+-	byte	*ss_sp;
+-	uint32	ss_size;
+-	int32	ss_flags;
+-};
+-struct Sigcontext {
+-	int32	sc_gs;
+-	int32	sc_fs;
+-	int32	sc_es;
+-	int32	sc_ds;
+-	int32	sc_edi;
+-	int32	sc_esi;
+-	int32	sc_ebp;
+-	int32	sc_ebx;
+-	int32	sc_edx;
+-	int32	sc_ecx;
+-	int32	sc_eax;
+-	int32	sc_eip;
+-	int32	sc_cs;
+-	int32	sc_eflags;
+-	int32	sc_esp;
+-	int32	sc_ss;
+-	int32	__sc_unused;
+-	int32	sc_mask;
+-	int32	sc_trapno;
+-	int32	sc_err;
+-	void	*sc_fpstate;
+-};
+-struct Siginfo {
+-	int32	si_signo;
+-	int32	si_code;
+-	int32	si_errno;
+-	byte	_data[116];
+-};
+-typedef	uint32	Sigset;
+-typedef	byte	Sigval[4];
+-
+-struct StackT {
+-	byte	*ss_sp;
+-	uint32	ss_size;
+-	int32	ss_flags;
+-};
+-
+-struct Timespec {
+-	int64	tv_sec;
+-	int32	tv_nsec;
+-};
+-struct Timeval {
+-	int64	tv_sec;
+-	int32	tv_usec;
+-};
+-struct Itimerval {
+-	Timeval	it_interval;
+-	Timeval	it_value;
+-};
+-
+-struct KeventT {
+-	uint32	ident;
+-	int16	filter;
+-	uint16	flags;
+-	uint32	fflags;
+-	int64	data;
+-	byte	*udata;
+-};
+-
+-
+-#pragma pack off
+diff --git a/src/runtime/defs_openbsd_amd64.go b/src/runtime/defs_openbsd_amd64.go
+new file mode 100644
+index 0000000000..4138ae7119
+--- /dev/null
++++ b/src/runtime/defs_openbsd_amd64.go
+@@ -0,0 +1,169 @@
++// created by cgo -cdefs and then converted to Go
++// cgo -cdefs defs_openbsd.go
++
++package runtime
++
++import "unsafe"
++
++const (
++	_EINTR  = 0x4
++	_EFAULT = 0xe
++
++	_PROT_NONE  = 0x0
++	_PROT_READ  = 0x1
++	_PROT_WRITE = 0x2
++	_PROT_EXEC  = 0x4
++
++	_MAP_ANON    = 0x1000
++	_MAP_PRIVATE = 0x2
++	_MAP_FIXED   = 0x10
++
++	_MADV_FREE = 0x6
++
++	_SA_SIGINFO = 0x40
++	_SA_RESTART = 0x2
++	_SA_ONSTACK = 0x1
++
++	_SIGHUP    = 0x1
++	_SIGINT    = 0x2
++	_SIGQUIT   = 0x3
++	_SIGILL    = 0x4
++	_SIGTRAP   = 0x5
++	_SIGABRT   = 0x6
++	_SIGEMT    = 0x7
++	_SIGFPE    = 0x8
++	_SIGKILL   = 0x9
++	_SIGBUS    = 0xa
++	_SIGSEGV   = 0xb
++	_SIGSYS    = 0xc
++	_SIGPIPE   = 0xd
++	_SIGALRM   = 0xe
++	_SIGTERM   = 0xf
++	_SIGURG    = 0x10
++	_SIGSTOP   = 0x11
++	_SIGTSTP   = 0x12
++	_SIGCONT   = 0x13
++	_SIGCHLD   = 0x14
++	_SIGTTIN   = 0x15
++	_SIGTTOU   = 0x16
++	_SIGIO     = 0x17
++	_SIGXCPU   = 0x18
++	_SIGXFSZ   = 0x19
++	_SIGVTALRM = 0x1a
++	_SIGPROF   = 0x1b
++	_SIGWINCH  = 0x1c
++	_SIGINFO   = 0x1d
++	_SIGUSR1   = 0x1e
++	_SIGUSR2   = 0x1f
++
++	_FPE_INTDIV = 0x1
++	_FPE_INTOVF = 0x2
++	_FPE_FLTDIV = 0x3
++	_FPE_FLTOVF = 0x4
++	_FPE_FLTUND = 0x5
++	_FPE_FLTRES = 0x6
++	_FPE_FLTINV = 0x7
++	_FPE_FLTSUB = 0x8
++
++	_BUS_ADRALN = 0x1
++	_BUS_ADRERR = 0x2
++	_BUS_OBJERR = 0x3
++
++	_SEGV_MAPERR = 0x1
++	_SEGV_ACCERR = 0x2
++
++	_ITIMER_REAL    = 0x0
++	_ITIMER_VIRTUAL = 0x1
++	_ITIMER_PROF    = 0x2
++
++	_EV_ADD       = 0x1
++	_EV_DELETE    = 0x2
++	_EV_CLEAR     = 0x20
++	_EV_ERROR     = 0x4000
++	_EVFILT_READ  = -0x1
++	_EVFILT_WRITE = -0x2
++)
++
++type tforkt struct {
++	tf_tcb   *byte
++	tf_tid   *int32
++	tf_stack *byte
++}
++
++type sigaltstackt struct {
++	ss_sp     *byte
++	ss_size   uint64
++	ss_flags  int32
++	pad_cgo_0 [4]byte
++}
++
++type sigcontext struct {
++	sc_rdi      int64
++	sc_rsi      int64
++	sc_rdx      int64
++	sc_rcx      int64
++	sc_r8       int64
++	sc_r9       int64
++	sc_r10      int64
++	sc_r11      int64
++	sc_r12      int64
++	sc_r13      int64
++	sc_r14      int64
++	sc_r15      int64
++	sc_rbp      int64
++	sc_rbx      int64
++	sc_rax      int64
++	sc_gs       int64
++	sc_fs       int64
++	sc_es       int64
++	sc_ds       int64
++	sc_trapno   int64
++	sc_err      int64
++	sc_rip      int64
++	sc_cs       int64
++	sc_rflags   int64
++	sc_rsp      int64
++	sc_ss       int64
++	sc_fpstate  unsafe.Pointer
++	__sc_unused int32
++	sc_mask     int32
++}
++
++type siginfo struct {
++	si_signo  int32
++	si_code   int32
++	si_errno  int32
++	pad_cgo_0 [4]byte
++	_data     [120]byte
++}
++
++type stackt struct {
++	ss_sp     *byte
++	ss_size   uint64
++	ss_flags  int32
++	pad_cgo_0 [4]byte
++}
++
++type timespec struct {
++	tv_sec  int64
++	tv_nsec int64
++}
++
++type timeval struct {
++	tv_sec  int64
++	tv_usec int64
++}
++
++type itimerval struct {
++	it_interval timeval
++	it_value    timeval
++}
++
++type keventt struct {
++	ident  uint64
++	filter int16
++	flags  uint16
++	fflags uint32
++	data   int64
++	udata  *byte
++}
+diff --git a/src/runtime/defs_openbsd_amd64.h b/src/runtime/defs_openbsd_amd64.h
+deleted file mode 100644
+index 761e8e47df..0000000000
+--- a/src/runtime/defs_openbsd_amd64.h
++++ /dev/null
+@@ -1,179 +0,0 @@
+-// Created by cgo -cdefs - DO NOT EDIT
+-// cgo -cdefs defs_openbsd.go
+-
+-
+-enum {
+-	EINTR	= 0x4,
+-	EFAULT	= 0xe,
+-
+-	PROT_NONE	= 0x0,
+-	PROT_READ	= 0x1,
+-	PROT_WRITE	= 0x2,
+-	PROT_EXEC	= 0x4,
+-
+-	MAP_ANON	= 0x1000,
+-	MAP_PRIVATE	= 0x2,
+-	MAP_FIXED	= 0x10,
+-
+-	MADV_FREE	= 0x6,
+-
+-	SA_SIGINFO	= 0x40,
+-	SA_RESTART	= 0x2,
+-	SA_ONSTACK	= 0x1,
+-
+-	SIGHUP		= 0x1,
+-	SIGINT		= 0x2,
+-	SIGQUIT		= 0x3,
+-	SIGILL		= 0x4,
+-	SIGTRAP		= 0x5,
+-	SIGABRT		= 0x6,
+-	SIGEMT		= 0x7,
+-	SIGFPE		= 0x8,
+-	SIGKILL		= 0x9,
+-	SIGBUS		= 0xa,
+-	SIGSEGV		= 0xb,
+-	SIGSYS		= 0xc,
+-	SIGPIPE		= 0xd,
+-	SIGALRM		= 0xe,
+-	SIGTERM		= 0xf,
+-	SIGURG		= 0x10,
+-	SIGSTOP		= 0x11,
+-	SIGTSTP		= 0x12,
+-	SIGCONT		= 0x13,
+-	SIGCHLD		= 0x14,
+-	SIGTTIN		= 0x15,
+-	SIGTTOU		= 0x16,
+-	SIGIO		= 0x17,
+-	SIGXCPU		= 0x18,
+-	SIGXFSZ		= 0x19,
+-	SIGVTALRM	= 0x1a,
+-	SIGPROF		= 0x1b,
+-	SIGWINCH	= 0x1c,
+-	SIGINFO		= 0x1d,
+-	SIGUSR1		= 0x1e,
+-	SIGUSR2		= 0x1f,
+-
+-	FPE_INTDIV	= 0x1,
+-	FPE_INTOVF	= 0x2,
+-	FPE_FLTDIV	= 0x3,
+-	FPE_FLTOVF	= 0x4,
+-	FPE_FLTUND	= 0x5,
+-	FPE_FLTRES	= 0x6,
+-	FPE_FLTINV	= 0x7,
+-	FPE_FLTSUB	= 0x8,
+-
+-	BUS_ADRALN	= 0x1,
+-	BUS_ADRERR	= 0x2,
+-	BUS_OBJERR	= 0x3,
+-
+-	SEGV_MAPERR	= 0x1,
+-	SEGV_ACCERR	= 0x2,
+-
+-	ITIMER_REAL	= 0x0,
+-	ITIMER_VIRTUAL	= 0x1,
+-	ITIMER_PROF	= 0x2,
+-
+-	EV_ADD		= 0x1,
+-	EV_DELETE	= 0x2,
+-	EV_CLEAR	= 0x20,
+-	EV_ERROR	= 0x4000,
+-	EVFILT_READ	= -0x1,
+-	EVFILT_WRITE	= -0x2,
+-};
+-
+-typedef struct TforkT TforkT;
+-typedef struct SigaltstackT SigaltstackT;
+-typedef struct Sigcontext Sigcontext;
+-typedef struct Siginfo Siginfo;
+-typedef struct StackT StackT;
+-typedef struct Timespec Timespec;
+-typedef struct Timeval Timeval;
+-typedef struct Itimerval Itimerval;
+-typedef struct KeventT KeventT;
+-
+-#pragma pack on
+-
+-struct TforkT {
+-	byte	*tf_tcb;
+-	int32	*tf_tid;
+-	byte	*tf_stack;
+-};
+-
+-struct SigaltstackT {
+-	byte	*ss_sp;
+-	uint64	ss_size;
+-	int32	ss_flags;
+-	byte	Pad_cgo_0[4];
+-};
+-struct Sigcontext {
+-	int64	sc_rdi;
+-	int64	sc_rsi;
+-	int64	sc_rdx;
+-	int64	sc_rcx;
+-	int64	sc_r8;
+-	int64	sc_r9;
+-	int64	sc_r10;
+-	int64	sc_r11;
+-	int64	sc_r12;
+-	int64	sc_r13;
+-	int64	sc_r14;
+-	int64	sc_r15;
+-	int64	sc_rbp;
+-	int64	sc_rbx;
+-	int64	sc_rax;
+-	int64	sc_gs;
+-	int64	sc_fs;
+-	int64	sc_es;
+-	int64	sc_ds;
+-	int64	sc_trapno;
+-	int64	sc_err;
+-	int64	sc_rip;
+-	int64	sc_cs;
+-	int64	sc_rflags;
+-	int64	sc_rsp;
+-	int64	sc_ss;
+-	void	*sc_fpstate;
+-	int32	__sc_unused;
+-	int32	sc_mask;
+-};
+-struct Siginfo {
+-	int32	si_signo;
+-	int32	si_code;
+-	int32	si_errno;
+-	byte	Pad_cgo_0[4];
+-	byte	_data[120];
+-};
+-typedef	uint32	Sigset;
+-typedef	byte	Sigval[8];
+-
+-struct StackT {
+-	byte	*ss_sp;
+-	uint64	ss_size;
+-	int32	ss_flags;
+-	byte	Pad_cgo_0[4];
+-};
+-
+-struct Timespec {
+-	int64	tv_sec;
+-	int64	tv_nsec;
+-};
+-struct Timeval {
+-	int64	tv_sec;
+-	int64	tv_usec;
+-};
+-struct Itimerval {
+-	Timeval	it_interval;
+-	Timeval	it_value;
+-};
+-
+-struct KeventT {
+-	uint64	ident;
+-	int16	filter;
+-	uint16	flags;
+-	uint32	fflags;
+-	int64	data;
+-	byte	*udata;
+-};
+-
+-
+-#pragma pack off
+diff --git a/src/runtime/defs_plan9_386.go b/src/runtime/defs_plan9_386.go
+new file mode 100644
+index 0000000000..170506b230
+--- /dev/null
++++ b/src/runtime/defs_plan9_386.go
+@@ -0,0 +1,23 @@
++package runtime
++
++type ureg struct {
++	di    uint32 /* general registers */
++	si    uint32 /* ... */
++	bp    uint32 /* ... */
++	nsp   uint32
++	bx    uint32 /* ... */
++	dx    uint32 /* ... */
++	cx    uint32 /* ... */
++	ax    uint32 /* ... */
++	gs    uint32 /* data segments */
++	fs    uint32 /* ... */
++	es    uint32 /* ... */
++	ds    uint32 /* ... */
++	trap  uint32 /* trap _type */
++	ecode uint32 /* error code (or zero) */
++	pc    uint32 /* pc */
++	cs    uint32 /* old context */
++	flags uint32 /* old flags */
++	sp    uint32
++	ss    uint32 /* old stack segment */
++}
+diff --git a/src/runtime/defs_plan9_386.h b/src/runtime/defs_plan9_386.h
+deleted file mode 100644
+index a762b85899..0000000000
+--- a/src/runtime/defs_plan9_386.h
++++ /dev/null
+@@ -1,26 +0,0 @@
+-#define PAGESIZE 0x1000
+-
+-typedef struct Ureg Ureg;
+-
+-struct Ureg
+-{
+-	uint32	di;		/* general registers */
+-	uint32	si;		/* ... */
+-	uint32	bp;		/* ... */
+-	uint32	nsp;
+-	uint32	bx;		/* ... */
+-	uint32	dx;		/* ... */
+-	uint32	cx;		/* ... */
+-	uint32	ax;		/* ... */
+-	uint32	gs;		/* data segments */
+-	uint32	fs;		/* ... */
+-	uint32	es;		/* ... */
+-	uint32	ds;		/* ... */
+-	uint32	trap;		/* trap type */
+-	uint32	ecode;		/* error code (or zero) */
+-	uint32	pc;		/* pc */
+-	uint32	cs;		/* old context */
+-	uint32	flags;		/* old flags */
+-	uint32	sp;
+-	uint32	ss;		/* old stack segment */
+-};
+diff --git a/src/runtime/defs_plan9_amd64.go b/src/runtime/defs_plan9_amd64.go
+new file mode 100644
+index 0000000000..17becfb66f
+--- /dev/null
++++ b/src/runtime/defs_plan9_amd64.go
+@@ -0,0 +1,32 @@
++package runtime
++
++type ureg struct {
++	ax  uint64
++	bx  uint64
++	cx  uint64
++	dx  uint64
++	si  uint64
++	di  uint64
++	bp  uint64
++	r8  uint64
++	r9  uint64
++	r10 uint64
++	r11 uint64
++	r12 uint64
++	r13 uint64
++	r14 uint64
++	r15 uint64
++
++	ds uint16
++	es uint16
++	fs uint16
++	gs uint16
++
++	_type uint64
++	error uint64 /* error code (or zero) */
++	ip    uint64 /* pc */
++	cs    uint64 /* old context */
++	flags uint64 /* old flags */
++	sp    uint64 /* sp */
++	ss    uint64 /* old stack segment */
++}
+diff --git a/src/runtime/defs_plan9_amd64.h b/src/runtime/defs_plan9_amd64.h
+deleted file mode 100644
+index 20bca479c2..0000000000
+--- a/src/runtime/defs_plan9_amd64.h
++++ /dev/null
+@@ -1,34 +0,0 @@
+-#define PAGESIZE 0x1000
+-
+-typedef struct Ureg Ureg;
+-
+-struct Ureg {
+-	uint64	ax;
+-	uint64	bx;
+-	uint64	cx;
+-	uint64	dx;
+-	uint64	si;
+-	uint64	di;
+-	uint64	bp;
+-	uint64	r8;
+-	uint64	r9;
+-	uint64	r10;
+-	uint64	r11;
+-	uint64	r12;
+-	uint64	r13;
+-	uint64	r14;
+-	uint64	r15;
+-
+-	uint16	ds;
+-	uint16	es;
+-	uint16	fs;
+-	uint16	gs;
+-
+-	uint64	type;
+-	uint64	error;				/* error code (or zero) */
+-	uint64	ip;				/* pc */
+-	uint64	cs;				/* old context */
+-	uint64	flags;				/* old flags */
+-	uint64	sp;				/* sp */
+-	uint64	ss;				/* old stack segment */
+-};
+diff --git a/src/runtime/defs_solaris_amd64.h b/src/runtime/defs_solaris_amd64.h
+deleted file mode 100644
+index cb1cfeadcc..0000000000
+--- a/src/runtime/defs_solaris_amd64.h
++++ /dev/null
+@@ -1,254 +0,0 @@
+-// Created by cgo -cdefs - DO NOT EDIT
+-// cgo -cdefs defs_solaris.go defs_solaris_amd64.go
+-
+-
+-enum {
+-	EINTR		= 0x4,
+-	EBADF		= 0x9,
+-	EFAULT		= 0xe,
+-	EAGAIN		= 0xb,
+-	ETIMEDOUT	= 0x91,
+-	EWOULDBLOCK	= 0xb,
+-	EINPROGRESS	= 0x96,
+-
+-	PROT_NONE	= 0x0,
+-	PROT_READ	= 0x1,
+-	PROT_WRITE	= 0x2,
+-	PROT_EXEC	= 0x4,
+-
+-	MAP_ANON	= 0x100,
+-	MAP_PRIVATE	= 0x2,
+-	MAP_FIXED	= 0x10,
+-
+-	MADV_FREE	= 0x5,
+-
+-	SA_SIGINFO	= 0x8,
+-	SA_RESTART	= 0x4,
+-	SA_ONSTACK	= 0x1,
+-
+-	SIGHUP		= 0x1,
+-	SIGINT		= 0x2,
+-	SIGQUIT		= 0x3,
+-	SIGILL		= 0x4,
+-	SIGTRAP		= 0x5,
+-	SIGABRT		= 0x6,
+-	SIGEMT		= 0x7,
+-	SIGFPE		= 0x8,
+-	SIGKILL		= 0x9,
+-	SIGBUS		= 0xa,
+-	SIGSEGV		= 0xb,
+-	SIGSYS		= 0xc,
+-	SIGPIPE		= 0xd,
+-	SIGALRM		= 0xe,
+-	SIGTERM		= 0xf,
+-	SIGURG		= 0x15,
+-	SIGSTOP		= 0x17,
+-	SIGTSTP		= 0x18,
+-	SIGCONT		= 0x19,
+-	SIGCHLD		= 0x12,
+-	SIGTTIN		= 0x1a,
+-	SIGTTOU		= 0x1b,
+-	SIGIO		= 0x16,
+-	SIGXCPU		= 0x1e,
+-	SIGXFSZ		= 0x1f,
+-	SIGVTALRM	= 0x1c,
+-	SIGPROF		= 0x1d,
+-	SIGWINCH	= 0x14,
+-	SIGUSR1		= 0x10,
+-	SIGUSR2		= 0x11,
+-
+-	FPE_INTDIV	= 0x1,
+-	FPE_INTOVF	= 0x2,
+-	FPE_FLTDIV	= 0x3,
+-	FPE_FLTOVF	= 0x4,
+-	FPE_FLTUND	= 0x5,
+-	FPE_FLTRES	= 0x6,
+-	FPE_FLTINV	= 0x7,
+-	FPE_FLTSUB	= 0x8,
+-
+-	BUS_ADRALN	= 0x1,
+-	BUS_ADRERR	= 0x2,
+-	BUS_OBJERR	= 0x3,
+-
+-	SEGV_MAPERR	= 0x1,
+-	SEGV_ACCERR	= 0x2,
+-
+-	ITIMER_REAL	= 0x0,
+-	ITIMER_VIRTUAL	= 0x1,
+-	ITIMER_PROF	= 0x2,
+-
+-	_SC_NPROCESSORS_ONLN	= 0xf,
+-
+-	PTHREAD_CREATE_DETACHED	= 0x40,
+-
+-	FORK_NOSIGCHLD	= 0x1,
+-	FORK_WAITPID	= 0x2,
+-
+-	MAXHOSTNAMELEN	= 0x100,
+-
+-	O_NONBLOCK	= 0x80,
+-	FD_CLOEXEC	= 0x1,
+-	F_GETFL		= 0x3,
+-	F_SETFL		= 0x4,
+-	F_SETFD		= 0x2,
+-
+-	POLLIN	= 0x1,
+-	POLLOUT	= 0x4,
+-	POLLHUP	= 0x10,
+-	POLLERR	= 0x8,
+-
+-	PORT_SOURCE_FD	= 0x4,
+-};
+-
+-typedef struct SemT SemT;
+-typedef struct SigaltstackT SigaltstackT;
+-typedef struct Sigset Sigset;
+-typedef struct StackT StackT;
+-typedef struct Siginfo Siginfo;
+-typedef struct SigactionT SigactionT;
+-typedef struct Fpregset Fpregset;
+-typedef struct Mcontext Mcontext;
+-typedef struct Ucontext Ucontext;
+-typedef struct Timespec Timespec;
+-typedef struct Timeval Timeval;
+-typedef struct Itimerval Itimerval;
+-typedef struct PortEvent PortEvent;
+-typedef struct PthreadAttr PthreadAttr;
+-typedef struct Stat Stat;
+-
+-#pragma pack on
+-
+-struct SemT {
+-	uint32	sem_count;
+-	uint16	sem_type;
+-	uint16	sem_magic;
+-	uint64	sem_pad1[3];
+-	uint64	sem_pad2[2];
+-};
+-
+-struct SigaltstackT {
+-	byte	*ss_sp;
+-	uint64	ss_size;
+-	int32	ss_flags;
+-	byte	Pad_cgo_0[4];
+-};
+-struct Sigset {
+-	uint32	__sigbits[4];
+-};
+-struct StackT {
+-	byte	*ss_sp;
+-	uint64	ss_size;
+-	int32	ss_flags;
+-	byte	Pad_cgo_0[4];
+-};
+-
+-struct Siginfo {
+-	int32	si_signo;
+-	int32	si_code;
+-	int32	si_errno;
+-	int32	si_pad;
+-	byte	__data[240];
+-};
+-struct SigactionT {
+-	int32	sa_flags;
+-	byte	Pad_cgo_0[4];
+-	byte	_funcptr[8];
+-	Sigset	sa_mask;
+-};
+-
+-struct Fpregset {
+-	byte	fp_reg_set[528];
+-};
+-struct Mcontext {
+-	int64	gregs[28];
+-	Fpregset	fpregs;
+-};
+-struct Ucontext {
+-	uint64	uc_flags;
+-	Ucontext	*uc_link;
+-	Sigset	uc_sigmask;
+-	StackT	uc_stack;
+-	byte	Pad_cgo_0[8];
+-	Mcontext	uc_mcontext;
+-	int64	uc_filler[5];
+-	byte	Pad_cgo_1[8];
+-};
+-
+-struct Timespec {
+-	int64	tv_sec;
+-	int64	tv_nsec;
+-};
+-struct Timeval {
+-	int64	tv_sec;
+-	int64	tv_usec;
+-};
+-struct Itimerval {
+-	Timeval	it_interval;
+-	Timeval	it_value;
+-};
+-
+-struct PortEvent {
+-	int32	portev_events;
+-	uint16	portev_source;
+-	uint16	portev_pad;
+-	uint64	portev_object;
+-	byte	*portev_user;
+-};
+-typedef	uint32	Pthread;
+-struct PthreadAttr {
+-	byte	*__pthread_attrp;
+-};
+-
+-struct Stat {
+-	uint64	st_dev;
+-	uint64	st_ino;
+-	uint32	st_mode;
+-	uint32	st_nlink;
+-	uint32	st_uid;
+-	uint32	st_gid;
+-	uint64	st_rdev;
+-	int64	st_size;
+-	Timespec	st_atim;
+-	Timespec	st_mtim;
+-	Timespec	st_ctim;
+-	int32	st_blksize;
+-	byte	Pad_cgo_0[4];
+-	int64	st_blocks;
+-	int8	st_fstype[16];
+-};
+-
+-
+-#pragma pack off
+-// Created by cgo -cdefs - DO NOT EDIT
+-// cgo -cdefs defs_solaris.go defs_solaris_amd64.go
+-
+-
+-enum {
+-	REG_RDI		= 0x8,
+-	REG_RSI		= 0x9,
+-	REG_RDX		= 0xc,
+-	REG_RCX		= 0xd,
+-	REG_R8		= 0x7,
+-	REG_R9		= 0x6,
+-	REG_R10		= 0x5,
+-	REG_R11		= 0x4,
+-	REG_R12		= 0x3,
+-	REG_R13		= 0x2,
+-	REG_R14		= 0x1,
+-	REG_R15		= 0x0,
+-	REG_RBP		= 0xa,
+-	REG_RBX		= 0xb,
+-	REG_RAX		= 0xe,
+-	REG_GS		= 0x17,
+-	REG_FS		= 0x16,
+-	REG_ES		= 0x18,
+-	REG_DS		= 0x19,
+-	REG_TRAPNO	= 0xf,
+-	REG_ERR		= 0x10,
+-	REG_RIP		= 0x11,
+-	REG_CS		= 0x12,
+-	REG_RFLAGS	= 0x13,
+-	REG_RSP		= 0x14,
+-	REG_SS		= 0x15,
+-};
+-
+diff --git a/src/runtime/defs_windows_386.go b/src/runtime/defs_windows_386.go
+new file mode 100644
+index 0000000000..abec2d839f
+--- /dev/null
++++ b/src/runtime/defs_windows_386.go
+@@ -0,0 +1,109 @@
++// created by cgo -cdefs and then converted to Go
++// cgo -cdefs defs_windows.go
++
++package runtime
++
++const (
++	_PROT_NONE  = 0
++	_PROT_READ  = 1
++	_PROT_WRITE = 2
++	_PROT_EXEC  = 4
++
++	_MAP_ANON    = 1
++	_MAP_PRIVATE = 2
++
++	_DUPLICATE_SAME_ACCESS   = 0x2
++	_THREAD_PRIORITY_HIGHEST = 0x2
++
++	_SIGINT           = 0x2
++	_CTRL_C_EVENT     = 0x0
++	_CTRL_BREAK_EVENT = 0x1
++
++	_CONTEXT_CONTROL = 0x10001
++	_CONTEXT_FULL    = 0x10007
++
++	_EXCEPTION_ACCESS_VIOLATION     = 0xc0000005
++	_EXCEPTION_BREAKPOINT           = 0x80000003
++	_EXCEPTION_FLT_DENORMAL_OPERAND = 0xc000008d
++	_EXCEPTION_FLT_DIVIDE_BY_ZERO   = 0xc000008e
++	_EXCEPTION_FLT_INEXACT_RESULT   = 0xc000008f
++	_EXCEPTION_FLT_OVERFLOW         = 0xc0000091
++	_EXCEPTION_FLT_UNDERFLOW        = 0xc0000093
++	_EXCEPTION_INT_DIVIDE_BY_ZERO   = 0xc0000094
++	_EXCEPTION_INT_OVERFLOW         = 0xc0000095
++
++	_INFINITE     = 0xffffffff
++	_WAIT_TIMEOUT = 0x102
++
++	_EXCEPTION_CONTINUE_EXECUTION = -0x1
++	_EXCEPTION_CONTINUE_SEARCH    = 0x0
++)
++
++type systeminfo struct {
++	anon0                       [4]byte
++	dwpagesize                  uint32
++	lpminimumapplicationaddress *byte
++	lpmaximumapplicationaddress *byte
++	dwactiveprocessormask       uint32
++	dwnumberofprocessors        uint32
++	dwprocessortype             uint32
++	dwallocationgranularity     uint32
++	wprocessorlevel             uint16
++	wprocessorrevision          uint16
++}
++
++type exceptionrecord struct {
++	exceptioncode        uint32
++	exceptionflags       uint32
++	exceptionrecord      *exceptionrecord
++	exceptionaddress     *byte
++	numberparameters     uint32
++	exceptioninformation [15]uint32
++}
++
++type floatingsavearea struct {
++	controlword   uint32
++	statusword    uint32
++	tagword       uint32
++	erroroffset   uint32
++	errorselector uint32
++	dataoffset    uint32
++	dataselector  uint32
++	registerarea  [80]uint8
++	cr0npxstate   uint32
++}
++
++type context struct {
++	contextflags      uint32
++	dr0               uint32
++	dr1               uint32
++	dr2               uint32
++	dr3               uint32
++	dr6               uint32
++	dr7               uint32
++	floatsave         floatingsavearea
++	seggs             uint32
++	segfs             uint32
++	seges             uint32
++	segds             uint32
++	edi               uint32
++	esi               uint32
++	ebx               uint32
++	edx               uint32
++	ecx               uint32
++	eax               uint32
++	ebp               uint32
++	eip               uint32
++	segcs             uint32
++	eflags            uint32
++	esp               uint32
++	segss             uint32
++	extendedregisters [512]uint8
++}
++
++type overlapped struct {
++	internal     uint32
++	internalhigh uint32
++	anon0        [8]byte
++	hevent       *byte
++}
+diff --git a/src/runtime/defs_windows_386.h b/src/runtime/defs_windows_386.h
+deleted file mode 100644
+index 2317c04f65..0000000000
+--- a/src/runtime/defs_windows_386.h
++++ /dev/null
+@@ -1,116 +0,0 @@
+-// Created by cgo -cdefs - DO NOT EDIT
+-// cgo -cdefs defs_windows.go
+-
+-
+-enum {
+-	PROT_NONE	= 0,
+-	PROT_READ	= 1,
+-	PROT_WRITE	= 2,
+-	PROT_EXEC	= 4,
+-
+-	MAP_ANON	= 1,
+-	MAP_PRIVATE	= 2,
+-
+-	DUPLICATE_SAME_ACCESS	= 0x2,
+-	THREAD_PRIORITY_HIGHEST	= 0x2,
+-
+-	SIGINT			= 0x2,
+-	CTRL_C_EVENT		= 0x0,
+-	CTRL_BREAK_EVENT	= 0x1,
+-
+-	CONTEXT_CONTROL	= 0x10001,
+-	CONTEXT_FULL	= 0x10007,
+-
+-	EXCEPTION_ACCESS_VIOLATION	= 0xc0000005,
+-	EXCEPTION_BREAKPOINT		= 0x80000003,
+-	EXCEPTION_FLT_DENORMAL_OPERAND	= 0xc000008d,
+-	EXCEPTION_FLT_DIVIDE_BY_ZERO	= 0xc000008e,
+-	EXCEPTION_FLT_INEXACT_RESULT	= 0xc000008f,
+-	EXCEPTION_FLT_OVERFLOW		= 0xc0000091,
+-	EXCEPTION_FLT_UNDERFLOW		= 0xc0000093,
+-	EXCEPTION_INT_DIVIDE_BY_ZERO	= 0xc0000094,
+-	EXCEPTION_INT_OVERFLOW		= 0xc0000095,
+-
+-	INFINITE	= 0xffffffff,
+-	WAIT_TIMEOUT	= 0x102,
+-
+-	EXCEPTION_CONTINUE_EXECUTION	= -0x1,
+-	EXCEPTION_CONTINUE_SEARCH	= 0x0,
+-};
+-
+-typedef struct SystemInfo SystemInfo;
+-typedef struct ExceptionRecord ExceptionRecord;
+-typedef struct FloatingSaveArea FloatingSaveArea;
+-typedef struct M128a M128a;
+-typedef struct Context Context;
+-typedef struct Overlapped Overlapped;
+-
+-#pragma pack on
+-
+-struct SystemInfo {
+-	byte	anon0[4];
+-	uint32	dwPageSize;
+-	byte	*lpMinimumApplicationAddress;
+-	byte	*lpMaximumApplicationAddress;
+-	uint32	dwActiveProcessorMask;
+-	uint32	dwNumberOfProcessors;
+-	uint32	dwProcessorType;
+-	uint32	dwAllocationGranularity;
+-	uint16	wProcessorLevel;
+-	uint16	wProcessorRevision;
+-};
+-struct ExceptionRecord {
+-	uint32	ExceptionCode;
+-	uint32	ExceptionFlags;
+-	ExceptionRecord	*ExceptionRecord;
+-	byte	*ExceptionAddress;
+-	uint32	NumberParameters;
+-	uint32	ExceptionInformation[15];
+-};
+-struct FloatingSaveArea {
+-	uint32	ControlWord;
+-	uint32	StatusWord;
+-	uint32	TagWord;
+-	uint32	ErrorOffset;
+-	uint32	ErrorSelector;
+-	uint32	DataOffset;
+-	uint32	DataSelector;
+-	uint8	RegisterArea[80];
+-	uint32	Cr0NpxState;
+-};
+-struct Context {
+-	uint32	ContextFlags;
+-	uint32	Dr0;
+-	uint32	Dr1;
+-	uint32	Dr2;
+-	uint32	Dr3;
+-	uint32	Dr6;
+-	uint32	Dr7;
+-	FloatingSaveArea	FloatSave;
+-	uint32	SegGs;
+-	uint32	SegFs;
+-	uint32	SegEs;
+-	uint32	SegDs;
+-	uint32	Edi;
+-	uint32	Esi;
+-	uint32	Ebx;
+-	uint32	Edx;
+-	uint32	Ecx;
+-	uint32	Eax;
+-	uint32	Ebp;
+-	uint32	Eip;
+-	uint32	SegCs;
+-	uint32	EFlags;
+-	uint32	Esp;
+-	uint32	SegSs;
+-	uint8	ExtendedRegisters[512];
+-};
+-struct Overlapped {
+-	uint32	Internal;
+-	uint32	InternalHigh;
+-	byte	anon0[8];
+-	byte	*hEvent;
+-};
+-
+-
+-#pragma pack off
+diff --git a/src/runtime/defs_windows_amd64.go b/src/runtime/defs_windows_amd64.go
+new file mode 100644
+index 0000000000..81b13597b7
+--- /dev/null
++++ b/src/runtime/defs_windows_amd64.go
+@@ -0,0 +1,124 @@
++// created by cgo -cdefs and then converted to Go
++// cgo -cdefs defs_windows.go
++
++package runtime
++
++const (
++	_PROT_NONE  = 0
++	_PROT_READ  = 1
++	_PROT_WRITE = 2
++	_PROT_EXEC  = 4
++
++	_MAP_ANON    = 1
++	_MAP_PRIVATE = 2
++
++	_DUPLICATE_SAME_ACCESS   = 0x2
++	_THREAD_PRIORITY_HIGHEST = 0x2
++
++	_SIGINT           = 0x2
++	_CTRL_C_EVENT     = 0x0
++	_CTRL_BREAK_EVENT = 0x1
++
++	_CONTEXT_CONTROL = 0x100001
++	_CONTEXT_FULL    = 0x10000b
++
++	_EXCEPTION_ACCESS_VIOLATION     = 0xc0000005
++	_EXCEPTION_BREAKPOINT           = 0x80000003
++	_EXCEPTION_FLT_DENORMAL_OPERAND = 0xc000008d
++	_EXCEPTION_FLT_DIVIDE_BY_ZERO   = 0xc000008e
++	_EXCEPTION_FLT_INEXACT_RESULT   = 0xc000008f
++	_EXCEPTION_FLT_OVERFLOW         = 0xc0000091
++	_EXCEPTION_FLT_UNDERFLOW        = 0xc0000093
++	_EXCEPTION_INT_DIVIDE_BY_ZERO   = 0xc0000094
++	_EXCEPTION_INT_OVERFLOW         = 0xc0000095
++
++	_INFINITE     = 0xffffffff
++	_WAIT_TIMEOUT = 0x102
++
++	_EXCEPTION_CONTINUE_EXECUTION = -0x1
++	_EXCEPTION_CONTINUE_SEARCH    = 0x0
++)
++
++type systeminfo struct {
++	anon0                       [4]byte
++	dwpagesize                  uint32
++	lpminimumapplicationaddress *byte
++	lpmaximumapplicationaddress *byte
++	dwactiveprocessormask       uint64
++	dwnumberofprocessors        uint32
++	dwprocessortype             uint32
++	dwallocationgranularity     uint32
++	wprocessorlevel             uint16
++	wprocessorrevision          uint16
++}
++
++type exceptionrecord struct {
++	exceptioncode        uint32
++	exceptionflags       uint32
++	exceptionrecord      *exceptionrecord
++	exceptionaddress     *byte
++	numberparameters     uint32
++	pad_cgo_0            [4]byte
++	exceptioninformation [15]uint64
++}
++
++type m128a struct {
++	low  uint64
++	high int64
++}
++
++type context struct {
++	p1home               uint64
++	p2home               uint64
++	p3home               uint64
++	p4home               uint64
++	p5home               uint64
++	p6home               uint64
++	contextflags         uint32
++	mxcsr                uint32
++	segcs                uint16
++	segds                uint16
++	seges                uint16
++	segfs                uint16
++	seggs                uint16
++	segss                uint16
++	eflags               uint32
++	dr0                  uint64
++	dr1                  uint64
++	dr2                  uint64
++	dr3                  uint64
++	dr6                  uint64
++	dr7                  uint64
++	rax                  uint64
++	rcx                  uint64
++	rdx                  uint64
++	rbx                  uint64
++	rsp                  uint64
++	rbp                  uint64
++	rsi                  uint64
++	rdi                  uint64
++	r8                   uint64
++	r9                   uint64
++	r10                  uint64
++	r11                  uint64
++	r12                  uint64
++	r13                  uint64
++	r14                  uint64
++	r15                  uint64
++	rip                  uint64
++	anon0                [512]byte
++	vectorregister       [26]m128a
++	vectorcontrol        uint64
++	debugcontrol         uint64
++	lastbranchtorip      uint64
++	lastbranchfromrip    uint64
++	lastexceptiontorip   uint64
++	lastexceptionfromrip uint64
++}
++
++type overlapped struct {
++	internal     uint64
++	internalhigh uint64
++	anon0        [8]byte
++	hevent       *byte
++}
+diff --git a/src/runtime/defs_windows_amd64.h b/src/runtime/defs_windows_amd64.h
+deleted file mode 100644
+index 7f37a7a8c3..0000000000
+--- a/src/runtime/defs_windows_amd64.h
++++ /dev/null
+@@ -1,131 +0,0 @@
+-// Created by cgo -cdefs - DO NOT EDIT
+-// cgo -cdefs defs_windows.go
+-
+-
+-enum {
+-	PROT_NONE	= 0,
+-	PROT_READ	= 1,
+-	PROT_WRITE	= 2,
+-	PROT_EXEC	= 4,
+-
+-	MAP_ANON	= 1,
+-	MAP_PRIVATE	= 2,
+-
+-	DUPLICATE_SAME_ACCESS	= 0x2,
+-	THREAD_PRIORITY_HIGHEST	= 0x2,
+-
+-	SIGINT			= 0x2,
+-	CTRL_C_EVENT		= 0x0,
+-	CTRL_BREAK_EVENT	= 0x1,
+-
+-	CONTEXT_CONTROL	= 0x100001,
+-	CONTEXT_FULL	= 0x10000b,
+-
+-	EXCEPTION_ACCESS_VIOLATION	= 0xc0000005,
+-	EXCEPTION_BREAKPOINT		= 0x80000003,
+-	EXCEPTION_FLT_DENORMAL_OPERAND	= 0xc000008d,
+-	EXCEPTION_FLT_DIVIDE_BY_ZERO	= 0xc000008e,
+-	EXCEPTION_FLT_INEXACT_RESULT	= 0xc000008f,
+-	EXCEPTION_FLT_OVERFLOW		= 0xc0000091,
+-	EXCEPTION_FLT_UNDERFLOW		= 0xc0000093,
+-	EXCEPTION_INT_DIVIDE_BY_ZERO	= 0xc0000094,
+-	EXCEPTION_INT_OVERFLOW		= 0xc0000095,
+-
+-	INFINITE	= 0xffffffff,
+-	WAIT_TIMEOUT	= 0x102,
+-
+-	EXCEPTION_CONTINUE_EXECUTION	= -0x1,
+-	EXCEPTION_CONTINUE_SEARCH	= 0x0,
+-};
+-
+-typedef struct SystemInfo SystemInfo;
+-typedef struct ExceptionRecord ExceptionRecord;
+-typedef struct FloatingSaveArea FloatingSaveArea;
+-typedef struct M128a M128a;
+-typedef struct Context Context;
+-typedef struct Overlapped Overlapped;
+-
+-#pragma pack on
+-
+-struct SystemInfo {
+-	byte	anon0[4];
+-	uint32	dwPageSize;
+-	byte	*lpMinimumApplicationAddress;
+-	byte	*lpMaximumApplicationAddress;
+-	uint64	dwActiveProcessorMask;
+-	uint32	dwNumberOfProcessors;
+-	uint32	dwProcessorType;
+-	uint32	dwAllocationGranularity;
+-	uint16	wProcessorLevel;
+-	uint16	wProcessorRevision;
+-};
+-struct ExceptionRecord {
+-	uint32	ExceptionCode;
+-	uint32	ExceptionFlags;
+-	ExceptionRecord	*ExceptionRecord;
+-	byte	*ExceptionAddress;
+-	uint32	NumberParameters;
+-	byte	Pad_cgo_0[4];
+-	uint64	ExceptionInformation[15];
+-};
+-struct M128a {
+-	uint64	Low;
+-	int64	High;
+-};
+-struct Context {
+-	uint64	P1Home;
+-	uint64	P2Home;
+-	uint64	P3Home;
+-	uint64	P4Home;
+-	uint64	P5Home;
+-	uint64	P6Home;
+-	uint32	ContextFlags;
+-	uint32	MxCsr;
+-	uint16	SegCs;
+-	uint16	SegDs;
+-	uint16	SegEs;
+-	uint16	SegFs;
+-	uint16	SegGs;
+-	uint16	SegSs;
+-	uint32	EFlags;
+-	uint64	Dr0;
+-	uint64	Dr1;
+-	uint64	Dr2;
+-	uint64	Dr3;
+-	uint64	Dr6;
+-	uint64	Dr7;
+-	uint64	Rax;
+-	uint64	Rcx;
+-	uint64	Rdx;
+-	uint64	Rbx;
+-	uint64	Rsp;
+-	uint64	Rbp;
+-	uint64	Rsi;
+-	uint64	Rdi;
+-	uint64	R8;
+-	uint64	R9;
+-	uint64	R10;
+-	uint64	R11;
+-	uint64	R12;
+-	uint64	R13;
+-	uint64	R14;
+-	uint64	R15;
+-	uint64	Rip;
+-	byte	anon0[512];
+-	M128a	VectorRegister[26];
+-	uint64	VectorControl;
+-	uint64	DebugControl;
+-	uint64	LastBranchToRip;
+-	uint64	LastBranchFromRip;
+-	uint64	LastExceptionToRip;
+-	uint64	LastExceptionFromRip;
+-};
+-struct Overlapped {
+-	uint64	Internal;
+-	uint64	InternalHigh;
+-	byte	anon0[8];
+-	byte	*hEvent;
+-};
+-
+-
+-#pragma pack off

@@ -9,7 +9,7 @@ Date:   Thu Jan 24 17:32:10 2013 +1100
     R=golang-dev, n13m3y3r, bradfitz, adg, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/7193044
-
+---
  src/pkg/archive/zip/zip_test.go        |  6 +--
  src/pkg/compress/flate/deflate_test.go |  3 +-
  src/pkg/crypto/x509/verify_test.go     |  3 +-
@@ -42,3 +42,1244 @@ Date:   Thu Jan 24 17:32:10 2013 +1100
  src/pkg/runtime/proc_test.go           |  3 +-
  src/pkg/sync/atomic/atomic_test.go     | 45 ++++++++--------------
  31 files changed, 126 insertions(+), 256 deletions(-)
+
+diff --git a/src/pkg/archive/zip/zip_test.go b/src/pkg/archive/zip/zip_test.go
+index 0a18798a3f..a8af206a88 100644
+--- a/src/pkg/archive/zip/zip_test.go
++++ b/src/pkg/archive/zip/zip_test.go
+@@ -18,8 +18,7 @@ import (
+ 
+ func TestOver65kFiles(t *testing.T) {
+ 	if testing.Short() {
+-		t.Logf("slow test; skipping")
+-		return
++		t.Skip("slow test; skipping")
+ 	}
+ 	buf := new(bytes.Buffer)
+ 	w := NewWriter(buf)
+@@ -108,8 +107,7 @@ func TestFileHeaderRoundTrip64(t *testing.T) {
+ 
+ func TestZip64(t *testing.T) {
+ 	if testing.Short() {
+-		t.Logf("slow test; skipping")
+-		return
++		t.Skip("slow test; skipping")
+ 	}
+ 	// write 2^32 bytes plus "END\n" to a zip file
+ 	buf := new(bytes.Buffer)
+diff --git a/src/pkg/compress/flate/deflate_test.go b/src/pkg/compress/flate/deflate_test.go
+index e0b225e298..8f4e196b42 100644
+--- a/src/pkg/compress/flate/deflate_test.go
++++ b/src/pkg/compress/flate/deflate_test.go
+@@ -124,8 +124,7 @@ func (r *sparseReader) Read(b []byte) (n int, err error) {
+ 
+ func TestVeryLongSparseChunk(t *testing.T) {
+ 	if testing.Short() {
+-		t.Logf("skipping sparse chunk during short test")
+-		return
++		t.Skip("skipping sparse chunk during short test")
+ 	}
+ 	w, err := NewWriter(ioutil.Discard, 1)
+ 	if err != nil {
+diff --git a/src/pkg/crypto/x509/verify_test.go b/src/pkg/crypto/x509/verify_test.go
+index 0381752e8d..631a0f8498 100644
+--- a/src/pkg/crypto/x509/verify_test.go
++++ b/src/pkg/crypto/x509/verify_test.go
+@@ -309,8 +309,7 @@ func TestGoVerify(t *testing.T) {
+ 
+ func TestSystemVerify(t *testing.T) {
+ 	if runtime.GOOS != "windows" {
+-		t.Logf("skipping verify test using system APIs on %q", runtime.GOOS)
+-		return
++		t.Skipf("skipping verify test using system APIs on %q", runtime.GOOS)
+ 	}
+ 
+ 	testVerify(t, true)
+diff --git a/src/pkg/go/types/gcimporter_test.go b/src/pkg/go/types/gcimporter_test.go
+index 8a2e8c21d5..b793eb4cb3 100644
+--- a/src/pkg/go/types/gcimporter_test.go
++++ b/src/pkg/go/types/gcimporter_test.go
+@@ -99,8 +99,7 @@ func TestGcImport(t *testing.T) {
+ 	// On cross-compile builds, the path will not exist.
+ 	// Need to use GOHOSTOS, which is not available.
+ 	if _, err := os.Stat(gcPath); err != nil {
+-		t.Logf("skipping test: %v", err)
+-		return
++		t.Skipf("skipping test: %v", err)
+ 	}
+ 
+ 	if outFn := compile(t, "testdata", "exports.go"); outFn != "" {
+diff --git a/src/pkg/log/syslog/syslog_test.go b/src/pkg/log/syslog/syslog_test.go
+index d1fb1b2383..3770b34d41 100644
+--- a/src/pkg/log/syslog/syslog_test.go
++++ b/src/pkg/log/syslog/syslog_test.go
+@@ -41,23 +41,14 @@ func startServer(done chan<- string) {
+ 	go runSyslog(c, done)
+ }
+ 
+-func skipNetTest(t *testing.T) bool {
+-	if testing.Short() {
+-		// Depends on syslog daemon running, and sometimes it's not.
+-		t.Logf("skipping syslog test during -short")
+-		return true
+-	}
+-	return false
+-}
+-
+ func TestNew(t *testing.T) {
+ 	if LOG_LOCAL7 != 23<<3 {
+ 		t.Fatalf("LOG_LOCAL7 has wrong value")
+ 	}
+-	if skipNetTest(t) {
+-		return
++	if testing.Short() {
++		// Depends on syslog daemon running, and sometimes it's not.
++		t.Skip("skipping syslog test during -short")
+ 	}
+-
+ 	s, err := New(LOG_INFO|LOG_USER, "")
+ 	if err != nil {
+ 		t.Fatalf("New() failed: %s", err)
+@@ -67,8 +58,8 @@ func TestNew(t *testing.T) {
+ }
+ 
+ func TestNewLogger(t *testing.T) {
+-	if skipNetTest(t) {
+-		return
++	if testing.Short() {
++		t.Skip("skipping syslog test during -short")
+ 	}
+ 	f, err := NewLogger(LOG_USER|LOG_INFO, 0)
+ 	if f == nil {
+@@ -77,8 +68,8 @@ func TestNewLogger(t *testing.T) {
+ }
+ 
+ func TestDial(t *testing.T) {
+-	if skipNetTest(t) {
+-		return
++	if testing.Short() {
++		t.Skip("skipping syslog test during -short")
+ 	}
+ 	f, err := Dial("", "", (LOG_LOCAL7|LOG_DEBUG)+1, "syslog_test")
+ 	if f != nil {
+diff --git a/src/pkg/net/dial_test.go b/src/pkg/net/dial_test.go
+index 325bd4b874..9aa8af5e3e 100644
+--- a/src/pkg/net/dial_test.go
++++ b/src/pkg/net/dial_test.go
+@@ -74,8 +74,7 @@ func TestDialTimeout(t *testing.T) {
+ 		// by default. FreeBSD likely works, but is untested.
+ 		// TODO(rsc):
+ 		// The timeout never happens on Windows.  Why?  Issue 3016.
+-		t.Logf("skipping test on %q; untested.", runtime.GOOS)
+-		return
++		t.Skipf("skipping test on %q; untested.", runtime.GOOS)
+ 	}
+ 
+ 	connected := 0
+@@ -107,8 +106,7 @@ func TestDialTimeout(t *testing.T) {
+ func TestSelfConnect(t *testing.T) {
+ 	if runtime.GOOS == "windows" {
+ 		// TODO(brainman): do not know why it hangs.
+-		t.Logf("skipping known-broken test on windows")
+-		return
++		t.Skip("skipping known-broken test on windows")
+ 	}
+ 	// Test that Dial does not honor self-connects.
+ 	// See the comment in DialTCP.
+@@ -228,8 +226,7 @@ func TestDialError(t *testing.T) {
+ func TestDialTimeoutFDLeak(t *testing.T) {
+ 	if runtime.GOOS != "linux" {
+ 		// TODO(bradfitz): test on other platforms
+-		t.Logf("skipping test on %s", runtime.GOOS)
+-		return
++		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 
+ 	ln := newLocalListener(t)
+diff --git a/src/pkg/net/dial_windows_test.go b/src/pkg/net/dial_windows_test.go
+index 8fc9b2fd46..aabd4d136a 100644
+--- a/src/pkg/net/dial_windows_test.go
++++ b/src/pkg/net/dial_windows_test.go
+@@ -63,8 +63,7 @@ func testDialTimeoutHandleLeak(t *testing.T) (before, after int) {
+ 
+ func TestDialTimeoutHandleLeak(t *testing.T) {
+ 	if !canUseConnectEx("tcp") {
+-		t.Logf("skipping test; no ConnectEx found.")
+-		return
++		t.Skip("skipping test; no ConnectEx found.")
+ 	}
+ 	testDialTimeoutHandleLeak(t) // ignore first call results
+ 	before, after := testDialTimeoutHandleLeak(t)
+diff --git a/src/pkg/net/dialgoogle_test.go b/src/pkg/net/dialgoogle_test.go
+index dd3c4ba7e1..73a94f5bf1 100644
+--- a/src/pkg/net/dialgoogle_test.go
++++ b/src/pkg/net/dialgoogle_test.go
+@@ -56,8 +56,7 @@ var googleaddrsipv4 = []string{
+ 
+ func TestDialGoogleIPv4(t *testing.T) {
+ 	if testing.Short() || !*testExternal {
+-		t.Logf("skipping test to avoid external network")
+-		return
++		t.Skip("skipping test to avoid external network")
+ 	}
+ 
+ 	// Insert an actual IPv4 address for google.com
+@@ -112,17 +111,14 @@ var googleaddrsipv6 = []string{
+ 
+ func TestDialGoogleIPv6(t *testing.T) {
+ 	if testing.Short() || !*testExternal {
+-		t.Logf("skipping test to avoid external network")
+-		return
++		t.Skip("skipping test to avoid external network")
+ 	}
+ 	// Only run tcp6 if the kernel will take it.
+ 	if !supportsIPv6 {
+-		t.Logf("skipping test; ipv6 is not supported")
+-		return
++		t.Skip("skipping test; ipv6 is not supported")
+ 	}
+ 	if !*testIPv6 {
+-		t.Logf("test disabled; use -ipv6 to enable")
+-		return
++		t.Skip("test disabled; use -ipv6 to enable")
+ 	}
+ 
+ 	// Insert an actual IPv6 address for ipv6.google.com
+diff --git a/src/pkg/net/file_test.go b/src/pkg/net/file_test.go
+index 95c0b66995..78c62221da 100644
+--- a/src/pkg/net/file_test.go
++++ b/src/pkg/net/file_test.go
+@@ -90,8 +90,7 @@ var fileListenerTests = []struct {
+ func TestFileListener(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9", "windows":
+-		t.Logf("skipping test on %q", runtime.GOOS)
+-		return
++		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 
+ 	for _, tt := range fileListenerTests {
+@@ -181,8 +180,7 @@ var filePacketConnTests = []struct {
+ func TestFilePacketConn(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9", "windows":
+-		t.Logf("skipping test on %q", runtime.GOOS)
+-		return
++		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 
+ 	for _, tt := range filePacketConnTests {
+diff --git a/src/pkg/net/http/cgi/host_test.go b/src/pkg/net/http/cgi/host_test.go
+index 811525900b..301aaa8f01 100644
+--- a/src/pkg/net/http/cgi/host_test.go
++++ b/src/pkg/net/http/cgi/host_test.go
+@@ -79,10 +79,9 @@ readlines:
+ 	return rw
+ }
+ 
+-var cgiTested = false
+-var cgiWorks bool
++var cgiTested, cgiWorks bool
+ 
+-func skipTest(t *testing.T) bool {
++func check(t *testing.T) {
+ 	if !cgiTested {
+ 		cgiTested = true
+ 		cgiWorks = exec.Command("./testdata/test.cgi").Run() == nil
+@@ -90,16 +89,12 @@ func skipTest(t *testing.T) bool {
+ 	if !cgiWorks {
+ 		// No Perl on Windows, needed by test.cgi
+ 		// TODO: make the child process be Go, not Perl.
+-		t.Logf("Skipping test: test.cgi failed.")
+-		return true
++		t.Skip("Skipping test: test.cgi failed.")
+ 	}
+-	return false
+ }
+ 
+ func TestCGIBasicGet(t *testing.T) {
+-	if skipTest(t) {
+-		return
+-	}
++	check(t)
+ 	h := &Handler{
+ 		Path: "testdata/test.cgi",
+ 		Root: "/test.cgi",
+@@ -133,9 +128,7 @@ func TestCGIBasicGet(t *testing.T) {
+ }
+ 
+ func TestCGIBasicGetAbsPath(t *testing.T) {
+-	if skipTest(t) {
+-		return
+-	}
++	check(t)
+ 	pwd, err := os.Getwd()
+ 	if err != nil {
+ 		t.Fatalf("getwd error: %v", err)
+@@ -153,9 +146,7 @@ func TestCGIBasicGetAbsPath(t *testing.T) {
+ }
+ 
+ func TestPathInfo(t *testing.T) {
+-	if skipTest(t) {
+-		return
+-	}
++	check(t)
+ 	h := &Handler{
+ 		Path: "testdata/test.cgi",
+ 		Root: "/test.cgi",
+@@ -172,9 +163,7 @@ func TestPathInfo(t *testing.T) {
+ }
+ 
+ func TestPathInfoDirRoot(t *testing.T) {
+-	if skipTest(t) {
+-		return
+-	}
++	check(t)
+ 	h := &Handler{
+ 		Path: "testdata/test.cgi",
+ 		Root: "/myscript/",
+@@ -190,9 +179,7 @@ func TestPathInfoDirRoot(t *testing.T) {
+ }
+ 
+ func TestDupHeaders(t *testing.T) {
+-	if skipTest(t) {
+-		return
+-	}
++	check(t)
+ 	h := &Handler{
+ 		Path: "testdata/test.cgi",
+ 	}
+@@ -212,9 +199,7 @@ func TestDupHeaders(t *testing.T) {
+ }
+ 
+ func TestPathInfoNoRoot(t *testing.T) {
+-	if skipTest(t) {
+-		return
+-	}
++	check(t)
+ 	h := &Handler{
+ 		Path: "testdata/test.cgi",
+ 		Root: "",
+@@ -230,9 +215,7 @@ func TestPathInfoNoRoot(t *testing.T) {
+ }
+ 
+ func TestCGIBasicPost(t *testing.T) {
+-	if skipTest(t) {
+-		return
+-	}
++	check(t)
+ 	postReq := `POST /test.cgi?a=b HTTP/1.0
+ Host: example.com
+ Content-Type: application/x-www-form-urlencoded
+@@ -259,9 +242,7 @@ func chunk(s string) string {
+ 
+ // The CGI spec doesn't allow chunked requests.
+ func TestCGIPostChunked(t *testing.T) {
+-	if skipTest(t) {
+-		return
+-	}
++	check(t)
+ 	postReq := `POST /test.cgi?a=b HTTP/1.1
+ Host: example.com
+ Content-Type: application/x-www-form-urlencoded
+@@ -282,9 +263,7 @@ Transfer-Encoding: chunked
+ }
+ 
+ func TestRedirect(t *testing.T) {
+-	if skipTest(t) {
+-		return
+-	}
++	check(t)
+ 	h := &Handler{
+ 		Path: "testdata/test.cgi",
+ 		Root: "/test.cgi",
+@@ -299,9 +278,7 @@ func TestRedirect(t *testing.T) {
+ }
+ 
+ func TestInternalRedirect(t *testing.T) {
+-	if skipTest(t) {
+-		return
+-	}
++	check(t)
+ 	baseHandler := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+ 		fmt.Fprintf(rw, "basepath=%s\n", req.URL.Path)
+ 		fmt.Fprintf(rw, "remoteaddr=%s\n", req.RemoteAddr)
+@@ -321,8 +298,9 @@ func TestInternalRedirect(t *testing.T) {
+ // TestCopyError tests that we kill the process if there's an error copying
+ // its output. (for example, from the client having gone away)
+ func TestCopyError(t *testing.T) {
+-	if skipTest(t) || runtime.GOOS == "windows" {
+-		return
++	check(t)
++	if runtime.GOOS == "windows" {
++		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 	h := &Handler{
+ 		Path: "testdata/test.cgi",
+@@ -385,10 +363,10 @@ func TestCopyError(t *testing.T) {
+ }
+ 
+ func TestDirUnix(t *testing.T) {
+-	if skipTest(t) || runtime.GOOS == "windows" {
+-		return
++	check(t)
++	if runtime.GOOS == "windows" {
++		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+-
+ 	cwd, _ := os.Getwd()
+ 	h := &Handler{
+ 		Path: "testdata/test.cgi",
+@@ -414,8 +392,7 @@ func TestDirUnix(t *testing.T) {
+ 
+ func TestDirWindows(t *testing.T) {
+ 	if runtime.GOOS != "windows" {
+-		t.Logf("Skipping windows specific test.")
+-		return
++		t.Skip("Skipping windows specific test.")
+ 	}
+ 
+ 	cgifile, _ := filepath.Abs("testdata/test.cgi")
+@@ -424,8 +401,7 @@ func TestDirWindows(t *testing.T) {
+ 	var err error
+ 	perl, err = exec.LookPath("perl")
+ 	if err != nil {
+-		t.Logf("Skipping test: perl not found.")
+-		return
++		t.Skip("Skipping test: perl not found.")
+ 	}
+ 	perl, _ = filepath.Abs(perl)
+ 
+@@ -467,8 +443,7 @@ func TestEnvOverride(t *testing.T) {
+ 	var err error
+ 	perl, err = exec.LookPath("perl")
+ 	if err != nil {
+-		t.Logf("Skipping test: perl not found.")
+-		return
++		t.Skipf("Skipping test: perl not found.")
+ 	}
+ 	perl, _ = filepath.Abs(perl)
+ 
+diff --git a/src/pkg/net/http/fs_test.go b/src/pkg/net/http/fs_test.go
+index ebe34dbcbf..a0a5628809 100644
+--- a/src/pkg/net/http/fs_test.go
++++ b/src/pkg/net/http/fs_test.go
+@@ -257,8 +257,7 @@ func TestFileServerImplicitLeadingSlash(t *testing.T) {
+ func TestDirJoin(t *testing.T) {
+ 	wfi, err := os.Stat("/etc/hosts")
+ 	if err != nil {
+-		t.Logf("skipping test; no /etc/hosts file")
+-		return
++		t.Skip("skipping test; no /etc/hosts file")
+ 	}
+ 	test := func(d Dir, name string) {
+ 		f, err := d.Open(name)
+@@ -665,13 +664,10 @@ func TestServeContent(t *testing.T) {
+ // verifies that sendfile is being used on Linux
+ func TestLinuxSendfile(t *testing.T) {
+ 	if runtime.GOOS != "linux" {
+-		t.Logf("skipping; linux-only test")
+-		return
++		t.Skip("skipping; linux-only test")
+ 	}
+-	_, err := exec.LookPath("strace")
+-	if err != nil {
+-		t.Logf("skipping; strace not found in path")
+-		return
++	if _, err := exec.LookPath("strace"); err != nil {
++		t.Skip("skipping; strace not found in path")
+ 	}
+ 
+ 	ln, err := net.Listen("tcp", "127.0.0.1:0")
+@@ -690,10 +686,8 @@ func TestLinuxSendfile(t *testing.T) {
+ 	child.Env = append([]string{"GO_WANT_HELPER_PROCESS=1"}, os.Environ()...)
+ 	child.Stdout = &buf
+ 	child.Stderr = &buf
+-	err = child.Start()
+-	if err != nil {
+-		t.Logf("skipping; failed to start straced child: %v", err)
+-		return
++	if err := child.Start(); err != nil {
++		t.Skipf("skipping; failed to start straced child: %v", err)
+ 	}
+ 
+ 	res, err := Get(fmt.Sprintf("http://%s/", ln.Addr()))
+diff --git a/src/pkg/net/http/transport_test.go b/src/pkg/net/http/transport_test.go
+index 3cb8263994..daaecae341 100644
+--- a/src/pkg/net/http/transport_test.go
++++ b/src/pkg/net/http/transport_test.go
+@@ -390,8 +390,7 @@ func TestTransportServerClosingUnexpectedly(t *testing.T) {
+ // This fails pretty reliably with GOMAXPROCS=100 or something high.
+ func TestStressSurpriseServerCloses(t *testing.T) {
+ 	if testing.Short() {
+-		t.Logf("skipping test in short mode")
+-		return
++		t.Skip("skipping test in short mode")
+ 	}
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		w.Header().Set("Content-Length", "5")
+diff --git a/src/pkg/net/ipraw_test.go b/src/pkg/net/ipraw_test.go
+index f21889fcbe..db1c7694bb 100644
+--- a/src/pkg/net/ipraw_test.go
++++ b/src/pkg/net/ipraw_test.go
+@@ -61,8 +61,7 @@ var icmpTests = []struct {
+ 
+ func TestICMP(t *testing.T) {
+ 	if os.Getuid() != 0 {
+-		t.Logf("skipping test; must be root")
+-		return
++		t.Skip("skipping test; must be root")
+ 	}
+ 
+ 	seqnum := 61455
+@@ -253,8 +252,7 @@ var ipConnLocalNameTests = []struct {
+ 
+ func TestIPConnLocalName(t *testing.T) {
+ 	if os.Getuid() != 0 {
+-		t.Logf("skipping test; must be root")
+-		return
++		t.Skip("skipping test; must be root")
+ 	}
+ 
+ 	for _, tt := range ipConnLocalNameTests {
+diff --git a/src/pkg/net/lookup_test.go b/src/pkg/net/lookup_test.go
+index 990ade9e21..3355e46948 100644
+--- a/src/pkg/net/lookup_test.go
++++ b/src/pkg/net/lookup_test.go
+@@ -17,8 +17,7 @@ var testExternal = flag.Bool("external", true, "allow use of external networks d
+ 
+ func TestGoogleSRV(t *testing.T) {
+ 	if testing.Short() || !*testExternal {
+-		t.Logf("skipping test to avoid external network")
+-		return
++		t.Skip("skipping test to avoid external network")
+ 	}
+ 	_, addrs, err := LookupSRV("xmpp-server", "tcp", "google.com")
+ 	if err != nil {
+@@ -40,8 +39,7 @@ func TestGoogleSRV(t *testing.T) {
+ 
+ func TestGmailMX(t *testing.T) {
+ 	if testing.Short() || !*testExternal {
+-		t.Logf("skipping test to avoid external network")
+-		return
++		t.Skip("skipping test to avoid external network")
+ 	}
+ 	mx, err := LookupMX("gmail.com")
+ 	if err != nil {
+@@ -54,8 +52,7 @@ func TestGmailMX(t *testing.T) {
+ 
+ func TestGmailNS(t *testing.T) {
+ 	if testing.Short() || !*testExternal {
+-		t.Logf("skipping test to avoid external network")
+-		return
++		t.Skip("skipping test to avoid external network")
+ 	}
+ 	ns, err := LookupNS("gmail.com")
+ 	if err != nil {
+@@ -68,8 +65,7 @@ func TestGmailNS(t *testing.T) {
+ 
+ func TestGmailTXT(t *testing.T) {
+ 	if testing.Short() || !*testExternal {
+-		t.Logf("skipping test to avoid external network")
+-		return
++		t.Skip("skipping test to avoid external network")
+ 	}
+ 	txt, err := LookupTXT("gmail.com")
+ 	if err != nil {
+@@ -82,8 +78,7 @@ func TestGmailTXT(t *testing.T) {
+ 
+ func TestGoogleDNSAddr(t *testing.T) {
+ 	if testing.Short() || !*testExternal {
+-		t.Logf("skipping test to avoid external network")
+-		return
++		t.Skip("skipping test to avoid external network")
+ 	}
+ 	names, err := LookupAddr("8.8.8.8")
+ 	if err != nil {
+@@ -96,8 +91,7 @@ func TestGoogleDNSAddr(t *testing.T) {
+ 
+ func TestLookupIANACNAME(t *testing.T) {
+ 	if testing.Short() || !*testExternal {
+-		t.Logf("skipping test to avoid external network")
+-		return
++		t.Skip("skipping test to avoid external network")
+ 	}
+ 	cname, err := LookupCNAME("www.iana.org")
+ 	if !strings.HasSuffix(cname, ".icann.org.") || err != nil {
+diff --git a/src/pkg/net/multicast_posix_test.go b/src/pkg/net/multicast_posix_test.go
+index bcc13ee851..5850a6be0f 100644
+--- a/src/pkg/net/multicast_posix_test.go
++++ b/src/pkg/net/multicast_posix_test.go
+@@ -48,12 +48,10 @@ var multicastListenerTests = []struct {
+ func TestMulticastListener(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "netbsd", "openbsd", "plan9", "windows":
+-		t.Logf("skipping test on %q", runtime.GOOS)
+-		return
++		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	case "linux":
+ 		if runtime.GOARCH == "arm" || runtime.GOARCH == "alpha" {
+-			t.Logf("skipping test on %q/%q", runtime.GOOS, runtime.GOARCH)
+-			return
++			t.Skipf("skipping test on %q/%q", runtime.GOOS, runtime.GOARCH)
+ 		}
+ 	}
+ 
+@@ -83,12 +81,10 @@ func TestMulticastListener(t *testing.T) {
+ func TestSimpleMulticastListener(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+-		t.Logf("skipping test on %q", runtime.GOOS)
+-		return
++		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	case "windows":
+ 		if testing.Short() || !*testExternal {
+-			t.Logf("skipping test on windows to avoid firewall")
+-			return
++			t.Skip("skipping test on windows to avoid firewall")
+ 		}
+ 	}
+ 
+diff --git a/src/pkg/net/net_test.go b/src/pkg/net/net_test.go
+index a4e8dcd445..8a560b5219 100644
+--- a/src/pkg/net/net_test.go
++++ b/src/pkg/net/net_test.go
+@@ -15,8 +15,7 @@ import (
+ 
+ func TestShutdown(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+-		t.Logf("skipping test on %q", runtime.GOOS)
+-		return
++		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 	ln, err := Listen("tcp", "127.0.0.1:0")
+ 	if err != nil {
+@@ -63,8 +62,7 @@ func TestShutdown(t *testing.T) {
+ func TestShutdownUnix(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "windows", "plan9":
+-		t.Logf("skipping test on %q", runtime.GOOS)
+-		return
++		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 	f, err := ioutil.TempFile("", "go_net_unixtest")
+ 	if err != nil {
+@@ -145,8 +143,7 @@ func TestTCPListenClose(t *testing.T) {
+ func TestUDPListenClose(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+-		t.Logf("skipping test on %q", runtime.GOOS)
+-		return
++		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 	ln, err := ListenPacket("udp", "127.0.0.1:0")
+ 	if err != nil {
+diff --git a/src/pkg/net/parse_test.go b/src/pkg/net/parse_test.go
+index 30fda45dfd..9df0c534b3 100644
+--- a/src/pkg/net/parse_test.go
++++ b/src/pkg/net/parse_test.go
+@@ -15,8 +15,7 @@ func TestReadLine(t *testing.T) {
+ 	// /etc/services file does not exist on windows and Plan 9.
+ 	switch runtime.GOOS {
+ 	case "plan9", "windows":
+-		t.Logf("skipping test on %q", runtime.GOOS)
+-		return
++		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 	filename := "/etc/services" // a nice big file
+ 
+diff --git a/src/pkg/net/protoconn_test.go b/src/pkg/net/protoconn_test.go
+index d99de3f138..1344fba8a0 100644
+--- a/src/pkg/net/protoconn_test.go
++++ b/src/pkg/net/protoconn_test.go
+@@ -156,12 +156,10 @@ func TestUDPConnSpecificMethods(t *testing.T) {
+ func TestIPConnSpecificMethods(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+-		t.Logf("skipping read test on %q", runtime.GOOS)
+-		return
++		t.Skipf("skipping read test on %q", runtime.GOOS)
+ 	}
+ 	if os.Getuid() != 0 {
+-		t.Logf("skipping test; must be root")
+-		return
++		t.Skipf("skipping test; must be root")
+ 	}
+ 
+ 	la, err := net.ResolveIPAddr("ip4", "127.0.0.1")
+@@ -212,8 +210,7 @@ func TestIPConnSpecificMethods(t *testing.T) {
+ func TestUnixListenerSpecificMethods(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9", "windows":
+-		t.Logf("skipping read test on %q", runtime.GOOS)
+-		return
++		t.Skipf("skipping read test on %q", runtime.GOOS)
+ 	}
+ 
+ 	p := "/tmp/gotest.net"
+@@ -259,8 +256,7 @@ func TestUnixListenerSpecificMethods(t *testing.T) {
+ func TestUnixConnSpecificMethods(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9", "windows":
+-		t.Logf("skipping test on %q", runtime.GOOS)
+-		return
++		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 
+ 	p1, p2, p3 := "/tmp/gotest.net1", "/tmp/gotest.net2", "/tmp/gotest.net3"
+diff --git a/src/pkg/net/server_test.go b/src/pkg/net/server_test.go
+index 158b9477d0..eba1e7d969 100644
+--- a/src/pkg/net/server_test.go
++++ b/src/pkg/net/server_test.go
+@@ -142,8 +142,7 @@ var seqpacketConnServerTests = []struct {
+ 
+ func TestSeqpacketConnServer(t *testing.T) {
+ 	if runtime.GOOS != "linux" {
+-		t.Logf("skipping test on %q", runtime.GOOS)
+-		return
++		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 
+ 	for _, tt := range seqpacketConnServerTests {
+diff --git a/src/pkg/net/tcp_test.go b/src/pkg/net/tcp_test.go
+index bca748827c..1d54b3adcc 100644
+--- a/src/pkg/net/tcp_test.go
++++ b/src/pkg/net/tcp_test.go
+@@ -159,8 +159,7 @@ var tcpListenerNameTests = []struct {
+ 
+ func TestTCPListenerName(t *testing.T) {
+ 	if testing.Short() || !*testExternal {
+-		t.Logf("skipping test to avoid external network")
+-		return
++		t.Skip("skipping test to avoid external network")
+ 	}
+ 
+ 	for _, tt := range tcpListenerNameTests {
+diff --git a/src/pkg/net/timeout_test.go b/src/pkg/net/timeout_test.go
+index cda2fd73c6..7cf45ca0a0 100644
+--- a/src/pkg/net/timeout_test.go
++++ b/src/pkg/net/timeout_test.go
+@@ -27,8 +27,7 @@ type copyRes struct {
+ func TestAcceptTimeout(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+-		t.Logf("skipping test on %q", runtime.GOOS)
+-		return
++		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 
+ 	ln := newLocalListener(t).(*TCPListener)
+@@ -75,8 +74,7 @@ func TestAcceptTimeout(t *testing.T) {
+ func TestReadTimeout(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+-		t.Logf("skipping test on %q", runtime.GOOS)
+-		return
++		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 
+ 	ln := newLocalListener(t)
+@@ -131,8 +129,7 @@ func TestReadTimeout(t *testing.T) {
+ func TestWriteTimeout(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+-		t.Logf("skipping test on %q", runtime.GOOS)
+-		return
++		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 
+ 	ln := newLocalListener(t)
+@@ -238,8 +235,7 @@ func testTimeout(t *testing.T, net, addr string, readFrom bool) {
+ func TestTimeoutUDP(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+-		t.Logf("skipping test on %q", runtime.GOOS)
+-		return
++		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 
+ 	// set up a listener that won't talk back
+@@ -256,8 +252,7 @@ func TestTimeoutUDP(t *testing.T) {
+ func TestTimeoutTCP(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+-		t.Logf("skipping test on %q", runtime.GOOS)
+-		return
++		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 
+ 	// set up a listener that won't talk back
+@@ -273,8 +268,7 @@ func TestTimeoutTCP(t *testing.T) {
+ func TestDeadlineReset(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+-		t.Logf("skipping test on %q", runtime.GOOS)
+-		return
++		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 	ln, err := Listen("tcp", "127.0.0.1:0")
+ 	if err != nil {
+@@ -302,8 +296,7 @@ func TestDeadlineReset(t *testing.T) {
+ func TestTimeoutAccept(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+-		t.Logf("skipping test on %q", runtime.GOOS)
+-		return
++		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 	ln, err := Listen("tcp", "127.0.0.1:0")
+ 	if err != nil {
+@@ -329,13 +322,11 @@ func TestTimeoutAccept(t *testing.T) {
+ func TestReadWriteDeadline(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+-		t.Logf("skipping test on %q", runtime.GOOS)
+-		return
++		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 
+ 	if !canCancelIO {
+-		t.Logf("skipping test on this system")
+-		return
++		t.Skip("skipping test on this system")
+ 	}
+ 	const (
+ 		readTimeout  = 50 * time.Millisecond
+@@ -595,8 +586,7 @@ func TestWriteDeadlineBufferAvailable(t *testing.T) {
+ func TestProlongTimeout(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+-		t.Logf("skipping test on %q", runtime.GOOS)
+-		return
++		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 
+ 	ln := newLocalListener(t)
+diff --git a/src/pkg/net/udp_test.go b/src/pkg/net/udp_test.go
+index d3594b40a9..220422e132 100644
+--- a/src/pkg/net/udp_test.go
++++ b/src/pkg/net/udp_test.go
+@@ -43,8 +43,7 @@ func TestResolveUDPAddr(t *testing.T) {
+ func TestWriteToUDP(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+-		t.Logf("skipping test on %q", runtime.GOOS)
+-		return
++		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 
+ 	l, err := ListenPacket("udp", "127.0.0.1:0")
+@@ -130,8 +129,7 @@ var udpConnLocalNameTests = []struct {
+ 
+ func TestUDPConnLocalName(t *testing.T) {
+ 	if testing.Short() || !*testExternal {
+-		t.Logf("skipping test to avoid external network")
+-		return
++		t.Skip("skipping test to avoid external network")
+ 	}
+ 
+ 	for _, tt := range udpConnLocalNameTests {
+diff --git a/src/pkg/net/unicast_posix_test.go b/src/pkg/net/unicast_posix_test.go
+index e1d4b0d47a..a8855cab7d 100644
+--- a/src/pkg/net/unicast_posix_test.go
++++ b/src/pkg/net/unicast_posix_test.go
+@@ -46,8 +46,7 @@ var listenerTests = []struct {
+ func TestTCPListener(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9", "windows":
+-		t.Logf("skipping test on %q", runtime.GOOS)
+-		return
++		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 
+ 	for _, tt := range listenerTests {
+@@ -71,8 +70,7 @@ func TestTCPListener(t *testing.T) {
+ func TestUDPListener(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9", "windows":
+-		t.Logf("skipping test on %q", runtime.GOOS)
+-		return
++		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 
+ 	toudpnet := func(net string) string {
+@@ -106,7 +104,7 @@ func TestUDPListener(t *testing.T) {
+ func TestSimpleTCPListener(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+-		t.Logf("skipping test on %q", runtime.GOOS)
++		t.Skipf("skipping test on %q", runtime.GOOS)
+ 		return
+ 	}
+ 
+@@ -128,7 +126,7 @@ func TestSimpleTCPListener(t *testing.T) {
+ func TestSimpleUDPListener(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+-		t.Logf("skipping test on %q", runtime.GOOS)
++		t.Skipf("skipping test on %q", runtime.GOOS)
+ 		return
+ 	}
+ 
+@@ -230,8 +228,7 @@ var dualStackListenerTests = []struct {
+ func TestDualStackTCPListener(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+-		t.Logf("skipping test on %q", runtime.GOOS)
+-		return
++		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 	if !supportsIPv6 {
+ 		return
+@@ -263,8 +260,7 @@ func TestDualStackTCPListener(t *testing.T) {
+ func TestDualStackUDPListener(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+-		t.Logf("skipping test on %q", runtime.GOOS)
+-		return
++		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 	if !supportsIPv6 {
+ 		return
+@@ -467,8 +463,7 @@ var prohibitionaryDialArgTests = []struct {
+ func TestProhibitionaryDialArgs(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+-		t.Logf("skipping test on %q", runtime.GOOS)
+-		return
++		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 	// This test requires both IPv6 and IPv6 IPv4-mapping functionality.
+ 	if !supportsIPv4map || testing.Short() || !*testExternal {
+@@ -490,13 +485,11 @@ func TestProhibitionaryDialArgs(t *testing.T) {
+ func TestWildWildcardListener(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+-		t.Logf("skipping test on %q", runtime.GOOS)
+-		return
++		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 
+ 	if testing.Short() || !*testExternal {
+-		t.Logf("skipping test to avoid external network")
+-		return
++		t.Skip("skipping test to avoid external network")
+ 	}
+ 
+ 	defer func() {
+diff --git a/src/pkg/os/exec/exec_test.go b/src/pkg/os/exec/exec_test.go
+index af07452b46..0702d3bdf6 100644
+--- a/src/pkg/os/exec/exec_test.go
++++ b/src/pkg/os/exec/exec_test.go
+@@ -146,8 +146,7 @@ func TestPipes(t *testing.T) {
+ 
+ func TestExtraFiles(t *testing.T) {
+ 	if runtime.GOOS == "windows" {
+-		t.Logf("no operating system support; skipping")
+-		return
++		t.Skip("no operating system support; skipping")
+ 	}
+ 
+ 	// Ensure that file descriptors have not already been leaked into
+@@ -217,8 +216,7 @@ func TestExtraFiles(t *testing.T) {
+ 
+ func TestExtraFilesRace(t *testing.T) {
+ 	if runtime.GOOS == "windows" {
+-		t.Logf("no operating system support; skipping")
+-		return
++		t.Skip("no operating system support; skipping")
+ 	}
+ 	listen := func() net.Listener {
+ 		ln, err := net.Listen("tcp", "127.0.0.1:0")
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 1268d6b741..ba914a2c48 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -311,8 +311,7 @@ func TestReaddirnamesOneAtATime(t *testing.T) {
+ 
+ func TestReaddirNValues(t *testing.T) {
+ 	if testing.Short() {
+-		t.Logf("test.short; skipping")
+-		return
++		t.Skip("test.short; skipping")
+ 	}
+ 	dir, err := ioutil.TempDir("", "")
+ 	if err != nil {
+@@ -1072,8 +1071,7 @@ var testLargeWrite = flag.Bool("large_write", false, "run TestLargeWriteToConsol
+ 
+ func TestLargeWriteToConsole(t *testing.T) {
+ 	if !*testLargeWrite {
+-		t.Logf("skipping console-flooding test; enable with -large_write")
+-		return
++		t.Skip("skipping console-flooding test; enable with -large_write")
+ 	}
+ 	b := make([]byte, 32000)
+ 	for i := range b {
+diff --git a/src/pkg/os/path_test.go b/src/pkg/os/path_test.go
+index 96f0f41e63..16c4120dc6 100644
+--- a/src/pkg/os/path_test.go
++++ b/src/pkg/os/path_test.go
+@@ -168,8 +168,7 @@ func TestRemoveAll(t *testing.T) {
+ 
+ func TestMkdirAllWithSymlink(t *testing.T) {
+ 	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+-		t.Log("Skipping test: symlinks don't exist under Windows/Plan 9")
+-		return
++		t.Skip("Skipping test: symlinks don't exist under Windows/Plan 9")
+ 	}
+ 
+ 	tmpDir, err := ioutil.TempDir("", "TestMkdirAllWithSymlink-")
+diff --git a/src/pkg/os/user/user_test.go b/src/pkg/os/user/user_test.go
+index 1486fb8475..444a9aacd4 100644
+--- a/src/pkg/os/user/user_test.go
++++ b/src/pkg/os/user/user_test.go
+@@ -9,25 +9,20 @@ import (
+ 	"testing"
+ )
+ 
+-func skip(t *testing.T) bool {
++func check(t *testing.T) {
+ 	if !implemented {
+-		t.Logf("user: not implemented; skipping tests")
+-		return true
++		t.Skip("user: not implemented; skipping tests")
+ 	}
+-
+ 	switch runtime.GOOS {
+ 	case "linux", "freebsd", "darwin", "windows":
+-		return false
++		// test supported
++	default:
++		t.Skipf("user: Lookup not implemented on %q; skipping test", runtime.GOOS)
+ 	}
+-
+-	t.Logf("user: Lookup not implemented on %s; skipping test", runtime.GOOS)
+-	return true
+ }
+ 
+ func TestCurrent(t *testing.T) {
+-	if skip(t) {
+-		return
+-	}
++	check(t)
+ 
+ 	u, err := Current()
+ 	if err != nil {
+@@ -53,8 +48,7 @@ func compare(t *testing.T, want, got *User) {
+ 	}
+ 	// TODO(brainman): fix it once we know how.
+ 	if runtime.GOOS == "windows" {
+-		t.Log("skipping Gid and HomeDir comparisons")
+-		return
++		t.Skip("skipping Gid and HomeDir comparisons")
+ 	}
+ 	if want.Gid != got.Gid {
+ 		t.Errorf("got Gid=%q; want %q", got.Gid, want.Gid)
+@@ -65,9 +59,7 @@ func compare(t *testing.T, want, got *User) {
+ }
+ 
+ func TestLookup(t *testing.T) {
+-	if skip(t) {
+-		return
+-	}
++	check(t)
+ 
+ 	want, err := Current()
+ 	if err != nil {
+@@ -81,9 +73,7 @@ func TestLookup(t *testing.T) {
+ }
+ 
+ func TestLookupId(t *testing.T) {
+-	if skip(t) {
+-		return
+-	}
++	check(t)
+ 
+ 	want, err := Current()
+ 	if err != nil {
+diff --git a/src/pkg/regexp/exec_test.go b/src/pkg/regexp/exec_test.go
+index 0741957a41..e5d52b40df 100644
+--- a/src/pkg/regexp/exec_test.go
++++ b/src/pkg/regexp/exec_test.go
+@@ -69,8 +69,7 @@ func TestRE2Search(t *testing.T) {
+ 
+ func TestRE2Exhaustive(t *testing.T) {
+ 	if testing.Short() {
+-		t.Log("skipping TestRE2Exhaustive during short test")
+-		return
++		t.Skip("skipping TestRE2Exhaustive during short test")
+ 	}
+ 	testRE2(t, "testdata/re2-exhaustive.txt.bz2")
+ }
+diff --git a/src/pkg/runtime/pprof/pprof_test.go b/src/pkg/runtime/pprof/pprof_test.go
+index f8d65d483b..6d5764f4a2 100644
+--- a/src/pkg/runtime/pprof/pprof_test.go
++++ b/src/pkg/runtime/pprof/pprof_test.go
+@@ -26,8 +26,7 @@ func TestCPUProfile(t *testing.T) {
+ 		t.Logf("uname -a: %v", vers)
+ 		// Lion uses "Darwin Kernel Version 11".
+ 		if strings.Contains(vers, "Darwin Kernel Version 10") && strings.Contains(vers, "RELEASE_X86_64") {
+-			t.Logf("skipping test on known-broken kernel (64-bit Leopard / Snow Leopard)")
+-			return
++			t.Skip("skipping test on known-broken kernel (64-bit Leopard / Snow Leopard)")
+ 		}
+ 	case "plan9":
+ 		// unimplemented
+diff --git a/src/pkg/runtime/proc_test.go b/src/pkg/runtime/proc_test.go
+index 0bbf9fa175..bf97fb148d 100644
+--- a/src/pkg/runtime/proc_test.go
++++ b/src/pkg/runtime/proc_test.go
+@@ -22,8 +22,7 @@ func perpetuumMobile() {
+ 
+ func TestStopTheWorldDeadlock(t *testing.T) {
+ 	if testing.Short() {
+-		t.Logf("skipping during short test")
+-		return
++		t.Skip("skipping during short test")
+ 	}
+ 	maxprocs := runtime.GOMAXPROCS(3)
+ 	compl := make(chan bool, 2)
+diff --git a/src/pkg/sync/atomic/atomic_test.go b/src/pkg/sync/atomic/atomic_test.go
+index 53dfdbf40a..25be63b5a3 100644
+--- a/src/pkg/sync/atomic/atomic_test.go
++++ b/src/pkg/sync/atomic/atomic_test.go
+@@ -82,8 +82,7 @@ func TestAddUint32(t *testing.T) {
+ 
+ func TestAddInt64(t *testing.T) {
+ 	if test64err != nil {
+-		t.Logf("Skipping 64-bit tests: %v", test64err)
+-		return
++		t.Skipf("Skipping 64-bit tests: %v", test64err)
+ 	}
+ 	var x struct {
+ 		before int64
+@@ -107,8 +106,7 @@ func TestAddInt64(t *testing.T) {
+ 
+ func TestAddUint64(t *testing.T) {
+ 	if test64err != nil {
+-		t.Logf("Skipping 64-bit tests: %v", test64err)
+-		return
++		t.Skipf("Skipping 64-bit tests: %v", test64err)
+ 	}
+ 	var x struct {
+ 		before uint64
+@@ -213,8 +211,7 @@ func TestCompareAndSwapUint32(t *testing.T) {
+ 
+ func TestCompareAndSwapInt64(t *testing.T) {
+ 	if test64err != nil {
+-		t.Logf("Skipping 64-bit tests: %v", test64err)
+-		return
++		t.Skipf("Skipping 64-bit tests: %v", test64err)
+ 	}
+ 	var x struct {
+ 		before int64
+@@ -246,8 +243,7 @@ func TestCompareAndSwapInt64(t *testing.T) {
+ 
+ func TestCompareAndSwapUint64(t *testing.T) {
+ 	if test64err != nil {
+-		t.Logf("Skipping 64-bit tests: %v", test64err)
+-		return
++		t.Skipf("Skipping 64-bit tests: %v", test64err)
+ 	}
+ 	var x struct {
+ 		before uint64
+@@ -381,8 +377,7 @@ func TestLoadUint32(t *testing.T) {
+ 
+ func TestLoadInt64(t *testing.T) {
+ 	if test64err != nil {
+-		t.Logf("Skipping 64-bit tests: %v", test64err)
+-		return
++		t.Skipf("Skipping 64-bit tests: %v", test64err)
+ 	}
+ 	var x struct {
+ 		before int64
+@@ -405,8 +400,7 @@ func TestLoadInt64(t *testing.T) {
+ 
+ func TestLoadUint64(t *testing.T) {
+ 	if test64err != nil {
+-		t.Logf("Skipping 64-bit tests: %v", test64err)
+-		return
++		t.Skipf("Skipping 64-bit tests: %v", test64err)
+ 	}
+ 	var x struct {
+ 		before uint64
+@@ -515,8 +509,7 @@ func TestStoreUint32(t *testing.T) {
+ 
+ func TestStoreInt64(t *testing.T) {
+ 	if test64err != nil {
+-		t.Logf("Skipping 64-bit tests: %v", test64err)
+-		return
++		t.Skipf("Skipping 64-bit tests: %v", test64err)
+ 	}
+ 	var x struct {
+ 		before int64
+@@ -540,8 +533,7 @@ func TestStoreInt64(t *testing.T) {
+ 
+ func TestStoreUint64(t *testing.T) {
+ 	if test64err != nil {
+-		t.Logf("Skipping 64-bit tests: %v", test64err)
+-		return
++		t.Skipf("Skipping 64-bit tests: %v", test64err)
+ 	}
+ 	var x struct {
+ 		before uint64
+@@ -840,8 +832,7 @@ func hammerCompareAndSwapPointer64(uaddr *uint64, count int) {
+ 
+ func TestHammer64(t *testing.T) {
+ 	if test64err != nil {
+-		t.Logf("Skipping 64-bit tests: %v", test64err)
+-		return
++		t.Skipf("Skipping 64-bit tests: %v", test64err)
+ 	}
+ 	const p = 4
+ 	n := 100000
+@@ -1013,8 +1004,7 @@ func TestHammerStoreLoad(t *testing.T) {
+ 
+ func TestStoreLoadSeqCst32(t *testing.T) {
+ 	if runtime.NumCPU() == 1 {
+-		t.Logf("Skipping test on %v processor machine", runtime.NumCPU())
+-		return
++		t.Skipf("Skipping test on %v processor machine", runtime.NumCPU())
+ 	}
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
+ 	N := int32(1e3)
+@@ -1054,12 +1044,10 @@ func TestStoreLoadSeqCst32(t *testing.T) {
+ 
+ func TestStoreLoadSeqCst64(t *testing.T) {
+ 	if runtime.NumCPU() == 1 {
+-		t.Logf("Skipping test on %v processor machine", runtime.NumCPU())
+-		return
++		t.Skipf("Skipping test on %v processor machine", runtime.NumCPU())
+ 	}
+ 	if test64err != nil {
+-		t.Logf("Skipping 64-bit tests: %v", test64err)
+-		return
++		t.Skipf("Skipping 64-bit tests: %v", test64err)
+ 	}
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
+ 	N := int64(1e3)
+@@ -1099,8 +1087,7 @@ func TestStoreLoadSeqCst64(t *testing.T) {
+ 
+ func TestStoreLoadRelAcq32(t *testing.T) {
+ 	if runtime.NumCPU() == 1 {
+-		t.Logf("Skipping test on %v processor machine", runtime.NumCPU())
+-		return
++		t.Skipf("Skipping test on %v processor machine", runtime.NumCPU())
+ 	}
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
+ 	N := int32(1e3)
+@@ -1145,12 +1132,10 @@ func TestStoreLoadRelAcq32(t *testing.T) {
+ 
+ func TestStoreLoadRelAcq64(t *testing.T) {
+ 	if runtime.NumCPU() == 1 {
+-		t.Logf("Skipping test on %v processor machine", runtime.NumCPU())
+-		return
++		t.Skipf("Skipping test on %v processor machine", runtime.NumCPU())
+ 	}
+ 	if test64err != nil {
+-		t.Logf("Skipping 64-bit tests: %v", test64err)
+-		return
++		t.Skipf("Skipping 64-bit tests: %v", test64err)
+ 	}
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
+ 	N := int64(1e3)

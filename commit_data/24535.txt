@@ -11,6 +11,27 @@ Date:   Mon Aug 3 17:45:44 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/13046
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgc.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index c50d68e432..b1fbdc91bb 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -441,6 +441,15 @@ func (c *gcControllerState) startCycle() {
+ 	// throughout the cycle.
+ 	c.revise()
+ 
++	if debug.gcpacertrace > 0 {
++		print("pacer: assist ratio=", c.assistRatio,
++			" (scan ", memstats.heap_scan>>20, " MB in ",
++			work.initialHeapLive>>20, "->",
++			c.heapGoal>>20, " MB)",
++			" workers=", c.dedicatedMarkWorkersNeeded,
++			"+", c.fractionalMarkWorkersNeeded, "\n")
++	}
++
+ 	// Set up a timer to revise periodically
+ 	c.reviseTimer.f = func(interface{}, uintptr) {
+ 		gcController.revise()

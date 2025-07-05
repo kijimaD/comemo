@@ -16,6 +16,24 @@ Date:   Tue Oct 5 16:11:17 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/mod_get_fossil.txt | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/mod_get_fossil.txt b/src/cmd/go/testdata/script/mod_get_fossil.txt
+index baad544557..c2d42f0f59 100644
+--- a/src/cmd/go/testdata/script/mod_get_fossil.txt
++++ b/src/cmd/go/testdata/script/mod_get_fossil.txt
+@@ -18,11 +18,10 @@ env GOSUMDB=off
+ env USER=fossiluser
+ env FOSSIL_HOME=$WORK/home
+ 
+-# Attempting to get the latest version of a fossil repo.
++# Attempt to get the latest version of a fossil repo.
+ go get vcs-test.golang.org/fossil/hello.fossil
+ ! stderr 'unexpected response from fossil info'
+ grep 'vcs-test.golang.org/fossil/hello.fossil' go.mod
+-exists $GOPATH/bin/hello.fossil$GOEXE
+ 
+ -- go.mod --
+ module x

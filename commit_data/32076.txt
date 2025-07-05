@@ -11,8 +11,64 @@ Date:   Sun Apr 2 18:37:04 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/doc.go              |  2 ++
  src/cmd/compile/internal/gc/main.go |  1 +
  src/cmd/compile/internal/gc/util.go | 12 ++++++++++++
  3 files changed, 15 insertions(+)
+
+diff --git a/src/cmd/compile/doc.go b/src/cmd/compile/doc.go
+index 2e77f702e3..0a364cabb7 100644
+--- a/src/cmd/compile/doc.go
++++ b/src/cmd/compile/doc.go
+@@ -44,6 +44,8 @@ Flags:
+ 		Print compiler version and exit.
+ 	-asmhdr file
+ 		Write assembly header to file.
++	-blockprofile file
++		Write block profile for the compilation to file.
+ 	-complete
+ 		Assume package has no non-Go components.
+ 	-cpuprofile file
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index a0d5170a46..b2efd7cbef 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -221,6 +221,7 @@ func Main(archInit func(*Arch)) {
+ 	flag.StringVar(&memprofile, "memprofile", "", "write memory profile to `file`")
+ 	flag.Int64Var(&memprofilerate, "memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
+ 	flag.StringVar(&traceprofile, "traceprofile", "", "write an execution trace to `file`")
++	flag.StringVar(&blockprofile, "blockprofile", "", "write block profile to `file`")
+ 	flag.StringVar(&benchfile, "bench", "", "append benchmark times to `file`")
+ 	obj.Flagparse(usage)
+ 
+diff --git a/src/cmd/compile/internal/gc/util.go b/src/cmd/compile/internal/gc/util.go
+index 947d8a8516..97fff063f8 100644
+--- a/src/cmd/compile/internal/gc/util.go
++++ b/src/cmd/compile/internal/gc/util.go
+@@ -32,6 +32,7 @@ func Exit(code int) {
+ }
+ 
+ var (
++	blockprofile   string
+ 	cpuprofile     string
+ 	memprofile     string
+ 	memprofilerate int64
+@@ -73,6 +74,17 @@ func startProfile() {
+ 		// Not doing memory profiling; disable it entirely.
+ 		runtime.MemProfileRate = 0
+ 	}
++	if blockprofile != "" {
++		f, err := os.Create(blockprofile)
++		if err != nil {
++			Fatalf("%v", err)
++		}
++		runtime.SetBlockProfileRate(1)
++		atExit(func() {
++			pprof.Lookup("block").WriteTo(f, 0)
++			f.Close()
++		})
++	}
+ 	if traceprofile != "" && traceHandler != nil {
+ 		traceHandler(traceprofile)
+ 	}

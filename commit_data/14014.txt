@@ -7,7 +7,44 @@ Date:   Thu Oct 4 08:37:48 2012 +1000
     R=gri
     CC=gobot, golang-dev
     https://golang.org/cl/6601054
-
+---
  src/pkg/go/doc/example.go | 2 +-
  src/pkg/go/doc/reader.go  | 5 +++--
  2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/go/doc/example.go b/src/pkg/go/doc/example.go
+index dc899351a6..79053b9a73 100644
+--- a/src/pkg/go/doc/example.go
++++ b/src/pkg/go/doc/example.go
+@@ -138,7 +138,7 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
+ 
+ 	// Remove predeclared identifiers from unresolved list.
+ 	for n := range unresolved {
+-		if n == "nil" || predeclaredTypes[n] || predeclaredConstants[n] || predeclaredFuncs[n] {
++		if predeclaredTypes[n] || predeclaredConstants[n] || predeclaredFuncs[n] {
+ 			delete(unresolved, n)
+ 		}
+ 	}
+diff --git a/src/pkg/go/doc/reader.go b/src/pkg/go/doc/reader.go
+index f0860391f6..de42d47d9f 100644
+--- a/src/pkg/go/doc/reader.go
++++ b/src/pkg/go/doc/reader.go
+@@ -751,7 +751,7 @@ func sortedFuncs(m methodSet, allMethods bool) []*Func {
+ }
+ 
+ // ----------------------------------------------------------------------------
+-// Predeclared identifiers (minus "nil")
++// Predeclared identifiers
+ 
+ var predeclaredTypes = map[string]bool{
+ 	"bool":       true,
+@@ -795,7 +795,8 @@ var predeclaredFuncs = map[string]bool{
+ }
+ 
+ var predeclaredConstants = map[string]bool{
++	"false": true,
+ 	"iota":  true,
++	"nil":   true,
+ 	"true":  true,
+-	"false": true,
+ }

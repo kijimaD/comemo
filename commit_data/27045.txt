@@ -38,7 +38,7 @@ Date:   Tue Feb 23 11:31:13 2016 -0500
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go |  37 +++-----
  src/cmd/link/internal/ld/decodesym.go  |  27 +++---
  src/cmd/link/internal/ld/dwarf.go      |   2 +-
@@ -48,3 +48,551 @@ Date:   Tue Feb 23 11:31:13 2016 -0500
  src/runtime/syscall_windows.go         |   6 +-
  src/runtime/type.go                    |  30 ++++++-
  8 files changed, 187 insertions(+), 88 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index a18016fa78..b234333d5e 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1059,49 +1059,34 @@ ok:
+ 			isddd = t1.Isddd
+ 			dtypesym(t1.Type)
+ 		}
+-
+ 		for t1 := getoutargx(t).Type; t1 != nil; t1 = t1.Down {
+ 			dtypesym(t1.Type)
+ 		}
+ 
+ 		ot = dcommontype(s, ot, t)
+-		ot = duint8(s, ot, uint8(obj.Bool2int(isddd)))
+-
+-		// two slice headers: in and out.
+-		ot = int(Rnd(int64(ot), int64(Widthptr)))
+-
+-		ot = dsymptr(s, ot, s, ot+2*(Widthptr+2*Widthint)+uncommonSize(t))
+-		n := t.Thistuple + t.Intuple
+-		ot = duintxx(s, ot, uint64(n), Widthint)
+-		ot = duintxx(s, ot, uint64(n), Widthint)
+-		ot = dsymptr(s, ot, s, ot+1*(Widthptr+2*Widthint)+uncommonSize(t)+n*Widthptr)
+-		ot = duintxx(s, ot, uint64(t.Outtuple), Widthint)
+-		ot = duintxx(s, ot, uint64(t.Outtuple), Widthint)
+-
+-		dataAdd := 0
+-		for t1 := getthisx(t).Type; t1 != nil; t1 = t1.Down {
+-			dataAdd += Widthptr
++		inCount := t.Thistuple + t.Intuple
++		outCount := t.Outtuple
++		if isddd {
++			outCount |= 1 << 15
+ 		}
+-		for t1 := getinargx(t).Type; t1 != nil; t1 = t1.Down {
+-			dataAdd += Widthptr
+-		}
+-		for t1 := getoutargx(t).Type; t1 != nil; t1 = t1.Down {
+-			dataAdd += Widthptr
++		ot = duint16(s, ot, uint16(inCount))
++		ot = duint16(s, ot, uint16(outCount))
++		if Widthptr == 8 {
++			ot += 4 // align for *rtype
+ 		}
++
++		dataAdd := (inCount + outCount) * Widthptr
+ 		ot = dextratype(s, ot, t, dataAdd)
+ 
+-		// slice data
++		// Array of rtype pointers follows funcType.
+ 		for t1 := getthisx(t).Type; t1 != nil; t1 = t1.Down {
+ 			ot = dsymptr(s, ot, dtypesym(t1.Type), 0)
+-			n++
+ 		}
+ 		for t1 := getinargx(t).Type; t1 != nil; t1 = t1.Down {
+ 			ot = dsymptr(s, ot, dtypesym(t1.Type), 0)
+-			n++
+ 		}
+ 		for t1 := getoutargx(t).Type; t1 != nil; t1 = t1.Down {
+ 			ot = dsymptr(s, ot, dtypesym(t1.Type), 0)
+-			n++
+ 		}
+ 
+ 	case TINTER:
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index 89cf0b0564..78da6848b5 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -171,33 +171,32 @@ func decodetype_chanelem(s *LSym) *LSym {
+ }
+ 
+ // Type.FuncType.dotdotdot
+-func decodetype_funcdotdotdot(s *LSym) int {
+-	return int(s.P[commonsize()])
++func decodetype_funcdotdotdot(s *LSym) bool {
++	return uint16(decode_inuxi(s.P[commonsize()+2:], 2))&(1<<15) != 0
+ }
+ 
+-// Type.FuncType.in.length
++// Type.FuncType.inCount
+ func decodetype_funcincount(s *LSym) int {
+-	return int(decode_inuxi(s.P[commonsize()+2*Thearch.Ptrsize:], Thearch.Intsize))
++	return int(decode_inuxi(s.P[commonsize():], 2))
+ }
+ 
+ func decodetype_funcoutcount(s *LSym) int {
+-	return int(decode_inuxi(s.P[commonsize()+3*Thearch.Ptrsize+2*Thearch.Intsize:], Thearch.Intsize))
++	return int(uint16(decode_inuxi(s.P[commonsize()+2:], 2)) & (1<<15 - 1))
+ }
+ 
+ func decodetype_funcintype(s *LSym, i int) *LSym {
+-	r := decode_reloc(s, int32(commonsize())+int32(Thearch.Ptrsize))
+-	if r == nil {
+-		return nil
++	uadd := commonsize() + 4
++	if Thearch.Ptrsize == 8 {
++		uadd += 4
++	}
++	if decodetype_hasUncommon(s) {
++		uadd += uncommonSize()
+ 	}
+-	return decode_reloc_sym(r.Sym, int32(r.Add+int64(int32(i)*int32(Thearch.Ptrsize))))
++	return decode_reloc_sym(s, int32(uadd+i*Thearch.Ptrsize))
+ }
+ 
+ func decodetype_funcouttype(s *LSym, i int) *LSym {
+-	r := decode_reloc(s, int32(commonsize())+2*int32(Thearch.Ptrsize)+2*int32(Thearch.Intsize))
+-	if r == nil {
+-		return nil
+-	}
+-	return decode_reloc_sym(r.Sym, int32(r.Add+int64(int32(i)*int32(Thearch.Ptrsize))))
++	return decodetype_funcintype(s, i+decodetype_funcincount(s))
+ }
+ 
+ // Type.StructType.fields.Slice::length
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 829d8dabf2..81f7c306f2 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -984,7 +984,7 @@ func defgotype(gotype *LSym) *DWDie {
+ 			newrefattr(fld, DW_AT_type, defgotype(s))
+ 		}
+ 
+-		if decodetype_funcdotdotdot(gotype) != 0 {
++		if decodetype_funcdotdotdot(gotype) {
+ 			newdie(die, DW_ABRV_DOTDOTDOT, "...")
+ 		}
+ 		nfields = decodetype_funcoutcount(gotype)
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index de0768a45f..44ab004274 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -330,11 +330,20 @@ type chanType struct {
+ }
+ 
+ // funcType represents a function type.
++//
++// A *rtype for each in and out parameter is stored in an array that
++// directly follows the funcType (and possibly its uncommonType). So
++// a function type with one method, one input, and one output is:
++//
++//	struct {
++//		funcType
++//		uncommonType
++//		[2]*rtype    // [0] is in, [1] is out
++//	}
+ type funcType struct {
+-	rtype     `reflect:"func"`
+-	dotdotdot bool     // last input parameter is ...
+-	in        []*rtype // input parameter types
+-	out       []*rtype // output parameter types
++	rtype    `reflect:"func"`
++	inCount  uint16
++	outCount uint16 // top bit is set if last input parameter is ...
+ }
+ 
+ // imethod represents a method on an interface type
+@@ -672,7 +681,7 @@ func (t *rtype) IsVariadic() bool {
+ 		panic("reflect: IsVariadic of non-func type")
+ 	}
+ 	tt := (*funcType)(unsafe.Pointer(t))
+-	return tt.dotdotdot
++	return tt.outCount&(1<<15) != 0
+ }
+ 
+ func (t *rtype) Elem() Type {
+@@ -733,7 +742,7 @@ func (t *rtype) In(i int) Type {
+ 		panic("reflect: In of non-func type")
+ 	}
+ 	tt := (*funcType)(unsafe.Pointer(t))
+-	return toType(tt.in[i])
++	return toType(tt.in()[i])
+ }
+ 
+ func (t *rtype) Key() Type {
+@@ -765,7 +774,7 @@ func (t *rtype) NumIn() int {
+ 		panic("reflect: NumIn of non-func type")
+ 	}
+ 	tt := (*funcType)(unsafe.Pointer(t))
+-	return len(tt.in)
++	return int(tt.inCount)
+ }
+ 
+ func (t *rtype) NumOut() int {
+@@ -773,7 +782,7 @@ func (t *rtype) NumOut() int {
+ 		panic("reflect: NumOut of non-func type")
+ 	}
+ 	tt := (*funcType)(unsafe.Pointer(t))
+-	return len(tt.out)
++	return len(tt.out())
+ }
+ 
+ func (t *rtype) Out(i int) Type {
+@@ -781,7 +790,28 @@ func (t *rtype) Out(i int) Type {
+ 		panic("reflect: Out of non-func type")
+ 	}
+ 	tt := (*funcType)(unsafe.Pointer(t))
+-	return toType(tt.out[i])
++	return toType(tt.out()[i])
++}
++
++func (t *funcType) in() []*rtype {
++	uadd := uintptr(unsafe.Sizeof(*t))
++	if t.tflag&tflagUncommon != 0 {
++		uadd += unsafe.Sizeof(uncommonType{})
++	}
++	return (*[1 << 20]*rtype)(add(unsafe.Pointer(t), uadd))[:t.inCount]
++}
++
++func (t *funcType) out() []*rtype {
++	uadd := uintptr(unsafe.Sizeof(*t))
++	if t.tflag&tflagUncommon != 0 {
++		uadd += unsafe.Sizeof(uncommonType{})
++	}
++	outCount := t.outCount & (1<<15 - 1)
++	return (*[1 << 20]*rtype)(add(unsafe.Pointer(t), uadd))[t.inCount : t.inCount+outCount]
++}
++
++func add(p unsafe.Pointer, x uintptr) unsafe.Pointer {
++	return unsafe.Pointer(uintptr(p) + x)
+ }
+ 
+ func (d ChanDir) String() string {
+@@ -1330,16 +1360,16 @@ func haveIdenticalUnderlyingType(T, V *rtype) bool {
+ 	case Func:
+ 		t := (*funcType)(unsafe.Pointer(T))
+ 		v := (*funcType)(unsafe.Pointer(V))
+-		if t.dotdotdot != v.dotdotdot || len(t.in) != len(v.in) || len(t.out) != len(v.out) {
++		if t.outCount != v.outCount || t.inCount != v.inCount {
+ 			return false
+ 		}
+-		for i, typ := range t.in {
+-			if typ != v.in[i] {
++		for i := 0; i < t.NumIn(); i++ {
++			if t.In(i) != v.In(i) {
+ 				return false
+ 			}
+ 		}
+-		for i, typ := range t.out {
+-			if typ != v.out[i] {
++		for i := 0; i < t.NumOut(); i++ {
++			if t.Out(i) != v.Out(i) {
+ 				return false
+ 			}
+ 		}
+@@ -1617,6 +1647,31 @@ func MapOf(key, elem Type) Type {
+ 	return cachePut(ckey, &mt.rtype)
+ }
+ 
++type funcTypeFixed4 struct {
++	funcType
++	args [4]*rtype
++}
++type funcTypeFixed8 struct {
++	funcType
++	args [8]*rtype
++}
++type funcTypeFixed16 struct {
++	funcType
++	args [16]*rtype
++}
++type funcTypeFixed32 struct {
++	funcType
++	args [32]*rtype
++}
++type funcTypeFixed64 struct {
++	funcType
++	args [64]*rtype
++}
++type funcTypeFixed128 struct {
++	funcType
++	args [128]*rtype
++}
++
+ // FuncOf returns the function type with the given argument and result types.
+ // For example if k represents int and e represents string,
+ // FuncOf([]Type{k}, []Type{e}, false) represents func(int) string.
+@@ -1632,15 +1687,45 @@ func FuncOf(in, out []Type, variadic bool) Type {
+ 	// Make a func type.
+ 	var ifunc interface{} = (func())(nil)
+ 	prototype := *(**funcType)(unsafe.Pointer(&ifunc))
+-	ft := new(funcType)
++	n := len(in) + len(out)
++
++	var ft *funcType
++	var args []*rtype
++	switch {
++	case n <= 4:
++		fixed := new(funcTypeFixed4)
++		args = fixed.args[:0:len(fixed.args)]
++		ft = &fixed.funcType
++	case n <= 8:
++		fixed := new(funcTypeFixed8)
++		args = fixed.args[:0:len(fixed.args)]
++		ft = &fixed.funcType
++	case n <= 16:
++		fixed := new(funcTypeFixed16)
++		args = fixed.args[:0:len(fixed.args)]
++		ft = &fixed.funcType
++	case n <= 32:
++		fixed := new(funcTypeFixed32)
++		args = fixed.args[:0:len(fixed.args)]
++		ft = &fixed.funcType
++	case n <= 64:
++		fixed := new(funcTypeFixed64)
++		args = fixed.args[:0:len(fixed.args)]
++		ft = &fixed.funcType
++	case n <= 128:
++		fixed := new(funcTypeFixed128)
++		args = fixed.args[:0:len(fixed.args)]
++		ft = &fixed.funcType
++	default:
++		panic("reflect.FuncOf: too many arguments")
++	}
+ 	*ft = *prototype
+ 
+ 	// Build a hash and minimally populate ft.
+ 	var hash uint32
+-	var fin, fout []*rtype
+ 	for _, in := range in {
+ 		t := in.(*rtype)
+-		fin = append(fin, t)
++		args = append(args, t)
+ 		hash = fnv1(hash, byte(t.hash>>24), byte(t.hash>>16), byte(t.hash>>8), byte(t.hash))
+ 	}
+ 	if variadic {
+@@ -1649,13 +1734,18 @@ func FuncOf(in, out []Type, variadic bool) Type {
+ 	hash = fnv1(hash, '.')
+ 	for _, out := range out {
+ 		t := out.(*rtype)
+-		fout = append(fout, t)
++		args = append(args, t)
+ 		hash = fnv1(hash, byte(t.hash>>24), byte(t.hash>>16), byte(t.hash>>8), byte(t.hash))
+ 	}
++	if len(args) > 50 {
++		panic("reflect.FuncOf does not support more than 50 arguments")
++	}
+ 	ft.hash = hash
+-	ft.in = fin
+-	ft.out = fout
+-	ft.dotdotdot = variadic
++	ft.inCount = uint16(len(in))
++	ft.outCount = uint16(len(out))
++	if variadic {
++		ft.outCount |= 1 << 15
++	}
+ 
+ 	// Look in cache.
+ 	funcLookupCache.RLock()
+@@ -1699,11 +1789,11 @@ func FuncOf(in, out []Type, variadic bool) Type {
+ func funcStr(ft *funcType) string {
+ 	repr := make([]byte, 0, 64)
+ 	repr = append(repr, "func("...)
+-	for i, t := range ft.in {
++	for i, t := range ft.in() {
+ 		if i > 0 {
+ 			repr = append(repr, ", "...)
+ 		}
+-		if ft.dotdotdot && i == len(ft.in)-1 {
++		if ft.IsVariadic() && i == int(ft.inCount)-1 {
+ 			repr = append(repr, "..."...)
+ 			repr = append(repr, (*sliceType)(unsafe.Pointer(t)).elem.string...)
+ 		} else {
+@@ -1711,18 +1801,19 @@ func funcStr(ft *funcType) string {
+ 		}
+ 	}
+ 	repr = append(repr, ')')
+-	if l := len(ft.out); l == 1 {
++	out := ft.out()
++	if len(out) == 1 {
+ 		repr = append(repr, ' ')
+-	} else if l > 1 {
++	} else if len(out) > 1 {
+ 		repr = append(repr, " ("...)
+ 	}
+-	for i, t := range ft.out {
++	for i, t := range out {
+ 		if i > 0 {
+ 			repr = append(repr, ", "...)
+ 		}
+ 		repr = append(repr, t.string...)
+ 	}
+-	if len(ft.out) > 1 {
++	if len(out) > 1 {
+ 		repr = append(repr, ')')
+ 	}
+ 	return string(repr)
+@@ -2175,7 +2266,7 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
+ 		}
+ 		offset += ptrSize
+ 	}
+-	for _, arg := range tt.in {
++	for _, arg := range tt.in() {
+ 		offset += -offset & uintptr(arg.align-1)
+ 		addTypeBits(ptrmap, offset, arg)
+ 		offset += arg.size
+@@ -2187,7 +2278,7 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
+ 	}
+ 	offset += -offset & (ptrSize - 1)
+ 	retOffset = offset
+-	for _, res := range tt.out {
++	for _, res := range tt.out() {
+ 		offset += -offset & uintptr(res.align-1)
+ 		addTypeBits(ptrmap, offset, res)
+ 		offset += res.size
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 8af39b12ac..95bfdb561c 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -483,9 +483,8 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer) {
+ 	// Copy argument frame into Values.
+ 	ptr := frame
+ 	off := uintptr(0)
+-	in := make([]Value, 0, len(ftyp.in))
+-	for _, arg := range ftyp.in {
+-		typ := arg
++	in := make([]Value, 0, int(ftyp.inCount))
++	for _, typ := range ftyp.in() {
+ 		off += -off & uintptr(typ.align-1)
+ 		addr := unsafe.Pointer(uintptr(ptr) + off)
+ 		v := Value{typ, nil, flag(typ.Kind())}
+@@ -506,18 +505,18 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer) {
+ 
+ 	// Call underlying function.
+ 	out := f(in)
+-	if len(out) != len(ftyp.out) {
++	numOut := ftyp.NumOut()
++	if len(out) != numOut {
+ 		panic("reflect: wrong return count from function created by MakeFunc")
+ 	}
+ 
+ 	// Copy results back into argument frame.
+-	if len(ftyp.out) > 0 {
++	if numOut > 0 {
+ 		off += -off & (ptrSize - 1)
+ 		if runtime.GOARCH == "amd64p32" {
+ 			off = align(off, 8)
+ 		}
+-		for i, arg := range ftyp.out {
+-			typ := arg
++		for i, typ := range ftyp.out() {
+ 			v := out[i]
+ 			if v.typ != typ {
+ 				panic("reflect: function created by MakeFunc using " + funcName(f) +
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 6d5378200e..1238d4a053 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -331,10 +331,13 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
+ 		throw("runtime.SetFinalizer: second argument is " + ftyp._string + ", not a function")
+ 	}
+ 	ft := (*functype)(unsafe.Pointer(ftyp))
+-	if ft.dotdotdot || len(ft.in) != 1 {
++	if ft.dotdotdot() {
++		throw("runtime.SetFinalizer: cannot pass " + etyp._string + " to finalizer " + ftyp._string + " because dotdotdot")
++	}
++	if ft.dotdotdot() || ft.inCount != 1 {
+ 		throw("runtime.SetFinalizer: cannot pass " + etyp._string + " to finalizer " + ftyp._string)
+ 	}
+-	fint := ft.in[0]
++	fint := ft.in()[0]
+ 	switch {
+ 	case fint == etyp:
+ 		// ok - same type
+@@ -359,8 +362,8 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
+ okarg:
+ 	// compute size needed for return parameters
+ 	nret := uintptr(0)
+-	for _, t := range ft.out {
+-		nret = round(nret, uintptr(t.align)) + t.size
++	for _, t := range ft.out() {
++		nret = round(nret, uintptr(t.align)) + uintptr(t.size)
+ 	}
+ 	nret = round(nret, sys.PtrSize)
+ 
+diff --git a/src/runtime/syscall_windows.go b/src/runtime/syscall_windows.go
+index 081516c70a..ebfa32ff8c 100644
+--- a/src/runtime/syscall_windows.go
++++ b/src/runtime/syscall_windows.go
+@@ -45,15 +45,15 @@ func compileCallback(fn eface, cleanstack bool) (code uintptr) {
+ 		panic("compileCallback: not a function")
+ 	}
+ 	ft := (*functype)(unsafe.Pointer(fn._type))
+-	if len(ft.out) != 1 {
++	if len(ft.out()) != 1 {
+ 		panic("compileCallback: function must have one output parameter")
+ 	}
+ 	uintptrSize := unsafe.Sizeof(uintptr(0))
+-	if ft.out[0].size != uintptrSize {
++	if ft.out()[0].size != uintptrSize {
+ 		panic("compileCallback: output parameter size is wrong")
+ 	}
+ 	argsize := uintptr(0)
+-	for _, t := range ft.in {
++	for _, t := range ft.in() {
+ 		if t.size > uintptrSize {
+ 			panic("compileCallback: input parameter size is wrong")
+ 		}
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 9c9b5fb8cc..c504e2d294 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -128,6 +128,29 @@ func (t *_type) name() string {
+ 	return t._string[i+1:]
+ }
+ 
++func (t *functype) in() []*_type {
++	// See funcType in reflect/type.go for details on data layout.
++	uadd := uintptr(unsafe.Sizeof(functype{}))
++	if t.typ.tflag&tflagUncommon != 0 {
++		uadd += unsafe.Sizeof(uncommontype{})
++	}
++	return (*[1 << 20]*_type)(add(unsafe.Pointer(t), uadd))[:t.inCount]
++}
++
++func (t *functype) out() []*_type {
++	// See funcType in reflect/type.go for details on data layout.
++	uadd := uintptr(unsafe.Sizeof(functype{}))
++	if t.typ.tflag&tflagUncommon != 0 {
++		uadd += unsafe.Sizeof(uncommontype{})
++	}
++	outCount := t.outCount & (1<<15 - 1)
++	return (*[1 << 20]*_type)(add(unsafe.Pointer(t), uadd))[t.inCount : t.inCount+outCount]
++}
++
++func (t *functype) dotdotdot() bool {
++	return t.outCount&(1<<15) != 0
++}
++
+ type method struct {
+ 	name    *string
+ 	pkgpath *string
+@@ -187,10 +210,9 @@ type slicetype struct {
+ }
+ 
+ type functype struct {
+-	typ       _type
+-	dotdotdot bool
+-	in        []*_type
+-	out       []*_type
++	typ      _type
++	inCount  uint16
++	outCount uint16
+ }
+ 
+ type ptrtype struct {

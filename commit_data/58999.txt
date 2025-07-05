@@ -13,6 +13,26 @@ Date:   Mon Jan 29 12:14:55 2024 -0500
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/fmt/doc.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index 1cda484d8a..ea2da97da6 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -140,12 +140,11 @@ Other flags:
+ 		returns true;
+ 		always print a decimal point for %e, %E, %f, %F, %g and %G;
+ 		do not remove trailing zeros for %g and %G;
+-		write e.g. U+0078 'x' if the character is printable for %U (%#U).
++		write e.g. U+0078 'x' if the character is printable for %U (%#U)
+ 	' '	(space) leave a space for elided sign in numbers (% d);
+ 		put spaces between bytes printing strings or slices in hex (% x, % X)
+ 	'0'	pad with leading zeros rather than spaces;
+-		for numbers, this moves the padding after the sign;
+-		ignored for strings, byte slices and byte arrays
++		for numbers, this moves the padding after the sign
+ 
+ Flags are ignored by verbs that do not expect them.
+ For example there is no alternate decimal format, so %#d and %d

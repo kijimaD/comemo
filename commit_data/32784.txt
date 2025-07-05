@@ -10,8 +10,48 @@ Date:   Sat May 27 19:02:22 2017 +0900
     Change-Id: I0aad9a8b504d673b29d3c26b3717ffa8512e0cdf
     Reviewed-on: https://go-review.googlesource.com/44392
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/vendor/golang_org/x/net/lif/defs_solaris.go       | 2 +-
  src/vendor/golang_org/x/net/lif/link.go               | 2 +-
  src/vendor/golang_org/x/net/lif/zsys_solaris_amd64.go | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/vendor/golang_org/x/net/lif/defs_solaris.go b/src/vendor/golang_org/x/net/lif/defs_solaris.go
+index 8b84ba5e33..02c19981d2 100644
+--- a/src/vendor/golang_org/x/net/lif/defs_solaris.go
++++ b/src/vendor/golang_org/x/net/lif/defs_solaris.go
+@@ -75,7 +75,7 @@ const (
+ 	sizeofLifIfinfoReq = C.sizeof_struct_lif_ifinfo_req
+ )
+ 
+-type sysLifnum C.struct_lifnum
++type lifnum C.struct_lifnum
+ 
+ type lifreq C.struct_lifreq
+ 
+diff --git a/src/vendor/golang_org/x/net/lif/link.go b/src/vendor/golang_org/x/net/lif/link.go
+index fce6b2147f..913a53e118 100644
+--- a/src/vendor/golang_org/x/net/lif/link.go
++++ b/src/vendor/golang_org/x/net/lif/link.go
+@@ -70,7 +70,7 @@ func Links(af int, name string) ([]Link, error) {
+ 
+ func links(eps []endpoint, name string) ([]Link, error) {
+ 	var lls []Link
+-	lifn := sysLifnum{Flags: sysLIFC_NOXMIT | sysLIFC_TEMPORARY | sysLIFC_ALLZONES | sysLIFC_UNDER_IPMP}
++	lifn := lifnum{Flags: sysLIFC_NOXMIT | sysLIFC_TEMPORARY | sysLIFC_ALLZONES | sysLIFC_UNDER_IPMP}
+ 	lifc := lifconf{Flags: sysLIFC_NOXMIT | sysLIFC_TEMPORARY | sysLIFC_ALLZONES | sysLIFC_UNDER_IPMP}
+ 	for _, ep := range eps {
+ 		lifn.Family = uint16(ep.af)
+diff --git a/src/vendor/golang_org/x/net/lif/zsys_solaris_amd64.go b/src/vendor/golang_org/x/net/lif/zsys_solaris_amd64.go
+index 94231c49c9..b5e999bec3 100644
+--- a/src/vendor/golang_org/x/net/lif/zsys_solaris_amd64.go
++++ b/src/vendor/golang_org/x/net/lif/zsys_solaris_amd64.go
+@@ -65,7 +65,7 @@ const (
+ 	sizeofLifIfinfoReq = 0x10
+ )
+ 
+-type sysLifnum struct {
++type lifnum struct {
+ 	Family    uint16
+ 	Pad_cgo_0 [2]byte
+ 	Flags     int32

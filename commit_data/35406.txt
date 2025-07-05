@@ -9,7 +9,7 @@ Date:   Mon Jan 29 12:22:32 2018 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/os3_solaris.go  | 31 -------------------------------
  src/runtime/os_darwin.go    |  8 --------
  src/runtime/os_dragonfly.go | 31 -------------------------------
@@ -21,3 +21,264 @@ Date:   Mon Jan 29 12:22:32 2018 -0500
  src/runtime/os_plan9.go     |  4 ----
  src/runtime/os_windows.go   |  4 ----
  10 files changed, 153 deletions(-)
+
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index c53f6132ee..226cdd1188 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -223,37 +223,6 @@ func unminit() {
+ 	unminitSignals()
+ }
+ 
+-func memlimit() uintptr {
+-	/*
+-		TODO: Convert to Go when something actually uses the result.
+-		Rlimit rl;
+-		extern byte runtime·text[], runtime·end[];
+-		uintptr used;
+-
+-		if(runtime·getrlimit(RLIMIT_AS, &rl) != 0)
+-			return 0;
+-		if(rl.rlim_cur >= 0x7fffffff)
+-			return 0;
+-
+-		// Estimate our VM footprint excluding the heap.
+-		// Not an exact science: use size of binary plus
+-		// some room for thread stacks.
+-		used = runtime·end - runtime·text + (64<<20);
+-		if(used >= rl.rlim_cur)
+-			return 0;
+-
+-		// If there's not at least 16 MB left, we're probably
+-		// not going to be able to do much. Treat as no limit.
+-		rl.rlim_cur -= used;
+-		if(rl.rlim_cur < (16<<20))
+-			return 0;
+-
+-		return rl.rlim_cur - used;
+-	*/
+-
+-	return 0
+-}
+-
+ func sigtramp()
+ 
+ //go:nosplit
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index 580dffa1a3..63351f504d 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -483,14 +483,6 @@ func osyield() {
+ 	usleep(1)
+ }
+ 
+-func memlimit() uintptr {
+-	// NOTE(rsc): Could use getrlimit here,
+-	// like on FreeBSD or Linux, but Darwin doesn't enforce
+-	// ulimit -v, so it's unclear why we'd try to stay within
+-	// the limit.
+-	return 0
+-}
+-
+ const (
+ 	_NSIG        = 32
+ 	_SI_USER     = 0 /* empirically true, but not what headers say */
+diff --git a/src/runtime/os_dragonfly.go b/src/runtime/os_dragonfly.go
+index 4e506796de..4c3ce28074 100644
+--- a/src/runtime/os_dragonfly.go
++++ b/src/runtime/os_dragonfly.go
+@@ -193,37 +193,6 @@ func unminit() {
+ 	unminitSignals()
+ }
+ 
+-func memlimit() uintptr {
+-	/*
+-		                TODO: Convert to Go when something actually uses the result.
+-
+-				Rlimit rl;
+-				extern byte runtime·text[], runtime·end[];
+-				uintptr used;
+-
+-				if(runtime·getrlimit(RLIMIT_AS, &rl) != 0)
+-					return 0;
+-				if(rl.rlim_cur >= 0x7fffffff)
+-					return 0;
+-
+-				// Estimate our VM footprint excluding the heap.
+-				// Not an exact science: use size of binary plus
+-				// some room for thread stacks.
+-				used = runtime·end - runtime·text + (64<<20);
+-				if(used >= rl.rlim_cur)
+-					return 0;
+-
+-				// If there's not at least 16 MB left, we're probably
+-				// not going to be able to do much. Treat as no limit.
+-				rl.rlim_cur -= used;
+-				if(rl.rlim_cur < (16<<20))
+-					return 0;
+-
+-				return rl.rlim_cur - used;
+-	*/
+-	return 0
+-}
+-
+ func sigtramp()
+ 
+ type sigactiont struct {
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index 31708e2454..855bf30b6f 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -266,37 +266,6 @@ func unminit() {
+ 	unminitSignals()
+ }
+ 
+-func memlimit() uintptr {
+-	/*
+-		TODO: Convert to Go when something actually uses the result.
+-		Rlimit rl;
+-		extern byte runtime·text[], runtime·end[];
+-		uintptr used;
+-
+-		if(runtime·getrlimit(RLIMIT_AS, &rl) != 0)
+-			return 0;
+-		if(rl.rlim_cur >= 0x7fffffff)
+-			return 0;
+-
+-		// Estimate our VM footprint excluding the heap.
+-		// Not an exact science: use size of binary plus
+-		// some room for thread stacks.
+-		used = runtime·end - runtime·text + (64<<20);
+-		if(used >= rl.rlim_cur)
+-			return 0;
+-
+-		// If there's not at least 16 MB left, we're probably
+-		// not going to be able to do much. Treat as no limit.
+-		rl.rlim_cur -= used;
+-		if(rl.rlim_cur < (16<<20))
+-			return 0;
+-
+-		return rl.rlim_cur - used;
+-	*/
+-
+-	return 0
+-}
+-
+ func sigtramp()
+ 
+ type sigactiont struct {
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 98e7f52b9e..2e442192cc 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -324,38 +324,6 @@ func unminit() {
+ 	unminitSignals()
+ }
+ 
+-func memlimit() uintptr {
+-	/*
+-		TODO: Convert to Go when something actually uses the result.
+-
+-		Rlimit rl;
+-		extern byte runtime·text[], runtime·end[];
+-		uintptr used;
+-
+-		if(runtime·getrlimit(RLIMIT_AS, &rl) != 0)
+-			return 0;
+-		if(rl.rlim_cur >= 0x7fffffff)
+-			return 0;
+-
+-		// Estimate our VM footprint excluding the heap.
+-		// Not an exact science: use size of binary plus
+-		// some room for thread stacks.
+-		used = runtime·end - runtime·text + (64<<20);
+-		if(used >= rl.rlim_cur)
+-			return 0;
+-
+-		// If there's not at least 16 MB left, we're probably
+-		// not going to be able to do much. Treat as no limit.
+-		rl.rlim_cur -= used;
+-		if(rl.rlim_cur < (16<<20))
+-			return 0;
+-
+-		return rl.rlim_cur - used;
+-	*/
+-
+-	return 0
+-}
+-
+ //#ifdef GOARCH_386
+ //#define sa_handler k_sa_handler
+ //#endif
+diff --git a/src/runtime/os_nacl.go b/src/runtime/os_nacl.go
+index 6830da4c4f..d03cb8faf2 100644
+--- a/src/runtime/os_nacl.go
++++ b/src/runtime/os_nacl.go
+@@ -246,10 +246,6 @@ func semawakeup(mp *m) {
+ 	})
+ }
+ 
+-func memlimit() uintptr {
+-	return 0
+-}
+-
+ // This runs on a foreign stack, without an m or a g. No stack split.
+ //go:nosplit
+ //go:norace
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index 3778969318..abd6512dc3 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -272,10 +272,6 @@ func unminit() {
+ 	unminitSignals()
+ }
+ 
+-func memlimit() uintptr {
+-	return 0
+-}
+-
+ func sigtramp()
+ 
+ type sigactiont struct {
+diff --git a/src/runtime/os_openbsd.go b/src/runtime/os_openbsd.go
+index 350166d101..c3c04b8b50 100644
+--- a/src/runtime/os_openbsd.go
++++ b/src/runtime/os_openbsd.go
+@@ -226,10 +226,6 @@ func unminit() {
+ 	unminitSignals()
+ }
+ 
+-func memlimit() uintptr {
+-	return 0
+-}
+-
+ func sigtramp()
+ 
+ type sigactiont struct {
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index 32fdabb29f..38f0cf5a2b 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -466,10 +466,6 @@ func write(fd uintptr, buf unsafe.Pointer, n int32) int64 {
+ 	return int64(pwrite(int32(fd), buf, n, -1))
+ }
+ 
+-func memlimit() uint64 {
+-	return 0
+-}
+-
+ var _badsignal = []byte("runtime: signal received on thread not created by Go.\n")
+ 
+ // This runs on a foreign stack, without an m or a g. No stack split.
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 7aeadd9ef1..d27bf74455 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -885,7 +885,3 @@ func setThreadCPUProfiler(hz int32) {
+ 	stdcall6(_SetWaitableTimer, profiletimer, uintptr(unsafe.Pointer(&due)), uintptr(ms), 0, 0, 0)
+ 	atomic.Store((*uint32)(unsafe.Pointer(&getg().m.profilehz)), uint32(hz))
+ }
+-
+-func memlimit() uintptr {
+-	return 0
+-}

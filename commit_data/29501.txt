@@ -11,6 +11,20 @@ Date:   Mon Sep 19 11:22:52 2016 +1000
     Change-Id: Ie8a9c36fbc54eed7d8a761f89a088e582b8c062d
     Reviewed-on: https://go-review.googlesource.com/29340
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/vet/doc.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/vet/doc.go b/src/cmd/vet/doc.go
+index 69d5f9cc78..3c3933f590 100644
+--- a/src/cmd/vet/doc.go
++++ b/src/cmd/vet/doc.go
+@@ -157,6 +157,8 @@ Flag: -shift
+ 
+ Shifts equal to or longer than the variable's length.
+ 
++Struct tags
++
+ Flag: -structtags
+ 
+ Struct tags that do not follow the format understood by reflect.StructTag.Get.

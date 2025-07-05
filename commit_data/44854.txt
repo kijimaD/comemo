@@ -15,6 +15,25 @@ Date:   Wed Sep 9 10:40:11 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/proc.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 341d52aea8..739745aa26 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3928,6 +3928,13 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+ 		return
+ 	}
+ 
++	// If mp.profilehz is 0, then profiling is not enabled for this thread.
++	// We must check this to avoid a deadlock between setcpuprofilerate
++	// and the call to cpuprof.add, below.
++	if mp != nil && mp.profilehz == 0 {
++		return
++	}
++
+ 	// On mips{,le}, 64bit atomics are emulated with spinlocks, in
+ 	// runtime/internal/atomic. If SIGPROF arrives while the program is inside
+ 	// the critical section, it creates a deadlock (when writing the sample).

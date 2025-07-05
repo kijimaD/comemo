@@ -7,7 +7,7 @@ Date:   Wed May 18 13:14:56 2011 -0400
     R=ality, bradfitz, rsc, dsymonds, adg, qyzhai, dchest
     CC=golang-dev
     https://golang.org/cl/4536063
-
+---
  src/pkg/asn1/asn1.go                         |  8 ++++----
  src/pkg/asn1/common.go                       |  2 +-
  src/pkg/asn1/marshal.go                      |  4 ++--
@@ -66,3 +66,1129 @@ Date:   Wed May 18 13:14:56 2011 -0400
  src/pkg/http/persist.go                      |  2 +-
  src/pkg/http/serve_test.go                   |  2 +-
  57 files changed, 120 insertions(+), 120 deletions(-)
+
+diff --git a/src/pkg/asn1/asn1.go b/src/pkg/asn1/asn1.go
+index 5f470aed79..e7a46196cf 100644
+--- a/src/pkg/asn1/asn1.go
++++ b/src/pkg/asn1/asn1.go
+@@ -164,9 +164,9 @@ func (oi ObjectIdentifier) Equal(other ObjectIdentifier) bool {
+ 	return true
+ }
+ 
+-// parseObjectIdentifier parses an OBJECT IDENTIFER from the given bytes and
+-// returns it. An object identifer is a sequence of variable length integers
+-// that are assigned in a hierarachy.
++// parseObjectIdentifier parses an OBJECT IDENTIFIER from the given bytes and
++// returns it. An object identifier is a sequence of variable length integers
++// that are assigned in a hierarchy.
+ func parseObjectIdentifier(bytes []byte) (s []int, err os.Error) {
+ 	if len(bytes) == 0 {
+ 		err = SyntaxError{"zero length OBJECT IDENTIFIER"}
+@@ -269,7 +269,7 @@ func isPrintable(b byte) bool {
+ 		b == ':' ||
+ 		b == '=' ||
+ 		b == '?' ||
+-		// This is techincally not allowed in a PrintableString.
++		// This is technically not allowed in a PrintableString.
+ 		// However, x509 certificates with wildcard strings don't
+ 		// always use the correct string type so we permit it.
+ 		b == '*'
+diff --git a/src/pkg/asn1/common.go b/src/pkg/asn1/common.go
+index 1589877477..0e6abc46b8 100644
+--- a/src/pkg/asn1/common.go
++++ b/src/pkg/asn1/common.go
+@@ -10,7 +10,7 @@ import (
+ 	"strings"
+ )
+ 
+-// ASN.1 objects have metadata preceeding them:
++// ASN.1 objects have metadata preceding them:
+ //   the tag: the type of the object
+ //   a flag denoting if this object is compound or not
+ //   the class type: the namespace of the tag
+diff --git a/src/pkg/asn1/marshal.go b/src/pkg/asn1/marshal.go
+index a3e1145b89..fc7c337f1a 100644
+--- a/src/pkg/asn1/marshal.go
++++ b/src/pkg/asn1/marshal.go
+@@ -351,7 +351,7 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
+ 		startingField := 0
+ 
+ 		// If the first element of the structure is a non-empty
+-		// RawContents, then we don't bother serialising the rest.
++		// RawContents, then we don't bother serializing the rest.
+ 		if t.NumField() > 0 && t.Field(0).Type == rawContentsType {
+ 			s := v.Field(0)
+ 			if s.Len() > 0 {
+@@ -361,7 +361,7 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
+ 				}
+ 				/* The RawContents will contain the tag and
+ 				 * length fields but we'll also be writing
+-				 * those outselves, so we strip them out of
++				 * those ourselves, so we strip them out of
+ 				 * bytes */
+ 				_, err = out.Write(stripTagAndLength(bytes))
+ 				return
+diff --git a/src/pkg/big/nat.go b/src/pkg/big/nat.go
+index a5d8f223ab..87eb337d22 100755
+--- a/src/pkg/big/nat.go
++++ b/src/pkg/big/nat.go
+@@ -736,7 +736,7 @@ var deBruijn64Lookup = []byte{
+ func trailingZeroBits(x Word) int {
+ 	// x & -x leaves only the right-most bit set in the word. Let k be the
+ 	// index of that bit. Since only a single bit is set, the value is two
+-	// to the power of k. Multipling by a power of two is equivalent to
++	// to the power of k. Multiplying by a power of two is equivalent to
+ 	// left shifting, in this case by k bits.  The de Bruijn constant is
+ 	// such that all six bit, consecutive substrings are distinct.
+ 	// Therefore, if we have a left shifted version of this constant we can
+diff --git a/src/pkg/big/rat.go b/src/pkg/big/rat.go
+index 6b60be7e5d..2adf316e64 100644
+--- a/src/pkg/big/rat.go
++++ b/src/pkg/big/rat.go
+@@ -84,7 +84,7 @@ func (z *Rat) Num() *Int {
+ }
+ 
+ 
+-// Demom returns the denominator of z; it is always > 0.
++// Denom returns the denominator of z; it is always > 0.
+ // The result is a reference to z's denominator; it
+ // may change if a new value is assigned to z.
+ func (z *Rat) Denom() *Int {
+diff --git a/src/pkg/compress/bzip2/bzip2.go b/src/pkg/compress/bzip2/bzip2.go
+index 9e97edec17..8b4572306b 100644
+--- a/src/pkg/compress/bzip2/bzip2.go
++++ b/src/pkg/compress/bzip2/bzip2.go
+@@ -284,7 +284,7 @@ func (bz2 *reader) readBlock() (err os.Error) {
+ 	repeat := 0
+ 	repeat_power := 0
+ 
+-	// The `C' array (used by the inverse BWT) needs to be zero initialised.
++	// The `C' array (used by the inverse BWT) needs to be zero initialized.
+ 	for i := range bz2.c {
+ 		bz2.c[i] = 0
+ 	}
+@@ -330,7 +330,7 @@ func (bz2 *reader) readBlock() (err os.Error) {
+ 
+ 		if int(v) == numSymbols-1 {
+ 			// This is the EOF symbol. Because it's always at the
+-			// end of the move-to-front list, and nevers gets moved
++			// end of the move-to-front list, and never gets moved
+ 			// to the front, it has this unique value.
+ 			break
+ 		}
+diff --git a/src/pkg/compress/bzip2/huffman.go b/src/pkg/compress/bzip2/huffman.go
+index 732bc4a21d..dc05739c75 100644
+--- a/src/pkg/compress/bzip2/huffman.go
++++ b/src/pkg/compress/bzip2/huffman.go
+@@ -68,7 +68,7 @@ func newHuffmanTree(lengths []uint8) (huffmanTree, os.Error) {
+ 	// each symbol (consider reflecting a tree down the middle, for
+ 	// example). Since the code length assignments determine the
+ 	// efficiency of the tree, each of these trees is equally good. In
+-	// order to minimise the amount of information needed to build a tree
++	// order to minimize the amount of information needed to build a tree
+ 	// bzip2 uses a canonical tree so that it can be reconstructed given
+ 	// only the code length assignments.
+ 
+diff --git a/src/pkg/compress/flate/huffman_bit_writer.go b/src/pkg/compress/flate/huffman_bit_writer.go
+index abff82dd69..5df4510a20 100644
+--- a/src/pkg/compress/flate/huffman_bit_writer.go
++++ b/src/pkg/compress/flate/huffman_bit_writer.go
+@@ -185,7 +185,7 @@ func (w *huffmanBitWriter) writeBytes(bytes []byte) {
+ 	_, w.err = w.w.Write(bytes)
+ }
+ 
+-// RFC 1951 3.2.7 specifies a special run-length encoding for specifiying
++// RFC 1951 3.2.7 specifies a special run-length encoding for specifying
+ // the literal and offset lengths arrays (which are concatenated into a single
+ // array).  This method generates that run-length encoding.
+ //
+@@ -279,7 +279,7 @@ func (w *huffmanBitWriter) writeCode(code *huffmanEncoder, literal uint32) {
+ //
+ //  numLiterals  The number of literals specified in codegen
+ //  numOffsets   The number of offsets specified in codegen
+-//  numCodegens  Tne number of codegens used in codegen
++//  numCodegens  The number of codegens used in codegen
+ func (w *huffmanBitWriter) writeDynamicHeader(numLiterals int, numOffsets int, numCodegens int, isEof bool) {
+ 	if w.err != nil {
+ 		return
+diff --git a/src/pkg/compress/gzip/gzip_test.go b/src/pkg/compress/gzip/gzip_test.go
+index 23f3514055..121e627e6b 100644
+--- a/src/pkg/compress/gzip/gzip_test.go
++++ b/src/pkg/compress/gzip/gzip_test.go
+@@ -11,7 +11,7 @@ import (
+ )
+ 
+ // pipe creates two ends of a pipe that gzip and gunzip, and runs dfunc at the
+-// writer end and ifunc at the reader end.
++// writer end and cfunc at the reader end.
+ func pipe(t *testing.T, dfunc func(*Compressor), cfunc func(*Decompressor)) {
+ 	piper, pipew := io.Pipe()
+ 	defer piper.Close()
+diff --git a/src/pkg/container/heap/heap.go b/src/pkg/container/heap/heap.go
+index f2b8a750a4..5b68827df0 100644
+--- a/src/pkg/container/heap/heap.go
++++ b/src/pkg/container/heap/heap.go
+@@ -22,7 +22,7 @@ type Interface interface {
+ }
+ 
+ 
+-// A heaper must be initialized before any of the heap operations
++// A heap must be initialized before any of the heap operations
+ // can be used. Init is idempotent with respect to the heap invariants
+ // and may be called whenever the heap invariants may have been invalidated.
+ // Its complexity is O(n) where n = h.Len().
+diff --git a/src/pkg/crypto/elliptic/elliptic.go b/src/pkg/crypto/elliptic/elliptic.go
+index 335c9645dc..41835f1a9c 100644
+--- a/src/pkg/crypto/elliptic/elliptic.go
++++ b/src/pkg/crypto/elliptic/elliptic.go
+@@ -284,7 +284,7 @@ func (curve *Curve) Marshal(x, y *big.Int) []byte {
+ 	return ret
+ }
+ 
+-// Unmarshal converts a point, serialised by Marshal, into an x, y pair. On
++// Unmarshal converts a point, serialized by Marshal, into an x, y pair. On
+ // error, x = nil.
+ func (curve *Curve) Unmarshal(data []byte) (x, y *big.Int) {
+ 	byteLen := (curve.BitSize + 7) >> 3
+diff --git a/src/pkg/crypto/elliptic/elliptic_test.go b/src/pkg/crypto/elliptic/elliptic_test.go
+index 02083a9866..b7e7f035fa 100644
+--- a/src/pkg/crypto/elliptic/elliptic_test.go
++++ b/src/pkg/crypto/elliptic/elliptic_test.go
+@@ -321,8 +321,8 @@ func TestMarshal(t *testing.T) {
+ 		t.Error(err)
+ 		return
+ 	}
+-	serialised := p224.Marshal(x, y)
+-	xx, yy := p224.Unmarshal(serialised)
++	serialized := p224.Marshal(x, y)
++	xx, yy := p224.Unmarshal(serialized)
+ 	if xx == nil {
+ 		t.Error("failed to unmarshal")
+ 		return
+diff --git a/src/pkg/crypto/hmac/hmac_test.go b/src/pkg/crypto/hmac/hmac_test.go
+index 40adbad040..bcae63b8af 100644
+--- a/src/pkg/crypto/hmac/hmac_test.go
++++ b/src/pkg/crypto/hmac/hmac_test.go
+@@ -190,7 +190,7 @@ func TestHMAC(t *testing.T) {
+ 				continue
+ 			}
+ 
+-			// Repetive Sum() calls should return the same value
++			// Repetitive Sum() calls should return the same value
+ 			for k := 0; k < 2; k++ {
+ 				sum := fmt.Sprintf("%x", h.Sum())
+ 				if sum != tt.out {
+diff --git a/src/pkg/crypto/openpgp/armor/armor.go b/src/pkg/crypto/openpgp/armor/armor.go
+index 8da612c500..9c4180d6d6 100644
+--- a/src/pkg/crypto/openpgp/armor/armor.go
++++ b/src/pkg/crypto/openpgp/armor/armor.go
+@@ -153,7 +153,7 @@ func (r *openpgpReader) Read(p []byte) (n int, err os.Error) {
+ 
+ // Decode reads a PGP armored block from the given Reader. It will ignore
+ // leading garbage. If it doesn't find a block, it will return nil, os.EOF. The
+-// given Reader is not usable after calling this function: an arbitary amount
++// given Reader is not usable after calling this function: an arbitrary amount
+ // of data may have been read past the end of the block.
+ func Decode(in io.Reader) (p *Block, err os.Error) {
+ 	r, _ := bufio.NewReaderSize(in, 100)
+diff --git a/src/pkg/crypto/openpgp/packet/packet.go b/src/pkg/crypto/openpgp/packet/packet.go
+index 1c8a071398..e583670fb2 100644
+--- a/src/pkg/crypto/openpgp/packet/packet.go
++++ b/src/pkg/crypto/openpgp/packet/packet.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package packet implements parsing and serialisation of OpenPGP packets, as
++// Package packet implements parsing and serialization of OpenPGP packets, as
+ // specified in RFC 4880.
+ package packet
+ 
+@@ -386,7 +386,7 @@ func readMPI(r io.Reader) (mpi []byte, bitLength uint16, err os.Error) {
+ 	return
+ }
+ 
+-// mpiLength returns the length of the given *big.Int when serialised as an
++// mpiLength returns the length of the given *big.Int when serialized as an
+ // MPI.
+ func mpiLength(n *big.Int) (mpiLengthInBytes int) {
+ 	mpiLengthInBytes = 2 /* MPI length */
+diff --git a/src/pkg/crypto/openpgp/packet/public_key.go b/src/pkg/crypto/openpgp/packet/public_key.go
+index 24eab49f58..b0ecfe3947 100644
+--- a/src/pkg/crypto/openpgp/packet/public_key.go
++++ b/src/pkg/crypto/openpgp/packet/public_key.go
+@@ -293,7 +293,7 @@ type parsedMPI struct {
+ 	bitLength uint16
+ }
+ 
+-// writeMPIs is a utility function for serialising several big integers to the
++// writeMPIs is a utility function for serializing several big integers to the
+ // given Writer.
+ func writeMPIs(w io.Writer, mpis ...parsedMPI) (err os.Error) {
+ 	for _, mpi := range mpis {
+diff --git a/src/pkg/crypto/openpgp/packet/signature.go b/src/pkg/crypto/openpgp/packet/signature.go
+index 39c68619e5..0dee47c6fb 100644
+--- a/src/pkg/crypto/openpgp/packet/signature.go
++++ b/src/pkg/crypto/openpgp/packet/signature.go
+@@ -393,7 +393,7 @@ func (sig *Signature) buildHashSuffix() (err os.Error) {
+ 	sig.HashSuffix[3], ok = s2k.HashToHashId(sig.Hash)
+ 	if !ok {
+ 		sig.HashSuffix = nil
+-		return error.InvalidArgumentError("hash cannot be repesented in OpenPGP: " + strconv.Itoa(int(sig.Hash)))
++		return error.InvalidArgumentError("hash cannot be represented in OpenPGP: " + strconv.Itoa(int(sig.Hash)))
+ 	}
+ 	sig.HashSuffix[4] = byte(hashedSubpacketsLen >> 8)
+ 	sig.HashSuffix[5] = byte(hashedSubpacketsLen)
+diff --git a/src/pkg/crypto/openpgp/read.go b/src/pkg/crypto/openpgp/read.go
+index 4f84dff82b..46fcde3630 100644
+--- a/src/pkg/crypto/openpgp/read.go
++++ b/src/pkg/crypto/openpgp/read.go
+@@ -44,7 +44,7 @@ type MessageDetails struct {
+ 	DecryptedWith            Key                 // the private key used to decrypt the message, if any.
+ 	IsSigned                 bool                // true if the message is signed.
+ 	SignedByKeyId            uint64              // the key id of the signer, if any.
+-	SignedBy                 *Key                // the key of the signer, if availible.
++	SignedBy                 *Key                // the key of the signer, if available.
+ 	LiteralData              *packet.LiteralData // the metadata of the contents
+ 	UnverifiedBody           io.Reader           // the contents of the message.
+ 
+@@ -145,7 +145,7 @@ ParsePackets:
+ 	// function so that it can decrypt a key or give us a passphrase.
+ FindKey:
+ 	for {
+-		// See if any of the keys already have a private key availible
++		// See if any of the keys already have a private key available
+ 		candidates = candidates[:0]
+ 		candidateFingerprints := make(map[string]bool)
+ 
+@@ -214,7 +214,7 @@ FindKey:
+ 	return readSignedMessage(packets, md, keyring)
+ }
+ 
+-// readSignedMessage reads a possibily signed message if mdin is non-zero then
++// readSignedMessage reads a possibly signed message if mdin is non-zero then
+ // that structure is updated and returned. Otherwise a fresh MessageDetails is
+ // used.
+ func readSignedMessage(packets *packet.Reader, mdin *MessageDetails, keyring KeyRing) (md *MessageDetails, err os.Error) {
+@@ -274,13 +274,13 @@ FindLiteralData:
+ 
+ // hashForSignature returns a pair of hashes that can be used to verify a
+ // signature. The signature may specify that the contents of the signed message
+-// should be preprocessed (i.e. to normalise line endings). Thus this function
++// should be preprocessed (i.e. to normalize line endings). Thus this function
+ // returns two hashes. The second should be used to hash the message itself and
+ // performs any needed preprocessing.
+ func hashForSignature(hashId crypto.Hash, sigType packet.SignatureType) (hash.Hash, hash.Hash, os.Error) {
+ 	h := hashId.New()
+ 	if h == nil {
+-		return nil, nil, error.UnsupportedError("hash not availible: " + strconv.Itoa(int(hashId)))
++		return nil, nil, error.UnsupportedError("hash not available: " + strconv.Itoa(int(hashId)))
+ 	}
+ 
+ 	switch sigType {
+diff --git a/src/pkg/crypto/openpgp/read_test.go b/src/pkg/crypto/openpgp/read_test.go
+index 423c85b0f2..a040b5b1b5 100644
+--- a/src/pkg/crypto/openpgp/read_test.go
++++ b/src/pkg/crypto/openpgp/read_test.go
+@@ -193,9 +193,9 @@ func TestSymmetricallyEncrypted(t *testing.T) {
+ 		t.Errorf("ReadAll: %s", err)
+ 	}
+ 
+-	expectedCreatationTime := uint32(1295992998)
+-	if md.LiteralData.Time != expectedCreatationTime {
+-		t.Errorf("LiteralData.Time is %d, want %d", md.LiteralData.Time, expectedCreatationTime)
++	expectedCreationTime := uint32(1295992998)
++	if md.LiteralData.Time != expectedCreationTime {
++		t.Errorf("LiteralData.Time is %d, want %d", md.LiteralData.Time, expectedCreationTime)
+ 	}
+ 
+ 	if string(contents) != expected {
+diff --git a/src/pkg/crypto/openpgp/s2k/s2k.go b/src/pkg/crypto/openpgp/s2k/s2k.go
+index 93b7582fa0..80b81bd3a5 100644
+--- a/src/pkg/crypto/openpgp/s2k/s2k.go
++++ b/src/pkg/crypto/openpgp/s2k/s2k.go
+@@ -90,7 +90,7 @@ func Parse(r io.Reader) (f func(out, in []byte), err os.Error) {
+ 	}
+ 	h := hash.New()
+ 	if h == nil {
+-		return nil, error.UnsupportedError("hash not availible: " + strconv.Itoa(int(hash)))
++		return nil, error.UnsupportedError("hash not available: " + strconv.Itoa(int(hash)))
+ 	}
+ 
+ 	switch buf[0] {
+diff --git a/src/pkg/crypto/rsa/rsa.go b/src/pkg/crypto/rsa/rsa.go
+index e1813dbf93..c702ab1c0e 100644
+--- a/src/pkg/crypto/rsa/rsa.go
++++ b/src/pkg/crypto/rsa/rsa.go
+@@ -94,7 +94,7 @@ type PrivateKey struct {
+ 	Primes    []*big.Int // prime factors of N, has >= 2 elements.
+ 
+ 	// Precomputed contains precomputed values that speed up private
+-	// operations, if availible.
++	// operations, if available.
+ 	Precomputed PrecomputedValues
+ }
+ 
+@@ -417,7 +417,7 @@ func decrypt(rand io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err os.E
+ 		// Blinding enabled. Blinding involves multiplying c by r^e.
+ 		// Then the decryption operation performs (m^e * r^e)^d mod n
+ 		// which equals mr mod n. The factor of r can then be removed
+-		// by multipling by the multiplicative inverse of r.
++		// by multiplying by the multiplicative inverse of r.
+ 
+ 		var r *big.Int
+ 
+diff --git a/src/pkg/crypto/subtle/constant_time_test.go b/src/pkg/crypto/subtle/constant_time_test.go
+index b28b735810..adab8e2e8d 100644
+--- a/src/pkg/crypto/subtle/constant_time_test.go
++++ b/src/pkg/crypto/subtle/constant_time_test.go
+@@ -14,14 +14,14 @@ type TestConstantTimeCompareStruct struct {
+ 	out  int
+ }
+ 
+-var testConstandTimeCompareData = []TestConstantTimeCompareStruct{
++var testConstantTimeCompareData = []TestConstantTimeCompareStruct{
+ 	{[]byte{}, []byte{}, 1},
+ 	{[]byte{0x11}, []byte{0x11}, 1},
+ 	{[]byte{0x12}, []byte{0x11}, 0},
+ }
+ 
+ func TestConstantTimeCompare(t *testing.T) {
+-	for i, test := range testConstandTimeCompareData {
++	for i, test := range testConstantTimeCompareData {
+ 		if r := ConstantTimeCompare(test.a, test.b); r != test.out {
+ 			t.Errorf("#%d bad result (got %x, want %x)", i, r, test.out)
+ 		}
+diff --git a/src/pkg/crypto/tls/common.go b/src/pkg/crypto/tls/common.go
+index 0b26aae84d..3efac9c13b 100644
+--- a/src/pkg/crypto/tls/common.go
++++ b/src/pkg/crypto/tls/common.go
+@@ -87,7 +87,7 @@ const (
+ 	certTypeRSASign    = 1 // A certificate containing an RSA key
+ 	certTypeDSSSign    = 2 // A certificate containing a DSA key
+ 	certTypeRSAFixedDH = 3 // A certificate containing a static DH key
+-	certTypeDSSFixedDH = 4 // A certficiate containing a static DH key
++	certTypeDSSFixedDH = 4 // A certificate containing a static DH key
+ 	// Rest of these are reserved by the TLS spec
+ )
+ 
+diff --git a/src/pkg/crypto/tls/conn.go b/src/pkg/crypto/tls/conn.go
+index 48d3f725b4..097e182bda 100644
+--- a/src/pkg/crypto/tls/conn.go
++++ b/src/pkg/crypto/tls/conn.go
+@@ -34,7 +34,7 @@ type Conn struct {
+ 	cipherSuite       uint16
+ 	ocspResponse      []byte // stapled OCSP response
+ 	peerCertificates  []*x509.Certificate
+-	// verifedChains contains the certificate chains that we built, as
++	// verifiedChains contains the certificate chains that we built, as
+ 	// opposed to the ones presented by the server.
+ 	verifiedChains [][]*x509.Certificate
+ 
+@@ -237,7 +237,7 @@ func (hc *halfConn) decrypt(b *block) (bool, alert) {
+ 			// "Password Interception in a SSL/TLS Channel", Brice
+ 			// Canvel et al.
+ 			//
+-			// However, our behaviour matches OpenSSL, so we leak
++			// However, our behavior matches OpenSSL, so we leak
+ 			// only as much as they do.
+ 		default:
+ 			panic("unknown cipher type")
+@@ -410,7 +410,7 @@ func (hc *halfConn) freeBlock(b *block) {
+ 
+ // splitBlock splits a block after the first n bytes,
+ // returning a block with those n bytes and a
+-// block with the remaindec.  the latter may be nil.
++// block with the remainder.  the latter may be nil.
+ func (hc *halfConn) splitBlock(b *block, n int) (*block, *block) {
+ 	if len(b.data) <= n {
+ 		return b, nil
+diff --git a/src/pkg/crypto/tls/handshake_server.go b/src/pkg/crypto/tls/handshake_server.go
+index 37c8d154ac..e9431c6fad 100644
+--- a/src/pkg/crypto/tls/handshake_server.go
++++ b/src/pkg/crypto/tls/handshake_server.go
+@@ -209,10 +209,10 @@ FindCipherSuite:
+ 
+ 	// If we received a client cert in response to our certificate request message,
+ 	// the client will send us a certificateVerifyMsg immediately after the
+-	// clientKeyExchangeMsg.  This message is a MD5SHA1 digest of all preceeding
++	// clientKeyExchangeMsg.  This message is a MD5SHA1 digest of all preceding
+ 	// handshake-layer messages that is signed using the private key corresponding
+ 	// to the client's certificate. This allows us to verify that the client is in
+-	// posession of the private key of the certificate.
++	// possession of the private key of the certificate.
+ 	if len(c.peerCertificates) > 0 {
+ 		msg, err = c.readHandshake()
+ 		if err != nil {
+diff --git a/src/pkg/crypto/tls/key_agreement.go b/src/pkg/crypto/tls/key_agreement.go
+index 8edbb11900..84f90c45a0 100644
+--- a/src/pkg/crypto/tls/key_agreement.go
++++ b/src/pkg/crypto/tls/key_agreement.go
+@@ -236,12 +236,12 @@ func (ka *ecdheRSAKeyAgreement) generateClientKeyExchange(config *Config, client
+ 	xBytes := x.Bytes()
+ 	copy(preMasterSecret[len(preMasterSecret)-len(xBytes):], xBytes)
+ 
+-	serialised := ka.curve.Marshal(mx, my)
++	serialized := ka.curve.Marshal(mx, my)
+ 
+ 	ckx := new(clientKeyExchangeMsg)
+-	ckx.ciphertext = make([]byte, 1+len(serialised))
+-	ckx.ciphertext[0] = byte(len(serialised))
+-	copy(ckx.ciphertext[1:], serialised)
++	ckx.ciphertext = make([]byte, 1+len(serialized))
++	ckx.ciphertext[0] = byte(len(serialized))
++	copy(ckx.ciphertext[1:], serialized)
+ 
+ 	return preMasterSecret, ckx, nil
+ }
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index ef912a2b40..f82e5e83cb 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -33,10 +33,10 @@ type pkcs1PrivateKey struct {
+ 	Dq   asn1.RawValue "optional"
+ 	Qinv asn1.RawValue "optional"
+ 
+-	AdditionalPrimes []pkcs1AddtionalRSAPrime "optional"
++	AdditionalPrimes []pkcs1AdditionalRSAPrime "optional"
+ }
+ 
+-type pkcs1AddtionalRSAPrime struct {
++type pkcs1AdditionalRSAPrime struct {
+ 	Prime asn1.RawValue
+ 
+ 	// We ignore these values because rsa will calculate them.
+@@ -135,7 +135,7 @@ func MarshalPKCS1PrivateKey(key *rsa.PrivateKey) []byte {
+ 		Qinv:    rawValueForBig(key.Precomputed.Qinv),
+ 	}
+ 
+-	priv.AdditionalPrimes = make([]pkcs1AddtionalRSAPrime, len(key.Precomputed.CRTValues))
++	priv.AdditionalPrimes = make([]pkcs1AdditionalRSAPrime, len(key.Precomputed.CRTValues))
+ 	for i, values := range key.Precomputed.CRTValues {
+ 		priv.AdditionalPrimes[i].Prime = rawValueForBig(key.Primes[2+i])
+ 		priv.AdditionalPrimes[i].Exp = rawValueForBig(values.Exp)
+@@ -280,7 +280,7 @@ var (
+ 	oidOrganizationalUnit = []int{2, 5, 4, 11}
+ 	oidCommonName         = []int{2, 5, 4, 3}
+ 	oidSerialNumber       = []int{2, 5, 4, 5}
+-	oidLocatity           = []int{2, 5, 4, 7}
++	oidLocality           = []int{2, 5, 4, 7}
+ 	oidProvince           = []int{2, 5, 4, 8}
+ 	oidStreetAddress      = []int{2, 5, 4, 9}
+ 	oidPostalCode         = []int{2, 5, 4, 17}
+@@ -308,7 +308,7 @@ func (n Name) toRDNSequence() (ret rdnSequence) {
+ 	ret = appendRDNs(ret, n.Country, oidCountry)
+ 	ret = appendRDNs(ret, n.Organization, oidOrganization)
+ 	ret = appendRDNs(ret, n.OrganizationalUnit, oidOrganizationalUnit)
+-	ret = appendRDNs(ret, n.Locality, oidLocatity)
++	ret = appendRDNs(ret, n.Locality, oidLocality)
+ 	ret = appendRDNs(ret, n.Province, oidProvince)
+ 	ret = appendRDNs(ret, n.StreetAddress, oidStreetAddress)
+ 	ret = appendRDNs(ret, n.PostalCode, oidPostalCode)
+@@ -680,13 +680,13 @@ func parseCertificate(in *certificate) (*Certificate, os.Error) {
+ 				}
+ 			case 19:
+ 				// RFC 5280, 4.2.1.9
+-				var constriants basicConstraints
+-				_, err := asn1.Unmarshal(e.Value, &constriants)
++				var constraints basicConstraints
++				_, err := asn1.Unmarshal(e.Value, &constraints)
+ 
+ 				if err == nil {
+ 					out.BasicConstraintsValid = true
+-					out.IsCA = constriants.IsCA
+-					out.MaxPathLen = constriants.MaxPathLen
++					out.IsCA = constraints.IsCA
++					out.MaxPathLen = constraints.MaxPathLen
+ 					continue
+ 				}
+ 			case 17:
+diff --git a/src/pkg/crypto/xtea/block.go b/src/pkg/crypto/xtea/block.go
+index 3ac36d038f..bf5d245992 100644
+--- a/src/pkg/crypto/xtea/block.go
++++ b/src/pkg/crypto/xtea/block.go
+@@ -22,7 +22,7 @@ func blockToUint32(src []byte) (uint32, uint32) {
+ 	return r0, r1
+ }
+ 
+-// uint32ToBlock writes two unint32s into an 8 byte data block.
++// uint32ToBlock writes two uint32s into an 8 byte data block.
+ // Values are written as big endian.
+ func uint32ToBlock(v0, v1 uint32, dst []byte) {
+ 	dst[0] = byte(v0 >> 24)
+diff --git a/src/pkg/crypto/xtea/xtea_test.go b/src/pkg/crypto/xtea/xtea_test.go
+index 03934f1695..217d96adc2 100644
+--- a/src/pkg/crypto/xtea/xtea_test.go
++++ b/src/pkg/crypto/xtea/xtea_test.go
+@@ -8,7 +8,7 @@ import (
+ 	"testing"
+ )
+ 
+-// A sample test key for when we just want to initialise a cipher
++// A sample test key for when we just want to initialize a cipher
+ var testKey = []byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF}
+ 
+ // Test that the block size for XTEA is correct
+@@ -26,12 +26,12 @@ func TestBlocksize(t *testing.T) {
+ 
+ 	result := c.BlockSize()
+ 	if result != 8 {
+-		t.Errorf("BlockSize function - expected 8, gotr %d", result)
++		t.Errorf("BlockSize function - expected 8, got %d", result)
+ 		return
+ 	}
+ }
+ 
+-// A series of test values to confirm that the Cipher.table array was initialised correctly
++// A series of test values to confirm that the Cipher.table array was initialized correctly
+ var testTable = []uint32{
+ 	0x00112233, 0x6B1568B8, 0xE28CE030, 0xC5089E2D, 0xC5089E2D, 0x1EFBD3A2, 0xA7845C2A, 0x78EF0917,
+ 	0x78EF0917, 0x172682D0, 0x5B6AC714, 0x822AC955, 0x3DE68511, 0xDC1DFECA, 0x2062430E, 0x3611343F,
+@@ -43,7 +43,7 @@ var testTable = []uint32{
+ 	0x4E22726F, 0x309E306C, 0x309E306C, 0x8A9165E1, 0x1319EE69, 0xF595AC66, 0xF595AC66, 0x4F88E1DB,
+ }
+ 
+-// Test that the cipher context is initialised correctly
++// Test that the cipher context is initialized correctly
+ func TestCipherInit(t *testing.T) {
+ 	c, err := NewCipher(testKey)
+ 	if err != nil {
+@@ -53,7 +53,7 @@ func TestCipherInit(t *testing.T) {
+ 
+ 	for i := 0; i < len(c.table); i++ {
+ 		if c.table[i] != testTable[i] {
+-			t.Errorf("NewCipher() failed to initialise Cipher.table[%d] correctly. Expected %08X, got %08X", i, testTable[i], c.table[i])
++			t.Errorf("NewCipher() failed to initialize Cipher.table[%d] correctly. Expected %08X, got %08X", i, testTable[i], c.table[i])
+ 			break
+ 		}
+ 	}
+diff --git a/src/pkg/debug/dwarf/type.go b/src/pkg/debug/dwarf/type.go
+index 902a545f86..f9acf119f3 100644
+--- a/src/pkg/debug/dwarf/type.go
++++ b/src/pkg/debug/dwarf/type.go
+@@ -523,7 +523,7 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
+ 		// Attributes:
+ 		//	AttrType: type of return value if any
+ 		//	AttrName: possible name of type [ignored]
+-		//	AttrPrototyped: whether used ANSI C prototye [ignored]
++		//	AttrPrototyped: whether used ANSI C prototype [ignored]
+ 		// Children:
+ 		//	TagFormalParameter: typed parameter
+ 		//		AttrType: type of parameter
+diff --git a/src/pkg/debug/macho/file.go b/src/pkg/debug/macho/file.go
+index a777d873cf..721a4c4168 100644
+--- a/src/pkg/debug/macho/file.go
++++ b/src/pkg/debug/macho/file.go
+@@ -184,7 +184,7 @@ func (f *File) Close() os.Error {
+ 	return err
+ }
+ 
+-// NewFile creates a new File for acecssing a Mach-O binary in an underlying reader.
++// NewFile creates a new File for accessing a Mach-O binary in an underlying reader.
+ // The Mach-O binary is expected to start at position 0 in the ReaderAt.
+ func NewFile(r io.ReaderAt) (*File, os.Error) {
+ 	f := new(File)
+diff --git a/src/pkg/debug/pe/file.go b/src/pkg/debug/pe/file.go
+index 6a14e50f96..04991f781b 100644
+--- a/src/pkg/debug/pe/file.go
++++ b/src/pkg/debug/pe/file.go
+@@ -112,7 +112,7 @@ func (f *File) Close() os.Error {
+ 	return err
+ }
+ 
+-// NewFile creates a new File for acecssing a PE binary in an underlying reader.
++// NewFile creates a new File for accessing a PE binary in an underlying reader.
+ func NewFile(r io.ReaderAt) (*File, os.Error) {
+ 	f := new(File)
+ 	sr := io.NewSectionReader(r, 0, 1<<63-1)
+diff --git a/src/pkg/debug/proc/proc_linux.go b/src/pkg/debug/proc/proc_linux.go
+index 17c8fa529f..153c3e99b7 100644
+--- a/src/pkg/debug/proc/proc_linux.go
++++ b/src/pkg/debug/proc/proc_linux.go
+@@ -277,7 +277,7 @@ func (t *thread) ptraceDetach() os.Error {
+ }
+ 
+ /*
+- * Logging utilties
++ * Logging utilities
+  */
+ 
+ var logLock sync.Mutex
+@@ -1192,7 +1192,7 @@ func (p *process) attachAllThreads() os.Error {
+ 
+ 	// We stop threads as we attach to them; however, because new
+ 	// threads can appear while we're looping over all of them, we
+-	// have to repeatly scan until we know we're attached to all
++	// have to repeatedly scan until we know we're attached to all
+ 	// of them.
+ 	for again := true; again; {
+ 		again = false
+@@ -1214,7 +1214,7 @@ func (p *process) attachAllThreads() os.Error {
+ 			_, err = p.attachThread(tid)
+ 			if err != nil {
+ 				// There could have been a race, or
+-				// this process could be a zobmie.
++				// this process could be a zombie.
+ 				statFile, err2 := ioutil.ReadFile(taskPath + "/" + tidStr + "/stat")
+ 				if err2 != nil {
+ 					switch err2 := err2.(type) {
+diff --git a/src/pkg/encoding/git85/git.go b/src/pkg/encoding/git85/git.go
+index 09a45cd3c7..6bb74f46c8 100644
+--- a/src/pkg/encoding/git85/git.go
++++ b/src/pkg/encoding/git85/git.go
+@@ -273,5 +273,5 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
+ 		d.nbuf = copy(d.buf[0:], d.buf[nl+1:d.nbuf])
+ 		d.off += int64(nl + 1)
+ 	}
+-	panic("unreacahable")
++	panic("unreachable")
+ }
+diff --git a/src/pkg/encoding/pem/pem.go b/src/pkg/encoding/pem/pem.go
+index 44e3d0ad09..c2398807fc 100644
+--- a/src/pkg/encoding/pem/pem.go
++++ b/src/pkg/encoding/pem/pem.go
+@@ -140,7 +140,7 @@ Error:
+ 	// any lines which could be header lines. However, a valid preamble
+ 	// line is not a valid header line, therefore we cannot have consumed
+ 	// the preamble line for the any subsequent block. Thus, we will always
+-	// find any valid block, no matter what bytes preceed it.
++	// find any valid block, no matter what bytes precede it.
+ 	//
+ 	// For example, if the input is
+ 	//
+diff --git a/src/pkg/exp/datafmt/datafmt.go b/src/pkg/exp/datafmt/datafmt.go
+index a8efdc58fe..10e4b54f94 100644
+--- a/src/pkg/exp/datafmt/datafmt.go
++++ b/src/pkg/exp/datafmt/datafmt.go
+@@ -594,7 +594,7 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
+ 		s.eval(t.indent, value, index)
+ 		// if the indentation evaluates to nil, the state's output buffer
+ 		// didn't change - either way it's ok to append the difference to
+-		// the current identation
++		// the current indentation
+ 		s.indent.Write(s.output.Bytes()[mark.outputLen:s.output.Len()])
+ 		s.restore(mark)
+ 
+diff --git a/src/pkg/exp/draw/x11/conn.go b/src/pkg/exp/draw/x11/conn.go
+index 81c67267db..23edc2c631 100644
+--- a/src/pkg/exp/draw/x11/conn.go
++++ b/src/pkg/exp/draw/x11/conn.go
+@@ -310,7 +310,7 @@ func authenticate(w *bufio.Writer, displayStr string) os.Error {
+ 		return os.NewError("unsupported Xauth")
+ 	}
+ 	// 0x006c means little-endian. 0x000b, 0x0000 means X major version 11, minor version 0.
+-	// 0x0012 and 0x0010 means the auth key and value have lenths 18 and 16.
++	// 0x0012 and 0x0010 means the auth key and value have lengths 18 and 16.
+ 	// The final 0x0000 is padding, so that the string length is a multiple of 4.
+ 	_, err = io.WriteString(w, "\x6c\x00\x0b\x00\x00\x00\x12\x00\x10\x00\x00\x00")
+ 	if err != nil {
+@@ -517,7 +517,7 @@ func (c *conn) handshake() os.Error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	// Ignore some things that we don't care about (totalling 10 + vendorLen bytes):
++	// Ignore some things that we don't care about (totaling 10 + vendorLen bytes):
+ 	// imageByteOrder(1), bitmapFormatBitOrder(1), bitmapFormatScanlineUnit(1) bitmapFormatScanlinePad(1),
+ 	// minKeycode(1), maxKeycode(1), padding(4), vendor (vendorLen).
+ 	if 10+int(vendorLen) > cap(c.buf) {
+diff --git a/src/pkg/exp/eval/expr.go b/src/pkg/exp/eval/expr.go
+index e65f47617b..14a0659b60 100644
+--- a/src/pkg/exp/eval/expr.go
++++ b/src/pkg/exp/eval/expr.go
+@@ -1781,7 +1781,7 @@ func (a *exprInfo) compileBinaryExpr(op token.Token, l, r *expr) *expr {
+ 		// written: Function values are equal if they were
+ 		// created by the same execution of a function literal
+ 		// or refer to the same function declaration.  This is
+-		// *almost* but not quite waht 6g implements.  If a
++		// *almost* but not quite what 6g implements.  If a
+ 		// function literals does not capture any variables,
+ 		// then multiple executions of it will result in the
+ 		// same closure.  Russ says he'll change that.
+diff --git a/src/pkg/exp/eval/stmt.go b/src/pkg/exp/eval/stmt.go
+index f6b7c1cda9..57bf20e6fc 100644
+--- a/src/pkg/exp/eval/stmt.go
++++ b/src/pkg/exp/eval/stmt.go
+@@ -68,7 +68,7 @@ type flowBuf struct {
+ 	gotos map[token.Pos]*flowBlock
+ 	// labels is a map from label name to information on the block
+ 	// at the point of the label.  labels are tracked by name,
+-	// since mutliple labels at the same PC can have different
++	// since multiple labels at the same PC can have different
+ 	// blocks.
+ 	labels map[string]*flowBlock
+ }
+@@ -307,7 +307,7 @@ func (a *stmtCompiler) compile(s ast.Stmt) {
+ 	}
+ 
+ 	if notimpl {
+-		a.diag("%T statment node not implemented", s)
++		a.diag("%T statement node not implemented", s)
+ 	}
+ 
+ 	if a.block.inner != nil {
+@@ -550,7 +550,7 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
+ 			ident, ok = le.(*ast.Ident)
+ 			if !ok {
+ 				a.diagAt(le.Pos(), "left side of := must be a name")
+-				// Suppress new defitions errors
++				// Suppress new definitions errors
+ 				nDefs++
+ 				continue
+ 			}
+diff --git a/src/pkg/exp/eval/typec.go b/src/pkg/exp/eval/typec.go
+index de90cf6649..0ed24a8d27 100644
+--- a/src/pkg/exp/eval/typec.go
++++ b/src/pkg/exp/eval/typec.go
+@@ -68,7 +68,7 @@ func (a *typeCompiler) compileArrayType(x *ast.ArrayType, allowRec bool) Type {
+ 	}
+ 
+ 	if _, ok := x.Len.(*ast.Ellipsis); ok {
+-		a.diagAt(x.Len.Pos(), "... array initailizers not implemented")
++		a.diagAt(x.Len.Pos(), "... array initializers not implemented")
+ 		return nil
+ 	}
+ 	l, ok := a.compileArrayLen(a.block, x.Len)
+diff --git a/src/pkg/exp/wingui/winapi.go b/src/pkg/exp/wingui/winapi.go
+index c96f452999..fb0d610097 100644
+--- a/src/pkg/exp/wingui/winapi.go
++++ b/src/pkg/exp/wingui/winapi.go
+@@ -96,7 +96,7 @@ const (
+ 	// Some button control styles
+ 	BS_DEFPUSHBUTTON = 1
+ 
+-	// Some colour constants
++	// Some color constants
+ 	COLOR_WINDOW  = 5
+ 	COLOR_BTNFACE = 15
+ 
+@@ -108,13 +108,13 @@ const (
+ )
+ 
+ var (
+-	// Some globaly known cusrors
++	// Some globally known cursors
+ 	IDC_ARROW = MakeIntResource(32512)
+ 	IDC_IBEAM = MakeIntResource(32513)
+ 	IDC_WAIT  = MakeIntResource(32514)
+ 	IDC_CROSS = MakeIntResource(32515)
+ 
+-	// Some globaly known icons
++	// Some globally known icons
+ 	IDI_APPLICATION = MakeIntResource(32512)
+ 	IDI_HAND        = MakeIntResource(32513)
+ 	IDI_QUESTION    = MakeIntResource(32514)
+diff --git a/src/pkg/expvar/expvar_test.go b/src/pkg/expvar/expvar_test.go
+index 94926d9f8c..8f7a48168e 100644
+--- a/src/pkg/expvar/expvar_test.go
++++ b/src/pkg/expvar/expvar_test.go
+@@ -76,33 +76,33 @@ func TestString(t *testing.T) {
+ }
+ 
+ func TestMapCounter(t *testing.T) {
+-	colours := NewMap("bike-shed-colours")
++	colors := NewMap("bike-shed-colors")
+ 
+-	colours.Add("red", 1)
+-	colours.Add("red", 2)
+-	colours.Add("blue", 4)
+-	colours.AddFloat("green", 4.125)
+-	if x := colours.m["red"].(*Int).i; x != 3 {
+-		t.Errorf("colours.m[\"red\"] = %v, want 3", x)
++	colors.Add("red", 1)
++	colors.Add("red", 2)
++	colors.Add("blue", 4)
++	colors.AddFloat("green", 4.125)
++	if x := colors.m["red"].(*Int).i; x != 3 {
++		t.Errorf("colors.m[\"red\"] = %v, want 3", x)
+ 	}
+-	if x := colours.m["blue"].(*Int).i; x != 4 {
+-		t.Errorf("colours.m[\"blue\"] = %v, want 4", x)
++	if x := colors.m["blue"].(*Int).i; x != 4 {
++		t.Errorf("colors.m[\"blue\"] = %v, want 4", x)
+ 	}
+-	if x := colours.m["green"].(*Float).f; x != 4.125 {
+-		t.Errorf("colours.m[\"green\"] = %v, want 3.14", x)
++	if x := colors.m["green"].(*Float).f; x != 4.125 {
++		t.Errorf("colors.m[\"green\"] = %v, want 3.14", x)
+ 	}
+ 
+-	// colours.String() should be '{"red":3, "blue":4}',
++	// colors.String() should be '{"red":3, "blue":4}',
+ 	// though the order of red and blue could vary.
+-	s := colours.String()
++	s := colors.String()
+ 	var j interface{}
+ 	err := json.Unmarshal([]byte(s), &j)
+ 	if err != nil {
+-		t.Errorf("colours.String() isn't valid JSON: %v", err)
++		t.Errorf("colors.String() isn't valid JSON: %v", err)
+ 	}
+ 	m, ok := j.(map[string]interface{})
+ 	if !ok {
+-		t.Error("colours.String() didn't produce a map.")
++		t.Error("colors.String() didn't produce a map.")
+ 	}
+ 	red := m["red"]
+ 	x, ok := red.(float64)
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index 31602ec850..b1c7d4ab1c 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -515,10 +515,10 @@ type (
+ 
+ 	// An EmptyStmt node represents an empty statement.
+ 	// The "position" of the empty statement is the position
+-	// of the immediately preceeding semicolon.
++	// of the immediately preceding semicolon.
+ 	//
+ 	EmptyStmt struct {
+-		Semicolon token.Pos // position of preceeding ";"
++		Semicolon token.Pos // position of preceding ";"
+ 	}
+ 
+ 	// A LabeledStmt node represents a labeled statement.
+@@ -596,7 +596,7 @@ type (
+ 	// An IfStmt node represents an if statement.
+ 	IfStmt struct {
+ 		If   token.Pos // position of "if" keyword
+-		Init Stmt      // initalization statement; or nil
++		Init Stmt      // initialization statement; or nil
+ 		Cond Expr      // condition
+ 		Body *BlockStmt
+ 		Else Stmt // else branch; or nil
+@@ -613,7 +613,7 @@ type (
+ 	// A SwitchStmt node represents an expression switch statement.
+ 	SwitchStmt struct {
+ 		Switch token.Pos  // position of "switch" keyword
+-		Init   Stmt       // initalization statement; or nil
++		Init   Stmt       // initialization statement; or nil
+ 		Tag    Expr       // tag expression; or nil
+ 		Body   *BlockStmt // CaseClauses only
+ 	}
+@@ -621,7 +621,7 @@ type (
+ 	// An TypeSwitchStmt node represents a type switch statement.
+ 	TypeSwitchStmt struct {
+ 		Switch token.Pos  // position of "switch" keyword
+-		Init   Stmt       // initalization statement; or nil
++		Init   Stmt       // initialization statement; or nil
+ 		Assign Stmt       // x := y.(type) or y.(type)
+ 		Body   *BlockStmt // CaseClauses only
+ 	}
+@@ -643,7 +643,7 @@ type (
+ 	// A ForStmt represents a for statement.
+ 	ForStmt struct {
+ 		For  token.Pos // position of "for" keyword
+-		Init Stmt      // initalization statement; or nil
++		Init Stmt      // initialization statement; or nil
+ 		Cond Expr      // condition; or nil
+ 		Post Stmt      // post iteration statement; or nil
+ 		Body *BlockStmt
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index da1e0390b6..586ee3a9a4 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -54,7 +54,7 @@ type parser struct {
+ 	// Non-syntactic parser control
+ 	exprLev int // < 0: in control clause, >= 0: in expression
+ 
+-	// Ordinary identifer scopes
++	// Ordinary identifier scopes
+ 	pkgScope   *ast.Scope        // pkgScope.Outer == nil
+ 	topScope   *ast.Scope        // top-most scope; may be pkgScope
+ 	unresolved []*ast.Ident      // unresolved identifiers
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 3b504bd2c5..6657cbb92e 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -33,7 +33,7 @@ import (
+ // line break was printed; returns false otherwise.
+ //
+ // TODO(gri): linebreak may add too many lines if the next statement at "line"
+-//            is preceeded by comments because the computation of n assumes
++//            is preceded by comments because the computation of n assumes
+ //            the current position before the comment and the target position
+ //            after the comment. Thus, after interspersing such comments, the
+ //            space taken up by them is not considered to reduce the number of
+@@ -438,7 +438,7 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool)
+ 			if len(list) > 0 {
+ 				p.print(formfeed)
+ 			}
+-			p.flush(p.fset.Position(rbrace), token.RBRACE) // make sure we don't loose the last line comment
++			p.flush(p.fset.Position(rbrace), token.RBRACE) // make sure we don't lose the last line comment
+ 			p.setLineComment("// contains filtered or unexported fields")
+ 		}
+ 
+@@ -465,7 +465,7 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool)
+ 			if len(list) > 0 {
+ 				p.print(formfeed)
+ 			}
+-			p.flush(p.fset.Position(rbrace), token.RBRACE) // make sure we don't loose the last line comment
++			p.flush(p.fset.Position(rbrace), token.RBRACE) // make sure we don't lose the last line comment
+ 			p.setLineComment("// contains filtered or unexported methods")
+ 		}
+ 
+@@ -1390,7 +1390,7 @@ func (p *printer) nodeSize(n ast.Node, maxSize int) (size int) {
+ 	size = maxSize + 1 // assume n doesn't fit
+ 	p.nodeSizes[n] = size
+ 
+-	// nodeSize computation must be indendent of particular
++	// nodeSize computation must be independent of particular
+ 	// style so that we always get the same decision; print
+ 	// in RawFormat
+ 	cfg := Config{Mode: RawFormat}
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 01ebf783c4..40b15dd79b 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -589,7 +589,7 @@ func (p *printer) writeCommentSuffix(needsLinebreak bool) (droppedFF bool) {
+ 			// ignore trailing whitespace
+ 			p.wsbuf[i] = ignore
+ 		case indent, unindent:
+-			// don't loose indentation information
++			// don't lose indentation information
+ 		case newline, formfeed:
+ 			// if we need a line break, keep exactly one
+ 			// but remember if we dropped any formfeeds
+diff --git a/src/pkg/go/printer/testdata/comments.golden b/src/pkg/go/printer/testdata/comments.golden
+index 334098759c..b177c35719 100644
+--- a/src/pkg/go/printer/testdata/comments.golden
++++ b/src/pkg/go/printer/testdata/comments.golden
+@@ -436,7 +436,7 @@ func _() {
+ 
+ 
+ // Comments immediately adjacent to punctuation (for which the go/printer
+-// may obly have estimated position information) must remain after the punctuation.
++// may only have estimated position information) must remain after the punctuation.
+ func _() {
+ 	_ = T{
+ 		1,	// comment after comma
+diff --git a/src/pkg/go/printer/testdata/comments.input b/src/pkg/go/printer/testdata/comments.input
+index 14cd4cf7a1..2a9a86b681 100644
+--- a/src/pkg/go/printer/testdata/comments.input
++++ b/src/pkg/go/printer/testdata/comments.input
+@@ -434,7 +434,7 @@ func _() {
+ 
+ 
+ // Comments immediately adjacent to punctuation (for which the go/printer
+-// may obly have estimated position information) must remain after the punctuation.
++// may only have estimated position information) must remain after the punctuation.
+ func _() {
+ 	_ = T{
+ 		1,    // comment after comma
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index 8afb00ee5b..2d56bfb252 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -89,7 +89,7 @@ var tokens = [...]elt{
+ 		literal,
+ 	},
+ 
+-	// Operators and delimitors
++	// Operators and delimiters
+ 	{token.ADD, "+", operator},
+ 	{token.SUB, "-", operator},
+ 	{token.MUL, "*", operator},
+diff --git a/src/pkg/go/token/position.go b/src/pkg/go/token/position.go
+index 8c35eeb52f..23a3cc00fb 100644
+--- a/src/pkg/go/token/position.go
++++ b/src/pkg/go/token/position.go
+@@ -135,7 +135,7 @@ func (f *File) position(p Pos) (pos Position) {
+ func (s *FileSet) Position(p Pos) (pos Position) {
+ 	if p != NoPos {
+ 		// TODO(gri) consider optimizing the case where p
+-		//           is in the last file addded, or perhaps
++		//           is in the last file added, or perhaps
+ 		//           looked at - will eliminate one level
+ 		//           of search
+ 		s.mutex.RLock()
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index 0e86df6b57..381d44c05a 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -172,7 +172,7 @@ func ignoreTwoUints(i *decInstr, state *decoderState, p unsafe.Pointer) {
+ 	state.decodeUint()
+ }
+ 
+-// decBool decodes a uiint and stores it as a boolean through p.
++// decBool decodes a uint and stores it as a boolean through p.
+ func decBool(i *decInstr, state *decoderState, p unsafe.Pointer) {
+ 	if i.indir > 0 {
+ 		if *(*unsafe.Pointer)(p) == nil {
+diff --git a/src/pkg/gob/gobencdec_test.go b/src/pkg/gob/gobencdec_test.go
+index e94534f4c3..3e1906020f 100644
+--- a/src/pkg/gob/gobencdec_test.go
++++ b/src/pkg/gob/gobencdec_test.go
+@@ -384,7 +384,7 @@ func TestGobEncoderFieldTypeError(t *testing.T) {
+ 	y := &GobTest1{}
+ 	err = dec.Decode(y)
+ 	if err == nil {
+-		t.Fatal("expected decode error for mistmatched fields (non-encoder to decoder)")
++		t.Fatal("expected decode error for mismatched fields (non-encoder to decoder)")
+ 	}
+ 	if strings.Index(err.String(), "type") < 0 {
+ 		t.Fatal("expected type error; got", err)
+diff --git a/src/pkg/gob/type.go b/src/pkg/gob/type.go
+index c5b8fb5d9d..c6542633a6 100644
+--- a/src/pkg/gob/type.go
++++ b/src/pkg/gob/type.go
+@@ -673,7 +673,7 @@ func mustGetTypeInfo(rt reflect.Type) *typeInfo {
+ // A type that implements GobEncoder and GobDecoder has complete
+ // control over the representation of its data and may therefore
+ // contain things such as private fields, channels, and functions,
+-// which are not usually transmissable in gob streams.
++// which are not usually transmissible in gob streams.
+ //
+ // Note: Since gobs can be stored permanently, It is good design
+ // to guarantee the encoding used by a GobEncoder is stable as the
+diff --git a/src/pkg/html/token_test.go b/src/pkg/html/token_test.go
+index e474c92812..6291af6005 100644
+--- a/src/pkg/html/token_test.go
++++ b/src/pkg/html/token_test.go
+@@ -100,7 +100,7 @@ var tokenTests = []tokenTest{
+ 		"<p \t\n iD=\"a&quot;B\"  foo=\"bar\"><EM>te&lt;&amp;;xt</em></p>",
+ 		`<p id="a&quot;B" foo="bar">$<em>$te&lt;&amp;;xt$</em>$</p>`,
+ 	},
+-	// A non-existant entity. Tokenizing and converting back to a string should
++	// A nonexistent entity. Tokenizing and converting back to a string should
+ 	// escape the "&" to become "&amp;".
+ 	{
+ 		"noSuchEntity",
+diff --git a/src/pkg/http/chunked.go b/src/pkg/http/chunked.go
+index 66195f06b9..bfd68a4408 100644
+--- a/src/pkg/http/chunked.go
++++ b/src/pkg/http/chunked.go
+@@ -18,7 +18,7 @@ func NewChunkedWriter(w io.Writer) io.WriteCloser {
+ }
+ 
+ // Writing to ChunkedWriter translates to writing in HTTP chunked Transfer
+-// Encoding wire format to the undering Wire writer.
++// Encoding wire format to the underlying Wire writer.
+ type chunkedWriter struct {
+ 	Wire io.Writer
+ }
+diff --git a/src/pkg/http/persist.go b/src/pkg/http/persist.go
+index 4eb4ab0cdf..62f9ff1b54 100644
+--- a/src/pkg/http/persist.go
++++ b/src/pkg/http/persist.go
+@@ -111,7 +111,7 @@ func (sc *ServerConn) Read() (req *Request, err os.Error) {
+ 	// Make sure body is fully consumed, even if user does not call body.Close
+ 	if lastbody != nil {
+ 		// body.Close is assumed to be idempotent and multiple calls to
+-		// it should return the error that its first invokation
++		// it should return the error that its first invocation
+ 		// returned.
+ 		err = lastbody.Close()
+ 		if err != nil {
+diff --git a/src/pkg/http/serve_test.go b/src/pkg/http/serve_test.go
+index 8c91983b2a..60d41edf3d 100644
+--- a/src/pkg/http/serve_test.go
++++ b/src/pkg/http/serve_test.go
+@@ -551,7 +551,7 @@ var serverExpectTests = []serverExpectTest{
+ 	{100, "", true, "200 OK"},
+ 
+ 	// 100-continue but requesting client to deny us,
+-	// so it never eads the body.
++	// so it never reads the body.
+ 	{100, "100-continue", false, "401 Unauthorized"},
+ 	// Likewise without 100-continue:
+ 	{100, "", false, "401 Unauthorized"},

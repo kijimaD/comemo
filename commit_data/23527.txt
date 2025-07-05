@@ -18,7 +18,7 @@ Date:   Thu May 21 13:28:10 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/10287
     Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/6l/z.go                                    |  1 -
  src/cmd/{6g => compile/internal/amd64}/cgen.go     |  4 +--
  src/cmd/{6g => compile/internal/amd64}/galign.go   |  6 ++--
@@ -176,3 +176,1679 @@ Date:   Thu May 21 13:28:10 2015 -0400
  src/cmd/{8l => link/internal/x86}/obj.go           |  6 ++--
  src/cmd/link/main.go                               | 34 ++++++++++++++++++++++
  156 files changed, 186 insertions(+), 118 deletions(-)
+
+diff --git a/src/cmd/6l/z.go b/src/cmd/6l/z.go
+deleted file mode 100644
+index 06ab7d0f9a..0000000000
+--- a/src/cmd/6l/z.go
++++ /dev/null
+@@ -1 +0,0 @@
+-package main
+diff --git a/src/cmd/6g/cgen.go b/src/cmd/compile/internal/amd64/cgen.go
+similarity index 98%
+rename from src/cmd/6g/cgen.go
+rename to src/cmd/compile/internal/amd64/cgen.go
+index 23e2d1b57f..71f8f88322 100644
+--- a/src/cmd/6g/cgen.go
++++ b/src/cmd/compile/internal/amd64/cgen.go
+@@ -2,10 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
++package amd64
+ 
+ import (
+-	"cmd/internal/gc"
++	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/x86"
+ )
+diff --git a/src/cmd/6g/galign.go b/src/cmd/compile/internal/amd64/galign.go
+similarity index 98%
+rename from src/cmd/6g/galign.go
+rename to src/cmd/compile/internal/amd64/galign.go
+index 17d78f399d..79bf94a075 100644
+--- a/src/cmd/6g/galign.go
++++ b/src/cmd/compile/internal/amd64/galign.go
+@@ -2,10 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
++package amd64
+ 
+ import (
+-	"cmd/internal/gc"
++	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/x86"
+ )
+@@ -65,7 +65,7 @@ func betypeinit() {
+ 	}
+ }
+ 
+-func main() {
++func Main() {
+ 	if obj.Getgoos() == "nacl" {
+ 		resvd = append(resvd, x86.REG_BP, x86.REG_R15)
+ 	} else if obj.Framepointer_enabled != 0 {
+diff --git a/src/cmd/6g/ggen.go b/src/cmd/compile/internal/amd64/ggen.go
+similarity index 99%
+rename from src/cmd/6g/ggen.go
+rename to src/cmd/compile/internal/amd64/ggen.go
+index e0e1b8a4df..6425633818 100644
+--- a/src/cmd/6g/ggen.go
++++ b/src/cmd/compile/internal/amd64/ggen.go
+@@ -2,10 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
++package amd64
+ 
+ import (
+-	"cmd/internal/gc"
++	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/x86"
+ )
+diff --git a/src/cmd/6g/gsubr.go b/src/cmd/compile/internal/amd64/gsubr.go
+similarity index 99%
+rename from src/cmd/6g/gsubr.go
+rename to src/cmd/compile/internal/amd64/gsubr.go
+index 9b9141468e..a8e4170bee 100644
+--- a/src/cmd/6g/gsubr.go
++++ b/src/cmd/compile/internal/amd64/gsubr.go
+@@ -28,11 +28,11 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-package main
++package amd64
+ 
+ import (
+-	"cmd/internal/gc"
+-	"cmd/internal/gc/big"
++	"cmd/compile/internal/big"
++	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/x86"
+ 	"fmt"
+diff --git a/src/cmd/6g/peep.go b/src/cmd/compile/internal/amd64/peep.go
+similarity index 99%
+rename from src/cmd/6g/peep.go
+rename to src/cmd/compile/internal/amd64/peep.go
+index cd07199ed1..19db68e944 100644
+--- a/src/cmd/6g/peep.go
++++ b/src/cmd/compile/internal/amd64/peep.go
+@@ -28,10 +28,10 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-package main
++package amd64
+ 
+ import (
+-	"cmd/internal/gc"
++	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/x86"
+ 	"fmt"
+diff --git a/src/cmd/6g/prog.go b/src/cmd/compile/internal/amd64/prog.go
+similarity index 99%
+rename from src/cmd/6g/prog.go
+rename to src/cmd/compile/internal/amd64/prog.go
+index 5f604742c3..00918c8691 100644
+--- a/src/cmd/6g/prog.go
++++ b/src/cmd/compile/internal/amd64/prog.go
+@@ -2,10 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
++package amd64
+ 
+ import (
+-	"cmd/internal/gc"
++	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/x86"
+ )
+diff --git a/src/cmd/6g/reg.go b/src/cmd/compile/internal/amd64/reg.go
+similarity index 98%
+rename from src/cmd/6g/reg.go
+rename to src/cmd/compile/internal/amd64/reg.go
+index cab07b5b4e..7d4f40641d 100644
+--- a/src/cmd/6g/reg.go
++++ b/src/cmd/compile/internal/amd64/reg.go
+@@ -28,10 +28,10 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-package main
++package amd64
+ 
+ import (
+-	"cmd/internal/gc"
++	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/x86"
+ )
+diff --git a/src/cmd/5g/cgen.go b/src/cmd/compile/internal/arm/cgen.go
+similarity index 99%
+rename from src/cmd/5g/cgen.go
+rename to src/cmd/compile/internal/arm/cgen.go
+index c0d7651584..8ea6c5f3f2 100644
+--- a/src/cmd/5g/cgen.go
++++ b/src/cmd/compile/internal/arm/cgen.go
+@@ -2,10 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
++package arm
+ 
+ import (
+-	"cmd/internal/gc"
++	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm"
+ )
+diff --git a/src/cmd/5g/cgen64.go b/src/cmd/compile/internal/arm/cgen64.go
+similarity index 99%
+rename from src/cmd/5g/cgen64.go
+rename to src/cmd/compile/internal/arm/cgen64.go
+index c55e000adc..6c88b76e20 100644
+--- a/src/cmd/5g/cgen64.go
++++ b/src/cmd/compile/internal/arm/cgen64.go
+@@ -2,10 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
++package arm
+ 
+ import (
+-	"cmd/internal/gc"
++	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm"
+ )
+diff --git a/src/cmd/5g/galign.go b/src/cmd/compile/internal/arm/galign.go
+similarity index 97%
+rename from src/cmd/5g/galign.go
+rename to src/cmd/compile/internal/arm/galign.go
+index 55782e1dae..60a39d3fe4 100644
+--- a/src/cmd/5g/galign.go
++++ b/src/cmd/compile/internal/arm/galign.go
+@@ -2,10 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
++package arm
+ 
+ import (
+-	"cmd/internal/gc"
++	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm"
+ )
+@@ -37,7 +37,7 @@ func betypeinit() {
+ 	gc.Widthreg = 4
+ }
+ 
+-func main() {
++func Main() {
+ 	gc.Thearch.Thechar = thechar
+ 	gc.Thearch.Thestring = thestring
+ 	gc.Thearch.Thelinkarch = thelinkarch
+diff --git a/src/cmd/5g/ggen.go b/src/cmd/compile/internal/arm/ggen.go
+similarity index 99%
+rename from src/cmd/5g/ggen.go
+rename to src/cmd/compile/internal/arm/ggen.go
+index 2ab5d521bb..6633351032 100644
+--- a/src/cmd/5g/ggen.go
++++ b/src/cmd/compile/internal/arm/ggen.go
+@@ -2,10 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
++package arm
+ 
+ import (
+-	"cmd/internal/gc"
++	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm"
+ )
+diff --git a/src/cmd/5g/gsubr.go b/src/cmd/compile/internal/arm/gsubr.go
+similarity index 99%
+rename from src/cmd/5g/gsubr.go
+rename to src/cmd/compile/internal/arm/gsubr.go
+index 2a23580b58..5263f15ac2 100644
+--- a/src/cmd/5g/gsubr.go
++++ b/src/cmd/compile/internal/arm/gsubr.go
+@@ -28,10 +28,10 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-package main
++package arm
+ 
+ import (
+-	"cmd/internal/gc"
++	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm"
+ 	"fmt"
+diff --git a/src/cmd/5g/peep.go b/src/cmd/compile/internal/arm/peep.go
+similarity index 99%
+rename from src/cmd/5g/peep.go
+rename to src/cmd/compile/internal/arm/peep.go
+index b76719d74e..66eba417c0 100644
+--- a/src/cmd/5g/peep.go
++++ b/src/cmd/compile/internal/arm/peep.go
+@@ -28,10 +28,10 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-package main
++package arm
+ 
+ import (
+-	"cmd/internal/gc"
++	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm"
+ 	"fmt"
+diff --git a/src/cmd/5g/prog.go b/src/cmd/compile/internal/arm/prog.go
+similarity index 99%
+rename from src/cmd/5g/prog.go
+rename to src/cmd/compile/internal/arm/prog.go
+index c472cdf042..cdf9d29192 100644
+--- a/src/cmd/5g/prog.go
++++ b/src/cmd/compile/internal/arm/prog.go
+@@ -2,10 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
++package arm
+ 
+ import (
+-	"cmd/internal/gc"
++	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm"
+ )
+diff --git a/src/cmd/5g/reg.go b/src/cmd/compile/internal/arm/reg.go
+similarity index 98%
+rename from src/cmd/5g/reg.go
+rename to src/cmd/compile/internal/arm/reg.go
+index 2afdf12416..b72ccc9815 100644
+--- a/src/cmd/5g/reg.go
++++ b/src/cmd/compile/internal/arm/reg.go
+@@ -28,10 +28,10 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-package main
++package arm
+ 
+ import "cmd/internal/obj/arm"
+-import "cmd/internal/gc"
++import "cmd/compile/internal/gc"
+ 
+ const (
+ 	NREGVAR = 32
+diff --git a/src/cmd/7g/cgen.go b/src/cmd/compile/internal/arm64/cgen.go
+similarity index 98%
+rename from src/cmd/7g/cgen.go
+rename to src/cmd/compile/internal/arm64/cgen.go
+index 6f268b4185..30326d73e2 100644
+--- a/src/cmd/7g/cgen.go
++++ b/src/cmd/compile/internal/arm64/cgen.go
+@@ -2,10 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
++package arm64
+ 
+ import (
+-	"cmd/internal/gc"
++	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm64"
+ )
+diff --git a/src/cmd/7g/galign.go b/src/cmd/compile/internal/arm64/galign.go
+similarity index 97%
+rename from src/cmd/7g/galign.go
+rename to src/cmd/compile/internal/arm64/galign.go
+index 8a6184efd0..38def8f5a4 100644
+--- a/src/cmd/7g/galign.go
++++ b/src/cmd/compile/internal/arm64/galign.go
+@@ -2,10 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
++package arm64
+ 
+ import (
+-	"cmd/internal/gc"
++	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm64"
+ )
+@@ -37,7 +37,7 @@ func betypeinit() {
+ 	gc.Widthreg = 8
+ }
+ 
+-func main() {
++func Main() {
+ 	gc.Thearch.Thechar = thechar
+ 	gc.Thearch.Thestring = thestring
+ 	gc.Thearch.Thelinkarch = thelinkarch
+diff --git a/src/cmd/7g/ggen.go b/src/cmd/compile/internal/arm64/ggen.go
+similarity index 99%
+rename from src/cmd/7g/ggen.go
+rename to src/cmd/compile/internal/arm64/ggen.go
+index ec2eb09e38..851ca4e30f 100644
+--- a/src/cmd/7g/ggen.go
++++ b/src/cmd/compile/internal/arm64/ggen.go
+@@ -2,10 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
++package arm64
+ 
+ import (
+-	"cmd/internal/gc"
++	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm64"
+ 	"fmt"
+diff --git a/src/cmd/7g/gsubr.go b/src/cmd/compile/internal/arm64/gsubr.go
+similarity index 99%
+rename from src/cmd/7g/gsubr.go
+rename to src/cmd/compile/internal/arm64/gsubr.go
+index 0f617079ad..0a14654d83 100644
+--- a/src/cmd/7g/gsubr.go
++++ b/src/cmd/compile/internal/arm64/gsubr.go
+@@ -28,10 +28,10 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-package main
++package arm64
+ 
+ import (
+-	"cmd/internal/gc"
++	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm64"
+ 	"fmt"
+diff --git a/src/cmd/7g/peep.go b/src/cmd/compile/internal/arm64/peep.go
+similarity index 99%
+rename from src/cmd/7g/peep.go
+rename to src/cmd/compile/internal/arm64/peep.go
+index 49bc69b132..1c3b2891aa 100644
+--- a/src/cmd/7g/peep.go
++++ b/src/cmd/compile/internal/arm64/peep.go
+@@ -28,10 +28,10 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-package main
++package arm64
+ 
+ import (
+-	"cmd/internal/gc"
++	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm64"
+ 	"fmt"
+diff --git a/src/cmd/7g/prog.go b/src/cmd/compile/internal/arm64/prog.go
+similarity index 99%
+rename from src/cmd/7g/prog.go
+rename to src/cmd/compile/internal/arm64/prog.go
+index 023f302e14..1106e788a5 100644
+--- a/src/cmd/7g/prog.go
++++ b/src/cmd/compile/internal/arm64/prog.go
+@@ -2,10 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
++package arm64
+ 
+ import (
+-	"cmd/internal/gc"
++	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm64"
+ )
+diff --git a/src/cmd/7g/reg.go b/src/cmd/compile/internal/arm64/reg.go
+similarity index 98%
+rename from src/cmd/7g/reg.go
+rename to src/cmd/compile/internal/arm64/reg.go
+index 0e5ac73499..7bc756b7bf 100644
+--- a/src/cmd/7g/reg.go
++++ b/src/cmd/compile/internal/arm64/reg.go
+@@ -28,10 +28,10 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-package main
++package arm64
+ 
+ import (
+-	"cmd/internal/gc"
++	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj/arm64"
+ )
+ 
+diff --git a/src/cmd/internal/gc/big/accuracy_string.go b/src/cmd/compile/internal/big/accuracy_string.go
+similarity index 100%
+rename from src/cmd/internal/gc/big/accuracy_string.go
+rename to src/cmd/compile/internal/big/accuracy_string.go
+diff --git a/src/cmd/internal/gc/big/arith.go b/src/cmd/compile/internal/big/arith.go
+similarity index 100%
+rename from src/cmd/internal/gc/big/arith.go
+rename to src/cmd/compile/internal/big/arith.go
+diff --git a/src/cmd/internal/gc/big/arith_decl.go b/src/cmd/compile/internal/big/arith_decl.go
+similarity index 100%
+rename from src/cmd/internal/gc/big/arith_decl.go
+rename to src/cmd/compile/internal/big/arith_decl.go
+diff --git a/src/cmd/internal/gc/big/arith_test.go b/src/cmd/compile/internal/big/arith_test.go
+similarity index 100%
+rename from src/cmd/internal/gc/big/arith_test.go
+rename to src/cmd/compile/internal/big/arith_test.go
+diff --git a/src/cmd/internal/gc/big/bits_test.go b/src/cmd/compile/internal/big/bits_test.go
+similarity index 100%
+rename from src/cmd/internal/gc/big/bits_test.go
+rename to src/cmd/compile/internal/big/bits_test.go
+diff --git a/src/cmd/internal/gc/big/calibrate_test.go b/src/cmd/compile/internal/big/calibrate_test.go
+similarity index 100%
+rename from src/cmd/internal/gc/big/calibrate_test.go
+rename to src/cmd/compile/internal/big/calibrate_test.go
+diff --git a/src/cmd/internal/gc/big/decimal.go b/src/cmd/compile/internal/big/decimal.go
+similarity index 100%
+rename from src/cmd/internal/gc/big/decimal.go
+rename to src/cmd/compile/internal/big/decimal.go
+diff --git a/src/cmd/internal/gc/big/decimal_test.go b/src/cmd/compile/internal/big/decimal_test.go
+similarity index 100%
+rename from src/cmd/internal/gc/big/decimal_test.go
+rename to src/cmd/compile/internal/big/decimal_test.go
+diff --git a/src/cmd/internal/gc/big/example_test.go b/src/cmd/compile/internal/big/example_test.go
+similarity index 100%
+rename from src/cmd/internal/gc/big/example_test.go
+rename to src/cmd/compile/internal/big/example_test.go
+diff --git a/src/cmd/internal/gc/big/float.go b/src/cmd/compile/internal/big/float.go
+similarity index 100%
+rename from src/cmd/internal/gc/big/float.go
+rename to src/cmd/compile/internal/big/float.go
+diff --git a/src/cmd/internal/gc/big/float_test.go b/src/cmd/compile/internal/big/float_test.go
+similarity index 100%
+rename from src/cmd/internal/gc/big/float_test.go
+rename to src/cmd/compile/internal/big/float_test.go
+diff --git a/src/cmd/internal/gc/big/floatconv.go b/src/cmd/compile/internal/big/floatconv.go
+similarity index 100%
+rename from src/cmd/internal/gc/big/floatconv.go
+rename to src/cmd/compile/internal/big/floatconv.go
+diff --git a/src/cmd/internal/gc/big/floatconv_test.go b/src/cmd/compile/internal/big/floatconv_test.go
+similarity index 100%
+rename from src/cmd/internal/gc/big/floatconv_test.go
+rename to src/cmd/compile/internal/big/floatconv_test.go
+diff --git a/src/cmd/internal/gc/big/floatexample_test.go b/src/cmd/compile/internal/big/floatexample_test.go
+similarity index 100%
+rename from src/cmd/internal/gc/big/floatexample_test.go
+rename to src/cmd/compile/internal/big/floatexample_test.go
+diff --git a/src/cmd/internal/gc/big/ftoa.go b/src/cmd/compile/internal/big/ftoa.go
+similarity index 100%
+rename from src/cmd/internal/gc/big/ftoa.go
+rename to src/cmd/compile/internal/big/ftoa.go
+diff --git a/src/cmd/internal/gc/big/gcd_test.go b/src/cmd/compile/internal/big/gcd_test.go
+similarity index 100%
+rename from src/cmd/internal/gc/big/gcd_test.go
+rename to src/cmd/compile/internal/big/gcd_test.go
+diff --git a/src/cmd/internal/gc/big/hilbert_test.go b/src/cmd/compile/internal/big/hilbert_test.go
+similarity index 100%
+rename from src/cmd/internal/gc/big/hilbert_test.go
+rename to src/cmd/compile/internal/big/hilbert_test.go
+diff --git a/src/cmd/internal/gc/big/int.go b/src/cmd/compile/internal/big/int.go
+similarity index 100%
+rename from src/cmd/internal/gc/big/int.go
+rename to src/cmd/compile/internal/big/int.go
+diff --git a/src/cmd/internal/gc/big/int_test.go b/src/cmd/compile/internal/big/int_test.go
+similarity index 100%
+rename from src/cmd/internal/gc/big/int_test.go
+rename to src/cmd/compile/internal/big/int_test.go
+diff --git a/src/cmd/internal/gc/big/intconv.go b/src/cmd/compile/internal/big/intconv.go
+similarity index 100%
+rename from src/cmd/internal/gc/big/intconv.go
+rename to src/cmd/compile/internal/big/intconv.go
+diff --git a/src/cmd/internal/gc/big/intconv_test.go b/src/cmd/compile/internal/big/intconv_test.go
+similarity index 100%
+rename from src/cmd/internal/gc/big/intconv_test.go
+rename to src/cmd/compile/internal/big/intconv_test.go
+diff --git a/src/cmd/internal/gc/big/nat.go b/src/cmd/compile/internal/big/nat.go
+similarity index 100%
+rename from src/cmd/internal/gc/big/nat.go
+rename to src/cmd/compile/internal/big/nat.go
+diff --git a/src/cmd/internal/gc/big/nat_test.go b/src/cmd/compile/internal/big/nat_test.go
+similarity index 100%
+rename from src/cmd/internal/gc/big/nat_test.go
+rename to src/cmd/compile/internal/big/nat_test.go
+diff --git a/src/cmd/internal/gc/big/natconv.go b/src/cmd/compile/internal/big/natconv.go
+similarity index 100%
+rename from src/cmd/internal/gc/big/natconv.go
+rename to src/cmd/compile/internal/big/natconv.go
+diff --git a/src/cmd/internal/gc/big/natconv_test.go b/src/cmd/compile/internal/big/natconv_test.go
+similarity index 100%
+rename from src/cmd/internal/gc/big/natconv_test.go
+rename to src/cmd/compile/internal/big/natconv_test.go
+diff --git a/src/cmd/internal/gc/big/rat.go b/src/cmd/compile/internal/big/rat.go
+similarity index 100%
+rename from src/cmd/internal/gc/big/rat.go
+rename to src/cmd/compile/internal/big/rat.go
+diff --git a/src/cmd/internal/gc/big/rat_test.go b/src/cmd/compile/internal/big/rat_test.go
+similarity index 100%
+rename from src/cmd/internal/gc/big/rat_test.go
+rename to src/cmd/compile/internal/big/rat_test.go
+diff --git a/src/cmd/internal/gc/big/ratconv.go b/src/cmd/compile/internal/big/ratconv.go
+similarity index 100%
+rename from src/cmd/internal/gc/big/ratconv.go
+rename to src/cmd/compile/internal/big/ratconv.go
+diff --git a/src/cmd/internal/gc/big/ratconv_test.go b/src/cmd/compile/internal/big/ratconv_test.go
+similarity index 100%
+rename from src/cmd/internal/gc/big/ratconv_test.go
+rename to src/cmd/compile/internal/big/ratconv_test.go
+diff --git a/src/cmd/internal/gc/big/roundingmode_string.go b/src/cmd/compile/internal/big/roundingmode_string.go
+similarity index 100%
+rename from src/cmd/internal/gc/big/roundingmode_string.go
+rename to src/cmd/compile/internal/big/roundingmode_string.go
+diff --git a/src/cmd/internal/gc/big/vendor.bash b/src/cmd/compile/internal/big/vendor.bash
+similarity index 100%
+rename from src/cmd/internal/gc/big/vendor.bash
+rename to src/cmd/compile/internal/big/vendor.bash
+diff --git a/src/cmd/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+similarity index 100%
+rename from src/cmd/internal/gc/align.go
+rename to src/cmd/compile/internal/gc/align.go
+diff --git a/src/cmd/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+similarity index 100%
+rename from src/cmd/internal/gc/builtin.go
+rename to src/cmd/compile/internal/gc/builtin.go
+diff --git a/src/cmd/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+similarity index 100%
+rename from src/cmd/internal/gc/builtin/runtime.go
+rename to src/cmd/compile/internal/gc/builtin/runtime.go
+diff --git a/src/cmd/internal/gc/builtin/unsafe.go b/src/cmd/compile/internal/gc/builtin/unsafe.go
+similarity index 100%
+rename from src/cmd/internal/gc/builtin/unsafe.go
+rename to src/cmd/compile/internal/gc/builtin/unsafe.go
+diff --git a/src/cmd/internal/gc/bv.go b/src/cmd/compile/internal/gc/bv.go
+similarity index 100%
+rename from src/cmd/internal/gc/bv.go
+rename to src/cmd/compile/internal/gc/bv.go
+diff --git a/src/cmd/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+similarity index 100%
+rename from src/cmd/internal/gc/cgen.go
+rename to src/cmd/compile/internal/gc/cgen.go
+diff --git a/src/cmd/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+similarity index 100%
+rename from src/cmd/internal/gc/closure.go
+rename to src/cmd/compile/internal/gc/closure.go
+diff --git a/src/cmd/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+similarity index 99%
+rename from src/cmd/internal/gc/const.go
+rename to src/cmd/compile/internal/gc/const.go
+index 986e2c3337..b3605ab206 100644
+--- a/src/cmd/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -5,7 +5,7 @@
+ package gc
+ 
+ import (
+-	"cmd/internal/gc/big"
++	"cmd/compile/internal/big"
+ 	"cmd/internal/obj"
+ 	"strings"
+ )
+diff --git a/src/cmd/internal/gc/cplx.go b/src/cmd/compile/internal/gc/cplx.go
+similarity index 100%
+rename from src/cmd/internal/gc/cplx.go
+rename to src/cmd/compile/internal/gc/cplx.go
+diff --git a/src/cmd/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+similarity index 100%
+rename from src/cmd/internal/gc/dcl.go
+rename to src/cmd/compile/internal/gc/dcl.go
+diff --git a/src/cmd/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+similarity index 100%
+rename from src/cmd/internal/gc/esc.go
+rename to src/cmd/compile/internal/gc/esc.go
+diff --git a/src/cmd/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+similarity index 100%
+rename from src/cmd/internal/gc/export.go
+rename to src/cmd/compile/internal/gc/export.go
+diff --git a/src/cmd/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+similarity index 100%
+rename from src/cmd/internal/gc/fmt.go
+rename to src/cmd/compile/internal/gc/fmt.go
+diff --git a/src/cmd/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+similarity index 100%
+rename from src/cmd/internal/gc/gen.go
+rename to src/cmd/compile/internal/gc/gen.go
+diff --git a/src/cmd/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+similarity index 99%
+rename from src/cmd/internal/gc/go.go
+rename to src/cmd/compile/internal/gc/go.go
+index 6a3379b896..dc33f62ba4 100644
+--- a/src/cmd/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -6,7 +6,7 @@ package gc
+ 
+ import (
+ 	"bytes"
+-	"cmd/internal/gc/big"
++	"cmd/compile/internal/big"
+ 	"cmd/internal/obj"
+ )
+ 
+diff --git a/src/cmd/internal/gc/go.y b/src/cmd/compile/internal/gc/go.y
+similarity index 100%
+rename from src/cmd/internal/gc/go.y
+rename to src/cmd/compile/internal/gc/go.y
+diff --git a/src/cmd/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+similarity index 100%
+rename from src/cmd/internal/gc/gsubr.go
+rename to src/cmd/compile/internal/gc/gsubr.go
+diff --git a/src/cmd/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+similarity index 100%
+rename from src/cmd/internal/gc/init.go
+rename to src/cmd/compile/internal/gc/init.go
+diff --git a/src/cmd/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+similarity index 100%
+rename from src/cmd/internal/gc/inl.go
+rename to src/cmd/compile/internal/gc/inl.go
+diff --git a/src/cmd/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+similarity index 100%
+rename from src/cmd/internal/gc/lex.go
+rename to src/cmd/compile/internal/gc/lex.go
+diff --git a/src/cmd/internal/gc/mkbuiltin.go b/src/cmd/compile/internal/gc/mkbuiltin.go
+similarity index 100%
+rename from src/cmd/internal/gc/mkbuiltin.go
+rename to src/cmd/compile/internal/gc/mkbuiltin.go
+diff --git a/src/cmd/internal/gc/mparith2.go b/src/cmd/compile/internal/gc/mparith2.go
+similarity index 99%
+rename from src/cmd/internal/gc/mparith2.go
+rename to src/cmd/compile/internal/gc/mparith2.go
+index 2456dbf60a..2c7e5176ac 100644
+--- a/src/cmd/internal/gc/mparith2.go
++++ b/src/cmd/compile/internal/gc/mparith2.go
+@@ -5,7 +5,7 @@
+ package gc
+ 
+ import (
+-	"cmd/internal/gc/big"
++	"cmd/compile/internal/big"
+ 	"cmd/internal/obj"
+ 	"fmt"
+ )
+diff --git a/src/cmd/internal/gc/mparith3.go b/src/cmd/compile/internal/gc/mparith3.go
+similarity index 99%
+rename from src/cmd/internal/gc/mparith3.go
+rename to src/cmd/compile/internal/gc/mparith3.go
+index 2700b64a89..181e91c87d 100644
+--- a/src/cmd/internal/gc/mparith3.go
++++ b/src/cmd/compile/internal/gc/mparith3.go
+@@ -5,7 +5,7 @@
+ package gc
+ 
+ import (
+-	"cmd/internal/gc/big"
++	"cmd/compile/internal/big"
+ 	"cmd/internal/obj"
+ 	"fmt"
+ 	"math"
+diff --git a/src/cmd/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+similarity index 100%
+rename from src/cmd/internal/gc/obj.go
+rename to src/cmd/compile/internal/gc/obj.go
+diff --git a/src/cmd/internal/gc/opnames.go b/src/cmd/compile/internal/gc/opnames.go
+similarity index 100%
+rename from src/cmd/internal/gc/opnames.go
+rename to src/cmd/compile/internal/gc/opnames.go
+diff --git a/src/cmd/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+similarity index 100%
+rename from src/cmd/internal/gc/order.go
+rename to src/cmd/compile/internal/gc/order.go
+diff --git a/src/cmd/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+similarity index 100%
+rename from src/cmd/internal/gc/pgen.go
+rename to src/cmd/compile/internal/gc/pgen.go
+diff --git a/src/cmd/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+similarity index 100%
+rename from src/cmd/internal/gc/plive.go
+rename to src/cmd/compile/internal/gc/plive.go
+diff --git a/src/cmd/internal/gc/popt.go b/src/cmd/compile/internal/gc/popt.go
+similarity index 100%
+rename from src/cmd/internal/gc/popt.go
+rename to src/cmd/compile/internal/gc/popt.go
+diff --git a/src/cmd/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+similarity index 100%
+rename from src/cmd/internal/gc/racewalk.go
+rename to src/cmd/compile/internal/gc/racewalk.go
+diff --git a/src/cmd/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+similarity index 100%
+rename from src/cmd/internal/gc/range.go
+rename to src/cmd/compile/internal/gc/range.go
+diff --git a/src/cmd/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+similarity index 100%
+rename from src/cmd/internal/gc/reflect.go
+rename to src/cmd/compile/internal/gc/reflect.go
+diff --git a/src/cmd/internal/gc/reg.go b/src/cmd/compile/internal/gc/reg.go
+similarity index 100%
+rename from src/cmd/internal/gc/reg.go
+rename to src/cmd/compile/internal/gc/reg.go
+diff --git a/src/cmd/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+similarity index 100%
+rename from src/cmd/internal/gc/select.go
+rename to src/cmd/compile/internal/gc/select.go
+diff --git a/src/cmd/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+similarity index 100%
+rename from src/cmd/internal/gc/sinit.go
+rename to src/cmd/compile/internal/gc/sinit.go
+diff --git a/src/cmd/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+similarity index 100%
+rename from src/cmd/internal/gc/subr.go
+rename to src/cmd/compile/internal/gc/subr.go
+diff --git a/src/cmd/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+similarity index 100%
+rename from src/cmd/internal/gc/swt.go
+rename to src/cmd/compile/internal/gc/swt.go
+diff --git a/src/cmd/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+similarity index 100%
+rename from src/cmd/internal/gc/syntax.go
+rename to src/cmd/compile/internal/gc/syntax.go
+diff --git a/src/cmd/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+similarity index 100%
+rename from src/cmd/internal/gc/typecheck.go
+rename to src/cmd/compile/internal/gc/typecheck.go
+diff --git a/src/cmd/internal/gc/unsafe.go b/src/cmd/compile/internal/gc/unsafe.go
+similarity index 100%
+rename from src/cmd/internal/gc/unsafe.go
+rename to src/cmd/compile/internal/gc/unsafe.go
+diff --git a/src/cmd/internal/gc/util.go b/src/cmd/compile/internal/gc/util.go
+similarity index 100%
+rename from src/cmd/internal/gc/util.go
+rename to src/cmd/compile/internal/gc/util.go
+diff --git a/src/cmd/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+similarity index 100%
+rename from src/cmd/internal/gc/walk.go
+rename to src/cmd/compile/internal/gc/walk.go
+diff --git a/src/cmd/internal/gc/y.go b/src/cmd/compile/internal/gc/y.go
+similarity index 100%
+rename from src/cmd/internal/gc/y.go
+rename to src/cmd/compile/internal/gc/y.go
+diff --git a/src/cmd/internal/gc/y.output b/src/cmd/compile/internal/gc/y.output
+similarity index 100%
+rename from src/cmd/internal/gc/y.output
+rename to src/cmd/compile/internal/gc/y.output
+diff --git a/src/cmd/9g/cgen.go b/src/cmd/compile/internal/ppc64/cgen.go
+similarity index 98%
+rename from src/cmd/9g/cgen.go
+rename to src/cmd/compile/internal/ppc64/cgen.go
+index 5d24a6ff67..37dd6cefb2 100644
+--- a/src/cmd/9g/cgen.go
++++ b/src/cmd/compile/internal/ppc64/cgen.go
+@@ -2,10 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
++package ppc64
+ 
+ import (
+-	"cmd/internal/gc"
++	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/ppc64"
+ )
+diff --git a/src/cmd/9g/galign.go b/src/cmd/compile/internal/ppc64/galign.go
+similarity index 97%
+rename from src/cmd/9g/galign.go
+rename to src/cmd/compile/internal/ppc64/galign.go
+index 6e1612007b..73aef6fde9 100644
+--- a/src/cmd/9g/galign.go
++++ b/src/cmd/compile/internal/ppc64/galign.go
+@@ -2,10 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
++package ppc64
+ 
+ import (
+-	"cmd/internal/gc"
++	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/ppc64"
+ )
+@@ -45,7 +45,7 @@ func betypeinit() {
+ 	gc.Widthreg = 8
+ }
+ 
+-func main() {
++func Main() {
+ 	gc.Thearch.Thechar = thechar
+ 	gc.Thearch.Thestring = thestring
+ 	gc.Thearch.Thelinkarch = thelinkarch
+diff --git a/src/cmd/9g/ggen.go b/src/cmd/compile/internal/ppc64/ggen.go
+similarity index 99%
+rename from src/cmd/9g/ggen.go
+rename to src/cmd/compile/internal/ppc64/ggen.go
+index 3a10a2a760..1b936b8a5f 100644
+--- a/src/cmd/9g/ggen.go
++++ b/src/cmd/compile/internal/ppc64/ggen.go
+@@ -2,10 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
++package ppc64
+ 
+ import (
+-	"cmd/internal/gc"
++	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/ppc64"
+ 	"fmt"
+diff --git a/src/cmd/9g/gsubr.go b/src/cmd/compile/internal/ppc64/gsubr.go
+similarity index 99%
+rename from src/cmd/9g/gsubr.go
+rename to src/cmd/compile/internal/ppc64/gsubr.go
+index 3a7c884fd1..2501972846 100644
+--- a/src/cmd/9g/gsubr.go
++++ b/src/cmd/compile/internal/ppc64/gsubr.go
+@@ -28,11 +28,11 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-package main
++package ppc64
+ 
+ import (
+-	"cmd/internal/gc"
+-	"cmd/internal/gc/big"
++	"cmd/compile/internal/big"
++	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/ppc64"
+ 	"fmt"
+diff --git a/src/cmd/9g/opt.go b/src/cmd/compile/internal/ppc64/opt.go
+similarity index 96%
+rename from src/cmd/9g/opt.go
+rename to src/cmd/compile/internal/ppc64/opt.go
+index 4a134f134f..1704f63c48 100644
+--- a/src/cmd/9g/opt.go
++++ b/src/cmd/compile/internal/ppc64/opt.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
++package ppc64
+ 
+ // Many Power ISA arithmetic and logical instructions come in four
+ // standard variants.  These bits let us map between variants.
+diff --git a/src/cmd/9g/peep.go b/src/cmd/compile/internal/ppc64/peep.go
+similarity index 99%
+rename from src/cmd/9g/peep.go
+rename to src/cmd/compile/internal/ppc64/peep.go
+index 94c9b1554b..16eeb39097 100644
+--- a/src/cmd/9g/peep.go
++++ b/src/cmd/compile/internal/ppc64/peep.go
+@@ -28,10 +28,10 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-package main
++package ppc64
+ 
+ import (
+-	"cmd/internal/gc"
++	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/ppc64"
+ 	"fmt"
+diff --git a/src/cmd/9g/prog.go b/src/cmd/compile/internal/ppc64/prog.go
+similarity index 99%
+rename from src/cmd/9g/prog.go
+rename to src/cmd/compile/internal/ppc64/prog.go
+index e28e389fac..c7e182769d 100644
+--- a/src/cmd/9g/prog.go
++++ b/src/cmd/compile/internal/ppc64/prog.go
+@@ -2,10 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
++package ppc64
+ 
+ import (
+-	"cmd/internal/gc"
++	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/ppc64"
+ )
+diff --git a/src/cmd/9g/reg.go b/src/cmd/compile/internal/ppc64/reg.go
+similarity index 98%
+rename from src/cmd/9g/reg.go
+rename to src/cmd/compile/internal/ppc64/reg.go
+index fb0c2e37ec..fa1cb71975 100644
+--- a/src/cmd/9g/reg.go
++++ b/src/cmd/compile/internal/ppc64/reg.go
+@@ -28,10 +28,10 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-package main
++package ppc64
+ 
+ import "cmd/internal/obj/ppc64"
+-import "cmd/internal/gc"
++import "cmd/compile/internal/gc"
+ 
+ const (
+ 	NREGVAR = 64 /* 32 general + 32 floating */
+diff --git a/src/cmd/8g/cgen.go b/src/cmd/compile/internal/x86/cgen.go
+similarity index 98%
+rename from src/cmd/8g/cgen.go
+rename to src/cmd/compile/internal/x86/cgen.go
+index 48d9e9867a..1768674e42 100644
+--- a/src/cmd/8g/cgen.go
++++ b/src/cmd/compile/internal/x86/cgen.go
+@@ -2,10 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
++package x86
+ 
+ import (
+-	"cmd/internal/gc"
++	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/x86"
+ )
+diff --git a/src/cmd/8g/cgen64.go b/src/cmd/compile/internal/x86/cgen64.go
+similarity index 99%
+rename from src/cmd/8g/cgen64.go
+rename to src/cmd/compile/internal/x86/cgen64.go
+index 80a9642f75..0b061ffb60 100644
+--- a/src/cmd/8g/cgen64.go
++++ b/src/cmd/compile/internal/x86/cgen64.go
+@@ -2,10 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
++package x86
+ 
+ import (
+-	"cmd/internal/gc"
++	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/x86"
+ )
+diff --git a/src/cmd/8g/galign.go b/src/cmd/compile/internal/x86/galign.go
+similarity index 98%
+rename from src/cmd/8g/galign.go
+rename to src/cmd/compile/internal/x86/galign.go
+index 3651f509c9..2b602e1bb3 100644
+--- a/src/cmd/8g/galign.go
++++ b/src/cmd/compile/internal/x86/galign.go
+@@ -2,10 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
++package x86
+ 
+ import (
+-	"cmd/internal/gc"
++	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/x86"
+ 	"fmt"
+@@ -39,7 +39,7 @@ func betypeinit() {
+ 	gc.Widthreg = 4
+ }
+ 
+-func main() {
++func Main() {
+ 	gc.Thearch.Thechar = thechar
+ 	gc.Thearch.Thestring = thestring
+ 	gc.Thearch.Thelinkarch = thelinkarch
+diff --git a/src/cmd/8g/ggen.go b/src/cmd/compile/internal/x86/ggen.go
+similarity index 99%
+rename from src/cmd/8g/ggen.go
+rename to src/cmd/compile/internal/x86/ggen.go
+index bd2c13e867..dabc139f30 100644
+--- a/src/cmd/8g/ggen.go
++++ b/src/cmd/compile/internal/x86/ggen.go
+@@ -2,10 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
++package x86
+ 
+ import (
+-	"cmd/internal/gc"
++	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/x86"
+ )
+diff --git a/src/cmd/8g/gsubr.go b/src/cmd/compile/internal/x86/gsubr.go
+similarity index 99%
+rename from src/cmd/8g/gsubr.go
+rename to src/cmd/compile/internal/x86/gsubr.go
+index 99bce6eaba..baf251781c 100644
+--- a/src/cmd/8g/gsubr.go
++++ b/src/cmd/compile/internal/x86/gsubr.go
+@@ -28,11 +28,11 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-package main
++package x86
+ 
+ import (
+-	"cmd/internal/gc"
+-	"cmd/internal/gc/big"
++	"cmd/compile/internal/big"
++	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/x86"
+ 	"fmt"
+diff --git a/src/cmd/8g/peep.go b/src/cmd/compile/internal/x86/peep.go
+similarity index 99%
+rename from src/cmd/8g/peep.go
+rename to src/cmd/compile/internal/x86/peep.go
+index e309aea785..8b50eab077 100644
+--- a/src/cmd/8g/peep.go
++++ b/src/cmd/compile/internal/x86/peep.go
+@@ -28,10 +28,10 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-package main
++package x86
+ 
+ import (
+-	"cmd/internal/gc"
++	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/x86"
+ 	"fmt"
+diff --git a/src/cmd/8g/prog.go b/src/cmd/compile/internal/x86/prog.go
+similarity index 99%
+rename from src/cmd/8g/prog.go
+rename to src/cmd/compile/internal/x86/prog.go
+index 1346c20f2b..f96a1aa945 100644
+--- a/src/cmd/8g/prog.go
++++ b/src/cmd/compile/internal/x86/prog.go
+@@ -2,10 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
++package x86
+ 
+ import (
+-	"cmd/internal/gc"
++	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/x86"
+ )
+diff --git a/src/cmd/8g/reg.go b/src/cmd/compile/internal/x86/reg.go
+similarity index 98%
+rename from src/cmd/8g/reg.go
+rename to src/cmd/compile/internal/x86/reg.go
+index 50b5b97ab1..8c97171e47 100644
+--- a/src/cmd/8g/reg.go
++++ b/src/cmd/compile/internal/x86/reg.go
+@@ -28,10 +28,10 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-package main
++package x86
+ 
+ import "cmd/internal/obj/x86"
+-import "cmd/internal/gc"
++import "cmd/compile/internal/gc"
+ 
+ const (
+ 	NREGVAR = 16 /* 8 integer + 8 floating */
+diff --git a/src/cmd/compile/main.go b/src/cmd/compile/main.go
+new file mode 100644
+index 0000000000..7b69c34424
+--- /dev/null
++++ b/src/cmd/compile/main.go
+@@ -0,0 +1,34 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"cmd/compile/internal/amd64"
++	"cmd/compile/internal/arm"
++	"cmd/compile/internal/arm64"
++	"cmd/compile/internal/ppc64"
++	"cmd/compile/internal/x86"
++	"cmd/internal/obj"
++	"fmt"
++	"os"
++)
++
++func main() {
++	switch obj.Getgoarch() {
++	default:
++		fmt.Fprintf(os.Stderr, "compile: unknown architecture %q\n", obj.Getgoarch())
++		os.Exit(2)
++	case "386":
++		x86.Main()
++	case "amd64", "amd64p32":
++		amd64.Main()
++	case "arm":
++		arm.Main()
++	case "arm64":
++		arm64.Main()
++	case "ppc64", "ppc64le":
++		ppc64.Main()
++	}
++}
+diff --git a/src/cmd/6l/asm.go b/src/cmd/link/internal/amd64/asm.go
+similarity index 99%
+rename from src/cmd/6l/asm.go
+rename to src/cmd/link/internal/amd64/asm.go
+index 02b4c7cdd2..a4883f1a33 100644
+--- a/src/cmd/6l/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -28,11 +28,11 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-package main
++package amd64
+ 
+ import (
+-	"cmd/internal/ld"
+ 	"cmd/internal/obj"
++	"cmd/link/internal/ld"
+ 	"debug/elf"
+ 	"fmt"
+ 	"log"
+diff --git a/src/cmd/6l/l.go b/src/cmd/link/internal/amd64/l.go
+similarity index 99%
+rename from src/cmd/6l/l.go
+rename to src/cmd/link/internal/amd64/l.go
+index 64466d126a..2537419eff 100644
+--- a/src/cmd/6l/l.go
++++ b/src/cmd/link/internal/amd64/l.go
+@@ -28,7 +28,7 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-package main
++package amd64
+ 
+ const (
+ 	thechar   = '6'
+diff --git a/src/cmd/6l/obj.go b/src/cmd/link/internal/amd64/obj.go
+similarity index 99%
+rename from src/cmd/6l/obj.go
+rename to src/cmd/link/internal/amd64/obj.go
+index 1dc9e02a8b..e489bb75a9 100644
+--- a/src/cmd/6l/obj.go
++++ b/src/cmd/link/internal/amd64/obj.go
+@@ -28,18 +28,18 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-package main
++package amd64
+ 
+ import (
+-	"cmd/internal/ld"
+ 	"cmd/internal/obj"
++	"cmd/link/internal/ld"
+ 	"fmt"
+ 	"log"
+ )
+ 
+ // Reading object files.
+ 
+-func main() {
++func Main() {
+ 	linkarchinit()
+ 	ld.Ldmain()
+ }
+diff --git a/src/cmd/link/internal/amd64/z.go b/src/cmd/link/internal/amd64/z.go
+new file mode 100644
+index 0000000000..f70035b9e3
+--- /dev/null
++++ b/src/cmd/link/internal/amd64/z.go
+@@ -0,0 +1 @@
++package amd64
+diff --git a/src/cmd/5l/asm.go b/src/cmd/link/internal/arm/asm.go
+similarity index 99%
+rename from src/cmd/5l/asm.go
+rename to src/cmd/link/internal/arm/asm.go
+index 70d6790fc1..e310d29e9a 100644
+--- a/src/cmd/5l/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -28,11 +28,11 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-package main
++package arm
+ 
+ import (
+-	"cmd/internal/ld"
+ 	"cmd/internal/obj"
++	"cmd/link/internal/ld"
+ 	"fmt"
+ 	"log"
+ )
+diff --git a/src/cmd/5l/l.go b/src/cmd/link/internal/arm/l.go
+similarity index 99%
+rename from src/cmd/5l/l.go
+rename to src/cmd/link/internal/arm/l.go
+index adc8d286ae..4973772163 100644
+--- a/src/cmd/5l/l.go
++++ b/src/cmd/link/internal/arm/l.go
+@@ -28,7 +28,7 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-package main
++package arm
+ 
+ // Writing object files.
+ 
+diff --git a/src/cmd/5l/obj.go b/src/cmd/link/internal/arm/obj.go
+similarity index 98%
+rename from src/cmd/5l/obj.go
+rename to src/cmd/link/internal/arm/obj.go
+index 9c9578343e..14fe7a64eb 100644
+--- a/src/cmd/5l/obj.go
++++ b/src/cmd/link/internal/arm/obj.go
+@@ -28,18 +28,18 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-package main
++package arm
+ 
+ import (
+-	"cmd/internal/ld"
+ 	"cmd/internal/obj"
++	"cmd/link/internal/ld"
+ 	"fmt"
+ 	"log"
+ )
+ 
+ // Reading object files.
+ 
+-func main() {
++func Main() {
+ 	linkarchinit()
+ 	ld.Ldmain()
+ }
+diff --git a/src/cmd/7l/asm.go b/src/cmd/link/internal/arm64/asm.go
+similarity index 99%
+rename from src/cmd/7l/asm.go
+rename to src/cmd/link/internal/arm64/asm.go
+index 064ff56283..9d76f0e0c3 100644
+--- a/src/cmd/7l/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -28,11 +28,11 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-package main
++package arm64
+ 
+ import (
+-	"cmd/internal/ld"
+ 	"cmd/internal/obj"
++	"cmd/link/internal/ld"
+ 	"encoding/binary"
+ 	"fmt"
+ 	"log"
+diff --git a/src/cmd/7l/l.go b/src/cmd/link/internal/arm64/l.go
+similarity index 99%
+rename from src/cmd/7l/l.go
+rename to src/cmd/link/internal/arm64/l.go
+index 7227cc430f..8d0d57e72a 100644
+--- a/src/cmd/7l/l.go
++++ b/src/cmd/link/internal/arm64/l.go
+@@ -28,7 +28,7 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-package main
++package arm64
+ 
+ // Writing object files.
+ 
+diff --git a/src/cmd/7l/obj.go b/src/cmd/link/internal/arm64/obj.go
+similarity index 98%
+rename from src/cmd/7l/obj.go
+rename to src/cmd/link/internal/arm64/obj.go
+index f88584b938..56f5815903 100644
+--- a/src/cmd/7l/obj.go
++++ b/src/cmd/link/internal/arm64/obj.go
+@@ -28,18 +28,18 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-package main
++package arm64
+ 
+ import (
+-	"cmd/internal/ld"
+ 	"cmd/internal/obj"
++	"cmd/link/internal/ld"
+ 	"fmt"
+ 	"log"
+ )
+ 
+ // Reading object files.
+ 
+-func main() {
++func Main() {
+ 	linkarchinit()
+ 	ld.Ldmain()
+ }
+diff --git a/src/cmd/internal/ld/ar.go b/src/cmd/link/internal/ld/ar.go
+similarity index 100%
+rename from src/cmd/internal/ld/ar.go
+rename to src/cmd/link/internal/ld/ar.go
+diff --git a/src/cmd/internal/ld/arch.go b/src/cmd/link/internal/ld/arch.go
+similarity index 100%
+rename from src/cmd/internal/ld/arch.go
+rename to src/cmd/link/internal/ld/arch.go
+diff --git a/src/cmd/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+similarity index 100%
+rename from src/cmd/internal/ld/data.go
+rename to src/cmd/link/internal/ld/data.go
+diff --git a/src/cmd/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+similarity index 100%
+rename from src/cmd/internal/ld/decodesym.go
+rename to src/cmd/link/internal/ld/decodesym.go
+diff --git a/src/cmd/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+similarity index 100%
+rename from src/cmd/internal/ld/dwarf.go
+rename to src/cmd/link/internal/ld/dwarf.go
+diff --git a/src/cmd/internal/ld/dwarf_defs.go b/src/cmd/link/internal/ld/dwarf_defs.go
+similarity index 100%
+rename from src/cmd/internal/ld/dwarf_defs.go
+rename to src/cmd/link/internal/ld/dwarf_defs.go
+diff --git a/src/cmd/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+similarity index 100%
+rename from src/cmd/internal/ld/elf.go
+rename to src/cmd/link/internal/ld/elf.go
+diff --git a/src/cmd/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+similarity index 100%
+rename from src/cmd/internal/ld/go.go
+rename to src/cmd/link/internal/ld/go.go
+diff --git a/src/cmd/internal/ld/ld.go b/src/cmd/link/internal/ld/ld.go
+similarity index 100%
+rename from src/cmd/internal/ld/ld.go
+rename to src/cmd/link/internal/ld/ld.go
+diff --git a/src/cmd/internal/ld/ldelf.go b/src/cmd/link/internal/ld/ldelf.go
+similarity index 100%
+rename from src/cmd/internal/ld/ldelf.go
+rename to src/cmd/link/internal/ld/ldelf.go
+diff --git a/src/cmd/internal/ld/ldmacho.go b/src/cmd/link/internal/ld/ldmacho.go
+similarity index 100%
+rename from src/cmd/internal/ld/ldmacho.go
+rename to src/cmd/link/internal/ld/ldmacho.go
+diff --git a/src/cmd/internal/ld/ldpe.go b/src/cmd/link/internal/ld/ldpe.go
+similarity index 100%
+rename from src/cmd/internal/ld/ldpe.go
+rename to src/cmd/link/internal/ld/ldpe.go
+diff --git a/src/cmd/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+similarity index 100%
+rename from src/cmd/internal/ld/lib.go
+rename to src/cmd/link/internal/ld/lib.go
+diff --git a/src/cmd/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+similarity index 100%
+rename from src/cmd/internal/ld/link.go
+rename to src/cmd/link/internal/ld/link.go
+diff --git a/src/cmd/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+similarity index 100%
+rename from src/cmd/internal/ld/macho.go
+rename to src/cmd/link/internal/ld/macho.go
+diff --git a/src/cmd/internal/ld/macho_combine_dwarf.go b/src/cmd/link/internal/ld/macho_combine_dwarf.go
+similarity index 100%
+rename from src/cmd/internal/ld/macho_combine_dwarf.go
+rename to src/cmd/link/internal/ld/macho_combine_dwarf.go
+diff --git a/src/cmd/internal/ld/objfile.go b/src/cmd/link/internal/ld/objfile.go
+similarity index 100%
+rename from src/cmd/internal/ld/objfile.go
+rename to src/cmd/link/internal/ld/objfile.go
+diff --git a/src/cmd/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+similarity index 100%
+rename from src/cmd/internal/ld/pcln.go
+rename to src/cmd/link/internal/ld/pcln.go
+diff --git a/src/cmd/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+similarity index 100%
+rename from src/cmd/internal/ld/pe.go
+rename to src/cmd/link/internal/ld/pe.go
+diff --git a/src/cmd/internal/ld/pobj.go b/src/cmd/link/internal/ld/pobj.go
+similarity index 100%
+rename from src/cmd/internal/ld/pobj.go
+rename to src/cmd/link/internal/ld/pobj.go
+diff --git a/src/cmd/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
+similarity index 100%
+rename from src/cmd/internal/ld/sym.go
+rename to src/cmd/link/internal/ld/sym.go
+diff --git a/src/cmd/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+similarity index 100%
+rename from src/cmd/internal/ld/symtab.go
+rename to src/cmd/link/internal/ld/symtab.go
+diff --git a/src/cmd/internal/ld/textflag.go b/src/cmd/link/internal/ld/textflag.go
+similarity index 100%
+rename from src/cmd/internal/ld/textflag.go
+rename to src/cmd/link/internal/ld/textflag.go
+diff --git a/src/cmd/internal/ld/util.go b/src/cmd/link/internal/ld/util.go
+similarity index 100%
+rename from src/cmd/internal/ld/util.go
+rename to src/cmd/link/internal/ld/util.go
+diff --git a/src/cmd/9l/asm.go b/src/cmd/link/internal/ppc64/asm.go
+similarity index 99%
+rename from src/cmd/9l/asm.go
+rename to src/cmd/link/internal/ppc64/asm.go
+index 45aa3f84c2..f070921ecf 100644
+--- a/src/cmd/9l/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -28,11 +28,11 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-package main
++package ppc64
+ 
+ import (
+-	"cmd/internal/ld"
+ 	"cmd/internal/obj"
++	"cmd/link/internal/ld"
+ 	"encoding/binary"
+ 	"fmt"
+ 	"log"
+diff --git a/src/cmd/9l/l.go b/src/cmd/link/internal/ppc64/l.go
+similarity index 99%
+rename from src/cmd/9l/l.go
+rename to src/cmd/link/internal/ppc64/l.go
+index 8723eaeca4..1275a34dbb 100644
+--- a/src/cmd/9l/l.go
++++ b/src/cmd/link/internal/ppc64/l.go
+@@ -28,7 +28,7 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-package main
++package ppc64
+ 
+ // Writing object files.
+ 
+diff --git a/src/cmd/9l/obj.go b/src/cmd/link/internal/ppc64/obj.go
+similarity index 98%
+rename from src/cmd/9l/obj.go
+rename to src/cmd/link/internal/ppc64/obj.go
+index 011f290298..d663b6ebae 100644
+--- a/src/cmd/9l/obj.go
++++ b/src/cmd/link/internal/ppc64/obj.go
+@@ -28,18 +28,18 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-package main
++package ppc64
+ 
+ import (
+-	"cmd/internal/ld"
+ 	"cmd/internal/obj"
++	"cmd/link/internal/ld"
+ 	"fmt"
+ 	"log"
+ )
+ 
+ // Reading object files.
+ 
+-func main() {
++func Main() {
+ 	linkarchinit()
+ 	ld.Ldmain()
+ }
+diff --git a/src/cmd/8l/asm.go b/src/cmd/link/internal/x86/asm.go
+similarity index 99%
+rename from src/cmd/8l/asm.go
+rename to src/cmd/link/internal/x86/asm.go
+index a736d43686..7bb99ca8b5 100644
+--- a/src/cmd/8l/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -28,11 +28,11 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-package main
++package x86
+ 
+ import (
+-	"cmd/internal/ld"
+ 	"cmd/internal/obj"
++	"cmd/link/internal/ld"
+ 	"fmt"
+ 	"log"
+ )
+diff --git a/src/cmd/8l/l.go b/src/cmd/link/internal/x86/l.go
+similarity index 99%
+rename from src/cmd/8l/l.go
+rename to src/cmd/link/internal/x86/l.go
+index 5cb9f8d8af..8a811ff0a2 100644
+--- a/src/cmd/8l/l.go
++++ b/src/cmd/link/internal/x86/l.go
+@@ -28,7 +28,7 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-package main
++package x86
+ 
+ const (
+ 	thechar   = '8'
+diff --git a/src/cmd/8l/obj.go b/src/cmd/link/internal/x86/obj.go
+similarity index 99%
+rename from src/cmd/8l/obj.go
+rename to src/cmd/link/internal/x86/obj.go
+index bea0d03cfe..ee408f70c6 100644
+--- a/src/cmd/8l/obj.go
++++ b/src/cmd/link/internal/x86/obj.go
+@@ -28,18 +28,18 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-package main
++package x86
+ 
+ import (
+-	"cmd/internal/ld"
+ 	"cmd/internal/obj"
++	"cmd/link/internal/ld"
+ 	"fmt"
+ 	"log"
+ )
+ 
+ // Reading object files.
+ 
+-func main() {
++func Main() {
+ 	linkarchinit()
+ 	ld.Ldmain()
+ }
+diff --git a/src/cmd/link/main.go b/src/cmd/link/main.go
+new file mode 100644
+index 0000000000..0e6c34ee0a
+--- /dev/null
++++ b/src/cmd/link/main.go
+@@ -0,0 +1,34 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"cmd/internal/obj"
++	"cmd/link/internal/amd64"
++	"cmd/link/internal/arm"
++	"cmd/link/internal/arm64"
++	"cmd/link/internal/ppc64"
++	"cmd/link/internal/x86"
++	"fmt"
++	"os"
++)
++
++func main() {
++	switch obj.Getgoarch() {
++	default:
++		fmt.Fprintf(os.Stderr, "link: unknown architecture %q\n", obj.Getgoarch())
++		os.Exit(2)
++	case "386":
++		x86.Main()
++	case "amd64", "amd64p32":
++		amd64.Main()
++	case "arm":
++		arm.Main()
++	case "arm64":
++		arm64.Main()
++	case "ppc64", "ppc64le":
++		ppc64.Main()
++	}
++}

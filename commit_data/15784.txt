@@ -7,6 +7,58 @@ Date:   Fri Mar 15 05:04:19 2013 +0100
     R=seed, rminnich, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/7395059
-
+---
  src/cmd/dist/build.c | 33 +++++++++++++++++++++++----------
  1 file changed, 23 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index e6c02e5636..fd6a329c4d 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -1588,7 +1588,7 @@ cmdclean(int argc, char **argv)
+ void
+ cmdbanner(int argc, char **argv)
+ {
+-	char *pathsep;
++	char *pathsep, *pid, *ns;
+ 	Buf b, b1, search, path;
+ 
+ 	ARGBEGIN{
+@@ -1612,15 +1612,28 @@ cmdbanner(int argc, char **argv)
+ 	xprintf("Installed Go for %s/%s in %s\n", goos, goarch, goroot);
+ 	xprintf("Installed commands in %s\n", gobin);
+ 
+-	// Check that gobin appears in $PATH.
+-	xgetenv(&b, "PATH");
+-	pathsep = ":";
+-	if(streq(gohostos, "windows"))
+-		pathsep = ";";
+-	bprintf(&b1, "%s%s%s", pathsep, bstr(&b), pathsep);
+-	bprintf(&search, "%s%s%s", pathsep, gobin, pathsep);
+-	if(xstrstr(bstr(&b1), bstr(&search)) == nil)
+-		xprintf("*** You need to add %s to your PATH.\n", gobin);
++	if(streq(gohostos, "plan9")) {
++		// Check that gobin is bound before /bin.
++		readfile(&b, "#c/pid");
++		bsubst(&b, " ", "");
++		pid = btake(&b);
++		bprintf(&b, "/proc/%s/ns", pid);
++		ns = btake(&b);
++		readfile(&b, ns);
++		bprintf(&search, "bind -b %s /bin\n", gobin);
++		if(xstrstr(bstr(&b), bstr(&search)) == nil)
++			xprintf("*** You need to bind %s before /bin.\n", gobin);
++	} else {
++		// Check that gobin appears in $PATH.
++		xgetenv(&b, "PATH");
++		pathsep = ":";
++		if(streq(gohostos, "windows"))
++			pathsep = ";";
++		bprintf(&b1, "%s%s%s", pathsep, bstr(&b), pathsep);
++		bprintf(&search, "%s%s%s", pathsep, gobin, pathsep);
++		if(xstrstr(bstr(&b1), bstr(&search)) == nil)
++			xprintf("*** You need to add %s to your PATH.\n", gobin);
++	}
+ 
+ 	if(streq(gohostos, "darwin")) {
+ 		if(isfile(bpathf(&path, "%s/cov", tooldir)))

@@ -15,7 +15,7 @@ Date:   Thu Apr 12 20:54:36 2018 +0300
     Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/branchelim_test.go   |  6 +++---
  src/cmd/compile/internal/ssa/check.go             | 11 ++++++++++-
  src/cmd/compile/internal/ssa/cse_test.go          |  8 ++++----
@@ -27,3 +27,334 @@ Date:   Thu Apr 12 20:54:36 2018 +0300
  src/cmd/compile/internal/ssa/shift_test.go        |  4 ++--
  src/cmd/compile/internal/ssa/writebarrier_test.go |  8 ++++----
  10 files changed, 44 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/branchelim_test.go b/src/cmd/compile/internal/ssa/branchelim_test.go
+index 30bb133f8e..20fa84d63a 100644
+--- a/src/cmd/compile/internal/ssa/branchelim_test.go
++++ b/src/cmd/compile/internal/ssa/branchelim_test.go
+@@ -37,7 +37,7 @@ func TestBranchElimIf(t *testing.T) {
+ 			fun := c.Fun("entry",
+ 				Bloc("entry",
+ 					Valu("start", OpInitMem, types.TypeMem, 0, nil),
+-					Valu("sb", OpSB, types.TypeInvalid, 0, nil),
++					Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
+ 					Valu("const1", OpConst32, intType, 1, nil),
+ 					Valu("const2", OpConst32, intType, 2, nil),
+ 					Valu("addr", OpAddr, boolType.PtrTo(), 0, nil, "sb"),
+@@ -89,7 +89,7 @@ func TestBranchElimIfElse(t *testing.T) {
+ 			fun := c.Fun("entry",
+ 				Bloc("entry",
+ 					Valu("start", OpInitMem, types.TypeMem, 0, nil),
+-					Valu("sb", OpSB, types.TypeInvalid, 0, nil),
++					Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
+ 					Valu("const1", OpConst32, intType, 1, nil),
+ 					Valu("const2", OpConst32, intType, 2, nil),
+ 					Valu("addr", OpAddr, boolType.PtrTo(), 0, nil, "sb"),
+@@ -141,7 +141,7 @@ func TestNoBranchElimLoop(t *testing.T) {
+ 			fun := c.Fun("entry",
+ 				Bloc("entry",
+ 					Valu("start", OpInitMem, types.TypeMem, 0, nil),
+-					Valu("sb", OpSB, types.TypeInvalid, 0, nil),
++					Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
+ 					Valu("const2", OpConst32, intType, 2, nil),
+ 					Valu("const3", OpConst32, intType, 3, nil),
+ 					Goto("b5")),
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index faa0ba5d62..a0ef5fbced 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -212,8 +212,17 @@ func checkFunc(f *Func) {
+ 				f.Fatalf("unexpected floating-point type %v", v.LongString())
+ 			}
+ 
++			// Check types.
++			// TODO: more type checks?
++			switch c := f.Config; v.Op {
++			case OpSP, OpSB:
++				if v.Type != c.Types.Uintptr {
++					f.Fatalf("bad %s type: want uintptr, have %s",
++						v.Op, v.Type.String())
++				}
++			}
++
+ 			// TODO: check for cycles in values
+-			// TODO: check type
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ssa/cse_test.go b/src/cmd/compile/internal/ssa/cse_test.go
+index aab50eb7d4..adb8664945 100644
+--- a/src/cmd/compile/internal/ssa/cse_test.go
++++ b/src/cmd/compile/internal/ssa/cse_test.go
+@@ -25,7 +25,7 @@ func TestCSEAuxPartitionBug(t *testing.T) {
+ 	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("start", OpInitMem, types.TypeMem, 0, nil),
+-			Valu("sp", OpSP, c.config.Types.BytePtr, 0, nil),
++			Valu("sp", OpSP, c.config.Types.Uintptr, 0, nil),
+ 			Valu("r7", OpAdd64, c.config.Types.Int64, 0, nil, "arg3", "arg1"),
+ 			Valu("r1", OpAdd64, c.config.Types.Int64, 0, nil, "arg1", "arg2"),
+ 			Valu("arg1", OpArg, c.config.Types.Int64, 0, arg1Aux),
+@@ -93,9 +93,9 @@ func TestZCSE(t *testing.T) {
+ 	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("start", OpInitMem, types.TypeMem, 0, nil),
+-			Valu("sp", OpSP, c.config.Types.BytePtr, 0, nil),
+-			Valu("sb1", OpSB, c.config.Types.BytePtr, 0, nil),
+-			Valu("sb2", OpSB, c.config.Types.BytePtr, 0, nil),
++			Valu("sp", OpSP, c.config.Types.Uintptr, 0, nil),
++			Valu("sb1", OpSB, c.config.Types.Uintptr, 0, nil),
++			Valu("sb2", OpSB, c.config.Types.Uintptr, 0, nil),
+ 			Valu("addr1", OpAddr, c.config.Types.Int64.PtrTo(), 0, nil, "sb1"),
+ 			Valu("addr2", OpAddr, c.config.Types.Int64.PtrTo(), 0, nil, "sb2"),
+ 			Valu("a1ld", OpLoad, c.config.Types.Int64, 0, nil, "addr1", "start"),
+diff --git a/src/cmd/compile/internal/ssa/deadstore_test.go b/src/cmd/compile/internal/ssa/deadstore_test.go
+index 2326c6c413..33cb4b9755 100644
+--- a/src/cmd/compile/internal/ssa/deadstore_test.go
++++ b/src/cmd/compile/internal/ssa/deadstore_test.go
+@@ -16,7 +16,7 @@ func TestDeadStore(t *testing.T) {
+ 	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("start", OpInitMem, types.TypeMem, 0, nil),
+-			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
++			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
+ 			Valu("v", OpConstBool, c.config.Types.Bool, 1, nil),
+ 			Valu("addr1", OpAddr, ptrType, 0, nil, "sb"),
+ 			Valu("addr2", OpAddr, ptrType, 0, nil, "sb"),
+@@ -51,7 +51,7 @@ func TestDeadStorePhi(t *testing.T) {
+ 	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("start", OpInitMem, types.TypeMem, 0, nil),
+-			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
++			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
+ 			Valu("v", OpConstBool, c.config.Types.Bool, 1, nil),
+ 			Valu("addr", OpAddr, ptrType, 0, nil, "sb"),
+ 			Goto("loop")),
+@@ -78,7 +78,7 @@ func TestDeadStoreTypes(t *testing.T) {
+ 	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("start", OpInitMem, types.TypeMem, 0, nil),
+-			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
++			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
+ 			Valu("v", OpConstBool, c.config.Types.Bool, 1, nil),
+ 			Valu("addr1", OpAddr, t1, 0, nil, "sb"),
+ 			Valu("addr2", OpAddr, t2, 0, nil, "sb"),
+@@ -108,7 +108,7 @@ func TestDeadStoreUnsafe(t *testing.T) {
+ 	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("start", OpInitMem, types.TypeMem, 0, nil),
+-			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
++			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
+ 			Valu("v", OpConstBool, c.config.Types.Bool, 1, nil),
+ 			Valu("addr1", OpAddr, ptrType, 0, nil, "sb"),
+ 			Valu("store1", OpStore, types.TypeMem, 0, c.config.Types.Int64, "addr1", "v", "start"), // store 8 bytes
+diff --git a/src/cmd/compile/internal/ssa/fuse_test.go b/src/cmd/compile/internal/ssa/fuse_test.go
+index beae15af48..bba92f805e 100644
+--- a/src/cmd/compile/internal/ssa/fuse_test.go
++++ b/src/cmd/compile/internal/ssa/fuse_test.go
+@@ -13,7 +13,7 @@ func TestFuseEliminatesOneBranch(t *testing.T) {
+ 	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+-			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
++			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
+ 			Goto("checkPtr")),
+ 		Bloc("checkPtr",
+ 			Valu("ptr1", OpLoad, ptrType, 0, nil, "sb", "mem"),
+@@ -41,7 +41,7 @@ func TestFuseEliminatesBothBranches(t *testing.T) {
+ 	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+-			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
++			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
+ 			Goto("checkPtr")),
+ 		Bloc("checkPtr",
+ 			Valu("ptr1", OpLoad, ptrType, 0, nil, "sb", "mem"),
+@@ -74,7 +74,7 @@ func TestFuseHandlesPhis(t *testing.T) {
+ 	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+-			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
++			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
+ 			Goto("checkPtr")),
+ 		Bloc("checkPtr",
+ 			Valu("ptr1", OpLoad, ptrType, 0, nil, "sb", "mem"),
+@@ -107,7 +107,7 @@ func TestFuseEliminatesEmptyBlocks(t *testing.T) {
+ 	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+-			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
++			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
+ 			Goto("z0")),
+ 		Bloc("z1",
+ 			Goto("z2")),
+diff --git a/src/cmd/compile/internal/ssa/loop_test.go b/src/cmd/compile/internal/ssa/loop_test.go
+index f8dcdb0132..6810f5f797 100644
+--- a/src/cmd/compile/internal/ssa/loop_test.go
++++ b/src/cmd/compile/internal/ssa/loop_test.go
+@@ -49,7 +49,7 @@ func TestLoopConditionS390X(t *testing.T) {
+ 	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+-			Valu("SP", OpSP, c.config.Types.UInt64, 0, nil),
++			Valu("SP", OpSP, c.config.Types.Uintptr, 0, nil),
+ 			Valu("ret", OpAddr, c.config.Types.Int64.PtrTo(), 0, nil, "SP"),
+ 			Valu("N", OpArg, c.config.Types.Int64, 0, c.Frontend().Auto(src.NoXPos, c.config.Types.Int64)),
+ 			Valu("starti", OpConst64, c.config.Types.Int64, 0, nil),
+diff --git a/src/cmd/compile/internal/ssa/nilcheck_test.go b/src/cmd/compile/internal/ssa/nilcheck_test.go
+index 1d9e5d1630..3ca033797d 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck_test.go
++++ b/src/cmd/compile/internal/ssa/nilcheck_test.go
+@@ -24,7 +24,7 @@ func benchmarkNilCheckDeep(b *testing.B, depth int) {
+ 	blocs = append(blocs,
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+-			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
++			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
+ 			Goto(blockn(0)),
+ 		),
+ 	)
+@@ -69,7 +69,7 @@ func TestNilcheckSimple(t *testing.T) {
+ 	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+-			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
++			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
+ 			Goto("checkPtr")),
+ 		Bloc("checkPtr",
+ 			Valu("ptr1", OpLoad, ptrType, 0, nil, "sb", "mem"),
+@@ -106,7 +106,7 @@ func TestNilcheckDomOrder(t *testing.T) {
+ 	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+-			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
++			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
+ 			Goto("checkPtr")),
+ 		Bloc("checkPtr",
+ 			Valu("ptr1", OpLoad, ptrType, 0, nil, "sb", "mem"),
+@@ -142,7 +142,7 @@ func TestNilcheckAddr(t *testing.T) {
+ 	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+-			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
++			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
+ 			Goto("checkPtr")),
+ 		Bloc("checkPtr",
+ 			Valu("ptr1", OpAddr, ptrType, 0, nil, "sb"),
+@@ -175,7 +175,7 @@ func TestNilcheckAddPtr(t *testing.T) {
+ 	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+-			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
++			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
+ 			Goto("checkPtr")),
+ 		Bloc("checkPtr",
+ 			Valu("off", OpConst64, c.config.Types.Int64, 20, nil),
+@@ -210,8 +210,8 @@ func TestNilcheckPhi(t *testing.T) {
+ 	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+-			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
+-			Valu("sp", OpSP, types.TypeInvalid, 0, nil),
++			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
++			Valu("sp", OpSP, c.config.Types.Uintptr, 0, nil),
+ 			Valu("baddr", OpAddr, c.config.Types.Bool, 0, "b", "sp"),
+ 			Valu("bool1", OpLoad, c.config.Types.Bool, 0, nil, "baddr", "mem"),
+ 			If("bool1", "b1", "b2")),
+@@ -254,7 +254,7 @@ func TestNilcheckKeepRemove(t *testing.T) {
+ 	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+-			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
++			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
+ 			Goto("checkPtr")),
+ 		Bloc("checkPtr",
+ 			Valu("ptr1", OpLoad, ptrType, 0, nil, "sb", "mem"),
+@@ -302,7 +302,7 @@ func TestNilcheckInFalseBranch(t *testing.T) {
+ 	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+-			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
++			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
+ 			Goto("checkPtr")),
+ 		Bloc("checkPtr",
+ 			Valu("ptr1", OpLoad, ptrType, 0, nil, "sb", "mem"),
+@@ -353,7 +353,7 @@ func TestNilcheckUser(t *testing.T) {
+ 	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+-			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
++			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
+ 			Goto("checkPtr")),
+ 		Bloc("checkPtr",
+ 			Valu("ptr1", OpLoad, ptrType, 0, nil, "sb", "mem"),
+@@ -392,7 +392,7 @@ func TestNilcheckBug(t *testing.T) {
+ 	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+-			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
++			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
+ 			Goto("checkPtr")),
+ 		Bloc("checkPtr",
+ 			Valu("ptr1", OpLoad, ptrType, 0, nil, "sb", "mem"),
+diff --git a/src/cmd/compile/internal/ssa/passbm_test.go b/src/cmd/compile/internal/ssa/passbm_test.go
+index 5e0a7eb3bb..eefdbb8722 100644
+--- a/src/cmd/compile/internal/ssa/passbm_test.go
++++ b/src/cmd/compile/internal/ssa/passbm_test.go
+@@ -68,7 +68,7 @@ func genFunction(size int) []bloc {
+ 	blocs = append(blocs,
+ 		Bloc("entry",
+ 			Valu(valn("store", 0, 4), OpInitMem, types.TypeMem, 0, nil),
+-			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
++			Valu("sb", OpSB, types.Types[types.TUINTPTR], 0, nil),
+ 			Goto(blockn(1)),
+ 		),
+ 	)
+diff --git a/src/cmd/compile/internal/ssa/shift_test.go b/src/cmd/compile/internal/ssa/shift_test.go
+index ffb5a5947e..3876d8df12 100644
+--- a/src/cmd/compile/internal/ssa/shift_test.go
++++ b/src/cmd/compile/internal/ssa/shift_test.go
+@@ -35,7 +35,7 @@ func makeConstShiftFunc(c *Conf, amount int64, op Op, typ *types.Type) fun {
+ 	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+-			Valu("SP", OpSP, c.config.Types.UInt64, 0, nil),
++			Valu("SP", OpSP, c.config.Types.Uintptr, 0, nil),
+ 			Valu("argptr", OpOffPtr, ptyp, 8, nil, "SP"),
+ 			Valu("resptr", OpOffPtr, ptyp, 16, nil, "SP"),
+ 			Valu("load", OpLoad, typ, 0, nil, "argptr", "mem"),
+@@ -93,7 +93,7 @@ func makeShiftExtensionFunc(c *Conf, amount int64, lshift, rshift Op, typ *types
+ 	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+-			Valu("SP", OpSP, c.config.Types.UInt64, 0, nil),
++			Valu("SP", OpSP, c.config.Types.Uintptr, 0, nil),
+ 			Valu("argptr", OpOffPtr, ptyp, 8, nil, "SP"),
+ 			Valu("resptr", OpOffPtr, ptyp, 16, nil, "SP"),
+ 			Valu("load", OpLoad, typ, 0, nil, "argptr", "mem"),
+diff --git a/src/cmd/compile/internal/ssa/writebarrier_test.go b/src/cmd/compile/internal/ssa/writebarrier_test.go
+index c1f9ec7fc1..0b11afc84d 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier_test.go
++++ b/src/cmd/compile/internal/ssa/writebarrier_test.go
+@@ -16,8 +16,8 @@ func TestWriteBarrierStoreOrder(t *testing.T) {
+ 	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("start", OpInitMem, types.TypeMem, 0, nil),
+-			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
+-			Valu("sp", OpSP, types.TypeInvalid, 0, nil),
++			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
++			Valu("sp", OpSP, c.config.Types.Uintptr, 0, nil),
+ 			Valu("v", OpConstNil, ptrType, 0, nil),
+ 			Valu("addr1", OpAddr, ptrType, 0, nil, "sb"),
+ 			Valu("wb2", OpStore, types.TypeMem, 0, ptrType, "addr1", "v", "wb1"),
+@@ -40,8 +40,8 @@ func TestWriteBarrierPhi(t *testing.T) {
+ 	fun := c.Fun("entry",
+ 		Bloc("entry",
+ 			Valu("start", OpInitMem, types.TypeMem, 0, nil),
+-			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
+-			Valu("sp", OpSP, types.TypeInvalid, 0, nil),
++			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
++			Valu("sp", OpSP, c.config.Types.Uintptr, 0, nil),
+ 			Goto("loop")),
+ 		Bloc("loop",
+ 			Valu("phi", OpPhi, types.TypeMem, 0, nil, "start", "wb"),

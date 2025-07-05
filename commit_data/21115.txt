@@ -12,6 +12,26 @@ Date:   Sat Nov 15 09:57:02 2014 +1100
     R=minux, rsc, austin
     CC=golang-codereviews
     https://golang.org/cl/177730043
-
+---
  src/runtime/os_linux_arm.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/os_linux_arm.go b/src/runtime/os_linux_arm.go
+index 9b0ade6148..d5b37d6ab5 100644
+--- a/src/runtime/os_linux_arm.go
++++ b/src/runtime/os_linux_arm.go
+@@ -50,9 +50,12 @@ func setup_auxv(argc int32, argv **byte) {
+ 
+ 	for i := 0; auxv[i] != _AT_NULL; i += 2 {
+ 		switch auxv[i] {
+-		case _AT_RANDOM: // kernel provided 16-byte worth of random data
++		case _AT_RANDOM: // kernel provides a pointer to 16-bytes worth of random data
+ 			if auxv[i+1] != 0 {
+-				randomNumber = *(*uint32)(unsafe.Pointer(uintptr(auxv[i+1])))
++				// the pointer provided may not be word alined, so we must to treat it
++				// as a byte array.
++				rnd := (*[16]byte)(unsafe.Pointer(uintptr(auxv[i+1])))
++				randomNumber = uint32(rnd[0]) | uint32(rnd[1])<<8 | uint32(rnd[2])<<16 | uint32(rnd[3])<<24
+ 			}
+ 
+ 		case _AT_PLATFORM: // v5l, v6l, v7l

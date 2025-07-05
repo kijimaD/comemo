@@ -12,10 +12,60 @@ Date:   Wed Nov 14 16:58:10 2012 +0400
     R=golang-dev, minux.ma, rsc
     CC=golang-dev
     https://golang.org/cl/6810095
-
+---
  src/pkg/runtime/mgc0.c                       |   5 ++---
  src/pkg/runtime/race/README                  |  11 +++++++++++
  src/pkg/runtime/race/race_darwin_amd64.syso  | Bin 144876 -> 145460 bytes
  src/pkg/runtime/race/race_linux_amd64.syso   | Bin 142984 -> 147064 bytes
  src/pkg/runtime/race/race_windows_amd64.syso | Bin 118119 -> 123196 bytes
  5 files changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index ab68619d00..5ad09d53b1 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1137,9 +1137,6 @@ runfinq(void)
+ 	byte *frame;
+ 	uint32 framesz, framecap, i;
+ 
+-	if(raceenabled)
+-		runtime·racefingo();
+-
+ 	frame = nil;
+ 	framecap = 0;
+ 	for(;;) {
+@@ -1156,6 +1153,8 @@ runfinq(void)
+ 			runtime·park(nil, nil, "finalizer wait");
+ 			continue;
+ 		}
++		if(raceenabled)
++			runtime·racefingo();
+ 		for(; fb; fb=next) {
+ 			next = fb->next;
+ 			for(i=0; i<fb->cnt; i++) {
+diff --git a/src/pkg/runtime/race/README b/src/pkg/runtime/race/README
+new file mode 100644
+index 0000000000..8bedb09cdd
+--- /dev/null
++++ b/src/pkg/runtime/race/README
+@@ -0,0 +1,11 @@
++runtime/race package contains the data race detector runtime library.
++It is based on ThreadSanitizer race detector, that is currently a part of
++the LLVM project.
++
++To update the .syso files you need to:
++$ svn co http://llvm.org/svn/llvm-project/compiler-rt/trunk
++$ cd compiler-rt/lib/tsan/go
++$ ./buildgo.sh
++
++Tested with gcc 4.6.1 and 4.7.0.  On Windows it's built with 64-bit MinGW.
++
+diff --git a/src/pkg/runtime/race/race_darwin_amd64.syso b/src/pkg/runtime/race/race_darwin_amd64.syso
+index b323a71297..0caa119303 100644
+Binary files a/src/pkg/runtime/race/race_darwin_amd64.syso and b/src/pkg/runtime/race/race_darwin_amd64.syso differ
+diff --git a/src/pkg/runtime/race/race_linux_amd64.syso b/src/pkg/runtime/race/race_linux_amd64.syso
+index ccc42e57ca..d58aea78a4 100644
+Binary files a/src/pkg/runtime/race/race_linux_amd64.syso and b/src/pkg/runtime/race/race_linux_amd64.syso differ
+diff --git a/src/pkg/runtime/race/race_windows_amd64.syso b/src/pkg/runtime/race/race_windows_amd64.syso
+index 9aecde4458..df693d9b7b 100644
+Binary files a/src/pkg/runtime/race/race_windows_amd64.syso and b/src/pkg/runtime/race/race_windows_amd64.syso differ

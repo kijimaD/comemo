@@ -19,6 +19,20 @@ Date:   Tue Oct 17 15:10:59 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index ae8fd67df6..b255d7630e 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2987,7 +2987,7 @@ func TestImportMain(t *testing.T) {
+ 		func TestFoo(t *testing.T) {}
+ 	`)
+ 	tg.setenv("GOPATH", tg.path("."))
+-	tg.creatingTemp("x")
++	tg.creatingTemp("x" + exeSuffix)
+ 	tg.run("build", "x")
+ 	tg.run("test", "x")
+ 

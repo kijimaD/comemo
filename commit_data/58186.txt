@@ -14,7 +14,34 @@ Date:   Wed Oct 11 15:34:09 2023 +0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/compile/internal/types2/object.go | 2 +-
  src/go/types/object.go                    | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/object.go b/src/cmd/compile/internal/types2/object.go
+index 075712dc9c..591adeac3d 100644
+--- a/src/cmd/compile/internal/types2/object.go
++++ b/src/cmd/compile/internal/types2/object.go
+@@ -409,7 +409,7 @@ func (obj *Func) Origin() *Func {
+ // Pkg returns the package to which the function belongs.
+ //
+ // The result is nil for methods of types in the Universe scope,
+-// like [error.Error].
++// like method Error of the error built-in interface type.
+ func (obj *Func) Pkg() *Package { return obj.object.Pkg() }
+ 
+ // hasPtrRecv reports whether the receiver is of the form *T for the given method obj.
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index 17c15d48b4..41fabfd051 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -411,7 +411,7 @@ func (obj *Func) Origin() *Func {
+ // Pkg returns the package to which the function belongs.
+ //
+ // The result is nil for methods of types in the Universe scope,
+-// like [error.Error].
++// like method Error of the error built-in interface type.
+ func (obj *Func) Pkg() *Package { return obj.object.Pkg() }
+ 
+ // hasPtrRecv reports whether the receiver is of the form *T for the given method obj.

@@ -9,6 +9,50 @@ Date:   Thu Sep 27 19:29:39 2018 -0400
     Change-Id: Ic359a099661e959eb25d0f763ea16a6f48a3d4c7
     Reviewed-on: https://go-review.googlesource.com/c/138295
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  .github/ISSUE_TEMPLATE | 16 ++++++++++++++--
  1 file changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/.github/ISSUE_TEMPLATE b/.github/ISSUE_TEMPLATE
+index d3c3a2d262..9d5156b2e2 100644
+--- a/.github/ISSUE_TEMPLATE
++++ b/.github/ISSUE_TEMPLATE
+@@ -1,24 +1,36 @@
+-Please answer these questions before submitting your issue. Thanks!
+-
++<!-- Please answer these questions before submitting your issue. Thanks! -->
+ 
+ ### What version of Go are you using (`go version`)?
+ 
++<pre>
++$ go version
++
++</pre>
+ 
+ ### Does this issue reproduce with the latest release?
+ 
+ 
++
+ ### What operating system and processor architecture are you using (`go env`)?
+ 
++<details><summary><code>go env</code> Output</summary><br><pre>
++$ go env
++
++</pre></details>
+ 
+ ### What did you do?
+ 
++<!--
+ If possible, provide a recipe for reproducing the error.
+ A complete runnable program is good.
+ A link on play.golang.org is best.
++-->
++
+ 
+ 
+ ### What did you expect to see?
+ 
+ 
++
+ ### What did you see instead?
+ 

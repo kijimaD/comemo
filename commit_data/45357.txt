@@ -15,6 +15,22 @@ Date:   Tue Oct 20 10:44:07 2020 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Joel Sing <joel@sing.id.au>
-
+---
  src/cmd/go/testdata/script/link_syso_issue33139.txt | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/link_syso_issue33139.txt b/src/cmd/go/testdata/script/link_syso_issue33139.txt
+index d4f0b87537..26034c9626 100644
+--- a/src/cmd/go/testdata/script/link_syso_issue33139.txt
++++ b/src/cmd/go/testdata/script/link_syso_issue33139.txt
+@@ -8,10 +8,6 @@
+ # See: https://github.com/golang/go/issues/8912
+ [linux] [ppc64] skip
+ 
+-# External linking is not supported on linux/riscv64.
+-# See: https://github.com/golang/go/issues/36739
+-[linux] [riscv64] skip
+-
+ cc -c -o syso/objTestImpl.syso syso/src/objTestImpl.c
+ go build -ldflags='-linkmode=external' ./cmd/main.go
+ 

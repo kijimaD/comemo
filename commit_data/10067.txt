@@ -9,6 +9,26 @@ Date:   Thu Oct 20 12:37:13 2011 -0700
     R=rsc, iant, iant
     CC=golang-dev
     https://golang.org/cl/5297048
-
+---
  src/pkg/go/ast/print_test.go | 7 +++----
  1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/go/ast/print_test.go b/src/pkg/go/ast/print_test.go
+index a4bc3bb9dc..c3153ed6f7 100644
+--- a/src/pkg/go/ast/print_test.go
++++ b/src/pkg/go/ast/print_test.go
+@@ -23,11 +23,10 @@ var tests = []struct {
+ 	{"foobar", "0  \"foobar\""},
+ 
+ 	// maps
+-	{map[string]int{"a": 1, "b": 2},
+-		`0  map[string] int (len = 2) {
++	{map[string]int{"a": 1},
++		`0  map[string] int (len = 1) {
+ 		1  .  "a": 1
+-		2  .  "b": 2
+-		3  }`},
++		2  }`},
+ 
+ 	// pointers
+ 	{new(int), "0  *0"},

@@ -10,6 +10,30 @@ Date:   Thu Jun 23 10:15:46 2011 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4627051
-
+---
  src/pkg/go/build/build.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index 585489279f..d83a6666e8 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -35,6 +35,18 @@ func Build(tree *Tree, pkg string, info *DirInfo) (*Script, os.Error) {
+ 		return nil, err
+ 	}
+ 
++	// add import object files to list of Inputs
++	for _, pkg := range info.Imports {
++		t, p, err := FindTree(pkg)
++		if err != nil && err != ErrNotFound {
++			// FindTree should always be able to suggest an import
++			// path and tree. The path must be malformed
++			// (for example, an absolute or relative path).
++			return nil, os.NewError("build: invalid import: " + pkg)
++		}
++		s.addInput(filepath.Join(t.PkgDir(), p+".a"))
++	}
++
+ 	// .go files to be built with gc
+ 	gofiles := b.abss(info.GoFiles...)
+ 	s.addInput(gofiles...)

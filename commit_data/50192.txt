@@ -10,6 +10,23 @@ Date:   Sat Oct 2 11:59:08 2021 +0200
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/math/example_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/math/example_test.go b/src/math/example_test.go
+index 9fc1967967..a26d8cbe97 100644
+--- a/src/math/example_test.go
++++ b/src/math/example_test.go
+@@ -162,6 +162,11 @@ func ExampleLog10() {
+ 	// Output: 2.0
+ }
+ 
++func ExampleRemainder() {
++	fmt.Printf("%.1f", math.Remainder(100, 30))
++	// Output: 10.0
++}
++
+ func ExampleMod() {
+ 	c := math.Mod(7, 4)
+ 	fmt.Printf("%.1f", c)

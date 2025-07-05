@@ -11,6 +11,21 @@ Date:   Thu Dec 17 14:01:17 2015 -0800
     Change-Id: Iec197a754205e7fd28be154f27f17f3315886364
     Reviewed-on: https://go-review.googlesource.com/18011
     Reviewed-by: Chris Broadfoot <cbro@golang.org>
-
+---
  src/make.bash | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/make.bash b/src/make.bash
+index b4780c7e9a..2531ca4bb3 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -44,8 +44,7 @@
+ # This is used by cgo. Default is CXX, or, if that is not set, 
+ # "g++" or "clang++".
+ #
+-# GO_DISTFLAGS: extra flags to provide to "dist bootstrap". Use "-s"
+-# to build a statically linked toolchain.
++# GO_DISTFLAGS: extra flags to provide to "dist bootstrap".
+ 
+ set -e
+ if [ ! -f run.bash ]; then

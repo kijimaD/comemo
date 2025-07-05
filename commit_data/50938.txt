@@ -12,8 +12,63 @@ Date:   Wed Nov 17 19:37:04 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/index.go                      | 6 +++++-
  src/go/types/testdata/check/expr3.src      | 4 ++--
  src/go/types/testdata/check/typeparams.go2 | 4 ++--
  3 files changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/src/go/types/index.go b/src/go/types/index.go
+index ace9ee06ab..6ea25bc764 100644
+--- a/src/go/types/index.go
++++ b/src/go/types/index.go
+@@ -223,7 +223,11 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
+ 	case *Basic:
+ 		if isString(u) {
+ 			if e.Slice3 {
+-				check.invalidOp(x, _InvalidSliceExpr, "3-index slice of string")
++				at := e.Max
++				if at == nil {
++					at = e // e.Index[2] should be present but be careful
++				}
++				check.invalidOp(at, _InvalidSliceExpr, "3-index slice of string")
+ 				x.mode = invalid
+ 				return
+ 			}
+diff --git a/src/go/types/testdata/check/expr3.src b/src/go/types/testdata/check/expr3.src
+index 0f15c15a55..a63542b843 100644
+--- a/src/go/types/testdata/check/expr3.src
++++ b/src/go/types/testdata/check/expr3.src
+@@ -109,8 +109,8 @@ func indexes() {
+ 	_ = t[- /* ERROR "negative" */ 1]
+ 	_ = t[- /* ERROR "negative" */ 1 :]
+ 	_ = t[: - /* ERROR "negative" */ 1]
+-	_ = t /* ERROR "3-index slice of string" */ [1:2:3]
+-	_ = "foo" /* ERROR "3-index slice of string" */ [1:2:3]
++	_ = t[1:2:3 /* ERROR "3-index slice of string" */ ]
++	_ = "foo"[1:2:3 /* ERROR "3-index slice of string" */ ]
+ 	var t0 byte
+ 	t0 = t[0]
+ 	_ = t0
+diff --git a/src/go/types/testdata/check/typeparams.go2 b/src/go/types/testdata/check/typeparams.go2
+index 0d3b6ea527..e3aca4ccb0 100644
+--- a/src/go/types/testdata/check/typeparams.go2
++++ b/src/go/types/testdata/check/typeparams.go2
+@@ -129,7 +129,7 @@ func _[T interface{ ~[10]E }, E any] (x T, i, j, k int) { var _ []E = x[i:j:k] }
+ func _[T interface{ ~[]byte }] (x T, i, j, k int) { var _ T = x[i:j] }
+ func _[T interface{ ~[]byte }] (x T, i, j, k int) { var _ T = x[i:j:k] }
+ func _[T interface{ ~string }] (x T, i, j, k int) { var _ T = x[i:j] }
+-func _[T interface{ ~string }] (x T, i, j, k int) { var _ T = x /* ERROR 3-index slice of string */ [i:j:k] }
++func _[T interface{ ~string }] (x T, i, j, k int) { var _ T = x[i:j:k /* ERROR 3-index slice of string */ ] }
+ 
+ type myByte1 []byte
+ type myByte2 []byte
+@@ -137,7 +137,7 @@ func _[T interface{ []byte | myByte1 | myByte2 }] (x T, i, j, k int) { var _ T =
+ func _[T interface{ []byte | myByte1 | []int }] (x T, i, j, k int) { var _ T = x /* ERROR no structural type */ [i:j:k] }
+ 
+ func _[T interface{ []byte | myByte1 | myByte2 | string }] (x T, i, j, k int) { var _ T = x[i:j] }
+-func _[T interface{ []byte | myByte1 | myByte2 | string }] (x T, i, j, k int) { var _ T = x /* ERROR 3-index slice of string */ [i:j:k] }
++func _[T interface{ []byte | myByte1 | myByte2 | string }] (x T, i, j, k int) { var _ T = x[i:j:k /* ERROR 3-index slice of string */ ] }
+ func _[T interface{ []byte | myByte1 | []int | string }] (x T, i, j, k int) { var _ T = x /* ERROR no structural type */ [i:j] }
+ 
+ // len/cap built-ins

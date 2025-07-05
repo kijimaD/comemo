@@ -9,6 +9,20 @@ Date:   Fri Jul 24 13:07:12 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=32164
     CL=32171
-
+---
  src/pkg/go/parser/parser_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/parser/parser_test.go b/src/pkg/go/parser/parser_test.go
+index 3b02c50345..b6618d06e8 100644
+--- a/src/pkg/go/parser/parser_test.go
++++ b/src/pkg/go/parser/parser_test.go
+@@ -78,7 +78,7 @@ func TestParse4(t *testing.T) {
+ 	path := ".";
+ 	pkg, err := ParsePackage(path, filter, 0);
+ 	if err != nil {
+-		t.Errorf("ParsePackage(%s): %v", path, err);
++		t.Fatalf("ParsePackage(%s): %v", path, err);
+ 	}
+ 	if pkg.Name != "parser" {
+ 		t.Errorf("incorrect package name: %s", pkg.Name);

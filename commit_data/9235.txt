@@ -13,7 +13,7 @@ Date:   Thu Jul 28 12:31:16 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4828046
-
+---
  src/cmd/gc/go.y          |  5 ++++-
  src/cmd/gc/lex.c         |  7 ++++++-
  src/cmd/gc/typecheck.c   |  3 ++-
@@ -24,3 +24,225 @@ Date:   Thu Jul 28 12:31:16 2011 -0400
  test/fixedbugs/bug358.go | 26 ++++++++++++++++++++++++++
  test/fixedbugs/bug359.go | 26 ++++++++++++++++++++++++++
  9 files changed, 122 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 36b549ddea..4c7fe6068b 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1249,7 +1249,10 @@ fnliteral:
+ 		$$ = closurebody($3);
+ 		fixlbrace($2);
+ 	}
+-
++|	fnlitdcl error
++	{
++		$$ = closurebody(nil);
++	}
+ 
+ /*
+  * lists of things
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 24a244e40f..29b6d27ffc 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -254,7 +254,7 @@ main(int argc, char *argv[])
+ 	resumetypecopy();
+ 	resumecheckwidth();
+ 
+-	for(l=xtop; l; l=l->next)
++	for(l=xtop; l; l=l->next) {
+ 		if(l->n->op == ODCLFUNC || l->n->op == OCLOSURE) {
+ 			curfn = l->n;
+ 			saveerrors();
+@@ -262,7 +262,12 @@ main(int argc, char *argv[])
+ 			if(nerrors != 0)
+ 				l->n->nbody = nil;  // type errors; do not compile
+ 		}
++	}
++
+ 	curfn = nil;
++	
++	if(nsavederrors+nerrors)
++		errorexit();
+ 
+ 	for(l=xtop; l; l=l->next)
+ 		if(l->n->op == ODCLFUNC)
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 81b9dd2c86..78cdb5bf23 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -146,17 +146,18 @@ typecheck(Node **np, int top)
+ 		case OPACK:
+ 			break;
+ 		default:
++			lineno = lno;
+ 			return n;
+ 		}
+ 	}
+ 
+ 	if(n->typecheck == 2) {
+ 		yyerror("typechecking loop");
++		lineno = lno;
+ 		return n;
+ 	}
+ 	n->typecheck = 2;
+ 
+-	lno = setlineno(n);
+ 	if(n->sym) {
+ 		if(n->op == ONAME && n->etype != 0 && !(top & Ecall)) {
+ 			yyerror("use of builtin %S not in function call", n->sym);
+diff --git a/test/fixedbugs/bug274.go b/test/fixedbugs/bug274.go
+index 81ee9e5b8a..198544c3f5 100644
+--- a/test/fixedbugs/bug274.go
++++ b/test/fixedbugs/bug274.go
+@@ -25,6 +25,7 @@ func main() {
+ 		L1:  // ERROR "statement"
+ 	default:
+ 		     // correct since no semicolon is required before a '}'
+-		L2:  // ERROR "not used"
++		goto L2
++		L2:
+ 	}
+ }
+diff --git a/test/fixedbugs/bug298.go b/test/fixedbugs/bug298.go
+index fe4a99a780..c16c3f98af 100644
+--- a/test/fixedbugs/bug298.go
++++ b/test/fixedbugs/bug298.go
+@@ -7,5 +7,5 @@
+ package ddd
+ 
+ func Sum() int
+-	for i := range []int{} { return i }  // ERROR "return outside function|expected"
++	for i := range []int{} { return i }  // ERROR "statement outside function|expected"
+ 
+diff --git a/test/fixedbugs/bug353.go b/test/fixedbugs/bug353.go
+new file mode 100644
+index 0000000000..46f5c36cb3
+--- /dev/null
++++ b/test/fixedbugs/bug353.go
+@@ -0,0 +1,30 @@
++// errchk $G $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 2089 - internal compiler error
++
++package main
++
++import (
++	"io"
++	"os"
++)
++
++func echo(fd io.ReadWriterCloser) { // ERROR "undefined: io.ReadWriterCloser"
++	var buf [1024]byte
++	for {
++		n, err := fd.Read(buf)
++		if err != nil {
++			break
++		}
++		fd.Write(buf[0:n])
++	}
++}
++
++func main() {
++	fd, _ := os.Open("a.txt")
++	echo(fd)
++}
+diff --git a/test/fixedbugs/bug357.go b/test/fixedbugs/bug357.go
+new file mode 100644
+index 0000000000..2220398d01
+--- /dev/null
++++ b/test/fixedbugs/bug357.go
+@@ -0,0 +1,25 @@
++// errchk $G $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 1993.
++// error used to have last line number in file
++
++package main
++
++func bla1() bool {
++	return false
++}
++
++func bla5() bool {
++	_ = 1
++	false  // ERROR "false not used"
++	_ = 2
++}
++
++func main() {
++	x := bla1()
++	_ = x
++}
+diff --git a/test/fixedbugs/bug358.go b/test/fixedbugs/bug358.go
+new file mode 100644
+index 0000000000..cc622c047f
+--- /dev/null
++++ b/test/fixedbugs/bug358.go
+@@ -0,0 +1,26 @@
++// errchk $G $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 1979
++// used to get internal compiler error too
++
++package main
++
++import (
++	"http"
++	"io/ioutil"
++	"os"
++)
++
++func makeHandler(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
++	return func(w http.ResponseWriter, r *http.Request)  // ERROR "syntax error"
++}
++
++type Page struct {
++	Title string
++	Body []byte
++}
++
+diff --git a/test/fixedbugs/bug359.go b/test/fixedbugs/bug359.go
+new file mode 100644
+index 0000000000..6ced608bcc
+--- /dev/null
++++ b/test/fixedbugs/bug359.go
+@@ -0,0 +1,26 @@
++// errchk $G $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 1910
++// error on wrong line
++
++package main
++
++import "container/list"
++
++type Painting struct {
++	fragments list.List // private
++}
++
++func (p Painting) Foo() {
++	for e := p.fragments; e.Front() != nil; e = e.Next() {  // ERROR "unexported field"
++	}
++}
++
++// from comment 4 of issue 1910
++type Foo interface {
++	Run(a int) (a int)  // ERROR "a redeclared"
++}

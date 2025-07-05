@@ -10,10 +10,229 @@ Date:   Thu Apr 16 13:46:58 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/8985
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testcshared/main0.c            | 33 ++++++++++++++++
  misc/cgo/testcshared/main1.c            | 69 +++++++++++++++++++++++++++++++++
  misc/cgo/testcshared/src/libgo/libgo.go | 47 ++++++++++++++++++++++
  misc/cgo/testcshared/src/p/p.go         | 10 +++++
  misc/cgo/testcshared/test.bash          | 29 ++++++++++++++
  5 files changed, 188 insertions(+)
+
+diff --git a/misc/cgo/testcshared/main0.c b/misc/cgo/testcshared/main0.c
+new file mode 100644
+index 0000000000..fa0eb4a09e
+--- /dev/null
++++ b/misc/cgo/testcshared/main0.c
+@@ -0,0 +1,33 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <stdint.h>
++#include <stdio.h>
++
++// Tests libgo.so to export the following functions.
++//   int8_t DidInitRun();
++//   int8_t DidMainRun();
++//   int32_t FromPkg();
++int main(void) {
++  int8_t ran_init = DidInitRun();
++  if (!ran_init) {
++    fprintf(stderr, "ERROR: DidInitRun returned unexpected results: %d\n",
++            ran_init);
++    return 1;
++  }
++  int8_t ran_main = DidMainRun();
++  if (ran_main) {
++    fprintf(stderr, "ERROR: DidMainRun returned unexpected results: %d\n",
++            ran_main);
++    return 1;
++  }
++  int32_t from_pkg = FromPkg();
++  if (from_pkg != 1024) {
++    fprintf(stderr, "ERROR: FromPkg=%d, want %d\n", from_pkg, 1024);
++    return 1;
++  }
++  // test.bash looks for "PASS" to ensure this program has reached the end. 
++  printf("PASS\n");
++  return 0;
++}
+diff --git a/misc/cgo/testcshared/main1.c b/misc/cgo/testcshared/main1.c
+new file mode 100644
+index 0000000000..420dd1ea97
+--- /dev/null
++++ b/misc/cgo/testcshared/main1.c
+@@ -0,0 +1,69 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <stdint.h>
++#include <stdio.h>
++#include <dlfcn.h>
++
++int check_int8(void* handle, const char* fname, int8_t want) {
++  int8_t (*fn)();
++  fn = (int8_t (*)())dlsym(handle, fname);
++  if (!fn) {
++    fprintf(stderr, "ERROR: missing %s: %s\n", fname, dlerror());
++    return 1;
++  }
++  signed char ret = fn();
++  if (ret != want) {
++    fprintf(stderr, "ERROR: %s=%d, want %d\n", fname, ret, want);
++    return 1;
++  }
++  return 0;
++}
++
++int check_int32(void* handle, const char* fname, int32_t want) {
++  int32_t (*fn)();
++  fn = (int32_t (*)())dlsym(handle, fname);
++  if (!fn) {
++    fprintf(stderr, "ERROR: missing %s: %s\n", fname, dlerror());
++    return 1;
++  }
++  int32_t ret = fn();
++  if (ret != want) {
++    fprintf(stderr, "ERROR: %s=%d, want %d\n", fname, ret, want);
++    return 1;
++  }
++  return 0;
++}
++
++// Tests libgo.so to export the following functions.
++//   int8_t DidInitRun() // returns true
++//   int8_t DidMainRun() // returns true
++//   int32_t FromPkg() // returns 1024
++int main(int argc, char** argv) {
++  void* handle = dlopen(argv[1], RTLD_LAZY | RTLD_GLOBAL);
++  if (!handle) {
++    fprintf(stderr, "ERROR: failed to open the shared library: %s\n",
++		    dlerror());
++    return 2;
++  }
++
++  int ret = 0;
++  ret = check_int8(handle, "DidInitRun", 1);
++  if (ret != 0) {
++    return ret;
++  }
++
++  ret = check_int8(handle, "DidMainRun", 0);
++  if (ret != 0) {
++    return ret;
++  }
++
++  ret = check_int32(handle, "FromPkg", 1024);
++  if (ret != 0) {
++   return ret;
++  }
++  // test.bash looks for "PASS" to ensure this program has reached the end. 
++  printf("PASS\n");
++  return 0;
++}
+diff --git a/misc/cgo/testcshared/src/libgo/libgo.go b/misc/cgo/testcshared/src/libgo/libgo.go
+new file mode 100644
+index 0000000000..facf1fbd25
+--- /dev/null
++++ b/misc/cgo/testcshared/src/libgo/libgo.go
+@@ -0,0 +1,47 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	_ "p"
++	"syscall"
++	"time"
++)
++
++import "C"
++
++var initCh = make(chan int, 1)
++var ranMain bool
++
++func init() {
++	// emulate an exceedingly slow package initialization function
++	time.Sleep(100 * time.Millisecond)
++	initCh <- 42
++}
++
++func main() {
++	ranMain = true
++	panic("FAIL: main ran")
++}
++
++//export DidInitRun
++func DidInitRun() bool {
++	select {
++	case x := <-initCh:
++		if x != 42 {
++			// Just in case initCh was not correctly made.
++			println("want init value of 42, got: ", x)
++			syscall.Exit(2)
++		}
++		return true
++	default:
++		return false
++	}
++}
++
++//export DidMainRun
++func DidMainRun() bool {
++	return ranMain
++}
+diff --git a/misc/cgo/testcshared/src/p/p.go b/misc/cgo/testcshared/src/p/p.go
+new file mode 100644
+index 0000000000..82b445c121
+--- /dev/null
++++ b/misc/cgo/testcshared/src/p/p.go
+@@ -0,0 +1,10 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import "C"
++
++//export FromPkg
++func FromPkg() int32 { return 1024 }
+diff --git a/misc/cgo/testcshared/test.bash b/misc/cgo/testcshared/test.bash
+new file mode 100755
+index 0000000000..61f80ea9a2
+--- /dev/null
++++ b/misc/cgo/testcshared/test.bash
+@@ -0,0 +1,29 @@
++#!/usr/bin/env bash
++# Copyright 2015 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++set -e
++
++function cleanup() {
++	rm libgo.so testp
++}
++trap cleanup EXIT
++
++GOPATH=$(pwd) go build -buildmode=c-shared -o libgo.so src/libgo/libgo.go
++
++$(go env CC) $(go env GOGCCFLAGS) -o testp main0.c libgo.so
++output=$(LD_LIBRARY_PATH=$LD_LIBRARY_PATH:. ./testp)
++# testp prints PASS at the end of its execution.
++if [ "$output" != "PASS" ]; then
++	echo "FAIL: got $output"
++	exit 1
++fi
++
++$(go env CC) $(go env GOGCCFLAGS) -o testp main1.c -ldl
++output=$(./testp ./libgo.so) 
++# testp prints PASS at the end of its execution.
++if [ "$output" != "PASS" ]; then
++	echo "FAIL: got $output"
++	exit 1
++fi

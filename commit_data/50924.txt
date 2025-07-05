@@ -17,9 +17,119 @@ Date:   Wed Nov 17 09:35:57 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/lookup.go               | 17 +++++++++++------
  .../internal/types2/testdata/fixedbugs/issue49579.go2   | 17 +++++++++++++++++
  src/go/types/lookup.go                                  |  7 +++++++
  src/go/types/testdata/fixedbugs/issue49579.go2          | 17 +++++++++++++++++
  4 files changed, 52 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 4f50ea54b1..ee764c7d14 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -71,6 +71,8 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ // lookupFieldOrMethod should only be called by LookupFieldOrMethod and missingMethod.
+ // If checkFold is true, the lookup for methods will include looking for any method
+ // which case-folds to the same as 'name' (used for giving helpful error messages).
++//
++// The resulting object may not be fully type-checked.
+ func lookupFieldOrMethod(T Type, addressable, checkFold bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
+ 	// WARNING: The code in this function is extremely subtle - do not modify casually!
+ 
+@@ -352,14 +354,17 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ 		if obj == nil {
+ 			ptr := NewPointer(V)
+ 			obj, _, _ = lookupFieldOrMethod(ptr, false, false, m.pkg, m.name)
+-			if obj != nil {
+-				return m, obj.(*Func)
++			if obj == nil {
++				// If we didn't find the exact method (even with pointer
++				// receiver), look to see if there is a method that
++				// matches m.name with case-folding.
++				obj, _, _ = lookupFieldOrMethod(V, false, true, m.pkg, m.name)
+ 			}
+-			// If we didn't find the exact method (even with pointer
+-			// receiver), look to see if there is a method that
+-			// matches m.name with case-folding.
+-			obj, _, _ := lookupFieldOrMethod(V, false, true, m.pkg, m.name)
+ 			if obj != nil {
++				// methods may not have a fully set up signature yet
++				if check != nil {
++					check.objDecl(obj, nil)
++				}
+ 				return m, obj.(*Func)
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49579.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49579.go2
+new file mode 100644
+index 0000000000..9e20ae5468
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49579.go2
+@@ -0,0 +1,17 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type I[F any] interface {
++	Q(*F)
++}
++
++func G[F any]() I[any] {
++	return g /* ERROR "missing method Q \(Q has pointer receiver\)" */ [F]{}
++}
++
++type g[F any] struct{}
++
++func (*g[F]) Q(*any) {}
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index be91d39f50..6855ccdf27 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -69,6 +69,8 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ //           indirectly via different packages.)
+ 
+ // lookupFieldOrMethod should only be called by LookupFieldOrMethod and missingMethod.
++//
++// The resulting object may not be fully type-checked.
+ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
+ 	// WARNING: The code in this function is extremely subtle - do not modify casually!
+ 
+@@ -346,7 +348,12 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ 		if obj == nil {
+ 			ptr := NewPointer(V)
+ 			obj, _, _ = lookupFieldOrMethod(ptr, false, m.pkg, m.name)
++
+ 			if obj != nil {
++				// methods may not have a fully set up signature yet
++				if check != nil {
++					check.objDecl(obj, nil)
++				}
+ 				return m, obj.(*Func)
+ 			}
+ 		}
+diff --git a/src/go/types/testdata/fixedbugs/issue49579.go2 b/src/go/types/testdata/fixedbugs/issue49579.go2
+new file mode 100644
+index 0000000000..9e20ae5468
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue49579.go2
+@@ -0,0 +1,17 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type I[F any] interface {
++	Q(*F)
++}
++
++func G[F any]() I[any] {
++	return g /* ERROR "missing method Q \(Q has pointer receiver\)" */ [F]{}
++}
++
++type g[F any] struct{}
++
++func (*g[F]) Q(*any) {}

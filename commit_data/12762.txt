@@ -9,6 +9,20 @@ Date:   Tue Mar 27 11:40:17 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5923043
-
+---
  doc/articles/index.html | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/doc/articles/index.html b/doc/articles/index.html
+new file mode 100644
+index 0000000000..5f70734ecd
+--- /dev/null
++++ b/doc/articles/index.html
+@@ -0,0 +1,7 @@
++<!--{
++	"Title": "/doc/articles/"
++}-->
++
++<p>
++See the <a href="/doc/#articles">Documents page</a> for a complete list of Go articles.
++</p>

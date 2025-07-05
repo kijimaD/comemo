@@ -14,10 +14,101 @@ Date:   Fri Dec 4 22:51:03 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/17454
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/life/main.go   | 2 +-
  misc/cgo/stdio/chain.go | 5 +++--
  misc/cgo/stdio/fib.go   | 5 +++--
  misc/cgo/stdio/hello.go | 2 +-
  test/run.go             | 4 ++++
  5 files changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/misc/cgo/life/main.go b/misc/cgo/life/main.go
+index 725e10f76c..c17cd6c92c 100644
+--- a/misc/cgo/life/main.go
++++ b/misc/cgo/life/main.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build ignore
++// +build test_run
+ 
+ // Run the game of life in C using Go for parallelization.
+ 
+diff --git a/misc/cgo/stdio/chain.go b/misc/cgo/stdio/chain.go
+index a55cefa40c..1256133e2f 100644
+--- a/misc/cgo/stdio/chain.go
++++ b/misc/cgo/stdio/chain.go
+@@ -4,16 +4,17 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build ignore
++// +build test_run
+ 
+ // Pass numbers along a chain of threads.
+ 
+ package main
+ 
+ import (
+-	"../stdio"
+ 	"runtime"
+ 	"strconv"
++
++	"../stdio"
+ )
+ 
+ const N = 10
+diff --git a/misc/cgo/stdio/fib.go b/misc/cgo/stdio/fib.go
+index 981ffeb9ab..eb43cf5daf 100644
+--- a/misc/cgo/stdio/fib.go
++++ b/misc/cgo/stdio/fib.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build ignore
++// +build test_run
+ 
+ // Compute Fibonacci numbers with two goroutines
+ // that pass integers back and forth.  No actual
+@@ -14,9 +14,10 @@
+ package main
+ 
+ import (
+-	"../stdio"
+ 	"runtime"
+ 	"strconv"
++
++	"../stdio"
+ )
+ 
+ func fibber(c, out chan int64, i int64) {
+diff --git a/misc/cgo/stdio/hello.go b/misc/cgo/stdio/hello.go
+index 9cfeefbba7..60c0304e2e 100644
+--- a/misc/cgo/stdio/hello.go
++++ b/misc/cgo/stdio/hello.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build ignore
++// +build test_run
+ 
+ package main
+ 
+diff --git a/test/run.go b/test/run.go
+index d3f58b7782..52230efc42 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -400,6 +400,10 @@ func (ctxt *context) match(name string) bool {
+ 		return true
+ 	}
+ 
++	if name == "test_run" {
++		return true
++	}
++
+ 	return false
+ }
+ 

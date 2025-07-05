@@ -12,6 +12,21 @@ Date:   Wed Jan 6 22:04:06 2016 -0500
     Change-Id: Icea1027924a23a687cbbe4001985e8c6384629d7
     Reviewed-on: https://go-review.googlesource.com/18346
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/extern.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index cab8de0481..f52c66cf87 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -105,6 +105,9 @@ It is a comma-separated list of name=val pairs setting these named variables:
+ 	schedtrace: setting schedtrace=X causes the scheduler to emit a single line to standard
+ 	error every X milliseconds, summarizing the scheduler state.
+ 
++The net and net/http packages also refer to debugging variables in GODEBUG.
++See the documentation for those packages for details.
++
+ The GOMAXPROCS variable limits the number of operating system threads that
+ can execute user-level Go code simultaneously. There is no limit to the number of threads
+ that can be blocked in system calls on behalf of Go code; those do not count against

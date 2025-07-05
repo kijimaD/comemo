@@ -15,7 +15,45 @@ Date:   Mon Feb 1 15:58:34 2016 +0000
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/httputil/reverseproxy.go      | 4 ++--
  src/net/http/httputil/reverseproxy_test.go | 4 ++++
  2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index 4dba352a4f..38987d7a74 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -109,8 +109,8 @@ var hopHeaders = []string{
+ 	"Keep-Alive",
+ 	"Proxy-Authenticate",
+ 	"Proxy-Authorization",
+-	"Te", // canonicalized version of "TE"
+-	"Trailers",
++	"Te",      // canonicalized version of "TE"
++	"Trailer", // not Trailers per URL above; http://www.rfc-editor.org/errata_search.php?eid=4522
+ 	"Transfer-Encoding",
+ 	"Upgrade",
+ }
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index 7f203d878f..72662ccdc5 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -48,6 +48,7 @@ func TestReverseProxy(t *testing.T) {
+ 		if g, e := r.Host, "some-name"; g != e {
+ 			t.Errorf("backend got Host header %q, want %q", g, e)
+ 		}
++		w.Header().Set("Trailers", "not a special header field name")
+ 		w.Header().Set("Trailer", "X-Trailer")
+ 		w.Header().Set("X-Foo", "bar")
+ 		w.Header().Set("Upgrade", "foo")
+@@ -86,6 +87,9 @@ func TestReverseProxy(t *testing.T) {
+ 	if c := res.Header.Get(fakeHopHeader); c != "" {
+ 		t.Errorf("got %s header value %q", fakeHopHeader, c)
+ 	}
++	if g, e := res.Header.Get("Trailers"), "not a special header field name"; g != e {
++		t.Errorf("header Trailers = %q; want %q", g, e)
++	}
+ 	if g, e := len(res.Header["X-Multi-Value"]), 2; g != e {
+ 		t.Errorf("got %d X-Multi-Value header values; expected %d", g, e)
+ 	}

@@ -8,6 +8,25 @@ Date:   Fri Mar 20 17:03:48 2009 -0700
     DELTA=5  (0 added, 2 deleted, 3 changed)
     OCL=26607
     CL=26607
-
+---
  doc/go_spec.html | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 935787f8a4..4100610f6c 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1910,11 +1910,9 @@ pi := Num{Rat{22, 7}, 3.14159, "pi"}
+ </pre>
+ 
+ <p>
+-Since evaluation of a literal creates a new value, taking the address of a
+-composite literal (§Address operators) generates a pointer to a unique
+-instance of the literal's value.
++Taking the address of a composite literal (§Address operators)
++generates a unique pointer to an instance of the literal's value.
+ </p>
+-
+ <pre>
+ var pi_ptr *Rat = &amp;Rat{22, 7}
+ </pre>

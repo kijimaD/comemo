@@ -10,7 +10,7 @@ Date:   Thu Nov 3 17:35:28 2011 -0400
     R=golang-dev, dsymonds, dave, hectorchu, r, cw
     CC=golang-dev
     https://golang.org/cl/5297078
-
+---
  src/pkg/runtime/Makefile            |  1 +
  src/pkg/runtime/darwin/386/sys.s    | 25 ++++++++++++++++---------
  src/pkg/runtime/darwin/amd64/sys.s  | 14 ++++++++------
@@ -28,3 +28,511 @@ Date:   Thu Nov 3 17:35:28 2011 -0400
  src/pkg/runtime/windows/thread.c    | 24 ++++++++++--------------
  src/pkg/time/sys.go                 | 18 ++++--------------
  16 files changed, 133 insertions(+), 114 deletions(-)
+
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 2d7b51b894..40150d2f68 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -98,6 +98,7 @@ OFILES=\
+ 	symtab.$O\
+ 	sys.$O\
+ 	thread.$O\
++	time.$O\
+ 	traceback.$O\
+ 	$(OFILES_$(GOARCH))\
+ 	$(OFILES_$(GOOS))\
+diff --git a/src/pkg/runtime/darwin/386/sys.s b/src/pkg/runtime/darwin/386/sys.s
+index 15eaf93bc3..c8b89bfa3f 100644
+--- a/src/pkg/runtime/darwin/386/sys.s
++++ b/src/pkg/runtime/darwin/386/sys.s
+@@ -60,20 +60,27 @@ TEXT runtime·setitimer(SB),7,$0
+ 	INT	$0x80
+ 	RET
+ 
+-// void gettime(int64 *sec, int32 *usec)
+-TEXT runtime·gettime(SB), 7, $32
++// int64 nanotime(void) so really
++// void nanotime(int64 *nsec)
++TEXT runtime·nanotime(SB), 7, $32
+ 	LEAL	12(SP), AX	// must be non-nil, unused
+ 	MOVL	AX, 4(SP)
+ 	MOVL	$0, 8(SP)	// time zone pointer
+ 	MOVL	$116, AX
+ 	INT	$0x80
+-
+-	MOVL	sec+0(FP), DI
+-	MOVL	AX, (DI)
+-	MOVL	$0, 4(DI)	// zero extend 32 -> 64
+-
+-	MOVL	usec+4(FP), DI
+-	MOVL	DX, (DI)
++	MOVL	DX, BX
++
++	// sec is in AX, usec in BX
++	// convert to DX:AX nsec
++	MOVL	$1000000000, CX
++	MULL	CX
++	IMULL	$1000, BX
++	ADDL	BX, AX
++	ADCL	$0, DX
++	
++	MOVL	ret+0(FP), DI
++	MOVL	AX, 0(DI)
++	MOVL	DX, 4(DI)
+ 	RET
+ 
+ TEXT runtime·sigaction(SB),7,$0
+diff --git a/src/pkg/runtime/darwin/amd64/sys.s b/src/pkg/runtime/darwin/amd64/sys.s
+index 7c79f18c49..f049d973db 100644
+--- a/src/pkg/runtime/darwin/amd64/sys.s
++++ b/src/pkg/runtime/darwin/amd64/sys.s
+@@ -55,16 +55,18 @@ TEXT runtime·setitimer(SB), 7, $0
+ 	SYSCALL
+ 	RET
+ 
+-// void gettime(int64 *sec, int32 *usec)
+-TEXT runtime·gettime(SB), 7, $32
++// int64 nanotime(void)
++TEXT runtime·nanotime(SB), 7, $32
+ 	MOVQ	SP, DI	// must be non-nil, unused
+ 	MOVQ	$0, SI
+ 	MOVL	$(0x2000000+116), AX
+ 	SYSCALL
+-	MOVQ	sec+0(FP), DI
+-	MOVQ	AX, (DI)
+-	MOVQ	usec+8(FP), DI
+-	MOVL	DX, (DI)
++
++	// sec is in AX, usec in DX
++	// return nsec in AX
++	IMULQ	$1000000000, AX
++	IMULQ	$1000, DX
++	ADDQ	DX, AX
+ 	RET
+ 
+ TEXT runtime·sigaction(SB),7,$0
+diff --git a/src/pkg/runtime/freebsd/386/sys.s b/src/pkg/runtime/freebsd/386/sys.s
+index 4c0b4e41a1..3856a53707 100644
+--- a/src/pkg/runtime/freebsd/386/sys.s
++++ b/src/pkg/runtime/freebsd/386/sys.s
+@@ -106,23 +106,31 @@ TEXT runtime·setitimer(SB), 7, $-4
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·gettime(SB), 7, $32
++// int64 nanotime(void) so really
++// void nanotime(int64 *nsec)
++TEXT runtime·nanotime(SB), 7, $32
+ 	MOVL	$116, AX
+ 	LEAL	12(SP), BX
+ 	MOVL	BX, 4(SP)
+ 	MOVL	$0, 8(SP)
+ 	INT	$0x80
+-
+-	MOVL	12(SP), BX	// sec
+-	MOVL	sec+0(FP), DI
+-	MOVL	BX, (DI)
+-	MOVL	$0, 4(DI)	// zero extend 32 -> 64 bits
+-
++	MOVL	12(SP), AX	// sec
+ 	MOVL	16(SP), BX	// usec
+-	MOVL	usec+4(FP), DI
+-	MOVL	BX, (DI)
++
++	// sec is in AX, usec in BX
++	// convert to DX:AX nsec
++	MOVL	$1000000000, CX
++	MULL	CX
++	IMULL	$1000, BX
++	ADDL	BX, AX
++	ADCL	$0, DX
++	
++	MOVL	ret+0(FP), DI
++	MOVL	AX, 0(DI)
++	MOVL	DX, 4(DI)
+ 	RET
+ 
++
+ TEXT runtime·sigaction(SB),7,$-4
+ 	MOVL	$416, AX
+ 	INT	$0x80
+diff --git a/src/pkg/runtime/freebsd/amd64/sys.s b/src/pkg/runtime/freebsd/amd64/sys.s
+index e973b520cf..252069e0db 100644
+--- a/src/pkg/runtime/freebsd/amd64/sys.s
++++ b/src/pkg/runtime/freebsd/amd64/sys.s
+@@ -85,19 +85,19 @@ TEXT runtime·setitimer(SB), 7, $-8
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·gettime(SB), 7, $32
++TEXT runtime·nanotime(SB), 7, $32
+ 	MOVL	$116, AX
+ 	LEAQ	8(SP), DI
+ 	MOVQ	$0, SI
+ 	SYSCALL
+-
+-	MOVQ	8(SP), BX	// sec
+-	MOVQ	sec+0(FP), DI
+-	MOVQ	BX, (DI)
+-
+-	MOVL	16(SP), BX	// usec
+-	MOVQ	usec+8(FP), DI
+-	MOVL	BX, (DI)
++	MOVQ	8(SP), AX	// sec
++	MOVL	16(SP), DX	// usec
++
++	// sec is in AX, usec in DX
++	// return nsec in AX
++	IMULQ	$1000000000, AX
++	IMULQ	$1000, DX
++	ADDQ	DX, AX
+ 	RET
+ 
+ TEXT runtime·sigaction(SB),7,$-8
+diff --git a/src/pkg/runtime/linux/386/sys.s b/src/pkg/runtime/linux/386/sys.s
+index 1b4f649bd7..97d9d5ed9c 100644
+--- a/src/pkg/runtime/linux/386/sys.s
++++ b/src/pkg/runtime/linux/386/sys.s
+@@ -95,21 +95,28 @@ TEXT runtime·mincore(SB),7,$0-24
+ 	CALL	*runtime·_vdso(SB)
+ 	RET
+ 
+-TEXT runtime·gettime(SB), 7, $32
++// int64 nanotime(void) so really
++// void nanotime(int64 *nsec)
++TEXT runtime·nanotime(SB), 7, $32
+ 	MOVL	$78, AX			// syscall - gettimeofday
+ 	LEAL	8(SP), BX
+ 	MOVL	$0, CX
+ 	MOVL	$0, DX
+ 	CALL	*runtime·_vdso(SB)
+-
+-	MOVL	8(SP), BX	// sec
+-	MOVL	sec+0(FP), DI
+-	MOVL	BX, (DI)
+-	MOVL	$0, 4(DI)	// zero extend 32 -> 64 bits
+-
++	MOVL	8(SP), AX	// sec
+ 	MOVL	12(SP), BX	// usec
+-	MOVL	usec+4(FP), DI
+-	MOVL	BX, (DI)
++
++	// sec is in AX, usec in BX
++	// convert to DX:AX nsec
++	MOVL	$1000000000, CX
++	MULL	CX
++	IMULL	$1000, BX
++	ADDL	BX, AX
++	ADCL	$0, DX
++	
++	MOVL	ret+0(FP), DI
++	MOVL	AX, 0(DI)
++	MOVL	DX, 4(DI)
+ 	RET
+ 
+ TEXT runtime·rt_sigaction(SB),7,$0
+diff --git a/src/pkg/runtime/linux/amd64/sys.s b/src/pkg/runtime/linux/amd64/sys.s
+index 3174af2cb0..227c8e62cc 100644
+--- a/src/pkg/runtime/linux/amd64/sys.s
++++ b/src/pkg/runtime/linux/amd64/sys.s
+@@ -93,19 +93,19 @@ TEXT runtime·mincore(SB),7,$0-24
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·gettime(SB), 7, $32
++TEXT runtime·nanotime(SB), 7, $32
+ 	LEAQ	8(SP), DI
+ 	MOVQ	$0, SI
+ 	MOVQ	$0xffffffffff600000, AX
+ 	CALL	AX
+-
+-	MOVQ	8(SP), BX	// sec
+-	MOVQ	sec+0(FP), DI
+-	MOVQ	BX, (DI)
+-
+-	MOVL	16(SP), BX	// usec
+-	MOVQ	usec+8(FP), DI
+-	MOVL	BX, (DI)
++	MOVQ	8(SP), AX	// sec
++	MOVL	16(SP), DX	// usec
++
++	// sec is in AX, usec in DX
++	// return nsec in AX
++	IMULQ	$1000000000, AX
++	IMULQ	$1000, DX
++	ADDQ	DX, AX
+ 	RET
+ 
+ TEXT runtime·rt_sigaction(SB),7,$0-32
+diff --git a/src/pkg/runtime/linux/arm/sys.s b/src/pkg/runtime/linux/arm/sys.s
+index 764e779fdd..45da858abd 100644
+--- a/src/pkg/runtime/linux/arm/sys.s
++++ b/src/pkg/runtime/linux/arm/sys.s
+@@ -127,14 +127,14 @@ TEXT runtime·mincore(SB),7,$0
+ 	SWI	$0
+ 	RET
+ 
+-TEXT runtime·gettime(SB),7,$32
++// int64 nanotime(void) so really
++// void nanotime(int64 *nsec)
++TEXT runtime·nanotime(SB),7,$32
+ 	/* dummy version - return 0,0 */
+ 	MOVW	$0, R1
+ 	MOVW	0(FP), R0
+ 	MOVW	R1, 0(R0)
+ 	MOVW	R1, 4(R0)
+-	MOVW	4(FP), R0
+-	MOVW	R1, 0(R0)
+ 
+ /*
+ 	attempt at real version - seg faults
+diff --git a/src/pkg/runtime/openbsd/386/sys.s b/src/pkg/runtime/openbsd/386/sys.s
+index d2df518276..6a6a7bbd3b 100644
+--- a/src/pkg/runtime/openbsd/386/sys.s
++++ b/src/pkg/runtime/openbsd/386/sys.s
+@@ -91,21 +91,28 @@ TEXT runtime·setitimer(SB),7,$-4
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·gettime(SB),7,$32
++// int64 nanotime(void) so really
++// void nanotime(int64 *nsec)
++TEXT runtime·nanotime(SB),7,$32
+ 	MOVL	$116, AX
+ 	LEAL	12(SP), BX
+ 	MOVL	BX, 4(SP)
+ 	MOVL	$0, 8(SP)
+ 	INT	$0x80
+-
+-	MOVL	12(SP), BX		// sec
+-	MOVL	sec+0(FP), DI
+-	MOVL	BX, (DI)
+-	MOVL	$0, 4(DI)		// zero extend 32 -> 64 bits
+-
++	MOVL	12(SP), AX		// sec
+ 	MOVL	16(SP), BX		// usec
+-	MOVL	usec+4(FP), DI
+-	MOVL	BX, (DI)
++
++	// sec is in AX, usec in BX
++	// convert to DX:AX nsec
++	MOVL	$1000000000, CX
++	MULL	CX
++	IMULL	$1000, BX
++	ADDL	BX, AX
++	ADCL	$0, DX
++	
++	MOVL	ret+0(FP), DI
++	MOVL	AX, 0(DI)
++	MOVL	DX, 4(DI)
+ 	RET
+ 
+ TEXT runtime·sigaction(SB),7,$-4
+diff --git a/src/pkg/runtime/openbsd/amd64/sys.s b/src/pkg/runtime/openbsd/amd64/sys.s
+index 29d74a1200..dfbb2547fa 100644
+--- a/src/pkg/runtime/openbsd/amd64/sys.s
++++ b/src/pkg/runtime/openbsd/amd64/sys.s
+@@ -133,19 +133,19 @@ TEXT runtime·setitimer(SB),7,$-8
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·gettime(SB),7,$32
++TEXT runtime·nanotime(SB),7,$32
+ 	LEAQ	8(SP), DI		// arg 1 - tp
+ 	MOVQ	$0, SI			// arg 2 - tzp
+ 	MOVL	$116, AX		// sys_gettimeofday
+ 	SYSCALL
+-
+-	MOVQ	8(SP), BX		// sec
+-	MOVQ	sec+0(FP), DI
+-	MOVQ	BX, (DI)
+-
++	MOVQ	8(SP), AX		// sec
+ 	MOVL	16(SP), BX		// usec
+-	MOVQ	usec+8(FP), DI
+-	MOVL	BX, (DI)
++
++	// sec is in AX, usec in DX
++	// return nsec in AX
++	IMULQ	$1000000000, AX
++	IMULQ	$1000, DX
++	ADDQ	DX, AX
+ 	RET
+ 
+ TEXT runtime·sigaction(SB),7,$-8
+diff --git a/src/pkg/runtime/plan9/386/signal.c b/src/pkg/runtime/plan9/386/signal.c
+index 364fd1c418..77e40d35a9 100644
+--- a/src/pkg/runtime/plan9/386/signal.c
++++ b/src/pkg/runtime/plan9/386/signal.c
+@@ -4,9 +4,10 @@
+ 
+ #include "runtime.h"
+ 
+-void
+-runtime·gettime(int64*, int32*) 
++int64
++runtime·nanotime(void) 
+ {
++	// Won't compile.
+ }
+ 
+ String
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index ae6fd877c7..a82e8b6b49 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -654,18 +654,6 @@ runtime·algarray[] =
+ [ANOEQ128]	{ runtime·nohash, runtime·noequal, memprint, (void*)memcopy128 },
+ };
+ 
+-int64
+-runtime·nanotime(void)
+-{
+-	int64 sec;
+-	int32 usec;
+-
+-	sec = 0;
+-	usec = 0;
+-	runtime·gettime(&sec, &usec);
+-	return sec*1000000000 + (int64)usec*1000;
+-}
+-
+ void
+ runtime·Caller(int32 skip, uintptr retpc, String retfile, int32 retline, bool retbool)
+ {
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 685725a41c..da80b99eb8 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -490,7 +490,6 @@ void	runtime·exitsyscall(void);
+ G*	runtime·newproc1(byte*, byte*, int32, int32, void*);
+ void	runtime·siginit(void);
+ bool	runtime·sigsend(int32 sig);
+-void	runtime·gettime(int64*, int32*);
+ int32	runtime·callers(int32, uintptr*, int32);
+ int32	runtime·gentraceback(byte*, byte*, byte*, G*, int32, uintptr*, int32);
+ int64	runtime·nanotime(void);
+diff --git a/src/pkg/runtime/time.goc b/src/pkg/runtime/time.goc
+new file mode 100644
+index 0000000000..a620f2b328
+--- /dev/null
++++ b/src/pkg/runtime/time.goc
+@@ -0,0 +1,13 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Runtime implementations to help package time.
++
++package time
++
++#include "runtime.h"
++
++func Nanoseconds() (ret int64) {
++	ret = runtime·nanotime();
++}
+diff --git a/src/pkg/runtime/windows/thread.c b/src/pkg/runtime/windows/thread.c
+index 0498c76af1..c00485b1a8 100644
+--- a/src/pkg/runtime/windows/thread.c
++++ b/src/pkg/runtime/windows/thread.c
+@@ -18,10 +18,9 @@
+ #pragma dynimport runtime·GetProcAddress GetProcAddress "kernel32.dll"
+ #pragma dynimport runtime·GetStdHandle GetStdHandle "kernel32.dll"
+ #pragma dynimport runtime·GetSystemInfo GetSystemInfo "kernel32.dll"
++#pragma dynimport runtime·GetSystemTimeAsFileTime GetSystemTimeAsFileTime "kernel32.dll"
+ #pragma dynimport runtime·GetThreadContext GetThreadContext "kernel32.dll"
+ #pragma dynimport runtime·LoadLibrary LoadLibraryW "kernel32.dll"
+-#pragma dynimport runtime·QueryPerformanceCounter QueryPerformanceCounter "kernel32.dll"
+-#pragma dynimport runtime·QueryPerformanceFrequency QueryPerformanceFrequency "kernel32.dll"
+ #pragma dynimport runtime·ResumeThread ResumeThread "kernel32.dll"
+ #pragma dynimport runtime·SetConsoleCtrlHandler SetConsoleCtrlHandler "kernel32.dll"
+ #pragma dynimport runtime·SetEvent SetEvent "kernel32.dll"
+@@ -44,10 +43,9 @@ extern void *runtime·GetEnvironmentStringsW;
+ extern void *runtime·GetProcAddress;
+ extern void *runtime·GetStdHandle;
+ extern void *runtime·GetSystemInfo;
++extern void *runtime·GetSystemTimeAsFileTime;
+ extern void *runtime·GetThreadContext;
+ extern void *runtime·LoadLibrary;
+-extern void *runtime·QueryPerformanceCounter;
+-extern void *runtime·QueryPerformanceFrequency;
+ extern void *runtime·ResumeThread;
+ extern void *runtime·SetConsoleCtrlHandler;
+ extern void *runtime·SetEvent;
+@@ -59,8 +57,6 @@ extern void *runtime·timeBeginPeriod;
+ extern void *runtime·WaitForSingleObject;
+ extern void *runtime·WriteFile;
+ 
+-static int64 timerfreq;
+-
+ static int32
+ getproccount(void)
+ {
+@@ -77,7 +73,6 @@ runtime·osinit(void)
+ 	runtime·stdcall(runtime·DuplicateHandle, 7,
+ 		(uintptr)-1, (uintptr)-2, (uintptr)-1, &m->thread,
+ 		(uintptr)0, (uintptr)0, (uintptr)DUPLICATE_SAME_ACCESS);
+-	runtime·stdcall(runtime·QueryPerformanceFrequency, 1, &timerfreq);
+ 	runtime·stdcall(runtime·SetConsoleCtrlHandler, 2, runtime·ctrlhandler, (uintptr)1);
+ 	runtime·stdcall(runtime·timeBeginPeriod, 1, (uintptr)1);
+ 	runtime·ncpu = getproccount();
+@@ -197,15 +192,16 @@ runtime·minit(void)
+ {
+ }
+ 
+-void
+-runtime·gettime(int64 *sec, int32 *usec)
++int64
++runtime·nanotime(void)
+ {
+-	int64 count;
++	int64 filetime;
+ 
+-	runtime·stdcall(runtime·QueryPerformanceCounter, 1, &count);
+-	*sec = count / timerfreq;
+-	count %= timerfreq;
+-	*usec = count*1000000 / timerfreq;
++	runtime·stdcall(runtime·GetSystemTimeAsFileTime, 1, &filetime);
++	
++	// Filetime is 100s of nanoseconds since January 1, 1601.
++	// Convert to nanoseconds since January 1, 1970.
++	return (filetime - 116444736000000000LL) * 100LL;
+ }
+ 
+ // Calling stdcall on os stack.
+diff --git a/src/pkg/time/sys.go b/src/pkg/time/sys.go
+index 4bc9253393..ca1d334a5b 100644
+--- a/src/pkg/time/sys.go
++++ b/src/pkg/time/sys.go
+@@ -4,27 +4,17 @@
+ 
+ package time
+ 
+-import "os"
+-
+ // Seconds reports the number of seconds since the Unix epoch,
+ // January 1, 1970 00:00:00 UTC.
+ func Seconds() int64 {
+-	sec, _, err := os.Time()
+-	if err != nil {
+-		panic(err)
+-	}
+-	return sec
++	return Nanoseconds() / 1e9
+ }
+ 
++// Nanoseconds is implemented by package runtime.
++
+ // Nanoseconds reports the number of nanoseconds since the Unix epoch,
+ // January 1, 1970 00:00:00 UTC.
+-func Nanoseconds() int64 {
+-	sec, nsec, err := os.Time()
+-	if err != nil {
+-		panic(err)
+-	}
+-	return sec*1e9 + nsec
+-}
++func Nanoseconds() int64
+ 
+ // Sleep pauses the current goroutine for at least ns nanoseconds.
+ // Higher resolution sleeping may be provided by syscall.Nanosleep 

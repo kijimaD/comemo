@@ -12,6 +12,32 @@ Date:   Fri Sep 2 10:53:13 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: xie cui <523516579@qq.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/time/sleep_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/time/sleep_test.go b/src/time/sleep_test.go
+index 5a949b6f80..8aac3b68f6 100644
+--- a/src/time/sleep_test.go
++++ b/src/time/sleep_test.go
+@@ -65,9 +65,9 @@ func TestAfterFunc(t *testing.T) {
+ }
+ 
+ func TestAfterStress(t *testing.T) {
+-	stop := uint32(0)
++	var stop atomic.Bool
+ 	go func() {
+-		for atomic.LoadUint32(&stop) == 0 {
++		for !stop.Load() {
+ 			runtime.GC()
+ 			// Yield so that the OS can wake up the timer thread,
+ 			// so that it can generate channel sends for the main goroutine,
+@@ -80,7 +80,7 @@ func TestAfterStress(t *testing.T) {
+ 		<-ticker.C
+ 	}
+ 	ticker.Stop()
+-	atomic.StoreUint32(&stop, 1)
++	stop.Store(true)
+ }
+ 
+ func benchmark(b *testing.B, bench func(n int)) {

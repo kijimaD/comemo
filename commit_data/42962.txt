@@ -9,7 +9,38 @@ Date:   Mon Feb 24 16:16:27 2020 -0800
     Change-Id: I8abf07d6342c10fc8d52e11c6a70fb0ec09220d2
     Reviewed-on: https://go-review.googlesource.com/c/go/+/220683
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules | 1 +
  src/cmd/compile/internal/ssa/gen/genericOps.go | 7 +++++++
  2 files changed, 8 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index ac746b42bf..f4d487176b 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -1923,6 +1923,7 @@
+ (IsNonNil (LocalAddr _ _)) -> (ConstBool [1])
+ 
+ // Inline small or disjoint runtime.memmove calls with constant length.
++// See the comment in op Move in genericOps.go for discussion of the type.
+ (StaticCall {sym} s1:(Store _ (Const(64|32) [sz]) s2:(Store  _ src s3:(Store {t} _ dst mem))))
+ 	&& sz >= 0
+ 	&& isSameSym(sym,"runtime.memmove")
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index a82f147288..9f17299610 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -351,6 +351,13 @@ var genericOps = []opData{
+ 	// The source and destination of Move may overlap in some cases. See e.g.
+ 	// memmove inlining in generic.rules. When inlineablememmovesize (in ../rewrite.go)
+ 	// returns true, we must do all loads before all stores, when lowering Move.
++	// The type of Move is used for the write barrier pass to insert write barriers
++	// and for alignment on some architectures.
++	// For pointerless types, it is possible for the type to be inaccurate.
++	// For type alignment and pointer information, use the type in Aux;
++	// for type size, use the size in AuxInt.
++	// The "inline runtime.memmove" rewrite rule generates Moves with inaccurate types,
++	// such as type byte instead of the more accurate type [8]byte.
+ 	{name: "Move", argLength: 3, typ: "Mem", aux: "TypSize"}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size, aux=type.  Returns memory.
+ 	{name: "Zero", argLength: 2, typ: "Mem", aux: "TypSize"}, // arg0=destptr, arg1=mem, auxint=size, aux=type. Returns memory.
+ 

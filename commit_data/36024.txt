@@ -10,7 +10,81 @@ Date:   Thu Mar 29 07:38:14 2018 +0000
     Reviewed-on: https://go-review.googlesource.com/103257
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/auxv_none.go    |  1 +
  src/runtime/os_dragonfly.go | 39 +++++++++++++++++++++++++++++++++++++--
  2 files changed, 38 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/auxv_none.go b/src/runtime/auxv_none.go
+index 96fcbdc2fe..9cb8da285b 100644
+--- a/src/runtime/auxv_none.go
++++ b/src/runtime/auxv_none.go
+@@ -4,6 +4,7 @@
+ 
+ // +build !linux
+ // +build !darwin
++// +build !dragonfly
+ // +build !freebsd
+ // +build !netbsd
+ 
+diff --git a/src/runtime/os_dragonfly.go b/src/runtime/os_dragonfly.go
+index 681057f3d5..85927b4026 100644
+--- a/src/runtime/os_dragonfly.go
++++ b/src/runtime/os_dragonfly.go
+@@ -4,7 +4,10 @@
+ 
+ package runtime
+ 
+-import "unsafe"
++import (
++	"runtime/internal/sys"
++	"unsafe"
++)
+ 
+ const (
+ 	_NSIG        = 33
+@@ -149,7 +152,9 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ 
+ func osinit() {
+ 	ncpu = getncpu()
+-	physPageSize = getPageSize()
++	if physPageSize == 0 {
++		physPageSize = getPageSize()
++	}
+ }
+ 
+ var urandom_dev = []byte("/dev/urandom\x00")
+@@ -242,3 +247,33 @@ func sigdelset(mask *sigset, i int) {
+ 
+ func (c *sigctxt) fixsigcode(sig uint32) {
+ }
++
++func sysargs(argc int32, argv **byte) {
++	n := argc + 1
++
++	// skip over argv, envp to get to auxv
++	for argv_index(argv, n) != nil {
++		n++
++	}
++
++	// skip NULL separator
++	n++
++
++	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
++	sysauxv(auxv[:])
++}
++
++const (
++	_AT_NULL   = 0
++	_AT_PAGESZ = 6
++)
++
++func sysauxv(auxv []uintptr) {
++	for i := 0; auxv[i] != _AT_NULL; i += 2 {
++		tag, val := auxv[i], auxv[i+1]
++		switch tag {
++		case _AT_PAGESZ:
++			physPageSize = val
++		}
++	}
++}

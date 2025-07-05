@@ -12,6 +12,19 @@ Date:   Fri Nov 16 14:23:17 2018 +0000
     GitHub-Pull-Request: golang/go#28818
     Reviewed-on: https://go-review.googlesource.com/c/149721
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/reflect/type.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 5bbab79fc0..f48f9cf09d 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -593,6 +593,7 @@ const (
+ 	kindMask        = (1 << 5) - 1
+ )
+ 
++// String returns the name of k.
+ func (k Kind) String() string {
+ 	if int(k) < len(kindNames) {
+ 		return kindNames[k]

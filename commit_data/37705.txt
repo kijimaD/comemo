@@ -11,6 +11,20 @@ Date:   Thu Jul 19 08:16:44 2018 +0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/extern.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 2788bd354b..1773c8fe7e 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -176,7 +176,7 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
+ 	// what it called, so that CallersFrames can see if it "called"
+ 	// sigpanic, and possibly a PC for skipPleaseUseCallersFrames.
+ 	var rpc [3]uintptr
+-	if callers(1+skip-1, rpc[:]) < 2 {
++	if callers(skip, rpc[:]) < 2 {
+ 		return
+ 	}
+ 	var stackExpander stackExpander

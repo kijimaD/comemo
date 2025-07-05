@@ -7,7 +7,7 @@ Date:   Wed Aug 18 10:08:49 2010 -0400
     R=adg, r, PeterGo
     CC=golang-dev
     https://golang.org/cl/1942044
-
+---
  .hgignore                         |  3 +-
  doc/Makefile                      |  2 +-
  doc/code.html                     | 22 ++++++++----
@@ -157,3 +157,2341 @@ Date:   Wed Aug 18 10:08:49 2010 -0400
  test/garbage/parser.go            |  2 +-
  test/run                          |  4 ++-
  148 files changed, 384 insertions(+), 191 deletions(-)
+
+diff --git a/.hgignore b/.hgignore
+index e686255af5..efdc34c109 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -14,9 +14,10 @@ syntax:glob
+ core
+ _obj
+ _test
++y.tab.[ch]
+ doc/htmlgen
++src/Make.inc
+ src/cmd/6a/6a
+-y.tab.[ch]
+ src/cmd/?l/enam.c
+ src/cmd/gc/builtin.c
+ src/cmd/gc/mkbuiltin1
+diff --git a/doc/Makefile b/doc/Makefile
+index 0abb881b17..fbc4286d3c 100644
+--- a/doc/Makefile
++++ b/doc/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include $(GOROOT)/src/Make.$(GOARCH)
++include $(GOROOT)/src/Make.inc
+ 
+ TARG=htmlgen
+ GOFILES=\
+diff --git a/doc/code.html b/doc/code.html
+index 14bb6f9fea..8e72d5ace2 100644
+--- a/doc/code.html
++++ b/doc/code.html
+@@ -64,7 +64,7 @@ is illustrated by <a href="../src/pkg/container/vector/Makefile"><code>src/pkg/c
+ </p>
+ 
+ <pre>
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=container/vector
+ GOFILES=\
+@@ -80,7 +80,7 @@ Outside the Go source tree (for personal packages), the standard form is
+ </p>
+ 
+ <pre>
+-include $(GOROOT)/src/Make.$(GOARCH)
++include $(GOROOT)/src/Make.inc
+ 
+ TARG=mypackage
+ GOFILES=\
+@@ -98,6 +98,14 @@ even if <code>$(GOROOT)</code> contains spaces.
+ This makes it easy for programmers to try Go.
+ </p>
+ 
++<p>
++If you have not set <code>$GOROOT</code> in your environment,
++you must run <code>gomake</code> to use this form of makefile.
++<code>Gomake</code> also takes care to invoke GNU Make
++even on systems where it is installed as <code>gmake</code>
++rather than <code>make</code>.
++</p>
++
+ <p>
+ <code>TARG</code> is the target install path for the package,
+ the string that clients will use to import it.
+@@ -131,8 +139,8 @@ cd $GOROOT/src/pkg
+ </pre>
+ <p>
+ to update the dependency file <code>Make.deps</code>.
+-(This happens automatically each time you run <code>make all</code>
+-or <code>make build</code>.)
++(This happens automatically each time you run <code>all.bash</code>
++or <code>make.bash</code>.)
+ </p>
+ 
+ <p>
+@@ -259,7 +267,7 @@ Finally, the <code>Makefile</code>:
+ </p>
+ 
+ <pre>
+-include $(GOROOT)/src/Make.$(GOARCH)
++include $(GOROOT)/src/Make.inc
+ 
+ TARG=numbers
+ GOFILES=\
+@@ -269,13 +277,13 @@ include $(GOROOT)/src/Make.pkg
+ </pre>
+ 
+ <p>
+-Running <code>make install</code> will build and install the package to
++Running <code>gomake install</code> will build and install the package to
+ the <code>$GOROOT/pkg/</code> directory (it can then be used by any
+ program on the system).
+ </p>
+ 
+ <p>
+-Running <code>make test</code> (or just running the command
++Running <code>gomake test</code> (or just running the command
+ <code>gotest</code>) will rebuild the package, including the
+ <code>numbers_test.go</code> file, and then run the <code>TestDouble</code>
+ function. The output "<code>PASS</code>" indicates that all tests passed
+diff --git a/doc/codelab/wiki/Makefile b/doc/codelab/wiki/Makefile
+index 76ab5c5bca..8d09cc5547 100644
+--- a/doc/codelab/wiki/Makefile
++++ b/doc/codelab/wiki/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../src/Make.$(GOARCH)
++include ../../../src/Make.inc
+ 
+ all: index.html
+ 
+diff --git a/doc/install.html b/doc/install.html
+index 2c1ff21576..601edc515a 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -20,15 +20,35 @@ compiler using the GCC back end, see
+ <h2>Environment variables</h2>
+ 
+ <p>
+-The Go compilation environment depends on three environment variables plus one optional variable:
++The Go compilation environment can be customized by five environment variables.
++None are required by the build, but you may wish to set them
++to override the defaults.
+ </p>
+ 
+ <dl>
+ <dt>
+ 	<code>$GOROOT</code>
+ </dt>
+-<dd>The root of the Go tree.  Typically this is <code>$HOME/go</code>
+-	but it can be any directory.
++<dd>
++	The root of the Go tree, often <code>$HOME/go</code>.
++	This defaults to the parent of the directory where <code>all.bash</code> is run.
++	Although this variable is optional, the examples and typescripts below
++	use it as shorthand for the location where you installed Go.
++	If you choose not to set <code>$GOROOT</code>, you must
++	run <code>gomake</code> instead of <code>make</code> or <code>gmake</code>
++	when developing Go programs using the conventional makefiles.
++</dd>
++
++<dt>
++	<code>$GOROOT_FINAL</code>
++</dt>
++<dd>
++	The value assumed by installed binaries and scripts when
++	<code>$GOROOT</code> is not set.
++	It defaults to the value used for <code>$GOROOT</code>.
++	If you want to build the Go tree in one location
++	but move it elsewhere after the build, set 
++	<code>$GOROOT_FINAL</code> to the eventual location.
+ </dd>
+ 
+ <dt>
+@@ -36,6 +56,10 @@ The Go compilation environment depends on three environment variables plus one o
+ </dt>
+ <dd>
+ 	The name of the target operating system and compilation architecture.
++	These default to the local system's operating system and
++	architecture.
++
++	<p>
+ 	Choices for <code>$GOOS</code> are <code>linux</code>,
+ 	<code>freebsd</code>,
+ 	<code>darwin</code> (Mac OS X 10.5 or 10.6),
+@@ -74,11 +98,10 @@ The Go compilation environment depends on three environment variables plus one o
+ 	<td></td><td><code>nacl</code></td> <td><code>386</code></td>
+ 	</tr>
+ 	</table>
+-	<p>
+ </dd>
+ 
+ <dt>
+-<code>$GOBIN</code> (optional)
++<code>$GOBIN</code>
+ </dt>
+ <dd>
+ 	The location where binaries will be installed.
+@@ -88,7 +111,7 @@ The Go compilation environment depends on three environment variables plus one o
+ </dd>
+ 
+ <dt>
+-<code>$GOARM</code> (optional, arm, default=6)
++<code>$GOARM</code> (arm, default=6)
+ </dt>
+ <dd>
+ 	The ARM architecture version the runtime libraries should target.
+@@ -103,18 +126,24 @@ The Go compilation environment depends on three environment variables plus one o
+ Note that <code>$GOARCH</code> and <code>$GOOS</code> identify the
+ <em>target</em> environment, not the environment you are running on.
+ In effect, you are always cross-compiling.
++By architecture, we mean the kind of binaries
++that the target environment can run:
++an x86-64 system running a 32-bit-only operating system
++must set <code>GOARCH</code> to <code>386</code>,
++not <code>amd64</code>.
+ </p>
+ 
+ <p>
+-Set these variables in your shell profile (<code>$HOME/.bashrc</code>,
++If you choose to override the defaults,
++set these variables in your shell profile (<code>$HOME/.bashrc</code>,
+ <code>$HOME/.profile</code>, or equivalent). The settings might look 
+ something like this:
+ </p>
+ 
+ <pre>
+ export GOROOT=$HOME/go
+-export GOARCH=amd64
+-export GOOS=linux
++export GOARCH=amd64  # optional
++export GOOS=linux    # optional
+ </pre>
+ 
+ <p>
+@@ -224,16 +253,21 @@ $ ./all.bash
+ </pre>
+ 
+ <p>
+-If all goes well, it will finish by printing
++If all goes well, it will finish by printing output like:
+ </p>
+ 
+ <pre>
+ --- cd ../test
+ N known bugs; 0 unexpected bugs
++
++---
++Installed Go for darwin/amd64 in /Users/you/go; the compiler is 6g.
+ </pre>
+ 
+ <p>
+-where <var>N</var> is a number that varies from release to release.
++where <var>N</var> is a number that varies from release to release
++and the details on the last line will reflect the operating system,
++architecture, and root directory used during the install.
+ </p>
+ 
+ <h2>Writing programs</h2>
+diff --git a/doc/progs/run b/doc/progs/run
+index 07bc141dff..19cc425650 100755
+--- a/doc/progs/run
++++ b/doc/progs/run
+@@ -7,7 +7,7 @@ set -e
+ 
+ GOBIN="${GOBIN:-$HOME/bin}"
+ 
+-. "$GOROOT"/src/Make.$GOARCH
++eval $("$GOBIN"/gomake -f ../../src/Make.inc go-env)
+ 
+ if [ -z "$O" ]; then
+ 	echo 'missing $O - maybe no Make.$GOARCH?' 1>&2
+diff --git a/misc/cgo/gmp/Makefile b/misc/cgo/gmp/Makefile
+index ad5db33c2f..fc6209f279 100644
+--- a/misc/cgo/gmp/Makefile
++++ b/misc/cgo/gmp/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../src/Make.$(GOARCH)
++include ../../../src/Make.inc
+ 
+ TARG=gmp
+ 
+diff --git a/misc/cgo/life/Makefile b/misc/cgo/life/Makefile
+index cbcdc99275..b50a5ee7d2 100644
+--- a/misc/cgo/life/Makefile
++++ b/misc/cgo/life/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../src/Make.$(GOARCH)
++include ../../../src/Make.inc
+ 
+ TARG=life
+ 
+diff --git a/misc/cgo/stdio/Makefile b/misc/cgo/stdio/Makefile
+index a0093ff529..08e2939310 100644
+--- a/misc/cgo/stdio/Makefile
++++ b/misc/cgo/stdio/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../src/Make.$(GOARCH)
++include ../../../src/Make.inc
+ 
+ TARG=stdio
+ CGOFILES=\
+diff --git a/misc/dashboard/builder.sh b/misc/dashboard/builder.sh
+index cd9ff07038..4a8d117bfc 100644
+--- a/misc/dashboard/builder.sh
++++ b/misc/dashboard/builder.sh
+@@ -31,7 +31,7 @@ fi
+ 
+ export PATH=$PATH:`pwd`/candidate/bin
+ export GOBIN=`pwd`/candidate/bin
+-export BAKED_GOROOT=/usr/local/go
++export GOROOT_FINAL=/usr/local/go
+ 
+ while true ; do (
+     cd go || fatal "Cannot cd into 'go'"
+diff --git a/src/Make.inc.in b/src/Make.inc.in
+new file mode 100644
+index 0000000000..c3e4a45b40
+--- /dev/null
++++ b/src/Make.inc.in
+@@ -0,0 +1,72 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# Makefile included by all other makefiles.
++# The build converts Make.inc.in to Make.inc.
++# Only make changes in Make.inc.in.
++
++# Set up GOROOT, GOARCH, GOOS if needed.
++ifeq ($(GOROOT),)
++GOROOT:=@@GOROOT@@
++endif
++
++ifeq ($(GOOS),)
++GOOS:=${shell uname | tr A-Z a-z}
++endif
++
++ifeq ($(GOOS),darwin)
++else ifeq ($(GOOS),freebsd)
++else ifeq ($(GOOS),linux)
++else ifeq ($(GOOS),nacl)
++else ifeq ($(GOOS),windows)
++else
++$(error Invalid $$GOOS '$(GOOS)'; must be darwin, freebsd, linux, nacl, or windows)
++endif
++
++ifeq ($(GOARCH),)
++ifeq ($(GOOS),darwin)
++# Even on 64-bit platform, darwin uname -m prints i386.
++# Check for amd64 with sysctl instead.
++GOARCH:=${shell if sysctl machdep.cpu.extfeatures | grep EM64T >/dev/null; then echo amd64; else uname -m | sed 's/i386/386/'; fi}
++else
++# Ask uname -m for the processor.
++GOARCH:=${shell uname -m | sed 's/^..86$$/386/; s/^.86$$/386/; s/x86_64/amd64/'}
++endif
++endif
++
++ifeq ($(GOARCH),386)
++O:=8
++else ifeq ($(GOARCH),amd64)
++O:=6
++else ifeq ($(GOARCH),arm)
++O:=5
++else
++$(error Invalid $$GOARCH '$(GOARCH)'; must be 386, amd64, or arm)
++endif
++
++# Save for recursive make.
++export GOARCH GOOS
++
++AS=${O}a
++CC=${O}c
++GC=${O}g
++LD=${O}l
++OS=568vq
++CFLAGS=-FVw
++
++go-env:
++	@echo export GOARCH=$(GOARCH)
++	@echo export GOOS=$(GOOS)
++	@echo export O=$O
++	@echo export AS="$(AS)"
++	@echo export CC="$(CC)"
++	@echo export GC="$(GC)"
++	@echo export LD="$(LD)"
++	@echo export OS="$(OS)"
++	@echo export CFLAGS="$(CFLAGS)"
++	@echo MAKE_GO_ENV_WORKED=1
++
++# Don't let the targets in this file be used
++# as the default make target.
++.DEFAULT_GOAL:=
+diff --git a/src/all.bash b/src/all.bash
+index 00c1ca74dd..4a98fe9f6b 100755
+--- a/src/all.bash
++++ b/src/all.bash
+@@ -4,5 +4,11 @@
+ # license that can be found in the LICENSE file.
+ 
+ set -e
+-bash make.bash
++if [ ! -f make.bash ]; then
++	echo 'all.bash must be run from $GOROOT/src' 1>&2
++	exit 1
++fi
++. ./make.bash
+ bash run.bash --no-rebuild
++installed  # function defined by make.bash
++
+diff --git a/src/cmd/cgo/Makefile b/src/cmd/cgo/Makefile
+index 34ca3dd46e..5458c3e4f4 100644
+--- a/src/cmd/cgo/Makefile
++++ b/src/cmd/cgo/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=cgo
+ GOFILES=\
+diff --git a/src/cmd/ebnflint/Makefile b/src/cmd/ebnflint/Makefile
+index 8cb9fd821d..77279db245 100644
+--- a/src/cmd/ebnflint/Makefile
++++ b/src/cmd/ebnflint/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=ebnflint
+ GOFILES=\
+diff --git a/src/cmd/gc/mkbuiltin b/src/cmd/gc/mkbuiltin
+index 13309ec320..e29487e4bc 100755
+--- a/src/cmd/gc/mkbuiltin
++++ b/src/cmd/gc/mkbuiltin
+@@ -12,7 +12,7 @@ set -e
+ 
+ GOBIN="${GOBIN:-$HOME/bin}"
+ 
+-. "$GOROOT"/src/Make.$GOARCH
++eval $("$GOBIN"/gomake -f ../../Make.inc go-env)
+ if [ -z "$GC" ]; then
+ 	echo 'missing $GC - maybe no Make.$GOARCH?' 1>&2
+ 	exit 1
+diff --git a/src/cmd/godoc/Makefile b/src/cmd/godoc/Makefile
+index d799219dd2..106f46effa 100644
+--- a/src/cmd/godoc/Makefile
++++ b/src/cmd/godoc/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=godoc
+ GOFILES=\
+diff --git a/src/cmd/gofmt/Makefile b/src/cmd/gofmt/Makefile
+index 2294fd1dbf..43434a5659 100644
+--- a/src/cmd/gofmt/Makefile
++++ b/src/cmd/gofmt/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=gofmt
+ GOFILES=\
+diff --git a/src/cmd/gofmt/test.sh b/src/cmd/gofmt/test.sh
+index 133cc8a64f..36f7d6e48e 100755
+--- a/src/cmd/gofmt/test.sh
++++ b/src/cmd/gofmt/test.sh
+@@ -3,7 +3,9 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-. "$GOROOT"/src/Make.$GOARCH
++GOBIN="${GOBIN:-$HOME/bin}"
++
++eval $("$GOBIN"/gomake --no-print-directory -f ../../Make.inc go-env)
+ if [ -z "$O" ]; then
+ 	echo 'missing $O - maybe no Make.$GOARCH?' 1>&2
+ 	exit 1
+diff --git a/src/cmd/goinstall/Makefile b/src/cmd/goinstall/Makefile
+index cf4728401a..6ddb32be72 100644
+--- a/src/cmd/goinstall/Makefile
++++ b/src/cmd/goinstall/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=goinstall
+ GOFILES=\
+diff --git a/src/cmd/goinstall/main.go b/src/cmd/goinstall/main.go
+index 5d2af2e7ca..ffa6eb7afc 100644
+--- a/src/cmd/goinstall/main.go
++++ b/src/cmd/goinstall/main.go
+@@ -14,6 +14,7 @@ import (
+ 	"io"
+ 	"os"
+ 	"path"
++	"runtime"
+ 	"strings"
+ )
+ 
+@@ -28,7 +29,7 @@ var (
+ 	errors  = false
+ 	gobin   = os.Getenv("GOBIN")
+ 	parents = make(map[string]string)
+-	root    = os.Getenv("GOROOT")
++	root    = runtime.GOROOT()
+ 	visit   = make(map[string]status)
+ 
+ 	reportToDashboard = flag.Bool("dashboard", true, "report public packages at "+dashboardURL)
+diff --git a/src/cmd/goinstall/make.go b/src/cmd/goinstall/make.go
+index c15709b313..769c874159 100644
+--- a/src/cmd/goinstall/make.go
++++ b/src/cmd/goinstall/make.go
+@@ -53,7 +53,7 @@ type makedata struct {
+ }
+ 
+ var makefileTemplate = template.MustParse(`
+-include $(GOROOT)/src/Make.$(GOARCH)
++include $(GOROOT)/src/Make.inc
+ 
+ TARG={pkg}
+ GOFILES=\
+diff --git a/src/cmd/gomake/doc.go b/src/cmd/gomake/doc.go
+new file mode 100644
+index 0000000000..2f35fd9dd5
+--- /dev/null
++++ b/src/cmd/gomake/doc.go
+@@ -0,0 +1,36 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++The gomake command runs GNU make with an appropriate environment
++for using the conventional Go makefiles.  If $GOROOT is already
++set in the environment, running gomake is exactly the same
++as running make (or, on BSD systems, running gmake).
++
++Usage: gomake [ target ... ]
++
++Common targets are:
++
++	all (default)
++		build the package or command, but do not install it.
++
++	install
++		build and install the package or command
++
++	test
++		run the tests (packages only)
++
++	bench
++		run benchmarks (packages only)
++
++	clean
++		remove object files from the current directory
++
++	nuke
++		make clean and remove the installed package or command
++
++See http://golang.org/doc/code.html for information about
++writing makefiles.
++*/
++package documentation
+diff --git a/src/cmd/gotest/Makefile b/src/cmd/gotest/Makefile
+index b20b1daffd..8360fd1841 100644
+--- a/src/cmd/gotest/Makefile
++++ b/src/cmd/gotest/Makefile
+@@ -5,10 +5,13 @@
+ include ../../Make.conf
+ 
+ TARG=gotest
++GOROOT_FINAL?=$(GOROOT)
+ 
+ clean:
+ 	@true
+ 
+ install: $(TARG)
+ 	! test -f "$(GOBIN)"/$(TARG) || chmod u+w "$(GOBIN)"/$(TARG)
+-	cp $(TARG) "$(GOBIN)"/$(TARG)
++	sed 's`@@GOROOT@@`$(GOROOT_FINAL)`' gotest >"$(GOBIN)"/$(TARG)
++	chmod +x "$(GOBIN)"/$(TARG)
++
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index cea2ab9058..9995496ad6 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -16,14 +16,15 @@ export LC_CTYPE=C
+ 
+ GOBIN="${GOBIN:-$HOME/bin}"
+ 
+-_GC=$GC	# Make.$GOARCH will overwrite this
++_GC=$GC	# Make.inc will overwrite this
+ 
+ if [ ! -f [Mm]akefile ]; then
+ 	echo 'please create a Makefile for gotest; see http://golang.org/doc/code.html for details' 1>&2
+ 	exit 2
+ fi
+ 
+-. "$GOROOT"/src/Make.$GOARCH
++export GOROOT=${GOROOT:-"@@GOROOT@@"}
++eval $("$GOBIN"/gomake --no-print-directory -f "$GOROOT"/src/Make.inc go-env)
+ if [ -z "$O" ]; then
+ 	echo 'missing $O - maybe no Make.$GOARCH?' 1>&2
+ 	exit 2
+diff --git a/src/cmd/goyacc/Makefile b/src/cmd/goyacc/Makefile
+index 77ac918bc9..54b8f3360f 100644
+--- a/src/cmd/goyacc/Makefile
++++ b/src/cmd/goyacc/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=goyacc
+ GOFILES=\
+diff --git a/src/cmd/hgpatch/Makefile b/src/cmd/hgpatch/Makefile
+index f7d64bc123..1ef98d7f97 100644
+--- a/src/cmd/hgpatch/Makefile
++++ b/src/cmd/hgpatch/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=hgpatch
+ GOFILES=\
+diff --git a/src/cmd/make.bash b/src/cmd/make.bash
+index d0fda7d183..4ee22776b3 100755
+--- a/src/cmd/make.bash
++++ b/src/cmd/make.bash
+@@ -9,7 +9,7 @@ bash clean.bash
+ 
+ GOBIN="${GOBIN:-$HOME/bin}"
+ 
+-. "$GOROOT"/src/Make.$GOARCH
++eval $("$GOBIN"/gomake --no-print-directory -f ../Make.inc go-env)
+ if [ -z "$O" ]; then
+ 	echo 'missing $O - maybe no Make.$GOARCH?' 1>&2
+ 	exit 1
+diff --git a/src/env.bash b/src/env.bash
+index 2a63e64806..fc6f5bea63 100644
+--- a/src/env.bash
++++ b/src/env.bash
+@@ -16,11 +16,13 @@ elif ! test -d "$GOBIN"; then
+ 	echo 'create it or set $GOBIN differently' 1>&2
+ 	exit 1
+ fi
++export GOBIN
++
++export GOROOT=${GOROOT:-$(cd ..; pwd)}
+ 
+-GOROOT=${GOROOT:-$(cd ..; pwd)}
+ if ! test -f "$GOROOT"/include/u.h
+ then
+-	echo '$GOROOT is not set correctly or not exported' 1>&2
++	echo '$GOROOT is not set correctly or not exported: '$GOROOT 1>&2
+ 	exit 1
+ fi
+ 
+@@ -30,26 +32,23 @@ fi
+ DIR1=$(cd ..; pwd)
+ DIR2=$(cd $GOROOT; pwd)
+ if [ "$DIR1" != "$DIR2" ]; then
+-	echo 'Suspicious $GOROOT: does not match current directory.' 1>&2
++	echo 'Suspicious $GOROOT '$GOROOT': does not match current directory.' 1>&2
+ 	exit 1
+ fi
+ 
+-GOARCH=${GOARCH:-$(uname -m | sed 's/^..86$/386/; s/^.86$/386/; s/x86_64/amd64/')}
+-case "$GOARCH" in
+-amd64 | 386 | arm)
+-	;;
+-*)
+-	echo '$GOARCH is set to <'$GOARCH'>, must be amd64, 386, or arm' 1>&2
+-	exit 1
+-esac
++MAKE=make
++if ! make --version 2>/dev/null | grep 'GNU Make' >/dev/null; then
++	MAKE=gmake
++fi
+ 
+-GOOS=${GOOS:-$(uname | tr A-Z a-z)}
+-case "$GOOS" in
+-darwin | freebsd | linux | windows | nacl)
+-	;;
+-*)
+-	echo '$GOOS is set to <'$GOOS'>, must be darwin, freebsd, linux, windows, or nacl' 1>&2
+-	exit 1
+-esac
++# Tried to use . <($MAKE ...) here, but it cannot set environment
++# variables in the version of bash that ships with OS X.  Amazing.
++eval $($MAKE --no-print-directory -f Make.inc.in go-env | egrep 'GOARCH|GOOS|GO_ENV')
+ 
+-export GOBIN GOROOT GOARCH GOOS
++# Shell doesn't tell us whether make succeeded,
++# so Make.inc generates a fake variable name.
++if [ "$MAKE_GO_ENV_WORKED" != 1 ]; then
++	echo 'Did not find Go environment variables.' 1>&2
++	exit 1
++fi
++unset MAKE_GO_ENV_WORKED
+diff --git a/src/lib9/Makefile b/src/lib9/Makefile
+index 10c4b1640a..de0900012f 100644
+--- a/src/lib9/Makefile
++++ b/src/lib9/Makefile
+@@ -104,7 +104,7 @@ HFILES=\
+ 	"$(GOROOT)"/include/u.h\
+ 	"$(GOROOT)"/include/libc.h\
+ 
+-BAKED_GOROOT?=$(GOROOT)
++GOROOT_FINAL?=$(GOROOT)
+ 
+ install: $(LIB)
+ 	cp $(LIB) "$(GOROOT)/lib"
+@@ -119,7 +119,7 @@ $(LIB): $(OFILES)
+ 	$(CC) -c $(CFLAGS) $<
+ 
+ goos.$O: goos.c
+-	$(CC) -c $(CFLAGS) -DGOOS='"$(GOOS)"' -DGOARCH='"$(GOARCH)"' -DGOROOT='"$(BAKED_GOROOT)"' -DGOVERSION='"'"$$(../version.bash)"'"' $<
++	$(CC) -c $(CFLAGS) -DGOOS='"$(GOOS)"' -DGOARCH='"$(GOARCH)"' -DGOROOT='"$(GOROOT_FINAL)"' -DGOVERSION='"'"$$(../version.bash)"'"' $<
+ 
+ clean:
+ 	rm -f *.$O *.6 6.out $(LIB)
+diff --git a/src/make.bash b/src/make.bash
+index b95635b565..6124dbfb79 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -4,8 +4,16 @@
+ # license that can be found in the LICENSE file.
+ 
+ set -e
++if [ ! -f env.bash ]; then
++	echo 'make.bash must be run from $GOROOT/src' 1>&2
++	exit 1
++fi
+ . ./env.bash
+ 
++GOROOT_FINAL=${GOROOT_FINAL:-$GOROOT}
++rm -f Make.inc
++sed 's!@@GOROOT@@!'"$GOROOT_FINAL"'!' Make.inc.in >Make.inc
++
+ MAKEFLAGS=${MAKEFLAGS:-"-j4"}
+ export MAKEFLAGS
+ unset CDPATH	# in case user has it set
+@@ -17,11 +25,11 @@ sed -e "s|@CC@|$CC|" < "$GOROOT"/src/quietgcc.bash > "$GOBIN"/quietgcc
+ chmod +x "$GOBIN"/quietgcc
+ 
+ rm -f "$GOBIN"/gomake
+-MAKE=make
+-if ! make --version 2>/dev/null | grep 'GNU Make' >/dev/null; then
+-	MAKE=gmake
+-fi
+-(echo '#!/bin/sh'; echo 'exec '$MAKE' "$@"') >"$GOBIN"/gomake
++(
++	echo '#!/bin/sh'
++	echo 'export GOROOT=${GOROOT:-'$GOROOT_FINAL'}'
++	echo 'exec '$MAKE' "$@"'
++) >"$GOBIN"/gomake
+ chmod +x "$GOBIN"/gomake
+ 
+ if [ -d /selinux -a -f /selinux/booleans/allow_execstack ] ; then
+@@ -73,9 +81,26 @@ do
+ 	esac
+ done
+ 
+-case "`uname`" in
+-Darwin)
+-	echo;
+-	echo %%% run sudo.bash to install debuggers
++# Print post-install messages.
++# Implemented as a function so that all.bash can repeat the output
++# after run.bash finishes running all the tests.
++installed() {
++	eval $("$GOBIN"/gomake -f Make.inc go-env)
+ 	echo
+-esac
++	echo ---
++	echo Installed Go for $GOOS/$GOARCH in "$GOROOT".
++	echo Installed commands in "$GOBIN".
++	echo The compiler is $GC.
++	if [ "$(uname)" = "Darwin" ]; then
++		echo
++		echo On OS X the debuggers must be installed setgrp procmod.
++		echo Read and run ./sudo.bash to install the debuggers.
++	fi
++	if [ "$GOROOT_FINAL" != "$GOROOT" ]; then
++		echo
++		echo The binaries expect "$GOROOT" to be copied or moved to "$GOROOT_FINAL".
++	fi
++}
++
++(installed)  # run in sub-shell to avoid polluting environment
++
+diff --git a/src/pkg/archive/tar/Makefile b/src/pkg/archive/tar/Makefile
+index 6a29de8f75..8897e883eb 100644
+--- a/src/pkg/archive/tar/Makefile
++++ b/src/pkg/archive/tar/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=archive/tar
+ GOFILES=\
+diff --git a/src/pkg/asn1/Makefile b/src/pkg/asn1/Makefile
+index 40b76b8497..6b7770e820 100644
+--- a/src/pkg/asn1/Makefile
++++ b/src/pkg/asn1/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=asn1
+ GOFILES=\
+diff --git a/src/pkg/big/Makefile b/src/pkg/big/Makefile
+index 7a4311dca4..3d4b56d789 100644
+--- a/src/pkg/big/Makefile
++++ b/src/pkg/big/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=big
+ GOFILES=\
+diff --git a/src/pkg/bufio/Makefile b/src/pkg/bufio/Makefile
+index 1f5fc349bd..85430e8e81 100644
+--- a/src/pkg/bufio/Makefile
++++ b/src/pkg/bufio/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=bufio
+ GOFILES=\
+diff --git a/src/pkg/bytes/Makefile b/src/pkg/bytes/Makefile
+index d50e624d6e..03395c7a4c 100644
+--- a/src/pkg/bytes/Makefile
++++ b/src/pkg/bytes/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=bytes
+ GOFILES=\
+diff --git a/src/pkg/cmath/Makefile b/src/pkg/cmath/Makefile
+index 1936fbda13..486caace46 100644
+--- a/src/pkg/cmath/Makefile
++++ b/src/pkg/cmath/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=cmath
+ 
+diff --git a/src/pkg/compress/flate/Makefile b/src/pkg/compress/flate/Makefile
+index 6f9ee74d4d..197828a926 100644
+--- a/src/pkg/compress/flate/Makefile
++++ b/src/pkg/compress/flate/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=compress/flate
+ GOFILES=\
+diff --git a/src/pkg/compress/gzip/Makefile b/src/pkg/compress/gzip/Makefile
+index bb4705a8f4..b671fc72c0 100644
+--- a/src/pkg/compress/gzip/Makefile
++++ b/src/pkg/compress/gzip/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=compress/gzip
+ GOFILES=\
+diff --git a/src/pkg/compress/zlib/Makefile b/src/pkg/compress/zlib/Makefile
+index 4cfda4f1b8..791072d349 100644
+--- a/src/pkg/compress/zlib/Makefile
++++ b/src/pkg/compress/zlib/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=compress/zlib
+ GOFILES=\
+diff --git a/src/pkg/container/heap/Makefile b/src/pkg/container/heap/Makefile
+index 244ebae063..4291d11223 100644
+--- a/src/pkg/container/heap/Makefile
++++ b/src/pkg/container/heap/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=container/heap
+ GOFILES=\
+diff --git a/src/pkg/container/list/Makefile b/src/pkg/container/list/Makefile
+index 2d5b357152..7fcd5f99ae 100644
+--- a/src/pkg/container/list/Makefile
++++ b/src/pkg/container/list/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=container/list
+ GOFILES=\
+diff --git a/src/pkg/container/ring/Makefile b/src/pkg/container/ring/Makefile
+index 4755bab079..fb0900774a 100644
+--- a/src/pkg/container/ring/Makefile
++++ b/src/pkg/container/ring/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=container/ring
+ GOFILES=\
+diff --git a/src/pkg/container/vector/Makefile b/src/pkg/container/vector/Makefile
+index 1eb310c6d8..f6b50156fa 100644
+--- a/src/pkg/container/vector/Makefile
++++ b/src/pkg/container/vector/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=container/vector
+ GOFILES=\
+diff --git a/src/pkg/crypto/aes/Makefile b/src/pkg/crypto/aes/Makefile
+index 07d759b4b6..9dc846ee3a 100644
+--- a/src/pkg/crypto/aes/Makefile
++++ b/src/pkg/crypto/aes/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=crypto/aes
+ GOFILES=\
+diff --git a/src/pkg/crypto/block/Makefile b/src/pkg/crypto/block/Makefile
+index 25c3483aeb..71c7aff640 100644
+--- a/src/pkg/crypto/block/Makefile
++++ b/src/pkg/crypto/block/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=crypto/block
+ GOFILES=\
+diff --git a/src/pkg/crypto/blowfish/Makefile b/src/pkg/crypto/blowfish/Makefile
+index c2999cc1d1..f370ab28ba 100644
+--- a/src/pkg/crypto/blowfish/Makefile
++++ b/src/pkg/crypto/blowfish/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=crypto/blowfish
+ GOFILES=\
+diff --git a/src/pkg/crypto/hmac/Makefile b/src/pkg/crypto/hmac/Makefile
+index d1a6bfc2bc..cc69abf608 100644
+--- a/src/pkg/crypto/hmac/Makefile
++++ b/src/pkg/crypto/hmac/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=crypto/hmac
+ GOFILES=\
+diff --git a/src/pkg/crypto/md4/Makefile b/src/pkg/crypto/md4/Makefile
+index 5fff2dd8fd..eef05ab704 100644
+--- a/src/pkg/crypto/md4/Makefile
++++ b/src/pkg/crypto/md4/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=crypto/md4
+ GOFILES=\
+diff --git a/src/pkg/crypto/md5/Makefile b/src/pkg/crypto/md5/Makefile
+index 7f37f6a33a..5cde3e6d67 100644
+--- a/src/pkg/crypto/md5/Makefile
++++ b/src/pkg/crypto/md5/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=crypto/md5
+ GOFILES=\
+diff --git a/src/pkg/crypto/rand/Makefile b/src/pkg/crypto/rand/Makefile
+index 21812598cc..c24429ad4f 100644
+--- a/src/pkg/crypto/rand/Makefile
++++ b/src/pkg/crypto/rand/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=crypto/rand
+ 
+diff --git a/src/pkg/crypto/rc4/Makefile b/src/pkg/crypto/rc4/Makefile
+index 7827b08178..50a3b7972a 100644
+--- a/src/pkg/crypto/rc4/Makefile
++++ b/src/pkg/crypto/rc4/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=crypto/rc4
+ GOFILES=\
+diff --git a/src/pkg/crypto/ripemd160/Makefile b/src/pkg/crypto/ripemd160/Makefile
+index 109e68edac..7e529457de 100644
+--- a/src/pkg/crypto/ripemd160/Makefile
++++ b/src/pkg/crypto/ripemd160/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=crypto/ripemd160
+ GOFILES=\
+diff --git a/src/pkg/crypto/rsa/Makefile b/src/pkg/crypto/rsa/Makefile
+index e4d81bc520..ff26ca6f2e 100644
+--- a/src/pkg/crypto/rsa/Makefile
++++ b/src/pkg/crypto/rsa/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=crypto/rsa
+ GOFILES=\
+diff --git a/src/pkg/crypto/sha1/Makefile b/src/pkg/crypto/sha1/Makefile
+index f3422dd84f..81ac38c0b2 100644
+--- a/src/pkg/crypto/sha1/Makefile
++++ b/src/pkg/crypto/sha1/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=crypto/sha1
+ GOFILES=\
+diff --git a/src/pkg/crypto/sha256/Makefile b/src/pkg/crypto/sha256/Makefile
+index 9efbc47921..97fe4d8e66 100644
+--- a/src/pkg/crypto/sha256/Makefile
++++ b/src/pkg/crypto/sha256/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=crypto/sha256
+ GOFILES=\
+diff --git a/src/pkg/crypto/sha512/Makefile b/src/pkg/crypto/sha512/Makefile
+index cf52732a4f..2f7633fa32 100644
+--- a/src/pkg/crypto/sha512/Makefile
++++ b/src/pkg/crypto/sha512/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=crypto/sha512
+ GOFILES=\
+diff --git a/src/pkg/crypto/subtle/Makefile b/src/pkg/crypto/subtle/Makefile
+index fa5f7ef42c..08d8bbfa06 100644
+--- a/src/pkg/crypto/subtle/Makefile
++++ b/src/pkg/crypto/subtle/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=crypto/subtle
+ GOFILES=\
+diff --git a/src/pkg/crypto/tls/Makefile b/src/pkg/crypto/tls/Makefile
+index 5e25bd43ad..86f9695c07 100644
+--- a/src/pkg/crypto/tls/Makefile
++++ b/src/pkg/crypto/tls/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=crypto/tls
+ GOFILES=\
+diff --git a/src/pkg/crypto/x509/Makefile b/src/pkg/crypto/x509/Makefile
+index b2ecfdc01d..329a61b7c3 100644
+--- a/src/pkg/crypto/x509/Makefile
++++ b/src/pkg/crypto/x509/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=crypto/x509
+ GOFILES=\
+diff --git a/src/pkg/crypto/xtea/Makefile b/src/pkg/crypto/xtea/Makefile
+index 74cc1b0dcd..301621168c 100644
+--- a/src/pkg/crypto/xtea/Makefile
++++ b/src/pkg/crypto/xtea/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=crypto/xtea
+ GOFILES=\
+diff --git a/src/pkg/debug/dwarf/Makefile b/src/pkg/debug/dwarf/Makefile
+index a626513c7c..c4203188e0 100644
+--- a/src/pkg/debug/dwarf/Makefile
++++ b/src/pkg/debug/dwarf/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=debug/dwarf
+ GOFILES=\
+diff --git a/src/pkg/debug/elf/Makefile b/src/pkg/debug/elf/Makefile
+index 931f9d24d4..dd431f653c 100644
+--- a/src/pkg/debug/elf/Makefile
++++ b/src/pkg/debug/elf/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=debug/elf
+ GOFILES=\
+diff --git a/src/pkg/debug/gosym/Makefile b/src/pkg/debug/gosym/Makefile
+index ac16b4ceea..3c0d8c4409 100644
+--- a/src/pkg/debug/gosym/Makefile
++++ b/src/pkg/debug/gosym/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=debug/gosym
+ GOFILES=\
+diff --git a/src/pkg/debug/macho/Makefile b/src/pkg/debug/macho/Makefile
+index d34aacf54b..5fbbf1efe5 100644
+--- a/src/pkg/debug/macho/Makefile
++++ b/src/pkg/debug/macho/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=debug/macho
+ GOFILES=\
+diff --git a/src/pkg/debug/proc/Makefile b/src/pkg/debug/proc/Makefile
+index 5444ec0dbb..c6d879836b 100644
+--- a/src/pkg/debug/proc/Makefile
++++ b/src/pkg/debug/proc/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=debug/proc
+ GOFILES=\
+diff --git a/src/pkg/ebnf/Makefile b/src/pkg/ebnf/Makefile
+index 4a75c74323..f5555d2720 100644
+--- a/src/pkg/ebnf/Makefile
++++ b/src/pkg/ebnf/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=ebnf
+ GOFILES=\
+diff --git a/src/pkg/encoding/ascii85/Makefile b/src/pkg/encoding/ascii85/Makefile
+index 7ec14bd1aa..412383efd5 100644
+--- a/src/pkg/encoding/ascii85/Makefile
++++ b/src/pkg/encoding/ascii85/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=encoding/ascii85
+ GOFILES=\
+diff --git a/src/pkg/encoding/base64/Makefile b/src/pkg/encoding/base64/Makefile
+index 8503b16633..2f54ed8395 100644
+--- a/src/pkg/encoding/base64/Makefile
++++ b/src/pkg/encoding/base64/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=encoding/base64
+ GOFILES=\
+diff --git a/src/pkg/encoding/binary/Makefile b/src/pkg/encoding/binary/Makefile
+index 23d4d6d436..dc46abe909 100644
+--- a/src/pkg/encoding/binary/Makefile
++++ b/src/pkg/encoding/binary/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=encoding/binary
+ GOFILES=\
+diff --git a/src/pkg/encoding/git85/Makefile b/src/pkg/encoding/git85/Makefile
+index 09dd96f32e..fbd003454b 100644
+--- a/src/pkg/encoding/git85/Makefile
++++ b/src/pkg/encoding/git85/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=encoding/git85
+ GOFILES=\
+diff --git a/src/pkg/encoding/hex/Makefile b/src/pkg/encoding/hex/Makefile
+index d6849d9a56..22049f43b6 100644
+--- a/src/pkg/encoding/hex/Makefile
++++ b/src/pkg/encoding/hex/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=encoding/hex
+ GOFILES=\
+diff --git a/src/pkg/encoding/pem/Makefile b/src/pkg/encoding/pem/Makefile
+index 79490a57d9..527670380b 100644
+--- a/src/pkg/encoding/pem/Makefile
++++ b/src/pkg/encoding/pem/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=encoding/pem
+ GOFILES=\
+diff --git a/src/pkg/exec/Makefile b/src/pkg/exec/Makefile
+index 9d88b8d8aa..bffc1bf361 100644
+--- a/src/pkg/exec/Makefile
++++ b/src/pkg/exec/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=exec
+ GOFILES=\
+diff --git a/src/pkg/exp/datafmt/Makefile b/src/pkg/exp/datafmt/Makefile
+index 40543b1950..aa94538975 100644
+--- a/src/pkg/exp/datafmt/Makefile
++++ b/src/pkg/exp/datafmt/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=exp/datafmt
+ GOFILES=\
+diff --git a/src/pkg/exp/draw/Makefile b/src/pkg/exp/draw/Makefile
+index 4389a294ce..6f0f0b2f5f 100644
+--- a/src/pkg/exp/draw/Makefile
++++ b/src/pkg/exp/draw/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=exp/draw
+ GOFILES=\
+diff --git a/src/pkg/exp/draw/x11/Makefile b/src/pkg/exp/draw/x11/Makefile
+index d4e65ca730..205b3a65ba 100644
+--- a/src/pkg/exp/draw/x11/Makefile
++++ b/src/pkg/exp/draw/x11/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../../Make.$(GOARCH)
++include ../../../../Make.inc
+ 
+ TARG=exp/draw/x11
+ GOFILES=\
+diff --git a/src/pkg/exp/eval/Makefile b/src/pkg/exp/eval/Makefile
+index 50d8a175ed..a623d0fd46 100644
+--- a/src/pkg/exp/eval/Makefile
++++ b/src/pkg/exp/eval/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=exp/eval
+ GOFILES=\
+diff --git a/src/pkg/exp/iterable/Makefile b/src/pkg/exp/iterable/Makefile
+index 9adf714daa..cf95dc5adf 100644
+--- a/src/pkg/exp/iterable/Makefile
++++ b/src/pkg/exp/iterable/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=exp/iterable
+ GOFILES=\
+diff --git a/src/pkg/exp/nacl/av/Makefile b/src/pkg/exp/nacl/av/Makefile
+index d966078ec7..c75f351c36 100644
+--- a/src/pkg/exp/nacl/av/Makefile
++++ b/src/pkg/exp/nacl/av/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../../Make.$(GOARCH)
++include ../../../../Make.inc
+ 
+ TARG=exp/nacl/av
+ GOFILES=\
+diff --git a/src/pkg/exp/nacl/srpc/Makefile b/src/pkg/exp/nacl/srpc/Makefile
+index 7dda292f5e..c89997d4ba 100644
+--- a/src/pkg/exp/nacl/srpc/Makefile
++++ b/src/pkg/exp/nacl/srpc/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../../Make.$(GOARCH)
++include ../../../../Make.inc
+ 
+ TARG=exp/nacl/srpc
+ GOFILES=\
+diff --git a/src/pkg/exp/ogle/Makefile b/src/pkg/exp/ogle/Makefile
+index b701afd9e1..1d1d78289e 100644
+--- a/src/pkg/exp/ogle/Makefile
++++ b/src/pkg/exp/ogle/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=exp/ogle
+ GOFILES=\
+diff --git a/src/pkg/expvar/Makefile b/src/pkg/expvar/Makefile
+index 5448917393..5619630d17 100644
+--- a/src/pkg/expvar/Makefile
++++ b/src/pkg/expvar/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=expvar
+ GOFILES=\
+diff --git a/src/pkg/flag/Makefile b/src/pkg/flag/Makefile
+index 3ffbea83c2..3408ca4745 100644
+--- a/src/pkg/flag/Makefile
++++ b/src/pkg/flag/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=flag
+ GOFILES=\
+diff --git a/src/pkg/fmt/Makefile b/src/pkg/fmt/Makefile
+index 81a756d3cb..44b48bc67d 100644
+--- a/src/pkg/fmt/Makefile
++++ b/src/pkg/fmt/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=fmt
+ GOFILES=\
+diff --git a/src/pkg/go/ast/Makefile b/src/pkg/go/ast/Makefile
+index 9b5c904c19..d95210b271 100644
+--- a/src/pkg/go/ast/Makefile
++++ b/src/pkg/go/ast/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=go/ast
+ GOFILES=\
+diff --git a/src/pkg/go/doc/Makefile b/src/pkg/go/doc/Makefile
+index 1558ac30a0..a5152c7937 100644
+--- a/src/pkg/go/doc/Makefile
++++ b/src/pkg/go/doc/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=go/doc
+ GOFILES=\
+diff --git a/src/pkg/go/parser/Makefile b/src/pkg/go/parser/Makefile
+index d9b52a7d9f..d301f41eb1 100644
+--- a/src/pkg/go/parser/Makefile
++++ b/src/pkg/go/parser/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=go/parser
+ GOFILES=\
+diff --git a/src/pkg/go/printer/Makefile b/src/pkg/go/printer/Makefile
+index a0fe22e42c..6a71efc935 100644
+--- a/src/pkg/go/printer/Makefile
++++ b/src/pkg/go/printer/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=go/printer
+ GOFILES=\
+diff --git a/src/pkg/go/scanner/Makefile b/src/pkg/go/scanner/Makefile
+index 70d21a9725..453faac005 100644
+--- a/src/pkg/go/scanner/Makefile
++++ b/src/pkg/go/scanner/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=go/scanner
+ GOFILES=\
+diff --git a/src/pkg/go/token/Makefile b/src/pkg/go/token/Makefile
+index 629196c5db..7d3257b0ae 100644
+--- a/src/pkg/go/token/Makefile
++++ b/src/pkg/go/token/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=go/token
+ GOFILES=\
+diff --git a/src/pkg/gob/Makefile b/src/pkg/gob/Makefile
+index 1091adb01f..ddbea3e686 100644
+--- a/src/pkg/gob/Makefile
++++ b/src/pkg/gob/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=gob
+ GOFILES=\
+diff --git a/src/pkg/hash/Makefile b/src/pkg/hash/Makefile
+index aaa641f7ca..56071cb339 100644
+--- a/src/pkg/hash/Makefile
++++ b/src/pkg/hash/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=hash
+ GOFILES=\
+diff --git a/src/pkg/hash/adler32/Makefile b/src/pkg/hash/adler32/Makefile
+index 6f6d66fd07..38ce537ba3 100644
+--- a/src/pkg/hash/adler32/Makefile
++++ b/src/pkg/hash/adler32/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=hash/adler32
+ GOFILES=\
+diff --git a/src/pkg/hash/crc32/Makefile b/src/pkg/hash/crc32/Makefile
+index 071d89823e..31b205185c 100644
+--- a/src/pkg/hash/crc32/Makefile
++++ b/src/pkg/hash/crc32/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=hash/crc32
+ GOFILES=\
+diff --git a/src/pkg/hash/crc64/Makefile b/src/pkg/hash/crc64/Makefile
+index 01b755b3ec..5f6c3de69a 100644
+--- a/src/pkg/hash/crc64/Makefile
++++ b/src/pkg/hash/crc64/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=hash/crc64
+ GOFILES=\
+diff --git a/src/pkg/html/Makefile b/src/pkg/html/Makefile
+index 63000e01b4..4bbd98a936 100644
+--- a/src/pkg/html/Makefile
++++ b/src/pkg/html/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=html
+ GOFILES=\
+diff --git a/src/pkg/http/Makefile b/src/pkg/http/Makefile
+index 235ff0279e..7e4f80c282 100644
+--- a/src/pkg/http/Makefile
++++ b/src/pkg/http/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=http
+ GOFILES=\
+diff --git a/src/pkg/http/pprof/Makefile b/src/pkg/http/pprof/Makefile
+index e0315112fe..5858a0efa7 100644
+--- a/src/pkg/http/pprof/Makefile
++++ b/src/pkg/http/pprof/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=http/pprof
+ GOFILES=\
+diff --git a/src/pkg/image/Makefile b/src/pkg/image/Makefile
+index 9015ed6ebb..739ad804b9 100644
+--- a/src/pkg/image/Makefile
++++ b/src/pkg/image/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=image
+ GOFILES=\
+diff --git a/src/pkg/image/jpeg/Makefile b/src/pkg/image/jpeg/Makefile
+index c84811d6ad..82d04c402d 100644
+--- a/src/pkg/image/jpeg/Makefile
++++ b/src/pkg/image/jpeg/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include $(GOROOT)/src/Make.$(GOARCH)
++include $(GOROOT)/src/Make.inc
+ 
+ TARG=image/jpeg
+ GOFILES=\
+diff --git a/src/pkg/image/png/Makefile b/src/pkg/image/png/Makefile
+index 3ba0f44d34..4101f77e1b 100644
+--- a/src/pkg/image/png/Makefile
++++ b/src/pkg/image/png/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=image/png
+ GOFILES=\
+diff --git a/src/pkg/io/Makefile b/src/pkg/io/Makefile
+index 837888d5c1..9786002f09 100644
+--- a/src/pkg/io/Makefile
++++ b/src/pkg/io/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=io
+ GOFILES=\
+diff --git a/src/pkg/io/ioutil/Makefile b/src/pkg/io/ioutil/Makefile
+index 77b75bcec6..d406d4b7dd 100644
+--- a/src/pkg/io/ioutil/Makefile
++++ b/src/pkg/io/ioutil/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=io/ioutil
+ GOFILES=\
+diff --git a/src/pkg/json/Makefile b/src/pkg/json/Makefile
+index fa34bfd182..4e5a8a1398 100644
+--- a/src/pkg/json/Makefile
++++ b/src/pkg/json/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=json
+ GOFILES=\
+diff --git a/src/pkg/log/Makefile b/src/pkg/log/Makefile
+index 402be03bcc..da72216af0 100644
+--- a/src/pkg/log/Makefile
++++ b/src/pkg/log/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=log
+ GOFILES=\
+diff --git a/src/pkg/math/Makefile b/src/pkg/math/Makefile
+index af1b535a8f..c5af69eb7e 100644
+--- a/src/pkg/math/Makefile
++++ b/src/pkg/math/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=math
+ 
+diff --git a/src/pkg/mime/Makefile b/src/pkg/mime/Makefile
+index 1f1296b767..901ed6f8ed 100644
+--- a/src/pkg/mime/Makefile
++++ b/src/pkg/mime/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=mime
+ GOFILES=\
+diff --git a/src/pkg/mime/multipart/Makefile b/src/pkg/mime/multipart/Makefile
+index 0e6ee42dcb..5a7b98d034 100644
+--- a/src/pkg/mime/multipart/Makefile
++++ b/src/pkg/mime/multipart/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=mime/multipart
+ GOFILES=\
+diff --git a/src/pkg/net/Makefile b/src/pkg/net/Makefile
+index a69f3877e7..658bc89c75 100644
+--- a/src/pkg/net/Makefile
++++ b/src/pkg/net/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=net
+ GOFILES=\
+diff --git a/src/pkg/net/dict/Makefile b/src/pkg/net/dict/Makefile
+index 44c2d7a7c4..eaa9e65313 100644
+--- a/src/pkg/net/dict/Makefile
++++ b/src/pkg/net/dict/Makefile
+@@ -1,4 +1,4 @@
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=net/dict
+ GOFILES=\
+diff --git a/src/pkg/net/textproto/Makefile b/src/pkg/net/textproto/Makefile
+index b5b51f66c1..7897fa711e 100644
+--- a/src/pkg/net/textproto/Makefile
++++ b/src/pkg/net/textproto/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=net/textproto
+ GOFILES=\
+diff --git a/src/pkg/netchan/Makefile b/src/pkg/netchan/Makefile
+index a8a5c6a3ca..9b9fdcf59f 100644
+--- a/src/pkg/netchan/Makefile
++++ b/src/pkg/netchan/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=netchan
+ GOFILES=\
+diff --git a/src/pkg/nntp/Makefile b/src/pkg/nntp/Makefile
+index 3cf3164ce3..ce5e447555 100644
+--- a/src/pkg/nntp/Makefile
++++ b/src/pkg/nntp/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=nntp
+ GOFILES=\
+diff --git a/src/pkg/os/Makefile b/src/pkg/os/Makefile
+index f1ad9af070..0b0881c0ac 100644
+--- a/src/pkg/os/Makefile
++++ b/src/pkg/os/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=os
+ GOFILES=\
+diff --git a/src/pkg/os/signal/Makefile b/src/pkg/os/signal/Makefile
+index 5a245464a0..013b91a853 100644
+--- a/src/pkg/os/signal/Makefile
++++ b/src/pkg/os/signal/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=os/signal
+ GOFILES=\
+diff --git a/src/pkg/patch/Makefile b/src/pkg/patch/Makefile
+index 1666345c63..32db7bdc80 100644
+--- a/src/pkg/patch/Makefile
++++ b/src/pkg/patch/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=patch
+ GOFILES=\
+diff --git a/src/pkg/path/Makefile b/src/pkg/path/Makefile
+index 9372cdf371..a7e05714a9 100644
+--- a/src/pkg/path/Makefile
++++ b/src/pkg/path/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=path
+ GOFILES=\
+diff --git a/src/pkg/rand/Makefile b/src/pkg/rand/Makefile
+index bf3bd87d67..ec3b34180e 100644
+--- a/src/pkg/rand/Makefile
++++ b/src/pkg/rand/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=rand
+ GOFILES=\
+diff --git a/src/pkg/reflect/Makefile b/src/pkg/reflect/Makefile
+index b72d3873f5..b946449a3a 100644
+--- a/src/pkg/reflect/Makefile
++++ b/src/pkg/reflect/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=reflect
+ GOFILES=\
+diff --git a/src/pkg/regexp/Makefile b/src/pkg/regexp/Makefile
+index 9f91c8e7aa..9024e66dac 100644
+--- a/src/pkg/regexp/Makefile
++++ b/src/pkg/regexp/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=regexp
+ GOFILES=\
+diff --git a/src/pkg/rpc/Makefile b/src/pkg/rpc/Makefile
+index 4757b3aae0..191b10d054 100644
+--- a/src/pkg/rpc/Makefile
++++ b/src/pkg/rpc/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=rpc
+ GOFILES=\
+diff --git a/src/pkg/rpc/jsonrpc/Makefile b/src/pkg/rpc/jsonrpc/Makefile
+index 1a4fd2e92c..b9a1ac2f77 100644
+--- a/src/pkg/rpc/jsonrpc/Makefile
++++ b/src/pkg/rpc/jsonrpc/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=rpc/jsonrpc
+ GOFILES=\
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index a8e7bc7509..cd08cfe98a 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=runtime
+ 
+diff --git a/src/pkg/runtime/pprof/Makefile b/src/pkg/runtime/pprof/Makefile
+index daffde79d1..8bccc0cc09 100644
+--- a/src/pkg/runtime/pprof/Makefile
++++ b/src/pkg/runtime/pprof/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=runtime/pprof
+ GOFILES=\
+diff --git a/src/pkg/scanner/Makefile b/src/pkg/scanner/Makefile
+index 8ac16d6811..db4752513a 100644
+--- a/src/pkg/scanner/Makefile
++++ b/src/pkg/scanner/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=scanner
+ GOFILES=\
+diff --git a/src/pkg/sort/Makefile b/src/pkg/sort/Makefile
+index 57c9f8f47c..3ea4672409 100644
+--- a/src/pkg/sort/Makefile
++++ b/src/pkg/sort/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=sort
+ GOFILES=\
+diff --git a/src/pkg/strconv/Makefile b/src/pkg/strconv/Makefile
+index 57849a8217..823355d858 100644
+--- a/src/pkg/strconv/Makefile
++++ b/src/pkg/strconv/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=strconv
+ GOFILES=\
+diff --git a/src/pkg/strings/Makefile b/src/pkg/strings/Makefile
+index 9bae470e97..c1be582432 100644
+--- a/src/pkg/strings/Makefile
++++ b/src/pkg/strings/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=strings
+ GOFILES=\
+diff --git a/src/pkg/sync/Makefile b/src/pkg/sync/Makefile
+index dc3a4b442d..f843795b0f 100644
+--- a/src/pkg/sync/Makefile
++++ b/src/pkg/sync/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=sync
+ GOFILES=\
+diff --git a/src/pkg/syscall/Makefile b/src/pkg/syscall/Makefile
+index 363eb601e3..bf9ed1309e 100644
+--- a/src/pkg/syscall/Makefile
++++ b/src/pkg/syscall/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=syscall
+ GOFILES=\
+diff --git a/src/pkg/syslog/Makefile b/src/pkg/syslog/Makefile
+index f05d4aef46..cf6863c87b 100644
+--- a/src/pkg/syslog/Makefile
++++ b/src/pkg/syslog/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=syslog
+ GOFILES=\
+diff --git a/src/pkg/tabwriter/Makefile b/src/pkg/tabwriter/Makefile
+index 5beb88f0f6..bdc888784b 100644
+--- a/src/pkg/tabwriter/Makefile
++++ b/src/pkg/tabwriter/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=tabwriter
+ GOFILES=\
+diff --git a/src/pkg/template/Makefile b/src/pkg/template/Makefile
+index c9c79f799a..4915527b44 100644
+--- a/src/pkg/template/Makefile
++++ b/src/pkg/template/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=template
+ GOFILES=\
+diff --git a/src/pkg/testing/Makefile b/src/pkg/testing/Makefile
+index 64485489eb..19b791ae9e 100644
+--- a/src/pkg/testing/Makefile
++++ b/src/pkg/testing/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=testing
+ GOFILES=\
+diff --git a/src/pkg/testing/iotest/Makefile b/src/pkg/testing/iotest/Makefile
+index 2b9abd4b37..43a047cc97 100644
+--- a/src/pkg/testing/iotest/Makefile
++++ b/src/pkg/testing/iotest/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=testing/iotest
+ GOFILES=\
+diff --git a/src/pkg/testing/quick/Makefile b/src/pkg/testing/quick/Makefile
+index 0e97f2af22..6d3b736b01 100644
+--- a/src/pkg/testing/quick/Makefile
++++ b/src/pkg/testing/quick/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=testing/quick
+ GOFILES=\
+diff --git a/src/pkg/testing/script/Makefile b/src/pkg/testing/script/Makefile
+index 2e13aeb2fb..9388d972bc 100644
+--- a/src/pkg/testing/script/Makefile
++++ b/src/pkg/testing/script/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.$(GOARCH)
++include ../../../Make.inc
+ 
+ TARG=testing/script
+ GOFILES=\
+diff --git a/src/pkg/time/Makefile b/src/pkg/time/Makefile
+index 6732d6a79f..71318d738f 100644
+--- a/src/pkg/time/Makefile
++++ b/src/pkg/time/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=time
+ GOFILES=\
+diff --git a/src/pkg/unicode/Makefile b/src/pkg/unicode/Makefile
+index 0728ec8813..df0b4a642d 100644
+--- a/src/pkg/unicode/Makefile
++++ b/src/pkg/unicode/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=unicode
+ GOFILES=\
+diff --git a/src/pkg/utf16/Makefile b/src/pkg/utf16/Makefile
+index 29e4005032..8a564fb0fd 100644
+--- a/src/pkg/utf16/Makefile
++++ b/src/pkg/utf16/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=utf16
+ GOFILES=\
+diff --git a/src/pkg/utf8/Makefile b/src/pkg/utf8/Makefile
+index a013913c35..df69486dc3 100644
+--- a/src/pkg/utf8/Makefile
++++ b/src/pkg/utf8/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=utf8
+ GOFILES=\
+diff --git a/src/pkg/websocket/Makefile b/src/pkg/websocket/Makefile
+index 145d8f4291..6d3c9cbd19 100644
+--- a/src/pkg/websocket/Makefile
++++ b/src/pkg/websocket/Makefile
+@@ -1,4 +1,4 @@
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=websocket
+ GOFILES=\
+diff --git a/src/pkg/xml/Makefile b/src/pkg/xml/Makefile
+index 38e32e7a4f..b780face63 100644
+--- a/src/pkg/xml/Makefile
++++ b/src/pkg/xml/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../Make.inc
+ 
+ TARG=xml
+ 
+diff --git a/src/sudo.bash b/src/sudo.bash
+index d87fb231dd..147e58f152 100755
+--- a/src/sudo.bash
++++ b/src/sudo.bash
+@@ -3,6 +3,9 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++set -e
++. ./env.bash
++
+ case "`uname`" in
+ Darwin)
+ 	;;
+diff --git a/test/bench/timing.sh b/test/bench/timing.sh
+index 5cd82dfd96..3e54de2d73 100755
+--- a/test/bench/timing.sh
++++ b/test/bench/timing.sh
+@@ -7,7 +7,7 @@ set -e
+ 
+ GOBIN="${GOBIN:-$HOME/bin}"
+ 
+-. "$GOROOT"/src/Make.$GOARCH
++eval $("$GOBIN"/gomake --no-print-directory -f ../../src/Make.inc go-env)
+ PATH=.:$PATH
+ 
+ mode=run
+diff --git a/test/garbage/Makefile b/test/garbage/Makefile
+index 1a5062b448..ab29e0956c 100644
+--- a/test/garbage/Makefile
++++ b/test/garbage/Makefile
+@@ -2,7 +2,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../src/Make.$(GOARCH)
++include ../../src/Make.inc
+ 
+ ALL=\
+ 	parser\
+diff --git a/test/garbage/parser.go b/test/garbage/parser.go
+index 75bcf9aefd..6619f6f882 100644
+--- a/test/garbage/parser.go
++++ b/test/garbage/parser.go
+@@ -74,7 +74,7 @@ func main() {
+ 	flag.Parse()
+ 
+ 	var t0 int64
+-	pkgroot := os.Getenv("GOROOT") + "/src/pkg/"
++	pkgroot := runtime.GOROOT() + "/src/pkg/"
+ 	for pass := 0; pass < 2; pass++ {
+ 		// Once the heap is grown to full size, reset counters.
+ 		// This hides the start-up pauses, which are much smaller
+diff --git a/test/run b/test/run
+index d2c6b4dc9a..2ce31d5a0a 100755
+--- a/test/run
++++ b/test/run
+@@ -3,7 +3,9 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-export E=""
++GOBIN="${GOBIN:-$HOME/bin}"
++eval $("$GOBIN"/gomake --no-print-directory -f ../src/Make.inc go-env)
++
+ case X"$GOARCH" in
+ Xamd64)
+ 	export A=6

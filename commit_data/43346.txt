@@ -14,6 +14,25 @@ Date:   Fri Mar 27 10:09:26 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/os/exec/exec_test.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 91dd0a41ac..9d6069093e 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -79,6 +79,13 @@ func helperCommandContext(t *testing.T, ctx context.Context, s ...string) (cmd *
+ 	} else {
+ 		cmd = exec.Command(os.Args[0], cs...)
+ 	}
++
++	// Temporary code to try to resolve #25628.
++	// TODO(iant): Remove this when we no longer need it.
++	if runtime.GOARCH == "386" && runtime.GOOS == "linux" && testenv.Builder() != "" && len(s) == 1 && s[0] == "read3" && ctx == nil {
++		cmd = exec.Command("/usr/bin/strace", append([]string{"-f", os.Args[0]}, cs...)...)
++	}
++
+ 	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+ 	return cmd
+ }

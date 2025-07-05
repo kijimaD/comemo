@@ -10,8 +10,79 @@ Date:   Tue Apr 5 18:47:23 2022 -0400
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Run-TryBot: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go       | 6 ++++++
  src/cmd/go/internal/modload/query.go  | 3 +++
  src/cmd/go/internal/modload/search.go | 7 +++++++
  3 files changed, 16 insertions(+)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index fe4a82472d..1a7b9d235d 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -686,6 +686,9 @@ func LoadImport(ctx context.Context, opts PackageOpts, path, srcDir string, pare
+ }
+ 
+ func loadImport(ctx context.Context, opts PackageOpts, pre *preload, path, srcDir string, parent *Package, stk *ImportStack, importPos []token.Position, mode int) *Package {
++	ctx, span := trace.StartSpan(ctx, "modload.loadImport "+path)
++	defer span.Done()
++
+ 	if path == "" {
+ 		panic("LoadImport called with empty package path")
+ 	}
+@@ -801,6 +804,9 @@ func loadImport(ctx context.Context, opts PackageOpts, pre *preload, path, srcDi
+ // loadPackageData returns a boolean, loaded, which is true if this is the
+ // first time the package was loaded. Callers may preload imports in this case.
+ func loadPackageData(ctx context.Context, path, parentPath, parentDir, parentRoot string, parentIsStd bool, mode int) (bp *build.Package, loaded bool, err error) {
++	ctx, span := trace.StartSpan(ctx, "load.loadPackageData "+path)
++	defer span.Done()
++
+ 	if path == "" {
+ 		panic("loadPackageData called with empty package path")
+ 	}
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 27af78d99e..69e5fbd93b 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -74,6 +74,9 @@ import (
+ // If path is the path of the main module and the query is "latest",
+ // Query returns Target.Version as the version.
+ func Query(ctx context.Context, path, query, current string, allowed AllowedFunc) (*modfetch.RevInfo, error) {
++	ctx, span := trace.StartSpan(ctx, "modload.Query "+path)
++	defer span.Done()
++
+ 	var info *modfetch.RevInfo
+ 	err := modfetch.TryProxies(func(proxy string) (err error) {
+ 		info, err = queryProxy(ctx, proxy, path, query, current, allowed)
+diff --git a/src/cmd/go/internal/modload/search.go b/src/cmd/go/internal/modload/search.go
+index 4b90392d94..d9d7711d06 100644
+--- a/src/cmd/go/internal/modload/search.go
++++ b/src/cmd/go/internal/modload/search.go
+@@ -23,6 +23,7 @@ import (
+ 	"cmd/go/internal/modindex"
+ 	"cmd/go/internal/par"
+ 	"cmd/go/internal/search"
++	"cmd/go/internal/trace"
+ 
+ 	"golang.org/x/mod/module"
+ )
+@@ -38,6 +39,9 @@ const (
+ // a global) for tags, can include or exclude packages in the standard library,
+ // and is restricted to the given list of modules.
+ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, filter stdFilter, modules []module.Version) {
++	ctx, span := trace.StartSpan(ctx, "modload.matchPackages")
++	defer span.Done()
++
+ 	m.Pkgs = []string{}
+ 
+ 	isMatch := func(string) bool { return true }
+@@ -69,6 +73,9 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
+ 	q := par.NewQueue(runtime.GOMAXPROCS(0))
+ 
+ 	walkPkgs := func(root, importPathRoot string, prune pruning) {
++		_, span := trace.StartSpan(ctx, "walkPkgs "+root)
++		defer span.Done()
++
+ 		root = filepath.Clean(root)
+ 		err := fsys.Walk(root, func(path string, fi fs.FileInfo, err error) error {
+ 			if err != nil {

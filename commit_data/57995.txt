@@ -16,6 +16,19 @@ Date:   Thu Sep 14 20:52:54 2023 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/vcstest/bzr/hello.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/testdata/vcstest/bzr/hello.txt b/src/cmd/go/testdata/vcstest/bzr/hello.txt
+index 7d06503e1a..59315852f7 100644
+--- a/src/cmd/go/testdata/vcstest/bzr/hello.txt
++++ b/src/cmd/go/testdata/vcstest/bzr/hello.txt
+@@ -1,6 +1,7 @@
+ handle bzr
+ 
+ env BZR_EMAIL='Russ Cox <rsc@google.com>'
++env EMAIL='Russ Cox <rsc@google.com>'
+ 
+ bzr init-repo .
+ 

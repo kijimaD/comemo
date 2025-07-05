@@ -7,7 +7,32 @@ Date:   Wed Feb 29 22:56:50 2012 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5714051
-
+---
  src/cmd/5g/doc.go | 2 --
  src/cmd/8g/doc.go | 2 --
  2 files changed, 4 deletions(-)
+
+diff --git a/src/cmd/5g/doc.go b/src/cmd/5g/doc.go
+index e86013bdd7..5a4a772fb4 100644
+--- a/src/cmd/5g/doc.go
++++ b/src/cmd/5g/doc.go
+@@ -9,7 +9,5 @@ The $GOARCH for these tools is arm.
+ 
+ It reads .go files and outputs .5 files. The flags are documented in ../gc/doc.go.
+ 
+-There is no instruction optimizer, so the -N flag is a no-op.
+-
+ */
+ package documentation
+diff --git a/src/cmd/8g/doc.go b/src/cmd/8g/doc.go
+index 2d9ff9a427..6d678eac8b 100644
+--- a/src/cmd/8g/doc.go
++++ b/src/cmd/8g/doc.go
+@@ -9,7 +9,5 @@ The $GOARCH for these tools is 386.
+ 
+ It reads .go files and outputs .8 files. The flags are documented in ../gc/doc.go.
+ 
+-There is no instruction optimizer, so the -N flag is a no-op.
+-
+ */
+ package documentation

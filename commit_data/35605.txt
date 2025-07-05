@@ -56,10 +56,497 @@ Date:   Thu Feb 22 20:38:09 2018 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/cmd/compile/internal/gc/inl.go | 15 +++++++
  src/runtime/heapdump.go            | 12 ++++--
  src/runtime/malloc.go              | 77 ++++++++++++++++++++++++---------
  src/runtime/mbitmap.go             | 75 +++++++++++++++++++++-----------
  src/runtime/mheap.go               | 88 +++++++++++++++++++++++++++++---------
  5 files changed, 197 insertions(+), 70 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index e2456eb96f..60df4d06fd 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -304,6 +304,21 @@ func (v *hairyVisitor) visit(n *Node) bool {
+ 		if t.Nname() == nil {
+ 			Fatalf("no function definition for [%p] %+v\n", t, t)
+ 		}
++		if isRuntimePkg(n.Left.Sym.Pkg) {
++			fn := n.Left.Sym.Name
++			if fn == "heapBits.nextArena" {
++				// Special case: explicitly allow
++				// mid-stack inlining of
++				// runtime.heapBits.next even though
++				// it calls slow-path
++				// runtime.heapBits.nextArena.
++				//
++				// TODO(austin): Once mid-stack
++				// inlining is the default, remove
++				// this special case.
++				break
++			}
++		}
+ 		if inlfn := asNode(t.FuncType().Nname).Func; inlfn.Inl.Len() != 0 {
+ 			v.budget -= inlfn.InlCost
+ 			break
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index dbeaed9277..b255cbbae3 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -489,9 +489,15 @@ func dumpparams() {
+ 	}
+ 	dumpint(sys.PtrSize)
+ 	var arenaStart, arenaEnd uintptr
+-	for i, ha := range mheap_.arenas {
+-		if ha != nil {
+-			base := arenaBase(uint(i))
++	for i1 := range mheap_.arenas {
++		if mheap_.arenas[i1] == nil {
++			continue
++		}
++		for i, ha := range mheap_.arenas[i1] {
++			if ha == nil {
++				continue
++			}
++			base := arenaBase(arenaIdx(i1)<<arenaL1Shift | arenaIdx(i))
+ 			if arenaStart == 0 || base < arenaStart {
+ 				arenaStart = base
+ 			}
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 6f78455c8b..bad35116b0 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -92,8 +92,10 @@
+ // Since arenas are aligned, the address space can be viewed as a
+ // series of arena frames. The arena map (mheap_.arenas) maps from
+ // arena frame number to *heapArena, or nil for parts of the address
+-// space not backed by the Go heap. Since arenas are large, the arena
+-// index is just a single-level mapping.
++// space not backed by the Go heap. The arena map is structured as a
++// two-level array consisting of a "L1" arena map and many "L2" arena
++// maps; however, since arenas are large, on many architectures, the
++// arena map consists of a single, large L2 map.
+ //
+ // The arena map covers the entire possible address space, allowing
+ // the Go heap to use any part of the address space. The allocator
+@@ -202,11 +204,6 @@ const (
+ 	// space because doing so is cheap.
+ 	// mips32 only has access to the low 2GB of virtual memory, so
+ 	// we further limit it to 31 bits.
+-	//
+-	// The size of the arena map is proportional to
+-	// 1<<heapAddrBits, so it's important that this not be too
+-	// large. 48 bits is about the threshold; above that we would
+-	// need to go to a two level arena map.
+ 	heapAddrBits = _64bit*48 + (1-_64bit)*(32-(sys.GoarchMips+sys.GoarchMipsle))
+ 
+ 	// maxAlloc is the maximum size of an allocation. On 64-bit,
+@@ -219,13 +216,49 @@ const (
+ 	// heapArenaBytes is the size of a heap arena. The heap
+ 	// consists of mappings of size heapArenaBytes, aligned to
+ 	// heapArenaBytes. The initial heap mapping is one arena.
+-	heapArenaBytes = (64<<20)*_64bit + (4<<20)*(1-_64bit)
++	//
++	// This is currently 64MB on 64-bit and 4MB on 32-bit.
++	heapArenaBytes = 1 << logHeapArenaBytes
++
++	// logHeapArenaBytes is log_2 of heapArenaBytes. For clarity,
++	// prefer using heapArenaBytes where possible (we need the
++	// constant to compute some other constants).
++	logHeapArenaBytes = (6+20)*_64bit + (2+20)*(1-_64bit)
+ 
+ 	// heapArenaBitmapBytes is the size of each heap arena's bitmap.
+ 	heapArenaBitmapBytes = heapArenaBytes / (sys.PtrSize * 8 / 2)
+ 
+ 	pagesPerArena = heapArenaBytes / pageSize
+ 
++	// arenaL1Bits is the number of bits of the arena number
++	// covered by the first level arena map.
++	//
++	// This number should be small, since the first level arena
++	// map requires PtrSize*(1<<arenaL1Bits) of space in the
++	// binary's BSS. It can be zero, in which case the first level
++	// index is effectively unused. There is a performance benefit
++	// to this, since the generated code can be more efficient,
++	// but comes at the cost of having a large L2 mapping.
++	arenaL1Bits = 0
++
++	// arenaL2Bits is the number of bits of the arena number
++	// covered by the second level arena index.
++	//
++	// The size of each arena map allocation is proportional to
++	// 1<<arenaL2Bits, so it's important that this not be too
++	// large. 48 bits leads to 32MB arena index allocations, which
++	// is about the practical threshold.
++	arenaL2Bits = heapAddrBits - logHeapArenaBytes - arenaL1Bits
++
++	// arenaL1Shift is the number of bits to shift an arena frame
++	// number by to compute an index into the first level arena map.
++	arenaL1Shift = arenaL2Bits
++
++	// arenaBits is the total bits in a combined arena map index.
++	// This is split between the index into the L1 arena map and
++	// the L2 arena map.
++	arenaBits = arenaL1Bits + arenaL2Bits
++
+ 	// arenaBaseOffset is the pointer value that corresponds to
+ 	// index 0 in the heap arena map.
+ 	//
+@@ -323,12 +356,6 @@ func mallocinit() {
+ 		throw("bad system page size")
+ 	}
+ 
+-	// Map the arena map. Most of this will never be written to,
+-	mheap_.arenas = (*[(1 << heapAddrBits) / heapArenaBytes]*heapArena)(persistentalloc(unsafe.Sizeof(*mheap_.arenas), sys.PtrSize, nil))
+-	if mheap_.arenas == nil {
+-		throw("failed to allocate arena map")
+-	}
+-
+ 	// Initialize the heap.
+ 	mheap_.init()
+ 	_g_ := getg()
+@@ -398,7 +425,7 @@ func mallocinit() {
+ 		// 3. We try to stake out a reasonably large initial
+ 		// heap reservation.
+ 
+-		const arenaMetaSize = unsafe.Sizeof(heapArena{}) * uintptr(len(*mheap_.arenas))
++		const arenaMetaSize = unsafe.Sizeof([1 << arenaBits]heapArena{})
+ 		meta := uintptr(sysReserve(nil, arenaMetaSize))
+ 		if meta != 0 {
+ 			mheap_.heapArenaAlloc.init(meta, arenaMetaSize)
+@@ -476,7 +503,7 @@ func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
+ 		if p+n < p {
+ 			// We can't use this, so don't ask.
+ 			v = nil
+-		} else if arenaIndex(p+n-1) >= uint(len(mheap_.arenas)) {
++		} else if arenaIndex(p+n-1) >= 1<<arenaBits {
+ 			// Outside addressable heap. Can't use.
+ 			v = nil
+ 		} else {
+@@ -528,9 +555,9 @@ func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
+ 		p := uintptr(v)
+ 		if p+size < p {
+ 			bad = "region exceeds uintptr range"
+-		} else if arenaIndex(p) >= uint(len(mheap_.arenas)) {
++		} else if arenaIndex(p) >= 1<<arenaBits {
+ 			bad = "base outside usable address space"
+-		} else if arenaIndex(p+size-1) >= uint(len(mheap_.arenas)) {
++		} else if arenaIndex(p+size-1) >= 1<<arenaBits {
+ 			bad = "end outside usable address space"
+ 		}
+ 		if bad != "" {
+@@ -551,7 +578,17 @@ func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
+ mapped:
+ 	// Create arena metadata.
+ 	for ri := arenaIndex(uintptr(v)); ri <= arenaIndex(uintptr(v)+size-1); ri++ {
+-		if h.arenas[ri] != nil {
++		l2 := h.arenas[ri.l1()]
++		if l2 == nil {
++			// Allocate an L2 arena map.
++			l2 = (*[1 << arenaL2Bits]*heapArena)(persistentalloc(unsafe.Sizeof(*l2), sys.PtrSize, nil))
++			if l2 == nil {
++				throw("out of memory allocating heap arena map")
++			}
++			atomic.StorepNoWB(unsafe.Pointer(&h.arenas[ri.l1()]), unsafe.Pointer(l2))
++		}
++
++		if l2[ri.l2()] != nil {
+ 			throw("arena already initialized")
+ 		}
+ 		var r *heapArena
+@@ -567,7 +604,7 @@ mapped:
+ 		// new heap arena becomes visible before the heap lock
+ 		// is released (which shouldn't happen, but there's
+ 		// little downside to this).
+-		atomic.StorepNoWB(unsafe.Pointer(&h.arenas[ri]), unsafe.Pointer(r))
++		atomic.StorepNoWB(unsafe.Pointer(&l2[ri.l2()]), unsafe.Pointer(r))
+ 	}
+ 
+ 	// Tell the race detector about the new heap memory.
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 85d79c685b..294e3739b7 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -332,21 +332,23 @@ func (m *markBits) advance() {
+ //
+ // nosplit because it is used during write barriers and must not be preempted.
+ //go:nosplit
+-func heapBitsForAddr(addr uintptr) heapBits {
++func heapBitsForAddr(addr uintptr) (h heapBits) {
+ 	// 2 bits per word, 4 pairs per byte, and a mask is hard coded.
+-	off := addr / sys.PtrSize
+ 	arena := arenaIndex(addr)
+-	ha := mheap_.arenas[arena]
++	ha := mheap_.arenas[arena.l1()][arena.l2()]
+ 	// The compiler uses a load for nil checking ha, but in this
+ 	// case we'll almost never hit that cache line again, so it
+ 	// makes more sense to do a value check.
+ 	if ha == nil {
+-		// addr is not in the heap. Crash without inhibiting inlining.
+-		_ = *ha
++		// addr is not in the heap. Return nil heapBits, which
++		// we expect to crash in the caller.
++		return
+ 	}
+-	bitp := &ha.bitmap[(off/4)%heapArenaBitmapBytes]
+-	last := &ha.bitmap[len(ha.bitmap)-1]
+-	return heapBits{bitp, uint32(off & 3), uint32(arena), last}
++	h.bitp = &ha.bitmap[(addr/(sys.PtrSize*4))%heapArenaBitmapBytes]
++	h.shift = uint32((addr / sys.PtrSize) & 3)
++	h.arena = uint32(arena)
++	h.last = &ha.bitmap[len(ha.bitmap)-1]
++	return
+ }
+ 
+ // findObject returns the base address for the heap object containing
+@@ -432,18 +434,36 @@ func (h heapBits) next() heapBits {
+ 		h.bitp, h.shift = add1(h.bitp), 0
+ 	} else {
+ 		// Move to the next arena.
+-		h.arena++
+-		a := mheap_.arenas[h.arena]
+-		if a == nil {
+-			// We just passed the end of the object, which
+-			// was also the end of the heap. Poison h. It
+-			// should never be dereferenced at this point.
+-			h.bitp, h.last = nil, nil
+-		} else {
+-			h.bitp, h.shift = &a.bitmap[0], 0
+-			h.last = &a.bitmap[len(a.bitmap)-1]
+-		}
++		return h.nextArena()
++	}
++	return h
++}
++
++// nextArena advances h to the beginning of the next heap arena.
++//
++// This is a slow-path helper to next. gc's inliner knows that
++// heapBits.next can be inlined even though it calls this. This is
++// marked noinline so it doesn't get inlined into next and cause next
++// to be too big to inline.
++//
++//go:nosplit
++//go:noinline
++func (h heapBits) nextArena() heapBits {
++	h.arena++
++	ai := arenaIdx(h.arena)
++	l2 := mheap_.arenas[ai.l1()]
++	if l2 == nil {
++		// We just passed the end of the object, which
++		// was also the end of the heap. Poison h. It
++		// should never be dereferenced at this point.
++		return heapBits{}
++	}
++	ha := l2[ai.l2()]
++	if ha == nil {
++		return heapBits{}
+ 	}
++	h.bitp, h.shift = &ha.bitmap[0], 0
++	h.last = &ha.bitmap[len(ha.bitmap)-1]
+ 	return h
+ }
+ 
+@@ -465,12 +485,13 @@ func (h heapBits) forward(n uintptr) heapBits {
+ 	// We're in a new heap arena.
+ 	past := nbitp - (uintptr(unsafe.Pointer(h.last)) + 1)
+ 	h.arena += 1 + uint32(past/heapArenaBitmapBytes)
+-	a := mheap_.arenas[h.arena]
+-	if a == nil {
+-		h.bitp, h.last = nil, nil
+-	} else {
++	ai := arenaIdx(h.arena)
++	if l2 := mheap_.arenas[ai.l1()]; l2 != nil && l2[ai.l2()] != nil {
++		a := l2[ai.l2()]
+ 		h.bitp = &a.bitmap[past%heapArenaBitmapBytes]
+ 		h.last = &a.bitmap[len(a.bitmap)-1]
++	} else {
++		h.bitp, h.last = nil, nil
+ 	}
+ 	return h
+ }
+@@ -971,7 +992,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
+ 	// machine instructions.
+ 
+ 	outOfPlace := false
+-	if arenaIndex(x+size-1) != uint(h.arena) {
++	if arenaIndex(x+size-1) != arenaIdx(h.arena) {
+ 		// This object spans heap arenas, so the bitmap may be
+ 		// discontiguous. Unroll it into the object instead
+ 		// and then copy it out.
+@@ -1375,12 +1396,14 @@ Phase4:
+ 		// x+size may not point to the heap, so back up one
+ 		// word and then call next().
+ 		end := heapBitsForAddr(x + size - sys.PtrSize).next()
+-		if !outOfPlace && (end.bitp == nil || (end.shift == 0 && end.bitp == &mheap_.arenas[end.arena].bitmap[0])) {
++		endAI := arenaIdx(end.arena)
++		if !outOfPlace && (end.bitp == nil || (end.shift == 0 && end.bitp == &mheap_.arenas[endAI.l1()][endAI.l2()].bitmap[0])) {
+ 			// The unrolling code above walks hbitp just
+ 			// past the bitmap without moving to the next
+ 			// arena. Synthesize this for end.bitp.
+-			end.bitp = addb(&mheap_.arenas[end.arena-1].bitmap[0], heapArenaBitmapBytes)
+ 			end.arena--
++			endAI = arenaIdx(end.arena)
++			end.bitp = addb(&mheap_.arenas[endAI.l1()][endAI.l2()].bitmap[0], heapArenaBitmapBytes)
+ 			end.last = nil
+ 		}
+ 		if typ.kind&kindGCProg == 0 && (hbitp != end.bitp || (w == nw+2) != (end.shift == 2)) {
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 3460c54d72..b11853ca18 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -96,9 +96,9 @@ type mheap struct {
+ 	nlargefree  uint64                  // number of frees for large objects (>maxsmallsize)
+ 	nsmallfree  [_NumSizeClasses]uint64 // number of frees for small objects (<=maxsmallsize)
+ 
+-	// arenas is the heap arena map.
+-	// arenas[(va+arenaBaseOffset)/heapArenaBytes] points to the
+-	// metadata for the heap arena containing va.
++	// arenas is the heap arena map. It points to the metadata for
++	// the heap for every arena frame of the entire usable virtual
++	// address space.
+ 	//
+ 	// Use arenaIndex to compute indexes into this array.
+ 	//
+@@ -110,9 +110,13 @@ type mheap struct {
+ 	// transition from nil to non-nil at any time when the lock
+ 	// isn't held. (Entries never transitions back to nil.)
+ 	//
+-	// This structure is fully mapped by mallocinit, so it's safe
+-	// to probe any index.
+-	arenas *[(1 << heapAddrBits) / heapArenaBytes]*heapArena
++	// In general, this is a two-level mapping consisting of an L1
++	// map and possibly many L2 maps. This saves space when there
++	// are a huge number of arena frames. However, on many
++	// platforms (even 64-bit), arenaL1Bits is 0, making this
++	// effectively a single-level map. In this case, arenas[0]
++	// will never be nil.
++	arenas [1 << arenaL1Bits]*[1 << arenaL2Bits]*heapArena
+ 
+ 	// heapArenaAlloc is pre-reserved space for allocating heapArena
+ 	// objects. This is only used on 32-bit, where we pre-reserve
+@@ -410,24 +414,48 @@ func (sc spanClass) noscan() bool {
+ 	return sc&1 != 0
+ }
+ 
+-// arenaIndex returns the mheap_.arenas index of the arena containing
+-// metadata for p. If p is outside the range of valid heap addresses,
+-// it returns an index larger than len(mheap_.arenas).
++// arenaIndex returns the index into mheap_.arenas of the arena
++// containing metadata for p. This index combines of an index into the
++// L1 map and an index into the L2 map and should be used as
++// mheap_.arenas[ai.l1()][ai.l2()].
++//
++// If p is outside the range of valid heap addresses, either l1() or
++// l2() will be out of bounds.
+ //
+ // It is nosplit because it's called by spanOf and several other
+ // nosplit functions.
+ //
+ //go:nosplit
+-func arenaIndex(p uintptr) uint {
+-	return uint((p + arenaBaseOffset) / heapArenaBytes)
++func arenaIndex(p uintptr) arenaIdx {
++	return arenaIdx((p + arenaBaseOffset) / heapArenaBytes)
+ }
+ 
+ // arenaBase returns the low address of the region covered by heap
+ // arena i.
+-func arenaBase(i uint) uintptr {
++func arenaBase(i arenaIdx) uintptr {
+ 	return uintptr(i)*heapArenaBytes - arenaBaseOffset
+ }
+ 
++type arenaIdx uint
++
++func (i arenaIdx) l1() uint {
++	if arenaL1Bits == 0 {
++		// Let the compiler optimize this away if there's no
++		// L1 map.
++		return 0
++	} else {
++		return uint(i) >> arenaL1Shift
++	}
++}
++
++func (i arenaIdx) l2() uint {
++	if arenaL1Bits == 0 {
++		return uint(i)
++	} else {
++		return uint(i) & (1<<arenaL2Bits - 1)
++	}
++}
++
+ // inheap reports whether b is a pointer into a (potentially dead) heap object.
+ // It returns false for pointers into _MSpanManual spans.
+ // Non-preemptible because it is used by write barriers.
+@@ -467,14 +495,28 @@ func inHeapOrStack(b uintptr) bool {
+ //
+ //go:nosplit
+ func spanOf(p uintptr) *mspan {
+-	if p < minLegalPointer {
+-		return nil
+-	}
++	// This function looks big, but we use a lot of constant
++	// folding around arenaL1Bits to get it under the inlining
++	// budget. Also, many of the checks here are safety checks
++	// that Go needs to do anyway, so the generated code is quite
++	// short.
+ 	ri := arenaIndex(p)
+-	if ri >= uint(len(mheap_.arenas)) {
++	if arenaL1Bits == 0 {
++		// If there's no L1, then ri.l1() can't be out of bounds but ri.l2() can.
++		if ri.l2() >= uint(len(mheap_.arenas[0])) {
++			return nil
++		}
++	} else {
++		// If there's an L1, then ri.l1() can be out of bounds but ri.l2() can't.
++		if ri.l1() >= uint(len(mheap_.arenas)) {
++			return nil
++		}
++	}
++	l2 := mheap_.arenas[ri.l1()]
++	if arenaL1Bits != 0 && l2 == nil { // Should never happen if there's no L1.
+ 		return nil
+ 	}
+-	ha := mheap_.arenas[ri]
++	ha := l2[ri.l2()]
+ 	if ha == nil {
+ 		return nil
+ 	}
+@@ -488,7 +530,8 @@ func spanOf(p uintptr) *mspan {
+ //
+ //go:nosplit
+ func spanOfUnchecked(p uintptr) *mspan {
+-	return mheap_.arenas[arenaIndex(p)].spans[(p/pageSize)%pagesPerArena]
++	ai := arenaIndex(p)
++	return mheap_.arenas[ai.l1()][ai.l2()].spans[(p/pageSize)%pagesPerArena]
+ }
+ 
+ // spanOfHeap is like spanOf, but returns nil if p does not point to a
+@@ -763,18 +806,21 @@ func (h *mheap) allocManual(npage uintptr, stat *uint64) *mspan {
+ 
+ // setSpan modifies the span map so spanOf(base) is s.
+ func (h *mheap) setSpan(base uintptr, s *mspan) {
+-	h.arenas[arenaIndex(base)].spans[(base/pageSize)%pagesPerArena] = s
++	ai := arenaIndex(base)
++	h.arenas[ai.l1()][ai.l2()].spans[(base/pageSize)%pagesPerArena] = s
+ }
+ 
+ // setSpans modifies the span map so [spanOf(base), spanOf(base+npage*pageSize))
+ // is s.
+ func (h *mheap) setSpans(base, npage uintptr, s *mspan) {
+ 	p := base / pageSize
+-	ha := h.arenas[arenaIndex(base)]
++	ai := arenaIndex(base)
++	ha := h.arenas[ai.l1()][ai.l2()]
+ 	for n := uintptr(0); n < npage; n++ {
+ 		i := (p + n) % pagesPerArena
+ 		if i == 0 {
+-			ha = h.arenas[arenaIndex(base+n*pageSize)]
++			ai = arenaIndex(base + n*pageSize)
++			ha = h.arenas[ai.l1()][ai.l2()]
+ 		}
+ 		ha.spans[i] = s
+ 	}

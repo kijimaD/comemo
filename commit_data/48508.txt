@@ -29,7 +29,47 @@ Date:   Tue May 18 01:20:13 2021 -0700
     Trust: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/noder/noder.go       | 6 ++++++
  src/cmd/compile/internal/typecheck/iimport.go | 4 ++++
  2 files changed, 10 insertions(+)
+
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 4c7c9fc322..06c3b00601 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -625,6 +625,9 @@ func (p *noder) params(params []*syntax.Field, dddOk bool) []*ir.Field {
+ 	for i, param := range params {
+ 		p.setlineno(param)
+ 		nodes = append(nodes, p.param(param, dddOk, i+1 == len(params)))
++		if i > 0 && params[i].Type == params[i-1].Type {
++			nodes[i].Ntype = nodes[i-1].Ntype
++		}
+ 	}
+ 	return nodes
+ }
+@@ -917,6 +920,9 @@ func (p *noder) structType(expr *syntax.StructType) ir.Node {
+ 		} else {
+ 			n = ir.NewField(p.pos(field), p.name(field.Name), p.typeExpr(field.Type), nil)
+ 		}
++		if i > 0 && expr.FieldList[i].Type == expr.FieldList[i-1].Type {
++			n.Ntype = l[i-1].Ntype
++		}
+ 		if i < len(expr.TagList) && expr.TagList[i] != nil {
+ 			n.Note = constant.StringVal(p.basicLit(expr.TagList[i]))
+ 		}
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 3fb675f824..16b3e7ceba 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -745,6 +745,10 @@ func (r *importReader) typ1() *types.Type {
+ 			methods[i] = types.NewField(pos, sym, typ)
+ 		}
+ 
++		if len(embeddeds)+len(methods) == 0 {
++			return types.Types[types.TINTER]
++		}
++
+ 		t := types.NewInterface(r.currPkg, append(embeddeds, methods...))
+ 
+ 		// Ensure we expand the interface in the frontend (#25055).

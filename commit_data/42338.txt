@@ -13,6 +13,24 @@ Date:   Wed Dec 4 11:44:06 2019 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/objdump/objdump_test.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index b24371ddea..929e379576 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -176,10 +176,8 @@ func TestDisasm(t *testing.T) {
+ 
+ func TestDisasmCode(t *testing.T) {
+ 	switch runtime.GOARCH {
+-	case "mips", "mipsle", "mips64", "mips64le":
+-		t.Skipf("skipping on %s, issue 12559", runtime.GOARCH)
+-	case "s390x":
+-		t.Skipf("skipping on %s, issue 15255", runtime.GOARCH)
++	case "mips", "mipsle", "mips64", "mips64le", "s390x":
++		t.Skipf("skipping on %s, issue 19160", runtime.GOARCH)
+ 	}
+ 	testDisasm(t, true)
+ }

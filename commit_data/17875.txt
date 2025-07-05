@@ -7,6 +7,43 @@ Date:   Tue Nov 12 09:28:07 2013 +1100
     R=dsymonds, dominik.honnef, n13m3y3r, rsc, kamil.kisiel
     CC=golang-dev
     https://golang.org/cl/22940044
-
+---
  misc/vim/ftplugin/go/fmt.vim | 10 ++++++++--
  1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/misc/vim/ftplugin/go/fmt.vim b/misc/vim/ftplugin/go/fmt.vim
+index 5447d45748..5f7976f5f6 100644
+--- a/misc/vim/ftplugin/go/fmt.vim
++++ b/misc/vim/ftplugin/go/fmt.vim
+@@ -18,15 +18,21 @@
+ "
+ "       Flag to indicate whether to enable the commands listed above.
+ "
++"   g:gofmt_command [default="gofmt"]
++"
++"       Flag naming the gofmt executable to use.
++"
+ if exists("b:did_ftplugin_go_fmt")
+     finish
+ endif
+ 
+-
+ if !exists("g:go_fmt_commands")
+     let g:go_fmt_commands = 1
+ endif
+ 
++if !exists("g:gofmt_command")
++    let g:gofmt_command = "gofmt"
++endif
+ 
+ if g:go_fmt_commands
+     command! -buffer Fmt call s:GoFormat()
+@@ -34,7 +40,7 @@ endif
+ 
+ function! s:GoFormat()
+     let view = winsaveview()
+-    silent %!gofmt
++    silent execute "%!" . g:gofmt_command
+     if v:shell_error
+         let errors = []
+         for line in getline(1, line('$'))

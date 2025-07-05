@@ -609,3 +609,38 @@ Date:   Wed Nov 18 13:30:16 2020 -0500
  test/nilptr.go                                     |     3 +-
  test/run.go                                        |     2 +-
  598 files changed, 26118 insertions(+), 24717 deletions(-)
+
+diff --cc src/crypto/hmac/hmac_test.go
+index 7be8b1bbcf,25e67d7fe5..55415abf02
+--- a/src/crypto/hmac/hmac_test.go
++++ b/src/crypto/hmac/hmac_test.go
+@@@ -5,7 -5,6 +5,8 @@@
+  package hmac
+  
+  import (
+ +	"bytes"
+++	"crypto/internal/boring"
+  	"crypto/md5"
+  	"crypto/sha1"
+  	"crypto/sha256"
+@@@ -582,6 -556,17 +583,20 @@@ func TestHMAC(t *testing.T) 
+  	}
+  }
+  
++ func TestNonUniqueHash(t *testing.T) {
+++	if boring.Enabled {
+++		t.Skip("hash.Hash provided by boringcrypto are not comparable")
+++	}
++ 	sha := sha256.New()
++ 	defer func() {
++ 		err := recover()
++ 		if err == nil {
++ 			t.Error("expected panic when calling New with a non-unique hash generation function")
++ 		}
++ 	}()
++ 	New(func() hash.Hash { return sha }, []byte("bytes"))
++ }
++ 
+  // justHash implements just the hash.Hash methods and nothing else
+  type justHash struct {
+  	hash.Hash

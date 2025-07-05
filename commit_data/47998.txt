@@ -12,7 +12,45 @@ Date:   Mon Apr 19 16:05:01 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/311649
     Trust: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/io/fs/readfile.go        |  3 +++
  src/testing/fstest/testfs.go | 12 ++++++++++++
  2 files changed, 15 insertions(+)
+
+diff --git a/src/io/fs/readfile.go b/src/io/fs/readfile.go
+index 7ee9eadac4..d3c181c0a9 100644
+--- a/src/io/fs/readfile.go
++++ b/src/io/fs/readfile.go
+@@ -15,6 +15,9 @@ type ReadFileFS interface {
+ 	// A successful call returns a nil error, not io.EOF.
+ 	// (Because ReadFile reads the whole file, the expected EOF
+ 	// from the final Read is not treated as an error to be reported.)
++	//
++	// The caller is permitted to modify the returned byte slice.
++	// This method should return a copy of the underlying data.
+ 	ReadFile(name string) ([]byte, error)
+ }
+ 
+diff --git a/src/testing/fstest/testfs.go b/src/testing/fstest/testfs.go
+index 80ca0e9a1d..5c4f30af16 100644
+--- a/src/testing/fstest/testfs.go
++++ b/src/testing/fstest/testfs.go
+@@ -537,6 +537,18 @@ func (t *fsTester) checkFile(file string) {
+ 		}
+ 		t.checkFileRead(file, "ReadAll vs fsys.ReadFile", data, data2)
+ 
++		// Modify the data and check it again. Modifying the
++		// returned byte slice should not affect the next call.
++		for i := range data2 {
++			data2[i]++
++		}
++		data2, err = fsys.ReadFile(file)
++		if err != nil {
++			t.errorf("%s: second call to fsys.ReadFile: %v", file, err)
++			return
++		}
++		t.checkFileRead(file, "Readall vs second fsys.ReadFile", data, data2)
++
+ 		t.checkBadPath(file, "ReadFile",
+ 			func(name string) error { _, err := fsys.ReadFile(name); return err })
+ 	}

@@ -7,6 +7,20 @@ Date:   Fri Apr 2 16:20:47 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/829044
-
+---
  src/pkg/debug/proc/proc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/debug/proc/proc.go b/src/pkg/debug/proc/proc.go
+index d5341a7458..d89649cf88 100644
+--- a/src/pkg/debug/proc/proc.go
++++ b/src/pkg/debug/proc/proc.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package ptrace provides a platform-independent interface for
++// Package proc provides a platform-independent interface for
+ // tracing and controlling running processes.  It supports
+ // multi-threaded processes and provides typical low-level debugging
+ // controls such as breakpoints, single stepping, and manipulating

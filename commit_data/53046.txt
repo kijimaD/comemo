@@ -19,7 +19,58 @@ Date:   Thu Jun 30 13:30:48 2022 -0400
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/script_test.go         | 16 ++++++++++++++++
  src/cmd/go/testdata/script/README |  5 +++++
  2 files changed, 21 insertions(+)
+
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 3ad0608725..5e82929f19 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -521,6 +521,7 @@ var scriptCmds = map[string]func(*testScript, simpleStatus, []string){
+ 	"mv":      (*testScript).cmdMv,
+ 	"rm":      (*testScript).cmdRm,
+ 	"skip":    (*testScript).cmdSkip,
++	"sleep":   (*testScript).cmdSleep,
+ 	"stale":   (*testScript).cmdStale,
+ 	"stderr":  (*testScript).cmdStderr,
+ 	"stdout":  (*testScript).cmdStdout,
+@@ -921,6 +922,21 @@ func (ts *testScript) cmdSkip(want simpleStatus, args []string) {
+ 	ts.t.Skip()
+ }
+ 
++// sleep sleeps for the given duration
++func (ts *testScript) cmdSleep(want simpleStatus, args []string) {
++	if len(args) != 1 {
++		ts.fatalf("usage: sleep duration")
++	}
++	d, err := time.ParseDuration(args[0])
++	if err != nil {
++		ts.fatalf("sleep: %v", err)
++	}
++	if want != success {
++		ts.fatalf("unsupported: %v sleep", want)
++	}
++	time.Sleep(d)
++}
++
+ // stale checks that the named build targets are stale.
+ func (ts *testScript) cmdStale(want simpleStatus, args []string) {
+ 	if len(args) == 0 {
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index 85e575d56e..c575bff1a5 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -176,6 +176,11 @@ The commands are:
+ - skip [message]
+   Mark the test skipped, including the message if given.
+ 
++- sleep duration
++  Sleep for the given duration (a time.Duration string).
++  (Tests should generally poll instead of sleeping, but sleeping may sometimes
++  be necessary, for example, to ensure that modified files have unique mtimes.)
++
+ - [!] stale path...
+   The packages named by the path arguments must (or must not)
+   be reported as "stale" by the go command.

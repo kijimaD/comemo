@@ -13,9 +13,242 @@ Date:   Thu Sep 29 14:56:26 2022 -0400
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/covdata/tool_test.go            | 20 +++++++------
  src/cmd/cover/cfg_test.go               |  2 +-
  src/cmd/cover/cover_test.go             | 53 ++++++++++++++++-----------------
  src/cmd/go/internal/cache/cache_test.go |  6 ++++
  4 files changed, 44 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/covdata/tool_test.go b/src/cmd/covdata/tool_test.go
+index 584ba71d46..8076916c52 100644
+--- a/src/cmd/covdata/tool_test.go
++++ b/src/cmd/covdata/tool_test.go
+@@ -23,8 +23,16 @@ import (
+ 	"testing"
+ )
+ 
+-// Path to unit test executable to be used as standin for 'go tool covdata'
+-var testcovdata string
++// testcovdata returns the path to the unit test executable to be used as
++// standin for 'go tool covdata'.
++func testcovdata(t testing.TB) string {
++	exe, err := os.Executable()
++	if err != nil {
++		t.Helper()
++		t.Fatal(err)
++	}
++	return exe
++}
+ 
+ // Top level tempdir for test.
+ var testTempDir string
+@@ -56,11 +64,6 @@ func TestMain(m *testing.M) {
+ 		fmt.Fprintf(os.Stderr, "debug: preserving tmpdir %s\n", topTmpdir)
+ 	}
+ 	os.Setenv("CMDCOVDATA_TEST_RUN_MAIN", "true")
+-	testExe, err := os.Executable()
+-	if err != nil {
+-		log.Fatal(err)
+-	}
+-	testcovdata = testExe
+ 	os.Exit(m.Run())
+ }
+ 
+@@ -111,7 +114,6 @@ func emitFile(t *testing.T, dst, src string) {
+ }
+ 
+ func buildProg(t *testing.T, prog string, dir string, tag string, flags []string) (string, string) {
+-
+ 	// Create subdirs.
+ 	subdir := filepath.Join(dir, prog+"dir"+tag)
+ 	if err := os.Mkdir(subdir, 0777); err != nil {
+@@ -182,7 +184,7 @@ func TestCovTool(t *testing.T) {
+ 	s.exepath3, s.exedir3 = buildProg(t, "prog1", dir, "atomic", flags)
+ 
+ 	// Reuse unit test executable as tool to be tested.
+-	s.tool = testcovdata
++	s.tool = testcovdata(t)
+ 
+ 	// Create a few coverage output dirs.
+ 	for i := 0; i < 4; i++ {
+diff --git a/src/cmd/cover/cfg_test.go b/src/cmd/cover/cfg_test.go
+index d90e849448..7d812074d9 100644
+--- a/src/cmd/cover/cfg_test.go
++++ b/src/cmd/cover/cfg_test.go
+@@ -63,7 +63,7 @@ func runPkgCover(t *testing.T, outdir string, tag string, incfg string, mode str
+ 	outfiles, outfilelist := writeOutFileList(t, infiles, outdir, tag)
+ 	args := []string{"-pkgcfg", incfg, "-mode=" + mode, "-var=var" + tag, "-outfilelist", outfilelist}
+ 	args = append(args, infiles...)
+-	cmd := exec.Command(testcover, args...)
++	cmd := exec.Command(testcover(t), args...)
+ 	if errExpected {
+ 		errmsg := runExpectingError(cmd, t)
+ 		return nil, "", errmsg
+diff --git a/src/cmd/cover/cover_test.go b/src/cmd/cover/cover_test.go
+index fdfe41cab7..0bbfa1007a 100644
+--- a/src/cmd/cover/cover_test.go
++++ b/src/cmd/cover/cover_test.go
+@@ -29,15 +29,20 @@ const (
+ 	testdata = "testdata"
+ )
+ 
+-var (
+-	// The cmd/cover binary that we are going to test. At one point
+-	// this was created via "go build"; we now reuse the unit test
+-	// executable itself.
+-	testcover string
+-
+-	// testTempDir is a temporary directory created in TestMain.
+-	testTempDir string
+-)
++// testcover returns the path to the cmd/cover binary that we are going to
++// test. At one point this was created via "go build"; we now reuse the unit
++// test executable itself.
++func testcover(t testing.TB) string {
++	exe, err := os.Executable()
++	if err != nil {
++		t.Helper()
++		t.Fatal(err)
++	}
++	return exe
++}
++
++// testTempDir is a temporary directory created in TestMain.
++var testTempDir string
+ 
+ // If set, this will preserve all the tmpdir files from the test run.
+ var debug = flag.Bool("debug", false, "keep tmpdir files for debugging")
+@@ -87,11 +92,6 @@ func TestMain(m *testing.M) {
+ 		fmt.Fprintf(os.Stderr, "debug: preserving tmpdir %s\n", topTmpdir)
+ 	}
+ 	os.Setenv("CMDCOVER_TEST_RUN_MAIN", "normal")
+-	testExe, err := os.Executable()
+-	if err != nil {
+-		log.Fatal(err)
+-	}
+-	testcover = testExe
+ 	os.Exit(m.Run())
+ }
+ 
+@@ -113,8 +113,9 @@ func tempDir(t *testing.T) string {
+ // "-toolexec" wrapper program to invoke the cover test executable
+ // itself via "go test -cover".
+ func TestCoverWithToolExec(t *testing.T) {
++	testenv.MustHaveExec(t)
+ 
+-	toolexecArg := "-toolexec=" + testcover
++	toolexecArg := "-toolexec=" + testcover(t)
+ 
+ 	t.Run("CoverHTML", func(t *testing.T) {
+ 		testCoverHTML(t, toolexecArg)
+@@ -134,10 +135,8 @@ func TestCoverWithToolExec(t *testing.T) {
+ //	go run ./testdata/main.go ./testdata/test.go
+ func TestCover(t *testing.T) {
+ 	testenv.MustHaveGoRun(t)
+-
+-	dir := tempDir(t)
+-
+ 	t.Parallel()
++	dir := tempDir(t)
+ 
+ 	// Read in the test file (testTest) and write it, with LINEs specified, to coverInput.
+ 	testTest := filepath.Join(testdata, "test.go")
+@@ -167,10 +166,10 @@ func TestCover(t *testing.T) {
+ 
+ 	// testcover -mode=count -var=thisNameMustBeVeryLongToCauseOverflowOfCounterIncrementStatementOntoNextLineForTest -o ./testdata/test_cover.go testdata/test_line.go
+ 	coverOutput := filepath.Join(dir, "test_cover.go")
+-	cmd := exec.Command(testcover, "-mode=count", "-var=thisNameMustBeVeryLongToCauseOverflowOfCounterIncrementStatementOntoNextLineForTest", "-o", coverOutput, coverInput)
++	cmd := exec.Command(testcover(t), "-mode=count", "-var=thisNameMustBeVeryLongToCauseOverflowOfCounterIncrementStatementOntoNextLineForTest", "-o", coverOutput, coverInput)
+ 	run(cmd, t)
+ 
+-	cmd = exec.Command(testcover, "-mode=set", "-var=Not_an-identifier", "-o", coverOutput, coverInput)
++	cmd = exec.Command(testcover(t), "-mode=set", "-var=Not_an-identifier", "-o", coverOutput, coverInput)
+ 	err = cmd.Run()
+ 	if err == nil {
+ 		t.Error("Expected cover to fail with an error")
+@@ -217,7 +216,7 @@ func TestCover(t *testing.T) {
+ // above those declarations, even if they are not part of the block of
+ // documentation comments.
+ func TestDirectives(t *testing.T) {
+-
++	testenv.MustHaveExec(t)
+ 	t.Parallel()
+ 
+ 	// Read the source file and find all the directives. We'll keep
+@@ -230,7 +229,7 @@ func TestDirectives(t *testing.T) {
+ 	sourceDirectives := findDirectives(source)
+ 
+ 	// testcover -mode=atomic ./testdata/directives.go
+-	cmd := exec.Command(testcover, "-mode=atomic", testDirectives)
++	cmd := exec.Command(testcover(t), "-mode=atomic", testDirectives)
+ 	cmd.Stderr = os.Stderr
+ 	output, err := cmd.Output()
+ 	if err != nil {
+@@ -336,11 +335,11 @@ func findDirectives(source []byte) []directiveInfo {
+ // Makes sure that `cover -func=profile.cov` reports accurate coverage.
+ // Issue #20515.
+ func TestCoverFunc(t *testing.T) {
+-	t.Parallel()
++	testenv.MustHaveExec(t)
+ 
+ 	// testcover -func ./testdata/profile.cov
+ 	coverProfile := filepath.Join(testdata, "profile.cov")
+-	cmd := exec.Command(testcover, "-func", coverProfile)
++	cmd := exec.Command(testcover(t), "-func", coverProfile)
+ 	out, err := cmd.Output()
+ 	if err != nil {
+ 		if ee, ok := err.(*exec.ExitError); ok {
+@@ -370,7 +369,7 @@ func testCoverHTML(t *testing.T, toolexecArg string) {
+ 	run(cmd, t)
+ 	// testcover -html testdata/html/html.cov -o testdata/html/html.html
+ 	htmlHTML := filepath.Join(dir, "html.html")
+-	cmd = exec.Command(testcover, "-html", htmlProfile, "-o", htmlHTML)
++	cmd = exec.Command(testcover(t), "-html", htmlProfile, "-o", htmlHTML)
+ 	run(cmd, t)
+ 
+ 	// Extract the parts of the HTML with comment markers,
+@@ -473,7 +472,7 @@ lab:
+ 	run(cmd, t)
+ 
+ 	// testcover -html TMPDIR/htmlunformatted.cov -o unformatted.html
+-	cmd = exec.Command(testcover, "-html", htmlUProfile, "-o", htmlUHTML)
++	cmd = exec.Command(testcover(t), "-html", htmlUProfile, "-o", htmlUHTML)
+ 	cmd.Dir = htmlUDir
+ 	run(cmd, t)
+ }
+@@ -549,7 +548,7 @@ func testFuncWithDuplicateLines(t *testing.T, toolexecArg string) {
+ 	run(cmd, t)
+ 
+ 	// testcover -func=TMPDIR/linedup.out
+-	cmd = exec.Command(testcover, "-func", lineDupProfile)
++	cmd = exec.Command(testcover(t), "-func", lineDupProfile)
+ 	cmd.Dir = lineDupDir
+ 	run(cmd, t)
+ }
+diff --git a/src/cmd/go/internal/cache/cache_test.go b/src/cmd/go/internal/cache/cache_test.go
+index a865b97018..5527d444bb 100644
+--- a/src/cmd/go/internal/cache/cache_test.go
++++ b/src/cmd/go/internal/cache/cache_test.go
+@@ -8,8 +8,10 @@ import (
+ 	"bytes"
+ 	"encoding/binary"
+ 	"fmt"
++	"internal/testenv"
+ 	"os"
+ 	"path/filepath"
++	"runtime"
+ 	"testing"
+ 	"time"
+ )
+@@ -150,6 +152,10 @@ func dummyID(x int) [HashSize]byte {
+ }
+ 
+ func TestCacheTrim(t *testing.T) {
++	if runtime.GOOS == "js" {
++		testenv.SkipFlaky(t, 35220)
++	}
++
+ 	dir, err := os.MkdirTemp("", "cachetest-")
+ 	if err != nil {
+ 		t.Fatal(err)

@@ -17,8 +17,145 @@ Date:   Tue Jul 10 16:44:56 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/dist/test.go         |  2 +-
  src/internal/poll/fd_unix.go | 25 +++++++++++++------------
  src/os/pipe_test.go          | 42 ++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 56 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index a6c0f387ff..c8c918d36b 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1354,7 +1354,7 @@ func (t *tester) runFlag(rx string) string {
+ func (t *tester) raceTest(dt *distTest) error {
+ 	t.addCmd(dt, "src", t.goTest(), "-race", "-i", "runtime/race", "flag", "os", "os/exec")
+ 	t.addCmd(dt, "src", t.goTest(), "-race", t.runFlag("Output"), "runtime/race")
+-	t.addCmd(dt, "src", t.goTest(), "-race", t.runFlag("TestParse|TestEcho|TestStdinCloseRace|TestClosedPipeRace|TestTypeRace|TestFdRace|TestFileCloseRace"), "flag", "net", "os", "os/exec", "encoding/gob")
++	t.addCmd(dt, "src", t.goTest(), "-race", t.runFlag("TestParse|TestEcho|TestStdinCloseRace|TestClosedPipeRace|TestTypeRace|TestFdRace|TestFdReadRace|TestFileCloseRace"), "flag", "net", "os", "os/exec", "encoding/gob")
+ 	// We don't want the following line, because it
+ 	// slows down all.bash (by 10 seconds on my laptop).
+ 	// The race builder should catch any error here, but doesn't.
+diff --git a/src/internal/poll/fd_unix.go b/src/internal/poll/fd_unix.go
+index c10ac89496..b311049ad7 100644
+--- a/src/internal/poll/fd_unix.go
++++ b/src/internal/poll/fd_unix.go
+@@ -31,6 +31,9 @@ type FD struct {
+ 	// Semaphore signaled when file is closed.
+ 	csema uint32
+ 
++	// Non-zero if this file has been set to blocking mode.
++	isBlocking uint32
++
+ 	// Whether this is a streaming descriptor, as opposed to a
+ 	// packet-based descriptor like a UDP socket. Immutable.
+ 	IsStream bool
+@@ -41,9 +44,6 @@ type FD struct {
+ 
+ 	// Whether this is a file rather than a network socket.
+ 	isFile bool
+-
+-	// Whether this file has been set to blocking mode.
+-	isBlocking bool
+ }
+ 
+ // Init initializes the FD. The Sysfd field should already be set.
+@@ -57,14 +57,14 @@ func (fd *FD) Init(net string, pollable bool) error {
+ 		fd.isFile = true
+ 	}
+ 	if !pollable {
+-		fd.isBlocking = true
++		fd.isBlocking = 1
+ 		return nil
+ 	}
+ 	err := fd.pd.init(fd)
+ 	if err != nil {
+ 		// If we could not initialize the runtime poller,
+ 		// assume we are using blocking mode.
+-		fd.isBlocking = true
++		fd.isBlocking = 1
+ 	}
+ 	return err
+ }
+@@ -103,9 +103,9 @@ func (fd *FD) Close() error {
+ 	// reference, it is already closed. Only wait if the file has
+ 	// not been set to blocking mode, as otherwise any current I/O
+ 	// may be blocking, and that would block the Close.
+-	// No need for a lock to read isBlocking, increfAndClose means
++	// No need for an atomic read of isBlocking, increfAndClose means
+ 	// we have exclusive access to fd.
+-	if !fd.isBlocking {
++	if fd.isBlocking == 0 {
+ 		runtime_Semacquire(&fd.csema)
+ 	}
+ 
+@@ -123,13 +123,14 @@ func (fd *FD) Shutdown(how int) error {
+ 
+ // SetBlocking puts the file into blocking mode.
+ func (fd *FD) SetBlocking() error {
+-	// Take an exclusive lock, rather than calling incref, so that
+-	// we can safely modify isBlocking.
+-	if err := fd.readLock(); err != nil {
++	if err := fd.incref(); err != nil {
+ 		return err
+ 	}
+-	defer fd.readUnlock()
+-	fd.isBlocking = true
++	defer fd.decref()
++	// Atomic store so that concurrent calls to SetBlocking
++	// do not cause a race condition. isBlocking only ever goes
++	// from 0 to 1 so there is no real race here.
++	atomic.StoreUint32(&fd.isBlocking, 1)
+ 	return syscall.SetNonblock(fd.Sysfd, false)
+ }
+ 
+diff --git a/src/os/pipe_test.go b/src/os/pipe_test.go
+index a6d955a8e4..59d31e5837 100644
+--- a/src/os/pipe_test.go
++++ b/src/os/pipe_test.go
+@@ -395,3 +395,45 @@ func TestFdRace(t *testing.T) {
+ 	}
+ 	wg.Wait()
+ }
++
++func TestFdReadRace(t *testing.T) {
++	t.Parallel()
++
++	r, w, err := os.Pipe()
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer r.Close()
++	defer w.Close()
++
++	c := make(chan bool)
++	var wg sync.WaitGroup
++	wg.Add(1)
++	go func() {
++		defer wg.Done()
++		var buf [10]byte
++		r.SetReadDeadline(time.Now().Add(time.Second))
++		c <- true
++		if _, err := r.Read(buf[:]); os.IsTimeout(err) {
++			t.Error("read timed out")
++		}
++	}()
++
++	wg.Add(1)
++	go func() {
++		defer wg.Done()
++		<-c
++		// Give the other goroutine a chance to enter the Read.
++		// It doesn't matter if this occasionally fails, the test
++		// will still pass, it just won't test anything.
++		time.Sleep(10 * time.Millisecond)
++		r.Fd()
++
++		// The bug was that Fd would hang until Read timed out.
++		// If the bug is fixed, then closing r here will cause
++		// the Read to exit before the timeout expires.
++		r.Close()
++	}()
++
++	wg.Wait()
++}

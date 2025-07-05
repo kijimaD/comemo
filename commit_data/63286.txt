@@ -14,6 +14,20 @@ Date:   Mon Jun 9 11:10:53 2025 -0400
     Reviewed-by: Michael Matloob <matloob@google.com>
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/internal/doc/main.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/doc/main.go b/src/cmd/internal/doc/main.go
+index a19f36e1bd..fe99ee70bd 100644
+--- a/src/cmd/internal/doc/main.go
++++ b/src/cmd/internal/doc/main.go
+@@ -231,7 +231,7 @@ func doPkgsite(urlPath string) error {
+ 		env = append(env, "GOPROXY="+goproxy)
+ 	}
+ 
+-	const version = "v0.0.0-20250520201116-40659211760d"
++	const version = "v0.0.0-20250608123103-82c52f1754cd"
+ 	cmd := exec.Command("go", "run", "golang.org/x/pkgsite/cmd/internal/doc@"+version,
+ 		"-gorepo", buildCtx.GOROOT,
+ 		"-http", addr,

@@ -7,6 +7,21 @@ Date:   Sat Sep 17 18:00:32 2011 +1000
     R=alex.brainman
     CC=golang-dev
     https://golang.org/cl/5047045
-
+---
  src/pkg/runtime/pprof/pprof_test.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/pkg/runtime/pprof/pprof_test.go b/src/pkg/runtime/pprof/pprof_test.go
+index 4486d5525f..5f128c01cf 100644
+--- a/src/pkg/runtime/pprof/pprof_test.go
++++ b/src/pkg/runtime/pprof/pprof_test.go
+@@ -22,9 +22,6 @@ func TestCPUProfile(t *testing.T) {
+ 	case "plan9":
+ 		// unimplemented
+ 		return
+-	case "windows":
+-		// unimplemented
+-		return
+ 	}
+ 
+ 	buf := make([]byte, 100000)

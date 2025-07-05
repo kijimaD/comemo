@@ -7,6 +7,91 @@ Date:   Tue Jul 26 14:45:36 2011 -0700
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/4809052
-
+---
  src/cmd/goinstall/make.go | 53 +++++++++++++++++++++--------------------------
  1 file changed, 24 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/goinstall/make.go b/src/cmd/goinstall/make.go
+index 0fd9b02a84..9c1c7c4d79 100644
+--- a/src/cmd/goinstall/make.go
++++ b/src/cmd/goinstall/make.go
+@@ -8,11 +8,11 @@ package main
+ 
+ import (
+ 	"bytes"
++	"exp/template"
+ 	"go/build"
+ 	"os"
+ 	"path/filepath"
+ 	"strings"
+-	"template"
+ )
+ 
+ // domake builds the package in dir.
+@@ -138,43 +138,38 @@ type makedata struct {
+ 	Imports   []string // gc/ld import paths
+ }
+ 
+-var makefileTemplate = template.MustParse(`
++var makefileTemplate = template.New("Makefile").MustParse(`
+ include $(GOROOT)/src/Make.inc
+ 
+-TARG={Targ}
+-TARGDIR={TargDir}
++TARG={{.Targ}}
++TARGDIR={{.TargDir}}
+ 
+-{.section GoFiles}
++{{with .GoFiles}}
+ GOFILES=\
+-{.repeated section @}
+-	{@}\
+-{.end}
++{{range .}}	{{.}}\
++{{end}}
+ 
+-{.end}
+-{.section OFiles}
++{{end}}
++{{with .OFiles}}
+ OFILES=\
+-{.repeated section @}
+-	{@}\
+-{.end}
++{{range .}}	{{.}}\
++{{end}}
+ 
+-{.end}
+-{.section CgoFiles}
++{{end}}
++{{with .CgoFiles}}
+ CGOFILES=\
+-{.repeated section @}
+-	{@}\
+-{.end}
++{{range .}}	{{.}}\
++{{end}}
+ 
+-{.end}
+-{.section CgoOFiles}
++{{end}}
++{{with .CgoOFiles}}
+ CGO_OFILES=\
+-{.repeated section @}
+-	{@}\
+-{.end}
++{{range .}}	{{.}}\
++{{end}}
+ 
+-{.end}
+-GCIMPORTS={.repeated section Imports}-I "{@}" {.end}
+-LDIMPORTS={.repeated section Imports}-L "{@}" {.end}
++{{end}}
++GCIMPORTS={{range .Imports}}-I "{{.}}" {{end}}
++LDIMPORTS={{range .Imports}}-L "{{.}}" {{end}}
+ 
+-include $(GOROOT)/src/Make.{Type}
+-`,
+-	nil)
++include $(GOROOT)/src/Make.{{.Type}}
++`)

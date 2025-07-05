@@ -9,7 +9,51 @@ Date:   Tue Jan 21 10:53:51 2014 +0400
     R=golang-codereviews, dave, iant
     CC=golang-codereviews, khr, rsc
     https://golang.org/cl/41170044
-
+---
  src/pkg/runtime/malloc.goc | 6 ++++--
  src/pkg/runtime/mgc0.c     | 6 ++++--
  2 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index f83e498293..739c61e4f4 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -75,7 +75,7 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
+ 		if(!(flag & FlagNoZero)) {
+ 			v->next = nil;
+ 			// block is zeroed iff second word is zero ...
+-			if(size > sizeof(uintptr) && ((uintptr*)v)[1] != 0)
++			if(size > 2*sizeof(uintptr) && ((uintptr*)v)[1] != 0)
+ 				runtime·memclr((byte*)v, size);
+ 		}
+ 		c->local_cachealloc += size;
+@@ -205,8 +205,10 @@ runtime·free(void *v)
+ 		c->local_largefree += size;
+ 	} else {
+ 		// Small object.
+-		if(size > sizeof(uintptr))
++		if(size > 2*sizeof(uintptr))
+ 			((uintptr*)v)[1] = (uintptr)0xfeedfeedfeedfeedll;	// mark as "needs to be zeroed"
++		else if(size > sizeof(uintptr))
++			((uintptr*)v)[1] = 0;
+ 		// Must mark v freed before calling MCache_Free:
+ 		// it might coalesce v and other blocks into a bigger span
+ 		// and change the bitmap further.
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 393de7a836..6a1d625a75 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1867,9 +1867,11 @@ sweepspan(ParFor *desc, uint32 idx)
+ 				*(byte*)type_data = 0;
+ 				break;
+ 			}
+-			if(size > sizeof(uintptr))
++			if(size > 2*sizeof(uintptr))
+ 				((uintptr*)p)[1] = (uintptr)0xdeaddeaddeaddeadll;	// mark as "needs to be zeroed"
+-			
++			else if(size > sizeof(uintptr))
++				((uintptr*)p)[1] = 0;
++
+ 			end->next = (MLink*)p;
+ 			end = (MLink*)p;
+ 			nfree++;

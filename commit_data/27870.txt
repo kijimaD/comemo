@@ -14,8 +14,107 @@ Date:   Wed Apr 13 18:14:52 2016 +0000
     Change-Id: Ieb1c456c703693714d63d9d09d306f4d9e8f4597
     Reviewed-on: https://go-review.googlesource.com/22003
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/encoding/json/decode.go |  2 +-
  src/encoding/json/encode.go | 12 ++++++------
  src/encoding/json/stream.go |  8 ++++----
  3 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index a7ff8cf3dc..434edf8ea4 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -97,7 +97,7 @@ func Unmarshal(data []byte, v interface{}) error {
+ 	return d.unmarshal(v)
+ }
+ 
+-// Unmarshaler is the interface implemented by objects
++// Unmarshaler is the interface implemented by types
+ // that can unmarshal a JSON description of themselves.
+ // The input can be assumed to be a valid encoding of
+ // a JSON value. UnmarshalJSON must copy the JSON data
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 927f47b179..0088f25ab8 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package json implements encoding and decoding of JSON objects as defined in
+-// RFC 4627. The mapping between JSON objects and Go values is described
++// Package json implements encoding and decoding of JSON as defined in
++// RFC 4627. The mapping between JSON and Go values is described
+ // in the documentation for the Marshal and Unmarshal functions.
+ //
+ // See "JSON and Go" for an introduction to this package:
+@@ -52,7 +52,7 @@ import (
+ //
+ // Array and slice values encode as JSON arrays, except that
+ // []byte encodes as a base64-encoded string, and a nil slice
+-// encodes as the null JSON object.
++// encodes as the null JSON value.
+ //
+ // Struct values encode as JSON objects. Each exported struct field
+ // becomes a member of the object unless
+@@ -121,10 +121,10 @@ import (
+ // keys, subject to the UTF-8 coercion described for string values above.
+ //
+ // Pointer values encode as the value pointed to.
+-// A nil pointer encodes as the null JSON object.
++// A nil pointer encodes as the null JSON value.
+ //
+ // Interface values encode as the value contained in the interface.
+-// A nil interface value encodes as the null JSON object.
++// A nil interface value encodes as the null JSON value.
+ //
+ // Channel, complex, and function values cannot be encoded in JSON.
+ // Attempting to encode such a value causes Marshal to return
+@@ -192,7 +192,7 @@ func HTMLEscape(dst *bytes.Buffer, src []byte) {
+ 	}
+ }
+ 
+-// Marshaler is the interface implemented by objects that
++// Marshaler is the interface implemented by types that
+ // can marshal themselves into valid JSON.
+ type Marshaler interface {
+ 	MarshalJSON() ([]byte, error)
+diff --git a/src/encoding/json/stream.go b/src/encoding/json/stream.go
+index b740d32a7d..422837bb63 100644
+--- a/src/encoding/json/stream.go
++++ b/src/encoding/json/stream.go
+@@ -10,7 +10,7 @@ import (
+ 	"io"
+ )
+ 
+-// A Decoder reads and decodes JSON objects from an input stream.
++// A Decoder reads and decodes JSON values from an input stream.
+ type Decoder struct {
+ 	r     io.Reader
+ 	buf   []byte
+@@ -164,7 +164,7 @@ func nonSpace(b []byte) bool {
+ 	return false
+ }
+ 
+-// An Encoder writes JSON objects to an output stream.
++// An Encoder writes JSON values to an output stream.
+ type Encoder struct {
+ 	w   io.Writer
+ 	err error
+@@ -218,14 +218,14 @@ func (enc *Encoder) Encode(v interface{}) error {
+ 	return err
+ }
+ 
+-// Indent sets the encoder to format each encoded object with Indent.
++// Indent sets the encoder to format each encoded value with Indent.
+ func (enc *Encoder) Indent(prefix, indent string) {
+ 	enc.indentBuf = new(bytes.Buffer)
+ 	enc.indentPrefix = prefix
+ 	enc.indentValue = indent
+ }
+ 
+-// RawMessage is a raw encoded JSON object.
++// RawMessage is a raw encoded JSON value.
+ // It implements Marshaler and Unmarshaler and can
+ // be used to delay JSON decoding or precompute a JSON encoding.
+ type RawMessage []byte

@@ -12,7 +12,52 @@ Date:   Sat Nov 30 22:08:44 2024 -0700
     Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/alldocs.go               | 4 +++-
  src/cmd/go/internal/help/helpdoc.go | 4 +++-
  2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index e0899f62d4..ced43b6d5b 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -3063,7 +3063,7 @@
+ // If no import paths are given, the action applies to the
+ // package in the current directory.
+ //
+-// There are four reserved names for paths that should not be used
++// There are five reserved names for paths that should not be used
+ // for packages to be built with the go tool:
+ //
+ // - "main" denotes the top-level package in a stand-alone executable.
+@@ -3078,6 +3078,8 @@
+ // - "cmd" expands to the Go repository's commands and their
+ // internal libraries.
+ //
++// - "tool" expands to the tools defined in the current module's go.mod file.
++//
+ // Package names match against fully-qualified import paths or patterns that
+ // match against any number of import paths. For instance, "fmt" refers to the
+ // standard library's package fmt, but "http" alone for package http would not
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 2fe247327b..a64f980e5e 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -49,7 +49,7 @@ environment variable (For more details see: 'go help gopath').
+ If no import paths are given, the action applies to the
+ package in the current directory.
+ 
+-There are four reserved names for paths that should not be used
++There are five reserved names for paths that should not be used
+ for packages to be built with the go tool:
+ 
+ - "main" denotes the top-level package in a stand-alone executable.
+@@ -64,6 +64,8 @@ Go library.
+ - "cmd" expands to the Go repository's commands and their
+ internal libraries.
+ 
++- "tool" expands to the tools defined in the current module's go.mod file.
++
+ Package names match against fully-qualified import paths or patterns that
+ match against any number of import paths. For instance, "fmt" refers to the
+ standard library's package fmt, but "http" alone for package http would not

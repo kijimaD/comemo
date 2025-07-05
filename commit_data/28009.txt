@@ -9,7 +9,7 @@ Date:   Sun Apr 24 21:21:07 2016 +0200
     Change-Id: I53e4d5125a8090d5eeb4576db619103f19fff58d
     Reviewed-on: https://go-review.googlesource.com/22412
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             |   4 +-
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |   4 +
  src/cmd/compile/internal/ssa/gen/generic.rules |  16 +-
@@ -20,3 +20,637 @@ Date:   Sun Apr 24 21:21:07 2016 +0200
  src/cmd/compile/internal/ssa/rewritegeneric.go | 218 +++++++++++++------------
  test/phiopt.go                                 |  10 +-
  9 files changed, 243 insertions(+), 122 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 5c367c7268..7763b18ce2 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1121,7 +1121,7 @@ var opToSSA = map[opAndType]ssa.Op{
+ 	opAndType{OXOR, TINT64}:  ssa.OpXor64,
+ 	opAndType{OXOR, TUINT64}: ssa.OpXor64,
+ 
+-	opAndType{OEQ, TBOOL}:      ssa.OpEq8,
++	opAndType{OEQ, TBOOL}:      ssa.OpEqB,
+ 	opAndType{OEQ, TINT8}:      ssa.OpEq8,
+ 	opAndType{OEQ, TUINT8}:     ssa.OpEq8,
+ 	opAndType{OEQ, TINT16}:     ssa.OpEq16,
+@@ -1141,7 +1141,7 @@ var opToSSA = map[opAndType]ssa.Op{
+ 	opAndType{OEQ, TFLOAT64}:   ssa.OpEq64F,
+ 	opAndType{OEQ, TFLOAT32}:   ssa.OpEq32F,
+ 
+-	opAndType{ONE, TBOOL}:      ssa.OpNeq8,
++	opAndType{ONE, TBOOL}:      ssa.OpNeqB,
+ 	opAndType{ONE, TINT8}:      ssa.OpNeq8,
+ 	opAndType{ONE, TUINT8}:     ssa.OpNeq8,
+ 	opAndType{ONE, TINT16}:     ssa.OpNeq16,
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index c0e83d7adc..9d405131c0 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -281,6 +281,7 @@
+ (Eq32 x y) -> (SETEQ (CMPL x y))
+ (Eq16 x y) -> (SETEQ (CMPW x y))
+ (Eq8 x y) -> (SETEQ (CMPB x y))
++(EqB x y) -> (SETEQ (CMPB x y))
+ (EqPtr x y) -> (SETEQ (CMPQ x y))
+ (Eq64F x y) -> (SETEQF (UCOMISD x y))
+ (Eq32F x y) -> (SETEQF (UCOMISS x y))
+@@ -289,6 +290,7 @@
+ (Neq32 x y) -> (SETNE (CMPL x y))
+ (Neq16 x y) -> (SETNE (CMPW x y))
+ (Neq8 x y) -> (SETNE (CMPB x y))
++(NeqB x y) -> (SETNE (CMPB x y))
+ (NeqPtr x y) -> (SETNE (CMPQ x y))
+ (Neq64F x y) -> (SETNEF (UCOMISD x y))
+ (Neq32F x y) -> (SETNEF (UCOMISS x y))
+@@ -366,6 +368,8 @@
+ (Move [size] dst src mem) && (size > 16*64 || config.noDuffDevice) && size%8 == 0 ->
+ 	(REPMOVSQ dst src (MOVQconst [size/8]) mem)
+ 
++(AndB x y) -> (ANDL x y)
++(OrB x y) -> (ORL x y)
+ (Not x) -> (XORLconst [1] x)
+ 
+ (OffPtr [off] ptr) && is32Bit(off) -> (ADDQconst [off] ptr)
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 3270ec1534..b33037f100 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -114,7 +114,7 @@
+ (Lsh16x16 (Rsh16Ux16 (Lsh16x16 x (Const16 [c1])) (Const16 [c2])) (Const16 [c3])) && uint16(c1) >= uint16(c2) && uint16(c3) >= uint16(c2) ->  (Lsh16x16 x (Const16 <config.fe.TypeUInt16()> [int64(int16(c1-c2+c3))]))
+ (Lsh8x8 (Rsh8Ux8 (Lsh8x8 x (Const8 [c1])) (Const8 [c2])) (Const8 [c3])) && uint8(c1) >= uint8(c2) && uint8(c3) >= uint8(c2) ->  (Lsh8x8 x (Const8 <config.fe.TypeUInt8()> [int64(int8(c1-c2+c3))]))
+ 
+-// Fold IsInBounds when the range of the index cannot exceed the limt.
++// Fold IsInBounds when the range of the index cannot exceed the limit.
+ (IsInBounds (ZeroExt8to32 _) (Const32 [c])) && (1 << 8) <= c -> (ConstBool [1])
+ (IsInBounds (ZeroExt8to64 _) (Const64 [c])) && (1 << 8) <= c -> (ConstBool [1])
+ (IsInBounds (ZeroExt16to32 _) (Const32 [c])) && (1 << 16) <= c -> (ConstBool [1])
+@@ -141,17 +141,17 @@
+ (Eq32 x x) -> (ConstBool [1])
+ (Eq16 x x) -> (ConstBool [1])
+ (Eq8 x x) -> (ConstBool [1])
+-(Eq8 (ConstBool [c]) (ConstBool [d])) -> (ConstBool [b2i(c == d)])
+-(Eq8 (ConstBool [0]) x) -> (Not x)
+-(Eq8 (ConstBool [1]) x) -> x
++(EqB (ConstBool [c]) (ConstBool [d])) -> (ConstBool [b2i(c == d)])
++(EqB (ConstBool [0]) x) -> (Not x)
++(EqB (ConstBool [1]) x) -> x
+ 
+ (Neq64 x x) -> (ConstBool [0])
+ (Neq32 x x) -> (ConstBool [0])
+ (Neq16 x x) -> (ConstBool [0])
+ (Neq8 x x) -> (ConstBool [0])
+-(Neq8 (ConstBool [c]) (ConstBool [d])) -> (ConstBool [b2i(c != d)])
+-(Neq8 (ConstBool [0]) x) -> x
+-(Neq8 (ConstBool [1]) x) -> (Not x)
++(NeqB (ConstBool [c]) (ConstBool [d])) -> (ConstBool [b2i(c != d)])
++(NeqB (ConstBool [0]) x) -> x
++(NeqB (ConstBool [1]) x) -> (Not x)
+ 
+ (Eq64 (Const64 <t> [c]) (Add64 (Const64 <t> [d]) x)) -> (Eq64 (Const64 <t> [c-d]) x)
+ (Eq32 (Const32 <t> [c]) (Add32 (Const32 <t> [d]) x)) -> (Eq32 (Const32 <t> [int64(int32(c-d))]) x)
+@@ -168,13 +168,11 @@
+ (Eq32 x (Const32 <t> [c])) && x.Op != OpConst32 -> (Eq32 (Const32 <t> [c]) x)
+ (Eq16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (Eq16 (Const16 <t> [c]) x)
+ (Eq8 x (Const8 <t> [c])) && x.Op != OpConst8 -> (Eq8 (Const8 <t> [c]) x)
+-(Eq8 x (ConstBool <t> [c])) && x.Op != OpConstBool -> (Eq8 (ConstBool <t> [c]) x)
+ 
+ (Neq64 x (Const64 <t> [c])) && x.Op != OpConst64 -> (Neq64 (Const64 <t> [c]) x)
+ (Neq32 x (Const32 <t> [c])) && x.Op != OpConst32 -> (Neq32 (Const32 <t> [c]) x)
+ (Neq16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (Neq16 (Const16 <t> [c]) x)
+ (Neq8 x (Const8 <t> [c])) && x.Op != OpConst8 -> (Neq8 (Const8 <t> [c]) x)
+-(Neq8 x (ConstBool <t> [c])) && x.Op != OpConstBool -> (Neq8 (ConstBool <t> [c]) x)
+ 
+ // AddPtr is not canonicalized because nilcheck ptr checks the first argument to be non-nil.
+ (Add64 x (Const64 <t> [c])) && x.Op != OpConst64 -> (Add64 (Const64 <t> [c]) x)
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index e6a0e8355b..88ae8b189d 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -237,9 +237,14 @@ var genericOps = []opData{
+ 	{name: "Geq32F", argLength: 2},
+ 	{name: "Geq64F", argLength: 2},
+ 
+-	// 1-input ops
+-	{name: "Not", argLength: 1}, // !arg0, boolean
++	// boolean ops
++	{name: "AndB", argLength: 2}, // arg0 && arg1 (not shortcircuited)
++	{name: "OrB", argLength: 2},  // arg0 || arg1 (not shortcircuited)
++	{name: "EqB", argLength: 2},  // arg0 == arg1
++	{name: "NeqB", argLength: 2}, // arg0 != arg1
++	{name: "Not", argLength: 1},  // !arg0, boolean
+ 
++	// 1-input ops
+ 	{name: "Neg8", argLength: 1}, // -arg0
+ 	{name: "Neg16", argLength: 1},
+ 	{name: "Neg32", argLength: 1},
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 70af757194..a53899ec52 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -503,6 +503,10 @@ const (
+ 	OpGeq64U
+ 	OpGeq32F
+ 	OpGeq64F
++	OpAndB
++	OpOrB
++	OpEqB
++	OpNeqB
+ 	OpNot
+ 	OpNeg8
+ 	OpNeg16
+@@ -4773,6 +4777,26 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  2,
+ 		generic: true,
+ 	},
++	{
++		name:    "AndB",
++		argLen:  2,
++		generic: true,
++	},
++	{
++		name:    "OrB",
++		argLen:  2,
++		generic: true,
++	},
++	{
++		name:    "EqB",
++		argLen:  2,
++		generic: true,
++	},
++	{
++		name:    "NeqB",
++		argLen:  2,
++		generic: true,
++	},
+ 	{
+ 		name:    "Not",
+ 		argLen:  1,
+diff --git a/src/cmd/compile/internal/ssa/phiopt.go b/src/cmd/compile/internal/ssa/phiopt.go
+index aae83bacf2..3b6728ca86 100644
+--- a/src/cmd/compile/internal/ssa/phiopt.go
++++ b/src/cmd/compile/internal/ssa/phiopt.go
+@@ -84,7 +84,7 @@ func phiopt(f *Func) {
+ 			// of value are not seen if a is false.
+ 			if v.Args[reverse].Op == OpConstBool && v.Args[reverse].AuxInt == 1 {
+ 				if tmp := v.Args[1-reverse]; f.sdom.isAncestorEq(tmp.Block, b) {
+-					v.reset(OpOr8)
++					v.reset(OpOrB)
+ 					v.SetArgs2(b0.Control, tmp)
+ 					if f.pass.debug > 0 {
+ 						f.Config.Warnl(b.Line, "converted OpPhi to %v", v.Op)
+@@ -100,7 +100,7 @@ func phiopt(f *Func) {
+ 			// of value are not seen if a is false.
+ 			if v.Args[1-reverse].Op == OpConstBool && v.Args[1-reverse].AuxInt == 0 {
+ 				if tmp := v.Args[reverse]; f.sdom.isAncestorEq(tmp.Block, b) {
+-					v.reset(OpAnd8)
++					v.reset(OpAndB)
+ 					v.SetArgs2(b0.Control, tmp)
+ 					if f.pass.debug > 0 {
+ 						f.Config.Warnl(b.Line, "converted OpPhi to %v", v.Op)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index e2c4240ae3..f8cefb7eab 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -48,6 +48,8 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		return rewriteValueAMD64_OpAnd64(v, config)
+ 	case OpAnd8:
+ 		return rewriteValueAMD64_OpAnd8(v, config)
++	case OpAndB:
++		return rewriteValueAMD64_OpAndB(v, config)
+ 	case OpAvg64u:
+ 		return rewriteValueAMD64_OpAvg64u(v, config)
+ 	case OpBswap32:
+@@ -164,6 +166,8 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		return rewriteValueAMD64_OpEq64F(v, config)
+ 	case OpEq8:
+ 		return rewriteValueAMD64_OpEq8(v, config)
++	case OpEqB:
++		return rewriteValueAMD64_OpEqB(v, config)
+ 	case OpEqPtr:
+ 		return rewriteValueAMD64_OpEqPtr(v, config)
+ 	case OpGeq16:
+@@ -512,6 +516,8 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		return rewriteValueAMD64_OpNeq64F(v, config)
+ 	case OpNeq8:
+ 		return rewriteValueAMD64_OpNeq8(v, config)
++	case OpNeqB:
++		return rewriteValueAMD64_OpNeqB(v, config)
+ 	case OpNeqPtr:
+ 		return rewriteValueAMD64_OpNeqPtr(v, config)
+ 	case OpNilCheck:
+@@ -536,6 +542,8 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		return rewriteValueAMD64_OpOr64(v, config)
+ 	case OpOr8:
+ 		return rewriteValueAMD64_OpOr8(v, config)
++	case OpOrB:
++		return rewriteValueAMD64_OpOrB(v, config)
+ 	case OpRsh16Ux16:
+ 		return rewriteValueAMD64_OpRsh16Ux16(v, config)
+ 	case OpRsh16Ux32:
+@@ -1709,6 +1717,22 @@ func rewriteValueAMD64_OpAnd8(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueAMD64_OpAndB(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (AndB x y)
++	// cond:
++	// result: (ANDL x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpAMD64ANDL)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
++}
+ func rewriteValueAMD64_OpAvg64u(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -3560,6 +3584,24 @@ func rewriteValueAMD64_OpEq8(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueAMD64_OpEqB(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (EqB x y)
++	// cond:
++	// result: (SETEQ (CMPB x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpAMD64SETEQ)
++		v0 := b.NewValue0(v.Line, OpAMD64CMPB, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++	return false
++}
+ func rewriteValueAMD64_OpEqPtr(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -12820,6 +12862,24 @@ func rewriteValueAMD64_OpNeq8(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueAMD64_OpNeqB(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (NeqB x y)
++	// cond:
++	// result: (SETNE (CMPB x y))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpAMD64SETNE)
++		v0 := b.NewValue0(v.Line, OpAMD64CMPB, TypeFlags)
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
++		return true
++	}
++	return false
++}
+ func rewriteValueAMD64_OpNeqPtr(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -13914,6 +13974,22 @@ func rewriteValueAMD64_OpOr8(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueAMD64_OpOrB(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (OrB x y)
++	// cond:
++	// result: (ORL x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpAMD64ORL)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	return false
++}
+ func rewriteValueAMD64_OpRsh16Ux16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 54a6815c93..eb8f704124 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -66,6 +66,8 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		return rewriteValuegeneric_OpEq64(v, config)
+ 	case OpEq8:
+ 		return rewriteValuegeneric_OpEq8(v, config)
++	case OpEqB:
++		return rewriteValuegeneric_OpEqB(v, config)
+ 	case OpEqInter:
+ 		return rewriteValuegeneric_OpEqInter(v, config)
+ 	case OpEqPtr:
+@@ -218,6 +220,8 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		return rewriteValuegeneric_OpNeq64(v, config)
+ 	case OpNeq8:
+ 		return rewriteValuegeneric_OpNeq8(v, config)
++	case OpNeqB:
++		return rewriteValuegeneric_OpNeqB(v, config)
+ 	case OpNeqInter:
+ 		return rewriteValuegeneric_OpNeqInter(v, config)
+ 	case OpNeqPtr:
+@@ -2348,57 +2352,6 @@ func rewriteValuegeneric_OpEq8(v *Value, config *Config) bool {
+ 		v.AuxInt = 1
+ 		return true
+ 	}
+-	// match: (Eq8 (ConstBool [c]) (ConstBool [d]))
+-	// cond:
+-	// result: (ConstBool [b2i(c == d)])
+-	for {
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpConstBool {
+-			break
+-		}
+-		c := v_0.AuxInt
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpConstBool {
+-			break
+-		}
+-		d := v_1.AuxInt
+-		v.reset(OpConstBool)
+-		v.AuxInt = b2i(c == d)
+-		return true
+-	}
+-	// match: (Eq8 (ConstBool [0]) x)
+-	// cond:
+-	// result: (Not x)
+-	for {
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpConstBool {
+-			break
+-		}
+-		if v_0.AuxInt != 0 {
+-			break
+-		}
+-		x := v.Args[1]
+-		v.reset(OpNot)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (Eq8 (ConstBool [1]) x)
+-	// cond:
+-	// result: x
+-	for {
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpConstBool {
+-			break
+-		}
+-		if v_0.AuxInt != 1 {
+-			break
+-		}
+-		x := v.Args[1]
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+ 	// match: (Eq8 (Const8 <t> [c]) (Add8 (Const8 <t> [d]) x))
+ 	// cond:
+ 	// result: (Eq8 (Const8 <t> [int64(int8(c-d))]) x)
+@@ -2491,6 +2444,62 @@ func rewriteValuegeneric_OpEq8(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuegeneric_OpEqB(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (EqB (ConstBool [c]) (ConstBool [d]))
++	// cond:
++	// result: (ConstBool [b2i(c == d)])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpConstBool {
++			break
++		}
++		c := v_0.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConstBool {
++			break
++		}
++		d := v_1.AuxInt
++		v.reset(OpConstBool)
++		v.AuxInt = b2i(c == d)
++		return true
++	}
++	// match: (EqB (ConstBool [0]) x)
++	// cond:
++	// result: (Not x)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpConstBool {
++			break
++		}
++		if v_0.AuxInt != 0 {
++			break
++		}
++		x := v.Args[1]
++		v.reset(OpNot)
++		v.AddArg(x)
++		return true
++	}
++	// match: (EqB (ConstBool [1]) x)
++	// cond:
++	// result: x
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpConstBool {
++			break
++		}
++		if v_0.AuxInt != 1 {
++			break
++		}
++		x := v.Args[1]
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValuegeneric_OpEqInter(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -5707,57 +5716,6 @@ func rewriteValuegeneric_OpNeq8(v *Value, config *Config) bool {
+ 		v.AuxInt = 0
+ 		return true
+ 	}
+-	// match: (Neq8 (ConstBool [c]) (ConstBool [d]))
+-	// cond:
+-	// result: (ConstBool [b2i(c != d)])
+-	for {
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpConstBool {
+-			break
+-		}
+-		c := v_0.AuxInt
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpConstBool {
+-			break
+-		}
+-		d := v_1.AuxInt
+-		v.reset(OpConstBool)
+-		v.AuxInt = b2i(c != d)
+-		return true
+-	}
+-	// match: (Neq8 (ConstBool [0]) x)
+-	// cond:
+-	// result: x
+-	for {
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpConstBool {
+-			break
+-		}
+-		if v_0.AuxInt != 0 {
+-			break
+-		}
+-		x := v.Args[1]
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (Neq8 (ConstBool [1]) x)
+-	// cond:
+-	// result: (Not x)
+-	for {
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpConstBool {
+-			break
+-		}
+-		if v_0.AuxInt != 1 {
+-			break
+-		}
+-		x := v.Args[1]
+-		v.reset(OpNot)
+-		v.AddArg(x)
+-		return true
+-	}
+ 	// match: (Neq8 (Const8 <t> [c]) (Add8 (Const8 <t> [d]) x))
+ 	// cond:
+ 	// result: (Neq8 (Const8 <t> [int64(int8(c-d))]) x)
+@@ -5850,6 +5808,62 @@ func rewriteValuegeneric_OpNeq8(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuegeneric_OpNeqB(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (NeqB (ConstBool [c]) (ConstBool [d]))
++	// cond:
++	// result: (ConstBool [b2i(c != d)])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpConstBool {
++			break
++		}
++		c := v_0.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConstBool {
++			break
++		}
++		d := v_1.AuxInt
++		v.reset(OpConstBool)
++		v.AuxInt = b2i(c != d)
++		return true
++	}
++	// match: (NeqB (ConstBool [0]) x)
++	// cond:
++	// result: x
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpConstBool {
++			break
++		}
++		if v_0.AuxInt != 0 {
++			break
++		}
++		x := v.Args[1]
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
++	// match: (NeqB (ConstBool [1]) x)
++	// cond:
++	// result: (Not x)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpConstBool {
++			break
++		}
++		if v_0.AuxInt != 1 {
++			break
++		}
++		x := v.Args[1]
++		v.reset(OpNot)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValuegeneric_OpNeqInter(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/test/phiopt.go b/test/phiopt.go
+index 4347909752..21dd13155c 100644
+--- a/test/phiopt.go
++++ b/test/phiopt.go
+@@ -49,7 +49,7 @@ func f3(a, b int) bool {
+ 
+ //go:noinline
+ func f4(a, b bool) bool {
+-	return a || b // ERROR "converted OpPhi to Or8$"
++	return a || b // ERROR "converted OpPhi to OrB$"
+ }
+ 
+ //go:noinline
+@@ -60,7 +60,7 @@ func f5or(a int, b bool) bool {
+ 	} else {
+ 		x = b
+ 	}
+-	return x // ERROR "converted OpPhi to Or8$"
++	return x // ERROR "converted OpPhi to OrB$"
+ }
+ 
+ //go:noinline
+@@ -71,7 +71,7 @@ func f5and(a int, b bool) bool {
+ 	} else {
+ 		x = false
+ 	}
+-	return x // ERROR "converted OpPhi to And8$"
++	return x // ERROR "converted OpPhi to AndB$"
+ }
+ 
+ //go:noinline
+@@ -96,12 +96,12 @@ func f6and(a int, b bool) bool {
+ 
+ //go:noinline
+ func f7or(a bool, b bool) bool {
+-	return a || b // ERROR "converted OpPhi to Or8$"
++	return a || b // ERROR "converted OpPhi to OrB$"
+ }
+ 
+ //go:noinline
+ func f7and(a bool, b bool) bool {
+-	return a && b // ERROR "converted OpPhi to And8$"
++	return a && b // ERROR "converted OpPhi to AndB$"
+ }
+ 
+ func main() {

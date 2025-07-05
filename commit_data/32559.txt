@@ -11,7 +11,7 @@ Date:   Mon May 1 00:56:09 2017 +0000
     Change-Id: I57d275177e90f036caf7dbade9669b8121dfa437
     Reviewed-on: https://go-review.googlesource.com/42194
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-
+---
  src/cmd/link/internal/arm64/asm.go  | 2 +-
  src/cmd/link/internal/ld/data.go    | 2 +-
  src/cmd/link/internal/ld/ldelf.go   | 9 +++++----
@@ -20,3 +20,147 @@ Date:   Mon May 1 00:56:09 2017 +0000
  src/cmd/link/internal/ld/symkind.go | 1 +
  src/cmd/link/internal/ld/symtab.go  | 8 ++------
  7 files changed, 11 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index 79e6abceba..92a87f99f7 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -250,7 +250,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ 			// (https://sourceware.org/bugzilla/show_bug.cgi?id=18270). So
+ 			// we convert the adrp; ld64 + R_ARM64_GOTPCREL into adrp;
+ 			// add + R_ADDRARM64.
+-			if !(r.Sym.Version != 0 || r.Sym.Attr.VisibilityHidden() || r.Sym.Attr.Local()) && r.Sym.Type == ld.STEXT && ctxt.DynlinkingGo() {
++			if !(r.Sym.Version != 0 || (r.Sym.Type&ld.SHIDDEN != 0) || r.Sym.Attr.Local()) && r.Sym.Type == ld.STEXT && ctxt.DynlinkingGo() {
+ 				if o2&0xffc00000 != 0xf9400000 {
+ 					ld.Errorf(s, "R_ARM64_GOTPCREL against unexpected instruction %x", o2)
+ 				}
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 8951b581d8..8aa6cde603 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -386,7 +386,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 			continue
+ 		}
+ 
+-		if r.Sym != nil && ((r.Sym.Type == 0 && !r.Sym.Attr.VisibilityHidden()) || r.Sym.Type&SMASK == SXREF) {
++		if r.Sym != nil && (r.Sym.Type&(SMASK|SHIDDEN) == 0 || r.Sym.Type&SMASK == SXREF) {
+ 			// When putting the runtime but not main into a shared library
+ 			// these symbols are undefined and that's OK.
+ 			if Buildmode == BuildmodeShared {
+diff --git a/src/cmd/link/internal/ld/ldelf.go b/src/cmd/link/internal/ld/ldelf.go
+index 2b4fd66cf8..d4f9fc44d7 100644
+--- a/src/cmd/link/internal/ld/ldelf.go
++++ b/src/cmd/link/internal/ld/ldelf.go
+@@ -1060,7 +1060,8 @@ func readelfsym(ctxt *Link, elfobj *ElfObj, i int, sym *ElfSym, needSym int, loc
+ 				// set dupok generally. See http://codereview.appspot.com/5823055/
+ 				// comment #5 for details.
+ 				if s != nil && sym.other == 2 {
+-					s.Attr |= AttrDuplicateOK | AttrVisibilityHidden
++					s.Type |= SHIDDEN
++					s.Attr |= AttrDuplicateOK
+ 				}
+ 			}
+ 
+@@ -1076,7 +1077,7 @@ func readelfsym(ctxt *Link, elfobj *ElfObj, i int, sym *ElfSym, needSym int, loc
+ 				// so put it in the hash table.
+ 				if needSym != 0 {
+ 					s = ctxt.Syms.Lookup(sym.name, localSymVersion)
+-					s.Attr |= AttrVisibilityHidden
++					s.Type |= SHIDDEN
+ 				}
+ 
+ 				break
+@@ -1088,14 +1089,14 @@ func readelfsym(ctxt *Link, elfobj *ElfObj, i int, sym *ElfSym, needSym int, loc
+ 				// don't bother to add them into the hash table
+ 				s = ctxt.Syms.newsym(sym.name, localSymVersion)
+ 
+-				s.Attr |= AttrVisibilityHidden
++				s.Type |= SHIDDEN
+ 			}
+ 
+ 		case ElfSymBindWeak:
+ 			if needSym != 0 {
+ 				s = ctxt.Syms.Lookup(sym.name, 0)
+ 				if sym.other == 2 {
+-					s.Attr |= AttrVisibilityHidden
++					s.Type |= SHIDDEN
+ 				}
+ 			}
+ 
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index bdb5a1bd51..089b4d3d3c 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -135,11 +135,6 @@ const (
+ 	// AttrMakeTypelink Amarks types that should be added to the typelink
+ 	// table. See typelinks.go:typelinks().
+ 	AttrMakeTypelink
+-	// AttrVisibilityHidden symbols are ELF symbols with
+-	// visibility set to STV_HIDDEN. They become local symbols in
+-	// the final executable. Only relevant when internally linking
+-	// on an ELF platform.
+-	AttrVisibilityHidden
+ )
+ 
+ func (a Attribute) DuplicateOK() bool      { return a&AttrDuplicateOK != 0 }
+@@ -155,7 +150,6 @@ func (a Attribute) OnList() bool           { return a&AttrOnList != 0 }
+ func (a Attribute) Local() bool            { return a&AttrLocal != 0 }
+ func (a Attribute) ReflectMethod() bool    { return a&AttrReflectMethod != 0 }
+ func (a Attribute) MakeTypelink() bool     { return a&AttrMakeTypelink != 0 }
+-func (a Attribute) VisibilityHidden() bool { return a&AttrVisibilityHidden != 0 }
+ 
+ func (a Attribute) CgoExport() bool {
+ 	return a.CgoExportDynamic() || a.CgoExportStatic()
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index ff1ec4ad93..2c28ceb0c6 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -1041,9 +1041,7 @@ func writePESymTableRecords(ctxt *Link) int {
+ 			typ = 0x0308 // "array of structs"
+ 		}
+ 		class := IMAGE_SYM_CLASS_EXTERNAL
+-		// TODO(mwudson): I think s.Attr.VisibilityHidden()
+-		// can only ever be true for an ELF link.
+-		if s.Version != 0 || s.Attr.VisibilityHidden() || s.Attr.Local() {
++		if s.Version != 0 || (s.Type&SHIDDEN != 0) || s.Attr.Local() {
+ 			class = IMAGE_SYM_CLASS_STATIC
+ 		}
+ 		writeOneSymbol(s, value, sect, typ, uint8(class))
+diff --git a/src/cmd/link/internal/ld/symkind.go b/src/cmd/link/internal/ld/symkind.go
+index 9d56142efa..1f95f8afa8 100644
+--- a/src/cmd/link/internal/ld/symkind.go
++++ b/src/cmd/link/internal/ld/symkind.go
+@@ -106,6 +106,7 @@ const (
+ 	SDWARFINFO
+ 	SSUB       = SymKind(1 << 8)
+ 	SMASK      = SymKind(SSUB - 1)
++	SHIDDEN    = SymKind(1 << 9)
+ 	SCONTAINER = SymKind(1 << 10) // has a sub-symbol
+ )
+ 
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 8c20db81ff..a35ece13ad 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -127,7 +127,7 @@ func putelfsym(ctxt *Link, x *Symbol, s string, t SymbolType, addr int64, go_ *S
+ 	// maybe one day STB_WEAK.
+ 	bind := STB_GLOBAL
+ 
+-	if x.Version != 0 || x.Attr.VisibilityHidden() || x.Attr.Local() {
++	if x.Version != 0 || (x.Type&SHIDDEN != 0) || x.Attr.Local() {
+ 		bind = STB_LOCAL
+ 	}
+ 
+@@ -144,11 +144,7 @@ func putelfsym(ctxt *Link, x *Symbol, s string, t SymbolType, addr int64, go_ *S
+ 		addr -= int64(xo.Sect.Vaddr)
+ 	}
+ 	other := STV_DEFAULT
+-	if x.Attr.VisibilityHidden() {
+-		// TODO(mwhudson): We only set AttrVisibilityHidden in ldelf,
+-		// i.e. when internally linking. But STV_HIDDEN visibility only
+-		// matters in object files, i.e. when externally linking. So I
+-		// don't think this makes a lot of sense.
++	if x.Type&SHIDDEN != 0 {
+ 		other = STV_HIDDEN
+ 	}
+ 	if (Buildmode == BuildmodeCArchive || Buildmode == BuildmodePIE || ctxt.DynlinkingGo()) && SysArch.Family == sys.PPC64 && typ == STT_FUNC && x.Name != "runtime.duffzero" && x.Name != "runtime.duffcopy" {

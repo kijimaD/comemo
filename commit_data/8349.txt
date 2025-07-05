@@ -9,7 +9,7 @@ Date:   Wed May 11 16:35:11 2011 +0200
     R=rsc, bradfitz
     CC=golang-dev
     https://golang.org/cl/4313062
-
+---
  src/cmd/6g/cgen.c              |  38 +++++++++---
  src/cmd/6g/ggen.c              |  34 +++++++----
  src/cmd/6g/gsubr.c             |  41 ++++++++++---
@@ -24,3 +24,1236 @@ Date:   Wed May 11 16:35:11 2011 +0200
  src/pkg/runtime/append_test.go |  51 ++++++++++++++++
  src/pkg/runtime/slice.c        |  77 ++++++++++++++++-------
  13 files changed, 419 insertions(+), 112 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 75dc4fe134..fca4b64dd1 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -283,11 +283,9 @@ cgen(Node *n, Node *res)
+ 		if(istype(nl->type, TSTRING) || isslice(nl->type)) {
+ 			// both slice and string have len one pointer into the struct.
+ 			// a zero pointer means zero length
+-			regalloc(&n1, types[tptr], res);
+-			agen(nl, &n1);
+-			n1.op = OINDREG;
++			igen(nl, &n1, res);
+ 			n1.type = types[TUINT32];
+-			n1.xoffset = Array_nel;
++			n1.xoffset += Array_nel;
+ 			gmove(&n1, res);
+ 			regfree(&n1);
+ 			break;
+@@ -319,11 +317,9 @@ cgen(Node *n, Node *res)
+ 			break;
+ 		}
+ 		if(isslice(nl->type)) {
+-			regalloc(&n1, types[tptr], res);
+-			agen(nl, &n1);
+-			n1.op = OINDREG;
++			igen(nl, &n1, res);
+ 			n1.type = types[TUINT32];
+-			n1.xoffset = Array_cap;
++			n1.xoffset += Array_cap;
+ 			gmove(&n1, res);
+ 			regfree(&n1);
+ 			break;
+@@ -542,7 +538,8 @@ agen(Node *n, Node *res)
+ 				gmove(&n1, &n3);
+ 			}
+ 
+-			ginscon(optoas(OADD, types[tptr]), v*w, &n3);
++			if (v*w != 0)
++				ginscon(optoas(OADD, types[tptr]), v*w, &n3);
+ 			gmove(&n3, res);
+ 			regfree(&n3);
+ 			break;
+@@ -682,6 +679,28 @@ ret:
+ void
+ igen(Node *n, Node *a, Node *res)
+ {
++	Type *fp;
++	Iter flist;
++ 
++	switch(n->op) {
++	case ONAME:
++		if((n->class&PHEAP) || n->class == PPARAMREF)
++			break;
++		*a = *n;
++		return;
++
++	case OCALLFUNC:
++		fp = structfirst(&flist, getoutarg(n->left->type));
++		cgen_call(n, 0);
++		memset(a, 0, sizeof *a);
++		a->op = OINDREG;
++		a->val.u.reg = D_SP;
++		a->addable = 1;
++		a->xoffset = fp->width;
++		a->type = n->type;
++		return;
++	}
++ 
+ 	regalloc(a, types[tptr], res);
+ 	agen(n, a);
+ 	a->op = OINDREG;
+@@ -848,6 +867,7 @@ bgen(Node *n, int true, Prog *to)
+ 			n2 = n1;
+ 			n2.op = OINDREG;
+ 			n2.xoffset = Array_array;
++			n2.type = types[tptr];
+ 			nodconst(&tmp, types[tptr], 0);
+ 			gins(optoas(OCMP, types[tptr]), &n2, &tmp);
+ 			patch(gbranch(a, types[tptr]), to);
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 8d89fb164e..ce66b43f06 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -201,7 +201,7 @@ cgen_callinter(Node *n, Node *res, int proc)
+ 	regalloc(&nodo, types[tptr], &nodr);
+ 	nodo.op = OINDREG;
+ 
+-	agen(i, &nodr);		// REG = &inter
++	agen(i, &nodr);         // REG = &inter
+ 
+ 	nodindreg(&nodsp, types[tptr], D_SP);
+ 	nodo.xoffset += widthptr;
+@@ -1206,7 +1206,7 @@ cgen_inline(Node *n, Node *res)
+ 	Node nodes[5];
+ 	Node n1, n2, nres, ntemp;
+ 	vlong v;
+-	int i, narg;
++	int i, narg, nochk;
+ 
+ 	if(n->op != OCALLFUNC)
+ 		goto no;
+@@ -1242,6 +1242,7 @@ slicearray:
+ 	// len = hb[3] - lb[2] (destroys hb)
+ 	n2 = *res;
+ 	n2.xoffset += Array_nel;
++	n2.type = types[TUINT32];
+ 
+ 	if(smallintconst(&nodes[3]) && smallintconst(&nodes[2])) {
+ 		v = mpgetfix(nodes[3].val.u.xval) -
+@@ -1260,6 +1261,7 @@ slicearray:
+ 	// cap = nel[1] - lb[2] (destroys nel)
+ 	n2 = *res;
+ 	n2.xoffset += Array_cap;
++	n2.type = types[TUINT32];
+ 
+ 	if(smallintconst(&nodes[1]) && smallintconst(&nodes[2])) {
+ 		v = mpgetfix(nodes[1].val.u.xval) -
+@@ -1288,6 +1290,7 @@ slicearray:
+ 	// ary = old[0] + (lb[2] * width[4]) (destroys old)
+ 	n2 = *res;
+ 	n2.xoffset += Array_array;
++	n2.type = types[tptr];
+ 
+ 	if(smallintconst(&nodes[2]) && smallintconst(&nodes[4])) {
+ 		v = mpgetfix(nodes[2].val.u.xval) *
+@@ -1311,6 +1314,7 @@ slicearray:
+ 	return 1;
+ 
+ sliceslice:
++	nochk = n->etype;  // skip bounds checking
+ 	ntemp.op = OXXX;
+ 	if(!sleasy(n->list->n->right)) {
+ 		Node *n0;
+@@ -1340,11 +1344,13 @@ sliceslice:
+ 		n2 = nodes[0];
+ 		n2.xoffset += Array_nel;
+ 		n2.type = types[TUINT32];
+-		cmpandthrow(&nodes[1], &n2);
++		if(!nochk)
++			cmpandthrow(&nodes[1], &n2);
+ 
+ 		// ret.nel = old.nel[0]-lb[1];
+ 		n2 = nodes[0];
+ 		n2.xoffset += Array_nel;
++		n2.type = types[TUINT32];
+ 	
+ 		regalloc(&n1, types[TUINT32], N);
+ 		gins(optoas(OAS, types[TUINT32]), &n2, &n1);
+@@ -1353,22 +1359,24 @@ sliceslice:
+ 	
+ 		n2 = nres;
+ 		n2.xoffset += Array_nel;
++		n2.type = types[TUINT32];
+ 		gins(optoas(OAS, types[TUINT32]), &n1, &n2);
+ 		regfree(&n1);
+ 	} else {	// old[lb:hb]
+-		// if(hb[2] > old.cap[0]) goto throw;
+ 		n2 = nodes[0];
+ 		n2.xoffset += Array_cap;
+ 		n2.type = types[TUINT32];
+-		cmpandthrow(&nodes[2], &n2);
+-
+-		// if(lb[1] > hb[2]) goto throw;
+-		cmpandthrow(&nodes[1], &nodes[2]);
+-
++		if(!nochk) {
++			// if(hb[2] > old.cap[0]) goto throw;
++			cmpandthrow(&nodes[2], &n2);
++			// if(lb[1] > hb[2]) goto throw;
++			cmpandthrow(&nodes[1], &nodes[2]);
++		}
+ 		// ret.len = hb[2]-lb[1]; (destroys hb[2])
+ 		n2 = nres;
+ 		n2.xoffset += Array_nel;
+-	
++		n2.type = types[TUINT32];
++
+ 		if(smallintconst(&nodes[2]) && smallintconst(&nodes[1])) {
+ 			v = mpgetfix(nodes[2].val.u.xval) -
+ 				mpgetfix(nodes[1].val.u.xval);
+@@ -1387,6 +1395,7 @@ sliceslice:
+ 	// ret.cap = old.cap[0]-lb[1]; (uses hb[2])
+ 	n2 = nodes[0];
+ 	n2.xoffset += Array_cap;
++	n2.type = types[TUINT32];
+ 
+ 	regalloc(&n1, types[TUINT32], &nodes[2]);
+ 	gins(optoas(OAS, types[TUINT32]), &n2, &n1);
+@@ -1395,13 +1404,15 @@ sliceslice:
+ 
+ 	n2 = nres;
+ 	n2.xoffset += Array_cap;
++	n2.type = types[TUINT32];
++
+ 	gins(optoas(OAS, types[TUINT32]), &n1, &n2);
+ 	regfree(&n1);
+ 
+ 	// ret.array = old.array[0]+lb[1]*width[3]; (uses lb[1])
+ 	n2 = nodes[0];
+ 	n2.xoffset += Array_array;
+-
++	n2.type = types[tptr];
+ 	regalloc(&n1, types[tptr], &nodes[1]);
+ 	if(smallintconst(&nodes[1]) && smallintconst(&nodes[3])) {
+ 		gins(optoas(OAS, types[tptr]), &n2, &n1);
+@@ -1418,6 +1429,7 @@ sliceslice:
+ 
+ 	n2 = nres;
+ 	n2.xoffset += Array_array;
++	n2.type = types[tptr];
+ 	gins(optoas(OAS, types[tptr]), &n1, &n2);
+ 	regfree(&n1);
+ 
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index c3dac1fdcd..ed98d1bc95 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -48,7 +48,7 @@ clearp(Prog *p)
+ 
+ /*
+  * generate and return proc with p->as = as,
+- * linked into program.  pc is next instruction.
++ * linked into program. pc is next instruction.
+  */
+ Prog*
+ prog(int as)
+@@ -330,11 +330,13 @@ regfree(Node *n)
+ {
+ 	int i;
+ 
+-	if(n->op == ONAME && iscomplex[n->type->etype])
++	if(n->op == ONAME)
+ 		return;
+ 	if(n->op != OREGISTER && n->op != OINDREG)
+ 		fatal("regfree: not a register");
+ 	i = n->val.u.reg;
++	if(i == D_SP)
++		return;
+ 	if(i < 0 || i >= sizeof(reg))
+ 		fatal("regfree: reg out of range");
+ 	if(reg[i] <= 0)
+@@ -888,7 +890,7 @@ Prog*
+ gins(int as, Node *f, Node *t)
+ {
+ //	Node nod;
+-//	int32 v;
++	int32 w;
+ 	Prog *p;
+ 	Addr af, at;
+ 
+@@ -933,6 +935,27 @@ gins(int as, Node *f, Node *t)
+ 		p->to = at;
+ 	if(debug['g'])
+ 		print("%P\n", p);
++
++
++	w = 0;
++	switch(as) {
++	case AMOVB:
++		w = 1;
++		break;
++	case AMOVW:
++		w = 2;
++		break;
++	case AMOVL:
++		w = 4;
++		break;
++	case AMOVQ:
++		w = 8;
++		break;
++	}
++	if(w != 0 && f != N && (af.width > w || at.width > w)) {
++		fatal("bad width: %P (%d, %d)\n", p, af.width, at.width);
++	}
++
+ 	return p;
+ }
+ 
+@@ -947,7 +970,7 @@ checkoffset(Addr *a, int canemitcode)
+ 		fatal("checkoffset %#llx, cannot emit code", a->offset);
+ 
+ 	// cannot rely on unmapped nil page at 0 to catch
+-	// reference with large offset.  instead, emit explicit
++	// reference with large offset. instead, emit explicit
+ 	// test of 0(reg).
+ 	p = gins(ATESTB, nodintconst(0), N);
+ 	p->to = *a;
+@@ -1106,8 +1129,9 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		naddr(n->left, a, canemitcode);
+ 		if(a->type == D_CONST && a->offset == 0)
+ 			break;	// len(nil)
+-		a->etype = TUINT;
++		a->etype = TUINT32;
+ 		a->offset += Array_nel;
++		a->width = 4;
+ 		if(a->offset >= unmappedzero && a->offset-Array_nel < unmappedzero)
+ 			checkoffset(a, canemitcode);
+ 		break;
+@@ -1117,8 +1141,9 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		naddr(n->left, a, canemitcode);
+ 		if(a->type == D_CONST && a->offset == 0)
+ 			break;	// cap(nil)
+-		a->etype = TUINT;
++		a->etype = TUINT32;
+ 		a->offset += Array_cap;
++		a->width = 4;
+ 		if(a->offset >= unmappedzero && a->offset-Array_cap < unmappedzero)
+ 			checkoffset(a, canemitcode);
+ 		break;
+@@ -1962,12 +1987,12 @@ oindex:
+ 		if(o & OAddable) {
+ 			n2 = *l;
+ 			n2.xoffset += Array_array;
+-			n2.type = types[TUINT64];
++			n2.type = types[tptr];
+ 			gmove(&n2, reg);
+ 		} else {
+ 			n2 = *reg;
+-			n2.xoffset = Array_array;
+ 			n2.op = OINDREG;
++			n2.xoffset = Array_array;
+ 			n2.type = types[tptr];
+ 			gmove(&n2, reg);
+ 		}
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index ed8bac3f0b..b4b5b7d6be 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -873,14 +873,17 @@ mkvar(Reg *r, Adr *a)
+ 
+ 			// if they overlaps, disable both
+ 			if(overlap(v->offset, v->width, o, w)) {
++//				print("disable overlap %s %d %d %d %d, %E != %E\n", s->name, v->offset, v->width, o, w, v->etype, et);
+ 				v->addr = 1;
+ 				flag = 1;
+ 			}
+ 		}
+ 	}
+-	if(a->pun)
++	if(a->pun) {
++//		print("disable pun %s\n", s->name);
+ 		flag = 1;
+ 
++	}
+ 	switch(et) {
+ 	case 0:
+ 	case TFUNC:
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 596824a6cc..1614a2d775 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -232,6 +232,7 @@ cgen(Node *n, Node *res)
+ 			cgen(nl, res);
+ 			break;
+ 		}
++
+ 		tempname(&n2, n->type);
+ 		mgen(nl, &n1, res);
+ 		gmove(&n1, &n2);
+@@ -277,15 +278,10 @@ cgen(Node *n, Node *res)
+ 		if(istype(nl->type, TSTRING) || isslice(nl->type)) {
+ 			// both slice and string have len one pointer into the struct.
+ 			igen(nl, &n1, res);
+-			n1.op = OREGISTER;	// was OINDREG
+-			regalloc(&n2, types[TUINT32], &n1);
+-			n1.op = OINDREG;
+ 			n1.type = types[TUINT32];
+-			n1.xoffset = Array_nel;
+-			gmove(&n1, &n2);
+-			gmove(&n2, res);
++			n1.xoffset += Array_nel;
++			gmove(&n1, res);
+ 			regfree(&n1);
+-			regfree(&n2);
+ 			break;
+ 		}
+ 		fatal("cgen: OLEN: unknown type %lT", nl->type);
+@@ -594,9 +590,10 @@ agen(Node *n, Node *res)
+ 				gmove(&n1, &n3);
+ 			}
+ 
+-			nodconst(&n2, types[tptr], v*w);
+-			gins(optoas(OADD, types[tptr]), &n2, &n3);
+-
++			if (v*w != 0) {
++				nodconst(&n2, types[tptr], v*w);
++				gins(optoas(OADD, types[tptr]), &n2, &n3);
++			}
+ 			gmove(&n3, res);
+ 			regfree(&n3);
+ 			break;
+@@ -729,7 +726,27 @@ void
+ igen(Node *n, Node *a, Node *res)
+ {
+ 	Node n1;
+-
++	Type *fp;
++	Iter flist;
++  
++	switch(n->op) {
++	case ONAME:
++		if((n->class&PHEAP) || n->class == PPARAMREF)
++			break;
++		*a = *n;
++		return;
++ 
++	case OCALLFUNC:
++		fp = structfirst(&flist, getoutarg(n->left->type));
++		cgen_call(n, 0);
++		memset(a, 0, sizeof *a);
++		a->op = OINDREG;
++		a->val.u.reg = D_SP;
++		a->addable = 1;
++		a->xoffset = fp->width;
++		a->type = n->type;
++		return;
++	}
+ 	// release register for now, to avoid
+ 	// confusing tempname.
+ 	if(res != N && res->op == OREGISTER)
+@@ -919,6 +936,7 @@ bgen(Node *n, int true, Prog *to)
+ 			n2 = n1;
+ 			n2.op = OINDREG;
+ 			n2.xoffset = Array_array;
++			n2.type = types[tptr];
+ 			nodconst(&tmp, types[tptr], 0);
+ 			gins(optoas(OCMP, types[tptr]), &n2, &tmp);
+ 			patch(gbranch(a, types[tptr]), to);
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 920725c3ea..2231525364 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -915,7 +915,7 @@ cgen_inline(Node *n, Node *res)
+ 	Node nodes[5];
+ 	Node n1, n2, nres, ntemp;
+ 	vlong v;
+-	int i, narg;
++	int i, narg, nochk;
+ 
+ 	if(n->op != OCALLFUNC)
+ 		goto no;
+@@ -953,6 +953,7 @@ slicearray:
+ 	// len = hb[3] - lb[2] (destroys hb)
+ 	n2 = *res;
+ 	n2.xoffset += Array_nel;
++	n2.type = types[TUINT32];
+ 
+ 	if(smallintconst(&nodes[3]) && smallintconst(&nodes[2])) {
+ 		v = mpgetfix(nodes[3].val.u.xval) -
+@@ -971,6 +972,7 @@ slicearray:
+ 	// cap = nel[1] - lb[2] (destroys nel)
+ 	n2 = *res;
+ 	n2.xoffset += Array_cap;
++	n2.type = types[TUINT32];
+ 
+ 	if(smallintconst(&nodes[1]) && smallintconst(&nodes[2])) {
+ 		v = mpgetfix(nodes[1].val.u.xval) -
+@@ -999,6 +1001,7 @@ slicearray:
+ 	// ary = old[0] + (lb[2] * width[4]) (destroys old)
+ 	n2 = *res;
+ 	n2.xoffset += Array_array;
++	n2.type = types[tptr];
+ 
+ 	if(smallintconst(&nodes[2]) && smallintconst(&nodes[4])) {
+ 		v = mpgetfix(nodes[2].val.u.xval) *
+@@ -1026,6 +1029,7 @@ slicearray:
+ sliceslice:
+ 	if(!fix64(n->list, narg))
+ 		goto no;
++	nochk = n->etype;  // skip bounds checking
+ 	ntemp.op = OXXX;
+ 	if(!sleasy(n->list->n->right)) {
+ 		Node *n0;
+@@ -1055,11 +1059,13 @@ sliceslice:
+ 		n2 = nodes[0];
+ 		n2.xoffset += Array_nel;
+ 		n2.type = types[TUINT32];
+-		cmpandthrow(&nodes[1], &n2);
++		if(!nochk)
++			cmpandthrow(&nodes[1], &n2);
+ 
+ 		// ret.nel = old.nel[0]-lb[1];
+ 		n2 = nodes[0];
+ 		n2.xoffset += Array_nel;
++		n2.type = types[TUINT32];
+ 	
+ 		regalloc(&n1, types[TUINT32], N);
+ 		gins(optoas(OAS, types[TUINT32]), &n2, &n1);
+@@ -1068,22 +1074,25 @@ sliceslice:
+ 	
+ 		n2 = nres;
+ 		n2.xoffset += Array_nel;
++		n2.type = types[TUINT32];
+ 		gins(optoas(OAS, types[TUINT32]), &n1, &n2);
+ 		regfree(&n1);
+ 	} else {	// old[lb:hb]
+-		// if(hb[2] > old.cap[0]) goto throw;
+ 		n2 = nodes[0];
+ 		n2.xoffset += Array_cap;
+ 		n2.type = types[TUINT32];
+-		cmpandthrow(&nodes[2], &n2);
+-
+-		// if(lb[1] > hb[2]) goto throw;
+-		cmpandthrow(&nodes[1], &nodes[2]);
++		if (!nochk) {
++			// if(hb[2] > old.cap[0]) goto throw;
++			cmpandthrow(&nodes[2], &n2);
++			// if(lb[1] > hb[2]) goto throw;
++			cmpandthrow(&nodes[1], &nodes[2]);
++		}
+ 
+ 		// ret.len = hb[2]-lb[1]; (destroys hb[2])
+ 		n2 = nres;
+ 		n2.xoffset += Array_nel;
+-	
++		n2.type = types[TUINT32];
++
+ 		if(smallintconst(&nodes[2]) && smallintconst(&nodes[1])) {
+ 			v = mpgetfix(nodes[2].val.u.xval) -
+ 				mpgetfix(nodes[1].val.u.xval);
+@@ -1102,6 +1111,7 @@ sliceslice:
+ 	// ret.cap = old.cap[0]-lb[1]; (uses hb[2])
+ 	n2 = nodes[0];
+ 	n2.xoffset += Array_cap;
++	n2.type = types[TUINT32];
+ 
+ 	regalloc(&n1, types[TUINT32], &nodes[2]);
+ 	gins(optoas(OAS, types[TUINT32]), &n2, &n1);
+@@ -1110,12 +1120,14 @@ sliceslice:
+ 
+ 	n2 = nres;
+ 	n2.xoffset += Array_cap;
++	n2.type = types[TUINT32];
+ 	gins(optoas(OAS, types[TUINT32]), &n1, &n2);
+ 	regfree(&n1);
+ 
+ 	// ret.array = old.array[0]+lb[1]*width[3]; (uses lb[1])
+ 	n2 = nodes[0];
+ 	n2.xoffset += Array_array;
++	n2.type = types[tptr];
+ 
+ 	regalloc(&n1, types[tptr], &nodes[1]);
+ 	if(smallintconst(&nodes[1]) && smallintconst(&nodes[3])) {
+@@ -1135,6 +1147,7 @@ sliceslice:
+ 
+ 	n2 = nres;
+ 	n2.xoffset += Array_array;
++	n2.type = types[tptr];
+ 	gins(optoas(OAS, types[tptr]), &n1, &n2);
+ 	regfree(&n1);
+ 
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index 8ed7e55645..e3f239d605 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -698,7 +698,6 @@ ginit(void)
+ 		reg[i] = 1;
+ 	for(i=D_AL; i<=D_DI; i++)
+ 		reg[i] = 0;
+-
+ 	for(i=0; i<nelem(resvd); i++)
+ 		reg[resvd[i]]++;
+ }
+@@ -789,6 +788,8 @@ err:
+ 	return;
+ 
+ out:
++	if (i == D_SP)
++		print("alloc SP\n");
+ 	if(reg[i] == 0) {
+ 		regpc[i] = (ulong)__builtin_return_address(0);
+ 		if(i == D_AX || i == D_CX || i == D_DX || i == D_SP) {
+@@ -804,10 +805,14 @@ void
+ regfree(Node *n)
+ {
+ 	int i;
+-
++	
++	if(n->op == ONAME)
++		return;
+ 	if(n->op != OREGISTER && n->op != OINDREG)
+ 		fatal("regfree: not a register");
+ 	i = n->val.u.reg;
++	if(i == D_SP)
++		return;
+ 	if(i < 0 || i >= sizeof(reg))
+ 		fatal("regfree: reg out of range");
+ 	if(reg[i] <= 0)
+@@ -1129,6 +1134,9 @@ gmove(Node *f, Node *t)
+ 	case CASE(TINT8, TUINT8):
+ 	case CASE(TUINT8, TINT8):
+ 	case CASE(TUINT8, TUINT8):
++		a = AMOVB;
++		break;
++
+ 	case CASE(TINT16, TINT8):	// truncate
+ 	case CASE(TUINT16, TINT8):
+ 	case CASE(TINT32, TINT8):
+@@ -1138,7 +1146,7 @@ gmove(Node *f, Node *t)
+ 	case CASE(TINT32, TUINT8):
+ 	case CASE(TUINT32, TUINT8):
+ 		a = AMOVB;
+-		break;
++		goto rsrc;
+ 
+ 	case CASE(TINT64, TINT8):	// truncate low word
+ 	case CASE(TUINT64, TINT8):
+@@ -1146,7 +1154,7 @@ gmove(Node *f, Node *t)
+ 	case CASE(TUINT64, TUINT8):
+ 		split64(f, &flo, &fhi);
+ 		nodreg(&r1, t->type, D_AX);
+-		gins(AMOVB, &flo, &r1);
++		gmove(&flo, &r1);
+ 		gins(AMOVB, &r1, t);
+ 		splitclean();
+ 		return;
+@@ -1155,12 +1163,15 @@ gmove(Node *f, Node *t)
+ 	case CASE(TINT16, TUINT16):
+ 	case CASE(TUINT16, TINT16):
+ 	case CASE(TUINT16, TUINT16):
++		a = AMOVW;
++		break;
++
+ 	case CASE(TINT32, TINT16):	// truncate
+ 	case CASE(TUINT32, TINT16):
+ 	case CASE(TINT32, TUINT16):
+ 	case CASE(TUINT32, TUINT16):
+ 		a = AMOVW;
+-		break;
++		goto rsrc;
+ 
+ 	case CASE(TINT64, TINT16):	// truncate low word
+ 	case CASE(TUINT64, TINT16):
+@@ -1168,7 +1179,7 @@ gmove(Node *f, Node *t)
+ 	case CASE(TUINT64, TUINT16):
+ 		split64(f, &flo, &fhi);
+ 		nodreg(&r1, t->type, D_AX);
+-		gins(AMOVW, &flo, &r1);
++		gmove(&flo, &r1);
+ 		gins(AMOVW, &r1, t);
+ 		splitclean();
+ 		return;
+@@ -1186,7 +1197,7 @@ gmove(Node *f, Node *t)
+ 	case CASE(TUINT64, TUINT32):
+ 		split64(f, &flo, &fhi);
+ 		nodreg(&r1, t->type, D_AX);
+-		gins(AMOVL, &flo, &r1);
++		gmove(&flo, &r1);
+ 		gins(AMOVL, &r1, t);
+ 		splitclean();
+ 		return;
+@@ -1340,14 +1351,14 @@ gmove(Node *f, Node *t)
+ 		case TUINT8:
+ 			gins(ATESTL, ncon(0xffffff00), &t1);
+ 			p1 = gbranch(AJEQ, T);
+-			gins(AMOVB, ncon(0), &t1);
++			gins(AMOVL, ncon(0), &t1);
+ 			patch(p1, pc);
+ 			gmove(&t1, t);
+ 			break;
+ 		case TUINT16:
+ 			gins(ATESTL, ncon(0xffff0000), &t1);
+ 			p1 = gbranch(AJEQ, T);
+-			gins(AMOVW, ncon(0), &t1);
++			gins(AMOVL, ncon(0), &t1);
+ 			patch(p1, pc);
+ 			gmove(&t1, t);
+ 			break;
+@@ -1571,6 +1582,14 @@ gmove(Node *f, Node *t)
+ 	gins(a, f, t);
+ 	return;
+ 
++rsrc:
++	// requires register source
++	regalloc(&r1, f->type, t);
++	gmove(f, &r1);
++	gins(a, &r1, t);
++	regfree(&r1);
++	return;
++
+ rdst:
+ 	// requires register destination
+ 	regalloc(&r1, t->type, t);
+@@ -1623,6 +1642,7 @@ gins(int as, Node *f, Node *t)
+ {
+ 	Prog *p;
+ 	Addr af, at;
++	int w;
+ 
+ 	if(as == AFMOVF && f && f->op == OREGISTER && t && t->op == OREGISTER)
+ 		fatal("gins MOVF reg, reg");
+@@ -1648,6 +1668,26 @@ gins(int as, Node *f, Node *t)
+ 		p->to = at;
+ 	if(debug['g'])
+ 		print("%P\n", p);
++
++	w = 0;
++	switch(as) {
++	case AMOVB:
++		w = 1;
++		break;
++	case AMOVW:
++		w = 2;
++		break;
++	case AMOVL:
++		w = 4;
++		break;
++	}
++
++	if(1 && w != 0 && f != N && (af.width > w || at.width > w)) {
++		dump("bad width from:", f);
++		dump("bad width to:", t);
++		fatal("bad width: %P (%d, %d)\n", p, af.width, at.width);
++	}
++
+ 	return p;
+ }
+ 
+@@ -1799,8 +1839,9 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		naddr(n->left, a, canemitcode);
+ 		if(a->type == D_CONST && a->offset == 0)
+ 			break;	// len(nil)
+-		a->etype = TUINT;
++		a->etype = TUINT32;
+ 		a->offset += Array_nel;
++		a->width = 4;
+ 		if(a->offset >= unmappedzero && a->offset-Array_nel < unmappedzero)
+ 			checkoffset(a, canemitcode);
+ 		break;
+@@ -1810,8 +1851,9 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		naddr(n->left, a, canemitcode);
+ 		if(a->type == D_CONST && a->offset == 0)
+ 			break;	// cap(nil)
+-		a->etype = TUINT;
++		a->etype = TUINT32;
+ 		a->offset += Array_cap;
++		a->width = 4;
+ 		if(a->offset >= unmappedzero && a->offset-Array_nel < unmappedzero)
+ 			checkoffset(a, canemitcode);
+ 		break;
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index bdbca7f78e..66b5c205ed 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -1,5 +1,6 @@
+ char *runtimeimport =
+ 	"package runtime\n"
++	"import runtime \"runtime\"\n"
+ 	"func \"\".new (? int32) *any\n"
+ 	"func \"\".panicindex ()\n"
+ 	"func \"\".panicslice ()\n"
+@@ -81,6 +82,7 @@ char *runtimeimport =
+ 	"func \"\".selectgo (sel *uint8)\n"
+ 	"func \"\".block ()\n"
+ 	"func \"\".makeslice (typ *uint8, nel int64, cap int64) []any\n"
++	"func \"\".growslice (typ *uint8, old []any, cap int64) []any\n"
+ 	"func \"\".sliceslice1 (old []any, lb uint64, width uint64) []any\n"
+ 	"func \"\".sliceslice (old []any, lb uint64, hb uint64, width uint64) []any\n"
+ 	"func \"\".slicearray (old *any, nel uint64, lb uint64, hb uint64, width uint64) []any\n"
+@@ -98,6 +100,7 @@ char *runtimeimport =
+ 	"$$\n";
+ char *unsafeimport =
+ 	"package unsafe\n"
++	"import runtime \"runtime\"\n"
+ 	"type \"\".Pointer uintptr\n"
+ 	"func \"\".Offsetof (? any) int\n"
+ 	"func \"\".Sizeof (? any) int\n"
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 35d11eca95..00fc720b86 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -110,6 +110,7 @@ func selectgo(sel *byte)
+ func block()
+ 
+ func makeslice(typ *byte, nel int64, cap int64) (ary []any)
++func growslice(typ *byte, old []any, n int64) (ary []any)
+ func sliceslice1(old []any, lb uint64, width uint64) (ary []any)
+ func sliceslice(old []any, lb uint64, hb uint64, width uint64) (ary []any)
+ func slicearray(old *any, nel uint64, lb uint64, hb uint64, width uint64) (ary []any)
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index b6fc106ab8..326a5ba74a 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1073,6 +1073,9 @@ Jconv(Fmt *fp)
+ 	if(n->implicit != 0)
+ 		fmtprint(fp, " implicit(%d)", n->implicit);
+ 
++	if(n->pun != 0)
++		fmtprint(fp, " pun(%d)", n->pun);
++
+ 	return 0;
+ }
+ 
+@@ -1141,7 +1144,7 @@ Tpretty(Fmt *fp, Type *t)
+ 	Type *t1;
+ 	Sym *s;
+ 	
+-	if(debug['r']) {
++	if(0 && debug['r']) {
+ 		debug['r'] = 0;
+ 		fmtprint(fp, "%T (orig=%T)", t, t->orig);
+ 		debug['r'] = 1;
+@@ -3109,7 +3112,7 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
+ 	Type *tpad;
+ 	int isddd;
+ 
+-	if(debug['r'])
++	if(0 && debug['r'])
+ 		print("genwrapper rcvrtype=%T method=%T newnam=%S\n",
+ 			rcvr, method, newnam);
+ 
+@@ -3163,7 +3166,7 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
+ 		fn->nbody = list1(n);
+ 	}
+ 
+-	if(debug['r'])
++	if(0 && debug['r'])
+ 		dumplist("genwrapper body", fn->nbody);
+ 
+ 	funcbody(fn);
+@@ -3258,8 +3261,9 @@ implements(Type *t, Type *iface, Type **m, Type **samename, int *ptr)
+ 		// the method does not exist for value types.
+ 		rcvr = getthisx(tm->type)->type->type;
+ 		if(isptr[rcvr->etype] && !isptr[t0->etype] && !followptr && !isifacemethod(tm->type)) {
+-			if(debug['r'])
++			if(0 && debug['r'])
+ 				yyerror("interface pointer mismatch");
++
+ 			*m = im;
+ 			*samename = nil;
+ 			*ptr = 1;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 278eef4145..569f16cf0a 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -18,12 +18,14 @@ static	NodeList*	paramstoheap(Type **argin, int out);
+ static	NodeList*	reorder1(NodeList*);
+ static	NodeList*	reorder3(NodeList*);
+ static	Node*	addstr(Node*, NodeList**);
++static	Node*	appendslice(Node*, NodeList**);
+ static	Node*	append(Node*, NodeList**);
++static	int	oasappend(Node**, NodeList**);
+ 
+ static	NodeList*	walkdefstack;
+ 
+ // can this code branch reach the end
+-// without an undcontitional RETURN
++// without an unconditional RETURN
+ // this is hard, so it is conservative
+ static int
+ walkret(NodeList *l)
+@@ -805,18 +807,20 @@ walkexpr(Node **np, NodeList **init)
+ 		n->ninit = nil;
+ 		walkexpr(&n->left, init);
+ 		n->left = safeexpr(n->left, init);
++
+ 		if(oaslit(n, init))
+ 			goto ret;
+-		walkexpr(&n->right, init);
+-		l = n->left;
+-		r = n->right;
+-		if(l == N || r == N)
++
++		if (oasappend(&n, init))
+ 			goto ret;
+-		r = ascompatee1(n->op, l, r, init);
+-		if(r != N) {
++
++		walkexpr(&n->right, init);
++		if(n->left != N && n->right != N) {
++			r = convas(nod(OAS, n->left, n->right), init);
+ 			r->dodata = n->dodata;
+ 			n = r;
+ 		}
++
+ 		goto ret;
+ 
+ 	case OAS2:
+@@ -1134,6 +1138,7 @@ walkexpr(Node **np, NodeList **init)
+ 	case OINDEXMAP:
+ 		if(n->etype == 1)
+ 			goto ret;
++
+ 		t = n->left->type;
+ 		n = mkcall1(mapfn("mapaccess1", t), t->type, init, n->left, n->right);
+ 		goto ret;
+@@ -1188,6 +1193,7 @@ walkexpr(Node **np, NodeList **init)
+ 		// sliceslice(old []any, lb uint64, hb uint64, width uint64) (ary []any)
+ 		// sliceslice1(old []any, lb uint64, width uint64) (ary []any)
+ 		t = n->type;
++		et = n->etype;
+ 		if(n->right->left == N)
+ 			l = nodintconst(0);
+ 		else
+@@ -1210,6 +1216,7 @@ walkexpr(Node **np, NodeList **init)
+ 				l,
+ 				nodintconst(t->type->width));
+ 		}
++		n->etype = et;  // preserve no-typecheck flag from OSLICE to the slice* call.
+ 		goto ret;
+ 
+ 	slicearray:
+@@ -1332,7 +1339,10 @@ walkexpr(Node **np, NodeList **init)
+ 		goto ret;
+ 	
+ 	case OAPPEND:
+-		n = append(n, init);
++		if(n->isddd)
++			n = appendslice(n, init);
++		else
++			n = append(n, init);
+ 		goto ret;
+ 
+ 	case OCOPY:
+@@ -1953,23 +1963,18 @@ callnew(Type *t)
+ static Node*
+ convas(Node *n, NodeList **init)
+ {
+-	Node *l, *r;
+ 	Type *lt, *rt;
+ 
+ 	if(n->op != OAS)
+ 		fatal("convas: not OAS %O", n->op);
+-	n->typecheck = 1;
+ 
+-	lt = T;
+-	rt = T;
++	n->typecheck = 1;
+ 
+-	l = n->left;
+-	r = n->right;
+-	if(l == N || r == N)
++	if(n->left == N || n->right == N)
+ 		goto out;
+ 
+-	lt = l->type;
+-	rt = r->type;
++	lt = n->left->type;
++	rt = n->right->type;
+ 	if(lt == T || rt == T)
+ 		goto out;
+ 
+@@ -1987,7 +1992,7 @@ convas(Node *n, NodeList **init)
+ 	if(eqtype(lt, rt))
+ 		goto out;
+ 	
+-	n->right = assignconv(r, lt, "assignment");
++	n->right = assignconv(n->right, lt, "assignment");
+ 	walkexpr(&n->right, init);
+ 
+ out:
+@@ -2364,21 +2369,24 @@ addstr(Node *n, NodeList **init)
+ 	return r;
+ }
+ 
++static Node*
++appendslice(Node *n, NodeList **init)
++{
++	Node *f;
++	
++	f = syslook("appendslice", 1);
++	argtype(f, n->type);
++	argtype(f, n->type->type);
++	argtype(f, n->type);
++	return mkcall1(f, n->type, init, typename(n->type), n->list->n, n->list->next->n);
++}
++
+ static Node*
+ append(Node *n, NodeList **init)
+ {
+ 	int i, j;
+ 	Node *f, *r;
+ 	NodeList *in, *args;
+-	
+-	if(n->isddd) {
+-		f = syslook("appendslice", 1);
+-		argtype(f, n->type);
+-		argtype(f, n->type->type);
+-		argtype(f, n->type);
+-		r = mkcall1(f, n->type, init, typename(n->type), n->list->n, n->list->next->n);
+-		return r;
+-	}
+ 
+ 	j = count(n->list) - 1;
+ 	f = syslook("append", 1);
+@@ -2404,3 +2412,77 @@ append(Node *n, NodeList **init)
+ 
+ 	return r;
+ }
++
++
++// expand s = append(s, a [, b]* ) to
++// 
++//   const argc = len(args) - 1
++//   if cap(s) - len(s) < argc {
++//        s = growslice(s, argc) 
++//   }
++//   n := len(s)
++//   s = s[:n+argc]
++//   s[n] = a
++//   s[n+1] = b
++// ...
++//
++static int
++oasappend(Node **np, NodeList **init)
++{
++	NodeList *l, *a;
++	Node *n, *ns, *nn, *na, *nx, *fn;
++	int argc;
++
++	n = *np;
++
++	// Check that it's an assignment of the form s = append(s, elem), where s is ONAME.
++	if (n->right == N || n->right->op != OAPPEND || n->right->isddd || 
++	    n->left == N || n->left->op != ONAME || n->left != n->right->list->n)
++		return 0;
++
++	ns = cheapexpr(n->left, init);
++	walkexprlistsafe(n->right->list, init);
++	argc = count(n->right->list) - 1;
++	if (argc < 1) {
++		n->op = OEMPTY;
++		return 1;
++	}
++
++	na = nodintconst(argc);         // const argc
++
++	nx = nod(OIF, N, N);            // if cap(s) - len(s) < argc
++	nx->lineno = n->lineno;
++	nx->ntest = nod(OLT, nod(OSUB, nod(OCAP, ns, N), nod(OLEN, ns, N)), na);
++
++	fn = syslook("growslice", 1);   //   growslice(<type>, old []T, n int64) (ret []T)
++	argtype(fn, ns->type->type);    // 1 old []any 
++	argtype(fn, ns->type->type);    // 2 ret []any
++
++	nx->nbody = list1(nod(OAS, ns, mkcall1(fn,  ns->type, &nx->ninit,
++					       typename(ns->type),
++					       ns,
++					       conv(na, types[TINT64]))));
++	l = list1(nx);
++
++	nn = nod(OXXX, N, N);                            // var n
++	tempname(nn, types[TINT]);
++	l = list(l, nod(OAS, nn, nod(OLEN, ns, N)));     // n = len(s)
++
++	nx = nod(OSLICE, ns, nod(OKEY, N, nod(OADD, nn, na)));   // ...s[:n+argc]
++	nx->etype = 1;  // disable bounds check
++	l = list(l, nod(OAS, ns, nx));                  // s = s[:n+argc]
++
++	for (a = n->right->list->next;  a != nil; a = a->next) {
++		nx = nod(OINDEX, ns, nn);               // s[n] ...
++		nx->etype = 1;  // disable bounds check
++		l = list(l, nod(OAS, nx, a->n));        // s[n] = arg
++		if (a->next != nil)
++			l = list(l, nod(OAS, nn, nod(OADD, nn, nodintconst(1))));  // n = n + 1
++	}
++
++	typechecklist(l, Etop);
++	*np = liststmt(l);
++
++	walkstmt(np);
++	return 1;
++}
+diff --git a/src/pkg/runtime/append_test.go b/src/pkg/runtime/append_test.go
+new file mode 100644
+index 0000000000..75a635306b
+--- /dev/null
++++ b/src/pkg/runtime/append_test.go
+@@ -0,0 +1,51 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++package runtime_test
++
++import "testing"
++
++const N = 20
++
++func BenchmarkAppend(b *testing.B) {
++	b.StopTimer()
++	x := make([]int, 0, N)
++	b.StartTimer()
++	for i := 0; i < b.N; i++ {
++		x = x[0:0]
++		for j := 0; j < N; j++ {
++			x = append(x, j)
++		}
++	}
++}
++
++func BenchmarkAppendSpecialCase(b *testing.B) {
++	b.StopTimer()
++	x := make([]int, 0, N)
++	b.StartTimer()
++	for i := 0; i < b.N; i++ {
++		x = x[0:0]
++		for j := 0; j < N; j++ {
++			if len(x) < cap(x) {
++				x = x[:len(x)+1]
++				x[len(x)-1] = j
++			} else {
++				x = append(x, j)
++			}
++		}
++	}
++}
++
++var x = make([]int, 0, 10)
++
++func f() int {
++	x[:1][0] = 3
++	return 2
++}
++
++func TestSideEffectOrder(t *testing.T) {
++	x = append(x, 1, f())
++	if x[0] != 1 || x[1] != 2 {
++		t.Error("append failed: ", x[0], x[1])
++	}
++}
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+index 1fee923e43..0e7f8e080e 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.c
+@@ -9,6 +9,8 @@
+ static	int32	debug	= 0;
+ 
+ static	void	makeslice1(SliceType*, int32, int32, Slice*);
++static	void	growslice1(SliceType*, Slice, int32, Slice *);
++static	void	appendslice1(SliceType*, Slice, Slice, Slice*);
+ 	void	runtime·slicecopy(Slice to, Slice fm, uintptr width, int32 ret);
+ 
+ // see also unsafe·NewArray
+@@ -46,8 +48,6 @@ makeslice1(SliceType *t, int32 len, int32 cap, Slice *ret)
+ 		ret->array = runtime·mal(size);
+ }
+ 
+-static void appendslice1(SliceType*, Slice, Slice, Slice*);
+-
+ // append(type *Type, n int, old []T, ...,) []T
+ #pragma textflag 7
+ void
+@@ -72,36 +72,69 @@ runtime·appendslice(SliceType *t, Slice x, Slice y, Slice ret)
+ static void
+ appendslice1(SliceType *t, Slice x, Slice y, Slice *ret)
+ {
+-	Slice newx;
+ 	int32 m;
+ 	uintptr w;
+ 
+-	if(x.len+y.len < x.len)
++	m = x.len+y.len;
++
++	if(m < x.len)
+ 		runtime·throw("append: slice overflow");
+ 
++	if(m > x.cap)
++		growslice1(t, x, m, ret);
++	else
++		*ret = x;
++
+ 	w = t->elem->size;
+-	if(x.len+y.len > x.cap) {
+-		m = x.cap;
+-		if(m == 0)
+-			m = y.len;
+-		else {
+-			do {
+-				if(x.len < 1024)
+-					m += m;
+-				else
+-					m += m/4;
+-			} while(m < x.len+y.len);
+-		}
+-		makeslice1(t, x.len, m, &newx);
+-		runtime·memmove(newx.array, x.array, x.len*w);
+-		x = newx;
++	runtime·memmove(ret->array + ret->len*w, y.array, y.len*w);
++	ret->len += y.len;
++}
++
++// growslice(type *Type, x, []T, n int64) []T
++void
++runtime·growslice(SliceType *t, Slice old, int64 n, Slice ret)
++{
++	int64 cap;
++
++	if(n < 1)
++		runtime·panicstring("growslice: invalid n");
++
++	cap = old.cap + n;
++
++	if((int32)cap != cap || cap > ((uintptr)-1) / t->elem->size)
++		runtime·panicstring("growslice: cap out of range");
++
++	growslice1(t, old, cap, &ret);
++
++	FLUSH(&ret);
++
++	if(debug) {
++		runtime·printf("growslice(%S,", *t->string);
++ 		runtime·printslice(old);
++		runtime·printf(", new cap=%D) =", cap);
++ 		runtime·printslice(ret);
+ 	}
+-	runtime·memmove(x.array+x.len*w, y.array, y.len*w);
+-	x.len += y.len;
+-	*ret = x;
+ }
+ 
++static void
++growslice1(SliceType *t, Slice x, int32 newcap, Slice *ret)
++{
++	int32 m;
+ 
++	m = x.cap;
++	if(m == 0)
++		m = newcap;
++	else {
++		do {
++			if(x.len < 1024)
++				m += m;
++			else
++				m += m/4;
++		} while(m < newcap);
++	}
++	makeslice1(t, x.len, m, ret);
++	runtime·memmove(ret->array, x.array, ret->len * t->elem->size);
++}
+ 
+ // sliceslice(old []any, lb uint64, hb uint64, width uint64) (ary []any);
+ void

@@ -8,7 +8,38 @@ Date:   Wed Jun 6 20:19:16 2012 +0800
     R=golang-dev, r, rsc
     CC=golang-dev
     https://golang.org/cl/6272048
-
+---
  src/all.bash | 2 ++
  src/all.bat  | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/src/all.bash b/src/all.bash
+index 454582c0c7..488ca4679e 100755
+--- a/src/all.bash
++++ b/src/all.bash
+@@ -8,6 +8,8 @@ if [ ! -f make.bash ]; then
+ 	echo 'all.bash must be run from $GOROOT/src' 1>&2
+ 	exit 1
+ fi
++OLDPATH="$PATH"
+ . ./make.bash --no-banner
+ bash run.bash --no-rebuild
++PATH="$OLDPATH"
+ $GOTOOLDIR/dist banner  # print build info
+diff --git a/src/all.bat b/src/all.bat
+index e3b61c0127..8edfd7f43e 100644
+--- a/src/all.bat
++++ b/src/all.bat
+@@ -11,10 +11,12 @@ echo all.bat must be run from go\src
+ goto end
+ :ok
+ 
++set OLDPATH=%PATH%
+ call make.bat --no-banner --no-local
+ if %GOBUILDFAIL%==1 goto end
+ call run.bat --no-rebuild --no-local
+ if %GOBUILDFAIL%==1 goto end
++set PATH=%OLDPATH%
+ go tool dist banner
+ 
+ :end

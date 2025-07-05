@@ -11,10 +11,1092 @@ Date:   Wed Aug 5 21:16:52 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/archive/{read.go => archive.go} | 154 ++++++++-
  src/cmd/internal/archive/archive_test.go         |  34 +-
  src/cmd/internal/objfile/goobj.go                |   2 +-
  src/cmd/pack/pack.go                             | 418 ++++++-----------------
  src/cmd/pack/pack_test.go                        |  77 ++---
  5 files changed, 296 insertions(+), 389 deletions(-)
+
+diff --git a/src/cmd/internal/archive/read.go b/src/cmd/internal/archive/archive.go
+similarity index 66%
+rename from src/cmd/internal/archive/read.go
+rename to src/cmd/internal/archive/archive.go
+index e67f06d69b..db67ce424b 100644
+--- a/src/cmd/internal/archive/read.go
++++ b/src/cmd/internal/archive/archive.go
+@@ -14,10 +14,29 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
++	"log"
+ 	"os"
+ 	"strconv"
++	"time"
++	"unicode/utf8"
+ )
+ 
++/*
++The archive format is:
++
++First, on a line by itself
++	!<arch>
++
++Then zero or more file records. Each file record has a fixed-size one-line header
++followed by data bytes followed by an optional padding byte. The header is:
++
++	%-16s%-12d%-6d%-6d%-8o%-10d`
++	name mtime uid gid mode size
++
++(note the trailing backquote). The %-16s here means at most 16 *bytes* of
++the name, and if shorter, space padded on the right.
++*/
++
+ // A Data is a reference to data stored in an object file.
+ // It records the offset and size of the data, so that a client can
+ // read the data only if necessary.
+@@ -31,9 +50,15 @@ type Archive struct {
+ 	Entries []Entry
+ }
+ 
++func (a *Archive) File() *os.File { return a.f }
++
+ type Entry struct {
+-	Name string
+-	Type EntryType
++	Name  string
++	Type  EntryType
++	Mtime int64
++	Uid   int
++	Gid   int
++	Mode  os.FileMode
+ 	Data
+ 	Obj *GoObj // nil if this entry is not a Go object file
+ }
+@@ -46,11 +71,28 @@ const (
+ 	EntryNativeObj
+ )
+ 
++func (e *Entry) String() string {
++	return fmt.Sprintf("%s %6d/%-6d %12d %s %s",
++		(e.Mode & 0777).String(),
++		e.Uid,
++		e.Gid,
++		e.Size,
++		time.Unix(e.Mtime, 0).Format(timeFormat),
++		e.Name)
++}
++
+ type GoObj struct {
+ 	TextHeader []byte
+ 	Data
+ }
+ 
++const (
++	entryHeader = "%s%-12d%-6d%-6d%-8o%-10d`\n"
++	// In entryHeader the first entry, the name, is always printed as 16 bytes right-padded.
++	entryLen   = 16 + 12 + 6 + 6 + 8 + 10 + 1 + 1
++	timeFormat = "Jan _2 15:04 2006"
++)
++
+ var (
+ 	archiveHeader = []byte("!<arch>\n")
+ 	archiveMagic  = []byte("`\n")
+@@ -182,8 +224,17 @@ func (r *objReader) skip(n int64) {
+ 	}
+ }
+ 
++// New writes to f to make a new archive.
++func New(f *os.File) (*Archive, error) {
++	_, err := f.Write(archiveHeader)
++	if err != nil {
++		return nil, err
++	}
++	return &Archive{f: f}, nil
++}
++
+ // Parse parses an object file or archive from f.
+-func Parse(f *os.File) (*Archive, error) {
++func Parse(f *os.File, verbose bool) (*Archive, error) {
+ 	var r objReader
+ 	r.init(f)
+ 	t, err := r.peek(8)
+@@ -199,7 +250,7 @@ func Parse(f *os.File) (*Archive, error) {
+ 		return nil, errNotObject
+ 
+ 	case bytes.Equal(t, archiveHeader):
+-		if err := r.parseArchive(); err != nil {
++		if err := r.parseArchive(verbose); err != nil {
+ 			return nil, err
+ 		}
+ 	case bytes.Equal(t, goobjHeader):
+@@ -208,7 +259,12 @@ func Parse(f *os.File) (*Archive, error) {
+ 		if err := r.parseObject(o, r.limit-off); err != nil {
+ 			return nil, err
+ 		}
+-		r.a.Entries = []Entry{{f.Name(), EntryGoObj, Data{off, r.limit - off}, o}}
++		r.a.Entries = []Entry{{
++			Name: f.Name(),
++			Type: EntryGoObj,
++			Data: Data{off, r.limit - off},
++			Obj:  o,
++		}}
+ 	}
+ 
+ 	return r.a, nil
+@@ -221,7 +277,7 @@ func trimSpace(b []byte) string {
+ }
+ 
+ // parseArchive parses a Unix archive of Go object files.
+-func (r *objReader) parseArchive() error {
++func (r *objReader) parseArchive(verbose bool) error {
+ 	r.readFull(r.tmp[:8]) // consume header (already checked)
+ 	for r.offset < r.limit {
+ 		if err := r.readFull(r.tmp[:60]); err != nil {
+@@ -237,7 +293,7 @@ func (r *objReader) parseArchive() error {
+ 		//	40:48 mode
+ 		//	48:58 size
+ 		//	58:60 magic - `\n
+-		// We only care about name, size, and magic.
++		// We only care about name, size, and magic, unless in verbose mode.
+ 		// The fields are space-padded on the right.
+ 		// The size is in decimal.
+ 		// The file data - size bytes - follows the header.
+@@ -252,7 +308,27 @@ func (r *objReader) parseArchive() error {
+ 			return errCorruptArchive
+ 		}
+ 		name := trimSpace(data[0:16])
+-		size, err := strconv.ParseInt(trimSpace(data[48:58]), 10, 64)
++		var err error
++		get := func(start, end, base, bitsize int) int64 {
++			if err != nil {
++				return 0
++			}
++			var v int64
++			v, err = strconv.ParseInt(trimSpace(data[start:end]), base, bitsize)
++			return v
++		}
++		size := get(48, 58, 10, 64)
++		var (
++			mtime    int64
++			uid, gid int
++			mode     os.FileMode
++		)
++		if verbose {
++			mtime = get(16, 28, 10, 64)
++			uid = int(get(28, 34, 10, 32))
++			gid = int(get(34, 40, 10, 32))
++			mode = os.FileMode(get(40, 48, 8, 32))
++		}
+ 		if err != nil {
+ 			return errCorruptArchive
+ 		}
+@@ -263,7 +339,15 @@ func (r *objReader) parseArchive() error {
+ 		}
+ 		switch name {
+ 		case "__.PKGDEF":
+-			r.a.Entries = append(r.a.Entries, Entry{name, EntryPkgDef, Data{r.offset, size}, nil})
++			r.a.Entries = append(r.a.Entries, Entry{
++				Name:  name,
++				Type:  EntryPkgDef,
++				Mtime: mtime,
++				Uid:   uid,
++				Gid:   gid,
++				Mode:  mode,
++				Data:  Data{r.offset, size},
++			})
+ 			r.skip(size)
+ 		default:
+ 			var typ EntryType
+@@ -281,7 +365,16 @@ func (r *objReader) parseArchive() error {
+ 				typ = EntryNativeObj
+ 				r.skip(size)
+ 			}
+-			r.a.Entries = append(r.a.Entries, Entry{name, typ, Data{offset, size}, o})
++			r.a.Entries = append(r.a.Entries, Entry{
++				Name:  name,
++				Type:  typ,
++				Mtime: mtime,
++				Uid:   uid,
++				Gid:   gid,
++				Mode:  mode,
++				Data:  Data{offset, size},
++				Obj:   o,
++			})
+ 		}
+ 		if size&1 != 0 {
+ 			r.skip(1)
+@@ -324,3 +417,44 @@ func (r *objReader) parseObject(o *GoObj, size int64) error {
+ 	r.skip(o.Size)
+ 	return nil
+ }
++
++// AddEntry adds an entry to the end of a, with the content from r.
++func (a *Archive) AddEntry(typ EntryType, name string, mtime int64, uid, gid int, mode os.FileMode, size int64, r io.Reader) {
++	off, err := a.f.Seek(0, io.SeekEnd)
++	if err != nil {
++		log.Fatal(err)
++	}
++	n, err := fmt.Fprintf(a.f, entryHeader, exactly16Bytes(name), mtime, uid, gid, mode, size)
++	if err != nil || n != entryLen {
++		log.Fatal("writing entry header: ", err)
++	}
++	n1, _ := io.CopyN(a.f, r, size)
++	if n1 != size {
++		log.Fatal(err)
++	}
++	if (off+size)&1 != 0 {
++		a.f.Write([]byte{0}) // pad to even byte
++	}
++	a.Entries = append(a.Entries, Entry{
++		Name:  name,
++		Type:  typ,
++		Mtime: mtime,
++		Uid:   uid,
++		Gid:   gid,
++		Mode:  mode,
++		Data:  Data{off + entryLen, size},
++	})
++}
++
++// exactly16Bytes truncates the string if necessary so it is at most 16 bytes long,
++// then pads the result with spaces to be exactly 16 bytes.
++// Fmt uses runes for its width calculation, but we need bytes in the entry header.
++func exactly16Bytes(s string) string {
++	for len(s) > 16 {
++		_, wid := utf8.DecodeLastRuneInString(s)
++		s = s[:len(s)-wid]
++	}
++	const sixteenSpaces = "                "
++	s += sixteenSpaces[:16-len(s)]
++	return s
++}
+diff --git a/src/cmd/internal/archive/archive_test.go b/src/cmd/internal/archive/archive_test.go
+index 6ef0b68daa..1468a58210 100644
+--- a/src/cmd/internal/archive/archive_test.go
++++ b/src/cmd/internal/archive/archive_test.go
+@@ -19,6 +19,7 @@ import (
+ 	"path/filepath"
+ 	"runtime"
+ 	"testing"
++	"unicode/utf8"
+ )
+ 
+ var (
+@@ -160,7 +161,7 @@ func TestParseGoobj(t *testing.T) {
+ 	}
+ 	defer f.Close()
+ 
+-	a, err := Parse(f)
++	a, err := Parse(f, false)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -189,7 +190,7 @@ func TestParseArchive(t *testing.T) {
+ 	}
+ 	defer f.Close()
+ 
+-	a, err := Parse(f)
++	a, err := Parse(f, false)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -234,7 +235,7 @@ func TestParseCGOArchive(t *testing.T) {
+ 	}
+ 	defer f.Close()
+ 
+-	a, err := Parse(f)
++	a, err := Parse(f, false)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -346,3 +347,30 @@ func TestParseCGOArchive(t *testing.T) {
+ 		t.Errorf(`symbol %q not found`, c2)
+ 	}
+ }
++
++func TestExactly16Bytes(t *testing.T) {
++	var tests = []string{
++		"",
++		"a",
++		"日本語",
++		"1234567890123456",
++		"12345678901234567890",
++		"1234567890123本語4567890",
++		"12345678901234日本語567890",
++		"123456789012345日本語67890",
++		"1234567890123456日本語7890",
++		"1234567890123456日本語7日本語890",
++	}
++	for _, str := range tests {
++		got := exactly16Bytes(str)
++		if len(got) != 16 {
++			t.Errorf("exactly16Bytes(%q) is %q, length %d", str, got, len(got))
++		}
++		// Make sure it is full runes.
++		for _, c := range got {
++			if c == utf8.RuneError {
++				t.Errorf("exactly16Bytes(%q) is %q, has partial rune", str, got)
++			}
++		}
++	}
++}
+diff --git a/src/cmd/internal/objfile/goobj.go b/src/cmd/internal/objfile/goobj.go
+index 5708f5ee18..e838f58aed 100644
+--- a/src/cmd/internal/objfile/goobj.go
++++ b/src/cmd/internal/objfile/goobj.go
+@@ -27,7 +27,7 @@ type goobjFile struct {
+ }
+ 
+ func openGoFile(f *os.File) (*File, error) {
+-	a, err := archive.Parse(f)
++	a, err := archive.Parse(f, false)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/cmd/pack/pack.go b/src/cmd/pack/pack.go
+index 95ecad01a1..c4e116becd 100644
+--- a/src/cmd/pack/pack.go
++++ b/src/cmd/pack/pack.go
+@@ -5,33 +5,14 @@
+ package main
+ 
+ import (
++	"cmd/internal/archive"
+ 	"fmt"
+ 	"io"
+ 	"log"
+ 	"os"
+ 	"path/filepath"
+-	"strconv"
+-	"strings"
+-	"time"
+-	"unicode/utf8"
+ )
+ 
+-/*
+-The archive format is:
+-
+-First, on a line by itself
+-	!<arch>
+-
+-Then zero or more file records. Each file record has a fixed-size one-line header
+-followed by data bytes followed by an optional padding byte. The header is:
+-
+-	%-16s%-12d%-6d%-6d%-8o%-10d`
+-	name mtime uid gid mode size
+-
+-(note the trailing backquote). The %-16s here means at most 16 *bytes* of
+-the name, and if shorter, space padded on the right.
+-*/
+-
+ const usageMessage = `Usage: pack op file.a [name....]
+ Where op is one of cprtx optionally followed by v for verbose output.
+ For compatibility with old Go build environments the op string grc is
+@@ -58,21 +39,20 @@ func main() {
+ 	var ar *Archive
+ 	switch op {
+ 	case 'p':
+-		ar = archive(os.Args[2], os.O_RDONLY, os.Args[3:])
++		ar = openArchive(os.Args[2], os.O_RDONLY, os.Args[3:])
+ 		ar.scan(ar.printContents)
+ 	case 'r':
+-		ar = archive(os.Args[2], os.O_RDWR, os.Args[3:])
+-		ar.scan(ar.skipContents)
++		ar = openArchive(os.Args[2], os.O_RDWR, os.Args[3:])
+ 		ar.addFiles()
+ 	case 'c':
+-		ar = archive(os.Args[2], os.O_RDWR|os.O_TRUNC, os.Args[3:])
++		ar = openArchive(os.Args[2], os.O_RDWR|os.O_TRUNC|os.O_CREATE, os.Args[3:])
+ 		ar.addPkgdef()
+ 		ar.addFiles()
+ 	case 't':
+-		ar = archive(os.Args[2], os.O_RDONLY, os.Args[3:])
++		ar = openArchive(os.Args[2], os.O_RDONLY, os.Args[3:])
+ 		ar.scan(ar.tableOfContents)
+ 	case 'x':
+-		ar = archive(os.Args[2], os.O_RDONLY, os.Args[3:])
++		ar = openArchive(os.Args[2], os.O_RDONLY, os.Args[3:])
+ 		ar.scan(ar.extractContents)
+ 	default:
+ 		log.Printf("invalid operation %q", os.Args[1])
+@@ -124,193 +104,77 @@ func setOp(arg string) {
+ }
+ 
+ const (
+-	arHeader    = "!<arch>\n"
+-	entryHeader = "%s%-12d%-6d%-6d%-8o%-10d`\n"
+-	// In entryHeader the first entry, the name, is always printed as 16 bytes right-padded.
+-	entryLen   = 16 + 12 + 6 + 6 + 8 + 10 + 1 + 1
+-	timeFormat = "Jan _2 15:04 2006"
++	arHeader = "!<arch>\n"
+ )
+ 
+ // An Archive represents an open archive file. It is always scanned sequentially
+ // from start to end, without backing up.
+ type Archive struct {
+-	fd       *os.File // Open file descriptor.
++	a        *archive.Archive
+ 	files    []string // Explicit list of files to be processed.
+ 	pad      int      // Padding bytes required at end of current archive file
+ 	matchAll bool     // match all files in archive
+ }
+ 
+ // archive opens (and if necessary creates) the named archive.
+-func archive(name string, mode int, files []string) *Archive {
+-	// If the file exists, it must be an archive. If it doesn't exist, or if
+-	// we're doing the c command, indicated by O_TRUNC, truncate the archive.
+-	if !existingArchive(name) || mode&os.O_TRUNC != 0 {
+-		create(name)
+-		mode &^= os.O_TRUNC
+-	}
+-	fd, err := os.OpenFile(name, mode, 0)
++func openArchive(name string, mode int, files []string) *Archive {
++	f, err := os.OpenFile(name, mode, 0666)
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+-	checkHeader(fd)
+-	return &Archive{
+-		fd:       fd,
+-		files:    files,
+-		matchAll: len(files) == 0,
+-	}
+-}
+-
+-// create creates and initializes an archive that does not exist.
+-func create(name string) {
+-	fd, err := os.Create(name)
+-	if err != nil {
+-		log.Fatal(err)
++	var a *archive.Archive
++	if mode&os.O_CREATE != 0 { // the c command
++		a, err = archive.New(f)
++	} else {
++		a, err = archive.Parse(f, verbose)
+ 	}
+-	_, err = fmt.Fprint(fd, arHeader)
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+-	fd.Close()
+-}
+-
+-// existingArchive reports whether the file exists and is a valid archive.
+-// If it exists but is not an archive, existingArchive will exit.
+-func existingArchive(name string) bool {
+-	fd, err := os.Open(name)
+-	if err != nil {
+-		if os.IsNotExist(err) {
+-			return false
+-		}
+-		log.Fatalf("cannot open file: %s", err)
+-	}
+-	checkHeader(fd)
+-	fd.Close()
+-	return true
+-}
+-
+-// checkHeader verifies the header of the file. It assumes the file
+-// is positioned at 0 and leaves it positioned at the end of the header.
+-func checkHeader(fd *os.File) {
+-	buf := make([]byte, len(arHeader))
+-	_, err := io.ReadFull(fd, buf)
+-	if err != nil || string(buf) != arHeader {
+-		log.Fatalf("%s is not an archive: bad header", fd.Name())
+-	}
+-}
+-
+-// An Entry is the internal representation of the per-file header information of one entry in the archive.
+-type Entry struct {
+-	name  string
+-	mtime int64
+-	uid   int
+-	gid   int
+-	mode  os.FileMode
+-	size  int64
+-}
+-
+-func (e *Entry) String() string {
+-	return fmt.Sprintf("%s %6d/%-6d %12d %s %s",
+-		(e.mode & 0777).String(),
+-		e.uid,
+-		e.gid,
+-		e.size,
+-		time.Unix(e.mtime, 0).Format(timeFormat),
+-		e.name)
+-}
+-
+-// readMetadata reads and parses the metadata for the next entry in the archive.
+-func (ar *Archive) readMetadata() *Entry {
+-	buf := make([]byte, entryLen)
+-	_, err := io.ReadFull(ar.fd, buf)
+-	if err == io.EOF {
+-		// No entries left.
+-		return nil
+-	}
+-	if err != nil || buf[entryLen-2] != '`' || buf[entryLen-1] != '\n' {
+-		log.Fatal("file is not an archive: bad entry")
+-	}
+-	entry := new(Entry)
+-	entry.name = strings.TrimRight(string(buf[:16]), " ")
+-	if len(entry.name) == 0 {
+-		log.Fatal("file is not an archive: bad name")
+-	}
+-	buf = buf[16:]
+-	str := string(buf)
+-	get := func(width, base, bitsize int) int64 {
+-		v, err := strconv.ParseInt(strings.TrimRight(str[:width], " "), base, bitsize)
+-		if err != nil {
+-			log.Fatal("file is not an archive: bad number in entry: ", err)
+-		}
+-		str = str[width:]
+-		return v
++	return &Archive{
++		a:        a,
++		files:    files,
++		matchAll: len(files) == 0,
+ 	}
+-	// %-16s%-12d%-6d%-6d%-8o%-10d`
+-	entry.mtime = get(12, 10, 64)
+-	entry.uid = int(get(6, 10, 32))
+-	entry.gid = int(get(6, 10, 32))
+-	entry.mode = os.FileMode(get(8, 8, 32))
+-	entry.size = get(10, 10, 64)
+-	return entry
+ }
+ 
+ // scan scans the archive and executes the specified action on each entry.
+-// When action returns, the file offset is at the start of the next entry.
+-func (ar *Archive) scan(action func(*Entry)) {
+-	for {
+-		entry := ar.readMetadata()
+-		if entry == nil {
+-			break
+-		}
+-		action(entry)
++func (ar *Archive) scan(action func(*archive.Entry)) {
++	for i := range ar.a.Entries {
++		e := &ar.a.Entries[i]
++		action(e)
+ 	}
+ }
+ 
+ // listEntry prints to standard output a line describing the entry.
+-func listEntry(entry *Entry, verbose bool) {
++func listEntry(e *archive.Entry, verbose bool) {
+ 	if verbose {
+-		fmt.Fprintf(stdout, "%s\n", entry)
++		fmt.Fprintf(stdout, "%s\n", e.String())
+ 	} else {
+-		fmt.Fprintf(stdout, "%s\n", entry.name)
++		fmt.Fprintf(stdout, "%s\n", e.Name)
+ 	}
+ }
+ 
+ // output copies the entry to the specified writer.
+-func (ar *Archive) output(entry *Entry, w io.Writer) {
+-	n, err := io.Copy(w, io.LimitReader(ar.fd, entry.size))
++func (ar *Archive) output(e *archive.Entry, w io.Writer) {
++	r := io.NewSectionReader(ar.a.File(), e.Offset, e.Size)
++	n, err := io.Copy(w, r)
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+-	if n != entry.size {
++	if n != e.Size {
+ 		log.Fatal("short file")
+ 	}
+-	if entry.size&1 == 1 {
+-		_, err := ar.fd.Seek(1, io.SeekCurrent)
+-		if err != nil {
+-			log.Fatal(err)
+-		}
+-	}
+-}
+-
+-// skip skips the entry without reading it.
+-func (ar *Archive) skip(entry *Entry) {
+-	size := entry.size
+-	if size&1 == 1 {
+-		size++
+-	}
+-	_, err := ar.fd.Seek(size, io.SeekCurrent)
+-	if err != nil {
+-		log.Fatal(err)
+-	}
+ }
+ 
+ // match reports whether the entry matches the argument list.
+ // If it does, it also drops the file from the to-be-processed list.
+-func (ar *Archive) match(entry *Entry) bool {
++func (ar *Archive) match(e *archive.Entry) bool {
+ 	if ar.matchAll {
+ 		return true
+ 	}
+ 	for i, name := range ar.files {
+-		if entry.name == name {
++		if e.Name == name {
+ 			copy(ar.files[i:], ar.files[i+1:])
+ 			ar.files = ar.files[:len(ar.files)-1]
+ 			return true
+@@ -331,25 +195,25 @@ func (ar *Archive) addFiles() {
+ 			fmt.Printf("%s\n", file)
+ 		}
+ 
+-		if !isGoCompilerObjFile(file) {
+-			fd, err := os.Open(file)
+-			if err != nil {
+-				log.Fatal(err)
+-			}
+-			ar.addFile(fd)
+-			continue
++		f, err := os.Open(file)
++		if err != nil {
++			log.Fatal(err)
++		}
++		aro, err := archive.Parse(f, false)
++		if err != nil || !isGoCompilerObjFile(aro) {
++			f.Seek(0, io.SeekStart)
++			ar.addFile(f)
++			goto close
+ 		}
+ 
+-		aro := archive(file, os.O_RDONLY, nil)
+-		aro.scan(func(entry *Entry) {
+-			if entry.name != "_go_.o" {
+-				aro.skip(entry)
+-				return
++		for _, e := range aro.Entries {
++			if e.Type != archive.EntryGoObj || e.Name != "_go_.o" {
++				continue
+ 			}
+-			ar.startFile(filepath.Base(file), 0, 0, 0, 0644, entry.size)
+-			aro.output(entry, ar.fd)
+-			ar.endFile()
+-		})
++			ar.a.AddEntry(archive.EntryGoObj, filepath.Base(file), 0, 0, 0, 0644, e.Size, io.NewSectionReader(f, e.Offset, e.Size))
++		}
++	close:
++		f.Close()
+ 	}
+ 	ar.files = nil
+ }
+@@ -364,7 +228,6 @@ type FileLike interface {
+ 
+ // addFile adds a single file to the archive
+ func (ar *Archive) addFile(fd FileLike) {
+-	defer fd.Close()
+ 	// Format the entry.
+ 	// First, get its info.
+ 	info, err := fd.Stat()
+@@ -375,35 +238,7 @@ func (ar *Archive) addFile(fd FileLike) {
+ 	mtime := int64(0)
+ 	uid := 0
+ 	gid := 0
+-	ar.startFile(info.Name(), mtime, uid, gid, info.Mode(), info.Size())
+-	n64, err := io.Copy(ar.fd, fd)
+-	if err != nil {
+-		log.Fatal("writing file: ", err)
+-	}
+-	if n64 != info.Size() {
+-		log.Fatalf("writing file: wrote %d bytes; file is size %d", n64, info.Size())
+-	}
+-	ar.endFile()
+-}
+-
+-// startFile writes the archive entry header.
+-func (ar *Archive) startFile(name string, mtime int64, uid, gid int, mode os.FileMode, size int64) {
+-	n, err := fmt.Fprintf(ar.fd, entryHeader, exactly16Bytes(name), mtime, uid, gid, mode, size)
+-	if err != nil || n != entryLen {
+-		log.Fatal("writing entry header: ", err)
+-	}
+-	ar.pad = int(size & 1)
+-}
+-
+-// endFile writes the archive entry tail (a single byte of padding, if the file size was odd).
+-func (ar *Archive) endFile() {
+-	if ar.pad != 0 {
+-		_, err := ar.fd.Write([]byte{0})
+-		if err != nil {
+-			log.Fatal("writing archive: ", err)
+-		}
+-		ar.pad = 0
+-	}
++	ar.a.AddEntry(archive.EntryNativeObj, info.Name(), mtime, uid, gid, info.Mode(), info.Size(), fd)
+ }
+ 
+ // addPkgdef adds the __.PKGDEF file to the archive, copied
+@@ -412,150 +247,87 @@ func (ar *Archive) endFile() {
+ func (ar *Archive) addPkgdef() {
+ 	done := false
+ 	for _, file := range ar.files {
+-		if !isGoCompilerObjFile(file) {
+-			continue
++		f, err := os.Open(file)
++		if err != nil {
++			log.Fatal(err)
++		}
++		aro, err := archive.Parse(f, false)
++		if err != nil || !isGoCompilerObjFile(aro) {
++			goto close
+ 		}
+-		aro := archive(file, os.O_RDONLY, nil)
+-		aro.scan(func(entry *Entry) {
+-			if entry.name != "__.PKGDEF" {
+-				aro.skip(entry)
+-				return
++
++		for _, e := range aro.Entries {
++			if e.Type != archive.EntryPkgDef {
++				continue
+ 			}
+ 			if verbose {
+ 				fmt.Printf("__.PKGDEF # %s\n", file)
+ 			}
+-			ar.startFile("__.PKGDEF", 0, 0, 0, 0644, entry.size)
+-			aro.output(entry, ar.fd)
+-			ar.endFile()
++			ar.a.AddEntry(archive.EntryPkgDef, "__.PKGDEF", 0, 0, 0, 0644, e.Size, io.NewSectionReader(f, e.Offset, e.Size))
+ 			done = true
+-		})
++		}
++	close:
++		f.Close()
+ 		if done {
+ 			break
+ 		}
+ 	}
+ }
+ 
+-// exactly16Bytes truncates the string if necessary so it is at most 16 bytes long,
+-// then pads the result with spaces to be exactly 16 bytes.
+-// Fmt uses runes for its width calculation, but we need bytes in the entry header.
+-func exactly16Bytes(s string) string {
+-	for len(s) > 16 {
+-		_, wid := utf8.DecodeLastRuneInString(s)
+-		s = s[:len(s)-wid]
+-	}
+-	const sixteenSpaces = "                "
+-	s += sixteenSpaces[:16-len(s)]
+-	return s
+-}
+-
+ // Finally, the actual commands. Each is an action.
+ 
+ // can be modified for testing.
+ var stdout io.Writer = os.Stdout
+ 
+ // printContents implements the 'p' command.
+-func (ar *Archive) printContents(entry *Entry) {
+-	if ar.match(entry) {
+-		if verbose {
+-			listEntry(entry, false)
+-		}
+-		ar.output(entry, stdout)
+-	} else {
+-		ar.skip(entry)
+-	}
+-}
+-
+-// skipContents implements the first part of the 'r' command.
+-// It just scans the archive to make sure it's intact.
+-func (ar *Archive) skipContents(entry *Entry) {
+-	ar.skip(entry)
++func (ar *Archive) printContents(e *archive.Entry) {
++	ar.extractContents1(e, stdout)
+ }
+ 
+ // tableOfContents implements the 't' command.
+-func (ar *Archive) tableOfContents(entry *Entry) {
+-	if ar.match(entry) {
+-		listEntry(entry, verbose)
++func (ar *Archive) tableOfContents(e *archive.Entry) {
++	if ar.match(e) {
++		listEntry(e, verbose)
+ 	}
+-	ar.skip(entry)
+ }
+ 
+ // extractContents implements the 'x' command.
+-func (ar *Archive) extractContents(entry *Entry) {
+-	if ar.match(entry) {
++func (ar *Archive) extractContents(e *archive.Entry) {
++	ar.extractContents1(e, nil)
++}
++
++func (ar *Archive) extractContents1(e *archive.Entry, out io.Writer) {
++	if ar.match(e) {
+ 		if verbose {
+-			listEntry(entry, false)
++			listEntry(e, false)
+ 		}
+-		fd, err := os.OpenFile(entry.name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, entry.mode)
+-		if err != nil {
+-			log.Fatal(err)
++		if out == nil {
++			f, err := os.OpenFile(e.Name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0444 /*e.Mode*/)
++			if err != nil {
++				log.Fatal(err)
++			}
++			defer f.Close()
++			out = f
+ 		}
+-		ar.output(entry, fd)
+-		fd.Close()
+-	} else {
+-		ar.skip(entry)
++		ar.output(e, out)
+ 	}
+ }
+ 
+ // isGoCompilerObjFile reports whether file is an object file created
+-// by the Go compiler.
+-func isGoCompilerObjFile(file string) bool {
+-	fd, err := os.Open(file)
+-	if err != nil {
+-		log.Fatal(err)
+-	}
+-
+-	// Check for "!<arch>\n" header.
+-	buf := make([]byte, len(arHeader))
+-	_, err = io.ReadFull(fd, buf)
+-	if err != nil {
+-		if err == io.EOF {
+-			return false
+-		}
+-		log.Fatal(err)
+-	}
+-	if string(buf) != arHeader {
++// by the Go compiler, which is an archive file with exactly two entries:
++// __.PKGDEF and _go_.o.
++func isGoCompilerObjFile(a *archive.Archive) bool {
++	if len(a.Entries) != 2 {
+ 		return false
+ 	}
+-
+-	// Check for exactly two entries: "__.PKGDEF" and "_go_.o".
+-	match := []string{"__.PKGDEF", "_go_.o"}
+-	buf = make([]byte, entryLen)
+-	for {
+-		_, err := io.ReadFull(fd, buf)
+-		if err != nil {
+-			if err == io.EOF {
+-				// No entries left.
+-				return true
+-			}
+-			log.Fatal(err)
+-		}
+-		if buf[entryLen-2] != '`' || buf[entryLen-1] != '\n' {
+-			return false
+-		}
+-
+-		name := strings.TrimRight(string(buf[:16]), " ")
+-		for {
+-			if len(match) == 0 {
+-				return false
+-			}
+-			var next string
+-			next, match = match[0], match[1:]
+-			if name == next {
+-				break
+-			}
++	var foundPkgDef, foundGo bool
++	for _, e := range a.Entries {
++		if e.Type == archive.EntryPkgDef && e.Name == "__.PKGDEF" {
++			foundPkgDef = true
+ 		}
+-
+-		size, err := strconv.ParseInt(strings.TrimRight(string(buf[48:58]), " "), 10, 64)
+-		if err != nil {
+-			return false
+-		}
+-		if size&1 != 0 {
+-			size++
+-		}
+-
+-		_, err = fd.Seek(size, io.SeekCurrent)
+-		if err != nil {
+-			log.Fatal(err)
++		if e.Type == archive.EntryGoObj && e.Name == "_go_.o" {
++			foundGo = true
+ 		}
+ 	}
++	return foundPkgDef && foundGo
+ }
+diff --git a/src/cmd/pack/pack_test.go b/src/cmd/pack/pack_test.go
+index 6121bf08c0..2108330742 100644
+--- a/src/cmd/pack/pack_test.go
++++ b/src/cmd/pack/pack_test.go
+@@ -7,6 +7,7 @@ package main
+ import (
+ 	"bufio"
+ 	"bytes"
++	"cmd/internal/archive"
+ 	"fmt"
+ 	"internal/testenv"
+ 	"io"
+@@ -16,36 +17,8 @@ import (
+ 	"path/filepath"
+ 	"testing"
+ 	"time"
+-	"unicode/utf8"
+ )
+ 
+-func TestExactly16Bytes(t *testing.T) {
+-	var tests = []string{
+-		"",
+-		"a",
+-		"日本語",
+-		"1234567890123456",
+-		"12345678901234567890",
+-		"1234567890123本語4567890",
+-		"12345678901234日本語567890",
+-		"123456789012345日本語67890",
+-		"1234567890123456日本語7890",
+-		"1234567890123456日本語7日本語890",
+-	}
+-	for _, str := range tests {
+-		got := exactly16Bytes(str)
+-		if len(got) != 16 {
+-			t.Errorf("exactly16Bytes(%q) is %q, length %d", str, got, len(got))
+-		}
+-		// Make sure it is full runes.
+-		for _, c := range got {
+-			if c == utf8.RuneError {
+-				t.Errorf("exactly16Bytes(%q) is %q, has partial rune", str, got)
+-			}
+-		}
+-	}
+-}
+-
+ // tmpDir creates a temporary directory and returns its name.
+ func tmpDir(t *testing.T) string {
+ 	name, err := ioutil.TempDir("", "pack")
+@@ -58,12 +31,12 @@ func tmpDir(t *testing.T) string {
+ // testCreate creates an archive in the specified directory.
+ func testCreate(t *testing.T, dir string) {
+ 	name := filepath.Join(dir, "pack.a")
+-	ar := archive(name, os.O_RDWR, nil)
++	ar := openArchive(name, os.O_RDWR|os.O_CREATE, nil)
+ 	// Add an entry by hand.
+ 	ar.addFile(helloFile.Reset())
+-	ar.fd.Close()
++	ar.a.File().Close()
+ 	// Now check it.
+-	ar = archive(name, os.O_RDONLY, []string{helloFile.name})
++	ar = openArchive(name, os.O_RDONLY, []string{helloFile.name})
+ 	var buf bytes.Buffer
+ 	stdout = &buf
+ 	verbose = true
+@@ -72,7 +45,7 @@ func testCreate(t *testing.T, dir string) {
+ 		verbose = false
+ 	}()
+ 	ar.scan(ar.printContents)
+-	ar.fd.Close()
++	ar.a.File().Close()
+ 	result := buf.String()
+ 	// Expect verbose output plus file contents.
+ 	expect := fmt.Sprintf("%s\n%s", helloFile.name, helloFile.contents)
+@@ -103,15 +76,14 @@ func TestTableOfContents(t *testing.T) {
+ 	dir := tmpDir(t)
+ 	defer os.RemoveAll(dir)
+ 	name := filepath.Join(dir, "pack.a")
+-	ar := archive(name, os.O_RDWR, nil)
++	ar := openArchive(name, os.O_RDWR|os.O_CREATE, nil)
+ 
+ 	// Add some entries by hand.
+ 	ar.addFile(helloFile.Reset())
+ 	ar.addFile(goodbyeFile.Reset())
+-	ar.fd.Close()
++	ar.a.File().Close()
+ 
+ 	// Now print it.
+-	ar = archive(name, os.O_RDONLY, nil)
+ 	var buf bytes.Buffer
+ 	stdout = &buf
+ 	verbose = true
+@@ -119,8 +91,9 @@ func TestTableOfContents(t *testing.T) {
+ 		stdout = os.Stdout
+ 		verbose = false
+ 	}()
++	ar = openArchive(name, os.O_RDONLY, nil)
+ 	ar.scan(ar.tableOfContents)
+-	ar.fd.Close()
++	ar.a.File().Close()
+ 	result := buf.String()
+ 	// Expect verbose listing.
+ 	expect := fmt.Sprintf("%s\n%s\n", helloFile.Entry(), goodbyeFile.Entry())
+@@ -131,9 +104,9 @@ func TestTableOfContents(t *testing.T) {
+ 	// Do it again without verbose.
+ 	verbose = false
+ 	buf.Reset()
+-	ar = archive(name, os.O_RDONLY, nil)
++	ar = openArchive(name, os.O_RDONLY, nil)
+ 	ar.scan(ar.tableOfContents)
+-	ar.fd.Close()
++	ar.a.File().Close()
+ 	result = buf.String()
+ 	// Expect non-verbose listing.
+ 	expect = fmt.Sprintf("%s\n%s\n", helloFile.name, goodbyeFile.name)
+@@ -144,9 +117,9 @@ func TestTableOfContents(t *testing.T) {
+ 	// Do it again with file list arguments.
+ 	verbose = false
+ 	buf.Reset()
+-	ar = archive(name, os.O_RDONLY, []string{helloFile.name})
++	ar = openArchive(name, os.O_RDONLY, []string{helloFile.name})
+ 	ar.scan(ar.tableOfContents)
+-	ar.fd.Close()
++	ar.a.File().Close()
+ 	result = buf.String()
+ 	// Expect only helloFile.
+ 	expect = fmt.Sprintf("%s\n", helloFile.name)
+@@ -161,11 +134,11 @@ func TestExtract(t *testing.T) {
+ 	dir := tmpDir(t)
+ 	defer os.RemoveAll(dir)
+ 	name := filepath.Join(dir, "pack.a")
+-	ar := archive(name, os.O_RDWR, nil)
++	ar := openArchive(name, os.O_RDWR|os.O_CREATE, nil)
+ 	// Add some entries by hand.
+ 	ar.addFile(helloFile.Reset())
+ 	ar.addFile(goodbyeFile.Reset())
+-	ar.fd.Close()
++	ar.a.File().Close()
+ 	// Now extract one file. We chdir to the directory of the archive for simplicity.
+ 	pwd, err := os.Getwd()
+ 	if err != nil {
+@@ -181,9 +154,9 @@ func TestExtract(t *testing.T) {
+ 			t.Fatal("os.Chdir: ", err)
+ 		}
+ 	}()
+-	ar = archive(name, os.O_RDONLY, []string{goodbyeFile.name})
++	ar = openArchive(name, os.O_RDONLY, []string{goodbyeFile.name})
+ 	ar.scan(ar.extractContents)
+-	ar.fd.Close()
++	ar.a.File().Close()
+ 	data, err := ioutil.ReadFile(goodbyeFile.name)
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -416,13 +389,13 @@ func (f *FakeFile) Sys() interface{} {
+ 
+ // Special helpers.
+ 
+-func (f *FakeFile) Entry() *Entry {
+-	return &Entry{
+-		name:  f.name,
+-		mtime: 0, // Defined to be zero.
+-		uid:   0, // Ditto.
+-		gid:   0, // Ditto.
+-		mode:  f.mode,
+-		size:  int64(len(f.contents)),
++func (f *FakeFile) Entry() *archive.Entry {
++	return &archive.Entry{
++		Name:  f.name,
++		Mtime: 0, // Defined to be zero.
++		Uid:   0, // Ditto.
++		Gid:   0, // Ditto.
++		Mode:  f.mode,
++		Data:  archive.Data{Size: int64(len(f.contents))},
+ 	}
+ }

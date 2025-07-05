@@ -10,10 +10,926 @@ Date:   Mon Feb 2 18:01:32 2009 -0800
     DELTA=613  (460 added, 61 deleted, 92 changed)
     OCL=24139
     CL=24145
-
+---
  src/lib/http/conn.go    |  53 ------
  src/lib/http/request.go | 123 +++++++++-----
  src/lib/http/server.go  | 424 +++++++++++++++++++++++++++++++++++++++++++++---
  src/lib/http/triv.go    |  50 ++++--
  src/lib/http/url.go     |  42 ++---
  5 files changed, 545 insertions(+), 147 deletions(-)
+
+diff --git a/src/lib/http/conn.go b/src/lib/http/conn.go
+deleted file mode 100644
+index 909863ef58..0000000000
+--- a/src/lib/http/conn.go
++++ /dev/null
+@@ -1,53 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package http
+-
+-import (
+-	"io";
+-	"bufio";
+-	"http";
+-	"os"
+-)
+-
+-// Active HTTP connection (server side).
+-type Conn struct {
+-	rwc io.ReadWriteClose;
+-	br *bufio.BufRead;
+-	bw *bufio.BufWrite;
+-	close bool;
+-	chunking bool;
+-}
+-
+-// Create new connection from rwc.
+-func NewConn(rwc io.ReadWriteClose) (c *Conn, err *os.Error) {
+-	c = new(Conn);
+-	c.rwc = rwc;
+-	if c.br, err = bufio.NewBufRead(rwc); err != nil {
+-		return nil, err
+-	}
+-	if c.bw, err = bufio.NewBufWrite(rwc); err != nil {
+-		return nil, err
+-	}
+-	return c, nil
+-}
+-
+-// Read next request from connection.
+-func (c *Conn) ReadRequest() (req *Request, err *os.Error) {
+-	if req, err = ReadRequest(c.br); err != nil {
+-		return nil, err
+-	}
+-
+-	// TODO: Proper handling of (lack of) Connection: close,
+-	// and chunked transfer encoding on output.
+-	c.close = true;
+-	return req, nil
+-}
+-
+-// Close the connection.
+-func (c *Conn) Close() {
+-	c.bw.Flush();
+-	c.rwc.Close();
+-}
+-
+diff --git a/src/lib/http/request.go b/src/lib/http/request.go
+index ba1a7a694f..5d1fd67d72 100644
+--- a/src/lib/http/request.go
++++ b/src/lib/http/request.go
+@@ -9,14 +9,15 @@ package http
+ import (
+ 	"bufio";
+ 	"http";
++	"io";
+ 	"os";
+ 	"strings"
+ )
+ 
+ const (
+-	_MaxLineLength = 1024;	// assumed < bufio.DefaultBufSize
+-	_MaxValueLength = 1024;
+-	_MaxHeaderLines = 1024;
++	maxLineLength = 1024;	// assumed < bufio.DefaultBufSize
++	maxValueLength = 1024;
++	maxHeaderLines = 1024;
+ )
+ 
+ var (
+@@ -30,30 +31,36 @@ var (
+ 
+ // HTTP Request
+ type Request struct {
+-	method string;		// GET, PUT,etc.
+-	rawurl string;
+-	url *URL;		// URI after GET, PUT etc.
+-	proto string;	// "HTTP/1.0"
+-	pmajor int;	// 1
+-	pminor int;	// 0
+-
+-	header map[string] string;
+-
+-	close bool;
+-	host string;
+-	referer string;
+-	useragent string;
++	Method string;		// GET, PUT,etc.
++	RawUrl string;
++	Url *URL;		// URI after GET, PUT etc.
++	Proto string;	// "HTTP/1.0"
++	ProtoMajor int;	// 1
++	ProtoMinor int;	// 0
++
++	Header map[string] string;
++
++	Close bool;
++	Host string;
++	Referer string;	// referer [sic]
++	UserAgent string;
+ }
+ 
++func (r *Request) ProtoAtLeast(major, minor int) bool {
++	return r.ProtoMajor > major ||
++		r.ProtoMajor == major && r.ProtoMinor >= minor
++}
++
++
+ // Read a line of bytes (up to \n) from b.
+-// Give up if the line exceeds _MaxLineLength.
++// Give up if the line exceeds maxLineLength.
+ // The returned bytes are a pointer into storage in
+ // the bufio, so they are only valid until the next bufio read.
+ func readLineBytes(b *bufio.BufRead) (p []byte, err *os.Error) {
+ 	if p, err = b.ReadLineSlice('\n'); err != nil {
+ 		return nil, err
+ 	}
+-	if len(p) >= _MaxLineLength {
++	if len(p) >= maxLineLength {
+ 		return nil, LineTooLong
+ 	}
+ 
+@@ -132,7 +139,7 @@ func readKeyValue(b *bufio.BufRead) (key, value string, err *os.Error) {
+ 				}
+ 				value += " " + string(line);
+ 
+-				if len(value) >= _MaxValueLength {
++				if len(value) >= maxValueLength {
+ 					return "", "", ValueTooLong
+ 				}
+ 			}
+@@ -179,6 +186,37 @@ func parseHTTPVersion(vers string) (int, int, bool) {
+ 	return major, minor, true
+ }
+ 
++var cmap = make(map[string]string)
++
++func CanonicalHeaderKey(s string) string {
++	if t, ok := cmap[s]; ok {
++		return t;
++	}
++
++	// canonicalize: first letter upper case
++	// and upper case after each dash.
++	// (Host, User-Agent, If-Modified-Since).
++	// HTTP headers are ASCII only, so no Unicode issues.
++	a := io.StringBytes(s);
++	upper := true;
++	for i,v := range a {
++		if upper && 'a' <= v && v <= 'z' {
++			a[i] = v + 'A' - 'a';
++		}
++		if !upper && 'A' <= v && v <= 'Z' {
++			a[i] = v + 'a' - 'A';
++		}
++		upper = false;
++		if v == '-' {
++			upper = true;
++		}
++	}
++	t := string(a);
++	cmap[s] = t;
++	return t;
++}
++
++
+ // Read and parse a request from b.
+ func ReadRequest(b *bufio.BufRead) (req *Request, err *os.Error) {
+ 	req = new(Request);
+@@ -193,19 +231,19 @@ func ReadRequest(b *bufio.BufRead) (req *Request, err *os.Error) {
+ 	if f = strings.Split(s, " "); len(f) != 3 {
+ 		return nil, BadRequest
+ 	}
+-	req.method, req.rawurl, req.proto = f[0], f[1], f[2];
++	req.Method, req.RawUrl, req.Proto = f[0], f[1], f[2];
+ 	var ok bool;
+-	if req.pmajor, req.pminor, ok = parseHTTPVersion(req.proto); !ok {
++	if req.ProtoMajor, req.ProtoMinor, ok = parseHTTPVersion(req.Proto); !ok {
+ 		return nil, BadHTTPVersion
+ 	}
+ 
+-	if req.url, err = ParseURL(req.rawurl); err != nil {
++	if req.Url, err = ParseURL(req.RawUrl); err != nil {
+ 		return nil, err
+ 	}
+ 
+ 	// Subsequent lines: Key: value.
+ 	nheader := 0;
+-	req.header = make(map[string] string);
++	req.Header = make(map[string] string);
+ 	for {
+ 		var key, value string;
+ 		if key, value, err = readKeyValue(b); err != nil {
+@@ -214,18 +252,20 @@ func ReadRequest(b *bufio.BufRead) (req *Request, err *os.Error) {
+ 		if key == "" {
+ 			break
+ 		}
+-		if nheader++; nheader >= _MaxHeaderLines {
++		if nheader++; nheader >= maxHeaderLines {
+ 			return nil, HeaderTooLong
+ 		}
+ 
++		key = CanonicalHeaderKey(key);
++
+ 		// RFC 2616 says that if you send the same header key
+ 		// multiple times, it has to be semantically equivalent
+ 		// to concatenating the values separated by commas.
+-		oldvalue, present := req.header[key];
++		oldvalue, present := req.Header[key];
+ 		if present {
+-			req.header[key] = oldvalue+","+value
++			req.Header[key] = oldvalue+","+value
+ 		} else {
+-			req.header[key] = value
++			req.Header[key] = value
+ 		}
+ 	}
+ 
+@@ -236,40 +276,39 @@ func ReadRequest(b *bufio.BufRead) (req *Request, err *os.Error) {
+ 	//	GET http://www.google.com/index.html HTTP/1.1
+ 	//	Host: doesntmatter
+ 	// the same.  In the second case, any Host line is ignored.
+-	if v, have := req.header["Host"]; have && req.url.host == "" {
+-		req.host = v
++	if v, present := req.Header["Host"]; present && req.Url.Host == "" {
++		req.Host = v
+ 	}
+ 
+ 	// RFC2616: Should treat
+ 	//	Pragma: no-cache
+ 	// like
+-	//	Cache-control: no-cache
+-	if v, have := req.header["Pragma"]; have && v == "no-cache" {
+-		if cc, havecc := req.header["Cache-control"]; !havecc {
+-			req.header["Cache-control"] = "no-cache"
++	//	Cache-Control: no-cache
++	if v, present := req.Header["Pragma"]; present && v == "no-cache" {
++		if cc, presentcc := req.Header["Cache-Control"]; !presentcc {
++			req.Header["Cache-Control"] = "no-cache"
+ 		}
+ 	}
+ 
+ 	// Determine whether to hang up after sending the reply.
+-	if req.pmajor < 1 || (req.pmajor == 1 && req.pminor < 1) {
+-		req.close = true
+-	} else if v, have := req.header["Connection"]; have {
++	if req.ProtoMajor < 1 || (req.ProtoMajor == 1 && req.ProtoMinor < 1) {
++		req.Close = true
++	} else if v, present := req.Header["Connection"]; present {
+ 		// TODO: Should split on commas, toss surrounding white space,
+ 		// and check each field.
+ 		if v == "close" {
+-			req.close = true
++			req.Close = true
+ 		}
+ 	}
+ 
+ 	// Pull out useful fields as a convenience to clients.
+-	if v, have := req.header["Referer"]; have {
+-		req.referer = v
++	if v, present := req.Header["Referer"]; present {
++		req.Referer = v
+ 	}
+-	if v, have := req.header["User-Agent"]; have {
+-		req.useragent = v
++	if v, present := req.Header["User-Agent"]; present {
++		req.UserAgent = v
+ 	}
+ 
+-
+ 	// TODO: Parse specific header values:
+ 	//	Accept
+ 	//	Accept-Encoding
+diff --git a/src/lib/http/server.go b/src/lib/http/server.go
+index 855eb98a59..970cd7e384 100644
+--- a/src/lib/http/server.go
++++ b/src/lib/http/server.go
+@@ -2,64 +2,448 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Trivial HTTP server
++// HTTP server.  See RFC 2616.
+ 
+-// TODO: Routines for writing responses.
++// TODO(rsc):
++//	logging
++//	cgi support
++//	post support
+ 
+ package http
+ 
+ import (
++	"bufio";
++	"fmt";
++	"http";
+ 	"io";
+-	"os";
+ 	"net";
+-	"http";
++	"os";
+ 	"strconv";
+ )
+ 
+-// Serve a new connection.
+-func serveConnection(fd net.Conn, raddr string, f func(*Conn, *Request)) {
+-	c, err := NewConn(fd);
+-	if err != nil {
++var ErrWriteAfterFlush = os.NewError("Conn.Write called after Flush")
++
++type Conn struct
++
++// Interface implemented by servers using this library.
++type Handler interface {
++	ServeHTTP(*Conn, *Request);
++}
++
++// Active HTTP connection (server side).
++type Conn struct {
++	Fd io.ReadWriteClose;
++	RemoteAddr string;
++	Req *Request;
++	Br *bufio.BufRead;
++
++	br *bufio.BufRead;
++	bw *bufio.BufWrite;
++	close bool;
++	chunking bool;
++	flushed bool;
++	header map[string] string;
++	wroteHeader bool;
++	handler Handler;
++}
++
++// HTTP response codes.
++// TODO(rsc): Maybe move these to their own file, so that
++// clients can use them too.
++
++const (
++	StatusContinue = 100;
++	StatusSwitchingProtocols = 101;
++
++	StatusOK = 200;
++	StatusCreated = 201;
++	StatusAccepted = 202;
++	StatusNonAuthoritativeInfo = 203;
++	StatusNoContent = 204;
++	StatusResetContent = 205;
++	StatusPartialContent = 206;
++
++	StatusMultipleChoices = 300;
++	StatusMovedPermanently = 301;
++	StatusFound = 302;
++	StatusSeeOther = 303;
++	StatusNotModified = 304;
++	StatusUseProxy = 305;
++	StatusTemporaryRedirect = 307;
++
++	StatusBadRequest = 400;
++	StatusUnauthorized = 401;
++	StatusPaymentRequired = 402;
++	StatusForbidden = 403;
++	StatusNotFound = 404;
++	StatusMethodNotAllowed = 405;
++	StatusNotAcceptable = 406;
++	StatusProxyAuthRequired = 407;
++	StatusRequestTimeout = 408;
++	StatusConflict = 409;
++	StatusGone = 410;
++	StatusLengthRequired = 411;
++	StatusPreconditionFailed = 412;
++	StatusRequestEntityTooLarge = 413;
++	StatusRequestURITooLong = 414;
++	StatusUnsupportedMediaType = 415;
++	StatusRequestedRangeNotSatisfiable = 416;
++	StatusExpectationFailed = 417;
++
++	StatusInternalServerError = 500;
++	StatusNotImplemented = 501;
++	StatusBadGateway = 502;
++	StatusServiceUnavailable = 503;
++	StatusGatewayTimeout = 504;
++	StatusHTTPVersionNotSupported = 505;
++)
++
++var statusText = map[int]string {
++	StatusContinue:			"Continue",
++	StatusSwitchingProtocols:	"Switching Protocols",
++
++	StatusOK:			"OK",
++	StatusCreated:			"Created",
++	StatusAccepted:			"Accepted",
++	StatusNonAuthoritativeInfo:	"Non-Authoritative Information",
++	StatusNoContent:		"No Content",
++	StatusResetContent:		"Reset Content",
++	StatusPartialContent:		"Partial Content",
++
++	StatusMultipleChoices:		"Multiple Choices",
++	StatusMovedPermanently:		"Moved Permanently",
++	StatusFound:			"Found",
++	StatusSeeOther:			"See Other",
++	StatusNotModified:		"Not Modified",
++	StatusUseProxy:			"Use Proxy",
++	StatusTemporaryRedirect:	"Temporary Redirect",
++
++	StatusBadRequest:		"Bad Request",
++	StatusUnauthorized:		"Unauthorized",
++	StatusPaymentRequired:		"Payment Required",
++	StatusForbidden:		"Forbidden",
++	StatusNotFound:			"Not Found",
++	StatusMethodNotAllowed:		"Method Not Allowed",
++	StatusNotAcceptable:		"Not Acceptable",
++	StatusProxyAuthRequired:	"Proxy Authentication Required",
++	StatusRequestTimeout:		"Request Timeout",
++	StatusConflict:			"Conflict",
++	StatusGone:			"Gone",
++	StatusLengthRequired:		"Length Required",
++	StatusPreconditionFailed:	"Precondition Failed",
++	StatusRequestEntityTooLarge:	"Request Entity Too Large",
++	StatusRequestURITooLong:	"Request URI Too Long",
++	StatusUnsupportedMediaType:	"Unsupported Media Type",
++	StatusRequestedRangeNotSatisfiable:	"Requested Range Not Satisfiable",
++	StatusExpectationFailed:	"Expectation Failed",
++
++	StatusInternalServerError:	"Internal Server Error",
++	StatusNotImplemented:		"Not Implemented",
++	StatusBadGateway:		"Bad Gateway",
++	StatusServiceUnavailable:	"Service Unavailable",
++	StatusGatewayTimeout:		"Gateway Timeout",
++	StatusHTTPVersionNotSupported:	"HTTP Version Not Supported",
++}
++
++// Create new connection from rwc.
++func newConn(rwc io.ReadWriteClose, raddr string, handler Handler) (c *Conn, err *os.Error) {
++	c = new(Conn);
++	c.Fd = rwc;
++	c.RemoteAddr = raddr;
++	c.handler = handler;
++	if c.br, err = bufio.NewBufRead(rwc.(io.Read)); err != nil {
++		return nil, err
++	}
++c.Br = c.br;
++	if c.bw, err = bufio.NewBufWrite(rwc); err != nil {
++		return nil, err
++	}
++	return c, nil
++}
++
++func (c *Conn) SetHeader(hdr, val string)
++
++// Read next request from connection.
++func (c *Conn) readRequest() (req *Request, err *os.Error) {
++	if req, err = ReadRequest(c.br); err != nil {
++		return nil, err
++	}
++
++	// Reset per-request connection state.
++	c.header = make(map[string] string);
++	c.wroteHeader = false;
++	c.flushed = false;
++	c.Req = req;
++
++	// Default output is HTML encoded in UTF-8.
++	c.SetHeader("Content-Type", "text/html; charset=utf-8");
++
++	if req.ProtoAtLeast(1, 1) {
++		// HTTP/1.1 or greater: use chunked transfer encoding
++		// to avoid closing the connection at EOF.
++		c.chunking = true;
++		c.SetHeader("Transfer-Encoding", "chunked");
++	} else {
++		// HTTP version < 1.1: cannot do chunked transfer
++		// encoding, so signal EOF by closing connection.
++		// Could avoid closing the connection if there is
++		// a Content-Length: header in the response,
++		// but everyone who expects persistent connections
++		// does HTTP/1.1 now.
++		c.close = true;
++		c.chunking = false;
++	}
++
++	return req, nil
++}
++
++func (c *Conn) SetHeader(hdr, val string) {
++	c.header[CanonicalHeaderKey(hdr)] = val;
++}
++
++// Write header.
++func (c *Conn) WriteHeader(code int) {
++	if c.wroteHeader {
++		// TODO(rsc): log
++		return
++	}
++	c.wroteHeader = true;
++	if !c.Req.ProtoAtLeast(1, 0) {
++		return
++	}
++	proto := "HTTP/1.0";
++	if c.Req.ProtoAtLeast(1, 1) {
++		proto = "HTTP/1.1";
++	}
++	codestring := strconv.Itoa(code);
++	text, ok := statusText[code];
++	if !ok {
++		text = "status code " + codestring;
++	}
++	io.WriteString(c.bw, proto + " " + codestring + " " + text + "\r\n");
++	for k,v := range c.header {
++		io.WriteString(c.bw, k + ": " + v + "\r\n");
++	}
++	io.WriteString(c.bw, "\r\n");
++}
++
++// TODO(rsc): BUG in 6g: must return "nn int" not "n int"
++// so that the implicit struct assignment in
++// return c.bw.Write(data) works.  oops
++func (c *Conn) Write(data []byte) (nn int, err *os.Error) {
++	if c.flushed {
++		return 0, ErrWriteAfterFlush
++	}
++	if !c.wroteHeader {
++		c.WriteHeader(StatusOK);
++	}
++	if len(data) == 0 {
++		return 0, nil
++	}
++
++	// TODO(rsc): if chunking happened after the buffering,
++	// then there would be fewer chunk headers
++	if c.chunking {
++		fmt.Fprintf(c.bw, "%x\r\n", len(data));	// TODO(rsc): use strconv not fmt
++	}
++	return c.bw.Write(data);
++}
++
++func (c *Conn) Flush() {
++	if c.flushed {
+ 		return
+ 	}
++	if !c.wroteHeader {
++		c.WriteHeader(StatusOK);
++	}
++	if c.chunking {
++		io.WriteString(c.bw, "0\r\n");
++		// trailer key/value pairs, followed by blank line
++		io.WriteString(c.bw, "\r\n");
++	}
++	c.bw.Flush();
++	c.flushed = true;
++}
++
++// Close the connection.
++func (c *Conn) Close() {
++	if c.bw != nil {
++		c.bw.Flush();
++		c.bw = nil;
++	}
++	if c.Fd != nil {
++		c.Fd.Close();
++		c.Fd = nil;
++	}
++}
++
++// Serve a new connection.
++func (c *Conn) serve() {
+ 	for {
+-		req, err := c.ReadRequest();
++		req, err := c.readRequest();
+ 		if err != nil {
+ 			break
+ 		}
+-		f(c, req);
++		// HTTP cannot have multiple simultaneous active requests.
++		// Until the server replies to this request, it can't read another,
++		// so we might as well run the handler in this thread.
++		c.handler.ServeHTTP(c, req);
++		if c.Fd == nil {
++			// Handler took over the connection.
++			return;
++		}
++		if !c.flushed {
++			c.Flush();
++		}
+ 		if c.close {
+-			break
++			break;
+ 		}
+ 	}
+ 	c.Close();
+ }
+ 
+-// Web server: already listening on l, call f for each request.
+-func Serve(l net.Listener, f func(*Conn, *Request)) *os.Error {
+-	// TODO: Make this unnecessary
+-	s, e := os.Getenv("GOMAXPROCS");
+-	if n, ok := strconv.Atoi(s); n < 3 {
+-		print("Warning: $GOMAXPROCS needs to be at least 3.\n");
++// Adapter: can use RequestFunction(f) as Handler
++type handlerFunc struct {
++	f func(*Conn, *Request)
++}
++func (h handlerFunc) ServeHTTP(c *Conn, req *Request) {
++	h.f(c, req)
++}
++func HandlerFunc(f func(*Conn, *Request)) Handler {
++	return handlerFunc{f}
++}
++
++/* simpler version of above, not accepted by 6g:
++
++type HandlerFunc func(*Conn, *Request)
++func (f HandlerFunc) ServeHTTP(c *Conn, req *Request) {
++	f(c, req);
++}
++*/
++
++// Helper handlers
++
++// 404 not found
++func notFound(c *Conn, req *Request) {
++	c.SetHeader("Content-Type", "text/plain; charset=utf-8");
++	c.WriteHeader(StatusNotFound);
++	io.WriteString(c, "404 page not found\n");
++}
++
++var NotFoundHandler = HandlerFunc(notFound)
++
++// Redirect to a fixed URL
++type redirectHandler struct {
++	to string;
++}
++func (h *redirectHandler) ServeHTTP(c *Conn, req *Request) {
++	c.SetHeader("Location", h.to);
++	c.WriteHeader(StatusMovedPermanently);
++}
++
++func RedirectHandler(to string) Handler {
++	return &redirectHandler{to};
++}
++
++// Path-based HTTP request multiplexer.
++// Patterns name fixed paths, like "/favicon.ico",
++// or subtrees, like "/images/".
++// For now, patterns must begin with /.
++// Eventually, might want to allow host name
++// at beginning of pattern, so that you could register
++//	/codesearch
++//	codesearch.google.com/
++// but not take over /.
++
++type ServeMux struct {
++	m map[string] Handler
++}
++
++func NewServeMux() *ServeMux {
++	return &ServeMux{make(map[string] Handler)};
++}
++
++var DefaultServeMux = NewServeMux();
++
++// Does path match pattern?
++func pathMatch(pattern, path string) bool {
++	if len(pattern) == 0 {
++		// should not happen
++		return false
++	}
++	n := len(pattern);
++	if pattern[n-1] != '/' {
++		return pattern == path
+ 	}
++	return len(path) >= n && path[0:n] == pattern;
++}
++
++func (mux *ServeMux) ServeHTTP(c *Conn, req *Request) {
++	// Most-specific (longest) pattern wins.
++	var h Handler;
++	var n = 0;
++	for k, v := range mux.m {
++		if !pathMatch(k, req.Url.Path) {
++			continue;
++		}
++		if h == nil || len(k) > n {
++			n = len(k);
++			h = v;
++		}
++	}
++	if h == nil {
++		h = NotFoundHandler;
++	}
++	h.ServeHTTP(c, req);
++}
+ 
++func (mux *ServeMux) Handle(pattern string, handler Handler) {
++	if pattern == "" || pattern[0] != '/' {
++		panicln("http: invalid pattern", pattern);
++	}
++
++	mux.m[pattern] = handler;
++
++	// Helpful behavior:
++	// If pattern is /tree/, insert redirect for /tree.
++	n := len(pattern);
++	if n > 0 && pattern[n-1] == '/' {
++		mux.m[pattern[0:n-1]] = RedirectHandler(pattern);
++	}
++}
++
++func Handle(pattern string, h Handler) {
++	DefaultServeMux.Handle(pattern, h);
++}
++
++
++// Web server: listening on l, call handler.ServeHTTP for each request.
++func Serve(l net.Listener, handler Handler) *os.Error {
++	if handler == nil {
++		handler = DefaultServeMux;
++	}
+ 	for {
+ 		rw, raddr, e := l.Accept();
+ 		if e != nil {
+ 			return e
+ 		}
+-		go serveConnection(rw, raddr, f)
++		c, err := newConn(rw, raddr, handler);
++		if err != nil {
++			continue;
++		}
++		go c.serve();
+ 	}
+ 	panic("not reached")
+ }
+ 
+ // Web server: listen on address, call f for each request.
+-func ListenAndServe(addr string, f func(*Conn, *Request)) *os.Error {
++func ListenAndServe(addr string, handler Handler) *os.Error {
+ 	l, e := net.Listen("tcp", addr);
+ 	if e != nil {
+ 		return e
+ 	}
+-	e = Serve(l, f);
++	e = Serve(l, handler);
+ 	l.Close();
+ 	return e
+ }
++
+diff --git a/src/lib/http/triv.go b/src/lib/http/triv.go
+index a7eb35aa2b..136100135a 100644
+--- a/src/lib/http/triv.go
++++ b/src/lib/http/triv.go
+@@ -5,24 +5,52 @@
+ package main
+ 
+ import (
+-	"io";
+ 	"bufio";
+-	"os";
++	"flag";
++	"fmt";
++	"http";
++	"io";
+ 	"net";
+-	"http"
++	"os";
+ )
+ 
+-func Echo(conn *http.Conn, req *http.Request) {
+-	fd := conn.bw;
+-	conn.close = true;
+-	io.WriteString(fd, "HTTP/1.1 200 OK\r\n"
+-		"Content-Type: text/plain\r\n"
+-		"\r\n");
+-	io.WriteString(fd, req.method+" "+req.rawurl+" "+req.proto+"\r\n")
++
++// hello world, the web server
++func HelloServer(c *http.Conn, req *http.Request) {
++	io.WriteString(c, "hello, world!\n");
++}
++
++// simple counter server
++type Counter struct {
++	n int;
++}
++
++func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
++	fmt.Fprintf(c, "counter = %d\n", ctr.n);
++	ctr.n++;
++}
++
++// simple file server
++var webroot = flag.String("root", "/home/rsc", "web root directory")
++func FileServer(c *http.Conn, req *http.Request) {
++	c.SetHeader("content-type", "text/plain; charset=utf-8");
++	path := *webroot + req.Url.Path;	// TODO: insecure: use os.CleanName
++	fd, err := os.Open(path, os.O_RDONLY, 0);
++	if err != nil {
++		c.WriteHeader(http.StatusNotFound);
++		fmt.Fprintf(c, "open %s: %v\n", path, err);
++		return;
++	}
++	n, err1 := io.Copy(fd, c);
++	fmt.Fprintf(c, "[%d bytes]\n", n);
+ }
+ 
+ func main() {
+-	err := http.ListenAndServe("0.0.0.0:12345", &Echo);
++	flag.Parse();
++	http.Handle("/counter", new(Counter));
++	http.Handle("/go/", http.HandlerFunc(FileServer));
++	http.Handle("/go/hello", http.HandlerFunc(HelloServer));
++	err := http.ListenAndServe(":12345", nil);
+ 	if err != nil {
+ 		panic("ListenAndServe: ", err.String())
+ 	}
+diff --git a/src/lib/http/url.go b/src/lib/http/url.go
+index 9c1a94e2b9..f0a94d68bc 100644
+--- a/src/lib/http/url.go
++++ b/src/lib/http/url.go
+@@ -77,15 +77,15 @@ func URLUnescape(s string) (string, *os.Error) {
+ }
+ 
+ type URL struct {
+-	raw string;
+-	scheme string;
+-	rawpath string;
+-	authority string;
+-	userinfo string;
+-	host string;
+-	path string;
+-	query string;
+-	fragment string;
++	Raw string;
++	Scheme string;
++	RawPath string;
++	Authority string;
++	Userinfo string;
++	Host string;
++	Path string;
++	Query string;
++	Fragment string;
+ }
+ 
+ // Maybe rawurl is of the form scheme:path.
+@@ -132,39 +132,39 @@ func ParseURL(rawurl string) (url *URL, err *os.Error) {
+ 		return nil, BadURL
+ 	}
+ 	url = new(URL);
+-	url.raw = rawurl;
++	url.Raw = rawurl;
+ 
+ 	// split off possible leading "http:", "mailto:", etc.
+ 	var path string;
+-	if url.scheme, path, err = getscheme(rawurl); err != nil {
++	if url.Scheme, path, err = getscheme(rawurl); err != nil {
+ 		return nil, err
+ 	}
+-	url.rawpath = path;
++	url.RawPath = path;
+ 
+ 	// RFC 2396: a relative URI (no scheme) has a ?query,
+ 	// but absolute URIs only have query if path begins with /
+-	if url.scheme == "" || len(path) > 0 && path[0] == '/' {
+-		path, url.query = split(path, '?', true);
+-		if url.query, err = URLUnescape(url.query); err != nil {
++	if url.Scheme == "" || len(path) > 0 && path[0] == '/' {
++		path, url.Query = split(path, '?', true);
++		if url.Query, err = URLUnescape(url.Query); err != nil {
+ 			return nil, err
+ 		}
+ 	}
+ 
+ 	// Maybe path is //authority/path
+ 	if len(path) > 2 && path[0:2] == "//" {
+-		url.authority, path = split(path[2:len(path)], '/', false);
++		url.Authority, path = split(path[2:len(path)], '/', false);
+ 	}
+ 
+ 	// If there's no @, split's default is wrong.  Check explicitly.
+-	if strings.Index(url.authority, "@") < 0 {
+-		url.host = url.authority;
++	if strings.Index(url.Authority, "@") < 0 {
++		url.Host = url.Authority;
+ 	} else {
+-		url.userinfo, url.host = split(url.authority, '@', true);
++		url.Userinfo, url.Host = split(url.Authority, '@', true);
+ 	}
+ 
+ 	// What's left is the path.
+ 	// TODO: Canonicalize (remove . and ..)?
+-	if url.path, err = URLUnescape(path); err != nil {
++	if url.Path, err = URLUnescape(path); err != nil {
+ 		return nil, err
+ 	}
+ 
+@@ -178,7 +178,7 @@ func ParseURLReference(rawurlref string) (url *URL, err *os.Error) {
+ 	if url, err = ParseURL(rawurl); err != nil {
+ 		return nil, err
+ 	}
+-	if url.fragment, err = URLUnescape(frag); err != nil {
++	if url.Fragment, err = URLUnescape(frag); err != nil {
+ 		return nil, err
+ 	}
+ 	return url, nil

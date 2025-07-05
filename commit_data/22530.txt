@@ -8,7 +8,430 @@ Date:   Thu Mar 19 16:43:28 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/7851
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/internal/gc/mparith1.go | 153 +---------------------------------
  src/cmd/internal/gc/mparith2.go | 180 ----------------------------------------
  2 files changed, 2 insertions(+), 331 deletions(-)
+
+diff --git a/src/cmd/internal/gc/mparith1.go b/src/cmd/internal/gc/mparith1.go
+index 7d9051551f..b3435e54dd 100644
+--- a/src/cmd/internal/gc/mparith1.go
++++ b/src/cmd/internal/gc/mparith1.go
+@@ -33,25 +33,10 @@ func Mpcmpfixfix(a, b *Mpint) int {
+ 	return a.Val.Cmp(&b.Val)
+ }
+ 
+-func _Mpcmpfixfix(a *Mpfix, b *Mpfix) int {
+-	var c Mpfix
+-
+-	_mpmovefixfix(&c, a)
+-	_mpsubfixfix(&c, b)
+-	return mptestfix(&c)
+-}
+-
+ func mpcmpfixc(b *Mpint, c int64) int {
+ 	return b.Val.Cmp(big.NewInt(c))
+ }
+ 
+-func _mpcmpfixc(b *Mpfix, c int64) int {
+-	var c1 Mpfix
+-
+-	_Mpmovecfix(&c1, c)
+-	return _Mpcmpfixfix(b, &c1)
+-}
+-
+ func mpcmpfltflt(a *Mpflt, b *Mpflt) int {
+ 	var c Mpflt
+ 
+@@ -220,6 +205,8 @@ func _Mpmovefixflt(a *Mpflt, b *Mpfix) {
+ 	mpnorm(a)
+ }
+ 
++// convert (truncate) b to a.
++// return -1 (but still convert) if b was non-integer.
+ func mpexactfltfix(a *Mpint, b *Mpflt) int {
+ 	mpmovefixint(a, &b.Val) // *a = b.Val
+ 	Mpshiftfix(a, int(b.Exp))
+@@ -236,24 +223,6 @@ func mpexactfltfix(a *Mpint, b *Mpflt) int {
+ 	return 0
+ }
+ 
+-// convert (truncate) b to a.
+-// return -1 (but still convert) if b was non-integer.
+-func _mpexactfltfix(a *Mpfix, b *Mpflt) int {
+-	*a = b.Val
+-	_Mpshiftfix(a, int(b.Exp))
+-	if b.Exp < 0 {
+-		var f Mpflt
+-		f.Val = *a
+-		f.Exp = 0
+-		mpnorm(&f)
+-		if mpcmpfltflt(b, &f) != 0 {
+-			return -1
+-		}
+-	}
+-
+-	return 0
+-}
+-
+ func mpmovefltfix(a *Mpint, b *Mpflt) int {
+ 	if mpexactfltfix(a, b) == 0 {
+ 		return 0
+@@ -284,36 +253,6 @@ func mpmovefltfix(a *Mpint, b *Mpflt) int {
+ 	return -1
+ }
+ 
+-func _mpmovefltfix(a *Mpfix, b *Mpflt) int {
+-	if _mpexactfltfix(a, b) == 0 {
+-		return 0
+-	}
+-
+-	// try rounding down a little
+-	f := *b
+-
+-	f.Val.A[0] = 0
+-	if _mpexactfltfix(a, &f) == 0 {
+-		return 0
+-	}
+-
+-	// try rounding up a little
+-	for i := 1; i < Mpprec; i++ {
+-		f.Val.A[i]++
+-		if f.Val.A[i] != Mpbase {
+-			break
+-		}
+-		f.Val.A[i] = 0
+-	}
+-
+-	mpnorm(&f)
+-	if _mpexactfltfix(a, &f) == 0 {
+-		return 0
+-	}
+-
+-	return -1
+-}
+-
+ func mpmovefixfix(a, b *Mpint) {
+ 	a.Val.Set(&b.Val)
+ }
+@@ -606,94 +545,6 @@ func mpatofix(a *Mpint, as string) {
+ 	}
+ }
+ 
+-//
+-// fixed point input
+-// required syntax is [+-][0[x]]d*
+-//
+-func _mpatofix(a *Mpfix, as string) {
+-	var c int
+-
+-	s := as
+-	f := 0
+-	_Mpmovecfix(a, 0)
+-
+-	c, s = intstarstringplusplus(s)
+-	switch c {
+-	case '-':
+-		f = 1
+-		fallthrough
+-
+-	case '+':
+-		c, s = intstarstringplusplus(s)
+-		if c != '0' {
+-			break
+-		}
+-		fallthrough
+-
+-	case '0':
+-		var c int
+-		c, s = intstarstringplusplus(s)
+-		if c == 'x' || c == 'X' {
+-			s0 := s
+-			var c int
+-			c, _ = intstarstringplusplus(s)
+-			for c != 0 {
+-				if (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') {
+-					s = s[1:]
+-					c, _ = intstarstringplusplus(s)
+-					continue
+-				}
+-
+-				Yyerror("malformed hex constant: %s", as)
+-				goto bad
+-			}
+-
+-			mphextofix(a, s0)
+-			if a.Ovf != 0 {
+-				Yyerror("constant too large: %s", as)
+-				goto bad
+-			}
+-			goto out
+-		}
+-		for c != 0 {
+-			if c >= '0' && c <= '7' {
+-				mpmulcfix(a, 8)
+-				mpaddcfix(a, int64(c)-'0')
+-				c, s = intstarstringplusplus(s)
+-				continue
+-			}
+-
+-			Yyerror("malformed octal constant: %s", as)
+-			goto bad
+-		}
+-
+-		goto out
+-	}
+-
+-	for c != 0 {
+-		if c >= '0' && c <= '9' {
+-			mpmulcfix(a, 10)
+-			mpaddcfix(a, int64(c)-'0')
+-			c, s = intstarstringplusplus(s)
+-			continue
+-		}
+-
+-		Yyerror("malformed decimal constant: %s", as)
+-		goto bad
+-	}
+-
+-	goto out
+-
+-out:
+-	if f != 0 {
+-		_mpnegfix(a)
+-	}
+-	return
+-
+-bad:
+-	_Mpmovecfix(a, 0)
+-}
+-
+ func Bconv(xval *Mpint, flag int) string {
+ 	if flag&obj.FmtSharp != 0 {
+ 		return fmt.Sprintf("%#x", &xval.Val)
+diff --git a/src/cmd/internal/gc/mparith2.go b/src/cmd/internal/gc/mparith2.go
+index f0a3742bcd..80253dd85c 100644
+--- a/src/cmd/internal/gc/mparith2.go
++++ b/src/cmd/internal/gc/mparith2.go
+@@ -420,40 +420,6 @@ func mporfixfix(a, b *Mpint) {
+ 	a.Val.Or(&a.Val, &b.Val)
+ }
+ 
+-func _mporfixfix(a *Mpfix, b *Mpfix) {
+-	x := 0
+-	if a.Ovf != 0 || b.Ovf != 0 {
+-		if nsavederrors+nerrors == 0 {
+-			Yyerror("ovf in mporfixfix")
+-		}
+-		_Mpmovecfix(a, 0)
+-		a.Ovf = 1
+-		return
+-	}
+-
+-	if a.Neg != 0 {
+-		a.Neg = 0
+-		mpneg(a)
+-	}
+-
+-	if b.Neg != 0 {
+-		mpneg(b)
+-	}
+-
+-	for i := 0; i < Mpprec; i++ {
+-		x = a.A[i] | b.A[i]
+-		a.A[i] = x
+-	}
+-
+-	if b.Neg != 0 {
+-		mpneg(b)
+-	}
+-	if x&Mpsign != 0 {
+-		a.Neg = 1
+-		mpneg(a)
+-	}
+-}
+-
+ func mpandfixfix(a, b *Mpint) {
+ 	if a.Ovf || b.Ovf {
+ 		if nsavederrors+nerrors == 0 {
+@@ -466,40 +432,6 @@ func mpandfixfix(a, b *Mpint) {
+ 	a.Val.And(&a.Val, &b.Val)
+ }
+ 
+-func _mpandfixfix(a *Mpfix, b *Mpfix) {
+-	x := 0
+-	if a.Ovf != 0 || b.Ovf != 0 {
+-		if nsavederrors+nerrors == 0 {
+-			Yyerror("ovf in mpandfixfix")
+-		}
+-		_Mpmovecfix(a, 0)
+-		a.Ovf = 1
+-		return
+-	}
+-
+-	if a.Neg != 0 {
+-		a.Neg = 0
+-		mpneg(a)
+-	}
+-
+-	if b.Neg != 0 {
+-		mpneg(b)
+-	}
+-
+-	for i := 0; i < Mpprec; i++ {
+-		x = a.A[i] & b.A[i]
+-		a.A[i] = x
+-	}
+-
+-	if b.Neg != 0 {
+-		mpneg(b)
+-	}
+-	if x&Mpsign != 0 {
+-		a.Neg = 1
+-		mpneg(a)
+-	}
+-}
+-
+ func mpandnotfixfix(a, b *Mpint) {
+ 	if a.Ovf || b.Ovf {
+ 		if nsavederrors+nerrors == 0 {
+@@ -512,40 +444,6 @@ func mpandnotfixfix(a, b *Mpint) {
+ 	a.Val.AndNot(&a.Val, &b.Val)
+ }
+ 
+-func _mpandnotfixfix(a *Mpfix, b *Mpfix) {
+-	x := 0
+-	if a.Ovf != 0 || b.Ovf != 0 {
+-		if nsavederrors+nerrors == 0 {
+-			Yyerror("ovf in mpandnotfixfix")
+-		}
+-		_Mpmovecfix(a, 0)
+-		a.Ovf = 1
+-		return
+-	}
+-
+-	if a.Neg != 0 {
+-		a.Neg = 0
+-		mpneg(a)
+-	}
+-
+-	if b.Neg != 0 {
+-		mpneg(b)
+-	}
+-
+-	for i := 0; i < Mpprec; i++ {
+-		x = a.A[i] &^ b.A[i]
+-		a.A[i] = x
+-	}
+-
+-	if b.Neg != 0 {
+-		mpneg(b)
+-	}
+-	if x&Mpsign != 0 {
+-		a.Neg = 1
+-		mpneg(a)
+-	}
+-}
+-
+ func mpxorfixfix(a, b *Mpint) {
+ 	if a.Ovf || b.Ovf {
+ 		if nsavederrors+nerrors == 0 {
+@@ -558,40 +456,6 @@ func mpxorfixfix(a, b *Mpint) {
+ 	a.Val.Xor(&a.Val, &b.Val)
+ }
+ 
+-func _mpxorfixfix(a *Mpfix, b *Mpfix) {
+-	x := 0
+-	if a.Ovf != 0 || b.Ovf != 0 {
+-		if nsavederrors+nerrors == 0 {
+-			Yyerror("ovf in mporfixfix")
+-		}
+-		_Mpmovecfix(a, 0)
+-		a.Ovf = 1
+-		return
+-	}
+-
+-	if a.Neg != 0 {
+-		a.Neg = 0
+-		mpneg(a)
+-	}
+-
+-	if b.Neg != 0 {
+-		mpneg(b)
+-	}
+-
+-	for i := 0; i < Mpprec; i++ {
+-		x = a.A[i] ^ b.A[i]
+-		a.A[i] = x
+-	}
+-
+-	if b.Neg != 0 {
+-		mpneg(b)
+-	}
+-	if x&Mpsign != 0 {
+-		a.Neg = 1
+-		mpneg(a)
+-	}
+-}
+-
+ func mplshfixfix(a, b *Mpint) {
+ 	if a.Ovf || b.Ovf {
+ 		if nsavederrors+nerrors == 0 {
+@@ -611,26 +475,6 @@ func mplshfixfix(a, b *Mpint) {
+ 	Mpshiftfix(a, int(s))
+ }
+ 
+-func _mplshfixfix(a *Mpfix, b *Mpfix) {
+-	if a.Ovf != 0 || b.Ovf != 0 {
+-		if nsavederrors+nerrors == 0 {
+-			Yyerror("ovf in mplshfixfix")
+-		}
+-		_Mpmovecfix(a, 0)
+-		a.Ovf = 1
+-		return
+-	}
+-
+-	s := _Mpgetfix(b)
+-	if s < 0 || s >= Mpprec*Mpscale {
+-		Yyerror("stupid shift: %d", s)
+-		_Mpmovecfix(a, 0)
+-		return
+-	}
+-
+-	_Mpshiftfix(a, int(s))
+-}
+-
+ func mprshfixfix(a, b *Mpint) {
+ 	if a.Ovf || b.Ovf {
+ 		if nsavederrors+nerrors == 0 {
+@@ -654,30 +498,6 @@ func mprshfixfix(a, b *Mpint) {
+ 	Mpshiftfix(a, int(-s))
+ }
+ 
+-func _mprshfixfix(a *Mpfix, b *Mpfix) {
+-	if a.Ovf != 0 || b.Ovf != 0 {
+-		if nsavederrors+nerrors == 0 {
+-			Yyerror("ovf in mprshfixfix")
+-		}
+-		_Mpmovecfix(a, 0)
+-		a.Ovf = 1
+-		return
+-	}
+-
+-	s := _Mpgetfix(b)
+-	if s < 0 || s >= Mpprec*Mpscale {
+-		Yyerror("stupid shift: %d", s)
+-		if a.Neg != 0 {
+-			_Mpmovecfix(a, -1)
+-		} else {
+-			_Mpmovecfix(a, 0)
+-		}
+-		return
+-	}
+-
+-	_Mpshiftfix(a, int(-s))
+-}
+-
+ func mpnegfix(a *Mpint) {
+ 	a.Val.Neg(&a.Val)
+ }

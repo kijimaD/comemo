@@ -7,7 +7,37 @@ Date:   Tue May 26 16:06:03 2009 -0700
     R=ken
     OCL=29407
     CL=29407
-
+---
  test/{bugs => fixedbugs}/bug150.go | 0
  test/golden.out                    | 7 +------
  2 files changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/test/bugs/bug150.go b/test/fixedbugs/bug150.go
+similarity index 100%
+rename from test/bugs/bug150.go
+rename to test/fixedbugs/bug150.go
+diff --git a/test/golden.out b/test/golden.out
+index 22b46b29b6..d5636da64b 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -27,8 +27,7 @@ panic PC=xxx
+ hello, world
+ 
+ =========== ./initializerr.go
+-BUG: errchk: ./initializerr.go:15: missing expected error: 'duplicate'
+-errchk: ./initializerr.go:17: missing expected error: 'index'
++BUG: errchk: ./initializerr.go:17: missing expected error: 'index'
+ 
+ =========== ./peano.go
+ 0! = 1
+@@ -109,10 +108,6 @@ BUG: should crash
+ bugs/bug149.go:14: cannot convert []uint8 constant to string
+ BUG: should compile
+ 
+-=========== bugs/bug150.go
+-bugs/bug150.go:13: reorder2: too many function calls evaluating parameters
+-BUG: bug150
+-
+ =========== bugs/bug151.go
+ bugs/bug151.go:10: illegal types for operand: CALL
+ 	string

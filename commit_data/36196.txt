@@ -14,9 +14,207 @@ Date:   Fri Jan 26 08:15:49 2018 +0000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64.s      | 28 +++++++++++
  src/cmd/asm/internal/asm/testdata/arm64error.s |  2 +
  src/cmd/internal/obj/arm64/asm7.go             | 68 ++++++++++++++++++++------
  src/cmd/internal/obj/arm64/doc.go              |  9 +++-
  4 files changed, 90 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index 0860cbbf22..2eeaa971f5 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -107,6 +107,34 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ 	MOVD	(R2)(R6<<3), R4                 // 447866f8
+ 	MOVD	(R3)(R7.SXTX<<3), R8            // 68f867f8
+ 	MOVWU	(R5)(R4.UXTW), R10              // aa4864b8
++	MOVBU	(R3)(R9.UXTW), R8               // 68486938
++	MOVBU	(R5)(R8), R10                   // MOVBU	(R5)(R8*1), R10         // aa686838
++	MOVHU	(R2)(R7.SXTW<<1), R11           // 4bd86778
++	MOVHU	(R1)(R2<<1), R5                 // 25786278
++	MOVB	(R9)(R3.UXTW), R6               // 2649a338
++	MOVB	(R10)(R6), R15                  // MOVB	(R10)(R6*1), R15                // 4f69a638
++	MOVH	(R5)(R7.SXTX<<1), R18           // b2f8a778
++	MOVH	(R8)(R4<<1), R10                // 0a79a478
++	MOVW	(R9)(R8.SXTW<<2), R19           // 33d9a8b8
++	MOVW	(R1)(R4.SXTX), R11              // 2be8a4b8
++	MOVW	(R1)(R4.SXTX), ZR               // 3fe8a4b8
++	MOVW	(R2)(R5), R12                   // MOVW	(R2)(R5*1), R12                  // 4c68a5b8
++	MOVD	R5, (R2)(R6<<3)                 // 457826f8
++	MOVD	R9, (R6)(R7.SXTX<<3)            // c9f827f8
++	MOVD	ZR, (R6)(R7.SXTX<<3)            // dff827f8
++	MOVW	R8, (R2)(R3.UXTW<<2)            // 485823b8
++	MOVW	R7, (R3)(R4.SXTW)               // 67c824b8
++	MOVB	R4, (R2)(R6.SXTX)               // 44e82638
++	MOVB	R8, (R3)(R9.UXTW)               // 68482938
++	MOVB	R10, (R5)(R8)                   // MOVB	R10, (R5)(R8*1)                  // aa682838
++	MOVH	R11, (R2)(R7.SXTW<<1)           // 4bd82778
++	MOVH	R5, (R1)(R2<<1)                 // 25782278
++	MOVH	R7, (R2)(R5.SXTX<<1)            // 47f82578
++	MOVH	R8, (R3)(R6.UXTW)               // 68482678
++	MOVB	(R29)(R30<<0), R14              // ae7bbe38
++	MOVB	(R29)(R30), R14                 // MOVB	(R29)(R30*1), R14                // ae6bbe38
++	MOVB	R4, (R2)(R6.SXTX)               // 44e82638
++
+ //	LTYPE1 imsr ',' spreg ','
+ //	{
+ //		outcode($1, &$2, $4, &nullgen);
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64error.s b/src/cmd/asm/internal/asm/testdata/arm64error.s
+index 4a1142e8a8..6f27af2f89 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64error.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64error.s
+@@ -14,6 +14,8 @@ TEXT errors(SB),$0
+ 	MOVD	(R3)(R7.SXTX<<2), R8                             // ERROR "invalid index shift amount"
+ 	MOVWU	(R5)(R4.UXTW<<3), R10                            // ERROR "invalid index shift amount"
+ 	MOVWU	(R5)(R4<<1), R10                                 // ERROR "invalid index shift amount"
++	MOVB	(R5)(R4.SXTW<<5), R10                            // ERROR "invalid index shift amount"
++	MOVH	R5, (R6)(R2<<3)                                  // ERROR "invalid index shift amount"
+ 	VLD1	(R8)(R13), [V2.B16]                              // ERROR "illegal combination"
+ 	VLD1	8(R9), [V2.B16]                                  // ERROR "illegal combination"
+ 	VST1	[V1.B16], (R8)(R13)                              // ERROR "illegal combination"
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 85eb5fe532..b8def184de 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -448,6 +448,15 @@ var optab = []Optab{
+ 	/* load with shifted or extended register offset */
+ 	{AMOVD, C_ROFF, C_NONE, C_REG, 98, 4, 0, 0, 0},
+ 	{AMOVW, C_ROFF, C_NONE, C_REG, 98, 4, 0, 0, 0},
++	{AMOVH, C_ROFF, C_NONE, C_REG, 98, 4, 0, 0, 0},
++	{AMOVB, C_ROFF, C_NONE, C_REG, 98, 4, 0, 0, 0},
++	{AMOVBU, C_ROFF, C_NONE, C_REG, 98, 4, 0, 0, 0},
++
++	/* store with extended register offset */
++	{AMOVD, C_REG, C_NONE, C_ROFF, 99, 4, 0, 0, 0},
++	{AMOVW, C_REG, C_NONE, C_ROFF, 99, 4, 0, 0, 0},
++	{AMOVH, C_REG, C_NONE, C_ROFF, 99, 4, 0, 0, 0},
++	{AMOVB, C_REG, C_NONE, C_ROFF, 99, 4, 0, 0, 0},
+ 
+ 	/* pre/post-indexed/signed-offset load/store register pair
+ 	   (unscaled, signed 10-bit quad-aligned and long offset) */
+@@ -2367,10 +2376,19 @@ func (c *ctxt7) checkoffset(p *obj.Prog, as obj.As) {
+ 
+ /* checkShiftAmount checks whether the index shift amount is valid */
+ /* for load with register offset instructions */
+-func (c *ctxt7) checkShiftAmount(p *obj.Prog, as obj.As) {
+-	amount := (p.From.Index >> 5) & 7
+-	switch as {
+-	case AMOVWU:
++func (c *ctxt7) checkShiftAmount(p *obj.Prog, a *obj.Addr) {
++	var amount int16
++	amount = (a.Index >> 5) & 7
++	switch p.As {
++	case AMOVB, AMOVBU:
++		if amount != 0 {
++			c.ctxt.Diag("invalid index shift amount: %v", p)
++		}
++	case AMOVH, AMOVHU:
++		if amount != 1 && amount != 0 {
++			c.ctxt.Diag("invalid index shift amount: %v", p)
++		}
++	case AMOVW, AMOVWU:
+ 		if amount != 2 && amount != 0 {
+ 			c.ctxt.Diag("invalid index shift amount: %v", p)
+ 		}
+@@ -2914,7 +2932,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			c.ctxt.Diag("REGTMP used in large offset store: %v", p)
+ 		}
+ 		o1 = c.omovlit(AMOVD, p, &p.To, REGTMP)
+-		o2 = c.olsxrr(p, int32(c.opstrr(p, p.As)), int(p.From.Reg), r, REGTMP)
++		o2 = c.olsxrr(p, int32(c.opstrr(p, p.As, false)), int(p.From.Reg), r, REGTMP)
+ 
+ 	case 31: /* movT L(R), R -> ldrT */
+ 		// if offset L can be split into hi+lo, and both fit into instructions, do
+@@ -4293,7 +4311,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 	case 98: /* MOVD (Rn)(Rm.SXTW[<<amount]),Rd */
+ 		if p.From.Offset != 0 {
+ 			// extended or shifted offset register.
+-			c.checkShiftAmount(p, p.As)
++			c.checkShiftAmount(p, &p.From)
+ 			o1 = c.opldrr(p, p.As, true)
+ 			o1 |= uint32(p.From.Offset) /* includes reg, op, etc */
+ 		} else {
+@@ -4303,10 +4321,23 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		}
+ 		o1 |= uint32(p.From.Reg&31) << 5
+ 		rt := int(p.To.Reg)
+-		if p.To.Type == obj.TYPE_NONE {
+-			rt = REGZERO
+-		}
+ 		o1 |= uint32(rt & 31)
++
++	case 99: /* MOVD Rt, (Rn)(Rm.SXTW[<<amount]) */
++		if p.To.Offset != 0 {
++			// extended or shifted offset register.
++			c.checkShiftAmount(p, &p.To)
++			o1 = c.opstrr(p, p.As, true)
++			o1 |= uint32(p.To.Offset) /* includes reg, op, etc */
++		} else {
++			// (Rn)(Rm), no extension or shift.
++			o1 = c.opstrr(p, p.As, false)
++			o1 |= uint32(p.To.Index&31) << 16
++		}
++		o1 |= uint32(p.To.Reg&31) << 5
++		rf := int(p.From.Reg)
++		o1 |= uint32(rf & 31)
++
+ 	}
+ 	out[0] = o1
+ 	out[1] = o2
+@@ -5668,20 +5699,25 @@ func (c *ctxt7) opldrr(p *obj.Prog, a obj.As, extension bool) uint32 {
+ 
+ // opstrr returns the ARM64 opcode encoding corresponding to the obj.As opcode
+ // for store instruction with register offset.
+-func (c *ctxt7) opstrr(p *obj.Prog, a obj.As) uint32 {
++// The offset register can be (Rn)(Rm.UXTW<<2) or (Rn)(Rm<<2) or (Rn)(Rm).
++func (c *ctxt7) opstrr(p *obj.Prog, a obj.As, extension bool) uint32 {
++	OptionS := uint32(0x1a)
++	if extension {
++		OptionS = uint32(0) // option value and S value have been encoded into p.To.Offset.
++	}
+ 	switch a {
+ 	case AMOVD:
+-		return 0x1a<<10 | 0x1<<21 | 0x1f<<27
++		return OptionS<<10 | 0x1<<21 | 0x1f<<27
+ 	case AMOVW, AMOVWU:
+-		return 0x1a<<10 | 0x1<<21 | 0x17<<27
++		return OptionS<<10 | 0x1<<21 | 0x17<<27
+ 	case AMOVH, AMOVHU:
+-		return 0x1a<<10 | 0x1<<21 | 0x0f<<27
++		return OptionS<<10 | 0x1<<21 | 0x0f<<27
+ 	case AMOVB, AMOVBU:
+-		return 0x1a<<10 | 0x1<<21 | 0x07<<27
++		return OptionS<<10 | 0x1<<21 | 0x07<<27
+ 	case AFMOVS:
+-		return 0x1a<<10 | 0x1<<21 | 0x17<<27 | 1<<26
++		return OptionS<<10 | 0x1<<21 | 0x17<<27 | 1<<26
+ 	case AFMOVD:
+-		return 0x1a<<10 | 0x1<<21 | 0x1f<<27 | 1<<26
++		return OptionS<<10 | 0x1<<21 | 0x1f<<27 | 1<<26
+ 	}
+ 	c.ctxt.Diag("bad opstrr %v\n%v", a, p)
+ 	return 0
+diff --git a/src/cmd/internal/obj/arm64/doc.go b/src/cmd/internal/obj/arm64/doc.go
+index 4e7cb0177e..0a7700f8ac 100644
+--- a/src/cmd/internal/obj/arm64/doc.go
++++ b/src/cmd/internal/obj/arm64/doc.go
+@@ -35,10 +35,17 @@ Go Assembly for ARM64 Reference Manual
+       LDXPW	(<Rn>), (<Rt1>, <Rt2>)
+         Loads two 32-bit words from memory, and writes them to Rt1 and Rt2.
+ 
+-    MOVD|MOVW: Load Register (register offset)
++    MOVD|MOVW|MOVH|MOVHU|MOVB|MOVBU: Load Register (register offset)
+       MOVD	(Rn)(Rm.UXTW<<3), Rt
+       MOVD	(Rn)(Rm.SXTX), Rt
++      MOVD	(Rn)(Rm<<3), Rt
+       MOVD	(Rn)(Rm), Rt
++      MOVB|MOVBU	(Rn)(Rm.UXTW), Rt
++
++    MOVD|MOVW|MOVH|MOVB: Stote Register (register offset)
++      MOVD	Rt, (Rn)(Rm.UXTW<<3)
++      MOVD	Rt, (Rn)(Rm.SXTX)
++      MOVD	Rt, (Rn)(Rm)
+ 
+     PRFM: Prefetch Memory (immediate)
+       PRFM	imm(Rn), <prfop>

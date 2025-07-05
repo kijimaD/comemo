@@ -11,7 +11,43 @@ Date:   Fri Aug 28 14:39:12 2009 -0700
     DELTA=9  (5 added, 2 deleted, 2 changed)
     OCL=34046
     CL=34053
-
+---
  usr/austin/eval/scope.go | 6 ++----
  usr/austin/eval/type.go  | 5 +++++
  2 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/usr/austin/eval/scope.go b/usr/austin/eval/scope.go
+index fd95530b1c..0f6f3a0d04 100644
+--- a/usr/austin/eval/scope.go
++++ b/usr/austin/eval/scope.go
+@@ -85,12 +85,10 @@ func (b *block) DefineType(name string, pos token.Position, t Type) Type {
+ 	if _, ok := b.defs[name]; ok {
+ 		return nil;
+ 	}
+-	// We take the representative type of t because multiple
+-	// levels of naming are useless.
++	nt := &NamedType{pos, name, nil, true, make(map[string] Method)};
+ 	if t != nil {
+-		t = t.lit();
++		nt.Complete(t);
+ 	}
+-	nt := &NamedType{pos, name, t, false, make(map[string] Method)};
+ 	b.defs[name] = nt;
+ 	return nt;
+ }
+diff --git a/usr/austin/eval/type.go b/usr/austin/eval/type.go
+index 457b18be75..6ac06df8ea 100644
+--- a/usr/austin/eval/type.go
++++ b/usr/austin/eval/type.go
+@@ -980,6 +980,11 @@ func (t *NamedType) Complete(def Type) {
+ 	if !t.incomplete {
+ 		log.Crashf("cannot complete already completed NamedType %+v", *t);
+ 	}
++	// We strip the name from def because multiple levels of
++	// naming are useless.
++	if ndef, ok := def.(*NamedType); ok {
++		def = ndef.Def;
++	}
+ 	t.Def = def;
+ 	t.incomplete = false;
+ }

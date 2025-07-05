@@ -7,7 +7,98 @@ Date:   Wed Oct 8 09:46:54 2008 -0700
     R=r
     OCL=16720
     CL=16728
-
+---
  src/all.bash | 38 +-------------------------------------
  src/run.bash | 38 ++++++++++++++++++++++++++++++++++++++
  2 files changed, 39 insertions(+), 37 deletions(-)
+
+diff --git a/src/all.bash b/src/all.bash
+index b9202e1118..006ac5965e 100755
+--- a/src/all.bash
++++ b/src/all.bash
+@@ -5,40 +5,4 @@
+ 
+ set -e
+ bash make.bash
+-
+-xcd() {
+-	builtin cd $1
+-	echo --- cd $1
+-}
+-
+-(xcd ../usr/gri/gosrc
+-make clean
+-time make
+-make test
+-)
+-
+-(xcd ../usr/gri/pretty
+-make clean
+-time make
+-make test
+-)
+-
+-(xcd ../usr/r/rpc
+-make clean
+-time make
+-chanrun
+-)
+-
+-(xcd ../usr/r/refl
+-rm -f *.6 6.out
+-6g refl.go
+-6g printf.go
+-6g main.go
+-6l main.6
+-6.out
+-)
+-
+-(xcd ../test
+-./run
+-)
+-
++bash run.bash
+diff --git a/src/run.bash b/src/run.bash
+new file mode 100755
+index 0000000000..cd33b891ed
+--- /dev/null
++++ b/src/run.bash
+@@ -0,0 +1,38 @@
++#!/bin/bash
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++set -e
++
++xcd() {
++	builtin cd $1
++	echo --- cd $1
++}
++
++(xcd ../usr/gri/gosrc
++make clean
++time make
++make test
++)
++
++(xcd ../usr/gri/pretty
++make clean
++time make
++make test
++)
++
++
++(xcd ../usr/r/refl
++rm -f *.6 6.out
++6g refl.go
++6g printf.go
++6g main.go
++6l main.6
++6.out
++)
++
++(xcd ../test
++./run
++)
++

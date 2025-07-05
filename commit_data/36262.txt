@@ -7,6 +7,21 @@ Date:   Sun Apr 15 23:03:12 2018 +0200
     Change-Id: Ia64535492515f725fe3c4b59ea300363a0c4ce10
     Reviewed-on: https://go-review.googlesource.com/107136
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  test/codegen/condmove.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/test/codegen/condmove.go b/test/codegen/condmove.go
+index 1f51505f61..32039c16ae 100644
+--- a/test/codegen/condmove.go
++++ b/test/codegen/condmove.go
+@@ -1,5 +1,9 @@
+ // asmcheck
+ 
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package codegen
+ 
+ func cmovint(c int) int {

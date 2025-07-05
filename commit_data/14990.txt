@@ -9,6 +9,36 @@ Date:   Fri Jan 25 23:07:21 2013 -0500
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/7232043
-
+---
  src/cmd/go/test.bash | 18 ++++++++++++++++++
  1 file changed, 18 insertions(+)
+
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index b3e72f0969..11e1f3b683 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -181,6 +181,24 @@ if [ $(GOPATH= ./testgo install 'foo/quxx' 2>&1 | egrep -c '\(\$GOPATH not set\)
+         ok=false
+ fi
+ 
++# issue 4186. go get cannot be used to download packages to $GOROOT
++# Test that without GOPATH set, go get should fail
++d=$(mktemp -d)
++mkdir -p $d/src/pkg
++if GOPATH= GOROOT=$d ./testgo get -d code.google.com/p/go.codereview/cmd/hgpatch ; then 
++	echo 'go get code.google.com/p/go.codereview/cmd/hgpatch should not succeed with $GOPATH unset'
++	ok=false
++fi	
++rm -rf $d
++# Test that with GOPATH=$GOROOT, go get should fail
++d=$(mktemp -d)
++mkdir -p $d/src/pkg
++if GOPATH=$d GOROOT=$d ./testgo get -d code.google.com/p/go.codereview/cmd/hgpatch ; then
++        echo 'go get code.google.com/p/go.codereview/cmd/hgpatch should not succeed with GOPATH=$GOROOT'
++        ok=false
++fi
++rm -rf $d
++
+ # clean up
+ rm -rf testdata/bin testdata/bin1
+ rm -f testgo

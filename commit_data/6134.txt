@@ -7,6 +7,54 @@ Date:   Tue Aug 31 11:00:43 2010 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/2050042
-
+---
  doc/talks/io2010/balance.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/doc/talks/io2010/balance.go b/doc/talks/io2010/balance.go
+index 6a0713831b..b01f7468c5 100644
+--- a/doc/talks/io2010/balance.go
++++ b/doc/talks/io2010/balance.go
+@@ -6,6 +6,7 @@ package main
+ 
+ import (
+ 	"container/heap"
++	"flag"
+ 	"fmt"
+ 	"rand"
+ 	"time"
+@@ -14,6 +15,8 @@ import (
+ const nRequester = 100
+ const nWorker = 10
+ 
++var roundRobin = flag.Bool("r", false, "use round-robin scheduling")
++
+ // Simulation of some work: just sleep for a while and report how long.
+ func op() int {
+ 	n := rand.Int63n(1e9)
+@@ -125,7 +128,7 @@ func (b *Balancer) print() {
+ }
+ 
+ func (b *Balancer) dispatch(req Request) {
+-	if false {
++	if *roundRobin {
+ 		w := b.pool[b.i]
+ 		w.requests <- req
+ 		w.pending++
+@@ -144,7 +147,7 @@ func (b *Balancer) dispatch(req Request) {
+ }
+ 
+ func (b *Balancer) completed(w *Worker) {
+-	if false {
++	if *roundRobin {
+ 		w.pending--
+ 		return
+ 	}
+@@ -156,6 +159,7 @@ func (b *Balancer) completed(w *Worker) {
+ }
+ 
+ func main() {
++	flag.Parse()
+ 	work := make(chan Request)
+ 	for i := 0; i < nRequester; i++ {
+ 		go requester(work)

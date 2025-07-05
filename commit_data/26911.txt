@@ -14,7 +14,7 @@ Date:   Wed Mar 2 07:59:49 2016 -0500
     Reviewed-on: https://go-review.googlesource.com/20108
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/link/internal/amd64/asm.go  | 12 +++----
  src/cmd/link/internal/arm/asm.go    | 12 +++----
  src/cmd/link/internal/arm64/asm.go  | 12 +++----
@@ -36,3 +36,1763 @@ Date:   Wed Mar 2 07:59:49 2016 -0500
  src/cmd/link/internal/x86/asm.go    | 16 ++++-----
  src/cmd/link/internal/x86/obj.go    |  2 +-
  20 files changed, 283 insertions(+), 253 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index eff9c032be..274e246fbc 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -43,7 +43,7 @@ func PADDR(x uint32) uint32 {
+ }
+ 
+ func Addcall(ctxt *ld.Link, s *ld.LSym, t *ld.LSym) int64 {
+-	s.Reachable = true
++	s.Attr |= ld.AttrReachable
+ 	i := s.Size
+ 	s.Size += 4
+ 	ld.Symgrow(ctxt, s, s.Size)
+@@ -65,11 +65,11 @@ func gentext() {
+ 		// an init function
+ 		return
+ 	}
+-	addmoduledata.Reachable = true
++	addmoduledata.Attr |= ld.AttrReachable
+ 	initfunc := ld.Linklookup(ld.Ctxt, "go.link.addmoduledata", 0)
+ 	initfunc.Type = obj.STEXT
+-	initfunc.Local = true
+-	initfunc.Reachable = true
++	initfunc.Attr |= ld.AttrLocal
++	initfunc.Attr |= ld.AttrReachable
+ 	o := func(op ...uint8) {
+ 		for _, op1 := range op {
+ 			ld.Adduint8(ld.Ctxt, initfunc, op1)
+@@ -93,8 +93,8 @@ func gentext() {
+ 	}
+ 	ld.Ctxt.Etextp = initfunc
+ 	initarray_entry := ld.Linklookup(ld.Ctxt, "go.link.addmoduledatainit", 0)
+-	initarray_entry.Reachable = true
+-	initarray_entry.Local = true
++	initarray_entry.Attr |= ld.AttrReachable
++	initarray_entry.Attr |= ld.AttrLocal
+ 	initarray_entry.Type = obj.SINITARR
+ 	ld.Addaddr(ld.Ctxt, initarray_entry, initfunc)
+ }
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index ca55512575..bb90cf77b6 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -68,11 +68,11 @@ func gentext() {
+ 		// an init function
+ 		return
+ 	}
+-	addmoduledata.Reachable = true
++	addmoduledata.Attr |= ld.AttrReachable
+ 	initfunc := ld.Linklookup(ld.Ctxt, "go.link.addmoduledata", 0)
+ 	initfunc.Type = obj.STEXT
+-	initfunc.Local = true
+-	initfunc.Reachable = true
++	initfunc.Attr |= ld.AttrLocal
++	initfunc.Attr |= ld.AttrReachable
+ 	o := func(op uint32) {
+ 		ld.Adduint32(ld.Ctxt, initfunc, op)
+ 	}
+@@ -102,8 +102,8 @@ func gentext() {
+ 	}
+ 	ld.Ctxt.Etextp = initfunc
+ 	initarray_entry := ld.Linklookup(ld.Ctxt, "go.link.addmoduledatainit", 0)
+-	initarray_entry.Reachable = true
+-	initarray_entry.Local = true
++	initarray_entry.Attr |= ld.AttrReachable
++	initarray_entry.Attr |= ld.AttrLocal
+ 	initarray_entry.Type = obj.SINITARR
+ 	ld.Addaddr(ld.Ctxt, initarray_entry, initfunc)
+ }
+@@ -480,7 +480,7 @@ func addpltreloc(ctxt *ld.Link, plt *ld.LSym, got *ld.LSym, sym *ld.LSym, typ in
+ 	r.Type = int32(typ)
+ 	r.Add = int64(sym.Got) - 8
+ 
+-	plt.Reachable = true
++	plt.Attr |= ld.AttrReachable
+ 	plt.Size += 4
+ 	ld.Symgrow(ctxt, plt, plt.Size)
+ 
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index be8afa5d26..250f0afb16 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -48,11 +48,11 @@ func gentext() {
+ 		// an init function
+ 		return
+ 	}
+-	addmoduledata.Reachable = true
++	addmoduledata.Attr |= ld.AttrReachable
+ 	initfunc := ld.Linklookup(ld.Ctxt, "go.link.addmoduledata", 0)
+ 	initfunc.Type = obj.STEXT
+-	initfunc.Local = true
+-	initfunc.Reachable = true
++	initfunc.Attr |= ld.AttrLocal
++	initfunc.Attr |= ld.AttrReachable
+ 	o := func(op uint32) {
+ 		ld.Adduint32(ld.Ctxt, initfunc, op)
+ 	}
+@@ -85,8 +85,8 @@ func gentext() {
+ 	}
+ 	ld.Ctxt.Etextp = initfunc
+ 	initarray_entry := ld.Linklookup(ld.Ctxt, "go.link.addmoduledatainit", 0)
+-	initarray_entry.Reachable = true
+-	initarray_entry.Local = true
++	initarray_entry.Attr |= ld.AttrReachable
++	initarray_entry.Attr |= ld.AttrLocal
+ 	initarray_entry.Type = obj.SINITARR
+ 	ld.Addaddr(ld.Ctxt, initarray_entry, initfunc)
+ }
+@@ -258,7 +258,7 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
+ 			// (https://sourceware.org/bugzilla/show_bug.cgi?id=18270). So
+ 			// we convert the adrp; ld64 + R_ARM64_GOTPCREL into adrp;
+ 			// add + R_ADDRARM64.
+-			if !(r.Sym.Version != 0 || (r.Sym.Type&obj.SHIDDEN != 0) || r.Sym.Local) && r.Sym.Type == obj.STEXT && ld.DynlinkingGo() {
++			if !(r.Sym.Version != 0 || (r.Sym.Type&obj.SHIDDEN != 0) || r.Sym.Attr.Local()) && r.Sym.Type == obj.STEXT && ld.DynlinkingGo() {
+ 				if o2&0xffc00000 != 0xf9400000 {
+ 					ld.Ctxt.Diag("R_ARM64_GOTPCREL against unexpected instruction %x", o2)
+ 				}
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index d4abe70022..cbaf15280d 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -63,7 +63,7 @@ func setuintxx(ctxt *Link, s *LSym, off int64, v uint64, wid int64) int64 {
+ 	if s.Type == 0 {
+ 		s.Type = obj.SDATA
+ 	}
+-	s.Reachable = true
++	s.Attr |= AttrReachable
+ 	if s.Size < off+wid {
+ 		s.Size = off + wid
+ 		Symgrow(ctxt, s, s.Size)
+@@ -121,7 +121,7 @@ func Addaddrplus(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
+ 	if s.Type == 0 {
+ 		s.Type = obj.SDATA
+ 	}
+-	s.Reachable = true
++	s.Attr |= AttrReachable
+ 	i := s.Size
+ 	s.Size += int64(ctxt.Arch.Ptrsize)
+ 	Symgrow(ctxt, s, s.Size)
+@@ -138,7 +138,7 @@ func Addpcrelplus(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
+ 	if s.Type == 0 {
+ 		s.Type = obj.SDATA
+ 	}
+-	s.Reachable = true
++	s.Attr |= AttrReachable
+ 	i := s.Size
+ 	s.Size += 4
+ 	Symgrow(ctxt, s, s.Size)
+@@ -159,7 +159,7 @@ func setaddrplus(ctxt *Link, s *LSym, off int64, t *LSym, add int64) int64 {
+ 	if s.Type == 0 {
+ 		s.Type = obj.SDATA
+ 	}
+-	s.Reachable = true
++	s.Attr |= AttrReachable
+ 	if off+int64(ctxt.Arch.Ptrsize) > s.Size {
+ 		s.Size = off + int64(ctxt.Arch.Ptrsize)
+ 		Symgrow(ctxt, s, s.Size)
+@@ -182,7 +182,7 @@ func addsize(ctxt *Link, s *LSym, t *LSym) int64 {
+ 	if s.Type == 0 {
+ 		s.Type = obj.SDATA
+ 	}
+-	s.Reachable = true
++	s.Attr |= AttrReachable
+ 	i := s.Size
+ 	s.Size += int64(ctxt.Arch.Ptrsize)
+ 	Symgrow(ctxt, s, s.Size)
+@@ -198,7 +198,7 @@ func addaddrplus4(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
+ 	if s.Type == 0 {
+ 		s.Type = obj.SDATA
+ 	}
+-	s.Reachable = true
++	s.Attr |= AttrReachable
+ 	i := s.Size
+ 	s.Size += 4
+ 	Symgrow(ctxt, s, s.Size)
+@@ -360,7 +360,7 @@ func relocsym(s *LSym) {
+ 				Diag("unhandled relocation for %s (type %d rtype %d)", r.Sym.Name, r.Sym.Type, r.Type)
+ 			}
+ 		}
+-		if r.Sym != nil && r.Sym.Type != obj.STLSBSS && !r.Sym.Reachable {
++		if r.Sym != nil && r.Sym.Type != obj.STLSBSS && !r.Sym.Attr.Reachable() {
+ 			Diag("unreachable sym in relocation: %s %s", s.Name, r.Sym.Name)
+ 		}
+ 
+@@ -633,7 +633,7 @@ func dynrelocsym(s *LSym) {
+ 			if targ == nil {
+ 				continue
+ 			}
+-			if !targ.Reachable {
++			if !targ.Attr.Reachable() {
+ 				Diag("internal inconsistency: dynamic symbol %s is not reachable.", targ.Name)
+ 			}
+ 			if r.Sym.Plt == -2 && r.Sym.Got != -2 { // make dynimport JMP table for PE object files.
+@@ -668,7 +668,7 @@ func dynrelocsym(s *LSym) {
+ 	for ri := 0; ri < len(s.R); ri++ {
+ 		r = &s.R[ri]
+ 		if r.Sym != nil && r.Sym.Type == obj.SDYNIMPORT || r.Type >= 256 {
+-			if r.Sym != nil && !r.Sym.Reachable {
++			if r.Sym != nil && !r.Sym.Attr.Reachable() {
+ 				Diag("internal inconsistency: dynamic symbol %s is not reachable.", r.Sym.Name)
+ 			}
+ 			Thearch.Adddynrel(s, r)
+@@ -763,7 +763,7 @@ func Codeblk(addr int64, size int64) {
+ 
+ 	var sym *LSym
+ 	for sym = Ctxt.Textp; sym != nil; sym = sym.Next {
+-		if !sym.Reachable {
++		if !sym.Attr.Reachable() {
+ 			continue
+ 		}
+ 		if sym.Value >= addr {
+@@ -774,7 +774,7 @@ func Codeblk(addr int64, size int64) {
+ 	eaddr := addr + size
+ 	var q []byte
+ 	for ; sym != nil; sym = sym.Next {
+-		if !sym.Reachable {
++		if !sym.Attr.Reachable() {
+ 			continue
+ 		}
+ 		if sym.Value >= eaddr {
+@@ -938,19 +938,19 @@ func addstrdata(name string, value string) {
+ 
+ 	s := Linklookup(Ctxt, name, 0)
+ 	s.Size = 0
+-	s.Dupok = 1
+-	reachable := s.Reachable
++	s.Attr |= AttrDuplicateOK
++	reachable := s.Attr.Reachable()
+ 	Addaddr(Ctxt, s, sp)
+ 	adduintxx(Ctxt, s, uint64(len(value)), Thearch.Ptrsize)
+ 
+ 	// addstring, addaddr, etc., mark the symbols as reachable.
+ 	// In this case that is not necessarily true, so stick to what
+ 	// we know before entering this function.
+-	s.Reachable = reachable
++	s.Attr.Set(AttrReachable, reachable)
+ 
+ 	strdata = append(strdata, s)
+ 
+-	sp.Reachable = reachable
++	sp.Attr.Set(AttrReachable, reachable)
+ }
+ 
+ func checkstrdata() {
+@@ -967,7 +967,7 @@ func Addstring(s *LSym, str string) int64 {
+ 	if s.Type == 0 {
+ 		s.Type = obj.SNOPTRDATA
+ 	}
+-	s.Reachable = true
++	s.Attr |= AttrReachable
+ 	r := int32(s.Size)
+ 	n := len(str) + 1
+ 	if s.Name == ".shstrtab" {
+@@ -987,8 +987,8 @@ func addgostring(s *LSym, symname, str string) {
+ 	if sym.Type != obj.Sxxx {
+ 		Diag("duplicate symname in addgostring: %s", symname)
+ 	}
+-	sym.Reachable = true
+-	sym.Local = true
++	sym.Attr |= AttrReachable
++	sym.Attr |= AttrLocal
+ 	sym.Type = obj.SRODATA
+ 	sym.Size = int64(len(str))
+ 	sym.P = []byte(str)
+@@ -1001,7 +1001,7 @@ func addinitarrdata(s *LSym) {
+ 	sp := Linklookup(Ctxt, p, 0)
+ 	sp.Type = obj.SINITARR
+ 	sp.Size = 0
+-	sp.Dupok = 1
++	sp.Attr |= AttrDuplicateOK
+ 	Addaddr(Ctxt, sp, s)
+ }
+ 
+@@ -1146,14 +1146,14 @@ func dodata() {
+ 	datap = nil
+ 
+ 	for _, s := range Ctxt.Allsym {
+-		if !s.Reachable || s.Special != 0 {
++		if !s.Attr.Reachable() || s.Attr.Special() {
+ 			continue
+ 		}
+ 		if obj.STEXT < s.Type && s.Type < obj.SXREF {
+-			if s.Onlist != 0 {
++			if s.Attr.OnList() {
+ 				log.Fatalf("symbol %s listed multiple times", s.Name)
+ 			}
+-			s.Onlist = 1
++			s.Attr |= AttrOnList
+ 			if last == nil {
+ 				datap = s
+ 			} else {
+@@ -1636,7 +1636,7 @@ func textbuildid() {
+ 	}
+ 
+ 	sym := Linklookup(Ctxt, "go.buildid", 0)
+-	sym.Reachable = true
++	sym.Attr |= AttrReachable
+ 	// The \xff is invalid UTF-8, meant to make it less likely
+ 	// to find one of these accidentally.
+ 	data := "\xff Go build ID: " + strconv.Quote(buildid) + "\n \xff"
+@@ -1813,12 +1813,12 @@ func address() {
+ 	xdefine("runtime.etypelink", obj.SRODATA, int64(typelink.Vaddr+typelink.Length))
+ 
+ 	sym := Linklookup(Ctxt, "runtime.gcdata", 0)
+-	sym.Local = true
++	sym.Attr |= AttrLocal
+ 	xdefine("runtime.egcdata", obj.SRODATA, Symaddr(sym)+sym.Size)
+ 	Linklookup(Ctxt, "runtime.egcdata", 0).Sect = sym.Sect
+ 
+ 	sym = Linklookup(Ctxt, "runtime.gcbss", 0)
+-	sym.Local = true
++	sym.Attr |= AttrLocal
+ 	xdefine("runtime.egcbss", obj.SRODATA, Symaddr(sym)+sym.Size)
+ 	Linklookup(Ctxt, "runtime.egcbss", 0).Sect = sym.Sect
+ 
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 31fc5792f0..3378456ae7 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1997,16 +1997,16 @@ func Dwarfemitdebugsections() {
+ 			sect = addmachodwarfsect(sect, ".debug_info")
+ 
+ 			infosym = Linklookup(Ctxt, ".debug_info", 0)
+-			infosym.Hidden = true
++			infosym.Attr |= AttrHidden
+ 
+ 			abbrevsym = Linklookup(Ctxt, ".debug_abbrev", 0)
+-			abbrevsym.Hidden = true
++			abbrevsym.Attr |= AttrHidden
+ 
+ 			linesym = Linklookup(Ctxt, ".debug_line", 0)
+-			linesym.Hidden = true
++			linesym.Attr |= AttrHidden
+ 
+ 			framesym = Linklookup(Ctxt, ".debug_frame", 0)
+-			framesym.Hidden = true
++			framesym.Attr |= AttrHidden
+ 		}
+ 	}
+ 
+@@ -2183,16 +2183,16 @@ func dwarfaddshstrings(shstrtab *LSym) {
+ 		}
+ 
+ 		infosym = Linklookup(Ctxt, ".debug_info", 0)
+-		infosym.Hidden = true
++		infosym.Attr |= AttrHidden
+ 
+ 		abbrevsym = Linklookup(Ctxt, ".debug_abbrev", 0)
+-		abbrevsym.Hidden = true
++		abbrevsym.Attr |= AttrHidden
+ 
+ 		linesym = Linklookup(Ctxt, ".debug_line", 0)
+-		linesym.Hidden = true
++		linesym.Attr |= AttrHidden
+ 
+ 		framesym = Linklookup(Ctxt, ".debug_frame", 0)
+-		framesym.Hidden = true
++		framesym.Attr |= AttrHidden
+ 	}
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index efd2b4f62d..4d4ac51ea7 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1342,7 +1342,7 @@ func elfdynhash() {
+ 	nsym := Nelfsym
+ 	s := Linklookup(Ctxt, ".hash", 0)
+ 	s.Type = obj.SELFROSECT
+-	s.Reachable = true
++	s.Attr |= AttrReachable
+ 
+ 	i := nsym
+ 	nbucket := 1
+@@ -1624,7 +1624,7 @@ func elfrelocsect(sect *Section, first *LSym) {
+ 	sect.Reloff = uint64(Cpos())
+ 	var sym *LSym
+ 	for sym = first; sym != nil; sym = sym.Next {
+-		if !sym.Reachable {
++		if !sym.Attr.Reachable() {
+ 			continue
+ 		}
+ 		if uint64(sym.Value) >= sect.Vaddr {
+@@ -1636,7 +1636,7 @@ func elfrelocsect(sect *Section, first *LSym) {
+ 	var r *Reloc
+ 	var ri int
+ 	for ; sym != nil; sym = sym.Next {
+-		if !sym.Reachable {
++		if !sym.Attr.Reachable() {
+ 			continue
+ 		}
+ 		if sym.Value >= int64(eaddr) {
+@@ -1685,7 +1685,7 @@ func Elfemitreloc() {
+ 
+ func addgonote(sectionName string, tag uint32, desc []byte) {
+ 	s := Linklookup(Ctxt, sectionName, 0)
+-	s.Reachable = true
++	s.Attr |= AttrReachable
+ 	s.Type = obj.SELFROSECT
+ 	// namesz
+ 	Adduint32(Ctxt, s, uint32(len(ELF_NOTE_GO_NAME)))
+@@ -1715,7 +1715,7 @@ func doelf() {
+ 	shstrtab := Linklookup(Ctxt, ".shstrtab", 0)
+ 
+ 	shstrtab.Type = obj.SELFROSECT
+-	shstrtab.Reachable = true
++	shstrtab.Attr |= AttrReachable
+ 
+ 	Addstring(shstrtab, "")
+ 	Addstring(shstrtab, ".text")
+@@ -1850,7 +1850,7 @@ func doelf() {
+ 		s := Linklookup(Ctxt, ".dynsym", 0)
+ 
+ 		s.Type = obj.SELFROSECT
+-		s.Reachable = true
++		s.Attr |= AttrReachable
+ 		switch Thearch.Thechar {
+ 		case '0', '6', '7', '9':
+ 			s.Size += ELF64SYMSIZE
+@@ -1862,7 +1862,7 @@ func doelf() {
+ 		s = Linklookup(Ctxt, ".dynstr", 0)
+ 
+ 		s.Type = obj.SELFROSECT
+-		s.Reachable = true
++		s.Attr |= AttrReachable
+ 		if s.Size == 0 {
+ 			Addstring(s, "")
+ 		}
+@@ -1875,35 +1875,35 @@ func doelf() {
+ 		default:
+ 			s = Linklookup(Ctxt, ".rel", 0)
+ 		}
+-		s.Reachable = true
++		s.Attr |= AttrReachable
+ 		s.Type = obj.SELFROSECT
+ 
+ 		/* global offset table */
+ 		s = Linklookup(Ctxt, ".got", 0)
+ 
+-		s.Reachable = true
++		s.Attr |= AttrReachable
+ 		s.Type = obj.SELFGOT // writable
+ 
+ 		/* ppc64 glink resolver */
+ 		if Thearch.Thechar == '9' {
+ 			s := Linklookup(Ctxt, ".glink", 0)
+-			s.Reachable = true
++			s.Attr |= AttrReachable
+ 			s.Type = obj.SELFRXSECT
+ 		}
+ 
+ 		/* hash */
+ 		s = Linklookup(Ctxt, ".hash", 0)
+ 
+-		s.Reachable = true
++		s.Attr |= AttrReachable
+ 		s.Type = obj.SELFROSECT
+ 
+ 		s = Linklookup(Ctxt, ".got.plt", 0)
+-		s.Reachable = true
++		s.Attr |= AttrReachable
+ 		s.Type = obj.SELFSECT // writable
+ 
+ 		s = Linklookup(Ctxt, ".plt", 0)
+ 
+-		s.Reachable = true
++		s.Attr |= AttrReachable
+ 		if Thearch.Thechar == '9' {
+ 			// In the ppc64 ABI, .plt is a data section
+ 			// written by the dynamic linker.
+@@ -1920,21 +1920,21 @@ func doelf() {
+ 		default:
+ 			s = Linklookup(Ctxt, ".rel.plt", 0)
+ 		}
+-		s.Reachable = true
++		s.Attr |= AttrReachable
+ 		s.Type = obj.SELFROSECT
+ 
+ 		s = Linklookup(Ctxt, ".gnu.version", 0)
+-		s.Reachable = true
++		s.Attr |= AttrReachable
+ 		s.Type = obj.SELFROSECT
+ 
+ 		s = Linklookup(Ctxt, ".gnu.version_r", 0)
+-		s.Reachable = true
++		s.Attr |= AttrReachable
+ 		s.Type = obj.SELFROSECT
+ 
+ 		/* define dynamic elf table */
+ 		s = Linklookup(Ctxt, ".dynamic", 0)
+ 
+-		s.Reachable = true
++		s.Attr |= AttrReachable
+ 		s.Type = obj.SELFSECT // writable
+ 
+ 		/*
+@@ -1987,10 +1987,10 @@ func doelf() {
+ 		// The go.link.abihashbytes symbol will be pointed at the appropriate
+ 		// part of the .note.go.abihash section in data.go:func address().
+ 		s := Linklookup(Ctxt, "go.link.abihashbytes", 0)
+-		s.Local = true
++		s.Attr |= AttrLocal
+ 		s.Type = obj.SRODATA
+-		s.Special = 1
+-		s.Reachable = true
++		s.Attr |= AttrSpecial
++		s.Attr |= AttrReachable
+ 		s.Size = int64(sha1.Size)
+ 
+ 		sort.Sort(byPkg(Ctxt.Library))
+@@ -2531,7 +2531,7 @@ func Elfadddynsym(ctxt *Link, s *LSym) {
+ 		/* type */
+ 		t := STB_GLOBAL << 4
+ 
+-		if s.Cgoexport != 0 && s.Type&obj.SMASK == obj.STEXT {
++		if s.Attr.CgoExport() && s.Type&obj.SMASK == obj.STEXT {
+ 			t |= STT_FUNC
+ 		} else {
+ 			t |= STT_OBJECT
+@@ -2558,7 +2558,7 @@ func Elfadddynsym(ctxt *Link, s *LSym) {
+ 		/* size of object */
+ 		Adduint64(ctxt, d, uint64(s.Size))
+ 
+-		if Thearch.Thechar == '6' && s.Cgoexport&CgoExportDynamic == 0 && s.Dynimplib != "" && !seenlib[s.Dynimplib] {
++		if Thearch.Thechar == '6' && !s.Attr.CgoExportDynamic() && s.Dynimplib != "" && !seenlib[s.Dynimplib] {
+ 			Elfwritedynent(Linklookup(ctxt, ".dynamic", 0), DT_NEEDED, uint64(Addstring(Linklookup(ctxt, ".dynstr", 0), s.Dynimplib)))
+ 		}
+ 	} else {
+@@ -2586,9 +2586,9 @@ func Elfadddynsym(ctxt *Link, s *LSym) {
+ 		t := STB_GLOBAL << 4
+ 
+ 		// TODO(mwhudson): presumably the behaviour should actually be the same on both arm and 386.
+-		if Thearch.Thechar == '8' && s.Cgoexport != 0 && s.Type&obj.SMASK == obj.STEXT {
++		if Thearch.Thechar == '8' && s.Attr.CgoExport() && s.Type&obj.SMASK == obj.STEXT {
+ 			t |= STT_FUNC
+-		} else if Thearch.Thechar == '5' && s.Cgoexport&CgoExportDynamic != 0 && s.Type&obj.SMASK == obj.STEXT {
++		} else if Thearch.Thechar == '5' && s.Attr.CgoExportDynamic() && s.Type&obj.SMASK == obj.STEXT {
+ 			t |= STT_FUNC
+ 		} else {
+ 			t |= STT_OBJECT
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 98e99bcd29..e6c541a3ab 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -279,7 +279,7 @@ func loadcgo(file string, pkg string, p string) {
+ 				s.Type = 0
+ 			}
+ 
+-			if s.Cgoexport == 0 {
++			if !s.Attr.CgoExport() {
+ 				s.Extname = remote
+ 				dynexp = append(dynexp, s)
+ 			} else if s.Extname != remote {
+@@ -289,9 +289,9 @@ func loadcgo(file string, pkg string, p string) {
+ 			}
+ 
+ 			if f[0] == "cgo_export_static" {
+-				s.Cgoexport |= CgoExportStatic
++				s.Attr |= AttrCgoExportStatic
+ 			} else {
+-				s.Cgoexport |= CgoExportDynamic
++				s.Attr |= AttrCgoExportDynamic
+ 			}
+ 			if local != f[1] {
+ 			}
+@@ -372,13 +372,13 @@ var markq *LSym
+ var emarkq *LSym
+ 
+ func mark1(s *LSym, parent *LSym) {
+-	if s == nil || s.Reachable {
++	if s == nil || s.Attr.Reachable() {
+ 		return
+ 	}
+ 	if strings.HasPrefix(s.Name, "go.weak.") {
+ 		return
+ 	}
+-	s.Reachable = true
++	s.Attr |= AttrReachable
+ 	s.Reachparent = parent
+ 	if markq == nil {
+ 		markq = s
+@@ -473,7 +473,7 @@ func deadcode() {
+ 		// keep each beginning with 'typelink.' if the symbol it points at is being kept.
+ 		for _, s := range Ctxt.Allsym {
+ 			if strings.HasPrefix(s.Name, "go.typelink.") {
+-				s.Reachable = len(s.R) == 1 && s.R[0].Sym.Reachable
++				s.Attr.Set(AttrReachable, len(s.R) == 1 && s.R[0].Sym.Attr.Reachable())
+ 			}
+ 		}
+ 
+@@ -481,7 +481,7 @@ func deadcode() {
+ 		var last *LSym
+ 
+ 		for s := Ctxt.Textp; s != nil; s = s.Next {
+-			if !s.Reachable {
++			if !s.Attr.Reachable() {
+ 				continue
+ 			}
+ 
+@@ -505,9 +505,9 @@ func deadcode() {
+ 
+ 	for _, s := range Ctxt.Allsym {
+ 		if strings.HasPrefix(s.Name, "go.weak.") {
+-			s.Special = 1 // do not lay out in data segment
+-			s.Reachable = true
+-			s.Hidden = true
++			s.Attr |= AttrSpecial // do not lay out in data segment
++			s.Attr |= AttrReachable
++			s.Attr |= AttrHidden
+ 		}
+ 	}
+ 
+@@ -515,9 +515,9 @@ func deadcode() {
+ 	var buf bytes.Buffer
+ 	for _, s := range Ctxt.Allsym {
+ 		if strings.HasPrefix(s.Name, "go.track.") {
+-			s.Special = 1 // do not lay out in data segment
+-			s.Hidden = true
+-			if s.Reachable {
++			s.Attr |= AttrSpecial // do not lay out in data segment
++			s.Attr |= AttrHidden
++			if s.Attr.Reachable() {
+ 				buf.WriteString(s.Name[9:])
+ 				for p := s.Reachparent; p != nil; p = p.Reachparent {
+ 					buf.WriteString("\t")
+@@ -535,7 +535,7 @@ func deadcode() {
+ 		return
+ 	}
+ 	s := Linklookup(Ctxt, tracksym, 0)
+-	if !s.Reachable {
++	if !s.Attr.Reachable() {
+ 		return
+ 	}
+ 	addstrdata(tracksym, buf.String())
+@@ -547,7 +547,7 @@ func doweak() {
+ 	for _, s := range Ctxt.Allsym {
+ 		if strings.HasPrefix(s.Name, "go.weak.") {
+ 			t := Linkrlookup(Ctxt, s.Name[8:], int(s.Version))
+-			if t != nil && t.Type != 0 && t.Reachable {
++			if t != nil && t.Type != 0 && t.Attr.Reachable() {
+ 				s.Value = t.Value
+ 				s.Type = t.Type
+ 				s.Outer = t
+diff --git a/src/cmd/link/internal/ld/ldelf.go b/src/cmd/link/internal/ld/ldelf.go
+index 9eeca218d3..b04b32bf27 100644
+--- a/src/cmd/link/internal/ld/ldelf.go
++++ b/src/cmd/link/internal/ld/ldelf.go
+@@ -784,7 +784,7 @@ func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
+ 
+ 		s = sym.sym
+ 		if s.Outer != nil {
+-			if s.Dupok != 0 {
++			if s.Attr.DuplicateOK() {
+ 				continue
+ 			}
+ 			Exitf("%s: duplicate symbol reference: %s in both %s and %s", pn, s.Name, s.Outer.Name, sect.sym.Name)
+@@ -793,17 +793,17 @@ func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
+ 		s.Sub = sect.sym.Sub
+ 		sect.sym.Sub = s
+ 		s.Type = sect.sym.Type | s.Type&^obj.SMASK | obj.SSUB
+-		if s.Cgoexport&CgoExportDynamic == 0 {
++		if !s.Attr.CgoExportDynamic() {
+ 			s.Dynimplib = "" // satisfy dynimport
+ 		}
+ 		s.Value = int64(sym.value)
+ 		s.Size = int64(sym.size)
+ 		s.Outer = sect.sym
+ 		if sect.sym.Type == obj.STEXT {
+-			if s.External != 0 && s.Dupok == 0 {
++			if s.Attr.External() && !s.Attr.DuplicateOK() {
+ 				Diag("%s: duplicate definition of %s", pn, s.Name)
+ 			}
+-			s.External = 1
++			s.Attr |= AttrExternal
+ 		}
+ 
+ 		if elfobj.machine == ElfMachPower64 {
+@@ -827,10 +827,10 @@ func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
+ 			s.Sub = listsort(s.Sub, valuecmp, listsubp)
+ 		}
+ 		if s.Type == obj.STEXT {
+-			if s.Onlist != 0 {
++			if s.Attr.OnList() {
+ 				log.Fatalf("symbol %s listed multiple times", s.Name)
+ 			}
+-			s.Onlist = 1
++			s.Attr |= AttrOnList
+ 			if Ctxt.Etextp != nil {
+ 				Ctxt.Etextp.Next = s
+ 			} else {
+@@ -838,10 +838,10 @@ func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
+ 			}
+ 			Ctxt.Etextp = s
+ 			for s = s.Sub; s != nil; s = s.Sub {
+-				if s.Onlist != 0 {
++				if s.Attr.OnList() {
+ 					log.Fatalf("symbol %s listed multiple times", s.Name)
+ 				}
+-				s.Onlist = 1
++				s.Attr |= AttrOnList
+ 				Ctxt.Etextp.Next = s
+ 				Ctxt.Etextp = s
+ 			}
+@@ -1043,7 +1043,7 @@ func readelfsym(elfobj *ElfObj, i int, sym *ElfSym, needSym int) (err error) {
+ 				// comment #5 for details.
+ 				if s != nil && sym.other == 2 {
+ 					s.Type |= obj.SHIDDEN
+-					s.Dupok = 1
++					s.Attr |= AttrDuplicateOK
+ 				}
+ 			}
+ 
+diff --git a/src/cmd/link/internal/ld/ldmacho.go b/src/cmd/link/internal/ld/ldmacho.go
+index 327a477085..9c9eb2ca29 100644
+--- a/src/cmd/link/internal/ld/ldmacho.go
++++ b/src/cmd/link/internal/ld/ldmacho.go
+@@ -620,7 +620,7 @@ func ldmacho(f *obj.Biobuf, pkg string, length int64, pn string) {
+ 		}
+ 		s = Linklookup(Ctxt, name, v)
+ 		if sym.type_&N_EXT == 0 {
+-			s.Dupok = 1
++			s.Attr |= AttrDuplicateOK
+ 		}
+ 		sym.sym = s
+ 		if sym.sectnum == 0 { // undefined
+@@ -639,7 +639,7 @@ func ldmacho(f *obj.Biobuf, pkg string, length int64, pn string) {
+ 		}
+ 
+ 		if s.Outer != nil {
+-			if s.Dupok != 0 {
++			if s.Attr.DuplicateOK() {
+ 				continue
+ 			}
+ 			Exitf("%s: duplicate symbol reference: %s in both %s and %s", pn, s.Name, s.Outer.Name, sect.sym.Name)
+@@ -650,14 +650,14 @@ func ldmacho(f *obj.Biobuf, pkg string, length int64, pn string) {
+ 		outer.Sub = s
+ 		s.Outer = outer
+ 		s.Value = int64(sym.value - sect.addr)
+-		if s.Cgoexport&CgoExportDynamic == 0 {
++		if !s.Attr.CgoExportDynamic() {
+ 			s.Dynimplib = "" // satisfy dynimport
+ 		}
+ 		if outer.Type == obj.STEXT {
+-			if s.External != 0 && s.Dupok == 0 {
++			if s.Attr.External() && !s.Attr.DuplicateOK() {
+ 				Diag("%s: duplicate definition of %s", pn, s.Name)
+ 			}
+-			s.External = 1
++			s.Attr |= AttrExternal
+ 		}
+ 
+ 		sym.sym = s
+@@ -685,10 +685,10 @@ func ldmacho(f *obj.Biobuf, pkg string, length int64, pn string) {
+ 		}
+ 
+ 		if s.Type == obj.STEXT {
+-			if s.Onlist != 0 {
++			if s.Attr.OnList() {
+ 				log.Fatalf("symbol %s listed multiple times", s.Name)
+ 			}
+-			s.Onlist = 1
++			s.Attr |= AttrOnList
+ 			if Ctxt.Etextp != nil {
+ 				Ctxt.Etextp.Next = s
+ 			} else {
+@@ -696,10 +696,10 @@ func ldmacho(f *obj.Biobuf, pkg string, length int64, pn string) {
+ 			}
+ 			Ctxt.Etextp = s
+ 			for s1 = s.Sub; s1 != nil; s1 = s1.Sub {
+-				if s1.Onlist != 0 {
++				if s1.Attr.OnList() {
+ 					log.Fatalf("symbol %s listed multiple times", s1.Name)
+ 				}
+-				s1.Onlist = 1
++				s1.Attr |= AttrOnList
+ 				Ctxt.Etextp.Next = s1
+ 				Ctxt.Etextp = s1
+ 			}
+diff --git a/src/cmd/link/internal/ld/ldpe.go b/src/cmd/link/internal/ld/ldpe.go
+index 47b32f0099..0ead95e452 100644
+--- a/src/cmd/link/internal/ld/ldpe.go
++++ b/src/cmd/link/internal/ld/ldpe.go
+@@ -397,7 +397,7 @@ func ldpe(f *obj.Biobuf, pkg string, length int64, pn string) {
+ 		}
+ 
+ 		if s.Outer != nil {
+-			if s.Dupok != 0 {
++			if s.Attr.DuplicateOK() {
+ 				continue
+ 			}
+ 			Exitf("%s: duplicate symbol reference: %s in both %s and %s", pn, s.Name, s.Outer.Name, sect.sym.Name)
+@@ -410,10 +410,10 @@ func ldpe(f *obj.Biobuf, pkg string, length int64, pn string) {
+ 		s.Size = 4
+ 		s.Outer = sect.sym
+ 		if sect.sym.Type == obj.STEXT {
+-			if s.External != 0 && s.Dupok == 0 {
++			if s.Attr.External() && !s.Attr.DuplicateOK() {
+ 				Diag("%s: duplicate definition of %s", pn, s.Name)
+ 			}
+-			s.External = 1
++			s.Attr |= AttrExternal
+ 		}
+ 	}
+ 
+@@ -428,10 +428,10 @@ func ldpe(f *obj.Biobuf, pkg string, length int64, pn string) {
+ 			s.Sub = listsort(s.Sub, valuecmp, listsubp)
+ 		}
+ 		if s.Type == obj.STEXT {
+-			if s.Onlist != 0 {
++			if s.Attr.OnList() {
+ 				log.Fatalf("symbol %s listed multiple times", s.Name)
+ 			}
+-			s.Onlist = 1
++			s.Attr |= AttrOnList
+ 			if Ctxt.Etextp != nil {
+ 				Ctxt.Etextp.Next = s
+ 			} else {
+@@ -439,10 +439,10 @@ func ldpe(f *obj.Biobuf, pkg string, length int64, pn string) {
+ 			}
+ 			Ctxt.Etextp = s
+ 			for s = s.Sub; s != nil; s = s.Sub {
+-				if s.Onlist != 0 {
++				if s.Attr.OnList() {
+ 					log.Fatalf("symbol %s listed multiple times", s.Name)
+ 				}
+-				s.Onlist = 1
++				s.Attr |= AttrOnList
+ 				Ctxt.Etextp.Next = s
+ 				Ctxt.Etextp = s
+ 			}
+@@ -515,7 +515,7 @@ func readpesym(peobj *PeObj, i int, y **PeSym) (err error) {
+ 
+ 		case IMAGE_SYM_CLASS_NULL, IMAGE_SYM_CLASS_STATIC, IMAGE_SYM_CLASS_LABEL:
+ 			s = Linklookup(Ctxt, name, Ctxt.Version)
+-			s.Dupok = 1
++			s.Attr |= AttrDuplicateOK
+ 
+ 		default:
+ 			err = fmt.Errorf("%s: invalid symbol binding %d", sym.name, sym.sclass)
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 93467dbfc9..4bc150ff4f 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -225,12 +225,6 @@ var (
+ 	liveness           int64
+ )
+ 
+-// for dynexport field of LSym
+-const (
+-	CgoExportDynamic = 1 << 0
+-	CgoExportStatic  = 1 << 1
+-)
+-
+ var (
+ 	Segtext   Segment
+ 	Segrodata Segment
+@@ -499,11 +493,11 @@ func loadlib() {
+ 	switch Buildmode {
+ 	case BuildmodeCShared:
+ 		s := Linklookup(Ctxt, "runtime.islibrary", 0)
+-		s.Dupok = 1
++		s.Attr |= AttrDuplicateOK
+ 		Adduint8(Ctxt, s, 1)
+ 	case BuildmodeCArchive:
+ 		s := Linklookup(Ctxt, "runtime.isarchive", 0)
+-		s.Dupok = 1
++		s.Attr |= AttrDuplicateOK
+ 		Adduint8(Ctxt, s, 1)
+ 	}
+ 
+@@ -605,7 +599,7 @@ func loadlib() {
+ 				// cgo_import_static and cgo_import_dynamic,
+ 				// then we want to make it cgo_import_dynamic
+ 				// now.
+-				if s.Extname != "" && s.Dynimplib != "" && s.Cgoexport == 0 {
++				if s.Extname != "" && s.Dynimplib != "" && !s.Attr.CgoExport() {
+ 					s.Type = obj.SDYNIMPORT
+ 				} else {
+ 					s.Type = 0
+@@ -624,7 +618,7 @@ func loadlib() {
+ 	} else if tlsg.Type != obj.SDYNIMPORT {
+ 		Diag("internal error: runtime declared tlsg variable %d", tlsg.Type)
+ 	}
+-	tlsg.Reachable = true
++	tlsg.Attr |= AttrReachable
+ 	Ctxt.Tlsg = tlsg
+ 
+ 	moduledata := Linklookup(Ctxt, "runtime.firstmoduledata", 0)
+@@ -649,23 +643,23 @@ func loadlib() {
+ 		// If OTOH the module does not contain the runtime package,
+ 		// create a local symbol for the moduledata.
+ 		moduledata = Linklookup(Ctxt, "local.moduledata", 0)
+-		moduledata.Local = true
++		moduledata.Attr |= AttrLocal
+ 	}
+ 	// In all cases way we mark the moduledata as noptrdata to hide it from
+ 	// the GC.
+ 	moduledata.Type = obj.SNOPTRDATA
+-	moduledata.Reachable = true
++	moduledata.Attr |= AttrReachable
+ 	Ctxt.Moduledata = moduledata
+ 
+ 	// Now that we know the link mode, trim the dynexp list.
+-	x := CgoExportDynamic
++	x := AttrCgoExportDynamic
+ 
+ 	if Linkmode == LinkExternal {
+-		x = CgoExportStatic
++		x = AttrCgoExportStatic
+ 	}
+ 	w := 0
+ 	for i := 0; i < len(dynexp); i++ {
+-		if int(dynexp[i].Cgoexport)&x != 0 {
++		if dynexp[i].Attr&x != 0 {
+ 			dynexp[w] = dynexp[i]
+ 			w++
+ 		}
+@@ -1671,7 +1665,7 @@ func dostkcheck() {
+ 			continue
+ 		}
+ 
+-		if s.Nosplit != 0 {
++		if s.Attr.NoSplit() {
+ 			Ctxt.Cursym = s
+ 			ch.sym = s
+ 			stkcheck(&ch, 0)
+@@ -1679,7 +1673,7 @@ func dostkcheck() {
+ 	}
+ 
+ 	for s := Ctxt.Textp; s != nil; s = s.Next {
+-		if s.Nosplit == 0 {
++		if !s.Attr.NoSplit() {
+ 			Ctxt.Cursym = s
+ 			ch.sym = s
+ 			stkcheck(&ch, 0)
+@@ -1695,10 +1689,10 @@ func stkcheck(up *Chain, depth int) int {
+ 	// function at top of safe zone once.
+ 	top := limit == obj.StackLimit-callsize()
+ 	if top {
+-		if s.Stkcheck != 0 {
++		if s.Attr.StackCheck() {
+ 			return 0
+ 		}
+-		s.Stkcheck = 1
++		s.Attr |= AttrStackCheck
+ 	}
+ 
+ 	if depth > 100 {
+@@ -1707,7 +1701,7 @@ func stkcheck(up *Chain, depth int) int {
+ 		return -1
+ 	}
+ 
+-	if s.External != 0 || s.Pcln == nil {
++	if s.Attr.External() || s.Pcln == nil {
+ 		// external function.
+ 		// should never be called directly.
+ 		// only diagnose the direct caller.
+@@ -1733,7 +1727,7 @@ func stkcheck(up *Chain, depth int) int {
+ 	var ch Chain
+ 	ch.up = up
+ 
+-	if s.Nosplit == 0 {
++	if !s.Attr.NoSplit() {
+ 		// Ensure we have enough stack to call morestack.
+ 		ch.limit = limit - callsize()
+ 		ch.sym = morestack
+@@ -1806,7 +1800,7 @@ func stkprint(ch *Chain, limit int) {
+ 
+ 	if ch.sym != nil {
+ 		name = ch.sym.Name
+-		if ch.sym.Nosplit != 0 {
++		if ch.sym.Attr.NoSplit() {
+ 			name += " (nosplit)"
+ 		}
+ 	} else {
+@@ -1815,7 +1809,7 @@ func stkprint(ch *Chain, limit int) {
+ 
+ 	if ch.up == nil {
+ 		// top of chain.  ch->sym != nil.
+-		if ch.sym.Nosplit != 0 {
++		if ch.sym.Attr.NoSplit() {
+ 			fmt.Printf("\t%d\tassumed on entry to %s\n", ch.limit, name)
+ 		} else {
+ 			fmt.Printf("\t%d\tguaranteed after split check in %s\n", ch.limit, name)
+@@ -1905,7 +1899,10 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
+ 	}
+ 
+ 	for _, s := range Ctxt.Allsym {
+-		if s.Hidden || ((s.Name == "" || s.Name[0] == '.') && s.Version == 0 && s.Name != ".rathole" && s.Name != ".TOC.") {
++		if s.Attr.Hidden() {
++			continue
++		}
++		if (s.Name == "" || s.Name[0] == '.') && s.Version == 0 && s.Name != ".rathole" && s.Name != ".TOC." {
+ 			continue
+ 		}
+ 		switch s.Type & obj.SMASK {
+@@ -1931,17 +1928,17 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
+ 			obj.SRODATARELRO,
+ 			obj.STYPELINK,
+ 			obj.SWINDOWS:
+-			if !s.Reachable {
++			if !s.Attr.Reachable() {
+ 				continue
+ 			}
+ 			put(s, s.Name, 'D', Symaddr(s), s.Size, int(s.Version), s.Gotype)
+ 
+ 		case obj.SBSS, obj.SNOPTRBSS:
+-			if !s.Reachable {
++			if !s.Attr.Reachable() {
+ 				continue
+ 			}
+ 			if len(s.P) > 0 {
+-				Diag("%s should not be bss (size=%d type=%d special=%d)", s.Name, int(len(s.P)), s.Type, s.Special)
++				Diag("%s should not be bss (size=%d type=%d special=%v)", s.Name, int(len(s.P)), s.Type, s.Attr.Special())
+ 			}
+ 			put(s, s.Name, 'B', Symaddr(s), s.Size, int(s.Version), s.Gotype)
+ 
+@@ -1954,7 +1951,7 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
+ 			}
+ 
+ 		case obj.SDYNIMPORT:
+-			if !s.Reachable {
++			if !s.Attr.Reachable() {
+ 				continue
+ 			}
+ 			put(s, s.Extname, 'U', 0, 0, int(s.Version), nil)
+@@ -2011,7 +2008,7 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
+ }
+ 
+ func Symaddr(s *LSym) int64 {
+-	if !s.Reachable {
++	if !s.Attr.Reachable() {
+ 		Diag("unreachable symbol in symaddr - %s", s.Name)
+ 	}
+ 	return s.Value
+@@ -2021,9 +2018,9 @@ func xdefine(p string, t int, v int64) {
+ 	s := Linklookup(Ctxt, p, 0)
+ 	s.Type = int16(t)
+ 	s.Value = v
+-	s.Reachable = true
+-	s.Special = 1
+-	s.Local = true
++	s.Attr |= AttrReachable
++	s.Attr |= AttrSpecial
++	s.Attr |= AttrLocal
+ }
+ 
+ func datoff(addr int64) int64 {
+@@ -2064,7 +2061,7 @@ func undefsym(s *LSym) {
+ 		if r.Sym.Type == obj.Sxxx || r.Sym.Type == obj.SXREF {
+ 			Diag("undefined: %s", r.Sym.Name)
+ 		}
+-		if !r.Sym.Reachable {
++		if !r.Sym.Attr.Reachable() {
+ 			Diag("use of unreachable symbol: %s", r.Sym.Name)
+ 		}
+ 	}
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 4b63a80f1f..d2a18af75e 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -38,25 +38,12 @@ import (
+ )
+ 
+ type LSym struct {
+-	Name       string
+-	Extname    string
+-	Type       int16
+-	Version    int16
+-	Dupok      uint8
+-	External   uint8
+-	Nosplit    uint8
+-	Reachable  bool
+-	Cgoexport  uint8
+-	Special    uint8
+-	Stkcheck   uint8
+-	Hidden     bool
+-	Leaf       uint8
+-	Localentry uint8
+-	Onlist     uint8
+-	// ElfType is set for symbols read from shared libraries by ldshlibsyms. It
+-	// is not set for symbols defined by the packages being linked or by symbols
+-	// read by ldelf (and so is left as elf.STT_NOTYPE).
+-	ElfType     elf.SymType
++	Name        string
++	Extname     string
++	Type        int16
++	Version     int16
++	Attr        Attribute
++	Localentry  uint8
+ 	Dynid       int32
+ 	Plt         int32
+ 	Got         int32
+@@ -67,6 +54,10 @@ type LSym struct {
+ 	Locals      int32
+ 	Value       int64
+ 	Size        int64
++	// ElfType is set for symbols read from shared libraries by ldshlibsyms. It
++	// is not set for symbols defined by the packages being linked or by symbols
++	// read by ldelf (and so is left as elf.STT_NOTYPE).
++	ElfType     elf.SymType
+ 	Next        *LSym
+ 	Sub         *LSym
+ 	Outer       *LSym
+@@ -81,7 +72,6 @@ type LSym struct {
+ 	Pcln        *Pcln
+ 	P           []byte
+ 	R           []Reloc
+-	Local       bool
+ }
+ 
+ func (s *LSym) String() string {
+@@ -101,6 +91,47 @@ func (s *LSym) ElfsymForReloc() int32 {
+ 	}
+ }
+ 
++// Attribute is a set of common symbol attributes.
++type Attribute int16
++
++const (
++	AttrDuplicateOK Attribute = 1 << iota
++	AttrExternal
++	AttrNoSplit
++	AttrReachable
++	AttrCgoExportDynamic
++	AttrCgoExportStatic
++	AttrSpecial
++	AttrStackCheck
++	AttrHidden
++	AttrOnList
++	AttrLocal
++)
++
++func (a Attribute) DuplicateOK() bool      { return a&AttrDuplicateOK != 0 }
++func (a Attribute) External() bool         { return a&AttrExternal != 0 }
++func (a Attribute) NoSplit() bool          { return a&AttrNoSplit != 0 }
++func (a Attribute) Reachable() bool        { return a&AttrReachable != 0 }
++func (a Attribute) CgoExportDynamic() bool { return a&AttrCgoExportDynamic != 0 }
++func (a Attribute) CgoExportStatic() bool  { return a&AttrCgoExportStatic != 0 }
++func (a Attribute) Special() bool          { return a&AttrSpecial != 0 }
++func (a Attribute) StackCheck() bool       { return a&AttrStackCheck != 0 }
++func (a Attribute) Hidden() bool           { return a&AttrHidden != 0 }
++func (a Attribute) OnList() bool           { return a&AttrOnList != 0 }
++func (a Attribute) Local() bool            { return a&AttrLocal != 0 }
++
++func (a Attribute) CgoExport() bool {
++	return a.CgoExportDynamic() || a.CgoExportStatic()
++}
++
++func (a *Attribute) Set(flag Attribute, value bool) {
++	if value {
++		*a |= flag
++	} else {
++		*a &= ^flag
++	}
++}
++
+ type Reloc struct {
+ 	Off     int32
+ 	Siz     uint8
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 8add7db8c1..5842e1ce20 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -308,31 +308,31 @@ func domacho() {
+ 	s := Linklookup(Ctxt, ".machosymstr", 0)
+ 
+ 	s.Type = obj.SMACHOSYMSTR
+-	s.Reachable = true
++	s.Attr |= AttrReachable
+ 	Adduint8(Ctxt, s, ' ')
+ 	Adduint8(Ctxt, s, '\x00')
+ 
+ 	s = Linklookup(Ctxt, ".machosymtab", 0)
+ 	s.Type = obj.SMACHOSYMTAB
+-	s.Reachable = true
++	s.Attr |= AttrReachable
+ 
+ 	if Linkmode != LinkExternal {
+ 		s := Linklookup(Ctxt, ".plt", 0) // will be __symbol_stub
+ 		s.Type = obj.SMACHOPLT
+-		s.Reachable = true
++		s.Attr |= AttrReachable
+ 
+ 		s = Linklookup(Ctxt, ".got", 0) // will be __nl_symbol_ptr
+ 		s.Type = obj.SMACHOGOT
+-		s.Reachable = true
++		s.Attr |= AttrReachable
+ 		s.Align = 4
+ 
+ 		s = Linklookup(Ctxt, ".linkedit.plt", 0) // indirect table for .plt
+ 		s.Type = obj.SMACHOINDIRECTPLT
+-		s.Reachable = true
++		s.Attr |= AttrReachable
+ 
+ 		s = Linklookup(Ctxt, ".linkedit.got", 0) // indirect table for .got
+ 		s.Type = obj.SMACHOINDIRECTGOT
+-		s.Reachable = true
++		s.Attr |= AttrReachable
+ 	}
+ }
+ 
+@@ -600,7 +600,7 @@ func symkind(s *LSym) int {
+ 	if s.Type == obj.SDYNIMPORT {
+ 		return SymKindUndef
+ 	}
+-	if s.Cgoexport != 0 {
++	if s.Attr.CgoExport() {
+ 		return SymKindExtdef
+ 	}
+ 	return SymKindLocal
+@@ -654,7 +654,7 @@ func machogenasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
+ 	genasmsym(put)
+ 	for _, s := range Ctxt.Allsym {
+ 		if s.Type == obj.SDYNIMPORT || s.Type == obj.SHOSTOBJ {
+-			if s.Reachable {
++			if s.Attr.Reachable() {
+ 				put(s, "", 'D', 0, 0, 0, nil)
+ 			}
+ 		}
+@@ -666,7 +666,7 @@ func machosymorder() {
+ 	// So we sort them here and pre-allocate dynid for them
+ 	// See https://golang.org/issue/4029
+ 	for i := 0; i < len(dynexp); i++ {
+-		dynexp[i].Reachable = true
++		dynexp[i].Attr |= AttrReachable
+ 	}
+ 	machogenasmsym(addsym)
+ 	sortsym = make([]*LSym, nsortsym)
+@@ -717,7 +717,7 @@ func machosymtab() {
+ 			Adduint16(Ctxt, symtab, 0)                  // desc
+ 			adduintxx(Ctxt, symtab, 0, Thearch.Ptrsize) // no value
+ 		} else {
+-			if s.Cgoexport != 0 {
++			if s.Attr.CgoExport() {
+ 				Adduint8(Ctxt, symtab, 0x0f)
+ 			} else {
+ 				Adduint8(Ctxt, symtab, 0x0e)
+@@ -829,7 +829,7 @@ func machorelocsect(sect *Section, first *LSym) {
+ 	sect.Reloff = uint64(Cpos())
+ 	var sym *LSym
+ 	for sym = first; sym != nil; sym = sym.Next {
+-		if !sym.Reachable {
++		if !sym.Attr.Reachable() {
+ 			continue
+ 		}
+ 		if uint64(sym.Value) >= sect.Vaddr {
+@@ -841,7 +841,7 @@ func machorelocsect(sect *Section, first *LSym) {
+ 	var r *Reloc
+ 	var ri int
+ 	for ; sym != nil; sym = sym.Next {
+-		if !sym.Reachable {
++		if !sym.Attr.Reachable() {
+ 			continue
+ 		}
+ 		if sym.Value >= int64(eaddr) {
+diff --git a/src/cmd/link/internal/ld/objfile.go b/src/cmd/link/internal/ld/objfile.go
+index 268d4e12ec..d53cb34162 100644
+--- a/src/cmd/link/internal/ld/objfile.go
++++ b/src/cmd/link/internal/ld/objfile.go
+@@ -171,11 +171,8 @@ func readsym(ctxt *Link, f *obj.Biobuf, pkg string, pn string) {
+ 		log.Fatalf("invalid symbol version %d", v)
+ 	}
+ 	flags := rdint(f)
+-	dupok := flags & 1
+-	local := false
+-	if flags&2 != 0 {
+-		local = true
+-	}
++	dupok := flags&1 != 0
++	local := flags&2 != 0
+ 	size := rdint(f)
+ 	typ := rdsym(ctxt, f, pkg)
+ 	data := rddata(f)
+@@ -200,7 +197,7 @@ func readsym(ctxt *Link, f *obj.Biobuf, pkg string, pn string) {
+ 		if (s.Type == obj.SDATA || s.Type == obj.SBSS || s.Type == obj.SNOPTRBSS) && len(s.P) == 0 && len(s.R) == 0 {
+ 			goto overwrite
+ 		}
+-		if s.Type != obj.SBSS && s.Type != obj.SNOPTRBSS && dupok == 0 && s.Dupok == 0 {
++		if s.Type != obj.SBSS && s.Type != obj.SNOPTRBSS && !dupok && !s.Attr.DuplicateOK() {
+ 			log.Fatalf("duplicate symbol %s (types %d and %d) in %s and %s", s.Name, s.Type, t, s.File, pn)
+ 		}
+ 		if len(s.P) > 0 {
+@@ -212,7 +209,9 @@ func readsym(ctxt *Link, f *obj.Biobuf, pkg string, pn string) {
+ 
+ overwrite:
+ 	s.File = pkg
+-	s.Dupok = uint8(dupok)
++	if dupok {
++		s.Attr |= AttrDuplicateOK
++	}
+ 	if t == obj.SXREF {
+ 		log.Fatalf("bad sxref")
+ 	}
+@@ -226,7 +225,7 @@ overwrite:
+ 	if s.Size < int64(size) {
+ 		s.Size = int64(size)
+ 	}
+-	s.Local = local
++	s.Attr.Set(AttrLocal, local)
+ 	if typ != nil { // if bss sym defined multiple times, take type from any one def
+ 		s.Gotype = typ
+ 	}
+@@ -262,9 +261,10 @@ overwrite:
+ 	if s.Type == obj.STEXT {
+ 		s.Args = rdint32(f)
+ 		s.Locals = rdint32(f)
+-		s.Nosplit = rduint8(f)
+-		v := rdint(f)
+-		s.Leaf = uint8(v & 1)
++		if rduint8(f) != 0 {
++			s.Attr |= AttrNoSplit
++		}
++		rdint(f) // v&1 is Leaf, currently unused
+ 		n := rdint(f)
+ 		var a *Auto
+ 		for i := 0; i < n; i++ {
+@@ -306,10 +306,10 @@ overwrite:
+ 		}
+ 
+ 		if dup == nil {
+-			if s.Onlist != 0 {
++			if s.Attr.OnList() {
+ 				log.Fatalf("symbol %s listed multiple times", s.Name)
+ 			}
+-			s.Onlist = 1
++			s.Attr |= AttrOnList
+ 			if ctxt.Etextp != nil {
+ 				ctxt.Etextp.Next = s
+ 			} else {
+@@ -327,10 +327,10 @@ overwrite:
+ 		if s.Type != 0 {
+ 			fmt.Fprintf(ctxt.Bso, "t=%d ", s.Type)
+ 		}
+-		if s.Dupok != 0 {
++		if s.Attr.DuplicateOK() {
+ 			fmt.Fprintf(ctxt.Bso, "dupok ")
+ 		}
+-		if s.Nosplit != 0 {
++		if s.Attr.NoSplit() {
+ 			fmt.Fprintf(ctxt.Bso, "nosplit ")
+ 		}
+ 		fmt.Fprintf(ctxt.Bso, "size=%d value=%d", int64(s.Size), int64(s.Value))
+@@ -501,20 +501,20 @@ func rdsym(ctxt *Link, f *obj.Biobuf, pkg string) *LSym {
+ 			x, _ := strconv.ParseUint(s.Name[5:], 16, 32)
+ 			i32 := int32(x)
+ 			s.Type = obj.SRODATA
+-			s.Local = true
++			s.Attr |= AttrLocal
+ 			Adduint32(ctxt, s, uint32(i32))
+-			s.Reachable = false
++			s.Attr.Set(AttrReachable, false)
+ 		} else if strings.HasPrefix(s.Name, "$f64.") || strings.HasPrefix(s.Name, "$i64.") {
+ 			x, _ := strconv.ParseUint(s.Name[5:], 16, 64)
+ 			i64 := int64(x)
+ 			s.Type = obj.SRODATA
+-			s.Local = true
++			s.Attr |= AttrLocal
+ 			Adduint64(ctxt, s, uint64(i64))
+-			s.Reachable = false
++			s.Attr.Set(AttrReachable, false)
+ 		}
+ 	}
+ 	if v == 0 && strings.HasPrefix(s.Name, "runtime.gcbits.") {
+-		s.Local = true
++		s.Attr |= AttrLocal
+ 	}
+ 	return s
+ }
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 8400468501..2a21ac0458 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -218,7 +218,7 @@ func pclntab() {
+ 	funcdata_bytes := int64(0)
+ 	ftab := Linklookup(Ctxt, "runtime.pclntab", 0)
+ 	ftab.Type = obj.SPCLNTAB
+-	ftab.Reachable = true
++	ftab.Attr |= AttrReachable
+ 
+ 	// See golang.org/s/go12symtab for the format. Briefly:
+ 	//	8-byte header
+@@ -403,8 +403,8 @@ const (
+ func findfunctab() {
+ 	t := Linklookup(Ctxt, "runtime.findfunctab", 0)
+ 	t.Type = obj.SRODATA
+-	t.Reachable = true
+-	t.Local = true
++	t.Attr |= AttrReachable
++	t.Attr |= AttrLocal
+ 
+ 	// find min and max address
+ 	min := Ctxt.Textp.Value
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 407cba4e52..4a46f442b2 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -488,7 +488,7 @@ func initdynimport() *Dll {
+ 	dr = nil
+ 	var m *Imp
+ 	for _, s := range Ctxt.Allsym {
+-		if !s.Reachable || s.Type != obj.SDYNIMPORT {
++		if !s.Attr.Reachable() || s.Type != obj.SDYNIMPORT {
+ 			continue
+ 		}
+ 		for d = dr; d != nil; d = d.next {
+@@ -538,7 +538,7 @@ func initdynimport() *Dll {
+ 					dynName += fmt.Sprintf("@%d", m.argsize)
+ 				}
+ 				dynSym := Linklookup(Ctxt, dynName, 0)
+-				dynSym.Reachable = true
++				dynSym.Attr |= AttrReachable
+ 				dynSym.Type = obj.SHOSTOBJ
+ 				r := Addrel(m.s)
+ 				r.Sym = dynSym
+@@ -549,7 +549,7 @@ func initdynimport() *Dll {
+ 		}
+ 	} else {
+ 		dynamic := Linklookup(Ctxt, ".windynamic", 0)
+-		dynamic.Reachable = true
++		dynamic.Attr |= AttrReachable
+ 		dynamic.Type = obj.SWINDOWS
+ 		for d := dr; d != nil; d = d.next {
+ 			for m = d.ms; m != nil; m = m.next {
+@@ -693,7 +693,7 @@ func (s byExtname) Less(i, j int) bool { return s[i].Extname < s[j].Extname }
+ func initdynexport() {
+ 	nexport = 0
+ 	for _, s := range Ctxt.Allsym {
+-		if !s.Reachable || s.Cgoexport&CgoExportDynamic == 0 {
++		if !s.Attr.Reachable() || !s.Attr.CgoExportDynamic() {
+ 			continue
+ 		}
+ 		if nexport+1 > len(dexport) {
+@@ -785,7 +785,7 @@ func perelocsect(sect *Section, first *LSym) int {
+ 	sect.Reloff = uint64(Cpos())
+ 	var sym *LSym
+ 	for sym = first; sym != nil; sym = sym.Next {
+-		if !sym.Reachable {
++		if !sym.Attr.Reachable() {
+ 			continue
+ 		}
+ 		if uint64(sym.Value) >= sect.Vaddr {
+@@ -797,7 +797,7 @@ func perelocsect(sect *Section, first *LSym) int {
+ 	var r *Reloc
+ 	var ri int
+ 	for ; sym != nil; sym = sym.Next {
+-		if !sym.Reachable {
++		if !sym.Attr.Reachable() {
+ 			continue
+ 		}
+ 		if sym.Value >= int64(eaddr) {
+@@ -888,7 +888,7 @@ func dope() {
+ 	/* relocation table */
+ 	rel := Linklookup(Ctxt, ".rel", 0)
+ 
+-	rel.Reachable = true
++	rel.Attr |= AttrReachable
+ 	rel.Type = obj.SELFROSECT
+ 
+ 	initdynimport()
+@@ -941,7 +941,7 @@ func addpesym(s *LSym, name string, type_ int, addr int64, size int64, ver int,
+ 
+ 	if coffsym != nil {
+ 		// only windows/386 requires underscore prefix on external symbols
+-		if Thearch.Thechar == '8' && Linkmode == LinkExternal && (s.Type == obj.SHOSTOBJ || s.Cgoexport != 0) && s.Name == s.Extname {
++		if Thearch.Thechar == '8' && Linkmode == LinkExternal && (s.Type == obj.SHOSTOBJ || s.Attr.CgoExport()) && s.Name == s.Extname {
+ 			s.Name = "_" + s.Name
+ 		}
+ 		cs := &coffsym[ncoffsym]
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 17e1aff2ab..6a3e10bbf4 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -142,7 +142,7 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
+ 	// maybe one day STB_WEAK.
+ 	bind := STB_GLOBAL
+ 
+-	if ver != 0 || (x.Type&obj.SHIDDEN != 0) || x.Local {
++	if ver != 0 || (x.Type&obj.SHIDDEN != 0) || x.Attr.Local() {
+ 		bind = STB_LOCAL
+ 	}
+ 
+@@ -151,7 +151,7 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
+ 	// To avoid filling the dynamic table with lots of unnecessary symbols,
+ 	// mark all Go symbols local (not global) in the final executable.
+ 	// But when we're dynamically linking, we need all those global symbols.
+-	if !DynlinkingGo() && Linkmode == LinkExternal && x.Cgoexport&CgoExportStatic == 0 && elfshnum != SHN_UNDEF {
++	if !DynlinkingGo() && Linkmode == LinkExternal && !x.Attr.CgoExportStatic() && elfshnum != SHN_UNDEF {
+ 		bind = STB_LOCAL
+ 	}
+ 
+@@ -389,13 +389,13 @@ func symtab() {
+ 
+ 	s.Type = obj.SRODATA
+ 	s.Size = 0
+-	s.Reachable = true
++	s.Attr |= AttrReachable
+ 	xdefine("runtime.egcdata", obj.SRODATA, 0)
+ 
+ 	s = Linklookup(Ctxt, "runtime.gcbss", 0)
+ 	s.Type = obj.SRODATA
+ 	s.Size = 0
+-	s.Reachable = true
++	s.Attr |= AttrReachable
+ 	xdefine("runtime.egcbss", obj.SRODATA, 0)
+ 
+ 	// pseudo-symbols to mark locations of type, string, and go string data.
+@@ -406,54 +406,54 @@ func symtab() {
+ 
+ 		s.Type = obj.STYPE
+ 		s.Size = 0
+-		s.Reachable = true
++		s.Attr |= AttrReachable
+ 		symtype = s
+ 
+ 		s = Linklookup(Ctxt, "typerel.*", 0)
+ 
+ 		s.Type = obj.STYPERELRO
+ 		s.Size = 0
+-		s.Reachable = true
++		s.Attr |= AttrReachable
+ 		symtyperel = s
+ 	} else if !DynlinkingGo() {
+ 		s = Linklookup(Ctxt, "type.*", 0)
+ 
+ 		s.Type = obj.STYPE
+ 		s.Size = 0
+-		s.Reachable = true
++		s.Attr |= AttrReachable
+ 		symtype = s
+ 		symtyperel = s
+ 	}
+ 
+ 	s = Linklookup(Ctxt, "go.string.*", 0)
+ 	s.Type = obj.SGOSTRING
+-	s.Local = true
++	s.Attr |= AttrLocal
+ 	s.Size = 0
+-	s.Reachable = true
++	s.Attr |= AttrReachable
+ 	symgostring := s
+ 
+ 	s = Linklookup(Ctxt, "go.func.*", 0)
+ 	s.Type = obj.SGOFUNC
+-	s.Local = true
++	s.Attr |= AttrLocal
+ 	s.Size = 0
+-	s.Reachable = true
++	s.Attr |= AttrReachable
+ 	symgofunc := s
+ 
+ 	s = Linklookup(Ctxt, "runtime.gcbits.*", 0)
+ 	s.Type = obj.SGCBITS
+-	s.Local = true
++	s.Attr |= AttrLocal
+ 	s.Size = 0
+-	s.Reachable = true
++	s.Attr |= AttrReachable
+ 	symgcbits := s
+ 
+ 	symtypelink := Linklookup(Ctxt, "runtime.typelink", 0)
+ 	symtypelink.Type = obj.STYPELINK
+ 
+ 	symt = Linklookup(Ctxt, "runtime.symtab", 0)
+-	symt.Local = true
++	symt.Attr |= AttrLocal
+ 	symt.Type = obj.SSYMTAB
+ 	symt.Size = 0
+-	symt.Reachable = true
++	symt.Attr |= AttrReachable
+ 
+ 	ntypelinks := 0
+ 
+@@ -462,12 +462,12 @@ func symtab() {
+ 	// just defined above will be first.
+ 	// hide the specific symbols.
+ 	for _, s := range Ctxt.Allsym {
+-		if !s.Reachable || s.Special != 0 || s.Type != obj.SRODATA {
++		if !s.Attr.Reachable() || s.Attr.Special() || s.Type != obj.SRODATA {
+ 			continue
+ 		}
+ 
+ 		if strings.HasPrefix(s.Name, "type.") && !DynlinkingGo() {
+-			s.Hidden = true
++			s.Attr |= AttrHidden
+ 			if UseRelro() && len(s.R) > 0 {
+ 				s.Type = obj.STYPERELRO
+ 				s.Outer = symtyperel
+@@ -480,31 +480,31 @@ func symtab() {
+ 		if strings.HasPrefix(s.Name, "go.typelink.") {
+ 			ntypelinks++
+ 			s.Type = obj.STYPELINK
+-			s.Hidden = true
++			s.Attr |= AttrHidden
+ 			s.Outer = symtypelink
+ 		}
+ 
+ 		if strings.HasPrefix(s.Name, "go.string.") {
+ 			s.Type = obj.SGOSTRING
+-			s.Hidden = true
++			s.Attr |= AttrHidden
+ 			s.Outer = symgostring
+ 		}
+ 
+ 		if strings.HasPrefix(s.Name, "runtime.gcbits.") {
+ 			s.Type = obj.SGCBITS
+-			s.Hidden = true
++			s.Attr |= AttrHidden
+ 			s.Outer = symgcbits
+ 		}
+ 
+ 		if strings.HasPrefix(s.Name, "go.func.") {
+ 			s.Type = obj.SGOFUNC
+-			s.Hidden = true
++			s.Attr |= AttrHidden
+ 			s.Outer = symgofunc
+ 		}
+ 
+ 		if strings.HasPrefix(s.Name, "gcargs.") || strings.HasPrefix(s.Name, "gclocals.") || strings.HasPrefix(s.Name, "gclocals·") {
+ 			s.Type = obj.SGOFUNC
+-			s.Hidden = true
++			s.Attr |= AttrHidden
+ 			s.Outer = symgofunc
+ 			s.Align = 4
+ 			liveness += (s.Size + int64(s.Align) - 1) &^ (int64(s.Align) - 1)
+@@ -513,7 +513,7 @@ func symtab() {
+ 
+ 	if Buildmode == BuildmodeShared {
+ 		abihashgostr := Linklookup(Ctxt, "go.link.abihash."+filepath.Base(outfile), 0)
+-		abihashgostr.Reachable = true
++		abihashgostr.Attr |= AttrReachable
+ 		abihashgostr.Type = obj.SRODATA
+ 		hashsym := Linklookup(Ctxt, "go.link.abihashbytes", 0)
+ 		Addaddr(Ctxt, abihashgostr, hashsym)
+@@ -571,8 +571,8 @@ func symtab() {
+ 		addgostring(moduledata, "go.link.thismodulename", thismodulename)
+ 
+ 		modulehashes := Linklookup(Ctxt, "go.link.abihashes", 0)
+-		modulehashes.Reachable = true
+-		modulehashes.Local = true
++		modulehashes.Attr |= AttrReachable
++		modulehashes.Attr |= AttrLocal
+ 		modulehashes.Type = obj.SRODATA
+ 
+ 		for i, shlib := range Ctxt.Shlibs {
+@@ -585,7 +585,7 @@ func symtab() {
+ 
+ 			// modulehashes[i].runtimehash
+ 			abihash := Linklookup(Ctxt, "go.link.abihash."+modulename, 0)
+-			abihash.Reachable = true
++			abihash.Attr |= AttrReachable
+ 			Addaddr(Ctxt, modulehashes, abihash)
+ 		}
+ 
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 6c731d4b1e..ae69799abf 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -112,7 +112,9 @@ func genplt() {
+ 			n = fmt.Sprintf("%s.%s", s.Name, r.Sym.Name)
+ 
+ 			stub = ld.Linklookup(ld.Ctxt, n, 0)
+-			stub.Reachable = stub.Reachable || s.Reachable
++			if s.Attr.Reachable() {
++				stub.Attr |= ld.AttrReachable
++			}
+ 			if stub.Size == 0 {
+ 				// Need outer to resolve .TOC.
+ 				stub.Outer = s
+@@ -145,11 +147,11 @@ func genaddmoduledata() {
+ 	if addmoduledata.Type == obj.STEXT {
+ 		return
+ 	}
+-	addmoduledata.Reachable = true
++	addmoduledata.Attr |= ld.AttrReachable
+ 	initfunc := ld.Linklookup(ld.Ctxt, "go.link.addmoduledata", 0)
+ 	initfunc.Type = obj.STEXT
+-	initfunc.Local = true
+-	initfunc.Reachable = true
++	initfunc.Attr |= ld.AttrLocal
++	initfunc.Attr |= ld.AttrReachable
+ 	o := func(op uint32) {
+ 		ld.Adduint32(ld.Ctxt, initfunc, op)
+ 	}
+@@ -201,8 +203,8 @@ func genaddmoduledata() {
+ 	ld.Ctxt.Etextp = initfunc
+ 
+ 	initarray_entry := ld.Linklookup(ld.Ctxt, "go.link.addmoduledatainit", 0)
+-	initarray_entry.Reachable = true
+-	initarray_entry.Local = true
++	initarray_entry.Attr |= ld.AttrReachable
++	initarray_entry.Attr |= ld.AttrLocal
+ 	initarray_entry.Type = obj.SINITARR
+ 	ld.Addaddr(ld.Ctxt, initarray_entry, initfunc)
+ }
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index ad423dce99..97fccf3ee6 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -39,7 +39,7 @@ import (
+ 
+ // Append 4 bytes to s and create a R_CALL relocation targeting t to fill them in.
+ func addcall(ctxt *ld.Link, s *ld.LSym, t *ld.LSym) {
+-	s.Reachable = true
++	s.Attr |= ld.AttrReachable
+ 	i := s.Size
+ 	s.Size += 4
+ 	ld.Symgrow(ctxt, s, s.Size)
+@@ -57,8 +57,8 @@ func gentext() {
+ 
+ 	thunkfunc := ld.Linklookup(ld.Ctxt, "__x86.get_pc_thunk.cx", 0)
+ 	thunkfunc.Type = obj.STEXT
+-	thunkfunc.Local = true
+-	thunkfunc.Reachable = true
++	thunkfunc.Attr |= ld.AttrLocal
++	thunkfunc.Attr |= ld.AttrReachable
+ 	o := func(op ...uint8) {
+ 		for _, op1 := range op {
+ 			ld.Adduint8(ld.Ctxt, thunkfunc, op1)
+@@ -83,12 +83,12 @@ func gentext() {
+ 		return
+ 	}
+ 
+-	addmoduledata.Reachable = true
++	addmoduledata.Attr |= ld.AttrReachable
+ 
+ 	initfunc := ld.Linklookup(ld.Ctxt, "go.link.addmoduledata", 0)
+ 	initfunc.Type = obj.STEXT
+-	initfunc.Local = true
+-	initfunc.Reachable = true
++	initfunc.Attr |= ld.AttrLocal
++	initfunc.Attr |= ld.AttrReachable
+ 	o = func(op ...uint8) {
+ 		for _, op1 := range op {
+ 			ld.Adduint8(ld.Ctxt, initfunc, op1)
+@@ -133,8 +133,8 @@ func gentext() {
+ 	ld.Ctxt.Etextp.Next = initfunc
+ 	ld.Ctxt.Etextp = initfunc
+ 	initarray_entry := ld.Linklookup(ld.Ctxt, "go.link.addmoduledatainit", 0)
+-	initarray_entry.Reachable = true
+-	initarray_entry.Local = true
++	initarray_entry.Attr |= ld.AttrReachable
++	initarray_entry.Attr |= ld.AttrLocal
+ 	initarray_entry.Type = obj.SINITARR
+ 	ld.Addaddr(ld.Ctxt, initarray_entry, initfunc)
+ }
+diff --git a/src/cmd/link/internal/x86/obj.go b/src/cmd/link/internal/x86/obj.go
+index a4da60d7dd..00a825a7a3 100644
+--- a/src/cmd/link/internal/x86/obj.go
++++ b/src/cmd/link/internal/x86/obj.go
+@@ -93,7 +93,7 @@ func archinit() {
+ 		ld.Linkmode = ld.LinkExternal
+ 		got := ld.Linklookup(ld.Ctxt, "_GLOBAL_OFFSET_TABLE_", 0)
+ 		got.Type = obj.SDYNIMPORT
+-		got.Reachable = true
++		got.Attr |= ld.AttrReachable
+ 	}
+ 
+ 	switch ld.HEADTYPE {

@@ -25,7 +25,7 @@ Date:   Thu Feb 28 06:43:21 2013 +0100
     R=rsc, ality, rminnich, bradfitz
     CC=golang-dev
     https://golang.org/cl/7398054
-
+---
  src/pkg/net/ipsock_plan9.go            | 50 ++++++++++++++++++++--------------
  src/pkg/net/tcpsock_plan9.go           |  6 ++--
  src/pkg/os/exec/lp_plan9.go            |  3 +-
@@ -33,3 +33,296 @@ Date:   Thu Feb 28 06:43:21 2013 +0100
  src/pkg/syscall/zerrors_plan9_386.go   | 29 +++++++++++++-------
  src/pkg/syscall/zerrors_plan9_amd64.go | 29 +++++++++++++-------
  6 files changed, 80 insertions(+), 48 deletions(-)
+
+diff --git a/src/pkg/net/ipsock_plan9.go b/src/pkg/net/ipsock_plan9.go
+index 2a3ca7e17d..c7d542dabc 100644
+--- a/src/pkg/net/ipsock_plan9.go
++++ b/src/pkg/net/ipsock_plan9.go
+@@ -9,6 +9,7 @@ package net
+ import (
+ 	"errors"
+ 	"os"
++	"syscall"
+ )
+ 
+ // /sys/include/ape/sys/socket.h:/SOMAXCONN
+@@ -104,50 +105,58 @@ func startPlan9(net string, addr Addr) (ctl *os.File, dest, proto, name string,
+ 	return f, dest, proto, string(buf[:n]), nil
+ }
+ 
+-func dialPlan9(net string, laddr, raddr Addr) (*netFD, error) {
++func netErr(e error) {
++	oe, ok := e.(*OpError)
++	if !ok {
++		return
++	}
++	if pe, ok := oe.Err.(*os.PathError); ok {
++		if _, ok = pe.Err.(syscall.ErrorString); ok {
++			oe.Err = pe.Err
++		}
++	}
++}
++
++func dialPlan9(net string, laddr, raddr Addr) (fd *netFD, err error) {
++	defer func() { netErr(err) }()
+ 	f, dest, proto, name, err := startPlan9(net, raddr)
+ 	if err != nil {
+-		return nil, err
++		return nil, &OpError{"dial", net, raddr, err}
+ 	}
+ 	_, err = f.WriteString("connect " + dest)
+ 	if err != nil {
+ 		f.Close()
+-		return nil, err
++		return nil, &OpError{"dial", f.Name(), raddr, err}
+ 	}
+ 	data, err := os.OpenFile("/net/"+proto+"/"+name+"/data", os.O_RDWR, 0)
+ 	if err != nil {
+ 		f.Close()
+-		return nil, err
++		return nil, &OpError{"dial", net, raddr, err}
+ 	}
+ 	laddr, err = readPlan9Addr(proto, "/net/"+proto+"/"+name+"/local")
+ 	if err != nil {
+ 		data.Close()
+ 		f.Close()
+-		return nil, err
+-	}
+-	raddr, err = readPlan9Addr(proto, "/net/"+proto+"/"+name+"/remote")
+-	if err != nil {
+-		data.Close()
+-		f.Close()
+-		return nil, err
++		return nil, &OpError{"dial", proto, raddr, err}
+ 	}
+ 	return newFD(proto, name, f, data, laddr, raddr), nil
+ }
+ 
+-func listenPlan9(net string, laddr Addr) (*netFD, error) {
++func listenPlan9(net string, laddr Addr) (fd *netFD, err error) {
++	defer func() { netErr(err) }()
+ 	f, dest, proto, name, err := startPlan9(net, laddr)
+ 	if err != nil {
+-		return nil, err
++		return nil, &OpError{"listen", net, laddr, err}
+ 	}
+ 	_, err = f.WriteString("announce " + dest)
+ 	if err != nil {
+ 		f.Close()
+-		return nil, err
++		return nil, &OpError{"announce", proto, laddr, err}
+ 	}
+ 	laddr, err = readPlan9Addr(proto, "/net/"+proto+"/"+name+"/local")
+ 	if err != nil {
+ 		f.Close()
+-		return nil, err
++		return nil, &OpError{Op: "listen", Net: net, Err: err}
+ 	}
+ 	return newFD(proto, name, f, nil, laddr, nil), nil
+ }
+@@ -156,28 +165,29 @@ func (l *netFD) netFD() *netFD {
+ 	return newFD(l.proto, l.name, l.ctl, l.data, l.laddr, l.raddr)
+ }
+ 
+-func (l *netFD) acceptPlan9() (*netFD, error) {
++func (l *netFD) acceptPlan9() (fd *netFD, err error) {
++	defer func() { netErr(err) }()
+ 	f, err := os.Open(l.dir + "/listen")
+ 	if err != nil {
+-		return nil, err
++		return nil, &OpError{"accept", l.dir + "/listen", l.laddr, err}
+ 	}
+ 	var buf [16]byte
+ 	n, err := f.Read(buf[:])
+ 	if err != nil {
+ 		f.Close()
+-		return nil, err
++		return nil, &OpError{"accept", l.dir + "/listen", l.laddr, err}
+ 	}
+ 	name := string(buf[:n])
+ 	data, err := os.OpenFile("/net/"+l.proto+"/"+name+"/data", os.O_RDWR, 0)
+ 	if err != nil {
+ 		f.Close()
+-		return nil, err
++		return nil, &OpError{"accept", l.proto, l.laddr, err}
+ 	}
+ 	raddr, err := readPlan9Addr(l.proto, "/net/"+l.proto+"/"+name+"/remote")
+ 	if err != nil {
+ 		data.Close()
+ 		f.Close()
+-		return nil, err
++		return nil, &OpError{"accept", l.proto, l.laddr, err}
+ 	}
+ 	return newFD(l.proto, name, f, data, l.laddr, raddr), nil
+ }
+diff --git a/src/pkg/net/tcpsock_plan9.go b/src/pkg/net/tcpsock_plan9.go
+index e0dd37f40f..ed36646038 100644
+--- a/src/pkg/net/tcpsock_plan9.go
++++ b/src/pkg/net/tcpsock_plan9.go
+@@ -89,7 +89,7 @@ func dialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time) (*TCPConn, e
+ 	switch net {
+ 	case "tcp", "tcp4", "tcp6":
+ 	default:
+-		return nil, UnknownNetworkError(net)
++		return nil, &OpError{"dial", net, raddr, UnknownNetworkError(net)}
+ 	}
+ 	if raddr == nil {
+ 		return nil, &OpError{"dial", net, nil, errMissingAddress}
+@@ -141,7 +141,7 @@ func (l *TCPListener) Close() error {
+ 	}
+ 	if _, err := l.fd.ctl.WriteString("hangup"); err != nil {
+ 		l.fd.ctl.Close()
+-		return err
++		return &OpError{"close", l.fd.ctl.Name(), l.fd.laddr, err}
+ 	}
+ 	return l.fd.ctl.Close()
+ }
+@@ -171,7 +171,7 @@ func ListenTCP(net string, laddr *TCPAddr) (*TCPListener, error) {
+ 	switch net {
+ 	case "tcp", "tcp4", "tcp6":
+ 	default:
+-		return nil, UnknownNetworkError(net)
++		return nil, &OpError{"listen", net, laddr, UnknownNetworkError(net)}
+ 	}
+ 	if laddr == nil {
+ 		laddr = &TCPAddr{}
+diff --git a/src/pkg/os/exec/lp_plan9.go b/src/pkg/os/exec/lp_plan9.go
+index 0e229e03ee..6846a35c85 100644
+--- a/src/pkg/os/exec/lp_plan9.go
++++ b/src/pkg/os/exec/lp_plan9.go
+@@ -8,7 +8,6 @@ import (
+ 	"errors"
+ 	"os"
+ 	"strings"
+-	"syscall"
+ )
+ 
+ // ErrNotFound is the error resulting if a path search failed to find an executable file.
+@@ -22,7 +21,7 @@ func findExecutable(file string) error {
+ 	if m := d.Mode(); !m.IsDir() && m&0111 != 0 {
+ 		return nil
+ 	}
+-	return syscall.EPERM
++	return os.ErrPermission
+ }
+ 
+ // LookPath searches for an executable binary named file
+diff --git a/src/pkg/syscall/syscall_plan9.go b/src/pkg/syscall/syscall_plan9.go
+index ef5bc5e8cd..bc2505758e 100644
+--- a/src/pkg/syscall/syscall_plan9.go
++++ b/src/pkg/syscall/syscall_plan9.go
+@@ -23,6 +23,14 @@ func (e ErrorString) Error() string { return string(e) }
+ // NewError converts s to an ErrorString, which satisfies the Error interface.
+ func NewError(s string) error { return ErrorString(s) }
+ 
++func (e ErrorString) Temporary() bool {
++	return e == EINTR || e == EMFILE || e.Timeout()
++}
++
++func (e ErrorString) Timeout() bool {
++	return e == EBUSY || e == ETIMEDOUT
++}
++
+ // A Note is a string describing a process note.
+ // It implements the os.Signal interface.
+ type Note string
+@@ -37,9 +45,6 @@ var (
+ 	Stdin  = 0
+ 	Stdout = 1
+ 	Stderr = 2
+-
+-	EAFNOSUPPORT = NewError("address family not supported by protocol")
+-	EISDIR       = NewError("file is a directory")
+ )
+ 
+ // For testing: clients can set this flag to force
+diff --git a/src/pkg/syscall/zerrors_plan9_386.go b/src/pkg/syscall/zerrors_plan9_386.go
+index 3d62508d39..ede3d6a329 100644
+--- a/src/pkg/syscall/zerrors_plan9_386.go
++++ b/src/pkg/syscall/zerrors_plan9_386.go
+@@ -4,8 +4,6 @@
+ 
+ package syscall
+ 
+-import "errors"
+-
+ // Constants
+ const (
+ 	// Invented values to support what package os expects.
+@@ -28,12 +26,23 @@ const (
+ 
+ // Errors
+ var (
+-	EINVAL       = errors.New("bad arg in system call")
+-	ENOTDIR      = errors.New("not a directory")
+-	ENOENT       = errors.New("file does not exist")
+-	EEXIST       = errors.New("file already exists")
+-	EIO          = errors.New("i/o error")
+-	ENAMETOOLONG = errors.New("file name too long")
+-	EPERM        = errors.New("permission denied")
+-	EPLAN9       = errors.New("not supported by plan 9")
++	EINVAL       = NewError("bad arg in system call")
++	ENOTDIR      = NewError("not a directory")
++	EISDIR       = NewError("file is a directory")
++	ENOENT       = NewError("file does not exist")
++	EEXIST       = NewError("file already exists")
++	EMFILE       = NewError("no free file descriptors")
++	EIO          = NewError("i/o error")
++	ENAMETOOLONG = NewError("file name too long")
++	EINTR        = NewError("interrupted")
++	EPERM        = NewError("permission denied")
++	EBUSY        = NewError("no free devices")
++	ETIMEDOUT    = NewError("connection timed out")
++	EPLAN9       = NewError("not supported by plan 9")
++
++	// The following errors do not correspond to any
++	// Plan 9 system messages. Invented to support
++	// what package os and others expect.
++	EACCES       = NewError("access permission denied")
++	EAFNOSUPPORT = NewError("address family not supported by protocol")
+ )
+diff --git a/src/pkg/syscall/zerrors_plan9_amd64.go b/src/pkg/syscall/zerrors_plan9_amd64.go
+index 3d62508d39..ede3d6a329 100644
+--- a/src/pkg/syscall/zerrors_plan9_amd64.go
++++ b/src/pkg/syscall/zerrors_plan9_amd64.go
+@@ -4,8 +4,6 @@
+ 
+ package syscall
+ 
+-import "errors"
+-
+ // Constants
+ const (
+ 	// Invented values to support what package os expects.
+@@ -28,12 +26,23 @@ const (
+ 
+ // Errors
+ var (
+-	EINVAL       = errors.New("bad arg in system call")
+-	ENOTDIR      = errors.New("not a directory")
+-	ENOENT       = errors.New("file does not exist")
+-	EEXIST       = errors.New("file already exists")
+-	EIO          = errors.New("i/o error")
+-	ENAMETOOLONG = errors.New("file name too long")
+-	EPERM        = errors.New("permission denied")
+-	EPLAN9       = errors.New("not supported by plan 9")
++	EINVAL       = NewError("bad arg in system call")
++	ENOTDIR      = NewError("not a directory")
++	EISDIR       = NewError("file is a directory")
++	ENOENT       = NewError("file does not exist")
++	EEXIST       = NewError("file already exists")
++	EMFILE       = NewError("no free file descriptors")
++	EIO          = NewError("i/o error")
++	ENAMETOOLONG = NewError("file name too long")
++	EINTR        = NewError("interrupted")
++	EPERM        = NewError("permission denied")
++	EBUSY        = NewError("no free devices")
++	ETIMEDOUT    = NewError("connection timed out")
++	EPLAN9       = NewError("not supported by plan 9")
++
++	// The following errors do not correspond to any
++	// Plan 9 system messages. Invented to support
++	// what package os and others expect.
++	EACCES       = NewError("access permission denied")
++	EAFNOSUPPORT = NewError("address family not supported by protocol")
+ )

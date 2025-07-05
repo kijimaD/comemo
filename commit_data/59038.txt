@@ -17,6 +17,39 @@ Date:   Mon Feb 5 11:58:35 2024 -0500
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Chris Hines <chris.cs.guy@gmail.com>
-
+---
  doc/go1.22.html | 14 +++++++++++---
  1 file changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go1.22.html b/doc/go1.22.html
+index 39e2dca610..f9750a3191 100644
+--- a/doc/go1.22.html
++++ b/doc/go1.22.html
+@@ -101,9 +101,10 @@ func main() {
+ 
+ <!-- CL 495447 -->
+ <p>
+-<code>go</code> <code>test</code> <code>-cover</code> now prints coverage summaries for covered
+-packages that do not have their own test files. Prior to Go 1.22 a
+-<code>go</code> <code>test</code> <code>-cover</code> run for such a package would report
++  <code>go</code> <code>test</code> <code>-cover</code> now prints coverage summaries
++  for covered packages that do not have their own test files. Prior to Go 1.22 a
++  <code>go</code> <code>test</code> <code>-cover</code> run for such a package would
++  report
+ </p>
+ 
+ <p>
+@@ -118,6 +119,13 @@ packages that do not have their own test files. Prior to Go 1.22 a
+   <code>mymod/mypack    coverage: 0.0% of statements</code>
+ </p>
+ 
++<p>
++  Note that if a package contains no executable code at all, we can't report
++  a meaningful coverage percentage; for such packages the <code>go</code> tool
++  will continue to report that there are no test files.
++</p>
++
++
+ <h3 id="trace">Trace</h3>
+ 
+ <!-- https://go.dev/issue/63960 -->

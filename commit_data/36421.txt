@@ -13,7 +13,7 @@ Date:   Thu Apr 26 14:06:08 2018 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/cgocall.go         |  6 +++---
  src/runtime/export_test.go     |  2 +-
  src/runtime/futex_test.go      |  4 ++--
@@ -30,3 +30,480 @@ Date:   Thu Apr 26 14:06:08 2018 -0400
  src/runtime/syscall_solaris.go | 20 ++++++++++----------
  src/runtime/traceback.go       |  2 +-
  15 files changed, 54 insertions(+), 57 deletions(-)
+
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index a06bed20f5..c85033f4bc 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -125,7 +125,7 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
+ 	// "system call", run the Go code (which may grow the stack),
+ 	// and then re-enter the "system call" reusing the PC and SP
+ 	// saved by entersyscall here.
+-	entersyscall(0)
++	entersyscall()
+ 
+ 	mp.incgo = true
+ 	errno := asmcgocall(fn, arg)
+@@ -134,7 +134,7 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
+ 	// reschedule us on to a different M.
+ 	endcgo(mp)
+ 
+-	exitsyscall(0)
++	exitsyscall()
+ 
+ 	// From the garbage collector's perspective, time can move
+ 	// backwards in the sequence above. If there's a callback into
+@@ -188,7 +188,7 @@ func cgocallbackg(ctxt uintptr) {
+ 	// save syscall* and let reentersyscall restore them.
+ 	savedsp := unsafe.Pointer(gp.syscallsp)
+ 	savedpc := gp.syscallpc
+-	exitsyscall(0) // coming out of cgo call
++	exitsyscall() // coming out of cgo call
+ 	gp.m.incgo = false
+ 
+ 	cgocallbackg1(ctxt)
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 51a0ea26fe..2575df1e39 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -403,7 +403,7 @@ func LockOSCounts() (external, internal uint32) {
+ //go:noinline
+ func TracebackSystemstack(stk []uintptr, i int) int {
+ 	if i == 0 {
+-		pc, sp := getcallerpc(), getcallersp(unsafe.Pointer(&stk))
++		pc, sp := getcallerpc(), getcallersp()
+ 		return gentraceback(pc, sp, 0, getg(), 0, &stk[0], len(stk), nil, nil, _TraceJumpStack)
+ 	}
+ 	n := 0
+diff --git a/src/runtime/futex_test.go b/src/runtime/futex_test.go
+index 0738f8f23b..3051bd5880 100644
+--- a/src/runtime/futex_test.go
++++ b/src/runtime/futex_test.go
+@@ -51,9 +51,9 @@ func TestFutexsleep(t *testing.T) {
+ 		tt.ch = make(chan *futexsleepTest, 1)
+ 		wg.Add(1)
+ 		go func(tt *futexsleepTest) {
+-			runtime.Entersyscall(0)
++			runtime.Entersyscall()
+ 			runtime.Futexsleep(&tt.mtx, 0, tt.ns)
+-			runtime.Exitsyscall(0)
++			runtime.Exitsyscall()
+ 			tt.ch <- tt
+ 			wg.Done()
+ 		}(tt)
+diff --git a/src/runtime/lock_futex.go b/src/runtime/lock_futex.go
+index 9d55bd129c..18dd4629a0 100644
+--- a/src/runtime/lock_futex.go
++++ b/src/runtime/lock_futex.go
+@@ -224,8 +224,8 @@ func notetsleepg(n *note, ns int64) bool {
+ 		throw("notetsleepg on g0")
+ 	}
+ 
+-	entersyscallblock(0)
++	entersyscallblock()
+ 	ok := notetsleep_internal(n, ns)
+-	exitsyscall(0)
++	exitsyscall()
+ 	return ok
+ }
+diff --git a/src/runtime/lock_sema.go b/src/runtime/lock_sema.go
+index b41f805cee..4cb0e84db3 100644
+--- a/src/runtime/lock_sema.go
++++ b/src/runtime/lock_sema.go
+@@ -277,8 +277,8 @@ func notetsleepg(n *note, ns int64) bool {
+ 		throw("notetsleepg on g0")
+ 	}
+ 	semacreate(gp.m)
+-	entersyscallblock(0)
++	entersyscallblock()
+ 	ok := notetsleep_internal(n, ns, nil, 0)
+-	exitsyscall(0)
++	exitsyscall()
+ 	return ok
+ }
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index 0455fe86ac..43e4810d97 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -740,7 +740,7 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
+ 		r := p
+ 
+ 		// Save current goroutine.
+-		sp := getcallersp(unsafe.Pointer(&p))
++		sp := getcallersp()
+ 		pc := getcallerpc()
+ 		systemstack(func() {
+ 			saveg(pc, sp, gp, &r[0])
+@@ -785,7 +785,7 @@ func Stack(buf []byte, all bool) int {
+ 	n := 0
+ 	if len(buf) > 0 {
+ 		gp := getg()
+-		sp := getcallersp(unsafe.Pointer(&buf))
++		sp := getcallersp()
+ 		pc := getcallerpc()
+ 		systemstack(func() {
+ 			g0 := getg()
+@@ -827,7 +827,7 @@ func tracealloc(p unsafe.Pointer, size uintptr, typ *_type) {
+ 	if gp.m.curg == nil || gp == gp.m.curg {
+ 		goroutineheader(gp)
+ 		pc := getcallerpc()
+-		sp := getcallersp(unsafe.Pointer(&p))
++		sp := getcallersp()
+ 		systemstack(func() {
+ 			traceback(pc, sp, 0, gp)
+ 		})
+@@ -847,7 +847,7 @@ func tracefree(p unsafe.Pointer, size uintptr) {
+ 	print("tracefree(", p, ", ", hex(size), ")\n")
+ 	goroutineheader(gp)
+ 	pc := getcallerpc()
+-	sp := getcallersp(unsafe.Pointer(&p))
++	sp := getcallersp()
+ 	systemstack(func() {
+ 		traceback(pc, sp, 0, gp)
+ 	})
+diff --git a/src/runtime/norace_test.go b/src/runtime/norace_test.go
+index e9b39b2f45..e90128bb6d 100644
+--- a/src/runtime/norace_test.go
++++ b/src/runtime/norace_test.go
+@@ -34,12 +34,12 @@ func benchmarkSyscall(b *testing.B, work, excess int) {
+ 	b.RunParallel(func(pb *testing.PB) {
+ 		foo := 42
+ 		for pb.Next() {
+-			runtime.Entersyscall(0)
++			runtime.Entersyscall()
+ 			for i := 0; i < work; i++ {
+ 				foo *= 2
+ 				foo /= 2
+ 			}
+-			runtime.Exitsyscall(0)
++			runtime.Exitsyscall()
+ 		}
+ 		_ = foo
+ 	})
+diff --git a/src/runtime/os_solaris.go b/src/runtime/os_solaris.go
+index d698e09e7d..703a2e5430 100644
+--- a/src/runtime/os_solaris.go
++++ b/src/runtime/os_solaris.go
+@@ -42,7 +42,7 @@ func sysvicall0(fn *libcFunc) uintptr {
+ 		mp.libcallpc = getcallerpc()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+-		mp.libcallsp = getcallersp(unsafe.Pointer(&fn))
++		mp.libcallsp = getcallersp()
+ 	}
+ 
+ 	var libcall libcall
+@@ -69,7 +69,7 @@ func sysvicall1(fn *libcFunc, a1 uintptr) uintptr {
+ 		mp.libcallpc = getcallerpc()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+-		mp.libcallsp = getcallersp(unsafe.Pointer(&fn))
++		mp.libcallsp = getcallersp()
+ 	}
+ 
+ 	var libcall libcall
+@@ -97,7 +97,7 @@ func sysvicall2(fn *libcFunc, a1, a2 uintptr) uintptr {
+ 		mp.libcallpc = getcallerpc()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+-		mp.libcallsp = getcallersp(unsafe.Pointer(&fn))
++		mp.libcallsp = getcallersp()
+ 	}
+ 
+ 	var libcall libcall
+@@ -124,7 +124,7 @@ func sysvicall3(fn *libcFunc, a1, a2, a3 uintptr) uintptr {
+ 		mp.libcallpc = getcallerpc()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+-		mp.libcallsp = getcallersp(unsafe.Pointer(&fn))
++		mp.libcallsp = getcallersp()
+ 	}
+ 
+ 	var libcall libcall
+@@ -151,7 +151,7 @@ func sysvicall4(fn *libcFunc, a1, a2, a3, a4 uintptr) uintptr {
+ 		mp.libcallpc = getcallerpc()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+-		mp.libcallsp = getcallersp(unsafe.Pointer(&fn))
++		mp.libcallsp = getcallersp()
+ 	}
+ 
+ 	var libcall libcall
+@@ -178,7 +178,7 @@ func sysvicall5(fn *libcFunc, a1, a2, a3, a4, a5 uintptr) uintptr {
+ 		mp.libcallpc = getcallerpc()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+-		mp.libcallsp = getcallersp(unsafe.Pointer(&fn))
++		mp.libcallsp = getcallersp()
+ 	}
+ 
+ 	var libcall libcall
+@@ -205,7 +205,7 @@ func sysvicall6(fn *libcFunc, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
+ 		mp.libcallpc = getcallerpc()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+-		mp.libcallsp = getcallersp(unsafe.Pointer(&fn))
++		mp.libcallsp = getcallersp()
+ 	}
+ 
+ 	var libcall libcall
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 415ec0cb90..01f46e163c 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -711,7 +711,7 @@ func stdcall(fn stdFunction) uintptr {
+ 		mp.libcallpc = getcallerpc()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+-		mp.libcallsp = getcallersp(unsafe.Pointer(&fn))
++		mp.libcallsp = getcallersp()
+ 	}
+ 	asmcgocall(asmstdcallAddr, unsafe.Pointer(&mp.libcall))
+ 	mp.libcallsp = 0
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 6a889a1ee6..3abcf9045b 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -81,7 +81,7 @@ func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
+ 	// collection or stack copying trigger until we've copied them out
+ 	// to somewhere safe. The memmove below does that.
+ 	// Until the copy completes, we can only call nosplit routines.
+-	sp := getcallersp(unsafe.Pointer(&siz))
++	sp := getcallersp()
+ 	argp := uintptr(unsafe.Pointer(&fn)) + unsafe.Sizeof(fn)
+ 	callerpc := getcallerpc()
+ 
+@@ -320,7 +320,7 @@ func deferreturn(arg0 uintptr) {
+ 	if d == nil {
+ 		return
+ 	}
+-	sp := getcallersp(unsafe.Pointer(&arg0))
++	sp := getcallersp()
+ 	if d.sp != sp {
+ 		return
+ 	}
+@@ -637,7 +637,7 @@ func recovery(gp *g) {
+ //go:nosplit
+ func fatalpanic(msgs *_panic) {
+ 	pc := getcallerpc()
+-	sp := getcallersp(unsafe.Pointer(&msgs))
++	sp := getcallersp()
+ 	gp := getg()
+ 	// Switch to the system stack to avoid any stack growth, which
+ 	// may make things worse if the runtime is in a bad state.
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index b67d67a6f7..33845ae6e0 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1192,7 +1192,7 @@ func mstart() {
+ 	// both Go and C functions with stack growth prologues.
+ 	_g_.stackguard0 = _g_.stack.lo + _StackGuard
+ 	_g_.stackguard1 = _g_.stackguard0
+-	mstart1(0)
++	mstart1()
+ 
+ 	// Exit this thread.
+ 	if GOOS == "windows" || GOOS == "solaris" || GOOS == "plan9" {
+@@ -1204,7 +1204,7 @@ func mstart() {
+ 	mexit(osStack)
+ }
+ 
+-func mstart1(dummy int32) {
++func mstart1() {
+ 	_g_ := getg()
+ 
+ 	if _g_ != _g_.m.g0 {
+@@ -1215,7 +1215,7 @@ func mstart1(dummy int32) {
+ 	// for terminating the thread.
+ 	// We're never coming back to mstart1 after we call schedule,
+ 	// so other calls can reuse the current frame.
+-	save(getcallerpc(), getcallersp(unsafe.Pointer(&dummy)))
++	save(getcallerpc(), getcallersp())
+ 	asminit()
+ 	minit()
+ 
+@@ -2836,8 +2836,8 @@ func reentersyscall(pc, sp uintptr) {
+ 
+ // Standard syscall entry used by the go syscall library and normal cgo calls.
+ //go:nosplit
+-func entersyscall(dummy int32) {
+-	reentersyscall(getcallerpc(), getcallersp(unsafe.Pointer(&dummy)))
++func entersyscall() {
++	reentersyscall(getcallerpc(), getcallersp())
+ }
+ 
+ func entersyscall_sysmon() {
+@@ -2869,7 +2869,7 @@ func entersyscall_gcwait() {
+ 
+ // The same as entersyscall(), but with a hint that the syscall is blocking.
+ //go:nosplit
+-func entersyscallblock(dummy int32) {
++func entersyscallblock() {
+ 	_g_ := getg()
+ 
+ 	_g_.m.locks++ // see comment in entersyscall
+@@ -2881,7 +2881,7 @@ func entersyscallblock(dummy int32) {
+ 
+ 	// Leave SP around for GC and traceback.
+ 	pc := getcallerpc()
+-	sp := getcallersp(unsafe.Pointer(&dummy))
++	sp := getcallersp()
+ 	save(pc, sp)
+ 	_g_.syscallsp = _g_.sched.sp
+ 	_g_.syscallpc = _g_.sched.pc
+@@ -2905,7 +2905,7 @@ func entersyscallblock(dummy int32) {
+ 	systemstack(entersyscallblock_handoff)
+ 
+ 	// Resave for traceback during blocked call.
+-	save(getcallerpc(), getcallersp(unsafe.Pointer(&dummy)))
++	save(getcallerpc(), getcallersp())
+ 
+ 	_g_.m.locks--
+ }
+@@ -2927,11 +2927,11 @@ func entersyscallblock_handoff() {
+ //
+ //go:nosplit
+ //go:nowritebarrierrec
+-func exitsyscall(dummy int32) {
++func exitsyscall() {
+ 	_g_ := getg()
+ 
+ 	_g_.m.locks++ // see comment in entersyscall
+-	if getcallersp(unsafe.Pointer(&dummy)) > _g_.syscallsp {
++	if getcallersp() > _g_.syscallsp {
+ 		throw("exitsyscall: syscall frame is no longer valid")
+ 	}
+ 
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 0d8caae7a0..4981c1f615 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -316,7 +316,7 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ 			st := stackt{ss_size: g.m.g0.stack.hi - g.m.g0.stack.lo}
+ 			setSignalstackSP(&st, g.m.g0.stack.lo)
+ 			setGsignalStack(&st, &gsignalStack)
+-			g.m.gsignal.stktopsp = getcallersp(unsafe.Pointer(&sig))
++			g.m.gsignal.stktopsp = getcallersp()
+ 			setStack = true
+ 		} else {
+ 			var st stackt
+@@ -335,7 +335,7 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ 				dropm()
+ 			}
+ 			setGsignalStack(&st, &gsignalStack)
+-			g.m.gsignal.stktopsp = getcallersp(unsafe.Pointer(&sig))
++			g.m.gsignal.stktopsp = getcallersp()
+ 			setStack = true
+ 		}
+ 	}
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 7818fd3683..d1cdf5fa5d 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -199,17 +199,14 @@ func publicationBarrier()
+ 
+ // getcallerpc returns the program counter (PC) of its caller's caller.
+ // getcallersp returns the stack pointer (SP) of its caller's caller.
+-// argp must be a pointer to the caller's first function argument.
+-// The implementation may or may not use argp, depending on
+-// the architecture. The implementation may be a compiler
+-// intrinsic; there is not necessarily code implementing this
+-// on every platform.
++// The implementation may be a compiler intrinsic; there is not
++// necessarily code implementing this on every platform.
+ //
+ // For example:
+ //
+ //	func f(arg1, arg2, arg3 int) {
+ //		pc := getcallerpc()
+-//		sp := getcallersp(unsafe.Pointer(&arg1))
++//		sp := getcallersp()
+ //	}
+ //
+ // These two lines find the PC and SP immediately following
+@@ -231,7 +228,7 @@ func publicationBarrier()
+ func getcallerpc() uintptr
+ 
+ //go:noescape
+-func getcallersp(argp unsafe.Pointer) uintptr // implemented as an intrinsic on all platforms
++func getcallersp() uintptr // implemented as an intrinsic on all platforms
+ 
+ // getclosureptr returns the pointer to the current closure.
+ // getclosureptr can only be used in an assignment statement
+diff --git a/src/runtime/syscall_solaris.go b/src/runtime/syscall_solaris.go
+index 12afca17bb..9f05a47892 100644
+--- a/src/runtime/syscall_solaris.go
++++ b/src/runtime/syscall_solaris.go
+@@ -34,9 +34,9 @@ func syscall_sysvicall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err
+ 		n:    nargs,
+ 		args: uintptr(unsafe.Pointer(&a1)),
+ 	}
+-	entersyscallblock(0)
++	entersyscallblock()
+ 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
+-	exitsyscall(0)
++	exitsyscall()
+ 	return call.r1, call.r2, call.err
+ }
+ 
+@@ -130,9 +130,9 @@ func syscall_gethostname() (name string, err uintptr) {
+ 		n:    2,
+ 		args: uintptr(unsafe.Pointer(&args[0])),
+ 	}
+-	entersyscallblock(0)
++	entersyscallblock()
+ 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
+-	exitsyscall(0)
++	exitsyscall()
+ 	if call.r1 != 0 {
+ 		return "", call.err
+ 	}
+@@ -168,9 +168,9 @@ func syscall_pipe() (r, w, err uintptr) {
+ 		n:    0,
+ 		args: uintptr(unsafe.Pointer(&pipe1)), // it's unused but must be non-nil, otherwise crashes
+ 	}
+-	entersyscallblock(0)
++	entersyscallblock()
+ 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
+-	exitsyscall(0)
++	exitsyscall()
+ 	return call.r1, call.r2, call.err
+ }
+ 
+@@ -247,9 +247,9 @@ func syscall_syscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+ 		n:    4,
+ 		args: uintptr(unsafe.Pointer(&trap)),
+ 	}
+-	entersyscallblock(0)
++	entersyscallblock()
+ 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
+-	exitsyscall(0)
++	exitsyscall()
+ 	return call.r1, call.r2, call.err
+ }
+ 
+@@ -259,9 +259,9 @@ func syscall_wait4(pid uintptr, wstatus *uint32, options uintptr, rusage unsafe.
+ 		n:    4,
+ 		args: uintptr(unsafe.Pointer(&pid)),
+ 	}
+-	entersyscallblock(0)
++	entersyscallblock()
+ 	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&call))
+-	exitsyscall(0)
++	exitsyscall()
+ 	return int(call.r1), call.err
+ }
+ 
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 0f392a50fd..2fb8aea59d 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -761,7 +761,7 @@ func printAncestorTracebackFuncInfo(f funcInfo, pc uintptr) bool {
+ }
+ 
+ func callers(skip int, pcbuf []uintptr) int {
+-	sp := getcallersp(unsafe.Pointer(&skip))
++	sp := getcallersp()
+ 	pc := getcallerpc()
+ 	gp := getg()
+ 	var n int

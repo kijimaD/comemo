@@ -6,7 +6,7 @@ Date:   Tue Oct 27 22:47:54 2009 -0700
     
     R=gri
     http://go/go-review/1015011
-
+---
  src/pkg/bignum/nrdiv_test.go      |  2 +-
  src/pkg/bytes/buffer_test.go      |  6 +++---
  src/pkg/bytes/bytes_test.go       | 16 ++++++----------
@@ -24,3 +24,384 @@ Date:   Tue Oct 27 22:47:54 2009 -0700
  src/pkg/unicode/script_test.go    |  7 ++++---
  src/pkg/utf8/utf8_test.go         |  8 ++++----
  16 files changed, 53 insertions(+), 68 deletions(-)
+
+diff --git a/src/pkg/bignum/nrdiv_test.go b/src/pkg/bignum/nrdiv_test.go
+index af21df2e6d..5fdc31a77d 100644
+--- a/src/pkg/bignum/nrdiv_test.go
++++ b/src/pkg/bignum/nrdiv_test.go
+@@ -190,5 +190,5 @@ func TestNRDiv(t *testing.T) {
+ 	idiv(t, 7484890589595, 7484890589594);
+ 	div(t, Fact(100), Fact(91));
+ 	div(t, Fact(1000), Fact(991));
+-//div(t, Fact(10000), Fact(9991));  // takes too long - disabled for now
++	//div(t, Fact(10000), Fact(9991));  // takes too long - disabled for now
+ }
+diff --git a/src/pkg/bytes/buffer_test.go b/src/pkg/bytes/buffer_test.go
+index 1082e0a11d..f82c984685 100644
+--- a/src/pkg/bytes/buffer_test.go
++++ b/src/pkg/bytes/buffer_test.go
+@@ -5,9 +5,9 @@
+ package bytes_test
+ 
+ import (
+-	.	"bytes";
+-		"rand";
+-		"testing";
++	. "bytes";
++	"rand";
++	"testing";
+ )
+ 
+ 
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index 094d71186f..24ee4bf4d2 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -5,10 +5,10 @@
+ package bytes_test
+ 
+ import (
+-	.	"bytes";
+-		"strings";
+-		"testing";
+-		"unicode";
++	. "bytes";
++	"strings";
++	"testing";
++	"unicode";
+ )
+ 
+ func eq(a, b []string) bool {
+@@ -241,18 +241,14 @@ func TestMap(t *testing.T) {
+ 	// Run a couple of awful growth/shrinkage tests
+ 	a := tenRunes('a');
+ 	// 1.  Grow.  This triggers two reallocations in Map.
+-	maxRune := func(rune int) int {
+-		return unicode.MaxRune;
+-	};
++	maxRune := func(rune int) int { return unicode.MaxRune };
+ 	m := Map(maxRune, Bytes(a));
+ 	expect := tenRunes(unicode.MaxRune);
+ 	if string(m) != expect {
+ 		t.Errorf("growing: expected %q got %q", expect, m);
+ 	}
+ 	// 2. Shrink
+-	minRune := func(rune int) int {
+-		return 'a';
+-	};
++	minRune := func(rune int) int { return 'a' };
+ 	m = Map(minRune, Bytes(tenRunes(unicode.MaxRune)));
+ 	expect = a;
+ 	if string(m) != expect {
+diff --git a/src/pkg/debug/elf/file.go b/src/pkg/debug/elf/file.go
+index 0b5ff3fa10..7b1d784548 100644
+--- a/src/pkg/debug/elf/file.go
++++ b/src/pkg/debug/elf/file.go
+@@ -174,7 +174,7 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
+ 	switch f.Class {
+ 	case ELFCLASS32:
+ 	case ELFCLASS64:
+-	// ok
++		// ok
+ 	default:
+ 		return nil, &FormatError{0, "unknown ELF class", f.Class};
+ 	}
+diff --git a/src/pkg/debug/proc/proc_linux.go b/src/pkg/debug/proc/proc_linux.go
+index f278ec7277..60a0555e98 100644
+--- a/src/pkg/debug/proc/proc_linux.go
++++ b/src/pkg/debug/proc/proc_linux.go
+@@ -220,7 +220,7 @@ func (e *newThreadError) String() string {
+ 	return fmt.Sprintf("newThread wait wanted pid %v and signal %v, got %v and %v", e.Pid, e.StopSignal(), e.wantPid, e.wantSig);
+ }
+ 
+-type ProcessExited struct {}
++type ProcessExited struct{}
+ 
+ func (p ProcessExited) String() string {
+ 	return "process exited";
+@@ -449,9 +449,9 @@ func (t *thread) wait() {
+ 			if err == nil {
+ 				continue;
+ 			}
+-		// If we failed to continue, just let
+-		// the stop go through so we can
+-		// update the thread's state.
++			// If we failed to continue, just let
++			// the stop go through so we can
++			// update the thread's state.
+ 		}
+ 		if !<-t.proc.ready {
+ 			// The monitor exited
+@@ -852,12 +852,8 @@ func (t *thread) stepAsync(ready chan os.Error) os.Error {
+ 		return err;
+ 	}
+ 	t.setState(singleStepping);
+-	t.onStop(func() {
+-		ready <- nil;
+-	},
+-		func(err os.Error) {
+-			ready <- err;
+-		});
++	t.onStop(func() { ready <- nil },
++		func(err os.Error) { ready <- err });
+ 	return nil;
+ }
+ 
+@@ -1100,9 +1096,7 @@ func (p *process) WaitStop() os.Error {
+ 			}
+ 			p.transitionHandlers.Push(h);
+ 		};
+-		h.onErr = func(err os.Error) {
+-			ready <- err;
+-		};
++		h.onErr = func(err os.Error) { ready <- err };
+ 		p.transitionHandlers.Push(h);
+ 		return nil;
+ 	});
+@@ -1114,9 +1108,7 @@ func (p *process) WaitStop() os.Error {
+ }
+ 
+ func (p *process) Stop() os.Error {
+-	err := p.do(func() os.Error {
+-		return p.stopAsync();
+-	});
++	err := p.do(func() os.Error { return p.stopAsync() });
+ 	if err != nil {
+ 		return err;
+ 	}
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index 7413bbc4bb..a35ea8c685 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -35,8 +35,8 @@ type typeDoc struct {
+ //
+ type docReader struct {
+ 	doc	*ast.CommentGroup;	// package documentation, if any
+-	pkgName string;
+-	values	*vector.Vector;		// list of *ast.GenDecl (consts and vars)
++	pkgName	string;
++	values	*vector.Vector;	// list of *ast.GenDecl (consts and vars)
+ 	types	map[string]*typeDoc;
+ 	funcs	map[string]*ast.FuncDecl;
+ 	bugs	*vector.Vector;	// list of *ast.CommentGroup
+@@ -186,7 +186,7 @@ func (doc *docReader) addFunc(fun *ast.FuncDecl) {
+ 				if doc.pkgName == "os" && tname == "Error" &&
+ 					name != "NewError" && name != "NewSyscallError" {
+ 					// not a factory function for os.Error
+-					doc.funcs[name] = fun;  // treat as ordinary function
++					doc.funcs[name] = fun;	// treat as ordinary function
+ 					return;
+ 				}
+ 
+@@ -225,7 +225,7 @@ func (doc *docReader) addDecl(decl ast.Decl) {
+ 					// would lose GenDecl documentation if the TypeSpec
+ 					// has documentation as well.
+ 					doc.addType(&ast.GenDecl{d.Doc, d.Pos(), token.TYPE, noPos, []ast.Spec{spec}, noPos});
+-				// A new GenDecl node is created, no need to nil out d.Doc.
++					// A new GenDecl node is created, no need to nil out d.Doc.
+ 				}
+ 			}
+ 		}
+diff --git a/src/pkg/image/png/reader.go b/src/pkg/image/png/reader.go
+index 12c59e49c1..c8a2b076b2 100644
+--- a/src/pkg/image/png/reader.go
++++ b/src/pkg/image/png/reader.go
+@@ -226,7 +226,7 @@ func (d *decoder) idatReader(idat io.Reader) os.Error {
+ 		pdat := pr[1:len(pr)];
+ 		switch cr[0] {
+ 		case ftNone:
+-		// No-op.
++			// No-op.
+ 		case ftSub:
+ 			for i := bpp; i < len(cdat); i++ {
+ 				cdat[i] += cdat[i-bpp];
+diff --git a/src/pkg/os/exec.go b/src/pkg/os/exec.go
+index a94a2a8424..79d25b2dc0 100644
+--- a/src/pkg/os/exec.go
++++ b/src/pkg/os/exec.go
+@@ -57,8 +57,8 @@ func Exec(argv0 string, argv []string, envv []string) Error {
+ 
+ // Waitmsg stores the information about an exited process as reported by Wait.
+ type Waitmsg struct {
+-	Pid			int;	// The process's id.
+-	syscall.WaitStatus;	// System-dependent status info.
++	Pid			int;			// The process's id.
++	syscall.WaitStatus;				// System-dependent status info.
+ 	Rusage			*syscall.Rusage;	// System-dependent resource usage info.
+ }
+ 
+diff --git a/src/pkg/os/path_test.go b/src/pkg/os/path_test.go
+index 617d1e7f4d..61cba30ee8 100644
+--- a/src/pkg/os/path_test.go
++++ b/src/pkg/os/path_test.go
+@@ -5,8 +5,8 @@
+ package os_test
+ 
+ import (
+-	.	"os";
+-		"testing";
++	. "os";
++	"testing";
+ )
+ 
+ func TestMkdirAll(t *testing.T) {
+diff --git a/src/pkg/path/path_test.go b/src/pkg/path/path_test.go
+index c895effe75..9036cc1858 100644
+--- a/src/pkg/path/path_test.go
++++ b/src/pkg/path/path_test.go
+@@ -134,9 +134,9 @@ func TestExt(t *testing.T) {
+ }
+ 
+ type Node struct {
+-	name string;
+-	entries []*Node;  // nil if the entry is a file
+-	mark int;
++	name	string;
++	entries	[]*Node;	// nil if the entry is a file
++	mark	int;
+ }
+ 
+ var tree = &Node{
+@@ -156,13 +156,13 @@ var tree = &Node{
+ 						&Node{"u", nil, 0},
+ 						&Node{"v", nil, 0},
+ 					},
+-					0
+-				}
++					0,
++				},
+ 			},
+-			0
+-		}
++			0,
++		},
+ 	},
+-	0
++	0,
+ }
+ 
+ func walkTree(n *Node, path string, f func(path string, n *Node)) {
+@@ -187,9 +187,7 @@ func makeTree(t *testing.T) {
+ }
+ 
+ func markTree(n *Node) {
+-	walkTree(n, "", func(path string, n *Node) {
+-		n.mark++;
+-	});
++	walkTree(n, "", func(path string, n *Node) { n.mark++ });
+ }
+ 
+ func checkMarks(t *testing.T) {
+@@ -210,7 +208,7 @@ func mark(name string) {
+ 	});
+ }
+ 
+-type TestVisitor struct {}
++type TestVisitor struct{}
+ 
+ func (v *TestVisitor) VisitDir(path string, d *os.Dir) bool {
+ 	mark(d.Name);
+diff --git a/src/pkg/strconv/decimal_test.go b/src/pkg/strconv/decimal_test.go
+index 470a81e2c9..31477f1aa5 100644
+--- a/src/pkg/strconv/decimal_test.go
++++ b/src/pkg/strconv/decimal_test.go
+@@ -5,8 +5,8 @@
+ package strconv_test
+ 
+ import (
+-	.	"strconv";
+-		"testing";
++	. "strconv";
++	"testing";
+ )
+ 
+ type shiftTest struct {
+diff --git a/src/pkg/template/template_test.go b/src/pkg/template/template_test.go
+index b17afd26eb..23e21e0134 100644
+--- a/src/pkg/template/template_test.go
++++ b/src/pkg/template/template_test.go
+@@ -59,9 +59,7 @@ func plus1(v interface{}) string {
+ }
+ 
+ func writer(f func(interface{}) string) (func(io.Writer, interface{}, string)) {
+-	return func(w io.Writer, v interface{}, format string) {
+-		io.WriteString(w, f(v));
+-	};
++	return func(w io.Writer, v interface{}, format string) { io.WriteString(w, f(v)) };
+ }
+ 
+ 
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index 8a90f5d7a5..5d9d7c27eb 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -5,9 +5,9 @@
+ package time_test
+ 
+ import (
+-		"os";
+-		"testing";
+-	.	"time";
++	"os";
++	"testing";
++	. "time";
+ )
+ 
+ func init() {
+diff --git a/src/pkg/time/zoneinfo.go b/src/pkg/time/zoneinfo.go
+index b2b719cfd1..86f185dada 100644
+--- a/src/pkg/time/zoneinfo.go
++++ b/src/pkg/time/zoneinfo.go
+@@ -217,7 +217,7 @@ func setupZone() {
+ 	case len(tz) > 0:
+ 		zones, _ = readinfofile(zoneDir+tz);
+ 	case len(tz) == 0:
+-	// do nothing: use UTC
++		// do nothing: use UTC
+ 	}
+ }
+ 
+diff --git a/src/pkg/unicode/script_test.go b/src/pkg/unicode/script_test.go
+index c212e3335a..a5d070a498 100644
+--- a/src/pkg/unicode/script_test.go
++++ b/src/pkg/unicode/script_test.go
+@@ -5,8 +5,8 @@
+ package unicode_test
+ 
+ import (
+-		"testing";
+-	.	"unicode";
++	"testing";
++	. "unicode";
+ )
+ 
+ type T struct {
+@@ -98,7 +98,8 @@ var inTest = []T{
+ }
+ 
+ var outTest = []T{	// not really worth being thorough
+-T{0x20, "Telugu"}}
++	T{0x20, "Telugu"},
++}
+ 
+ var inCategoryTest = []T{
+ 	T{0x0081, "Cc"},
+diff --git a/src/pkg/utf8/utf8_test.go b/src/pkg/utf8/utf8_test.go
+index f18eff8d6c..dd9e334122 100644
+--- a/src/pkg/utf8/utf8_test.go
++++ b/src/pkg/utf8/utf8_test.go
+@@ -5,10 +5,10 @@
+ package utf8_test
+ 
+ import (
+-		"bytes";
+-		"strings";
+-		"testing";
+-	.	"utf8";
++	"bytes";
++	"strings";
++	"testing";
++	. "utf8";
+ )
+ 
+ type Utf8Map struct {

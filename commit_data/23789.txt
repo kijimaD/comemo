@@ -12,6 +12,47 @@ Date:   Sat Jun 13 19:27:26 2015 +0100
     Change-Id: Iddaf0924d98c5b3d9515c3ced927b0c85722818c
     Reviewed-on: https://go-review.googlesource.com/11071
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/schedule.go | 10 ++++++++--
  1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index b93b0d8a45..60d2cd5460 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -57,6 +57,9 @@ func schedule(f *Func) {
+ 		// Topologically sort the values in b.
+ 		order = order[:0]
+ 		for _, v := range b.Values {
++			if v == b.Control {
++				continue
++			}
+ 			if v.Op == OpPhi {
+ 				// Phis all go first.  We handle phis specially
+ 				// because they may have self edges "a = phi(a, b, c)"
+@@ -79,13 +82,13 @@ func schedule(f *Func) {
+ 					// Note that v is not popped.  We leave it in place
+ 					// until all its children have been explored.
+ 					for _, w := range v.Args {
+-						if w.Block == b && w.Op != OpPhi && state[w.ID] == unmarked {
++						if w.Block == b && w.Op != OpPhi && w != b.Control && state[w.ID] == unmarked {
+ 							state[w.ID] = found
+ 							queue = append(queue, w)
+ 						}
+ 					}
+ 					for _, w := range additionalEdges[v.ID] {
+-						if w.Block == b && w.Op != OpPhi && state[w.ID] == unmarked {
++						if w.Block == b && w.Op != OpPhi && w != b.Control && state[w.ID] == unmarked {
+ 							state[w.ID] = found
+ 							queue = append(queue, w)
+ 						}
+@@ -99,6 +102,9 @@ func schedule(f *Func) {
+ 				}
+ 			}
+ 		}
++		if b.Control != nil {
++			order = append(order, b.Control)
++		}
+ 		copy(b.Values, order)
+ 	}
+ 	// TODO: only allow one live flags type (x86)

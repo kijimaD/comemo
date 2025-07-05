@@ -13,6 +13,33 @@ Date:   Tue Feb 4 14:53:46 2020 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/internal/bytealg/indexbyte_riscv64.s | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/internal/bytealg/indexbyte_riscv64.s b/src/internal/bytealg/indexbyte_riscv64.s
+index 087be86e44..156c303699 100644
+--- a/src/internal/bytealg/indexbyte_riscv64.s
++++ b/src/internal/bytealg/indexbyte_riscv64.s
+@@ -6,8 +6,8 @@
+ #include "textflag.h"
+ 
+ TEXT ·IndexByte(SB),NOSPLIT,$0-40
+-	MOV	s+0(FP), A1
+-	MOV	s_len+8(FP), A2
++	MOV	b_base+0(FP), A1
++	MOV	b_len+8(FP), A2
+ 	MOVBU	c+24(FP), A3	// byte to find
+ 	MOV	A1, A4		// store base for later
+ 	ADD	A1, A2		// end
+@@ -29,8 +29,8 @@ notfound:
+ 	RET
+ 
+ TEXT ·IndexByteString(SB),NOSPLIT,$0-32
+-	MOV	p+0(FP), A1
+-	MOV	b_len+8(FP), A2
++	MOV	s_base+0(FP), A1
++	MOV	s_len+8(FP), A2
+ 	MOVBU	c+16(FP), A3	// byte to find
+ 	MOV	A1, A4		// store base for later
+ 	ADD	A1, A2		// end

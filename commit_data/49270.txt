@@ -16,7 +16,7 @@ Date:   Wed Aug 4 12:57:23 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/339969
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/decl.go       |  4 ++--
  src/cmd/compile/internal/types2/errors.go     |  4 ++--
  src/cmd/compile/internal/types2/lookup.go     |  4 ++--
@@ -29,3 +29,248 @@ Date:   Wed Aug 4 12:57:23 2021 -0700
  src/cmd/compile/internal/types2/union.go      |  2 +-
  src/cmd/compile/internal/types2/universe.go   |  2 +-
  11 files changed, 24 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index cf4d4c95a7..bb33c287f3 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -340,7 +340,7 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
+ 			// cycle detected
+ 			for i, tn := range path {
+ 				if t.obj.pkg != check.pkg {
+-					panic("internal error: type cycle via package-external type")
++					panic("type cycle via package-external type")
+ 				}
+ 				if tn == t.obj {
+ 					check.cycleError(path[i:])
+@@ -348,7 +348,7 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
+ 					return t.info
+ 				}
+ 			}
+-			panic("internal error: cycle start not found")
++			panic("cycle start not found")
+ 		}
+ 		return t.info
+ 	}
+diff --git a/src/cmd/compile/internal/types2/errors.go b/src/cmd/compile/internal/types2/errors.go
+index 8c5e185f6c..a68273271b 100644
+--- a/src/cmd/compile/internal/types2/errors.go
++++ b/src/cmd/compile/internal/types2/errors.go
+@@ -88,7 +88,7 @@ func sprintf(qf Qualifier, format string, args ...interface{}) string {
+ 		case nil:
+ 			arg = "<nil>"
+ 		case operand:
+-			panic("internal error: should always pass *operand")
++			panic("got operand instead of *operand")
+ 		case *operand:
+ 			arg = operandString(a, qf)
+ 		case syntax.Pos:
+@@ -148,7 +148,7 @@ func (check *Checker) sprintf(format string, args ...interface{}) string {
+ 
+ func (check *Checker) report(err *error_) {
+ 	if err.empty() {
+-		panic("internal error: reporting no error")
++		panic("no error to report")
+ 	}
+ 	check.err(err.pos(), err.msg(check.qualifier), err.soft)
+ }
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index f62c3771d2..0363008ad9 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -322,7 +322,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ 				return m, f
+ 			}
+ 			if !acceptMethodTypeParams && ftyp.TParams().Len() > 0 {
+-				panic("internal error: method with type parameters")
++				panic("method with type parameters")
+ 			}
+ 
+ 			// If the methods have type parameters we don't care whether they
+@@ -374,7 +374,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ 			return m, f
+ 		}
+ 		if !acceptMethodTypeParams && ftyp.TParams().Len() > 0 {
+-			panic("internal error: method with type parameters")
++			panic("method with type parameters")
+ 		}
+ 
+ 		// If V is a (instantiated) generic type, its methods are still
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index 8ded197df5..14e073bfae 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -33,7 +33,7 @@ type Named struct {
+ // The underlying type must not be a *Named.
+ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
+ 	if _, ok := underlying.(*Named); ok {
+-		panic("types2.NewNamed: underlying type must not be *Named")
++		panic("underlying type must not be *Named")
+ 	}
+ 	return (*Checker)(nil).newNamed(obj, nil, underlying, nil, methods)
+ }
+@@ -100,7 +100,7 @@ func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tpar
+ 		check.later(func() {
+ 			switch typ.under().(type) {
+ 			case *Named:
+-				panic("internal error: unexpanded underlying type")
++				panic("unexpanded underlying type")
+ 			}
+ 			typ.check = nil
+ 		})
+@@ -140,10 +140,10 @@ func (t *Named) Method(i int) *Func { return t.load().methods[i] }
+ // SetUnderlying sets the underlying type and marks t as complete.
+ func (t *Named) SetUnderlying(underlying Type) {
+ 	if underlying == nil {
+-		panic("types2.Named.SetUnderlying: underlying type must not be nil")
++		panic("underlying type must not be nil")
+ 	}
+ 	if _, ok := underlying.(*Named); ok {
+-		panic("types2.Named.SetUnderlying: underlying type must not be *Named")
++		panic("underlying type must not be *Named")
+ 	}
+ 	t.load().underlying = underlying
+ }
+@@ -191,7 +191,7 @@ func (n0 *Named) under() Type {
+ 	}
+ 
+ 	if n0.check == nil {
+-		panic("internal error: Named.check == nil but type is incomplete")
++		panic("Named.check == nil but type is incomplete")
+ 	}
+ 
+ 	// Invariant: after this point n0 as well as any named types in its
+@@ -242,7 +242,7 @@ func (n0 *Named) under() Type {
+ 		// Also, doing so would lead to a race condition (was issue #31749).
+ 		// Do this check always, not just in debug mode (it's cheap).
+ 		if n.obj.pkg != check.pkg {
+-			panic("internal error: imported type with unresolved underlying type")
++			panic("imported type with unresolved underlying type")
+ 		}
+ 		n.underlying = u
+ 	}
+diff --git a/src/cmd/compile/internal/types2/signature.go b/src/cmd/compile/internal/types2/signature.go
+index 832f37a6af..14112462e1 100644
+--- a/src/cmd/compile/internal/types2/signature.go
++++ b/src/cmd/compile/internal/types2/signature.go
+@@ -36,10 +36,10 @@ func NewSignature(recv *Var, params, results *Tuple, variadic bool) *Signature {
+ 	if variadic {
+ 		n := params.Len()
+ 		if n == 0 {
+-			panic("types2.NewSignature: variadic function must have at least one parameter")
++			panic("variadic function must have at least one parameter")
+ 		}
+ 		if _, ok := params.At(n - 1).typ.(*Slice); !ok {
+-			panic("types2.NewSignature: variadic parameter must be of unnamed slice type")
++			panic("variadic parameter must be of unnamed slice type")
+ 		}
+ 	}
+ 	return &Signature{recv: recv, params: params, results: results, variadic: variadic}
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 1efce511f1..ad8efa91f8 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -14,7 +14,7 @@ import (
+ 
+ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body *syntax.BlockStmt, iota constant.Value) {
+ 	if check.conf.IgnoreFuncBodies {
+-		panic("internal error: function body not ignored")
++		panic("function body not ignored")
+ 	}
+ 
+ 	if check.conf.Trace {
+diff --git a/src/cmd/compile/internal/types2/typeparam.go b/src/cmd/compile/internal/types2/typeparam.go
+index 27e6e35588..12513ed6dd 100644
+--- a/src/cmd/compile/internal/types2/typeparam.go
++++ b/src/cmd/compile/internal/types2/typeparam.go
+@@ -75,7 +75,7 @@ func (t *TypeParam) Constraint() Type {
+ // SetConstraint sets the type constraint for t.
+ func (t *TypeParam) SetConstraint(bound Type) {
+ 	if bound == nil {
+-		panic("types2.TypeParam.SetConstraint: bound must not be nil")
++		panic("nil constraint")
+ 	}
+ 	t.bound = bound
+ }
+@@ -118,7 +118,7 @@ func bindTParams(list []*TypeName) *TypeParams {
+ 	for i, tp := range list {
+ 		typ := tp.Type().(*TypeParam)
+ 		if typ.index >= 0 {
+-			panic("internal error: type parameter bound more than once")
++			panic("type parameter bound more than once")
+ 		}
+ 		typ.index = i
+ 	}
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index 6e19115ff5..c5fcb97ff9 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -323,10 +323,10 @@ func sortMethods(list []*Func) {
+ 
+ func assertSortedMethods(list []*Func) {
+ 	if !debug {
+-		panic("internal error: assertSortedMethods called outside debug mode")
++		panic("assertSortedMethods called outside debug mode")
+ 	}
+ 	if !sort.IsSorted(byUniqueMethodName(list)) {
+-		panic("internal error: methods not sorted")
++		panic("methods not sorted")
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/typestring.go b/src/cmd/compile/internal/types2/typestring.go
+index 628eeaf3dd..b3675424a5 100644
+--- a/src/cmd/compile/internal/types2/typestring.go
++++ b/src/cmd/compile/internal/types2/typestring.go
+@@ -130,7 +130,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 		// Unions only appear as (syntactic) embedded elements
+ 		// in interfaces and syntactically cannot be empty.
+ 		if t.NumTerms() == 0 {
+-			panic("internal error: empty union")
++			panic("empty union")
+ 		}
+ 		for i, t := range t.terms {
+ 			if i > 0 {
+@@ -183,7 +183,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 		case RecvOnly:
+ 			s = "<-chan "
+ 		default:
+-			panic("unreachable")
++			unreachable()
+ 		}
+ 		buf.WriteString(s)
+ 		if parens {
+@@ -329,7 +329,7 @@ func writeTuple(buf *bytes.Buffer, tup *Tuple, variadic bool, qf Qualifier, visi
+ 					// special case:
+ 					// append(s, "foo"...) leads to signature func([]byte, string...)
+ 					if t := asBasic(typ); t == nil || t.kind != String {
+-						panic("internal error: string type expected")
++						panic("expected string type")
+ 					}
+ 					writeType(buf, typ, qf, visited)
+ 					buf.WriteString("...")
+diff --git a/src/cmd/compile/internal/types2/union.go b/src/cmd/compile/internal/types2/union.go
+index fcd83ce688..0325c72dbb 100644
+--- a/src/cmd/compile/internal/types2/union.go
++++ b/src/cmd/compile/internal/types2/union.go
+@@ -129,7 +129,7 @@ func overlappingTerm(terms []*term, y *term) int {
+ 		// disjoint requires non-nil, non-top arguments
+ 		if debug {
+ 			if x == nil || x.typ == nil || y == nil || y.typ == nil {
+-				panic("internal error: empty or top union term")
++				panic("empty or top union term")
+ 			}
+ 		}
+ 		if !x.disjoint(y) {
+diff --git a/src/cmd/compile/internal/types2/universe.go b/src/cmd/compile/internal/types2/universe.go
+index 7b6c297d05..55bf0982b3 100644
+--- a/src/cmd/compile/internal/types2/universe.go
++++ b/src/cmd/compile/internal/types2/universe.go
+@@ -258,6 +258,6 @@ func def(obj Object) {
+ 		}
+ 	}
+ 	if scope.Insert(obj) != nil {
+-		panic("internal error: double declaration")
++		panic("double declaration of predeclared identifier")
+ 	}
+ }

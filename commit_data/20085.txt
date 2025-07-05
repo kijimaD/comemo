@@ -10,6 +10,29 @@ Date:   Thu Aug 14 14:34:14 2014 -0400
     R=minux
     CC=golang-codereviews
     https://golang.org/cl/130000044
-
+---
  src/cmd/9c/reg.c | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/9c/reg.c b/src/cmd/9c/reg.c
+index 658fa3211e..38bb2e9def 100644
+--- a/src/cmd/9c/reg.c
++++ b/src/cmd/9c/reg.c
+@@ -558,7 +558,7 @@ mkvar(Addr *a, int docon)
+ {
+ 	Var *v;
+ 	int i, t, n, et, z;
+-	int32 o;
++	int64 o;
+ 	Bits bit;
+ 	LSym *s;
+ 
+@@ -617,6 +617,8 @@ out:
+ 		for(z=0; z<BITS; z++)
+ 			addrs.b[z] |= bit.b[z];
+ 	if(t == D_CONST) {
++		if((int32)o != o)
++			v->etype = TVLONG;
+ 		if(s == nil) {
+ 			for(z=0; z<BITS; z++)
+ 				consts.b[z] |= bit.b[z];

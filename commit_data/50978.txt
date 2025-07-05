@@ -17,9 +17,316 @@ Date:   Mon Nov 22 12:47:53 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/api_test.go   | 50 +++++++++++++++++++
  src/cmd/compile/internal/types2/predicates.go | 72 ++++++++++++++++++---------
  src/go/types/api_test.go                      | 50 +++++++++++++++++++
  src/go/types/predicates.go                    | 72 ++++++++++++++++++---------
  4 files changed, 196 insertions(+), 48 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index ca90e6b97d..9436a4ed97 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -1675,6 +1675,56 @@ func TestAssignableTo(t *testing.T) {
+ 	}
+ }
+ 
++func TestIdentical(t *testing.T) {
++	// For each test, we compare the types of objects X and Y in the source.
++	tests := []struct {
++		src  string
++		want bool
++	}{
++		// Basic types.
++		{"var X int; var Y int", true},
++		{"var X int; var Y string", false},
++
++		// TODO: add more tests for complex types.
++
++		// Named types.
++		{"type X int; type Y int", false},
++
++		// Aliases.
++		{"type X = int; type Y = int", true},
++
++		// Functions.
++		{`func X(int) string { return "" }; func Y(int) string { return "" }`, true},
++		{`func X() string { return "" }; func Y(int) string { return "" }`, false},
++		{`func X(int) string { return "" }; func Y(int) {}`, false},
++
++		// Generic functions. Type parameters should be considered identical modulo
++		// renaming. See also issue #49722.
++		{`func X[P ~int](){}; func Y[Q ~int]() {}`, true},
++		{`func X[P1 any, P2 ~*P1](){}; func Y[Q1 any, Q2 ~*Q1]() {}`, true},
++		{`func X[P1 any, P2 ~[]P1](){}; func Y[Q1 any, Q2 ~*Q1]() {}`, false},
++		{`func X[P ~int](P){}; func Y[Q ~int](Q) {}`, true},
++		{`func X[P ~string](P){}; func Y[Q ~int](Q) {}`, false},
++		{`func X[P ~int]([]P){}; func Y[Q ~int]([]Q) {}`, true},
++	}
++
++	for _, test := range tests {
++		pkg, err := pkgFor("test", "package p;"+test.src, nil)
++		if err != nil {
++			t.Errorf("%s: incorrect test case: %s", test.src, err)
++			continue
++		}
++		X := pkg.Scope().Lookup("X")
++		Y := pkg.Scope().Lookup("Y")
++		if X == nil || Y == nil {
++			t.Fatal("test must declare both X and Y")
++		}
++		if got := Identical(X.Type(), Y.Type()); got != test.want {
++			t.Errorf("Identical(%s, %s) = %t, want %t", X.Type(), Y.Type(), got, test.want)
++		}
++	}
++}
++
+ func TestIdentical_issue15173(t *testing.T) {
+ 	// Identical should allow nil arguments and be symmetric.
+ 	for _, test := range []struct {
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index e7834a0f9e..cf2993f68b 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -235,19 +235,56 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 		}
+ 
+ 	case *Signature:
+-		// Two function types are identical if they have the same number of parameters
+-		// and result values, corresponding parameter and result types are identical,
+-		// and either both functions are variadic or neither is. Parameter and result
+-		// names are not required to match.
+-		// Generic functions must also have matching type parameter lists, but for the
+-		// parameter names.
+-		if y, ok := y.(*Signature); ok {
+-			return x.variadic == y.variadic &&
+-				identicalTParams(x.TypeParams().list(), y.TypeParams().list(), cmpTags, p) &&
+-				identical(x.params, y.params, cmpTags, p) &&
+-				identical(x.results, y.results, cmpTags, p)
++		y, _ := y.(*Signature)
++		if y == nil {
++			return false
++		}
++
++		// Two function types are identical if they have the same number of
++		// parameters and result values, corresponding parameter and result types
++		// are identical, and either both functions are variadic or neither is.
++		// Parameter and result names are not required to match, and type
++		// parameters are considered identical modulo renaming.
++
++		if x.TypeParams().Len() != y.TypeParams().Len() {
++			return false
++		}
++
++		// In the case of generic signatures, we will substitute in yparams and
++		// yresults.
++		yparams := y.params
++		yresults := y.results
++
++		if x.TypeParams().Len() > 0 {
++			// We must ignore type parameter names when comparing x and y. The
++			// easiest way to do this is to substitute x's type parameters for y's.
++			xtparams := x.TypeParams().list()
++			ytparams := y.TypeParams().list()
++
++			var targs []Type
++			for i := range xtparams {
++				targs = append(targs, x.TypeParams().At(i))
++			}
++			smap := makeSubstMap(ytparams, targs)
++
++			var check *Checker // ok to call subst on a nil *Checker
++
++			// Constraints must be pair-wise identical, after substitution.
++			for i, xtparam := range xtparams {
++				ybound := check.subst(nopos, ytparams[i].bound, smap, nil)
++				if !identical(xtparam.bound, ybound, cmpTags, p) {
++					return false
++				}
++			}
++
++			yparams = check.subst(nopos, y.params, smap, nil).(*Tuple)
++			yresults = check.subst(nopos, y.results, smap, nil).(*Tuple)
+ 		}
+ 
++		return x.variadic == y.variadic &&
++			identical(x.params, yparams, cmpTags, p) &&
++			identical(x.results, yresults, cmpTags, p)
++
+ 	case *Union:
+ 		if y, _ := y.(*Union); y != nil {
+ 			xset := computeUnionTypeSet(nil, nopos, x)
+@@ -389,19 +426,6 @@ func identicalInstance(xorig Type, xargs []Type, yorig Type, yargs []Type) bool
+ 	return Identical(xorig, yorig)
+ }
+ 
+-func identicalTParams(x, y []*TypeParam, cmpTags bool, p *ifacePair) bool {
+-	if len(x) != len(y) {
+-		return false
+-	}
+-	for i, x := range x {
+-		y := y[i]
+-		if !identical(x.bound, y.bound, cmpTags, p) {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+ // Default returns the default "typed" type for an "untyped" type;
+ // it returns the incoming type for all other types. The default type
+ // for untyped nil is untyped nil.
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index d8ca8ad611..c8fda5521a 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -1661,6 +1661,56 @@ func TestAssignableTo(t *testing.T) {
+ 	}
+ }
+ 
++func TestIdentical(t *testing.T) {
++	// For each test, we compare the types of objects X and Y in the source.
++	tests := []struct {
++		src  string
++		want bool
++	}{
++		// Basic types.
++		{"var X int; var Y int", true},
++		{"var X int; var Y string", false},
++
++		// TODO: add more tests for complex types.
++
++		// Named types.
++		{"type X int; type Y int", false},
++
++		// Aliases.
++		{"type X = int; type Y = int", true},
++
++		// Functions.
++		{`func X(int) string { return "" }; func Y(int) string { return "" }`, true},
++		{`func X() string { return "" }; func Y(int) string { return "" }`, false},
++		{`func X(int) string { return "" }; func Y(int) {}`, false},
++
++		// Generic functions. Type parameters should be considered identical modulo
++		// renaming. See also issue #49722.
++		{`func X[P ~int](){}; func Y[Q ~int]() {}`, true},
++		{`func X[P1 any, P2 ~*P1](){}; func Y[Q1 any, Q2 ~*Q1]() {}`, true},
++		{`func X[P1 any, P2 ~[]P1](){}; func Y[Q1 any, Q2 ~*Q1]() {}`, false},
++		{`func X[P ~int](P){}; func Y[Q ~int](Q) {}`, true},
++		{`func X[P ~string](P){}; func Y[Q ~int](Q) {}`, false},
++		{`func X[P ~int]([]P){}; func Y[Q ~int]([]Q) {}`, true},
++	}
++
++	for _, test := range tests {
++		pkg, err := pkgForMode("test", "package p;"+test.src, nil, 0)
++		if err != nil {
++			t.Errorf("%s: incorrect test case: %s", test.src, err)
++			continue
++		}
++		X := pkg.Scope().Lookup("X")
++		Y := pkg.Scope().Lookup("Y")
++		if X == nil || Y == nil {
++			t.Fatal("test must declare both X and Y")
++		}
++		if got := Identical(X.Type(), Y.Type()); got != test.want {
++			t.Errorf("Identical(%s, %s) = %t, want %t", X.Type(), Y.Type(), got, test.want)
++		}
++	}
++}
++
+ func TestIdentical_issue15173(t *testing.T) {
+ 	// Identical should allow nil arguments and be symmetric.
+ 	for _, test := range []struct {
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 229a616eac..22ccdd7744 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -237,19 +237,56 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 		}
+ 
+ 	case *Signature:
+-		// Two function types are identical if they have the same number of parameters
+-		// and result values, corresponding parameter and result types are identical,
+-		// and either both functions are variadic or neither is. Parameter and result
+-		// names are not required to match.
+-		// Generic functions must also have matching type parameter lists, but for the
+-		// parameter names.
+-		if y, ok := y.(*Signature); ok {
+-			return x.variadic == y.variadic &&
+-				identicalTParams(x.TypeParams().list(), y.TypeParams().list(), cmpTags, p) &&
+-				identical(x.params, y.params, cmpTags, p) &&
+-				identical(x.results, y.results, cmpTags, p)
++		y, _ := y.(*Signature)
++		if y == nil {
++			return false
++		}
++
++		// Two function types are identical if they have the same number of
++		// parameters and result values, corresponding parameter and result types
++		// are identical, and either both functions are variadic or neither is.
++		// Parameter and result names are not required to match, and type
++		// parameters are considered identical modulo renaming.
++
++		if x.TypeParams().Len() != y.TypeParams().Len() {
++			return false
++		}
++
++		// In the case of generic signatures, we will substitute in yparams and
++		// yresults.
++		yparams := y.params
++		yresults := y.results
++
++		if x.TypeParams().Len() > 0 {
++			// We must ignore type parameter names when comparing x and y. The
++			// easiest way to do this is to substitute x's type parameters for y's.
++			xtparams := x.TypeParams().list()
++			ytparams := y.TypeParams().list()
++
++			var targs []Type
++			for i := range xtparams {
++				targs = append(targs, x.TypeParams().At(i))
++			}
++			smap := makeSubstMap(ytparams, targs)
++
++			var check *Checker // ok to call subst on a nil *Checker
++
++			// Constraints must be pair-wise identical, after substitution.
++			for i, xtparam := range xtparams {
++				ybound := check.subst(token.NoPos, ytparams[i].bound, smap, nil)
++				if !identical(xtparam.bound, ybound, cmpTags, p) {
++					return false
++				}
++			}
++
++			yparams = check.subst(token.NoPos, y.params, smap, nil).(*Tuple)
++			yresults = check.subst(token.NoPos, y.results, smap, nil).(*Tuple)
+ 		}
+ 
++		return x.variadic == y.variadic &&
++			identical(x.params, yparams, cmpTags, p) &&
++			identical(x.results, yresults, cmpTags, p)
++
+ 	case *Union:
+ 		if y, _ := y.(*Union); y != nil {
+ 			xset := computeUnionTypeSet(nil, token.NoPos, x)
+@@ -391,19 +428,6 @@ func identicalInstance(xorig Type, xargs []Type, yorig Type, yargs []Type) bool
+ 	return Identical(xorig, yorig)
+ }
+ 
+-func identicalTParams(x, y []*TypeParam, cmpTags bool, p *ifacePair) bool {
+-	if len(x) != len(y) {
+-		return false
+-	}
+-	for i, x := range x {
+-		y := y[i]
+-		if !identical(x.bound, y.bound, cmpTags, p) {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+ // Default returns the default "typed" type for an "untyped" type;
+ // it returns the incoming type for all other types. The default type
+ // for untyped nil is untyped nil.

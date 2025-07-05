@@ -11,6 +11,20 @@ Date:   Fri Mar 20 13:21:51 2015 -0400
     Change-Id: I976b58e5bfebc451cfd4fa75e770113067b5cc07
     Reviewed-on: https://go-review.googlesource.com/8246
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgcmark.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 8e0a88f0a3..f6452ea133 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -335,7 +335,7 @@ func scanframeworker(frame *stkframe, unused unsafe.Pointer, gcw *gcWork) {
+ 	}
+ }
+ 
+-// gcDrain scans objects in work buffers (starting with wbuf), blackening grey
++// gcDrain scans objects in work buffers, blackening grey
+ // objects until all work buffers have been drained.
+ //go:nowritebarrier
+ func gcDrain(gcw *gcWork) {

@@ -18,9 +18,162 @@ Date:   Thu Mar 23 22:47:56 2017 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Elias Naur <elias.naur@gmail.com>
-
+---
  src/runtime/cgo.go        |  2 ++
  src/runtime/lock_futex.go | 18 +++++++++---------
  src/runtime/lock_sema.go  | 14 +++++++-------
  src/runtime/proc.go       |  8 ++++----
  4 files changed, 22 insertions(+), 20 deletions(-)
+
+diff --git a/src/runtime/cgo.go b/src/runtime/cgo.go
+index 16ca004ee0..395d54a66e 100644
+--- a/src/runtime/cgo.go
++++ b/src/runtime/cgo.go
+@@ -50,3 +50,5 @@ func cgoUse(interface{}) { throw("cgoUse should not be called") }
+ // so it emits the test and keeps the call, giving the desired
+ // escape analysis result. The test is cheaper than the call.
+ var cgoAlwaysFalse bool
++
++var cgo_yield = &_cgo_yield
+diff --git a/src/runtime/lock_futex.go b/src/runtime/lock_futex.go
+index c3ed3be00b..45d3da64a4 100644
+--- a/src/runtime/lock_futex.go
++++ b/src/runtime/lock_futex.go
+@@ -141,15 +141,15 @@ func notesleep(n *note) {
+ 		throw("notesleep not on g0")
+ 	}
+ 	ns := int64(-1)
+-	if _cgo_yield != nil {
++	if *cgo_yield != nil {
+ 		// Sleep for an arbitrary-but-moderate interval to poll libc interceptors.
+ 		ns = 10e6
+ 	}
+ 	for atomic.Load(key32(&n.key)) == 0 {
+ 		gp.m.blocked = true
+ 		futexsleep(key32(&n.key), 0, ns)
+-		if _cgo_yield != nil {
+-			asmcgocall(_cgo_yield, nil)
++		if *cgo_yield != nil {
++			asmcgocall(*cgo_yield, nil)
+ 		}
+ 		gp.m.blocked = false
+ 	}
+@@ -164,15 +164,15 @@ func notetsleep_internal(n *note, ns int64) bool {
+ 	gp := getg()
+ 
+ 	if ns < 0 {
+-		if _cgo_yield != nil {
++		if *cgo_yield != nil {
+ 			// Sleep for an arbitrary-but-moderate interval to poll libc interceptors.
+ 			ns = 10e6
+ 		}
+ 		for atomic.Load(key32(&n.key)) == 0 {
+ 			gp.m.blocked = true
+ 			futexsleep(key32(&n.key), 0, ns)
+-			if _cgo_yield != nil {
+-				asmcgocall(_cgo_yield, nil)
++			if *cgo_yield != nil {
++				asmcgocall(*cgo_yield, nil)
+ 			}
+ 			gp.m.blocked = false
+ 		}
+@@ -185,13 +185,13 @@ func notetsleep_internal(n *note, ns int64) bool {
+ 
+ 	deadline := nanotime() + ns
+ 	for {
+-		if _cgo_yield != nil && ns > 10e6 {
++		if *cgo_yield != nil && ns > 10e6 {
+ 			ns = 10e6
+ 		}
+ 		gp.m.blocked = true
+ 		futexsleep(key32(&n.key), 0, ns)
+-		if _cgo_yield != nil {
+-			asmcgocall(_cgo_yield, nil)
++		if *cgo_yield != nil {
++			asmcgocall(*cgo_yield, nil)
+ 		}
+ 		gp.m.blocked = false
+ 		if atomic.Load(key32(&n.key)) != 0 {
+diff --git a/src/runtime/lock_sema.go b/src/runtime/lock_sema.go
+index 4a8295ff47..5b0169d572 100644
+--- a/src/runtime/lock_sema.go
++++ b/src/runtime/lock_sema.go
+@@ -163,14 +163,14 @@ func notesleep(n *note) {
+ 	}
+ 	// Queued. Sleep.
+ 	gp.m.blocked = true
+-	if _cgo_yield == nil {
++	if *cgo_yield == nil {
+ 		semasleep(-1)
+ 	} else {
+ 		// Sleep for an arbitrary-but-moderate interval to poll libc interceptors.
+ 		const ns = 10e6
+ 		for atomic.Loaduintptr(&n.key) == 0 {
+ 			semasleep(ns)
+-			asmcgocall(_cgo_yield, nil)
++			asmcgocall(*cgo_yield, nil)
+ 		}
+ 	}
+ 	gp.m.blocked = false
+@@ -195,13 +195,13 @@ func notetsleep_internal(n *note, ns int64, gp *g, deadline int64) bool {
+ 	if ns < 0 {
+ 		// Queued. Sleep.
+ 		gp.m.blocked = true
+-		if _cgo_yield == nil {
++		if *cgo_yield == nil {
+ 			semasleep(-1)
+ 		} else {
+ 			// Sleep in arbitrary-but-moderate intervals to poll libc interceptors.
+ 			const ns = 10e6
+ 			for semasleep(ns) < 0 {
+-				asmcgocall(_cgo_yield, nil)
++				asmcgocall(*cgo_yield, nil)
+ 			}
+ 		}
+ 		gp.m.blocked = false
+@@ -212,7 +212,7 @@ func notetsleep_internal(n *note, ns int64, gp *g, deadline int64) bool {
+ 	for {
+ 		// Registered. Sleep.
+ 		gp.m.blocked = true
+-		if _cgo_yield != nil && ns > 10e6 {
++		if *cgo_yield != nil && ns > 10e6 {
+ 			ns = 10e6
+ 		}
+ 		if semasleep(ns) >= 0 {
+@@ -221,8 +221,8 @@ func notetsleep_internal(n *note, ns int64, gp *g, deadline int64) bool {
+ 			// Done.
+ 			return true
+ 		}
+-		if _cgo_yield != nil {
+-			asmcgocall(_cgo_yield, nil)
++		if *cgo_yield != nil {
++			asmcgocall(*cgo_yield, nil)
+ 		}
+ 		gp.m.blocked = false
+ 		// Interrupted or timed out. Still registered. Semaphore not acquired.
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 159a9bd4bc..8dede3fb23 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1903,8 +1903,8 @@ top:
+ 			ready(gp, 0, true)
+ 		}
+ 	}
+-	if _cgo_yield != nil {
+-		asmcgocall(_cgo_yield, nil)
++	if *cgo_yield != nil {
++		asmcgocall(*cgo_yield, nil)
+ 	}
+ 
+ 	// local runq
+@@ -3760,8 +3760,8 @@ func sysmon() {
+ 			unlock(&sched.lock)
+ 		}
+ 		// trigger libc interceptors if needed
+-		if _cgo_yield != nil {
+-			asmcgocall(_cgo_yield, nil)
++		if *cgo_yield != nil {
++			asmcgocall(*cgo_yield, nil)
+ 		}
+ 		// poll network if not polled for more than 10ms
+ 		lastpoll := int64(atomic.Load64(&sched.lastpoll))

@@ -9,7 +9,34 @@ Date:   Wed Apr 28 12:39:17 2010 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/989045
-
+---
  doc/codelab/wiki/index.html | 2 +-
  doc/codelab/wiki/wiki.html  | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/codelab/wiki/index.html b/doc/codelab/wiki/index.html
+index 171b9b74f2..b8ae920584 100644
+--- a/doc/codelab/wiki/index.html
++++ b/doc/codelab/wiki/index.html
+@@ -904,7 +904,7 @@ If the <code>title</code> is valid, the enclosed handler function
+ </p>
+ 
+ <p>
+-Now we can wwrap the handler functions with <code>makeHandler</code> in 
++Now we can wrap the handler functions with <code>makeHandler</code> in 
+ <code>main</code>, before they are registered with the <code>http</code> 
+ package:
+ </p>
+diff --git a/doc/codelab/wiki/wiki.html b/doc/codelab/wiki/wiki.html
+index b3525f73b6..b5d7c8955b 100644
+--- a/doc/codelab/wiki/wiki.html
++++ b/doc/codelab/wiki/wiki.html
+@@ -717,7 +717,7 @@ If the <code>title</code> is valid, the enclosed handler function
+ </p>
+ 
+ <p>
+-Now we can wwrap the handler functions with <code>makeHandler</code> in 
++Now we can wrap the handler functions with <code>makeHandler</code> in 
+ <code>main</code>, before they are registered with the <code>http</code> 
+ package:
+ </p>

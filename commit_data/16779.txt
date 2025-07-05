@@ -9,6 +9,18 @@ Date:   Tue Jul 16 08:35:06 2013 -0700
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/11345044
-
+---
  src/pkg/net/tcpsockopt_openbsd.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/tcpsockopt_openbsd.go b/src/pkg/net/tcpsockopt_openbsd.go
+index 25a826f18b..306f4e050d 100644
+--- a/src/pkg/net/tcpsockopt_openbsd.go
++++ b/src/pkg/net/tcpsockopt_openbsd.go
+@@ -23,5 +23,5 @@ func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
+ 	d += (time.Second - time.Nanosecond)
+ 	secs := int(d.Seconds())
+ 
+-	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_KEEPALIVE, secs))
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.SO_KEEPALIVE, secs))
+ }

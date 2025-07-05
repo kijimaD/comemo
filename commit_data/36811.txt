@@ -7,6 +7,20 @@ Date:   Wed May 30 10:15:56 2018 +0200
     Change-Id: Ibb21c12bf67b2648eb7606bee8ec1b54e6c70dd5
     Reviewed-on: https://go-review.googlesource.com/115237
     Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
-
+---
  src/net/http/socks_bundle.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/socks_bundle.go b/src/net/http/socks_bundle.go
+index 5c3830a9e6..8b347898e8 100644
+--- a/src/net/http/socks_bundle.go
++++ b/src/net/http/socks_bundle.go
+@@ -231,7 +231,7 @@ const (
+ 
+ 	socksAuthMethodNotRequired         socksAuthMethod = 0x00 // no authentication required
+ 	socksAuthMethodUsernamePassword    socksAuthMethod = 0x02 // use username/password
+-	socksAuthMethodNoAcceptableMethods socksAuthMethod = 0xff // no acceptable authetication methods
++	socksAuthMethodNoAcceptableMethods socksAuthMethod = 0xff // no acceptable authentication methods
+ 
+ 	socksStatusSucceeded socksReply = 0x00
+ )

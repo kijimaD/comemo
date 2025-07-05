@@ -15,7 +15,55 @@ Date:   Mon Mar 23 13:52:37 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/list/list.go                 |  3 ---
  src/cmd/go/testdata/script/load_test_pkg_err.txt | 26 ++++++++++++++++++++++++
  2 files changed, 26 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index b90a6bf49a..6ca1561121 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -472,9 +472,6 @@ func runList(cmd *base.Command, args []string) {
+ 		c := cache.Default()
+ 		// Add test binaries to packages to be listed.
+ 		for _, p := range pkgs {
+-			if p.Error != nil {
+-				continue
+-			}
+ 			if len(p.TestGoFiles)+len(p.XTestGoFiles) > 0 {
+ 				var pmain, ptest, pxtest *load.Package
+ 				var err error
+diff --git a/src/cmd/go/testdata/script/load_test_pkg_err.txt b/src/cmd/go/testdata/script/load_test_pkg_err.txt
+new file mode 100644
+index 0000000000..b3065490de
+--- /dev/null
++++ b/src/cmd/go/testdata/script/load_test_pkg_err.txt
+@@ -0,0 +1,26 @@
++# Tests issue 37971. Check that tests are still loaded even when the package has an error.
++
++go list -e -test d
++cmp stdout want_stdout
++
++go list -e -test -deps d
++stdout golang.org/fake/d
++
++-- want_stdout --
++d
++d.test
++d_test [d.test]
++-- d/d.go --
++package d
++
++import "net/http"
++
++const d = http.MethodGet
++func Get() string { return d; }
++-- d/d2.go --
++-- d/d_test.go --
++package d_test
++
++import "testing"
++import "golang.org/fake/d"
++func TestD(t *testing.T) { d.Get(); }
+\ No newline at end of file

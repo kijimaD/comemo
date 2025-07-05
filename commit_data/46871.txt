@@ -14,6 +14,47 @@ Date:   Tue Feb 9 10:30:02 2021 -0500
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/testing/internal/testdeps/deps.go | 22 ++++++----------------
  1 file changed, 6 insertions(+), 16 deletions(-)
+
+diff --git a/src/testing/internal/testdeps/deps.go b/src/testing/internal/testdeps/deps.go
+index 3d43170721..1333944d5e 100644
+--- a/src/testing/internal/testdeps/deps.go
++++ b/src/testing/internal/testdeps/deps.go
+@@ -140,14 +140,9 @@ func (TestDeps) CoordinateFuzzing(timeout time.Duration, parallel int, seed []fu
+ 	if timeout > 0 {
+ 		ctx, cancel = context.WithTimeout(ctx, timeout)
+ 	}
+-	interruptC := make(chan os.Signal, 1)
+-	signal.Notify(interruptC, os.Interrupt)
+-	go func() {
+-		<-interruptC
+-		cancel()
+-	}()
+-	defer func() { interruptC <- os.Interrupt }()
+-
++	ctx, stop := signal.NotifyContext(ctx, os.Interrupt)
++	defer stop()
++	defer cancel()
+ 	err := fuzz.CoordinateFuzzing(ctx, parallel, seed, corpusDir, cacheDir)
+ 	if err == ctx.Err() {
+ 		return nil
+@@ -163,14 +158,9 @@ func (TestDeps) RunFuzzWorker(fn func([]byte) error) error {
+ 	// If only the coordinator process is interrupted, it tells each worker
+ 	// process to stop by closing its "fuzz_in" pipe.
+ 	ctx, cancel := context.WithCancel(context.Background())
+-	interruptC := make(chan os.Signal, 1)
+-	signal.Notify(interruptC, os.Interrupt)
+-	go func() {
+-		<-interruptC
+-		cancel()
+-	}()
+-	defer func() { interruptC <- os.Interrupt }()
+-
++	ctx, stop := signal.NotifyContext(ctx, os.Interrupt)
++	defer stop()
++	defer cancel()
+ 	err := fuzz.RunFuzzWorker(ctx, fn)
+ 	if err == ctx.Err() {
+ 		return nil

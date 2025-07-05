@@ -9,7 +9,7 @@ Date:   Tue Oct 18 23:50:38 2016 +0200
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/arch/arch.go                |  66 +++-
  src/cmd/asm/internal/arch/{mips64.go => mips.go} |  12 +-
  src/cmd/asm/internal/asm/asm.go                  |   8 +-
@@ -17,3 +17,732 @@ Date:   Tue Oct 18 23:50:38 2016 +0200
  src/cmd/asm/internal/asm/operand_test.go         |  87 +++++
  src/cmd/asm/internal/asm/testdata/mips.s         | 430 +++++++++++++++++++++++
  6 files changed, 594 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arch.go b/src/cmd/asm/internal/arch/arch.go
+index fd2430561b..9110ca7c02 100644
+--- a/src/cmd/asm/internal/arch/arch.go
++++ b/src/cmd/asm/internal/arch/arch.go
+@@ -59,6 +59,14 @@ func Set(GOARCH string) *Arch {
+ 		return archArm()
+ 	case "arm64":
+ 		return archArm64()
++	case "mips":
++		a := archMips()
++		a.LinkArch = &mips.Linkmips
++		return a
++	case "mipsle":
++		a := archMips()
++		a.LinkArch = &mips.Linkmipsle
++		return a
+ 	case "mips64":
+ 		a := archMips64()
+ 		a.LinkArch = &mips.Linkmips64
+@@ -374,6 +382,62 @@ func archPPC64() *Arch {
+ 	}
+ }
+ 
++func archMips() *Arch {
++	register := make(map[string]int16)
++	// Create maps for easy lookup of instruction names etc.
++	// Note that there is no list of names as there is for x86.
++	for i := mips.REG_R0; i <= mips.REG_R31; i++ {
++		register[obj.Rconv(i)] = int16(i)
++	}
++
++	for i := mips.REG_F0; i <= mips.REG_F31; i++ {
++		register[obj.Rconv(i)] = int16(i)
++	}
++	for i := mips.REG_M0; i <= mips.REG_M31; i++ {
++		register[obj.Rconv(i)] = int16(i)
++	}
++	for i := mips.REG_FCR0; i <= mips.REG_FCR31; i++ {
++		register[obj.Rconv(i)] = int16(i)
++	}
++	register["HI"] = mips.REG_HI
++	register["LO"] = mips.REG_LO
++	// Pseudo-registers.
++	register["SB"] = RSB
++	register["FP"] = RFP
++	register["PC"] = RPC
++	// Avoid unintentionally clobbering g using R30.
++	delete(register, "R30")
++	register["g"] = mips.REG_R30
++
++	registerPrefix := map[string]bool{
++		"F":   true,
++		"FCR": true,
++		"M":   true,
++		"R":   true,
++	}
++
++	instructions := make(map[string]obj.As)
++	for i, s := range obj.Anames {
++		instructions[s] = obj.As(i)
++	}
++	for i, s := range mips.Anames {
++		if obj.As(i) >= obj.A_ARCHSPECIFIC {
++			instructions[s] = obj.As(i) + obj.ABaseMIPS
++		}
++	}
++	// Annoying alias.
++	instructions["JAL"] = mips.AJAL
++
++	return &Arch{
++		LinkArch:       &mips.Linkmipsle,
++		Instructions:   instructions,
++		Register:       register,
++		RegisterPrefix: registerPrefix,
++		RegisterNumber: mipsRegisterNumber,
++		IsJump:         jumpMIPS,
++	}
++}
++
+ func archMips64() *Arch {
+ 	register := make(map[string]int16)
+ 	// Create maps for easy lookup of instruction names etc.
+@@ -427,7 +491,7 @@ func archMips64() *Arch {
+ 		Register:       register,
+ 		RegisterPrefix: registerPrefix,
+ 		RegisterNumber: mipsRegisterNumber,
+-		IsJump:         jumpMIPS64,
++		IsJump:         jumpMIPS,
+ 	}
+ }
+ 
+diff --git a/src/cmd/asm/internal/arch/mips64.go b/src/cmd/asm/internal/arch/mips.go
+similarity index 80%
+rename from src/cmd/asm/internal/arch/mips64.go
+rename to src/cmd/asm/internal/arch/mips.go
+index dd93cfb320..14b29331e5 100644
+--- a/src/cmd/asm/internal/arch/mips64.go
++++ b/src/cmd/asm/internal/arch/mips.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // This file encapsulates some of the odd characteristics of the
+-// 64-bit MIPS (MIPS64) instruction set, to minimize its interaction
++// MIPS (MIPS64) instruction set, to minimize its interaction
+ // with the core of the assembler.
+ 
+ package arch
+@@ -13,7 +13,7 @@ import (
+ 	"cmd/internal/obj/mips"
+ )
+ 
+-func jumpMIPS64(word string) bool {
++func jumpMIPS(word string) bool {
+ 	switch word {
+ 	case "BEQ", "BFPF", "BFPT", "BGEZ", "BGEZAL", "BGTZ", "BLEZ", "BLTZ", "BLTZAL", "BNE", "JMP", "JAL", "CALL":
+ 		return true
+@@ -21,9 +21,9 @@ func jumpMIPS64(word string) bool {
+ 	return false
+ }
+ 
+-// IsMIPS64CMP reports whether the op (as defined by an mips.A* constant) is
++// IsMIPSCMP reports whether the op (as defined by an mips.A* constant) is
+ // one of the CMP instructions that require special handling.
+-func IsMIPS64CMP(op obj.As) bool {
++func IsMIPSCMP(op obj.As) bool {
+ 	switch op {
+ 	case mips.ACMPEQF, mips.ACMPEQD, mips.ACMPGEF, mips.ACMPGED,
+ 		mips.ACMPGTF, mips.ACMPGTD:
+@@ -32,9 +32,9 @@ func IsMIPS64CMP(op obj.As) bool {
+ 	return false
+ }
+ 
+-// IsMIPS64MUL reports whether the op (as defined by an mips.A* constant) is
++// IsMIPSMUL reports whether the op (as defined by an mips.A* constant) is
+ // one of the MUL/DIV/REM instructions that require special handling.
+-func IsMIPS64MUL(op obj.As) bool {
++func IsMIPSMUL(op obj.As) bool {
+ 	switch op {
+ 	case mips.AMUL, mips.AMULU, mips.AMULV, mips.AMULVU,
+ 		mips.ADIV, mips.ADIVU, mips.ADIVV, mips.ADIVVU,
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index 0dab80b6aa..d7c5687d3c 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -369,7 +369,7 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
+ 			prog.Reg = reg
+ 			break
+ 		}
+-		if p.arch.Family == sys.MIPS64 {
++		if p.arch.Family == sys.MIPS || p.arch.Family == sys.MIPS64 {
+ 			// 3-operand jumps.
+ 			// First two must be registers
+ 			target = &a[2]
+@@ -527,8 +527,8 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 			prog.From = a[0]
+ 			prog.Reg = p.getRegister(prog, op, &a[1])
+ 			break
+-		} else if p.arch.Family == sys.MIPS64 {
+-			if arch.IsMIPS64CMP(op) || arch.IsMIPS64MUL(op) {
++		} else if p.arch.Family == sys.MIPS || p.arch.Family == sys.MIPS64 {
++			if arch.IsMIPSCMP(op) || arch.IsMIPSMUL(op) {
+ 				prog.From = a[0]
+ 				prog.Reg = p.getRegister(prog, op, &a[1])
+ 				break
+@@ -538,7 +538,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 		prog.To = a[1]
+ 	case 3:
+ 		switch p.arch.Family {
+-		case sys.MIPS64:
++		case sys.MIPS, sys.MIPS64:
+ 			prog.From = a[0]
+ 			prog.Reg = p.getRegister(prog, op, &a[1])
+ 			prog.To = a[2]
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index bc992a7c99..a2f31f8296 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -383,7 +383,8 @@ func TestAMD64Errors(t *testing.T) {
+ 	testErrors(t, "amd64", "amd64error")
+ }
+ 
+-func TestMIPS64EndToEnd(t *testing.T) {
++func TestMIPSEndToEnd(t *testing.T) {
++	testEndToEnd(t, "mips", "mips")
+ 	testEndToEnd(t, "mips64", "mips64")
+ }
+ 
+diff --git a/src/cmd/asm/internal/asm/operand_test.go b/src/cmd/asm/internal/asm/operand_test.go
+index 27d175ace6..f1531a8c79 100644
+--- a/src/cmd/asm/internal/asm/operand_test.go
++++ b/src/cmd/asm/internal/asm/operand_test.go
+@@ -65,6 +65,11 @@ func TestPPC64OperandParser(t *testing.T) {
+ 	testOperandParser(t, parser, ppc64OperandTests)
+ }
+ 
++func TestMIPSOperandParser(t *testing.T) {
++	parser := newParser("mips")
++	testOperandParser(t, parser, mipsOperandTests)
++}
++
+ func TestMIPS64OperandParser(t *testing.T) {
+ 	parser := newParser("mips64")
+ 	testOperandParser(t, parser, mips64OperandTests)
+@@ -628,6 +633,88 @@ var mips64OperandTests = []operandTest{
+ 	{"[):[o-FP", ""}, // Issue 12469 - asm hung parsing the o-FP range on non ARM platforms.
+ }
+ 
++var mipsOperandTests = []operandTest{
++	{"$((1<<63)-1)", "$9223372036854775807"},
++	{"$(-64*1024)", "$-65536"},
++	{"$(1024 * 8)", "$8192"},
++	{"$-1", "$-1"},
++	{"$-24(R4)", "$-24(R4)"},
++	{"$0", "$0"},
++	{"$0(R1)", "$(R1)"},
++	{"$0.5", "$(0.5)"},
++	{"$0x7000", "$28672"},
++	{"$0x88888eef", "$2290650863"},
++	{"$1", "$1"},
++	{"$_main<>(SB)", "$_main<>(SB)"},
++	{"$argframe(FP)", "$argframe(FP)"},
++	{"$~3", "$-4"},
++	{"(-288-3*8)(R1)", "-312(R1)"},
++	{"(16)(R7)", "16(R7)"},
++	{"(8)(g)", "8(g)"},
++	{"(R0)", "(R0)"},
++	{"(R3)", "(R3)"},
++	{"(R4)", "(R4)"},
++	{"(R5)", "(R5)"},
++	{"-1(R4)", "-1(R4)"},
++	{"-1(R5)", "-1(R5)"},
++	{"6(PC)", "6(PC)"},
++	{"F14", "F14"},
++	{"F15", "F15"},
++	{"F16", "F16"},
++	{"F17", "F17"},
++	{"F18", "F18"},
++	{"F19", "F19"},
++	{"F20", "F20"},
++	{"F21", "F21"},
++	{"F22", "F22"},
++	{"F23", "F23"},
++	{"F24", "F24"},
++	{"F25", "F25"},
++	{"F26", "F26"},
++	{"F27", "F27"},
++	{"F28", "F28"},
++	{"F29", "F29"},
++	{"F30", "F30"},
++	{"F31", "F31"},
++	{"R0", "R0"},
++	{"R1", "R1"},
++	{"R11", "R11"},
++	{"R12", "R12"},
++	{"R13", "R13"},
++	{"R14", "R14"},
++	{"R15", "R15"},
++	{"R16", "R16"},
++	{"R17", "R17"},
++	{"R18", "R18"},
++	{"R19", "R19"},
++	{"R2", "R2"},
++	{"R20", "R20"},
++	{"R21", "R21"},
++	{"R22", "R22"},
++	{"R23", "R23"},
++	{"R24", "R24"},
++	{"R25", "R25"},
++	{"R26", "R26"},
++	{"R27", "R27"},
++	{"R29", "R29"},
++	{"R3", "R3"},
++	{"R31", "R31"},
++	{"R4", "R4"},
++	{"R5", "R5"},
++	{"R6", "R6"},
++	{"R7", "R7"},
++	{"R8", "R8"},
++	{"R9", "R9"},
++	{"LO", "LO"},
++	{"a(FP)", "a(FP)"},
++	{"g", "g"},
++	{"ret+8(FP)", "ret+8(FP)"},
++	{"runtime·abort(SB)", "runtime.abort(SB)"},
++	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
++	{"·trunc(SB)", "\"\".trunc(SB)"},
++	{"[):[o-FP", ""}, // Issue 12469 - asm hung parsing the o-FP range on non ARM platforms.
++}
++
+ var s390xOperandTests = []operandTest{
+ 	{"$((1<<63)-1)", "$9223372036854775807"},
+ 	{"$(-64*1024)", "$-65536"},
+diff --git a/src/cmd/asm/internal/asm/testdata/mips.s b/src/cmd/asm/internal/asm/testdata/mips.s
+new file mode 100644
+index 0000000000..f48d91885d
+--- /dev/null
++++ b/src/cmd/asm/internal/asm/testdata/mips.s
+@@ -0,0 +1,430 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This input was created by taking the mips64 testcase and modified
++// by hand.
++
++TEXT foo(SB),7,$0
++
++	//inst:
++	//
++	// load ints and bytes
++	//
++	//	LMOVW rreg ',' rreg
++	//	{
++	//		outcode(int($1), &$2, 0, &$4);
++	//	}
++	MOVW	R1, R2
++	MOVW	LO, R1
++	MOVW	HI, R1
++	MOVW	R1, LO
++	MOVW	R1, HI
++	MOVW	R1, R2
++	MOVW	LO, R1
++	MOVW	HI, R1
++	MOVW	R1, LO
++	MOVW	R1, HI
++
++	//	LMOVW addr ',' rreg
++	//	{
++	//		outcode(int($1), &$2, 0, &$4);
++	//	}
++	MOVW	foo<>+3(SB), R2
++	MOVW	16(R1), R2
++	MOVW	(R1), R2
++	MOVW	foo<>+3(SB), R2
++	MOVW	16(R1), R2
++	MOVW	(R1), R2
++	LL	(R1), R2
++
++	//	LMOVB rreg ',' rreg
++	//	{
++	//		outcode(int($1), &$2, 0, &$4);
++	//	}
++	MOVB	R1, R2
++
++	//	LMOVB addr ',' rreg
++	//	{
++	//		outcode(int($1), &$2, 0, &$4);
++	//	}
++	MOVB	foo<>+3(SB), R2
++	MOVB	16(R1), R2
++	MOVB	(R1), R2
++
++	//
++	// load floats
++	//
++	//	LFMOV addr ',' freg
++	//	{
++	//		outcode(int($1), &$2, 0, &$4);
++	//	}
++	MOVF	foo<>+3(SB), F2
++	MOVF	16(R1), F2
++	MOVF	(R1), F2
++
++	//	LFMOV fimm ',' freg
++	//	{
++	//		outcode(int($1), &$2, 0, &$4);
++	//	}
++	MOVF	$0.1, F2	// MOVF $(0.10000000000000001), F2
++
++	//	LFMOV freg ',' freg
++	//	{
++	//		outcode(int($1), &$2, 0, &$4);
++	//	}
++	MOVF	F1, F2
++
++	//	LFMOV freg ',' addr
++	//	{
++	//		outcode(int($1), &$2, 0, &$4);
++	//	}
++	MOVF	F2, foo<>+3(SB)
++	MOVF	F2, 16(R1)
++	MOVF	F2, (R1)
++
++	//
++	// store ints and bytes
++	//
++	//	LMOVW rreg ',' addr
++	//	{
++	//		outcode(int($1), &$2, 0, &$4);
++	//	}
++	MOVW	R1, foo<>+3(SB)
++	MOVW	R1, 16(R2)
++	MOVW	R1, (R2)
++	MOVW	R1, foo<>+3(SB)
++	MOVW	R1, 16(R2)
++	MOVW	R1, (R2)
++	SC	R1, (R2)
++
++	//	LMOVB rreg ',' addr
++	//	{
++	//		outcode(int($1), &$2, 0, &$4);
++	//	}
++	MOVB	R1, foo<>+3(SB)
++	MOVB	R1, 16(R2)
++	MOVB	R1, (R2)
++
++	//
++	// store floats
++	//
++	//	LMOVW freg ',' addr
++	//	{
++	//		outcode(int($1), &$2, 0, &$4);
++	//	}
++	MOVD	F1, foo<>+3(SB)
++	MOVD	F1, 16(R2)
++	MOVD	F1, (R2)
++
++	//
++	// floating point status
++	//
++	//	LMOVW fpscr ',' freg
++	//	{
++	//		outcode(int($1), &$2, 0, &$4);
++	//	}
++	MOVW	FCR0, R1
++
++	//	LMOVW freg ','  fpscr
++	//	{
++	//		outcode(int($1), &$2, 0, &$4);
++	//	}
++	MOVW	R1, FCR0
++
++	//	LMOVW rreg ',' mreg
++	//	{
++	//		outcode(int($1), &$2, 0, &$4);
++	//	}
++	MOVW	R1, M1
++	MOVW	R1, M1
++
++	//	LMOVW mreg ',' rreg
++	//	{
++	//		outcode(int($1), &$2, 0, &$4);
++	//	}
++	MOVW	M1, R1
++	MOVW	M1, R1
++
++
++	//
++	// integer operations
++	// logical instructions
++	// shift instructions
++	// unary instructions
++	//
++	//	LADDW rreg ',' sreg ',' rreg
++	//	{
++	//		outcode(int($1), &$2, int($4), &$6);
++	//	}
++	ADD	R1, R2, R3
++
++	//	LADDW imm ',' sreg ',' rreg
++	//	{
++	//		outcode(int($1), &$2, int($4), &$6);
++	//	}
++	ADD	$1, R2, R3
++
++	//	LADDW rreg ',' rreg
++	//	{
++	//		outcode(int($1), &$2, 0, &$4);
++	//	}
++	ADD	R1, R2
++
++	//	LADDW imm ',' rreg
++	//	{
++	//		outcode(int($1), &$2, 0, &$4);
++	//	}
++	ADD	$4, R1
++
++	//	LMUL rreg ',' rreg
++	//	{
++	//		outcode(int($1), &$2, 0, &$4);
++	//	}
++	MUL	R1, R2
++
++	//	LSHW rreg ',' sreg ',' rreg
++	//	{
++	//		outcode(int($1), &$2, int($4), &$6);
++	//	}
++	SLL	R1, R2, R3
++
++	//	LSHW rreg ',' rreg
++	//	{
++	//		outcode(int($1), &$2, 0, &$4);
++	//	}
++	SLL	R1, R2
++
++	//	LSHW imm ',' sreg ',' rreg
++	//	{
++	//		outcode(int($1), &$2, int($4), &$6);
++	//	}
++	SLL	$4, R1, R2
++
++	//	LSHW imm ',' rreg
++	//	{
++	//		outcode(int($1), &$2, 0, &$4);
++	//	}
++	SLL	$4, R1
++
++	//
++	// move immediate: macro for lui+or, addi, addis, and other combinations
++	//
++	//	LMOVW imm ',' rreg
++	//	{
++	//		outcode(int($1), &$2, 0, &$4);
++	//	}
++	MOVW	$1, R1
++	MOVW	$1, R1
++
++	//	LMOVW ximm ',' rreg
++	//	{
++	//		outcode(int($1), &$2, 0, &$4);
++	//	}
++	MOVW	$1, R1
++	MOVW	$foo(SB), R1
++	MOVW	$1, R1
++	MOVW	$foo(SB), R1
++
++
++	//
++	// branch
++	//
++	//	LBRA rel
++	//	{
++	//		outcode(int($1), &nullgen, 0, &$2);
++	//	}
++	BEQ	R1, 2(PC)
++label0:
++	JMP	1(PC)
++	BEQ	R1, 2(PC)
++	JMP	label0+0	// JMP 66
++	BEQ	R1, 2(PC)
++	JAL	1(PC)	// CALL 1(PC)
++	BEQ	R1, 2(PC)
++	JAL	label0+0	// CALL 66
++
++	//	LBRA addr
++	//	{
++	//		outcode(int($1), &nullgen, 0, &$2);
++	//	}
++	BEQ	R1, 2(PC)
++	JMP	0(R1)	// JMP (R1)
++	BEQ	R1, 2(PC)
++	JMP	foo+0(SB)	// JMP foo(SB)
++	BEQ	R1, 2(PC)
++	JAL	0(R1)	// CALL (R1)
++	BEQ	R1, 2(PC)
++	JAL	foo+0(SB)	// CALL foo(SB)
++
++//
++// BEQ/BNE
++//
++//	LBRA rreg ',' rel
++//	{
++//		outcode(int($1), &$2, 0, &$4);
++//	}
++label1:
++	BEQ	R1, 1(PC)
++	BEQ	R1, label1	// BEQ R1, 81
++
++//	LBRA rreg ',' sreg ',' rel
++//	{
++//		outcode(int($1), &$2, 0, &$4);
++//	}
++label2:
++	BEQ	R1, R2, 1(PC)
++	BEQ	R1, R2, label2	// BEQ R1, R2, 83
++
++//
++// other integer conditional branch
++//
++//	LBRA rreg ',' rel
++//	{
++//		outcode(int($1), &$2, 0, &$4);
++//	}
++label3:
++	BLTZ	R1, 1(PC)
++	BLTZ	R1, label3	// BLTZ R1, 85
++
++//
++// floating point conditional branch
++//
++//	LBRA rel
++label4:
++	BFPT	1(PC)
++	BFPT	label4	// BFPT 87
++
++
++	//
++	// floating point operate
++	//
++	//	LFCONV freg ',' freg
++	//	{
++	//		outcode(int($1), &$2, 0, &$4);
++	//	}
++	ABSD	F1, F2
++
++	//	LFADD freg ',' freg
++	//	{
++	//		outcode(int($1), &$2, 0, &$4);
++	//	}
++	ADDD	F1, F2
++
++	//	LFADD freg ',' freg ',' freg
++	//	{
++	//		outcode(int($1), &$2, int($4.Reg), &$6);
++	//	}
++	ADDD	F1, F2, F3
++
++	//	LFCMP freg ',' freg
++	//	{
++	//		outcode(int($1), &$2, 0, &$4);
++	//	}
++	CMPEQD	F1, F2
++
++
++	//
++	// WORD
++	//
++	WORD	$1
++
++	//
++	// NOP
++	//
++	//	LNOP comma // asm doesn't support the trailing comma.
++	//	{
++	//		outcode(int($1), &nullgen, 0, &nullgen);
++	//	}
++	NOP
++
++	//	LNOP rreg comma // asm doesn't support the trailing comma.
++	//	{
++	//		outcode(int($1), &$2, 0, &nullgen);
++	//	}
++	NOP	R2
++
++	//	LNOP freg comma // asm doesn't support the trailing comma.
++	//	{
++	//		outcode(int($1), &$2, 0, &nullgen);
++	//	}
++	NOP	F2
++
++	//	LNOP ',' rreg // asm doesn't support the leading comma.
++	//	{
++	//		outcode(int($1), &nullgen, 0, &$3);
++	//	}
++	NOP	R2
++
++	//	LNOP ',' freg // asm doesn't support the leading comma.
++	//	{
++	//		outcode(int($1), &nullgen, 0, &$3);
++	//	}
++	NOP	F2
++
++	//	LNOP imm
++	//	{
++	//		outcode(int($1), &$2, 0, &nullgen);
++	//	}
++	NOP	$4
++
++	//
++	// special
++	//
++	SYSCALL
++	BREAK
++	SYNC
++
++	//
++	// conditional move on zero/nonzero gp value
++	//
++	CMOVN	R1, R2, R3
++	CMOVZ	R1, R2, R3
++
++	//
++	// conditional move on fp false/true
++	//
++	CMOVF	R1, R2
++	CMOVT	R1, R2
++
++	//
++	// conditional traps
++	//
++	TEQ	$1, R1, R2
++	TEQ	$1, R1
++
++
++	//
++	// other
++	//
++	CLO	R1, R2
++	SQRTD	F0, F1
++	MUL	R1, R2, R3
++
++
++	//
++	// RET
++	//
++	//	LRETRN	comma // asm doesn't support the trailing comma.
++	//	{
++	//		outcode(int($1), &nullgen, 0, &nullgen);
++	//	}
++	SYSCALL
++	BEQ	R1, 2(PC)
++	RET
++
++
++	// More JMP/JAL cases, and canonical names JMP, CALL.
++
++	JAL	foo(SB)	// CALL foo(SB)
++	BEQ	R1, 2(PC)
++	JMP	foo(SB)
++	CALL	foo(SB)
++
++	// END
++	//
++	//	LEND	comma // asm doesn't support the trailing comma.
++	//	{
++	//		outcode(int($1), &nullgen, 0, &nullgen);
++	//	}
++	END

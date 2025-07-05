@@ -8,6 +8,19 @@ Date:   Wed Aug 26 14:40:34 2009 -0700
     DELTA=1  (1 added, 0 deleted, 0 changed)
     OCL=33891
     CL=33891
-
+---
  src/pkg/reflect/value.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 014ea933c6..4ba1c2eec1 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -409,6 +409,7 @@ type UnsafePointerValue struct {
+ // Get returns the underlying uintptr value.
+ // Get returns uintptr, not unsafe.Pointer, so that
+ // programs that do not import "unsafe" cannot
++// obtain a value of unsafe.Pointer type from "reflect".
+ func (v *UnsafePointerValue) Get() uintptr {
+ 	return uintptr(*(*unsafe.Pointer)(v.addr));
+ }

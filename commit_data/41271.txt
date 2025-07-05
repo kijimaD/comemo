@@ -17,6 +17,84 @@ Date:   Wed Sep 18 00:10:07 2019 -0600
     Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/syscall/mksyscall_windows.go | 31 ++++++++++++++++++++++++++++++-
  1 file changed, 30 insertions(+), 1 deletion(-)
+
+diff --git a/src/syscall/mksyscall_windows.go b/src/syscall/mksyscall_windows.go
+index ee2123f939..dbeb684be6 100644
+--- a/src/syscall/mksyscall_windows.go
++++ b/src/syscall/mksyscall_windows.go
+@@ -117,6 +117,18 @@ func (p *Param) BoolTmpVarCode() string {
+ 	return fmt.Sprintf(code, tmp, p.Name, tmp, tmp)
+ }
+ 
++// BoolPointerTmpVarCode returns source code for bool temp variable.
++func (p *Param) BoolPointerTmpVarCode() string {
++	const code = `var %s uint32
++	if *%s {
++		%s = 1
++	} else {
++		%s = 0
++	}`
++	tmp := p.tmpVar()
++	return fmt.Sprintf(code, tmp, p.Name, tmp, tmp)
++}
++
+ // SliceTmpVarCode returns source code for slice temp variable.
+ func (p *Param) SliceTmpVarCode() string {
+ 	const code = `var %s *%s
+@@ -152,6 +164,8 @@ func (p *Param) TmpVarCode() string {
+ 	switch {
+ 	case p.Type == "bool":
+ 		return p.BoolTmpVarCode()
++	case p.Type == "*bool":
++		return p.BoolPointerTmpVarCode()
+ 	case strings.HasPrefix(p.Type, "[]"):
+ 		return p.SliceTmpVarCode()
+ 	default:
+@@ -159,6 +173,16 @@ func (p *Param) TmpVarCode() string {
+ 	}
+ }
+ 
++// TmpVarReadbackCode returns source code for reading back the temp variable into the original variable.
++func (p *Param) TmpVarReadbackCode() string {
++	switch {
++	case p.Type == "*bool":
++		return fmt.Sprintf("*%s = %s != 0", p.Name, p.tmpVar())
++	default:
++		return ""
++	}
++}
++
+ // TmpVarHelperCode returns source code for helper's temp variable.
+ func (p *Param) TmpVarHelperCode() string {
+ 	if p.Type != "string" {
+@@ -174,6 +198,8 @@ func (p *Param) SyscallArgList() []string {
+ 	t := p.HelperType()
+ 	var s string
+ 	switch {
++	case t == "*bool":
++		s = fmt.Sprintf("unsafe.Pointer(&%s)", p.tmpVar())
+ 	case t[0] == '*':
+ 		s = fmt.Sprintf("unsafe.Pointer(%s)", p.Name)
+ 	case t == "bool":
+@@ -876,7 +902,7 @@ func {{.Name}}({{.ParamList}}) {{template "results" .}}{
+ 
+ {{define "funcbody"}}
+ func {{.HelperName}}({{.HelperParamList}}) {{template "results" .}}{
+-{{template "tmpvars" .}}	{{template "syscall" .}}
++{{template "tmpvars" .}}	{{template "syscall" .}}	{{template "tmpvarsreadback" .}}
+ {{template "seterror" .}}{{template "printtrace" .}}	return
+ }
+ {{end}}
+@@ -891,6 +917,9 @@ func {{.HelperName}}({{.HelperParamList}}) {{template "results" .}}{
+ 
+ {{define "syscall"}}{{.Rets.SetReturnValuesCode}}{{.Syscall}}(proc{{.DLLFuncName}}.Addr(), {{.ParamCount}}, {{.SyscallParamList}}){{end}}
+ 
++{{define "tmpvarsreadback"}}{{range .Params}}{{if .TmpVarReadbackCode}}
++{{.TmpVarReadbackCode}}{{end}}{{end}}{{end}}
++
+ {{define "seterror"}}{{if .Rets.SetErrorCode}}	{{.Rets.SetErrorCode}}
+ {{end}}{{end}}
+ 

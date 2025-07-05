@@ -35,7 +35,55 @@ Date:   Fri Oct 14 17:29:54 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5067044
-
+---
  src/pkg/xml/read.go      |  5 ++---
  src/pkg/xml/read_test.go | 22 ++++++++++++++++++++++
  2 files changed, 24 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/xml/read.go b/src/pkg/xml/read.go
+index 786b69f5a3..f64e130018 100644
+--- a/src/pkg/xml/read.go
++++ b/src/pkg/xml/read.go
+@@ -321,10 +321,9 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
+ 
+ 			// Save
+ 			v := sv.FieldByIndex(f.Index)
+-			if _, ok := v.Interface().(Name); !ok {
+-				return UnmarshalError(sv.Type().String() + " field XMLName does not have type xml.Name")
++			if _, ok := v.Interface().(Name); ok {
++				v.Set(reflect.ValueOf(start.Name))
+ 			}
+-			v.Set(reflect.ValueOf(start.Name))
+ 		}
+ 
+ 		// Assign attributes.
+diff --git a/src/pkg/xml/read_test.go b/src/pkg/xml/read_test.go
+index 2126da3c75..d39c2d52a8 100644
+--- a/src/pkg/xml/read_test.go
++++ b/src/pkg/xml/read_test.go
+@@ -369,3 +369,25 @@ var attrStruct = AttrTest{
+ 		Bool: true,
+ 	},
+ }
++
++// test data for TestUnmarshalWithoutNameType
++
++const OK = "OK"
++const withoutNameTypeData = `
++<?xml version="1.0" charset="utf-8"?>
++<Test3 attr="OK" />`
++
++type TestThree struct {
++	XMLName bool   `xml:"Test3"` // XMLName field without an xml.Name type 
++	Attr    string `xml:"attr"`
++}
++
++func TestUnmarshalWithoutNameType(t *testing.T) {
++	var x TestThree
++	if err := Unmarshal(StringReader(withoutNameTypeData), &x); err != nil {
++		t.Fatalf("Unmarshal: %s", err)
++	}
++	if x.Attr != OK {
++		t.Fatalf("have %v\nwant %v", x.Attr, OK)
++	}
++}

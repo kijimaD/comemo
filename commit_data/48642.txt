@@ -13,6 +13,22 @@ Date:   Thu Jun 3 17:43:36 2021 +0000
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Trust: Jeremy Faller <jeremy@golang.org>
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.17.html | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index 27ef524286..7438d894fe 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -659,9 +659,8 @@ Do not send CLs removing the interior tags from such phrases.
+ <dl id="testing"><dt><a href="/pkg/testing/">testing</a></dt>
+   <dd>
+     <p><!-- CL 310033 -->
+-      TODO: <a href="https://golang.org/cl/310033">https://golang.org/cl/310033</a>: add -shuffle=off|on|N to alter the execution order of tests and benchmarks
++      Added a new <a href="/cmd/go/#hdr-Testing_flags">testing flag</a> <code>-shuffle</code> which controls the execution order of tests and benchmarks.
+     </p>
+-
+     <p><!-- CL 260577 -->
+       The new
+       <a href="/pkg/testing/#T.Setenv"><code>T.Setenv</code></a>

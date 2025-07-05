@@ -14,6 +14,19 @@ Date:   Tue Mar 12 16:28:03 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  test/nosplit.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/test/nosplit.go b/test/nosplit.go
+index 46810b1a2f..266e6077b1 100644
+--- a/test/nosplit.go
++++ b/test/nosplit.go
+@@ -217,6 +217,7 @@ func main() {
+ 		return
+ 	}
+ 	defer os.RemoveAll(dir)
++	os.Setenv("GOPATH", filepath.Join(dir, "_gopath"))
+ 
+ 	if err := ioutil.WriteFile(filepath.Join(dir, "go.mod"), []byte("module go-test-nosplit\n"), 0666); err != nil {
+ 		log.Panic(err)

@@ -11,7 +11,7 @@ Date:   Mon Mar 16 02:47:40 2020 +1100
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 10 ++---
  src/cmd/compile/internal/riscv64/ssa.go        | 23 +++++++++++
  src/cmd/compile/internal/ssa/gen/RISCV64.rules | 12 ++++--
@@ -19,3 +19,250 @@ Date:   Mon Mar 16 02:47:40 2020 +1100
  src/cmd/compile/internal/ssa/opGen.go          | 54 ++++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/rewriteRISCV64.go | 18 +++++++++
  6 files changed, 113 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index c813807e09..1527e03a87 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3339,7 +3339,7 @@ func init() {
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, types.Types[TUINT32], v)
+ 		},
+-		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.MIPS64, sys.PPC64)
++		sys.AMD64, sys.ARM64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
+ 	addF("runtime/internal/atomic", "Load8",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue2(ssa.OpAtomicLoad8, types.NewTuple(types.Types[TUINT8], types.TypeMem), args[0], s.mem())
+@@ -3353,7 +3353,7 @@ func init() {
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, types.Types[TUINT64], v)
+ 		},
+-		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS64, sys.PPC64)
++		sys.AMD64, sys.ARM64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
+ 	addF("runtime/internal/atomic", "LoadAcq",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue2(ssa.OpAtomicLoadAcq32, types.NewTuple(types.Types[TUINT32], types.TypeMem), args[0], s.mem())
+@@ -3367,14 +3367,14 @@ func init() {
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, s.f.Config.Types.BytePtr, v)
+ 		},
+-		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.MIPS64, sys.PPC64)
++		sys.AMD64, sys.ARM64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
+ 
+ 	addF("runtime/internal/atomic", "Store",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicStore32, types.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+ 		},
+-		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.MIPS64, sys.PPC64)
++		sys.AMD64, sys.ARM64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
+ 	addF("runtime/internal/atomic", "Store8",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicStore8, types.TypeMem, args[0], args[1], s.mem())
+@@ -3386,7 +3386,7 @@ func init() {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicStore64, types.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+ 		},
+-		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS64, sys.PPC64)
++		sys.AMD64, sys.ARM64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
+ 	addF("runtime/internal/atomic", "StorepNoWB",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicStorePtrNoWB, types.TypeMem, args[0], args[1], s.mem())
+diff --git a/src/cmd/compile/internal/riscv64/ssa.go b/src/cmd/compile/internal/riscv64/ssa.go
+index 13015a5f3d..45e699ddf9 100644
+--- a/src/cmd/compile/internal/riscv64/ssa.go
++++ b/src/cmd/compile/internal/riscv64/ssa.go
+@@ -351,6 +351,17 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Reg = v.Reg0()
+ 		s.Prog(riscv.AFENCE)
+ 
++	case ssa.OpRISCV64LoweredAtomicLoad32, ssa.OpRISCV64LoweredAtomicLoad64:
++		as := riscv.ALRW
++		if v.Op == ssa.OpRISCV64LoweredAtomicLoad64 {
++			as = riscv.ALRD
++		}
++		p := s.Prog(as)
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = v.Args[0].Reg()
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg0()
++
+ 	case ssa.OpRISCV64LoweredAtomicStore8:
+ 		s.Prog(riscv.AFENCE)
+ 		p := s.Prog(riscv.AMOVB)
+@@ -360,6 +371,18 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Reg = v.Args[0].Reg()
+ 		s.Prog(riscv.AFENCE)
+ 
++	case ssa.OpRISCV64LoweredAtomicStore32, ssa.OpRISCV64LoweredAtomicStore64:
++		as := riscv.AAMOSWAPW
++		if v.Op == ssa.OpRISCV64LoweredAtomicStore64 {
++			as = riscv.AAMOSWAPD
++		}
++		p := s.Prog(as)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = v.Args[1].Reg()
++		p.To.Type = obj.TYPE_MEM
++		p.To.Reg = v.Args[0].Reg()
++		p.RegTo2 = riscv.REG_ZERO
++
+ 	case ssa.OpRISCV64LoweredZero:
+ 		mov, sz := largestMove(v.AuxInt)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index 04d93d5f4d..281c3dd633 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -469,9 +469,15 @@
+ (InterCall   ...) -> (CALLinter   ...)
+ 
+ // Atomic Intrinsics
+-(AtomicLoad8 ...) -> (LoweredAtomicLoad8 ...)
+-
+-(AtomicStore8 ...) -> (LoweredAtomicStore8 ...)
++(AtomicLoad8   ...) -> (LoweredAtomicLoad8  ...)
++(AtomicLoad32  ...) -> (LoweredAtomicLoad32 ...)
++(AtomicLoad64  ...) -> (LoweredAtomicLoad64 ...)
++(AtomicLoadPtr ...) -> (LoweredAtomicLoad64 ...)
++
++(AtomicStore8       ...) -> (LoweredAtomicStore8  ...)
++(AtomicStore32      ...) -> (LoweredAtomicStore32 ...)
++(AtomicStore64      ...) -> (LoweredAtomicStore64 ...)
++(AtomicStorePtrNoWB ...) -> (LoweredAtomicStore64 ...)
+ 
+ // Optimizations
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+index a8de1ab2d0..f79e899ff2 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+@@ -269,10 +269,14 @@ func init() {
+ 		// load from arg0. arg1=mem.
+ 		// returns <value,memory> so they can be properly ordered with other loads.
+ 		{name: "LoweredAtomicLoad8", argLength: 2, reg: gpload, faultOnNilArg0: true},
++		{name: "LoweredAtomicLoad32", argLength: 2, reg: gpload, faultOnNilArg0: true},
++		{name: "LoweredAtomicLoad64", argLength: 2, reg: gpload, faultOnNilArg0: true},
+ 
+ 		// Atomic stores.
+ 		// store arg1 to arg0. arg2=mem. returns memory.
+ 		{name: "LoweredAtomicStore8", argLength: 3, reg: gpstore, faultOnNilArg0: true, hasSideEffects: true},
++		{name: "LoweredAtomicStore32", argLength: 3, reg: gpstore, faultOnNilArg0: true, hasSideEffects: true},
++		{name: "LoweredAtomicStore64", argLength: 3, reg: gpstore, faultOnNilArg0: true, hasSideEffects: true},
+ 
+ 		// Lowering pass-throughs
+ 		{name: "LoweredNilCheck", argLength: 2, faultOnNilArg0: true, nilCheck: true, reg: regInfo{inputs: []regMask{gpspMask}}}, // arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 664e253c0f..3a02ad4af1 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1949,7 +1949,11 @@ const (
+ 	OpRISCV64LoweredZero
+ 	OpRISCV64LoweredMove
+ 	OpRISCV64LoweredAtomicLoad8
++	OpRISCV64LoweredAtomicLoad32
++	OpRISCV64LoweredAtomicLoad64
+ 	OpRISCV64LoweredAtomicStore8
++	OpRISCV64LoweredAtomicStore32
++	OpRISCV64LoweredAtomicStore64
+ 	OpRISCV64LoweredNilCheck
+ 	OpRISCV64LoweredGetClosurePtr
+ 	OpRISCV64LoweredGetCallerSP
+@@ -25852,6 +25856,32 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:           "LoweredAtomicLoad32",
++		argLen:         2,
++		faultOnNilArg0: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
++			},
++			outputs: []outputInfo{
++				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
++			},
++		},
++	},
++	{
++		name:           "LoweredAtomicLoad64",
++		argLen:         2,
++		faultOnNilArg0: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
++			},
++			outputs: []outputInfo{
++				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
++			},
++		},
++	},
+ 	{
+ 		name:           "LoweredAtomicStore8",
+ 		argLen:         3,
+@@ -25864,6 +25894,30 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:           "LoweredAtomicStore32",
++		argLen:         3,
++		faultOnNilArg0: true,
++		hasSideEffects: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 1073741814},          // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
++				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
++			},
++		},
++	},
++	{
++		name:           "LoweredAtomicStore64",
++		argLen:         3,
++		faultOnNilArg0: true,
++		hasSideEffects: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 1073741814},          // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
++				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
++			},
++		},
++	},
+ 	{
+ 		name:           "LoweredNilCheck",
+ 		argLen:         2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index 7284b3f239..ef0b953f2b 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -47,12 +47,30 @@ func rewriteValueRISCV64(v *Value) bool {
+ 	case OpAndB:
+ 		v.Op = OpRISCV64AND
+ 		return true
++	case OpAtomicLoad32:
++		v.Op = OpRISCV64LoweredAtomicLoad32
++		return true
++	case OpAtomicLoad64:
++		v.Op = OpRISCV64LoweredAtomicLoad64
++		return true
+ 	case OpAtomicLoad8:
+ 		v.Op = OpRISCV64LoweredAtomicLoad8
+ 		return true
++	case OpAtomicLoadPtr:
++		v.Op = OpRISCV64LoweredAtomicLoad64
++		return true
++	case OpAtomicStore32:
++		v.Op = OpRISCV64LoweredAtomicStore32
++		return true
++	case OpAtomicStore64:
++		v.Op = OpRISCV64LoweredAtomicStore64
++		return true
+ 	case OpAtomicStore8:
+ 		v.Op = OpRISCV64LoweredAtomicStore8
+ 		return true
++	case OpAtomicStorePtrNoWB:
++		v.Op = OpRISCV64LoweredAtomicStore64
++		return true
+ 	case OpAvg64u:
+ 		return rewriteValueRISCV64_OpAvg64u(v)
+ 	case OpClosureCall:

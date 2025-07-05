@@ -7,8 +7,81 @@ Date:   Fri Oct 11 11:24:54 2013 -0700
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/14611043
-
+---
  misc/cgo/test/callback_c.c       | 14 --------------
  misc/cgo/test/callback_c_gc.c    | 21 +++++++++++++++++++++
  misc/cgo/test/callback_c_gccgo.c | 17 +++++++++++++++++
  3 files changed, 38 insertions(+), 14 deletions(-)
+
+diff --git a/misc/cgo/test/callback_c.c b/misc/cgo/test/callback_c.c
+index 4bfeb7163e..dcd4ddd4ee 100644
+--- a/misc/cgo/test/callback_c.c
++++ b/misc/cgo/test/callback_c.c
+@@ -64,17 +64,3 @@ callGoStackCheck(void)
+ 	extern void goStackCheck(void);
+ 	goStackCheck();
+ }
+-
+-/* Test calling panic from C.  This is what SWIG does.  */
+-
+-extern void crosscall2(void (*fn)(void *, int), void *, int);
+-extern void _cgo_panic(void *, int);
+-
+-void
+-callPanic(void)
+-{
+-	struct { const char *p; } a;
+-	a.p = "panic from C";
+-	crosscall2(_cgo_panic, &a, sizeof a);
+-	*(int*)1 = 1;
+-}
+diff --git a/misc/cgo/test/callback_c_gc.c b/misc/cgo/test/callback_c_gc.c
+new file mode 100644
+index 0000000000..8953b74a67
+--- /dev/null
++++ b/misc/cgo/test/callback_c_gc.c
+@@ -0,0 +1,21 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build gc
++
++#include "_cgo_export.h"
++
++/* Test calling panic from C.  This is what SWIG does.  */
++
++extern void crosscall2(void (*fn)(void *, int), void *, int);
++extern void _cgo_panic(void *, int);
++
++void
++callPanic(void)
++{
++	struct { const char *p; } a;
++	a.p = "panic from C";
++	crosscall2(_cgo_panic, &a, sizeof a);
++	*(int*)1 = 1;
++}
+diff --git a/misc/cgo/test/callback_c_gccgo.c b/misc/cgo/test/callback_c_gccgo.c
+new file mode 100644
+index 0000000000..0ea7296c62
+--- /dev/null
++++ b/misc/cgo/test/callback_c_gccgo.c
+@@ -0,0 +1,17 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build gccgo
++
++#include "_cgo_export.h"
++
++/* Test calling panic from C.  This is what SWIG does.  */
++
++extern void _cgo_panic(const char *);
++
++void
++callPanic(void)
++{
++	_cgo_panic("panic from C");
++}

@@ -11,6 +11,28 @@ Date:   Fri Oct 4 11:53:17 2019 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/arm64/obj.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/arm64/obj.go b/src/cmd/link/internal/arm64/obj.go
+index 7c6662302f..a63e353cd6 100644
+--- a/src/cmd/link/internal/arm64/obj.go
++++ b/src/cmd/link/internal/arm64/obj.go
+@@ -59,7 +59,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 
+ 		Linuxdynld: "/lib/ld-linux-aarch64.so.1",
+ 
+-		Freebsddynld:   "XXX",
++		Freebsddynld:   "/usr/libexec/ld-elf.so.1",
+ 		Openbsddynld:   "/usr/libexec/ld.so",
+ 		Netbsddynld:    "/libexec/ld.elf_so",
+ 		Dragonflydynld: "XXX",
+@@ -85,6 +85,7 @@ func archinit(ctxt *ld.Link) {
+ 		}
+ 
+ 	case objabi.Hlinux, /* arm64 elf */
++		objabi.Hfreebsd,
+ 		objabi.Hnetbsd,
+ 		objabi.Hopenbsd:
+ 		ld.Elfinit(ctxt)

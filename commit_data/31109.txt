@@ -18,7 +18,43 @@ Date:   Wed Jan 25 22:09:26 2017 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/mime/multipart/writer.go      | 4 ++--
  src/mime/multipart/writer_test.go | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/mime/multipart/writer.go b/src/mime/multipart/writer.go
+index f82756d551..44e2f1bce3 100644
+--- a/src/mime/multipart/writer.go
++++ b/src/mime/multipart/writer.go
+@@ -41,13 +41,13 @@ func (w *Writer) Boundary() string {
+ //
+ // SetBoundary must be called before any parts are created, may only
+ // contain certain ASCII characters, and must be non-empty and
+-// at most 69 bytes long.
++// at most 70 bytes long.
+ func (w *Writer) SetBoundary(boundary string) error {
+ 	if w.lastpart != nil {
+ 		return errors.New("mime: SetBoundary called after write")
+ 	}
+ 	// rfc2046#section-5.1.1
+-	if len(boundary) < 1 || len(boundary) > 69 {
++	if len(boundary) < 1 || len(boundary) > 70 {
+ 		return errors.New("mime: invalid boundary length")
+ 	}
+ 	for _, b := range boundary {
+diff --git a/src/mime/multipart/writer_test.go b/src/mime/multipart/writer_test.go
+index 9670c660a4..23e650f5e4 100644
+--- a/src/mime/multipart/writer_test.go
++++ b/src/mime/multipart/writer_test.go
+@@ -90,8 +90,8 @@ func TestWriterSetBoundary(t *testing.T) {
+ 		{"", false},
+ 		{"ungültig", false},
+ 		{"!", false},
+-		{strings.Repeat("x", 69), true},
+-		{strings.Repeat("x", 70), false},
++		{strings.Repeat("x", 70), true},
++		{strings.Repeat("x", 71), false},
+ 		{"bad!ascii!", false},
+ 		{"my-separator", true},
+ 	}

@@ -23,6 +23,37 @@ Date:   Thu Oct 7 17:24:47 2021 +0000
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/web/http.go | 12 ++++++++++--
  1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/web/http.go b/src/cmd/go/internal/web/http.go
+index f177278eba..81f841d2c6 100644
+--- a/src/cmd/go/internal/web/http.go
++++ b/src/cmd/go/internal/web/http.go
+@@ -17,6 +17,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"mime"
++	"net"
+ 	"net/http"
+ 	urlpkg "net/url"
+ 	"os"
+@@ -84,8 +85,15 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
+ 	if url.Host == "localhost.localdev" {
+ 		return nil, fmt.Errorf("no such host localhost.localdev")
+ 	}
+-	if os.Getenv("TESTGONETWORK") == "panic" && !strings.HasPrefix(url.Host, "127.0.0.1") && !strings.HasPrefix(url.Host, "0.0.0.0") {
+-		panic("use of network: " + url.String())
++	if os.Getenv("TESTGONETWORK") == "panic" {
++		host := url.Host
++		if h, _, err := net.SplitHostPort(url.Host); err == nil && h != "" {
++			host = h
++		}
++		addr := net.ParseIP(host)
++		if addr == nil || (!addr.IsLoopback() && !addr.IsUnspecified()) {
++			panic("use of network: " + url.String())
++		}
+ 	}
+ 
+ 	fetch := func(url *urlpkg.URL) (*urlpkg.URL, *http.Response, error) {

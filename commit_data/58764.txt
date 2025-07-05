@@ -12,6 +12,23 @@ Date:   Thu Dec 7 21:45:57 2023 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  doc/go1.22.html | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.22.html b/doc/go1.22.html
+index bf39db39e5..b363aaf14b 100644
+--- a/doc/go1.22.html
++++ b/doc/go1.22.html
+@@ -635,7 +635,10 @@ defer func() {
+ <dl id="os"><dt><a href="/pkg/os/">os</a></dt>
+   <dd>
+     <p><!-- CL 516555 -->
+-      TODO: <a href="https://go.dev/cl/516555">https://go.dev/cl/516555</a>: os: follow all name surrogate reparse points in Stat on Windows
++      On Windows, the <a href="/pkg/os#Stat"><code>Stat</code></a> function now follows all reparse points
++      that link to another named entity in the system.
++      It was previously only following <code>IO_REPARSE_TAG_SYMLINK</code> and
++      <code>IO_REPARSE_TAG_MOUNT_POINT</code> reparse points.
+     </p>
+ 
+     <p><!-- https://go.dev/issue/58808 -->

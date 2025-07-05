@@ -18,7 +18,34 @@ Date:   Tue May 16 12:02:52 2023 -0700
     Reviewed-by: Keith Randall <khr@google.com>
     Auto-Submit: Keith Randall <khr@google.com>
     Run-TryBot: Keith Randall <khr@golang.org>
-
+---
  src/hash/maphash/smhasher_test.go | 2 +-
  src/runtime/hash_test.go          | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/hash/maphash/smhasher_test.go b/src/hash/maphash/smhasher_test.go
+index 27cedc4ce1..a6e8a21e57 100644
+--- a/src/hash/maphash/smhasher_test.go
++++ b/src/hash/maphash/smhasher_test.go
+@@ -381,7 +381,7 @@ func avalancheTest1(t *testing.T, k key) {
+ 	// find c such that Prob(mean-c*stddev < x < mean+c*stddev)^N > .9999
+ 	for c = 0.0; math.Pow(math.Erf(c/math.Sqrt(2)), float64(N)) < .9999; c += .1 {
+ 	}
+-	c *= 4.0 // allowed slack - we don't need to be perfectly random
++	c *= 8.0 // allowed slack - we don't need to be perfectly random
+ 	mean := .5 * REP
+ 	stddev := .5 * math.Sqrt(REP)
+ 	low := int(mean - c*stddev)
+diff --git a/src/runtime/hash_test.go b/src/runtime/hash_test.go
+index 099bf51129..6562829825 100644
+--- a/src/runtime/hash_test.go
++++ b/src/runtime/hash_test.go
+@@ -513,7 +513,7 @@ func avalancheTest1(t *testing.T, k Key) {
+ 	// find c such that Prob(mean-c*stddev < x < mean+c*stddev)^N > .9999
+ 	for c = 0.0; math.Pow(math.Erf(c/math.Sqrt(2)), float64(N)) < .9999; c += .1 {
+ 	}
+-	c *= 4.0 // allowed slack - we don't need to be perfectly random
++	c *= 8.0 // allowed slack - we don't need to be perfectly random
+ 	mean := .5 * REP
+ 	stddev := .5 * math.Sqrt(REP)
+ 	low := int(mean - c*stddev)

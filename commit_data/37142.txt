@@ -14,7 +14,44 @@ Date:   Sat Jun 30 17:46:25 2018 -0400
     Reviewed-on: https://go-review.googlesource.com/121856
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/compile.go |  2 +-
  test/fixedbugs/issue26163.go            | 17 +++++++++++++++++
  2 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index c7797d79e9..7f75dc4a03 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -373,7 +373,7 @@ var passes = [...]pass{
+ 	{name: "softfloat", fn: softfloat, required: true},
+ 	{name: "late opt", fn: opt, required: true}, // TODO: split required rules and optimizing rules
+ 	{name: "dead auto elim", fn: elimDeadAutosGeneric},
+-	{name: "generic deadcode", fn: deadcode},
++	{name: "generic deadcode", fn: deadcode, required: true}, // remove dead stores, which otherwise mess up store chain
+ 	{name: "check bce", fn: checkbce},
+ 	{name: "branchelim", fn: branchelim},
+ 	{name: "fuse", fn: fuse},
+diff --git a/test/fixedbugs/issue26163.go b/test/fixedbugs/issue26163.go
+new file mode 100644
+index 0000000000..3f3d77859d
+--- /dev/null
++++ b/test/fixedbugs/issue26163.go
+@@ -0,0 +1,17 @@
++// compile -N -d=softfloat
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 26163: dead store generated in late opt messes
++// up store chain calculation.
++
++package p
++
++var i int
++var A = ([]*int{})[i]
++
++var F func(float64, complex128) int
++var C chan complex128
++var B = F(1, 1+(<-C))

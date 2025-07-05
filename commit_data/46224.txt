@@ -21,8 +21,48 @@ Date:   Tue Dec 15 13:15:07 2020 -0800
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  test/fixedbugs/bug195.go     | 2 +-
  test/fixedbugs/bug251.go     | 2 +-
  test/fixedbugs/issue23823.go | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/test/fixedbugs/bug195.go b/test/fixedbugs/bug195.go
+index aef7bd2d89..94f61fff7f 100644
+--- a/test/fixedbugs/bug195.go
++++ b/test/fixedbugs/bug195.go
+@@ -19,7 +19,7 @@ type I4 interface { // GC_ERROR "invalid recursive type I4\n\tLINE: I4 refers to
+ }
+ 
+ type I5 interface { // GC_ERROR "invalid recursive type I5\n\tLINE: I5 refers to\n\tLINE+4: I6 refers to\n\tLINE: I5$"
+-	I6 // GCCGO_ERROR "interface"
++	I6
+ }
+ 
+ type I6 interface {
+diff --git a/test/fixedbugs/bug251.go b/test/fixedbugs/bug251.go
+index 706bb8d690..977aa49e6a 100644
+--- a/test/fixedbugs/bug251.go
++++ b/test/fixedbugs/bug251.go
+@@ -8,7 +8,7 @@ package main
+ 
+ type I1 interface { // GC_ERROR "invalid recursive type"
+ 	m() I2
+-	I2 // GCCGO_ERROR "loop|interface"
++	I2
+ }
+ 
+ type I2 interface {
+diff --git a/test/fixedbugs/issue23823.go b/test/fixedbugs/issue23823.go
+index c440c96315..067a8f1638 100644
+--- a/test/fixedbugs/issue23823.go
++++ b/test/fixedbugs/issue23823.go
+@@ -7,7 +7,7 @@
+ package p
+ 
+ type I1 = interface {
+-	I2 // GCCGO_ERROR "invalid recursive interface"
++	I2
+ }
+ 
+ // BAD: type loop should mention I1; see also #41669

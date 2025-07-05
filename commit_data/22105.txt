@@ -66,9 +66,164 @@ Date:   Fri Feb 20 11:50:56 2015 +0300
     Reviewed-on: https://go-review.googlesource.com/5430
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/proc1.go   | 24 ++++++++++++++++++++++
  src/sync/mutex.go      | 17 ++++++++++++++++
  src/sync/mutex_test.go | 55 ++++++++++++++++++++++++++++++++++++++++++++++++++
  src/sync/runtime.go    |  7 +++++++
  4 files changed, 103 insertions(+)
+
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index a47df13691..1eef1b8dcd 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -3332,3 +3332,27 @@ func sync_atomic_runtime_procPin() int {
+ func sync_atomic_runtime_procUnpin() {
+ 	procUnpin()
+ }
++
++// Active spinning for sync.Mutex.
++//go:linkname sync_runtime_canSpin sync.runtime_canSpin
++//go:nosplit
++func sync_runtime_canSpin(i int) bool {
++	// sync.Mutex is cooperative, so we are conservative with spinning.
++	// Spin only few times and only if running on a multicore machine and
++	// GOMAXPROCS>1 and there is at least one other running P and local runq is empty.
++	// As opposed to runtime mutex we don't do passive spinning here,
++	// because there can be work on global runq on on other Ps.
++	if i >= active_spin || ncpu <= 1 || gomaxprocs <= int32(sched.npidle+sched.nmspinning)+1 {
++		return false
++	}
++	if p := getg().m.p; p.runqhead != p.runqtail {
++		return false
++	}
++	return true
++}
++
++//go:linkname sync_runtime_doSpin sync.runtime_doSpin
++//go:nosplit
++func sync_runtime_doSpin() {
++	procyield(active_spin_cnt)
++}
+diff --git a/src/sync/mutex.go b/src/sync/mutex.go
+index 73b3377022..3f280ad719 100644
+--- a/src/sync/mutex.go
++++ b/src/sync/mutex.go
+@@ -48,15 +48,31 @@ func (m *Mutex) Lock() {
+ 	}
+ 
+ 	awoke := false
++	iter := 0
+ 	for {
+ 		old := m.state
+ 		new := old | mutexLocked
+ 		if old&mutexLocked != 0 {
++			if runtime_canSpin(iter) {
++				// Active spinning makes sense.
++				// Try to set mutexWoken flag to inform Unlock
++				// to not wake other blocked goroutines.
++				if !awoke && old&mutexWoken == 0 && old>>mutexWaiterShift != 0 &&
++					atomic.CompareAndSwapInt32(&m.state, old, old|mutexWoken) {
++					awoke = true
++				}
++				runtime_doSpin()
++				iter++
++				continue
++			}
+ 			new = old + 1<<mutexWaiterShift
+ 		}
+ 		if awoke {
+ 			// The goroutine has been woken from sleep,
+ 			// so we need to reset the flag in either case.
++			if new&mutexWoken == 0 {
++				panic("sync: inconsistent mutex state")
++			}
+ 			new &^= mutexWoken
+ 		}
+ 		if atomic.CompareAndSwapInt32(&m.state, old, new) {
+@@ -65,6 +81,7 @@ func (m *Mutex) Lock() {
+ 			}
+ 			runtime_Semacquire(&m.sema)
+ 			awoke = true
++			iter = 0
+ 		}
+ 	}
+ 
+diff --git a/src/sync/mutex_test.go b/src/sync/mutex_test.go
+index 151b25c10f..91a4855cb1 100644
+--- a/src/sync/mutex_test.go
++++ b/src/sync/mutex_test.go
+@@ -134,3 +134,58 @@ func BenchmarkMutexWork(b *testing.B) {
+ func BenchmarkMutexWorkSlack(b *testing.B) {
+ 	benchmarkMutex(b, true, true)
+ }
++
++func BenchmarkMutexNoSpin(b *testing.B) {
++	// This benchmark models a situation where spinning in the mutex should be
++	// non-profitable and allows to confirm that spinning does not do harm.
++	// To achieve this we create excess of goroutines most of which do local work.
++	// These goroutines yield during local work, so that switching from
++	// a blocked goroutine to other goroutines is profitable.
++	// As a matter of fact, this benchmark still triggers some spinning in the mutex.
++	var m Mutex
++	var acc0, acc1 uint64
++	b.SetParallelism(4)
++	b.RunParallel(func(pb *testing.PB) {
++		c := make(chan bool)
++		var data [4 << 10]uint64
++		for i := 0; pb.Next(); i++ {
++			if i%4 == 0 {
++				m.Lock()
++				acc0 -= 100
++				acc1 += 100
++				m.Unlock()
++			} else {
++				for i := 0; i < len(data); i += 4 {
++					data[i]++
++				}
++				// Elaborate way to say runtime.Gosched
++				// that does not put the goroutine onto global runq.
++				go func() {
++					c <- true
++				}()
++				<-c
++			}
++		}
++	})
++}
++
++func BenchmarkMutexSpin(b *testing.B) {
++	// This benchmark models a situation where spinning in the mutex should be
++	// profitable. To achieve this we create a goroutine per-proc.
++	// These goroutines access considerable amount of local data so that
++	// unnecessary rescheduling is penalized by cache misses.
++	var m Mutex
++	var acc0, acc1 uint64
++	b.RunParallel(func(pb *testing.PB) {
++		var data [16 << 10]uint64
++		for i := 0; pb.Next(); i++ {
++			m.Lock()
++			acc0 -= 100
++			acc1 += 100
++			m.Unlock()
++			for i := 0; i < len(data); i += 4 {
++				data[i]++
++			}
++		}
++	})
++}
+diff --git a/src/sync/runtime.go b/src/sync/runtime.go
+index 3b866303a9..c66d2deb4c 100644
+--- a/src/sync/runtime.go
++++ b/src/sync/runtime.go
+@@ -38,3 +38,10 @@ func init() {
+ 	var s syncSema
+ 	runtime_Syncsemcheck(unsafe.Sizeof(s))
+ }
++
++// Active spinning runtime support.
++// runtime_canSpin returns true is spinning makes sense at the moment.
++func runtime_canSpin(i int) bool
++
++// runtime_doSpin does active spinning.
++func runtime_doSpin()

@@ -14,6 +14,23 @@ Date:   Fri Sep 24 14:59:34 2010 -0400
     TBR=adg
     CC=golang-dev
     https://golang.org/cl/2197050
-
+---
  src/pkg/syscall/syscall_bsd.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/syscall/syscall_bsd.go b/src/pkg/syscall/syscall_bsd.go
+index 114a963675..767537093e 100644
+--- a/src/pkg/syscall/syscall_bsd.go
++++ b/src/pkg/syscall/syscall_bsd.go
+@@ -323,8 +323,10 @@ func Socket(domain, typ, proto int) (fd, errno int) {
+ 	return
+ }
+ 
++//sys socketpair(domain int, typ int, proto int, fd *[2]int) (errno int)
++
+ func Socketpair(domain, typ, proto int) (fd [2]int, errno int) {
+-	fd, errno = socketpair(domain, typ, proto)
++	errno = socketpair(domain, typ, proto, &fd)
+ 	return
+ }
+ 

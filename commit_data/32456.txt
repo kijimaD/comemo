@@ -26,7 +26,7 @@ Date:   Fri Apr 7 15:53:19 2017 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/internal/poll/fd.go               | 19 +++++++++++--
  src/internal/poll/fd_mutex.go         |  6 ++---
  src/internal/poll/fd_plan9.go         |  8 +++++-
@@ -47,3 +47,818 @@ Date:   Fri Apr 7 15:53:19 2017 -0700
  src/os/file_unix.go                   | 26 +++++++++---------
  src/os/pipe_test.go                   |  2 ++
  19 files changed, 143 insertions(+), 99 deletions(-)
+
+diff --git a/src/internal/poll/fd.go b/src/internal/poll/fd.go
+index 3d3f36edb3..f1454dba90 100644
+--- a/src/internal/poll/fd.go
++++ b/src/internal/poll/fd.go
+@@ -11,8 +11,23 @@ package poll
+ 
+ import "errors"
+ 
+-// ErrClosing is returned when a descriptor is used after it has been closed.
+-var ErrClosing = errors.New("use of closed file or network connection")
++// ErrNetClosing is returned when a network descriptor is used after
++// it has been closed. Keep this string consistent because of issue
++// #4373: since historically programs have not been able to detect
++// this error, they look for the string.
++var ErrNetClosing = errors.New("use of closed network connection")
++
++// ErrFileClosing is returned when a file descriptor is used after it
++// has been closed.
++var ErrFileClosing = errors.New("use of closed file")
++
++// Return the appropriate closing error based on isFile.
++func errClosing(isFile bool) error {
++	if isFile {
++		return ErrFileClosing
++	}
++	return ErrNetClosing
++}
+ 
+ // ErrTimeout is returned for an expired deadline.
+ var ErrTimeout error = &TimeoutError{}
+diff --git a/src/internal/poll/fd_mutex.go b/src/internal/poll/fd_mutex.go
+index 38d4be248d..76174e5e9c 100644
+--- a/src/internal/poll/fd_mutex.go
++++ b/src/internal/poll/fd_mutex.go
+@@ -198,7 +198,7 @@ func runtime_Semrelease(sema *uint32)
+ // It returns an error when fd cannot be used.
+ func (fd *FD) incref() error {
+ 	if !fd.fdmu.incref() {
+-		return ErrClosing
++		return errClosing(fd.isFile)
+ 	}
+ 	return nil
+ }
+@@ -217,7 +217,7 @@ func (fd *FD) decref() error {
+ // It returns an error when fd cannot be used for reading.
+ func (fd *FD) readLock() error {
+ 	if !fd.fdmu.rwlock(true) {
+-		return ErrClosing
++		return errClosing(fd.isFile)
+ 	}
+ 	return nil
+ }
+@@ -235,7 +235,7 @@ func (fd *FD) readUnlock() {
+ // It returns an error when fd cannot be used for writing.
+ func (fd *FD) writeLock() error {
+ 	if !fd.fdmu.rwlock(false) {
+-		return ErrClosing
++		return errClosing(fd.isFile)
+ 	}
+ 	return nil
+ }
+diff --git a/src/internal/poll/fd_plan9.go b/src/internal/poll/fd_plan9.go
+index 574036e0bf..49590ab13c 100644
+--- a/src/internal/poll/fd_plan9.go
++++ b/src/internal/poll/fd_plan9.go
+@@ -29,6 +29,12 @@ type FD struct {
+ 	wtimer    *time.Timer
+ 	rtimedout atomicBool // set true when read deadline has been reached
+ 	wtimedout atomicBool // set true when write deadline has been reached
++
++	// Whether this is a normal file.
++	// On Plan 9 we do not use this package for ordinary files,
++	// so this is always false, but the field is present because
++	// shared code in fd_mutex.go checks it.
++	isFile bool
+ }
+ 
+ // We need this to close out a file descriptor when it is unlocked,
+@@ -45,7 +51,7 @@ func (fd *FD) destroy() error {
+ // is in the net package.
+ func (fd *FD) Close() error {
+ 	if !fd.fdmu.increfAndClose() {
+-		return ErrClosing
++		return errClosing(fd.isFile)
+ 	}
+ 	return nil
+ }
+diff --git a/src/internal/poll/fd_poll_nacl.go b/src/internal/poll/fd_poll_nacl.go
+index 45256a42d3..8fa75c5a26 100644
+--- a/src/internal/poll/fd_poll_nacl.go
++++ b/src/internal/poll/fd_poll_nacl.go
+@@ -25,27 +25,27 @@ func (pd *pollDesc) evict() {
+ 	}
+ }
+ 
+-func (pd *pollDesc) prepare(mode int) error {
++func (pd *pollDesc) prepare(mode int, isFile bool) error {
+ 	if pd.closing {
+-		return ErrClosing
++		return errClosing(isFile)
+ 	}
+ 	return nil
+ }
+ 
+-func (pd *pollDesc) prepareRead() error { return pd.prepare('r') }
++func (pd *pollDesc) prepareRead(isFile bool) error { return pd.prepare('r', isFile) }
+ 
+-func (pd *pollDesc) prepareWrite() error { return pd.prepare('w') }
++func (pd *pollDesc) prepareWrite(isFile bool) error { return pd.prepare('w', isFile) }
+ 
+-func (pd *pollDesc) wait(mode int) error {
++func (pd *pollDesc) wait(mode int, isFile bool) error {
+ 	if pd.closing {
+-		return ErrClosing
++		return errClosing(isFile)
+ 	}
+ 	return ErrTimeout
+ }
+ 
+-func (pd *pollDesc) waitRead() error { return pd.wait('r') }
++func (pd *pollDesc) waitRead(isFile bool) error { return pd.wait('r', isFile) }
+ 
+-func (pd *pollDesc) waitWrite() error { return pd.wait('w') }
++func (pd *pollDesc) waitWrite(isFile bool) error { return pd.wait('w', isFile) }
+ 
+ func (pd *pollDesc) waitCanceled(mode int) {}
+ 
+diff --git a/src/internal/poll/fd_poll_runtime.go b/src/internal/poll/fd_poll_runtime.go
+index b1e3a84fc2..08b40c2720 100644
+--- a/src/internal/poll/fd_poll_runtime.go
++++ b/src/internal/poll/fd_poll_runtime.go
+@@ -62,36 +62,36 @@ func (pd *pollDesc) evict() {
+ 	runtime_pollUnblock(pd.runtimeCtx)
+ }
+ 
+-func (pd *pollDesc) prepare(mode int) error {
++func (pd *pollDesc) prepare(mode int, isFile bool) error {
+ 	if pd.runtimeCtx == 0 {
+ 		return nil
+ 	}
+ 	res := runtime_pollReset(pd.runtimeCtx, mode)
+-	return convertErr(res)
++	return convertErr(res, isFile)
+ }
+ 
+-func (pd *pollDesc) prepareRead() error {
+-	return pd.prepare('r')
++func (pd *pollDesc) prepareRead(isFile bool) error {
++	return pd.prepare('r', isFile)
+ }
+ 
+-func (pd *pollDesc) prepareWrite() error {
+-	return pd.prepare('w')
++func (pd *pollDesc) prepareWrite(isFile bool) error {
++	return pd.prepare('w', isFile)
+ }
+ 
+-func (pd *pollDesc) wait(mode int) error {
++func (pd *pollDesc) wait(mode int, isFile bool) error {
+ 	if pd.runtimeCtx == 0 {
+ 		return errors.New("waiting for unsupported file type")
+ 	}
+ 	res := runtime_pollWait(pd.runtimeCtx, mode)
+-	return convertErr(res)
++	return convertErr(res, isFile)
+ }
+ 
+-func (pd *pollDesc) waitRead() error {
+-	return pd.wait('r')
++func (pd *pollDesc) waitRead(isFile bool) error {
++	return pd.wait('r', isFile)
+ }
+ 
+-func (pd *pollDesc) waitWrite() error {
+-	return pd.wait('w')
++func (pd *pollDesc) waitWrite(isFile bool) error {
++	return pd.wait('w', isFile)
+ }
+ 
+ func (pd *pollDesc) waitCanceled(mode int) {
+@@ -101,12 +101,12 @@ func (pd *pollDesc) waitCanceled(mode int) {
+ 	runtime_pollWaitCanceled(pd.runtimeCtx, mode)
+ }
+ 
+-func convertErr(res int) error {
++func convertErr(res int, isFile bool) error {
+ 	switch res {
+ 	case 0:
+ 		return nil
+ 	case 1:
+-		return ErrClosing
++		return errClosing(isFile)
+ 	case 2:
+ 		return ErrTimeout
+ 	}
+diff --git a/src/internal/poll/fd_posix_test.go b/src/internal/poll/fd_posix_test.go
+index edc2dcb97d..cbe015edbd 100644
+--- a/src/internal/poll/fd_posix_test.go
++++ b/src/internal/poll/fd_posix_test.go
+@@ -20,17 +20,17 @@ var eofErrorTests = []struct {
+ }{
+ 	{100, nil, &FD{ZeroReadIsEOF: true}, nil},
+ 	{100, io.EOF, &FD{ZeroReadIsEOF: true}, io.EOF},
+-	{100, ErrClosing, &FD{ZeroReadIsEOF: true}, ErrClosing},
++	{100, ErrNetClosing, &FD{ZeroReadIsEOF: true}, ErrNetClosing},
+ 	{0, nil, &FD{ZeroReadIsEOF: true}, io.EOF},
+ 	{0, io.EOF, &FD{ZeroReadIsEOF: true}, io.EOF},
+-	{0, ErrClosing, &FD{ZeroReadIsEOF: true}, ErrClosing},
++	{0, ErrNetClosing, &FD{ZeroReadIsEOF: true}, ErrNetClosing},
+ 
+ 	{100, nil, &FD{ZeroReadIsEOF: false}, nil},
+ 	{100, io.EOF, &FD{ZeroReadIsEOF: false}, io.EOF},
+-	{100, ErrClosing, &FD{ZeroReadIsEOF: false}, ErrClosing},
++	{100, ErrNetClosing, &FD{ZeroReadIsEOF: false}, ErrNetClosing},
+ 	{0, nil, &FD{ZeroReadIsEOF: false}, nil},
+ 	{0, io.EOF, &FD{ZeroReadIsEOF: false}, io.EOF},
+-	{0, ErrClosing, &FD{ZeroReadIsEOF: false}, ErrClosing},
++	{0, ErrNetClosing, &FD{ZeroReadIsEOF: false}, ErrNetClosing},
+ }
+ 
+ func TestEOFError(t *testing.T) {
+diff --git a/src/internal/poll/fd_unix.go b/src/internal/poll/fd_unix.go
+index c461f04c39..782ecd5a87 100644
+--- a/src/internal/poll/fd_unix.go
++++ b/src/internal/poll/fd_unix.go
+@@ -33,11 +33,23 @@ type FD struct {
+ 	// Whether a zero byte read indicates EOF. This is false for a
+ 	// message based socket connection.
+ 	ZeroReadIsEOF bool
++
++	// Whether this is a file rather than a network socket.
++	isFile bool
+ }
+ 
+ // Init initializes the FD. The Sysfd field should already be set.
+ // This can be called multiple times on a single FD.
+-func (fd *FD) Init() error {
++// The net argument is a network name from the net package (e.g., "tcp"),
++// or "file".
++func (fd *FD) Init(net string, pollable bool) error {
++	// We don't actually care about the various network types.
++	if net == "file" {
++		fd.isFile = true
++	}
++	if !pollable {
++		return nil
++	}
+ 	return fd.pd.init(fd)
+ }
+ 
+@@ -56,13 +68,13 @@ func (fd *FD) destroy() error {
+ // destroy method when there are no remaining references.
+ func (fd *FD) Close() error {
+ 	if !fd.fdmu.increfAndClose() {
+-		return ErrClosing
++		return errClosing(fd.isFile)
+ 	}
+ 	// Unblock any I/O.  Once it all unblocks and returns,
+ 	// so that it cannot be referring to fd.sysfd anymore,
+ 	// the final decref will close fd.sysfd. This should happen
+ 	// fairly quickly, since all the I/O is non-blocking, and any
+-	// attempts to block in the pollDesc will return ErrClosing.
++	// attempts to block in the pollDesc will return errClosing(fd.isFile).
+ 	fd.pd.evict()
+ 	// The call to decref will call destroy if there are no other
+ 	// references.
+@@ -99,7 +111,7 @@ func (fd *FD) Read(p []byte) (int, error) {
+ 		// TODO(bradfitz): make it wait for readability? (Issue 15735)
+ 		return 0, nil
+ 	}
+-	if err := fd.pd.prepareRead(); err != nil {
++	if err := fd.pd.prepareRead(fd.isFile); err != nil {
+ 		return 0, err
+ 	}
+ 	if fd.IsStream && len(p) > maxRW {
+@@ -110,7 +122,7 @@ func (fd *FD) Read(p []byte) (int, error) {
+ 		if err != nil {
+ 			n = 0
+ 			if err == syscall.EAGAIN {
+-				if err = fd.pd.waitRead(); err == nil {
++				if err = fd.pd.waitRead(fd.isFile); err == nil {
+ 					continue
+ 				}
+ 			}
+@@ -146,7 +158,7 @@ func (fd *FD) ReadFrom(p []byte) (int, syscall.Sockaddr, error) {
+ 		return 0, nil, err
+ 	}
+ 	defer fd.readUnlock()
+-	if err := fd.pd.prepareRead(); err != nil {
++	if err := fd.pd.prepareRead(fd.isFile); err != nil {
+ 		return 0, nil, err
+ 	}
+ 	for {
+@@ -154,7 +166,7 @@ func (fd *FD) ReadFrom(p []byte) (int, syscall.Sockaddr, error) {
+ 		if err != nil {
+ 			n = 0
+ 			if err == syscall.EAGAIN {
+-				if err = fd.pd.waitRead(); err == nil {
++				if err = fd.pd.waitRead(fd.isFile); err == nil {
+ 					continue
+ 				}
+ 			}
+@@ -170,7 +182,7 @@ func (fd *FD) ReadMsg(p []byte, oob []byte) (int, int, int, syscall.Sockaddr, er
+ 		return 0, 0, 0, nil, err
+ 	}
+ 	defer fd.readUnlock()
+-	if err := fd.pd.prepareRead(); err != nil {
++	if err := fd.pd.prepareRead(fd.isFile); err != nil {
+ 		return 0, 0, 0, nil, err
+ 	}
+ 	for {
+@@ -178,7 +190,7 @@ func (fd *FD) ReadMsg(p []byte, oob []byte) (int, int, int, syscall.Sockaddr, er
+ 		if err != nil {
+ 			// TODO(dfc) should n and oobn be set to 0
+ 			if err == syscall.EAGAIN {
+-				if err = fd.pd.waitRead(); err == nil {
++				if err = fd.pd.waitRead(fd.isFile); err == nil {
+ 					continue
+ 				}
+ 			}
+@@ -194,7 +206,7 @@ func (fd *FD) Write(p []byte) (int, error) {
+ 		return 0, err
+ 	}
+ 	defer fd.writeUnlock()
+-	if err := fd.pd.prepareWrite(); err != nil {
++	if err := fd.pd.prepareWrite(fd.isFile); err != nil {
+ 		return 0, err
+ 	}
+ 	var nn int
+@@ -211,7 +223,7 @@ func (fd *FD) Write(p []byte) (int, error) {
+ 			return nn, err
+ 		}
+ 		if err == syscall.EAGAIN {
+-			if err = fd.pd.waitWrite(); err == nil {
++			if err = fd.pd.waitWrite(fd.isFile); err == nil {
+ 				continue
+ 			}
+ 		}
+@@ -261,13 +273,13 @@ func (fd *FD) WriteTo(p []byte, sa syscall.Sockaddr) (int, error) {
+ 		return 0, err
+ 	}
+ 	defer fd.writeUnlock()
+-	if err := fd.pd.prepareWrite(); err != nil {
++	if err := fd.pd.prepareWrite(fd.isFile); err != nil {
+ 		return 0, err
+ 	}
+ 	for {
+ 		err := syscall.Sendto(fd.Sysfd, p, 0, sa)
+ 		if err == syscall.EAGAIN {
+-			if err = fd.pd.waitWrite(); err == nil {
++			if err = fd.pd.waitWrite(fd.isFile); err == nil {
+ 				continue
+ 			}
+ 		}
+@@ -284,13 +296,13 @@ func (fd *FD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (int, int, err
+ 		return 0, 0, err
+ 	}
+ 	defer fd.writeUnlock()
+-	if err := fd.pd.prepareWrite(); err != nil {
++	if err := fd.pd.prepareWrite(fd.isFile); err != nil {
+ 		return 0, 0, err
+ 	}
+ 	for {
+ 		n, err := syscall.SendmsgN(fd.Sysfd, p, oob, sa, 0)
+ 		if err == syscall.EAGAIN {
+-			if err = fd.pd.waitWrite(); err == nil {
++			if err = fd.pd.waitWrite(fd.isFile); err == nil {
+ 				continue
+ 			}
+ 		}
+@@ -308,7 +320,7 @@ func (fd *FD) Accept() (int, syscall.Sockaddr, string, error) {
+ 	}
+ 	defer fd.readUnlock()
+ 
+-	if err := fd.pd.prepareRead(); err != nil {
++	if err := fd.pd.prepareRead(fd.isFile); err != nil {
+ 		return -1, nil, "", err
+ 	}
+ 	for {
+@@ -318,7 +330,7 @@ func (fd *FD) Accept() (int, syscall.Sockaddr, string, error) {
+ 		}
+ 		switch err {
+ 		case syscall.EAGAIN:
+-			if err = fd.pd.waitRead(); err == nil {
++			if err = fd.pd.waitRead(fd.isFile); err == nil {
+ 				continue
+ 			}
+ 		case syscall.ECONNABORTED:
+@@ -353,7 +365,7 @@ func (fd *FD) ReadDirent(buf []byte) (int, error) {
+ 		if err != nil {
+ 			n = 0
+ 			if err == syscall.EAGAIN {
+-				if err = fd.pd.waitRead(); err == nil {
++				if err = fd.pd.waitRead(fd.isFile); err == nil {
+ 					continue
+ 				}
+ 			}
+@@ -385,5 +397,5 @@ func (fd *FD) Fstat(s *syscall.Stat_t) error {
+ 
+ // WaitWrite waits until data can be read from fd.
+ func (fd *FD) WaitWrite() error {
+-	return fd.pd.waitWrite()
++	return fd.pd.waitWrite(fd.isFile)
+ }
+diff --git a/src/internal/poll/fd_windows.go b/src/internal/poll/fd_windows.go
+index 4d7ec686d4..d312cfed7e 100644
+--- a/src/internal/poll/fd_windows.go
++++ b/src/internal/poll/fd_windows.go
+@@ -160,7 +160,7 @@ func (s *ioSrv) ExecIO(o *operation, name string, submit func(o *operation) erro
+ 
+ 	fd := o.fd
+ 	// Notify runtime netpoll about starting IO.
+-	err := fd.pd.prepare(int(o.mode))
++	err := fd.pd.prepare(int(o.mode), fd.isFile)
+ 	if err != nil {
+ 		return 0, err
+ 	}
+@@ -188,7 +188,7 @@ func (s *ioSrv) ExecIO(o *operation, name string, submit func(o *operation) erro
+ 		return 0, err
+ 	}
+ 	// Wait for our request to complete.
+-	err = fd.pd.wait(int(o.mode))
++	err = fd.pd.wait(int(o.mode), fd.isFile)
+ 	if err == nil {
+ 		// All is good. Extract our IO results and return.
+ 		if o.errno != 0 {
+@@ -200,7 +200,7 @@ func (s *ioSrv) ExecIO(o *operation, name string, submit func(o *operation) erro
+ 	// IO is interrupted by "close" or "timeout"
+ 	netpollErr := err
+ 	switch netpollErr {
+-	case ErrClosing, ErrTimeout:
++	case ErrNetClosing, ErrFileClosing, ErrTimeout:
+ 		// will deal with those.
+ 	default:
+ 		panic("unexpected runtime.netpoll error: " + netpollErr.Error())
+@@ -380,7 +380,7 @@ func (fd *FD) destroy() error {
+ // the destroy method when there are no remaining references.
+ func (fd *FD) Close() error {
+ 	if !fd.fdmu.increfAndClose() {
+-		return ErrClosing
++		return errClosing(fd.isFile)
+ 	}
+ 	// unblock pending reader and writer
+ 	fd.pd.evict()
+diff --git a/src/internal/poll/sendfile_bsd.go b/src/internal/poll/sendfile_bsd.go
+index 13ef205240..980a75afa7 100644
+--- a/src/internal/poll/sendfile_bsd.go
++++ b/src/internal/poll/sendfile_bsd.go
+@@ -37,7 +37,7 @@ func SendFile(dstFD *FD, src int, pos, remain int64) (int64, error) {
+ 			break
+ 		}
+ 		if err1 == syscall.EAGAIN {
+-			if err1 = dstFD.pd.waitWrite(); err1 == nil {
++			if err1 = dstFD.pd.waitWrite(dstFD.isFile); err1 == nil {
+ 				continue
+ 			}
+ 		}
+diff --git a/src/internal/poll/sendfile_linux.go b/src/internal/poll/sendfile_linux.go
+index 4014e05bdc..52955a19d0 100644
+--- a/src/internal/poll/sendfile_linux.go
++++ b/src/internal/poll/sendfile_linux.go
+@@ -34,7 +34,7 @@ func SendFile(dstFD *FD, src int, remain int64) (int64, error) {
+ 			break
+ 		}
+ 		if err1 == syscall.EAGAIN {
+-			if err1 = dstFD.pd.waitWrite(); err1 == nil {
++			if err1 = dstFD.pd.waitWrite(dstFD.isFile); err1 == nil {
+ 				continue
+ 			}
+ 		}
+diff --git a/src/internal/poll/sendfile_solaris.go b/src/internal/poll/sendfile_solaris.go
+index 816c17cac1..2ce5323208 100644
+--- a/src/internal/poll/sendfile_solaris.go
++++ b/src/internal/poll/sendfile_solaris.go
+@@ -47,7 +47,7 @@ func SendFile(dstFD *FD, src int, pos, remain int64) (int64, error) {
+ 			break
+ 		}
+ 		if err1 == syscall.EAGAIN {
+-			if err1 = dstFD.pd.waitWrite(); err1 == nil {
++			if err1 = dstFD.pd.waitWrite(dstFD.isFile); err1 == nil {
+ 				continue
+ 			}
+ 		}
+diff --git a/src/internal/poll/writev.go b/src/internal/poll/writev.go
+index 574e0de989..4bf8804e21 100644
+--- a/src/internal/poll/writev.go
++++ b/src/internal/poll/writev.go
+@@ -18,7 +18,7 @@ func (fd *FD) Writev(v *[][]byte) (int64, error) {
+ 		return 0, err
+ 	}
+ 	defer fd.writeUnlock()
+-	if err := fd.pd.prepareWrite(); err != nil {
++	if err := fd.pd.prepareWrite(fd.isFile); err != nil {
+ 		return 0, err
+ 	}
+ 
+@@ -65,7 +65,7 @@ func (fd *FD) Writev(v *[][]byte) (int64, error) {
+ 		n += int64(wrote)
+ 		consume(v, int64(wrote))
+ 		if e0 == syscall.EAGAIN {
+-			if err = fd.pd.waitWrite(); err == nil {
++			if err = fd.pd.waitWrite(fd.isFile); err == nil {
+ 				continue
+ 			}
+ 		} else if e0 != 0 {
+diff --git a/src/net/error_test.go b/src/net/error_test.go
+index 021968b079..9791e6fe4d 100644
+--- a/src/net/error_test.go
++++ b/src/net/error_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"net/internal/socktest"
+ 	"os"
+ 	"runtime"
++	"strings"
+ 	"testing"
+ 	"time"
+ )
+@@ -98,7 +99,7 @@ second:
+ 		goto third
+ 	}
+ 	switch nestedErr {
+-	case errCanceled, poll.ErrClosing, errMissingAddress, errNoSuitableAddress,
++	case errCanceled, poll.ErrNetClosing, errMissingAddress, errNoSuitableAddress,
+ 		context.DeadlineExceeded, context.Canceled:
+ 		return nil
+ 	}
+@@ -433,7 +434,7 @@ second:
+ 		goto third
+ 	}
+ 	switch nestedErr {
+-	case poll.ErrClosing, poll.ErrTimeout:
++	case poll.ErrNetClosing, poll.ErrTimeout:
+ 		return nil
+ 	}
+ 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
+@@ -475,7 +476,7 @@ second:
+ 		goto third
+ 	}
+ 	switch nestedErr {
+-	case errCanceled, poll.ErrClosing, errMissingAddress, poll.ErrTimeout, ErrWriteToConnected, io.ErrUnexpectedEOF:
++	case errCanceled, poll.ErrNetClosing, errMissingAddress, poll.ErrTimeout, ErrWriteToConnected, io.ErrUnexpectedEOF:
+ 		return nil
+ 	}
+ 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
+@@ -490,11 +491,21 @@ third:
+ // parseCloseError parses nestedErr and reports whether it is a valid
+ // error value from Close functions.
+ // It returns nil when nestedErr is valid.
+-func parseCloseError(nestedErr error) error {
++func parseCloseError(nestedErr error, isShutdown bool) error {
+ 	if nestedErr == nil {
+ 		return nil
+ 	}
+ 
++	// Because historically we have not exported the error that we
++	// return for an operation on a closed network connection,
++	// there are programs that test for the exact error string.
++	// Verify that string here so that we don't break those
++	// programs unexpectedly. See issues #4373 and #19252.
++	want := "use of closed network connection"
++	if !isShutdown && !strings.Contains(nestedErr.Error(), want) {
++		return fmt.Errorf("error string %q does not contain expected string %q", nestedErr, want)
++	}
++
+ 	switch err := nestedErr.(type) {
+ 	case *OpError:
+ 		if err := err.isValid(); err != nil {
+@@ -518,7 +529,7 @@ second:
+ 		goto third
+ 	}
+ 	switch nestedErr {
+-	case poll.ErrClosing:
++	case poll.ErrNetClosing:
+ 		return nil
+ 	}
+ 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
+@@ -548,23 +559,23 @@ func TestCloseError(t *testing.T) {
+ 
+ 	for i := 0; i < 3; i++ {
+ 		err = c.(*TCPConn).CloseRead()
+-		if perr := parseCloseError(err); perr != nil {
++		if perr := parseCloseError(err, true); perr != nil {
+ 			t.Errorf("#%d: %v", i, perr)
+ 		}
+ 	}
+ 	for i := 0; i < 3; i++ {
+ 		err = c.(*TCPConn).CloseWrite()
+-		if perr := parseCloseError(err); perr != nil {
++		if perr := parseCloseError(err, true); perr != nil {
+ 			t.Errorf("#%d: %v", i, perr)
+ 		}
+ 	}
+ 	for i := 0; i < 3; i++ {
+ 		err = c.Close()
+-		if perr := parseCloseError(err); perr != nil {
++		if perr := parseCloseError(err, false); perr != nil {
+ 			t.Errorf("#%d: %v", i, perr)
+ 		}
+ 		err = ln.Close()
+-		if perr := parseCloseError(err); perr != nil {
++		if perr := parseCloseError(err, false); perr != nil {
+ 			t.Errorf("#%d: %v", i, perr)
+ 		}
+ 	}
+@@ -577,7 +588,7 @@ func TestCloseError(t *testing.T) {
+ 
+ 	for i := 0; i < 3; i++ {
+ 		err = pc.Close()
+-		if perr := parseCloseError(err); perr != nil {
++		if perr := parseCloseError(err, false); perr != nil {
+ 			t.Errorf("#%d: %v", i, perr)
+ 		}
+ 	}
+@@ -614,7 +625,7 @@ second:
+ 		goto third
+ 	}
+ 	switch nestedErr {
+-	case poll.ErrClosing, poll.ErrTimeout:
++	case poll.ErrNetClosing, poll.ErrTimeout:
+ 		return nil
+ 	}
+ 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
+@@ -693,7 +704,7 @@ second:
+ 		goto third
+ 	}
+ 	switch nestedErr {
+-	case poll.ErrClosing:
++	case poll.ErrNetClosing:
+ 		return nil
+ 	}
+ 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
+diff --git a/src/net/fd_unix.go b/src/net/fd_unix.go
+index 505a1f1a02..1122ee4dbe 100644
+--- a/src/net/fd_unix.go
++++ b/src/net/fd_unix.go
+@@ -43,7 +43,7 @@ func newFD(sysfd, family, sotype int, net string) (*netFD, error) {
+ }
+ 
+ func (fd *netFD) init() error {
+-	return fd.pfd.Init()
++	return fd.pfd.Init(fd.net, true)
+ }
+ 
+ func (fd *netFD) setAddr(laddr, raddr Addr) {
+@@ -75,7 +75,7 @@ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (ret erro
+ 			return mapErr(ctx.Err())
+ 		default:
+ 		}
+-		if err := fd.pfd.Init(); err != nil {
++		if err := fd.pfd.Init(fd.net, true); err != nil {
+ 			return err
+ 		}
+ 		runtime.KeepAlive(fd)
+@@ -93,7 +93,7 @@ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (ret erro
+ 	default:
+ 		return os.NewSyscallError("connect", err)
+ 	}
+-	if err := fd.pfd.Init(); err != nil {
++	if err := fd.pfd.Init(fd.net, true); err != nil {
+ 		return err
+ 	}
+ 	if deadline, _ := ctx.Deadline(); !deadline.IsZero() {
+diff --git a/src/net/file_test.go b/src/net/file_test.go
+index 6566ce21a1..abf8b3a699 100644
+--- a/src/net/file_test.go
++++ b/src/net/file_test.go
+@@ -90,7 +90,7 @@ func TestFileConn(t *testing.T) {
+ 			f, err = c1.File()
+ 		}
+ 		if err := c1.Close(); err != nil {
+-			if perr := parseCloseError(err); perr != nil {
++			if perr := parseCloseError(err, false); perr != nil {
+ 				t.Error(perr)
+ 			}
+ 			t.Error(err)
+@@ -256,7 +256,7 @@ func TestFilePacketConn(t *testing.T) {
+ 			f, err = c1.File()
+ 		}
+ 		if err := c1.Close(); err != nil {
+-			if perr := parseCloseError(err); perr != nil {
++			if perr := parseCloseError(err, false); perr != nil {
+ 				t.Error(perr)
+ 			}
+ 			t.Error(err)
+diff --git a/src/net/net_test.go b/src/net/net_test.go
+index 9a9a7e552c..024505e7c6 100644
+--- a/src/net/net_test.go
++++ b/src/net/net_test.go
+@@ -54,7 +54,7 @@ func TestCloseRead(t *testing.T) {
+ 			err = c.CloseRead()
+ 		}
+ 		if err != nil {
+-			if perr := parseCloseError(err); perr != nil {
++			if perr := parseCloseError(err, true); perr != nil {
+ 				t.Error(perr)
+ 			}
+ 			t.Fatal(err)
+@@ -94,7 +94,7 @@ func TestCloseWrite(t *testing.T) {
+ 			err = c.CloseWrite()
+ 		}
+ 		if err != nil {
+-			if perr := parseCloseError(err); perr != nil {
++			if perr := parseCloseError(err, true); perr != nil {
+ 				t.Error(perr)
+ 			}
+ 			t.Error(err)
+@@ -139,7 +139,7 @@ func TestCloseWrite(t *testing.T) {
+ 			err = c.CloseWrite()
+ 		}
+ 		if err != nil {
+-			if perr := parseCloseError(err); perr != nil {
++			if perr := parseCloseError(err, true); perr != nil {
+ 				t.Error(perr)
+ 			}
+ 			t.Fatal(err)
+@@ -184,7 +184,7 @@ func TestConnClose(t *testing.T) {
+ 		defer c.Close()
+ 
+ 		if err := c.Close(); err != nil {
+-			if perr := parseCloseError(err); perr != nil {
++			if perr := parseCloseError(err, false); perr != nil {
+ 				t.Error(perr)
+ 			}
+ 			t.Fatal(err)
+@@ -215,7 +215,7 @@ func TestListenerClose(t *testing.T) {
+ 
+ 		dst := ln.Addr().String()
+ 		if err := ln.Close(); err != nil {
+-			if perr := parseCloseError(err); perr != nil {
++			if perr := parseCloseError(err, false); perr != nil {
+ 				t.Error(perr)
+ 			}
+ 			t.Fatal(err)
+@@ -269,7 +269,7 @@ func TestPacketConnClose(t *testing.T) {
+ 		defer c.Close()
+ 
+ 		if err := c.Close(); err != nil {
+-			if perr := parseCloseError(err); perr != nil {
++			if perr := parseCloseError(err, false); perr != nil {
+ 				t.Error(perr)
+ 			}
+ 			t.Fatal(err)
+@@ -292,7 +292,7 @@ func TestListenCloseListen(t *testing.T) {
+ 		}
+ 		addr := ln.Addr().String()
+ 		if err := ln.Close(); err != nil {
+-			if perr := parseCloseError(err); perr != nil {
++			if perr := parseCloseError(err, false); perr != nil {
+ 				t.Error(perr)
+ 			}
+ 			t.Fatal(err)
+diff --git a/src/os/file.go b/src/os/file.go
+index e5a3efa884..271197a90e 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -102,7 +102,7 @@ func (f *File) Read(b []byte) (n int, err error) {
+ 	}
+ 	n, e := f.read(b)
+ 	if e != nil {
+-		if e == poll.ErrClosing {
++		if e == poll.ErrFileClosing {
+ 			e = ErrClosed
+ 		}
+ 		if e == io.EOF {
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index 6850ff7a56..847316492b 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -87,20 +87,18 @@ func newFile(fd uintptr, name string, pollable bool) *File {
+ 		pollable = false
+ 	}
+ 
+-	if pollable {
+-		if err := f.pfd.Init(); err != nil {
+-			// An error here indicates a failure to register
+-			// with the netpoll system. That can happen for
+-			// a file descriptor that is not supported by
+-			// epoll/kqueue; for example, disk files on
+-			// GNU/Linux systems. We assume that any real error
+-			// will show up in later I/O.
+-		} else {
+-			// We successfully registered with netpoll, so put
+-			// the file into nonblocking mode.
+-			if err := syscall.SetNonblock(fdi, true); err == nil {
+-				f.nonblock = true
+-			}
++	if err := f.pfd.Init("file", pollable); err != nil {
++		// An error here indicates a failure to register
++		// with the netpoll system. That can happen for
++		// a file descriptor that is not supported by
++		// epoll/kqueue; for example, disk files on
++		// GNU/Linux systems. We assume that any real error
++		// will show up in later I/O.
++	} else if pollable {
++		// We successfully registered with netpoll, so put
++		// the file into nonblocking mode.
++		if err := syscall.SetNonblock(fdi, true); err == nil {
++			f.nonblock = true
+ 		}
+ 	}
+ 
+diff --git a/src/os/pipe_test.go b/src/os/pipe_test.go
+index 032173b759..a7bd41ff40 100644
+--- a/src/os/pipe_test.go
++++ b/src/os/pipe_test.go
+@@ -144,6 +144,8 @@ func TestClosedPipeRace(t *testing.T) {
+ 		t.Error("Read of closed pipe unexpectedly succeeded")
+ 	} else if pe, ok := err.(*os.PathError); !ok {
+ 		t.Errorf("Read of closed pipe returned unexpected error type %T; expected os.PathError", pe)
++	} else if pe.Err != os.ErrClosed {
++		t.Errorf("got error %q but expected %q", pe.Err, os.ErrClosed)
+ 	} else {
+ 		t.Logf("Read returned expected error %q", err)
+ 	}

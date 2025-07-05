@@ -15,7 +15,80 @@ Date:   Fri Feb 2 05:38:08 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  misc/cgo/test/issue4029.c  | 19 +++++++++++++++++++
  misc/cgo/test/issue4029.go | 17 +++++++++++------
  2 files changed, 30 insertions(+), 6 deletions(-)
+
+diff --git a/misc/cgo/test/issue4029.c b/misc/cgo/test/issue4029.c
+index eab3683450..7205c5a5a2 100644
+--- a/misc/cgo/test/issue4029.c
++++ b/misc/cgo/test/issue4029.c
+@@ -4,6 +4,25 @@
+ 
+ // +build !windows
+ 
++#include <stdint.h>
++#include <dlfcn.h>
++
++// Write our own versions of dlopen/dlsym/dlclose so that we represent
++// the opaque handle as a Go uintptr rather than a Go pointer to avoid
++// garbage collector confusion.  See issue 23663.
++
++uintptr_t dlopen4029(char* name, int flags) {
++	return (uintptr_t)(dlopen(name, flags));
++}
++
++uintptr_t dlsym4029(uintptr_t handle, char* name) {
++	return (uintptr_t)(dlsym((void*)(handle), name));
++}
++
++int dlclose4029(uintptr_t handle) {
++	return dlclose((void*)(handle));
++}
++
+ void call4029(void *arg) {
+ 	void (*fn)(void) = arg;
+ 	fn();
+diff --git a/misc/cgo/test/issue4029.go b/misc/cgo/test/issue4029.go
+index 5789b99ef6..8e468d367d 100644
+--- a/misc/cgo/test/issue4029.go
++++ b/misc/cgo/test/issue4029.go
+@@ -7,10 +7,15 @@
+ package cgotest
+ 
+ /*
++#include <stdint.h>
+ #include <dlfcn.h>
+ #cgo linux LDFLAGS: -ldl
+ 
+-extern void call4029(void *arg);
++extern uintptr_t dlopen4029(char*, int);
++extern uintptr_t dlsym4029(uintptr_t, char*);
++extern int dlclose4029(uintptr_t);
++
++extern void call4029(uintptr_t arg);
+ */
+ import "C"
+ 
+@@ -51,15 +56,15 @@ func test4029(t *testing.T) {
+ }
+ 
+ func loadThySelf(t *testing.T, symbol string) {
+-	this_process := C.dlopen(nil, C.RTLD_NOW)
+-	if this_process == nil {
++	this_process := C.dlopen4029(nil, C.RTLD_NOW)
++	if this_process == 0 {
+ 		t.Error("dlopen:", C.GoString(C.dlerror()))
+ 		return
+ 	}
+-	defer C.dlclose(this_process)
++	defer C.dlclose4029(this_process)
+ 
+-	symbol_address := C.dlsym(this_process, C.CString(symbol))
+-	if symbol_address == nil {
++	symbol_address := C.dlsym4029(this_process, C.CString(symbol))
++	if symbol_address == 0 {
+ 		t.Error("dlsym:", C.GoString(C.dlerror()))
+ 		return
+ 	}

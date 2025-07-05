@@ -14,6 +14,23 @@ Date:   Mon Jun 12 13:46:08 2023 -0400
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/macho.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 52ff85ddef..f48653b910 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -833,9 +833,9 @@ func asmbMacho(ctxt *Link) {
+ 		ml.data[2] = uint32(linkoff + s1 + s2 + s3 + s4 + s5) /* stroff */
+ 		ml.data[3] = uint32(s6)                               /* strsize */
+ 
+-		machodysymtab(ctxt, linkoff+s1+s2)
+-
+ 		if ctxt.LinkMode != LinkExternal {
++			machodysymtab(ctxt, linkoff+s1+s2)
++
+ 			ml := newMachoLoad(ctxt.Arch, LC_LOAD_DYLINKER, 6)
+ 			ml.data[0] = 12 /* offset to string */
+ 			stringtouint32(ml.data[1:], "/usr/lib/dyld")

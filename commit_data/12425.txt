@@ -9,6 +9,21 @@ Date:   Tue Mar 6 12:49:29 2012 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5755056
-
+---
  src/pkg/crypto/tls/tls.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/tls.go b/src/pkg/crypto/tls/tls.go
+index 9184e8e811..7cb57627ab 100644
+--- a/src/pkg/crypto/tls/tls.go
++++ b/src/pkg/crypto/tls/tls.go
+@@ -2,8 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package tls partially implements the TLS 1.1 protocol, as specified in RFC
+-// 4346.
++// Package tls partially implements TLS 1.0, as specified in RFC 2246.
+ package tls
+ 
+ import (

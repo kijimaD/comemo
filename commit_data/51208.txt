@@ -13,7 +13,7 @@ Date:   Wed Dec 15 18:52:21 2021 +0000
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/bufio/bufio_test.go                                    | 2 +-
  src/cmd/compile/internal/noder/reader.go                   | 2 +-
  src/cmd/compile/internal/types/universe.go                 | 2 +-
@@ -26,3 +26,147 @@ Date:   Wed Dec 15 18:52:21 2021 +0000
  src/go/types/typeset.go                                    | 2 +-
  src/testing/fuzz.go                                        | 2 +-
  11 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/bufio/bufio_test.go b/src/bufio/bufio_test.go
+index 4dddfa9085..ff3396e946 100644
+--- a/src/bufio/bufio_test.go
++++ b/src/bufio/bufio_test.go
+@@ -657,7 +657,7 @@ func TestWriterAppend(t *testing.T) {
+ 		}
+ 
+ 		// While not recommended, it is valid to append to a shifted buffer.
+-		// This forces Write to copy the the input.
++		// This forces Write to copy the input.
+ 		if rn.Intn(8) == 0 && cap(b) > 0 {
+ 			b = b[1:1:cap(b)]
+ 		}
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 0bc9135999..5d17c534c1 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -2029,7 +2029,7 @@ func InlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExp
+ 
+ 	// Quirk: If deadcode elimination turned a non-empty function into
+ 	// an empty one, we need to set the position for the empty block
+-	// left behind to the the inlined position for src.NoXPos, so that
++	// left behind to the inlined position for src.NoXPos, so that
+ 	// an empty string gets added into the DWARF file name listing at
+ 	// the appropriate index.
+ 	if quirksMode() && len(body) == 1 {
+diff --git a/src/cmd/compile/internal/types/universe.go b/src/cmd/compile/internal/types/universe.go
+index 54b04bda22..55ed7bd6d0 100644
+--- a/src/cmd/compile/internal/types/universe.go
++++ b/src/cmd/compile/internal/types/universe.go
+@@ -152,7 +152,7 @@ func makeErrorInterface() *Type {
+ 	return NewInterface(NoPkg, []*Field{method}, false)
+ }
+ 
+-// makeComparableInterface makes the the predefined "comparable" interface in the
++// makeComparableInterface makes the predefined "comparable" interface in the
+ // built-in package. It has a unique name, but no methods.
+ func makeComparableInterface() *Type {
+ 	return NewInterface(NoPkg, nil, false)
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index 0a85d8eb39..668eeac00e 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -317,7 +317,7 @@ func (check *Checker) assignError(rhs []syntax.Expr, nvars, nvals int) {
+ }
+ 
+ // If returnStmt != nil, initVars is called to type-check the assignment
+-// of return expressions, and returnStmt is the the return statement.
++// of return expressions, and returnStmt is the return statement.
+ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt syntax.Stmt) {
+ 	rhs, commaOk := check.exprList(orig_rhs, len(lhs) == 2 && returnStmt == nil)
+ 
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index eaf614da64..cbb454aa6a 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -167,7 +167,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
+ 	}
+ 
+ 	// If the interface is not fully set up yet, the type set will
+-	// not be complete, which may lead to errors when using the the
++	// not be complete, which may lead to errors when using the
+ 	// type set (e.g. missing method). Don't compute a partial type
+ 	// set (and don't store it!), so that we still compute the full
+ 	// type set eventually. Instead, return the top type set and
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index c682447900..b0dae1cb3d 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -642,7 +642,7 @@ func rewriteVersionList(dir string) (err error) {
+ 	// Lock listfile when writing to it to try to avoid corruption to the file.
+ 	// Under rare circumstances, for instance, if the system loses power in the
+ 	// middle of a write it is possible for corrupt data to be written. This is
+-	// not a problem for the go command itself, but may be an issue if the the
++	// not a problem for the go command itself, but may be an issue if the
+ 	// cache is being served by a GOPROXY HTTP server. This will be corrected
+ 	// the next time a new version of the module is fetched and the file is rewritten.
+ 	// TODO(matloob): golang.org/issue/43313 covers adding a go mod verify
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index 45be51f1c6..38ba150002 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -352,7 +352,7 @@ func readModGraph(ctx context.Context, pruning modPruning, roots []module.Versio
+ 		if pruning == unpruned {
+ 			if _, dup := loadingUnpruned.LoadOrStore(m, nil); dup {
+ 				// m has already been enqueued for loading. Since unpruned loading may
+-				// follow cycles in the the requirement graph, we need to return early
++				// follow cycles in the requirement graph, we need to return early
+ 				// to avoid making the load queue infinitely long.
+ 				return
+ 			}
+diff --git a/src/cmd/go/testdata/script/list_cgo_compiled_importmap.txt b/src/cmd/go/testdata/script/list_cgo_compiled_importmap.txt
+index 3d68ef3055..30effb104b 100644
+--- a/src/cmd/go/testdata/script/list_cgo_compiled_importmap.txt
++++ b/src/cmd/go/testdata/script/list_cgo_compiled_importmap.txt
+@@ -12,7 +12,7 @@ env CGO_ENABLED=1
+ env GOFLAGS=-tags=netcgo  # Force net to use cgo even on Windows.
+ 
+ 
+-# "runtime/cgo [runtime.test]" appears in the the test dependencies of "runtime",
++# "runtime/cgo [runtime.test]" appears in the test dependencies of "runtime",
+ # because "runtime/cgo" itself depends on "runtime"
+ 
+ go list -deps -test -compiled -f '{{if eq .ImportPath "net [runtime.test]"}}{{printf "%q" .Imports}}{{end}}' runtime
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index a556e5e017..fa05a10920 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -313,7 +313,7 @@ func (check *Checker) assignError(rhs []ast.Expr, nvars, nvals int) {
+ }
+ 
+ // If returnStmt != nil, initVars is called to type-check the assignment
+-// of return expressions, and returnStmt is the the return statement.
++// of return expressions, and returnStmt is the return statement.
+ func (check *Checker) initVars(lhs []*Var, origRHS []ast.Expr, returnStmt ast.Stmt) {
+ 	rhs, commaOk := check.exprList(origRHS, len(lhs) == 2 && returnStmt == nil)
+ 
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index 0f2897b8c6..96f740e5cf 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -165,7 +165,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 	}
+ 
+ 	// If the interface is not fully set up yet, the type set will
+-	// not be complete, which may lead to errors when using the the
++	// not be complete, which may lead to errors when using the
+ 	// type set (e.g. missing method). Don't compute a partial type
+ 	// set (and don't store it!), so that we still compute the full
+ 	// type set eventually. Instead, return the top type set and
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index 4a5def1ab4..17a8753ae6 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -63,7 +63,7 @@ type InternalFuzzTarget struct {
+ // for an example, and see the F.Fuzz and F.Add method documentation for
+ // details.
+ //
+-// *F methods can only be called before (*F).Fuzz. Once the the test is
++// *F methods can only be called before (*F).Fuzz. Once the test is
+ // executing the fuzz target, only (*T) methods can be used. The only *F methods
+ // that are allowed in the (*F).Fuzz function are (*F).Failed and (*F).Name.
+ type F struct {

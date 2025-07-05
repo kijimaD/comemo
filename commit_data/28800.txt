@@ -20,7 +20,7 @@ Date:   Tue Jul 26 09:24:18 2016 -0700
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ppc64/ssa.go        | 226 +++++++++++-
  src/cmd/compile/internal/ssa/config.go       |   1 +
  src/cmd/compile/internal/ssa/gen/PPC64.rules |  19 +-
@@ -29,3 +29,1906 @@ Date:   Tue Jul 26 09:24:18 2016 -0700
  src/cmd/compile/internal/ssa/rewritePPC64.go | 183 +++++++++-
  src/cmd/compile/internal/ssa/schedule.go     |   2 +-
  7 files changed, 780 insertions(+), 277 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index ef92cc9301..9b70a40390 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -12,7 +12,7 @@ import (
+ )
+ 
+ var ssaRegToReg = []int16{
+-	ppc64.REGZERO,
++	// ppc64.REGZERO, // not an SSA reg
+ 	ppc64.REGSP,
+ 	ppc64.REG_R2,
+ 	ppc64.REG_R3,
+@@ -44,6 +44,53 @@ var ssaRegToReg = []int16{
+ 	ppc64.REG_R29,
+ 	ppc64.REGG,
+ 	ppc64.REGTMP,
++
++	ppc64.REG_F0,
++	ppc64.REG_F1,
++	ppc64.REG_F2,
++	ppc64.REG_F3,
++	ppc64.REG_F4,
++	ppc64.REG_F5,
++	ppc64.REG_F6,
++	ppc64.REG_F7,
++	ppc64.REG_F8,
++	ppc64.REG_F9,
++	ppc64.REG_F10,
++	ppc64.REG_F11,
++	ppc64.REG_F12,
++	ppc64.REG_F13,
++	ppc64.REG_F14,
++	ppc64.REG_F15,
++	ppc64.REG_F16,
++	ppc64.REG_F17,
++	ppc64.REG_F18,
++	ppc64.REG_F19,
++	ppc64.REG_F20,
++	ppc64.REG_F21,
++	ppc64.REG_F22,
++	ppc64.REG_F23,
++	ppc64.REG_F24,
++	ppc64.REG_F25,
++	ppc64.REG_F26,
++	ppc64.REG_F27,
++	ppc64.REG_F28,
++	ppc64.REG_F29,
++	ppc64.REG_F30,
++	ppc64.REG_F31,
++
++	// ppc64.REG_CR0,
++	// ppc64.REG_CR1,
++	// ppc64.REG_CR2,
++	// ppc64.REG_CR3,
++	// ppc64.REG_CR4,
++	// ppc64.REG_CR5,
++	// ppc64.REG_CR6,
++	// ppc64.REG_CR7,
++
++	ppc64.REG_CR,
++	// ppc64.REG_XER,
++	// ppc64.REG_LR,
++	// ppc64.REG_CTR,
+ }
+ 
+ // Associated condition bit
+@@ -98,7 +145,26 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		// input args need no code
+ 	case ssa.OpSP, ssa.OpSB:
+ 		// nothing to do
+-	case ssa.OpCopy:
++
++	case ssa.OpCopy, ssa.OpPPC64MOVDconvert:
++		// TODO: copy of floats
++		if v.Type.IsMemory() {
++			return
++		}
++		x := gc.SSARegNum(v.Args[0])
++		y := gc.SSARegNum(v)
++		if x != y {
++			p := gc.Prog(ppc64.AMOVD)
++			p.From.Type = obj.TYPE_REG
++			p.From.Reg = x
++			p.To.Reg = y
++			p.To.Type = obj.TYPE_REG
++		}
++
++	case ssa.OpPPC64LoweredGetClosurePtr:
++		// Closure pointer is R11 (already)
++		gc.CheckLoweredGetClosurePtr(v)
++
+ 	case ssa.OpLoadReg:
+ 		// TODO: by type
+ 		p := gc.Prog(ppc64.AMOVD)
+@@ -138,8 +204,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		r2 := gc.SSARegNum(v.Args[1])
+ 		p := gc.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = r1
+-		p.Reg = r2
++		p.From.Reg = r2
++		p.Reg = r1
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+ 	case ssa.OpPPC64NEG:
+@@ -195,7 +261,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			v.Fatalf("bad reg %s for symbol type %T, want %s", reg.Name(), v.Aux, wantreg)
+ 		}
+ 
+-	case ssa.OpPPC64MOVDconst, ssa.OpPPC64MOVWconst, ssa.OpPPC64MOVHconst, ssa.OpPPC64MOVBconst, ssa.OpPPC64FMOVDconst, ssa.OpPPC64FMOVSconst:
++	case ssa.OpPPC64MOVDconst, ssa.OpPPC64MOVWconst, ssa.OpPPC64FMOVDconst, ssa.OpPPC64FMOVSconst:
+ 		p := gc.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = v.AuxInt
+@@ -261,8 +327,22 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Reg = gc.SSARegNum(v.Args[0])
+ 		gc.AddAux(&p.To, v)
++
+ 	case ssa.OpPPC64CALLstatic:
+-		// TODO: deferreturn
++		if v.Aux.(*gc.Sym) == gc.Deferreturn.Sym {
++			// Deferred calls will appear to be returning to
++			// the CALL deferreturn(SB) that we are about to emit.
++			// However, the stack trace code will show the line
++			// of the instruction byte before the return PC.
++			// To avoid that being an unrelated instruction,
++			// insert two actual hardware NOPs that will have the right line number.
++			// This is different from obj.ANOP, which is a virtual no-op
++			// that doesn't make it into the instruction stream.
++			// PPC64 is unusual because TWO nops are required
++			// (see gc/cgen.go, gc/plive.go)
++			ginsnop()
++			ginsnop()
++		}
+ 		p := gc.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+@@ -270,12 +350,56 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if gc.Maxarg < v.AuxInt {
+ 			gc.Maxarg = v.AuxInt
+ 		}
++	case ssa.OpPPC64CALLclosure:
++		p := gc.Prog(obj.ACALL)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Reg = gc.SSARegNum(v.Args[0])
++		if gc.Maxarg < v.AuxInt {
++			gc.Maxarg = v.AuxInt
++		}
++	case ssa.OpPPC64CALLdefer:
++		p := gc.Prog(obj.ACALL)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Name = obj.NAME_EXTERN
++		p.To.Sym = gc.Linksym(gc.Deferproc.Sym)
++		if gc.Maxarg < v.AuxInt {
++			gc.Maxarg = v.AuxInt
++		}
++	case ssa.OpPPC64CALLgo:
++		p := gc.Prog(obj.ACALL)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Name = obj.NAME_EXTERN
++		p.To.Sym = gc.Linksym(gc.Newproc.Sym)
++		if gc.Maxarg < v.AuxInt {
++			gc.Maxarg = v.AuxInt
++		}
++	case ssa.OpPPC64CALLinter:
++		p := gc.Prog(obj.ACALL)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Reg = gc.SSARegNum(v.Args[0])
++		if gc.Maxarg < v.AuxInt {
++			gc.Maxarg = v.AuxInt
++		}
++
+ 	case ssa.OpVarDef:
+ 		gc.Gvardef(v.Aux.(*gc.Node))
+ 	case ssa.OpVarKill:
+ 		gc.Gvarkill(v.Aux.(*gc.Node))
+ 	case ssa.OpVarLive:
+ 		gc.Gvarlive(v.Aux.(*gc.Node))
++	case ssa.OpKeepAlive:
++		if !v.Args[0].Type.IsPtrShaped() {
++			v.Fatalf("keeping non-pointer alive %v", v.Args[0])
++		}
++		n, off := gc.AutoVar(v.Args[0])
++		if n == nil {
++			v.Fatalf("KeepLive with non-spilled value %s %s", v, v.Args[0])
++		}
++		if off != 0 {
++			v.Fatalf("KeepLive with non-zero offset spill location %s:%d", n, off)
++		}
++		gc.Gvarlive(n)
++
+ 	case ssa.OpPPC64Equal,
+ 		ssa.OpPPC64NotEqual,
+ 		ssa.OpPPC64LessThan,
+@@ -295,6 +419,76 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 				v.Fatalf("phi arg at different location than phi: %v @ %v, but arg %v @ %v\n%s\n", v, loc, a, aloc, v.Block.Func)
+ 			}
+ 		}
++
++	case ssa.OpPPC64LoweredNilCheck:
++		// Optimization - if the subsequent block has a load or store
++		// at the same address, we don't need to issue this instruction.
++		// mem := v.Args[1]
++		// for _, w := range v.Block.Succs[0].Block().Values {
++		// 	if w.Op == ssa.OpPhi {
++		// 		if w.Type.IsMemory() {
++		// 			mem = w
++		// 		}
++		// 		continue
++		// 	}
++		// 	if len(w.Args) == 0 || !w.Args[len(w.Args)-1].Type.IsMemory() {
++		// 		// w doesn't use a store - can't be a memory op.
++		// 		continue
++		// 	}
++		// 	if w.Args[len(w.Args)-1] != mem {
++		// 		v.Fatalf("wrong store after nilcheck v=%s w=%s", v, w)
++		// 	}
++		// 	switch w.Op {
++		// 	case ssa.OpARMMOVBload, ssa.OpARMMOVBUload, ssa.OpARMMOVHload, ssa.OpARMMOVHUload,
++		// 		ssa.OpARMMOVWload, ssa.OpARMMOVFload, ssa.OpARMMOVDload,
++		// 		ssa.OpARMMOVBstore, ssa.OpARMMOVHstore, ssa.OpARMMOVWstore,
++		// 		ssa.OpARMMOVFstore, ssa.OpARMMOVDstore:
++		// 		// arg0 is ptr, auxint is offset
++		// 		if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
++		// 			if gc.Debug_checknil != 0 && int(v.Line) > 1 {
++		// 				gc.Warnl(v.Line, "removed nil check")
++		// 			}
++		// 			return
++		// 		}
++		// 	case ssa.OpARMDUFFZERO, ssa.OpARMLoweredZero, ssa.OpARMLoweredZeroU:
++		// 		// arg0 is ptr
++		// 		if w.Args[0] == v.Args[0] {
++		// 			if gc.Debug_checknil != 0 && int(v.Line) > 1 {
++		// 				gc.Warnl(v.Line, "removed nil check")
++		// 			}
++		// 			return
++		// 		}
++		// 	case ssa.OpARMDUFFCOPY, ssa.OpARMLoweredMove, ssa.OpARMLoweredMoveU:
++		// 		// arg0 is dst ptr, arg1 is src ptr
++		// 		if w.Args[0] == v.Args[0] || w.Args[1] == v.Args[0] {
++		// 			if gc.Debug_checknil != 0 && int(v.Line) > 1 {
++		// 				gc.Warnl(v.Line, "removed nil check")
++		// 			}
++		// 			return
++		// 		}
++		// 	default:
++		// 	}
++		// 	if w.Type.IsMemory() {
++		// 		if w.Op == ssa.OpVarDef || w.Op == ssa.OpVarKill || w.Op == ssa.OpVarLive {
++		// 			// these ops are OK
++		// 			mem = w
++		// 			continue
++		// 		}
++		// 		// We can't delay the nil check past the next store.
++		// 		break
++		// 	}
++		// }
++		// Issue a load which will fault if arg is nil.
++		p := gc.Prog(ppc64.AMOVB)
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = gc.SSARegNum(v.Args[0])
++		gc.AddAux(&p.From, v)
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = ppc64.REGTMP
++		if gc.Debug_checknil != 0 && v.Line > 1 { // v.Line==1 in generated wrappers
++			gc.Warnl(v.Line, "generated nil check")
++		}
++
+ 	default:
+ 		v.Unimplementedf("genValue not implemented: %s", v.LongString())
+ 	}
+@@ -321,6 +515,26 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 	s.SetLineno(b.Line)
+ 
+ 	switch b.Kind {
++
++	case ssa.BlockDefer:
++		// defer returns in R3:
++		// 0 if we should continue executing
++		// 1 if we should jump to deferreturn call
++		p := gc.Prog(ppc64.ACMP)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = ppc64.REG_R3
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = ppc64.REG_R0
++
++		p = gc.Prog(ppc64.ABNE)
++		p.To.Type = obj.TYPE_BRANCH
++		s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
++		if b.Succs[0].Block() != next {
++			p := gc.Prog(obj.AJMP)
++			p.To.Type = obj.TYPE_BRANCH
++			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
++		}
++
+ 	case ssa.BlockPlain, ssa.BlockCall, ssa.BlockCheck:
+ 		if b.Succs[0].Block() != next {
+ 			p := gc.Prog(obj.AJMP)
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 4a9817423f..9e3a161cfb 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -182,6 +182,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config
+ 		c.gpRegMask = gpRegMaskPPC64
+ 		c.fpRegMask = fpRegMaskPPC64
+ 		c.FPReg = framepointerRegPPC64
++		c.hasGReg = true
+ 	default:
+ 		fe.Unimplementedf(0, "arch %s not implemented", arch)
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 38dc9d23e0..6f133d4ca8 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -37,12 +37,11 @@
+ (Const32F [val]) -> (FMOVSconst [val])
+ (Const64F [val]) -> (FMOVDconst [val])
+ (ConstNil) -> (MOVDconst [0])
+-(ConstBool [b]) -> (MOVBconst [b])
++(ConstBool [b]) -> (MOVWconst [b])
+ 
+ (Addr {sym} base) -> (MOVDaddr {sym} base)
+ // (Addr {sym} base) -> (ADDconst {sym} base)
+ (OffPtr [off] ptr) -> (ADD (MOVDconst <config.Frontend().TypeInt64()> [off]) ptr)
+-(StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
+ 
+ (And64 x y) -> (AND x y)
+ (And32 x y) -> (AND (ZeroExt32to64 x) (ZeroExt32to64 y)) // Or?  (AND (ZeroExt32to64 x) (ZeroExt32to64 y))
+@@ -206,6 +205,22 @@
+ 			(MOVDstorezero [8] destptr
+ 				(MOVDstorezero [0] destptr mem))))
+ 
++// Calls
++// Lowering calls
++(StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
++(ClosureCall [argwid] entry closure mem) -> (CALLclosure [argwid] entry closure mem)
++(DeferCall [argwid] mem) -> (CALLdefer [argwid] mem)
++(GoCall [argwid] mem) -> (CALLgo [argwid] mem)
++(InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
++
++// Miscellaneous
++(Convert <t> x mem) -> (MOVDconvert <t> x mem)
++(GetClosurePtr) -> (LoweredGetClosurePtr)
++(IsNonNil ptr) -> (NotEqual (CMPconst [0] ptr))
++(IsInBounds idx len) -> (LessThan (CMPU idx len))
++(IsSliceInBounds idx len) -> (LessEqual (CMPU idx len))
++(NilCheck ptr mem) -> (LoweredNilCheck ptr mem)
++
+ // Optimizations
+ 
+ (ADD (MOVDconst [c]) x) -> (ADDconst [c] x)
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index f18849cfc4..2ec44886b3 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -9,7 +9,7 @@ package main
+ import "strings"
+ 
+ var regNamesPPC64 = []string{
+-	"R0", // REGZERO
++	// "R0", // REGZERO
+ 	"SP", // REGSP
+ 	"SB", // REGSB
+ 	"R3",
+@@ -39,8 +39,9 @@ var regNamesPPC64 = []string{
+ 	"R27",
+ 	"R28",
+ 	"R29",
+-	"R30", // REGG
++	"g",   // REGG.  Using name "g" and setting Config.hasGReg makes it "just happen".
+ 	"R31", // REGTMP
++
+ 	"F0",
+ 	"F1",
+ 	"F2",
+@@ -68,7 +69,25 @@ var regNamesPPC64 = []string{
+ 	"F24",
+ 	"F25",
+ 	"F26",
++	"F27",
++	"F28",
++	"F29",
++	"F30",
++	"F31",
++
++	// "CR0",
++	// "CR1",
++	// "CR2",
++	// "CR3",
++	// "CR4",
++	// "CR5",
++	// "CR6",
++	// "CR7",
++
+ 	"CR",
++	// "XER",
++	// "LR",
++	// "CTR",
+ }
+ 
+ func init() {
+@@ -93,14 +112,16 @@ func init() {
+ 	}
+ 
+ 	var (
+-		gp = buildReg("R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29")
+-		fp = buildReg("F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26")
++		gp = buildReg("R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29")
++		fp = buildReg("F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31")
+ 		sp = buildReg("SP")
+ 		sb = buildReg("SB")
+-		//		gg	= buildReg("R30")
++		// gr = buildReg("g")
+ 		cr = buildReg("CR")
+-		//		tmp	= buildReg("R31")
+-		//		ctxt	= buildReg("R11")
++		//ctr  = buildReg("CTR")
++		//lr   = buildReg("LR")
++		tmp  = buildReg("R31")
++		ctxt = buildReg("R11")
+ 		//		tls	= buildReg("R13")
+ 		gp01        = regInfo{inputs: []regMask{}, outputs: []regMask{gp}}
+ 		gp11        = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}}
+@@ -110,36 +131,37 @@ func init() {
+ 		crgp        = regInfo{inputs: []regMask{cr}, outputs: []regMask{gp}}
+ 		gpload      = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}}
+ 		gpstore     = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{}}
+-		gpstorezero = regInfo{inputs: []regMask{gp | sp | sb, 0}, outputs: []regMask{}} // ppc64.REGZERO is reserved zero value
++		gpstorezero = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{}} // ppc64.REGZERO is reserved zero value
+ 		fp01        = regInfo{inputs: []regMask{}, outputs: []regMask{fp}}
+ 		//		fp11	   = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
+ 		fp21       = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
+ 		fp2cr      = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{cr}}
+ 		fpload     = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{fp}}
+ 		fpstore    = regInfo{inputs: []regMask{gp | sp | sb, fp}, outputs: []regMask{}}
+-		callerSave = regMask(gp | fp)
++		callerSave = regMask(gp | fp | cr)
+ 	)
+ 	ops := []opData{
+-		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true},       // arg0 + arg1
+-		{name: "ADDconst", argLength: 1, reg: gp11, asm: "ADD", aux: "SymOff"},      // arg0 + auxInt + aux.(*gc.Sym)
+-		{name: "FADD", argLength: 2, reg: fp21, asm: "FADD", commutative: true},     // arg0+arg1
+-		{name: "FADDS", argLength: 2, reg: fp21, asm: "FADDS", commutative: true},   // arg0+arg1
+-		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                          // arg0-arg1
+-		{name: "FSUB", argLength: 2, reg: fp21, asm: "FSUB"},                        // arg0-arg1
+-		{name: "FSUBS", argLength: 2, reg: fp21, asm: "FSUBS"},                      // arg0-arg1
+-		{name: "MULLD", argLength: 2, reg: gp21, asm: "MULLD", commutative: true},   // arg0*arg1
+-		{name: "MULLW", argLength: 2, reg: gp21, asm: "MULLW", commutative: true},   // arg0*arg1
+-		{name: "FMUL", argLength: 2, reg: fp21, asm: "FMUL", commutative: true},     // arg0*arg1
+-		{name: "FMULS", argLength: 2, reg: fp21, asm: "FMULS", commutative: true},   // arg0*arg1
+-		{name: "FDIV", argLength: 2, reg: fp21, asm: "FDIV"},                        // arg0/arg1
+-		{name: "FDIVS", argLength: 2, reg: fp21, asm: "FDIVS"},                      // arg0/arg1
+-		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true},       // arg0&arg1
+-		{name: "ANDconst", argLength: 1, reg: gp11, asm: "AND", aux: "Int32"},       // arg0&arg1 ??
+-		{name: "OR", argLength: 2, reg: gp21, asm: "OR", commutative: true},         // arg0|arg1
+-		{name: "ORconst", argLength: 1, reg: gp11, asm: "OR", aux: "Int32"},         // arg0|arg1 ??
+-		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", commutative: true},       // arg0^arg1
+-		{name: "XORconst", argLength: 1, reg: gp11, asm: "XOR", aux: "Int32"},       // arg0|arg1 ??
+-		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},                          // ^arg0
++		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true},     // arg0 + arg1
++		{name: "ADDconst", argLength: 1, reg: gp11, asm: "ADD", aux: "SymOff"},    // arg0 + auxInt + aux.(*gc.Sym)
++		{name: "FADD", argLength: 2, reg: fp21, asm: "FADD", commutative: true},   // arg0+arg1
++		{name: "FADDS", argLength: 2, reg: fp21, asm: "FADDS", commutative: true}, // arg0+arg1
++		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                        // arg0-arg1
++		{name: "FSUB", argLength: 2, reg: fp21, asm: "FSUB"},                      // arg0-arg1
++		{name: "FSUBS", argLength: 2, reg: fp21, asm: "FSUBS"},                    // arg0-arg1
++		{name: "MULLD", argLength: 2, reg: gp21, asm: "MULLD", commutative: true}, // arg0*arg1
++		{name: "MULLW", argLength: 2, reg: gp21, asm: "MULLW", commutative: true}, // arg0*arg1
++		{name: "FMUL", argLength: 2, reg: fp21, asm: "FMUL", commutative: true},   // arg0*arg1
++		{name: "FMULS", argLength: 2, reg: fp21, asm: "FMULS", commutative: true}, // arg0*arg1
++		{name: "FDIV", argLength: 2, reg: fp21, asm: "FDIV"},                      // arg0/arg1
++		{name: "FDIVS", argLength: 2, reg: fp21, asm: "FDIVS"},                    // arg0/arg1
++		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true},     // arg0&arg1
++		{name: "ANDconst", argLength: 1, reg: gp11, asm: "AND", aux: "Int32"},     // arg0&arg1 ??
++		{name: "OR", argLength: 2, reg: gp21, asm: "OR", commutative: true},       // arg0|arg1
++		{name: "ORconst", argLength: 1, reg: gp11, asm: "OR", aux: "Int32"},       // arg0|arg1 ??
++		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", commutative: true},     // arg0^arg1
++		{name: "XORconst", argLength: 1, reg: gp11, asm: "XOR", aux: "Int32"},     // arg0|arg1 ??
++		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},                        // ^arg0
++
+ 		{name: "MOVBreg", argLength: 1, reg: gp11, asm: "MOVB"},                     // sign extend int8 to int64
+ 		{name: "MOVBZreg", argLength: 1, reg: gp11, asm: "MOVBZ"},                   // zero extend uint8 to uint64
+ 		{name: "MOVHreg", argLength: 1, reg: gp11, asm: "MOVH"},                     // sign extend int16 to int64
+@@ -152,6 +174,7 @@ func init() {
+ 		{name: "MOVHZload", argLength: 2, reg: gpload, asm: "MOVHZ", typ: "UInt16"}, // zero extend uint16 to uint64
+ 		{name: "MOVWload", argLength: 2, reg: gpload, asm: "MOVW", typ: "Int32"},    // sign extend int32 to int64
+ 		{name: "MOVWZload", argLength: 2, reg: gpload, asm: "MOVWZ", typ: "UInt32"}, // zero extend uint32 to uint64
++
+ 		{name: "MOVDload", argLength: 2, reg: gpload, asm: "MOVD", typ: "UInt64"},
+ 		{name: "FMOVDload", argLength: 2, reg: fpload, asm: "FMOVD", typ: "Fload64"},
+ 		{name: "FMOVSload", argLength: 2, reg: fpload, asm: "FMOVS", typ: "Float32"},
+@@ -171,8 +194,6 @@ func init() {
+ 
+ 		{name: "MOVDconst", argLength: 0, reg: gp01, aux: "Int64", asm: "MOVD", rematerializeable: true},     //
+ 		{name: "MOVWconst", argLength: 0, reg: gp01, aux: "Int32", asm: "MOVW", rematerializeable: true},     // 32 low bits of auxint
+-		{name: "MOVHconst", argLength: 0, reg: gp01, aux: "Int16", asm: "MOVH", rematerializeable: true},     // 16 low bits of auxint
+-		{name: "MOVBconst", argLength: 0, reg: gp01, aux: "Int8", asm: "MOVB", rematerializeable: true},      // 8 low bits of auxint
+ 		{name: "FMOVDconst", argLength: 0, reg: fp01, aux: "Float64", asm: "FMOVD", rematerializeable: true}, //
+ 		{name: "FMOVSconst", argLength: 0, reg: fp01, aux: "Float32", asm: "FMOVS", rematerializeable: true}, //
+ 		{name: "FCMPU", argLength: 2, reg: fp2cr, asm: "FCMPU", typ: "Flags"},
+@@ -182,7 +203,6 @@ func init() {
+ 		{name: "CMPW", argLength: 2, reg: gp2cr, asm: "CMPW", typ: "Flags"},   // arg0 compare to arg1
+ 		{name: "CMPWU", argLength: 2, reg: gp2cr, asm: "CMPWU", typ: "Flags"}, // arg0 compare to arg1
+ 		{name: "CMPconst", argLength: 1, reg: gp1cr, asm: "CMP", aux: "Int32", typ: "Flags"},
+-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff"}, // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
+ 
+ 		// pseudo-ops
+ 		{name: "Equal", argLength: 1, reg: crgp},        // bool, true flags encode x==y false otherwise.
+@@ -191,6 +211,24 @@ func init() {
+ 		{name: "LessEqual", argLength: 1, reg: crgp},    // bool, true flags encode signed x<=y false otherwise.
+ 		{name: "GreaterThan", argLength: 1, reg: crgp},  // bool, true flags encode signed x>y false otherwise.
+ 		{name: "GreaterEqual", argLength: 1, reg: crgp}, // bool, true flags encode signed x>=y false otherwise.
++
++		// Scheduler ensures LoweredGetClosurePtr occurs only in entry block,
++		// and sorts it to the very beginning of the block to prevent other
++		// use of the closure pointer.
++		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{ctxt}}},
++
++		//arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
++		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gp | sp | sb}, clobbers: cr | tmp}},
++
++		// Convert pointer to integer, takes a memory operand for ordering.
++		{name: "MOVDconvert", argLength: 2, reg: gp11, asm: "MOVD"},
++
++		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff"},                                      // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
++		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gp | sp, ctxt, 0}, clobbers: callerSave}, aux: "Int64"}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
++		{name: "CALLdefer", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int64"},                                        // call deferproc.  arg0=mem, auxint=argsize, returns mem
++		{name: "CALLgo", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int64"},                                           // call newproc.  arg0=mem, auxint=argsize, returns mem
++		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64"},                 // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
++
+ 	}
+ 
+ 	blocks := []blockData{
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index fea88cc198..e78623eef2 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -958,8 +958,6 @@ const (
+ 	OpPPC64MOVDaddr
+ 	OpPPC64MOVDconst
+ 	OpPPC64MOVWconst
+-	OpPPC64MOVHconst
+-	OpPPC64MOVBconst
+ 	OpPPC64FMOVDconst
+ 	OpPPC64FMOVSconst
+ 	OpPPC64FCMPU
+@@ -968,13 +966,20 @@ const (
+ 	OpPPC64CMPW
+ 	OpPPC64CMPWU
+ 	OpPPC64CMPconst
+-	OpPPC64CALLstatic
+ 	OpPPC64Equal
+ 	OpPPC64NotEqual
+ 	OpPPC64LessThan
+ 	OpPPC64LessEqual
+ 	OpPPC64GreaterThan
+ 	OpPPC64GreaterEqual
++	OpPPC64LoweredGetClosurePtr
++	OpPPC64LoweredNilCheck
++	OpPPC64MOVDconvert
++	OpPPC64CALLstatic
++	OpPPC64CALLclosure
++	OpPPC64CALLdefer
++	OpPPC64CALLgo
++	OpPPC64CALLinter
+ 
+ 	OpAdd8
+ 	OpAdd16
+@@ -11387,11 +11392,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:         ppc64.AADD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -11402,10 +11407,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:     ppc64.AADD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -11416,11 +11421,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:         ppc64.AFADD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 		},
+ 	},
+@@ -11431,11 +11436,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:         ppc64.AFADDS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 		},
+ 	},
+@@ -11445,11 +11450,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:    ppc64.ASUB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -11459,11 +11464,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:    ppc64.AFSUB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 		},
+ 	},
+@@ -11473,11 +11478,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:    ppc64.AFSUBS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 		},
+ 	},
+@@ -11488,11 +11493,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:         ppc64.AMULLD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -11503,11 +11508,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:         ppc64.AMULLW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -11518,11 +11523,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:         ppc64.AFMUL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 		},
+ 	},
+@@ -11533,11 +11538,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:         ppc64.AFMULS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 		},
+ 	},
+@@ -11547,11 +11552,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:    ppc64.AFDIV,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 		},
+ 	},
+@@ -11561,11 +11566,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:    ppc64.AFDIVS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 		},
+ 	},
+@@ -11576,11 +11581,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:         ppc64.AAND,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -11591,10 +11596,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:     ppc64.AAND,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -11605,11 +11610,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:         ppc64.AOR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -11620,10 +11625,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:     ppc64.AOR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -11634,11 +11639,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:         ppc64.AXOR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -11649,10 +11654,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:     ppc64.AXOR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -11662,10 +11667,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:    ppc64.ANEG,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -11675,10 +11680,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:    ppc64.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -11688,10 +11693,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:    ppc64.AMOVBZ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -11701,10 +11706,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:    ppc64.AMOVH,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -11714,10 +11719,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:    ppc64.AMOVHZ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -11727,10 +11732,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:    ppc64.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -11740,10 +11745,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:    ppc64.AMOVWZ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -11753,10 +11758,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:    ppc64.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -11766,10 +11771,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:    ppc64.AMOVBZ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -11779,10 +11784,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:    ppc64.AMOVH,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -11792,10 +11797,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:    ppc64.AMOVHZ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -11805,10 +11810,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:    ppc64.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -11818,10 +11823,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:    ppc64.AMOVWZ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -11831,10 +11836,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:    ppc64.AMOVD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -11844,10 +11849,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:    ppc64.AFMOVD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 		},
+ 	},
+@@ -11857,10 +11862,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:    ppc64.AFMOVS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 		},
+ 	},
+@@ -11871,8 +11876,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:     ppc64.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -11883,8 +11888,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:     ppc64.AMOVH,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -11895,8 +11900,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:     ppc64.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -11907,8 +11912,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:     ppc64.AMOVD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -11919,8 +11924,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:     ppc64.AFMOVD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-				{0, 1073731582},         // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815},           // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 		},
+ 	},
+@@ -11931,8 +11936,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:     ppc64.AFMOVS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-				{0, 1073731582},         // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815},           // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 		},
+ 	},
+@@ -11943,7 +11948,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:     ppc64.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -11954,7 +11959,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:     ppc64.AMOVH,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -11965,7 +11970,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:     ppc64.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -11976,7 +11981,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:     ppc64.AMOVD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -11988,10 +11993,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:               ppc64.AMOVD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 6}, // SP SB
++				{0, 3}, // SP SB
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -12003,7 +12008,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:               ppc64.AMOVD,
+ 		reg: regInfo{
+ 			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -12015,31 +12020,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:               ppc64.AMOVW,
+ 		reg: regInfo{
+ 			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
+-	},
+-	{
+-		name:              "MOVHconst",
+-		auxType:           auxInt16,
+-		argLen:            0,
+-		rematerializeable: true,
+-		asm:               ppc64.AMOVH,
+-		reg: regInfo{
+-			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
+-	},
+-	{
+-		name:              "MOVBconst",
+-		auxType:           auxInt8,
+-		argLen:            0,
+-		rematerializeable: true,
+-		asm:               ppc64.AMOVB,
+-		reg: regInfo{
+-			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -12051,7 +12032,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:               ppc64.AFMOVD,
+ 		reg: regInfo{
+ 			outputs: []outputInfo{
+-				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 		},
+ 	},
+@@ -12063,7 +12044,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:               ppc64.AFMOVS,
+ 		reg: regInfo{
+ 			outputs: []outputInfo{
+-				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 		},
+ 	},
+@@ -12073,11 +12054,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:    ppc64.AFCMPU,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 576460752303423488}, // CR
++				{0, 9223372036854775808}, // CR
+ 			},
+ 		},
+ 	},
+@@ -12087,11 +12068,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:    ppc64.ACMP,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 576460752303423488}, // CR
++				{0, 9223372036854775808}, // CR
+ 			},
+ 		},
+ 	},
+@@ -12101,11 +12082,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:    ppc64.ACMPU,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 576460752303423488}, // CR
++				{0, 9223372036854775808}, // CR
+ 			},
+ 		},
+ 	},
+@@ -12115,11 +12096,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:    ppc64.ACMPW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 576460752303423488}, // CR
++				{0, 9223372036854775808}, // CR
+ 			},
+ 		},
+ 	},
+@@ -12129,11 +12110,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:    ppc64.ACMPWU,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 576460752303423488}, // CR
++				{0, 9223372036854775808}, // CR
+ 			},
+ 		},
+ 	},
+@@ -12144,30 +12125,22 @@ var opcodeTable = [...]opInfo{
+ 		asm:     ppc64.ACMP,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1073731582}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 576460752303423488}, // CR
++				{0, 9223372036854775808}, // CR
+ 			},
+ 		},
+ 	},
+-	{
+-		name:    "CALLstatic",
+-		auxType: auxSymOff,
+-		argLen:  1,
+-		reg: regInfo{
+-			clobbers: 576460744787220472, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-		},
+-	},
+ 	{
+ 		name:   "Equal",
+ 		argLen: 1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 576460752303423488}, // CR
++				{0, 9223372036854775808}, // CR
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -12176,10 +12149,10 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 576460752303423488}, // CR
++				{0, 9223372036854775808}, // CR
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -12188,10 +12161,10 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 576460752303423488}, // CR
++				{0, 9223372036854775808}, // CR
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -12200,10 +12173,10 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 576460752303423488}, // CR
++				{0, 9223372036854775808}, // CR
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -12212,10 +12185,10 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 576460752303423488}, // CR
++				{0, 9223372036854775808}, // CR
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
+@@ -12224,13 +12197,92 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 576460752303423488}, // CR
++				{0, 9223372036854775808}, // CR
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+ 			},
+ 		},
+ 	},
++	{
++		name:   "LoweredGetClosurePtr",
++		argLen: 0,
++		reg: regInfo{
++			outputs: []outputInfo{
++				{0, 1024}, // R11
++			},
++		},
++	},
++	{
++		name:   "LoweredNilCheck",
++		argLen: 2,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			clobbers: 9223372037928517632, // R31 CR
++		},
++	},
++	{
++		name:   "MOVDconvert",
++		argLen: 2,
++		asm:    ppc64.AMOVD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:    "CALLstatic",
++		auxType: auxSymOff,
++		argLen:  1,
++		reg: regInfo{
++			clobbers: 18446744069951451132, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31 CR
++		},
++	},
++	{
++		name:    "CALLclosure",
++		auxType: auxInt64,
++		argLen:  3,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 1024},      // R11
++				{0, 536866813}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			clobbers: 18446744069951451132, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31 CR
++		},
++	},
++	{
++		name:    "CALLdefer",
++		auxType: auxInt64,
++		argLen:  1,
++		reg: regInfo{
++			clobbers: 18446744069951451132, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31 CR
++		},
++	},
++	{
++		name:    "CALLgo",
++		auxType: auxInt64,
++		argLen:  1,
++		reg: regInfo{
++			clobbers: 18446744069951451132, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31 CR
++		},
++	},
++	{
++		name:    "CALLinter",
++		auxType: auxInt64,
++		argLen:  2,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			clobbers: 18446744069951451132, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31 CR
++		},
++	},
+ 
+ 	{
+ 		name:        "Add8",
+@@ -13984,68 +14036,72 @@ var fpRegMaskARM64 = regMask(288230375077969920)
+ var flagRegMaskARM64 = regMask(4611686018427387904)
+ var framepointerRegARM64 = int8(-1)
+ var registersPPC64 = [...]Register{
+-	{0, "R0"},
+-	{1, "SP"},
+-	{2, "SB"},
+-	{3, "R3"},
+-	{4, "R4"},
+-	{5, "R5"},
+-	{6, "R6"},
+-	{7, "R7"},
+-	{8, "R8"},
+-	{9, "R9"},
+-	{10, "R10"},
+-	{11, "R11"},
+-	{12, "R12"},
+-	{13, "R13"},
+-	{14, "R14"},
+-	{15, "R15"},
+-	{16, "R16"},
+-	{17, "R17"},
+-	{18, "R18"},
+-	{19, "R19"},
+-	{20, "R20"},
+-	{21, "R21"},
+-	{22, "R22"},
+-	{23, "R23"},
+-	{24, "R24"},
+-	{25, "R25"},
+-	{26, "R26"},
+-	{27, "R27"},
+-	{28, "R28"},
+-	{29, "R29"},
+-	{30, "R30"},
+-	{31, "R31"},
+-	{32, "F0"},
+-	{33, "F1"},
+-	{34, "F2"},
+-	{35, "F3"},
+-	{36, "F4"},
+-	{37, "F5"},
+-	{38, "F6"},
+-	{39, "F7"},
+-	{40, "F8"},
+-	{41, "F9"},
+-	{42, "F10"},
+-	{43, "F11"},
+-	{44, "F12"},
+-	{45, "F13"},
+-	{46, "F14"},
+-	{47, "F15"},
+-	{48, "F16"},
+-	{49, "F17"},
+-	{50, "F18"},
+-	{51, "F19"},
+-	{52, "F20"},
+-	{53, "F21"},
+-	{54, "F22"},
+-	{55, "F23"},
+-	{56, "F24"},
+-	{57, "F25"},
+-	{58, "F26"},
+-	{59, "CR"},
++	{0, "SP"},
++	{1, "SB"},
++	{2, "R3"},
++	{3, "R4"},
++	{4, "R5"},
++	{5, "R6"},
++	{6, "R7"},
++	{7, "R8"},
++	{8, "R9"},
++	{9, "R10"},
++	{10, "R11"},
++	{11, "R12"},
++	{12, "R13"},
++	{13, "R14"},
++	{14, "R15"},
++	{15, "R16"},
++	{16, "R17"},
++	{17, "R18"},
++	{18, "R19"},
++	{19, "R20"},
++	{20, "R21"},
++	{21, "R22"},
++	{22, "R23"},
++	{23, "R24"},
++	{24, "R25"},
++	{25, "R26"},
++	{26, "R27"},
++	{27, "R28"},
++	{28, "R29"},
++	{29, "g"},
++	{30, "R31"},
++	{31, "F0"},
++	{32, "F1"},
++	{33, "F2"},
++	{34, "F3"},
++	{35, "F4"},
++	{36, "F5"},
++	{37, "F6"},
++	{38, "F7"},
++	{39, "F8"},
++	{40, "F9"},
++	{41, "F10"},
++	{42, "F11"},
++	{43, "F12"},
++	{44, "F13"},
++	{45, "F14"},
++	{46, "F15"},
++	{47, "F16"},
++	{48, "F17"},
++	{49, "F18"},
++	{50, "F19"},
++	{51, "F20"},
++	{52, "F21"},
++	{53, "F22"},
++	{54, "F23"},
++	{55, "F24"},
++	{56, "F25"},
++	{57, "F26"},
++	{58, "F27"},
++	{59, "F28"},
++	{60, "F29"},
++	{61, "F30"},
++	{62, "F31"},
++	{63, "CR"},
+ }
+-var gpRegMaskPPC64 = regMask(1073731576)
+-var fpRegMaskPPC64 = regMask(576460743713488896)
++var gpRegMaskPPC64 = regMask(536866812)
++var fpRegMaskPPC64 = regMask(9223372032559808512)
+ var flagRegMaskPPC64 = regMask(0)
+-var framepointerRegPPC64 = int8(1)
++var framepointerRegPPC64 = int8(0)
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 73a46d568a..cfb0d18f5f 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -34,6 +34,8 @@ func rewriteValuePPC64(v *Value, config *Config) bool {
+ 		return rewriteValuePPC64_OpAnd64(v, config)
+ 	case OpAnd8:
+ 		return rewriteValuePPC64_OpAnd8(v, config)
++	case OpClosureCall:
++		return rewriteValuePPC64_OpClosureCall(v, config)
+ 	case OpConst16:
+ 		return rewriteValuePPC64_OpConst16(v, config)
+ 	case OpConst32:
+@@ -50,6 +52,10 @@ func rewriteValuePPC64(v *Value, config *Config) bool {
+ 		return rewriteValuePPC64_OpConstBool(v, config)
+ 	case OpConstNil:
+ 		return rewriteValuePPC64_OpConstNil(v, config)
++	case OpConvert:
++		return rewriteValuePPC64_OpConvert(v, config)
++	case OpDeferCall:
++		return rewriteValuePPC64_OpDeferCall(v, config)
+ 	case OpDiv32F:
+ 		return rewriteValuePPC64_OpDiv32F(v, config)
+ 	case OpDiv64F:
+@@ -82,6 +88,10 @@ func rewriteValuePPC64(v *Value, config *Config) bool {
+ 		return rewriteValuePPC64_OpGeq8(v, config)
+ 	case OpGeq8U:
+ 		return rewriteValuePPC64_OpGeq8U(v, config)
++	case OpGetClosurePtr:
++		return rewriteValuePPC64_OpGetClosurePtr(v, config)
++	case OpGoCall:
++		return rewriteValuePPC64_OpGoCall(v, config)
+ 	case OpGreater16:
+ 		return rewriteValuePPC64_OpGreater16(v, config)
+ 	case OpGreater16U:
+@@ -98,6 +108,14 @@ func rewriteValuePPC64(v *Value, config *Config) bool {
+ 		return rewriteValuePPC64_OpGreater8(v, config)
+ 	case OpGreater8U:
+ 		return rewriteValuePPC64_OpGreater8U(v, config)
++	case OpInterCall:
++		return rewriteValuePPC64_OpInterCall(v, config)
++	case OpIsInBounds:
++		return rewriteValuePPC64_OpIsInBounds(v, config)
++	case OpIsNonNil:
++		return rewriteValuePPC64_OpIsNonNil(v, config)
++	case OpIsSliceInBounds:
++		return rewriteValuePPC64_OpIsSliceInBounds(v, config)
+ 	case OpLeq16:
+ 		return rewriteValuePPC64_OpLeq16(v, config)
+ 	case OpLeq16U:
+@@ -184,6 +202,8 @@ func rewriteValuePPC64(v *Value, config *Config) bool {
+ 		return rewriteValuePPC64_OpNeq8(v, config)
+ 	case OpNeqPtr:
+ 		return rewriteValuePPC64_OpNeqPtr(v, config)
++	case OpNilCheck:
++		return rewriteValuePPC64_OpNilCheck(v, config)
+ 	case OpOffPtr:
+ 		return rewriteValuePPC64_OpOffPtr(v, config)
+ 	case OpOr16:
+@@ -500,6 +520,25 @@ func rewriteValuePPC64_OpAnd8(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValuePPC64_OpClosureCall(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (ClosureCall [argwid] entry closure mem)
++	// cond:
++	// result: (CALLclosure [argwid] entry closure mem)
++	for {
++		argwid := v.AuxInt
++		entry := v.Args[0]
++		closure := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpPPC64CALLclosure)
++		v.AuxInt = argwid
++		v.AddArg(entry)
++		v.AddArg(closure)
++		v.AddArg(mem)
++		return true
++	}
++}
+ func rewriteValuePPC64_OpConst16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -583,10 +622,10 @@ func rewriteValuePPC64_OpConstBool(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (ConstBool [b])
+ 	// cond:
+-	// result: (MOVBconst [b])
++	// result: (MOVWconst [b])
+ 	for {
+ 		b := v.AuxInt
+-		v.reset(OpPPC64MOVBconst)
++		v.reset(OpPPC64MOVWconst)
+ 		v.AuxInt = b
+ 		return true
+ 	}
+@@ -603,6 +642,38 @@ func rewriteValuePPC64_OpConstNil(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValuePPC64_OpConvert(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Convert <t> x mem)
++	// cond:
++	// result: (MOVDconvert <t> x mem)
++	for {
++		t := v.Type
++		x := v.Args[0]
++		mem := v.Args[1]
++		v.reset(OpPPC64MOVDconvert)
++		v.Type = t
++		v.AddArg(x)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValuePPC64_OpDeferCall(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (DeferCall [argwid] mem)
++	// cond:
++	// result: (CALLdefer [argwid] mem)
++	for {
++		argwid := v.AuxInt
++		mem := v.Args[0]
++		v.reset(OpPPC64CALLdefer)
++		v.AuxInt = argwid
++		v.AddArg(mem)
++		return true
++	}
++}
+ func rewriteValuePPC64_OpDiv32F(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -895,6 +966,32 @@ func rewriteValuePPC64_OpGeq8U(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValuePPC64_OpGetClosurePtr(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (GetClosurePtr)
++	// cond:
++	// result: (LoweredGetClosurePtr)
++	for {
++		v.reset(OpPPC64LoweredGetClosurePtr)
++		return true
++	}
++}
++func rewriteValuePPC64_OpGoCall(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (GoCall [argwid] mem)
++	// cond:
++	// result: (CALLgo [argwid] mem)
++	for {
++		argwid := v.AuxInt
++		mem := v.Args[0]
++		v.reset(OpPPC64CALLgo)
++		v.AuxInt = argwid
++		v.AddArg(mem)
++		return true
++	}
++}
+ func rewriteValuePPC64_OpGreater16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -1047,6 +1144,73 @@ func rewriteValuePPC64_OpGreater8U(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValuePPC64_OpInterCall(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (InterCall [argwid] entry mem)
++	// cond:
++	// result: (CALLinter [argwid] entry mem)
++	for {
++		argwid := v.AuxInt
++		entry := v.Args[0]
++		mem := v.Args[1]
++		v.reset(OpPPC64CALLinter)
++		v.AuxInt = argwid
++		v.AddArg(entry)
++		v.AddArg(mem)
++		return true
++	}
++}
++func rewriteValuePPC64_OpIsInBounds(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (IsInBounds idx len)
++	// cond:
++	// result: (LessThan (CMPU idx len))
++	for {
++		idx := v.Args[0]
++		len := v.Args[1]
++		v.reset(OpPPC64LessThan)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPU, TypeFlags)
++		v0.AddArg(idx)
++		v0.AddArg(len)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpIsNonNil(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (IsNonNil ptr)
++	// cond:
++	// result: (NotEqual (CMPconst [0] ptr))
++	for {
++		ptr := v.Args[0]
++		v.reset(OpPPC64NotEqual)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPconst, TypeFlags)
++		v0.AuxInt = 0
++		v0.AddArg(ptr)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuePPC64_OpIsSliceInBounds(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (IsSliceInBounds idx len)
++	// cond:
++	// result: (LessEqual (CMPU idx len))
++	for {
++		idx := v.Args[0]
++		len := v.Args[1]
++		v.reset(OpPPC64LessEqual)
++		v0 := b.NewValue0(v.Line, OpPPC64CMPU, TypeFlags)
++		v0.AddArg(idx)
++		v0.AddArg(len)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValuePPC64_OpLeq16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -2115,6 +2279,21 @@ func rewriteValuePPC64_OpNeqPtr(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValuePPC64_OpNilCheck(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (NilCheck ptr mem)
++	// cond:
++	// result: (LoweredNilCheck ptr mem)
++	for {
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		v.reset(OpPPC64LoweredNilCheck)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++}
+ func rewriteValuePPC64_OpOffPtr(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index 5dab018117..73ef72e53b 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -84,7 +84,7 @@ func schedule(f *Func) {
+ 		// Compute score. Larger numbers are scheduled closer to the end of the block.
+ 		for _, v := range b.Values {
+ 			switch {
+-			case v.Op == OpAMD64LoweredGetClosurePtr || v.Op == OpARMLoweredGetClosurePtr || v.Op == Op386LoweredGetClosurePtr:
++			case v.Op == OpAMD64LoweredGetClosurePtr || v.Op == OpPPC64LoweredGetClosurePtr || v.Op == OpARMLoweredGetClosurePtr || v.Op == Op386LoweredGetClosurePtr:
+ 				// We also score GetLoweredClosurePtr as early as possible to ensure that the
+ 				// context register is not stomped. GetLoweredClosurePtr should only appear
+ 				// in the entry block where there are no phi functions, so there is no

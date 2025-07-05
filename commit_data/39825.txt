@@ -15,6 +15,23 @@ Date:   Sat Mar 23 00:00:48 2019 +0000
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/log/log.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/log/log.go b/src/log/log.go
+index 527f853438..12a9e7b8ce 100644
+--- a/src/log/log.go
++++ b/src/log/log.go
+@@ -288,6 +288,11 @@ func SetPrefix(prefix string) {
+ 	std.SetPrefix(prefix)
+ }
+ 
++// Writer returns the output destination for the standard logger.
++func Writer() io.Writer {
++	return std.Writer()
++}
++
+ // These functions write to the standard logger.
+ 
+ // Print calls Output to print to the standard logger.

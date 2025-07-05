@@ -18,8 +18,126 @@ Date:   Wed Apr 18 11:10:00 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go            | 15 +++++++++------
  src/cmd/go/go_test.go            | 15 +++++++++++++++
  src/cmd/go/internal/list/list.go | 16 +++++++++++++++-
  3 files changed, 39 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 0eb1a07240..2f1108185f 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -579,7 +579,7 @@
+ //
+ // Usage:
+ //
+-// 	go list [-e] [-f format] [-json] [build flags] [packages]
++// 	go list [-deps] [-e] [-f format] [-json] [build flags] [packages]
+ //
+ // List lists the packages named by the import paths, one per line.
+ //
+@@ -683,6 +683,10 @@
+ // The -json flag causes the package data to be printed in JSON format
+ // instead of using the template format.
+ //
++// The -deps flag causes list to iterate over not just the named packages
++// but also all their dependencies. It visits them in a depth-first post-order
++// traversal, so that a package is listed only after all its dependencies.
++//
+ // The -e flag changes the handling of erroneous packages, those that
+ // cannot be found or are malformed. By default, the list command
+ // prints an error to standard error for each erroneous package and
+@@ -1688,14 +1692,13 @@
+ // 	    Writes test binary as -c would.
+ //
+ // 	-memprofile mem.out
+-// 	    Write a memory profile to the file after all tests have passed.
++// 	    Write an allocation profile to the file after all tests have passed.
+ // 	    Writes test binary as -c would.
+ //
+ // 	-memprofilerate n
+-// 	    Enable more precise (and expensive) memory profiles by setting
+-// 	    runtime.MemProfileRate. See 'go doc runtime.MemProfileRate'.
+-// 	    To profile all memory allocations, use -test.memprofilerate=1
+-// 	    and pass --alloc_space flag to the pprof tool.
++// 	    Enable more precise (and expensive) memory allocation profiles by
++// 	    setting runtime.MemProfileRate. See 'go doc runtime.MemProfileRate'.
++// 	    To profile all memory allocations, use -test.memprofilerate=1.
+ //
+ // 	-mutexprofile mutex.out
+ // 	    Write a mutex contention profile to the specified file
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 0fee5e0bc0..f46c7ab1ce 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1902,6 +1902,21 @@ func TestGoListDeps(t *testing.T) {
+ 	tg.tempFile("src/p1/p2/p3/p4/p.go", "package p4\n")
+ 	tg.run("list", "-f", "{{.Deps}}", "p1")
+ 	tg.grepStdout("p1/p2/p3/p4", "Deps(p1) does not mention p4")
++
++	tg.run("list", "-deps", "p1")
++	tg.grepStdout("p1/p2/p3/p4", "-deps p1 does not mention p4")
++
++	// Check the list is in dependency order.
++	tg.run("list", "-deps", "math")
++	want := "internal/cpu\nunsafe\nmath\n"
++	out := tg.stdout.String()
++	if !strings.Contains(out, "internal/cpu") {
++		// Some systems don't use internal/cpu.
++		want = "unsafe\nmath\n"
++	}
++	if tg.stdout.String() != want {
++		t.Fatalf("list -deps math: wrong order\nhave %q\nwant %q", tg.stdout.String(), want)
++	}
+ }
+ 
+ // Issue 4096. Validate the output of unsuccessful go install foo/quxx.
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 7435273000..842cd9627a 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -20,7 +20,7 @@ import (
+ )
+ 
+ var CmdList = &base.Command{
+-	UsageLine: "list [-e] [-f format] [-json] [build flags] [packages]",
++	UsageLine: "list [-deps] [-e] [-f format] [-json] [build flags] [packages]",
+ 	Short:     "list packages",
+ 	Long: `
+ List lists the packages named by the import paths, one per line.
+@@ -125,6 +125,10 @@ for the go/build package's Context type.
+ The -json flag causes the package data to be printed in JSON format
+ instead of using the template format.
+ 
++The -deps flag causes list to iterate over not just the named packages
++but also all their dependencies. It visits them in a depth-first post-order
++traversal, so that a package is listed only after all its dependencies.
++
+ The -e flag changes the handling of erroneous packages, those that
+ cannot be found or are malformed. By default, the list command
+ prints an error to standard error for each erroneous package and
+@@ -146,6 +150,7 @@ func init() {
+ 	work.AddBuildFlags(CmdList)
+ }
+ 
++var listDeps = CmdList.Flag.Bool("deps", false, "")
+ var listE = CmdList.Flag.Bool("e", false, "")
+ var listFmt = CmdList.Flag.String("f", "{{.ImportPath}}", "")
+ var listJson = CmdList.Flag.Bool("json", false, "")
+@@ -201,6 +206,15 @@ func runList(cmd *base.Command, args []string) {
+ 		pkgs = load.Packages(args)
+ 	}
+ 
++	if *listDeps {
++		// Note: This changes the order of the listed packages
++		// from "as written on the command line" to
++		// "a depth-first post-order traversal".
++		// (The dependency exploration order for a given node
++		// is alphabetical, same as listed in .Deps.)
++		pkgs = load.PackageList(pkgs)
++	}
++
+ 	// Estimate whether staleness information is needed,
+ 	// since it's a little bit of work to compute.
+ 	needStale := *listJson || strings.Contains(*listFmt, ".Stale")

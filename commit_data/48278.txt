@@ -12,7 +12,35 @@ Date:   Mon Apr 19 12:20:18 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/embed/internal/embedtest/embed_test.go                    | 4 ++--
  src/embed/internal/embedtest/testdata/-not-hidden/fortune.txt | 2 ++
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/embed/internal/embedtest/embed_test.go b/src/embed/internal/embedtest/embed_test.go
+index 43ae5c7e05..2d50f5e01f 100644
+--- a/src/embed/internal/embedtest/embed_test.go
++++ b/src/embed/internal/embedtest/embed_test.go
+@@ -102,12 +102,12 @@ func TestHidden(t *testing.T) {
+ 	t.Logf("//go:embed testdata")
+ 
+ 	testDir(t, dir, "testdata",
+-		"ascii.txt", "glass.txt", "hello.txt", "i/", "ken.txt")
++		"-not-hidden/", "ascii.txt", "glass.txt", "hello.txt", "i/", "ken.txt")
+ 
+ 	t.Logf("//go:embed testdata/*")
+ 
+ 	testDir(t, star, "testdata",
+-		".hidden/", "_hidden/", "ascii.txt", "glass.txt", "hello.txt", "i/", "ken.txt")
++		"-not-hidden/", ".hidden/", "_hidden/", "ascii.txt", "glass.txt", "hello.txt", "i/", "ken.txt")
+ 
+ 	testDir(t, star, "testdata/.hidden",
+ 		"fortune.txt", "more/") // but not .more or _more
+diff --git a/src/embed/internal/embedtest/testdata/-not-hidden/fortune.txt b/src/embed/internal/embedtest/testdata/-not-hidden/fortune.txt
+new file mode 100644
+index 0000000000..31f2013f94
+--- /dev/null
++++ b/src/embed/internal/embedtest/testdata/-not-hidden/fortune.txt
+@@ -0,0 +1,2 @@
++WARNING: terminal is not fully functional
++ -  (press RETURN)

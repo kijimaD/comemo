@@ -18,7 +18,85 @@ Date:   Sat Jun 10 13:13:05 2023 -0700
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/net/fd_wasip1.go        | 24 ++++++++++++++++++++++--
  src/net/file_wasip1_test.go | 20 ++++++++++++++++++++
  2 files changed, 42 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/fd_wasip1.go b/src/net/fd_wasip1.go
+index a3584e82bd..74d0b0b2e8 100644
+--- a/src/net/fd_wasip1.go
++++ b/src/net/fd_wasip1.go
+@@ -47,11 +47,31 @@ func newFD(net string, sysfd int) *netFD {
+ }
+ 
+ func newPollFD(net string, pfd poll.FD) *netFD {
++	var laddr Addr
++	var raddr Addr
++	// WASI preview 1 does not have functions like getsockname/getpeername,
++	// so we cannot get access to the underlying IP address used by connections.
++	//
++	// However, listeners created by FileListener are of type *TCPListener,
++	// which can be asserted by a Go program. The (*TCPListener).Addr method
++	// documents that the returned value will be of type *TCPAddr, we satisfy
++	// the documented behavior by creating addresses of the expected type here.
++	switch net {
++	case "tcp":
++		laddr = new(TCPAddr)
++		raddr = new(TCPAddr)
++	case "udp":
++		laddr = new(UDPAddr)
++		raddr = new(UDPAddr)
++	default:
++		laddr = unknownAddr{}
++		raddr = unknownAddr{}
++	}
+ 	return &netFD{
+ 		pfd:   pfd,
+ 		net:   net,
+-		laddr: unknownAddr{},
+-		raddr: unknownAddr{},
++		laddr: laddr,
++		raddr: raddr,
+ 	}
+ }
+ 
+diff --git a/src/net/file_wasip1_test.go b/src/net/file_wasip1_test.go
+index 137574090f..4f4259069d 100644
+--- a/src/net/file_wasip1_test.go
++++ b/src/net/file_wasip1_test.go
+@@ -79,14 +79,34 @@ func TestWasip1FileListenNet(t *testing.T) {
+ func TestWasip1NewFileListener(t *testing.T) {
+ 	if l, ok := newFileListener(newFD("tcp", -1)).(*TCPListener); !ok {
+ 		t.Errorf("newFileListener: tcp listener type mismatch: %T", l)
++	} else {
++		testIsTCPAddr(t, "Addr", l.Addr())
+ 	}
+ }
+ 
+ func TestWasip1NewFileConn(t *testing.T) {
+ 	if c, ok := newFileConn(newFD("tcp", -1)).(*TCPConn); !ok {
+ 		t.Errorf("newFileConn: tcp conn type mismatch: %T", c)
++	} else {
++		testIsTCPAddr(t, "LocalAddr", c.LocalAddr())
++		testIsTCPAddr(t, "RemoteAddr", c.RemoteAddr())
+ 	}
+ 	if c, ok := newFileConn(newFD("udp", -1)).(*UDPConn); !ok {
+ 		t.Errorf("newFileConn: udp conn type mismatch: %T", c)
++	} else {
++		testIsUDPAddr(t, "LocalAddr", c.LocalAddr())
++		testIsUDPAddr(t, "RemoteAddr", c.RemoteAddr())
++	}
++}
++
++func testIsTCPAddr(t *testing.T, method string, addr Addr) {
++	if _, ok := addr.(*TCPAddr); !ok {
++		t.Errorf("%s: returned address is not a *TCPAddr: %T", method, addr)
++	}
++}
++
++func testIsUDPAddr(t *testing.T, method string, addr Addr) {
++	if _, ok := addr.(*UDPAddr); !ok {
++		t.Errorf("%s: returned address is not a *UDPAddr: %T", method, addr)
+ 	}
+ }

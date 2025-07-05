@@ -13,6 +13,47 @@ Date:   Wed Dec 5 14:15:37 2018 +0100
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  .../go/internal/lockedfile/lockedfile_filelock.go   | 21 +++++++++++----------
  1 file changed, 11 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go/internal/lockedfile/lockedfile_filelock.go b/src/cmd/go/internal/lockedfile/lockedfile_filelock.go
+index 1c390f7425..f63dd8664b 100644
+--- a/src/cmd/go/internal/lockedfile/lockedfile_filelock.go
++++ b/src/cmd/go/internal/lockedfile/lockedfile_filelock.go
+@@ -29,24 +29,25 @@ func openFile(name string, flag int, perm os.FileMode) (*os.File, error) {
+ 	default:
+ 		err = filelock.RLock(f)
+ 	}
+-	if err == nil && flag&os.O_TRUNC == os.O_TRUNC {
+-		if err = f.Truncate(0); err != nil {
++	if err != nil {
++		f.Close()
++		return nil, err
++	}
++
++	if flag&os.O_TRUNC == os.O_TRUNC {
++		if err := f.Truncate(0); err != nil {
+ 			// The documentation for os.O_TRUNC says “if possible, truncate file when
+ 			// opened”, but doesn't define “possible” (golang.org/issue/28699).
+ 			// We'll treat regular files (and symlinks to regular files) as “possible”
+ 			// and ignore errors for the rest.
+-			if fi, statErr := f.Stat(); statErr == nil && !fi.Mode().IsRegular() {
+-				err = nil
++			if fi, statErr := f.Stat(); statErr != nil || fi.Mode().IsRegular() {
++				filelock.Unlock(f)
++				f.Close()
++				return nil, err
+ 			}
+ 		}
+ 	}
+ 
+-	if err != nil {
+-		filelock.Unlock(f)
+-		f.Close()
+-		return nil, err
+-	}
+-
+ 	return f, nil
+ }
+ 

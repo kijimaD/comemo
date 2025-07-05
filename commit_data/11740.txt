@@ -9,7 +9,7 @@ Date:   Thu Feb 9 16:55:36 2012 +1100
     R=golang-dev, bradfitz, adg, rsc
     CC=golang-dev
     https://golang.org/cl/5641061
-
+---
  src/pkg/os/exec_plan9.go   |  2 ++
  src/pkg/os/exec_posix.go   |  4 ++++
  src/pkg/os/file.go         | 16 ++++++++++++----
@@ -20,3 +20,382 @@ Date:   Thu Feb 9 16:55:36 2012 +1100
  src/pkg/os/stat_plan9.go   |  8 +++++---
  src/pkg/os/stat_windows.go | 10 ++++++----
  9 files changed, 54 insertions(+), 18 deletions(-)
+
+diff --git a/src/pkg/os/exec_plan9.go b/src/pkg/os/exec_plan9.go
+index 879d4d2a73..1515c4a230 100644
+--- a/src/pkg/os/exec_plan9.go
++++ b/src/pkg/os/exec_plan9.go
+@@ -12,6 +12,7 @@ import (
+ 
+ // StartProcess starts a new process with the program, arguments and attributes
+ // specified by name, argv and attr.
++// If there is an error, it will be of type *PathError.
+ func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err error) {
+ 	sysattr := &syscall.ProcAttr{
+ 		Dir: attr.Dir,
+@@ -75,6 +76,7 @@ func (p *Process) Kill() error {
+ // named binary, with arguments argv and environment envv.
+ // If successful, Exec never returns.  If it fails, it returns an error.
+ // ForkExec is almost always a better way to execute a program.
++// If there is an error, it will be of type *PathError.
+ func Exec(name string, argv []string, envv []string) error {
+ 	e := syscall.Exec(name, argv, envv)
+ 	if e != nil {
+diff --git a/src/pkg/os/exec_posix.go b/src/pkg/os/exec_posix.go
+index 6465bfbb65..1f2720389e 100644
+--- a/src/pkg/os/exec_posix.go
++++ b/src/pkg/os/exec_posix.go
+@@ -26,6 +26,8 @@ func (sig UnixSignal) String() string {
+ //
+ // StartProcess is a low-level interface. The os/exec package provides
+ // higher-level interfaces.
++//
++// If there is an error, it will be of type *PathError.
+ func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err error) {
+ 	sysattr := &syscall.ProcAttr{
+ 		Dir: attr.Dir,
+@@ -57,6 +59,8 @@ func (p *Process) Kill() error {
+ //
+ // To run a child process, see StartProcess (for a low-level interface)
+ // or the os/exec package (for higher-level interfaces).
++//
++// If there is an error, it will be of type *PathError.
+ func Exec(name string, argv []string, envv []string) error {
+ 	if envv == nil {
+ 		envv = Environ()
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index 3efa650c65..90df361c48 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -3,7 +3,13 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package os provides a platform-independent interface to operating system
+-// functionality.  The design is Unix-like.
++// functionality. The design is Unix-like, although the error handling is
++// Go-like; failing calls return values of type error rather than error numbers.
++// Often, more information is available within the error. For example,
++// if a call that takes a file name fails, such as Open or Stat, the error
++// will include failing file name when printed and will be of type *PathError,
++// which may be unpacked for more information.
++// 
+ // The os interface is intended to be uniform across all operating systems.
+ // Features not generally available appear in the system-specific package syscall.
+ package os
+@@ -157,7 +163,7 @@ func (f *File) WriteString(s string) (ret int, err error) {
+ }
+ 
+ // Mkdir creates a new directory with the specified name and permission bits.
+-// It returns an error, if any.
++// If there is an error, it will be of type *PathError.
+ func Mkdir(name string, perm FileMode) error {
+ 	e := syscall.Mkdir(name, syscallMode(perm))
+ 	if e != nil {
+@@ -167,6 +173,7 @@ func Mkdir(name string, perm FileMode) error {
+ }
+ 
+ // Chdir changes the current working directory to the named directory.
++// If there is an error, it will be of type *PathError.
+ func Chdir(dir string) error {
+ 	if e := syscall.Chdir(dir); e != nil {
+ 		return &PathError{"chdir", dir, e}
+@@ -176,6 +183,7 @@ func Chdir(dir string) error {
+ 
+ // Chdir changes the current working directory to the file,
+ // which must be a directory.
++// If there is an error, it will be of type *PathError.
+ func (f *File) Chdir() error {
+ 	if e := syscall.Fchdir(f.fd); e != nil {
+ 		return &PathError{"chdir", f.name, e}
+@@ -186,7 +194,7 @@ func (f *File) Chdir() error {
+ // Open opens the named file for reading.  If successful, methods on
+ // the returned file can be used for reading; the associated file
+ // descriptor has mode O_RDONLY.
+-// It returns the File and an error, if any.
++// If there is an error, it will be of type *PathError.
+ func Open(name string) (file *File, err error) {
+ 	return OpenFile(name, O_RDONLY, 0)
+ }
+@@ -195,7 +203,7 @@ func Open(name string) (file *File, err error) {
+ // it if it already exists.  If successful, methods on the returned
+ // File can be used for I/O; the associated file descriptor has mode
+ // O_RDWR.
+-// It returns the File and an error, if any.
++// If there is an error, it will be of type *PathError.
+ func Create(name string) (file *File, err error) {
+ 	return OpenFile(name, O_RDWR|O_CREATE|O_TRUNC, 0666)
+ }
+diff --git a/src/pkg/os/file_plan9.go b/src/pkg/os/file_plan9.go
+index 7d136eb368..fed2b80917 100644
+--- a/src/pkg/os/file_plan9.go
++++ b/src/pkg/os/file_plan9.go
+@@ -76,7 +76,7 @@ func syscallMode(i FileMode) (o uint32) {
+ // or Create instead.  It opens the named file with specified flag
+ // (O_RDONLY etc.) and perm, (0666 etc.) if applicable.  If successful,
+ // methods on the returned File can be used for I/O.
+-// It returns the File and an error, if any.
++// If there is an error, it will be of type *PathError.
+ func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
+ 	var (
+ 		fd     int
+@@ -181,6 +181,7 @@ func (f *File) Truncate(size int64) error {
+ const chmodMask = uint32(syscall.DMAPPEND | syscall.DMEXCL | syscall.DMTMP | ModePerm)
+ 
+ // Chmod changes the mode of the file to mode.
++// If there is an error, it will be of type *PathError.
+ func (f *File) Chmod(mode FileMode) error {
+ 	var d Dir
+ 
+@@ -248,6 +249,7 @@ func (f *File) seek(offset int64, whence int) (ret int64, err error) {
+ 
+ // Truncate changes the size of the named file.
+ // If the file is a symbolic link, it changes the size of the link's target.
++// If there is an error, it will be of type *PathError.
+ func Truncate(name string, size int64) error {
+ 	var d Dir
+ 	d.Null()
+@@ -261,6 +263,7 @@ func Truncate(name string, size int64) error {
+ }
+ 
+ // Remove removes the named file or directory.
++// If there is an error, it will be of type *PathError.
+ func Remove(name string) error {
+ 	if e := syscall.Remove(name); e != nil {
+ 		return &PathError{"remove", name, e}
+@@ -269,6 +272,7 @@ func Remove(name string) error {
+ }
+ 
+ // Rename renames a file.
++// If there is an error, it will be of type *PathError.
+ func Rename(oldname, newname string) error {
+ 	var d Dir
+ 	d.Null()
+@@ -282,6 +286,7 @@ func Rename(oldname, newname string) error {
+ }
+ 
+ // Chmod changes the mode of the named file to mode.
++// If there is an error, it will be of type *PathError.
+ func Chmod(name string, mode FileMode) error {
+ 	var d Dir
+ 
+diff --git a/src/pkg/os/file_posix.go b/src/pkg/os/file_posix.go
+index 86ac1cab2c..172de36b03 100644
+--- a/src/pkg/os/file_posix.go
++++ b/src/pkg/os/file_posix.go
+@@ -57,6 +57,7 @@ func Symlink(oldname, newname string) error {
+ 
+ // Readlink reads the contents of a symbolic link: the destination of
+ // the link.  It returns the contents and an error, if any.
++// If there is an error, it will be of type *PathError.
+ func Readlink(name string) (string, error) {
+ 	for len := 128; ; len *= 2 {
+ 		b := make([]byte, len)
+@@ -99,6 +100,7 @@ func syscallMode(i FileMode) (o uint32) {
+ 
+ // Chmod changes the mode of the named file to mode.
+ // If the file is a symbolic link, it changes the mode of the link's target.
++// If there is an error, it will be of type *PathError.
+ func Chmod(name string, mode FileMode) error {
+ 	if e := syscall.Chmod(name, syscallMode(mode)); e != nil {
+ 		return &PathError{"chmod", name, e}
+@@ -107,6 +109,7 @@ func Chmod(name string, mode FileMode) error {
+ }
+ 
+ // Chmod changes the mode of the file to mode.
++// If there is an error, it will be of type *PathError.
+ func (f *File) Chmod(mode FileMode) error {
+ 	if e := syscall.Fchmod(f.fd, syscallMode(mode)); e != nil {
+ 		return &PathError{"chmod", f.name, e}
+@@ -116,6 +119,7 @@ func (f *File) Chmod(mode FileMode) error {
+ 
+ // Chown changes the numeric uid and gid of the named file.
+ // If the file is a symbolic link, it changes the uid and gid of the link's target.
++// If there is an error, it will be of type *PathError.
+ func Chown(name string, uid, gid int) error {
+ 	if e := syscall.Chown(name, uid, gid); e != nil {
+ 		return &PathError{"chown", name, e}
+@@ -125,6 +129,7 @@ func Chown(name string, uid, gid int) error {
+ 
+ // Lchown changes the numeric uid and gid of the named file.
+ // If the file is a symbolic link, it changes the uid and gid of the link itself.
++// If there is an error, it will be of type *PathError.
+ func Lchown(name string, uid, gid int) error {
+ 	if e := syscall.Lchown(name, uid, gid); e != nil {
+ 		return &PathError{"lchown", name, e}
+@@ -133,6 +138,7 @@ func Lchown(name string, uid, gid int) error {
+ }
+ 
+ // Chown changes the numeric uid and gid of the named file.
++// If there is an error, it will be of type *PathError.
+ func (f *File) Chown(uid, gid int) error {
+ 	if e := syscall.Fchown(f.fd, uid, gid); e != nil {
+ 		return &PathError{"chown", f.name, e}
+@@ -142,6 +148,7 @@ func (f *File) Chown(uid, gid int) error {
+ 
+ // Truncate changes the size of the file.
+ // It does not change the I/O offset.
++// If there is an error, it will be of type *PathError.
+ func (f *File) Truncate(size int64) error {
+ 	if e := syscall.Ftruncate(f.fd, size); e != nil {
+ 		return &PathError{"truncate", f.name, e}
+@@ -167,6 +174,7 @@ func (f *File) Sync() (err error) {
+ //
+ // The underlying filesystem may truncate or round the values to a
+ // less precise time unit.
++// If there is an error, it will be of type *PathError.
+ func Chtimes(name string, atime time.Time, mtime time.Time) error {
+ 	var utimes [2]syscall.Timeval
+ 	atime_ns := atime.Unix()*1e9 + int64(atime.Nanosecond())
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index e337d2b078..6672f280d8 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -60,7 +60,7 @@ const DevNull = "/dev/null"
+ // or Create instead.  It opens the named file with specified flag
+ // (O_RDONLY etc.) and perm, (0666 etc.) if applicable.  If successful,
+ // methods on the returned File can be used for I/O.
+-// It returns the File and an error, if any.
++// If there is an error, it will be of type *PathError.
+ func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
+ 	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, syscallMode(perm))
+ 	if e != nil {
+@@ -103,7 +103,7 @@ func (file *file) close() error {
+ }
+ 
+ // Stat returns the FileInfo structure describing file.
+-// It returns the FileInfo and an error, if any.
++// If there is an error, it will be of type *PathError.
+ func (f *File) Stat() (fi FileInfo, err error) {
+ 	var stat syscall.Stat_t
+ 	err = syscall.Fstat(f.fd, &stat)
+@@ -113,11 +113,12 @@ func (f *File) Stat() (fi FileInfo, err error) {
+ 	return fileInfoFromStat(&stat, f.name), nil
+ }
+ 
+-// Stat returns a FileInfo describing the named file and an error, if any.
++// Stat returns a FileInfo describing the named file.
+ // If name names a valid symbolic link, the returned FileInfo describes
+ // the file pointed at by the link and has fi.FollowedSymlink set to true.
+ // If name names an invalid symbolic link, the returned FileInfo describes
+ // the link itself and has fi.FollowedSymlink set to false.
++// If there is an error, it will be of type *PathError.
+ func Stat(name string) (fi FileInfo, err error) {
+ 	var stat syscall.Stat_t
+ 	err = syscall.Stat(name, &stat)
+@@ -127,9 +128,10 @@ func Stat(name string) (fi FileInfo, err error) {
+ 	return fileInfoFromStat(&stat, name), nil
+ }
+ 
+-// Lstat returns a FileInfo describing the named file and an
+-// error, if any.  If the file is a symbolic link, the returned FileInfo
++// Lstat returns a FileInfo describing the named file.
++// If the file is a symbolic link, the returned FileInfo
+ // describes the symbolic link.  Lstat makes no attempt to follow the link.
++// If there is an error, it will be of type *PathError.
+ func Lstat(name string) (fi FileInfo, err error) {
+ 	var stat syscall.Stat_t
+ 	err = syscall.Lstat(name, &stat)
+@@ -193,6 +195,7 @@ func (f *File) seek(offset int64, whence int) (ret int64, err error) {
+ 
+ // Truncate changes the size of the named file.
+ // If the file is a symbolic link, it changes the size of the link's target.
++// If there is an error, it will be of type *PathError.
+ func Truncate(name string, size int64) error {
+ 	if e := syscall.Truncate(name, size); e != nil {
+ 		return &PathError{"truncate", name, e}
+@@ -201,6 +204,7 @@ func Truncate(name string, size int64) error {
+ }
+ 
+ // Remove removes the named file or directory.
++// If there is an error, it will be of type *PathError.
+ func Remove(name string) error {
+ 	// System call interface forces us to know
+ 	// whether name is a file or directory.
+diff --git a/src/pkg/os/file_windows.go b/src/pkg/os/file_windows.go
+index b84f210a6f..0b721c6afa 100644
+--- a/src/pkg/os/file_windows.go
++++ b/src/pkg/os/file_windows.go
+@@ -87,7 +87,7 @@ func openDir(name string) (file *File, err error) {
+ // or Create instead.  It opens the named file with specified flag
+ // (O_RDONLY etc.) and perm, (0666 etc.) if applicable.  If successful,
+ // methods on the returned File can be used for I/O.
+-// It returns the File and an error, if any.
++// If there is an error, it will be of type *PathError.
+ func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
+ 	if name == "" {
+ 		return nil, &PathError{"open", name, syscall.ENOENT}
+@@ -267,6 +267,7 @@ func Truncate(name string, size int64) error {
+ }
+ 
+ // Remove removes the named file or directory.
++// If there is an error, it will be of type *PathError.
+ func Remove(name string) error {
+ 	p := &syscall.StringToUTF16(name)[0]
+ 
+diff --git a/src/pkg/os/stat_plan9.go b/src/pkg/os/stat_plan9.go
+index 7c2d1bd4ef..00622581f4 100644
+--- a/src/pkg/os/stat_plan9.go
++++ b/src/pkg/os/stat_plan9.go
+@@ -82,7 +82,8 @@ func dirstat(arg interface{}) (d *Dir, err error) {
+ 	return nil, &PathError{"stat", name, Ebadstat}
+ }
+ 
+-// Stat returns a FileInfo structure describing the named file and an error, if any.
++// Stat returns a FileInfo structure describing the named file.
++// If there is an error, it will be of type *PathError.
+ func Stat(name string) (FileInfo, error) {
+ 	d, err := dirstat(name)
+ 	if err != nil {
+@@ -91,9 +92,10 @@ func Stat(name string) (FileInfo, error) {
+ 	return fileInfoFromStat(d), nil
+ }
+ 
+-// Lstat returns the FileInfo structure describing the named file and an
+-// error, if any.  If the file is a symbolic link (though Plan 9 does not have symbolic links), 
++// Lstat returns the FileInfo structure describing the named file.
++// If the file is a symbolic link (though Plan 9 does not have symbolic links), 
+ // the returned FileInfo describes the symbolic link.  Lstat makes no attempt to follow the link.
++// If there is an error, it will be of type *PathError.
+ func Lstat(name string) (FileInfo, error) {
+ 	return Stat(name)
+ }
+diff --git a/src/pkg/os/stat_windows.go b/src/pkg/os/stat_windows.go
+index bbd95a17c9..24db15960d 100644
+--- a/src/pkg/os/stat_windows.go
++++ b/src/pkg/os/stat_windows.go
+@@ -11,7 +11,7 @@ import (
+ )
+ 
+ // Stat returns the FileInfo structure describing file.
+-// It returns the FileInfo and an error, if any.
++// If there is an error, it will be of type *PathError.
+ func (file *File) Stat() (fi FileInfo, err error) {
+ 	if file == nil || file.fd < 0 {
+ 		return nil, EINVAL
+@@ -28,11 +28,12 @@ func (file *File) Stat() (fi FileInfo, err error) {
+ 	return toFileInfo(basename(file.name), d.FileAttributes, d.FileSizeHigh, d.FileSizeLow, d.CreationTime, d.LastAccessTime, d.LastWriteTime), nil
+ }
+ 
+-// Stat returns a FileInfo structure describing the named file and an error, if any.
++// Stat returns a FileInfo structure describing the named file.
+ // If name names a valid symbolic link, the returned FileInfo describes
+ // the file pointed at by the link and has fi.FollowedSymlink set to true.
+ // If name names an invalid symbolic link, the returned FileInfo describes
+ // the link itself and has fi.FollowedSymlink set to false.
++// If there is an error, it will be of type *PathError.
+ func Stat(name string) (fi FileInfo, err error) {
+ 	if len(name) == 0 {
+ 		return nil, &PathError{"Stat", name, syscall.Errno(syscall.ERROR_PATH_NOT_FOUND)}
+@@ -45,9 +46,10 @@ func Stat(name string) (fi FileInfo, err error) {
+ 	return toFileInfo(basename(name), d.FileAttributes, d.FileSizeHigh, d.FileSizeLow, d.CreationTime, d.LastAccessTime, d.LastWriteTime), nil
+ }
+ 
+-// Lstat returns the FileInfo structure describing the named file and an
+-// error, if any.  If the file is a symbolic link, the returned FileInfo
++// Lstat returns the FileInfo structure describing the named file.
++// If the file is a symbolic link, the returned FileInfo
+ // describes the symbolic link.  Lstat makes no attempt to follow the link.
++// If there is an error, it will be of type *PathError.
+ func Lstat(name string) (fi FileInfo, err error) {
+ 	// No links on Windows
+ 	return Stat(name)

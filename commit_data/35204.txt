@@ -11,6 +11,21 @@ Date:   Wed Jan 10 19:15:36 2018 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/exec/exec_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index ed2a55557d..d29ae697f9 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -1005,6 +1005,9 @@ func TestContext(t *testing.T) {
+ }
+ 
+ func TestContextCancel(t *testing.T) {
++	if testenv.Builder() == "windows-386-xp" {
++		t.Skipf("known to fail on Windows XP. Issue 17245")
++	}
+ 	ctx, cancel := context.WithCancel(context.Background())
+ 	defer cancel()
+ 	c := helperCommandContext(t, ctx, "cat")

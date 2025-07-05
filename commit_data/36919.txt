@@ -23,7 +23,7 @@ Date:   Thu May 24 13:20:21 2018 +0100
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/vet/all/whitelist/s390x.txt    |   7 ++
  src/crypto/aes/cipher_s390x.go         |  11 ++-
  src/crypto/aes/gcm_s390x.go            |   2 +-
@@ -40,3 +40,679 @@ Date:   Thu May 24 13:20:21 2018 +0100
  src/internal/cpu/cpu_s390x.s           | 122 ++++++++-----------------
  src/internal/cpu/cpu_s390x_test.go     |  63 +++++++++++++
  15 files changed, 315 insertions(+), 200 deletions(-)
+
+diff --git a/src/cmd/vet/all/whitelist/s390x.txt b/src/cmd/vet/all/whitelist/s390x.txt
+index 9fa4949575..5bc48e5afc 100644
+--- a/src/cmd/vet/all/whitelist/s390x.txt
++++ b/src/cmd/vet/all/whitelist/s390x.txt
+@@ -5,3 +5,10 @@ runtime/memclr_s390x.s: [s390x] memclr_s390x_exrl_xc: function memclr_s390x_exrl
+ runtime/memmove_s390x.s: [s390x] memmove_s390x_exrl_mvc: function memmove_s390x_exrl_mvc missing Go declaration
+ runtime/tls_s390x.s: [s390x] save_g: function save_g missing Go declaration
+ runtime/tls_s390x.s: [s390x] load_g: function load_g missing Go declaration
++internal/cpu/cpu_s390x.s: [s390x] stfle: invalid MOVD of ret+0(FP); cpu.facilityList is 32-byte value
++internal/cpu/cpu_s390x.s: [s390x] kmQuery: invalid MOVD of ret+0(FP); cpu.queryResult is 16-byte value
++internal/cpu/cpu_s390x.s: [s390x] kmcQuery: invalid MOVD of ret+0(FP); cpu.queryResult is 16-byte value
++internal/cpu/cpu_s390x.s: [s390x] kmctrQuery: invalid MOVD of ret+0(FP); cpu.queryResult is 16-byte value
++internal/cpu/cpu_s390x.s: [s390x] kmaQuery: invalid MOVD of ret+0(FP); cpu.queryResult is 16-byte value
++internal/cpu/cpu_s390x.s: [s390x] kimdQuery: invalid MOVD of ret+0(FP); cpu.queryResult is 16-byte value
++internal/cpu/cpu_s390x.s: [s390x] klmdQuery: invalid MOVD of ret+0(FP); cpu.queryResult is 16-byte value
+diff --git a/src/crypto/aes/cipher_s390x.go b/src/crypto/aes/cipher_s390x.go
+index 93e3b929b9..82f6f8f335 100644
+--- a/src/crypto/aes/cipher_s390x.go
++++ b/src/crypto/aes/cipher_s390x.go
+@@ -31,12 +31,11 @@ type aesCipherAsm struct {
+ func cryptBlocks(c code, key, dst, src *byte, length int)
+ 
+ func newCipher(key []byte) (cipher.Block, error) {
+-	// Strictly speaking, this check should be for HasKM.
+-	// The check for HasKMC and HasKMCTR provides compatibility
+-	// with the existing optimized s390x CBC and CTR implementations
+-	// in this package, which already assert that they meet the
+-	// cbcEncAble, cbcDecAble, and ctrAble interfaces
+-	if !(cpu.S390X.HasKM && cpu.S390X.HasKMC && cpu.S390X.HasKMCTR) {
++	// The aesCipherAsm type implements the cbcEncAble, cbcDecAble,
++	// ctrAble and gcmAble interfaces. We therefore need to check
++	// for all the features required to implement these modes.
++	// Keep in sync with crypto/tls/common.go.
++	if !(cpu.S390X.HasAES && cpu.S390X.HasAESCBC && cpu.S390X.HasAESCTR && (cpu.S390X.HasGHASH || cpu.S390X.HasAESGCM)) {
+ 		return newCipherGeneric(key)
+ 	}
+ 
+diff --git a/src/crypto/aes/gcm_s390x.go b/src/crypto/aes/gcm_s390x.go
+index acac6ec7b6..ca06ae52ac 100644
+--- a/src/crypto/aes/gcm_s390x.go
++++ b/src/crypto/aes/gcm_s390x.go
+@@ -85,7 +85,7 @@ func (c *aesCipherAsm) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
+ 		nonceSize: nonceSize,
+ 		tagSize:   tagSize,
+ 	}
+-	if cpu.S390X.HasKMA {
++	if cpu.S390X.HasAESGCM {
+ 		g := gcmKMA{g}
+ 		return &g, nil
+ 	}
+diff --git a/src/crypto/sha1/sha1block_s390x.go b/src/crypto/sha1/sha1block_s390x.go
+index 340704aee2..446bf5d36e 100644
+--- a/src/crypto/sha1/sha1block_s390x.go
++++ b/src/crypto/sha1/sha1block_s390x.go
+@@ -4,9 +4,6 @@
+ 
+ package sha1
+ 
+-// featureCheck reports whether the CPU supports the
+-// SHA-1 compute intermediate message digest (KIMD)
+-// function code.
+-func featureCheck() bool
++import "internal/cpu"
+ 
+-var useAsm = featureCheck()
++var useAsm = cpu.S390X.HasSHA1
+diff --git a/src/crypto/sha1/sha1block_s390x.s b/src/crypto/sha1/sha1block_s390x.s
+index 3c71998645..6ba6883cc3 100644
+--- a/src/crypto/sha1/sha1block_s390x.s
++++ b/src/crypto/sha1/sha1block_s390x.s
+@@ -4,31 +4,17 @@
+ 
+ #include "textflag.h"
+ 
+-// func featureCheck() bool
+-TEXT ·featureCheck(SB),NOSPLIT,$16-1
+-	LA	tmp-16(SP), R1
+-	XOR	R0, R0         // query function code is 0
+-	WORD    $0xB93E0006    // KIMD (R6 is ignored)
+-	MOVBZ	tmp-16(SP), R4 // get the first byte
+-	AND	$0x40, R4      // bit 1 (big endian) for SHA-1
+-	CMPBEQ	R4, $0, nosha1
+-	MOVB	$1, ret+0(FP)
+-	RET
+-nosha1:
+-	MOVB	$0, ret+0(FP)
+-	RET
+-
+ // func block(dig *digest, p []byte)
+-TEXT ·block(SB),NOSPLIT,$0-32
+-	MOVBZ	·useAsm(SB), R4
+-	LMG	dig+0(FP), R1, R3 // R2 = &p[0], R3 = len(p)
+-	CMPBNE	R4, $1, generic
+-	MOVBZ	$1, R0        // SHA-1 function code
++TEXT ·block(SB), NOSPLIT|NOFRAME, $0-32
++	MOVBZ  ·useAsm(SB), R4
++	LMG    dig+0(FP), R1, R3            // R2 = &p[0], R3 = len(p)
++	MOVBZ  $1, R0                       // SHA-1 function code
++	CMPBEQ R4, $0, generic
++
+ loop:
+-	WORD	$0xB93E0002   // KIMD R2
+-	BVS	loop          // continue if interrupted
+-done:
+-	XOR	R0, R0        // restore R0
++	WORD $0xB93E0002 // KIMD R2
++	BVS  loop        // continue if interrupted
+ 	RET
++
+ generic:
+-	BR	·blockGeneric(SB)
++	BR ·blockGeneric(SB)
+diff --git a/src/crypto/sha256/sha256block_s390x.go b/src/crypto/sha256/sha256block_s390x.go
+index b7beefef0c..1a376c5f93 100644
+--- a/src/crypto/sha256/sha256block_s390x.go
++++ b/src/crypto/sha256/sha256block_s390x.go
+@@ -4,9 +4,6 @@
+ 
+ package sha256
+ 
+-// featureCheck reports whether the CPU supports the
+-// SHA256 compute intermediate message digest (KIMD)
+-// function code.
+-func featureCheck() bool
++import "internal/cpu"
+ 
+-var useAsm = featureCheck()
++var useAsm = cpu.S390X.HasSHA256
+diff --git a/src/crypto/sha256/sha256block_s390x.s b/src/crypto/sha256/sha256block_s390x.s
+index ee35991f50..81b1b382c7 100644
+--- a/src/crypto/sha256/sha256block_s390x.s
++++ b/src/crypto/sha256/sha256block_s390x.s
+@@ -4,31 +4,17 @@
+ 
+ #include "textflag.h"
+ 
+-// func featureCheck() bool
+-TEXT ·featureCheck(SB),NOSPLIT,$16-1
+-	LA	tmp-16(SP), R1
+-	XOR	R0, R0         // query function code is 0
+-	WORD    $0xB93E0006    // KIMD (R6 is ignored)
+-	MOVBZ	tmp-16(SP), R4 // get the first byte
+-	AND	$0x20, R4      // bit 2 (big endian) for SHA256
+-	CMPBEQ	R4, $0, nosha256
+-	MOVB	$1, ret+0(FP)
+-	RET
+-nosha256:
+-	MOVB	$0, ret+0(FP)
+-	RET
+-
+ // func block(dig *digest, p []byte)
+-TEXT ·block(SB),NOSPLIT,$0-32
+-	MOVBZ	·useAsm(SB), R4
+-	LMG	dig+0(FP), R1, R3 // R2 = &p[0], R3 = len(p)
+-	CMPBNE	R4, $1, generic
+-	MOVBZ	$2, R0        // SHA256 function code
++TEXT ·block(SB), NOSPLIT|NOFRAME, $0-32
++	MOVBZ  ·useAsm(SB), R4
++	LMG    dig+0(FP), R1, R3            // R2 = &p[0], R3 = len(p)
++	MOVBZ  $2, R0                       // SHA-256 function code
++	CMPBEQ R4, $0, generic
++
+ loop:
+-	WORD	$0xB93E0002   // KIMD R2
+-	BVS	loop          // continue if interrupted
+-done:
+-	XOR	R0, R0        // restore R0
++	WORD $0xB93E0002 // KIMD R2
++	BVS  loop        // continue if interrupted
+ 	RET
++
+ generic:
+-	BR	·blockGeneric(SB)
++	BR ·blockGeneric(SB)
+diff --git a/src/crypto/sha512/sha512block_s390x.go b/src/crypto/sha512/sha512block_s390x.go
+index f05dc18e12..7df29fd298 100644
+--- a/src/crypto/sha512/sha512block_s390x.go
++++ b/src/crypto/sha512/sha512block_s390x.go
+@@ -4,9 +4,6 @@
+ 
+ package sha512
+ 
+-// featureCheck reports whether the CPU supports the
+-// SHA512 compute intermediate message digest (KIMD)
+-// function code.
+-func featureCheck() bool
++import "internal/cpu"
+ 
+-var useAsm = featureCheck()
++var useAsm = cpu.S390X.HasSHA512
+diff --git a/src/crypto/sha512/sha512block_s390x.s b/src/crypto/sha512/sha512block_s390x.s
+index aab81e2bcf..f221bd1399 100644
+--- a/src/crypto/sha512/sha512block_s390x.s
++++ b/src/crypto/sha512/sha512block_s390x.s
+@@ -4,31 +4,17 @@
+ 
+ #include "textflag.h"
+ 
+-// func featureCheck() bool
+-TEXT ·featureCheck(SB),NOSPLIT,$16-1
+-	LA	tmp-16(SP), R1
+-	XOR	R0, R0         // query function code is 0
+-	WORD    $0xB93E0006    // KIMD (R6 is ignored)
+-	MOVBZ	tmp-16(SP), R4 // get the first byte
+-	AND	$0x10, R4      // bit 3 (big endian) for SHA512
+-	CMPBEQ	R4, $0, nosha512
+-	MOVB	$1, ret+0(FP)
+-	RET
+-nosha512:
+-	MOVB	$0, ret+0(FP)
+-	RET
+-
+ // func block(dig *digest, p []byte)
+-TEXT ·block(SB),NOSPLIT,$0-32
+-	MOVBZ	·useAsm(SB), R4
+-	LMG	dig+0(FP), R1, R3 // R2 = &p[0], R3 = len(p)
+-	CMPBNE	R4, $1, generic
+-	MOVBZ	$3, R0        // SHA512 function code
++TEXT ·block(SB), NOSPLIT|NOFRAME, $0-32
++	MOVBZ  ·useAsm(SB), R4
++	LMG    dig+0(FP), R1, R3            // R2 = &p[0], R3 = len(p)
++	MOVBZ  $3, R0                       // SHA-512 function code
++	CMPBEQ R4, $0, generic
++
+ loop:
+-	WORD	$0xB93E0002   // KIMD R2
+-	BVS	loop          // continue if interrupted
+-done:
+-	XOR	R0, R0        // restore R0
++	WORD $0xB93E0002 // KIMD R2
++	BVS  loop        // continue if interrupted
+ 	RET
++
+ generic:
+-	BR	·blockGeneric(SB)
++	BR ·blockGeneric(SB)
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 423787b415..14996e6835 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -930,7 +930,8 @@ func initDefaultCipherSuites() {
+ 	hasGCMAsmARM64 := false
+ 	// hasGCMAsmARM64 := cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
+ 
+-	hasGCMAsmS390X := cpu.S390X.HasKM && (cpu.S390X.HasKMA || (cpu.S390X.HasKMCTR && cpu.S390X.HasKIMD))
++	// Keep in sync with crypto/aes/cipher_s390x.go.
++	hasGCMAsmS390X := cpu.S390X.HasAES && cpu.S390X.HasAESCBC && cpu.S390X.HasAESCTR && (cpu.S390X.HasGHASH || cpu.S390X.HasAESGCM)
+ 
+ 	hasGCMAsm := hasGCMAsmAMD64 || hasGCMAsmARM64 || hasGCMAsmS390X
+ 
+diff --git a/src/internal/cpu/cpu.go b/src/internal/cpu/cpu.go
+index b1a8d9bf63..2569024245 100644
+--- a/src/internal/cpu/cpu.go
++++ b/src/internal/cpu/cpu.go
+@@ -98,14 +98,24 @@ type arm64 struct {
+ var S390X s390x
+ 
+ type s390x struct {
+-	_        [CacheLineSize]byte
+-	HasVX    bool // vector facility. Note: the runtime sets this when it processes auxv records.
+-	HasKM    bool // cipher message (KM)
+-	HasKMA   bool // cipher message assist (KMA)
+-	HasKMC   bool // cipher message with chaining (KMC)
+-	HasKMCTR bool // cipher message with counter (KMCTR)
+-	HasKIMD  bool // compute intermediate message digest (KIMD)
+-	_        [CacheLineSize]byte
++	_               [CacheLineSize]byte
++	HasZArch        bool // z architecture mode is active [mandatory]
++	HasSTFLE        bool // store facility list extended [mandatory]
++	HasLDisp        bool // long (20-bit) displacements [mandatory]
++	HasEImm         bool // 32-bit immediates [mandatory]
++	HasDFP          bool // decimal floating point
++	HasETF3Enhanced bool // ETF-3 enhanced
++	HasMSA          bool // message security assist (CPACF)
++	HasAES          bool // KM-AES{128,192,256} functions
++	HasAESCBC       bool // KMC-AES{128,192,256} functions
++	HasAESCTR       bool // KMCTR-AES{128,192,256} functions
++	HasAESGCM       bool // KMA-GCM-AES{128,192,256} functions
++	HasGHASH        bool // KIMD-GHASH function
++	HasSHA1         bool // K{I,L}MD-SHA-1 functions
++	HasSHA256       bool // K{I,L}MD-SHA-256 functions
++	HasSHA512       bool // K{I,L}MD-SHA-512 functions
++	HasVX           bool // vector facility. Note: the runtime sets this when it processes auxv records.
++	_               [CacheLineSize]byte
+ }
+ 
+ // initialize examines the processor and sets the relevant variables above.
+diff --git a/src/internal/cpu/cpu_no_init.go b/src/internal/cpu/cpu_no_init.go
+index 010cbcdb5e..1be4f29ddd 100644
+--- a/src/internal/cpu/cpu_no_init.go
++++ b/src/internal/cpu/cpu_no_init.go
+@@ -8,6 +8,7 @@
+ // +build !arm64
+ // +build !ppc64
+ // +build !ppc64le
++// +build !s390x
+ 
+ package cpu
+ 
+diff --git a/src/internal/cpu/cpu_s390x.go b/src/internal/cpu/cpu_s390x.go
+index 7b78289467..389a058c32 100644
+--- a/src/internal/cpu/cpu_s390x.go
++++ b/src/internal/cpu/cpu_s390x.go
+@@ -6,17 +6,148 @@ package cpu
+ 
+ const CacheLineSize = 256
+ 
+-// the following cpu feature detection functions are defined in cpu_s390x.s
+-func hasKM() bool
+-func hasKMC() bool
+-func hasKMCTR() bool
+-func hasKMA() bool
+-func hasKIMD() bool
+-
+-func init() {
+-	S390X.HasKM = hasKM()
+-	S390X.HasKMC = hasKMC()
+-	S390X.HasKMCTR = hasKMCTR()
+-	S390X.HasKMA = hasKMA()
+-	S390X.HasKIMD = hasKIMD()
++// bitIsSet reports whether the bit at index is set. The bit index
++// is in big endian order, so bit index 0 is the leftmost bit.
++func bitIsSet(bits []uint64, index uint) bool {
++	return bits[index/64]&((1<<63)>>(index%64)) != 0
++}
++
++// function is the function code for the named function.
++type function uint8
++
++const (
++	// KM{,A,C,CTR} function codes
++	aes128 function = 18 // AES-128
++	aes192          = 19 // AES-192
++	aes256          = 20 // AES-256
++
++	// K{I,L}MD function codes
++	sha1   = 1 // SHA-1
++	sha256 = 2 // SHA-256
++	sha512 = 3 // SHA-512
++
++	// KLMD function codes
++	ghash = 65 // GHASH
++)
++
++// queryResult contains the result of a Query function
++// call. Bits are numbered in big endian order so the
++// leftmost bit (the MSB) is at index 0.
++type queryResult struct {
++	bits [2]uint64
++}
++
++// Has reports whether the given functions are present.
++func (q *queryResult) Has(fns ...function) bool {
++	if len(fns) == 0 {
++		panic("no function codes provided")
++	}
++	for _, f := range fns {
++		if !bitIsSet(q.bits[:], uint(f)) {
++			return false
++		}
++	}
++	return true
++}
++
++// facility is a bit index for the named facility.
++type facility uint8
++
++const (
++	// mandatory facilities
++	zarch  facility = 1  // z architecture mode is active
++	stflef          = 7  // store-facility-list-extended
++	ldisp           = 18 // long-displacement
++	eimm            = 21 // extended-immediate
++
++	// miscellaneous facilities
++	dfp    = 42 // decimal-floating-point
++	etf3eh = 30 // extended-translation 3 enhancement
++
++	// cryptography facilities
++	msa  = 17  // message-security-assist
++	msa3 = 76  // message-security-assist extension 3
++	msa4 = 77  // message-security-assist extension 4
++	msa5 = 57  // message-security-assist extension 5
++	msa8 = 146 // message-security-assist extension 8
++
++	// Note: vx and highgprs are excluded because they require
++	// kernel support and so must be fetched from HWCAP.
++)
++
++// facilityList contains the result of an STFLE call.
++// Bits are numbered in big endian order so the
++// leftmost bit (the MSB) is at index 0.
++type facilityList struct {
++	bits [4]uint64
++}
++
++// Has reports whether the given facilities are present.
++func (s *facilityList) Has(fs ...facility) bool {
++	if len(fs) == 0 {
++		panic("no facility bits provided")
++	}
++	for _, f := range fs {
++		if !bitIsSet(s.bits[:], uint(f)) {
++			return false
++		}
++	}
++	return true
++}
++
++// The following feature detection functions are defined in cpu_s390x.s.
++// They are likely to be expensive to call so the results should be cached.
++func stfle() facilityList
++func kmQuery() queryResult
++func kmcQuery() queryResult
++func kmctrQuery() queryResult
++func kmaQuery() queryResult
++func kimdQuery() queryResult
++func klmdQuery() queryResult
++
++func doinit() {
++	options = []option{
++		{"zarch", &S390X.HasZArch},
++		{"stfle", &S390X.HasSTFLE},
++		{"ldisp", &S390X.HasLDisp},
++		{"msa", &S390X.HasMSA},
++		{"eimm", &S390X.HasEImm},
++		{"dfp", &S390X.HasDFP},
++		{"etf3eh", &S390X.HasETF3Enhanced},
++		{"vx", &S390X.HasVX},
++	}
++
++	aes := []function{aes128, aes192, aes256}
++	facilities := stfle()
++
++	S390X.HasZArch = facilities.Has(zarch)
++	S390X.HasSTFLE = facilities.Has(stflef)
++	S390X.HasLDisp = facilities.Has(ldisp)
++	S390X.HasEImm = facilities.Has(eimm)
++	S390X.HasDFP = facilities.Has(dfp)
++	S390X.HasETF3Enhanced = facilities.Has(etf3eh)
++	S390X.HasMSA = facilities.Has(msa)
++
++	if S390X.HasMSA {
++		// cipher message
++		km, kmc := kmQuery(), kmcQuery()
++		S390X.HasAES = km.Has(aes...)
++		S390X.HasAESCBC = kmc.Has(aes...)
++		if facilities.Has(msa4) {
++			kmctr := kmctrQuery()
++			S390X.HasAESCTR = kmctr.Has(aes...)
++		}
++		if facilities.Has(msa8) {
++			kma := kmaQuery()
++			S390X.HasAESGCM = kma.Has(aes...)
++		}
++
++		// compute message digest
++		kimd := kimdQuery() // intermediate (no padding)
++		klmd := klmdQuery() // last (padding)
++		S390X.HasSHA1 = kimd.Has(sha1) && klmd.Has(sha1)
++		S390X.HasSHA256 = kimd.Has(sha256) && klmd.Has(sha256)
++		S390X.HasSHA512 = kimd.Has(sha512) && klmd.Has(sha512)
++		S390X.HasGHASH = kimd.Has(ghash) // KLMD-GHASH does not exist
++	}
+ }
+diff --git a/src/internal/cpu/cpu_s390x.s b/src/internal/cpu/cpu_s390x.s
+index 04edb2ed0f..9678035ffb 100644
+--- a/src/internal/cpu/cpu_s390x.s
++++ b/src/internal/cpu/cpu_s390x.s
+@@ -4,98 +4,52 @@
+ 
+ #include "textflag.h"
+ 
+-// func hasKM() bool
+-TEXT ·hasKM(SB),NOSPLIT,$16-1
+-	XOR	R0, R0          // set function code to 0 (query)
+-	LA	mask-16(SP), R1 // 16-byte stack variable for mask
+-	MOVD	$(0x38<<40), R3 // mask for bits 18-20 (big endian)
+-
+-	// check for KM AES functions
+-	WORD	$0xB92E0024 // cipher message (KM)
+-	MOVD	mask-16(SP), R2
+-	AND	R3, R2
+-	CMPBNE	R2, R3, notfound
+-
+-	MOVB	$1, ret+0(FP)
++// func stfle() facilityList
++TEXT ·stfle(SB), NOSPLIT|NOFRAME, $0-32
++	MOVD $ret+0(FP), R1
++	MOVD $3, R0          // last doubleword index to store
++	XC   $32, (R1), (R1) // clear 4 doublewords (32 bytes)
++	WORD $0xb2b01000     // store facility list extended (STFLE)
+ 	RET
+-notfound:
+-	MOVB	$0, ret+0(FP)
+-	RET
+-
+-// func hasKMC() bool
+-TEXT ·hasKMC(SB),NOSPLIT,$16-1
+-	XOR	R0, R0          // set function code to 0 (query)
+-	LA	mask-16(SP), R1 // 16-byte stack variable for mask
+-	MOVD	$(0x38<<40), R3 // mask for bits 18-20 (big endian)
+ 
+-	// check for KMC AES functions
+-	WORD	$0xB92F0024 // cipher message with chaining (KMC)
+-	MOVD	mask-16(SP), R2
+-	AND	R3, R2
+-	CMPBNE	R2, R3, notfound
+-
+-	MOVB	$1, ret+0(FP)
+-	RET
+-notfound:
+-	MOVB	$0, ret+0(FP)
++// func kmQuery() queryResult
++TEXT ·kmQuery(SB), NOSPLIT|NOFRAME, $0-16
++	MOVD $0, R0         // set function code to 0 (KM-Query)
++	MOVD $ret+0(FP), R1 // address of 16-byte return value
++	WORD $0xB92E0024    // cipher message (KM)
+ 	RET
+ 
+-// func hasKMCTR() bool
+-TEXT ·hasKMCTR(SB),NOSPLIT,$16-1
+-	XOR	R0, R0          // set function code to 0 (query)
+-	LA	mask-16(SP), R1 // 16-byte stack variable for mask
+-	MOVD	$(0x38<<40), R3 // mask for bits 18-20 (big endian)
+-
+-	// check for KMCTR AES functions
+-	WORD	$0xB92D4024 // cipher message with counter (KMCTR)
+-	MOVD	mask-16(SP), R2
+-	AND	R3, R2
+-	CMPBNE	R2, R3, notfound
+-
+-	MOVB	$1, ret+0(FP)
+-	RET
+-notfound:
+-	MOVB	$0, ret+0(FP)
++// func kmcQuery() queryResult
++TEXT ·kmcQuery(SB), NOSPLIT|NOFRAME, $0-16
++	MOVD $0, R0         // set function code to 0 (KMC-Query)
++	MOVD $ret+0(FP), R1 // address of 16-byte return value
++	WORD $0xB92F0024    // cipher message with chaining (KMC)
+ 	RET
+ 
+-// func hasKMA() bool
+-TEXT ·hasKMA(SB),NOSPLIT,$24-1
+-	MOVD	$tmp-24(SP), R1
+-	MOVD	$2, R0       // store 24-bytes
+-	XC	$24, (R1), (R1)
+-	WORD	$0xb2b01000  // STFLE (R1)
+-	MOVWZ	16(R1), R2
+-	ANDW	$(1<<13), R2 // test bit 146 (message-security-assist 8)
+-	BEQ	no
+-
+-	MOVD	$0, R0       // KMA-Query
+-	XC	$16, (R1), (R1)
+-	WORD	$0xb9296024  // kma %r6,%r2,%r4
+-	MOVWZ	(R1), R2
+-	WORD	$0xa7213800  // TMLL R2, $0x3800
+-	BVS	yes
+-no:
+-	MOVB	$0, ret+0(FP)
+-	RET
+-yes:
+-	MOVB	$1, ret+0(FP)
++// func kmctrQuery() queryResult
++TEXT ·kmctrQuery(SB), NOSPLIT|NOFRAME, $0-16
++	MOVD $0, R0         // set function code to 0 (KMCTR-Query)
++	MOVD $ret+0(FP), R1 // address of 16-byte return value
++	WORD $0xB92D4024    // cipher message with counter (KMCTR)
+ 	RET
+ 
+-// func hasKIMD() bool
+-TEXT ·hasKIMD(SB),NOSPLIT,$16-1
+-	XOR	R0, R0          // set function code to 0 (query)
+-	LA	mask-16(SP), R1 // 16-byte stack variable for mask
+-	MOVD	$(0x38<<40), R3 // mask for bits 18-20 (big endian)
+-
+-	// check for KIMD GHASH function
+-	WORD	$0xB93E0024    // compute intermediate message digest (KIMD)
+-	MOVD	mask-8(SP), R2 // bits 64-127
+-	MOVD	$(1<<62), R5
+-	AND	R5, R2
+-	CMPBNE	R2, R5, notfound
++// func kmaQuery() queryResult
++TEXT ·kmaQuery(SB), NOSPLIT|NOFRAME, $0-16
++	MOVD $0, R0         // set function code to 0 (KMA-Query)
++	MOVD $ret+0(FP), R1 // address of 16-byte return value
++	WORD $0xb9296024    // cipher message with authentication (KMA)
++	RET
+ 
+-	MOVB	$1, ret+0(FP)
++// func kimdQuery() queryResult
++TEXT ·kimdQuery(SB), NOSPLIT|NOFRAME, $0-16
++	MOVD $0, R0         // set function code to 0 (KIMD-Query)
++	MOVD $ret+0(FP), R1 // address of 16-byte return value
++	WORD $0xB93E0024    // compute intermediate message digest (KIMD)
+ 	RET
+-notfound:
+-	MOVB	$0, ret+0(FP)
++
++// func klmdQuery() queryResult
++TEXT ·klmdQuery(SB), NOSPLIT|NOFRAME, $0-16
++	MOVD $0, R0         // set function code to 0 (KLMD-Query)
++	MOVD $ret+0(FP), R1 // address of 16-byte return value
++	WORD $0xB93F0024    // compute last message digest (KLMD)
+ 	RET
+diff --git a/src/internal/cpu/cpu_s390x_test.go b/src/internal/cpu/cpu_s390x_test.go
+new file mode 100644
+index 0000000000..d910bbe695
+--- /dev/null
++++ b/src/internal/cpu/cpu_s390x_test.go
+@@ -0,0 +1,63 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cpu_test
++
++import (
++	"errors"
++	. "internal/cpu"
++	"io/ioutil"
++	"regexp"
++	"testing"
++)
++
++func getFeatureList() ([]string, error) {
++	cpuinfo, err := ioutil.ReadFile("/proc/cpuinfo")
++	if err != nil {
++		return nil, err
++	}
++	r := regexp.MustCompile("features\\s*:\\s*(.*)")
++	b := r.FindSubmatch(cpuinfo)
++	if len(b) < 2 {
++		return nil, errors.New("no feature list in /proc/cpuinfo")
++	}
++	return regexp.MustCompile("\\s+").Split(string(b[1]), -1), nil
++}
++
++func TestS390XAgainstCPUInfo(t *testing.T) {
++	// mapping of linux feature strings to S390X fields
++	mapping := make(map[string]*bool)
++	for _, option := range Options {
++		mapping[option.Name] = option.Feature
++	}
++
++	// these must be true on the machines Go supports
++	mandatory := make(map[string]bool)
++	mandatory["zarch"] = false
++	mandatory["eimm"] = false
++	mandatory["ldisp"] = false
++	mandatory["stfle"] = false
++
++	features, err := getFeatureList()
++	if err != nil {
++		t.Error(err)
++	}
++	for _, feature := range features {
++		if _, ok := mandatory[feature]; ok {
++			mandatory[feature] = true
++		}
++		if flag, ok := mapping[feature]; ok {
++			if !*flag {
++				t.Errorf("feature '%v' not detected", feature)
++			}
++		} else {
++			t.Logf("no entry for '%v'", feature)
++		}
++	}
++	for k, v := range mandatory {
++		if !v {
++			t.Errorf("mandatory feature '%v' not detected", k)
++		}
++	}
++}

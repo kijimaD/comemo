@@ -46,9 +46,317 @@ Date:   Tue Apr 21 14:23:04 2020 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/gsubr.go |   9 ++-
  src/cmd/compile/internal/gc/plive.go | 134 +++++++++++++++++++++--------------
  src/cmd/compile/internal/gc/ssa.go   |   4 +-
  src/cmd/internal/objabi/funcdata.go  |   6 ++
  4 files changed, 96 insertions(+), 57 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index e0c4355178..5a7d4c9e4d 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -72,7 +72,7 @@ func newProgs(fn *Node, worker int) *Progs {
+ 	pp.settext(fn)
+ 	pp.nextLive = LivenessInvalid
+ 	// PCDATA tables implicitly start with index -1.
+-	pp.prevLive = LivenessIndex{-1, -1}
++	pp.prevLive = LivenessIndex{-1, -1, false}
+ 	return pp
+ }
+ 
+@@ -109,7 +109,7 @@ func (pp *Progs) Free() {
+ 
+ // Prog adds a Prog with instruction As to pp.
+ func (pp *Progs) Prog(as obj.As) *obj.Prog {
+-	if pp.nextLive.stackMapIndex != pp.prevLive.stackMapIndex {
++	if pp.nextLive.StackMapValid() && pp.nextLive.stackMapIndex != pp.prevLive.stackMapIndex {
+ 		// Emit stack map index change.
+ 		idx := pp.nextLive.stackMapIndex
+ 		pp.prevLive.stackMapIndex = idx
+@@ -117,6 +117,11 @@ func (pp *Progs) Prog(as obj.As) *obj.Prog {
+ 		Addrconst(&p.From, objabi.PCDATA_StackMapIndex)
+ 		Addrconst(&p.To, int64(idx))
+ 	}
++	if pp.nextLive.isUnsafePoint {
++		// Unsafe points are encoded as a special value in the
++		// register map.
++		pp.nextLive.regMapIndex = objabi.PCDATA_RegMapUnsafe
++	}
+ 	if pp.nextLive.regMapIndex != pp.prevLive.regMapIndex {
+ 		// Emit register map index change.
+ 		idx := pp.nextLive.regMapIndex
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 0a889bab86..61c01f5b9d 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -107,7 +107,11 @@ type Liveness struct {
+ 
+ 	be []BlockEffects
+ 
+-	// unsafePoints bit i is set if Value ID i is not a safe point.
++	// allUnsafe indicates that all points in this function are
++	// unsafe-points.
++	allUnsafe bool
++	// unsafePoints bit i is set if Value ID i is an unsafe-point
++	// (preemption is not allowed). Only valid if !allUnsafe.
+ 	unsafePoints bvec
+ 
+ 	// An array with a bit vector for each safe point in the
+@@ -172,23 +176,37 @@ func (m LivenessMap) Get(v *ssa.Value) LivenessIndex {
+ 	return LivenessInvalid
+ }
+ 
+-// LivenessIndex stores the liveness map index for a safe-point.
++// LivenessIndex stores the liveness map information for a Value.
+ type LivenessIndex struct {
+ 	stackMapIndex int
+ 	regMapIndex   int
++
++	// isUnsafePoint indicates that this is an unsafe-point.
++	//
++	// Note that it's possible for a call Value to have a stack
++	// map while also being an unsafe-point. This means it cannot
++	// be preempted at this instruction, but that a preemption or
++	// stack growth may happen in the called function.
++	isUnsafePoint bool
+ }
+ 
+-// LivenessInvalid indicates an unsafe point.
++// LivenessInvalid indicates an unsafe point with no stack map.
++var LivenessInvalid = LivenessIndex{StackMapDontCare, StackMapDontCare, true}
++
++// StackMapDontCare indicates that the stack map index at a Value
++// doesn't matter.
+ //
+-// We use index -2 because PCDATA tables conventionally start at -1,
+-// so -1 is used to mean the entry liveness map (which is actually at
+-// index 0; sigh). TODO(austin): Maybe we should use PCDATA+1 as the
+-// index into the liveness map so -1 uniquely refers to the entry
+-// liveness map.
+-var LivenessInvalid = LivenessIndex{-2, -2}
+-
+-func (idx LivenessIndex) Valid() bool {
+-	return idx.stackMapIndex >= 0
++// This is a sentinel value that should never be emitted to the PCDATA
++// stream. We use -1000 because that's obviously never a valid stack
++// index (but -1 is).
++const StackMapDontCare = -1000
++
++func (idx LivenessIndex) StackMapValid() bool {
++	return idx.stackMapIndex != StackMapDontCare
++}
++
++func (idx LivenessIndex) RegMapValid() bool {
++	return idx.regMapIndex != StackMapDontCare
+ }
+ 
+ type progeffectscache struct {
+@@ -644,9 +662,18 @@ func (lv *Liveness) pointerMap(liveout bvec, vars []*Node, args, locals bvec) {
+ 
+ // markUnsafePoints finds unsafe points and computes lv.unsafePoints.
+ func (lv *Liveness) markUnsafePoints() {
++	// The runtime assumes the only safe-points are function
++	// prologues (because that's how it used to be). We could and
++	// should improve that, but for now keep consider all points
++	// in the runtime unsafe. obj will add prologues and their
++	// safe-points.
++	//
++	// go:nosplit functions are similar. Since safe points used to
++	// be coupled with stack checks, go:nosplit often actually
++	// means "no safe points in this function".
+ 	if compiling_runtime || lv.f.NoSplit {
+-		// No complex analysis necessary. Do this on the fly
+-		// in hasStackMap.
++		// No complex analysis necessary.
++		lv.allUnsafe = true
+ 		return
+ 	}
+ 
+@@ -807,17 +834,13 @@ func (lv *Liveness) markUnsafePoints() {
+ // particular, call Values can have a stack map in case the callee
+ // grows the stack, but not themselves be a safe-point.
+ func (lv *Liveness) hasStackMap(v *ssa.Value) bool {
+-	// The runtime was written with the assumption that
+-	// safe-points only appear at call sites (because that's how
+-	// it used to be). We could and should improve that, but for
+-	// now keep the old safe-point rules in the runtime.
+-	//
+-	// go:nosplit functions are similar. Since safe points used to
+-	// be coupled with stack checks, go:nosplit often actually
+-	// means "no safe points in this function".
++	// The runtime only has safe-points in function prologues, so
++	// we only need stack maps at call sites. go:nosplit functions
++	// are similar.
+ 	if compiling_runtime || lv.f.NoSplit {
+ 		return v.Op.IsCall()
+ 	}
++
+ 	switch v.Op {
+ 	case ssa.OpInitMem, ssa.OpArg, ssa.OpSP, ssa.OpSB,
+ 		ssa.OpSelect0, ssa.OpSelect1, ssa.OpGetG,
+@@ -1169,7 +1192,7 @@ func (lv *Liveness) epilogue() {
+ // PCDATA tables cost about 100k. So for now we keep using a single index for
+ // both bitmap lists.
+ func (lv *Liveness) compact(b *ssa.Block) {
+-	add := func(live varRegVec) LivenessIndex {
++	add := func(live varRegVec, isUnsafePoint bool) LivenessIndex {
+ 		// Deduplicate the stack map.
+ 		stackIndex := lv.stackMapSet.add(live.vars)
+ 		// Deduplicate the register map.
+@@ -1179,17 +1202,18 @@ func (lv *Liveness) compact(b *ssa.Block) {
+ 			lv.regMapSet[live.regs] = regIndex
+ 			lv.regMaps = append(lv.regMaps, live.regs)
+ 		}
+-		return LivenessIndex{stackIndex, regIndex}
++		return LivenessIndex{stackIndex, regIndex, isUnsafePoint}
+ 	}
+ 	pos := 0
+ 	if b == lv.f.Entry {
+ 		// Handle entry stack map.
+-		add(lv.livevars[0])
++		add(lv.livevars[0], false)
+ 		pos++
+ 	}
+ 	for _, v := range b.Values {
+ 		if lv.hasStackMap(v) {
+-			lv.livenessMap.set(v, add(lv.livevars[pos]))
++			isUnsafePoint := lv.allUnsafe || lv.unsafePoints.Get(int32(v.ID))
++			lv.livenessMap.set(v, add(lv.livevars[pos], isUnsafePoint))
+ 			pos++
+ 		}
+ 	}
+@@ -1294,7 +1318,6 @@ func (lv *Liveness) printeffect(printed bool, name string, pos int32, x bool, re
+ func (lv *Liveness) printDebug() {
+ 	fmt.Printf("liveness: %s\n", lv.fn.funcname())
+ 
+-	pcdata := 0
+ 	for i, b := range lv.f.Blocks {
+ 		if i > 0 {
+ 			fmt.Printf("\n")
+@@ -1330,7 +1353,7 @@ func (lv *Liveness) printDebug() {
+ 		// program listing, with individual effects listed
+ 
+ 		if b == lv.f.Entry {
+-			live := lv.stackMaps[pcdata]
++			live := lv.stackMaps[0]
+ 			fmt.Printf("(%s) function entry\n", linestr(lv.fn.Func.Nname.Pos))
+ 			fmt.Printf("\tlive=")
+ 			printed = false
+@@ -1350,9 +1373,7 @@ func (lv *Liveness) printDebug() {
+ 		for _, v := range b.Values {
+ 			fmt.Printf("(%s) %v\n", linestr(v.Pos), v.LongString())
+ 
+-			if pos := lv.livenessMap.Get(v); pos.Valid() {
+-				pcdata = pos.stackMapIndex
+-			}
++			pcdata := lv.livenessMap.Get(v)
+ 
+ 			pos, effect := lv.valueEffects(v)
+ 			regUevar, regKill := lv.regEffects(v)
+@@ -1363,31 +1384,38 @@ func (lv *Liveness) printDebug() {
+ 				fmt.Printf("\n")
+ 			}
+ 
+-			if !lv.hasStackMap(v) {
+-				continue
+-			}
+-
+-			live := lv.stackMaps[pcdata]
+-			fmt.Printf("\tlive=")
+-			printed = false
+-			for j, n := range lv.vars {
+-				if !live.Get(int32(j)) {
+-					continue
++			if pcdata.StackMapValid() || pcdata.RegMapValid() {
++				fmt.Printf("\tlive=")
++				printed = false
++				if pcdata.StackMapValid() {
++					live := lv.stackMaps[pcdata.stackMapIndex]
++					for j, n := range lv.vars {
++						if !live.Get(int32(j)) {
++							continue
++						}
++						if printed {
++							fmt.Printf(",")
++						}
++						fmt.Printf("%v", n)
++						printed = true
++					}
+ 				}
+-				if printed {
+-					fmt.Printf(",")
++				if pcdata.RegMapValid() {
++					regLive := lv.regMaps[pcdata.regMapIndex]
++					if regLive != 0 {
++						if printed {
++							fmt.Printf(",")
++						}
++						fmt.Printf("%s", regLive.niceString(lv.f.Config))
++						printed = true
++					}
+ 				}
+-				fmt.Printf("%v", n)
+-				printed = true
++				fmt.Printf("\n")
+ 			}
+-			regLive := lv.regMaps[lv.livenessMap.Get(v).regMapIndex]
+-			if regLive != 0 {
+-				if printed {
+-					fmt.Printf(",")
+-				}
+-				fmt.Printf("%s", regLive.niceString(lv.f.Config))
++
++			if pcdata.isUnsafePoint {
++				fmt.Printf("\tunsafe-point\n")
+ 			}
+-			fmt.Printf("\n")
+ 		}
+ 
+ 		// bb bitsets
+@@ -1503,7 +1531,7 @@ func liveness(e *ssafn, f *ssa.Func, pp *Progs) LivenessMap {
+ 		lv.showlive(nil, lv.stackMaps[0])
+ 		for _, b := range f.Blocks {
+ 			for _, val := range b.Values {
+-				if idx := lv.livenessMap.Get(val); idx.Valid() {
++				if idx := lv.livenessMap.Get(val); idx.StackMapValid() {
+ 					lv.showlive(val, lv.stackMaps[idx.stackMapIndex])
+ 				}
+ 			}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index f873defb24..e99221c217 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -6011,7 +6011,7 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 		// instruction. We won't use the actual liveness map on a
+ 		// control instruction. Just mark it something that is
+ 		// preemptible.
+-		s.pp.nextLive = LivenessIndex{-1, -1}
++		s.pp.nextLive = LivenessIndex{-1, -1, false}
+ 
+ 		// Emit values in block
+ 		thearch.SSAMarkMoves(&s, b)
+@@ -6571,7 +6571,7 @@ func (s *SSAGenState) Call(v *ssa.Value) *obj.Prog {
+ // since it emits PCDATA for the stack map at the call (calls are safe points).
+ func (s *SSAGenState) PrepareCall(v *ssa.Value) {
+ 	idx := s.livenessMap.Get(v)
+-	if !idx.Valid() {
++	if !idx.StackMapValid() {
+ 		// typedmemclr and typedmemmove are write barriers and
+ 		// deeply non-preemptible. They are unsafe points and
+ 		// hence should not have liveness maps.
+diff --git a/src/cmd/internal/objabi/funcdata.go b/src/cmd/internal/objabi/funcdata.go
+index 08b75eb9fe..1c07f011da 100644
+--- a/src/cmd/internal/objabi/funcdata.go
++++ b/src/cmd/internal/objabi/funcdata.go
+@@ -28,3 +28,9 @@ const (
+ 	// This value is generated by the compiler, assembler, or linker.
+ 	ArgsSizeUnknown = -0x80000000
+ )
++
++// Special PCDATA values.
++const (
++	// PCDATA_RegMapIndex values.
++	PCDATA_RegMapUnsafe = -2 // Unsafe for async preemption
++)

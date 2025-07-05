@@ -11,6 +11,30 @@ Date:   Fri Jul 13 20:56:46 2018 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/mod_test.go | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/cmd/go/mod_test.go b/src/cmd/go/mod_test.go
+index 8705478dff..f3dc64cc37 100644
+--- a/src/cmd/go/mod_test.go
++++ b/src/cmd/go/mod_test.go
+@@ -12,7 +12,6 @@ import (
+ 	"os/exec"
+ 	"path/filepath"
+ 	"regexp"
+-	"runtime"
+ 	"sort"
+ 	"strings"
+ 	"testing"
+@@ -214,10 +213,6 @@ func TestModFindModulePath(t *testing.T) {
+ 		t.Fatalf("FindModulePath = %q, %v, want %q, nil", path, err, "unexpected.com/z")
+ 	}
+ 
+-	if runtime.GOOS == "windows" {
+-		t.Skipf("windows removeall fails")
+-	}
+-
+ 	// Empty dir outside GOPATH
+ 	tg.must(os.MkdirAll(tg.path("gp1"), 0777))
+ 	tg.must(os.MkdirAll(tg.path("x1"), 0777))

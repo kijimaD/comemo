@@ -14,7 +14,74 @@ Date:   Tue Apr 15 17:36:25 2014 -0700
     R=golang-codereviews, adg
     CC=golang-codereviews, iant
     https://golang.org/cl/87950044
-
+---
  src/pkg/os/exec/exec.go      | 14 ++++++++------
  src/pkg/os/exec/exec_test.go | 12 ++++++------
  2 files changed, 14 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/os/exec/exec.go b/src/pkg/os/exec/exec.go
+index 44b9cc08ce..a70ed0d20c 100644
+--- a/src/pkg/os/exec/exec.go
++++ b/src/pkg/os/exec/exec.go
+@@ -429,15 +429,17 @@ func (c *Cmd) StdinPipe() (io.WriteCloser, error) {
+ type closeOnce struct {
+ 	*os.File
+ 
+-	close    sync.Once
+-	closeErr error
++	once sync.Once
++	err  error
+ }
+ 
+ func (c *closeOnce) Close() error {
+-	c.close.Do(func() {
+-		c.closeErr = c.File.Close()
+-	})
+-	return c.closeErr
++	c.once.Do(c.close)
++	return c.err
++}
++
++func (c *closeOnce) close() {
++	c.err = c.File.Close()
+ }
+ 
+ // StdoutPipe returns a pipe that will be connected to the command's
+diff --git a/src/pkg/os/exec/exec_test.go b/src/pkg/os/exec/exec_test.go
+index e4ad7d3157..ca19fe9bee 100644
+--- a/src/pkg/os/exec/exec_test.go
++++ b/src/pkg/os/exec/exec_test.go
+@@ -214,7 +214,7 @@ func TestStdinClose(t *testing.T) {
+ 
+ // Issue 5071
+ func TestPipeLookPathLeak(t *testing.T) {
+-	fd0 := numOpenFDS(t)
++	fd0, lsof0 := numOpenFDS(t)
+ 	for i := 0; i < 4; i++ {
+ 		cmd := exec.Command("something-that-does-not-exist-binary")
+ 		cmd.StdoutPipe()
+@@ -224,19 +224,19 @@ func TestPipeLookPathLeak(t *testing.T) {
+ 			t.Fatal("unexpected success")
+ 		}
+ 	}
+-	fdGrowth := numOpenFDS(t) - fd0
++	open, lsof := numOpenFDS(t)
++	fdGrowth := open - fd0
+ 	if fdGrowth > 2 {
+-		t.Errorf("leaked %d fds; want ~0", fdGrowth)
++		t.Errorf("leaked %d fds; want ~0; have:\n%s\noriginally:\n%s", fdGrowth, lsof, lsof0)
+ 	}
+ }
+ 
+-func numOpenFDS(t *testing.T) int {
++func numOpenFDS(t *testing.T) (n int, lsof []byte) {
+ 	lsof, err := exec.Command("lsof", "-n", "-p", strconv.Itoa(os.Getpid())).Output()
+ 	if err != nil {
+ 		t.Skip("skipping test; error finding or running lsof")
+-		return 0
+ 	}
+-	return bytes.Count(lsof, []byte("\n"))
++	return bytes.Count(lsof, []byte("\n")), lsof
+ }
+ 
+ var testedAlreadyLeaked = false

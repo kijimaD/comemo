@@ -21,7 +21,123 @@ Date:   Mon Jun 19 15:35:50 2023 -0700
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/mail/message.go      | 51 +++++++++++++++++++++++++++++++++++++++++++-
  src/net/mail/message_test.go | 28 ++++++++++++++++++++++++
  2 files changed, 78 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index a416007fdb..af516fc30f 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -14,6 +14,7 @@ Notable divergences:
+     such as breaking addresses across lines.
+   - No unicode normalization is performed.
+   - The special characters ()[]:;@\, are allowed to appear unquoted in names.
++  - A leading From line is permitted, as in mbox format (RFC 4155).
+ */
+ package mail
+ 
+@@ -53,7 +54,7 @@ type Message struct {
+ func ReadMessage(r io.Reader) (msg *Message, err error) {
+ 	tp := textproto.NewReader(bufio.NewReader(r))
+ 
+-	hdr, err := tp.ReadMIMEHeader()
++	hdr, err := readHeader(tp)
+ 	if err != nil && (err != io.EOF || len(hdr) == 0) {
+ 		return nil, err
+ 	}
+@@ -64,6 +65,54 @@ func ReadMessage(r io.Reader) (msg *Message, err error) {
+ 	}, nil
+ }
+ 
++// readHeader reads the message headers from r.
++// This is like textproto.ReadMIMEHeader, but doesn't validate.
++// The fix for issue #53188 tightened up net/textproto to enforce
++// restrictions of RFC 7230.
++// This package implements RFC 5322, which does not have those restrictions.
++// This function copies the relevant code from net/textproto,
++// simplified for RFC 5322.
++func readHeader(r *textproto.Reader) (map[string][]string, error) {
++	m := make(map[string][]string)
++
++	// The first line cannot start with a leading space.
++	if buf, err := r.R.Peek(1); err == nil && (buf[0] == ' ' || buf[0] == '\t') {
++		line, err := r.ReadLine()
++		if err != nil {
++			return m, err
++		}
++		return m, errors.New("malformed initial line: " + line)
++	}
++
++	for {
++		kv, err := r.ReadContinuedLine()
++		if kv == "" {
++			return m, err
++		}
++
++		// Key ends at first colon.
++		k, v, ok := strings.Cut(kv, ":")
++		if !ok {
++			return m, errors.New("malformed header line: " + kv)
++		}
++		key := textproto.CanonicalMIMEHeaderKey(k)
++
++		// Permit empty key, because that is what we did in the past.
++		if key == "" {
++			continue
++		}
++
++		// Skip initial spaces in value.
++		value := strings.TrimLeft(v, " \t")
++
++		m[key] = append(m[key], value)
++
++		if err != nil {
++			return m, err
++		}
++	}
++}
++
+ // Layouts suitable for passing to time.Parse.
+ // These are tried in order.
+ var (
+diff --git a/src/net/mail/message_test.go b/src/net/mail/message_test.go
+index 4b581ccc73..1e1bb4092f 100644
+--- a/src/net/mail/message_test.go
++++ b/src/net/mail/message_test.go
+@@ -52,6 +52,34 @@ Version: 1
+ 		},
+ 		body: "",
+ 	},
++	{
++		// RFC 5322 permits any printable ASCII character,
++		// except colon, in a header key. Issue #58862.
++		in: `From: iant@golang.org
++Custom/Header: v
++
++Body
++`,
++		header: Header{
++			"From":          []string{"iant@golang.org"},
++			"Custom/Header": []string{"v"},
++		},
++		body: "Body\n",
++	},
++	{
++		// RFC 4155 mbox format. We've historically permitted this,
++		// so we continue to permit it. Issue #60332.
++		in: `From iant@golang.org Mon Jun 19 00:00:00 2023
++From: iant@golang.org
++
++Hello, gophers!
++`,
++		header: Header{
++			"From":                               []string{"iant@golang.org"},
++			"From iant@golang.org Mon Jun 19 00": []string{"00:00 2023"},
++		},
++		body: "Hello, gophers!\n",
++	},
+ }
+ 
+ func TestParsing(t *testing.T) {

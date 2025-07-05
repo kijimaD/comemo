@@ -12,7 +12,7 @@ Date:   Tue Apr 27 16:04:56 2021 -0700
     Trust: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/sys_windows_386.s    | 75 -----------------------------------
  src/runtime/sys_windows_amd64.s  | 46 ----------------------
  src/runtime/sys_windows_arm.s    | 76 ------------------------------------
@@ -22,3 +22,605 @@ Date:   Tue Apr 27 16:04:56 2021 -0700
  src/runtime/time_windows_arm.s   | 84 ++++++++++++++++++++++++++++++++++++++++
  src/runtime/time_windows_arm64.s | 64 ++++++++++++++++++++++++++++++
  8 files changed, 283 insertions(+), 253 deletions(-)
+
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index d8b14eb644..64b12859ae 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -354,78 +354,3 @@ loop:
+ useQPC:
+ 	JMP	runtime·nanotimeQPC(SB)
+ 	RET
+-
+-TEXT time·now(SB),NOSPLIT,$0-20
+-	CMPB	runtime·useQPCTime(SB), $0
+-	JNE	useQPC
+-loop:
+-	MOVL	(_INTERRUPT_TIME+time_hi1), AX
+-	MOVL	(_INTERRUPT_TIME+time_lo), CX
+-	MOVL	(_INTERRUPT_TIME+time_hi2), DI
+-	CMPL	AX, DI
+-	JNE	loop
+-
+-	// w = DI:CX
+-	// multiply by 100
+-	MOVL	$100, AX
+-	MULL	CX
+-	IMULL	$100, DI
+-	ADDL	DI, DX
+-	// w*100 = DX:AX
+-	MOVL	AX, mono+12(FP)
+-	MOVL	DX, mono+16(FP)
+-
+-wall:
+-	MOVL	(_SYSTEM_TIME+time_hi1), CX
+-	MOVL	(_SYSTEM_TIME+time_lo), AX
+-	MOVL	(_SYSTEM_TIME+time_hi2), DX
+-	CMPL	CX, DX
+-	JNE	wall
+-
+-	// w = DX:AX
+-	// convert to Unix epoch (but still 100ns units)
+-	#define delta 116444736000000000
+-	SUBL	$(delta & 0xFFFFFFFF), AX
+-	SBBL $(delta >> 32), DX
+-
+-	// nano/100 = DX:AX
+-	// split into two decimal halves by div 1e9.
+-	// (decimal point is two spots over from correct place,
+-	// but we avoid overflow in the high word.)
+-	MOVL	$1000000000, CX
+-	DIVL	CX
+-	MOVL	AX, DI
+-	MOVL	DX, SI
+-
+-	// DI = nano/100/1e9 = nano/1e11 = sec/100, DX = SI = nano/100%1e9
+-	// split DX into seconds and nanoseconds by div 1e7 magic multiply.
+-	MOVL	DX, AX
+-	MOVL	$1801439851, CX
+-	MULL	CX
+-	SHRL	$22, DX
+-	MOVL	DX, BX
+-	IMULL	$10000000, DX
+-	MOVL	SI, CX
+-	SUBL	DX, CX
+-
+-	// DI = sec/100 (still)
+-	// BX = (nano/100%1e9)/1e7 = (nano/1e9)%100 = sec%100
+-	// CX = (nano/100%1e9)%1e7 = (nano%1e9)/100 = nsec/100
+-	// store nsec for return
+-	IMULL	$100, CX
+-	MOVL	CX, nsec+8(FP)
+-
+-	// DI = sec/100 (still)
+-	// BX = sec%100
+-	// construct DX:AX = 64-bit sec and store for return
+-	MOVL	$0, DX
+-	MOVL	$100, AX
+-	MULL	DI
+-	ADDL	BX, AX
+-	ADCL	$0, DX
+-	MOVL	AX, sec+0(FP)
+-	MOVL	DX, sec+4(FP)
+-	RET
+-useQPC:
+-	JMP	runtime·nowQPC(SB)
+-	RET
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index 868fd9d20f..e5e2083be2 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -361,52 +361,6 @@ useQPC:
+ 	JMP	runtime·nanotimeQPC(SB)
+ 	RET
+ 
+-TEXT time·now(SB),NOSPLIT,$0-24
+-	CMPB	runtime·useQPCTime(SB), $0
+-	JNE	useQPC
+-	MOVQ	$_INTERRUPT_TIME, DI
+-loop:
+-	MOVL	time_hi1(DI), AX
+-	MOVL	time_lo(DI), BX
+-	MOVL	time_hi2(DI), CX
+-	CMPL	AX, CX
+-	JNE	loop
+-	SHLQ	$32, AX
+-	ORQ	BX, AX
+-	IMULQ	$100, AX
+-	MOVQ	AX, mono+16(FP)
+-
+-	MOVQ	$_SYSTEM_TIME, DI
+-wall:
+-	MOVL	time_hi1(DI), AX
+-	MOVL	time_lo(DI), BX
+-	MOVL	time_hi2(DI), CX
+-	CMPL	AX, CX
+-	JNE	wall
+-	SHLQ	$32, AX
+-	ORQ	BX, AX
+-	MOVQ	$116444736000000000, DI
+-	SUBQ	DI, AX
+-	IMULQ	$100, AX
+-
+-	// generated code for
+-	//	func f(x uint64) (uint64, uint64) { return x/1000000000, x%100000000 }
+-	// adapted to reduce duplication
+-	MOVQ	AX, CX
+-	MOVQ	$1360296554856532783, AX
+-	MULQ	CX
+-	ADDQ	CX, DX
+-	RCRQ	$1, DX
+-	SHRQ	$29, DX
+-	MOVQ	DX, sec+0(FP)
+-	IMULQ	$1000000000, DX
+-	SUBQ	DX, CX
+-	MOVL	CX, nsec+8(FP)
+-	RET
+-useQPC:
+-	JMP	runtime·nowQPC(SB)
+-	RET
+-
+ // func osSetupTLS(mp *m)
+ // Setup TLS. for use by needm on Windows.
+ TEXT runtime·osSetupTLS(SB),NOSPLIT,$0-8
+diff --git a/src/runtime/sys_windows_arm.s b/src/runtime/sys_windows_arm.s
+index 7676bc1ff8..189d2f6780 100644
+--- a/src/runtime/sys_windows_arm.s
++++ b/src/runtime/sys_windows_arm.s
+@@ -367,82 +367,6 @@ loop:
+ useQPC:
+ 	B	runtime·nanotimeQPC(SB)		// tail call
+ 
+-TEXT time·now(SB),NOSPLIT|NOFRAME,$0-20
+-	MOVW    $0, R0
+-	MOVB    runtime·useQPCTime(SB), R0
+-	CMP	$0, R0
+-	BNE	useQPC
+-	MOVW	$_INTERRUPT_TIME, R3
+-loop:
+-	MOVW	time_hi1(R3), R1
+-	MOVW	time_lo(R3), R0
+-	MOVW	time_hi2(R3), R2
+-	CMP	R1, R2
+-	BNE	loop
+-
+-	// wintime = R1:R0, multiply by 100
+-	MOVW	$100, R2
+-	MULLU	R0, R2, (R4, R3)    // R4:R3 = R1:R0 * R2
+-	MULA	R1, R2, R4, R4
+-
+-	// wintime*100 = R4:R3
+-	MOVW	R3, mono+12(FP)
+-	MOVW	R4, mono+16(FP)
+-
+-	MOVW	$_SYSTEM_TIME, R3
+-wall:
+-	MOVW	time_hi1(R3), R1
+-	MOVW	time_lo(R3), R0
+-	MOVW	time_hi2(R3), R2
+-	CMP	R1, R2
+-	BNE	wall
+-
+-	// w = R1:R0 in 100ns untis
+-	// convert to Unix epoch (but still 100ns units)
+-	#define delta 116444736000000000
+-	SUB.S   $(delta & 0xFFFFFFFF), R0
+-	SBC     $(delta >> 32), R1
+-
+-	// Convert to nSec
+-	MOVW    $100, R2
+-	MULLU   R0, R2, (R4, R3)    // R4:R3 = R1:R0 * R2
+-	MULA    R1, R2, R4, R4
+-	// w = R2:R1 in nSec
+-	MOVW    R3, R1	      // R4:R3 -> R2:R1
+-	MOVW    R4, R2
+-
+-	// multiply nanoseconds by reciprocal of 10**9 (scaled by 2**61)
+-	// to get seconds (96 bit scaled result)
+-	MOVW	$0x89705f41, R3		// 2**61 * 10**-9
+-	MULLU	R1,R3,(R6,R5)		// R7:R6:R5 = R2:R1 * R3
+-	MOVW	$0,R7
+-	MULALU	R2,R3,(R7,R6)
+-
+-	// unscale by discarding low 32 bits, shifting the rest by 29
+-	MOVW	R6>>29,R6		// R7:R6 = (R7:R6:R5 >> 61)
+-	ORR	R7<<3,R6
+-	MOVW	R7>>29,R7
+-
+-	// subtract (10**9 * sec) from nsec to get nanosecond remainder
+-	MOVW	$1000000000, R5	// 10**9
+-	MULLU	R6,R5,(R9,R8)   // R9:R8 = R7:R6 * R5
+-	MULA	R7,R5,R9,R9
+-	SUB.S	R8,R1		// R2:R1 -= R9:R8
+-	SBC	R9,R2
+-
+-	// because reciprocal was a truncated repeating fraction, quotient
+-	// may be slightly too small -- adjust to make remainder < 10**9
+-	CMP	R5,R1	// if remainder > 10**9
+-	SUB.HS	R5,R1   //    remainder -= 10**9
+-	ADD.HS	$1,R6	//    sec += 1
+-
+-	MOVW	R6,sec_lo+0(FP)
+-	MOVW	R7,sec_hi+4(FP)
+-	MOVW	R1,nsec+8(FP)
+-	RET
+-useQPC:
+-	B	runtime·nowQPC(SB)		// tail call
+-
+ // save_g saves the g register (R10) into thread local memory
+ // so that we can call externally compiled
+ // ARM code that will overwrite those registers.
+diff --git a/src/runtime/sys_windows_arm64.s b/src/runtime/sys_windows_arm64.s
+index aa9ea7ed98..33ac091e12 100644
+--- a/src/runtime/sys_windows_arm64.s
++++ b/src/runtime/sys_windows_arm64.s
+@@ -429,62 +429,6 @@ loop:
+ useQPC:
+ 	B	runtime·nanotimeQPC(SB)		// tail call
+ 
+-TEXT time·now(SB),NOSPLIT|NOFRAME,$0-24
+-	MOVB    runtime·useQPCTime(SB), R0
+-	CMP	$0, R0
+-	BNE	useQPC
+-	MOVD	$_INTERRUPT_TIME, R3
+-loop:
+-	MOVWU	time_hi1(R3), R1
+-	MOVWU	time_lo(R3), R0
+-	MOVWU	time_hi2(R3), R2
+-	CMP	R1, R2
+-	BNE	loop
+-
+-	// wintime = R1:R0, multiply by 100
+-	ORR	R1<<32, R0
+-	MOVD	$100, R1
+-	MUL	R1, R0
+-	MOVD	R0, mono+16(FP)
+-
+-	MOVD	$_SYSTEM_TIME, R3
+-wall:
+-	MOVWU	time_hi1(R3), R1
+-	MOVWU	time_lo(R3), R0
+-	MOVWU	time_hi2(R3), R2
+-	CMP	R1, R2
+-	BNE	wall
+-
+-	// w = R1:R0 in 100ns units
+-	// convert to Unix epoch (but still 100ns units)
+-	#define delta 116444736000000000
+-	ORR	R1<<32, R0
+-	SUB	$delta, R0
+-
+-	// Convert to nSec
+-	MOVD	$100, R1
+-	MUL	R1, R0
+-
+-	// Code stolen from compiler output for:
+-	//
+-	//	var x uint64
+-	//	func f() (sec uint64, nsec uint32) { return x / 1000000000, uint32(x % 100000000) }
+-	//
+-	LSR	$1, R0, R1
+-	MOVD	$-8543223759426509416, R2
+-	UMULH	R2, R1, R1
+-	LSR	$28, R1, R1
+-	MOVD	R1, sec+0(FP)
+-	MOVD	$-6067343680855748867, R1
+-	UMULH	R0, R1, R1
+-	LSR	$26, R1, R1
+-	MOVD	$100000000, R2
+-	MSUB	R1, R0, R2, R0
+-	MOVW	R0, nsec+8(FP)
+-	RET
+-useQPC:
+-	B	runtime·nowQPC(SB)		// tail call
+-
+ // This is called from rt0_go, which runs on the system stack
+ // using the initial stack allocated by the OS.
+ // It calls back into standard C using the BL below.
+diff --git a/src/runtime/time_windows_386.s b/src/runtime/time_windows_386.s
+new file mode 100644
+index 0000000000..d1235c9414
+--- /dev/null
++++ b/src/runtime/time_windows_386.s
+@@ -0,0 +1,82 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "textflag.h"
++#include "time_windows.h"
++
++TEXT time·now(SB),NOSPLIT,$0-20
++	CMPB	runtime·useQPCTime(SB), $0
++	JNE	useQPC
++loop:
++	MOVL	(_INTERRUPT_TIME+time_hi1), AX
++	MOVL	(_INTERRUPT_TIME+time_lo), CX
++	MOVL	(_INTERRUPT_TIME+time_hi2), DI
++	CMPL	AX, DI
++	JNE	loop
++
++	// w = DI:CX
++	// multiply by 100
++	MOVL	$100, AX
++	MULL	CX
++	IMULL	$100, DI
++	ADDL	DI, DX
++	// w*100 = DX:AX
++	MOVL	AX, mono+12(FP)
++	MOVL	DX, mono+16(FP)
++
++wall:
++	MOVL	(_SYSTEM_TIME+time_hi1), CX
++	MOVL	(_SYSTEM_TIME+time_lo), AX
++	MOVL	(_SYSTEM_TIME+time_hi2), DX
++	CMPL	CX, DX
++	JNE	wall
++
++	// w = DX:AX
++	// convert to Unix epoch (but still 100ns units)
++	#define delta 116444736000000000
++	SUBL	$(delta & 0xFFFFFFFF), AX
++	SBBL $(delta >> 32), DX
++
++	// nano/100 = DX:AX
++	// split into two decimal halves by div 1e9.
++	// (decimal point is two spots over from correct place,
++	// but we avoid overflow in the high word.)
++	MOVL	$1000000000, CX
++	DIVL	CX
++	MOVL	AX, DI
++	MOVL	DX, SI
++
++	// DI = nano/100/1e9 = nano/1e11 = sec/100, DX = SI = nano/100%1e9
++	// split DX into seconds and nanoseconds by div 1e7 magic multiply.
++	MOVL	DX, AX
++	MOVL	$1801439851, CX
++	MULL	CX
++	SHRL	$22, DX
++	MOVL	DX, BX
++	IMULL	$10000000, DX
++	MOVL	SI, CX
++	SUBL	DX, CX
++
++	// DI = sec/100 (still)
++	// BX = (nano/100%1e9)/1e7 = (nano/1e9)%100 = sec%100
++	// CX = (nano/100%1e9)%1e7 = (nano%1e9)/100 = nsec/100
++	// store nsec for return
++	IMULL	$100, CX
++	MOVL	CX, nsec+8(FP)
++
++	// DI = sec/100 (still)
++	// BX = sec%100
++	// construct DX:AX = 64-bit sec and store for return
++	MOVL	$0, DX
++	MOVL	$100, AX
++	MULL	DI
++	ADDL	BX, AX
++	ADCL	$0, DX
++	MOVL	AX, sec+0(FP)
++	MOVL	DX, sec+4(FP)
++	RET
++useQPC:
++	JMP	runtime·nowQPC(SB)
++	RET
+diff --git a/src/runtime/time_windows_amd64.s b/src/runtime/time_windows_amd64.s
+new file mode 100644
+index 0000000000..7d1fcfbcf5
+--- /dev/null
++++ b/src/runtime/time_windows_amd64.s
+@@ -0,0 +1,53 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "textflag.h"
++#include "time_windows.h"
++
++TEXT time·now(SB),NOSPLIT,$0-24
++	CMPB	runtime·useQPCTime(SB), $0
++	JNE	useQPC
++	MOVQ	$_INTERRUPT_TIME, DI
++loop:
++	MOVL	time_hi1(DI), AX
++	MOVL	time_lo(DI), BX
++	MOVL	time_hi2(DI), CX
++	CMPL	AX, CX
++	JNE	loop
++	SHLQ	$32, AX
++	ORQ	BX, AX
++	IMULQ	$100, AX
++	MOVQ	AX, mono+16(FP)
++
++	MOVQ	$_SYSTEM_TIME, DI
++wall:
++	MOVL	time_hi1(DI), AX
++	MOVL	time_lo(DI), BX
++	MOVL	time_hi2(DI), CX
++	CMPL	AX, CX
++	JNE	wall
++	SHLQ	$32, AX
++	ORQ	BX, AX
++	MOVQ	$116444736000000000, DI
++	SUBQ	DI, AX
++	IMULQ	$100, AX
++
++	// generated code for
++	//	func f(x uint64) (uint64, uint64) { return x/1000000000, x%100000000 }
++	// adapted to reduce duplication
++	MOVQ	AX, CX
++	MOVQ	$1360296554856532783, AX
++	MULQ	CX
++	ADDQ	CX, DX
++	RCRQ	$1, DX
++	SHRQ	$29, DX
++	MOVQ	DX, sec+0(FP)
++	IMULQ	$1000000000, DX
++	SUBQ	DX, CX
++	MOVL	CX, nsec+8(FP)
++	RET
++useQPC:
++	JMP	runtime·nowQPC(SB)
++	RET
+diff --git a/src/runtime/time_windows_arm.s b/src/runtime/time_windows_arm.s
+new file mode 100644
+index 0000000000..70d0b60f78
+--- /dev/null
++++ b/src/runtime/time_windows_arm.s
+@@ -0,0 +1,84 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "textflag.h"
++#include "time_windows.h"
++
++TEXT time·now(SB),NOSPLIT|NOFRAME,$0-20
++	MOVW    $0, R0
++	MOVB    runtime·useQPCTime(SB), R0
++	CMP	$0, R0
++	BNE	useQPC
++	MOVW	$_INTERRUPT_TIME, R3
++loop:
++	MOVW	time_hi1(R3), R1
++	MOVW	time_lo(R3), R0
++	MOVW	time_hi2(R3), R2
++	CMP	R1, R2
++	BNE	loop
++
++	// wintime = R1:R0, multiply by 100
++	MOVW	$100, R2
++	MULLU	R0, R2, (R4, R3)    // R4:R3 = R1:R0 * R2
++	MULA	R1, R2, R4, R4
++
++	// wintime*100 = R4:R3
++	MOVW	R3, mono+12(FP)
++	MOVW	R4, mono+16(FP)
++
++	MOVW	$_SYSTEM_TIME, R3
++wall:
++	MOVW	time_hi1(R3), R1
++	MOVW	time_lo(R3), R0
++	MOVW	time_hi2(R3), R2
++	CMP	R1, R2
++	BNE	wall
++
++	// w = R1:R0 in 100ns untis
++	// convert to Unix epoch (but still 100ns units)
++	#define delta 116444736000000000
++	SUB.S   $(delta & 0xFFFFFFFF), R0
++	SBC     $(delta >> 32), R1
++
++	// Convert to nSec
++	MOVW    $100, R2
++	MULLU   R0, R2, (R4, R3)    // R4:R3 = R1:R0 * R2
++	MULA    R1, R2, R4, R4
++	// w = R2:R1 in nSec
++	MOVW    R3, R1	      // R4:R3 -> R2:R1
++	MOVW    R4, R2
++
++	// multiply nanoseconds by reciprocal of 10**9 (scaled by 2**61)
++	// to get seconds (96 bit scaled result)
++	MOVW	$0x89705f41, R3		// 2**61 * 10**-9
++	MULLU	R1,R3,(R6,R5)		// R7:R6:R5 = R2:R1 * R3
++	MOVW	$0,R7
++	MULALU	R2,R3,(R7,R6)
++
++	// unscale by discarding low 32 bits, shifting the rest by 29
++	MOVW	R6>>29,R6		// R7:R6 = (R7:R6:R5 >> 61)
++	ORR	R7<<3,R6
++	MOVW	R7>>29,R7
++
++	// subtract (10**9 * sec) from nsec to get nanosecond remainder
++	MOVW	$1000000000, R5	// 10**9
++	MULLU	R6,R5,(R9,R8)   // R9:R8 = R7:R6 * R5
++	MULA	R7,R5,R9,R9
++	SUB.S	R8,R1		// R2:R1 -= R9:R8
++	SBC	R9,R2
++
++	// because reciprocal was a truncated repeating fraction, quotient
++	// may be slightly too small -- adjust to make remainder < 10**9
++	CMP	R5,R1	// if remainder > 10**9
++	SUB.HS	R5,R1   //    remainder -= 10**9
++	ADD.HS	$1,R6	//    sec += 1
++
++	MOVW	R6,sec_lo+0(FP)
++	MOVW	R7,sec_hi+4(FP)
++	MOVW	R1,nsec+8(FP)
++	RET
++useQPC:
++	B	runtime·nowQPC(SB)		// tail call
++
+diff --git a/src/runtime/time_windows_arm64.s b/src/runtime/time_windows_arm64.s
+new file mode 100644
+index 0000000000..61ce7577ce
+--- /dev/null
++++ b/src/runtime/time_windows_arm64.s
+@@ -0,0 +1,64 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "textflag.h"
++#include "time_windows.h"
++
++TEXT time·now(SB),NOSPLIT|NOFRAME,$0-24
++	MOVB    runtime·useQPCTime(SB), R0
++	CMP	$0, R0
++	BNE	useQPC
++	MOVD	$_INTERRUPT_TIME, R3
++loop:
++	MOVWU	time_hi1(R3), R1
++	MOVWU	time_lo(R3), R0
++	MOVWU	time_hi2(R3), R2
++	CMP	R1, R2
++	BNE	loop
++
++	// wintime = R1:R0, multiply by 100
++	ORR	R1<<32, R0
++	MOVD	$100, R1
++	MUL	R1, R0
++	MOVD	R0, mono+16(FP)
++
++	MOVD	$_SYSTEM_TIME, R3
++wall:
++	MOVWU	time_hi1(R3), R1
++	MOVWU	time_lo(R3), R0
++	MOVWU	time_hi2(R3), R2
++	CMP	R1, R2
++	BNE	wall
++
++	// w = R1:R0 in 100ns units
++	// convert to Unix epoch (but still 100ns units)
++	#define delta 116444736000000000
++	ORR	R1<<32, R0
++	SUB	$delta, R0
++
++	// Convert to nSec
++	MOVD	$100, R1
++	MUL	R1, R0
++
++	// Code stolen from compiler output for:
++	//
++	//	var x uint64
++	//	func f() (sec uint64, nsec uint32) { return x / 1000000000, uint32(x % 100000000) }
++	//
++	LSR	$1, R0, R1
++	MOVD	$-8543223759426509416, R2
++	UMULH	R2, R1, R1
++	LSR	$28, R1, R1
++	MOVD	R1, sec+0(FP)
++	MOVD	$-6067343680855748867, R1
++	UMULH	R0, R1, R1
++	LSR	$26, R1, R1
++	MOVD	$100000000, R2
++	MSUB	R1, R0, R2, R0
++	MOVW	R0, nsec+8(FP)
++	RET
++useQPC:
++	B	runtime·nowQPC(SB)		// tail call
++

@@ -16,7 +16,7 @@ Date:   Mon Apr 2 17:33:38 2018 -0700
     Change-Id: Ibe5b5fd30609c684367207df701f9a1bfa82867f
     Reviewed-on: https://go-review.googlesource.com/104275
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go |  2 +-
  src/cmd/compile/internal/gc/bimport.go | 13 +++---------
  src/cmd/compile/internal/gc/closure.go |  2 +-
@@ -25,3 +25,264 @@ Date:   Mon Apr 2 17:33:38 2018 -0700
  src/cmd/compile/internal/gc/noder.go   |  8 +++----
  src/cmd/compile/internal/gc/subr.go    |  2 +-
  7 files changed, 31 insertions(+), 55 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 63de140372..982f11fb88 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -1454,7 +1454,7 @@ func (p *exporter) stmt(n *Node) {
+ 	switch op := n.Op; op {
+ 	case ODCL:
+ 		p.op(ODCL)
+-		p.pos(n)
++		p.pos(n.Left) // use declared variable's pos
+ 		p.sym(n.Left)
+ 		p.typ(n.Left.Type)
+ 
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index f59cda6301..176da7f759 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -339,7 +339,7 @@ func (p *importer) obj(tag int) {
+ 		sym := p.qualifiedName()
+ 		typ := p.typ()
+ 		val := p.value(typ)
+-		importconst(p.imp, sym, idealType(typ), npos(pos, nodlit(val)))
++		importconst(pos, p.imp, sym, idealType(typ), val)
+ 
+ 	case aliasTag:
+ 		pos := p.pos()
+@@ -376,11 +376,7 @@ func (p *importer) obj(tag int) {
+ 
+ 		n := newfuncnamel(pos, sym)
+ 		n.Type = sig
+-		// TODO(mdempsky): Stop clobbering n.Pos in declare.
+-		savedlineno := lineno
+-		lineno = pos
+ 		declare(n, PFUNC)
+-		lineno = savedlineno
+ 		p.funcList = append(p.funcList, n)
+ 		importlist = append(importlist, n)
+ 
+@@ -501,11 +497,7 @@ func (p *importer) typ() *types.Type {
+ 
+ 		// read underlying type
+ 		t0 := p.typ()
+-		// TODO(mdempsky): Stop clobbering n.Pos in declare.
+-		savedlineno := lineno
+-		lineno = pos
+ 		p.importtype(t, t0)
+-		lineno = savedlineno
+ 
+ 		// interfaces don't have associated methods
+ 		if t0.IsInterface() {
+@@ -781,6 +773,7 @@ func (p *importer) param(named bool) *types.Field {
+ 			pkg = p.pkg()
+ 		}
+ 		f.Sym = pkg.Lookup(name)
++		// TODO(mdempsky): Need param position.
+ 		f.Nname = asTypesNode(newname(f.Sym))
+ 	}
+ 
+@@ -1109,7 +1102,7 @@ func (p *importer) node() *Node {
+ 			p.bool()
+ 		}
+ 		pos := p.pos()
+-		lhs := dclname(p.sym())
++		lhs := npos(pos, dclname(p.sym()))
+ 		typ := typenod(p.typ())
+ 		return npos(pos, liststmt(variter([]*Node{lhs}, typ, nil))) // TODO(gri) avoid list creation
+ 
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 2d7688d8ef..f760c36b96 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -16,7 +16,7 @@ func (p *noder) funcLit(expr *syntax.FuncLit) *Node {
+ 
+ 	xfunc := p.nod(expr, ODCLFUNC, nil, nil)
+ 	xfunc.Func.SetIsHiddenClosure(Curfn != nil)
+-	xfunc.Func.Nname = newfuncname(nblank.Sym) // filled in by typecheckclosure
++	xfunc.Func.Nname = p.setlineno(expr, newfuncname(nblank.Sym)) // filled in by typecheckclosure
+ 	xfunc.Func.Nname.Name.Param.Ntype = xtype
+ 	xfunc.Func.Nname.Name.Defn = xfunc
+ 
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 147664e8dd..d70812934d 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -26,33 +26,28 @@ func testdclstack() {
+ 	}
+ }
+ 
+-// redeclare emits a diagnostic about symbol s being redeclared somewhere.
+-func redeclare(s *types.Sym, where string) {
++// redeclare emits a diagnostic about symbol s being redeclared at pos.
++func redeclare(pos src.XPos, s *types.Sym, where string) {
+ 	if !s.Lastlineno.IsKnown() {
+-		var tmp string
+-		if s.Origpkg != nil {
+-			tmp = s.Origpkg.Path
+-		} else {
+-			tmp = s.Pkg.Path
++		pkg := s.Origpkg
++		if pkg == nil {
++			pkg = s.Pkg
+ 		}
+-		pkgstr := tmp
+-		yyerror("%v redeclared %s\n"+
+-			"\tprevious declaration during import %q", s, where, pkgstr)
++		yyerrorl(pos, "%v redeclared %s\n"+
++			"\tprevious declaration during import %q", s, where, pkg.Path)
+ 	} else {
+-		line1 := lineno
+-		line2 := s.Lastlineno
++		prevPos := s.Lastlineno
+ 
+ 		// When an import and a declaration collide in separate files,
+ 		// present the import as the "redeclared", because the declaration
+ 		// is visible where the import is, but not vice versa.
+ 		// See issue 4510.
+ 		if s.Def == nil {
+-			line2 = line1
+-			line1 = s.Lastlineno
++			pos, prevPos = prevPos, pos
+ 		}
+ 
+-		yyerrorl(line1, "%v redeclared %s\n"+
+-			"\tprevious declaration at %v", s, where, linestr(line2))
++		yyerrorl(pos, "%v redeclared %s\n"+
++			"\tprevious declaration at %v", s, where, linestr(prevPos))
+ 	}
+ }
+ 
+@@ -77,25 +72,26 @@ func declare(n *Node, ctxt Class) {
+ 		// named OLITERAL needs Name; most OLITERALs don't.
+ 		n.Name = new(Name)
+ 	}
+-	n.Pos = lineno
++
+ 	s := n.Sym
+ 
+ 	// kludgy: typecheckok means we're past parsing. Eg genwrapper may declare out of package names later.
+ 	if !inimport && !typecheckok && s.Pkg != localpkg {
+-		yyerror("cannot declare name %v", s)
++		yyerrorl(n.Pos, "cannot declare name %v", s)
+ 	}
+ 
+ 	gen := 0
+ 	if ctxt == PEXTERN {
+ 		if s.Name == "init" {
+-			yyerror("cannot declare init - must be func")
++			yyerrorl(n.Pos, "cannot declare init - must be func")
+ 		}
+ 		if s.Name == "main" && localpkg.Name == "main" {
+-			yyerror("cannot declare main - must be func")
++			yyerrorl(n.Pos, "cannot declare main - must be func")
+ 		}
+ 		externdcl = append(externdcl, n)
+ 	} else {
+ 		if Curfn == nil && ctxt == PAUTO {
++			lineno = n.Pos
+ 			Fatalf("automatic outside function")
+ 		}
+ 		if Curfn != nil {
+@@ -120,7 +116,7 @@ func declare(n *Node, ctxt Class) {
+ 		// functype will print errors about duplicate function arguments.
+ 		// Don't repeat the error here.
+ 		if ctxt != PPARAM && ctxt != PPARAMOUT {
+-			redeclare(s, "in this block")
++			redeclare(n.Pos, s, "in this block")
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 4ea999109b..9990b590a4 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -124,7 +124,7 @@ func dumpexport(bout *bio.Writer) {
+ func importsym(pkg *types.Pkg, s *types.Sym, op Op) {
+ 	if asNode(s.Def) != nil && asNode(s.Def).Op != op {
+ 		pkgstr := fmt.Sprintf("during import %q", pkg.Path)
+-		redeclare(s, pkgstr)
++		redeclare(lineno, s, pkgstr)
+ 	}
+ }
+ 
+@@ -146,27 +146,16 @@ func pkgtype(pos src.XPos, pkg *types.Pkg, s *types.Sym) *types.Type {
+ 	return asNode(s.Def).Type
+ }
+ 
+-// importconst declares symbol s as an imported constant with type t and value n.
++// importconst declares symbol s as an imported constant with type t and value val.
+ // pkg is the package being imported
+-func importconst(pkg *types.Pkg, s *types.Sym, t *types.Type, n *Node) {
++func importconst(pos src.XPos, pkg *types.Pkg, s *types.Sym, t *types.Type, val Val) {
+ 	importsym(pkg, s, OLITERAL)
+-	n = convlit(n, t)
+-
+ 	if asNode(s.Def) != nil { // TODO: check if already the same.
+ 		return
+ 	}
+ 
+-	if n.Op != OLITERAL {
+-		yyerror("expression must be a constant")
+-		return
+-	}
+-
+-	if n.Sym != nil {
+-		n1 := *n
+-		n = &n1
+-	}
+-
+-	n.Orig = newname(s)
++	n := npos(pos, nodlit(val))
++	n = convlit1(n, t, false, reuseOK)
+ 	n.Sym = s
+ 	declare(n, PEXTERN)
+ 
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 9947f248be..03d412bfbb 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -313,8 +313,7 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
+ 		return
+ 	}
+ 	if my.Def != nil {
+-		lineno = pack.Pos
+-		redeclare(my, "as imported package name")
++		redeclare(pack.Pos, my, "as imported package name")
+ 	}
+ 	my.Def = asTypesNode(pack)
+ 	my.Lastlineno = pack.Pos
+@@ -425,8 +424,7 @@ func (p *noder) declNames(names []*syntax.Name) []*Node {
+ }
+ 
+ func (p *noder) declName(name *syntax.Name) *Node {
+-	// TODO(mdempsky): Set lineno?
+-	return dclname(p.name(name))
++	return p.setlineno(name, dclname(p.name(name)))
+ }
+ 
+ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
+@@ -452,7 +450,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
+ 		name = nblank.Sym // filled in by typecheckfunc
+ 	}
+ 
+-	f.Func.Nname = newfuncname(name)
++	f.Func.Nname = p.setlineno(fun.Name, newfuncname(name))
+ 	f.Func.Nname.Name.Defn = f
+ 	f.Func.Nname.Name.Param.Ntype = t
+ 
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 8679d0ac8d..a6d868a06a 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -268,7 +268,7 @@ func importdot(opkg *types.Pkg, pack *Node) {
+ 		s1 := lookup(s.Name)
+ 		if s1.Def != nil {
+ 			pkgerror := fmt.Sprintf("during import %q", opkg.Path)
+-			redeclare(s1, pkgerror)
++			redeclare(lineno, s1, pkgerror)
+ 			continue
+ 		}
+ 

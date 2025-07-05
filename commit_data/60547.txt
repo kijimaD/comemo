@@ -18,10 +18,327 @@ Date:   Mon Jul 29 17:40:10 2024 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/601715
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  .../compile/testdata/script/script_test_basics.txt |   1 +
  src/cmd/go/script_test.go                          |   2 +-
  src/cmd/go/scriptconds_test.go                     |  88 +---------------
  src/cmd/internal/script/scripttest/conditions.go   | 116 +++++++++++++++++++++
  src/cmd/internal/script/scripttest/run.go          |  12 +--
  5 files changed, 126 insertions(+), 93 deletions(-)
+
+diff --git a/src/cmd/compile/testdata/script/script_test_basics.txt b/src/cmd/compile/testdata/script/script_test_basics.txt
+index ecc28951a1..7fe99dbbc2 100644
+--- a/src/cmd/compile/testdata/script/script_test_basics.txt
++++ b/src/cmd/compile/testdata/script/script_test_basics.txt
+@@ -4,6 +4,7 @@
+ go build
+ [!cgo] skip
+ cc -c testdata/mumble.c
++[GOEXPERIMENT:fieldtrack] help exec
+ 
+ -- go.mod --
+ module main
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 36605bb66c..09232100f5 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -89,7 +89,7 @@ func TestScript(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	engine := &script.Engine{
+-		Conds: scriptConditions(),
++		Conds: scriptConditions(t),
+ 		Cmds:  scriptCommands(quitSignal(), gracePeriod),
+ 		Quiet: !testing.Verbose(),
+ 	}
+diff --git a/src/cmd/go/scriptconds_test.go b/src/cmd/go/scriptconds_test.go
+index b4f139a983..262214f6a9 100644
+--- a/src/cmd/go/scriptconds_test.go
++++ b/src/cmd/go/scriptconds_test.go
+@@ -10,21 +10,21 @@ import (
+ 	"cmd/internal/script/scripttest"
+ 	"errors"
+ 	"fmt"
+-	"internal/buildcfg"
+-	"internal/platform"
+ 	"internal/testenv"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
+ 	"runtime/debug"
+-	"strings"
+ 	"sync"
++	"testing"
+ )
+ 
+-func scriptConditions() map[string]script.Cond {
++func scriptConditions(t *testing.T) map[string]script.Cond {
+ 	conds := scripttest.DefaultConds()
+ 
++	scripttest.AddToolChainScriptConditions(t, conds, goHostOS, goHostArch)
++
+ 	add := func(name string, cond script.Cond) {
+ 		if _, ok := conds[name]; ok {
+ 			panic(fmt.Sprintf("condition %q is already registered", name))
+@@ -37,26 +37,10 @@ func scriptConditions() map[string]script.Cond {
+ 	}
+ 
+ 	add("abscc", script.Condition("default $CC path is absolute and exists", defaultCCIsAbsolute))
+-	add("asan", sysCondition("-asan", platform.ASanSupported, true))
+-	add("buildmode", script.PrefixCondition("go supports -buildmode=<suffix>", hasBuildmode))
+ 	add("case-sensitive", script.OnceCondition("$WORK filesystem is case-sensitive", isCaseSensitive))
+ 	add("cc", script.PrefixCondition("go env CC = <suffix> (ignoring the go/env file)", ccIs))
+-	add("cgo", script.BoolCondition("host CGO_ENABLED", testenv.HasCGO()))
+-	add("cgolinkext", script.Condition("platform requires external linking for cgo", cgoLinkExt))
+-	add("cross", script.BoolCondition("cmd/go GOOS/GOARCH != GOHOSTOS/GOHOSTARCH", goHostOS != runtime.GOOS || goHostArch != runtime.GOARCH))
+-	add("fuzz", sysCondition("-fuzz", platform.FuzzSupported, false))
+-	add("fuzz-instrumented", sysCondition("-fuzz with instrumentation", platform.FuzzInstrumented, false))
+ 	add("git", lazyBool("the 'git' executable exists and provides the standard CLI", hasWorkingGit))
+-	add("GODEBUG", script.PrefixCondition("GODEBUG contains <suffix>", hasGodebug))
+-	add("GOEXPERIMENT", script.PrefixCondition("GOEXPERIMENT <suffix> is enabled", hasGoexperiment))
+-	add("go-builder", script.BoolCondition("GO_BUILDER_NAME is non-empty", testenv.Builder() != ""))
+-	add("link", lazyBool("testenv.HasLink()", testenv.HasLink))
+-	add("msan", sysCondition("-msan", platform.MSanSupported, true))
+-	add("mustlinkext", script.Condition("platform always requires external linking", mustLinkExt))
+ 	add("net", script.PrefixCondition("can connect to external network host <suffix>", hasNet))
+-	add("pielinkext", script.Condition("platform requires external linking for PIE", pieLinkExt))
+-	add("race", sysCondition("-race", platform.RaceDetectorSupported, true))
+-	add("symlink", lazyBool("testenv.HasSymlink()", testenv.HasSymlink))
+ 	add("trimpath", script.OnceCondition("test binary was built with -trimpath", isTrimpath))
+ 
+ 	return conds
+@@ -84,23 +68,6 @@ func ccIs(s *script.State, want string) (bool, error) {
+ 	return cfg.DefaultCC(GOOS, GOARCH) == want, nil
+ }
+ 
+-func sysCondition(flag string, f func(goos, goarch string) bool, needsCgo bool) script.Cond {
+-	return script.Condition(
+-		"GOOS/GOARCH supports "+flag,
+-		func(s *script.State) (bool, error) {
+-			GOOS, _ := s.LookupEnv("GOOS")
+-			GOARCH, _ := s.LookupEnv("GOARCH")
+-			cross := goHostOS != GOOS || goHostArch != GOARCH
+-			return (!needsCgo || (testenv.HasCGO() && !cross)) && f(GOOS, GOARCH), nil
+-		})
+-}
+-
+-func hasBuildmode(s *script.State, mode string) (bool, error) {
+-	GOOS, _ := s.LookupEnv("GOOS")
+-	GOARCH, _ := s.LookupEnv("GOARCH")
+-	return platform.BuildModeSupported(runtime.Compiler, mode, GOOS, GOARCH), nil
+-}
+-
+ var scriptNetEnabled sync.Map // testing.TB → already enabled
+ 
+ func hasNet(s *script.State, host string) (bool, error) {
+@@ -137,35 +104,6 @@ func hasNet(s *script.State, host string) (bool, error) {
+ 	return true, nil
+ }
+ 
+-func hasGodebug(s *script.State, value string) (bool, error) {
+-	godebug, _ := s.LookupEnv("GODEBUG")
+-	for _, p := range strings.Split(godebug, ",") {
+-		if strings.TrimSpace(p) == value {
+-			return true, nil
+-		}
+-	}
+-	return false, nil
+-}
+-
+-func hasGoexperiment(s *script.State, value string) (bool, error) {
+-	GOOS, _ := s.LookupEnv("GOOS")
+-	GOARCH, _ := s.LookupEnv("GOARCH")
+-	goexp, _ := s.LookupEnv("GOEXPERIMENT")
+-	flags, err := buildcfg.ParseGOEXPERIMENT(GOOS, GOARCH, goexp)
+-	if err != nil {
+-		return false, err
+-	}
+-	for _, exp := range flags.All() {
+-		if value == exp {
+-			return true, nil
+-		}
+-		if strings.TrimPrefix(value, "no") == strings.TrimPrefix(exp, "no") {
+-			return false, nil
+-		}
+-	}
+-	return false, fmt.Errorf("unrecognized GOEXPERIMENT %q", value)
+-}
+-
+ func isCaseSensitive() (bool, error) {
+ 	tmpdir, err := os.MkdirTemp(testTmpDir, "case-sensitive")
+ 	if err != nil {
+@@ -213,21 +151,3 @@ func hasWorkingGit() bool {
+ 	_, err := exec.LookPath("git")
+ 	return err == nil
+ }
+-
+-func cgoLinkExt(s *script.State) (bool, error) {
+-	GOOS, _ := s.LookupEnv("GOOS")
+-	GOARCH, _ := s.LookupEnv("GOARCH")
+-	return platform.MustLinkExternal(GOOS, GOARCH, true), nil
+-}
+-
+-func mustLinkExt(s *script.State) (bool, error) {
+-	GOOS, _ := s.LookupEnv("GOOS")
+-	GOARCH, _ := s.LookupEnv("GOARCH")
+-	return platform.MustLinkExternal(GOOS, GOARCH, false), nil
+-}
+-
+-func pieLinkExt(s *script.State) (bool, error) {
+-	GOOS, _ := s.LookupEnv("GOOS")
+-	GOARCH, _ := s.LookupEnv("GOARCH")
+-	return !platform.InternalLinkPIESupported(GOOS, GOARCH), nil
+-}
+diff --git a/src/cmd/internal/script/scripttest/conditions.go b/src/cmd/internal/script/scripttest/conditions.go
+new file mode 100644
+index 0000000000..66dbfc2ac6
+--- /dev/null
++++ b/src/cmd/internal/script/scripttest/conditions.go
+@@ -0,0 +1,116 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package scripttest
++
++import (
++	"cmd/internal/script"
++	"fmt"
++	"internal/buildcfg"
++	"internal/platform"
++	"internal/testenv"
++	"runtime"
++	"strings"
++	"testing"
++)
++
++// AddToolChainConditions accepts a script.Cond map and adds into it a
++// set of commonly used conditions for doing toolchains testing,
++// including whether the platform supports cgo, a buildmode condition,
++// support for GOEXPERIMENT testing, etc. Callers must also pass in
++// current GOHOSTOOS/GOHOSTARCH settings, since some of the conditions
++// introduced can be influenced by them.
++func AddToolChainScriptConditions(t *testing.T, conds map[string]script.Cond, goHostOS, goHostArch string) {
++	add := func(name string, cond script.Cond) {
++		if _, ok := conds[name]; ok {
++			t.Fatalf("condition %q is already registered", name)
++		}
++		conds[name] = cond
++	}
++
++	lazyBool := func(summary string, f func() bool) script.Cond {
++		return script.OnceCondition(summary, func() (bool, error) { return f(), nil })
++	}
++
++	add("asan", sysCondition("-asan", platform.ASanSupported, true, goHostOS, goHostArch))
++	add("buildmode", script.PrefixCondition("go supports -buildmode=<suffix>", hasBuildmode))
++	add("cgo", script.BoolCondition("host CGO_ENABLED", testenv.HasCGO()))
++	add("cgolinkext", script.Condition("platform requires external linking for cgo", cgoLinkExt))
++	add("cross", script.BoolCondition("cmd/go GOOS/GOARCH != GOHOSTOS/GOHOSTARCH", goHostOS != runtime.GOOS || goHostArch != runtime.GOARCH))
++	add("fuzz", sysCondition("-fuzz", platform.FuzzSupported, false, goHostOS, goHostArch))
++	add("fuzz-instrumented", sysCondition("-fuzz with instrumentation", platform.FuzzInstrumented, false, goHostOS, goHostArch))
++	add("GODEBUG", script.PrefixCondition("GODEBUG contains <suffix>", hasGodebug))
++	add("GOEXPERIMENT", script.PrefixCondition("GOEXPERIMENT <suffix> is enabled", hasGoexperiment))
++	add("go-builder", script.BoolCondition("GO_BUILDER_NAME is non-empty", testenv.Builder() != ""))
++	add("link", lazyBool("testenv.HasLink()", testenv.HasLink))
++	add("msan", sysCondition("-msan", platform.MSanSupported, true, goHostOS, goHostArch))
++	add("mustlinkext", script.Condition("platform always requires external linking", mustLinkExt))
++	add("pielinkext", script.Condition("platform requires external linking for PIE", pieLinkExt))
++	add("race", sysCondition("-race", platform.RaceDetectorSupported, true, goHostOS, goHostArch))
++	add("symlink", lazyBool("testenv.HasSymlink()", testenv.HasSymlink))
++}
++
++func sysCondition(flag string, f func(goos, goarch string) bool, needsCgo bool, goHostOS, goHostArch string) script.Cond {
++	return script.Condition(
++		"GOOS/GOARCH supports "+flag,
++		func(s *script.State) (bool, error) {
++			GOOS, _ := s.LookupEnv("GOOS")
++			GOARCH, _ := s.LookupEnv("GOARCH")
++			cross := goHostOS != GOOS || goHostArch != GOARCH
++			return (!needsCgo || (testenv.HasCGO() && !cross)) && f(GOOS, GOARCH), nil
++		})
++}
++
++func hasBuildmode(s *script.State, mode string) (bool, error) {
++	GOOS, _ := s.LookupEnv("GOOS")
++	GOARCH, _ := s.LookupEnv("GOARCH")
++	return platform.BuildModeSupported(runtime.Compiler, mode, GOOS, GOARCH), nil
++}
++
++func cgoLinkExt(s *script.State) (bool, error) {
++	GOOS, _ := s.LookupEnv("GOOS")
++	GOARCH, _ := s.LookupEnv("GOARCH")
++	return platform.MustLinkExternal(GOOS, GOARCH, true), nil
++}
++
++func mustLinkExt(s *script.State) (bool, error) {
++	GOOS, _ := s.LookupEnv("GOOS")
++	GOARCH, _ := s.LookupEnv("GOARCH")
++	return platform.MustLinkExternal(GOOS, GOARCH, false), nil
++}
++
++func pieLinkExt(s *script.State) (bool, error) {
++	GOOS, _ := s.LookupEnv("GOOS")
++	GOARCH, _ := s.LookupEnv("GOARCH")
++	return !platform.InternalLinkPIESupported(GOOS, GOARCH), nil
++}
++
++func hasGodebug(s *script.State, value string) (bool, error) {
++	godebug, _ := s.LookupEnv("GODEBUG")
++	for _, p := range strings.Split(godebug, ",") {
++		if strings.TrimSpace(p) == value {
++			return true, nil
++		}
++	}
++	return false, nil
++}
++
++func hasGoexperiment(s *script.State, value string) (bool, error) {
++	GOOS, _ := s.LookupEnv("GOOS")
++	GOARCH, _ := s.LookupEnv("GOARCH")
++	goexp, _ := s.LookupEnv("GOEXPERIMENT")
++	flags, err := buildcfg.ParseGOEXPERIMENT(GOOS, GOARCH, goexp)
++	if err != nil {
++		return false, err
++	}
++	for _, exp := range flags.All() {
++		if value == exp {
++			return true, nil
++		}
++		if strings.TrimPrefix(value, "no") == strings.TrimPrefix(exp, "no") {
++			return false, nil
++		}
++	}
++	return false, fmt.Errorf("unrecognized GOEXPERIMENT %q", value)
++}
+diff --git a/src/cmd/internal/script/scripttest/run.go b/src/cmd/internal/script/scripttest/run.go
+index d2f3ed8ca9..29eb6f88f2 100644
+--- a/src/cmd/internal/script/scripttest/run.go
++++ b/src/cmd/internal/script/scripttest/run.go
+@@ -71,13 +71,6 @@ func RunToolScriptTest(t *testing.T, repls []ToolReplacement, pattern string) {
+ 		cmds[name] = cmd
+ 	}
+ 
+-	addcond := func(name string, cond script.Cond) {
+-		if _, ok := conds[name]; ok {
+-			panic(fmt.Sprintf("condition %q is already registered", name))
+-		}
+-		conds[name] = cond
+-	}
+-
+ 	prependToPath := func(env []string, dir string) {
+ 		found := false
+ 		for k := range env {
+@@ -135,7 +128,10 @@ func RunToolScriptTest(t *testing.T, repls []ToolReplacement, pattern string) {
+ 	cccmd := script.Program(goEnv("CC"), interrupt, gracePeriod)
+ 	addcmd("go", gocmd)
+ 	addcmd("cc", cccmd)
+-	addcond("cgo", script.BoolCondition("host CGO_ENABLED", testenv.HasCGO()))
++
++	// Add various helpful conditions related to builds and toolchain use.
++	goHostOS, goHostArch := goEnv("GOHOSTOS"), goEnv("GOHOSTARCH")
++	AddToolChainScriptConditions(t, conds, goHostOS, goHostArch)
+ 
+ 	// Environment setup.
+ 	env := os.Environ()

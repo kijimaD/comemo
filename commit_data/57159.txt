@@ -11,7 +11,34 @@ Date:   Thu Jun 29 16:06:19 2023 +0300
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/env_test.go         | 2 +-
  src/syscall/env_windows.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/env_test.go b/src/os/env_test.go
+index 1b9e26594c..5809f4b866 100644
+--- a/src/os/env_test.go
++++ b/src/os/env_test.go
+@@ -130,7 +130,7 @@ func TestClearenv(t *testing.T) {
+ 	defer func(origEnv []string) {
+ 		for _, pair := range origEnv {
+ 			// Environment variables on Windows can begin with =
+-			// https://blogs.msdn.com/b/oldnewthing/archive/2010/05/06/10008132.aspx
++			// https://devblogs.microsoft.com/oldnewthing/20100506-00/?p=14133
+ 			i := strings.Index(pair[1:], "=") + 1
+ 			if err := Setenv(pair[:i], pair[i+1:]); err != nil {
+ 				t.Errorf("Setenv(%q, %q) failed during reset: %v", pair[:i], pair[i+1:], err)
+diff --git a/src/syscall/env_windows.go b/src/syscall/env_windows.go
+index 20d74b51e0..220a005e1a 100644
+--- a/src/syscall/env_windows.go
++++ b/src/syscall/env_windows.go
+@@ -62,7 +62,7 @@ func Clearenv() {
+ 	for _, s := range Environ() {
+ 		// Environment variables can begin with =
+ 		// so start looking for the separator = at j=1.
+-		// https://blogs.msdn.com/b/oldnewthing/archive/2010/05/06/10008132.aspx
++		// https://devblogs.microsoft.com/oldnewthing/20100506-00/?p=14133
+ 		for j := 1; j < len(s); j++ {
+ 			if s[j] == '=' {
+ 				Unsetenv(s[0:j])

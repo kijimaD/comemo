@@ -13,6 +13,19 @@ Date:   Fri Jul 1 08:47:41 2016 -0500
     Change-Id: I3d39aba8d026b40fc445244d6d01d8bc1979d1e4
     Reviewed-on: https://go-review.googlesource.com/24645
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/vcs.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index df37c1a1f1..53ddbe694e 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -858,7 +858,6 @@ var vcsPaths = []*vcsPath{
+ 		re:     `^(?P<root>git\.openstack\.org/[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+)(\.git)?(/[A-Za-z0-9_.\-]+)*$`,
+ 		vcs:    "git",
+ 		repo:   "https://{root}",
+-		check:  noVCSSuffix,
+ 	},
+ 
+ 	// General syntax for any server.

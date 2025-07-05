@@ -13,7 +13,76 @@ Date:   Thu Dec 3 16:00:04 2015 -0500
     Change-Id: I41b371f5b1611f1e56d93623888413d07d4ec878
     Reviewed-on: https://go-review.googlesource.com/17381
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/mail/message.go      |  7 +++----
  src/net/mail/message_test.go | 27 ++++++++++++++++++++++++++-
  2 files changed, 29 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index 571c95ddc9..923630c49c 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -392,10 +392,9 @@ func (p *addrParser) consumePhrase() (phrase string, err error) {
+ 			// We actually parse dot-atom here to be more permissive
+ 			// than what RFC 5322 specifies.
+ 			word, err = p.consumeAtom(true, true)
+-		}
+-
+-		if err == nil {
+-			word, err = p.decodeRFC2047Word(word)
++			if err == nil {
++				word, err = p.decodeRFC2047Word(word)
++			}
+ 		}
+ 
+ 		if err != nil {
+diff --git a/src/net/mail/message_test.go b/src/net/mail/message_test.go
+index 624ed6b26f..4e718e2636 100644
+--- a/src/net/mail/message_test.go
++++ b/src/net/mail/message_test.go
+@@ -457,7 +457,7 @@ func TestAddressParser(t *testing.T) {
+ 	}
+ }
+ 
+-func TestAddressFormatting(t *testing.T) {
++func TestAddressString(t *testing.T) {
+ 	tests := []struct {
+ 		addr *Address
+ 		exp  string
+@@ -503,11 +503,36 @@ func TestAddressFormatting(t *testing.T) {
+ 			&Address{Name: "Böb, Jacöb", Address: "bob@example.com"},
+ 			`=?utf-8?b?QsO2YiwgSmFjw7Zi?= <bob@example.com>`,
+ 		},
++		{
++			&Address{Name: "=??Q?x?=", Address: "hello@world.com"},
++			`"=??Q?x?=" <hello@world.com>`,
++		},
++		{
++			&Address{Name: "=?hello", Address: "hello@world.com"},
++			`"=?hello" <hello@world.com>`,
++		},
++		{
++			&Address{Name: "world?=", Address: "hello@world.com"},
++			`"world?=" <hello@world.com>`,
++		},
+ 	}
+ 	for _, test := range tests {
+ 		s := test.addr.String()
+ 		if s != test.exp {
+ 			t.Errorf("Address%+v.String() = %v, want %v", *test.addr, s, test.exp)
++			continue
++		}
++
++		// Check round-trip.
++		if test.addr.Address != "" && test.addr.Address != "@" {
++			a, err := ParseAddress(test.exp)
++			if err != nil {
++				t.Errorf("ParseAddress(%#q): %v", test.exp, err)
++				continue
++			}
++			if a.Name != test.addr.Name || a.Address != test.addr.Address {
++				t.Errorf("ParseAddress(%#q) = %#v, want %#v", test.exp, a, test.addr)
++			}
+ 		}
+ 	}
+ }

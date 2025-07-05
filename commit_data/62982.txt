@@ -16,6 +16,22 @@ Date:   Fri Apr 25 14:28:52 2025 +0300
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/mgcsweep.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 046dd798c8..f4d43e73f2 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -313,6 +313,10 @@ func bgsweep(c chan int) {
+ 			// gosweepone returning ^0 above
+ 			// and the lock being acquired.
+ 			unlock(&sweep.lock)
++			// This goroutine must preempt when we have no work to do
++			// but isSweepDone returns false because of another existing sweeper.
++			// See issue #73499.
++			goschedIfBusy()
+ 			continue
+ 		}
+ 		sweep.parked = true

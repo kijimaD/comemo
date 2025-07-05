@@ -16,6 +16,22 @@ Date:   Fri Apr 6 21:02:01 2018 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/macho.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 12037069c8..db933a6767 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -438,6 +438,10 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string)
+ 		msect.flag |= S_ATTR_SOME_INSTRUCTIONS
+ 	}
+ 
++	if sect.Name == ".text" {
++		msect.flag |= S_ATTR_PURE_INSTRUCTIONS
++	}
++
+ 	if sect.Name == ".plt" {
+ 		msect.name = "__symbol_stub1"
+ 		msect.flag = S_ATTR_PURE_INSTRUCTIONS | S_ATTR_SOME_INSTRUCTIONS | S_SYMBOL_STUBS

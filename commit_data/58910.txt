@@ -13,6 +13,20 @@ Date:   Tue Jan 9 02:39:36 2024 +0000
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Bypass: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/ir/node.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 6513386f03..21d181dba6 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -152,7 +152,7 @@ const (
+ 	// OCALLFUNC, OCALLMETH, and OCALLINTER have the same structure.
+ 	// Prior to walk, they are: X(Args), where Args is all regular arguments.
+ 	// After walk, if any argument whose evaluation might requires temporary variable,
+-	// that temporary variable will be pushed to Init, Args will contains an updated
++	// that temporary variable will be pushed to Init, Args will contain an updated
+ 	// set of arguments.
+ 	OCALLFUNC  // X(Args) (function call f(args))
+ 	OCALLMETH  // X(Args) (direct method call x.Method(args))

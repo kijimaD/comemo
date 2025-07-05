@@ -17,10 +17,460 @@ Date:   Wed Oct 15 13:12:16 2014 -0400
     R=khr
     CC=golang-codereviews, iant, r
     https://golang.org/cl/153600043
-
+---
  src/runtime/asm_386.s      | 72 ++++++++++++++++++-------------------------
  src/runtime/asm_amd64.s    | 72 ++++++++++++++++++-------------------------
  src/runtime/asm_amd64p32.s | 77 +++++++++++++++++++---------------------------
  src/runtime/asm_arm.s      | 70 +++++++++++++++++------------------------
  src/runtime/stubs.go       | 30 ++++++++++++++++++
  5 files changed, 151 insertions(+), 170 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index c401741ef9..b0ed2d8ceb 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -353,7 +353,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0-0
+ 	JMP	AX
+ // Note: can't just "JMP NAME(SB)" - bad inlining results.
+ 
+-TEXT runtime·reflectcall(SB), NOSPLIT, $0-16
++TEXT ·reflectcall(SB), NOSPLIT, $0-16
+ 	MOVL	argsize+8(FP), CX
+ 	DISPATCH(runtime·call16, 16)
+ 	DISPATCH(runtime·call32, 32)
+@@ -385,21 +385,9 @@ TEXT runtime·reflectcall(SB), NOSPLIT, $0-16
+ 	MOVL	$runtime·badreflectcall(SB), AX
+ 	JMP	AX
+ 
+-// Argument map for the callXX frames.  Each has one stack map.
+-DATA gcargs_reflectcall<>+0x00(SB)/4, $1  // 1 stackmap
+-DATA gcargs_reflectcall<>+0x04(SB)/4, $8  // 4 words
+-DATA gcargs_reflectcall<>+0x08(SB)/1, $(const_BitsPointer+(const_BitsPointer<<2)+(const_BitsScalar<<4)+(const_BitsScalar<<6))
+-GLOBL gcargs_reflectcall<>(SB),RODATA,$12
+-
+-// callXX frames have no locals
+-DATA gclocals_reflectcall<>+0x00(SB)/4, $1  // 1 stackmap
+-DATA gclocals_reflectcall<>+0x04(SB)/4, $0  // 0 locals
+-GLOBL gclocals_reflectcall<>(SB),RODATA,$8
+-
+ #define CALLFN(NAME,MAXSIZE)			\
+-TEXT NAME(SB), WRAPPER, $MAXSIZE-16;	\
+-	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_reflectcall<>(SB);	\
+-	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_reflectcall<>(SB);\
++TEXT NAME(SB), WRAPPER, $MAXSIZE-16;		\
++	NO_LOCAL_POINTERS;			\
+ 	/* copy arguments to stack */		\
+ 	MOVL	argptr+4(FP), SI;		\
+ 	MOVL	argsize+8(FP), CX;		\
+@@ -421,33 +409,33 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-16;	\
+ 	REP;MOVSB;				\
+ 	RET
+ 
+-CALLFN(runtime·call16, 16)
+-CALLFN(runtime·call32, 32)
+-CALLFN(runtime·call64, 64)
+-CALLFN(runtime·call128, 128)
+-CALLFN(runtime·call256, 256)
+-CALLFN(runtime·call512, 512)
+-CALLFN(runtime·call1024, 1024)
+-CALLFN(runtime·call2048, 2048)
+-CALLFN(runtime·call4096, 4096)
+-CALLFN(runtime·call8192, 8192)
+-CALLFN(runtime·call16384, 16384)
+-CALLFN(runtime·call32768, 32768)
+-CALLFN(runtime·call65536, 65536)
+-CALLFN(runtime·call131072, 131072)
+-CALLFN(runtime·call262144, 262144)
+-CALLFN(runtime·call524288, 524288)
+-CALLFN(runtime·call1048576, 1048576)
+-CALLFN(runtime·call2097152, 2097152)
+-CALLFN(runtime·call4194304, 4194304)
+-CALLFN(runtime·call8388608, 8388608)
+-CALLFN(runtime·call16777216, 16777216)
+-CALLFN(runtime·call33554432, 33554432)
+-CALLFN(runtime·call67108864, 67108864)
+-CALLFN(runtime·call134217728, 134217728)
+-CALLFN(runtime·call268435456, 268435456)
+-CALLFN(runtime·call536870912, 536870912)
+-CALLFN(runtime·call1073741824, 1073741824)
++CALLFN(·call16, 16)
++CALLFN(·call32, 32)
++CALLFN(·call64, 64)
++CALLFN(·call128, 128)
++CALLFN(·call256, 256)
++CALLFN(·call512, 512)
++CALLFN(·call1024, 1024)
++CALLFN(·call2048, 2048)
++CALLFN(·call4096, 4096)
++CALLFN(·call8192, 8192)
++CALLFN(·call16384, 16384)
++CALLFN(·call32768, 32768)
++CALLFN(·call65536, 65536)
++CALLFN(·call131072, 131072)
++CALLFN(·call262144, 262144)
++CALLFN(·call524288, 524288)
++CALLFN(·call1048576, 1048576)
++CALLFN(·call2097152, 2097152)
++CALLFN(·call4194304, 4194304)
++CALLFN(·call8388608, 8388608)
++CALLFN(·call16777216, 16777216)
++CALLFN(·call33554432, 33554432)
++CALLFN(·call67108864, 67108864)
++CALLFN(·call134217728, 134217728)
++CALLFN(·call268435456, 268435456)
++CALLFN(·call536870912, 536870912)
++CALLFN(·call1073741824, 1073741824)
+ 
+ // bool cas(int32 *val, int32 old, int32 new)
+ // Atomically:
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index e21270d8cc..2ee3312086 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -339,11 +339,11 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0
+ #define DISPATCH(NAME,MAXSIZE)		\
+ 	CMPQ	CX, $MAXSIZE;		\
+ 	JA	3(PC);			\
+-	MOVQ	$NAME(SB), AX;	\
++	MOVQ	$NAME(SB), AX;		\
+ 	JMP	AX
+ // Note: can't just "JMP NAME(SB)" - bad inlining results.
+ 
+-TEXT runtime·reflectcall(SB), NOSPLIT, $0-24
++TEXT ·reflectcall(SB), NOSPLIT, $0-24
+ 	MOVLQZX argsize+16(FP), CX
+ 	DISPATCH(runtime·call16, 16)
+ 	DISPATCH(runtime·call32, 32)
+@@ -375,21 +375,9 @@ TEXT runtime·reflectcall(SB), NOSPLIT, $0-24
+ 	MOVQ	$runtime·badreflectcall(SB), AX
+ 	JMP	AX
+ 
+-// Argument map for the callXX frames.  Each has one stack map.
+-DATA gcargs_reflectcall<>+0x00(SB)/4, $1  // 1 stackmap
+-DATA gcargs_reflectcall<>+0x04(SB)/4, $6  // 3 words
+-DATA gcargs_reflectcall<>+0x08(SB)/1, $(const_BitsPointer+(const_BitsPointer<<2)+(const_BitsScalar<<4))
+-GLOBL gcargs_reflectcall<>(SB),RODATA,$12
+-
+-// callXX frames have no locals
+-DATA gclocals_reflectcall<>+0x00(SB)/4, $1  // 1 stackmap
+-DATA gclocals_reflectcall<>+0x04(SB)/4, $0  // 0 locals
+-GLOBL gclocals_reflectcall<>(SB),RODATA,$8
+-
+ #define CALLFN(NAME,MAXSIZE)			\
+ TEXT NAME(SB), WRAPPER, $MAXSIZE-24;		\
+-	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_reflectcall<>(SB);	\
+-	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_reflectcall<>(SB);\
++	NO_LOCAL_POINTERS;			\
+ 	/* copy arguments to stack */		\
+ 	MOVQ	argptr+8(FP), SI;		\
+ 	MOVLQZX argsize+16(FP), CX;		\
+@@ -410,33 +398,33 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-24;		\
+ 	REP;MOVSB;				\
+ 	RET
+ 
+-CALLFN(runtime·call16, 16)
+-CALLFN(runtime·call32, 32)
+-CALLFN(runtime·call64, 64)
+-CALLFN(runtime·call128, 128)
+-CALLFN(runtime·call256, 256)
+-CALLFN(runtime·call512, 512)
+-CALLFN(runtime·call1024, 1024)
+-CALLFN(runtime·call2048, 2048)
+-CALLFN(runtime·call4096, 4096)
+-CALLFN(runtime·call8192, 8192)
+-CALLFN(runtime·call16384, 16384)
+-CALLFN(runtime·call32768, 32768)
+-CALLFN(runtime·call65536, 65536)
+-CALLFN(runtime·call131072, 131072)
+-CALLFN(runtime·call262144, 262144)
+-CALLFN(runtime·call524288, 524288)
+-CALLFN(runtime·call1048576, 1048576)
+-CALLFN(runtime·call2097152, 2097152)
+-CALLFN(runtime·call4194304, 4194304)
+-CALLFN(runtime·call8388608, 8388608)
+-CALLFN(runtime·call16777216, 16777216)
+-CALLFN(runtime·call33554432, 33554432)
+-CALLFN(runtime·call67108864, 67108864)
+-CALLFN(runtime·call134217728, 134217728)
+-CALLFN(runtime·call268435456, 268435456)
+-CALLFN(runtime·call536870912, 536870912)
+-CALLFN(runtime·call1073741824, 1073741824)
++CALLFN(·call16, 16)
++CALLFN(·call32, 32)
++CALLFN(·call64, 64)
++CALLFN(·call128, 128)
++CALLFN(·call256, 256)
++CALLFN(·call512, 512)
++CALLFN(·call1024, 1024)
++CALLFN(·call2048, 2048)
++CALLFN(·call4096, 4096)
++CALLFN(·call8192, 8192)
++CALLFN(·call16384, 16384)
++CALLFN(·call32768, 32768)
++CALLFN(·call65536, 65536)
++CALLFN(·call131072, 131072)
++CALLFN(·call262144, 262144)
++CALLFN(·call524288, 524288)
++CALLFN(·call1048576, 1048576)
++CALLFN(·call2097152, 2097152)
++CALLFN(·call4194304, 4194304)
++CALLFN(·call8388608, 8388608)
++CALLFN(·call16777216, 16777216)
++CALLFN(·call33554432, 33554432)
++CALLFN(·call67108864, 67108864)
++CALLFN(·call134217728, 134217728)
++CALLFN(·call268435456, 268435456)
++CALLFN(·call536870912, 536870912)
++CALLFN(·call1073741824, 1073741824)
+ 
+ // bool cas(int32 *val, int32 old, int32 new)
+ // Atomically:
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index c2bc91a3f5..e27f67e1ee 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -310,11 +310,11 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0
+ #define DISPATCH(NAME,MAXSIZE)		\
+ 	CMPL	CX, $MAXSIZE;		\
+ 	JA	3(PC);			\
+-	MOVL	$NAME(SB), AX;	\
++	MOVL	$NAME(SB), AX;		\
+ 	JMP	AX
+ // Note: can't just "JMP NAME(SB)" - bad inlining results.
+ 
+-TEXT runtime·reflectcall(SB), NOSPLIT, $0-16
++TEXT ·reflectcall(SB), NOSPLIT, $0-16
+ 	MOVLQZX argsize+8(FP), CX
+ 	DISPATCH(runtime·call16, 16)
+ 	DISPATCH(runtime·call32, 32)
+@@ -346,22 +346,9 @@ TEXT runtime·reflectcall(SB), NOSPLIT, $0-16
+ 	MOVL	$runtime·badreflectcall(SB), AX
+ 	JMP	AX
+ 
+-// Argument map for the callXX frames.  Each has one stack map.
+-DATA gcargs_reflectcall<>+0x00(SB)/4, $1  // 1 stackmap
+-DATA gcargs_reflectcall<>+0x04(SB)/4, $10  // 5 words
+-DATA gcargs_reflectcall<>+0x08(SB)/1, $(const_BitsPointer+(const_BitsPointer<<2)+(const_BitsScalar<<4)+(const_BitsScalar<<6))
+-DATA gcargs_reflectcall<>+0x09(SB)/1, $(const_BitsPointer)
+-GLOBL gcargs_reflectcall<>(SB),RODATA,$12
+-
+-// callXX frames have no locals
+-DATA gclocals_reflectcall<>+0x00(SB)/4, $1  // 1 stackmap
+-DATA gclocals_reflectcall<>+0x04(SB)/4, $0  // 0 locals
+-GLOBL gclocals_reflectcall<>(SB),RODATA,$8
+-
+ #define CALLFN(NAME,MAXSIZE)			\
+ TEXT NAME(SB), WRAPPER, $MAXSIZE-16;		\
+-	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_reflectcall<>(SB);	\
+-	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_reflectcall<>(SB);\
++	NO_LOCAL_POINTERS;			\
+ 	/* copy arguments to stack */		\
+ 	MOVL	argptr+4(FP), SI;		\
+ 	MOVL	argsize+8(FP), CX;		\
+@@ -369,8 +356,8 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-16;		\
+ 	REP;MOVSB;				\
+ 	/* call function */			\
+ 	MOVL	f+0(FP), DX;			\
+-	MOVL	(DX), AX;				\
+-	CALL	AX; \
++	MOVL	(DX), AX;			\
++	CALL	AX;				\
+ 	/* copy return values back */		\
+ 	MOVL	argptr+4(FP), DI;		\
+ 	MOVL	argsize+8(FP), CX;		\
+@@ -382,33 +369,33 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-16;		\
+ 	REP;MOVSB;				\
+ 	RET
+ 
+-CALLFN(runtime·call16, 16)
+-CALLFN(runtime·call32, 32)
+-CALLFN(runtime·call64, 64)
+-CALLFN(runtime·call128, 128)
+-CALLFN(runtime·call256, 256)
+-CALLFN(runtime·call512, 512)
+-CALLFN(runtime·call1024, 1024)
+-CALLFN(runtime·call2048, 2048)
+-CALLFN(runtime·call4096, 4096)
+-CALLFN(runtime·call8192, 8192)
+-CALLFN(runtime·call16384, 16384)
+-CALLFN(runtime·call32768, 32768)
+-CALLFN(runtime·call65536, 65536)
+-CALLFN(runtime·call131072, 131072)
+-CALLFN(runtime·call262144, 262144)
+-CALLFN(runtime·call524288, 524288)
+-CALLFN(runtime·call1048576, 1048576)
+-CALLFN(runtime·call2097152, 2097152)
+-CALLFN(runtime·call4194304, 4194304)
+-CALLFN(runtime·call8388608, 8388608)
+-CALLFN(runtime·call16777216, 16777216)
+-CALLFN(runtime·call33554432, 33554432)
+-CALLFN(runtime·call67108864, 67108864)
+-CALLFN(runtime·call134217728, 134217728)
+-CALLFN(runtime·call268435456, 268435456)
+-CALLFN(runtime·call536870912, 536870912)
+-CALLFN(runtime·call1073741824, 1073741824)
++CALLFN(·call16, 16)
++CALLFN(·call32, 32)
++CALLFN(·call64, 64)
++CALLFN(·call128, 128)
++CALLFN(·call256, 256)
++CALLFN(·call512, 512)
++CALLFN(·call1024, 1024)
++CALLFN(·call2048, 2048)
++CALLFN(·call4096, 4096)
++CALLFN(·call8192, 8192)
++CALLFN(·call16384, 16384)
++CALLFN(·call32768, 32768)
++CALLFN(·call65536, 65536)
++CALLFN(·call131072, 131072)
++CALLFN(·call262144, 262144)
++CALLFN(·call524288, 524288)
++CALLFN(·call1048576, 1048576)
++CALLFN(·call2097152, 2097152)
++CALLFN(·call4194304, 4194304)
++CALLFN(·call8388608, 8388608)
++CALLFN(·call16777216, 16777216)
++CALLFN(·call33554432, 33554432)
++CALLFN(·call67108864, 67108864)
++CALLFN(·call134217728, 134217728)
++CALLFN(·call268435456, 268435456)
++CALLFN(·call536870912, 536870912)
++CALLFN(·call1073741824, 1073741824)
+ 
+ // bool cas(int32 *val, int32 old, int32 new)
+ // Atomically:
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index a1535aeec3..b21441488a 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -343,7 +343,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-4-0
+ 	MOVW	$NAME(SB), R1;		\
+ 	B	(R1)
+ 
+-TEXT runtime·reflectcall(SB),NOSPLIT,$-4-16
++TEXT ·reflectcall(SB),NOSPLIT,$-4-16
+ 	MOVW	argsize+8(FP), R0
+ 	DISPATCH(runtime·call16, 16)
+ 	DISPATCH(runtime·call32, 32)
+@@ -375,21 +375,9 @@ TEXT runtime·reflectcall(SB),NOSPLIT,$-4-16
+ 	MOVW	$runtime·badreflectcall(SB), R1
+ 	B	(R1)
+ 
+-// Argument map for the callXX frames.  Each has one stack map.
+-DATA gcargs_reflectcall<>+0x00(SB)/4, $1  // 1 stackmap
+-DATA gcargs_reflectcall<>+0x04(SB)/4, $8  // 4 words
+-DATA gcargs_reflectcall<>+0x08(SB)/1, $(const_BitsPointer+(const_BitsPointer<<2)+(const_BitsScalar<<4)+(const_BitsScalar<<6))
+-GLOBL gcargs_reflectcall<>(SB),RODATA,$12
+-
+-// callXX frames have no locals
+-DATA gclocals_reflectcall<>+0x00(SB)/4, $1  // 1 stackmap
+-DATA gclocals_reflectcall<>+0x04(SB)/4, $0  // 0 locals
+-GLOBL gclocals_reflectcall<>(SB),RODATA,$8
+-
+ #define CALLFN(NAME,MAXSIZE)			\
+ TEXT NAME(SB), WRAPPER, $MAXSIZE-16;		\
+-	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_reflectcall<>(SB);	\
+-	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_reflectcall<>(SB);\
++	NO_LOCAL_POINTERS;			\
+ 	/* copy arguments to stack */		\
+ 	MOVW	argptr+4(FP), R0;		\
+ 	MOVW	argsize+8(FP), R2;		\
+@@ -420,33 +408,33 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-16;		\
+ 	SUB	$1, R2, R2;			\
+ 	B	-5(PC)				\
+ 
+-CALLFN(runtime·call16, 16)
+-CALLFN(runtime·call32, 32)
+-CALLFN(runtime·call64, 64)
+-CALLFN(runtime·call128, 128)
+-CALLFN(runtime·call256, 256)
+-CALLFN(runtime·call512, 512)
+-CALLFN(runtime·call1024, 1024)
+-CALLFN(runtime·call2048, 2048)
+-CALLFN(runtime·call4096, 4096)
+-CALLFN(runtime·call8192, 8192)
+-CALLFN(runtime·call16384, 16384)
+-CALLFN(runtime·call32768, 32768)
+-CALLFN(runtime·call65536, 65536)
+-CALLFN(runtime·call131072, 131072)
+-CALLFN(runtime·call262144, 262144)
+-CALLFN(runtime·call524288, 524288)
+-CALLFN(runtime·call1048576, 1048576)
+-CALLFN(runtime·call2097152, 2097152)
+-CALLFN(runtime·call4194304, 4194304)
+-CALLFN(runtime·call8388608, 8388608)
+-CALLFN(runtime·call16777216, 16777216)
+-CALLFN(runtime·call33554432, 33554432)
+-CALLFN(runtime·call67108864, 67108864)
+-CALLFN(runtime·call134217728, 134217728)
+-CALLFN(runtime·call268435456, 268435456)
+-CALLFN(runtime·call536870912, 536870912)
+-CALLFN(runtime·call1073741824, 1073741824)
++CALLFN(·call16, 16)
++CALLFN(·call32, 32)
++CALLFN(·call64, 64)
++CALLFN(·call128, 128)
++CALLFN(·call256, 256)
++CALLFN(·call512, 512)
++CALLFN(·call1024, 1024)
++CALLFN(·call2048, 2048)
++CALLFN(·call4096, 4096)
++CALLFN(·call8192, 8192)
++CALLFN(·call16384, 16384)
++CALLFN(·call32768, 32768)
++CALLFN(·call65536, 65536)
++CALLFN(·call131072, 131072)
++CALLFN(·call262144, 262144)
++CALLFN(·call524288, 524288)
++CALLFN(·call1048576, 1048576)
++CALLFN(·call2097152, 2097152)
++CALLFN(·call4194304, 4194304)
++CALLFN(·call8388608, 8388608)
++CALLFN(·call16777216, 16777216)
++CALLFN(·call33554432, 33554432)
++CALLFN(·call67108864, 67108864)
++CALLFN(·call134217728, 134217728)
++CALLFN(·call268435456, 268435456)
++CALLFN(·call536870912, 536870912)
++CALLFN(·call1073741824, 1073741824)
+ 
+ // void jmpdefer(fn, sp);
+ // called from deferreturn.
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index c6a9cf9f54..6561094ff1 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -252,3 +252,33 @@ func return0()
+ 
+ // thunk to call time.now.
+ func timenow() (sec int64, nsec int32)
++
++// in asm_*.s
++// not called directly; definitions here supply type information for traceback.
++func call16(fn, arg unsafe.Pointer, n, retoffset uint32)
++func call32(fn, arg unsafe.Pointer, n, retoffset uint32)
++func call64(fn, arg unsafe.Pointer, n, retoffset uint32)
++func call128(fn, arg unsafe.Pointer, n, retoffset uint32)
++func call256(fn, arg unsafe.Pointer, n, retoffset uint32)
++func call512(fn, arg unsafe.Pointer, n, retoffset uint32)
++func call1024(fn, arg unsafe.Pointer, n, retoffset uint32)
++func call2048(fn, arg unsafe.Pointer, n, retoffset uint32)
++func call4096(fn, arg unsafe.Pointer, n, retoffset uint32)
++func call8192(fn, arg unsafe.Pointer, n, retoffset uint32)
++func call16384(fn, arg unsafe.Pointer, n, retoffset uint32)
++func call32768(fn, arg unsafe.Pointer, n, retoffset uint32)
++func call65536(fn, arg unsafe.Pointer, n, retoffset uint32)
++func call131072(fn, arg unsafe.Pointer, n, retoffset uint32)
++func call262144(fn, arg unsafe.Pointer, n, retoffset uint32)
++func call524288(fn, arg unsafe.Pointer, n, retoffset uint32)
++func call1048576(fn, arg unsafe.Pointer, n, retoffset uint32)
++func call2097152(fn, arg unsafe.Pointer, n, retoffset uint32)
++func call4194304(fn, arg unsafe.Pointer, n, retoffset uint32)
++func call8388608(fn, arg unsafe.Pointer, n, retoffset uint32)
++func call16777216(fn, arg unsafe.Pointer, n, retoffset uint32)
++func call33554432(fn, arg unsafe.Pointer, n, retoffset uint32)
++func call67108864(fn, arg unsafe.Pointer, n, retoffset uint32)
++func call134217728(fn, arg unsafe.Pointer, n, retoffset uint32)
++func call268435456(fn, arg unsafe.Pointer, n, retoffset uint32)
++func call536870912(fn, arg unsafe.Pointer, n, retoffset uint32)
++func call1073741824(fn, arg unsafe.Pointer, n, retoffset uint32)

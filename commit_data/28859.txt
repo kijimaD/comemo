@@ -14,8 +14,114 @@ Date:   Wed Jun 15 15:22:35 2016 -0700
     Change-Id: I7544e7458d844b0ca08193f11de6238d317eaf2d
     Reviewed-on: https://go-review.googlesource.com/24153
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/initorder.go |  4 ++--
  src/go/types/ordering.go  | 20 ++++++++------------
  src/go/types/resolver.go  | 11 ++++++++---
  3 files changed, 18 insertions(+), 17 deletions(-)
+
+diff --git a/src/go/types/initorder.go b/src/go/types/initorder.go
+index 0d5397ffd2..966dccb828 100644
+--- a/src/go/types/initorder.go
++++ b/src/go/types/initorder.go
+@@ -69,7 +69,7 @@ func (check *Checker) initOrder() {
+ 
+ 		// if n still depends on other nodes, we have a cycle
+ 		if n.ndeps > 0 {
+-			cycle := findPath(check.objMap, n.obj, n.obj, make(map[Object]bool))
++			cycle := findPath(check.objMap, n.obj, n.obj, make(objSet))
+ 			// If n.obj is not part of the cycle (e.g., n.obj->b->c->d->c),
+ 			// cycle will be nil. Don't report anything in that case since
+ 			// the cycle is reported when the algorithm gets to an object
+@@ -130,7 +130,7 @@ func (check *Checker) initOrder() {
+ // findPath returns the (reversed) list of objects []Object{to, ... from}
+ // such that there is a path of object dependencies from 'from' to 'to'.
+ // If there is no such path, the result is nil.
+-func findPath(objMap map[Object]*declInfo, from, to Object, visited map[Object]bool) []Object {
++func findPath(objMap map[Object]*declInfo, from, to Object, visited objSet) []Object {
+ 	if visited[from] {
+ 		return nil // node already seen
+ 	}
+diff --git a/src/go/types/ordering.go b/src/go/types/ordering.go
+index 6bb98f2dc1..3579abf7d7 100644
+--- a/src/go/types/ordering.go
++++ b/src/go/types/ordering.go
+@@ -56,13 +56,9 @@ func (check *Checker) resolveOrder() []Object {
+ 	// sort interface types topologically by dependencies,
+ 	// and in source order if there are no dependencies
+ 	sort.Sort(inSourceOrder(ifaces))
+-	if debug {
+-		for _, obj := range ifaces {
+-			assert(check.objMap[obj].mark == 0)
+-		}
+-	}
++	visited := make(objSet)
+ 	for _, obj := range ifaces {
+-		check.appendInPostOrder(&order, obj)
++		check.appendInPostOrder(&order, obj, visited)
+ 	}
+ 
+ 	// sort everything else in source order
+@@ -89,25 +85,25 @@ func (check *Checker) interfaceFor(obj Object) *ast.InterfaceType {
+ 	return ityp
+ }
+ 
+-func (check *Checker) appendInPostOrder(order *[]Object, obj Object) {
+-	d := check.objMap[obj]
+-	if d.mark != 0 {
++func (check *Checker) appendInPostOrder(order *[]Object, obj Object, visited objSet) {
++	if visited[obj] {
+ 		// We've already seen this object; either because it's
+ 		// already added to order, or because we have a cycle.
+ 		// In both cases we stop. Cycle errors are reported
+ 		// when type-checking types.
+ 		return
+ 	}
+-	d.mark = 1
++	visited[obj] = true
+ 
++	d := check.objMap[obj]
+ 	for _, obj := range orderedSetObjects(d.deps) {
+-		check.appendInPostOrder(order, obj)
++		check.appendInPostOrder(order, obj, visited)
+ 	}
+ 
+ 	*order = append(*order, obj)
+ }
+ 
+-func orderedSetObjects(set map[Object]bool) []Object {
++func orderedSetObjects(set objSet) []Object {
+ 	list := make([]Object, len(set))
+ 	i := 0
+ 	for obj := range set {
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index cb8e72e4a6..2b81b4a84b 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -22,10 +22,15 @@ type declInfo struct {
+ 	init  ast.Expr      // init expression, or nil
+ 	fdecl *ast.FuncDecl // func declaration, or nil
+ 
+-	deps map[Object]bool // type and init dependencies; lazily allocated
+-	mark int             // for dependency analysis
++	// The deps field tracks initialization expression dependencies.
++	// As a special (overloaded) case, it also tracks dependencies of
++	// interface types on embedded interfaces (see ordering.go).
++	deps objSet // lazily initialized
+ }
+ 
++// An objSet is simply a set of objects.
++type objSet map[Object]bool
++
+ // hasInitializer reports whether the declared object has an initialization
+ // expression or function body.
+ func (d *declInfo) hasInitializer() bool {
+@@ -36,7 +41,7 @@ func (d *declInfo) hasInitializer() bool {
+ func (d *declInfo) addDep(obj Object) {
+ 	m := d.deps
+ 	if m == nil {
+-		m = make(map[Object]bool)
++		m = make(objSet)
+ 		d.deps = m
+ 	}
+ 	m[obj] = true

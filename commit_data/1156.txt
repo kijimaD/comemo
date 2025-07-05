@@ -10,9 +10,88 @@ Date:   Tue Nov 18 10:08:46 2008 -0800
     DELTA=54  (49 added, 0 deleted, 5 changed)
     OCL=19424
     CL=19463
-
+---
  src/cmd/cov/Makefile  |  9 ++++++++-
  src/cmd/prof/Makefile |  9 ++++++++-
  src/make.bash         |  6 ++++++
  src/sudo.bash         | 18 ++++++++++++++++++
  4 files changed, 40 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/cov/Makefile b/src/cmd/cov/Makefile
+index dfd40383ed..6f5173075b 100644
+--- a/src/cmd/cov/Makefile
++++ b/src/cmd/cov/Makefile
+@@ -22,7 +22,14 @@ $(TARG): $(OFILES)
+ clean:
+ 	rm -f $(OFILES) $(TARG)
+ 
+-install: $(TARG)
++install: install-$(GOOS)
++install-linux: install-default
++
++# on Darwin, have to install and setgid; see $GOROOT/src/sudo.bash
++install-darwin: $(TARG)
++	@true
++
++install-default: $(TARG)
+ 	cp $(TARG) $(BIN)/$(TARG)
+ 
+ $(OFILES): $(HFILES)
+diff --git a/src/cmd/prof/Makefile b/src/cmd/prof/Makefile
+index b6d9090a89..055cb3dd1a 100644
+--- a/src/cmd/prof/Makefile
++++ b/src/cmd/prof/Makefile
+@@ -22,7 +22,14 @@ $(TARG): $(OFILES)
+ clean:
+ 	rm -f $(OFILES) $(TARG)
+ 
+-install: $(TARG)
++install: install-$(GOOS)
++install-linux: install-default
++
++# on Darwin, have to install and setgid; see $GOROOT/src/sudo.bash
++install-darwin: $(TARG)
++	@true
++
++install-default: $(TARG)
+ 	cp $(TARG) $(BIN)/$(TARG)
+ 
+ $(OFILES): $(HFILES)
+diff --git a/src/make.bash b/src/make.bash
+index df70e41f48..8d284d88e7 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -28,3 +28,9 @@ do
+ 	cd ..
+ done
+ 
++case "`uname`" in
++Darwin)
++	echo;
++	echo %%% run sudo.bash to install debuggers
++	echo
++esac
+diff --git a/src/sudo.bash b/src/sudo.bash
+new file mode 100755
+index 0000000000..f85ccdf406
+--- /dev/null
++++ b/src/sudo.bash
+@@ -0,0 +1,18 @@
++#!/bin/bash
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++case "`uname`" in
++Darwin)
++	;;
++*)
++	exit 0
++esac
++
++for i in acid db prof cov
++do
++	sudo cp $GOROOT/src/cmd/$i/6$i /usr/local/bin/6$i
++	sudo chgrp procmod /usr/local/bin/6$i
++	sudo chmod g+s /usr/local/bin/6$i
++done

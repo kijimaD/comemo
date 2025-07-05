@@ -15,7 +15,7 @@ Date:   Mon Sep 16 10:26:23 2013 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/13693043
-
+---
  src/pkg/encoding/gob/codec_test.go   | 18 ----------------
  src/pkg/encoding/gob/doc.go          |  5 +++--
  src/pkg/encoding/gob/encode.go       |  5 ++---
@@ -23,3 +23,200 @@ Date:   Mon Sep 16 10:26:23 2013 +1000
  src/pkg/encoding/gob/encoder_test.go | 42 +++++++++++++++++++++++++-----------
  src/pkg/encoding/gob/type.go         | 21 +++++++++++++++++-
  6 files changed, 55 insertions(+), 44 deletions(-)
+
+diff --git a/src/pkg/encoding/gob/codec_test.go b/src/pkg/encoding/gob/codec_test.go
+index 9e38e31d5d..b40f78360c 100644
+--- a/src/pkg/encoding/gob/codec_test.go
++++ b/src/pkg/encoding/gob/codec_test.go
+@@ -1009,24 +1009,6 @@ func TestBadRecursiveType(t *testing.T) {
+ 	// Can't test decode easily because we can't encode one, so we can't pass one to a Decoder.
+ }
+ 
+-type Bad0 struct {
+-	CH chan int
+-	C  float64
+-}
+-
+-func TestInvalidField(t *testing.T) {
+-	var bad0 Bad0
+-	bad0.CH = make(chan int)
+-	b := new(bytes.Buffer)
+-	dummyEncoder := new(Encoder) // sufficient for this purpose.
+-	dummyEncoder.encode(b, reflect.ValueOf(&bad0), userType(reflect.TypeOf(&bad0)))
+-	if err := dummyEncoder.err; err == nil {
+-		t.Error("expected error; got none")
+-	} else if strings.Index(err.Error(), "type") < 0 {
+-		t.Error("expected type error; got", err)
+-	}
+-}
+-
+ type Indirect struct {
+ 	A ***[3]int
+ 	S ***[]int
+diff --git a/src/pkg/encoding/gob/doc.go b/src/pkg/encoding/gob/doc.go
+index dc0e325f97..48b6742315 100644
+--- a/src/pkg/encoding/gob/doc.go
++++ b/src/pkg/encoding/gob/doc.go
+@@ -74,8 +74,9 @@ slice has capacity the slice will be extended in place; if not, a new array is
+ allocated. Regardless, the length of the resulting slice reports the number of
+ elements decoded.
+ 
+-Functions and channels cannot be sent in a gob. Attempting to encode a value
+-that contains one will fail.
++Functions and channels will not be sent in a gob. Attempting to encode such a value
++at top the level will fail. A struct field of chan or func type is treated exactly
++like an unexported field and is ignored.
+ 
+ Gob can encode a value of any type implementing the GobEncoder,
+ encoding.BinaryMarshaler, or encoding.TextMarshaler interfaces by calling the
+diff --git a/src/pkg/encoding/gob/encode.go b/src/pkg/encoding/gob/encode.go
+index 480faa305d..d158b6442a 100644
+--- a/src/pkg/encoding/gob/encode.go
++++ b/src/pkg/encoding/gob/encode.go
+@@ -686,11 +686,10 @@ func (enc *Encoder) compileEnc(ut *userTypeInfo) *encEngine {
+ 	if ut.externalEnc != 0 {
+ 		rt = ut.user
+ 	}
+-	if ut.externalEnc == 0 &&
+-		srt.Kind() == reflect.Struct {
++	if ut.externalEnc == 0 && srt.Kind() == reflect.Struct {
+ 		for fieldNum, wireFieldNum := 0, 0; fieldNum < srt.NumField(); fieldNum++ {
+ 			f := srt.Field(fieldNum)
+-			if !isExported(f.Name) {
++			if !isSent(&f) {
+ 				continue
+ 			}
+ 			op, indir := enc.encOpFor(f.Type, seen)
+diff --git a/src/pkg/encoding/gob/encoder.go b/src/pkg/encoding/gob/encoder.go
+index 332a607c2b..a3301c3bd3 100644
+--- a/src/pkg/encoding/gob/encoder.go
++++ b/src/pkg/encoding/gob/encoder.go
+@@ -6,7 +6,6 @@ package gob
+ 
+ import (
+ 	"bytes"
+-	"errors"
+ 	"io"
+ 	"reflect"
+ 	"sync"
+@@ -54,10 +53,6 @@ func (enc *Encoder) popWriter() {
+ 	enc.w = enc.w[0 : len(enc.w)-1]
+ }
+ 
+-func (enc *Encoder) badType(rt reflect.Type) {
+-	enc.setError(errors.New("gob: can't encode type " + rt.String()))
+-}
+-
+ func (enc *Encoder) setError(err error) {
+ 	if enc.err == nil { // remember the first.
+ 		enc.err = err
+@@ -163,8 +158,7 @@ func (enc *Encoder) sendType(w io.Writer, state *encoderState, origt reflect.Typ
+ 		// structs must be sent so we know their fields.
+ 		break
+ 	case reflect.Chan, reflect.Func:
+-		// Probably a bad field in a struct.
+-		enc.badType(rt)
++		// If we get here, it's a field of a struct; ignore it.
+ 		return
+ 	}
+ 
+diff --git a/src/pkg/encoding/gob/encoder_test.go b/src/pkg/encoding/gob/encoder_test.go
+index b684772c69..4f5673d665 100644
+--- a/src/pkg/encoding/gob/encoder_test.go
++++ b/src/pkg/encoding/gob/encoder_test.go
+@@ -131,7 +131,7 @@ func TestBadData(t *testing.T) {
+ 	corruptDataCheck("\x03now is the time for all good men", errBadType, t)
+ }
+ 
+-// Types not supported by the Encoder.
++// Types not supported at top level by the Encoder.
+ var unsupportedValues = []interface{}{
+ 	make(chan int),
+ 	func(a int) bool { return true },
+@@ -662,19 +662,35 @@ func TestSequentialDecoder(t *testing.T) {
+ 	}
+ }
+ 
+-// Should be able to have unrepresentable fields (chan, func) as long as they
+-// are unexported.
++// Should be able to have unrepresentable fields (chan, func, *chan etc.); we just ignore them.
+ type Bug2 struct {
+-	A int
+-	b chan int
+-}
+-
+-func TestUnexportedChan(t *testing.T) {
+-	b := Bug2{23, make(chan int)}
+-	var stream bytes.Buffer
+-	enc := NewEncoder(&stream)
+-	if err := enc.Encode(b); err != nil {
+-		t.Fatalf("error encoding unexported channel: %s", err)
++	A   int
++	C   chan int
++	CP  *chan int
++	F   func()
++	FPP **func()
++}
++
++func TestChanFuncIgnored(t *testing.T) {
++	c := make(chan int)
++	f := func() {}
++	fp := &f
++	b0 := Bug2{23, c, &c, f, &fp}
++	var buf bytes.Buffer
++	enc := NewEncoder(&buf)
++	if err := enc.Encode(b0); err != nil {
++		t.Fatal("error encoding:", err)
++	}
++	var b1 Bug2
++	err := NewDecoder(&buf).Decode(&b1)
++	if err != nil {
++		t.Fatal("decode:", err)
++	}
++	if b1.A != b0.A {
++		t.Fatal("got %d want %d", b1.A, b0.A)
++	}
++	if b1.C != nil || b1.CP != nil || b1.F != nil || b1.FPP != nil {
++		t.Fatal("unexpected value for chan or func")
+ 	}
+ }
+ 
+diff --git a/src/pkg/encoding/gob/type.go b/src/pkg/encoding/gob/type.go
+index 0e49b30d70..65bf17b7f0 100644
+--- a/src/pkg/encoding/gob/type.go
++++ b/src/pkg/encoding/gob/type.go
+@@ -526,7 +526,7 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, err
+ 		idToType[st.id()] = st
+ 		for i := 0; i < t.NumField(); i++ {
+ 			f := t.Field(i)
+-			if !isExported(f.Name) {
++			if !isSent(&f) {
+ 				continue
+ 			}
+ 			typ := userType(f.Type).base
+@@ -561,6 +561,25 @@ func isExported(name string) bool {
+ 	return unicode.IsUpper(rune)
+ }
+ 
++// isSent reports whether this struct field is to be transmitted.
++// It will be transmitted only if it is exported and not a chan or func field
++// or pointer to chan or func.
++func isSent(field *reflect.StructField) bool {
++	if !isExported(field.Name) {
++		return false
++	}
++	// If the field is a chan or func or pointer thereto, don't send it.
++	// That is, treat it like an unexported field.
++	typ := field.Type
++	for typ.Kind() == reflect.Ptr {
++		typ = typ.Elem()
++	}
++	if typ.Kind() == reflect.Chan || typ.Kind() == reflect.Func {
++		return false
++	}
++	return true
++}
++
+ // getBaseType returns the Gob type describing the given reflect.Type's base type.
+ // typeLock must be held.
+ func getBaseType(name string, rt reflect.Type) (gobType, error) {

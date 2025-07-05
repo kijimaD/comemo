@@ -13,8 +13,96 @@ Date:   Fri Jan 30 16:20:46 2015 +1100
     Change-Id: I7f8ae27349b2e7a09c55db03e02a01939159a268
     Reviewed-on: https://go-review.googlesource.com/3566
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  include/u.h        |  5 ++++-
  src/cmd/5l/5.out.h | 34 ----------------------------------
  src/cmd/gc/lex.c   |  6 +++++-
  3 files changed, 9 insertions(+), 36 deletions(-)
+
+diff --git a/include/u.h b/include/u.h
+index 489b2a3886..0ae228a9c5 100644
+--- a/include/u.h
++++ b/include/u.h
+@@ -69,9 +69,12 @@ extern "C" {
+ #include <stddef.h>
+ #include <math.h>
+ #include <ctype.h>	/* for tolower */
+-#include <signal.h>
+ #include <time.h>
+ 
++#ifndef PLAN9
++#include <signal.h>
++#endif
++
+ /*
+  * OS-specific crap
+  */
+diff --git a/src/cmd/5l/5.out.h b/src/cmd/5l/5.out.h
+index ce5ea791c6..ba738eeb63 100644
+--- a/src/cmd/5l/5.out.h
++++ b/src/cmd/5l/5.out.h
+@@ -40,40 +40,6 @@ enum
+ #define	REGARG		-1
+ /*c2go enum { REGARG = -1 }; */
+ 
+-// avoid conflict with ucontext.h. sigh.
+-#undef REG_R0
+-#undef REG_R1
+-#undef REG_R2
+-#undef REG_R3
+-#undef REG_R4
+-#undef REG_R5
+-#undef REG_R6
+-#undef REG_R7
+-#undef REG_R8
+-#undef REG_R9
+-#undef REG_R10
+-#undef REG_R11
+-#undef REG_R12
+-#undef REG_R13
+-#undef REG_R14
+-#undef REG_R15
+-#define REG_R0 GO_REG_R0
+-#define REG_R1 GO_REG_R1
+-#define REG_R2 GO_REG_R2
+-#define REG_R3 GO_REG_R3
+-#define REG_R4 GO_REG_R4
+-#define REG_R5 GO_REG_R5
+-#define REG_R6 GO_REG_R6
+-#define REG_R7 GO_REG_R7
+-#define REG_R8 GO_REG_R8
+-#define REG_R9 GO_REG_R9
+-#define REG_R10 GO_REG_R10
+-#define REG_R11 GO_REG_R11
+-#define REG_R12 GO_REG_R12
+-#define REG_R13 GO_REG_R13
+-#define REG_R14 GO_REG_R14
+-#define REG_R15 GO_REG_R15
+-
+ enum
+ {
+ 	REG_R0 = 32, // must be 16-aligned
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 2bff531e57..042099bd5e 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -8,6 +8,10 @@
+ #include	"y.tab.h"
+ #include	<ar.h>
+ 
++#ifndef PLAN9
++#include	<signal.h>
++#endif
++
+ #undef	getc
+ #undef	ungetc
+ #define	getc	ccgetc
+@@ -1275,7 +1279,7 @@ talph:
+ 		if(c >= Runeself) {
+ 			ungetc(c);
+ 			rune = getr();
+-			// 0xb7 · is used for internal names
++			// 0xb7 Â· is used for internal names
+ 			if(!isalpharune(rune) && !isdigitrune(rune) && (importpkg == nil || rune != 0xb7))
+ 				yyerror("invalid identifier character U+%04x", rune);
+ 			cp += runetochar(cp, &rune);

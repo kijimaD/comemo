@@ -10,6 +10,36 @@ Date:   Thu Oct 27 12:22:45 2011 -0700
     R=golang-dev, r, borman, r
     CC=golang-dev
     https://golang.org/cl/5321058
-
+---
  doc/go_spec.html | 14 ++++++++++++--
  1 file changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index fed7ed0348..34d8c81397 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -5149,12 +5149,22 @@ func main() { … }
+ <p>
+ Program execution begins by initializing the main package and then
+ invoking the function <code>main</code>.
+-</p>
+-<p>
+ When the function <code>main</code> returns, the program exits.
+ It does not wait for other (non-<code>main</code>) goroutines to complete.
+ </p>
+ 
++<p>
++Package initialization&mdash;variable initialization and the invocation of 
++<code>init</code> functions&mdash;happens in a single goroutine,
++sequentially, one package at a time.
++An <code>init</code> function may launch other goroutines, which can run
++concurrently with the initialization code. However, initialization
++always sequences
++the <code>init</code> functions: it will not start the next
++<code>init</code> until
++the previous one has returned.
++</p>
++
+ <h2 id="Run_time_panics">Run-time panics</h2>
+ 
+ <p>

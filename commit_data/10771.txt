@@ -11,6 +11,27 @@ Date:   Tue Dec 13 17:22:11 2011 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5488071
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 18a41337b8..945caba9d9 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,5 +1,5 @@
+ <!-- title The Go Programming Language Specification -->
+-<!-- subtitle Version of December 12, 2011 -->
++<!-- subtitle Version of December 13, 2011 -->
+ 
+ <!--
+ TODO
+@@ -5260,7 +5260,7 @@ func Unreflect(typ runtime.Type, addr uintptr) interface{}
+ </pre>
+ 
+ <p>
+-Any pointer or value of type <code>uintptr</code> can be converted into
++Any pointer or value of <a href="#Types">underlying type</a> <code>uintptr</code> can be converted into
+ a <code>Pointer</code> and vice versa.
+ </p>
+ <p>

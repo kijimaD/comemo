@@ -24,6 +24,22 @@ Date:   Tue Oct 22 14:56:13 2024 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/encoding/json/encode.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 02522f088a..d53e862d73 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -72,8 +72,8 @@ import (
+ //
+ // The "omitempty" option specifies that the field should be omitted
+ // from the encoding if the field has an empty value, defined as
+-// false, 0, a nil pointer, a nil interface value, and any empty array,
+-// slice, map, or string.
++// false, 0, a nil pointer, a nil interface value, and any array,
++// slice, map, or string of length zero.
+ //
+ // As a special case, if the field tag is "-", the field is always omitted.
+ // Note that a field with name "-" can still be generated using the tag "-,".

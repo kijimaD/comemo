@@ -14,7 +14,41 @@ Date:   Thu Nov 14 09:17:15 2024 -0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Zxilly Chou <zhouxinyu1001@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/text/template/exec.go      | 8 +++++++-
  src/text/template/exec_test.go | 3 +++
  2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index 57f076e35f..ed6ae43671 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -856,7 +856,13 @@ func (s *state) evalCall(dot, fun reflect.Value, isBuiltin bool, node parse.Node
+ 	// Special case for the "call" builtin.
+ 	// Insert the name of the callee function as the first argument.
+ 	if isBuiltin && name == "call" {
+-		calleeName := args[0].String()
++		var calleeName string
++		if len(args) == 0 {
++			// final must be present or we would have errored out above.
++			calleeName = final.String()
++		} else {
++			calleeName = args[0].String()
++		}
+ 		argv = append([]reflect.Value{reflect.ValueOf(calleeName)}, argv...)
+ 		fun = reflect.ValueOf(call)
+ 	}
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index cca53f4d72..03ec9d759a 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -400,6 +400,9 @@ var execTests = []execTest{
+ 	{"Interface Call", `{{stringer .S}}`, "foozle", map[string]any{"S": bytes.NewBufferString("foozle")}, true},
+ 	{".ErrFunc", "{{call .ErrFunc}}", "bla", tVal, true},
+ 	{"call nil", "{{call nil}}", "", tVal, false},
++	{"empty call", "{{call}}", "", tVal, false},
++	{"empty call after pipe valid", "{{.ErrFunc | call}}", "bla", tVal, true},
++	{"empty call after pipe invalid", "{{1 | call}}", "", tVal, false},
+ 
+ 	// Erroneous function calls (check args).
+ 	{".BinaryFuncTooFew", "{{call .BinaryFunc `1`}}", "", tVal, false},

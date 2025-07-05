@@ -14,6 +14,24 @@ Date:   Wed May 21 14:48:21 2025 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/bufio/scan.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/bufio/scan.go b/src/bufio/scan.go
+index a26b2ff17d..1a0a3907c9 100644
+--- a/src/bufio/scan.go
++++ b/src/bufio/scan.go
+@@ -260,8 +260,11 @@ func (s *Scanner) setErr(err error) {
+ 	}
+ }
+ 
+-// Buffer sets the initial buffer to use when scanning
++// Buffer controls memory allocation by the Scanner.
++// It sets the initial buffer to use when scanning
+ // and the maximum size of buffer that may be allocated during scanning.
++// The contents of the buffer are ignored.
++//
+ // The maximum token size must be less than the larger of max and cap(buf).
+ // If max <= cap(buf), [Scanner.Scan] will use this buffer only and do no allocation.
+ //

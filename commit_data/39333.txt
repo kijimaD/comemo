@@ -24,6 +24,22 @@ Date:   Sun Feb 24 22:48:46 2019 +0100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/time/example_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/time/example_test.go b/src/time/example_test.go
+index 0fd325f2e4..a3532584ef 100644
+--- a/src/time/example_test.go
++++ b/src/time/example_test.go
+@@ -113,8 +113,8 @@ func ExampleDuration_Minutes() {
+ }
+ 
+ func ExampleDuration_Nanoseconds() {
+-	ns, _ := time.ParseDuration("1000ns")
+-	fmt.Printf("one microsecond has %d nanoseconds.", ns.Nanoseconds())
++	u, _ := time.ParseDuration("1us")
++	fmt.Printf("one microsecond has %d nanoseconds.", u.Nanoseconds())
+ 	// Output: one microsecond has 1000 nanoseconds.
+ }
+ 

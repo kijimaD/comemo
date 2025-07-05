@@ -8,8 +8,48 @@ Date:   Tue Nov 25 09:22:58 2008 -0800
     DELTA=150  (147 added, 0 deleted, 3 changed)
     OCL=19968
     CL=19977
-
+---
  src/lib/math/all_test.go  | 2 --
  src/lib/math/asin.go      | 2 +-
  src/lib/time/time_test.go | 2 --
  3 files changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/lib/math/all_test.go b/src/lib/math/all_test.go
+index 8fa334c350..ddcb1e3ac7 100644
+--- a/src/lib/math/all_test.go
++++ b/src/lib/math/all_test.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// $G $F.go && $L $F.$A && (./$A.out || echo BUG: math fails)
+-
+ package math
+ 
+ import (
+diff --git a/src/lib/math/asin.go b/src/lib/math/asin.go
+index 91875d35f8..effaba85e7 100644
+--- a/src/lib/math/asin.go
++++ b/src/lib/math/asin.go
+@@ -46,7 +46,7 @@ export func Asin(arg float64) float64 {
+ }
+ 
+ export func Acos(arg float64) float64 {
+-	if(arg > 1 || arg < -1) {
++	if arg > 1 || arg < -1 {
+ 		return sys.NaN();
+ 	}
+ 	return pio2 - Asin(arg);
+diff --git a/src/lib/time/time_test.go b/src/lib/time/time_test.go
+index f771ec03cb..d54dfd0217 100644
+--- a/src/lib/time/time_test.go
++++ b/src/lib/time/time_test.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// $G $F.go && $L $F.$A && ./$A.out
+-
+ package time
+ 
+ import (

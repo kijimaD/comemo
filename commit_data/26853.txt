@@ -15,6 +15,37 @@ Date:   Sun Feb 28 17:58:57 2016 -0900
     Reviewed-on: https://go-review.googlesource.com/20027
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/objfile.go | 18 ++++++++++++++++--
  1 file changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/objfile.go b/src/cmd/link/internal/ld/objfile.go
+index 36a65ba40e..b04244f3cc 100644
+--- a/src/cmd/link/internal/ld/objfile.go
++++ b/src/cmd/link/internal/ld/objfile.go
+@@ -431,9 +431,23 @@ func rdstring(f *obj.Biobuf) string {
+ 	return string(p)
+ }
+ 
++var (
++	rddataBuf    = make([]byte, rddataBufMax)
++	rddataBufMax = 1 << 14
++)
++
+ func rddata(f *obj.Biobuf) []byte {
+-	n := rdint64(f)
+-	p := make([]byte, n)
++	var p []byte
++	n := rdint(f)
++	if n > rddataBufMax {
++		p = make([]byte, n)
++	} else {
++		if len(rddataBuf) < n {
++			rddataBuf = make([]byte, rddataBufMax)
++		}
++		p = rddataBuf[:n:n]
++		rddataBuf = rddataBuf[n:]
++	}
+ 	obj.Bread(f, p)
+ 	return p
+ }

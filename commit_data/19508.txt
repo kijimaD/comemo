@@ -15,6 +15,27 @@ Date:   Tue Jun 10 14:11:39 2014 -0700
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/104950045
-
+---
  src/cmd/ld/dwarf.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index cee591ffa6..cc77b45cd6 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -1624,13 +1624,13 @@ writelines(void)
+ 			}
+ 			putpclcdelta(s->value + pcline.pc - pc, pcline.value - line);
+ 
+-			pc = epc;
++			pc = s->value + pcline.pc;
++			line = pcline.value;
+ 			if(pcfile.nextpc < pcline.nextpc)
+ 				epc = pcfile.nextpc;
+ 			else
+ 				epc = pcline.nextpc;
+ 			epc += s->value;
+-			line = pcline.value;
+ 		}
+ 
+ 		da = 0;

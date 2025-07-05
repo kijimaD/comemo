@@ -8,7 +8,7 @@ Date:   Sat Sep 4 10:36:13 2010 +1000
     R=gri
     CC=golang-dev
     https://golang.org/cl/2157041
-
+---
  test/64bit.go                  | 302 ++++++++++-----------
  test/assign.go                 |  48 ++--
  test/bigalg.go                 |  86 +++---
@@ -98,3 +98,8517 @@ Date:   Sat Sep 4 10:36:13 2010 +1000
  test/typeswitch.go             |  78 +++---
  test/utf.go                    |  60 ++---
  88 files changed, 2537 insertions(+), 2541 deletions(-)
+
+diff --git a/test/64bit.go b/test/64bit.go
+index b014e546c9..9e91a97fd5 100644
+--- a/test/64bit.go
++++ b/test/64bit.go
+@@ -15,9 +15,9 @@
+ package main
+ 
+ import (
+-	"bufio";
+-	"fmt";
+-	"os";
++	"bufio"
++	"fmt"
++	"os"
+ )
+ 
+ var bout *bufio.Writer
+@@ -27,19 +27,19 @@ var bout *bufio.Writer
+ // if the compiler has buggy or missing 64-bit support.
+ 
+ type Uint64 struct {
+-	hi	uint32;
+-	lo	uint32;
++	hi	uint32
++	lo	uint32
+ }
+ 
+ type Int64 struct {
+-	hi	int32;
+-	lo	uint32;
++	hi	int32
++	lo	uint32
+ }
+ 
+ func (a Uint64) Int64() (c Int64) {
+-	c.hi = int32(a.hi);
+-	c.lo = a.lo;
+-	return;
++	c.hi = int32(a.hi)
++	c.lo = a.lo
++	return
+ }
+ 
+ func (a Uint64) Cmp(b Uint64) int {
+@@ -53,80 +53,80 @@ func (a Uint64) Cmp(b Uint64) int {
+ 	case a.lo > b.lo:
+ 		return 1
+ 	}
+-	return 0;
++	return 0
+ }
+ 
+ func (a Uint64) LeftShift(b uint) (c Uint64) {
+ 	switch {
+ 	case b >= 64:
+-		c.hi = 0;
+-		c.lo = 0;
++		c.hi = 0
++		c.lo = 0
+ 	case b >= 32:
+-		c.hi = a.lo << (b - 32);
+-		c.lo = 0;
++		c.hi = a.lo << (b - 32)
++		c.lo = 0
+ 	default:
+-		c.hi = a.hi<<b | a.lo>>(32-b);
+-		c.lo = a.lo << b;
++		c.hi = a.hi<<b | a.lo>>(32-b)
++		c.lo = a.lo << b
+ 	}
+-	return;
++	return
+ }
+ 
+ func (a Uint64) RightShift(b uint) (c Uint64) {
+ 	switch {
+ 	case b >= 64:
+-		c.hi = 0;
+-		c.lo = a.hi;
++		c.hi = 0
++		c.lo = a.hi
+ 	case b >= 32:
+-		c.hi = 0;
+-		c.lo = a.hi >> (b - 32);
++		c.hi = 0
++		c.lo = a.hi >> (b - 32)
+ 	default:
+-		c.hi = a.hi >> b;
+-		c.lo = a.hi<<(32-b) | a.lo>>b;
++		c.hi = a.hi >> b
++		c.lo = a.hi<<(32-b) | a.lo>>b
+ 	}
+-	return;
++	return
+ }
+ 
+ func (a Uint64) LeftShift64(b Uint64) (c Uint64) {
+ 	if b.hi != 0 || b.lo >= 64 {
+ 		return
+ 	}
+-	return a.LeftShift(uint(b.lo));
++	return a.LeftShift(uint(b.lo))
+ }
+ 
+ func (a Uint64) RightShift64(b Uint64) (c Uint64) {
+ 	if b.hi != 0 || b.lo >= 64 {
+ 		return
+ 	}
+-	return a.RightShift(uint(b.lo));
++	return a.RightShift(uint(b.lo))
+ }
+ 
+ func (a Uint64) Plus(b Uint64) (c Uint64) {
+-	var carry uint32;
++	var carry uint32
+ 	if c.lo = a.lo + b.lo; c.lo < a.lo {
+ 		carry = 1
+ 	}
+-	c.hi = a.hi + b.hi + carry;
+-	return;
++	c.hi = a.hi + b.hi + carry
++	return
+ }
+ 
+ func (a Uint64) Minus(b Uint64) (c Uint64) {
+-	var borrow uint32;
++	var borrow uint32
+ 	if c.lo = a.lo - b.lo; c.lo > a.lo {
+ 		borrow = 1
+ 	}
+-	c.hi = a.hi - b.hi - borrow;
+-	return;
++	c.hi = a.hi - b.hi - borrow
++	return
+ }
+ 
+ func (a Uint64) Neg() (c Uint64) {
+-	var zero Uint64;
+-	return zero.Minus(a);
++	var zero Uint64
++	return zero.Minus(a)
+ }
+ 
+ func (a Uint64) Com() (c Uint64) {
+-	c.hi = ^a.hi;
+-	c.lo = ^a.lo;
+-	return;
++	c.hi = ^a.hi
++	c.lo = ^a.lo
++	return
+ }
+ 
+ func (a Uint64) Len() int {
+@@ -144,7 +144,7 @@ func (a Uint64) Len() int {
+ 			}
+ 		}
+ 	}
+-	return 0;
++	return 0
+ }
+ 
+ func (a Uint64) HasBit(b uint) bool {
+@@ -154,7 +154,7 @@ func (a Uint64) HasBit(b uint) bool {
+ 	case b >= 32:
+ 		return a.hi&(1<<(b-32)) != 0
+ 	}
+-	return a.lo&(1<<b) != 0;
++	return a.lo&(1<<b) != 0
+ }
+ 
+ func (a Uint64) Times(b Uint64) (c Uint64) {
+@@ -163,56 +163,56 @@ func (a Uint64) Times(b Uint64) (c Uint64) {
+ 			c = c.Plus(a.LeftShift(i))
+ 		}
+ 	}
+-	return;
++	return
+ }
+ 
+ func (a Uint64) DivMod(b Uint64) (quo, rem Uint64) {
+-	n := a.Len() - b.Len();
++	n := a.Len() - b.Len()
+ 	if n >= 0 {
+-		b = b.LeftShift(uint(n));
++		b = b.LeftShift(uint(n))
+ 		for i := 0; i <= n; i++ {
+-			quo = quo.LeftShift(1);
++			quo = quo.LeftShift(1)
+ 			if b.Cmp(a) <= 0 {	// b <= a
+-				quo.lo |= 1;
+-				a = a.Minus(b);
++				quo.lo |= 1
++				a = a.Minus(b)
+ 			}
+-			b = b.RightShift(1);
++			b = b.RightShift(1)
+ 		}
+ 	}
+-	rem = a;
+-	return;
++	rem = a
++	return
+ }
+ 
+ func (a Uint64) And(b Uint64) (c Uint64) {
+-	c.hi = a.hi & b.hi;
+-	c.lo = a.lo & b.lo;
+-	return;
++	c.hi = a.hi & b.hi
++	c.lo = a.lo & b.lo
++	return
+ }
+ 
+ func (a Uint64) AndNot(b Uint64) (c Uint64) {
+-	c.hi = a.hi &^ b.hi;
+-	c.lo = a.lo &^ b.lo;
+-	return;
++	c.hi = a.hi &^ b.hi
++	c.lo = a.lo &^ b.lo
++	return
+ }
+ 
+ func (a Uint64) Or(b Uint64) (c Uint64) {
+-	c.hi = a.hi | b.hi;
+-	c.lo = a.lo | b.lo;
+-	return;
++	c.hi = a.hi | b.hi
++	c.lo = a.lo | b.lo
++	return
+ }
+ 
+ func (a Uint64) Xor(b Uint64) (c Uint64) {
+-	c.hi = a.hi ^ b.hi;
+-	c.lo = a.lo ^ b.lo;
+-	return;
++	c.hi = a.hi ^ b.hi
++	c.lo = a.lo ^ b.lo
++	return
+ }
+ 
+ func (a Uint64) String() string	{ return fmt.Sprintf("%#x%08x", a.hi, a.lo) }
+ 
+ func (a Int64) Uint64() (c Uint64) {
+-	c.hi = uint32(a.hi);
+-	c.lo = a.lo;
+-	return;
++	c.hi = uint32(a.hi)
++	c.lo = a.lo
++	return
+ }
+ 
+ func (a Int64) Cmp(b Int64) int {
+@@ -229,7 +229,7 @@ func (a Int64) Cmp(b Int64) int {
+ 	case a.lo > b.lo:
+ 		return 1
+ 	}
+-	return 0;
++	return 0
+ }
+ 
+ func (a Int64) LeftShift(b uint) (c Int64)	{ return a.Uint64().LeftShift(b).Int64() }
+@@ -237,30 +237,30 @@ func (a Int64) LeftShift(b uint) (c Int64)	{ return a.Uint64().LeftShift(b).Int6
+ func (a Int64) RightShift(b uint) (c Int64) {
+ 	switch {
+ 	case b >= 64:
+-		c.hi = a.hi >> 31;	// sign extend
+-		c.lo = uint32(c.hi);
++		c.hi = a.hi >> 31	// sign extend
++		c.lo = uint32(c.hi)
+ 	case b >= 32:
+-		c.hi = a.hi >> 31;	// sign extend
+-		c.lo = uint32(a.hi >> (b - 32));
++		c.hi = a.hi >> 31	// sign extend
++		c.lo = uint32(a.hi >> (b - 32))
+ 	default:
+-		c.hi = a.hi >> b;
+-		c.lo = uint32(a.hi<<(32-b)) | a.lo>>b;
++		c.hi = a.hi >> b
++		c.lo = uint32(a.hi<<(32-b)) | a.lo>>b
+ 	}
+-	return;
++	return
+ }
+ 
+ func (a Int64) LeftShift64(b Uint64) (c Int64) {
+ 	if b.hi != 0 || b.lo >= 64 {
+ 		return
+ 	}
+-	return a.LeftShift(uint(b.lo));
++	return a.LeftShift(uint(b.lo))
+ }
+ 
+ func (a Int64) RightShift64(b Uint64) (c Int64) {
+ 	if b.hi != 0 || b.lo >= 64 {
+ 		return a.RightShift(64)
+ 	}
+-	return a.RightShift(uint(b.lo));
++	return a.RightShift(uint(b.lo))
+ }
+ 
+ func (a Int64) Plus(b Int64) (c Int64)	{ return a.Uint64().Plus(b.Uint64()).Int64() }
+@@ -274,23 +274,23 @@ func (a Int64) Com() (c Int64)	{ return a.Uint64().Com().Int64() }
+ func (a Int64) Times(b Int64) (c Int64)	{ return a.Uint64().Times(b.Uint64()).Int64() }
+ 
+ func (a Int64) DivMod(b Int64) (quo Int64, rem Int64) {
+-	var zero Int64;
++	var zero Int64
+ 
+-	quoSign := +1;
+-	remSign := +1;
++	quoSign := +1
++	remSign := +1
+ 	if a.Cmp(zero) < 0 {
+-		quoSign = -1;
+-		remSign = -1;
+-		a = a.Neg();
++		quoSign = -1
++		remSign = -1
++		a = a.Neg()
+ 	}
+ 	if b.Cmp(zero) < 0 {
+-		quoSign = -quoSign;
+-		b = b.Neg();
++		quoSign = -quoSign
++		b = b.Neg()
+ 	}
+ 
+-	q, r := a.Uint64().DivMod(b.Uint64());
+-	quo = q.Int64();
+-	rem = r.Int64();
++	q, r := a.Uint64().DivMod(b.Uint64())
++	quo = q.Int64()
++	rem = r.Int64()
+ 
+ 	if quoSign < 0 {
+ 		quo = quo.Neg()
+@@ -298,7 +298,7 @@ func (a Int64) DivMod(b Int64) (quo Int64, rem Int64) {
+ 	if remSign < 0 {
+ 		rem = rem.Neg()
+ 	}
+-	return;
++	return
+ }
+ 
+ func (a Int64) And(b Int64) (c Int64)	{ return a.Uint64().And(b.Uint64()).Int64() }
+@@ -313,7 +313,7 @@ func (a Int64) String() string {
+ 	if a.hi < 0 {
+ 		return fmt.Sprintf("-%s", a.Neg().Uint64())
+ 	}
+-	return a.Uint64().String();
++	return a.Uint64().String()
+ }
+ 
+ var int64Values = []Int64{
+@@ -507,56 +507,56 @@ const prolog = "\n" +
+ 	"\n"
+ 
+ func varTests() {
+-	fmt.Fprint(bout, prolog);
++	fmt.Fprint(bout, prolog)
+ 	for _, a := range int64Values {
+-		fmt.Fprintf(bout, "func test%v() {\n", ntest);
+-		ntest++;
+-		fmt.Fprintf(bout, "\ttestInt64Unary(%v, %v, %v, %v);\n", a, a, a.Com(), a.Neg());
++		fmt.Fprintf(bout, "func test%v() {\n", ntest)
++		ntest++
++		fmt.Fprintf(bout, "\ttestInt64Unary(%v, %v, %v, %v);\n", a, a, a.Com(), a.Neg())
+ 		for _, b := range int64Values {
+-			var div, mod Int64;
+-			dodiv := false;
+-			var zero Int64;
++			var div, mod Int64
++			dodiv := false
++			var zero Int64
+ 			if b.Cmp(zero) != 0 {	// b != 0
+ 				// Can't divide by zero but also can't divide -0x8000...000 by -1.
+-				var bigneg = Int64{-0x80000000, 0};
+-				var minus1 = Int64{-1, ^uint32(0)};
++				var bigneg = Int64{-0x80000000, 0}
++				var minus1 = Int64{-1, ^uint32(0)}
+ 				if a.Cmp(bigneg) != 0 || b.Cmp(minus1) != 0 {	// a != -1<<63 || b != -1
+-					div, mod = a.DivMod(b);
+-					dodiv = true;
++					div, mod = a.DivMod(b)
++					dodiv = true
+ 				}
+ 			}
+ 			fmt.Fprintf(bout, "\ttestInt64Binary(%v, %v, %v, %v, %v, %v, %v, %v, %v, %v, %v, %v);\n",
+ 				a, b, a.Plus(b), a.Minus(b), a.Times(b), div, mod,
+-				a.And(b), a.Or(b), a.Xor(b), a.AndNot(b), dodiv);
++				a.And(b), a.Or(b), a.Xor(b), a.AndNot(b), dodiv)
+ 		}
+ 		for _, b := range shiftValues {
+ 			fmt.Fprintf(bout, "\ttestInt64Shift(%v, %v, %v, %v);\n",
+ 				a, b, a.LeftShift64(b), a.RightShift64(b))
+ 		}
+-		fmt.Fprintf(bout, "}\n");
++		fmt.Fprintf(bout, "}\n")
+ 	}
+ 
+ 	for _, a := range uint64Values {
+-		fmt.Fprintf(bout, "func test%v() {\n", ntest);
+-		ntest++;
+-		fmt.Fprintf(bout, "\ttestUint64Unary(%v, %v, %v, %v);\n", a, a, a.Com(), a.Neg());
++		fmt.Fprintf(bout, "func test%v() {\n", ntest)
++		ntest++
++		fmt.Fprintf(bout, "\ttestUint64Unary(%v, %v, %v, %v);\n", a, a, a.Com(), a.Neg())
+ 		for _, b := range uint64Values {
+-			var div, mod Uint64;
+-			dodiv := false;
+-			var zero Uint64;
++			var div, mod Uint64
++			dodiv := false
++			var zero Uint64
+ 			if b.Cmp(zero) != 0 {	// b != 0
+-				div, mod = a.DivMod(b);
+-				dodiv = true;
++				div, mod = a.DivMod(b)
++				dodiv = true
+ 			}
+ 			fmt.Fprintf(bout, "\ttestUint64Binary(%v, %v, %v, %v, %v, %v, %v, %v, %v, %v, %v, %v);\n",
+ 				a, b, a.Plus(b), a.Minus(b), a.Times(b), div, mod,
+-				a.And(b), a.Or(b), a.Xor(b), a.AndNot(b), dodiv);
++				a.And(b), a.Or(b), a.Xor(b), a.AndNot(b), dodiv)
+ 		}
+ 		for _, b := range shiftValues {
+ 			fmt.Fprintf(bout, "\ttestUint64Shift(%v, %v, %v, %v);\n",
+ 				a, b, a.LeftShift64(b), a.RightShift64(b))
+ 		}
+-		fmt.Fprintf(bout, "}\n");
++		fmt.Fprintf(bout, "}\n")
+ 	}
+ }
+ 
+@@ -622,88 +622,88 @@ const shiftConstR = "func test%vShiftR%v(a, left, right %v) {\n" +
+ 
+ func constTests() {
+ 	for i, a := range int64Values {
+-		fmt.Fprintf(bout, binaryConstL, "Int64", i, "int64", "int64", a, "int64");
+-		fmt.Fprintf(bout, binaryConstR, "Int64", i, "int64", "int64", a, "int64");
+-		fmt.Fprintf(bout, shiftConstL, "Int64", i, "int64", "int64", a, "int64");
++		fmt.Fprintf(bout, binaryConstL, "Int64", i, "int64", "int64", a, "int64")
++		fmt.Fprintf(bout, binaryConstR, "Int64", i, "int64", "int64", a, "int64")
++		fmt.Fprintf(bout, shiftConstL, "Int64", i, "int64", "int64", a, "int64")
+ 	}
+ 	for i, a := range uint64Values {
+-		fmt.Fprintf(bout, binaryConstL, "Uint64", i, "uint64", "uint64", a, "uint64");
+-		fmt.Fprintf(bout, binaryConstR, "Uint64", i, "uint64", "uint64", a, "uint64");
+-		fmt.Fprintf(bout, shiftConstL, "Uint64", i, "uint64", "uint64", a, "uint64");
++		fmt.Fprintf(bout, binaryConstL, "Uint64", i, "uint64", "uint64", a, "uint64")
++		fmt.Fprintf(bout, binaryConstR, "Uint64", i, "uint64", "uint64", a, "uint64")
++		fmt.Fprintf(bout, shiftConstL, "Uint64", i, "uint64", "uint64", a, "uint64")
+ 	}
+ 	for i, a := range shiftValues {
+-		fmt.Fprintf(bout, shiftConstR, "Int64", i, "int64", a, "int64");
+-		fmt.Fprintf(bout, shiftConstR, "Uint64", i, "uint64", a, "uint64");
++		fmt.Fprintf(bout, shiftConstR, "Int64", i, "int64", a, "int64")
++		fmt.Fprintf(bout, shiftConstR, "Uint64", i, "uint64", a, "uint64")
+ 	}
+ 	for i, a := range int64Values {
+-		fmt.Fprintf(bout, "func test%v() {\n", ntest);
+-		ntest++;
++		fmt.Fprintf(bout, "func test%v() {\n", ntest)
++		ntest++
+ 		for j, b := range int64Values {
+-			var div, mod Int64;
+-			dodiv := false;
+-			var zero Int64;
++			var div, mod Int64
++			dodiv := false
++			var zero Int64
+ 			if b.Cmp(zero) != 0 {	// b != 0
+ 				// Can't divide by zero but also can't divide -0x8000...000 by -1.
+-				var bigneg = Int64{-0x80000000, 0};
+-				var minus1 = Int64{-1, ^uint32(0)};
++				var bigneg = Int64{-0x80000000, 0}
++				var minus1 = Int64{-1, ^uint32(0)}
+ 				if a.Cmp(bigneg) != 0 || b.Cmp(minus1) != 0 {	// a != -1<<63 || b != -1
+-					div, mod = a.DivMod(b);
+-					dodiv = true;
++					div, mod = a.DivMod(b)
++					dodiv = true
+ 				}
+ 			}
+ 			fmt.Fprintf(bout, "\ttestInt64BinaryL%v(%v, %v, %v, %v, %v, %v, %v, %v, %v, %v, %v);\n",
+ 				i, b, a.Plus(b), a.Minus(b), a.Times(b), div, mod,
+-				a.And(b), a.Or(b), a.Xor(b), a.AndNot(b), dodiv);
++				a.And(b), a.Or(b), a.Xor(b), a.AndNot(b), dodiv)
+ 			fmt.Fprintf(bout, "\ttestInt64BinaryR%v(%v, %v, %v, %v, %v, %v, %v, %v, %v, %v, %v);\n",
+ 				j, a, a.Plus(b), a.Minus(b), a.Times(b), div, mod,
+-				a.And(b), a.Or(b), a.Xor(b), a.AndNot(b), dodiv);
++				a.And(b), a.Or(b), a.Xor(b), a.AndNot(b), dodiv)
+ 		}
+ 		for j, b := range shiftValues {
+ 			fmt.Fprintf(bout, "\ttestInt64ShiftL%v(%v, %v, %v);\n",
+-				i, b, a.LeftShift64(b), a.RightShift64(b));
++				i, b, a.LeftShift64(b), a.RightShift64(b))
+ 			fmt.Fprintf(bout, "\ttestInt64ShiftR%v(%v, %v, %v);\n",
+-				j, a, a.LeftShift64(b), a.RightShift64(b));
++				j, a, a.LeftShift64(b), a.RightShift64(b))
+ 		}
+-		fmt.Fprintf(bout, "}\n");
++		fmt.Fprintf(bout, "}\n")
+ 	}
+ 	for i, a := range uint64Values {
+-		fmt.Fprintf(bout, "func test%v() {\n", ntest);
+-		ntest++;
++		fmt.Fprintf(bout, "func test%v() {\n", ntest)
++		ntest++
+ 		for j, b := range uint64Values {
+-			var div, mod Uint64;
+-			dodiv := false;
+-			var zero Uint64;
++			var div, mod Uint64
++			dodiv := false
++			var zero Uint64
+ 			if b.Cmp(zero) != 0 {	// b != 0
+-				div, mod = a.DivMod(b);
+-				dodiv = true;
++				div, mod = a.DivMod(b)
++				dodiv = true
+ 			}
+ 			fmt.Fprintf(bout, "\ttestUint64BinaryL%v(%v, %v, %v, %v, %v, %v, %v, %v, %v, %v, %v);\n",
+ 				i, b, a.Plus(b), a.Minus(b), a.Times(b), div, mod,
+-				a.And(b), a.Or(b), a.Xor(b), a.AndNot(b), dodiv);
++				a.And(b), a.Or(b), a.Xor(b), a.AndNot(b), dodiv)
+ 			fmt.Fprintf(bout, "\ttestUint64BinaryR%v(%v, %v, %v, %v, %v, %v, %v, %v, %v, %v, %v);\n",
+ 				j, a, a.Plus(b), a.Minus(b), a.Times(b), div, mod,
+-				a.And(b), a.Or(b), a.Xor(b), a.AndNot(b), dodiv);
++				a.And(b), a.Or(b), a.Xor(b), a.AndNot(b), dodiv)
+ 		}
+ 		for j, b := range shiftValues {
+ 			fmt.Fprintf(bout, "\ttestUint64ShiftL%v(%v, %v, %v);\n",
+-				i, b, a.LeftShift64(b), a.RightShift64(b));
++				i, b, a.LeftShift64(b), a.RightShift64(b))
+ 			fmt.Fprintf(bout, "\ttestUint64ShiftR%v(%v, %v, %v);\n",
+-				j, a, a.LeftShift64(b), a.RightShift64(b));
++				j, a, a.LeftShift64(b), a.RightShift64(b))
+ 		}
+-		fmt.Fprintf(bout, "}\n");
++		fmt.Fprintf(bout, "}\n")
+ 	}
+ }
+ 
+ func main() {
+-	bout = bufio.NewWriter(os.Stdout);
+-	varTests();
+-	constTests();
++	bout = bufio.NewWriter(os.Stdout)
++	varTests()
++	constTests()
+ 
+-	fmt.Fprintf(bout, "func main() {\n");
++	fmt.Fprintf(bout, "func main() {\n")
+ 	for i := 0; i < ntest; i++ {
+ 		fmt.Fprintf(bout, "\ttest%v();\n", i)
+ 	}
+-	fmt.Fprintf(bout, "\tif !ok { os.Exit(1) }\n");
+-	fmt.Fprintf(bout, "}\n");
+-	bout.Flush();
++	fmt.Fprintf(bout, "\tif !ok { os.Exit(1) }\n")
++	fmt.Fprintf(bout, "}\n")
++	bout.Flush()
+ }
+diff --git a/test/assign.go b/test/assign.go
+index fea7c28285..59471388c0 100644
+--- a/test/assign.go
++++ b/test/assign.go
+@@ -9,45 +9,45 @@ package main
+ import "sync"
+ 
+ type T struct {
+-	int;
+-	sync.Mutex;
++	int
++	sync.Mutex
+ }
+ 
+ func main() {
+ 	{
+-		var x, y sync.Mutex;
+-		x = y;	// ERROR "assignment.*Mutex"
+-		_ = x;
++		var x, y sync.Mutex
++		x = y	// ERROR "assignment.*Mutex"
++		_ = x
+ 	}
+ 	{
+-		var x, y T;
+-		x = y;	// ERROR "assignment.*Mutex"
+-		_ = x;
++		var x, y T
++		x = y	// ERROR "assignment.*Mutex"
++		_ = x
+ 	}
+ 	{
+-		var x, y [2]sync.Mutex;
+-		x = y;	// ERROR "assignment.*Mutex"
+-		_ = x;
++		var x, y [2]sync.Mutex
++		x = y	// ERROR "assignment.*Mutex"
++		_ = x
+ 	}
+ 	{
+-		var x, y [2]T;
+-		x = y;	// ERROR "assignment.*Mutex"
+-		_ = x;
++		var x, y [2]T
++		x = y	// ERROR "assignment.*Mutex"
++		_ = x
+ 	}
+ 	{
+-		x := sync.Mutex{0, 0};	// ERROR "assignment.*Mutex"
+-		_ = x;
++		x := sync.Mutex{0, 0}	// ERROR "assignment.*Mutex"
++		_ = x
+ 	}
+ 	{
+-		x := sync.Mutex{key: 0};	// ERROR "(unknown|assignment).*Mutex"
+-		_ = x;
++		x := sync.Mutex{key: 0}	// ERROR "(unknown|assignment).*Mutex"
++		_ = x
+ 	}
+ 	{
+-		x := &sync.Mutex{};	// ok
+-		var y sync.Mutex;	// ok
+-		y = *x;	// ERROR "assignment.*Mutex"
+-		*x = y;	// ERROR "assignment.*Mutex"
+-		_ = x;
+-		_ = y;
++		x := &sync.Mutex{}	// ok
++		var y sync.Mutex	// ok
++		y = *x	// ERROR "assignment.*Mutex"
++		*x = y	// ERROR "assignment.*Mutex"
++		_ = x
++		_ = y
+ 	}		
+ }
+diff --git a/test/bigalg.go b/test/bigalg.go
+index 31ce222d61..902ba84107 100644
+--- a/test/bigalg.go
++++ b/test/bigalg.go
+@@ -7,35 +7,35 @@
+ package main
+ 
+ type T struct {
+-	a float64;
+-	b int64;
+-	c string;
+-	d byte;
++	a float64
++	b int64
++	c string
++	d byte
+ }
+ 
+ var a = []int{ 1, 2, 3 }
+-var NIL []int;
++var NIL []int
+ 
+ func arraycmptest() {
+ 	if NIL != nil {
+-		println("fail1:", NIL, "!= nil");
++		println("fail1:", NIL, "!= nil")
+ 	}
+ 	if nil != NIL {
+-		println("fail2: nil !=", NIL);
++		println("fail2: nil !=", NIL)
+ 	}
+ 	if a == nil || nil == a {
+-		println("fail3:", a, "== nil");
++		println("fail3:", a, "== nil")
+ 	}
+ }
+ 
+ func SameArray(a, b []int) bool {
+ 	if len(a) != len(b) || cap(a) != cap(b) {
+-		return false;
++		return false
+ 	}
+ 	if len(a) > 0 && &a[0] != &b[0] {
+-		return false;
++		return false
+ 	}
+-	return true;
++	return true
+ }
+ 
+ var t = T{1.5, 123, "hello", 255}
+@@ -43,16 +43,16 @@ var mt = make(map[int]T)
+ var ma = make(map[int][]int)
+ 
+ func maptest() {
+-	mt[0] = t;
+-	t1 := mt[0];
++	mt[0] = t
++	t1 := mt[0]
+ 	if t1.a != t.a || t1.b != t.b || t1.c != t.c || t1.d != t.d {
+-		println("fail: map val struct", t1.a, t1.b, t1.c, t1.d);
++		println("fail: map val struct", t1.a, t1.b, t1.c, t1.d)
+ 	}
+ 
+-	ma[1] = a;
+-	a1 := ma[1];
++	ma[1] = a
++	a1 := ma[1]
+ 	if !SameArray(a, a1) {
+-		println("fail: map val array", a, a1);
++		println("fail: map val array", a, a1)
+ 	}
+ }
+ 
+@@ -60,21 +60,21 @@ var ct = make(chan T)
+ var ca = make(chan []int)
+ 
+ func send() {
+-	ct <- t;
+-	ca <- a;
++	ct <- t
++	ca <- a
+ }
+ 
+ func chantest() {
+-	go send();
++	go send()
+ 
+-	t1 := <-ct;
++	t1 := <-ct
+ 	if t1.a != t.a || t1.b != t.b || t1.c != t.c || t1.d != t.d {
+-		println("fail: map val struct", t1.a, t1.b, t1.c, t1.d);
++		println("fail: map val struct", t1.a, t1.b, t1.c, t1.d)
+ 	}
+ 
+-	a1 := <-ca;
++	a1 := <-ca
+ 	if !SameArray(a, a1) {
+-		println("fail: map val array", a, a1);
++		println("fail: map val array", a, a1)
+ 	}
+ }
+ 
+@@ -82,36 +82,36 @@ type E struct { }
+ var e E
+ 
+ func interfacetest() {
+-	var i interface{};
++	var i interface{}
+ 
+-	i = a;
+-	a1 := i.([]int);
++	i = a
++	a1 := i.([]int)
+ 	if !SameArray(a, a1) {
+-		println("interface <-> []int", a, a1);
++		println("interface <-> []int", a, a1)
+ 	}
+-	pa := new([]int);
+-	*pa = a;
+-	i = pa;
+-	a1 = *i.(*[]int);
++	pa := new([]int)
++	*pa = a
++	i = pa
++	a1 = *i.(*[]int)
+ 	if !SameArray(a, a1) {
+-		println("interface <-> *[]int", a, a1);
++		println("interface <-> *[]int", a, a1)
+ 	}
+ 
+-	i = t;
+-	t1 := i.(T);
++	i = t
++	t1 := i.(T)
+ 	if t1.a != t.a || t1.b != t.b || t1.c != t.c || t1.d != t.d {
+-		println("interface <-> struct", t1.a, t1.b, t1.c, t1.d);
++		println("interface <-> struct", t1.a, t1.b, t1.c, t1.d)
+ 	}
+ 
+-	i = e;
+-	e1 := i.(E);
++	i = e
++	e1 := i.(E)
+ 	// nothing to check; just verify it doesn't crash
+-	_ = e1;
++	_ = e1
+ }
+ 
+ func main() {
+-	arraycmptest();
+-	maptest();
+-	chantest();
+-	interfacetest();
++	arraycmptest()
++	maptest()
++	chantest()
++	interfacetest()
+ }
+diff --git a/test/blank.go b/test/blank.go
+index 7175964f7e..b9d3a32a81 100644
+--- a/test/blank.go
++++ b/test/blank.go
+@@ -11,7 +11,7 @@ import _ "fmt"
+ var call string
+ 
+ type T struct {
+-	_, _, _ int;
++	_, _, _ int
+ }
+ 
+ func (T) _() {
+@@ -21,11 +21,11 @@ func (T) _() {
+ }
+ 
+ const (
+-	c0 = iota;
+-	_;
+-	_;
+-	_;
+-	c4;
++	c0 = iota
++	_
++	_
++	_
++	c4
+ )
+ 
+ var ints = []string {
+@@ -35,12 +35,12 @@ var ints = []string {
+ }
+ 
+ func f() (int, int) {
+-	call += "f";
++	call += "f"
+ 	return 1,2
+ }
+ 
+ func g() (float, float) {
+-	call += "g";
++	call += "g"
+ 	return 3,4
+ }
+ 
+@@ -48,54 +48,54 @@ func h(_ int, _ float) {
+ }
+ 
+ func i() int {
+-	call += "i";
+-	return 23;
++	call += "i"
++	return 23
+ }
+ 
+-var _ = i();
++var _ = i()
+ 
+ func main() {
+ 	if call != "i" {panic("init did not run")}
+-	call = "";
+-	_, _ = f();
+-	a, _ := f();
++	call = ""
++	_, _ = f()
++	a, _ := f()
+ 	if a != 1 {panic(a)}
+-	b, _ := g();
++	b, _ := g()
+ 	if b != 3 {panic(b)}
+-	_, a = f();
++	_, a = f()
+ 	if a != 2 {panic(a)}
+-	_, b = g();
++	_, b = g()
+ 	if b != 4 {panic(b)}
+-	_ = i();
++	_ = i()
+ 	if call != "ffgfgi" {panic(call)}
+ 	if c4 != 4 {panic(c4)}
+ 
+-	out := "";
++	out := ""
+ 	for _, s := range ints {
+-		out += s;
++		out += s
+ 	}
+ 	if out != "123" {panic(out)}
+ 
+-	sum := 0;
++	sum := 0
+ 	for s, _ := range ints {
+-		sum += s;
++		sum += s
+ 	}
+ 	if sum != 3 {panic(sum)}
+ 
+-	h(a,b);
++	h(a,b)
+ }
+ 
+ // useless but legal
+-var _ int = 1;
+-var _ = 2;
+-var _, _ = 3, 4;
+-const _ = 3;
+-const _, _ = 4, 5;
+-type _ int;
++var _ int = 1
++var _ = 2
++var _, _ = 3, 4
++const _ = 3
++const _, _ = 4, 5
++type _ int
+ func _() {
+ 	panic("oops")
+ }
+ 
+ func ff() {
+-	var _ int = 1;
++	var _ int = 1
+ }
+diff --git a/test/blank1.go b/test/blank1.go
+index 2fa6e9f8f7..5bc1efce5f 100644
+--- a/test/blank1.go
++++ b/test/blank1.go
+@@ -7,6 +7,6 @@
+ package _	// ERROR "invalid package name _"
+ 
+ func main() {
+-	_();	// ERROR "cannot use _ as value"
+-	x := _+1;	// ERROR "cannot use _ as value"
++	_()	// ERROR "cannot use _ as value"
++	x := _+1	// ERROR "cannot use _ as value"
+ }
+diff --git a/test/chan/fifo.go b/test/chan/fifo.go
+index 00a297a604..0dddfcaa0b 100644
+--- a/test/chan/fifo.go
++++ b/test/chan/fifo.go
+@@ -13,20 +13,20 @@ import "os"
+ const N = 10
+ 
+ func AsynchFifo() {
+-	ch := make(chan int, N);
++	ch := make(chan int, N)
+ 	for i := 0; i < N; i++ {
+ 		ch <- i
+ 	}
+ 	for i := 0; i < N; i++ {
+ 		if <-ch != i {
+-			print("bad receive\n");
+-			os.Exit(1);
++			print("bad receive\n")
++			os.Exit(1)
+ 		}
+ 	}
+ }
+ 
+ func Chain(ch <-chan int, val int, in <-chan int, out chan<- int) {
+-	<-in;
++	<-in
+ 	if <-ch != val {
+ 		panic(val)
+ 	}
+@@ -35,15 +35,15 @@ func Chain(ch <-chan int, val int, in <-chan int, out chan<- int) {
+ 
+ // thread together a daisy chain to read the elements in sequence
+ func SynchFifo() {
+-	ch := make(chan int);
+-	in := make(chan int);
+-	start := in;
++	ch := make(chan int)
++	in := make(chan int)
++	start := in
+ 	for i := 0; i < N; i++ {
+-		out := make(chan int);
+-		go Chain(ch, i, in, out);
+-		in = out;
++		out := make(chan int)
++		go Chain(ch, i, in, out)
++		in = out
+ 	}
+-	start <- 0;
++	start <- 0
+ 	for i := 0; i < N; i++ {
+ 		ch <- i
+ 	}
+@@ -51,7 +51,7 @@ func SynchFifo() {
+ }
+ 
+ func main() {
+-	AsynchFifo();
+-	SynchFifo();
++	AsynchFifo()
++	SynchFifo()
+ }
+ 
+diff --git a/test/chan/goroutines.go b/test/chan/goroutines.go
+index cee8a18ac9..d8f8803dfe 100644
+--- a/test/chan/goroutines.go
++++ b/test/chan/goroutines.go
+@@ -10,32 +10,32 @@
+ package main
+ 
+ import (
+-	"os";
+-	"strconv";
++	"os"
++	"strconv"
+ )
+ 
+ func f(left, right chan int) {
+-	left <- <-right;
++	left <- <-right
+ }
+ 
+ func main() {
+-	var n = 10000;
++	var n = 10000
+ 	if len(os.Args) > 1 {
+-		var err os.Error;
+-		n, err = strconv.Atoi(os.Args[1]);
++		var err os.Error
++		n, err = strconv.Atoi(os.Args[1])
+ 		if err != nil {
+-			print("bad arg\n");
+-			os.Exit(1);
++			print("bad arg\n")
++			os.Exit(1)
+ 		}
+ 	}
+-	leftmost := make(chan int);
+-	right := leftmost;
+-	left := leftmost;
++	leftmost := make(chan int)
++	right := leftmost
++	left := leftmost
+ 	for i := 0; i < n; i++ {
+-		right = make(chan int);
+-		go f(left, right);
+-		left = right;
++		right = make(chan int)
++		go f(left, right)
++		left = right
+ 	}
+-	go func(c chan int) { c <- 1 }(right);
+-	<-leftmost;
++	go func(c chan int) { c <- 1 }(right)
++	<-leftmost
+ }
+diff --git a/test/chan/perm.go b/test/chan/perm.go
+index 502e787a5b..d08c035193 100644
+--- a/test/chan/perm.go
++++ b/test/chan/perm.go
+@@ -7,51 +7,51 @@
+ package main
+ 
+ var (
+-	cr <-chan int;
+-	cs chan<- int;
+-	c chan int;
++	cr <-chan int
++	cs chan<- int
++	c chan int
+ )
+ 
+ func main() {
+-	cr = c;		// ok
+-	cs = c;		// ok
+-	c = cr;		// ERROR "illegal types|incompatible|cannot"
+-	c = cs;		// ERROR "illegal types|incompatible|cannot"
+-	cr = cs;	// ERROR "illegal types|incompatible|cannot"
+-	cs = cr;	// ERROR "illegal types|incompatible|cannot"
+-
+-	c <- 0;		// ok
+-	ok := c <- 0;	// ok
+-	_ = ok;
+-	<-c;		// ok
+-	x, ok := <-c;	// ok
+-	_, _ = x, ok;
+-
+-	cr <- 0;	// ERROR "send"
+-	ok = cr <- 0;	// ERROR "send"
+-	_ = ok;
+-	<-cr;		// ok
+-	x, ok = <-cr;	// ok
+-	_, _ = x, ok;
+-
+-	cs <- 0;	// ok
+-	ok = cs <- 0;	// ok
+-	_ = ok;
+-	<-cs;		// ERROR "receive"
+-	x, ok = <-cs;	// ERROR "receive"
+-	_, _ = x, ok;
++	cr = c		// ok
++	cs = c		// ok
++	c = cr		// ERROR "illegal types|incompatible|cannot"
++	c = cs		// ERROR "illegal types|incompatible|cannot"
++	cr = cs	// ERROR "illegal types|incompatible|cannot"
++	cs = cr	// ERROR "illegal types|incompatible|cannot"
++
++	c <- 0		// ok
++	ok := c <- 0	// ok
++	_ = ok
++	<-c		// ok
++	x, ok := <-c	// ok
++	_, _ = x, ok
++
++	cr <- 0	// ERROR "send"
++	ok = cr <- 0	// ERROR "send"
++	_ = ok
++	<-cr		// ok
++	x, ok = <-cr	// ok
++	_, _ = x, ok
++
++	cs <- 0	// ok
++	ok = cs <- 0	// ok
++	_ = ok
++	<-cs		// ERROR "receive"
++	x, ok = <-cs	// ERROR "receive"
++	_, _ = x, ok
+ 
+ 	select {
+ 	case c <- 0:	// ok
+ 	case x := <-c:	// ok
+-		_ = x;
++		_ = x
+ 
+ 	case cr <- 0:	// ERROR "send"
+ 	case x := <-cr:	// ok
+-		_ = x;
++		_ = x
+ 
+-	case cs <- 0:	// ok;
++	case cs <- 0:	// ok
+ 	case x := <-cs:	// ERROR "receive"
+-		_ = x;
++		_ = x
+ 	}
+ }
+diff --git a/test/chan/powser1.go b/test/chan/powser1.go
+index bb36b15941..dc4ff53255 100644
+--- a/test/chan/powser1.go
++++ b/test/chan/powser1.go
+@@ -16,7 +16,7 @@ package main
+ import "os"
+ 
+ type rat struct  {
+-	num, den  int64;	// numerator, denominator
++	num, den  int64	// numerator, denominator
+ }
+ 
+ func (u rat) pr() {
+@@ -33,9 +33,9 @@ func (u rat) eq(c rat) bool {
+ }
+ 
+ type dch struct {
+-	req chan  int;
+-	dat chan  rat;
+-	nam int;
++	req chan  int
++	dat chan  rat
++	nam int
+ }
+ 
+ type dch2 [2] *dch
+@@ -45,20 +45,20 @@ var chnameserial int
+ var seqno int
+ 
+ func mkdch() *dch {
+-	c := chnameserial % len(chnames);
+-	chnameserial++;
+-	d := new(dch);
+-	d.req = make(chan int);
+-	d.dat = make(chan rat);
+-	d.nam = c;
+-	return d;
++	c := chnameserial % len(chnames)
++	chnameserial++
++	d := new(dch)
++	d.req = make(chan int)
++	d.dat = make(chan rat)
++	d.nam = c
++	return d
+ }
+ 
+ func mkdch2() *dch2 {
+-	d2 := new(dch2);
+-	d2[0] = mkdch();
+-	d2[1] = mkdch();
+-	return d2;
++	d2 := new(dch2)
++	d2[0] = mkdch()
++	d2[1] = mkdch()
++	return d2
+ }
+ 
+ // split reads a single demand channel and replicates its
+@@ -76,98 +76,97 @@ func mkdch2() *dch2 {
+ // generation to begin servicing out[1].
+ 
+ func dosplit(in *dch, out *dch2, wait chan int ) {
+-	var t *dch;
+-	both := false;	// do not service both channels
++	both := false	// do not service both channels
+ 
+ 	select {
+ 	case <-out[0].req:
+-		;
++		
+ 	case <-wait:
+-		both = true;
++		both = true
+ 		select {
+ 		case <-out[0].req:
+-			;
++			
+ 		case <-out[1].req:
+-			t=out[0]; out[0]=out[1]; out[1]=t;
++			out[0], out[1] = out[1], out[0]
+ 		}
+ 	}
+ 
+-	seqno++;
+-	in.req <- seqno;
+-	release := make(chan  int);
+-	go dosplit(in, out, release);
+-	dat := <-in.dat;
+-	out[0].dat <- dat;
++	seqno++
++	in.req <- seqno
++	release := make(chan  int)
++	go dosplit(in, out, release)
++	dat := <-in.dat
++	out[0].dat <- dat
+ 	if !both {
+ 		<-wait
+ 	}
+-	<-out[1].req;
+-	out[1].dat <- dat;
+-	release <- 0;
++	<-out[1].req
++	out[1].dat <- dat
++	release <- 0
+ }
+ 
+ func split(in *dch, out *dch2) {
+-	release := make(chan int);
+-	go dosplit(in, out, release);
+-	release <- 0;
++	release := make(chan int)
++	go dosplit(in, out, release)
++	release <- 0
+ }
+ 
+ func put(dat rat, out *dch) {
+-	<-out.req;
+-	out.dat <- dat;
++	<-out.req
++	out.dat <- dat
+ }
+ 
+ func get(in *dch) rat {
+-	seqno++;
+-	in.req <- seqno;
+-	return <-in.dat;
++	seqno++
++	in.req <- seqno
++	return <-in.dat
+ }
+ 
+ // Get one rat from each of n demand channels
+ 
+ func getn(in []*dch) []rat {
+-	n := len(in);
+-	if n != 2 { panic("bad n in getn") };
+-	req := new([2] chan int);
+-	dat := new([2] chan rat);
+-	out := make([]rat, 2);
+-	var i int;
+-	var it rat;
++	n := len(in)
++	if n != 2 { panic("bad n in getn") }
++	req := new([2] chan int)
++	dat := new([2] chan rat)
++	out := make([]rat, 2)
++	var i int
++	var it rat
+ 	for i=0; i<n; i++ {
+-		req[i] = in[i].req;
+-		dat[i] = nil;
++		req[i] = in[i].req
++		dat[i] = nil
+ 	}
+ 	for n=2*n; n>0; n-- {
+-		seqno++;
++		seqno++
+ 
+ 		select {
+ 		case req[0] <- seqno:
+-			dat[0] = in[0].dat;
+-			req[0] = nil;
++			dat[0] = in[0].dat
++			req[0] = nil
+ 		case req[1] <- seqno:
+-			dat[1] = in[1].dat;
+-			req[1] = nil;
++			dat[1] = in[1].dat
++			req[1] = nil
+ 		case it = <-dat[0]:
+-			out[0] = it;
+-			dat[0] = nil;
++			out[0] = it
++			dat[0] = nil
+ 		case it = <-dat[1]:
+-			out[1] = it;
+-			dat[1] = nil;
++			out[1] = it
++			dat[1] = nil
+ 		}
+ 	}
+-	return out;
++	return out
+ }
+ 
+ // Get one rat from each of 2 demand channels
+ 
+ func get2(in0 *dch, in1 *dch) []rat {
+-	return getn([]*dch{in0, in1});
++	return getn([]*dch{in0, in1})
+ }
+ 
+ func copy(in *dch, out *dch) {
+ 	for {
+-		<-out.req;
+-		out.dat <- get(in);
++		<-out.req
++		out.dat <- get(in)
+ 	}
+ }
+ 
+@@ -177,8 +176,8 @@ func repeat(dat rat, out *dch) {
+ 	}
+ }
+ 
+-type PS *dch;	// power series
+-type PS2 *[2] PS; // pair of power series
++type PS *dch	// power series
++type PS2 *[2] PS // pair of power series
+ 
+ var Ones PS
+ var Twos PS
+@@ -208,29 +207,29 @@ func gcd (u, v int64) int64 {
+ // Make a rational from two ints and from one int
+ 
+ func i2tor(u, v int64) rat {
+-	g := gcd(u,v);
+-	var r rat;
++	g := gcd(u,v)
++	var r rat
+ 	if v > 0 {
+-		r.num = u/g;
+-		r.den = v/g;
++		r.num = u/g
++		r.den = v/g
+ 	} else {
+-		r.num = -u/g;
+-		r.den = -v/g;
++		r.num = -u/g
++		r.den = -v/g
+ 	}
+-	return r;
++	return r
+ }
+ 
+ func itor(u int64) rat {
+-	return i2tor(u, 1);
++	return i2tor(u, 1)
+ }
+ 
+-var zero rat;
+-var one rat;
++var zero rat
++var one rat
+ 
+ 
+ // End mark and end test
+ 
+-var finis rat;
++var finis rat
+ 
+ func end(u rat) int64 {
+ 	if u.den==0 { return 1 }
+@@ -240,68 +239,68 @@ func end(u rat) int64 {
+ // Operations on rationals
+ 
+ func add(u, v rat) rat {
+-	g := gcd(u.den,v.den);
+-	return  i2tor(u.num*(v.den/g)+v.num*(u.den/g),u.den*(v.den/g));
++	g := gcd(u.den,v.den)
++	return  i2tor(u.num*(v.den/g)+v.num*(u.den/g),u.den*(v.den/g))
+ }
+ 
+ func mul(u, v rat) rat {
+-	g1 := gcd(u.num,v.den);
+-	g2 := gcd(u.den,v.num);
+-	var r rat;
+-	r.num = (u.num/g1)*(v.num/g2);
+-	r.den = (u.den/g2)*(v.den/g1);
+-	return r;
++	g1 := gcd(u.num,v.den)
++	g2 := gcd(u.den,v.num)
++	var r rat
++	r.num = (u.num/g1)*(v.num/g2)
++	r.den = (u.den/g2)*(v.den/g1)
++	return r
+ }
+ 
+ func neg(u rat) rat {
+-	return i2tor(-u.num, u.den);
++	return i2tor(-u.num, u.den)
+ }
+ 
+ func sub(u, v rat) rat {
+-	return add(u, neg(v));
++	return add(u, neg(v))
+ }
+ 
+ func inv(u rat) rat {	// invert a rat
+ 	if u.num == 0 { panic("zero divide in inv") }
+-	return i2tor(u.den, u.num);
++	return i2tor(u.den, u.num)
+ }
+ 
+ // print eval in floating point of PS at x=c to n terms
+ func evaln(c rat, U PS, n int) {
+-	xn := float64(1);
+-	x := float64(c.num)/float64(c.den);
+-	val := float64(0);
++	xn := float64(1)
++	x := float64(c.num)/float64(c.den)
++	val := float64(0)
+ 	for i:=0; i<n; i++ {
+-		u := get(U);
++		u := get(U)
+ 		if end(u) != 0 {
+-			break;
++			break
+ 		}
+-		val = val + x * float64(u.num)/float64(u.den);
+-		xn = xn*x;
++		val = val + x * float64(u.num)/float64(u.den)
++		xn = xn*x
+ 	}
+-	print(val, "\n");
++	print(val, "\n")
+ }
+ 
+ // Print n terms of a power series
+ func printn(U PS, n int) {
+-	done := false;
++	done := false
+ 	for ; !done && n>0; n-- {
+-		u := get(U);
++		u := get(U)
+ 		if end(u) != 0 {
+ 			done = true
+ 		} else {
+ 			u.pr()
+ 		}
+ 	}
+-	print(("\n"));
++	print(("\n"))
+ }
+ 
+ // Evaluate n terms of power series U at x=c
+ func eval(c rat, U PS, n int) rat {
+ 	if n==0 { return zero }
+-	y := get(U);
++	y := get(U)
+ 	if end(y) != 0 { return zero }
+-	return add(y,mul(c,eval(c,U,n-1)));
++	return add(y,mul(c,eval(c,U,n-1)))
+ }
+ 
+ // Power-series constructors return channels on which power
+@@ -311,105 +310,105 @@ func eval(c rat, U PS, n int) rat {
+ // Make a pair of power series identical to a given power series
+ 
+ func Split(U PS) *dch2 {
+-	UU := mkdch2();
+-	go split(U,UU);
+-	return UU;
++	UU := mkdch2()
++	go split(U,UU)
++	return UU
+ }
+ 
+ // Add two power series
+ func Add(U, V PS) PS {
+-	Z := mkPS();
++	Z := mkPS()
+ 	go func() {
+-		var uv []rat;
++		var uv []rat
+ 		for {
+-			<-Z.req;
+-			uv = get2(U,V);
++			<-Z.req
++			uv = get2(U,V)
+ 			switch end(uv[0])+2*end(uv[1]) {
+ 			case 0:
+-				Z.dat <- add(uv[0], uv[1]);
++				Z.dat <- add(uv[0], uv[1])
+ 			case 1:
+-				Z.dat <- uv[1];
+-				copy(V,Z);
++				Z.dat <- uv[1]
++				copy(V,Z)
+ 			case 2:
+-				Z.dat <- uv[0];
+-				copy(U,Z);
++				Z.dat <- uv[0]
++				copy(U,Z)
+ 			case 3:
+-				Z.dat <- finis;
++				Z.dat <- finis
+ 			}
+ 		}
+-	}();
+-	return Z;
++	}()
++	return Z
+ }
+ 
+ // Multiply a power series by a constant
+ func Cmul(c rat,U PS) PS {
+-	Z := mkPS();
++	Z := mkPS()
+ 	go func() {
+-		done := false;
++		done := false
+ 		for !done {
+-			<-Z.req;
+-			u := get(U);
++			<-Z.req
++			u := get(U)
+ 			if end(u) != 0 {
+ 				done = true
+ 			} else {
+ 				Z.dat <- mul(c,u)
+ 			}
+ 		}
+-		Z.dat <- finis;
+-	}();
+-	return Z;
++		Z.dat <- finis
++	}()
++	return Z
+ }
+ 
+ // Subtract
+ 
+ func Sub(U, V PS) PS {
+-	return Add(U, Cmul(neg(one), V));
++	return Add(U, Cmul(neg(one), V))
+ }
+ 
+ // Multiply a power series by the monomial x^n
+ 
+ func Monmul(U PS, n int) PS {
+-	Z := mkPS();
++	Z := mkPS()
+ 	go func() {
+ 		for ; n>0; n-- { put(zero,Z) }
+-		copy(U,Z);
+-	}();
+-	return Z;
++		copy(U,Z)
++	}()
++	return Z
+ }
+ 
+ // Multiply by x
+ 
+ func Xmul(U PS) PS {
+-	return Monmul(U,1);
++	return Monmul(U,1)
+ }
+ 
+ func Rep(c rat) PS {
+-	Z := mkPS();
+-	go repeat(c,Z);
+-	return Z;
++	Z := mkPS()
++	go repeat(c,Z)
++	return Z
+ }
+ 
+ // Monomial c*x^n
+ 
+ func Mon(c rat, n int) PS {
+-	Z:=mkPS();
++	Z:=mkPS()
+ 	go func() {
+ 		if(c.num!=0) {
+ 			for ; n>0; n=n-1 { put(zero,Z) }
+-			put(c,Z);
++			put(c,Z)
+ 		}
+-		put(finis,Z);
+-	}();
+-	return Z;
++		put(finis,Z)
++	}()
++	return Z
+ }
+ 
+ func Shift(c rat, U PS) PS {
+-	Z := mkPS();
++	Z := mkPS()
+ 	go func() {
+-		put(c,Z);
+-		copy(U,Z);
+-	}();
+-	return Z;
++		put(c,Z)
++		copy(U,Z)
++	}()
++	return Z
+ }
+ 
+ // simple pole at 1: 1/(1-x) = 1 1 1 1 1 ...
+@@ -419,17 +418,17 @@ func Shift(c rat, U PS) PS {
+ 
+ /*
+ func Poly(a []rat) PS {
+-	Z:=mkPS();
++	Z:=mkPS()
+ 	begin func(a []rat, Z PS) {
+-		j:=0;
+-		done:=0;
++		j:=0
++		done:=0
+ 		for j=len(a); !done&&j>0; j=j-1)
+-			if(a[j-1].num!=0) done=1;
+-		i:=0;
+-		for(; i<j; i=i+1) put(a[i],Z);
+-		put(finis,Z);
+-	}();
+-	return Z;
++			if(a[j-1].num!=0) done=1
++		i:=0
++		for(; i<j; i=i+1) put(a[i],Z)
++		put(finis,Z)
++	}()
++	return Z
+ }
+ */
+ 
+@@ -439,82 +438,82 @@ func Poly(a []rat) PS {
+ //	then UV = u*v + x*(u*VV+v*UU) + x*x*UU*VV
+ 
+ func Mul(U, V PS) PS {
+-	Z:=mkPS();
++	Z:=mkPS()
+ 	go func() {
+-		<-Z.req;
+-		uv := get2(U,V);
++		<-Z.req
++		uv := get2(U,V)
+ 		if end(uv[0])!=0 || end(uv[1]) != 0 {
+-			Z.dat <- finis;
++			Z.dat <- finis
+ 		} else {
+-			Z.dat <- mul(uv[0],uv[1]);
+-			UU := Split(U);
+-			VV := Split(V);
+-			W := Add(Cmul(uv[0],VV[0]),Cmul(uv[1],UU[0]));
+-			<-Z.req;
+-			Z.dat <- get(W);
+-			copy(Add(W,Mul(UU[1],VV[1])),Z);
++			Z.dat <- mul(uv[0],uv[1])
++			UU := Split(U)
++			VV := Split(V)
++			W := Add(Cmul(uv[0],VV[0]),Cmul(uv[1],UU[0]))
++			<-Z.req
++			Z.dat <- get(W)
++			copy(Add(W,Mul(UU[1],VV[1])),Z)
+ 		}
+-	}();
+-	return Z;
++	}()
++	return Z
+ }
+ 
+ // Differentiate
+ 
+ func Diff(U PS) PS {
+-	Z:=mkPS();
++	Z:=mkPS()
+ 	go func() {
+-		<-Z.req;
+-		u := get(U);
++		<-Z.req
++		u := get(U)
+ 		if end(u) == 0 {
+-			done:=false;
++			done:=false
+ 			for i:=1; !done; i++ {
+-				u = get(U);
++				u = get(U)
+ 				if end(u) != 0 {
+ 					done = true
+ 				} else {
+-					Z.dat <- mul(itor(int64(i)),u);
+-					<-Z.req;
++					Z.dat <- mul(itor(int64(i)),u)
++					<-Z.req
+ 				}
+ 			}
+ 		}
+-		Z.dat <- finis;
+-	}();
+-	return Z;
++		Z.dat <- finis
++	}()
++	return Z
+ }
+ 
+ // Integrate, with const of integration
+ func Integ(c rat,U PS) PS {
+-	Z:=mkPS();
++	Z:=mkPS()
+ 	go func() {
+-		put(c,Z);
+-		done:=false;
++		put(c,Z)
++		done:=false
+ 		for i:=1; !done; i++ {
+-			<-Z.req;
+-			u := get(U);
++			<-Z.req
++			u := get(U)
+ 			if end(u) != 0 { done= true }
+-			Z.dat <- mul(i2tor(1,int64(i)),u);
++			Z.dat <- mul(i2tor(1,int64(i)),u)
+ 		}
+-		Z.dat <- finis;
+-	}();
+-	return Z;
++		Z.dat <- finis
++	}()
++	return Z
+ }
+ 
+ // Binomial theorem (1+x)^c
+ 
+ func Binom(c rat) PS {
+-	Z:=mkPS();
++	Z:=mkPS()
+ 	go func() {
+-		n := 1;
+-		t := itor(1);
++		n := 1
++		t := itor(1)
+ 		for c.num!=0 {
+-			put(t,Z);
+-			t = mul(mul(t,c),i2tor(1,int64(n)));
+-			c = sub(c,one);
+-			n++;
++			put(t,Z)
++			t = mul(mul(t,c),i2tor(1,int64(n)))
++			c = sub(c,one)
++			n++
+ 		}
+-		put(finis,Z);
+-	}();
+-	return Z;
++		put(finis,Z)
++	}()
++	return Z
+ }
+ 
+ // Reciprocal of a power series
+@@ -523,19 +522,19 @@ func Binom(c rat) PS {
+ //	(u+x*UU)*(z+x*ZZ) = 1
+ //	z = 1/u
+ //	u*ZZ + z*UU +x*UU*ZZ = 0
+-//	ZZ = -UU*(z+x*ZZ)/u;
++//	ZZ = -UU*(z+x*ZZ)/u
+ 
+ func Recip(U PS) PS {
+-	Z:=mkPS();
++	Z:=mkPS()
+ 	go func() {
+-		ZZ:=mkPS2();
+-		<-Z.req;
+-		z := inv(get(U));
+-		Z.dat <- z;
+-		split(Mul(Cmul(neg(z),U),Shift(z,ZZ[0])),ZZ);
+-		copy(ZZ[1],Z);
+-	}();
+-	return Z;
++		ZZ:=mkPS2()
++		<-Z.req
++		z := inv(get(U))
++		Z.dat <- z
++		split(Mul(Cmul(neg(z),U),Shift(z,ZZ[0])),ZZ)
++		copy(ZZ[1],Z)
++	}()
++	return Z
+ }
+ 
+ // Exponential of a power series with constant term 0
+@@ -546,9 +545,9 @@ func Recip(U PS) PS {
+ //	integrate to get Z
+ 
+ func Exp(U PS) PS {
+-	ZZ := mkPS2();
+-	split(Integ(one,Mul(ZZ[0],Diff(U))),ZZ);
+-	return ZZ[1];
++	ZZ := mkPS2()
++	split(Integ(one,Mul(ZZ[0],Diff(U))),ZZ)
++	return ZZ[1]
+ }
+ 
+ // Substitute V for x in U, where the leading term of V is zero
+@@ -558,69 +557,69 @@ func Exp(U PS) PS {
+ // bug: a nonzero constant term is ignored
+ 
+ func Subst(U, V PS) PS {
+-	Z:= mkPS();
++	Z:= mkPS()
+ 	go func() {
+-		VV := Split(V);
+-		<-Z.req;
+-		u := get(U);
+-		Z.dat <- u;
++		VV := Split(V)
++		<-Z.req
++		u := get(U)
++		Z.dat <- u
+ 		if end(u) == 0 {
+ 			if end(get(VV[0])) != 0 {
+-				put(finis,Z);
++				put(finis,Z)
+ 			} else {
+-				copy(Mul(VV[0],Subst(U,VV[1])),Z);
++				copy(Mul(VV[0],Subst(U,VV[1])),Z)
+ 			}
+ 		}
+-	}();
+-	return Z;
++	}()
++	return Z
+ }
+ 
+ // Monomial Substition: U(c x^n)
+ // Each Ui is multiplied by c^i and followed by n-1 zeros
+ 
+ func MonSubst(U PS, c0 rat, n int) PS {
+-	Z:= mkPS();
++	Z:= mkPS()
+ 	go func() {
+-		c := one;
++		c := one
+ 		for {
+-			<-Z.req;
+-			u := get(U);
+-			Z.dat <- mul(u, c);
+-			c = mul(c, c0);
++			<-Z.req
++			u := get(U)
++			Z.dat <- mul(u, c)
++			c = mul(c, c0)
+ 			if end(u) != 0 {
+-				Z.dat <- finis;
+-				break;
++				Z.dat <- finis
++				break
+ 			}
+ 			for i := 1; i < n; i++ {
+-				<-Z.req;
+-				Z.dat <- zero;
++				<-Z.req
++				Z.dat <- zero
+ 			}
+ 		}
+-	}();
+-	return Z;
++	}()
++	return Z
+ }
+ 
+ 
+ func Init() {
+-	chnameserial = -1;
+-	seqno = 0;
+-	chnames = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+-	zero = itor(0);
+-	one = itor(1);
+-	finis = i2tor(1,0);
+-	Ones = Rep(one);
+-	Twos = Rep(itor(2));
++	chnameserial = -1
++	seqno = 0
++	chnames = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
++	zero = itor(0)
++	one = itor(1)
++	finis = i2tor(1,0)
++	Ones = Rep(one)
++	Twos = Rep(itor(2))
+ }
+ 
+ func check(U PS, c rat, count int, str string) {
+ 	for i := 0; i < count; i++ {
+-		r := get(U);
++		r := get(U)
+ 		if !r.eq(c) {
+-			print("got: ");
+-			r.pr();
+-			print("should get ");
+-			c.pr();
+-			print("\n");
++			print("got: ")
++			r.pr()
++			print("should get ")
++			c.pr()
++			print("\n")
+ 			panic(str)
+ 		}
+ 	}
+@@ -629,82 +628,82 @@ func check(U PS, c rat, count int, str string) {
+ const N=10
+ func checka(U PS, a []rat, str string) {
+ 	for i := 0; i < N; i++ {
+-		check(U, a[i], 1, str);
++		check(U, a[i], 1, str)
+ 	}
+ }
+ 
+ func main() {
+-	Init();
++	Init()
+ 	if len(os.Args) > 1 {  // print
+-		print("Ones: "); printn(Ones, 10);
+-		print("Twos: "); printn(Twos, 10);
+-		print("Add: "); printn(Add(Ones, Twos), 10);
+-		print("Diff: "); printn(Diff(Ones), 10);
+-		print("Integ: "); printn(Integ(zero, Ones), 10);
+-		print("CMul: "); printn(Cmul(neg(one), Ones), 10);
+-		print("Sub: "); printn(Sub(Ones, Twos), 10);
+-		print("Mul: "); printn(Mul(Ones, Ones), 10);
+-		print("Exp: "); printn(Exp(Ones), 15);
+-		print("MonSubst: "); printn(MonSubst(Ones, neg(one), 2), 10);
+-		print("ATan: "); printn(Integ(zero, MonSubst(Ones, neg(one), 2)), 10);
++		print("Ones: "); printn(Ones, 10)
++		print("Twos: "); printn(Twos, 10)
++		print("Add: "); printn(Add(Ones, Twos), 10)
++		print("Diff: "); printn(Diff(Ones), 10)
++		print("Integ: "); printn(Integ(zero, Ones), 10)
++		print("CMul: "); printn(Cmul(neg(one), Ones), 10)
++		print("Sub: "); printn(Sub(Ones, Twos), 10)
++		print("Mul: "); printn(Mul(Ones, Ones), 10)
++		print("Exp: "); printn(Exp(Ones), 15)
++		print("MonSubst: "); printn(MonSubst(Ones, neg(one), 2), 10)
++		print("ATan: "); printn(Integ(zero, MonSubst(Ones, neg(one), 2)), 10)
+ 	} else {  // test
+-		check(Ones, one, 5, "Ones");
+-		check(Add(Ones, Ones), itor(2), 0, "Add Ones Ones");  // 1 1 1 1 1
+-		check(Add(Ones, Twos), itor(3), 0, "Add Ones Twos"); // 3 3 3 3 3
+-		a := make([]rat, N);
+-		d := Diff(Ones);
++		check(Ones, one, 5, "Ones")
++		check(Add(Ones, Ones), itor(2), 0, "Add Ones Ones")  // 1 1 1 1 1
++		check(Add(Ones, Twos), itor(3), 0, "Add Ones Twos") // 3 3 3 3 3
++		a := make([]rat, N)
++		d := Diff(Ones)
+ 		for i:=0; i < N; i++ {
+ 			a[i] = itor(int64(i+1))
+ 		}
+-		checka(d, a, "Diff");  // 1 2 3 4 5
+-		in := Integ(zero, Ones);
+-		a[0] = zero;  // integration constant
++		checka(d, a, "Diff")  // 1 2 3 4 5
++		in := Integ(zero, Ones)
++		a[0] = zero  // integration constant
+ 		for i:=1; i < N; i++ {
+ 			a[i] = i2tor(1, int64(i))
+ 		}
+-		checka(in, a, "Integ");  // 0 1 1/2 1/3 1/4 1/5
+-		check(Cmul(neg(one), Twos), itor(-2), 10, "CMul");  // -1 -1 -1 -1 -1
+-		check(Sub(Ones, Twos), itor(-1), 0, "Sub Ones Twos");  // -1 -1 -1 -1 -1
+-		m := Mul(Ones, Ones);
++		checka(in, a, "Integ")  // 0 1 1/2 1/3 1/4 1/5
++		check(Cmul(neg(one), Twos), itor(-2), 10, "CMul")  // -1 -1 -1 -1 -1
++		check(Sub(Ones, Twos), itor(-1), 0, "Sub Ones Twos")  // -1 -1 -1 -1 -1
++		m := Mul(Ones, Ones)
+ 		for i:=0; i < N; i++ {
+ 			a[i] = itor(int64(i+1))
+ 		}
+-		checka(m, a, "Mul");  // 1 2 3 4 5
+-		e := Exp(Ones);
+-		a[0] = itor(1);
+-		a[1] = itor(1);
+-		a[2] = i2tor(3,2);
+-		a[3] = i2tor(13,6);
+-		a[4] = i2tor(73,24);
+-		a[5] = i2tor(167,40);
+-		a[6] = i2tor(4051,720);
+-		a[7] = i2tor(37633,5040);
+-		a[8] = i2tor(43817,4480);
+-		a[9] = i2tor(4596553,362880);
+-		checka(e, a, "Exp");  // 1 1 3/2 13/6 73/24
+-		at := Integ(zero, MonSubst(Ones, neg(one), 2));
++		checka(m, a, "Mul")  // 1 2 3 4 5
++		e := Exp(Ones)
++		a[0] = itor(1)
++		a[1] = itor(1)
++		a[2] = i2tor(3,2)
++		a[3] = i2tor(13,6)
++		a[4] = i2tor(73,24)
++		a[5] = i2tor(167,40)
++		a[6] = i2tor(4051,720)
++		a[7] = i2tor(37633,5040)
++		a[8] = i2tor(43817,4480)
++		a[9] = i2tor(4596553,362880)
++		checka(e, a, "Exp")  // 1 1 3/2 13/6 73/24
++		at := Integ(zero, MonSubst(Ones, neg(one), 2))
+ 		for c, i := 1, 0; i < N; i++ {
+ 			if i%2 == 0 {
+ 				a[i] = zero
+ 			} else {
+-				a[i] = i2tor(int64(c), int64(i));
++				a[i] = i2tor(int64(c), int64(i))
+ 				c *= -1
+ 			}
+ 		}
+-		checka(at, a, "ATan");  // 0 -1 0 -1/3 0 -1/5
++		checka(at, a, "ATan")  // 0 -1 0 -1/3 0 -1/5
+ /*
+-		t := Revert(Integ(zero, MonSubst(Ones, neg(one), 2)));
+-		a[0] = zero;
+-		a[1] = itor(1);
+-		a[2] = zero;
+-		a[3] = i2tor(1,3);
+-		a[4] = zero;
+-		a[5] = i2tor(2,15);
+-		a[6] = zero;
+-		a[7] = i2tor(17,315);
+-		a[8] = zero;
+-		a[9] = i2tor(62,2835);
+-		checka(t, a, "Tan");  // 0 1 0 1/3 0 2/15
++		t := Revert(Integ(zero, MonSubst(Ones, neg(one), 2)))
++		a[0] = zero
++		a[1] = itor(1)
++		a[2] = zero
++		a[3] = i2tor(1,3)
++		a[4] = zero
++		a[5] = i2tor(2,15)
++		a[6] = zero
++		a[7] = i2tor(17,315)
++		a[8] = zero
++		a[9] = i2tor(62,2835)
++		checka(t, a, "Tan")  // 0 1 0 1/3 0 2/15
+ */
+ 	}
+ }
+diff --git a/test/chan/powser2.go b/test/chan/powser2.go
+index 0c523ac997..bc329270db 100644
+--- a/test/chan/powser2.go
++++ b/test/chan/powser2.go
+@@ -19,12 +19,12 @@ package main
+ import "os"
+ 
+ type rat struct  {
+-	num, den  int64;	// numerator, denominator
++	num, den  int64	// numerator, denominator
+ }
+ 
+ type item interface {
+-	pr();
+-	eq(c item) bool;
++	pr()
++	eq(c item) bool
+ }
+ 
+ func (u *rat) pr(){
+@@ -37,14 +37,14 @@ func (u *rat) pr(){
+ }
+ 
+ func (u *rat) eq(c item) bool {
+-	c1 := c.(*rat);
++	c1 := c.(*rat)
+ 	return u.num == c1.num && u.den == c1.den
+ }
+ 
+ type dch struct {
+-	req chan  int;
+-	dat chan  item;
+-	nam int;
++	req chan  int
++	dat chan  item
++	nam int
+ }
+ 
+ type dch2 [2] *dch
+@@ -54,20 +54,20 @@ var chnameserial int
+ var seqno int
+ 
+ func mkdch() *dch {
+-	c := chnameserial % len(chnames);
+-	chnameserial++;
+-	d := new(dch);
+-	d.req = make(chan int);
+-	d.dat = make(chan item);
+-	d.nam = c;
+-	return d;
++	c := chnameserial % len(chnames)
++	chnameserial++
++	d := new(dch)
++	d.req = make(chan int)
++	d.dat = make(chan item)
++	d.nam = c
++	return d
+ }
+ 
+ func mkdch2() *dch2 {
+-	d2 := new(dch2);
+-	d2[0] = mkdch();
+-	d2[1] = mkdch();
+-	return d2;
++	d2 := new(dch2)
++	d2[0] = mkdch()
++	d2[1] = mkdch()
++	return d2
+ }
+ 
+ // split reads a single demand channel and replicates its
+@@ -85,98 +85,97 @@ func mkdch2() *dch2 {
+ // generation to begin servicing out[1].
+ 
+ func dosplit(in *dch, out *dch2, wait chan int ){
+-	var t *dch;
+-	both := false;	// do not service both channels
++	both := false	// do not service both channels
+ 
+ 	select {
+ 	case <-out[0].req:
+-		;
++		
+ 	case <-wait:
+-		both = true;
++		both = true
+ 		select {
+ 		case <-out[0].req:
+-			;
++			
+ 		case <-out[1].req:
+-			t=out[0]; out[0]=out[1]; out[1]=t;
++			out[0],out[1] = out[1], out[0]
+ 		}
+ 	}
+ 
+-	seqno++;
+-	in.req <- seqno;
+-	release := make(chan  int);
+-	go dosplit(in, out, release);
+-	dat := <-in.dat;
+-	out[0].dat <- dat;
++	seqno++
++	in.req <- seqno
++	release := make(chan  int)
++	go dosplit(in, out, release)
++	dat := <-in.dat
++	out[0].dat <- dat
+ 	if !both {
+ 		<-wait
+ 	}
+-	<-out[1].req;
+-	out[1].dat <- dat;
+-	release <- 0;
++	<-out[1].req
++	out[1].dat <- dat
++	release <- 0
+ }
+ 
+ func split(in *dch, out *dch2){
+-	release := make(chan int);
+-	go dosplit(in, out, release);
+-	release <- 0;
++	release := make(chan int)
++	go dosplit(in, out, release)
++	release <- 0
+ }
+ 
+ func put(dat item, out *dch){
+-	<-out.req;
+-	out.dat <- dat;
++	<-out.req
++	out.dat <- dat
+ }
+ 
+ func get(in *dch) *rat {
+-	seqno++;
+-	in.req <- seqno;
+-	return (<-in.dat).(*rat);
++	seqno++
++	in.req <- seqno
++	return (<-in.dat).(*rat)
+ }
+ 
+ // Get one item from each of n demand channels
+ 
+ func getn(in []*dch) []item {
+-	n:=len(in);
+-	if n != 2 { panic("bad n in getn") };
+-	req := make([] chan int, 2);
+-	dat := make([] chan item, 2);
+-	out := make([]item, 2);
+-	var i int;
+-	var it item;
++	n:=len(in)
++	if n != 2 { panic("bad n in getn") }
++	req := make([] chan int, 2)
++	dat := make([] chan item, 2)
++	out := make([]item, 2)
++	var i int
++	var it item
+ 	for i=0; i<n; i++ {
+-		req[i] = in[i].req;
+-		dat[i] = nil;
++		req[i] = in[i].req
++		dat[i] = nil
+ 	}
+ 	for n=2*n; n>0; n-- {
+-		seqno++;
++		seqno++
+ 
+ 		select{
+ 		case req[0] <- seqno:
+-			dat[0] = in[0].dat;
+-			req[0] = nil;
++			dat[0] = in[0].dat
++			req[0] = nil
+ 		case req[1] <- seqno:
+-			dat[1] = in[1].dat;
+-			req[1] = nil;
++			dat[1] = in[1].dat
++			req[1] = nil
+ 		case it = <-dat[0]:
+-			out[0] = it;
+-			dat[0] = nil;
++			out[0] = it
++			dat[0] = nil
+ 		case it = <-dat[1]:
+-			out[1] = it;
+-			dat[1] = nil;
++			out[1] = it
++			dat[1] = nil
+ 		}
+ 	}
+-	return out;
++	return out
+ }
+ 
+ // Get one item from each of 2 demand channels
+ 
+ func get2(in0 *dch, in1 *dch)  []item {
+-	return getn([]*dch{in0, in1});
++	return getn([]*dch{in0, in1})
+ }
+ 
+ func copy(in *dch, out *dch){
+ 	for {
+-		<-out.req;
+-		out.dat <- get(in);
++		<-out.req
++		out.dat <- get(in)
+ 	}
+ }
+ 
+@@ -186,8 +185,8 @@ func repeat(dat item, out *dch){
+ 	}
+ }
+ 
+-type PS *dch;	// power series
+-type PS2 *[2] PS; // pair of power series
++type PS *dch	// power series
++type PS2 *[2] PS // pair of power series
+ 
+ var Ones PS
+ var Twos PS
+@@ -217,29 +216,29 @@ func gcd (u, v int64) int64{
+ // Make a rational from two ints and from one int
+ 
+ func i2tor(u, v int64) *rat{
+-	g := gcd(u,v);
+-	r := new(rat);
++	g := gcd(u,v)
++	r := new(rat)
+ 	if v > 0 {
+-		r.num = u/g;
+-		r.den = v/g;
++		r.num = u/g
++		r.den = v/g
+ 	} else {
+-		r.num = -u/g;
+-		r.den = -v/g;
++		r.num = -u/g
++		r.den = -v/g
+ 	}
+-	return r;
++	return r
+ }
+ 
+ func itor(u int64) *rat{
+-	return i2tor(u, 1);
++	return i2tor(u, 1)
+ }
+ 
+-var zero *rat;
+-var one *rat;
++var zero *rat
++var one *rat
+ 
+ 
+ // End mark and end test
+ 
+-var finis *rat;
++var finis *rat
+ 
+ func end(u *rat) int64 {
+ 	if u.den==0 { return 1 }
+@@ -249,72 +248,72 @@ func end(u *rat) int64 {
+ // Operations on rationals
+ 
+ func add(u, v *rat) *rat {
+-	g := gcd(u.den,v.den);
+-	return  i2tor(u.num*(v.den/g)+v.num*(u.den/g),u.den*(v.den/g));
++	g := gcd(u.den,v.den)
++	return  i2tor(u.num*(v.den/g)+v.num*(u.den/g),u.den*(v.den/g))
+ }
+ 
+ func mul(u, v *rat) *rat{
+-	g1 := gcd(u.num,v.den);
+-	g2 := gcd(u.den,v.num);
+-	r := new(rat);
+-	r.num =(u.num/g1)*(v.num/g2);
+-	r.den = (u.den/g2)*(v.den/g1);
+-	return r;
++	g1 := gcd(u.num,v.den)
++	g2 := gcd(u.den,v.num)
++	r := new(rat)
++	r.num =(u.num/g1)*(v.num/g2)
++	r.den = (u.den/g2)*(v.den/g1)
++	return r
+ }
+ 
+ func neg(u *rat) *rat{
+-	return i2tor(-u.num, u.den);
++	return i2tor(-u.num, u.den)
+ }
+ 
+ func sub(u, v *rat) *rat{
+-	return add(u, neg(v));
++	return add(u, neg(v))
+ }
+ 
+ func inv(u *rat) *rat{	// invert a rat
+ 	if u.num == 0 { panic("zero divide in inv") }
+-	return i2tor(u.den, u.num);
++	return i2tor(u.den, u.num)
+ }
+ 
+ // print eval in floating point of PS at x=c to n terms
+ func Evaln(c *rat, U PS, n int) {
+-	xn := float64(1);
+-	x := float64(c.num)/float64(c.den);
+-	val := float64(0);
++	xn := float64(1)
++	x := float64(c.num)/float64(c.den)
++	val := float64(0)
+ 	for i:=0; i<n; i++ {
+-		u := get(U);
++		u := get(U)
+ 		if end(u) != 0 {
+-			break;
++			break
+ 		}
+-		val = val + x * float64(u.num)/float64(u.den);
+-		xn = xn*x;
++		val = val + x * float64(u.num)/float64(u.den)
++		xn = xn*x
+ 	}
+-	print(val, "\n");
++	print(val, "\n")
+ }
+ 
+ // Print n terms of a power series
+ func Printn(U PS, n int){
+-	done := false;
++	done := false
+ 	for ; !done && n>0; n-- {
+-		u := get(U);
++		u := get(U)
+ 		if end(u) != 0 {
+ 			done = true
+ 		} else {
+ 			u.pr()
+ 		}
+ 	}
+-	print(("\n"));
++	print(("\n"))
+ }
+ 
+ func Print(U PS){
+-	Printn(U,1000000000);
++	Printn(U,1000000000)
+ }
+ 
+ // Evaluate n terms of power series U at x=c
+ func eval(c *rat, U PS, n int) *rat{
+ 	if n==0 { return zero }
+-	y := get(U);
++	y := get(U)
+ 	if end(y) != 0 { return zero }
+-	return add(y,mul(c,eval(c,U,n-1)));
++	return add(y,mul(c,eval(c,U,n-1)))
+ }
+ 
+ // Power-series constructors return channels on which power
+@@ -324,105 +323,105 @@ func eval(c *rat, U PS, n int) *rat{
+ // Make a pair of power series identical to a given power series
+ 
+ func Split(U PS) *dch2{
+-	UU := mkdch2();
+-	go split(U,UU);
+-	return UU;
++	UU := mkdch2()
++	go split(U,UU)
++	return UU
+ }
+ 
+ // Add two power series
+ func Add(U, V PS) PS{
+-	Z := mkPS();
++	Z := mkPS()
+ 	go func(U, V, Z PS){
+-		var uv [] item;
++		var uv [] item
+ 		for {
+-			<-Z.req;
+-			uv = get2(U,V);
++			<-Z.req
++			uv = get2(U,V)
+ 			switch end(uv[0].(*rat))+2*end(uv[1].(*rat)) {
+ 			case 0:
+-				Z.dat <- add(uv[0].(*rat), uv[1].(*rat));
++				Z.dat <- add(uv[0].(*rat), uv[1].(*rat))
+ 			case 1:
+-				Z.dat <- uv[1];
+-				copy(V,Z);
++				Z.dat <- uv[1]
++				copy(V,Z)
+ 			case 2:
+-				Z.dat <- uv[0];
+-				copy(U,Z);
++				Z.dat <- uv[0]
++				copy(U,Z)
+ 			case 3:
+-				Z.dat <- finis;
++				Z.dat <- finis
+ 			}
+ 		}
+-	}(U, V, Z);
+-	return Z;
++	}(U, V, Z)
++	return Z
+ }
+ 
+ // Multiply a power series by a constant
+ func Cmul(c *rat,U PS) PS{
+-	Z := mkPS();
++	Z := mkPS()
+ 	go func(c *rat, U, Z PS){
+-		done := false;
++		done := false
+ 		for !done {
+-			<-Z.req;
+-			u := get(U);
++			<-Z.req
++			u := get(U)
+ 			if end(u) != 0 {
+ 				done = true
+ 			} else {
+ 				Z.dat <- mul(c,u)
+ 			}
+ 		}
+-		Z.dat <- finis;
+-	}(c, U, Z);
+-	return Z;
++		Z.dat <- finis
++	}(c, U, Z)
++	return Z
+ }
+ 
+ // Subtract
+ 
+ func Sub(U, V PS) PS{
+-	return Add(U, Cmul(neg(one), V));
++	return Add(U, Cmul(neg(one), V))
+ }
+ 
+ // Multiply a power series by the monomial x^n
+ 
+ func Monmul(U PS, n int) PS{
+-	Z := mkPS();
++	Z := mkPS()
+ 	go func(n int, U PS, Z PS){
+ 		for ; n>0; n-- { put(zero,Z) }
+-		copy(U,Z);
+-	}(n, U, Z);
+-	return Z;
++		copy(U,Z)
++	}(n, U, Z)
++	return Z
+ }
+ 
+ // Multiply by x
+ 
+ func Xmul(U PS) PS{
+-	return Monmul(U,1);
++	return Monmul(U,1)
+ }
+ 
+ func Rep(c *rat) PS{
+-	Z := mkPS();
+-	go repeat(c,Z);
+-	return Z;
++	Z := mkPS()
++	go repeat(c,Z)
++	return Z
+ }
+ 
+ // Monomial c*x^n
+ 
+ func Mon(c *rat, n int) PS{
+-	Z:=mkPS();
++	Z:=mkPS()
+ 	go func(c *rat, n int, Z PS){
+ 		if(c.num!=0) {
+ 			for ; n>0; n=n-1 { put(zero,Z) }
+-			put(c,Z);
++			put(c,Z)
+ 		}
+-		put(finis,Z);
+-	}(c, n, Z);
+-	return Z;
++		put(finis,Z)
++	}(c, n, Z)
++	return Z
+ }
+ 
+ func Shift(c *rat, U PS) PS{
+-	Z := mkPS();
++	Z := mkPS()
+ 	go func(c *rat, U, Z PS){
+-		put(c,Z);
+-		copy(U,Z);
+-	}(c, U, Z);
+-	return Z;
++		put(c,Z)
++		copy(U,Z)
++	}(c, U, Z)
++	return Z
+ }
+ 
+ // simple pole at 1: 1/(1-x) = 1 1 1 1 1 ...
+@@ -432,17 +431,17 @@ func Shift(c *rat, U PS) PS{
+ 
+ /*
+ func Poly(a [] *rat) PS{
+-	Z:=mkPS();
++	Z:=mkPS()
+ 	begin func(a [] *rat, Z PS){
+-		j:=0;
+-		done:=0;
++		j:=0
++		done:=0
+ 		for j=len(a); !done&&j>0; j=j-1)
+-			if(a[j-1].num!=0) done=1;
+-		i:=0;
+-		for(; i<j; i=i+1) put(a[i],Z);
+-		put(finis,Z);
+-	}();
+-	return Z;
++			if(a[j-1].num!=0) done=1
++		i:=0
++		for(; i<j; i=i+1) put(a[i],Z)
++		put(finis,Z)
++	}()
++	return Z
+ }
+ */
+ 
+@@ -452,82 +451,82 @@ func Poly(a [] *rat) PS{
+ //	then UV = u*v + x*(u*VV+v*UU) + x*x*UU*VV
+ 
+ func Mul(U, V PS) PS{
+-	Z:=mkPS();
++	Z:=mkPS()
+ 	go func(U, V, Z PS){
+-		<-Z.req;
+-		uv := get2(U,V);
++		<-Z.req
++		uv := get2(U,V)
+ 		if end(uv[0].(*rat))!=0 || end(uv[1].(*rat)) != 0 {
+-			Z.dat <- finis;
++			Z.dat <- finis
+ 		} else {
+-			Z.dat <- mul(uv[0].(*rat),uv[1].(*rat));
+-			UU := Split(U);
+-			VV := Split(V);
+-			W := Add(Cmul(uv[0].(*rat),VV[0]),Cmul(uv[1].(*rat),UU[0]));
+-			<-Z.req;
+-			Z.dat <- get(W);
+-			copy(Add(W,Mul(UU[1],VV[1])),Z);
++			Z.dat <- mul(uv[0].(*rat),uv[1].(*rat))
++			UU := Split(U)
++			VV := Split(V)
++			W := Add(Cmul(uv[0].(*rat),VV[0]),Cmul(uv[1].(*rat),UU[0]))
++			<-Z.req
++			Z.dat <- get(W)
++			copy(Add(W,Mul(UU[1],VV[1])),Z)
+ 		}
+-	}(U, V, Z);
+-	return Z;
++	}(U, V, Z)
++	return Z
+ }
+ 
+ // Differentiate
+ 
+ func Diff(U PS) PS{
+-	Z:=mkPS();
++	Z:=mkPS()
+ 	go func(U, Z PS){
+-		<-Z.req;
+-		u := get(U);
++		<-Z.req
++		u := get(U)
+ 		if end(u) == 0 {
+-			done:=false;
++			done:=false
+ 			for i:=1; !done; i++ {
+-				u = get(U);
++				u = get(U)
+ 				if end(u) != 0 {
+ 					done=true
+ 				} else {
+-					Z.dat <- mul(itor(int64(i)),u);
+-					<-Z.req;
++					Z.dat <- mul(itor(int64(i)),u)
++					<-Z.req
+ 				}
+ 			}
+ 		}
+-		Z.dat <- finis;
+-	}(U, Z);
+-	return Z;
++		Z.dat <- finis
++	}(U, Z)
++	return Z
+ }
+ 
+ // Integrate, with const of integration
+ func Integ(c *rat,U PS) PS{
+-	Z:=mkPS();
++	Z:=mkPS()
+ 	go func(c *rat, U, Z PS){
+-		put(c,Z);
+-		done:=false;
++		put(c,Z)
++		done:=false
+ 		for i:=1; !done; i++ {
+-			<-Z.req;
+-			u := get(U);
++			<-Z.req
++			u := get(U)
+ 			if end(u) != 0 { done= true }
+-			Z.dat <- mul(i2tor(1,int64(i)),u);
++			Z.dat <- mul(i2tor(1,int64(i)),u)
+ 		}
+-		Z.dat <- finis;
+-	}(c, U, Z);
+-	return Z;
++		Z.dat <- finis
++	}(c, U, Z)
++	return Z
+ }
+ 
+ // Binomial theorem (1+x)^c
+ 
+ func Binom(c *rat) PS{
+-	Z:=mkPS();
++	Z:=mkPS()
+ 	go func(c *rat, Z PS){
+-		n := 1;
+-		t := itor(1);
++		n := 1
++		t := itor(1)
+ 		for c.num!=0 {
+-			put(t,Z);
+-			t = mul(mul(t,c),i2tor(1,int64(n)));
+-			c = sub(c,one);
+-			n++;
++			put(t,Z)
++			t = mul(mul(t,c),i2tor(1,int64(n)))
++			c = sub(c,one)
++			n++
+ 		}
+-		put(finis,Z);
+-	}(c, Z);
+-	return Z;
++		put(finis,Z)
++	}(c, Z)
++	return Z
+ }
+ 
+ // Reciprocal of a power series
+@@ -536,19 +535,19 @@ func Binom(c *rat) PS{
+ //	(u+x*UU)*(z+x*ZZ) = 1
+ //	z = 1/u
+ //	u*ZZ + z*UU +x*UU*ZZ = 0
+-//	ZZ = -UU*(z+x*ZZ)/u;
++//	ZZ = -UU*(z+x*ZZ)/u
+ 
+ func Recip(U PS) PS{
+-	Z:=mkPS();
++	Z:=mkPS()
+ 	go func(U, Z PS){
+-		ZZ:=mkPS2();
+-		<-Z.req;
+-		z := inv(get(U));
+-		Z.dat <- z;
+-		split(Mul(Cmul(neg(z),U),Shift(z,ZZ[0])),ZZ);
+-		copy(ZZ[1],Z);
+-	}(U, Z);
+-	return Z;
++		ZZ:=mkPS2()
++		<-Z.req
++		z := inv(get(U))
++		Z.dat <- z
++		split(Mul(Cmul(neg(z),U),Shift(z,ZZ[0])),ZZ)
++		copy(ZZ[1],Z)
++	}(U, Z)
++	return Z
+ }
+ 
+ // Exponential of a power series with constant term 0
+@@ -559,9 +558,9 @@ func Recip(U PS) PS{
+ //	integrate to get Z
+ 
+ func Exp(U PS) PS{
+-	ZZ := mkPS2();
+-	split(Integ(one,Mul(ZZ[0],Diff(U))),ZZ);
+-	return ZZ[1];
++	ZZ := mkPS2()
++	split(Integ(one,Mul(ZZ[0],Diff(U))),ZZ)
++	return ZZ[1]
+ }
+ 
+ // Substitute V for x in U, where the leading term of V is zero
+@@ -571,69 +570,69 @@ func Exp(U PS) PS{
+ // bug: a nonzero constant term is ignored
+ 
+ func Subst(U, V PS) PS {
+-	Z:= mkPS();
++	Z:= mkPS()
+ 	go func(U, V, Z PS) {
+-		VV := Split(V);
+-		<-Z.req;
+-		u := get(U);
+-		Z.dat <- u;
++		VV := Split(V)
++		<-Z.req
++		u := get(U)
++		Z.dat <- u
+ 		if end(u) == 0 {
+ 			if end(get(VV[0])) != 0 {
+-				put(finis,Z);
++				put(finis,Z)
+ 			} else {
+-				copy(Mul(VV[0],Subst(U,VV[1])),Z);
++				copy(Mul(VV[0],Subst(U,VV[1])),Z)
+ 			}
+ 		}
+-	}(U, V, Z);
+-	return Z;
++	}(U, V, Z)
++	return Z
+ }
+ 
+ // Monomial Substition: U(c x^n)
+ // Each Ui is multiplied by c^i and followed by n-1 zeros
+ 
+ func MonSubst(U PS, c0 *rat, n int) PS {
+-	Z:= mkPS();
++	Z:= mkPS()
+ 	go func(U, Z PS, c0 *rat, n int) {
+-		c := one;
++		c := one
+ 		for {
+-			<-Z.req;
+-			u := get(U);
+-			Z.dat <- mul(u, c);
+-			c = mul(c, c0);
++			<-Z.req
++			u := get(U)
++			Z.dat <- mul(u, c)
++			c = mul(c, c0)
+ 			if end(u) != 0 {
+-				Z.dat <- finis;
+-				break;
++				Z.dat <- finis
++				break
+ 			}
+ 			for i := 1; i < n; i++ {
+-				<-Z.req;
+-				Z.dat <- zero;
++				<-Z.req
++				Z.dat <- zero
+ 			}
+ 		}
+-	}(U, Z, c0, n);
+-	return Z;
++	}(U, Z, c0, n)
++	return Z
+ }
+ 
+ 
+ func Init() {
+-	chnameserial = -1;
+-	seqno = 0;
+-	chnames = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+-	zero = itor(0);
+-	one = itor(1);
+-	finis = i2tor(1,0);
+-	Ones = Rep(one);
+-	Twos = Rep(itor(2));
++	chnameserial = -1
++	seqno = 0
++	chnames = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
++	zero = itor(0)
++	one = itor(1)
++	finis = i2tor(1,0)
++	Ones = Rep(one)
++	Twos = Rep(itor(2))
+ }
+ 
+ func check(U PS, c *rat, count int, str string) {
+ 	for i := 0; i < count; i++ {
+-		r := get(U);
++		r := get(U)
+ 		if !r.eq(c) {
+-			print("got: ");
+-			r.pr();
+-			print("should get ");
+-			c.pr();
+-			print("\n");
++			print("got: ")
++			r.pr()
++			print("should get ")
++			c.pr()
++			print("\n")
+ 			panic(str)
+ 		}
+ 	}
+@@ -642,82 +641,82 @@ func check(U PS, c *rat, count int, str string) {
+ const N=10
+ func checka(U PS, a []*rat, str string) {
+ 	for i := 0; i < N; i++ {
+-		check(U, a[i], 1, str);
++		check(U, a[i], 1, str)
+ 	}
+ }
+ 
+ func main() {
+-	Init();
++	Init()
+ 	if len(os.Args) > 1 {  // print
+-		print("Ones: "); Printn(Ones, 10);
+-		print("Twos: "); Printn(Twos, 10);
+-		print("Add: "); Printn(Add(Ones, Twos), 10);
+-		print("Diff: "); Printn(Diff(Ones), 10);
+-		print("Integ: "); Printn(Integ(zero, Ones), 10);
+-		print("CMul: "); Printn(Cmul(neg(one), Ones), 10);
+-		print("Sub: "); Printn(Sub(Ones, Twos), 10);
+-		print("Mul: "); Printn(Mul(Ones, Ones), 10);
+-		print("Exp: "); Printn(Exp(Ones), 15);
+-		print("MonSubst: "); Printn(MonSubst(Ones, neg(one), 2), 10);
+-		print("ATan: "); Printn(Integ(zero, MonSubst(Ones, neg(one), 2)), 10);
++		print("Ones: "); Printn(Ones, 10)
++		print("Twos: "); Printn(Twos, 10)
++		print("Add: "); Printn(Add(Ones, Twos), 10)
++		print("Diff: "); Printn(Diff(Ones), 10)
++		print("Integ: "); Printn(Integ(zero, Ones), 10)
++		print("CMul: "); Printn(Cmul(neg(one), Ones), 10)
++		print("Sub: "); Printn(Sub(Ones, Twos), 10)
++		print("Mul: "); Printn(Mul(Ones, Ones), 10)
++		print("Exp: "); Printn(Exp(Ones), 15)
++		print("MonSubst: "); Printn(MonSubst(Ones, neg(one), 2), 10)
++		print("ATan: "); Printn(Integ(zero, MonSubst(Ones, neg(one), 2)), 10)
+ 	} else {  // test
+-		check(Ones, one, 5, "Ones");
+-		check(Add(Ones, Ones), itor(2), 0, "Add Ones Ones");  // 1 1 1 1 1
+-		check(Add(Ones, Twos), itor(3), 0, "Add Ones Twos"); // 3 3 3 3 3
+-		a := make([]*rat, N);
+-		d := Diff(Ones);
++		check(Ones, one, 5, "Ones")
++		check(Add(Ones, Ones), itor(2), 0, "Add Ones Ones")  // 1 1 1 1 1
++		check(Add(Ones, Twos), itor(3), 0, "Add Ones Twos") // 3 3 3 3 3
++		a := make([]*rat, N)
++		d := Diff(Ones)
+ 		for i:=0; i < N; i++ {
+ 			a[i] = itor(int64(i+1))
+ 		}
+-		checka(d, a, "Diff");  // 1 2 3 4 5
+-		in := Integ(zero, Ones);
+-		a[0] = zero;  // integration constant
++		checka(d, a, "Diff")  // 1 2 3 4 5
++		in := Integ(zero, Ones)
++		a[0] = zero  // integration constant
+ 		for i:=1; i < N; i++ {
+ 			a[i] = i2tor(1, int64(i))
+ 		}
+-		checka(in, a, "Integ");  // 0 1 1/2 1/3 1/4 1/5
+-		check(Cmul(neg(one), Twos), itor(-2), 10, "CMul");  // -1 -1 -1 -1 -1
+-		check(Sub(Ones, Twos), itor(-1), 0, "Sub Ones Twos");  // -1 -1 -1 -1 -1
+-		m := Mul(Ones, Ones);
++		checka(in, a, "Integ")  // 0 1 1/2 1/3 1/4 1/5
++		check(Cmul(neg(one), Twos), itor(-2), 10, "CMul")  // -1 -1 -1 -1 -1
++		check(Sub(Ones, Twos), itor(-1), 0, "Sub Ones Twos")  // -1 -1 -1 -1 -1
++		m := Mul(Ones, Ones)
+ 		for i:=0; i < N; i++ {
+ 			a[i] = itor(int64(i+1))
+ 		}
+-		checka(m, a, "Mul");  // 1 2 3 4 5
+-		e := Exp(Ones);
+-		a[0] = itor(1);
+-		a[1] = itor(1);
+-		a[2] = i2tor(3,2);
+-		a[3] = i2tor(13,6);
+-		a[4] = i2tor(73,24);
+-		a[5] = i2tor(167,40);
+-		a[6] = i2tor(4051,720);
+-		a[7] = i2tor(37633,5040);
+-		a[8] = i2tor(43817,4480);
+-		a[9] = i2tor(4596553,362880);
+-		checka(e, a, "Exp");  // 1 1 3/2 13/6 73/24
+-		at := Integ(zero, MonSubst(Ones, neg(one), 2));
++		checka(m, a, "Mul")  // 1 2 3 4 5
++		e := Exp(Ones)
++		a[0] = itor(1)
++		a[1] = itor(1)
++		a[2] = i2tor(3,2)
++		a[3] = i2tor(13,6)
++		a[4] = i2tor(73,24)
++		a[5] = i2tor(167,40)
++		a[6] = i2tor(4051,720)
++		a[7] = i2tor(37633,5040)
++		a[8] = i2tor(43817,4480)
++		a[9] = i2tor(4596553,362880)
++		checka(e, a, "Exp")  // 1 1 3/2 13/6 73/24
++		at := Integ(zero, MonSubst(Ones, neg(one), 2))
+ 		for c, i := 1, 0; i < N; i++ {
+ 			if i%2 == 0 {
+ 				a[i] = zero
+ 			} else {
+-				a[i] = i2tor(int64(c), int64(i));
++				a[i] = i2tor(int64(c), int64(i))
+ 				c *= -1
+ 			}
+ 		}
+ 		checka(at, a, "ATan");  // 0 -1 0 -1/3 0 -1/5
+ /*
+-		t := Revert(Integ(zero, MonSubst(Ones, neg(one), 2)));
+-		a[0] = zero;
+-		a[1] = itor(1);
+-		a[2] = zero;
+-		a[3] = i2tor(1,3);
+-		a[4] = zero;
+-		a[5] = i2tor(2,15);
+-		a[6] = zero;
+-		a[7] = i2tor(17,315);
+-		a[8] = zero;
+-		a[9] = i2tor(62,2835);
+-		checka(t, a, "Tan");  // 0 1 0 1/3 0 2/15
++		t := Revert(Integ(zero, MonSubst(Ones, neg(one), 2)))
++		a[0] = zero
++		a[1] = itor(1)
++		a[2] = zero
++		a[3] = i2tor(1,3)
++		a[4] = zero
++		a[5] = i2tor(2,15)
++		a[6] = zero
++		a[7] = i2tor(17,315)
++		a[8] = zero
++		a[9] = i2tor(62,2835)
++		checka(t, a, "Tan")  // 0 1 0 1/3 0 2/15
+ */
+ 	}
+ }
+diff --git a/test/char_lit.go b/test/char_lit.go
+index e4f3f83235..99be77a570 100644
+--- a/test/char_lit.go
++++ b/test/char_lit.go
+@@ -32,13 +32,12 @@ func main() {
+ 		'\ubabe' +
+ 		'\U0010FFFF' +
+ 		'\U000ebabe'
+-		;
+ 	if '\U000ebabe' != 0x000ebabe {
+-		print("ebabe wrong\n");
++		print("ebabe wrong\n")
+ 		os.Exit(1)
+ 	}
+ 	if i != 0x20e213 {
+-		print("number is ", i, " should be ", 0x20e213, "\n");
++		print("number is ", i, " should be ", 0x20e213, "\n")
+ 		os.Exit(1)
+-		}
++	}
+ }
+diff --git a/test/closedchan.go b/test/closedchan.go
+index 4ab12c7756..c7c759be3b 100644
+--- a/test/closedchan.go
++++ b/test/closedchan.go
+@@ -12,13 +12,13 @@
+ package main
+ 
+ type Chan interface {
+-	Send(int);
+-	Nbsend(int) bool;
+-	Recv() int;
+-	Nbrecv() (int, bool);
+-	Close();
+-	Closed() bool;
+-	Impl() string;
++	Send(int)
++	Nbsend(int) bool
++	Recv() int
++	Nbrecv() (int, bool)
++	Close()
++	Closed() bool
++	Impl() string
+ }
+ 
+ // direct channel operations
+@@ -28,7 +28,7 @@ func (c XChan) Send(x int) {
+ }
+ 
+ func (c XChan) Nbsend(x int) bool {
+-	return c <- x;
++	return c <- x
+ }
+ 
+ func (c XChan) Recv() int {
+@@ -36,8 +36,8 @@ func (c XChan) Recv() int {
+ }
+ 
+ func (c XChan) Nbrecv() (int, bool) {
+-	x, ok := <-c;
+-	return x, ok;
++	x, ok := <-c
++	return x, ok
+ }
+ 
+ func (c XChan) Close() {
+@@ -63,29 +63,29 @@ func (c SChan) Send(x int) {
+ func (c SChan) Nbsend(x int) bool {
+ 	select {
+ 	case c <- x:
+-		return true;
++		return true
+ 	default:
+-		return false;
++		return false
+ 	}
+-	panic("nbsend");
++	panic("nbsend")
+ }
+ 
+ func (c SChan) Recv() int {
+ 	select {
+ 	case x := <-c:
+-		return x;
++		return x
+ 	}
+-	panic("recv");
++	panic("recv")
+ }
+ 
+ func (c SChan) Nbrecv() (int, bool) {
+ 	select {
+ 	case x := <-c:
+-		return x, true;
++		return x, true
+ 	default:
+-		return 0, false;
++		return 0, false
+ 	}
+-	panic("nbrecv");
++	panic("nbrecv")
+ }
+ 
+ func (c SChan) Close() {
+@@ -97,101 +97,101 @@ func (c SChan) Closed() bool {
+ }
+ 
+ func (c SChan) Impl() string {
+-	return "(select)";
++	return "(select)"
+ }
+ 
+ func test1(c Chan) {
+ 	// not closed until the close signal (a zero value) has been received.
+ 	if c.Closed() {
+-		println("test1: Closed before Recv zero:", c.Impl());
++		println("test1: Closed before Recv zero:", c.Impl())
+ 	}
+ 
+ 	for i := 0; i < 3; i++ {
+ 		// recv a close signal (a zero value)
+ 		if x := c.Recv(); x != 0 {
+-			println("test1: recv on closed got non-zero:", x, c.Impl());
++			println("test1: recv on closed got non-zero:", x, c.Impl())
+ 		}
+ 
+ 		// should now be closed.
+ 		if !c.Closed() {
+-			println("test1: not closed after recv zero", c.Impl());
++			println("test1: not closed after recv zero", c.Impl())
+ 		}
+ 
+ 		// should work with ,ok: received a value without blocking, so ok == true.
+-		x, ok := c.Nbrecv();
++		x, ok := c.Nbrecv()
+ 		if !ok {
+-			println("test1: recv on closed got not ok", c.Impl());
++			println("test1: recv on closed got not ok", c.Impl())
+ 		}
+ 		if x != 0 {
+-			println("test1: recv ,ok on closed got non-zero:", x, c.Impl());
++			println("test1: recv ,ok on closed got non-zero:", x, c.Impl())
+ 		}
+ 	}
+ 
+ 	// send should work with ,ok too: sent a value without blocking, so ok == true.
+-	ok := c.Nbsend(1);
++	ok := c.Nbsend(1)
+ 	if !ok {
+-		println("test1: send on closed got not ok", c.Impl());
++		println("test1: send on closed got not ok", c.Impl())
+ 	}
+ 
+ 	// but the value should have been discarded.
+ 	if x := c.Recv(); x != 0 {
+-		println("test1: recv on closed got non-zero after send on closed:", x, c.Impl());
++		println("test1: recv on closed got non-zero after send on closed:", x, c.Impl())
+ 	}
+ 
+ 	// similarly Send.
+-	c.Send(2);
++	c.Send(2)
+ 	if x := c.Recv(); x != 0 {
+-		println("test1: recv on closed got non-zero after send on closed:", x, c.Impl());
++		println("test1: recv on closed got non-zero after send on closed:", x, c.Impl())
+ 	}
+ }
+ 
+ func testasync1(c Chan) {
+ 	// not closed until the close signal (a zero value) has been received.
+ 	if c.Closed() {
+-		println("testasync1: Closed before Recv zero:", c.Impl());
++		println("testasync1: Closed before Recv zero:", c.Impl())
+ 	}
+ 
+ 	// should be able to get the last value via Recv
+ 	if x := c.Recv(); x != 1 {
+-		println("testasync1: Recv did not get 1:", x, c.Impl());
++		println("testasync1: Recv did not get 1:", x, c.Impl())
+ 	}
+ 
+-	test1(c);
++	test1(c)
+ }
+ 
+ func testasync2(c Chan) {
+ 	// not closed until the close signal (a zero value) has been received.
+ 	if c.Closed() {
+-		println("testasync2: Closed before Recv zero:", c.Impl());
++		println("testasync2: Closed before Recv zero:", c.Impl())
+ 	}
+ 
+ 	// should be able to get the last value via Nbrecv
+ 	if x, ok := c.Nbrecv(); !ok || x != 1 {
+-		println("testasync2: Nbrecv did not get 1, true:", x, ok, c.Impl());
++		println("testasync2: Nbrecv did not get 1, true:", x, ok, c.Impl())
+ 	}
+ 
+-	test1(c);
++	test1(c)
+ }
+ 
+ func closedsync() chan int {
+-	c := make(chan int);
+-	close(c);
+-	return c;
++	c := make(chan int)
++	close(c)
++	return c
+ }
+ 
+ func closedasync() chan int {
+-	c := make(chan int, 2);
+-	c <- 1;
+-	close(c);
+-	return c;
++	c := make(chan int, 2)
++	c <- 1
++	close(c)
++	return c
+ }
+ 
+ func main() {
+-	test1(XChan(closedsync()));
+-	test1(SChan(closedsync()));
++	test1(XChan(closedsync()))
++	test1(SChan(closedsync()))
+ 
+-	testasync1(XChan(closedasync()));
+-	testasync1(SChan(closedasync()));
+-	testasync2(XChan(closedasync()));
+-	testasync2(SChan(closedasync()));
++	testasync1(XChan(closedasync()))
++	testasync1(SChan(closedasync()))
++	testasync2(XChan(closedasync()))
++	testasync2(SChan(closedasync()))
+ }
+diff --git a/test/cmp2.go b/test/cmp2.go
+index 5442fa17ac..f6f124f2e8 100644
+--- a/test/cmp2.go
++++ b/test/cmp2.go
+@@ -9,7 +9,7 @@ package main
+ func use(bool) { }
+ 
+ func main() {
+-	var a []int;
+-	var ia interface{} = a;
+-	use(ia == ia);
++	var a []int
++	var ia interface{} = a
++	use(ia == ia)
+ }
+diff --git a/test/cmp3.go b/test/cmp3.go
+index f34542aded..dd90bfb03e 100644
+--- a/test/cmp3.go
++++ b/test/cmp3.go
+@@ -9,7 +9,7 @@ package main
+ func use(bool) { }
+ 
+ func main() {
+-	var b []int;
+-	var ib interface{} = b;
+-	use(ib == ib);
++	var b []int
++	var ib interface{} = b
++	use(ib == ib)
+ }
+diff --git a/test/cmp4.go b/test/cmp4.go
+index ca1ad2ad35..3f9b2c0b8b 100644
+--- a/test/cmp4.go
++++ b/test/cmp4.go
+@@ -7,8 +7,8 @@
+ package main
+ 
+ func main() {
+-	var a []int;
+-	var ia interface{} = a;
+-	var m = make(map[interface{}] int);
+-	m[ia] = 1;
++	var a []int
++	var ia interface{} = a
++	var m = make(map[interface{}] int)
++	m[ia] = 1
+ }
+diff --git a/test/cmp5.go b/test/cmp5.go
+index 9c339a43a3..3a7d733f02 100644
+--- a/test/cmp5.go
++++ b/test/cmp5.go
+@@ -7,8 +7,8 @@
+ package main
+ 
+ func main() {
+-	var b []int;
+-	var ib interface{} = b;
+-	var m = make(map[interface{}] int);
+-	m[ib] = 1;
++	var b []int
++	var ib interface{} = b
++	var m = make(map[interface{}] int)
++	m[ib] = 1
+ }
+diff --git a/test/complit.go b/test/complit.go
+index 3d5a684693..f3b7c9abe7 100644
+--- a/test/complit.go
++++ b/test/complit.go
+@@ -11,9 +11,9 @@ type T struct { i int; f float; s string; next *T }
+ type R struct { num int }
+ 
+ func itor(a int) *R {
+-	r := new(R);
+-	r.num = a;
+-	return r;
++	r := new(R)
++	r.num = a
++	return r
+ }
+ 
+ func eq(a []*R) {
+@@ -22,49 +22,49 @@ func eq(a []*R) {
+ 	}
+ }
+ 
+-type P struct { a, b int };
++type P struct { a, b int }
+ func NewP(a, b int) *P {
+ 	return &P{a, b}
+ }
+ 
+ func main() {
+-	var t T;
+-	t = T{0, 7.2, "hi", &t};
++	var t T
++	t = T{0, 7.2, "hi", &t}
+ 
+-	var tp *T;
+-	tp = &T{0, 7.2, "hi", &t};
++	var tp *T
++	tp = &T{0, 7.2, "hi", &t}
+ 
+-	a1 := []int{1,2,3};
++	a1 := []int{1,2,3}
+ 	if len(a1) != 3 { panic("a1") }
+-	a2 := [10]int{1,2,3};
++	a2 := [10]int{1,2,3}
+ 	if len(a2) != 10 || cap(a2) != 10 { panic("a2") }
+ 
+-	a3 := [10]int{1,2,3,};
++	a3 := [10]int{1,2,3,}
+ 	if len(a3) != 10 || a2[3] != 0 { panic("a3") }
+ 
+-	var oai []int;
+-	oai = []int{1,2,3};
++	var oai []int
++	oai = []int{1,2,3}
+ 	if len(oai) != 3 { panic("oai") }
+ 
+-	at := [...]*T{&t, tp, &t};
++	at := [...]*T{&t, tp, &t}
+ 	if len(at) != 3 { panic("at") }
+ 
+-	c := make(chan int);
+-	ac := []chan int{c, c, c};
++	c := make(chan int)
++	ac := []chan int{c, c, c}
+ 	if len(ac) != 3 { panic("ac") }
+ 
+-	aat := [][len(at)]*T{at, at};
++	aat := [][len(at)]*T{at, at}
+ 	if len(aat) != 2 || len(aat[1]) != 3 { panic("aat") }
+ 
+-	s := string([]byte{'h', 'e', 'l', 'l', 'o'});
++	s := string([]byte{'h', 'e', 'l', 'l', 'o'})
+ 	if s != "hello" { panic("s") }
+ 
+-	m := map[string]float{"one":1.0, "two":2.0, "pi":22./7.};
++	m := map[string]float{"one":1.0, "two":2.0, "pi":22./7.}
+ 	if len(m) != 3 { panic("m") }
+ 
+-	eq([]*R{itor(0), itor(1), itor(2), itor(3), itor(4), itor(5)});
++	eq([]*R{itor(0), itor(1), itor(2), itor(3), itor(4), itor(5)})
+ 
+-	p1 := NewP(1, 2);
+-	p2 := NewP(1, 2);
++	p1 := NewP(1, 2)
++	p2 := NewP(1, 2)
+ 	if p1 == p2 { panic("NewP") }
+ }
+diff --git a/test/compos.go b/test/compos.go
+index 78a7965ef6..70f90f3794 100644
+--- a/test/compos.go
++++ b/test/compos.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ type T struct {
+-	int;
++	int
+ }
+ 
+ func f() *T {
+@@ -15,9 +15,9 @@ func f() *T {
+ }
+ 
+ func main() {
+-	x := f();
+-	y := f();
++	x := f()
++	y := f()
+ 	if x == y {
+-		panic("not allocating & composite literals");
++		panic("not allocating & composite literals")
+ 	}
+ }
+diff --git a/test/const.go b/test/const.go
+index 8e587cfe55..a55e13a40d 100644
+--- a/test/const.go
++++ b/test/const.go
+@@ -7,26 +7,26 @@
+ package main
+ 
+ const (
+-	c0 = 0;
+-	cm1 = -1;
+-	chuge = 1 << 100;
+-	chuge_1 = chuge - 1;
+-	c1 = chuge >> 100;
+-	c3div2 = 3/2;
+-	c1e3 = 1e3;
++	c0 = 0
++	cm1 = -1
++	chuge = 1 << 100
++	chuge_1 = chuge - 1
++	c1 = chuge >> 100
++	c3div2 = 3/2
++	c1e3 = 1e3
+ 
+-	ctrue = true;
+-	cfalse = !ctrue;
++	ctrue = true
++	cfalse = !ctrue
+ )
+ 
+ const (
+-	f0 = 0.0;
+-	fm1 = -1.;
+-	fhuge float64 = 1 << 100;
+-	fhuge_1 float64 = chuge - 1;
+-	f1 float64 = chuge >> 100;
+-	f3div2 = 3./2.;
+-	f1e3 float64 = 1e3;
++	f0 = 0.0
++	fm1 = -1.
++	fhuge float64 = 1 << 100
++	fhuge_1 float64 = chuge - 1
++	f1 float64 = chuge >> 100
++	f3div2 = 3./2.
++	f1e3 float64 = 1e3
+ )
+ 
+ func assert(t bool, s string) {
+@@ -36,85 +36,85 @@ func assert(t bool, s string) {
+ }
+ 
+ func ints() {
+-	assert(c0 == 0, "c0");
+-	assert(c1 == 1, "c1");
+-	assert(chuge > chuge_1, "chuge");
+-	assert(chuge_1 + 1 == chuge, "chuge 1");
+-	assert(chuge + cm1 +1  == chuge, "cm1");
+-	assert(c3div2 == 1, "3/2");
+-	assert(c1e3 == 1000, "c1e3 int");
+-	assert(c1e3 == 1e3, "c1e3 float");
++	assert(c0 == 0, "c0")
++	assert(c1 == 1, "c1")
++	assert(chuge > chuge_1, "chuge")
++	assert(chuge_1 + 1 == chuge, "chuge 1")
++	assert(chuge + cm1 +1  == chuge, "cm1")
++	assert(c3div2 == 1, "3/2")
++	assert(c1e3 == 1000, "c1e3 int")
++	assert(c1e3 == 1e3, "c1e3 float")
+ 
+ 	// verify that all (in range) are assignable as ints
+-	var i int;
+-	i = c0;
+-	assert(i == c0, "i == c0");
+-	i = cm1;
+-	assert(i == cm1, "i == cm1");
+-	i = c1;
+-	assert(i == c1, "i == c1");
+-	i = c3div2;
+-	assert(i == c3div2, "i == c3div2");
+-	i = c1e3;
+-	assert(i == c1e3, "i == c1e3");
++	var i int
++	i = c0
++	assert(i == c0, "i == c0")
++	i = cm1
++	assert(i == cm1, "i == cm1")
++	i = c1
++	assert(i == c1, "i == c1")
++	i = c3div2
++	assert(i == c3div2, "i == c3div2")
++	i = c1e3
++	assert(i == c1e3, "i == c1e3")
+ 
+ 	// verify that all are assignable as floats
+-	var f float64;
+-	f = c0;
+-	assert(f == c0, "f == c0");
+-	f = cm1;
+-	assert(f == cm1, "f == cm1");
+-	f = chuge;
+-	assert(f == chuge, "f == chuge");
+-	f = chuge_1;
+-	assert(f == chuge_1, "f == chuge_1");
+-	f = c1;
+-	assert(f == c1, "f == c1");
+-	f = c3div2;
+-	assert(f == c3div2, "f == c3div2");
+-	f = c1e3;
+-	assert(f == c1e3, "f == c1e3");
++	var f float64
++	f = c0
++	assert(f == c0, "f == c0")
++	f = cm1
++	assert(f == cm1, "f == cm1")
++	f = chuge
++	assert(f == chuge, "f == chuge")
++	f = chuge_1
++	assert(f == chuge_1, "f == chuge_1")
++	f = c1
++	assert(f == c1, "f == c1")
++	f = c3div2
++	assert(f == c3div2, "f == c3div2")
++	f = c1e3
++	assert(f == c1e3, "f == c1e3")
+ }
+ 
+ func floats() {
+-	assert(f0 == c0, "f0");
+-	assert(f1 == c1, "f1");
+-	assert(fhuge == fhuge_1, "fhuge");	// float64 can't distinguish fhuge, fhuge_1.
+-	assert(fhuge_1 + 1 == fhuge, "fhuge 1");
+-	assert(fhuge + fm1 +1  == fhuge, "fm1");
+-	assert(f3div2 == 1.5, "3./2.");
+-	assert(f1e3 == 1000, "f1e3 int");
+-	assert(f1e3 == 1.e3, "f1e3 float");
++	assert(f0 == c0, "f0")
++	assert(f1 == c1, "f1")
++	assert(fhuge == fhuge_1, "fhuge")	// float64 can't distinguish fhuge, fhuge_1.
++	assert(fhuge_1 + 1 == fhuge, "fhuge 1")
++	assert(fhuge + fm1 +1  == fhuge, "fm1")
++	assert(f3div2 == 1.5, "3./2.")
++	assert(f1e3 == 1000, "f1e3 int")
++	assert(f1e3 == 1.e3, "f1e3 float")
+ 
+ 	// verify that all (in range) are assignable as ints
+-	var i int;
+-	i = f0;
+-	assert(i == f0, "i == f0");
+-	i = fm1;
+-	assert(i == fm1, "i == fm1");
++	var i int
++	i = f0
++	assert(i == f0, "i == f0")
++	i = fm1
++	assert(i == fm1, "i == fm1")
+ 
+ 	// verify that all are assignable as floats
+-	var f float64;
+-	f = f0;
+-	assert(f == f0, "f == f0");
+-	f = fm1;
+-	assert(f == fm1, "f == fm1");
+-	f = fhuge;
+-	assert(f == fhuge, "f == fhuge");
+-	f = fhuge_1;
+-	assert(f == fhuge_1, "f == fhuge_1");
+-	f = f1;
+-	assert(f == f1, "f == f1");
+-	f = f3div2;
+-	assert(f == f3div2, "f == f3div2");
+-	f = f1e3;
+-	assert(f == f1e3, "f == f1e3");
++	var f float64
++	f = f0
++	assert(f == f0, "f == f0")
++	f = fm1
++	assert(f == fm1, "f == fm1")
++	f = fhuge
++	assert(f == fhuge, "f == fhuge")
++	f = fhuge_1
++	assert(f == fhuge_1, "f == fhuge_1")
++	f = f1
++	assert(f == f1, "f == f1")
++	f = f3div2
++	assert(f == f3div2, "f == f3div2")
++	f = f1e3
++	assert(f == f1e3, "f == f1e3")
+ }
+ 
+ func main() {
+-	ints();
+-	floats();
++	ints()
++	floats()
+ 
+-	assert(ctrue == true, "ctrue == true");
+-	assert(cfalse == false, "cfalse == false");
++	assert(ctrue == true, "ctrue == true")
++	assert(cfalse == false, "cfalse == false")
+ }
+diff --git a/test/const1.go b/test/const1.go
+index 78fb1f4e20..427d61e59c 100644
+--- a/test/const1.go
++++ b/test/const1.go
+@@ -9,71 +9,71 @@ package main
+ type I interface {}
+ const (
+ 	// assume all types behave similarly to int8/uint8
+-	Int8 int8 = 101;
+-	Minus1 int8 = -1;
+-	Uint8 uint8 = 102;
+-	Const = 103;
++	Int8 int8 = 101
++	Minus1 int8 = -1
++	Uint8 uint8 = 102
++	Const = 103
+ 
+-	Float32 float32 = 104.5;
+-	Float float = 105.5;
+-	ConstFloat = 106.5;
+-	Big float64 = 1e300;
++	Float32 float32 = 104.5
++	Float float = 105.5
++	ConstFloat = 106.5
++	Big float64 = 1e300
+ 
+-	String = "abc";
+-	Bool = true;
++	String = "abc"
++	Bool = true
+ )
+ 
+ var (
+-	a1 = Int8 * 100;	// ERROR "overflow"
+-	a2 = Int8 * -1;	// OK
+-	a3 = Int8 * 1000;	// ERROR "overflow"
+-	a4 = Int8 * int8(1000);	// ERROR "overflow"
+-	a5 = int8(Int8 * 1000);	// ERROR "overflow"
+-	a6 = int8(Int8 * int8(1000));	// ERROR "overflow"
+-	a7 = Int8 - 2*Int8 - 2*Int8;	// ERROR "overflow"
+-	a8 = Int8 * Const / 100;	// ERROR "overflow"
+-	a9 = Int8 * (Const / 100);	// OK
++	a1 = Int8 * 100	// ERROR "overflow"
++	a2 = Int8 * -1	// OK
++	a3 = Int8 * 1000	// ERROR "overflow"
++	a4 = Int8 * int8(1000)	// ERROR "overflow"
++	a5 = int8(Int8 * 1000)	// ERROR "overflow"
++	a6 = int8(Int8 * int8(1000))	// ERROR "overflow"
++	a7 = Int8 - 2*Int8 - 2*Int8	// ERROR "overflow"
++	a8 = Int8 * Const / 100	// ERROR "overflow"
++	a9 = Int8 * (Const / 100)	// OK
+ 
+-	b1 = Uint8 * Uint8;	// ERROR "overflow"
+-	b2 = Uint8 * -1;	// ERROR "overflow"
+-	b3 = Uint8 - Uint8;	// OK
+-	b4 = Uint8 - Uint8 - Uint8;	// ERROR "overflow"
+-	b5 = uint8(^0);	// ERROR "overflow"
+-	b6 = ^uint8(0);	// OK
+-	b7 = uint8(Minus1);	// ERROR "overflow"
+-	b8 = uint8(int8(-1));	// ERROR "overflow"
+-	b8a = uint8(-1);	// ERROR "overflow"
+-	b9 byte = (1<<10) >> 8;	// OK
+-	b10 byte = (1<<10);	// ERROR "overflow"
+-	b11 byte = (byte(1)<<10) >> 8;	// ERROR "overflow"
+-	b12 byte = 1000;	// ERROR "overflow"
+-	b13 byte = byte(1000);	// ERROR "overflow"
+-	b14 byte = byte(100) * byte(100);	// ERROR "overflow"
+-	b15 byte = byte(100) * 100;	// ERROR "overflow"
+-	b16 byte = byte(0) * 1000;	// ERROR "overflow"
+-	b16a byte = 0 * 1000;	// OK
+-	b17 byte = byte(0) * byte(1000);	// ERROR "overflow"
+-	b18 byte = Uint8/0;	// ERROR "division by zero"
++	b1 = Uint8 * Uint8	// ERROR "overflow"
++	b2 = Uint8 * -1	// ERROR "overflow"
++	b3 = Uint8 - Uint8	// OK
++	b4 = Uint8 - Uint8 - Uint8	// ERROR "overflow"
++	b5 = uint8(^0)	// ERROR "overflow"
++	b6 = ^uint8(0)	// OK
++	b7 = uint8(Minus1)	// ERROR "overflow"
++	b8 = uint8(int8(-1))	// ERROR "overflow"
++	b8a = uint8(-1)	// ERROR "overflow"
++	b9 byte = (1<<10) >> 8	// OK
++	b10 byte = (1<<10)	// ERROR "overflow"
++	b11 byte = (byte(1)<<10) >> 8	// ERROR "overflow"
++	b12 byte = 1000	// ERROR "overflow"
++	b13 byte = byte(1000)	// ERROR "overflow"
++	b14 byte = byte(100) * byte(100)	// ERROR "overflow"
++	b15 byte = byte(100) * 100	// ERROR "overflow"
++	b16 byte = byte(0) * 1000	// ERROR "overflow"
++	b16a byte = 0 * 1000	// OK
++	b17 byte = byte(0) * byte(1000)	// ERROR "overflow"
++	b18 byte = Uint8/0	// ERROR "division by zero"
+ 
+-	c1 float64 = Big;
+-	c2 float64 = Big*Big;	// ERROR "overflow"
+-	c3 float64 = float64(Big)*Big;	// ERROR "overflow"
+-	c4 = Big*Big;	// ERROR "overflow"
+-	c5 = Big/0;	// ERROR "division by zero"
++	c1 float64 = Big
++	c2 float64 = Big*Big	// ERROR "overflow"
++	c3 float64 = float64(Big)*Big	// ERROR "overflow"
++	c4 = Big*Big	// ERROR "overflow"
++	c5 = Big/0	// ERROR "division by zero"
+ )
+ 
+-func f(int);
++func f(int)
+ 
+ func main() {
+-	f(Int8);	// ERROR "convert|wrong type|cannot"
+-	f(Minus1);	// ERROR "convert|wrong type|cannot"
+-	f(Uint8);	// ERROR "convert|wrong type|cannot"
+-	f(Const);	// OK
+-	f(Float32);	// ERROR "convert|wrong type|cannot"
+-	f(Float);	// ERROR "convert|wrong type|cannot"
+-	f(ConstFloat);	// ERROR "truncate"
+-	f(ConstFloat - 0.5);	// OK
+-	f(Big);	// ERROR "convert|wrong type|cannot"
+-	f(String);	// ERROR "convert|wrong type|cannot|incompatible"
+-	f(Bool);	// ERROR "convert|wrong type|cannot|incompatible"
++	f(Int8)	// ERROR "convert|wrong type|cannot"
++	f(Minus1)	// ERROR "convert|wrong type|cannot"
++	f(Uint8)	// ERROR "convert|wrong type|cannot"
++	f(Const)	// OK
++	f(Float32)	// ERROR "convert|wrong type|cannot"
++	f(Float)	// ERROR "convert|wrong type|cannot"
++	f(ConstFloat)	// ERROR "truncate"
++	f(ConstFloat - 0.5)	// OK
++	f(Big)	// ERROR "convert|wrong type|cannot"
++	f(String)	// ERROR "convert|wrong type|cannot|incompatible"
++	f(Bool)	// ERROR "convert|wrong type|cannot|incompatible"
+ }
+diff --git a/test/const2.go b/test/const2.go
+index 2ff71ee232..bea1b99125 100644
+--- a/test/const2.go
++++ b/test/const2.go
+@@ -7,6 +7,6 @@
+ package main
+ 
+ const (
+-	A int = 1;
++	A int = 1
+ 	B byte;	// ERROR "type without expr|expected .=."
+ )
+diff --git a/test/convlit.go b/test/convlit.go
+index 22415bb324..94889d4a96 100644
+--- a/test/convlit.go
++++ b/test/convlit.go
+@@ -9,31 +9,31 @@ package main
+ // explicit conversion of constants is work in progress.
+ // the ERRORs in this block are debatable, but they're what
+ // the language spec says for now.
+-var x1 = string(1);
+-var x2 string = string(1);
+-var x3 = int(1.5);	// ERROR "convert|truncate"
+-var x4 int = int(1.5);	// ERROR "convert|truncate"
+-var x5 = "a" + string(1);
+-var x6 = int(1e100);	// ERROR "overflow"
+-var x7 = float(1e1000);	// ERROR "overflow"
++var x1 = string(1)
++var x2 string = string(1)
++var x3 = int(1.5)	// ERROR "convert|truncate"
++var x4 int = int(1.5)	// ERROR "convert|truncate"
++var x5 = "a" + string(1)
++var x6 = int(1e100)	// ERROR "overflow"
++var x7 = float(1e1000)	// ERROR "overflow"
+ 
+ // implicit conversions merit scrutiny
+-var s string;
+-var bad1 string = 1;	// ERROR "conver|incompatible|invalid|cannot"
+-var bad2 = s + 1;		// ERROR "conver|incompatible|invalid"
+-var bad3 = s + 'a';	// ERROR "conver|incompatible|invalid"
+-var bad4 = "a" + 1;	// ERROR "literals|incompatible|convert|invalid"
+-var bad5 = "a" + 'a';	// ERROR "literals|incompatible|convert|invalid"
++var s string
++var bad1 string = 1	// ERROR "conver|incompatible|invalid|cannot"
++var bad2 = s + 1		// ERROR "conver|incompatible|invalid"
++var bad3 = s + 'a'	// ERROR "conver|incompatible|invalid"
++var bad4 = "a" + 1	// ERROR "literals|incompatible|convert|invalid"
++var bad5 = "a" + 'a'	// ERROR "literals|incompatible|convert|invalid"
+ 
+-var bad6 int = 1.5;	// ERROR "convert|truncate"
+-var bad7 int = 1e100;	// ERROR "overflow"
+-var bad8 float32 = 1e200;	// ERROR "overflow"
++var bad6 int = 1.5	// ERROR "convert|truncate"
++var bad7 int = 1e100	// ERROR "overflow"
++var bad8 float32 = 1e200	// ERROR "overflow"
+ 
+ // but these implicit conversions are okay
+-var good1 string = "a";
+-var good2 int = 1.0;
+-var good3 int = 1e9;
+-var good4 float = 1e20;
++var good1 string = "a"
++var good2 int = 1.0
++var good3 int = 1e9
++var good4 float = 1e20
+ 
+ // explicit conversion of string is okay
+ var _ = []int("abc")
+diff --git a/test/decl.go b/test/decl.go
+index 6e8cbab205..c31082bcfd 100644
+--- a/test/decl.go
++++ b/test/decl.go
+@@ -13,28 +13,28 @@ func f2() (float, int) { return 1, 2 }
+ func f3() (float, int, string) { return 1, 2, "3" }
+ 
+ func x() (s string) {
+-	a, b, s := f3();
+-	_, _ = a, b;
++	a, b, s := f3()
++	_, _ = a, b
+ 	return	// tests that result var is in scope for redeclaration
+ }
+ 
+ func main() {
+-	i, f, s := f3();
+-	j, f := f2();	// redeclare f
+-	k := f1();
+-	m, g, s := f3();
+-	m, h, s := f3();
++	i, f, s := f3()
++	j, f := f2()	// redeclare f
++	k := f1()
++	m, g, s := f3()
++	m, h, s := f3()
+ 	{
+ 		// new block should be ok.
+-		i, f, s := f3();
+-		j, f := f2();	// redeclare f
+-		k := f1();
+-		m, g, s := f3();
+-		m, h, s := f3();
+-		_, _, _, _, _, _, _, _, _ = i, f, s, j, k, m, g, s, h;
++		i, f, s := f3()
++		j, f := f2()	// redeclare f
++		k := f1()
++		m, g, s := f3()
++		m, h, s := f3()
++		_, _, _, _, _, _, _, _, _ = i, f, s, j, k, m, g, s, h
+ 	}
+ 	if x() != "3" {
+-		println("x() failed");
++		println("x() failed")
+ 	}
+-	_, _, _, _, _, _, _, _, _ = i, f, s, j, k, m, g, s, h;
++	_, _, _, _, _, _, _, _, _ = i, f, s, j, k, m, g, s, h
+ }
+diff --git a/test/declbad.go b/test/declbad.go
+index 5fbb04ab5d..269ebdefb5 100644
+--- a/test/declbad.go
++++ b/test/declbad.go
+@@ -15,44 +15,44 @@ func f3() (float, int, string) { return 1, 2, "3" }
+ func main() {
+ 	{
+ 		// simple redeclaration
+-		i := f1();
+-		i := f1();	// ERROR "redeclared|no new"
+-		_ = i;
++		i := f1()
++		i := f1()	// ERROR "redeclared|no new"
++		_ = i
+ 	}
+ 	{
+ 		// change of type for f
+-		i, f, s := f3();
+-		f, g, t := f3();	// ERROR "redeclared|cannot assign|incompatible"
+-		_, _, _, _, _ = i, f, s, g, t;
++		i, f, s := f3()
++		f, g, t := f3()	// ERROR "redeclared|cannot assign|incompatible"
++		_, _, _, _, _ = i, f, s, g, t
+ 	}
+ 	{
+ 		// change of type for i
+-		i, f, s := f3();
+-		j, i, t := f3();	// ERROR "redeclared|cannot assign|incompatible"
+-		_, _, _, _, _ = i, f, s, j, t;
++		i, f, s := f3()
++		j, i, t := f3()	// ERROR "redeclared|cannot assign|incompatible"
++		_, _, _, _, _ = i, f, s, j, t
+ 	}
+ 	{
+ 		// no new variables
+-		i, f, s := f3();
+-		i, f := f2();	// ERROR "redeclared|no new"
+-		_, _, _ = i, f, s;
++		i, f, s := f3()
++		i, f := f2()	// ERROR "redeclared|no new"
++		_, _, _ = i, f, s
+ 	}
+ 	{
+ 		// single redeclaration
+-		i, f, s := f3();
+-		i := f1();		// ERROR "redeclared|no new|incompatible"
+-		_, _, _ = i, f, s;
++		i, f, s := f3()
++		i := f1()		// ERROR "redeclared|no new|incompatible"
++		_, _, _ = i, f, s
+ 	}
+ 		// double redeclaration
+ 	{
+-		i, f, s := f3();
+-		i, f := f2();	// ERROR "redeclared|no new"
+-		_, _, _ = i, f, s;
++		i, f, s := f3()
++		i, f := f2()	// ERROR "redeclared|no new"
++		_, _, _ = i, f, s
+ 	}
+ 	{
+ 		// triple redeclaration
+-		i, f, s := f3();
+-		i, f, s := f3();	// ERROR "redeclared|no new"
+-		_, _, _ = i, f, s;
++		i, f, s := f3()
++		i, f, s := f3()	// ERROR "redeclared|no new"
++		_, _, _ = i, f, s
+ 	}
+ }
+diff --git a/test/env.go b/test/env.go
+index b12a72973b..7646e07dd6 100644
+--- a/test/env.go
++++ b/test/env.go
+@@ -10,18 +10,18 @@ package main
+ import os "os"
+ 
+ func main() {
+-	ga, e0 := os.Getenverror("GOARCH");
++	ga, e0 := os.Getenverror("GOARCH")
+ 	if e0 != nil {
+-		print("$GOARCH: ", e0.String(), "\n");
+-		os.Exit(1);
++		print("$GOARCH: ", e0.String(), "\n")
++		os.Exit(1)
+ 	}
+ 	if ga != "amd64" && ga != "386" && ga != "arm" {
+-		print("$GOARCH=", ga, "\n");
+-		os.Exit(1);
++		print("$GOARCH=", ga, "\n")
++		os.Exit(1)
+ 	}
+-	xxx, e1 := os.Getenverror("DOES_NOT_EXIST");
++	xxx, e1 := os.Getenverror("DOES_NOT_EXIST")
+ 	if e1 != os.ENOENV {
+-		print("$DOES_NOT_EXIST=", xxx, "; err = ", e1.String(), "\n");
+-		os.Exit(1);
++		print("$DOES_NOT_EXIST=", xxx, "; err = ", e1.String(), "\n")
++		os.Exit(1)
+ 	}
+ }
+diff --git a/test/escape.go b/test/escape.go
+index 19c08a5276..d4d844704e 100644
+--- a/test/escape.go
++++ b/test/escape.go
+@@ -14,142 +14,142 @@ package main
+ 
+ var bad = false
+ 
+-var allptr = make([]*int, 0, 100);
++var allptr = make([]*int, 0, 100)
+ 
+ func noalias(p, q *int, s string) {
+-	n := len(allptr);
+-	*p = -(n+1);
+-	*q = -(n+2);
+-	allptr = allptr[0:n+2];
+-	allptr[n] = p;
+-	allptr[n+1] = q;
+-	n += 2;
++	n := len(allptr)
++	*p = -(n+1)
++	*q = -(n+2)
++	allptr = allptr[0:n+2]
++	allptr[n] = p
++	allptr[n+1] = q
++	n += 2
+ 	for i := 0; i < n; i++ {
+ 		if allptr[i] != nil && *allptr[i] != -(i+1) {
+-			println("aliased pointers", -(i+1), *allptr[i], "after", s);
+-			allptr[i] = nil;
+-			bad = true;
++			println("aliased pointers", -(i+1), *allptr[i], "after", s)
++			allptr[i] = nil
++			bad = true
+ 		}
+ 	}
+ }
+ 
+ func val(p, q *int, v int, s string) {
+ 	if *p != v {
+-		println("wrong value want", v, "got", *p, "after", s);
+-		bad = true;
++		println("wrong value want", v, "got", *p, "after", s)
++		bad = true
+ 	}
+ 	if *q != v+1 {
+-		println("wrong value want", v+1, "got", *q, "after", s);
+-		bad = true;
++		println("wrong value want", v+1, "got", *q, "after", s)
++		bad = true
+ 	}
+ }
+ 
+ func chk(p, q *int, v int, s string) {
+-	val(p, q, v, s);
+-	noalias(p, q, s);
++	val(p, q, v, s)
++	noalias(p, q, s)
+ }
+ 
+ func chkalias(p, q *int, v int, s string) {
+ 	if p != q {
+-		println("want aliased pointers but got different after", s);
++		println("want aliased pointers but got different after", s)
+ 	}
+ 	if *q != v+1 {
+-		println("wrong value want", v+1, "got", *q, "after", s);
++		println("wrong value want", v+1, "got", *q, "after", s)
+ 	}
+ }
+ 
+ func i_escapes(x int) *int {
+-	var i int;
+-	i = x;
+-	return &i;
++	var i int
++	i = x
++	return &i
+ }
+ 
+ func j_escapes(x int) *int {
+-	var j int = x;
+-	j = x;
+-	return &j;
++	var j int = x
++	j = x
++	return &j
+ }
+ 
+ func k_escapes(x int) *int {
+-	k := x;
+-	return &k;
++	k := x
++	return &k
+ }
+ 
+ func in_escapes(x int) *int {
+-	return &x;
++	return &x
+ }
+ 
+ func send(c chan int, x int) {
+-	c <- x;
++	c <- x
+ }
+ 
+ func select_escapes(x int) *int {
+-	c := make(chan int);
+-	go send(c, x);
++	c := make(chan int)
++	go send(c, x)
+ 	select {
+ 	case req := <-c:
+-		return &req;
++		return &req
+ 	}
+-	return nil;
++	return nil
+ }
+ 
+ func select_escapes1(x int, y int) (*int, *int) {
+-	c := make(chan int);
+-	var a [2]int;
+-	var p [2]*int;
+-	a[0] = x;
+-	a[1] = y;
++	c := make(chan int)
++	var a [2]int
++	var p [2]*int
++	a[0] = x
++	a[1] = y
+ 	for i := 0; i < 2; i++ {
+-		go send(c, a[i]);
++		go send(c, a[i])
+ 		select {
+ 		case req := <-c:
+-			p[i] = &req;
++			p[i] = &req
+ 		}
+ 	}
+ 	return p[0], p[1]
+ }
+ 
+ func range_escapes(x int) *int {
+-	var a [1]int;
+-	a[0] = x;
++	var a [1]int
++	a[0] = x
+ 	for _, v := range a {
+-		return &v;
++		return &v
+ 	}
+-	return nil;
++	return nil
+ }
+ 
+ // *is* aliased
+ func range_escapes2(x, y int) (*int, *int) {
+-	var a [2]int;
+-	var p [2]*int;
+-	a[0] = x;
+-	a[1] = y;
++	var a [2]int
++	var p [2]*int
++	a[0] = x
++	a[1] = y
+ 	for k, v := range a {
+-		p[k] = &v;
++		p[k] = &v
+ 	}
+ 	return p[0], p[1]
+ }
+ 
+ // *is* aliased
+ func for_escapes2(x int, y int) (*int, *int) {
+-	var p [2]*int;
+-	n := 0;
++	var p [2]*int
++	n := 0
+ 	for i := x; n < 2; i = y {
+-		p[n] = &i;
+-		n++;
++		p[n] = &i
++		n++
+ 	}
+ 	return p[0], p[1]
+ }
+ 
+ func out_escapes(i int) (x int, p *int) {
+ 	x = i
+-	p = &x;	// ERROR "address of out parameter"
+-	return;
++	p = &x	// ERROR "address of out parameter"
++	return
+ }
+ 
+ func out_escapes_2(i int) (x int, p *int) {
+ 	x = i
+-	return x, &x;	// ERROR "address of out parameter"
++	return x, &x	// ERROR "address of out parameter"
+ }
+ 
+ func defer1(i int) (x int) {
+@@ -160,40 +160,40 @@ func defer1(i int) (x int) {
+ }
+ 
+ func main() {
+-	p, q := i_escapes(1), i_escapes(2);
+-	chk(p, q, 1, "i_escapes");
++	p, q := i_escapes(1), i_escapes(2)
++	chk(p, q, 1, "i_escapes")
+ 
+-	p, q = j_escapes(3), j_escapes(4);
+-	chk(p, q, 3, "j_escapes");
++	p, q = j_escapes(3), j_escapes(4)
++	chk(p, q, 3, "j_escapes")
+ 
+-	p, q = k_escapes(5), k_escapes(6);
+-	chk(p, q, 5, "k_escapes");
++	p, q = k_escapes(5), k_escapes(6)
++	chk(p, q, 5, "k_escapes")
+ 
+-	p, q = in_escapes(7), in_escapes(8);
+-	chk(p, q, 7, "in_escapes");
++	p, q = in_escapes(7), in_escapes(8)
++	chk(p, q, 7, "in_escapes")
+ 
+-	p, q = select_escapes(9), select_escapes(10);
+-	chk(p, q, 9, "select_escapes");
++	p, q = select_escapes(9), select_escapes(10)
++	chk(p, q, 9, "select_escapes")
+ 
+-	p, q = select_escapes1(11, 12);
+-	chk(p, q, 11, "select_escapes1");
++	p, q = select_escapes1(11, 12)
++	chk(p, q, 11, "select_escapes1")
+ 
+-	p, q = range_escapes(13), range_escapes(14);
+-	chk(p, q, 13, "range_escapes");
++	p, q = range_escapes(13), range_escapes(14)
++	chk(p, q, 13, "range_escapes")
+ 
+-	p, q = range_escapes2(101, 102);
+-	chkalias(p, q, 101, "range_escapes2");
++	p, q = range_escapes2(101, 102)
++	chkalias(p, q, 101, "range_escapes2")
+ 
+-	p, q = for_escapes2(103, 104);
+-	chkalias(p, q, 103, "for_escapes2");
++	p, q = for_escapes2(103, 104)
++	chkalias(p, q, 103, "for_escapes2")
+ 
+ 	_, p = out_escapes(15)
+-	_, q = out_escapes(16);
+-	chk(p, q, 15, "out_escapes");
++	_, q = out_escapes(16)
++	chk(p, q, 15, "out_escapes")
+ 
+ 	_, p = out_escapes_2(17)
+-	_, q = out_escapes_2(18);
+-	chk(p, q, 17, "out_escapes_2");
++	_, q = out_escapes_2(18)
++	chk(p, q, 17, "out_escapes_2")
+ 
+ 	x := defer1(20)
+ 	if x != 20 {
+@@ -202,6 +202,6 @@ func main() {
+ 	}
+ 
+ 	if bad {
+-		panic("BUG: no escape");
++		panic("BUG: no escape")
+ 	}
+ }
+diff --git a/test/float_lit.go b/test/float_lit.go
+index f77d24e82d..3ffc5c1e4f 100644
+--- a/test/float_lit.go
++++ b/test/float_lit.go
+@@ -24,34 +24,34 @@ func
+ pow10(pow int) float64 {
+ 	if pow < 0 { return 1/pow10(-pow); }
+ 	if pow > 0 { return pow10(pow-1)*10; }
+-	return 1;
++	return 1
+ }
+ 
+ func
+ close(da float64, ia, ib int64, pow int) bool {
+-	db := float64(ia) / float64(ib);
+-	db *= pow10(pow);
++	db := float64(ia) / float64(ib)
++	db *= pow10(pow)
+ 
+ 	if da == 0 || db == 0 {
+ 		if da == 0 && db == 0 {
+-			return true;
++			return true
+ 		}
+-		return false;
++		return false
+ 	}
+ 
+-	de := (da-db) /da;
++	de := (da-db) /da
+ 	if de < 0 {
+-		de = -de;
++		de = -de
+ 	}
+ 
+ 	if de < deLim {
+-		return true;
++		return true
+ 	}
+ 	if !bad {
+ 		println("BUG")
+ 		bad = true
+ 	}
+-	return false;
++	return false
+ }
+ 
+ func
+diff --git a/test/for.go b/test/for.go
+index 05260ff888..36ad15709b 100644
+--- a/test/for.go
++++ b/test/for.go
+@@ -8,49 +8,49 @@ package main
+ 
+ func assertequal(is, shouldbe int, msg string) {
+ 	if is != shouldbe {
+-		print("assertion fail", msg, "\n");
+-		panic(1);
++		print("assertion fail", msg, "\n")
++		panic(1)
+ 	}
+ }
+ 
+ func main() {
+-	var i, sum int;
++	var i, sum int
+ 
+-	i = 0;
++	i = 0
+ 	for {
+-		i = i + 1;
++		i = i + 1
+ 		if i > 5 {
+-			break;
++			break
+ 		}
+ 	}
+-	assertequal(i, 6, "break");
++	assertequal(i, 6, "break")
+ 
+-	sum = 0;
++	sum = 0
+ 	for i := 0; i <= 10; i++ {
+-		sum = sum + i;
++		sum = sum + i
+ 	}
+-	assertequal(sum, 55, "all three");
++	assertequal(sum, 55, "all three")
+ 
+-	sum = 0;
++	sum = 0
+ 	for i := 0; i <= 10; {
+-		sum = sum + i;
+-		i++;
++		sum = sum + i
++		i++
+ 	}
+-	assertequal(sum, 55, "only two");
++	assertequal(sum, 55, "only two")
+ 
+-	sum = 0;
++	sum = 0
+ 	for sum < 100 {
+-		sum = sum + 9;
++		sum = sum + 9
+ 	}
+-	assertequal(sum, 99 + 9, "only one");
++	assertequal(sum, 99 + 9, "only one")
+ 
+-	sum = 0;
++	sum = 0
+ 	for i := 0; i <= 10; i++ {
+ 		if i % 2 == 0 {
+-			continue;
++			continue
+ 		}
+-		sum = sum + i;
++		sum = sum + i
+ 	}
+-	assertequal(sum, 1+3+5+7+9, "continue");
++	assertequal(sum, 1+3+5+7+9, "continue")
+ 
+ }
+diff --git a/test/func.go b/test/func.go
+index ee9414ddc4..0c1a07979d 100644
+--- a/test/func.go
++++ b/test/func.go
+@@ -9,8 +9,8 @@ package main
+ 
+ func assertequal(is, shouldbe int, msg string) {
+ 	if is != shouldbe {
+-		print("assertion fail", msg, "\n");
+-		panic(1);
++		print("assertion fail", msg, "\n")
++		panic(1)
+ 	}
+ }
+ 
+@@ -21,69 +21,69 @@ func f2(a int) {
+ }
+ 
+ func f3(a, b int) int {
+-	return a+b;
++	return a+b
+ }
+ 
+ func f4(a, b int, c float) int {
+-	return (a+b)/2 + int(c);
++	return (a+b)/2 + int(c)
+ }
+ 
+ func f5(a int) int {
+-	return 5;
++	return 5
+ }
+ 
+ func f6(a int) (r int) {
+-	return 6;
++	return 6
+ }
+ 
+ func f7(a int) (x int, y float) {
+-	return 7, 7.0;
++	return 7, 7.0
+ }
+ 
+ 
+ func f8(a int) (x int, y float) {
+-	return 8, 8.0;
++	return 8, 8.0
+ }
+ 
+ type T struct {
+-	x, y int;
++	x, y int
+ }
+ 
+ func (t *T) m10(a int, b float) int {
+-	return (t.x+a) * (t.y+int(b));
++	return (t.x+a) * (t.y+int(b))
+ }
+ 
+ 
+ func f9(a int) (i int, f float) {
+-	i = 9;
+-	f = 9.0;
+-	return;
++	i = 9
++	f = 9.0
++	return
+ }
+ 
+ 
+ func main() {
+-	f1();
+-	f2(1);
+-	r3 := f3(1, 2);
+-	assertequal(r3, 3, "3");
+-	r4 := f4(0, 2, 3.0);
+-	assertequal(r4, 4, "4");
+-	r5 := f5(1);
+-	assertequal(r5, 5, "5");
+-	r6 := f6(1);
+-	assertequal(r6, 6, "6");
+-	r7, s7 := f7(1);
+-	assertequal(r7, 7, "r7");
+-	assertequal(int(s7), 7, "s7");
+-	r8, s8 := f8(1);
+-	assertequal(r8, 8, "r8");
+-	assertequal(int(s8), 8, "s8");
+-	r9, s9 := f9(1);
+-	assertequal(r9, 9, "r9");
+-	assertequal(int(s9), 9, "s9");
+-	var t *T = new(T);
+-	t.x = 1;
+-	t.y = 2;
+-	r10 := t.m10(1, 3.0);
+-	assertequal(r10, 10, "10");
++	f1()
++	f2(1)
++	r3 := f3(1, 2)
++	assertequal(r3, 3, "3")
++	r4 := f4(0, 2, 3.0)
++	assertequal(r4, 4, "4")
++	r5 := f5(1)
++	assertequal(r5, 5, "5")
++	r6 := f6(1)
++	assertequal(r6, 6, "6")
++	r7, s7 := f7(1)
++	assertequal(r7, 7, "r7")
++	assertequal(int(s7), 7, "s7")
++	r8, s8 := f8(1)
++	assertequal(r8, 8, "r8")
++	assertequal(int(s8), 8, "s8")
++	r9, s9 := f9(1)
++	assertequal(r9, 9, "r9")
++	assertequal(int(s9), 9, "s9")
++	var t *T = new(T)
++	t.x = 1
++	t.y = 2
++	r10 := t.m10(1, 3.0)
++	assertequal(r10, 10, "10")
+ }
+diff --git a/test/func1.go b/test/func1.go
+index 2c767d21d5..56f4dfcba4 100644
+--- a/test/func1.go
++++ b/test/func1.go
+@@ -9,10 +9,10 @@
+ package main
+ 
+ func f1(a int) (int, float) {  // BUG (not caught by compiler): multiple return values must have names
+-	return 7, 7.0;
++	return 7, 7.0
+ }
+ 
+ 
+ func f2(a int) (a int, b float) {  // ERROR "redeclared|definition"
+-	return 8, 8.0;
++	return 8, 8.0
+ }
+diff --git a/test/func2.go b/test/func2.go
+index e8e6842e00..5a6d7d0e10 100644
+--- a/test/func2.go
++++ b/test/func2.go
+@@ -5,20 +5,20 @@
+ // license that can be found in the LICENSE file.
+ 
+ package main
+-import os "os";
++import os "os"
+ 
+-type t1 int;
+-type t2 int;
+-type t3 int;
++type t1 int
++type t2 int
++type t3 int
+ 
+-func f1(t1, t2, t3);
+-func f2(t1, t2, t3 bool);
+-func f3(t1, t2, x t3);
+-func f4(t1, *t3);
+-func (x *t1) f5(y []t2) (t1, *t3);
+-func f6() (int, *string);
+-func f7(*t2, t3);
+-func f8(os int) int;
++func f1(t1, t2, t3)
++func f2(t1, t2, t3 bool)
++func f3(t1, t2, x t3)
++func f4(t1, *t3)
++func (x *t1) f5(y []t2) (t1, *t3)
++func f6() (int, *string)
++func f7(*t2, t3)
++func f8(os int) int
+ 
+ func f9(os int) int {
+ 	return os
+diff --git a/test/func3.go b/test/func3.go
+index 33e80a716c..110b0ef1c4 100644
+--- a/test/func3.go
++++ b/test/func3.go
+@@ -6,12 +6,12 @@
+ 
+ package main
+ 
+-type t1 int;
+-type t2 int;
+-type t3 int;
++type t1 int
++type t2 int
++type t3 int
+ 
+-func f1(*t2, x t3);	// ERROR "named"
+-func f2(t1, *t2, x t3);	// ERROR "named"
+-func f3() (x int, *string);	// ERROR "named"
++func f1(*t2, x t3)	// ERROR "named"
++func f2(t1, *t2, x t3)	// ERROR "named"
++func f3() (x int, *string)	// ERROR "named"
+ 
+-func f4() (t1 t1);	// legal - scope of parameter named t1 starts in body of f4.
++func f4() (t1 t1)	// legal - scope of parameter named t1 starts in body of f4.
+diff --git a/test/func4.go b/test/func4.go
+index bcf5b93fa4..69ce56a197 100644
+--- a/test/func4.go
++++ b/test/func4.go
+@@ -9,6 +9,6 @@ package main
+ var notmain func()
+ 
+ func main() {
+-	var x = &main;		// ERROR "address of|invalid"
+-	main = notmain;	// ERROR "assign to|invalid"
++	var x = &main		// ERROR "address of|invalid"
++	main = notmain	// ERROR "assign to|invalid"
+ }
+diff --git a/test/gc.go b/test/gc.go
+index 864d05c395..3aab8fac95 100644
+--- a/test/gc.go
++++ b/test/gc.go
+@@ -11,7 +11,7 @@ import "runtime"
+ func mk2() {
+ 	b := new([10000]byte)
+ 	_ = b
+-	//	println(b, "stored at", &b);
++	//	println(b, "stored at", &b)
+ }
+ 
+ func mk1() { mk2() }
+diff --git a/test/gc1.go b/test/gc1.go
+index 055079aabe..84034e7cea 100644
+--- a/test/gc1.go
++++ b/test/gc1.go
+@@ -8,7 +8,7 @@ package main
+ 
+ func main() {
+ 	for i := 0; i < 1e5; i++ {
+-		x := new([100]byte);
+-		_ = x;
++		x := new([100]byte)
++		_ = x
+ 	}
+ }
+diff --git a/test/hashmap.go b/test/hashmap.go
+index 62943a713a..096ece0a53 100755
+--- a/test/hashmap.go
++++ b/test/hashmap.go
+@@ -11,7 +11,7 @@ package main
+ 
+ func ASSERT(p bool) {
+ 	if !p {
+-		// panic 0;
++		// panic 0
+ 	}
+ }
+ 
+@@ -20,7 +20,7 @@ func ASSERT(p bool) {
+ // Implementation of the HashMap
+ 
+ type KeyType interface {
+-	Hash() uint32;
++	Hash() uint32
+ 	Match(other *KeyType) bool
+ }
+ 
+@@ -31,31 +31,30 @@ type ValueType interface {
+ 
+ 
+ type Entry struct {
+-	key *KeyType;
+-	value *ValueType;
++	key *KeyType
++	value *ValueType
+ }
+ 
+ 
+-// Using the Array type below doesn't seem to work
+-//type Array array [1024] Entry;
++type Array [1024]Entry
+ 
+ type HashMap struct {
+-	map_ *[1024] Entry;
+-	log2_capacity_ uint32;
+-	occupancy_ uint32;
++	map_ *Array
++	log2_capacity_ uint32
++	occupancy_ uint32
+ }
+ 
+ 
+ func (m *HashMap) capacity() uint32 {
+-	return 1 << m.log2_capacity_;
++	return 1 << m.log2_capacity_
+ }
+ 
+ 
+ func (m *HashMap) Clear() {
+ 	// Mark all entries as empty.
+-	var i uint32 = m.capacity() - 1;
++	var i uint32 = m.capacity() - 1
+ 	for i > 0 {
+-		m.map_[i].key = nil;
++		m.map_[i].key = nil
+ 		i = i - 1
+ 	}
+ 	m.occupancy_ = 0
+@@ -63,72 +62,72 @@ func (m *HashMap) Clear() {
+ 
+ 
+ func (m *HashMap) Initialize (initial_log2_capacity uint32) {
+-	m.log2_capacity_ = initial_log2_capacity;
+-	m.map_ = new([1024] Entry);
+-	m.Clear();
++	m.log2_capacity_ = initial_log2_capacity
++	m.map_ = new(Array)
++	m.Clear()
+ }
+ 
+ 
+ func (m *HashMap) Probe (key *KeyType) *Entry {
+-	ASSERT(key != nil);
++	ASSERT(key != nil)
+ 
+-	var i uint32 = key.Hash() % m.capacity();
+-	ASSERT(0 <= i && i < m.capacity());
++	var i uint32 = key.Hash() % m.capacity()
++	ASSERT(0 <= i && i < m.capacity())
+ 
+-	ASSERT(m.occupancy_ < m.capacity());	// guarantees loop termination
++	ASSERT(m.occupancy_ < m.capacity())	// guarantees loop termination
+ 	for m.map_[i].key != nil && !m.map_[i].key.Match(key) {
+-		i++;
++		i++
+ 		if i >= m.capacity() {
+-			i = 0;
++			i = 0
+ 		}
+ 	}
+ 
+-	return &m.map_[i];
++	return &m.map_[i]
+ }
+ 
+ 
+ func (m *HashMap) Lookup (key *KeyType, insert bool) *Entry {
+ 	// Find a matching entry.
+-	var p *Entry = m.Probe(key);
++	var p *Entry = m.Probe(key)
+ 		if p.key != nil {
+-		return p;
++		return p
+ 	}
+ 
+ 	// No entry found; insert one if necessary.
+ 	if insert {
+-		p.key = key;
+-		p.value = nil;
+-		m.occupancy_++;
++		p.key = key
++		p.value = nil
++		m.occupancy_++
+ 
+ 		// Grow the map if we reached >= 80% occupancy.
+ 		if m.occupancy_ + m.occupancy_/4 >= m.capacity() {
+-			m.Resize();
+-			p = m.Probe(key);
++			m.Resize()
++			p = m.Probe(key)
+ 		}
+ 
+-		return p;
++		return p
+ 	}
+ 
+ 	// No entry found and none inserted.
+-	return nil;
++	return nil
+ }
+ 
+ 
+ func (m *HashMap) Resize() {
+-	var hmap *[1024] Entry = m.map_;
+-	var n uint32 = m.occupancy_;
++	var hmap *Array = m.map_
++	var n uint32 = m.occupancy_
+ 
+ 	// Allocate a new map of twice the current size.
+-	m.Initialize(m.log2_capacity_ << 1);
++	m.Initialize(m.log2_capacity_ << 1)
+ 
+ 	// Rehash all current entries.
+-	var i uint32 = 0;
++	var i uint32 = 0
+ 	for n > 0 {
+ 		if hmap[i].key != nil {
+-			m.Lookup(hmap[i].key, true).value = hmap[i].value;
+-			n = n - 1;
++			m.Lookup(hmap[i].key, true).value = hmap[i].value
++			n = n - 1
+ 		}
+-		i++;
++		i++
+ 	}
+ }
+ 
+@@ -137,46 +136,46 @@ func (m *HashMap) Resize() {
+ // Test code
+ 
+ type Number struct {
+-	x uint32;
++	x uint32
+ }
+ 
+ 
+ func (n *Number) Hash() uint32 {
+-	return n.x * 23;
++	return n.x * 23
+ }
+ 
+ 
+ func (n *Number) Match(other *KeyType) bool {
+-	// var y *Number = other;
+-	// return n.x == y.x;
+-	return false;
++	// var y *Number = other
++	// return n.x == y.x
++	return false
+ }
+ 
+ 
+ func MakeNumber (x uint32) *Number {
+-	var n *Number = new(Number);
+-	n.x = x;
+-	return n;
++	var n *Number = new(Number)
++	n.x = x
++	return n
+ }
+ 
+ 
+ func main() {
+-	//f unc (n int) int { return n + 1; }(1);
++	// func (n int) int { return n + 1; }(1)
+ 
+-	//print "HashMap - gri 2/8/2008\n";
++	//print "HashMap - gri 2/8/2008\n"
+ 
+-	var hmap *HashMap = new(HashMap);
+-	hmap.Initialize(0);
++	var hmap *HashMap = new(HashMap)
++	hmap.Initialize(0)
+ 
+-	var x1 *Number = MakeNumber(1001);
+-	var x2 *Number = MakeNumber(2002);
+-	var x3 *Number = MakeNumber(3003);
+-	_, _, _ = x1, x2, x3;
++	var x1 *Number = MakeNumber(1001)
++	var x2 *Number = MakeNumber(2002)
++	var x3 *Number = MakeNumber(3003)
++	_, _, _ = x1, x2, x3
+ 
+ 	// this doesn't work I think...
+-	//hmap.Lookup(x1, true);
+-	//hmap.Lookup(x2, true);
+-	//hmap.Lookup(x3, true);
++	//hmap.Lookup(x1, true)
++	//hmap.Lookup(x2, true)
++	//hmap.Lookup(x3, true)
+ 
+-	//print "done\n";
++	//print "done\n"
+ }
+diff --git a/test/helloworld.go b/test/helloworld.go
+index 7234be35cb..e55a74bbd3 100644
+--- a/test/helloworld.go
++++ b/test/helloworld.go
+@@ -7,5 +7,5 @@
+ package main
+ 
+ func main() {
+-	print("hello, world\n");
++	print("hello, world\n")
+ }
+diff --git a/test/if.go b/test/if.go
+index c7f14c42a6..db1fe8b790 100644
+--- a/test/if.go
++++ b/test/if.go
+@@ -8,92 +8,92 @@ package main
+ 
+ func assertequal(is, shouldbe int, msg string) {
+ 	if is != shouldbe {
+-		print("assertion fail", msg, "\n");
+-		panic(1);
++		print("assertion fail", msg, "\n")
++		panic(1)
+ 	}
+ }
+ 
+ func main() {
+-	i5 := 5;
+-	i7 := 7;
++	i5 := 5
++	i7 := 7
+ 
+-	var count int;
++	var count int
+ 
+-	count = 0;
++	count = 0
+ 	if true {
+-		count = count + 1;
++		count = count + 1
+ 	}
+-	assertequal(count, 1, "if true");
++	assertequal(count, 1, "if true")
+ 
+-	count = 0;
++	count = 0
+ 	if false {
+-		count = count + 1;
++		count = count + 1
+ 	}
+-	assertequal(count, 0, "if false");
++	assertequal(count, 0, "if false")
+ 
+-	count = 0;
++	count = 0
+ 	if one := 1; true {
+-		count = count + one;
++		count = count + one
+ 	}
+-	assertequal(count, 1, "if true one");
++	assertequal(count, 1, "if true one")
+ 
+-	count = 0;
++	count = 0
+ 	if one := 1; false {
+-		count = count + 1;
+-		_ = one;
++		count = count + 1
++		_ = one
+ 	}
+-	assertequal(count, 0, "if false one");
++	assertequal(count, 0, "if false one")
+ 
+-	count = 0;
++	count = 0
+ 	if {
+-		count = count + 1;
++		count = count + 1
+ 	}
+-	assertequal(count, 1, "if empty");
++	assertequal(count, 1, "if empty")
+ 
+-	count = 0;
++	count = 0
+ 	if one := 1; true {
+-		count = count + one;
++		count = count + one
+ 	}
+-	assertequal(count, 1, "if empty one");
++	assertequal(count, 1, "if empty one")
+ 
+-	count = 0;
++	count = 0
+ 	if i5 < i7 {
+-		count = count + 1;
++		count = count + 1
+ 	}
+-	assertequal(count, 1, "if cond");
++	assertequal(count, 1, "if cond")
+ 
+-	count = 0;
++	count = 0
+ 	if true {
+-		count = count + 1;
++		count = count + 1
+ 	} else
+-		count = count - 1;
+-	assertequal(count, 1, "if else true");
++		count = count - 1
++	assertequal(count, 1, "if else true")
+ 
+-	count = 0;
++	count = 0
+ 	if false {
+-		count = count + 1;
++		count = count + 1
+ 	} else
+-		count = count - 1;
+-	assertequal(count, -1, "if else false");
++		count = count - 1
++	assertequal(count, -1, "if else false")
+ 
+-	count = 0;
++	count = 0
+ 	if t:=1; false {
+-		count = count + 1;
+-		_ = t;
+-		t := 7;
+-		_ = t;
++		count = count + 1
++		_ = t
++		t := 7
++		_ = t
+ 	} else
+-		count = count - t;
+-	assertequal(count, -1, "if else false var");
++		count = count - t
++	assertequal(count, -1, "if else false var")
+ 
+-	count = 0;
+-	t := 1;
++	count = 0
++	t := 1
+ 	if false {
+-		count = count + 1;
+-		t := 7;
+-		_ = t;
++		count = count + 1
++		t := 7
++		_ = t
+ 	} else
+-		count = count - t;
+-	_ = t;
+-	assertequal(count, -1, "if else false var outside");
++		count = count - t
++	_ = t
++	assertequal(count, -1, "if else false var outside")
+ }
+diff --git a/test/if1.go b/test/if1.go
+index 3f3ef1597e..061c36411e 100644
+--- a/test/if1.go
++++ b/test/if1.go
+@@ -9,12 +9,12 @@ package main
+ import "os"
+ 
+ func main() {
+-	count := 7;
++	count := 7
+ 	if one := 1; {
+ 		count = count + one
+ 	}
+ 	if count != 8 {
+-		print(count, " should be 8\n");
++		print(count, " should be 8\n")
+ 		os.Exit(1)
+ 	}
+ }
+diff --git a/test/import.go b/test/import.go
+index 9bed8213cc..96330340df 100644
+--- a/test/import.go
++++ b/test/import.go
+@@ -16,10 +16,10 @@ import . "os"
+ func f(e os.Error)
+ 
+ func main() {
+-	var _e_ _os_.Error;
+-	var dot Error;
++	var _e_ _os_.Error
++	var dot Error
+ 
+-	f(_e_);
+-	f(dot);
++	f(_e_)
++	f(dot)
+ }
+ 
+diff --git a/test/import1.go b/test/import1.go
+index 351462a265..8bb2a94a24 100644
+--- a/test/import1.go
++++ b/test/import1.go
+@@ -12,6 +12,6 @@ import "bufio"	// GCCGO_ERROR "previous|not used"
+ import bufio "os"	// ERROR "redeclared|redefinition|incompatible"
+ 
+ import (
+-	"fmt";	// GCCGO_ERROR "previous|not used"
+-	fmt "math";	// ERROR "redeclared|redefinition|incompatible"
++	"fmt"	// GCCGO_ERROR "previous|not used"
++	fmt "math"	// ERROR "redeclared|redefinition|incompatible"
+ )
+diff --git a/test/indirect1.go b/test/indirect1.go
+index 7cd476a01b..0fd5c19d4d 100644
+--- a/test/indirect1.go
++++ b/test/indirect1.go
+@@ -64,5 +64,5 @@ func f() {
+ 		cap(b1)+	// ERROR "illegal|invalid|must be"
+ 		cap(b2)+	// ERROR "illegal|invalid|must be"
+ 		cap(b3)+
+-		cap(b4);	// ERROR "illegal|invalid|must be"
++		cap(b4)	// ERROR "illegal|invalid|must be"
+ }
+diff --git a/test/initialize.go b/test/initialize.go
+index 807bf5bda2..6dd7d67dc3 100644
+--- a/test/initialize.go
++++ b/test/initialize.go
+@@ -10,11 +10,11 @@ import "fmt"
+ import "reflect"
+ 
+ type S struct {
+-	A, B, C, X, Y, Z int;
++	A, B, C, X, Y, Z int
+ }
+ 
+ type T struct {
+-	S;
++	S
+ }
+ 
+ var a1 = S { 0, 0, 0, 1, 2, 3 }
+@@ -49,14 +49,14 @@ var same = []Same {
+ }
+ 
+ func main() {
+-	ok := true;
++	ok := true
+ 	for _, s := range same {
+ 		if !reflect.DeepEqual(s.a, s.b) {
+-			ok = false;
+-			fmt.Printf("not same: %v and %v\n", s.a, s.b);
++			ok = false
++			fmt.Printf("not same: %v and %v\n", s.a, s.b)
+ 		}
+ 	}
+ 	if !ok {
+-		fmt.Println("BUG: test/initialize");
++		fmt.Println("BUG: test/initialize")
+ 	}
+ }
+diff --git a/test/initializerr.go b/test/initializerr.go
+index b0366dddec..37f8a602db 100644
+--- a/test/initializerr.go
++++ b/test/initializerr.go
+@@ -7,17 +7,17 @@
+ package main
+ 
+ type S struct {
+-	A, B, C, X, Y, Z int;
++	A, B, C, X, Y, Z int
+ }
+ 
+ type T struct {
+-	S;
++	S
+ }
+ 
+ var x = 1
+-var a1 = S { 0, X: 1 };	// ERROR "mixture|undefined"
+-var a2 = S { Y: 3, Z: 2, Y: 3 }; // ERROR "duplicate"
+-var a3 = T { 1, 2, 3, 4, 5, 6 };	// ERROR "convert|too many"
++var a1 = S { 0, X: 1 }	// ERROR "mixture|undefined"
++var a2 = S { Y: 3, Z: 2, Y: 3 } // ERROR "duplicate"
++var a3 = T { 1, 2, 3, 4, 5, 6 }	// ERROR "convert|too many"
+ var a4 = [5]byte{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 }	// ERROR "index|too many"
+ var a5 = []byte { x: 2 }	// ERROR "index"
+ 
+diff --git a/test/initsyscall.go b/test/initsyscall.go
+index 139bb0acb6..b5e5812b64 100644
+--- a/test/initsyscall.go
++++ b/test/initsyscall.go
+@@ -18,8 +18,8 @@ func f() {
+ }
+ 
+ func init() {
+-	go f();
+-	time.Nanoseconds();
++	go f()
++	time.Nanoseconds()
+ }
+ 
+ func main() {
+diff --git a/test/int_lit.go b/test/int_lit.go
+index 1cb42f5d11..2644e17b57 100644
+--- a/test/int_lit.go
++++ b/test/int_lit.go
+@@ -16,9 +16,9 @@ func main() {
+ 		0x0 +
+ 		0x123 +
+ 		0X0 +
+-		0X123;
++		0X123
+ 	if s != 788 {
+-		print("s is ", s, "; should be 788\n");
+-		os.Exit(1);
++		print("s is ", s, "; should be 788\n")
++		os.Exit(1)
+ 	}
+ }
+diff --git a/test/interface/bigdata.go b/test/interface/bigdata.go
+index 674ea12761..44f6ab127e 100644
+--- a/test/interface/bigdata.go
++++ b/test/interface/bigdata.go
+@@ -23,24 +23,24 @@ func (z *IntPtr) M() int64 { return int64(*z) }
+ var bad bool
+ 
+ func test(name string, i I) {
+-	m := i.M();
++	m := i.M()
+ 	if m != 12345 {
+-		println(name, m);
+-		bad = true;
++		println(name, m)
++		bad = true
+ 	}
+ }
+ 
+ func ptrs() {
+-	var bigptr BigPtr = BigPtr{ 10000, 2000, 300, 45 };
+-	var smallptr SmallPtr = SmallPtr{ 12345 };
+-	var intptr IntPtr = 12345;
+-
+-//	test("bigptr", bigptr);
+-	test("&bigptr", &bigptr);
+-//	test("smallptr", smallptr);
+-	test("&smallptr", &smallptr);
+-//	test("intptr", intptr);
+-	test("&intptr", &intptr);
++	var bigptr BigPtr = BigPtr{ 10000, 2000, 300, 45 }
++	var smallptr SmallPtr = SmallPtr{ 12345 }
++	var intptr IntPtr = 12345
++
++//	test("bigptr", bigptr)
++	test("&bigptr", &bigptr)
++//	test("smallptr", smallptr)
++	test("&smallptr", &smallptr)
++//	test("intptr", intptr)
++	test("&intptr", &intptr)
+ }
+ 
+ type Big struct { a, b, c, d int64 }
+@@ -53,23 +53,23 @@ type Int int32
+ func (z Int) M() int64 { return int64(z) }
+ 
+ func nonptrs() {
+-	var big Big = Big{ 10000, 2000, 300, 45 };
+-	var small Small = Small{ 12345 };
+-	var int Int = 12345;
+-
+-	test("big", big);
+-	test("&big", &big);
+-	test("small", small);
+-	test("&small", &small);
+-	test("int", int);
+-	test("&int", &int);
++	var big Big = Big{ 10000, 2000, 300, 45 }
++	var small Small = Small{ 12345 }
++	var int Int = 12345
++
++	test("big", big)
++	test("&big", &big)
++	test("small", small)
++	test("&small", &small)
++	test("int", int)
++	test("&int", &int)
+ }
+ 
+ func main() {
+-	ptrs();
+-	nonptrs();
++	ptrs()
++	nonptrs()
+ 
+ 	if bad {
+-		println("BUG: interface4");
++		println("BUG: interface4")
+ 	}
+ }
+diff --git a/test/interface/convert1.go b/test/interface/convert1.go
+index 0eff6a95d8..658b1a92fa 100644
+--- a/test/interface/convert1.go
++++ b/test/interface/convert1.go
+@@ -9,17 +9,17 @@
+ 
+ package main
+ 
+-type R interface { R(); }
+-type RW interface { R(); W(); }
++type R interface { R() }
++type RW interface { R(); W() }
+ 
+ var e interface {}
+-var r R;
+-var rw RW;
++var r R
++var rw RW
+ 
+ func main() {
+-	r = r;
+-	r = rw;
+-	e = r;
+-	e = rw;
+-	rw = rw;
++	r = r
++	r = rw
++	e = r
++	e = rw
++	rw = rw
+ }
+diff --git a/test/interface/convert2.go b/test/interface/convert2.go
+index 0eff6a95d8..658b1a92fa 100644
+--- a/test/interface/convert2.go
++++ b/test/interface/convert2.go
+@@ -9,17 +9,17 @@
+ 
+ package main
+ 
+-type R interface { R(); }
+-type RW interface { R(); W(); }
++type R interface { R() }
++type RW interface { R(); W() }
+ 
+ var e interface {}
+-var r R;
+-var rw RW;
++var r R
++var rw RW
+ 
+ func main() {
+-	r = r;
+-	r = rw;
+-	e = r;
+-	e = rw;
+-	rw = rw;
++	r = r
++	r = rw
++	e = r
++	e = rw
++	rw = rw
+ }
+diff --git a/test/interface/embed.go b/test/interface/embed.go
+index 936ea49b76..4a702398c6 100644
+--- a/test/interface/embed.go
++++ b/test/interface/embed.go
+@@ -36,47 +36,47 @@ var ok = true
+ 
+ func check(s string, v int64) {
+ 	if v != Value {
+-		println(s, v);
+-		ok = false;
++		println(s, v)
++		ok = false
+ 	}
+ }
+ 
+ func main() {
+-	check("t.M()", t.M());
+-	check("pt.M()", pt.M());
+-	check("ti.M()", ti.M());
+-	check("pti.M()", pti.M());
+-	check("s.M()", s.M());
+-	check("ps.M()", ps.M());
+-	check("sp.M()", sp.M());
+-	check("psp.M()", psp.M());
+-
+-	i = t;
+-	check("i = t; i.M()", i.M());
+-	check("i = t; pi.M()", pi.M());
+-
+-	i = pt;
+-	check("i = pt; i.M()", i.M());
+-	check("i = pt; pi.M()", pi.M());
+-
+-	i = s;
+-	check("i = s; i.M()", i.M());
+-	check("i = s; pi.M()", pi.M());
+-
+-	i = ps;
+-	check("i = ps; i.M()", i.M());
+-	check("i = ps; pi.M()", pi.M());
+-
+-	i = sp;
+-	check("i = sp; i.M()", i.M());
+-	check("i = sp; pi.M()", pi.M());
+-
+-	i = psp;
+-	check("i = psp; i.M()", i.M());
+-	check("i = psp; pi.M()", pi.M());
++	check("t.M()", t.M())
++	check("pt.M()", pt.M())
++	check("ti.M()", ti.M())
++	check("pti.M()", pti.M())
++	check("s.M()", s.M())
++	check("ps.M()", ps.M())
++	check("sp.M()", sp.M())
++	check("psp.M()", psp.M())
++
++	i = t
++	check("i = t; i.M()", i.M())
++	check("i = t; pi.M()", pi.M())
++
++	i = pt
++	check("i = pt; i.M()", i.M())
++	check("i = pt; pi.M()", pi.M())
++
++	i = s
++	check("i = s; i.M()", i.M())
++	check("i = s; pi.M()", pi.M())
++
++	i = ps
++	check("i = ps; i.M()", i.M())
++	check("i = ps; pi.M()", pi.M())
++
++	i = sp
++	check("i = sp; i.M()", i.M())
++	check("i = sp; pi.M()", pi.M())
++
++	i = psp
++	check("i = psp; i.M()", i.M())
++	check("i = psp; pi.M()", pi.M())
+ 
+ 	if !ok {
+-		println("BUG: interface10");
++		println("BUG: interface10")
+ 		os.Exit(1)
+ 	}
+ }
+diff --git a/test/interface/embed0.go b/test/interface/embed0.go
+index fd16e2733a..bbd81e7603 100644
+--- a/test/interface/embed0.go
++++ b/test/interface/embed0.go
+@@ -12,18 +12,18 @@ type T int
+ func (t T) m() {}
+ 
+ type I interface { m() }
+-type J interface { I; }
++type J interface { I }
+ 
+ func main() {
+-	var i I;
+-	var j J;
+-	var t T;
+-	i = t;
+-	j = t;
+-	_ = i;
+-	_ = j;
+-	i = j;
+-	_ = i;
+-	j = i;
+-	_ = j;
++	var i I
++	var j J
++	var t T
++	i = t
++	j = t
++	_ = i
++	_ = j
++	i = j
++	_ = i
++	j = i
++	_ = j
+ }
+diff --git a/test/interface/embed1.go b/test/interface/embed1.go
+index 6e15031eab..24e50471f2 100644
+--- a/test/interface/embed1.go
++++ b/test/interface/embed1.go
+@@ -14,32 +14,32 @@ type T int
+ func (t T) m() {}
+ 
+ type I interface { m() }
+-type J interface { I; }
++type J interface { I }
+ 
+-type PI interface { p.I; }
+-type PJ interface { p.J; }
++type PI interface { p.I }
++type PJ interface { p.J }
+ 
+ func main() {
+-	var i I;
+-	var j J;
+-	var t T;
+-	i = t;
+-	j = t;
+-	_ = i;
+-	_ = j;
+-	i = j;
+-	_ = i;
+-	j = i;
+-	_ = j;
+-	var pi PI;
+-	var pj PJ;
+-	var pt p.T;
+-	pi = pt;
+-	pj = pt;
+-	_ = pi;
+-	_ = pj;
+-	pi = pj;
+-	_ = pi;
+-	pj = pi;
+-	_ = pj;
++	var i I
++	var j J
++	var t T
++	i = t
++	j = t
++	_ = i
++	_ = j
++	i = j
++	_ = i
++	j = i
++	_ = j
++	var pi PI
++	var pj PJ
++	var pt p.T
++	pi = pt
++	pj = pt
++	_ = pi
++	_ = pj
++	pi = pj
++	_ = pi
++	pj = pi
++	_ = pj
+ }
+diff --git a/test/interface/fail.go b/test/interface/fail.go
+index 07bd865c89..3e741d3f91 100644
+--- a/test/interface/fail.go
++++ b/test/interface/fail.go
+@@ -13,12 +13,12 @@ type I interface {
+ }
+ 
+ func main() {
+-	var s *S;
+-	var i I;
+-	var e interface {};
+-	e = s;
+-	i = e.(I);
+-	_ = i;
++	var s *S
++	var i I
++	var e interface {}
++	e = s
++	i = e.(I)
++	_ = i
+ }
+ 
+ // hide S down here to avoid static warning
+diff --git a/test/interface/fake.go b/test/interface/fake.go
+index 687b3ff0cb..5cf3be052c 100644
+--- a/test/interface/fake.go
++++ b/test/interface/fake.go
+@@ -12,69 +12,69 @@ package main
+ import "reflect"
+ 
+ type T struct {
+-	f float32;
+-	g float32;
++	f float32
++	g float32
+ 
+-	s string;
+-	t string;
++	s string
++	t string
+ 
+-	u uint32;
+-	v uint32;
++	u uint32
++	v uint32
+ 
+-	w uint32;
+-	x uint32;
++	w uint32
++	x uint32
+ 
+-	y uint32;
+-	z uint32;
++	y uint32
++	z uint32
+ }
+ 
+ func add(s, t string) string {
+-	return s + t;
++	return s + t
+ }
+ 
+ func assert(b bool) {
+ 	if !b {
+-		panic("assert");
++		panic("assert")
+ 	}
+ }
+ 
+ func main() {
+-	var x T;
+-	x.f = 1.0;
+-	x.g = x.f;
+-	x.s = add("abc", "def");
+-	x.t = add("abc", "def");
+-	x.u = 1;
+-	x.v = 2;
+-	x.w = 1<<28;
+-	x.x = 2<<28;
+-	x.y = 0x12345678;
+-	x.z = x.y;
++	var x T
++	x.f = 1.0
++	x.g = x.f
++	x.s = add("abc", "def")
++	x.t = add("abc", "def")
++	x.u = 1
++	x.v = 2
++	x.w = 1<<28
++	x.x = 2<<28
++	x.y = 0x12345678
++	x.z = x.y
+ 
+ 	// check mem and string
+-	v := reflect.NewValue(x);
+-	i := v.(*reflect.StructValue).Field(0);
+-	j := v.(*reflect.StructValue).Field(1);
+-	assert(i.Interface() == j.Interface());
++	v := reflect.NewValue(x)
++	i := v.(*reflect.StructValue).Field(0)
++	j := v.(*reflect.StructValue).Field(1)
++	assert(i.Interface() == j.Interface())
+ 
+-	s := v.(*reflect.StructValue).Field(2);
+-	t := v.(*reflect.StructValue).Field(3);
+-	assert(s.Interface() == t.Interface());
++	s := v.(*reflect.StructValue).Field(2)
++	t := v.(*reflect.StructValue).Field(3)
++	assert(s.Interface() == t.Interface())
+ 
+ 	// make sure different values are different.
+ 	// make sure whole word is being compared,
+ 	// not just a single byte.
+-	i = v.(*reflect.StructValue).Field(4);
+-	j = v.(*reflect.StructValue).Field(5);
+-	assert(i.Interface() != j.Interface());
++	i = v.(*reflect.StructValue).Field(4)
++	j = v.(*reflect.StructValue).Field(5)
++	assert(i.Interface() != j.Interface())
+ 
+-	i = v.(*reflect.StructValue).Field(6);
+-	j = v.(*reflect.StructValue).Field(7);
+-	assert(i.Interface() != j.Interface());
++	i = v.(*reflect.StructValue).Field(6)
++	j = v.(*reflect.StructValue).Field(7)
++	assert(i.Interface() != j.Interface())
+ 
+-	i = v.(*reflect.StructValue).Field(8);
+-	j = v.(*reflect.StructValue).Field(9);
+-	assert(i.Interface() == j.Interface());
++	i = v.(*reflect.StructValue).Field(8)
++	j = v.(*reflect.StructValue).Field(9)
++	assert(i.Interface() == j.Interface())
+ }
+ 
+ /*
+diff --git a/test/interface/receiver.go b/test/interface/receiver.go
+index f74cecb2c8..f53daf8dab 100644
+--- a/test/interface/receiver.go
++++ b/test/interface/receiver.go
+@@ -64,7 +64,7 @@ func main() {
+ 	v = &t
+ 	v.V()
+ 
+-	//	p = t;	// ERROR
++	//	p = t	// ERROR
+ 	var i interface{} = t
+ 	if _, ok := i.(P); ok {
+ 		println("dynamic i.(P) succeeded incorrectly")
+@@ -87,7 +87,7 @@ func main() {
+ 	v = &s
+ 	v.V()
+ 
+-	//	p = s;	// ERROR
++	//	p = s	// ERROR
+ 	var j interface{} = s
+ 	if _, ok := j.(P); ok {
+ 		println("dynamic j.(P) succeeded incorrectly")
+diff --git a/test/interface/returntype.go b/test/interface/returntype.go
+index 93298bce78..c526b3b0ec 100644
+--- a/test/interface/returntype.go
++++ b/test/interface/returntype.go
+@@ -18,8 +18,8 @@ type I1 interface { Name() int8 }
+ type I2 interface { Name() int64 }
+ 
+ func main() {
+-	var i1 I1;
+-	var s *S;
+-	i1 = s;
++	var i1 I1
++	var s *S
++	i1 = s
+ 	print(i1.(I2).Name())
+ }
+diff --git a/test/interface/struct.go b/test/interface/struct.go
+index 1c7028e06a..40b7f4f910 100644
+--- a/test/interface/struct.go
++++ b/test/interface/struct.go
+@@ -14,39 +14,39 @@ var fail int
+ 
+ func check(b bool, msg string) {
+ 	if (!b) {
+-		println("failure in", msg);
+-		fail++;
++		println("failure in", msg)
++		fail++
+ 	}
+ }
+ 
+-type I1 interface { Get() int; Put(int); }
++type I1 interface { Get() int; Put(int) }
+ 
+ type S1 struct { i int }
+ func (p S1) Get() int { return p.i }
+ func (p S1) Put(i int) { p.i = i }
+ 
+ func f1() {
+-	s := S1{1};
+-	var i I1 = s;
+-	i.Put(2);
+-	check(i.Get() == 1, "f1 i");
+-	check(s.i == 1, "f1 s");
++	s := S1{1}
++	var i I1 = s
++	i.Put(2)
++	check(i.Get() == 1, "f1 i")
++	check(s.i == 1, "f1 s")
+ }
+ 
+ func f2() {
+-	s := S1{1};
+-	var i I1 = &s;
+-	i.Put(2);
+-	check(i.Get() == 1, "f2 i");
+-	check(s.i == 1, "f2 s");
++	s := S1{1}
++	var i I1 = &s
++	i.Put(2)
++	check(i.Get() == 1, "f2 i")
++	check(s.i == 1, "f2 s")
+ }
+ 
+ func f3() {
+-	s := &S1{1};
+-	var i I1 = s;
+-	i.Put(2);
+-	check(i.Get() == 1, "f3 i");
+-	check(s.i == 1, "f3 s");
++	s := &S1{1}
++	var i I1 = s
++	i.Put(2)
++	check(i.Get() == 1, "f3 i")
++	check(s.i == 1, "f3 s")
+ }
+ 
+ type S2 struct { i int }
+@@ -55,57 +55,57 @@ func (p *S2) Put(i int) { p.i = i }
+ 
+ // Disallowed by restriction of values going to pointer receivers
+ // func f4() {
+-//	 s := S2{1};
+-//	 var i I1 = s;
+-//	 i.Put(2);
+-//	 check(i.Get() == 2, "f4 i");
+-//	 check(s.i == 1, "f4 s");
++//	 s := S2{1}
++//	 var i I1 = s
++//	 i.Put(2)
++//	 check(i.Get() == 2, "f4 i")
++//	 check(s.i == 1, "f4 s")
+ // }
+ 
+ func f5() {
+-	s := S2{1};
+-	var i I1 = &s;
+-	i.Put(2);
+-	check(i.Get() == 2, "f5 i");
+-	check(s.i == 2, "f5 s");
++	s := S2{1}
++	var i I1 = &s
++	i.Put(2)
++	check(i.Get() == 2, "f5 i")
++	check(s.i == 2, "f5 s")
+ }
+ 
+ func f6() {
+-	s := &S2{1};
+-	var i I1 = s;
+-	i.Put(2);
+-	check(i.Get() == 2, "f6 i");
+-	check(s.i == 2, "f6 s");
++	s := &S2{1}
++	var i I1 = s
++	i.Put(2)
++	check(i.Get() == 2, "f6 i")
++	check(s.i == 2, "f6 s")
+ }
+ 
+-type I2 interface { Get() int64; Put(int64); }
++type I2 interface { Get() int64; Put(int64) }
+ 
+ type S3 struct { i, j, k, l int64 }
+ func (p S3) Get() int64 { return p.l }
+ func (p S3) Put(i int64) { p.l = i }
+ 
+ func f7() {
+-	s := S3{1, 2, 3, 4};
+-	var i I2 = s;
+-	i.Put(5);
+-	check(i.Get() == 4, "f7 i");
+-	check(s.l == 4, "f7 s");
++	s := S3{1, 2, 3, 4}
++	var i I2 = s
++	i.Put(5)
++	check(i.Get() == 4, "f7 i")
++	check(s.l == 4, "f7 s")
+ }
+ 
+ func f8() {
+-	s := S3{1, 2, 3, 4};
+-	var i I2 = &s;
+-	i.Put(5);
+-	check(i.Get() == 4, "f8 i");
+-	check(s.l == 4, "f8 s");
++	s := S3{1, 2, 3, 4}
++	var i I2 = &s
++	i.Put(5)
++	check(i.Get() == 4, "f8 i")
++	check(s.l == 4, "f8 s")
+ }
+ 
+ func f9() {
+-	s := &S3{1, 2, 3, 4};
+-	var i I2 = s;
+-	i.Put(5);
+-	check(i.Get() == 4, "f9 i");
+-	check(s.l == 4, "f9 s");
++	s := &S3{1, 2, 3, 4}
++	var i I2 = s
++	i.Put(5)
++	check(i.Get() == 4, "f9 i")
++	check(s.l == 4, "f9 s")
+ }
+ 
+ type S4 struct { i, j, k, l int64 }
+@@ -114,42 +114,42 @@ func (p *S4) Put(i int64) { p.l = i }
+ 
+ // Disallowed by restriction of values going to pointer receivers
+ // func f10() {
+-//	 s := S4{1, 2, 3, 4};
+-//	 var i I2 = s;
+-//	 i.Put(5);
+-//	 check(i.Get() == 5, "f10 i");
+-//	 check(s.l == 4, "f10 s");
++//	 s := S4{1, 2, 3, 4}
++//	 var i I2 = s
++//	 i.Put(5)
++//	 check(i.Get() == 5, "f10 i")
++//	 check(s.l == 4, "f10 s")
+ // }
+ 
+ func f11() {
+-	s := S4{1, 2, 3, 4};
+-	var i I2 = &s;
+-	i.Put(5);
+-	check(i.Get() == 5, "f11 i");
+-	check(s.l == 5, "f11 s");
++	s := S4{1, 2, 3, 4}
++	var i I2 = &s
++	i.Put(5)
++	check(i.Get() == 5, "f11 i")
++	check(s.l == 5, "f11 s")
+ }
+ 
+ func f12() {
+-	s := &S4{1, 2, 3, 4};
+-	var i I2 = s;
+-	i.Put(5);
+-	check(i.Get() == 5, "f12 i");
+-	check(s.l == 5, "f12 s");
++	s := &S4{1, 2, 3, 4}
++	var i I2 = s
++	i.Put(5)
++	check(i.Get() == 5, "f12 i")
++	check(s.l == 5, "f12 s")
+ }
+ 
+ func main() {
+-	f1();
+-	f2();
+-	f3();
+-//	f4();
+-	f5();
+-	f6();
+-	f7();
+-	f8();
+-	f9();
+-//	f10();
+-	f11();
+-	f12();
++	f1()
++	f2()
++	f3()
++//	f4()
++	f5()
++	f6()
++	f7()
++	f8()
++	f9()
++//	f10()
++	f11()
++	f12()
+ 	if fail > 0 {
+ 		os.Exit(1)
+ 	}
+diff --git a/test/iota.go b/test/iota.go
+index 393edac804..20b77c6cc0 100644
+--- a/test/iota.go
++++ b/test/iota.go
+@@ -8,113 +8,113 @@ package main
+ 
+ func assert(cond bool, msg string) {
+ 	if !cond {
+-		print("assertion fail: ", msg, "\n");
+-		panic(1);
++		print("assertion fail: ", msg, "\n")
++		panic(1)
+ 	}
+ }
+ 
+ const (
+-	x int = iota;
+-	y = iota;
+-	z = 1 << iota;
+-	f float = 2 * iota;
+-	g float = 4.5 * float(iota);
++	x int = iota
++	y = iota
++	z = 1 << iota
++	f float = 2 * iota
++	g float = 4.5 * float(iota)
+ )
+ 
+ const (
+-	X = 0;
+-	Y;
+-	Z;
++	X = 0
++	Y
++	Z
+ )
+ 
+ const (
+-	A = 1 << iota;
+-	B;
+-	C;
+-	D;
+-	E = iota * iota;
+-	F;
+-	G;
++	A = 1 << iota
++	B
++	C
++	D
++	E = iota * iota
++	F
++	G
+ )
+ 
+ const (
+-	a = 1;
+-	b = iota << a;
+-	c = iota << b;
+-	d;
++	a = 1
++	b = iota << a
++	c = iota << b
++	d
+ )
+ 
+ const (
+-	i = (a << iota) + (b * iota);
+-	j;
+-	k;
+-	l;
++	i = (a << iota) + (b * iota)
++	j
++	k
++	l
+ )
+ 
+ const (
+-	m = iota == 0;
+-	n;
++	m = iota == 0
++	n
+ )
+ 
+ const (
+-	p = float(iota);
+-	q;
+-	r;
++	p = float(iota)
++	q
++	r
+ )
+ 
+ const (
+-	s = string(iota + 'a');
+-	t;
++	s = string(iota + 'a')
++	t
+ )
+ 
+ const (
+-	abit, amask = 1 << iota, 1 << iota - 1;
+-	bbit, bmask = 1 << iota, 1 << iota - 1;
+-	cbit, cmask = 1 << iota, 1 << iota - 1;
++	abit, amask = 1 << iota, 1 << iota - 1
++	bbit, bmask = 1 << iota, 1 << iota - 1
++	cbit, cmask = 1 << iota, 1 << iota - 1
+ )
+ 
+ func main() {
+-	assert(x == 0, "x");
+-	assert(y == 1, "y");
+-	assert(z == 4, "z");
+-	assert(f == 6.0, "f");
+-	assert(g == 18.0, "g");
+-
+-	assert(X == 0, "X");
+-	assert(Y == 0, "Y");
+-	assert(Z == 0, "Z");
+-
+-	assert(A == 1, "A");
+-	assert(B == 2, "B");
+-	assert(C == 4, "C");
+-	assert(D == 8, "D");
+-	assert(E == 16, "E");
+-	assert(F == 25, "F");
+-
+-	assert(a == 1, "a");
+-	assert(b == 2, "b");
+-	assert(c == 8, "c");
+-	assert(d == 12, "d");
+-
+-	assert(i == 1, "i");
+-	assert(j == 4, "j");
+-	assert(k == 8, "k");
+-	assert(l == 14, "l");
+-
+-	assert(m, "m");
+-	assert(!n, "n");
+-
+-	assert(p == 0.0, "p");
+-	assert(q == 1.0, "q");
+-	assert(r == 2.0, "r");
+-
+-	assert(s == "a", "s");
+-	assert(t == "b", "t");
+-
+-	assert(abit == 1, "abit");
+-	assert(amask == 0, "amask");
+-	assert(bbit == 2, "bbit");
+-	assert(bmask == 1, "bmask");
+-	assert(cbit == 4, "cbit");
+-	assert(cmask == 3, "cmask");
++	assert(x == 0, "x")
++	assert(y == 1, "y")
++	assert(z == 4, "z")
++	assert(f == 6.0, "f")
++	assert(g == 18.0, "g")
++
++	assert(X == 0, "X")
++	assert(Y == 0, "Y")
++	assert(Z == 0, "Z")
++
++	assert(A == 1, "A")
++	assert(B == 2, "B")
++	assert(C == 4, "C")
++	assert(D == 8, "D")
++	assert(E == 16, "E")
++	assert(F == 25, "F")
++
++	assert(a == 1, "a")
++	assert(b == 2, "b")
++	assert(c == 8, "c")
++	assert(d == 12, "d")
++
++	assert(i == 1, "i")
++	assert(j == 4, "j")
++	assert(k == 8, "k")
++	assert(l == 14, "l")
++
++	assert(m, "m")
++	assert(!n, "n")
++
++	assert(p == 0.0, "p")
++	assert(q == 1.0, "q")
++	assert(r == 2.0, "r")
++
++	assert(s == "a", "s")
++	assert(t == "b", "t")
++
++	assert(abit == 1, "abit")
++	assert(amask == 0, "amask")
++	assert(bbit == 2, "bbit")
++	assert(bmask == 1, "bmask")
++	assert(cbit == 4, "cbit")
++	assert(cmask == 3, "cmask")
+ }
+diff --git a/test/literal.go b/test/literal.go
+index b1e1626bac..10176bc387 100644
+--- a/test/literal.go
++++ b/test/literal.go
+@@ -13,10 +13,10 @@ var nbad int
+ func assert(cond bool, msg string) {
+ 	if !cond {
+ 		if nbad == 0 {
+-			print("BUG");
++			print("BUG")
+ 		}
+-		nbad++;
+-		print(" ", msg);
++		nbad++
++		print(" ", msg)
+ 	}
+ }
+ 
+@@ -35,203 +35,203 @@ func equal(a, b float) bool {
+ 
+ func main() {
+ 	// bool
+-	var t bool = true;
+-	var f bool = false;
+-	assert(t == !f, "bool");
++	var t bool = true
++	var f bool = false
++	assert(t == !f, "bool")
+ 
+ 	// int8
+-	var i00 int8 = 0;
+-	var i01 int8 = 1;
+-	var i02 int8 = -1;
+-	var i03 int8 = 127;
+-	var i04 int8 = -127;
+-	var i05 int8 = -128;
+-	var i06 int8 = +127;
+-	assert(i01 == i00 + 1, "i01");
+-	assert(i02 == -i01, "i02");
+-	assert(i03 == -i04, "i03");
+-	assert(-(i05+1) == i06, "i05");
++	var i00 int8 = 0
++	var i01 int8 = 1
++	var i02 int8 = -1
++	var i03 int8 = 127
++	var i04 int8 = -127
++	var i05 int8 = -128
++	var i06 int8 = +127
++	assert(i01 == i00 + 1, "i01")
++	assert(i02 == -i01, "i02")
++	assert(i03 == -i04, "i03")
++	assert(-(i05+1) == i06, "i05")
+ 
+ 	// int16
+-	var i10 int16 = 0;
+-	var i11 int16 = 1;
+-	var i12 int16 = -1;
+-	var i13 int16 = 32767;
+-	var i14 int16 = -32767;
+-	var i15 int16 = -32768;
+-	var i16 int16 = +32767;
+-	assert(i11 == i10 + 1, "i11");
+-	assert(i12 == -i11, "i12");
+-	assert(i13 == -i14, "i13");
+-	assert(-(i15+1) == i16, "i15");
++	var i10 int16 = 0
++	var i11 int16 = 1
++	var i12 int16 = -1
++	var i13 int16 = 32767
++	var i14 int16 = -32767
++	var i15 int16 = -32768
++	var i16 int16 = +32767
++	assert(i11 == i10 + 1, "i11")
++	assert(i12 == -i11, "i12")
++	assert(i13 == -i14, "i13")
++	assert(-(i15+1) == i16, "i15")
+ 
+ 	// int32
+-	var i20 int32 = 0;
+-	var i21 int32 = 1;
+-	var i22 int32 = -1;
+-	var i23 int32 = 2147483647;
+-	var i24 int32 = -2147483647;
+-	var i25 int32 = -2147483648;
+-	var i26 int32 = +2147483647;
+-	assert(i21 == i20 + 1, "i21");
+-	assert(i22 == -i21, "i22");
+-	assert(i23 == -i24, "i23");
+-	assert(-(i25+1) == i26, "i25");
+-	assert(i23 == (1 << 31) - 1, "i23 size");
++	var i20 int32 = 0
++	var i21 int32 = 1
++	var i22 int32 = -1
++	var i23 int32 = 2147483647
++	var i24 int32 = -2147483647
++	var i25 int32 = -2147483648
++	var i26 int32 = +2147483647
++	assert(i21 == i20 + 1, "i21")
++	assert(i22 == -i21, "i22")
++	assert(i23 == -i24, "i23")
++	assert(-(i25+1) == i26, "i25")
++	assert(i23 == (1 << 31) - 1, "i23 size")
+ 
+ 	// int64
+-	var i30 int64 = 0;
+-	var i31 int64 = 1;
+-	var i32 int64 = -1;
+-	var i33 int64 = 9223372036854775807;
+-	var i34 int64 = -9223372036854775807;
+-	var i35 int64 = -9223372036854775808;
+-	var i36 int64 = +9223372036854775807;
+-	assert(i31 == i30 + 1, "i31");
+-	assert(i32 == -i31, "i32");
+-	assert(i33 == -i34, "i33");
+-	assert(-(i35+1) == i36, "i35");
+-	assert(i33 == (1<<63) - 1, "i33 size");
++	var i30 int64 = 0
++	var i31 int64 = 1
++	var i32 int64 = -1
++	var i33 int64 = 9223372036854775807
++	var i34 int64 = -9223372036854775807
++	var i35 int64 = -9223372036854775808
++	var i36 int64 = +9223372036854775807
++	assert(i31 == i30 + 1, "i31")
++	assert(i32 == -i31, "i32")
++	assert(i33 == -i34, "i33")
++	assert(-(i35+1) == i36, "i35")
++	assert(i33 == (1<<63) - 1, "i33 size")
+ 
+ 	// uint8
+-	var u00 uint8 = 0;
+-	var u01 uint8 = 1;
+-	var u02 uint8 = 255;
+-	var u03 uint8 = +255;
+-	assert(u01 == u00 + 1, "u01");
+-	assert(u02 == u03, "u02");
+-	assert(u03 == (1<<8) - 1, "u03 size");
++	var u00 uint8 = 0
++	var u01 uint8 = 1
++	var u02 uint8 = 255
++	var u03 uint8 = +255
++	assert(u01 == u00 + 1, "u01")
++	assert(u02 == u03, "u02")
++	assert(u03 == (1<<8) - 1, "u03 size")
+ 
+ 	// uint16
+-	var u10 uint16 = 0;
+-	var u11 uint16 = 1;
+-	var u12 uint16 = 65535;
+-	var u13 uint16 = +65535;
+-	assert(u11 == u10 + 1, "u11");
+-	assert(u12 == u13, "u12");
++	var u10 uint16 = 0
++	var u11 uint16 = 1
++	var u12 uint16 = 65535
++	var u13 uint16 = +65535
++	assert(u11 == u10 + 1, "u11")
++	assert(u12 == u13, "u12")
+ 
+ 	// uint32
+-	var u20 uint32 = 0;
+-	var u21 uint32 = 1;
+-	var u22 uint32 = 4294967295;
+-	var u23 uint32 = +4294967295;
+-	assert(u21 == u20 + 1, "u21");
+-	assert(u22 == u23, "u22");
++	var u20 uint32 = 0
++	var u21 uint32 = 1
++	var u22 uint32 = 4294967295
++	var u23 uint32 = +4294967295
++	assert(u21 == u20 + 1, "u21")
++	assert(u22 == u23, "u22")
+ 
+ 	// uint64
+-	var u30 uint64 = 0;
+-	var u31 uint64 = 1;
+-	var u32 uint64 = 18446744073709551615;
+-	var u33 uint64 = +18446744073709551615;
+-	_, _, _, _ = u30, u31, u32, u33;
++	var u30 uint64 = 0
++	var u31 uint64 = 1
++	var u32 uint64 = 18446744073709551615
++	var u33 uint64 = +18446744073709551615
++	_, _, _, _ = u30, u31, u32, u33
+ 
+ 	// float
+-	var f00 float = 3.14159;
+-	var f01 float = -3.14159;
+-	var f02 float = +3.14159;
+-	var f03 float = 0.0;
+-	var f04 float = .0;
+-	var f05 float = 0.;
+-	var f06 float = -0.0;
+-	var f07 float = 1e10;
+-	var f08 float = -1e10;
+-	var f09 float = 1e-10;
+-	var f10 float = 1e+10;
+-	var f11 float = 1.e-10;
+-	var f12 float = 1.e+10;
+-	var f13 float = .1e-10;
+-	var f14 float = .1e+10;
+-	var f15 float = 1.1e-10;
+-	var f16 float = 1.1e+10;
+-	assert(f01 == -f00, "f01");
+-	assert(f02 == -f01, "f02");
+-	assert(f03 == f04, "f03");
+-	assert(f04 == f05, "f04");
+-	assert(f05 == f06, "f05");
+-	assert(f07 == -f08, "f07");
+-	assert(equal(f09, 1/f10), "f09");
+-	assert(f11 == f09, "f11");
+-	assert(f12 == f10, "f12");
+-	assert(equal(f13, f09/10.0), "f13");
+-	assert(equal(f14, f12/10.0), "f14");
+-	assert(equal(f15, f16/1e20), "f15");
++	var f00 float = 3.14159
++	var f01 float = -3.14159
++	var f02 float = +3.14159
++	var f03 float = 0.0
++	var f04 float = .0
++	var f05 float = 0.
++	var f06 float = -0.0
++	var f07 float = 1e10
++	var f08 float = -1e10
++	var f09 float = 1e-10
++	var f10 float = 1e+10
++	var f11 float = 1.e-10
++	var f12 float = 1.e+10
++	var f13 float = .1e-10
++	var f14 float = .1e+10
++	var f15 float = 1.1e-10
++	var f16 float = 1.1e+10
++	assert(f01 == -f00, "f01")
++	assert(f02 == -f01, "f02")
++	assert(f03 == f04, "f03")
++	assert(f04 == f05, "f04")
++	assert(f05 == f06, "f05")
++	assert(f07 == -f08, "f07")
++	assert(equal(f09, 1/f10), "f09")
++	assert(f11 == f09, "f11")
++	assert(f12 == f10, "f12")
++	assert(equal(f13, f09/10.0), "f13")
++	assert(equal(f14, f12/10.0), "f14")
++	assert(equal(f15, f16/1e20), "f15")
+ 
+ 	// character
+-	var c0 uint8 = 'a';
+-	var c1 uint8 = 'ä';
+-	var c2 uint8 = '\a';
+-	var c3 uint8 = '\b';
+-	var c4 uint8 = '\f';
+-	var c5 uint8 = '\n';
+-	var c6 uint8 = '\r';
+-	var c7 uint8 = '\t';
+-	var c8 uint8 = '\v';
+-	// var c9 uint8 = '本'; // correctly caught as error
+-	var c9 uint16 = '本';
+-	assert(c0 == 0x61, "c0");
+-	assert(c1 == 0xe4, "c1");
+-	assert(c2 == 0x07, "c2");
+-	assert(c3 == 0x08, "c3");
+-	assert(c4 == 0x0c, "c4");
+-	assert(c5 == 0x0a, "c4");
+-	assert(c6 == 0x0d, "c6");
+-	assert(c7 == 0x09, "c7");
+-	assert(c8 == 0x0b, "c8");
+-	assert(c9 == 0x672c, "c9");
+-
+-
+-	var c00 uint8 = '\000';
+-	var c01 uint8 = '\007';
+-	var c02 uint8 = '\177';
+-	var c03 uint8 = '\377';
+-	assert(c00 == 0, "c00");
+-	assert(c01 == 7, "c01");
+-	assert(c02 == 127, "c02");
+-	assert(c03 == 255, "c03");
+-
+-	var cx0 uint8 = '\x00';
+-	var cx1 uint8 = '\x0f';
+-	var cx2 uint8 = '\xff';
+-	assert(cx0 == 0, "cx0");
+-	assert(cx1 == 15, "cx1");
+-	assert(cx2 == 255, "cx2");
+-
+-	var cu0 uint16 = '\u1234';
+-	var cu1 uint32 = '\U00101234';
+-	assert(cu0 == 0x1234, "cu0");
+-	assert(cu1 == 0x101234, "cu1");
++	var c0 uint8 = 'a'
++	var c1 uint8 = 'ä'
++	var c2 uint8 = '\a'
++	var c3 uint8 = '\b'
++	var c4 uint8 = '\f'
++	var c5 uint8 = '\n'
++	var c6 uint8 = '\r'
++	var c7 uint8 = '\t'
++	var c8 uint8 = '\v'
++	// var c9 uint8 = '本' // correctly caught as error
++	var c9 uint16 = '本'
++	assert(c0 == 0x61, "c0")
++	assert(c1 == 0xe4, "c1")
++	assert(c2 == 0x07, "c2")
++	assert(c3 == 0x08, "c3")
++	assert(c4 == 0x0c, "c4")
++	assert(c5 == 0x0a, "c4")
++	assert(c6 == 0x0d, "c6")
++	assert(c7 == 0x09, "c7")
++	assert(c8 == 0x0b, "c8")
++	assert(c9 == 0x672c, "c9")
++
++
++	var c00 uint8 = '\000'
++	var c01 uint8 = '\007'
++	var c02 uint8 = '\177'
++	var c03 uint8 = '\377'
++	assert(c00 == 0, "c00")
++	assert(c01 == 7, "c01")
++	assert(c02 == 127, "c02")
++	assert(c03 == 255, "c03")
++
++	var cx0 uint8 = '\x00'
++	var cx1 uint8 = '\x0f'
++	var cx2 uint8 = '\xff'
++	assert(cx0 == 0, "cx0")
++	assert(cx1 == 15, "cx1")
++	assert(cx2 == 255, "cx2")
++
++	var cu0 uint16 = '\u1234'
++	var cu1 uint32 = '\U00101234'
++	assert(cu0 == 0x1234, "cu0")
++	assert(cu1 == 0x101234, "cu1")
+ 
+ 	// string
+-	var s0 string = "";
+-	var s1 string = "hellô";
+-	assert(s1[0] == 'h', "s1-0");
+-	assert(s1[4] == 0xc3, "s1-4");
+-	assert(s1[5] == 0xb4, "s1-5");
+-	var s2 string = "\a\b\f\n\r\t\v";
+-	_, _ = s0, s2;
+-
+-	var s00 string = "\000";
+-	var s01 string = "\007";
+-	var s02 string = "\377";
+-	assert(s00[0] == 0, "s00");
+-	assert(s01[0] == 7, "s01");
+-	assert(s02[0] == 255, "s02");
+-
+-	var x00 string = "\x00";
+-	var x01 string = "\x0f";
+-	var x02 string = "\xff";
+-	assert(x00[0] == 0, "x00");
+-	assert(x01[0] == 15, "x01");
+-	assert(x02[0] == 255, "x02");
++	var s0 string = ""
++	var s1 string = "hellô"
++	assert(s1[0] == 'h', "s1-0")
++	assert(s1[4] == 0xc3, "s1-4")
++	assert(s1[5] == 0xb4, "s1-5")
++	var s2 string = "\a\b\f\n\r\t\v"
++	_, _ = s0, s2
++
++	var s00 string = "\000"
++	var s01 string = "\007"
++	var s02 string = "\377"
++	assert(s00[0] == 0, "s00")
++	assert(s01[0] == 7, "s01")
++	assert(s02[0] == 255, "s02")
++
++	var x00 string = "\x00"
++	var x01 string = "\x0f"
++	var x02 string = "\xff"
++	assert(x00[0] == 0, "x00")
++	assert(x01[0] == 15, "x01")
++	assert(x02[0] == 255, "x02")
+ 
+ 	// these are all the same string
+-	var sj0 string = "日本語";
+-	var sj1 string = "\u65e5\u672c\u8a9e";
+-	var sj2 string = "\U000065e5\U0000672c\U00008a9e";
+-	var sj3 string = "\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e";
+-	assert(sj0 == sj1, "sj1");
+-	assert(sj0 == sj2, "sj2");
+-	assert(sj0 == sj3, "sj3");
++	var sj0 string = "日本語"
++	var sj1 string = "\u65e5\u672c\u8a9e"
++	var sj2 string = "\U000065e5\U0000672c\U00008a9e"
++	var sj3 string = "\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e"
++	assert(sj0 == sj1, "sj1")
++	assert(sj0 == sj2, "sj2")
++	assert(sj0 == sj3, "sj3")
+ 
+ 	if nbad > 0 {
+ 		println()
+diff --git a/test/mallocrand.go b/test/mallocrand.go
+index bb43e2d46a..e6b422e224 100644
+--- a/test/mallocrand.go
++++ b/test/mallocrand.go
+@@ -56,7 +56,7 @@ func memset(b *byte, c byte, n uintptr) {
+ 
+ func main() {
+ 	flag.Parse()
+-	//	prime();
++	//	prime()
+ 	var blocks [1]struct {
+ 		base *byte
+ 		siz  uintptr
+@@ -67,7 +67,7 @@ func main() {
+ 		}
+ 		b := rand.Int() % len(blocks)
+ 		if blocks[b].base != nil {
+-			//	println("Free", blocks[b].siz, blocks[b].base);
++			//	println("Free", blocks[b].siz, blocks[b].base)
+ 			runtime.Free(blocks[b].base)
+ 			blocks[b].base = nil
+ 			allocated -= uint64(blocks[b].siz)
+@@ -75,8 +75,8 @@ func main() {
+ 		}
+ 		siz := uintptr(rand.Int() >> (11 + rand.Uint32()%20))
+ 		base := runtime.Alloc(siz)
+-		//	ptr := uintptr(syscall.BytePtr(base))+uintptr(siz/2);
+-		//	obj, size, ref, ok := allocator.find(ptr);
++		//	ptr := uintptr(syscall.BytePtr(base))+uintptr(siz/2)
++		//	obj, size, ref, ok := allocator.find(ptr)
+ 		//	if obj != base || *ref != 0 || !ok {
+ 		//		println("find", siz, obj, ref, ok)
+ 		//		panic("fail")
+@@ -84,7 +84,7 @@ func main() {
+ 		blocks[b].base = base
+ 		blocks[b].siz = siz
+ 		allocated += uint64(siz)
+-		//	println("Alloc", siz, base);
++		//	println("Alloc", siz, base)
+ 		memset(base, 0xbb, siz)
+ 		bigger()
+ 	}
+diff --git a/test/mallocrep.go b/test/mallocrep.go
+index 2357d83753..b0e0e8f1a3 100644
+--- a/test/mallocrep.go
++++ b/test/mallocrep.go
+@@ -59,7 +59,7 @@ func main() {
+ 			if *chatty {
+ 				println("Primed", i)
+ 			}
+-			//	runtime.frozen = true;
++			//	runtime.frozen = true
+ 		}
+ 	}
+ }
+diff --git a/test/map.go b/test/map.go
+index 4905f6e11f..ddff7c7a73 100644
+--- a/test/map.go
++++ b/test/map.go
+@@ -7,318 +7,318 @@
+ package main
+ 
+ import (
+-	"fmt";
+-	"strconv";
++	"fmt"
++	"strconv"
+ )
+ 
+-const count = 100;
++const count = 100
+ 
+ func P(a []string) string {
+-	s := "{";
++	s := "{"
+ 	for i := 0; i < len(a); i++ {
+ 		if i > 0 {
+ 			s += ","
+ 		}
+-		s += `"` + a[i] + `"`;
++		s += `"` + a[i] + `"`
+ 	}
+-	s +="}";
+-	return s;
++	s +="}"
++	return s
+ }
+ 
+ func main() {
+ 	// Test a map literal.
+-	mlit := map[string] int { "0":0, "1":1, "2":2, "3":3, "4":4 };
++	mlit := map[string] int { "0":0, "1":1, "2":2, "3":3, "4":4 }
+ 	for i := 0; i < len(mlit); i++ {
+-		s := string([]byte{byte(i)+'0'});
++		s := string([]byte{byte(i)+'0'})
+ 		if mlit[s] != i {
+ 			fmt.Printf("mlit[%s] = %d\n", s, mlit[s])
+ 		}
+ 	}
+ 
+-	mib := make(map[int] bool);
+-	mii := make(map[int] int);
+-	mfi := make(map[float] int);
+-	mif := make(map[int] float);
+-	msi := make(map[string] int);
+-	mis := make(map[int] string);
+-	mss := make(map[string] string);
+-	mspa := make(map[string] []string);
++	mib := make(map[int] bool)
++	mii := make(map[int] int)
++	mfi := make(map[float] int)
++	mif := make(map[int] float)
++	msi := make(map[string] int)
++	mis := make(map[int] string)
++	mss := make(map[string] string)
++	mspa := make(map[string] []string)
+ 	// BUG need an interface map both ways too
+ 
+ 	type T struct {
+-		i int64;	// can't use string here; struct values are only compared at the top level
+-		f float;
+-	};
+-	mipT := make(map[int] *T);
+-	mpTi := make(map[*T] int);
+-	mit := make(map[int] T);
+-//	mti := make(map[T] int);
++		i int64	// can't use string here; struct values are only compared at the top level
++		f float
++	}
++	mipT := make(map[int] *T)
++	mpTi := make(map[*T] int)
++	mit := make(map[int] T)
++//	mti := make(map[T] int)
+ 
+-	type M map[int] int;
+-	mipM := make(map[int] M);
++	type M map[int] int
++	mipM := make(map[int] M)
+ 
+-	var apT [2*count]*T;
++	var apT [2*count]*T
+ 
+ 	for i := 0; i < count; i++ {
+-		s := strconv.Itoa(i);
+-		s10 := strconv.Itoa(i*10);
+-		f := float(i);
+-		t := T{int64(i),f};
+-		apT[i] = new(T);
+-		apT[i].i = int64(i);
+-		apT[i].f = f;
+-		apT[2*i] = new(T);	// need twice as many entries as we use, for the nonexistence check
+-		apT[2*i].i = int64(i);
+-		apT[2*i].f = f;
+-		m := M{i: i+1};
+-		mib[i] = (i != 0);
+-		mii[i] = 10*i;
+-		mfi[float(i)] = 10*i;
+-		mif[i] = 10.0*f;
+-		mis[i] = s;
+-		msi[s] = i;
+-		mss[s] = s10;
+-		mss[s] = s10;
+-		as := make([]string, 2);
+-			as[0] = s10;
+-			as[1] = s10;
+-		mspa[s] = as;
+-		mipT[i] = apT[i];
+-		mpTi[apT[i]] = i;
+-		mipM[i] = m;
+-		mit[i] = t;
+-	//	mti[t] = i;
++		s := strconv.Itoa(i)
++		s10 := strconv.Itoa(i*10)
++		f := float(i)
++		t := T{int64(i),f}
++		apT[i] = new(T)
++		apT[i].i = int64(i)
++		apT[i].f = f
++		apT[2*i] = new(T)	// need twice as many entries as we use, for the nonexistence check
++		apT[2*i].i = int64(i)
++		apT[2*i].f = f
++		m := M{i: i+1}
++		mib[i] = (i != 0)
++		mii[i] = 10*i
++		mfi[float(i)] = 10*i
++		mif[i] = 10.0*f
++		mis[i] = s
++		msi[s] = i
++		mss[s] = s10
++		mss[s] = s10
++		as := make([]string, 2)
++			as[0] = s10
++			as[1] = s10
++		mspa[s] = as
++		mipT[i] = apT[i]
++		mpTi[apT[i]] = i
++		mipM[i] = m
++		mit[i] = t
++	//	mti[t] = i
+ 	}
+ 
+ 	// test len
+ 	if len(mib) != count {
+-		fmt.Printf("len(mib) = %d\n", len(mib));
++		fmt.Printf("len(mib) = %d\n", len(mib))
+ 	}
+ 	if len(mii) != count {
+-		fmt.Printf("len(mii) = %d\n", len(mii));
++		fmt.Printf("len(mii) = %d\n", len(mii))
+ 	}
+ 	if len(mfi) != count {
+-		fmt.Printf("len(mfi) = %d\n", len(mfi));
++		fmt.Printf("len(mfi) = %d\n", len(mfi))
+ 	}
+ 	if len(mif) != count {
+-		fmt.Printf("len(mif) = %d\n", len(mif));
++		fmt.Printf("len(mif) = %d\n", len(mif))
+ 	}
+ 	if len(msi) != count {
+-		fmt.Printf("len(msi) = %d\n", len(msi));
++		fmt.Printf("len(msi) = %d\n", len(msi))
+ 	}
+ 	if len(mis) != count {
+-		fmt.Printf("len(mis) = %d\n", len(mis));
++		fmt.Printf("len(mis) = %d\n", len(mis))
+ 	}
+ 	if len(mss) != count {
+-		fmt.Printf("len(mss) = %d\n", len(mss));
++		fmt.Printf("len(mss) = %d\n", len(mss))
+ 	}
+ 	if len(mspa) != count {
+-		fmt.Printf("len(mspa) = %d\n", len(mspa));
++		fmt.Printf("len(mspa) = %d\n", len(mspa))
+ 	}
+ 	if len(mipT) != count {
+-		fmt.Printf("len(mipT) = %d\n", len(mipT));
++		fmt.Printf("len(mipT) = %d\n", len(mipT))
+ 	}
+ 	if len(mpTi) != count {
+-		fmt.Printf("len(mpTi) = %d\n", len(mpTi));
++		fmt.Printf("len(mpTi) = %d\n", len(mpTi))
+ 	}
+ //	if len(mti) != count {
+-//		fmt.Printf("len(mti) = %d\n", len(mti));
++//		fmt.Printf("len(mti) = %d\n", len(mti))
+ //	}
+ 	if len(mipM) != count {
+-		fmt.Printf("len(mipM) = %d\n", len(mipM));
++		fmt.Printf("len(mipM) = %d\n", len(mipM))
+ 	}
+ //	if len(mti) != count {
+-//		fmt.Printf("len(mti) = %d\n", len(mti));
++//		fmt.Printf("len(mti) = %d\n", len(mti))
+ //	}
+ 	if len(mit) != count {
+-		fmt.Printf("len(mit) = %d\n", len(mit));
++		fmt.Printf("len(mit) = %d\n", len(mit))
+ 	}
+ 
+ 	// test construction directly
+ 	for i := 0; i < count; i++ {
+-		s := strconv.Itoa(i);
+-		s10 := strconv.Itoa(i*10);
+-		f := float(i);
+-		// BUG m := M(i, i+1);
++		s := strconv.Itoa(i)
++		s10 := strconv.Itoa(i*10)
++		f := float(i)
++		// BUG m := M(i, i+1)
+ 		if mib[i] != (i != 0) {
+-			fmt.Printf("mib[%d] = %t\n", i, mib[i]);
++			fmt.Printf("mib[%d] = %t\n", i, mib[i])
+ 		}
+ 		if(mii[i] != 10*i) {
+-			fmt.Printf("mii[%d] = %d\n", i, mii[i]);
++			fmt.Printf("mii[%d] = %d\n", i, mii[i])
+ 		}
+ 		if(mfi[f] != 10*i) {
+-			fmt.Printf("mfi[%d] = %d\n", i, mfi[f]);
++			fmt.Printf("mfi[%d] = %d\n", i, mfi[f])
+ 		}
+ 		if(mif[i] != 10.0*f) {
+-			fmt.Printf("mif[%d] = %g\n", i, mif[i]);
++			fmt.Printf("mif[%d] = %g\n", i, mif[i])
+ 		}
+ 		if(mis[i] != s) {
+-			fmt.Printf("mis[%d] = %s\n", i, mis[i]);
++			fmt.Printf("mis[%d] = %s\n", i, mis[i])
+ 		}
+ 		if(msi[s] != i) {
+-			fmt.Printf("msi[%s] = %d\n", s, msi[s]);
++			fmt.Printf("msi[%s] = %d\n", s, msi[s])
+ 		}
+ 		if mss[s] != s10 {
+-			fmt.Printf("mss[%s] = %g\n", s, mss[s]);
++			fmt.Printf("mss[%s] = %g\n", s, mss[s])
+ 		}
+ 		for j := 0; j < len(mspa[s]); j++ {
+ 			if mspa[s][j] != s10 {
+-				fmt.Printf("mspa[%s][%d] = %s\n", s, j, mspa[s][j]);
++				fmt.Printf("mspa[%s][%d] = %s\n", s, j, mspa[s][j])
+ 			}
+ 		}
+ 		if(mipT[i].i != int64(i) || mipT[i].f != f) {
+-			fmt.Printf("mipT[%d] = %v\n", i, mipT[i]);
++			fmt.Printf("mipT[%d] = %v\n", i, mipT[i])
+ 		}
+ 		if(mpTi[apT[i]] != i) {
+-			fmt.Printf("mpTi[apT[%d]] = %d\n", i, mpTi[apT[i]]);
++			fmt.Printf("mpTi[apT[%d]] = %d\n", i, mpTi[apT[i]])
+ 		}
+ 	//	if(mti[t] != i) {
+-	//		fmt.Printf("mti[%s] = %s\n", s, mti[t]);
++	//		fmt.Printf("mti[%s] = %s\n", s, mti[t])
+ 	//	}
+ 		if (mipM[i][i] != i + 1) {
+-			fmt.Printf("mipM[%d][%d] = %d\n", i, i, mipM[i][i]);
++			fmt.Printf("mipM[%d][%d] = %d\n", i, i, mipM[i][i])
+ 		}
+ 	//	if(mti[t] != i) {
+-	//		fmt.Printf("mti[%v] = %d\n", t, mti[t]);
++	//		fmt.Printf("mti[%v] = %d\n", t, mti[t])
+ 	//	}
+ 		if(mit[i].i != int64(i) || mit[i].f != f) {
+-			fmt.Printf("mit[%d] = {%d %g}\n", i, mit[i].i, mit[i].f);
++			fmt.Printf("mit[%d] = {%d %g}\n", i, mit[i].i, mit[i].f)
+ 		}
+ 	}
+ 
+ 	// test existence with tuple check
+ 	// failed lookups yield a false value for the boolean.
+ 	for i := 0; i < count; i++ {
+-		s := strconv.Itoa(i);
+-		f := float(i);
++		s := strconv.Itoa(i)
++		f := float(i)
+ 		{
+-			_, b := mib[i];
++			_, b := mib[i]
+ 			if !b {
+-				fmt.Printf("tuple existence decl: mib[%d]\n", i);
++				fmt.Printf("tuple existence decl: mib[%d]\n", i)
+ 			}
+-			_, b = mib[i];
++			_, b = mib[i]
+ 			if !b {
+-				fmt.Printf("tuple existence assign: mib[%d]\n", i);
++				fmt.Printf("tuple existence assign: mib[%d]\n", i)
+ 			}
+ 		}
+ 		{
+-			_, b := mii[i];
++			_, b := mii[i]
+ 			if !b {
+-				fmt.Printf("tuple existence decl: mii[%d]\n", i);
++				fmt.Printf("tuple existence decl: mii[%d]\n", i)
+ 			}
+-			_, b = mii[i];
++			_, b = mii[i]
+ 			if !b {
+-				fmt.Printf("tuple existence assign: mii[%d]\n", i);
++				fmt.Printf("tuple existence assign: mii[%d]\n", i)
+ 			}
+ 		}
+ 		{
+-			_, b := mfi[f];
++			_, b := mfi[f]
+ 			if !b {
+-				fmt.Printf("tuple existence decl: mfi[%d]\n", i);
++				fmt.Printf("tuple existence decl: mfi[%d]\n", i)
+ 			}
+-			_, b = mfi[f];
++			_, b = mfi[f]
+ 			if !b {
+-				fmt.Printf("tuple existence assign: mfi[%d]\n", i);
++				fmt.Printf("tuple existence assign: mfi[%d]\n", i)
+ 			}
+ 		}
+ 		{
+-			_, b := mif[i];
++			_, b := mif[i]
+ 			if !b {
+-				fmt.Printf("tuple existence decl: mif[%d]\n", i);
++				fmt.Printf("tuple existence decl: mif[%d]\n", i)
+ 			}
+-			_, b = mif[i];
++			_, b = mif[i]
+ 			if !b {
+-				fmt.Printf("tuple existence assign: mif[%d]\n", i);
++				fmt.Printf("tuple existence assign: mif[%d]\n", i)
+ 			}
+ 		}
+ 		{
+-			_, b := mis[i];
++			_, b := mis[i]
+ 			if !b {
+-				fmt.Printf("tuple existence decl: mis[%d]\n", i);
++				fmt.Printf("tuple existence decl: mis[%d]\n", i)
+ 			}
+-			_, b = mis[i];
++			_, b = mis[i]
+ 			if !b {
+-				fmt.Printf("tuple existence assign: mis[%d]\n", i);
++				fmt.Printf("tuple existence assign: mis[%d]\n", i)
+ 			}
+ 		}
+ 		{
+-			_, b := msi[s];
++			_, b := msi[s]
+ 			if !b {
+-				fmt.Printf("tuple existence decl: msi[%d]\n", i);
++				fmt.Printf("tuple existence decl: msi[%d]\n", i)
+ 			}
+-			_, b = msi[s];
++			_, b = msi[s]
+ 			if !b {
+-				fmt.Printf("tuple existence assign: msi[%d]\n", i);
++				fmt.Printf("tuple existence assign: msi[%d]\n", i)
+ 			}
+ 		}
+ 		{
+-			_, b := mss[s];
++			_, b := mss[s]
+ 			if !b {
+-				fmt.Printf("tuple existence decl: mss[%d]\n", i);
++				fmt.Printf("tuple existence decl: mss[%d]\n", i)
+ 			}
+-			_, b = mss[s];
++			_, b = mss[s]
+ 			if !b {
+-				fmt.Printf("tuple existence assign: mss[%d]\n", i);
++				fmt.Printf("tuple existence assign: mss[%d]\n", i)
+ 			}
+ 		}
+ 		{
+-			_, b := mspa[s];
++			_, b := mspa[s]
+ 			if !b {
+-				fmt.Printf("tuple existence decl: mspa[%d]\n", i);
++				fmt.Printf("tuple existence decl: mspa[%d]\n", i)
+ 			}
+-			_, b = mspa[s];
++			_, b = mspa[s]
+ 			if !b {
+-				fmt.Printf("tuple existence assign: mspa[%d]\n", i);
++				fmt.Printf("tuple existence assign: mspa[%d]\n", i)
+ 			}
+ 		}
+ 		{
+-			_, b := mipT[i];
++			_, b := mipT[i]
+ 			if !b {
+-				fmt.Printf("tuple existence decl: mipT[%d]\n", i);
++				fmt.Printf("tuple existence decl: mipT[%d]\n", i)
+ 			}
+-			_, b = mipT[i];
++			_, b = mipT[i]
+ 			if !b {
+-				fmt.Printf("tuple existence assign: mipT[%d]\n", i);
++				fmt.Printf("tuple existence assign: mipT[%d]\n", i)
+ 			}
+ 		}
+ 		{
+-			_, b := mpTi[apT[i]];
++			_, b := mpTi[apT[i]]
+ 			if !b {
+-				fmt.Printf("tuple existence decl: mpTi[apT[%d]]\n", i);
++				fmt.Printf("tuple existence decl: mpTi[apT[%d]]\n", i)
+ 			}
+-			_, b = mpTi[apT[i]];
++			_, b = mpTi[apT[i]]
+ 			if !b {
+-				fmt.Printf("tuple existence assign: mpTi[apT[%d]]\n", i);
++				fmt.Printf("tuple existence assign: mpTi[apT[%d]]\n", i)
+ 			}
+ 		}
+ 		{
+-			_, b := mipM[i];
++			_, b := mipM[i]
+ 			if !b {
+-				fmt.Printf("tuple existence decl: mipM[%d]\n", i);
++				fmt.Printf("tuple existence decl: mipM[%d]\n", i)
+ 			}
+-			_, b = mipM[i];
++			_, b = mipM[i]
+ 			if !b {
+-				fmt.Printf("tuple existence assign: mipM[%d]\n", i);
++				fmt.Printf("tuple existence assign: mipM[%d]\n", i)
+ 			}
+ 		}
+ 		{
+-			_, b := mit[i];
++			_, b := mit[i]
+ 			if !b {
+-				fmt.Printf("tuple existence decl: mit[%d]\n", i);
++				fmt.Printf("tuple existence decl: mit[%d]\n", i)
+ 			}
+-			_, b = mit[i];
++			_, b = mit[i]
+ 			if !b {
+-				fmt.Printf("tuple existence assign: mit[%d]\n", i);
++				fmt.Printf("tuple existence assign: mit[%d]\n", i)
+ 			}
+ 		}
+ //		{
+-//			_, b := mti[t];
++//			_, b := mti[t]
+ //			if !b {
+-//				fmt.Printf("tuple existence decl: mti[%d]\n", i);
++//				fmt.Printf("tuple existence decl: mti[%d]\n", i)
+ //			}
+-//			_, b = mti[t];
++//			_, b = mti[t]
+ //			if !b {
+-//				fmt.Printf("tuple existence assign: mti[%d]\n", i);
++//				fmt.Printf("tuple existence assign: mti[%d]\n", i)
+ //			}
+ //		}
+ 	}
+@@ -326,136 +326,136 @@ func main() {
+ 	// test nonexistence with tuple check
+ 	// failed lookups yield a false value for the boolean.
+ 	for i := count; i < 2*count; i++ {
+-		s := strconv.Itoa(i);
+-		f := float(i);
++		s := strconv.Itoa(i)
++		f := float(i)
+ 		{
+-			_, b := mib[i];
++			_, b := mib[i]
+ 			if b {
+-				fmt.Printf("tuple nonexistence decl: mib[%d]", i);
++				fmt.Printf("tuple nonexistence decl: mib[%d]", i)
+ 			}
+-			_, b = mib[i];
++			_, b = mib[i]
+ 			if b {
+-				fmt.Printf("tuple nonexistence assign: mib[%d]", i);
++				fmt.Printf("tuple nonexistence assign: mib[%d]", i)
+ 			}
+ 		}
+ 		{
+-			_, b := mii[i];
++			_, b := mii[i]
+ 			if b {
+-				fmt.Printf("tuple nonexistence decl: mii[%d]", i);
++				fmt.Printf("tuple nonexistence decl: mii[%d]", i)
+ 			}
+-			_, b = mii[i];
++			_, b = mii[i]
+ 			if b {
+-				fmt.Printf("tuple nonexistence assign: mii[%d]", i);
++				fmt.Printf("tuple nonexistence assign: mii[%d]", i)
+ 			}
+ 		}
+ 		{
+-			_, b := mfi[f];
++			_, b := mfi[f]
+ 			if b {
+-				fmt.Printf("tuple nonexistence decl: mfi[%d]", i);
++				fmt.Printf("tuple nonexistence decl: mfi[%d]", i)
+ 			}
+-			_, b = mfi[f];
++			_, b = mfi[f]
+ 			if b {
+-				fmt.Printf("tuple nonexistence assign: mfi[%d]", i);
++				fmt.Printf("tuple nonexistence assign: mfi[%d]", i)
+ 			}
+ 		}
+ 		{
+-			_, b := mif[i];
++			_, b := mif[i]
+ 			if b {
+-				fmt.Printf("tuple nonexistence decl: mif[%d]", i);
++				fmt.Printf("tuple nonexistence decl: mif[%d]", i)
+ 			}
+-			_, b = mif[i];
++			_, b = mif[i]
+ 			if b {
+-				fmt.Printf("tuple nonexistence assign: mif[%d]", i);
++				fmt.Printf("tuple nonexistence assign: mif[%d]", i)
+ 			}
+ 		}
+ 		{
+-			_, b := mis[i];
++			_, b := mis[i]
+ 			if b {
+-				fmt.Printf("tuple nonexistence decl: mis[%d]", i);
++				fmt.Printf("tuple nonexistence decl: mis[%d]", i)
+ 			}
+-			_, b = mis[i];
++			_, b = mis[i]
+ 			if b {
+-				fmt.Printf("tuple nonexistence assign: mis[%d]", i);
++				fmt.Printf("tuple nonexistence assign: mis[%d]", i)
+ 			}
+ 		}
+ 		{
+-			_, b := msi[s];
++			_, b := msi[s]
+ 			if b {
+-				fmt.Printf("tuple nonexistence decl: msi[%d]", i);
++				fmt.Printf("tuple nonexistence decl: msi[%d]", i)
+ 			}
+-			_, b = msi[s];
++			_, b = msi[s]
+ 			if b {
+-				fmt.Printf("tuple nonexistence assign: msi[%d]", i);
++				fmt.Printf("tuple nonexistence assign: msi[%d]", i)
+ 			}
+ 		}
+ 		{
+-			_, b := mss[s];
++			_, b := mss[s]
+ 			if b {
+-				fmt.Printf("tuple nonexistence decl: mss[%d]", i);
++				fmt.Printf("tuple nonexistence decl: mss[%d]", i)
+ 			}
+-			_, b = mss[s];
++			_, b = mss[s]
+ 			if b {
+-				fmt.Printf("tuple nonexistence assign: mss[%d]", i);
++				fmt.Printf("tuple nonexistence assign: mss[%d]", i)
+ 			}
+ 		}
+ 		{
+-			_, b := mspa[s];
++			_, b := mspa[s]
+ 			if b {
+-				fmt.Printf("tuple nonexistence decl: mspa[%d]", i);
++				fmt.Printf("tuple nonexistence decl: mspa[%d]", i)
+ 			}
+-			_, b = mspa[s];
++			_, b = mspa[s]
+ 			if b {
+-				fmt.Printf("tuple nonexistence assign: mspa[%d]", i);
++				fmt.Printf("tuple nonexistence assign: mspa[%d]", i)
+ 			}
+ 		}
+ 		{
+-			_, b := mipT[i];
++			_, b := mipT[i]
+ 			if b {
+-				fmt.Printf("tuple nonexistence decl: mipT[%d]", i);
++				fmt.Printf("tuple nonexistence decl: mipT[%d]", i)
+ 			}
+-			_, b = mipT[i];
++			_, b = mipT[i]
+ 			if b {
+-				fmt.Printf("tuple nonexistence assign: mipT[%d]", i);
++				fmt.Printf("tuple nonexistence assign: mipT[%d]", i)
+ 			}
+ 		}
+ 		{
+-			_, b := mpTi[apT[i]];
++			_, b := mpTi[apT[i]]
+ 			if b {
+-				fmt.Printf("tuple nonexistence decl: mpTi[apt[%d]]", i);
++				fmt.Printf("tuple nonexistence decl: mpTi[apt[%d]]", i)
+ 			}
+-			_, b = mpTi[apT[i]];
++			_, b = mpTi[apT[i]]
+ 			if b {
+-				fmt.Printf("tuple nonexistence assign: mpTi[apT[%d]]", i);
++				fmt.Printf("tuple nonexistence assign: mpTi[apT[%d]]", i)
+ 			}
+ 		}
+ 		{
+-			_, b := mipM[i];
++			_, b := mipM[i]
+ 			if b {
+-				fmt.Printf("tuple nonexistence decl: mipM[%d]", i);
++				fmt.Printf("tuple nonexistence decl: mipM[%d]", i)
+ 			}
+-			_, b = mipM[i];
++			_, b = mipM[i]
+ 			if b {
+-				fmt.Printf("tuple nonexistence assign: mipM[%d]", i);
++				fmt.Printf("tuple nonexistence assign: mipM[%d]", i)
+ 			}
+ 		}
+ //		{
+-//			_, b := mti[t];
++//			_, b := mti[t]
+ //			if b {
+-//				fmt.Printf("tuple nonexistence decl: mti[%d]", i);
++//				fmt.Printf("tuple nonexistence decl: mti[%d]", i)
+ //			}
+-//			_, b = mti[t];
++//			_, b = mti[t]
+ //			if b {
+-//				fmt.Printf("tuple nonexistence assign: mti[%d]", i);
++//				fmt.Printf("tuple nonexistence assign: mti[%d]", i)
+ //			}
+ //		}
+ 		{
+-			_, b := mit[i];
++			_, b := mit[i]
+ 			if b {
+-				fmt.Printf("tuple nonexistence decl: mit[%d]", i);
++				fmt.Printf("tuple nonexistence decl: mit[%d]", i)
+ 			}
+-			_, b = mit[i];
++			_, b = mit[i]
+ 			if b {
+-				fmt.Printf("tuple nonexistence assign: mit[%d]", i);
++				fmt.Printf("tuple nonexistence assign: mit[%d]", i)
+ 			}
+ 		}
+ 	}
+@@ -463,30 +463,30 @@ func main() {
+ 
+ 	// tests for structured map element updates
+ 	for i := 0; i < count; i++ {
+-		s := strconv.Itoa(i);
+-		mspa[s][i % 2] = "deleted";
++		s := strconv.Itoa(i)
++		mspa[s][i % 2] = "deleted"
+ 		if mspa[s][i % 2] != "deleted" {
+-			fmt.Printf("update mspa[%s][%d] = %s\n", s, i %2, mspa[s][i % 2]);
++			fmt.Printf("update mspa[%s][%d] = %s\n", s, i %2, mspa[s][i % 2])
+ 		}
+ 
+-		mipT[i].i += 1;
++		mipT[i].i += 1
+ 		if mipT[i].i != int64(i)+1 {
+-			fmt.Printf("update mipT[%d].i = %d\n", i, mipT[i].i);
++			fmt.Printf("update mipT[%d].i = %d\n", i, mipT[i].i)
+ 		}
+-		mipT[i].f = float(i + 1);
++		mipT[i].f = float(i + 1)
+ 		if (mipT[i].f != float(i + 1)) {
+-			fmt.Printf("update mipT[%d].f = %g\n", i, mipT[i].f);
++			fmt.Printf("update mipT[%d].f = %g\n", i, mipT[i].f)
+ 		}
+ 
+-		mipM[i][i]++;
++		mipM[i][i]++
+ 		if mipM[i][i] != (i + 1) + 1 {
+-			fmt.Printf("update mipM[%d][%d] = %i\n", i, i, mipM[i][i]);
++			fmt.Printf("update mipM[%d][%d] = %i\n", i, i, mipM[i][i])
+ 		}
+ 	}
+ 
+ 	// test range on nil map
+-	var mnil map[string] int;
++	var mnil map[string] int
+ 	for _, _ = range mnil {
+-		panic("range mnil");
++		panic("range mnil")
+ 	}
+ }
+diff --git a/test/method1.go b/test/method1.go
+index a562e3663e..1a2f8cae53 100644
+--- a/test/method1.go
++++ b/test/method1.go
+@@ -7,11 +7,11 @@
+ package main
+ 
+ type T struct { }
+-func (t *T) M(int, string);	// GCCGO_ERROR "previous"
++func (t *T) M(int, string)	// GCCGO_ERROR "previous"
+ func (t *T) M(int, float) { }   // ERROR "redeclared|redefinition"
+ 
+-func f(int, string);	// GCCGO_ERROR "previous"
++func f(int, string)	// GCCGO_ERROR "previous"
+ func f(int, float) { }  // ERROR "redeclared|redefinition"
+ 
+-func g(a int, b string);  // GCCGO_ERROR "previous"
+-func g(a int, c string);  // ERROR "redeclared|redefinition"
++func g(a int, b string)  // GCCGO_ERROR "previous"
++func g(a int, c string)  // ERROR "redeclared|redefinition"
+diff --git a/test/nil.go b/test/nil.go
+index d35309615e..6a72b72ebd 100644
+--- a/test/nil.go
++++ b/test/nil.go
+@@ -14,24 +14,24 @@ type IN interface {
+ }
+ 
+ func main() {
+-	var i *int;
+-	var f *float;
+-	var s *string;
+-	var m map[float] *int;
+-	var c chan int;
+-	var t *T;
+-	var in IN;
+-	var ta []IN;
++	var i *int
++	var f *float
++	var s *string
++	var m map[float] *int
++	var c chan int
++	var t *T
++	var in IN
++	var ta []IN
+ 
+-	i = nil;
+-	f = nil;
+-	s = nil;
+-	m = nil;
+-	c = nil;
+-	t = nil;
+-	i = nil;
+-	ta = make([]IN, 1);
+-	ta[0] = nil;
++	i = nil
++	f = nil
++	s = nil
++	m = nil
++	c = nil
++	t = nil
++	i = nil
++	ta = make([]IN, 1)
++	ta[0] = nil
+ 
+-	_, _, _, _, _, _, _, _ = i, f, s, m, c, t, in, ta;
++	_, _, _, _, _, _, _, _ = i, f, s, m, c, t, in, ta
+ }
+diff --git a/test/nilptr/arrayindex.go b/test/nilptr/arrayindex.go
+index 1767acc275..c564bce340 100644
+--- a/test/nilptr/arrayindex.go
++++ b/test/nilptr/arrayindex.go
+@@ -13,8 +13,8 @@ import "unsafe"
+ var x byte
+ 
+ func main() {
+-	var p *[1<<30]byte = nil;
+-	x = 123;
++	var p *[1<<30]byte = nil
++	x = 123
+ 
+ 	// The problem here is not the use of unsafe:
+ 	// it is that indexing into p[] with a large
+@@ -23,5 +23,5 @@ func main() {
+ 	// Pointer offsets and array indices, if they are
+ 	// very large, need to dereference the base pointer
+ 	// to trigger a trap.
+-	println(p[uintptr(unsafe.Pointer(&x))]);	// should crash
++	println(p[uintptr(unsafe.Pointer(&x))])	// should crash
+ }
+diff --git a/test/nilptr/arrayindex1.go b/test/nilptr/arrayindex1.go
+index c16cac4053..701630ed15 100644
+--- a/test/nilptr/arrayindex1.go
++++ b/test/nilptr/arrayindex1.go
+@@ -10,7 +10,7 @@ package main
+ 
+ import "unsafe"
+ 
+-var dummy [512<<20]byte;	// give us a big address space
++var dummy [512<<20]byte	// give us a big address space
+ func main() {
+ 	// the test only tests what we intend to test
+ 	// if dummy starts in the first 256 MB of memory.
+@@ -18,7 +18,7 @@ func main() {
+ 	// at the address that might be accidentally
+ 	// dereferenced below.
+ 	if uintptr(unsafe.Pointer(&dummy)) > 256<<20 {
+-		panic("dummy too far out");
++		panic("dummy too far out")
+ 	}
+ 
+ 	// The problem here is that indexing into p[] with a large
+@@ -27,6 +27,6 @@ func main() {
+ 	// Pointer offsets and array indices, if they are
+ 	// very large, need to dereference the base pointer
+ 	// to trigger a trap.
+-	var p *[1<<30]byte = nil;
+-	println(p[256<<20]);	// very likely to be inside dummy, but should crash
++	var p *[1<<30]byte = nil
++	println(p[256<<20])	// very likely to be inside dummy, but should crash
+ }
+diff --git a/test/nilptr/arraytoslice.go b/test/nilptr/arraytoslice.go
+index 06c862d0d9..38206d50b8 100644
+--- a/test/nilptr/arraytoslice.go
++++ b/test/nilptr/arraytoslice.go
+@@ -11,10 +11,10 @@ package main
+ import "unsafe"
+ 
+ func f([]byte) {
+-	panic("unreachable");
++	panic("unreachable")
+ }
+ 
+-var dummy [512<<20]byte;	// give us a big address space
++var dummy [512<<20]byte	// give us a big address space
+ func main() {
+ 	// the test only tests what we intend to test
+ 	// if dummy starts in the first 256 MB of memory.
+@@ -22,7 +22,7 @@ func main() {
+ 	// at the address that might be accidentally
+ 	// dereferenced below.
+ 	if uintptr(unsafe.Pointer(&dummy)) > 256<<20 {
+-		panic("dummy too far out");
++		panic("dummy too far out")
+ 	}
+ 
+ 	// The problem here is that indexing into p[] with a large
+@@ -32,6 +32,6 @@ func main() {
+ 	// To avoid needing a check on every slice beyond the
+ 	// usual len and cap, we require the *array -> slice
+ 	// conversion to do the check.
+-	var p *[1<<30]byte = nil;
+-	f(p[0:]);	// should crash
++	var p *[1<<30]byte = nil
++	f(p[0:])	// should crash
+ }
+diff --git a/test/nilptr/arraytoslice1.go b/test/nilptr/arraytoslice1.go
+index 286572a4d2..8c9531e176 100644
+--- a/test/nilptr/arraytoslice1.go
++++ b/test/nilptr/arraytoslice1.go
+@@ -10,7 +10,7 @@ package main
+ 
+ import "unsafe"
+ 
+-var dummy [512<<20]byte;	// give us a big address space
++var dummy [512<<20]byte	// give us a big address space
+ func main() {
+ 	// the test only tests what we intend to test
+ 	// if dummy starts in the first 256 MB of memory.
+@@ -18,7 +18,7 @@ func main() {
+ 	// at the address that might be accidentally
+ 	// dereferenced below.
+ 	if uintptr(unsafe.Pointer(&dummy)) > 256<<20 {
+-		panic("dummy too far out");
++		panic("dummy too far out")
+ 	}
+ 
+ 	// The problem here is that indexing into p[] with a large
+@@ -28,7 +28,7 @@ func main() {
+ 	// To avoid needing a check on every slice beyond the
+ 	// usual len and cap, we require the *array -> slice
+ 	// conversion to do the check.
+-	var p *[1<<30]byte = nil;
+-	var x []byte = p[0:];	// should crash
+-	_ = x;
++	var p *[1<<30]byte = nil
++	var x []byte = p[0:]	// should crash
++	_ = x
+ }
+diff --git a/test/nilptr/arraytoslice2.go b/test/nilptr/arraytoslice2.go
+index 4ac97f13e8..1b2651381e 100644
+--- a/test/nilptr/arraytoslice2.go
++++ b/test/nilptr/arraytoslice2.go
+@@ -10,8 +10,8 @@ package main
+ 
+ import "unsafe"
+ 
+-var dummy [512<<20]byte;	// give us a big address space
+-var q *[1<<30]byte;
++var dummy [512<<20]byte	// give us a big address space
++var q *[1<<30]byte
+ func main() {
+ 	// the test only tests what we intend to test
+ 	// if dummy starts in the first 256 MB of memory.
+@@ -19,7 +19,7 @@ func main() {
+ 	// at the address that might be accidentally
+ 	// dereferenced below.
+ 	if uintptr(unsafe.Pointer(&dummy)) > 256<<20 {
+-		panic("dummy too far out");
++		panic("dummy too far out")
+ 	}
+ 
+ 	// The problem here is that indexing into p[] with a large
+@@ -29,7 +29,7 @@ func main() {
+ 	// To avoid needing a check on every slice beyond the
+ 	// usual len and cap, we require the *array -> slice
+ 	// conversion to do the check.
+-	var x []byte;
+-	var y = &x;
+-	*y = q[0:];	// should crash (uses arraytoslice runtime routine)
++	var x []byte
++	var y = &x
++	*y = q[0:]	// should crash (uses arraytoslice runtime routine)
+ }
+diff --git a/test/nilptr/slicearray.go b/test/nilptr/slicearray.go
+index 5f88010df8..544536cc7c 100644
+--- a/test/nilptr/slicearray.go
++++ b/test/nilptr/slicearray.go
+@@ -10,7 +10,7 @@ package main
+ 
+ import "unsafe"
+ 
+-var dummy [512<<20]byte;	// give us a big address space
++var dummy [512<<20]byte	// give us a big address space
+ func main() {
+ 	// the test only tests what we intend to test
+ 	// if dummy starts in the first 256 MB of memory.
+@@ -18,7 +18,7 @@ func main() {
+ 	// at the address that might be accidentally
+ 	// dereferenced below.
+ 	if uintptr(unsafe.Pointer(&dummy)) > 256<<20 {
+-		panic("dummy too far out");
++		panic("dummy too far out")
+ 	}
+ 
+ 	// The problem here is that indexing into p[] with a large
+@@ -28,6 +28,6 @@ func main() {
+ 	// To avoid needing a check on every slice beyond the
+ 	// usual len and cap, we require the slice operation
+ 	// to do the check.
+-	var p *[1<<30]byte = nil;
+-	var _ []byte = p[10:len(p)-10];	// should crash
++	var p *[1<<30]byte = nil
++	var _ []byte = p[10:len(p)-10]	// should crash
+ }
+diff --git a/test/nilptr/structfield.go b/test/nilptr/structfield.go
+index 9f70ecc70f..e081f7a171 100644
+--- a/test/nilptr/structfield.go
++++ b/test/nilptr/structfield.go
+@@ -10,10 +10,10 @@ package main
+ 
+ import "unsafe"
+ 
+-var dummy [512<<20]byte;	// give us a big address space
++var dummy [512<<20]byte	// give us a big address space
+ type T struct {
+-	x [256<<20] byte;
+-	i int;
++	x [256<<20] byte
++	i int
+ }
+ 
+ func main() {
+@@ -23,13 +23,13 @@ func main() {
+ 	// at the address that might be accidentally
+ 	// dereferenced below.
+ 	if uintptr(unsafe.Pointer(&dummy)) > 256<<20 {
+-		panic("dummy too far out");
++		panic("dummy too far out")
+ 	}
+ 
+ 	// The problem here is that indexing into t with a large
+ 	// enough index can jump out of the unmapped section
+ 	// at the beginning of memory and into valid memory.
+ 	// We require the pointer dereference to check.
+-	var t *T;
+-	println(t.i);	// should crash
++	var t *T
++	println(t.i)	// should crash
+ }
+diff --git a/test/nilptr/structfield1.go b/test/nilptr/structfield1.go
+index 1a120890a0..02d33a42c2 100644
+--- a/test/nilptr/structfield1.go
++++ b/test/nilptr/structfield1.go
+@@ -10,14 +10,14 @@ package main
+ 
+ import "unsafe"
+ 
+-var dummy [512<<20]byte;	// give us a big address space
++var dummy [512<<20]byte	// give us a big address space
+ type T struct {
+-	x [256<<20] byte;
+-	i int;
++	x [256<<20] byte
++	i int
+ }
+ 
+ func f() *T {
+-	return nil;
++	return nil
+ }
+ 
+ func main() {
+@@ -27,12 +27,12 @@ func main() {
+ 	// at the address that might be accidentally
+ 	// dereferenced below.
+ 	if uintptr(unsafe.Pointer(&dummy)) > 256<<20 {
+-		panic("dummy too far out");
++		panic("dummy too far out")
+ 	}
+ 
+ 	// The problem here is that indexing into t with a large
+ 	// enough index can jump out of the unmapped section
+ 	// at the beginning of memory and into valid memory.
+ 	// We require the pointer dereference to check.
+-	println(f().i);	// should crash
++	println(f().i)	// should crash
+ }
+diff --git a/test/nilptr/structfield2.go b/test/nilptr/structfield2.go
+index 25ea8f665c..4323b42b4d 100644
+--- a/test/nilptr/structfield2.go
++++ b/test/nilptr/structfield2.go
+@@ -10,14 +10,14 @@ package main
+ 
+ import "unsafe"
+ 
+-var dummy [512<<20]byte;	// give us a big address space
++var dummy [512<<20]byte	// give us a big address space
+ type T struct {
+-	x [256<<20] byte;
+-	i int;
++	x [256<<20] byte
++	i int
+ }
+ 
+-var y *T;
+-var x = &y;
++var y *T
++var x = &y
+ 
+ func main() {
+ 	// the test only tests what we intend to test
+@@ -26,12 +26,12 @@ func main() {
+ 	// at the address that might be accidentally
+ 	// dereferenced below.
+ 	if uintptr(unsafe.Pointer(&dummy)) > 256<<20 {
+-		panic("dummy too far out");
++		panic("dummy too far out")
+ 	}
+ 
+ 	// The problem here is that indexing into t with a large
+ 	// enough index can jump out of the unmapped section
+ 	// at the beginning of memory and into valid memory.
+ 	// We require the pointer dereference to check.
+-	println((*x).i);	// should crash
++	println((*x).i)	// should crash
+ }
+diff --git a/test/nilptr/structfieldaddr.go b/test/nilptr/structfieldaddr.go
+index b5d370ca8b..81551aa3ba 100644
+--- a/test/nilptr/structfieldaddr.go
++++ b/test/nilptr/structfieldaddr.go
+@@ -10,10 +10,10 @@ package main
+ 
+ import "unsafe"
+ 
+-var dummy [512<<20]byte;	// give us a big address space
++var dummy [512<<20]byte	// give us a big address space
+ type T struct {
+-	x [256<<20] byte;
+-	i int;
++	x [256<<20] byte
++	i int
+ }
+ 
+ func main() {
+@@ -23,13 +23,13 @@ func main() {
+ 	// at the address that might be accidentally
+ 	// dereferenced below.
+ 	if uintptr(unsafe.Pointer(&dummy)) > 256<<20 {
+-		panic("dummy too far out");
++		panic("dummy too far out")
+ 	}
+ 
+ 	// The problem here is that indexing into t with a large
+ 	// enough index can jump out of the unmapped section
+ 	// at the beginning of memory and into valid memory.
+ 	// We require the address calculation to check.
+-	var t *T;
+-	println(&t.i);	// should crash
++	var t *T
++	println(&t.i)	// should crash
+ }
+diff --git a/test/nul1.go b/test/nul1.go
+index 1fe7795a6d..d98fd714a9 100644
+--- a/test/nul1.go
++++ b/test/nul1.go
+@@ -25,7 +25,7 @@ func main() {
+ 	if len(s) != 2 || s[0] != 0xc2 || s[1] != 0xff ||
+ 		len(t) != 2 || t[0] != 0xd0 || t[1] != 0xfe ||
+ 		len(u) != 3 || u[0] != 0xab || u[1] != 0x00 || u[2] != 0xfc {
+-		println("BUG: non-UTF-8 string mangled");
++		println("BUG: non-UTF-8 string mangled")
+ 		os.Exit(2)
+ 	}
+ 
+diff --git a/test/parentype.go b/test/parentype.go
+index efab5a97de..1872cd0ebc 100644
+--- a/test/parentype.go
++++ b/test/parentype.go
+@@ -9,9 +9,9 @@ package main
+ func f(interface{})
+ func g() {}
+ func main() {
+-	f(map[string]string{"a":"b","c":"d"});
+-	f([...]int{1,2,3});
+-	f(map[string]func(){"a":g,"c":g});
+-	f(make(chan(<-chan int)));
+-	f(make(chan<-(chan int)));
++	f(map[string]string{"a":"b","c":"d"})
++	f([...]int{1,2,3})
++	f(map[string]func(){"a":g,"c":g})
++	f(make(chan(<-chan int)))
++	f(make(chan<-(chan int)))
+ }
+diff --git a/test/printbig.go b/test/printbig.go
+index 5ec95b9468..bbb707004f 100644
+--- a/test/printbig.go
++++ b/test/printbig.go
+@@ -7,6 +7,6 @@
+ package main
+ 
+ func main() {
+-	print(-(1<<63), "\n");
++	print(-(1<<63), "\n")
+ 	print((1<<63)-1, "\n")
+ }
+diff --git a/test/runtime.go b/test/runtime.go
+index 256873a7a9..4be1d055b5 100644
+--- a/test/runtime.go
++++ b/test/runtime.go
+@@ -16,5 +16,5 @@ package main
+ import "runtime"
+ 
+ func main() {
+-	runtime.printbool(true);	// ERROR "unexported"
++	runtime.printbool(true)	// ERROR "unexported"
+ }
+diff --git a/test/sieve.go b/test/sieve.go
+index ec2ce446e5..4fa1115824 100644
+--- a/test/sieve.go
++++ b/test/sieve.go
+@@ -9,7 +9,7 @@ package main
+ // Send the sequence 2, 3, 4, ... to channel 'ch'.
+ func Generate(ch chan<- int) {
+ 	for i := 2; ; i++ {
+-		ch <- i  // Send 'i' to channel 'ch'.
++		ch <- i // Send 'i' to channel 'ch'.
+ 	}
+ }
+ 
+@@ -17,22 +17,22 @@ func Generate(ch chan<- int) {
+ // removing those divisible by 'prime'.
+ func Filter(in <-chan int, out chan<- int, prime int) {
+ 	for {
+-		i := <-in;  // Receive value of new variable 'i' from 'in'.
+-		if i % prime != 0 {
+-			out <- i  // Send 'i' to channel 'out'.
++		i := <-in // Receive value of new variable 'i' from 'in'.
++		if i%prime != 0 {
++			out <- i // Send 'i' to channel 'out'.
+ 		}
+ 	}
+ }
+ 
+ // The prime sieve: Daisy-chain Filter processes together.
+ func Sieve() {
+-	ch := make(chan int);  // Create a new channel.
+-	go Generate(ch);  // Start Generate() as a subprocess.
++	ch := make(chan int) // Create a new channel.
++	go Generate(ch)      // Start Generate() as a subprocess.
+ 	for {
+-		prime := <-ch;
+-		print(prime, "\n");
+-		ch1 := make(chan int);
+-		go Filter(ch, ch1, prime);
++		prime := <-ch
++		print(prime, "\n")
++		ch1 := make(chan int)
++		go Filter(ch, ch1, prime)
+ 		ch = ch1
+ 	}
+ }
+diff --git a/test/sigchld.go b/test/sigchld.go
+index 214e72b622..09188fc53a 100644
+--- a/test/sigchld.go
++++ b/test/sigchld.go
+@@ -10,6 +10,6 @@ package main
+ import "syscall"
+ 
+ func main() {
+-	syscall.Kill(syscall.Getpid(), syscall.SIGCHLD);
+-	println("survived SIGCHLD");
++	syscall.Kill(syscall.Getpid(), syscall.SIGCHLD)
++	println("survived SIGCHLD")
+ }
+diff --git a/test/sinit.go b/test/sinit.go
+index 7301066750..2adb931e14 100644
+--- a/test/sinit.go
++++ b/test/sinit.go
+@@ -9,10 +9,10 @@ package p
+ // Should be no init func in the assembly.
+ // All these initializations should be done at link time.
+ 
+-type	S	struct{ a,b,c int };
+-type	SS	struct{ aa,bb,cc S };
+-type	SA	struct{ a,b,c [3]int };
+-type	SC	struct{ a,b,c []int };
++type	S	struct{ a,b,c int }
++type	SS	struct{ aa,bb,cc S }
++type	SA	struct{ a,b,c [3]int }
++type	SC	struct{ a,b,c []int }
+ 
+ var (
+ 	zero = 2
+diff --git a/test/string_lit.go b/test/string_lit.go
+index 88b5d251ff..4358dd8e82 100644
+--- a/test/string_lit.go
++++ b/test/string_lit.go
+@@ -12,15 +12,15 @@ var ecode int
+ 
+ func assert(a, b, c string) {
+ 	if a != b {
+-		ecode = 1;
+-		print("FAIL: ", c, ": ", a, "!=", b, "\n");
+-		var max int = len(a);
++		ecode = 1
++		print("FAIL: ", c, ": ", a, "!=", b, "\n")
++		var max int = len(a)
+ 		if len(b) > max {
+ 			max = len(b)
+ 		}
+ 		for i := 0; i < max; i++ {
+-			ac := 0;
+-			bc := 0;
++			ac := 0
++			bc := 0
+ 			if i < len(a) {
+ 				ac = int(a[i])
+ 			}
+@@ -48,7 +48,7 @@ var (
+ )
+ 
+ func main() {
+-	ecode = 0;
++	ecode = 0
+ 	s :=
+ 		"" +
+ 			" " +
+@@ -67,38 +67,38 @@ func main() {
+ 			`本` +
+ 			`\a\b\f\n\r\t\v\\\'` +
+ 			`\000\123\x00\xca\xFE\u0123\ubabe\U0000babe` +
+-			`\x\u\U\`;
++			`\x\u\U\`
+ 
+-	assert("", ``, "empty");
+-	assert(" ", " ", "blank");
+-	assert("\x61", "a", "lowercase a");
+-	assert("\x61", `a`, "lowercase a (backquote)");
+-	assert("\u00e4", "ä", "a umlaut");
+-	assert("\u00e4", `ä`, "a umlaut (backquote)");
+-	assert("\u672c", "本", "nihon");
+-	assert("\u672c", `本`, "nihon (backquote)");
++	assert("", ``, "empty")
++	assert(" ", " ", "blank")
++	assert("\x61", "a", "lowercase a")
++	assert("\x61", `a`, "lowercase a (backquote)")
++	assert("\u00e4", "ä", "a umlaut")
++	assert("\u00e4", `ä`, "a umlaut (backquote)")
++	assert("\u672c", "本", "nihon")
++	assert("\u672c", `本`, "nihon (backquote)")
+ 	assert("\x07\x08\x0c\x0a\x0d\x09\x0b\x5c\x22",
+ 		"\a\b\f\n\r\t\v\\\"",
+-		"backslashes");
++		"backslashes")
+ 	assert("\\a\\b\\f\\n\\r\\t\\v\\\\\\\"",
+ 		`\a\b\f\n\r\t\v\\\"`,
+-		"backslashes (backquote)");
++		"backslashes (backquote)")
+ 	assert("\x00\x53\000\xca\376S몾몾",
+ 		"\000\123\x00\312\xFE\u0053\ubabe\U0000babe",
+-		"backslashes 2");
++		"backslashes 2")
+ 	assert("\\000\\123\\x00\\312\\xFE\\u0123\\ubabe\\U0000babe",
+ 		`\000\123\x00\312\xFE\u0123\ubabe\U0000babe`,
+-		"backslashes 2 (backquote)");
+-	assert("\\x\\u\\U\\", `\x\u\U\`, "backslash 3 (backquote)");
++		"backslashes 2 (backquote)")
++	assert("\\x\\u\\U\\", `\x\u\U\`, "backslash 3 (backquote)")
+ 
+ 	// test large runes. perhaps not the most logical place for this test.
+-	var r int32;
++	var r int32
+ 	r = 0x10ffff;	// largest rune value
+-	s = string(r);
+-	assert(s, "\xf4\x8f\xbf\xbf", "largest rune");
+-	r = 0x10ffff + 1;
+-	s = string(r);
+-	assert(s, "\xef\xbf\xbd", "too-large rune");
++	s = string(r)
++	assert(s, "\xf4\x8f\xbf\xbf", "largest rune")
++	r = 0x10ffff + 1
++	s = string(r)
++	assert(s, "\xef\xbf\xbd", "too-large rune")
+ 
+ 	assert(string(gr1), gx1, "global ->[]int")
+ 	assert(string(gr2), gx2fix, "global invalid ->[]int")
+@@ -116,5 +116,5 @@ func main() {
+ 	assert(string(b1), gx1, "->[]byte")
+ 	assert(string(b2), gx2, "invalid ->[]byte")
+ 
+-	os.Exit(ecode);
++	os.Exit(ecode)
+ }
+diff --git a/test/stringrange.go b/test/stringrange.go
+index 9215b95fa4..d5ada2628d 100644
+--- a/test/stringrange.go
++++ b/test/stringrange.go
+@@ -7,55 +7,55 @@
+ package main
+ 
+ import (
+-	"fmt";
+-	"os";
+-	"utf8";
++	"fmt"
++	"os"
++	"utf8"
+ )
+ 
+ func main() {
+-	s := "\000\123\x00\xca\xFE\u0123\ubabe\U0000babe\U0010FFFFx";
+-	expect := []int{ 0, 0123, 0, 0xFFFD, 0xFFFD, 0x123, 0xbabe, 0xbabe, 0x10FFFF, 'x' };
+-	offset := 0;
+-	var i, c int;
+-	ok := true;
+-	cnum := 0;
++	s := "\000\123\x00\xca\xFE\u0123\ubabe\U0000babe\U0010FFFFx"
++	expect := []int{ 0, 0123, 0, 0xFFFD, 0xFFFD, 0x123, 0xbabe, 0xbabe, 0x10FFFF, 'x' }
++	offset := 0
++	var i, c int
++	ok := true
++	cnum := 0
+ 	for i, c = range s {
+-		rune, size := utf8.DecodeRuneInString(s[i:len(s)]);  // check it another way
++		rune, size := utf8.DecodeRuneInString(s[i:len(s)])  // check it another way
+ 		if i != offset {
+-			fmt.Printf("unexpected offset %d not %d\n", i, offset);
+-			ok = false;
++			fmt.Printf("unexpected offset %d not %d\n", i, offset)
++			ok = false
+ 		}
+ 		if rune != expect[cnum] {
+-			fmt.Printf("unexpected rune %d from DecodeRuneInString: %x not %x\n", i, rune, expect[cnum]);
+-			ok = false;
++			fmt.Printf("unexpected rune %d from DecodeRuneInString: %x not %x\n", i, rune, expect[cnum])
++			ok = false
+ 		}
+ 		if c != expect[cnum] {
+-			fmt.Printf("unexpected rune %d from range: %x not %x\n", i, rune, expect[cnum]);
+-			ok = false;
++			fmt.Printf("unexpected rune %d from range: %x not %x\n", i, rune, expect[cnum])
++			ok = false
+ 		}
+-		offset += size;
+-		cnum++;
++		offset += size
++		cnum++
+ 	}
+ 	if i != len(s)-1 {
+-		fmt.Println("after loop i is", i, "not", len(s)-1);
+-		ok = false;
++		fmt.Println("after loop i is", i, "not", len(s)-1)
++		ok = false
+ 	}
+ 
+-	i = 12345;
+-	c = 23456;
++	i = 12345
++	c = 23456
+ 	for i, c = range "" {
+ 	}
+ 	if i != 12345 {
+-		fmt.Println("range empty string assigned to index:", i);
+-		ok = false;
++		fmt.Println("range empty string assigned to index:", i)
++		ok = false
+ 	}
+ 	if c != 23456 {
+-		fmt.Println("range empty string assigned to value:", c);
+-		ok = false;
++		fmt.Println("range empty string assigned to value:", c)
++		ok = false
+ 	}
+ 
+ 	if !ok {
+-		fmt.Println("BUG: stringrange");
++		fmt.Println("BUG: stringrange")
+ 		os.Exit(1)
+ 	}
+ }
+diff --git a/test/switch.go b/test/switch.go
+index 835c90081f..0c253d6e2a 100644
+--- a/test/switch.go
++++ b/test/switch.go
+@@ -8,59 +8,59 @@ package main
+ 
+ func assert(cond bool, msg string) {
+ 	if !cond {
+-		print("assertion fail: ", msg, "\n");
+-		panic(1);
++		print("assertion fail: ", msg, "\n")
++		panic(1)
+ 	}
+ }
+ 
+ func main() {
+-	i5 := 5;
+-	i7 := 7;
+-	hello := "hello";
++	i5 := 5
++	i7 := 7
++	hello := "hello"
+ 
+ 	switch true {
+-	case i5 < 5: assert(false, "<");
+-	case i5 == 5: assert(true, "!");
+-	case i5 > 5: assert(false, ">");
++	case i5 < 5: assert(false, "<")
++	case i5 == 5: assert(true, "!")
++	case i5 > 5: assert(false, ">")
+ 	}
+ 
+ 	switch {
+-	case i5 < 5: assert(false, "<");
+-	case i5 == 5: assert(true, "!");
+-	case i5 > 5: assert(false, ">");
++	case i5 < 5: assert(false, "<")
++	case i5 == 5: assert(true, "!")
++	case i5 > 5: assert(false, ">")
+ 	}
+ 
+ 	switch x := 5; true {
+-	case i5 < x: assert(false, "<");
+-	case i5 == x: assert(true, "!");
+-	case i5 > x: assert(false, ">");
++	case i5 < x: assert(false, "<")
++	case i5 == x: assert(true, "!")
++	case i5 > x: assert(false, ">")
+ 	}
+ 
+ 	switch x := 5; true {
+-	case i5 < x: assert(false, "<");
+-	case i5 == x: assert(true, "!");
+-	case i5 > x: assert(false, ">");
++	case i5 < x: assert(false, "<")
++	case i5 == x: assert(true, "!")
++	case i5 > x: assert(false, ">")
+ 	}
+ 
+ 	switch i5 {
+-	case 0: assert(false, "0");
+-	case 1: assert(false, "1");
+-	case 2: assert(false, "2");
+-	case 3: assert(false, "3");
+-	case 4: assert(false, "4");
+-	case 5: assert(true, "5");
+-	case 6: assert(false, "6");
+-	case 7: assert(false, "7");
+-	case 8: assert(false, "8");
+-	case 9: assert(false, "9");
+-	default: assert(false, "default");
++	case 0: assert(false, "0")
++	case 1: assert(false, "1")
++	case 2: assert(false, "2")
++	case 3: assert(false, "3")
++	case 4: assert(false, "4")
++	case 5: assert(true, "5")
++	case 6: assert(false, "6")
++	case 7: assert(false, "7")
++	case 8: assert(false, "8")
++	case 9: assert(false, "9")
++	default: assert(false, "default")
+ 	}
+ 
+ 	switch i5 {
+-	case 0,1,2,3,4: assert(false, "4");
+-	case 5: assert(true, "5");
+-	case 6,7,8,9: assert(false, "9");
+-	default: assert(false, "default");
++	case 0,1,2,3,4: assert(false, "4")
++	case 5: assert(true, "5")
++	case 6,7,8,9: assert(false, "9")
++	default: assert(false, "default")
+ 	}
+ 
+ 	switch i5 {
+@@ -68,72 +68,72 @@ func main() {
+ 	case 1:
+ 	case 2:
+ 	case 3:
+-	case 4: assert(false, "4");
+-	case 5: assert(true, "5");
++	case 4: assert(false, "4")
++	case 5: assert(true, "5")
+ 	case 6:
+ 	case 7:
+ 	case 8:
+ 	case 9:
+-	default: assert(i5 == 5, "good");
++	default: assert(i5 == 5, "good")
+ 	}
+ 
+ 	switch i5 {
+-	case 0: dummy := 0; _ = dummy; fallthrough;
+-	case 1: dummy := 0; _ = dummy; fallthrough;
+-	case 2: dummy := 0; _ = dummy; fallthrough;
+-	case 3: dummy := 0; _ = dummy; fallthrough;
+-	case 4: dummy := 0; _ = dummy; assert(false, "4");
+-	case 5: dummy := 0; _ = dummy; fallthrough;
+-	case 6: dummy := 0; _ = dummy; fallthrough;
+-	case 7: dummy := 0; _ = dummy; fallthrough;
+-	case 8: dummy := 0; _ = dummy; fallthrough;
+-	case 9: dummy := 0; _ = dummy; fallthrough;
+-	default: dummy := 0; _ = dummy; assert(i5 == 5, "good");
++	case 0: dummy := 0; _ = dummy; fallthrough
++	case 1: dummy := 0; _ = dummy; fallthrough
++	case 2: dummy := 0; _ = dummy; fallthrough
++	case 3: dummy := 0; _ = dummy; fallthrough
++	case 4: dummy := 0; _ = dummy; assert(false, "4")
++	case 5: dummy := 0; _ = dummy; fallthrough
++	case 6: dummy := 0; _ = dummy; fallthrough
++	case 7: dummy := 0; _ = dummy; fallthrough
++	case 8: dummy := 0; _ = dummy; fallthrough
++	case 9: dummy := 0; _ = dummy; fallthrough
++	default: dummy := 0; _ = dummy; assert(i5 == 5, "good")
+ 	}
+ 
+-	fired := false;
++	fired := false
+ 	switch i5 {
+ 	case 0: dummy := 0; _ = dummy; fallthrough;  // tests scoping of cases
+-	case 1: dummy := 0; _ = dummy; fallthrough;
+-	case 2: dummy := 0; _ = dummy; fallthrough;
+-	case 3: dummy := 0; _ = dummy; fallthrough;
+-	case 4: dummy := 0; _ = dummy; assert(false, "4");
+-	case 5: dummy := 0; _ = dummy; fallthrough;
+-	case 6: dummy := 0; _ = dummy; fallthrough;
+-	case 7: dummy := 0; _ = dummy; fallthrough;
+-	case 8: dummy := 0; _ = dummy; fallthrough;
+-	case 9: dummy := 0; _ = dummy; fallthrough;
+-	default: dummy := 0; _ = dummy; fired = !fired; assert(i5 == 5, "good");
++	case 1: dummy := 0; _ = dummy; fallthrough
++	case 2: dummy := 0; _ = dummy; fallthrough
++	case 3: dummy := 0; _ = dummy; fallthrough
++	case 4: dummy := 0; _ = dummy; assert(false, "4")
++	case 5: dummy := 0; _ = dummy; fallthrough
++	case 6: dummy := 0; _ = dummy; fallthrough
++	case 7: dummy := 0; _ = dummy; fallthrough
++	case 8: dummy := 0; _ = dummy; fallthrough
++	case 9: dummy := 0; _ = dummy; fallthrough
++	default: dummy := 0; _ = dummy; fired = !fired; assert(i5 == 5, "good")
+ 	}
+-	assert(fired, "fired");
++	assert(fired, "fired")
+ 
+-	count := 0;
++	count := 0
+ 	switch i5 {
+-	case 0: count = count + 1; fallthrough;
+-	case 1: count = count + 1; fallthrough;
+-	case 2: count = count + 1; fallthrough;
+-	case 3: count = count + 1; fallthrough;
+-	case 4: count = count + 1; assert(false, "4");
+-	case 5: count = count + 1; fallthrough;
+-	case 6: count = count + 1; fallthrough;
+-	case 7: count = count + 1; fallthrough;
+-	case 8: count = count + 1; fallthrough;
+-	case 9: count = count + 1; fallthrough;
+-	default: assert(i5 == count, "good");
++	case 0: count = count + 1; fallthrough
++	case 1: count = count + 1; fallthrough
++	case 2: count = count + 1; fallthrough
++	case 3: count = count + 1; fallthrough
++	case 4: count = count + 1; assert(false, "4")
++	case 5: count = count + 1; fallthrough
++	case 6: count = count + 1; fallthrough
++	case 7: count = count + 1; fallthrough
++	case 8: count = count + 1; fallthrough
++	case 9: count = count + 1; fallthrough
++	default: assert(i5 == count, "good")
+ 	}
+-	assert(fired, "fired");
++	assert(fired, "fired")
+ 
+ 	switch hello {
+-	case "wowie": assert(false, "wowie");
+-	case "hello": assert(true, "hello");
+-	case "jumpn": assert(false, "jumpn");
+-	default: assert(false, "default");
++	case "wowie": assert(false, "wowie")
++	case "hello": assert(true, "hello")
++	case "jumpn": assert(false, "jumpn")
++	default: assert(false, "default")
+ 	}
+ 
+-	fired = false;
++	fired = false
+ 	switch i := i5 + 2; i {
+-	case i7: fired = true;
+-	default: assert(false, "fail");
++	case i7: fired = true
++	default: assert(false, "fail")
+ 	}
+-	assert(fired, "var");
++	assert(fired, "var")
+ }
+diff --git a/test/switch1.go b/test/switch1.go
+index 9e61cc6585..5bd9d7c5d0 100644
+--- a/test/switch1.go
++++ b/test/switch1.go
+@@ -9,12 +9,12 @@ package main
+ import "os"
+ 
+ func main() {
+-	i := 0;
++	i := 0
+ 	switch x := 5; {
+ 		case i < x:
+-			os.Exit(0);
++			os.Exit(0)
+ 		case i == x:
+ 		case i > x:
+-			os.Exit(1);
++			os.Exit(1)
+ 	}
+ }
+diff --git a/test/test0.go b/test/test0.go
+index f42b12b3c5..dd2033a98f 100644
+--- a/test/test0.go
++++ b/test/test0.go
+@@ -10,34 +10,34 @@ const
+ 	a_const = 0
+ 
+ const (
+-	pi = /* the usual */ 3.14159265358979323;
+-	e = 2.718281828;
+-	mask1 int = 1 << iota;
+-	mask2 = 1 << iota;
+-	mask3 = 1 << iota;
+-	mask4 = 1 << iota;
++	pi = /* the usual */ 3.14159265358979323
++	e = 2.718281828
++	mask1 int = 1 << iota
++	mask2 = 1 << iota
++	mask3 = 1 << iota
++	mask4 = 1 << iota
+ )
+ 
+ type (
+-	Empty interface {};
++	Empty interface {}
+ 	Point struct {
+-		x, y int;
+-	};
++		x, y int
++	}
+ 	Point2 Point
+ )
+ 
+ func (p *Point) Initialize(x, y int) *Point {
+-	p.x, p.y = x, y;
+-	return p;
++	p.x, p.y = x, y
++	return p
+ }
+ 
+ func (p *Point) Distance() int {
+-	return p.x * p.x + p.y * p.y;
++	return p.x * p.x + p.y * p.y
+ }
+ 
+ var (
+-	x1 int;
+-	x2 int;
++	x1 int
++	x2 int
+ 	u, v, w float
+ )
+ 
+@@ -45,40 +45,40 @@ func foo() {}
+ 
+ func min(x, y int) int {
+ 	if x < y { return x; }
+-	return y;
++	return y
+ }
+ 
+ func swap(x, y int) (u, v int) {
+-	u = y;
+-	v = x;
+-	return;
++	u = y
++	v = x
++	return
+ }
+ 
+ func control_structs() {
+-	var p *Point = new(Point).Initialize(2, 3);
+-	i := p.Distance();
+-	var f float = 0.3;
+-	_ = f;
++	var p *Point = new(Point).Initialize(2, 3)
++	i := p.Distance()
++	var f float = 0.3
++	_ = f
++	for {}
+ 	for {}
+-	for {};
+ 	for j := 0; j < i; j++ {
+ 		if i == 0 {
+-		} else i = 0;
+-		var x float;
+-		_ = x;
++		} else i = 0
++		var x float
++		_ = x
+ 	}
+ 	foo:	// a label
+-	var j int;
++	var j int
+ 	switch y := 0; true {
+ 	case i < y:
+-		fallthrough;
++		fallthrough
+ 	case i < j:
+ 	case i == 0, i == 1, i == j:
+-		i++; i++;
+-		goto foo;
++		i++; i++
++		goto foo
+ 	default:
+-		i = -+-+i;
+-		break;
++		i = -+-+i
++		break
+ 	}
+ }
+ 
+diff --git a/test/typeswitch.go b/test/typeswitch.go
+index 0a421ae96f..9e6d10ea87 100644
+--- a/test/typeswitch.go
++++ b/test/typeswitch.go
+@@ -9,22 +9,22 @@ package main
+ import "os"
+ 
+ const (
+-	Bool = iota;
+-	Int;
+-	Float;
+-	String;
+-	Struct;
+-	Chan;
+-	Array;
+-	Map;
+-	Func;
+-	Last;
++	Bool = iota
++	Int
++	Float
++	String
++	Struct
++	Chan
++	Array
++	Map
++	Func
++	Last
+ )
+ 
+ type S struct { a int }
+ var s S = S{1234}
+ 
+-var c = make(chan int);
++var c = make(chan int)
+ 
+ var a	= []int{0,1,2,3}
+ 
+@@ -32,81 +32,81 @@ var m = make(map[string]int)
+ 
+ func assert(b bool, s string) {
+ 	if !b {
+-		println(s);
+-		os.Exit(1);
++		println(s)
++		os.Exit(1)
+ 	}
+ }
+ 
+ func f(i int) interface{} {
+ 	switch i {
+ 	case Bool:
+-		return true;
++		return true
+ 	case Int:
+-		return 7;
++		return 7
+ 	case Float:
+-		return 7.4;
++		return 7.4
+ 	case String:
+-		return "hello";
++		return "hello"
+ 	case Struct:
+-		return s;
++		return s
+ 	case Chan:
+-		return c;
++		return c
+ 	case Array:
+-		return a;
++		return a
+ 	case Map:
+-		return m;
++		return m
+ 	case Func:
+-		return f;
++		return f
+ 	}
+-	panic("bad type number");
++	panic("bad type number")
+ }
+ 
+ func main() {
+ 	for i := Bool; i < Last; i++ {
+ 		switch x := f(i).(type) {
+ 		case bool:
+-			assert(x == true && i == Bool, "bool");
++			assert(x == true && i == Bool, "bool")
+ 		case int:
+-			assert(x == 7 && i == Int, "int");
++			assert(x == 7 && i == Int, "int")
+ 		case float:
+-			assert(x == 7.4 && i == Float, "float");
++			assert(x == 7.4 && i == Float, "float")
+ 		case string:
+-			assert(x == "hello"&& i == String, "string");
++			assert(x == "hello"&& i == String, "string")
+ 		case S:
+-			assert(x.a == 1234 && i == Struct, "struct");
++			assert(x.a == 1234 && i == Struct, "struct")
+ 		case chan int:
+-			assert(x == c && i == Chan, "chan");
++			assert(x == c && i == Chan, "chan")
+ 		case []int:
+-			assert(x[3] == 3 && i == Array, "array");
++			assert(x[3] == 3 && i == Array, "array")
+ 		case map[string]int:
+-			assert(x == m && i == Map, "map");
++			assert(x == m && i == Map, "map")
+ 		case func(i int) interface{}:
+-			assert(x == f && i == Func, "fun");
++			assert(x == f && i == Func, "fun")
+ 		default:
+-			assert(false, "unknown");
++			assert(false, "unknown")
+ 		}
+ 	}
+ 
+ 	// boolean switch (has had bugs in past; worth writing down)
+ 	switch {
+ 	case true:
+-		assert(true, "switch 2 bool");
++		assert(true, "switch 2 bool")
+ 	default:
+-		assert(false, "switch 2 unknown");
++		assert(false, "switch 2 unknown")
+ 	}
+ 
+ 	switch true {
+ 	case true:
+-		assert(true, "switch 3 bool");
++		assert(true, "switch 3 bool")
+ 	default:
+-		assert(false, "switch 3 unknown");
++		assert(false, "switch 3 unknown")
+ 	}
+ 
+ 	switch false {
+ 	case false:
+-		assert(true, "switch 4 bool");
++		assert(true, "switch 4 bool")
+ 	default:
+-		assert(false, "switch 4 unknown");
++		assert(false, "switch 4 unknown")
+ 	}
+ 
+ }
+diff --git a/test/utf.go b/test/utf.go
+index 59b0ffaa93..a93fc29341 100644
+--- a/test/utf.go
++++ b/test/utf.go
+@@ -9,46 +9,46 @@ package main
+ import "utf8"
+ 
+ func main() {
+-	var chars [6] int;
+-	chars[0] = 'a';
+-	chars[1] = 'b';
+-	chars[2] = 'c';
+-	chars[3] = '\u65e5';
+-	chars[4] = '\u672c';
+-	chars[5] = '\u8a9e';
+-	s := "";
++	var chars [6] int
++	chars[0] = 'a'
++	chars[1] = 'b'
++	chars[2] = 'c'
++	chars[3] = '\u65e5'
++	chars[4] = '\u672c'
++	chars[5] = '\u8a9e'
++	s := ""
+ 	for i := 0; i < 6; i++ {
+-		s += string(chars[i]);
++		s += string(chars[i])
+ 	}
+-	var l = len(s);
++	var l = len(s)
+ 	for w, i, j := 0,0,0; i < l; i += w {
+-		var r int;
+-		r, w = utf8.DecodeRuneInString(s[i:len(s)]);
++		var r int
++		r, w = utf8.DecodeRuneInString(s[i:len(s)])
+ 		if w == 0 { panic("zero width in string") }
+ 		if r != chars[j] { panic("wrong value from string") }
+-		j++;
++		j++
+ 	}
+ 	// encoded as bytes:  'a' 'b' 'c' e6 97 a5 e6 9c ac e8 aa 9e
+-	const L = 12;
++	const L = 12
+ 	if L != l { panic("wrong length constructing array") }
+-	a := make([]byte, L);
+-	a[0] = 'a';
+-	a[1] = 'b';
+-	a[2] = 'c';
+-	a[3] = 0xe6;
+-	a[4] = 0x97;
+-	a[5] = 0xa5;
+-	a[6] = 0xe6;
+-	a[7] = 0x9c;
+-	a[8] = 0xac;
+-	a[9] = 0xe8;
+-	a[10] = 0xaa;
+-	a[11] = 0x9e;
++	a := make([]byte, L)
++	a[0] = 'a'
++	a[1] = 'b'
++	a[2] = 'c'
++	a[3] = 0xe6
++	a[4] = 0x97
++	a[5] = 0xa5
++	a[6] = 0xe6
++	a[7] = 0x9c
++	a[8] = 0xac
++	a[9] = 0xe8
++	a[10] = 0xaa
++	a[11] = 0x9e
+ 	for w, i, j := 0,0,0; i < L; i += w {
+-		var r int;
+-		r, w = utf8.DecodeRune(a[i:L]);
++		var r int
++		r, w = utf8.DecodeRune(a[i:L])
+ 		if w == 0 { panic("zero width in bytes") }
+ 		if r != chars[j] { panic("wrong value from bytes") }
+-		j++;
++		j++
+ 	}
+ }

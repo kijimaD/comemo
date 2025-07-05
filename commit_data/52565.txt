@@ -16,6 +16,36 @@ Date:   Mon May 9 23:22:14 2022 +0300
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/memclr_amd64.s | 10 +++++++---
  1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/memclr_amd64.s b/src/runtime/memclr_amd64.s
+index b8f283b8fd..19bfa6f20d 100644
+--- a/src/runtime/memclr_amd64.s
++++ b/src/runtime/memclr_amd64.s
+@@ -18,7 +18,7 @@ TEXT runtime·memclrNoHeapPointers<ABIInternal>(SB), NOSPLIT, $0-16
+ 	MOVQ	AX, DI	// DI = ptr
+ 	XORQ	AX, AX
+ 
+-	// MOVOU seems always faster than REP STOSQ.
++	// MOVOU seems always faster than REP STOSQ when Enhanced REP STOSQ is not available.
+ tail:
+ 	// BSR+branch table make almost all memmove/memclr benchmarks worse. Not worth doing.
+ 	TESTQ	BX, BX
+@@ -119,9 +119,13 @@ loop_preheader_erms:
+ 	JAE	loop_preheader_avx2_huge
+ 
+ loop_erms:
++	// STOSQ is used to guarantee that the whole zeroed pointer-sized word is visible
++	// for a memory subsystem as the GC requires this.
+ 	MOVQ	BX, CX
+-	REP;	STOSB
+-	RET
++	SHRQ	$3, CX
++	ANDQ	$7, BX
++	REP;	STOSQ
++	JMP	tail
+ 
+ loop_preheader_avx2_huge:
+ 	// Align to 32 byte boundary

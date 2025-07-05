@@ -9,6 +9,47 @@ Date:   Wed Apr 20 16:25:00 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4443052
-
+---
  src/cmd/ld/macho.c | 19 +++++++++++++------
  1 file changed, 13 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/ld/macho.c b/src/cmd/ld/macho.c
+index c8d7c4a6d9..a1abbbc56a 100644
+--- a/src/cmd/ld/macho.c
++++ b/src/cmd/ld/macho.c
+@@ -12,10 +12,10 @@
+ 
+ static	int	macho64;
+ static	MachoHdr	hdr;
+-static	MachoLoad	load[16];
++static	MachoLoad	*load;
+ static	MachoSeg	seg[16];
+ static	MachoDebug	xdebug[16];
+-static	int	nload, nseg, ndebug, nsect;
++static	int	nload, mload, nseg, ndebug, nsect;
+ 
+ void
+ machoinit(void)
+@@ -43,11 +43,18 @@ newMachoLoad(uint32 type, uint32 ndata)
+ {
+ 	MachoLoad *l;
+ 
+-	if(nload >= nelem(load)) {
+-		diag("too many loads");
+-		errorexit();
++	if(nload >= mload) {
++		if(mload == 0)
++			mload = 1;
++		else
++			mload *= 2;
++		load = realloc(load, mload*sizeof load[0]);
++		if(load == nil) {
++			diag("out of memory");
++			errorexit();
++		}
+ 	}
+-	
++
+ 	if(macho64 && (ndata & 1))
+ 		ndata++;
+ 	

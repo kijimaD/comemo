@@ -14,7 +14,7 @@ Date:   Tue Feb 19 14:53:26 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/vet/testdata/{src => }/asm/asm.go          |  0
  src/cmd/vet/testdata/{src => }/asm/asm1.s          |  0
  src/cmd/vet/testdata/{src => }/assign/assign.go    |  0
@@ -42,3 +42,260 @@ Date:   Tue Feb 19 14:53:26 2019 -0500
  src/cmd/vet/testdata/{src => }/unused/unused.go    |  0
  src/cmd/vet/vet_test.go                            | 14 +++---
  26 files changed, 31 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/vet/testdata/src/asm/asm.go b/src/cmd/vet/testdata/asm/asm.go
+similarity index 100%
+rename from src/cmd/vet/testdata/src/asm/asm.go
+rename to src/cmd/vet/testdata/asm/asm.go
+diff --git a/src/cmd/vet/testdata/src/asm/asm1.s b/src/cmd/vet/testdata/asm/asm1.s
+similarity index 100%
+rename from src/cmd/vet/testdata/src/asm/asm1.s
+rename to src/cmd/vet/testdata/asm/asm1.s
+diff --git a/src/cmd/vet/testdata/src/assign/assign.go b/src/cmd/vet/testdata/assign/assign.go
+similarity index 100%
+rename from src/cmd/vet/testdata/src/assign/assign.go
+rename to src/cmd/vet/testdata/assign/assign.go
+diff --git a/src/cmd/vet/testdata/src/atomic/atomic.go b/src/cmd/vet/testdata/atomic/atomic.go
+similarity index 100%
+rename from src/cmd/vet/testdata/src/atomic/atomic.go
+rename to src/cmd/vet/testdata/atomic/atomic.go
+diff --git a/src/cmd/vet/testdata/src/bool/bool.go b/src/cmd/vet/testdata/bool/bool.go
+similarity index 100%
+rename from src/cmd/vet/testdata/src/bool/bool.go
+rename to src/cmd/vet/testdata/bool/bool.go
+diff --git a/src/cmd/vet/testdata/src/buildtag/buildtag.go b/src/cmd/vet/testdata/buildtag/buildtag.go
+similarity index 100%
+rename from src/cmd/vet/testdata/src/buildtag/buildtag.go
+rename to src/cmd/vet/testdata/buildtag/buildtag.go
+diff --git a/src/cmd/vet/testdata/src/cgo/cgo.go b/src/cmd/vet/testdata/cgo/cgo.go
+similarity index 100%
+rename from src/cmd/vet/testdata/src/cgo/cgo.go
+rename to src/cmd/vet/testdata/cgo/cgo.go
+diff --git a/src/cmd/vet/testdata/src/composite/composite.go b/src/cmd/vet/testdata/composite/composite.go
+similarity index 100%
+rename from src/cmd/vet/testdata/src/composite/composite.go
+rename to src/cmd/vet/testdata/composite/composite.go
+diff --git a/src/cmd/vet/testdata/src/copylock/copylock.go b/src/cmd/vet/testdata/copylock/copylock.go
+similarity index 100%
+rename from src/cmd/vet/testdata/src/copylock/copylock.go
+rename to src/cmd/vet/testdata/copylock/copylock.go
+diff --git a/src/cmd/vet/testdata/src/deadcode/deadcode.go b/src/cmd/vet/testdata/deadcode/deadcode.go
+similarity index 100%
+rename from src/cmd/vet/testdata/src/deadcode/deadcode.go
+rename to src/cmd/vet/testdata/deadcode/deadcode.go
+diff --git a/src/cmd/vet/testdata/src/httpresponse/httpresponse.go b/src/cmd/vet/testdata/httpresponse/httpresponse.go
+similarity index 100%
+rename from src/cmd/vet/testdata/src/httpresponse/httpresponse.go
+rename to src/cmd/vet/testdata/httpresponse/httpresponse.go
+diff --git a/src/cmd/vet/testdata/src/lostcancel/lostcancel.go b/src/cmd/vet/testdata/lostcancel/lostcancel.go
+similarity index 100%
+rename from src/cmd/vet/testdata/src/lostcancel/lostcancel.go
+rename to src/cmd/vet/testdata/lostcancel/lostcancel.go
+diff --git a/src/cmd/vet/testdata/src/method/method.go b/src/cmd/vet/testdata/method/method.go
+similarity index 100%
+rename from src/cmd/vet/testdata/src/method/method.go
+rename to src/cmd/vet/testdata/method/method.go
+diff --git a/src/cmd/vet/testdata/src/nilfunc/nilfunc.go b/src/cmd/vet/testdata/nilfunc/nilfunc.go
+similarity index 100%
+rename from src/cmd/vet/testdata/src/nilfunc/nilfunc.go
+rename to src/cmd/vet/testdata/nilfunc/nilfunc.go
+diff --git a/src/cmd/vet/testdata/src/print/print.go b/src/cmd/vet/testdata/print/print.go
+similarity index 94%
+rename from src/cmd/vet/testdata/src/print/print.go
+rename to src/cmd/vet/testdata/print/print.go
+index 6bacd0fd74..7a4783aee4 100644
+--- a/src/cmd/vet/testdata/src/print/print.go
++++ b/src/cmd/vet/testdata/print/print.go
+@@ -126,16 +126,16 @@ func PrintfTests() {
+ 	fmt.Printf("%U", x)                         // ERROR "Printf format %U has arg x of wrong type float64"
+ 	fmt.Printf("%x", nil)                       // ERROR "Printf format %x has arg nil of wrong type untyped nil"
+ 	fmt.Printf("%X", 2.3)                       // ERROR "Printf format %X has arg 2.3 of wrong type float64"
+-	fmt.Printf("%s", stringerv)                 // ERROR "Printf format %s has arg stringerv of wrong type print.ptrStringer"
+-	fmt.Printf("%t", stringerv)                 // ERROR "Printf format %t has arg stringerv of wrong type print.ptrStringer"
+-	fmt.Printf("%s", embeddedStringerv)         // ERROR "Printf format %s has arg embeddedStringerv of wrong type print.embeddedStringer"
+-	fmt.Printf("%t", embeddedStringerv)         // ERROR "Printf format %t has arg embeddedStringerv of wrong type print.embeddedStringer"
+-	fmt.Printf("%q", notstringerv)              // ERROR "Printf format %q has arg notstringerv of wrong type print.notstringer"
+-	fmt.Printf("%t", notstringerv)              // ERROR "Printf format %t has arg notstringerv of wrong type print.notstringer"
+-	fmt.Printf("%t", stringerarrayv)            // ERROR "Printf format %t has arg stringerarrayv of wrong type print.stringerarray"
+-	fmt.Printf("%t", notstringerarrayv)         // ERROR "Printf format %t has arg notstringerarrayv of wrong type print.notstringerarray"
+-	fmt.Printf("%q", notstringerarrayv)         // ERROR "Printf format %q has arg notstringerarrayv of wrong type print.notstringerarray"
+-	fmt.Printf("%d", BoolFormatter(true))       // ERROR "Printf format %d has arg BoolFormatter\(true\) of wrong type print.BoolFormatter"
++	fmt.Printf("%s", stringerv)                 // ERROR "Printf format %s has arg stringerv of wrong type .*print.ptrStringer"
++	fmt.Printf("%t", stringerv)                 // ERROR "Printf format %t has arg stringerv of wrong type .*print.ptrStringer"
++	fmt.Printf("%s", embeddedStringerv)         // ERROR "Printf format %s has arg embeddedStringerv of wrong type .*print.embeddedStringer"
++	fmt.Printf("%t", embeddedStringerv)         // ERROR "Printf format %t has arg embeddedStringerv of wrong type .*print.embeddedStringer"
++	fmt.Printf("%q", notstringerv)              // ERROR "Printf format %q has arg notstringerv of wrong type .*print.notstringer"
++	fmt.Printf("%t", notstringerv)              // ERROR "Printf format %t has arg notstringerv of wrong type .*print.notstringer"
++	fmt.Printf("%t", stringerarrayv)            // ERROR "Printf format %t has arg stringerarrayv of wrong type .*print.stringerarray"
++	fmt.Printf("%t", notstringerarrayv)         // ERROR "Printf format %t has arg notstringerarrayv of wrong type .*print.notstringerarray"
++	fmt.Printf("%q", notstringerarrayv)         // ERROR "Printf format %q has arg notstringerarrayv of wrong type .*print.notstringerarray"
++	fmt.Printf("%d", BoolFormatter(true))       // ERROR "Printf format %d has arg BoolFormatter\(true\) of wrong type .*print.BoolFormatter"
+ 	fmt.Printf("%z", FormatterVal(true))        // correct (the type is responsible for formatting)
+ 	fmt.Printf("%d", FormatterVal(true))        // correct (the type is responsible for formatting)
+ 	fmt.Printf("%s", nonemptyinterface)         // correct (the type is responsible for formatting)
+@@ -186,10 +186,10 @@ func PrintfTests() {
+ 	Printf("d%", 2)                       // ERROR "Printf format % is missing verb at end of string"
+ 	Printf("%d", percentDV)
+ 	Printf("%d", &percentDV)
+-	Printf("%d", notPercentDV)  // ERROR "Printf format %d has arg notPercentDV of wrong type print.notPercentDStruct"
+-	Printf("%d", &notPercentDV) // ERROR "Printf format %d has arg &notPercentDV of wrong type \*print.notPercentDStruct"
++	Printf("%d", notPercentDV)  // ERROR "Printf format %d has arg notPercentDV of wrong type .*print.notPercentDStruct"
++	Printf("%d", &notPercentDV) // ERROR "Printf format %d has arg &notPercentDV of wrong type \*.*print.notPercentDStruct"
+ 	Printf("%p", &notPercentDV) // Works regardless: we print it as a pointer.
+-	Printf("%q", &percentDV)    // ERROR "Printf format %q has arg &percentDV of wrong type \*print.percentDStruct"
++	Printf("%q", &percentDV)    // ERROR "Printf format %q has arg &percentDV of wrong type \*.*print.percentDStruct"
+ 	Printf("%s", percentSV)
+ 	Printf("%s", &percentSV)
+ 	// Good argument reorderings.
+@@ -234,7 +234,7 @@ func PrintfTests() {
+ 	Printf("%T", someFunction) // ok: maybe someone wants to see the type
+ 	// Bug: used to recur forever.
+ 	Printf("%p %x", recursiveStructV, recursiveStructV.next)
+-	Printf("%p %x", recursiveStruct1V, recursiveStruct1V.next) // ERROR "Printf format %x has arg recursiveStruct1V\.next of wrong type \*print\.RecursiveStruct2"
++	Printf("%p %x", recursiveStruct1V, recursiveStruct1V.next) // ERROR "Printf format %x has arg recursiveStruct1V\.next of wrong type \*.*print\.RecursiveStruct2"
+ 	Printf("%p %x", recursiveSliceV, recursiveSliceV)
+ 	Printf("%p %x", recursiveMapV, recursiveMapV)
+ 	// Special handling for Log.
+@@ -587,37 +587,37 @@ func UnexportedStringerOrError() {
+ 	fmt.Printf("%s", unexportedInterface{3})     // ok; we can't see the problem
+ 
+ 	us := unexportedStringer{}
+-	fmt.Printf("%s", us)  // ERROR "Printf format %s has arg us of wrong type print.unexportedStringer"
+-	fmt.Printf("%s", &us) // ERROR "Printf format %s has arg &us of wrong type [*]print.unexportedStringer"
++	fmt.Printf("%s", us)  // ERROR "Printf format %s has arg us of wrong type .*print.unexportedStringer"
++	fmt.Printf("%s", &us) // ERROR "Printf format %s has arg &us of wrong type [*].*print.unexportedStringer"
+ 
+ 	usf := unexportedStringerOtherFields{
+ 		s: "foo",
+ 		S: "bar",
+ 	}
+-	fmt.Printf("%s", usf)  // ERROR "Printf format %s has arg usf of wrong type print.unexportedStringerOtherFields"
+-	fmt.Printf("%s", &usf) // ERROR "Printf format %s has arg &usf of wrong type [*]print.unexportedStringerOtherFields"
++	fmt.Printf("%s", usf)  // ERROR "Printf format %s has arg usf of wrong type .*print.unexportedStringerOtherFields"
++	fmt.Printf("%s", &usf) // ERROR "Printf format %s has arg &usf of wrong type [*].*print.unexportedStringerOtherFields"
+ 
+ 	ue := unexportedError{
+ 		e: &errorer{},
+ 	}
+-	fmt.Printf("%s", ue)  // ERROR "Printf format %s has arg ue of wrong type print.unexportedError"
+-	fmt.Printf("%s", &ue) // ERROR "Printf format %s has arg &ue of wrong type [*]print.unexportedError"
++	fmt.Printf("%s", ue)  // ERROR "Printf format %s has arg ue of wrong type .*print.unexportedError"
++	fmt.Printf("%s", &ue) // ERROR "Printf format %s has arg &ue of wrong type [*].*print.unexportedError"
+ 
+ 	uef := unexportedErrorOtherFields{
+ 		s: "foo",
+ 		e: &errorer{},
+ 		S: "bar",
+ 	}
+-	fmt.Printf("%s", uef)  // ERROR "Printf format %s has arg uef of wrong type print.unexportedErrorOtherFields"
+-	fmt.Printf("%s", &uef) // ERROR "Printf format %s has arg &uef of wrong type [*]print.unexportedErrorOtherFields"
++	fmt.Printf("%s", uef)  // ERROR "Printf format %s has arg uef of wrong type .*print.unexportedErrorOtherFields"
++	fmt.Printf("%s", &uef) // ERROR "Printf format %s has arg &uef of wrong type [*].*print.unexportedErrorOtherFields"
+ 
+ 	uce := unexportedCustomError{
+ 		e: errorer{},
+ 	}
+-	fmt.Printf("%s", uce) // ERROR "Printf format %s has arg uce of wrong type print.unexportedCustomError"
++	fmt.Printf("%s", uce) // ERROR "Printf format %s has arg uce of wrong type .*print.unexportedCustomError"
+ 
+ 	uei := unexportedErrorInterface{}
+-	fmt.Printf("%s", uei)       // ERROR "Printf format %s has arg uei of wrong type print.unexportedErrorInterface"
++	fmt.Printf("%s", uei)       // ERROR "Printf format %s has arg uei of wrong type .*print.unexportedErrorInterface"
+ 	fmt.Println("foo\n", "bar") // not an error
+ 
+ 	fmt.Println("foo\n")  // ERROR "Println arg list ends with redundant newline"
+@@ -627,7 +627,7 @@ func UnexportedStringerOrError() {
+ 	intSlice := []int{3, 4}
+ 	fmt.Printf("%s", intSlice) // ERROR "Printf format %s has arg intSlice of wrong type \[\]int"
+ 	nonStringerArray := [1]unexportedStringer{{}}
+-	fmt.Printf("%s", nonStringerArray)  // ERROR "Printf format %s has arg nonStringerArray of wrong type \[1\]print.unexportedStringer"
++	fmt.Printf("%s", nonStringerArray)  // ERROR "Printf format %s has arg nonStringerArray of wrong type \[1\].*print.unexportedStringer"
+ 	fmt.Printf("%s", []stringer{3, 4})  // not an error
+ 	fmt.Printf("%s", [2]stringer{3, 4}) // not an error
+ }
+@@ -677,5 +677,5 @@ func PointersToCompoundTypes() {
+ 	type T1 struct {
+ 		X *T2
+ 	}
+-	fmt.Printf("%s\n", T1{&T2{"x"}}) // ERROR "Printf format %s has arg T1{&T2{.x.}} of wrong type print\.T1"
++	fmt.Printf("%s\n", T1{&T2{"x"}}) // ERROR "Printf format %s has arg T1{&T2{.x.}} of wrong type .*print\.T1"
+ }
+diff --git a/src/cmd/vet/testdata/src/rangeloop/rangeloop.go b/src/cmd/vet/testdata/rangeloop/rangeloop.go
+similarity index 100%
+rename from src/cmd/vet/testdata/src/rangeloop/rangeloop.go
+rename to src/cmd/vet/testdata/rangeloop/rangeloop.go
+diff --git a/src/cmd/vet/testdata/src/shift/shift.go b/src/cmd/vet/testdata/shift/shift.go
+similarity index 100%
+rename from src/cmd/vet/testdata/src/shift/shift.go
+rename to src/cmd/vet/testdata/shift/shift.go
+diff --git a/src/cmd/vet/testdata/src/structtag/structtag.go b/src/cmd/vet/testdata/structtag/structtag.go
+similarity index 100%
+rename from src/cmd/vet/testdata/src/structtag/structtag.go
+rename to src/cmd/vet/testdata/structtag/structtag.go
+diff --git a/src/cmd/vet/testdata/src/tagtest/file1.go b/src/cmd/vet/testdata/tagtest/file1.go
+similarity index 100%
+rename from src/cmd/vet/testdata/src/tagtest/file1.go
+rename to src/cmd/vet/testdata/tagtest/file1.go
+diff --git a/src/cmd/vet/testdata/src/tagtest/file2.go b/src/cmd/vet/testdata/tagtest/file2.go
+similarity index 100%
+rename from src/cmd/vet/testdata/src/tagtest/file2.go
+rename to src/cmd/vet/testdata/tagtest/file2.go
+diff --git a/src/cmd/vet/testdata/src/testingpkg/tests.go b/src/cmd/vet/testdata/testingpkg/tests.go
+similarity index 100%
+rename from src/cmd/vet/testdata/src/testingpkg/tests.go
+rename to src/cmd/vet/testdata/testingpkg/tests.go
+diff --git a/src/cmd/vet/testdata/src/testingpkg/tests_test.go b/src/cmd/vet/testdata/testingpkg/tests_test.go
+similarity index 100%
+rename from src/cmd/vet/testdata/src/testingpkg/tests_test.go
+rename to src/cmd/vet/testdata/testingpkg/tests_test.go
+diff --git a/src/cmd/vet/testdata/src/unmarshal/unmarshal.go b/src/cmd/vet/testdata/unmarshal/unmarshal.go
+similarity index 100%
+rename from src/cmd/vet/testdata/src/unmarshal/unmarshal.go
+rename to src/cmd/vet/testdata/unmarshal/unmarshal.go
+diff --git a/src/cmd/vet/testdata/src/unsafeptr/unsafeptr.go b/src/cmd/vet/testdata/unsafeptr/unsafeptr.go
+similarity index 100%
+rename from src/cmd/vet/testdata/src/unsafeptr/unsafeptr.go
+rename to src/cmd/vet/testdata/unsafeptr/unsafeptr.go
+diff --git a/src/cmd/vet/testdata/src/unused/unused.go b/src/cmd/vet/testdata/unused/unused.go
+similarity index 100%
+rename from src/cmd/vet/testdata/src/unused/unused.go
+rename to src/cmd/vet/testdata/unused/unused.go
+diff --git a/src/cmd/vet/vet_test.go b/src/cmd/vet/vet_test.go
+index 6e8cc70440..e9b8c69d53 100644
+--- a/src/cmd/vet/vet_test.go
++++ b/src/cmd/vet/vet_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"log"
+ 	"os"
+ 	"os/exec"
++	"path"
+ 	"path/filepath"
+ 	"regexp"
+ 	"strconv"
+@@ -65,14 +66,9 @@ func Build(t *testing.T) {
+ 	built = true
+ }
+ 
+-func vetCmd(t *testing.T, args ...string) *exec.Cmd {
+-	cmd := exec.Command(testenv.GoToolPath(t), "vet", "-vettool="+binary)
+-	cmd.Args = append(cmd.Args, args...)
+-	testdata, err := filepath.Abs("testdata")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	cmd.Env = append(os.Environ(), "GOPATH="+testdata)
++func vetCmd(t *testing.T, arg, pkg string) *exec.Cmd {
++	cmd := exec.Command(testenv.GoToolPath(t), "vet", "-vettool="+binary, arg, path.Join("cmd/vet/testdata", pkg))
++	cmd.Env = os.Environ()
+ 	return cmd
+ }
+ 
+@@ -119,7 +115,7 @@ func TestVet(t *testing.T) {
+ 				cmd.Env = append(cmd.Env, "GOOS=linux", "GOARCH=amd64")
+ 			}
+ 
+-			dir := filepath.Join("testdata/src", pkg)
++			dir := filepath.Join("testdata", pkg)
+ 			gos, err := filepath.Glob(filepath.Join(dir, "*.go"))
+ 			if err != nil {
+ 				t.Fatal(err)

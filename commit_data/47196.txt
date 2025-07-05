@@ -19,8 +19,277 @@ Date:   Thu Feb 4 03:08:20 2021 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: eric fang <eric.fang@arm.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/parse.go            |  8 +++--
  src/cmd/asm/internal/asm/testdata/arm64.s    | 48 ++++++++++++++--------------
  src/cmd/asm/internal/asm/testdata/arm64enc.s | 44 ++++++++++++-------------
  3 files changed, 51 insertions(+), 49 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index f1d37bc2c8..2c7332877f 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -999,15 +999,17 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
+ 				p.errorf("unimplemented two-register form")
+ 			}
+ 			a.Index = r1
+-			if scale == 0 && p.arch.Family == sys.ARM64 {
+-				// scale is 1 by default for ARM64
+-				a.Scale = 1
++			if scale != 0 && p.arch.Family == sys.ARM64 {
++				p.errorf("arm64 doesn't support scaled register format")
+ 			} else {
+ 				a.Scale = int16(scale)
+ 			}
+ 		}
+ 		p.get(')')
+ 	} else if scale != 0 {
++		if p.arch.Family == sys.ARM64 {
++			p.errorf("arm64 doesn't support scaled register format")
++		}
+ 		// First (R) was missing, all we have is (R*scale).
+ 		a.Reg = 0
+ 		a.Index = r1
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index 17ecd9b2b8..8635708320 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -395,13 +395,13 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ // LD1/ST1
+ 	VLD1	(R8), [V1.B16, V2.B16]                          // 01a1404c
+ 	VLD1.P	(R3), [V31.H8, V0.H8]                           // 7fa4df4c
+-	VLD1.P	(R8)(R20), [V21.B16, V22.B16]                   // VLD1.P	(R8)(R20*1), [V21.B16,V22.B16] // 15a1d44c
++	VLD1.P	(R8)(R20), [V21.B16, V22.B16]                   // 15a1d44c
+ 	VLD1.P	64(R1), [V5.B16, V6.B16, V7.B16, V8.B16]        // 2520df4c
+ 	VLD1.P	1(R0), V4.B[15]                                 // 041cdf4d
+ 	VLD1.P	2(R0), V4.H[7]                                  // 0458df4d
+ 	VLD1.P	4(R0), V4.S[3]                                  // 0490df4d
+ 	VLD1.P	8(R0), V4.D[1]                                  // 0484df4d
+-	VLD1.P	(R0)(R1), V4.D[1]                               // VLD1.P	(R0)(R1*1), V4.D[1] // 0484c14d
++	VLD1.P	(R0)(R1), V4.D[1]                               // 0484c14d
+ 	VLD1	(R0), V4.D[1]                                   // 0484404d
+ 	VST1.P	[V4.S4, V5.S4], 32(R1)                          // 24a89f4c
+ 	VST1	[V0.S4, V1.S4], (R0)                            // 00a8004c
+@@ -409,29 +409,29 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ 	VLD1.P	24(R30), [V3.S2,V4.S2,V5.S2]                    // c36bdf0c
+ 	VLD2	(R29), [V23.H8, V24.H8]                         // b787404c
+ 	VLD2.P	16(R0), [V18.B8, V19.B8]                        // 1280df0c
+-	VLD2.P	(R1)(R2), [V15.S2, V16.S2]                      // VLD2.P	(R1)(R2*1), [V15.S2,V16.S2] // 2f88c20c
++	VLD2.P	(R1)(R2), [V15.S2, V16.S2]                      // 2f88c20c
+ 	VLD3	(R27), [V11.S4, V12.S4, V13.S4]                 // 6b4b404c
+ 	VLD3.P	48(RSP), [V11.S4, V12.S4, V13.S4]               // eb4bdf4c
+-	VLD3.P	(R30)(R2), [V14.D2, V15.D2, V16.D2]             // VLD3.P	(R30)(R2*1), [V14.D2,V15.D2,V16.D2] // ce4fc24c
++	VLD3.P	(R30)(R2), [V14.D2, V15.D2, V16.D2]             // ce4fc24c
+ 	VLD4	(R15), [V10.H4, V11.H4, V12.H4, V13.H4]         // ea05400c
+ 	VLD4.P	32(R24), [V31.B8, V0.B8, V1.B8, V2.B8]          // 1f03df0c
+-	VLD4.P	(R13)(R9), [V14.S2, V15.S2, V16.S2, V17.S2]     // VLD4.P	(R13)(R9*1), [V14.S2,V15.S2,V16.S2,V17.S2] // ae09c90c
++	VLD4.P	(R13)(R9), [V14.S2, V15.S2, V16.S2, V17.S2]     // ae09c90c
+ 	VLD1R	(R1), [V9.B8]                                   // 29c0400d
+ 	VLD1R.P	(R1), [V9.B8]                                   // 29c0df0d
+ 	VLD1R.P	1(R1), [V2.B8]                                  // 22c0df0d
+ 	VLD1R.P	2(R1), [V2.H4]                                  // 22c4df0d
+ 	VLD1R	(R0), [V0.B16]                                  // 00c0404d
+ 	VLD1R.P	(R0), [V0.B16]                                  // 00c0df4d
+-	VLD1R.P	(R15)(R1), [V15.H4]                             // VLD1R.P	(R15)(R1*1), [V15.H4] // efc5c10d
++	VLD1R.P	(R15)(R1), [V15.H4]                             // efc5c10d
+ 	VLD2R	(R15), [V15.H4, V16.H4]                         // efc5600d
+ 	VLD2R.P	16(R0), [V0.D2, V1.D2]                          // 00ccff4d
+-	VLD2R.P	(R0)(R5), [V31.D1, V0.D1]                       // VLD2R.P	(R0)(R5*1), [V31.D1, V0.D1] // 1fcce50d
++	VLD2R.P	(R0)(R5), [V31.D1, V0.D1]                       // 1fcce50d
+ 	VLD3R	(RSP), [V31.S2, V0.S2, V1.S2]                   // ffeb400d
+ 	VLD3R.P	6(R15), [V15.H4, V16.H4, V17.H4]                // efe5df0d
+-	VLD3R.P	(R15)(R6), [V15.H8, V16.H8, V17.H8]             // VLD3R.P	(R15)(R6*1), [V15.H8, V16.H8, V17.H8] // efe5c64d
++	VLD3R.P	(R15)(R6), [V15.H8, V16.H8, V17.H8]             // efe5c64d
+ 	VLD4R	(R0), [V0.B8, V1.B8, V2.B8, V3.B8]              // 00e0600d
+ 	VLD4R.P	16(RSP), [V31.S4, V0.S4, V1.S4, V2.S4]          // ffebff4d
+-	VLD4R.P	(R15)(R9), [V15.H4, V16.H4, V17.H4, V18.H4]     // VLD4R.P	(R15)(R9*1), [V15.H4, V16.H4, V17.H4, V18.H4] // efe5e90d
++	VLD4R.P	(R15)(R9), [V15.H4, V16.H4, V17.H4, V18.H4]     // efe5e90d
+ 	VST1.P	[V24.S2], 8(R2)                                 // 58789f0c
+ 	VST1	[V29.S2, V30.S2], (R29)                         // bdab000c
+ 	VST1	[V14.H4, V15.H4, V16.H4], (R27)                 // 6e67000c
+@@ -439,17 +439,17 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ 	VST1.P	V4.H[7], 2(R0)                                  // 04589f4d
+ 	VST1.P	V4.S[3], 4(R0)                                  // 04909f4d
+ 	VST1.P	V4.D[1], 8(R0)                                  // 04849f4d
+-	VST1.P	V4.D[1], (R0)(R1)                               // VST1.P	V4.D[1], (R0)(R1*1) // 0484814d
++	VST1.P	V4.D[1], (R0)(R1)                               // 0484814d
+ 	VST1	V4.D[1], (R0)                                   // 0484004d
+ 	VST2	[V22.H8, V23.H8], (R23)                         // f686004c
+ 	VST2.P	[V14.H4, V15.H4], 16(R17)                       // 2e869f0c
+-	VST2.P	[V14.H4, V15.H4], (R3)(R17)                     // VST2.P	[V14.H4,V15.H4], (R3)(R17*1) // 6e84910c
++	VST2.P	[V14.H4, V15.H4], (R3)(R17)                     // 6e84910c
+ 	VST3	[V1.D2, V2.D2, V3.D2], (R11)                    // 614d004c
+ 	VST3.P	[V18.S4, V19.S4, V20.S4], 48(R25)               // 324b9f4c
+-	VST3.P	[V19.B8, V20.B8, V21.B8], (R3)(R7)              // VST3.P	[V19.B8, V20.B8, V21.B8], (R3)(R7*1) // 7340870c
++	VST3.P	[V19.B8, V20.B8, V21.B8], (R3)(R7)              // 7340870c
+ 	VST4	[V22.D2, V23.D2, V24.D2, V25.D2], (R3)          // 760c004c
+ 	VST4.P	[V14.D2, V15.D2, V16.D2, V17.D2], 64(R15)       // ee0d9f4c
+-	VST4.P	[V24.B8, V25.B8, V26.B8, V27.B8], (R3)(R23)     // VST4.P	[V24.B8, V25.B8, V26.B8, V27.B8], (R3)(R23*1) // 7800970c
++	VST4.P	[V24.B8, V25.B8, V26.B8, V27.B8], (R3)(R23)     // 7800970c
+ 
+ // pre/post-indexed
+ 	FMOVS.P	F20, 4(R0)                                      // 144400bc
+@@ -536,29 +536,29 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ 
+ // shifted or extended register offset.
+ 	MOVD	(R2)(R6.SXTW), R4               // 44c866f8
+-	MOVD	(R3)(R6), R5                    // MOVD	(R3)(R6*1), R5               // 656866f8
+-	MOVD	(R2)(R6), R4                    // MOVD	(R2)(R6*1), R4               // 446866f8
++	MOVD	(R3)(R6), R5                    // 656866f8
++	MOVD	(R2)(R6), R4                    // 446866f8
+ 	MOVWU	(R19)(R20<<2), R20              // 747a74b8
+ 	MOVD	(R2)(R6<<3), R4                 // 447866f8
+ 	MOVD	(R3)(R7.SXTX<<3), R8            // 68f867f8
+ 	MOVWU	(R5)(R4.UXTW), R10              // aa4864b8
+ 	MOVBU	(R3)(R9.UXTW), R8               // 68486938
+-	MOVBU	(R5)(R8), R10                   // MOVBU	(R5)(R8*1), R10      // aa686838
++	MOVBU	(R5)(R8), R10                   // aa686838
+ 	MOVHU	(R2)(R7.SXTW<<1), R11           // 4bd86778
+ 	MOVHU	(R1)(R2<<1), R5                 // 25786278
+ 	MOVB	(R9)(R3.UXTW), R6               // 2649a338
+-	MOVB	(R10)(R6), R15                  // MOVB	(R10)(R6*1), R15             // 4f69a638
++	MOVB	(R10)(R6), R15                  // 4f69a638
+ 	MOVB	(R29)(R30<<0), R14              // ae7bbe38
+-	MOVB	(R29)(R30), R14                 // MOVB	(R29)(R30*1), R14            // ae6bbe38
++	MOVB	(R29)(R30), R14                 // ae6bbe38
+ 	MOVH	(R5)(R7.SXTX<<1), R19           // b3f8a778
+ 	MOVH	(R8)(R4<<1), R10                // 0a79a478
+ 	MOVW	(R9)(R8.SXTW<<2), R19           // 33d9a8b8
+ 	MOVW	(R1)(R4.SXTX), R11              // 2be8a4b8
+ 	MOVW	(R1)(R4.SXTX), ZR               // 3fe8a4b8
+-	MOVW	(R2)(R5), R12                   // MOVW	(R2)(R5*1), R12               // 4c68a5b8
+-	FMOVS	(R2)(R6), F4                    // FMOVS	(R2)(R6*1), F4        // 446866bc
++	MOVW	(R2)(R5), R12                   // 4c68a5b8
++	FMOVS	(R2)(R6), F4                    // 446866bc
+ 	FMOVS	(R2)(R6<<2), F4                 // 447866bc
+-	FMOVD	(R2)(R6), F4                    // FMOVD	(R2)(R6*1), F4        // 446866fc
++	FMOVD	(R2)(R6), F4                    // 446866fc
+ 	FMOVD	(R2)(R6<<3), F4                 // 447866fc
+ 
+ 	MOVD	R5, (R2)(R6<<3)                 // 457826f8
+@@ -568,15 +568,15 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ 	MOVW	R7, (R3)(R4.SXTW)               // 67c824b8
+ 	MOVB	R4, (R2)(R6.SXTX)               // 44e82638
+ 	MOVB	R8, (R3)(R9.UXTW)               // 68482938
+-	MOVB	R10, (R5)(R8)                   // MOVB	R10, (R5)(R8*1)               // aa682838
++	MOVB	R10, (R5)(R8)                   // aa682838
+ 	MOVH	R11, (R2)(R7.SXTW<<1)           // 4bd82778
+ 	MOVH	R5, (R1)(R2<<1)                 // 25782278
+ 	MOVH	R7, (R2)(R5.SXTX<<1)            // 47f82578
+ 	MOVH	R8, (R3)(R6.UXTW)               // 68482678
+ 	MOVB	R4, (R2)(R6.SXTX)               // 44e82638
+-	FMOVS	F4, (R2)(R6)                    // FMOVS	F4, (R2)(R6*1)        // 446826bc
++	FMOVS	F4, (R2)(R6)                    // 446826bc
+ 	FMOVS	F4, (R2)(R6<<2)                 // 447826bc
+-	FMOVD	F4, (R2)(R6)                    // FMOVD	F4, (R2)(R6*1)        // 446826fc
++	FMOVD	F4, (R2)(R6)                    // 446826fc
+ 	FMOVD	F4, (R2)(R6<<3)                 // 447826fc
+ 
+ // vmov
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64enc.s b/src/cmd/asm/internal/asm/testdata/arm64enc.s
+index e802ee76f5..f71f7b0484 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64enc.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64enc.s
+@@ -188,7 +188,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
+    MOVBU 2916(R24), R3                        // 03936d39
+    MOVBU (R19)(R14<<0), R23                   // 777a6e38
+    MOVBU (R2)(R8.SXTX), R19                   // 53e86838
+-   MOVBU (R27)(R23), R14                      // MOVBU (R27)(R23*1), R14     // 6e6b7738
++   MOVBU (R27)(R23), R14                      // 6e6b7738
+    MOVHU.P 107(R14), R13                      // cdb54678
+    MOVHU.W 192(R3), R2                        // 620c4c78
+    MOVHU 6844(R4), R19                        // 93787579
+@@ -201,9 +201,9 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
+    MOVB 997(R9), R23                          // 37958f39
+    //TODO MOVBW (R2<<1)(R21), R15             // af7ae238
+    //TODO MOVBW (R26)(R0), R21                // 1568fa38
+-   MOVB (R5)(R15), R16                        // MOVB (R5)(R15*1), R16         // b068af38
++   MOVB (R5)(R15), R16                        // b068af38
+    MOVB (R19)(R26.SXTW), R19                  // 73caba38
+-   MOVB (R29)(R30), R14                       // MOVB (R29)(R30*1), R14        // ae6bbe38
++   MOVB (R29)(R30), R14                       // ae6bbe38
+    //TODO MOVHW.P 218(R22), R25               // d9a6cd78
+    MOVH.P 179(R23), R5                        // e5368b78
+    //TODO MOVHW.W 136(R2), R27                // 5b8cc878
+@@ -357,12 +357,12 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
+    MOVD R25, -137(R17)                        // 397217f8
+    MOVW R4, (R12)(R22.UXTW<<2)                // 845936b8
+    MOVD R27, (R5)(R15.UXTW<<3)                // bb582ff8
+-   MOVB R2, (R10)(R16)                        // MOVB R2, (R10)(R16*1)         // 42693038
+-   MOVB R2, (R29)(R26)                        // MOVB R2, (R29)(R26*1)         // a26b3a38
++   MOVB R2, (R10)(R16)                        // 42693038
++   MOVB R2, (R29)(R26)                        // a26b3a38
+    MOVH R11, -80(R23)                         // eb021b78
+    MOVH R11, (R27)(R14.SXTW<<1)               // 6bdb2e78
+-   MOVB R19, (R0)(R4)                         // MOVB R19, (R0)(R4*1)          // 13682438
+-   MOVB R1, (R6)(R4)                          // MOVB R1, (R6)(R4*1)           // c1682438
++   MOVB R19, (R0)(R4)                         // 13682438
++   MOVB R1, (R6)(R4)                          // c1682438
+    MOVH R3, (R11)(R13<<1)                     // 63792d78
+    //TODO STTR 55(R4), R29                    // 9d7803b8
+    //TODO STTR 124(R5), R25                   // b9c807f8
+@@ -679,23 +679,23 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
+    VLD1 (R24), [V18.D1, V19.D1, V20.D1]                        // 126f400c
+    VLD1 (R29), [V14.D1, V15.D1, V16.D1, V17.D1]                // ae2f400c
+    VLD1.P 16(R23), [V1.B16]                                    // e172df4c
+-   VLD1.P (R6)(R11), [V31.D1]                                  // VLD1.P (R6)(R11*1), [V31.D1]                 // df7ccb0c
++   VLD1.P (R6)(R11), [V31.D1]                                  // df7ccb0c
+    VLD1.P 16(R7), [V31.D1, V0.D1]                              // ffacdf0c
+-   VLD1.P (R19)(R4), [V24.B8, V25.B8]                          // VLD1.P (R19)(R4*1), [V24.B8, V25.B8]         // 78a2c40c
+-   VLD1.P (R20)(R8), [V7.H8, V8.H8, V9.H8]                     // VLD1.P (R20)(R8*1), [V7.H8, V8.H8, V9.H8]    // 8766c84c
++   VLD1.P (R19)(R4), [V24.B8, V25.B8]                          // 78a2c40c
++   VLD1.P (R20)(R8), [V7.H8, V8.H8, V9.H8]                     // 8766c84c
+    VLD1.P 32(R30), [V5.B8, V6.B8, V7.B8, V8.B8]                // c523df0c
+    VLD1 (R19), V14.B[15]                                       // 6e1e404d
+    VLD1 (R29), V0.H[1]                                         // a04b400d
+    VLD1 (R27), V2.S[0]                                         // 6283400d
+    VLD1 (R21), V5.D[1]                                         // a586404d
+    VLD1.P 1(R19), V10.B[14]                                    // 6a1adf4d
+-   VLD1.P (R3)(R14), V16.B[11]                                 // VLD1.P (R3)(R14*1), V16.B[11]                // 700cce4d
++   VLD1.P (R3)(R14), V16.B[11]                                 // 700cce4d
+    VLD1.P 2(R1), V28.H[2]                                      // 3c50df0d
+-   VLD1.P (R13)(R20), V9.H[2]                                  // VLD1.P (R13)(R20*1), V9.H[2]                 // a951d40d
++   VLD1.P (R13)(R20), V9.H[2]                                  // a951d40d
+    VLD1.P 4(R17), V1.S[3]                                      // 2192df4d
+-   VLD1.P (R14)(R2), V17.S[2]                                  // VLD1.P (R14)(R2*1), V17.S[2]                 // d181c24d
++   VLD1.P (R14)(R2), V17.S[2]                                  // d181c24d
+    VLD1.P 8(R5), V30.D[1]                                      // be84df4d
+-   VLD1.P (R27)(R13), V27.D[0]                                 // VLD1.P (R27)(R13*1), V27.D[0]                // 7b87cd0d
++   VLD1.P (R27)(R13), V27.D[0]                                 // 7b87cd0d
+    //TODO FMOVS.P -29(RSP), F8                                 // e8375ebc
+    //TODO FMOVS.W 71(R29), F28                                 // bc7f44bc
+    FMOVS 6160(R4), F23                                         // 971058bd
+@@ -732,25 +732,25 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
+    VSHL $7, V22.D2, V25.D2                                     // d956474f
+    VST1 [V14.H4, V15.H4, V16.H4], (R27)                        // 6e67000c
+    VST1 [V2.S4, V3.S4, V4.S4, V5.S4], (R14)                    // c229004c
+-   VST1.P [V25.S4], (R7)(R29)                                  // VST1.P [V25.S4], (R7)(R29*1)                          // f9789d4c
++   VST1.P [V25.S4], (R7)(R29)                                  // f9789d4c
+    VST1.P [V25.D2, V26.D2], 32(R7)                             // f9ac9f4c
+-   VST1.P [V14.D1, V15.D1], (R7)(R23)                          // VST1.P [V14.D1, V15.D1], (R7)(R23*1)                  // eeac970c
++   VST1.P [V14.D1, V15.D1], (R7)(R23)                          // eeac970c
+    VST1.P [V25.D2, V26.D2, V27.D2], 48(R27)                    // 796f9f4c
+-   VST1.P [V13.H8, V14.H8, V15.H8], (R3)(R14)                  // VST1.P [V13.H8, V14.H8, V15.H8], (R3)(R14*1)          // 6d648e4c
++   VST1.P [V13.H8, V14.H8, V15.H8], (R3)(R14)                  // 6d648e4c
+    VST1.P [V16.S4, V17.S4, V18.S4, V19.S4], 64(R6)             // d0289f4c
+-   VST1.P [V19.H4, V20.H4, V21.H4, V22.H4], (R4)(R16)          // VST1.P [V19.H4, V20.H4, V21.H4, V22.H4], (R4)(R16*1)  // 9324900c
++   VST1.P [V19.H4, V20.H4, V21.H4, V22.H4], (R4)(R16)          // 9324900c
+    VST1 V12.B[3], (R1)                                         // 2c0c000d
+    VST1 V12.B[3], (R1)                                         // 2c0c000d
+    VST1 V25.S[2], (R20)                                        // 9982004d
+    VST1 V9.D[1], (RSP)                                         // e987004d
+    VST1.P V30.B[6], 1(R3)                                      // 7e189f0d
+-   VST1.P V8.B[0], (R3)(R21)                                   // VST1.P V8.B[0], (R3)(R21*1)                          // 6800950d
++   VST1.P V8.B[0], (R3)(R21)                                   // 6800950d
+    VST1.P V15.H[5], 2(R10)                                     // 4f499f4d
+-   VST1.P V1.H[7], (R23)(R11)                                  // VST1.P V1.H[7], (R23)(R11*1)                         // e15a8b4d
++   VST1.P V1.H[7], (R23)(R11)                                  // e15a8b4d
+    VST1.P V26.S[0], 4(R11)                                     // 7a819f0d
+-   VST1.P V9.S[1], (R16)(R21)                                  // VST1.P V9.S[1], (R16)(R21*1)                         // 0992950d
++   VST1.P V9.S[1], (R16)(R21)                                  // 0992950d
+    VST1.P V16.D[0], 8(R9)                                      // 30859f0d
+-   VST1.P V23.D[1], (R21)(R16)                                 // VST1.P V23.D[1], (R21)(R16*1)                        // b786904d
++   VST1.P V23.D[1], (R21)(R16)                                 // b786904d
+    VSUB V1, V12, V23                                           // 9785e17e
+    VUADDLV V31.S4, V11                                         // eb3bb06e
+    UCVTFWS R11, F19                                            // 7301231e

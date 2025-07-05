@@ -21,9 +21,200 @@ Date:   Tue Jan 12 12:42:28 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/18590
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/float_test.go | 102 ++++++++++++++++++++++++++++++
  src/cmd/compile/internal/x86/ggen.go      |   8 +--
  src/cmd/compile/internal/x86/gsubr.go     |  13 ++--
  src/cmd/compile/internal/x86/prog.go      |   8 ++-
  4 files changed, 120 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/float_test.go b/src/cmd/compile/internal/gc/float_test.go
+new file mode 100644
+index 0000000000..c761e96b95
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/float_test.go
+@@ -0,0 +1,102 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gc
++
++import "testing"
++
++// For GO386=387, make sure fucomi* opcodes are not used
++// for comparison operations.
++// Note that this test will fail only on a Pentium MMX
++// processor (with GOARCH=386 GO386=387), as it just runs
++// some code and looks for an unimplemented instruction fault.
++
++//go:noinline
++func compare1(a, b float64) bool {
++	return a < b
++}
++
++//go:noinline
++func compare2(a, b float32) bool {
++	return a < b
++}
++
++func TestFloatCompare(t *testing.T) {
++	if !compare1(3, 5) {
++		t.Errorf("compare1 returned false")
++	}
++	if !compare2(3, 5) {
++		t.Errorf("compare2 returned false")
++	}
++}
++
++// For GO386=387, make sure fucomi* opcodes are not used
++// for float->int conversions.
++
++//go:noinline
++func cvt1(a float64) uint64 {
++	return uint64(a)
++}
++
++//go:noinline
++func cvt2(a float64) uint32 {
++	return uint32(a)
++}
++
++//go:noinline
++func cvt3(a float32) uint64 {
++	return uint64(a)
++}
++
++//go:noinline
++func cvt4(a float32) uint32 {
++	return uint32(a)
++}
++
++//go:noinline
++func cvt5(a float64) int64 {
++	return int64(a)
++}
++
++//go:noinline
++func cvt6(a float64) int32 {
++	return int32(a)
++}
++
++//go:noinline
++func cvt7(a float32) int64 {
++	return int64(a)
++}
++
++//go:noinline
++func cvt8(a float32) int32 {
++	return int32(a)
++}
++
++func TestFloatConvert(t *testing.T) {
++	if got := cvt1(3.5); got != 3 {
++		t.Errorf("cvt1 got %d, wanted 3", got)
++	}
++	if got := cvt2(3.5); got != 3 {
++		t.Errorf("cvt2 got %d, wanted 3", got)
++	}
++	if got := cvt3(3.5); got != 3 {
++		t.Errorf("cvt3 got %d, wanted 3", got)
++	}
++	if got := cvt4(3.5); got != 3 {
++		t.Errorf("cvt4 got %d, wanted 3", got)
++	}
++	if got := cvt5(3.5); got != 3 {
++		t.Errorf("cvt5 got %d, wanted 3", got)
++	}
++	if got := cvt6(3.5); got != 3 {
++		t.Errorf("cvt6 got %d, wanted 3", got)
++	}
++	if got := cvt7(3.5); got != 3 {
++		t.Errorf("cvt7 got %d, wanted 3", got)
++	}
++	if got := cvt8(3.5); got != 3 {
++		t.Errorf("cvt8 got %d, wanted 3", got)
++	}
++}
+diff --git a/src/cmd/compile/internal/x86/ggen.go b/src/cmd/compile/internal/x86/ggen.go
+index e559a9f5da..139b199b57 100644
+--- a/src/cmd/compile/internal/x86/ggen.go
++++ b/src/cmd/compile/internal/x86/ggen.go
+@@ -764,9 +764,7 @@ func bgen_float(n *gc.Node, wantTrue bool, likely int, to *obj.Prog) {
+ 				gc.Cgen(nr, &tmp)
+ 				gc.Cgen(nl, &tmp)
+ 			}
+-
+-			gins(x86.AFUCOMIP, &tmp, &n2)
+-			gins(x86.AFMOVDP, &tmp, &tmp) // annoying pop but still better than STSW+SAHF
++			gins(x86.AFUCOMPP, &tmp, &n2)
+ 		} else {
+ 			// TODO(rsc): The moves back and forth to memory
+ 			// here are for truncating the value to 32 bits.
+@@ -783,9 +781,9 @@ func bgen_float(n *gc.Node, wantTrue bool, likely int, to *obj.Prog) {
+ 			gc.Cgen(nl, &t2)
+ 			gmove(&t2, &tmp)
+ 			gins(x86.AFCOMFP, &t1, &tmp)
+-			gins(x86.AFSTSW, nil, &ax)
+-			gins(x86.ASAHF, nil, nil)
+ 		}
++		gins(x86.AFSTSW, nil, &ax)
++		gins(x86.ASAHF, nil, nil)
+ 	} else {
+ 		// Not 387
+ 		if !nl.Addable {
+diff --git a/src/cmd/compile/internal/x86/gsubr.go b/src/cmd/compile/internal/x86/gsubr.go
+index 03978578b7..98595716cf 100644
+--- a/src/cmd/compile/internal/x86/gsubr.go
++++ b/src/cmd/compile/internal/x86/gsubr.go
+@@ -1198,14 +1198,17 @@ func floatmove(f *gc.Node, t *gc.Node) {
+ 
+ 		// if 0 > v { answer = 0 }
+ 		gins(x86.AFMOVD, &zerof, &f0)
+-
+-		gins(x86.AFUCOMIP, &f0, &f1)
++		gins(x86.AFUCOMP, &f0, &f1)
++		gins(x86.AFSTSW, nil, &ax)
++		gins(x86.ASAHF, nil, nil)
+ 		p1 := gc.Gbranch(optoas(gc.OGT, gc.Types[tt]), nil, 0)
+ 
+ 		// if 1<<64 <= v { answer = 0 too }
+ 		gins(x86.AFMOVD, &two64f, &f0)
+ 
+-		gins(x86.AFUCOMIP, &f0, &f1)
++		gins(x86.AFUCOMP, &f0, &f1)
++		gins(x86.AFSTSW, nil, &ax)
++		gins(x86.ASAHF, nil, nil)
+ 		p2 := gc.Gbranch(optoas(gc.OGT, gc.Types[tt]), nil, 0)
+ 		gc.Patch(p1, gc.Pc)
+ 		gins(x86.AFMOVVP, &f0, t) // don't care about t, but will pop the stack
+@@ -1235,7 +1238,9 @@ func floatmove(f *gc.Node, t *gc.Node) {
+ 		// actual work
+ 		gins(x86.AFMOVD, &two63f, &f0)
+ 
+-		gins(x86.AFUCOMIP, &f0, &f1)
++		gins(x86.AFUCOMP, &f0, &f1)
++		gins(x86.AFSTSW, nil, &ax)
++		gins(x86.ASAHF, nil, nil)
+ 		p2 = gc.Gbranch(optoas(gc.OLE, gc.Types[tt]), nil, 0)
+ 		gins(x86.AFMOVVP, &f0, t)
+ 		p3 := gc.Gbranch(obj.AJMP, nil, 0)
+diff --git a/src/cmd/compile/internal/x86/prog.go b/src/cmd/compile/internal/x86/prog.go
+index 5ff7bb8e8c..22ee23db12 100644
+--- a/src/cmd/compile/internal/x86/prog.go
++++ b/src/cmd/compile/internal/x86/prog.go
+@@ -91,8 +91,12 @@ var progtable = [x86.ALAST]obj.ProgInfo{
+ 	x86.AFCOMDPP:   {Flags: gc.SizeD | gc.LeftAddr | gc.RightRead},
+ 	x86.AFCOMF:     {Flags: gc.SizeF | gc.LeftAddr | gc.RightRead},
+ 	x86.AFCOMFP:    {Flags: gc.SizeF | gc.LeftAddr | gc.RightRead},
+-	x86.AFUCOMIP:   {Flags: gc.SizeF | gc.LeftAddr | gc.RightRead},
+-	x86.AFCHS:      {Flags: gc.SizeD | RightRdwr}, // also SizeF
++	// NOTE(khr): don't use FUCOMI* instructions, not available
++	// on Pentium MMX.  See issue 13923.
++	//x86.AFUCOMIP:   {Flags: gc.SizeF | gc.LeftAddr | gc.RightRead},
++	x86.AFUCOMP:  {Flags: gc.SizeD | gc.LeftRead | gc.RightRead},
++	x86.AFUCOMPP: {Flags: gc.SizeD | gc.LeftRead | gc.RightRead},
++	x86.AFCHS:    {Flags: gc.SizeD | RightRdwr}, // also SizeF
+ 
+ 	x86.AFDIVDP:  {Flags: gc.SizeD | gc.LeftAddr | RightRdwr},
+ 	x86.AFDIVF:   {Flags: gc.SizeF | gc.LeftAddr | RightRdwr},

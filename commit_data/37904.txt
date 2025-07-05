@@ -14,6 +14,40 @@ Date:   Sat Sep 8 14:23:14 2018 +0000
     Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go | 15 +++++----------
  1 file changed, 5 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index ae6141dd12..2afb556d80 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -583,7 +583,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Reg = v.Args[0].Reg()
+ 		p.To.Type = obj.TYPE_CONST
+ 		p.To.Offset = v.AuxInt
+-	case ssa.OpAMD64BTLconst, ssa.OpAMD64BTQconst:
++	case ssa.OpAMD64BTLconst, ssa.OpAMD64BTQconst,
++		ssa.OpAMD64TESTQconst, ssa.OpAMD64TESTLconst, ssa.OpAMD64TESTWconst, ssa.OpAMD64TESTBconst,
++		ssa.OpAMD64BTSLconst, ssa.OpAMD64BTSQconst,
++		ssa.OpAMD64BTCLconst, ssa.OpAMD64BTCQconst,
++		ssa.OpAMD64BTRLconst, ssa.OpAMD64BTRQconst:
+ 		op := v.Op
+ 		if op == ssa.OpAMD64BTQconst && v.AuxInt < 32 {
+ 			// Emit 32-bit version because it's shorter
+@@ -594,15 +598,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Offset = v.AuxInt
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Args[0].Reg()
+-	case ssa.OpAMD64TESTQconst, ssa.OpAMD64TESTLconst, ssa.OpAMD64TESTWconst, ssa.OpAMD64TESTBconst,
+-		ssa.OpAMD64BTSLconst, ssa.OpAMD64BTSQconst,
+-		ssa.OpAMD64BTCLconst, ssa.OpAMD64BTCQconst,
+-		ssa.OpAMD64BTRLconst, ssa.OpAMD64BTRQconst:
+-		p := s.Prog(v.Op.Asm())
+-		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = v.AuxInt
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = v.Args[0].Reg()
+ 	case ssa.OpAMD64CMPQload, ssa.OpAMD64CMPLload, ssa.OpAMD64CMPWload, ssa.OpAMD64CMPBload:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_MEM

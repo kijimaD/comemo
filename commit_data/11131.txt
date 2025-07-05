@@ -9,6 +9,24 @@ Date:   Thu Jan 12 11:06:09 2012 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5541044
-
+---
  misc/dashboard/app/app.yaml | 9 +++++++--
  1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/misc/dashboard/app/app.yaml b/misc/dashboard/app/app.yaml
+index b7cc673a9b..685ca6e3d6 100644
+--- a/misc/dashboard/app/app.yaml
++++ b/misc/dashboard/app/app.yaml
+@@ -1,5 +1,10 @@
+-application: go-build
+-version: 1
++# Update with
++#	google_appengine/appcfg.py [-V test-build] update .
++#
++# Using -V test-build will run as test-build.golang.org.
++
++application: golang-org
++version: build
+ runtime: go
+ api_version: 3
+ 

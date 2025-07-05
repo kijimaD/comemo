@@ -10,6 +10,28 @@ Date:   Thu May 26 17:41:07 2022 -0700
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Rhys Hiltner <rhys@justin.tv>
-
+---
  doc/go1.19.html | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/doc/go1.19.html b/doc/go1.19.html
+index 76d4bc7eea..a83a916c72 100644
+--- a/doc/go1.19.html
++++ b/doc/go1.19.html
+@@ -331,6 +331,16 @@ Do not send CLs removing the interior tags from such phrases.
+   </dd>
+ </dl><!-- runtime/race -->
+ 
++<dl id="runtime/trace"><dt><a href="/pkg/runtime/trace/">runtime/trace</a></dt>
++  <dd>
++    <p><!-- CL 400795 -->
++      When used together with the
++      <a href="/pkg/runtime/pprof#StartCPUProfile">CPU profiler</a>, the
++      execution trace includes CPU profile samples.
++    </p>
++  </dd>
++</dl><!-- runtime/trace -->
++
+ <dl id="sort"><dt><a href="/pkg/sort/">sort</a></dt>
+   <dd>
+     <p><!-- CL 371574 -->

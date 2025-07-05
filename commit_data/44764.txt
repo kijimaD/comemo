@@ -14,6 +14,24 @@ Date:   Mon Jun 15 00:07:10 2020 +0800
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  doc/go1.14.html | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index 35a9f3c2f3..410e0cbf7c 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -609,6 +609,12 @@ Do not send CLs removing the interior tags from such phrases.
+       If a program needs to accept invalid numbers like the empty string,
+       consider wrapping the type with <a href="/pkg/encoding/json/#Unmarshaler"><code>Unmarshaler</code></a>.
+     </p>
++
++    <p><!-- CL 200237 -->
++      <a href="/pkg/encoding/json/#Unmarshal"><code>Unmarshal</code></a>
++      can now support map keys with string underlying type which implement
++      <a href="/pkg/encoding/#TextUnmarshaler"><code>encoding.TextUnmarshaler</code></a>.
++    </p>
+   </dd>
+ </dl><!-- encoding/json -->
+ 

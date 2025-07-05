@@ -30,6 +30,27 @@ Date:   Thu Sep 18 20:35:36 2014 -0400
     TBR=brainman
     CC=golang-codereviews
     https://golang.org/cl/143300043
-
+---
  src/runtime/traceback.go | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 9e95fa33d5..a93c42186b 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -499,7 +499,14 @@ func showframe(f *_func, gp *g) bool {
+ 		return true
+ 	}
+ 
+-	return traceback > 1 || f != nil && contains(name, ".") && !hasprefix(name, "runtime.")
++	return traceback > 1 || f != nil && contains(name, ".") && (!hasprefix(name, "runtime.") || isExportedRuntime(name))
++}
++
++// isExportedRuntime reports whether name is an exported runtime function.
++// It is only for runtime functions, so ASCII A-Z is fine.
++func isExportedRuntime(name string) bool {
++	const n = len("runtime.")
++	return len(name) > n && name[:n] == "runtime." && 'A' <= name[n] && name[n] <= 'Z'
+ }
+ 
+ var gStatusStrings = [...]string{

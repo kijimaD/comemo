@@ -7,7 +7,43 @@ Date:   Tue Oct 18 14:55:28 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5299043
-
+---
  src/cmd/5g/gsubr.c | 4 ++--
  src/cmd/6g/gobj.c  | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 29793abf01..f287214533 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -356,7 +356,7 @@ regalloc(Node *n, Type *t, Node *o)
+ {
+ 	int i, et, fixfree, floatfree;
+ 
+-	if(debug['r']) {
++	if(0 && debug['r']) {
+ 		fixfree = 0;
+ 		for(i=REGALLOC_R0; i<=REGALLOC_RMAX; i++)
+ 			if(reg[i] == 0)
+@@ -429,7 +429,7 @@ regfree(Node *n)
+ {
+ 	int i, fixfree, floatfree;
+ 
+-	if(debug['r']) {
++	if(0 && debug['r']) {
+ 		fixfree = 0;
+ 		for(i=REGALLOC_R0; i<=REGALLOC_RMAX; i++)
+ 			if(reg[i] == 0)
+diff --git a/src/cmd/6g/gobj.c b/src/cmd/6g/gobj.c
+index dfb5e224af..80de2f750b 100644
+--- a/src/cmd/6g/gobj.c
++++ b/src/cmd/6g/gobj.c
+@@ -506,7 +506,7 @@ genembedtramp(Type *rcvr, Type *method, Sym *newnam, int iface)
+ 	
+ 	USED(iface);
+ 
+-	if(debug['r'])
++	if(0 && debug['r'])
+ 		print("genembedtramp %T %T %S\n", rcvr, method, newnam);
+ 
+ 	e = method->sym;

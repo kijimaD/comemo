@@ -9,7 +9,43 @@ Date:   Fri May 4 19:10:27 2018 +0200
     Change-Id: I081d4c2265c576d61833bdf31ef8e388588053d3
     Reviewed-on: https://go-review.googlesource.com/111555
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/vendor/golang_org/x/net/internal/nettest/helper_stub.go | 2 +-
  src/vendor/golang_org/x/net/internal/nettest/stack.go       | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/vendor/golang_org/x/net/internal/nettest/helper_stub.go b/src/vendor/golang_org/x/net/internal/nettest/helper_stub.go
+index ea61b6f399..d729156de6 100644
+--- a/src/vendor/golang_org/x/net/internal/nettest/helper_stub.go
++++ b/src/vendor/golang_org/x/net/internal/nettest/helper_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build nacl plan9
++// +build js,wasm nacl plan9
+ 
+ package nettest
+ 
+diff --git a/src/vendor/golang_org/x/net/internal/nettest/stack.go b/src/vendor/golang_org/x/net/internal/nettest/stack.go
+index 06f4e09ef8..46d2fccab5 100644
+--- a/src/vendor/golang_org/x/net/internal/nettest/stack.go
++++ b/src/vendor/golang_org/x/net/internal/nettest/stack.go
+@@ -64,7 +64,7 @@ func TestableNetwork(network string) bool {
+ 	switch network {
+ 	case "unix", "unixgram":
+ 		switch runtime.GOOS {
+-		case "android", "nacl", "plan9", "windows":
++		case "android", "js", "nacl", "plan9", "windows":
+ 			return false
+ 		}
+ 		if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+@@ -72,7 +72,7 @@ func TestableNetwork(network string) bool {
+ 		}
+ 	case "unixpacket":
+ 		switch runtime.GOOS {
+-		case "android", "darwin", "freebsd", "nacl", "plan9", "windows":
++		case "android", "darwin", "freebsd", "js", "nacl", "plan9", "windows":
+ 			return false
+ 		case "netbsd":
+ 			// It passes on amd64 at least. 386 fails (Issue 22927). arm is unknown.

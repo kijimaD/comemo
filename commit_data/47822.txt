@@ -16,7 +16,72 @@ Date:   Mon Apr 12 14:50:57 2021 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go              | 11 ++++++++---
  src/cmd/go/internal/modcmd/edit.go | 11 ++++++++---
  2 files changed, 16 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index a713428bc2..66e78bb1ac 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1134,12 +1134,12 @@
+ // writing it back to go.mod. The JSON output corresponds to these Go types:
+ //
+ // 	type Module struct {
+-// 		Path string
+-// 		Deprecated string
++// 		Path    string
++// 		Version string
+ // 	}
+ //
+ // 	type GoMod struct {
+-// 		Module  Module
++// 		Module  ModPath
+ // 		Go      string
+ // 		Require []Require
+ // 		Exclude []Module
+@@ -1147,6 +1147,11 @@
+ // 		Retract []Retract
+ // 	}
+ //
++// 	type ModPath struct {
++// 		Path       string
++// 		Deprecated string
++// 	}
++//
+ // 	type Require struct {
+ // 		Path string
+ // 		Version string
+diff --git a/src/cmd/go/internal/modcmd/edit.go b/src/cmd/go/internal/modcmd/edit.go
+index e1ec088f55..79a93ca44b 100644
+--- a/src/cmd/go/internal/modcmd/edit.go
++++ b/src/cmd/go/internal/modcmd/edit.go
+@@ -85,12 +85,12 @@ The -json flag prints the final go.mod file in JSON format instead of
+ writing it back to go.mod. The JSON output corresponds to these Go types:
+ 
+ 	type Module struct {
+-		Path string
+-		Deprecated string
++		Path    string
++		Version string
+ 	}
+ 
+ 	type GoMod struct {
+-		Module  Module
++		Module  ModPath
+ 		Go      string
+ 		Require []Require
+ 		Exclude []Module
+@@ -98,6 +98,11 @@ writing it back to go.mod. The JSON output corresponds to these Go types:
+ 		Retract []Retract
+ 	}
+ 
++	type ModPath struct {
++		Path       string
++		Deprecated string
++	}
++
+ 	type Require struct {
+ 		Path string
+ 		Version string

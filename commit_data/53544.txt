@@ -15,8 +15,78 @@ Date:   Thu Aug 18 17:25:58 2022 -0700
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/go/parser/parser.go              |  6 +++---
  src/go/parser/short_test.go          | 10 +++++-----
  src/go/types/testdata/check/expr3.go |  8 ++++----
  3 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index d405ade6a5..2883ea1d3e 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -1511,14 +1511,14 @@ func (p *parser) parseIndexOrSliceOrInstance(x ast.Expr) ast.Expr {
+ 		slice3 := false
+ 		if ncolons == 2 {
+ 			slice3 = true
+-			// Check presence of 2nd and 3rd index here rather than during type-checking
++			// Check presence of middle and final index here rather than during type-checking
+ 			// to prevent erroneous programs from passing through gofmt (was issue 7305).
+ 			if index[1] == nil {
+-				p.error(colons[0], "2nd index required in 3-index slice")
++				p.error(colons[0], "middle index required in 3-index slice")
+ 				index[1] = &ast.BadExpr{From: colons[0] + 1, To: colons[1]}
+ 			}
+ 			if index[2] == nil {
+-				p.error(colons[1], "3rd index required in 3-index slice")
++				p.error(colons[1], "final index required in 3-index slice")
+ 				index[2] = &ast.BadExpr{From: colons[1] + 1, To: rbrack}
+ 			}
+ 		}
+diff --git a/src/go/parser/short_test.go b/src/go/parser/short_test.go
+index 4d1da11706..88d93d67d6 100644
+--- a/src/go/parser/short_test.go
++++ b/src/go/parser/short_test.go
+@@ -160,11 +160,11 @@ var invalids = []string{
+ 	`package p; func f() { _ = x = /* ERROR "expected '=='" */ 0 {}};`,
+ 	`package p; func f() { _ = 1 == func()int { var x bool; x = x = /* ERROR "expected '=='" */ true; return x }() };`,
+ 	`package p; func f() { var s []int; _ = s[] /* ERROR "expected operand" */ };`,
+-	`package p; func f() { var s []int; _ = s[i:j: /* ERROR "3rd index required" */ ] };`,
+-	`package p; func f() { var s []int; _ = s[i: /* ERROR "2nd index required" */ :k] };`,
+-	`package p; func f() { var s []int; _ = s[i: /* ERROR "2nd index required" */ :] };`,
+-	`package p; func f() { var s []int; _ = s[: /* ERROR "2nd index required" */ :] };`,
+-	`package p; func f() { var s []int; _ = s[: /* ERROR "2nd index required" */ ::] };`,
++	`package p; func f() { var s []int; _ = s[i:j: /* ERROR "final index required" */ ] };`,
++	`package p; func f() { var s []int; _ = s[i: /* ERROR "middle index required" */ :k] };`,
++	`package p; func f() { var s []int; _ = s[i: /* ERROR "middle index required" */ :] };`,
++	`package p; func f() { var s []int; _ = s[: /* ERROR "middle index required" */ :] };`,
++	`package p; func f() { var s []int; _ = s[: /* ERROR "middle index required" */ ::] };`,
+ 	`package p; func f() { var s []int; _ = s[i:j:k: /* ERROR "expected ']'" */ l] };`,
+ 	`package p; func f() { for x /* ERROR "boolean or range expression" */ = []string {} }`,
+ 	`package p; func f() { for x /* ERROR "boolean or range expression" */ := []string {} }`,
+diff --git a/src/go/types/testdata/check/expr3.go b/src/go/types/testdata/check/expr3.go
+index b8f96dc611..ba6c7dd314 100644
+--- a/src/go/types/testdata/check/expr3.go
++++ b/src/go/types/testdata/check/expr3.go
+@@ -19,9 +19,9 @@ func indexes() {
+ 	_ = a[- /* ERROR "negative" */ 1]
+ 	_ = a[- /* ERROR "negative" */ 1 :]
+ 	_ = a[: - /* ERROR "negative" */ 1]
+-	_ = a[: /* ERROR "2nd index required" */ : /* ERROR "3rd index required" */ ]
+-	_ = a[0: /* ERROR "2nd index required" */ : /* ERROR "3rd index required" */ ]
+-	_ = a[0: /* ERROR "2nd index required" */ :10]
++	_ = a[: /* ERROR "middle index required" */ : /* ERROR "final index required" */ ]
++	_ = a[0: /* ERROR "middle index required" */ : /* ERROR "final index required" */ ]
++	_ = a[0: /* ERROR "middle index required" */ :10]
+ 	_ = a[:10:10]
+ 
+ 	var a0 int
+@@ -87,7 +87,7 @@ func indexes() {
+ 	_ = s[: 1 /* ERROR "overflows" */ <<100]
+ 	_ = s[1 /* ERROR "overflows" */ <<100 :]
+ 	_ = s[1 /* ERROR "overflows" */ <<100 : 1 /* ERROR "overflows" */ <<100]
+-	_ = s[: /* ERROR "2nd index required" */ :  /* ERROR "3rd index required" */ ]
++	_ = s[: /* ERROR "middle index required" */ :  /* ERROR "final index required" */ ]
+ 	_ = s[:10:10]
+ 	_ = s[10:0 /* ERROR "invalid slice indices" */ :10]
+ 	_ = s[0:10:0 /* ERROR "invalid slice indices" */ ]

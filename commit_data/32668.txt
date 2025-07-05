@@ -38,10 +38,141 @@ Date:   Fri May 5 15:22:59 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/closure.go   |  3 +++
  src/cmd/compile/internal/gc/main.go      | 21 ++++++++++++---------
  src/cmd/compile/internal/gc/pgen.go      |  2 +-
  src/cmd/compile/internal/gc/typecheck.go |  9 +++++++--
  test/fixedbugs/issue20250.go             | 24 ++++++++++++++++++++++++
  5 files changed, 47 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 50d679ea97..04f3e669e2 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -243,6 +243,9 @@ func makeclosure(func_ *Node) *Node {
+ 	return xfunc
+ }
+ 
++// capturevarscomplete is set to true when the capturevars phase is done.
++var capturevarscomplete bool
++
+ // capturevars is called in a separate phase after all typechecking is done.
+ // It decides whether each variable captured by a closure should be captured
+ // by value or by reference.
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index f67822e613..a2472fa08b 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -33,15 +33,16 @@ var (
+ )
+ 
+ var (
+-	Debug_append   int
+-	Debug_asm      bool
+-	Debug_closure  int
+-	debug_dclstack int
+-	Debug_panic    int
+-	Debug_slice    int
+-	Debug_vlog     bool
+-	Debug_wb       int
+-	Debug_pctab    string
++	Debug_append       int
++	Debug_asm          bool
++	Debug_closure      int
++	Debug_compilelater int
++	debug_dclstack     int
++	Debug_panic        int
++	Debug_slice        int
++	Debug_vlog         bool
++	Debug_wb           int
++	Debug_pctab        string
+ )
+ 
+ // Debug arguments.
+@@ -56,6 +57,7 @@ var debugtab = []struct {
+ }{
+ 	{"append", "print information about append compilation", &Debug_append},
+ 	{"closure", "print information about closure compilation", &Debug_closure},
++	{"compilelater", "compile functions as late as possible", &Debug_compilelater},
+ 	{"disablenil", "disable nil checks", &disable_checknil},
+ 	{"dclstack", "run internal dclstack check", &debug_dclstack},
+ 	{"gcprog", "print dump of GC programs", &Debug_gcprog},
+@@ -493,6 +495,7 @@ func Main(archInit func(*Arch)) {
+ 			capturevars(n)
+ 		}
+ 	}
++	capturevarscomplete = true
+ 
+ 	Curfn = nil
+ 
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 91cd1e35d7..fdf3bf7847 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -226,7 +226,7 @@ func compile(fn *Node) {
+ // they are enqueued in compilequeue,
+ // which is drained by compileFunctions.
+ func compilenow() bool {
+-	return nBackendWorkers == 1
++	return nBackendWorkers == 1 && Debug_compilelater == 0
+ }
+ 
+ // compileSSA builds an SSA backend function,
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 5e92e926e3..b02bc659be 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -815,7 +815,11 @@ OpSwitch:
+ 		var l *Node
+ 		for l = n.Left; l != r; l = l.Left {
+ 			l.SetAddrtaken(true)
+-			if l.IsClosureVar() {
++			if l.IsClosureVar() && !capturevarscomplete {
++				// Mark the original variable as Addrtaken so that capturevars
++				// knows not to pass it by value.
++				// But if the capturevars phase is complete, don't touch it,
++				// in case l.Name's containing function has not yet been compiled.
+ 				l.Name.Defn.SetAddrtaken(true)
+ 			}
+ 		}
+@@ -824,7 +828,8 @@ OpSwitch:
+ 			Fatalf("found non-orig name node %v", l)
+ 		}
+ 		l.SetAddrtaken(true)
+-		if l.IsClosureVar() {
++		if l.IsClosureVar() && !capturevarscomplete {
++			// See comments above about closure variables.
+ 			l.Name.Defn.SetAddrtaken(true)
+ 		}
+ 		n.Left = defaultlit(n.Left, nil)
+diff --git a/test/fixedbugs/issue20250.go b/test/fixedbugs/issue20250.go
+new file mode 100644
+index 0000000000..f24710a0c3
+--- /dev/null
++++ b/test/fixedbugs/issue20250.go
+@@ -0,0 +1,24 @@
++// errorcheck -0 -live -d=compilelater
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 20250: liveness differed with concurrent compilation
++// due to propagation of addrtaken to outer variables for
++// closure variables.
++
++package p
++
++type T struct {
++	s string
++}
++
++func f(a T) { // ERROR "live at entry to f: a"
++	var e interface{}
++	func() { // ERROR "live at entry to f.func1: &e a"
++		e = a.s // ERROR "live at call to convT2Estring: &e a" "live at call to writebarrierptr: a"
++	}() // ERROR "live at call to f.func1: e$"
++	// Before the fix, both a and e were live at the previous line.
++	_ = e
++}

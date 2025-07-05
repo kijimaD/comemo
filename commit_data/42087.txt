@@ -17,8 +17,96 @@ Date:   Wed Sep 18 15:15:59 2019 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/malloc.go   |  2 +-
  src/runtime/mcentral.go |  2 +-
  src/runtime/mheap.go    | 21 ++++++++++-----------
  3 files changed, 12 insertions(+), 13 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 3e86f9f64d..39c5fa2a25 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1149,7 +1149,7 @@ func largeAlloc(size uintptr, needzero bool, noscan bool) *mspan {
+ 	// pays the debt down to npage pages.
+ 	deductSweepCredit(npages*_PageSize, npages)
+ 
+-	s := mheap_.alloc(npages, makeSpanClass(0, noscan), true, needzero)
++	s := mheap_.alloc(npages, makeSpanClass(0, noscan), needzero)
+ 	if s == nil {
+ 		throw("out of memory")
+ 	}
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index 2f97b7d094..78a3ae6ac1 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -252,7 +252,7 @@ func (c *mcentral) grow() *mspan {
+ 	npages := uintptr(class_to_allocnpages[c.spanclass.sizeclass()])
+ 	size := uintptr(class_to_size[c.spanclass.sizeclass()])
+ 
+-	s := mheap_.alloc(npages, c.spanclass, false, true)
++	s := mheap_.alloc(npages, c.spanclass, true)
+ 	if s == nil {
+ 		return nil
+ 	}
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 726d93dcb9..72702534d9 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -854,7 +854,7 @@ func (h *mheap) reclaimChunk(arenas []arenaIdx, pageIdx, n uintptr) uintptr {
+ // any stack growth during alloc_m would self-deadlock.
+ //
+ //go:systemstack
+-func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
++func (h *mheap) alloc_m(npage uintptr, spanclass spanClass) *mspan {
+ 	_g_ := getg()
+ 
+ 	// To prevent excessive heap growth, before allocating n pages
+@@ -901,6 +901,11 @@ func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
+ 			s.divMul = 0
+ 			s.divShift2 = 0
+ 			s.baseMask = 0
++
++			// Update additional stats.
++			mheap_.largealloc += uint64(s.elemsize)
++			mheap_.nlargealloc++
++			atomic.Xadd64(&memstats.heap_live, int64(npage<<_PageShift))
+ 		} else {
+ 			m := &class_to_divmagic[sizeclass]
+ 			s.divShift = m.shift
+@@ -932,13 +937,8 @@ func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
+ 		arena, pageIdx, pageMask := pageIndexOf(s.base())
+ 		arena.pageInUse[pageIdx] |= pageMask
+ 
+-		// update stats, sweep lists
++		// Update related page sweeper stats.
+ 		h.pagesInUse += uint64(npage)
+-		if large {
+-			mheap_.largealloc += uint64(s.elemsize)
+-			mheap_.nlargealloc++
+-			atomic.Xadd64(&memstats.heap_live, int64(npage<<_PageShift))
+-		}
+ 	}
+ 	// heap_scan and heap_live were updated.
+ 	if gcBlackenEnabled != 0 {
+@@ -964,17 +964,16 @@ func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
+ 
+ // alloc allocates a new span of npage pages from the GC'd heap.
+ //
+-// Either large must be true or spanclass must indicates the span's
+-// size class and scannability.
++// spanclass indicates the span's size class and scannability.
+ //
+ // If needzero is true, the memory for the returned span will be zeroed.
+-func (h *mheap) alloc(npage uintptr, spanclass spanClass, large bool, needzero bool) *mspan {
++func (h *mheap) alloc(npage uintptr, spanclass spanClass, needzero bool) *mspan {
+ 	// Don't do any operations that lock the heap on the G stack.
+ 	// It might trigger stack growth, and the stack growth code needs
+ 	// to be able to allocate heap.
+ 	var s *mspan
+ 	systemstack(func() {
+-		s = h.alloc_m(npage, spanclass, large)
++		s = h.alloc_m(npage, spanclass)
+ 	})
+ 
+ 	if s != nil {

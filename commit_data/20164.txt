@@ -12,6 +12,20 @@ Date:   Fri Aug 22 09:10:33 2014 +1000
     R=golang-codereviews, r
     CC=golang-codereviews
     https://golang.org/cl/127440043
-
+---
  src/cmd/ld/pcln.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/pcln.c b/src/cmd/ld/pcln.c
+index 4c2ffa78e1..17f4f992fc 100644
+--- a/src/cmd/ld/pcln.c
++++ b/src/cmd/ld/pcln.c
+@@ -90,7 +90,7 @@ renumberfiles(Link *ctxt, LSym **files, int nfiles, Pcdata *d)
+ 		}
+ 		dv = val - newval;
+ 		newval = val;
+-		v = (uint32)(dv<<1) ^ (uint32)(int32)(dv>>31);
++		v = ((uint32)dv<<1) ^ (uint32)(int32)(dv>>31);
+ 		addvarint(&out, v);
+ 
+ 		// pc delta

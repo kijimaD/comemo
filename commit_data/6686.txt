@@ -7,6 +7,34 @@ Date:   Mon Nov 1 15:06:34 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2770044
-
+---
  src/pkg/go/ast/walk.go | 19 +++++++++++++++++++
  1 file changed, 19 insertions(+)
+
+diff --git a/src/pkg/go/ast/walk.go b/src/pkg/go/ast/walk.go
+index 6c9837a01d..296da5652d 100644
+--- a/src/pkg/go/ast/walk.go
++++ b/src/pkg/go/ast/walk.go
+@@ -321,3 +321,22 @@ func Walk(v Visitor, node interface{}) {
+ 
+ 	v.Visit(nil)
+ }
++
++
++type inspector func(node interface{}) bool
++
++func (f inspector) Visit(node interface{}) Visitor {
++	if node != nil && f(node) {
++		return f
++	}
++	return nil
++}
++
++
++// Inspect traverses an AST in depth-first order: If node != nil, it
++// invokes f(node). If f returns true, inspect invokes f for all the
++// non-nil children of node, recursively.
++//
++func Inspect(ast interface{}, f func(node interface{}) bool) {
++	Walk(inspector(f), ast)
++}

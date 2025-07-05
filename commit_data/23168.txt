@@ -12,8 +12,166 @@ Date:   Mon Apr 27 18:55:21 2015 -0700
     Change-Id: I95a11bf3bb3eeeeb72775b6ebfbc761641addc35
     Reviewed-on: https://go-review.googlesource.com/9410
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/net/http/client.go   | 33 ++++++++++++++++++++++++++-------
  src/net/http/request.go  | 14 +++++++++++---
  src/net/http/response.go |  8 +++++---
  3 files changed, 42 insertions(+), 13 deletions(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index 88d444eca2..1c5e1911e0 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -257,8 +257,9 @@ func shouldRedirectPost(statusCode int) bool {
+ 	return false
+ }
+ 
+-// Get issues a GET to the specified URL.  If the response is one of the following
+-// redirect codes, Get follows the redirect, up to a maximum of 10 redirects:
++// Get issues a GET to the specified URL. If the response is one of
++// the following redirect codes, Get follows the redirect, up to a
++// maximum of 10 redirects:
+ //
+ //    301 (Moved Permanently)
+ //    302 (Found)
+@@ -273,11 +274,14 @@ func shouldRedirectPost(statusCode int) bool {
+ // Caller should close resp.Body when done reading from it.
+ //
+ // Get is a wrapper around DefaultClient.Get.
++//
++// To make a request with custom headers, use NewRequest and
++// DefaultClient.Do.
+ func Get(url string) (resp *Response, err error) {
+ 	return DefaultClient.Get(url)
+ }
+ 
+-// Get issues a GET to the specified URL.  If the response is one of the
++// Get issues a GET to the specified URL. If the response is one of the
+ // following redirect codes, Get follows the redirect after calling the
+ // Client's CheckRedirect function.
+ //
+@@ -292,6 +296,8 @@ func Get(url string) (resp *Response, err error) {
+ //
+ // When err is nil, resp always contains a non-nil resp.Body.
+ // Caller should close resp.Body when done reading from it.
++//
++// To make a request with custom headers, use NewRequest and Client.Do.
+ func (c *Client) Get(url string) (resp *Response, err error) {
+ 	req, err := NewRequest("GET", url, nil)
+ 	if err != nil {
+@@ -438,7 +444,12 @@ func defaultCheckRedirect(req *Request, via []*Request) error {
+ //
+ // Caller should close resp.Body when done reading from it.
+ //
+-// Post is a wrapper around DefaultClient.Post
++// If the provided body is an io.Closer, it is closed after the
++// request.
++//
++// Post is a wrapper around DefaultClient.Post.
++//
++// To set custom headers, use NewRequest and DefaultClient.Do.
+ func Post(url string, bodyType string, body io.Reader) (resp *Response, err error) {
+ 	return DefaultClient.Post(url, bodyType, body)
+ }
+@@ -447,8 +458,10 @@ func Post(url string, bodyType string, body io.Reader) (resp *Response, err erro
+ //
+ // Caller should close resp.Body when done reading from it.
+ //
+-// If the provided body is also an io.Closer, it is closed after the
++// If the provided body is an io.Closer, it is closed after the
+ // request.
++//
++// To set custom headers, use NewRequest and Client.Do.
+ func (c *Client) Post(url string, bodyType string, body io.Reader) (resp *Response, err error) {
+ 	req, err := NewRequest("POST", url, body)
+ 	if err != nil {
+@@ -461,16 +474,22 @@ func (c *Client) Post(url string, bodyType string, body io.Reader) (resp *Respon
+ // PostForm issues a POST to the specified URL, with data's keys and
+ // values URL-encoded as the request body.
+ //
++// The Content-Type header is set to application/x-www-form-urlencoded.
++// To set other headers, use NewRequest and DefaultClient.Do.
++//
+ // When err is nil, resp always contains a non-nil resp.Body.
+ // Caller should close resp.Body when done reading from it.
+ //
+-// PostForm is a wrapper around DefaultClient.PostForm
++// PostForm is a wrapper around DefaultClient.PostForm.
+ func PostForm(url string, data url.Values) (resp *Response, err error) {
+ 	return DefaultClient.PostForm(url, data)
+ }
+ 
+ // PostForm issues a POST to the specified URL,
+-// with data's keys and values urlencoded as the request body.
++// with data's keys and values URL-encoded as the request body.
++//
++// The Content-Type header is set to application/x-www-form-urlencoded.
++// To set other headers, use NewRequest and DefaultClient.Do.
+ //
+ // When err is nil, resp always contains a non-nil resp.Body.
+ // Caller should close resp.Body when done reading from it.
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index a4e515c790..43d9de378a 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -169,8 +169,9 @@ type Request struct {
+ 	// The HTTP client ignores Form and uses Body instead.
+ 	Form url.Values
+ 
+-	// PostForm contains the parsed form data from POST or PUT
+-	// body parameters.
++	// PostForm contains the parsed form data from POST, PATCH,
++	// or PUT body parameters.
++	//
+ 	// This field is only available after ParseForm is called.
+ 	// The HTTP client ignores PostForm and uses Body instead.
+ 	PostForm url.Values
+@@ -506,6 +507,13 @@ func ParseHTTPVersion(vers string) (major, minor int, ok bool) {
+ // If the provided body is also an io.Closer, the returned
+ // Request.Body is set to body and will be closed by the Client
+ // methods Do, Post, and PostForm, and Transport.RoundTrip.
++//
++// NewRequest returns a Request suitable for use with Client.Do or
++// Transport.RoundTrip.
++// To create a request for use with testing a Server Handler use either
++// ReadRequest or manually update the Request fields. See the Request
++// type's documentation for the difference between inbound and outbound
++// request fields.
+ func NewRequest(method, urlStr string, body io.Reader) (*Request, error) {
+ 	u, err := url.Parse(urlStr)
+ 	if err != nil {
+@@ -605,7 +613,7 @@ func putTextprotoReader(r *textproto.Reader) {
+ 	textprotoReaderPool.Put(r)
+ }
+ 
+-// ReadRequest reads and parses a request from b.
++// ReadRequest reads and parses an incoming request from b.
+ func ReadRequest(b *bufio.Reader) (req *Request, err error) {
+ 
+ 	tp := newTextprotoReader(b)
+diff --git a/src/net/http/response.go b/src/net/http/response.go
+index cfe695ce5c..4afecda130 100644
+--- a/src/net/http/response.go
++++ b/src/net/http/response.go
+@@ -189,8 +189,10 @@ func (r *Response) ProtoAtLeast(major, minor int) bool {
+ 		r.ProtoMajor == major && r.ProtoMinor >= minor
+ }
+ 
+-// Writes the response (header, body and trailer) in wire format. This method
+-// consults the following fields of the response:
++// Write writes r to w in the HTTP/1.n server response format,
++// including the status line, headers, body, and optional trailer.
++//
++// This method consults the following fields of the response r:
+ //
+ //  StatusCode
+ //  ProtoMajor
+@@ -202,7 +204,7 @@ func (r *Response) ProtoAtLeast(major, minor int) bool {
+ //  ContentLength
+ //  Header, values for non-canonical keys will have unpredictable behavior
+ //
+-// Body is closed after it is sent.
++// The Response Body is closed after it is sent.
+ func (r *Response) Write(w io.Writer) error {
+ 	// Status line
+ 	text := r.Status

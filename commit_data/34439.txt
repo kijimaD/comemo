@@ -20,6 +20,20 @@ Date:   Tue Oct 17 15:10:59 2017 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-on: https://go-review.googlesource.com/71530
-
+---
  src/cmd/go/go_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 234e560e6b..04df14fca9 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2847,7 +2847,7 @@ func TestImportMain(t *testing.T) {
+ 		func TestFoo(t *testing.T) {}
+ 	`)
+ 	tg.setenv("GOPATH", tg.path("."))
+-	tg.creatingTemp("x")
++	tg.creatingTemp("x" + exeSuffix)
+ 	tg.run("build", "x")
+ 	tg.run("test", "x")
+ 

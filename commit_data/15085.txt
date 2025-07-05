@@ -12,9 +12,94 @@ Date:   Fri Feb 1 11:24:49 2013 -0800
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/7248048
-
+---
  src/cmd/ld/data.c        | 4 +---
  src/pkg/runtime/mgc0.c   | 2 +-
  src/pkg/runtime/mgc0.h   | 3 ++-
  src/pkg/runtime/symtab.c | 3 ++-
  4 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index e557881e94..99385fdcc2 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -748,7 +748,6 @@ setuint64(Sym *s, vlong r, uint64 v)
+ 	setuintxx(s, r, v, 8);
+ }
+ 
+-/*
+ static vlong
+ addaddrpcrelplus(Sym *s, Sym *t, int32 add)
+ {
+@@ -769,7 +768,6 @@ addaddrpcrelplus(Sym *s, Sym *t, int32 add)
+ 	r->add = add;
+ 	return i;
+ }
+-*/
+ 
+ vlong
+ addaddrplus(Sym *s, Sym *t, int32 add)
+@@ -951,7 +949,7 @@ gcaddsym(Sym *gc, Sym *s, int32 off)
+ 		//print("gcaddsym:    %s    %d    %s\n", s->name, s->size, gotype->name);
+ 		adduintxx(gc, GC_CALL, PtrSize);
+ 		adduintxx(gc, off, PtrSize);
+-		addaddrplus(gc, decodetype_gc(gotype), 1*PtrSize);
++		addaddrpcrelplus(gc, decodetype_gc(gotype), 4*PtrSize);
+ 	} else {
+ 		//print("gcaddsym:    %s    %d    <unknown type>\n", s->name, s->size);
+ 		for(a = -off&(PtrSize-1); a+PtrSize<=s->size; a+=PtrSize) {
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index dd6640717a..a025121fef 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -663,7 +663,7 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
+ 			// Stack push.
+ 			*stack_ptr-- = stack_top;
+ 			stack_top = (Frame){1, 0, stack_top.b + pc[1], pc+3 /*return address*/};
+-			pc = (uintptr*)pc[2];  // target of the CALL instruction
++			pc = (uintptr*)((byte*)pc + (uintptr)pc[2]);  // target of the CALL instruction
+ 			continue;
+ 
+ 		case GC_MAP_PTR:
+diff --git a/src/pkg/runtime/mgc0.h b/src/pkg/runtime/mgc0.h
+index a2798ef34e..87b604a36d 100644
+--- a/src/pkg/runtime/mgc0.h
++++ b/src/pkg/runtime/mgc0.h
+@@ -12,6 +12,7 @@
+ // Meaning of arguments:
+ //   off      Offset (in bytes) from the start of the current object
+ //   objgc    Pointer to GC info of an object
++//   objgcrel Offset to GC info of an object
+ //   len      Length of an array
+ //   elemsize Size (in bytes) of an element
+ //   size     Size (in bytes)
+@@ -21,7 +22,7 @@ enum {
+ 	GC_APTR,        // Pointer to an arbitrary object. Args: (off)
+ 	GC_ARRAY_START, // Start an array with a fixed length. Args: (off, len, elemsize)
+ 	GC_ARRAY_NEXT,  // The next element of an array. Args: none
+-	GC_CALL,        // Call a subroutine. Args: (off, objgc)
++	GC_CALL,        // Call a subroutine. Args: (off, objgcrel)
+ 	GC_MAP_PTR,     // Go map. Args: (off, MapType*)
+ 	GC_STRING,      // Go string. Args: (off)
+ 	GC_EFACE,       // interface{}. Args: (off)
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index a8679b1069..2cb7263ee7 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -93,6 +93,7 @@ walksymtab(void (*fn)(Sym*))
+ 
+ static Func *func;
+ static int32 nfunc;
++extern byte reloffset[];
+ 
+ static byte **fname;
+ static int32 nfname;
+@@ -118,7 +119,7 @@ dofunc(Sym *sym)
+ 		}
+ 		f = &func[nfunc++];
+ 		f->name = runtime·gostringnocopy(sym->name);
+-		f->entry = sym->value;
++		f->entry = sym->value + (uint64)reloffset;
+ 		if(sym->symtype == 'L' || sym->symtype == 'l')
+ 			f->frame = -sizeof(uintptr);
+ 		break;

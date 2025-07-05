@@ -9,6 +9,20 @@ Date:   Tue May 17 18:07:07 2016 -0700
     Change-Id: I37a9aa51705ae18bd034f2cc6dbf06a55f969197
     Reviewed-on: https://go-review.googlesource.com/23202
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/effective_go.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 4ea3fae318..1e66c0c614 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -2014,7 +2014,7 @@ then make the receiver for the method a value of that type.
+ type ByteSlice []byte
+ 
+ func (slice ByteSlice) Append(data []byte) []byte {
+-    // Body exactly the same as above
++    // Body exactly the same as the Append function defined above.
+ }
+ </pre>
+ <p>

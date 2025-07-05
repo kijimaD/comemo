@@ -7,6 +7,24 @@ Date:   Sat Mar 10 09:35:56 2012 +1100
     R=golang-dev, krautz, rsc
     CC=golang-dev
     https://golang.org/cl/5783059
-
+---
  src/pkg/crypto/x509/root_windows.go | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/pkg/crypto/x509/root_windows.go b/src/pkg/crypto/x509/root_windows.go
+index 8f7980ae4a..7e8f2af4b0 100644
+--- a/src/pkg/crypto/x509/root_windows.go
++++ b/src/pkg/crypto/x509/root_windows.go
+@@ -45,11 +45,7 @@ func createStoreContext(leaf *Certificate, opts *VerifyOptions) (*syscall.CertCo
+ 			}
+ 
+ 			err = syscall.CertAddCertificateContextToStore(handle, ctx, syscall.CERT_STORE_ADD_ALWAYS, nil)
+-			if err != nil {
+-				return nil, err
+-			}
+-
+-			err = syscall.CertFreeCertificateContext(ctx)
++			syscall.CertFreeCertificateContext(ctx)
+ 			if err != nil {
+ 				return nil, err
+ 			}

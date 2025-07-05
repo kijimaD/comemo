@@ -32,7 +32,7 @@ Date:   Thu May 3 10:30:31 2018 -0700
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/dwarf_test.go |  14 +-
  src/runtime/asm_386.s                  |  14 ++
  src/runtime/mmap.go                    |   2 +
@@ -42,3 +42,1025 @@ Date:   Thu May 3 10:30:31 2018 -0700
  src/runtime/sys_darwin_386.s           | 244 +++++++++++++--------------------
  src/runtime/sys_darwin_amd64.s         | 166 +++++++++-------------
  8 files changed, 293 insertions(+), 307 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index 710a796cc0..17deec1735 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -547,8 +547,8 @@ func TestInlinedRoutineRecords(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+ 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+ 	}
+-	if runtime.GOOS == "solaris" {
+-		t.Skip("skipping on solaris, pending resolution of issue #23168")
++	if runtime.GOOS == "solaris" || runtime.GOOS == "darwin" {
++		t.Skip("skipping on solaris and darwin, pending resolution of issue #23168")
+ 	}
+ 
+ 	const prog = `
+@@ -685,7 +685,6 @@ func main() {
+ }
+ 
+ func abstractOriginSanity(t *testing.T, flags string) {
+-
+ 	// Nothing special about net/http here, this is just a convenient
+ 	// way to pull in a lot of code.
+ 	const prog = `
+@@ -731,7 +730,6 @@ func main() {
+ 	// references.
+ 	abscount := 0
+ 	for i, die := range ex.dies {
+-
+ 		// Does it have an abstract origin?
+ 		ooff, originOK := die.Val(dwarf.AttrAbstractOrigin).(dwarf.Offset)
+ 		if !originOK {
+@@ -788,8 +786,8 @@ func TestAbstractOriginSanity(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+ 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+ 	}
+-	if runtime.GOOS == "solaris" {
+-		t.Skip("skipping on solaris, pending resolution of issue #23168")
++	if runtime.GOOS == "solaris" || runtime.GOOS == "darwin" {
++		t.Skip("skipping on solaris and darwin, pending resolution of issue #23168")
+ 	}
+ 
+ 	abstractOriginSanity(t, OptInl4)
+@@ -801,8 +799,8 @@ func TestAbstractOriginSanityWithLocationLists(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+ 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+ 	}
+-	if runtime.GOOS == "solaris" {
+-		t.Skip("skipping on solaris, pending resolution of issue #23168")
++	if runtime.GOOS == "solaris" || runtime.GOOS == "darwin" {
++		t.Skip("skipping on solaris and darwin, pending resolution of issue #23168")
+ 	}
+ 	if runtime.GOARCH != "amd64" && runtime.GOARCH != "x86" {
+ 		t.Skip("skipping on not-amd64 not-x86; location lists not supported")
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 63fa17af62..54d5eaa014 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -697,6 +697,8 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-12
+ 	// come in on the m->g0 stack already.
+ 	get_tls(CX)
+ 	MOVL	g(CX), BP
++	CMPL	BP, $0
++	JEQ	nosave	// Don't even have a G yet.
+ 	MOVL	g_m(BP), BP
+ 	MOVL	m_g0(BP), SI
+ 	MOVL	g(CX), DI
+@@ -728,6 +730,18 @@ noswitch:
+ 
+ 	MOVL	AX, ret+8(FP)
+ 	RET
++nosave:
++	// Now on a scheduling stack (a pthread-created stack).
++	SUBL	$32, SP
++	ANDL	$~15, SP	// alignment, perhaps unnecessary
++	MOVL	DX, 4(SP)	// save original stack pointer
++	MOVL	BX, 0(SP)	// first argument in x86-32 ABI
++	CALL	AX
++
++	MOVL	4(SP), CX	// restore original stack pointer
++	MOVL	CX, SP
++	MOVL	AX, ret+8(FP)
++	RET
+ 
+ // cgocallback(void (*fn)(void*), void *frame, uintptr framesize, uintptr ctxt)
+ // Turn the fn into a Go func (by taking its address) and call
+diff --git a/src/runtime/mmap.go b/src/runtime/mmap.go
+index 649b4ab1ec..80b89d2ef1 100644
+--- a/src/runtime/mmap.go
++++ b/src/runtime/mmap.go
+@@ -9,6 +9,8 @@
+ // +build !linux !amd64
+ // +build !linux !arm64
+ // +build !js
++// +build !darwin !amd64
++// +build !darwin !386
+ 
+ package runtime
+ 
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index 613725115d..4df1fba17d 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -154,7 +154,7 @@ func newosproc(mp *m) {
+ 	// setup and then calls mstart.
+ 	var oset sigset
+ 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
+-	_, err = pthread_create(&attr, funcPC(mstart_stub), unsafe.Pointer(mp))
++	err = pthread_create(&attr, funcPC(mstart_stub), unsafe.Pointer(mp))
+ 	sigprocmask(_SIG_SETMASK, &oset, nil)
+ 	if err != 0 {
+ 		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+@@ -175,21 +175,21 @@ func newosproc0(stacksize uintptr, fn uintptr) {
+ 	// Initialize an attribute object.
+ 	var attr pthreadattr
+ 	var err int32
+-	err = pthread_attr_init_trampoline(&attr)
++	err = pthread_attr_init(&attr)
+ 	if err != 0 {
+ 		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+ 		exit(1)
+ 	}
+ 
+ 	// Set the stack we want to use.
+-	if pthread_attr_setstacksize_trampoline(&attr, stacksize) != 0 {
++	if pthread_attr_setstacksize(&attr, stacksize) != 0 {
+ 		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+ 		exit(1)
+ 	}
+ 	mSysStatInc(&memstats.stacks_sys, stacksize)
+ 
+ 	// Tell the pthread library we won't join with this thread.
+-	if pthread_attr_setdetachstate_trampoline(&attr, _PTHREAD_CREATE_DETACHED) != 0 {
++	if pthread_attr_setdetachstate(&attr, _PTHREAD_CREATE_DETACHED) != 0 {
+ 		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+ 		exit(1)
+ 	}
+@@ -198,8 +198,7 @@ func newosproc0(stacksize uintptr, fn uintptr) {
+ 	// setup and then calls mstart.
+ 	var oset sigset
+ 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
+-	var t pthread
+-	err = pthread_create_trampoline(&t, &attr, fn, nil)
++	err = pthread_create(&attr, fn, nil)
+ 	sigprocmask(_SIG_SETMASK, &oset, nil)
+ 	if err != 0 {
+ 		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+diff --git a/src/runtime/stubs2.go b/src/runtime/stubs2.go
+index b25815b3ae..2ebcd82cfd 100644
+--- a/src/runtime/stubs2.go
++++ b/src/runtime/stubs2.go
+@@ -7,6 +7,8 @@
+ // +build !windows
+ // +build !nacl
+ // +build !js
++// +build !darwin !amd64
++// +build !darwin !386
+ 
+ package runtime
+ 
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index 6af52cbab3..8757486e22 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin,386 darwin,amd64
++
+ package runtime
+ 
+ import "unsafe"
+@@ -9,71 +11,122 @@ import "unsafe"
+ // The *_trampoline functions convert from the Go calling convention to the C calling convention
+ // and then call the underlying libc function.  They are defined in sys_darwin_$ARCH.s.
+ 
+-//go:nowritebarrier
+-func pthread_attr_init(attr *pthreadattr) (errno int32) {
+-	systemstack(func() {
+-		errno = pthread_attr_init_trampoline(attr)
+-	})
+-	return
++//go:nosplit
++//go:cgo_unsafe_args
++func pthread_attr_init(attr *pthreadattr) int32 {
++	return asmcgocall(unsafe.Pointer(funcPC(pthread_attr_init_trampoline)), unsafe.Pointer(&attr))
++}
++func pthread_attr_init_trampoline()
++
++//go:nosplit
++//go:cgo_unsafe_args
++func pthread_attr_setstacksize(attr *pthreadattr, size uintptr) int32 {
++	return asmcgocall(unsafe.Pointer(funcPC(pthread_attr_setstacksize_trampoline)), unsafe.Pointer(&attr))
+ }
++func pthread_attr_setstacksize_trampoline()
+ 
+-//go:noescape
+-func pthread_attr_init_trampoline(attr *pthreadattr) int32
++//go:nosplit
++//go:cgo_unsafe_args
++func pthread_attr_setdetachstate(attr *pthreadattr, state int) int32 {
++	return asmcgocall(unsafe.Pointer(funcPC(pthread_attr_setdetachstate_trampoline)), unsafe.Pointer(&attr))
++}
++func pthread_attr_setdetachstate_trampoline()
+ 
+-//go:nowritebarrier
+-func pthread_attr_setstacksize(attr *pthreadattr, size uintptr) (errno int32) {
+-	systemstack(func() {
+-		errno = pthread_attr_setstacksize_trampoline(attr, size)
+-	})
+-	return
++//go:nosplit
++//go:cgo_unsafe_args
++func pthread_create(attr *pthreadattr, start uintptr, arg unsafe.Pointer) int32 {
++	return asmcgocall(unsafe.Pointer(funcPC(pthread_create_trampoline)), unsafe.Pointer(&attr))
+ }
++func pthread_create_trampoline()
+ 
+-//go:noescape
+-func pthread_attr_setstacksize_trampoline(attr *pthreadattr, size uintptr) int32
++//go:nosplit
++//go:cgo_unsafe_args
++func pthread_kill(thread pthread, sig int) (errno int32) {
++	return asmcgocall(unsafe.Pointer(funcPC(pthread_kill_trampoline)), unsafe.Pointer(&thread))
++}
++func pthread_kill_trampoline()
+ 
+-//go:nowritebarrier
+-func pthread_attr_setdetachstate(attr *pthreadattr, state int) (errno int32) {
+-	systemstack(func() {
+-		errno = pthread_attr_setdetachstate_trampoline(attr, state)
+-	})
++//go:nosplit
++//go:cgo_unsafe_args
++func pthread_self() (t pthread) {
++	asmcgocall(unsafe.Pointer(funcPC(pthread_self_trampoline)), unsafe.Pointer(&t))
+ 	return
+ }
++func pthread_self_trampoline()
++
++func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (unsafe.Pointer, int) {
++	args := struct {
++		addr            unsafe.Pointer
++		n               uintptr
++		prot, flags, fd int32
++		off             uint32
++		ret1            unsafe.Pointer
++		ret2            int
++	}{addr, n, prot, flags, fd, off, nil, 0}
++	asmcgocall(unsafe.Pointer(funcPC(mmap_trampoline)), unsafe.Pointer(&args))
++	return args.ret1, args.ret2
++}
++func mmap_trampoline()
+ 
+-//go:noescape
+-func pthread_attr_setdetachstate_trampoline(attr *pthreadattr, state int) int32
++//go:nosplit
++//go:cgo_unsafe_args
++func munmap(addr unsafe.Pointer, n uintptr) {
++	asmcgocall(unsafe.Pointer(funcPC(munmap_trampoline)), unsafe.Pointer(&addr))
++}
++func munmap_trampoline()
+ 
+-//go:nowritebarrier
+-func pthread_create(attr *pthreadattr, start uintptr, arg unsafe.Pointer) (t pthread, errno int32) {
+-	systemstack(func() {
+-		errno = pthread_create_trampoline(&t, attr, start, arg)
+-	})
+-	return
++//go:nosplit
++//go:cgo_unsafe_args
++func madvise(addr unsafe.Pointer, n uintptr, flags int32) {
++	asmcgocall(unsafe.Pointer(funcPC(madvise_trampoline)), unsafe.Pointer(&addr))
+ }
++func madvise_trampoline()
+ 
+-//go:noescape
+-func pthread_create_trampoline(t *pthread, attr *pthreadattr, start uintptr, arg unsafe.Pointer) int32
++//go:nosplit
++//go:cgo_unsafe_args
++func read(fd int32, p unsafe.Pointer, n int32) int32 {
++	return asmcgocall(unsafe.Pointer(funcPC(read_trampoline)), unsafe.Pointer(&fd))
++}
++func read_trampoline()
+ 
+-//go:nowritebarrier
+-func pthread_kill(thread pthread, sig int) (errno int32) {
+-	systemstack(func() {
+-		errno = pthread_kill_trampoline(thread, sig)
+-	})
+-	return
++//go:nosplit
++//go:cgo_unsafe_args
++func closefd(fd int32) int32 {
++	return asmcgocall(unsafe.Pointer(funcPC(close_trampoline)), unsafe.Pointer(&fd))
+ }
++func close_trampoline()
+ 
+-//go:noescape
+-func pthread_kill_trampoline(thread pthread, sig int) int32
++//go:nosplit
++//go:cgo_unsafe_args
++func exit(code int32) {
++	asmcgocall(unsafe.Pointer(funcPC(exit_trampoline)), unsafe.Pointer(&code))
++}
++func exit_trampoline()
+ 
+-//go:nowritebarrier
+-func pthread_self() (t pthread) {
+-	systemstack(func() {
+-		t = pthread_self_trampoline()
+-	})
+-	return
++//go:nosplit
++//go:cgo_unsafe_args
++func usleep(usec uint32) {
++	asmcgocall(unsafe.Pointer(funcPC(usleep_trampoline)), unsafe.Pointer(&usec))
+ }
++func usleep_trampoline()
+ 
+-//go:noescape
+-func pthread_self_trampoline() pthread
++//go:nosplit
++//go:cgo_unsafe_args
++func write(fd uintptr, p unsafe.Pointer, n int32) int32 {
++	return asmcgocall(unsafe.Pointer(funcPC(write_trampoline)), unsafe.Pointer(&fd))
++}
++func write_trampoline()
++
++//go:nosplit
++//go:cgo_unsafe_args
++func open(name *byte, mode, perm int32) (ret int32) {
++	return asmcgocall(unsafe.Pointer(funcPC(open_trampoline)), unsafe.Pointer(&name))
++}
++func open_trampoline()
++
++// Not used on Darwin, but must be defined.
++func exitThread(wait *uint32) {
++}
+ 
+ // Tell the linker that the libc_* functions are to be found
+ // in a system library, with the libc_ prefix missing.
+diff --git a/src/runtime/sys_darwin_386.s b/src/runtime/sys_darwin_386.s
+index ea6116eb0a..16ca3e06ae 100644
+--- a/src/runtime/sys_darwin_386.s
++++ b/src/runtime/sys_darwin_386.s
+@@ -11,12 +11,12 @@
+ #include "textflag.h"
+ 
+ // Exit the entire program (like C exit)
+-TEXT runtime·exit(SB),NOSPLIT,$0-4
+-	MOVL	code+0(FP), AX
++TEXT runtime·exit_trampoline(SB),NOSPLIT,$0
+ 	PUSHL	BP
+ 	MOVL	SP, BP
+-	SUBL	$4, SP   // allocate space for callee args
+-	ANDL	$~15, SP // align stack
++	SUBL	$8, SP   	// allocate space for callee args (must be 8 mod 16)
++	MOVL	16(SP), CX	// arg ptr
++	MOVL	0(CX), AX	// arg 1 exit status
+ 	MOVL	AX, 0(SP)
+ 	CALL	libc_exit(SB)
+ 	MOVL	$0xf1, 0xf1  // crash
+@@ -24,73 +24,64 @@ TEXT runtime·exit(SB),NOSPLIT,$0-4
+ 	POPL	BP
+ 	RET
+ 
+-// Not used on Darwin.
+-TEXT runtime·exitThread(SB),NOSPLIT,$0-4
+-	MOVL	$0xf1, 0xf1  // crash
+-	RET
+-
+-TEXT runtime·open(SB),NOSPLIT,$0-16
+-	MOVL	name+0(FP), AX		// arg 1 name
+-	MOVL	mode+4(FP), CX		// arg 2 mode
+-	MOVL	perm+8(FP), DX		// arg 3 perm
++TEXT runtime·open_trampoline(SB),NOSPLIT,$0
+ 	PUSHL	BP
+ 	MOVL	SP, BP
+-	SUBL	$12, SP
+-	ANDL	$~15, SP
++	SUBL	$24, SP
++	MOVL	32(SP), CX
++	MOVL	0(CX), AX		// arg 1 name
+ 	MOVL	AX, 0(SP)
+-	MOVL	CX, 4(SP)
+-	MOVL	DX, 8(SP)
++	MOVL	4(CX), AX		// arg 2 mode
++	MOVL	AX, 4(SP)
++	MOVL	8(CX), AX		// arg 3 perm
++	MOVL	AX, 8(SP)
+ 	CALL	libc_open(SB)
+ 	MOVL	BP, SP
+ 	POPL	BP
+-	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+-TEXT runtime·closefd(SB),NOSPLIT,$0-8
+-	MOVL	fd+0(FP), AX		// arg 1 fd
++TEXT runtime·close_trampoline(SB),NOSPLIT,$0
+ 	PUSHL	BP
+ 	MOVL	SP, BP
+-	SUBL	$4, SP
+-	ANDL	$~15, SP
++	SUBL	$8, SP
++	MOVL	16(SP), CX
++	MOVL	0(CX), AX		// arg 1 fd
+ 	MOVL	AX, 0(SP)
+ 	CALL	libc_close(SB)
+ 	MOVL	BP, SP
+ 	POPL	BP
+-	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+-TEXT runtime·read(SB),NOSPLIT,$0-16
+-	MOVL	fd+0(FP), AX		// arg 1 fd
+-	MOVL	p+4(FP), CX		// arg 2 buf
+-	MOVL	n+8(FP), DX		// arg 3 count
++TEXT runtime·read_trampoline(SB),NOSPLIT,$0
+ 	PUSHL	BP
+ 	MOVL	SP, BP
+-	SUBL	$12, SP
+-	ANDL	$~15, SP
++	SUBL	$24, SP
++	MOVL	32(SP), CX
++	MOVL	0(CX), AX		// arg 1 fd
+ 	MOVL	AX, 0(SP)
+-	MOVL	CX, 4(SP)
+-	MOVL	DX, 8(SP)
++	MOVL	4(CX), AX		// arg 2 buf
++	MOVL	AX, 4(SP)
++	MOVL	8(CX), AX		// arg 3 count
++	MOVL	AX, 8(SP)
+ 	CALL	libc_read(SB)
+ 	MOVL	BP, SP
+ 	POPL	BP
+-	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+-TEXT runtime·write(SB),NOSPLIT,$0-16
+-	MOVL	fd+0(FP), AX		// arg 1 fd
+-	MOVL	p+4(FP), CX		// arg 2 buf
+-	MOVL	n+8(FP), DX		// arg 3 count
++TEXT runtime·write_trampoline(SB),NOSPLIT,$0
+ 	PUSHL	BP
+ 	MOVL	SP, BP
+-	SUBL	$12, SP
+-	ANDL	$~15, SP
++	SUBL	$24, SP
++	MOVL	32(SP), CX
++	MOVL	0(CX), AX		// arg 1 fd
+ 	MOVL	AX, 0(SP)
+-	MOVL	CX, 4(SP)
+-	MOVL	DX, 8(SP)
++	MOVL	4(CX), AX		// arg 2 buf
++	MOVL	AX, 4(SP)
++	MOVL	8(CX), AX		// arg 3 count
++	MOVL	AX, 8(SP)
+ 	CALL	libc_write(SB)
+ 	MOVL	BP, SP
+ 	POPL	BP
+-	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·raiseproc(SB),NOSPLIT,$16
+@@ -104,23 +95,23 @@ TEXT runtime·raiseproc(SB),NOSPLIT,$16
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·mmap(SB),NOSPLIT,$0-32
+-	MOVL	addr+0(FP), AX		// arg 1 addr
+-	MOVL	n+4(FP), CX		// arg 2 len
+-	MOVL	prot+8(FP), DX		// arg 3 prot
+-	MOVL	flags+12(FP), BX	// arg 4 flags
+-	MOVL	fd+16(FP), DI		// arg 5 fid
+-	MOVL	off+20(FP), SI		// arg 6 offset
++TEXT runtime·mmap_trampoline(SB),NOSPLIT,$0
+ 	PUSHL	BP
+ 	MOVL	SP, BP
+ 	SUBL	$24, SP
+-	ANDL	$~15, SP
++	MOVL	32(SP), CX
++	MOVL	0(CX), AX		// arg 1 addr
+ 	MOVL	AX, 0(SP)
+-	MOVL	CX, 4(SP)
+-	MOVL	DX, 8(SP)
+-	MOVL	BX, 12(SP)
+-	MOVL	DI, 16(SP)
+-	MOVL	SI, 20(SP)
++	MOVL	4(CX), AX		// arg 2 len
++	MOVL	AX, 4(SP)
++	MOVL	8(CX), AX		// arg 3 prot
++	MOVL	AX, 8(SP)
++	MOVL	12(CX), AX		// arg 4 flags
++	MOVL	AX, 12(SP)
++	MOVL	16(CX), AX		// arg 5 fid
++	MOVL	AX, 16(SP)
++	MOVL	20(CX), AX		// arg 6 offset
++	MOVL	AX, 20(SP)
+ 	CALL	libc_mmap(SB)
+ 	XORL	DX, DX
+ 	CMPL	AX, $-1
+@@ -129,38 +120,39 @@ TEXT runtime·mmap(SB),NOSPLIT,$0-32
+ 	MOVL	(AX), DX		// errno
+ 	XORL	AX, AX
+ ok:
++	MOVL	32(SP), CX
++	MOVL	AX, 24(CX)		// result pointer
++	MOVL	DX, 28(CX)		// errno
+ 	MOVL	BP, SP
+ 	POPL	BP
+-	MOVL	AX, p+24(FP)
+-	MOVL	DX, err+28(FP)
+ 	RET
+ 
+-TEXT runtime·madvise(SB),NOSPLIT,$0-12
+-	MOVL	addr+0(FP), AX		// arg 1 addr
+-	MOVL	n+4(FP), CX		// arg 2 len
+-	MOVL	flags+8(FP), DX		// arg 3 advice
++TEXT runtime·madvise_trampoline(SB),NOSPLIT,$0
+ 	PUSHL	BP
+ 	MOVL	SP, BP
+-	SUBL	$12, SP
+-	ANDL	$~15, SP
++	SUBL	$24, SP
++	MOVL	32(SP), CX
++	MOVL	0(CX), AX		// arg 1 addr
+ 	MOVL	AX, 0(SP)
+-	MOVL	CX, 4(SP)
+-	MOVL	DX, 8(SP)
++	MOVL	4(CX), AX		// arg 2 len
++	MOVL	AX, 4(SP)
++	MOVL	8(CX), AX		// arg 3 advice
++	MOVL	AX, 8(SP)
+ 	CALL	libc_madvise(SB)
+ 	// ignore failure - maybe pages are locked
+ 	MOVL	BP, SP
+ 	POPL	BP
+ 	RET
+ 
+-TEXT runtime·munmap(SB),NOSPLIT,$0-8
+-	MOVL	addr+0(FP), AX		// arg 1 addr
+-	MOVL	n+4(FP), CX		// arg 2 len
++TEXT runtime·munmap_trampoline(SB),NOSPLIT,$0
+ 	PUSHL	BP
+ 	MOVL	SP, BP
+ 	SUBL	$8, SP
+-	ANDL	$~15, SP
++	MOVL	16(SP), CX
++	MOVL	0(CX), AX		// arg 1 addr
+ 	MOVL	AX, 0(SP)
+-	MOVL	CX, 4(SP)
++	MOVL	4(CX), AX		// arg 2 len
++	MOVL	AX, 4(SP)
+ 	CALL	libc_munmap(SB)
+ 	TESTL	AX, AX
+ 	JEQ	2(PC)
+@@ -394,12 +386,12 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$0
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·usleep(SB),NOSPLIT,$0-4
+-	MOVL	usec+0(FP), AX
++TEXT runtime·usleep_trampoline(SB),NOSPLIT,$0
+ 	PUSHL	BP
+ 	MOVL	SP, BP
+-	SUBL	$4, SP
+-	ANDL	$~15, SP
++	SUBL	$8, SP
++	MOVL	16(SP), CX
++	MOVL	0(CX), AX	// arg 1 usec
+ 	MOVL	AX, 0(SP)
+ 	CALL	libc_usleep(SB)
+ 	MOVL	BP, SP
+@@ -545,125 +537,85 @@ TEXT runtime·mstart_stub(SB),NOSPLIT,$0
+ 	XORL	AX, AX
+ 	RET
+ 
+-TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0-8
+-	// move args into registers
+-	MOVL	attr+0(FP), AX
+-
+-	// save SP, BP
++TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0
+ 	PUSHL	BP
+ 	MOVL	SP, BP
+-
+-	// allocate space for args
+-	SUBL	$4, SP
+-
+-	// align stack to 16 bytes
+-	ANDL	$~15, SP
+-
+-	// call libc function
++	SUBL	$8, SP
++	MOVL	16(SP), CX
++	MOVL	0(CX), AX	// arg 1 attr
+ 	MOVL	AX, 0(SP)
+ 	CALL	libc_pthread_attr_init(SB)
+-
+-	// restore BP, SP
+ 	MOVL	BP, SP
+ 	POPL	BP
+-
+-	// save result.
+-	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+-TEXT runtime·pthread_attr_setstacksize_trampoline(SB),NOSPLIT,$0-12
+-	MOVL	attr+0(FP), AX
+-	MOVL	size+4(FP), CX
+-
++TEXT runtime·pthread_attr_setstacksize_trampoline(SB),NOSPLIT,$0
+ 	PUSHL	BP
+ 	MOVL	SP, BP
+-
+ 	SUBL	$8, SP
+-	ANDL	$~15, SP
+-
++	MOVL	16(SP), CX
++	MOVL	0(CX), AX	// arg 1 attr
+ 	MOVL	AX, 0(SP)
+-	MOVL	CX, 4(SP)
++	MOVL	4(CX), AX	// arg 2 size
++	MOVL	AX, 4(SP)
+ 	CALL	libc_pthread_attr_setstacksize(SB)
+-
+ 	MOVL	BP, SP
+ 	POPL	BP
+-
+-	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime·pthread_attr_setdetachstate_trampoline(SB),NOSPLIT,$0-12
+-	MOVL	attr+0(FP), AX
+-	MOVL	state+4(FP), CX
+-
++TEXT runtime·pthread_attr_setdetachstate_trampoline(SB),NOSPLIT,$0
+ 	PUSHL	BP
+ 	MOVL	SP, BP
+-
+ 	SUBL	$8, SP
+-	ANDL	$~15, SP
+-
++	MOVL	16(SP), CX
++	MOVL	0(CX), AX	// arg 1 attr
+ 	MOVL	AX, 0(SP)
+-	MOVL	CX, 4(SP)
++	MOVL	4(CX), AX	// arg 2 state
++	MOVL	AX, 4(SP)
+ 	CALL	libc_pthread_attr_setdetachstate(SB)
+-
+ 	MOVL	BP, SP
+ 	POPL	BP
+-
+-	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0-20
+-	MOVL	t+0(FP), AX
+-	MOVL	attr+4(FP), CX
+-	MOVL	start+8(FP), DX
+-	MOVL	arg+12(FP), BX
+-
++TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0
+ 	PUSHL	BP
+ 	MOVL	SP, BP
+-
+-	SUBL	$16, SP
+-	ANDL	$~15, SP
+-
++	SUBL	$24, SP
++	MOVL	32(SP), CX
++	LEAL	16(SP), AX	// arg "0" &threadid (which we throw away)
+ 	MOVL	AX, 0(SP)
+-	MOVL	CX, 4(SP)
+-	MOVL	DX, 8(SP)
+-	MOVL	BX, 12(SP)
++	MOVL	0(CX), AX	// arg 1 attr
++	MOVL	AX, 4(SP)
++	MOVL	4(CX), AX	// arg 2 start
++	MOVL	AX, 8(SP)
++	MOVL	8(CX), AX	// arg 3 arg
++	MOVL	AX, 12(SP)
+ 	CALL	libc_pthread_create(SB)
+-
+ 	MOVL	BP, SP
+ 	POPL	BP
+-
+-	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·pthread_self_trampoline(SB),NOSPLIT,$0-4
++TEXT runtime·pthread_self_trampoline(SB),NOSPLIT,$0
+ 	PUSHL   BP
+ 	MOVL    SP, BP
+-
+-	ANDL	$~15, SP
+-
++	SUBL	$8, SP
+ 	CALL    libc_pthread_self(SB)
+-
++	MOVL	16(SP), CX
++	MOVL	AX, (CX)	// Save result.
+ 	MOVL    BP, SP
+ 	POPL    BP
+-
+-	MOVL    AX, ret+0(FP)
+ 	RET
+ 
+-TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0-12
+-	MOVL    thread+0(FP), AX
+-	MOVL    sig+4(FP), CX
++TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0
+ 	PUSHL   BP
+ 	MOVL    SP, BP
+-
+ 	SUBL	$8, SP
+-	ANDL	$~15, SP
+-
++	MOVL	16(SP), CX
++	MOVL    0(CX), AX	// arg 1 thread ID
+ 	MOVL	AX, 0(SP)
+-	MOVL	CX, 4(SP)
++	MOVL    4(CX), AX	// arg 2 sig
++	MOVL	AX, 4(SP)
+ 	CALL    libc_pthread_kill(SB)
+-
+ 	MOVL    BP, SP
+ 	POPL    BP
+-
+-	MOVL    AX, ret+8(FP)
+ 	RET
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index bf5a34a15e..e48145a450 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -16,70 +16,51 @@
+ #include "textflag.h"
+ 
+ // Exit the entire program (like C exit)
+-TEXT runtime·exit(SB),NOSPLIT,$0-4
+-	MOVL	code+0(FP), DI		// arg 1 exit status
++TEXT runtime·exit_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+-	ANDQ	$~15, SP // align stack
++	MOVL	0(DI), DI		// arg 1 exit status
+ 	CALL	libc_exit(SB)
+ 	MOVL	$0xf1, 0xf1  // crash
+-	MOVQ	BP, SP
+ 	POPQ	BP
+ 	RET
+ 
+-// Not used on Darwin.
+-TEXT runtime·exitThread(SB),NOSPLIT,$0-8
+-	MOVL	$0xf1, 0xf1  // crash
+-	RET
+-
+-TEXT runtime·open(SB),NOSPLIT,$0-20
+-	MOVQ	name+0(FP), DI		// arg 1 pathname
+-	MOVL	mode+8(FP), SI		// arg 2 flags
+-	MOVL	perm+12(FP), DX		// arg 3 mode
++TEXT runtime·open_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+-	ANDQ	$~15, SP // align stack
++	MOVL	8(DI), SI		// arg 2 flags
++	MOVL	12(DI), DX		// arg 3 mode
++	MOVQ	0(DI), DI		// arg 1 pathname
+ 	CALL	libc_open(SB)
+-	MOVQ	BP, SP
+ 	POPQ	BP
+-	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·closefd(SB),NOSPLIT,$0-12
+-	MOVL	fd+0(FP), DI		// arg 1 fd
++TEXT runtime·close_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+-	ANDQ	$~15, SP // align stack
++	MOVL	0(DI), DI		// arg 1 fd
+ 	CALL	libc_close(SB)
+-	MOVQ	BP, SP
+ 	POPQ	BP
+-	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime·read(SB),NOSPLIT,$0-28
+-	MOVL	fd+0(FP), DI		// arg 1 fd
+-	MOVQ	p+8(FP), SI		// arg 2 buf
+-	MOVL	n+16(FP), DX		// arg 3 count
++TEXT runtime·read_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+-	ANDQ	$~15, SP // align stack
++	MOVQ	8(DI), SI		// arg 2 buf
++	MOVL	16(DI), DX		// arg 3 count
++	MOVL	0(DI), DI		// arg 1 fd
+ 	CALL	libc_read(SB)
+-	MOVQ	BP, SP
+ 	POPQ	BP
+-	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+-TEXT runtime·write(SB),NOSPLIT,$0-28
+-	MOVQ	fd+0(FP), DI		// arg 1 fd
+-	MOVQ	p+8(FP), SI		// arg 2 buf
+-	MOVL	n+16(FP), DX		// arg 3 count
++TEXT runtime·write_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+-	ANDQ	$~15, SP // align stack
++	MOVQ	8(DI), SI		// arg 2 buf
++	MOVL	16(DI), DX		// arg 3 count
++	MOVQ	0(DI), DI		// arg 1 fd
+ 	CALL	libc_write(SB)
+-	MOVQ	BP, SP
+ 	POPQ	BP
+-	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ TEXT runtime·raiseproc(SB),NOSPLIT,$24
+@@ -100,16 +81,14 @@ TEXT runtime·setitimer(SB), NOSPLIT, $0
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·madvise(SB), NOSPLIT, $0-20
+-	MOVQ	addr+0(FP), DI		// arg 1 addr
+-	MOVQ	n+8(FP), SI		// arg 2 len
+-	MOVL	flags+16(FP), DX	// arg 3 advice
++TEXT runtime·madvise_trampoline(SB), NOSPLIT, $0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+-	ANDQ	$~15, SP
++	MOVQ	8(DI), SI	// arg 2 len
++	MOVL	16(DI), DX	// arg 3 advice
++	MOVQ	0(DI), DI	// arg 1 addr
+ 	CALL	libc_madvise(SB)
+ 	// ignore failure - maybe pages are locked
+-	MOVQ	BP, SP
+ 	POPQ	BP
+ 	RET
+ 
+@@ -357,16 +336,18 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$40
+ 	SYSCALL
+ 	INT $3 // not reached
+ 
+-TEXT runtime·mmap(SB),NOSPLIT,$0-48
+-	MOVQ	addr+0(FP), DI		// arg 1 addr
+-	MOVQ	n+8(FP), SI		// arg 2 len
+-	MOVL	prot+16(FP), DX		// arg 3 prot
+-	MOVL	flags+20(FP), CX	// arg 4 flags
+-	MOVL	fd+24(FP), R8		// arg 5 fid
+-	MOVL	off+28(FP), R9		// arg 6 offset
+-	PUSHQ	BP
++
++
++TEXT runtime·mmap_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP			// make a frame; keep stack aligned
+ 	MOVQ	SP, BP
+-	ANDQ	$~15, SP
++	MOVQ	DI, BX
++	MOVQ	0(BX), DI		// arg 1 addr
++	MOVQ	8(BX), SI		// arg 2 len
++	MOVL	16(BX), DX		// arg 3 prot
++	MOVL	20(BX), CX		// arg 4 flags
++	MOVL	24(BX), R8		// arg 5 fid
++	MOVL	28(BX), R9		// arg 6 offset
+ 	CALL	libc_mmap(SB)
+ 	XORL	DX, DX
+ 	CMPQ	AX, $-1
+@@ -375,23 +356,20 @@ TEXT runtime·mmap(SB),NOSPLIT,$0-48
+ 	MOVQ	(AX), DX		// errno
+ 	XORL	AX, AX
+ ok:
+-	MOVQ	BP, SP
++	MOVQ	AX, 32(BX)
++	MOVQ	DX, 40(BX)
+ 	POPQ	BP
+-	MOVQ	AX, p+32(FP)
+-	MOVQ	DX, err+40(FP)
+ 	RET
+ 
+-TEXT runtime·munmap(SB),NOSPLIT,$0-16
+-	MOVQ	addr+0(FP), DI		// arg 1 addr
+-	MOVQ	n+8(FP), SI		// arg 2 len
++TEXT runtime·munmap_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+-	ANDQ	$~15, SP
++	MOVQ	8(DI), SI		// arg 2 len
++	MOVQ	0(DI), DI		// arg 1 addr
+ 	CALL	libc_munmap(SB)
+ 	TESTQ	AX, AX
+ 	JEQ	2(PC)
+ 	MOVL	$0xf1, 0xf1  // crash
+-	MOVQ	BP, SP
+ 	POPQ	BP
+ 	RET
+ 
+@@ -404,13 +382,11 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$0
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·usleep(SB),NOSPLIT,$0-4
+-	MOVL	usec+0(FP), DI
++TEXT runtime·usleep_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+-	ANDQ	$~15, SP
++	MOVL	0(DI), DI	// arg 1 usec
+ 	CALL	libc_usleep(SB)
+-	MOVQ	BP, SP
+ 	POPQ	BP
+ 	RET
+ 
+@@ -568,74 +544,64 @@ TEXT runtime·mstart_stub(SB),NOSPLIT,$0
+ 	XORL	AX, AX
+ 	RET
+ 
+-// These trampolines convert from Go calling convention to C calling convention.
+-TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0-12
+-	MOVQ	attr+0(FP), DI
+-	PUSHQ	BP     // save BP
+-	MOVQ	SP, BP // save SP
+-	ANDQ	$~15, SP // align stack to 16 bytes
++// These trampolines help convert from Go calling convention to C calling convention.
++// They should be called with asmcgocall.
++// A pointer to the arguments is passed in DI.
++// A single int32 result is returned in AX.
++// (For more results, make an args/results structure.)
++TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0
++	PUSHQ	BP	// make frame, keep stack 16-byte aligned.
++	MOVQ	SP, BP
++	MOVQ	0(DI), DI // arg 1 attr
+ 	CALL	libc_pthread_attr_init(SB)
+-	MOVQ	BP, SP // restore SP
+-	POPQ	BP     // restore BP
+-	MOVL	AX, ret+8(FP)
++	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·pthread_attr_setstacksize_trampoline(SB),NOSPLIT,$0-20
+-	MOVQ	attr+0(FP), DI
+-	MOVQ	size+8(FP), SI
++TEXT runtime·pthread_attr_setstacksize_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+-	ANDQ	$~15, SP
++	MOVQ	8(DI), SI	// arg 2 size
++	MOVQ	0(DI), DI	// arg 1 attr
+ 	CALL	libc_pthread_attr_setstacksize(SB)
+-	MOVQ	BP, SP
+ 	POPQ	BP
+-	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·pthread_attr_setdetachstate_trampoline(SB),NOSPLIT,$0-20
+-	MOVQ	attr+0(FP), DI
+-	MOVQ	state+8(FP), SI
++TEXT runtime·pthread_attr_setdetachstate_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+-	ANDQ	$~15, SP
++	MOVQ	8(DI), SI	// arg 2 state
++	MOVQ	0(DI), DI	// arg 1 attr
+ 	CALL	libc_pthread_attr_setdetachstate(SB)
+-	MOVQ	BP, SP
+ 	POPQ	BP
+-	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0-36
+-	MOVQ	t+0(FP), DI
+-	MOVQ	attr+8(FP), SI
+-	MOVQ	start+16(FP), DX
+-	MOVQ	arg+24(FP), CX
++TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+-	ANDQ	$~15, SP
++	SUBQ	$16, SP
++	MOVQ	0(DI), SI	// arg 2 attr
++	MOVQ	8(DI), DX	// arg 3 start
++	MOVQ	16(DI), CX	// arg 4 arg
++	MOVQ	SP, DI		// arg 1 &threadid (which we throw away)
+ 	CALL	libc_pthread_create(SB)
+ 	MOVQ	BP, SP
+ 	POPQ	BP
+-	MOVL	AX, ret+32(FP)
+ 	RET
+ 
+-TEXT runtime·pthread_self_trampoline(SB),NOSPLIT,$0-8
++TEXT runtime·pthread_self_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+-	ANDQ	$~15, SP
++	MOVQ	DI, BX		// Note: asmcgocall doesn't save anything in BX, so it is ok to clobber it here.
+ 	CALL	libc_pthread_self(SB)
+-	MOVQ	BP, SP
++	MOVQ	AX, 0(BX)	// Save result.
+ 	POPQ	BP
+-	MOVQ	AX, ret+0(FP)
+ 	RET
+ 
+-TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0-20
+-	MOVQ	thread+0(FP), DI
+-	MOVQ	sig+8(FP), SI
++TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+-	ANDQ	$~15, SP
++	MOVQ	8(DI), SI	// arg 2 signal
++	MOVQ	0(DI), DI	// arg 1 thread
+ 	CALL	libc_pthread_kill(SB)
+-	MOVQ	BP, SP
+ 	POPQ	BP
+-	MOVL	AX, ret+16(FP)
+ 	RET

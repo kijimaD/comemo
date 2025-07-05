@@ -26,8 +26,56 @@ Date:   Thu Jan 26 17:25:44 2023 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Илья Токарь <tocarip@gmail.com>
     Reviewed-by: Iskander Sharipov <quasilyte@gmail.com>
-
+---
  src/cmd/asm/internal/asm/testdata/amd64enc_extra.s |  2 +-
  src/cmd/asm/internal/asm/testdata/amd64error.s     |  4 ++++
  src/cmd/internal/obj/x86/asm6.go                   | 10 ++++++++++
  3 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s b/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s
+index a7d9bdac54..48bdf1bcda 100644
+--- a/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s
++++ b/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s
+@@ -891,7 +891,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	VPEXTRW $17, X20, (SP)(AX*2)      // 62e37d0815244411 or 62e3fd0815244411
+ 	VPEXTRW $127, X20, (SP)(AX*2)     // 62e37d081524447f or 62e3fd081524447f
+ 	// EVEX: embedded zeroing.
+-	VADDPD.Z X30, X1, X0      // 6291f58858c6
++	VADDPD.Z X30, X1, K7, X0  // 6291f58f58c6
+ 	VMAXPD.Z (AX), Z2, K1, Z1 // 62f1edc95f08
+ 	// EVEX: embedded rounding.
+ 	VADDPD.RU_SAE Z3, Z2, K1, Z1   // 62f1ed5958cb
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64error.s b/src/cmd/asm/internal/asm/testdata/amd64error.s
+index 7e91fb4e97..07a9be3480 100644
+--- a/src/cmd/asm/internal/asm/testdata/amd64error.s
++++ b/src/cmd/asm/internal/asm/testdata/amd64error.s
+@@ -140,4 +140,8 @@ TEXT errors(SB),$0
+ 	TPAUSE (BX)                      // ERROR "invalid instruction"
+ 	UMONITOR (BX)                    // ERROR "invalid instruction"
+ 	UMWAIT (BX)                      // ERROR "invalid instruction"
++	// .Z instructions
++	VMOVDQA32.Z Z0, Z1               // ERROR "mask register must be specified for .Z instructions"
++	VMOVDQA32.Z Z0, K0, Z1           // ERROR "invalid instruction"
++	VMOVDQA32.Z Z0, K1, Z1           // ok
+ 	RET
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index de08b42ab5..b441964492 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -4070,6 +4070,16 @@ func (ab *AsmBuf) asmevex(ctxt *obj.Link, p *obj.Prog, rm, v, r, k *obj.Addr) {
+ 		if !evex.ZeroingEnabled() {
+ 			ctxt.Diag("unsupported zeroing: %v", p)
+ 		}
++		if k == nil {
++			// When you request zeroing you must specify a mask register.
++			// See issue 57952.
++			ctxt.Diag("mask register must be specified for .Z instructions: %v", p)
++		} else if k.Reg == REG_K0 {
++			// The mask register must not be K0. That restriction is already
++			// handled by the Yknot0 restriction in the opcode tables, so we
++			// won't ever reach here. But put something sensible here just in case.
++			ctxt.Diag("mask register must not be K0 for .Z instructions: %v", p)
++		}
+ 		evexZ = 1
+ 	}
+ 	switch {

@@ -18,7 +18,37 @@ Date:   Wed Jul 26 15:58:25 2017 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/internal/dwarf/dwarf.go   | 2 +-
  src/cmd/link/internal/ld/dwarf.go | 5 +----
  2 files changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index 3fe8c31ea6..3f12811338 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -383,7 +383,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
+ 		DW_CHILDREN_no,
+ 		[]dwAttrForm{
+ 			{DW_AT_name, DW_FORM_string},
+-			{DW_AT_data_member_location, DW_FORM_block1},
++			{DW_AT_data_member_location, DW_FORM_udata},
+ 			{DW_AT_type, DW_FORM_ref_addr},
+ 			{DW_AT_go_embedded_field, DW_FORM_flag},
+ 		},
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 582aec83b5..6359877a1b 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -286,10 +286,7 @@ func reversetree(list **dwarf.DWDie) {
+ }
+ 
+ func newmemberoffsetattr(die *dwarf.DWDie, offs int32) {
+-	var block [20]byte
+-	b := append(block[:0], dwarf.DW_OP_plus_uconst)
+-	b = dwarf.AppendUleb128(b, uint64(offs))
+-	newattr(die, dwarf.DW_AT_data_member_location, dwarf.DW_CLS_BLOCK, int64(len(b)), b)
++	newattr(die, dwarf.DW_AT_data_member_location, dwarf.DW_CLS_CONSTANT, int64(offs), nil)
+ }
+ 
+ // GDB doesn't like FORM_addr for AT_location, so emit a

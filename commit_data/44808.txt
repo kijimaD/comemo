@@ -18,9 +18,131 @@ Date:   Mon Aug 31 20:54:17 2020 +0200
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/test_example_goexit.txt | 25 ++++++++++++++++++++++
  src/testing/example.go                             | 11 +++++++---
  src/testing/run_example.go                         |  4 +++-
  src/testing/run_example_js.go                      |  4 +++-
  4 files changed, 39 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_example_goexit.txt b/src/cmd/go/testdata/script/test_example_goexit.txt
+new file mode 100644
+index 0000000000..59219e3366
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_example_goexit.txt
+@@ -0,0 +1,25 @@
++# For issue golang.org/issue/41084
++[short] skip
++
++! go test -v examplegoexit
++stdout '(?s)--- PASS.*--- FAIL.*'
++stdout 'panic: test executed panic\(nil\) or runtime\.Goexit'
++
++-- examplegoexit/example_test.go --
++package main
++
++import (
++	"fmt"
++	"runtime"
++)
++
++func ExamplePass() {
++	fmt.Println("pass")
++	// Output:
++	// pass
++}
++
++func ExampleGoexit() {
++	runtime.Goexit()
++	// Output:
++}
+diff --git a/src/testing/example.go b/src/testing/example.go
+index adc91d5faf..0217c5d242 100644
+--- a/src/testing/example.go
++++ b/src/testing/example.go
+@@ -62,9 +62,10 @@ func sortLines(output string) string {
+ // If stdout doesn't match the expected output or if recovered is non-nil, it'll print the cause of failure to stdout.
+ // If the test is chatty/verbose, it'll print a success message to stdout.
+ // If recovered is non-nil, it'll panic with that value.
+-func (eg *InternalExample) processRunResult(stdout string, timeSpent time.Duration, recovered interface{}) (passed bool) {
++// If the test panicked with nil, or invoked runtime.Goexit, it'll be
++// made to fail and panic with errNilPanicOrGoexit
++func (eg *InternalExample) processRunResult(stdout string, timeSpent time.Duration, finished bool, recovered interface{}) (passed bool) {
+ 	passed = true
+-
+ 	dstr := fmtDuration(timeSpent)
+ 	var fail string
+ 	got := strings.TrimSpace(stdout)
+@@ -78,16 +79,20 @@ func (eg *InternalExample) processRunResult(stdout string, timeSpent time.Durati
+ 			fail = fmt.Sprintf("got:\n%s\nwant:\n%s\n", got, want)
+ 		}
+ 	}
+-	if fail != "" || recovered != nil {
++	if fail != "" || !finished || recovered != nil {
+ 		fmt.Printf("--- FAIL: %s (%s)\n%s", eg.Name, dstr, fail)
+ 		passed = false
+ 	} else if *chatty {
+ 		fmt.Printf("--- PASS: %s (%s)\n", eg.Name, dstr)
+ 	}
++
+ 	if recovered != nil {
+ 		// Propagate the previously recovered result, by panicking.
+ 		panic(recovered)
+ 	}
++	if !finished && recovered == nil {
++		panic(errNilPanicOrGoexit)
++	}
+ 
+ 	return
+ }
+diff --git a/src/testing/run_example.go b/src/testing/run_example.go
+index 10bde49e5b..4dc83f7d32 100644
+--- a/src/testing/run_example.go
++++ b/src/testing/run_example.go
+@@ -43,6 +43,7 @@ func runExample(eg InternalExample) (ok bool) {
+ 		outC <- buf.String()
+ 	}()
+ 
++	finished := false
+ 	start := time.Now()
+ 
+ 	// Clean up in a deferred call so we can recover if the example panics.
+@@ -55,10 +56,11 @@ func runExample(eg InternalExample) (ok bool) {
+ 		out := <-outC
+ 
+ 		err := recover()
+-		ok = eg.processRunResult(out, timeSpent, err)
++		ok = eg.processRunResult(out, timeSpent, finished, err)
+ 	}()
+ 
+ 	// Run example.
+ 	eg.F()
++	finished = true
+ 	return
+ }
+diff --git a/src/testing/run_example_js.go b/src/testing/run_example_js.go
+index 472e0c57fa..1d4164b61f 100644
+--- a/src/testing/run_example_js.go
++++ b/src/testing/run_example_js.go
+@@ -26,6 +26,7 @@ func runExample(eg InternalExample) (ok bool) {
+ 	stdout := os.Stdout
+ 	f := createTempFile(eg.Name)
+ 	os.Stdout = f
++	finished := false
+ 	start := time.Now()
+ 
+ 	// Clean up in a deferred call so we can recover if the example panics.
+@@ -50,11 +51,12 @@ func runExample(eg InternalExample) (ok bool) {
+ 		}
+ 
+ 		err := recover()
+-		ok = eg.processRunResult(out, timeSpent, err)
++		ok = eg.processRunResult(out, timeSpent, finished, err)
+ 	}()
+ 
+ 	// Run example.
+ 	eg.F()
++	finished = true
+ 	return
+ }
+ 

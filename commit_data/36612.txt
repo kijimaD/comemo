@@ -13,6 +13,20 @@ Date:   Fri May 4 14:32:59 2018 -0700
     Reviewed-on: https://go-review.googlesource.com/111575
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/go/internal/work/buildid.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/go/internal/work/buildid.go b/src/cmd/go/internal/work/buildid.go
+index bf63b8f472..94a06ff68f 100644
+--- a/src/cmd/go/internal/work/buildid.go
++++ b/src/cmd/go/internal/work/buildid.go
+@@ -235,6 +235,8 @@ func (b *Builder) gccgoToolID(name, language string) (string, error) {
+ 	cmdline := str.StringList(cfg.BuildToolexec, name, "-###", "-x", language, "-c", "-")
+ 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
+ 	cmd.Env = base.EnvForDir(cmd.Dir, os.Environ())
++	// Force untranslated output so that we see the string "version".
++	cmd.Env = append(cmd.Env, "LC_ALL=C")
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		return "", fmt.Errorf("%s: %v; output: %q", name, err, out)

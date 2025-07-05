@@ -11,6 +11,20 @@ Date:   Fri Jul 26 13:38:24 2013 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/11894043
-
+---
  src/cmd/gc/obj.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index f06b7ad451..5709a7aa4e 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -124,7 +124,7 @@ outwinname(Biobuf *b, Hist *h, char *ds, char *p)
+ 		outzfile(b, p+1);
+ 	} else {
+ 		// relative name
+-		if(h->offset == 0 && pathname && pathname[1] == ':') {
++		if(h->offset >= 0 && pathname && pathname[1] == ':') {
+ 			if(tolowerrune(ds[0]) == tolowerrune(pathname[0])) {
+ 				// using current drive
+ 				zfile(b, pathname, 3);	// leading "c:/"

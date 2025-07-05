@@ -12,6 +12,15 @@ Date:   Mon Dec 11 15:08:19 2017 -0800
     Change-Id: Id8f07587ea97015ed75439db220560a5446e53e6
     Reviewed-on: https://go-review.googlesource.com/83395
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/testdata/src/testcache/script.sh | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/go/testdata/src/testcache/script.sh b/src/cmd/go/testdata/src/testcache/script.sh
+deleted file mode 100755
+index 039e4d0069..0000000000
+--- a/src/cmd/go/testdata/src/testcache/script.sh
++++ /dev/null
+@@ -1,2 +0,0 @@
+-#!/bin/sh
+-exit 0

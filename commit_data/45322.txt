@@ -15,8 +15,50 @@ Date:   Mon Oct 19 12:01:23 2020 +0200
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/stat_openfile.go | 2 +-
  src/cmd/go/internal/modload/stat_unix.go     | 2 +-
  src/syscall/syscall_aix.go                   | 4 ++++
  3 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/stat_openfile.go b/src/cmd/go/internal/modload/stat_openfile.go
+index 7cdeaf47a2..5842b858f0 100644
+--- a/src/cmd/go/internal/modload/stat_openfile.go
++++ b/src/cmd/go/internal/modload/stat_openfile.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build aix js,wasm plan9
++// +build js,wasm plan9
+ 
+ // On plan9, per http://9p.io/magic/man2html/2/access: “Since file permissions
+ // are checked by the server and group information is not known to the client,
+diff --git a/src/cmd/go/internal/modload/stat_unix.go b/src/cmd/go/internal/modload/stat_unix.go
+index 65068444d0..f49278ec3a 100644
+--- a/src/cmd/go/internal/modload/stat_unix.go
++++ b/src/cmd/go/internal/modload/stat_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package modload
+ 
+diff --git a/src/syscall/syscall_aix.go b/src/syscall/syscall_aix.go
+index 8837dd5a7f..9c6afba442 100644
+--- a/src/syscall/syscall_aix.go
++++ b/src/syscall/syscall_aix.go
+@@ -45,6 +45,10 @@ func (ts *StTimespec_t) Nano() int64 {
+  * Wrapped
+  */
+ 
++func Access(path string, mode uint32) (err error) {
++	return Faccessat(_AT_FDCWD, path, mode, 0)
++}
++
+ // fcntl must never be called with cmd=F_DUP2FD because it doesn't work on AIX
+ // There is no way to create a custom fcntl and to keep //sys fcntl easily,
+ // because we need fcntl name for its libc symbol. This is linked with the script.

@@ -14,6 +14,28 @@ Date:   Wed Jul 2 09:34:06 2014 +1000
     R=rsc, dave
     CC=golang-codereviews, minux.ma
     https://golang.org/cl/105280050
-
+---
  src/pkg/runtime/sys_solaris_amd64.s | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/sys_solaris_amd64.s b/src/pkg/runtime/sys_solaris_amd64.s
+index dd34e24d01..83e8dfac56 100644
+--- a/src/pkg/runtime/sys_solaris_amd64.s
++++ b/src/pkg/runtime/sys_solaris_amd64.s
+@@ -164,7 +164,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
+ 	MOVQ	DI, 0(SP)
+ 	MOVQ	$runtime·badsignal(SB), AX
+ 	CALL	AX
+-	RET
++	JMP	exit
+ 
+ allgood:
+ 	// save g
+@@ -259,6 +259,7 @@ allgood:
+ 	MOVQ	80(SP), R10
+ 	MOVQ	R10, g(BX)
+ 
++exit:
+ 	// restore registers
+ 	MOVQ	32(SP), BX
+ 	MOVQ	40(SP), BP

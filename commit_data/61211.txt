@@ -19,6 +19,30 @@ Date:   Wed Oct 9 17:38:49 2024 +0000
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/malloc.go | 9 ++++-----
  1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 3416b599f9..83f7f64f6f 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1581,14 +1581,13 @@ func mallocgcLarge(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uin
+ 		memclrNoHeapPointersChunked(size, x) // This is a possible preemption point: see #47302
+ 
+ 		// Finish storing the type information for this case.
++		mp := acquirem()
+ 		if !noscan {
+-			mp := acquirem()
+ 			getMCache(mp).scanAlloc += heapSetTypeLarge(uintptr(x), size, typ, span)
+-
+-			// Publish the type information with the zeroed memory.
+-			publicationBarrier()
+-			releasem(mp)
+ 		}
++		// Publish the object with the now-zeroed memory.
++		publicationBarrier()
++		releasem(mp)
+ 	}
+ 	return x, size
+ }

@@ -9,7 +9,40 @@ Date:   Thu Mar 5 17:33:19 2015 +1100
     Change-Id: Ia8a76bccc79b0f211296d50bd419860b13077ba5
     Reviewed-on: https://go-review.googlesource.com/6808
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/gc/lex.go    | 2 --
  src/cmd/internal/gc/syntax.go | 1 -
  2 files changed, 3 deletions(-)
+
+diff --git a/src/cmd/internal/gc/lex.go b/src/cmd/internal/gc/lex.go
+index 6ff515e7b3..e712752337 100644
+--- a/src/cmd/internal/gc/lex.go
++++ b/src/cmd/internal/gc/lex.go
+@@ -2502,7 +2502,6 @@ func lexinit() {
+ 			s1.Def = Nod(ONAME, nil, nil)
+ 			s1.Def.Sym = s1
+ 			s1.Def.Etype = uint8(etype)
+-			s1.Def.Builtin = 1
+ 		}
+ 	}
+ 
+@@ -2630,7 +2629,6 @@ func lexfini() {
+ 			s.Def = Nod(ONAME, nil, nil)
+ 			s.Def.Sym = s
+ 			s.Def.Etype = uint8(etype)
+-			s.Def.Builtin = 1
+ 			s.Origpkg = builtinpkg
+ 		}
+ 	}
+diff --git a/src/cmd/internal/gc/syntax.go b/src/cmd/internal/gc/syntax.go
+index 7584af2d77..9b2f9aeaef 100644
+--- a/src/cmd/internal/gc/syntax.go
++++ b/src/cmd/internal/gc/syntax.go
+@@ -37,7 +37,6 @@ type Node struct {
+ 	Diag           uint8 // already printed error about this
+ 	Noescape       bool  // func arguments do not escape
+ 	Nosplit        bool  // func should not execute on separate stack
+-	Builtin        uint8 // built-in name, like len or close
+ 	Nowritebarrier bool  // emit compiler error instead of write barrier
+ 	Walkdef        uint8
+ 	Typecheck      uint8

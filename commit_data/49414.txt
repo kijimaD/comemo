@@ -16,8 +16,94 @@ Date:   Thu Aug 12 17:08:49 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/stencil.go |  5 +++
  test/typeparam/issue47272.go              | 55 +++++++++++++++++++++++++++++++
  test/typeparam/issue47272.out             |  2 ++
  3 files changed, 62 insertions(+)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 6736f128e3..4ac37c362c 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -1224,6 +1224,11 @@ func convertUsingDictionary(info *instInfo, dictParam *ir.Name, pos src.XPos, v
+ 		}
+ 		assert(ix >= 0)
+ 		rt = getDictionaryEntry(pos, dictParam, ix, info.dictLen)
++	} else if v.Type().IsInterface() {
++		ta := ir.NewTypeAssertExpr(pos, v, nil)
++		ta.SetType(dst)
++		ta.SetTypecheck(1)
++		return ta
+ 	} else {
+ 		ix := findDictType(info, src)
+ 		assert(ix >= 0)
+diff --git a/test/typeparam/issue47272.go b/test/typeparam/issue47272.go
+new file mode 100644
+index 0000000000..6771cb9901
+--- /dev/null
++++ b/test/typeparam/issue47272.go
+@@ -0,0 +1,55 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"errors"
++	"fmt"
++)
++
++type Option[T any] struct {
++	ok  bool
++	val T
++}
++
++func (o Option[T]) String() string {
++	if o.ok {
++		return fmt.Sprintf("Some(%v)", o.val)
++	}
++	return "None"
++}
++
++func Some[T any](val T) Option[T] { return Option[T]{ok: true, val: val} }
++func None[T any]() Option[T]      { return Option[T]{ok: false} }
++
++type Result[T, E any] struct {
++	ok  bool
++	val T
++	err E
++}
++
++func (r Result[T, E]) String() string {
++	if r.ok {
++		return fmt.Sprintf("Ok(%v)", r.val)
++	}
++	return fmt.Sprintf("Err(%v)", r.err)
++}
++
++func Ok[T, E any](val T) Result[T, E]  { return Result[T, E]{ok: true, val: val} }
++func Err[T, E any](err E) Result[T, E] { return Result[T, E]{ok: false, err: err} }
++
++func main() {
++	a := Some[int](1)
++	b := None[int]()
++	fmt.Println(a, b)
++
++	x := Ok[int, error](1)
++	y := Err[int, error](errors.New("test"))
++	fmt.Println(x, y)
++	// fmt.Println(x)
++	_, _, _, _ = a, b, x, y
++}
+diff --git a/test/typeparam/issue47272.out b/test/typeparam/issue47272.out
+new file mode 100644
+index 0000000000..9c433faa97
+--- /dev/null
++++ b/test/typeparam/issue47272.out
+@@ -0,0 +1,2 @@
++Some(1) None
++Ok(1) Err(test)

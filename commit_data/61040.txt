@@ -17,7 +17,69 @@ Date:   Thu Sep 19 09:20:56 2024 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/crypto/rsa/pss.go      |  8 ++++----
  src/crypto/rsa/pss_test.go | 20 ++++++++++++++++++++
  2 files changed, 24 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/rsa/pss.go b/src/crypto/rsa/pss.go
+index e996e7aaa3..5716c464ca 100644
+--- a/src/crypto/rsa/pss.go
++++ b/src/crypto/rsa/pss.go
+@@ -296,6 +296,10 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte,
+ 	// well-specified number of random bytes is included in the signature, in a
+ 	// well-specified way.
+ 
++	if opts != nil && opts.Hash != 0 {
++		hash = opts.Hash
++	}
++
+ 	if boring.Enabled && rand == boring.RandReader {
+ 		bkey, err := boringPrivateKey(priv)
+ 		if err != nil {
+@@ -305,10 +309,6 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte,
+ 	}
+ 	boring.UnreachableExceptTests()
+ 
+-	if opts != nil && opts.Hash != 0 {
+-		hash = opts.Hash
+-	}
+-
+ 	saltLength := opts.saltLength()
+ 	switch saltLength {
+ 	case PSSSaltLengthAuto:
+diff --git a/src/crypto/rsa/pss_test.go b/src/crypto/rsa/pss_test.go
+index 7e908d4389..637d07e18c 100644
+--- a/src/crypto/rsa/pss_test.go
++++ b/src/crypto/rsa/pss_test.go
+@@ -13,6 +13,7 @@ import (
+ 	. "crypto/rsa"
+ 	"crypto/sha1"
+ 	"crypto/sha256"
++	"crypto/sha512"
+ 	"encoding/hex"
+ 	"math/big"
+ 	"os"
+@@ -306,3 +307,22 @@ func TestInvalidPSSSaltLength(t *testing.T) {
+ 		t.Fatal("VerifyPSS unexpected success")
+ 	}
+ }
++
++func TestHashOverride(t *testing.T) {
++	key, err := GenerateKey(rand.Reader, 1024)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	digest := sha512.Sum512([]byte("message"))
++	// opts.Hash overrides the passed hash argument.
++	sig, err := SignPSS(rand.Reader, key, crypto.SHA256, digest[:], &PSSOptions{Hash: crypto.SHA512})
++	if err != nil {
++		t.Fatalf("SignPSS unexpected error: got %v, want nil", err)
++	}
++
++	// VerifyPSS has the inverse behavior, opts.Hash is always ignored, check this is true.
++	if err := VerifyPSS(&key.PublicKey, crypto.SHA512, digest[:], sig, &PSSOptions{Hash: crypto.SHA256}); err != nil {
++		t.Fatalf("VerifyPSS unexpected error: got %v, want nil", err)
++	}
++}

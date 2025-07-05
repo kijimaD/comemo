@@ -16,7 +16,79 @@ Date:   Fri Jun 10 11:51:46 2016 -0400
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/racewalk.go |  2 +-
  test/fixedbugs/issue16008.go            | 52 +++++++++++++++++++++++++++++++++
  2 files changed, 53 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 4a658b1976..ad2bba9714 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -164,7 +164,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
+ 				var outn Nodes
+ 				outn.Set(out)
+ 				instrumentnode(&ls[i], &outn, 0, 0)
+-				if ls[i].Op != OAS || ls[i].Ninit.Len() == 0 {
++				if ls[i].Op != OAS && ls[i].Op != OASWB && ls[i].Op != OAS2FUNC || ls[i].Ninit.Len() == 0 {
+ 					out = append(outn.Slice(), ls[i])
+ 				} else {
+ 					// Splice outn onto end of ls[i].Ninit
+diff --git a/test/fixedbugs/issue16008.go b/test/fixedbugs/issue16008.go
+new file mode 100644
+index 0000000000..1b516fbabe
+--- /dev/null
++++ b/test/fixedbugs/issue16008.go
+@@ -0,0 +1,52 @@
++// errorcheck -0 -race
++
++package foo
++
++const benchmarkNumNodes = 10000
++
++func BenchmarkUpdateNodeTransaction(b B) {
++	s, nodeIDs := setupNodes(benchmarkNumNodes)
++	b.ResetTimer()
++	for i := 0; i < b.N(); i++ {
++		_ = s.Update(func(tx1 Tx) error {
++			_ = UpdateNode(tx1, &Node{
++				ID: nodeIDs[i%benchmarkNumNodes],
++			})
++			return nil
++		})
++	}
++}
++
++type B interface {
++	ResetTimer()
++	N() int
++}
++
++type Tx interface {
++}
++
++type Node struct {
++	ID string
++}
++
++type MemoryStore struct {
++}
++
++// go:noinline
++func setupNodes(n int) (s *MemoryStore, nodeIDs []string) {
++	return
++}
++
++//go:noinline
++func (s *MemoryStore) Update(cb func(Tx) error) error {
++	return nil
++}
++
++var sink interface{}
++
++//go:noinline
++func UpdateNode(tx Tx, n *Node) error {
++	sink = tx
++	sink = n
++	return nil
++}

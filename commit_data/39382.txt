@@ -9,6 +9,28 @@ Date:   Fri Feb 22 15:51:40 2019 +0000
     GitHub-Pull-Request: golang/go#30022
     Reviewed-on: https://go-review.googlesource.com/c/160446
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/interface_plan9.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/interface_plan9.go b/src/net/interface_plan9.go
+index e5d77390f8..8fe9138406 100644
+--- a/src/net/interface_plan9.go
++++ b/src/net/interface_plan9.go
+@@ -152,10 +152,14 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
+ 		}
+ 		defer statusf.close()
+ 
++		// Read but ignore first line as it only contains the table header.
++		// See https://9p.io/magic/man2html/3/ip
++		if _, ok := statusf.readLine(); !ok {
++			return nil, errors.New("cannot read header line for interface: " + status)
++		}
+ 		line, ok := statusf.readLine()
+-		line, ok = statusf.readLine()
+ 		if !ok {
+-			return nil, errors.New("cannot parse IP address for interface: " + status)
++			return nil, errors.New("cannot read IP address for interface: " + status)
+ 		}
+ 
+ 		// This assumes only a single address for the interface.

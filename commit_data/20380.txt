@@ -8,7 +8,37 @@ Date:   Thu Sep 4 08:36:18 2014 +0200
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/138050043
-
+---
  src/pkg/runtime/os_plan9.c  | 6 ------
  src/pkg/runtime/os_plan9.go | 4 ++++
  2 files changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/runtime/os_plan9.c b/src/pkg/runtime/os_plan9.c
+index 98e449251a..fad5b2717f 100644
+--- a/src/pkg/runtime/os_plan9.c
++++ b/src/pkg/runtime/os_plan9.c
+@@ -317,12 +317,6 @@ runtime·semawakeup(M *mp)
+ 	runtime·plan9_semrelease(&mp->waitsemacount, 1);
+ }
+ 
+-void
+-os·sigpipe(void)
+-{
+-	runtime·throw("too many writes on closed pipe");
+-}
+-
+ static int64
+ atolwhex(byte *p)
+ {
+diff --git a/src/pkg/runtime/os_plan9.go b/src/pkg/runtime/os_plan9.go
+index 4a7b16fd64..c45d22551f 100644
+--- a/src/pkg/runtime/os_plan9.go
++++ b/src/pkg/runtime/os_plan9.go
+@@ -28,3 +28,7 @@ func errstr() string
+ const stackSystem = 512
+ 
+ type _Plink uintptr
++
++func os_sigpipe() {
++	gothrow("too many writes on closed pipe")
++}

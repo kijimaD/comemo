@@ -9,6 +9,19 @@ Date:   Thu Feb 28 01:04:58 2019 +0900
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/image/png/writer.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/image/png/writer.go b/src/image/png/writer.go
+index c03335120e..2bd4fde692 100644
+--- a/src/image/png/writer.go
++++ b/src/image/png/writer.go
+@@ -288,7 +288,6 @@ func filter(cr *[nFilter][]byte, pr []byte, bpp int) int {
+ 		}
+ 	}
+ 	if sum < best {
+-		best = sum
+ 		filter = ftAverage
+ 	}
+ 

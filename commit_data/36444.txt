@@ -23,7 +23,7 @@ Date:   Sun Apr 1 11:01:36 2018 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go           |  2 +
  src/runtime/heapdump.go                      |  5 +-
  src/runtime/internal/sys/intrinsics.go       | 24 +++++++++
@@ -32,3 +32,219 @@ Date:   Sun Apr 1 11:01:36 2018 -0700
  src/runtime/mbitmap.go                       |  3 +-
  src/runtime/stack.go                         | 78 +++++++++++++---------------
  7 files changed, 75 insertions(+), 46 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 6d19e47d38..3ebf41fa0c 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2980,6 +2980,8 @@ func init() {
+ 	alias("runtime/internal/atomic", "Casp1", "runtime/internal/atomic", "Cas", p4...)
+ 	alias("runtime/internal/atomic", "Casp1", "runtime/internal/atomic", "Cas64", p8...)
+ 
++	alias("runtime/internal/sys", "Ctz8", "math/bits", "TrailingZeros8", all...)
++
+ 	/******** math ********/
+ 	addF("math", "Sqrt",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 2b8937834c..1bd7d218d7 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -233,9 +233,8 @@ type childInfo struct {
+ 
+ // dump kinds & offsets of interesting fields in bv
+ func dumpbv(cbv *bitvector, offset uintptr) {
+-	bv := gobv(*cbv)
+-	for i := uintptr(0); i < bv.n; i++ {
+-		if bv.bytedata[i/8]>>(i%8)&1 == 1 {
++	for i := uintptr(0); i < uintptr(cbv.n); i++ {
++		if cbv.ptrbit(i) == 1 {
+ 			dumpint(fieldKindPtr)
+ 			dumpint(uint64(offset + i*sys.PtrSize))
+ 		}
+diff --git a/src/runtime/internal/sys/intrinsics.go b/src/runtime/internal/sys/intrinsics.go
+index 4e119b0470..ad6f0c3021 100644
+--- a/src/runtime/internal/sys/intrinsics.go
++++ b/src/runtime/internal/sys/intrinsics.go
+@@ -50,6 +50,30 @@ func Ctz32(x uint32) int {
+ 	return i + z
+ }
+ 
++// Ctz8 returns the number of trailing zero bits in x; the result is 8 for x == 0.
++func Ctz8(x uint8) int {
++	return int(ntz8tab[x])
++}
++
++var ntz8tab = [256]uint8{
++	0x08, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
++	0x04, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
++	0x05, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
++	0x04, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
++	0x06, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
++	0x04, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
++	0x05, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
++	0x04, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
++	0x07, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
++	0x04, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
++	0x05, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
++	0x04, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
++	0x06, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
++	0x04, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
++	0x05, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
++	0x04, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
++}
++
+ // Bswap64 returns its input with byte order reversed
+ // 0x0102030405060708 -> 0x0807060504030201
+ func Bswap64(x uint64) uint64 {
+diff --git a/src/runtime/internal/sys/intrinsics_386.s b/src/runtime/internal/sys/intrinsics_386.s
+index 4bb4cd63f8..784b246a01 100644
+--- a/src/runtime/internal/sys/intrinsics_386.s
++++ b/src/runtime/internal/sys/intrinsics_386.s
+@@ -34,6 +34,14 @@ TEXT runtime∕internal∕sys·Ctz32(SB), NOSPLIT, $0-8
+ 	MOVL	AX, ret+4(FP)
+ 	RET
+ 
++TEXT runtime∕internal∕sys·Ctz8(SB), NOSPLIT, $0-8
++	MOVBLZX	x+0(FP), AX
++	BSFL	AX, AX
++	JNZ	2(PC)
++	MOVL	$8, AX
++	MOVL	AX, ret+4(FP)
++	RET
++
+ TEXT runtime∕internal∕sys·Bswap64(SB), NOSPLIT, $0-16
+ 	MOVL	x_lo+0(FP), AX
+ 	MOVL	x_hi+4(FP), BX
+diff --git a/src/runtime/internal/sys/intrinsics_stubs.go b/src/runtime/internal/sys/intrinsics_stubs.go
+index 4d991f43bf..9cbf48216c 100644
+--- a/src/runtime/internal/sys/intrinsics_stubs.go
++++ b/src/runtime/internal/sys/intrinsics_stubs.go
+@@ -8,5 +8,6 @@ package sys
+ 
+ func Ctz64(x uint64) int
+ func Ctz32(x uint32) int
++func Ctz8(x uint8) int
+ func Bswap64(x uint64) uint64
+ func Bswap32(x uint32) uint32
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 69bd0b502b..5c7d812403 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -2021,9 +2021,8 @@ func getgcmask(ep interface{}) (mask []byte) {
+ 			n := (*ptrtype)(unsafe.Pointer(t)).elem.size
+ 			mask = make([]byte, n/sys.PtrSize)
+ 			for i := uintptr(0); i < n; i += sys.PtrSize {
+-				bitmap := bv.bytedata
+ 				off := (uintptr(p) + i - frame.varp + size) / sys.PtrSize
+-				mask[i/sys.PtrSize] = (*addb(bitmap, off/8) >> (off % 8)) & 1
++				mask[i/sys.PtrSize] = bv.ptrbit(off)
+ 			}
+ 		}
+ 		return
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 2d10ac8381..00c439cca4 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -544,64 +544,60 @@ type bitvector struct {
+ 	bytedata *uint8
+ }
+ 
+-type gobitvector struct {
+-	n        uintptr
+-	bytedata []uint8
+-}
+-
+-func gobv(bv bitvector) gobitvector {
+-	return gobitvector{
+-		uintptr(bv.n),
+-		(*[1 << 30]byte)(unsafe.Pointer(bv.bytedata))[:(bv.n+7)/8],
+-	}
+-}
+-
+-func ptrbit(bv *gobitvector, i uintptr) uint8 {
+-	return (bv.bytedata[i/8] >> (i % 8)) & 1
++// ptrbit returns the i'th bit in bv.
++// ptrbit is less efficient than iterating directly over bitvector bits,
++// and should only be used in non-performance-critical code.
++// See adjustpointers for an example of a high-efficiency walk of a bitvector.
++func (bv *bitvector) ptrbit(i uintptr) uint8 {
++	b := *(addb(bv.bytedata, i/8))
++	return (b >> (i % 8)) & 1
+ }
+ 
+ // bv describes the memory starting at address scanp.
+ // Adjust any pointers contained therein.
+-func adjustpointers(scanp unsafe.Pointer, cbv *bitvector, adjinfo *adjustinfo, f funcInfo) {
+-	bv := gobv(*cbv)
++func adjustpointers(scanp unsafe.Pointer, bv *bitvector, adjinfo *adjustinfo, f funcInfo) {
+ 	minp := adjinfo.old.lo
+ 	maxp := adjinfo.old.hi
+ 	delta := adjinfo.delta
+-	num := bv.n
++	num := uintptr(bv.n)
+ 	// If this frame might contain channel receive slots, use CAS
+ 	// to adjust pointers. If the slot hasn't been received into
+ 	// yet, it may contain stack pointers and a concurrent send
+ 	// could race with adjusting those pointers. (The sent value
+ 	// itself can never contain stack pointers.)
+ 	useCAS := uintptr(scanp) < adjinfo.sghi
+-	for i := uintptr(0); i < num; i++ {
++	for i := uintptr(0); i < num; i += 8 {
+ 		if stackDebug >= 4 {
+-			print("        ", add(scanp, i*sys.PtrSize), ":", ptrnames[ptrbit(&bv, i)], ":", hex(*(*uintptr)(add(scanp, i*sys.PtrSize))), " # ", i, " ", bv.bytedata[i/8], "\n")
+-		}
+-		if ptrbit(&bv, i) != 1 {
+-			continue
+-		}
+-		pp := (*uintptr)(add(scanp, i*sys.PtrSize))
+-	retry:
+-		p := *pp
+-		if f.valid() && 0 < p && p < minLegalPointer && debug.invalidptr != 0 {
+-			// Looks like a junk value in a pointer slot.
+-			// Live analysis wrong?
+-			getg().m.traceback = 2
+-			print("runtime: bad pointer in frame ", funcname(f), " at ", pp, ": ", hex(p), "\n")
+-			throw("invalid pointer found on stack")
++			for j := uintptr(0); j < 8; j++ {
++				print("        ", add(scanp, (i+j)*sys.PtrSize), ":", ptrnames[bv.ptrbit(i+j)], ":", hex(*(*uintptr)(add(scanp, (i+j)*sys.PtrSize))), " # ", i, " ", *addb(bv.bytedata, i/8), "\n")
++			}
+ 		}
+-		if minp <= p && p < maxp {
+-			if stackDebug >= 3 {
+-				print("adjust ptr ", hex(p), " ", funcname(f), "\n")
++		b := *(addb(bv.bytedata, i/8))
++		for b != 0 {
++			j := uintptr(sys.Ctz8(b))
++			b &= b - 1
++			pp := (*uintptr)(add(scanp, (i+j)*sys.PtrSize))
++		retry:
++			p := *pp
++			if f.valid() && 0 < p && p < minLegalPointer && debug.invalidptr != 0 {
++				// Looks like a junk value in a pointer slot.
++				// Live analysis wrong?
++				getg().m.traceback = 2
++				print("runtime: bad pointer in frame ", funcname(f), " at ", pp, ": ", hex(p), "\n")
++				throw("invalid pointer found on stack")
+ 			}
+-			if useCAS {
+-				ppu := (*unsafe.Pointer)(unsafe.Pointer(pp))
+-				if !atomic.Casp1(ppu, unsafe.Pointer(p), unsafe.Pointer(p+delta)) {
+-					goto retry
++			if minp <= p && p < maxp {
++				if stackDebug >= 3 {
++					print("adjust ptr ", hex(p), " ", funcname(f), "\n")
++				}
++				if useCAS {
++					ppu := (*unsafe.Pointer)(unsafe.Pointer(pp))
++					if !atomic.Casp1(ppu, unsafe.Pointer(p), unsafe.Pointer(p+delta)) {
++						goto retry
++					}
++				} else {
++					*pp = p + delta
+ 				}
+-			} else {
+-				*pp = p + delta
+ 			}
+ 		}
+ 	}

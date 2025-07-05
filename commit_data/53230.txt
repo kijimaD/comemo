@@ -31,7 +31,36 @@ Date:   Wed Jul 20 21:49:15 2022 -0400
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/lockrank.go   | 2 +-
  src/runtime/mklockrank.go | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/lockrank.go b/src/runtime/lockrank.go
+index 1e83839120..c817de1aa4 100644
+--- a/src/runtime/lockrank.go
++++ b/src/runtime/lockrank.go
+@@ -159,7 +159,7 @@ var lockPartialOrder [][]lockRank = [][]lockRank{
+ 	lockRankSpanSetSpine:  {lockRankSysmon, lockRankSweepWaiters, lockRankAssistQueue, lockRankCpuprof, lockRankSweep, lockRankPollDesc, lockRankItab, lockRankNotifyList, lockRankScavenge, lockRankForcegc, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankReflectOffs, lockRankHchan, lockRankTraceBuf, lockRankTraceStrings},
+ 	lockRankMheapSpecial:  {lockRankSysmon, lockRankSweepWaiters, lockRankAssistQueue, lockRankCpuprof, lockRankSweep, lockRankPollDesc, lockRankItab, lockRankNotifyList, lockRankScavenge, lockRankForcegc, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankReflectOffs, lockRankHchan, lockRankTraceBuf, lockRankTraceStrings},
+ 	lockRankProfMemFuture: {lockRankSysmon, lockRankSweepWaiters, lockRankAssistQueue, lockRankCpuprof, lockRankSweep, lockRankPollDesc, lockRankItab, lockRankNotifyList, lockRankScavenge, lockRankForcegc, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankReflectOffs, lockRankHchan, lockRankTraceBuf, lockRankTraceStrings, lockRankProfMemActive},
+-	lockRankTrace:         {lockRankSysmon, lockRankSweepWaiters, lockRankAssistQueue, lockRankCpuprof, lockRankSweep, lockRankPollDesc, lockRankRoot, lockRankScavenge, lockRankForcegc, lockRankSched, lockRankHchan, lockRankTraceBuf, lockRankTraceStrings},
++	lockRankTrace:         {lockRankSysmon, lockRankSweepWaiters, lockRankAssistQueue, lockRankCpuprof, lockRankSweep, lockRankPollDesc, lockRankItab, lockRankNotifyList, lockRankRoot, lockRankScavenge, lockRankForcegc, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankReflectOffs, lockRankHchan, lockRankTraceBuf, lockRankFin, lockRankTraceStrings},
+ 	lockRankTraceStackTab: {lockRankSysmon, lockRankSweepWaiters, lockRankAssistQueue, lockRankCpuprof, lockRankSweep, lockRankPollDesc, lockRankItab, lockRankNotifyList, lockRankRoot, lockRankScavenge, lockRankForcegc, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankReflectOffs, lockRankHchan, lockRankTraceBuf, lockRankFin, lockRankTraceStrings, lockRankTrace},
+ 	lockRankNetpollInit:   {lockRankSysmon, lockRankSweepWaiters, lockRankAssistQueue, lockRankCpuprof, lockRankSweep, lockRankPollDesc, lockRankScavenge, lockRankForcegc, lockRankSched, lockRankAllp, lockRankTimers},
+ 	lockRankRwmutexR:      {lockRankSysmon, lockRankRwmutexW},
+diff --git a/src/runtime/mklockrank.go b/src/runtime/mklockrank.go
+index 9cb51bedca..110d57faf0 100644
+--- a/src/runtime/mklockrank.go
++++ b/src/runtime/mklockrank.go
+@@ -47,8 +47,8 @@ allg, hchan, reflectOffs, timers, traceBuf < fin;
+ traceBuf < traceStrings;
+ allg, hchan, notifyList, reflectOffs, timers, traceStrings < mspanSpecial, profInsert, profBlock, profMemActive, gcBitsArenas, spanSetSpine, mheapSpecial;
+ profMemActive < profMemFuture;
+-hchan, root, sched, traceStrings < trace;
+-fin, notifyList, trace < traceStackTab;
++hchan, root, sched, traceStrings, notifyList, fin < trace;
++trace < traceStackTab;
+ timers < netpollInit;
+ rwmutexW, sysmon < rwmutexR;
+ gcBitsArenas, netpollInit, profBlock, profInsert, profMemFuture, spanSetSpine, traceStackTab < gscan;

@@ -40,7 +40,7 @@ Date:   Wed Jan 3 17:14:55 2018 -0500
     Reviewed-on: https://go-review.googlesource.com/93663
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go   |   2 +-
  src/cmd/compile/internal/ssa/html.go |   4 +-
  src/cmd/internal/obj/util.go         |  12 ++--
@@ -49,3 +49,331 @@ Date:   Wed Jan 3 17:14:55 2018 -0500
  src/cmd/internal/src/xpos.go         |  32 ++++++++++
  src/cmd/internal/src/xpos_test.go    |  24 ++++++++
  7 files changed, 206 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 02e8a62467..909df12e5e 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4792,7 +4792,7 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 				}
+ 				buf.WriteString("</dt>")
+ 				buf.WriteString("<dd class=\"ssa-prog\">")
+-				buf.WriteString(fmt.Sprintf("%.5d <span class=\"line-number\">(%s)</span> %s", p.Pc, p.InnermostLineNumber(), html.EscapeString(p.InstructionString())))
++				buf.WriteString(fmt.Sprintf("%.5d <span class=\"line-number\">(%s)</span> %s", p.Pc, p.InnermostLineNumberHTML(), html.EscapeString(p.InstructionString())))
+ 				buf.WriteString("</dd>")
+ 			}
+ 			buf.WriteString("</dl>")
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index 47f37f2337..85d97ba497 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -370,7 +370,7 @@ func (v *Value) LongHTML() string {
+ 
+ 	linenumber := "<span class=\"line-number\">(?)</span>"
+ 	if v.Pos.IsKnown() {
+-		linenumber = fmt.Sprintf("<span class=\"line-number\">(%d)</span>", v.Pos.Line())
++		linenumber = fmt.Sprintf("<span class=\"line-number\">(%s)</span>", v.Pos.LineNumberHTML())
+ 	}
+ 
+ 	s += fmt.Sprintf("%s %s = %s", v.HTML(), linenumber, v.Op.String())
+@@ -434,7 +434,7 @@ func (b *Block) LongHTML() string {
+ 	if b.Pos.IsKnown() {
+ 		// TODO does not begin to deal with the full complexity of line numbers.
+ 		// Maybe we want a string/slice instead, of outer-inner when inlining.
+-		s += fmt.Sprintf(" (line %d)", b.Pos.Line())
++		s += fmt.Sprintf(" (line %s)", b.Pos.LineNumberHTML())
+ 	}
+ 	return s
+ }
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 9b25231bb4..c540533cba 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -21,11 +21,13 @@ func (p *Prog) Line() string {
+ // InnermostLineNumber returns a string containing the line number for the
+ // innermost inlined function (if any inlining) at p's position
+ func (p *Prog) InnermostLineNumber() string {
+-	pos := p.Ctxt.InnermostPos(p.Pos)
+-	if !pos.IsKnown() {
+-		return "?"
+-	}
+-	return fmt.Sprintf("%d", pos.Line())
++	return p.Ctxt.InnermostPos(p.Pos).LineNumber()
++}
++
++// InnermostLineNumberHTML returns a string containing the line number for the
++// innermost inlined function (if any inlining) at p's position
++func (p *Prog) InnermostLineNumberHTML() string {
++	return p.Ctxt.InnermostPos(p.Pos).LineNumberHTML()
+ }
+ 
+ // InnermostFilename returns a string containing the innermost
+diff --git a/src/cmd/internal/src/pos.go b/src/cmd/internal/src/pos.go
+index c7b9a8069d..52aabd9a32 100644
+--- a/src/cmd/internal/src/pos.go
++++ b/src/cmd/internal/src/pos.go
+@@ -6,7 +6,10 @@
+ 
+ package src
+ 
+-import "strconv"
++import (
++	"fmt"
++	"strconv"
++)
+ 
+ // A Pos encodes a source position consisting of a (line, column) number pair
+ // and a position base. A zero Pos is a ready to use "unknown" position (nil
+@@ -56,6 +59,20 @@ func (p Pos) After(q Pos) bool {
+ 	return n > m || n == m && p.lico > q.lico
+ }
+ 
++func (p Pos) LineNumber() string {
++	if !p.IsKnown() {
++		return "?"
++	}
++	return p.lico.lineNumber()
++}
++
++func (p Pos) LineNumberHTML() string {
++	if !p.IsKnown() {
++		return "?"
++	}
++	return p.lico.lineNumberHTML()
++}
++
+ // Filename returns the name of the actual file containing this position.
+ func (p Pos) Filename() string { return p.base.Pos().RelFilename() }
+ 
+@@ -276,14 +293,53 @@ func (b *PosBase) InliningIndex() int {
+ // A lico is a compact encoding of a LIne and COlumn number.
+ type lico uint32
+ 
+-// Layout constants: 24 bits for line, 8 bits for column.
++// Layout constants: 22 bits for line, 8 bits for column, 2 for isStmt
+ // (If this is too tight, we can either make lico 64b wide,
+ // or we can introduce a tiered encoding where we remove column
+ // information as line numbers grow bigger; similar to what gcc
+ // does.)
++// The bitfield order is chosen to make IsStmt be the least significant
++// part of a position; its use is to communicate statement edges through
++// instruction scrambling in code generation, not to impose an order.
++const (
++	lineBits, lineMax     = 22, 1<<lineBits - 1
++	isStmtBits, isStmtMax = 2, 1<<isStmtBits - 1
++	colBits, colMax       = 32 - lineBits - isStmtBits, 1<<colBits - 1
++	isStmtShift           = 0
++	colShift              = isStmtBits + isStmtShift
++	lineShift             = colBits + colShift
++)
+ const (
+-	lineBits, lineMax = 24, 1<<lineBits - 1
+-	colBits, colMax   = 32 - lineBits, 1<<colBits - 1
++	// It is expected that the front end or a phase in SSA will usually generate positions tagged with
++	// PosDefaultStmt, but note statement boundaries with PosIsStmt.  Simple statements will have a single
++	// boundary; for loops with initialization may have one for their entry and one for their back edge
++	// (this depends on exactly how the loop is compiled; the intent is to provide a good experience to a
++	// user debugging a program; the goal is that a breakpoint set on the loop line fires both on entry
++	// and on iteration).  Proper treatment of non-gofmt input with multiple simple statements on a single
++	// line is TBD.
++	//
++	// Optimizing compilation will move instructions around, and some of these will become known-bad as
++	// step targets for debugging purposes (examples: register spills and reloads; code generated into
++	// the entry block; invariant code hoisted out of loops) but those instructions will still have interesting
++	// positions for profiling purposes. To reflect this these positions will be changed to PosNotStmt.
++	//
++	// When the optimizer removes an instruction marked PosIsStmt; it should attempt to find a nearby
++	// instruction with the same line marked PosDefaultStmt to be the new statement boundary.  I.e., the
++	// optimizer should make a best-effort to conserve statement boundary positions, and might be enhanced
++	// to note when a statement boundary is not conserved.
++	//
++	// Code cloning, e.g. loop unrolling or loop unswitching, is an exception to the conservation rule
++	// because a user running a debugger would expect to see breakpoints active in the copies of the code.
++	//
++	// In non-optimizing compilation there is still a role for PosNotStmt because of code generation
++	// into the entry block.  PosIsStmt statement positions should be conserved.
++	//
++	// When code generation occurs any remaining default-marked positions are replaced with not-statement
++	// positions.
++	//
++	PosDefaultStmt uint = iota // Default; position is not a statement boundary, but might be if optimization removes the designated statement boundary
++	PosIsStmt                  // Position is a statement bounday; if optimization removes the corresponding instruction, it should attempt to find a new instruction to be the boundary.
++	PosNotStmt                 // Position should not be a statement boundary, but line should be preserved for profiling and low-level debugging purposes.
+ )
+ 
+ func makeLico(line, col uint) lico {
+@@ -295,8 +351,53 @@ func makeLico(line, col uint) lico {
+ 		// cannot represent column, use max. column so we have some information
+ 		col = colMax
+ 	}
+-	return lico(line<<colBits | col)
++	// default is not-sure-if-statement
++	return lico(line<<lineShift | col<<colShift)
++}
++
++func (x lico) Line() uint { return uint(x) >> lineShift }
++func (x lico) Col() uint  { return uint(x) >> colShift & colMax }
++func (x lico) IsStmt() uint {
++	if x == 0 {
++		return PosNotStmt
++	}
++	return uint(x) >> isStmtShift & isStmtMax
+ }
+ 
+-func (x lico) Line() uint { return uint(x) >> colBits }
+-func (x lico) Col() uint  { return uint(x) & colMax }
++// withNotStmt returns a lico for the same location, but not a statement
++func (x lico) withNotStmt() lico {
++	return x.withStmt(PosNotStmt)
++}
++
++// withDefaultStmt returns a lico for the same location, with default isStmt
++func (x lico) withDefaultStmt() lico {
++	return x.withStmt(PosDefaultStmt)
++}
++
++// withIsStmt returns a lico for the same location, tagged as definitely a statement
++func (x lico) withIsStmt() lico {
++	return x.withStmt(PosIsStmt)
++}
++
++// withStmt returns a lico for the same location with specified is_stmt attribute
++func (x lico) withStmt(stmt uint) lico {
++	if x == 0 {
++		return lico(0)
++	}
++	return lico(uint(x) & ^uint(isStmtMax<<isStmtShift) | (stmt << isStmtShift))
++}
++
++func (x lico) lineNumber() string {
++	return fmt.Sprintf("%d", x.Line())
++}
++
++func (x lico) lineNumberHTML() string {
++	if x.IsStmt() == PosDefaultStmt {
++		return fmt.Sprintf("%d", x.Line())
++	}
++	style := "b"
++	if x.IsStmt() == PosNotStmt {
++		style = "s" // /strike not supported in HTML5
++	}
++	return fmt.Sprintf("<%s>%d</%s>", style, x.Line(), style)
++}
+diff --git a/src/cmd/internal/src/pos_test.go b/src/cmd/internal/src/pos_test.go
+index 3fea45c116..94a527b992 100644
+--- a/src/cmd/internal/src/pos_test.go
++++ b/src/cmd/internal/src/pos_test.go
+@@ -152,3 +152,35 @@ func TestLico(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestIsStmt(t *testing.T) {
++	def := fmt.Sprintf(":%d", PosDefaultStmt)
++	is := fmt.Sprintf(":%d", PosIsStmt)
++	not := fmt.Sprintf(":%d", PosNotStmt)
++
++	for _, test := range []struct {
++		x         lico
++		string    string
++		line, col uint
++	}{
++		{0, ":0" + not, 0, 0},
++		{makeLico(0, 0), ":0" + not, 0, 0},
++		{makeLico(0, 1), ":0:1" + def, 0, 1},
++		{makeLico(1, 0), ":1" + def, 1, 0},
++		{makeLico(1, 1), ":1:1" + def, 1, 1},
++		{makeLico(1, 1).withIsStmt(), ":1:1" + is, 1, 1},
++		{makeLico(1, 1).withNotStmt(), ":1:1" + not, 1, 1},
++		{makeLico(lineMax, 1), fmt.Sprintf(":%d:1", lineMax) + def, lineMax, 1},
++		{makeLico(lineMax+1, 1), fmt.Sprintf(":%d:1", lineMax) + def, lineMax, 1}, // line too large, stick with max. line
++		{makeLico(1, colMax), ":1" + def, 1, colMax},
++		{makeLico(1, colMax+1), ":1" + def, 1, 0}, // column too large
++		{makeLico(lineMax+1, colMax+1), fmt.Sprintf(":%d", lineMax) + def, lineMax, 0},
++		{makeLico(lineMax+1, colMax+1).withIsStmt(), fmt.Sprintf(":%d", lineMax) + is, lineMax, 0},
++		{makeLico(lineMax+1, colMax+1).withNotStmt(), fmt.Sprintf(":%d", lineMax) + not, lineMax, 0},
++	} {
++		x := test.x
++		if got := format("", x.Line(), x.Col(), true) + fmt.Sprintf(":%d", x.IsStmt()); got != test.string {
++			t.Errorf("%s: got %q", test.string, got)
++		}
++	}
++}
+diff --git a/src/cmd/internal/src/xpos.go b/src/cmd/internal/src/xpos.go
+index db0670768c..ab7fc16df0 100644
+--- a/src/cmd/internal/src/xpos.go
++++ b/src/cmd/internal/src/xpos.go
+@@ -37,6 +37,38 @@ func (p XPos) After(q XPos) bool {
+ 	return n > m || n == m && p.lico > q.lico
+ }
+ 
++// WithNotStmt returns the same location to be marked with DWARF is_stmt=0
++func (p XPos) WithNotStmt() XPos {
++	p.lico = p.lico.withNotStmt()
++	return p
++}
++
++// WithDefaultStmt returns the same location with undetermined is_stmt
++func (p XPos) WithDefaultStmt() XPos {
++	p.lico = p.lico.withDefaultStmt()
++	return p
++}
++
++// WithIsStmt returns the same location to be marked with DWARF is_stmt=1
++func (p XPos) WithIsStmt() XPos {
++	p.lico = p.lico.withIsStmt()
++	return p
++}
++
++func (p XPos) LineNumber() string {
++	if !p.IsKnown() {
++		return "?"
++	}
++	return p.lico.lineNumber()
++}
++
++func (p XPos) LineNumberHTML() string {
++	if !p.IsKnown() {
++		return "?"
++	}
++	return p.lico.lineNumberHTML()
++}
++
+ // A PosTable tracks Pos -> XPos conversions and vice versa.
+ // Its zero value is a ready-to-use PosTable.
+ type PosTable struct {
+diff --git a/src/cmd/internal/src/xpos_test.go b/src/cmd/internal/src/xpos_test.go
+index e5bfe57484..a17ba63d2a 100644
+--- a/src/cmd/internal/src/xpos_test.go
++++ b/src/cmd/internal/src/xpos_test.go
+@@ -36,6 +36,30 @@ func TestConversion(t *testing.T) {
+ 		if got != want {
+ 			t.Errorf("got %v; want %v", got, want)
+ 		}
++
++		for _, x := range []struct {
++			f func(XPos) XPos
++			e uint
++		}{
++			{XPos.WithDefaultStmt, PosDefaultStmt},
++			{XPos.WithIsStmt, PosIsStmt},
++			{XPos.WithNotStmt, PosNotStmt},
++			{XPos.WithIsStmt, PosIsStmt},
++			{XPos.WithDefaultStmt, PosDefaultStmt},
++			{XPos.WithNotStmt, PosNotStmt}} {
++			xposWith := x.f(xpos)
++			expected := x.e
++			if xpos.Line() == 0 && xpos.Col() == 0 {
++				expected = PosNotStmt
++			}
++			if got := xposWith.IsStmt(); got != expected {
++				t.Errorf("expected %v; got %v", expected, got)
++			}
++			if xposWith.Col() != xpos.Col() || xposWith.Line() != xpos.Line() {
++				t.Errorf("line:col, before = %d:%d, after=%d:%d", xpos.Line(), xpos.Col(), xposWith.Line(), xposWith.Col())
++			}
++			xpos = xposWith
++		}
+ 	}
+ 
+ 	if len(tab.baseList) != len(tab.indexMap) {

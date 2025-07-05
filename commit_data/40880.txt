@@ -12,6 +12,20 @@ Date:   Mon Aug 5 12:29:51 2019 -0400
     Change-Id: I6246b4995adee966f24eaebe491d35830aea8370
     Reviewed-on: https://go-review.googlesource.com/c/go/+/188977
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/cmd/go/testdata/script/mod_invalid_version.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/mod_invalid_version.txt b/src/cmd/go/testdata/script/mod_invalid_version.txt
+index e6811d9fb7..76e0b43a73 100644
+--- a/src/cmd/go/testdata/script/mod_invalid_version.txt
++++ b/src/cmd/go/testdata/script/mod_invalid_version.txt
+@@ -141,7 +141,7 @@ go mod edit -require golang.org/x/text@v1.999999.0
+ go mod edit -replace golang.org/x/text@v1.999999.0=golang.org/x/text@v0.0.0-20170915032832-14c0d48ead0c
+ cd outside
+ ! go get -d golang.org/x/text@upgrade
+-stderr 'go get golang.org/x/text@upgrade: golang.org/x/text@v1.999999.0: invalid version: unknown revision v1.999999.0'
++stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v1.999999.0: reading golang.org/x/text/go.mod at revision v1.999999.0: unknown revision v1.999999.0'
+ cd ..
+ go get -d golang.org/x/text@upgrade
+ go list -m golang.org/x/text

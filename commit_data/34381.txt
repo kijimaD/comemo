@@ -11,6 +11,20 @@ Date:   Mon Oct 23 14:45:17 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/72794
     Reviewed-by: Avelino <t@avelino.xxx>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/encoding/csv/reader.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/encoding/csv/reader.go b/src/encoding/csv/reader.go
+index 3f8ff05814..00b9bbffee 100644
+--- a/src/encoding/csv/reader.go
++++ b/src/encoding/csv/reader.go
+@@ -84,7 +84,7 @@ func (e *ParseError) Error() string {
+ var (
+ 	ErrTrailingComma = errors.New("extra delimiter at end of line") // Deprecated: No longer used.
+ 	ErrBareQuote     = errors.New("bare \" in non-quoted-field")
+-	ErrQuote         = errors.New("extraneous or missing \" in field")
++	ErrQuote         = errors.New("extraneous or missing \" in quoted-field")
+ 	ErrFieldCount    = errors.New("wrong number of fields")
+ )
+ 

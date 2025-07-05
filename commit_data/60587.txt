@@ -13,7 +13,62 @@ Date:   Fri Jan 12 10:46:57 2024 +0800
     Auto-Submit: abner chenc <chenguoqi@loongson.cn>
     Reviewed-by: abner chenc <chenguoqi@loongson.cn>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/internal/obj/loong64/a.out.go  | 4 ++--
  src/cmd/internal/obj/loong64/cnames.go | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/internal/obj/loong64/a.out.go b/src/cmd/internal/obj/loong64/a.out.go
+index 9309a3b09a..e48160eaa2 100644
+--- a/src/cmd/internal/obj/loong64/a.out.go
++++ b/src/cmd/internal/obj/loong64/a.out.go
+@@ -210,21 +210,21 @@ const (
+ 	C_DCON    // other 64 (could subdivide further)
+ 	C_SACON   // $n(REG) where n <= int12
+ 	C_LACON   // $n(REG) where int12 < n <= int32
+-	C_EXTADDR // external symbol address
+ 	C_DACON   // $n(REG) where int32 < n
++	C_EXTADDR // external symbol address
+ 	C_BRAN
+ 	C_SAUTO
+ 	C_LAUTO
+ 	C_ZOREG
+ 	C_SOREG
+ 	C_LOREG
+-	C_GOK
+ 	C_ADDR
+ 	C_TLS_LE
+ 	C_TLS_IE
+ 	C_GOTADDR
+ 	C_TEXTSIZE
+ 
++	C_GOK
+ 	C_NCLASS // must be the last
+ )
+ 
+diff --git a/src/cmd/internal/obj/loong64/cnames.go b/src/cmd/internal/obj/loong64/cnames.go
+index 8e103b888f..985a331def 100644
+--- a/src/cmd/internal/obj/loong64/cnames.go
++++ b/src/cmd/internal/obj/loong64/cnames.go
+@@ -22,19 +22,19 @@ var cnames0 = []string{
+ 	"DCON",
+ 	"SACON",
+ 	"LACON",
+-	"EXTADDR",
+ 	"DACON",
++	"EXTADDR",
+ 	"BRAN",
+ 	"SAUTO",
+ 	"LAUTO",
+ 	"ZOREG",
+ 	"SOREG",
+ 	"LOREG",
+-	"GOK",
+ 	"ADDR",
+ 	"TLS_LE",
+ 	"TLS_IE",
+ 	"GOTADDR",
+ 	"TEXTSIZE",
++	"GOK",
+ 	"NCLASS",
+ }

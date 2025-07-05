@@ -14,6 +14,20 @@ Date:   Thu Apr 29 21:10:05 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/internal/buildcfg/exp.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/buildcfg/exp.go b/src/internal/buildcfg/exp.go
+index c3da77d40a..ef769b5415 100644
+--- a/src/internal/buildcfg/exp.go
++++ b/src/internal/buildcfg/exp.go
+@@ -20,7 +20,7 @@ import (
+ // was built with.)
+ var Experiment goexperiment.Flags = parseExperiments()
+ 
+-var regabiSupported = GOARCH == "amd64" && (GOOS == "linux" || GOOS == "darwin" || GOOS == "windows")
++var regabiSupported = GOARCH == "amd64" && (GOOS == "android" || GOOS == "linux" || GOOS == "darwin" || GOOS == "windows")
+ 
+ // experimentBaseline specifies the experiment flags that are enabled by
+ // default in the current toolchain. This is, in effect, the "control"

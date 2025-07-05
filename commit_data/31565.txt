@@ -11,7 +11,76 @@ Date:   Tue Feb 28 17:40:33 2017 -0800
     Change-Id: I7637dcd4408f1bc4a9b3050a107aadb4de6f950b
     Reviewed-on: https://go-review.googlesource.com/37620
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/internal/srcimporter/srcimporter.go      | 30 ++++++++++++++-----------
  src/go/internal/srcimporter/srcimporter_test.go | 16 +++++++++++++
  2 files changed, 33 insertions(+), 13 deletions(-)
+
+diff --git a/src/go/internal/srcimporter/srcimporter.go b/src/go/internal/srcimporter/srcimporter.go
+index 62ee7b6bdf..26d9d09037 100644
+--- a/src/go/internal/srcimporter/srcimporter.go
++++ b/src/go/internal/srcimporter/srcimporter.go
+@@ -92,22 +92,26 @@ func (p *Importer) ImportFrom(path, srcDir string, mode types.ImportMode) (*type
+ 		if pkg == &importing {
+ 			return nil, fmt.Errorf("import cycle through package %q", bp.ImportPath)
+ 		}
+-		if pkg.Complete() {
+-			return pkg, nil
++		if !pkg.Complete() {
++			// package exists but is not complete - we cannot handle this
++			// at the moment since the source importer replaces the package
++			// wholesale rather than augmenting it (see #19337 for details)
++			return nil, fmt.Errorf("reimported partially imported package %q", bp.ImportPath)
+ 		}
+-	} else {
+-		p.packages[bp.ImportPath] = &importing
+-		defer func() {
+-			// clean up in case of error
+-			// TODO(gri) Eventually we may want to leave a (possibly empty)
+-			// package in the map in all cases (and use that package to
+-			// identify cycles). See also issue 16088.
+-			if p.packages[bp.ImportPath] == &importing {
+-				p.packages[bp.ImportPath] = nil
+-			}
+-		}()
++		return pkg, nil
+ 	}
+ 
++	p.packages[bp.ImportPath] = &importing
++	defer func() {
++		// clean up in case of error
++		// TODO(gri) Eventually we may want to leave a (possibly empty)
++		// package in the map in all cases (and use that package to
++		// identify cycles). See also issue 16088.
++		if p.packages[bp.ImportPath] == &importing {
++			p.packages[bp.ImportPath] = nil
++		}
++	}()
++
+ 	// collect package files
+ 	bp, err = p.ctxt.ImportDir(bp.Dir, 0)
+ 	if err != nil {
+diff --git a/src/go/internal/srcimporter/srcimporter_test.go b/src/go/internal/srcimporter/srcimporter_test.go
+index fd15b5b6e1..f289bfb44b 100644
+--- a/src/go/internal/srcimporter/srcimporter_test.go
++++ b/src/go/internal/srcimporter/srcimporter_test.go
+@@ -132,3 +132,19 @@ func TestImportedTypes(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestReimport(t *testing.T) {
++	if runtime.GOOS == "nacl" {
++		t.Skip("no source code available")
++	}
++
++	// Reimporting a partially imported (incomplete) package is not supported (see issue #19337).
++	// Make sure we recognize the situation and report an error.
++
++	mathPkg := types.NewPackage("math", "math") // incomplete package
++	importer := New(&build.Default, token.NewFileSet(), map[string]*types.Package{mathPkg.Path(): mathPkg})
++	_, err := importer.ImportFrom("math", ".", 0)
++	if err == nil || !strings.HasPrefix(err.Error(), "reimport") {
++		t.Errorf("got %v; want reimport error", err)
++	}
++}

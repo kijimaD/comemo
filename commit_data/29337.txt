@@ -17,8 +17,226 @@ Date:   Fri Sep 9 18:06:56 2016 +0000
     Reviewed-by: Ross Light <light@google.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/client.go      |  61 +++++++++++++++++++++++++
  src/net/http/client_test.go | 109 ++++++++++++++++++++++++++++++++++++++++++++
  src/net/http/export_test.go |   2 +
  3 files changed, 172 insertions(+)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index facfb41e38..fb00f714ff 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -447,6 +447,7 @@ func (c *Client) doFollowingRedirects(req *Request, shouldRedirect func(int) boo
+ 		deadline = c.deadline()
+ 		reqs     []*Request
+ 		resp     *Response
++		ireqhdr  = req.Header.clone()
+ 	)
+ 	uerr := func(err error) error {
+ 		req.closeBody()
+@@ -487,6 +488,17 @@ func (c *Client) doFollowingRedirects(req *Request, shouldRedirect func(int) boo
+ 			if ireq.Method == "POST" || ireq.Method == "PUT" {
+ 				req.Method = "GET"
+ 			}
++			// Copy the initial request's Header values
++			// (at least the safe ones).  Do this before
++			// setting the Referer, in case the user set
++			// Referer on their first request. If they
++			// really want to override, they can do it in
++			// their CheckRedirect func.
++			for k, vv := range ireqhdr {
++				if shouldCopyHeaderOnRedirect(k, ireq.URL, u) {
++					req.Header[k] = vv
++				}
++			}
+ 			// Add the Referer header from the most recent
+ 			// request URL to the new one, if it's not https->http:
+ 			if ref := refererForURL(reqs[len(reqs)-1].URL, req.URL); ref != "" {
+@@ -669,3 +681,52 @@ func (b *cancelTimerBody) Close() error {
+ 	b.stop()
+ 	return err
+ }
++
++func shouldCopyHeaderOnRedirect(headerKey string, initial, dest *url.URL) bool {
++	switch CanonicalHeaderKey(headerKey) {
++	case "Authorization", "Www-Authenticate", "Cookie", "Cookie2":
++		// Permit sending auth/cookie headers from "foo.com"
++		// to "sub.foo.com".
++
++		// Note that we don't send all cookies to subdomains
++		// automatically. This function is only used for
++		// Cookies set explicitly on the initial outgoing
++		// client request. Cookies automatically added via the
++		// CookieJar mechanism continue to follow each
++		// cookie's scope as set by Set-Cookie. But for
++		// outgoing requests with the Cookie header set
++		// directly, we don't know their scope, so we assume
++		// it's for *.domain.com.
++
++		// TODO(bradfitz): once issue 16142 is fixed, make
++		// this code use those URL accessors, and consider
++		// "http://foo.com" and "http://foo.com:80" as
++		// equivalent?
++
++		// TODO(bradfitz): better hostname canonicalization,
++		// at least once we figure out IDNA/Punycode (issue
++		// 13835).
++		ihost := strings.ToLower(initial.Host)
++		dhost := strings.ToLower(dest.Host)
++		return isDomainOrSubdomain(dhost, ihost)
++	}
++	// All other headers are copied:
++	return true
++}
++
++// isDomainOrSubdomain reports whether sub is a subdomain (or exact
++// match) of the parent domain.
++//
++// Both domains must already be in canonical form.
++func isDomainOrSubdomain(sub, parent string) bool {
++	if sub == parent {
++		return true
++	}
++	// If sub is "foo.example.com" and parent is "example.com",
++	// that means sub must end in "."+parent.
++	// Do it without allocating.
++	if !strings.HasSuffix(sub, parent) {
++		return false
++	}
++	return sub[len(sub)-len(parent)-1] == '.'
++}
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index f5500b6d88..dc9995b152 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -21,6 +21,7 @@ import (
+ 	. "net/http"
+ 	"net/http/httptest"
+ 	"net/url"
++	"reflect"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+@@ -1229,3 +1230,111 @@ func TestClientRedirectResponseWithoutRequest(t *testing.T) {
+ 	// Check that this doesn't crash:
+ 	c.Get("http://dummy.tld")
+ }
++
++// Issue 4800: copy (some) headers when Client follows a redirect
++func TestClientCopyHeadersOnRedirect(t *testing.T) {
++	const (
++		ua   = "some-agent/1.2"
++		xfoo = "foo-val"
++	)
++	var ts2URL string
++	ts1 := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		want := Header{
++			"User-Agent":      []string{ua},
++			"X-Foo":           []string{xfoo},
++			"Referer":         []string{ts2URL},
++			"Accept-Encoding": []string{"gzip"},
++		}
++		if !reflect.DeepEqual(r.Header, want) {
++			t.Errorf("Request.Header = %#v; want %#v", r.Header, want)
++		}
++		if t.Failed() {
++			w.Header().Set("Result", "got errors")
++		} else {
++			w.Header().Set("Result", "ok")
++		}
++	}))
++	defer ts1.Close()
++	ts2 := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		Redirect(w, r, ts1.URL, StatusFound)
++	}))
++	defer ts2.Close()
++	ts2URL = ts2.URL
++
++	tr := &Transport{}
++	defer tr.CloseIdleConnections()
++	c := &Client{
++		Transport: tr,
++		CheckRedirect: func(r *Request, via []*Request) error {
++			want := Header{
++				"User-Agent": []string{ua},
++				"X-Foo":      []string{xfoo},
++				"Referer":    []string{ts2URL},
++			}
++			if !reflect.DeepEqual(r.Header, want) {
++				t.Errorf("CheckRedirect Request.Header = %#v; want %#v", r.Header, want)
++			}
++			return nil
++		},
++	}
++
++	req, _ := NewRequest("GET", ts2.URL, nil)
++	req.Header.Add("User-Agent", ua)
++	req.Header.Add("X-Foo", xfoo)
++	req.Header.Add("Cookie", "foo=bar")
++	req.Header.Add("Authorization", "secretpassword")
++	res, err := c.Do(req)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer res.Body.Close()
++	if res.StatusCode != 200 {
++		t.Fatal(res.Status)
++	}
++	if got := res.Header.Get("Result"); got != "ok" {
++		t.Errorf("result = %q; want ok", got)
++	}
++}
++
++// Part of Issue 4800
++func TestShouldCopyHeaderOnRedirect(t *testing.T) {
++	tests := []struct {
++		header     string
++		initialURL string
++		destURL    string
++		want       bool
++	}{
++		{"User-Agent", "http://foo.com/", "http://bar.com/", true},
++		{"X-Foo", "http://foo.com/", "http://bar.com/", true},
++
++		// Sensitive headers:
++		{"cookie", "http://foo.com/", "http://bar.com/", false},
++		{"cookie2", "http://foo.com/", "http://bar.com/", false},
++		{"authorization", "http://foo.com/", "http://bar.com/", false},
++		{"www-authenticate", "http://foo.com/", "http://bar.com/", false},
++
++		// But subdomains should work:
++		{"www-authenticate", "http://foo.com/", "http://foo.com/", true},
++		{"www-authenticate", "http://foo.com/", "http://sub.foo.com/", true},
++		{"www-authenticate", "http://foo.com/", "http://notfoo.com/", false},
++		// TODO(bradfitz): make this test work, once issue 16142 is fixed:
++		// {"www-authenticate", "http://foo.com:80/", "http://foo.com/", true},
++	}
++	for i, tt := range tests {
++		u0, err := url.Parse(tt.initialURL)
++		if err != nil {
++			t.Errorf("%d. initial URL %q parse error: %v", i, tt.initialURL, err)
++			continue
++		}
++		u1, err := url.Parse(tt.destURL)
++		if err != nil {
++			t.Errorf("%d. dest URL %q parse error: %v", i, tt.destURL, err)
++			continue
++		}
++		got := Export_shouldCopyHeaderOnRedirect(tt.header, u0, u1)
++		if got != tt.want {
++			t.Errorf("%d. shouldCopyHeaderOnRedirect(%q, %q => %q) = %v; want %v",
++				i, tt.header, tt.initialURL, tt.destURL, got, tt.want)
++		}
++	}
++}
+diff --git a/src/net/http/export_test.go b/src/net/http/export_test.go
+index 9c5ba0809a..7fc3546caa 100644
+--- a/src/net/http/export_test.go
++++ b/src/net/http/export_test.go
+@@ -160,3 +160,5 @@ func ExportHttp2ConfigureTransport(t *Transport) error {
+ 	t.h2transport = t2
+ 	return nil
+ }
++
++var Export_shouldCopyHeaderOnRedirect = shouldCopyHeaderOnRedirect

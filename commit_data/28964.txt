@@ -7,6 +7,20 @@ Date:   Thu Aug 18 21:50:58 2016 +0000
     Change-Id: I42597785be6121d8180520b3f7d8e936464f0048
     Reviewed-on: https://go-review.googlesource.com/27361
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.8.txt | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/doc/go1.8.txt b/doc/go1.8.txt
+index 1ccf138060..4e6d3a0069 100644
+--- a/doc/go1.8.txt
++++ b/doc/go1.8.txt
+@@ -11,6 +11,8 @@ Ports:
+ API additions and behavior changes:
+ 
+ crypto/tls: set Conn.ConnectionState.ServerName unconditionally (CL 22862)
++crypto/tls: support AES-128-CBC cipher suites with SHA-256 (CL 27315)
++crypto/tls: don't generate random ticket keys if already set (CL 27317)
+ crypto/x509: require a NULL parameters for RSA public keys (CL 16166)
+ crypto/x509: return error for missing SerialNumber (CL 27238)
+ crypto/x509: support PSS signatures (CL 24743)

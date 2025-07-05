@@ -19,7 +19,7 @@ Date:   Fri Aug 19 18:31:56 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/425006
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/api_test.go                      |  2 +-
  src/go/types/exprstring.go                    |  7 +++++--
  src/go/types/exprstring_test.go               |  2 +-
@@ -28,3 +28,123 @@ Date:   Fri Aug 19 18:31:56 2022 -0700
  src/go/types/testdata/check/issues0.go        |  2 +-
  src/go/types/testdata/fixedbugs/issue49579.go |  2 +-
  7 files changed, 16 insertions(+), 13 deletions(-)
+
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 8e8ac84cec..742ae3d67f 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -951,7 +951,7 @@ func TestPredicatesInfo(t *testing.T) {
+ 
+ 		// values
+ 		{`package v0; var (a, b int; _ = a + b)`, `a + b`, `value`},
+-		{`package v1; var _ = &[]int{1}`, `([]int literal)`, `value`},
++		{`package v1; var _ = &[]int{1}`, `[]int{…}`, `value`},
+ 		{`package v2; var _ = func(){}`, `(func() literal)`, `value`},
+ 		{`package v4; func f() { _ = f }`, `f`, `value`},
+ 		{`package v3; var _ *int = nil`, `nil`, `value, nil`},
+diff --git a/src/go/types/exprstring.go b/src/go/types/exprstring.go
+index 544cd84d61..e19d79d9c8 100644
+--- a/src/go/types/exprstring.go
++++ b/src/go/types/exprstring.go
+@@ -53,9 +53,12 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
+ 		buf.WriteString(" literal)") // shortened
+ 
+ 	case *ast.CompositeLit:
+-		buf.WriteByte('(')
+ 		WriteExpr(buf, x.Type)
+-		buf.WriteString(" literal)") // shortened
++		buf.WriteByte('{')
++		if len(x.Elts) > 0 {
++			buf.WriteString("…")
++		}
++		buf.WriteByte('}')
+ 
+ 	case *ast.ParenExpr:
+ 		buf.WriteByte('(')
+diff --git a/src/go/types/exprstring_test.go b/src/go/types/exprstring_test.go
+index 27cd532c97..604ceb9807 100644
+--- a/src/go/types/exprstring_test.go
++++ b/src/go/types/exprstring_test.go
+@@ -25,7 +25,7 @@ var testExprs = []testEntry{
+ 	// func and composite literals
+ 	{"func(){}", "(func() literal)"},
+ 	{"func(x int) complex128 {}", "(func(x int) complex128 literal)"},
+-	{"[]int{1, 2, 3}", "([]int literal)"},
++	{"[]int{1, 2, 3}", "[]int{…}"},
+ 
+ 	// type expressions
+ 	dup("[1 << 10]byte"),
+diff --git a/src/go/types/testdata/check/decls3.go b/src/go/types/testdata/check/decls3.go
+index 745175c710..01d4ffe4b5 100644
+--- a/src/go/types/testdata/check/decls3.go
++++ b/src/go/types/testdata/check/decls3.go
+@@ -221,16 +221,16 @@ func _() {
+ 	_ = S2{}.B
+ 	_ = S2{}.C
+ 	_ = S2{}.D /* ERROR "no field or method" */
+-	_ = S3{}.S1 /* ERROR "ambiguous selector \(S3 literal\).S1" */
++	_ = S3{}.S1 /* ERROR "ambiguous selector S3{}.S1" */
+ 	_ = S3{}.A
+-	_ = S3{}.B /* ERROR "ambiguous selector" \(S3 literal\).B */
++	_ = S3{}.B /* ERROR "ambiguous selector" S3{}.B */
+ 	_ = S3{}.D
+ 	_ = S3{}.E
+ 	_ = S4{}.A
+ 	_ = S4{}.B /* ERROR "no field or method" */
+-	_ = S5{}.X /* ERROR "ambiguous selector \(S5 literal\).X" */
++	_ = S5{}.X /* ERROR "ambiguous selector S5{}.X" */
+ 	_ = S5{}.Y
+-	_ = S10{}.X /* ERROR "ambiguous selector \(S10 literal\).X" */
++	_ = S10{}.X /* ERROR "ambiguous selector S10{}.X" */
+ 	_ = S10{}.Y
+ }
+ 
+@@ -306,4 +306,4 @@ type R22 R21
+ type R23 R21
+ type R24 R21
+ 
+-var _ = R0{}.X /* ERROR "ambiguous selector \(R0 literal\).X" */
+\ No newline at end of file
++var _ = R0{}.X /* ERROR "ambiguous selector R0{}.X" */
+\ No newline at end of file
+diff --git a/src/go/types/testdata/check/decls4.go b/src/go/types/testdata/check/decls4.go
+index 8a9a6ffba7..2ce180fbbb 100644
+--- a/src/go/types/testdata/check/decls4.go
++++ b/src/go/types/testdata/check/decls4.go
+@@ -190,8 +190,8 @@ type eD struct {
+ }
+ 
+ var (
+-	_ = eD{}.xf /* ERROR ambiguous selector \(eD literal\).xf */
+-	_ = eD{}.xm /* ERROR ambiguous selector \(eD literal\).xm */
++	_ = eD{}.xf /* ERROR ambiguous selector eD{}.xf */
++	_ = eD{}.xm /* ERROR ambiguous selector eD{}.xm */
+ )
+ 
+ var (
+diff --git a/src/go/types/testdata/check/issues0.go b/src/go/types/testdata/check/issues0.go
+index 6943796392..95cfa2a910 100644
+--- a/src/go/types/testdata/check/issues0.go
++++ b/src/go/types/testdata/check/issues0.go
+@@ -133,7 +133,7 @@ func issue10260() {
+ 	)
+ 
+ 	var x I1
+-	x = T1 /* ERROR cannot use \(T1 literal\) .* as I1 value in assignment: T1 does not implement I1 \(method foo has pointer receiver\) */ {}
++	x = T1 /* ERROR cannot use T1{} .* as I1 value in assignment: T1 does not implement I1 \(method foo has pointer receiver\) */ {}
+ 	_ = x /* ERROR impossible type assertion: x\.\(T1\)\n\tT1 does not implement I1 \(method foo has pointer receiver\) */ .(T1)
+ 
+ 	T1{}.foo /* ERROR cannot call pointer method foo on T1 */ ()
+diff --git a/src/go/types/testdata/fixedbugs/issue49579.go b/src/go/types/testdata/fixedbugs/issue49579.go
+index 07748bd0dc..ee2d94ab89 100644
+--- a/src/go/types/testdata/fixedbugs/issue49579.go
++++ b/src/go/types/testdata/fixedbugs/issue49579.go
+@@ -9,7 +9,7 @@ type I[F any] interface {
+ }
+ 
+ func G[F any]() I[any] {
+-	return g /* ERROR cannot use \(g\[F\] literal\) .* as I\[any\] value in return statement: g\[F\] does not implement I\[any\] \(method Q has pointer receiver\) */ [F]{}
++	return g /* ERROR cannot use g\[F\]{} .* as I\[any\] value in return statement: g\[F\] does not implement I\[any\] \(method Q has pointer receiver\) */ [F]{}
+ }
+ 
+ type g[F any] struct{}

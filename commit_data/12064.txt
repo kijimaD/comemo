@@ -7,7 +7,67 @@ Date:   Sun Feb 19 16:10:45 2012 -0500
     R=golang-dev, dsymonds, r
     CC=golang-dev
     https://golang.org/cl/5685043
-
+---
  src/cmd/fix/go1rename.go      | 12 ++++++++++++
  src/cmd/fix/go1rename_test.go |  6 ++++++
  2 files changed, 18 insertions(+)
+
+diff --git a/src/cmd/fix/go1rename.go b/src/cmd/fix/go1rename.go
+index 5d12f18701..2995880c30 100644
+--- a/src/cmd/fix/go1rename.go
++++ b/src/cmd/fix/go1rename.go
+@@ -56,4 +56,16 @@ var go1renameReplace = []rename{
+ 		Old:       "os.Exec",
+ 		New:       "syscall.Exec",
+ 	},
++	{
++		OldImport: "runtime",
++		NewImport: "",
++		Old:       "runtime.Cgocalls",
++		New:       "runtime.NumCgoCall",
++	},
++	{
++		OldImport: "runtime",
++		NewImport: "",
++		Old:       "runtime.Goroutines",
++		New:       "runtime.NumGoroutine",
++	},
+ }
+diff --git a/src/cmd/fix/go1rename_test.go b/src/cmd/fix/go1rename_test.go
+index 0a7dcf46cf..02eaea6a54 100644
+--- a/src/cmd/fix/go1rename_test.go
++++ b/src/cmd/fix/go1rename_test.go
+@@ -18,6 +18,7 @@ import (
+ 	"crypto/des"
+ 	"net/url"
+ 	"os"
++	"runtime"
+ )
+ 
+ var (
+@@ -29,6 +30,8 @@ var (
+ 	_ = url.ParseWithReference
+ 	_ = url.ParseRequest
+ 	_ = os.Exec
++	_ = runtime.Cgocalls
++	_ = runtime.Goroutines
+ )
+ `,
+ 		Out: `package main
+@@ -37,6 +40,7 @@ import (
+ 	"crypto/aes"
+ 	"crypto/cipher"
+ 	"net/url"
++	"runtime"
+ 	"syscall"
+ )
+ 
+@@ -49,6 +53,8 @@ var (
+ 	_ = url.Parse
+ 	_ = url.ParseRequestURI
+ 	_ = syscall.Exec
++	_ = runtime.NumCgoCall
++	_ = runtime.NumGoroutine
+ )
+ `,
+ 	},

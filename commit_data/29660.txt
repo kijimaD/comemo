@@ -14,8 +14,108 @@ Date:   Fri Sep 30 20:31:26 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/clientserver_test.go | 36 ++++++++++++++++++++++++++++++++++++
  src/net/http/h2_bundle.go         |  8 ++++++++
  src/net/http/request.go           | 18 +++++++++++++-----
  3 files changed, 57 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/http/clientserver_test.go b/src/net/http/clientserver_test.go
+index e12ea0c8c4..53e0be680b 100644
+--- a/src/net/http/clientserver_test.go
++++ b/src/net/http/clientserver_test.go
+@@ -1234,3 +1234,39 @@ func (x noteCloseConn) Close() error {
+ 	x.closeFunc()
+ 	return x.Conn.Close()
+ }
++
++type testErrorReader struct{ t *testing.T }
++
++func (r testErrorReader) Read(p []byte) (n int, err error) {
++	r.t.Error("unexpected Read call")
++	return 0, io.EOF
++}
++
++func TestNoSniffExpectRequestBody_h1(t *testing.T) { testNoSniffExpectRequestBody(t, h1Mode) }
++func TestNoSniffExpectRequestBody_h2(t *testing.T) { testNoSniffExpectRequestBody(t, h2Mode) }
++
++func testNoSniffExpectRequestBody(t *testing.T, h2 bool) {
++	defer afterTest(t)
++	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
++		w.WriteHeader(StatusUnauthorized)
++	}))
++	defer cst.close()
++
++	// Set ExpectContinueTimeout non-zero so RoundTrip won't try to write it.
++	cst.tr.ExpectContinueTimeout = 10 * time.Second
++
++	req, err := NewRequest("POST", cst.ts.URL, testErrorReader{t})
++	if err != nil {
++		t.Fatal(err)
++	}
++	req.ContentLength = 0 // so transport is tempted to sniff it
++	req.Header.Set("Expect", "100-continue")
++	res, err := cst.tr.RoundTrip(req)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer res.Body.Close()
++	if res.StatusCode != StatusUnauthorized {
++		t.Errorf("status code = %v; want %v", res.StatusCode, StatusUnauthorized)
++	}
++}
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index d430f400e0..814619d3a2 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -4118,6 +4118,10 @@ func (sc *http2serverConn) processHeaders(f *http2MetaHeadersFrame) error {
+ 		handler = http2new400Handler(err)
+ 	}
+ 
++	if sc.hs.ReadTimeout != 0 {
++		sc.conn.SetReadDeadline(time.Time{})
++	}
++
+ 	go sc.runHandler(rw, req, handler)
+ 	return nil
+ }
+@@ -5509,6 +5513,10 @@ func http2bodyAndLength(req *Request) (body io.Reader, contentLen int64) {
+ 		return req.Body, req.ContentLength
+ 	}
+ 
++	if req.Header.Get("Expect") == "100-continue" {
++		return req.Body, -1
++	}
++
+ 	// We have a body but a zero content length. Test to see if
+ 	// it's actually zero or just unset.
+ 	var buf [1]byte
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 21e25b08ef..c29af7fbe5 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -1227,11 +1227,19 @@ func (r *Request) bodyAndLength() (body io.Reader, contentLen int64) {
+ 	if r.ContentLength != 0 {
+ 		return body, r.ContentLength
+ 	}
+-	// Don't try to sniff the bytes if they're using a custom
+-	// transfer encoding (or specified chunked themselves), and
+-	// don't sniff if they're not using HTTP/1.1 and can't chunk
+-	// anyway.
+-	if len(r.TransferEncoding) != 0 || !r.ProtoAtLeast(1, 1) {
++
++	// Don't try to sniff the request body if,
++	// * they're using a custom transfer encoding (or specified
++	//   chunked themselves)
++	// * they're not using HTTP/1.1 and can't chunk anyway (even
++	//   though this is basically irrelevant, since this package
++	//   only sends minimum 1.1 requests)
++	// * they're sending an "Expect: 100-continue" request, because
++	//   they might get denied or redirected and try to use the same
++	//   body elsewhere, so we shoudn't consume it.
++	if len(r.TransferEncoding) != 0 ||
++		!r.ProtoAtLeast(1, 1) ||
++		r.Header.Get("Expect") == "100-continue" {
+ 		return body, -1
+ 	}
+ 

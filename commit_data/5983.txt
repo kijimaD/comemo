@@ -16,7 +16,7 @@ Date:   Tue Aug 10 12:08:52 2010 +1000
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/1918047
-
+---
  src/pkg/exp/4s/xs.go             |   4 +-
  src/pkg/exp/draw/color.go        |   4 +-
  src/pkg/exp/draw/draw.go         |  12 ++--
@@ -32,3 +32,708 @@ Date:   Tue Aug 10 12:08:52 2010 +1000
  src/pkg/image/png/writer.go      |  25 ++++----
  src/pkg/image/png/writer_test.go |   9 +--
  14 files changed, 234 insertions(+), 105 deletions(-)
+
+diff --git a/src/pkg/exp/4s/xs.go b/src/pkg/exp/4s/xs.go
+index c5493e719e..8f6d62f953 100644
+--- a/src/pkg/exp/4s/xs.go
++++ b/src/pkg/exp/4s/xs.go
+@@ -669,7 +669,7 @@ func redraw(new bool) {
+ 	//	if new && getwindow(display, Refmesg) < 0 {
+ 	//		sysfatal("can't reattach to window");
+ 	//	}
+-	r := draw.Rect(0, 0, screen.Width(), screen.Height())
++	r := draw.Rect(screen.Bounds().MinX, screen.Bounds().Min.Y, screen, Bounds().Max.X, screen.Bounds().Max.Y)
+ 	pos.X = (pos.X - rboard.Min.X) / pcsz
+ 	pos.Y = (pos.Y - rboard.Min.Y) / pcsz
+ 	dx := r.Max.X - r.Min.X
+@@ -722,7 +722,7 @@ func quitter(c <-chan bool) {
+ func Play(pp []Piece, ctxt draw.Context) {
+ 	display = ctxt
+ 	screen = ctxt.Screen()
+-	screenr = draw.Rect(0, 0, screen.Width(), screen.Height())
++	screenr = draw.Rect(screen.Bounds().MinX, screen.Bounds().Min.Y, screen, Bounds().Max.X, screen.Bounds().Max.Y)
+ 	pieces = pp
+ 	N = len(pieces[0].d)
+ 	initPieces()
+diff --git a/src/pkg/exp/draw/color.go b/src/pkg/exp/draw/color.go
+index 3fe7b4abc7..5fb543a2b0 100644
+--- a/src/pkg/exp/draw/color.go
++++ b/src/pkg/exp/draw/color.go
+@@ -88,9 +88,7 @@ func (c Color) SetAlpha(a uint8) Color {
+ 	return r<<24 | g<<16 | b<<8 | Color(a)
+ }
+ 
+-func (c Color) Width() int { return 1e9 }
+-
+-func (c Color) Height() int { return 1e9 }
++func (c Color) Bounds() image.Rectangle { return image.Rect(0, 0, 1e9, 1e9) }
+ 
+ func (c Color) At(x, y int) image.Color { return c }
+ 
+diff --git a/src/pkg/exp/draw/draw.go b/src/pkg/exp/draw/draw.go
+index 415dd99acd..636501cac5 100644
+--- a/src/pkg/exp/draw/draw.go
++++ b/src/pkg/exp/draw/draw.go
+@@ -43,13 +43,15 @@ func Draw(dst Image, r Rectangle, src image.Image, sp Point) {
+ // The implementation is simple and slow.
+ // TODO(nigeltao): Optimize this.
+ func DrawMask(dst Image, r Rectangle, src image.Image, sp Point, mask image.Image, mp Point, op Op) {
+-	dx, dy := src.Width()-sp.X, src.Height()-sp.Y
++	sb := src.Bounds()
++	dx, dy := sb.Dx()-sp.X, sb.Dy()-sp.Y
+ 	if mask != nil {
+-		if dx > mask.Width()-mp.X {
+-			dx = mask.Width() - mp.X
++		mb := mask.Bounds()
++		if dx > mb.Dx()-mp.X {
++			dx = mb.Dx() - mp.X
+ 		}
+-		if dy > mask.Height()-mp.Y {
+-			dy = mask.Height() - mp.Y
++		if dy > mb.Dy()-mp.Y {
++			dy = mb.Dy() - mp.Y
+ 		}
+ 	}
+ 	if r.Dx() > dx {
+diff --git a/src/pkg/exp/draw/draw_test.go b/src/pkg/exp/draw/draw_test.go
+index e9fde25357..5b503f8de6 100644
+--- a/src/pkg/exp/draw/draw_test.go
++++ b/src/pkg/exp/draw/draw_test.go
+@@ -97,10 +97,11 @@ var drawTests = []drawTest{
+ func makeGolden(dst image.Image, t drawTest) image.Image {
+ 	// Since golden is a newly allocated image, we don't have to check if the
+ 	// input source and mask images and the output golden image overlap.
+-	golden := image.NewRGBA(dst.Width(), dst.Height())
+-	for y := 0; y < golden.Height(); y++ {
++	b := dst.Bounds()
++	golden := image.NewRGBA(b.Dx(), b.Dy())
++	for y := b.Min.Y; y < b.Max.Y; y++ {
+ 		my, sy := y, y
+-		for x := 0; x < golden.Width(); x++ {
++		for x := b.Min.X; x < b.Max.X; x++ {
+ 			mx, sx := x, x
+ 			const M = 1<<16 - 1
+ 			var dr, dg, db, da uint32
+@@ -129,9 +130,14 @@ loop:
+ 	for _, test := range drawTests {
+ 		dst := hgradRed(255)
+ 		// Draw the (src, mask, op) onto a copy of dst using a slow but obviously correct implementation.
++		b := dst.Bounds()
+ 		golden := makeGolden(dst, test)
++		if !b.Eq(golden.Bounds()) {
++			t.Errorf("draw %s: bounds %v versus %v", test.desc, dst.Bounds(), golden.Bounds())
++			continue
++		}
+ 		// Draw the same combination onto the actual dst using the optimized DrawMask implementation.
+-		DrawMask(dst, Rect(0, 0, dst.Width(), dst.Height()), test.src, ZP, test.mask, ZP, test.op)
++		DrawMask(dst, Rect(b.Min.X, b.Min.Y, b.Max.X, b.Max.Y), test.src, ZP, test.mask, ZP, test.op)
+ 		// Check that the resultant pixel at (8, 8) matches what we expect
+ 		// (the expected value can be verified by hand).
+ 		if !eq(dst.At(8, 8), test.expected) {
+@@ -139,8 +145,8 @@ loop:
+ 			continue
+ 		}
+ 		// Check that the resultant dst image matches the golden output.
+-		for y := 0; y < golden.Height(); y++ {
+-			for x := 0; x < golden.Width(); x++ {
++		for y := b.Min.Y; y < b.Max.Y; y++ {
++			for x := b.Min.X; x < b.Max.X; x++ {
+ 				if !eq(dst.At(x, y), golden.At(x, y)) {
+ 					t.Errorf("draw %s: at (%d, %d), %v versus golden %v", test.desc, x, y, dst.At(x, y), golden.At(x, y))
+ 					continue loop
+diff --git a/src/pkg/exp/draw/x11/conn.go b/src/pkg/exp/draw/x11/conn.go
+index 979ce2b7d9..eb498cfb8d 100644
+--- a/src/pkg/exp/draw/x11/conn.go
++++ b/src/pkg/exp/draw/x11/conn.go
+@@ -67,14 +67,17 @@ func (c *conn) flusher() {
+ 			return
+ 		}
+ 
++		b := c.img.Bounds()
++		if b.Empty() {
++			continue
++		}
+ 		// Each X request has a 16-bit length (in terms of 4-byte units). To avoid going over
+ 		// this limit, we send PutImage for each row of the image, rather than trying to paint
+ 		// the entire image in one X request. This approach could easily be optimized (or the
+ 		// X protocol may have an escape sequence to delimit very large requests).
+ 		// TODO(nigeltao): See what XCB's xcb_put_image does in this situation.
+-		w, h := c.img.Width(), c.img.Height()
+-		units := 6 + w
+-		if units > 0xffff || h > 0xffff {
++		units := 6 + b.Dx()
++		if units > 0xffff || b.Dy() > 0xffff {
+ 			// This window is too large for X.
+ 			close(c.flush)
+ 			return
+@@ -86,10 +89,10 @@ func (c *conn) flusher() {
+ 		c.flushBuf0[3] = uint8(units >> 8)
+ 		setU32LE(c.flushBuf0[4:8], uint32(c.window))
+ 		setU32LE(c.flushBuf0[8:12], uint32(c.gc))
+-		setU32LE(c.flushBuf0[12:16], 1<<16|uint32(w))
++		setU32LE(c.flushBuf0[12:16], 1<<16|uint32(b.Dx()))
+ 		c.flushBuf0[21] = 0x18 // depth = 24 bits.
+ 
+-		for y := 0; y < h; y++ {
++		for y := b.Min.Y; y < b.Max.Y; y++ {
+ 			setU32LE(c.flushBuf0[16:20], uint32(y<<16))
+ 			_, err := c.w.Write(c.flushBuf0[0:24])
+ 			if err != nil {
+@@ -97,8 +100,8 @@ func (c *conn) flusher() {
+ 				return
+ 			}
+ 			p := c.img.Pixel[y]
+-			for x := 0; x < w; {
+-				nx := w - x
++			for x := b.Min.X; x < b.Max.X; {
++				nx := b.Max.X - x
+ 				if nx > len(c.flushBuf1)/4 {
+ 					nx = len(c.flushBuf1) / 4
+ 				}
+diff --git a/src/pkg/exp/nacl/av/image.go b/src/pkg/exp/nacl/av/image.go
+index 8de5311365..4c4c558c1c 100644
+--- a/src/pkg/exp/nacl/av/image.go
++++ b/src/pkg/exp/nacl/av/image.go
+@@ -24,15 +24,13 @@ var _ image.Image = (*Image)(nil)
+ 
+ func (m *Image) ColorModel() image.ColorModel { return ColorModel }
+ 
+-func (m *Image) Width() int {
++func (m *Image) Bounds() image.Rectangle {
+ 	if len(m.Pixel) == 0 {
+-		return 0
++		return image.ZR
+ 	}
+-	return len(m.Pixel[0])
++	return image.Rectangle{image.ZP, image.Point{len(m.Pixel[0]), len(m.Pixel)}}
+ }
+ 
+-func (m *Image) Height() int { return len(m.Pixel) }
+-
+ func (m *Image) At(x, y int) image.Color { return m.Pixel[y][x] }
+ 
+ func (m *Image) Set(x, y int, color image.Color) {
+diff --git a/src/pkg/exp/spacewar/spacewar.go b/src/pkg/exp/spacewar/spacewar.go
+index 7333220ef5..e7a1560d5f 100644
+--- a/src/pkg/exp/spacewar/spacewar.go
++++ b/src/pkg/exp/spacewar/spacewar.go
+@@ -99,8 +99,8 @@ func (m *SpacewarPDP1) Init(ctxt draw.Context) {
+ 	m.ctxt = ctxt
+ 	m.kc = ctxt.KeyboardChan()
+ 	m.screen = ctxt.Screen()
+-	m.dx = m.screen.Width()
+-	m.dy = m.screen.Height()
++	m.dx = m.screen.Bounds().Dx()
++	m.dy = m.screen.Bounds().Dy()
+ 	m.colorModel = m.screen.ColorModel()
+ 	m.pix = make([][]uint8, m.dy)
+ 	for i := range m.pix {
+diff --git a/src/pkg/image/Makefile b/src/pkg/image/Makefile
+index e26deeac67..9015ed6ebb 100644
+--- a/src/pkg/image/Makefile
++++ b/src/pkg/image/Makefile
+@@ -8,6 +8,7 @@ TARG=image
+ GOFILES=\
+ 	color.go\
+ 	format.go\
++	geom.go\
+ 	image.go\
+ 	names.go\
+ 
+diff --git a/src/pkg/image/geom.go b/src/pkg/image/geom.go
+new file mode 100644
+index 0000000000..ecf0521cb4
+--- /dev/null
++++ b/src/pkg/image/geom.go
+@@ -0,0 +1,125 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package image
++
++import (
++	"strconv"
++)
++
++// A Point is an X, Y coordinate pair. The axes increase right and down.
++type Point struct {
++	X, Y int
++}
++
++// String returns a string representation of p like "(3,4)".
++func (p Point) String() string {
++	return "(" + strconv.Itoa(p.X) + "," + strconv.Itoa(p.Y) + ")"
++}
++
++// Add returns the vector p+q.
++func (p Point) Add(q Point) Point {
++	return Point{p.X + q.X, p.Y + q.Y}
++}
++
++// Sub returns the vector p-q.
++func (p Point) Sub(q Point) Point {
++	return Point{p.X - q.X, p.Y - q.Y}
++}
++
++// ZP is the zero Point.
++var ZP Point
++
++// Pt is shorthand for Point{X, Y}.
++func Pt(X, Y int) Point {
++	return Point{X, Y}
++}
++
++// A Rectangle contains the points with Min.X <= X < Max.X, Min.Y <= Y < Max.Y.
++type Rectangle struct {
++	Min, Max Point
++}
++
++// String returns a string representation of r like "(3,4)-(6,5)".
++func (r Rectangle) String() string {
++	return r.Min.String() + "-" + r.Max.String()
++}
++
++// Dx returns r's width.
++func (r Rectangle) Dx() int {
++	return r.Max.X - r.Min.X
++}
++
++// Dy returns r's height.
++func (r Rectangle) Dy() int {
++	return r.Max.Y - r.Min.Y
++}
++
++// Add returns the rectangle r translated by p.
++func (r Rectangle) Add(p Point) Rectangle {
++	return Rectangle{
++		Point{r.Min.X + p.X, r.Min.Y + p.Y},
++		Point{r.Max.X + p.X, r.Max.Y + p.Y},
++	}
++}
++
++// Add returns the rectangle r translated by -p.
++func (r Rectangle) Sub(p Point) Rectangle {
++	return Rectangle{
++		Point{r.Min.X - p.X, r.Min.Y - p.Y},
++		Point{r.Max.X - p.X, r.Max.Y - p.Y},
++	}
++}
++
++// Inset returns the rectangle r inset by n, which may be negative.
++func (r Rectangle) Inset(n int) Rectangle {
++	return Rectangle{
++		Point{r.Min.X + n, r.Min.Y + n},
++		Point{r.Max.X - n, r.Max.Y - n},
++	}
++}
++
++// Empty returns whether the rectangle contains no points.
++func (r Rectangle) Empty() bool {
++	return r.Min.X >= r.Max.X || r.Min.Y >= r.Max.Y
++}
++
++// Eq returns whether r and s are equal.
++func (r Rectangle) Eq(s Rectangle) bool {
++	return r.Min.X == s.Min.X && r.Min.Y == s.Min.Y &&
++		r.Max.X == s.Max.X && r.Max.Y == s.Max.Y
++}
++
++// Overlaps returns whether r and s have a non-empty intersection.
++func (r Rectangle) Overlaps(s Rectangle) bool {
++	return r.Min.X < s.Max.X && s.Min.X < r.Max.X &&
++		r.Min.Y < s.Max.Y && s.Min.Y < r.Max.Y
++}
++
++// Canon returns the canonical version of r. The returned rectangle has
++// minimum and maximum coordinates swapped if necessary so that Min.X <= Max.X
++// and Min.Y <= Max.Y.
++func (r Rectangle) Canon() Rectangle {
++	if r.Max.X < r.Min.X {
++		r.Min.X, r.Max.X = r.Max.X, r.Min.X
++	}
++	if r.Max.Y < r.Min.Y {
++		r.Min.Y, r.Max.Y = r.Max.Y, r.Min.Y
++	}
++	return r
++}
++
++// ZR is the zero Rectangle.
++var ZR Rectangle
++
++// Rect is shorthand for Rectangle{Pt(x0, y0), Pt(x1, y1)}.
++func Rect(x0, y0, x1, y1 int) Rectangle {
++	if x0 > x1 {
++		x0, x1 = x1, x0
++	}
++	if y0 > y1 {
++		y0, y1 = y1, y0
++	}
++	return Rectangle{Point{x0, y0}, Point{x1, y1}}
++}
+diff --git a/src/pkg/image/image.go b/src/pkg/image/image.go
+index cfe44270c0..c352da25cc 100644
+--- a/src/pkg/image/image.go
++++ b/src/pkg/image/image.go
+@@ -5,13 +5,16 @@
+ // The image package implements a basic 2-D image library.
+ package image
+ 
+-// An Image is a rectangular grid of Colors drawn from a ColorModel.
++// An Image is a finite rectangular grid of Colors drawn from a ColorModel.
+ type Image interface {
++	// ColorModel returns the Image's ColorModel.
+ 	ColorModel() ColorModel
+-	Width() int
+-	Height() int
+-	// At(0, 0) returns the upper-left pixel of the grid.
+-	// At(Width()-1, Height()-1) returns the lower-right pixel.
++	// Bounds returns the domain for which At can return non-zero color.
++	// The bounds do not necessarily contain the point (0, 0).
++	Bounds() Rectangle
++	// At returns the color of the pixel at (x, y).
++	// At(Bounds().Min.X, Bounds().Min.Y) returns the upper-left pixel of the grid.
++	// At(Bounds().Max.X-1, Bounds().Max.Y-1) returns the lower-right one.
+ 	At(x, y int) Color
+ }
+ 
+@@ -23,18 +26,24 @@ type RGBA struct {
+ 
+ func (p *RGBA) ColorModel() ColorModel { return RGBAColorModel }
+ 
+-func (p *RGBA) Width() int {
++func (p *RGBA) Bounds() Rectangle {
+ 	if len(p.Pixel) == 0 {
+-		return 0
++		return ZR
+ 	}
+-	return len(p.Pixel[0])
++	return Rectangle{ZP, Point{len(p.Pixel[0]), len(p.Pixel)}}
+ }
+ 
+-func (p *RGBA) Height() int { return len(p.Pixel) }
+-
+-func (p *RGBA) At(x, y int) Color { return p.Pixel[y][x] }
++func (p *RGBA) At(x, y int) Color {
++	// TODO(nigeltao): Check if (x,y) is outside the bounds, and return zero.
++	// Similarly for the other concrete image types.
++	return p.Pixel[y][x]
++}
+ 
+-func (p *RGBA) Set(x, y int, c Color) { p.Pixel[y][x] = toRGBAColor(c).(RGBAColor) }
++func (p *RGBA) Set(x, y int, c Color) {
++	// TODO(nigeltao): Check if (x,y) is outside the bounds, and return.
++	// Similarly for the other concrete image types.
++	p.Pixel[y][x] = toRGBAColor(c).(RGBAColor)
++}
+ 
+ // Opaque scans the entire image and returns whether or not it is fully opaque.
+ func (p *RGBA) Opaque() bool {
+@@ -71,15 +80,13 @@ type RGBA64 struct {
+ 
+ func (p *RGBA64) ColorModel() ColorModel { return RGBA64ColorModel }
+ 
+-func (p *RGBA64) Width() int {
++func (p *RGBA64) Bounds() Rectangle {
+ 	if len(p.Pixel) == 0 {
+-		return 0
++		return ZR
+ 	}
+-	return len(p.Pixel[0])
++	return Rectangle{ZP, Point{len(p.Pixel[0]), len(p.Pixel)}}
+ }
+ 
+-func (p *RGBA64) Height() int { return len(p.Pixel) }
+-
+ func (p *RGBA64) At(x, y int) Color { return p.Pixel[y][x] }
+ 
+ func (p *RGBA64) Set(x, y int, c Color) { p.Pixel[y][x] = toRGBA64Color(c).(RGBA64Color) }
+@@ -119,15 +126,13 @@ type NRGBA struct {
+ 
+ func (p *NRGBA) ColorModel() ColorModel { return NRGBAColorModel }
+ 
+-func (p *NRGBA) Width() int {
++func (p *NRGBA) Bounds() Rectangle {
+ 	if len(p.Pixel) == 0 {
+-		return 0
++		return ZR
+ 	}
+-	return len(p.Pixel[0])
++	return Rectangle{ZP, Point{len(p.Pixel[0]), len(p.Pixel)}}
+ }
+ 
+-func (p *NRGBA) Height() int { return len(p.Pixel) }
+-
+ func (p *NRGBA) At(x, y int) Color { return p.Pixel[y][x] }
+ 
+ func (p *NRGBA) Set(x, y int, c Color) { p.Pixel[y][x] = toNRGBAColor(c).(NRGBAColor) }
+@@ -167,15 +172,13 @@ type NRGBA64 struct {
+ 
+ func (p *NRGBA64) ColorModel() ColorModel { return NRGBA64ColorModel }
+ 
+-func (p *NRGBA64) Width() int {
++func (p *NRGBA64) Bounds() Rectangle {
+ 	if len(p.Pixel) == 0 {
+-		return 0
++		return ZR
+ 	}
+-	return len(p.Pixel[0])
++	return Rectangle{ZP, Point{len(p.Pixel[0]), len(p.Pixel)}}
+ }
+ 
+-func (p *NRGBA64) Height() int { return len(p.Pixel) }
+-
+ func (p *NRGBA64) At(x, y int) Color { return p.Pixel[y][x] }
+ 
+ func (p *NRGBA64) Set(x, y int, c Color) { p.Pixel[y][x] = toNRGBA64Color(c).(NRGBA64Color) }
+@@ -215,15 +218,13 @@ type Alpha struct {
+ 
+ func (p *Alpha) ColorModel() ColorModel { return AlphaColorModel }
+ 
+-func (p *Alpha) Width() int {
++func (p *Alpha) Bounds() Rectangle {
+ 	if len(p.Pixel) == 0 {
+-		return 0
++		return ZR
+ 	}
+-	return len(p.Pixel[0])
++	return Rectangle{ZP, Point{len(p.Pixel[0]), len(p.Pixel)}}
+ }
+ 
+-func (p *Alpha) Height() int { return len(p.Pixel) }
+-
+ func (p *Alpha) At(x, y int) Color { return p.Pixel[y][x] }
+ 
+ func (p *Alpha) Set(x, y int, c Color) { p.Pixel[y][x] = toAlphaColor(c).(AlphaColor) }
+@@ -263,15 +264,13 @@ type Alpha16 struct {
+ 
+ func (p *Alpha16) ColorModel() ColorModel { return Alpha16ColorModel }
+ 
+-func (p *Alpha16) Width() int {
++func (p *Alpha16) Bounds() Rectangle {
+ 	if len(p.Pixel) == 0 {
+-		return 0
++		return ZR
+ 	}
+-	return len(p.Pixel[0])
++	return Rectangle{ZP, Point{len(p.Pixel[0]), len(p.Pixel)}}
+ }
+ 
+-func (p *Alpha16) Height() int { return len(p.Pixel) }
+-
+ func (p *Alpha16) At(x, y int) Color { return p.Pixel[y][x] }
+ 
+ func (p *Alpha16) Set(x, y int, c Color) { p.Pixel[y][x] = toAlpha16Color(c).(Alpha16Color) }
+@@ -311,15 +310,13 @@ type Gray struct {
+ 
+ func (p *Gray) ColorModel() ColorModel { return GrayColorModel }
+ 
+-func (p *Gray) Width() int {
++func (p *Gray) Bounds() Rectangle {
+ 	if len(p.Pixel) == 0 {
+-		return 0
++		return ZR
+ 	}
+-	return len(p.Pixel[0])
++	return Rectangle{ZP, Point{len(p.Pixel[0]), len(p.Pixel)}}
+ }
+ 
+-func (p *Gray) Height() int { return len(p.Pixel) }
+-
+ func (p *Gray) At(x, y int) Color { return p.Pixel[y][x] }
+ 
+ func (p *Gray) Set(x, y int, c Color) { p.Pixel[y][x] = toGrayColor(c).(GrayColor) }
+@@ -347,15 +344,13 @@ type Gray16 struct {
+ 
+ func (p *Gray16) ColorModel() ColorModel { return Gray16ColorModel }
+ 
+-func (p *Gray16) Width() int {
++func (p *Gray16) Bounds() Rectangle {
+ 	if len(p.Pixel) == 0 {
+-		return 0
++		return ZR
+ 	}
+-	return len(p.Pixel[0])
++	return Rectangle{ZP, Point{len(p.Pixel[0]), len(p.Pixel)}}
+ }
+ 
+-func (p *Gray16) Height() int { return len(p.Pixel) }
+-
+ func (p *Gray16) At(x, y int) Color { return p.Pixel[y][x] }
+ 
+ func (p *Gray16) Set(x, y int, c Color) { p.Pixel[y][x] = toGray16Color(c).(Gray16Color) }
+@@ -421,15 +416,13 @@ type Paletted struct {
+ 
+ func (p *Paletted) ColorModel() ColorModel { return p.Palette }
+ 
+-func (p *Paletted) Width() int {
++func (p *Paletted) Bounds() Rectangle {
+ 	if len(p.Pixel) == 0 {
+-		return 0
++		return ZR
+ 	}
+-	return len(p.Pixel[0])
++	return Rectangle{ZP, Point{len(p.Pixel[0]), len(p.Pixel)}}
+ }
+ 
+-func (p *Paletted) Height() int { return len(p.Pixel) }
+-
+ func (p *Paletted) At(x, y int) Color { return p.Palette[p.Pixel[y][x]] }
+ 
+ func (p *Paletted) ColorIndexAt(x, y int) uint8 {
+diff --git a/src/pkg/image/names.go b/src/pkg/image/names.go
+index a5b4e48f4b..198ac93489 100644
+--- a/src/pkg/image/names.go
++++ b/src/pkg/image/names.go
+@@ -25,9 +25,7 @@ func (c ColorImage) ColorModel() ColorModel {
+ 	return ColorModelFunc(func(Color) Color { return c.C })
+ }
+ 
+-func (c ColorImage) Width() int { return 1e9 }
+-
+-func (c ColorImage) Height() int { return 1e9 }
++func (c ColorImage) Bounds() Rectangle { return Rectangle{ZP, Point{1e9, 1e9}} }
+ 
+ func (c ColorImage) At(x, y int) Color { return c.C }
+ 
+diff --git a/src/pkg/image/png/reader_test.go b/src/pkg/image/png/reader_test.go
+index 1dc45992e9..f53d114e03 100644
+--- a/src/pkg/image/png/reader_test.go
++++ b/src/pkg/image/png/reader_test.go
+@@ -45,12 +45,13 @@ func readPng(filename string) (image.Image, os.Error) {
+ // An approximation of the sng command-line tool.
+ func sng(w io.WriteCloser, filename string, png image.Image) {
+ 	defer w.Close()
++	bounds := png.Bounds()
+ 	// For now, the go PNG parser only reads bitdepths of 8.
+ 	bitdepth := 8
+ 
+ 	// Write the filename and IHDR.
+ 	io.WriteString(w, "#SNG: from "+filename+".png\nIHDR {\n")
+-	fmt.Fprintf(w, "    width: %d; height: %d; bitdepth: %d;\n", png.Width(), png.Height(), bitdepth)
++	fmt.Fprintf(w, "    width: %d; height: %d; bitdepth: %d;\n", bounds.Dx(), bounds.Dy(), bitdepth)
+ 	cm := png.ColorModel()
+ 	var paletted *image.Paletted
+ 	cpm, _ := cm.(image.PalettedColorModel)
+@@ -86,20 +87,20 @@ func sng(w io.WriteCloser, filename string, png image.Image) {
+ 
+ 	// Write the IMAGE.
+ 	io.WriteString(w, "IMAGE {\n    pixels hex\n")
+-	for y := 0; y < png.Height(); y++ {
++	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+ 		switch {
+ 		case cm == image.RGBAColorModel:
+-			for x := 0; x < png.Width(); x++ {
++			for x := bounds.Min.X; x < bounds.Max.X; x++ {
+ 				rgba := png.At(x, y).(image.RGBAColor)
+ 				fmt.Fprintf(w, "%02x%02x%02x ", rgba.R, rgba.G, rgba.B)
+ 			}
+ 		case cm == image.NRGBAColorModel:
+-			for x := 0; x < png.Width(); x++ {
++			for x := bounds.Min.X; x < bounds.Max.X; x++ {
+ 				nrgba := png.At(x, y).(image.NRGBAColor)
+ 				fmt.Fprintf(w, "%02x%02x%02x%02x ", nrgba.R, nrgba.G, nrgba.B, nrgba.A)
+ 			}
+ 		case cpm != nil:
+-			for x := 0; x < png.Width(); x++ {
++			for x := bounds.Min.X; x < bounds.Max.X; x++ {
+ 				fmt.Fprintf(w, "%02x", paletted.ColorIndexAt(x, y))
+ 			}
+ 		}
+diff --git a/src/pkg/image/png/writer.go b/src/pkg/image/png/writer.go
+index 323e66f114..3ce30c8788 100644
+--- a/src/pkg/image/png/writer.go
++++ b/src/pkg/image/png/writer.go
+@@ -41,8 +41,9 @@ func opaque(m image.Image) bool {
+ 	if o, ok := m.(opaquer); ok {
+ 		return o.Opaque()
+ 	}
+-	for y := 0; y < m.Height(); y++ {
+-		for x := 0; x < m.Width(); x++ {
++	b := m.Bounds()
++	for y := b.Min.Y; y < b.Max.Y; y++ {
++		for x := b.Min.X; x < b.Max.X; x++ {
+ 			_, _, _, a := m.At(x, y).RGBA()
+ 			if a != 0xffff {
+ 				return false
+@@ -91,8 +92,9 @@ func (e *encoder) writeChunk(b []byte, name string) {
+ }
+ 
+ func (e *encoder) writeIHDR() {
+-	writeUint32(e.tmp[0:4], uint32(e.m.Width()))
+-	writeUint32(e.tmp[4:8], uint32(e.m.Height()))
++	b := e.m.Bounds()
++	writeUint32(e.tmp[0:4], uint32(b.Dx()))
++	writeUint32(e.tmp[4:8], uint32(b.Dy()))
+ 	e.tmp[8] = 8 // bit depth
+ 	e.tmp[9] = e.colorType
+ 	e.tmp[10] = 0 // default compression method
+@@ -254,18 +256,19 @@ func writeImage(w io.Writer, m image.Image, ct uint8) os.Error {
+ 	// cr[ft], for non-zero filter types ft, are buffers for transforming cr[0] under the
+ 	// other PNG filter types. These buffers are allocated once and re-used for each row.
+ 	// The +1 is for the per-row filter type, which is at cr[*][0].
++	b := m.Bounds()
+ 	var cr [nFilter][]uint8
+ 	for i := 0; i < len(cr); i++ {
+-		cr[i] = make([]uint8, 1+bpp*m.Width())
++		cr[i] = make([]uint8, 1+bpp*b.Dx())
+ 		cr[i][0] = uint8(i)
+ 	}
+-	pr := make([]uint8, 1+bpp*m.Width())
++	pr := make([]uint8, 1+bpp*b.Dx())
+ 
+-	for y := 0; y < m.Height(); y++ {
++	for y := b.Min.Y; y < b.Max.Y; y++ {
+ 		// Convert from colors to bytes.
+ 		switch ct {
+ 		case ctTrueColor:
+-			for x := 0; x < m.Width(); x++ {
++			for x := b.Min.X; x < b.Max.X; x++ {
+ 				// We have previously verified that the alpha value is fully opaque.
+ 				r, g, b, _ := m.At(x, y).RGBA()
+ 				cr[0][3*x+1] = uint8(r >> 8)
+@@ -273,12 +276,12 @@ func writeImage(w io.Writer, m image.Image, ct uint8) os.Error {
+ 				cr[0][3*x+3] = uint8(b >> 8)
+ 			}
+ 		case ctPaletted:
+-			for x := 0; x < m.Width(); x++ {
++			for x := b.Min.X; x < b.Max.X; x++ {
+ 				cr[0][x+1] = paletted.ColorIndexAt(x, y)
+ 			}
+ 		case ctTrueColorAlpha:
+ 			// Convert from image.Image (which is alpha-premultiplied) to PNG's non-alpha-premultiplied.
+-			for x := 0; x < m.Width(); x++ {
++			for x := b.Min.X; x < b.Max.X; x++ {
+ 				c := image.NRGBAColorModel.Convert(m.At(x, y)).(image.NRGBAColor)
+ 				cr[0][4*x+1] = c.R
+ 				cr[0][4*x+2] = c.G
+@@ -327,7 +330,7 @@ func Encode(w io.Writer, m image.Image) os.Error {
+ 	// Obviously, negative widths and heights are invalid. Furthermore, the PNG
+ 	// spec section 11.2.2 says that zero is invalid. Excessively large images are
+ 	// also rejected.
+-	mw, mh := int64(m.Width()), int64(m.Height())
++	mw, mh := int64(m.Bounds().Dx()), int64(m.Bounds().Dy())
+ 	if mw <= 0 || mh <= 0 || mw >= 1<<32 || mh >= 1<<32 {
+ 		return FormatError("invalid image size: " + strconv.Itoa64(mw) + "x" + strconv.Itoa64(mw))
+ 	}
+diff --git a/src/pkg/image/png/writer_test.go b/src/pkg/image/png/writer_test.go
+index a61e1c95a9..f25873ebe5 100644
+--- a/src/pkg/image/png/writer_test.go
++++ b/src/pkg/image/png/writer_test.go
+@@ -13,11 +13,12 @@ import (
+ )
+ 
+ func diff(m0, m1 image.Image) os.Error {
+-	if m0.Width() != m1.Width() || m0.Height() != m1.Height() {
+-		return os.NewError(fmt.Sprintf("dimensions differ: %dx%d vs %dx%d", m0.Width(), m0.Height(), m1.Width(), m1.Height()))
++	b0, b1 := m0.Bounds(), m1.Bounds()
++	if !b0.Eq(b1) {
++		return os.NewError(fmt.Sprintf("dimensions differ: %v vs %v", b0, b1))
+ 	}
+-	for y := 0; y < m0.Height(); y++ {
+-		for x := 0; x < m0.Width(); x++ {
++	for y := b0.Min.Y; y < b0.Max.Y; y++ {
++		for x := b0.Min.X; x < b0.Max.X; x++ {
+ 			r0, g0, b0, a0 := m0.At(x, y).RGBA()
+ 			r1, g1, b1, a1 := m1.At(x, y).RGBA()
+ 			if r0 != r1 || g0 != g1 || b0 != b1 || a0 != a1 {

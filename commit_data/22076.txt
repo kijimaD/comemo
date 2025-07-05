@@ -7,6 +7,19 @@ Date:   Sun Feb 22 12:48:16 2015 -0500
     Change-Id: I259e88f019b6818c57caaa1ec236b7c2e2ae1382
     Reviewed-on: https://go-review.googlesource.com/5551
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.5.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index d64dfab2c3..f17c7b9a5e 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -23,6 +23,7 @@ testing/quick: support generation of arrays (https://golang.org/cl/3865)
+ 
+ Tools:
+ 
++cmd/go: std wildcard now excludes commands in main repo (https://golang.org/cl/5550)
+ cmd/vet: better validation of struct tags (https://golang.org/cl/2685)
+ cmd/ld: no longer record build timestamp in Windows PE file header (https://golang.org/cl/3740)
+ 

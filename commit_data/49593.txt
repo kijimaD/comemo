@@ -16,9 +16,85 @@ Date:   Mon Aug 30 17:18:07 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/346291
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/expr.go                     |  1 -
  src/cmd/compile/internal/types2/stmt.go                     |  1 -
  .../internal/types2/testdata/fixedbugs/issue42758.go2       |  2 +-
  src/cmd/compile/internal/types2/typexpr.go                  | 13 +++++--------
  4 files changed, 6 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 86a8444ee2..799874624d 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1417,7 +1417,6 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 			check.errorf(x, "%s is not an interface type", x)
+ 			goto Error
+ 		}
+-		check.ordinaryType(x.Pos(), xtyp)
+ 		// x.(type) expressions are encoded via TypeSwitchGuards
+ 		if e.Type == nil {
+ 			check.error(e, invalidAST+"invalid use of AssertExpr")
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 2673e98c57..3231fbec93 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -751,7 +751,6 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
+ 		check.errorf(&x, "%s is not an interface type", &x)
+ 		return
+ 	}
+-	check.ordinaryType(x.Pos(), xtyp)
+ 
+ 	check.multipleSwitchDefaults(s.Body)
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue42758.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue42758.go2
+index bf0031f5d2..dd66e9648b 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue42758.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue42758.go2
+@@ -28,6 +28,6 @@ func _[T constraint](x interface{}){
+ }
+ 
+ func _(x constraint /* ERROR contains type constraints */ ) {
+-	switch x /* ERROR contains type constraints */ .(type) {
++	switch x.(type) { // no need to report another error
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 33e7559cc9..73b143ce1b 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -134,22 +134,17 @@ func (check *Checker) typ(e syntax.Expr) Type {
+ }
+ 
+ // varType type-checks the type expression e and returns its type, or Typ[Invalid].
+-// The type must not be an (uninstantiated) generic type and it must be ordinary
+-// (see ordinaryType).
++// The type must not be an (uninstantiated) generic type and it must not be a
++// constraint interface.
+ func (check *Checker) varType(e syntax.Expr) Type {
+ 	typ := check.definedType(e, nil)
+-	check.ordinaryType(syntax.StartPos(e), typ)
+-	return typ
+-}
+ 
+-// ordinaryType reports an error if typ is an interface type containing
+-// type lists or is (or embeds) the predeclared type comparable.
+-func (check *Checker) ordinaryType(pos syntax.Pos, typ Type) {
+ 	// We don't want to call under() (via asInterface) or complete interfaces while we
+ 	// are in the middle of type-checking parameter declarations that might belong to
+ 	// interface methods. Delay this check to the end of type-checking.
+ 	check.later(func() {
+ 		if t := asInterface(typ); t != nil {
++			pos := syntax.StartPos(e)
+ 			tset := computeInterfaceTypeSet(check, pos, t) // TODO(gri) is this the correct position?
+ 			if tset.IsConstraint() {
+ 				if tset.comparable {
+@@ -160,6 +155,8 @@ func (check *Checker) ordinaryType(pos syntax.Pos, typ Type) {
+ 			}
+ 		}
+ 	})
++
++	return typ
+ }
+ 
+ // anyType type-checks the type expression e and returns its type, or Typ[Invalid].

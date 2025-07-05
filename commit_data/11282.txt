@@ -9,7 +9,7 @@ Date:   Thu Jan 19 15:45:18 2012 -0800
     R=chickencha, ality, rsc
     CC=golang-dev
     https://golang.org/cl/5553064
-
+---
  src/cmd/go/build.go         |  4 ++--
  src/cmd/hgpatch/main.go     |  4 ++--
  src/pkg/io/ioutil/ioutil.go |  2 +-
@@ -19,3 +19,171 @@ Date:   Thu Jan 19 15:45:18 2012 -0800
  src/pkg/os/file_windows.go  |  6 +++---
  src/pkg/os/path.go          |  2 +-
  8 files changed, 33 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 77a64f406e..23eacf970e 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -618,7 +618,7 @@ func (b *builder) build(a *action) error {
+ // install is the action for installing a single package or executable.
+ func (b *builder) install(a *action) error {
+ 	a1 := a.deps[0]
+-	perm := uint32(0666)
++	perm := os.FileMode(0666)
+ 	if a1.link {
+ 		perm = 0777
+ 	}
+@@ -697,7 +697,7 @@ func removeByRenaming(name string) error {
+ }
+ 
+ // copyFile is like 'cp src dst'.
+-func (b *builder) copyFile(dst, src string, perm uint32) error {
++func (b *builder) copyFile(dst, src string, perm os.FileMode) error {
+ 	if buildN || buildX {
+ 		b.showcmd("", "cp %s %s", src, dst)
+ 		if buildN {
+diff --git a/src/cmd/hgpatch/main.go b/src/cmd/hgpatch/main.go
+index 05dc61eb95..1ecfa972df 100644
+--- a/src/cmd/hgpatch/main.go
++++ b/src/cmd/hgpatch/main.go
+@@ -151,7 +151,7 @@ func main() {
+ 			changed[o.Dst] = 1
+ 		}
+ 		if o.Mode != 0 {
+-			chk(os.Chmod(o.Dst, uint32(o.Mode&0755)))
++			chk(os.Chmod(o.Dst, os.FileMode(o.Mode&0755)))
+ 			undoRevert(o.Dst)
+ 			changed[o.Dst] = 1
+ 		}
+@@ -189,7 +189,7 @@ func makeParent(name string) {
+ 
+ // Copy of os.MkdirAll but adds to undo log after
+ // creating a directory.
+-func mkdirAll(path string, perm uint32) error {
++func mkdirAll(path string, perm os.FileMode) error {
+ 	dir, err := os.Lstat(path)
+ 	if err == nil {
+ 		if dir.IsDir() {
+diff --git a/src/pkg/io/ioutil/ioutil.go b/src/pkg/io/ioutil/ioutil.go
+index be7fa5f2bc..65f4b3ac2e 100644
+--- a/src/pkg/io/ioutil/ioutil.go
++++ b/src/pkg/io/ioutil/ioutil.go
+@@ -50,7 +50,7 @@ func ReadFile(filename string) ([]byte, error) {
+ // WriteFile writes data to a file named by filename.
+ // If the file does not exist, WriteFile creates it with permissions perm;
+ // otherwise WriteFile truncates it before writing.
+-func WriteFile(filename string, data []byte, perm uint32) error {
++func WriteFile(filename string, data []byte, perm os.FileMode) error {
+ 	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
+ 	if err != nil {
+ 		return err
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index 71845d3c9c..3efa650c65 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -158,8 +158,8 @@ func (f *File) WriteString(s string) (ret int, err error) {
+ 
+ // Mkdir creates a new directory with the specified name and permission bits.
+ // It returns an error, if any.
+-func Mkdir(name string, perm uint32) error {
+-	e := syscall.Mkdir(name, perm)
++func Mkdir(name string, perm FileMode) error {
++	e := syscall.Mkdir(name, syscallMode(perm))
+ 	if e != nil {
+ 		return &PathError{"mkdir", name, e}
+ 	}
+diff --git a/src/pkg/os/file_posix.go b/src/pkg/os/file_posix.go
+index 8231ef4817..86ac1cab2c 100644
+--- a/src/pkg/os/file_posix.go
++++ b/src/pkg/os/file_posix.go
+@@ -81,18 +81,34 @@ func Rename(oldname, newname string) error {
+ 	return nil
+ }
+ 
++// syscallMode returns the syscall-specific mode bits from Go's portable mode bits.
++func syscallMode(i FileMode) (o uint32) {
++	o |= uint32(i.Perm())
++	if i&ModeSetuid != 0 {
++		o |= syscall.S_ISUID
++	}
++	if i&ModeSetgid != 0 {
++		o |= syscall.S_ISGID
++	}
++	if i&ModeSticky != 0 {
++		o |= syscall.S_ISVTX
++	}
++	// No mapping for Go's ModeTemporary (plan9 only).
++	return
++}
++
+ // Chmod changes the mode of the named file to mode.
+ // If the file is a symbolic link, it changes the mode of the link's target.
+-func Chmod(name string, mode uint32) error {
+-	if e := syscall.Chmod(name, mode); e != nil {
++func Chmod(name string, mode FileMode) error {
++	if e := syscall.Chmod(name, syscallMode(mode)); e != nil {
+ 		return &PathError{"chmod", name, e}
+ 	}
+ 	return nil
+ }
+ 
+ // Chmod changes the mode of the file to mode.
+-func (f *File) Chmod(mode uint32) error {
+-	if e := syscall.Fchmod(f.fd, mode); e != nil {
++func (f *File) Chmod(mode FileMode) error {
++	if e := syscall.Fchmod(f.fd, syscallMode(mode)); e != nil {
+ 		return &PathError{"chmod", f.name, e}
+ 	}
+ 	return nil
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index 01b72358f2..ae5e908339 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -61,8 +61,8 @@ const DevNull = "/dev/null"
+ // (O_RDONLY etc.) and perm, (0666 etc.) if applicable.  If successful,
+ // methods on the returned File can be used for I/O.
+ // It returns the File and an error, if any.
+-func OpenFile(name string, flag int, perm uint32) (file *File, err error) {
+-	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, perm)
++func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
++	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, syscallMode(perm))
+ 	if e != nil {
+ 		return nil, &PathError{"open", name, e}
+ 	}
+diff --git a/src/pkg/os/file_windows.go b/src/pkg/os/file_windows.go
+index f5aaca06e5..7d39fdd2cd 100644
+--- a/src/pkg/os/file_windows.go
++++ b/src/pkg/os/file_windows.go
+@@ -57,8 +57,8 @@ const DevNull = "NUL"
+ 
+ func (f *file) isdir() bool { return f != nil && f.dirinfo != nil }
+ 
+-func openFile(name string, flag int, perm uint32) (file *File, err error) {
+-	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, perm)
++func openFile(name string, flag int, perm FileMode) (file *File, err error) {
++	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, syscallMode(perm))
+ 	if e != nil {
+ 		return nil, &PathError{"open", name, e}
+ 	}
+@@ -88,7 +88,7 @@ func openDir(name string) (file *File, err error) {
+ // (O_RDONLY etc.) and perm, (0666 etc.) if applicable.  If successful,
+ // methods on the returned File can be used for I/O.
+ // It returns the File and an error, if any.
+-func OpenFile(name string, flag int, perm uint32) (file *File, err error) {
++func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
+ 	if name == "" {
+ 		return nil, &PathError{"open", name, syscall.ENOENT}
+ 	}
+diff --git a/src/pkg/os/path.go b/src/pkg/os/path.go
+index bc14a78318..e962f3e397 100644
+--- a/src/pkg/os/path.go
++++ b/src/pkg/os/path.go
+@@ -13,7 +13,7 @@ import "io"
+ // directories that MkdirAll creates.
+ // If path is already a directory, MkdirAll does nothing
+ // and returns nil.
+-func MkdirAll(path string, perm uint32) error {
++func MkdirAll(path string, perm FileMode) error {
+ 	// If path exists, stop with success or error.
+ 	dir, err := Stat(path)
+ 	if err == nil {

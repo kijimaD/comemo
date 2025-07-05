@@ -28,6 +28,21 @@ Date:   Sun Dec 13 20:17:09 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/types/scope.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/types/scope.go b/src/cmd/compile/internal/types/scope.go
+index 04ea3c325f..d46918f73d 100644
+--- a/src/cmd/compile/internal/types/scope.go
++++ b/src/cmd/compile/internal/types/scope.go
+@@ -94,7 +94,8 @@ func (s *Sym) SetPkgDef(n Object) {
+ func (s *Sym) pkgDefPtr() *Object {
+ 	// Look for outermost saved declaration, which must be the
+ 	// package scope definition, if present.
+-	for _, d := range dclstack {
++	for i := range dclstack {
++		d := &dclstack[i]
+ 		if s == d.sym {
+ 			return &d.def
+ 		}

@@ -14,8 +14,110 @@ Date:   Thu Mar 31 11:42:35 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/parser.go    |  5 ++--
  src/cmd/compile/internal/gc/syntax.go    | 47 ++++++++++++++++----------------
  src/cmd/compile/internal/gc/typecheck.go |  2 +-
  3 files changed, 26 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index 746af32b95..b71cf8fef4 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -1861,7 +1861,7 @@ func (p *parser) xfndcl() *Node {
+ 	}
+ 
+ 	p.want(LFUNC)
+-	f := p.fndcl(p.pragma&Nointerface != 0)
++	f := p.fndcl()
+ 	body := p.fnbody()
+ 
+ 	if f == nil {
+@@ -1886,7 +1886,7 @@ func (p *parser) xfndcl() *Node {
+ // Function     = Signature FunctionBody .
+ // MethodDecl   = "func" Receiver MethodName ( Function | Signature ) .
+ // Receiver     = Parameters .
+-func (p *parser) fndcl(nointerface bool) *Node {
++func (p *parser) fndcl() *Node {
+ 	if trace && Debug['x'] != 0 {
+ 		defer p.trace("fndcl")()
+ 	}
+@@ -1950,7 +1950,6 @@ func (p *parser) fndcl(nointerface bool) *Node {
+ 		f.Func.Nname = methodname1(f.Func.Shortname, recv.Right)
+ 		f.Func.Nname.Name.Defn = f
+ 		f.Func.Nname.Name.Param.Ntype = t
+-		f.Func.Nname.Nointerface = nointerface
+ 		declare(f.Func.Nname, PFUNC)
+ 
+ 		funchdr(f)
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 76f3123ebf..b23b466088 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -49,30 +49,29 @@ type Node struct {
+ 
+ 	Esc uint16 // EscXXX
+ 
+-	Op          Op
+-	Nointerface bool
+-	Ullman      uint8 // sethi/ullman number
+-	Addable     bool  // addressable
+-	Etype       EType // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg
+-	Bounded     bool  // bounds check unnecessary
+-	Class       Class // PPARAM, PAUTO, PEXTERN, etc
+-	Embedded    uint8 // ODCLFIELD embedded type
+-	Colas       bool  // OAS resulting from :=
+-	Diag        uint8 // already printed error about this
+-	Noescape    bool  // func arguments do not escape; TODO(rsc): move Noescape to Func struct (see CL 7360)
+-	Walkdef     uint8
+-	Typecheck   uint8
+-	Local       bool
+-	Dodata      uint8
+-	Initorder   uint8
+-	Used        bool
+-	Isddd       bool // is the argument variadic
+-	Implicit    bool
+-	Addrtaken   bool // address taken, even if not moved to heap
+-	Assigned    bool // is the variable ever assigned to
+-	Likely      int8 // likeliness of if statement
+-	Hasbreak    bool // has break statement
+-	hasVal      int8 // +1 for Val, -1 for Opt, 0 for not yet set
++	Op        Op
++	Ullman    uint8 // sethi/ullman number
++	Addable   bool  // addressable
++	Etype     EType // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg
++	Bounded   bool  // bounds check unnecessary
++	Class     Class // PPARAM, PAUTO, PEXTERN, etc
++	Embedded  uint8 // ODCLFIELD embedded type
++	Colas     bool  // OAS resulting from :=
++	Diag      uint8 // already printed error about this
++	Noescape  bool  // func arguments do not escape; TODO(rsc): move Noescape to Func struct (see CL 7360)
++	Walkdef   uint8
++	Typecheck uint8
++	Local     bool
++	Dodata    uint8
++	Initorder uint8
++	Used      bool
++	Isddd     bool // is the argument variadic
++	Implicit  bool
++	Addrtaken bool // address taken, even if not moved to heap
++	Assigned  bool // is the variable ever assigned to
++	Likely    int8 // likeliness of if statement
++	Hasbreak  bool // has break statement
++	hasVal    int8 // +1 for Val, -1 for Opt, 0 for not yet set
+ }
+ 
+ // Val returns the Val for the node.
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 043022ba97..f0b0f080ff 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3423,7 +3423,7 @@ func typecheckfunc(n *Node) {
+ 	t.SetNname(n.Func.Nname)
+ 	rcvr := t.Recv()
+ 	if rcvr != nil && n.Func.Shortname != nil {
+-		addmethod(n.Func.Shortname.Sym, t, nil, true, n.Func.Nname.Nointerface)
++		addmethod(n.Func.Shortname.Sym, t, nil, true, n.Func.Pragma&Nointerface != 0)
+ 	}
+ 
+ 	for _, ln := range n.Func.Dcl {

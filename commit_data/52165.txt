@@ -38,7 +38,89 @@ Date:   Fri Apr 8 13:37:40 2022 +0800
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/compile/internal/noder/noder.go |  1 +
  test/fixedbugs/issue52127.go            | 62 +++++++++++++++++++++++++++++++++
  2 files changed, 63 insertions(+)
+
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index bbd73aa8be..cc5610acda 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -40,6 +40,7 @@ func LoadPackage(filenames []string) {
+ 		noders[i] = &p
+ 	}
+ 
++	// Move the entire syntax processing logic into a separate goroutine to avoid blocking on the "sem".
+ 	go func() {
+ 		for i, filename := range filenames {
+ 			filename := filename
+diff --git a/test/fixedbugs/issue52127.go b/test/fixedbugs/issue52127.go
+new file mode 100644
+index 0000000000..7738c3fabf
+--- /dev/null
++++ b/test/fixedbugs/issue52127.go
+@@ -0,0 +1,62 @@
++// run
++//go:build !js
++// +build !js
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 52127: Too many syntax errors in many files can
++// cause deadlocks instead of displaying error messages
++// correctly.
++
++package main
++
++import (
++	"bytes"
++	"fmt"
++	"os"
++	"os/exec"
++	"path/filepath"
++)
++
++func main() {
++	dir, err := os.MkdirTemp("", "issue52127")
++	if err != nil {
++		panic(err)
++	}
++	defer os.RemoveAll(dir)
++
++	args := []string{"go", "build"}
++	write := func(prefix string, i int, data string) {
++		filename := filepath.Join(dir, fmt.Sprintf("%s%d.go", prefix, i))
++		if err := os.WriteFile(filename, []byte(data), 0o644); err != nil {
++			panic(err)
++		}
++		args = append(args, filename)
++	}
++
++	for i := 0; i < 100; i++ {
++		write("a", i, `package p
++`)
++	}
++	for i := 0; i < 100; i++ {
++		write("b", i, `package p
++var
++var
++var
++var
++var
++`)
++	}
++
++	cmd := exec.Command(args[0], args[1:]...)
++	output, err := cmd.CombinedOutput()
++	if err == nil {
++		panic("compile succeeded unexpectedly")
++	}
++	if !bytes.Contains(output, []byte("syntax error:")) {
++		panic(fmt.Sprintf(`missing "syntax error" in compiler output; got: 
++%s`, output))
++	}
++}
+\ No newline at end of file

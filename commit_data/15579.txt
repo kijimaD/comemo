@@ -9,7 +9,144 @@ Date:   Mon Mar 4 11:55:27 2013 -0800
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/7456049
-
+---
  src/pkg/net/conn_test.go      | 21 +++++++++++++--------
  src/pkg/net/protoconn_test.go | 36 ++++++++++++++++++------------------
  2 files changed, 31 insertions(+), 26 deletions(-)
+
+diff --git a/src/pkg/net/conn_test.go b/src/pkg/net/conn_test.go
+index 39d9a20101..fdb90862f6 100644
+--- a/src/pkg/net/conn_test.go
++++ b/src/pkg/net/conn_test.go
+@@ -23,6 +23,11 @@ var connTests = []struct {
+ 	{"unixpacket", testUnixAddr()},
+ }
+ 
++// someTimeout is used just to test that net.Conn implementations
++// don't explode when their SetFooDeadline methods are called.
++// It isn't actually used for testing timeouts.
++const someTimeout = 10 * time.Second
++
+ func TestConnAndListener(t *testing.T) {
+ 	for _, tt := range connTests {
+ 		switch tt.net {
+@@ -59,9 +64,9 @@ func TestConnAndListener(t *testing.T) {
+ 		defer c.Close()
+ 		c.LocalAddr()
+ 		c.RemoteAddr()
+-		c.SetDeadline(time.Now().Add(100 * time.Millisecond))
+-		c.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+-		c.SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
++		c.SetDeadline(time.Now().Add(someTimeout))
++		c.SetReadDeadline(time.Now().Add(someTimeout))
++		c.SetWriteDeadline(time.Now().Add(someTimeout))
+ 
+ 		if _, err := c.Write([]byte("CONN TEST")); err != nil {
+ 			t.Fatalf("Conn.Write failed: %v", err)
+@@ -80,9 +85,9 @@ func transponder(t *testing.T, ln Listener, done chan<- int) {
+ 
+ 	switch ln := ln.(type) {
+ 	case *TCPListener:
+-		ln.SetDeadline(time.Now().Add(100 * time.Millisecond))
++		ln.SetDeadline(time.Now().Add(someTimeout))
+ 	case *UnixListener:
+-		ln.SetDeadline(time.Now().Add(100 * time.Millisecond))
++		ln.SetDeadline(time.Now().Add(someTimeout))
+ 	}
+ 	c, err := ln.Accept()
+ 	if err != nil {
+@@ -92,9 +97,9 @@ func transponder(t *testing.T, ln Listener, done chan<- int) {
+ 	defer c.Close()
+ 	c.LocalAddr()
+ 	c.RemoteAddr()
+-	c.SetDeadline(time.Now().Add(100 * time.Millisecond))
+-	c.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+-	c.SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
++	c.SetDeadline(time.Now().Add(someTimeout))
++	c.SetReadDeadline(time.Now().Add(someTimeout))
++	c.SetWriteDeadline(time.Now().Add(someTimeout))
+ 
+ 	b := make([]byte, 128)
+ 	n, err := c.Read(b)
+diff --git a/src/pkg/net/protoconn_test.go b/src/pkg/net/protoconn_test.go
+index de0c2c00a6..2fe7d1d1fb 100644
+--- a/src/pkg/net/protoconn_test.go
++++ b/src/pkg/net/protoconn_test.go
+@@ -105,9 +105,9 @@ func TestTCPConnSpecificMethods(t *testing.T) {
+ 	c.SetNoDelay(false)
+ 	c.LocalAddr()
+ 	c.RemoteAddr()
+-	c.SetDeadline(time.Now().Add(100 * time.Millisecond))
+-	c.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+-	c.SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
++	c.SetDeadline(time.Now().Add(someTimeout))
++	c.SetReadDeadline(time.Now().Add(someTimeout))
++	c.SetWriteDeadline(time.Now().Add(someTimeout))
+ 
+ 	if _, err := c.Write([]byte("TCPCONN TEST")); err != nil {
+ 		t.Fatalf("TCPConn.Write failed: %v", err)
+@@ -132,9 +132,9 @@ func TestUDPConnSpecificMethods(t *testing.T) {
+ 	defer c.Close()
+ 	c.LocalAddr()
+ 	c.RemoteAddr()
+-	c.SetDeadline(time.Now().Add(100 * time.Millisecond))
+-	c.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+-	c.SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
++	c.SetDeadline(time.Now().Add(someTimeout))
++	c.SetReadDeadline(time.Now().Add(someTimeout))
++	c.SetWriteDeadline(time.Now().Add(someTimeout))
+ 	c.SetReadBuffer(2048)
+ 	c.SetWriteBuffer(2048)
+ 
+@@ -180,9 +180,9 @@ func TestIPConnSpecificMethods(t *testing.T) {
+ 	defer c.Close()
+ 	c.LocalAddr()
+ 	c.RemoteAddr()
+-	c.SetDeadline(time.Now().Add(100 * time.Millisecond))
+-	c.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+-	c.SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
++	c.SetDeadline(time.Now().Add(someTimeout))
++	c.SetReadDeadline(time.Now().Add(someTimeout))
++	c.SetWriteDeadline(time.Now().Add(someTimeout))
+ 	c.SetReadBuffer(2048)
+ 	c.SetWriteBuffer(2048)
+ 
+@@ -279,9 +279,9 @@ func TestUnixConnSpecificMethods(t *testing.T) {
+ 	defer os.Remove(addr1)
+ 	c1.LocalAddr()
+ 	c1.RemoteAddr()
+-	c1.SetDeadline(time.Now().Add(100 * time.Millisecond))
+-	c1.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+-	c1.SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
++	c1.SetDeadline(time.Now().Add(someTimeout))
++	c1.SetReadDeadline(time.Now().Add(someTimeout))
++	c1.SetWriteDeadline(time.Now().Add(someTimeout))
+ 	c1.SetReadBuffer(2048)
+ 	c1.SetWriteBuffer(2048)
+ 
+@@ -297,9 +297,9 @@ func TestUnixConnSpecificMethods(t *testing.T) {
+ 	defer os.Remove(addr2)
+ 	c2.LocalAddr()
+ 	c2.RemoteAddr()
+-	c2.SetDeadline(time.Now().Add(100 * time.Millisecond))
+-	c2.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+-	c2.SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
++	c2.SetDeadline(time.Now().Add(someTimeout))
++	c2.SetReadDeadline(time.Now().Add(someTimeout))
++	c2.SetWriteDeadline(time.Now().Add(someTimeout))
+ 	c2.SetReadBuffer(2048)
+ 	c2.SetWriteBuffer(2048)
+ 
+@@ -315,9 +315,9 @@ func TestUnixConnSpecificMethods(t *testing.T) {
+ 	defer os.Remove(addr3)
+ 	c3.LocalAddr()
+ 	c3.RemoteAddr()
+-	c3.SetDeadline(time.Now().Add(100 * time.Millisecond))
+-	c3.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+-	c3.SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
++	c3.SetDeadline(time.Now().Add(someTimeout))
++	c3.SetReadDeadline(time.Now().Add(someTimeout))
++	c3.SetWriteDeadline(time.Now().Add(someTimeout))
+ 	c3.SetReadBuffer(2048)
+ 	c3.SetWriteBuffer(2048)
+ 

@@ -11,7 +11,70 @@ Date:   Tue Feb 28 13:44:33 2017 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/typecheck.go | 11 +++++------
  test/fixedbugs/issue19323.go             | 19 +++++++++++++++++++
  2 files changed, 24 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 7b26b870c5..3a5f35359d 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1118,7 +1118,7 @@ OpSwitch:
+ 
+ 	case OSLICE, OSLICE3:
+ 		ok |= Erv
+-		n.Left = typecheck(n.Left, top)
++		n.Left = typecheck(n.Left, Erv)
+ 		low, high, max := n.SliceBounds()
+ 		hasmax := n.Op.IsSlice3()
+ 		low = typecheck(low, Erv)
+@@ -1130,6 +1130,10 @@ OpSwitch:
+ 		max = indexlit(max)
+ 		n.SetSliceBounds(low, high, max)
+ 		l := n.Left
++		if l.Type == nil {
++			n.Type = nil
++			return n
++		}
+ 		if l.Type.IsArray() {
+ 			if !islvalue(n.Left) {
+ 				yyerror("invalid operation %v (slice of unaddressable value)", n)
+@@ -1142,12 +1146,7 @@ OpSwitch:
+ 			n.Left = typecheck(n.Left, Erv)
+ 			l = n.Left
+ 		}
+-
+ 		t := l.Type
+-		if t == nil {
+-			n.Type = nil
+-			return n
+-		}
+ 		var tp *Type
+ 		if t.IsString() {
+ 			if hasmax {
+diff --git a/test/fixedbugs/issue19323.go b/test/fixedbugs/issue19323.go
+new file mode 100644
+index 0000000000..f90af660d5
+--- /dev/null
++++ b/test/fixedbugs/issue19323.go
+@@ -0,0 +1,19 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func g() {}
++
++func f() {
++	g()[:] // ERROR "g.. used as value"
++}
++
++func g2() ([]byte, []byte) { return nil, nil }
++
++func f2() {
++	g2()[:] // ERROR "multiple-value g2.. in single-value context"
++}

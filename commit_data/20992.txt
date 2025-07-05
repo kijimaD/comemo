@@ -13,6 +13,29 @@ Date:   Mon Nov 3 17:24:13 2014 -0500
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/168980043
-
+---
  src/liblink/list9.c | 11 ++++++-----
  1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/liblink/list9.c b/src/liblink/list9.c
+index 041c6884f1..c9190d8940 100644
+--- a/src/liblink/list9.c
++++ b/src/liblink/list9.c
+@@ -259,11 +259,12 @@ Dconv(Fmt *fp)
+ 				sprint(str, "%s+%.5lux(BRANCH)", a->sym->name, v);
+ 			else
+ 				sprint(str, "%.5lux(BRANCH)", v);
+-		} else
+-			if(a->sym != nil)
+-				sprint(str, "%s+%lld(APC)", a->sym->name, a->offset);
+-			else
+-				sprint(str, "%lld(APC)", a->offset);
++		} else if(a->u.branch != nil)
++			sprint(str, "%lld", a->u.branch->pc);
++		else if(a->sym != nil)
++			sprint(str, "%s+%lld(APC)", a->sym->name, a->offset);
++		else
++			sprint(str, "%lld(APC)", a->offset);
+ 		break;
+ 
+ 	case D_FCONST:

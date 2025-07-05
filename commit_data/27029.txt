@@ -14,6 +14,20 @@ Date:   Tue Mar 8 11:16:19 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/walk.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 52d35ceb2b..81f2e7e606 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -2578,7 +2578,7 @@ func vmatch1(l *Node, r *Node) bool {
+ 	if vmatch1(l.Right, r) {
+ 		return true
+ 	}
+-	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
++	for it := nodeSeqIterate(l.List); !it.Done(); it.Next() {
+ 		if vmatch1(it.N(), r) {
+ 			return true
+ 		}

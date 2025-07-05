@@ -18,7 +18,7 @@ Date:   Thu Jul 30 17:19:13 2020 -0400
     Change-Id: I475c3c8899e9fbeec9abc7647b1e4a69aa5c3c5a
     Reviewed-on: https://go-review.googlesource.com/c/go/+/245901
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go |  3 ---
  src/cmd/internal/goobj2/objfile.go     |  2 ++
  src/cmd/internal/obj/objfile2.go       |  3 +++
@@ -29,3 +29,291 @@ Date:   Thu Jul 30 17:19:13 2020 -0400
  src/cmd/link/internal/ld/xcoff.go      |  3 ---
  src/cmd/link/internal/loader/loader.go | 18 +++++++-----------
  9 files changed, 49 insertions(+), 63 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index ce4838ce80..59b00168e0 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1560,9 +1560,6 @@ func dumptabs() {
+ 		// Nothing writes static itabs, so they are read only.
+ 		ggloblsym(i.lsym, int32(o), int16(obj.DUPOK|obj.RODATA))
+ 		i.lsym.Set(obj.AttrContentAddressable, true)
+-		ilink := itablinkpkg.Lookup(i.t.ShortString() + "," + i.itype.ShortString()).Linksym()
+-		dsymptr(ilink, 0, i.lsym, 0)
+-		ggloblsym(ilink, int32(Widthptr), int16(obj.DUPOK|obj.RODATA))
+ 	}
+ 
+ 	// process ptabs
+diff --git a/src/cmd/internal/goobj2/objfile.go b/src/cmd/internal/goobj2/objfile.go
+index c3d00122e7..6f0df86b06 100644
+--- a/src/cmd/internal/goobj2/objfile.go
++++ b/src/cmd/internal/goobj2/objfile.go
+@@ -292,6 +292,7 @@ const (
+ // Sym.Flag2
+ const (
+ 	SymFlagUsedInIface = 1 << iota
++	SymFlagItab
+ )
+ 
+ // Returns the length of the name of the symbol.
+@@ -321,6 +322,7 @@ func (s *Sym) ReflectMethod() bool { return s.Flag()&SymFlagReflectMethod != 0 }
+ func (s *Sym) IsGoType() bool      { return s.Flag()&SymFlagGoType != 0 }
+ func (s *Sym) TopFrame() bool      { return s.Flag()&SymFlagTopFrame != 0 }
+ func (s *Sym) UsedInIface() bool   { return s.Flag2()&SymFlagUsedInIface != 0 }
++func (s *Sym) IsItab() bool        { return s.Flag2()&SymFlagItab != 0 }
+ 
+ func (s *Sym) SetName(x string, w *Writer) {
+ 	binary.LittleEndian.PutUint32(s[:], uint32(len(x)))
+diff --git a/src/cmd/internal/obj/objfile2.go b/src/cmd/internal/obj/objfile2.go
+index 74f4fc63ba..17021d9294 100644
+--- a/src/cmd/internal/obj/objfile2.go
++++ b/src/cmd/internal/obj/objfile2.go
+@@ -300,6 +300,9 @@ func (w *writer) Sym(s *LSym) {
+ 	if s.UsedInIface() {
+ 		flag2 |= goobj2.SymFlagUsedInIface
+ 	}
++	if strings.HasPrefix(s.Name, "go.itab.") && s.Type == objabi.SRODATA {
++		flag2 |= goobj2.SymFlagItab
++	}
+ 	name := s.Name
+ 	if strings.HasPrefix(name, "gofile..") {
+ 		name = filepath.ToSlash(name)
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 9bc0f021b1..39f65364b7 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1904,14 +1904,14 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
+ 	sect.Length = uint64(state.datsize) - sect.Vaddr
+ 
+ 	/* itablink */
+-	sect = state.allocateNamedSectionAndAssignSyms(seg, genrelrosecname(".itablink"), sym.SITABLINK, sym.Sxxx, relroSecPerm)
+-	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.itablink", 0), sect)
+-	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.eitablink", 0), sect)
+-	if ctxt.HeadType == objabi.Haix {
+-		// Store .itablink size because its symbols are wrapped
+-		// under an outer symbol: runtime.itablink.
+-		xcoffUpdateOuterSize(ctxt, int64(sect.Length), sym.SITABLINK)
+-	}
++	sect = state.allocateNamedDataSection(seg, genrelrosecname(".itablink"), []sym.SymKind{sym.SITABLINK}, relroSecPerm)
++
++	itablink := ldr.CreateSymForUpdate("runtime.itablink", 0)
++	ldr.SetSymSect(itablink.Sym(), sect)
++	itablink.SetType(sym.SRODATA)
++	state.datsize += itablink.Size()
++	state.checkdatsize(sym.SITABLINK)
++	sect.Length = uint64(state.datsize) - sect.Vaddr
+ 
+ 	/* gosymtab */
+ 	sect = state.allocateNamedSectionAndAssignSyms(seg, genrelrosecname(".gosymtab"), sym.SSYMTAB, sym.SRODATA, relroSecPerm)
+@@ -2414,11 +2414,10 @@ func (ctxt *Link) address() []*sym.Segment {
+ 
+ 	ldr := ctxt.loader
+ 	var (
+-		rodata   = ldr.SymSect(ldr.LookupOrCreateSym("runtime.rodata", 0))
+-		itablink = ldr.SymSect(ldr.LookupOrCreateSym("runtime.itablink", 0))
+-		symtab   = ldr.SymSect(ldr.LookupOrCreateSym("runtime.symtab", 0))
+-		pclntab  = ldr.SymSect(ldr.LookupOrCreateSym("runtime.pclntab", 0))
+-		types    = ldr.SymSect(ldr.LookupOrCreateSym("runtime.types", 0))
++		rodata  = ldr.SymSect(ldr.LookupOrCreateSym("runtime.rodata", 0))
++		symtab  = ldr.SymSect(ldr.LookupOrCreateSym("runtime.symtab", 0))
++		pclntab = ldr.SymSect(ldr.LookupOrCreateSym("runtime.pclntab", 0))
++		types   = ldr.SymSect(ldr.LookupOrCreateSym("runtime.types", 0))
+ 	)
+ 
+ 	for _, s := range ctxt.datap {
+@@ -2474,8 +2473,6 @@ func (ctxt *Link) address() []*sym.Segment {
+ 	ctxt.xdefine("runtime.erodata", sym.SRODATA, int64(rodata.Vaddr+rodata.Length))
+ 	ctxt.xdefine("runtime.types", sym.SRODATA, int64(types.Vaddr))
+ 	ctxt.xdefine("runtime.etypes", sym.SRODATA, int64(types.Vaddr+types.Length))
+-	ctxt.xdefine("runtime.itablink", sym.SRODATA, int64(itablink.Vaddr))
+-	ctxt.xdefine("runtime.eitablink", sym.SRODATA, int64(itablink.Vaddr+itablink.Length))
+ 
+ 	s := ldr.Lookup("runtime.gcdata", 0)
+ 	ldr.SetAttrLocal(s, true)
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 53ab0db9d0..a169772dde 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -306,22 +306,6 @@ func deadcode(ctxt *Link) {
+ 		}
+ 		d.flood()
+ 	}
+-
+-	n := ldr.NSym()
+-
+-	if ctxt.BuildMode != BuildModeShared {
+-		// Keep a itablink if the symbol it points at is being kept.
+-		// (When BuildModeShared, always keep itablinks.)
+-		for i := 1; i < n; i++ {
+-			s := loader.Sym(i)
+-			if ldr.IsItabLink(s) {
+-				relocs := ldr.Relocs(s)
+-				if relocs.Count() > 0 && ldr.AttrReachable(relocs.At(0).Sym()) {
+-					ldr.SetAttrReachable(s, true)
+-				}
+-			}
+-		}
+-	}
+ }
+ 
+ // methodsig is a typed method signature (name + type).
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 8d2cbd8133..97d7a22537 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -416,8 +416,6 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 
+ 	// Define these so that they'll get put into the symbol table.
+ 	// data.c:/^address will provide the actual values.
+-	ctxt.xdefine("runtime.itablink", sym.SRODATA, 0)
+-	ctxt.xdefine("runtime.eitablink", sym.SRODATA, 0)
+ 	ctxt.xdefine("runtime.rodata", sym.SRODATA, 0)
+ 	ctxt.xdefine("runtime.erodata", sym.SRODATA, 0)
+ 	ctxt.xdefine("runtime.types", sym.SRODATA, 0)
+@@ -489,16 +487,11 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 		}
+ 	}
+ 
+-	symitablink := ldr.CreateSymForUpdate("runtime.itablink", 0)
+-	symitablink.SetType(sym.SITABLINK)
+-
+ 	symt := ldr.CreateSymForUpdate("runtime.symtab", 0)
+ 	symt.SetType(sym.SSYMTAB)
+ 	symt.SetSize(0)
+ 	symt.SetLocal(true)
+ 
+-	nitablinks := 0
+-
+ 	// assign specific types so that they sort together.
+ 	// within a type they sort by size, so the .* symbols
+ 	// just defined above will be first.
+@@ -536,12 +529,6 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 			// names, as they can be referred to by a section offset.
+ 			symGroupType[s] = sym.STYPERELRO
+ 
+-		case strings.HasPrefix(name, "go.itablink."):
+-			nitablinks++
+-			symGroupType[s] = sym.SITABLINK
+-			ldr.SetAttrNotInSymbolTable(s, true)
+-			ldr.SetCarrierSym(s, symitablink.Sym())
+-
+ 		case strings.HasPrefix(name, "go.string."):
+ 			symGroupType[s] = sym.SGOSTRING
+ 			ldr.SetAttrNotInSymbolTable(s, true)
+@@ -672,7 +659,9 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 	moduledata.AddUint(ctxt.Arch, ntypelinks)
+ 	moduledata.AddUint(ctxt.Arch, ntypelinks)
+ 	// The itablinks slice
+-	moduledata.AddAddr(ctxt.Arch, symitablink.Sym())
++	itablinkSym := ldr.Lookup("runtime.itablink", 0)
++	nitablinks := uint64(ldr.SymSize(itablinkSym)) / uint64(ctxt.Arch.PtrSize)
++	moduledata.AddAddr(ctxt.Arch, itablinkSym)
+ 	moduledata.AddUint(ctxt.Arch, uint64(nitablinks))
+ 	moduledata.AddUint(ctxt.Arch, uint64(nitablinks))
+ 	// The ptab slice
+diff --git a/src/cmd/link/internal/ld/typelink.go b/src/cmd/link/internal/ld/typelink.go
+index 2476efe75c..5eca6e0181 100644
+--- a/src/cmd/link/internal/ld/typelink.go
++++ b/src/cmd/link/internal/ld/typelink.go
+@@ -28,9 +28,15 @@ func (s byTypeStr) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+ func (ctxt *Link) typelink() {
+ 	ldr := ctxt.loader
+ 	typelinks := byTypeStr{}
++	var itabs []loader.Sym
+ 	for s := loader.Sym(1); s < loader.Sym(ldr.NSym()); s++ {
+-		if ldr.AttrReachable(s) && ldr.IsTypelink(s) {
++		if !ldr.AttrReachable(s) {
++			continue
++		}
++		if ldr.IsTypelink(s) {
+ 			typelinks = append(typelinks, typelinkSortKey{decodetypeStr(ldr, ctxt.Arch, s), s})
++		} else if ldr.IsItab(s) {
++			itabs = append(itabs, s)
+ 		}
+ 	}
+ 	sort.Sort(typelinks)
+@@ -48,4 +54,19 @@ func (ctxt *Link) typelink() {
+ 		r.SetSiz(4)
+ 		r.SetType(objabi.R_ADDROFF)
+ 	}
++
++	ptrsize := ctxt.Arch.PtrSize
++	il := ldr.CreateSymForUpdate("runtime.itablink", 0)
++	il.SetType(sym.SITABLINK)
++	ldr.SetAttrLocal(il.Sym(), true)
++	il.SetSize(int64(ptrsize * len(itabs)))
++	il.Grow(il.Size())
++	relocs = il.AddRelocs(len(itabs))
++	for i, s := range itabs {
++		r := relocs.At(i)
++		r.SetSym(s)
++		r.SetOff(int32(i * ptrsize))
++		r.SetSiz(uint8(ptrsize))
++		r.SetType(objabi.R_ADDR)
++	}
+ }
+diff --git a/src/cmd/link/internal/ld/xcoff.go b/src/cmd/link/internal/ld/xcoff.go
+index cc299cfb6b..7eb7f94ca4 100644
+--- a/src/cmd/link/internal/ld/xcoff.go
++++ b/src/cmd/link/internal/ld/xcoff.go
+@@ -605,9 +605,6 @@ func xcoffUpdateOuterSize(ctxt *Link, size int64, stype sym.SymKind) {
+ 		outerSymSize["go.funcrel.*"] = size
+ 	case sym.SGCBITS:
+ 		outerSymSize["runtime.gcbits.*"] = size
+-	case sym.SITABLINK:
+-		outerSymSize["runtime.itablink"] = size
+-
+ 	}
+ }
+ 
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 4da77c6d32..d56c748f9c 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -217,8 +217,7 @@ type Loader struct {
+ 
+ 	align []uint8 // symbol 2^N alignment, indexed by global index
+ 
+-	itablink         map[Sym]struct{} // itablink[j] defined if j is go.itablink.*
+-	deferReturnTramp map[Sym]bool     // whether the symbol is a trampoline of a deferreturn call
++	deferReturnTramp map[Sym]bool // whether the symbol is a trampoline of a deferreturn call
+ 
+ 	objByPkg map[string]*oReader // map package path to its Go object reader
+ 
+@@ -352,7 +351,6 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc, reporter *ErrorRepor
+ 		attrCgoExportDynamic: make(map[Sym]struct{}),
+ 		attrCgoExportStatic:  make(map[Sym]struct{}),
+ 		generatedSyms:        make(map[Sym]struct{}),
+-		itablink:             make(map[Sym]struct{}),
+ 		deferReturnTramp:     make(map[Sym]bool),
+ 		extStaticSyms:        make(map[nameVer]Sym),
+ 		builtinSyms:          make([]Sym, nbuiltin),
+@@ -1163,12 +1161,13 @@ func (l *Loader) IsTypelink(i Sym) bool {
+ 	return l.SymAttr(i)&goobj2.SymFlagTypelink != 0
+ }
+ 
+-// Returns whether this is a "go.itablink.*" symbol.
+-func (l *Loader) IsItabLink(i Sym) bool {
+-	if _, ok := l.itablink[i]; ok {
+-		return true
++// Returns whether this symbol is an itab symbol.
++func (l *Loader) IsItab(i Sym) bool {
++	if l.IsExternal(i) {
++		return false
+ 	}
+-	return false
++	r, li := l.toLocal(i)
++	return r.Sym(li).IsItab()
+ }
+ 
+ // Return whether this is a trampoline of a deferreturn call.
+@@ -2139,9 +2138,6 @@ func (st *loadState) preloadSyms(r *oReader, kind int) {
+ 		if osym.UsedInIface() {
+ 			l.SetAttrUsedInIface(gi, true)
+ 		}
+-		if strings.HasPrefix(name, "go.itablink.") {
+-			l.itablink[gi] = struct{}{}
+-		}
+ 		if strings.HasPrefix(name, "runtime.") ||
+ 			(loadingRuntimePkg && strings.HasPrefix(name, "type.")) {
+ 			if bi := goobj2.BuiltinIdx(name, v); bi != -1 {

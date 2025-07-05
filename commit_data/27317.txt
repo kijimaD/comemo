@@ -7,6 +7,29 @@ Date:   Sun Mar 20 23:00:40 2016 -0400
     Change-Id: Iedd01ef3a9d2831cb55c53b7a1984e7e932f4249
     Reviewed-on: https://go-review.googlesource.com/20932
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 5406745ffc..33c056d797 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -681,7 +681,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 		return false
+ 	case "shared":
+ 		switch pair {
+-		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le":
++		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-s390x":
+ 			return true
+ 		}
+ 		return false
+@@ -725,7 +725,7 @@ func (t *tester) cgoTest(dt *distTest) error {
+ 	case "android-arm",
+ 		"dragonfly-386", "dragonfly-amd64",
+ 		"freebsd-386", "freebsd-amd64", "freebsd-arm",
+-		"linux-386", "linux-amd64", "linux-arm",
++		"linux-386", "linux-amd64", "linux-arm", "linux-s390x",
+ 		"netbsd-386", "netbsd-amd64":
+ 
+ 		cmd := t.addCmd(dt, "misc/cgo/test", "go", "test", "-ldflags", "-linkmode=external")

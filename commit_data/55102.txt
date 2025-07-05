@@ -13,6 +13,20 @@ Date:   Wed Jan 4 06:59:03 2023 +0000
     Reviewed-by: Robert Griesemer <gri@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/gofmt/rewrite.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gofmt/rewrite.go b/src/cmd/gofmt/rewrite.go
+index a98c6a0cd9..0b7e211309 100644
+--- a/src/cmd/gofmt/rewrite.go
++++ b/src/cmd/gofmt/rewrite.go
+@@ -199,7 +199,7 @@ func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
+ 		// object pointers and token positions always match
+ 		return true
+ 	case callExprType:
+-		// For calls, the Ellipsis fields (token.Position) must
++		// For calls, the Ellipsis fields (token.Pos) must
+ 		// match since that is how f(x) and f(x...) are different.
+ 		// Check them here but fall through for the remaining fields.
+ 		p := pattern.Interface().(*ast.CallExpr)

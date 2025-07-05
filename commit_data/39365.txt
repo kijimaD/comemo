@@ -10,6 +10,20 @@ Date:   Fri Jan 11 14:08:37 2019 +0000
     Reviewed-on: https://go-review.googlesource.com/c/157518
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/cmd/internal/src/pos.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/src/pos.go b/src/cmd/internal/src/pos.go
+index 110a57b98d..5063b133f3 100644
+--- a/src/cmd/internal/src/pos.go
++++ b/src/cmd/internal/src/pos.go
+@@ -343,7 +343,7 @@ const (
+ 	// positions.
+ 	//
+ 	PosDefaultStmt uint = iota // Default; position is not a statement boundary, but might be if optimization removes the designated statement boundary
+-	PosIsStmt                  // Position is a statement bounday; if optimization removes the corresponding instruction, it should attempt to find a new instruction to be the boundary.
++	PosIsStmt                  // Position is a statement boundary; if optimization removes the corresponding instruction, it should attempt to find a new instruction to be the boundary.
+ 	PosNotStmt                 // Position should not be a statement boundary, but line should be preserved for profiling and low-level debugging purposes.
+ )
+ 

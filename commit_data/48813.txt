@@ -18,7 +18,43 @@ Date:   Wed Jun 16 21:15:19 2021 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/runtime/extern.go              | 4 ++--
  src/runtime/internal/sys/consts.go | 2 --
  2 files changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 1c70e8a361..eca4062e68 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -188,7 +188,7 @@ package runtime
+ 
+ import (
+ 	"internal/goarch"
+-	"runtime/internal/sys"
++	"internal/goos"
+ )
+ 
+ // Caller reports file and line number information about function invocations on
+@@ -263,7 +263,7 @@ func Version() string {
+ // GOOS is the running program's operating system target:
+ // one of darwin, freebsd, linux, and so on.
+ // To view possible combinations of GOOS and GOARCH, run "go tool dist list".
+-const GOOS string = sys.GOOS
++const GOOS string = goos.GOOS
+ 
+ // GOARCH is the running program's architecture target:
+ // one of 386, amd64, arm, s390x, and so on.
+diff --git a/src/runtime/internal/sys/consts.go b/src/runtime/internal/sys/consts.go
+index 07fbaf4d73..4d45f9d0d0 100644
+--- a/src/runtime/internal/sys/consts.go
++++ b/src/runtime/internal/sys/consts.go
+@@ -80,8 +80,6 @@ const (
+ 	GoarchWasm        = goarch.GoarchWasm
+ )
+ 
+-const GOOS = goos.GOOS
+-
+ const (
+ 	GoosAix       = goos.GoosAix
+ 	GoosAndroid   = goos.GoosAndroid

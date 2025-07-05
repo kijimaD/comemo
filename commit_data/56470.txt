@@ -13,7 +13,7 @@ Date:   Mon Jan 23 17:34:18 2023 -0500
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/dwarf.go       |   2 +-
  src/cmd/link/internal/ld/dwarf_test.go  |   1 -
  src/internal/reflectlite/export_test.go |   4 +-
@@ -25,3 +25,768 @@ Date:   Mon Jan 23 17:34:18 2023 -0500
  src/runtime/iface.go                    |  18 ++--
  src/runtime/type.go                     |  36 ++------
  10 files changed, 107 insertions(+), 194 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index b42da6dc0b..4f3d18e146 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1812,7 +1812,7 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
+ 		"type:runtime.structtype",
+ 		"type:runtime.interfacetype",
+ 		"type:runtime.itab",
+-		"type:runtime.imethod"} {
++		"type:internal/abi.Imethod"} {
+ 		d.defgotype(d.lookupOrDiag(typ))
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index ad09737ea8..997275a56a 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -66,7 +66,6 @@ func TestRuntimeTypesPresent(t *testing.T) {
+ 		"runtime.structtype":    true,
+ 		"runtime.interfacetype": true,
+ 		"runtime.itab":          true,
+-		"runtime.imethod":       true,
+ 	}
+ 
+ 	found := findTypes(t, dwarf, want)
+diff --git a/src/internal/reflectlite/export_test.go b/src/internal/reflectlite/export_test.go
+index e9a928bdc6..2532065cad 100644
+--- a/src/internal/reflectlite/export_test.go
++++ b/src/internal/reflectlite/export_test.go
+@@ -104,8 +104,8 @@ func FirstMethodNameBytes(t Type) *byte {
+ 	if ut == nil {
+ 		panic("type has no methods")
+ 	}
+-	m := ut.methods()[0]
+-	mname := t.(*rtype).nameOff(m.name)
++	m := ut.Methods()[0]
++	mname := t.(*rtype).nameOff(m.Name)
+ 	if *mname.data(0, "name flag field")&(1<<2) == 0 {
+ 		panic("method name does not have pkgPath *string")
+ 	}
+diff --git a/src/internal/reflectlite/type.go b/src/internal/reflectlite/type.go
+index e913fb6e10..e706e2f136 100644
+--- a/src/internal/reflectlite/type.go
++++ b/src/internal/reflectlite/type.go
+@@ -115,25 +115,11 @@ type textOff = abi.TextOff
+ 
+ type rtype abi.Type
+ 
+-// Method on non-interface type
+-type method struct {
+-	name nameOff // name of method
+-	mtyp typeOff // method type (without receiver)
+-	ifn  textOff // fn used in interface call (one-word receiver)
+-	tfn  textOff // fn used for normal method call
+-}
+-
+ // uncommonType is present only for defined types or types with methods
+ // (if T is a defined type, the uncommonTypes for T and *T have methods).
+ // Using a pointer to this struct reduces the overall size required
+ // to describe a non-defined type with no methods.
+-type uncommonType struct {
+-	pkgPath nameOff // import path; empty for built-in types like int, string
+-	mcount  uint16  // number of methods
+-	xcount  uint16  // number of exported methods
+-	moff    uint32  // offset from this uncommontype to [mcount]method
+-	_       uint32  // unused
+-}
++type uncommonType = abi.UncommonType
+ 
+ // chanDir represents a channel type's direction.
+ type chanDir int
+@@ -176,17 +162,11 @@ type funcType struct {
+ 	outCount uint16 // top bit is set if last input parameter is ...
+ }
+ 
+-// imethod represents a method on an interface type
+-type imethod struct {
+-	name nameOff // name of method
+-	typ  typeOff // .(*FuncType) underneath
+-}
+-
+ // interfaceType represents an interface type.
+ type interfaceType struct {
+ 	rtype
+-	pkgPath name      // import path
+-	methods []imethod // sorted by hash
++	pkgPath name          // import path
++	methods []abi.Imethod // sorted by hash
+ }
+ 
+ // mapType represents a map type.
+@@ -373,20 +353,6 @@ var kindNames = []string{
+ 	UnsafePointer: "unsafe.Pointer",
+ }
+ 
+-func (t *uncommonType) methods() []method {
+-	if t.mcount == 0 {
+-		return nil
+-	}
+-	return (*[1 << 16]method)(add(unsafe.Pointer(t), uintptr(t.moff), "t.mcount > 0"))[:t.mcount:t.mcount]
+-}
+-
+-func (t *uncommonType) exportedMethods() []method {
+-	if t.xcount == 0 {
+-		return nil
+-	}
+-	return (*[1 << 16]method)(add(unsafe.Pointer(t), uintptr(t.moff), "t.xcount > 0"))[:t.xcount:t.xcount]
+-}
+-
+ // resolveNameOff resolves a name offset from a base pointer.
+ // The (*rtype).nameOff method is a convenience wrapper for this function.
+ // Implemented in the runtime package.
+@@ -479,12 +445,12 @@ func (t *rtype) pointers() bool { return t.PtrBytes != 0 }
+ 
+ func (t *rtype) common() *rtype { return t }
+ 
+-func (t *rtype) exportedMethods() []method {
++func (t *rtype) exportedMethods() []abi.Method {
+ 	ut := t.uncommon()
+ 	if ut == nil {
+ 		return nil
+ 	}
+-	return ut.exportedMethods()
++	return ut.ExportedMethods()
+ }
+ 
+ func (t *rtype) NumMethod() int {
+@@ -503,7 +469,7 @@ func (t *rtype) PkgPath() string {
+ 	if ut == nil {
+ 		return ""
+ 	}
+-	return t.nameOff(ut.pkgPath).name()
++	return t.nameOff(ut.PkgPath).name()
+ }
+ 
+ func (t *rtype) hasName() bool {
+@@ -707,10 +673,10 @@ func implements(T, V *rtype) bool {
+ 		i := 0
+ 		for j := 0; j < len(v.methods); j++ {
+ 			tm := &t.methods[i]
+-			tmName := t.nameOff(tm.name)
++			tmName := t.nameOff(tm.Name)
+ 			vm := &v.methods[j]
+-			vmName := V.nameOff(vm.name)
+-			if vmName.name() == tmName.name() && V.typeOff(vm.typ) == t.typeOff(tm.typ) {
++			vmName := V.nameOff(vm.Name)
++			if vmName.name() == tmName.name() && V.typeOff(vm.Typ) == t.typeOff(tm.Typ) {
+ 				if !tmName.isExported() {
+ 					tmPkgPath := tmName.pkgPath()
+ 					if tmPkgPath == "" {
+@@ -737,13 +703,13 @@ func implements(T, V *rtype) bool {
+ 		return false
+ 	}
+ 	i := 0
+-	vmethods := v.methods()
+-	for j := 0; j < int(v.mcount); j++ {
++	vmethods := v.Methods()
++	for j := 0; j < int(v.Mcount); j++ {
+ 		tm := &t.methods[i]
+-		tmName := t.nameOff(tm.name)
++		tmName := t.nameOff(tm.Name)
+ 		vm := vmethods[j]
+-		vmName := V.nameOff(vm.name)
+-		if vmName.name() == tmName.name() && V.typeOff(vm.mtyp) == t.typeOff(tm.typ) {
++		vmName := V.nameOff(vm.Name)
++		if vmName.name() == tmName.name() && V.typeOff(vm.Mtyp) == t.typeOff(tm.Typ) {
+ 			if !tmName.isExported() {
+ 				tmPkgPath := tmName.pkgPath()
+ 				if tmPkgPath == "" {
+@@ -751,7 +717,7 @@ func implements(T, V *rtype) bool {
+ 				}
+ 				vmPkgPath := vmName.pkgPath()
+ 				if vmPkgPath == "" {
+-					vmPkgPath = V.nameOff(v.pkgPath).name()
++					vmPkgPath = V.nameOff(v.PkgPath).name()
+ 				}
+ 				if tmPkgPath != vmPkgPath {
+ 					continue
+diff --git a/src/reflect/export_test.go b/src/reflect/export_test.go
+index 23199e636a..f5c8b70e2e 100644
+--- a/src/reflect/export_test.go
++++ b/src/reflect/export_test.go
+@@ -120,8 +120,8 @@ func FirstMethodNameBytes(t Type) *byte {
+ 	if ut == nil {
+ 		panic("type has no methods")
+ 	}
+-	m := ut.methods()[0]
+-	mname := t.(*rtype).nameOff(m.name)
++	m := ut.Methods()[0]
++	mname := t.(*rtype).nameOff(m.Name)
+ 	if *mname.data(0, "name flag field")&(1<<2) == 0 {
+ 		panic("method name does not have pkgPath *string")
+ 	}
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 261c36dbbb..53eed5ac00 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -281,25 +281,11 @@ type nameOff = abi.NameOff
+ type typeOff = abi.TypeOff
+ type textOff = abi.TextOff
+ 
+-// Method on non-interface type
+-type method struct {
+-	name nameOff // name of method
+-	mtyp typeOff // method type (without receiver)
+-	ifn  textOff // fn used in interface call (one-word receiver)
+-	tfn  textOff // fn used for normal method call
+-}
+-
+ // uncommonType is present only for defined types or types with methods
+ // (if T is a defined type, the uncommonTypes for T and *T have methods).
+ // Using a pointer to this struct reduces the overall size required
+ // to describe a non-defined type with no methods.
+-type uncommonType struct {
+-	pkgPath nameOff // import path; empty for built-in types like int, string
+-	mcount  uint16  // number of methods
+-	xcount  uint16  // number of exported methods
+-	moff    uint32  // offset from this uncommontype to [mcount]method
+-	_       uint32  // unused
+-}
++type uncommonType = abi.UncommonType
+ 
+ // ChanDir represents a channel type's direction.
+ type ChanDir int
+@@ -342,17 +328,11 @@ type funcType struct {
+ 	outCount uint16 // top bit is set if last input parameter is ...
+ }
+ 
+-// imethod represents a method on an interface type
+-type imethod struct {
+-	name nameOff // name of method
+-	typ  typeOff // .(*FuncType) underneath
+-}
+-
+ // interfaceType represents an interface type.
+ type interfaceType struct {
+ 	rtype
+-	pkgPath name      // import path
+-	methods []imethod // sorted by hash
++	pkgPath name          // import path
++	methods []abi.Imethod // sorted by hash
+ }
+ 
+ // mapType represents a map type.
+@@ -619,20 +599,6 @@ var kindNames = []string{
+ 	UnsafePointer: "unsafe.Pointer",
+ }
+ 
+-func (t *uncommonType) methods() []method {
+-	if t.mcount == 0 {
+-		return nil
+-	}
+-	return (*[1 << 16]method)(add(unsafe.Pointer(t), uintptr(t.moff), "t.mcount > 0"))[:t.mcount:t.mcount]
+-}
+-
+-func (t *uncommonType) exportedMethods() []method {
+-	if t.xcount == 0 {
+-		return nil
+-	}
+-	return (*[1 << 16]method)(add(unsafe.Pointer(t), uintptr(t.moff), "t.xcount > 0"))[:t.xcount:t.xcount]
+-}
+-
+ // resolveNameOff resolves a name offset from a base pointer.
+ // The (*rtype).nameOff method is a convenience wrapper for this function.
+ // Implemented in the runtime package.
+@@ -773,12 +739,12 @@ func (t *rtype) pointers() bool { return t.PtrBytes != 0 }
+ 
+ func (t *rtype) common() *rtype { return t }
+ 
+-func (t *rtype) exportedMethods() []method {
++func (t *rtype) exportedMethods() []abi.Method {
+ 	ut := t.uncommon()
+ 	if ut == nil {
+ 		return nil
+ 	}
+-	return ut.exportedMethods()
++	return ut.ExportedMethods()
+ }
+ 
+ func (t *rtype) NumMethod() int {
+@@ -799,10 +765,10 @@ func (t *rtype) Method(i int) (m Method) {
+ 		panic("reflect: Method index out of range")
+ 	}
+ 	p := methods[i]
+-	pname := t.nameOff(p.name)
++	pname := t.nameOff(p.Name)
+ 	m.Name = pname.name()
+ 	fl := flag(Func)
+-	mtyp := t.typeOff(p.mtyp)
++	mtyp := t.typeOff(p.Mtyp)
+ 	ft := (*funcType)(unsafe.Pointer(mtyp))
+ 	in := make([]Type, 0, 1+len(ft.in()))
+ 	in = append(in, t)
+@@ -815,7 +781,7 @@ func (t *rtype) Method(i int) (m Method) {
+ 	}
+ 	mt := FuncOf(in, out, ft.IsVariadic())
+ 	m.Type = mt
+-	tfn := t.textOff(p.tfn)
++	tfn := t.textOff(p.Tfn)
+ 	fn := unsafe.Pointer(&tfn)
+ 	m.Func = Value{mt.(*rtype), fn, fl}
+ 
+@@ -833,7 +799,7 @@ func (t *rtype) MethodByName(name string) (m Method, ok bool) {
+ 		return Method{}, false
+ 	}
+ 
+-	methods := ut.exportedMethods()
++	methods := ut.ExportedMethods()
+ 
+ 	// We are looking for the first index i where the string becomes >= s.
+ 	// This is a copy of sort.Search, with f(h) replaced by (t.nameOff(methods[h].name).name() >= name).
+@@ -841,14 +807,14 @@ func (t *rtype) MethodByName(name string) (m Method, ok bool) {
+ 	for i < j {
+ 		h := int(uint(i+j) >> 1) // avoid overflow when computing h
+ 		// i ≤ h < j
+-		if !(t.nameOff(methods[h].name).name() >= name) {
++		if !(t.nameOff(methods[h].Name).name() >= name) {
+ 			i = h + 1 // preserves f(i-1) == false
+ 		} else {
+ 			j = h // preserves f(j) == true
+ 		}
+ 	}
+ 	// i == j, f(i-1) == false, and f(j) (= f(i)) == true  =>  answer is i.
+-	if i < len(methods) && name == t.nameOff(methods[i].name).name() {
++	if i < len(methods) && name == t.nameOff(methods[i].Name).name() {
+ 		return t.Method(i), true
+ 	}
+ 
+@@ -863,7 +829,7 @@ func (t *rtype) PkgPath() string {
+ 	if ut == nil {
+ 		return ""
+ 	}
+-	return t.nameOff(ut.pkgPath).name()
++	return t.nameOff(ut.PkgPath).name()
+ }
+ 
+ func (t *rtype) hasName() bool {
+@@ -1066,7 +1032,7 @@ func (t *interfaceType) Method(i int) (m Method) {
+ 		return
+ 	}
+ 	p := &t.methods[i]
+-	pname := t.nameOff(p.name)
++	pname := t.nameOff(p.Name)
+ 	m.Name = pname.name()
+ 	if !pname.isExported() {
+ 		m.PkgPath = pname.pkgPath()
+@@ -1074,7 +1040,7 @@ func (t *interfaceType) Method(i int) (m Method) {
+ 			m.PkgPath = t.pkgPath.name()
+ 		}
+ 	}
+-	m.Type = toType(t.typeOff(p.typ))
++	m.Type = toType(t.typeOff(p.Typ))
+ 	m.Index = i
+ 	return
+ }
+@@ -1087,10 +1053,10 @@ func (t *interfaceType) MethodByName(name string) (m Method, ok bool) {
+ 	if t == nil {
+ 		return
+ 	}
+-	var p *imethod
++	var p *abi.Imethod
+ 	for i := range t.methods {
+ 		p = &t.methods[i]
+-		if t.nameOff(p.name).name() == name {
++		if t.nameOff(p.Name).name() == name {
+ 			return t.Method(i), true
+ 		}
+ 	}
+@@ -1517,10 +1483,10 @@ func implements(T, V *rtype) bool {
+ 		i := 0
+ 		for j := 0; j < len(v.methods); j++ {
+ 			tm := &t.methods[i]
+-			tmName := t.nameOff(tm.name)
++			tmName := t.nameOff(tm.Name)
+ 			vm := &v.methods[j]
+-			vmName := V.nameOff(vm.name)
+-			if vmName.name() == tmName.name() && V.typeOff(vm.typ) == t.typeOff(tm.typ) {
++			vmName := V.nameOff(vm.Name)
++			if vmName.name() == tmName.name() && V.typeOff(vm.Typ) == t.typeOff(tm.Typ) {
+ 				if !tmName.isExported() {
+ 					tmPkgPath := tmName.pkgPath()
+ 					if tmPkgPath == "" {
+@@ -1547,13 +1513,13 @@ func implements(T, V *rtype) bool {
+ 		return false
+ 	}
+ 	i := 0
+-	vmethods := v.methods()
+-	for j := 0; j < int(v.mcount); j++ {
++	vmethods := v.Methods()
++	for j := 0; j < int(v.Mcount); j++ {
+ 		tm := &t.methods[i]
+-		tmName := t.nameOff(tm.name)
++		tmName := t.nameOff(tm.Name)
+ 		vm := vmethods[j]
+-		vmName := V.nameOff(vm.name)
+-		if vmName.name() == tmName.name() && V.typeOff(vm.mtyp) == t.typeOff(tm.typ) {
++		vmName := V.nameOff(vm.Name)
++		if vmName.name() == tmName.name() && V.typeOff(vm.Mtyp) == t.typeOff(tm.Typ) {
+ 			if !tmName.isExported() {
+ 				tmPkgPath := tmName.pkgPath()
+ 				if tmPkgPath == "" {
+@@ -1561,7 +1527,7 @@ func implements(T, V *rtype) bool {
+ 				}
+ 				vmPkgPath := vmName.pkgPath()
+ 				if vmPkgPath == "" {
+-					vmPkgPath = V.nameOff(v.pkgPath).name()
++					vmPkgPath = V.nameOff(v.PkgPath).name()
+ 				}
+ 				if tmPkgPath != vmPkgPath {
+ 					continue
+@@ -2378,7 +2344,7 @@ func StructOf(fields []StructField) Type {
+ 		size       uintptr
+ 		typalign   uint8
+ 		comparable = true
+-		methods    []method
++		methods    []abi.Method
+ 
+ 		fs   = make([]structField, len(fields))
+ 		repr = make([]byte, 0, 64)
+@@ -2431,13 +2397,13 @@ func StructOf(fields []StructField) Type {
+ 			case Interface:
+ 				ift := (*interfaceType)(unsafe.Pointer(ft))
+ 				for im, m := range ift.methods {
+-					if ift.nameOff(m.name).pkgPath() != "" {
++					if ift.nameOff(m.Name).pkgPath() != "" {
+ 						// TODO(sbinet).  Issue 15924.
+ 						panic("reflect: embedded interface with unexported method(s) not implemented")
+ 					}
+ 
+ 					var (
+-						mtyp    = ift.typeOff(m.typ)
++						mtyp    = ift.typeOff(m.Typ)
+ 						ifield  = i
+ 						imethod = im
+ 						ifn     Value
+@@ -2480,75 +2446,75 @@ func StructOf(fields []StructField) Type {
+ 						})
+ 					}
+ 
+-					methods = append(methods, method{
+-						name: resolveReflectName(ift.nameOff(m.name)),
+-						mtyp: resolveReflectType(mtyp),
+-						ifn:  resolveReflectText(unsafe.Pointer(&ifn)),
+-						tfn:  resolveReflectText(unsafe.Pointer(&tfn)),
++					methods = append(methods, abi.Method{
++						Name: resolveReflectName(ift.nameOff(m.Name)),
++						Mtyp: resolveReflectType(mtyp),
++						Ifn:  resolveReflectText(unsafe.Pointer(&ifn)),
++						Tfn:  resolveReflectText(unsafe.Pointer(&tfn)),
+ 					})
+ 				}
+ 			case Pointer:
+ 				ptr := (*ptrType)(unsafe.Pointer(ft))
+ 				if unt := ptr.uncommon(); unt != nil {
+-					if i > 0 && unt.mcount > 0 {
++					if i > 0 && unt.Mcount > 0 {
+ 						// Issue 15924.
+ 						panic("reflect: embedded type with methods not implemented if type is not first field")
+ 					}
+ 					if len(fields) > 1 {
+ 						panic("reflect: embedded type with methods not implemented if there is more than one field")
+ 					}
+-					for _, m := range unt.methods() {
+-						mname := ptr.nameOff(m.name)
++					for _, m := range unt.Methods() {
++						mname := ptr.nameOff(m.Name)
+ 						if mname.pkgPath() != "" {
+ 							// TODO(sbinet).
+ 							// Issue 15924.
+ 							panic("reflect: embedded interface with unexported method(s) not implemented")
+ 						}
+-						methods = append(methods, method{
+-							name: resolveReflectName(mname),
+-							mtyp: resolveReflectType(ptr.typeOff(m.mtyp)),
+-							ifn:  resolveReflectText(ptr.textOff(m.ifn)),
+-							tfn:  resolveReflectText(ptr.textOff(m.tfn)),
++						methods = append(methods, abi.Method{
++							Name: resolveReflectName(mname),
++							Mtyp: resolveReflectType(ptr.typeOff(m.Mtyp)),
++							Ifn:  resolveReflectText(ptr.textOff(m.Ifn)),
++							Tfn:  resolveReflectText(ptr.textOff(m.Tfn)),
+ 						})
+ 					}
+ 				}
+ 				if unt := ptr.elem.uncommon(); unt != nil {
+-					for _, m := range unt.methods() {
+-						mname := ptr.nameOff(m.name)
++					for _, m := range unt.Methods() {
++						mname := ptr.nameOff(m.Name)
+ 						if mname.pkgPath() != "" {
+ 							// TODO(sbinet)
+ 							// Issue 15924.
+ 							panic("reflect: embedded interface with unexported method(s) not implemented")
+ 						}
+-						methods = append(methods, method{
+-							name: resolveReflectName(mname),
+-							mtyp: resolveReflectType(ptr.elem.typeOff(m.mtyp)),
+-							ifn:  resolveReflectText(ptr.elem.textOff(m.ifn)),
+-							tfn:  resolveReflectText(ptr.elem.textOff(m.tfn)),
++						methods = append(methods, abi.Method{
++							Name: resolveReflectName(mname),
++							Mtyp: resolveReflectType(ptr.elem.typeOff(m.Mtyp)),
++							Ifn:  resolveReflectText(ptr.elem.textOff(m.Ifn)),
++							Tfn:  resolveReflectText(ptr.elem.textOff(m.Tfn)),
+ 						})
+ 					}
+ 				}
+ 			default:
+ 				if unt := ft.uncommon(); unt != nil {
+-					if i > 0 && unt.mcount > 0 {
++					if i > 0 && unt.Mcount > 0 {
+ 						// Issue 15924.
+ 						panic("reflect: embedded type with methods not implemented if type is not first field")
+ 					}
+ 					if len(fields) > 1 && ft.Kind_&kindDirectIface != 0 {
+ 						panic("reflect: embedded type with methods not implemented for non-pointer type")
+ 					}
+-					for _, m := range unt.methods() {
+-						mname := ft.nameOff(m.name)
++					for _, m := range unt.Methods() {
++						mname := ft.nameOff(m.Name)
+ 						if mname.pkgPath() != "" {
+ 							// TODO(sbinet)
+ 							// Issue 15924.
+ 							panic("reflect: embedded interface with unexported method(s) not implemented")
+ 						}
+-						methods = append(methods, method{
+-							name: resolveReflectName(mname),
+-							mtyp: resolveReflectType(ft.typeOff(m.mtyp)),
+-							ifn:  resolveReflectText(ft.textOff(m.ifn)),
+-							tfn:  resolveReflectText(ft.textOff(m.tfn)),
++						methods = append(methods, abi.Method{
++							Name: resolveReflectName(mname),
++							Mtyp: resolveReflectType(ft.typeOff(m.Mtyp)),
++							Ifn:  resolveReflectText(ft.textOff(m.Ifn)),
++							Tfn:  resolveReflectText(ft.textOff(m.Tfn)),
+ 						})
+ 
+ 					}
+@@ -2627,15 +2593,15 @@ func StructOf(fields []StructField) Type {
+ 		typ = (*structType)(tt.Elem().Field(0).Addr().UnsafePointer())
+ 		ut = (*uncommonType)(tt.Elem().Field(1).Addr().UnsafePointer())
+ 
+-		copy(tt.Elem().Field(2).Slice(0, len(methods)).Interface().([]method), methods)
++		copy(tt.Elem().Field(2).Slice(0, len(methods)).Interface().([]abi.Method), methods)
+ 	}
+ 	// TODO(sbinet): Once we allow embedding multiple types,
+ 	// methods will need to be sorted like the compiler does.
+ 	// TODO(sbinet): Once we allow non-exported methods, we will
+ 	// need to compute xcount as the number of exported methods.
+-	ut.mcount = uint16(len(methods))
+-	ut.xcount = ut.mcount
+-	ut.moff = uint32(unsafe.Sizeof(uncommonType{}))
++	ut.Mcount = uint16(len(methods))
++	ut.Xcount = ut.Mcount
++	ut.Moff = uint32(unsafe.Sizeof(uncommonType{}))
+ 
+ 	if len(fs) > 0 {
+ 		repr = append(repr, ' ')
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index b0e252c7dd..1cab35b6cd 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -882,7 +882,7 @@ func methodReceiver(op string, v Value, methodIndex int) (rcvrtype *rtype, t *fu
+ 			panic("reflect: internal error: invalid method index")
+ 		}
+ 		m := &tt.methods[i]
+-		if !tt.nameOff(m.name).isExported() {
++		if !tt.nameOff(m.Name).isExported() {
+ 			panic("reflect: " + op + " of unexported method")
+ 		}
+ 		iface := (*nonEmptyInterface)(v.ptr)
+@@ -891,7 +891,7 @@ func methodReceiver(op string, v Value, methodIndex int) (rcvrtype *rtype, t *fu
+ 		}
+ 		rcvrtype = iface.itab.typ
+ 		fn = unsafe.Pointer(&iface.itab.fun[i])
+-		t = (*funcType)(unsafe.Pointer(tt.typeOff(m.typ)))
++		t = (*funcType)(unsafe.Pointer(tt.typeOff(m.Typ)))
+ 	} else {
+ 		rcvrtype = v.typ
+ 		ms := v.typ.exportedMethods()
+@@ -899,12 +899,12 @@ func methodReceiver(op string, v Value, methodIndex int) (rcvrtype *rtype, t *fu
+ 			panic("reflect: internal error: invalid method index")
+ 		}
+ 		m := ms[i]
+-		if !v.typ.nameOff(m.name).isExported() {
++		if !v.typ.nameOff(m.Name).isExported() {
+ 			panic("reflect: " + op + " of unexported method")
+ 		}
+-		ifn := v.typ.textOff(m.ifn)
++		ifn := v.typ.textOff(m.Ifn)
+ 		fn = unsafe.Pointer(&ifn)
+-		t = (*funcType)(unsafe.Pointer(v.typ.typeOff(m.mtyp)))
++		t = (*funcType)(unsafe.Pointer(v.typ.typeOff(m.Mtyp)))
+ 	}
+ 	return
+ }
+@@ -2623,7 +2623,7 @@ func (v Value) typeSlow() Type {
+ 			panic("reflect: internal error: invalid method index")
+ 		}
+ 		m := &tt.methods[i]
+-		return v.typ.typeOff(m.typ)
++		return v.typ.typeOff(m.Typ)
+ 	}
+ 	// Method on concrete type.
+ 	ms := v.typ.exportedMethods()
+@@ -2631,7 +2631,7 @@ func (v Value) typeSlow() Type {
+ 		panic("reflect: internal error: invalid method index")
+ 	}
+ 	m := ms[i]
+-	return v.typ.typeOff(m.mtyp)
++	return v.typ.typeOff(m.Mtyp)
+ }
+ 
+ // CanUint reports whether Uint can be used without panicking.
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 70fc5fb34a..d06ddfc0fe 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -194,10 +194,10 @@ func dumptype(t *_type) {
+ 	dumpint(tagType)
+ 	dumpint(uint64(uintptr(unsafe.Pointer(t))))
+ 	dumpint(uint64(t.Size_))
+-	if x := t.uncommon(); x == nil || t.nameOff(x.pkgpath).name() == "" {
++	if x := t.uncommon(); x == nil || t.nameOff(x.PkgPath).name() == "" {
+ 		dumpstr(t.string())
+ 	} else {
+-		pkgpath := t.nameOff(x.pkgpath).name()
++		pkgpath := t.nameOff(x.PkgPath).name()
+ 		name := t.name()
+ 		dumpint(uint64(uintptr(len(pkgpath)) + 1 + uintptr(len(name))))
+ 		dwrite(unsafe.Pointer(unsafe.StringData(pkgpath)), uintptr(len(pkgpath)))
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index a4ce88ee17..67e98b08ce 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -41,7 +41,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
+ 		if canfail {
+ 			return nil
+ 		}
+-		name := inter.typ.nameOff(inter.mhdr[0].name)
++		name := inter.typ.nameOff(inter.mhdr[0].Name)
+ 		panic(&TypeAssertionError{nil, typ, &inter.typ, name.name()})
+ 	}
+ 
+@@ -199,16 +199,16 @@ func (m *itab) init() string {
+ 	// so can iterate over both in lock step;
+ 	// the loop is O(ni+nt) not O(ni*nt).
+ 	ni := len(inter.mhdr)
+-	nt := int(x.mcount)
+-	xmhdr := (*[1 << 16]method)(add(unsafe.Pointer(x), uintptr(x.moff)))[:nt:nt]
++	nt := int(x.Mcount)
++	xmhdr := (*[1 << 16]abi.Method)(add(unsafe.Pointer(x), uintptr(x.Moff)))[:nt:nt]
+ 	j := 0
+ 	methods := (*[1 << 16]unsafe.Pointer)(unsafe.Pointer(&m.fun[0]))[:ni:ni]
+ 	var fun0 unsafe.Pointer
+ imethods:
+ 	for k := 0; k < ni; k++ {
+ 		i := &inter.mhdr[k]
+-		itype := inter.typ.typeOff(i.ityp)
+-		name := inter.typ.nameOff(i.name)
++		itype := inter.typ.typeOff(i.Typ)
++		name := inter.typ.nameOff(i.Name)
+ 		iname := name.name()
+ 		ipkg := name.pkgPath()
+ 		if ipkg == "" {
+@@ -216,15 +216,15 @@ imethods:
+ 		}
+ 		for ; j < nt; j++ {
+ 			t := &xmhdr[j]
+-			tname := typ.nameOff(t.name)
+-			if typ.typeOff(t.mtyp) == itype && tname.name() == iname {
++			tname := typ.nameOff(t.Name)
++			if typ.typeOff(t.Mtyp) == itype && tname.name() == iname {
+ 				pkgPath := tname.pkgPath()
+ 				if pkgPath == "" {
+-					pkgPath = typ.nameOff(x.pkgpath).name()
++					pkgPath = typ.nameOff(x.PkgPath).name()
+ 				}
+ 				if tname.isExported() || pkgPath == ipkg {
+ 					if m != nil {
+-						ifn := typ.textOff(t.ifn)
++						ifn := typ.textOff(t.Ifn)
+ 						if k == 0 {
+ 							fun0 = ifn // we'll set m.fun[0] at the end
+ 						} else {
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 62dce2c377..cba2349859 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -116,7 +116,7 @@ func (t *_type) name() string {
+ // types, not just named types.
+ func (t *_type) pkgpath() string {
+ 	if u := t.uncommon(); u != nil {
+-		return t.nameOff(u.pkgpath).name()
++		return t.nameOff(u.PkgPath).name()
+ 	}
+ 	switch t.Kind_ & kindMask {
+ 	case kindStruct:
+@@ -293,30 +293,12 @@ func (t *functype) dotdotdot() bool {
+ 	return t.outCount&(1<<15) != 0
+ }
+ 
+-type method struct {
+-	name nameOff
+-	mtyp typeOff
+-	ifn  textOff
+-	tfn  textOff
+-}
+-
+-type uncommontype struct {
+-	pkgpath nameOff
+-	mcount  uint16 // number of methods
+-	xcount  uint16 // number of exported methods
+-	moff    uint32 // offset from this uncommontype to [mcount]method
+-	_       uint32 // unused
+-}
+-
+-type imethod struct {
+-	name nameOff
+-	ityp typeOff
+-}
++type uncommontype = abi.UncommonType
+ 
+ type interfacetype struct {
+ 	typ     _type
+ 	pkgpath name
+-	mhdr    []imethod
++	mhdr    []abi.Imethod
+ }
+ 
+ type maptype struct {
+@@ -562,8 +544,8 @@ func typesEqual(t, v *_type, seen map[_typePair]struct{}) bool {
+ 		if ut == nil || uv == nil {
+ 			return false
+ 		}
+-		pkgpatht := t.nameOff(ut.pkgpath).name()
+-		pkgpathv := v.nameOff(uv.pkgpath).name()
++		pkgpatht := t.nameOff(ut.PkgPath).name()
++		pkgpathv := v.nameOff(uv.PkgPath).name()
+ 		if pkgpatht != pkgpathv {
+ 			return false
+ 		}
+@@ -615,16 +597,16 @@ func typesEqual(t, v *_type, seen map[_typePair]struct{}) bool {
+ 			vm := &iv.mhdr[i]
+ 			// Note the mhdr array can be relocated from
+ 			// another module. See #17724.
+-			tname := resolveNameOff(unsafe.Pointer(tm), tm.name)
+-			vname := resolveNameOff(unsafe.Pointer(vm), vm.name)
++			tname := resolveNameOff(unsafe.Pointer(tm), tm.Name)
++			vname := resolveNameOff(unsafe.Pointer(vm), vm.Name)
+ 			if tname.name() != vname.name() {
+ 				return false
+ 			}
+ 			if tname.pkgPath() != vname.pkgPath() {
+ 				return false
+ 			}
+-			tityp := resolveTypeOff(unsafe.Pointer(tm), tm.ityp)
+-			vityp := resolveTypeOff(unsafe.Pointer(vm), vm.ityp)
++			tityp := resolveTypeOff(unsafe.Pointer(tm), tm.Typ)
++			vityp := resolveTypeOff(unsafe.Pointer(vm), vm.Typ)
+ 			if !typesEqual(tityp, vityp, seen) {
+ 				return false
+ 			}

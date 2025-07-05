@@ -7,8 +7,162 @@ Date:   Wed Sep 14 22:09:46 2011 +1000
     TBR=rsc
     CC=golang-dev
     https://golang.org/cl/5016044
-
+---
  src/pkg/image/draw/bench_test.go | 12 ++++++------
  src/pkg/image/draw/clip_test.go  |  6 +++---
  src/pkg/image/draw/draw_test.go  | 18 +++++++++---------
  3 files changed, 18 insertions(+), 18 deletions(-)
+
+diff --git a/src/pkg/image/draw/bench_test.go b/src/pkg/image/draw/bench_test.go
+index a99b408141..0e5e324dc5 100644
+--- a/src/pkg/image/draw/bench_test.go
++++ b/src/pkg/image/draw/bench_test.go
+@@ -24,7 +24,7 @@ func bench(b *testing.B, dcm, scm, mcm image.ColorModel, op Op) {
+ 	var dst Image
+ 	switch dcm {
+ 	case image.RGBAColorModel:
+-		dst1 := image.NewRGBA(dstw, dsth)
++		dst1 := image.NewRGBA(image.Rect(0, 0, dstw, dsth))
+ 		for y := 0; y < dsth; y++ {
+ 			for x := 0; x < dstw; x++ {
+ 				dst1.SetRGBA(x, y, image.RGBAColor{
+@@ -37,7 +37,7 @@ func bench(b *testing.B, dcm, scm, mcm image.ColorModel, op Op) {
+ 		}
+ 		dst = dst1
+ 	case image.RGBA64ColorModel:
+-		dst1 := image.NewRGBA64(dstw, dsth)
++		dst1 := image.NewRGBA64(image.Rect(0, 0, dstw, dsth))
+ 		for y := 0; y < dsth; y++ {
+ 			for x := 0; x < dstw; x++ {
+ 				dst1.SetRGBA64(x, y, image.RGBA64Color{
+@@ -58,7 +58,7 @@ func bench(b *testing.B, dcm, scm, mcm image.ColorModel, op Op) {
+ 	case nil:
+ 		src = &image.ColorImage{image.RGBAColor{0x11, 0x22, 0x33, 0xff}}
+ 	case image.RGBAColorModel:
+-		src1 := image.NewRGBA(srcw, srch)
++		src1 := image.NewRGBA(image.Rect(0, 0, srcw, srch))
+ 		for y := 0; y < srch; y++ {
+ 			for x := 0; x < srcw; x++ {
+ 				src1.SetRGBA(x, y, image.RGBAColor{
+@@ -71,7 +71,7 @@ func bench(b *testing.B, dcm, scm, mcm image.ColorModel, op Op) {
+ 		}
+ 		src = src1
+ 	case image.RGBA64ColorModel:
+-		src1 := image.NewRGBA64(srcw, srch)
++		src1 := image.NewRGBA64(image.Rect(0, 0, srcw, srch))
+ 		for y := 0; y < srch; y++ {
+ 			for x := 0; x < srcw; x++ {
+ 				src1.SetRGBA64(x, y, image.RGBA64Color{
+@@ -84,7 +84,7 @@ func bench(b *testing.B, dcm, scm, mcm image.ColorModel, op Op) {
+ 		}
+ 		src = src1
+ 	case image.NRGBAColorModel:
+-		src1 := image.NewNRGBA(srcw, srch)
++		src1 := image.NewNRGBA(image.Rect(0, 0, srcw, srch))
+ 		for y := 0; y < srch; y++ {
+ 			for x := 0; x < srcw; x++ {
+ 				src1.SetNRGBA(x, y, image.NRGBAColor{
+@@ -123,7 +123,7 @@ func bench(b *testing.B, dcm, scm, mcm image.ColorModel, op Op) {
+ 	case nil:
+ 		// No-op.
+ 	case image.AlphaColorModel:
+-		mask1 := image.NewAlpha(srcw, srch)
++		mask1 := image.NewAlpha(image.Rect(0, 0, srcw, srch))
+ 		for y := 0; y < srch; y++ {
+ 			for x := 0; x < srcw; x++ {
+ 				a := uint8((23*x + 29*y) % 0x100)
+diff --git a/src/pkg/image/draw/clip_test.go b/src/pkg/image/draw/clip_test.go
+index db40d82f54..65381f72f6 100644
+--- a/src/pkg/image/draw/clip_test.go
++++ b/src/pkg/image/draw/clip_test.go
+@@ -143,9 +143,9 @@ var clipTests = []clipTest{
+ }
+ 
+ func TestClip(t *testing.T) {
+-	dst0 := image.NewRGBA(100, 100)
+-	src0 := image.NewRGBA(100, 100)
+-	mask0 := image.NewRGBA(100, 100)
++	dst0 := image.NewRGBA(image.Rect(0, 0, 100, 100))
++	src0 := image.NewRGBA(image.Rect(0, 0, 100, 100))
++	mask0 := image.NewRGBA(image.Rect(0, 0, 100, 100))
+ 	for _, c := range clipTests {
+ 		dst := dst0.SubImage(c.dr).(*image.RGBA)
+ 		src := src0.SubImage(c.sr).(*image.RGBA)
+diff --git a/src/pkg/image/draw/draw_test.go b/src/pkg/image/draw/draw_test.go
+index 55435cc271..7634c2e8b5 100644
+--- a/src/pkg/image/draw/draw_test.go
++++ b/src/pkg/image/draw/draw_test.go
+@@ -25,7 +25,7 @@ func fillAlpha(alpha int) image.Image {
+ }
+ 
+ func vgradGreen(alpha int) image.Image {
+-	m := image.NewRGBA(16, 16)
++	m := image.NewRGBA(image.Rect(0, 0, 16, 16))
+ 	for y := 0; y < 16; y++ {
+ 		for x := 0; x < 16; x++ {
+ 			m.Set(x, y, image.RGBAColor{0, uint8(y * alpha / 15), 0, uint8(alpha)})
+@@ -35,7 +35,7 @@ func vgradGreen(alpha int) image.Image {
+ }
+ 
+ func vgradAlpha(alpha int) image.Image {
+-	m := image.NewAlpha(16, 16)
++	m := image.NewAlpha(image.Rect(0, 0, 16, 16))
+ 	for y := 0; y < 16; y++ {
+ 		for x := 0; x < 16; x++ {
+ 			m.Set(x, y, image.AlphaColor{uint8(y * alpha / 15)})
+@@ -45,7 +45,7 @@ func vgradAlpha(alpha int) image.Image {
+ }
+ 
+ func vgradGreenNRGBA(alpha int) image.Image {
+-	m := image.NewNRGBA(16, 16)
++	m := image.NewNRGBA(image.Rect(0, 0, 16, 16))
+ 	for y := 0; y < 16; y++ {
+ 		for x := 0; x < 16; x++ {
+ 			m.Set(x, y, image.RGBAColor{0, uint8(y * 0x11), 0, uint8(alpha)})
+@@ -73,7 +73,7 @@ func vgradCr() image.Image {
+ }
+ 
+ func hgradRed(alpha int) Image {
+-	m := image.NewRGBA(16, 16)
++	m := image.NewRGBA(image.Rect(0, 0, 16, 16))
+ 	for y := 0; y < 16; y++ {
+ 		for x := 0; x < 16; x++ {
+ 			m.Set(x, y, image.RGBAColor{uint8(x * alpha / 15), 0, 0, uint8(alpha)})
+@@ -83,7 +83,7 @@ func hgradRed(alpha int) Image {
+ }
+ 
+ func gradYellow(alpha int) Image {
+-	m := image.NewRGBA(16, 16)
++	m := image.NewRGBA(image.Rect(0, 0, 16, 16))
+ 	for y := 0; y < 16; y++ {
+ 		for x := 0; x < 16; x++ {
+ 			m.Set(x, y, image.RGBAColor{uint8(x * alpha / 15), uint8(y * alpha / 15), 0, uint8(alpha)})
+@@ -163,7 +163,7 @@ func makeGolden(dst image.Image, r image.Rectangle, src image.Image, sp image.Po
+ 	if mask != nil {
+ 		mb = mask.Bounds()
+ 	}
+-	golden := image.NewRGBA(b.Max.X, b.Max.Y)
++	golden := image.NewRGBA(image.Rect(0, 0, b.Max.X, b.Max.Y))
+ 	for y := r.Min.Y; y < r.Max.Y; y++ {
+ 		sy := y + sp.Y - r.Min.Y
+ 		my := y + mp.Y - r.Min.Y
+@@ -281,8 +281,8 @@ func TestDrawOverlap(t *testing.T) {
+ 
+ // TestNonZeroSrcPt checks drawing with a non-zero src point parameter.
+ func TestNonZeroSrcPt(t *testing.T) {
+-	a := image.NewRGBA(1, 1)
+-	b := image.NewRGBA(2, 2)
++	a := image.NewRGBA(image.Rect(0, 0, 1, 1))
++	b := image.NewRGBA(image.Rect(0, 0, 2, 2))
+ 	b.Set(0, 0, image.RGBAColor{0, 0, 0, 5})
+ 	b.Set(1, 0, image.RGBAColor{0, 0, 5, 5})
+ 	b.Set(0, 1, image.RGBAColor{0, 5, 0, 5})
+@@ -310,7 +310,7 @@ func TestFill(t *testing.T) {
+ 		image.Rect(20, 20, 29, 29),
+ 	}
+ 	for _, r := range rr {
+-		m := image.NewRGBA(40, 30).SubImage(r).(*image.RGBA)
++		m := image.NewRGBA(image.Rect(0, 0, 40, 30)).SubImage(r).(*image.RGBA)
+ 		b := m.Bounds()
+ 		c := image.RGBAColor{11, 0, 0, 255}
+ 		src := &image.ColorImage{c}

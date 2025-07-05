@@ -9,7 +9,89 @@ Date:   Fri Jul 27 14:22:27 2012 -0400
     R=golang-dev, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/6441048
-
+---
  src/pkg/log/syslog/syslog.go      | 12 ++++++++++--
  src/pkg/log/syslog/syslog_test.go | 40 +++++++++++++++++++++++++--------------
  2 files changed, 36 insertions(+), 16 deletions(-)
+
+diff --git a/src/pkg/log/syslog/syslog.go b/src/pkg/log/syslog/syslog.go
+index f53310cb0a..e5620e1aa2 100644
+--- a/src/pkg/log/syslog/syslog.go
++++ b/src/pkg/log/syslog/syslog.go
+@@ -138,7 +138,11 @@ func (w *Writer) Debug(m string) (err error) {
+ }
+ 
+ func (n netConn) writeBytes(p Priority, prefix string, b []byte) (int, error) {
+-	_, err := fmt.Fprintf(n.conn, "<%d>%s: %s\n", p, prefix, b)
++	nl := ""
++	if len(b) == 0 || b[len(b)-1] != '\n' {
++		nl = "\n"
++	}
++	_, err := fmt.Fprintf(n.conn, "<%d>%s: %s%s", p, prefix, b, nl)
+ 	if err != nil {
+ 		return 0, err
+ 	}
+@@ -146,7 +150,11 @@ func (n netConn) writeBytes(p Priority, prefix string, b []byte) (int, error) {
+ }
+ 
+ func (n netConn) writeString(p Priority, prefix string, s string) (int, error) {
+-	_, err := fmt.Fprintf(n.conn, "<%d>%s: %s\n", p, prefix, s)
++	nl := ""
++	if len(s) == 0 || s[len(s)-1] != '\n' {
++		nl = "\n"
++	}
++	_, err := fmt.Fprintf(n.conn, "<%d>%s: %s%s", p, prefix, s, nl)
+ 	if err != nil {
+ 		return 0, err
+ 	}
+diff --git a/src/pkg/log/syslog/syslog_test.go b/src/pkg/log/syslog/syslog_test.go
+index 0fd6239059..b7579c363d 100644
+--- a/src/pkg/log/syslog/syslog_test.go
++++ b/src/pkg/log/syslog/syslog_test.go
+@@ -98,20 +98,32 @@ func TestUDPDial(t *testing.T) {
+ }
+ 
+ func TestWrite(t *testing.T) {
+-	done := make(chan string)
+-	startServer(done)
+-	l, err := Dial("udp", serverAddr, LOG_ERR, "syslog_test")
+-	if err != nil {
+-		t.Fatalf("syslog.Dial() failed: %s", err)
++	tests := []struct {
++		pri Priority
++		pre string
++		msg string
++		exp string
++	}{
++		{LOG_ERR, "syslog_test", "", "<3>syslog_test: \n"},
++		{LOG_ERR, "syslog_test", "write test", "<3>syslog_test: write test\n"},
++		// Write should not add \n if there already is one
++		{LOG_ERR, "syslog_test", "write test 2\n", "<3>syslog_test: write test 2\n"},
+ 	}
+-	msg := "write test"
+-	_, err = io.WriteString(l, msg)
+-	if err != nil {
+-		t.Fatalf("WriteString() failed: %s", err)
+-	}
+-	expected := "<3>syslog_test: write test\n"
+-	rcvd := <-done
+-	if rcvd != expected {
+-		t.Fatalf("s.Info() = '%q', but wanted '%q'", rcvd, expected)
++
++	for _, test := range tests {
++		done := make(chan string)
++		startServer(done)
++		l, err := Dial("udp", serverAddr, test.pri, test.pre)
++		if err != nil {
++			t.Fatalf("syslog.Dial() failed: %s", err)
++		}
++		_, err = io.WriteString(l, test.msg)
++		if err != nil {
++			t.Fatalf("WriteString() failed: %s", err)
++		}
++		rcvd := <-done
++		if rcvd != test.exp {
++			t.Fatalf("s.Info() = '%q', but wanted '%q'", rcvd, test.exp)
++		}
+ 	}
+ }

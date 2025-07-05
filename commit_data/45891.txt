@@ -18,7 +18,7 @@ Date:   Wed Nov 25 00:30:58 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/closure.go        |  4 ++--
  src/cmd/compile/internal/gc/dcl.go            | 10 +++++-----
  src/cmd/compile/internal/gc/embed.go          |  2 +-
@@ -40,3 +40,563 @@ Date:   Wed Nov 25 00:30:58 2020 -0500
  src/cmd/compile/internal/types/sym.go         |  4 ++--
  src/cmd/compile/internal/types/type.go        | 14 +++++++-------
  20 files changed, 63 insertions(+), 64 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 1b926ec17e..2dce7b7f03 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -270,7 +270,7 @@ func transformclosure(dcl *ir.Node) {
+ 			decls = append(decls, v)
+ 
+ 			fld := types.NewField(src.NoXPos, v.Sym(), v.Type())
+-			fld.Nname = ir.AsTypesNode(v)
++			fld.Nname = v
+ 			params = append(params, fld)
+ 		}
+ 
+@@ -511,7 +511,7 @@ func makepartialcall(dot *ir.Node, t0 *types.Type, meth *types.Sym) *ir.Node {
+ 	// typecheckslice() requires that Curfn is set when processing an ORETURN.
+ 	Curfn = dcl
+ 	typecheckslice(dcl.Body().Slice(), ctxStmt)
+-	sym.Def = ir.AsTypesNode(dcl)
++	sym.Def = dcl
+ 	xtop = append(xtop, dcl)
+ 	Curfn = savecurfn
+ 	base.Pos = saveLineNo
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 8b3274890f..8980c47e2c 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -118,7 +118,7 @@ func declare(n *ir.Node, ctxt ir.Class) {
+ 
+ 	s.Block = types.Block
+ 	s.Lastlineno = base.Pos
+-	s.Def = ir.AsTypesNode(n)
++	s.Def = n
+ 	n.Name().Vargen = int32(gen)
+ 	n.SetClass(ctxt)
+ 	if ctxt == ir.PFUNC {
+@@ -235,7 +235,7 @@ func typenodl(pos src.XPos, t *types.Type) *ir.Node {
+ 	// then t->nod might be out of date, so
+ 	// check t->nod->type too
+ 	if ir.AsNode(t.Nod) == nil || ir.AsNode(t.Nod).Type() != t {
+-		t.Nod = ir.AsTypesNode(ir.NodAt(pos, ir.OTYPE, nil, nil))
++		t.Nod = ir.NodAt(pos, ir.OTYPE, nil, nil)
+ 		ir.AsNode(t.Nod).SetType(t)
+ 		ir.AsNode(t.Nod).SetSym(t.Sym)
+ 	}
+@@ -490,7 +490,7 @@ func funcarg2(f *types.Field, ctxt ir.Class) {
+ 		return
+ 	}
+ 	n := ir.NewNameAt(f.Pos, f.Sym)
+-	f.Nname = ir.AsTypesNode(n)
++	f.Nname = n
+ 	n.SetType(f.Type)
+ 	n.SetIsDDD(f.IsDDD())
+ 	declare(n, ctxt)
+@@ -614,7 +614,7 @@ func tofunargs(l []*ir.Node, funarg types.Funarg) *types.Type {
+ 		f.SetIsDDD(n.IsDDD())
+ 		if n.Right() != nil {
+ 			n.Right().SetType(f.Type)
+-			f.Nname = ir.AsTypesNode(n.Right())
++			f.Nname = n.Right()
+ 		}
+ 		if f.Broke() {
+ 			t.SetBroke(true)
+@@ -872,7 +872,7 @@ func addmethod(n *ir.Node, msym *types.Sym, t *types.Type, local, nointerface bo
+ 	}
+ 
+ 	f := types.NewField(base.Pos, msym, t)
+-	f.Nname = ir.AsTypesNode(n.Func().Nname)
++	f.Nname = n.Func().Nname
+ 	f.SetNointerface(nointerface)
+ 
+ 	mt.Methods().Append(f)
+diff --git a/src/cmd/compile/internal/gc/embed.go b/src/cmd/compile/internal/gc/embed.go
+index d515696add..03703f68d5 100644
+--- a/src/cmd/compile/internal/gc/embed.go
++++ b/src/cmd/compile/internal/gc/embed.go
+@@ -114,7 +114,7 @@ func varEmbed(p *noder, names []*ir.Node, typ *ir.Node, exprs []*ir.Node, embeds
+ 	if dclcontext != ir.PEXTERN {
+ 		numLocalEmbed++
+ 		v = ir.NewNameAt(v.Pos(), lookupN("embed.", numLocalEmbed))
+-		v.Sym().Def = ir.AsTypesNode(v)
++		v.Sym().Def = v
+ 		v.Name().Param.Ntype = typ
+ 		v.SetClass(ir.PEXTERN)
+ 		externdcl = append(externdcl, v)
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index 866bdf8a6f..f1786e74dc 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -229,13 +229,13 @@ func (e *Escape) walkFunc(fn *ir.Node) {
+ 	ir.InspectList(fn.Body(), func(n *ir.Node) bool {
+ 		switch n.Op() {
+ 		case ir.OLABEL:
+-			n.Sym().Label = ir.AsTypesNode(nonlooping)
++			n.Sym().Label = nonlooping
+ 
+ 		case ir.OGOTO:
+ 			// If we visited the label before the goto,
+ 			// then this is a looping label.
+-			if n.Sym().Label == ir.AsTypesNode(nonlooping) {
+-				n.Sym().Label = ir.AsTypesNode(looping)
++			if n.Sym().Label == nonlooping {
++				n.Sym().Label = looping
+ 			}
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 1f0288a591..ace461fc90 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -86,7 +86,7 @@ func importsym(ipkg *types.Pkg, s *types.Sym, op ir.Op) *ir.Node {
+ 		}
+ 
+ 		n = dclname(s)
+-		s.SetPkgDef(ir.AsTypesNode(n))
++		s.SetPkgDef(n)
+ 		s.Importdef = ipkg
+ 	}
+ 	if n.Op() != ir.ONONAME && n.Op() != op {
+@@ -103,7 +103,7 @@ func importtype(ipkg *types.Pkg, pos src.XPos, s *types.Sym) *types.Type {
+ 	if n.Op() != ir.OTYPE {
+ 		t := types.New(types.TFORW)
+ 		t.Sym = s
+-		t.Nod = ir.AsTypesNode(n)
++		t.Nod = n
+ 
+ 		n.SetOp(ir.OTYPE)
+ 		n.SetPos(pos)
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index d7320f3ccc..a89ff528e5 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -69,7 +69,7 @@ func tempAt(pos src.XPos, curfn *ir.Node, t *types.Type) *ir.Node {
+ 		Pkg:  ir.LocalPkg,
+ 	}
+ 	n := ir.NewNameAt(pos, s)
+-	s.Def = ir.AsTypesNode(n)
++	s.Def = n
+ 	n.SetType(t)
+ 	n.SetClass(ir.PAUTO)
+ 	n.SetEsc(EscNever)
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 7106356665..5d845d90e8 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -151,7 +151,7 @@ func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType)
+ 			ir.NumImport[pkgName]++
+ 
+ 			// TODO(mdempsky): This belongs somewhere else.
+-			pkg.Lookup("_").Def = ir.AsTypesNode(ir.BlankNode)
++			pkg.Lookup("_").Def = ir.BlankNode
+ 		} else {
+ 			if pkg.Name != pkgName {
+ 				base.Fatalf("conflicting package names %v and %v for path %q", pkg.Name, pkgName, pkg.Path)
+@@ -175,7 +175,7 @@ func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType)
+ 			if s.Def != nil {
+ 				base.Fatalf("unexpected definition for %v: %v", s, ir.AsNode(s.Def))
+ 			}
+-			s.Def = ir.AsTypesNode(npos(src.NoXPos, dclname(s)))
++			s.Def = npos(src.NoXPos, dclname(s))
+ 		}
+ 	}
+ 
+@@ -337,7 +337,7 @@ func (r *importReader) doDecl(n *ir.Node) {
+ 			// methodSym already marked m.Sym as a function.
+ 
+ 			f := types.NewField(mpos, msym, mtyp)
+-			f.Nname = ir.AsTypesNode(m)
++			f.Nname = m
+ 			ms[i] = f
+ 		}
+ 		t.Methods().Set(ms)
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index b66ee6f953..02a6175c6b 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -93,7 +93,7 @@ func fninit(n []*ir.Node) {
+ 	nn := NewName(sym)
+ 	nn.SetType(types.Types[types.TUINT8]) // fake type
+ 	nn.SetClass(ir.PEXTERN)
+-	sym.Def = ir.AsTypesNode(nn)
++	sym.Def = nn
+ 	exportsym(nn)
+ 	lsym := sym.Linksym()
+ 	ot := 0
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 98819fadde..d9642f4b67 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -373,7 +373,7 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
+ 	if my.Def != nil {
+ 		redeclare(pack.Pos(), my, "as imported package name")
+ 	}
+-	my.Def = ir.AsTypesNode(pack)
++	my.Def = pack
+ 	my.Lastlineno = pack.Pos()
+ 	my.Block = 1 // at top level
+ }
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 9f0cefbd1c..05f8358fdf 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -480,7 +480,7 @@ func slicedata(pos src.XPos, s string) *ir.Node {
+ 	symname := fmt.Sprintf(".gobytes.%d", slicedataGen)
+ 	sym := ir.LocalPkg.Lookup(symname)
+ 	symnode := NewName(sym)
+-	sym.Def = ir.AsTypesNode(symnode)
++	sym.Def = symnode
+ 
+ 	lsym := sym.Linksym()
+ 	off := dstringdata(lsym, 0, s, pos, "slice")
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 4559dd3a21..664b3cc942 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -997,7 +997,7 @@ func typename(t *types.Type) *ir.Node {
+ 		n.SetType(types.Types[types.TUINT8])
+ 		n.SetClass(ir.PEXTERN)
+ 		n.SetTypecheck(1)
+-		s.Def = ir.AsTypesNode(n)
++		s.Def = n
+ 	}
+ 
+ 	n := ir.Nod(ir.OADDR, ir.AsNode(s.Def), nil)
+@@ -1016,7 +1016,7 @@ func itabname(t, itype *types.Type) *ir.Node {
+ 		n.SetType(types.Types[types.TUINT8])
+ 		n.SetClass(ir.PEXTERN)
+ 		n.SetTypecheck(1)
+-		s.Def = ir.AsTypesNode(n)
++		s.Def = n
+ 		itabs = append(itabs, itabEntry{t: t, itype: itype, lsym: s.Linksym()})
+ 	}
+ 
+@@ -1882,7 +1882,7 @@ func zeroaddr(size int64) *ir.Node {
+ 		x.SetType(types.Types[types.TUINT8])
+ 		x.SetClass(ir.PEXTERN)
+ 		x.SetTypecheck(1)
+-		s.Def = ir.AsTypesNode(x)
++		s.Def = x
+ 	}
+ 	z := ir.Nod(ir.OADDR, ir.AsNode(s.Def), nil)
+ 	z.SetType(types.NewPtr(types.Types[types.TUINT8]))
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 018b94d9d8..262aa0e95c 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -7072,7 +7072,7 @@ func (e *ssafn) SplitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t
+ 
+ 	s := &types.Sym{Name: node.Sym().Name + suffix, Pkg: ir.LocalPkg}
+ 	n := ir.NewNameAt(parent.N.Pos(), s)
+-	s.Def = ir.AsTypesNode(n)
++	s.Def = n
+ 	ir.AsNode(s.Def).Name().SetUsed(true)
+ 	n.SetType(t)
+ 	n.SetClass(ir.PAUTO)
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 4bc7f035f5..0559dabe32 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3486,7 +3486,7 @@ func setUnderlying(t, underlying *types.Type) {
+ 	*t = *underlying
+ 
+ 	// Restore unnecessarily clobbered attributes.
+-	t.Nod = ir.AsTypesNode(n)
++	t.Nod = n
+ 	t.Sym = n.Sym()
+ 	if n.Name() != nil {
+ 		t.Vargen = n.Name().Vargen
+@@ -3691,7 +3691,7 @@ func typecheckdef(n *ir.Node) {
+ 				// For package-level type aliases, set n.Sym.Def so we can identify
+ 				// it as a type alias during export. See also #31959.
+ 				if n.Name().Curfn == nil {
+-					n.Sym().Def = ir.AsTypesNode(p.Ntype)
++					n.Sym().Def = p.Ntype
+ 				}
+ 			}
+ 			break
+@@ -3799,7 +3799,7 @@ func markbreaklist(l ir.Nodes, implicit *ir.Node) {
+ 		if n.Op() == ir.OLABEL && i+1 < len(s) && n.Name().Defn == s[i+1] {
+ 			switch n.Name().Defn.Op() {
+ 			case ir.OFOR, ir.OFORUNTIL, ir.OSWITCH, ir.OTYPESW, ir.OSELECT, ir.ORANGE:
+-				n.Sym().Label = ir.AsTypesNode(n.Name().Defn)
++				n.Sym().Label = n.Name().Defn
+ 				markbreak(n.Name().Defn, n.Name().Defn)
+ 				n.Sym().Label = nil
+ 				i++
+@@ -3998,7 +3998,7 @@ func deadcodeexpr(n *ir.Node) *ir.Node {
+ func setTypeNode(n *ir.Node, t *types.Type) {
+ 	n.SetOp(ir.OTYPE)
+ 	n.SetType(t)
+-	n.Type().Nod = ir.AsTypesNode(n)
++	n.Type().Nod = n
+ }
+ 
+ // getIotaValue returns the current value for "iota",
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index be22b7e9db..978e53ac15 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -109,19 +109,19 @@ func lexinit() {
+ 			}
+ 			types.Types[etype] = t
+ 		}
+-		s2.Def = ir.AsTypesNode(typenod(t))
++		s2.Def = typenod(t)
+ 		ir.AsNode(s2.Def).SetName(new(ir.Name))
+ 	}
+ 
+ 	for _, s := range &builtinFuncs {
+ 		s2 := ir.BuiltinPkg.Lookup(s.name)
+-		s2.Def = ir.AsTypesNode(NewName(s2))
++		s2.Def = NewName(s2)
+ 		ir.AsNode(s2.Def).SetSubOp(s.op)
+ 	}
+ 
+ 	for _, s := range &unsafeFuncs {
+ 		s2 := unsafepkg.Lookup(s.name)
+-		s2.Def = ir.AsTypesNode(NewName(s2))
++		s2.Def = NewName(s2)
+ 		ir.AsNode(s2.Def).SetSubOp(s.op)
+ 	}
+ 
+@@ -130,38 +130,38 @@ func lexinit() {
+ 	types.Types[types.TANY] = types.New(types.TANY)
+ 
+ 	s := ir.BuiltinPkg.Lookup("true")
+-	s.Def = ir.AsTypesNode(nodbool(true))
++	s.Def = nodbool(true)
+ 	ir.AsNode(s.Def).SetSym(lookup("true"))
+ 	ir.AsNode(s.Def).SetName(new(ir.Name))
+ 	ir.AsNode(s.Def).SetType(types.UntypedBool)
+ 
+ 	s = ir.BuiltinPkg.Lookup("false")
+-	s.Def = ir.AsTypesNode(nodbool(false))
++	s.Def = nodbool(false)
+ 	ir.AsNode(s.Def).SetSym(lookup("false"))
+ 	ir.AsNode(s.Def).SetName(new(ir.Name))
+ 	ir.AsNode(s.Def).SetType(types.UntypedBool)
+ 
+ 	s = lookup("_")
+ 	s.Block = -100
+-	s.Def = ir.AsTypesNode(NewName(s))
++	s.Def = NewName(s)
+ 	types.Types[types.TBLANK] = types.New(types.TBLANK)
+ 	ir.AsNode(s.Def).SetType(types.Types[types.TBLANK])
+ 	ir.BlankNode = ir.AsNode(s.Def)
+ 
+ 	s = ir.BuiltinPkg.Lookup("_")
+ 	s.Block = -100
+-	s.Def = ir.AsTypesNode(NewName(s))
++	s.Def = NewName(s)
+ 	types.Types[types.TBLANK] = types.New(types.TBLANK)
+ 	ir.AsNode(s.Def).SetType(types.Types[types.TBLANK])
+ 
+ 	types.Types[types.TNIL] = types.New(types.TNIL)
+ 	s = ir.BuiltinPkg.Lookup("nil")
+-	s.Def = ir.AsTypesNode(nodnil())
++	s.Def = nodnil()
+ 	ir.AsNode(s.Def).SetSym(s)
+ 	ir.AsNode(s.Def).SetName(new(ir.Name))
+ 
+ 	s = ir.BuiltinPkg.Lookup("iota")
+-	s.Def = ir.AsTypesNode(ir.Nod(ir.OIOTA, nil, nil))
++	s.Def = ir.Nod(ir.OIOTA, nil, nil)
+ 	ir.AsNode(s.Def).SetSym(s)
+ 	ir.AsNode(s.Def).SetName(new(ir.Name))
+ }
+@@ -181,7 +181,7 @@ func typeinit() {
+ 	t := types.New(types.TUNSAFEPTR)
+ 	types.Types[types.TUNSAFEPTR] = t
+ 	t.Sym = unsafepkg.Lookup("Pointer")
+-	t.Sym.Def = ir.AsTypesNode(typenod(t))
++	t.Sym.Def = typenod(t)
+ 	ir.AsNode(t.Sym.Def).SetName(new(ir.Name))
+ 	dowidth(types.Types[types.TUNSAFEPTR])
+ 
+@@ -343,7 +343,7 @@ func lexinit1() {
+ 	types.Errortype = makeErrorInterface()
+ 	types.Errortype.Sym = s
+ 	types.Errortype.Orig = makeErrorInterface()
+-	s.Def = ir.AsTypesNode(typenod(types.Errortype))
++	s.Def = typenod(types.Errortype)
+ 	dowidth(types.Errortype)
+ 
+ 	// We create separate byte and rune types for better error messages
+@@ -358,7 +358,7 @@ func lexinit1() {
+ 	s = ir.BuiltinPkg.Lookup("byte")
+ 	types.Bytetype = types.New(types.TUINT8)
+ 	types.Bytetype.Sym = s
+-	s.Def = ir.AsTypesNode(typenod(types.Bytetype))
++	s.Def = typenod(types.Bytetype)
+ 	ir.AsNode(s.Def).SetName(new(ir.Name))
+ 	dowidth(types.Bytetype)
+ 
+@@ -366,7 +366,7 @@ func lexinit1() {
+ 	s = ir.BuiltinPkg.Lookup("rune")
+ 	types.Runetype = types.New(types.TINT32)
+ 	types.Runetype.Sym = s
+-	s.Def = ir.AsTypesNode(typenod(types.Runetype))
++	s.Def = typenod(types.Runetype)
+ 	ir.AsNode(s.Def).SetName(new(ir.Name))
+ 	dowidth(types.Runetype)
+ 
+@@ -384,7 +384,7 @@ func lexinit1() {
+ 		t := types.New(s.etype)
+ 		t.Sym = s1
+ 		types.Types[s.etype] = t
+-		s1.Def = ir.AsTypesNode(typenod(t))
++		s1.Def = typenod(t)
+ 		ir.AsNode(s1.Def).SetName(new(ir.Name))
+ 		s1.Origpkg = ir.BuiltinPkg
+ 
+diff --git a/src/cmd/compile/internal/ir/dump.go b/src/cmd/compile/internal/ir/dump.go
+index 43d0742c73..c4ea5af3d1 100644
+--- a/src/cmd/compile/internal/ir/dump.go
++++ b/src/cmd/compile/internal/ir/dump.go
+@@ -150,9 +150,6 @@ func (p *dumper) dump(x reflect.Value, depth int) {
+ 	case src.XPos:
+ 		p.printf("%s", base.FmtPos(v))
+ 		return
+-
+-	case *types.Node:
+-		x = reflect.ValueOf(AsNode(v))
+ 	}
+ 
+ 	switch x.Kind() {
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index dce1bfdbef..b42ca5b8a3 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -10,7 +10,6 @@ import (
+ 	"go/constant"
+ 	"sort"
+ 	"strings"
+-	"unsafe"
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/types"
+@@ -1340,9 +1339,12 @@ type SymAndPos struct {
+ 	Pos src.XPos  // line of call
+ }
+ 
+-func AsNode(n *types.Node) *Node { return (*Node)(unsafe.Pointer(n)) }
+-
+-func AsTypesNode(n *Node) *types.Node { return (*types.Node)(unsafe.Pointer(n)) }
++func AsNode(n types.IRNode) *Node {
++	if n == nil {
++		return nil
++	}
++	return n.(*Node)
++}
+ 
+ var BlankNode *Node
+ 
+diff --git a/src/cmd/compile/internal/types/scope.go b/src/cmd/compile/internal/types/scope.go
+index 40d3d86ef1..33a02c543d 100644
+--- a/src/cmd/compile/internal/types/scope.go
++++ b/src/cmd/compile/internal/types/scope.go
+@@ -15,7 +15,7 @@ var Block int32        // current block number
+ // restored once the block scope ends.
+ type dsym struct {
+ 	sym        *Sym // sym == nil indicates stack mark
+-	def        *Node
++	def        IRNode
+ 	block      int32
+ 	lastlineno src.XPos // last declaration for diagnostic
+ }
+@@ -79,16 +79,16 @@ func IsDclstackValid() bool {
+ }
+ 
+ // PkgDef returns the definition associated with s at package scope.
+-func (s *Sym) PkgDef() *Node {
++func (s *Sym) PkgDef() IRNode {
+ 	return *s.pkgDefPtr()
+ }
+ 
+ // SetPkgDef sets the definition associated with s at package scope.
+-func (s *Sym) SetPkgDef(n *Node) {
++func (s *Sym) SetPkgDef(n IRNode) {
+ 	*s.pkgDefPtr() = n
+ }
+ 
+-func (s *Sym) pkgDefPtr() **Node {
++func (s *Sym) pkgDefPtr() *IRNode {
+ 	// Look for outermost saved declaration, which must be the
+ 	// package scope definition, if present.
+ 	for _, d := range dclstack {
+diff --git a/src/cmd/compile/internal/types/sizeof_test.go b/src/cmd/compile/internal/types/sizeof_test.go
+index 0cf343e8f1..2821d9a3c7 100644
+--- a/src/cmd/compile/internal/types/sizeof_test.go
++++ b/src/cmd/compile/internal/types/sizeof_test.go
+@@ -20,8 +20,8 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Sym{}, 52, 88},
+-		{Type{}, 52, 88},
++		{Sym{}, 60, 104},
++		{Type{}, 56, 96},
+ 		{Map{}, 20, 40},
+ 		{Forward{}, 20, 32},
+ 		{Func{}, 28, 48},
+diff --git a/src/cmd/compile/internal/types/sym.go b/src/cmd/compile/internal/types/sym.go
+index 07bce4d5cd..046104d0dc 100644
+--- a/src/cmd/compile/internal/types/sym.go
++++ b/src/cmd/compile/internal/types/sym.go
+@@ -33,12 +33,12 @@ type Sym struct {
+ 	Name string // object name
+ 
+ 	// saved and restored by dcopy
+-	Def        *Node    // definition: ONAME OTYPE OPACK or OLITERAL
++	Def        IRNode    // definition: ONAME OTYPE OPACK or OLITERAL
+ 	Block      int32    // blocknumber to catch redeclaration
+ 	Lastlineno src.XPos // last declaration for diagnostic
+ 
+ 	flags   bitset8
+-	Label   *Node // corresponding label (ephemeral)
++	Label   IRNode // corresponding label (ephemeral)
+ 	Origpkg *Pkg  // original package for . import
+ }
+ 
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index b93409aac1..8499a36edc 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -10,10 +10,10 @@ import (
+ 	"fmt"
+ )
+ 
+-// Our own “Node” so we can refer to *gc.Node without actually
+-// having a gc.Node. Necessary to break import cycles.
+-// TODO(gri) try to eliminate soon
+-type Node struct{ _ int }
++// IRNode represents an ir.Node, but without needing to import cmd/compile/internal/ir,
++// which would cause an import cycle. The uses in other packages must type assert
++// values of type IRNode to ir.Node or a more specific type.
++type IRNode interface{ Type() *Type }
+ 
+ //go:generate stringer -type EType -trimprefix T
+ 
+@@ -141,8 +141,8 @@ type Type struct {
+ 	methods    Fields
+ 	allMethods Fields
+ 
+-	Nod  *Node // canonical OTYPE node
+-	Orig *Type // original type (type literal or predefined type)
++	Nod  IRNode // canonical OTYPE node
++	Orig *Type  // original type (type literal or predefined type)
+ 
+ 	// Cache of composite types, with this type being the element type.
+ 	Cache struct {
+@@ -360,7 +360,7 @@ type Field struct {
+ 
+ 	// For fields that represent function parameters, Nname points
+ 	// to the associated ONAME Node.
+-	Nname *Node
++	Nname IRNode
+ 
+ 	// Offset in bytes of this field or method within its enclosing struct
+ 	// or interface Type.

@@ -11,6 +11,43 @@ Date:   Thu Sep 29 15:08:37 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/regalloc.go | 24 +++++++++++++++++-------
  1 file changed, 17 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 61d8ddab45..3b9f49d9df 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -1707,14 +1707,24 @@ sinking:
+ 		}
+ 	}
+ 
+-	// Erase any copies we never used
+-	for c, used := range s.copies {
+-		if !used && c.Uses == 0 {
+-			if s.f.pass.debug > regDebug {
+-				fmt.Printf("delete copied value %s\n", c.LongString())
++	// Erase any copies we never used.
++	// Also, an unused copy might be the only use of another copy,
++	// so continue erasing until we reach a fixed point.
++	for {
++		progress := false
++		for c, used := range s.copies {
++			if !used && c.Uses == 0 {
++				if s.f.pass.debug > regDebug {
++					fmt.Printf("delete copied value %s\n", c.LongString())
++				}
++				c.Args[0].Uses--
++				f.freeValue(c)
++				delete(s.copies, c)
++				progress = true
+ 			}
+-			c.Args[0].Uses--
+-			f.freeValue(c)
++		}
++		if !progress {
++			break
+ 		}
+ 	}
+ 

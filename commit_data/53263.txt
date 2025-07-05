@@ -20,9 +20,188 @@ Date:   Thu Aug 4 16:44:29 2022 -0400
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/go/internal/cfg/cfg.go          | 11 ++++--
  src/cmd/go/testdata/script/tooltags.txt | 45 ++++++++++++++++++++++++
  src/go/build/build.go                   |  9 +----
  src/internal/buildcfg/cfg.go            | 61 ++++++++++++++++++++++++++++++++-
  4 files changed, 114 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index c6ddfe55d5..84abb27606 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -93,9 +93,14 @@ func defaultContext() build.Context {
+ 	ctxt.GOOS = Goos
+ 	ctxt.GOARCH = Goarch
+ 
+-	// ToolTags are based on GOEXPERIMENT, which we will parse and
+-	// initialize later.
+-	ctxt.ToolTags = nil
++	// Clear the GOEXPERIMENT-based tool tags, which we will recompute later.
++	var save []string
++	for _, tag := range ctxt.ToolTags {
++		if !strings.HasPrefix(tag, "goexperiment.") {
++			save = append(save, tag)
++		}
++	}
++	ctxt.ToolTags = save
+ 
+ 	// The go/build rule for whether cgo is enabled is:
+ 	//	1. If $CGO_ENABLED is set, respect it.
+diff --git a/src/cmd/go/testdata/script/tooltags.txt b/src/cmd/go/testdata/script/tooltags.txt
+new file mode 100644
+index 0000000000..ef7c715b7f
+--- /dev/null
++++ b/src/cmd/go/testdata/script/tooltags.txt
+@@ -0,0 +1,45 @@
++env GOARCH=amd64
++env GOAMD64=v3
++go list -f '{{context.ToolTags}}'
++stdout 'amd64.v1 amd64.v2 amd64.v3'
++
++env GOARCH=arm
++env GOARM=6
++go list -f '{{context.ToolTags}}'
++stdout 'arm.5 arm.6'
++
++env GOARCH=mips
++env GOMIPS=hardfloat
++go list -f '{{context.ToolTags}}'
++stdout 'mips.hardfloat'
++
++env GOARCH=mips64
++env GOMIPS=hardfloat
++go list -f '{{context.ToolTags}}'
++stdout 'mips64.hardfloat'
++
++env GOARCH=ppc64
++env GOPPC64=power9
++go list -f '{{context.ToolTags}}'
++stdout 'ppc64.power8 ppc64.power9'
++
++env GOARCH=ppc64le
++env GOPPC64=power9
++go list -f '{{context.ToolTags}}'
++stdout 'ppc64le.power8 ppc64le.power9'
++
++env GOARCH=386
++env GO386=sse2
++go list -f '{{context.ToolTags}}'
++stdout '386.sse2'
++
++env GOARCH=wasm
++env GOWASM=satconv
++go list -f '{{context.ToolTags}}'
++stdout 'wasm.satconv'
++
++-- go.mod --
++module m
++
++-- p.go --
++package p
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index dfb37b8f34..b914b67d1d 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -314,15 +314,8 @@ func defaultContext() Context {
+ 	}
+ 	c.GOPATH = envOr("GOPATH", defaultGOPATH())
+ 	c.Compiler = runtime.Compiler
++	c.ToolTags = append(c.ToolTags, buildcfg.ToolTags...)
+ 
+-	// For each experiment that has been enabled in the toolchain, define a
+-	// build tag with the same name but prefixed by "goexperiment." which can be
+-	// used for compiling alternative files for the experiment. This allows
+-	// changes for the experiment, like extra struct fields in the runtime,
+-	// without affecting the base non-experiment code at all.
+-	for _, exp := range buildcfg.Experiment.Enabled() {
+-		c.ToolTags = append(c.ToolTags, "goexperiment."+exp)
+-	}
+ 	defaultToolTags = append([]string{}, c.ToolTags...) // our own private copy
+ 
+ 	// Each major Go release in the Go 1.x series adds a new
+diff --git a/src/internal/buildcfg/cfg.go b/src/internal/buildcfg/cfg.go
+index 1066d0c189..1cc3d3dcd0 100644
+--- a/src/internal/buildcfg/cfg.go
++++ b/src/internal/buildcfg/cfg.go
+@@ -30,6 +30,7 @@ var (
+ 	GOMIPS64 = gomips64()
+ 	GOPPC64  = goppc64()
+ 	GOWASM   = gowasm()
++	ToolTags = toolTags()
+ 	GO_LDSO  = defaultGO_LDSO
+ 	Version  = version
+ )
+@@ -115,8 +116,8 @@ func goppc64() int {
+ }
+ 
+ type gowasmFeatures struct {
+-	SignExt bool
+ 	SatConv bool
++	SignExt bool
+ }
+ 
+ func (f gowasmFeatures) String() string {
+@@ -149,3 +150,61 @@ func gowasm() (f gowasmFeatures) {
+ func Getgoextlinkenabled() string {
+ 	return envOr("GO_EXTLINK_ENABLED", defaultGO_EXTLINK_ENABLED)
+ }
++
++func toolTags() []string {
++	tags := experimentTags()
++	tags = append(tags, gogoarchTags()...)
++	return tags
++}
++
++func experimentTags() []string {
++	var list []string
++	// For each experiment that has been enabled in the toolchain, define a
++	// build tag with the same name but prefixed by "goexperiment." which can be
++	// used for compiling alternative files for the experiment. This allows
++	// changes for the experiment, like extra struct fields in the runtime,
++	// without affecting the base non-experiment code at all.
++	for _, exp := range Experiment.Enabled() {
++		list = append(list, "goexperiment."+exp)
++	}
++	return list
++}
++
++func gogoarchTags() []string {
++	switch GOARCH {
++	case "386":
++		return []string{GOARCH + "." + GO386}
++	case "amd64":
++		var list []string
++		for i := 1; i <= GOAMD64; i++ {
++			list = append(list, fmt.Sprintf("%s.v%d", GOARCH, i))
++		}
++		return list
++	case "arm":
++		var list []string
++		for i := 5; i <= GOARM; i++ {
++			list = append(list, fmt.Sprintf("%s.%d", GOARCH, i))
++		}
++		return list
++	case "mips", "mipsle":
++		return []string{GOARCH + "." + GOMIPS}
++	case "mips64", "mips64le":
++		return []string{GOARCH + "." + GOMIPS64}
++	case "ppc64", "ppc64le":
++		var list []string
++		for i := 8; i <= GOPPC64; i++ {
++			list = append(list, fmt.Sprintf("%s.power%d", GOARCH, i))
++		}
++		return list
++	case "wasm":
++		var list []string
++		if GOWASM.SatConv {
++			list = append(list, GOARCH+".satconv")
++		}
++		if GOWASM.SignExt {
++			list = append(list, GOARCH+".signext")
++		}
++		return list
++	}
++	return nil
++}

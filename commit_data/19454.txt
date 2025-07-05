@@ -44,7 +44,53 @@ Date:   Tue May 27 23:59:27 2014 -0400
     R=golang-codereviews, khr
     CC=golang-codereviews, iant
     https://golang.org/cl/100800046
-
+---
  src/cmd/gc/sinit.c          |  1 +
  test/fixedbugs/issue8028.go | 27 +++++++++++++++++++++++++++
  2 files changed, 28 insertions(+)
+
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index e285352306..59804cd8d0 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -354,6 +354,7 @@ staticcopy(Node *l, Node *r, NodeList **out)
+ 			else {
+ 				ll = nod(OXXX, N, N);
+ 				*ll = n1;
++				ll->orig = ll; // completely separate copy
+ 				if(!staticassign(ll, e->expr, out)) {
+ 					// Requires computation, but we're
+ 					// copying someone else's computation.
+diff --git a/test/fixedbugs/issue8028.go b/test/fixedbugs/issue8028.go
+new file mode 100644
+index 0000000000..7ceb902d41
+--- /dev/null
++++ b/test/fixedbugs/issue8028.go
+@@ -0,0 +1,27 @@
++// compile
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 8028. Used to fail in -race mode with "non-orig name" error.
++
++package p
++
++var (
++	t2 = T{F, "s1"}
++	t1 = T{F, "s2"}
++
++	tt = [...]T{t1, t2}
++)
++
++type I interface{}
++
++type T struct {
++	F func() I
++	S string
++}
++
++type E struct{}
++
++func F() I { return new(E) }

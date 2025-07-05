@@ -8,7 +8,41 @@ Date:   Fri Jul 9 13:02:32 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/1762042
-
+---
  src/pkg/go/parser/parser.go      | 8 ++++++--
  src/pkg/go/parser/parser_test.go | 2 +-
  2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index c1914005a9..56096013c1 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -593,9 +593,13 @@ func (p *parser) tryParameterType(ellipsisOk bool) ast.Expr {
+ 	if ellipsisOk && p.tok == token.ELLIPSIS {
+ 		pos := p.pos
+ 		p.next()
+-		typ := p.tryType()
++		typ := p.tryType() // don't use parseType so we can provide better error message
++		if typ == nil {
++			p.Error(pos, "'...' parameter is missing type")
++			typ = &ast.BadExpr{pos}
++		}
+ 		if p.tok != token.RPAREN {
+-			p.Error(pos, "can use '...' for last parameter only")
++			p.Error(pos, "can use '...' with last parameter type only")
+ 		}
+ 		return &ast.Ellipsis{pos, typ}
+ 	}
+diff --git a/src/pkg/go/parser/parser_test.go b/src/pkg/go/parser/parser_test.go
+index 01327a41d7..cad93e2d43 100644
+--- a/src/pkg/go/parser/parser_test.go
++++ b/src/pkg/go/parser/parser_test.go
+@@ -36,7 +36,7 @@ var validPrograms = []interface{}{
+ 	`package main; func main() { _ = (<-chan int)(x) }` + "\n",
+ 	`package main; func main() { _ = (<-chan <-chan int)(x) }` + "\n",
+ 	`package main; func f(func() func() func())` + "\n",
+-	`package main; func f(...)` + "\n",
++	`package main; func f(...T)` + "\n",
+ 	`package main; func f(float, ...int)` + "\n",
+ 	`package main; type T []int; var a []bool; func f() { if a[T{42}[0]] {} }` + "\n",
+ 	`package main; type T []int; func g(int) bool { return true }; func f() { if g(T{42}[0]) {} }` + "\n",

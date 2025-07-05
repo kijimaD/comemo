@@ -18,7 +18,97 @@ Date:   Fri Dec 18 12:39:57 2015 +0900
     Change-Id: I4953796e751fd8050c73094468a0d7b0d33f5516
     Reviewed-on: https://go-review.googlesource.com/17992
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/net/interface_test.go    | 16 ++++++++++++++--
  src/net/interface_windows.go | 16 ++++------------
  2 files changed, 18 insertions(+), 14 deletions(-)
+
+diff --git a/src/net/interface_test.go b/src/net/interface_test.go
+index c5e7c432cd..7bdd924150 100644
+--- a/src/net/interface_test.go
++++ b/src/net/interface_test.go
+@@ -185,6 +185,10 @@ func testAddrs(t *testing.T, ifat []Addr) (naf4, naf6 int) {
+ 				t.Errorf("unexpected value: %#v", ifa)
+ 				continue
+ 			}
++			if len(ifa.IP) != IPv6len {
++				t.Errorf("should be internal representation either IPv6 or IPv6 IPv4-mapped address: %#v", ifa)
++				continue
++			}
+ 			prefixLen, maxPrefixLen := ifa.Mask.Size()
+ 			if ifa.IP.To4() != nil {
+ 				if 0 >= prefixLen || prefixLen > 8*IPv4len || maxPrefixLen != 8*IPv4len {
+@@ -211,7 +215,11 @@ func testAddrs(t *testing.T, ifat []Addr) (naf4, naf6 int) {
+ 			t.Logf("interface address %q", ifa.String())
+ 		case *IPAddr:
+ 			if ifa == nil || ifa.IP == nil || ifa.IP.IsUnspecified() || ifa.IP.IsMulticast() {
+-				t.Errorf("unexpected value: %+v", ifa)
++				t.Errorf("unexpected value: %#v", ifa)
++				continue
++			}
++			if len(ifa.IP) != IPv6len {
++				t.Errorf("should be internal representation either IPv6 or IPv6 IPv4-mapped address: %#v", ifa)
+ 				continue
+ 			}
+ 			if ifa.IP.To4() != nil {
+@@ -233,7 +241,11 @@ func testMulticastAddrs(t *testing.T, ifmat []Addr) (nmaf4, nmaf6 int) {
+ 		switch ifma := ifma.(type) {
+ 		case *IPAddr:
+ 			if ifma == nil || ifma.IP == nil || ifma.IP.IsUnspecified() || !ifma.IP.IsMulticast() {
+-				t.Errorf("unexpected value: %#v", ifma)
++				t.Errorf("unexpected value: %+v", ifma)
++				continue
++			}
++			if len(ifma.IP) != IPv6len {
++				t.Errorf("should be internal representation either IPv6 or IPv6 IPv4-mapped address: %#v", ifma)
+ 				continue
+ 			}
+ 			if ifma.IP.To4() != nil {
+diff --git a/src/net/interface_windows.go b/src/net/interface_windows.go
+index d14b60f283..4d6bcdf4c7 100644
+--- a/src/net/interface_windows.go
++++ b/src/net/interface_windows.go
+@@ -95,9 +95,7 @@ func interfaceTable(ifindex int) ([]Interface, error) {
+ 			case windows.IF_TYPE_SOFTWARE_LOOPBACK:
+ 				ifi.Flags |= FlagLoopback | FlagMulticast
+ 			case windows.IF_TYPE_ATM:
+-				ifi.Flags |= FlagBroadcast |
+-					FlagPointToPoint |
+-					FlagMulticast // assume all services available; LANE, point-to-point and point-to-multipoint
++				ifi.Flags |= FlagBroadcast | FlagPointToPoint | FlagMulticast // assume all services available; LANE, point-to-point and point-to-multipoint
+ 			}
+ 			if aa.Mtu == 0xffffffff {
+ 				ifi.MTU = -1
+@@ -152,9 +150,7 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
+ 					} else {
+ 						l = addrPrefixLen(pfx4, IP(sa.Addr[:]))
+ 					}
+-					ifa := &IPNet{IP: make(IP, IPv4len), Mask: CIDRMask(l, 8*IPv4len)}
+-					copy(ifa.IP, sa.Addr[:])
+-					ifat = append(ifat, ifa)
++					ifat = append(ifat, &IPNet{IP: IPv4(sa.Addr[0], sa.Addr[1], sa.Addr[2], sa.Addr[3]), Mask: CIDRMask(l, 8*IPv4len)})
+ 				case *syscall.SockaddrInet6:
+ 					if supportsVistaIP {
+ 						l = int(puni.OnLinkPrefixLength)
+@@ -173,9 +169,7 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
+ 				}
+ 				switch sa := sa.(type) {
+ 				case *syscall.SockaddrInet4:
+-					ifa := &IPAddr{IP: make(IP, IPv4len)}
+-					copy(ifa.IP, sa.Addr[:])
+-					ifat = append(ifat, ifa)
++					ifat = append(ifat, &IPAddr{IP: IPv4(sa.Addr[0], sa.Addr[1], sa.Addr[2], sa.Addr[3])})
+ 				case *syscall.SockaddrInet6:
+ 					ifa := &IPAddr{IP: make(IP, IPv6len)}
+ 					copy(ifa.IP, sa.Addr[:])
+@@ -261,9 +255,7 @@ func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
+ 				}
+ 				switch sa := sa.(type) {
+ 				case *syscall.SockaddrInet4:
+-					ifa := &IPAddr{IP: make(IP, IPv4len)}
+-					copy(ifa.IP, sa.Addr[:])
+-					ifat = append(ifat, ifa)
++					ifat = append(ifat, &IPAddr{IP: IPv4(sa.Addr[0], sa.Addr[1], sa.Addr[2], sa.Addr[3])})
+ 				case *syscall.SockaddrInet6:
+ 					ifa := &IPAddr{IP: make(IP, IPv6len)}
+ 					copy(ifa.IP, sa.Addr[:])

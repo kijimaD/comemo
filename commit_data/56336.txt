@@ -33,8 +33,106 @@ Date:   Mon Apr 24 17:27:33 2023 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/debug/pe/file.go      | 17 ++++++++---------
  src/debug/pe/file_test.go | 14 +++-----------
  src/debug/pe/section.go   |  6 ++++++
  3 files changed, 17 insertions(+), 20 deletions(-)
+
+diff --git a/src/debug/pe/file.go b/src/debug/pe/file.go
+index de4bb9b736..06c160105f 100644
+--- a/src/debug/pe/file.go
++++ b/src/debug/pe/file.go
+@@ -20,6 +20,7 @@ import (
+ 	"compress/zlib"
+ 	"debug/dwarf"
+ 	"encoding/binary"
++	"errors"
+ 	"fmt"
+ 	"io"
+ 	"os"
+@@ -165,7 +166,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 		}
+ 		r2 := r
+ 		if sh.PointerToRawData == 0 { // .bss must have all 0s
+-			r2 = zeroReaderAt{}
++			r2 = &nobitsSectionReader{}
+ 		}
+ 		s.sr = io.NewSectionReader(r2, int64(s.SectionHeader.Offset), int64(s.SectionHeader.Size))
+ 		s.ReaderAt = s.sr
+@@ -182,15 +183,10 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 	return f, nil
+ }
+ 
+-// zeroReaderAt is ReaderAt that reads 0s.
+-type zeroReaderAt struct{}
++type nobitsSectionReader struct{}
+ 
+-// ReadAt writes len(p) 0s into p.
+-func (w zeroReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
+-	for i := range p {
+-		p[i] = 0
+-	}
+-	return len(p), nil
++func (*nobitsSectionReader) ReadAt(p []byte, off int64) (n int, err error) {
++	return 0, errors.New("unexpected read from section with uninitialized data")
+ }
+ 
+ // getString extracts a string from symbol string table.
+@@ -363,6 +359,9 @@ func (f *File) ImportedSymbols() ([]string, error) {
+ 	var ds *Section
+ 	ds = nil
+ 	for _, s := range f.Sections {
++		if s.Offset == 0 {
++			continue
++		}
+ 		// We are using distance between s.VirtualAddress and idd.VirtualAddress
+ 		// to avoid potential overflow of uint32 caused by addition of s.VirtualSize
+ 		// to s.VirtualAddress.
+diff --git a/src/debug/pe/file_test.go b/src/debug/pe/file_test.go
+index 5368e08ad7..3d960ab7f3 100644
+--- a/src/debug/pe/file_test.go
++++ b/src/debug/pe/file_test.go
+@@ -511,17 +511,9 @@ main(void)
+ 	if bss == nil {
+ 		t.Fatal("could not find .bss section")
+ 	}
+-	data, err := bss.Data()
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	if len(data) == 0 {
+-		t.Fatalf("%s file .bss section cannot be empty", objpath)
+-	}
+-	for _, b := range data {
+-		if b != 0 {
+-			t.Fatalf(".bss section has non zero bytes: %v", data)
+-		}
++	// We expect an error from bss.Data, as there are no contents.
++	if _, err := bss.Data(); err == nil {
++		t.Error("bss.Data succeeded, expected error")
+ 	}
+ }
+ 
+diff --git a/src/debug/pe/section.go b/src/debug/pe/section.go
+index fabb47af2e..70d0c220ce 100644
+--- a/src/debug/pe/section.go
++++ b/src/debug/pe/section.go
+@@ -97,11 +97,17 @@ type Section struct {
+ }
+ 
+ // Data reads and returns the contents of the PE section s.
++//
++// If s.Offset is 0, the section has no contents,
++// and Data will always return a non-nil error.
+ func (s *Section) Data() ([]byte, error) {
+ 	return saferio.ReadDataAt(s.sr, uint64(s.Size), 0)
+ }
+ 
+ // Open returns a new ReadSeeker reading the PE section s.
++//
++// If s.Offset is 0, the section has no contents, and all calls
++// to the returned reader will return a non-nil error.
+ func (s *Section) Open() io.ReadSeeker {
+ 	return io.NewSectionReader(s.sr, 0, 1<<63-1)
+ }

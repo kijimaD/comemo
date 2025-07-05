@@ -28,8 +28,160 @@ Date:   Wed Oct 12 10:05:51 2022 -0400
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Joedian Reid <joedian@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/mprof.go            |  8 ++++++++
  src/runtime/pprof/pprof.go      | 29 +++++++--------------------
  src/runtime/pprof/pprof_test.go | 44 +++++++++++++++++++++++++++++++++++++++++
  3 files changed, 59 insertions(+), 22 deletions(-)
+
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index 4134a961d6..24f88897d7 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -510,10 +510,18 @@ func saveblockevent(cycles, rate int64, skip int, which bucketType) {
+ 	bp := b.bp()
+ 
+ 	lock(&profBlockLock)
++	// We want to up-scale the count and cycles according to the
++	// probability that the event was sampled. For block profile events,
++	// the sample probability is 1 if cycles >= rate, and cycles / rate
++	// otherwise. For mutex profile events, the sample probability is 1 / rate.
++	// We scale the events by 1 / (probability the event was sampled).
+ 	if which == blockProfile && cycles < rate {
+ 		// Remove sampling bias, see discussion on http://golang.org/cl/299991.
+ 		bp.count += float64(rate) / float64(cycles)
+ 		bp.cycles += rate
++	} else if which == mutexProfile {
++		bp.count += float64(rate)
++		bp.cycles += rate * cycles
+ 	} else {
+ 		bp.count++
+ 		bp.cycles += cycles
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index 78445b6264..725fd26c13 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -371,8 +371,7 @@ type countProfile interface {
+ // as the pprof-proto format output. Translations from cycle count to time duration
+ // are done because The proto expects count and time (nanoseconds) instead of count
+ // and the number of cycles for block, contention profiles.
+-// Possible 'scaler' functions are scaleBlockProfile and scaleMutexProfile.
+-func printCountCycleProfile(w io.Writer, countName, cycleName string, scaler func(int64, float64) (int64, float64), records []runtime.BlockProfileRecord) error {
++func printCountCycleProfile(w io.Writer, countName, cycleName string, records []runtime.BlockProfileRecord) error {
+ 	// Output profile in protobuf form.
+ 	b := newProfileBuilder(w)
+ 	b.pbValueType(tagProfile_PeriodType, countName, "count")
+@@ -385,9 +384,8 @@ func printCountCycleProfile(w io.Writer, countName, cycleName string, scaler fun
+ 	values := []int64{0, 0}
+ 	var locs []uint64
+ 	for _, r := range records {
+-		count, nanosec := scaler(r.Count, float64(r.Cycles)/cpuGHz)
+-		values[0] = count
+-		values[1] = int64(nanosec)
++		values[0] = r.Count
++		values[1] = int64(float64(r.Cycles) / cpuGHz)
+ 		// For count profiles, all stack addresses are
+ 		// return PCs, which is what appendLocsForStack expects.
+ 		locs = b.appendLocsForStack(locs[:0], r.Stack())
+@@ -855,24 +853,16 @@ func countMutex() int {
+ 
+ // writeBlock writes the current blocking profile to w.
+ func writeBlock(w io.Writer, debug int) error {
+-	return writeProfileInternal(w, debug, "contention", runtime.BlockProfile, scaleBlockProfile)
+-}
+-
+-func scaleBlockProfile(cnt int64, ns float64) (int64, float64) {
+-	// Do nothing.
+-	// The current way of block profile sampling makes it
+-	// hard to compute the unsampled number. The legacy block
+-	// profile parse doesn't attempt to scale or unsample.
+-	return cnt, ns
++	return writeProfileInternal(w, debug, "contention", runtime.BlockProfile)
+ }
+ 
+ // writeMutex writes the current mutex profile to w.
+ func writeMutex(w io.Writer, debug int) error {
+-	return writeProfileInternal(w, debug, "mutex", runtime.MutexProfile, scaleMutexProfile)
++	return writeProfileInternal(w, debug, "mutex", runtime.MutexProfile)
+ }
+ 
+ // writeProfileInternal writes the current blocking or mutex profile depending on the passed parameters
+-func writeProfileInternal(w io.Writer, debug int, name string, runtimeProfile func([]runtime.BlockProfileRecord) (int, bool), scaleProfile func(int64, float64) (int64, float64)) error {
++func writeProfileInternal(w io.Writer, debug int, name string, runtimeProfile func([]runtime.BlockProfileRecord) (int, bool)) error {
+ 	var p []runtime.BlockProfileRecord
+ 	n, ok := runtimeProfile(nil)
+ 	for {
+@@ -887,7 +877,7 @@ func writeProfileInternal(w io.Writer, debug int, name string, runtimeProfile fu
+ 	sort.Slice(p, func(i, j int) bool { return p[i].Cycles > p[j].Cycles })
+ 
+ 	if debug <= 0 {
+-		return printCountCycleProfile(w, "contentions", "delay", scaleProfile, p)
++		return printCountCycleProfile(w, "contentions", "delay", p)
+ 	}
+ 
+ 	b := bufio.NewWriter(w)
+@@ -917,9 +907,4 @@ func writeProfileInternal(w io.Writer, debug int, name string, runtimeProfile fu
+ 	return b.Flush()
+ }
+ 
+-func scaleMutexProfile(cnt int64, ns float64) (int64, float64) {
+-	period := runtime.SetMutexProfileFraction(-1)
+-	return cnt * int64(period), ns * float64(period)
+-}
+-
+ func runtime_cyclesPerSecond() int64
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 434d106f4a..39bc9d11f1 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -1246,6 +1246,50 @@ func TestMutexProfile(t *testing.T) {
+ 	})
+ }
+ 
++func TestMutexProfileRateAdjust(t *testing.T) {
++	old := runtime.SetMutexProfileFraction(1)
++	defer runtime.SetMutexProfileFraction(old)
++	if old != 0 {
++		t.Fatalf("need MutexProfileRate 0, got %d", old)
++	}
++
++	readProfile := func() (contentions int64, delay int64) {
++		var w bytes.Buffer
++		Lookup("mutex").WriteTo(&w, 0)
++		p, err := profile.Parse(&w)
++		if err != nil {
++			t.Fatalf("failed to parse profile: %v", err)
++		}
++		t.Logf("parsed proto: %s", p)
++		if err := p.CheckValid(); err != nil {
++			t.Fatalf("invalid profile: %v", err)
++		}
++
++		for _, s := range p.Sample {
++			for _, l := range s.Location {
++				for _, line := range l.Line {
++					if line.Function.Name == "runtime/pprof.blockMutex.func1" {
++						contentions += s.Value[0]
++						delay += s.Value[1]
++					}
++				}
++			}
++		}
++		return
++	}
++
++	blockMutex(t)
++	contentions, delay := readProfile()
++	if contentions == 0 || delay == 0 {
++		t.Fatal("did not see expected function in profile")
++	}
++	runtime.SetMutexProfileFraction(0)
++	newContentions, newDelay := readProfile()
++	if newContentions != contentions || newDelay != delay {
++		t.Fatalf("sample value changed: got [%d, %d], want [%d, %d]", newContentions, newDelay, contentions, delay)
++	}
++}
++
+ func func1(c chan int) { <-c }
+ func func2(c chan int) { <-c }
+ func func3(c chan int) { <-c }

@@ -12,7 +12,371 @@ Date:   Mon May 25 18:58:19 2015 +0200
     Change-Id: Ic34efb3e3d804a4e17149a6c38cfd73f5f275ab7
     Reviewed-on: https://go-review.googlesource.com/10392
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/mail/message.go      |  64 ++++++++++------
  src/net/mail/message_test.go | 171 +++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 213 insertions(+), 22 deletions(-)
+
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index 77c9578196..04cbfd3e8b 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -138,12 +138,30 @@ type Address struct {
+ 
+ // Parses a single RFC 5322 address, e.g. "Barry Gibbs <bg@example.com>"
+ func ParseAddress(address string) (*Address, error) {
+-	return newAddrParser(address).parseAddress()
++	return (&addrParser{s: address}).parseAddress()
+ }
+ 
+ // ParseAddressList parses the given string as a list of addresses.
+ func ParseAddressList(list string) ([]*Address, error) {
+-	return newAddrParser(list).parseAddressList()
++	return (&addrParser{s: list}).parseAddressList()
++}
++
++// An AddressParser is an RFC 5322 address parser.
++type AddressParser struct {
++	// WordDecoder optionally specifies a decoder for RFC 2047 encoded-words.
++	WordDecoder *mime.WordDecoder
++}
++
++// Parse parses a single RFC 5322 address of the
++// form "Gogh Fir <gf@example.com>" or "foo@example.com".
++func (p *AddressParser) Parse(address string) (*Address, error) {
++	return (&addrParser{s: address, dec: p.WordDecoder}).parseAddress()
++}
++
++// ParseList parses the given string as a list of comma-separated addresses
++// of the form "Gogh Fir <gf@example.com>" or "foo@example.com".
++func (p *AddressParser) ParseList(list string) ([]*Address, error) {
++	return (&addrParser{s: list, dec: p.WordDecoder}).parseAddressList()
+ }
+ 
+ // String formats the address as a valid RFC 5322 address.
+@@ -180,11 +198,9 @@ func (a *Address) String() string {
+ 	return mime.QEncoding.Encode("utf-8", a.Name) + " " + s
+ }
+ 
+-type addrParser []byte
+-
+-func newAddrParser(s string) *addrParser {
+-	p := addrParser(s)
+-	return &p
++type addrParser struct {
++	s   string
++	dec *mime.WordDecoder // may be nil
+ }
+ 
+ func (p *addrParser) parseAddressList() ([]*Address, error) {
+@@ -210,7 +226,7 @@ func (p *addrParser) parseAddressList() ([]*Address, error) {
+ 
+ // parseAddress parses a single RFC 5322 address at the start of p.
+ func (p *addrParser) parseAddress() (addr *Address, err error) {
+-	debug.Printf("parseAddress: %q", *p)
++	debug.Printf("parseAddress: %q", p.s)
+ 	p.skipSpace()
+ 	if p.empty() {
+ 		return nil, errors.New("mail: no address")
+@@ -229,7 +245,7 @@ func (p *addrParser) parseAddress() (addr *Address, err error) {
+ 		}, err
+ 	}
+ 	debug.Printf("parseAddress: not an addr-spec: %v", err)
+-	debug.Printf("parseAddress: state is now %q", *p)
++	debug.Printf("parseAddress: state is now %q", p.s)
+ 
+ 	// display-name
+ 	var displayName string
+@@ -263,7 +279,7 @@ func (p *addrParser) parseAddress() (addr *Address, err error) {
+ 
+ // consumeAddrSpec parses a single RFC 5322 addr-spec at the start of p.
+ func (p *addrParser) consumeAddrSpec() (spec string, err error) {
+-	debug.Printf("consumeAddrSpec: %q", *p)
++	debug.Printf("consumeAddrSpec: %q", p.s)
+ 
+ 	orig := *p
+ 	defer func() {
+@@ -313,7 +329,7 @@ func (p *addrParser) consumeAddrSpec() (spec string, err error) {
+ 
+ // consumePhrase parses the RFC 5322 phrase at the start of p.
+ func (p *addrParser) consumePhrase() (phrase string, err error) {
+-	debug.Printf("consumePhrase: [%s]", *p)
++	debug.Printf("consumePhrase: [%s]", p.s)
+ 	// phrase = 1*word
+ 	var words []string
+ 	for {
+@@ -334,7 +350,7 @@ func (p *addrParser) consumePhrase() (phrase string, err error) {
+ 		}
+ 
+ 		if err == nil {
+-			word, err = decodeRFC2047Word(word)
++			word, err = p.decodeRFC2047Word(word)
+ 		}
+ 
+ 		if err != nil {
+@@ -362,14 +378,14 @@ Loop:
+ 		if i >= p.len() {
+ 			return "", errors.New("mail: unclosed quoted-string")
+ 		}
+-		switch c := (*p)[i]; {
++		switch c := p.s[i]; {
+ 		case c == '"':
+ 			break Loop
+ 		case c == '\\':
+ 			if i+1 == p.len() {
+ 				return "", errors.New("mail: unclosed quoted-string")
+ 			}
+-			qsb = append(qsb, (*p)[i+1])
++			qsb = append(qsb, p.s[i+1])
+ 			i += 2
+ 		case isQtext(c), c == ' ' || c == '\t':
+ 			// qtext (printable US-ASCII excluding " and \), or
+@@ -380,7 +396,7 @@ Loop:
+ 			return "", fmt.Errorf("mail: bad character in quoted-string: %q", c)
+ 		}
+ 	}
+-	*p = (*p)[i+1:]
++	p.s = p.s[i+1:]
+ 	return string(qsb), nil
+ }
+ 
+@@ -391,9 +407,9 @@ func (p *addrParser) consumeAtom(dot bool) (atom string, err error) {
+ 		return "", errors.New("mail: invalid string")
+ 	}
+ 	i := 1
+-	for ; i < p.len() && isAtext((*p)[i], dot); i++ {
++	for ; i < p.len() && isAtext(p.s[i], dot); i++ {
+ 	}
+-	atom, *p = string((*p)[:i]), (*p)[i:]
++	atom, p.s = string(p.s[:i]), p.s[i:]
+ 	return atom, nil
+ }
+ 
+@@ -401,17 +417,17 @@ func (p *addrParser) consume(c byte) bool {
+ 	if p.empty() || p.peek() != c {
+ 		return false
+ 	}
+-	*p = (*p)[1:]
++	p.s = p.s[1:]
+ 	return true
+ }
+ 
+ // skipSpace skips the leading space and tab characters.
+ func (p *addrParser) skipSpace() {
+-	*p = bytes.TrimLeft(*p, " \t")
++	p.s = strings.TrimLeft(p.s, " \t")
+ }
+ 
+ func (p *addrParser) peek() byte {
+-	return (*p)[0]
++	return p.s[0]
+ }
+ 
+ func (p *addrParser) empty() bool {
+@@ -419,10 +435,14 @@ func (p *addrParser) empty() bool {
+ }
+ 
+ func (p *addrParser) len() int {
+-	return len(*p)
++	return len(p.s)
+ }
+ 
+-func decodeRFC2047Word(s string) (string, error) {
++func (p *addrParser) decodeRFC2047Word(s string) (string, error) {
++	if p.dec != nil {
++		return p.dec.DecodeHeader(s)
++	}
++
+ 	dec, err := rfc2047Decoder.Decode(s)
+ 	if err == nil {
+ 		return dec, nil
+diff --git a/src/net/mail/message_test.go b/src/net/mail/message_test.go
+index 6ba48be04f..43574c6188 100644
+--- a/src/net/mail/message_test.go
++++ b/src/net/mail/message_test.go
+@@ -6,7 +6,9 @@ package mail
+ 
+ import (
+ 	"bytes"
++	"io"
+ 	"io/ioutil"
++	"mime"
+ 	"reflect"
+ 	"strings"
+ 	"testing"
+@@ -278,6 +280,175 @@ func TestAddressParsing(t *testing.T) {
+ 	}
+ }
+ 
++func TestAddressParser(t *testing.T) {
++	tests := []struct {
++		addrsStr string
++		exp      []*Address
++	}{
++		// Bare address
++		{
++			`jdoe@machine.example`,
++			[]*Address{{
++				Address: "jdoe@machine.example",
++			}},
++		},
++		// RFC 5322, Appendix A.1.1
++		{
++			`John Doe <jdoe@machine.example>`,
++			[]*Address{{
++				Name:    "John Doe",
++				Address: "jdoe@machine.example",
++			}},
++		},
++		// RFC 5322, Appendix A.1.2
++		{
++			`"Joe Q. Public" <john.q.public@example.com>`,
++			[]*Address{{
++				Name:    "Joe Q. Public",
++				Address: "john.q.public@example.com",
++			}},
++		},
++		{
++			`Mary Smith <mary@x.test>, jdoe@example.org, Who? <one@y.test>`,
++			[]*Address{
++				{
++					Name:    "Mary Smith",
++					Address: "mary@x.test",
++				},
++				{
++					Address: "jdoe@example.org",
++				},
++				{
++					Name:    "Who?",
++					Address: "one@y.test",
++				},
++			},
++		},
++		{
++			`<boss@nil.test>, "Giant; \"Big\" Box" <sysservices@example.net>`,
++			[]*Address{
++				{
++					Address: "boss@nil.test",
++				},
++				{
++					Name:    `Giant; "Big" Box`,
++					Address: "sysservices@example.net",
++				},
++			},
++		},
++		// RFC 2047 "Q"-encoded ISO-8859-1 address.
++		{
++			`=?iso-8859-1?q?J=F6rg_Doe?= <joerg@example.com>`,
++			[]*Address{
++				{
++					Name:    `Jörg Doe`,
++					Address: "joerg@example.com",
++				},
++			},
++		},
++		// RFC 2047 "Q"-encoded US-ASCII address. Dumb but legal.
++		{
++			`=?us-ascii?q?J=6Frg_Doe?= <joerg@example.com>`,
++			[]*Address{
++				{
++					Name:    `Jorg Doe`,
++					Address: "joerg@example.com",
++				},
++			},
++		},
++		// RFC 2047 "Q"-encoded ISO-8859-15 address.
++		{
++			`=?ISO-8859-15?Q?J=F6rg_Doe?= <joerg@example.com>`,
++			[]*Address{
++				{
++					Name:    `Jörg Doe`,
++					Address: "joerg@example.com",
++				},
++			},
++		},
++		// RFC 2047 "B"-encoded windows-1252 address.
++		{
++			`=?windows-1252?q?Andr=E9?= Pirard <PIRARD@vm1.ulg.ac.be>`,
++			[]*Address{
++				{
++					Name:    `André Pirard`,
++					Address: "PIRARD@vm1.ulg.ac.be",
++				},
++			},
++		},
++		// Custom example of RFC 2047 "B"-encoded ISO-8859-15 address.
++		{
++			`=?ISO-8859-15?B?SvZyZw==?= <joerg@example.com>`,
++			[]*Address{
++				{
++					Name:    `Jörg`,
++					Address: "joerg@example.com",
++				},
++			},
++		},
++		// Custom example of RFC 2047 "B"-encoded UTF-8 address.
++		{
++			`=?UTF-8?B?SsO2cmc=?= <joerg@example.com>`,
++			[]*Address{
++				{
++					Name:    `Jörg`,
++					Address: "joerg@example.com",
++				},
++			},
++		},
++		// Custom example with "." in name. For issue 4938
++		{
++			`Asem H. <noreply@example.com>`,
++			[]*Address{
++				{
++					Name:    `Asem H.`,
++					Address: "noreply@example.com",
++				},
++			},
++		},
++	}
++
++	ap := AddressParser{WordDecoder: &mime.WordDecoder{
++		CharsetReader: func(charset string, input io.Reader) (io.Reader, error) {
++			in, err := ioutil.ReadAll(input)
++			if err != nil {
++				return nil, err
++			}
++
++			switch charset {
++			case "iso-8859-15":
++				in = bytes.Replace(in, []byte("\xf6"), []byte("ö"), -1)
++			case "windows-1252":
++				in = bytes.Replace(in, []byte("\xe9"), []byte("é"), -1)
++			}
++
++			return bytes.NewReader(in), nil
++		},
++	}}
++
++	for _, test := range tests {
++		if len(test.exp) == 1 {
++			addr, err := ap.Parse(test.addrsStr)
++			if err != nil {
++				t.Errorf("Failed parsing (single) %q: %v", test.addrsStr, err)
++				continue
++			}
++			if !reflect.DeepEqual([]*Address{addr}, test.exp) {
++				t.Errorf("Parse (single) of %q: got %+v, want %+v", test.addrsStr, addr, test.exp)
++			}
++		}
++
++		addrs, err := ap.ParseList(test.addrsStr)
++		if err != nil {
++			t.Errorf("Failed parsing (list) %q: %v", test.addrsStr, err)
++			continue
++		}
++		if !reflect.DeepEqual(addrs, test.exp) {
++			t.Errorf("Parse (list) of %q: got %+v, want %+v", test.addrsStr, addrs, test.exp)
++		}
++	}
++}
++
+ func TestAddressFormatting(t *testing.T) {
+ 	tests := []struct {
+ 		addr *Address

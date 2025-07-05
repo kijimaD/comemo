@@ -13,6 +13,29 @@ Date:   Tue Nov 15 10:53:41 2022 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/vet/vet_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/vet/vet_test.go b/src/cmd/vet/vet_test.go
+index fed88e7978..280ed8d7ae 100644
+--- a/src/cmd/vet/vet_test.go
++++ b/src/cmd/vet/vet_test.go
+@@ -54,7 +54,7 @@ var (
+ )
+ 
+ func vetCmd(t *testing.T, arg, pkg string) *exec.Cmd {
+-	cmd := exec.Command(testenv.GoToolPath(t), "vet", "-vettool="+vetPath(t), arg, path.Join("cmd/vet/testdata", pkg))
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "vet", "-vettool="+vetPath(t), arg, path.Join("cmd/vet/testdata", pkg))
+ 	cmd.Env = os.Environ()
+ 	return cmd
+ }
+@@ -125,7 +125,7 @@ func cgoEnabled(t *testing.T) bool {
+ 	// That's fine for the builders, but causes commands like
+ 	// 'GOARCH=386 go test .' to fail.
+ 	// Instead, we ask the go command.
+-	cmd := exec.Command(testenv.GoToolPath(t), "list", "-f", "{{context.CgoEnabled}}")
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "list", "-f", "{{context.CgoEnabled}}")
+ 	out, _ := cmd.CombinedOutput()
+ 	return string(out) == "true\n"
+ }

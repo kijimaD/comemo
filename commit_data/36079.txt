@@ -49,7 +49,108 @@ Date:   Thu Feb 1 20:37:23 2018 +0300
     Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/typecheck.go | 23 ++++++++++++++++-
  test/fixedbugs/issue23521.go             | 43 ++++++++++++++++++++++++++++++++
  2 files changed, 65 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 1bff3431a0..02cac2e86c 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3926,24 +3926,45 @@ func deadcode(fn *Node) {
+ }
+ 
+ func deadcodeslice(nn Nodes) {
+-	for _, n := range nn.Slice() {
++	for i, n := range nn.Slice() {
++		// Cut is set to true when all nodes after i'th position
++		// should be removed.
++		// In other words, it marks whole slice "tail" as dead.
++		cut := false
+ 		if n == nil {
+ 			continue
+ 		}
+ 		if n.Op == OIF {
+ 			n.Left = deadcodeexpr(n.Left)
+ 			if Isconst(n.Left, CTBOOL) {
++				var body Nodes
+ 				if n.Left.Bool() {
+ 					n.Rlist = Nodes{}
++					body = n.Nbody
+ 				} else {
+ 					n.Nbody = Nodes{}
++					body = n.Rlist
++				}
++				// If "then" or "else" branch ends with panic or return statement,
++				// it is safe to remove all statements after this node.
++				// isterminating is not used to avoid goto-related complications.
++				if body := body.Slice(); len(body) != 0 {
++					switch body[(len(body) - 1)].Op {
++					case ORETURN, ORETJMP, OPANIC:
++						cut = true
++					}
+ 				}
+ 			}
+ 		}
++
+ 		deadcodeslice(n.Ninit)
+ 		deadcodeslice(n.Nbody)
+ 		deadcodeslice(n.List)
+ 		deadcodeslice(n.Rlist)
++		if cut {
++			*nn.slice = nn.Slice()[:i+1]
++			break
++		}
+ 	}
+ }
+ 
+diff --git a/test/fixedbugs/issue23521.go b/test/fixedbugs/issue23521.go
+new file mode 100644
+index 0000000000..159e03238c
+--- /dev/null
++++ b/test/fixedbugs/issue23521.go
+@@ -0,0 +1,43 @@
++// errorcheck -0 -m
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 23521: improve early DCE for if without explicit else.
++
++package p
++
++//go:noinline
++func nonleaf() {}
++
++const truth = true
++
++func f() int { // ERROR "can inline f"
++	if truth {
++		return 0
++	}
++	// If everything below is removed, as it should,
++	// function f should be inlineable.
++	nonleaf()
++	for {
++		panic("")
++	}
++}
++
++func g() int { // ERROR "can inline g"
++	return f() // ERROR "inlining call to f"
++}
++
++func f2() int { // ERROR "can inline f2"
++	if !truth {
++		nonleaf()
++	} else {
++		return 0
++	}
++	panic("")
++}
++
++func g2() int { // ERROR "can inline g2"
++	return f2() // ERROR "inlining call to f2"
++}

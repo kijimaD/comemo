@@ -14,9 +14,99 @@ Date:   Tue Jul 31 17:09:49 2018 +0000
     Change-Id: I6ae1a21c919947089274e816eb628d20490f83ce
     Reviewed-on: https://go-review.googlesource.com/126896
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  doc/go1.11.html            |  5 +----
  src/net/http/h2_bundle.go  | 10 +---------
  src/net/http/serve_test.go | 20 --------------------
  src/net/http/server.go     | 10 +---------
  4 files changed, 3 insertions(+), 42 deletions(-)
+
+diff --git a/doc/go1.11.html b/doc/go1.11.html
+index 7e9512f587..3fa69c4d17 100644
+--- a/doc/go1.11.html
++++ b/doc/go1.11.html
+@@ -677,10 +677,7 @@ for k := range m {
+       methods will return errors after a shutdown or close.
+     </p>
+ 
+-    <p><!-- CL 89275 -->
+-      The HTTP server will no longer automatically set the Content-Type if a
+-      <code>Handler</code> sets the "<code>X-Content-Type-Options</code>" header to "<code>nosniff</code>".
+-    </p>
++    <!-- CL 89275 was reverted before Go 1.11 -->
+ 
+     <p><!-- CL 93296 -->
+       The constant <code>StatusMisdirectedRequest</code> is now defined for HTTP status code 421.
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 463254d96c..12cf65f109 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -6135,15 +6135,7 @@ func (rws *http2responseWriterState) writeChunk(p []byte) (n int, err error) {
+ 		}
+ 		_, hasContentType := rws.snapHeader["Content-Type"]
+ 		if !hasContentType && http2bodyAllowedForStatus(rws.status) && len(p) > 0 {
+-			if cto := rws.snapHeader.Get("X-Content-Type-Options"); strings.EqualFold("nosniff", cto) {
+-				// nosniff is an explicit directive not to guess a content-type.
+-				// Content-sniffing is no less susceptible to polyglot attacks via
+-				// hosted content when done on the server.
+-				ctype = "application/octet-stream"
+-				rws.conn.logf("http2: WriteHeader called with X-Content-Type-Options:nosniff but no Content-Type")
+-			} else {
+-				ctype = DetectContentType(p)
+-			}
++			ctype = DetectContentType(p)
+ 		}
+ 		var date string
+ 		if _, ok := rws.snapHeader["Date"]; !ok {
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index b53c2f856b..a4385419d0 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -3585,26 +3585,6 @@ func TestHeaderToWire(t *testing.T) {
+ 				return nil
+ 			},
+ 		},
+-		{
+-			name: "Nosniff without Content-type",
+-			handler: func(rw ResponseWriter, r *Request) {
+-				rw.Header().Set("X-Content-Type-Options", "nosniff")
+-				rw.WriteHeader(200)
+-				rw.Write([]byte("<!doctype html>\n<html><head></head><body>some html</body></html>"))
+-			},
+-			check: func(got, logs string) error {
+-				if !strings.Contains(got, "Content-Type: application/octet-stream\r\n") {
+-					return errors.New("Output should have an innocuous content-type")
+-				}
+-				if strings.Contains(got, "text/html") {
+-					return errors.New("Output should not have a guess")
+-				}
+-				if !strings.Contains(logs, "X-Content-Type-Options:nosniff but no Content-Type") {
+-					return errors.New("Expected log message")
+-				}
+-				return nil
+-			},
+-		},
+ 	}
+ 	for _, tc := range tests {
+ 		ht := newHandlerTest(HandlerFunc(tc.handler))
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index f501a65d0a..c24ad750f2 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1360,15 +1360,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
+ 		// If no content type, apply sniffing algorithm to body.
+ 		_, haveType := header["Content-Type"]
+ 		if !haveType && !hasTE && len(p) > 0 {
+-			if cto := header.get("X-Content-Type-Options"); strings.EqualFold("nosniff", cto) {
+-				// nosniff is an explicit directive not to guess a content-type.
+-				// Content-sniffing is no less susceptible to polyglot attacks via
+-				// hosted content when done on the server.
+-				setHeader.contentType = "application/octet-stream"
+-				w.conn.server.logf("http: WriteHeader called with X-Content-Type-Options:nosniff but no Content-Type")
+-			} else {
+-				setHeader.contentType = DetectContentType(p)
+-			}
++			setHeader.contentType = DetectContentType(p)
+ 		}
+ 	} else {
+ 		for _, k := range suppressedHeaders(code) {

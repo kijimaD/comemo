@@ -13,6 +13,26 @@ Date:   Tue Mar 21 17:28:36 2023 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
-
+---
  test/fixedbugs/issue59169.go | 13 +++++++++++++
  1 file changed, 13 insertions(+)
+
+diff --git a/test/fixedbugs/issue59169.go b/test/fixedbugs/issue59169.go
+new file mode 100644
+index 0000000000..61e2a95d10
+--- /dev/null
++++ b/test/fixedbugs/issue59169.go
+@@ -0,0 +1,13 @@
++// compile
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 59169: caused gofrontend crash.
++
++package p
++
++func F(p *[]byte) {
++	*(*[1]byte)(*p) = *(*[1]byte)((*p)[1:])
++}

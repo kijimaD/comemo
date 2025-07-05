@@ -12,7 +12,74 @@ Date:   Wed Jul 3 23:31:50 2019 +0300
     Change-Id: I04f48be55fe9b0cc66c983d152407d0e42cbcd95
     Reviewed-on: https://go-review.googlesource.com/c/go/+/184957
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/binary/binary.go      |  6 +++++-
  src/encoding/binary/binary_test.go | 30 ++++++++++++++++++++++++++++++
  2 files changed, 35 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/binary/binary.go b/src/encoding/binary/binary.go
+index 43fa821b83..33066fc77a 100644
+--- a/src/encoding/binary/binary.go
++++ b/src/encoding/binary/binary.go
+@@ -219,8 +219,12 @@ func Read(r io.Reader, order ByteOrder, data interface{}) error {
+ 			for i := range data {
+ 				data[i] = order.Uint64(bs[8*i:])
+ 			}
++		default:
++			n = 0 // fast path doesn't apply
++		}
++		if n != 0 {
++			return nil
+ 		}
+-		return nil
+ 	}
+ 
+ 	// Fallback to reflect-based decoding.
+diff --git a/src/encoding/binary/binary_test.go b/src/encoding/binary/binary_test.go
+index d7ae23a60e..778de6908c 100644
+--- a/src/encoding/binary/binary_test.go
++++ b/src/encoding/binary/binary_test.go
+@@ -6,6 +6,7 @@ package binary
+ 
+ import (
+ 	"bytes"
++	"fmt"
+ 	"io"
+ 	"io/ioutil"
+ 	"math"
+@@ -451,6 +452,35 @@ func TestEarlyBoundsChecks(t *testing.T) {
+ 	}
+ }
+ 
++func TestReadInvalidDestination(t *testing.T) {
++	testReadInvalidDestination(t, BigEndian)
++	testReadInvalidDestination(t, LittleEndian)
++}
++
++func testReadInvalidDestination(t *testing.T, order ByteOrder) {
++	destinations := []interface{}{
++		int8(0),
++		int16(0),
++		int32(0),
++		int64(0),
++
++		uint8(0),
++		uint16(0),
++		uint32(0),
++		uint64(0),
++
++		bool(false),
++	}
++
++	for _, dst := range destinations {
++		err := Read(bytes.NewReader([]byte{1, 2, 3, 4, 5, 6, 7, 8}), order, dst)
++		want := fmt.Sprintf("binary.Read: invalid type %T", dst)
++		if err == nil || err.Error() != want {
++			t.Fatalf("for type %T: got %q; want %q", dst, err, want)
++		}
++	}
++}
++
+ type byteSliceReader struct {
+ 	remain []byte
+ }

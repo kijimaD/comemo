@@ -28,7 +28,72 @@ Date:   Mon Jun 29 16:02:07 2020 +0000
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/reflect/all_test.go | 16 ++++++++++++++++
  src/reflect/type.go     | 12 ++++++++++--
  2 files changed, 26 insertions(+), 2 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 63f6a92157..6b31568bb9 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -74,6 +74,10 @@ var typeTests = []pair{
+ 	{struct{ x ([]int8) }{}, "[]int8"},
+ 	{struct{ x (map[string]int32) }{}, "map[string]int32"},
+ 	{struct{ x (chan<- string) }{}, "chan<- string"},
++	{struct{ x (chan<- chan string) }{}, "chan<- chan string"},
++	{struct{ x (chan<- <-chan string) }{}, "chan<- <-chan string"},
++	{struct{ x (<-chan <-chan string) }{}, "<-chan <-chan string"},
++	{struct{ x (chan (<-chan string)) }{}, "chan (<-chan string)"},
+ 	{struct {
+ 		x struct {
+ 			c chan *int32
+@@ -5491,6 +5495,18 @@ func TestChanOf(t *testing.T) {
+ 	// check that type already in binary is found
+ 	type T1 int
+ 	checkSameType(t, ChanOf(BothDir, TypeOf(T1(1))), (chan T1)(nil))
++
++	// Check arrow token association in undefined chan types.
++	var left chan<- chan T
++	var right chan (<-chan T)
++	tLeft := ChanOf(SendDir, ChanOf(BothDir, TypeOf(T(""))))
++	tRight := ChanOf(BothDir, ChanOf(RecvDir, TypeOf(T(""))))
++	if tLeft != TypeOf(left) {
++		t.Errorf("chan<-chan: have %s, want %T", tLeft, left)
++	}
++	if tRight != TypeOf(right) {
++		t.Errorf("chan<-chan: have %s, want %T", tRight, right)
++	}
+ }
+ 
+ func TestChanOfDir(t *testing.T) {
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 38b1283d42..44c96fea82 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1789,7 +1789,6 @@ func ChanOf(dir ChanDir, t Type) Type {
+ 	}
+ 
+ 	// Look in known types.
+-	// TODO: Precedence when constructing string.
+ 	var s string
+ 	switch dir {
+ 	default:
+@@ -1799,7 +1798,16 @@ func ChanOf(dir ChanDir, t Type) Type {
+ 	case RecvDir:
+ 		s = "<-chan " + typ.String()
+ 	case BothDir:
+-		s = "chan " + typ.String()
++		typeStr := typ.String()
++		if typeStr[0] == '<' {
++			// typ is recv chan, need parentheses as "<-" associates with leftmost
++			// chan possible, see:
++			// * https://golang.org/ref/spec#Channel_types
++			// * https://github.com/golang/go/issues/39897
++			s = "chan (" + typeStr + ")"
++		} else {
++			s = "chan " + typeStr
++		}
+ 	}
+ 	for _, tt := range typesByString(s) {
+ 		ch := (*chanType)(unsafe.Pointer(tt))

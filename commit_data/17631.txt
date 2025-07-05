@@ -11,8 +11,48 @@ Date:   Tue Sep 17 13:43:27 2013 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/13324049
-
+---
  src/cmd/6c/sgen.c | 2 +-
  src/cmd/6g/ggen.c | 2 +-
  src/cmd/cc/scon.c | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/6c/sgen.c b/src/cmd/6c/sgen.c
+index fdba0be229..744a60222c 100644
+--- a/src/cmd/6c/sgen.c
++++ b/src/cmd/6c/sgen.c
+@@ -36,7 +36,7 @@ gtext(Sym *s, int32 stkoff)
+ {
+ 	vlong v;
+ 
+-	v = (argsize() << 32) | (stkoff & 0xffffffff);
++	v = ((uvlong)argsize() << 32) | (stkoff & 0xffffffff);
+ 	if((textflag & NOSPLIT) && stkoff >= 128)
+ 		yyerror("stack frame too large for NOSPLIT function");
+ 
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 1e1790e122..6f4c84704a 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -596,7 +596,7 @@ dodiv(int op, Node *nl, Node *nr, Node *res)
+ 	check = 0;
+ 	if(issigned[t->etype]) {
+ 		check = 1;
+-		if(isconst(nl, CTINT) && mpgetfix(nl->val.u.xval) != -1LL<<(t->width*8-1))
++		if(isconst(nl, CTINT) && mpgetfix(nl->val.u.xval) != -(1ULL<<(t->width*8-1)))
+ 			check = 0;
+ 		else if(isconst(nr, CTINT) && mpgetfix(nr->val.u.xval) != -1)
+ 			check = 0;
+diff --git a/src/cmd/cc/scon.c b/src/cmd/cc/scon.c
+index f6031a5be7..b0b9097591 100644
+--- a/src/cmd/cc/scon.c
++++ b/src/cmd/cc/scon.c
+@@ -186,7 +186,7 @@ evconst(Node *n)
+ 		break;
+ 
+ 	case OASHL:
+-		v = l->vconst << r->vconst;
++		v = (uvlong)l->vconst << r->vconst;
+ 		break;
+ 
+ 	case OLO:

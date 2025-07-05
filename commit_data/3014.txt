@@ -9,7 +9,150 @@ Date:   Tue Aug 18 17:49:44 2009 -0700
     DELTA=84  (68 added, 4 deleted, 12 changed)
     OCL=33493
     CL=33499
-
+---
  src/pkg/container/list/list.go      | 76 +++++++++++++++++++++++++++++--------
  src/pkg/container/list/list_test.go | 20 ++++++++++
  2 files changed, 80 insertions(+), 16 deletions(-)
+
+diff --git a/src/pkg/container/list/list.go b/src/pkg/container/list/list.go
+index 8ef5641a66..3b77ced59c 100755
+--- a/src/pkg/container/list/list.go
++++ b/src/pkg/container/list/list.go
+@@ -70,31 +70,55 @@ func (l *List) Remove(e *Element) {
+ 	l.len--;
+ }
+ 
+-func (l *List) insertFront(e *Element) {
+-	e.prev = nil;
+-	e.next = l.front;
+-	l.front = e;
+-	if e.next != nil {
+-		e.next.prev = e;
++func (l *List) insertBefore(e *Element, mark *Element) {
++	if mark.prev == nil {
++		// new front of the list
++		l.front = e;
+ 	} else {
+-		l.back = e;
++		mark.prev.next = e;
+ 	}
++	e.prev = mark.prev;
++	mark.prev = e;
++	e.next = mark;
+ 	l.len++;
+ }
+ 
+-func (l *List) insertBack(e *Element) {
+-	e.next = nil;
+-	e.prev = l.back;
+-	l.back = e;
+-	if e.prev != nil {
+-		e.prev.next = e;
++func (l *List) insertAfter(e *Element, mark *Element) {
++	if mark.next == nil {
++		// new back of the list
++		l.back = e;
+ 	} else {
+-		l.front = e;
++		mark.next.prev = e;
+ 	}
++	e.next = mark.next;
++	mark.next = e;
++	e.prev = mark;
+ 	l.len++;
+ }
+ 
+-// PushFront inserts the value at the front of the list, and returns a new Element containing it.
++func (l *List) insertFront(e *Element) {
++	if l.front == nil {
++		// empty list
++		l.front, l.back = e, e;
++		e.prev, e.next = nil, nil;
++		l.len = 1;
++		return
++	}
++	l.insertBefore(e, l.front);
++}
++
++func (l *List) insertBack(e *Element) {
++	if l.back == nil {
++		// empty list
++		l.front, l.back = e, e;
++		e.prev, e.next = nil, nil;
++		l.len = 1;
++		return
++	}
++	l.insertAfter(e, l.back);
++}
++
++// PushFront inserts the value at the front of the list and returns a new Element containing the value.
+ func (l *List) PushFront(value interface {}) *Element {
+ 	if l.id == nil {
+ 		l.Init();
+@@ -104,7 +128,7 @@ func (l *List) PushFront(value interface {}) *Element {
+ 	return e
+ }
+ 
+-// PushBack inserts the value at the back of the list, and returns a new Element containing it.
++// PushBack inserts the value at the back of the list and returns a new Element containing the value.
+ func (l *List) PushBack(value interface {}) *Element {
+ 	if l.id == nil {
+ 		l.Init();
+@@ -114,6 +138,26 @@ func (l *List) PushBack(value interface {}) *Element {
+ 	return e
+ }
+ 
++// InsertBefore inserts the value immediately before mark and returns a new Element containing the value.
++func (l *List) InsertBefore(value interface {}, mark *Element) *Element {
++	if mark.id != l.id {
++		return nil
++	}
++	e := &Element{ nil, nil, l.id, value };
++	l.insertBefore(e, mark);
++	return e
++}
++
++// InsertAfter inserts the value immediately after mark and returns a new Element containing the value.
++func (l *List) InsertAfter(value interface {}, mark *Element) *Element {
++	if mark.id != l.id {
++		return nil
++	}
++	e := &Element{ nil, nil, l.id, value };
++	l.insertAfter(e, mark);
++	return e
++}
++
+ // MoveToFront moves the element to the front of the list.
+ func (l *List) MoveToFront(e *Element) {
+ 	if e.id != l.id || l.front == e {
+diff --git a/src/pkg/container/list/list_test.go b/src/pkg/container/list/list_test.go
+index 7b2480f9cb..4a291e9189 100755
+--- a/src/pkg/container/list/list_test.go
++++ b/src/pkg/container/list/list_test.go
+@@ -94,6 +94,26 @@ func TestList(t *testing.T) {
+ 	l.MoveToBack(e3);  // should be no-op
+ 	checkListPointers(t, l, []*Element{ e1, e4, e3 });
+ 
++	e2 = l.InsertBefore(2, e1);  // insert before front
++	checkListPointers(t, l, []*Element{ e2, e1, e4, e3 });
++	l.Remove(e2);
++	e2 = l.InsertBefore(2, e4);  // insert before middle
++	checkListPointers(t, l, []*Element{ e1, e2, e4, e3 });
++	l.Remove(e2);
++	e2 = l.InsertBefore(2, e3);  // insert before back
++	checkListPointers(t, l, []*Element{ e1, e4, e2, e3 });
++	l.Remove(e2);
++
++	e2 = l.InsertAfter(2, e1);  // insert after front
++	checkListPointers(t, l, []*Element{ e1, e2, e4, e3 });
++	l.Remove(e2);
++	e2 = l.InsertAfter(2, e4);  // insert after middle
++	checkListPointers(t, l, []*Element{ e1, e4, e2, e3 });
++	l.Remove(e2);
++	e2 = l.InsertAfter(2, e3);  // insert after back
++	checkListPointers(t, l, []*Element{ e1, e4, e3, e2 });
++	l.Remove(e2);
++
+ 	// Clear all elements by iterating
+ 	for e := range l.Iter() {
+ 		l.Remove(e);

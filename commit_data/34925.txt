@@ -27,6 +27,25 @@ Date:   Wed Nov 29 06:36:42 2017 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/sys_netbsd_386.s | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/sys_netbsd_386.s b/src/runtime/sys_netbsd_386.s
+index af8c3aa485..8ee7b96ce7 100644
+--- a/src/runtime/sys_netbsd_386.s
++++ b/src/runtime/sys_netbsd_386.s
+@@ -375,10 +375,12 @@ TEXT runtime·sysctl(SB),NOSPLIT,$28
+ 	MOVSL				// arg 6 - newlen
+ 	MOVL	$202, AX		// sys___sysctl
+ 	INT	$0x80
+-	JCC	3(PC)
++	JAE	4(PC)
+ 	NEGL	AX
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 	MOVL	$0, AX
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ GLOBL runtime·tlsoffset(SB),NOPTR,$4

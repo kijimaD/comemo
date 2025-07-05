@@ -8,7 +8,88 @@ Date:   Fri Feb 19 18:51:24 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/19752
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/lex.go    |  8 ++++----
  src/cmd/compile/internal/gc/parser.go | 19 ++++---------------
  2 files changed, 8 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 91b521e95b..66cc01862d 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -661,16 +661,16 @@ func loadsys() {
+ 	incannedimport = 1
+ 
+ 	importpkg = Runtimepkg
+-	parse_import(obj.Binitr(strings.NewReader(runtimeimport)))
++	parse_import(obj.Binitr(strings.NewReader(runtimeimport)), nil)
+ 
+ 	importpkg = unsafepkg
+-	parse_import(obj.Binitr(strings.NewReader(unsafeimport)))
++	parse_import(obj.Binitr(strings.NewReader(unsafeimport)), nil)
+ 
+ 	importpkg = nil
+ 	incannedimport = 0
+ }
+ 
+-func importfile(f *Val) {
++func importfile(f *Val, indent []byte) {
+ 	if importpkg != nil {
+ 		Fatalf("importpkg not nil")
+ 	}
+@@ -815,7 +815,7 @@ func importfile(f *Val) {
+ 	switch c {
+ 	case '\n':
+ 		// old export format
+-		parse_import(imp)
++		parse_import(imp, indent)
+ 
+ 	case 'B':
+ 		// new export format
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index e41f3b9e86..048b81e01b 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -21,22 +21,11 @@ import (
+ 
+ const trace = false // if set, parse tracing can be enabled with -x
+ 
+-// TODO(gri) Once we stop supporting the legacy export data format
+-// we can get rid of this (issue 13242).
+-var fileparser parser // the Go source file parser in use
+-
+-func parse_import(bin *obj.Biobuf) {
++func parse_import(bin *obj.Biobuf, indent []byte) {
+ 	pushedio := curio
+ 	curio = Io{bin: bin}
+ 
+-	// Indentation (for tracing) must be preserved across parsers
+-	// since we are changing the lexer source (and parser state)
+-	// under foot, in the middle of productions. This won't be
+-	// needed anymore once we fix issue 13242, but neither will
+-	// be the push/pop_parser functionality.
+-	// (Instead we could just use a global variable indent, but
+-	// but eventually indent should be parser-specific anyway.)
+-	importparser := parser{indent: fileparser.indent} // preserve indentation
++	importparser := parser{indent: indent} // preserve indentation
+ 	importparser.next()
+ 	importparser.import_package()
+ 
+@@ -47,7 +36,7 @@ func parse_import(bin *obj.Biobuf) {
+ func parse_file(bin *obj.Biobuf) {
+ 	curio = Io{bin: bin}
+ 
+-	fileparser = parser{}
++	fileparser := parser{}
+ 	fileparser.next()
+ 	fileparser.file()
+ }
+@@ -360,7 +349,7 @@ func (p *parser) importdcl() {
+ 	path := p.val
+ 	p.next()
+ 
+-	importfile(&path)
++	importfile(&path, p.indent)
+ 	if importpkg == nil {
+ 		if nerrors == 0 {
+ 			Fatalf("phase error in import")

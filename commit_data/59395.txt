@@ -24,7 +24,144 @@ Date:   Thu Feb 29 20:14:32 2024 -0500
     Auto-Submit: Russ Cox <rsc@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/race/testdata/time_test.go | 116 +++++++++++++++++++++++++++++++++
  src/runtime/time.go                    |   3 +
  2 files changed, 119 insertions(+)
+
+diff --git a/src/runtime/race/testdata/time_test.go b/src/runtime/race/testdata/time_test.go
+new file mode 100644
+index 0000000000..820d7c4708
+--- /dev/null
++++ b/src/runtime/race/testdata/time_test.go
+@@ -0,0 +1,116 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package race_test
++
++import (
++	"testing"
++	"time"
++)
++
++func TestNoRaceAfterFunc(_ *testing.T) {
++	v := 0
++	_ = v
++	c := make(chan int)
++	f := func() {
++		v = 1
++		c <- 0
++	}
++	v = 2
++	time.AfterFunc(1, f)
++	<-c
++	v = 3
++}
++
++func TestNoRaceAfterFuncReset(_ *testing.T) {
++	v := 0
++	_ = v
++	c := make(chan int)
++	f := func() {
++		v = 1
++		c <- 0
++	}
++	t := time.AfterFunc(time.Hour, f)
++	t.Stop()
++	v = 2
++	t.Reset(1)
++	<-c
++	v = 3
++}
++
++func TestNoRaceTimer(_ *testing.T) {
++	v := 0
++	_ = v
++	c := make(chan int)
++	f := func() {
++		v = 1
++		c <- 0
++	}
++	v = 2
++	t := time.NewTimer(1)
++	go func() {
++		<-t.C
++		f()
++	}()
++	<-c
++	v = 3
++}
++
++func TestNoRaceTimerReset(_ *testing.T) {
++	v := 0
++	_ = v
++	c := make(chan int)
++	f := func() {
++		v = 1
++		c <- 0
++	}
++	t := time.NewTimer(time.Hour)
++	go func() {
++		<-t.C
++		f()
++	}()
++	t.Stop()
++	v = 2
++	t.Reset(1)
++	<-c
++	v = 3
++}
++
++func TestNoRaceTicker(_ *testing.T) {
++	v := 0
++	_ = v
++	c := make(chan int)
++	f := func() {
++		v = 1
++		c <- 0
++	}
++	v = 2
++	t := time.NewTicker(1)
++	go func() {
++		<-t.C
++		f()
++	}()
++	<-c
++	v = 3
++}
++
++func TestNoRaceTickerReset(_ *testing.T) {
++	v := 0
++	_ = v
++	c := make(chan int)
++	f := func() {
++		v = 1
++		c <- 0
++	}
++	t := time.NewTicker(time.Hour)
++	go func() {
++		<-t.C
++		f()
++	}()
++	t.Stop()
++	v = 2
++	t.Reset(1)
++	<-c
++	v = 3
++}
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index b509d99b80..cee0197907 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -295,6 +295,9 @@ func resetTimer(t *timer, when int64) bool {
+ //
+ //go:linkname modTimer time.modTimer
+ func modTimer(t *timer, when, period int64) {
++	if raceenabled {
++		racerelease(unsafe.Pointer(t))
++	}
+ 	t.modify(when, period, t.f, t.arg, t.seq)
+ }
+ 

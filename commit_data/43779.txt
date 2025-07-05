@@ -16,7 +16,7 @@ Date:   Wed Apr 22 15:16:06 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/errors.go          | 23 +--------------
  src/cmd/link/internal/ld/lib.go             |  2 +-
  src/cmd/link/internal/ld/sym.go             | 15 ++++++----
@@ -24,3 +24,240 @@ Date:   Wed Apr 22 15:16:06 2020 -0400
  src/cmd/link/internal/loader/loader.go      | 45 +++++++++++++++++++++++++++--
  src/cmd/link/internal/loader/loader_test.go | 17 +++++++----
  6 files changed, 70 insertions(+), 42 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/errors.go b/src/cmd/link/internal/ld/errors.go
+index e66c518b85..61289b4798 100644
+--- a/src/cmd/link/internal/ld/errors.go
++++ b/src/cmd/link/internal/ld/errors.go
+@@ -7,8 +7,6 @@ import (
+ 	"cmd/internal/obj"
+ 	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
+-	"fmt"
+-	"os"
+ 	"sync"
+ )
+ 
+@@ -22,6 +20,7 @@ type symNameFn func(s loader.Sym) string
+ 
+ // ErrorReporter is used to make error reporting thread safe.
+ type ErrorReporter struct {
++	loader.ErrorReporter
+ 	unresOnce  sync.Once
+ 	unresSyms  map[unresolvedSymKey]bool
+ 	unresMutex sync.Mutex
+@@ -65,23 +64,3 @@ func (reporter *ErrorReporter) errorUnresolved(s *sym.Symbol, r *sym.Reloc) {
+ 		}
+ 	}
+ }
+-
+-// Errorf method logs an error message.
+-//
+-// If more than 20 errors have been printed, exit with an error.
+-//
+-// Logging an error means that on exit cmd/link will delete any
+-// output file and return a non-zero error code.
+-// TODO: consolidate the various different versions of Errorf (
+-// function, Link method, and ErrorReporter method).
+-func (reporter *ErrorReporter) Errorf(s loader.Sym, format string, args ...interface{}) {
+-	if s != 0 && reporter.SymName != nil {
+-		sn := reporter.SymName(s)
+-		format = sn + ": " + format
+-	} else {
+-		format = fmt.Sprintf("sym %d: %s", s, format)
+-	}
+-	format += "\n"
+-	fmt.Fprintf(os.Stderr, format, args...)
+-	afterErrorAction()
+-}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 429c2641fb..675103ee45 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -503,7 +503,7 @@ func (ctxt *Link) loadlib() {
+ 	default:
+ 		log.Fatalf("invalid -strictdups flag value %d", *FlagStrictDups)
+ 	}
+-	ctxt.loader = loader.NewLoader(flags, elfsetstring)
++	ctxt.loader = loader.NewLoader(flags, elfsetstring, &ctxt.ErrorReporter.ErrorReporter)
+ 	ctxt.ErrorReporter.SymName = func(s loader.Sym) string {
+ 		return ctxt.loader.SymName(s)
+ 	}
+diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
+index 6a8b3dbed1..7a6c4e43e9 100644
+--- a/src/cmd/link/internal/ld/sym.go
++++ b/src/cmd/link/internal/ld/sym.go
+@@ -34,19 +34,22 @@ package ld
+ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
++	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
+ 	"log"
+ 	"runtime"
+ )
+ 
+ func linknew(arch *sys.Arch) *Link {
++	ler := loader.ErrorReporter{AfterErrorAction: afterErrorAction}
+ 	ctxt := &Link{
+-		Target:       Target{Arch: arch},
+-		Syms:         sym.NewSymbols(),
+-		outSem:       make(chan int, 2*runtime.GOMAXPROCS(0)),
+-		Out:          NewOutBuf(arch),
+-		LibraryByPkg: make(map[string]*sym.Library),
+-		numelfsym:    1,
++		Target:        Target{Arch: arch},
++		Syms:          sym.NewSymbols(),
++		outSem:        make(chan int, 2*runtime.GOMAXPROCS(0)),
++		Out:           NewOutBuf(arch),
++		LibraryByPkg:  make(map[string]*sym.Library),
++		numelfsym:     1,
++		ErrorReporter: ErrorReporter{ErrorReporter: ler},
+ 	}
+ 
+ 	if objabi.GOARCH != arch.Name {
+diff --git a/src/cmd/link/internal/ld/util.go b/src/cmd/link/internal/ld/util.go
+index 9f257b8fc0..b8c9ce28b0 100644
+--- a/src/cmd/link/internal/ld/util.go
++++ b/src/cmd/link/internal/ld/util.go
+@@ -73,12 +73,12 @@ func Errorf(s *sym.Symbol, format string, args ...interface{}) {
+ // Logging an error means that on exit cmd/link will delete any
+ // output file and return a non-zero error code.
+ func (ctxt *Link) Errorf(s loader.Sym, format string, args ...interface{}) {
+-	if s != 0 && ctxt.loader != nil {
+-		sn := ctxt.loader.SymName(s)
+-		format = sn + ": " + format
+-	} else {
+-		format = fmt.Sprintf("sym %d: %s", s, format)
++	if ctxt.loader != nil {
++		ctxt.loader.Errorf(s, format, args)
++		return
+ 	}
++	// Note: this is not expected to happen very often.
++	format = fmt.Sprintf("sym %d: %s", s, format)
+ 	format += "\n"
+ 	fmt.Fprintf(os.Stderr, format, args...)
+ 	afterErrorAction()
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index c0893daece..458c87a6b6 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -270,6 +270,8 @@ type Loader struct {
+ 
+ 	elfsetstring elfsetstringFunc
+ 
++	errorReporter *ErrorReporter
++
+ 	SymLookup func(name string, ver int) *sym.Symbol
+ }
+ 
+@@ -301,9 +303,9 @@ const (
+ 	FlagStrictDups = 1 << iota
+ )
+ 
+-func NewLoader(flags uint32, elfsetstring elfsetstringFunc) *Loader {
++func NewLoader(flags uint32, elfsetstring elfsetstringFunc, reporter *ErrorReporter) *Loader {
+ 	nbuiltin := goobj2.NBuiltin()
+-	return &Loader{
++	ldr := &Loader{
+ 		start:                make(map[*oReader]Sym),
+ 		objs:                 []objIdx{{}}, // reserve index 0 for nil symbol
+ 		objSyms:              []objSym{{}}, // reserve index 0 for nil symbol
+@@ -332,8 +334,11 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc) *Loader {
+ 		builtinSyms:          make([]Sym, nbuiltin),
+ 		flags:                flags,
+ 		elfsetstring:         elfsetstring,
++		errorReporter:        reporter,
+ 		sects:                []*sym.Section{nil}, // reserve index 0 for nil section
+ 	}
++	reporter.ldr = ldr
++	return ldr
+ }
+ 
+ // Add object file r, return the start index.
+@@ -2754,6 +2759,42 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool, exts
+ 	return textp2
+ }
+ 
++// ErrorReporter is a helper class for reporting errors.
++type ErrorReporter struct {
++	ldr              *Loader
++	AfterErrorAction func()
++}
++
++// Errorf method logs an error message.
++//
++// After each error, the error actions function will be invoked; this
++// will either terminate the link immediately (if -h option given)
++// or it will keep a count and exit if more than 20 errors have been printed.
++//
++// Logging an error means that on exit cmd/link will delete any
++// output file and return a non-zero error code.
++//
++func (reporter *ErrorReporter) Errorf(s Sym, format string, args ...interface{}) {
++	if s != 0 && reporter.ldr.SymName(s) != "" {
++		format = reporter.ldr.SymName(s) + ": " + format
++	} else {
++		format = fmt.Sprintf("sym %d: %s", s, format)
++	}
++	format += "\n"
++	fmt.Fprintf(os.Stderr, format, args...)
++	reporter.AfterErrorAction()
++}
++
++// GetErrorReporter returns the loader's associated error reporter.
++func (l *Loader) GetErrorReporter() *ErrorReporter {
++	return l.errorReporter
++}
++
++// Errorf method logs an error message. See ErrorReporter.Errorf for details.
++func (l *Loader) Errorf(s Sym, format string, args ...interface{}) {
++	l.errorReporter.Errorf(s, format, args)
++}
++
+ // For debugging.
+ func (l *Loader) Dump() {
+ 	fmt.Println("objs")
+diff --git a/src/cmd/link/internal/loader/loader_test.go b/src/cmd/link/internal/loader/loader_test.go
+index b2f823d17e..60ef69afb9 100644
+--- a/src/cmd/link/internal/loader/loader_test.go
++++ b/src/cmd/link/internal/loader/loader_test.go
+@@ -27,9 +27,16 @@ func addDummyObjSym(t *testing.T, ldr *Loader, or *oReader, name string) Sym {
+ 	return s
+ }
+ 
+-func TestAddMaterializedSymbol(t *testing.T) {
++func mkLoader() *Loader {
+ 	edummy := func(s *sym.Symbol, str string, off int) {}
+-	ldr := NewLoader(0, edummy)
++	er := ErrorReporter{}
++	ldr := NewLoader(0, edummy, &er)
++	er.ldr = ldr
++	return ldr
++}
++
++func TestAddMaterializedSymbol(t *testing.T) {
++	ldr := mkLoader()
+ 	dummyOreader := oReader{version: -1, syms: make([]Sym, 100)}
+ 	or := &dummyOreader
+ 
+@@ -229,8 +236,7 @@ func sameRelocSlice(s1 *Relocs, s2 []Reloc) bool {
+ type addFunc func(l *Loader, s Sym, s2 Sym) Sym
+ 
+ func TestAddDataMethods(t *testing.T) {
+-	edummy := func(s *sym.Symbol, str string, off int) {}
+-	ldr := NewLoader(0, edummy)
++	ldr := mkLoader()
+ 	dummyOreader := oReader{version: -1, syms: make([]Sym, 100)}
+ 	or := &dummyOreader
+ 
+@@ -352,8 +358,7 @@ func TestAddDataMethods(t *testing.T) {
+ }
+ 
+ func TestOuterSub(t *testing.T) {
+-	edummy := func(s *sym.Symbol, str string, off int) {}
+-	ldr := NewLoader(0, edummy)
++	ldr := mkLoader()
+ 	dummyOreader := oReader{version: -1, syms: make([]Sym, 100)}
+ 	or := &dummyOreader
+ 

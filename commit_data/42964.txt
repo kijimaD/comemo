@@ -13,7 +13,58 @@ Date:   Fri Jan 10 18:15:38 2020 -0500
     Change-Id: I1020feaa4ddb40ff52c46728bc4973cea4c7b066
     Reviewed-on: https://go-review.googlesource.com/c/go/+/214391
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                                 | 19 -------------------
  .../script/build_package_not_stale_trailing_slash.txt | 13 +++++++++++++
  2 files changed, 13 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index edb4a6d715..a8ef36e6bb 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1151,25 +1151,6 @@ func TestPackageMainTestCompilerFlags(t *testing.T) {
+ 	tg.grepStderr(`([\\/]compile|gccgo).* (-p p1|-fgo-pkgpath=p1).*p1\.go`, "should have run compile -p p1 p1.go")
+ }
+ 
+-// Issue 12690
+-func TestPackageNotStaleWithTrailingSlash(t *testing.T) {
+-	skipIfGccgo(t, "gccgo does not have GOROOT")
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-
+-	// Make sure the packages below are not stale.
+-	tg.wantNotStale("runtime", "", "must be non-stale before test runs")
+-	tg.wantNotStale("os", "", "must be non-stale before test runs")
+-	tg.wantNotStale("io", "", "must be non-stale before test runs")
+-
+-	goroot := runtime.GOROOT()
+-	tg.setenv("GOROOT", goroot+"/")
+-
+-	tg.wantNotStale("runtime", "", "with trailing slash in GOROOT, runtime listed as stale")
+-	tg.wantNotStale("os", "", "with trailing slash in GOROOT, os listed as stale")
+-	tg.wantNotStale("io", "", "with trailing slash in GOROOT, io listed as stale")
+-}
+-
+ // Issue 4104.
+ func TestGoTestWithPackageListedMultipleTimes(t *testing.T) {
+ 	tooSlow(t)
+diff --git a/src/cmd/go/testdata/script/build_package_not_stale_trailing_slash.txt b/src/cmd/go/testdata/script/build_package_not_stale_trailing_slash.txt
+new file mode 100644
+index 0000000000..38a151ef1f
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_package_not_stale_trailing_slash.txt
+@@ -0,0 +1,13 @@
++# Tests Issue #12690
++
++[gccgo] skip 'gccgo does not have GOROOT'
++
++! stale runtime
++! stale os
++! stale io
++
++env GOROOT=$GOROOT'/'
++
++! stale runtime
++! stale os
++! stale io
+\ No newline at end of file

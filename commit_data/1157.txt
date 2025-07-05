@@ -9,10 +9,125 @@ Date:   Tue Nov 18 14:12:14 2008 -0800
     DELTA=60  (58 added, 0 deleted, 2 changed)
     OCL=19482
     CL=19484
-
+---
  src/cmd/clean.bash      |  2 +-
  src/cmd/gotest/Makefile | 13 +++++++++++++
  src/cmd/gotest/gotest   | 51 +++++++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/make.bash       |  2 +-
  src/lib/make.bash       |  1 +
  5 files changed, 67 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/clean.bash b/src/cmd/clean.bash
+index 0c0cc7fcf5..cc5d5ae66b 100644
+--- a/src/cmd/clean.bash
++++ b/src/cmd/clean.bash
+@@ -3,7 +3,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-for i in cc 6l 6a 6c gc 6g ar db nm blyacc acid cov gobuild prof
++for i in cc 6l 6a 6c gc 6g ar db nm blyacc acid cov gobuild prof gotest
+ do
+ 	cd $i
+ 	make clean
+diff --git a/src/cmd/gotest/Makefile b/src/cmd/gotest/Makefile
+new file mode 100644
+index 0000000000..4cfa724145
+--- /dev/null
++++ b/src/cmd/gotest/Makefile
+@@ -0,0 +1,13 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../Make.conf
++
++TARG=gotest
++
++clean:
++	@true
++
++install: $(TARG)
++	cp $(TARG) $(BIN)/$(TARG)
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+new file mode 100755
+index 0000000000..cc0b997749
+--- /dev/null
++++ b/src/cmd/gotest/gotest
+@@ -0,0 +1,51 @@
++#!/bin/bash
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# Using all the test*.go files in the current directory, write out a file
++# _testmain.go that runs all its tests. Compile everything and run the
++# tests.
++
++set -e
++
++gofiles=$(echo test*.go)
++ofiles=$(echo $gofiles | sed 's/\.go/.6/g')
++files=$(echo $gofiles | sed 's/\.go//g')
++echo $ofiles
++
++for i in $gofiles
++do
++	6g $i
++done
++
++# They all compile; now generate the code to call them.
++
++{
++	# package spec
++	echo 'package main'
++	echo
++	# imports
++	for i in $files
++	do
++		echo 'import "./'$i'"'
++	done
++	echo 'import "testing"'
++	# test array
++	echo
++	echo 'var tests = &[]testing.Test {'
++	for i in $(6nm $ofiles | grep ' T .*·Test' | sed 's/.* //; s/·/./')
++	do
++		echo '	testing.Test{ "'$i'", &'$i' },'
++	done
++	echo '}'
++	# body
++	echo
++	echo 'func main() {'
++	echo '	testing.Main(tests)'
++	echo '}'
++}>_testmain.go
++
++6g _testmain.go
++6l _testmain.6
++6.out
+diff --git a/src/cmd/make.bash b/src/cmd/make.bash
+index 280ae34c12..1e29ae76b5 100644
+--- a/src/cmd/make.bash
++++ b/src/cmd/make.bash
+@@ -12,7 +12,7 @@ bash mkenam
+ make enam.o
+ cd ..
+ 
+-for i in cc 6l 6a 6c gc 6g ar db nm blyacc acid cov gobuild prof
++for i in cc 6l 6a 6c gc 6g ar db nm blyacc acid cov gobuild prof gotest
+ do
+ 	echo; echo; echo %%%% making $i %%%%; echo
+ 	cd $i
+diff --git a/src/lib/make.bash b/src/lib/make.bash
+index b255b081da..9bc6198817 100755
+--- a/src/lib/make.bash
++++ b/src/lib/make.bash
+@@ -48,6 +48,7 @@ buildfiles	flag.go\
+ 		bufio.go\
+ 		once.go\
+ 		bignum.go\
++		testing.go\
+ 	
+ builddirs	net\
+ 		time\

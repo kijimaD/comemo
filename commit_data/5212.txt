@@ -7,7 +7,7 @@ Date:   Fri Apr 2 01:11:17 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/770041
-
+---
  src/pkg/os/dir_mingw.go               |   9 ++
  src/pkg/os/file.go                    |   6 +-
  src/pkg/os/stat_mingw.go              |  15 +++
@@ -20,3 +20,798 @@ Date:   Fri Apr 2 01:11:17 2010 -0700
  src/pkg/syscall/zsyscall_mingw_386.go |  96 +++++++++++++++-
  src/pkg/syscall/ztypes_mingw_386.go   | 111 +++++++++++++++++++
  11 files changed, 571 insertions(+), 29 deletions(-)
+
+diff --git a/src/pkg/os/dir_mingw.go b/src/pkg/os/dir_mingw.go
+new file mode 100644
+index 0000000000..e7711f0484
+--- /dev/null
++++ b/src/pkg/os/dir_mingw.go
+@@ -0,0 +1,9 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++func (file *File) Readdirnames(count int) (names []string, err Error) {
++	panic("windows Readdirnames not implemented")
++}
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index 75c0561e9e..e79c2cdde8 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -45,9 +45,9 @@ func NewFile(fd int, name string) *File {
+ // Stdin, Stdout, and Stderr are open Files pointing to the standard input,
+ // standard output, and standard error file descriptors.
+ var (
+-	Stdin  = NewFile(0, "/dev/stdin")
+-	Stdout = NewFile(1, "/dev/stdout")
+-	Stderr = NewFile(2, "/dev/stderr")
++	Stdin  = NewFile(syscall.Stdin, "/dev/stdin")
++	Stdout = NewFile(syscall.Stdout, "/dev/stdout")
++	Stderr = NewFile(syscall.Stderr, "/dev/stderr")
+ )
+ 
+ // Flags to Open wrapping those of the underlying system. Not all flags
+diff --git a/src/pkg/os/stat_mingw.go b/src/pkg/os/stat_mingw.go
+new file mode 100644
+index 0000000000..13a7838918
+--- /dev/null
++++ b/src/pkg/os/stat_mingw.go
+@@ -0,0 +1,15 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import "syscall"
++
++func isSymlink(stat *syscall.Stat_t) bool {
++	panic("windows isSymlink not implemented")
++}
++
++func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
++	panic("windows dirFromStat not implemented")
++}
+diff --git a/src/pkg/os/sys_mingw.go b/src/pkg/os/sys_mingw.go
+new file mode 100644
+index 0000000000..06e4fb3d34
+--- /dev/null
++++ b/src/pkg/os/sys_mingw.go
+@@ -0,0 +1,7 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++func Hostname() (name string, err Error) { return "windows", nil }
+diff --git a/src/pkg/syscall/mksyscall_mingw.sh b/src/pkg/syscall/mksyscall_mingw.sh
+index 52fb1c3bb0..0daceac4ec 100755
+--- a/src/pkg/syscall/mksyscall_mingw.sh
++++ b/src/pkg/syscall/mksyscall_mingw.sh
+@@ -18,9 +18,9 @@
+ #	* Each function, that returns errno, needs to supply a number,
+ #	  that return value of winapi will be tested against to
+ #	  detect failure. This would set errno to windows "last-error",
+-#	  otherwise it will be 0. The value can be provided at
+-#	  the very end of //sys declaration, like
+-#	  //sys LoadLibrary(libname string) (handle uint32, errno int) = LoadLibraryA, 0xffffffff
++#	  otherwise it will be 0. The value can be provided
++#	  at end of //sys declaration, like
++#	  //sys LoadLibrary(libname string) (handle uint32, errno int) [failretval=-1] = LoadLibraryA
+ #	  and is 0 by default.
+ 
+ $cmdline = "mksyscall_mingw.sh " . join(' ', @ARGV);
+@@ -72,12 +72,12 @@ while(<>) {
+ 	# Line must be of the form
+ 	#	func Open(path string, mode int, perm int) (fd int, errno int)
+ 	# Split into name, in params, out params.
+-	if(!/^\/\/sys (\w+)\(([^()]*)\)\s*(?:\(([^()]+)\))?\s*(?:=\s*(\w*))?(?:\s*,\s*(\w+))?$/) {
++	if(!/^\/\/sys (\w+)\(([^()]*)\)\s*(?:\(([^()]+)\))?\s*(?:\[failretval=(.*)\])?\s*(?:=\s*(\w*))?$/) {
+ 		print STDERR "$ARGV:$.: malformed //sys declaration\n";
+ 		$errors = 1;
+ 		next;
+ 	}
+-	my ($func, $in, $out, $sysname, $failretval) = ($1, $2, $3, $4, $5);
++	my ($func, $in, $out, $failretval, $sysname) = ($1, $2, $3, $4, $5);
+ 
+ 	# Split argument lists on comma.
+ 	my @in = parseparamlist($in);
+@@ -163,6 +163,7 @@ while(<>) {
+ 
+ 	# Assign return values.
+ 	my $body = "";
++	my $failexpr = "";
+ 	my @ret = ("_", "_", "_");
+ 	for(my $i=0; $i<@out; $i++) {
+ 		my $p = $out[$i];
+@@ -191,9 +192,16 @@ while(<>) {
+ 			$ret[$i] = sprintf("r%d", $i);
+ 			$ret[$i+1] = sprintf("r%d", $i+1);
+ 		}
++		if($i == 0) {
++			if($type eq "bool") {
++				$failexpr = "!$name";
++			} else {
++				$failexpr = "$name == $failretval";
++			}
++		}
+ 		if($name eq "errno") {
+ 			# Set errno to "last error" only if returned value indicate failure
+-			$body .= "\tif uint32(r0) == $failretval {\n";
++			$body .= "\tif $failexpr {\n";
+ 			$body .= "\t\t$name = $type($reg);\n";
+ 			$body .= "\t} else {\n";
+ 			$body .= "\t\t$name = 0;\n";
+diff --git a/src/pkg/syscall/syscall_mingw.go b/src/pkg/syscall/syscall_mingw.go
+index 2ae56d5c59..97ddc6d654 100644
+--- a/src/pkg/syscall/syscall_mingw.go
++++ b/src/pkg/syscall/syscall_mingw.go
+@@ -98,6 +98,15 @@ func getSysProcAddr(m uint32, pname string) uintptr {
+ //sys	GetProcAddress(module uint32, procname string) (proc uint32, errno int)
+ //sys	GetVersion() (ver uint32, errno int)
+ //sys	FormatMessage(flags uint32, msgsrc uint32, msgid uint32, langid uint32, buf []uint16, args *byte) (n uint32, errno int) = FormatMessageW
++//sys	ExitProcess(exitcode uint32)
++//sys	CreateFile(name *uint16, access uint32, mode uint32, sa *byte, createmode uint32, attrs uint32, templatefile int32) (handle int32, errno int) [failretval=-1] = CreateFileW
++//sys	ReadFile(handle int32, buf []byte, done *uint32, overlapped *Overlapped) (ok bool, errno int)
++//sys	WriteFile(handle int32, buf []byte, done *uint32, overlapped *Overlapped) (ok bool, errno int)
++//sys	SetFilePointer(handle int32, lowoffset int32, highoffsetptr *int32, whence uint32) (newlowoffset uint32, errno int) [failretval=0xffffffff]
++//sys	CloseHandle(handle int32) (ok bool, errno int)
++//sys	GetStdHandle(stdhandle int32) (handle int32, errno int) [failretval=-1]
++
++// syscall interface implementation for other packages
+ 
+ func Errstr(errno int) string {
+ 	if errno == EMINGW {
+@@ -111,11 +120,184 @@ func Errstr(errno int) string {
+ 	return UTF16ToString(b[0 : n-1])
+ }
+ 
++func Exit(code int) { ExitProcess(uint32(code)) }
++
++func Open(path string, mode int, perm int) (fd int, errno int) {
++	if len(path) == 0 {
++		return -1, ERROR_FILE_NOT_FOUND
++	}
++	var access, sharemode uint32
++	switch {
++	case mode&O_CREAT != 0:
++		access = GENERIC_READ | GENERIC_WRITE
++		sharemode = 0
++	case mode&O_RDWR == O_RDONLY:
++		access = GENERIC_READ
++		sharemode = FILE_SHARE_READ
++	case mode&O_RDWR == O_WRONLY:
++		access = GENERIC_WRITE
++		sharemode = FILE_SHARE_READ
++	case mode&O_RDWR == O_RDWR:
++		access = GENERIC_READ | GENERIC_WRITE
++		sharemode = FILE_SHARE_READ | FILE_SHARE_WRITE
++	}
++	var createmode uint32
++	switch {
++	case mode&O_CREAT != 0:
++		if mode&O_EXCL != 0 {
++			createmode = CREATE_NEW
++		} else {
++			createmode = CREATE_ALWAYS
++		}
++	case mode&O_TRUNC != 0:
++		createmode = TRUNCATE_EXISTING
++	default:
++		createmode = OPEN_EXISTING
++	}
++	h, e := CreateFile(StringToUTF16Ptr(path), access, sharemode, nil, createmode, FILE_ATTRIBUTE_NORMAL, 0)
++	return int(h), int(e)
++}
++
++func Read(fd int, p []byte) (n int, errno int) {
++	var done uint32
++	if ok, e := ReadFile(int32(fd), p, &done, nil); !ok {
++		return 0, e
++	}
++	return int(done), 0
++}
++
++// TODO(brainman): ReadFile/WriteFile change file offset, therefore
++// i use Seek here to preserve semantics of unix pread/pwrite,
++// not sure if I should do that
++
++func Pread(fd int, p []byte, offset int64) (n int, errno int) {
++	var o Overlapped
++	o.OffsetHigh = uint32(offset >> 32)
++	o.Offset = uint32(offset)
++	curoffset, e := Seek(fd, 0, 1)
++	if e != 0 {
++		return 0, e
++	}
++	var done uint32
++	if ok, e := ReadFile(int32(fd), p, &done, &o); !ok {
++		return 0, e
++	}
++	_, e = Seek(fd, curoffset, 0)
++	if e != 0 {
++		return 0, e
++	}
++	return int(done), 0
++}
++
++func Write(fd int, p []byte) (n int, errno int) {
++	var done uint32
++	if ok, e := WriteFile(int32(fd), p, &done, nil); !ok {
++		return 0, e
++	}
++	return int(done), 0
++}
++
++func Pwrite(fd int, p []byte, offset int64) (n int, errno int) {
++	var o Overlapped
++	o.OffsetHigh = uint32(offset >> 32)
++	o.Offset = uint32(offset)
++	curoffset, e := Seek(fd, 0, 1)
++	if e != 0 {
++		return 0, e
++	}
++	var done uint32
++	if ok, e := WriteFile(int32(fd), p, &done, &o); !ok {
++		return 0, e
++	}
++	_, e = Seek(fd, curoffset, 0)
++	if e != 0 {
++		return 0, e
++	}
++	return int(done), 0
++}
++
++func Seek(fd int, offset int64, whence int) (newoffset int64, errno int) {
++	var w uint32
++	switch whence {
++	case 0:
++		w = FILE_BEGIN
++	case 1:
++		w = FILE_CURRENT
++	case 2:
++		w = FILE_END
++	}
++	hi := int32(offset >> 32)
++	lo := int32(offset)
++	rlo, e := SetFilePointer(int32(fd), lo, &hi, w)
++	if e != 0 {
++		return 0, e
++	}
++	return int64(hi)<<32 + int64(rlo), 0
++}
++
++func Close(fd int) (errno int) {
++	if ok, e := CloseHandle(int32(fd)); !ok {
++		return e
++	}
++	return 0
++}
++
++var (
++	Stdin  = getStdHandle(STD_INPUT_HANDLE)
++	Stdout = getStdHandle(STD_OUTPUT_HANDLE)
++	Stderr = getStdHandle(STD_ERROR_HANDLE)
++)
++
++func getStdHandle(h int32) (fd int) {
++	r, _ := GetStdHandle(h)
++	return int(r)
++}
++
++// TODO(brainman): fix all needed for os
++
++const (
++	SIGTRAP = 5
++)
++
++func Getdents(fd int, buf []byte) (n int, errno int) { return 0, EMINGW }
++
++func Getpid() (pid int)   { return -1 }
++func Getppid() (ppid int) { return -1 }
++
++func Mkdir(path string, mode int) (errno int)             { return EMINGW }
++func Lstat(path string, stat *Stat_t) (errno int)         { return EMINGW }
++func Stat(path string, stat *Stat_t) (errno int)          { return EMINGW }
++func Fstat(fd int, stat *Stat_t) (errno int)              { return EMINGW }
++func Chdir(path string) (errno int)                       { return EMINGW }
++func Fchdir(fd int) (errno int)                           { return EMINGW }
++func Unlink(path string) (errno int)                      { return EMINGW }
++func Rmdir(path string) (errno int)                       { return EMINGW }
++func Link(oldpath, newpath string) (errno int)            { return EMINGW }
++func Symlink(path, link string) (errno int)               { return EMINGW }
++func Readlink(path string, buf []byte) (n int, errno int) { return 0, EMINGW }
++func Rename(oldpath, newpath string) (errno int)          { return EMINGW }
++func Chmod(path string, mode int) (errno int)             { return EMINGW }
++func Fchmod(fd int, mode int) (errno int)                 { return EMINGW }
++func Chown(path string, uid int, gid int) (errno int)     { return EMINGW }
++func Lchown(path string, uid int, gid int) (errno int)    { return EMINGW }
++func Fchown(fd int, uid int, gid int) (errno int)         { return EMINGW }
++func Truncate(name string, size int64) (errno int)        { return EMINGW }
++func Ftruncate(fd int, length int64) (errno int)          { return EMINGW }
++
++const ImplementsGetwd = true
++
++func Getwd() (wd string, errno int)        { return "", EMINGW }
++func Getuid() (uid int)                    { return -1 }
++func Geteuid() (euid int)                  { return -1 }
++func Getgid() (gid int)                    { return -1 }
++func Getegid() (egid int)                  { return -1 }
++func Getgroups() (gids []int, errno int)   { return nil, EMINGW }
++func Gettimeofday(tv *Timeval) (errno int) { return EMINGW }
++
+ // TODO(brainman): fix all this meaningless code, it is here to compile exec.go
+ 
+ func Pipe(p []int) (errno int) { return EMINGW }
+ 
+-func Close(fd int) (errno int) { return EMINGW }
+ func read(fd int, buf *byte, nbuf int) (n int, errno int) {
+ 	return 0, EMINGW
+ }
+@@ -125,24 +307,13 @@ func fcntl(fd, cmd, arg int) (val int, errno int) {
+ }
+ 
+ const (
+-	F_SETFD = 1 + iota
+-	FD_CLOEXEC
+-	F_GETFL
+-	F_SETFL
+-	O_NONBLOCK
+-	SYS_FORK
+-	SYS_PTRACE
+-	SYS_CHDIR
+-	SYS_DUP2
+-	SYS_FCNTL
+-	SYS_EXECVE
+-	PTRACE_TRACEME
++	PTRACE_TRACEME = 1 + iota
++	WNOHANG
++	WSTOPPED
+ 	SYS_CLOSE
+ 	SYS_WRITE
+ 	SYS_EXIT
+ 	SYS_READ
+-	EPIPE
+-	EINTR
+ )
+ 
+ type Rusage struct {
+diff --git a/src/pkg/syscall/syscall_mingw_386.go b/src/pkg/syscall/syscall_mingw_386.go
+index 61d2d8cb65..0368620cc7 100644
+--- a/src/pkg/syscall/syscall_mingw_386.go
++++ b/src/pkg/syscall/syscall_mingw_386.go
+@@ -3,3 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ package syscall
++
++// TODO(brainman): check Getpagesize
++
++func Getpagesize() int { return 4096 }
+diff --git a/src/pkg/syscall/syscall_unix.go b/src/pkg/syscall/syscall_unix.go
+index a32c275d54..c547ba5c52 100644
+--- a/src/pkg/syscall/syscall_unix.go
++++ b/src/pkg/syscall/syscall_unix.go
+@@ -4,6 +4,12 @@
+ 
+ package syscall
+ 
++var (
++	Stdin  = 0
++	Stdout = 1
++	Stderr = 2
++)
++
+ func Errstr(errno int) string {
+ 	if errno < 0 || errno >= int(len(errors)) {
+ 		return "error " + str(errno)
+diff --git a/src/pkg/syscall/zerrors_mingw_386.go b/src/pkg/syscall/zerrors_mingw_386.go
+index 87caf8a846..d99aa2221b 100644
+--- a/src/pkg/syscall/zerrors_mingw_386.go
++++ b/src/pkg/syscall/zerrors_mingw_386.go
+@@ -6,9 +6,134 @@ package syscall
+ // TODO(brainman): populate errors in zerrors_mingw.go
+ 
+ const (
++	ERROR_FILE_NOT_FOUND      = 2
+ 	ERROR_INSUFFICIENT_BUFFER = 122
+ 	ERROR_MOD_NOT_FOUND       = 126
+ 	ERROR_PROC_NOT_FOUND      = 127
+ 	// TODO(brainman): should use value for EMINGW that does not clashes with anything else
+ 	EMINGW = 99999 /* otherwise unused */
+ )
++
++// TODO(brainman): fix all needed for os
++
++const (
++	EPERM           = 1
++	ENOENT          = 2
++	ESRCH           = 3
++	EINTR           = 4
++	EIO             = 5
++	ENXIO           = 6
++	E2BIG           = 7
++	ENOEXEC         = 8
++	EBADF           = 9
++	ECHILD          = 10
++	EAGAIN          = 11
++	ENOMEM          = 12
++	EACCES          = 13
++	EFAULT          = 14
++	EBUSY           = 16
++	EEXIST          = 17
++	EXDEV           = 18
++	ENODEV          = 19
++	ENOTDIR         = 20
++	EISDIR          = 21
++	EINVAL          = 22
++	ENFILE          = 23
++	EMFILE          = 24
++	ENOTTY          = 25
++	EFBIG           = 27
++	ENOSPC          = 28
++	ESPIPE          = 29
++	EROFS           = 30
++	EMLINK          = 31
++	EPIPE           = 32
++	ENAMETOOLONG    = 36
++	ENOSYS          = 38
++	EDQUOT          = 122
++	EDOM            = 33
++	ERANGE          = 34
++	ENOMSG          = 35
++	ECHRNG          = 37
++	EL3HLT          = 39
++	EL3RST          = 40
++	ELNRNG          = 41
++	EUNATCH         = 42
++	ENOCSI          = 43
++	EL2HLT          = 44
++	EDEADLK         = 45
++	ENOLCK          = 46
++	EBADE           = 50
++	EBADR           = 51
++	EXFULL          = 52
++	ENOANO          = 53
++	EBADRQC         = 54
++	EBADSLT         = 55
++	EBFONT          = 57
++	ENOSTR          = 60
++	ENODATA         = 61
++	ETIME           = 62
++	ENOSR           = 63
++	ENONET          = 64
++	ENOPKG          = 65
++	EREMOTE         = 66
++	ENOLINK         = 67
++	EADV            = 68
++	ESRMNT          = 69
++	ECOMM           = 70
++	EPROTO          = 71
++	EMULTIHOP       = 74
++	ELBIN           = 75
++	EDOTDOT         = 76
++	EBADMSG         = 77
++	EFTYPE          = 79
++	ENOTUNIQ        = 80
++	EBADFD          = 81
++	EREMCHG         = 82
++	ELIBACC         = 83
++	ELIBBAD         = 84
++	ELIBSCN         = 85
++	ELIBMAX         = 86
++	ELIBEXEC        = 87
++	ENMFILE         = 89
++	ENOTEMPTY       = 90
++	ELOOP           = 92
++	EOPNOTSUPP      = 95
++	EPFNOSUPPORT    = 96
++	ECONNRESET      = 104
++	ENOBUFS         = 105
++	EAFNOSUPPORT    = 106
++	EPROTOTYPE      = 107
++	ENOTSOCK        = 108
++	ENOPROTOOPT     = 109
++	ESHUTDOWN       = 110
++	ECONNREFUSED    = 111
++	EADDRINUSE      = 112
++	ECONNABORTED    = 113
++	ENETUNREACH     = 114
++	ENETDOWN        = 115
++	ETIMEDOUT       = 116
++	EHOSTDOWN       = 117
++	EHOSTUNREACH    = 118
++	EINPROGRESS     = 119
++	EALREADY        = 120
++	EDESTADDRREQ    = 121
++	EPROTONOSUPPORT = 123
++	ESOCKTNOSUPPORT = 124
++	EADDRNOTAVAIL   = 125
++	ENETRESET       = 126
++	EISCONN         = 127
++	ENOTCONN        = 128
++	ETOOMANYREFS    = 129
++	EPROCLIM        = 130
++	EUSERS          = 131
++	ESTALE          = 133
++	ENOMEDIUM       = 135
++	ENOSHARE        = 136
++	ECASECLASH      = 137
++	EILSEQ          = 138
++	EOVERFLOW       = 139
++	ECANCELED       = 140
++	EL2NSYNC        = 88
++	EIDRM           = 91
++	EMSGSIZE        = 132
++)
+diff --git a/src/pkg/syscall/zsyscall_mingw_386.go b/src/pkg/syscall/zsyscall_mingw_386.go
+index 4c16ac5d61..c01f40e7de 100644
+--- a/src/pkg/syscall/zsyscall_mingw_386.go
++++ b/src/pkg/syscall/zsyscall_mingw_386.go
+@@ -13,6 +13,13 @@ var (
+ 	procGetProcAddress = getSysProcAddr(modKERNEL32, "GetProcAddress")
+ 	procGetVersion     = getSysProcAddr(modKERNEL32, "GetVersion")
+ 	procFormatMessageW = getSysProcAddr(modKERNEL32, "FormatMessageW")
++	procExitProcess    = getSysProcAddr(modKERNEL32, "ExitProcess")
++	procCreateFileW    = getSysProcAddr(modKERNEL32, "CreateFileW")
++	procReadFile       = getSysProcAddr(modKERNEL32, "ReadFile")
++	procWriteFile      = getSysProcAddr(modKERNEL32, "WriteFile")
++	procSetFilePointer = getSysProcAddr(modKERNEL32, "SetFilePointer")
++	procCloseHandle    = getSysProcAddr(modKERNEL32, "CloseHandle")
++	procGetStdHandle   = getSysProcAddr(modKERNEL32, "GetStdHandle")
+ )
+ 
+ func GetLastError() (lasterrno int) {
+@@ -24,7 +31,7 @@ func GetLastError() (lasterrno int) {
+ func LoadLibrary(libname string) (handle uint32, errno int) {
+ 	r0, _, e1 := Syscall(procLoadLibraryW, uintptr(unsafe.Pointer(StringToUTF16Ptr(libname))), 0, 0)
+ 	handle = uint32(r0)
+-	if uint32(r0) == 0 {
++	if handle == 0 {
+ 		errno = int(e1)
+ 	} else {
+ 		errno = 0
+@@ -35,7 +42,7 @@ func LoadLibrary(libname string) (handle uint32, errno int) {
+ func FreeLibrary(handle uint32) (ok bool, errno int) {
+ 	r0, _, e1 := Syscall(procFreeLibrary, uintptr(handle), 0, 0)
+ 	ok = bool(r0 != 0)
+-	if uint32(r0) == 0 {
++	if !ok {
+ 		errno = int(e1)
+ 	} else {
+ 		errno = 0
+@@ -46,7 +53,7 @@ func FreeLibrary(handle uint32) (ok bool, errno int) {
+ func GetProcAddress(module uint32, procname string) (proc uint32, errno int) {
+ 	r0, _, e1 := Syscall(procGetProcAddress, uintptr(module), uintptr(unsafe.Pointer(StringBytePtr(procname))), 0)
+ 	proc = uint32(r0)
+-	if uint32(r0) == 0 {
++	if proc == 0 {
+ 		errno = int(e1)
+ 	} else {
+ 		errno = 0
+@@ -57,7 +64,7 @@ func GetProcAddress(module uint32, procname string) (proc uint32, errno int) {
+ func GetVersion() (ver uint32, errno int) {
+ 	r0, _, e1 := Syscall(procGetVersion, 0, 0, 0)
+ 	ver = uint32(r0)
+-	if uint32(r0) == 0 {
++	if ver == 0 {
+ 		errno = int(e1)
+ 	} else {
+ 		errno = 0
+@@ -72,7 +79,86 @@ func FormatMessage(flags uint32, msgsrc uint32, msgid uint32, langid uint32, buf
+ 	}
+ 	r0, _, e1 := Syscall9(procFormatMessageW, uintptr(flags), uintptr(msgsrc), uintptr(msgid), uintptr(langid), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(unsafe.Pointer(args)), 0, 0)
+ 	n = uint32(r0)
+-	if uint32(r0) == 0 {
++	if n == 0 {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func ExitProcess(exitcode uint32) {
++	Syscall(procExitProcess, uintptr(exitcode), 0, 0)
++	return
++}
++
++func CreateFile(name *uint16, access uint32, mode uint32, sa *byte, createmode uint32, attrs uint32, templatefile int32) (handle int32, errno int) {
++	r0, _, e1 := Syscall9(procCreateFileW, uintptr(unsafe.Pointer(name)), uintptr(access), uintptr(mode), uintptr(unsafe.Pointer(sa)), uintptr(createmode), uintptr(attrs), uintptr(templatefile), 0, 0)
++	handle = int32(r0)
++	if handle == -1 {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func ReadFile(handle int32, buf []byte, done *uint32, overlapped *Overlapped) (ok bool, errno int) {
++	var _p0 *byte
++	if len(buf) > 0 {
++		_p0 = &buf[0]
++	}
++	r0, _, e1 := Syscall6(procReadFile, uintptr(handle), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(unsafe.Pointer(done)), uintptr(unsafe.Pointer(overlapped)), 0)
++	ok = bool(r0 != 0)
++	if !ok {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func WriteFile(handle int32, buf []byte, done *uint32, overlapped *Overlapped) (ok bool, errno int) {
++	var _p0 *byte
++	if len(buf) > 0 {
++		_p0 = &buf[0]
++	}
++	r0, _, e1 := Syscall6(procWriteFile, uintptr(handle), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(unsafe.Pointer(done)), uintptr(unsafe.Pointer(overlapped)), 0)
++	ok = bool(r0 != 0)
++	if !ok {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func SetFilePointer(handle int32, lowoffset int32, highoffsetptr *int32, whence uint32) (newlowoffset uint32, errno int) {
++	r0, _, e1 := Syscall6(procSetFilePointer, uintptr(handle), uintptr(lowoffset), uintptr(unsafe.Pointer(highoffsetptr)), uintptr(whence), 0, 0)
++	newlowoffset = uint32(r0)
++	if newlowoffset == 0xffffffff {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func CloseHandle(handle int32) (ok bool, errno int) {
++	r0, _, e1 := Syscall(procCloseHandle, uintptr(handle), 0, 0)
++	ok = bool(r0 != 0)
++	if !ok {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func GetStdHandle(stdhandle int32) (handle int32, errno int) {
++	r0, _, e1 := Syscall(procGetStdHandle, uintptr(stdhandle), 0, 0)
++	handle = int32(r0)
++	if handle == -1 {
+ 		errno = int(e1)
+ 	} else {
+ 		errno = 0
+diff --git a/src/pkg/syscall/ztypes_mingw_386.go b/src/pkg/syscall/ztypes_mingw_386.go
+index 99aa8b4ca9..93364e44d1 100644
+--- a/src/pkg/syscall/ztypes_mingw_386.go
++++ b/src/pkg/syscall/ztypes_mingw_386.go
+@@ -26,6 +26,51 @@ const (
+ )
+ 
+ const (
++	// Invented values to support what package os expects.
++	O_RDONLY   = 0x00000
++	O_WRONLY   = 0x00001
++	O_RDWR     = 0x00002
++	O_CREAT    = 0x00040
++	O_EXCL     = 0x00080
++	O_NOCTTY   = 0x00100
++	O_TRUNC    = 0x00200
++	O_NONBLOCK = 0x00800
++	O_APPEND   = 0x00400
++	O_SYNC     = 0x01000
++	O_ASYNC    = 0x02000
++	O_CLOEXEC  = 0x80000
++)
++
++const (
++	GENERIC_READ    = 0x80000000
++	GENERIC_WRITE   = 0x40000000
++	GENERIC_EXECUTE = 0x20000000
++	GENERIC_ALL     = 0x10000000
++
++	FILE_SHARE_READ          = 0x00000001
++	FILE_SHARE_WRITE         = 0x00000002
++	FILE_SHARE_DELETE        = 0x00000004
++	FILE_ATTRIBUTE_READONLY  = 0x00000001
++	FILE_ATTRIBUTE_HIDDEN    = 0x00000002
++	FILE_ATTRIBUTE_SYSTEM    = 0x00000004
++	FILE_ATTRIBUTE_DIRECTORY = 0x00000010
++	FILE_ATTRIBUTE_ARCHIVE   = 0x00000020
++	FILE_ATTRIBUTE_NORMAL    = 0x00000080
++
++	CREATE_NEW        = 1
++	CREATE_ALWAYS     = 2
++	OPEN_EXISTING     = 3
++	OPEN_ALWAYS       = 4
++	TRUNCATE_EXISTING = 5
++
++	STD_INPUT_HANDLE  = -10
++	STD_OUTPUT_HANDLE = -11
++	STD_ERROR_HANDLE  = -12
++
++	FILE_BEGIN   = 0
++	FILE_CURRENT = 1
++	FILE_END     = 2
++
+ 	FORMAT_MESSAGE_ALLOCATE_BUFFER = 256
+ 	FORMAT_MESSAGE_IGNORE_INSERTS  = 512
+ 	FORMAT_MESSAGE_FROM_STRING     = 1024
+@@ -49,3 +94,69 @@ type Timeval struct {
+ 	Sec  int32
+ 	Usec int32
+ }
++
++type Overlapped struct {
++	Internal     uint32
++	InternalHigh uint32
++	Offset       uint32
++	OffsetHigh   uint32
++	HEvent       *byte
++}
++
++// TODO(brainman): fix all needed for os
++
++const (
++	PROT_READ  = 0x1
++	PROT_WRITE = 0x2
++	MAP_SHARED = 0x1
++	SYS_FORK   = 0
++	SYS_PTRACE = 0
++	SYS_CHDIR  = 0
++	SYS_DUP2   = 0
++	SYS_FCNTL  = 0
++	SYS_EXECVE = 0
++	F_GETFD    = 0x1
++	F_SETFD    = 0x2
++	F_GETFL    = 0x3
++	F_SETFL    = 0x4
++	FD_CLOEXEC = 0
++	S_IFMT     = 0x1f000
++	S_IFIFO    = 0x1000
++	S_IFCHR    = 0x2000
++	S_IFDIR    = 0x4000
++	S_IFBLK    = 0x6000
++	S_IFREG    = 0x8000
++	S_IFLNK    = 0xa000
++	S_IFSOCK   = 0xc000
++	S_ISUID    = 0x800
++	S_ISGID    = 0x400
++	S_ISVTX    = 0x200
++	S_IRUSR    = 0x100
++	S_IWUSR    = 0x80
++	S_IXUSR    = 0x40
++)
++
++type Stat_t struct {
++	Dev       int64
++	Ino       uint32
++	Mode      uint32
++	Nlink     uint32
++	Uid       uint32
++	Gid       uint32
++	__padding int32
++	Rdev      int64
++	Size      int32
++	Blksize   int32
++	Blocks    int32
++	Atime     int32
++	Mtime     int32
++	Ctime     int32
++}
++
++type Dirent struct {
++	Ino    uint32
++	Off    int32
++	Reclen uint16
++	Name   [256]int8
++	Pad0   [2]byte
++}

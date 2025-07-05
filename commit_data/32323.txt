@@ -16,8 +16,126 @@ Date:   Wed Apr 19 11:32:09 2017 -0700
     Change-Id: I82dce3c0b5cb816faae58708e877799359c20fcb
     Reviewed-on: https://go-review.googlesource.com/41078
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/export.go  | 10 +++------
  src/cmd/compile/internal/gc/reflect.go |  6 ++---
  src/cmd/compile/internal/types/pkg.go  | 40 +++++++++++++++++++++++++++++-----
  3 files changed, 39 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index c1fea8aaad..b214d8fb97 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -173,13 +173,9 @@ func dumpexport() {
+ 
+ 		// verify that we can read the copied export data back in
+ 		// (use empty package map to avoid collisions)
+-		savedPkgMap := types.PkgMap
+-		savedPkgs := types.PkgList
+-		types.PkgMap = make(map[string]*types.Pkg)
+-		types.PkgList = nil
+-		Import(types.NewPkg("", ""), bufio.NewReader(&copy)) // must not die
+-		types.PkgList = savedPkgs
+-		types.PkgMap = savedPkgMap
++		types.CleanroomDo(func() {
++			Import(types.NewPkg("", ""), bufio.NewReader(&copy)) // must not die
++		})
+ 	} else {
+ 		size = export(bout.Writer, Debug_export != 0)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 977c3d74c6..1703a9a67d 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1501,10 +1501,8 @@ func dumptypestructs() {
+ 	}
+ 
+ 	// generate import strings for imported packages
+-	for _, p := range types.PkgList {
+-		if p.Direct {
+-			dimportpath(p)
+-		}
++	for _, p := range types.ImportedPkgList() {
++		dimportpath(p)
+ 	}
+ 
+ 	// do basic types if compiling package runtime.
+diff --git a/src/cmd/compile/internal/types/pkg.go b/src/cmd/compile/internal/types/pkg.go
+index b43f13e5d1..1fe49bd142 100644
+--- a/src/cmd/compile/internal/types/pkg.go
++++ b/src/cmd/compile/internal/types/pkg.go
+@@ -8,8 +8,12 @@ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"fmt"
++	"sort"
+ )
+ 
++// pkgMap maps a package path to a package.
++var pkgMap = make(map[string]*Pkg)
++
+ type Pkg struct {
+ 	Path     string // string literal used in import statement, e.g. "runtime/internal/sys"
+ 	Name     string // package name, e.g. "sys"
+@@ -20,14 +24,11 @@ type Pkg struct {
+ 	Syms     map[string]*Sym
+ }
+ 
+-var PkgMap = make(map[string]*Pkg)
+-var PkgList []*Pkg
+-
+ // NewPkg returns a new Pkg for the given package path and name.
+ // Unless name is the empty string, if the package exists already,
+ // the existing package name and the provided name must match.
+ func NewPkg(path, name string) *Pkg {
+-	if p := PkgMap[path]; p != nil {
++	if p := pkgMap[path]; p != nil {
+ 		if name != "" && p.Name != name {
+ 			panic(fmt.Sprintf("conflicting package names %s and %s for path %q", p.Name, name, path))
+ 		}
+@@ -39,12 +40,30 @@ func NewPkg(path, name string) *Pkg {
+ 	p.Name = name
+ 	p.Prefix = objabi.PathToPrefix(path)
+ 	p.Syms = make(map[string]*Sym)
+-	PkgMap[path] = p
+-	PkgList = append(PkgList, p)
++	pkgMap[path] = p
+ 
+ 	return p
+ }
+ 
++// ImportedPkgList returns the list of directly imported packages.
++// The list is sorted by package path.
++func ImportedPkgList() []*Pkg {
++	var list []*Pkg
++	for _, p := range pkgMap {
++		if p.Direct {
++			list = append(list, p)
++		}
++	}
++	sort.Sort(byPath(list))
++	return list
++}
++
++type byPath []*Pkg
++
++func (a byPath) Len() int           { return len(a) }
++func (a byPath) Less(i, j int) bool { return a[i].Path < a[j].Path }
++func (a byPath) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
++
+ var nopkg = &Pkg{
+ 	Syms: make(map[string]*Sym),
+ }
+@@ -99,3 +118,12 @@ func InternString(b []byte) string {
+ 	}
+ 	return s
+ }
++
++// CleanroomDo invokes f in an environment with with no preexisting packages.
++// For testing of import/export only.
++func CleanroomDo(f func()) {
++	saved := pkgMap
++	pkgMap = make(map[string]*Pkg)
++	f()
++	pkgMap = saved
++}

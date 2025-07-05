@@ -26,7 +26,7 @@ Date:   Tue Aug 30 22:18:01 2022 +0000
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/metrics.go          |  2 +-
  src/runtime/pprof/pprof_test.go |  2 +-
  src/runtime/runtime2.go         |  8 ++++++--
@@ -34,3 +34,161 @@ Date:   Tue Aug 30 22:18:01 2022 +0000
  src/sync/runtime.go             |  8 +++++++-
  src/sync/rwmutex.go             |  4 ++--
  6 files changed, 33 insertions(+), 13 deletions(-)
+
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index 44fb4878ac..8e1c596852 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -40,7 +40,7 @@ func metricsLock() {
+ 	// Acquire the metricsSema but with handoff. Operations are typically
+ 	// expensive enough that queueing up goroutines and handing off between
+ 	// them will be noticeably better-behaved.
+-	semacquire1(&metricsSema, true, 0, 0)
++	semacquire1(&metricsSema, true, 0, 0, waitReasonSemacquire)
+ 	if raceenabled {
+ 		raceacquire(unsafe.Pointer(&metricsSema))
+ 	}
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 79febc4285..434d106f4a 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -1089,7 +1089,7 @@ func blockMutex(t *testing.T) {
+ 	var mu sync.Mutex
+ 	mu.Lock()
+ 	go func() {
+-		awaitBlockedGoroutine(t, "semacquire", "blockMutex")
++		awaitBlockedGoroutine(t, "sync.Mutex.Lock", "blockMutex")
+ 		mu.Unlock()
+ 	}()
+ 	// Note: Unlock releases mu before recording the mutex event,
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 5e0d61c058..a5b0135470 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -1054,7 +1054,9 @@ const (
+ 	waitReasonSemacquire                              // "semacquire"
+ 	waitReasonSleep                                   // "sleep"
+ 	waitReasonSyncCondWait                            // "sync.Cond.Wait"
+-	waitReasonTimerGoroutineIdle                      // "timer goroutine (idle)"
++	waitReasonSyncMutexLock                           // "sync.Mutex.Lock"
++	waitReasonSyncRWMutexRLock                        // "sync.RWMutex.RLock"
++	waitReasonSyncRWMutexLock                         // "sync.RWMutex.Lock"
+ 	waitReasonTraceReaderBlocked                      // "trace reader (blocked)"
+ 	waitReasonWaitForGCCycle                          // "wait for GC cycle"
+ 	waitReasonGCWorkerIdle                            // "GC worker (idle)"
+@@ -1084,7 +1086,9 @@ var waitReasonStrings = [...]string{
+ 	waitReasonSemacquire:            "semacquire",
+ 	waitReasonSleep:                 "sleep",
+ 	waitReasonSyncCondWait:          "sync.Cond.Wait",
+-	waitReasonTimerGoroutineIdle:    "timer goroutine (idle)",
++	waitReasonSyncMutexLock:         "sync.Mutex.Lock",
++	waitReasonSyncRWMutexRLock:      "sync.RWMutex.RLock",
++	waitReasonSyncRWMutexLock:       "sync.RWMutex.Lock",
+ 	waitReasonTraceReaderBlocked:    "trace reader (blocked)",
+ 	waitReasonWaitForGCCycle:        "wait for GC cycle",
+ 	waitReasonGCWorkerIdle:          "GC worker (idle)",
+diff --git a/src/runtime/sema.go b/src/runtime/sema.go
+index c654889cac..bc23a85e34 100644
+--- a/src/runtime/sema.go
++++ b/src/runtime/sema.go
+@@ -59,12 +59,12 @@ func (t *semTable) rootFor(addr *uint32) *semaRoot {
+ 
+ //go:linkname sync_runtime_Semacquire sync.runtime_Semacquire
+ func sync_runtime_Semacquire(addr *uint32) {
+-	semacquire1(addr, false, semaBlockProfile, 0)
++	semacquire1(addr, false, semaBlockProfile, 0, waitReasonSemacquire)
+ }
+ 
+ //go:linkname poll_runtime_Semacquire internal/poll.runtime_Semacquire
+ func poll_runtime_Semacquire(addr *uint32) {
+-	semacquire1(addr, false, semaBlockProfile, 0)
++	semacquire1(addr, false, semaBlockProfile, 0, waitReasonSemacquire)
+ }
+ 
+ //go:linkname sync_runtime_Semrelease sync.runtime_Semrelease
+@@ -74,7 +74,17 @@ func sync_runtime_Semrelease(addr *uint32, handoff bool, skipframes int) {
+ 
+ //go:linkname sync_runtime_SemacquireMutex sync.runtime_SemacquireMutex
+ func sync_runtime_SemacquireMutex(addr *uint32, lifo bool, skipframes int) {
+-	semacquire1(addr, lifo, semaBlockProfile|semaMutexProfile, skipframes)
++	semacquire1(addr, lifo, semaBlockProfile|semaMutexProfile, skipframes, waitReasonSyncMutexLock)
++}
++
++//go:linkname sync_runtime_SemacquireRWMutexR sync.runtime_SemacquireRWMutexR
++func sync_runtime_SemacquireRWMutexR(addr *uint32, lifo bool, skipframes int) {
++	semacquire1(addr, lifo, semaBlockProfile|semaMutexProfile, skipframes, waitReasonSyncRWMutexRLock)
++}
++
++//go:linkname sync_runtime_SemacquireRWMutex sync.runtime_SemacquireRWMutex
++func sync_runtime_SemacquireRWMutex(addr *uint32, lifo bool, skipframes int) {
++	semacquire1(addr, lifo, semaBlockProfile|semaMutexProfile, skipframes, waitReasonSyncRWMutexLock)
+ }
+ 
+ //go:linkname poll_runtime_Semrelease internal/poll.runtime_Semrelease
+@@ -98,10 +108,10 @@ const (
+ 
+ // Called from runtime.
+ func semacquire(addr *uint32) {
+-	semacquire1(addr, false, 0, 0)
++	semacquire1(addr, false, 0, 0, waitReasonSemacquire)
+ }
+ 
+-func semacquire1(addr *uint32, lifo bool, profile semaProfileFlags, skipframes int) {
++func semacquire1(addr *uint32, lifo bool, profile semaProfileFlags, skipframes int, reason waitReason) {
+ 	gp := getg()
+ 	if gp != gp.m.curg {
+ 		throw("semacquire not on the G stack")
+@@ -147,7 +157,7 @@ func semacquire1(addr *uint32, lifo bool, profile semaProfileFlags, skipframes i
+ 		// Any semrelease after the cansemacquire knows we're waiting
+ 		// (we set nwait above), so go to sleep.
+ 		root.queue(addr, s, lifo)
+-		goparkunlock(&root.lock, waitReasonSemacquire, traceEvGoBlockSync, 4+skipframes)
++		goparkunlock(&root.lock, reason, traceEvGoBlockSync, 4+skipframes)
+ 		if s.ticket != 0 || cansemacquire(addr) {
+ 			break
+ 		}
+diff --git a/src/sync/runtime.go b/src/sync/runtime.go
+index de2b0a3ccd..5a90813585 100644
+--- a/src/sync/runtime.go
++++ b/src/sync/runtime.go
+@@ -13,11 +13,17 @@ import "unsafe"
+ // library and should not be used directly.
+ func runtime_Semacquire(s *uint32)
+ 
+-// SemacquireMutex is like Semacquire, but for profiling contended Mutexes.
++// Semacquire(RW)Mutex(R) is like Semacquire, but for profiling contended
++// Mutexes and RWMutexes.
+ // If lifo is true, queue waiter at the head of wait queue.
+ // skipframes is the number of frames to omit during tracing, counting from
+ // runtime_SemacquireMutex's caller.
++// The different forms of this function just tell the runtime how to present
++// the reason for waiting in a backtrace, and is used to compute some metrics.
++// Otherwise they're functionally identical.
+ func runtime_SemacquireMutex(s *uint32, lifo bool, skipframes int)
++func runtime_SemacquireRWMutexR(s *uint32, lifo bool, skipframes int)
++func runtime_SemacquireRWMutex(s *uint32, lifo bool, skipframes int)
+ 
+ // Semrelease atomically increments *s and notifies a waiting goroutine
+ // if one is blocked in Semacquire.
+diff --git a/src/sync/rwmutex.go b/src/sync/rwmutex.go
+index e7d95181d5..ad52951311 100644
+--- a/src/sync/rwmutex.go
++++ b/src/sync/rwmutex.go
+@@ -68,7 +68,7 @@ func (rw *RWMutex) RLock() {
+ 	}
+ 	if rw.readerCount.Add(1) < 0 {
+ 		// A writer is pending, wait for it.
+-		runtime_SemacquireMutex(&rw.readerSem, false, 0)
++		runtime_SemacquireRWMutexR(&rw.readerSem, false, 0)
+ 	}
+ 	if race.Enabled {
+ 		race.Enable()
+@@ -149,7 +149,7 @@ func (rw *RWMutex) Lock() {
+ 	r := rw.readerCount.Add(-rwmutexMaxReaders) + rwmutexMaxReaders
+ 	// Wait for active readers.
+ 	if r != 0 && rw.readerWait.Add(r) != 0 {
+-		runtime_SemacquireMutex(&rw.writerSem, false, 0)
++		runtime_SemacquireRWMutex(&rw.writerSem, false, 0)
+ 	}
+ 	if race.Enabled {
+ 		race.Enable()

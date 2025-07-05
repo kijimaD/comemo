@@ -30,9 +30,297 @@ Date:   Thu Jun 16 20:33:35 2022 +0000
     Change-Id: Ia1cd2d2b0e36d552d5a8ae137077260a16016602
     Reviewed-on: https://go-review.googlesource.com/c/go/+/412875
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/export_test.go |  30 +++++++++++-
  src/runtime/sema.go        |  18 ++++----
  src/runtime/sema_test.go   |  44 ++++++++++++++++++
  src/sync/mutex_test.go     | 112 ---------------------------------------------
  4 files changed, 83 insertions(+), 121 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index b9f0990d8c..1626f99336 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1163,10 +1163,38 @@ var Semacquire = semacquire
+ var Semrelease1 = semrelease1
+ 
+ func SemNwait(addr *uint32) uint32 {
+-	root := semroot(addr)
++	root := semtable.rootFor(addr)
+ 	return atomic.Load(&root.nwait)
+ }
+ 
++const SemTableSize = semTabSize
++
++// SemTable is a wrapper around semTable exported for testing.
++type SemTable struct {
++	semTable
++}
++
++// Enqueue simulates enqueuing a waiter for a semaphore (or lock) at addr.
++func (t *SemTable) Enqueue(addr *uint32) {
++	s := acquireSudog()
++	s.releasetime = 0
++	s.acquiretime = 0
++	s.ticket = 0
++	t.semTable.rootFor(addr).queue(addr, s, false)
++}
++
++// Dequeue simulates dequeuing a waiter for a semaphore (or lock) at addr.
++//
++// Returns true if there actually was a waiter to be dequeued.
++func (t *SemTable) Dequeue(addr *uint32) bool {
++	s, _ := t.semTable.rootFor(addr).dequeue(addr)
++	if s != nil {
++		releaseSudog(s)
++		return true
++	}
++	return false
++}
++
+ // mspan wrapper for testing.
+ //
+ //go:notinheap
+diff --git a/src/runtime/sema.go b/src/runtime/sema.go
+index e83deee083..c7a1a76e28 100644
+--- a/src/runtime/sema.go
++++ b/src/runtime/sema.go
+@@ -35,7 +35,7 @@ import (
+ // where n is the number of distinct addresses with goroutines blocked
+ // on them that hash to the given semaRoot.
+ // See golang.org/issue/17953 for a program that worked badly
+-// before we introduced the second level of list, and test/locklinear.go
++// before we introduced the second level of list, and TestSemTableOneAddrCollisionLinear
+ // for a test that exercises this.
+ type semaRoot struct {
+ 	lock  mutex
+@@ -43,14 +43,20 @@ type semaRoot struct {
+ 	nwait uint32 // Number of waiters. Read w/o the lock.
+ }
+ 
++var semtable semTable
++
+ // Prime to not correlate with any user patterns.
+ const semTabSize = 251
+ 
+-var semtable [semTabSize]struct {
++type semTable [semTabSize]struct {
+ 	root semaRoot
+ 	pad  [cpu.CacheLinePadSize - unsafe.Sizeof(semaRoot{})]byte
+ }
+ 
++func (t *semTable) rootFor(addr *uint32) *semaRoot {
++	return &t[(uintptr(unsafe.Pointer(addr))>>3)%semTabSize].root
++}
++
+ //go:linkname sync_runtime_Semacquire sync.runtime_Semacquire
+ func sync_runtime_Semacquire(addr *uint32) {
+ 	semacquire1(addr, false, semaBlockProfile, 0)
+@@ -113,7 +119,7 @@ func semacquire1(addr *uint32, lifo bool, profile semaProfileFlags, skipframes i
+ 	//	sleep
+ 	//	(waiter descriptor is dequeued by signaler)
+ 	s := acquireSudog()
+-	root := semroot(addr)
++	root := semtable.rootFor(addr)
+ 	t0 := int64(0)
+ 	s.releasetime = 0
+ 	s.acquiretime = 0
+@@ -157,7 +163,7 @@ func semrelease(addr *uint32) {
+ }
+ 
+ func semrelease1(addr *uint32, handoff bool, skipframes int) {
+-	root := semroot(addr)
++	root := semtable.rootFor(addr)
+ 	atomic.Xadd(addr, 1)
+ 
+ 	// Easy case: no waiters?
+@@ -214,10 +220,6 @@ func semrelease1(addr *uint32, handoff bool, skipframes int) {
+ 	}
+ }
+ 
+-func semroot(addr *uint32) *semaRoot {
+-	return &semtable[(uintptr(unsafe.Pointer(addr))>>3)%semTabSize].root
+-}
+-
+ func cansemacquire(addr *uint32) bool {
+ 	for {
+ 		v := atomic.Load(addr)
+diff --git a/src/runtime/sema_test.go b/src/runtime/sema_test.go
+index cf3de0a190..f3e95d10be 100644
+--- a/src/runtime/sema_test.go
++++ b/src/runtime/sema_test.go
+@@ -5,6 +5,7 @@
+ package runtime_test
+ 
+ import (
++	"internal/testenv"
+ 	. "runtime"
+ 	"sync"
+ 	"sync/atomic"
+@@ -101,3 +102,46 @@ func testSemaHandoff() bool {
+ 
+ 	return res == 1 // did the waiter run first?
+ }
++
++func TestSemTableOneAddrCollisionLinear(t *testing.T) {
++	testenv.CheckLinear(t, func(scale float64) func(*testing.B) {
++		n := int(1000 * scale)
++		return func(b *testing.B) {
++			tab := Escape(new(SemTable))
++			u := make([]uint32, SemTableSize+1)
++
++			b.ResetTimer()
++
++			// Simulate two locks colliding on the same semaRoot.
++			//
++			// Specifically enqueue all the waiters for the first lock,
++			// then all the waiters for the second lock.
++			//
++			// Then, dequeue all the waiters from the first lock, then
++			// the second.
++			//
++			// Each enqueue/dequeue operation should be O(1), because
++			// there are exactly 2 locks. This could be O(n) if all
++			// the waiters for both locks are on the same list, as it
++			// once was.
++			for i := 0; i < n; i++ {
++				if i < n/2 {
++					tab.Enqueue(&u[0])
++				} else {
++					tab.Enqueue(&u[SemTableSize])
++				}
++			}
++			for i := 0; i < n; i++ {
++				var ok bool
++				if i < n/2 {
++					ok = tab.Dequeue(&u[0])
++				} else {
++					ok = tab.Dequeue(&u[SemTableSize])
++				}
++				if !ok {
++					b.Fatal("failed to dequeue")
++				}
++			}
++		}
++	})
++}
+diff --git a/src/sync/mutex_test.go b/src/sync/mutex_test.go
+index 8e34b02459..cca0986a30 100644
+--- a/src/sync/mutex_test.go
++++ b/src/sync/mutex_test.go
+@@ -333,115 +333,3 @@ func BenchmarkMutexSpin(b *testing.B) {
+ 		}
+ 	})
+ }
+-
+-const runtimeSemaHashTableSize = 251 // known size of runtime hash table
+-
+-func TestMutexLinearOne(t *testing.T) {
+-	testenv.CheckLinear(t, func(scale float64) func(*testing.B) {
+-		n := int(1000 * scale)
+-		return func(b *testing.B) {
+-			ch := make(chan struct{})
+-			locks := make([]RWMutex, runtimeSemaHashTableSize+1)
+-
+-			b.ResetTimer()
+-
+-			var wgStart, wgFinish WaitGroup
+-			for i := 0; i < n; i++ {
+-				wgStart.Add(1)
+-				wgFinish.Add(1)
+-				go func() {
+-					wgStart.Done()
+-					locks[0].Lock()
+-					ch <- struct{}{}
+-					wgFinish.Done()
+-				}()
+-			}
+-			wgStart.Wait()
+-
+-			wgFinish.Add(1)
+-			go func() {
+-				for j := 0; j < n; j++ {
+-					locks[1].Lock()
+-					locks[runtimeSemaHashTableSize].Lock()
+-					locks[1].Unlock()
+-					runtime.Gosched()
+-					locks[runtimeSemaHashTableSize].Unlock()
+-				}
+-				wgFinish.Done()
+-			}()
+-
+-			for j := 0; j < n; j++ {
+-				locks[1].Lock()
+-				locks[runtimeSemaHashTableSize].Lock()
+-				locks[1].Unlock()
+-				runtime.Gosched()
+-				locks[runtimeSemaHashTableSize].Unlock()
+-			}
+-
+-			b.StopTimer()
+-
+-			for i := 0; i < n; i++ {
+-				<-ch
+-				locks[0].Unlock()
+-			}
+-
+-			wgFinish.Wait()
+-		}
+-	})
+-}
+-
+-func TestMutexLinearMany(t *testing.T) {
+-	if runtime.GOARCH == "arm" && os.Getenv("GOARM") == "5" {
+-		// stressLockMany reliably fails on the linux-arm-arm5spacemonkey
+-		// builder. See https://golang.org/issue/24221.
+-		return
+-	}
+-	testenv.CheckLinear(t, func(scale float64) func(*testing.B) {
+-		n := int(1000 * scale)
+-		return func(b *testing.B) {
+-			locks := make([]RWMutex, n*runtimeSemaHashTableSize+1)
+-
+-			b.ResetTimer()
+-
+-			var wgStart, wgFinish WaitGroup
+-			for i := 0; i < n; i++ {
+-				wgStart.Add(1)
+-				wgFinish.Add(1)
+-				go func(i int) {
+-					locks[(i+1)*runtimeSemaHashTableSize].Lock()
+-					wgStart.Done()
+-					locks[(i+1)*runtimeSemaHashTableSize].Lock()
+-					locks[(i+1)*runtimeSemaHashTableSize].Unlock()
+-					wgFinish.Done()
+-				}(i)
+-			}
+-			wgStart.Wait()
+-
+-			go func() {
+-				for j := 0; j < n; j++ {
+-					locks[1].Lock()
+-					locks[0].Lock()
+-					locks[1].Unlock()
+-					runtime.Gosched()
+-					locks[0].Unlock()
+-				}
+-			}()
+-
+-			for j := 0; j < n; j++ {
+-				locks[1].Lock()
+-				locks[0].Lock()
+-				locks[1].Unlock()
+-				runtime.Gosched()
+-				locks[0].Unlock()
+-			}
+-
+-			b.StopTimer()
+-
+-			for i := 0; i < n; i++ {
+-				locks[(i+1)*runtimeSemaHashTableSize].Unlock()
+-			}
+-
+-			wgFinish.Wait()
+-		}
+-	})
+-}

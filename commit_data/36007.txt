@@ -14,8 +14,80 @@ Date:   Wed Mar 28 12:19:46 2018 +0200
     Reviewed-on: https://go-review.googlesource.com/102895
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
-
+---
  src/cmd/compile/internal/gc/esc.go | 19 +++++++++++++++----
  test/escape_array.go               |  7 +++++++
  test/escape_because.go             |  7 +++++++
  3 files changed, 29 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 6ce2299ba2..4215950576 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -665,18 +665,29 @@ func (e *EscState) esc(n *Node, parent *Node) {
+ 		}
+ 	}
+ 
+-	// Big stuff escapes unconditionally
+-	// "Big" conditions that were scattered around in walk have been gathered here
++	// Big stuff and non-constant-sized stuff escapes unconditionally.
++	// "Big" conditions that were scattered around in walk have been
++	// gathered here.
+ 	if n.Esc != EscHeap && n.Type != nil &&
+ 		(n.Type.Width > maxStackVarSize ||
+ 			(n.Op == ONEW || n.Op == OPTRLIT) && n.Type.Elem().Width >= 1<<16 ||
+ 			n.Op == OMAKESLICE && !isSmallMakeSlice(n)) {
++
++		// isSmallMakeSlice returns false for non-constant len/cap.
++		// If that's the case, print a more accurate escape reason.
++		var msgVerb, escapeMsg string
++		if n.Op == OMAKESLICE && (!Isconst(n.Left, CTINT) || !Isconst(n.Right, CTINT)) {
++			msgVerb, escapeMsg = "has ", "non-constant size"
++		} else {
++			msgVerb, escapeMsg = "is ", "too large for stack"
++		}
++
+ 		if Debug['m'] > 2 {
+-			Warnl(n.Pos, "%v is too large for stack", n)
++			Warnl(n.Pos, "%v "+msgVerb+escapeMsg, n)
+ 		}
+ 		n.Esc = EscHeap
+ 		addrescapes(n)
+-		e.escassignSinkWhy(n, n, "too large for stack") // TODO category: tooLarge
++		e.escassignSinkWhy(n, n, escapeMsg) // TODO category: tooLarge
+ 	}
+ 
+ 	e.esc(n.Left, n)
+diff --git a/test/escape_array.go b/test/escape_array.go
+index 0204c690cd..c2c3e2c857 100644
+--- a/test/escape_array.go
++++ b/test/escape_array.go
+@@ -120,3 +120,10 @@ func doesMakeSlice(x *string, y *string) { // ERROR "leaking param: x" "leaking
+ 	b := make([]*string, 65537) // ERROR "make\(\[\]\*string, 65537\) escapes to heap"
+ 	b[0] = y
+ }
++
++func nonconstArray() {
++	n := 32
++	s1 := make([]int, n)    // ERROR "make\(\[\]int, n\) escapes to heap"
++	s2 := make([]int, 0, n) // ERROR "make\(\[\]int, 0, n\) escapes to heap"
++	_, _ = s1, s2
++}
+diff --git a/test/escape_because.go b/test/escape_because.go
+index 7d349b7a18..a8423a59cc 100644
+--- a/test/escape_because.go
++++ b/test/escape_because.go
+@@ -118,6 +118,13 @@ func transmit(b []byte) []byte { // ERROR "from ~r1 \(return\) at escape_because
+ 	return b
+ }
+ 
++func f14() {
++	n := 32
++	s1 := make([]int, n)    // ERROR "make\(\[\]int, n\) escapes to heap" "from make\(\[\]int, n\) \(non-constant size\)"
++	s2 := make([]int, 0, n) // ERROR "make\(\[\]int, 0, n\) escapes to heap" "from make\(\[\]int, 0, n\) \(non-constant size\)"
++	_, _ = s1, s2
++}
++
+ // The list below is all of the why-escapes messages seen building the escape analysis tests.
+ /*
+    for i in escape*go ; do echo compile $i; go build -gcflags '-l -m -m' $i >& `basename $i .go`.log ; done

@@ -15,9 +15,185 @@ Date:   Tue Jul 3 22:10:58 2018 -0700
     Change-Id: I43a502beefd626eb810ffd8753e269a55dff8248
     Reviewed-on: https://go-review.googlesource.com/122196
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/testsanitizers/msan_test.go |  1 +
  misc/cgo/testsanitizers/src/msan6.go | 72 ++++++++++++++++++++++++++++++++++++
  src/cmd/cgo/main.go                  |  3 ++
  src/cmd/cgo/out.go                   | 32 ++++++++++++++++
  4 files changed, 108 insertions(+)
+
+diff --git a/misc/cgo/testsanitizers/msan_test.go b/misc/cgo/testsanitizers/msan_test.go
+index af5afa9ee4..88b90d3d70 100644
+--- a/misc/cgo/testsanitizers/msan_test.go
++++ b/misc/cgo/testsanitizers/msan_test.go
+@@ -27,6 +27,7 @@ func TestMSAN(t *testing.T) {
+ 		{src: "msan3.go"},
+ 		{src: "msan4.go"},
+ 		{src: "msan5.go"},
++		{src: "msan6.go"},
+ 		{src: "msan_fail.go", wantErr: true},
+ 	}
+ 	for _, tc := range cases {
+diff --git a/misc/cgo/testsanitizers/src/msan6.go b/misc/cgo/testsanitizers/src/msan6.go
+new file mode 100644
+index 0000000000..003989c2be
+--- /dev/null
++++ b/misc/cgo/testsanitizers/src/msan6.go
+@@ -0,0 +1,72 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// A C function returning a value on the Go stack could leave the Go
++// stack marked as uninitialized, potentially causing a later error
++// when the stack is used for something else. Issue 26209.
++
++/*
++#cgo LDFLAGS: -fsanitize=memory
++#cgo CPPFLAGS: -fsanitize=memory
++
++#include <stdint.h>
++#include <stdlib.h>
++#include <string.h>
++
++typedef struct {
++	uintptr_t a[20];
++} S;
++
++S f() {
++	S *p;
++
++	p = (S *)(malloc(sizeof(S)));
++	p->a[0] = 0;
++	return *p;
++}
++*/
++import "C"
++
++// allocateStack extends the stack so that stack copying doesn't
++// confuse the msan data structures.
++//go:noinline
++func allocateStack(i int) int {
++	if i == 0 {
++		return i
++	}
++	return allocateStack(i - 1)
++}
++
++// F1 marks a chunk of stack as uninitialized.
++// C.f returns an uninitialized struct on the stack, so msan will mark
++// the stack as uninitialized.
++//go:noinline
++func F1() uintptr {
++	s := C.f()
++	return uintptr(s.a[0])
++}
++
++// F2 allocates a struct on the stack and converts it to an empty interface,
++// which will call msanread and see that the data appears uninitialized.
++//go:noinline
++func F2() interface{} {
++	return C.S{}
++}
++
++func poisonStack(i int) int {
++	if i == 0 {
++		return int(F1())
++	}
++	F1()
++	r := poisonStack(i - 1)
++	F2()
++	return r
++}
++
++func main() {
++	allocateStack(16384)
++	poisonStack(128)
++}
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 246898ab77..09c0624adb 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -261,6 +261,9 @@ func main() {
+ 		if arg == "-fsanitize=thread" {
+ 			tsanProlog = yesTsanProlog
+ 		}
++		if arg == "-fsanitize=memory" {
++			msanProlog = yesMsanProlog
++		}
+ 	}
+ 
+ 	p := newPackage(args[:i])
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 384791d077..07874974ee 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -531,6 +531,7 @@ func (p *Package) writeOutput(f *File, srcfile string) {
+ 	fmt.Fprintf(fgcc, "%s\n", f.Preamble)
+ 	fmt.Fprintf(fgcc, "%s\n", gccProlog)
+ 	fmt.Fprintf(fgcc, "%s\n", tsanProlog)
++	fmt.Fprintf(fgcc, "%s\n", msanProlog)
+ 
+ 	for _, key := range nameKeys(f.Name) {
+ 		n := f.Name[key]
+@@ -636,6 +637,16 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
+ 		fmt.Fprintf(fgcc, "\t_cgo_a = (void*)((char*)_cgo_a + (_cgo_topofstack() - _cgo_stktop));\n")
+ 		// Save the return value.
+ 		fmt.Fprintf(fgcc, "\t_cgo_a->r = _cgo_r;\n")
++		// The return value is on the Go stack. If we are using msan,
++		// and if the C value is partially or completely uninitialized,
++		// the assignment will mark the Go stack as uninitialized.
++		// The Go compiler does not update msan for changes to the
++		// stack. It is possible that the stack will remain
++		// uninitialized, and then later be used in a way that is
++		// visible to msan, possibly leading to a false positive.
++		// Mark the stack space as written, to avoid this problem.
++		// See issue 26209.
++		fmt.Fprintf(fgcc, "\t_cgo_msan_write(&_cgo_a->r, sizeof(_cgo_a->r));\n")
+ 	}
+ 	if n.AddError {
+ 		fmt.Fprintf(fgcc, "\treturn _cgo_errno;\n")
+@@ -734,6 +745,7 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
+ 	fmt.Fprintf(fgcc, "extern void _cgo_release_context(__SIZE_TYPE__);\n\n")
+ 	fmt.Fprintf(fgcc, "extern char* _cgo_topofstack(void);")
+ 	fmt.Fprintf(fgcc, "%s\n", tsanProlog)
++	fmt.Fprintf(fgcc, "%s\n", msanProlog)
+ 
+ 	for _, exp := range p.ExpFunc {
+ 		fn := exp.Func
+@@ -971,6 +983,7 @@ func (p *Package) writeGccgoExports(fgo2, fm, fgcc, fgcch io.Writer) {
+ 
+ 	fmt.Fprintf(fgcc, "%s\n", gccgoExportFileProlog)
+ 	fmt.Fprintf(fgcc, "%s\n", tsanProlog)
++	fmt.Fprintf(fgcc, "%s\n", msanProlog)
+ 
+ 	for _, exp := range p.ExpFunc {
+ 		fn := exp.Func
+@@ -1383,6 +1396,25 @@ static void _cgo_tsan_release() {
+ // Set to yesTsanProlog if we see -fsanitize=thread in the flags for gcc.
+ var tsanProlog = noTsanProlog
+ 
++// noMsanProlog is a prologue defining an MSAN function in C.
++// This is used when not compiling with -fsanitize=memory.
++const noMsanProlog = `
++#define _cgo_msan_write(addr, sz)
++`
++
++// yesMsanProlog is a prologue defining an MSAN function in C.
++// This is used when compiling with -fsanitize=memory.
++// See the comment above where _cgo_msan_write is called.
++const yesMsanProlog = `
++extern void __msan_unpoison(const volatile void *, size_t);
++
++#define _cgo_msan_write(addr, sz) __msan_unpoison((addr), (sz))
++`
++
++// msanProlog is set to yesMsanProlog if we see -fsanitize=memory in the flags
++// for the C compiler.
++var msanProlog = noMsanProlog
++
+ const builtinProlog = `
+ #line 1 "cgo-builtin-prolog"
+ #include <stddef.h> /* for ptrdiff_t and size_t below */

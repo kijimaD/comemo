@@ -7,6 +7,43 @@ Date:   Fri Feb 22 12:11:12 2013 -0500
     R=golang-dev, dvyukov
     CC=golang-dev
     https://golang.org/cl/7395051
-
+---
  src/pkg/runtime/parfor_test.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/pkg/runtime/parfor_test.go b/src/pkg/runtime/parfor_test.go
+index b382b76a7b..4c69a68cee 100644
+--- a/src/pkg/runtime/parfor_test.go
++++ b/src/pkg/runtime/parfor_test.go
+@@ -13,6 +13,8 @@ import (
+ 	"unsafe"
+ )
+ 
++var gdata []uint64
++
+ // Simple serial sanity test for parallelfor.
+ func TestParFor(t *testing.T) {
+ 	const P = 1
+@@ -22,7 +24,12 @@ func TestParFor(t *testing.T) {
+ 		data[i] = i
+ 	}
+ 	desc := NewParFor(P)
++	// Avoid making func a closure: parfor cannot invoke them.
++	// Since it doesn't happen in the C code, it's not worth doing
++	// just for the test.
++	gdata = data
+ 	ParForSetup(desc, P, N, nil, true, func(desc *ParFor, i uint32) {
++		data := gdata
+ 		data[i] = data[i]*data[i] + 1
+ 	})
+ 	ParForDo(desc)
+@@ -111,7 +118,9 @@ func TestParForParallel(t *testing.T) {
+ 	P := GOMAXPROCS(-1)
+ 	c := make(chan bool, P)
+ 	desc := NewParFor(uint32(P))
++	gdata = data
+ 	ParForSetup(desc, uint32(P), uint32(N), nil, false, func(desc *ParFor, i uint32) {
++		data := gdata
+ 		data[i] = data[i]*data[i] + 1
+ 	})
+ 	for p := 1; p < P; p++ {

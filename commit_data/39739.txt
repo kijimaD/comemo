@@ -22,7 +22,43 @@ Date:   Sun Mar 17 16:07:25 2019 +0100
     Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/ios/go_darwin_arm_exec.go | 4 ++--
  src/cmd/go/go_test.go          | 2 ++
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/misc/ios/go_darwin_arm_exec.go b/misc/ios/go_darwin_arm_exec.go
+index 6a3d9def68..8912d1e8fc 100644
+--- a/misc/ios/go_darwin_arm_exec.go
++++ b/misc/ios/go_darwin_arm_exec.go
+@@ -467,8 +467,8 @@ func idevCmd(cmd *exec.Cmd) *exec.Cmd {
+ func run(appdir, bundleID string, args []string) error {
+ 	var env []string
+ 	for _, e := range os.Environ() {
+-		// Don't override TMPDIR on the device.
+-		if strings.HasPrefix(e, "TMPDIR=") {
++		// Don't override TMPDIR, HOME on the device.
++		if strings.HasPrefix(e, "TMPDIR=") || strings.HasPrefix(e, "HOME=") {
+ 			continue
+ 		}
+ 		env = append(env, e)
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 60e02e7532..faf953ddeb 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -6,6 +6,7 @@ package main_test
+ 
+ import (
+ 	"bytes"
++	"cmd/go/internal/cache"
+ 	"cmd/internal/sys"
+ 	"context"
+ 	"debug/elf"
+@@ -166,6 +167,7 @@ func TestMain(m *testing.M) {
+ 		defer removeAll(testTmpDir)
+ 	}
+ 
++	testGOCACHE = cache.DefaultDir()
+ 	if canRun {
+ 		testBin = filepath.Join(testTmpDir, "testbin")
+ 		if err := os.Mkdir(testBin, 0777); err != nil {

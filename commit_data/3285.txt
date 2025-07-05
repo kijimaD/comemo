@@ -8,7 +8,7 @@ Date:   Tue Sep 15 21:58:45 2009 -0700
     DELTA=949  (949 added, 0 deleted, 0 changed)
     OCL=34676
     CL=34678
-
+---
  src/pkg/Make.deps            |   1 +
  src/pkg/Makefile             |   2 +
  src/pkg/debug/dwarf/Makefile |  15 ++
@@ -18,3 +18,1022 @@ Date:   Tue Sep 15 21:58:45 2009 -0700
  src/pkg/debug/dwarf/open.go  |  79 ++++++++++
  src/pkg/debug/dwarf/unit.go  |  63 ++++++++
  8 files changed, 953 insertions(+)
+
+diff --git a/src/pkg/Make.deps b/src/pkg/Make.deps
+index 3618863e3b..386af8cbb9 100644
+--- a/src/pkg/Make.deps
++++ b/src/pkg/Make.deps
+@@ -18,6 +18,7 @@ crypto/md5.install: hash.install os.install
+ crypto/sha1.install: hash.install os.install
+ datafmt.install: bytes.install container/vector.install fmt.install go/scanner.install go/token.install io.install os.install reflect.install runtime.install strconv.install strings.install
+ debug/binary.install: io.install math.install os.install reflect.install
++debug/dwarf.install: debug/binary.install fmt.install os.install strconv.install
+ debug/elf.install: debug/binary.install fmt.install io.install os.install strconv.install
+ debug/gosym.install: debug/binary.install fmt.install io.install os.install strconv.install strings.install
+ debug/proc.install: container/vector.install fmt.install io.install os.install runtime.install strconv.install strings.install sync.install syscall.install
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 6495f5705a..78a2d6dbe1 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -32,6 +32,7 @@ DIRS=\
+ 	crypto/sha1\
+ 	datafmt\
+ 	debug/binary\
++	debug/dwarf\
+ 	debug/elf\
+ 	debug/gosym\
+ 	debug/proc\
+@@ -81,6 +82,7 @@ DIRS=\
+ 	utf8\
+ 
+ NOTEST=\
++	debug/dwarf\
+ 	debug/proc\
+ 	go/ast\
+ 	go/doc\
+diff --git a/src/pkg/debug/dwarf/Makefile b/src/pkg/debug/dwarf/Makefile
+new file mode 100644
+index 0000000000..dfa0d90099
+--- /dev/null
++++ b/src/pkg/debug/dwarf/Makefile
+@@ -0,0 +1,15 @@
++# Copyright 2009 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include $(GOROOT)/src/Make.$(GOARCH)
++
++TARG=debug/dwarf
++GOFILES=\
++	buf.go\
++	const.go\
++	entry.go\
++	open.go\
++	unit.go\
++
++include $(GOROOT)/src/Make.pkg
+diff --git a/src/pkg/debug/dwarf/buf.go b/src/pkg/debug/dwarf/buf.go
+new file mode 100644
+index 0000000000..a9d45e527f
+--- /dev/null
++++ b/src/pkg/debug/dwarf/buf.go
+@@ -0,0 +1,157 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Buffered reading and decoding of DWARF data streams.
++
++package dwarf
++
++import (
++	"debug/binary";
++	"os";
++	"strconv";
++)
++
++// Data buffer being decoded.
++type buf struct {
++	dwarf *Data;
++	order binary.ByteOrder;
++	name string;
++	off Offset;
++	data []byte;
++	addrsize int;
++	err os.Error;
++}
++
++func makeBuf(d *Data, name string, off Offset, data []byte, addrsize int) buf {
++	return buf{d, d.order, name, off, data, addrsize, nil}
++}
++
++func (b *buf) uint8() uint8 {
++	if len(b.data) < 1 {
++		b.error("underflow");
++		return 0;
++	}
++	val := b.data[0];
++	b.data = b.data[1:len(b.data)];
++	b.off++;
++	return val;
++}
++
++func (b *buf) bytes(n int) []byte {
++	if len(b.data) < n {
++		b.error("underflow");
++		return nil;
++	}
++	data := b.data[0:n];
++	b.data = b.data[n:len(b.data)];
++	b.off += Offset(n);
++	return data;
++}
++
++func (b *buf) skip(n int) {
++	b.bytes(n);
++}
++
++func (b *buf) string() string {
++	for i := 0; i < len(b.data); i++ {
++		if b.data[i] == 0 {
++			s := string(b.data[0:i]);
++			b.data = b.data[i+1:len(b.data)];
++			b.off += Offset(i+1);
++			return s;
++		}
++	}
++	b.error("underflow");
++	return "";
++}
++
++func (b *buf) uint16() uint16{
++	a := b.bytes(2);
++	if a == nil {
++		return 0;
++	}
++	return b.order.Uint16(a);
++}
++
++func (b *buf) uint32() uint32 {
++	a := b.bytes(4);
++	if a == nil {
++		return 0;
++	}
++	return b.order.Uint32(a);
++}
++
++func (b *buf) uint64() uint64 {
++	a := b.bytes(8);
++	if a == nil {
++		return 0;
++	}
++	return b.order.Uint64(a);
++}
++
++// Read a varint, which is 7 bits per byte, little endian.
++// the 0x80 bit means read another byte.
++func (b *buf) varint() (c uint64, bits uint) {
++	for i := 0; i < len(b.data); i++ {
++		byte := b.data[i];
++		c |= uint64(byte&0x7F) << bits;
++		bits += 7;
++		if byte&0x80 == 0 {
++			b.off += Offset(i+1);
++			b.data = b.data[i+1:len(b.data)];
++			return c, bits;
++		}
++	}
++	return 0, 0;
++}
++
++// Unsigned int is just a varint.
++func (b *buf) uint() uint64 {
++	x, _ := b.varint();
++	return x;
++}
++
++// Signed int is a sign-extended varint.
++func (b *buf) int() int64 {
++	ux, bits := b.varint();
++	x := int64(ux);
++	if x & (1<<(bits-1)) != 0 {
++		x |= -1<<bits;
++	}
++	return x;
++}
++
++// Address-sized uint.
++func (b *buf) addr() uint64 {
++	switch b.addrsize {
++	case 1:
++		return uint64(b.uint8());
++	case 2:
++		return uint64(b.uint16());
++	case 4:
++		return uint64(b.uint32());
++	case 8:
++		return uint64(b.uint64());
++	}
++	b.error("unknown address size");
++	return 0;
++}
++
++func (b *buf) error(s string) {
++	if b.err == nil {
++		b.data = nil;
++		b.err = DecodeError{b.name, b.off, s}
++	}
++}
++
++type DecodeError struct {
++	Name string;
++	Offset Offset;
++	Error string;
++}
++
++func (e DecodeError) String() string {
++	return "decoding dwarf section " + e.Name + " at offset " + strconv.Itoa64(int64(e.Offset)) + ": " + e.Error;
++}
++
+diff --git a/src/pkg/debug/dwarf/const.go b/src/pkg/debug/dwarf/const.go
+new file mode 100644
+index 0000000000..73abdb66a2
+--- /dev/null
++++ b/src/pkg/debug/dwarf/const.go
+@@ -0,0 +1,352 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Constants
++
++package dwarf
++
++import "strconv"
++
++// An Attr identifies the attribute type in a DWARF Entry's Field.
++type Attr uint32
++
++const (
++	AttrSibling Attr = 0x01;
++	AttrLocation Attr = 0x02;
++	AttrName Attr = 0x03;
++	AttrOrdering Attr = 0x09;
++	AttrByteSize Attr = 0x0B;
++	AttrBitOffset Attr = 0x0C;
++	AttrBitSize Attr = 0x0D;
++	AttrStmtList Attr = 0x10;
++	AttrLowpc Attr = 0x11;
++	AttrHighpc Attr = 0x12;
++	AttrLanguage Attr = 0x13;
++	AttrDiscr Attr = 0x15;
++	AttrDiscrValue Attr = 0x16;
++	AttrVisibility Attr = 0x17;
++	AttrImport Attr = 0x18;
++	AttrStringLength Attr = 0x19;
++	AttrCommonRef Attr = 0x1A;
++	AttrCompDir Attr = 0x1B;
++	AttrConstValue Attr = 0x1C;
++	AttrContainingType Attr = 0x1D;
++	AttrDefaultValue Attr = 0x1E;
++	AttrInline Attr = 0x20;
++	AttrIsOptional Attr = 0x21;
++	AttrLowerBound Attr = 0x22;
++	AttrProducer Attr = 0x25;
++	AttrPrototyped Attr = 0x27;
++	AttrReturnAddr Attr = 0x2A;
++	AttrStartScope Attr = 0x2C;
++	AttrStrideSize Attr = 0x2E;
++	AttrUpperBound Attr = 0x2F;
++	AttrAbstractOrigin Attr = 0x31;
++	AttrAccessibility Attr = 0x32;
++	AttrAddrClass Attr = 0x33;
++	AttrArtificial Attr = 0x34;
++	AttrBaseTypes Attr = 0x35;
++	AttrCalling Attr = 0x36;
++	AttrCount Attr = 0x37;
++	AttrDataMemberLoc Attr = 0x38;
++	AttrDeclColumn Attr = 0x39;
++	AttrDeclFile Attr = 0x3A;
++	AttrDeclLine Attr = 0x3B;
++	AttrDeclaration Attr = 0x3C;
++	AttrDiscrList Attr = 0x3D;
++	AttrEncoding Attr = 0x3E;
++	AttrExternal Attr = 0x3F;
++	AttrFrameBase Attr = 0x40;
++	AttrFriend Attr = 0x41;
++	AttrIdentifierCase Attr = 0x42;
++	AttrMacroInfo Attr = 0x43;
++	AttrNamelistItem Attr = 0x44;
++	AttrPriority Attr = 0x45;
++	AttrSegment Attr = 0x46;
++	AttrSpecification Attr = 0x47;
++	AttrStaticLink Attr = 0x48;
++	AttrType Attr = 0x49;
++	AttrUseLocation Attr = 0x4A;
++	AttrVarParam Attr = 0x4B;
++	AttrVirtuality Attr = 0x4C;
++	AttrVtableElemLoc Attr = 0x4D;
++	AttrAllocated Attr = 0x4E;
++	AttrAssociated Attr = 0x4F;
++	AttrDataLocation Attr = 0x50;
++	AttrStride Attr = 0x51;
++	AttrEntrypc Attr = 0x52;
++	AttrUseUTF8 Attr = 0x53;
++	AttrExtension Attr = 0x54;
++	AttrRanges Attr = 0x55;
++	AttrTrampoline Attr = 0x56;
++	AttrCallColumn Attr = 0x57;
++	AttrCallFile Attr = 0x58;
++	AttrCallLine Attr = 0x59;
++	AttrDescription Attr = 0x5A;
++)
++
++var attrNames = [...]string {
++	AttrSibling: "Sibling",
++	AttrLocation: "Location",
++	AttrName: "Name",
++	AttrOrdering: "Ordering",
++	AttrByteSize: "ByteSize",
++	AttrBitOffset: "BitOffset",
++	AttrBitSize: "BitSize",
++	AttrStmtList: "StmtList",
++	AttrLowpc: "Lowpc",
++	AttrHighpc: "Highpc",
++	AttrLanguage: "Language",
++	AttrDiscr: "Discr",
++	AttrDiscrValue: "DiscrValue",
++	AttrVisibility: "Visibility",
++	AttrImport: "Import",
++	AttrStringLength: "StringLength",
++	AttrCommonRef: "CommonRef",
++	AttrCompDir: "CompDir",
++	AttrConstValue: "ConstValue",
++	AttrContainingType: "ContainingType",
++	AttrDefaultValue: "DefaultValue",
++	AttrInline: "Inline",
++	AttrIsOptional: "IsOptional",
++	AttrLowerBound: "LowerBound",
++	AttrProducer: "Producer",
++	AttrPrototyped: "Prototyped",
++	AttrReturnAddr: "ReturnAddr",
++	AttrStartScope: "StartScope",
++	AttrStrideSize: "StrideSize",
++	AttrUpperBound: "UpperBound",
++	AttrAbstractOrigin: "AbstractOrigin",
++	AttrAccessibility: "Accessibility",
++	AttrAddrClass: "AddrClass",
++	AttrArtificial: "Artificial",
++	AttrBaseTypes: "BaseTypes",
++	AttrCalling: "Calling",
++	AttrCount: "Count",
++	AttrDataMemberLoc: "DataMemberLoc",
++	AttrDeclColumn: "DeclColumn",
++	AttrDeclFile: "DeclFile",
++	AttrDeclLine: "DeclLine",
++	AttrDeclaration: "Declaration",
++	AttrDiscrList: "DiscrList",
++	AttrEncoding: "Encoding",
++	AttrExternal: "External",
++	AttrFrameBase: "FrameBase",
++	AttrFriend: "Friend",
++	AttrIdentifierCase: "IdentifierCase",
++	AttrMacroInfo: "MacroInfo",
++	AttrNamelistItem: "NamelistItem",
++	AttrPriority: "Priority",
++	AttrSegment: "Segment",
++	AttrSpecification: "Specification",
++	AttrStaticLink: "StaticLink",
++	AttrType: "Type",
++	AttrUseLocation: "UseLocation",
++	AttrVarParam: "VarParam",
++	AttrVirtuality: "Virtuality",
++	AttrVtableElemLoc: "VtableElemLoc",
++	AttrAllocated: "Allocated",
++	AttrAssociated: "Associated",
++	AttrDataLocation: "DataLocation",
++	AttrStride: "Stride",
++	AttrEntrypc: "Entrypc",
++	AttrUseUTF8: "UseUTF8",
++	AttrExtension: "Extension",
++	AttrRanges: "Ranges",
++	AttrTrampoline: "Trampoline",
++	AttrCallColumn: "CallColumn",
++	AttrCallFile: "CallFile",
++	AttrCallLine: "CallLine",
++	AttrDescription: "Description",
++}
++
++func (a Attr) String() string {
++	if int(a) < len(attrNames) {
++		s := attrNames[a];
++		if s != "" {
++			return s;
++		}
++	}
++	return strconv.Itoa(int(a));
++}
++
++func (a Attr) GoString() string {
++	if int(a) < len(attrNames) {
++		s := attrNames[a];
++		if s != "" {
++			return "dwarf.Attr" + s;
++		}
++	}
++	return "dwarf.Attr(" + strconv.Itoa64(int64(a)) + ")";
++}
++
++// A format is a DWARF data encoding format.
++type format uint32
++
++const (
++	// value formats
++	formAddr format = 0x01;
++	formDwarfBlock2 format = 0x03;
++	formDwarfBlock4 format = 0x04;
++	formData2 format = 0x05;
++	formData4 format = 0x06;
++	formData8 format = 0x07;
++	formString format = 0x08;
++	formDwarfBlock format = 0x09;
++	formDwarfBlock1 format = 0x0A;
++	formData1 format = 0x0B;
++	formFlag format = 0x0C;
++	formSdata format = 0x0D;
++	formStrp format = 0x0E;
++	formUdata format = 0x0F;
++	formRefAddr format = 0x10;
++	formRef1 format = 0x11;
++	formRef2 format = 0x12;
++	formRef4 format = 0x13;
++	formRef8 format = 0x14;
++	formRefUdata format = 0x15;
++	formIndirect format = 0x16;
++)
++
++// A Tag is the classification (the type) of an Entry.
++type Tag uint32
++
++const (
++	TagArrayType Tag = 0x01;
++	TagClassType Tag = 0x02;
++	TagEntryPoint Tag = 0x03;
++	TagEnumerationType Tag = 0x04;
++	TagFormalParameter Tag = 0x05;
++	TagImportedDeclaration Tag = 0x08;
++	TagLabel Tag = 0x0A;
++	TagLexDwarfBlock Tag = 0x0B;
++	TagMember Tag = 0x0D;
++	TagPointerType Tag = 0x0F;
++	TagReferenceType Tag = 0x10;
++	TagCompileUnit Tag = 0x11;
++	TagStringType Tag = 0x12;
++	TagStructType Tag = 0x13;
++	TagSubroutineType Tag = 0x15;
++	TagTypedef Tag = 0x16;
++	TagUnionType Tag = 0x17;
++	TagUnspecifiedParameters Tag = 0x18;
++	TagVariant Tag = 0x19;
++	TagCommonDwarfBlock Tag = 0x1A;
++	TagCommonInclusion Tag = 0x1B;
++	TagInheritance Tag = 0x1C;
++	TagInlinedSubroutine Tag = 0x1D;
++	TagModule Tag = 0x1E;
++	TagPtrToMemberType Tag = 0x1F;
++	TagSetType Tag = 0x20;
++	TagSubrangeType Tag = 0x21;
++	TagWithStmt Tag = 0x22;
++	TagAccessDeclaration Tag = 0x23;
++	TagBaseType Tag = 0x24;
++	TagCatchDwarfBlock Tag = 0x25;
++	TagConstType Tag = 0x26;
++	TagConstant Tag = 0x27;
++	TagEnumerator Tag = 0x28;
++	TagFileType Tag = 0x29;
++	TagFriend Tag = 0x2A;
++	TagNamelist Tag = 0x2B;
++	TagNamelistItem Tag = 0x2C;
++	TagPackedType Tag = 0x2D;
++	TagSubprogram Tag = 0x2E;
++	TagTemplateTypeParameter Tag = 0x2F;
++	TagTemplateValueParameter Tag = 0x30;
++	TagThrownType Tag = 0x31;
++	TagTryDwarfBlock Tag = 0x32;
++	TagVariantPart Tag = 0x33;
++	TagVariable Tag = 0x34;
++	TagVolatileType Tag = 0x35;
++	TagDwarfProcedure Tag = 0x36;
++	TagRestrictType Tag = 0x37;
++	TagInterfaceType Tag = 0x38;
++	TagNamespace Tag = 0x39;
++	TagImportedModule Tag = 0x3A;
++	TagUnspecifiedType Tag = 0x3B;
++	TagPartialUnit Tag = 0x3C;
++	TagImportedUnit Tag = 0x3D;
++	TagMutableType Tag = 0x3E;
++)
++
++var tagNames = [...]string {
++	TagArrayType: "ArrayType",
++	TagClassType: "ClassType",
++	TagEntryPoint: "EntryPoint",
++	TagEnumerationType: "EnumerationType",
++	TagFormalParameter: "FormalParameter",
++	TagImportedDeclaration: "ImportedDeclaration",
++	TagLabel: "Label",
++	TagLexDwarfBlock: "LexDwarfBlock",
++	TagMember: "Member",
++	TagPointerType: "PointerType",
++	TagReferenceType: "ReferenceType",
++	TagCompileUnit: "CompileUnit",
++	TagStringType: "StringType",
++	TagStructType: "StructType",
++	TagSubroutineType: "SubroutineType",
++	TagTypedef: "Typedef",
++	TagUnionType: "UnionType",
++	TagUnspecifiedParameters: "UnspecifiedParameters",
++	TagVariant: "Variant",
++	TagCommonDwarfBlock: "CommonDwarfBlock",
++	TagCommonInclusion: "CommonInclusion",
++	TagInheritance: "Inheritance",
++	TagInlinedSubroutine: "InlinedSubroutine",
++	TagModule: "Module",
++	TagPtrToMemberType: "PtrToMemberType",
++	TagSetType: "SetType",
++	TagSubrangeType: "SubrangeType",
++	TagWithStmt: "WithStmt",
++	TagAccessDeclaration: "AccessDeclaration",
++	TagBaseType: "BaseType",
++	TagCatchDwarfBlock: "CatchDwarfBlock",
++	TagConstType: "ConstType",
++	TagConstant: "Constant",
++	TagEnumerator: "Enumerator",
++	TagFileType: "FileType",
++	TagFriend: "Friend",
++	TagNamelist: "Namelist",
++	TagNamelistItem: "NamelistItem",
++	TagPackedType: "PackedType",
++	TagSubprogram: "Subprogram",
++	TagTemplateTypeParameter: "TemplateTypeParameter",
++	TagTemplateValueParameter: "TemplateValueParameter",
++	TagThrownType: "ThrownType",
++	TagTryDwarfBlock: "TryDwarfBlock",
++	TagVariantPart: "VariantPart",
++	TagVariable: "Variable",
++	TagVolatileType: "VolatileType",
++	TagDwarfProcedure: "DwarfProcedure",
++	TagRestrictType: "RestrictType",
++	TagInterfaceType: "InterfaceType",
++	TagNamespace: "Namespace",
++	TagImportedModule: "ImportedModule",
++	TagUnspecifiedType: "UnspecifiedType",
++	TagPartialUnit: "PartialUnit",
++	TagImportedUnit: "ImportedUnit",
++	TagMutableType: "MutableType",
++}
++
++func (t Tag) String() string {
++	if int(t) < len(tagNames) {
++		s := tagNames[t];
++		if s != "" {
++			return s;
++		}
++	}
++	return strconv.Itoa(int(t));
++}
++
++func (t Tag) GoString() string {
++	if int(t) < len(tagNames) {
++		s := tagNames[t];
++		if s != "" {
++			return "dwarf.Tag" + s;
++		}
++	}
++	return "dwarf.Tag(" + strconv.Itoa64(int64(t)) + ")";
++}
++
+diff --git a/src/pkg/debug/dwarf/entry.go b/src/pkg/debug/dwarf/entry.go
+new file mode 100644
+index 0000000000..472ee91d8a
+--- /dev/null
++++ b/src/pkg/debug/dwarf/entry.go
+@@ -0,0 +1,284 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// DWARF debug information entry parser.
++// An entry is a sequence of data items of a given format.
++// The first word in the entry is an index into what DWARF
++// calls the ``abbreviation table.''  An abbreviation is really
++// just a type descriptor: it's an array of attribute tag/value format pairs.
++
++package dwarf
++
++import (
++	"os";
++	"strconv";
++)
++
++// a single entry's description: a sequence of attributes
++type abbrev struct {
++	tag Tag;
++	children bool;
++	field []afield;
++}
++
++type afield struct {
++	attr Attr;
++	fmt format;
++}
++
++// a map from entry format ids to their descriptions
++type abbrevTable map[uint32]abbrev
++
++// ParseAbbrev returns the abbreviation table that starts at byte off
++// in the .debug_abbrev section.
++func (d *Data) parseAbbrev(off uint32) (abbrevTable, os.Error) {
++	if m, ok := d.abbrevCache[off]; ok {
++		return m, nil;
++	}
++
++	data := d.abbrev;
++	if off > uint32(len(data)) {
++		data = nil;
++	} else {
++		data = data[off:len(data)];
++	}
++	b := makeBuf(d, "abbrev", 0, data, 0);
++
++	// Error handling is simplified by the buf getters
++	// returning an endless stream of 0s after an error.
++	m := make(abbrevTable);
++	for {
++		// Table ends with id == 0.
++		id := uint32(b.uint());
++		if id == 0 {
++			break;
++		}
++
++		// Walk over attributes, counting.
++		n := 0;
++		b1 := b;	// Read from copy of b.
++		b1.uint();
++		b1.uint8();
++		for {
++			tag := b1.uint();
++			fmt := b1.uint();
++			if tag == 0 && fmt == 0 {
++				break;
++			}
++			n++;
++		}
++		if b1.err != nil {
++			return nil, b1.err;
++		}
++
++		// Walk over attributes again, this time writing them down.
++		var a abbrev;
++		a.tag = Tag(b.uint());
++		a.children = b.uint8() != 0;
++		a.field = make([]afield, n);
++		for i := range a.field {
++			a.field[i].attr = Attr(b.uint());
++			a.field[i].fmt = format(b.uint());
++		}
++		b.uint();
++		b.uint();
++
++		m[id] = a;
++	}
++	if b.err != nil {
++		return nil, b.err;
++	}
++	d.abbrevCache[off] = m;
++	return m, nil;
++}
++
++// An entry is a sequence of attribute/value pairs.
++type Entry struct {
++	Offset Offset;	// offset of Entry in DWARF info
++	Tag Tag;	// tag (kind of Entry)
++	Children bool;	// whether Entry is followed by children
++	Field []Field;
++}
++
++// A Field is a single attribute/value pair in an Entry.
++type Field struct {
++	Attr Attr;
++	Val interface{};
++}
++
++// An Offset represents the location of an Entry within the DWARF info.
++// (See Reader.Seek.)
++type Offset uint32
++
++// Entry reads a single entry from buf, decoding
++// according to the given abbreviation table.
++func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
++	off := b.off;
++	id := uint32(b.uint());
++	if id == 0 {
++		return &Entry{};
++	}
++	a, ok := atab[id];
++	if !ok {
++		b.error("unknown abbreviation table index");
++		return nil;
++	}
++	e := &Entry{
++		Offset: off,
++		Tag: a.tag,
++		Children: a.children,
++		Field: make([]Field, len(a.field))
++	};
++	for i := range e.Field {
++		e.Field[i].Attr = a.field[i].attr;
++		fmt := a.field[i].fmt;
++		if fmt == formIndirect {
++			fmt = format(b.uint());
++		}
++		var val interface{};
++		switch fmt {
++		default:
++			b.error("unknown entry attr format");
++
++		// address
++		case formAddr:
++			val = b.addr();
++
++		// block
++		case formDwarfBlock1:
++			val = b.bytes(int(b.uint8()));
++		case formDwarfBlock2:
++			val = b.bytes(int(b.uint16()));
++		case formDwarfBlock4:
++			val = b.bytes(int(b.uint32()));
++		case formDwarfBlock:
++			val = b.bytes(int(b.uint()));
++
++		// constant
++		case formData1:
++			val = uint64(b.uint8());
++		case formData2:
++			val = uint64(b.uint16());
++		case formData4:
++			val = uint64(b.uint32());
++		case formData8:
++			val = uint64(b.uint64());
++		case formSdata:
++			val = int64(b.int());
++		case formUdata:
++			val = uint64(b.uint());
++
++		// flag
++		case formFlag:
++			val = b.uint8() == 1;
++
++		// reference to other entry
++		case formRefAddr:
++			val = Offset(b.addr());
++		case formRef1:
++			val = Offset(b.uint8()) + ubase;
++		case formRef2:
++			val = Offset(b.uint16()) + ubase;
++		case formRef4:
++			val = Offset(b.uint32()) + ubase;
++		case formRef8:
++			val = Offset(b.uint64()) + ubase;
++		case formRefUdata:
++			val = Offset(b.uint()) + ubase;
++
++		// string
++		case formString:
++			val = b.string();
++		case formStrp:
++			off := b.uint32();	// offset into .debug_str
++			if b.err != nil {
++				return nil;
++			}
++			b1 := makeBuf(b.dwarf, "str", 0, b.dwarf.str, 0);
++			b1.skip(int(off));
++			val = b1.string();
++			if b1.err != nil {
++				b.err = b1.err;
++				return nil;
++			}
++		}
++		e.Field[i].Val = val;
++	}
++	if b.err != nil {
++		return nil;
++	}
++	return e;
++}
++
++// A Reader allows reading Entry structures from a DWARF ``info'' section.
++type Reader struct {
++	b buf;
++	d *Data;
++	err os.Error;
++	unit int;
++}
++
++// Reader returns a new Reader for Data.
++// The reader is positioned at byte offset 0 in the DWARF ``info'' section.
++func (d *Data) Reader() *Reader {
++	r := &Reader{d: d};
++	r.Seek(0);
++	return r;
++}
++
++// Seek positions the Reader at offset off in the encoded entry stream.
++// Offset 0 can be used to denote the first entry.
++func (r *Reader) Seek(off Offset) {
++	d := r.d;
++	r.err = nil;
++	if off == 0 {
++		if len(d.unit) == 0 {
++			return;
++		}
++		u := &d.unit[0];
++		r.unit = 0;
++		r.b = makeBuf(r.d, "info", u.off, u.data, u.addrsize);
++		return;
++	}
++
++	// TODO(rsc): binary search (maybe a new package)
++	var i int;
++	var u *unit;
++	for i = range d.unit {
++		u = &d.unit[i];
++		if u.off <= off && off < u.off+Offset(len(u.data)) {
++			r.unit = i;
++			r.b = makeBuf(r.d, "info", off, u.data[off-u.off:len(u.data)], u.addrsize);
++			return;
++		}
++	}
++	r.err = os.NewError("offset out of range");
++}
++
++// maybeNextUnit advances to the next unit if this one is finished.
++func (r *Reader) maybeNextUnit() {
++	for len(r.b.data) == 0 && r.unit < len(r.d.unit) {
++		r.unit++;
++		u := &r.d.unit[r.unit];
++		r.b = makeBuf(r.d, "info", u.off, u.data, u.addrsize);
++	}
++}
++
++// Next reads the next entry from the encoded entry stream.
++// It returns nil, nil when it reaches the end of the section.
++// It returns an error if the current offset is invalid or the data at the
++// offset cannot be decoded as a valid Entry.
++func (r *Reader) Next() (*Entry, os.Error) {
++	if r.err != nil {
++		return nil, r.err;
++	}
++	r.maybeNextUnit();
++	if len(r.b.data) == 0 {
++		return nil, nil;
++	}
++	u := &r.d.unit[r.unit];
++	e := r.b.entry(u.atable, u.base);
++	r.err = r.b.err;
++	return e, r.err;
++}
+diff --git a/src/pkg/debug/dwarf/open.go b/src/pkg/debug/dwarf/open.go
+new file mode 100644
+index 0000000000..8694508386
+--- /dev/null
++++ b/src/pkg/debug/dwarf/open.go
+@@ -0,0 +1,79 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This package provides access to DWARF debugging information
++// loaded from executable files, as defined in the DWARF 2.0 Standard
++// at http://dwarfstd.org/dwarf-2.0.0.pdf.
++package dwarf
++
++import (
++	"debug/binary";
++	"fmt";
++	"os";
++)
++
++// Data represents the DWARF debugging information
++// loaded from an executable file (for example, an ELF or Mach-O executable).
++type Data struct {
++	// raw data
++	abbrev []byte;
++	aranges []byte;
++	frame []byte;
++	info []byte;
++	line []byte;
++	pubnames []byte;
++	ranges []byte;
++	str []byte;
++
++	// parsed data
++	abbrevCache map[uint32] abbrevTable;
++	addrsize int;
++	order binary.ByteOrder;
++	unit []unit;
++}
++
++// New returns a new Data object initialized from the given parameters.
++// Clients should typically use [TODO(rsc): method to be named later] instead of calling
++// New directly.
++//
++// The []byte arguments are the data from the corresponding debug section
++// in the object file; for example, for an ELF object, abbrev is the contents of
++// the ".debug_abbrev" section.
++func New(abbrev, aranges, frame, info, line, pubnames, ranges, str []byte) (*Data, os.Error) {
++	d := &Data{
++		abbrev: abbrev,
++		aranges: aranges,
++		frame: frame,
++		info: info,
++		line: line,
++		pubnames: pubnames,
++		ranges: ranges,
++		str: str,
++		abbrevCache: make(map[uint32]abbrevTable),
++	};
++
++	// Sniff .debug_info to figure out byte order.
++	// bytes 4:6 are the version, a tiny 16-bit number (1, 2, 3).
++	if len(d.info) < 6 {
++		return nil, DecodeError{"info", Offset(len(d.info)), "too short"};
++	}
++	x, y := d.info[4], d.info[5];
++	switch {
++	case x == 0 && y == 0:
++		return nil, DecodeError{"info", 4, "unsupported version 0"};
++	case x == 0:
++		d.order = binary.BigEndian;
++	case y == 0:
++		d.order = binary.LittleEndian;
++	default:
++		return nil, DecodeError{"info", 4, "cannot determine byte order"};
++	}
++
++	u, err := d.parseUnits();
++	if err != nil {
++		return nil, err;
++	}
++	d.unit = u;
++	return d, nil;
++}
+diff --git a/src/pkg/debug/dwarf/unit.go b/src/pkg/debug/dwarf/unit.go
+new file mode 100644
+index 0000000000..040151f39d
+--- /dev/null
++++ b/src/pkg/debug/dwarf/unit.go
+@@ -0,0 +1,63 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package dwarf
++
++import (
++	"os";
++	"strconv";
++)
++
++// DWARF debug info is split into a sequence of compilation units.
++// Each unit has its own abbreviation table and address size.
++
++type unit struct {
++	base Offset;	// byte offset of header within the aggregate info
++	off Offset;	// byte offset of data within the aggregate info
++	data []byte;
++	atable abbrevTable;
++	addrsize int;
++}
++
++func (d *Data) parseUnits() ([]unit, os.Error) {
++	// Count units.
++	nunit := 0;
++	b := makeBuf(d, "info", 0, d.info, 0);
++	for len(b.data) > 0 {
++		b.skip(int(b.uint32()));
++		nunit++;
++	}
++	if b.err != nil {
++		return nil, b.err;
++	}
++
++	// Again, this time writing them down.
++	b = makeBuf(d, "info", 0, d.info, 0);
++	units := make([]unit, nunit);
++	for i := range units {
++		u := &units[i];
++		u.base = b.off;
++		n := b.uint32();
++		if vers := b.uint16(); vers != 2 {
++			b.error("unsupported DWARF version " + strconv.Itoa(int(vers)));
++			break;
++		}
++		atable, err := d.parseAbbrev(b.uint32());
++		if err != nil {
++			if b.err == nil {
++				b.err = err;
++			}
++			break;
++		}
++		u.atable = atable;
++		u.addrsize = int(b.uint8());
++		u.off = b.off;
++		u.data = b.bytes(int(n - (2+4+1)));
++	}
++	if b.err != nil {
++		return nil, b.err;
++	}
++	return units, nil;
++}
++

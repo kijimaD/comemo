@@ -8,6 +8,22 @@ Date:   Mon Jul 14 19:14:27 2014 -0700
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/117790043
-
+---
  src/pkg/go/ast/walk.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/ast/walk.go b/src/pkg/go/ast/walk.go
+index fedffb3f22..73ac38647a 100644
+--- a/src/pkg/go/ast/walk.go
++++ b/src/pkg/go/ast/walk.go
+@@ -275,7 +275,9 @@ func Walk(v Visitor, node Node) {
+ 		Walk(v, n.Body)
+ 
+ 	case *RangeStmt:
+-		Walk(v, n.Key)
++		if n.Key != nil {
++			Walk(v, n.Key)
++		}
+ 		if n.Value != nil {
+ 			Walk(v, n.Value)
+ 		}

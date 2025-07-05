@@ -14,7 +14,7 @@ Date:   Tue Aug 20 17:54:39 2024 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/cgo/internal/testerrors/argposition_test.go               | 8 ++++----
  src/cmd/compile/internal/inline/inl.go                            | 2 +-
  src/cmd/compile/internal/inline/inlheur/testdata/props/returns.go | 4 ++--
@@ -39,3 +39,343 @@ Date:   Tue Aug 20 17:54:39 2024 +0000
  src/runtime/os_linux.go                                           | 2 +-
  src/syscall/js/js_test.go                                         | 4 ++--
  23 files changed, 30 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/testerrors/argposition_test.go b/src/cmd/cgo/internal/testerrors/argposition_test.go
+index 0876dc4caf..b39cc3b3c8 100644
+--- a/src/cmd/cgo/internal/testerrors/argposition_test.go
++++ b/src/cmd/cgo/internal/testerrors/argposition_test.go
+@@ -41,16 +41,16 @@ func (v *Visitor) Visit(node ast.Node) ast.Visitor {
+ 			var errorMessage strings.Builder
+ 			for caseIndex, expectedPos := range expectedPositions {
+ 				actualPosition := v.fset.PositionFor(ident.Pos(), true)
+-				errorOccured := false
++				errorOccurred := false
+ 				if expectedPos.Line != actualPosition.Line {
+ 					fmt.Fprintf(&errorMessage, "wrong line number for ident %s: expected: %d got: %d\n", ident.Name, expectedPos.Line, actualPosition.Line)
+-					errorOccured = true
++					errorOccurred = true
+ 				}
+ 				if expectedPos.Column != actualPosition.Column {
+ 					fmt.Fprintf(&errorMessage, "wrong column number for ident %s: expected: %d got: %d\n", ident.Name, expectedPos.Column, actualPosition.Column)
+-					errorOccured = true
++					errorOccurred = true
+ 				}
+-				if errorOccured {
++				if errorOccurred {
+ 					continue
+ 				}
+ 				gotMatch = true
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 513d2678f6..c9b9e18eaf 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -957,7 +957,7 @@ func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCa
+ 	}
+ 
+ 	if base.Debug.Checkptr != 0 && types.IsRuntimePkg(callee.Sym().Pkg) {
+-		// We don't intrument runtime packages for checkptr (see base/flag.go).
++		// We don't instrument runtime packages for checkptr (see base/flag.go).
+ 		if log && logopt.Enabled() {
+ 			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(callerfn),
+ 				fmt.Sprintf(`call to into runtime package function %s in -d=checkptr build`, ir.PkgFuncName(callee)))
+diff --git a/src/cmd/compile/internal/inline/inlheur/testdata/props/returns.go b/src/cmd/compile/internal/inline/inlheur/testdata/props/returns.go
+index 51f2bc7cb2..5e45a7bc23 100644
+--- a/src/cmd/compile/internal/inline/inlheur/testdata/props/returns.go
++++ b/src/cmd/compile/internal/inline/inlheur/testdata/props/returns.go
+@@ -88,14 +88,14 @@ func T_multi_return_nil(x, y bool) *Bar {
+ 	return nil
+ }
+ 
+-// returns.go T_multi_return_nil_anomoly 98 0 1
++// returns.go T_multi_return_nil_anomaly 98 0 1
+ // ResultFlags
+ //   0 ResultIsConcreteTypeConvertedToInterface
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0,0],"ResultFlags":[4]}
+ // <endcallsites>
+ // <endfuncpreamble>
+-func T_multi_return_nil_anomoly(x, y bool) Itf {
++func T_multi_return_nil_anomaly(x, y bool) Itf {
+ 	if x && y {
+ 		var qnil *Q
+ 		return qnil
+diff --git a/src/cmd/compile/internal/liveness/mergelocals.go b/src/cmd/compile/internal/liveness/mergelocals.go
+index f33ebd0d81..86f1e6ddaa 100644
+--- a/src/cmd/compile/internal/liveness/mergelocals.go
++++ b/src/cmd/compile/internal/liveness/mergelocals.go
+@@ -952,7 +952,7 @@ func (cs *cstate) computeIntervals() {
+ 		//
+ 		// Note the SPanchored: this ensures that the scheduler won't
+ 		// move the MOVDaddr earlier than the vardef. With a variable
+-		// "xyz" that has no pointers, howver, if we start with
++		// "xyz" that has no pointers, however, if we start with
+ 		//
+ 		//    v66 = VarDef <mem> {t2} v65
+ 		//    v67 = LocalAddr <*T> {t2} v2 v66
+diff --git a/src/cmd/compile/internal/pgoir/irgraph.go b/src/cmd/compile/internal/pgoir/irgraph.go
+index b031e2a9ff..044c18da65 100644
+--- a/src/cmd/compile/internal/pgoir/irgraph.go
++++ b/src/cmd/compile/internal/pgoir/irgraph.go
+@@ -38,7 +38,7 @@
+ // //line directives that change line numbers in strange ways should be rare,
+ // and failing PGO matching on these files is not too big of a loss.
+ 
+-// Package pgoir assosciates a PGO profile with the IR of the current package
++// Package pgoir associates a PGO profile with the IR of the current package
+ // compilation.
+ package pgoir
+ 
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 67479ace3b..e2080324fe 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -6424,7 +6424,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 
+ 		if hotAlign > 0 && b.Hotness&ssa.HotPgoInitial == ssa.HotPgoInitial {
+ 			// So far this has only been shown profitable for PGO-hot loop headers.
+-			// The Hotness values allows distinctions betwen initial blocks that are "hot" or not, and "flow-in" or not.
++			// The Hotness values allows distinctions between initial blocks that are "hot" or not, and "flow-in" or not.
+ 			// Currently only the initial blocks of loops are tagged in this way;
+ 			// there are no blocks tagged "pgo-hot" that are not also tagged "initial".
+ 			// TODO more heuristics, more architectures.
+diff --git a/src/cmd/compile/internal/types2/signature.go b/src/cmd/compile/internal/types2/signature.go
+index 71d6032c07..f78cf33198 100644
+--- a/src/cmd/compile/internal/types2/signature.go
++++ b/src/cmd/compile/internal/types2/signature.go
+@@ -274,7 +274,7 @@ func (check *Checker) recordParenthesizedRecvTypes(expr syntax.Expr, typ Type) {
+ 	}
+ }
+ 
+-// collectParams collects (but does not delare) all parameters of list and returns
++// collectParams collects (but does not declare) all parameters of list and returns
+ // the list of parameter names, corresponding parameter variables, and whether the
+ // parameter list is variadic. Anonymous parameters are recorded with nil names.
+ func (check *Checker) collectParams(list []*syntax.Field, variadicOk bool) (names []*syntax.Name, params []*Var, variadic bool) {
+diff --git a/src/cmd/go/testdata/script/mod_list_direct_work.txt b/src/cmd/go/testdata/script/mod_list_direct_work.txt
+index eeede6dad1..517d435486 100644
+--- a/src/cmd/go/testdata/script/mod_list_direct_work.txt
++++ b/src/cmd/go/testdata/script/mod_list_direct_work.txt
+@@ -51,7 +51,7 @@ module example.com/b
+ 
+ go 1.23
+ 
+-// The indrect comment below is inaccurate. Its purpose
++// The indirect comment below is inaccurate. Its purpose
+ // is to test that it is corrected when enough packages
+ // are loaded to correct it.
+ 
+diff --git a/src/cmd/internal/obj/loong64/doc.go b/src/cmd/internal/obj/loong64/doc.go
+index 19a0effcd5..c46d31d2c2 100644
+--- a/src/cmd/internal/obj/loong64/doc.go
++++ b/src/cmd/internal/obj/loong64/doc.go
+@@ -48,7 +48,7 @@ start:
+ 
+ 1. All generial-prupose register names are written as Rn.
+ 
+-2. All floating-poing register names are written as Fn.
++2. All floating-point register names are written as Fn.
+ 
+ # Argument mapping rules
+ 
+diff --git a/src/cmd/internal/obj/loong64/obj.go b/src/cmd/internal/obj/loong64/obj.go
+index b2349a82cf..9ade234897 100644
+--- a/src/cmd/internal/obj/loong64/obj.go
++++ b/src/cmd/internal/obj/loong64/obj.go
+@@ -411,7 +411,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				// The NOP is needed to give the jumps somewhere to land.
+ 				// It is a liblink NOP, not a hardware NOP: it encodes to 0 instruction bytes.
+ 				//
+-				// We don't generate this for leafs because that means the wrapped
++				// We don't generate this for leaves because that means the wrapped
+ 				// function was inlined into the wrapper.
+ 
+ 				q = obj.Appendp(q, newprog)
+diff --git a/src/cmd/link/internal/ld/elf_test.go b/src/cmd/link/internal/ld/elf_test.go
+index acccdee906..c2a0885985 100644
+--- a/src/cmd/link/internal/ld/elf_test.go
++++ b/src/cmd/link/internal/ld/elf_test.go
+@@ -595,7 +595,7 @@ func TestRelroSectionOverlapIssue67261(t *testing.T) {
+ 		} else {
+ 			// Non-empty output indicates failure, as mentioned above.
+ 			if len(string(sout)) != 0 {
+-				t.Errorf("unexpected outut from %s:\n%s\n", sprog, string(sout))
++				t.Errorf("unexpected output from %s:\n%s\n", sprog, string(sout))
+ 			}
+ 		}
+ 		rcmd := testenv.Command(t, filepath.Join(dir, targ))
+diff --git a/src/compress/flate/huffman_code.go b/src/compress/flate/huffman_code.go
+index ade4c8fb28..6f69cabfd0 100644
+--- a/src/compress/flate/huffman_code.go
++++ b/src/compress/flate/huffman_code.go
+@@ -176,7 +176,7 @@ func (h *huffmanEncoder) bitCounts(list []literalNode, maxBits int32) []int32 {
+ 	for {
+ 		l := &levels[level]
+ 		if l.nextPairFreq == math.MaxInt32 && l.nextCharFreq == math.MaxInt32 {
+-			// We've run out of both leafs and pairs.
++			// We've run out of both leaves and pairs.
+ 			// End all calculations for this level.
+ 			// To make sure we never come back to this level or any lower level,
+ 			// set nextPairFreq impossibly large.
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index d2aa03ff78..121b46aeca 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -302,7 +302,7 @@ func (check *Checker) recordParenthesizedRecvTypes(expr ast.Expr, typ Type) {
+ 	}
+ }
+ 
+-// collectParams collects (but does not delare) all parameters of list and returns
++// collectParams collects (but does not declare) all parameters of list and returns
+ // the list of parameter names, corresponding parameter variables, and whether the
+ // parameter list is variadic. Anonymous parameters are recorded with nil names.
+ func (check *Checker) collectParams(list *ast.FieldList, variadicOk bool) (names []*ast.Ident, params []*Var, variadic bool) {
+diff --git a/src/internal/trace/event.go b/src/internal/trace/event.go
+index 4c80a7e5ec..7d869e885f 100644
+--- a/src/internal/trace/event.go
++++ b/src/internal/trace/event.go
+@@ -306,7 +306,7 @@ type StackFrame struct {
+ 	Line uint64
+ }
+ 
+-// ExperimentalEvent presents a raw view of an experimental event's arguments and thier names.
++// ExperimentalEvent presents a raw view of an experimental event's arguments and their names.
+ type ExperimentalEvent struct {
+ 	// Name is the name of the event.
+ 	Name string
+diff --git a/src/internal/trace/internal/oldtrace/parser.go b/src/internal/trace/internal/oldtrace/parser.go
+index af2102b5b0..0365eeff70 100644
+--- a/src/internal/trace/internal/oldtrace/parser.go
++++ b/src/internal/trace/internal/oldtrace/parser.go
+@@ -385,10 +385,10 @@ func (p *parser) parseEventBatches() (Events, error) {
+ 	// Merge events as long as at least one P has more events
+ 	gs := make(map[uint64]gState)
+ 	// Note: technically we don't need a priority queue here. We're only ever
+-	// interested in the earliest elligible event, which means we just have to
++	// interested in the earliest eligible event, which means we just have to
+ 	// track the smallest element. However, in practice, the priority queue
+ 	// performs better, because for each event we only have to compute its state
+-	// transition once, not on each iteration. If it was elligible before, it'll
++	// transition once, not on each iteration. If it was eligible before, it'll
+ 	// already be in the queue. Furthermore, on average, we only have one P to
+ 	// look at in each iteration, because all other Ps are already in the queue.
+ 	var frontier orderEventList
+diff --git a/src/internal/trace/testdata/generators/go122-create-syscall-reuse-thread-id.go b/src/internal/trace/testdata/generators/go122-create-syscall-reuse-thread-id.go
+index a14d376779..e508159832 100644
+--- a/src/internal/trace/testdata/generators/go122-create-syscall-reuse-thread-id.go
++++ b/src/internal/trace/testdata/generators/go122-create-syscall-reuse-thread-id.go
+@@ -4,7 +4,7 @@
+ 
+ // Tests a G being created from within a syscall.
+ //
+-// Specifically, it tests a scenerio wherein a C
++// Specifically, it tests a scenario wherein a C
+ // thread is calling into Go, creating a goroutine in
+ // a syscall (in the tracer's model). The system is free
+ // to reuse thread IDs, so first a thread ID is used to
+diff --git a/src/internal/trace/testdata/generators/go122-create-syscall-with-p.go b/src/internal/trace/testdata/generators/go122-create-syscall-with-p.go
+index 1eb18026ec..681464ce19 100644
+--- a/src/internal/trace/testdata/generators/go122-create-syscall-with-p.go
++++ b/src/internal/trace/testdata/generators/go122-create-syscall-with-p.go
+@@ -4,7 +4,7 @@
+ 
+ // Tests a G being created from within a syscall.
+ //
+-// Specifically, it tests a scenerio wherein a C
++// Specifically, it tests a scenario wherein a C
+ // thread is calling into Go, creating a goroutine in
+ // a syscall (in the tracer's model). Because the actual
+ // m can be reused, it's possible for that m to have never
+diff --git a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-ambiguous.go b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-ambiguous.go
+index 1f01cc9e78..4e72969833 100644
+--- a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-ambiguous.go
++++ b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-ambiguous.go
+@@ -4,7 +4,7 @@
+ 
+ // Tests syscall P stealing.
+ //
+-// Specifically, it tests a scenerio wherein, without a
++// Specifically, it tests a scenario wherein, without a
+ // P sequence number of GoSyscallBegin, the syscall that
+ // a ProcSteal applies to is ambiguous. This only happens in
+ // practice when the events aren't already properly ordered
+diff --git a/src/math/bits/bits_test.go b/src/math/bits/bits_test.go
+index 23b4539fcd..6f6e1c2202 100644
+--- a/src/math/bits/bits_test.go
++++ b/src/math/bits/bits_test.go
+@@ -1109,7 +1109,7 @@ func TestDiv64PanicZero(t *testing.T) {
+ }
+ 
+ func TestRem32(t *testing.T) {
+-	// Sanity check: for non-oveflowing dividends, the result is the
++	// Sanity check: for non-overflowing dividends, the result is the
+ 	// same as the rem returned by Div32
+ 	hi, lo, y := uint32(510510), uint32(9699690), uint32(510510+1) // ensure hi < y
+ 	for i := 0; i < 1000; i++ {
+@@ -1136,7 +1136,7 @@ func TestRem32Overflow(t *testing.T) {
+ }
+ 
+ func TestRem64(t *testing.T) {
+-	// Sanity check: for non-oveflowing dividends, the result is the
++	// Sanity check: for non-overflowing dividends, the result is the
+ 	// same as the rem returned by Div64
+ 	hi, lo, y := uint64(510510), uint64(9699690), uint64(510510+1) // ensure hi < y
+ 	for i := 0; i < 1000; i++ {
+diff --git a/src/runtime/gc_test.go b/src/runtime/gc_test.go
+index 908f632246..63ccbeb328 100644
+--- a/src/runtime/gc_test.go
++++ b/src/runtime/gc_test.go
+@@ -734,7 +734,7 @@ func BenchmarkMSpanCountAlloc(b *testing.B) {
+ 	// always rounded up 8 bytes.
+ 	for _, n := range []int{8, 16, 32, 64, 128} {
+ 		b.Run(fmt.Sprintf("bits=%d", n*8), func(b *testing.B) {
+-			// Initialize a new byte slice with pseduo-random data.
++			// Initialize a new byte slice with pseudo-random data.
+ 			bits := make([]byte, n)
+ 			rand.Read(bits)
+ 
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index 2629c600fd..1cd849f9aa 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -242,7 +242,7 @@ func newBucket(typ bucketType, nstk int) *bucket {
+ 	return b
+ }
+ 
+-// stk returns the slice in b holding the stack. The caller can asssume that the
++// stk returns the slice in b holding the stack. The caller can assume that the
+ // backing array is immutable.
+ func (b *bucket) stk() []uintptr {
+ 	stk := (*[maxProfStackDepth]uintptr)(add(unsafe.Pointer(b), unsafe.Sizeof(*b)))
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 6ce656c70e..3911276cf2 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -636,7 +636,7 @@ func setThreadCPUProfiler(hz int32) {
+ 	// spend shows up as a 10% chance of one sample (for an expected value of
+ 	// 0.1 samples), and so that "two and six tenths" periods of CPU spend show
+ 	// up as a 60% chance of 3 samples and a 40% chance of 2 samples (for an
+-	// expected value of 2.6). Set the initial delay to a value in the unifom
++	// expected value of 2.6). Set the initial delay to a value in the uniform
+ 	// random distribution between 0 and the desired period. And because "0"
+ 	// means "disable timer", add 1 so the half-open interval [0,period) turns
+ 	// into (0,period].
+diff --git a/src/syscall/js/js_test.go b/src/syscall/js/js_test.go
+index cc809ac107..cec5f28a08 100644
+--- a/src/syscall/js/js_test.go
++++ b/src/syscall/js/js_test.go
+@@ -590,13 +590,13 @@ var allocTests = []struct {
+ 	argLen  int // The number of arguments to use for the syscall
+ 	expected int // The expected number of allocations
+ }{
+-	// For less than or equal to 16 arguments, we expect 1 alloction:
++	// For less than or equal to 16 arguments, we expect 1 allocation:
+ 	// - makeValue new(ref)
+ 	{0,  1},
+ 	{2,  1},
+ 	{15, 1},
+ 	{16, 1},
+-	// For greater than 16 arguments, we expect 3 alloction:
++	// For greater than 16 arguments, we expect 3 allocation:
+ 	// - makeValue: new(ref)
+ 	// - makeArgSlices: argVals = make([]Value, size)
+ 	// - makeArgSlices: argRefs = make([]ref, size)

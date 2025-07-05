@@ -7,7 +7,69 @@ Date:   Wed Mar 27 16:31:14 2013 -0700
     R=golang-dev, alberto.garcia.hierro
     CC=golang-dev
     https://golang.org/cl/7861046
-
+---
  src/pkg/text/template/exec.go      |  2 ++
  src/pkg/text/template/exec_test.go | 27 +++++++++++++++++----------
  2 files changed, 19 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/text/template/exec.go b/src/pkg/text/template/exec.go
+index 12c40b70f1..8ec8174a16 100644
+--- a/src/pkg/text/template/exec.go
++++ b/src/pkg/text/template/exec.go
+@@ -619,6 +619,8 @@ func (s *state) evalArg(dot reflect.Value, typ reflect.Type, n parse.Node) refle
+ 		return s.validateType(s.evalVariableNode(dot, arg, nil, zero), typ)
+ 	case *parse.PipeNode:
+ 		return s.validateType(s.evalPipeline(dot, arg), typ)
++	case *parse.IdentifierNode:
++		return s.evalFunction(dot, arg, arg, nil, zero)
+ 	}
+ 	switch typ.Kind() {
+ 	case reflect.Bool:
+diff --git a/src/pkg/text/template/exec_test.go b/src/pkg/text/template/exec_test.go
+index 0f8beec5ed..0ab20acc93 100644
+--- a/src/pkg/text/template/exec_test.go
++++ b/src/pkg/text/template/exec_test.go
+@@ -499,6 +499,8 @@ var execTests = []execTest{
+ 	{"bug8b", "{{4|dddArg 3}}", "", tVal, false},
+ 	// A bug was introduced that broke map lookups for lower-case names.
+ 	{"bug9", "{{.cause}}", "neglect", map[string]string{"cause": "neglect"}, true},
++	// Field chain starting with function did not work.
++	{"bug10", "{{mapOfThree.three}}-{{(mapOfThree).three}}", "3-3", 0, true},
+ }
+ 
+ func zeroArgs() string {
+@@ -560,19 +562,24 @@ func stringer(s fmt.Stringer) string {
+ 	return s.String()
+ }
+ 
++func mapOfThree() interface{} {
++	return map[string]int{"three": 3}
++}
++
+ func testExecute(execTests []execTest, template *Template, t *testing.T) {
+ 	b := new(bytes.Buffer)
+ 	funcs := FuncMap{
+-		"add":      add,
+-		"count":    count,
+-		"dddArg":   dddArg,
+-		"echo":     echo,
+-		"makemap":  makemap,
+-		"oneArg":   oneArg,
+-		"typeOf":   typeOf,
+-		"vfunc":    vfunc,
+-		"zeroArgs": zeroArgs,
+-		"stringer": stringer,
++		"add":        add,
++		"count":      count,
++		"dddArg":     dddArg,
++		"echo":       echo,
++		"makemap":    makemap,
++		"mapOfThree": mapOfThree,
++		"oneArg":     oneArg,
++		"stringer":   stringer,
++		"typeOf":     typeOf,
++		"vfunc":      vfunc,
++		"zeroArgs":   zeroArgs,
+ 	}
+ 	for _, test := range execTests {
+ 		var tmpl *Template

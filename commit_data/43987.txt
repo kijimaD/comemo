@@ -20,7 +20,7 @@ Date:   Thu Apr 30 21:15:54 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/231319
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/amd64/asm.go     | 26 +++++++-------
  src/cmd/link/internal/amd64/obj.go     |  2 +-
  src/cmd/link/internal/ld/elf.go        | 31 +++++++++-------
@@ -29,3 +29,431 @@ Date:   Thu Apr 30 21:15:54 2020 -0400
  src/cmd/link/internal/ld/main.go       |  7 ++--
  src/cmd/link/internal/loader/loader.go | 66 +++++++++++++++++++++++++---------
  7 files changed, 144 insertions(+), 47 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index e2c33b8001..c2d54703c1 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -393,36 +393,38 @@ func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s load
+ 	return false
+ }
+ 
+-func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
++func elfreloc2(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
+ 	ctxt.Out.Write64(uint64(sectoff))
+ 
+-	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
+-	switch r.Type {
++	xsym := ldr.Syms[r.Xsym]
++	elfsym := ld.ElfSymForReloc(ctxt, xsym)
++	siz := r.Siz()
++	switch r.Type() {
+ 	default:
+ 		return false
+ 	case objabi.R_ADDR, objabi.R_DWARFSECREF:
+-		if r.Siz == 4 {
++		if siz == 4 {
+ 			ctxt.Out.Write64(uint64(elf.R_X86_64_32) | uint64(elfsym)<<32)
+-		} else if r.Siz == 8 {
++		} else if siz == 8 {
+ 			ctxt.Out.Write64(uint64(elf.R_X86_64_64) | uint64(elfsym)<<32)
+ 		} else {
+ 			return false
+ 		}
+ 	case objabi.R_TLS_LE:
+-		if r.Siz == 4 {
++		if siz == 4 {
+ 			ctxt.Out.Write64(uint64(elf.R_X86_64_TPOFF32) | uint64(elfsym)<<32)
+ 		} else {
+ 			return false
+ 		}
+ 	case objabi.R_TLS_IE:
+-		if r.Siz == 4 {
++		if siz == 4 {
+ 			ctxt.Out.Write64(uint64(elf.R_X86_64_GOTTPOFF) | uint64(elfsym)<<32)
+ 		} else {
+ 			return false
+ 		}
+ 	case objabi.R_CALL:
+-		if r.Siz == 4 {
+-			if r.Xsym.Type == sym.SDYNIMPORT {
++		if siz == 4 {
++			if xsym.Type == sym.SDYNIMPORT {
+ 				if ctxt.DynlinkingGo() {
+ 					ctxt.Out.Write64(uint64(elf.R_X86_64_PLT32) | uint64(elfsym)<<32)
+ 				} else {
+@@ -435,8 +437,8 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
+ 			return false
+ 		}
+ 	case objabi.R_PCREL:
+-		if r.Siz == 4 {
+-			if r.Xsym.Type == sym.SDYNIMPORT && r.Xsym.ElfType() == elf.STT_FUNC {
++		if siz == 4 {
++			if xsym.Type == sym.SDYNIMPORT && xsym.ElfType() == elf.STT_FUNC {
+ 				ctxt.Out.Write64(uint64(elf.R_X86_64_PLT32) | uint64(elfsym)<<32)
+ 			} else {
+ 				ctxt.Out.Write64(uint64(elf.R_X86_64_PC32) | uint64(elfsym)<<32)
+@@ -445,7 +447,7 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
+ 			return false
+ 		}
+ 	case objabi.R_GOTPCREL:
+-		if r.Siz == 4 {
++		if siz == 4 {
+ 			ctxt.Out.Write64(uint64(elf.R_X86_64_GOTPCREL) | uint64(elfsym)<<32)
+ 		} else {
+ 			return false
+diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
+index 1fbbf60366..645547cb3e 100644
+--- a/src/cmd/link/internal/amd64/obj.go
++++ b/src/cmd/link/internal/amd64/obj.go
+@@ -52,7 +52,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archrelocvariant: archrelocvariant,
+ 		Asmb:             asmb,
+ 		Asmb2:            asmb2,
+-		Elfreloc1:        elfreloc1,
++		Elfreloc2:        elfreloc2,
+ 		Elfsetupplt:      elfsetupplt,
+ 		Gentext2:         gentext2,
+ 		Machoreloc1:      machoreloc1,
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 83f100c12b..78298beafe 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1374,6 +1374,11 @@ func elfshreloc(arch *sys.Arch, sect *sym.Section) *ElfShdr {
+ }
+ 
+ func elfrelocsect(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
++	if !ctxt.IsAMD64() {
++		elfrelocsect2(ctxt, sect, syms)
++		return
++	}
++
+ 	// If main section is SHT_NOBITS, nothing to relocate.
+ 	// Also nothing to relocate in .shstrtab.
+ 	if sect.Vaddr >= sect.Seg.Vaddr+sect.Seg.Filelen {
+@@ -1394,6 +1399,7 @@ func elfrelocsect(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
+ 		}
+ 	}
+ 
++	ldr := ctxt.loader
+ 	eaddr := int32(sect.Vaddr + sect.Length)
+ 	for _, s := range syms {
+ 		if !s.Attr.Reachable() {
+@@ -1402,24 +1408,23 @@ func elfrelocsect(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
+ 		if s.Value >= int64(eaddr) {
+ 			break
+ 		}
+-		for ri := range s.R {
+-			r := &s.R[ri]
+-			if r.Done {
+-				continue
+-			}
+-			if r.Xsym == nil {
+-				Errorf(s, "missing xsym in relocation %#v %#v", r.Sym.Name, s)
++		i := loader.Sym(s.SymIdx)
++		relocs := ldr.ExtRelocs(i)
++		for ri := 0; ri < relocs.Count(); ri++ {
++			r := relocs.At(ri)
++			if r.Xsym == 0 {
++				Errorf(s, "missing xsym in relocation %v", ldr.SymName(r.Sym()))
+ 				continue
+ 			}
+-			esr := ElfSymForReloc(ctxt, r.Xsym)
++			esr := ElfSymForReloc(ctxt, ldr.Syms[r.Xsym])
+ 			if esr == 0 {
+-				Errorf(s, "reloc %d (%s) to non-elf symbol %s (outer=%s) %d (%s)", r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Sym.Name, r.Xsym.Name, r.Sym.Type, r.Sym.Type)
++				Errorf(s, "reloc %d (%s) to non-elf symbol %s (outer=%s) %d (%s)", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.Syms[r.Sym()].Name, ldr.Syms[r.Xsym].Name, ldr.Syms[r.Sym()].Type, ldr.Syms[r.Sym()].Type)
+ 			}
+-			if !r.Xsym.Attr.Reachable() {
+-				Errorf(s, "unreachable reloc %d (%s) target %v", r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Xsym.Name)
++			if !ldr.AttrReachable(r.Xsym) {
++				Errorf(s, "unreachable reloc %d (%s) target %v", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.Syms[r.Xsym].Name)
+ 			}
+-			if !thearch.Elfreloc1(ctxt, r, int64(uint64(s.Value+int64(r.Off))-sect.Vaddr)) {
+-				Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Siz, r.Sym.Name)
++			if !thearch.Elfreloc2(ctxt, ldr, i, r, int64(uint64(s.Value+int64(r.Off()))-sect.Vaddr)) {
++				Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), r.Siz(), ldr.Syms[r.Sym()].Name)
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/link/internal/ld/elf2.go b/src/cmd/link/internal/ld/elf2.go
+index 3f7d72b310..07b64cfcb0 100644
+--- a/src/cmd/link/internal/ld/elf2.go
++++ b/src/cmd/link/internal/ld/elf2.go
+@@ -23,3 +23,57 @@ func elfsetstring(s *sym.Symbol, str string, off int) {
+ 	elfstr[nelfstr].off = off
+ 	nelfstr++
+ }
++
++func elfrelocsect2(ctxt *Link, sect *sym.Section, syms []*sym.Symbol) {
++	// If main section is SHT_NOBITS, nothing to relocate.
++	// Also nothing to relocate in .shstrtab.
++	if sect.Vaddr >= sect.Seg.Vaddr+sect.Seg.Filelen {
++		return
++	}
++	if sect.Name == ".shstrtab" {
++		return
++	}
++
++	sect.Reloff = uint64(ctxt.Out.Offset())
++	for i, s := range syms {
++		if !s.Attr.Reachable() {
++			continue
++		}
++		if uint64(s.Value) >= sect.Vaddr {
++			syms = syms[i:]
++			break
++		}
++	}
++
++	eaddr := int32(sect.Vaddr + sect.Length)
++	for _, s := range syms {
++		if !s.Attr.Reachable() {
++			continue
++		}
++		if s.Value >= int64(eaddr) {
++			break
++		}
++		for ri := range s.R {
++			r := &s.R[ri]
++			if r.Done {
++				continue
++			}
++			if r.Xsym == nil {
++				Errorf(s, "missing xsym in relocation %#v %#v", r.Sym.Name, s)
++				continue
++			}
++			esr := ElfSymForReloc(ctxt, r.Xsym)
++			if esr == 0 {
++				Errorf(s, "reloc %d (%s) to non-elf symbol %s (outer=%s) %d (%s)", r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Sym.Name, r.Xsym.Name, r.Sym.Type, r.Sym.Type)
++			}
++			if !r.Xsym.Attr.Reachable() {
++				Errorf(s, "unreachable reloc %d (%s) target %v", r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Xsym.Name)
++			}
++			if !thearch.Elfreloc1(ctxt, r, int64(uint64(s.Value+int64(r.Off))-sect.Vaddr)) {
++				Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Siz, r.Sym.Name)
++			}
++		}
++	}
++
++	sect.Rellen = uint64(ctxt.Out.Offset()) - sect.Reloff
++}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index a328efd03b..3c60901124 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -270,6 +270,7 @@ type Arch struct {
+ 	Asmb2 func(*Link)
+ 
+ 	Elfreloc1   func(*Link, *sym.Reloc, int64) bool
++	Elfreloc2   func(*Link, *loader.Loader, loader.Sym, loader.ExtRelocView, int64) bool
+ 	Elfsetupplt func(ctxt *Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym)
+ 	Gentext     func(*Link)
+ 	Gentext2    func(*Link, *loader.Loader)
+@@ -2825,9 +2826,9 @@ func addToTextp(ctxt *Link) {
+ 	ctxt.Textp = textp
+ }
+ 
+-func (ctxt *Link) loadlibfull(symGroupType []sym.SymKind, needReloc bool) {
++func (ctxt *Link) loadlibfull(symGroupType []sym.SymKind, needReloc, needExtReloc bool) {
+ 	// Load full symbol contents, resolve indexed references.
+-	ctxt.loader.LoadFull(ctxt.Arch, ctxt.Syms, needReloc)
++	ctxt.loader.LoadFull(ctxt.Arch, ctxt.Syms, needReloc, needExtReloc)
+ 
+ 	// Convert ctxt.Moduledata2 to ctxt.Moduledata, etc
+ 	if ctxt.Moduledata2 != 0 {
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 6bd6a8e467..1ed8ccb828 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -335,10 +335,13 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 		// An exception is internal linking on Windows, see pe.go:addPEBaseRelocSym
+ 		// Wasm is another exception, where it applies text relocations in Asmb2.
+ 		needReloc := (ctxt.IsWindows() && ctxt.IsInternal()) || ctxt.IsWasm()
+-		ctxt.loadlibfull(symGroupType, needReloc) // XXX do it here for now
++		// On AMD64 ELF, we directly use the loader's ExtRelocs, so we don't
++		// need conversion. Otherwise we do.
++		needExtReloc := ctxt.IsExternal() && !(ctxt.IsAMD64() && ctxt.IsELF)
++		ctxt.loadlibfull(symGroupType, needReloc, needExtReloc) // XXX do it here for now
+ 	} else {
+ 		bench.Start("loadlibfull")
+-		ctxt.loadlibfull(symGroupType, true) // XXX do it here for now
++		ctxt.loadlibfull(symGroupType, true, false) // XXX do it here for now
+ 		bench.Start("reloc")
+ 		ctxt.reloc2()
+ 	}
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index f4d91644c9..2627218ced 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -56,6 +56,14 @@ type ExtReloc struct {
+ 	Xadd int64
+ }
+ 
++// ExtRelocView is a view of an external relocation.
++// It is intended to be constructed on the fly, such as ExtRelocs.At.
++// It is not the data structure used to store the payload internally.
++type ExtRelocView struct {
++	Reloc2
++	*ExtReloc
++}
++
+ // Reloc2 holds a "handle" to access a relocation record from an
+ // object file.
+ type Reloc2 struct {
+@@ -1116,7 +1124,7 @@ func (l *Loader) InitOutData() {
+ 	l.outdata = make([][]byte, l.extStart)
+ }
+ 
+-// SetExtRelocs sets the section of the i-th symbol. i is global index.
++// SetExtRelocs sets the external relocations of the i-th symbol. i is global index.
+ func (l *Loader) SetExtRelocs(i Sym, relocs []ExtReloc) {
+ 	l.extRelocs[i] = relocs
+ }
+@@ -1699,6 +1707,24 @@ func (l *Loader) relocs(r *oReader, li int) Relocs {
+ 	}
+ }
+ 
++// ExtRelocs returns the external relocations of the i-th symbol.
++func (l *Loader) ExtRelocs(i Sym) ExtRelocs {
++	return ExtRelocs{l.Relocs(i), l.extRelocs[i]}
++}
++
++// ExtRelocs represents the set of external relocations of a symbol.
++type ExtRelocs struct {
++	rs Relocs
++	es []ExtReloc
++}
++
++func (ers ExtRelocs) Count() int { return len(ers.es) }
++
++func (ers ExtRelocs) At(j int) ExtRelocView {
++	i := ers.es[j].Idx
++	return ExtRelocView{ers.rs.At2(i), &ers.es[j]}
++}
++
+ // RelocByOff implements sort.Interface for sorting relocations by offset.
+ 
+ type RelocByOff []Reloc
+@@ -2033,7 +2059,7 @@ func (l *Loader) preprocess(arch *sys.Arch, s Sym, name string) {
+ }
+ 
+ // Load full contents.
+-func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols, needReloc bool) {
++func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols, needReloc, needExtReloc bool) {
+ 	// create all Symbols first.
+ 	l.growSyms(l.NSym())
+ 	l.growSects(l.NSym())
+@@ -2047,7 +2073,7 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols, needReloc bool) {
+ 
+ 	nr := 0 // total number of sym.Reloc's we'll need
+ 	for _, o := range l.objs[1:] {
+-		nr += loadObjSyms(l, syms, o.r, needReloc)
++		nr += loadObjSyms(l, syms, o.r, needReloc, needExtReloc)
+ 	}
+ 
+ 	// Make a first pass through the external symbols, making
+@@ -2063,7 +2089,7 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols, needReloc bool) {
+ 		if needReloc {
+ 			nr += len(pp.relocs)
+ 		}
+-		if int(i) < len(l.extRelocs) {
++		if needExtReloc && int(i) < len(l.extRelocs) {
+ 			nr += len(l.extRelocs[i])
+ 		}
+ 		// create and install the sym.Symbol here so that l.Syms will
+@@ -2079,7 +2105,7 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols, needReloc bool) {
+ 	// allocate a single large slab of relocations for all live symbols
+ 	if nr != 0 {
+ 		l.relocBatch = make([]sym.Reloc, nr)
+-		if len(l.extRelocs) != 0 {
++		if needExtReloc {
+ 			l.relocExtBatch = make([]sym.RelocExt, nr)
+ 		}
+ 	}
+@@ -2102,8 +2128,9 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols, needReloc bool) {
+ 			relocs := l.Relocs(i)
+ 			l.convertRelocations(i, &relocs, s, false)
+ 		}
+-
+-		l.convertExtRelocs(s, i)
++		if needExtReloc {
++			l.convertExtRelocs(s, i)
++		}
+ 
+ 		// Copy data
+ 		s.P = pp.data
+@@ -2114,7 +2141,7 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols, needReloc bool) {
+ 
+ 	// load contents of defined symbols
+ 	for _, o := range l.objs[1:] {
+-		loadObjFull(l, o.r, needReloc)
++		loadObjFull(l, o.r, needReloc, needExtReloc)
+ 	}
+ 
+ 	// Sanity check: we should have consumed all batched allocations.
+@@ -2170,17 +2197,21 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols, needReloc bool) {
+ 	l.plt = nil
+ 	l.got = nil
+ 	l.dynid = nil
+-	l.relocVariant = nil
+-	l.extRelocs = nil
++	if needExtReloc { // converted to sym.Relocs, drop loader references
++		l.relocVariant = nil
++		l.extRelocs = nil
++	}
+ 
+ 	// Drop fields that are no longer needed.
+ 	for _, i := range l.extReader.syms {
+ 		pp := l.getPayload(i)
+ 		pp.name = ""
+-		pp.relocs = nil
+-		pp.reltypes = nil
+ 		pp.auxs = nil
+ 		pp.data = nil
++		if needExtReloc {
++			pp.relocs = nil
++			pp.reltypes = nil
++		}
+ 	}
+ }
+ 
+@@ -2450,7 +2481,7 @@ func topLevelSym(sname string, skind sym.SymKind) bool {
+ // loadObjSyms creates sym.Symbol objects for the live Syms in the
+ // object corresponding to object reader "r". Return value is the
+ // number of sym.Reloc entries required for all the new symbols.
+-func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader, needReloc bool) int {
++func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader, needReloc, needExtReloc bool) int {
+ 	nr := 0
+ 	for i, n := 0, r.NSym()+r.NNonpkgdef(); i < n; i++ {
+ 		gi := r.syms[i]
+@@ -2483,7 +2514,7 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader, needReloc bool) int {
+ 		if needReloc {
+ 			nr += r.NReloc(i)
+ 		}
+-		if int(gi) < len(l.extRelocs) {
++		if needExtReloc && int(gi) < len(l.extRelocs) {
+ 			nr += len(l.extRelocs[gi])
+ 		}
+ 	}
+@@ -2690,7 +2721,7 @@ func (l *Loader) FreeSym(i Sym) {
+ 	}
+ }
+ 
+-func loadObjFull(l *Loader, r *oReader, needReloc bool) {
++func loadObjFull(l *Loader, r *oReader, needReloc, needExtReloc bool) {
+ 	for i, n := 0, r.NSym()+r.NNonpkgdef(); i < n; i++ {
+ 		// A symbol may be a dup or overwritten. In this case, its
+ 		// content will actually be provided by a different object
+@@ -2722,8 +2753,9 @@ func loadObjFull(l *Loader, r *oReader, needReloc bool) {
+ 			l.relocBatch = batch[relocs.Count():]
+ 			l.convertRelocations(gi, &relocs, s, false)
+ 		}
+-
+-		l.convertExtRelocs(s, gi)
++		if needExtReloc {
++			l.convertExtRelocs(s, gi)
++		}
+ 
+ 		// Aux symbol info
+ 		auxs := r.Auxs(i)

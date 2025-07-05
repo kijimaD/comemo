@@ -13,7 +13,116 @@ Date:   Mon Mar 14 17:39:35 2022 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/syscall/syscall_windows.go  | 54 ++++++++++++++++++++++++-----------------
  src/syscall/zsyscall_windows.go |  4 +--
  2 files changed, 34 insertions(+), 24 deletions(-)
+
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 78e46a656d..aba6c3f5fb 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -202,8 +202,8 @@ func NewCallbackCDecl(fn any) uintptr {
+ //sys	formatMessage(flags uint32, msgsrc uintptr, msgid uint32, langid uint32, buf []uint16, args *byte) (n uint32, err error) = FormatMessageW
+ //sys	ExitProcess(exitcode uint32)
+ //sys	CreateFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle Handle, err error) [failretval==InvalidHandle] = CreateFileW
+-//sys	ReadFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error)
+-//sys	WriteFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error)
++//sys	readFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error) = ReadFile
++//sys	writeFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error) = WriteFile
+ //sys	SetFilePointer(handle Handle, lowoffset int32, highoffsetptr *int32, whence uint32) (newlowoffset uint32, err error) [failretval==0xffffffff]
+ //sys	CloseHandle(handle Handle) (err error)
+ //sys	GetStdHandle(stdhandle int) (handle Handle, err error) [failretval==InvalidHandle]
+@@ -385,40 +385,50 @@ func Read(fd Handle, p []byte) (n int, err error) {
+ 		}
+ 		return 0, e
+ 	}
++	return int(done), nil
++}
++
++func Write(fd Handle, p []byte) (n int, err error) {
++	var done uint32
++	e := WriteFile(fd, p, &done, nil)
++	if e != nil {
++		return 0, e
++	}
++	return int(done), nil
++}
++
++func ReadFile(fd Handle, p []byte, done *uint32, overlapped *Overlapped) error {
++	err := readFile(fd, p, done, overlapped)
+ 	if race.Enabled {
+-		if done > 0 {
+-			race.WriteRange(unsafe.Pointer(&p[0]), int(done))
++		if *done > 0 {
++			race.WriteRange(unsafe.Pointer(&p[0]), int(*done))
+ 		}
+ 		race.Acquire(unsafe.Pointer(&ioSync))
+ 	}
+-	if msanenabled && done > 0 {
+-		msanWrite(unsafe.Pointer(&p[0]), int(done))
++	if msanenabled && *done > 0 {
++		msanWrite(unsafe.Pointer(&p[0]), int(*done))
+ 	}
+-	if asanenabled && done > 0 {
+-		asanWrite(unsafe.Pointer(&p[0]), int(done))
++	if asanenabled && *done > 0 {
++		asanWrite(unsafe.Pointer(&p[0]), int(*done))
+ 	}
+-	return int(done), nil
++	return err
+ }
+ 
+-func Write(fd Handle, p []byte) (n int, err error) {
++func WriteFile(fd Handle, p []byte, done *uint32, overlapped *Overlapped) error {
+ 	if race.Enabled {
+ 		race.ReleaseMerge(unsafe.Pointer(&ioSync))
+ 	}
+-	var done uint32
+-	e := WriteFile(fd, p, &done, nil)
+-	if e != nil {
+-		return 0, e
+-	}
+-	if race.Enabled && done > 0 {
+-		race.ReadRange(unsafe.Pointer(&p[0]), int(done))
++	err := writeFile(fd, p, done, overlapped)
++	if race.Enabled && *done > 0 {
++		race.ReadRange(unsafe.Pointer(&p[0]), int(*done))
+ 	}
+-	if msanenabled && done > 0 {
+-		msanRead(unsafe.Pointer(&p[0]), int(done))
++	if msanenabled && *done > 0 {
++		msanRead(unsafe.Pointer(&p[0]), int(*done))
+ 	}
+-	if asanenabled && done > 0 {
+-		asanRead(unsafe.Pointer(&p[0]), int(done))
++	if asanenabled && *done > 0 {
++		asanRead(unsafe.Pointer(&p[0]), int(*done))
+ 	}
+-	return int(done), nil
++	return err
+ }
+ 
+ var ioSync int64
+diff --git a/src/syscall/zsyscall_windows.go b/src/syscall/zsyscall_windows.go
+index 2d6f34e059..61d89f1460 100644
+--- a/src/syscall/zsyscall_windows.go
++++ b/src/syscall/zsyscall_windows.go
+@@ -1016,7 +1016,7 @@ func ReadDirectoryChanges(handle Handle, buf *byte, buflen uint32, watchSubTree
+ 	return
+ }
+ 
+-func ReadFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error) {
++func readFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error) {
+ 	var _p0 *byte
+ 	if len(buf) > 0 {
+ 		_p0 = &buf[0]
+@@ -1158,7 +1158,7 @@ func WriteConsole(console Handle, buf *uint16, towrite uint32, written *uint32,
+ 	return
+ }
+ 
+-func WriteFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error) {
++func writeFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error) {
+ 	var _p0 *byte
+ 	if len(buf) > 0 {
+ 		_p0 = &buf[0]

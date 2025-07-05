@@ -22,7 +22,79 @@ Date:   Mon Jul 2 08:08:14 2018 +0100
     Run-TryBot: Paul Jolly <paul@myitcv.org.uk>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Richard Musiol <neelance@gmail.com>
-
+---
  misc/wasm/wasm_exec.js    | 32 ++++----------------------------
  src/syscall/js/js_test.go |  8 ++++++++
  2 files changed, 12 insertions(+), 28 deletions(-)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index 3617c49866..7246d7bc71 100644
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -118,33 +118,11 @@
+ 						return;
+ 				}
+ 
+-				if (typeof v === "string") {
+-					let ref = this._stringRefs.get(v);
+-					if (ref === undefined) {
+-						ref = this._values.length;
+-						this._values.push(v);
+-						this._stringRefs.set(v, ref);
+-					}
+-					mem().setUint32(addr, ref, true);
+-					return;
+-				}
+-
+-				if (typeof v === "symbol") {
+-					let ref = this._symbolRefs.get(v);
+-					if (ref === undefined) {
+-						ref = this._values.length;
+-						this._values.push(v);
+-						this._symbolRefs.set(v, ref);
+-					}
+-					mem().setUint32(addr, ref, true);
+-					return;
+-				}
+-
+-				let ref = v[this._refProp];
+-				if (ref === undefined || this._values[ref] !== v) {
++				let ref = this._refs.get(v);
++				if (ref === undefined) {
+ 					ref = this._values.length;
+ 					this._values.push(v);
+-					v[this._refProp] = ref;
++					this._refs.set(v, ref);
+ 				}
+ 				mem().setUint32(addr, ref, true);
+ 			}
+@@ -335,9 +313,7 @@
+ 					setTimeout(this._resolveCallbackPromise, 0); // make sure it is asynchronous
+ 				},
+ 			];
+-			this._stringRefs = new Map();
+-			this._symbolRefs = new Map();
+-			this._refProp = Symbol();
++			this._refs = new Map();
+ 			this.exited = false;
+ 
+ 			const mem = new DataView(this._inst.exports.mem.buffer)
+diff --git a/src/syscall/js/js_test.go b/src/syscall/js/js_test.go
+index c4141c2196..69b5209821 100644
+--- a/src/syscall/js/js_test.go
++++ b/src/syscall/js/js_test.go
+@@ -116,6 +116,14 @@ func TestObject(t *testing.T) {
+ 	}
+ }
+ 
++func TestFrozenObject(t *testing.T) {
++	o := js.Global().Call("eval", "(function () { let o = new Object(); o.field = 5; Object.freeze(o); return o; })()")
++	want := 5
++	if got := o.Get("field").Int(); want != got {
++		t.Errorf("got %#v, want %#v", got, want)
++	}
++}
++
+ func TestTypedArrayOf(t *testing.T) {
+ 	testTypedArrayOf(t, "[]int8", []int8{0, -42, 0}, -42)
+ 	testTypedArrayOf(t, "[]int16", []int16{0, -42, 0}, -42)

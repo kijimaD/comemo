@@ -8,7 +8,34 @@ Date:   Fri Aug 15 12:35:01 2014 -0700
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/127410043
-
+---
  src/cmd/go/build.go    | 2 +-
  src/cmd/go/vcs_test.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 591eb1620a..fd92ca2783 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -885,7 +885,7 @@ func (b *builder) build(a *action) (err error) {
+ 	}
+ 
+ 	if len(gofiles) == 0 {
+-		return &build.NoGoError{a.p.Dir}
++		return &build.NoGoError{Dir: a.p.Dir}
+ 	}
+ 
+ 	// If we're doing coverage, preprocess the .go files and put them in the work directory
+diff --git a/src/cmd/go/vcs_test.go b/src/cmd/go/vcs_test.go
+index 3097c4d1c5..14d681ba6a 100644
+--- a/src/cmd/go/vcs_test.go
++++ b/src/cmd/go/vcs_test.go
+@@ -109,7 +109,7 @@ func TestRepoRootForImportPath(t *testing.T) {
+ 
+ 		if want == nil {
+ 			if err == nil {
+-				t.Errorf("RepoRootForImport(%q): Error expected but not received")
++				t.Errorf("RepoRootForImport(%q): Error expected but not received", test.path)
+ 			}
+ 			continue
+ 		}

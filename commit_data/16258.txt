@@ -13,6 +13,19 @@ Date:   Wed May 1 15:48:13 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/9040047
-
+---
  src/libmach/8.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/libmach/8.c b/src/libmach/8.c
+index 07ec305057..34248e6f33 100644
+--- a/src/libmach/8.c
++++ b/src/libmach/8.c
+@@ -30,6 +30,7 @@
+  * 386 definition
+  */
+ #include <u.h>
++#include <libc.h>
+ #include <bio.h>
+ #include <ureg_x86.h>
+ #include <mach.h>

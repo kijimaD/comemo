@@ -15,6 +15,26 @@ Date:   Wed Nov 10 13:25:49 2010 -0800
     R=r
     CC=bsiegert, golang-dev
     https://golang.org/cl/3015042
-
+---
  src/pkg/path/match.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/path/match.go b/src/pkg/path/match.go
+index d5cd19fd40..dd3422c425 100644
+--- a/src/pkg/path/match.go
++++ b/src/pkg/path/match.go
+@@ -240,9 +240,13 @@ func Glob(pattern string) (matches []string) {
+ // glob searches for files matching pattern in the directory dir
+ // and appends them to matches.
+ func glob(dir, pattern string, matches []string) []string {
+-	if fi, err := os.Stat(dir); err != nil || !fi.IsDirectory() {
++	fi, err := os.Stat(dir)
++	if err != nil {
+ 		return nil
+ 	}
++	if !fi.IsDirectory() {
++		return matches
++	}
+ 	d, err := os.Open(dir, os.O_RDONLY, 0666)
+ 	if err != nil {
+ 		return nil

@@ -7,6 +7,20 @@ Date:   Wed Dec 19 10:33:42 2018 +0530
     Change-Id: I767bf77aeab62f2d42239fac9d601a8e04fe860f
     Reviewed-on: https://go-review.googlesource.com/c/154957
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.12.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.12.html b/doc/go1.12.html
+index 4fed4b7fc4..0aee382aeb 100644
+--- a/doc/go1.12.html
++++ b/doc/go1.12.html
+@@ -279,7 +279,7 @@ for {
+ <p><!-- CL 141977 -->
+   <code>go</code> <code>doc</code> now supports the <code>-all</code> flag,
+   which will cause it to print all exported APIs and their documentation,
+-  similarly to what the <code>godoc</code> command line used to do.
++  as the <code>godoc</code> command line used to do.
+ </p>
+ 
+ <h3 id="trace">Trace</h3>

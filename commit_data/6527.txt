@@ -7,7 +7,39 @@ Date:   Fri Oct 15 11:55:51 2010 +1100
     R=r
     CC=golang-dev
     https://golang.org/cl/2525041
-
+---
  src/pkg/log/log.go      |  2 +-
  src/pkg/log/log_test.go | 10 ++++++++++
  2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/log/log.go b/src/pkg/log/log.go
+index b52458a935..50c01a3d35 100644
+--- a/src/pkg/log/log.go
++++ b/src/pkg/log/log.go
+@@ -136,7 +136,7 @@ func (l *Logger) Output(calldepth int, s string) os.Error {
+ 	if len(s) > 0 && s[len(s)-1] != '\n' {
+ 		buf.WriteByte('\n')
+ 	}
+-	_, err := std.out.Write(buf.Bytes())
++	_, err := l.out.Write(buf.Bytes())
+ 	return err
+ }
+ 
+diff --git a/src/pkg/log/log_test.go b/src/pkg/log/log_test.go
+index 0a5753f3a9..67c0452dc3 100644
+--- a/src/pkg/log/log_test.go
++++ b/src/pkg/log/log_test.go
+@@ -74,3 +74,13 @@ func TestAll(t *testing.T) {
+ 		testPrint(t, testcase.flag, testcase.prefix, testcase.pattern, true)
+ 	}
+ }
++
++func TestOutput(t *testing.T) {
++	const testString = "test"
++	var b bytes.Buffer
++	l := New(&b, "", 0)
++	l.Println(testString)
++	if expect := testString + "\n"; b.String() != expect {
++		t.Errorf("log output should match %q is %q", expect, b.String())
++	}
++}

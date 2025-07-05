@@ -9,7 +9,7 @@ Date:   Fri Jun 21 11:13:14 2013 +1000
     R=golang-dev, iant, bradfitz
     CC=golang-dev
     https://golang.org/cl/10391043
-
+---
  src/pkg/archive/tar/reader_test.go | 2 +-
  src/pkg/archive/zip/reader_test.go | 1 +
  src/pkg/debug/elf/file_test.go     | 1 +
@@ -18,3 +18,139 @@ Date:   Fri Jun 21 11:13:14 2013 +1000
  src/pkg/net/parse_test.go          | 2 ++
  src/pkg/os/os_test.go              | 3 +++
  7 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/archive/tar/reader_test.go b/src/pkg/archive/tar/reader_test.go
+index 2cf3d717d5..1285616565 100644
+--- a/src/pkg/archive/tar/reader_test.go
++++ b/src/pkg/archive/tar/reader_test.go
+@@ -171,6 +171,7 @@ testLoop:
+ 			t.Errorf("test %d: Unexpected error: %v", i, err)
+ 			continue
+ 		}
++		defer f.Close()
+ 		tr := NewReader(f)
+ 		for j, header := range test.headers {
+ 			hdr, err := tr.Next()
+@@ -191,7 +192,6 @@ testLoop:
+ 		if hdr != nil || err != nil {
+ 			t.Errorf("test %d: Unexpected entry or error: hdr=%v err=%v", i, hdr, err)
+ 		}
+-		f.Close()
+ 	}
+ }
+ 
+diff --git a/src/pkg/archive/zip/reader_test.go b/src/pkg/archive/zip/reader_test.go
+index 833ba28ad5..78875ecbf0 100644
+--- a/src/pkg/archive/zip/reader_test.go
++++ b/src/pkg/archive/zip/reader_test.go
+@@ -276,6 +276,7 @@ func readTestZip(t *testing.T, zt ZipTest) {
+ 		var rc *ReadCloser
+ 		rc, err = OpenReader(filepath.Join("testdata", zt.Name))
+ 		if err == nil {
++			defer rc.Close()
+ 			z = &rc.Reader
+ 		}
+ 	}
+diff --git a/src/pkg/debug/elf/file_test.go b/src/pkg/debug/elf/file_test.go
+index f9aa7265af..38b5f9e707 100644
+--- a/src/pkg/debug/elf/file_test.go
++++ b/src/pkg/debug/elf/file_test.go
+@@ -166,6 +166,7 @@ func TestOpen(t *testing.T) {
+ 		} else {
+ 			f, err = Open(tt.file)
+ 		}
++		defer f.Close()
+ 		if err != nil {
+ 			t.Errorf("cannot open file %s: %v", tt.file, err)
+ 			continue
+diff --git a/src/pkg/log/syslog/syslog_test.go b/src/pkg/log/syslog/syslog_test.go
+index 786edf870d..78cfbd4c55 100644
+--- a/src/pkg/log/syslog/syslog_test.go
++++ b/src/pkg/log/syslog/syslog_test.go
+@@ -255,6 +255,7 @@ func TestWrite(t *testing.T) {
+ 			if err != nil {
+ 				t.Fatalf("syslog.Dial() failed: %v", err)
+ 			}
++			defer l.Close()
+ 			_, err = io.WriteString(l, test.msg)
+ 			if err != nil {
+ 				t.Fatalf("WriteString() failed: %v", err)
+@@ -328,6 +329,7 @@ func TestConcurrentReconnect(t *testing.T) {
+ 			if err != nil {
+ 				t.Fatalf("syslog.Dial() failed: %v", err)
+ 			}
++			defer w.Close()
+ 			for i := 0; i < M; i++ {
+ 				err := w.Info("test")
+ 				if err != nil {
+diff --git a/src/pkg/net/net_test.go b/src/pkg/net/net_test.go
+index 1a512a5b11..ee6cf0fcdd 100644
+--- a/src/pkg/net/net_test.go
++++ b/src/pkg/net/net_test.go
+@@ -25,6 +25,7 @@ func TestShutdown(t *testing.T) {
+ 	}
+ 
+ 	go func() {
++		defer ln.Close()
+ 		c, err := ln.Accept()
+ 		if err != nil {
+ 			t.Fatalf("Accept: %v", err)
+@@ -75,7 +76,10 @@ func TestShutdownUnix(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("ListenUnix on %s: %s", tmpname, err)
+ 	}
+-	defer os.Remove(tmpname)
++	defer func() {
++		ln.Close()
++		os.Remove(tmpname)
++	}()
+ 
+ 	go func() {
+ 		c, err := ln.Accept()
+diff --git a/src/pkg/net/parse_test.go b/src/pkg/net/parse_test.go
+index 9df0c534b3..b86bc32884 100644
+--- a/src/pkg/net/parse_test.go
++++ b/src/pkg/net/parse_test.go
+@@ -23,12 +23,14 @@ func TestReadLine(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("open %s: %v", filename, err)
+ 	}
++	defer fd.Close()
+ 	br := bufio.NewReader(fd)
+ 
+ 	file, err := open(filename)
+ 	if file == nil {
+ 		t.Fatalf("net.open(%s) = nil", filename)
+ 	}
++	defer file.close()
+ 
+ 	lineno := 1
+ 	byteno := 0
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 025b709b81..09daa3f018 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -299,6 +299,7 @@ func TestReaddirnamesOneAtATime(t *testing.T) {
+ 	if err2 != nil {
+ 		t.Fatalf("open %q failed: %v", dir, err2)
+ 	}
++	defer file1.Close()
+ 	small := smallReaddirnames(file1, len(all)+100, t) // +100 in case we screw up
+ 	if len(small) < len(all) {
+ 		t.Fatalf("len(small) is %d, less than %d", len(small), len(all))
+@@ -526,6 +527,7 @@ func exec(t *testing.T, dir, cmd string, args []string, expect string) {
+ 	if err != nil {
+ 		t.Fatalf("Pipe: %v", err)
+ 	}
++	defer r.Close()
+ 	attr := &ProcAttr{Dir: dir, Files: []*File{nil, w, Stderr}}
+ 	p, err := StartProcess(cmd, args, attr)
+ 	if err != nil {
+@@ -844,6 +846,7 @@ func run(t *testing.T, cmd []string) string {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
++	defer r.Close()
+ 	p, err := StartProcess("/bin/hostname", []string{"hostname"}, &ProcAttr{Files: []*File{nil, w, Stderr}})
+ 	if err != nil {
+ 		t.Fatal(err)

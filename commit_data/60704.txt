@@ -13,6 +13,21 @@ Date:   Mon Aug 19 13:08:32 2024 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/os/getwd.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/getwd.go b/src/os/getwd.go
+index 90604cf2f4..64c3c4acd7 100644
+--- a/src/os/getwd.go
++++ b/src/os/getwd.go
+@@ -21,7 +21,8 @@ var getwdCache struct {
+ // Getwd may return any one of them.
+ func Getwd() (dir string, err error) {
+ 	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+-		return syscall.Getwd()
++		dir, err = syscall.Getwd()
++		return dir, NewSyscallError("getwd", err)
+ 	}
+ 
+ 	// Clumsy but widespread kludge:

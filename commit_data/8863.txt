@@ -14,8 +14,163 @@ Date:   Mon Jun 27 16:12:04 2011 -0400
     R=bradfitz, rogpeppe, rsc
     CC=golang-dev
     https://golang.org/cl/4528133
-
+---
  src/pkg/bufio/bufio.go           | 22 ++++++++++++++--------
  src/pkg/bufio/bufio_test.go      | 10 ++++++----
  src/pkg/testing/iotest/reader.go | 21 ++++++++++++++++++++-
  3 files changed, 40 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/bufio/bufio.go b/src/pkg/bufio/bufio.go
+index 497e770fb1..cb2667b283 100644
+--- a/src/pkg/bufio/bufio.go
++++ b/src/pkg/bufio/bufio.go
+@@ -103,6 +103,12 @@ func (b *Reader) fill() {
+ 	}
+ }
+ 
++func (b *Reader) readErr() os.Error {
++	err := b.err
++	b.err = nil
++	return err
++}
++
+ // Peek returns the next n bytes without advancing the reader. The bytes stop
+ // being valid at the next read call. If Peek returns fewer than n bytes, it
+ // also returns an error explaining why the read is short. The error is
+@@ -121,7 +127,7 @@ func (b *Reader) Peek(n int) ([]byte, os.Error) {
+ 	if m > n {
+ 		m = n
+ 	}
+-	err := b.err
++	err := b.readErr()
+ 	if m < n && err == nil {
+ 		err = ErrBufferFull
+ 	}
+@@ -136,11 +142,11 @@ func (b *Reader) Peek(n int) ([]byte, os.Error) {
+ func (b *Reader) Read(p []byte) (n int, err os.Error) {
+ 	n = len(p)
+ 	if n == 0 {
+-		return 0, b.err
++		return 0, b.readErr()
+ 	}
+ 	if b.w == b.r {
+ 		if b.err != nil {
+-			return 0, b.err
++			return 0, b.readErr()
+ 		}
+ 		if len(p) >= len(b.buf) {
+ 			// Large read, empty buffer.
+@@ -150,11 +156,11 @@ func (b *Reader) Read(p []byte) (n int, err os.Error) {
+ 				b.lastByte = int(p[n-1])
+ 				b.lastRuneSize = -1
+ 			}
+-			return n, b.err
++			return n, b.readErr()
+ 		}
+ 		b.fill()
+ 		if b.w == b.r {
+-			return 0, b.err
++			return 0, b.readErr()
+ 		}
+ 	}
+ 
+@@ -174,7 +180,7 @@ func (b *Reader) ReadByte() (c byte, err os.Error) {
+ 	b.lastRuneSize = -1
+ 	for b.w == b.r {
+ 		if b.err != nil {
+-			return 0, b.err
++			return 0, b.readErr()
+ 		}
+ 		b.fill()
+ 	}
+@@ -210,7 +216,7 @@ func (b *Reader) ReadRune() (rune int, size int, err os.Error) {
+ 	}
+ 	b.lastRuneSize = -1
+ 	if b.r == b.w {
+-		return 0, 0, b.err
++		return 0, 0, b.readErr()
+ 	}
+ 	rune, size = int(b.buf[b.r]), 1
+ 	if rune >= 0x80 {
+@@ -262,7 +268,7 @@ func (b *Reader) ReadSlice(delim byte) (line []byte, err os.Error) {
+ 		if b.err != nil {
+ 			line := b.buf[b.r:b.w]
+ 			b.r = b.w
+-			return line, b.err
++			return line, b.readErr()
+ 		}
+ 
+ 		n := b.Buffered()
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index 123adac29a..5709213c83 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -53,11 +53,12 @@ func readBytes(buf *Reader) string {
+ 		if e == os.EOF {
+ 			break
+ 		}
+-		if e != nil {
++		if e == nil {
++			b[nb] = c
++			nb++
++		} else if e != iotest.ErrTimeout {
+ 			panic("Data: " + e.String())
+ 		}
+-		b[nb] = c
+-		nb++
+ 	}
+ 	return string(b[0:nb])
+ }
+@@ -86,6 +87,7 @@ var readMakers = []readMaker{
+ 	{"byte", iotest.OneByteReader},
+ 	{"half", iotest.HalfReader},
+ 	{"data+err", iotest.DataErrReader},
++	{"timeout", iotest.TimeoutReader},
+ }
+ 
+ // Call ReadString (which ends up calling everything else)
+@@ -97,7 +99,7 @@ func readLines(b *Reader) string {
+ 		if e == os.EOF {
+ 			break
+ 		}
+-		if e != nil {
++		if e != nil && e != iotest.ErrTimeout {
+ 			panic("GetLines: " + e.String())
+ 		}
+ 		s += s1
+diff --git a/src/pkg/testing/iotest/reader.go b/src/pkg/testing/iotest/reader.go
+index e4003d7445..daa6ede08e 100644
+--- a/src/pkg/testing/iotest/reader.go
++++ b/src/pkg/testing/iotest/reader.go
+@@ -58,7 +58,7 @@ func (r *dataErrReader) Read(p []byte) (n int, err os.Error) {
+ 			r.unread = r.data[0:n1]
+ 			err = err1
+ 		}
+-		if n > 0 {
++		if n > 0 || err != nil {
+ 			break
+ 		}
+ 		n = copy(p, r.unread)
+@@ -66,3 +66,22 @@ func (r *dataErrReader) Read(p []byte) (n int, err os.Error) {
+ 	}
+ 	return
+ }
++
++var ErrTimeout = os.NewError("timeout")
++
++// TimeoutReader returns ErrTimeout on the second read
++// with no data.  Subsequent calls to read succeed.
++func TimeoutReader(r io.Reader) io.Reader { return &timeoutReader{r, 0} }
++
++type timeoutReader struct {
++	r     io.Reader
++	count int
++}
++
++func (r *timeoutReader) Read(p []byte) (int, os.Error) {
++	r.count++
++	if r.count == 2 {
++		return 0, ErrTimeout
++	}
++	return r.r.Read(p)
++}

@@ -13,6 +13,24 @@ Date:   Mon Apr 29 16:15:47 2019 +0200
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/os2_aix.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/os2_aix.go b/src/runtime/os2_aix.go
+index 750c8c6115..162d93ef52 100644
+--- a/src/runtime/os2_aix.go
++++ b/src/runtime/os2_aix.go
+@@ -436,8 +436,11 @@ func pipe(fd *int32) int32 {
+ // by the assembly routine as 0.
+ // The err result is an OS error code such as ENOMEM.
+ //go:nosplit
+-func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (p unsafe.Pointer, err int) {
++func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (unsafe.Pointer, int) {
+ 	r, err0 := syscall6(&libc_mmap, uintptr(addr), uintptr(n), uintptr(prot), uintptr(flags), uintptr(fd), uintptr(off))
++	if r == ^uintptr(0) {
++		return nil, int(err0)
++	}
+ 	return unsafe.Pointer(r), int(err0)
+ }
+ 

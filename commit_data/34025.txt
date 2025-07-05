@@ -16,7 +16,7 @@ Date:   Mon Sep 25 15:47:44 2017 +0200
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/archive/tar/writer.go          | 2 +-
  src/cmd/doc/main.go                | 2 +-
  src/cmd/fix/fix.go                 | 2 +-
@@ -43,3 +43,448 @@ Date:   Mon Sep 25 15:47:44 2017 +0200
  src/testing/testing.go             | 2 +-
  src/time/mono_test.go              | 2 +-
  25 files changed, 39 insertions(+), 39 deletions(-)
+
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index 0ae48b8b23..5e183cb2bb 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -376,7 +376,7 @@ func splitUSTARPath(name string) (prefix, suffix string, ok bool) {
+ 		length--
+ 	}
+ 
+-	i := strings.LastIndex(name[:length], "/")
++	i := strings.LastIndexByte(name[:length], '/')
+ 	nlen := len(name) - i - 1 // nlen is length of suffix
+ 	plen := i                 // plen is length of prefix
+ 	if i <= 0 || nlen > nameSize || nlen == 0 || plen > prefixSize {
+diff --git a/src/cmd/doc/main.go b/src/cmd/doc/main.go
+index 09f551a45d..78ea038e61 100644
+--- a/src/cmd/doc/main.go
++++ b/src/cmd/doc/main.go
+@@ -205,7 +205,7 @@ func parseArgs(args []string) (pkg *build.Package, path, symbol string, more boo
+ 	}
+ 	// If it has a slash, it must be a package path but there is a symbol.
+ 	// It's the last package path we care about.
+-	slash := strings.LastIndex(arg, "/")
++	slash := strings.LastIndexByte(arg, '/')
+ 	// There may be periods in the package path before or after the slash
+ 	// and between a symbol and method.
+ 	// Split the string at various periods to see what we find.
+diff --git a/src/cmd/fix/fix.go b/src/cmd/fix/fix.go
+index cdc3c839d3..f12d1c7fe0 100644
+--- a/src/cmd/fix/fix.go
++++ b/src/cmd/fix/fix.go
+@@ -719,7 +719,7 @@ func usesImport(f *ast.File, path string) (used bool) {
+ 	case "<nil>":
+ 		// If the package name is not explicitly specified,
+ 		// make an educated guess. This is not guaranteed to be correct.
+-		lastSlash := strings.LastIndex(path, "/")
++		lastSlash := strings.LastIndexByte(path, '/')
+ 		if lastSlash == -1 {
+ 			name = path
+ 		} else {
+diff --git a/src/cmd/vet/print.go b/src/cmd/vet/print.go
+index 67a96ed2c4..f64e449f6d 100644
+--- a/src/cmd/vet/print.go
++++ b/src/cmd/vet/print.go
+@@ -38,7 +38,7 @@ func initPrintFlags() {
+ 
+ 		// Backwards compatibility: skip optional first argument
+ 		// index after the colon.
+-		if colon := strings.LastIndex(name, ":"); colon > 0 {
++		if colon := strings.LastIndexByte(name, ':'); colon > 0 {
+ 			name = name[:colon]
+ 		}
+ 
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index f8db66279f..38d01bf068 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -848,7 +848,7 @@ func hostnameInSNI(name string) string {
+ 	if len(host) > 0 && host[0] == '[' && host[len(host)-1] == ']' {
+ 		host = host[1 : len(host)-1]
+ 	}
+-	if i := strings.LastIndex(host, "%"); i > 0 {
++	if i := strings.LastIndexByte(host, '%'); i > 0 {
+ 		host = host[:i]
+ 	}
+ 	if net.ParseIP(host) != nil {
+diff --git a/src/crypto/tls/tls.go b/src/crypto/tls/tls.go
+index 615d1e5576..1c91daeb1c 100644
+--- a/src/crypto/tls/tls.go
++++ b/src/crypto/tls/tls.go
+@@ -122,7 +122,7 @@ func DialWithDialer(dialer *net.Dialer, network, addr string, config *Config) (*
+ 		return nil, err
+ 	}
+ 
+-	colonPos := strings.LastIndex(addr, ":")
++	colonPos := strings.LastIndexByte(addr, ':')
+ 	if colonPos == -1 {
+ 		colonPos = len(addr)
+ 	}
+diff --git a/src/debug/gosym/symtab.go b/src/debug/gosym/symtab.go
+index b81f872801..eab255a359 100644
+--- a/src/debug/gosym/symtab.go
++++ b/src/debug/gosym/symtab.go
+@@ -40,7 +40,7 @@ func (s *Sym) Static() bool { return s.Type >= 'a' }
+ // PackageName returns the package part of the symbol name,
+ // or the empty string if there is none.
+ func (s *Sym) PackageName() string {
+-	pathend := strings.LastIndex(s.Name, "/")
++	pathend := strings.LastIndexByte(s.Name, '/')
+ 	if pathend < 0 {
+ 		pathend = 0
+ 	}
+@@ -54,12 +54,12 @@ func (s *Sym) PackageName() string {
+ // ReceiverName returns the receiver type name of this symbol,
+ // or the empty string if there is none.
+ func (s *Sym) ReceiverName() string {
+-	pathend := strings.LastIndex(s.Name, "/")
++	pathend := strings.LastIndexByte(s.Name, '/')
+ 	if pathend < 0 {
+ 		pathend = 0
+ 	}
+ 	l := strings.IndexByte(s.Name[pathend:], '.')
+-	r := strings.LastIndex(s.Name[pathend:], ".")
++	r := strings.LastIndexByte(s.Name[pathend:], '.')
+ 	if l == -1 || r == -1 || l == r {
+ 		return ""
+ 	}
+@@ -68,7 +68,7 @@ func (s *Sym) ReceiverName() string {
+ 
+ // BaseName returns the symbol name without the package or receiver name.
+ func (s *Sym) BaseName() string {
+-	if i := strings.LastIndex(s.Name, "."); i != -1 {
++	if i := strings.LastIndexByte(s.Name, '.'); i != -1 {
+ 		return s.Name[i+1:]
+ 	}
+ 	return s.Name
+diff --git a/src/encoding/xml/marshal.go b/src/encoding/xml/marshal.go
+index 42133a75ab..773f0f2862 100644
+--- a/src/encoding/xml/marshal.go
++++ b/src/encoding/xml/marshal.go
+@@ -333,7 +333,7 @@ func (p *printer) createAttrPrefix(url string) string {
+ 	// Pick a name. We try to use the final element of the path
+ 	// but fall back to _.
+ 	prefix := strings.TrimRight(url, "/")
+-	if i := strings.LastIndex(prefix, "/"); i >= 0 {
++	if i := strings.LastIndexByte(prefix, '/'); i >= 0 {
+ 		prefix = prefix[i+1:]
+ 	}
+ 	if prefix == "" || !isName([]byte(prefix)) || strings.Contains(prefix, ":") {
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 9822affa8a..c449ad95e8 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -465,7 +465,7 @@ func (e *MultiplePackageError) Error() string {
+ }
+ 
+ func nameExt(name string) string {
+-	i := strings.LastIndex(name, ".")
++	i := strings.LastIndexByte(name, '.')
+ 	if i < 0 {
+ 		return ""
+ 	}
+@@ -610,7 +610,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
+ 						}
+ 						tried.vendor = append(tried.vendor, dir)
+ 					}
+-					i := strings.LastIndex(sub, "/")
++					i := strings.LastIndexByte(sub, '/')
+ 					if i < 0 {
+ 						break
+ 					}
+@@ -1064,7 +1064,7 @@ func (ctxt *Context) matchFile(dir, name string, allTags map[string]bool, binary
+ 		return
+ 	}
+ 
+-	i := strings.LastIndex(name, ".")
++	i := strings.LastIndexByte(name, '.')
+ 	if i < 0 {
+ 		i = len(name)
+ 	}
+diff --git a/src/go/doc/testdata/testing.go b/src/go/doc/testdata/testing.go
+index 52810f7a56..066e4a43db 100644
+--- a/src/go/doc/testdata/testing.go
++++ b/src/go/doc/testdata/testing.go
+@@ -93,7 +93,7 @@ func decorate(s string, addFileLine bool) string {
+ 		_, file, line, ok := runtime.Caller(3) // decorate + log + public function.
+ 		if ok {
+ 			// Truncate file name at last file name separator.
+-			if index := strings.LastIndex(file, "/"); index >= 0 {
++			if index := strings.LastIndexByte(file, '/'); index >= 0 {
+ 				file = file[index+1:]
+ 			} else if index = strings.LastIndex(file, "\\"); index >= 0 {
+ 				file = file[index+1:]
+diff --git a/src/go/printer/printer.go b/src/go/printer/printer.go
+index 4f4beadcab..6a954e21fe 100644
+--- a/src/go/printer/printer.go
++++ b/src/go/printer/printer.go
+@@ -624,7 +624,7 @@ func (p *printer) writeComment(comment *ast.Comment) {
+ 	if strings.HasPrefix(text, linePrefix) && (!pos.IsValid() || pos.Column == 1) {
+ 		// possibly a line directive
+ 		ldir := strings.TrimSpace(text[len(linePrefix):])
+-		if i := strings.LastIndex(ldir, ":"); i >= 0 {
++		if i := strings.LastIndexByte(ldir, ':'); i >= 0 {
+ 			if line, err := strconv.Atoi(ldir[i+1:]); err == nil && line > 0 {
+ 				// The line directive we are about to print changed
+ 				// the Filename and Line number used for subsequent
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index ba75a0dc23..253f8a0334 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -172,7 +172,7 @@ func (check *Checker) importPackage(pos token.Pos, path, dir string) *Package {
+ 				if i := len(name); i > 0 && name[i-1] == '/' {
+ 					name = name[:i-1]
+ 				}
+-				if i := strings.LastIndex(name, "/"); i >= 0 {
++				if i := strings.LastIndexByte(name, '/'); i >= 0 {
+ 					name = name[i+1:]
+ 				}
+ 				imp = NewPackage(path, name)
+@@ -516,7 +516,7 @@ func (check *Checker) unusedImports() {
+ 
+ // pkgName returns the package name (last element) of an import path.
+ func pkgName(path string) string {
+-	if i := strings.LastIndex(path, "/"); i >= 0 {
++	if i := strings.LastIndexByte(path, '/'); i >= 0 {
+ 		path = path[i+1:]
+ 	}
+ 	return path
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+index a774bf14c9..1033d5222b 100644
+--- a/src/internal/trace/parser.go
++++ b/src/internal/trace/parser.go
+@@ -812,7 +812,7 @@ func symbolize(events []*Event, bin string) error {
+ 		f := &Frame{PC: pc}
+ 		f.Fn = fn[:len(fn)-1]
+ 		f.File = file[:len(file)-1]
+-		if colon := strings.LastIndex(f.File, ":"); colon != -1 {
++		if colon := strings.LastIndexByte(f.File, ':'); colon != -1 {
+ 			ln, err := strconv.Atoi(f.File[colon+1:])
+ 			if err == nil {
+ 				f.File = f.File[:colon]
+diff --git a/src/net/http/cookiejar/jar.go b/src/net/http/cookiejar/jar.go
+index ef8c35bf0a..f147eceb18 100644
+--- a/src/net/http/cookiejar/jar.go
++++ b/src/net/http/cookiejar/jar.go
+@@ -330,7 +330,7 @@ func jarKey(host string, psl PublicSuffixList) string {
+ 
+ 	var i int
+ 	if psl == nil {
+-		i = strings.LastIndex(host, ".")
++		i = strings.LastIndexByte(host, '.')
+ 		if i <= 0 {
+ 			return host
+ 		}
+@@ -349,7 +349,7 @@ func jarKey(host string, psl PublicSuffixList) string {
+ 		// here on, so it is okay if psl.PublicSuffix("www.buggy.psl")
+ 		// returns "com" as the jar key is generated from host.
+ 	}
+-	prevDot := strings.LastIndex(host[:i-1], ".")
++	prevDot := strings.LastIndexByte(host[:i-1], '.')
+ 	return host[prevDot+1:]
+ }
+ 
+@@ -365,7 +365,7 @@ func defaultPath(path string) string {
+ 		return "/" // Path is empty or malformed.
+ 	}
+ 
+-	i := strings.LastIndex(path, "/") // Path starts with "/", so i != -1.
++	i := strings.LastIndexByte(path, '/') // Path starts with "/", so i != -1.
+ 	if i == 0 {
+ 		return "/" // Path has the form "/abc".
+ 	}
+diff --git a/src/net/http/cookiejar/jar_test.go b/src/net/http/cookiejar/jar_test.go
+index 47fb1abdaa..ed4baae4c6 100644
+--- a/src/net/http/cookiejar/jar_test.go
++++ b/src/net/http/cookiejar/jar_test.go
+@@ -37,7 +37,7 @@ func (testPSL) PublicSuffix(d string) string {
+ 	if d == "www2.buggy.psl" {
+ 		return "com"
+ 	}
+-	return d[strings.LastIndex(d, ".")+1:]
++	return d[strings.LastIndexByte(d, '.')+1:]
+ }
+ 
+ // newTestJar creates an empty Jar with testPSL as the public suffix list.
+diff --git a/src/net/http/http.go b/src/net/http/http.go
+index b95ca89f40..7d5b74092e 100644
+--- a/src/net/http/http.go
++++ b/src/net/http/http.go
+@@ -35,7 +35,7 @@ func (k *contextKey) String() string { return "net/http context value " + k.name
+ 
+ // Given a string of the form "host", "host:port", or "[ipv6::address]:port",
+ // return true if the string includes a port.
+-func hasPort(s string) bool { return strings.LastIndex(s, ":") > strings.LastIndex(s, "]") }
++func hasPort(s string) bool { return strings.LastIndexByte(s, ':') > strings.LastIndexByte(s, ']') }
+ 
+ // removeEmptyPort strips the empty port in ":port" to ""
+ // as mandated by RFC 3986 Section 6.2.3.
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index b7fcf806ba..e384517668 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -688,11 +688,11 @@ func removeZone(host string) string {
+ 	if !strings.HasPrefix(host, "[") {
+ 		return host
+ 	}
+-	i := strings.LastIndex(host, "]")
++	i := strings.LastIndexByte(host, ']')
+ 	if i < 0 {
+ 		return host
+ 	}
+-	j := strings.LastIndex(host[:i], "%")
++	j := strings.LastIndexByte(host[:i], '%')
+ 	if j < 0 {
+ 		return host
+ 	}
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 5f2ace7b4b..034d016cb3 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -1236,7 +1236,7 @@ func useProxy(addr string) bool {
+ 
+ 	addr = strings.ToLower(strings.TrimSpace(addr))
+ 	if hasPort(addr) {
+-		addr = addr[:strings.LastIndex(addr, ":")]
++		addr = addr[:strings.LastIndexByte(addr, ':')]
+ 	}
+ 
+ 	for _, p := range strings.Split(noProxy, ",") {
+@@ -1245,7 +1245,7 @@ func useProxy(addr string) bool {
+ 			continue
+ 		}
+ 		if hasPort(p) {
+-			p = p[:strings.LastIndex(p, ":")]
++			p = p[:strings.LastIndexByte(p, ':')]
+ 		}
+ 		if addr == p {
+ 			return false
+@@ -1317,7 +1317,7 @@ func (cm *connectMethod) addr() string {
+ func (cm *connectMethod) tlsHost() string {
+ 	h := cm.targetAddr
+ 	if hasPort(h) {
+-		h = h[:strings.LastIndex(h, ":")]
++		h = h[:strings.LastIndexByte(h, ':')]
+ 	}
+ 	return h
+ }
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index e080e017da..9c29e812c0 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -178,7 +178,7 @@ func (p *AddressParser) ParseList(list string) ([]*Address, error) {
+ // the name will be rendered according to RFC 2047.
+ func (a *Address) String() string {
+ 	// Format address local@domain
+-	at := strings.LastIndex(a.Address, "@")
++	at := strings.LastIndexByte(a.Address, '@')
+ 	var local, domain string
+ 	if at < 0 {
+ 		// This is a malformed address ("@" is required in addr-spec);
+diff --git a/src/net/rpc/server.go b/src/net/rpc/server.go
+index 29aae7ee7f..0499f4abe2 100644
+--- a/src/net/rpc/server.go
++++ b/src/net/rpc/server.go
+@@ -592,7 +592,7 @@ func (server *Server) readRequestHeader(codec ServerCodec) (svc *service, mtype
+ 	// we can still recover and move on to the next request.
+ 	keepReading = true
+ 
+-	dot := strings.LastIndex(req.ServiceMethod, ".")
++	dot := strings.LastIndexByte(req.ServiceMethod, '.')
+ 	if dot < 0 {
+ 		err = errors.New("rpc: service/method request ill-formed: " + req.ServiceMethod)
+ 		return
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 02d446e4a2..a317d096f2 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -532,7 +532,7 @@ func parse(rawurl string, viaRequest bool) (*URL, error) {
+ }
+ 
+ func parseAuthority(authority string) (user *Userinfo, host string, err error) {
+-	i := strings.LastIndex(authority, "@")
++	i := strings.LastIndexByte(authority, '@')
+ 	if i < 0 {
+ 		host, err = parseHost(authority)
+ 	} else {
+@@ -569,7 +569,7 @@ func parseHost(host string) (string, error) {
+ 	if strings.HasPrefix(host, "[") {
+ 		// Parse an IP-Literal in RFC 3986 and RFC 6874.
+ 		// E.g., "[fe80::1]", "[fe80::1%25en0]", "[fe80::1]:80".
+-		i := strings.LastIndex(host, "]")
++		i := strings.LastIndexByte(host, ']')
+ 		if i < 0 {
+ 			return "", errors.New("missing ']' in host")
+ 		}
+@@ -885,7 +885,7 @@ func resolvePath(base, ref string) string {
+ 	if ref == "" {
+ 		full = base
+ 	} else if ref[0] != '/' {
+-		i := strings.LastIndex(base, "/")
++		i := strings.LastIndexByte(base, '/')
+ 		full = base[:i+1] + ref
+ 	} else {
+ 		full = ref
+diff --git a/src/os/exec/lp_windows.go b/src/os/exec/lp_windows.go
+index 793d4d98b3..4e1ffb0014 100644
+--- a/src/os/exec/lp_windows.go
++++ b/src/os/exec/lp_windows.go
+@@ -26,7 +26,7 @@ func chkStat(file string) error {
+ }
+ 
+ func hasExt(file string) bool {
+-	i := strings.LastIndex(file, ".")
++	i := strings.LastIndexByte(file, '.')
+ 	if i < 0 {
+ 		return false
+ 	}
+diff --git a/src/path/path.go b/src/path/path.go
+index 5c905110a1..074cfff67a 100644
+--- a/src/path/path.go
++++ b/src/path/path.go
+@@ -145,7 +145,7 @@ func Clean(path string) string {
+ // file set to path.
+ // The returned values have the property that path = dir+file.
+ func Split(path string) (dir, file string) {
+-	i := strings.LastIndex(path, "/")
++	i := strings.LastIndexByte(path, '/')
+ 	return path[:i+1], path[i+1:]
+ }
+ 
+@@ -187,7 +187,7 @@ func Base(path string) string {
+ 		path = path[0 : len(path)-1]
+ 	}
+ 	// Find the last element
+-	if i := strings.LastIndex(path, "/"); i >= 0 {
++	if i := strings.LastIndexByte(path, '/'); i >= 0 {
+ 		path = path[i+1:]
+ 	}
+ 	// If empty now, it had only slashes.
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index a170cd0fd9..d5c045f253 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -360,7 +360,7 @@ func (c *common) decorate(s string) string {
+ 	_, file, line, ok := runtime.Caller(skip)
+ 	if ok {
+ 		// Truncate file name at last file name separator.
+-		if index := strings.LastIndex(file, "/"); index >= 0 {
++		if index := strings.LastIndexByte(file, '/'); index >= 0 {
+ 			file = file[index+1:]
+ 		} else if index = strings.LastIndex(file, "\\"); index >= 0 {
+ 			file = file[index+1:]
+diff --git a/src/time/mono_test.go b/src/time/mono_test.go
+index 8778ab78a0..cc24db07f1 100644
+--- a/src/time/mono_test.go
++++ b/src/time/mono_test.go
+@@ -253,7 +253,7 @@ func TestMonotonicString(t *testing.T) {
+ 		t1 := Now()
+ 		SetMono(&t1, tt.mono)
+ 		s := t1.String()
+-		got := s[strings.LastIndex(s, " ")+1:]
++		got := s[strings.LastIndexByte(s, ' ')+1:]
+ 		if got != tt.want {
+ 			t.Errorf("with mono=%d: got %q; want %q", tt.mono, got, tt.want)
+ 		}

@@ -12,6 +12,20 @@ Date:   Thu Aug 24 12:39:34 2017 -0500
     Reviewed-by: Sameer Ajmani <sameer@golang.org>
     Run-TryBot: Sam Whited <sam@samwhited.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/fix/context.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/fix/context.go b/src/cmd/fix/context.go
+index 926a06cccf..1107f4d66c 100644
+--- a/src/cmd/fix/context.go
++++ b/src/cmd/fix/context.go
+@@ -17,7 +17,7 @@ var contextFix = fix{
+ 	date:     "2016-09-09",
+ 	f:        ctxfix,
+ 	desc:     `Change imports of golang.org/x/net/context to context`,
+-	disabled: true,
++	disabled: false,
+ }
+ 
+ func ctxfix(f *ast.File) bool {

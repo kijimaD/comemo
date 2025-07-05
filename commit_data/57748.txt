@@ -15,7 +15,34 @@ Date:   Mon Aug 28 05:24:44 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Joedian Reid <joedian@golang.org>
-
+---
  src/cmd/compile/internal/types2/context.go | 2 +-
  src/go/types/context.go                    | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/context.go b/src/cmd/compile/internal/types2/context.go
+index ae39c7b830..772312463e 100644
+--- a/src/cmd/compile/internal/types2/context.go
++++ b/src/cmd/compile/internal/types2/context.go
+@@ -79,7 +79,7 @@ func (ctxt *Context) instanceHash(orig Type, targs []Type) string {
+ 		h.typeList(targs)
+ 	}
+ 
+-	return strings.Replace(buf.String(), " ", "#", -1) // ReplaceAll is not available in Go1.4
++	return strings.ReplaceAll(buf.String(), " ", "#")
+ }
+ 
+ // lookup returns an existing instantiation of orig with targs, if it exists.
+diff --git a/src/go/types/context.go b/src/go/types/context.go
+index 56368e1060..ce9bbf305e 100644
+--- a/src/go/types/context.go
++++ b/src/go/types/context.go
+@@ -81,7 +81,7 @@ func (ctxt *Context) instanceHash(orig Type, targs []Type) string {
+ 		h.typeList(targs)
+ 	}
+ 
+-	return strings.Replace(buf.String(), " ", "#", -1) // ReplaceAll is not available in Go1.4
++	return strings.ReplaceAll(buf.String(), " ", "#")
+ }
+ 
+ // lookup returns an existing instantiation of orig with targs, if it exists.

@@ -9,6 +9,20 @@ Date:   Tue Jan 24 19:46:27 2017 +0900
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/serve_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 681dff193a..73dd56e8c4 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -5277,7 +5277,7 @@ func TestServerHijackGetsBackgroundByte_big(t *testing.T) {
+ 		defer conn.Close()
+ 		slurp, err := ioutil.ReadAll(buf.Reader)
+ 		if err != nil {
+-			t.Error("Copy: %v", err)
++			t.Errorf("Copy: %v", err)
+ 		}
+ 		allX := true
+ 		for _, v := range slurp {

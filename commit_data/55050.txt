@@ -17,6 +17,24 @@ Date:   Thu Dec 8 12:53:26 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  doc/go1.20.html | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go1.20.html b/doc/go1.20.html
+index 28d3c8224d..e479fce8a1 100644
+--- a/doc/go1.20.html
++++ b/doc/go1.20.html
+@@ -102,9 +102,9 @@ Do not send CLs removing the interior tags from such phrases.
+   Programs that run <code>go</code> <code>test</code> <code>-json</code>
+   do not need any updates.
+   Programs that invoke <code>go</code> <code>tool</code> <code>test2json</code>
+-  directly should now run the test binary with <code>-v=json</code>
+-  (for example, <code>go</code> <code>test</code> <code>-v=json</code>
+-  or <code>./pkg.test</code> <code>-test.v=json</code>)
++  directly should now run the test binary with <code>-v=test2json</code>
++  (for example, <code>go</code> <code>test</code> <code>-v=test2json</code>
++  or <code>./pkg.test</code> <code>-test.v=test2json</code>)
+   instead of plain <code>-v</code>.
+ </p>
+ 

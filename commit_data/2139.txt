@@ -17,7 +17,72 @@ Date:   Tue May 5 12:43:00 2009 -0700
     DELTA=22  (20 added, 0 deleted, 2 changed)
     OCL=28255
     CL=28290
-
+---
  src/cmd/6l/span.c |  2 +-
  src/cmd/ld/go.c   | 22 +++++++++++++++++++++-
  2 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/6l/span.c b/src/cmd/6l/span.c
+index 97d4910e25..18b659adc8 100644
+--- a/src/cmd/6l/span.c
++++ b/src/cmd/6l/span.c
+@@ -238,7 +238,7 @@ asmsym(void)
+ 				continue;
+ 			}
+ 
+-	for(p=textp; p!=P; p=p->pcond) {
++	for(p = textp; p != P; p = p->pcond) {
+ 		s = p->from.sym;
+ 
+ 		/* filenames first */
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index c481ba02ad..d10d89b122 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -103,11 +103,12 @@ ldpkg(Biobuf *f, int64 len, char *filename)
+ 		fprint(2, "6l: too much pkg data in %s\n", filename);
+ 		return;
+ 	}
+-	data = mal(len);
++	data = mal(len+1);
+ 	if(Bread(f, data, len) != len) {
+ 		fprint(2, "6l: short pkg read %s\n", filename);
+ 		return;
+ 	}
++	data[len] = '\0';
+ 
+ 	// first \n$$ marks beginning of exports - skip rest of line
+ 	p0 = strstr(data, "\n$$");
+@@ -554,6 +555,16 @@ sweeplist(Prog **first, Prog **last)
+ 				if(debug['v'] > 1)
+ 					Bprint(&bso, "discard %s\n", p->from.sym->name);
+ 				p->from.sym->type = Sxxx;
++				break;
++			}
++			if(p->as == ATEXT) {
++				// keeping this function; link into textp list
++				if(etextp == P)
++					textp = p;
++				else
++					etextp->pcond = p;
++				etextp = p;
++				etextp->pcond = P;
+ 			}
+ 			break;
+ 		}
+@@ -603,6 +614,15 @@ deadcode(void)
+ 	for(i=0; i<nelem(morename); i++)
+ 		mark(lookup(morename[i], 0));
+ 
++	// remove dead code.
++	// sweeplist will rebuild the list of functions at textp
++	textp = P;
++	etextp = P;
++
++	// follow is going to redo the firstp, lastp list
++	// but update it anyway just to keep things consistent.
+ 	sweeplist(&firstp, &lastp);
++
++	// remove dead data
+ 	sweeplist(&datap, &edatap);
+ }

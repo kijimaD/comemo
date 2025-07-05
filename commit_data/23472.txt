@@ -11,7 +11,7 @@ Date:   Tue May 12 15:59:15 2015 +1200
     Reviewed-on: https://go-review.googlesource.com/10001
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/5l/asm.go          | 54 ++--------------------------
  src/cmd/5l/obj.go          |  1 -
  src/cmd/6l/asm.go          | 64 +++-------------------------------
@@ -26,3 +26,607 @@ Date:   Tue May 12 15:59:15 2015 +1200
  src/cmd/internal/ld/go.go  | 24 ++++++++++---
  src/cmd/internal/ld/lib.go |  1 -
  13 files changed, 120 insertions(+), 231 deletions(-)
+
+diff --git a/src/cmd/5l/asm.go b/src/cmd/5l/asm.go
+index 14302a5a38..1b69671b9f 100644
+--- a/src/cmd/5l/asm.go
++++ b/src/cmd/5l/asm.go
+@@ -176,7 +176,7 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
+ 			break
+ 		}
+ 		if ld.Iself {
+-			adddynsym(ld.Ctxt, targ)
++			ld.Adddynsym(ld.Ctxt, targ)
+ 			rel := ld.Linklookup(ld.Ctxt, ".rel", 0)
+ 			ld.Addaddrplus(ld.Ctxt, rel, s, int64(r.Off))
+ 			ld.Adduint32(ld.Ctxt, rel, ld.ELF32_R_INFO(uint32(targ.Dynid), ld.R_ARM_GLOB_DAT)) // we need a nil + A dynmic reloc
+@@ -422,7 +422,7 @@ func addpltsym(ctxt *ld.Link, s *ld.LSym) {
+ 		return
+ 	}
+ 
+-	adddynsym(ctxt, s)
++	ld.Adddynsym(ctxt, s)
+ 
+ 	if ld.Iself {
+ 		plt := ld.Linklookup(ctxt, ".plt", 0)
+@@ -477,7 +477,7 @@ func addgotsym(ctxt *ld.Link, s *ld.LSym) {
+ 		return
+ 	}
+ 
+-	adddynsym(ctxt, s)
++	ld.Adddynsym(ctxt, s)
+ 	got := ld.Linklookup(ctxt, ".got", 0)
+ 	s.Got = int32(got.Size)
+ 	ld.Adduint32(ctxt, got, 0)
+@@ -491,54 +491,6 @@ func addgotsym(ctxt *ld.Link, s *ld.LSym) {
+ 	}
+ }
+ 
+-func adddynsym(ctxt *ld.Link, s *ld.LSym) {
+-	if s.Dynid >= 0 {
+-		return
+-	}
+-
+-	if ld.Iself {
+-		s.Dynid = int32(ld.Nelfsym)
+-		ld.Nelfsym++
+-
+-		d := ld.Linklookup(ctxt, ".dynsym", 0)
+-
+-		/* name */
+-		name := s.Extname
+-
+-		ld.Adduint32(ctxt, d, uint32(ld.Addstring(ld.Linklookup(ctxt, ".dynstr", 0), name)))
+-
+-		/* value */
+-		if s.Type == obj.SDYNIMPORT {
+-			ld.Adduint32(ctxt, d, 0)
+-		} else {
+-			ld.Addaddr(ctxt, d, s)
+-		}
+-
+-		/* size */
+-		ld.Adduint32(ctxt, d, 0)
+-
+-		/* type */
+-		t := ld.STB_GLOBAL << 4
+-
+-		if (s.Cgoexport&ld.CgoExportDynamic != 0) && s.Type&obj.SMASK == obj.STEXT {
+-			t |= ld.STT_FUNC
+-		} else {
+-			t |= ld.STT_OBJECT
+-		}
+-		ld.Adduint8(ctxt, d, uint8(t))
+-		ld.Adduint8(ctxt, d, 0)
+-
+-		/* shndx */
+-		if s.Type == obj.SDYNIMPORT {
+-			ld.Adduint16(ctxt, d, ld.SHN_UNDEF)
+-		} else {
+-			ld.Adduint16(ctxt, d, 1)
+-		}
+-	} else {
+-		ld.Diag("adddynsym: unsupported binary format")
+-	}
+-}
+-
+ func asmb() {
+ 	if ld.Debug['v'] != 0 {
+ 		fmt.Fprintf(&ld.Bso, "%5.2f asmb\n", obj.Cputime())
+diff --git a/src/cmd/5l/obj.go b/src/cmd/5l/obj.go
+index d9485521ad..9c9578343e 100644
+--- a/src/cmd/5l/obj.go
++++ b/src/cmd/5l/obj.go
+@@ -59,7 +59,6 @@ func linkarchinit() {
+ 	ld.Thearch.Dwarfreglr = DWARFREGLR
+ 
+ 	ld.Thearch.Adddynrel = adddynrel
+-	ld.Thearch.Adddynsym = adddynsym
+ 	ld.Thearch.Archinit = archinit
+ 	ld.Thearch.Archreloc = archreloc
+ 	ld.Thearch.Archrelocvariant = archrelocvariant
+diff --git a/src/cmd/6l/asm.go b/src/cmd/6l/asm.go
+index 9b471a04ac..5520a5acf1 100644
+--- a/src/cmd/6l/asm.go
++++ b/src/cmd/6l/asm.go
+@@ -274,7 +274,7 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
+ 			break
+ 		}
+ 		if ld.Iself {
+-			adddynsym(ld.Ctxt, targ)
++			ld.Adddynsym(ld.Ctxt, targ)
+ 			rela := ld.Linklookup(ld.Ctxt, ".rela", 0)
+ 			ld.Addaddrplus(ld.Ctxt, rela, s, int64(r.Off))
+ 			if r.Siz == 8 {
+@@ -298,7 +298,7 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
+ 			// just in case the C code assigns to the variable,
+ 			// and of course it only works for single pointers,
+ 			// but we only need to support cgo and that's all it needs.
+-			adddynsym(ld.Ctxt, targ)
++			ld.Adddynsym(ld.Ctxt, targ)
+ 
+ 			got := ld.Linklookup(ld.Ctxt, ".got", 0)
+ 			s.Type = got.Type | obj.SSUB
+@@ -526,7 +526,7 @@ func addpltsym(s *ld.LSym) {
+ 		return
+ 	}
+ 
+-	adddynsym(ld.Ctxt, s)
++	ld.Adddynsym(ld.Ctxt, s)
+ 
+ 	if ld.Iself {
+ 		plt := ld.Linklookup(ld.Ctxt, ".plt", 0)
+@@ -594,7 +594,7 @@ func addgotsym(s *ld.LSym) {
+ 		return
+ 	}
+ 
+-	adddynsym(ld.Ctxt, s)
++	ld.Adddynsym(ld.Ctxt, s)
+ 	got := ld.Linklookup(ld.Ctxt, ".got", 0)
+ 	s.Got = int32(got.Size)
+ 	ld.Adduint64(ld.Ctxt, got, 0)
+@@ -611,62 +611,6 @@ func addgotsym(s *ld.LSym) {
+ 	}
+ }
+ 
+-func adddynsym(ctxt *ld.Link, s *ld.LSym) {
+-	if s.Dynid >= 0 {
+-		return
+-	}
+-
+-	if ld.Iself {
+-		s.Dynid = int32(ld.Nelfsym)
+-		ld.Nelfsym++
+-
+-		d := ld.Linklookup(ctxt, ".dynsym", 0)
+-
+-		name := s.Extname
+-		ld.Adduint32(ctxt, d, uint32(ld.Addstring(ld.Linklookup(ctxt, ".dynstr", 0), name)))
+-
+-		/* type */
+-		t := ld.STB_GLOBAL << 4
+-
+-		if s.Cgoexport != 0 && s.Type&obj.SMASK == obj.STEXT {
+-			t |= ld.STT_FUNC
+-		} else {
+-			t |= ld.STT_OBJECT
+-		}
+-		ld.Adduint8(ctxt, d, uint8(t))
+-
+-		/* reserved */
+-		ld.Adduint8(ctxt, d, 0)
+-
+-		/* section where symbol is defined */
+-		if s.Type == obj.SDYNIMPORT {
+-			ld.Adduint16(ctxt, d, ld.SHN_UNDEF)
+-		} else {
+-			ld.Adduint16(ctxt, d, 1)
+-		}
+-
+-		/* value */
+-		if s.Type == obj.SDYNIMPORT {
+-			ld.Adduint64(ctxt, d, 0)
+-		} else {
+-			ld.Addaddr(ctxt, d, s)
+-		}
+-
+-		/* size of object */
+-		ld.Adduint64(ctxt, d, uint64(s.Size))
+-
+-		if s.Cgoexport&ld.CgoExportDynamic == 0 && s.Dynimplib != "" && !ld.Seenlib[s.Dynimplib] {
+-			ld.Elfwritedynent(ld.Linklookup(ctxt, ".dynamic", 0), ld.DT_NEEDED, uint64(ld.Addstring(ld.Linklookup(ctxt, ".dynstr", 0), s.Dynimplib)))
+-		}
+-	} else if ld.HEADTYPE == obj.Hdarwin {
+-		ld.Diag("adddynsym: missed symbol %s (%s)", s.Name, s.Extname)
+-	} else if ld.HEADTYPE == obj.Hwindows {
+-	} else // already taken care of
+-	{
+-		ld.Diag("adddynsym: unsupported binary format")
+-	}
+-}
+-
+ func asmb() {
+ 	if ld.Debug['v'] != 0 {
+ 		fmt.Fprintf(&ld.Bso, "%5.2f asmb\n", obj.Cputime())
+diff --git a/src/cmd/6l/obj.go b/src/cmd/6l/obj.go
+index 38ac0783b6..1dc9e02a8b 100644
+--- a/src/cmd/6l/obj.go
++++ b/src/cmd/6l/obj.go
+@@ -62,7 +62,6 @@ func linkarchinit() {
+ 	ld.Thearch.Dwarfreglr = DWARFREGLR
+ 
+ 	ld.Thearch.Adddynrel = adddynrel
+-	ld.Thearch.Adddynsym = adddynsym
+ 	ld.Thearch.Archinit = archinit
+ 	ld.Thearch.Archreloc = archreloc
+ 	ld.Thearch.Archrelocvariant = archrelocvariant
+diff --git a/src/cmd/7l/asm.go b/src/cmd/7l/asm.go
+index a0e813cfa5..3dfb8c666d 100644
+--- a/src/cmd/7l/asm.go
++++ b/src/cmd/7l/asm.go
+@@ -275,10 +275,6 @@ func archrelocvariant(r *ld.Reloc, s *ld.LSym, t int64) int64 {
+ 	return -1
+ }
+ 
+-func adddynsym(ctxt *ld.Link, s *ld.LSym) {
+-	// TODO(minux): implement when needed.
+-}
+-
+ func asmb() {
+ 	if ld.Debug['v'] != 0 {
+ 		fmt.Fprintf(&ld.Bso, "%5.2f asmb\n", obj.Cputime())
+diff --git a/src/cmd/7l/obj.go b/src/cmd/7l/obj.go
+index 7d0500387b..f88584b938 100644
+--- a/src/cmd/7l/obj.go
++++ b/src/cmd/7l/obj.go
+@@ -59,7 +59,6 @@ func linkarchinit() {
+ 	ld.Thearch.Dwarfreglr = DWARFREGLR
+ 
+ 	ld.Thearch.Adddynrel = adddynrel
+-	ld.Thearch.Adddynsym = adddynsym
+ 	ld.Thearch.Archinit = archinit
+ 	ld.Thearch.Archreloc = archreloc
+ 	ld.Thearch.Archrelocvariant = archrelocvariant
+diff --git a/src/cmd/8l/asm.go b/src/cmd/8l/asm.go
+index 873fd16470..a63c51f58d 100644
+--- a/src/cmd/8l/asm.go
++++ b/src/cmd/8l/asm.go
+@@ -184,7 +184,7 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
+ 			break
+ 		}
+ 		if ld.Iself {
+-			adddynsym(ld.Ctxt, targ)
++			ld.Adddynsym(ld.Ctxt, targ)
+ 			rel := ld.Linklookup(ld.Ctxt, ".rel", 0)
+ 			ld.Addaddrplus(ld.Ctxt, rel, s, int64(r.Off))
+ 			ld.Adduint32(ld.Ctxt, rel, ld.ELF32_R_INFO(uint32(targ.Dynid), ld.R_386_32))
+@@ -204,7 +204,7 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
+ 			// just in case the C code assigns to the variable,
+ 			// and of course it only works for single pointers,
+ 			// but we only need to support cgo and that's all it needs.
+-			adddynsym(ld.Ctxt, targ)
++			ld.Adddynsym(ld.Ctxt, targ)
+ 
+ 			got := ld.Linklookup(ld.Ctxt, ".got", 0)
+ 			s.Type = got.Type | obj.SSUB
+@@ -402,7 +402,7 @@ func addpltsym(ctxt *ld.Link, s *ld.LSym) {
+ 		return
+ 	}
+ 
+-	adddynsym(ctxt, s)
++	ld.Adddynsym(ctxt, s)
+ 
+ 	if ld.Iself {
+ 		plt := ld.Linklookup(ctxt, ".plt", 0)
+@@ -462,7 +462,7 @@ func addgotsym(ctxt *ld.Link, s *ld.LSym) {
+ 		return
+ 	}
+ 
+-	adddynsym(ctxt, s)
++	ld.Adddynsym(ctxt, s)
+ 	got := ld.Linklookup(ctxt, ".got", 0)
+ 	s.Got = int32(got.Size)
+ 	ld.Adduint32(ctxt, got, 0)
+@@ -478,58 +478,6 @@ func addgotsym(ctxt *ld.Link, s *ld.LSym) {
+ 	}
+ }
+ 
+-func adddynsym(ctxt *ld.Link, s *ld.LSym) {
+-	if s.Dynid >= 0 {
+-		return
+-	}
+-
+-	if ld.Iself {
+-		s.Dynid = int32(ld.Nelfsym)
+-		ld.Nelfsym++
+-
+-		d := ld.Linklookup(ctxt, ".dynsym", 0)
+-
+-		/* name */
+-		name := s.Extname
+-
+-		ld.Adduint32(ctxt, d, uint32(ld.Addstring(ld.Linklookup(ctxt, ".dynstr", 0), name)))
+-
+-		/* value */
+-		if s.Type == obj.SDYNIMPORT {
+-			ld.Adduint32(ctxt, d, 0)
+-		} else {
+-			ld.Addaddr(ctxt, d, s)
+-		}
+-
+-		/* size */
+-		ld.Adduint32(ctxt, d, 0)
+-
+-		/* type */
+-		t := ld.STB_GLOBAL << 4
+-
+-		if s.Cgoexport != 0 && s.Type&obj.SMASK == obj.STEXT {
+-			t |= ld.STT_FUNC
+-		} else {
+-			t |= ld.STT_OBJECT
+-		}
+-		ld.Adduint8(ctxt, d, uint8(t))
+-		ld.Adduint8(ctxt, d, 0)
+-
+-		/* shndx */
+-		if s.Type == obj.SDYNIMPORT {
+-			ld.Adduint16(ctxt, d, ld.SHN_UNDEF)
+-		} else {
+-			ld.Adduint16(ctxt, d, 1)
+-		}
+-	} else if ld.HEADTYPE == obj.Hdarwin {
+-		ld.Diag("adddynsym: missed symbol %s (%s)", s.Name, s.Extname)
+-	} else if ld.HEADTYPE == obj.Hwindows {
+-	} else // already taken care of
+-	{
+-		ld.Diag("adddynsym: unsupported binary format")
+-	}
+-}
+-
+ func asmb() {
+ 	if ld.Debug['v'] != 0 {
+ 		fmt.Fprintf(&ld.Bso, "%5.2f asmb\n", obj.Cputime())
+diff --git a/src/cmd/8l/obj.go b/src/cmd/8l/obj.go
+index 9bbaa7ee1b..bea0d03cfe 100644
+--- a/src/cmd/8l/obj.go
++++ b/src/cmd/8l/obj.go
+@@ -59,7 +59,6 @@ func linkarchinit() {
+ 	ld.Thearch.Dwarfreglr = DWARFREGLR
+ 
+ 	ld.Thearch.Adddynrel = adddynrel
+-	ld.Thearch.Adddynsym = adddynsym
+ 	ld.Thearch.Archinit = archinit
+ 	ld.Thearch.Archreloc = archreloc
+ 	ld.Thearch.Archrelocvariant = archrelocvariant
+diff --git a/src/cmd/9l/asm.go b/src/cmd/9l/asm.go
+index 702ba2bb7c..45aa3f84c2 100644
+--- a/src/cmd/9l/asm.go
++++ b/src/cmd/9l/asm.go
+@@ -222,7 +222,7 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
+ 		r.Type = obj.R_ADDR
+ 		if targ.Type == obj.SDYNIMPORT {
+ 			// These happen in .toc sections
+-			adddynsym(ld.Ctxt, targ)
++			ld.Adddynsym(ld.Ctxt, targ)
+ 
+ 			rela := ld.Linklookup(ld.Ctxt, ".rela", 0)
+ 			ld.Addaddrplus(ld.Ctxt, rela, s, int64(r.Off))
+@@ -502,7 +502,7 @@ func addpltsym(ctxt *ld.Link, s *ld.LSym) {
+ 		return
+ 	}
+ 
+-	adddynsym(ctxt, s)
++	ld.Adddynsym(ctxt, s)
+ 
+ 	if ld.Iself {
+ 		plt := ld.Linklookup(ctxt, ".plt", 0)
+@@ -604,54 +604,6 @@ func ensureglinkresolver() *ld.LSym {
+ 	return glink
+ }
+ 
+-func adddynsym(ctxt *ld.Link, s *ld.LSym) {
+-	if s.Dynid >= 0 {
+-		return
+-	}
+-
+-	if ld.Iself {
+-		s.Dynid = int32(ld.Nelfsym)
+-		ld.Nelfsym++
+-
+-		d := ld.Linklookup(ctxt, ".dynsym", 0)
+-
+-		name := s.Extname
+-		ld.Adduint32(ctxt, d, uint32(ld.Addstring(ld.Linklookup(ctxt, ".dynstr", 0), name)))
+-
+-		/* type */
+-		t := ld.STB_GLOBAL << 4
+-
+-		if s.Cgoexport != 0 && s.Type&obj.SMASK == obj.STEXT {
+-			t |= ld.STT_FUNC
+-		} else {
+-			t |= ld.STT_OBJECT
+-		}
+-		ld.Adduint8(ctxt, d, uint8(t))
+-
+-		/* reserved */
+-		ld.Adduint8(ctxt, d, 0)
+-
+-		/* section where symbol is defined */
+-		if s.Type == obj.SDYNIMPORT {
+-			ld.Adduint16(ctxt, d, ld.SHN_UNDEF)
+-		} else {
+-			ld.Adduint16(ctxt, d, 1)
+-		}
+-
+-		/* value */
+-		if s.Type == obj.SDYNIMPORT {
+-			ld.Adduint64(ctxt, d, 0)
+-		} else {
+-			ld.Addaddr(ctxt, d, s)
+-		}
+-
+-		/* size of object */
+-		ld.Adduint64(ctxt, d, uint64(s.Size))
+-	} else {
+-		ld.Diag("adddynsym: unsupported binary format")
+-	}
+-}
+-
+ func asmb() {
+ 	if ld.Debug['v'] != 0 {
+ 		fmt.Fprintf(&ld.Bso, "%5.2f asmb\n", obj.Cputime())
+diff --git a/src/cmd/9l/obj.go b/src/cmd/9l/obj.go
+index f584ca43cd..011f290298 100644
+--- a/src/cmd/9l/obj.go
++++ b/src/cmd/9l/obj.go
+@@ -63,7 +63,6 @@ func linkarchinit() {
+ 	ld.Thearch.Dwarfreglr = DWARFREGLR
+ 
+ 	ld.Thearch.Adddynrel = adddynrel
+-	ld.Thearch.Adddynsym = adddynsym
+ 	ld.Thearch.Archinit = archinit
+ 	ld.Thearch.Archreloc = archreloc
+ 	ld.Thearch.Archrelocvariant = archrelocvariant
+diff --git a/src/cmd/internal/ld/elf.go b/src/cmd/internal/ld/elf.go
+index 5c17b2da6f..b73a75b59b 100644
+--- a/src/cmd/internal/ld/elf.go
++++ b/src/cmd/internal/ld/elf.go
+@@ -2349,6 +2349,93 @@ elfobj:
+ 	}
+ }
+ 
++func Elfadddynsym(ctxt *Link, s *LSym) {
++	if elf64 {
++		s.Dynid = int32(Nelfsym)
++		Nelfsym++
++
++		d := Linklookup(ctxt, ".dynsym", 0)
++
++		name := s.Extname
++		Adduint32(ctxt, d, uint32(Addstring(Linklookup(ctxt, ".dynstr", 0), name)))
++
++		/* type */
++		t := STB_GLOBAL << 4
++
++		if s.Cgoexport != 0 && s.Type&obj.SMASK == obj.STEXT {
++			t |= STT_FUNC
++		} else {
++			t |= STT_OBJECT
++		}
++		Adduint8(ctxt, d, uint8(t))
++
++		/* reserved */
++		Adduint8(ctxt, d, 0)
++
++		/* section where symbol is defined */
++		if s.Type == obj.SDYNIMPORT {
++			Adduint16(ctxt, d, SHN_UNDEF)
++		} else {
++			Adduint16(ctxt, d, 1)
++		}
++
++		/* value */
++		if s.Type == obj.SDYNIMPORT {
++			Adduint64(ctxt, d, 0)
++		} else {
++			Addaddr(ctxt, d, s)
++		}
++
++		/* size of object */
++		Adduint64(ctxt, d, uint64(s.Size))
++
++		if Thearch.Thechar == '6' && s.Cgoexport&CgoExportDynamic == 0 && s.Dynimplib != "" && !seenlib[s.Dynimplib] {
++			Elfwritedynent(Linklookup(ctxt, ".dynamic", 0), DT_NEEDED, uint64(Addstring(Linklookup(ctxt, ".dynstr", 0), s.Dynimplib)))
++		}
++	} else {
++		s.Dynid = int32(Nelfsym)
++		Nelfsym++
++
++		d := Linklookup(ctxt, ".dynsym", 0)
++
++		/* name */
++		name := s.Extname
++
++		Adduint32(ctxt, d, uint32(Addstring(Linklookup(ctxt, ".dynstr", 0), name)))
++
++		/* value */
++		if s.Type == obj.SDYNIMPORT {
++			Adduint32(ctxt, d, 0)
++		} else {
++			Addaddr(ctxt, d, s)
++		}
++
++		/* size */
++		Adduint32(ctxt, d, 0)
++
++		/* type */
++		t := STB_GLOBAL << 4
++
++		// TODO(mwhudson): presumably the behaviour should actually be the same on both arm and 386.
++		if Thearch.Thechar == '8' && s.Cgoexport != 0 && s.Type&obj.SMASK == obj.STEXT {
++			t |= STT_FUNC
++		} else if Thearch.Thechar == '5' && s.Cgoexport&CgoExportDynamic != 0 && s.Type&obj.SMASK == obj.STEXT {
++			t |= STT_FUNC
++		} else {
++			t |= STT_OBJECT
++		}
++		Adduint8(ctxt, d, uint8(t))
++		Adduint8(ctxt, d, 0)
++
++		/* shndx */
++		if s.Type == obj.SDYNIMPORT {
++			Adduint16(ctxt, d, SHN_UNDEF)
++		} else {
++			Adduint16(ctxt, d, 1)
++		}
++	}
++}
++
+ func ELF32_R_SYM(info uint32) uint32 {
+ 	return info >> 8
+ }
+diff --git a/src/cmd/internal/ld/go.go b/src/cmd/internal/ld/go.go
+index c1defeb8a2..a5b09202e8 100644
+--- a/src/cmd/internal/ld/go.go
++++ b/src/cmd/internal/ld/go.go
+@@ -534,13 +534,13 @@ err:
+ 	nerrors++
+ }
+ 
+-var Seenlib = make(map[string]bool)
++var seenlib = make(map[string]bool)
+ 
+ func adddynlib(lib string) {
+-	if Seenlib[lib] {
++	if seenlib[lib] {
+ 		return
+ 	}
+-	Seenlib[lib] = true
++	seenlib[lib] = true
+ 
+ 	if Iself {
+ 		s := Linklookup(Ctxt, ".dynstr", 0)
+@@ -555,6 +555,22 @@ func adddynlib(lib string) {
+ 	}
+ }
+ 
++func Adddynsym(ctxt *Link, s *LSym) {
++	if s.Dynid >= 0 {
++		return
++	}
++
++	if Iself {
++		Elfadddynsym(ctxt, s)
++	} else if HEADTYPE == obj.Hdarwin {
++		Diag("adddynsym: missed symbol %s (%s)", s.Name, s.Extname)
++	} else if HEADTYPE == obj.Hwindows {
++		// already taken care of
++	} else {
++		Diag("adddynsym: unsupported binary format")
++	}
++}
++
+ var markq *LSym
+ 
+ var emarkq *LSym
+@@ -759,7 +775,7 @@ func addexport() {
+ 	}
+ 
+ 	for i := 0; i < len(dynexp); i++ {
+-		Thearch.Adddynsym(Ctxt, dynexp[i])
++		Adddynsym(Ctxt, dynexp[i])
+ 	}
+ }
+ 
+diff --git a/src/cmd/internal/ld/lib.go b/src/cmd/internal/ld/lib.go
+index 5ab5f653f3..cc0840c04a 100644
+--- a/src/cmd/internal/ld/lib.go
++++ b/src/cmd/internal/ld/lib.go
+@@ -95,7 +95,6 @@ type Arch struct {
+ 	Dragonflydynld   string
+ 	Solarisdynld     string
+ 	Adddynrel        func(*LSym, *Reloc)
+-	Adddynsym        func(*Link, *LSym)
+ 	Archinit         func()
+ 	Archreloc        func(*Reloc, *LSym, *int64) int
+ 	Archrelocvariant func(*Reloc, *LSym, int64) int64

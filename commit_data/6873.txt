@@ -9,7 +9,48 @@ Date:   Wed Dec 8 16:20:30 2010 +1100
     R=vcc, rsc
     CC=golang-dev
     https://golang.org/cl/3299041
-
+---
  src/pkg/syscall/syscall_windows.go    |  3 ++-
  src/pkg/syscall/ztypes_windows_386.go | 11 ++++-------
  2 files changed, 6 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 2811a98429..5d045862ca 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -729,7 +729,8 @@ type WaitStatus struct {
+ }
+ 
+ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int, errno int) {
+-	handle, errno := OpenProcess(PROCESS_ALL_ACCESS, 0, uint32(pid))
++	const da = STANDARD_RIGHTS_READ | PROCESS_QUERY_INFORMATION | SYNCHRONIZE
++	handle, errno := OpenProcess(da, 0, uint32(pid))
+ 	if errno != 0 {
+ 		return 0, errno
+ 	}
+diff --git a/src/pkg/syscall/ztypes_windows_386.go b/src/pkg/syscall/ztypes_windows_386.go
+index a874d9fc7a..e67165f232 100644
+--- a/src/pkg/syscall/ztypes_windows_386.go
++++ b/src/pkg/syscall/ztypes_windows_386.go
+@@ -112,6 +112,10 @@ const (
+ 	WAIT_FAILED    = 0xFFFFFFFF
+ 
+ 	CREATE_UNICODE_ENVIRONMENT = 0x00000400
++
++	STANDARD_RIGHTS_READ      = 0x00020000
++	PROCESS_QUERY_INFORMATION = 0x00000400
++	SYNCHRONIZE               = 0x00100000
+ )
+ 
+ const (
+@@ -478,10 +482,3 @@ type DNSRecord struct {
+ 	Reserved uint32
+ 	Data     [40]byte
+ }
+-
+-const (
+-	HANDLE_FLAG_INHERIT            = 0x00000001
+-	HANDLE_FLAG_PROTECT_FROM_CLOSE = 0x00000002
+-
+-	PROCESS_ALL_ACCESS = 0x001fffff
+-)

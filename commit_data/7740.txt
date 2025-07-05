@@ -13,9 +13,128 @@ Date:   Fri Mar 11 11:32:33 2011 -0800
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/4286043
-
+---
  src/pkg/http/client.go         | 34 ++++++++++++++++------------------
  src/pkg/http/client_test.go    |  2 +-
  src/pkg/http/transport.go      |  4 ++--
  src/pkg/http/transport_test.go |  4 ++--
  4 files changed, 21 insertions(+), 23 deletions(-)
+
+diff --git a/src/pkg/http/client.go b/src/pkg/http/client.go
+index c24eea5819..c4f7e947d8 100644
+--- a/src/pkg/http/client.go
++++ b/src/pkg/http/client.go
+@@ -20,26 +20,28 @@ import (
+ // that uses DefaultTransport.
+ // Client is not yet very configurable.
+ type Client struct {
+-	Transport Transport // if nil, DefaultTransport is used
++	Transport RoundTripper // if nil, DefaultTransport is used
+ }
+ 
+ // DefaultClient is the default Client and is used by Get, Head, and Post.
+ var DefaultClient = &Client{}
+ 
+-// Transport is an interface representing the ability to execute a
++// RoundTripper is an interface representing the ability to execute a
+ // single HTTP transaction, obtaining the Response for a given Request.
+-type Transport interface {
+-	// Do executes a single HTTP transaction, returning the Response for the
+-	// request req.  Do should not attempt to interpret the response.
+-	// In particular, Do must return err == nil if it obtained a response,
+-	// regardless of the response's HTTP status code.  A non-nil err should
+-	// be reserved for failure to obtain a response.  Similarly, Do should
+-	// not attempt to handle higher-level protocol details such as redirects,
++type RoundTripper interface {
++	// RoundTrip executes a single HTTP transaction, returning
++	// the Response for the request req.  RoundTrip should not
++	// attempt to interpret the response.  In particular,
++	// RoundTrip must return err == nil if it obtained a response,
++	// regardless of the response's HTTP status code.  A non-nil
++	// err should be reserved for failure to obtain a response.
++	// Similarly, RoundTrip should not attempt to handle
++	// higher-level protocol details such as redirects,
+ 	// authentication, or cookies.
+ 	//
+-	// Transports may modify the request. The request Headers field is
+-	// guaranteed to be initalized.
+-	Do(req *Request) (resp *Response, err os.Error)
++	// RoundTrip may modify the request. The request Headers field is
++	// guaranteed to be initialized.
++	RoundTrip(req *Request) (resp *Response, err os.Error)
+ }
+ 
+ // Given a string of the form "host", "host:port", or "[ipv6::address]:port",
+@@ -100,11 +102,7 @@ func (c *Client) Do(req *Request) (resp *Response, err os.Error) {
+ 
+ 
+ // send issues an HTTP request.  Caller should close resp.Body when done reading from it.
+-//
+-// TODO: support persistent connections (multiple requests on a single connection).
+-// send() method is nonpublic because, when we refactor the code for persistent
+-// connections, it may no longer make sense to have a method with this signature.
+-func send(req *Request, t Transport) (resp *Response, err os.Error) {
++func send(req *Request, t RoundTripper) (resp *Response, err os.Error) {
+ 	if t == nil {
+ 		t = DefaultTransport
+ 		if t == nil {
+@@ -130,7 +128,7 @@ func send(req *Request, t Transport) (resp *Response, err os.Error) {
+ 		}
+ 		req.Header.Set("Authorization", "Basic "+string(encoded))
+ 	}
+-	return t.Do(req)
++	return t.RoundTrip(req)
+ }
+ 
+ // True if the specified HTTP status code is one for which the Get utility should
+diff --git a/src/pkg/http/client_test.go b/src/pkg/http/client_test.go
+index 3d71707881..3a6f834253 100644
+--- a/src/pkg/http/client_test.go
++++ b/src/pkg/http/client_test.go
+@@ -55,7 +55,7 @@ type recordingTransport struct {
+ 	req *Request
+ }
+ 
+-func (t *recordingTransport) Do(req *Request) (resp *Response, err os.Error) {
++func (t *recordingTransport) RoundTrip(req *Request) (resp *Response, err os.Error) {
+ 	t.req = req
+ 	return nil, os.NewError("dummy impl")
+ }
+diff --git a/src/pkg/http/transport.go b/src/pkg/http/transport.go
+index 5ab8080198..cea1a3b240 100644
+--- a/src/pkg/http/transport.go
++++ b/src/pkg/http/transport.go
+@@ -20,7 +20,7 @@ import (
+ // each call to Do and uses HTTP proxies as directed by the
+ // $HTTP_PROXY and $NO_PROXY (or $http_proxy and $no_proxy)
+ // environment variables.
+-var DefaultTransport Transport = &transport{}
++var DefaultTransport RoundTripper = &transport{}
+ 
+ // transport implements Tranport for the default case, using TCP
+ // connections to either the host or a proxy, serving http or https
+@@ -35,7 +35,7 @@ type transport struct {
+ 	hostConn map[string]*ClientConn
+ }
+ 
+-func (ct *transport) Do(req *Request) (resp *Response, err os.Error) {
++func (ct *transport) RoundTrip(req *Request) (resp *Response, err os.Error) {
+ 	if req.URL == nil {
+ 		if req.URL, err = ParseURL(req.RawURL); err != nil {
+ 			return
+diff --git a/src/pkg/http/transport_test.go b/src/pkg/http/transport_test.go
+index bb9a15f934..2bdca7b99b 100644
+--- a/src/pkg/http/transport_test.go
++++ b/src/pkg/http/transport_test.go
+@@ -30,9 +30,9 @@ func TestTransportNilURL(t *testing.T) {
+ 
+ 	// TODO(bradfitz): test &transport{} and not DefaultTransport
+ 	// once Transport is exported.
+-	res, err := DefaultTransport.Do(req)
++	res, err := DefaultTransport.RoundTrip(req)
+ 	if err != nil {
+-		t.Fatalf("unexpected Do error: %v", err)
++		t.Fatalf("unexpected RoundTrip error: %v", err)
+ 	}
+ 	body, err := ioutil.ReadAll(res.Body)
+ 	if g, e := string(body), "Hi"; g != e {

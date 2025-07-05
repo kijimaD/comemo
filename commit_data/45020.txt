@@ -15,7 +15,43 @@ Date:   Thu May 21 17:52:33 2020 +0200
     Trust: Giovanni Bajo <rasky@develer.com>
     Trust: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/encoding/json/encode.go      | 2 +-
  src/encoding/json/tagkey_test.go | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 578d551102..c2d191442c 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -946,7 +946,7 @@ func isValidTag(s string) bool {
+ 	}
+ 	for _, c := range s {
+ 		switch {
+-		case strings.ContainsRune("!#$%&()*+-./:<=>?@[]^_{|}~ ", c):
++		case strings.ContainsRune("!#$%&()*+-./:;<=>?@[]^_{|}~ ", c):
+ 			// Backslash and quote chars are reserved, but
+ 			// otherwise any punctuation chars are allowed
+ 			// in a tag name.
+diff --git a/src/encoding/json/tagkey_test.go b/src/encoding/json/tagkey_test.go
+index f77c49c764..bbb4e6a28d 100644
+--- a/src/encoding/json/tagkey_test.go
++++ b/src/encoding/json/tagkey_test.go
+@@ -41,7 +41,7 @@ type percentSlashTag struct {
+ }
+ 
+ type punctuationTag struct {
+-	V string `json:"!#$%&()*+-./:<=>?@[]^_{|}~"` // https://golang.org/issue/3546
++	V string `json:"!#$%&()*+-./:;<=>?@[]^_{|}~ "` // https://golang.org/issue/3546
+ }
+ 
+ type dashTag struct {
+@@ -90,7 +90,7 @@ var structTagObjectKeyTests = []struct {
+ 	{badFormatTag{"Orfevre"}, "Orfevre", "Y"},
+ 	{badCodeTag{"Reliable Man"}, "Reliable Man", "Z"},
+ 	{percentSlashTag{"brut"}, "brut", "text/html%"},
+-	{punctuationTag{"Union Rags"}, "Union Rags", "!#$%&()*+-./:<=>?@[]^_{|}~"},
++	{punctuationTag{"Union Rags"}, "Union Rags", "!#$%&()*+-./:;<=>?@[]^_{|}~ "},
+ 	{spaceTag{"Perreddu"}, "Perreddu", "With space"},
+ 	{unicodeTag{"Loukanikos"}, "Loukanikos", "Ελλάδα"},
+ }

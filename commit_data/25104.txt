@@ -11,8 +11,173 @@ Date:   Thu Sep 24 01:48:03 2015 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/gsubr.go     |  4 +++-
  src/cmd/compile/internal/gc/typecheck.go |  8 +++----
  src/cmd/internal/obj/arm64/asm7.go       | 36 ++++++++++++++++----------------
  3 files changed, 25 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 7e085d94b2..37c2e99f8f 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -87,7 +87,9 @@ func Gbranch(as int, t *Type, likely int) *obj.Prog {
+ 	p.To.Val = nil
+ 	if as != obj.AJMP && likely != 0 && Thearch.Thechar != '9' && Thearch.Thechar != '7' {
+ 		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = int64(obj.Bool2int(likely > 0))
++		if likely > 0 {
++			p.From.Offset = 1
++		}
+ 	}
+ 
+ 	if Debug['g'] != 0 {
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index b927b26bcb..8be29f0923 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2847,25 +2847,25 @@ func keydup(n *Node, hash map[uint32][]*Node) {
+ 	for _, a := range hash[h] {
+ 		cmp.Op = OEQ
+ 		cmp.Left = n
+-		b := uint32(0)
++		b := false
+ 		if a.Op == OCONVIFACE && orign.Op == OCONVIFACE {
+ 			if Eqtype(a.Left.Type, n.Type) {
+ 				cmp.Right = a.Left
+ 				evconst(&cmp)
+ 				if cmp.Op == OLITERAL {
+ 					// Sometimes evconst fails.  See issue 12536.
+-					b = uint32(obj.Bool2int(cmp.Val().U.(bool)))
++					b = cmp.Val().U.(bool)
+ 				}
+ 			}
+ 		} else if Eqtype(a.Type, n.Type) {
+ 			cmp.Right = a
+ 			evconst(&cmp)
+ 			if cmp.Op == OLITERAL {
+-				b = uint32(obj.Bool2int(cmp.Val().U.(bool)))
++				b = cmp.Val().U.(bool)
+ 			}
+ 		}
+ 
+-		if b != 0 {
++		if b {
+ 			Yyerror("duplicate key %v in map literal", n)
+ 			return
+ 		}
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index f34dd6dafc..3a56018985 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -673,7 +673,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym) {
+  * drop the pool now, and branch round it.
+  */
+ func checkpool(ctxt *obj.Link, p *obj.Prog, skip int) {
+-	if pool.size >= 0xffff0 || !(ispcdisp(int32(p.Pc+4+int64(pool.size)-int64(pool.start)+8)) != 0) {
++	if pool.size >= 0xffff0 || !ispcdisp(int32(p.Pc+4+int64(pool.size)-int64(pool.start)+8)) {
+ 		flushpool(ctxt, p, skip)
+ 	} else if p.Link == nil {
+ 		flushpool(ctxt, p, 2)
+@@ -826,27 +826,27 @@ func regoff(ctxt *obj.Link, a *obj.Addr) uint32 {
+ 	return uint32(ctxt.Instoffset)
+ }
+ 
+-func ispcdisp(v int32) int {
++func ispcdisp(v int32) bool {
+ 	/* pc-relative addressing will reach? */
+-	return obj.Bool2int(v >= -0xfffff && v <= 0xfffff && (v&3) == 0)
++	return v >= -0xfffff && v <= 0xfffff && (v&3) == 0
+ }
+ 
+-func isaddcon(v int64) int {
++func isaddcon(v int64) bool {
+ 	/* uimm12 or uimm24? */
+ 	if v < 0 {
+-		return 0
++		return false
+ 	}
+ 	if (v & 0xFFF) == 0 {
+ 		v >>= 12
+ 	}
+-	return obj.Bool2int(v <= 0xFFF)
++	return v <= 0xFFF
+ }
+ 
+-func isbitcon(v uint64) int {
++func isbitcon(v uint64) bool {
+ 	/*  fancy bimm32 or bimm64? */
+ 	// TODO(aram):
+-	return 0
+-	// return obj.Bool2int(findmask(v) != nil || (v>>32) == 0 && findmask(v|(v<<32)) != nil)
++	return false
++	// return findmask(v) != nil || (v>>32) == 0 && findmask(v|(v<<32)) != nil
+ }
+ 
+ func autoclass(l int64) int {
+@@ -1007,11 +1007,11 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
+ 			if v == 0 {
+ 				return C_ZCON
+ 			}
+-			if isaddcon(v) != 0 {
++			if isaddcon(v) {
+ 				if v <= 0xFFF {
+ 					return C_ADDCON0
+ 				}
+-				if isbitcon(uint64(v)) != 0 {
++				if isbitcon(uint64(v)) {
+ 					return C_ABCON
+ 				}
+ 				return C_ADDCON
+@@ -1019,7 +1019,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
+ 
+ 			t := movcon(v)
+ 			if t >= 0 {
+-				if isbitcon(uint64(v)) != 0 {
++				if isbitcon(uint64(v)) {
+ 					return C_MBCON
+ 				}
+ 				return C_MOVCON
+@@ -1027,13 +1027,13 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
+ 
+ 			t = movcon(^v)
+ 			if t >= 0 {
+-				if isbitcon(uint64(v)) != 0 {
++				if isbitcon(uint64(v)) {
+ 					return C_MBCON
+ 				}
+ 				return C_MOVCON
+ 			}
+ 
+-			if isbitcon(uint64(v)) != 0 {
++			if isbitcon(uint64(v)) {
+ 				return C_BITCON
+ 			}
+ 
+@@ -1062,7 +1062,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
+ 		return C_GOK
+ 
+ 	aconsize:
+-		if isaddcon(ctxt.Instoffset) != 0 {
++		if isaddcon(ctxt.Instoffset) {
+ 			return C_AACON
+ 		}
+ 		return C_LACON
+@@ -2182,14 +2182,14 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 	case 24: /* mov/mvn Rs,Rd -> add $0,Rs,Rd or orr Rs,ZR,Rd */
+ 		rf := int(p.From.Reg)
+ 		rt := int(p.To.Reg)
+-		s := obj.Bool2int(rf == REGSP || rt == REGSP)
++		s := rf == REGSP || rt == REGSP
+ 		if p.As == AMVN || p.As == AMVNW {
+-			if s != 0 {
++			if s {
+ 				ctxt.Diag("illegal SP reference\n%v", p)
+ 			}
+ 			o1 = oprrr(ctxt, int(p.As))
+ 			o1 |= (uint32(rf&31) << 16) | (REGZERO & 31 << 5) | uint32(rt&31)
+-		} else if s != 0 {
++		} else if s {
+ 			o1 = opirr(ctxt, int(p.As))
+ 			o1 |= (uint32(rf&31) << 5) | uint32(rt&31)
+ 		} else {

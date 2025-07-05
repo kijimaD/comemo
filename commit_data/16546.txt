@@ -13,8 +13,47 @@ Date:   Tue Jun 11 22:37:07 2013 -0400
     TBR=dvyukov
     CC=golang-dev
     https://golang.org/cl/10037045
-
+---
  src/cmd/gc/go.h       | 1 +
  src/cmd/gc/racewalk.c | 2 +-
  src/cmd/gc/subr.c     | 2 ++
  3 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index eb5e523b57..2f2d90391c 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -268,6 +268,7 @@ struct	Node
+ 	uchar	dupok;	// duplicate definitions ok (for func)
+ 	schar	likely; // likeliness of if statement
+ 	uchar	hasbreak;	// has break statement
++	uchar	norace;	// disable race detector for this function
+ 	uint	esc;		// EscXXX
+ 	int	funcdepth;
+ 
+diff --git a/src/cmd/gc/racewalk.c b/src/cmd/gc/racewalk.c
+index 60ed0f0643..41edc52c76 100644
+--- a/src/cmd/gc/racewalk.c
++++ b/src/cmd/gc/racewalk.c
+@@ -58,7 +58,7 @@ racewalk(Node *fn)
+ 	Node *nodpc;
+ 	char s[1024];
+ 
+-	if(ispkgin(omit_pkgs, nelem(omit_pkgs)))
++	if(fn->norace || ispkgin(omit_pkgs, nelem(omit_pkgs)))
+ 		return;
+ 
+ 	if(!ispkgin(noinst_pkgs, nelem(noinst_pkgs))) {
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index a3fd0f4a8e..c3e00a2e95 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2574,6 +2574,8 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
+ 	
+ 	// generate call
+ 	if(isptr[rcvr->etype] && isptr[methodrcvr->etype] && method->embedded && !isifacemethod(method->type)) {
++		// generate tail call: adjust pointer receiver and jump to embedded method.
++		fn->norace = 1; // something about this body makes the race detector unhappy.
+ 		// skip final .M
+ 		dot = dot->left;
+ 		if(!isptr[dotlist[0].field->type->etype])

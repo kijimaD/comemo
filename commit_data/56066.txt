@@ -17,7 +17,7 @@ Date:   Sat Mar 25 08:50:19 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/types2/example_test.go       |  2 +-
  src/cmd/dist/test.go                                  | 16 ++++++++++++----
  src/cmd/go/internal/base/signal_unix.go               |  2 +-
@@ -30,3 +30,246 @@ Date:   Sat Mar 25 08:50:19 2023 -0700
  src/cmd/internal/osinfo/os_wasip1.go                  | 17 +++++++++++++++++
  src/cmd/test2json/signal_unix.go                      |  2 +-
  11 files changed, 52 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/example_test.go b/src/cmd/compile/internal/types2/example_test.go
+index 9ff7d0cfa2..3fcad04b77 100644
+--- a/src/cmd/compile/internal/types2/example_test.go
++++ b/src/cmd/compile/internal/types2/example_test.go
+@@ -5,7 +5,7 @@
+ // Only run where builders (build.golang.org) have
+ // access to compiled packages for import.
+ //
+-//go:build !android && !ios && !js
++//go:build !android && !ios && !js && !wasip1
+ 
+ package types2_test
+ 
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index fa03068350..01452ba7e5 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -675,7 +675,7 @@ func (t *tester) registerTests() {
+ 	}
+ 
+ 	// Runtime CPU tests.
+-	if !t.compileOnly && goos != "js" { // js can't handle -cpu != 1
++	if !t.compileOnly && t.hasParallelism() {
+ 		t.registerTest("runtime:cpu124", "GOMAXPROCS=2 runtime -cpu=1,2,4 -quick",
+ 			&goTest{
+ 				timeout:   300 * time.Second,
+@@ -737,9 +737,9 @@ func (t *tester) registerTests() {
+ 	// On the builders only, test that a moved GOROOT still works.
+ 	// Fails on iOS because CC_FOR_TARGET refers to clangwrap.sh
+ 	// in the unmoved GOROOT.
+-	// Fails on Android and js/wasm with an exec format error.
++	// Fails on Android, js/wasm and wasip1/wasm with an exec format error.
+ 	// Fails on plan9 with "cannot find GOROOT" (issue #21016).
+-	if os.Getenv("GO_BUILDER_NAME") != "" && goos != "android" && !t.iOS() && goos != "plan9" && goos != "js" {
++	if os.Getenv("GO_BUILDER_NAME") != "" && goos != "android" && !t.iOS() && goos != "plan9" && goos != "js" && goos != "wasip1" {
+ 		t.tests = append(t.tests, distTest{
+ 			name:    "moved_goroot",
+ 			heading: "moved GOROOT",
+@@ -835,7 +835,7 @@ func (t *tester) registerTests() {
+ 	}
+ 
+ 	// sync tests
+-	if goos != "js" { // js doesn't support -cpu=10
++	if t.hasParallelism() {
+ 		t.registerTest("sync_cpu", "sync -cpu=10",
+ 			&goTest{
+ 				timeout: 120 * time.Second,
+@@ -1476,6 +1476,14 @@ func (t *tester) hasSwig() bool {
+ 	return true
+ }
+ 
++func (t *tester) hasParallelism() bool {
++	switch goos {
++	case "js", "wasip1":
++		return false
++	}
++	return true
++}
++
+ func (t *tester) raceDetectorSupported() bool {
+ 	if gohostos != goos {
+ 		return false
+diff --git a/src/cmd/go/internal/base/signal_unix.go b/src/cmd/go/internal/base/signal_unix.go
+index f198df6abc..0905971932 100644
+--- a/src/cmd/go/internal/base/signal_unix.go
++++ b/src/cmd/go/internal/base/signal_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || js
++//go:build unix || js || wasip1
+ 
+ package base
+ 
+diff --git a/src/cmd/go/internal/cache/cache_test.go b/src/cmd/go/internal/cache/cache_test.go
+index 5527d444bb..36c73331c5 100644
+--- a/src/cmd/go/internal/cache/cache_test.go
++++ b/src/cmd/go/internal/cache/cache_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"encoding/binary"
+ 	"fmt"
+-	"internal/testenv"
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
+@@ -152,8 +151,8 @@ func dummyID(x int) [HashSize]byte {
+ }
+ 
+ func TestCacheTrim(t *testing.T) {
+-	if runtime.GOOS == "js" {
+-		testenv.SkipFlaky(t, 35220)
++	if runtime.GOOS == "js" || runtime.GOOS == "wasip1" {
++		t.Skip("file lock is unsupported on +" + runtime.GOOS)
+ 	}
+ 
+ 	dir, err := os.MkdirTemp("", "cachetest-")
+diff --git a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_test.go b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_test.go
+index 8e2c6ab4ce..d32bf06160 100644
+--- a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_test.go
++++ b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !plan9
++//go:build !js && !plan9 && !wasip1
+ 
+ package filelock_test
+ 
+diff --git a/src/cmd/go/internal/lockedfile/lockedfile_test.go b/src/cmd/go/internal/lockedfile/lockedfile_test.go
+index 6b54654ac7..8dea8f70c2 100644
+--- a/src/cmd/go/internal/lockedfile/lockedfile_test.go
++++ b/src/cmd/go/internal/lockedfile/lockedfile_test.go
+@@ -2,9 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// js does not support inter-process file locking.
++// js and wasip1 do not support inter-process file locking.
+ //
+-//go:build !js
++//go:build !js && !wasip1
+ 
+ package lockedfile_test
+ 
+diff --git a/src/cmd/go/internal/lockedfile/transform_test.go b/src/cmd/go/internal/lockedfile/transform_test.go
+index 833cbf7879..f8b2802404 100644
+--- a/src/cmd/go/internal/lockedfile/transform_test.go
++++ b/src/cmd/go/internal/lockedfile/transform_test.go
+@@ -2,9 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// js does not support inter-process file locking.
++// js and wasip1 do not support inter-process file locking.
+ //
+-//go:build !js
++//go:build !js && !wasip1
+ 
+ package lockedfile_test
+ 
+diff --git a/src/cmd/go/internal/mmap/mmap_other.go b/src/cmd/go/internal/mmap/mmap_other.go
+index d146a42216..22e9395b21 100644
+--- a/src/cmd/go/internal/mmap/mmap_other.go
++++ b/src/cmd/go/internal/mmap/mmap_other.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (js && wasm) || plan9
++//go:build (js && wasm) || wasip1 || plan9
+ 
+ package mmap
+ 
+diff --git a/src/cmd/go/internal/work/build_test.go b/src/cmd/go/internal/work/build_test.go
+index b9c16eea74..91648a31a7 100644
+--- a/src/cmd/go/internal/work/build_test.go
++++ b/src/cmd/go/internal/work/build_test.go
+@@ -6,6 +6,7 @@ package work
+ 
+ import (
+ 	"fmt"
++	"internal/testenv"
+ 	"io/fs"
+ 	"os"
+ 	"path/filepath"
+@@ -221,13 +222,6 @@ func pkgImportPath(pkgpath string) *load.Package {
+ // directory.
+ // See https://golang.org/issue/18878.
+ func TestRespectSetgidDir(t *testing.T) {
+-	switch runtime.GOOS {
+-	case "ios":
+-		t.Skip("can't set SetGID bit with chmod on iOS")
+-	case "windows", "plan9":
+-		t.Skip("chown/chmod setgid are not supported on Windows or Plan 9")
+-	}
+-
+ 	var b Builder
+ 
+ 	// Check that `cp` is called instead of `mv` by looking at the output
+@@ -250,12 +244,23 @@ func TestRespectSetgidDir(t *testing.T) {
+ 	// the new temporary directory.
+ 	err = os.Chown(setgiddir, os.Getuid(), os.Getgid())
+ 	if err != nil {
++		if testenv.SyscallIsNotSupported(err) {
++			t.Skip("skipping: chown is not supported on " + runtime.GOOS)
++		}
+ 		t.Fatal(err)
+ 	}
+ 
+ 	// Change setgiddir's permissions to include the SetGID bit.
+ 	if err := os.Chmod(setgiddir, 0755|fs.ModeSetgid); err != nil {
++		if testenv.SyscallIsNotSupported(err) {
++			t.Skip("skipping: chmod is not supported on " + runtime.GOOS)
++		}
++		t.Fatal(err)
++	}
++	if fi, err := os.Stat(setgiddir); err != nil {
+ 		t.Fatal(err)
++	} else if fi.Mode()&fs.ModeSetgid == 0 {
++		t.Skip("skipping: Chmod ignored ModeSetgid on " + runtime.GOOS)
+ 	}
+ 
+ 	pkgfile, err := os.CreateTemp("", "pkgfile")
+diff --git a/src/cmd/internal/osinfo/os_wasip1.go b/src/cmd/internal/osinfo/os_wasip1.go
+new file mode 100644
+index 0000000000..7295bb255f
+--- /dev/null
++++ b/src/cmd/internal/osinfo/os_wasip1.go
+@@ -0,0 +1,17 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build wasip1
++
++package osinfo
++
++import (
++	"errors"
++	"fmt"
++)
++
++// Version returns the OS version name/number.
++func Version() (string, error) {
++	return "", fmt.Errorf("unable to determine OS version: %w", errors.ErrUnsupported)
++}
+diff --git a/src/cmd/test2json/signal_unix.go b/src/cmd/test2json/signal_unix.go
+index ed5ca7e42f..2b4e44cb91 100644
+--- a/src/cmd/test2json/signal_unix.go
++++ b/src/cmd/test2json/signal_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || js
++//go:build unix || js || wasip1
+ 
+ package main
+ 

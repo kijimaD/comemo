@@ -16,8 +16,124 @@ Date:   Sun Dec 11 02:39:20 2022 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     Run-TryBot: Damien Neil <dneil@google.com>
-
+---
  src/net/http/client.go      |  4 ++--
  src/net/http/client_test.go | 29 ++++++++++++++++++++++++-----
  src/net/http/transport.go   | 10 +++++++---
  3 files changed, 33 insertions(+), 10 deletions(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index 122e8d030d..2f7d4f696b 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -990,8 +990,8 @@ func shouldCopyHeaderOnRedirect(headerKey string, initial, dest *url.URL) bool {
+ 		// directly, we don't know their scope, so we assume
+ 		// it's for *.domain.com.
+ 
+-		ihost := canonicalAddr(initial)
+-		dhost := canonicalAddr(dest)
++		ihost := idnaASCIIFromURL(initial)
++		dhost := idnaASCIIFromURL(dest)
+ 		return isDomainOrSubdomain(dhost, ihost)
+ 	}
+ 	// All other headers are copied:
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index 8b53c41687..bb1ed6f10c 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -1470,6 +1470,9 @@ func TestClientRedirectResponseWithoutRequest(t *testing.T) {
+ }
+ 
+ // Issue 4800: copy (some) headers when Client follows a redirect.
++// Issue 35104: Since both URLs have the same host (localhost)
++// but different ports, sensitive headers like Cookie and Authorization
++// are preserved.
+ func TestClientCopyHeadersOnRedirect(t *testing.T) { run(t, testClientCopyHeadersOnRedirect) }
+ func testClientCopyHeadersOnRedirect(t *testing.T, mode testMode) {
+ 	const (
+@@ -1483,6 +1486,8 @@ func testClientCopyHeadersOnRedirect(t *testing.T, mode testMode) {
+ 			"X-Foo":           []string{xfoo},
+ 			"Referer":         []string{ts2URL},
+ 			"Accept-Encoding": []string{"gzip"},
++			"Cookie":          []string{"foo=bar"},
++			"Authorization":   []string{"secretpassword"},
+ 		}
+ 		if !reflect.DeepEqual(r.Header, want) {
+ 			t.Errorf("Request.Header = %#v; want %#v", r.Header, want)
+@@ -1501,9 +1506,11 @@ func testClientCopyHeadersOnRedirect(t *testing.T, mode testMode) {
+ 	c := ts1.Client()
+ 	c.CheckRedirect = func(r *Request, via []*Request) error {
+ 		want := Header{
+-			"User-Agent": []string{ua},
+-			"X-Foo":      []string{xfoo},
+-			"Referer":    []string{ts2URL},
++			"User-Agent":    []string{ua},
++			"X-Foo":         []string{xfoo},
++			"Referer":       []string{ts2URL},
++			"Cookie":        []string{"foo=bar"},
++			"Authorization": []string{"secretpassword"},
+ 		}
+ 		if !reflect.DeepEqual(r.Header, want) {
+ 			t.Errorf("CheckRedirect Request.Header = %#v; want %#v", r.Header, want)
+@@ -1707,18 +1714,30 @@ func TestShouldCopyHeaderOnRedirect(t *testing.T) {
+ 		{"cookie", "http://foo.com/", "http://bar.com/", false},
+ 		{"cookie2", "http://foo.com/", "http://bar.com/", false},
+ 		{"authorization", "http://foo.com/", "http://bar.com/", false},
++		{"authorization", "http://foo.com/", "https://foo.com/", true},
++		{"authorization", "http://foo.com:1234/", "http://foo.com:4321/", true},
+ 		{"www-authenticate", "http://foo.com/", "http://bar.com/", false},
+ 
+ 		// But subdomains should work:
+ 		{"www-authenticate", "http://foo.com/", "http://foo.com/", true},
+ 		{"www-authenticate", "http://foo.com/", "http://sub.foo.com/", true},
+ 		{"www-authenticate", "http://foo.com/", "http://notfoo.com/", false},
+-		{"www-authenticate", "http://foo.com/", "https://foo.com/", false},
++		{"www-authenticate", "http://foo.com/", "https://foo.com/", true},
+ 		{"www-authenticate", "http://foo.com:80/", "http://foo.com/", true},
+ 		{"www-authenticate", "http://foo.com:80/", "http://sub.foo.com/", true},
+ 		{"www-authenticate", "http://foo.com:443/", "https://foo.com/", true},
+ 		{"www-authenticate", "http://foo.com:443/", "https://sub.foo.com/", true},
+-		{"www-authenticate", "http://foo.com:1234/", "http://foo.com/", false},
++		{"www-authenticate", "http://foo.com:1234/", "http://foo.com/", true},
++
++		{"authorization", "http://foo.com/", "http://foo.com/", true},
++		{"authorization", "http://foo.com/", "http://sub.foo.com/", true},
++		{"authorization", "http://foo.com/", "http://notfoo.com/", false},
++		{"authorization", "http://foo.com/", "https://foo.com/", true},
++		{"authorization", "http://foo.com:80/", "http://foo.com/", true},
++		{"authorization", "http://foo.com:80/", "http://sub.foo.com/", true},
++		{"authorization", "http://foo.com:443/", "https://foo.com/", true},
++		{"authorization", "http://foo.com:443/", "https://sub.foo.com/", true},
++		{"authorization", "http://foo.com:1234/", "http://foo.com/", true},
+ 	}
+ 	for i, tt := range tests {
+ 		u0, err := url.Parse(tt.initialURL)
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index b8e4c4e97b..7561f7f5cb 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -2750,17 +2750,21 @@ var portMap = map[string]string{
+ 	"socks5": "1080",
+ }
+ 
+-// canonicalAddr returns url.Host but always with a ":port" suffix.
+-func canonicalAddr(url *url.URL) string {
++func idnaASCIIFromURL(url *url.URL) string {
+ 	addr := url.Hostname()
+ 	if v, err := idnaASCII(addr); err == nil {
+ 		addr = v
+ 	}
++	return addr
++}
++
++// canonicalAddr returns url.Host but always with a ":port" suffix.
++func canonicalAddr(url *url.URL) string {
+ 	port := url.Port()
+ 	if port == "" {
+ 		port = portMap[url.Scheme]
+ 	}
+-	return net.JoinHostPort(addr, port)
++	return net.JoinHostPort(idnaASCIIFromURL(url), port)
+ }
+ 
+ // bodyEOFSignal is used by the HTTP/1 transport when reading response

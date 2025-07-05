@@ -9,6 +9,20 @@ Date:   Tue Dec 7 16:45:06 2010 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/3499041
-
+---
  src/cmd/cc/macbody | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cc/macbody b/src/cmd/cc/macbody
+index ca8a54c0bc..35740e9852 100644
+--- a/src/cmd/cc/macbody
++++ b/src/cmd/cc/macbody
+@@ -63,7 +63,7 @@ getsym(void)
+ 		if(cp <= symb+NSYMB-4)
+ 			*cp++ = c;
+ 		c = getc();
+-		if(isalnum(c) || c == '_' || c >= 0x80)
++		if(isalnum(c) || c == '_' || c >= 0x80 || c == '$')
+ 			continue;
+ 		unget(c);
+ 		break;

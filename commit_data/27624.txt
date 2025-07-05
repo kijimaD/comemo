@@ -9,7 +9,70 @@ Date:   Tue Apr 5 20:01:50 2016 +0000
     Change-Id: I73111137907e612af871b77ccf166572bf78c840
     Reviewed-on: https://go-review.googlesource.com/21544
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/net/http/httputil/persist.go | 10 +++++-----
  src/net/http/request.go          |  2 +-
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/http/httputil/persist.go b/src/net/http/httputil/persist.go
+index 7874da3bec..51486e78e2 100644
+--- a/src/net/http/httputil/persist.go
++++ b/src/net/http/httputil/persist.go
+@@ -28,7 +28,7 @@ var errClosed = errors.New("i/o operation on closed connection")
+ // Is is low-level, old, and unused by Go's current HTTP stack.
+ // We should have deleted it before Go 1.
+ //
+-// Deprecated: use the Server in package net/http instead.
++// Deprecated: Use the Server in package net/http instead.
+ type ServerConn struct {
+ 	mu              sync.Mutex // read-write protects the following fields
+ 	c               net.Conn
+@@ -45,7 +45,7 @@ type ServerConn struct {
+ // Is is low-level, old, and unused by Go's current HTTP stack.
+ // We should have deleted it before Go 1.
+ //
+-// Deprecated: use the Server in package net/http instead.
++// Deprecated: Use the Server in package net/http instead.
+ func NewServerConn(c net.Conn, r *bufio.Reader) *ServerConn {
+ 	if r == nil {
+ 		r = bufio.NewReader(c)
+@@ -221,7 +221,7 @@ func (sc *ServerConn) Write(req *http.Request, resp *http.Response) error {
+ // Is is low-level, old, and unused by Go's current HTTP stack.
+ // We should have deleted it before Go 1.
+ //
+-// Deprecated: use Client or Transport in package net/http instead.
++// Deprecated: Use Client or Transport in package net/http instead.
+ type ClientConn struct {
+ 	mu              sync.Mutex // read-write protects the following fields
+ 	c               net.Conn
+@@ -239,7 +239,7 @@ type ClientConn struct {
+ // Is is low-level, old, and unused by Go's current HTTP stack.
+ // We should have deleted it before Go 1.
+ //
+-// Deprecated: use the Client or Transport in package net/http instead.
++// Deprecated: Use the Client or Transport in package net/http instead.
+ func NewClientConn(c net.Conn, r *bufio.Reader) *ClientConn {
+ 	if r == nil {
+ 		r = bufio.NewReader(c)
+@@ -256,7 +256,7 @@ func NewClientConn(c net.Conn, r *bufio.Reader) *ClientConn {
+ // Is is low-level, old, and unused by Go's current HTTP stack.
+ // We should have deleted it before Go 1.
+ //
+-// Deprecated: use the Client or Transport in package net/http instead.
++// Deprecated: Use the Client or Transport in package net/http instead.
+ func NewProxyClientConn(c net.Conn, r *bufio.Reader) *ClientConn {
+ 	cc := NewClientConn(c, r)
+ 	cc.writeReq = (*http.Request).WriteProxy
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 371d36b097..5510691912 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -249,7 +249,7 @@ type Request struct {
+ 	//
+ 	// For server requests, this field is not applicable.
+ 	//
+-	// Deprecated: use the Context and WithContext methods
++	// Deprecated: Use the Context and WithContext methods
+ 	// instead. If a Request's Cancel field and context are both
+ 	// set, it is undefined whether Cancel is respected.
+ 	Cancel <-chan struct{}

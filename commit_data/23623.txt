@@ -31,6 +31,75 @@ Date:   Sat May 30 21:47:00 2015 -0400
     Change-Id: I249624779433927cd8b0947b986df9060c289075
     Reviewed-on: https://go-review.googlesource.com/10554
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgc.go | 53 ++++++++++++++++++++++++++++++++++++++++-------------
  1 file changed, 40 insertions(+), 13 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 5b5891a579..62a8dae801 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -994,19 +994,26 @@ func gc(mode int) {
+ 		printlock()
+ 		print("gc #", memstats.numgc,
+ 			" @", string(itoaDiv(sbuf[:], uint64(tEnd-runtimeInitTime)/1e6, 3)), "s ",
+-			util, "%: ",
+-			(tScan-tSweepTerm)/1e6,
+-			"+", (tInstallWB-tScan)/1e6,
+-			"+", (tMark-tInstallWB)/1e6,
+-			"+", (tMarkTerm-tMark)/1e6,
+-			"+", (tEnd-tMarkTerm)/1e6, " ms clock, ",
+-			sweepTermCpu/1e6,
+-			"+", scanCpu/1e6,
+-			"+", installWBCpu/1e6,
+-			"+", gcController.assistTime/1e6,
+-			"/", (gcController.dedicatedMarkTime+gcController.fractionalMarkTime)/1e6,
+-			"/", gcController.idleMarkTime/1e6,
+-			"+", markTermCpu/1e6, " ms cpu, ",
++			util, "%: ")
++		prev := tSweepTerm
++		for i, ns := range []int64{tScan, tInstallWB, tMark, tMarkTerm, tEnd} {
++			if i != 0 {
++				print("+")
++			}
++			print(string(fmtNSAsMS(sbuf[:], uint64(ns-prev))))
++			prev = ns
++		}
++		print(" ms clock, ")
++		for i, ns := range []int64{sweepTermCpu, scanCpu, installWBCpu, gcController.assistTime, gcController.dedicatedMarkTime + gcController.fractionalMarkTime, gcController.idleMarkTime, markTermCpu} {
++			if i == 4 || i == 5 {
++				// Separate mark time components with /.
++				print("/")
++			} else if i != 0 {
++				print("+")
++			}
++			print(string(fmtNSAsMS(sbuf[:], uint64(ns))))
++		}
++		print(" ms cpu, ",
+ 			heap0>>20, "->", heap1>>20, "->", heap2>>20, " MB, ",
+ 			heapGoal>>20, " MB goal, ",
+ 			maxprocs, " P")
+@@ -1514,3 +1521,23 @@ func itoaDiv(buf []byte, val uint64, dec int) []byte {
+ 	buf[i] = byte(val + '0')
+ 	return buf[i:]
+ }
++
++// fmtNSAsMS nicely formats ns nanoseconds as milliseconds.
++func fmtNSAsMS(buf []byte, ns uint64) []byte {
++	if ns >= 10e6 {
++		// Format as whole milliseconds.
++		return itoaDiv(buf, ns/1e6, 0)
++	}
++	// Format two digits of precision, with at most three decimal places.
++	x := ns / 1e3
++	if x == 0 {
++		buf[0] = '0'
++		return buf[:1]
++	}
++	dec := 3
++	for x >= 100 {
++		x /= 10
++		dec--
++	}
++	return itoaDiv(buf, x, dec)
++}

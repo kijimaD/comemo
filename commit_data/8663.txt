@@ -13,7 +13,7 @@ Date:   Wed Jun 8 13:38:20 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4532123
-
+---
  misc/dashboard/builder/http.go   | 14 +++++-----
  src/pkg/http/client.go           | 16 +++---------
  src/pkg/http/client_test.go      | 16 +++++++++---
@@ -22,3 +22,324 @@ Date:   Wed Jun 8 13:38:20 2011 -0700
  src/pkg/http/url.go              | 18 ++++++++++---
  src/pkg/http/url_test.go         | 35 ++++++++++++++++++++-----
  7 files changed, 115 insertions(+), 44 deletions(-)
+
+diff --git a/misc/dashboard/builder/http.go b/misc/dashboard/builder/http.go
+index 4546f855a4..5e1da0c878 100644
+--- a/misc/dashboard/builder/http.go
++++ b/misc/dashboard/builder/http.go
+@@ -26,18 +26,18 @@ func dash(meth, cmd string, resp interface{}, args param) os.Error {
+ 		log.Println("dash", cmd, args)
+ 	}
+ 	cmd = "http://" + *dashboard + "/" + cmd
++	vals := make(http.Values)
++	for k, v := range args {
++		vals.Add(k, v)
++	}
+ 	switch meth {
+ 	case "GET":
+-		if args != nil {
+-			m := make(map[string][]string)
+-			for k, v := range args {
+-				m[k] = []string{v}
+-			}
+-			cmd += "?" + http.EncodeQuery(m)
++		if q := vals.Encode(); q != "" {
++			cmd += "?" + q
+ 		}
+ 		r, err = http.Get(cmd)
+ 	case "POST":
+-		r, err = http.PostForm(cmd, args)
++		r, err = http.PostForm(cmd, vals)
+ 	default:
+ 		return fmt.Errorf("unknown method %q", meth)
+ 	}
+diff --git a/src/pkg/http/client.go b/src/pkg/http/client.go
+index 7e1d65df30..71b0370422 100644
+--- a/src/pkg/http/client.go
++++ b/src/pkg/http/client.go
+@@ -7,7 +7,6 @@
+ package http
+ 
+ import (
+-	"bytes"
+ 	"encoding/base64"
+ 	"fmt"
+ 	"io"
+@@ -240,7 +239,7 @@ func (c *Client) Post(url string, bodyType string, body io.Reader) (r *Response,
+ // Caller should close r.Body when done reading from it.
+ //
+ // PostForm is a wrapper around DefaultClient.PostForm
+-func PostForm(url string, data map[string]string) (r *Response, err os.Error) {
++func PostForm(url string, data Values) (r *Response, err os.Error) {
+ 	return DefaultClient.PostForm(url, data)
+ }
+ 
+@@ -248,17 +247,8 @@ func PostForm(url string, data map[string]string) (r *Response, err os.Error) {
+ // with data's keys and values urlencoded as the request body.
+ //
+ // Caller should close r.Body when done reading from it.
+-func (c *Client) PostForm(url string, data map[string]string) (r *Response, err os.Error) {
+-	return c.Post(url, "application/x-www-form-urlencoded", urlencode(data))
+-}
+-
+-// TODO: remove this function when PostForm takes a multimap.
+-func urlencode(data map[string]string) (b *bytes.Buffer) {
+-	m := make(map[string][]string, len(data))
+-	for k, v := range data {
+-		m[k] = []string{v}
+-	}
+-	return bytes.NewBuffer([]byte(EncodeQuery(m)))
++func (c *Client) PostForm(url string, data Values) (r *Response, err os.Error) {
++	return c.Post(url, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()))
+ }
+ 
+ // Head issues a HEAD to the specified URL.  If the response is one of the
+diff --git a/src/pkg/http/client_test.go b/src/pkg/http/client_test.go
+index 822a8889ca..9ef81d9d4f 100644
+--- a/src/pkg/http/client_test.go
++++ b/src/pkg/http/client_test.go
+@@ -109,7 +109,10 @@ func TestPostFormRequestFormat(t *testing.T) {
+ 	client := &Client{Transport: tr}
+ 
+ 	url := "http://dummy.faketld/"
+-	form := map[string]string{"foo": "bar"}
++	form := make(Values)
++	form.Set("foo", "bar")
++	form.Add("foo", "bar2")
++	form.Set("bar", "baz")
+ 	client.PostForm(url, form) // Note: doesn't hit network
+ 
+ 	if tr.req.Method != "POST" {
+@@ -127,10 +130,17 @@ func TestPostFormRequestFormat(t *testing.T) {
+ 	if tr.req.Close {
+ 		t.Error("got Close true, want false")
+ 	}
+-	if g, e := tr.req.ContentLength, int64(len("foo=bar")); g != e {
++	expectedBody := "foo=bar&foo=bar2&bar=baz"
++	if g, e := tr.req.ContentLength, int64(len(expectedBody)); g != e {
+ 		t.Errorf("got ContentLength %d, want %d", g, e)
+ 	}
+-
++	bodyb, err := ioutil.ReadAll(tr.req.Body)
++	if err != nil {
++		t.Fatalf("ReadAll on req.Body: %v", err)
++	}
++	if g := string(bodyb); g != expectedBody {
++		t.Errorf("got body %q, want %q", g, expectedBody)
++	}
+ }
+ 
+ func TestRedirects(t *testing.T) {
+diff --git a/src/pkg/http/readrequest_test.go b/src/pkg/http/readrequest_test.go
+index 19e2ff7747..d93e573f58 100644
+--- a/src/pkg/http/readrequest_test.go
++++ b/src/pkg/http/readrequest_test.go
+@@ -64,7 +64,7 @@ var reqTests = []reqTest{
+ 			Host:          "www.techcrunch.com",
+ 			Referer:       "",
+ 			UserAgent:     "Fake",
+-			Form:          map[string][]string{},
++			Form:          Values{},
+ 		},
+ 
+ 		"abcdef\n",
+@@ -99,7 +99,7 @@ var reqTests = []reqTest{
+ 			Host:          "test",
+ 			Referer:       "",
+ 			UserAgent:     "",
+-			Form:          map[string][]string{},
++			Form:          Values{},
+ 		},
+ 
+ 		"",
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index 2f6b651c3e..2ff3160a95 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -90,10 +90,10 @@ type Request struct {
+ 	//
+ 	// then
+ 	//
+-	//	Header = map[string]string{
+-	//		"Accept-Encoding": "gzip, deflate",
+-	//		"Accept-Language": "en-us",
+-	//		"Connection": "keep-alive",
++	//	Header = map[string][]string{
++	//		"Accept-Encoding": {"gzip, deflate"},
++	//		"Accept-Language": {"en-us"},
++	//		"Connection": {"keep-alive"},
+ 	//	}
+ 	//
+ 	// HTTP defines that header names are case-insensitive.
+@@ -141,7 +141,7 @@ type Request struct {
+ 	UserAgent string
+ 
+ 	// The parsed form. Only available after ParseForm is called.
+-	Form map[string][]string
++	Form Values
+ 
+ 	// The parsed multipart form, including file uploads.
+ 	// Only available after ParseMultipartForm is called.
+@@ -597,18 +597,56 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
+ 	return req, nil
+ }
+ 
++// Values maps a string key to a list of values.
++// It is typically used for query parameters and form values.
++// Unlike in the Header map, the keys in a Values map
++// are case-sensitive.
++type Values map[string][]string
++
++// Get gets the first value associated with the given key.
++// If there are no values associated with the key, Get returns
++// the empty string. To access multiple values, use the map
++// directly.
++func (v Values) Get(key string) string {
++	if v == nil {
++		return ""
++	}
++	vs, ok := v[key]
++	if !ok || len(vs) == 0 {
++		return ""
++	}
++	return vs[0]
++}
++
++// Set sets the key to value. It replaces any existing
++// values.
++func (v Values) Set(key, value string) {
++	v[key] = []string{value}
++}
++
++// Add adds the key to value. It appends to any existing
++// values associated with key.
++func (v Values) Add(key, value string) {
++	v[key] = append(v[key], value)
++}
++
++// Del deletes the values associated with key.
++func (v Values) Del(key string) {
++	v[key] = nil, false
++}
++
+ // ParseQuery parses the URL-encoded query string and returns
+ // a map listing the values specified for each key.
+ // ParseQuery always returns a non-nil map containing all the
+ // valid query parameters found; err describes the first decoding error
+ // encountered, if any.
+-func ParseQuery(query string) (m map[string][]string, err os.Error) {
+-	m = make(map[string][]string)
++func ParseQuery(query string) (m Values, err os.Error) {
++	m = make(Values)
+ 	err = parseQuery(m, query)
+ 	return
+ }
+ 
+-func parseQuery(m map[string][]string, query string) (err os.Error) {
++func parseQuery(m Values, query string) (err os.Error) {
+ 	for _, kv := range strings.Split(query, "&", -1) {
+ 		if len(kv) == 0 {
+ 			continue
+@@ -641,7 +679,7 @@ func (r *Request) ParseForm() (err os.Error) {
+ 		return
+ 	}
+ 
+-	r.Form = make(map[string][]string)
++	r.Form = make(Values)
+ 	if r.URL != nil {
+ 		err = parseQuery(r.Form, r.URL.RawQuery)
+ 	}
+diff --git a/src/pkg/http/url.go b/src/pkg/http/url.go
+index d7ee14ee84..05b1662d38 100644
+--- a/src/pkg/http/url.go
++++ b/src/pkg/http/url.go
+@@ -486,10 +486,14 @@ func (url *URL) String() string {
+ 	return result
+ }
+ 
+-// EncodeQuery encodes the query represented as a multimap.
+-func EncodeQuery(m map[string][]string) string {
+-	parts := make([]string, 0, len(m)) // will be large enough for most uses
+-	for k, vs := range m {
++// Encode encodes the values into ``URL encoded'' form.
++// e.g. "foo=bar&bar=baz"
++func (v Values) Encode() string {
++	if v == nil {
++		return ""
++	}
++	parts := make([]string, 0, len(v)) // will be large enough for most uses
++	for k, vs := range v {
+ 		prefix := URLEscape(k) + "="
+ 		for _, v := range vs {
+ 			parts = append(parts, prefix+URLEscape(v))
+@@ -593,3 +597,9 @@ func (base *URL) ResolveReference(ref *URL) *URL {
+ 	url.Raw = url.String()
+ 	return url
+ }
++
++// Query parses RawQuery and returns the corresponding values.
++func (u *URL) Query() Values {
++	v, _ := ParseQuery(u.RawQuery)
++	return v
++}
+diff --git a/src/pkg/http/url_test.go b/src/pkg/http/url_test.go
+index d8863f3d3b..eaec5872ae 100644
+--- a/src/pkg/http/url_test.go
++++ b/src/pkg/http/url_test.go
+@@ -538,23 +538,21 @@ func TestUnescapeUserinfo(t *testing.T) {
+ 	}
+ }
+ 
+-type qMap map[string][]string
+-
+ type EncodeQueryTest struct {
+-	m         qMap
++	m         Values
+ 	expected  string
+ 	expected1 string
+ }
+ 
+ var encodeQueryTests = []EncodeQueryTest{
+ 	{nil, "", ""},
+-	{qMap{"q": {"puppies"}, "oe": {"utf8"}}, "q=puppies&oe=utf8", "oe=utf8&q=puppies"},
+-	{qMap{"q": {"dogs", "&", "7"}}, "q=dogs&q=%26&q=7", "q=dogs&q=%26&q=7"},
++	{Values{"q": {"puppies"}, "oe": {"utf8"}}, "q=puppies&oe=utf8", "oe=utf8&q=puppies"},
++	{Values{"q": {"dogs", "&", "7"}}, "q=dogs&q=%26&q=7", "q=dogs&q=%26&q=7"},
+ }
+ 
+ func TestEncodeQuery(t *testing.T) {
+ 	for _, tt := range encodeQueryTests {
+-		if q := EncodeQuery(tt.m); q != tt.expected && q != tt.expected1 {
++		if q := tt.m.Encode(); q != tt.expected && q != tt.expected1 {
+ 			t.Errorf(`EncodeQuery(%+v) = %q, want %q`, tt.m, q, tt.expected)
+ 		}
+ 	}
+@@ -673,3 +671,28 @@ func TestResolveReference(t *testing.T) {
+ 	}
+ 
+ }
++
++func TestQueryValues(t *testing.T) {
++	u, _ := ParseURL("http://x.com?foo=bar&bar=1&bar=2")
++	v := u.Query()
++	if len(v) != 2 {
++		t.Errorf("got %d keys in Query values, want 2", len(v))
++	}
++	if g, e := v.Get("foo"), "bar"; g != e {
++		t.Errorf("Get(foo) = %q, want %q", g, e)
++	}
++	// Case sensitive:
++	if g, e := v.Get("Foo"), ""; g != e {
++		t.Errorf("Get(Foo) = %q, want %q", g, e)
++	}
++	if g, e := v.Get("bar"), "1"; g != e {
++		t.Errorf("Get(bar) = %q, want %q", g, e)
++	}
++	if g, e := v.Get("baz"), ""; g != e {
++		t.Errorf("Get(baz) = %q, want %q", g, e)
++	}
++	v.Del("bar")
++	if g, e := v.Get("bar"), ""; g != e {
++		t.Errorf("second Get(bar) = %q, want %q", g, e)
++	}
++}

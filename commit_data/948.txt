@@ -10,10 +10,433 @@ Date:   Thu Oct 23 17:56:54 2008 -0700
     R=r
     OCL=17759
     CL=17759
-
+---
  usr/gri/pretty/ast.go     | 30 +++++++++++------
  usr/gri/pretty/parser.go  | 86 +++++++++++++++++++++++++++++++++++------------
  usr/gri/pretty/printer.go |  8 ++---
  usr/gri/pretty/scanner.go | 28 ++++++++-------
  usr/gri/pretty/test.sh    |  6 ++--
  5 files changed, 107 insertions(+), 51 deletions(-)
+
+diff --git a/usr/gri/pretty/ast.go b/usr/gri/pretty/ast.go
+index 5673088e3b..3179a4811c 100644
+--- a/usr/gri/pretty/ast.go
++++ b/usr/gri/pretty/ast.go
+@@ -8,7 +8,7 @@ import Scanner "scanner"
+ 
+ 
+ type (
+-	Node interface {};
++	Any interface {};
+ 	Type struct;
+ 	Expr struct;
+ 	Stat struct;
+@@ -23,7 +23,7 @@ type (
+ // Thus, empty lists can be represented by nil.
+ 
+ export type List struct {
+-	a *[] Node;
++	a *[] Any;
+ }
+ 
+ 
+@@ -33,22 +33,22 @@ func (p *List) len() int {
+ }
+ 
+ 
+-func (p *List) at(i int) Node {
++func (p *List) at(i int) Any {
+ 	return p.a[i];
+ }
+ 
+ 
+-func (p *List) set(i int, x Node) {
++func (p *List) set(i int, x Any) {
+ 	p.a[i] = x;
+ }
+ 
+ 
+-func (p *List) Add (x Node) {
++func (p *List) Add (x Any) {
+ 	a := p.a;
+ 	n := len(a);
+ 
+ 	if n == cap(a) {
+-		b := new([] Node, 2*n);
++		b := new([] Any, 2*n);
+ 		for i := 0; i < n; i++ {
+ 			b[i] = a[i];
+ 		}
+@@ -63,16 +63,24 @@ func (p *List) Add (x Node) {
+ 
+ export func NewList() *List {
+ 	p := new(List);
+-	p.a = new([] Node, 10) [0 : 0];
++	p.a = new([] Any, 10) [0 : 0];
+ 	return p;
+ }
+ 
+ 
++// ----------------------------------------------------------------------------
++// All nodes have a source position and and token.
++
++export type Node struct {
++	pos, tok int;
++}
++
++
+ // ----------------------------------------------------------------------------
+ // Expressions
+ 
+ export type Expr struct {
+-	pos, tok int;
++	Node;
+ 	x, y *Expr;  // binary (x, y) and unary (y) expressions
+ 	// TODO find a more space efficient way to hold these
+ 	s string;  // identifiers and literals
+@@ -124,7 +132,7 @@ export const /* channel mode */ (
+ 
+ 
+ export type Type struct {
+-	pos, tok int;
++	Node;
+ 	expr *Expr;  // type name, array length
+ 	mode int;  // channel mode
+ 	key *Type;  // receiver type, map key
+@@ -171,7 +179,7 @@ export var BadType = NewType(0, Scanner.ILLEGAL);
+ // Statements
+ 
+ export type Stat struct {
+-	pos, tok int;
++	Node;
+ 	init, post *Stat;
+ 	expr *Expr;
+ 	block *List;
+@@ -193,7 +201,7 @@ export var BadStat = NewStat(0, Scanner.ILLEGAL);
+ // Declarations
+ 
+ export type Decl struct {
+-	pos, tok int;
++	Node;
+ 	exported bool;
+ 	ident *Expr;  // nil for ()-style declarations
+ 	typ *Type;
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index e74416663a..b5648d4206 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -93,7 +93,7 @@ func (P *Parser) Open(verbose, sixg bool, scanner *Scanner.Scanner, tokchan *<-c
+ 	P.comments = AST.NewList();
+ 	
+ 	P.Next();
+-	P.expr_lev = 1;
++	P.expr_lev = 0;
+ 	P.scope_lev = 0;
+ }
+ 
+@@ -631,15 +631,39 @@ func (P *Parser) ParseFunctionLit() *AST.Expr {
+ 	x := AST.NewLit(P.pos, Scanner.FUNC, "");
+ 	P.Expect(Scanner.FUNC);
+ 	x.t = P.ParseFunctionType();
++	P.expr_lev++;
+ 	P.scope_lev++;
+ 	x.block = P.ParseBlock();
+ 	P.scope_lev--;
++	P.expr_lev--;
+ 	
+ 	P.Ecart();
+ 	return x;
+ }
+ 
+ 
++/*
++func (P *Parser) ParseNewCall() *AST.Expr {
++	P.Trace("NewCall");
++	
++	x := AST.NewExpr(P.pos, Scanner.NEW, nil, nil);
++	P.Next();
++	P.Expect(Scanner.LPAREN);
++	P.expr_lev++;
++	x.t = P.ParseType();
++	if P.tok == Scanner.COMMA {
++		P.Next();
++		x.y = P.ParseExpressionList();
++	}
++	P.expr_lev--;
++	P.Expect(Scanner.RPAREN);
++	
++	P.Ecart();
++	return x;
++}
++*/
++
++
+ func (P *Parser) ParseOperand() *AST.Expr {
+ 	P.Trace("Operand");
+ 
+@@ -668,7 +692,12 @@ func (P *Parser) ParseOperand() *AST.Expr {
+ 
+ 	case Scanner.FUNC:
+ 		x = P.ParseFunctionLit();
+-		
++
++	/*
++	case Scanner.NEW:
++		x = P.ParseNewCall();
++	*/
++
+ 	default:
+ 		t := P.TryType();
+ 		if t != nil {
+@@ -709,7 +738,9 @@ func (P *Parser) ParseIndex(x *AST.Expr) *AST.Expr {
+ 	
+ 	pos := P.pos;
+ 	P.Expect(Scanner.LBRACK);
++	P.expr_lev++;
+ 	i := P.ParseExpression(0);
++	P.expr_lev--;
+ 	P.Expect(Scanner.RBRACK);
+ 	
+ 	P.Ecart();
+@@ -719,25 +750,35 @@ func (P *Parser) ParseIndex(x *AST.Expr) *AST.Expr {
+ 
+ func (P *Parser) ParseBinaryExpr(prec1 int) *AST.Expr
+ 
+-func (P *Parser) ParseCall(x *AST.Expr) *AST.Expr {
++func (P *Parser) ParseCall(x0 *AST.Expr) *AST.Expr {
+ 	P.Trace("Call");
+ 
+-	x = P.NewExpr(P.pos, Scanner.LPAREN, x, nil);
++	x := P.NewExpr(P.pos, Scanner.LPAREN, x0, nil);
+ 	P.Expect(Scanner.LPAREN);
+ 	if P.tok != Scanner.RPAREN {
+-		// the very first argument may be a type if the function called is new()
+-		// call ParseBinaryExpr() which allows type expressions (instead of ParseExpression)
+-		y := P.ParseBinaryExpr(1);
+-		if P.tok == Scanner.COMMA {
+-			pos := P.pos;
+-			P.Next();
+-			z := P.ParseExpressionList();
+-			// create list manually because NewExpr checks for type expressions
+-			z = P.NewExpr(pos, Scanner.COMMA, nil, z);
+-			z.x = y;
+-			y = z;
++		P.expr_lev++;
++		var t *AST.Type;
++		if x0.tok == Scanner.IDENT && x0.s == "new" {
++			// heuristic: assume it's a new(T, ...) call, try to parse a type
++			t = P.TryType();
++		}
++		if t != nil {
++			// we found a type
++			x.y = AST.NewTypeExpr(t);
++			if P.tok == Scanner.COMMA {
++				pos := P.pos;
++				P.Next();
++				y := P.ParseExpressionList();
++				// create list manually because NewExpr checks for type expressions
++				z := AST.NewExpr(pos, Scanner.COMMA, nil, y);
++				z.x = x.y;
++				x.y = z;
++			}
++		} else {
++			// normal argument list
++			x.y = P.ParseExpressionList();
+ 		}
+-		x.y = y;
++		P.expr_lev--;
+ 	}
+ 	P.Expect(Scanner.RPAREN);
+ 	
+@@ -817,10 +858,10 @@ func (P *Parser) ParsePrimaryExpr() *AST.Expr {
+ 		case Scanner.LPAREN: x = P.ParseCall(x);
+ 		case Scanner.LBRACE:
+ 			// assume a composite literal only if x could be a type
+-			// and if we are not inside control clause (expr_lev > 0)
++			// and if we are not inside control clause (expr_lev >= 0)
+ 			// (composites inside control clauses must be parenthesized)
+ 			var t *AST.Type;
+-			if P.expr_lev > 0 {
++			if P.expr_lev >= 0 {
+ 				t = ExprType(x);
+ 			}
+ 			if t != nil {
+@@ -1002,7 +1043,7 @@ func (P *Parser) ParseControlClause(keyword int) *AST.Stat {
+ 	P.Expect(keyword);
+ 	if P.tok != Scanner.LBRACE {
+ 		prev_lev := P.expr_lev;
+-		P.expr_lev = 0;
++		P.expr_lev = -1;
+ 		if P.tok != Scanner.SEMICOLON {
+ 			s.init = P.ParseSimpleStat();
+ 		}
+@@ -1129,12 +1170,15 @@ func (P *Parser) ParseCommCase() *AST.Stat {
+ 	s := AST.NewStat(P.pos, Scanner.CASE);
+ 	if P.tok == Scanner.CASE {
+ 		P.Next();
+-		P.ParseExpression(1);
++		x := P.ParseExpression(1);
+ 		if P.tok == Scanner.ASSIGN || P.tok == Scanner.DEFINE {
++			pos, tok := P.pos, P.tok;
+ 			P.Next();
+ 			P.Expect(Scanner.ARROW);
+-			P.ParseExpression(1);
++			y := P.ParseExpression(1);
++			x = AST.NewExpr(pos, tok, x, y);
+ 		}
++		s.expr = x;
+ 	} else {
+ 		P.Expect(Scanner.DEFAULT);
+ 	}
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index 60f1c63bbc..0776790f3e 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -238,9 +238,9 @@ func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
+ 	case Scanner.COMMA:
+ 		// list
+ 		// (don't use binary expression printing because of different spacing)
+-		P.Expr1(x.x, Scanner.LowestPrec);
++		P.Expr(x.x);
+ 		P.String(x.pos, ", ");
+-		P.Expr1(x.y, Scanner.LowestPrec);
++		P.Expr(x.y);
+ 
+ 	case Scanner.PERIOD:
+ 		// selector or type guard
+@@ -265,14 +265,14 @@ func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
+ 		// call
+ 		P.Expr1(x.x, Scanner.HighestPrec);
+ 		P.String(x.pos, "(");
+-		P.Expr1(x.y, Scanner.LowestPrec);
++		P.Expr(x.y);
+ 		P.String(0, ")");
+ 
+ 	case Scanner.LBRACE:
+ 		// composite
+ 		P.Type(x.t);
+ 		P.String(x.pos, "{");
+-		P.Expr1(x.y, Scanner.LowestPrec);
++		P.Expr(x.y);
+ 		P.String(0, "}");
+ 		
+ 	default:
+diff --git a/usr/gri/pretty/scanner.go b/usr/gri/pretty/scanner.go
+index 634094e0b4..4b331b5620 100644
+--- a/usr/gri/pretty/scanner.go
++++ b/usr/gri/pretty/scanner.go
+@@ -285,6 +285,7 @@ export type Scanner struct {
+ 	pos int;  // current reading position
+ 	ch int;  // one char look-ahead
+ 	chpos int;  // position of ch
++	linepos int;  // position of beginning of line
+ 
+ 	// testmode
+ 	testmode bool;
+@@ -298,8 +299,8 @@ func (S *Scanner) Next() {
+ 	if S.pos < len(S.src) {
+ 		// assume ascii
+ 		r, w := int(S.src[S.pos]), 1;
+-		if r > 0x80 {
+-			// wasn't ascii
++		if r >= 0x80 {
++			// not ascii
+ 			r, w = sys.stringtorune(S.src, S.pos);
+ 		}
+ 		S.ch = r;
+@@ -430,17 +431,16 @@ func (S *Scanner) LineCol(pos int) (line, col int) {
+ 
+ 
+ func (S *Scanner) ErrorMsg(pos int, msg string) {
+-	print(S.filename);
++	print(S.filename, ":");
+ 	if pos >= 0 {
+ 		// print position
+ 		line, col := S.LineCol(pos);
++		print(line, ":");
+ 		if S.columns {
+-			print(":", line, ":", col);
+-		} else {
+-			print(":", line);
++			print(col, ":");
+ 		}
+ 	}
+-	print(": ", msg, "\n");
++	print(" ", msg, "\n");
+ 	
+ 	S.nerrors++;
+ 	S.errpos = pos;
+@@ -486,14 +486,15 @@ func (S *Scanner) Open(filename, src string, columns, testmode bool) {
+ 	S.filename = filename;
+ 	S.nerrors = 0;
+ 	S.errpos = 0;
++	S.columns = columns;
+ 	
+ 	S.src = src;
+ 	S.pos = 0;
+-	S.columns = columns;
++	S.linepos = 0;
++
+ 	S.testmode = testmode;
+-	
+-	S.ExpectNoErrors();  // after setting S.src
+-	S.Next();  // after S.ExpectNoErrrors()
++	S.ExpectNoErrors();  // S.src must be set
++	S.Next();  // S.ExpectNoErrrors() must be called before
+ }
+ 
+ 
+@@ -535,10 +536,10 @@ func (S *Scanner) ScanComment() string {
+ 	
+ 	if S.ch == '/' {
+ 		// comment
++		S.Next();
+ 		for S.ch >= 0 {
+ 			S.Next();
+ 			if S.ch == '\n' {
+-				S.Next();
+ 				goto exit;
+ 			}
+ 		}
+@@ -550,7 +551,6 @@ func (S *Scanner) ScanComment() string {
+ 			ch := S.ch;
+ 			S.Next();
+ 			if ch == '*' && S.ch == '/' {
+-				S.Next();
+ 				goto exit;
+ 			}
+ 		}
+@@ -559,7 +559,9 @@ func (S *Scanner) ScanComment() string {
+ 	S.Error(pos, "comment not terminated");
+ 
+ exit:
++	S.Next();
+ 	comment := S.src[pos : S.chpos];
++
+ 	if S.testmode {
+ 		// interpret ERROR and SYNC comments
+ 		oldpos := -1;
+diff --git a/usr/gri/pretty/test.sh b/usr/gri/pretty/test.sh
+index c17f59660d..ad5998a2e2 100755
+--- a/usr/gri/pretty/test.sh
++++ b/usr/gri/pretty/test.sh
+@@ -21,8 +21,8 @@ count() {
+ apply1() {
+ 	#echo $1 $2
+ 	case `basename $F` in
+-	selftest.go | func3.go ) ;;  # skip - these are test cases for syntax errors
+-	newfn.go ) ;;  # skip these - cannot parse w/o type information
++	selftest.go | func3.go | bug014.go | bug029.go | bug032.go | bug050.go | \
++	bug068.go | bug088.go | bug083.go | bug106.go ) ;;  # skip - files contain syntax errors
+ 	* ) $1 $2; count ;;
+ 	esac
+ }
+@@ -42,6 +42,8 @@ apply() {
+ 	for F in \
+ 		$GOROOT/usr/gri/pretty/*.go \
+ 		$GOROOT/test/*.go \
++		$GOROOT/test/bugs/*.go \
++		$GOROOT/test/fixedbugs/*.go \
+ 		$GOROOT/src/pkg/*.go \
+ 		$GOROOT/src/lib/*.go \
+ 		$GOROOT/src/lib/*/*.go \

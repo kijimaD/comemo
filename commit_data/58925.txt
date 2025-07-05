@@ -14,7 +14,46 @@ Date:   Thu Jan 18 07:53:50 2024 +0100
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/cgo/internal/test/seh_internal_windows_test.go   | 16 ++++++++++++++++
  .../test/{cgo_windows_test.go => seh_windows_test.go}    |  2 +-
  2 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/internal/test/seh_internal_windows_test.go b/src/cmd/cgo/internal/test/seh_internal_windows_test.go
+new file mode 100644
+index 0000000000..708ffdc6f6
+--- /dev/null
++++ b/src/cmd/cgo/internal/test/seh_internal_windows_test.go
+@@ -0,0 +1,16 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build cgo && windows && internal
++
++package cgotest
++
++import (
++	"internal/testenv"
++	"testing"
++)
++
++func TestCallbackCallersSEH(t *testing.T) {
++	testenv.SkipFlaky(t, 65116)
++}
+diff --git a/src/cmd/cgo/internal/test/cgo_windows_test.go b/src/cmd/cgo/internal/test/seh_windows_test.go
+similarity index 87%
+rename from src/cmd/cgo/internal/test/cgo_windows_test.go
+rename to src/cmd/cgo/internal/test/seh_windows_test.go
+index 7bbed5b04e..4a8d5bbd4d 100644
+--- a/src/cmd/cgo/internal/test/cgo_windows_test.go
++++ b/src/cmd/cgo/internal/test/seh_windows_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build cgo && windows
++//go:build cgo && windows && !internal
+ 
+ package cgotest
+ 

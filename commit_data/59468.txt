@@ -17,7 +17,115 @@ Date:   Fri Mar 15 12:56:05 2024 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/net/http/fs_test.go | 62 -------------------------------------------------
  src/net/http/server.go  | 19 +++------------
  2 files changed, 3 insertions(+), 78 deletions(-)
+
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index 4891c28768..70a4b8982f 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -27,7 +27,6 @@ import (
+ 	"reflect"
+ 	"regexp"
+ 	"runtime"
+-	"strconv"
+ 	"strings"
+ 	"testing"
+ 	"testing/fstest"
+@@ -1695,64 +1694,3 @@ func testFileServerDirWithRootFile(t *testing.T, mode testMode) {
+ 		testDirFile(t, FileServerFS(os.DirFS("testdata/index.html")))
+ 	})
+ }
+-
+-func TestServeContentHeadersWithError(t *testing.T) {
+-	contents := []byte("content")
+-	ts := newClientServerTest(t, http1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+-		w.Header().Set("Content-Type", "application/octet-stream")
+-		w.Header().Set("Content-Length", strconv.Itoa(len(contents)))
+-		w.Header().Set("Content-Encoding", "gzip")
+-		w.Header().Set("Etag", `"abcdefgh"`)
+-		w.Header().Set("Last-Modified", "Wed, 21 Oct 2015 07:28:00 GMT")
+-		w.Header().Set("Cache-Control", "immutable")
+-		w.Header().Set("Other-Header", "test")
+-		ServeContent(w, r, "", time.Time{}, bytes.NewReader(contents))
+-	})).ts
+-	defer ts.Close()
+-
+-	req, err := NewRequest("GET", ts.URL, nil)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	req.Header.Set("Range", "bytes=100-10000")
+-
+-	c := ts.Client()
+-	res, err := c.Do(req)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	out, _ := io.ReadAll(res.Body)
+-	res.Body.Close()
+-
+-	if g, e := res.StatusCode, 416; g != e {
+-		t.Errorf("got status = %d; want %d", g, e)
+-	}
+-	if g, e := string(out), "invalid range: failed to overlap\n"; g != e {
+-		t.Errorf("got body = %q; want %q", g, e)
+-	}
+-	if g, e := res.Header.Get("Content-Type"), "text/plain; charset=utf-8"; g != e {
+-		t.Errorf("got content-type = %q, want %q", g, e)
+-	}
+-	if g, e := res.Header.Get("Content-Length"), strconv.Itoa(len(out)); g != e {
+-		t.Errorf("got content-length = %q, want %q", g, e)
+-	}
+-	if g, e := res.Header.Get("Content-Encoding"), ""; g != e {
+-		t.Errorf("got content-encoding = %q, want %q", g, e)
+-	}
+-	if g, e := res.Header.Get("Etag"), ""; g != e {
+-		t.Errorf("got etag = %q, want %q", g, e)
+-	}
+-	if g, e := res.Header.Get("Last-Modified"), ""; g != e {
+-		t.Errorf("got last-modified = %q, want %q", g, e)
+-	}
+-	if g, e := res.Header.Get("Cache-Control"), "no-cache"; g != e {
+-		t.Errorf("got cache-control = %q, want %q", g, e)
+-	}
+-	if g, e := res.Header.Get("Content-Range"), "bytes */7"; g != e {
+-		t.Errorf("got content-range = %q, want %q", g, e)
+-	}
+-	if g, e := res.Header.Get("Other-Header"), "test"; g != e {
+-		t.Errorf("got other-header = %q, want %q", g, e)
+-	}
+-}
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 99c6d4fd0a..648695ca1a 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2173,22 +2173,9 @@ func (f HandlerFunc) ServeHTTP(w ResponseWriter, r *Request) {
+ // writes are done to w.
+ // The error message should be plain text.
+ func Error(w ResponseWriter, error string, code int) {
+-	h := w.Header()
+-	// We delete headers which might be valid for some other content,
+-	// but not anymore for the error content.
+-	h.Del("Content-Length")
+-	h.Del("Content-Encoding")
+-	h.Del("Etag")
+-	h.Del("Last-Modified")
+-	// There might be cache control headers set for some other content,
+-	// but we reset it to no-cache for the error content if presents.
+-	if h.has("Cache-Control") {
+-		h.Set("Cache-Control", "no-cache")
+-	}
+-	// There might be content type already set, but we reset it to
+-	// text/plain for the error message.
+-	h.Set("Content-Type", "text/plain; charset=utf-8")
+-	h.Set("X-Content-Type-Options", "nosniff")
++	w.Header().Del("Content-Length")
++	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
++	w.Header().Set("X-Content-Type-Options", "nosniff")
+ 	w.WriteHeader(code)
+ 	fmt.Fprintln(w, error)
+ }

@@ -8,7 +8,49 @@ Date:   Thu Mar 8 12:04:49 2012 +0900
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5784045
-
+---
  doc/articles/wiki/{test.sh => test.bash} | 7 +++++--
  src/run.bash                             | 2 +-
  2 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/doc/articles/wiki/test.sh b/doc/articles/wiki/test.bash
+similarity index 70%
+rename from doc/articles/wiki/test.sh
+rename to doc/articles/wiki/test.bash
+index 58b218a78a..5c2cb60dc0 100755
+--- a/doc/articles/wiki/test.sh
++++ b/doc/articles/wiki/test.bash
+@@ -1,4 +1,7 @@
+ #!/usr/bin/env bash
++# Copyright 2010 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
+ 
+ set -e
+ wiki_pid=
+@@ -8,10 +11,10 @@ cleanup() {
+ }
+ trap cleanup 0 INT
+ 
+-make get.bin
++go build -o get.bin get.go
+ addr=$(./get.bin -addr)
+ sed s/:8080/$addr/ < final.go > final-test.go
+-make final-test.bin
++go build -o final-test.bin final-test.go
+ (./final-test.bin) &
+ wiki_pid=$!
+ 
+diff --git a/src/run.bash b/src/run.bash
+index 1c73e131d3..e97f55a0ba 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -71,7 +71,7 @@ time ./run
+ [ "$GOARCH" == arm ] ||  # uses network, fails under QEMU
+ (xcd ../doc/articles/wiki
+ make clean
+-./test.sh
++./test.bash
+ ) || exit $?
+ 
+ echo

@@ -7,6 +7,19 @@ Date:   Fri Dec 2 15:05:45 2011 -0500
     R=ken2, ken
     CC=golang-dev
     https://golang.org/cl/5449072
-
+---
  src/cmd/gc/go.y | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index a42a7488f7..530e54112a 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -915,6 +915,7 @@ pexpr_no_paren:
+ 	}
+ |	'(' expr_or_type ')' '{' start_complit braced_keyval_list '}'
+ 	{
++		yyerror("cannot parenthesize type in composite literal");
+ 		$$ = $5;
+ 		$$->right = $2;
+ 		$$->list = $6;

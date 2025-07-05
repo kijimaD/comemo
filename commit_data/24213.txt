@@ -12,6 +12,56 @@ Date:   Wed Jul 15 18:36:49 2015 +1000
     Change-Id: Ia26132274fafb1cbfefe2475f7ac5f17ccd6da40
     Reviewed-on: https://go-review.googlesource.com/12226
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/vcs.go | 27 +++++++++++++++++++++++----
  1 file changed, 23 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index 5393801ca5..64cbf45a74 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -140,11 +140,15 @@ var vcsGit = &vcsCmd{
+ 	// See golang.org/issue/9032.
+ 	tagSyncDefault: []string{"checkout master", "submodule update --init --recursive"},
+ 
+-	scheme:     []string{"git", "https", "http", "git+ssh"},
++	scheme:     []string{"git", "https", "http", "git+ssh", "ssh"},
+ 	pingCmd:    "ls-remote {scheme}://{repo}",
+ 	remoteRepo: gitRemoteRepo,
+ }
+ 
++// scpSyntaxRe matches the SCP-like addresses used by Git to access
++// repositories by SSH.
++var scpSyntaxRe = regexp.MustCompile(`^([a-zA-Z0-9_]+)@([a-zA-Z0-9._-]+):(.*)$`)
++
+ func gitRemoteRepo(vcsGit *vcsCmd, rootDir string) (remoteRepo string, err error) {
+ 	cmd := "config remote.origin.url"
+ 	errParse := errors.New("unable to parse output of git " + cmd)
+@@ -158,9 +162,24 @@ func gitRemoteRepo(vcsGit *vcsCmd, rootDir string) (remoteRepo string, err error
+ 		}
+ 		return "", err
+ 	}
+-	repoURL, err := url.Parse(strings.TrimSpace(string(outb)))
+-	if err != nil {
+-		return "", err
++	out := strings.TrimSpace(string(outb))
++
++	var repoURL *url.URL
++	if m := scpSyntaxRe.FindStringSubmatch(out); m != nil {
++		// Match SCP-like syntax and convert it to a URL.
++		// Eg, "git@github.com:user/repo" becomes
++		// "ssh://git@github.com/user/repo".
++		repoURL = &url.URL{
++			Scheme:  "ssh",
++			User:    url.User(m[1]),
++			Host:    m[2],
++			RawPath: m[3],
++		}
++	} else {
++		repoURL, err = url.Parse(out)
++		if err != nil {
++			return "", err
++		}
+ 	}
+ 
+ 	// Iterate over insecure schemes too, because this function simply

@@ -15,7 +15,34 @@ Date:   Tue Mar 28 11:18:40 2023 -0700
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/call.go | 2 +-
  src/go/types/call.go                    | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index bb82c2464e..ec814995a9 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -820,7 +820,7 @@ func (check *Checker) use1(e syntax.Expr, lhs bool) bool {
+ 				}
+ 			}
+ 		}
+-		check.rawExpr(nil, &x, n, nil, true)
++		check.exprOrType(&x, n, true)
+ 		if v != nil {
+ 			v.used = v_used // restore v.used
+ 		}
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index f75043d5dc..bdcfd9d56b 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -870,7 +870,7 @@ func (check *Checker) use1(e ast.Expr, lhs bool) bool {
+ 				}
+ 			}
+ 		}
+-		check.rawExpr(nil, &x, n, nil, true)
++		check.exprOrType(&x, n, true)
+ 		if v != nil {
+ 			v.used = v_used // restore v.used
+ 		}

@@ -15,6 +15,40 @@ Date:   Mon Aug 28 02:14:22 2023 +1000
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/riscv/obj.go | 21 ++++++++-------------
  1 file changed, 8 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 776c3a8df6..36812833a9 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -1992,20 +1992,15 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
+ 		ins.as, ins.rs1, ins.rs2, ins.imm = AADDI, REG_ZERO, obj.REG_NONE, low
+ 
+ 		// LUI is only necessary if the constant does not fit in 12 bits.
+-		if high == 0 {
+-			if insSLLI != nil {
+-				inss = append(inss, insSLLI)
++		if high != 0 {
++			// LUI top20bits(c), R
++			// ADD bottom12bits(c), R, R
++			insLUI := &instruction{as: ALUI, rd: ins.rd, imm: high}
++			inss = []*instruction{insLUI}
++			if low != 0 {
++				ins.as, ins.rs1 = AADDIW, ins.rd
++				inss = append(inss, ins)
+ 			}
+-			break
+-		}
+-
+-		// LUI top20bits(c), R
+-		// ADD bottom12bits(c), R, R
+-		insLUI := &instruction{as: ALUI, rd: ins.rd, imm: high}
+-		inss = []*instruction{insLUI}
+-		if low != 0 {
+-			ins.as, ins.rs1 = AADDIW, ins.rd
+-			inss = append(inss, ins)
+ 		}
+ 		if insSLLI != nil {
+ 			inss = append(inss, insSLLI)

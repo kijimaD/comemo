@@ -8,6 +8,22 @@ Date:   Wed May 13 18:03:49 2009 -0700
     DELTA=2  (0 added, 0 deleted, 2 changed)
     OCL=28756
     CL=28784
-
+---
  src/lib/reflect/type.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/lib/reflect/type.go b/src/lib/reflect/type.go
+index 917dc28ff3..083968634d 100644
+--- a/src/lib/reflect/type.go
++++ b/src/lib/reflect/type.go
+@@ -95,8 +95,8 @@ var missingString = "$missing$"	// syntactic name for undefined type names
+ var dotDotDotString = "..."
+ 
+ // Type is the generic interface to reflection types.  Once its Kind is known,
+-// such as BoolKind, the Type can be narrowed to the appropriate, more
+-// specific interface, such as BoolType.  Such narrowed types still implement
++// such as ArrayKind, the Type can be narrowed to the appropriate, more
++// specific interface, such as ArrayType.  Such narrowed types still implement
+ // the Type interface.
+ type Type interface {
+ 	// The kind of thing described: ArrayKind, BoolKind, etc.

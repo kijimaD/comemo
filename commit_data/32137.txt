@@ -11,7 +11,7 @@ Date:   Fri Apr 7 06:53:14 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/obj/arm/asm5.go   | 3 ---
  src/cmd/internal/obj/arm64/asm7.go | 3 ---
  src/cmd/internal/obj/mips/asm0.go  | 3 ---
@@ -20,3 +20,102 @@ Date:   Fri Apr 7 06:53:14 2017 -0700
  src/cmd/internal/obj/ppc64/obj9.go | 3 ---
  src/cmd/internal/obj/s390x/objz.go | 3 ---
  7 files changed, 21 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 56ee7aa2f9..43b82deddb 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -644,9 +644,6 @@ func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	var opc int32
+ 	var out [6 + 3]uint32
+ 	for {
+-		if ctxt.Debugvlog {
+-			ctxt.Logf("%5.2f span1\n", obj.Cputime())
+-		}
+ 		bflag = 0
+ 		c = 0
+ 		times++
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 65c48d3e01..05904d4b74 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -586,9 +586,6 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	 * around jmps to fix. this is rare.
+ 	 */
+ 	for bflag != 0 {
+-		if ctxt.Debugvlog {
+-			ctxt.Logf("%5.2f span1\n", obj.Cputime())
+-		}
+ 		bflag = 0
+ 		c = 0
+ 		for p = cursym.Text.Link; p != nil; p = p.Link {
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index 4151f6ad35..8c4be669b7 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -417,9 +417,6 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	var otxt int64
+ 	var q *obj.Prog
+ 	for bflag != 0 {
+-		if ctxt.Debugvlog {
+-			ctxt.Logf("%5.2f span1\n", obj.Cputime())
+-		}
+ 		bflag = 0
+ 		c = 0
+ 		for p = cursym.Text.Link; p != nil; p = p.Link {
+diff --git a/src/cmd/internal/obj/mips/obj0.go b/src/cmd/internal/obj/mips/obj0.go
+index e5f3277885..5ed5a7cf06 100644
+--- a/src/cmd/internal/obj/mips/obj0.go
++++ b/src/cmd/internal/obj/mips/obj0.go
+@@ -146,9 +146,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	 * expand RET
+ 	 * expand BECOME pseudo
+ 	 */
+-	if ctxt.Debugvlog {
+-		ctxt.Logf("%5.2f noops\n", obj.Cputime())
+-	}
+ 
+ 	var q *obj.Prog
+ 	var q1 *obj.Prog
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 523448b0d9..54b6bef5ee 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -596,9 +596,6 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	var otxt int64
+ 	var q *obj.Prog
+ 	for bflag != 0 {
+-		if ctxt.Debugvlog {
+-			ctxt.Logf("%5.2f span1\n", obj.Cputime())
+-		}
+ 		bflag = 0
+ 		c = 0
+ 		for p = cursym.Text.Link; p != nil; p = p.Link {
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 1349075043..6c43d52086 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -259,9 +259,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	 * expand RET
+ 	 * expand BECOME pseudo
+ 	 */
+-	if ctxt.Debugvlog {
+-		ctxt.Logf("%5.2f noops\n", obj.Cputime())
+-	}
+ 
+ 	var q *obj.Prog
+ 	var q1 *obj.Prog
+diff --git a/src/cmd/internal/obj/s390x/objz.go b/src/cmd/internal/obj/s390x/objz.go
+index 4e9935dce7..b39d94e9d0 100644
+--- a/src/cmd/internal/obj/s390x/objz.go
++++ b/src/cmd/internal/obj/s390x/objz.go
+@@ -226,9 +226,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	 * strip NOPs
+ 	 * expand RET
+ 	 */
+-	if ctxt.Debugvlog {
+-		ctxt.Logf("%5.2f noops\n", obj.Cputime())
+-	}
+ 
+ 	var q *obj.Prog
+ 	for p := cursym.Text; p != nil; p = p.Link {

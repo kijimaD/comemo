@@ -14,9 +14,165 @@ Date:   Tue Aug 20 09:03:41 2019 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Richard Musiol <neelance@gmail.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/branchelim.go  |  2 +-
  src/cmd/compile/internal/ssa/gen/Wasm.rules |  2 ++
  src/cmd/compile/internal/ssa/rewriteWasm.go | 19 +++++++++++++++++++
  test/codegen/condmove.go                    | 11 +++++++++++
  4 files changed, 33 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/branchelim.go b/src/cmd/compile/internal/ssa/branchelim.go
+index c543686b3d..71c947d0d5 100644
+--- a/src/cmd/compile/internal/ssa/branchelim.go
++++ b/src/cmd/compile/internal/ssa/branchelim.go
+@@ -20,7 +20,7 @@ package ssa
+ func branchelim(f *Func) {
+ 	// FIXME: add support for lowering CondSelects on more architectures
+ 	switch f.Config.arch {
+-	case "arm64", "amd64":
++	case "arm64", "amd64", "wasm":
+ 		// implemented
+ 	default:
+ 		return
+diff --git a/src/cmd/compile/internal/ssa/gen/Wasm.rules b/src/cmd/compile/internal/ssa/gen/Wasm.rules
+index 965e4a8bb6..72bf01ba99 100644
+--- a/src/cmd/compile/internal/ssa/gen/Wasm.rules
++++ b/src/cmd/compile/internal/ssa/gen/Wasm.rules
+@@ -390,6 +390,8 @@
+ (PopCount16 x) -> (I64Popcnt (ZeroExt16to64 x))
+ (PopCount8  x) -> (I64Popcnt (ZeroExt8to64  x))
+ 
++(CondSelect <t> x y cond) -> (Select <t> x y cond)
++
+ // --- Optimizations ---
+ (I64Add (I64Const [x]) (I64Const [y])) -> (I64Const [x + y])
+ (I64Mul (I64Const [x]) (I64Const [y])) -> (I64Const [x * y])
+diff --git a/src/cmd/compile/internal/ssa/rewriteWasm.go b/src/cmd/compile/internal/ssa/rewriteWasm.go
+index 98ca6f69a3..4bded46065 100644
+--- a/src/cmd/compile/internal/ssa/rewriteWasm.go
++++ b/src/cmd/compile/internal/ssa/rewriteWasm.go
+@@ -50,6 +50,8 @@ func rewriteValueWasm(v *Value) bool {
+ 		return rewriteValueWasm_OpCom64_0(v)
+ 	case OpCom8:
+ 		return rewriteValueWasm_OpCom8_0(v)
++	case OpCondSelect:
++		return rewriteValueWasm_OpCondSelect_0(v)
+ 	case OpConst16:
+ 		return rewriteValueWasm_OpConst16_0(v)
+ 	case OpConst32:
+@@ -865,6 +867,23 @@ func rewriteValueWasm_OpCom8_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueWasm_OpCondSelect_0(v *Value) bool {
++	// match: (CondSelect <t> x y cond)
++	// cond:
++	// result: (Select <t> x y cond)
++	for {
++		t := v.Type
++		cond := v.Args[2]
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpWasmSelect)
++		v.Type = t
++		v.AddArg(x)
++		v.AddArg(y)
++		v.AddArg(cond)
++		return true
++	}
++}
+ func rewriteValueWasm_OpConst16_0(v *Value) bool {
+ 	// match: (Const16 [val])
+ 	// cond:
+diff --git a/test/codegen/condmove.go b/test/codegen/condmove.go
+index 3690a54618..bd3fe59427 100644
+--- a/test/codegen/condmove.go
++++ b/test/codegen/condmove.go
+@@ -13,6 +13,7 @@ func cmovint(c int) int {
+ 	}
+ 	// amd64:"CMOVQLT"
+ 	// arm64:"CSEL\tLT"
++	// wasm:"Select"
+ 	return x
+ }
+ 
+@@ -22,6 +23,7 @@ func cmovchan(x, y chan int) chan int {
+ 	}
+ 	// amd64:"CMOVQNE"
+ 	// arm64:"CSEL\tNE"
++	// wasm:"Select"
+ 	return x
+ }
+ 
+@@ -31,6 +33,7 @@ func cmovuintptr(x, y uintptr) uintptr {
+ 	}
+ 	// amd64:"CMOVQCS"
+ 	// arm64:"CSEL\tLO"
++	// wasm:"Select"
+ 	return x
+ }
+ 
+@@ -40,6 +43,7 @@ func cmov32bit(x, y uint32) uint32 {
+ 	}
+ 	// amd64:"CMOVLCS"
+ 	// arm64:"CSEL\tLO"
++	// wasm:"Select"
+ 	return x
+ }
+ 
+@@ -49,6 +53,7 @@ func cmov16bit(x, y uint16) uint16 {
+ 	}
+ 	// amd64:"CMOVWCS"
+ 	// arm64:"CSEL\tLO"
++	// wasm:"Select"
+ 	return x
+ }
+ 
+@@ -61,6 +66,7 @@ func cmovfloateq(x, y float64) int {
+ 	}
+ 	// amd64:"CMOVQNE","CMOVQPC"
+ 	// arm64:"CSEL\tEQ"
++	// wasm:"Select"
+ 	return a
+ }
+ 
+@@ -71,6 +77,7 @@ func cmovfloatne(x, y float64) int {
+ 	}
+ 	// amd64:"CMOVQNE","CMOVQPS"
+ 	// arm64:"CSEL\tNE"
++	// wasm:"Select"
+ 	return a
+ }
+ 
+@@ -96,6 +103,7 @@ func cmovfloatint2(x, y float64) float64 {
+ 		}
+ 		// amd64:"CMOVQHI"
+ 		// arm64:"CSEL\tMI"
++		// wasm:"Select"
+ 		r = r - ldexp(y, (rexp-yexp))
+ 	}
+ 	return r
+@@ -109,6 +117,7 @@ func cmovloaded(x [4]int, y int) int {
+ 	}
+ 	// amd64:"CMOVQNE"
+ 	// arm64:"CSEL\tNE"
++	// wasm:"Select"
+ 	return y
+ }
+ 
+@@ -119,6 +128,7 @@ func cmovuintptr2(x, y uintptr) uintptr {
+ 	}
+ 	// amd64:"CMOVQEQ"
+ 	// arm64:"CSEL\tEQ"
++	// wasm:"Select"
+ 	return a
+ }
+ 
+@@ -130,6 +140,7 @@ func cmovfloatmove(x, y int) float64 {
+ 	}
+ 	// amd64:-"CMOV"
+ 	// arm64:-"CSEL"
++	// wasm:-"Select"
+ 	return a
+ }
+ 

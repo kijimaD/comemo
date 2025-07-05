@@ -9,6 +9,19 @@ Date:   Sat May 23 00:46:10 2015 +0200
     Change-Id: I8edf210787a9803280c0779ff710c7e634a820d6
     Reviewed-on: https://go-review.googlesource.com/10341
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/test/sigprocmask_linux.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/misc/cgo/test/sigprocmask_linux.c b/misc/cgo/test/sigprocmask_linux.c
+index 6597e985ac..518c533fa4 100644
+--- a/misc/cgo/test/sigprocmask_linux.c
++++ b/misc/cgo/test/sigprocmask_linux.c
+@@ -22,6 +22,7 @@ static void* sigthreadfunc(void* unused) {
+ 	sigaddset(&mask, SIGIO);
+ 	sigprocmask(SIG_BLOCK, &mask, NULL);
+ 	IntoGoAndBack();
++	return NULL;
+ }
+ 
+ int RunSigThread() {

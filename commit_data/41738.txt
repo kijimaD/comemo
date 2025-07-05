@@ -14,8 +14,88 @@ Date:   Tue Oct 22 15:29:28 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modfile/gopkgin.go | 47 ----------------------------------
  src/cmd/go/internal/modfile/print.go   |  1 +
  src/cmd/go/internal/modfile/read.go    |  3 ++-
  3 files changed, 3 insertions(+), 48 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfile/gopkgin.go b/src/cmd/go/internal/modfile/gopkgin.go
+deleted file mode 100644
+index c94b3848a0..0000000000
+--- a/src/cmd/go/internal/modfile/gopkgin.go
++++ /dev/null
+@@ -1,47 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// TODO: Figure out what gopkg.in should do.
+-
+-package modfile
+-
+-import "strings"
+-
+-// ParseGopkgIn splits gopkg.in import paths into their constituent parts
+-func ParseGopkgIn(path string) (root, repo, major, subdir string, ok bool) {
+-	if !strings.HasPrefix(path, "gopkg.in/") {
+-		return
+-	}
+-	f := strings.Split(path, "/")
+-	if len(f) >= 2 {
+-		if elem, v, ok := dotV(f[1]); ok {
+-			root = strings.Join(f[:2], "/")
+-			repo = "github.com/go-" + elem + "/" + elem
+-			major = v
+-			subdir = strings.Join(f[2:], "/")
+-			return root, repo, major, subdir, true
+-		}
+-	}
+-	if len(f) >= 3 {
+-		if elem, v, ok := dotV(f[2]); ok {
+-			root = strings.Join(f[:3], "/")
+-			repo = "github.com/" + f[1] + "/" + elem
+-			major = v
+-			subdir = strings.Join(f[3:], "/")
+-			return root, repo, major, subdir, true
+-		}
+-	}
+-	return
+-}
+-
+-func dotV(name string) (elem, v string, ok bool) {
+-	i := len(name) - 1
+-	for i >= 0 && '0' <= name[i] && name[i] <= '9' {
+-		i--
+-	}
+-	if i <= 2 || i+1 >= len(name) || name[i-1] != '.' || name[i] != 'v' || name[i+1] == '0' && len(name) != i+2 {
+-		return "", "", false
+-	}
+-	return name[:i-1], name[i:], true
+-}
+diff --git a/src/cmd/go/internal/modfile/print.go b/src/cmd/go/internal/modfile/print.go
+index cefc43b141..3bbea38529 100644
+--- a/src/cmd/go/internal/modfile/print.go
++++ b/src/cmd/go/internal/modfile/print.go
+@@ -12,6 +12,7 @@ import (
+ 	"strings"
+ )
+ 
++// Format returns a go.mod file as a byte slice, formatted in standard style.
+ func Format(f *FileSyntax) []byte {
+ 	pr := &printer{}
+ 	pr.file(f)
+diff --git a/src/cmd/go/internal/modfile/read.go b/src/cmd/go/internal/modfile/read.go
+index 1d81ff1ab7..bfa90a5a64 100644
+--- a/src/cmd/go/internal/modfile/read.go
++++ b/src/cmd/go/internal/modfile/read.go
+@@ -17,7 +17,8 @@ import (
+ 	"unicode/utf8"
+ )
+ 
+-// A Position describes the position between two bytes of input.
++// A Position describes an arbitrary source position in a file, including the
++// file, line, column, and byte offset.
+ type Position struct {
+ 	Line     int // line in input (starting at 1)
+ 	LineRune int // rune in line (starting at 1)

@@ -12,7 +12,58 @@ Date:   Fri Aug 29 17:17:48 2014 +1000
     R=nigeltao
     CC=golang-codereviews
     https://golang.org/cl/137830043
-
+---
  src/pkg/image/png/writer.go      |  5 ++++-
  src/pkg/image/png/writer_test.go | 15 +++++++++------
  2 files changed, 13 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/image/png/writer.go b/src/pkg/image/png/writer.go
+index 703aeec0a2..b1a70c79d3 100644
+--- a/src/pkg/image/png/writer.go
++++ b/src/pkg/image/png/writer.go
+@@ -417,7 +417,10 @@ func writeImage(w io.Writer, m image.Image, cb int, level int) error {
+ 		}
+ 
+ 		// Apply the filter.
+-		f := filter(&cr, pr, bpp)
++		f := ftNone
++		if level != zlib.NoCompression {
++			f = filter(&cr, pr, bpp)
++		}
+ 
+ 		// Write the compressed bytes.
+ 		if _, err := zw.Write(cr[f]); err != nil {
+diff --git a/src/pkg/image/png/writer_test.go b/src/pkg/image/png/writer_test.go
+index 6a872e2749..d67a815698 100644
+--- a/src/pkg/image/png/writer_test.go
++++ b/src/pkg/image/png/writer_test.go
+@@ -81,20 +81,23 @@ func TestWriterLevels(t *testing.T) {
+ 	m := image.NewNRGBA(image.Rect(0, 0, 100, 100))
+ 
+ 	var b1, b2 bytes.Buffer
+-	var e1, e2 Encoder
+-
+-	if err := e1.Encode(&b1, m); err != nil {
++	if err := (&Encoder{}).Encode(&b1, m); err != nil {
+ 		t.Fatal(err)
+ 	}
+-
+-	e2.CompressionLevel = NoCompression
+-	if err := e2.Encode(&b2, m); err != nil {
++	noenc := &Encoder{CompressionLevel: NoCompression}
++	if err := noenc.Encode(&b2, m); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+ 	if b2.Len() <= b1.Len() {
+ 		t.Error("DefaultCompression encoding was larger than NoCompression encoding")
+ 	}
++	if _, err := Decode(&b1); err != nil {
++		t.Error("cannot decode DefaultCompression")
++	}
++	if _, err := Decode(&b2); err != nil {
++		t.Error("cannot decode NoCompression")
++	}
+ }
+ 
+ func TestSubImage(t *testing.T) {

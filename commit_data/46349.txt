@@ -47,7 +47,7 @@ Date:   Wed Dec 23 00:52:53 2020 -0500
     Trust: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/closure.go             |  60 ---
  src/cmd/compile/internal/gc/dcl.go                 |  64 ---
  src/cmd/compile/internal/gc/embed.go               |  53 ---
@@ -61,3 +61,1815 @@ Date:   Wed Dec 23 00:52:53 2020 -0500
  src/cmd/compile/internal/{gc => noder}/noder.go    | 225 ++++++++--
  src/cmd/internal/archive/archive.go                |  21 +
  12 files changed, 735 insertions(+), 716 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 29455bffd8..4679b6535b 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -7,71 +7,11 @@ package gc
+ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+-	"cmd/compile/internal/syntax"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
+ )
+ 
+-func (p *noder) funcLit(expr *syntax.FuncLit) ir.Node {
+-	xtype := p.typeExpr(expr.Type)
+-	ntype := p.typeExpr(expr.Type)
+-
+-	fn := ir.NewFunc(p.pos(expr))
+-	fn.SetIsHiddenClosure(ir.CurFunc != nil)
+-	fn.Nname = ir.NewFuncNameAt(p.pos(expr), ir.BlankNode.Sym(), fn) // filled in by typecheckclosure
+-	fn.Nname.Ntype = xtype
+-	fn.Nname.Defn = fn
+-
+-	clo := ir.NewClosureExpr(p.pos(expr), fn)
+-	fn.ClosureType = ntype
+-	fn.OClosure = clo
+-
+-	p.funcBody(fn, expr.Body)
+-
+-	// closure-specific variables are hanging off the
+-	// ordinary ones in the symbol table; see oldname.
+-	// unhook them.
+-	// make the list of pointers for the closure call.
+-	for _, v := range fn.ClosureVars {
+-		// Unlink from v1; see comment in syntax.go type Param for these fields.
+-		v1 := v.Defn
+-		v1.Name().Innermost = v.Outer
+-
+-		// If the closure usage of v is not dense,
+-		// we need to make it dense; now that we're out
+-		// of the function in which v appeared,
+-		// look up v.Sym in the enclosing function
+-		// and keep it around for use in the compiled code.
+-		//
+-		// That is, suppose we just finished parsing the innermost
+-		// closure f4 in this code:
+-		//
+-		//	func f() {
+-		//		v := 1
+-		//		func() { // f2
+-		//			use(v)
+-		//			func() { // f3
+-		//				func() { // f4
+-		//					use(v)
+-		//				}()
+-		//			}()
+-		//		}()
+-		//	}
+-		//
+-		// At this point v.Outer is f2's v; there is no f3's v.
+-		// To construct the closure f4 from within f3,
+-		// we need to use f3's v and in this case we need to create f3's v.
+-		// We are now in the context of f3, so calling oldname(v.Sym)
+-		// obtains f3's v, creating it if necessary (as it is in the example).
+-		//
+-		// capturevars will decide whether to use v directly or &v.
+-		v.Outer = oldname(v.Sym()).(*ir.Name)
+-	}
+-
+-	return clo
+-}
+-
+ // transformclosure is called in a separate phase after escape analysis.
+ // It transform closure bodies to properly reference captured variables.
+ func transformclosure(fn *ir.Func) {
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index e53bba44ad..aaf5b35057 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -28,70 +28,6 @@ func NoWriteBarrierRecCheck() {
+ 
+ var nowritebarrierrecCheck *nowritebarrierrecChecker
+ 
+-// oldname returns the Node that declares symbol s in the current scope.
+-// If no such Node currently exists, an ONONAME Node is returned instead.
+-// Automatically creates a new closure variable if the referenced symbol was
+-// declared in a different (containing) function.
+-func oldname(s *types.Sym) ir.Node {
+-	if s.Pkg != types.LocalPkg {
+-		return ir.NewIdent(base.Pos, s)
+-	}
+-
+-	n := ir.AsNode(s.Def)
+-	if n == nil {
+-		// Maybe a top-level declaration will come along later to
+-		// define s. resolve will check s.Def again once all input
+-		// source has been processed.
+-		return ir.NewIdent(base.Pos, s)
+-	}
+-
+-	if ir.CurFunc != nil && n.Op() == ir.ONAME && n.Name().Curfn != nil && n.Name().Curfn != ir.CurFunc {
+-		// Inner func is referring to var in outer func.
+-		//
+-		// TODO(rsc): If there is an outer variable x and we
+-		// are parsing x := 5 inside the closure, until we get to
+-		// the := it looks like a reference to the outer x so we'll
+-		// make x a closure variable unnecessarily.
+-		n := n.(*ir.Name)
+-		c := n.Name().Innermost
+-		if c == nil || c.Curfn != ir.CurFunc {
+-			// Do not have a closure var for the active closure yet; make one.
+-			c = typecheck.NewName(s)
+-			c.Class_ = ir.PAUTOHEAP
+-			c.SetIsClosureVar(true)
+-			c.SetIsDDD(n.IsDDD())
+-			c.Defn = n
+-
+-			// Link into list of active closure variables.
+-			// Popped from list in func funcLit.
+-			c.Outer = n.Name().Innermost
+-			n.Name().Innermost = c
+-
+-			ir.CurFunc.ClosureVars = append(ir.CurFunc.ClosureVars, c)
+-		}
+-
+-		// return ref to closure var, not original
+-		return c
+-	}
+-
+-	return n
+-}
+-
+-// importName is like oldname,
+-// but it reports an error if sym is from another package and not exported.
+-func importName(sym *types.Sym) ir.Node {
+-	n := oldname(sym)
+-	if !types.IsExported(sym.Name) && sym.Pkg != types.LocalPkg {
+-		n.SetDiag(true)
+-		base.Errorf("cannot refer to unexported name %s.%s", sym.Pkg.Name, sym.Name)
+-	}
+-	return n
+-}
+-
+-func fakeRecv() *ir.Field {
+-	return ir.NewField(base.Pos, nil, nil, types.FakeRecvType())
+-}
+-
+ // funcsym returns s·f.
+ func funcsym(s *types.Sym) *types.Sym {
+ 	// funcsymsmu here serves to protect not just mutations of funcsyms (below),
+diff --git a/src/cmd/compile/internal/gc/embed.go b/src/cmd/compile/internal/gc/embed.go
+index 282e718b29..959d8cd7fe 100644
+--- a/src/cmd/compile/internal/gc/embed.go
++++ b/src/cmd/compile/internal/gc/embed.go
+@@ -8,14 +8,12 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/objw"
+-	"cmd/compile/internal/syntax"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 
+ 	"path"
+ 	"sort"
+-	"strconv"
+ 	"strings"
+ )
+ 
+@@ -26,57 +24,6 @@ const (
+ 	embedFiles
+ )
+ 
+-func varEmbed(p *noder, names []*ir.Name, typ ir.Ntype, exprs []ir.Node, embeds []PragmaEmbed) (newExprs []ir.Node) {
+-	haveEmbed := false
+-	for _, decl := range p.file.DeclList {
+-		imp, ok := decl.(*syntax.ImportDecl)
+-		if !ok {
+-			// imports always come first
+-			break
+-		}
+-		path, _ := strconv.Unquote(imp.Path.Value)
+-		if path == "embed" {
+-			haveEmbed = true
+-			break
+-		}
+-	}
+-
+-	pos := embeds[0].Pos
+-	if !haveEmbed {
+-		p.errorAt(pos, "invalid go:embed: missing import \"embed\"")
+-		return exprs
+-	}
+-	if base.Flag.Cfg.Embed.Patterns == nil {
+-		p.errorAt(pos, "invalid go:embed: build system did not supply embed configuration")
+-		return exprs
+-	}
+-	if len(names) > 1 {
+-		p.errorAt(pos, "go:embed cannot apply to multiple vars")
+-		return exprs
+-	}
+-	if len(exprs) > 0 {
+-		p.errorAt(pos, "go:embed cannot apply to var with initializer")
+-		return exprs
+-	}
+-	if typ == nil {
+-		// Should not happen, since len(exprs) == 0 now.
+-		p.errorAt(pos, "go:embed cannot apply to var without type")
+-		return exprs
+-	}
+-	if typecheck.DeclContext != ir.PEXTERN {
+-		p.errorAt(pos, "go:embed cannot apply to var inside func")
+-		return exprs
+-	}
+-
+-	v := names[0]
+-	typecheck.Target.Embeds = append(typecheck.Target.Embeds, v)
+-	v.Embed = new([]ir.Embed)
+-	for _, e := range embeds {
+-		*v.Embed = append(*v.Embed, ir.Embed{Pos: p.makeXPos(e.Pos), Patterns: e.Patterns})
+-	}
+-	return exprs
+-}
+-
+ func embedFileList(v *ir.Name) []string {
+ 	kind := embedKind(v.Type())
+ 	if kind == embedUnknown {
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index da3f40f4e8..a299b8688b 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -13,18 +13,6 @@ import (
+ 	"cmd/internal/obj"
+ )
+ 
+-// A function named init is a special case.
+-// It is called by the initialization before main is run.
+-// To make it unique within a package and also uncallable,
+-// the name, normally "pkg.init", is altered to "pkg.init.0".
+-var renameinitgen int
+-
+-func renameinit() *types.Sym {
+-	s := typecheck.LookupNum("init.", renameinitgen)
+-	renameinitgen++
+-	return s
+-}
+-
+ // fninit makes and returns an initialization record for the package.
+ // See runtime/proc.go:initTask for its layout.
+ // The 3 tasks for initialization are:
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index cda00fb9ae..7b540d8675 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -14,26 +14,21 @@ import (
+ 	"cmd/compile/internal/inline"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/logopt"
++	"cmd/compile/internal/noder"
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+-	"cmd/internal/bio"
+ 	"cmd/internal/dwarf"
+-	"cmd/internal/goobj"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ 	"flag"
+ 	"fmt"
+-	"go/constant"
+-	"io"
+ 	"io/ioutil"
+ 	"log"
+ 	"os"
+-	"path"
+ 	"runtime"
+ 	"sort"
+-	"strconv"
+ 	"strings"
+ )
+ 
+@@ -212,7 +207,7 @@ func Main(archInit func(*Arch)) {
+ 
+ 	// Parse input.
+ 	base.Timer.Start("fe", "parse")
+-	lines := parseFiles(flag.Args())
++	lines := noder.ParseFiles(flag.Args())
+ 	cgoSymABIs()
+ 	base.Timer.Stop()
+ 	base.Timer.AddEvent(int64(lines), "lines")
+@@ -222,7 +217,7 @@ func Main(archInit func(*Arch)) {
+ 	typecheck.Package()
+ 
+ 	// With all user code typechecked, it's now safe to verify unused dot imports.
+-	checkDotImports()
++	noder.CheckDotImports()
+ 	base.ExitIfErrors()
+ 
+ 	// Build init task.
+@@ -468,371 +463,6 @@ func readSymABIs(file, myimportpath string) {
+ 	}
+ }
+ 
+-func arsize(b *bufio.Reader, name string) int {
+-	var buf [ArhdrSize]byte
+-	if _, err := io.ReadFull(b, buf[:]); err != nil {
+-		return -1
+-	}
+-	aname := strings.Trim(string(buf[0:16]), " ")
+-	if !strings.HasPrefix(aname, name) {
+-		return -1
+-	}
+-	asize := strings.Trim(string(buf[48:58]), " ")
+-	i, _ := strconv.Atoi(asize)
+-	return i
+-}
+-
+-func isDriveLetter(b byte) bool {
+-	return 'a' <= b && b <= 'z' || 'A' <= b && b <= 'Z'
+-}
+-
+-// is this path a local name? begins with ./ or ../ or /
+-func islocalname(name string) bool {
+-	return strings.HasPrefix(name, "/") ||
+-		runtime.GOOS == "windows" && len(name) >= 3 && isDriveLetter(name[0]) && name[1] == ':' && name[2] == '/' ||
+-		strings.HasPrefix(name, "./") || name == "." ||
+-		strings.HasPrefix(name, "../") || name == ".."
+-}
+-
+-func findpkg(name string) (file string, ok bool) {
+-	if islocalname(name) {
+-		if base.Flag.NoLocalImports {
+-			return "", false
+-		}
+-
+-		if base.Flag.Cfg.PackageFile != nil {
+-			file, ok = base.Flag.Cfg.PackageFile[name]
+-			return file, ok
+-		}
+-
+-		// try .a before .6.  important for building libraries:
+-		// if there is an array.6 in the array.a library,
+-		// want to find all of array.a, not just array.6.
+-		file = fmt.Sprintf("%s.a", name)
+-		if _, err := os.Stat(file); err == nil {
+-			return file, true
+-		}
+-		file = fmt.Sprintf("%s.o", name)
+-		if _, err := os.Stat(file); err == nil {
+-			return file, true
+-		}
+-		return "", false
+-	}
+-
+-	// local imports should be canonicalized already.
+-	// don't want to see "encoding/../encoding/base64"
+-	// as different from "encoding/base64".
+-	if q := path.Clean(name); q != name {
+-		base.Errorf("non-canonical import path %q (should be %q)", name, q)
+-		return "", false
+-	}
+-
+-	if base.Flag.Cfg.PackageFile != nil {
+-		file, ok = base.Flag.Cfg.PackageFile[name]
+-		return file, ok
+-	}
+-
+-	for _, dir := range base.Flag.Cfg.ImportDirs {
+-		file = fmt.Sprintf("%s/%s.a", dir, name)
+-		if _, err := os.Stat(file); err == nil {
+-			return file, true
+-		}
+-		file = fmt.Sprintf("%s/%s.o", dir, name)
+-		if _, err := os.Stat(file); err == nil {
+-			return file, true
+-		}
+-	}
+-
+-	if objabi.GOROOT != "" {
+-		suffix := ""
+-		suffixsep := ""
+-		if base.Flag.InstallSuffix != "" {
+-			suffixsep = "_"
+-			suffix = base.Flag.InstallSuffix
+-		} else if base.Flag.Race {
+-			suffixsep = "_"
+-			suffix = "race"
+-		} else if base.Flag.MSan {
+-			suffixsep = "_"
+-			suffix = "msan"
+-		}
+-
+-		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.a", objabi.GOROOT, objabi.GOOS, objabi.GOARCH, suffixsep, suffix, name)
+-		if _, err := os.Stat(file); err == nil {
+-			return file, true
+-		}
+-		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.o", objabi.GOROOT, objabi.GOOS, objabi.GOARCH, suffixsep, suffix, name)
+-		if _, err := os.Stat(file); err == nil {
+-			return file, true
+-		}
+-	}
+-
+-	return "", false
+-}
+-
+-// myheight tracks the local package's height based on packages
+-// imported so far.
+-var myheight int
+-
+-func importfile(f constant.Value) *types.Pkg {
+-	if f.Kind() != constant.String {
+-		base.Errorf("import path must be a string")
+-		return nil
+-	}
+-
+-	path_ := constant.StringVal(f)
+-	if len(path_) == 0 {
+-		base.Errorf("import path is empty")
+-		return nil
+-	}
+-
+-	if isbadimport(path_, false) {
+-		return nil
+-	}
+-
+-	// The package name main is no longer reserved,
+-	// but we reserve the import path "main" to identify
+-	// the main package, just as we reserve the import
+-	// path "math" to identify the standard math package.
+-	if path_ == "main" {
+-		base.Errorf("cannot import \"main\"")
+-		base.ErrorExit()
+-	}
+-
+-	if base.Ctxt.Pkgpath != "" && path_ == base.Ctxt.Pkgpath {
+-		base.Errorf("import %q while compiling that package (import cycle)", path_)
+-		base.ErrorExit()
+-	}
+-
+-	if mapped, ok := base.Flag.Cfg.ImportMap[path_]; ok {
+-		path_ = mapped
+-	}
+-
+-	if path_ == "unsafe" {
+-		return ir.Pkgs.Unsafe
+-	}
+-
+-	if islocalname(path_) {
+-		if path_[0] == '/' {
+-			base.Errorf("import path cannot be absolute path")
+-			return nil
+-		}
+-
+-		prefix := base.Ctxt.Pathname
+-		if base.Flag.D != "" {
+-			prefix = base.Flag.D
+-		}
+-		path_ = path.Join(prefix, path_)
+-
+-		if isbadimport(path_, true) {
+-			return nil
+-		}
+-	}
+-
+-	file, found := findpkg(path_)
+-	if !found {
+-		base.Errorf("can't find import: %q", path_)
+-		base.ErrorExit()
+-	}
+-
+-	importpkg := types.NewPkg(path_, "")
+-	if importpkg.Imported {
+-		return importpkg
+-	}
+-
+-	importpkg.Imported = true
+-
+-	imp, err := bio.Open(file)
+-	if err != nil {
+-		base.Errorf("can't open import: %q: %v", path_, err)
+-		base.ErrorExit()
+-	}
+-	defer imp.Close()
+-
+-	// check object header
+-	p, err := imp.ReadString('\n')
+-	if err != nil {
+-		base.Errorf("import %s: reading input: %v", file, err)
+-		base.ErrorExit()
+-	}
+-
+-	if p == "!<arch>\n" { // package archive
+-		// package export block should be first
+-		sz := arsize(imp.Reader, "__.PKGDEF")
+-		if sz <= 0 {
+-			base.Errorf("import %s: not a package file", file)
+-			base.ErrorExit()
+-		}
+-		p, err = imp.ReadString('\n')
+-		if err != nil {
+-			base.Errorf("import %s: reading input: %v", file, err)
+-			base.ErrorExit()
+-		}
+-	}
+-
+-	if !strings.HasPrefix(p, "go object ") {
+-		base.Errorf("import %s: not a go object file: %s", file, p)
+-		base.ErrorExit()
+-	}
+-	q := fmt.Sprintf("%s %s %s %s\n", objabi.GOOS, objabi.GOARCH, objabi.Version, objabi.Expstring())
+-	if p[10:] != q {
+-		base.Errorf("import %s: object is [%s] expected [%s]", file, p[10:], q)
+-		base.ErrorExit()
+-	}
+-
+-	// process header lines
+-	for {
+-		p, err = imp.ReadString('\n')
+-		if err != nil {
+-			base.Errorf("import %s: reading input: %v", file, err)
+-			base.ErrorExit()
+-		}
+-		if p == "\n" {
+-			break // header ends with blank line
+-		}
+-	}
+-
+-	// Expect $$B\n to signal binary import format.
+-
+-	// look for $$
+-	var c byte
+-	for {
+-		c, err = imp.ReadByte()
+-		if err != nil {
+-			break
+-		}
+-		if c == '$' {
+-			c, err = imp.ReadByte()
+-			if c == '$' || err != nil {
+-				break
+-			}
+-		}
+-	}
+-
+-	// get character after $$
+-	if err == nil {
+-		c, _ = imp.ReadByte()
+-	}
+-
+-	var fingerprint goobj.FingerprintType
+-	switch c {
+-	case '\n':
+-		base.Errorf("cannot import %s: old export format no longer supported (recompile library)", path_)
+-		return nil
+-
+-	case 'B':
+-		if base.Debug.Export != 0 {
+-			fmt.Printf("importing %s (%s)\n", path_, file)
+-		}
+-		imp.ReadByte() // skip \n after $$B
+-
+-		c, err = imp.ReadByte()
+-		if err != nil {
+-			base.Errorf("import %s: reading input: %v", file, err)
+-			base.ErrorExit()
+-		}
+-
+-		// Indexed format is distinguished by an 'i' byte,
+-		// whereas previous export formats started with 'c', 'd', or 'v'.
+-		if c != 'i' {
+-			base.Errorf("import %s: unexpected package format byte: %v", file, c)
+-			base.ErrorExit()
+-		}
+-		fingerprint = typecheck.ReadImports(importpkg, imp)
+-
+-	default:
+-		base.Errorf("no import in %q", path_)
+-		base.ErrorExit()
+-	}
+-
+-	// assume files move (get installed) so don't record the full path
+-	if base.Flag.Cfg.PackageFile != nil {
+-		// If using a packageFile map, assume path_ can be recorded directly.
+-		base.Ctxt.AddImport(path_, fingerprint)
+-	} else {
+-		// For file "/Users/foo/go/pkg/darwin_amd64/math.a" record "math.a".
+-		base.Ctxt.AddImport(file[len(file)-len(path_)-len(".a"):], fingerprint)
+-	}
+-
+-	if importpkg.Height >= myheight {
+-		myheight = importpkg.Height + 1
+-	}
+-
+-	return importpkg
+-}
+-
+-func pkgnotused(lineno src.XPos, path string, name string) {
+-	// If the package was imported with a name other than the final
+-	// import path element, show it explicitly in the error message.
+-	// Note that this handles both renamed imports and imports of
+-	// packages containing unconventional package declarations.
+-	// Note that this uses / always, even on Windows, because Go import
+-	// paths always use forward slashes.
+-	elem := path
+-	if i := strings.LastIndex(elem, "/"); i >= 0 {
+-		elem = elem[i+1:]
+-	}
+-	if name == "" || elem == name {
+-		base.ErrorfAt(lineno, "imported and not used: %q", path)
+-	} else {
+-		base.ErrorfAt(lineno, "imported and not used: %q as %s", path, name)
+-	}
+-}
+-
+-func mkpackage(pkgname string) {
+-	if types.LocalPkg.Name == "" {
+-		if pkgname == "_" {
+-			base.Errorf("invalid package name _")
+-		}
+-		types.LocalPkg.Name = pkgname
+-	} else {
+-		if pkgname != types.LocalPkg.Name {
+-			base.Errorf("package %s; expected %s", pkgname, types.LocalPkg.Name)
+-		}
+-	}
+-}
+-
+-func clearImports() {
+-	type importedPkg struct {
+-		pos  src.XPos
+-		path string
+-		name string
+-	}
+-	var unused []importedPkg
+-
+-	for _, s := range types.LocalPkg.Syms {
+-		n := ir.AsNode(s.Def)
+-		if n == nil {
+-			continue
+-		}
+-		if n.Op() == ir.OPACK {
+-			// throw away top-level package name left over
+-			// from previous file.
+-			// leave s->block set to cause redeclaration
+-			// errors if a conflicting top-level name is
+-			// introduced by a different file.
+-			p := n.(*ir.PkgName)
+-			if !p.Used && base.SyntaxErrors() == 0 {
+-				unused = append(unused, importedPkg{p.Pos(), p.Pkg.Path, s.Name})
+-			}
+-			s.Def = nil
+-			continue
+-		}
+-		if types.IsDotAlias(s) {
+-			// throw away top-level name left over
+-			// from previous import . "x"
+-			// We'll report errors after type checking in checkDotImports.
+-			s.Def = nil
+-			continue
+-		}
+-	}
+-
+-	sort.Slice(unused, func(i, j int) bool { return unused[i].pos.Before(unused[j].pos) })
+-	for _, pkg := range unused {
+-		pkgnotused(pkg.pos, pkg.path, pkg.name)
+-	}
+-}
+-
+ // recordFlags records the specified command-line flags to be placed
+ // in the DWARF info.
+ func recordFlags(flags ...string) {
+@@ -922,3 +552,7 @@ func useABIWrapGen(f *ir.Func) bool {
+ 
+ 	return true
+ }
++
++func makePos(b *src.PosBase, line, col uint) src.XPos {
++	return base.Ctxt.PosTable.XPos(src.MakePos(b, line, col))
++}
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 1d0a0f7a04..0dbe1da8d4 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -10,6 +10,7 @@ import (
+ 	"cmd/compile/internal/objw"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
++	"cmd/internal/archive"
+ 	"cmd/internal/bio"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+@@ -25,13 +26,6 @@ import (
+ 	"strconv"
+ )
+ 
+-// architecture-independent object file output
+-const ArhdrSize = 60
+-
+-func formathdr(arhdr []byte, name string, size int64) {
+-	copy(arhdr[:], fmt.Sprintf("%-16s%-12d%-6d%-6d%-8o%-10d`\n", name, 0, 0, 0, 0644, size))
+-}
+-
+ // These modes say which kind of object file to generate.
+ // The default use of the toolchain is to set both bits,
+ // generating a combined compiler+linker object, one that
+@@ -93,7 +87,7 @@ func printObjHeader(bout *bio.Writer) {
+ }
+ 
+ func startArchiveEntry(bout *bio.Writer) int64 {
+-	var arhdr [ArhdrSize]byte
++	var arhdr [archive.HeaderSize]byte
+ 	bout.Write(arhdr[:])
+ 	return bout.Offset()
+ }
+@@ -104,10 +98,10 @@ func finishArchiveEntry(bout *bio.Writer, start int64, name string) {
+ 	if size&1 != 0 {
+ 		bout.WriteByte(0)
+ 	}
+-	bout.MustSeek(start-ArhdrSize, 0)
++	bout.MustSeek(start-archive.HeaderSize, 0)
+ 
+-	var arhdr [ArhdrSize]byte
+-	formathdr(arhdr[:], name, size)
++	var arhdr [archive.HeaderSize]byte
++	archive.FormatHeader(arhdr[:], name, size)
+ 	bout.Write(arhdr[:])
+ 	bout.Flush()
+ 	bout.MustSeek(start+size+(size&1), 0)
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index cba9bdc253..362c5162b6 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -13,10 +13,7 @@ import (
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
+ 	"fmt"
+-	"strings"
+ 	"sync"
+-	"unicode"
+-	"unicode/utf8"
+ )
+ 
+ // largeStack is info about a function whose stack frame is too large (rare).
+@@ -32,55 +29,6 @@ var (
+ 	largeStackFrames   []largeStack
+ )
+ 
+-// dotImports tracks all PkgNames that have been dot-imported.
+-var dotImports []*ir.PkgName
+-
+-// find all the exported symbols in package referenced by PkgName,
+-// and make them available in the current package
+-func importDot(pack *ir.PkgName) {
+-	if typecheck.DotImportRefs == nil {
+-		typecheck.DotImportRefs = make(map[*ir.Ident]*ir.PkgName)
+-	}
+-
+-	opkg := pack.Pkg
+-	for _, s := range opkg.Syms {
+-		if s.Def == nil {
+-			if _, ok := typecheck.DeclImporter[s]; !ok {
+-				continue
+-			}
+-		}
+-		if !types.IsExported(s.Name) || strings.ContainsRune(s.Name, 0xb7) { // 0xb7 = center dot
+-			continue
+-		}
+-		s1 := typecheck.Lookup(s.Name)
+-		if s1.Def != nil {
+-			pkgerror := fmt.Sprintf("during import %q", opkg.Path)
+-			typecheck.Redeclared(base.Pos, s1, pkgerror)
+-			continue
+-		}
+-
+-		id := ir.NewIdent(src.NoXPos, s)
+-		typecheck.DotImportRefs[id] = pack
+-		s1.Def = id
+-		s1.Block = 1
+-	}
+-
+-	dotImports = append(dotImports, pack)
+-}
+-
+-// checkDotImports reports errors for any unused dot imports.
+-func checkDotImports() {
+-	for _, pack := range dotImports {
+-		if !pack.Used {
+-			base.ErrorfAt(pack.Pos(), "imported and not used: %q", pack.Pkg.Path)
+-		}
+-	}
+-
+-	// No longer needed; release memory.
+-	dotImports = nil
+-	typecheck.DotImportRefs = nil
+-}
+-
+ // backingArrayPtrLen extracts the pointer and length from a slice or string.
+ // This constructs two nodes referring to n, so n must be a cheapexpr.
+ func backingArrayPtrLen(n ir.Node) (ptr, length ir.Node) {
+@@ -513,59 +461,6 @@ func ngotype(n ir.Node) *types.Sym {
+ 	return nil
+ }
+ 
+-// The linker uses the magic symbol prefixes "go." and "type."
+-// Avoid potential confusion between import paths and symbols
+-// by rejecting these reserved imports for now. Also, people
+-// "can do weird things in GOPATH and we'd prefer they didn't
+-// do _that_ weird thing" (per rsc). See also #4257.
+-var reservedimports = []string{
+-	"go",
+-	"type",
+-}
+-
+-func isbadimport(path string, allowSpace bool) bool {
+-	if strings.Contains(path, "\x00") {
+-		base.Errorf("import path contains NUL")
+-		return true
+-	}
+-
+-	for _, ri := range reservedimports {
+-		if path == ri {
+-			base.Errorf("import path %q is reserved and cannot be used", path)
+-			return true
+-		}
+-	}
+-
+-	for _, r := range path {
+-		if r == utf8.RuneError {
+-			base.Errorf("import path contains invalid UTF-8 sequence: %q", path)
+-			return true
+-		}
+-
+-		if r < 0x20 || r == 0x7f {
+-			base.Errorf("import path contains control character: %q", path)
+-			return true
+-		}
+-
+-		if r == '\\' {
+-			base.Errorf("import path contains backslash; use slash: %q", path)
+-			return true
+-		}
+-
+-		if !allowSpace && unicode.IsSpace(r) {
+-			base.Errorf("import path contains space character: %q", path)
+-			return true
+-		}
+-
+-		if strings.ContainsRune("!\"#$%&'()*,:;<=>?[]^`{|}", r) {
+-			base.Errorf("import path contains invalid character '%c': %q", r, path)
+-			return true
+-		}
+-	}
+-
+-	return false
+-}
+-
+ // itabType loads the _type field from a runtime.itab struct.
+ func itabType(itab ir.Node) ir.Node {
+ 	typ := ir.NewSelectorExpr(base.Pos, ir.ODOTPTR, itab, nil)
+diff --git a/src/cmd/compile/internal/noder/import.go b/src/cmd/compile/internal/noder/import.go
+new file mode 100644
+index 0000000000..a39be9864b
+--- /dev/null
++++ b/src/cmd/compile/internal/noder/import.go
+@@ -0,0 +1,493 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:generate go run mkbuiltin.go
++
++package noder
++
++import (
++	"fmt"
++	"go/constant"
++	"os"
++	"path"
++	"runtime"
++	"sort"
++	"strings"
++	"unicode"
++	"unicode/utf8"
++
++	"cmd/compile/internal/base"
++	"cmd/compile/internal/ir"
++	"cmd/compile/internal/typecheck"
++	"cmd/compile/internal/types"
++	"cmd/internal/archive"
++	"cmd/internal/bio"
++	"cmd/internal/goobj"
++	"cmd/internal/objabi"
++	"cmd/internal/src"
++)
++
++func isDriveLetter(b byte) bool {
++	return 'a' <= b && b <= 'z' || 'A' <= b && b <= 'Z'
++}
++
++// is this path a local name? begins with ./ or ../ or /
++func islocalname(name string) bool {
++	return strings.HasPrefix(name, "/") ||
++		runtime.GOOS == "windows" && len(name) >= 3 && isDriveLetter(name[0]) && name[1] == ':' && name[2] == '/' ||
++		strings.HasPrefix(name, "./") || name == "." ||
++		strings.HasPrefix(name, "../") || name == ".."
++}
++
++func findpkg(name string) (file string, ok bool) {
++	if islocalname(name) {
++		if base.Flag.NoLocalImports {
++			return "", false
++		}
++
++		if base.Flag.Cfg.PackageFile != nil {
++			file, ok = base.Flag.Cfg.PackageFile[name]
++			return file, ok
++		}
++
++		// try .a before .6.  important for building libraries:
++		// if there is an array.6 in the array.a library,
++		// want to find all of array.a, not just array.6.
++		file = fmt.Sprintf("%s.a", name)
++		if _, err := os.Stat(file); err == nil {
++			return file, true
++		}
++		file = fmt.Sprintf("%s.o", name)
++		if _, err := os.Stat(file); err == nil {
++			return file, true
++		}
++		return "", false
++	}
++
++	// local imports should be canonicalized already.
++	// don't want to see "encoding/../encoding/base64"
++	// as different from "encoding/base64".
++	if q := path.Clean(name); q != name {
++		base.Errorf("non-canonical import path %q (should be %q)", name, q)
++		return "", false
++	}
++
++	if base.Flag.Cfg.PackageFile != nil {
++		file, ok = base.Flag.Cfg.PackageFile[name]
++		return file, ok
++	}
++
++	for _, dir := range base.Flag.Cfg.ImportDirs {
++		file = fmt.Sprintf("%s/%s.a", dir, name)
++		if _, err := os.Stat(file); err == nil {
++			return file, true
++		}
++		file = fmt.Sprintf("%s/%s.o", dir, name)
++		if _, err := os.Stat(file); err == nil {
++			return file, true
++		}
++	}
++
++	if objabi.GOROOT != "" {
++		suffix := ""
++		suffixsep := ""
++		if base.Flag.InstallSuffix != "" {
++			suffixsep = "_"
++			suffix = base.Flag.InstallSuffix
++		} else if base.Flag.Race {
++			suffixsep = "_"
++			suffix = "race"
++		} else if base.Flag.MSan {
++			suffixsep = "_"
++			suffix = "msan"
++		}
++
++		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.a", objabi.GOROOT, objabi.GOOS, objabi.GOARCH, suffixsep, suffix, name)
++		if _, err := os.Stat(file); err == nil {
++			return file, true
++		}
++		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.o", objabi.GOROOT, objabi.GOOS, objabi.GOARCH, suffixsep, suffix, name)
++		if _, err := os.Stat(file); err == nil {
++			return file, true
++		}
++	}
++
++	return "", false
++}
++
++// myheight tracks the local package's height based on packages
++// imported so far.
++var myheight int
++
++func importfile(f constant.Value) *types.Pkg {
++	if f.Kind() != constant.String {
++		base.Errorf("import path must be a string")
++		return nil
++	}
++
++	path_ := constant.StringVal(f)
++	if len(path_) == 0 {
++		base.Errorf("import path is empty")
++		return nil
++	}
++
++	if isbadimport(path_, false) {
++		return nil
++	}
++
++	// The package name main is no longer reserved,
++	// but we reserve the import path "main" to identify
++	// the main package, just as we reserve the import
++	// path "math" to identify the standard math package.
++	if path_ == "main" {
++		base.Errorf("cannot import \"main\"")
++		base.ErrorExit()
++	}
++
++	if base.Ctxt.Pkgpath != "" && path_ == base.Ctxt.Pkgpath {
++		base.Errorf("import %q while compiling that package (import cycle)", path_)
++		base.ErrorExit()
++	}
++
++	if mapped, ok := base.Flag.Cfg.ImportMap[path_]; ok {
++		path_ = mapped
++	}
++
++	if path_ == "unsafe" {
++		return ir.Pkgs.Unsafe
++	}
++
++	if islocalname(path_) {
++		if path_[0] == '/' {
++			base.Errorf("import path cannot be absolute path")
++			return nil
++		}
++
++		prefix := base.Ctxt.Pathname
++		if base.Flag.D != "" {
++			prefix = base.Flag.D
++		}
++		path_ = path.Join(prefix, path_)
++
++		if isbadimport(path_, true) {
++			return nil
++		}
++	}
++
++	file, found := findpkg(path_)
++	if !found {
++		base.Errorf("can't find import: %q", path_)
++		base.ErrorExit()
++	}
++
++	importpkg := types.NewPkg(path_, "")
++	if importpkg.Imported {
++		return importpkg
++	}
++
++	importpkg.Imported = true
++
++	imp, err := bio.Open(file)
++	if err != nil {
++		base.Errorf("can't open import: %q: %v", path_, err)
++		base.ErrorExit()
++	}
++	defer imp.Close()
++
++	// check object header
++	p, err := imp.ReadString('\n')
++	if err != nil {
++		base.Errorf("import %s: reading input: %v", file, err)
++		base.ErrorExit()
++	}
++
++	if p == "!<arch>\n" { // package archive
++		// package export block should be first
++		sz := archive.ReadHeader(imp.Reader, "__.PKGDEF")
++		if sz <= 0 {
++			base.Errorf("import %s: not a package file", file)
++			base.ErrorExit()
++		}
++		p, err = imp.ReadString('\n')
++		if err != nil {
++			base.Errorf("import %s: reading input: %v", file, err)
++			base.ErrorExit()
++		}
++	}
++
++	if !strings.HasPrefix(p, "go object ") {
++		base.Errorf("import %s: not a go object file: %s", file, p)
++		base.ErrorExit()
++	}
++	q := fmt.Sprintf("%s %s %s %s\n", objabi.GOOS, objabi.GOARCH, objabi.Version, objabi.Expstring())
++	if p[10:] != q {
++		base.Errorf("import %s: object is [%s] expected [%s]", file, p[10:], q)
++		base.ErrorExit()
++	}
++
++	// process header lines
++	for {
++		p, err = imp.ReadString('\n')
++		if err != nil {
++			base.Errorf("import %s: reading input: %v", file, err)
++			base.ErrorExit()
++		}
++		if p == "\n" {
++			break // header ends with blank line
++		}
++	}
++
++	// Expect $$B\n to signal binary import format.
++
++	// look for $$
++	var c byte
++	for {
++		c, err = imp.ReadByte()
++		if err != nil {
++			break
++		}
++		if c == '$' {
++			c, err = imp.ReadByte()
++			if c == '$' || err != nil {
++				break
++			}
++		}
++	}
++
++	// get character after $$
++	if err == nil {
++		c, _ = imp.ReadByte()
++	}
++
++	var fingerprint goobj.FingerprintType
++	switch c {
++	case '\n':
++		base.Errorf("cannot import %s: old export format no longer supported (recompile library)", path_)
++		return nil
++
++	case 'B':
++		if base.Debug.Export != 0 {
++			fmt.Printf("importing %s (%s)\n", path_, file)
++		}
++		imp.ReadByte() // skip \n after $$B
++
++		c, err = imp.ReadByte()
++		if err != nil {
++			base.Errorf("import %s: reading input: %v", file, err)
++			base.ErrorExit()
++		}
++
++		// Indexed format is distinguished by an 'i' byte,
++		// whereas previous export formats started with 'c', 'd', or 'v'.
++		if c != 'i' {
++			base.Errorf("import %s: unexpected package format byte: %v", file, c)
++			base.ErrorExit()
++		}
++		fingerprint = typecheck.ReadImports(importpkg, imp)
++
++	default:
++		base.Errorf("no import in %q", path_)
++		base.ErrorExit()
++	}
++
++	// assume files move (get installed) so don't record the full path
++	if base.Flag.Cfg.PackageFile != nil {
++		// If using a packageFile map, assume path_ can be recorded directly.
++		base.Ctxt.AddImport(path_, fingerprint)
++	} else {
++		// For file "/Users/foo/go/pkg/darwin_amd64/math.a" record "math.a".
++		base.Ctxt.AddImport(file[len(file)-len(path_)-len(".a"):], fingerprint)
++	}
++
++	if importpkg.Height >= myheight {
++		myheight = importpkg.Height + 1
++	}
++
++	return importpkg
++}
++
++// The linker uses the magic symbol prefixes "go." and "type."
++// Avoid potential confusion between import paths and symbols
++// by rejecting these reserved imports for now. Also, people
++// "can do weird things in GOPATH and we'd prefer they didn't
++// do _that_ weird thing" (per rsc). See also #4257.
++var reservedimports = []string{
++	"go",
++	"type",
++}
++
++func isbadimport(path string, allowSpace bool) bool {
++	if strings.Contains(path, "\x00") {
++		base.Errorf("import path contains NUL")
++		return true
++	}
++
++	for _, ri := range reservedimports {
++		if path == ri {
++			base.Errorf("import path %q is reserved and cannot be used", path)
++			return true
++		}
++	}
++
++	for _, r := range path {
++		if r == utf8.RuneError {
++			base.Errorf("import path contains invalid UTF-8 sequence: %q", path)
++			return true
++		}
++
++		if r < 0x20 || r == 0x7f {
++			base.Errorf("import path contains control character: %q", path)
++			return true
++		}
++
++		if r == '\\' {
++			base.Errorf("import path contains backslash; use slash: %q", path)
++			return true
++		}
++
++		if !allowSpace && unicode.IsSpace(r) {
++			base.Errorf("import path contains space character: %q", path)
++			return true
++		}
++
++		if strings.ContainsRune("!\"#$%&'()*,:;<=>?[]^`{|}", r) {
++			base.Errorf("import path contains invalid character '%c': %q", r, path)
++			return true
++		}
++	}
++
++	return false
++}
++
++func pkgnotused(lineno src.XPos, path string, name string) {
++	// If the package was imported with a name other than the final
++	// import path element, show it explicitly in the error message.
++	// Note that this handles both renamed imports and imports of
++	// packages containing unconventional package declarations.
++	// Note that this uses / always, even on Windows, because Go import
++	// paths always use forward slashes.
++	elem := path
++	if i := strings.LastIndex(elem, "/"); i >= 0 {
++		elem = elem[i+1:]
++	}
++	if name == "" || elem == name {
++		base.ErrorfAt(lineno, "imported and not used: %q", path)
++	} else {
++		base.ErrorfAt(lineno, "imported and not used: %q as %s", path, name)
++	}
++}
++
++func mkpackage(pkgname string) {
++	if types.LocalPkg.Name == "" {
++		if pkgname == "_" {
++			base.Errorf("invalid package name _")
++		}
++		types.LocalPkg.Name = pkgname
++	} else {
++		if pkgname != types.LocalPkg.Name {
++			base.Errorf("package %s; expected %s", pkgname, types.LocalPkg.Name)
++		}
++	}
++}
++
++func clearImports() {
++	type importedPkg struct {
++		pos  src.XPos
++		path string
++		name string
++	}
++	var unused []importedPkg
++
++	for _, s := range types.LocalPkg.Syms {
++		n := ir.AsNode(s.Def)
++		if n == nil {
++			continue
++		}
++		if n.Op() == ir.OPACK {
++			// throw away top-level package name left over
++			// from previous file.
++			// leave s->block set to cause redeclaration
++			// errors if a conflicting top-level name is
++			// introduced by a different file.
++			p := n.(*ir.PkgName)
++			if !p.Used && base.SyntaxErrors() == 0 {
++				unused = append(unused, importedPkg{p.Pos(), p.Pkg.Path, s.Name})
++			}
++			s.Def = nil
++			continue
++		}
++		if types.IsDotAlias(s) {
++			// throw away top-level name left over
++			// from previous import . "x"
++			// We'll report errors after type checking in checkDotImports.
++			s.Def = nil
++			continue
++		}
++	}
++
++	sort.Slice(unused, func(i, j int) bool { return unused[i].pos.Before(unused[j].pos) })
++	for _, pkg := range unused {
++		pkgnotused(pkg.pos, pkg.path, pkg.name)
++	}
++}
++
++// CheckDotImports reports errors for any unused dot imports.
++func CheckDotImports() {
++	for _, pack := range dotImports {
++		if !pack.Used {
++			base.ErrorfAt(pack.Pos(), "imported and not used: %q", pack.Pkg.Path)
++		}
++	}
++
++	// No longer needed; release memory.
++	dotImports = nil
++	typecheck.DotImportRefs = nil
++}
++
++// dotImports tracks all PkgNames that have been dot-imported.
++var dotImports []*ir.PkgName
++
++// find all the exported symbols in package referenced by PkgName,
++// and make them available in the current package
++func importDot(pack *ir.PkgName) {
++	if typecheck.DotImportRefs == nil {
++		typecheck.DotImportRefs = make(map[*ir.Ident]*ir.PkgName)
++	}
++
++	opkg := pack.Pkg
++	for _, s := range opkg.Syms {
++		if s.Def == nil {
++			if _, ok := typecheck.DeclImporter[s]; !ok {
++				continue
++			}
++		}
++		if !types.IsExported(s.Name) || strings.ContainsRune(s.Name, 0xb7) { // 0xb7 = center dot
++			continue
++		}
++		s1 := typecheck.Lookup(s.Name)
++		if s1.Def != nil {
++			pkgerror := fmt.Sprintf("during import %q", opkg.Path)
++			typecheck.Redeclared(base.Pos, s1, pkgerror)
++			continue
++		}
++
++		id := ir.NewIdent(src.NoXPos, s)
++		typecheck.DotImportRefs[id] = pack
++		s1.Def = id
++		s1.Block = 1
++	}
++
++	dotImports = append(dotImports, pack)
++}
++
++// importName is like oldname,
++// but it reports an error if sym is from another package and not exported.
++func importName(sym *types.Sym) ir.Node {
++	n := oldname(sym)
++	if !types.IsExported(sym.Name) && sym.Pkg != types.LocalPkg {
++		n.SetDiag(true)
++		base.Errorf("cannot refer to unexported name %s.%s", sym.Pkg.Name, sym.Name)
++	}
++	return n
++}
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/noder/lex.go
+similarity index 95%
+rename from src/cmd/compile/internal/gc/lex.go
+rename to src/cmd/compile/internal/noder/lex.go
+index 39d73867e4..1095f3344a 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/noder/lex.go
+@@ -2,22 +2,17 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package gc
++package noder
+ 
+ import (
+-	"cmd/compile/internal/base"
++	"fmt"
++	"strings"
++
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/syntax"
+ 	"cmd/internal/objabi"
+-	"cmd/internal/src"
+-	"fmt"
+-	"strings"
+ )
+ 
+-func makePos(b *src.PosBase, line, col uint) src.XPos {
+-	return base.Ctxt.PosTable.XPos(src.MakePos(b, line, col))
+-}
+-
+ func isSpace(c rune) bool {
+ 	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
+ }
+@@ -27,7 +22,7 @@ func isQuoted(s string) bool {
+ }
+ 
+ const (
+-	FuncPragmas = ir.Nointerface |
++	funcPragmas = ir.Nointerface |
+ 		ir.Noescape |
+ 		ir.Norace |
+ 		ir.Nosplit |
+@@ -40,7 +35,7 @@ const (
+ 		ir.Nowritebarrierrec |
+ 		ir.Yeswritebarrierrec
+ 
+-	TypePragmas = ir.NotInHeap
++	typePragmas = ir.NotInHeap
+ )
+ 
+ func pragmaFlag(verb string) ir.PragmaFlag {
+diff --git a/src/cmd/compile/internal/gc/lex_test.go b/src/cmd/compile/internal/noder/lex_test.go
+similarity index 99%
+rename from src/cmd/compile/internal/gc/lex_test.go
+rename to src/cmd/compile/internal/noder/lex_test.go
+index b2081a1732..85a3f06759 100644
+--- a/src/cmd/compile/internal/gc/lex_test.go
++++ b/src/cmd/compile/internal/noder/lex_test.go
+@@ -2,13 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package gc
++package noder
+ 
+ import (
+-	"cmd/compile/internal/syntax"
+ 	"reflect"
+ 	"runtime"
+ 	"testing"
++
++	"cmd/compile/internal/syntax"
+ )
+ 
+ func eq(a, b []string) bool {
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/noder/noder.go
+similarity index 87%
+rename from src/cmd/compile/internal/gc/noder.go
+rename to src/cmd/compile/internal/noder/noder.go
+index 3e8703f050..a684673c8f 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package gc
++package noder
+ 
+ import (
+ 	"fmt"
+@@ -25,11 +25,11 @@ import (
+ 	"cmd/internal/src"
+ )
+ 
+-// parseFiles concurrently parses files into *syntax.File structures.
++// ParseFiles concurrently parses files into *syntax.File structures.
+ // Each declaration in every *syntax.File is converted to a syntax tree
+ // and its root represented by *Node is appended to Target.Decls.
+ // Returns the total count of parsed lines.
+-func parseFiles(filenames []string) uint {
++func ParseFiles(filenames []string) uint {
+ 	noders := make([]*noder, 0, len(filenames))
+ 	// Limit the number of simultaneously open files.
+ 	sem := make(chan struct{}, runtime.GOMAXPROCS(0)+10)
+@@ -257,7 +257,7 @@ func (p *noder) node() {
+ 	p.setlineno(p.file.PkgName)
+ 	mkpackage(p.file.PkgName.Value)
+ 
+-	if pragma, ok := p.file.Pragma.(*Pragma); ok {
++	if pragma, ok := p.file.Pragma.(*pragmas); ok {
+ 		pragma.Flag &^= ir.GoBuildPragma
+ 		p.checkUnused(pragma)
+ 	}
+@@ -323,7 +323,7 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
+ 		return // avoid follow-on errors if there was a syntax error
+ 	}
+ 
+-	if pragma, ok := imp.Pragma.(*Pragma); ok {
++	if pragma, ok := imp.Pragma.(*pragmas); ok {
+ 		p.checkUnused(pragma)
+ 	}
+ 
+@@ -383,7 +383,7 @@ func (p *noder) varDecl(decl *syntax.VarDecl) []ir.Node {
+ 		exprs = p.exprList(decl.Values)
+ 	}
+ 
+-	if pragma, ok := decl.Pragma.(*Pragma); ok {
++	if pragma, ok := decl.Pragma.(*pragmas); ok {
+ 		if len(pragma.Embeds) > 0 {
+ 			if !p.importedEmbed {
+ 				// This check can't be done when building the list pragma.Embeds
+@@ -422,7 +422,7 @@ func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []ir.Node {
+ 		}
+ 	}
+ 
+-	if pragma, ok := decl.Pragma.(*Pragma); ok {
++	if pragma, ok := decl.Pragma.(*pragmas); ok {
+ 		p.checkUnused(pragma)
+ 	}
+ 
+@@ -477,10 +477,10 @@ func (p *noder) typeDecl(decl *syntax.TypeDecl) ir.Node {
+ 
+ 	n.Ntype = typ
+ 	n.SetAlias(decl.Alias)
+-	if pragma, ok := decl.Pragma.(*Pragma); ok {
++	if pragma, ok := decl.Pragma.(*pragmas); ok {
+ 		if !decl.Alias {
+-			n.SetPragma(pragma.Flag & TypePragmas)
+-			pragma.Flag &^= TypePragmas
++			n.SetPragma(pragma.Flag & typePragmas)
++			pragma.Flag &^= typePragmas
+ 		}
+ 		p.checkUnused(pragma)
+ 	}
+@@ -532,12 +532,12 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) ir.Node {
+ 	f.Nname.Defn = f
+ 	f.Nname.Ntype = t
+ 
+-	if pragma, ok := fun.Pragma.(*Pragma); ok {
+-		f.Pragma = pragma.Flag & FuncPragmas
++	if pragma, ok := fun.Pragma.(*pragmas); ok {
++		f.Pragma = pragma.Flag & funcPragmas
+ 		if pragma.Flag&ir.Systemstack != 0 && pragma.Flag&ir.Nosplit != 0 {
+ 			base.ErrorfAt(f.Pos(), "go:nosplit and go:systemstack cannot be combined")
+ 		}
+-		pragma.Flag &^= FuncPragmas
++		pragma.Flag &^= funcPragmas
+ 		p.checkUnused(pragma)
+ 	}
+ 
+@@ -1525,24 +1525,24 @@ var allowedStdPragmas = map[string]bool{
+ 	"go:generate":           true,
+ }
+ 
+-// *Pragma is the value stored in a syntax.Pragma during parsing.
+-type Pragma struct {
++// *pragmas is the value stored in a syntax.pragmas during parsing.
++type pragmas struct {
+ 	Flag   ir.PragmaFlag // collected bits
+-	Pos    []PragmaPos   // position of each individual flag
+-	Embeds []PragmaEmbed
++	Pos    []pragmaPos   // position of each individual flag
++	Embeds []pragmaEmbed
+ }
+ 
+-type PragmaPos struct {
++type pragmaPos struct {
+ 	Flag ir.PragmaFlag
+ 	Pos  syntax.Pos
+ }
+ 
+-type PragmaEmbed struct {
++type pragmaEmbed struct {
+ 	Pos      syntax.Pos
+ 	Patterns []string
+ }
+ 
+-func (p *noder) checkUnused(pragma *Pragma) {
++func (p *noder) checkUnused(pragma *pragmas) {
+ 	for _, pos := range pragma.Pos {
+ 		if pos.Flag&pragma.Flag != 0 {
+ 			p.errorAt(pos.Pos, "misplaced compiler directive")
+@@ -1555,7 +1555,7 @@ func (p *noder) checkUnused(pragma *Pragma) {
+ 	}
+ }
+ 
+-func (p *noder) checkUnusedDuringParse(pragma *Pragma) {
++func (p *noder) checkUnusedDuringParse(pragma *pragmas) {
+ 	for _, pos := range pragma.Pos {
+ 		if pos.Flag&pragma.Flag != 0 {
+ 			p.error(syntax.Error{Pos: pos.Pos, Msg: "misplaced compiler directive"})
+@@ -1570,9 +1570,9 @@ func (p *noder) checkUnusedDuringParse(pragma *Pragma) {
+ 
+ // pragma is called concurrently if files are parsed concurrently.
+ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.Pragma) syntax.Pragma {
+-	pragma, _ := old.(*Pragma)
++	pragma, _ := old.(*pragmas)
+ 	if pragma == nil {
+-		pragma = new(Pragma)
++		pragma = new(pragmas)
+ 	}
+ 
+ 	if text == "" {
+@@ -1626,7 +1626,7 @@ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.P
+ 			p.error(syntax.Error{Pos: pos, Msg: "usage: //go:embed pattern..."})
+ 			break
+ 		}
+-		pragma.Embeds = append(pragma.Embeds, PragmaEmbed{pos, args})
++		pragma.Embeds = append(pragma.Embeds, pragmaEmbed{pos, args})
+ 
+ 	case strings.HasPrefix(text, "go:cgo_import_dynamic "):
+ 		// This is permitted for general use because Solaris
+@@ -1665,7 +1665,7 @@ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.P
+ 			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("//%s is not allowed in the standard library", verb)})
+ 		}
+ 		pragma.Flag |= flag
+-		pragma.Pos = append(pragma.Pos, PragmaPos{flag, pos})
++		pragma.Pos = append(pragma.Pos, pragmaPos{flag, pos})
+ 	}
+ 
+ 	return pragma
+@@ -1761,3 +1761,178 @@ func parseGoEmbed(args string) ([]string, error) {
+ 	}
+ 	return list, nil
+ }
++
++func fakeRecv() *ir.Field {
++	return ir.NewField(base.Pos, nil, nil, types.FakeRecvType())
++}
++
++func (p *noder) funcLit(expr *syntax.FuncLit) ir.Node {
++	xtype := p.typeExpr(expr.Type)
++	ntype := p.typeExpr(expr.Type)
++
++	fn := ir.NewFunc(p.pos(expr))
++	fn.SetIsHiddenClosure(ir.CurFunc != nil)
++	fn.Nname = ir.NewFuncNameAt(p.pos(expr), ir.BlankNode.Sym(), fn) // filled in by typecheckclosure
++	fn.Nname.Ntype = xtype
++	fn.Nname.Defn = fn
++
++	clo := ir.NewClosureExpr(p.pos(expr), fn)
++	fn.ClosureType = ntype
++	fn.OClosure = clo
++
++	p.funcBody(fn, expr.Body)
++
++	// closure-specific variables are hanging off the
++	// ordinary ones in the symbol table; see oldname.
++	// unhook them.
++	// make the list of pointers for the closure call.
++	for _, v := range fn.ClosureVars {
++		// Unlink from v1; see comment in syntax.go type Param for these fields.
++		v1 := v.Defn
++		v1.Name().Innermost = v.Outer
++
++		// If the closure usage of v is not dense,
++		// we need to make it dense; now that we're out
++		// of the function in which v appeared,
++		// look up v.Sym in the enclosing function
++		// and keep it around for use in the compiled code.
++		//
++		// That is, suppose we just finished parsing the innermost
++		// closure f4 in this code:
++		//
++		//	func f() {
++		//		v := 1
++		//		func() { // f2
++		//			use(v)
++		//			func() { // f3
++		//				func() { // f4
++		//					use(v)
++		//				}()
++		//			}()
++		//		}()
++		//	}
++		//
++		// At this point v.Outer is f2's v; there is no f3's v.
++		// To construct the closure f4 from within f3,
++		// we need to use f3's v and in this case we need to create f3's v.
++		// We are now in the context of f3, so calling oldname(v.Sym)
++		// obtains f3's v, creating it if necessary (as it is in the example).
++		//
++		// capturevars will decide whether to use v directly or &v.
++		v.Outer = oldname(v.Sym()).(*ir.Name)
++	}
++
++	return clo
++}
++
++// A function named init is a special case.
++// It is called by the initialization before main is run.
++// To make it unique within a package and also uncallable,
++// the name, normally "pkg.init", is altered to "pkg.init.0".
++var renameinitgen int
++
++func renameinit() *types.Sym {
++	s := typecheck.LookupNum("init.", renameinitgen)
++	renameinitgen++
++	return s
++}
++
++// oldname returns the Node that declares symbol s in the current scope.
++// If no such Node currently exists, an ONONAME Node is returned instead.
++// Automatically creates a new closure variable if the referenced symbol was
++// declared in a different (containing) function.
++func oldname(s *types.Sym) ir.Node {
++	if s.Pkg != types.LocalPkg {
++		return ir.NewIdent(base.Pos, s)
++	}
++
++	n := ir.AsNode(s.Def)
++	if n == nil {
++		// Maybe a top-level declaration will come along later to
++		// define s. resolve will check s.Def again once all input
++		// source has been processed.
++		return ir.NewIdent(base.Pos, s)
++	}
++
++	if ir.CurFunc != nil && n.Op() == ir.ONAME && n.Name().Curfn != nil && n.Name().Curfn != ir.CurFunc {
++		// Inner func is referring to var in outer func.
++		//
++		// TODO(rsc): If there is an outer variable x and we
++		// are parsing x := 5 inside the closure, until we get to
++		// the := it looks like a reference to the outer x so we'll
++		// make x a closure variable unnecessarily.
++		n := n.(*ir.Name)
++		c := n.Name().Innermost
++		if c == nil || c.Curfn != ir.CurFunc {
++			// Do not have a closure var for the active closure yet; make one.
++			c = typecheck.NewName(s)
++			c.Class_ = ir.PAUTOHEAP
++			c.SetIsClosureVar(true)
++			c.SetIsDDD(n.IsDDD())
++			c.Defn = n
++
++			// Link into list of active closure variables.
++			// Popped from list in func funcLit.
++			c.Outer = n.Name().Innermost
++			n.Name().Innermost = c
++
++			ir.CurFunc.ClosureVars = append(ir.CurFunc.ClosureVars, c)
++		}
++
++		// return ref to closure var, not original
++		return c
++	}
++
++	return n
++}
++
++func varEmbed(p *noder, names []*ir.Name, typ ir.Ntype, exprs []ir.Node, embeds []pragmaEmbed) (newExprs []ir.Node) {
++	haveEmbed := false
++	for _, decl := range p.file.DeclList {
++		imp, ok := decl.(*syntax.ImportDecl)
++		if !ok {
++			// imports always come first
++			break
++		}
++		path, _ := strconv.Unquote(imp.Path.Value)
++		if path == "embed" {
++			haveEmbed = true
++			break
++		}
++	}
++
++	pos := embeds[0].Pos
++	if !haveEmbed {
++		p.errorAt(pos, "invalid go:embed: missing import \"embed\"")
++		return exprs
++	}
++	if base.Flag.Cfg.Embed.Patterns == nil {
++		p.errorAt(pos, "invalid go:embed: build system did not supply embed configuration")
++		return exprs
++	}
++	if len(names) > 1 {
++		p.errorAt(pos, "go:embed cannot apply to multiple vars")
++		return exprs
++	}
++	if len(exprs) > 0 {
++		p.errorAt(pos, "go:embed cannot apply to var with initializer")
++		return exprs
++	}
++	if typ == nil {
++		// Should not happen, since len(exprs) == 0 now.
++		p.errorAt(pos, "go:embed cannot apply to var without type")
++		return exprs
++	}
++	if typecheck.DeclContext != ir.PEXTERN {
++		p.errorAt(pos, "go:embed cannot apply to var inside func")
++		return exprs
++	}
++
++	v := names[0]
++	typecheck.Target.Embeds = append(typecheck.Target.Embeds, v)
++	v.Embed = new([]ir.Embed)
++	for _, e := range embeds {
++		*v.Embed = append(*v.Embed, ir.Embed{Pos: p.makeXPos(e.Pos), Patterns: e.Patterns})
++	}
++	return exprs
++}
+diff --git a/src/cmd/internal/archive/archive.go b/src/cmd/internal/archive/archive.go
+index 762e888a04..e9b25fe240 100644
+--- a/src/cmd/internal/archive/archive.go
++++ b/src/cmd/internal/archive/archive.go
+@@ -464,3 +464,24 @@ func exactly16Bytes(s string) string {
+ 	s += sixteenSpaces[:16-len(s)]
+ 	return s
+ }
++
++// architecture-independent object file output
++const HeaderSize = 60
++
++func ReadHeader(b *bufio.Reader, name string) int {
++	var buf [HeaderSize]byte
++	if _, err := io.ReadFull(b, buf[:]); err != nil {
++		return -1
++	}
++	aname := strings.Trim(string(buf[0:16]), " ")
++	if !strings.HasPrefix(aname, name) {
++		return -1
++	}
++	asize := strings.Trim(string(buf[48:58]), " ")
++	i, _ := strconv.Atoi(asize)
++	return i
++}
++
++func FormatHeader(arhdr []byte, name string, size int64) {
++	copy(arhdr[:], fmt.Sprintf("%-16s%-12d%-6d%-6d%-8o%-10d`\n", name, 0, 0, 0, 0644, size))
++}

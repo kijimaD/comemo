@@ -12,7 +12,67 @@ Date:   Mon Mar 11 13:38:59 2013 -0700
     R=golang-dev, adg, rsc
     CC=golang-dev
     https://golang.org/cl/7714043
-
+---
  lib/godoc/package.html |  8 +++++---
  lib/godoc/package.txt  | 11 ++++++-----
  2 files changed, 11 insertions(+), 8 deletions(-)
+
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index 1df1f9151d..1fe6e7595f 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -10,7 +10,11 @@
+ 	correspond to Go identifiers).
+ -->
+ {{with .PDoc}}
+-	{{if not $.IsMain}}
++	{{if $.IsMain}}
++		{{/* command documentation */}}
++		{{comment_html .Doc}}
++	{{else}}
++		{{/* package documentation */}}
+ 		<div id="short-nav">
+ 			<dl>
+ 			<dd><code>import "{{html .ImportPath}}"</code></dd>
+@@ -160,8 +164,6 @@
+ 				{{example_html $name $.Examples $.FSet}}
+ 			{{end}}
+ 		{{end}}
+-	{{else}}  {{/* not a package; is a command */}}
+-		{{comment_html .Doc}}
+ 	{{end}}
+ 
+ 	{{with $.Notes}}
+diff --git a/lib/godoc/package.txt b/lib/godoc/package.txt
+index 94239ca1a5..de40a749b6 100644
+--- a/lib/godoc/package.txt
++++ b/lib/godoc/package.txt
+@@ -2,14 +2,15 @@
+ 
+ ---------------------------------------
+ 
+-*/}}{{with .PDoc}}{{if not $.IsMain}}PACKAGE
++*/}}{{with .PDoc}}{{if $.IsMain}}COMMAND DOCUMENTATION
++
++{{comment_text .Doc "    " "\t"}}
++{{else}}PACKAGE DOCUMENTATION
+ 
+ package {{.Name}}
+     import "{{.ImportPath}}"
+ 
+-{{else}}COMMAND DOCUMENTATION
+-
+-{{end}}{{comment_text .Doc "    " "\t"}}
++{{comment_text .Doc "    " "\t"}}
+ {{example_text "" $.Examples $.FSet "    "}}{{/*
+ 
+ ---------------------------------------
+@@ -58,7 +59,7 @@ TYPES
+ {{end}}{{range .Methods}}{{node .Decl $.FSet}}
+ {{comment_text .Doc "    " "\t"}}
+ {{$name := printf "%s_%s" $tname .Name}}{{example_text $name $.Examples $.FSet "    "}}
+-{{end}}{{end}}{{end}}{{/*
++{{end}}{{end}}{{end}}{{end}}{{/*
+ 
+ ---------------------------------------
+ 

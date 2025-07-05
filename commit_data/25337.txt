@@ -14,7 +14,44 @@ Date:   Wed Oct 21 00:39:27 2015 +0800
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/vet/shadow.go          | 2 ++
  src/cmd/vet/testdata/shadow.go | 7 ++++++-
  2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/vet/shadow.go b/src/cmd/vet/shadow.go
+index 2149e70ce2..5d0d6b5bf5 100644
+--- a/src/cmd/vet/shadow.go
++++ b/src/cmd/vet/shadow.go
+@@ -155,6 +155,8 @@ func (f *File) idiomaticShortRedecl(a *ast.AssignStmt) bool {
+ 					return false
+ 				}
+ 			}
++		default:
++			return false
+ 		}
+ 	}
+ 	return true
+diff --git a/src/cmd/vet/testdata/shadow.go b/src/cmd/vet/testdata/shadow.go
+index 34a680681b..241109f4ee 100644
+--- a/src/cmd/vet/testdata/shadow.go
++++ b/src/cmd/vet/testdata/shadow.go
+@@ -25,8 +25,9 @@ func ShadowRead(f *os.File, buf []byte) (err error) {
+ 		_ = i
+ 	}
+ 	if f != nil {
++		x := one()               // ERROR "declaration of x shadows declaration at testdata/shadow.go:14"
+ 		var _, err = f.Read(buf) // ERROR "declaration of err shadows declaration at testdata/shadow.go:13"
+-		if err != nil {
++		if x == 1 && err != nil {
+ 			return err
+ 		}
+ 	}
+@@ -52,3 +53,7 @@ func ShadowRead(f *os.File, buf []byte) (err error) {
+ 	_, _ = err, x
+ 	return
+ }
++
++func one() int {
++	return 1
++}

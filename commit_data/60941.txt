@@ -15,7 +15,34 @@ Date:   Tue Sep 10 13:27:56 2024 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/types2/builtins.go | 2 +-
  src/go/types/builtins.go                    | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 808d39fd24..59d2e76ec2 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -641,7 +641,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		if nargs > 0 {
+ 			params = make([]Type, nargs)
+ 			for i, a := range args {
+-				check.assignment(a, nil, "argument to built-in"+predeclaredFuncs[id].name)
++				check.assignment(a, nil, "argument to built-in "+predeclaredFuncs[id].name)
+ 				if a.mode == invalid {
+ 					return
+ 				}
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index d92a4279f8..2cd6c52b7b 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -644,7 +644,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		if nargs > 0 {
+ 			params = make([]Type, nargs)
+ 			for i, a := range args {
+-				check.assignment(a, nil, "argument to built-in"+predeclaredFuncs[id].name)
++				check.assignment(a, nil, "argument to built-in "+predeclaredFuncs[id].name)
+ 				if a.mode == invalid {
+ 					return
+ 				}

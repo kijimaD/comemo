@@ -17,7 +17,34 @@ Date:   Thu May 15 15:34:25 2014 -0400
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/96360043
-
+---
  src/pkg/crypto/sha256/sha256block_amd64.s | 2 +-
  src/pkg/crypto/sha512/sha512block_amd64.s | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/crypto/sha256/sha256block_amd64.s b/src/pkg/crypto/sha256/sha256block_amd64.s
+index b83897c7ca..95aebbe762 100644
+--- a/src/pkg/crypto/sha256/sha256block_amd64.s
++++ b/src/pkg/crypto/sha256/sha256block_amd64.s
+@@ -140,7 +140,7 @@
+ 	MSGSCHEDULE1(index); \
+ 	SHA256ROUND(index, const, a, b, c, d, e, f, g, h)
+ 
+-TEXT ·block(SB),0,$264-24
++TEXT ·block(SB),0,$264-32
+ 	MOVQ	p_base+8(FP), SI
+ 	MOVQ	p_len+16(FP), DX
+ 	SHRQ	$6, DX
+diff --git a/src/pkg/crypto/sha512/sha512block_amd64.s b/src/pkg/crypto/sha512/sha512block_amd64.s
+index 8cb6b9e433..344d8d2c3e 100644
+--- a/src/pkg/crypto/sha512/sha512block_amd64.s
++++ b/src/pkg/crypto/sha512/sha512block_amd64.s
+@@ -141,7 +141,7 @@
+ 	MSGSCHEDULE1(index); \
+ 	SHA512ROUND(index, const, a, b, c, d, e, f, g, h)
+ 
+-TEXT ·block(SB),0,$648-24
++TEXT ·block(SB),0,$648-32
+ 	MOVQ	p_base+8(FP), SI
+ 	MOVQ	p_len+16(FP), DX
+ 	SHRQ	$7, DX

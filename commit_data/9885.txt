@@ -7,7 +7,32 @@ Date:   Thu Oct 6 09:54:39 2011 -0700
     R=golang-dev, gri
     CC=golang-dev, miki.tebeka
     https://golang.org/cl/5225042
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index e15ad26ba8..02c7854ae0 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -112,6 +112,7 @@ Michael Hoisie <hoisie@gmail.com>
+ Miek Gieben <miek@miek.nl>
+ Mikael Tillenius <mikti42@gmail.com>
+ Mike Rosset <mike.rosset@gmail.com>
++Miki Tebeka <miki.tebeka@gmail.com>
+ Mikio Hara <mikioh.mikioh@gmail.com>
+ Mikkel Krautz <mikkel@krautz.dk>
+ Moriyoshi Koizumi <mozo@mozo.jp>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index ca5d5fffbb..cddbfa851d 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -175,6 +175,7 @@ Mikael Tillenius <mikti42@gmail.com>
+ Mike Rosset <mike.rosset@gmail.com>
+ Mike Samuel <mikesamuel@gmail.com>
+ Mike Solomon <msolo@gmail.com>
++Miki Tebeka <miki.tebeka@gmail.com>
+ Mikio Hara <mikioh.mikioh@gmail.com>
+ Mikkel Krautz <mikkel@krautz.dk> <krautz@gmail.com>
+ Moriyoshi Koizumi <mozo@mozo.jp>

@@ -9,6 +9,22 @@ Date:   Sun Oct 16 10:27:29 2016 +0100
     Change-Id: Ifea651ea3ece2267a6f0c1638181d6ddd9248a9f
     Reviewed-on: https://go-review.googlesource.com/31181
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/server.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index d71006441e..f102488310 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -40,7 +40,9 @@ var (
+ 
+ 	// ErrHijacked is returned by ResponseWriter.Write calls when
+ 	// the underlying connection has been hijacked using the
+-	// Hijacker interfaced.
++	// Hijacker interface. A zero-byte write on a hijacked
++	// connection will return ErrHijacked without any other side
++	// effects.
+ 	ErrHijacked = errors.New("http: connection has been hijacked")
+ 
+ 	// ErrContentLength is returned by ResponseWriter.Write calls

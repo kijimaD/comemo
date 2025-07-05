@@ -18,7 +18,7 @@ Date:   Mon Jan 5 16:29:21 2015 +0000
     Change-Id: I33d2ebb2f99ae12496484c6ec8ed07233d693275
     Reviewed-on: https://go-review.googlesource.com/2275
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  include/link.h                  |  1 +
  src/cmd/ld/lib.c                | 53 +++++++++++++++++++++++++++++++++++++++++
  src/cmd/ld/lib.h                |  1 +
@@ -47,3 +47,904 @@ Date:   Mon Jan 5 16:29:21 2015 +0000
  src/runtime/sys_windows_386.s   |  6 +++--
  src/runtime/sys_windows_amd64.s |  6 +++--
  27 files changed, 192 insertions(+), 72 deletions(-)
+
+diff --git a/include/link.h b/include/link.h
+index 8a2382285e..9e75350a80 100644
+--- a/include/link.h
++++ b/include/link.h
+@@ -131,6 +131,7 @@ struct	LSym
+ 	short	type;
+ 	short	version;
+ 	uchar	dupok;
++	uchar	cfunc;
+ 	uchar	external;
+ 	uchar	nosplit;
+ 	uchar	reachable;
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 9c58c2276d..925274bfd3 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -1564,3 +1564,56 @@ diag(char *fmt, ...)
+ 		errorexit();
+ 	}
+ }
++
++void
++checkgo(void)
++{
++	LSym *s;
++	Reloc *r;
++	int i;
++	int changed;
++	
++	if(!debug['C'])
++		return;
++	
++	// TODO(rsc,khr): Eventually we want to get to no Go-called C functions at all,
++	// which would simplify this logic quite a bit.
++
++	// Mark every Go-called C function with cfunc=2, recursively.
++	do {
++		changed = 0;
++		for(s = ctxt->textp; s != nil; s = s->next) {
++			if(s->cfunc == 0 || (s->cfunc == 2 && s->nosplit)) {
++				for(i=0; i<s->nr; i++) {
++					r = &s->r[i];
++					if(r->sym == nil)
++						continue;
++					if((r->type == R_CALL || r->type == R_CALLARM) && r->sym->type == STEXT) {
++						if(r->sym->cfunc == 1) {
++							changed = 1;
++							r->sym->cfunc = 2;
++						}
++					}
++				}
++			}
++		}
++	}while(changed);
++
++	// Complain about Go-called C functions that can split the stack
++	// (that can be preempted for garbage collection or trigger a stack copy).
++	for(s = ctxt->textp; s != nil; s = s->next) {
++		if(s->cfunc == 0 || (s->cfunc == 2 && s->nosplit)) {
++			for(i=0; i<s->nr; i++) {
++				r = &s->r[i];
++				if(r->sym == nil)
++					continue;
++				if((r->type == R_CALL || r->type == R_CALLARM) && r->sym->type == STEXT) {
++					if(s->cfunc == 0 && r->sym->cfunc == 2 && !r->sym->nosplit)
++						print("Go %s calls C %s\n", s->name, r->sym->name);
++					else if(s->cfunc == 2 && s->nosplit && !r->sym->nosplit)
++						print("Go calls C %s calls %s\n", s->name, r->sym->name);
++				}
++			}
++		}
++	}
++}
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index cf397eeec3..17483e0b4c 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -183,6 +183,7 @@ uint16	be16(uchar *b);
+ uint32	be32(uchar *b);
+ uint64	be64(uchar *b);
+ void	callgraph(void);
++void	checkgo(void);
+ void	cflush(void);
+ void	codeblk(int64 addr, int64 size);
+ vlong	cpos(void);
+diff --git a/src/cmd/ld/pobj.c b/src/cmd/ld/pobj.c
+index 5b5942cf6d..b86ddfe0fe 100644
+--- a/src/cmd/ld/pobj.c
++++ b/src/cmd/ld/pobj.c
+@@ -172,6 +172,7 @@ main(int argc, char *argv[])
+ 		mark(linklookup(ctxt, "runtime.read_tls_fallback", 0));
+ 	}
+ 
++	checkgo();
+ 	deadcode();
+ 	callgraph();
+ 	paramspace = "SP";	/* (FP) now (SP) on output */
+diff --git a/src/liblink/obj5.c b/src/liblink/obj5.c
+index ff1ef0fd23..d7f2714ed8 100644
+--- a/src/liblink/obj5.c
++++ b/src/liblink/obj5.c
+@@ -474,7 +474,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 				p->as = AMOVW;
+ 				p->from.type = D_OREG;
+ 				p->from.reg = REGG;
+-				p->from.offset = 3*ctxt->arch->ptrsize; // G.panic
++				p->from.offset = 4*ctxt->arch->ptrsize; // G.panic
+ 				p->to.type = D_REG;
+ 				p->to.reg = 1;
+ 			
+@@ -783,7 +783,9 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
+ 	p->as = AMOVW;
+ 	p->from.type = D_OREG;
+ 	p->from.reg = REGG;
+-	p->from.offset = 2*ctxt->arch->ptrsize;	// G.stackguard
++	p->from.offset = 2*ctxt->arch->ptrsize;	// G.stackguard0
++	if(ctxt->cursym->cfunc)
++		p->from.offset = 3*ctxt->arch->ptrsize;	// G.stackguard1
+ 	p->to.type = D_REG;
+ 	p->to.reg = 1;
+ 	
+@@ -876,7 +878,10 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
+ 	p->as = ABL;
+ 	p->scond = C_SCOND_LS;
+ 	p->to.type = D_BRANCH;
+-	p->to.sym = ctxt->symmorestack[noctxt];
++	if(ctxt->cursym->cfunc)
++		p->to.sym = linklookup(ctxt, "runtime.morestackc", 0);
++	else
++		p->to.sym = ctxt->symmorestack[noctxt];
+ 	
+ 	// BLS	start
+ 	p = appendp(ctxt, p);
+diff --git a/src/liblink/obj6.c b/src/liblink/obj6.c
+index 2dc1315623..2acfd2f70d 100644
+--- a/src/liblink/obj6.c
++++ b/src/liblink/obj6.c
+@@ -452,7 +452,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 		p = appendp(ctxt, p);
+ 		p->as = AMOVQ;
+ 		p->from.type = D_INDIR+D_CX;
+-		p->from.offset = 3*ctxt->arch->ptrsize; // G.panic
++		p->from.offset = 4*ctxt->arch->ptrsize; // G.panic
+ 		p->to.type = D_BX;
+ 		if(ctxt->headtype == Hnacl) {
+ 			p->as = AMOVL;
+@@ -689,7 +689,9 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, int noctxt, Prog
+ 		p->as = cmp;
+ 		p->from.type = D_SP;
+ 		indir_cx(ctxt, &p->to);
+-		p->to.offset = 2*ctxt->arch->ptrsize;	// G.stackguard
++		p->to.offset = 2*ctxt->arch->ptrsize;	// G.stackguard0
++		if(ctxt->cursym->cfunc)
++			p->to.offset = 3*ctxt->arch->ptrsize;	// G.stackguard1
+ 	} else if(framesize <= StackBig) {
+ 		// large stack: SP-framesize <= stackguard-StackSmall
+ 		//	LEAQ -xxx(SP), AX
+@@ -704,7 +706,9 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, int noctxt, Prog
+ 		p->as = cmp;
+ 		p->from.type = D_AX;
+ 		indir_cx(ctxt, &p->to);
+-		p->to.offset = 2*ctxt->arch->ptrsize;	// G.stackguard
++		p->to.offset = 2*ctxt->arch->ptrsize;	// G.stackguard0
++		if(ctxt->cursym->cfunc)
++			p->to.offset = 3*ctxt->arch->ptrsize;	// G.stackguard1
+ 	} else {
+ 		// Such a large stack we need to protect against wraparound.
+ 		// If SP is close to zero:
+@@ -724,7 +728,9 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, int noctxt, Prog
+ 		p = appendp(ctxt, p);
+ 		p->as = mov;
+ 		indir_cx(ctxt, &p->from);
+-		p->from.offset = 2*ctxt->arch->ptrsize;	// G.stackguard
++		p->from.offset = 2*ctxt->arch->ptrsize;	// G.stackguard0
++		if(ctxt->cursym->cfunc)
++			p->from.offset = 3*ctxt->arch->ptrsize;	// G.stackguard1
+ 		p->to.type = D_SI;
+ 
+ 		p = appendp(ctxt, p);
+@@ -765,7 +771,10 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, int noctxt, Prog
+ 	p = appendp(ctxt, p);
+ 	p->as = ACALL;
+ 	p->to.type = D_BRANCH;
+-	p->to.sym = ctxt->symmorestack[noctxt];
++	if(ctxt->cursym->cfunc)
++		p->to.sym = linklookup(ctxt, "runtime.morestackc", 0);
++	else
++		p->to.sym = ctxt->symmorestack[noctxt];
+ 	
+ 	p = appendp(ctxt, p);
+ 	p->as = AJMP;
+diff --git a/src/liblink/obj8.c b/src/liblink/obj8.c
+index 023bea623b..f54153ae9b 100644
+--- a/src/liblink/obj8.c
++++ b/src/liblink/obj8.c
+@@ -335,7 +335,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 		p = appendp(ctxt, p);
+ 		p->as = AMOVL;
+ 		p->from.type = D_INDIR+D_CX;
+-		p->from.offset = 3*ctxt->arch->ptrsize; // G.panic
++		p->from.offset = 4*ctxt->arch->ptrsize; // G.panic
+ 		p->to.type = D_BX;
+ 
+ 		p = appendp(ctxt, p);
+@@ -538,7 +538,9 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt, Prog **jmpok)
+ 		p->as = ACMPL;
+ 		p->from.type = D_SP;
+ 		p->to.type = D_INDIR+D_CX;
+-		p->to.offset = 2*ctxt->arch->ptrsize;	// G.stackguard
++		p->to.offset = 2*ctxt->arch->ptrsize;	// G.stackguard0
++		if(ctxt->cursym->cfunc)
++			p->to.offset = 3*ctxt->arch->ptrsize;	// G.stackguard1
+ 	} else if(framesize <= StackBig) {
+ 		// large stack: SP-framesize <= stackguard-StackSmall
+ 		//	LEAL -(framesize-StackSmall)(SP), AX
+@@ -553,7 +555,9 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt, Prog **jmpok)
+ 		p->as = ACMPL;
+ 		p->from.type = D_AX;
+ 		p->to.type = D_INDIR+D_CX;
+-		p->to.offset = 2*ctxt->arch->ptrsize;	// G.stackguard
++		p->to.offset = 2*ctxt->arch->ptrsize;	// G.stackguard0
++		if(ctxt->cursym->cfunc)
++			p->to.offset = 3*ctxt->arch->ptrsize;	// G.stackguard1
+ 	} else {
+ 		// Such a large stack we need to protect against wraparound
+ 		// if SP is close to zero.
+@@ -573,7 +577,9 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt, Prog **jmpok)
+ 		p->as = AMOVL;
+ 		p->from.type = D_INDIR+D_CX;
+ 		p->from.offset = 0;
+-		p->from.offset = 2*ctxt->arch->ptrsize;	// G.stackguard
++		p->from.offset = 2*ctxt->arch->ptrsize;	// G.stackguard0
++		if(ctxt->cursym->cfunc)
++			p->from.offset = 3*ctxt->arch->ptrsize;	// G.stackguard1
+ 		p->to.type = D_SI;
+ 
+ 		p = appendp(ctxt, p);
+@@ -616,7 +622,10 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt, Prog **jmpok)
+ 	p = appendp(ctxt, p);
+ 	p->as = ACALL;
+ 	p->to.type = D_BRANCH;
+-	p->to.sym = ctxt->symmorestack[noctxt];
++	if(ctxt->cursym->cfunc)
++		p->to.sym = linklookup(ctxt, "runtime.morestackc", 0);
++	else
++		p->to.sym = ctxt->symmorestack[noctxt];
+ 
+ 	p = appendp(ctxt, p);
+ 	p->as = AJMP;
+diff --git a/src/liblink/obj9.c b/src/liblink/obj9.c
+index 120bcedf10..2b6456d423 100644
+--- a/src/liblink/obj9.c
++++ b/src/liblink/obj9.c
+@@ -492,7 +492,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 				q->as = AMOVD;
+ 				q->from.type = D_OREG;
+ 				q->from.reg = REGG;
+-				q->from.offset = 3*ctxt->arch->ptrsize; // G.panic
++				q->from.offset = 4*ctxt->arch->ptrsize; // G.panic
+ 				q->to.type = D_REG;
+ 				q->to.reg = 3;
+ 
+@@ -724,7 +724,9 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
+ 	p->as = AMOVD;
+ 	p->from.type = D_OREG;
+ 	p->from.reg = REGG;
+-	p->from.offset = 2*ctxt->arch->ptrsize;	// G.stackguard
++	p->from.offset = 2*ctxt->arch->ptrsize;	// G.stackguard0
++	if(ctxt->cursym->cfunc)
++		p->from.offset = 3*ctxt->arch->ptrsize;	// G.stackguard1
+ 	p->to.type = D_REG;
+ 	p->to.reg = 3;
+ 
+@@ -832,7 +834,10 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
+ 	p = appendp(ctxt, p);
+ 	p->as = ABL;
+ 	p->to.type = D_BRANCH;
+-	p->to.sym = ctxt->symmorestack[noctxt];
++	if(ctxt->cursym->cfunc)
++		p->to.sym = linklookup(ctxt, "runtime.morestackc", 0);
++	else
++		p->to.sym = ctxt->symmorestack[noctxt];
+ 
+ 	// BR	start
+ 	p = appendp(ctxt, p);
+diff --git a/src/liblink/objfile.c b/src/liblink/objfile.c
+index e47263d961..aa701f459e 100644
+--- a/src/liblink/objfile.c
++++ b/src/liblink/objfile.c
+@@ -332,6 +332,8 @@ writesym(Link *ctxt, Biobuf *b, LSym *s)
+ 			Bprint(ctxt->bso, "t=%d ", s->type);
+ 		if(s->dupok)
+ 			Bprint(ctxt->bso, "dupok ");
++		if(s->cfunc)
++			Bprint(ctxt->bso, "cfunc ");
+ 		if(s->nosplit)
+ 			Bprint(ctxt->bso, "nosplit ");
+ 		Bprint(ctxt->bso, "size=%lld value=%lld", (vlong)s->size, (vlong)s->value);
+@@ -397,7 +399,7 @@ writesym(Link *ctxt, Biobuf *b, LSym *s)
+ 		wrint(b, s->args);
+ 		wrint(b, s->locals);
+ 		wrint(b, s->nosplit);
+-		wrint(b, s->leaf);
++		wrint(b, s->leaf | s->cfunc<<1);
+ 		n = 0;
+ 		for(a = s->autom; a != nil; a = a->link)
+ 			n++;
+@@ -641,6 +643,7 @@ overwrite:
+ 		s->nosplit = rdint(f);
+ 		v = rdint(f);
+ 		s->leaf = v&1;
++		s->cfunc = v&2;
+ 		n = rdint(f);
+ 		for(i=0; i<n; i++) {
+ 			a = emallocz(sizeof *a);
+@@ -696,6 +699,8 @@ overwrite:
+ 			Bprint(ctxt->bso, "t=%d ", s->type);
+ 		if(s->dupok)
+ 			Bprint(ctxt->bso, "dupok ");
++		if(s->cfunc)
++			Bprint(ctxt->bso, "cfunc ");
+ 		if(s->nosplit)
+ 			Bprint(ctxt->bso, "nosplit ");
+ 		Bprint(ctxt->bso, "size=%lld value=%lld", (vlong)s->size, (vlong)s->value);
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 43f92b2b8b..14e4360c4b 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -20,7 +20,8 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
+ 	// _cgo_init may update stackguard.
+ 	MOVL	$runtime·g0(SB), BP
+ 	LEAL	(-64*1024+104)(SP), BX
+-	MOVL	BX, g_stackguard(BP)
++	MOVL	BX, g_stackguard0(BP)
++	MOVL	BX, g_stackguard1(BP)
+ 	MOVL	BX, (g_stack+stack_lo)(BP)
+ 	MOVL	SP, (g_stack+stack_hi)(BP)
+ 	
+@@ -50,7 +51,8 @@ nocpuinfo:
+ 	MOVL	$runtime·g0(SB), CX
+ 	MOVL	(g_stack+stack_lo)(CX), AX
+ 	ADDL	$const__StackGuard, AX
+-	MOVL	AX, g_stackguard(CX)
++	MOVL	AX, g_stackguard0(CX)
++	MOVL	AX, g_stackguard1(CX)
+ 
+ 	// skip runtime·ldt0setup(SB) and tls test after _cgo_init for non-windows
+ 	CMPL runtime·iswindows(SB), $0
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 4061e99c4b..5a94e11e5d 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -20,7 +20,8 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
+ 	// _cgo_init may update stackguard.
+ 	MOVQ	$runtime·g0(SB), DI
+ 	LEAQ	(-64*1024+104)(SP), BX
+-	MOVQ	BX, g_stackguard(DI)
++	MOVQ	BX, g_stackguard0(DI)
++	MOVQ	BX, g_stackguard1(DI)
+ 	MOVQ	BX, (g_stack+stack_lo)(DI)
+ 	MOVQ	SP, (g_stack+stack_hi)(DI)
+ 
+@@ -48,7 +49,8 @@ nocpuinfo:
+ 	MOVQ	$runtime·g0(SB), CX
+ 	MOVQ	(g_stack+stack_lo)(CX), AX
+ 	ADDQ	$const__StackGuard, AX
+-	MOVQ	AX, g_stackguard(CX)
++	MOVQ	AX, g_stackguard0(CX)
++	MOVQ	AX, g_stackguard1(CX)
+ 
+ 	CMPL	runtime·iswindows(SB), $0
+ 	JEQ ok
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index b919734770..20fb5df080 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -22,7 +22,8 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
+ 	// create istack out of the given (operating system) stack.
+ 	MOVL	$runtime·g0(SB), DI
+ 	LEAL	(-64*1024+104)(SP), BX
+-	MOVL	BX, g_stackguard(DI)
++	MOVL	BX, g_stackguard0(DI)
++	MOVL	BX, g_stackguard1(DI)
+ 	MOVL	BX, (g_stack+stack_lo)(DI)
+ 	MOVL	SP, (g_stack+stack_hi)(DI)
+ 
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 6fe931bd89..fdcc0e67c1 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -32,7 +32,8 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$-4
+ 
+ 	// create istack out of the OS stack
+ 	MOVW	$(-8192+104)(R13), R0
+-	MOVW	R0, g_stackguard(g)
++	MOVW	R0, g_stackguard0(g)
++	MOVW	R0, g_stackguard1(g)
+ 	MOVW	R0, (g_stack+stack_lo)(g)
+ 	MOVW	R13, (g_stack+stack_hi)(g)
+ 
+@@ -55,7 +56,8 @@ nocgo:
+ 	// update stackguard after _cgo_init
+ 	MOVW	(g_stack+stack_lo)(g), R0
+ 	ADD	$const__StackGuard, R0
+-	MOVW	R0, g_stackguard(g)
++	MOVW	R0, g_stackguard0(g)
++	MOVW	R0, g_stackguard1(g)
+ 
+ 	BL	runtime·checkgoarm(SB)
+ 	BL	runtime·check(SB)
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 86cf685747..1360c6ed3b 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -22,7 +22,8 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
+ 	MOVD	$runtime·g0(SB), g
+ 	MOVD	$(-64*1024), R31
+ 	ADD	R31, R1, R3
+-	MOVD	R3, g_stackguard(g)
++	MOVD	R3, g_stackguard0(g)
++	MOVD	R3, g_stackguard1(g)
+ 	MOVD	R3, (g_stack+stack_lo)(g)
+ 	MOVD	R1, (g_stack+stack_hi)(g)
+ 
+diff --git a/src/runtime/lock_futex.go b/src/runtime/lock_futex.go
+index d1a45eb6e9..6e1f1e9da4 100644
+--- a/src/runtime/lock_futex.go
++++ b/src/runtime/lock_futex.go
+@@ -114,7 +114,7 @@ func unlock(l *mutex) {
+ 		throw("runtime·unlock: lock count")
+ 	}
+ 	if gp.m.locks == 0 && gp.preempt { // restore the preemption request in case we've cleared it in newstack
+-		gp.stackguard = stackPreempt
++		gp.stackguard0 = stackPreempt
+ 	}
+ }
+ 
+diff --git a/src/runtime/lock_sema.go b/src/runtime/lock_sema.go
+index 556551f3b5..c995e08441 100644
+--- a/src/runtime/lock_sema.go
++++ b/src/runtime/lock_sema.go
+@@ -115,7 +115,7 @@ func unlock(l *mutex) {
+ 		throw("runtime·unlock: lock count")
+ 	}
+ 	if gp.m.locks == 0 && gp.preempt { // restore the preemption request in case we've cleared it in newstack
+-		gp.stackguard = stackPreempt
++		gp.stackguard0 = stackPreempt
+ 	}
+ }
+ 
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index bb23b80c93..99420c8133 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -64,7 +64,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 		}
+ 		mp.mallocing = 1
+ 		if mp.curg != nil {
+-			mp.curg.stackguard = ^uintptr(0xfff) | 0xbad
++			mp.curg.stackguard0 = ^uintptr(0xfff) | 0xbad
+ 		}
+ 	}
+ 
+@@ -127,7 +127,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 						}
+ 						mp.mallocing = 0
+ 						if mp.curg != nil {
+-							mp.curg.stackguard = mp.curg.stack.lo + _StackGuard
++							mp.curg.stackguard0 = mp.curg.stack.lo + _StackGuard
+ 						}
+ 						// Note: one releasem for the acquirem just above.
+ 						// The other for the acquirem at start of malloc.
+@@ -319,7 +319,7 @@ marked:
+ 		}
+ 		mp.mallocing = 0
+ 		if mp.curg != nil {
+-			mp.curg.stackguard = mp.curg.stack.lo + _StackGuard
++			mp.curg.stackguard0 = mp.curg.stack.lo + _StackGuard
+ 		}
+ 		// Note: one releasem for the acquirem just above.
+ 		// The other for the acquirem at start of malloc.
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 118351c450..3cb91ee48b 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -179,6 +179,9 @@ func mcommoninit(mp *m) {
+ 	sched.mcount++
+ 	checkmcount()
+ 	mpreinit(mp)
++	if mp.gsignal != nil {
++		mp.gsignal.stackguard1 = mp.gsignal.stack.lo + _StackGuard
++	}
+ 
+ 	// Add to allm so garbage collector doesn't free g->m
+ 	// when it is just in a register or thread-local storage.
+@@ -210,7 +213,7 @@ func ready(gp *g) {
+ 	}
+ 	_g_.m.locks--
+ 	if _g_.m.locks == 0 && _g_.preempt { // restore the preemption request in case we've cleared it in newstack
+-		_g_.stackguard = stackPreempt
++		_g_.stackguard0 = stackPreempt
+ 	}
+ }
+ 
+@@ -460,7 +463,7 @@ func stopg(gp *g) bool {
+ 			if !gp.gcworkdone {
+ 				gp.preemptscan = true
+ 				gp.preempt = true
+-				gp.stackguard = stackPreempt
++				gp.stackguard0 = stackPreempt
+ 			}
+ 
+ 			// Unclaim.
+@@ -542,7 +545,7 @@ func mquiesce(gpmaster *g) {
+ 				gp.gcworkdone = true // scan is a noop
+ 				break
+ 			}
+-			if status == _Grunning && gp.stackguard == uintptr(stackPreempt) && notetsleep(&sched.stopnote, 100*1000) { // nanosecond arg
++			if status == _Grunning && gp.stackguard0 == uintptr(stackPreempt) && notetsleep(&sched.stopnote, 100*1000) { // nanosecond arg
+ 				noteclear(&sched.stopnote)
+ 			} else {
+ 				stopscanstart(gp)
+@@ -701,7 +704,7 @@ func starttheworld() {
+ 	}
+ 	_g_.m.locks--
+ 	if _g_.m.locks == 0 && _g_.preempt { // restore the preemption request in case we've cleared it in newstack
+-		_g_.stackguard = stackPreempt
++		_g_.stackguard0 = stackPreempt
+ 	}
+ }
+ 
+@@ -722,7 +725,8 @@ func mstart() {
+ 	}
+ 	// Initialize stack guards so that we can start calling
+ 	// both Go and C functions with stack growth prologues.
+-	_g_.stackguard = _g_.stack.lo + _StackGuard
++	_g_.stackguard0 = _g_.stack.lo + _StackGuard
++	_g_.stackguard1 = _g_.stackguard0
+ 	mstart1()
+ }
+ 
+@@ -802,7 +806,7 @@ func allocm(_p_ *p) *m {
+ 	}
+ 	_g_.m.locks--
+ 	if _g_.m.locks == 0 && _g_.preempt { // restore the preemption request in case we've cleared it in newstack
+-		_g_.stackguard = stackPreempt
++		_g_.stackguard0 = stackPreempt
+ 	}
+ 
+ 	return mp
+@@ -879,7 +883,7 @@ func needm(x byte) {
+ 	_g_ := getg()
+ 	_g_.stack.hi = uintptr(noescape(unsafe.Pointer(&x))) + 1024
+ 	_g_.stack.lo = uintptr(noescape(unsafe.Pointer(&x))) - 32*1024
+-	_g_.stackguard = _g_.stack.lo + _StackGuard
++	_g_.stackguard0 = _g_.stack.lo + _StackGuard
+ 
+ 	// Initialize this thread to use the m.
+ 	asminit()
+@@ -1217,7 +1221,7 @@ func execute(gp *g) {
+ 	casgstatus(gp, _Grunnable, _Grunning)
+ 	gp.waitsince = 0
+ 	gp.preempt = false
+-	gp.stackguard = gp.stack.lo + _StackGuard
++	gp.stackguard0 = gp.stack.lo + _StackGuard
+ 	_g_.m.p.schedtick++
+ 	_g_.m.curg = gp
+ 	gp.m = _g_.m
+@@ -1613,7 +1617,7 @@ func reentersyscall(pc, sp uintptr) {
+ 	// (See details in comment above.)
+ 	// Catch calls that might, by replacing the stack guard with something that
+ 	// will trip any stack check and leaving a flag to tell newstack to die.
+-	_g_.stackguard = stackPreempt
++	_g_.stackguard0 = stackPreempt
+ 	_g_.throwsplit = true
+ 
+ 	// Leave SP around for GC and traceback.
+@@ -1644,7 +1648,7 @@ func reentersyscall(pc, sp uintptr) {
+ 	// Goroutines must not split stacks in Gsyscall status (it would corrupt g->sched).
+ 	// We set _StackGuard to StackPreempt so that first split stack check calls morestack.
+ 	// Morestack detects this case and throws.
+-	_g_.stackguard = stackPreempt
++	_g_.stackguard0 = stackPreempt
+ 	_g_.m.locks--
+ }
+ 
+@@ -1682,7 +1686,7 @@ func entersyscallblock(dummy int32) {
+ 
+ 	_g_.m.locks++ // see comment in entersyscall
+ 	_g_.throwsplit = true
+-	_g_.stackguard = stackPreempt // see comment in entersyscall
++	_g_.stackguard0 = stackPreempt // see comment in entersyscall
+ 
+ 	// Leave SP around for GC and traceback.
+ 	pc := getcallerpc(unsafe.Pointer(&dummy))
+@@ -1748,10 +1752,10 @@ func exitsyscall(dummy int32) {
+ 		_g_.m.locks--
+ 		if _g_.preempt {
+ 			// restore the preemption request in case we've cleared it in newstack
+-			_g_.stackguard = stackPreempt
++			_g_.stackguard0 = stackPreempt
+ 		} else {
+ 			// otherwise restore the real _StackGuard, we've spoiled it in entersyscall/entersyscallblock
+-			_g_.stackguard = _g_.stack.lo + _StackGuard
++			_g_.stackguard0 = _g_.stack.lo + _StackGuard
+ 		}
+ 		_g_.throwsplit = false
+ 		return
+@@ -1869,7 +1873,7 @@ func beforefork() {
+ 	// Code between fork and exec must not allocate memory nor even try to grow stack.
+ 	// Here we spoil g->_StackGuard to reliably detect any attempts to grow stack.
+ 	// runtime_AfterFork will undo this in parent process, but not in child.
+-	gp.stackguard = stackFork
++	gp.stackguard0 = stackFork
+ }
+ 
+ // Called from syscall package before fork.
+@@ -1883,7 +1887,7 @@ func afterfork() {
+ 	gp := getg().m.curg
+ 
+ 	// See the comment in beforefork.
+-	gp.stackguard = gp.stack.lo + _StackGuard
++	gp.stackguard0 = gp.stack.lo + _StackGuard
+ 
+ 	hz := sched.profilehz
+ 	if hz != 0 {
+@@ -1907,7 +1911,8 @@ func malg(stacksize int32) *g {
+ 		systemstack(func() {
+ 			newg.stack = stackalloc(uint32(stacksize))
+ 		})
+-		newg.stackguard = newg.stack.lo + _StackGuard
++		newg.stackguard0 = newg.stack.lo + _StackGuard
++		newg.stackguard1 = ^uintptr(0)
+ 	}
+ 	return newg
+ }
+@@ -2003,7 +2008,7 @@ func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr
+ 	}
+ 	_g_.m.locks--
+ 	if _g_.m.locks == 0 && _g_.preempt { // restore the preemption request in case we've cleared it in newstack
+-		_g_.stackguard = stackPreempt
++		_g_.stackguard0 = stackPreempt
+ 	}
+ 	return newg
+ }
+@@ -2022,7 +2027,7 @@ func gfput(_p_ *p, gp *g) {
+ 		stackfree(gp.stack)
+ 		gp.stack.lo = 0
+ 		gp.stack.hi = 0
+-		gp.stackguard = 0
++		gp.stackguard0 = 0
+ 	}
+ 
+ 	gp.schedlink = _p_.gfree
+@@ -2068,7 +2073,7 @@ retry:
+ 			systemstack(func() {
+ 				gp.stack = stackalloc(_FixedStack)
+ 			})
+-			gp.stackguard = gp.stack.lo + _StackGuard
++			gp.stackguard0 = gp.stack.lo + _StackGuard
+ 		} else {
+ 			if raceenabled {
+ 				racemalloc(unsafe.Pointer(gp.stack.lo), gp.stack.hi-gp.stack.lo)
+@@ -2773,10 +2778,10 @@ func preemptone(_p_ *p) bool {
+ 	gp.preempt = true
+ 
+ 	// Every call in a go routine checks for stack overflow by
+-	// comparing the current stack pointer to gp->stackguard.
+-	// Setting gp->stackguard to StackPreempt folds
++	// comparing the current stack pointer to gp->stackguard0.
++	// Setting gp->stackguard0 to StackPreempt folds
+ 	// preemption into the normal stack overflow check.
+-	gp.stackguard = stackPreempt
++	gp.stackguard0 = stackPreempt
+ 	return true
+ }
+ 
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 4c61751db0..b3e6e7b3cc 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -386,7 +386,7 @@ func releasem(mp *m) {
+ 	mp.locks--
+ 	if mp.locks == 0 && _g_.preempt {
+ 		// restore the preemption request in case we've cleared it in newstack
+-		_g_.stackguard = stackPreempt
++		_g_.stackguard0 = stackPreempt
+ 	}
+ }
+ 
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 8425729fff..3b7db1e412 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -154,10 +154,14 @@ type stack struct {
+ type g struct {
+ 	// Stack parameters.
+ 	// stack describes the actual stack memory: [stack.lo, stack.hi).
+-	// stackguard is the stack pointer compared in the Go stack growth prologue.
++	// stackguard0 is the stack pointer compared in the Go stack growth prologue.
+ 	// It is stack.lo+StackGuard normally, but can be StackPreempt to trigger a preemption.
+-	stack      stack   // offset known to runtime/cgo
+-	stackguard uintptr // offset known to liblink
++	// stackguard1 is the stack pointer compared in the C stack growth prologue.
++	// It is stack.lo+StackGuard on g0 and gsignal stacks.
++	// It is ~0 on other goroutine stacks, to trigger a call to morestackc (and crash).
++	stack       stack   // offset known to runtime/cgo
++	stackguard0 uintptr // offset known to liblink
++	stackguard1 uintptr // offset known to liblink
+ 
+ 	_panic       *_panic // innermost panic - offset known to liblink
+ 	_defer       *_defer // innermost defer
+@@ -171,7 +175,7 @@ type g struct {
+ 	waitreason   string // if status==gwaiting
+ 	schedlink    *g
+ 	issystem     bool // do not output in stack dump, ignore in deadlock detector
+-	preempt      bool // preemption signal, duplicates stackguard = stackpreempt
++	preempt      bool // preemption signal, duplicates stackguard0 = stackpreempt
+ 	paniconfault bool // panic (instead of crash) on unexpected fault address
+ 	preemptscan  bool // preempted g does scan for gc
+ 	gcworkdone   bool // debug: cleared at begining of gc work phase cycle, set by gcphasework, tested at end of cycle
+diff --git a/src/runtime/stack1.go b/src/runtime/stack1.go
+index 8b32eb6d16..6c34642947 100644
+--- a/src/runtime/stack1.go
++++ b/src/runtime/stack1.go
+@@ -26,13 +26,13 @@ const (
+ 	poisonStack = uintptrMask & 0x6868686868686868
+ 
+ 	// Goroutine preemption request.
+-	// Stored into g->stackguard to cause split stack check failure.
++	// Stored into g->stackguard0 to cause split stack check failure.
+ 	// Must be greater than any real sp.
+ 	// 0xfffffade in hex.
+ 	stackPreempt = uintptrMask & -1314
+ 
+ 	// Thread is forking.
+-	// Stored into g->stackguard to cause split stack check failure.
++	// Stored into g->stackguard0 to cause split stack check failure.
+ 	// Must be greater than any real sp.
+ 	stackFork = uintptrMask & -1234
+ )
+@@ -566,7 +566,7 @@ func copystack(gp *g, newsize uintptr) {
+ 
+ 	// Swap out old stack for new one
+ 	gp.stack = new
+-	gp.stackguard = new.lo + _StackGuard // NOTE: might clobber a preempt request
++	gp.stackguard0 = new.lo + _StackGuard // NOTE: might clobber a preempt request
+ 	gp.sched.sp = new.hi - used
+ 
+ 	// free old stack
+@@ -611,7 +611,7 @@ func round2(x int32) int32 {
+ func newstack() {
+ 	thisg := getg()
+ 	// TODO: double check all gp. shouldn't be getg().
+-	if thisg.m.morebuf.g.stackguard == stackFork {
++	if thisg.m.morebuf.g.stackguard0 == stackFork {
+ 		throw("stack growth after fork")
+ 	}
+ 	if thisg.m.morebuf.g != thisg.m.curg {
+@@ -674,7 +674,7 @@ func newstack() {
+ 		writebarrierptr_nostore((*uintptr)(unsafe.Pointer(&gp.sched.ctxt)), uintptr(gp.sched.ctxt))
+ 	}
+ 
+-	if gp.stackguard == stackPreempt {
++	if gp.stackguard0 == stackPreempt {
+ 		if gp == thisg.m.g0 {
+ 			throw("runtime: preempt g0")
+ 		}
+@@ -689,7 +689,7 @@ func newstack() {
+ 			gcphasework(gp)
+ 			casfrom_Gscanstatus(gp, _Gscanwaiting, _Gwaiting)
+ 			casgstatus(gp, _Gwaiting, _Grunning)
+-			gp.stackguard = gp.stack.lo + _StackGuard
++			gp.stackguard0 = gp.stack.lo + _StackGuard
+ 			gp.preempt = false
+ 			gp.preemptscan = false // Tells the GC premption was successful.
+ 			gogo(&gp.sched)        // never return
+@@ -700,7 +700,7 @@ func newstack() {
+ 		if thisg.m.locks != 0 || thisg.m.mallocing != 0 || thisg.m.gcing != 0 || thisg.m.p.status != _Prunning {
+ 			// Let the goroutine keep running for now.
+ 			// gp->preempt is set, so it will be preempted next time.
+-			gp.stackguard = gp.stack.lo + _StackGuard
++			gp.stackguard0 = gp.stack.lo + _StackGuard
+ 			casgstatus(gp, _Gwaiting, _Grunning)
+ 			gogo(&gp.sched) // never return
+ 		}
+@@ -804,3 +804,10 @@ func shrinkfinish() {
+ 		s = t
+ 	}
+ }
++
++//go:nosplit
++func morestackc() {
++	systemstack(func() {
++		throw("attempt to execute C code on Go stack")
++	})
++}
+diff --git a/src/runtime/stack2.go b/src/runtime/stack2.go
+index 8cc74968ee..8a78b1ad96 100644
+--- a/src/runtime/stack2.go
++++ b/src/runtime/stack2.go
+@@ -97,7 +97,7 @@ const (
+ )
+ 
+ // Goroutine preemption request.
+-// Stored into g->stackguard to cause split stack check failure.
++// Stored into g->stackguard0 to cause split stack check failure.
+ // Must be greater than any real sp.
+ // 0xfffffade in hex.
+ const (
+diff --git a/src/runtime/sys_plan9_386.s b/src/runtime/sys_plan9_386.s
+index 13ead5dccc..b9db8cbf1a 100644
+--- a/src/runtime/sys_plan9_386.s
++++ b/src/runtime/sys_plan9_386.s
+@@ -148,7 +148,8 @@ TEXT runtime·tstart_plan9(SB),NOSPLIT,$0
+ 	MOVL	AX, (g_stack+stack_hi)(DX)
+ 	SUBL	$(64*1024), AX		// stack size
+ 	MOVL	AX, (g_stack+stack_lo)(DX)
+-	MOVL	AX, g_stackguard(DX)
++	MOVL	AX, g_stackguard0(DX)
++	MOVL	AX, g_stackguard1(DX)
+ 
+ 	// Initialize procid from TOS struct.
+ 	MOVL	_tos(SB), AX
+diff --git a/src/runtime/sys_plan9_amd64.s b/src/runtime/sys_plan9_amd64.s
+index a958ce8a95..02c7c8743e 100644
+--- a/src/runtime/sys_plan9_amd64.s
++++ b/src/runtime/sys_plan9_amd64.s
+@@ -145,7 +145,8 @@ TEXT runtime·tstart_plan9(SB),NOSPLIT,$0
+ 	MOVQ	AX, (g_stack+stack_hi)(DX)
+ 	SUBQ	$(64*1024), AX		// stack size
+ 	MOVQ	AX, (g_stack+stack_lo)(DX)
+-	MOVQ	AX, g_stackguard(DX)
++	MOVQ	AX, g_stackguard0(DX)
++	MOVQ	AX, g_stackguard1(DX)
+ 
+ 	// Initialize procid from TOS struct.
+ 	MOVQ	_tos(SB), AX
+diff --git a/src/runtime/sys_solaris_amd64.s b/src/runtime/sys_solaris_amd64.s
+index 64a5224e98..54aeaeaf54 100644
+--- a/src/runtime/sys_solaris_amd64.s
++++ b/src/runtime/sys_solaris_amd64.s
+@@ -134,7 +134,8 @@ TEXT runtime·tstart_sysvicall(SB),NOSPLIT,$0
+ 	SUBQ	$(0x100000), AX		// stack size
+ 	MOVQ	AX, (g_stack+stack_lo)(DX)
+ 	ADDQ	$const__StackGuard, AX
+-	MOVQ	AX, g_stackguard(DX)
++	MOVQ	AX, g_stackguard0(DX)
++	MOVQ	AX, g_stackguard1(DX)
+ 
+ 	// Someday the convention will be D is always cleared.
+ 	CLD
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index eee65736e9..c8a830cdf8 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -209,7 +209,8 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
+ 	LEAL	-8192(SP), CX
+ 	MOVL	CX, (g_stack+stack_lo)(SP)
+ 	ADDL	$const__StackGuard, CX
+-	MOVL	CX, g_stackguard(SP)
++	MOVL	CX, g_stackguard0(SP)
++	MOVL	CX, g_stackguard1(SP)
+ 	MOVL	DX, (g_stack+stack_hi)(SP)
+ 
+ 	PUSHL	16(BP)			// arg for handler
+@@ -314,7 +315,8 @@ TEXT runtime·tstart(SB),NOSPLIT,$0
+ 	SUBL	$(64*1024), AX		// stack size
+ 	MOVL	AX, (g_stack+stack_lo)(DX)
+ 	ADDL	$const__StackGuard, AX
+-	MOVL	AX, g_stackguard(DX)
++	MOVL	AX, g_stackguard0(DX)
++	MOVL	AX, g_stackguard1(DX)
+ 
+ 	// Set up tls.
+ 	LEAL	m_tls(CX), SI
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index aa8100ecb5..68f7cd3924 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -246,7 +246,8 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
+ 	LEAQ	-8192(SP), CX
+ 	MOVQ	CX, (g_stack+stack_lo)(SP)
+ 	ADDQ	$const__StackGuard, CX
+-	MOVQ	CX, g_stackguard(SP)
++	MOVQ	CX, g_stackguard0(SP)
++	MOVQ	CX, g_stackguard1(SP)
+ 	MOVQ	DX, (g_stack+stack_hi)(SP)
+ 
+ 	PUSHQ	32(BP)			// arg for handler
+@@ -355,7 +356,8 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
+ 	SUBQ	$(64*1024), AX		// stack size
+ 	MOVQ	AX, (g_stack+stack_lo)(DX)
+ 	ADDQ	$const__StackGuard, AX
+-	MOVQ	AX, g_stackguard(DX)
++	MOVQ	AX, g_stackguard0(DX)
++	MOVQ	AX, g_stackguard1(DX)
+ 
+ 	// Set up tls.
+ 	LEAQ	m_tls(CX), SI

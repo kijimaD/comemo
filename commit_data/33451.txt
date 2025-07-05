@@ -19,7 +19,7 @@ Date:   Tue Aug 1 19:30:57 2017 -0400
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testsanitizers/cc_test.go               | 441 +++++++++++++++++++++++
  misc/cgo/testsanitizers/cshared_test.go          |  74 ++++
  misc/cgo/testsanitizers/msan_test.go             |  55 +++
@@ -48,3 +48,1030 @@ Date:   Tue Aug 1 19:30:57 2017 -0400
  misc/cgo/testsanitizers/tsan_test.go             |  56 +++
  src/cmd/dist/test.go                             |   2 +-
  27 files changed, 665 insertions(+), 234 deletions(-)
+
+diff --git a/misc/cgo/testsanitizers/cc_test.go b/misc/cgo/testsanitizers/cc_test.go
+new file mode 100644
+index 0000000000..cacb0d93df
+--- /dev/null
++++ b/misc/cgo/testsanitizers/cc_test.go
+@@ -0,0 +1,441 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// sanitizers_test checks the use of Go with sanitizers like msan, asan, etc.
++// See https://github.com/google/sanitizers.
++package sanitizers_test
++
++import (
++	"bytes"
++	"encoding/json"
++	"errors"
++	"fmt"
++	"io/ioutil"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"regexp"
++	"strconv"
++	"strings"
++	"sync"
++	"syscall"
++	"testing"
++	"unicode"
++)
++
++var overcommit struct {
++	sync.Once
++	value int
++	err   error
++}
++
++// requireOvercommit skips t if the kernel does not allow overcommit.
++func requireOvercommit(t *testing.T) {
++	t.Helper()
++
++	overcommit.Once.Do(func() {
++		var out []byte
++		out, overcommit.err = ioutil.ReadFile("/proc/sys/vm/overcommit_memory")
++		if overcommit.err != nil {
++			return
++		}
++		overcommit.value, overcommit.err = strconv.Atoi(string(bytes.TrimSpace(out)))
++	})
++
++	if overcommit.err != nil {
++		t.Skipf("couldn't determine vm.overcommit_memory (%v); assuming no overcommit", overcommit.err)
++	}
++	if overcommit.value == 2 {
++		t.Skip("vm.overcommit_memory=2")
++	}
++}
++
++var env struct {
++	sync.Once
++	m   map[string]string
++	err error
++}
++
++// goEnv returns the output of $(go env) as a map.
++func goEnv(key string) (string, error) {
++	env.Once.Do(func() {
++		var out []byte
++		out, env.err = exec.Command("go", "env", "-json").Output()
++		if env.err != nil {
++			return
++		}
++
++		env.m = make(map[string]string)
++		env.err = json.Unmarshal(out, &env.m)
++	})
++	if env.err != nil {
++		return "", env.err
++	}
++
++	v, ok := env.m[key]
++	if !ok {
++		return "", fmt.Errorf("`go env`: no entry for %v", key)
++	}
++	return v, nil
++}
++
++// replaceEnv sets the key environment variable to value in cmd.
++func replaceEnv(cmd *exec.Cmd, key, value string) {
++	if cmd.Env == nil {
++		cmd.Env = os.Environ()
++	}
++	cmd.Env = append(cmd.Env, key+"="+value)
++}
++
++// mustRun executes t and fails cmd with a well-formatted message if it fails.
++func mustRun(t *testing.T, cmd *exec.Cmd) {
++	t.Helper()
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("%#q exited with %v\n%s", strings.Join(cmd.Args, " "), err, out)
++	}
++}
++
++// cc returns a cmd that executes `$(go env CC) $(go env GOGCCFLAGS) $args`.
++func cc(args ...string) (*exec.Cmd, error) {
++	CC, err := goEnv("CC")
++	if err != nil {
++		return nil, err
++	}
++
++	GOGCCFLAGS, err := goEnv("GOGCCFLAGS")
++	if err != nil {
++		return nil, err
++	}
++
++	// Split GOGCCFLAGS, respecting quoting.
++	//
++	// TODO(bcmills): This code also appears in
++	// misc/cgo/testcarchive/carchive_test.go, and perhaps ought to go in
++	// src/cmd/dist/test.go as well. Figure out where to put it so that it can be
++	// shared.
++	var flags []string
++	quote := '\000'
++	start := 0
++	lastSpace := true
++	backslash := false
++	for i, c := range GOGCCFLAGS {
++		if quote == '\000' && unicode.IsSpace(c) {
++			if !lastSpace {
++				flags = append(flags, GOGCCFLAGS[start:i])
++				lastSpace = true
++			}
++		} else {
++			if lastSpace {
++				start = i
++				lastSpace = false
++			}
++			if quote == '\000' && !backslash && (c == '"' || c == '\'') {
++				quote = c
++				backslash = false
++			} else if !backslash && quote == c {
++				quote = '\000'
++			} else if (quote == '\000' || quote == '"') && !backslash && c == '\\' {
++				backslash = true
++			} else {
++				backslash = false
++			}
++		}
++	}
++	if !lastSpace {
++		flags = append(flags, GOGCCFLAGS[start:])
++	}
++
++	cmd := exec.Command(CC, flags...)
++	cmd.Args = append(cmd.Args, args...)
++	return cmd, nil
++}
++
++type version struct {
++	name         string
++	major, minor int
++}
++
++var compiler struct {
++	sync.Once
++	version
++	err error
++}
++
++// compilerVersion detects the version of $(go env CC).
++//
++// It returns a non-nil error if the compiler matches a known version schema but
++// the version could not be parsed, or if $(go env CC) could not be determined.
++func compilerVersion() (version, error) {
++	compiler.Once.Do(func() {
++		compiler.err = func() error {
++			compiler.name = "unknown"
++
++			cmd, err := cc("--version")
++			if err != nil {
++				return err
++			}
++			out, err := cmd.Output()
++			if err != nil {
++				// Compiler does not support "--version" flag: not Clang or GCC.
++				return nil
++			}
++
++			var match [][]byte
++			if bytes.HasPrefix(out, []byte("gcc")) {
++				compiler.name = "gcc"
++
++				cmd, err := cc("-dumpversion")
++				if err != nil {
++					return err
++				}
++				out, err := cmd.Output()
++				if err != nil {
++					// gcc, but does not support gcc's "-dumpversion" flag?!
++					return err
++				}
++				gccRE := regexp.MustCompile(`(\d+)\.(\d+)`)
++				match = gccRE.FindSubmatch(out)
++			} else {
++				clangRE := regexp.MustCompile(`clang version (\d+)\.(\d+)`)
++				if match = clangRE.FindSubmatch(out); len(match) > 0 {
++					compiler.name = "clang"
++				}
++			}
++
++			if len(match) < 3 {
++				return nil // "unknown"
++			}
++			if compiler.major, err = strconv.Atoi(string(match[1])); err != nil {
++				return err
++			}
++			if compiler.minor, err = strconv.Atoi(string(match[2])); err != nil {
++				return err
++			}
++			return nil
++		}()
++	})
++	return compiler.version, compiler.err
++}
++
++type compilerCheck struct {
++	once sync.Once
++	err  error
++	skip bool // If true, skip with err instead of failing with it.
++}
++
++type config struct {
++	sanitizer string
++
++	cFlags, ldFlags, goFlags []string
++
++	sanitizerCheck, runtimeCheck compilerCheck
++}
++
++var configs struct {
++	sync.Mutex
++	m map[string]*config
++}
++
++// configure returns the configuration for the given sanitizer.
++func configure(sanitizer string) *config {
++	configs.Lock()
++	defer configs.Unlock()
++	if c, ok := configs.m[sanitizer]; ok {
++		return c
++	}
++
++	c := &config{
++		sanitizer: sanitizer,
++		cFlags:    []string{"-fsanitize=" + sanitizer},
++		ldFlags:   []string{"-fsanitize=" + sanitizer},
++	}
++
++	if testing.Verbose() {
++		c.goFlags = append(c.goFlags, "-x")
++	}
++
++	switch sanitizer {
++	case "memory":
++		c.goFlags = append(c.goFlags, "-msan")
++
++	case "thread":
++		c.goFlags = append(c.goFlags, "--installsuffix=tsan")
++		compiler, _ := compilerVersion()
++		if compiler.name == "gcc" {
++			c.cFlags = append(c.cFlags, "-fPIC")
++			c.ldFlags = append(c.ldFlags, "-fPIC", "-static-libtsan")
++		}
++
++	default:
++		panic(fmt.Sprintf("unrecognized sanitizer: %q", sanitizer))
++	}
++
++	if configs.m == nil {
++		configs.m = make(map[string]*config)
++	}
++	configs.m[sanitizer] = c
++	return c
++}
++
++// goCmd returns a Cmd that executes "go $subcommand $args" with appropriate
++// additional flags and environment.
++func (c *config) goCmd(subcommand string, args ...string) *exec.Cmd {
++	cmd := exec.Command("go", subcommand)
++	cmd.Args = append(cmd.Args, c.goFlags...)
++	cmd.Args = append(cmd.Args, args...)
++	replaceEnv(cmd, "CGO_CFLAGS", strings.Join(c.cFlags, " "))
++	replaceEnv(cmd, "CGO_LDFLAGS", strings.Join(c.ldFlags, " "))
++	return cmd
++}
++
++// skipIfCSanitizerBroken skips t if the C compiler does not produce working
++// binaries as configured.
++func (c *config) skipIfCSanitizerBroken(t *testing.T) {
++	check := &c.sanitizerCheck
++	check.once.Do(func() {
++		check.skip, check.err = c.checkCSanitizer()
++	})
++	if check.err != nil {
++		t.Helper()
++		if check.skip {
++			t.Skip(check.err)
++		}
++		t.Fatal(check.err)
++	}
++}
++
++var cMain = []byte(`
++int main() {
++	return 0;
++}
++`)
++
++func (c *config) checkCSanitizer() (skip bool, err error) {
++	dir, err := ioutil.TempDir("", c.sanitizer)
++	if err != nil {
++		return false, fmt.Errorf("failed to create temp directory: %v", err)
++	}
++	defer os.RemoveAll(dir)
++
++	src := filepath.Join(dir, "return0.c")
++	if err := ioutil.WriteFile(src, cMain, 0600); err != nil {
++		return false, fmt.Errorf("failed to write C source file: %v", err)
++	}
++
++	dst := filepath.Join(dir, "return0")
++	cmd, err := cc(c.cFlags...)
++	if err != nil {
++		return false, err
++	}
++	cmd.Args = append(cmd.Args, c.ldFlags...)
++	cmd.Args = append(cmd.Args, "-o", dst, src)
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		if bytes.Contains(out, []byte("-fsanitize")) &&
++			(bytes.Contains(out, []byte("unrecognized")) ||
++				bytes.Contains(out, []byte("unsupported"))) {
++			return true, errors.New(string(out))
++		}
++		return true, fmt.Errorf("%#q failed: %v\n%s", strings.Join(cmd.Args, " "), err, out)
++	}
++
++	if out, err := exec.Command(dst).CombinedOutput(); err != nil {
++		if os.IsNotExist(err) {
++			return true, fmt.Errorf("%#q failed to produce executable: %v", strings.Join(cmd.Args, " "), err)
++		}
++		snippet := bytes.SplitN(out, []byte{'\n'}, 2)[0]
++		return true, fmt.Errorf("%#q generated broken executable: %v\n%s", strings.Join(cmd.Args, " "), err, snippet)
++	}
++
++	return false, nil
++}
++
++// skipIfRuntimeIncompatible skips t if the Go runtime is suspected not to work
++// with cgo as configured.
++func (c *config) skipIfRuntimeIncompatible(t *testing.T) {
++	check := &c.runtimeCheck
++	check.once.Do(func() {
++		check.skip, check.err = c.checkRuntime()
++	})
++	if check.err != nil {
++		t.Helper()
++		if check.skip {
++			t.Skip(check.err)
++		}
++		t.Fatal(check.err)
++	}
++}
++
++func (c *config) checkRuntime() (skip bool, err error) {
++	if c.sanitizer != "thread" {
++		return false, nil
++	}
++
++	// libcgo.h sets CGO_TSAN if it detects TSAN support in the C compiler.
++	// Dump the preprocessor defines to check that that works.
++	// (Sometimes it doesn't: see https://golang.org/issue/15983.)
++	cmd, err := cc(c.cFlags...)
++	if err != nil {
++		return false, err
++	}
++	cmd.Args = append(cmd.Args, "-dM", "-E", "../../../src/runtime/cgo/libcgo.h")
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		return false, fmt.Errorf("%#q exited with %v\n%s", strings.Join(cmd.Args, " "), err, out)
++	}
++	if !bytes.Contains(out, []byte("#define CGO_TSAN")) {
++		return true, fmt.Errorf("%#q did not define CGO_TSAN")
++	}
++	return false, nil
++}
++
++// srcPath returns the path to the given file relative to this test's source tree.
++func srcPath(path string) string {
++	return filepath.Join("src", path)
++}
++
++// A tempDir manages a temporary directory within a test.
++type tempDir struct {
++	base string
++}
++
++func (d *tempDir) RemoveAll(t *testing.T) {
++	t.Helper()
++	if d.base == "" {
++		return
++	}
++	if err := os.RemoveAll(d.base); err != nil {
++		t.Fatal("Failed to remove temp dir: %v", err)
++	}
++}
++
++func (d *tempDir) Join(name string) string {
++	return filepath.Join(d.base, name)
++}
++
++func newTempDir(t *testing.T) *tempDir {
++	t.Helper()
++	dir, err := ioutil.TempDir("", filepath.Dir(t.Name()))
++	if err != nil {
++		t.Fatalf("Failed to create temp dir: %v", err)
++	}
++	return &tempDir{base: dir}
++}
++
++// hangProneCmd returns an exec.Cmd for a command that is likely to hang.
++//
++// If one of these tests hangs, the caller is likely to kill the test process
++// using SIGINT, which will be sent to all of the processes in the test's group.
++// Unfortunately, TSAN in particular is prone to dropping signals, so the SIGINT
++// may terminate the test binary but leave the subprocess running. hangProneCmd
++// configures subprocess to receive SIGKILL instead to ensure that it won't
++// leak.
++func hangProneCmd(name string, arg ...string) *exec.Cmd {
++	cmd := exec.Command(name, arg...)
++	cmd.SysProcAttr = &syscall.SysProcAttr{
++		Pdeathsig: syscall.SIGKILL,
++	}
++	return cmd
++}
+diff --git a/misc/cgo/testsanitizers/cshared_test.go b/misc/cgo/testsanitizers/cshared_test.go
+new file mode 100644
+index 0000000000..56063ea620
+--- /dev/null
++++ b/misc/cgo/testsanitizers/cshared_test.go
+@@ -0,0 +1,74 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sanitizers_test
++
++import (
++	"fmt"
++	"io/ioutil"
++	"strings"
++	"testing"
++)
++
++func TestShared(t *testing.T) {
++	t.Parallel()
++	requireOvercommit(t)
++
++	GOOS, err := goEnv("GOOS")
++	if err != nil {
++		t.Fatal(err)
++	}
++	libExt := "so"
++	if GOOS == "darwin" {
++		libExt = "dylib"
++	}
++
++	cases := []struct {
++		src       string
++		sanitizer string
++	}{
++		{
++			src:       "msan_shared.go",
++			sanitizer: "memory",
++		},
++		{
++			src:       "tsan_shared.go",
++			sanitizer: "thread",
++		},
++	}
++
++	for _, tc := range cases {
++		tc := tc
++		name := strings.TrimSuffix(tc.src, ".go")
++		t.Run(name, func(t *testing.T) {
++			t.Parallel()
++			config := configure(tc.sanitizer)
++			config.skipIfCSanitizerBroken(t)
++
++			dir := newTempDir(t)
++			defer dir.RemoveAll(t)
++
++			lib := dir.Join(fmt.Sprintf("lib%s.%s", name, libExt))
++			mustRun(t, config.goCmd("build", "-buildmode=c-shared", "-o", lib, srcPath(tc.src)))
++
++			cSrc := dir.Join("main.c")
++			if err := ioutil.WriteFile(cSrc, cMain, 0600); err != nil {
++				t.Fatalf("failed to write C source file: %v", err)
++			}
++
++			dstBin := dir.Join(name)
++			cmd, err := cc(config.cFlags...)
++			if err != nil {
++				t.Fatal(err)
++			}
++			cmd.Args = append(cmd.Args, config.ldFlags...)
++			cmd.Args = append(cmd.Args, "-o", dstBin, cSrc, lib)
++			mustRun(t, cmd)
++
++			cmd = hangProneCmd(dstBin)
++			replaceEnv(cmd, "LD_LIBRARY_PATH", ".")
++			mustRun(t, cmd)
++		})
++	}
++}
+diff --git a/misc/cgo/testsanitizers/msan_test.go b/misc/cgo/testsanitizers/msan_test.go
+new file mode 100644
+index 0000000000..af5afa9ee4
+--- /dev/null
++++ b/misc/cgo/testsanitizers/msan_test.go
+@@ -0,0 +1,55 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sanitizers_test
++
++import (
++	"strings"
++	"testing"
++)
++
++func TestMSAN(t *testing.T) {
++	t.Parallel()
++	requireOvercommit(t)
++	config := configure("memory")
++	config.skipIfCSanitizerBroken(t)
++
++	mustRun(t, config.goCmd("build", "std"))
++
++	cases := []struct {
++		src     string
++		wantErr bool
++	}{
++		{src: "msan.go"},
++		{src: "msan2.go"},
++		{src: "msan2_cmsan.go"},
++		{src: "msan3.go"},
++		{src: "msan4.go"},
++		{src: "msan5.go"},
++		{src: "msan_fail.go", wantErr: true},
++	}
++	for _, tc := range cases {
++		tc := tc
++		name := strings.TrimSuffix(tc.src, ".go")
++		t.Run(name, func(t *testing.T) {
++			t.Parallel()
++
++			dir := newTempDir(t)
++			defer dir.RemoveAll(t)
++
++			outPath := dir.Join(name)
++			mustRun(t, config.goCmd("build", "-o", outPath, srcPath(tc.src)))
++
++			cmd := hangProneCmd(outPath)
++			if tc.wantErr {
++				out, err := cmd.CombinedOutput()
++				if err != nil {
++					return
++				}
++				t.Fatalf("%#q exited without error; want MSAN failure\n%s", strings.Join(cmd.Args, " "), out)
++			}
++			mustRun(t, cmd)
++		})
++	}
++}
+diff --git a/misc/cgo/testsanitizers/msan.go b/misc/cgo/testsanitizers/src/msan.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/msan.go
+rename to misc/cgo/testsanitizers/src/msan.go
+diff --git a/misc/cgo/testsanitizers/msan2.go b/misc/cgo/testsanitizers/src/msan2.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/msan2.go
+rename to misc/cgo/testsanitizers/src/msan2.go
+diff --git a/misc/cgo/testsanitizers/src/msan2_cmsan.go b/misc/cgo/testsanitizers/src/msan2_cmsan.go
+new file mode 100644
+index 0000000000..8fdaea90c9
+--- /dev/null
++++ b/misc/cgo/testsanitizers/src/msan2_cmsan.go
+@@ -0,0 +1,38 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++/*
++#cgo LDFLAGS: -fsanitize=memory
++#cgo CPPFLAGS: -fsanitize=memory
++
++#include <string.h>
++#include <stdint.h>
++#include <stdlib.h>
++
++void f(int32_t *p, int n) {
++  int32_t * volatile q = (int32_t *)malloc(sizeof(int32_t) * n);
++  memcpy(p, q, n * sizeof(*p));
++  free(q);
++}
++
++void g(int32_t *p, int n) {
++  if (p[4] != 1) {
++    abort();
++  }
++}
++*/
++import "C"
++
++import (
++	"unsafe"
++)
++
++func main() {
++	a := make([]int32, 10)
++	C.f((*C.int32_t)(unsafe.Pointer(&a[0])), C.int(len(a)))
++	a[4] = 1
++	C.g((*C.int32_t)(unsafe.Pointer(&a[0])), C.int(len(a)))
++}
+diff --git a/misc/cgo/testsanitizers/msan3.go b/misc/cgo/testsanitizers/src/msan3.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/msan3.go
+rename to misc/cgo/testsanitizers/src/msan3.go
+diff --git a/misc/cgo/testsanitizers/msan4.go b/misc/cgo/testsanitizers/src/msan4.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/msan4.go
+rename to misc/cgo/testsanitizers/src/msan4.go
+diff --git a/misc/cgo/testsanitizers/msan5.go b/misc/cgo/testsanitizers/src/msan5.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/msan5.go
+rename to misc/cgo/testsanitizers/src/msan5.go
+diff --git a/misc/cgo/testsanitizers/msan_fail.go b/misc/cgo/testsanitizers/src/msan_fail.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/msan_fail.go
+rename to misc/cgo/testsanitizers/src/msan_fail.go
+diff --git a/misc/cgo/testsanitizers/msan_shared.go b/misc/cgo/testsanitizers/src/msan_shared.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/msan_shared.go
+rename to misc/cgo/testsanitizers/src/msan_shared.go
+diff --git a/misc/cgo/testsanitizers/tsan.go b/misc/cgo/testsanitizers/src/tsan.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/tsan.go
+rename to misc/cgo/testsanitizers/src/tsan.go
+diff --git a/misc/cgo/testsanitizers/tsan10.go b/misc/cgo/testsanitizers/src/tsan10.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/tsan10.go
+rename to misc/cgo/testsanitizers/src/tsan10.go
+diff --git a/misc/cgo/testsanitizers/tsan11.go b/misc/cgo/testsanitizers/src/tsan11.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/tsan11.go
+rename to misc/cgo/testsanitizers/src/tsan11.go
+diff --git a/misc/cgo/testsanitizers/tsan12.go b/misc/cgo/testsanitizers/src/tsan12.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/tsan12.go
+rename to misc/cgo/testsanitizers/src/tsan12.go
+diff --git a/misc/cgo/testsanitizers/tsan2.go b/misc/cgo/testsanitizers/src/tsan2.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/tsan2.go
+rename to misc/cgo/testsanitizers/src/tsan2.go
+diff --git a/misc/cgo/testsanitizers/tsan3.go b/misc/cgo/testsanitizers/src/tsan3.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/tsan3.go
+rename to misc/cgo/testsanitizers/src/tsan3.go
+diff --git a/misc/cgo/testsanitizers/tsan4.go b/misc/cgo/testsanitizers/src/tsan4.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/tsan4.go
+rename to misc/cgo/testsanitizers/src/tsan4.go
+diff --git a/misc/cgo/testsanitizers/tsan5.go b/misc/cgo/testsanitizers/src/tsan5.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/tsan5.go
+rename to misc/cgo/testsanitizers/src/tsan5.go
+diff --git a/misc/cgo/testsanitizers/tsan6.go b/misc/cgo/testsanitizers/src/tsan6.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/tsan6.go
+rename to misc/cgo/testsanitizers/src/tsan6.go
+diff --git a/misc/cgo/testsanitizers/tsan7.go b/misc/cgo/testsanitizers/src/tsan7.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/tsan7.go
+rename to misc/cgo/testsanitizers/src/tsan7.go
+diff --git a/misc/cgo/testsanitizers/tsan8.go b/misc/cgo/testsanitizers/src/tsan8.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/tsan8.go
+rename to misc/cgo/testsanitizers/src/tsan8.go
+diff --git a/misc/cgo/testsanitizers/tsan9.go b/misc/cgo/testsanitizers/src/tsan9.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/tsan9.go
+rename to misc/cgo/testsanitizers/src/tsan9.go
+diff --git a/misc/cgo/testsanitizers/tsan_shared.go b/misc/cgo/testsanitizers/src/tsan_shared.go
+similarity index 100%
+rename from misc/cgo/testsanitizers/tsan_shared.go
+rename to misc/cgo/testsanitizers/src/tsan_shared.go
+diff --git a/misc/cgo/testsanitizers/test.bash b/misc/cgo/testsanitizers/test.bash
+deleted file mode 100755
+index 9f80af6c50..0000000000
+--- a/misc/cgo/testsanitizers/test.bash
++++ /dev/null
+@@ -1,233 +0,0 @@
+-#!/usr/bin/env bash
+-# Copyright 2015 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-# This directory is intended to test the use of Go with sanitizers
+-# like msan, asan, etc.  See https://github.com/google/sanitizers .
+-
+-set -e
+-
+-# The sanitizers were originally developed with clang, so prefer it.
+-CC=cc
+-if test -x "$(type -p clang)"; then
+-  CC=clang
+-fi
+-export CC
+-
+-if [ "$(sysctl -n vm.overcommit_memory)" = 2 ]; then
+-  echo "skipping msan/tsan tests: vm.overcommit_memory=2" >&2
+-  exit 0
+-fi
+-
+-msan=yes
+-
+-TMPDIR=${TMPDIR:-/tmp}
+-echo 'int main() { return 0; }' > ${TMPDIR}/testsanitizers$$.c
+-if $CC -fsanitize=memory -o ${TMPDIR}/testsanitizers$$ ${TMPDIR}/testsanitizers$$.c 2>&1 | grep "unrecognized" >& /dev/null; then
+-  echo "skipping msan tests: $CC -fsanitize=memory not supported"
+-  msan=no
+-elif ! test -x ${TMPDIR}/testsanitizers$$; then
+-  echo "skipping msan tests: $CC -fsanitize-memory did not generate an executable"
+-  msan=no
+-elif ! ${TMPDIR}/testsanitizers$$ >/dev/null 2>&1; then
+-  echo "skipping msan tests: $CC -fsanitize-memory generates broken executable"
+-  msan=no
+-fi
+-rm -f ${TMPDIR}/testsanitizers$$.*
+-
+-tsan=yes
+-
+-# The memory and thread sanitizers in versions of clang before 3.6
+-# don't work with Go.
+-if test "$msan" = "yes" && $CC --version | grep clang >& /dev/null; then
+-  ver=$($CC --version | sed -e 's/.* version \([0-9.-]*\).*/\1/')
+-  major=$(echo $ver | sed -e 's/\([0-9]*\).*/\1/')
+-  minor=$(echo $ver | sed -e 's/[0-9]*\.\([0-9]*\).*/\1/')
+-  if test "$major" -lt 3 || test "$major" -eq 3 -a "$minor" -lt 6; then
+-    echo "skipping msan/tsan tests: clang version $major.$minor (older than 3.6)"
+-    msan=no
+-    tsan=no
+-  fi
+-
+-  # Clang before 3.8 does not work with Linux at or after 4.1.
+-  # golang.org/issue/12898.
+-  if test "$msan" = "yes" -a "$major" -lt 3 || test "$major" -eq 3 -a "$minor" -lt 8; then
+-    if test "$(uname)" = Linux; then
+-      linuxver=$(uname -r)
+-      linuxmajor=$(echo $linuxver | sed -e 's/\([0-9]*\).*/\1/')
+-      linuxminor=$(echo $linuxver | sed -e 's/[0-9]*\.\([0-9]*\).*/\1/')
+-      if test "$linuxmajor" -gt 4 || test "$linuxmajor" -eq 4 -a "$linuxminor" -ge 1; then
+-        echo "skipping msan/tsan tests: clang version $major.$minor (older than 3.8) incompatible with linux version $linuxmajor.$linuxminor (4.1 or newer)"
+-	msan=no
+-	tsan=no
+-      fi
+-    fi
+-  fi
+-fi
+-
+-status=0
+-
+-testmsanshared() {
+-  goos=$(go env GOOS)
+-  suffix="-installsuffix testsanitizers"
+-  libext="so"
+-  if [ "$goos" = "darwin" ]; then
+-	  libext="dylib"
+-  fi
+-  go build -msan -buildmode=c-shared $suffix -o ${TMPDIR}/libmsanshared.$libext msan_shared.go
+-
+-  echo 'int main() { return 0; }' > ${TMPDIR}/testmsanshared.c
+-  $CC $(go env GOGCCFLAGS) -fsanitize=memory -o ${TMPDIR}/testmsanshared ${TMPDIR}/testmsanshared.c ${TMPDIR}/libmsanshared.$libext
+-
+-  if ! LD_LIBRARY_PATH=. ${TMPDIR}/testmsanshared; then
+-    echo "FAIL: msan_shared"
+-    status=1
+-  fi
+-  rm -f ${TMPDIR}/{testmsanshared,testmsanshared.c,libmsanshared.$libext}
+-}
+-
+-if test "$msan" = "yes"; then
+-    if ! go build -msan std; then
+-	echo "FAIL: build -msan std"
+-	status=1
+-    fi
+-
+-    if ! go run -msan msan.go; then
+-	echo "FAIL: msan"
+-	status=1
+-    fi
+-
+-    if ! CGO_LDFLAGS="-fsanitize=memory" CGO_CPPFLAGS="-fsanitize=memory" go run -msan -a msan2.go; then
+-	echo "FAIL: msan2 with -fsanitize=memory"
+-	status=1
+-    fi
+-
+-    if ! go run -msan -a msan2.go; then
+-	echo "FAIL: msan2"
+-	status=1
+-    fi
+-
+-    if ! go run -msan msan3.go; then
+-	echo "FAIL: msan3"
+-	status=1
+-    fi
+-
+-    if ! go run -msan msan4.go; then
+-	echo "FAIL: msan4"
+-	status=1
+-    fi
+-
+-    if ! go run -msan msan5.go; then
+-	echo "FAIL: msan5"
+-	status=1
+-    fi
+-
+-    if go run -msan msan_fail.go 2>/dev/null; then
+-	echo "FAIL: msan_fail"
+-	status=1
+-    fi
+-
+-    testmsanshared
+-fi
+-
+-testtsanshared() {
+-  goos=$(go env GOOS)
+-  suffix="-installsuffix tsan"
+-  libext="so"
+-  if [ "$goos" = "darwin" ]; then
+-	  libext="dylib"
+-  fi
+-  go build -buildmode=c-shared $suffix -o ${TMPDIR}/libtsanshared.$libext tsan_shared.go
+-
+-  echo 'int main() { return 0; }' > ${TMPDIR}/testtsanshared.c
+-  $CC $(go env GOGCCFLAGS) -fsanitize=thread -o ${TMPDIR}/testtsanshared ${TMPDIR}/testtsanshared.c ${TMPDIR}/libtsanshared.$libext
+-
+-  if ! LD_LIBRARY_PATH=. ${TMPDIR}/testtsanshared; then
+-    echo "FAIL: tsan_shared"
+-    status=1
+-  fi
+-  rm -f ${TMPDIR}/{testtsanshared,testtsanshared.c,libtsanshared.$libext}
+-}
+-
+-if test "$tsan" = "yes"; then
+-    echo 'int main() { return 0; }' > ${TMPDIR}/testsanitizers$$.c
+-    ok=yes
+-    if ! $CC -fsanitize=thread ${TMPDIR}/testsanitizers$$.c -o ${TMPDIR}/testsanitizers$$ &> ${TMPDIR}/testsanitizers$$.err; then
+-	ok=no
+-    fi
+-    if grep "unrecognized" ${TMPDIR}/testsanitizers$$.err >& /dev/null; then
+-	echo "skipping tsan tests: -fsanitize=thread not supported"
+-	tsan=no
+-    elif test "$ok" != "yes"; then
+-	cat ${TMPDIR}/testsanitizers$$.err
+-	echo "skipping tsan tests: -fsanitizer=thread build failed"
+-	tsan=no
+-    elif ! ${TMPDIR}/testsanitizers$$ 2>&1; then
+-	echo "skipping tsan tests: running tsan program failed"
+-	tsan=no
+-    fi
+-    rm -f ${TMPDIR}/testsanitizers$$*
+-fi
+-
+-# Run a TSAN test.
+-# $1 test name
+-# $2 environment variables
+-# $3 go run args
+-testtsan() {
+-    err=${TMPDIR}/tsanerr$$.out
+-    if ! env $2 go run $3 $1 2>$err; then
+-	cat $err
+-	echo "FAIL: $1"
+-	status=1
+-    elif grep -i warning $err >/dev/null 2>&1; then
+-	cat $err
+-	echo "FAIL: $1"
+-	status=1
+-    fi
+-    rm -f $err
+-}
+-
+-if test "$tsan" = "yes"; then
+-    testtsan tsan.go
+-    testtsan tsan2.go
+-    testtsan tsan3.go
+-    testtsan tsan4.go
+-    testtsan tsan8.go
+-    testtsan tsan9.go
+-
+-    # These tests are only reliable using clang or GCC version 7 or later.
+-    # Otherwise runtime/cgo/libcgo.h can't tell whether TSAN is in use.
+-    ok=false
+-    clang=false
+-    if ${CC} --version | grep clang >/dev/null 2>&1; then
+-	ok=true
+-	clang=true
+-    else
+-	ver=$($CC -dumpversion)
+-	major=$(echo $ver | sed -e 's/\([0-9]*\).*/\1/')
+-	if test "$major" -lt 7; then
+-	    echo "skipping remaining TSAN tests: GCC version $major (older than 7)"
+-	else
+-	    ok=true
+-	fi
+-    fi
+-
+-    if test "$ok" = "true"; then
+-	# These tests require rebuilding os/user with -fsanitize=thread.
+-	testtsan tsan5.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
+-	testtsan tsan6.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
+-	testtsan tsan7.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
+-
+-	# The remaining tests reportedly hang when built with GCC; issue #21196.
+-	if test "$clang" = "true"; then
+-	    testtsan tsan10.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
+-	    testtsan tsan11.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
+-	    testtsan tsan12.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
+-	fi
+-
+-	testtsanshared
+-    fi
+-fi
+-
+-exit $status
+diff --git a/misc/cgo/testsanitizers/tsan_test.go b/misc/cgo/testsanitizers/tsan_test.go
+new file mode 100644
+index 0000000000..ec4e0033fb
+--- /dev/null
++++ b/misc/cgo/testsanitizers/tsan_test.go
+@@ -0,0 +1,56 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sanitizers_test
++
++import (
++	"strings"
++	"testing"
++)
++
++func TestTSAN(t *testing.T) {
++	t.Parallel()
++	requireOvercommit(t)
++	config := configure("thread")
++	config.skipIfCSanitizerBroken(t)
++
++	mustRun(t, config.goCmd("build", "std"))
++
++	cases := []struct {
++		src          string
++		needsRuntime bool
++	}{
++		{src: "tsan.go"},
++		{src: "tsan2.go"},
++		{src: "tsan3.go"},
++		{src: "tsan4.go"},
++		{src: "tsan5.go", needsRuntime: true},
++		{src: "tsan6.go", needsRuntime: true},
++		{src: "tsan7.go", needsRuntime: true},
++		{src: "tsan8.go"},
++		{src: "tsan9.go"},
++		{src: "tsan10.go", needsRuntime: true},
++		{src: "tsan11.go", needsRuntime: true},
++		{src: "tsan12.go", needsRuntime: true},
++	}
++	for _, tc := range cases {
++		tc := tc
++		name := strings.TrimSuffix(tc.src, ".go")
++		t.Run(name, func(t *testing.T) {
++			t.Parallel()
++
++			dir := newTempDir(t)
++			defer dir.RemoveAll(t)
++
++			outPath := dir.Join(name)
++			mustRun(t, config.goCmd("build", "-o", outPath, srcPath(tc.src)))
++
++			cmd := hangProneCmd(outPath)
++			if tc.needsRuntime {
++				config.skipIfRuntimeIncompatible(t)
++			}
++			mustRun(t, cmd)
++		})
++	}
++}
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 6052904cbf..79338b3721 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -620,7 +620,7 @@ func (t *tester) registerTests() {
+ 			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", "main.go")
+ 		}
+ 		if t.goos == "linux" && t.goarch == "amd64" {
+-			t.registerTest("testsanitizers", "../misc/cgo/testsanitizers", "./test.bash")
++			t.registerHostTest("testsanitizers/msan", "../misc/cgo/testsanitizers", "misc/cgo/testsanitizers", ".")
+ 		}
+ 		if t.hasBash() && t.goos != "android" && !t.iOS() && t.gohostos != "windows" {
+ 			t.registerTest("cgo_errors", "../misc/cgo/errors", "./test.bash")

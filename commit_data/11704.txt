@@ -16,9 +16,69 @@ Date:   Wed Feb 8 10:25:13 2012 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5646044
-
+---
  src/cmd/6g/peep.c         |  2 +-
  src/cmd/8g/peep.c         |  2 +-
  test/fixedbugs/bug409.go  | 20 ++++++++++++++++++++
  test/fixedbugs/bug409.out |  1 +
  4 files changed, 23 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/6g/peep.c b/src/cmd/6g/peep.c
+index 63ef3f78f0..3710033b20 100644
+--- a/src/cmd/6g/peep.c
++++ b/src/cmd/6g/peep.c
+@@ -987,7 +987,7 @@ loop:
+ 	case 3:	// set
+ 		if(p->as == p0->as)
+ 		if(p->from.type == p0->from.type)
+-		if(p->from.sym == p0->from.sym)
++		if(p->from.node == p0->from.node)
+ 		if(p->from.offset == p0->from.offset)
+ 		if(p->from.scale == p0->from.scale)
+ 		if(p->from.dval == p0->from.dval)
+diff --git a/src/cmd/8g/peep.c b/src/cmd/8g/peep.c
+index e0e44a5ef4..b8a2825e5a 100644
+--- a/src/cmd/8g/peep.c
++++ b/src/cmd/8g/peep.c
+@@ -878,7 +878,7 @@ loop:
+ 	case 3:	// set
+ 		if(p->as == p0->as)
+ 		if(p->from.type == p0->from.type)
+-		if(p->from.sym == p0->from.sym)
++		if(p->from.node == p0->from.node)
+ 		if(p->from.offset == p0->from.offset)
+ 		if(p->from.scale == p0->from.scale)
+ 		if(p->from.dval == p0->from.dval)
+diff --git a/test/fixedbugs/bug409.go b/test/fixedbugs/bug409.go
+new file mode 100644
+index 0000000000..884d333708
+--- /dev/null
++++ b/test/fixedbugs/bug409.go
+@@ -0,0 +1,20 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out 2>&1 | cmp - $D/$F.out
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Multiple inlined calls to a function that causes
++// redundant address loads.
++
++package main
++
++func F(v [2]float64) [2]float64 {
++	return [2]float64{v[0], v[1]}
++}
++
++func main() {
++	a := F([2]float64{1, 2})
++	b := F([2]float64{3, 4})
++	println(a[0], a[1], b[0], b[1])
++}
+diff --git a/test/fixedbugs/bug409.out b/test/fixedbugs/bug409.out
+new file mode 100644
+index 0000000000..3cb40ed59a
+--- /dev/null
++++ b/test/fixedbugs/bug409.out
+@@ -0,0 +1 @@
+++1.000000e+000 +2.000000e+000 +3.000000e+000 +4.000000e+000

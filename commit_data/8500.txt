@@ -7,6 +7,24 @@ Date:   Thu May 26 22:05:25 2011 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4550086
-
+---
  src/pkg/exp/eval/gen.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/exp/eval/gen.go b/src/pkg/exp/eval/gen.go
+index de98a5d155..1e00bdcd03 100644
+--- a/src/pkg/exp/eval/gen.go
++++ b/src/pkg/exp/eval/gen.go
+@@ -366,10 +366,10 @@ func main() {
+ 	t.SetDelims("«", "»")
+ 	err := t.Parse(templateStr)
+ 	if err != nil {
+-		log.Exit(err)
++		log.Fatal(err)
+ 	}
+ 	err = t.Execute(os.Stdout, data)
+ 	if err != nil {
+-		log.Exit(err)
++		log.Fatal(err)
+ 	}
+ }

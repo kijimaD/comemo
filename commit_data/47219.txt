@@ -12,10 +12,131 @@ Date:   Thu Mar 4 16:38:20 2021 -0500
     Trust: David Chase <drchase@google.com>
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go |  4 ----
  test/abi/regabipragma.dir/main.go      | 36 ----------------------------------
  test/abi/regabipragma.dir/tmp/foo.go   | 19 ------------------
  test/abi/regabipragma.go               | 13 ------------
  test/abi/regabipragma.out              |  6 ------
  5 files changed, 78 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 2a281860af..881fdcc8f4 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -230,7 +230,6 @@ func abiForFunc(fn *ir.Func, abi0, abi1 *abi.ABIConfig) *abi.ABIConfig {
+ 			base.ErrorfAt(fn.Pos(), "Calls to //go:registerparams method %s won't work, remove the pragma from the declaration.", name)
+ 		}
+ 		a = abi1
+-		base.WarnfAt(fn.Pos(), "declared function %v has register params", fn)
+ 	}
+ 	return a
+ }
+@@ -4850,9 +4849,6 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 			inRegistersImported := fn.Pragma()&ir.RegisterParams != 0
+ 			inRegistersSamePackage := fn.Func != nil && fn.Func.Pragma&ir.RegisterParams != 0
+ 			inRegisters = inRegistersImported || inRegistersSamePackage
+-			if inRegisters {
+-				s.f.Warnl(n.Pos(), "called function %v has register params", callee)
+-			}
+ 			break
+ 		}
+ 		closure = s.expr(fn)
+diff --git a/test/abi/regabipragma.dir/main.go b/test/abi/regabipragma.dir/main.go
+deleted file mode 100644
+index d663337a10..0000000000
+--- a/test/abi/regabipragma.dir/main.go
++++ /dev/null
+@@ -1,36 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"fmt"
+-	"regabipragma.dir/tmp"
+-)
+-
+-type S string
+-
+-//go:noinline
+-func (s S) ff(t string) string {
+-	return string(s) + " " + t
+-}
+-
+-//go:noinline
+-//go:registerparams
+-func f(s,t string) string { // ERROR "Declared function f has register params"
+-	return s + " " + t
+-}
+-
+-func check(s string) {
+-	if s != "Hello world!" {
+-		fmt.Printf("FAIL, wanted 'Hello world!' but got '%s'\n", s)
+-	}
+-}
+-
+-func main() {
+-	check(f("Hello", "world!"))   // ERROR "Called function ...f has register params"
+-	check(tmp.F("Hello", "world!"))  // ERROR "Called function regabipragma.dir/tmp.F has register params"
+-	check(S("Hello").ff("world!"))
+-	check(tmp.S("Hello").FF("world!"))
+-}
+diff --git a/test/abi/regabipragma.dir/tmp/foo.go b/test/abi/regabipragma.dir/tmp/foo.go
+deleted file mode 100644
+index cff989bbcd..0000000000
+--- a/test/abi/regabipragma.dir/tmp/foo.go
++++ /dev/null
+@@ -1,19 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package tmp
+-
+-
+-type S string
+-
+-//go:noinline
+-func (s S) FF(t string) string {
+-        return string(s) + " " + t
+-}
+-
+-//go:noinline
+-//go:registerparams
+-func F(s,t string) string {
+-        return s + " " + t
+-}
+diff --git a/test/abi/regabipragma.go b/test/abi/regabipragma.go
+deleted file mode 100644
+index 070b3110d6..0000000000
+--- a/test/abi/regabipragma.go
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// skip
+-// runindir -gcflags=-c=1
+-//go:build !windows
+-// +build !windows
+-
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// TODO(register args) Temporarily disabled now that register abi info is flowing halfway through the compiler.
+-// TODO(register args) May delete or adapt this test once regabi is the default
+-
+-package ignore
+diff --git a/test/abi/regabipragma.out b/test/abi/regabipragma.out
+deleted file mode 100644
+index 321b1adfcc..0000000000
+--- a/test/abi/regabipragma.out
++++ /dev/null
+@@ -1,6 +0,0 @@
+-# regabipragma.dir/tmp
+-tmp/foo.go:17:6: declared function F has register params
+-# regabipragma.dir
+-./main.go:21:6: declared function f has register params
+-./main.go:32:9: called function f has register params
+-./main.go:33:13: called function tmp.F has register params

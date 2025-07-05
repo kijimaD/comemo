@@ -25,7 +25,7 @@ Date:   Wed Jun 27 11:40:24 2018 -0500
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/racewalk.go        |  6 +++++-
  src/cmd/compile/internal/gc/ssa.go             |  1 +
  src/cmd/compile/internal/ssa/config.go         |  1 +
@@ -33,3 +33,123 @@ Date:   Wed Jun 27 11:40:24 2018 -0500
  src/cmd/compile/internal/ssa/rewrite.go        | 28 ++++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/rewritegeneric.go | 14 +++++++++++++
  6 files changed, 51 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index df0e5f4059..e8c7fb5b14 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -10,7 +10,7 @@ import (
+ 	"cmd/internal/sys"
+ )
+ 
+-// The racewalk pass is currently handled in two parts.
++// The racewalk pass is currently handled in three parts.
+ //
+ // First, for flag_race, it inserts calls to racefuncenter and
+ // racefuncexit at the start and end (respectively) of each
+@@ -22,6 +22,10 @@ import (
+ // the Func.InstrumentBody flag as needed. For background on why this
+ // is done during SSA construction rather than a separate SSA pass,
+ // see issue #19054.
++//
++// Third we remove calls to racefuncenter and racefuncexit, for leaf
++// functions without instrumented operations. This is done as part of
++// ssa opt pass via special rule.
+ 
+ // TODO(dvyukov): do not instrument initialization as writes:
+ // a := make([]int, 10)
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index af43da6275..86b457b758 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -131,6 +131,7 @@ func buildssa(fn *Node, worker int) *ssa.Func {
+ 	s.f.Cache = &ssaCaches[worker]
+ 	s.f.Cache.Reset()
+ 	s.f.DebugTest = s.f.DebugHashMatch("GOSSAHASH", name)
++	s.f.Config.Race = flag_race
+ 	s.f.Name = name
+ 	if fn.Func.Pragma&Nosplit != 0 {
+ 		s.f.NoSplit = true
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index af8cccff90..40008bcf87 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -38,6 +38,7 @@ type Config struct {
+ 	nacl           bool          // GOOS=nacl
+ 	use387         bool          // GO386=387
+ 	SoftFloat      bool          //
++	Race           bool          // race detector enabled
+ 	NeedsFpScratch bool          // No direct move between GP and FP register sets
+ 	BigEndian      bool          //
+ }
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 0b68db7f04..b1a0775e4a 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -1791,3 +1791,5 @@
+ 			(Store {t4} (OffPtr <tt4> [o4] dst) d3
+ 				(Store {t5} (OffPtr <tt5> [o5] dst) d4
+ 					(Zero {t1} [n] dst mem)))))
++
++(StaticCall {sym} x) && needRaceCleanup(sym,v) -> x
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 2a72b0006f..31195638ab 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1026,3 +1026,31 @@ func registerizable(b *Block, t interface{}) bool {
+ 	}
+ 	return false
+ }
++
++// needRaceCleanup reports whether this call to racefuncenter/exit isn't needed.
++func needRaceCleanup(sym interface{}, v *Value) bool {
++	f := v.Block.Func
++	if !f.Config.Race {
++		return false
++	}
++	if !isSameSym(sym, "runtime.racefuncenter") && !isSameSym(sym, "runtime.racefuncexit") {
++		return false
++	}
++	for _, b := range f.Blocks {
++		for _, v := range b.Values {
++			if v.Op == OpStaticCall {
++				switch v.Aux.(fmt.Stringer).String() {
++				case "runtime.racefuncenter", "runtime.racefuncexit", "runtime.panicindex",
++					"runtime.panicslice", "runtime.panicdivide", "runtime.panicwrap":
++				// Check for racefuncenter will encounter racefuncexit and vice versa.
++				// Allow calls to panic*
++				default:
++					// If we encounterd any call, we need to keep racefunc*,
++					// for accurate stacktraces.
++					return false
++				}
++			}
++		}
++	}
++	return true
++}
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index a1c83ea378..5ad53dd0b6 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -27595,6 +27595,20 @@ func rewriteValuegeneric_OpStaticCall_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (StaticCall {sym} x)
++	// cond: needRaceCleanup(sym,v)
++	// result: x
++	for {
++		sym := v.Aux
++		x := v.Args[0]
++		if !(needRaceCleanup(sym, v)) {
++			break
++		}
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpStore_0(v *Value) bool {

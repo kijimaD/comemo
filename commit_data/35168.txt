@@ -9,7 +9,43 @@ Date:   Thu Jan 4 23:36:16 2018 +0000
     Change-Id: I624f2883489a46d7162c11f489c2f0a0ec5a836f
     Reviewed-on: https://go-review.googlesource.com/86277
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/request.go   | 4 ++++
  src/net/http/transport.go | 9 +++++++++
  2 files changed, 13 insertions(+)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 870af85e04..c9642e55c2 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -98,6 +98,10 @@ var reqWriteExcludeHeader = map[string]bool{
+ type Request struct {
+ 	// Method specifies the HTTP method (GET, POST, PUT, etc.).
+ 	// For client requests an empty string means GET.
++	//
++	// Go's HTTP client does not support sending a request with
++	// the CONNECT method. See the documentation on Transport for
++	// details.
+ 	Method string
+ 
+ 	// URL specifies either the URI being requested (for server
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 45e3fd2eba..7c38ac4464 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -73,6 +73,15 @@ const DefaultMaxIdleConnsPerHost = 2
+ // and how the Transport is configured. The DefaultTransport supports HTTP/2.
+ // To explicitly enable HTTP/2 on a transport, use golang.org/x/net/http2
+ // and call ConfigureTransport. See the package docs for more about HTTP/2.
++//
++// The Transport will send CONNECT requests to a proxy for its own use
++// when processing HTTPS requests, but Transport should generally not
++// be used to send a CONNECT request. That is, the Request passed to
++// the RoundTrip method should not have a Method of "CONNECT", as Go's
++// HTTP/1.x implementation does not support full-duplex request bodies
++// being written while the response body is streamed. Go's HTTP/2
++// implementation does support full duplex, but many CONNECT proxies speak
++// HTTP/1.x.
+ type Transport struct {
+ 	idleMu     sync.Mutex
+ 	wantIdle   bool                                // user has requested to close all idle conns

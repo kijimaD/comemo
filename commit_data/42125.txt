@@ -21,7 +21,63 @@ Date:   Thu Nov 7 22:42:38 2019 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/export_test.go     |  5 ++++-
  src/runtime/mpagealloc_test.go | 20 ++++++++++----------
  2 files changed, 14 insertions(+), 11 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index ef977b302e..1db465673c 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -830,7 +830,10 @@ func FreePageAlloc(pp *PageAlloc) {
+ // BaseChunkIdx is a convenient chunkIdx value which works on both
+ // 64 bit and 32 bit platforms, allowing the tests to share code
+ // between the two.
+-var BaseChunkIdx = ChunkIdx(chunkIndex((0xc000*pageAlloc64Bit + 0x200*pageAlloc32Bit) * pallocChunkBytes))
++//
++// This should not be higher than 0x100*pallocChunkBytes to support
++// mips and mipsle, which only have 31-bit address spaces.
++var BaseChunkIdx = ChunkIdx(chunkIndex((0xc000*pageAlloc64Bit + 0x100*pageAlloc32Bit) * pallocChunkBytes))
+ 
+ // PageBase returns an address given a chunk index and a page index
+ // relative to that chunk.
+diff --git a/src/runtime/mpagealloc_test.go b/src/runtime/mpagealloc_test.go
+index 454fafb501..9034f63064 100644
+--- a/src/runtime/mpagealloc_test.go
++++ b/src/runtime/mpagealloc_test.go
+@@ -279,24 +279,24 @@ func TestPageAllocAlloc(t *testing.T) {
+ 		},
+ 		"NotContiguousPallocChunkPages*2": {
+ 			before: map[ChunkIdx][]BitRange{
+-				BaseChunkIdx:         {},
+-				BaseChunkIdx + 0x100: {},
+-				BaseChunkIdx + 0x101: {},
++				BaseChunkIdx:        {},
++				BaseChunkIdx + 0x40: {},
++				BaseChunkIdx + 0x41: {},
+ 			},
+ 			scav: map[ChunkIdx][]BitRange{
+-				BaseChunkIdx:         {{0, PallocChunkPages}},
+-				BaseChunkIdx + 0x100: {},
+-				BaseChunkIdx + 0x101: {},
++				BaseChunkIdx:        {{0, PallocChunkPages}},
++				BaseChunkIdx + 0x40: {},
++				BaseChunkIdx + 0x41: {},
+ 			},
+ 			hits: []hit{
+-				{PallocChunkPages * 2, PageBase(BaseChunkIdx+0x100, 0), 0},
++				{PallocChunkPages * 2, PageBase(BaseChunkIdx+0x40, 0), 0},
+ 				{21, PageBase(BaseChunkIdx, 0), 21 * PageSize},
+ 				{1, PageBase(BaseChunkIdx, 21), PageSize},
+ 			},
+ 			after: map[ChunkIdx][]BitRange{
+-				BaseChunkIdx:         {{0, 22}},
+-				BaseChunkIdx + 0x100: {{0, PallocChunkPages}},
+-				BaseChunkIdx + 0x101: {{0, PallocChunkPages}},
++				BaseChunkIdx:        {{0, 22}},
++				BaseChunkIdx + 0x40: {{0, PallocChunkPages}},
++				BaseChunkIdx + 0x41: {{0, PallocChunkPages}},
+ 			},
+ 		},
+ 		"StraddlePallocChunkPages*2": {

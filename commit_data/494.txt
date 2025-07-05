@@ -10,7 +10,7 @@ Date:   Wed Aug 6 18:57:37 2008 -0700
     R=r
     OCL=13937
     CL=13937
-
+---
  usr/gri/gosrc/compilation.go  |  8 +++++++-
  usr/gri/gosrc/globals.go      |  3 ++-
  usr/gri/gosrc/go.go           |  2 ++
@@ -18,3 +18,184 @@ Date:   Wed Aug 6 18:57:37 2008 -0700
  usr/gri/gosrc/scanner.go      | 19 +++++++++++++++++++
  usr/gri/gosrc/test_scanner.go | 31 ++++++++++++++++++++++++++++---
  6 files changed, 67 insertions(+), 7 deletions(-)
+
+diff --git a/usr/gri/gosrc/compilation.go b/usr/gri/gosrc/compilation.go
+index dd1047136a..0f284d346d 100644
+--- a/usr/gri/gosrc/compilation.go
++++ b/usr/gri/gosrc/compilation.go
+@@ -26,9 +26,15 @@ export func Compile(comp *Globals.Compilation, file_name string) {
+ 	
+ 	scanner := new(Scanner.Scanner);
+ 	scanner.Open(file_name, src);
++	
++	var tstream *chan *Scanner.Token;
++	if comp.flags.pscan {
++		tstream = new(chan *Scanner.Token, 100);
++		go scanner.Server(tstream);
++	}
+ 
+ 	parser := new(Parser.Parser);
+-	parser.Open(comp, scanner);
++	parser.Open(comp, scanner, tstream);
+ 
+ 	parser.ParseProgram();
+ 	if parser.S.nerrors > 0 {
+diff --git a/usr/gri/gosrc/globals.go b/usr/gri/gosrc/globals.go
+index ed42e4a316..121052c753 100644
+--- a/usr/gri/gosrc/globals.go
++++ b/usr/gri/gosrc/globals.go
+@@ -63,7 +63,8 @@ export type Flags struct {
+ 	print_export bool;
+ 	semantic_checks bool;
+ 	verbose int;
+-	sixg bool;
++	sixg bool;  // 6g compatibility
++	pscan bool;  // parallel scanning using a token channel
+ }
+ 
+ 
+diff --git a/usr/gri/gosrc/go.go b/usr/gri/gosrc/go.go
+index 31f1b87c53..1097c4edbf 100644
+--- a/usr/gri/gosrc/go.go
++++ b/usr/gri/gosrc/go.go
+@@ -23,6 +23,7 @@ func PrintHelp() {
+   print "  -v  verbose mode\n";
+   print "  -vv  very verbose mode\n";
+   print "  -6g  6g compatibility mode\n";
++  print "  -pscan  scan and parse in parallel (use token channel)\n";
+ }
+ 
+ 
+@@ -43,6 +44,7 @@ func main() {
+ 		case "-v": flags.verbose = 1;
+ 		case "-vv": flags.verbose = 2;
+ 		case "-6g": flags.sixg = true;
++		case "-pscan": flags.pscan = true;
+ 		default: files.AddStr(arg);
+ 		}
+ 	}
+diff --git a/usr/gri/gosrc/parser.go b/usr/gri/gosrc/parser.go
+index 3433b63d3e..2e2346e318 100644
+--- a/usr/gri/gosrc/parser.go
++++ b/usr/gri/gosrc/parser.go
+@@ -19,6 +19,7 @@ export type Parser struct {
+ 	semantic_checks bool;
+ 	verbose, indent int;
+ 	S *Scanner.Scanner;
++	C *chan *Scanner.Token;
+ 	
+ 	// Token
+ 	tok int;  // one token look-ahead
+@@ -62,7 +63,12 @@ func (P *Parser) Ecart() {
+ 
+ 
+ func (P *Parser) Next() {
+-	P.tok, P.pos, P.val = P.S.Scan();
++	if P.C == nil {
++		P.tok, P.pos, P.val = P.S.Scan();
++	} else {
++		t := <- P.C;
++		P.tok, P.pos, P.val = t.tok, t.pos, t.val;
++	}
+ 	if P.verbose > 1 {
+ 		P.PrintIndent();
+ 		print "[", P.pos, "] ", Scanner.TokenName(P.tok), "\n";
+@@ -70,12 +76,13 @@ func (P *Parser) Next() {
+ }
+ 
+ 
+-func (P *Parser) Open(comp *Globals.Compilation, S *Scanner.Scanner) {
++func (P *Parser) Open(comp *Globals.Compilation, S *Scanner.Scanner, C *chan *Scanner.Token) {
+ 	P.comp = comp;
+ 	P.semantic_checks = comp.flags.semantic_checks;
+ 	P.verbose = comp.flags.verbose;
+ 	P.indent = 0;
+ 	P.S = S;
++	P.C = C;
+ 	P.Next();
+ 	P.level = 0;
+ 	P.top_scope = Universe.scope;
+diff --git a/usr/gri/gosrc/scanner.go b/usr/gri/gosrc/scanner.go
+index add320e4af..a50ad2a867 100644
+--- a/usr/gri/gosrc/scanner.go
++++ b/usr/gri/gosrc/scanner.go
+@@ -804,3 +804,22 @@ func (S *Scanner) Scan() (tok, pos int, val string) {
+ 	
+ 	return tok, pos, val;
+ }
++
++
++export type Token struct {
++	pos int;
++	tok int;
++	val string;
++}
++
++
++func (S *Scanner) Server(c *chan *Token) {
++	for {
++		t := new(Token);
++		t.tok, t.pos, t.val = S.Scan();
++		c -< t;
++		if t.tok == EOF {
++			break;
++		}
++	}
++}
+diff --git a/usr/gri/gosrc/test_scanner.go b/usr/gri/gosrc/test_scanner.go
+index 2ce097fd19..5c23acf21f 100644
+--- a/usr/gri/gosrc/test_scanner.go
++++ b/usr/gri/gosrc/test_scanner.go
+@@ -7,7 +7,7 @@ package main
+ import Scanner "scanner"
+ 
+ 
+-func Scan(filename, src string) {
++func Scan1(filename, src string) {
+ 	S := new(Scanner.Scanner);
+ 	S.Open(filename, src);
+ 	for {
+@@ -24,16 +24,41 @@ func Scan(filename, src string) {
+ }
+ 
+ 
++func Scan2(filename, src string) {
++	S := new(Scanner.Scanner);
++	S.Open(filename, src);
++	c := new(chan *Scanner.Token, 32);
++	go S.Server(c);
++	for {
++		var t *Scanner.Token;
++		t = <- c;
++		tok, pos, val := t.tok, t.pos, t.val;
++		print pos, ": ", Scanner.TokenName(tok);
++		if tok == Scanner.IDENT || tok == Scanner.INT || tok == Scanner.FLOAT || tok == Scanner.STRING {
++			print " ", val;
++		}
++		print "\n";
++		if tok == Scanner.EOF {
++			return;
++		}
++	}
++}
++
++
+ func main() {
+ 	for i := 1; i < sys.argc(); i++ {
+ 		var src string;
+ 		var ok bool;
+ 		src, ok = sys.readfile(sys.argv(i));
+ 		if ok {
+-			print "scanning " + sys.argv(i) + "\n";
+-			Scan(sys.argv(i), src);
++			print "scanning (standard) " + sys.argv(i) + "\n";
++			Scan1(sys.argv(i), src);
++			print "\n";
++			print "scanning (channels) " + sys.argv(i) + "\n";
++			Scan2(sys.argv(i), src);
+ 		} else {
+ 			print "error: cannot read " + sys.argv(i) + "\n";
+ 		}
++		print "\n";
+ 	}
+ }

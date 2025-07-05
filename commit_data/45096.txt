@@ -38,7 +38,104 @@ Date:   Thu Sep 10 21:20:46 2020 +0000
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/malloc.go      |  8 +++++++
  src/runtime/malloc_test.go | 57 ++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 65 insertions(+)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 4fa14996c2..c71f856f09 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1016,6 +1016,14 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 			// Align tiny pointer for required (conservative) alignment.
+ 			if size&7 == 0 {
+ 				off = alignUp(off, 8)
++			} else if sys.PtrSize == 4 && size == 12 {
++				// Conservatively align 12-byte objects to 8 bytes on 32-bit
++				// systems so that objects whose first field is a 64-bit
++				// value is aligned to 8 bytes and does not cause a fault on
++				// atomic access. See issue 37262.
++				// TODO(mknyszek): Remove this workaround if/when issue 36606
++				// is resolved.
++				off = alignUp(off, 8)
+ 			} else if size&3 == 0 {
+ 				off = alignUp(off, 4)
+ 			} else if size&1 == 0 {
+diff --git a/src/runtime/malloc_test.go b/src/runtime/malloc_test.go
+index 5c97f548fd..4ba94d0494 100644
+--- a/src/runtime/malloc_test.go
++++ b/src/runtime/malloc_test.go
+@@ -12,8 +12,10 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"reflect"
++	"runtime"
+ 	. "runtime"
+ 	"strings"
++	"sync/atomic"
+ 	"testing"
+ 	"time"
+ 	"unsafe"
+@@ -168,6 +170,61 @@ func TestTinyAlloc(t *testing.T) {
+ 	}
+ }
+ 
++var (
++	tinyByteSink   *byte
++	tinyUint32Sink *uint32
++	tinyObj12Sink  *obj12
++)
++
++type obj12 struct {
++	a uint64
++	b uint32
++}
++
++func TestTinyAllocIssue37262(t *testing.T) {
++	// Try to cause an alignment access fault
++	// by atomically accessing the first 64-bit
++	// value of a tiny-allocated object.
++	// See issue 37262 for details.
++
++	// GC twice, once to reach a stable heap state
++	// and again to make sure we finish the sweep phase.
++	runtime.GC()
++	runtime.GC()
++
++	// Make 1-byte allocations until we get a fresh tiny slot.
++	aligned := false
++	for i := 0; i < 16; i++ {
++		tinyByteSink = new(byte)
++		if uintptr(unsafe.Pointer(tinyByteSink))&0xf == 0xf {
++			aligned = true
++			break
++		}
++	}
++	if !aligned {
++		t.Fatal("unable to get a fresh tiny slot")
++	}
++
++	// Create a 4-byte object so that the current
++	// tiny slot is partially filled.
++	tinyUint32Sink = new(uint32)
++
++	// Create a 12-byte object, which fits into the
++	// tiny slot. If it actually gets place there,
++	// then the field "a" will be improperly aligned
++	// for atomic access on 32-bit architectures.
++	// This won't be true if issue 36606 gets resolved.
++	tinyObj12Sink = new(obj12)
++
++	// Try to atomically access "x.a".
++	atomic.StoreUint64(&tinyObj12Sink.a, 10)
++
++	// Clear the sinks.
++	tinyByteSink = nil
++	tinyUint32Sink = nil
++	tinyObj12Sink = nil
++}
++
+ func TestPageCacheLeak(t *testing.T) {
+ 	defer GOMAXPROCS(GOMAXPROCS(1))
+ 	leaked := PageCachePagesLeaked()

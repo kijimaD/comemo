@@ -9,7 +9,66 @@ Date:   Wed Mar 20 23:53:38 2013 -0400
     R=golang-dev, agl, rsc
     CC=golang-dev
     https://golang.org/cl/7933043
-
+---
  src/pkg/crypto/tls/common.go           | 19 ++++++++++++++++++-
  src/pkg/crypto/tls/handshake_server.go | 17 +----------------
  2 files changed, 19 insertions(+), 17 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/common.go b/src/pkg/crypto/tls/common.go
+index a888df762d..f86c90de74 100644
+--- a/src/pkg/crypto/tls/common.go
++++ b/src/pkg/crypto/tls/common.go
+@@ -204,7 +204,24 @@ type Config struct {
+ 	// connections using that key are compromised.
+ 	SessionTicketKey [32]byte
+ 
+-	serverInitOnce sync.Once
++	serverInitOnce sync.Once // guards calling (*Config).serverInit
++}
++
++func (c *Config) serverInit() {
++	if c.SessionTicketsDisabled {
++		return
++	}
++
++	// If the key has already been set then we have nothing to do.
++	for _, b := range c.SessionTicketKey {
++		if b != 0 {
++			return
++		}
++	}
++
++	if _, err := io.ReadFull(c.rand(), c.SessionTicketKey[:]); err != nil {
++		c.SessionTicketsDisabled = true
++	}
+ }
+ 
+ func (c *Config) rand() io.Reader {
+diff --git a/src/pkg/crypto/tls/handshake_server.go b/src/pkg/crypto/tls/handshake_server.go
+index 730991016a..823730c605 100644
+--- a/src/pkg/crypto/tls/handshake_server.go
++++ b/src/pkg/crypto/tls/handshake_server.go
+@@ -33,22 +33,7 @@ func (c *Conn) serverHandshake() error {
+ 
+ 	// If this is the first server handshake, we generate a random key to
+ 	// encrypt the tickets with.
+-	config.serverInitOnce.Do(func() {
+-		if config.SessionTicketsDisabled {
+-			return
+-		}
+-
+-		// If the key has already been set then we have nothing to do.
+-		for _, b := range config.SessionTicketKey {
+-			if b != 0 {
+-				return
+-			}
+-		}
+-
+-		if _, err := io.ReadFull(config.rand(), config.SessionTicketKey[:]); err != nil {
+-			config.SessionTicketsDisabled = true
+-		}
+-	})
++	config.serverInitOnce.Do(config.serverInit)
+ 
+ 	hs := serverHandshakeState{
+ 		c: c,

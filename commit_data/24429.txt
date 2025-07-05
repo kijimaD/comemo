@@ -29,6 +29,20 @@ Date:   Tue Jul 28 20:50:00 2015 +0200
     Change-Id: If2d60960231480a9dbe545d87385fe650d6db808
     Reviewed-on: https://go-review.googlesource.com/12763
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/stack1.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/stack1.go b/src/runtime/stack1.go
+index 113334b0d6..efcb5f25fa 100644
+--- a/src/runtime/stack1.go
++++ b/src/runtime/stack1.go
+@@ -425,7 +425,7 @@ func adjustpointers(scanp unsafe.Pointer, cbv *bitvector, adjinfo *adjustinfo, f
+ 	num := uintptr(bv.n)
+ 	for i := uintptr(0); i < num; i++ {
+ 		if stackDebug >= 4 {
+-			print("        ", add(scanp, i*ptrSize), ":", ptrnames[ptrbit(&bv, i)], ":", hex(*(*uintptr)(add(scanp, i*ptrSize))), " # ", i, " ", bv.bytedata[i/4], "\n")
++			print("        ", add(scanp, i*ptrSize), ":", ptrnames[ptrbit(&bv, i)], ":", hex(*(*uintptr)(add(scanp, i*ptrSize))), " # ", i, " ", bv.bytedata[i/8], "\n")
+ 		}
+ 		if ptrbit(&bv, i) == 1 {
+ 			pp := (*uintptr)(add(scanp, i*ptrSize))

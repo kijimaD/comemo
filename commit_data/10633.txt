@@ -11,7 +11,7 @@ Date:   Tue Dec 6 18:25:14 2011 -0500
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/5440111
-
+---
  src/pkg/crypto/hmac/hmac.go            |  9 ++++-----
  src/pkg/crypto/md5/md5.go              | 17 +++++++++--------
  src/pkg/crypto/openpgp/s2k/s2k.go      |  8 ++++++--
@@ -25,3 +25,399 @@ Date:   Tue Dec 6 18:25:14 2011 -0500
  src/pkg/crypto/tls/handshake_client.go |  8 ++++----
  src/pkg/crypto/tls/handshake_server.go |  6 +++---
  12 files changed, 87 insertions(+), 66 deletions(-)
+
+diff --git a/src/pkg/crypto/hmac/hmac.go b/src/pkg/crypto/hmac/hmac.go
+index deaceafb26..6e7dd8762c 100644
+--- a/src/pkg/crypto/hmac/hmac.go
++++ b/src/pkg/crypto/hmac/hmac.go
+@@ -49,14 +49,13 @@ func (h *hmac) tmpPad(xor byte) {
+ }
+ 
+ func (h *hmac) Sum(in []byte) []byte {
+-	sum := h.inner.Sum(nil)
++	origLen := len(in)
++	in = h.inner.Sum(in)
+ 	h.tmpPad(0x5c)
+-	for i, b := range sum {
+-		h.tmp[padSize+i] = b
+-	}
++	copy(h.tmp[padSize:], in[origLen:])
+ 	h.outer.Reset()
+ 	h.outer.Write(h.tmp)
+-	return h.outer.Sum(in)
++	return h.outer.Sum(in[:origLen])
+ }
+ 
+ func (h *hmac) Write(p []byte) (n int, err error) {
+diff --git a/src/pkg/crypto/md5/md5.go b/src/pkg/crypto/md5/md5.go
+index 182cfb8537..f4e7b09ebf 100644
+--- a/src/pkg/crypto/md5/md5.go
++++ b/src/pkg/crypto/md5/md5.go
+@@ -79,8 +79,7 @@ func (d *digest) Write(p []byte) (nn int, err error) {
+ 
+ func (d0 *digest) Sum(in []byte) []byte {
+ 	// Make a copy of d0 so that caller can keep writing and summing.
+-	d := new(digest)
+-	*d = *d0
++	d := *d0
+ 
+ 	// Padding.  Add a 1 bit and 0 bits until 56 bytes mod 64.
+ 	len := d.len
+@@ -103,11 +102,13 @@ func (d0 *digest) Sum(in []byte) []byte {
+ 		panic("d.nx != 0")
+ 	}
+ 
+-	for _, s := range d.s {
+-		in = append(in, byte(s>>0))
+-		in = append(in, byte(s>>8))
+-		in = append(in, byte(s>>16))
+-		in = append(in, byte(s>>24))
++	var digest [Size]byte
++	for i, s := range d.s {
++		digest[i*4] = byte(s)
++		digest[i*4+1] = byte(s >> 8)
++		digest[i*4+2] = byte(s >> 16)
++		digest[i*4+3] = byte(s >> 24)
+ 	}
+-	return in
++
++	return append(in, digest[:]...)
+ }
+diff --git a/src/pkg/crypto/openpgp/s2k/s2k.go b/src/pkg/crypto/openpgp/s2k/s2k.go
+index 83673e1733..8bc0bb320b 100644
+--- a/src/pkg/crypto/openpgp/s2k/s2k.go
++++ b/src/pkg/crypto/openpgp/s2k/s2k.go
+@@ -26,6 +26,7 @@ var zero [1]byte
+ // 4880, section 3.7.1.2) using the given hash, input passphrase and salt.
+ func Salted(out []byte, h hash.Hash, in []byte, salt []byte) {
+ 	done := 0
++	var digest []byte
+ 
+ 	for i := 0; done < len(out); i++ {
+ 		h.Reset()
+@@ -34,7 +35,8 @@ func Salted(out []byte, h hash.Hash, in []byte, salt []byte) {
+ 		}
+ 		h.Write(salt)
+ 		h.Write(in)
+-		n := copy(out[done:], h.Sum(nil))
++		digest = h.Sum(digest[:0])
++		n := copy(out[done:], digest)
+ 		done += n
+ 	}
+ }
+@@ -52,6 +54,7 @@ func Iterated(out []byte, h hash.Hash, in []byte, salt []byte, count int) {
+ 	}
+ 
+ 	done := 0
++	var digest []byte
+ 	for i := 0; done < len(out); i++ {
+ 		h.Reset()
+ 		for j := 0; j < i; j++ {
+@@ -68,7 +71,8 @@ func Iterated(out []byte, h hash.Hash, in []byte, salt []byte, count int) {
+ 				written += len(combined)
+ 			}
+ 		}
+-		n := copy(out[done:], h.Sum(nil))
++		digest = h.Sum(digest[:0])
++		n := copy(out[done:], digest)
+ 		done += n
+ 	}
+ }
+diff --git a/src/pkg/crypto/ripemd160/ripemd160.go b/src/pkg/crypto/ripemd160/ripemd160.go
+index c128ee445a..cd2cc39dbd 100644
+--- a/src/pkg/crypto/ripemd160/ripemd160.go
++++ b/src/pkg/crypto/ripemd160/ripemd160.go
+@@ -83,8 +83,7 @@ func (d *digest) Write(p []byte) (nn int, err error) {
+ 
+ func (d0 *digest) Sum(in []byte) []byte {
+ 	// Make a copy of d0 so that caller can keep writing and summing.
+-	d := new(digest)
+-	*d = *d0
++	d := *d0
+ 
+ 	// Padding.  Add a 1 bit and 0 bits until 56 bytes mod 64.
+ 	tc := d.tc
+@@ -107,11 +106,13 @@ func (d0 *digest) Sum(in []byte) []byte {
+ 		panic("d.nx != 0")
+ 	}
+ 
+-	for _, s := range d.s {
+-		in = append(in, byte(s))
+-		in = append(in, byte(s>>8))
+-		in = append(in, byte(s>>16))
+-		in = append(in, byte(s>>24))
++	var digest [Size]byte
++	for i, s := range d.s {
++		digest[i*4] = byte(s)
++		digest[i*4+1] = byte(s >> 8)
++		digest[i*4+2] = byte(s >> 16)
++		digest[i*4+3] = byte(s >> 24)
+ 	}
+-	return in
++
++	return append(in, digest[:]...)
+ }
+diff --git a/src/pkg/crypto/rsa/rsa.go b/src/pkg/crypto/rsa/rsa.go
+index f74525c103..c07e8f90db 100644
+--- a/src/pkg/crypto/rsa/rsa.go
++++ b/src/pkg/crypto/rsa/rsa.go
+@@ -189,12 +189,13 @@ func incCounter(c *[4]byte) {
+ // specified in PKCS#1 v2.1.
+ func mgf1XOR(out []byte, hash hash.Hash, seed []byte) {
+ 	var counter [4]byte
++	var digest []byte
+ 
+ 	done := 0
+ 	for done < len(out) {
+ 		hash.Write(seed)
+ 		hash.Write(counter[0:4])
+-		digest := hash.Sum(nil)
++		digest = hash.Sum(digest[:0])
+ 		hash.Reset()
+ 
+ 		for i := 0; i < len(digest) && done < len(out); i++ {
+diff --git a/src/pkg/crypto/sha1/sha1.go b/src/pkg/crypto/sha1/sha1.go
+index f41cdb5b02..7bb68bbdbc 100644
+--- a/src/pkg/crypto/sha1/sha1.go
++++ b/src/pkg/crypto/sha1/sha1.go
+@@ -81,8 +81,7 @@ func (d *digest) Write(p []byte) (nn int, err error) {
+ 
+ func (d0 *digest) Sum(in []byte) []byte {
+ 	// Make a copy of d0 so that caller can keep writing and summing.
+-	d := new(digest)
+-	*d = *d0
++	d := *d0
+ 
+ 	// Padding.  Add a 1 bit and 0 bits until 56 bytes mod 64.
+ 	len := d.len
+@@ -105,11 +104,13 @@ func (d0 *digest) Sum(in []byte) []byte {
+ 		panic("d.nx != 0")
+ 	}
+ 
+-	for _, s := range d.h {
+-		in = append(in, byte(s>>24))
+-		in = append(in, byte(s>>16))
+-		in = append(in, byte(s>>8))
+-		in = append(in, byte(s))
++	var digest [Size]byte
++	for i, s := range d.h {
++		digest[i*4] = byte(s >> 24)
++		digest[i*4+1] = byte(s >> 16)
++		digest[i*4+2] = byte(s >> 8)
++		digest[i*4+3] = byte(s)
+ 	}
+-	return in
++
++	return append(in, digest[:]...)
+ }
+diff --git a/src/pkg/crypto/sha256/sha256.go b/src/pkg/crypto/sha256/sha256.go
+index 34861f6cf4..4525541a79 100644
+--- a/src/pkg/crypto/sha256/sha256.go
++++ b/src/pkg/crypto/sha256/sha256.go
+@@ -125,8 +125,7 @@ func (d *digest) Write(p []byte) (nn int, err error) {
+ 
+ func (d0 *digest) Sum(in []byte) []byte {
+ 	// Make a copy of d0 so that caller can keep writing and summing.
+-	d := new(digest)
+-	*d = *d0
++	d := *d0
+ 
+ 	// Padding.  Add a 1 bit and 0 bits until 56 bytes mod 64.
+ 	len := d.len
+@@ -150,14 +149,19 @@ func (d0 *digest) Sum(in []byte) []byte {
+ 	}
+ 
+ 	h := d.h[:]
++	size := Size
+ 	if d.is224 {
+ 		h = d.h[:7]
++		size = Size224
+ 	}
+-	for _, s := range h {
+-		in = append(in, byte(s>>24))
+-		in = append(in, byte(s>>16))
+-		in = append(in, byte(s>>8))
+-		in = append(in, byte(s))
++
++	var digest [Size]byte
++	for i, s := range h {
++		digest[i*4] = byte(s >> 24)
++		digest[i*4+1] = byte(s >> 16)
++		digest[i*4+2] = byte(s >> 8)
++		digest[i*4+3] = byte(s)
+ 	}
+-	return in
++
++	return append(in, digest[:size]...)
+ }
+diff --git a/src/pkg/crypto/sha512/sha512.go b/src/pkg/crypto/sha512/sha512.go
+index 3cf65cbe7c..927f28a28d 100644
+--- a/src/pkg/crypto/sha512/sha512.go
++++ b/src/pkg/crypto/sha512/sha512.go
+@@ -150,18 +150,23 @@ func (d0 *digest) Sum(in []byte) []byte {
+ 	}
+ 
+ 	h := d.h[:]
++	size := Size
+ 	if d.is384 {
+ 		h = d.h[:6]
++		size = Size384
+ 	}
+-	for _, s := range h {
+-		in = append(in, byte(s>>56))
+-		in = append(in, byte(s>>48))
+-		in = append(in, byte(s>>40))
+-		in = append(in, byte(s>>32))
+-		in = append(in, byte(s>>24))
+-		in = append(in, byte(s>>16))
+-		in = append(in, byte(s>>8))
+-		in = append(in, byte(s))
++
++	var digest [Size]byte
++	for i, s := range h {
++		digest[i*8] = byte(s >> 56)
++		digest[i*8+1] = byte(s >> 48)
++		digest[i*8+2] = byte(s >> 40)
++		digest[i*8+3] = byte(s >> 32)
++		digest[i*8+4] = byte(s >> 24)
++		digest[i*8+5] = byte(s >> 16)
++		digest[i*8+6] = byte(s >> 8)
++		digest[i*8+7] = byte(s)
+ 	}
+-	return in
++
++	return append(in, digest[:size]...)
+ }
+diff --git a/src/pkg/crypto/tls/cipher_suites.go b/src/pkg/crypto/tls/cipher_suites.go
+index afe5129b5c..914491d6b4 100644
+--- a/src/pkg/crypto/tls/cipher_suites.go
++++ b/src/pkg/crypto/tls/cipher_suites.go
+@@ -96,7 +96,7 @@ func macSHA1(version uint16, key []byte) macFunction {
+ 
+ type macFunction interface {
+ 	Size() int
+-	MAC(seq, data []byte) []byte
++	MAC(digestBuf, seq, data []byte) []byte
+ }
+ 
+ // ssl30MAC implements the SSLv3 MAC function, as defined in
+@@ -114,7 +114,7 @@ var ssl30Pad1 = [48]byte{0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0
+ 
+ var ssl30Pad2 = [48]byte{0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c}
+ 
+-func (s ssl30MAC) MAC(seq, record []byte) []byte {
++func (s ssl30MAC) MAC(digestBuf, seq, record []byte) []byte {
+ 	padLength := 48
+ 	if s.h.Size() == 20 {
+ 		padLength = 40
+@@ -127,13 +127,13 @@ func (s ssl30MAC) MAC(seq, record []byte) []byte {
+ 	s.h.Write(record[:1])
+ 	s.h.Write(record[3:5])
+ 	s.h.Write(record[recordHeaderLen:])
+-	digest := s.h.Sum(nil)
++	digestBuf = s.h.Sum(digestBuf[:0])
+ 
+ 	s.h.Reset()
+ 	s.h.Write(s.key)
+ 	s.h.Write(ssl30Pad2[:padLength])
+-	s.h.Write(digest)
+-	return s.h.Sum(nil)
++	s.h.Write(digestBuf)
++	return s.h.Sum(digestBuf[:0])
+ }
+ 
+ // tls10MAC implements the TLS 1.0 MAC function. RFC 2246, section 6.2.3.
+@@ -145,11 +145,11 @@ func (s tls10MAC) Size() int {
+ 	return s.h.Size()
+ }
+ 
+-func (s tls10MAC) MAC(seq, record []byte) []byte {
++func (s tls10MAC) MAC(digestBuf, seq, record []byte) []byte {
+ 	s.h.Reset()
+ 	s.h.Write(seq)
+ 	s.h.Write(record)
+-	return s.h.Sum(nil)
++	return s.h.Sum(digestBuf[:0])
+ }
+ 
+ func rsaKA() keyAgreement {
+diff --git a/src/pkg/crypto/tls/conn.go b/src/pkg/crypto/tls/conn.go
+index b8fa2737f6..6a03fa8042 100644
+--- a/src/pkg/crypto/tls/conn.go
++++ b/src/pkg/crypto/tls/conn.go
+@@ -118,6 +118,9 @@ type halfConn struct {
+ 
+ 	nextCipher interface{} // next encryption state
+ 	nextMac    macFunction // next MAC algorithm
++
++	// used to save allocating a new buffer for each MAC.
++	inDigestBuf, outDigestBuf []byte
+ }
+ 
+ // prepareCipherSpec sets the encryption and MAC states
+@@ -280,12 +283,13 @@ func (hc *halfConn) decrypt(b *block) (bool, alert) {
+ 		b.data[4] = byte(n)
+ 		b.resize(recordHeaderLen + n)
+ 		remoteMAC := payload[n:]
+-		localMAC := hc.mac.MAC(hc.seq[0:], b.data)
++		localMAC := hc.mac.MAC(hc.inDigestBuf, hc.seq[0:], b.data)
+ 		hc.incSeq()
+ 
+ 		if subtle.ConstantTimeCompare(localMAC, remoteMAC) != 1 || paddingGood != 255 {
+ 			return false, alertBadRecordMAC
+ 		}
++		hc.inDigestBuf = localMAC
+ 	}
+ 
+ 	return true, 0
+@@ -312,12 +316,13 @@ func padToBlockSize(payload []byte, blockSize int) (prefix, finalBlock []byte) {
+ func (hc *halfConn) encrypt(b *block) (bool, alert) {
+ 	// mac
+ 	if hc.mac != nil {
+-		mac := hc.mac.MAC(hc.seq[0:], b.data)
++		mac := hc.mac.MAC(hc.outDigestBuf, hc.seq[0:], b.data)
+ 		hc.incSeq()
+ 
+ 		n := len(b.data)
+ 		b.resize(n + len(mac))
+ 		copy(b.data[n:], mac)
++		hc.outDigestBuf = mac
+ 	}
+ 
+ 	payload := b.data[recordHeaderLen:]
+diff --git a/src/pkg/crypto/tls/handshake_client.go b/src/pkg/crypto/tls/handshake_client.go
+index b4337f2aac..e39e59cd5a 100644
+--- a/src/pkg/crypto/tls/handshake_client.go
++++ b/src/pkg/crypto/tls/handshake_client.go
+@@ -231,10 +231,10 @@ func (c *Conn) clientHandshake() error {
+ 
+ 	if cert != nil {
+ 		certVerify := new(certificateVerifyMsg)
+-		var digest [36]byte
+-		copy(digest[0:16], finishedHash.serverMD5.Sum(nil))
+-		copy(digest[16:36], finishedHash.serverSHA1.Sum(nil))
+-		signed, err := rsa.SignPKCS1v15(c.config.rand(), c.config.Certificates[0].PrivateKey, crypto.MD5SHA1, digest[0:])
++		digest := make([]byte, 0, 36)
++		digest = finishedHash.serverMD5.Sum(digest)
++		digest = finishedHash.serverSHA1.Sum(digest)
++		signed, err := rsa.SignPKCS1v15(c.config.rand(), c.config.Certificates[0].PrivateKey, crypto.MD5SHA1, digest)
+ 		if err != nil {
+ 			return c.sendAlert(alertInternalError)
+ 		}
+diff --git a/src/pkg/crypto/tls/handshake_server.go b/src/pkg/crypto/tls/handshake_server.go
+index bbb23c0c9f..89c000dd6e 100644
+--- a/src/pkg/crypto/tls/handshake_server.go
++++ b/src/pkg/crypto/tls/handshake_server.go
+@@ -234,9 +234,9 @@ FindCipherSuite:
+ 			return c.sendAlert(alertUnexpectedMessage)
+ 		}
+ 
+-		digest := make([]byte, 36)
+-		copy(digest[0:16], finishedHash.serverMD5.Sum(nil))
+-		copy(digest[16:36], finishedHash.serverSHA1.Sum(nil))
++		digest := make([]byte, 0, 36)
++		digest = finishedHash.serverMD5.Sum(digest)
++		digest = finishedHash.serverSHA1.Sum(digest)
+ 		err = rsa.VerifyPKCS1v15(pub, crypto.MD5SHA1, digest, certVerify.signature)
+ 		if err != nil {
+ 			c.sendAlert(alertBadCertificate)

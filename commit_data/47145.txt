@@ -14,8 +14,144 @@ Date:   Sun Jan 31 17:37:20 2021 +0100
     Trust: Jason A. Donenfeld <Jason@zx2c4.com>
     Trust: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/syscall/syscall_windows.go  | 23 +++++++++++++++++++++++
  src/syscall/types_windows.go    | 16 ++++++++++++++++
  src/syscall/zsyscall_windows.go | 24 ++++++++++++++++++++++++
  3 files changed, 63 insertions(+)
+
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index ee5311b176..cc8dc487d3 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -284,6 +284,9 @@ func NewCallbackCDecl(fn interface{}) uintptr {
+ // This function returns 1 byte BOOLEAN rather than the 4 byte BOOL.
+ //sys	CreateSymbolicLink(symlinkfilename *uint16, targetfilename *uint16, flags uint32) (err error) [failretval&0xff==0] = CreateSymbolicLinkW
+ //sys	CreateHardLink(filename *uint16, existingfilename *uint16, reserved uintptr) (err error) [failretval&0xff==0] = CreateHardLinkW
++//sys	initializeProcThreadAttributeList(attrlist *_PROC_THREAD_ATTRIBUTE_LIST, attrcount uint32, flags uint32, size *uintptr) (err error) = InitializeProcThreadAttributeList
++//sys	deleteProcThreadAttributeList(attrlist *_PROC_THREAD_ATTRIBUTE_LIST) = DeleteProcThreadAttributeList
++//sys	updateProcThreadAttribute(attrlist *_PROC_THREAD_ATTRIBUTE_LIST, flags uint32, attr uintptr, value uintptr, size uintptr, prevvalue uintptr, returnedsize *uintptr) (err error) = UpdateProcThreadAttribute
+ 
+ // syscall interface implementation for other packages
+ 
+@@ -1240,3 +1243,23 @@ func GetQueuedCompletionStatus(cphandle Handle, qty *uint32, key *uint32, overla
+ func PostQueuedCompletionStatus(cphandle Handle, qty uint32, key uint32, overlapped *Overlapped) error {
+ 	return postQueuedCompletionStatus(cphandle, qty, uintptr(key), overlapped)
+ }
++
++// newProcThreadAttributeList allocates new PROC_THREAD_ATTRIBUTE_LIST, with
++// the requested maximum number of attributes, which must be cleaned up by
++// deleteProcThreadAttributeList.
++func newProcThreadAttributeList(maxAttrCount uint32) (*_PROC_THREAD_ATTRIBUTE_LIST, error) {
++	var size uintptr
++	err := initializeProcThreadAttributeList(nil, maxAttrCount, 0, &size)
++	if err != ERROR_INSUFFICIENT_BUFFER {
++		if err == nil {
++			return nil, errorspkg.New("unable to query buffer size from InitializeProcThreadAttributeList")
++		}
++		return nil, err
++	}
++	al := (*_PROC_THREAD_ATTRIBUTE_LIST)(unsafe.Pointer(&make([]byte, size)[0]))
++	err = initializeProcThreadAttributeList(al, maxAttrCount, 0, &size)
++	if err != nil {
++		return nil, err
++	}
++	return al, nil
++}
+diff --git a/src/syscall/types_windows.go b/src/syscall/types_windows.go
+index 5fef5c9477..384b5b4f2c 100644
+--- a/src/syscall/types_windows.go
++++ b/src/syscall/types_windows.go
+@@ -490,6 +490,22 @@ type StartupInfo struct {
+ 	StdErr        Handle
+ }
+ 
++type _PROC_THREAD_ATTRIBUTE_LIST struct {
++	_ [1]byte
++}
++
++const (
++	_PROC_THREAD_ATTRIBUTE_PARENT_PROCESS = 0x00020000
++	_PROC_THREAD_ATTRIBUTE_HANDLE_LIST    = 0x00020002
++)
++
++type _STARTUPINFOEXW struct {
++	StartupInfo
++	ProcThreadAttributeList *_PROC_THREAD_ATTRIBUTE_LIST
++}
++
++const _EXTENDED_STARTUPINFO_PRESENT = 0x00080000
++
+ type ProcessInformation struct {
+ 	Process   Handle
+ 	Thread    Handle
+diff --git a/src/syscall/zsyscall_windows.go b/src/syscall/zsyscall_windows.go
+index b1480ba7df..b08e6ac5c2 100644
+--- a/src/syscall/zsyscall_windows.go
++++ b/src/syscall/zsyscall_windows.go
+@@ -93,6 +93,7 @@ var (
+ 	procCreateSymbolicLinkW                = modkernel32.NewProc("CreateSymbolicLinkW")
+ 	procCreateToolhelp32Snapshot           = modkernel32.NewProc("CreateToolhelp32Snapshot")
+ 	procDeleteFileW                        = modkernel32.NewProc("DeleteFileW")
++	procDeleteProcThreadAttributeList      = modkernel32.NewProc("DeleteProcThreadAttributeList")
+ 	procDeviceIoControl                    = modkernel32.NewProc("DeviceIoControl")
+ 	procDuplicateHandle                    = modkernel32.NewProc("DuplicateHandle")
+ 	procExitProcess                        = modkernel32.NewProc("ExitProcess")
+@@ -131,6 +132,7 @@ var (
+ 	procGetTempPathW                       = modkernel32.NewProc("GetTempPathW")
+ 	procGetTimeZoneInformation             = modkernel32.NewProc("GetTimeZoneInformation")
+ 	procGetVersion                         = modkernel32.NewProc("GetVersion")
++	procInitializeProcThreadAttributeList  = modkernel32.NewProc("InitializeProcThreadAttributeList")
+ 	procLoadLibraryW                       = modkernel32.NewProc("LoadLibraryW")
+ 	procLocalFree                          = modkernel32.NewProc("LocalFree")
+ 	procMapViewOfFile                      = modkernel32.NewProc("MapViewOfFile")
+@@ -153,6 +155,7 @@ var (
+ 	procSetHandleInformation               = modkernel32.NewProc("SetHandleInformation")
+ 	procTerminateProcess                   = modkernel32.NewProc("TerminateProcess")
+ 	procUnmapViewOfFile                    = modkernel32.NewProc("UnmapViewOfFile")
++	procUpdateProcThreadAttribute          = modkernel32.NewProc("UpdateProcThreadAttribute")
+ 	procVirtualLock                        = modkernel32.NewProc("VirtualLock")
+ 	procVirtualUnlock                      = modkernel32.NewProc("VirtualUnlock")
+ 	procWaitForSingleObject                = modkernel32.NewProc("WaitForSingleObject")
+@@ -569,6 +572,11 @@ func DeleteFile(path *uint16) (err error) {
+ 	return
+ }
+ 
++func deleteProcThreadAttributeList(attrlist *_PROC_THREAD_ATTRIBUTE_LIST) {
++	Syscall(procDeleteProcThreadAttributeList.Addr(), 1, uintptr(unsafe.Pointer(attrlist)), 0, 0)
++	return
++}
++
+ func DeviceIoControl(handle Handle, ioControlCode uint32, inBuffer *byte, inBufferSize uint32, outBuffer *byte, outBufferSize uint32, bytesReturned *uint32, overlapped *Overlapped) (err error) {
+ 	r1, _, e1 := Syscall9(procDeviceIoControl.Addr(), 8, uintptr(handle), uintptr(ioControlCode), uintptr(unsafe.Pointer(inBuffer)), uintptr(inBufferSize), uintptr(unsafe.Pointer(outBuffer)), uintptr(outBufferSize), uintptr(unsafe.Pointer(bytesReturned)), uintptr(unsafe.Pointer(overlapped)), 0)
+ 	if r1 == 0 {
+@@ -897,6 +905,14 @@ func GetVersion() (ver uint32, err error) {
+ 	return
+ }
+ 
++func initializeProcThreadAttributeList(attrlist *_PROC_THREAD_ATTRIBUTE_LIST, attrcount uint32, flags uint32, size *uintptr) (err error) {
++	r1, _, e1 := Syscall6(procInitializeProcThreadAttributeList.Addr(), 4, uintptr(unsafe.Pointer(attrlist)), uintptr(attrcount), uintptr(flags), uintptr(unsafe.Pointer(size)), 0, 0)
++	if r1 == 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
+ func LoadLibrary(libname string) (handle Handle, err error) {
+ 	var _p0 *uint16
+ 	_p0, err = UTF16PtrFromString(libname)
+@@ -1099,6 +1115,14 @@ func UnmapViewOfFile(addr uintptr) (err error) {
+ 	return
+ }
+ 
++func updateProcThreadAttribute(attrlist *_PROC_THREAD_ATTRIBUTE_LIST, flags uint32, attr uintptr, value uintptr, size uintptr, prevvalue uintptr, returnedsize *uintptr) (err error) {
++	r1, _, e1 := Syscall9(procUpdateProcThreadAttribute.Addr(), 7, uintptr(unsafe.Pointer(attrlist)), uintptr(flags), uintptr(attr), uintptr(value), uintptr(size), uintptr(prevvalue), uintptr(unsafe.Pointer(returnedsize)), 0, 0)
++	if r1 == 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
+ func VirtualLock(addr uintptr, length uintptr) (err error) {
+ 	r1, _, e1 := Syscall(procVirtualLock.Addr(), 2, uintptr(addr), uintptr(length), 0)
+ 	if r1 == 0 {

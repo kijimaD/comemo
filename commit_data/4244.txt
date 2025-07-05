@@ -6,6 +6,24 @@ Date:   Mon Nov 30 12:03:55 2009 -0800
     
     R=rsc
     https://golang.org/cl/162046
-
+---
  src/pkg/net/udpsock.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/udpsock.go b/src/pkg/net/udpsock.go
+index a7069fec4b..a8b8ba3c92 100644
+--- a/src/pkg/net/udpsock.go
++++ b/src/pkg/net/udpsock.go
+@@ -71,7 +71,11 @@ type UDPConn struct {
+ 	fd *netFD;
+ }
+ 
+-func newUDPConn(fd *netFD) *UDPConn	{ return &UDPConn{fd} }
++func newUDPConn(fd *netFD) *UDPConn {
++	c := &UDPConn{fd};
++	setsockoptInt(fd.fd, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1);
++	return c;
++}
+ 
+ func (c *UDPConn) ok() bool	{ return c != nil && c.fd != nil }
+ 

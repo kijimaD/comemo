@@ -7,6 +7,20 @@ Date:   Wed Jun 1 07:24:33 2011 +1000
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/4529102
-
+---
  misc/chrome/gophertool/manifest.json | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/chrome/gophertool/manifest.json b/misc/chrome/gophertool/manifest.json
+index 9a936ca8bf..3a2540a862 100644
+--- a/misc/chrome/gophertool/manifest.json
++++ b/misc/chrome/gophertool/manifest.json
+@@ -7,7 +7,7 @@
+     "default_icon": "gopher.png",
+     "popup": "popup.html"
+   },
+-  "omnibox": { "keyword": "go" },
++  "omnibox": { "keyword": "golang" },
+   "icons": {
+     "16": "gopher.png"
+   },

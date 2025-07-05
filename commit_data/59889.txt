@@ -18,7 +18,147 @@ Date:   Thu Apr 18 21:01:06 2024 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/580217
     Reviewed-by: Michael Matloob <matloob@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/toolchain/select.go            |  11 +++
  .../go/testdata/script/gotoolchain_issue66175.txt  | 104 +++++++++++++++++++++
  2 files changed, 115 insertions(+)
+
+diff --git a/src/cmd/go/internal/toolchain/select.go b/src/cmd/go/internal/toolchain/select.go
+index 5115b59711..d4787a844f 100644
+--- a/src/cmd/go/internal/toolchain/select.go
++++ b/src/cmd/go/internal/toolchain/select.go
+@@ -196,6 +196,13 @@ func Select() {
+ 			}
+ 			if gover.Compare(goVers, minVers) > 0 {
+ 				gotoolchain = "go" + goVers
++				// Starting with Go 1.21, the first released version has a .0 patch version suffix.
++				// Don't try to download a language version (sans patch component), such as go1.22.
++				// Instead, use the first toolchain of that language version, such as 1.22.0.
++				// See golang.org/issue/62278.
++				if gover.IsLang(goVers) && gover.Compare(goVers, "1.21") >= 0 {
++					gotoolchain += ".0"
++				}
+ 				gover.Startup.AutoGoVersion = goVers
+ 				gover.Startup.AutoToolchain = "" // in case we are overriding it for being too old
+ 			}
+@@ -327,6 +334,10 @@ func Exec(gotoolchain string) {
+ 	dir, err := modfetch.Download(context.Background(), m)
+ 	if err != nil {
+ 		if errors.Is(err, fs.ErrNotExist) {
++			toolVers := gover.FromToolchain(gotoolchain)
++			if gover.IsLang(toolVers) && gover.Compare(toolVers, "1.21") >= 0 {
++				base.Fatalf("invalid toolchain: %s is a language version but not a toolchain version (%s.x)", gotoolchain, gotoolchain)
++			}
+ 			base.Fatalf("download %s for %s/%s: toolchain not available", gotoolchain, runtime.GOOS, runtime.GOARCH)
+ 		}
+ 		base.Fatalf("download %s: %v", gotoolchain, err)
+diff --git a/src/cmd/go/testdata/script/gotoolchain_issue66175.txt b/src/cmd/go/testdata/script/gotoolchain_issue66175.txt
+new file mode 100644
+index 0000000000..c84ffbb0e7
+--- /dev/null
++++ b/src/cmd/go/testdata/script/gotoolchain_issue66175.txt
+@@ -0,0 +1,104 @@
++env TESTGO_VERSION=go1.14
++
++# check for invalid toolchain in go.mod
++go mod init m
++go mod edit -go=1.14 -toolchain=go1.22
++! go version
++stderr 'go: invalid toolchain: go1.22 is a language version but not a toolchain version \(go1.22.x\)'
++
++rm go.mod
++go mod init m
++go mod edit -go=1.14 -toolchain=go1.21
++! go version
++stderr 'go: invalid toolchain: go1.21 is a language version but not a toolchain version \(go1.21.x\)'
++
++rm go.mod
++go mod init m
++go mod edit -go=1.14 -toolchain=go1.20
++! go version
++stderr 'go: downloading go1.20 '
++
++
++# check for invalid GOTOOLCHAIN
++env GOTOOLCHAIN=go1.14
++go version
++stdout 'go1.14'
++
++env GOTOOLCHAIN=go1.20
++! go version
++stderr 'go: downloading go1.20 '
++
++env GOTOOLCHAIN=go1.21
++! go version
++stderr 'go: invalid toolchain: go1.21 is a language version but not a toolchain version \(go1.21.x\)'
++
++env GOTOOLCHAIN=go1.22
++! go version
++stderr 'go: invalid toolchain: go1.22 is a language version but not a toolchain version \(go1.22.x\)'
++
++env GOTOOLCHAIN=go1.20+auto
++! go version
++stderr 'go: downloading go1.20 '
++
++env GOTOOLCHAIN=go1.21+auto
++! go version
++stderr 'go: invalid toolchain: go1.21 is a language version but not a toolchain version \(go1.21.x\)'
++
++env GOTOOLCHAIN=go1.22+auto
++! go version
++stderr 'go: invalid toolchain: go1.22 is a language version but not a toolchain version \(go1.22.x\)'
++
++env GOTOOLCHAIN=go1.21rc3
++! go version
++stderr 'go: downloading go1.21rc3 '
++
++env GOTOOLCHAIN=go1.22rc2
++! go version
++stderr 'go: downloading go1.22rc2 '
++
++env GOTOOLCHAIN=go1.66
++! go version
++stderr 'go: invalid toolchain: go1.66 is a language version but not a toolchain version \(go1.66.x\)'
++
++env GOTOOLCHAIN=go1.18beta2
++! go version
++stderr 'go: downloading go1.18beta2 '
++
++# go1.X is okay for path lookups
++env GOTOOLCHAIN=go1.20+path
++! go version
++stderr 'go: cannot find "go1.20" in PATH'
++
++env GOTOOLCHAIN=go1.21+path
++! go version
++stderr 'go: cannot find "go1.21" in PATH'
++
++env GOTOOLCHAIN=go1.22+path
++! go version
++stderr 'go: cannot find "go1.22" in PATH'
++
++# When a toolchain download takes place, download 1.X.0
++env GOTOOLCHAIN=auto
++rm go.mod
++go mod init m
++go mod edit -go=1.300 -toolchain=none
++! go version
++stderr 'go: downloading go1.300.0 '
++
++rm go.mod
++go mod init m
++go mod edit -go=1.21 -toolchain=none
++! go version
++stderr 'go: downloading go1.21.0 '
++
++rm go.mod
++go mod init m
++go mod edit -go=1.22 -toolchain=none
++! go version
++stderr 'go: downloading go1.22.0 '
++
++rm go.mod
++go mod init m
++go mod edit -go=1.15 -toolchain=none
++! go version
++stderr 'go: downloading go1.15 '

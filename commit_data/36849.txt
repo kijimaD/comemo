@@ -17,6 +17,23 @@ Date:   Fri Jun 1 23:42:23 2018 +0300
     Run-TryBot: Yury Smolsky <yury@smolsky.by>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  test/fixedbugs/bug345.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/bug345.go b/test/fixedbugs/bug345.go
+index 917592118d..b974a61ffb 100644
+--- a/test/fixedbugs/bug345.go
++++ b/test/fixedbugs/bug345.go
+@@ -1,8 +1,10 @@
++// +build !windows
+ // errorcheckdir -n
+ 
+-// run
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+ package ignored
++
++// TODO(ysmolsky): Fix golang.org/issue/25693 to enable on Windows.

@@ -32,7 +32,7 @@ Date:   Tue Apr 30 17:46:23 2019 +0100
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/s390x.s    |   1 +
  src/cmd/compile/internal/gc/ssa.go           |   8 +-
  src/cmd/compile/internal/s390x/ssa.go        |  33 +-
@@ -43,3 +43,1656 @@ Date:   Tue Apr 30 17:46:23 2019 +0100
  src/cmd/internal/obj/s390x/asmz.go           |  12 +-
  test/codegen/mathbits.go                     |  21 ++
  9 files changed, 880 insertions(+), 195 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/s390x.s b/src/cmd/asm/internal/asm/testdata/s390x.s
+index 713ad12aca..c9f4d69736 100644
+--- a/src/cmd/asm/internal/asm/testdata/s390x.s
++++ b/src/cmd/asm/internal/asm/testdata/s390x.s
+@@ -66,6 +66,7 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
+ 	ADD	$32768, R1, R2        // b9040021c22800008000
+ 	ADDC	R1, R2                // b9ea1022
+ 	ADDC	$1, R1, R2            // ec21000100db
++	ADDC	$-1, R1, R2           // ec21ffff00db
+ 	ADDC	R1, R2, R3            // b9ea1032
+ 	ADDW	R1, R2                // 1a21
+ 	ADDW	R1, R2, R3            // b9f81032
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 6f30446e75..7ffa5ab882 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3575,14 +3575,14 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue3(ssa.OpAdd64carry, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1], args[2])
+ 		},
+-		sys.AMD64, sys.ARM64, sys.PPC64)
+-	alias("math/bits", "Add", "math/bits", "Add64", sys.ArchAMD64, sys.ArchARM64, sys.ArchPPC64)
++		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X)
++	alias("math/bits", "Add", "math/bits", "Add64", sys.ArchAMD64, sys.ArchARM64, sys.ArchPPC64, sys.ArchS390X)
+ 	addF("math/bits", "Sub64",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue3(ssa.OpSub64borrow, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1], args[2])
+ 		},
+-		sys.AMD64, sys.ARM64)
+-	alias("math/bits", "Sub", "math/bits", "Sub64", sys.ArchAMD64, sys.ArchARM64)
++		sys.AMD64, sys.ARM64, sys.S390X)
++	alias("math/bits", "Sub", "math/bits", "Sub64", sys.ArchAMD64, sys.ArchARM64, sys.ArchS390X)
+ 	addF("math/bits", "Div64",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			// check for divide-by-zero/overflow and panic with appropriate message
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index c5b2d74bcc..47abdfa4b4 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -184,6 +184,37 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if r != r1 {
+ 			p.Reg = r1
+ 		}
++	case ssa.OpS390XADDC:
++		r1 := v.Reg0()
++		r2 := v.Args[0].Reg()
++		r3 := v.Args[1].Reg()
++		if r1 == r2 {
++			r2, r3 = r3, r2
++		}
++		p := opregreg(s, v.Op.Asm(), r1, r2)
++		if r3 != r1 {
++			p.Reg = r3
++		}
++	case ssa.OpS390XSUBC:
++		r1 := v.Reg0()
++		r2 := v.Args[0].Reg()
++		r3 := v.Args[1].Reg()
++		p := opregreg(s, v.Op.Asm(), r1, r3)
++		if r1 != r2 {
++			p.Reg = r2
++		}
++	case ssa.OpS390XADDE, ssa.OpS390XSUBE:
++		r1 := v.Reg0()
++		if r1 != v.Args[0].Reg() {
++			v.Fatalf("input[0] and output not in same register %s", v.LongString())
++		}
++		r2 := v.Args[1].Reg()
++		opregreg(s, v.Op.Asm(), r1, r2)
++	case ssa.OpS390XADDCconst:
++		r1 := v.Reg0()
++		r3 := v.Args[0].Reg()
++		i2 := int64(int16(v.AuxInt))
++		opregregimm(s, v.Op.Asm(), r1, r3, i2)
+ 	// 2-address opcode arithmetic
+ 	case ssa.OpS390XMULLD, ssa.OpS390XMULLW,
+ 		ssa.OpS390XMULHD, ssa.OpS390XMULHDU,
+@@ -553,7 +584,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Reg = v.Reg()
+ 	case ssa.OpS390XInvertFlags:
+ 		v.Fatalf("InvertFlags should never make it to codegen %v", v.LongString())
+-	case ssa.OpS390XFlagEQ, ssa.OpS390XFlagLT, ssa.OpS390XFlagGT:
++	case ssa.OpS390XFlagEQ, ssa.OpS390XFlagLT, ssa.OpS390XFlagGT, ssa.OpS390XFlagOV:
+ 		v.Fatalf("Flag* ops should never make it to codegen %v", v.LongString())
+ 	case ssa.OpS390XAddTupleFirst32, ssa.OpS390XAddTupleFirst64:
+ 		v.Fatalf("AddTupleFirst* should never make it to codegen %v", v.LongString())
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index 1d5365c190..03a5accba2 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -119,6 +119,18 @@
+ (Bswap64 x) -> (MOVDBR x)
+ (Bswap32 x) -> (MOVWBR x)
+ 
++// add with carry
++(Select0 (Add64carry x y c))
++  -> (Select0 <typ.UInt64> (ADDE x y (Select1 <types.TypeFlags> (ADDCconst c [-1]))))
++(Select1 (Add64carry x y c))
++  -> (Select0 <typ.UInt64> (ADDE (MOVDconst [0]) (MOVDconst [0]) (Select1 <types.TypeFlags> (ADDE x y (Select1 <types.TypeFlags> (ADDCconst c [-1]))))))
++
++// subtract with borrow
++(Select0 (Sub64borrow x y c))
++  -> (Select0 <typ.UInt64> (SUBE x y (Select1 <types.TypeFlags> (SUBC (MOVDconst [0]) c))))
++(Select1 (Sub64borrow x y c))
++  -> (NEG (Select0 <typ.UInt64> (SUBE (MOVDconst [0]) (MOVDconst [0]) (Select1 <types.TypeFlags> (SUBE x y (Select1 <types.TypeFlags> (SUBC (MOVDconst [0]) c)))))))
++
+ // math package intrinsics
+ (Sqrt        x) -> (FSQRT x)
+ (Floor       x) -> (FIDBR [7] x)
+@@ -1121,6 +1133,43 @@
+ (MOVBreg  (ANDWconst [m] x)) &&  int8(m) >= 0 -> (MOVWZreg (ANDWconst <typ.UInt32> [int64( uint8(m))] x))
+ (MOVHreg  (ANDWconst [m] x)) && int16(m) >= 0 -> (MOVWZreg (ANDWconst <typ.UInt32> [int64(uint16(m))] x))
+ 
++// carry flag generation
++// (only constant fold carry of zero)
++(Select1 (ADDCconst (MOVDconst [c]) [d]))
++  && uint64(c+d) >= uint64(c) && c+d == 0
++  -> (FlagEQ)
++(Select1 (ADDCconst (MOVDconst [c]) [d]))
++  && uint64(c+d) >= uint64(c) && c+d != 0
++  -> (FlagLT)
++
++// borrow flag generation
++// (only constant fold borrow of zero)
++(Select1 (SUBC (MOVDconst [c]) (MOVDconst [d])))
++  && uint64(d) <= uint64(c) && c-d == 0
++  -> (FlagGT)
++(Select1 (SUBC (MOVDconst [c]) (MOVDconst [d])))
++  && uint64(d) <= uint64(c) && c-d != 0
++  -> (FlagOV)
++
++// add with carry
++(ADDE x y (FlagEQ)) -> (ADDC x y)
++(ADDE x y (FlagLT)) -> (ADDC x y)
++(ADDC x (MOVDconst [c])) && is16Bit(c) -> (ADDCconst x [c])
++(Select0 (ADDCconst (MOVDconst [c]) [d])) -> (MOVDconst [c+d])
++
++// subtract with borrow
++(SUBE x y (FlagGT)) -> (SUBC x y)
++(SUBE x y (FlagOV)) -> (SUBC x y)
++(Select0 (SUBC (MOVDconst [c]) (MOVDconst [d]))) -> (MOVDconst [c-d])
++
++// collapse carry chain
++(ADDE x y (Select1 (ADDCconst [-1] (Select0 (ADDE (MOVDconst [0]) (MOVDconst [0]) c)))))
++  -> (ADDE x y c)
++
++// collapse borrow chain
++(SUBE x y (Select1 (SUBC (MOVDconst [0]) (NEG (Select0 (SUBE (MOVDconst [0]) (MOVDconst [0]) c))))))
++  -> (SUBE x y c)
++
+ // fused multiply-add
+ (FADD (FMUL y z) x) -> (FMADD x y z)
+ (FADDS (FMULS y z) x) -> (FMADDS x y z)
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index 4074243e98..b56971a78d 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -153,9 +153,12 @@ func init() {
+ 		addr    = regInfo{inputs: []regMask{sp | sb}, outputs: gponly}
+ 		addridx = regInfo{inputs: []regMask{sp | sb, ptrsp}, outputs: gponly}
+ 
+-		gp2flags  = regInfo{inputs: []regMask{gpsp, gpsp}}
+-		gp1flags  = regInfo{inputs: []regMask{gpsp}}
+-		gp2flags1 = regInfo{inputs: []regMask{gp, gp}, outputs: gponly}
++		gp2flags       = regInfo{inputs: []regMask{gpsp, gpsp}}
++		gp1flags       = regInfo{inputs: []regMask{gpsp}}
++		gp2flags1      = regInfo{inputs: []regMask{gp, gp}, outputs: gponly}
++		gp11flags      = regInfo{inputs: []regMask{gp}, outputs: gponly}
++		gp21flags      = regInfo{inputs: []regMask{gp, gp}, outputs: gponly}
++		gp2flags1flags = regInfo{inputs: []regMask{gp, gp}, outputs: gponly}
+ 
+ 		gpload       = regInfo{inputs: []regMask{ptrspsb, 0}, outputs: gponly}
+ 		gploadidx    = regInfo{inputs: []regMask{ptrspsb, ptrsp, 0}, outputs: gponly}
+@@ -294,6 +297,17 @@ func init() {
+ 		{name: "XORload", argLength: 3, reg: gpopload, asm: "XOR", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true, symEffect: "Read"},   // arg0 ^ *arg1. arg2=mem
+ 		{name: "XORWload", argLength: 3, reg: gpopload, asm: "XORW", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true, symEffect: "Read"}, // arg0 ^ *arg1. arg2=mem
+ 
++		// Arithmetic ops with carry/borrow chain.
++		//
++		// A carry is represented by a condition code of 2 or 3 (GT or OV).
++		// A borrow is represented by a condition code of 0 or 1 (EQ or LT).
++		{name: "ADDC", argLength: 2, reg: gp21flags, asm: "ADDC", typ: "(UInt64,Flags)", commutative: true},                          // (arg0 + arg1, carry out)
++		{name: "ADDCconst", argLength: 1, reg: gp11flags, asm: "ADDC", typ: "(UInt64,Flags)", aux: "Int16"},                          // (arg0 + auxint, carry out)
++		{name: "ADDE", argLength: 3, reg: gp2flags1flags, asm: "ADDE", typ: "(UInt64,Flags)", commutative: true, resultInArg0: true}, // (arg0 + arg1 + arg2 (carry in), carry out)
++		{name: "SUBC", argLength: 2, reg: gp21flags, asm: "SUBC", typ: "(UInt64,Flags)"},                                             // (arg0 - arg1, borrow out)
++		{name: "SUBE", argLength: 3, reg: gp2flags1flags, asm: "SUBE", typ: "(UInt64,Flags)", resultInArg0: true},                    // (arg0 - arg1 - arg2 (borrow in), borrow out)
++
++		// Comparisons.
+ 		{name: "CMP", argLength: 2, reg: gp2flags, asm: "CMP", typ: "Flags"},   // arg0 compare to arg1
+ 		{name: "CMPW", argLength: 2, reg: gp2flags, asm: "CMPW", typ: "Flags"}, // arg0 compare to arg1
+ 
+@@ -380,49 +394,49 @@ func init() {
+ 		{name: "MOVDaddridx", argLength: 2, reg: addridx, aux: "SymOff", symEffect: "Read"},                    // arg0 + arg1 + auxint + aux
+ 
+ 		// auxint+aux == add auxint and the offset of the symbol in aux (if any) to the effective address
+-		{name: "MOVBZload", argLength: 2, reg: gpload, asm: "MOVBZ", aux: "SymOff", typ: "UInt8", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read"},  // load byte from arg0+auxint+aux. arg1=mem.  Zero extend.
+-		{name: "MOVBload", argLength: 2, reg: gpload, asm: "MOVB", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read"},                  // ditto, sign extend to int64
+-		{name: "MOVHZload", argLength: 2, reg: gpload, asm: "MOVHZ", aux: "SymOff", typ: "UInt16", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read"}, // load 2 bytes from arg0+auxint+aux. arg1=mem.  Zero extend.
+-		{name: "MOVHload", argLength: 2, reg: gpload, asm: "MOVH", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read"},                  // ditto, sign extend to int64
+-		{name: "MOVWZload", argLength: 2, reg: gpload, asm: "MOVWZ", aux: "SymOff", typ: "UInt32", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read"}, // load 4 bytes from arg0+auxint+aux. arg1=mem.  Zero extend.
+-		{name: "MOVWload", argLength: 2, reg: gpload, asm: "MOVW", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read"},                  // ditto, sign extend to int64
+-		{name: "MOVDload", argLength: 2, reg: gpload, asm: "MOVD", aux: "SymOff", typ: "UInt64", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read"},   // load 8 bytes from arg0+auxint+aux. arg1=mem
++		{name: "MOVBZload", argLength: 2, reg: gpload, asm: "MOVBZ", aux: "SymOff", typ: "UInt8", faultOnNilArg0: true, symEffect: "Read"},  // load byte from arg0+auxint+aux. arg1=mem.  Zero extend.
++		{name: "MOVBload", argLength: 2, reg: gpload, asm: "MOVB", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},                  // ditto, sign extend to int64
++		{name: "MOVHZload", argLength: 2, reg: gpload, asm: "MOVHZ", aux: "SymOff", typ: "UInt16", faultOnNilArg0: true, symEffect: "Read"}, // load 2 bytes from arg0+auxint+aux. arg1=mem.  Zero extend.
++		{name: "MOVHload", argLength: 2, reg: gpload, asm: "MOVH", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},                  // ditto, sign extend to int64
++		{name: "MOVWZload", argLength: 2, reg: gpload, asm: "MOVWZ", aux: "SymOff", typ: "UInt32", faultOnNilArg0: true, symEffect: "Read"}, // load 4 bytes from arg0+auxint+aux. arg1=mem.  Zero extend.
++		{name: "MOVWload", argLength: 2, reg: gpload, asm: "MOVW", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},                  // ditto, sign extend to int64
++		{name: "MOVDload", argLength: 2, reg: gpload, asm: "MOVD", aux: "SymOff", typ: "UInt64", faultOnNilArg0: true, symEffect: "Read"},   // load 8 bytes from arg0+auxint+aux. arg1=mem
+ 
+ 		{name: "MOVWBR", argLength: 1, reg: gp11, asm: "MOVWBR"}, // arg0 swap bytes
+ 		{name: "MOVDBR", argLength: 1, reg: gp11, asm: "MOVDBR"}, // arg0 swap bytes
+ 
+-		{name: "MOVHBRload", argLength: 2, reg: gpload, asm: "MOVHBR", aux: "SymOff", typ: "UInt16", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read"}, // load 2 bytes from arg0+auxint+aux. arg1=mem. Reverse bytes.
+-		{name: "MOVWBRload", argLength: 2, reg: gpload, asm: "MOVWBR", aux: "SymOff", typ: "UInt32", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read"}, // load 4 bytes from arg0+auxint+aux. arg1=mem. Reverse bytes.
+-		{name: "MOVDBRload", argLength: 2, reg: gpload, asm: "MOVDBR", aux: "SymOff", typ: "UInt64", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read"}, // load 8 bytes from arg0+auxint+aux. arg1=mem. Reverse bytes.
++		{name: "MOVHBRload", argLength: 2, reg: gpload, asm: "MOVHBR", aux: "SymOff", typ: "UInt16", faultOnNilArg0: true, symEffect: "Read"}, // load 2 bytes from arg0+auxint+aux. arg1=mem. Reverse bytes.
++		{name: "MOVWBRload", argLength: 2, reg: gpload, asm: "MOVWBR", aux: "SymOff", typ: "UInt32", faultOnNilArg0: true, symEffect: "Read"}, // load 4 bytes from arg0+auxint+aux. arg1=mem. Reverse bytes.
++		{name: "MOVDBRload", argLength: 2, reg: gpload, asm: "MOVDBR", aux: "SymOff", typ: "UInt64", faultOnNilArg0: true, symEffect: "Read"}, // load 8 bytes from arg0+auxint+aux. arg1=mem. Reverse bytes.
+ 
+-		{name: "MOVBstore", argLength: 3, reg: gpstore, asm: "MOVB", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, symEffect: "Write"},       // store byte in arg1 to arg0+auxint+aux. arg2=mem
+-		{name: "MOVHstore", argLength: 3, reg: gpstore, asm: "MOVH", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, symEffect: "Write"},       // store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem
+-		{name: "MOVWstore", argLength: 3, reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, symEffect: "Write"},       // store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem
+-		{name: "MOVDstore", argLength: 3, reg: gpstore, asm: "MOVD", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, symEffect: "Write"},       // store 8 bytes in arg1 to arg0+auxint+aux. arg2=mem
+-		{name: "MOVHBRstore", argLength: 3, reg: gpstorebr, asm: "MOVHBR", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, symEffect: "Write"}, // store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem. Reverse bytes.
+-		{name: "MOVWBRstore", argLength: 3, reg: gpstorebr, asm: "MOVWBR", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, symEffect: "Write"}, // store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem. Reverse bytes.
+-		{name: "MOVDBRstore", argLength: 3, reg: gpstorebr, asm: "MOVDBR", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, symEffect: "Write"}, // store 8 bytes in arg1 to arg0+auxint+aux. arg2=mem. Reverse bytes.
++		{name: "MOVBstore", argLength: 3, reg: gpstore, asm: "MOVB", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},       // store byte in arg1 to arg0+auxint+aux. arg2=mem
++		{name: "MOVHstore", argLength: 3, reg: gpstore, asm: "MOVH", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},       // store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem
++		{name: "MOVWstore", argLength: 3, reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},       // store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem
++		{name: "MOVDstore", argLength: 3, reg: gpstore, asm: "MOVD", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},       // store 8 bytes in arg1 to arg0+auxint+aux. arg2=mem
++		{name: "MOVHBRstore", argLength: 3, reg: gpstorebr, asm: "MOVHBR", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem. Reverse bytes.
++		{name: "MOVWBRstore", argLength: 3, reg: gpstorebr, asm: "MOVWBR", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem. Reverse bytes.
++		{name: "MOVDBRstore", argLength: 3, reg: gpstorebr, asm: "MOVDBR", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 8 bytes in arg1 to arg0+auxint+aux. arg2=mem. Reverse bytes.
+ 
+ 		{name: "MVC", argLength: 3, reg: gpmvc, asm: "MVC", aux: "SymValAndOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, faultOnNilArg1: true, symEffect: "None"}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size,off
+ 
+ 		// indexed loads/stores
+-		{name: "MOVBZloadidx", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVBZ", aux: "SymOff", typ: "UInt8", clobberFlags: true, symEffect: "Read"},   // load a byte from arg0+arg1+auxint+aux. arg2=mem. Zero extend.
+-		{name: "MOVBloadidx", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVB", aux: "SymOff", typ: "Int8", clobberFlags: true, symEffect: "Read"},      // load a byte from arg0+arg1+auxint+aux. arg2=mem. Sign extend.
+-		{name: "MOVHZloadidx", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVHZ", aux: "SymOff", typ: "UInt16", clobberFlags: true, symEffect: "Read"},  // load 2 bytes from arg0+arg1+auxint+aux. arg2=mem. Zero extend.
+-		{name: "MOVHloadidx", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVH", aux: "SymOff", typ: "Int16", clobberFlags: true, symEffect: "Read"},     // load 2 bytes from arg0+arg1+auxint+aux. arg2=mem. Sign extend.
+-		{name: "MOVWZloadidx", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVWZ", aux: "SymOff", typ: "UInt32", clobberFlags: true, symEffect: "Read"},  // load 4 bytes from arg0+arg1+auxint+aux. arg2=mem. Zero extend.
+-		{name: "MOVWloadidx", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVW", aux: "SymOff", typ: "Int32", clobberFlags: true, symEffect: "Read"},     // load 4 bytes from arg0+arg1+auxint+aux. arg2=mem. Sign extend.
+-		{name: "MOVDloadidx", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVD", aux: "SymOff", typ: "UInt64", clobberFlags: true, symEffect: "Read"},    // load 8 bytes from arg0+arg1+auxint+aux. arg2=mem
+-		{name: "MOVHBRloadidx", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVHBR", aux: "SymOff", typ: "Int16", clobberFlags: true, symEffect: "Read"}, // load 2 bytes from arg0+arg1+auxint+aux. arg2=mem. Reverse bytes.
+-		{name: "MOVWBRloadidx", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVWBR", aux: "SymOff", typ: "Int32", clobberFlags: true, symEffect: "Read"}, // load 4 bytes from arg0+arg1+auxint+aux. arg2=mem. Reverse bytes.
+-		{name: "MOVDBRloadidx", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVDBR", aux: "SymOff", typ: "Int64", clobberFlags: true, symEffect: "Read"}, // load 8 bytes from arg0+arg1+auxint+aux. arg2=mem. Reverse bytes.
+-		{name: "MOVBstoreidx", argLength: 4, reg: gpstoreidx, commutative: true, asm: "MOVB", aux: "SymOff", clobberFlags: true, symEffect: "Write"},                // store byte in arg2 to arg0+arg1+auxint+aux. arg3=mem
+-		{name: "MOVHstoreidx", argLength: 4, reg: gpstoreidx, commutative: true, asm: "MOVH", aux: "SymOff", clobberFlags: true, symEffect: "Write"},                // store 2 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem
+-		{name: "MOVWstoreidx", argLength: 4, reg: gpstoreidx, commutative: true, asm: "MOVW", aux: "SymOff", clobberFlags: true, symEffect: "Write"},                // store 4 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem
+-		{name: "MOVDstoreidx", argLength: 4, reg: gpstoreidx, commutative: true, asm: "MOVD", aux: "SymOff", clobberFlags: true, symEffect: "Write"},                // store 8 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem
+-		{name: "MOVHBRstoreidx", argLength: 4, reg: gpstoreidx, commutative: true, asm: "MOVHBR", aux: "SymOff", clobberFlags: true, symEffect: "Write"},            // store 2 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem. Reverse bytes.
+-		{name: "MOVWBRstoreidx", argLength: 4, reg: gpstoreidx, commutative: true, asm: "MOVWBR", aux: "SymOff", clobberFlags: true, symEffect: "Write"},            // store 4 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem. Reverse bytes.
+-		{name: "MOVDBRstoreidx", argLength: 4, reg: gpstoreidx, commutative: true, asm: "MOVDBR", aux: "SymOff", clobberFlags: true, symEffect: "Write"},            // store 8 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem. Reverse bytes.
++		{name: "MOVBZloadidx", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVBZ", aux: "SymOff", typ: "UInt8", symEffect: "Read"},   // load a byte from arg0+arg1+auxint+aux. arg2=mem. Zero extend.
++		{name: "MOVBloadidx", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVB", aux: "SymOff", typ: "Int8", symEffect: "Read"},      // load a byte from arg0+arg1+auxint+aux. arg2=mem. Sign extend.
++		{name: "MOVHZloadidx", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVHZ", aux: "SymOff", typ: "UInt16", symEffect: "Read"},  // load 2 bytes from arg0+arg1+auxint+aux. arg2=mem. Zero extend.
++		{name: "MOVHloadidx", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVH", aux: "SymOff", typ: "Int16", symEffect: "Read"},     // load 2 bytes from arg0+arg1+auxint+aux. arg2=mem. Sign extend.
++		{name: "MOVWZloadidx", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVWZ", aux: "SymOff", typ: "UInt32", symEffect: "Read"},  // load 4 bytes from arg0+arg1+auxint+aux. arg2=mem. Zero extend.
++		{name: "MOVWloadidx", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVW", aux: "SymOff", typ: "Int32", symEffect: "Read"},     // load 4 bytes from arg0+arg1+auxint+aux. arg2=mem. Sign extend.
++		{name: "MOVDloadidx", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVD", aux: "SymOff", typ: "UInt64", symEffect: "Read"},    // load 8 bytes from arg0+arg1+auxint+aux. arg2=mem
++		{name: "MOVHBRloadidx", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVHBR", aux: "SymOff", typ: "Int16", symEffect: "Read"}, // load 2 bytes from arg0+arg1+auxint+aux. arg2=mem. Reverse bytes.
++		{name: "MOVWBRloadidx", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVWBR", aux: "SymOff", typ: "Int32", symEffect: "Read"}, // load 4 bytes from arg0+arg1+auxint+aux. arg2=mem. Reverse bytes.
++		{name: "MOVDBRloadidx", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVDBR", aux: "SymOff", typ: "Int64", symEffect: "Read"}, // load 8 bytes from arg0+arg1+auxint+aux. arg2=mem. Reverse bytes.
++		{name: "MOVBstoreidx", argLength: 4, reg: gpstoreidx, commutative: true, asm: "MOVB", aux: "SymOff", symEffect: "Write"},                // store byte in arg2 to arg0+arg1+auxint+aux. arg3=mem
++		{name: "MOVHstoreidx", argLength: 4, reg: gpstoreidx, commutative: true, asm: "MOVH", aux: "SymOff", symEffect: "Write"},                // store 2 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem
++		{name: "MOVWstoreidx", argLength: 4, reg: gpstoreidx, commutative: true, asm: "MOVW", aux: "SymOff", symEffect: "Write"},                // store 4 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem
++		{name: "MOVDstoreidx", argLength: 4, reg: gpstoreidx, commutative: true, asm: "MOVD", aux: "SymOff", symEffect: "Write"},                // store 8 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem
++		{name: "MOVHBRstoreidx", argLength: 4, reg: gpstoreidx, commutative: true, asm: "MOVHBR", aux: "SymOff", symEffect: "Write"},            // store 2 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem. Reverse bytes.
++		{name: "MOVWBRstoreidx", argLength: 4, reg: gpstoreidx, commutative: true, asm: "MOVWBR", aux: "SymOff", symEffect: "Write"},            // store 4 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem. Reverse bytes.
++		{name: "MOVDBRstoreidx", argLength: 4, reg: gpstoreidx, commutative: true, asm: "MOVDBR", aux: "SymOff", symEffect: "Write"},            // store 8 bytes in arg2 to arg0+arg1+auxint+aux. arg3=mem. Reverse bytes.
+ 
+ 		// For storeconst ops, the AuxInt field encodes both
+ 		// the value to store and an address offset of the store.
+@@ -473,16 +487,11 @@ func init() {
+ 		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r1, r2}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
+ 		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r0, r1}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
+ 
+-		// Constant flag values. For any comparison, there are 5 possible
+-		// outcomes: the three from the signed total order (<,==,>) and the
+-		// three from the unsigned total order. The == cases overlap.
+-		// Note: there's a sixth "unordered" outcome for floating-point
+-		// comparisons, but we don't use such a beast yet.
+-		// These ops are for temporary use by rewrite rules. They
+-		// cannot appear in the generated assembly.
+-		{name: "FlagEQ"}, // equal
+-		{name: "FlagLT"}, // <
+-		{name: "FlagGT"}, // >
++		// Constant conditon code values. The condition code can be 0, 1, 2 or 3.
++		{name: "FlagEQ"}, // CC=0 (equal)
++		{name: "FlagLT"}, // CC=1 (less than)
++		{name: "FlagGT"}, // CC=2 (greater than)
++		{name: "FlagOV"}, // CC=3 (overflow)
+ 
+ 		// Atomic loads. These are just normal loads but return <value,memory> tuples
+ 		// so they can be properly ordered with other loads.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 906295f580..3c843a3f32 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1922,6 +1922,11 @@ const (
+ 	OpS390XXORWconst
+ 	OpS390XXORload
+ 	OpS390XXORWload
++	OpS390XADDC
++	OpS390XADDCconst
++	OpS390XADDE
++	OpS390XSUBC
++	OpS390XSUBE
+ 	OpS390XCMP
+ 	OpS390XCMPW
+ 	OpS390XCMPU
+@@ -2044,6 +2049,7 @@ const (
+ 	OpS390XFlagEQ
+ 	OpS390XFlagLT
+ 	OpS390XFlagGT
++	OpS390XFlagOV
+ 	OpS390XMOVWZatomicload
+ 	OpS390XMOVDatomicload
+ 	OpS390XMOVWatomicstore
+@@ -25811,6 +25817,80 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:        "ADDC",
++		argLen:      2,
++		commutative: true,
++		asm:         s390x.AADDC,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++			},
++			outputs: []outputInfo{
++				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++			},
++		},
++	},
++	{
++		name:    "ADDCconst",
++		auxType: auxInt16,
++		argLen:  1,
++		asm:     s390x.AADDC,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++			},
++			outputs: []outputInfo{
++				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++			},
++		},
++	},
++	{
++		name:         "ADDE",
++		argLen:       3,
++		commutative:  true,
++		resultInArg0: true,
++		asm:          s390x.AADDE,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++			},
++			outputs: []outputInfo{
++				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++			},
++		},
++	},
++	{
++		name:   "SUBC",
++		argLen: 2,
++		asm:    s390x.ASUBC,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++			},
++			outputs: []outputInfo{
++				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++			},
++		},
++	},
++	{
++		name:         "SUBE",
++		argLen:       3,
++		resultInArg0: true,
++		asm:          s390x.ASUBE,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++				{1, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++			},
++			outputs: []outputInfo{
++				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++			},
++		},
++	},
+ 	{
+ 		name:   "CMP",
+ 		argLen: 2,
+@@ -26644,7 +26724,6 @@ var opcodeTable = [...]opInfo{
+ 		name:           "MOVBZload",
+ 		auxType:        auxSymOff,
+ 		argLen:         2,
+-		clobberFlags:   true,
+ 		faultOnNilArg0: true,
+ 		symEffect:      SymRead,
+ 		asm:            s390x.AMOVBZ,
+@@ -26661,7 +26740,6 @@ var opcodeTable = [...]opInfo{
+ 		name:           "MOVBload",
+ 		auxType:        auxSymOff,
+ 		argLen:         2,
+-		clobberFlags:   true,
+ 		faultOnNilArg0: true,
+ 		symEffect:      SymRead,
+ 		asm:            s390x.AMOVB,
+@@ -26678,7 +26756,6 @@ var opcodeTable = [...]opInfo{
+ 		name:           "MOVHZload",
+ 		auxType:        auxSymOff,
+ 		argLen:         2,
+-		clobberFlags:   true,
+ 		faultOnNilArg0: true,
+ 		symEffect:      SymRead,
+ 		asm:            s390x.AMOVHZ,
+@@ -26695,7 +26772,6 @@ var opcodeTable = [...]opInfo{
+ 		name:           "MOVHload",
+ 		auxType:        auxSymOff,
+ 		argLen:         2,
+-		clobberFlags:   true,
+ 		faultOnNilArg0: true,
+ 		symEffect:      SymRead,
+ 		asm:            s390x.AMOVH,
+@@ -26712,7 +26788,6 @@ var opcodeTable = [...]opInfo{
+ 		name:           "MOVWZload",
+ 		auxType:        auxSymOff,
+ 		argLen:         2,
+-		clobberFlags:   true,
+ 		faultOnNilArg0: true,
+ 		symEffect:      SymRead,
+ 		asm:            s390x.AMOVWZ,
+@@ -26729,7 +26804,6 @@ var opcodeTable = [...]opInfo{
+ 		name:           "MOVWload",
+ 		auxType:        auxSymOff,
+ 		argLen:         2,
+-		clobberFlags:   true,
+ 		faultOnNilArg0: true,
+ 		symEffect:      SymRead,
+ 		asm:            s390x.AMOVW,
+@@ -26746,7 +26820,6 @@ var opcodeTable = [...]opInfo{
+ 		name:           "MOVDload",
+ 		auxType:        auxSymOff,
+ 		argLen:         2,
+-		clobberFlags:   true,
+ 		faultOnNilArg0: true,
+ 		symEffect:      SymRead,
+ 		asm:            s390x.AMOVD,
+@@ -26789,7 +26862,6 @@ var opcodeTable = [...]opInfo{
+ 		name:           "MOVHBRload",
+ 		auxType:        auxSymOff,
+ 		argLen:         2,
+-		clobberFlags:   true,
+ 		faultOnNilArg0: true,
+ 		symEffect:      SymRead,
+ 		asm:            s390x.AMOVHBR,
+@@ -26806,7 +26878,6 @@ var opcodeTable = [...]opInfo{
+ 		name:           "MOVWBRload",
+ 		auxType:        auxSymOff,
+ 		argLen:         2,
+-		clobberFlags:   true,
+ 		faultOnNilArg0: true,
+ 		symEffect:      SymRead,
+ 		asm:            s390x.AMOVWBR,
+@@ -26823,7 +26894,6 @@ var opcodeTable = [...]opInfo{
+ 		name:           "MOVDBRload",
+ 		auxType:        auxSymOff,
+ 		argLen:         2,
+-		clobberFlags:   true,
+ 		faultOnNilArg0: true,
+ 		symEffect:      SymRead,
+ 		asm:            s390x.AMOVDBR,
+@@ -26840,7 +26910,6 @@ var opcodeTable = [...]opInfo{
+ 		name:           "MOVBstore",
+ 		auxType:        auxSymOff,
+ 		argLen:         3,
+-		clobberFlags:   true,
+ 		faultOnNilArg0: true,
+ 		symEffect:      SymWrite,
+ 		asm:            s390x.AMOVB,
+@@ -26855,7 +26924,6 @@ var opcodeTable = [...]opInfo{
+ 		name:           "MOVHstore",
+ 		auxType:        auxSymOff,
+ 		argLen:         3,
+-		clobberFlags:   true,
+ 		faultOnNilArg0: true,
+ 		symEffect:      SymWrite,
+ 		asm:            s390x.AMOVH,
+@@ -26870,7 +26938,6 @@ var opcodeTable = [...]opInfo{
+ 		name:           "MOVWstore",
+ 		auxType:        auxSymOff,
+ 		argLen:         3,
+-		clobberFlags:   true,
+ 		faultOnNilArg0: true,
+ 		symEffect:      SymWrite,
+ 		asm:            s390x.AMOVW,
+@@ -26885,7 +26952,6 @@ var opcodeTable = [...]opInfo{
+ 		name:           "MOVDstore",
+ 		auxType:        auxSymOff,
+ 		argLen:         3,
+-		clobberFlags:   true,
+ 		faultOnNilArg0: true,
+ 		symEffect:      SymWrite,
+ 		asm:            s390x.AMOVD,
+@@ -26900,7 +26966,6 @@ var opcodeTable = [...]opInfo{
+ 		name:           "MOVHBRstore",
+ 		auxType:        auxSymOff,
+ 		argLen:         3,
+-		clobberFlags:   true,
+ 		faultOnNilArg0: true,
+ 		symEffect:      SymWrite,
+ 		asm:            s390x.AMOVHBR,
+@@ -26915,7 +26980,6 @@ var opcodeTable = [...]opInfo{
+ 		name:           "MOVWBRstore",
+ 		auxType:        auxSymOff,
+ 		argLen:         3,
+-		clobberFlags:   true,
+ 		faultOnNilArg0: true,
+ 		symEffect:      SymWrite,
+ 		asm:            s390x.AMOVWBR,
+@@ -26930,7 +26994,6 @@ var opcodeTable = [...]opInfo{
+ 		name:           "MOVDBRstore",
+ 		auxType:        auxSymOff,
+ 		argLen:         3,
+-		clobberFlags:   true,
+ 		faultOnNilArg0: true,
+ 		symEffect:      SymWrite,
+ 		asm:            s390x.AMOVDBR,
+@@ -26958,13 +27021,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVBZloadidx",
+-		auxType:      auxSymOff,
+-		argLen:       3,
+-		commutative:  true,
+-		clobberFlags: true,
+-		symEffect:    SymRead,
+-		asm:          s390x.AMOVBZ,
++		name:        "MOVBZloadidx",
++		auxType:     auxSymOff,
++		argLen:      3,
++		commutative: true,
++		symEffect:   SymRead,
++		asm:         s390x.AMOVBZ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+@@ -26976,13 +27038,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVBloadidx",
+-		auxType:      auxSymOff,
+-		argLen:       3,
+-		commutative:  true,
+-		clobberFlags: true,
+-		symEffect:    SymRead,
+-		asm:          s390x.AMOVB,
++		name:        "MOVBloadidx",
++		auxType:     auxSymOff,
++		argLen:      3,
++		commutative: true,
++		symEffect:   SymRead,
++		asm:         s390x.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+@@ -26994,13 +27055,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVHZloadidx",
+-		auxType:      auxSymOff,
+-		argLen:       3,
+-		commutative:  true,
+-		clobberFlags: true,
+-		symEffect:    SymRead,
+-		asm:          s390x.AMOVHZ,
++		name:        "MOVHZloadidx",
++		auxType:     auxSymOff,
++		argLen:      3,
++		commutative: true,
++		symEffect:   SymRead,
++		asm:         s390x.AMOVHZ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+@@ -27012,13 +27072,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVHloadidx",
+-		auxType:      auxSymOff,
+-		argLen:       3,
+-		commutative:  true,
+-		clobberFlags: true,
+-		symEffect:    SymRead,
+-		asm:          s390x.AMOVH,
++		name:        "MOVHloadidx",
++		auxType:     auxSymOff,
++		argLen:      3,
++		commutative: true,
++		symEffect:   SymRead,
++		asm:         s390x.AMOVH,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+@@ -27030,13 +27089,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVWZloadidx",
+-		auxType:      auxSymOff,
+-		argLen:       3,
+-		commutative:  true,
+-		clobberFlags: true,
+-		symEffect:    SymRead,
+-		asm:          s390x.AMOVWZ,
++		name:        "MOVWZloadidx",
++		auxType:     auxSymOff,
++		argLen:      3,
++		commutative: true,
++		symEffect:   SymRead,
++		asm:         s390x.AMOVWZ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+@@ -27048,13 +27106,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVWloadidx",
+-		auxType:      auxSymOff,
+-		argLen:       3,
+-		commutative:  true,
+-		clobberFlags: true,
+-		symEffect:    SymRead,
+-		asm:          s390x.AMOVW,
++		name:        "MOVWloadidx",
++		auxType:     auxSymOff,
++		argLen:      3,
++		commutative: true,
++		symEffect:   SymRead,
++		asm:         s390x.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+@@ -27066,13 +27123,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVDloadidx",
+-		auxType:      auxSymOff,
+-		argLen:       3,
+-		commutative:  true,
+-		clobberFlags: true,
+-		symEffect:    SymRead,
+-		asm:          s390x.AMOVD,
++		name:        "MOVDloadidx",
++		auxType:     auxSymOff,
++		argLen:      3,
++		commutative: true,
++		symEffect:   SymRead,
++		asm:         s390x.AMOVD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+@@ -27084,13 +27140,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVHBRloadidx",
+-		auxType:      auxSymOff,
+-		argLen:       3,
+-		commutative:  true,
+-		clobberFlags: true,
+-		symEffect:    SymRead,
+-		asm:          s390x.AMOVHBR,
++		name:        "MOVHBRloadidx",
++		auxType:     auxSymOff,
++		argLen:      3,
++		commutative: true,
++		symEffect:   SymRead,
++		asm:         s390x.AMOVHBR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+@@ -27102,13 +27157,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVWBRloadidx",
+-		auxType:      auxSymOff,
+-		argLen:       3,
+-		commutative:  true,
+-		clobberFlags: true,
+-		symEffect:    SymRead,
+-		asm:          s390x.AMOVWBR,
++		name:        "MOVWBRloadidx",
++		auxType:     auxSymOff,
++		argLen:      3,
++		commutative: true,
++		symEffect:   SymRead,
++		asm:         s390x.AMOVWBR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+@@ -27120,13 +27174,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVDBRloadidx",
+-		auxType:      auxSymOff,
+-		argLen:       3,
+-		commutative:  true,
+-		clobberFlags: true,
+-		symEffect:    SymRead,
+-		asm:          s390x.AMOVDBR,
++		name:        "MOVDBRloadidx",
++		auxType:     auxSymOff,
++		argLen:      3,
++		commutative: true,
++		symEffect:   SymRead,
++		asm:         s390x.AMOVDBR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 56318},      // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+@@ -27138,13 +27191,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVBstoreidx",
+-		auxType:      auxSymOff,
+-		argLen:       4,
+-		commutative:  true,
+-		clobberFlags: true,
+-		symEffect:    SymWrite,
+-		asm:          s390x.AMOVB,
++		name:        "MOVBstoreidx",
++		auxType:     auxSymOff,
++		argLen:      4,
++		commutative: true,
++		symEffect:   SymWrite,
++		asm:         s390x.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+@@ -27154,13 +27206,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVHstoreidx",
+-		auxType:      auxSymOff,
+-		argLen:       4,
+-		commutative:  true,
+-		clobberFlags: true,
+-		symEffect:    SymWrite,
+-		asm:          s390x.AMOVH,
++		name:        "MOVHstoreidx",
++		auxType:     auxSymOff,
++		argLen:      4,
++		commutative: true,
++		symEffect:   SymWrite,
++		asm:         s390x.AMOVH,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+@@ -27170,13 +27221,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVWstoreidx",
+-		auxType:      auxSymOff,
+-		argLen:       4,
+-		commutative:  true,
+-		clobberFlags: true,
+-		symEffect:    SymWrite,
+-		asm:          s390x.AMOVW,
++		name:        "MOVWstoreidx",
++		auxType:     auxSymOff,
++		argLen:      4,
++		commutative: true,
++		symEffect:   SymWrite,
++		asm:         s390x.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+@@ -27186,13 +27236,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVDstoreidx",
+-		auxType:      auxSymOff,
+-		argLen:       4,
+-		commutative:  true,
+-		clobberFlags: true,
+-		symEffect:    SymWrite,
+-		asm:          s390x.AMOVD,
++		name:        "MOVDstoreidx",
++		auxType:     auxSymOff,
++		argLen:      4,
++		commutative: true,
++		symEffect:   SymWrite,
++		asm:         s390x.AMOVD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+@@ -27202,13 +27251,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVHBRstoreidx",
+-		auxType:      auxSymOff,
+-		argLen:       4,
+-		commutative:  true,
+-		clobberFlags: true,
+-		symEffect:    SymWrite,
+-		asm:          s390x.AMOVHBR,
++		name:        "MOVHBRstoreidx",
++		auxType:     auxSymOff,
++		argLen:      4,
++		commutative: true,
++		symEffect:   SymWrite,
++		asm:         s390x.AMOVHBR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+@@ -27218,13 +27266,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVWBRstoreidx",
+-		auxType:      auxSymOff,
+-		argLen:       4,
+-		commutative:  true,
+-		clobberFlags: true,
+-		symEffect:    SymWrite,
+-		asm:          s390x.AMOVWBR,
++		name:        "MOVWBRstoreidx",
++		auxType:     auxSymOff,
++		argLen:      4,
++		commutative: true,
++		symEffect:   SymWrite,
++		asm:         s390x.AMOVWBR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+@@ -27234,13 +27281,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "MOVDBRstoreidx",
+-		auxType:      auxSymOff,
+-		argLen:       4,
+-		commutative:  true,
+-		clobberFlags: true,
+-		symEffect:    SymWrite,
+-		asm:          s390x.AMOVDBR,
++		name:        "MOVDBRstoreidx",
++		auxType:     auxSymOff,
++		argLen:      4,
++		commutative: true,
++		symEffect:   SymWrite,
++		asm:         s390x.AMOVDBR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 56318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
+@@ -27499,6 +27545,11 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 0,
+ 		reg:    regInfo{},
+ 	},
++	{
++		name:   "FlagOV",
++		argLen: 0,
++		reg:    regInfo{},
++	},
+ 	{
+ 		name:           "MOVWZatomicload",
+ 		auxType:        auxSymOff,
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index c724e2a08d..9865564427 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -477,6 +477,10 @@ func rewriteValueS390X(v *Value) bool {
+ 		return rewriteValueS390X_OpRsh8x8_0(v)
+ 	case OpS390XADD:
+ 		return rewriteValueS390X_OpS390XADD_0(v) || rewriteValueS390X_OpS390XADD_10(v)
++	case OpS390XADDC:
++		return rewriteValueS390X_OpS390XADDC_0(v)
++	case OpS390XADDE:
++		return rewriteValueS390X_OpS390XADDE_0(v)
+ 	case OpS390XADDW:
+ 		return rewriteValueS390X_OpS390XADDW_0(v) || rewriteValueS390X_OpS390XADDW_10(v)
+ 	case OpS390XADDWconst:
+@@ -705,6 +709,8 @@ func rewriteValueS390X(v *Value) bool {
+ 		return rewriteValueS390X_OpS390XSTMG2_0(v)
+ 	case OpS390XSUB:
+ 		return rewriteValueS390X_OpS390XSUB_0(v)
++	case OpS390XSUBE:
++		return rewriteValueS390X_OpS390XSUBE_0(v)
+ 	case OpS390XSUBW:
+ 		return rewriteValueS390X_OpS390XSUBW_0(v)
+ 	case OpS390XSUBWconst:
+@@ -6849,6 +6855,175 @@ func rewriteValueS390X_OpS390XADD_10(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueS390X_OpS390XADDC_0(v *Value) bool {
++	// match: (ADDC x (MOVDconst [c]))
++	// cond: is16Bit(c)
++	// result: (ADDCconst x [c])
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpS390XMOVDconst {
++			break
++		}
++		c := v_1.AuxInt
++		if !(is16Bit(c)) {
++			break
++		}
++		v.reset(OpS390XADDCconst)
++		v.AuxInt = c
++		v.AddArg(x)
++		return true
++	}
++	// match: (ADDC (MOVDconst [c]) x)
++	// cond: is16Bit(c)
++	// result: (ADDCconst x [c])
++	for {
++		x := v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpS390XMOVDconst {
++			break
++		}
++		c := v_0.AuxInt
++		if !(is16Bit(c)) {
++			break
++		}
++		v.reset(OpS390XADDCconst)
++		v.AuxInt = c
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
++func rewriteValueS390X_OpS390XADDE_0(v *Value) bool {
++	// match: (ADDE x y (FlagEQ))
++	// cond:
++	// result: (ADDC x y)
++	for {
++		_ = v.Args[2]
++		x := v.Args[0]
++		y := v.Args[1]
++		v_2 := v.Args[2]
++		if v_2.Op != OpS390XFlagEQ {
++			break
++		}
++		v.reset(OpS390XADDC)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	// match: (ADDE x y (FlagLT))
++	// cond:
++	// result: (ADDC x y)
++	for {
++		_ = v.Args[2]
++		x := v.Args[0]
++		y := v.Args[1]
++		v_2 := v.Args[2]
++		if v_2.Op != OpS390XFlagLT {
++			break
++		}
++		v.reset(OpS390XADDC)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	// match: (ADDE x y (Select1 (ADDCconst [-1] (Select0 (ADDE (MOVDconst [0]) (MOVDconst [0]) c)))))
++	// cond:
++	// result: (ADDE x y c)
++	for {
++		_ = v.Args[2]
++		x := v.Args[0]
++		y := v.Args[1]
++		v_2 := v.Args[2]
++		if v_2.Op != OpSelect1 {
++			break
++		}
++		v_2_0 := v_2.Args[0]
++		if v_2_0.Op != OpS390XADDCconst {
++			break
++		}
++		if v_2_0.AuxInt != -1 {
++			break
++		}
++		v_2_0_0 := v_2_0.Args[0]
++		if v_2_0_0.Op != OpSelect0 {
++			break
++		}
++		v_2_0_0_0 := v_2_0_0.Args[0]
++		if v_2_0_0_0.Op != OpS390XADDE {
++			break
++		}
++		c := v_2_0_0_0.Args[2]
++		v_2_0_0_0_0 := v_2_0_0_0.Args[0]
++		if v_2_0_0_0_0.Op != OpS390XMOVDconst {
++			break
++		}
++		if v_2_0_0_0_0.AuxInt != 0 {
++			break
++		}
++		v_2_0_0_0_1 := v_2_0_0_0.Args[1]
++		if v_2_0_0_0_1.Op != OpS390XMOVDconst {
++			break
++		}
++		if v_2_0_0_0_1.AuxInt != 0 {
++			break
++		}
++		v.reset(OpS390XADDE)
++		v.AddArg(x)
++		v.AddArg(y)
++		v.AddArg(c)
++		return true
++	}
++	// match: (ADDE x y (Select1 (ADDCconst [-1] (Select0 (ADDE (MOVDconst [0]) (MOVDconst [0]) c)))))
++	// cond:
++	// result: (ADDE x y c)
++	for {
++		_ = v.Args[2]
++		x := v.Args[0]
++		y := v.Args[1]
++		v_2 := v.Args[2]
++		if v_2.Op != OpSelect1 {
++			break
++		}
++		v_2_0 := v_2.Args[0]
++		if v_2_0.Op != OpS390XADDCconst {
++			break
++		}
++		if v_2_0.AuxInt != -1 {
++			break
++		}
++		v_2_0_0 := v_2_0.Args[0]
++		if v_2_0_0.Op != OpSelect0 {
++			break
++		}
++		v_2_0_0_0 := v_2_0_0.Args[0]
++		if v_2_0_0_0.Op != OpS390XADDE {
++			break
++		}
++		c := v_2_0_0_0.Args[2]
++		v_2_0_0_0_0 := v_2_0_0_0.Args[0]
++		if v_2_0_0_0_0.Op != OpS390XMOVDconst {
++			break
++		}
++		if v_2_0_0_0_0.AuxInt != 0 {
++			break
++		}
++		v_2_0_0_0_1 := v_2_0_0_0.Args[1]
++		if v_2_0_0_0_1.Op != OpS390XMOVDconst {
++			break
++		}
++		if v_2_0_0_0_1.AuxInt != 0 {
++			break
++		}
++		v.reset(OpS390XADDE)
++		v.AddArg(x)
++		v.AddArg(y)
++		v.AddArg(c)
++		return true
++	}
++	return false
++}
+ func rewriteValueS390X_OpS390XADDW_0(v *Value) bool {
+ 	// match: (ADDW x (MOVDconst [c]))
+ 	// cond:
+@@ -39017,6 +39192,97 @@ func rewriteValueS390X_OpS390XSUB_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueS390X_OpS390XSUBE_0(v *Value) bool {
++	// match: (SUBE x y (FlagGT))
++	// cond:
++	// result: (SUBC x y)
++	for {
++		_ = v.Args[2]
++		x := v.Args[0]
++		y := v.Args[1]
++		v_2 := v.Args[2]
++		if v_2.Op != OpS390XFlagGT {
++			break
++		}
++		v.reset(OpS390XSUBC)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	// match: (SUBE x y (FlagOV))
++	// cond:
++	// result: (SUBC x y)
++	for {
++		_ = v.Args[2]
++		x := v.Args[0]
++		y := v.Args[1]
++		v_2 := v.Args[2]
++		if v_2.Op != OpS390XFlagOV {
++			break
++		}
++		v.reset(OpS390XSUBC)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	// match: (SUBE x y (Select1 (SUBC (MOVDconst [0]) (NEG (Select0 (SUBE (MOVDconst [0]) (MOVDconst [0]) c))))))
++	// cond:
++	// result: (SUBE x y c)
++	for {
++		_ = v.Args[2]
++		x := v.Args[0]
++		y := v.Args[1]
++		v_2 := v.Args[2]
++		if v_2.Op != OpSelect1 {
++			break
++		}
++		v_2_0 := v_2.Args[0]
++		if v_2_0.Op != OpS390XSUBC {
++			break
++		}
++		_ = v_2_0.Args[1]
++		v_2_0_0 := v_2_0.Args[0]
++		if v_2_0_0.Op != OpS390XMOVDconst {
++			break
++		}
++		if v_2_0_0.AuxInt != 0 {
++			break
++		}
++		v_2_0_1 := v_2_0.Args[1]
++		if v_2_0_1.Op != OpS390XNEG {
++			break
++		}
++		v_2_0_1_0 := v_2_0_1.Args[0]
++		if v_2_0_1_0.Op != OpSelect0 {
++			break
++		}
++		v_2_0_1_0_0 := v_2_0_1_0.Args[0]
++		if v_2_0_1_0_0.Op != OpS390XSUBE {
++			break
++		}
++		c := v_2_0_1_0_0.Args[2]
++		v_2_0_1_0_0_0 := v_2_0_1_0_0.Args[0]
++		if v_2_0_1_0_0_0.Op != OpS390XMOVDconst {
++			break
++		}
++		if v_2_0_1_0_0_0.AuxInt != 0 {
++			break
++		}
++		v_2_0_1_0_0_1 := v_2_0_1_0_0.Args[1]
++		if v_2_0_1_0_0_1.Op != OpS390XMOVDconst {
++			break
++		}
++		if v_2_0_1_0_0_1.AuxInt != 0 {
++			break
++		}
++		v.reset(OpS390XSUBE)
++		v.AddArg(x)
++		v.AddArg(y)
++		v.AddArg(c)
++		return true
++	}
++	return false
++}
+ func rewriteValueS390X_OpS390XSUBW_0(v *Value) bool {
+ 	b := v.Block
+ 	// match: (SUBW x (MOVDconst [c]))
+@@ -40180,6 +40446,59 @@ func rewriteValueS390X_OpS390XXORload_0(v *Value) bool {
+ }
+ func rewriteValueS390X_OpSelect0_0(v *Value) bool {
+ 	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (Select0 (Add64carry x y c))
++	// cond:
++	// result: (Select0 <typ.UInt64> (ADDE x y (Select1 <types.TypeFlags> (ADDCconst c [-1]))))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpAdd64carry {
++			break
++		}
++		c := v_0.Args[2]
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		v.reset(OpSelect0)
++		v.Type = typ.UInt64
++		v0 := b.NewValue0(v.Pos, OpS390XADDE, types.NewTuple(typ.UInt64, types.TypeFlags))
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v1 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
++		v2 := b.NewValue0(v.Pos, OpS390XADDCconst, types.NewTuple(typ.UInt64, types.TypeFlags))
++		v2.AuxInt = -1
++		v2.AddArg(c)
++		v1.AddArg(v2)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++	// match: (Select0 (Sub64borrow x y c))
++	// cond:
++	// result: (Select0 <typ.UInt64> (SUBE x y (Select1 <types.TypeFlags> (SUBC (MOVDconst [0]) c))))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpSub64borrow {
++			break
++		}
++		c := v_0.Args[2]
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		v.reset(OpSelect0)
++		v.Type = typ.UInt64
++		v0 := b.NewValue0(v.Pos, OpS390XSUBE, types.NewTuple(typ.UInt64, types.TypeFlags))
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v1 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
++		v2 := b.NewValue0(v.Pos, OpS390XSUBC, types.NewTuple(typ.UInt64, types.TypeFlags))
++		v3 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
++		v3.AuxInt = 0
++		v2.AddArg(v3)
++		v2.AddArg(c)
++		v1.AddArg(v2)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (Select0 <t> (AddTupleFirst32 val tuple))
+ 	// cond:
+ 	// result: (ADDW val (Select0 <t> tuple))
+@@ -40216,9 +40535,125 @@ func rewriteValueS390X_OpSelect0_0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Select0 (ADDCconst (MOVDconst [c]) [d]))
++	// cond:
++	// result: (MOVDconst [c+d])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpS390XADDCconst {
++			break
++		}
++		d := v_0.AuxInt
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpS390XMOVDconst {
++			break
++		}
++		c := v_0_0.AuxInt
++		v.reset(OpS390XMOVDconst)
++		v.AuxInt = c + d
++		return true
++	}
++	// match: (Select0 (SUBC (MOVDconst [c]) (MOVDconst [d])))
++	// cond:
++	// result: (MOVDconst [c-d])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpS390XSUBC {
++			break
++		}
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpS390XMOVDconst {
++			break
++		}
++		c := v_0_0.AuxInt
++		v_0_1 := v_0.Args[1]
++		if v_0_1.Op != OpS390XMOVDconst {
++			break
++		}
++		d := v_0_1.AuxInt
++		v.reset(OpS390XMOVDconst)
++		v.AuxInt = c - d
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueS390X_OpSelect1_0(v *Value) bool {
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (Select1 (Add64carry x y c))
++	// cond:
++	// result: (Select0 <typ.UInt64> (ADDE (MOVDconst [0]) (MOVDconst [0]) (Select1 <types.TypeFlags> (ADDE x y (Select1 <types.TypeFlags> (ADDCconst c [-1]))))))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpAdd64carry {
++			break
++		}
++		c := v_0.Args[2]
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		v.reset(OpSelect0)
++		v.Type = typ.UInt64
++		v0 := b.NewValue0(v.Pos, OpS390XADDE, types.NewTuple(typ.UInt64, types.TypeFlags))
++		v1 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
++		v1.AuxInt = 0
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
++		v2.AuxInt = 0
++		v0.AddArg(v2)
++		v3 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
++		v4 := b.NewValue0(v.Pos, OpS390XADDE, types.NewTuple(typ.UInt64, types.TypeFlags))
++		v4.AddArg(x)
++		v4.AddArg(y)
++		v5 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
++		v6 := b.NewValue0(v.Pos, OpS390XADDCconst, types.NewTuple(typ.UInt64, types.TypeFlags))
++		v6.AuxInt = -1
++		v6.AddArg(c)
++		v5.AddArg(v6)
++		v4.AddArg(v5)
++		v3.AddArg(v4)
++		v0.AddArg(v3)
++		v.AddArg(v0)
++		return true
++	}
++	// match: (Select1 (Sub64borrow x y c))
++	// cond:
++	// result: (NEG (Select0 <typ.UInt64> (SUBE (MOVDconst [0]) (MOVDconst [0]) (Select1 <types.TypeFlags> (SUBE x y (Select1 <types.TypeFlags> (SUBC (MOVDconst [0]) c)))))))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpSub64borrow {
++			break
++		}
++		c := v_0.Args[2]
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		v.reset(OpS390XNEG)
++		v0 := b.NewValue0(v.Pos, OpSelect0, typ.UInt64)
++		v1 := b.NewValue0(v.Pos, OpS390XSUBE, types.NewTuple(typ.UInt64, types.TypeFlags))
++		v2 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
++		v2.AuxInt = 0
++		v1.AddArg(v2)
++		v3 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
++		v3.AuxInt = 0
++		v1.AddArg(v3)
++		v4 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
++		v5 := b.NewValue0(v.Pos, OpS390XSUBE, types.NewTuple(typ.UInt64, types.TypeFlags))
++		v5.AddArg(x)
++		v5.AddArg(y)
++		v6 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
++		v7 := b.NewValue0(v.Pos, OpS390XSUBC, types.NewTuple(typ.UInt64, types.TypeFlags))
++		v8 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
++		v8.AuxInt = 0
++		v7.AddArg(v8)
++		v7.AddArg(c)
++		v6.AddArg(v7)
++		v5.AddArg(v6)
++		v4.AddArg(v5)
++		v1.AddArg(v4)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (Select1 (AddTupleFirst32 _ tuple))
+ 	// cond:
+ 	// result: (Select1 tuple)
+@@ -40245,6 +40680,96 @@ func rewriteValueS390X_OpSelect1_0(v *Value) bool {
+ 		v.AddArg(tuple)
+ 		return true
+ 	}
++	// match: (Select1 (ADDCconst (MOVDconst [c]) [d]))
++	// cond: uint64(c+d) >= uint64(c) && c+d == 0
++	// result: (FlagEQ)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpS390XADDCconst {
++			break
++		}
++		d := v_0.AuxInt
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpS390XMOVDconst {
++			break
++		}
++		c := v_0_0.AuxInt
++		if !(uint64(c+d) >= uint64(c) && c+d == 0) {
++			break
++		}
++		v.reset(OpS390XFlagEQ)
++		return true
++	}
++	// match: (Select1 (ADDCconst (MOVDconst [c]) [d]))
++	// cond: uint64(c+d) >= uint64(c) && c+d != 0
++	// result: (FlagLT)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpS390XADDCconst {
++			break
++		}
++		d := v_0.AuxInt
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpS390XMOVDconst {
++			break
++		}
++		c := v_0_0.AuxInt
++		if !(uint64(c+d) >= uint64(c) && c+d != 0) {
++			break
++		}
++		v.reset(OpS390XFlagLT)
++		return true
++	}
++	// match: (Select1 (SUBC (MOVDconst [c]) (MOVDconst [d])))
++	// cond: uint64(d) <= uint64(c) && c-d == 0
++	// result: (FlagGT)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpS390XSUBC {
++			break
++		}
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpS390XMOVDconst {
++			break
++		}
++		c := v_0_0.AuxInt
++		v_0_1 := v_0.Args[1]
++		if v_0_1.Op != OpS390XMOVDconst {
++			break
++		}
++		d := v_0_1.AuxInt
++		if !(uint64(d) <= uint64(c) && c-d == 0) {
++			break
++		}
++		v.reset(OpS390XFlagGT)
++		return true
++	}
++	// match: (Select1 (SUBC (MOVDconst [c]) (MOVDconst [d])))
++	// cond: uint64(d) <= uint64(c) && c-d != 0
++	// result: (FlagOV)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpS390XSUBC {
++			break
++		}
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpS390XMOVDconst {
++			break
++		}
++		c := v_0_0.AuxInt
++		v_0_1 := v_0.Args[1]
++		if v_0_1.Op != OpS390XMOVDconst {
++			break
++		}
++		d := v_0_1.AuxInt
++		if !(uint64(d) <= uint64(c) && c-d != 0) {
++			break
++		}
++		v.reset(OpS390XFlagOV)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueS390X_OpSignExt16to32_0(v *Value) bool {
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index 5cd4dca2a2..d043b2878e 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -3139,14 +3139,12 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
+ 			}
+ 			r = p.To.Reg
+ 		}
+-		if r == p.To.Reg {
+-			if opri != 0 && int64(int16(v)) == v {
+-				zRI(opri, uint32(p.To.Reg), uint32(v), asm)
+-			} else {
+-				zRIL(_a, opril, uint32(p.To.Reg), uint32(v), asm)
+-			}
+-		} else {
++		if opri != 0 && r == p.To.Reg && int64(int16(v)) == v {
++			zRI(opri, uint32(p.To.Reg), uint32(v), asm)
++		} else if oprie != 0 && int64(int16(v)) == v {
+ 			zRIE(_d, oprie, uint32(p.To.Reg), uint32(r), uint32(v), 0, 0, 0, 0, asm)
++		} else {
++			zRIL(_a, opril, uint32(p.To.Reg), uint32(v), asm)
+ 		}
+ 
+ 	case 23: // 64-bit logical op $constant reg
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index b60e0ff519..0d94bd1bc8 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -377,32 +377,38 @@ func IterateBits8(n uint8) int {
+ func Add(x, y, ci uint) (r, co uint) {
+ 	// arm64:"ADDS","ADCS","ADC",-"ADD\t",-"CMP"
+ 	// amd64:"NEGL","ADCQ","SBBQ","NEGQ"
++	// s390x:"ADDE","ADDC\t[$]-1,"
+ 	return bits.Add(x, y, ci)
+ }
+ 
+ func AddC(x, ci uint) (r, co uint) {
+ 	// arm64:"ADDS","ADCS","ADC",-"ADD\t",-"CMP"
+ 	// amd64:"NEGL","ADCQ","SBBQ","NEGQ"
++	// s390x:"ADDE","ADDC\t[$]-1,"
+ 	return bits.Add(x, 7, ci)
+ }
+ 
+ func AddZ(x, y uint) (r, co uint) {
+ 	// arm64:"ADDS","ADC",-"ADCS",-"ADD\t",-"CMP"
+ 	// amd64:"ADDQ","SBBQ","NEGQ",-"NEGL",-"ADCQ"
++	// s390x:"ADDC",-"ADDC\t[$]-1,"
+ 	return bits.Add(x, y, 0)
+ }
+ 
+ func AddR(x, y, ci uint) uint {
+ 	// arm64:"ADDS","ADCS",-"ADD\t",-"CMP"
+ 	// amd64:"NEGL","ADCQ",-"SBBQ",-"NEGQ"
++	// s390x:"ADDE","ADDC\t[$]-1,"
+ 	r, _ := bits.Add(x, y, ci)
+ 	return r
+ }
++
+ func AddM(p, q, r *[3]uint) {
+ 	var c uint
+ 	r[0], c = bits.Add(p[0], q[0], c)
+ 	// arm64:"ADCS",-"ADD\t",-"CMP"
+ 	// amd64:"ADCQ",-"NEGL",-"SBBQ",-"NEGQ"
++	// s390x:"ADDE",-"ADDC\t[$]-1,"
+ 	r[1], c = bits.Add(p[1], q[1], c)
+ 	r[2], c = bits.Add(p[2], q[2], c)
+ }
+@@ -412,6 +418,7 @@ func Add64(x, y, ci uint64) (r, co uint64) {
+ 	// amd64:"NEGL","ADCQ","SBBQ","NEGQ"
+ 	// ppc64: "ADDC", "ADDE", "ADDZE"
+ 	// ppc64le: "ADDC", "ADDE", "ADDZE"
++	// s390x:"ADDE","ADDC\t[$]-1,"
+ 	return bits.Add64(x, y, ci)
+ }
+ 
+@@ -420,6 +427,7 @@ func Add64C(x, ci uint64) (r, co uint64) {
+ 	// amd64:"NEGL","ADCQ","SBBQ","NEGQ"
+ 	// ppc64: "ADDC", "ADDE", "ADDZE"
+ 	// ppc64le: "ADDC", "ADDE", "ADDZE"
++	// s390x:"ADDE","ADDC\t[$]-1,"
+ 	return bits.Add64(x, 7, ci)
+ }
+ 
+@@ -428,6 +436,7 @@ func Add64Z(x, y uint64) (r, co uint64) {
+ 	// amd64:"ADDQ","SBBQ","NEGQ",-"NEGL",-"ADCQ"
+ 	// ppc64: "ADDC", "ADDE", "ADDZE"
+ 	// ppc64le: "ADDC", "ADDE", "ADDZE"
++	// s390x:"ADDC",-"ADDC\t[$]-1,"
+ 	return bits.Add64(x, y, 0)
+ }
+ 
+@@ -436,6 +445,7 @@ func Add64R(x, y, ci uint64) uint64 {
+ 	// amd64:"NEGL","ADCQ",-"SBBQ",-"NEGQ"
+ 	// ppc64: "ADDC", "ADDE", "ADDZE"
+ 	// ppc64le: "ADDC", "ADDE", "ADDZE"
++	// s390x:"ADDE","ADDC\t[$]-1,"
+ 	r, _ := bits.Add64(x, y, ci)
+ 	return r
+ }
+@@ -446,6 +456,7 @@ func Add64M(p, q, r *[3]uint64) {
+ 	// amd64:"ADCQ",-"NEGL",-"SBBQ",-"NEGQ"
+ 	// ppc64: "ADDC", "ADDE", "ADDZE"
+ 	// ppc64le: "ADDC", "ADDE", "ADDZE"
++	// s390x:"ADDE",-"ADDC\t[$]-1,"
+ 	r[1], c = bits.Add64(p[1], q[1], c)
+ 	r[2], c = bits.Add64(p[2], q[2], c)
+ }
+@@ -457,24 +468,28 @@ func Add64M(p, q, r *[3]uint64) {
+ func Sub(x, y, ci uint) (r, co uint) {
+ 	// amd64:"NEGL","SBBQ","NEGQ"
+ 	// arm64:"NEGS","SBCS","NGC","NEG",-"ADD",-"SUB",-"CMP"
++	// s390x:"SUBE"
+ 	return bits.Sub(x, y, ci)
+ }
+ 
+ func SubC(x, ci uint) (r, co uint) {
+ 	// amd64:"NEGL","SBBQ","NEGQ"
+ 	// arm64:"NEGS","SBCS","NGC","NEG",-"ADD",-"SUB",-"CMP"
++	// s390x:"SUBE"
+ 	return bits.Sub(x, 7, ci)
+ }
+ 
+ func SubZ(x, y uint) (r, co uint) {
+ 	// amd64:"SUBQ","SBBQ","NEGQ",-"NEGL"
+ 	// arm64:"SUBS","NGC","NEG",-"SBCS",-"ADD",-"SUB\t",-"CMP"
++	// s390x:"SUBC"
+ 	return bits.Sub(x, y, 0)
+ }
+ 
+ func SubR(x, y, ci uint) uint {
+ 	// amd64:"NEGL","SBBQ",-"NEGQ"
+ 	// arm64:"NEGS","SBCS",-"NGC",-"NEG\t",-"ADD",-"SUB",-"CMP"
++	// s390x:"SUBE"
+ 	r, _ := bits.Sub(x, y, ci)
+ 	return r
+ }
+@@ -483,6 +498,7 @@ func SubM(p, q, r *[3]uint) {
+ 	r[0], c = bits.Sub(p[0], q[0], c)
+ 	// amd64:"SBBQ",-"NEGL",-"NEGQ"
+ 	// arm64:"SBCS",-"NEGS",-"NGC",-"NEG",-"ADD",-"SUB",-"CMP"
++	// s390x:"SUBE"
+ 	r[1], c = bits.Sub(p[1], q[1], c)
+ 	r[2], c = bits.Sub(p[2], q[2], c)
+ }
+@@ -490,24 +506,28 @@ func SubM(p, q, r *[3]uint) {
+ func Sub64(x, y, ci uint64) (r, co uint64) {
+ 	// amd64:"NEGL","SBBQ","NEGQ"
+ 	// arm64:"NEGS","SBCS","NGC","NEG",-"ADD",-"SUB",-"CMP"
++	// s390x:"SUBE"
+ 	return bits.Sub64(x, y, ci)
+ }
+ 
+ func Sub64C(x, ci uint64) (r, co uint64) {
+ 	// amd64:"NEGL","SBBQ","NEGQ"
+ 	// arm64:"NEGS","SBCS","NGC","NEG",-"ADD",-"SUB",-"CMP"
++	// s390x:"SUBE"
+ 	return bits.Sub64(x, 7, ci)
+ }
+ 
+ func Sub64Z(x, y uint64) (r, co uint64) {
+ 	// amd64:"SUBQ","SBBQ","NEGQ",-"NEGL"
+ 	// arm64:"SUBS","NGC","NEG",-"SBCS",-"ADD",-"SUB\t",-"CMP"
++	// s390x:"SUBC"
+ 	return bits.Sub64(x, y, 0)
+ }
+ 
+ func Sub64R(x, y, ci uint64) uint64 {
+ 	// amd64:"NEGL","SBBQ",-"NEGQ"
+ 	// arm64:"NEGS","SBCS",-"NGC",-"NEG\t",-"ADD",-"SUB",-"CMP"
++	// s390x:"SUBE"
+ 	r, _ := bits.Sub64(x, y, ci)
+ 	return r
+ }
+@@ -516,6 +536,7 @@ func Sub64M(p, q, r *[3]uint64) {
+ 	r[0], c = bits.Sub64(p[0], q[0], c)
+ 	// amd64:"SBBQ",-"NEGL",-"NEGQ"
+ 	// arm64:"SBCS",-"NEGS",-"NGC",-"NEG",-"ADD",-"SUB",-"CMP"
++	// s390x:"SUBE"
+ 	r[1], c = bits.Sub64(p[1], q[1], c)
+ 	r[2], c = bits.Sub64(p[2], q[2], c)
+ }

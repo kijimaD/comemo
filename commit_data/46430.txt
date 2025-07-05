@@ -13,10 +13,104 @@ Date:   Sat Nov 28 12:37:55 2020 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/inline/inl.go     |  1 -
  src/cmd/compile/internal/ir/name.go        | 14 +-------------
  src/cmd/compile/internal/typecheck/expr.go |  8 --------
  src/cmd/compile/internal/typecheck/func.go |  1 -
  src/cmd/compile/internal/walk/order.go     |  1 -
  5 files changed, 1 insertion(+), 24 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 7324369ced..8f3a4b4d8c 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -1012,7 +1012,6 @@ func inlvar(var_ ir.Node) ir.Node {
+ 	n.Class_ = ir.PAUTO
+ 	n.SetUsed(true)
+ 	n.Curfn = ir.CurFunc // the calling function, not the called one
+-	n.SetAddrtaken(var_.Name().Addrtaken())
+ 	n.SetAddrtaken2(var_.Name().Addrtaken())
+ 
+ 	ir.CurFunc.Dcl = append(ir.CurFunc.Dcl, n)
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 8b1084deeb..6e41fd650b 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -285,7 +285,7 @@ func (n *Name) Used() bool                  { return n.flags&nameUsed != 0 }
+ func (n *Name) IsClosureVar() bool          { return n.flags&nameIsClosureVar != 0 }
+ func (n *Name) IsOutputParamHeapAddr() bool { return n.flags&nameIsOutputParamHeapAddr != 0 }
+ func (n *Name) Assigned() bool              { return n.flags&nameAssigned != 0 }
+-func (n *Name) Addrtaken() bool             { return n.checkAddrtaken() && n.flags&nameAddrtaken != 0 }
++func (n *Name) Addrtaken() bool             { return n.flags&nameAddrtaken2 != 0 }
+ func (n *Name) InlFormal() bool             { return n.flags&nameInlFormal != 0 }
+ func (n *Name) InlLocal() bool              { return n.flags&nameInlLocal != 0 }
+ func (n *Name) OpenDeferSlot() bool         { return n.flags&nameOpenDeferSlot != 0 }
+@@ -300,24 +300,12 @@ func (n *Name) SetUsed(b bool)                  { n.flags.set(nameUsed, b) }
+ func (n *Name) SetIsClosureVar(b bool)          { n.flags.set(nameIsClosureVar, b) }
+ func (n *Name) SetIsOutputParamHeapAddr(b bool) { n.flags.set(nameIsOutputParamHeapAddr, b) }
+ func (n *Name) SetAssigned(b bool)              { n.flags.set(nameAssigned, b) }
+-func (n *Name) SetAddrtaken(b bool)             { n.flags.set(nameAddrtaken, b) }
+ func (n *Name) SetAddrtaken2(b bool)            { n.flags.set(nameAddrtaken2, b) }
+ func (n *Name) SetInlFormal(b bool)             { n.flags.set(nameInlFormal, b) }
+ func (n *Name) SetInlLocal(b bool)              { n.flags.set(nameInlLocal, b) }
+ func (n *Name) SetOpenDeferSlot(b bool)         { n.flags.set(nameOpenDeferSlot, b) }
+ func (n *Name) SetLibfuzzerExtraCounter(b bool) { n.flags.set(nameLibfuzzerExtraCounter, b) }
+ 
+-func (n *Name) checkAddrtaken() bool {
+-	// The two different ways of computing addrtaken bits might diverge during computation,
+-	// but any time we look at them, they should be identical.
+-	x := n.flags&nameAddrtaken != 0
+-	y := n.flags&nameAddrtaken2 != 0
+-	if x != y {
+-		panic("inconsistent addrtaken")
+-	}
+-	return true
+-}
+-
+ // MarkReadonly indicates that n is an ONAME with readonly contents.
+ func (n *Name) MarkReadonly() {
+ 	if n.Op() != ONAME {
+diff --git a/src/cmd/compile/internal/typecheck/expr.go b/src/cmd/compile/internal/typecheck/expr.go
+index 5752139c0b..12bfae67a8 100644
+--- a/src/cmd/compile/internal/typecheck/expr.go
++++ b/src/cmd/compile/internal/typecheck/expr.go
+@@ -35,14 +35,6 @@ func tcAddr(n *ir.AddrExpr) ir.Node {
+ 			if ir.Orig(r) != r {
+ 				base.Fatalf("found non-orig name node %v", r) // TODO(mdempsky): What does this mean?
+ 			}
+-			r.Name().SetAddrtaken(true)
+-			if r.Name().IsClosureVar() && !CaptureVarsComplete {
+-				// Mark the original variable as Addrtaken so that capturevars
+-				// knows not to pass it by value.
+-				// But if the capturevars phase is complete, don't touch it,
+-				// in case l.Name's containing function has not yet been compiled.
+-				r.Name().Defn.Name().SetAddrtaken(true)
+-			}
+ 		}
+ 		n.X = DefaultLit(n.X, nil)
+ 		if n.X.Type() == nil {
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index ce6f4027da..0819380885 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -134,7 +134,6 @@ func CaptureVars(fn *ir.Func) {
+ 		if outermost.Class_ != ir.PPARAMOUT && !outermost.Name().Addrtaken() && !outermost.Name().Assigned() && v.Type().Width <= 128 {
+ 			v.SetByval(true)
+ 		} else {
+-			outermost.Name().SetAddrtaken(true)
+ 			outermost.Name().SetAddrtaken2(true)
+ 			outer = NodAddr(outer)
+ 		}
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 82180c113e..58c1c597fc 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -517,7 +517,6 @@ func (o *orderState) call(nn ir.Node) {
+ 			if arg.X.Type().IsUnsafePtr() {
+ 				x := o.copyExpr(arg.X)
+ 				arg.X = x
+-				x.Name().SetAddrtaken(true)  // ensure SSA keeps the x variable
+ 				x.Name().SetAddrtaken2(true) // ensure SSA keeps the x variable
+ 				n.Body.Append(typecheck.Stmt(ir.NewUnaryExpr(base.Pos, ir.OVARLIVE, x)))
+ 			}

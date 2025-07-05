@@ -30,7 +30,7 @@ Date:   Tue Dec 1 14:48:03 2020 -0800
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/escape/escape.go     |   4 +
  src/cmd/compile/internal/inline/inl.go        | 264 +++++++++++++++++++++++---
  src/cmd/compile/internal/ir/fmt.go            |  21 ++
@@ -45,3 +45,945 @@ Date:   Tue Dec 1 14:48:03 2020 -0800
  test/closure5.go                              |  10 +
  test/inline.go                                |  22 +--
  13 files changed, 472 insertions(+), 87 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index 5ee6d4f498..883e68a730 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -218,6 +218,10 @@ func Batch(fns []*ir.Func, recursive bool) {
+ 
+ 	// Construct data-flow graph from syntax trees.
+ 	for _, fn := range fns {
++		if base.Flag.W > 1 {
++			s := fmt.Sprintf("\nbefore escape %v", fn)
++			ir.Dump(s, fn)
++		}
+ 		b.initFunc(fn)
+ 	}
+ 	for _, fn := range fns {
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index aa194ebab2..7778bc56c4 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -180,7 +180,7 @@ func CanInline(fn *ir.Func) {
+ 	n.Func.Inl = &ir.Inline{
+ 		Cost: inlineMaxBudget - visitor.budget,
+ 		Dcl:  pruneUnusedAutos(n.Defn.(*ir.Func).Dcl, &visitor),
+-		Body: ir.DeepCopyList(src.NoXPos, fn.Body),
++		Body: inlcopylist(fn.Body),
+ 	}
+ 
+ 	if base.Flag.LowerM > 1 {
+@@ -217,10 +217,8 @@ func Inline_Flood(n *ir.Name, exportsym func(*ir.Name)) {
+ 
+ 	typecheck.ImportedBody(fn)
+ 
+-	// Recursively identify all referenced functions for
+-	// reexport. We want to include even non-called functions,
+-	// because after inlining they might be callable.
+-	ir.VisitList(ir.Nodes(fn.Inl.Body), func(n ir.Node) {
++	var doFlood func(n ir.Node)
++	doFlood = func(n ir.Node) {
+ 		switch n.Op() {
+ 		case ir.OMETHEXPR, ir.ODOTMETH:
+ 			Inline_Flood(ir.MethodExprName(n), exportsym)
+@@ -239,15 +237,16 @@ func Inline_Flood(n *ir.Name, exportsym func(*ir.Name)) {
+ 			// Okay, because we don't yet inline indirect
+ 			// calls to method values.
+ 		case ir.OCLOSURE:
+-			// If the closure is inlinable, we'll need to
+-			// flood it too. But today we don't support
+-			// inlining functions that contain closures.
+-			//
+-			// When we do, we'll probably want:
+-			//     inlFlood(n.Func.Closure.Func.Nname)
+-			base.Fatalf("unexpected closure in inlinable function")
++			// VisitList doesn't visit closure bodies, so force a
++			// recursive call to VisitList on the body of the closure.
++			ir.VisitList(n.(*ir.ClosureExpr).Func.Body, doFlood)
+ 		}
+-	})
++	}
++
++	// Recursively identify all referenced functions for
++	// reexport. We want to include even non-called functions,
++	// because after inlining they might be callable.
++	ir.VisitList(ir.Nodes(fn.Inl.Body), doFlood)
+ }
+ 
+ // hairyVisitor visits a function body to determine its inlining
+@@ -360,8 +359,13 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
+ 		// the right panic value, so it needs an argument frame.
+ 		return errors.New("call to recover")
+ 
+-	case ir.OCLOSURE,
+-		ir.ORANGE,
++	case ir.OCLOSURE:
++		// TODO(danscales) - fix some bugs when budget is lowered below 30
++		// Maybe make budget proportional to number of closure variables, e.g.:
++		//v.budget -= int32(len(n.(*ir.ClosureExpr).Func.ClosureVars) * 3)
++		v.budget -= 30
++
++	case ir.ORANGE,
+ 		ir.OSELECT,
+ 		ir.OGO,
+ 		ir.ODEFER,
+@@ -449,6 +453,52 @@ func isBigFunc(fn *ir.Func) bool {
+ 	})
+ }
+ 
++// inlcopylist (together with inlcopy) recursively copies a list of nodes, except
++// that it keeps the same ONAME, OTYPE, and OLITERAL nodes. It is used for copying
++// the body and dcls of an inlineable function.
++func inlcopylist(ll []ir.Node) []ir.Node {
++	s := make([]ir.Node, len(ll))
++	for i, n := range ll {
++		s[i] = inlcopy(n)
++	}
++	return s
++}
++
++// inlcopy is like DeepCopy(), but does extra work to copy closures.
++func inlcopy(n ir.Node) ir.Node {
++	var edit func(ir.Node) ir.Node
++	edit = func(x ir.Node) ir.Node {
++		switch x.Op() {
++		case ir.ONAME, ir.OTYPE, ir.OLITERAL, ir.ONIL:
++			return x
++		}
++		m := ir.Copy(x)
++		ir.EditChildren(m, edit)
++		if x.Op() == ir.OCLOSURE {
++			x := x.(*ir.ClosureExpr)
++			// Need to save/duplicate x.Func.Nname,
++			// x.Func.Nname.Ntype, x.Func.Dcl, x.Func.ClosureVars, and
++			// x.Func.Body for iexport and local inlining.
++			oldfn := x.Func
++			newfn := ir.NewFunc(oldfn.Pos())
++			if oldfn.ClosureCalled() {
++				newfn.SetClosureCalled(true)
++			}
++			m.(*ir.ClosureExpr).Func = newfn
++			newfn.Nname = ir.NewNameAt(oldfn.Nname.Pos(), oldfn.Nname.Sym())
++			// XXX OK to share fn.Type() ??
++			newfn.Nname.SetType(oldfn.Nname.Type())
++			newfn.Nname.Ntype = inlcopy(oldfn.Nname.Ntype).(ir.Ntype)
++			newfn.Body = inlcopylist(oldfn.Body)
++			// Make shallow copy of the Dcl and ClosureVar slices
++			newfn.Dcl = append([]*ir.Name(nil), oldfn.Dcl...)
++			newfn.ClosureVars = append([]*ir.Name(nil), oldfn.ClosureVars...)
++		}
++		return m
++	}
++	return edit(n)
++}
++
+ // Inlcalls/nodelist/node walks fn's statements and expressions and substitutes any
+ // calls made to inlineable functions. This is the external entry point.
+ func InlineCalls(fn *ir.Func) {
+@@ -925,6 +975,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
+ 		inlvars:      inlvars,
+ 		bases:        make(map[*src.PosBase]*src.PosBase),
+ 		newInlIndex:  newIndex,
++		fn:           fn,
+ 	}
+ 	subst.edit = subst.node
+ 
+@@ -1031,6 +1082,12 @@ type inlsubst struct {
+ 	newInlIndex int
+ 
+ 	edit func(ir.Node) ir.Node // cached copy of subst.node method value closure
++
++	// If non-nil, we are inside a closure inside the inlined function, and
++	// newclofn is the Func of the new inlined closure.
++	newclofn *ir.Func
++
++	fn *ir.Func // For debug -- the func that is being inlined
+ }
+ 
+ // list inlines a list of nodes.
+@@ -1042,6 +1099,157 @@ func (subst *inlsubst) list(ll ir.Nodes) []ir.Node {
+ 	return s
+ }
+ 
++// fields returns a list of the fields of a struct type representing receiver,
++// params, or results, after duplicating the field nodes and substituting the
++// Nname nodes inside the field nodes.
++func (subst *inlsubst) fields(oldt *types.Type) []*types.Field {
++	oldfields := oldt.FieldSlice()
++	newfields := make([]*types.Field, len(oldfields))
++	for i := range oldfields {
++		newfields[i] = oldfields[i].Copy()
++		if oldfields[i].Nname != nil {
++			newfields[i].Nname = subst.node(oldfields[i].Nname.(*ir.Name))
++		}
++	}
++	return newfields
++}
++
++// clovar creates a new ONAME node for a local variable or param of a closure
++// inside a function being inlined.
++func (subst *inlsubst) clovar(n *ir.Name) *ir.Name {
++	// TODO(danscales): want to get rid of this shallow copy, with code like the
++	// following, but it is hard to copy all the necessary flags in a maintainable way.
++	// m := ir.NewNameAt(n.Pos(), n.Sym())
++	// m.Class = n.Class
++	// m.SetType(n.Type())
++	// m.SetTypecheck(1)
++	//if n.IsClosureVar() {
++	//	m.SetIsClosureVar(true)
++	//}
++	m := &ir.Name{}
++	*m = *n
++	m.Curfn = subst.newclofn
++	if n.Defn != nil && n.Defn.Op() == ir.ONAME {
++		if !n.IsClosureVar() {
++			base.FatalfAt(n.Pos(), "want closure variable, got: %+v", n)
++		}
++		if n.Sym().Pkg != types.LocalPkg {
++			// If the closure came from inlining a function from
++			// another package, must change package of captured
++			// variable to localpkg, so that the fields of the closure
++			// struct are local package and can be accessed even if
++			// name is not exported. If you disable this code, you can
++			// reproduce the problem by running 'go test
++			// go/internal/srcimporter'. TODO(mdempsky) - maybe change
++			// how we create closure structs?
++			m.SetSym(types.LocalPkg.Lookup(n.Sym().Name))
++		}
++		// Make sure any inlvar which is the Defn
++		// of an ONAME closure var is rewritten
++		// during inlining. Don't substitute
++		// if Defn node is outside inlined function.
++		if subst.inlvars[n.Defn.(*ir.Name)] != nil {
++			m.Defn = subst.node(n.Defn)
++		}
++	}
++	if n.Outer != nil {
++		// Either the outer variable is defined in function being inlined,
++		// and we will replace it with the substituted variable, or it is
++		// defined outside the function being inlined, and we should just
++		// skip the outer variable (the closure variable of the function
++		// being inlined).
++		s := subst.node(n.Outer).(*ir.Name)
++		if s == n.Outer {
++			s = n.Outer.Outer
++		}
++		m.Outer = s
++	}
++	return m
++}
++
++// closure does the necessary substitions for a ClosureExpr n and returns the new
++// closure node.
++func (subst *inlsubst) closure(n *ir.ClosureExpr) ir.Node {
++	m := ir.Copy(n)
++	m.SetPos(subst.updatedPos(m.Pos()))
++	ir.EditChildren(m, subst.edit)
++
++	//fmt.Printf("Inlining func %v with closure into %v\n", subst.fn, ir.FuncName(ir.CurFunc))
++
++	// The following is similar to funcLit
++	oldfn := n.Func
++	newfn := ir.NewFunc(oldfn.Pos())
++	// These three lines are not strictly necessary, but just to be clear
++	// that new function needs to redo typechecking and inlinability.
++	newfn.SetTypecheck(0)
++	newfn.SetInlinabilityChecked(false)
++	newfn.Inl = nil
++	newfn.SetIsHiddenClosure(true)
++	newfn.Nname = ir.NewNameAt(n.Pos(), ir.BlankNode.Sym())
++	newfn.Nname.Func = newfn
++	newfn.Nname.Ntype = subst.node(oldfn.Nname.Ntype).(ir.Ntype)
++	newfn.Nname.Defn = newfn
++
++	m.(*ir.ClosureExpr).Func = newfn
++	newfn.OClosure = m.(*ir.ClosureExpr)
++
++	if subst.newclofn != nil {
++		//fmt.Printf("Inlining a closure with a nested closure\n")
++	}
++	prevxfunc := subst.newclofn
++
++	// Mark that we are now substituting within a closure (within the
++	// inlined function), and create new nodes for all the local
++	// vars/params inside this closure.
++	subst.newclofn = newfn
++	newfn.Dcl = nil
++	newfn.ClosureVars = nil
++	for _, oldv := range oldfn.Dcl {
++		newv := subst.clovar(oldv)
++		subst.inlvars[oldv] = newv
++		newfn.Dcl = append(newfn.Dcl, newv)
++	}
++	for _, oldv := range oldfn.ClosureVars {
++		newv := subst.clovar(oldv)
++		subst.inlvars[oldv] = newv
++		newfn.ClosureVars = append(newfn.ClosureVars, newv)
++	}
++
++	// Need to replace ONAME nodes in
++	// newfn.Type().FuncType().Receiver/Params/Results.FieldSlice().Nname
++	oldt := oldfn.Type()
++	newrecvs := subst.fields(oldt.Recvs())
++	var newrecv *types.Field
++	if len(newrecvs) > 0 {
++		newrecv = newrecvs[0]
++	}
++	newt := types.NewSignature(oldt.Pkg(), newrecv,
++		subst.fields(oldt.Params()), subst.fields(oldt.Results()))
++
++	newfn.Nname.SetType(newt)
++	newfn.Body = subst.list(oldfn.Body)
++
++	// Remove the nodes for the current closure from subst.inlvars
++	for _, oldv := range oldfn.Dcl {
++		delete(subst.inlvars, oldv)
++	}
++	for _, oldv := range oldfn.ClosureVars {
++		delete(subst.inlvars, oldv)
++	}
++	// Go back to previous closure func
++	subst.newclofn = prevxfunc
++
++	// Actually create the named function for the closure, now that
++	// the closure is inlined in a specific function.
++	m.SetTypecheck(0)
++	if oldfn.ClosureCalled() {
++		typecheck.Callee(m)
++	} else {
++		typecheck.Expr(m)
++	}
++	return m
++}
++
+ // node recursively copies a node from the saved pristine body of the
+ // inlined function, substituting references to input/output
+ // parameters with ones to the tmpnames, and substituting returns with
+@@ -1056,13 +1264,17 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
+ 		n := n.(*ir.Name)
+ 
+ 		// Handle captured variables when inlining closures.
+-		if n.IsClosureVar() {
++		if n.IsClosureVar() && subst.newclofn == nil {
+ 			o := n.Outer
+ 
++			// Deal with case where sequence of closures are inlined.
++			// TODO(danscales) - write test case to see if we need to
++			// go up multiple levels.
++			if o.Curfn != ir.CurFunc {
++				o = o.Outer
++			}
++
+ 			// make sure the outer param matches the inlining location
+-			// NB: if we enabled inlining of functions containing OCLOSURE or refined
+-			// the reassigned check via some sort of copy propagation this would most
+-			// likely need to be changed to a loop to walk up to the correct Param
+ 			if o == nil || o.Curfn != ir.CurFunc {
+ 				base.Fatalf("%v: unresolvable capture %v\n", ir.Line(n), n)
+ 			}
+@@ -1098,6 +1310,10 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
+ 		}
+ 
+ 	case ir.ORETURN:
++		if subst.newclofn != nil {
++			// Don't do special substitutions if inside a closure
++			break
++		}
+ 		// Since we don't handle bodies with closures,
+ 		// this return is guaranteed to belong to the current inlined function.
+ 		n := n.(*ir.ReturnStmt)
+@@ -1136,6 +1352,10 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
+ 		return m
+ 
+ 	case ir.OLABEL:
++		if subst.newclofn != nil {
++			// Don't do special substitutions if inside a closure
++			break
++		}
+ 		n := n.(*ir.LabelStmt)
+ 		m := ir.Copy(n).(*ir.LabelStmt)
+ 		m.SetPos(subst.updatedPos(m.Pos()))
+@@ -1143,10 +1363,10 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
+ 		p := fmt.Sprintf("%s·%d", n.Label.Name, inlgen)
+ 		m.Label = typecheck.Lookup(p)
+ 		return m
+-	}
+ 
+-	if n.Op() == ir.OCLOSURE {
+-		base.Fatalf("cannot inline function containing closure: %+v", n)
++	case ir.OCLOSURE:
++		return subst.closure(n.(*ir.ClosureExpr))
++
+ 	}
+ 
+ 	m := ir.Copy(n)
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index 01197ad272..1a05079dac 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -1020,6 +1020,15 @@ func dumpNodeHeader(w io.Writer, n Node) {
+ 		fmt.Fprintf(w, " defn(%p)", n.Name().Defn)
+ 	}
+ 
++	if base.Debug.DumpPtrs != 0 && n.Name() != nil && n.Name().Curfn != nil {
++		// Useful to see where Defn is set and what node it points to
++		fmt.Fprintf(w, " curfn(%p)", n.Name().Curfn)
++	}
++	if base.Debug.DumpPtrs != 0 && n.Name() != nil && n.Name().Outer != nil {
++		// Useful to see where Defn is set and what node it points to
++		fmt.Fprintf(w, " outer(%p)", n.Name().Outer)
++	}
++
+ 	if EscFmt != nil {
+ 		if esc := EscFmt(n); esc != "" {
+ 			fmt.Fprintf(w, " %s", esc)
+@@ -1187,6 +1196,18 @@ func dumpNode(w io.Writer, n Node, depth int) {
+ 				dumpNode(w, dcl, depth+1)
+ 			}
+ 		}
++		if len(fn.ClosureVars) > 0 {
++			indent(w, depth)
++			fmt.Fprintf(w, "%+v-ClosureVars", n.Op())
++			for _, cv := range fn.ClosureVars {
++				dumpNode(w, cv, depth+1)
++			}
++		}
++		if len(fn.Enter) > 0 {
++			indent(w, depth)
++			fmt.Fprintf(w, "%+v-Enter", n.Op())
++			dumpNodes(w, fn.Enter, depth+1)
++		}
+ 		if len(fn.Body) > 0 {
+ 			indent(w, depth)
+ 			fmt.Fprintf(w, "%+v-body", n.Op())
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 291e1286bb..ffa7daf6b2 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -291,6 +291,10 @@ const (
+ 	OTSLICE // []int
+ 
+ 	// misc
++	// intermediate representation of an inlined call.  Uses Init (assignments
++	// for the captured variables, parameters, retvars, & INLMARK op),
++	// Body (body of the inlined function), and ReturnVars (list of
++	// return values)
+ 	OINLCALL       // intermediary representation of an inlined call.
+ 	OEFACE         // itable and data words of an empty-interface value.
+ 	OITAB          // itable word of an interface value.
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 99c0e4adde..0ea72a28dc 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -142,7 +142,15 @@ func Package() {
+ 	for i := 0; i < len(typecheck.Target.Decls); i++ {
+ 		n := typecheck.Target.Decls[i]
+ 		if n.Op() == ir.ODCLFUNC {
++			if base.Flag.W > 1 {
++				s := fmt.Sprintf("\nbefore typecheck %v", n)
++				ir.Dump(s, n)
++			}
+ 			typecheck.FuncBody(n.(*ir.Func))
++			if base.Flag.W > 1 {
++				s := fmt.Sprintf("\nafter typecheck %v", n)
++				ir.Dump(s, n)
++			}
+ 			fcount++
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index b576590d4d..f624773c8f 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -145,7 +145,7 @@ func ImportedBody(fn *ir.Func) {
+ 	// declarations are added to fn.Func.Dcl by funcBody(). Move them
+ 	// to fn.Func.Inl.Dcl for consistency with how local functions
+ 	// behave. (Append because ImportedBody may be called multiple
+-	// times.)
++	// times on same fn.)
+ 	fn.Inl.Dcl = append(fn.Inl.Dcl, fn.Dcl...)
+ 	fn.Dcl = nil
+ 
+@@ -303,8 +303,15 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
+ 		return
+ 	}
+ 
+-	fn.Nname.SetSym(closurename(ir.CurFunc))
+-	ir.MarkFunc(fn.Nname)
++	// Don't give a name and add to xtop if we are typechecking an inlined
++	// body in ImportedBody(), since we only want to create the named function
++	// when the closure is actually inlined (and then we force a typecheck
++	// explicitly in (*inlsubst).node()).
++	inTypeCheckInl := ir.CurFunc != nil && ir.CurFunc.Body == nil
++	if !inTypeCheckInl {
++		fn.Nname.SetSym(closurename(ir.CurFunc))
++		ir.MarkFunc(fn.Nname)
++	}
+ 	Func(fn)
+ 	clo.SetType(fn.Type())
+ 
+@@ -338,7 +345,14 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
+ 	}
+ 	fn.ClosureVars = fn.ClosureVars[:out]
+ 
+-	Target.Decls = append(Target.Decls, fn)
++	if base.Flag.W > 1 {
++		s := fmt.Sprintf("New closure func: %s", ir.FuncName(fn))
++		ir.Dump(s, fn)
++	}
++	if !inTypeCheckInl {
++		// Add function to xtop once only when we give it a name
++		Target.Decls = append(Target.Decls, fn)
++	}
+ }
+ 
+ // type check function definition
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 1ba8771139..be4a689836 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -423,9 +423,13 @@ type exportWriter struct {
+ 	prevLine   int64
+ 	prevColumn int64
+ 
+-	// dclIndex maps function-scoped declarations to their index
+-	// within their respective Func's Dcl list.
+-	dclIndex map[*ir.Name]int
++	// dclIndex maps function-scoped declarations to an int used to refer to
++	// them later in the function. For local variables/params, the int is
++	// non-negative and in order of the appearance in the Func's Dcl list. For
++	// closure variables, the index is negative starting at -2.
++	dclIndex           map[*ir.Name]int
++	maxDclIndex        int
++	maxClosureVarIndex int
+ }
+ 
+ func (p *iexporter) doDecl(n *ir.Name) {
+@@ -1038,14 +1042,19 @@ func (w *exportWriter) typeExt(t *types.Type) {
+ 
+ // Inline bodies.
+ 
+-func (w *exportWriter) funcBody(fn *ir.Func) {
+-	w.int64(int64(len(fn.Inl.Dcl)))
+-	for i, n := range fn.Inl.Dcl {
++func (w *exportWriter) writeNames(dcl []*ir.Name) {
++	w.int64(int64(len(dcl)))
++	for i, n := range dcl {
+ 		w.pos(n.Pos())
+ 		w.localIdent(n.Sym())
+ 		w.typ(n.Type())
+-		w.dclIndex[n] = i
++		w.dclIndex[n] = w.maxDclIndex + i
+ 	}
++	w.maxDclIndex += len(dcl)
++}
++
++func (w *exportWriter) funcBody(fn *ir.Func) {
++	w.writeNames(fn.Inl.Dcl)
+ 
+ 	w.stmtList(fn.Inl.Body)
+ }
+@@ -1315,8 +1324,30 @@ func (w *exportWriter) expr(n ir.Node) {
+ 	// case OTARRAY, OTMAP, OTCHAN, OTSTRUCT, OTINTER, OTFUNC:
+ 	// 	should have been resolved by typechecking - handled by default case
+ 
+-	// case OCLOSURE:
+-	//	unimplemented - handled by default case
++	case ir.OCLOSURE:
++		n := n.(*ir.ClosureExpr)
++		w.op(ir.OCLOSURE)
++		w.pos(n.Pos())
++		w.signature(n.Type())
++
++		// Write out id for the Outer of each conditional variable. The
++		// conditional variable itself for this closure will be re-created
++		// during import.
++		w.int64(int64(len(n.Func.ClosureVars)))
++		for i, cv := range n.Func.ClosureVars {
++			w.pos(cv.Pos())
++			w.localName(cv.Outer)
++			// Closure variable (which will be re-created during
++			// import) is given via a negative id, starting at -2,
++			// which is used to refer to it later in the function
++			// during export. -1 represents blanks.
++			w.dclIndex[cv] = -(i + 2) - w.maxClosureVarIndex
++		}
++		w.maxClosureVarIndex += len(n.Func.ClosureVars)
++
++		// like w.funcBody(n.Func), but not for .Inl
++		w.writeNames(n.Func.Dcl)
++		w.stmtList(n.Func.Body)
+ 
+ 	// case OCOMPLIT:
+ 	// 	should have been resolved by typechecking - handled by default case
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index c2610229ec..f2682257f3 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -265,6 +265,9 @@ type importReader struct {
+ 
+ 	// curfn is the current function we're importing into.
+ 	curfn *ir.Func
++	// Slice of all dcls for function, including any interior closures
++	allDcls        []*ir.Name
++	allClosureVars []*ir.Name
+ }
+ 
+ func (p *iimporter) newReader(off uint64, pkg *types.Pkg) *importReader {
+@@ -721,6 +724,7 @@ func (r *importReader) doInline(fn *ir.Func) {
+ 		base.Fatalf("%v already has inline body", fn)
+ 	}
+ 
++	//fmt.Printf("Importing %v\n", n)
+ 	r.funcBody(fn)
+ 
+ 	importlist = append(importlist, fn)
+@@ -754,6 +758,24 @@ func (r *importReader) funcBody(fn *ir.Func) {
+ 	r.curfn = fn
+ 
+ 	// Import local declarations.
++	fn.Inl.Dcl = r.readFuncDcls(fn)
++
++	// Import function body.
++	body := r.stmtList()
++	if body == nil {
++		// Make sure empty body is not interpreted as
++		// no inlineable body (see also parser.fnbody)
++		// (not doing so can cause significant performance
++		// degradation due to unnecessary calls to empty
++		// functions).
++		body = []ir.Node{}
++	}
++	fn.Inl.Body = body
++
++	r.curfn = outerfn
++}
++
++func (r *importReader) readNames(fn *ir.Func) []*ir.Name {
+ 	dcls := make([]*ir.Name, r.int64())
+ 	for i := range dcls {
+ 		n := ir.NewDeclNameAt(r.pos(), ir.ONAME, r.localIdent())
+@@ -762,7 +784,12 @@ func (r *importReader) funcBody(fn *ir.Func) {
+ 		n.SetType(r.typ())
+ 		dcls[i] = n
+ 	}
+-	fn.Inl.Dcl = dcls
++	r.allDcls = append(r.allDcls, dcls...)
++	return dcls
++}
++
++func (r *importReader) readFuncDcls(fn *ir.Func) []*ir.Name {
++	dcls := r.readNames(fn)
+ 
+ 	// Fixup parameter classes and associate with their
+ 	// signature's type fields.
+@@ -787,28 +814,18 @@ func (r *importReader) funcBody(fn *ir.Func) {
+ 	for _, f := range typ.Results().FieldSlice() {
+ 		fix(f, ir.PPARAMOUT)
+ 	}
+-
+-	// Import function body.
+-	body := r.stmtList()
+-	if body == nil {
+-		// Make sure empty body is not interpreted as
+-		// no inlineable body (see also parser.fnbody)
+-		// (not doing so can cause significant performance
+-		// degradation due to unnecessary calls to empty
+-		// functions).
+-		body = []ir.Node{}
+-	}
+-	fn.Inl.Body = body
+-
+-	r.curfn = outerfn
++	return dcls
+ }
+ 
+ func (r *importReader) localName() *ir.Name {
+ 	i := r.int64()
+-	if i < 0 {
++	if i == -1 {
+ 		return ir.BlankNode.(*ir.Name)
+ 	}
+-	return r.curfn.Inl.Dcl[i]
++	if i < 0 {
++		return r.allClosureVars[-i-2]
++	}
++	return r.allDcls[i]
+ }
+ 
+ func (r *importReader) stmtList() []ir.Node {
+@@ -924,8 +941,38 @@ func (r *importReader) node() ir.Node {
+ 	// case OTARRAY, OTMAP, OTCHAN, OTSTRUCT, OTINTER, OTFUNC:
+ 	//      unreachable - should have been resolved by typechecking
+ 
+-	// case OCLOSURE:
+-	//	unimplemented
++	case ir.OCLOSURE:
++		//println("Importing CLOSURE")
++		pos := r.pos()
++		typ := r.signature(nil)
++
++		// All the remaining code below is similar to (*noder).funcLit(), but
++		// with Dcls and ClosureVars lists already set up
++		fn := ir.NewFunc(pos)
++		fn.SetIsHiddenClosure(true)
++		fn.Nname = ir.NewNameAt(pos, ir.BlankNode.Sym())
++		fn.Nname.Func = fn
++		fn.Nname.Ntype = ir.TypeNode(typ)
++		fn.Nname.Defn = fn
++		fn.Nname.SetType(typ)
++
++		cvars := make([]*ir.Name, r.int64())
++		for i := range cvars {
++			cvars[i] = ir.CaptureName(r.pos(), fn, r.localName().Canonical())
++		}
++		fn.ClosureVars = cvars
++		r.allClosureVars = append(r.allClosureVars, cvars...)
++
++		fn.Dcl = r.readFuncDcls(fn)
++		body := r.stmtList()
++		ir.FinishCaptureNames(pos, r.curfn, fn)
++
++		clo := ir.NewClosureExpr(pos, fn)
++		fn.OClosure = clo
++
++		fn.Body = body
++
++		return clo
+ 
+ 	// case OPTRLIT:
+ 	//	unreachable - mapped to case OADDR below by exporter
+diff --git a/test/closure3.dir/main.go b/test/closure3.dir/main.go
+index e8e1e99860..2fc33753ed 100644
+--- a/test/closure3.dir/main.go
++++ b/test/closure3.dir/main.go
+@@ -93,11 +93,11 @@ func main() {
+ 		y := func(x int) int { // ERROR "can inline main.func11" "func literal does not escape"
+ 			return x + 2
+ 		}
+-		y, sink = func() (func(int) int, int) { // ERROR "func literal does not escape"
+-			return func(x int) int { // ERROR "can inline main.func12" "func literal escapes"
++		y, sink = func() (func(int) int, int) { // ERROR "can inline main.func12"
++			return func(x int) int { // ERROR "can inline main.func12"
+ 				return x + 1
+ 			}, 42
+-		}()
++		}() // ERROR "func literal does not escape" "inlining call to main.func12"
+ 		if y(40) != 41 {
+ 			ppanic("y(40) != 41")
+ 		}
+@@ -105,14 +105,14 @@ func main() {
+ 
+ 	{
+ 		func() { // ERROR "func literal does not escape"
+-			y := func(x int) int { // ERROR "can inline main.func13.1" "func literal does not escape"
++			y := func(x int) int { // ERROR "func literal does not escape" "can inline main.func13.1"
+ 				return x + 2
+ 			}
+-			y, sink = func() (func(int) int, int) { // ERROR "func literal does not escape"
+-				return func(x int) int { // ERROR "can inline main.func13.2" "func literal escapes"
++			y, sink = func() (func(int) int, int) { // ERROR "can inline main.func13.2"
++				return func(x int) int { // ERROR "can inline main.func13.2"
+ 					return x + 1
+ 				}, 42
+-			}()
++			}() // ERROR "inlining call to main.func13.2" "func literal does not escape"
+ 			if y(40) != 41 {
+ 				ppanic("y(40) != 41")
+ 			}
+@@ -187,29 +187,29 @@ func main() {
+ 
+ 	{
+ 		x := 42
+-		if z := func(y int) int { // ERROR "func literal does not escape"
+-			return func() int { // ERROR "can inline main.func22.1"
++		if z := func(y int) int { // ERROR "can inline main.func22"
++			return func() int { // ERROR "can inline main.func22.1" "can inline main.func30"
+ 				return x + y
+ 			}() // ERROR "inlining call to main.func22.1"
+-		}(1); z != 43 {
++		}(1); z != 43 { // ERROR "inlining call to main.func22" "inlining call to main.func30"
+ 			ppanic("z != 43")
+ 		}
+-		if z := func(y int) int { // ERROR "func literal does not escape"
+-			return func() int { // ERROR "can inline main.func23.1"
++		if z := func(y int) int { // ERROR "func literal does not escape" "can inline main.func23"
++			return func() int { // ERROR "can inline main.func23.1" "can inline main.func31"
+ 				return x + y
+ 			}() // ERROR "inlining call to main.func23.1"
+-		}; z(1) != 43 {
++		}; z(1) != 43 { // ERROR "inlining call to main.func23" "inlining call to main.func31"
+ 			ppanic("z(1) != 43")
+ 		}
+ 	}
+ 
+ 	{
+ 		a := 1
+-		func() { // ERROR "func literal does not escape"
+-			func() { // ERROR "can inline main.func24"
++		func() { // ERROR "can inline main.func24"
++			func() { // ERROR "can inline main.func24" "can inline main.func32"
+ 				a = 2
+ 			}() // ERROR "inlining call to main.func24"
+-		}()
++		}() // ERROR "inlining call to main.func24" "inlining call to main.func32"
+ 		if a != 2 {
+ 			ppanic("a != 2")
+ 		}
+@@ -250,12 +250,12 @@ func main() {
+ 		a := 2
+ 		if r := func(x int) int { // ERROR "func literal does not escape"
+ 			b := 3
+-			return func(y int) int { // ERROR "func literal does not escape"
++			return func(y int) int { // ERROR "can inline main.func27.1"
+ 				c := 5
+-				return func(z int) int { // ERROR "can inline main.func27.1.1"
++				return func(z int) int { // ERROR "can inline main.func27.1.1" "can inline main.func27.2"
+ 					return a*x + b*y + c*z
+ 				}(10) // ERROR "inlining call to main.func27.1.1"
+-			}(100)
++			}(100) // ERROR "inlining call to main.func27.1" "inlining call to main.func27.2"
+ 		}(1000); r != 2350 {
+ 			ppanic("r != 2350")
+ 		}
+@@ -265,15 +265,15 @@ func main() {
+ 		a := 2
+ 		if r := func(x int) int { // ERROR "func literal does not escape"
+ 			b := 3
+-			return func(y int) int { // ERROR "func literal does not escape"
++			return func(y int) int { // ERROR "can inline main.func28.1"
+ 				c := 5
+-				func(z int) { // ERROR "can inline main.func28.1.1"
++				func(z int) { // ERROR "can inline main.func28.1.1" "can inline main.func28.2"
+ 					a = a * x
+ 					b = b * y
+ 					c = c * z
+ 				}(10) // ERROR "inlining call to main.func28.1.1"
+ 				return a + c
+-			}(100) + b
++			}(100) + b // ERROR "inlining call to main.func28.1" "inlining call to main.func28.2"
+ 		}(1000); r != 2350 {
+ 			ppanic("r != 2350")
+ 		}
+diff --git a/test/closure5.dir/a.go b/test/closure5.dir/a.go
+new file mode 100644
+index 0000000000..de8082b7b1
+--- /dev/null
++++ b/test/closure5.dir/a.go
+@@ -0,0 +1,11 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check correctness of various closure corner cases
++// that are expected to be inlined
++
++package a
++
++func f() bool               { return true }
++func G() func() func() bool { return func() func() bool { return f } }
+diff --git a/test/closure5.dir/main.go b/test/closure5.dir/main.go
+new file mode 100644
+index 0000000000..ee5dba6481
+--- /dev/null
++++ b/test/closure5.dir/main.go
+@@ -0,0 +1,15 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check correctness of various closure corner cases
++// that are expected to be inlined
++package main
++
++import "a"
++
++func main() {
++	if !a.G()()() {
++		panic("FAIL")
++	}
++}
+diff --git a/test/closure5.go b/test/closure5.go
+new file mode 100644
+index 0000000000..a7022b27a6
+--- /dev/null
++++ b/test/closure5.go
+@@ -0,0 +1,10 @@
++// compiledir
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check correctness of various closure corner cases
++// that are expected to be inlined
++
++package ignored
+diff --git a/test/inline.go b/test/inline.go
+index d754f06e03..37965c0d9d 100644
+--- a/test/inline.go
++++ b/test/inline.go
+@@ -58,7 +58,7 @@ func _() int { // ERROR "can inline _"
+ var somethingWrong error
+ 
+ // local closures can be inlined
+-func l(x, y int) (int, int, error) {
++func l(x, y int) (int, int, error) { // ERROR "can inline l"
+ 	e := func(err error) (int, int, error) { // ERROR "can inline l.func1" "func literal does not escape" "leaking param: err to result"
+ 		return 0, 0, err
+ 	}
+@@ -90,19 +90,19 @@ func n() int {
+ // make sure assignment inside closure is detected
+ func o() int {
+ 	foo := func() int { return 1 } // ERROR "can inline o.func1" "func literal does not escape"
+-	func(x int) {                  // ERROR "func literal does not escape"
++	func(x int) {                  // ERROR "can inline o.func2"
+ 		if x > 10 {
+-			foo = func() int { return 2 } // ERROR "can inline o.func2" "func literal escapes"
++			foo = func() int { return 2 } // ERROR "can inline o.func2"
+ 		}
+-	}(11)
++	}(11) // ERROR "func literal does not escape" "inlining call to o.func2"
+ 	return foo()
+ }
+ 
+-func p() int {
++func p() int { // ERROR "can inline p"
+ 	return func() int { return 42 }() // ERROR "can inline p.func1" "inlining call to p.func1"
+ }
+ 
+-func q(x int) int {
++func q(x int) int { // ERROR "can inline q"
+ 	foo := func() int { return x * 2 } // ERROR "can inline q.func1" "func literal does not escape"
+ 	return foo()                       // ERROR "inlining call to q.func1"
+ }
+@@ -111,15 +111,15 @@ func r(z int) int {
+ 	foo := func(x int) int { // ERROR "can inline r.func1" "func literal does not escape"
+ 		return x + z
+ 	}
+-	bar := func(x int) int { // ERROR "func literal does not escape"
+-		return x + func(y int) int { // ERROR "can inline r.func2.1"
++	bar := func(x int) int { // ERROR "func literal does not escape" "can inline r.func2"
++		return x + func(y int) int { // ERROR "can inline r.func2.1" "can inline r.func3"
+ 			return 2*y + x*z
+ 		}(x) // ERROR "inlining call to r.func2.1"
+ 	}
+-	return foo(42) + bar(42) // ERROR "inlining call to r.func1"
++	return foo(42) + bar(42) // ERROR "inlining call to r.func1" "inlining call to r.func2" "inlining call to r.func3"
+ }
+ 
+-func s0(x int) int {
++func s0(x int) int { // ERROR "can inline s0"
+ 	foo := func() { // ERROR "can inline s0.func1" "func literal does not escape"
+ 		x = x + 1
+ 	}
+@@ -127,7 +127,7 @@ func s0(x int) int {
+ 	return x
+ }
+ 
+-func s1(x int) int {
++func s1(x int) int { // ERROR "can inline s1"
+ 	foo := func() int { // ERROR "can inline s1.func1" "func literal does not escape"
+ 		return x
+ 	}

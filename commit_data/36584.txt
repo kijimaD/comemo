@@ -11,6 +11,20 @@ Date:   Tue May 8 21:00:36 2018 +0800
     Reviewed-on: https://go-review.googlesource.com/112135
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/encoding/binary/binary.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/encoding/binary/binary.go b/src/encoding/binary/binary.go
+index 22fd7f2a80..85b3bc2295 100644
+--- a/src/encoding/binary/binary.go
++++ b/src/encoding/binary/binary.go
+@@ -665,6 +665,8 @@ func intDataSize(data interface{}) int {
+ 	switch data := data.(type) {
+ 	case bool, int8, uint8, *bool, *int8, *uint8:
+ 		return 1
++	case []bool:
++		return len(data)
+ 	case []int8:
+ 		return len(data)
+ 	case []uint8:

@@ -8,6 +8,19 @@ Date:   Thu Mar 12 14:26:05 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/7620
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/pprof/internal/profile/filter.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/pprof/internal/profile/filter.go b/src/cmd/pprof/internal/profile/filter.go
+index 903616aac6..1baa096a49 100644
+--- a/src/cmd/pprof/internal/profile/filter.go
++++ b/src/cmd/pprof/internal/profile/filter.go
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Implements methods to filter samples from profiles.
++
+ package profile
+ 
+ import "regexp"

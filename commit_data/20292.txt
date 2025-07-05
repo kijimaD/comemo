@@ -13,7 +13,7 @@ Date:   Fri Aug 29 18:44:38 2014 +0400
     R=golang-codereviews, rsc
     CC=golang-codereviews, khr
     https://golang.org/cl/139910043
-
+---
  src/pkg/runtime/malloc.go | 26 ++++------------
  src/pkg/runtime/malloc.h  |  1 -
  src/pkg/runtime/mgc0.c    | 78 +----------------------------------------------
@@ -22,3 +22,228 @@ Date:   Fri Aug 29 18:44:38 2014 +0400
  src/pkg/runtime/stubs.go  |  4 +--
  src/pkg/runtime/thunk.s   |  3 ++
  7 files changed, 19 insertions(+), 111 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.go b/src/pkg/runtime/malloc.go
+index 7f344c9164..e95bdbbf97 100644
+--- a/src/pkg/runtime/malloc.go
++++ b/src/pkg/runtime/malloc.go
+@@ -407,33 +407,19 @@ func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
+ // force = 1 - do GC regardless of current heap usage
+ // force = 2 - go GC and eager sweep
+ func gogc(force int32) {
+-	if !memstats.enablegc {
+-		return
+-	}
+-
+-	// TODO: should never happen?  Only C calls malloc while holding a lock?
++	// The gc is turned off (via enablegc) until the bootstrap has completed.
++	// Also, malloc gets called in the guts of a number of libraries that might be
++	// holding locks. To avoid deadlocks during stoptheworld, don't bother
++	// trying to run gc while holding a lock. The next mallocgc without a lock
++	// will do the gc instead.
+ 	mp := acquirem()
+-	if mp.locks > 1 {
++	if gp := getg(); gp == mp.g0 || mp.locks > 1 || !memstats.enablegc || panicking != 0 || gcpercent < 0 {
+ 		releasem(mp)
+ 		return
+ 	}
+ 	releasem(mp)
+ 	mp = nil
+ 
+-	if panicking != 0 {
+-		return
+-	}
+-	if gcpercent == gcpercentUnknown {
+-		lock(&mheap_.lock)
+-		if gcpercent == gcpercentUnknown {
+-			gcpercent = readgogc()
+-		}
+-		unlock(&mheap_.lock)
+-	}
+-	if gcpercent < 0 {
+-		return
+-	}
+-
+ 	semacquire(&worldsema, false)
+ 
+ 	if force == 0 && memstats.heap_alloc < memstats.next_gc {
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 19ea846dd1..6cd72fb31f 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -519,7 +519,6 @@ void	runtime·MHeap_Scavenge(int32 k, uint64 now, uint64 limit);
+ 
+ void*	runtime·persistentalloc(uintptr size, uintptr align, uint64 *stat);
+ int32	runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **s);
+-void	runtime·gc(int32 force);
+ uintptr	runtime·sweepone(void);
+ void	runtime·markspan(void *v, uintptr size, uintptr n, bool leftover);
+ void	runtime·unmarkspan(void *v, uintptr size);
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 03eb2d9866..09be02b71e 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1284,82 +1284,6 @@ runtime·gcinit(void)
+ 	runtime·gcbssmask = unrollglobgcprog(runtime·gcbss, runtime·ebss - runtime·bss);
+ }
+ 
+-// force = 1 - do GC regardless of current heap usage
+-// force = 2 - go GC and eager sweep
+-void
+-runtime·gc(int32 force)
+-{
+-	struct gc_args a;
+-	int32 i;
+-
+-	// The gc is turned off (via enablegc) until
+-	// the bootstrap has completed.
+-	// Also, malloc gets called in the guts
+-	// of a number of libraries that might be
+-	// holding locks.  To avoid priority inversion
+-	// problems, don't bother trying to run gc
+-	// while holding a lock.  The next mallocgc
+-	// without a lock will do the gc instead.
+-	if(!mstats.enablegc || g == g->m->g0 || g->m->locks > 0 || runtime·panicking)
+-		return;
+-
+-	if(runtime·gcpercent < 0)
+-		return;
+-
+-	runtime·semacquire(&runtime·worldsema, false);
+-	if(force==0 && mstats.heap_alloc < mstats.next_gc) {
+-		// typically threads which lost the race to grab
+-		// worldsema exit here when gc is done.
+-		runtime·semrelease(&runtime·worldsema);
+-		return;
+-	}
+-
+-	// Ok, we're doing it!  Stop everybody else
+-	a.start_time = runtime·nanotime();
+-	a.eagersweep = force >= 2;
+-	g->m->gcing = 1;
+-	runtime·stoptheworld();
+-	
+-	runtime·clearpools();
+-
+-	// Run gc on the g0 stack.  We do this so that the g stack
+-	// we're currently running on will no longer change.  Cuts
+-	// the root set down a bit (g0 stacks are not scanned, and
+-	// we don't need to scan gc's internal state).  Also an
+-	// enabler for copyable stacks.
+-	for(i = 0; i < (runtime·debug.gctrace > 1 ? 2 : 1); i++) {
+-		if(i > 0)
+-			a.start_time = runtime·nanotime();
+-		// switch to g0, call gc(&a), then switch back
+-		g->param = &a;
+-		runtime·casgstatus(g, Grunning, Gwaiting);
+-		g->waitreason = runtime·gostringnocopy((byte*)"garbage collection");
+-		runtime·mcall(mgc);
+-	}
+-
+-	// all done
+-	g->m->gcing = 0;
+-	g->m->locks++;
+-	runtime·semrelease(&runtime·worldsema);
+-	runtime·starttheworld();
+-	g->m->locks--;
+-
+-	// now that gc is done, kick off finalizer thread if needed
+-	if(!ConcurrentSweep) {
+-		// give the queued finalizers, if any, a chance to run
+-		runtime·gosched();
+-	}
+-}
+-
+-static void
+-mgc(G *gp)
+-{
+-	gc(gp->param);
+-	gp->param = nil;
+-	runtime·casgstatus(gp, Gwaiting, Grunning);
+-	runtime·gogo(&gp->sched);
+-}
+-
+ void
+ runtime·gc_m(void)
+ {
+@@ -1502,7 +1426,7 @@ gc(struct gc_args *args)
+ 	if(ConcurrentSweep && !args->eagersweep) {
+ 		runtime·lock(&gclock);
+ 		if(sweep.g == nil)
+-			sweep.g = runtime·newproc1(&bgsweepv, nil, 0, 0, runtime·gc);
++			sweep.g = runtime·newproc1(&bgsweepv, nil, 0, 0, gc);
+ 		else if(sweep.parked) {
+ 			sweep.parked = false;
+ 			runtime·ready(sweep.g);
+diff --git a/src/pkg/runtime/mgc0.go b/src/pkg/runtime/mgc0.go
+index 496725f6a7..275c7ed676 100644
+--- a/src/pkg/runtime/mgc0.go
++++ b/src/pkg/runtime/mgc0.go
+@@ -34,3 +34,8 @@ func gc_unixnanotime(now *int64) {
+ 	sec, nsec := timenow()
+ 	*now = sec*1e9 + int64(nsec)
+ }
++
++func freeOSMemory() {
++	gogc(2) // force GC and do eager sweep
++	onM(&scavenge_m)
++}
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index 8bfb41ac67..90acd55f9f 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -622,19 +622,10 @@ runtime·MHeap_Scavenge(int32 k, uint64 now, uint64 limit)
+ 	}
+ }
+ 
+-static void
+-scavenge_m(G *gp)
+-{
+-	runtime·MHeap_Scavenge(-1, ~(uintptr)0, 0);
+-	runtime·gogo(&gp->sched);
+-}
+-
+ void
+-runtime∕debug·freeOSMemory(void)
++runtime·scavenge_m(void)
+ {
+-	runtime·gc(2);  // force GC and do eager sweep
+-
+-	runtime·mcall(scavenge_m);
++	runtime·MHeap_Scavenge(-1, ~(uintptr)0, 0);
+ }
+ 
+ // Initialize a new span with the given start and npages.
+diff --git a/src/pkg/runtime/stubs.go b/src/pkg/runtime/stubs.go
+index 2014dfbf90..9e5a2cf04a 100644
+--- a/src/pkg/runtime/stubs.go
++++ b/src/pkg/runtime/stubs.go
+@@ -78,6 +78,7 @@ var (
+ 	largeAlloc_m,
+ 	mprofMalloc_m,
+ 	gc_m,
++	scavenge_m,
+ 	setFinalizer_m,
+ 	removeFinalizer_m,
+ 	markallocated_m,
+@@ -111,8 +112,7 @@ func memmove(to unsafe.Pointer, from unsafe.Pointer, n uintptr)
+ func fastrand2() uint32
+ 
+ const (
+-	gcpercentUnknown = -2
+-	concurrentSweep  = true
++	concurrentSweep = true
+ )
+ 
+ func gosched()
+diff --git a/src/pkg/runtime/thunk.s b/src/pkg/runtime/thunk.s
+index 6093656c6f..997a4febc7 100644
+--- a/src/pkg/runtime/thunk.s
++++ b/src/pkg/runtime/thunk.s
+@@ -61,3 +61,6 @@ TEXT reflect·chanlen(SB), NOSPLIT, $0-0
+ 
+ TEXT reflect·chancap(SB), NOSPLIT, $0-0
+ 	JMP	runtime·reflect_chancap(SB)
++
++TEXT runtime∕debug·freeOSMemory(SB), NOSPLIT, $0-0
++	JMP	runtime·freeOSMemory(SB)

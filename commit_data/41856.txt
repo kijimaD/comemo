@@ -13,7 +13,113 @@ Date:   Mon Oct 28 14:40:27 2019 -0400
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Munday <mike.munday@ibm.com>
-
+---
  src/crypto/elliptic/p256_asm_ppc64le.s | 31 ++++---------------------------
  src/crypto/elliptic/p256_ppc64le.go    | 24 ++++++++++++++++++++----
  2 files changed, 24 insertions(+), 31 deletions(-)
+
+diff --git a/src/crypto/elliptic/p256_asm_ppc64le.s b/src/crypto/elliptic/p256_asm_ppc64le.s
+index 4428a18260..924e365c6c 100644
+--- a/src/crypto/elliptic/p256_asm_ppc64le.s
++++ b/src/crypto/elliptic/p256_asm_ppc64le.s
+@@ -105,10 +105,10 @@ GLOBL byteswap<>+0(SB), RODATA, $16
+ #define VMULT_LOW(x1, x2, out_low) \
+ 	VMULUWM x1, x2, out_low
+ 
+-	//
+-	// Vector multiply high word
+-	//
+-	//	VMLHF x0, x1, out_hi
++//
++// Vector multiply high word
++//
++//	VMLHF x0, x1, out_hi
+ #define VMULT_HI(x1, x2, out_hi) \
+ 	VMULEUW x1, x2, TMP1;                  \
+ 	VMULOUW x1, x2, TMP2;                  \
+@@ -167,27 +167,6 @@ GLOBL byteswap<>+0(SB), RODATA, $16
+ #define res_ptr R3
+ #define a_ptr R4
+ 
+-// func p256ReverseBytes(res, in []byte)
+-// Reuse of target and destination OK
+-TEXT ·p256ReverseBytes(SB), NOSPLIT, $0-48
+-	MOVD res+0(FP), res_ptr
+-	MOVD in+24(FP), a_ptr
+-
+-	MOVD $8, R5
+-	MOVD $16, R6
+-	MOVD $24, R7
+-
+-	MOVDBR (R0+a_ptr), R8
+-	MOVDBR (R5+a_ptr), R9
+-	MOVDBR (R6+a_ptr), R10
+-	MOVDBR (R7+a_ptr), R11
+-
+-	MOVD R11, (R0+res_ptr)
+-	MOVD R10, (R5+res_ptr)
+-	MOVD R9, (R6+res_ptr)
+-	MOVD R8, (R7+res_ptr)
+-	RET
+-
+ #undef res_ptr
+ #undef a_ptr
+ 
+@@ -1624,8 +1603,6 @@ TEXT ·p256PointAddAffineAsm(SB), NOSPLIT, $16-48
+ 	VPERM  X1, X1, SWAP, X1
+ 	CALL   p256MulInternal<>(SB)
+ 
+-	// VST T1, 64(P3ptr)
+-	// VST T0, 80(P3ptr)
+ 	VOR T0, T0, Z3L
+ 	VOR T1, T1, Z3H
+ 
+diff --git a/src/crypto/elliptic/p256_ppc64le.go b/src/crypto/elliptic/p256_ppc64le.go
+index 4b41fb99af..160bdb12e3 100644
+--- a/src/crypto/elliptic/p256_ppc64le.go
++++ b/src/crypto/elliptic/p256_ppc64le.go
+@@ -8,6 +8,7 @@ package elliptic
+ 
+ import (
+ 	"crypto/subtle"
++	"encoding/binary"
+ 	"math/big"
+ )
+ 
+@@ -77,10 +78,6 @@ func p256Select(point *p256Point, table []p256Point, idx int)
+ //go:noescape
+ func p256SelectBase(point *p256Point, table []p256Point, idx int)
+ 
+-// Reverse the bytes (endianness)
+-//go:noescape
+-func p256ReverseBytes(res, in []byte)
+-
+ // Point add with P2 being affine point
+ // If sign == 1 -> P2 = -P2
+ // If sel == 0 -> P3 = P1
+@@ -145,6 +142,25 @@ func maybeReduceModP(in *big.Int) *big.Int {
+ 	return new(big.Int).Mod(in, p256Params.P)
+ }
+ 
++// p256ReverseBytes copies the first 32 bytes from in to res in reverse order.
++func p256ReverseBytes(res, in []byte) {
++	// remove bounds check
++	in = in[:32]
++	res = res[:32]
++
++	// Load in reverse order
++	a := binary.BigEndian.Uint64(in[0:])
++	b := binary.BigEndian.Uint64(in[8:])
++	c := binary.BigEndian.Uint64(in[16:])
++	d := binary.BigEndian.Uint64(in[24:])
++
++	// Store in normal order
++	binary.LittleEndian.PutUint64(res[0:], d)
++	binary.LittleEndian.PutUint64(res[8:], c)
++	binary.LittleEndian.PutUint64(res[16:], b)
++	binary.LittleEndian.PutUint64(res[24:], a)
++}
++
+ func (curve p256CurveFast) CombinedMult(bigX, bigY *big.Int, baseScalar, scalar []byte) (x, y *big.Int) {
+ 	var r1, r2 p256Point
+ 

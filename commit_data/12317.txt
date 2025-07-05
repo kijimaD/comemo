@@ -9,7 +9,7 @@ Date:   Thu Mar 1 14:56:05 2012 -0800
     R=golang-dev, remyoudompheng, r
     CC=golang-dev
     https://golang.org/cl/5715052
-
+---
  src/pkg/crypto/x509/x509.go          | 6 +++---
  src/pkg/exp/html/node.go             | 2 +-
  src/pkg/exp/norm/forminfo.go         | 6 +++---
@@ -22,3 +22,171 @@ Date:   Thu Mar 1 14:56:05 2012 -0800
  src/pkg/strconv/extfloat.go          | 2 +-
  src/pkg/time/time.go                 | 2 +-
  11 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index 3116525d33..f5da86b54a 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -153,7 +153,7 @@ const (
+ //
+ // md2WithRSAEncryption OBJECT IDENTIFIER ::= { pkcs-1 2 }
+ //
+-// md5WithRSAEncryption OBJECT IDENTIFER ::= { pkcs-1 4 }
++// md5WithRSAEncryption OBJECT IDENTIFIER ::= { pkcs-1 4 }
+ //
+ // sha-1WithRSAEncryption OBJECT IDENTIFIER ::= { pkcs-1 5 }
+ // 
+@@ -172,9 +172,9 @@ const (
+ //
+ // RFC 5758 3.1 DSA Signature Algorithms
+ //
+-// dsaWithSha356 OBJECT IDENTIFER ::= {
++// dsaWithSha256 OBJECT IDENTIFIER ::= {
+ //    joint-iso-ccitt(2) country(16) us(840) organization(1) gov(101)
+-//    algorithms(4) id-dsa-with-sha2(3) 2}
++//    csor(3) algorithms(4) id-dsa-with-sha2(3) 2}
+ //
+ var (
+ 	oidSignatureMD2WithRSA    = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 2}
+diff --git a/src/pkg/exp/html/node.go b/src/pkg/exp/html/node.go
+index 83f17308b1..c105a4e709 100644
+--- a/src/pkg/exp/html/node.go
++++ b/src/pkg/exp/html/node.go
+@@ -110,7 +110,7 @@ func (s *nodeStack) top() *Node {
+ 	return nil
+ }
+ 
+-// index returns the index of the top-most occurence of n in the stack, or -1
++// index returns the index of the top-most occurrence of n in the stack, or -1
+ // if n is not present.
+ func (s *nodeStack) index(n *Node) int {
+ 	for i := len(*s) - 1; i >= 0; i-- {
+diff --git a/src/pkg/exp/norm/forminfo.go b/src/pkg/exp/norm/forminfo.go
+index fd7b395623..c443b78d82 100644
+--- a/src/pkg/exp/norm/forminfo.go
++++ b/src/pkg/exp/norm/forminfo.go
+@@ -18,17 +18,17 @@ package norm
+ // has the form:
+ //    <header> <decomp_byte>* [<tccc> [<lccc>]]
+ // The header contains the number of bytes in the decomposition (excluding this
+-// length byte). The two most significant bits of this lenght byte correspond
++// length byte). The two most significant bits of this length byte correspond
+ // to bit 2 and 3 of qcIfo (see below).  The byte sequence itself starts at v+1.
+ // The byte sequence is followed by a trailing and leading CCC if the values
+ // for these are not zero.  The value of v determines which ccc are appended
+ // to the sequences.  For v < firstCCC, there are none, for v >= firstCCC,
+-// the seqence is followed by a trailing ccc, and for v >= firstLeadingCC
++// the sequence is followed by a trailing ccc, and for v >= firstLeadingCC
+ // there is an additional leading ccc.
+ 
+ const (
+ 	qcInfoMask      = 0xF  // to clear all but the relevant bits in a qcInfo
+-	headerLenMask   = 0x3F // extract the lenght value from the header byte
++	headerLenMask   = 0x3F // extract the length value from the header byte
+ 	headerFlagsMask = 0xC0 // extract the qcInfo bits from the header byte
+ )
+ 
+diff --git a/src/pkg/exp/proxy/per_host.go b/src/pkg/exp/proxy/per_host.go
+index 397ef57cd9..0c627e9ab5 100644
+--- a/src/pkg/exp/proxy/per_host.go
++++ b/src/pkg/exp/proxy/per_host.go
+@@ -75,7 +75,7 @@ func (p *PerHost) dialerForRequest(host string) Dialer {
+ }
+ 
+ // AddFromString parses a string that contains comma-separated values
+-// specifing hosts that should use the bypass proxy. Each value is either an
++// specifying hosts that should use the bypass proxy. Each value is either an
+ // IP address, a CIDR range, a zone (*.example.com) or a hostname
+ // (localhost). A best effort is made to parse the string and errors are
+ // ignored.
+diff --git a/src/pkg/go/ast/print.go b/src/pkg/go/ast/print.go
+index f6c63c0d88..02cf9e0223 100644
+--- a/src/pkg/go/ast/print.go
++++ b/src/pkg/go/ast/print.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This file contains printing suppport for ASTs.
++// This file contains printing support for ASTs.
+ 
+ package ast
+ 
+diff --git a/src/pkg/net/http/httputil/persist.go b/src/pkg/net/http/httputil/persist.go
+index 32f4662cc0..507938acac 100644
+--- a/src/pkg/net/http/httputil/persist.go
++++ b/src/pkg/net/http/httputil/persist.go
+@@ -383,7 +383,7 @@ func (cc *ClientConn) Read(req *http.Request) (resp *http.Response, err error) {
+ 	// Make sure body is fully consumed, even if user does not call body.Close
+ 	if lastbody != nil {
+ 		// body.Close is assumed to be idempotent and multiple calls to
+-		// it should return the error that its first invokation
++		// it should return the error that its first invocation
+ 		// returned.
+ 		err = lastbody.Close()
+ 		if err != nil {
+diff --git a/src/pkg/net/http/transfer.go b/src/pkg/net/http/transfer.go
+index ef9564af9c..3c8fe7f5b5 100644
+--- a/src/pkg/net/http/transfer.go
++++ b/src/pkg/net/http/transfer.go
+@@ -383,7 +383,7 @@ func fixTransferEncoding(requestMethod string, header Header) ([]string, error)
+ 	// chunked encoding must always come first.
+ 	for _, encoding := range encodings {
+ 		encoding = strings.ToLower(strings.TrimSpace(encoding))
+-		// "identity" encoding is not recored
++		// "identity" encoding is not recorded
+ 		if encoding == "identity" {
+ 			break
+ 		}
+diff --git a/src/pkg/net/lookup_plan9.go b/src/pkg/net/lookup_plan9.go
+index b08a9fb98e..2c698304b2 100644
+--- a/src/pkg/net/lookup_plan9.go
++++ b/src/pkg/net/lookup_plan9.go
+@@ -76,7 +76,7 @@ func lookupProtocol(name string) (proto int, err error) {
+ }
+ 
+ func lookupHost(host string) (addrs []string, err error) {
+-	// Use /net/cs insead of /net/dns because cs knows about
++	// Use /net/cs instead of /net/dns because cs knows about
+ 	// host names in local network (e.g. from /lib/ndb/local)
+ 	lines, err := queryCS("tcp", host, "1")
+ 	if err != nil {
+diff --git a/src/pkg/os/exec.go b/src/pkg/os/exec.go
+index 37a0051c5d..531b87ca55 100644
+--- a/src/pkg/os/exec.go
++++ b/src/pkg/os/exec.go
+@@ -13,7 +13,7 @@ import (
+ type Process struct {
+ 	Pid    int
+ 	handle uintptr
+-	done   bool // process has been successfuly waited on
++	done   bool // process has been successfully waited on
+ }
+ 
+ func newProcess(pid int, handle uintptr) *Process {
+diff --git a/src/pkg/strconv/extfloat.go b/src/pkg/strconv/extfloat.go
+index 64ab84f455..aa5e5607ca 100644
+--- a/src/pkg/strconv/extfloat.go
++++ b/src/pkg/strconv/extfloat.go
+@@ -477,7 +477,7 @@ func (f *extFloat) ShortestDecimal(d *decimal, lower, upper *extFloat) bool {
+ // all data is known with a error estimate of ulpBinary*ε.
+ func adjustLastDigit(d *decimal, currentDiff, targetDiff, maxDiff, ulpDecimal, ulpBinary uint64) bool {
+ 	if ulpDecimal < 2*ulpBinary {
+-		// Appromixation is too wide.
++		// Approximation is too wide.
+ 		return false
+ 	}
+ 	for currentDiff+ulpDecimal/2+ulpBinary < targetDiff {
+diff --git a/src/pkg/time/time.go b/src/pkg/time/time.go
+index 51d332ba0a..f7ded24d29 100644
+--- a/src/pkg/time/time.go
++++ b/src/pkg/time/time.go
+@@ -152,7 +152,7 @@ func (d Weekday) String() string { return days[d] }
+ // rely heavily on division and modulus by positive constants.  For
+ // calendrical calculations we want these divisions to round down, even
+ // for negative values, so that the remainder is always positive, but
+-// Go's division (like most hardware divison instructions) rounds to
++// Go's division (like most hardware division instructions) rounds to
+ // zero.  We can still do those computations and then adjust the result
+ // for a negative numerator, but it's annoying to write the adjustment
+ // over and over.  Instead, we can change to a different epoch so long

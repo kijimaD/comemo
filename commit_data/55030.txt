@@ -17,7 +17,39 @@ Date:   Tue Dec 6 11:58:10 2022 -0800
     Reviewed-by: Julie Qiu <julieqiu@google.com>
     Auto-Submit: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/archive/zip/reader.go      | 2 +-
  src/archive/zip/reader_test.go | 5 ++++-
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/archive/zip/reader.go b/src/archive/zip/reader.go
+index 449fc73c0f..10e835fe86 100644
+--- a/src/archive/zip/reader.go
++++ b/src/archive/zip/reader.go
+@@ -237,7 +237,7 @@ func (f *File) Open() (io.ReadCloser, error) {
+ 		// 0. We still want to fail when a directory has associated uncompressed
+ 		// data, but we are tolerant of cases where the uncompressed size is
+ 		// zero but compressed size is not.
+-		if f.UncompressedSize64 != 0 || f.hasDataDescriptor() {
++		if f.UncompressedSize64 != 0 {
+ 			return &dirReader{ErrFormat}, nil
+ 		} else {
+ 			return &dirReader{io.EOF}, nil
+diff --git a/src/archive/zip/reader_test.go b/src/archive/zip/reader_test.go
+index 94cf5479fc..1594b2648e 100644
+--- a/src/archive/zip/reader_test.go
++++ b/src/archive/zip/reader_test.go
+@@ -1702,9 +1702,12 @@ func TestCompressedDirectory(t *testing.T) {
+ 		t.Fatalf("unexpected error: %v", err)
+ 	}
+ 	for _, f := range r.File {
+-		_, err = f.Open()
++		r, err := f.Open()
+ 		if err != nil {
+ 			t.Fatalf("unexpected error: %v", err)
+ 		}
++		if _, err := io.Copy(io.Discard, r); err != nil {
++			t.Fatalf("unexpected error: %v", err)
++		}
+ 	}
+ }

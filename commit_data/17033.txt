@@ -10,7 +10,37 @@ Date:   Mon Aug 5 16:06:24 2013 -0400
     R=golang-dev, iant, dvyukov
     CC=golang-dev
     https://golang.org/cl/12371043
-
+---
  doc/go1.2.txt          | 1 +
  src/pkg/runtime/proc.c | 6 ------
  2 files changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/doc/go1.2.txt b/doc/go1.2.txt
+index df36a05da0..ad693fd704 100644
+--- a/doc/go1.2.txt
++++ b/doc/go1.2.txt
+@@ -26,6 +26,7 @@ image/draw: added Quantizer type (CL 11148043).
+ image/gif: added Encode and EncodeAll (CL 10896043).
+ io: Copy prioritizes WriterTo over ReaderFrom (CL 9462044).
+ net: new build tag netgo for building a pure Go net package (CL 7100050).
++runtime: preemption of goroutines at function entry (CL 12371043).
+ sort: new Stable function provides stable sort (CL 9612044).
+ syscall: implemented Sendfile for Darwin, added Syscall9 for Darwin/amd64 (CL 10980043).
+ testing: AllocsPerRun is now quantized to an integer (the type is still float64) (CL 9837049).
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index cff30c8ffa..b0aa428e99 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -2275,12 +2275,6 @@ preemptone(P *p)
+ 	M *mp;
+ 	G *gp;
+ 
+-// Preemption requires more robust traceback routines.
+-// For now, disable.
+-// The if(1) silences a compiler warning about the rest of the
+-// function being unreachable.
+-if(0) return;
+-
+ 	mp = p->m;
+ 	if(mp == nil || mp == m)
+ 		return;

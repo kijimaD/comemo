@@ -15,6 +15,19 @@ Date:   Fri Apr 9 00:13:50 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/go/internal/modload/buildlist.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index 24b2585a55..3fbe3c6700 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -105,6 +105,7 @@ func newRequirements(depth modDepth, rootModules []module.Version, direct map[st
+ 	}
+ 
+ 	rs := &Requirements{
++		depth:          depth,
+ 		rootModules:    rootModules,
+ 		maxRootVersion: make(map[string]string, len(rootModules)),
+ 		direct:         direct,

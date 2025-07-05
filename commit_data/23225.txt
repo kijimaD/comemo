@@ -16,7 +16,7 @@ Date:   Thu Apr 30 14:37:43 2015 -0700
     Change-Id: I05170ef3663326d57b9c18888d01163acd9256b6
     Reviewed-on: https://go-review.googlesource.com/9560
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/cover/cover            | Bin 0 -> 6084208 bytes
  src/cmd/cover/cover.go         | 722 +++++++++++++++++++++++++++++++++++++++++
  src/cmd/cover/cover_test.go    |  87 +++++
@@ -30,3 +30,1905 @@ Date:   Thu Apr 30 14:37:43 2015 -0700
  src/cmd/go/test.bash           |   6 -
  src/cmd/go/tool.go             |   2 +-
  12 files changed, 1801 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/cover/cover b/src/cmd/cover/cover
+new file mode 100755
+index 0000000000..5e1b990a38
+Binary files /dev/null and b/src/cmd/cover/cover differ
+diff --git a/src/cmd/cover/cover.go b/src/cmd/cover/cover.go
+new file mode 100644
+index 0000000000..31ec434546
+--- /dev/null
++++ b/src/cmd/cover/cover.go
+@@ -0,0 +1,722 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"bytes"
++	"flag"
++	"fmt"
++	"go/ast"
++	"go/parser"
++	"go/printer"
++	"go/token"
++	"io"
++	"io/ioutil"
++	"log"
++	"os"
++	"path/filepath"
++	"sort"
++	"strconv"
++	"strings"
++)
++
++const usageMessage = "" +
++	`Usage of 'go tool cover':
++Given a coverage profile produced by 'go test':
++	go test -coverprofile=c.out
++
++Open a web browser displaying annotated source code:
++	go tool cover -html=c.out
++
++Write out an HTML file instead of launching a web browser:
++	go tool cover -html=c.out -o coverage.html
++
++Display coverage percentages to stdout for each function:
++	go tool cover -func=c.out
++
++Finally, to generate modified source code with coverage annotations
++(what go test -cover does):
++	go tool cover -mode=set -var=CoverageVariableName program.go
++`
++
++func usage() {
++	fmt.Fprintln(os.Stderr, usageMessage)
++	fmt.Fprintln(os.Stderr, "Flags:")
++	flag.PrintDefaults()
++	fmt.Fprintln(os.Stderr, "\n  Only one of -html, -func, or -mode may be set.")
++	os.Exit(2)
++}
++
++var (
++	mode    = flag.String("mode", "", "coverage mode: set, count, atomic")
++	varVar  = flag.String("var", "GoCover", "name of coverage variable to generate")
++	output  = flag.String("o", "", "file for output; default: stdout")
++	htmlOut = flag.String("html", "", "generate HTML representation of coverage profile")
++	funcOut = flag.String("func", "", "output coverage profile information for each function")
++)
++
++var profile string // The profile to read; the value of -html or -func
++
++var counterStmt func(*File, ast.Expr) ast.Stmt
++
++const (
++	atomicPackagePath = "sync/atomic"
++	atomicPackageName = "_cover_atomic_"
++)
++
++func main() {
++	flag.Usage = usage
++	flag.Parse()
++
++	// Usage information when no arguments.
++	if flag.NFlag() == 0 && flag.NArg() == 0 {
++		flag.Usage()
++	}
++
++	err := parseFlags()
++	if err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		fmt.Fprintln(os.Stderr, `For usage information, run "go tool cover -help"`)
++		os.Exit(2)
++	}
++
++	// Generate coverage-annotated source.
++	if *mode != "" {
++		annotate(flag.Arg(0))
++		return
++	}
++
++	// Output HTML or function coverage information.
++	if *htmlOut != "" {
++		err = htmlOutput(profile, *output)
++	} else {
++		err = funcOutput(profile, *output)
++	}
++
++	if err != nil {
++		fmt.Fprintf(os.Stderr, "cover: %v\n", err)
++		os.Exit(2)
++	}
++}
++
++// parseFlags sets the profile and counterStmt globals and performs validations.
++func parseFlags() error {
++	profile = *htmlOut
++	if *funcOut != "" {
++		if profile != "" {
++			return fmt.Errorf("too many options")
++		}
++		profile = *funcOut
++	}
++
++	// Must either display a profile or rewrite Go source.
++	if (profile == "") == (*mode == "") {
++		return fmt.Errorf("too many options")
++	}
++
++	if *mode != "" {
++		switch *mode {
++		case "set":
++			counterStmt = setCounterStmt
++		case "count":
++			counterStmt = incCounterStmt
++		case "atomic":
++			counterStmt = atomicCounterStmt
++		default:
++			return fmt.Errorf("unknown -mode %v", *mode)
++		}
++
++		if flag.NArg() == 0 {
++			return fmt.Errorf("missing source file")
++		} else if flag.NArg() == 1 {
++			return nil
++		}
++	} else if flag.NArg() == 0 {
++		return nil
++	}
++	return fmt.Errorf("too many arguments")
++}
++
++// Block represents the information about a basic block to be recorded in the analysis.
++// Note: Our definition of basic block is based on control structures; we don't break
++// apart && and ||. We could but it doesn't seem important enough to bother.
++type Block struct {
++	startByte token.Pos
++	endByte   token.Pos
++	numStmt   int
++}
++
++// File is a wrapper for the state of a file used in the parser.
++// The basic parse tree walker is a method of this type.
++type File struct {
++	fset      *token.FileSet
++	name      string // Name of file.
++	astFile   *ast.File
++	blocks    []Block
++	atomicPkg string // Package name for "sync/atomic" in this file.
++}
++
++// Visit implements the ast.Visitor interface.
++func (f *File) Visit(node ast.Node) ast.Visitor {
++	switch n := node.(type) {
++	case *ast.BlockStmt:
++		// If it's a switch or select, the body is a list of case clauses; don't tag the block itself.
++		if len(n.List) > 0 {
++			switch n.List[0].(type) {
++			case *ast.CaseClause: // switch
++				for _, n := range n.List {
++					clause := n.(*ast.CaseClause)
++					clause.Body = f.addCounters(clause.Pos(), clause.End(), clause.Body, false)
++				}
++				return f
++			case *ast.CommClause: // select
++				for _, n := range n.List {
++					clause := n.(*ast.CommClause)
++					clause.Body = f.addCounters(clause.Pos(), clause.End(), clause.Body, false)
++				}
++				return f
++			}
++		}
++		n.List = f.addCounters(n.Lbrace, n.Rbrace+1, n.List, true) // +1 to step past closing brace.
++	case *ast.IfStmt:
++		ast.Walk(f, n.Body)
++		if n.Else == nil {
++			return nil
++		}
++		// The elses are special, because if we have
++		//	if x {
++		//	} else if y {
++		//	}
++		// we want to cover the "if y". To do this, we need a place to drop the counter,
++		// so we add a hidden block:
++		//	if x {
++		//	} else {
++		//		if y {
++		//		}
++		//	}
++		switch stmt := n.Else.(type) {
++		case *ast.IfStmt:
++			block := &ast.BlockStmt{
++				Lbrace: n.Body.End(), // Start at end of the "if" block so the covered part looks like it starts at the "else".
++				List:   []ast.Stmt{stmt},
++				Rbrace: stmt.End(),
++			}
++			n.Else = block
++		case *ast.BlockStmt:
++			stmt.Lbrace = n.Body.End() // Start at end of the "if" block so the covered part looks like it starts at the "else".
++		default:
++			panic("unexpected node type in if")
++		}
++		ast.Walk(f, n.Else)
++		return nil
++	case *ast.SelectStmt:
++		// Don't annotate an empty select - creates a syntax error.
++		if n.Body == nil || len(n.Body.List) == 0 {
++			return nil
++		}
++	case *ast.SwitchStmt:
++		// Don't annotate an empty switch - creates a syntax error.
++		if n.Body == nil || len(n.Body.List) == 0 {
++			return nil
++		}
++	case *ast.TypeSwitchStmt:
++		// Don't annotate an empty type switch - creates a syntax error.
++		if n.Body == nil || len(n.Body.List) == 0 {
++			return nil
++		}
++	}
++	return f
++}
++
++// unquote returns the unquoted string.
++func unquote(s string) string {
++	t, err := strconv.Unquote(s)
++	if err != nil {
++		log.Fatalf("cover: improperly quoted string %q\n", s)
++	}
++	return t
++}
++
++// addImport adds an import for the specified path, if one does not already exist, and returns
++// the local package name.
++func (f *File) addImport(path string) string {
++	// Does the package already import it?
++	for _, s := range f.astFile.Imports {
++		if unquote(s.Path.Value) == path {
++			if s.Name != nil {
++				return s.Name.Name
++			}
++			return filepath.Base(path)
++		}
++	}
++	newImport := &ast.ImportSpec{
++		Name: ast.NewIdent(atomicPackageName),
++		Path: &ast.BasicLit{
++			Kind:  token.STRING,
++			Value: fmt.Sprintf("%q", path),
++		},
++	}
++	impDecl := &ast.GenDecl{
++		Tok: token.IMPORT,
++		Specs: []ast.Spec{
++			newImport,
++		},
++	}
++	// Make the new import the first Decl in the file.
++	astFile := f.astFile
++	astFile.Decls = append(astFile.Decls, nil)
++	copy(astFile.Decls[1:], astFile.Decls[0:])
++	astFile.Decls[0] = impDecl
++	astFile.Imports = append(astFile.Imports, newImport)
++
++	// Now refer to the package, just in case it ends up unused.
++	// That is, append to the end of the file the declaration
++	//	var _ = _cover_atomic_.AddUint32
++	reference := &ast.GenDecl{
++		Tok: token.VAR,
++		Specs: []ast.Spec{
++			&ast.ValueSpec{
++				Names: []*ast.Ident{
++					ast.NewIdent("_"),
++				},
++				Values: []ast.Expr{
++					&ast.SelectorExpr{
++						X:   ast.NewIdent(atomicPackageName),
++						Sel: ast.NewIdent("AddUint32"),
++					},
++				},
++			},
++		},
++	}
++	astFile.Decls = append(astFile.Decls, reference)
++	return atomicPackageName
++}
++
++var slashslash = []byte("//")
++
++// initialComments returns the prefix of content containing only
++// whitespace and line comments.  Any +build directives must appear
++// within this region.  This approach is more reliable than using
++// go/printer to print a modified AST containing comments.
++//
++func initialComments(content []byte) []byte {
++	// Derived from go/build.Context.shouldBuild.
++	end := 0
++	p := content
++	for len(p) > 0 {
++		line := p
++		if i := bytes.IndexByte(line, '\n'); i >= 0 {
++			line, p = line[:i], p[i+1:]
++		} else {
++			p = p[len(p):]
++		}
++		line = bytes.TrimSpace(line)
++		if len(line) == 0 { // Blank line.
++			end = len(content) - len(p)
++			continue
++		}
++		if !bytes.HasPrefix(line, slashslash) { // Not comment line.
++			break
++		}
++	}
++	return content[:end]
++}
++
++func annotate(name string) {
++	fset := token.NewFileSet()
++	content, err := ioutil.ReadFile(name)
++	if err != nil {
++		log.Fatalf("cover: %s: %s", name, err)
++	}
++	parsedFile, err := parser.ParseFile(fset, name, content, parser.ParseComments)
++	if err != nil {
++		log.Fatalf("cover: %s: %s", name, err)
++	}
++	parsedFile.Comments = trimComments(parsedFile, fset)
++
++	file := &File{
++		fset:    fset,
++		name:    name,
++		astFile: parsedFile,
++	}
++	if *mode == "atomic" {
++		file.atomicPkg = file.addImport(atomicPackagePath)
++	}
++	ast.Walk(file, file.astFile)
++	fd := os.Stdout
++	if *output != "" {
++		var err error
++		fd, err = os.Create(*output)
++		if err != nil {
++			log.Fatalf("cover: %s", err)
++		}
++	}
++	fd.Write(initialComments(content)) // Retain '// +build' directives.
++	file.print(fd)
++	// After printing the source tree, add some declarations for the counters etc.
++	// We could do this by adding to the tree, but it's easier just to print the text.
++	file.addVariables(fd)
++}
++
++// trimComments drops all but the //go: comments, some of which are semantically important.
++// We drop all others because they can appear in places that cause our counters
++// to appear in syntactically incorrect places. //go: appears at the beginning of
++// the line and is syntactically safe.
++func trimComments(file *ast.File, fset *token.FileSet) []*ast.CommentGroup {
++	var comments []*ast.CommentGroup
++	for _, group := range file.Comments {
++		var list []*ast.Comment
++		for _, comment := range group.List {
++			if strings.HasPrefix(comment.Text, "//go:") && fset.Position(comment.Slash).Column == 1 {
++				list = append(list, comment)
++			}
++		}
++		if list != nil {
++			comments = append(comments, &ast.CommentGroup{list})
++		}
++	}
++	return comments
++}
++
++func (f *File) print(w io.Writer) {
++	printer.Fprint(w, f.fset, f.astFile)
++}
++
++// intLiteral returns an ast.BasicLit representing the integer value.
++func (f *File) intLiteral(i int) *ast.BasicLit {
++	node := &ast.BasicLit{
++		Kind:  token.INT,
++		Value: fmt.Sprint(i),
++	}
++	return node
++}
++
++// index returns an ast.BasicLit representing the number of counters present.
++func (f *File) index() *ast.BasicLit {
++	return f.intLiteral(len(f.blocks))
++}
++
++// setCounterStmt returns the expression: __count[23] = 1.
++func setCounterStmt(f *File, counter ast.Expr) ast.Stmt {
++	return &ast.AssignStmt{
++		Lhs: []ast.Expr{counter},
++		Tok: token.ASSIGN,
++		Rhs: []ast.Expr{f.intLiteral(1)},
++	}
++}
++
++// incCounterStmt returns the expression: __count[23]++.
++func incCounterStmt(f *File, counter ast.Expr) ast.Stmt {
++	return &ast.IncDecStmt{
++		X:   counter,
++		Tok: token.INC,
++	}
++}
++
++// atomicCounterStmt returns the expression: atomic.AddUint32(&__count[23], 1)
++func atomicCounterStmt(f *File, counter ast.Expr) ast.Stmt {
++	return &ast.ExprStmt{
++		X: &ast.CallExpr{
++			Fun: &ast.SelectorExpr{
++				X:   ast.NewIdent(f.atomicPkg),
++				Sel: ast.NewIdent("AddUint32"),
++			},
++			Args: []ast.Expr{&ast.UnaryExpr{
++				Op: token.AND,
++				X:  counter,
++			},
++				f.intLiteral(1),
++			},
++		},
++	}
++}
++
++// newCounter creates a new counter expression of the appropriate form.
++func (f *File) newCounter(start, end token.Pos, numStmt int) ast.Stmt {
++	counter := &ast.IndexExpr{
++		X: &ast.SelectorExpr{
++			X:   ast.NewIdent(*varVar),
++			Sel: ast.NewIdent("Count"),
++		},
++		Index: f.index(),
++	}
++	stmt := counterStmt(f, counter)
++	f.blocks = append(f.blocks, Block{start, end, numStmt})
++	return stmt
++}
++
++// addCounters takes a list of statements and adds counters to the beginning of
++// each basic block at the top level of that list. For instance, given
++//
++//	S1
++//	if cond {
++//		S2
++// 	}
++//	S3
++//
++// counters will be added before S1 and before S3. The block containing S2
++// will be visited in a separate call.
++// TODO: Nested simple blocks get unnecessary (but correct) counters
++func (f *File) addCounters(pos, blockEnd token.Pos, list []ast.Stmt, extendToClosingBrace bool) []ast.Stmt {
++	// Special case: make sure we add a counter to an empty block. Can't do this below
++	// or we will add a counter to an empty statement list after, say, a return statement.
++	if len(list) == 0 {
++		return []ast.Stmt{f.newCounter(pos, blockEnd, 0)}
++	}
++	// We have a block (statement list), but it may have several basic blocks due to the
++	// appearance of statements that affect the flow of control.
++	var newList []ast.Stmt
++	for {
++		// Find first statement that affects flow of control (break, continue, if, etc.).
++		// It will be the last statement of this basic block.
++		var last int
++		end := blockEnd
++		for last = 0; last < len(list); last++ {
++			end = f.statementBoundary(list[last])
++			if f.endsBasicSourceBlock(list[last]) {
++				extendToClosingBrace = false // Block is broken up now.
++				last++
++				break
++			}
++		}
++		if extendToClosingBrace {
++			end = blockEnd
++		}
++		if pos != end { // Can have no source to cover if e.g. blocks abut.
++			newList = append(newList, f.newCounter(pos, end, last))
++		}
++		newList = append(newList, list[0:last]...)
++		list = list[last:]
++		if len(list) == 0 {
++			break
++		}
++		pos = list[0].Pos()
++	}
++	return newList
++}
++
++// hasFuncLiteral reports the existence and position of the first func literal
++// in the node, if any. If a func literal appears, it usually marks the termination
++// of a basic block because the function body is itself a block.
++// Therefore we draw a line at the start of the body of the first function literal we find.
++// TODO: what if there's more than one? Probably doesn't matter much.
++func hasFuncLiteral(n ast.Node) (bool, token.Pos) {
++	if n == nil {
++		return false, 0
++	}
++	var literal funcLitFinder
++	ast.Walk(&literal, n)
++	return literal.found(), token.Pos(literal)
++}
++
++// statementBoundary finds the location in s that terminates the current basic
++// block in the source.
++func (f *File) statementBoundary(s ast.Stmt) token.Pos {
++	// Control flow statements are easy.
++	switch s := s.(type) {
++	case *ast.BlockStmt:
++		// Treat blocks like basic blocks to avoid overlapping counters.
++		return s.Lbrace
++	case *ast.IfStmt:
++		found, pos := hasFuncLiteral(s.Init)
++		if found {
++			return pos
++		}
++		found, pos = hasFuncLiteral(s.Cond)
++		if found {
++			return pos
++		}
++		return s.Body.Lbrace
++	case *ast.ForStmt:
++		found, pos := hasFuncLiteral(s.Init)
++		if found {
++			return pos
++		}
++		found, pos = hasFuncLiteral(s.Cond)
++		if found {
++			return pos
++		}
++		found, pos = hasFuncLiteral(s.Post)
++		if found {
++			return pos
++		}
++		return s.Body.Lbrace
++	case *ast.LabeledStmt:
++		return f.statementBoundary(s.Stmt)
++	case *ast.RangeStmt:
++		found, pos := hasFuncLiteral(s.X)
++		if found {
++			return pos
++		}
++		return s.Body.Lbrace
++	case *ast.SwitchStmt:
++		found, pos := hasFuncLiteral(s.Init)
++		if found {
++			return pos
++		}
++		found, pos = hasFuncLiteral(s.Tag)
++		if found {
++			return pos
++		}
++		return s.Body.Lbrace
++	case *ast.SelectStmt:
++		return s.Body.Lbrace
++	case *ast.TypeSwitchStmt:
++		found, pos := hasFuncLiteral(s.Init)
++		if found {
++			return pos
++		}
++		return s.Body.Lbrace
++	}
++	// If not a control flow statement, it is a declaration, expression, call, etc. and it may have a function literal.
++	// If it does, that's tricky because we want to exclude the body of the function from this block.
++	// Draw a line at the start of the body of the first function literal we find.
++	// TODO: what if there's more than one? Probably doesn't matter much.
++	found, pos := hasFuncLiteral(s)
++	if found {
++		return pos
++	}
++	return s.End()
++}
++
++// endsBasicSourceBlock reports whether s changes the flow of control: break, if, etc.,
++// or if it's just problematic, for instance contains a function literal, which will complicate
++// accounting due to the block-within-an expression.
++func (f *File) endsBasicSourceBlock(s ast.Stmt) bool {
++	switch s := s.(type) {
++	case *ast.BlockStmt:
++		// Treat blocks like basic blocks to avoid overlapping counters.
++		return true
++	case *ast.BranchStmt:
++		return true
++	case *ast.ForStmt:
++		return true
++	case *ast.IfStmt:
++		return true
++	case *ast.LabeledStmt:
++		return f.endsBasicSourceBlock(s.Stmt)
++	case *ast.RangeStmt:
++		return true
++	case *ast.SwitchStmt:
++		return true
++	case *ast.SelectStmt:
++		return true
++	case *ast.TypeSwitchStmt:
++		return true
++	case *ast.ExprStmt:
++		// Calls to panic change the flow.
++		// We really should verify that "panic" is the predefined function,
++		// but without type checking we can't and the likelihood of it being
++		// an actual problem is vanishingly small.
++		if call, ok := s.X.(*ast.CallExpr); ok {
++			if ident, ok := call.Fun.(*ast.Ident); ok && ident.Name == "panic" && len(call.Args) == 1 {
++				return true
++			}
++		}
++	}
++	found, _ := hasFuncLiteral(s)
++	return found
++}
++
++// funcLitFinder implements the ast.Visitor pattern to find the location of any
++// function literal in a subtree.
++type funcLitFinder token.Pos
++
++func (f *funcLitFinder) Visit(node ast.Node) (w ast.Visitor) {
++	if f.found() {
++		return nil // Prune search.
++	}
++	switch n := node.(type) {
++	case *ast.FuncLit:
++		*f = funcLitFinder(n.Body.Lbrace)
++		return nil // Prune search.
++	}
++	return f
++}
++
++func (f *funcLitFinder) found() bool {
++	return token.Pos(*f) != token.NoPos
++}
++
++// Sort interface for []block1; used for self-check in addVariables.
++
++type block1 struct {
++	Block
++	index int
++}
++
++type blockSlice []block1
++
++func (b blockSlice) Len() int           { return len(b) }
++func (b blockSlice) Less(i, j int) bool { return b[i].startByte < b[j].startByte }
++func (b blockSlice) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
++
++// offset translates a token position into a 0-indexed byte offset.
++func (f *File) offset(pos token.Pos) int {
++	return f.fset.Position(pos).Offset
++}
++
++// addVariables adds to the end of the file the declarations to set up the counter and position variables.
++func (f *File) addVariables(w io.Writer) {
++	// Self-check: Verify that the instrumented basic blocks are disjoint.
++	t := make([]block1, len(f.blocks))
++	for i := range f.blocks {
++		t[i].Block = f.blocks[i]
++		t[i].index = i
++	}
++	sort.Sort(blockSlice(t))
++	for i := 1; i < len(t); i++ {
++		if t[i-1].endByte > t[i].startByte {
++			fmt.Fprintf(os.Stderr, "cover: internal error: block %d overlaps block %d\n", t[i-1].index, t[i].index)
++			// Note: error message is in byte positions, not token positions.
++			fmt.Fprintf(os.Stderr, "\t%s:#%d,#%d %s:#%d,#%d\n",
++				f.name, f.offset(t[i-1].startByte), f.offset(t[i-1].endByte),
++				f.name, f.offset(t[i].startByte), f.offset(t[i].endByte))
++		}
++	}
++
++	// Declare the coverage struct as a package-level variable.
++	fmt.Fprintf(w, "\nvar %s = struct {\n", *varVar)
++	fmt.Fprintf(w, "\tCount     [%d]uint32\n", len(f.blocks))
++	fmt.Fprintf(w, "\tPos       [3 * %d]uint32\n", len(f.blocks))
++	fmt.Fprintf(w, "\tNumStmt   [%d]uint16\n", len(f.blocks))
++	fmt.Fprintf(w, "} {\n")
++
++	// Initialize the position array field.
++	fmt.Fprintf(w, "\tPos: [3 * %d]uint32{\n", len(f.blocks))
++
++	// A nice long list of positions. Each position is encoded as follows to reduce size:
++	// - 32-bit starting line number
++	// - 32-bit ending line number
++	// - (16 bit ending column number << 16) | (16-bit starting column number).
++	for i, block := range f.blocks {
++		start := f.fset.Position(block.startByte)
++		end := f.fset.Position(block.endByte)
++		fmt.Fprintf(w, "\t\t%d, %d, %#x, // [%d]\n", start.Line, end.Line, (end.Column&0xFFFF)<<16|(start.Column&0xFFFF), i)
++	}
++
++	// Close the position array.
++	fmt.Fprintf(w, "\t},\n")
++
++	// Initialize the position array field.
++	fmt.Fprintf(w, "\tNumStmt: [%d]uint16{\n", len(f.blocks))
++
++	// A nice long list of statements-per-block, so we can give a conventional
++	// valuation of "percent covered". To save space, it's a 16-bit number, so we
++	// clamp it if it overflows - won't matter in practice.
++	for i, block := range f.blocks {
++		n := block.numStmt
++		if n > 1<<16-1 {
++			n = 1<<16 - 1
++		}
++		fmt.Fprintf(w, "\t\t%d, // %d\n", n, i)
++	}
++
++	// Close the statements-per-block array.
++	fmt.Fprintf(w, "\t},\n")
++
++	// Close the struct initialization.
++	fmt.Fprintf(w, "}\n")
++}
+diff --git a/src/cmd/cover/cover_test.go b/src/cmd/cover/cover_test.go
+new file mode 100644
+index 0000000000..82c1ce5cbf
+--- /dev/null
++++ b/src/cmd/cover/cover_test.go
+@@ -0,0 +1,87 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main_test
++
++import (
++	"bytes"
++	"fmt"
++	"io/ioutil"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"testing"
++)
++
++const (
++	// Data directory, also the package directory for the test.
++	testdata = "testdata"
++
++	// Binaries we compile.
++	testcover = "./testcover.exe"
++)
++
++var (
++	// Files we use.
++	testMain    = filepath.Join(testdata, "main.go")
++	testTest    = filepath.Join(testdata, "test.go")
++	coverInput  = filepath.Join(testdata, "test_line.go")
++	coverOutput = filepath.Join(testdata, "test_cover.go")
++)
++
++var debug = false // Keeps the rewritten files around if set.
++
++// Run this shell script, but do it in Go so it can be run by "go test".
++//
++//	replace the word LINE with the line number < testdata/test.go > testdata/test_line.go
++// 	go build -o ./testcover
++// 	./testcover -mode=count -var=CoverTest -o ./testdata/test_cover.go testdata/test_line.go
++//	go run ./testdata/main.go ./testdata/test.go
++//
++func TestCover(t *testing.T) {
++	// Read in the test file (testTest) and write it, with LINEs specified, to coverInput.
++	file, err := ioutil.ReadFile(testTest)
++	if err != nil {
++		t.Fatal(err)
++	}
++	lines := bytes.Split(file, []byte("\n"))
++	for i, line := range lines {
++		lines[i] = bytes.Replace(line, []byte("LINE"), []byte(fmt.Sprint(i+1)), -1)
++	}
++	err = ioutil.WriteFile(coverInput, bytes.Join(lines, []byte("\n")), 0666)
++
++	// defer removal of test_line.go
++	if !debug {
++		defer os.Remove(coverInput)
++	}
++
++	// go build -o testcover
++	cmd := exec.Command("go", "build", "-o", testcover)
++	run(cmd, t)
++
++	// defer removal of testcover
++	defer os.Remove(testcover)
++
++	// ./testcover -mode=count -var=coverTest -o ./testdata/test_cover.go testdata/test_line.go
++	cmd = exec.Command(testcover, "-mode=count", "-var=coverTest", "-o", coverOutput, coverInput)
++	run(cmd, t)
++
++	// defer removal of ./testdata/test_cover.go
++	if !debug {
++		defer os.Remove(coverOutput)
++	}
++
++	// go run ./testdata/main.go ./testdata/test.go
++	cmd = exec.Command("go", "run", testMain, coverOutput)
++	run(cmd, t)
++}
++
++func run(c *exec.Cmd, t *testing.T) {
++	c.Stdout = os.Stdout
++	c.Stderr = os.Stderr
++	err := c.Run()
++	if err != nil {
++		t.Fatal(err)
++	}
++}
+diff --git a/src/cmd/cover/doc.go b/src/cmd/cover/doc.go
+new file mode 100644
+index 0000000000..c90f4606f7
+--- /dev/null
++++ b/src/cmd/cover/doc.go
+@@ -0,0 +1,21 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++Cover is a program for analyzing the coverage profiles generated by
++'go test -coverprofile=cover.out'.
++
++Cover is also used by 'go test -cover' to rewrite the source code with
++annotations to track which parts of each function are executed.
++It operates on one Go source file at a time, computing approximate
++basic block information by studying the source. It is thus more portable
++than binary-rewriting coverage tools, but also a little less capable.
++For instance, it does not probe inside && and || expressions, and can
++be mildly confused by single statements with multiple function literals.
++
++For usage information, please see:
++	go help testflag
++	go tool cover -help
++*/
++package main // import "golang.org/x/tools/cmd/cover"
+diff --git a/src/cmd/cover/func.go b/src/cmd/cover/func.go
+new file mode 100644
+index 0000000000..41d9fceca5
+--- /dev/null
++++ b/src/cmd/cover/func.go
+@@ -0,0 +1,166 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file implements the visitor that computes the (line, column)-(line-column) range for each function.
++
++package main
++
++import (
++	"bufio"
++	"fmt"
++	"go/ast"
++	"go/build"
++	"go/parser"
++	"go/token"
++	"os"
++	"path/filepath"
++	"text/tabwriter"
++
++	"golang.org/x/tools/cover"
++)
++
++// funcOutput takes two file names as arguments, a coverage profile to read as input and an output
++// file to write ("" means to write to standard output). The function reads the profile and produces
++// as output the coverage data broken down by function, like this:
++//
++//	fmt/format.go:30:	init			100.0%
++//	fmt/format.go:57:	clearflags		100.0%
++//	...
++//	fmt/scan.go:1046:	doScan			100.0%
++//	fmt/scan.go:1075:	advance			96.2%
++//	fmt/scan.go:1119:	doScanf			96.8%
++//	total:		(statements)			91.9%
++
++func funcOutput(profile, outputFile string) error {
++	profiles, err := cover.ParseProfiles(profile)
++	if err != nil {
++		return err
++	}
++
++	var out *bufio.Writer
++	if outputFile == "" {
++		out = bufio.NewWriter(os.Stdout)
++	} else {
++		fd, err := os.Create(outputFile)
++		if err != nil {
++			return err
++		}
++		defer fd.Close()
++		out = bufio.NewWriter(fd)
++	}
++	defer out.Flush()
++
++	tabber := tabwriter.NewWriter(out, 1, 8, 1, '\t', 0)
++	defer tabber.Flush()
++
++	var total, covered int64
++	for _, profile := range profiles {
++		fn := profile.FileName
++		file, err := findFile(fn)
++		if err != nil {
++			return err
++		}
++		funcs, err := findFuncs(file)
++		if err != nil {
++			return err
++		}
++		// Now match up functions and profile blocks.
++		for _, f := range funcs {
++			c, t := f.coverage(profile)
++			fmt.Fprintf(tabber, "%s:%d:\t%s\t%.1f%%\n", fn, f.startLine, f.name, 100.0*float64(c)/float64(t))
++			total += t
++			covered += c
++		}
++	}
++	fmt.Fprintf(tabber, "total:\t(statements)\t%.1f%%\n", 100.0*float64(covered)/float64(total))
++
++	return nil
++}
++
++// findFuncs parses the file and returns a slice of FuncExtent descriptors.
++func findFuncs(name string) ([]*FuncExtent, error) {
++	fset := token.NewFileSet()
++	parsedFile, err := parser.ParseFile(fset, name, nil, 0)
++	if err != nil {
++		return nil, err
++	}
++	visitor := &FuncVisitor{
++		fset:    fset,
++		name:    name,
++		astFile: parsedFile,
++	}
++	ast.Walk(visitor, visitor.astFile)
++	return visitor.funcs, nil
++}
++
++// FuncExtent describes a function's extent in the source by file and position.
++type FuncExtent struct {
++	name      string
++	startLine int
++	startCol  int
++	endLine   int
++	endCol    int
++}
++
++// FuncVisitor implements the visitor that builds the function position list for a file.
++type FuncVisitor struct {
++	fset    *token.FileSet
++	name    string // Name of file.
++	astFile *ast.File
++	funcs   []*FuncExtent
++}
++
++// Visit implements the ast.Visitor interface.
++func (v *FuncVisitor) Visit(node ast.Node) ast.Visitor {
++	switch n := node.(type) {
++	case *ast.FuncDecl:
++		start := v.fset.Position(n.Pos())
++		end := v.fset.Position(n.End())
++		fe := &FuncExtent{
++			name:      n.Name.Name,
++			startLine: start.Line,
++			startCol:  start.Column,
++			endLine:   end.Line,
++			endCol:    end.Column,
++		}
++		v.funcs = append(v.funcs, fe)
++	}
++	return v
++}
++
++// coverage returns the fraction of the statements in the function that were covered, as a numerator and denominator.
++func (f *FuncExtent) coverage(profile *cover.Profile) (num, den int64) {
++	// We could avoid making this n^2 overall by doing a single scan and annotating the functions,
++	// but the sizes of the data structures is never very large and the scan is almost instantaneous.
++	var covered, total int64
++	// The blocks are sorted, so we can stop counting as soon as we reach the end of the relevant block.
++	for _, b := range profile.Blocks {
++		if b.StartLine > f.endLine || (b.StartLine == f.endLine && b.StartCol >= f.endCol) {
++			// Past the end of the function.
++			break
++		}
++		if b.EndLine < f.startLine || (b.EndLine == f.startLine && b.EndCol <= f.startCol) {
++			// Before the beginning of the function
++			continue
++		}
++		total += int64(b.NumStmt)
++		if b.Count > 0 {
++			covered += int64(b.NumStmt)
++		}
++	}
++	if total == 0 {
++		total = 1 // Avoid zero denominator.
++	}
++	return covered, total
++}
++
++// findFile finds the location of the named file in GOROOT, GOPATH etc.
++func findFile(file string) (string, error) {
++	dir, file := filepath.Split(file)
++	pkg, err := build.Import(dir, ".", build.FindOnly)
++	if err != nil {
++		return "", fmt.Errorf("can't find %q: %v", file, err)
++	}
++	return filepath.Join(pkg.Dir, file), nil
++}
+diff --git a/src/cmd/cover/html.go b/src/cmd/cover/html.go
+new file mode 100644
+index 0000000000..f6b226406a
+--- /dev/null
++++ b/src/cmd/cover/html.go
+@@ -0,0 +1,281 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"bufio"
++	"bytes"
++	"fmt"
++	"html/template"
++	"io"
++	"io/ioutil"
++	"math"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"runtime"
++
++	"golang.org/x/tools/cover"
++)
++
++// htmlOutput reads the profile data from profile and generates an HTML
++// coverage report, writing it to outfile. If outfile is empty,
++// it writes the report to a temporary file and opens it in a web browser.
++func htmlOutput(profile, outfile string) error {
++	profiles, err := cover.ParseProfiles(profile)
++	if err != nil {
++		return err
++	}
++
++	var d templateData
++
++	for _, profile := range profiles {
++		fn := profile.FileName
++		if profile.Mode == "set" {
++			d.Set = true
++		}
++		file, err := findFile(fn)
++		if err != nil {
++			return err
++		}
++		src, err := ioutil.ReadFile(file)
++		if err != nil {
++			return fmt.Errorf("can't read %q: %v", fn, err)
++		}
++		var buf bytes.Buffer
++		err = htmlGen(&buf, src, profile.Boundaries(src))
++		if err != nil {
++			return err
++		}
++		d.Files = append(d.Files, &templateFile{
++			Name:     fn,
++			Body:     template.HTML(buf.String()),
++			Coverage: percentCovered(profile),
++		})
++	}
++
++	var out *os.File
++	if outfile == "" {
++		var dir string
++		dir, err = ioutil.TempDir("", "cover")
++		if err != nil {
++			return err
++		}
++		out, err = os.Create(filepath.Join(dir, "coverage.html"))
++	} else {
++		out, err = os.Create(outfile)
++	}
++	err = htmlTemplate.Execute(out, d)
++	if err == nil {
++		err = out.Close()
++	}
++	if err != nil {
++		return err
++	}
++
++	if outfile == "" {
++		if !startBrowser("file://" + out.Name()) {
++			fmt.Fprintf(os.Stderr, "HTML output written to %s\n", out.Name())
++		}
++	}
++
++	return nil
++}
++
++// percentCovered returns, as a percentage, the fraction of the statements in
++// the profile covered by the test run.
++// In effect, it reports the coverage of a given source file.
++func percentCovered(p *cover.Profile) float64 {
++	var total, covered int64
++	for _, b := range p.Blocks {
++		total += int64(b.NumStmt)
++		if b.Count > 0 {
++			covered += int64(b.NumStmt)
++		}
++	}
++	if total == 0 {
++		return 0
++	}
++	return float64(covered) / float64(total) * 100
++}
++
++// htmlGen generates an HTML coverage report with the provided filename,
++// source code, and tokens, and writes it to the given Writer.
++func htmlGen(w io.Writer, src []byte, boundaries []cover.Boundary) error {
++	dst := bufio.NewWriter(w)
++	for i := range src {
++		for len(boundaries) > 0 && boundaries[0].Offset == i {
++			b := boundaries[0]
++			if b.Start {
++				n := 0
++				if b.Count > 0 {
++					n = int(math.Floor(b.Norm*9)) + 1
++				}
++				fmt.Fprintf(dst, `<span class="cov%v" title="%v">`, n, b.Count)
++			} else {
++				dst.WriteString("</span>")
++			}
++			boundaries = boundaries[1:]
++		}
++		switch b := src[i]; b {
++		case '>':
++			dst.WriteString("&gt;")
++		case '<':
++			dst.WriteString("&lt;")
++		case '&':
++			dst.WriteString("&amp;")
++		case '\t':
++			dst.WriteString("        ")
++		default:
++			dst.WriteByte(b)
++		}
++	}
++	return dst.Flush()
++}
++
++// startBrowser tries to open the URL in a browser
++// and reports whether it succeeds.
++func startBrowser(url string) bool {
++	// try to start the browser
++	var args []string
++	switch runtime.GOOS {
++	case "darwin":
++		args = []string{"open"}
++	case "windows":
++		args = []string{"cmd", "/c", "start"}
++	default:
++		args = []string{"xdg-open"}
++	}
++	cmd := exec.Command(args[0], append(args[1:], url)...)
++	return cmd.Start() == nil
++}
++
++// rgb returns an rgb value for the specified coverage value
++// between 0 (no coverage) and 10 (max coverage).
++func rgb(n int) string {
++	if n == 0 {
++		return "rgb(192, 0, 0)" // Red
++	}
++	// Gradient from gray to green.
++	r := 128 - 12*(n-1)
++	g := 128 + 12*(n-1)
++	b := 128 + 3*(n-1)
++	return fmt.Sprintf("rgb(%v, %v, %v)", r, g, b)
++}
++
++// colors generates the CSS rules for coverage colors.
++func colors() template.CSS {
++	var buf bytes.Buffer
++	for i := 0; i < 11; i++ {
++		fmt.Fprintf(&buf, ".cov%v { color: %v }\n", i, rgb(i))
++	}
++	return template.CSS(buf.String())
++}
++
++var htmlTemplate = template.Must(template.New("html").Funcs(template.FuncMap{
++	"colors": colors,
++}).Parse(tmplHTML))
++
++type templateData struct {
++	Files []*templateFile
++	Set   bool
++}
++
++type templateFile struct {
++	Name     string
++	Body     template.HTML
++	Coverage float64
++}
++
++const tmplHTML = `
++<!DOCTYPE html>
++<html>
++	<head>
++		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
++		<style>
++			body {
++				background: black;
++				color: rgb(80, 80, 80);
++			}
++			body, pre, #legend span {
++				font-family: Menlo, monospace;
++				font-weight: bold;
++			}
++			#topbar {
++				background: black;
++				position: fixed;
++				top: 0; left: 0; right: 0;
++				height: 42px;
++				border-bottom: 1px solid rgb(80, 80, 80);
++			}
++			#content {
++				margin-top: 50px;
++			}
++			#nav, #legend {
++				float: left;
++				margin-left: 10px;
++			}
++			#legend {
++				margin-top: 12px;
++			}
++			#nav {
++				margin-top: 10px;
++			}
++			#legend span {
++				margin: 0 5px;
++			}
++			{{colors}}
++		</style>
++	</head>
++	<body>
++		<div id="topbar">
++			<div id="nav">
++				<select id="files">
++				{{range $i, $f := .Files}}
++				<option value="file{{$i}}">{{$f.Name}} ({{printf "%.1f" $f.Coverage}}%)</option>
++				{{end}}
++				</select>
++			</div>
++			<div id="legend">
++				<span>not tracked</span>
++			{{if .Set}}
++				<span class="cov0">not covered</span>
++				<span class="cov8">covered</span>
++			{{else}}
++				<span class="cov0">no coverage</span>
++				<span class="cov1">low coverage</span>
++				<span class="cov2">*</span>
++				<span class="cov3">*</span>
++				<span class="cov4">*</span>
++				<span class="cov5">*</span>
++				<span class="cov6">*</span>
++				<span class="cov7">*</span>
++				<span class="cov8">*</span>
++				<span class="cov9">*</span>
++				<span class="cov10">high coverage</span>
++			{{end}}
++			</div>
++		</div>
++		<div id="content">
++		{{range $i, $f := .Files}}
++		<pre class="file" id="file{{$i}}" {{if $i}}style="display: none"{{end}}>{{$f.Body}}</pre>
++		{{end}}
++		</div>
++	</body>
++	<script>
++	(function() {
++		var files = document.getElementById('files');
++		var visible = document.getElementById('file0');
++		files.addEventListener('change', onChange, false);
++		function onChange() {
++			visible.style.display = 'none';
++			visible = document.getElementById(files.value);
++			visible.style.display = 'block';
++			window.scrollTo(0, 0);
++		}
++	})();
++	</script>
++</html>
++`
+diff --git a/src/cmd/cover/profile.go b/src/cmd/cover/profile.go
+new file mode 100644
+index 0000000000..a03b5d532a
+--- /dev/null
++++ b/src/cmd/cover/profile.go
+@@ -0,0 +1,192 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file provides support for parsing coverage profiles
++// generated by "go test -coverprofile=cover.out".
++// It is a copy of golang.org/x/tools/cover/profile.go.
++
++package main
++
++import (
++	"bufio"
++	"fmt"
++	"math"
++	"os"
++	"regexp"
++	"sort"
++	"strconv"
++	"strings"
++)
++
++// Profile represents the profiling data for a specific file.
++type Profile struct {
++	FileName string
++	Mode     string
++	Blocks   []ProfileBlock
++}
++
++// ProfileBlock represents a single block of profiling data.
++type ProfileBlock struct {
++	StartLine, StartCol int
++	EndLine, EndCol     int
++	NumStmt, Count      int
++}
++
++type byFileName []*Profile
++
++func (p byFileName) Len() int           { return len(p) }
++func (p byFileName) Less(i, j int) bool { return p[i].FileName < p[j].FileName }
++func (p byFileName) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
++
++// ParseProfiles parses profile data in the specified file and returns a
++// Profile for each source file described therein.
++func ParseProfiles(fileName string) ([]*Profile, error) {
++	pf, err := os.Open(fileName)
++	if err != nil {
++		return nil, err
++	}
++	defer pf.Close()
++
++	files := make(map[string]*Profile)
++	buf := bufio.NewReader(pf)
++	// First line is "mode: foo", where foo is "set", "count", or "atomic".
++	// Rest of file is in the format
++	//	encoding/base64/base64.go:34.44,37.40 3 1
++	// where the fields are: name.go:line.column,line.column numberOfStatements count
++	s := bufio.NewScanner(buf)
++	mode := ""
++	for s.Scan() {
++		line := s.Text()
++		if mode == "" {
++			const p = "mode: "
++			if !strings.HasPrefix(line, p) || line == p {
++				return nil, fmt.Errorf("bad mode line: %v", line)
++			}
++			mode = line[len(p):]
++			continue
++		}
++		m := lineRe.FindStringSubmatch(line)
++		if m == nil {
++			return nil, fmt.Errorf("line %q doesn't match expected format: %v", m, lineRe)
++		}
++		fn := m[1]
++		p := files[fn]
++		if p == nil {
++			p = &Profile{
++				FileName: fn,
++				Mode:     mode,
++			}
++			files[fn] = p
++		}
++		p.Blocks = append(p.Blocks, ProfileBlock{
++			StartLine: toInt(m[2]),
++			StartCol:  toInt(m[3]),
++			EndLine:   toInt(m[4]),
++			EndCol:    toInt(m[5]),
++			NumStmt:   toInt(m[6]),
++			Count:     toInt(m[7]),
++		})
++	}
++	if err := s.Err(); err != nil {
++		return nil, err
++	}
++	for _, p := range files {
++		sort.Sort(blocksByStart(p.Blocks))
++	}
++	// Generate a sorted slice.
++	profiles := make([]*Profile, 0, len(files))
++	for _, profile := range files {
++		profiles = append(profiles, profile)
++	}
++	sort.Sort(byFileName(profiles))
++	return profiles, nil
++}
++
++type blocksByStart []ProfileBlock
++
++func (b blocksByStart) Len() int      { return len(b) }
++func (b blocksByStart) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
++func (b blocksByStart) Less(i, j int) bool {
++	bi, bj := b[i], b[j]
++	return bi.StartLine < bj.StartLine || bi.StartLine == bj.StartLine && bi.StartCol < bj.StartCol
++}
++
++var lineRe = regexp.MustCompile(`^(.+):([0-9]+).([0-9]+),([0-9]+).([0-9]+) ([0-9]+) ([0-9]+)$`)
++
++func toInt(s string) int {
++	i, err := strconv.Atoi(s)
++	if err != nil {
++		panic(err)
++	}
++	return i
++}
++
++// Boundary represents the position in a source file of the beginning or end of a
++// block as reported by the coverage profile. In HTML mode, it will correspond to
++// the opening or closing of a <span> tag and will be used to colorize the source
++type Boundary struct {
++	Offset int     // Location as a byte offset in the source file.
++	Start  bool    // Is this the start of a block?
++	Count  int     // Event count from the cover profile.
++	Norm   float64 // Count normalized to [0..1].
++}
++
++// Boundaries returns a Profile as a set of Boundary objects within the provided src.
++func (p *Profile) Boundaries(src []byte) (boundaries []Boundary) {
++	// Find maximum count.
++	max := 0
++	for _, b := range p.Blocks {
++		if b.Count > max {
++			max = b.Count
++		}
++	}
++	// Divisor for normalization.
++	divisor := math.Log(float64(max))
++
++	// boundary returns a Boundary, populating the Norm field with a normalized Count.
++	boundary := func(offset int, start bool, count int) Boundary {
++		b := Boundary{Offset: offset, Start: start, Count: count}
++		if !start || count == 0 {
++			return b
++		}
++		if max <= 1 {
++			b.Norm = 0.8 // Profile is in"set" mode; we want a heat map. Use cov8 in the CSS.
++		} else if count > 0 {
++			b.Norm = math.Log(float64(count)) / divisor
++		}
++		return b
++	}
++
++	line, col := 1, 2 // TODO: Why is this 2?
++	for si, bi := 0, 0; si < len(src) && bi < len(p.Blocks); {
++		b := p.Blocks[bi]
++		if b.StartLine == line && b.StartCol == col {
++			boundaries = append(boundaries, boundary(si, true, b.Count))
++		}
++		if b.EndLine == line && b.EndCol == col || line > b.EndLine {
++			boundaries = append(boundaries, boundary(si, false, 0))
++			bi++
++			continue // Don't advance through src; maybe the next block starts here.
++		}
++		if src[si] == '\n' {
++			line++
++			col = 0
++		}
++		col++
++		si++
++	}
++	sort.Sort(boundariesByPos(boundaries))
++	return
++}
++
++type boundariesByPos []Boundary
++
++func (b boundariesByPos) Len() int      { return len(b) }
++func (b boundariesByPos) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
++func (b boundariesByPos) Less(i, j int) bool {
++	if b[i].Offset == b[j].Offset {
++		return !b[i].Start && b[j].Start
++	}
++	return b[i].Offset < b[j].Offset
++}
+diff --git a/src/cmd/cover/testdata/main.go b/src/cmd/cover/testdata/main.go
+new file mode 100644
+index 0000000000..6ed39c4f23
+--- /dev/null
++++ b/src/cmd/cover/testdata/main.go
+@@ -0,0 +1,112 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test runner for coverage test. This file is not coverage-annotated; test.go is.
++// It knows the coverage counter is called "coverTest".
++
++package main
++
++import (
++	"fmt"
++	"os"
++)
++
++func main() {
++	testAll()
++	verify()
++}
++
++type block struct {
++	count uint32
++	line  uint32
++}
++
++var counters = make(map[block]bool)
++
++// check records the location and expected value for a counter.
++func check(line, count uint32) {
++	b := block{
++		count,
++		line,
++	}
++	counters[b] = true
++}
++
++// checkVal is a version of check that returns its extra argument,
++// so it can be used in conditionals.
++func checkVal(line, count uint32, val int) int {
++	b := block{
++		count,
++		line,
++	}
++	counters[b] = true
++	return val
++}
++
++var PASS = true
++
++// verify checks the expected counts against the actual. It runs after the test has completed.
++func verify() {
++	for b := range counters {
++		got, index := count(b.line)
++		if b.count == anything && got != 0 {
++			got = anything
++		}
++		if got != b.count {
++			fmt.Fprintf(os.Stderr, "test_go:%d expected count %d got %d [counter %d]\n", b.line, b.count, got, index)
++			PASS = false
++		}
++	}
++	verifyPanic()
++	if !PASS {
++		fmt.Fprintf(os.Stderr, "FAIL\n")
++		os.Exit(2)
++	}
++}
++
++// verifyPanic is a special check for the known counter that should be
++// after the panic call in testPanic.
++func verifyPanic() {
++	if coverTest.Count[panicIndex-1] != 1 {
++		// Sanity check for test before panic.
++		fmt.Fprintf(os.Stderr, "bad before panic")
++		PASS = false
++	}
++	if coverTest.Count[panicIndex] != 0 {
++		fmt.Fprintf(os.Stderr, "bad at panic: %d should be 0\n", coverTest.Count[panicIndex])
++		PASS = false
++	}
++	if coverTest.Count[panicIndex+1] != 1 {
++		fmt.Fprintf(os.Stderr, "bad after panic")
++		PASS = false
++	}
++}
++
++// count returns the count and index for the counter at the specified line.
++func count(line uint32) (uint32, int) {
++	// Linear search is fine. Choose perfect fit over approximate.
++	// We can have a closing brace for a range on the same line as a condition for an "else if"
++	// and we don't want that brace to steal the count for the condition on the "if".
++	// Therefore we test for a perfect (lo==line && hi==line) match, but if we can't
++	// find that we take the first imperfect match.
++	index := -1
++	indexLo := uint32(1e9)
++	for i := range coverTest.Count {
++		lo, hi := coverTest.Pos[3*i], coverTest.Pos[3*i+1]
++		if lo == line && line == hi {
++			return coverTest.Count[i], i
++		}
++		// Choose the earliest match (the counters are in unpredictable order).
++		if lo <= line && line <= hi && indexLo > lo {
++			index = i
++			indexLo = lo
++		}
++	}
++	if index == -1 {
++		fmt.Fprintln(os.Stderr, "cover_test: no counter for line", line)
++		PASS = false
++		return 0, 0
++	}
++	return coverTest.Count[index], index
++}
+diff --git a/src/cmd/cover/testdata/test.go b/src/cmd/cover/testdata/test.go
+new file mode 100644
+index 0000000000..9013950a2b
+--- /dev/null
++++ b/src/cmd/cover/testdata/test.go
+@@ -0,0 +1,218 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This program is processed by the cover command, and then testAll is called.
++// The test driver in main.go can then compare the coverage statistics with expectation.
++
++// The word LINE is replaced by the line number in this file. When the file is executed,
++// the coverage processing has changed the line numbers, so we can't use runtime.Caller.
++
++package main
++
++const anything = 1e9 // Just some unlikely value that means "we got here, don't care how often"
++
++func testAll() {
++	testSimple()
++	testBlockRun()
++	testIf()
++	testFor()
++	testRange()
++	testSwitch()
++	testTypeSwitch()
++	testSelect1()
++	testSelect2()
++	testPanic()
++	testEmptySwitches()
++}
++
++// The indexes of the counters in testPanic are known to main.go
++const panicIndex = 3
++
++// This test appears first because the index of its counters is known to main.go
++func testPanic() {
++	defer func() {
++		recover()
++	}()
++	check(LINE, 1)
++	panic("should not get next line")
++	check(LINE, 0) // this is GoCover.Count[panicIndex]
++	// The next counter is in testSimple and it will be non-zero.
++	// If the panic above does not trigger a counter, the test will fail
++	// because GoCover.Count[panicIndex] will be the one in testSimple.
++}
++
++func testSimple() {
++	check(LINE, 1)
++}
++
++func testIf() {
++	if true {
++		check(LINE, 1)
++	} else {
++		check(LINE, 0)
++	}
++	if false {
++		check(LINE, 0)
++	} else {
++		check(LINE, 1)
++	}
++	for i := 0; i < 3; i++ {
++		if checkVal(LINE, 3, i) <= 2 {
++			check(LINE, 3)
++		}
++		if checkVal(LINE, 3, i) <= 1 {
++			check(LINE, 2)
++		}
++		if checkVal(LINE, 3, i) <= 0 {
++			check(LINE, 1)
++		}
++	}
++	for i := 0; i < 3; i++ {
++		if checkVal(LINE, 3, i) <= 1 {
++			check(LINE, 2)
++		} else {
++			check(LINE, 1)
++		}
++	}
++	for i := 0; i < 3; i++ {
++		if checkVal(LINE, 3, i) <= 0 {
++			check(LINE, 1)
++		} else if checkVal(LINE, 2, i) <= 1 {
++			check(LINE, 1)
++		} else if checkVal(LINE, 1, i) <= 2 {
++			check(LINE, 1)
++		} else if checkVal(LINE, 0, i) <= 3 {
++			check(LINE, 0)
++		}
++	}
++	if func(a, b int) bool { return a < b }(3, 4) {
++		check(LINE, 1)
++	}
++}
++
++func testFor() {
++	for i := 0; i < 10; func() { i++; check(LINE, 10) }() {
++		check(LINE, 10)
++	}
++}
++
++func testRange() {
++	for _, f := range []func(){
++		func() { check(LINE, 1) },
++	} {
++		f()
++		check(LINE, 1)
++	}
++}
++
++func testBlockRun() {
++	check(LINE, 1)
++	{
++		check(LINE, 1)
++	}
++	{
++		check(LINE, 1)
++	}
++	check(LINE, 1)
++	{
++		check(LINE, 1)
++	}
++	{
++		check(LINE, 1)
++	}
++	check(LINE, 1)
++}
++
++func testSwitch() {
++	for i := 0; i < 5; func() { i++; check(LINE, 5) }() {
++		switch i {
++		case 0:
++			check(LINE, 1)
++		case 1:
++			check(LINE, 1)
++		case 2:
++			check(LINE, 1)
++		default:
++			check(LINE, 2)
++		}
++	}
++}
++
++func testTypeSwitch() {
++	var x = []interface{}{1, 2.0, "hi"}
++	for _, v := range x {
++		switch func() { check(LINE, 3) }(); v.(type) {
++		case int:
++			check(LINE, 1)
++		case float64:
++			check(LINE, 1)
++		case string:
++			check(LINE, 1)
++		case complex128:
++			check(LINE, 0)
++		default:
++			check(LINE, 0)
++		}
++	}
++}
++
++func testSelect1() {
++	c := make(chan int)
++	go func() {
++		for i := 0; i < 1000; i++ {
++			c <- i
++		}
++	}()
++	for {
++		select {
++		case <-c:
++			check(LINE, anything)
++		case <-c:
++			check(LINE, anything)
++		default:
++			check(LINE, 1)
++			return
++		}
++	}
++}
++
++func testSelect2() {
++	c1 := make(chan int, 1000)
++	c2 := make(chan int, 1000)
++	for i := 0; i < 1000; i++ {
++		c1 <- i
++		c2 <- i
++	}
++	for {
++		select {
++		case <-c1:
++			check(LINE, 1000)
++		case <-c2:
++			check(LINE, 1000)
++		default:
++			check(LINE, 1)
++			return
++		}
++	}
++}
++
++// Empty control statements created syntax errors. This function
++// is here just to be sure that those are handled correctly now.
++func testEmptySwitches() {
++	check(LINE, 1)
++	switch 3 {
++	}
++	check(LINE, 1)
++	switch i := (interface{})(3).(int); i {
++	}
++	check(LINE, 1)
++	c := make(chan int)
++	go func() {
++		check(LINE, 1)
++		c <- 1
++		select {}
++	}()
++	<-c
++	check(LINE, 1)
++}
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index c8cfae6698..d12d424e52 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -406,6 +406,7 @@ var goTools = map[string]targetDir{
+ 	"cmd/api":                              toTool,
+ 	"cmd/asm":                              toTool,
+ 	"cmd/cgo":                              toTool,
++	"cmd/cover":                            toTool,
+ 	"cmd/dist":                             toTool,
+ 	"cmd/doc":                              toTool,
+ 	"cmd/fix":                              toTool,
+@@ -420,7 +421,6 @@ var goTools = map[string]targetDir{
+ 	"cmd/pprof":                            toTool,
+ 	"cmd/trace":                            toTool,
+ 	"cmd/yacc":                             toTool,
+-	"golang.org/x/tools/cmd/cover":         toTool,
+ 	"golang.org/x/tools/cmd/godoc":         toBin,
+ 	"golang.org/x/tools/cmd/vet":           toTool,
+ 	"code.google.com/p/go.tools/cmd/cover": stalePath,
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index e1809b4e65..eb92f9e59c 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -738,12 +738,6 @@ elif ! grep "case-insensitive file name collision" $d/out >/dev/null; then
+ 	ok=false
+ fi
+ 
+-TEST go get cover
+-./testgo get golang.org/x/tools/cmd/cover || ok=false
+-
+-unset GOPATH
+-rm -rf $d
+-
+ TEST go get -t "code.google.com/p/go-get-issue-8181/{a,b}"
+ d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
+ export GOPATH=$d
+diff --git a/src/cmd/go/tool.go b/src/cmd/go/tool.go
+index 29feb1d3b2..bf8ff03bc3 100644
+--- a/src/cmd/go/tool.go
++++ b/src/cmd/go/tool.go
+@@ -68,7 +68,7 @@ func tool(toolName string) string {
+ 
+ func isInGoToolsRepo(toolName string) bool {
+ 	switch toolName {
+-	case "cover", "vet":
++	case "vet":
+ 		return true
+ 	}
+ 	return false

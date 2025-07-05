@@ -27,7 +27,48 @@ Date:   Sun Aug 19 13:53:57 2018 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/modload/import.go      | 9 ++++++++-
  src/cmd/go/internal/modload/import_test.go | 2 +-
  2 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 78ae83e4bf..12d9407f6e 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -181,7 +181,7 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
+ 	// So we only check local module trees
+ 	// (the main module, and any directory trees pointed at by replace directives).
+ 	if isLocal {
+-		for d := dir; d != mdir && len(d) > len(mdir); d = filepath.Dir(d) {
++		for d := dir; d != mdir && len(d) > len(mdir); {
+ 			haveGoMod := haveGoModCache.Do(d, func() interface{} {
+ 				_, err := os.Stat(filepath.Join(d, "go.mod"))
+ 				return err == nil
+@@ -190,6 +190,13 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
+ 			if haveGoMod {
+ 				return "", false
+ 			}
++			parent := filepath.Dir(d)
++			if parent == d {
++				// Break the loop, as otherwise we'd loop
++				// forever if d=="." and mdir=="".
++				break
++			}
++			d = parent
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/go/internal/modload/import_test.go b/src/cmd/go/internal/modload/import_test.go
+index 8e01dc5091..3f4ddab436 100644
+--- a/src/cmd/go/internal/modload/import_test.go
++++ b/src/cmd/go/internal/modload/import_test.go
+@@ -21,7 +21,7 @@ var importTests = []struct {
+ 	},
+ 	{
+ 		path: "golang.org/x/net",
+-		err:  "missing module for import: golang.org/x/net@.* provides golang.org/x/net",
++		err:  "cannot find module providing package golang.org/x/net",
+ 	},
+ 	{
+ 		path: "golang.org/x/text",

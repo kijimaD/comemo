@@ -11,6 +11,27 @@ Date:   Fri Sep 24 10:57:27 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/352072
     Trust: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/symtab.go | 8 ++------
  1 file changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 792513f796..0d0fe8055b 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -604,13 +604,9 @@ func moduledataverify1(datap *moduledata) {
+ 			if i+1 < nftab {
+ 				f2name = funcname(f2)
+ 			}
+-			print("function symbol table not sorted by program counter:", hex(datap.ftab[i].entry), funcname(f1), ">", hex(datap.ftab[i+1].entry), f2name)
+-			if datap.pluginpath != "" {
+-				print(", plugin:", datap.pluginpath)
+-			}
+-			println()
++			println("function symbol table not sorted by PC:", hex(datap.ftab[i].entry), funcname(f1), ">", hex(datap.ftab[i+1].entry), f2name, ", plugin:", datap.pluginpath)
+ 			for j := 0; j <= i; j++ {
+-				print("\t", hex(datap.ftab[j].entry), " ", funcname(funcInfo{(*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[j].funcoff])), datap}), "\n")
++				println("\t", hex(datap.ftab[j].entry), funcname(funcInfo{(*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[j].funcoff])), datap}))
+ 			}
+ 			if GOOS == "aix" && isarchive {
+ 				println("-Wl,-bnoobjreorder is mandatory on aix/ppc64 with c-archive")

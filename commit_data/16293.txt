@@ -7,6 +7,29 @@ Date:   Tue May 14 13:28:16 2013 -0700
     R=golang-dev, iant, bradfitz, nigeltao
     CC=golang-dev
     https://golang.org/cl/9408044
-
+---
  src/pkg/image/format.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/image/format.go b/src/pkg/image/format.go
+index 36635bcc53..3040247f1f 100644
+--- a/src/pkg/image/format.go
++++ b/src/pkg/image/format.go
+@@ -73,7 +73,7 @@ func sniff(r reader) format {
+ 
+ // Decode decodes an image that has been encoded in a registered format.
+ // The string returned is the format name used during format registration.
+-// Format registration is typically done by the init method of the codec-
++// Format registration is typically done by an init function in the codec-
+ // specific package.
+ func Decode(r io.Reader) (Image, string, error) {
+ 	rr := asReader(r)
+@@ -88,7 +88,7 @@ func Decode(r io.Reader) (Image, string, error) {
+ // DecodeConfig decodes the color model and dimensions of an image that has
+ // been encoded in a registered format. The string returned is the format name
+ // used during format registration. Format registration is typically done by
+-// the init method of the codec-specific package.
++// an init function in the codec-specific package.
+ func DecodeConfig(r io.Reader) (Config, string, error) {
+ 	rr := asReader(r)
+ 	f := sniff(rr)

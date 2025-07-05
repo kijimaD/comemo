@@ -12,6 +12,27 @@ Date:   Wed Dec 18 10:17:38 2013 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/22770043
-
+---
  misc/notepadplus/functionList.xml | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/misc/notepadplus/functionList.xml b/misc/notepadplus/functionList.xml
+index ca949f0184..7c605db4f0 100644
+--- a/misc/notepadplus/functionList.xml
++++ b/misc/notepadplus/functionList.xml
+@@ -1,8 +1,15 @@
+ <!-- <NotepadPlus> -->
+ 	<!-- <functionList> -->
+ 		<!-- <associationMap> -->
++
++		<!--
++			if npp version == 6.4:
+ 			<association ext=".go" id="go"/>
+ 
++			if npp version >= 6.5:
++			<association userDefinedLangName="go" id="go"/>
++		-->
++
+ 		<!-- </associationMap> -->
+ 		<!-- <parsers> -->
+ 			<parser id="go" displayName="Go" commentExpr="((/\*.*?\*)/|(//.*?$))">

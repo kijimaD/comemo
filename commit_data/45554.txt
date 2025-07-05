@@ -17,6 +17,26 @@ Date:   Thu Oct 29 06:03:08 2020 +0800
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/database/sql/sql_test.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index 8ae6e1339e..4b02657b7e 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -2828,12 +2828,10 @@ func TestTxStmtDeadlock(t *testing.T) {
+ 	}
+ 	// Run number of stmt queries to reproduce deadlock from context cancel
+ 	for i := 0; i < 1e3; i++ {
++		// Encounter any close related errors (e.g. ErrTxDone, stmt is closed)
++		// is expected due to context cancel.
+ 		_, err = stmt.Query(1)
+ 		if err != nil {
+-			// Encounter ErrTxDone here is expected due to context cancel
+-			if err != ErrTxDone {
+-				t.Fatalf("unexpected error while executing stmt, err: %v", err)
+-			}
+ 			break
+ 		}
+ 	}

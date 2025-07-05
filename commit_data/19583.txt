@@ -11,7 +11,7 @@ Date:   Fri Jun 20 16:36:21 2014 -0700
     R=iant
     CC=golang-codereviews
     https://golang.org/cl/101000046
-
+---
  src/pkg/runtime/proc.c                       |   8 +++++---
  src/pkg/runtime/race.c                       |  19 ++++++++++++++++---
  src/pkg/runtime/race/README                  |   2 +-
@@ -19,3 +19,106 @@ Date:   Fri Jun 20 16:36:21 2014 -0700
  src/pkg/runtime/race/race_linux_amd64.syso   | Bin 243208 -> 267968 bytes
  src/pkg/runtime/race/race_windows_amd64.syso | Bin 210859 -> 247609 bytes
  6 files changed, 22 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 914a02e0bf..b81267210b 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -143,6 +143,11 @@ runtime·schedinit(void)
+ 	byte *p;
+ 	Eface i;
+ 
++	// raceinit must be the first call to race detector.
++	// In particular, it must be done before mallocinit below calls racemapshadow.
++	if(raceenabled)
++		g->racectx = runtime·raceinit();
++
+ 	runtime·sched.maxmcount = 10000;
+ 	runtime·precisestack = true; // haveexperiment("precisestack");
+ 
+@@ -181,9 +186,6 @@ runtime·schedinit(void)
+ 		runtime·copystack = false;
+ 
+ 	mstats.enablegc = 1;
+-
+-	if(raceenabled)
+-		g->racectx = runtime·raceinit();
+ }
+ 
+ extern void main·init(void);
+diff --git a/src/pkg/runtime/race.c b/src/pkg/runtime/race.c
+index eb0be7fa6f..fd5aa3c906 100644
+--- a/src/pkg/runtime/race.c
++++ b/src/pkg/runtime/race.c
+@@ -63,6 +63,17 @@ void runtime·racesymbolizethunk(void*);
+ // with up to 4 uintptr arguments.
+ void runtime·racecall(void(*f)(void), ...);
+ 
++// checks if the address has shadow (i.e. heap or data/bss)
++static bool
++isvalidaddr(uintptr addr)
++{
++	if(addr >= runtime·racearenastart && addr < runtime·racearenaend)
++		return true;
++	if(addr >= (uintptr)noptrdata && addr < (uintptr)enoptrbss)
++		return true;
++	return false;
++}
++
+ uintptr
+ runtime·raceinit(void)
+ {
+@@ -169,7 +180,7 @@ runtime·raceacquire(void *addr)
+ void
+ runtime·raceacquireg(G *gp, void *addr)
+ {
+-	if(g->raceignore)
++	if(g->raceignore || !isvalidaddr((uintptr)addr))
+ 		return;
+ 	runtime·racecall(__tsan_acquire, gp->racectx, addr);
+ }
+@@ -177,13 +188,15 @@ runtime·raceacquireg(G *gp, void *addr)
+ void
+ runtime·racerelease(void *addr)
+ {
++	if(g->raceignore || !isvalidaddr((uintptr)addr))
++		return;
+ 	runtime·racereleaseg(g, addr);
+ }
+ 
+ void
+ runtime·racereleaseg(G *gp, void *addr)
+ {
+-	if(g->raceignore)
++	if(g->raceignore || !isvalidaddr((uintptr)addr))
+ 		return;
+ 	runtime·racecall(__tsan_release, gp->racectx, addr);
+ }
+@@ -197,7 +210,7 @@ runtime·racereleasemerge(void *addr)
+ void
+ runtime·racereleasemergeg(G *gp, void *addr)
+ {
+-	if(g->raceignore)
++	if(g->raceignore || !isvalidaddr((uintptr)addr))
+ 		return;
+ 	runtime·racecall(__tsan_release_merge, gp->racectx, addr);
+ }
+diff --git a/src/pkg/runtime/race/README b/src/pkg/runtime/race/README
+index 785640607c..6a4259141e 100644
+--- a/src/pkg/runtime/race/README
++++ b/src/pkg/runtime/race/README
+@@ -9,4 +9,4 @@ $ ./buildgo.sh
+ 
+ Tested with gcc 4.6.1 and 4.7.0.  On Windows it's built with 64-bit MinGW.
+ 
+-Current runtime is built on rev 203116.
++Current runtime is built on rev 210365.
+diff --git a/src/pkg/runtime/race/race_darwin_amd64.syso b/src/pkg/runtime/race/race_darwin_amd64.syso
+index 249a878ef4..9061ce0aa1 100644
+Binary files a/src/pkg/runtime/race/race_darwin_amd64.syso and b/src/pkg/runtime/race/race_darwin_amd64.syso differ
+diff --git a/src/pkg/runtime/race/race_linux_amd64.syso b/src/pkg/runtime/race/race_linux_amd64.syso
+index 8120484d48..32b5c52594 100644
+Binary files a/src/pkg/runtime/race/race_linux_amd64.syso and b/src/pkg/runtime/race/race_linux_amd64.syso differ
+diff --git a/src/pkg/runtime/race/race_windows_amd64.syso b/src/pkg/runtime/race/race_windows_amd64.syso
+index 67db40f213..3ea80a6657 100644
+Binary files a/src/pkg/runtime/race/race_windows_amd64.syso and b/src/pkg/runtime/race/race_windows_amd64.syso differ

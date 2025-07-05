@@ -17,9 +17,207 @@ Date:   Thu May 25 12:07:07 2023 +1000
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Achille Roussel <achille.roussel@gmail.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  .../syscall/unix/{fcntl_wasm.go => fcntl_js.go}    |   2 +
  src/internal/syscall/unix/fcntl_wasip1.go          |  17 ++++
  src/runtime/internal/wasitest/nonblock_test.go     | 108 +++++++++++----------
  src/runtime/internal/wasitest/testdata/nonblock.go |  19 +++-
  4 files changed, 93 insertions(+), 53 deletions(-)
+
+diff --git a/src/internal/syscall/unix/fcntl_wasm.go b/src/internal/syscall/unix/fcntl_js.go
+similarity index 92%
+rename from src/internal/syscall/unix/fcntl_wasm.go
+rename to src/internal/syscall/unix/fcntl_js.go
+index c63027398f..bdfb8e046d 100644
+--- a/src/internal/syscall/unix/fcntl_wasm.go
++++ b/src/internal/syscall/unix/fcntl_js.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build js && wasm
++
+ package unix
+ 
+ import "syscall"
+diff --git a/src/internal/syscall/unix/fcntl_wasip1.go b/src/internal/syscall/unix/fcntl_wasip1.go
+new file mode 100644
+index 0000000000..e70cd74b49
+--- /dev/null
++++ b/src/internal/syscall/unix/fcntl_wasip1.go
+@@ -0,0 +1,17 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build wasip1
++
++package unix
++
++import "syscall"
++
++func Fcntl(fd int, cmd int, arg int) (int, error) {
++	if cmd == syscall.F_GETFL {
++		flags, err := fd_fdstat_get_flags(fd)
++		return int(flags), err
++	}
++	return 0, syscall.ENOSYS
++}
+diff --git a/src/runtime/internal/wasitest/nonblock_test.go b/src/runtime/internal/wasitest/nonblock_test.go
+index d873ef55fb..8fb2860e4b 100644
+--- a/src/runtime/internal/wasitest/nonblock_test.go
++++ b/src/runtime/internal/wasitest/nonblock_test.go
+@@ -43,57 +43,61 @@ func TestNonblock(t *testing.T) {
+ 		t.Skip("wasmer does not support non-blocking I/O")
+ 	}
+ 
+-	args := []string{"run", "./testdata/nonblock.go"}
+-
+-	fifos := make([]*fifo, 8)
+-	for i := range fifos {
+-		path := filepath.Join(t.TempDir(), fmt.Sprintf("wasip1-nonblock-fifo-%d-%d", rand.Uint32(), i))
+-		if err := syscall.Mkfifo(path, 0666); err != nil {
+-			t.Fatal(err)
+-		}
+-
+-		file, err := os.OpenFile(path, os.O_RDWR, 0)
+-		if err != nil {
+-			t.Fatal(err)
+-		}
+-		defer file.Close()
+-
+-		args = append(args, path)
+-		fifos[len(fifos)-i-1] = &fifo{file, path}
+-	}
+-
+-	subProcess := exec.Command("go", args...)
+-
+-	subProcess.Env = append(os.Environ(), "GOOS=wasip1", "GOARCH=wasm")
+-
+-	pr, pw := io.Pipe()
+-	defer pw.Close()
+-
+-	subProcess.Stderr = pw
+-
+-	if err := subProcess.Start(); err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	scanner := bufio.NewScanner(pr)
+-	if !scanner.Scan() {
+-		t.Fatal("expected line:", scanner.Err())
+-	} else if scanner.Text() != "waiting" {
+-		t.Fatal("unexpected output:", scanner.Text())
+-	}
+-
+-	for _, fifo := range fifos {
+-		if _, err := fifo.file.WriteString(fifo.path + "\n"); err != nil {
+-			t.Fatal(err)
+-		}
+-		if !scanner.Scan() {
+-			t.Fatal("expected line:", scanner.Err())
+-		} else if scanner.Text() != fifo.path {
+-			t.Fatal("unexpected line:", scanner.Text())
+-		}
+-	}
+-
+-	if err := subProcess.Wait(); err != nil {
+-		t.Fatal(err)
++	for _, mode := range []string{"os.OpenFile", "os.NewFile"} {
++		t.Run(mode, func(t *testing.T) {
++			args := []string{"run", "./testdata/nonblock.go", mode}
++
++			fifos := make([]*fifo, 8)
++			for i := range fifos {
++				path := filepath.Join(t.TempDir(), fmt.Sprintf("wasip1-nonblock-fifo-%d-%d", rand.Uint32(), i))
++				if err := syscall.Mkfifo(path, 0666); err != nil {
++					t.Fatal(err)
++				}
++
++				file, err := os.OpenFile(path, os.O_RDWR, 0)
++				if err != nil {
++					t.Fatal(err)
++				}
++				defer file.Close()
++
++				args = append(args, path)
++				fifos[len(fifos)-i-1] = &fifo{file, path}
++			}
++
++			subProcess := exec.Command("go", args...)
++
++			subProcess.Env = append(os.Environ(), "GOOS=wasip1", "GOARCH=wasm")
++
++			pr, pw := io.Pipe()
++			defer pw.Close()
++
++			subProcess.Stderr = pw
++
++			if err := subProcess.Start(); err != nil {
++				t.Fatal(err)
++			}
++
++			scanner := bufio.NewScanner(pr)
++			if !scanner.Scan() {
++				t.Fatal("expected line:", scanner.Err())
++			} else if scanner.Text() != "waiting" {
++				t.Fatal("unexpected output:", scanner.Text())
++			}
++
++			for _, fifo := range fifos {
++				if _, err := fifo.file.WriteString(fifo.path + "\n"); err != nil {
++					t.Fatal(err)
++				}
++				if !scanner.Scan() {
++					t.Fatal("expected line:", scanner.Err())
++				} else if scanner.Text() != fifo.path {
++					t.Fatal("unexpected line:", scanner.Text())
++				}
++			}
++
++			if err := subProcess.Wait(); err != nil {
++				t.Fatal(err)
++			}
++		})
+ 	}
+ }
+diff --git a/src/runtime/internal/wasitest/testdata/nonblock.go b/src/runtime/internal/wasitest/testdata/nonblock.go
+index 947abe7fcf..8cbf21b3a2 100644
+--- a/src/runtime/internal/wasitest/testdata/nonblock.go
++++ b/src/runtime/internal/wasitest/testdata/nonblock.go
+@@ -7,17 +7,34 @@ package main
+ import (
+ 	"os"
+ 	"sync"
++	"syscall"
+ )
+ 
+ func main() {
++	if len(os.Args) < 2 {
++		panic("usage: nonblock <MODE> [PATH...]")
++	}
++	mode := os.Args[1]
++
+ 	ready := make(chan struct{})
+ 
+ 	var wg sync.WaitGroup
+-	for _, path := range os.Args[1:] {
++	for _, path := range os.Args[2:] {
+ 		f, err := os.Open(path)
+ 		if err != nil {
+ 			panic(err)
+ 		}
++		switch mode {
++		case "os.OpenFile":
++		case "os.NewFile":
++			fd := f.Fd()
++			if err := syscall.SetNonblock(int(fd), true); err != nil {
++				panic(err)
++			}
++			f = os.NewFile(fd, path)
++		default:
++			panic("invalid test mode")
++		}
+ 
+ 		spawnWait := make(chan struct{})
+ 

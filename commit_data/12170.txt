@@ -22,6 +22,23 @@ Date:   Thu Feb 23 14:28:16 2012 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5694047
-
+---
  src/cmd/cc/sub.c | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cc/sub.c b/src/cmd/cc/sub.c
+index e5992e213b..98e9f5a4b4 100644
+--- a/src/cmd/cc/sub.c
++++ b/src/cmd/cc/sub.c
+@@ -156,7 +156,10 @@ typ(int et, Type *d)
+ 	t->link = d;
+ 	t->down = T;
+ 	t->sym = S;
+-	t->width = ewidth[et];
++	if(et < NTYPE)
++		t->width = ewidth[et];
++	else
++		t->width = -1; // for TDOT or TOLD in prototype
+ 	t->offset = 0;
+ 	t->shift = 0;
+ 	t->nbits = 0;

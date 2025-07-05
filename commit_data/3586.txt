@@ -11,7 +11,79 @@ Date:   Mon Oct 19 12:44:08 2009 -0700
     DELTA=14  (10 added, 1 deleted, 3 changed)
     OCL=35881
     CL=35884
-
+---
  src/cmd/5g/gsubr.c | 14 ++++++++++----
  test/arm-pass.txt  |  3 +++
  2 files changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index ae85798b65..4a4c21ba9e 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -189,7 +189,7 @@ isfat(Type *t)
+ void
+ afunclit(Addr *a)
+ {
+-	if(a->type == D_ADDR && a->name == D_EXTERN || a->type == D_REG) {
++	if(a->type == D_CONST && a->name == D_EXTERN || a->type == D_REG) {
+ 		a->type = D_OREG;
+ 	}
+ }
+@@ -1099,6 +1099,7 @@ naddr(Node *n, Addr *a)
+ 			break;
+ 		case PFUNC:
+ 			a->name = D_EXTERN;
++			a->type = D_CONST;
+ 			break;
+ 		}
+ 		break;
+@@ -1147,13 +1148,18 @@ naddr(Node *n, Addr *a)
+ 
+ 	case OADDR:
+ 		naddr(n->left, a);
+-		if(a->type == D_OREG) {
++		switch(a->type) {
++		case D_OREG:
+ 			a->type = D_CONST;
+ 			break;
+-		} else if (a->type == D_REG) {
++
++		case D_REG:
++		case D_CONST:
+ 			break;
++		
++		default:
++			fatal("naddr: OADDR %d\n", a->type);
+ 		}
+-		fatal("naddr: OADDR %d\n", a->type);
+ 	}
+ }
+ 
+diff --git a/test/arm-pass.txt b/test/arm-pass.txt
+index 4953c32a81..626051019a 100644
+--- a/test/arm-pass.txt
++++ b/test/arm-pass.txt
+@@ -72,6 +72,7 @@ fixedbugs/bug051.go
+ fixedbugs/bug052.go
+ fixedbugs/bug053.go
+ fixedbugs/bug054.go
++fixedbugs/bug055.go
+ fixedbugs/bug056.go
+ fixedbugs/bug057.go
+ fixedbugs/bug058.go
+@@ -253,6 +254,7 @@ ken/interfun.go
+ ken/intervar.go
+ ken/label.go
+ ken/mfunc.go
++ken/ptrfun.go
+ ken/ptrvar.go
+ ken/range.go
+ ken/rob1.go
+@@ -281,6 +283,7 @@ parentype.go
+ printbig.go
+ rename.go
+ rename1.go
++runtime.go
+ sieve.go
+ sigchld.go
+ simassign.go

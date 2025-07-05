@@ -12,8 +12,51 @@ Date:   Tue May 21 14:50:10 2024 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/conversions.go      |  2 +-
  src/go/types/conversions.go                         |  2 +-
  src/internal/types/testdata/fixedbugs/issue67547.go | 10 ++++++++++
  3 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/conversions.go b/src/cmd/compile/internal/types2/conversions.go
+index b8d8f6e150..05d0d37192 100644
+--- a/src/cmd/compile/internal/types2/conversions.go
++++ b/src/cmd/compile/internal/types2/conversions.go
+@@ -56,7 +56,7 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 		// If T's type set is empty, or if it doesn't
+ 		// have specific types, constant x cannot be
+ 		// converted.
+-		ok = T.(*TypeParam).underIs(func(u Type) bool {
++		ok = Unalias(T).(*TypeParam).underIs(func(u Type) bool {
+ 			// u is nil if there are no specific type terms
+ 			if u == nil {
+ 				cause = check.sprintf("%s does not contain specific types", T)
+diff --git a/src/go/types/conversions.go b/src/go/types/conversions.go
+index 98a1f9f661..f548e177de 100644
+--- a/src/go/types/conversions.go
++++ b/src/go/types/conversions.go
+@@ -59,7 +59,7 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 		// If T's type set is empty, or if it doesn't
+ 		// have specific types, constant x cannot be
+ 		// converted.
+-		ok = T.(*TypeParam).underIs(func(u Type) bool {
++		ok = Unalias(T).(*TypeParam).underIs(func(u Type) bool {
+ 			// u is nil if there are no specific type terms
+ 			if u == nil {
+ 				cause = check.sprintf("%s does not contain specific types", T)
+diff --git a/src/internal/types/testdata/fixedbugs/issue67547.go b/src/internal/types/testdata/fixedbugs/issue67547.go
+new file mode 100644
+index 0000000000..cca8ba2367
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue67547.go
+@@ -0,0 +1,10 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _[P int]() {
++	type A = P
++	_ = A(0) // don't crash with this conversion
++}

@@ -8,9 +8,120 @@ Date:   Thu Feb 23 07:51:49 2012 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5690071
-
+---
  src/pkg/os/exec_plan9.go   | 14 +++++++-------
  src/pkg/os/exec_posix.go   |  8 ++++----
  src/pkg/os/exec_unix.go    |  2 +-
  src/pkg/os/exec_windows.go |  2 +-
  4 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/os/exec_plan9.go b/src/pkg/os/exec_plan9.go
+index 9da86e2639..1c9e2b997f 100644
+--- a/src/pkg/os/exec_plan9.go
++++ b/src/pkg/os/exec_plan9.go
+@@ -66,7 +66,7 @@ func (p *Process) Kill() error {
+ }
+ 
+ // Wait waits for the Process to exit or stop, and then returns a
+-// Waitmsg describing its status and an error, if any.
++// ProcessState describing its status and an error, if any.
+ func (p *Process) Wait() (ps *ProcessState, err error) {
+ 	var waitmsg syscall.Waitmsg
+ 
+@@ -89,7 +89,7 @@ func (p *Process) Wait() (ps *ProcessState, err error) {
+ 
+ 	ps = &ProcessState{
+ 		pid:    waitmsg.Pid,
+-		status: waitmsg,
++		status: &waitmsg,
+ 	}
+ 	return ps, nil
+ }
+@@ -110,8 +110,8 @@ func findProcess(pid int) (p *Process, err error) {
+ 
+ // ProcessState stores information about process as reported by Wait.
+ type ProcessState struct {
+-	pid    int             // The process's id.
+-	status syscall.Waitmsg // System-dependent status info.
++	pid    int              // The process's id.
++	status *syscall.Waitmsg // System-dependent status info.
+ }
+ 
+ // Pid returns the process id of the exited process.
+@@ -134,14 +134,14 @@ func (p *ProcessState) Success() bool {
+ // the process.  Convert it to the appropriate underlying
+ // type, such as *syscall.Waitmsg on Plan 9, to access its contents.
+ func (p *ProcessState) Sys() interface{} {
+-	return &p.status
++	return p.status
+ }
+ 
+ // SysUsage returns system-dependent resource usage information about
+ // the exited process.  Convert it to the appropriate underlying
+-// type, such as *syscall.Waitmsg on Unix, to access its contents.
++// type, such as *syscall.Waitmsg on Plan 9, to access its contents.
+ func (p *ProcessState) SysUsage() interface{} {
+-	return &p.status
++	return p.status
+ }
+ 
+ // UserTime returns the user CPU time of the exited process and its children.
+diff --git a/src/pkg/os/exec_posix.go b/src/pkg/os/exec_posix.go
+index 2b8d2b2b2b..4a75cb67fb 100644
+--- a/src/pkg/os/exec_posix.go
++++ b/src/pkg/os/exec_posix.go
+@@ -44,8 +44,8 @@ func (p *Process) Kill() error {
+ 
+ // ProcessState stores information about process as reported by Wait.
+ type ProcessState struct {
+-	pid    int                 // The process's id.
+-	status *syscall.WaitStatus // System-dependent status info.
++	pid    int                // The process's id.
++	status syscall.WaitStatus // System-dependent status info.
+ 	rusage *syscall.Rusage
+ }
+ 
+@@ -67,7 +67,7 @@ func (p *ProcessState) Success() bool {
+ 
+ // Sys returns system-dependent exit information about
+ // the process.  Convert it to the appropriate underlying
+-// type, such as *syscall.WaitStatus on Unix, to access its contents.
++// type, such as syscall.WaitStatus on Unix, to access its contents.
+ func (p *ProcessState) Sys() interface{} {
+ 	return p.status
+ }
+@@ -110,7 +110,7 @@ func (p *ProcessState) String() string {
+ 	if p == nil {
+ 		return "<nil>"
+ 	}
+-	status := p.Sys().(*syscall.WaitStatus)
++	status := p.Sys().(syscall.WaitStatus)
+ 	res := ""
+ 	switch {
+ 	case status.Exited():
+diff --git a/src/pkg/os/exec_unix.go b/src/pkg/os/exec_unix.go
+index e5905f06af..8d000e9ef1 100644
+--- a/src/pkg/os/exec_unix.go
++++ b/src/pkg/os/exec_unix.go
+@@ -30,7 +30,7 @@ func (p *Process) Wait() (ps *ProcessState, err error) {
+ 	}
+ 	ps = &ProcessState{
+ 		pid:    pid1,
+-		status: &status,
++		status: status,
+ 		rusage: &rusage,
+ 	}
+ 	return ps, nil
+diff --git a/src/pkg/os/exec_windows.go b/src/pkg/os/exec_windows.go
+index 8887ba4ee3..dab0dc9757 100644
+--- a/src/pkg/os/exec_windows.go
++++ b/src/pkg/os/exec_windows.go
+@@ -30,7 +30,7 @@ func (p *Process) Wait() (ps *ProcessState, err error) {
+ 		return nil, NewSyscallError("GetExitCodeProcess", e)
+ 	}
+ 	p.done = true
+-	return &ProcessState{p.Pid, &syscall.WaitStatus{Status: s, ExitCode: ec}, new(syscall.Rusage)}, nil
++	return &ProcessState{p.Pid, syscall.WaitStatus{Status: s, ExitCode: ec}, new(syscall.Rusage)}, nil
+ }
+ 
+ // Signal sends a signal to the Process.

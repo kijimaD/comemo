@@ -16,7 +16,7 @@ Date:   Thu Aug 17 19:43:21 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/escape/escape.go | 13 +++++++++----
  src/cmd/compile/internal/ssagen/ssa.go    |  8 --------
  src/cmd/compile/internal/walk/order.go    | 10 ++--------
@@ -24,3 +24,107 @@ Date:   Thu Aug 17 19:43:21 2023 +0000
  test/escape2.go                           |  2 +-
  test/escape2n.go                          |  2 +-
  6 files changed, 13 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index 5f5dab31f7..2882f9fda3 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -345,11 +345,16 @@ func (b *batch) finish(fns []*ir.Func) {
+ 
+ 		// If the result of a string->[]byte conversion is never mutated,
+ 		// then it can simply reuse the string's memory directly.
+-		if n, ok := n.(*ir.ConvExpr); ok && n.Op() == ir.OSTR2BYTES && !loc.hasAttr(attrMutates) {
+-			if base.Flag.LowerM >= 1 {
+-				base.WarnfAt(n.Pos(), "zero-copy string->[]byte conversion")
++		//
++		// TODO(mdempsky): Enable in a subsequent CL. We need to ensure
++		// []byte("") evaluates to []byte{}, not []byte(nil).
++		if false {
++			if n, ok := n.(*ir.ConvExpr); ok && n.Op() == ir.OSTR2BYTES && !loc.hasAttr(attrMutates) {
++				if base.Flag.LowerM >= 1 {
++					base.WarnfAt(n.Pos(), "zero-copy string->[]byte conversion")
++				}
++				n.SetOp(ir.OSTR2BYTESTMP)
+ 			}
+-			n.SetOp(ir.OSTR2BYTESTMP)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index c3a47ac1d0..25e93b531d 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -2659,14 +2659,6 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
+ 		n := n.(*ir.ConvExpr)
+ 		str := s.expr(n.X)
+ 		ptr := s.newValue1(ssa.OpStringPtr, s.f.Config.Types.BytePtr, str)
+-		if !n.NonNil() {
+-			// We need to ensure []byte("") evaluates to []byte{}, and not []byte(nil).
+-			//
+-			// TODO(mdempsky): Investigate using "len != 0" instead of "ptr != nil".
+-			cond := s.newValue2(ssa.OpNeqPtr, types.Types[types.TBOOL], ptr, s.constNil(ptr.Type))
+-			zerobase := s.newValue1A(ssa.OpAddr, ptr.Type, ir.Syms.Zerobase, s.sb)
+-			ptr = s.ternary(cond, ptr, zerobase)
+-		}
+ 		len := s.newValue1(ssa.OpStringLen, types.Types[types.TINT], str)
+ 		return s.newValue3(ssa.OpSliceMake, n.Type(), ptr, len, len)
+ 	case ir.OCFUNC:
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index c38477f33e..3e3bda15e7 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -815,14 +815,8 @@ func (o *orderState) stmt(n ir.Node) {
+ 		// Mark []byte(str) range expression to reuse string backing storage.
+ 		// It is safe because the storage cannot be mutated.
+ 		n := n.(*ir.RangeStmt)
+-		if x, ok := n.X.(*ir.ConvExpr); ok {
+-			switch x.Op() {
+-			case ir.OSTR2BYTES:
+-				x.SetOp(ir.OSTR2BYTESTMP)
+-				fallthrough
+-			case ir.OSTR2BYTESTMP:
+-				x.MarkNonNil() // "range []byte(nil)" is fine
+-			}
++		if n.X.Op() == ir.OSTR2BYTES {
++			n.X.(*ir.ConvExpr).SetOp(ir.OSTR2BYTESTMP)
+ 		}
+ 
+ 		t := o.markTemp()
+diff --git a/src/cmd/compile/internal/walk/switch.go b/src/cmd/compile/internal/walk/switch.go
+index f59ae33f51..3af457b8c0 100644
+--- a/src/cmd/compile/internal/walk/switch.go
++++ b/src/cmd/compile/internal/walk/switch.go
+@@ -736,7 +736,6 @@ func stringSearch(expr ir.Node, cc []exprClause, out *ir.Nodes) {
+ 	// Convert expr to a []int8
+ 	slice := ir.NewConvExpr(base.Pos, ir.OSTR2BYTESTMP, types.NewSlice(types.Types[types.TINT8]), expr)
+ 	slice.SetTypecheck(1) // legacy typechecker doesn't handle this op
+-	slice.MarkNonNil()
+ 	// Load the byte we're splitting on.
+ 	load := ir.NewIndexExpr(base.Pos, slice, ir.NewInt(base.Pos, int64(bestIdx)))
+ 	// Compare with the value we're splitting on.
+diff --git a/test/escape2.go b/test/escape2.go
+index 99f85914a3..e3e5904cde 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -1729,7 +1729,7 @@ func intstring2() {
+ 
+ func stringtoslicebyte0() {
+ 	s := "foo"
+-	x := []byte(s) // ERROR "\(\[\]byte\)\(s\) does not escape$" "zero-copy string->\[\]byte conversion"
++	x := []byte(s) // ERROR "\(\[\]byte\)\(s\) does not escape$"
+ 	_ = x
+ }
+ 
+diff --git a/test/escape2n.go b/test/escape2n.go
+index 350be65202..57cc1a0163 100644
+--- a/test/escape2n.go
++++ b/test/escape2n.go
+@@ -1729,7 +1729,7 @@ func intstring2() {
+ 
+ func stringtoslicebyte0() {
+ 	s := "foo"
+-	x := []byte(s) // ERROR "\(\[\]byte\)\(s\) does not escape$" "zero-copy string->\[\]byte conversion"
++	x := []byte(s) // ERROR "\(\[\]byte\)\(s\) does not escape$"
+ 	_ = x
+ }
+ 

@@ -7,6 +7,40 @@ Date:   Fri Aug 28 12:04:16 2015 -0400
     Change-Id: I5348774ff01a5f0f706a1dba4aa9500661841f47
     Reviewed-on: https://go-review.googlesource.com/14020
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/objfile/disasm.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/internal/objfile/disasm.go b/src/cmd/internal/objfile/disasm.go
+index 9838ce2856..6495dfb356 100644
+--- a/src/cmd/internal/objfile/disasm.go
++++ b/src/cmd/internal/objfile/disasm.go
+@@ -15,8 +15,8 @@ import (
+ 	"strings"
+ 	"text/tabwriter"
+ 
+-	"cmd/internal/rsc.io/arm/armasm"
+-	"cmd/internal/rsc.io/x86/x86asm"
++	"golang.org/x/arch/arm/armasm"
++	"golang.org/x/arch/x86/x86asm"
+ )
+ 
+ // Disasm is a disassembler for a given File.
+@@ -195,7 +195,7 @@ func disasm_x86(code []byte, pc uint64, lookup lookupFunc, arch int) (string, in
+ 		size = 1
+ 		text = "?"
+ 	} else {
+-		text = x86asm.Plan9Syntax(inst, pc, lookup)
++		text = x86asm.GoSyntax(inst, pc, lookup)
+ 	}
+ 	return text, size
+ }
+@@ -228,7 +228,7 @@ func disasm_arm(code []byte, pc uint64, lookup lookupFunc) (string, int) {
+ 		size = 4
+ 		text = "?"
+ 	} else {
+-		text = armasm.Plan9Syntax(inst, pc, lookup, textReader{code, pc})
++		text = armasm.GoSyntax(inst, pc, lookup, textReader{code, pc})
+ 	}
+ 	return text, size
+ }

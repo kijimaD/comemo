@@ -24,9 +24,199 @@ Date:   Mon Apr 15 15:34:49 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/load.go                | 34 ++++++++++++++++------
  src/cmd/go/internal/mvs/mvs.go                     | 15 ++++++++--
  src/cmd/go/testdata/script/mod_load_badchain.txt   | 33 ++++++++++++++++++++-
  .../testdata/script/mod_missingpkg_prerelease.txt  |  2 +-
  4 files changed, 70 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 78681b165a..388837e205 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -546,6 +546,7 @@ func (ld *loader) load(roots func() []string) {
+ 		for _, m := range buildList {
+ 			haveMod[m] = true
+ 		}
++		modAddedBy := make(map[module.Version]*loadPkg)
+ 		for _, pkg := range ld.pkgs {
+ 			if err, ok := pkg.err.(*ImportMissingError); ok && err.Module.Path != "" {
+ 				if err.newMissingVersion != "" {
+@@ -558,6 +559,7 @@ func (ld *loader) load(roots func() []string) {
+ 				numAdded++
+ 				if !haveMod[err.Module] {
+ 					haveMod[err.Module] = true
++					modAddedBy[err.Module] = pkg
+ 					buildList = append(buildList, err.Module)
+ 				}
+ 				continue
+@@ -573,6 +575,14 @@ func (ld *loader) load(roots func() []string) {
+ 		reqs = Reqs()
+ 		buildList, err = mvs.BuildList(Target, reqs)
+ 		if err != nil {
++			// If an error was found in a newly added module, report the package
++			// import stack instead of the module requirement stack. Packages
++			// are more descriptive.
++			if err, ok := err.(*mvs.BuildListError); ok {
++				if pkg := modAddedBy[err.Module()]; pkg != nil {
++					base.Fatalf("go: %s: %v", pkg.stackText(), err.Err)
++				}
++			}
+ 			base.Fatalf("go: %v", err)
+ 		}
+ 	}
+@@ -804,27 +814,33 @@ func (ld *loader) buildStacks() {
+ // stackText builds the import stack text to use when
+ // reporting an error in pkg. It has the general form
+ //
+-//	import root ->
+-//		import other ->
+-//		import other2 ->
+-//		import pkg
++//	root imports
++//		other imports
++//		other2 tested by
++//		other2.test imports
++//		pkg
+ //
+ func (pkg *loadPkg) stackText() string {
+ 	var stack []*loadPkg
+-	for p := pkg.stack; p != nil; p = p.stack {
++	for p := pkg; p != nil; p = p.stack {
+ 		stack = append(stack, p)
+ 	}
+ 
+ 	var buf bytes.Buffer
+ 	for i := len(stack) - 1; i >= 0; i-- {
+ 		p := stack[i]
++		fmt.Fprint(&buf, p.path)
+ 		if p.testOf != nil {
+-			fmt.Fprintf(&buf, "test ->\n\t")
+-		} else {
+-			fmt.Fprintf(&buf, "import %q ->\n\t", p.path)
++			fmt.Fprint(&buf, ".test")
++		}
++		if i > 0 {
++			if stack[i-1].testOf == p {
++				fmt.Fprint(&buf, " tested by\n\t")
++			} else {
++				fmt.Fprint(&buf, " imports\n\t")
++			}
+ 		}
+ 	}
+-	fmt.Fprintf(&buf, "import %q", pkg.path)
+ 	return buf.String()
+ }
+ 
+diff --git a/src/cmd/go/internal/mvs/mvs.go b/src/cmd/go/internal/mvs/mvs.go
+index 284a6fc339..d1c3d8c08a 100644
+--- a/src/cmd/go/internal/mvs/mvs.go
++++ b/src/cmd/go/internal/mvs/mvs.go
+@@ -65,7 +65,7 @@ type Reqs interface {
+ // while constructing a build list. BuildListError prints the chain
+ // of requirements to the module where the error occurred.
+ type BuildListError struct {
+-	err   error
++	Err   error
+ 	stack []buildListErrorElem
+ }
+ 
+@@ -77,9 +77,18 @@ type buildListErrorElem struct {
+ 	nextReason string
+ }
+ 
++// Module returns the module where the error occurred. If the module stack
++// is empty, this returns a zero value.
++func (e *BuildListError) Module() module.Version {
++	if len(e.stack) == 0 {
++		return module.Version{}
++	}
++	return e.stack[0].m
++}
++
+ func (e *BuildListError) Error() string {
+ 	b := &strings.Builder{}
+-	errMsg := e.err.Error()
++	errMsg := e.Err.Error()
+ 	stack := e.stack
+ 
+ 	// Don't print modules at the beginning of the chain without a
+@@ -177,7 +186,7 @@ func buildList(target module.Version, reqs Reqs, upgrade func(module.Version) mo
+ 
+ 			if node.err != nil {
+ 				err := &BuildListError{
+-					err:   node.err,
++					Err:   node.err,
+ 					stack: []buildListErrorElem{{m: node.m}},
+ 				}
+ 				for n, prev := neededBy[node], node; n != nil; n, prev = neededBy[n], n {
+diff --git a/src/cmd/go/testdata/script/mod_load_badchain.txt b/src/cmd/go/testdata/script/mod_load_badchain.txt
+index aa01300e6c..d0fdb485c2 100644
+--- a/src/cmd/go/testdata/script/mod_load_badchain.txt
++++ b/src/cmd/go/testdata/script/mod_load_badchain.txt
+@@ -19,15 +19,39 @@ cmp go.mod go.mod.orig
+ cmp stderr update-main-expected
+ cmp go.mod go.mod.orig
+ 
+-# update manually. Listing modules should produce an error.
++# Update manually. Listing modules should produce an error.
+ go mod edit -require=example.com/badchain/a@v1.1.0
+ ! go list -m
+ cmp stderr list-expected
+ 
++# Try listing a package that imports a package
++# in a module without a requirement.
++go mod edit -droprequire example.com/badchain/a
++! go list m/use
++cmp stderr list-missing-expected
++
++! go list -test m/testuse
++cmp stderr list-missing-test-expected
++
+ -- go.mod.orig --
+ module m
+ 
+ require example.com/badchain/a v1.0.0
++-- use/use.go --
++package use
++
++import _ "example.com/badchain/c"
++-- testuse/testuse.go --
++package testuse
++-- testuse/testuse_test.go --
++package testuse
++
++import (
++	"testing"
++	_ "example.com/badchain/c"
++)
++
++func Test(t *testing.T) {}
+ -- update-main-expected --
+ go get: example.com/badchain/c@v1.0.0 updating to
+ 	example.com/badchain/c@v1.1.0: parsing go.mod: unexpected module path "example.com/badchain/wrong"
+@@ -39,3 +63,10 @@ go get: example.com/badchain/a@v1.1.0 requires
+ go: example.com/badchain/a@v1.1.0 requires
+ 	example.com/badchain/b@v1.1.0 requires
+ 	example.com/badchain/c@v1.1.0: parsing go.mod: unexpected module path "example.com/badchain/wrong"
++-- list-missing-expected --
++go: m/use imports
++	example.com/badchain/c: example.com/badchain/c@v1.1.0: parsing go.mod: unexpected module path "example.com/badchain/wrong"
++-- list-missing-test-expected --
++go: m/testuse tested by
++	m/testuse.test imports
++	example.com/badchain/c: example.com/badchain/c@v1.1.0: parsing go.mod: unexpected module path "example.com/badchain/wrong"
+diff --git a/src/cmd/go/testdata/script/mod_missingpkg_prerelease.txt b/src/cmd/go/testdata/script/mod_missingpkg_prerelease.txt
+index e7409d1d86..6203606c22 100644
+--- a/src/cmd/go/testdata/script/mod_missingpkg_prerelease.txt
++++ b/src/cmd/go/testdata/script/mod_missingpkg_prerelease.txt
+@@ -1,7 +1,7 @@
+ env GO111MODULE=on
+ 
+ ! go list use.go
+-stderr 'import "example.com/missingpkg/deprecated": package provided by example.com/missingpkg at latest version v1.0.0 but not at required version v1.0.1-beta'
++stderr 'example.com/missingpkg/deprecated: package provided by example.com/missingpkg at latest version v1.0.0 but not at required version v1.0.1-beta'
+ 
+ -- use.go --
+ package use

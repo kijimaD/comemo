@@ -15,9 +15,210 @@ Date:   Wed Mar 31 19:48:33 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/609042
-
+---
  src/all.bash  |  2 +-
  src/env.bash  | 55 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
  src/make.bash | 39 +--------------------------------------
  src/run.bash  | 37 +++++++++++++++++++++++++++----------
  4 files changed, 84 insertions(+), 49 deletions(-)
+
+diff --git a/src/all.bash b/src/all.bash
+index 67c19cd43f..00c1ca74dd 100755
+--- a/src/all.bash
++++ b/src/all.bash
+@@ -5,4 +5,4 @@
+ 
+ set -e
+ bash make.bash
+-bash run.bash
++bash run.bash --no-rebuild
+diff --git a/src/env.bash b/src/env.bash
+new file mode 100644
+index 0000000000..6ab491ae43
+--- /dev/null
++++ b/src/env.bash
+@@ -0,0 +1,55 @@
++#!/usr/bin/env bash
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++if test -z "$GOBIN"; then
++	if ! test -d "$HOME"/bin; then
++		echo '$GOBIN is not set and $HOME/bin is not a directory or does not exist.' 1>&2
++		echo 'mkdir $HOME/bin or set $GOBIN to a directory where binaries should' 1>&2
++		echo 'be installed.' 1>&2
++		exit 1
++	fi
++	GOBIN="$HOME/bin"
++elif ! test -d "$GOBIN"; then
++	echo '$GOBIN is not a directory or does not exist' 1>&2
++	echo 'create it or set $GOBIN differently' 1>&2
++	exit 1
++fi
++
++GOROOT=${GOROOT:-$(cd ..; pwd)}
++if ! test -f "$GOROOT"/include/u.h
++then
++	echo '$GOROOT is not set correctly or not exported' 1>&2
++	exit 1
++fi
++
++# Double-check that we're in $GOROOT, for people with multiple Go trees.
++# Various aspects of the build cd into $GOROOT-rooted paths,
++# making it easy to jump to a different tree and get confused.
++DIR1=$(cd ..; pwd)
++DIR2=$(cd $GOROOT; pwd)
++if [ "$DIR1" != "$DIR2" ]; then
++	echo 'Suspicious $GOROOT: does not match current directory.' 1>&2
++	exit 1
++fi
++
++GOARCH=${GOARCH:-$(uname -m | sed 's/^..86$/386/; s/^.86$/386/; s/x86_64/amd64/')}
++case "$GOARCH" in
++amd64 | 386 | arm)
++	;;
++*)
++	echo '$GOARCH is set to <'$GOARCH'>, must be amd64, 386, or arm' 1>&2
++	exit 1
++esac
++
++GOOS=${GOOS:-$(uname | tr A-Z a-z)}
++case "$GOOS" in
++darwin | freebsd | linux | mingw | nacl)
++	;;
++*)
++	echo '$GOOS is set to <'$GOOS'>, must be darwin, freebsd, linux, mingw, or nacl' 1>&2
++	exit 1
++esac
++
++export GOBIN GOROOT GOARCH GOOS
+diff --git a/src/make.bash b/src/make.bash
+index c2a350af7f..d8638145ea 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -4,48 +4,11 @@
+ # license that can be found in the LICENSE file.
+ 
+ set -e
++. ./env.bash
+ 
+-if test -z "$GOBIN"; then
+-	if ! test -d "$HOME"/bin; then
+-		echo '$GOBIN is not set and $HOME/bin is not a directory or does not exist.' 1>&2
+-		echo 'mkdir $HOME/bin or set $GOBIN to a directory where binaries should' 1>&2
+-		echo 'be installed.' 1>&2
+-		exit 1
+-	fi
+-	GOBIN="$HOME/bin"
+-elif ! test -d "$GOBIN"; then
+-	echo '$GOBIN is not a directory or does not exist' 1>&2
+-	echo 'create it or set $GOBIN differently' 1>&2
+-	exit 1
+-fi
+-
+-GOBIN="${GOBIN:-$HOME/bin}"
+ export MAKEFLAGS=-j4
+-
+ unset CDPATH	# in case user has it set
+ 
+-if ! test -f "$GOROOT"/include/u.h
+-then
+-	echo '$GOROOT is not set correctly or not exported' 1>&2
+-	exit 1
+-fi
+-
+-case "$GOARCH" in
+-amd64 | 386 | arm)
+-	;;
+-*)
+-	echo '$GOARCH is set to <'$GOARCH'>, must be amd64, 386, or arm' 1>&2
+-	exit 1
+-esac
+-
+-case "$GOOS" in
+-darwin | freebsd | linux | mingw | nacl)
+-	;;
+-*)
+-	echo '$GOOS is set to <'$GOOS'>, must be darwin, freebsd, linux, mingw, or nacl' 1>&2
+-	exit 1
+-esac
+-
+ rm -f "$GOBIN"/quietgcc
+ CC=${CC:-gcc}
+ sed -e "s|@CC@|$CC|" < "$GOROOT"/src/quietgcc.bash > "$GOBIN"/quietgcc
+diff --git a/src/run.bash b/src/run.bash
+index 35d499f956..85dd59a55e 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -4,12 +4,21 @@
+ # license that can be found in the LICENSE file.
+ 
+ set -e
++. ./env.bash
+ 
+-GOBIN="${GOBIN:-$HOME/bin}"
++export MAKEFLAGS=-j4
++unset CDPATH	# in case user has it set
+ 
+ # no core files, please
+ ulimit -c 0
+ 
++# allow make.bash to avoid double-build of everything
++rebuild=true
++if [ "$1" = "--no-rebuild" ]; then
++	rebuild=false
++	shift
++fi
++		
+ xcd() {
+ 	echo
+ 	echo --- cd $1
+@@ -21,9 +30,11 @@ maketest() {
+ 	do
+ 		(
+ 			xcd $i
+-			"$GOBIN"/gomake clean
+-			time "$GOBIN"/gomake
+-			"$GOBIN"/gomake install
++			if $rebuild; then
++				"$GOBIN"/gomake clean
++				time "$GOBIN"/gomake
++				"$GOBIN"/gomake install
++			fi
+ 			"$GOBIN"/gomake test
+ 		) || exit $?
+ 	done
+@@ -36,20 +47,26 @@ maketest \
+ # from what maketest does.
+ 
+ (xcd pkg/sync;
+-"$GOBIN"/gomake clean;
+-time "$GOBIN"/gomake
++if $rebuild; then
++	"$GOBIN"/gomake clean;
++	time "$GOBIN"/gomake
++fi
+ GOMAXPROCS=10 "$GOBIN"/gomake test
+ ) || exit $?
+ 
+ (xcd cmd/gofmt
+-"$GOBIN"/gomake clean
+-time "$GOBIN"/gomake
++if $rebuild; then
++	"$GOBIN"/gomake clean;
++	time "$GOBIN"/gomake
++fi
+ time "$GOBIN"/gomake smoketest
+ ) || exit $?
+ 
+ (xcd cmd/ebnflint
+-"$GOBIN"/gomake clean
+-time "$GOBIN"/gomake
++if $rebuild; then
++	"$GOBIN"/gomake clean;
++	time "$GOBIN"/gomake
++fi
+ time "$GOBIN"/gomake test
+ ) || exit $?
+ 

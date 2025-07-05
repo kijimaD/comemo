@@ -9,6 +9,20 @@ Date:   Thu Apr 14 14:07:59 2016 -0400
     Change-Id: I8e7144b6a11d4ae9be0d82d88b86fed04b906e2f
     Reviewed-on: https://go-review.googlesource.com/22087
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  test/init1.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/init1.go b/test/init1.go
+index 62dfb72bf9..a008e3e134 100644
+--- a/test/init1.go
++++ b/test/init1.go
+@@ -40,7 +40,7 @@ func init() {
+ 	sys1, numGC1 := memstats.Sys, memstats.NumGC
+ 	if sys1-sys >= N*MB || numGC1 == numGC {
+ 		println("allocated 1000 chunks of", MB, "and used ", sys1-sys, "memory")
+-		println("numGC went", numGC, "to", numGC)
++		println("numGC went", numGC, "to", numGC1)
+ 		panic("init1")
+ 	}
+ }

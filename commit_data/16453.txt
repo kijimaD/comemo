@@ -7,7 +7,7 @@ Date:   Fri May 31 15:53:26 2013 -0700
     R=golang-dev, r, bradfitz
     CC=golang-dev
     https://golang.org/cl/8651043
-
+---
  src/lib9/utf/rune.c     | 2 --
  src/lib9/utf/utfecpy.c  | 2 +-
  src/lib9/utf/utflen.c   | 2 --
@@ -16,3 +16,92 @@ Date:   Fri May 31 15:53:26 2013 -0700
  src/lib9/utf/utfrune.c  | 1 -
  src/lib9/utf/utfutf.c   | 1 -
  7 files changed, 1 insertion(+), 10 deletions(-)
+
+diff --git a/src/lib9/utf/rune.c b/src/lib9/utf/rune.c
+index 818771cfd9..913b786daa 100644
+--- a/src/lib9/utf/rune.c
++++ b/src/lib9/utf/rune.c
+@@ -12,8 +12,6 @@
+  * REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING THE MERCHANTABILITY
+  * OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
+  */
+-#include <stdarg.h>
+-#include <string.h>
+ #include "utf.h"
+ #include "utfdef.h"
+ 
+diff --git a/src/lib9/utf/utfecpy.c b/src/lib9/utf/utfecpy.c
+index d6dc091c44..76fb571d32 100644
+--- a/src/lib9/utf/utfecpy.c
++++ b/src/lib9/utf/utfecpy.c
+@@ -11,7 +11,7 @@
+  * REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING THE MERCHANTABILITY
+  * OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
+  */
+-#include <stdarg.h>
++#define _BSD_SOURCE 1
+ #include <string.h>
+ #include "utf.h"
+ #include "utfdef.h"
+diff --git a/src/lib9/utf/utflen.c b/src/lib9/utf/utflen.c
+index 45653d540c..843e6773fc 100644
+--- a/src/lib9/utf/utflen.c
++++ b/src/lib9/utf/utflen.c
+@@ -11,8 +11,6 @@
+  * REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING THE MERCHANTABILITY
+  * OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
+  */
+-#include <stdarg.h>
+-#include <string.h>
+ #include "utf.h"
+ #include "utfdef.h"
+ 
+diff --git a/src/lib9/utf/utfnlen.c b/src/lib9/utf/utfnlen.c
+index d673c82904..4b02e6a333 100644
+--- a/src/lib9/utf/utfnlen.c
++++ b/src/lib9/utf/utfnlen.c
+@@ -11,8 +11,6 @@
+  * REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING THE MERCHANTABILITY
+  * OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
+  */
+-#include <stdarg.h>
+-#include <string.h>
+ #include "utf.h"
+ #include "utfdef.h"
+ 
+diff --git a/src/lib9/utf/utfrrune.c b/src/lib9/utf/utfrrune.c
+index 95d2a9d8af..2273ec5517 100644
+--- a/src/lib9/utf/utfrrune.c
++++ b/src/lib9/utf/utfrrune.c
+@@ -11,7 +11,6 @@
+  * REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING THE MERCHANTABILITY
+  * OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
+  */
+-#include <stdarg.h>
+ #include <string.h>
+ #include "utf.h"
+ #include "utfdef.h"
+diff --git a/src/lib9/utf/utfrune.c b/src/lib9/utf/utfrune.c
+index b4017d26c6..863a1846f3 100644
+--- a/src/lib9/utf/utfrune.c
++++ b/src/lib9/utf/utfrune.c
+@@ -11,7 +11,6 @@
+  * REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING THE MERCHANTABILITY
+  * OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
+  */
+-#include <stdarg.h>
+ #include <string.h>
+ #include "utf.h"
+ #include "utfdef.h"
+diff --git a/src/lib9/utf/utfutf.c b/src/lib9/utf/utfutf.c
+index ec49231656..79098535ba 100644
+--- a/src/lib9/utf/utfutf.c
++++ b/src/lib9/utf/utfutf.c
+@@ -11,7 +11,6 @@
+  * REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING THE MERCHANTABILITY
+  * OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
+  */
+-#include <stdarg.h>
+ #include <string.h>
+ #include "utf.h"
+ #include "utfdef.h"

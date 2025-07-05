@@ -11,7 +11,47 @@ Date:   Mon Sep 22 17:48:13 2014 -0700
     R=golang-codereviews, adg
     CC=golang-codereviews
     https://golang.org/cl/142460043
-
+---
  src/text/template/exec.go      | 2 ++
  src/text/template/exec_test.go | 8 ++++++++
  2 files changed, 10 insertions(+)
+
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index 8e155d478e..f6eed662b7 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -636,6 +636,8 @@ func (s *state) evalArg(dot reflect.Value, typ reflect.Type, n parse.Node) refle
+ 		return s.validateType(s.evalPipeline(dot, arg), typ)
+ 	case *parse.IdentifierNode:
+ 		return s.evalFunction(dot, arg, arg, nil, zero)
++	case *parse.ChainNode:
++		return s.validateType(s.evalChainNode(dot, arg, nil, zero), typ)
+ 	}
+ 	switch typ.Kind() {
+ 	case reflect.Bool:
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index 3bffcc1599..e2cf2d3705 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -176,6 +176,12 @@ func (t *T) Method3(v interface{}) string {
+ 	return fmt.Sprintf("Method3: %v", v)
+ }
+ 
++func (t *T) Copy() *T {
++	n := new(T)
++	*n = *t
++	return n
++}
++
+ func (t *T) MAdd(a int, b []int) []int {
+ 	v := make([]int, len(b))
+ 	for i, x := range b {
+@@ -519,6 +525,8 @@ var execTests = []execTest{
+ 	{"bug12xE", "{{printf `%T` 0xEE}}", "int", T{}, true},
+ 	{"bug12Xe", "{{printf `%T` 0Xef}}", "int", T{}, true},
+ 	{"bug12XE", "{{printf `%T` 0XEE}}", "int", T{}, true},
++	// Chained nodes did not work as arguments. Issue 8473.
++	{"bug13", "{{print (.Copy).I}}", "17", tVal, true},
+ }
+ 
+ func zeroArgs() string {

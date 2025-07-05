@@ -23,7 +23,102 @@ Date:   Wed Oct 14 16:03:48 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/signal_unix.go    | 11 +++++++++++
  src/syscall/exec_unix_test.go | 45 +++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 56 insertions(+)
+
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index a3d6f34c88..c228de47b4 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -356,6 +356,13 @@ func preemptM(mp *m) {
+ 		// required).
+ 		return
+ 	}
++
++	// On Darwin, don't try to preempt threads during exec.
++	// Issue #41702.
++	if GOOS == "darwin" {
++		execLock.rlock()
++	}
++
+ 	if atomic.Cas(&mp.signalPending, 0, 1) {
+ 		// If multiple threads are preempting the same M, it may send many
+ 		// signals to the same M such that it hardly make progress, causing
+@@ -364,6 +371,10 @@ func preemptM(mp *m) {
+ 		// Only send a signal if there isn't already one pending.
+ 		signalM(mp, sigPreempt)
+ 	}
++
++	if GOOS == "darwin" {
++		execLock.runlock()
++	}
+ }
+ 
+ // sigFetchG fetches the value of G safely when running in a signal handler.
+diff --git a/src/syscall/exec_unix_test.go b/src/syscall/exec_unix_test.go
+index 4eb3c5c6c8..d005bba610 100644
+--- a/src/syscall/exec_unix_test.go
++++ b/src/syscall/exec_unix_test.go
+@@ -9,11 +9,14 @@ package syscall_test
+ import (
+ 	"internal/testenv"
+ 	"io"
++	"math/rand"
+ 	"os"
+ 	"os/exec"
+ 	"os/signal"
++	"runtime"
+ 	"syscall"
+ 	"testing"
++	"time"
+ 	"unsafe"
+ )
+ 
+@@ -241,3 +244,45 @@ func TestInvalidExec(t *testing.T) {
+ 		}
+ 	})
+ }
++
++// TestExec is for issue #41702.
++func TestExec(t *testing.T) {
++	cmd := exec.Command(os.Args[0], "-test.run=TestExecHelper")
++	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=2")
++	o, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Errorf("%s\n%v", o, err)
++	}
++}
++
++// TestExecHelper is used by TestExec. It does nothing by itself.
++// In testing on macOS 10.14, this used to fail with
++// "signal: illegal instruction" more than half the time.
++func TestExecHelper(t *testing.T) {
++	if os.Getenv("GO_WANT_HELPER_PROCESS") != "2" {
++		return
++	}
++
++	// We don't have to worry about restoring these values.
++	// We are in a child process that only runs this test,
++	// and we are going to call syscall.Exec anyhow.
++	runtime.GOMAXPROCS(50)
++	os.Setenv("GO_WANT_HELPER_PROCESS", "3")
++
++	stop := time.Now().Add(time.Second)
++	for i := 0; i < 100; i++ {
++		go func(i int) {
++			r := rand.New(rand.NewSource(int64(i)))
++			for time.Now().Before(stop) {
++				r.Uint64()
++			}
++		}(i)
++	}
++
++	time.Sleep(10 * time.Millisecond)
++
++	argv := []string{os.Args[0], "-test.run=TestExecHelper"}
++	syscall.Exec(os.Args[0], argv, os.Environ())
++
++	t.Error("syscall.Exec returned")
++}

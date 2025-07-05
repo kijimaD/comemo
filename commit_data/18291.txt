@@ -7,6 +7,22 @@ Date:   Sat Jan 18 16:02:59 2014 +0900
     R=r
     CC=golang-codereviews
     https://golang.org/cl/54040043
-
+---
  src/pkg/syscall/rlimit_unix_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/syscall/rlimit_unix_test.go b/src/pkg/syscall/rlimit_unix_test.go
+index e84d62ad6f..fc9b02609c 100644
+--- a/src/pkg/syscall/rlimit_unix_test.go
++++ b/src/pkg/syscall/rlimit_unix_test.go
+@@ -36,8 +36,8 @@ func TestRlimit(t *testing.T) {
+ 	set.Cur = set.Max - 1
+ 	if set != get {
+ 		// Seems like Darwin requires some privilege to
+-		// increse the soft limit of rlimit sandbox, though
+-		// Setrlimit never reports error.
++		// increase the soft limit of rlimit sandbox, though
++		// Setrlimit never reports an error.
+ 		switch runtime.GOOS {
+ 		case "darwin":
+ 		default:

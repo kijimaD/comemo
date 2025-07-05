@@ -7,9 +7,212 @@ Date:   Sun May 3 15:17:03 2009 -0700
     R=r
     OCL=28201
     CL=28201
-
+---
  src/cmd/6g/cgen.c  | 11 +++++------
  src/cmd/6g/gen.c   | 26 +++++++++++++++-----------
  src/cmd/6g/gg.h    |  2 +-
  src/cmd/6g/gsubr.c | 37 +++++++++++++++++++++++++++++++++----
  4 files changed, 54 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index a2fbea43ec..d12bbef688 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -72,8 +72,8 @@ cgen(Node *n, Node *res)
+ 			break;
+ 		}
+ 
+-		if(sudoaddable(res, &addr)) {
+-			a = optoas(OAS, res->type);
++		a = optoas(OAS, res->type);
++		if(sudoaddable(a, res, &addr)) {
+ 			if(f) {
+ 				regalloc(&n2, res->type, N);
+ 				cgen(n, &n2);
+@@ -112,8 +112,8 @@ cgen(Node *n, Node *res)
+ 		goto ret;
+ 	}
+ 
+-	if(sudoaddable(n, &addr)) {
+-		a = optoas(OAS, n->type);
++	a = optoas(OAS, n->type);
++	if(sudoaddable(a, n, &addr)) {
+ 		if(res->op == OREGISTER) {
+ 			p1 = gins(a, N, res);
+ 			p1->from = addr;
+@@ -309,7 +309,7 @@ abop:	// asymmetric binary
+ 		regalloc(&n1, nl->type, res);
+ 		cgen(nl, &n1);
+ 
+-		if(sudoaddable(nr, &addr)) {
++		if(sudoaddable(a, nr, &addr)) {
+ 			p1 = gins(a, N, &n1);
+ 			p1->from = addr;
+ 			gmove(&n1, res);
+@@ -317,7 +317,6 @@ abop:	// asymmetric binary
+ 			regfree(&n1);
+ 			goto ret;
+ 		}
+-
+ 		regalloc(&n2, nr->type, N);
+ 		cgen(nr, &n2);
+ 	} else {
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index cdb76bc693..8f083ad299 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -335,6 +335,7 @@ cgen_asop(Node *n)
+ 	Node *nl, *nr;
+ 	Prog *p1;
+ 	Addr addr;
++	int a;
+ 
+ 	nl = n->left;
+ 	nr = n->right;
+@@ -357,12 +358,13 @@ cgen_asop(Node *n)
+ 	case OADD:
+ 		if(smallintconst(nr))
+ 		if(mpgetfix(nr->val.u.xval) == 1) {
++			a = optoas(OINC, nl->type);
+ 			if(nl->addable) {
+-				gins(optoas(OINC, nl->type), N, nl);
++				gins(a, N, nl);
+ 				goto ret;
+ 			}
+-			if(sudoaddable(nl, &addr)) {
+-				p1 = gins(optoas(OINC, nl->type), N, N);
++			if(sudoaddable(a, nl, &addr)) {
++				p1 = gins(a, N, N);
+ 				p1->to = addr;
+ 				sudoclean();
+ 				goto ret;
+@@ -373,12 +375,13 @@ cgen_asop(Node *n)
+ 	case OSUB:
+ 		if(smallintconst(nr))
+ 		if(mpgetfix(nr->val.u.xval) == 1) {
++			a = optoas(ODEC, nl->type);
+ 			if(nl->addable) {
+-				gins(optoas(ODEC, nl->type), N, nl);
++				gins(a, N, nl);
+ 				goto ret;
+ 			}
+-			if(sudoaddable(nl, &addr)) {
+-				p1 = gins(optoas(ODEC, nl->type), N, N);
++			if(sudoaddable(a, nl, &addr)) {
++				p1 = gins(a, N, N);
+ 				p1->to = addr;
+ 				sudoclean();
+ 				goto ret;
+@@ -393,28 +396,29 @@ cgen_asop(Node *n)
+ 	case OXOR:
+ 	case OAND:
+ 	case OOR:
++		a = optoas(n->etype, nl->type);
+ 		if(nl->addable) {
+ 			if(smallintconst(nr)) {
+-				gins(optoas(n->etype, nl->type), nr, nl);
++				gins(a, nr, nl);
+ 				goto ret;
+ 			}
+ 			regalloc(&n2, nr->type, N);
+ 			cgen(nr, &n2);
+-			gins(optoas(n->etype, nl->type), &n2, nl);
++			gins(a, &n2, nl);
+ 			regfree(&n2);
+ 			goto ret;
+ 		}
+ 		if(nr->ullman < UINF)
+-		if(sudoaddable(nl, &addr)) {
++		if(sudoaddable(a, nl, &addr)) {
+ 			if(smallintconst(nr)) {
+-				p1 = gins(optoas(n->etype, nl->type), nr, N);
++				p1 = gins(a, nr, N);
+ 				p1->to = addr;
+ 				sudoclean();
+ 				goto ret;
+ 			}
+ 			regalloc(&n2, nr->type, N);
+ 			cgen(nr, &n2);
+-			p1 = gins(optoas(n->etype, nl->type), &n2, N);
++			p1 = gins(a, &n2, N);
+ 			p1->to = addr;
+ 			regfree(&n2);
+ 			sudoclean();
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 51619289f7..ed2e703dba 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -120,7 +120,7 @@ void	buildtxt(void);
+ Plist*	newplist(void);
+ int	isfat(Type*);
+ void	sudoclean(void);
+-int	sudoaddable(Node*, Addr*);
++int	sudoaddable(int, Node*, Addr*);
+ void	afunclit(Addr*);
+ 
+ /*
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 231caa6331..25a16a20e1 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -1756,11 +1756,11 @@ sudoclean(void)
+  * to release the register used for a.
+  */
+ int
+-sudoaddable(Node *n, Addr *a)
++sudoaddable(int as, Node *n, Addr *a)
+ {
+ 	int o, i, w;
+ 	int oary[10];
+-	vlong v;
++	int64 v;
+ 	Node n1, n2, n3, *nn, *l, *r;
+ 	Node *reg, *reg1;
+ 	Prog *p1;
+@@ -1770,8 +1770,13 @@ sudoaddable(Node *n, Addr *a)
+ 		return 0;
+ 
+ 	switch(n->op) {
+-	default:
+-		return 0;
++	case OLITERAL:
++		if(n->val.ctype != CTINT)
++			break;
++		v = mpgetfix(n->val.u.xval);
++		if(v >= 32000 || v <= -32000)
++			break;
++		goto lit;
+ 
+ 	case ODOT:
+ 	case ODOTPTR:
+@@ -1790,6 +1795,30 @@ sudoaddable(Node *n, Addr *a)
+ 		reg1->op = OEMPTY;
+ 		goto oindex;
+ 	}
++	return 0;
++
++lit:
++	switch(as) {
++	default:
++		return 0;
++	case AADDB: case AADDW: case AADDL: case AADDQ:
++	case ASUBB: case ASUBW: case ASUBL: case ASUBQ:
++	case AANDB: case AANDW: case AANDL: case AANDQ:
++	case AORB:  case AORW:  case AORL:  case AORQ:
++	case AXORB: case AXORW: case AXORL: case AXORQ:
++	case AINCB: case AINCW: case AINCL: case AINCQ:
++	case ADECB: case ADECW: case ADECL: case ADECQ:
++	case AMOVB: case AMOVW: case AMOVL: case AMOVQ:
++		break;
++	}
++
++	cleani += 2;
++	reg = &clean[cleani-1];
++	reg1 = &clean[cleani-2];
++	reg->op = OEMPTY;
++	reg1->op = OEMPTY;
++	naddr(n, a);
++	goto yes;
+ 
+ odot:
+ 	o = dotoffset(n, oary, &nn);

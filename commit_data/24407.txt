@@ -15,6 +15,24 @@ Date:   Mon Jul 27 18:02:45 2015 -0400
     Change-Id: I991525f46eca5b0750b93595579ebc0ff10e47eb
     Reviewed-on: https://go-review.googlesource.com/12723
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/test.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index bae6e04b53..668665053d 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -804,8 +804,10 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 		recompileForTest(pmain, p, ptest, testDir)
+ 	}
+ 
+-	if buildContext.GOOS == "darwin" && buildContext.GOARCH == "arm" {
+-		t.NeedCgo = true
++	if buildContext.GOOS == "darwin" {
++		if buildContext.GOARCH == "arm" || buildContext.GOARCH == "arm64" {
++			t.NeedCgo = true
++		}
+ 	}
+ 
+ 	for _, cp := range pmain.imports {

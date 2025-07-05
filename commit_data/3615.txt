@@ -8,6 +8,20 @@ Date:   Wed Oct 21 19:51:05 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=35964
     CL=35979
-
+---
  src/pkg/bytes/bytes.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index 564c42d4a8..6a36829e17 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -240,7 +240,7 @@ func ToLower(s []byte) []byte {
+ }
+ 
+ // ToTitle returns a copy of the byte array s with all Unicode letters mapped to their title case.
+-func Title(s []byte) []byte {
++func ToTitle(s []byte) []byte {
+ 	return Map(unicode.ToTitle, s);
+ }
+ 

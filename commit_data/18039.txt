@@ -7,6 +7,19 @@ Date:   Tue Dec 17 23:18:12 2013 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/14279043
-
+---
  src/pkg/flag/flag.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/flag/flag.go b/src/pkg/flag/flag.go
+index e7c863ee92..d3b454fefd 100644
+--- a/src/pkg/flag/flag.go
++++ b/src/pkg/flag/flag.go
+@@ -269,7 +269,6 @@ type FlagSet struct {
+ 	actual        map[string]*Flag
+ 	formal        map[string]*Flag
+ 	args          []string // arguments after flags
+-	exitOnError   bool     // does the program exit if there's an error?
+ 	errorHandling ErrorHandling
+ 	output        io.Writer // nil means stderr; use out() accessor
+ }

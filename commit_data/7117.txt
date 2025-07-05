@@ -15,7 +15,7 @@ Date:   Thu Jan 13 17:20:26 2011 -0800
     R=r, rsc, r2
     CC=golang-dev
     https://golang.org/cl/4001041
-
+---
  src/cmd/godoc/format.go            |  4 +++-
  src/cmd/godoc/index.go             |  3 ++-
  src/cmd/godoc/spec.go              |  3 ++-
@@ -25,3 +25,226 @@ Date:   Thu Jan 13 17:20:26 2011 -0800
  src/pkg/go/scanner/scanner.go      | 28 +++++++++++++++-------------
  src/pkg/go/scanner/scanner_test.go | 21 +++++++++++++--------
  8 files changed, 42 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/godoc/format.go b/src/cmd/godoc/format.go
+index c6fd90eeba..d789ed55bf 100644
+--- a/src/cmd/godoc/format.go
++++ b/src/cmd/godoc/format.go
+@@ -239,7 +239,9 @@ func lineSelection(text []byte) Selection {
+ //
+ func commentSelection(src []byte) Selection {
+ 	var s scanner.Scanner
+-	file := s.Init(token.NewFileSet(), "", src, nil, scanner.ScanComments+scanner.InsertSemis)
++	fset := token.NewFileSet()
++	file := fset.AddFile("", fset.Base(), len(src))
++	s.Init(file, src, nil, scanner.ScanComments+scanner.InsertSemis)
+ 	return func() (seg []int) {
+ 		for {
+ 			pos, tok, lit := s.Scan()
+diff --git a/src/cmd/godoc/index.go b/src/cmd/godoc/index.go
+index ba6fe9acde..0fe8c73b4a 100644
+--- a/src/cmd/godoc/index.go
++++ b/src/cmd/godoc/index.go
+@@ -817,7 +817,8 @@ func (x *Index) LookupWord(w string) (match *LookupResult, alt *AltWords) {
+ 
+ func isIdentifier(s string) bool {
+ 	var S scanner.Scanner
+-	S.Init(token.NewFileSet(), "", []byte(s), nil, 0)
++	fset := token.NewFileSet()
++	S.Init(fset.AddFile("", fset.Base(), len(s)), []byte(s), nil, 0)
+ 	if _, tok, _ := S.Scan(); tok == token.IDENT {
+ 		_, tok, _ := S.Scan()
+ 		return tok == token.EOF
+diff --git a/src/cmd/godoc/spec.go b/src/cmd/godoc/spec.go
+index b1c1a883f7..a533c1e0a0 100644
+--- a/src/cmd/godoc/spec.go
++++ b/src/cmd/godoc/spec.go
+@@ -156,7 +156,8 @@ func (p *ebnfParser) parse(fset *token.FileSet, out io.Writer, src []byte) {
+ 	// initialize ebnfParser
+ 	p.out = out
+ 	p.src = src
+-	p.file = p.scanner.Init(fset, "", src, p, 0)
++	p.file = fset.AddFile("", fset.Base(), len(src))
++	p.scanner.Init(p.file, src, p, 0)
+ 	p.next() // initializes pos, tok, lit
+ 
+ 	// process source
+diff --git a/src/pkg/ebnf/parser.go b/src/pkg/ebnf/parser.go
+index ef72d91fdc..c38530177a 100644
+--- a/src/pkg/ebnf/parser.go
++++ b/src/pkg/ebnf/parser.go
+@@ -177,7 +177,7 @@ func (p *parser) parse(fset *token.FileSet, filename string, src []byte) Grammar
+ 	// initialize parser
+ 	p.fset = fset
+ 	p.ErrorVector.Reset()
+-	p.scanner.Init(fset, filename, src, p, 0)
++	p.scanner.Init(fset.AddFile(filename, fset.Base(), len(src)), src, p, 0)
+ 	p.next() // initializes pos, tok, lit
+ 
+ 	grammar := make(Grammar)
+diff --git a/src/pkg/exp/datafmt/parser.go b/src/pkg/exp/datafmt/parser.go
+index a01378ea5a..c6d1402644 100644
+--- a/src/pkg/exp/datafmt/parser.go
++++ b/src/pkg/exp/datafmt/parser.go
+@@ -42,8 +42,9 @@ func (p *parser) next() {
+ 
+ func (p *parser) init(fset *token.FileSet, filename string, src []byte) {
+ 	p.ErrorVector.Reset()
+-	p.file = p.scanner.Init(fset, filename, src, p, scanner.AllowIllegalChars) // return '@' as token.ILLEGAL w/o error message
+-	p.next()                                                                   // initializes pos, tok, lit
++	p.file = fset.AddFile(filename, fset.Base(), len(src))
++	p.scanner.Init(p.file, src, p, scanner.AllowIllegalChars) // return '@' as token.ILLEGAL w/o error message
++	p.next()                                                  // initializes pos, tok, lit
+ 	p.packs = make(map[string]string)
+ 	p.rules = make(map[string]expr)
+ }
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 3b2fe45772..5487e87f27 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -69,8 +69,9 @@ func scannerMode(mode uint) uint {
+ }
+ 
+ 
+-func (p *parser) init(fset *token.FileSet, filename string, src []byte, mode uint) {
+-	p.file = p.scanner.Init(fset, filename, src, p, scannerMode(mode))
++func (p *parser) init(file *token.File, src []byte, mode uint) {
++	p.file = file
++	p.scanner.Init(p.file, src, p, scannerMode(mode))
+ 	p.mode = mode
+ 	p.trace = mode&Trace != 0 // for convenience (p.trace is used frequently)
+ 	p.next()
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index 6ce846cd8a..8c3205230e 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -96,24 +96,28 @@ const (
+ 	InsertSemis                   // automatically insert semicolons
+ )
+ 
+-// TODO(gri) Would it be better to simply provide *token.File to Init
+-//           instead of fset, and filename, and then return the file?
+-//           It could cause an error/panic if the provided file.Size()
+-//           doesn't match len(src).
+-
+-// Init prepares the scanner S to tokenize the text src. It sets the
+-// scanner at the beginning of the source text, adds a new file with
+-// the given filename to the file set fset, and returns that file.
++// Init prepares the scanner S to tokenize the text src by setting the
++// scanner at the beginning of src. The scanner uses the file set file
++// for position information and it adds line information for each line.
++// It is ok to re-use the same file when re-scanning the same file as
++// line information which is already present is ignored. Init causes a
++// panic if the file size does not match the src size.
+ //
+ // Calls to Scan will use the error handler err if they encounter a
+ // syntax error and err is not nil. Also, for each error encountered,
+ // the Scanner field ErrorCount is incremented by one. The mode parameter
+ // determines how comments, illegal characters, and semicolons are handled.
+ //
+-func (S *Scanner) Init(fset *token.FileSet, filename string, src []byte, err ErrorHandler, mode uint) *token.File {
++// Note that Init may call err if there is an error in the first character
++// of the file.
++//
++func (S *Scanner) Init(file *token.File, src []byte, err ErrorHandler, mode uint) {
+ 	// Explicitly initialize all fields since a scanner may be reused.
+-	S.file = fset.AddFile(filename, fset.Base(), len(src))
+-	S.dir, _ = path.Split(filename)
++	if file.Size() != len(src) {
++		panic("file size does not match src len")
++	}
++	S.file = file
++	S.dir, _ = path.Split(file.Name())
+ 	S.src = src
+ 	S.err = err
+ 	S.mode = mode
+@@ -126,8 +130,6 @@ func (S *Scanner) Init(fset *token.FileSet, filename string, src []byte, err Err
+ 	S.ErrorCount = 0
+ 
+ 	S.next()
+-
+-	return S.file
+ }
+ 
+ 
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index b1004f89d2..1c3b6728c2 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -228,7 +228,7 @@ func TestScan(t *testing.T) {
+ 
+ 	// verify scan
+ 	var s Scanner
+-	s.Init(fset, "", []byte(src), &testErrorHandler{t}, ScanComments)
++	s.Init(fset.AddFile("", fset.Base(), len(src)), []byte(src), &testErrorHandler{t}, ScanComments)
+ 	index := 0
+ 	epos := token.Position{"", 0, 1, 1} // expected position
+ 	for {
+@@ -273,7 +273,8 @@ func TestScan(t *testing.T) {
+ 
+ func checkSemi(t *testing.T, line string, mode uint) {
+ 	var S Scanner
+-	file := S.Init(fset, "TestSemis", []byte(line), nil, mode)
++	file := fset.AddFile("TestSemis", fset.Base(), len(line))
++	S.Init(file, []byte(line), nil, mode)
+ 	pos, tok, lit := S.Scan()
+ 	for tok != token.EOF {
+ 		if tok == token.ILLEGAL {
+@@ -476,7 +477,8 @@ func TestLineComments(t *testing.T) {
+ 
+ 	// verify scan
+ 	var S Scanner
+-	file := S.Init(fset, "dir/TestLineComments", []byte(src), nil, 0)
++	file := fset.AddFile("dir/TestLineComments", fset.Base(), len(src))
++	S.Init(file, []byte(src), nil, 0)
+ 	for _, s := range segments {
+ 		p, _, lit := S.Scan()
+ 		pos := file.Position(p)
+@@ -495,7 +497,8 @@ func TestInit(t *testing.T) {
+ 
+ 	// 1st init
+ 	src1 := "if true { }"
+-	f1 := s.Init(fset, "", []byte(src1), nil, 0)
++	f1 := fset.AddFile("src1", fset.Base(), len(src1))
++	s.Init(f1, []byte(src1), nil, 0)
+ 	if f1.Size() != len(src1) {
+ 		t.Errorf("bad file size: got %d, expected %d", f1.Size(), len(src1))
+ 	}
+@@ -508,7 +511,8 @@ func TestInit(t *testing.T) {
+ 
+ 	// 2nd init
+ 	src2 := "go true { ]"
+-	f2 := s.Init(fset, "", []byte(src2), nil, 0)
++	f2 := fset.AddFile("src2", fset.Base(), len(src2))
++	s.Init(f2, []byte(src2), nil, 0)
+ 	if f2.Size() != len(src2) {
+ 		t.Errorf("bad file size: got %d, expected %d", f2.Size(), len(src2))
+ 	}
+@@ -527,7 +531,8 @@ func TestIllegalChars(t *testing.T) {
+ 	var s Scanner
+ 
+ 	const src = "*?*$*@*"
+-	file := s.Init(fset, "", []byte(src), &testErrorHandler{t}, AllowIllegalChars)
++	file := fset.AddFile("", fset.Base(), len(src))
++	s.Init(file, []byte(src), &testErrorHandler{t}, AllowIllegalChars)
+ 	for offs, ch := range src {
+ 		pos, tok, lit := s.Scan()
+ 		if poffs := file.Offset(pos); poffs != offs {
+@@ -556,7 +561,7 @@ func TestStdErrorHander(t *testing.T) {
+ 
+ 	v := new(ErrorVector)
+ 	var s Scanner
+-	s.Init(fset, "File1", []byte(src), v, 0)
++	s.Init(fset.AddFile("File1", fset.Base(), len(src)), []byte(src), v, 0)
+ 	for {
+ 		if _, tok, _ := s.Scan(); tok == token.EOF {
+ 			break
+@@ -604,7 +609,7 @@ func (h *errorCollector) Error(pos token.Position, msg string) {
+ func checkError(t *testing.T, src string, tok token.Token, pos int, err string) {
+ 	var s Scanner
+ 	var h errorCollector
+-	s.Init(fset, "", []byte(src), &h, ScanComments)
++	s.Init(fset.AddFile("", fset.Base(), len(src)), []byte(src), &h, ScanComments)
+ 	_, tok0, _ := s.Scan()
+ 	_, tok1, _ := s.Scan()
+ 	if tok0 != tok {

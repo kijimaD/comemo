@@ -18,9 +18,227 @@ Date:   Thu Sep 10 15:48:23 2015 -0700
     Change-Id: I88c568f2b9c1a8408043b2ac5a78f5e2ffd62abd
     Reviewed-on: https://go-review.googlesource.com/14498
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/asm/internal/asm/asm.go          | 23 +++++++++++++++++++----
  src/cmd/asm/internal/asm/operand_test.go |  1 +
  src/cmd/asm/internal/asm/parse.go        | 17 ++++++++++++++---
  src/cmd/asm/internal/asm/pseudo_test.go  |  2 ++
  4 files changed, 36 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index e098961cc5..4c63b519f7 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -27,15 +27,18 @@ func (p *Parser) append(prog *obj.Prog, cond string, doLabel bool) {
+ 		case '5':
+ 			if !arch.ARMConditionCodes(prog, cond) {
+ 				p.errorf("unrecognized condition code .%q", cond)
++				return
+ 			}
+ 
+ 		case '7':
+ 			if !arch.ARM64Suffix(prog, cond) {
+ 				p.errorf("unrecognized suffix .%q", cond)
++				return
+ 			}
+ 
+ 		default:
+ 			p.errorf("unrecognized suffix .%q", cond)
++			return
+ 		}
+ 	}
+ 	if p.firstProg == nil {
+@@ -49,6 +52,7 @@ func (p *Parser) append(prog *obj.Prog, cond string, doLabel bool) {
+ 		for _, label := range p.pendingLabels {
+ 			if p.labels[label] != nil {
+ 				p.errorf("label %q multiply defined", label)
++				return
+ 			}
+ 			p.labels[label] = prog
+ 		}
+@@ -67,8 +71,7 @@ func (p *Parser) append(prog *obj.Prog, cond string, doLabel bool) {
+ func (p *Parser) validateSymbol(pseudo string, addr *obj.Addr, offsetOk bool) {
+ 	if addr.Name != obj.NAME_EXTERN && addr.Name != obj.NAME_STATIC || addr.Scale != 0 || addr.Reg != 0 {
+ 		p.errorf("%s symbol %q must be a symbol(SB)", pseudo, symbolName(addr))
+-	}
+-	if !offsetOk && addr.Offset != 0 {
++	} else if !offsetOk && addr.Offset != 0 {
+ 		p.errorf("%s symbol %q must not be offset from SB", pseudo, symbolName(addr))
+ 	}
+ }
+@@ -144,6 +147,7 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
+ 		// There is an argument size. It must be a minus sign followed by a non-negative integer literal.
+ 		if len(op) != 2 || op[0].ScanToken != '-' || op[1].ScanToken != scanner.Int {
+ 			p.errorf("TEXT %s: argument size must be of form -integer", name)
++			return
+ 		}
+ 		argSize = p.positiveAtoi(op[1].String())
+ 	}
+@@ -195,11 +199,13 @@ func (p *Parser) asmData(word string, operands [][]lex.Token) {
+ 		// OK
+ 	default:
+ 		p.errorf("DATA value must be an immediate constant or address")
++		return
+ 	}
+ 
+ 	// The addresses must not overlap. Easiest test: require monotonicity.
+ 	if lastAddr, ok := p.dataAddr[name]; ok && nameAddr.Offset < lastAddr {
+ 		p.errorf("overlapping DATA entry for %s", name)
++		return
+ 	}
+ 	p.dataAddr[name] = nameAddr.Offset + int64(scale)
+ 
+@@ -340,6 +346,7 @@ func (p *Parser) asmJump(op int, cond string, a []obj.Addr) {
+ 			reg, ok := p.arch.RegisterNumber("R", int16(reg))
+ 			if !ok {
+ 				p.errorf("bad register number %d", reg)
++				return
+ 			}
+ 			prog.Reg = reg
+ 			break
+@@ -390,6 +397,7 @@ func (p *Parser) asmJump(op int, cond string, a []obj.Addr) {
+ 		prog.To = a[0]
+ 	default:
+ 		p.errorf("cannot assemble jump %+v", target)
++		return
+ 	}
+ 
+ 	p.append(prog, cond, true)
+@@ -400,9 +408,9 @@ func (p *Parser) patch() {
+ 		targetProg := p.labels[patch.label]
+ 		if targetProg == nil {
+ 			p.errorf("undefined label %s", patch.label)
+-		} else {
+-			p.branch(patch.prog, targetProg)
++			return
+ 		}
++		p.branch(patch.prog, targetProg)
+ 	}
+ 	p.toPatch = p.toPatch[:0]
+ }
+@@ -468,6 +476,7 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
+ 					break
+ 				}
+ 				p.errorf("unrecognized addressing for %s", obj.Aconv(op))
++				return
+ 			}
+ 			if arch.IsARMFloatCmp(op) {
+ 				prog.From = a[0]
+@@ -506,6 +515,7 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
+ 				prog.To = a[1]
+ 				if a[2].Type != obj.TYPE_REG {
+ 					p.errorf("invalid addressing modes for third operand to %s instruction, must be register", obj.Aconv(op))
++					return
+ 				}
+ 				prog.RegTo2 = a[2].Reg
+ 				break
+@@ -541,9 +551,11 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
+ 				prog.To = a[2]
+ 			default:
+ 				p.errorf("invalid addressing modes for %s instruction", obj.Aconv(op))
++				return
+ 			}
+ 		default:
+ 			p.errorf("TODO: implement three-operand instructions for this architecture")
++			return
+ 		}
+ 	case 4:
+ 		if p.arch.Thechar == '5' && arch.IsARMMULA(op) {
+@@ -577,6 +589,7 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
+ 			break
+ 		}
+ 		p.errorf("can't handle %s instruction with 4 operands", obj.Aconv(op))
++		return
+ 	case 5:
+ 		if p.arch.Thechar == '9' && arch.IsPPC64RLD(op) {
+ 			// Always reg, reg, con, con, reg.  (con, con is a 'mask').
+@@ -598,6 +611,7 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
+ 			break
+ 		}
+ 		p.errorf("can't handle %s instruction with 5 operands", obj.Aconv(op))
++		return
+ 	case 6:
+ 		if p.arch.Thechar == '5' && arch.IsARMMRC(op) {
+ 			// Strange special case: MCR, MRC.
+@@ -621,6 +635,7 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
+ 		fallthrough
+ 	default:
+ 		p.errorf("can't handle %s instruction with %d operands", obj.Aconv(op), len(a))
++		return
+ 	}
+ 
+ 	p.append(prog, cond, true)
+diff --git a/src/cmd/asm/internal/asm/operand_test.go b/src/cmd/asm/internal/asm/operand_test.go
+index d196574a95..0f8271b5f8 100644
+--- a/src/cmd/asm/internal/asm/operand_test.go
++++ b/src/cmd/asm/internal/asm/operand_test.go
+@@ -293,6 +293,7 @@ var armOperandTests = []operandTest{
+ 	{"[R0,R1,g,R15", ""}, // Issue 11764 - asm hung parsing ']' missing register lists.
+ 	{"[):[o-FP", ""},     // Issue 12469 - there was no infinite loop for ARM; these are just sanity checks.
+ 	{"[):[R0-FP", ""},
++	{"(", ""}, // Issue 12466 - backed up before beginning of line.
+ }
+ 
+ var ppc64OperandTests = []operandTest{
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index 7d81d4b7d1..b38b53db70 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -155,6 +155,7 @@ func (p *Parser) line() bool {
+ 					// Remember this location so we can swap the operands below.
+ 					if colon >= 0 {
+ 						p.errorf("invalid ':' in operand")
++						return true
+ 					}
+ 					colon = len(operands)
+ 				}
+@@ -338,8 +339,13 @@ func (p *Parser) operand(a *obj.Addr) bool {
+ 	case scanner.Int, scanner.Float, scanner.String, scanner.Char, '+', '-', '~':
+ 		haveConstant = true
+ 	case '(':
+-		// Could be parenthesized expression or (R).
+-		rname := p.next().String()
++		// Could be parenthesized expression or (R). Must be something, though.
++		tok := p.next()
++		if tok.ScanToken == scanner.EOF {
++			p.errorf("missing right parenthesis")
++			return false
++		}
++		rname := tok.String()
+ 		p.back()
+ 		haveConstant = !p.atStartOfRegister(rname)
+ 		if !haveConstant {
+@@ -361,6 +367,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
+ 		if p.have(scanner.String) {
+ 			if prefix != '$' {
+ 				p.errorf("string constant must be an immediate")
++				return false
+ 			}
+ 			str, err := strconv.Unquote(p.get(scanner.String).String())
+ 			if err != nil {
+@@ -952,7 +959,11 @@ func (p *Parser) next() lex.Token {
+ }
+ 
+ func (p *Parser) back() {
+-	p.inputPos--
++	if p.inputPos == 0 {
++		p.errorf("internal error: backing up before BOL")
++	} else {
++		p.inputPos--
++	}
+ }
+ 
+ func (p *Parser) peek() lex.ScanToken {
+diff --git a/src/cmd/asm/internal/asm/pseudo_test.go b/src/cmd/asm/internal/asm/pseudo_test.go
+index df1adc525a..ee13b724eb 100644
+--- a/src/cmd/asm/internal/asm/pseudo_test.go
++++ b/src/cmd/asm/internal/asm/pseudo_test.go
+@@ -35,6 +35,8 @@ func TestErroneous(t *testing.T) {
+ 		{"TEXT", "%", "expect two or three operands for TEXT"},
+ 		{"TEXT", "1, 1", "TEXT symbol \"<erroneous symbol>\" must be a symbol(SB)"},
+ 		{"TEXT", "$\"foo\", 0, $1", "TEXT symbol \"<erroneous symbol>\" must be a symbol(SB)"},
++		{"TEXT", "$0É:0, 0, $1", "expected EOF, found É"},   // Issue #12467.
++		{"TEXT", "$:0:(SB, 0, $1", "expected '(', found 0"}, // Issue 12468.
+ 		{"FUNCDATA", "", "expect two operands for FUNCDATA"},
+ 		{"FUNCDATA", "(SB ", "expect two operands for FUNCDATA"},
+ 		{"DATA", "", "expect two operands for DATA"},

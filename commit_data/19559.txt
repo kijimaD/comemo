@@ -10,7 +10,48 @@ Date:   Tue Jun 17 09:17:33 2014 -0700
     R=golang-codereviews
     CC=golang-codereviews
     https://golang.org/cl/106060044
-
+---
  src/pkg/runtime/export_test.go |  2 +-
  src/pkg/runtime/string_test.go | 10 +++++-----
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/runtime/export_test.go b/src/pkg/runtime/export_test.go
+index 72d4e11086..4f29106c55 100644
+--- a/src/pkg/runtime/export_test.go
++++ b/src/pkg/runtime/export_test.go
+@@ -91,6 +91,6 @@ func gogoBytes() int32
+ 
+ var GogoBytes = gogoBytes
+ 
+-func gostringW([]byte) string
++func gostringW([]uint16) string
+ 
+ var GostringW = gostringW
+diff --git a/src/pkg/runtime/string_test.go b/src/pkg/runtime/string_test.go
+index cd253b2349..9ed579235d 100644
+--- a/src/pkg/runtime/string_test.go
++++ b/src/pkg/runtime/string_test.go
+@@ -104,18 +104,18 @@ func BenchmarkRuneIterate2(b *testing.B) {
+ func TestStringW(t *testing.T) {
+ 	strings := []string{
+ 		"hello",
+-		//"a\u5566\u7788b",
++		"a\u5566\u7788b",
+ 	}
+ 
+ 	for _, s := range strings {
+-		var b []byte
++		var b []uint16
+ 		for _, c := range s {
+-			b = append(b, byte(c&255))
+-			b = append(b, byte(c>>8))
+-			if c>>16 != 0 {
++			b = append(b, uint16(c))
++			if c != rune(uint16(c)) {
+ 				t.Errorf("bad test: stringW can't handle >16 bit runes")
+ 			}
+ 		}
++		b = append(b, 0)
+ 		r := runtime.GostringW(b)
+ 		if r != s {
+ 			t.Errorf("gostringW(%v) = %s, want %s", b, r, s)

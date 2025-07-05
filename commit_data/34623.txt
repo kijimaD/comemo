@@ -14,10 +14,222 @@ Date:   Thu Nov 2 13:38:08 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/go/go_test.go                   | 12 ++++++++++-
  src/cmd/go/internal/cache/cache.go      | 20 +++++++++++++++----
  src/cmd/go/internal/cache/cache_test.go |  8 ++++----
  src/cmd/go/internal/cache/hash.go       | 35 ++++++++++++++++++++++++++++++++-
  src/cmd/go/internal/test/test.go        |  4 ++++
  5 files changed, 69 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 2978659019..6048dc97c5 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2644,7 +2644,8 @@ func main() {
+ 	tg.run("run", tg.path("foo.go"))
+ }
+ 
+-// "go test -c -test.bench=XXX errors" should not hang
++// "go test -c -test.bench=XXX errors" should not hang.
++// "go test -c" should also produce reproducible binaries.
+ func TestIssue6480(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -2652,6 +2653,15 @@ func TestIssue6480(t *testing.T) {
+ 	tg.makeTempdir()
+ 	tg.cd(tg.path("."))
+ 	tg.run("test", "-c", "-test.bench=XXX", "errors")
++	tg.run("test", "-c", "-o", "errors2.test", "errors")
++
++	data1, err := ioutil.ReadFile("errors.test" + exeSuffix)
++	tg.must(err)
++	data2, err := ioutil.ReadFile("errors2.test") // no exeSuffix because -o above doesn't have it
++	tg.must(err)
++	if !bytes.Equal(data1, data2) {
++		t.Fatalf("go test -c errors produced different binaries when run twice")
++	}
+ }
+ 
+ // cmd/cgo: undefined reference when linking a C-library using gccgo
+diff --git a/src/cmd/go/internal/cache/cache.go b/src/cmd/go/internal/cache/cache.go
+index a861ff2862..4f56c89245 100644
+--- a/src/cmd/go/internal/cache/cache.go
++++ b/src/cmd/go/internal/cache/cache.go
+@@ -196,7 +196,7 @@ func (c *Cache) OutputFile(out OutputID) string {
+ 
+ // putIndexEntry adds an entry to the cache recording that executing the action
+ // with the given id produces an output with the given output id (hash) and size.
+-func (c *Cache) putIndexEntry(id ActionID, out OutputID, size int64) error {
++func (c *Cache) putIndexEntry(id ActionID, out OutputID, size int64, allowVerify bool) error {
+ 	// Note: We expect that for one reason or another it may happen
+ 	// that repeating an action produces a different output hash
+ 	// (for example, if the output contains a time stamp or temp dir name).
+@@ -209,10 +209,10 @@ func (c *Cache) putIndexEntry(id ActionID, out OutputID, size int64) error {
+ 	// are entirely reproducible. As just noted, this may be unrealistic
+ 	// in some cases but the check is also useful for shaking out real bugs.
+ 	entry := []byte(fmt.Sprintf("v1 %x %x %20d\n", id, out, size))
+-	if verify {
++	if verify && allowVerify {
+ 		oldOut, oldSize, err := c.get(id)
+ 		if err == nil && (oldOut != out || oldSize != size) {
+-			fmt.Fprintf(os.Stderr, "go: internal cache error: id=%x changed:\nold: %x %d\nnew: %x %d\n", id, out, size, oldOut, oldSize)
++			fmt.Fprintf(os.Stderr, "go: internal cache error: id=%x changed:<<<\n%s\n>>>\nold: %x %d\nnew: %x %d\n", id, reverseHash(id), out, size, oldOut, oldSize)
+ 			// panic to show stack trace, so we can see what code is generating this cache entry.
+ 			panic("cache verify failed")
+ 		}
+@@ -230,6 +230,18 @@ func (c *Cache) putIndexEntry(id ActionID, out OutputID, size int64) error {
+ // Put stores the given output in the cache as the output for the action ID.
+ // It may read file twice. The content of file must not change between the two passes.
+ func (c *Cache) Put(id ActionID, file io.ReadSeeker) (OutputID, int64, error) {
++	return c.put(id, file, true)
++}
++
++// PutNoVerify is like Put but disables the verify check
++// when GODEBUG=goverifycache=1 is set.
++// It is meant for data that is OK to cache but that we expect to vary slightly from run to run,
++// like test output containing times and the like.
++func (c *Cache) PutNoVerify(id ActionID, file io.ReadSeeker) (OutputID, int64, error) {
++	return c.put(id, file, false)
++}
++
++func (c *Cache) put(id ActionID, file io.ReadSeeker, allowVerify bool) (OutputID, int64, error) {
+ 	// Compute output ID.
+ 	h := sha256.New()
+ 	if _, err := file.Seek(0, 0); err != nil {
+@@ -248,7 +260,7 @@ func (c *Cache) Put(id ActionID, file io.ReadSeeker) (OutputID, int64, error) {
+ 	}
+ 
+ 	// Add to cache index.
+-	return out, size, c.putIndexEntry(id, out, size)
++	return out, size, c.putIndexEntry(id, out, size, allowVerify)
+ }
+ 
+ // PutBytes stores the given bytes in the cache as the output for the action ID.
+diff --git a/src/cmd/go/internal/cache/cache_test.go b/src/cmd/go/internal/cache/cache_test.go
+index d4320fb133..7c8383ad27 100644
+--- a/src/cmd/go/internal/cache/cache_test.go
++++ b/src/cmd/go/internal/cache/cache_test.go
+@@ -37,10 +37,10 @@ func TestBasic(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("Open(c1) (create): %v", err)
+ 	}
+-	if err := c1.putIndexEntry(dummyID(1), dummyID(12), 13); err != nil {
++	if err := c1.putIndexEntry(dummyID(1), dummyID(12), 13, true); err != nil {
+ 		t.Fatalf("addIndexEntry: %v", err)
+ 	}
+-	if err := c1.putIndexEntry(dummyID(1), dummyID(2), 3); err != nil { // overwrite entry
++	if err := c1.putIndexEntry(dummyID(1), dummyID(2), 3, true); err != nil { // overwrite entry
+ 		t.Fatalf("addIndexEntry: %v", err)
+ 	}
+ 	if out, size, err := c1.Get(dummyID(1)); err != nil || out != dummyID(2) || size != 3 {
+@@ -54,7 +54,7 @@ func TestBasic(t *testing.T) {
+ 	if out, size, err := c2.Get(dummyID(1)); err != nil || out != dummyID(2) || size != 3 {
+ 		t.Fatalf("c2.Get(1) = %x, %v, %v, want %x, %v, nil", out[:], size, err, dummyID(2), 3)
+ 	}
+-	if err := c2.putIndexEntry(dummyID(2), dummyID(3), 4); err != nil {
++	if err := c2.putIndexEntry(dummyID(2), dummyID(3), 4, true); err != nil {
+ 		t.Fatalf("addIndexEntry: %v", err)
+ 	}
+ 	if out, size, err := c1.Get(dummyID(2)); err != nil || out != dummyID(3) || size != 4 {
+@@ -80,7 +80,7 @@ func TestGrowth(t *testing.T) {
+ 	}
+ 
+ 	for i := 0; i < n; i++ {
+-		if err := c.putIndexEntry(dummyID(i), dummyID(i*99), int64(i)*101); err != nil {
++		if err := c.putIndexEntry(dummyID(i), dummyID(i*99), int64(i)*101, true); err != nil {
+ 			t.Fatalf("addIndexEntry: %v", err)
+ 		}
+ 		id := ActionID(dummyID(i))
+diff --git a/src/cmd/go/internal/cache/hash.go b/src/cmd/go/internal/cache/hash.go
+index 937814510c..7f1dc4dd70 100644
+--- a/src/cmd/go/internal/cache/hash.go
++++ b/src/cmd/go/internal/cache/hash.go
+@@ -5,6 +5,7 @@
+ package cache
+ 
+ import (
++	"bytes"
+ 	"crypto/sha256"
+ 	"fmt"
+ 	"hash"
+@@ -23,7 +24,8 @@ const HashSize = 32
+ // The current implementation uses salted SHA256, but clients must not assume this.
+ type Hash struct {
+ 	h    hash.Hash
+-	name string // for debugging
++	name string        // for debugging
++	buf  *bytes.Buffer // for verify
+ }
+ 
+ // hashSalt is a salt string added to the beginning of every hash
+@@ -44,6 +46,9 @@ func NewHash(name string) *Hash {
+ 		fmt.Fprintf(os.Stderr, "HASH[%s]\n", h.name)
+ 	}
+ 	h.Write(hashSalt)
++	if verify {
++		h.buf = new(bytes.Buffer)
++	}
+ 	return h
+ }
+ 
+@@ -52,6 +57,9 @@ func (h *Hash) Write(b []byte) (int, error) {
+ 	if debugHash {
+ 		fmt.Fprintf(os.Stderr, "HASH[%s]: %q\n", h.name, b)
+ 	}
++	if h.buf != nil {
++		h.buf.Write(b)
++	}
+ 	return h.h.Write(b)
+ }
+ 
+@@ -62,9 +70,34 @@ func (h *Hash) Sum() [HashSize]byte {
+ 	if debugHash {
+ 		fmt.Fprintf(os.Stderr, "HASH[%s]: %x\n", h.name, out)
+ 	}
++	if h.buf != nil {
++		hashDebug.Lock()
++		if hashDebug.m == nil {
++			hashDebug.m = make(map[[HashSize]byte]string)
++		}
++		hashDebug.m[out] = h.buf.String()
++		hashDebug.Unlock()
++	}
+ 	return out
+ }
+ 
++// In GODEBUG=gocacheverify=1 mode,
++// hashDebug holds the input to every computed hash ID,
++// so that we can work backward from the ID involved in a
++// cache entry mismatch to a description of what should be there.
++var hashDebug struct {
++	sync.Mutex
++	m map[[HashSize]byte]string
++}
++
++// reverseHash returns the input used to compute the hash id.
++func reverseHash(id [HashSize]byte) string {
++	hashDebug.Lock()
++	s := hashDebug.m[id]
++	hashDebug.Unlock()
++	return s
++}
++
+ var hashFileCache struct {
+ 	sync.Mutex
+ 	m map[string][HashSize]byte
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 1497c1323c..62a5be9ef2 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -887,6 +887,10 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
+ 		}
+ 	}
+ 
++	// Set compile objdir to testDir we've already created,
++	// so that the default file path stripping applies to _testmain.go.
++	b.CompileAction(work.ModeBuild, work.ModeBuild, pmain).Objdir = testDir
++
+ 	a := b.LinkAction(work.ModeBuild, work.ModeBuild, pmain)
+ 	a.Target = testDir + testBinary + cfg.ExeSuffix
+ 	if cfg.Goos == "windows" {

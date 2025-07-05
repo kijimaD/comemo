@@ -7,7 +7,7 @@ Date:   Thu Apr 14 13:31:37 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4406048
-
+---
  src/cmd/6g/reg.c         | 2 --
  src/cmd/6l/asm.c         | 4 +---
  src/cmd/6l/obj.c         | 3 +--
@@ -21,3 +21,295 @@ Date:   Thu Apr 14 13:31:37 2011 -0700
  src/cmd/ld/lib.c         | 3 +--
  src/libmach/executable.c | 2 --
  12 files changed, 7 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index 1e1d64c59e..ed8bac3f0b 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -1193,7 +1193,6 @@ void
+ paint1(Reg *r, int bn)
+ {
+ 	Reg *r1;
+-	Prog *p;
+ 	int z;
+ 	uint32 bb;
+ 
+@@ -1219,7 +1218,6 @@ paint1(Reg *r, int bn)
+ 	}
+ 	for(;;) {
+ 		r->act.b[z] |= bb;
+-		p = r->prog;
+ 
+ 		if(r->use1.b[z] & bb) {
+ 			change += CREF * r->loop;
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index ba2074fde0..03bc411f82 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -681,7 +681,7 @@ asmb(void)
+ {
+ 	int32 magic;
+ 	int a, dynsym;
+-	vlong vl, va, startva, fo, w, symo, elfsymo, elfstro, elfsymsize, machlink;
++	vlong vl, startva, fo, symo, elfsymo, elfstro, elfsymsize, machlink;
+ 	ElfEhdr *eh;
+ 	ElfPhdr *ph, *pph;
+ 	ElfShdr *sh;
+@@ -848,8 +848,6 @@ asmb(void)
+ 		eh = getElfEhdr();
+ 		fo = HEADR;
+ 		startva = INITTEXT - HEADR;
+-		va = startva + fo;
+-		w = segtext.filelen;
+ 
+ 		/* This null SHdr must appear before all others */
+ 		sh = newElfShdr(elfstr[ElfStrEmpty]);
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 9e35fa5630..d53814a745 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -389,7 +389,7 @@ ldobj1(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	vlong ipc;
+ 	Prog *p;
+ 	int v, o, r, skip, mode;
+-	Sym *h[NSYM], *s, *di;
++	Sym *h[NSYM], *s;
+ 	uint32 sig;
+ 	char *name, *x;
+ 	int ntext;
+@@ -400,7 +400,6 @@ ldobj1(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	lastp = nil;
+ 	ntext = 0;
+ 	eof = Boffset(f) + len;
+-	di = S;
+ 	src[0] = 0;
+ 
+ newloop:
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 3089a23b0d..50cd047867 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -697,12 +697,10 @@ stotype(NodeList *l, int et, Type **t, int funarg)
+ 	Type *f, *t1, *t2, **t0;
+ 	Strlit *note;
+ 	int lno;
+-	NodeList *init;
+ 	Node *n, *left;
+ 	char *what;
+ 
+ 	t0 = t;
+-	init = nil;
+ 	lno = lineno;
+ 	what = "field";
+ 	if(et == TINTER)
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index b98e820c6d..fe9c6ac9fd 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -137,7 +137,6 @@ methodfunc(Type *f, Type *receiver)
+ static Sig*
+ methods(Type *t)
+ {
+-	int o;
+ 	Type *f, *mt, *it, *this;
+ 	Sig *a, *b;
+ 	Sym *method;
+@@ -157,7 +156,6 @@ methods(Type *t)
+ 	// make list of methods for t,
+ 	// generating code if necessary.
+ 	a = nil;
+-	o = 0;
+ 	oldlist = nil;
+ 	for(f=mt->xmethod; f; f=f->down) {
+ 		if(f->type->etype != TFUNC)
+@@ -240,14 +238,12 @@ static Sig*
+ imethods(Type *t)
+ {
+ 	Sig *a, *all, *last;
+-	int o;
+ 	Type *f;
+ 	Sym *method, *isym;
+ 	Prog *oldlist;
+ 
+ 	all = nil;
+ 	last = nil;
+-	o = 0;
+ 	oldlist = nil;
+ 	for(f=t->type; f; f=f->down) {
+ 		if(f->etype != TFIELD)
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 2098794a7c..fe3a105c45 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -660,12 +660,10 @@ nodbool(int b)
+ Type*
+ aindex(Node *b, Type *t)
+ {
+-	NodeList *init;
+ 	Type *r;
+ 	int bound;
+ 
+ 	bound = -1;	// open bound
+-	init = nil;
+ 	typecheck(&b, Erv);
+ 	if(b != nil) {
+ 		switch(consttype(b)) {
+@@ -1728,17 +1726,13 @@ isideal(Type *t)
+ Type*
+ methtype(Type *t)
+ {
+-	int ptr;
+-
+ 	if(t == T)
+ 		return T;
+ 
+ 	// strip away pointer if it's there
+-	ptr = 0;
+ 	if(isptr[t->etype]) {
+ 		if(t->sym != S)
+ 			return T;
+-		ptr = 1;
+ 		t = t->type;
+ 		if(t == T)
+ 			return T;
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index fbc9c49030..6e8436c3c5 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -250,7 +250,7 @@ newlabel(void)
+ static void
+ casebody(Node *sw, Node *typeswvar)
+ {
+-	Node *os, *oc, *n, *c, *last;
++	Node *n, *c, *last;
+ 	Node *def;
+ 	NodeList *cas, *stat, *l, *lc;
+ 	Node *go, *br;
+@@ -263,8 +263,6 @@ casebody(Node *sw, Node *typeswvar)
+ 	cas = nil;	// cases
+ 	stat = nil;	// statements
+ 	def = N;	// defaults
+-	os = N;		// last statement
+-	oc = N;		// last case
+ 	br = nod(OBREAK, N, N);
+ 
+ 	for(l=sw->list; l; l=l->next) {
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index b8c6842e0c..f5a72d8912 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -197,7 +197,6 @@ Node*
+ walkdef(Node *n)
+ {
+ 	int lno;
+-	NodeList *init;
+ 	Node *e;
+ 	Type *t;
+ 	NodeList *l;
+@@ -236,7 +235,6 @@ walkdef(Node *n)
+ 	if(n->type != T || n->sym == S)	// builtin or no name
+ 		goto ret;
+ 
+-	init = nil;
+ 	switch(n->op) {
+ 	default:
+ 		fatal("walkdef %O", n->op);
+@@ -380,14 +378,13 @@ walkstmt(Node **np)
+ {
+ 	NodeList *init;
+ 	NodeList *ll, *rl;
+-	int cl, lno;
++	int cl;
+ 	Node *n, *f;
+ 
+ 	n = *np;
+ 	if(n == N)
+ 		return;
+ 
+-	lno = lineno;
+ 	setlineno(n);
+ 
+ 	switch(n->op) {
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 14f1e9fe85..0cb2b2138f 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -878,7 +878,7 @@ textaddress(void)
+ void
+ address(void)
+ {
+-	Section *s, *text, *data, *rodata, *bss;
++	Section *s, *text, *data, *rodata;
+ 	Sym *sym, *sub;
+ 	uvlong va;
+ 
+@@ -913,7 +913,6 @@ address(void)
+ 	text = segtext.sect;
+ 	rodata = segtext.sect->next;
+ 	data = segdata.sect;
+-	bss = segdata.sect->next;
+ 
+ 	for(sym = datap; sym != nil; sym = sym->next) {
+ 		cursym = sym;
+diff --git a/src/cmd/ld/ldelf.c b/src/cmd/ld/ldelf.c
+index 44bbe68ee0..d61020e499 100644
+--- a/src/cmd/ld/ldelf.c
++++ b/src/cmd/ld/ldelf.c
+@@ -319,7 +319,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	char *name;
+ 	int i, j, rela, is64, n;
+ 	uchar hdrbuf[64];
+-	uchar *p, *dp;
++	uchar *p;
+ 	ElfHdrBytes *hdr;
+ 	ElfObj *obj;
+ 	ElfSect *sect, *rsect;
+@@ -561,7 +561,6 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 		n = rsect->size/(4+4*is64)/(2+rela);
+ 		r = mal(n*sizeof r[0]);
+ 		p = rsect->base;
+-		dp = sect->base;
+ 		for(j=0; j<n; j++) {
+ 			add = 0;
+ 			rp = &r[j];
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 2b1674ff29..15219ba116 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -1033,7 +1033,7 @@ mkfwd(void)
+ 	Prog *p;
+ 	int i;
+ 	int32 dwn[LOG], cnt[LOG];
+-	Prog *lst[LOG], *last;
++	Prog *lst[LOG];
+ 
+ 	for(i=0; i<LOG; i++) {
+ 		if(i == 0)
+@@ -1044,7 +1044,6 @@ mkfwd(void)
+ 		lst[i] = P;
+ 	}
+ 	i = 0;
+-	last = nil;
+ 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+ 		for(p = cursym->text; p != P; p = p->link) {
+ 			if(p->link == P) {
+diff --git a/src/libmach/executable.c b/src/libmach/executable.c
+index 33000ed07f..e903344381 100644
+--- a/src/libmach/executable.c
++++ b/src/libmach/executable.c
+@@ -991,7 +991,6 @@ machdotout(int fd, Fhdr *fp, ExecHdr *hp)
+ {
+ 	uvlong (*swav)(uvlong);
+ 	uint32 (*swal)(uint32);
+-	ushort (*swab)(ushort);
+ 	Machhdr *mp;
+ 	MachCmd **cmd;
+ 	MachSymSeg *symtab;
+@@ -1012,7 +1011,6 @@ machdotout(int fd, Fhdr *fp, ExecHdr *hp)
+ 		return 0;
+ 	}
+ 
+-	swab = leswab;
+ 	swal = leswal;
+ 	swav = leswav;
+ 

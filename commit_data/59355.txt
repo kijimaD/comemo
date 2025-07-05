@@ -16,10 +16,170 @@ Date:   Wed Mar 6 12:39:23 2024 -0500
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go.mod                                     |  4 +--
  src/cmd/go.sum                                     |  8 ++---
  .../x/telemetry/internal/upload/upload.go          |  9 +++++
  src/cmd/vendor/golang.org/x/telemetry/start.go     | 40 +++++++++++++++++++++-
  src/cmd/vendor/modules.txt                         |  4 +--
  5 files changed, 56 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index b02f9b8656..346a156a0f 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -6,10 +6,10 @@ require (
+ 	github.com/google/pprof v0.0.0-20240207164012-fb44976bdcd5
+ 	golang.org/x/arch v0.7.0
+ 	golang.org/x/build v0.0.0-20240222153247-cf4ed81bb19f
+-	golang.org/x/mod v0.15.1-0.20240207185259-766dc5df63e3
++	golang.org/x/mod v0.16.0
+ 	golang.org/x/sync v0.6.0
+ 	golang.org/x/sys v0.18.0
+-	golang.org/x/telemetry v0.0.0-20240229223025-3d5706d2d0fb
++	golang.org/x/telemetry v0.0.0-20240306210657-d5a85b27db3e
+ 	golang.org/x/term v0.17.0
+ 	golang.org/x/tools v0.18.0
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index ab61b95549..683d46d169 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -26,14 +26,14 @@ golang.org/x/arch v0.7.0 h1:pskyeJh/3AmoQ8CPE95vxHLqp1G1GfGNXTmcl9NEKTc=
+ golang.org/x/arch v0.7.0/go.mod h1:FEVrYAQjsQXMVJ1nsMoVVXPZg6p2JE2mx8psSWTDQys=
+ golang.org/x/build v0.0.0-20240222153247-cf4ed81bb19f h1:XQ2eu0I26WsNCKQkRehp+5mwjjChw94trD9LT8LLSq0=
+ golang.org/x/build v0.0.0-20240222153247-cf4ed81bb19f/go.mod h1:HTqTCkubWT8epEK9hDWWGkoOOB7LGSrU1qvWZCSwO50=
+-golang.org/x/mod v0.15.1-0.20240207185259-766dc5df63e3 h1:/p/VemLWiTsjHqHwME1Iu+xIu8s9fBtwBk8bU/ejA1A=
+-golang.org/x/mod v0.15.1-0.20240207185259-766dc5df63e3/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
++golang.org/x/mod v0.16.0 h1:QX4fJ0Rr5cPQCF7O9lh9Se4pmwfwskqZfq5moyldzic=
++golang.org/x/mod v0.16.0/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
+ golang.org/x/sync v0.6.0 h1:5BMeUDZ7vkXGfEr1x9B4bRcTH4lpkTkpdh0T/J+qjbQ=
+ golang.org/x/sync v0.6.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+ golang.org/x/sys v0.18.0 h1:DBdB3niSjOA/O0blCZBqDefyWNYveAYMNF1Wum0DYQ4=
+ golang.org/x/sys v0.18.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+-golang.org/x/telemetry v0.0.0-20240229223025-3d5706d2d0fb h1:LxVQXEmTbdDLG1nTKZrjqjn72V7ry1X1HLQFVioaRmE=
+-golang.org/x/telemetry v0.0.0-20240229223025-3d5706d2d0fb/go.mod h1:TeRTkGYfJXctD9OcfyVLyj2J3IxLnKwHJR8f4D8a3YE=
++golang.org/x/telemetry v0.0.0-20240306210657-d5a85b27db3e h1:PLWTnhLSeWLoHHuUDdzlJeYqRntM+xTyojGjTrFg01c=
++golang.org/x/telemetry v0.0.0-20240306210657-d5a85b27db3e/go.mod h1:wQS78u8AjB4H3mN7DPniFYwsXnV9lPziq+He/eA7JIw=
+ golang.org/x/term v0.17.0 h1:mkTF7LCd6WGJNL3K1Ad7kwxNfYAW6a8a8QqtMblp/4U=
+ golang.org/x/term v0.17.0/go.mod h1:lLRBjIVuehSbZlaOtGMbcMncT+aqLLLmKrsjNrUguwk=
+ golang.org/x/text v0.14.0 h1:ScX5w1eTa3QqT8oi6+ziP7dTV1S2+ALU0bI+0zXKWiQ=
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/upload.go b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/upload.go
+index 1b64c8e6d4..9be10a74e5 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/upload.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/upload.go
+@@ -71,8 +71,17 @@ func (u *Uploader) uploadReportContents(fname string, buf []byte) bool {
+ 		logger.Printf("error on Post: %v %q for %q", err, server, fname)
+ 		return false
+ 	}
++	// hope for a 200, remove file on a 4xx, otherwise it will be retried by another process
+ 	if resp.StatusCode != 200 {
+ 		logger.Printf("resp error on upload %q: %v for %q %q [%+v]", server, resp.Status, fname, fdate, resp)
++		if resp.StatusCode >= 400 && resp.StatusCode < 500 {
++			err := os.Remove(fname)
++			if err == nil {
++				logger.Printf("removed")
++			} else {
++				logger.Printf("error removing: %v", err)
++			}
++		}
+ 		return false
+ 	}
+ 	// put a copy in the uploaded directory
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/start.go b/src/cmd/vendor/golang.org/x/telemetry/start.go
+index 7f806c60bb..661c912542 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/start.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/start.go
+@@ -39,6 +39,12 @@ type Config struct {
+ 	// Longer term, the go command may become the sole program
+ 	// responsible for uploading.)
+ 	Upload bool
++
++	// TelemetryDir, if set, will specify an alternate telemetry
++	// directory to write data to. If not set, it uses the default
++	// directory.
++	// This field is intended to be used for isolating testing environments.
++	TelemetryDir string
+ }
+ 
+ // Start initializes telemetry using the specified configuration.
+@@ -63,10 +69,31 @@ type Config struct {
+ // steps or external side effects in init functions, as they will
+ // be executed twice (parent and child).
+ func Start(config Config) {
++	if config.TelemetryDir != "" {
++		telemetry.ModeFile = telemetry.ModeFilePath(filepath.Join(config.TelemetryDir, "mode"))
++		telemetry.LocalDir = filepath.Join(config.TelemetryDir, "local")
++		telemetry.UploadDir = filepath.Join(config.TelemetryDir, "upload")
++	}
++	mode, _ := telemetry.Mode()
++	if mode == "off" {
++		// Telemetry is turned off. Crash reporting doesn't work without telemetry
++		// at least set to "local", and the uploader isn't started in uploaderChild if
++		// mode is "off"
++		return
++	}
++
+ 	counter.Open()
+ 
++	if _, err := os.Stat(telemetry.LocalDir); err != nil {
++		// There was a problem statting LocalDir, which is needed for both
++		// crash monitoring and counter uploading. Most likely, there was an
++		// error creating telemetry.LocalDir in the counter.Open call above.
++		// Don't start the child.
++		return
++	}
++
+ 	// Crash monitoring and uploading both require a sidecar process.
+-	if (config.ReportCrashes && crashmonitor.Supported()) || config.Upload {
++	if (config.ReportCrashes && crashmonitor.Supported()) || (config.Upload && mode != "off") {
+ 		if os.Getenv(telemetryChildVar) != "" {
+ 			child(config)
+ 			os.Exit(0)
+@@ -90,6 +117,7 @@ func parent(config Config) {
+ 	cmd := exec.Command(exe, "** telemetry **") // this unused arg is just for ps(1)
+ 	daemonize(cmd)
+ 	cmd.Env = append(os.Environ(), telemetryChildVar+"=1")
++	cmd.Dir = telemetry.LocalDir
+ 
+ 	// The child process must write to a log file, not
+ 	// the stderr file it inherited from the parent, as
+@@ -158,6 +186,16 @@ func child(config Config) {
+ }
+ 
+ func uploaderChild() {
++	if mode, _ := telemetry.Mode(); mode == "off" {
++		// There's no work to be done if telemetry is turned off.
++		return
++	}
++	if telemetry.LocalDir == "" {
++		// The telemetry dir wasn't initialized properly, probably because
++		// os.UserConfigDir did not complete successfully. In that case
++		// there are no counters to upload, so we should just do nothing.
++		return
++	}
+ 	tokenfilepath := filepath.Join(telemetry.LocalDir, "upload.token")
+ 	ok, err := acquireUploadToken(tokenfilepath)
+ 	if err != nil {
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 4123757c5a..816cb4646a 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -25,7 +25,7 @@ golang.org/x/arch/x86/x86asm
+ # golang.org/x/build v0.0.0-20240222153247-cf4ed81bb19f
+ ## explicit; go 1.21
+ golang.org/x/build/relnote
+-# golang.org/x/mod v0.15.1-0.20240207185259-766dc5df63e3
++# golang.org/x/mod v0.16.0
+ ## explicit; go 1.18
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile
+@@ -45,7 +45,7 @@ golang.org/x/sync/semaphore
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/telemetry v0.0.0-20240229223025-3d5706d2d0fb
++# golang.org/x/telemetry v0.0.0-20240306210657-d5a85b27db3e
+ ## explicit; go 1.20
+ golang.org/x/telemetry
+ golang.org/x/telemetry/counter

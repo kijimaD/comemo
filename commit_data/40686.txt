@@ -9,6 +9,20 @@ Date:   Fri Jun 14 10:23:06 2019 +0200
     Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/ios/README | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/ios/README b/misc/ios/README
+index b9952dc11d..d7df191414 100644
+--- a/misc/ios/README
++++ b/misc/ios/README
+@@ -40,7 +40,7 @@ To use the go tool directly to run programs and tests, put $GOROOT/bin into PATH
+ the go_darwin_$GOARCH_exec wrapper is found. For example, to run the archive/tar tests
+ 
+ 	export PATH=$GOROOT/bin:$PATH
+-	GOARCH=arm64 go test archive/tar
++	GOARCH=arm64 CGO_ENABLED=1 go test archive/tar
+ 
+ Note that the go_darwin_$GOARCH_exec wrapper uninstalls any existing app identified by
+ the bundle id before installing a new app. If the uninstalled app is the last app by

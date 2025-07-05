@@ -10,6 +10,28 @@ Date:   Thu Feb 21 10:46:47 2019 +0100
     Change-Id: Ie506b0bdde562ca37202d19973ba1d537c3d64e2
     Reviewed-on: https://go-review.googlesource.com/c/go/+/164015
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/sys_aix_ppc64.s | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/sys_aix_ppc64.s b/src/runtime/sys_aix_ppc64.s
+index d9e97ac8b7..ee572cb4de 100644
+--- a/src/runtime/sys_aix_ppc64.s
++++ b/src/runtime/sys_aix_ppc64.s
+@@ -77,8 +77,15 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	MOVD	info+16(FP), R4
+ 	MOVD	ctx+24(FP), R5
+ 	MOVD	fn+0(FP), R12
+-	MOVD	R12, CTR
++	// fn is a function descriptor
++	// R2 must be saved on restore
++	MOVD	0(R12), R0
++	MOVD	R2, 40(R1)
++	MOVD	8(R12), R2
++	MOVD	R0, CTR
+ 	BL	(CTR)
++	MOVD	40(R1), R2
++	BL	runtime·reginit(SB)
+ 	RET
+ 
+ 

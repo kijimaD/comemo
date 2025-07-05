@@ -12,6 +12,32 @@ Date:   Tue Sep 21 20:58:33 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/api_test.go | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index d59d3d8923..f1a820988f 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -2012,6 +2012,20 @@ func TestInstantiateErrors(t *testing.T) {
+ 	}
+ }
+ 
++func TestArgumentErrorUnwrapping(t *testing.T) {
++	var err error = &ArgumentError{
++		Index: 1,
++		Err:   Error{Msg: "test"},
++	}
++	var e Error
++	if !errors.As(err, &e) {
++		t.Fatalf("error %v does not wrap types.Error", err)
++	}
++	if e.Msg != "test" {
++		t.Errorf("e.Msg = %q, want %q", e.Msg, "test")
++	}
++}
++
+ func TestInstanceIdentity(t *testing.T) {
+ 	imports := make(testImporter)
+ 	conf := Config{Importer: imports}

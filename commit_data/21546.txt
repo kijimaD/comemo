@@ -15,6 +15,19 @@ Date:   Wed Jan 14 22:20:03 2015 +0100
     Change-Id: I0895607b86cbc7e94c1bfb2def2b1a368a8efbe6
     Reviewed-on: https://go-review.googlesource.com/2759
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/netpoll_stub.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/netpoll_stub.go b/src/runtime/netpoll_stub.go
+index 6c7e79ea37..09f64ad9b5 100644
+--- a/src/runtime/netpoll_stub.go
++++ b/src/runtime/netpoll_stub.go
+@@ -13,3 +13,7 @@ func netpoll(block bool) (gp *g) {
+ 	// integrated network poller.
+ 	return
+ }
++
++func netpollinited() bool {
++	return false
++}

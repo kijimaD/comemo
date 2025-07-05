@@ -11,6 +11,22 @@ Date:   Wed Jun 9 11:04:58 2021 -0400
     Trust: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.17.html | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index 011377a84e..2a56b6d270 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -120,10 +120,6 @@ Do not send CLs removing the interior tags from such phrases.
+   stack frame pointers only on Linux, macOS, and iOS.
+ </p>
+ 
+-<p>
+-  TODO: complete the Ports section
+-</p>
+-
+ <h2 id="tools">Tools</h2>
+ 
+ <h3 id="go-command">Go command</h3>

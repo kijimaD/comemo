@@ -7,6 +7,72 @@ Date:   Fri Jan 15 11:59:53 2010 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/186161
-
+---
  doc/effective_go.html | 24 +++++++++++++++++-------
  1 file changed, 17 insertions(+), 7 deletions(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index ab9e3a8c3d..ba36a43fe2 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -1395,7 +1395,7 @@ func (b ByteSize) String() string {
+ </pre>
+ <p>
+ The expression <code>YB</code> prints as <code>1.00YB</code>,
+-while <code>ByteSize(1e13)</code> prints as <code>9.09TB</code>,
++while <code>ByteSize(1e13)</code> prints as <code>9.09TB</code>.
+ </p>
+ 
+ <h3 id="variables">Variables</h3>
+@@ -1878,12 +1878,15 @@ but does not give them field names.
+ // ReadWriter stores pointers to a Reader and a Writer.
+ // It implements io.ReadWriter.
+ type ReadWriter struct {
+-    *Reader
+-    *Writer
++    *Reader  // *bufio.Reader
++    *Writer  // *bufio.Writer
+ }
+ </pre>
+ <p>
+-This struct could be written as
++The embedded elements are pointers to structs and of course
++must be initialized to point to valid structs before they
++can be used.
++The <code>ReadWriter</code> struct could be written as
+ </p>
+ <pre>
+ type ReadWriter struct {
+@@ -1933,15 +1936,16 @@ type Job struct {
+ The <code>Job</code> type now has the <code>Log</code>, <code>Logf</code>
+ and other
+ methods of <code>log.Logger</code>.  We could have given the <code>Logger</code>
+-a field name, of course, but it's not necessary to do so.  And now we can
+-log to a <code>Job</code>:
++a field name, of course, but it's not necessary to do so.  And now, once
++initialized, we can
++log to the <code>Job</code>:
+ </p>
+ <pre>
+ job.Log("starting now...")
+ </pre>
+ <p>
+ The <code>Logger</code> is a regular field of the struct and we can initialize
+-it in the usual way.
++it in the usual way with a constructor,
+ </p>
+ <pre>
+ func NewJob(command string, logger *log.Logger) *Job {
+@@ -1949,6 +1953,12 @@ func NewJob(command string, logger *log.Logger) *Job {
+ }
+ </pre>
+ <p>
++or with a composite literal,
++</p>
++<pre>
++job := &amp;Job{command, log.New(os.Stderr, nil, "Job: ", log.Ldate)}
++</pre>
++<p>
+ If we need to refer to an embedded field directly, the type name of the field,
+ ignoring the package qualifier, serves as a field name.  If we needed to access the
+ <code>*log.Logger</code> of a <code>Job</code> variable <code>job</code>,

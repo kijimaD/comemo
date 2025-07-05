@@ -11,6 +11,18 @@ Date:   Mon Nov 3 17:25:03 2014 -0500
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/168130043
-
+---
  test/nilptr3.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/test/nilptr3.go b/test/nilptr3.go
+index 2757daef0b..9d65e1e91b 100644
+--- a/test/nilptr3.go
++++ b/test/nilptr3.go
+@@ -1,4 +1,6 @@
+ // errorcheck -0 -d=nil
++// Fails on power64x because of incomplete optimization.  See issue 9058.
++// +build !power64,!power64le
+ 
+ // Copyright 2013 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style

@@ -7,6 +7,20 @@ Date:   Sun Sep 12 16:40:31 2010 +1000
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/2149046
-
+---
  src/libmach/linux.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/libmach/linux.c b/src/libmach/linux.c
+index e4e2fd5c7b..30b4da2405 100644
+--- a/src/libmach/linux.c
++++ b/src/libmach/linux.c
+@@ -199,7 +199,7 @@ attachthread(int pid, int tid, int *new, int newstate)
+ 	t = malloc(sizeof *t);
+ 	if(t == nil)
+ 		return nil;
+-        memset(t, 0, sizeof *t);
++	memset(t, 0, sizeof *t);
+ 
+ 	thr[nthr++] = t;
+ 	if(pid == 0 && nthr > 0)

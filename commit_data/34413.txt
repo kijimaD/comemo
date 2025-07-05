@@ -15,7 +15,58 @@ Date:   Wed Oct 18 15:30:08 2017 +0200
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/smtp/smtp.go      | 10 ++++++++++
  src/net/smtp/smtp_test.go |  4 ++++
  2 files changed, 14 insertions(+)
+
+diff --git a/src/net/smtp/smtp.go b/src/net/smtp/smtp.go
+index bf574aece1..3488e947a3 100644
+--- a/src/net/smtp/smtp.go
++++ b/src/net/smtp/smtp.go
+@@ -398,6 +398,16 @@ func (c *Client) Reset() error {
+ 	return err
+ }
+ 
++// Noop sends the NOOP command to the server. It does nothing but check
++// that the connaction to the server is okay.
++func (c *Client) Noop() error {
++	if err := c.hello(); err != nil {
++		return err
++	}
++	_, _, err := c.cmd(250, "NOOP")
++	return err
++}
++
+ // Quit sends the QUIT command and closes the connection to the server.
+ func (c *Client) Quit() error {
+ 	if err := c.hello(); err != nil {
+diff --git a/src/net/smtp/smtp_test.go b/src/net/smtp/smtp_test.go
+index 9e7ed78f36..e050e2a9fa 100644
+--- a/src/net/smtp/smtp_test.go
++++ b/src/net/smtp/smtp_test.go
+@@ -478,6 +478,8 @@ func TestHello(t *testing.T) {
+ 					t.Errorf("Want error, got none")
+ 				}
+ 			}
++		case 9:
++			err = c.Noop()
+ 		default:
+ 			t.Fatalf("Unhandled command")
+ 		}
+@@ -510,6 +512,7 @@ var helloServer = []string{
+ 	"250 Reset ok\n",
+ 	"221 Goodbye\n",
+ 	"250 Sender ok\n",
++	"250 ok\n",
+ }
+ 
+ var baseHelloClient = `EHLO customhost
+@@ -526,6 +529,7 @@ var helloClient = []string{
+ 	"RSET\n",
+ 	"QUIT\n",
+ 	"VRFY test@example.com\n",
++	"NOOP\n",
+ }
+ 
+ func TestSendMail(t *testing.T) {

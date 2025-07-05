@@ -6,6 +6,36 @@ Date:   Tue Jul 22 15:25:09 2008 -0700
     
     OCL=13363
     CL=13363
-
+---
  doc/go_lang.txt | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/doc/go_lang.txt b/doc/go_lang.txt
+index 1234651009..59c4244c6b 100644
+--- a/doc/go_lang.txt
++++ b/doc/go_lang.txt
+@@ -687,12 +687,12 @@ conversion from expression list to composite value.
+ 
+ Structure literals follow this form directly.  Given
+ 
+-	type Rat struct { num, den int };
+-	type Num struct { r Rat, f float, s string };
++  type Rat struct { num, den int };
++  type Num struct { r Rat, f float, s string };
+ 
+ we can write
+ 
+-	pi := Num(Rat(22,7), 3.14159, "pi")
++  pi := Num(Rat(22,7), 3.14159, "pi")
+ 
+ For array literals, if the size is present the constructed array has that many
+ elements; trailing elements are given the approprate zero value for that type.
+@@ -705,7 +705,7 @@ if a specified size is less than the number of elements in the expression list.
+ Map literals are similar except the elements of the expression list are
+ key-value pairs separated by a colon:
+ 
+-  m := map[string]int("good":0, "bad":1, "indifferent": 7)
++  m := map[string]int("good":0, "bad":1, "indifferent":7)
+ 
+ TODO: helper syntax for nested arrays etc? (avoids repeating types but
+ complicates the spec needlessly.)

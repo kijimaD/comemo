@@ -7,7 +7,7 @@ Date:   Thu Nov 5 18:14:47 2009 -0800
     
     R=rsc
     http://go/go-review/1024002
-
+---
  src/pkg/debug/elf/elf.go            |   6 +-
  src/pkg/exp/datafmt/datafmt.go      |  96 +++++------
  src/pkg/exp/datafmt/datafmt_test.go |  73 ++++-----
@@ -16,3 +16,1353 @@ Date:   Thu Nov 5 18:14:47 2009 -0800
  src/pkg/go/scanner/scanner_test.go  | 309 ++++++++++++++++++------------------
  src/pkg/xml/xml_test.go             |  10 +-
  7 files changed, 342 insertions(+), 325 deletions(-)
+
+diff --git a/src/pkg/debug/elf/elf.go b/src/pkg/debug/elf/elf.go
+index c6db5a96d3..e355508f60 100644
+--- a/src/pkg/debug/elf/elf.go
++++ b/src/pkg/debug/elf/elf.go
+@@ -623,7 +623,7 @@ const (
+ 	   string */
+ 	DF_SYMBOLIC	DynFlag	= 0x0002;	/* Indicates "symbolic" linking. */
+ 	DF_TEXTREL	DynFlag	= 0x0004;	/* Indicates there may be relocations in
+-								   non-writable segments. */
++									   non-writable segments. */
+ 	DF_BIND_NOW	DynFlag	= 0x0008;	/* Indicates that the dynamic linker should
+ 	   process all relocations for the object
+ 	   containing this entry before transferring
+@@ -1394,7 +1394,7 @@ type Header32 struct {
+  */
+ type Section32 struct {
+ 	Name	uint32;	/* Section name (index into the
+-								   section header string table). */
++									   section header string table). */
+ 	Type		uint32;	/* Section type. */
+ 	Flags		uint32;	/* Section flags. */
+ 	Addr		uint32;	/* Address in memory image. */
+@@ -1508,7 +1508,7 @@ type Header64 struct {
+ 
+ type Section64 struct {
+ 	Name	uint32;	/* Section name (index into the
+-								   section header string table). */
++									   section header string table). */
+ 	Type		uint32;	/* Section type. */
+ 	Flags		uint64;	/* Section flags. */
+ 	Addr		uint64;	/* Address in memory image. */
+diff --git a/src/pkg/exp/datafmt/datafmt.go b/src/pkg/exp/datafmt/datafmt.go
+index 58ae008d80..bea3a49e6a 100644
+--- a/src/pkg/exp/datafmt/datafmt.go
++++ b/src/pkg/exp/datafmt/datafmt.go
+@@ -232,40 +232,40 @@ type Formatter func(state *State, value interface{}, ruleName string) bool
+ // A FormatterMap is a set of custom formatters.
+ // It maps a rule name to a formatter function.
+ //
+-type FormatterMap map [string] Formatter;
++type FormatterMap map[string]Formatter
+ 
+ 
+ // A parsed format expression is built from the following nodes.
+ //
+ type (
+-	expr interface {};
++	expr	interface{};
+ 
+-	alternatives []expr;  // x | y | z
++	alternatives	[]expr;	// x | y | z
+ 
+-	sequence []expr;  // x y z
++	sequence	[]expr;	// x y z
+ 
+-	literal [][]byte;  // a list of string segments, possibly starting with '%'
++	literal	[][]byte;	// a list of string segments, possibly starting with '%'
+ 
+-	field struct {
+-		fieldName string;  // including "@", "*"
+-		ruleName string;  // "" if no rule name specified
++	field	struct {
++		fieldName	string;	// including "@", "*"
++		ruleName	string;	// "" if no rule name specified
+ 	};
+ 
+-	group struct {
+-		indent, body expr;  // (indent >> body)
++	group	struct {
++		indent, body expr;	// (indent >> body)
+ 	};
+ 
+-	option struct {
+-		body expr;  // [body]
++	option	struct {
++		body expr;	// [body]
+ 	};
+ 
+-	repetition struct {
+-		body, separator expr;  // {body / separator}
++	repetition	struct {
++		body, separator expr;	// {body / separator}
+ 	};
+ 
+-	custom struct {
+-		ruleName string;
+-		fun Formatter
++	custom	struct {
++		ruleName	string;
++		fun		Formatter;
+ 	};
+ )
+ 
+@@ -273,7 +273,7 @@ type (
+ // A Format is the result of parsing a format specification.
+ // The format may be applied repeatedly to format values.
+ //
+-type Format map [string] expr;
++type Format map[string]expr
+ 
+ 
+ // ----------------------------------------------------------------------------
+@@ -290,7 +290,7 @@ type Format map [string] expr;
+ // the receiver, and thus can be very light-weight.
+ //
+ type Environment interface {
+-	Copy() Environment
++	Copy() Environment;
+ }
+ 
+ 
+@@ -298,15 +298,15 @@ type Environment interface {
+ // It is provided as argument to custom formatters.
+ //
+ type State struct {
+-	fmt Format;  // format in use
+-	env Environment;  // user-supplied environment
+-	errors chan os.Error;  // not chan *Error (errors <- nil would be wrong!)
+-	hasOutput bool;  // true after the first literal has been written
+-	indent bytes.Buffer;  // current indentation
+-	output bytes.Buffer;  // format output
+-	linePos token.Position;  // position of line beginning (Column == 0)
+-	default_ expr;  // possibly nil
+-	separator expr;  // possibly nil
++	fmt		Format;		// format in use
++	env		Environment;	// user-supplied environment
++	errors		chan os.Error;	// not chan *Error (errors <- nil would be wrong!)
++	hasOutput	bool;		// true after the first literal has been written
++	indent		bytes.Buffer;	// current indentation
++	output		bytes.Buffer;	// format output
++	linePos		token.Position;	// position of line beginning (Column == 0)
++	default_	expr;		// possibly nil
++	separator	expr;		// possibly nil
+ }
+ 
+ 
+@@ -365,22 +365,22 @@ func (s *State) Write(data []byte) (int, os.Error) {
+ 			// write text segment and indentation
+ 			n1, _ := s.output.Write(data[i0 : i+1]);
+ 			n2, _ := s.output.Write(s.indent.Bytes());
+-			n += n1 + n2;
+-			i0 = i + 1;
++			n += n1+n2;
++			i0 = i+1;
+ 			s.linePos.Offset = s.output.Len();
+ 			s.linePos.Line++;
+ 		}
+ 	}
+-	n3, _ := s.output.Write(data[i0 : len(data)]);
+-	return n + n3, nil;
++	n3, _ := s.output.Write(data[i0:len(data)]);
++	return n+n3, nil;
+ }
+ 
+ 
+ type checkpoint struct {
+-	env Environment;
+-	hasOutput bool;
+-	outputLen int;
+-	linePos token.Position;
++	env		Environment;
++	hasOutput	bool;
++	outputLen	int;
++	linePos		token.Position;
+ }
+ 
+ 
+@@ -489,13 +489,13 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
+ 		if s.hasOutput {
+ 			// not the first literal
+ 			if s.separator != nil {
+-				sep := s.separator;  // save current separator
+-				s.separator = nil;  // and disable it (avoid recursion)
++				sep := s.separator;	// save current separator
++				s.separator = nil;	// and disable it (avoid recursion)
+ 				mark := s.save();
+ 				if !s.eval(sep, value, index) {
+ 					s.restore(mark);
+ 				}
+-				s.separator = sep;  // enable it again
++				s.separator = sep;	// enable it again
+ 			}
+ 		}
+ 		s.hasOutput = true;
+@@ -505,7 +505,7 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
+ 				// segment contains a %-format at the beginning
+ 				if lit[1] == '%' {
+ 					// "%%" is printed as a single "%"
+-					s.Write(lit[1 : len(lit)]);
++					s.Write(lit[1:len(lit)]);
+ 				} else {
+ 					// use s instead of s.output to get indentation right
+ 					fmt.Fprintf(s, string(lit), value.Interface());
+@@ -515,7 +515,7 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
+ 				s.Write(lit);
+ 			}
+ 		}
+-		return true;  // a literal never evaluates to nil
++		return true;	// a literal never evaluates to nil
+ 
+ 	case *field:
+ 		// determine field value
+@@ -580,7 +580,7 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
+ 		ruleName := t.ruleName;
+ 		if ruleName == "" {
+ 			// no alternate rule name, value type determines rule
+-			ruleName = typename(value.Type())
++			ruleName = typename(value.Type());
+ 		}
+ 		fexpr = s.getFormat(ruleName);
+ 
+@@ -620,10 +620,10 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
+ 		// evaluate the body and append the result to the state's output
+ 		// buffer unless the result is nil
+ 		mark := s.save();
+-		if !s.eval(t.body, value, 0) {  // TODO is 0 index correct?
++		if !s.eval(t.body, value, 0) {	// TODO is 0 index correct?
+ 			s.restore(mark);
+ 		}
+-		return true;  // an option never evaluates to nil
++		return true;	// an option never evaluates to nil
+ 
+ 	case *repetition:
+ 		// evaluate the body and append the result to the state's output
+@@ -643,7 +643,7 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
+ 				break;
+ 			}
+ 		}
+-		return true;  // a repetition never evaluates to nil
++		return true;	// a repetition never evaluates to nil
+ 
+ 	case *custom:
+ 		// invoke the custom formatter to obtain the result
+@@ -680,14 +680,14 @@ func (f Format) Eval(env Environment, args ...) ([]byte, os.Error) {
+ 		for i := 0; i < value.NumField(); i++ {
+ 			fld := value.Field(i);
+ 			mark := s.save();
+-			if !s.eval(s.getFormat(typename(fld.Type())), fld, 0) {  // TODO is 0 index correct?
++			if !s.eval(s.getFormat(typename(fld.Type())), fld, 0) {	// TODO is 0 index correct?
+ 				s.restore(mark);
+ 			}
+ 		}
+-		errors <- nil;  // no errors
++		errors <- nil;	// no errors
+ 	}();
+ 
+-	err := <- errors;
++	err := <-errors;
+ 	return s.output.Bytes(), err;
+ }
+ 
+diff --git a/src/pkg/exp/datafmt/datafmt_test.go b/src/pkg/exp/datafmt/datafmt_test.go
+index 949f3551f5..af4adfa9f3 100644
+--- a/src/pkg/exp/datafmt/datafmt_test.go
++++ b/src/pkg/exp/datafmt/datafmt_test.go
+@@ -23,14 +23,13 @@ func parse(t *testing.T, form string, fmap FormatterMap) Format {
+ 
+ func verify(t *testing.T, f Format, expected string, args ...) {
+ 	if f == nil {
+-		return;  // allow other tests to run
++		return;	// allow other tests to run
+ 	}
+ 	result := f.Sprint(args);
+ 	if result != expected {
+ 		t.Errorf(
+ 			"result  : `%s`\nexpected: `%s`\n\n",
+-			result, expected
+-		)
++			result, expected);
+ 	}
+ }
+ 
+@@ -62,9 +61,9 @@ func formatter(s *State, value interface{}, rule_name string) bool {
+ 
+ 
+ func TestCustomFormatters(t *testing.T) {
+-	fmap0 := FormatterMap{ "/": formatter };
+-	fmap1 := FormatterMap{ "int": formatter, "blank": formatter, "nil": formatter };
+-	fmap2 := FormatterMap{ "testing.T": formatter };
++	fmap0 := FormatterMap{"/": formatter};
++	fmap1 := FormatterMap{"int": formatter, "blank": formatter, "nil": formatter};
++	fmap2 := FormatterMap{"testing.T": formatter};
+ 
+ 	f := parse(t, `int=`, fmap0);
+ 	verify(t, f, ``, 1, 2, 3);
+@@ -97,14 +96,13 @@ func TestCustomFormatters(t *testing.T) {
+ func check(t *testing.T, form, expected string, args ...) {
+ 	f := parse(t, form, nil);
+ 	if f == nil {
+-		return;  // allow other tests to run
++		return;	// allow other tests to run
+ 	}
+ 	result := f.Sprint(args);
+ 	if result != expected {
+ 		t.Errorf(
+ 			"format  : %s\nresult  : `%s`\nexpected: `%s`\n\n",
+-			form, result, expected
+-		)
++			form, result, expected);
+ 	}
+ }
+ 
+@@ -164,7 +162,7 @@ func TestChanTypes(t *testing.T) {
+ 	check(t, `chan="chan"`, `chan`, c0);
+ 
+ 	c1 := make(chan int);
+-	go func(){ c1 <- 42 }();
++	go func() { c1 <- 42 }();
+ 	check(t, `chan="chan"`, `chan`, c1);
+ 	// check(t, `chan=*`, `42`, c1);  // reflection support for chans incomplete
+ }
+@@ -174,14 +172,14 @@ func TestFuncTypes(t *testing.T) {
+ 	var f0 func() int;
+ 	check(t, `func="func"`, `func`, f0);
+ 
+-	f1 := func() int { return 42; };
++	f1 := func() int { return 42 };
+ 	check(t, `func="func"`, `func`, f1);
+ 	// check(t, `func=*`, `42`, f1);  // reflection support for funcs incomplete
+ }
+ 
+ 
+ func TestInterfaceTypes(t *testing.T) {
+-	var i0 interface{};
++	var i0 interface{}
+ 	check(t, `interface="interface"`, `interface`, i0);
+ 
+ 	i0 = "foo";
+@@ -234,8 +232,7 @@ type T1 struct {
+ 	a int;
+ }
+ 
+-const F1 =
+-	`datafmt "datafmt";`
++const F1 = `datafmt "datafmt";`
+ 	`int = "%d";`
+ 	`datafmt.T1 = "<" a ">";`
+ 
+@@ -248,21 +245,19 @@ func TestStruct1(t *testing.T) {
+ // Formatting of a struct with an optional field (ptr)
+ 
+ type T2 struct {
+-	s string;
+-	p *T1;
++	s	string;
++	p	*T1;
+ }
+ 
+-const F2a =
+-	F1 +
++const F2a = F1 +
+ 	`string = "%s";`
+-	`ptr = *;`
+-	`datafmt.T2 = s ["-" p "-"];`
++		`ptr = *;`
++		`datafmt.T2 = s ["-" p "-"];`
+ 
+-const F2b =
+-	F1 +
++const F2b = F1 +
+ 	`string = "%s";`
+-	`ptr = *;`
+-	`datafmt.T2 = s ("-" p "-" | "empty");`;
++		`ptr = *;`
++		`datafmt.T2 = s ("-" p "-" | "empty");`
+ 
+ func TestStruct2(t *testing.T) {
+ 	check(t, F2a, "foo", T2{"foo", nil});
+@@ -275,18 +270,16 @@ func TestStruct2(t *testing.T) {
+ // Formatting of a struct with a repetitive field (slice)
+ 
+ type T3 struct {
+-	s string;
+-	a []int;
++	s	string;
++	a	[]int;
+ }
+ 
+-const F3a =
+-	`datafmt "datafmt";`
++const F3a = `datafmt "datafmt";`
+ 	`default = "%v";`
+ 	`array = *;`
+ 	`datafmt.T3 = s  {" " a a / ","};`
+ 
+-const F3b =
+-	`datafmt "datafmt";`
++const F3b = `datafmt "datafmt";`
+ 	`int = "%d";`
+ 	`string = "%s";`
+ 	`array = *;`
+@@ -306,12 +299,11 @@ func TestStruct3(t *testing.T) {
+ // Formatting of a struct with alternative field
+ 
+ type T4 struct {
+-	x *int;
+-	a []int;
++	x	*int;
++	a	[]int;
+ }
+ 
+-const F4a =
+-	`datafmt "datafmt";`
++const F4a = `datafmt "datafmt";`
+ 	`int = "%d";`
+ 	`ptr = *;`
+ 	`array = *;`
+@@ -319,8 +311,7 @@ const F4a =
+ 	`empty = *:nil;`
+ 	`datafmt.T4 = "<" (x:empty x | "-") ">" `
+ 
+-const F4b =
+-	`datafmt "datafmt";`
++const F4b = `datafmt "datafmt";`
+ 	`int = "%d";`
+ 	`ptr = *;`
+ 	`array = *;`
+@@ -341,12 +332,11 @@ func TestStruct4(t *testing.T) {
+ // Formatting a struct (documentation example)
+ 
+ type Point struct {
+-	name string;
+-	x, y int;
++	name	string;
++	x, y	int;
+ }
+ 
+-const FPoint =
+-	`datafmt "datafmt";`
++const FPoint = `datafmt "datafmt";`
+ 	`int = "%d";`
+ 	`hexInt = "0x%x";`
+ 	`string = "---%s---";`
+@@ -361,8 +351,7 @@ func TestStructPoint(t *testing.T) {
+ // ----------------------------------------------------------------------------
+ // Formatting a slice (documentation example)
+ 
+-const FSlice =
+-	`int = "%b";`
++const FSlice = `int = "%b";`
+ 	`array = { * / ", " }`
+ 
+ func TestSlice(t *testing.T) {
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 79b99e96a1..9fd8de8f45 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -19,7 +19,7 @@ import (
+ 
+ 
+ // noPos is used when there is no corresponding source position for a token.
+-var noPos token.Position;
++var noPos token.Position
+ 
+ 
+ // The mode parameter to the Parse* functions is a set of flags (or 0).
+@@ -27,43 +27,43 @@ var noPos token.Position;
+ // parser functionality.
+ //
+ const (
+-	PackageClauseOnly uint = 1 << iota;  // parsing stops after package clause
+-	ImportsOnly;  // parsing stops after import declarations
+-	ParseComments;  // parse comments and add them to AST
+-	Trace;  // print a trace of parsed productions
++	PackageClauseOnly	uint	= 1<<iota;	// parsing stops after package clause
++	ImportsOnly;			// parsing stops after import declarations
++	ParseComments;			// parse comments and add them to AST
++	Trace;				// print a trace of parsed productions
+ )
+ 
+ 
+ // The parser structure holds the parser's internal state.
+ type parser struct {
+ 	scanner.ErrorVector;
+-	scanner scanner.Scanner;
++	scanner	scanner.Scanner;
+ 
+ 	// Tracing/debugging
+-	mode uint;  // parsing mode
+-	trace bool;  // == (mode & Trace != 0)
+-	indent uint;  // indentation used for tracing output
++	mode	uint;	// parsing mode
++	trace	bool;	// == (mode & Trace != 0)
++	indent	uint;	// indentation used for tracing output
+ 
+ 	// Comments
+-	comments *ast.CommentGroup;  // list of collected comments
+-	lastComment *ast.CommentGroup;  // last comment in the comments list
+-	leadComment *ast.CommentGroup;  // the last lead comment
+-	lineComment *ast.CommentGroup;  // the last line comment
++	comments	*ast.CommentGroup;	// list of collected comments
++	lastComment	*ast.CommentGroup;	// last comment in the comments list
++	leadComment	*ast.CommentGroup;	// the last lead comment
++	lineComment	*ast.CommentGroup;	// the last line comment
+ 
+ 	// Next token
+-	pos token.Position;  // token position
+-	tok token.Token;  // one token look-ahead
+-	lit []byte;  // token literal
++	pos	token.Position;	// token position
++	tok	token.Token;	// one token look-ahead
++	lit	[]byte;		// token literal
+ 
+ 	// Non-syntactic parser control
+-	optSemi bool;  // true if semicolon separator is optional in statement list
+-	exprLev int;  // < 0: in control clause, >= 0: in expression
++	optSemi	bool;	// true if semicolon separator is optional in statement list
++	exprLev	int;	// < 0: in control clause, >= 0: in expression
+ 
+ 	// Scopes
+-	pkgScope *ast.Scope;
+-	fileScope *ast.Scope;
+-	topScope *ast.Scope;
+-};
++	pkgScope	*ast.Scope;
++	fileScope	*ast.Scope;
++	topScope	*ast.Scope;
++}
+ 
+ 
+ // scannerMode returns the scanner mode bits given the parser's mode bits.
+@@ -79,7 +79,7 @@ func (p *parser) init(filename string, src []byte, mode uint) {
+ 	p.ErrorVector.Init();
+ 	p.scanner.Init(filename, src, p, scannerMode(mode));
+ 	p.mode = mode;
+-	p.trace = mode & Trace != 0;  // for convenience (p.trace is used frequently)
++	p.trace = mode&Trace != 0;	// for convenience (p.trace is used frequently)
+ 	p.next();
+ }
+ 
+@@ -88,16 +88,15 @@ func (p *parser) init(filename string, src []byte, mode uint) {
+ // Parsing support
+ 
+ func (p *parser) printTrace(a ...) {
+-	const dots =
+-		". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . "
++	const dots = ". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . "
+ 		". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . ";
+ 	const n = uint(len(dots));
+ 	fmt.Printf("%5d:%3d: ", p.pos.Line, p.pos.Column);
+-	i := 2*p.indent;
++	i := 2 * p.indent;
+ 	for ; i > n; i -= n {
+ 		fmt.Print(dots);
+ 	}
+-	fmt.Print(dots[0 : i]);
++	fmt.Print(dots[0:i]);
+ 	fmt.Println(a);
+ }
+ 
+@@ -109,7 +108,8 @@ func trace(p *parser, msg string) *parser {
+ }
+ 
+ 
+-func un/*trace*/(p *parser) {
++// Usage pattern: defer un(trace(p, "..."));
++func un(p *parser) {
+ 	p.indent--;
+ 	p.printTrace(")");
+ }
+@@ -127,7 +127,7 @@ func (p *parser) next0() {
+ 		case p.tok.IsLiteral():
+ 			p.printTrace(s, string(p.lit));
+ 		case p.tok.IsOperator(), p.tok.IsKeyword():
+-			p.printTrace("\"" + s + "\"");
++			p.printTrace("\""+s+"\"");
+ 		default:
+ 			p.printTrace(s);
+ 		}
+@@ -209,7 +209,7 @@ func (p *parser) consumeCommentGroup() int {
+ func (p *parser) next() {
+ 	p.leadComment = nil;
+ 	p.lineComment = nil;
+-	line := p.pos.Line;  // current line
++	line := p.pos.Line;	// current line
+ 	p.next0();
+ 
+ 	if p.tok == token.COMMENT {
+@@ -246,7 +246,7 @@ func (p *parser) errorExpected(pos token.Position, msg string) {
+ 		// make the error message more specific
+ 		msg += ", found '" + p.tok.String() + "'";
+ 		if p.tok.IsLiteral() {
+-			msg += " " + string(p.lit);
++			msg += " "+string(p.lit);
+ 		}
+ 	}
+ 	p.Error(pos, msg);
+@@ -258,7 +258,7 @@ func (p *parser) expect(tok token.Token) token.Position {
+ 	if p.tok != tok {
+ 		p.errorExpected(pos, "'" + tok.String() + "'");
+ 	}
+-	p.next();  // make progress in any case
++	p.next();	// make progress in any case
+ 	return pos;
+ }
+ 
+@@ -272,7 +272,8 @@ func openScope(p *parser) *parser {
+ }
+ 
+ 
+-func close/*Scope*/(p *parser) {
++// Usage pattern: defer close(openScope(p));
++func close(p *parser) {
+ 	p.topScope = p.topScope.Outer;
+ }
+ 
+@@ -300,7 +301,7 @@ func (p *parser) parseIdent() *ast.Ident {
+ 		p.next();
+ 		return x;
+ 	}
+-	p.expect(token.IDENT);  // use expect() error handling
++	p.expect(token.IDENT);	// use expect() error handling
+ 	return &ast.Ident{p.pos, ""};
+ }
+ 
+@@ -361,7 +362,7 @@ func (p *parser) parseType() ast.Expr {
+ 
+ 	if typ == nil {
+ 		p.errorExpected(p.pos, "type");
+-		p.next();  // make progress
++		p.next();	// make progress
+ 		return &ast.BadExpr{p.pos};
+ 	}
+ 
+@@ -536,7 +537,7 @@ func (p *parser) parseParameterType(ellipsisOk bool) ast.Expr {
+ 	typ := p.tryParameterType(ellipsisOk);
+ 	if typ == nil {
+ 		p.errorExpected(p.pos, "type");
+-		p.next();  // make progress
++		p.next();	// make progress
+ 		typ = &ast.BadExpr{p.pos};
+ 	}
+ 	return typ;
+@@ -757,14 +758,22 @@ func (p *parser) parseChanType() *ast.ChanType {
+ 
+ func (p *parser) tryRawType(ellipsisOk bool) ast.Expr {
+ 	switch p.tok {
+-	case token.IDENT: return p.parseTypeName();
+-	case token.LBRACK: return p.parseArrayType(ellipsisOk);
+-	case token.STRUCT: return p.parseStructType();
+-	case token.MUL: return p.parsePointerType();
+-	case token.FUNC: return p.parseFuncType();
+-	case token.INTERFACE: return p.parseInterfaceType();
+-	case token.MAP: return p.parseMapType();
+-	case token.CHAN, token.ARROW: return p.parseChanType();
++	case token.IDENT:
++		return p.parseTypeName();
++	case token.LBRACK:
++		return p.parseArrayType(ellipsisOk);
++	case token.STRUCT:
++		return p.parseStructType();
++	case token.MUL:
++		return p.parsePointerType();
++	case token.FUNC:
++		return p.parseFuncType();
++	case token.INTERFACE:
++		return p.parseInterfaceType();
++	case token.MAP:
++		return p.parseMapType();
++	case token.CHAN, token.ARROW:
++		return p.parseChanType();
+ 	case token.LPAREN:
+ 		lparen := p.pos;
+ 		p.next();
+@@ -811,7 +820,7 @@ func (p *parser) parseStmtList() []ast.Stmt {
+ 		if p.tok == token.SEMICOLON {
+ 			p.next();
+ 		} else if p.optSemi {
+-			p.optSemi = false;  // "consume" optional semicolon
++			p.optSemi = false;	// "consume" optional semicolon
+ 		} else {
+ 			expectSemi = true;
+ 		}
+@@ -878,7 +887,7 @@ func (p *parser) parseFuncTypeOrLit() ast.Expr {
+ 
+ 	p.exprLev++;
+ 	body := p.parseBlockStmt(nil);
+-	p.optSemi = false;  // function body requires separating ";"
++	p.optSemi = false;	// function body requires separating ";"
+ 	p.exprLev--;
+ 
+ 	return &ast.FuncLit{typ, body};
+@@ -918,14 +927,14 @@ func (p *parser) parseOperand() ast.Expr {
+ 		return p.parseFuncTypeOrLit();
+ 
+ 	default:
+-		t := p.tryRawType(true);  // could be type for composite literal or conversion
++		t := p.tryRawType(true);	// could be type for composite literal or conversion
+ 		if t != nil {
+ 			return t;
+ 		}
+ 	}
+ 
+ 	p.errorExpected(p.pos, "operand");
+-	p.next();  // make progress
++	p.next();	// make progress
+ 	return &ast.BadExpr{p.pos};
+ }
+ 
+@@ -1097,9 +1106,12 @@ func isTypeName(x ast.Expr) bool {
+ 	switch t := x.(type) {
+ 	case *ast.BadExpr:
+ 	case *ast.Ident:
+-	case *ast.ParenExpr: return isTypeName(t.X);  // TODO(gri): should (TypeName) be illegal?
+-	case *ast.SelectorExpr: return isTypeName(t.X);
+-	default: return false;  // all other nodes are not type names
++	case *ast.ParenExpr:
++		return isTypeName(t.X);	// TODO(gri): should (TypeName) be illegal?
++	case *ast.SelectorExpr:
++		return isTypeName(t.X);
++	default:
++		return false;	// all other nodes are not type names
+ 	}
+ 	return true;
+ }
+@@ -1111,12 +1123,15 @@ func isCompositeLitType(x ast.Expr) bool {
+ 	switch t := x.(type) {
+ 	case *ast.BadExpr:
+ 	case *ast.Ident:
+-	case *ast.ParenExpr: return isCompositeLitType(t.X);
+-	case *ast.SelectorExpr: return isTypeName(t.X);
++	case *ast.ParenExpr:
++		return isCompositeLitType(t.X);
++	case *ast.SelectorExpr:
++		return isTypeName(t.X);
+ 	case *ast.ArrayType:
+ 	case *ast.StructType:
+ 	case *ast.MapType:
+-	default: return false;  // all other nodes are not legal composite literal types
++	default:
++		return false;	// all other nodes are not legal composite literal types
+ 	}
+ 	return true;
+ }
+@@ -1154,9 +1169,12 @@ func (p *parser) parsePrimaryExpr() ast.Expr {
+ 	x := p.parseOperand();
+ L:	for {
+ 		switch p.tok {
+-		case token.PERIOD: x = p.parseSelectorOrTypeAssertion(p.checkExpr(x));
+-		case token.LBRACK: x = p.parseIndex(p.checkExpr(x));
+-		case token.LPAREN: x = p.parseCallOrConversion(p.checkExprOrType(x));
++		case token.PERIOD:
++			x = p.parseSelectorOrTypeAssertion(p.checkExpr(x));
++		case token.LBRACK:
++			x = p.parseIndex(p.checkExpr(x));
++		case token.LPAREN:
++			x = p.parseCallOrConversion(p.checkExprOrType(x));
+ 		case token.LBRACE:
+ 			if isCompositeLitType(x) && (p.exprLev >= 0 || !isTypeName(x)) {
+ 				x = p.parseCompositeLit(x);
+@@ -1206,7 +1224,7 @@ func (p *parser) parseBinaryExpr(prec1 int) ast.Expr {
+ 		for p.tok.Precedence() == prec {
+ 			pos, op := p.pos, p.tok;
+ 			p.next();
+-			y := p.parseBinaryExpr(prec + 1);
++			y := p.parseBinaryExpr(prec+1);
+ 			x = &ast.BinaryExpr{p.checkExpr(x), pos, op, p.checkExpr(y)};
+ 		}
+ 	}
+@@ -1272,7 +1290,7 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
+ 	if p.tok == token.INC || p.tok == token.DEC {
+ 		// increment or decrement
+ 		s := &ast.IncDecStmt{x[0], p.tok};
+-		p.next();  // consume "++" or "--"
++		p.next();	// consume "++" or "--"
+ 		return s;
+ 	}
+ 
+@@ -1492,7 +1510,7 @@ func isExprSwitch(s ast.Stmt) bool {
+ 	}
+ 	if e, ok := s.(*ast.ExprStmt); ok {
+ 		if a, ok := e.X.(*ast.TypeAssertExpr); ok {
+-			return a.Type != nil;  // regular type assertion
++			return a.Type != nil;	// regular type assertion
+ 		}
+ 		return true;
+ 	}
+@@ -1565,7 +1583,7 @@ func (p *parser) parseCommClause() *ast.CommClause {
+ 				if p.tok == token.ARROW {
+ 					rhs = p.parseExpr();
+ 				} else {
+-					p.expect(token.ARROW);  // use expect() error handling
++					p.expect(token.ARROW);	// use expect() error handling
+ 				}
+ 			}
+ 			// else SendExpr
+@@ -1637,7 +1655,7 @@ func (p *parser) parseForStmt() ast.Stmt {
+ 		}
+ 		if rhs, isUnary := as.Rhs[0].(*ast.UnaryExpr); isUnary && rhs.Op == token.RANGE {
+ 			// rhs is range expression; check lhs
+-			return &ast.RangeStmt{pos, key, value, as.TokPos, as.Tok, rhs.X, body}
++			return &ast.RangeStmt{pos, key, value, as.TokPos, as.Tok, rhs.X, body};
+ 		} else {
+ 			p.errorExpected(s2.Pos(), "range clause");
+ 			return &ast.BadStmt{pos};
+@@ -1647,7 +1665,7 @@ func (p *parser) parseForStmt() ast.Stmt {
+ 		return &ast.ForStmt{pos, s1, p.makeExpr(s2), s3, body};
+ 	}
+ 
+-	panic();  // unreachable
++	panic();	// unreachable
+ 	return nil;
+ }
+ 
+@@ -1659,13 +1677,13 @@ func (p *parser) parseStmt() ast.Stmt {
+ 
+ 	switch p.tok {
+ 	case token.CONST, token.TYPE, token.VAR:
+-		decl, _ := p.parseDecl(false);  // do not consume trailing semicolon
++		decl, _ := p.parseDecl(false);	// do not consume trailing semicolon
+ 		return &ast.DeclStmt{decl};
+ 	case
+ 		// tokens that may start a top-level expression
+-		token.IDENT, token.INT, token.FLOAT, token.CHAR, token.STRING, token.FUNC, token.LPAREN,  // operand
+-		token.LBRACK, token.STRUCT,  // composite type
+-		token.MUL, token.AND, token.ARROW, token.ADD, token.SUB, token.XOR:  // unary operators
++		token.IDENT, token.INT, token.FLOAT, token.CHAR, token.STRING, token.FUNC, token.LPAREN,	// operand
++		token.LBRACK, token.STRUCT,	// composite type
++		token.MUL, token.AND, token.ARROW, token.ADD, token.SUB, token.XOR:	// unary operators
+ 		return p.parseSimpleStmt(true);
+ 	case token.GO:
+ 		return p.parseGoStmt();
+@@ -1692,7 +1710,7 @@ func (p *parser) parseStmt() ast.Stmt {
+ 
+ 	// no statement found
+ 	p.errorExpected(p.pos, "statement");
+-	p.next();  // make progress
++	p.next();	// make progress
+ 	return &ast.BadStmt{p.pos};
+ }
+ 
+@@ -1732,7 +1750,7 @@ func parseImportSpec(p *parser, doc *ast.CommentGroup, getSemi bool) (spec ast.S
+ 	if p.tok == token.STRING {
+ 		path = p.parseStringList(nil);
+ 	} else {
+-		p.expect(token.STRING);  // use expect() error handling
++		p.expect(token.STRING);	// use expect() error handling
+ 	}
+ 
+ 	comment, gotSemi := p.parseComment(getSemi);
+@@ -1804,7 +1822,7 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction, getSemi
+ 		p.next();
+ 		for p.tok != token.RPAREN && p.tok != token.EOF {
+ 			doc := p.leadComment;
+-			spec, semi := f(p, doc, true);  // consume semicolon if any
++			spec, semi := f(p, doc, true);	// consume semicolon if any
+ 			list.Push(spec);
+ 			if !semi {
+ 				break;
+@@ -1914,7 +1932,7 @@ func (p *parser) parseDecl(getSemi bool) (decl ast.Decl, gotSemi bool) {
+ 		p.errorExpected(pos, "declaration");
+ 		decl = &ast.BadDecl{pos};
+ 		gotSemi = getSemi && p.tok == token.SEMICOLON;
+-		p.next();  // make progress in any case
++		p.next();	// make progress in any case
+ 		return decl, gotSemi;
+ 	}
+ 
+@@ -1967,14 +1985,14 @@ func (p *parser) parseFile() *ast.File {
+ 		// import decls
+ 		list := vector.New(0);
+ 		for p.tok == token.IMPORT {
+-			decl, _ := p.parseGenDecl(token.IMPORT, parseImportSpec, true);  // consume optional semicolon
++			decl, _ := p.parseGenDecl(token.IMPORT, parseImportSpec, true);	// consume optional semicolon
+ 			list.Push(decl);
+ 		}
+ 
+ 		if p.mode & ImportsOnly == 0 {
+ 			// rest of package body
+ 			for p.tok != token.EOF {
+-				decl, _ := p.parseDecl(true);  // consume optional semicolon
++				decl, _ := p.parseDecl(true);	// consume optional semicolon
+ 				list.Push(decl);
+ 			}
+ 		}
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 5d96b0703c..7e27b3b6e7 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -24,6 +24,15 @@ const (
+ )
+ 
+ 
++// Other outstanding formatting issues:
++// - replacement of expression spacing algorithm with rsc's algorithm
++// - support for one-line composite types (e.g. structs) as composite literals types
++// - better comment formatting for /*-style comments at the end of a line (e.g. a declaration)
++//   when the comment spans multiple lines
++// - formatting of expression lists; especially for string lists (stringListMode)
++// - blank after { and before } in one-line composite literals probably looks better
++
++
+ // ----------------------------------------------------------------------------
+ // Common AST nodes.
+ 
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index d243a84298..052f3a8a8b 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -13,7 +13,7 @@ import (
+ 
+ 
+ const /* class */ (
+-	special = iota;
++	special	= iota;
+ 	literal;
+ 	operator;
+ 	keyword;
+@@ -22,144 +22,150 @@ const /* class */ (
+ 
+ func tokenclass(tok token.Token) int {
+ 	switch {
+-	case tok.IsLiteral(): return literal;
+-	case tok.IsOperator(): return operator;
+-	case tok.IsKeyword(): return keyword;
++	case tok.IsLiteral():
++		return literal;
++	case tok.IsOperator():
++		return operator;
++	case tok.IsKeyword():
++		return keyword;
+ 	}
+ 	return special;
+ }
+ 
+ 
+ type elt struct {
+-	tok token.Token;
+-	lit string;
+-	class int;
++	tok	token.Token;
++	lit	string;
++	class	int;
+ }
+ 
+ 
+ var tokens = [...]elt{
+ 	// Special tokens
+-	elt{ token.COMMENT, "/* a comment */", special },
+-	elt{ token.COMMENT, "// a comment \n", special },
++	elt{token.COMMENT, "/* a comment */", special},
++	elt{token.COMMENT, "// a comment \n", special},
+ 
+ 	// Identifiers and basic type literals
+-	elt{ token.IDENT, "foobar", literal },
+-	elt{ token.IDENT, "a۰۱۸", literal },
+-	elt{ token.IDENT, "foo६४", literal },
+-	elt{ token.IDENT, "bar９８７６", literal },
+-	elt{ token.INT, "0", literal },
+-	elt{ token.INT, "01234567", literal },
+-	elt{ token.INT, "0xcafebabe", literal },
+-	elt{ token.FLOAT, "0.", literal },
+-	elt{ token.FLOAT, ".0", literal },
+-	elt{ token.FLOAT, "3.14159265", literal },
+-	elt{ token.FLOAT, "1e0", literal },
+-	elt{ token.FLOAT, "1e+100", literal },
+-	elt{ token.FLOAT, "1e-100", literal },
+-	elt{ token.FLOAT, "2.71828e-1000", literal },
+-	elt{ token.CHAR, "'a'", literal },
+-	elt{ token.CHAR, "'\\000'", literal },
+-	elt{ token.CHAR, "'\\xFF'", literal },
+-	elt{ token.CHAR, "'\\uff16'", literal },
+-	elt{ token.CHAR, "'\\U0000ff16'", literal },
+-	elt{ token.STRING, "`foobar`", literal },
+-	elt{ token.STRING, "`" `foo
+-	                        bar` "`", literal },
++	elt{token.IDENT, "foobar", literal},
++	elt{token.IDENT, "a۰۱۸", literal},
++	elt{token.IDENT, "foo६४", literal},
++	elt{token.IDENT, "bar９８７６", literal},
++	elt{token.INT, "0", literal},
++	elt{token.INT, "01234567", literal},
++	elt{token.INT, "0xcafebabe", literal},
++	elt{token.FLOAT, "0.", literal},
++	elt{token.FLOAT, ".0", literal},
++	elt{token.FLOAT, "3.14159265", literal},
++	elt{token.FLOAT, "1e0", literal},
++	elt{token.FLOAT, "1e+100", literal},
++	elt{token.FLOAT, "1e-100", literal},
++	elt{token.FLOAT, "2.71828e-1000", literal},
++	elt{token.CHAR, "'a'", literal},
++	elt{token.CHAR, "'\\000'", literal},
++	elt{token.CHAR, "'\\xFF'", literal},
++	elt{token.CHAR, "'\\uff16'", literal},
++	elt{token.CHAR, "'\\U0000ff16'", literal},
++	elt{token.STRING, "`foobar`", literal},
++	elt{token.STRING, "`" `foo
++	                        bar`
++		"`",
++		literal,
++	},
+ 
+ 	// Operators and delimitors
+-	elt{ token.ADD, "+", operator },
+-	elt{ token.SUB, "-", operator },
+-	elt{ token.MUL, "*", operator },
+-	elt{ token.QUO, "/", operator },
+-	elt{ token.REM, "%", operator },
+-
+-	elt{ token.AND, "&", operator },
+-	elt{ token.OR, "|", operator },
+-	elt{ token.XOR, "^", operator },
+-	elt{ token.SHL, "<<", operator },
+-	elt{ token.SHR, ">>", operator },
+-	elt{ token.AND_NOT, "&^", operator },
+-
+-	elt{ token.ADD_ASSIGN, "+=", operator },
+-	elt{ token.SUB_ASSIGN, "-=", operator },
+-	elt{ token.MUL_ASSIGN, "*=", operator },
+-	elt{ token.QUO_ASSIGN, "/=", operator },
+-	elt{ token.REM_ASSIGN, "%=", operator },
+-
+-	elt{ token.AND_ASSIGN, "&=", operator },
+-	elt{ token.OR_ASSIGN, "|=", operator },
+-	elt{ token.XOR_ASSIGN, "^=", operator },
+-	elt{ token.SHL_ASSIGN, "<<=", operator },
+-	elt{ token.SHR_ASSIGN, ">>=", operator },
+-	elt{ token.AND_NOT_ASSIGN, "&^=", operator },
+-
+-	elt{ token.LAND, "&&", operator },
+-	elt{ token.LOR, "||", operator },
+-	elt{ token.ARROW, "<-", operator },
+-	elt{ token.INC, "++", operator },
+-	elt{ token.DEC, "--", operator },
+-
+-	elt{ token.EQL, "==", operator },
+-	elt{ token.LSS, "<", operator },
+-	elt{ token.GTR, ">", operator },
+-	elt{ token.ASSIGN, "=", operator },
+-	elt{ token.NOT, "!", operator },
+-
+-	elt{ token.NEQ, "!=", operator },
+-	elt{ token.LEQ, "<=", operator },
+-	elt{ token.GEQ, ">=", operator },
+-	elt{ token.DEFINE, ":=", operator },
+-	elt{ token.ELLIPSIS, "...", operator },
+-
+-	elt{ token.LPAREN, "(", operator },
+-	elt{ token.LBRACK, "[", operator },
+-	elt{ token.LBRACE, "{", operator },
+-	elt{ token.COMMA, ",", operator },
+-	elt{ token.PERIOD, ".", operator },
+-
+-	elt{ token.RPAREN, ")", operator },
+-	elt{ token.RBRACK, "]", operator },
+-	elt{ token.RBRACE, "}", operator },
+-	elt{ token.SEMICOLON, ";", operator },
+-	elt{ token.COLON, ":", operator },
++	elt{token.ADD, "+", operator},
++	elt{token.SUB, "-", operator},
++	elt{token.MUL, "*", operator},
++	elt{token.QUO, "/", operator},
++	elt{token.REM, "%", operator},
++
++	elt{token.AND, "&", operator},
++	elt{token.OR, "|", operator},
++	elt{token.XOR, "^", operator},
++	elt{token.SHL, "<<", operator},
++	elt{token.SHR, ">>", operator},
++	elt{token.AND_NOT, "&^", operator},
++
++	elt{token.ADD_ASSIGN, "+=", operator},
++	elt{token.SUB_ASSIGN, "-=", operator},
++	elt{token.MUL_ASSIGN, "*=", operator},
++	elt{token.QUO_ASSIGN, "/=", operator},
++	elt{token.REM_ASSIGN, "%=", operator},
++
++	elt{token.AND_ASSIGN, "&=", operator},
++	elt{token.OR_ASSIGN, "|=", operator},
++	elt{token.XOR_ASSIGN, "^=", operator},
++	elt{token.SHL_ASSIGN, "<<=", operator},
++	elt{token.SHR_ASSIGN, ">>=", operator},
++	elt{token.AND_NOT_ASSIGN, "&^=", operator},
++
++	elt{token.LAND, "&&", operator},
++	elt{token.LOR, "||", operator},
++	elt{token.ARROW, "<-", operator},
++	elt{token.INC, "++", operator},
++	elt{token.DEC, "--", operator},
++
++	elt{token.EQL, "==", operator},
++	elt{token.LSS, "<", operator},
++	elt{token.GTR, ">", operator},
++	elt{token.ASSIGN, "=", operator},
++	elt{token.NOT, "!", operator},
++
++	elt{token.NEQ, "!=", operator},
++	elt{token.LEQ, "<=", operator},
++	elt{token.GEQ, ">=", operator},
++	elt{token.DEFINE, ":=", operator},
++	elt{token.ELLIPSIS, "...", operator},
++
++	elt{token.LPAREN, "(", operator},
++	elt{token.LBRACK, "[", operator},
++	elt{token.LBRACE, "{", operator},
++	elt{token.COMMA, ",", operator},
++	elt{token.PERIOD, ".", operator},
++
++	elt{token.RPAREN, ")", operator},
++	elt{token.RBRACK, "]", operator},
++	elt{token.RBRACE, "}", operator},
++	elt{token.SEMICOLON, ";", operator},
++	elt{token.COLON, ":", operator},
+ 
+ 	// Keywords
+-	elt{ token.BREAK, "break", keyword },
+-	elt{ token.CASE, "case", keyword },
+-	elt{ token.CHAN, "chan", keyword },
+-	elt{ token.CONST, "const", keyword },
+-	elt{ token.CONTINUE, "continue", keyword },
+-
+-	elt{ token.DEFAULT, "default", keyword },
+-	elt{ token.DEFER, "defer", keyword },
+-	elt{ token.ELSE, "else", keyword },
+-	elt{ token.FALLTHROUGH, "fallthrough", keyword },
+-	elt{ token.FOR, "for", keyword },
+-
+-	elt{ token.FUNC, "func", keyword },
+-	elt{ token.GO, "go", keyword },
+-	elt{ token.GOTO, "goto", keyword },
+-	elt{ token.IF, "if", keyword },
+-	elt{ token.IMPORT, "import", keyword },
+-
+-	elt{ token.INTERFACE, "interface", keyword },
+-	elt{ token.MAP, "map", keyword },
+-	elt{ token.PACKAGE, "package", keyword },
+-	elt{ token.RANGE, "range", keyword },
+-	elt{ token.RETURN, "return", keyword },
+-
+-	elt{ token.SELECT, "select", keyword },
+-	elt{ token.STRUCT, "struct", keyword },
+-	elt{ token.SWITCH, "switch", keyword },
+-	elt{ token.TYPE, "type", keyword },
+-	elt{ token.VAR, "var", keyword },
++	elt{token.BREAK, "break", keyword},
++	elt{token.CASE, "case", keyword},
++	elt{token.CHAN, "chan", keyword},
++	elt{token.CONST, "const", keyword},
++	elt{token.CONTINUE, "continue", keyword},
++
++	elt{token.DEFAULT, "default", keyword},
++	elt{token.DEFER, "defer", keyword},
++	elt{token.ELSE, "else", keyword},
++	elt{token.FALLTHROUGH, "fallthrough", keyword},
++	elt{token.FOR, "for", keyword},
++
++	elt{token.FUNC, "func", keyword},
++	elt{token.GO, "go", keyword},
++	elt{token.GOTO, "goto", keyword},
++	elt{token.IF, "if", keyword},
++	elt{token.IMPORT, "import", keyword},
++
++	elt{token.INTERFACE, "interface", keyword},
++	elt{token.MAP, "map", keyword},
++	elt{token.PACKAGE, "package", keyword},
++	elt{token.RANGE, "range", keyword},
++	elt{token.RETURN, "return", keyword},
++
++	elt{token.SELECT, "select", keyword},
++	elt{token.STRUCT, "struct", keyword},
++	elt{token.SWITCH, "switch", keyword},
++	elt{token.TYPE, "type", keyword},
++	elt{token.VAR, "var", keyword},
+ }
+ 
+ 
+-const whitespace = "  \t  \n\n\n";  // to separate tokens
++const whitespace = "  \t  \n\n\n"	// to separate tokens
+ 
+ type TestErrorHandler struct {
+-	t *testing.T
++	t *testing.T;
+ }
+ 
+ func (h *TestErrorHandler) Error(pos token.Position, msg string) {
+@@ -188,7 +194,7 @@ func checkPos(t *testing.T, lit string, pos, expected token.Position) {
+ 	if pos.Line != expected.Line {
+ 		t.Errorf("bad line for %s: got %d, expected %d", lit, pos.Line, expected.Line);
+ 	}
+-	if pos.Column!= expected.Column {
++	if pos.Column != expected.Column {
+ 		t.Errorf("bad column for %s: got %d, expected %d", lit, pos.Column, expected.Column);
+ 	}
+ }
+@@ -207,7 +213,7 @@ func TestScan(t *testing.T) {
+ 	index := 0;
+ 	epos := token.Position{"", 0, 1, 1};
+ 	nerrors := Tokenize("", strings.Bytes(src), &TestErrorHandler{t}, ScanComments,
+-		func (pos token.Position, tok token.Token, litb []byte) bool {
++		func(pos token.Position, tok token.Token, litb []byte) bool {
+ 			e := elt{token.EOF, "", special};
+ 			if index < len(tokens) {
+ 				e = tokens[index];
+@@ -227,7 +233,7 @@ func TestScan(t *testing.T) {
+ 			if tokenclass(tok) != e.class {
+ 				t.Errorf("bad class for %s: got %d, expected %d", lit, tokenclass(tok), e.class);
+ 			}
+-			epos.Offset += len(lit) + len(whitespace);
++			epos.Offset += len(lit)+len(whitespace);
+ 			epos.Line += NewlineCount(lit) + whitespace_linecount;
+ 			if tok == token.COMMENT && litb[1] == '/' {
+ 				// correct for unaccounted '/n' in //-style comment
+@@ -236,8 +242,7 @@ func TestScan(t *testing.T) {
+ 			}
+ 			index++;
+ 			return tok != token.EOF;
+-		}
+-	);
++		});
+ 	if nerrors != 0 {
+ 		t.Errorf("found %d errors", nerrors);
+ 	}
+@@ -245,28 +250,28 @@ func TestScan(t *testing.T) {
+ 
+ 
+ type seg struct {
+-	srcline string;  // a line of source text
+-	filename string;  // filename for current token
+-	line int;  // line number for current token
++	srcline		string;	// a line of source text
++	filename	string;	// filename for current token
++	line		int;	// line number for current token
+ }
+ 
+ 
+ var segments = []seg{
+ 	// exactly one token per line since the test consumes one token per segment
+-	seg{ "  line1", "TestLineComments", 1 },
+-	seg{ "\nline2", "TestLineComments", 2 },
+-	seg{ "\nline3  //line File1.go:100", "TestLineComments", 3 },  // bad line comment, ignored
+-	seg{ "\nline4", "TestLineComments", 4 },
+-	seg{ "\n//line File1.go:100\n  line100", "File1.go", 100 },
+-	seg{ "\n//line File2.go:200\n  line200", "File2.go", 200 },
+-	seg{ "\n//line :1\n  line1", "", 1 },
+-	seg{ "\n//line foo:42\n  line42", "foo", 42 },
+-	seg{ "\n //line foo:42\n  line44", "foo", 44 },  // bad line comment, ignored
+-	seg{ "\n//line foo 42\n  line46", "foo", 46 },  // bad line comment, ignored
+-	seg{ "\n//line foo:42 extra text\n  line48", "foo", 48 },  // bad line comment, ignored
+-	seg{ "\n//line foo:42\n  line42", "foo", 42 },
+-	seg{ "\n//line foo:42\n  line42", "foo", 42 },
+-	seg{ "\n//line File1.go:100\n  line100", "File1.go", 100 },
++	seg{"  line1", "TestLineComments", 1},
++	seg{"\nline2", "TestLineComments", 2},
++	seg{"\nline3  //line File1.go:100", "TestLineComments", 3},	// bad line comment, ignored
++	seg{"\nline4", "TestLineComments", 4},
++	seg{"\n//line File1.go:100\n  line100", "File1.go", 100},
++	seg{"\n//line File2.go:200\n  line200", "File2.go", 200},
++	seg{"\n//line :1\n  line1", "", 1},
++	seg{"\n//line foo:42\n  line42", "foo", 42},
++	seg{"\n //line foo:42\n  line44", "foo", 44},	// bad line comment, ignored
++	seg{"\n//line foo 42\n  line46", "foo", 46},	// bad line comment, ignored
++	seg{"\n//line foo:42 extra text\n  line48", "foo", 48},	// bad line comment, ignored
++	seg{"\n//line foo:42\n  line42", "foo", 42},
++	seg{"\n//line foo:42\n  line42", "foo", 42},
++	seg{"\n//line File1.go:100\n  line100", "File1.go", 100},
+ }
+ 
+ 
+@@ -298,16 +303,16 @@ func TestInit(t *testing.T) {
+ 
+ 	// 1st init
+ 	s.Init("", strings.Bytes("if true { }"), nil, 0);
+-	s.Scan();  // if
+-	s.Scan();  // true
+-	_, tok, _ := s.Scan();  // {
++	s.Scan();		// if
++	s.Scan();		// true
++	_, tok, _ := s.Scan();	// {
+ 	if tok != token.LBRACE {
+ 		t.Errorf("bad token: got %s, expected %s", tok.String(), token.LBRACE);
+ 	}
+ 
+ 	// 2nd init
+ 	s.Init("", strings.Bytes("go true { ]"), nil, 0);
+-	_, tok, _ = s.Scan();  // go
++	_, tok, _ = s.Scan();	// go
+ 	if tok != token.GO {
+ 		t.Errorf("bad token: got %s, expected %s", tok.String(), token.GO);
+ 	}
+@@ -340,23 +345,19 @@ func TestIllegalChars(t *testing.T) {
+ 
+ 
+ func TestStdErrorHander(t *testing.T) {
+-	const src =
+-		"@\n"  // illegal character, cause an error
+-		"@ @\n"  // two errors on the same line
++	const src = "@\n"	// illegal character, cause an error
++		"@ @\n"	// two errors on the same line
+ 		"//line File2:20\n"
+-		"@\n"  // different file, but same line
++		"@\n"	// different file, but same line
+ 		"//line File2:1\n"
+-		"@ @\n"  // same file, decreasing line number
++		"@ @\n"	// same file, decreasing line number
+ 		"//line File1:1\n"
+-		"@ @ @"  // original file, line 1 again
+-	;
++		"@ @ @";	// original file, line 1 again
++
+ 
+ 	v := NewErrorVector();
+ 	nerrors := Tokenize("File1", strings.Bytes(src), v, 0,
+-		func (pos token.Position, tok token.Token, litb []byte) bool {
+-			return tok != token.EOF;
+-		}
+-	);
++		func(pos token.Position, tok token.Token, litb []byte) bool { return tok != token.EOF });
+ 
+ 	list := v.GetErrorList(Raw);
+ 	if len(list) != 9 {
+diff --git a/src/pkg/xml/xml_test.go b/src/pkg/xml/xml_test.go
+index 7d0da8f19d..e8a2a8769a 100644
+--- a/src/pkg/xml/xml_test.go
++++ b/src/pkg/xml/xml_test.go
+@@ -16,7 +16,8 @@ const testInput = `
+ <?xml version="1.0" encoding="UTF-8"?>
+ <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+-<body xmlns:foo="ns1" xmlns="ns2" xmlns:tag="ns3" ` "\r\n\t" `  >
++<body xmlns:foo="ns1" xmlns="ns2" xmlns:tag="ns3" `
++	"\r\n\t" `  >
+   <hello lang="en">World &lt;&gt;&apos;&quot; &#x767d;&#40300;翔</hello>
+   <goodbye />
+   <outer foo:attr="value" xmlns:tag="ns4">
+@@ -90,8 +91,8 @@ var cookedTokens = []Token{
+ }
+ 
+ type stringReader struct {
+-	s string;
+-	off int;
++	s	string;
++	off	int;
+ }
+ 
+ func (r *stringReader) Read(b []byte) (n int, err os.Error) {
+@@ -116,7 +117,7 @@ func (r *stringReader) ReadByte() (b byte, err os.Error) {
+ }
+ 
+ func StringReader(s string) io.Reader {
+-	return &stringReader{s, 0}
++	return &stringReader{s, 0};
+ }
+ 
+ func TestRawToken(t *testing.T) {
+@@ -146,4 +147,3 @@ func TestToken(t *testing.T) {
+ 		}
+ 	}
+ }
+-

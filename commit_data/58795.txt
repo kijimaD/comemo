@@ -26,8 +26,80 @@ Date:   Tue Dec 12 15:40:16 2023 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/lookup.go           | 14 ++++++++++++--
  src/go/types/lookup.go                              | 14 ++++++++++++--
  src/internal/types/testdata/fixedbugs/issue61685.go | 15 +++++++++++++++
  3 files changed, 39 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 893cdb157d..014a5489cd 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -445,8 +445,18 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
+ 				// Add package information to disambiguate (go.dev/issue/54258).
+ 				fs, ms = check.funcString(f, true), check.funcString(m, true)
+ 			}
+-			*cause = check.sprintf("(wrong type for method %s)\n\t\thave %s\n\t\twant %s",
+-				m.Name(), fs, ms)
++			if fs == ms {
++				// We still have "want Foo, have Foo".
++				// This is most likely due to different type parameters with
++				// the same name appearing in the instantiated signatures
++				// (go.dev/issue/61685).
++				// Rather than reporting this misleading error cause, for now
++				// just point out that the method signature is incorrect.
++				// TODO(gri) should find a good way to report the root cause
++				*cause = check.sprintf("(wrong type for method %s)", m.Name())
++				break
++			}
++			*cause = check.sprintf("(wrong type for method %s)\n\t\thave %s\n\t\twant %s", m.Name(), fs, ms)
+ 		case ambigSel:
+ 			*cause = check.sprintf("(ambiguous selector %s.%s)", V, m.Name())
+ 		case ptrRecv:
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 2857ba358c..05d30c178a 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -447,8 +447,18 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
+ 				// Add package information to disambiguate (go.dev/issue/54258).
+ 				fs, ms = check.funcString(f, true), check.funcString(m, true)
+ 			}
+-			*cause = check.sprintf("(wrong type for method %s)\n\t\thave %s\n\t\twant %s",
+-				m.Name(), fs, ms)
++			if fs == ms {
++				// We still have "want Foo, have Foo".
++				// This is most likely due to different type parameters with
++				// the same name appearing in the instantiated signatures
++				// (go.dev/issue/61685).
++				// Rather than reporting this misleading error cause, for now
++				// just point out that the method signature is incorrect.
++				// TODO(gri) should find a good way to report the root cause
++				*cause = check.sprintf("(wrong type for method %s)", m.Name())
++				break
++			}
++			*cause = check.sprintf("(wrong type for method %s)\n\t\thave %s\n\t\twant %s", m.Name(), fs, ms)
+ 		case ambigSel:
+ 			*cause = check.sprintf("(ambiguous selector %s.%s)", V, m.Name())
+ 		case ptrRecv:
+diff --git a/src/internal/types/testdata/fixedbugs/issue61685.go b/src/internal/types/testdata/fixedbugs/issue61685.go
+new file mode 100644
+index 0000000000..b88b222eb9
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue61685.go
+@@ -0,0 +1,15 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _[T any](x any) {
++	f /* ERROR "T (type I[T]) does not satisfy I[T] (wrong type for method m)" */ (x.(I[T]))
++}
++
++func f[T I[T]](T) {}
++
++type I[T any] interface {
++	m(T)
++}

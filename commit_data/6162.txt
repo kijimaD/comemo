@@ -7,6 +7,25 @@ Date:   Thu Sep 2 14:21:40 2010 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/2052041
-
+---
  src/pkg/time/format.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/time/format.go b/src/pkg/time/format.go
+index 8166d2e77a..355721e183 100644
+--- a/src/pkg/time/format.go
++++ b/src/pkg/time/format.go
+@@ -335,7 +335,12 @@ func (t *Time) Format(layout string) string {
+ }
+ 
+ // String returns a Unix-style representation of the time value.
+-func (t *Time) String() string { return t.Format(UnixDate) }
++func (t *Time) String() string {
++	if t == nil {
++		return "<nil>"
++	}
++	return t.Format(UnixDate)
++}
+ 
+ var errBad = os.ErrorString("bad") // just a marker; not returned to user
+ 

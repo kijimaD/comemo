@@ -12,7 +12,46 @@ Date:   Sun Sep 2 18:09:29 2018 -0400
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/typecheck.go |  2 +-
  test/fixedbugs/issue27356.go             | 19 +++++++++++++++++++
  2 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index cc98c3ae69..bb78d8bf73 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1263,7 +1263,7 @@ func typecheck1(n *Node, top int) *Node {
+ 			n.Op = OCALLFUNC
+ 			if t.Etype != TFUNC {
+ 				name := l.String()
+-				if isBuiltinFuncName(name) {
++				if isBuiltinFuncName(name) && l.Name.Defn != nil {
+ 					// be more specific when the function
+ 					// name matches a predeclared function
+ 					yyerror("cannot call non-function %s (type %v), declared at %s",
+diff --git a/test/fixedbugs/issue27356.go b/test/fixedbugs/issue27356.go
+new file mode 100644
+index 0000000000..42784876a5
+--- /dev/null
++++ b/test/fixedbugs/issue27356.go
+@@ -0,0 +1,19 @@
++// errorcheck
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 27356: function parameter hiding built-in function results in compiler crash
++
++package p
++
++var a = []int{1,2,3}
++
++func _(len int) {
++	_ =  len(a) // ERROR "cannot call non-function"
++}
++
++var cap = false
++var _ = cap(a) // ERROR "cannot call non-function"
++

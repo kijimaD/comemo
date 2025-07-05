@@ -17,7 +17,62 @@ Date:   Fri Mar 4 14:12:44 2016 -0800
     Run-TryBot: Todd Neal <todd@tneal.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Todd Neal <todd@tneal.org>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  3 +++
  src/cmd/compile/internal/ssa/rewritegeneric.go | 22 ++++++++++++++++++++++
  2 files changed, 25 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 0c77a6dee8..994e880bc6 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -404,6 +404,9 @@
+ // Load of store of same address, with compatibly typed value and same size
+ (Load <t1> p1 (Store [w] p2 x _)) && isSamePtr(p1,p2) && t1.Compare(x.Type)==CMPeq && w == t1.Size() -> x
+ 
++// Collapse OffPtr
++(OffPtr (OffPtr p [b]) [a]) -> (OffPtr p [a+b])
++
+ 
+ // indexing operations
+ // Note: bounds check has already been done
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 1ed5fa9555..79dcf9a716 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -206,6 +206,8 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		return rewriteValuegeneric_OpNeqPtr(v, config)
+ 	case OpNeqSlice:
+ 		return rewriteValuegeneric_OpNeqSlice(v, config)
++	case OpOffPtr:
++		return rewriteValuegeneric_OpOffPtr(v, config)
+ 	case OpOr16:
+ 		return rewriteValuegeneric_OpOr16(v, config)
+ 	case OpOr32:
+@@ -4821,6 +4823,26 @@ func rewriteValuegeneric_OpNeqSlice(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuegeneric_OpOffPtr(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (OffPtr (OffPtr p [b]) [a])
++	// cond:
++	// result: (OffPtr p [a+b])
++	for {
++		if v.Args[0].Op != OpOffPtr {
++			break
++		}
++		p := v.Args[0].Args[0]
++		b := v.Args[0].AuxInt
++		a := v.AuxInt
++		v.reset(OpOffPtr)
++		v.AddArg(p)
++		v.AuxInt = a + b
++		return true
++	}
++	return false
++}
+ func rewriteValuegeneric_OpOr16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b

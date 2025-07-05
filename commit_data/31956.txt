@@ -18,9 +18,85 @@ Date:   Sat Mar 25 07:22:53 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/arch/arch.go        |  2 ++
  src/cmd/compile/internal/amd64/galign.go |  2 ++
  src/cmd/compile/internal/x86/galign.go   |  2 ++
  src/cmd/internal/obj/x86/asm6.go         | 15 +++++++++++----
  4 files changed, 17 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arch.go b/src/cmd/asm/internal/arch/arch.go
+index 9110ca7c02..6f13a3a4db 100644
+--- a/src/cmd/asm/internal/arch/arch.go
++++ b/src/cmd/asm/internal/arch/arch.go
+@@ -171,6 +171,8 @@ func archX86(linkArch *obj.LinkArch) *Arch {
+ 	instructions["PSRLDQ"] = x86.APSRLO
+ 	instructions["PADDD"] = x86.APADDL
+ 
++	x86.InstInit()
++
+ 	return &Arch{
+ 		LinkArch:       linkArch,
+ 		Instructions:   instructions,
+diff --git a/src/cmd/compile/internal/amd64/galign.go b/src/cmd/compile/internal/amd64/galign.go
+index 90ee895364..59484b1537 100644
+--- a/src/cmd/compile/internal/amd64/galign.go
++++ b/src/cmd/compile/internal/amd64/galign.go
+@@ -27,4 +27,6 @@ func Init(arch *gc.Arch) {
+ 	arch.SSAMarkMoves = ssaMarkMoves
+ 	arch.SSAGenValue = ssaGenValue
+ 	arch.SSAGenBlock = ssaGenBlock
++
++	x86.InstInit()
+ }
+diff --git a/src/cmd/compile/internal/x86/galign.go b/src/cmd/compile/internal/x86/galign.go
+index b5cf044bc7..5255e9c60e 100644
+--- a/src/cmd/compile/internal/x86/galign.go
++++ b/src/cmd/compile/internal/x86/galign.go
+@@ -33,4 +33,6 @@ func Init(arch *gc.Arch) {
+ 	arch.Ginsnop = ginsnop
+ 
+ 	arch.SSAMarkMoves = ssaMarkMoves
++
++	x86.InstInit()
+ }
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 2fad88d67b..0e175e3760 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -883,8 +883,8 @@ var ymmxmm0f38 = []ytab{
+  * two values match the Ytypes of the p->from and p->to operands.  The function
+  * oclass in span.c computes the specific Ytype of an operand and then the set
+  * of more general Ytypes that it satisfies is implied by the ycover table, set
+- * up in instinit.  For example, oclass distinguishes the constants 0 and 1
+- * from the more general 8-bit constants, but instinit says
++ * up in InstInit.  For example, oclass distinguishes the constants 0 and 1
++ * from the more general 8-bit constants, but InstInit says
+  *
+  *        ycover[Yi0*Ymax + Ys32] = 1;
+  *        ycover[Yi1*Ymax + Ys32] = 1;
+@@ -1770,7 +1770,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
+ 	}
+ 
+ 	if ycover[0] == 0 {
+-		instinit()
++		ctxt.Diag("x86 tables not initialized, call x86.InstInit first")
+ 	}
+ 
+ 	for p := ctxt.Cursym.Text; p != nil; p = p.Link {
+@@ -1965,7 +1965,14 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
+ 	}
+ }
+ 
+-func instinit() {
++func InstInit() {
++	if ycover[0] != 0 {
++		// Already initialized; stop now.
++		// This happens in the cmd/asm tests,
++		// each of which re-initializes the arch.
++		return
++	}
++
+ 	for i := 1; optab[i].as != 0; i++ {
+ 		c := optab[i].as
+ 		if opindex[c&obj.AMask] != nil {

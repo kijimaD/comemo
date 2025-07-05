@@ -17,7 +17,59 @@ Date:   Wed Dec 15 12:34:34 2021 -0500
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types/identity.go |  7 ++++---
  test/fixedbugs/issue50169.go               | 24 ++++++++++++++++++++++++
  2 files changed, 28 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types/identity.go b/src/cmd/compile/internal/types/identity.go
+index a164b84da9..60a0f2e7c5 100644
+--- a/src/cmd/compile/internal/types/identity.go
++++ b/src/cmd/compile/internal/types/identity.go
+@@ -59,12 +59,13 @@ func identical(t1, t2 *Type, flags int, assumedEqual map[typePair]struct{}) bool
+ 		case TINT32:
+ 			return (t1 == Types[TINT32] || t1 == RuneType) && (t2 == Types[TINT32] || t2 == RuneType)
+ 		case TINTER:
+-			// Make sure named any type matches any empty interface
++			// Make sure named any type matches any unnamed empty interface
+ 			// (but not a shape type, if identStrict).
++			isUnnamedEface := func(t *Type) bool { return t.IsEmptyInterface() && t.Sym() == nil }
+ 			if flags&identStrict != 0 {
+-				return t1 == AnyType && t2.IsEmptyInterface() && !t2.HasShape() || t2 == AnyType && t1.IsEmptyInterface() && !t1.HasShape()
++				return t1 == AnyType && isUnnamedEface(t2) && !t2.HasShape() || t2 == AnyType && isUnnamedEface(t1) && !t1.HasShape()
+ 			}
+-			return t1 == AnyType && t2.IsEmptyInterface() || t2 == AnyType && t1.IsEmptyInterface()
++			return t1 == AnyType && isUnnamedEface(t2) || t2 == AnyType && isUnnamedEface(t1)
+ 		default:
+ 			return false
+ 		}
+diff --git a/test/fixedbugs/issue50169.go b/test/fixedbugs/issue50169.go
+new file mode 100644
+index 0000000000..30d2713ec9
+--- /dev/null
++++ b/test/fixedbugs/issue50169.go
+@@ -0,0 +1,24 @@
++// compile
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	var x Value
++	NewScanner().Scan(x)
++}
++
++type Value any
++
++type Scanner interface{ Scan(any) error }
++
++func NewScanner() Scanner {
++	return &t{}
++}
++
++type t struct{}
++
++func (*t) Scan(interface{}) error { return nil }

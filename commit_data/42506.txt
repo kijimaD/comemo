@@ -14,6 +14,20 @@ Date:   Tue Jan 7 04:31:23 2020 +1100
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/sys_linux_arm64.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index 8a0f06f206..8c2a249c9f 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -688,7 +688,7 @@ TEXT runtime·setNonblock(SB),NOSPLIT|NOFRAME,$0-4
+ 	MOVD	$SYS_fcntl, R8
+ 	SVC
+ 	MOVD	$0x800, R2 // O_NONBLOCK
+-	EOR	R0, R2
++	ORR	R0, R2
+ 	MOVW	fd+0(FP), R0 // fd
+ 	MOVD	$4, R1	// F_SETFL
+ 	MOVD	$SYS_fcntl, R8

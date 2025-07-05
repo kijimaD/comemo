@@ -20,6 +20,20 @@ Date:   Tue Feb 8 15:24:33 2022 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/net/http/pprof/pprof_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/pprof/pprof_test.go b/src/net/http/pprof/pprof_test.go
+index 1a4d653a62..f82ad45bf6 100644
+--- a/src/net/http/pprof/pprof_test.go
++++ b/src/net/http/pprof/pprof_test.go
+@@ -153,7 +153,7 @@ func mutexHog(duration time.Duration, hogger func(mu1, mu2 *sync.Mutex, start ti
+ }
+ 
+ func TestDeltaProfile(t *testing.T) {
+-	if runtime.GOOS == "openbsd" && runtime.GOARCH == "arm" {
++	if strings.HasPrefix(runtime.GOARCH, "arm") {
+ 		testenv.SkipFlaky(t, 50218)
+ 	}
+ 

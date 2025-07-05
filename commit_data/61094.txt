@@ -23,6 +23,39 @@ Date:   Tue Oct 1 16:50:04 2024 +0700
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  test/fixedbugs/issue69434.go | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/issue69434.go b/test/fixedbugs/issue69434.go
+index 6443bde50f..026d324606 100644
+--- a/test/fixedbugs/issue69434.go
++++ b/test/fixedbugs/issue69434.go
+@@ -1,4 +1,4 @@
+-// run -gcflags=-d=maymorestack=runtime.mayMoreStackMove
++// run
+ 
+ // Copyright 2024 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -13,6 +13,7 @@ import (
+ func All() iter.Seq[int] {
+ 	return func(yield func(int) bool) {
+ 		for i := 0; i < 10; i++ {
++			growStack(512)
+ 			if !yield(i) {
+ 				return
+ 			}
+@@ -48,6 +49,13 @@ func f() {
+ 	}
+ }
+ 
++func growStack(i int) {
++	if i == 0 {
++		return
++	}
++	growStack(i - 1)
++}
++
+ func main() {
+ 	f()
+ }

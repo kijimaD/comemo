@@ -9,6 +9,20 @@ Date:   Wed Aug 17 08:30:31 2016 -0700
     Change-Id: If7c80adcb38b5731e337b2ae2d9d76fcf8513d8e
     Reviewed-on: https://go-review.googlesource.com/27271
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.8.txt | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/doc/go1.8.txt b/doc/go1.8.txt
+new file mode 100644
+index 0000000000..4f99596b7b
+--- /dev/null
++++ b/doc/go1.8.txt
+@@ -0,0 +1,7 @@
++Tools:
++
++Ports:
++
++API additions and behavior changes:
++
++net: support "option ndots:0" in resolv.conf (CL 24901)

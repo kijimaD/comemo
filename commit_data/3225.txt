@@ -8,7 +8,7 @@ Date:   Sat Sep 5 20:32:24 2009 -0700
     R=rsc
     OCL=34413
     CL=34413
-
+---
  src/cmd/6g/cgen.c  |   4 -
  src/cmd/6g/gg.h    |   2 +-
  src/cmd/6g/ggen.c  |  65 +++++--------
@@ -19,3 +19,665 @@ Date:   Sat Sep 5 20:32:24 2009 -0700
  src/cmd/gc/subr.c  |   3 +
  src/cmd/gc/walk.c  | 265 ++++++++++++++++++++++++++++++++++++-----------------
  9 files changed, 216 insertions(+), 150 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 2f2b2d9eb2..0b01ada3d6 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -31,10 +31,6 @@ cgen(Node *n, Node *res)
+ 	while(n->op == OCONVNOP)
+ 		n = n->left;
+ 
+-	// static initializations
+-	if(initflag && gen_as_init(n, res))
+-		goto ret;
+-
+ 	// inline slices
+ 	if(cgen_inline(n, res))
+ 		goto ret;
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 39b56d04ab..388a1069a7 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -79,7 +79,7 @@ void	genconv(Type*, Type*);
+ void	allocparams(void);
+ void	checklabels();
+ void	ginscall(Node*, int);
+-int	gen_as_init(Node*, Node*);
++int	gen_as_init(Node*);
+ 
+ /*
+  * cgen
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index c7a1f2d774..8fd3a49d9d 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -1031,6 +1031,7 @@ stataddr(Node *nam, Node *n)
+ 		goto no;
+ 
+ 	switch(n->op) {
++
+ 	case ONAME:
+ 		*nam = *n;
+ 		return n->addable;
+@@ -1060,58 +1061,31 @@ no:
+ }
+ 
+ int
+-gen_as_init(Node *nr, Node *nl)
++gen_as_init(Node *n)
+ {
++	Node *nr, *nl;
+ 	Node nam, nod1;
+ 	Prog *p;
+ 
+-	if(!initflag)
++	if(n->dodata == 0)
+ 		goto no;
+ 
++	nr = n->right;
++	nl = n->left;
+ 	if(nr == N) {
+ 		if(!stataddr(&nam, nl))
+ 			goto no;
+ 		if(nam.class != PEXTERN)
+ 			goto no;
+-		return 1;
+-	}
+-
+-	if(nr->op == OCOMPSLICE) {
+-		// create a slice pointing to an array
+-		if(!stataddr(&nam, nl)) {
+-			dump("stataddr", nl);
+-			goto no;
+-		}
+-
+-		p = gins(ADATA, &nam, nr->left);
+-		p->from.scale = types[tptr]->width;
+-		p->to.index = p->to.type;
+-		p->to.type = D_ADDR;
+-//print("%P\n", p);
+-
+-		nodconst(&nod1, types[TINT32], nr->left->type->bound);
+-		p = gins(ADATA, &nam, &nod1);
+-		p->from.scale = types[TINT32]->width;
+-		p->from.offset += types[tptr]->width;
+-//print("%P\n", p);
+-
+-		p = gins(ADATA, &nam, &nod1);
+-		p->from.scale = types[TINT32]->width;
+-		p->from.offset += types[tptr]->width+types[TINT32]->width;
+-
+ 		goto yes;
+ 	}
+ 
+-	if(nr->op == OCOMPMAP) {
+-		goto yes;
+-	}
+-
+-	if(nr->type == T ||
+-	   !eqtype(nl->type, nr->type))
++	if(nr->type == T || !eqtype(nl->type, nr->type))
+ 		goto no;
+ 
+ 	if(!stataddr(&nam, nl))
+ 		goto no;
++
+ 	if(nam.class != PEXTERN)
+ 		goto no;
+ 
+@@ -1120,20 +1094,14 @@ gen_as_init(Node *nr, Node *nl)
+ 		goto no;
+ 
+ 	case OLITERAL:
+-		goto lit;
++		break;
+ 	}
+ 
+-no:
+-	return 0;
+-
+-lit:
+ 	switch(nr->type->etype) {
+ 	default:
+ 		goto no;
+ 
+ 	case TBOOL:
+-		if(memcmp(nam.sym->name, "initdone·", 9) == 0)
+-			goto no;
+ 	case TINT8:
+ 	case TUINT8:
+ 	case TINT16:
+@@ -1144,14 +1112,19 @@ lit:
+ 	case TUINT64:
+ 	case TINT:
+ 	case TUINT:
++	case TUINTPTR:
++	case TPTR32:
++	case TPTR64:
+ 	case TFLOAT32:
+ 	case TFLOAT64:
+ 	case TFLOAT:
++		p = gins(ANOP, N, N); // in case the data is the dest of a goto
+ 		p = gins(ADATA, &nam, nr);
+ 		p->from.scale = nr->type->width;
+ 		break;
+ 
+ 	case TSTRING:
++		gins(ANOP, N, N); // in case the data is the dest of a goto
+ 		p = gins(ADATA, &nam, N);
+ 		datastring(nr->val.u.sval->s, nr->val.u.sval->len, &p->to);
+ 		p->from.scale = types[tptr]->width;
+@@ -1168,10 +1141,14 @@ lit:
+ 	}
+ 
+ yes:
+-//dump("\ngen_as_init", nl);
+-//dump("", nr);
+-//print("%P\n", p);
+ 	return 1;
++
++no:
++	if(n->dodata == 2) {
++		dump("\ngen_as_init", n);
++		fatal("gen_as_init couldnt make data statement");
++	}
++	return 0;
+ }
+ 
+ static int
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index d13af7a669..1259b030a6 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -324,6 +324,8 @@ gen(Node *n)
+ 		break;
+ 
+ 	case OAS:
++		if(gen_as_init(n))
++			break;
+ 		cgen_as(n->left, n->right);
+ 		break;
+ 
+@@ -456,8 +458,6 @@ cgen_as(Node *nl, Node *nr)
+ 				return;
+ 			if(nl->class & PHEAP)
+ 				return;
+-			if(gen_as_init(nr, nl))
+-				return;
+ 		}
+ 
+ 		tl = nl->type;
+@@ -612,4 +612,3 @@ tempname(Node *n, Type *t)
+ 	stksize = rnd(stksize, w);
+ 	n->xoffset = -stksize;
+ }
+-
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index e9dd4bc339..4f58fc00a0 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -196,6 +196,7 @@ struct	Node
+ 	uchar	typecheck;
+ 	uchar	local;
+ 	uchar	initorder;
++	uchar	dodata;		// compile literal assignment as data statement
+ 
+ 	// most nodes
+ 	Node*	left;
+@@ -329,7 +330,6 @@ enum
+ 	OCLOSURE,
+ 	OCMPIFACE, OCMPSTR,
+ 	OCOMPLIT, OMAPLIT, OSTRUCTLIT, OARRAYLIT,
+-	OCOMPSLICE, OCOMPMAP,
+ 	OCONV, OCONVNOP, OCONVIFACE, OCONVSLICE,
+ 	ODCL, ODCLFUNC, ODCLFIELD, ODCLCONST, ODCLTYPE,
+ 	ODOT, ODOTPTR, ODOTMETH, ODOTINTER, OXDOT,
+@@ -653,7 +653,6 @@ EXTERN	NodeList*	exportlist;
+ EXTERN	NodeList*	typelist;
+ EXTERN	int	dclcontext;		// PEXTERN/PAUTO
+ EXTERN	int	inimportsys;
+-EXTERN	int	initflag;		// compiling the init fn
+ EXTERN	int	statuniqgen;		// name generator for static temps
+ EXTERN	int	loophack;
+ 
+@@ -826,7 +825,6 @@ Node*	syslook(char*, int);
+ Node*	treecopy(Node*);
+ NodeList*	listtreecopy(NodeList*);
+ int	isselect(Node*);
+-void	tempname(Node*, Type*);
+ Node*	staticname(Type*);
+ int	iscomposite(Type*);
+ Node*	callnew(Type*);
+@@ -1013,9 +1011,7 @@ void	colasdefn(NodeList*, Node*);
+ NodeList*	reorder1(NodeList*);
+ NodeList*	reorder3(NodeList*);
+ NodeList*	reorder4(NodeList*);
+-Node*	structlit(Node*, Node*, NodeList**);
+-Node*	arraylit(Node*, Node*, NodeList**);
+-Node*	maplit(Node*, Node*, NodeList**);
++void	anylit(Node*, Node*, NodeList**);
+ void	heapmoves(void);
+ void	walkdeflist(NodeList*);
+ void	walkdef(Node*);
+@@ -1171,5 +1167,5 @@ int	duint64(Sym *s, int off, uint64 v);
+ int	duintptr(Sym *s, int off, uint64 v);
+ int	duintxx(Sym *s, int off, uint64 v, int wid);
+ void	genembedtramp(Type*, Type*, Sym*);
+-int	gen_as_init(Node*, Node*);
++int	gen_as_init(Node*);
+ 
+diff --git a/src/cmd/gc/init.c b/src/cmd/gc/init.c
+index 6e31b73252..ef97459eb3 100644
+--- a/src/cmd/gc/init.c
++++ b/src/cmd/gc/init.c
+@@ -152,8 +152,7 @@ fninit(NodeList *n)
+ 	a->nbody = list(a->nbody, b);
+ 
+ 	// (6)
+-	a = nod(OASOP, gatevar, nodintconst(1));
+-	a->etype = OADD;
++	a = nod(OAS, gatevar, nodintconst(1));
+ 	r = list(r, a);
+ 
+ 	// (7)
+@@ -186,8 +185,7 @@ fninit(NodeList *n)
+ 	}
+ 
+ 	// (10)
+-	a = nod(OASOP, gatevar, nodintconst(1));
+-	a->etype = OADD;
++	a = nod(OAS, gatevar, nodintconst(2));
+ 	r = list(r, a);
+ 
+ 	// (11)
+@@ -197,10 +195,7 @@ fninit(NodeList *n)
+ 	exportsym(fn->nname);
+ 
+ 	fn->nbody = r;
+-
+-	initflag = 1;	// flag for loader static initialization
+ 	funcbody(fn);
+ 	typecheck(&fn, Etop);
+ 	funccompile(fn);
+-	initflag = 0;
+ }
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index da3084341e..d8d2bc69b2 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -51,6 +51,7 @@ init1(Node *n, NodeList **out)
+ 		case OAS:
+ 			if(n->defn->left != n)
+ 				goto bad;
++			n->dodata = 1;
+ 			init1(n->defn->right, out);
+ 			if(debug['j'])
+ 				print("%S\n", n->sym);
+@@ -63,7 +64,7 @@ init1(Node *n, NodeList **out)
+ 
+ bad:
+ 	dump("defn", n->defn);
+-	fatal("bad defn");
++	fatal("init1: bad defn");
+ }
+ 
+ static void
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 1cc568f4b6..7ef113d2f7 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -866,6 +866,9 @@ Jconv(Fmt *fp)
+ 	if(n->typecheck != 0)
+ 		fmtprint(fp, " tc(%d)", n->typecheck);
+ 
++	if(n->dodata != 0)
++		fmtprint(fp, " dd(%d)", n->dodata);
++
+ 	return 0;
+ }
+ 
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 8776d34aef..5fc135c2de 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -812,21 +812,10 @@ walkexpr(Node **np, NodeList **init)
+ 		// and replace expression with nvar
+ 		switch(n->left->op) {
+ 		case OARRAYLIT:
+-			nvar = makenewvar(n->type, init, &nstar);
+-			arraylit(n->left, nstar, init);
+-			n = nvar;
+-			goto ret;
+-
+ 		case OMAPLIT:
+-			nvar = makenewvar(n->type, init, &nstar);
+-			maplit(n->left, nstar, init);
+-			n = nvar;
+-			goto ret;
+-
+-
+ 		case OSTRUCTLIT:
+ 			nvar = makenewvar(n->type, init, &nstar);
+-			structlit(n->left, nstar, init);
++			anylit(n->left, nstar, init);
+ 			n = nvar;
+ 			goto ret;
+ 		}
+@@ -963,15 +952,12 @@ walkexpr(Node **np, NodeList **init)
+ 		goto ret;
+ 
+ 	case OARRAYLIT:
+-		n = arraylit(n, N, init);
+-		goto ret;
+-
+ 	case OMAPLIT:
+-		n = maplit(n, N, init);
+-		goto ret;
+-
+ 	case OSTRUCTLIT:
+-		n = structlit(n, N, init);
++		nvar = nod(OXXX, N, N);
++		tempname(nvar, n->type);
++		anylit(n, nvar, init);
++		n = nvar;
+ 		goto ret;
+ 
+ 	case OSEND:
+@@ -1982,79 +1968,102 @@ reorder4(NodeList *ll)
+ 	return ll;
+ }
+ 
+-Node*
+-structlit(Node *n, Node *var, NodeList **init)
++static int
++isliteral(Node *n)
++{
++	if(n->op == OLITERAL)
++		if(n->val.ctype != CTNIL)
++			return 1;
++	return 0;
++}
++
++void
++structlit(Node *n, Node *var, int pass, NodeList **init)
+ {
+-	Type *t;
+ 	Node *r, *a;
+ 	NodeList *nl;
++	Node *index, *value;
+ 
+-	t = n->type;
+-	if(t->etype != TSTRUCT)
+-		fatal("structlit: not struct");
+-
+-	if(var == N) {
+-		var = nod(OXXX, N, N);
+-		tempname(var, t);
+-	}
+-
+-	nl = n->list;
+-
+-	if(count(n->list) < structcount(t)) {
+-		a = nod(OAS, var, N);
+-		typecheck(&a, Etop);
+-		walkexpr(&a, init);
+-		*init = list(*init, a);
+-	}
+-
+-	for(; nl; nl=nl->next) {
++	for(nl=n->list; nl; nl=nl->next) {
+ 		r = nl->n;
++		if(r->op != OKEY)
++			fatal("structlit: rhs not OKEY: %N", r);
++		index = r->left;
++		value = r->right;
++
++		if(isliteral(value)) {
++			if(pass == 2)
++				continue;
++		} else
++			if(pass == 1)
++				continue;
+ 
+ 		// build list of var.field = expr
+-		a = nod(ODOT, var, newname(r->left->sym));
+-		a = nod(OAS, a, r->right);
++		a = nod(ODOT, var, newname(index->sym));
++		a = nod(OAS, a, value);
+ 		typecheck(&a, Etop);
+ 		walkexpr(&a, init);
++		if(pass == 1) {
++			if(a->op != OAS)
++				fatal("structlit: not as");
++			a->dodata = 2;
++		}
+ 		*init = list(*init, a);
+ 	}
+-	return var;
+ }
+ 
+-Node*
+-arraylit(Node *n, Node *var, NodeList **init)
++void
++arraylit(Node *n, Node *var, int pass, NodeList **init)
+ {
+-	Type *t;
+ 	Node *r, *a;
+ 	NodeList *l;
++	Node *index, *value;
+ 
+-	t = n->type;
+-
+-	if(var == N) {
+-		var = nod(OXXX, N, N);
+-		tempname(var, t);
+-	}
+-
+-	if(t->bound < 0) {
+-		// slice
+-		a = nod(OMAKE, N, N);
+-		a->list = list(list1(typenod(t)), n->right);
+-		a = nod(OAS, var, a);
++	for(l=n->list; l; l=l->next) {
++		r = l->n;
++		if(r->op != OKEY)
++			fatal("arraylit: rhs not OKEY: %N", r);
++		index = r->left;
++		value = r->right;
++
++		if(isliteral(index) && isliteral(value)) {
++			if(pass == 2)
++				continue;
++		} else
++			if(pass == 1)
++				continue;
++
++		// build list of var[index] = value
++		a = nod(OINDEX, var, index);
++		a = nod(OAS, a, value);
+ 		typecheck(&a, Etop);
+-		walkexpr(&a, init);
+-		*init = list(*init, a);
+-	} else {
+-		// if entire array isnt initialized,
+-		// then clear the array
+-		if(count(n->list) < t->bound) {
+-			a = nod(OAS, var, N);
+-			typecheck(&a, Etop);
+-			walkexpr(&a, init);
+-			*init = list(*init, a);
++		walkexpr(&a, init);	// add any assignments in r to top
++		if(pass == 1) {
++			if(a->op != OAS)
++				fatal("structlit: not as");
++			a->dodata = 2;
+ 		}
++		*init = list(*init, a);
+ 	}
++}
++
++void
++slicelit(Node *n, Node *var, NodeList **init)
++{
++	Node *r, *a;
++	NodeList *l;
++
++	// slice
++	a = nod(OMAKE, N, N);
++	a->list = list(list1(typenod(n->type)), n->right);
++	a = nod(OAS, var, a);
++	typecheck(&a, Etop);
++	walkexpr(&a, init);
++	*init = list(*init, a);
+ 
+ 	for(l=n->list; l; l=l->next) {
+ 		r = l->n;
++
+ 		// build list of var[c] = expr
+ 		a = nod(OINDEX, var, r->left);
+ 		a = nod(OAS, a, r->right);
+@@ -2062,31 +2071,20 @@ arraylit(Node *n, Node *var, NodeList **init)
+ 		walkexpr(&a, init);	// add any assignments in r to top
+ 		*init = list(*init, a);
+ 	}
+-
+-	return var;
+ }
+ 
+-Node*
++void
+ maplit(Node *n, Node *var, NodeList **init)
+ {
+-	Type *t;
+ 	Node *r, *a;
+ 	Node* hash[101];
+ 	NodeList *l;
+ 	int nerr;
+ 
+ 	nerr = nerrors;
+-	t = n->type;
+-	if(t->etype != TMAP)
+-		fatal("maplit: not map");
+-
+-	if(var == N) {
+-		var = nod(OXXX, N, N);
+-		tempname(var, t);
+-	}
+ 
+ 	a = nod(OMAKE, N, N);
+-	a->list = list1(typenod(t));
++	a->list = list1(typenod(n->type));
+ 	a = nod(OAS, var, a);
+ 	typecheck(&a, Etop);
+ 	walkexpr(&a, init);
+@@ -2105,7 +2103,108 @@ maplit(Node *n, Node *var, NodeList **init)
+ 
+ 		*init = list(*init, a);
+ 	}
+-	return var;
++}
++
++static int
++simplename(Node *n)
++{
++	if(n->op != ONAME)
++		goto no;
++	if(!n->addable)
++		goto no;
++	if(n->class & PHEAP)
++		goto no;
++	if(n->class == PPARAMREF)
++		goto no;
++	return 1;
++
++no:
++	return 0;
++}
++
++void
++anylit(Node *n, Node *var, NodeList **init)
++{
++	Type *t;
++	Node *a, *vstat;
++
++	t = n->type;
++	switch(n->op) {
++	default:
++		fatal("anylit: not lit");
++
++	case OSTRUCTLIT:
++		if(t->etype != TSTRUCT)
++			fatal("anylit: not struct");
++
++		if(simplename(var)) {
++
++			// lay out static data
++			vstat = staticname(t);
++			structlit(n, vstat, 1, init);
++
++			// copy static to automatic
++			a = nod(OAS, var, vstat);
++			typecheck(&a, Etop);
++			walkexpr(&a, init);
++			*init = list(*init, a);
++
++			// add expressions to automatic
++			structlit(n, var, 2, init);
++			break;
++		}
++
++		// initialize of not completely specified
++		if(count(n->list) < structcount(t)) {
++			a = nod(OAS, var, N);
++			typecheck(&a, Etop);
++			walkexpr(&a, init);
++			*init = list(*init, a);
++		}
++		structlit(n, var, 3, init);
++		break;
++
++	case OARRAYLIT:
++		if(t->etype != TARRAY)
++			fatal("anylit: not array");
++		if(t->bound < 0) {
++			slicelit(n, var, init);
++			break;
++		}
++
++		if(simplename(var)) {
++
++			// lay out static data
++			vstat = staticname(t);
++			arraylit(n, vstat, 1, init);
++
++			// copy static to automatic
++			a = nod(OAS, var, vstat);
++			typecheck(&a, Etop);
++			walkexpr(&a, init);
++			*init = list(*init, a);
++
++			// add expressions to automatic
++			arraylit(n, var, 2, init);
++			break;
++		}
++
++		// initialize of not completely specified
++		if(count(n->list) < t->bound) {
++			a = nod(OAS, var, N);
++			typecheck(&a, Etop);
++			walkexpr(&a, init);
++			*init = list(*init, a);
++		}
++		arraylit(n, var, 3, init);
++		break;
++
++	case OMAPLIT:
++		if(t->etype != TMAP)
++			fatal("anylit: not map");
++		maplit(n, var, init);
++		break;
++	}
+ }
+ 
+ /*

@@ -29,8 +29,146 @@ Date:   Tue Apr 19 14:06:41 2022 +1000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  api/next/51668.txt    |  1 +
  src/fmt/print.go      | 26 +++++++++++++++++
  src/fmt/state_test.go | 80 +++++++++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 107 insertions(+)
+
+diff --git a/api/next/51668.txt b/api/next/51668.txt
+new file mode 100644
+index 0000000000..c0c2e07e61
+--- /dev/null
++++ b/api/next/51668.txt
+@@ -0,0 +1 @@
++pkg fmt, func FormatString(State, int32) string #51668
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index 2af7bd0c42..85f70439f3 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -9,6 +9,7 @@ import (
+ 	"io"
+ 	"os"
+ 	"reflect"
++	"strconv"
+ 	"sync"
+ 	"unicode/utf8"
+ )
+@@ -71,6 +72,31 @@ type GoStringer interface {
+ 	GoString() string
+ }
+ 
++// FormatString returns a string representing the fully qualified formatting
++// directive captured by the State, followed by the argument verb. (State does not
++// itself contain the verb.) The result has a leading percent sign followed by any
++// flags, the width, and the precision. Missing flags, width, and precision are
++// omitted. This function allows a Formatter to reconstruct the original
++// directive triggering the call to Format.
++func FormatString(state State, verb rune) string {
++	var tmp [16]byte // Use a local buffer.
++	b := append(tmp[:0], '%')
++	for _, c := range " +-#0" { // All known flags
++		if state.Flag(int(c)) { // The argument is an int for historical reasons.
++			b = append(b, byte(c))
++		}
++	}
++	if w, ok := state.Width(); ok {
++		b = strconv.AppendInt(b, int64(w), 10)
++	}
++	if p, ok := state.Precision(); ok {
++		b = append(b, '.')
++		b = strconv.AppendInt(b, int64(p), 10)
++	}
++	b = utf8.AppendRune(b, verb)
++	return string(b)
++}
++
+ // Use simple []byte instead of bytes.Buffer to avoid large dependency.
+ type buffer []byte
+ 
+diff --git a/src/fmt/state_test.go b/src/fmt/state_test.go
+new file mode 100644
+index 0000000000..fda660aa32
+--- /dev/null
++++ b/src/fmt/state_test.go
+@@ -0,0 +1,80 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fmt_test
++
++import (
++	"fmt"
++	"testing"
++)
++
++type testState struct {
++	width   int
++	widthOK bool
++	prec    int
++	precOK  bool
++	flag    map[int]bool
++}
++
++var _ fmt.State = testState{}
++
++func (s testState) Write(b []byte) (n int, err error) {
++	panic("unimplemented")
++}
++
++func (s testState) Width() (wid int, ok bool) {
++	return s.width, s.widthOK
++}
++
++func (s testState) Precision() (prec int, ok bool) {
++	return s.prec, s.precOK
++}
++
++func (s testState) Flag(c int) bool {
++	return s.flag[c]
++}
++
++const NO = -1000
++
++func mkState(w, p int, flags string) testState {
++	s := testState{}
++	if w != NO {
++		s.width = w
++		s.widthOK = true
++	}
++	if p != NO {
++		s.prec = p
++		s.precOK = true
++	}
++	s.flag = make(map[int]bool)
++	for _, c := range flags {
++		s.flag[int(c)] = true
++	}
++	return s
++}
++
++func TestFormatString(t *testing.T) {
++	var tests = []struct {
++		width, prec int
++		flags       string
++		result      string
++	}{
++		{NO, NO, "", "%x"},
++		{NO, 3, "", "%.3x"},
++		{3, NO, "", "%3x"},
++		{7, 3, "", "%7.3x"},
++		{NO, NO, " +-#0", "% +-#0x"},
++		{7, 3, "+", "%+7.3x"},
++		{7, -3, "-", "%-7.-3x"},
++		{7, 3, " ", "% 7.3x"},
++		{7, 3, "#", "%#7.3x"},
++		{7, 3, "0", "%07.3x"},
++	}
++	for _, test := range tests {
++		got := fmt.FormatString(mkState(test.width, test.prec, test.flags), 'x')
++		if got != test.result {
++			t.Errorf("%v: got %s", test, got)
++		}
++	}
++}

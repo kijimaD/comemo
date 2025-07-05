@@ -12,8 +12,114 @@ Date:   Tue Apr 3 09:06:59 2018 +0000
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/executable_solaris.go | 11 ++++++++---
  src/runtime/auxv_none.go     |  1 +
  src/runtime/os3_solaris.go   | 46 ++++++++++++++++++++++++++++++++++++++++++--
  3 files changed, 53 insertions(+), 5 deletions(-)
+
+diff --git a/src/os/executable_solaris.go b/src/os/executable_solaris.go
+index 80f937201a..b145980c56 100644
+--- a/src/os/executable_solaris.go
++++ b/src/os/executable_solaris.go
+@@ -6,12 +6,17 @@ package os
+ 
+ import "syscall"
+ 
++var executablePath string // set by sysauxv in ../runtime/os3_solaris.go
++
+ var initCwd, initCwdErr = Getwd()
+ 
+ func executable() (string, error) {
+-	path, err := syscall.Getexecname()
+-	if err != nil {
+-		return path, err
++	path := executablePath
++	if len(path) == 0 {
++		path, err := syscall.Getexecname()
++		if err != nil {
++			return path, err
++		}
+ 	}
+ 	if len(path) > 0 && path[0] != '/' {
+ 		if initCwdErr != nil {
+diff --git a/src/runtime/auxv_none.go b/src/runtime/auxv_none.go
+index 9cb8da285b..3ca617b21e 100644
+--- a/src/runtime/auxv_none.go
++++ b/src/runtime/auxv_none.go
+@@ -7,6 +7,7 @@
+ // +build !dragonfly
+ // +build !freebsd
+ // +build !netbsd
++// +build !solaris
+ 
+ package runtime
+ 
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 8378be3edb..ef9ffc02ae 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -4,7 +4,10 @@
+ 
+ package runtime
+ 
+-import "unsafe"
++import (
++	"runtime/internal/sys"
++	"unsafe"
++)
+ 
+ //go:cgo_export_dynamic runtime.end _end
+ //go:cgo_export_dynamic runtime.etext _etext
+@@ -128,7 +131,9 @@ func getPageSize() uintptr {
+ 
+ func osinit() {
+ 	ncpu = getncpu()
+-	physPageSize = getPageSize()
++	if physPageSize == 0 {
++		physPageSize = getPageSize()
++	}
+ }
+ 
+ func tstart_sysvicall(newm *m) uint32
+@@ -509,3 +514,40 @@ func osyield() {
+ 	}
+ 	osyield1()
+ }
++
++//go:linkname executablePath os.executablePath
++var executablePath string
++
++func sysargs(argc int32, argv **byte) {
++	n := argc + 1
++
++	// skip over argv, envp to get to auxv
++	for argv_index(argv, n) != nil {
++		n++
++	}
++
++	// skip NULL separator
++	n++
++
++	// now argv+n is auxv
++	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
++	sysauxv(auxv[:])
++}
++
++const (
++	_AT_NULL         = 0    // Terminates the vector
++	_AT_PAGESZ       = 6    // Page size in bytes
++	_AT_SUN_EXECNAME = 2014 // exec() path name
++)
++
++func sysauxv(auxv []uintptr) {
++	for i := 0; auxv[i] != _AT_NULL; i += 2 {
++		tag, val := auxv[i], auxv[i+1]
++		switch tag {
++		case _AT_PAGESZ:
++			physPageSize = val
++		case _AT_SUN_EXECNAME:
++			executablePath = gostringnocopy((*byte)(unsafe.Pointer(val)))
++		}
++	}
++}

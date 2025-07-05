@@ -8,6 +8,20 @@ Date:   Wed Oct 30 09:39:20 2013 -0700
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/19840043
-
+---
  doc/go1.2.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.2.html b/doc/go1.2.html
+index 67291e388a..7189045205 100644
+--- a/doc/go1.2.html
++++ b/doc/go1.2.html
+@@ -182,7 +182,7 @@ Before Go 1.2, it was too easy for a runaway recursion to consume all the memory
+ <p>
+ <em>Updating</em>:
+ The increased minimum stack size may cause programs with many goroutines to use
+-more memory. There is no workaround, but future plans for future releases
++more memory. There is no workaround, but plans for future releases
+ include new stack management technology that should address the problem better.
+ </p>
+ 

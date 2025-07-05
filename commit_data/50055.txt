@@ -17,8 +17,172 @@ Date:   Fri Sep 24 10:31:20 2021 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/cmd/compile/internal/ssa/gen/PPC64.rules | 19 +++++++
  src/cmd/compile/internal/ssa/rewritePPC64.go | 78 ++++++++++++++++++++++++++++
  test/codegen/copy.go                         |  8 +++
  3 files changed, 105 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 411bb8d29d..4b11e81fa2 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -1451,3 +1451,22 @@
+         && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7
+         && clobber(x0, x1, x2, x3, x4, x5, x6)
+           => (MOVDBRstore (MOVDaddr <typ.Uintptr> [i0] {s} p) w mem)
++
++// Arch-specific inlining for small or disjoint runtime.memmove
++(SelectN [0] call:(CALLstatic {sym} s1:(MOVDstore _ (MOVDconst [sz]) s2:(MOVDstore  _ src s3:(MOVDstore {t} _ dst mem)))))
++        && sz >= 0
++        && isSameCall(sym, "runtime.memmove")
++        && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1
++        && isInlinableMemmove(dst, src, sz, config)
++        && clobber(s1, s2, s3, call)
++        => (Move [sz] dst src mem)
++
++// Match post-lowering calls, register version.
++(SelectN [0] call:(CALLstatic {sym} dst src (MOVDconst [sz]) mem))
++        && sz >= 0
++        && isSameCall(sym, "runtime.memmove")
++        && call.Uses == 1
++        && isInlinableMemmove(dst, src, sz, config)
++        && clobber(call)
++        => (Move [sz] dst src mem)
++
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index b35331a624..6127fd262b 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -720,6 +720,8 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpRsh8x64(v)
+ 	case OpRsh8x8:
+ 		return rewriteValuePPC64_OpRsh8x8(v)
++	case OpSelectN:
++		return rewriteValuePPC64_OpSelectN(v)
+ 	case OpSignExt16to32:
+ 		v.Op = OpPPC64MOVHreg
+ 		return true
+@@ -16439,6 +16441,82 @@ func rewriteValuePPC64_OpRsh8x8(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValuePPC64_OpSelectN(v *Value) bool {
++	v_0 := v.Args[0]
++	b := v.Block
++	config := b.Func.Config
++	// match: (SelectN [0] call:(CALLstatic {sym} s1:(MOVDstore _ (MOVDconst [sz]) s2:(MOVDstore _ src s3:(MOVDstore {t} _ dst mem)))))
++	// cond: sz >= 0 && isSameCall(sym, "runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, sz, config) && clobber(s1, s2, s3, call)
++	// result: (Move [sz] dst src mem)
++	for {
++		if auxIntToInt64(v.AuxInt) != 0 {
++			break
++		}
++		call := v_0
++		if call.Op != OpPPC64CALLstatic || len(call.Args) != 1 {
++			break
++		}
++		sym := auxToCall(call.Aux)
++		s1 := call.Args[0]
++		if s1.Op != OpPPC64MOVDstore {
++			break
++		}
++		_ = s1.Args[2]
++		s1_1 := s1.Args[1]
++		if s1_1.Op != OpPPC64MOVDconst {
++			break
++		}
++		sz := auxIntToInt64(s1_1.AuxInt)
++		s2 := s1.Args[2]
++		if s2.Op != OpPPC64MOVDstore {
++			break
++		}
++		_ = s2.Args[2]
++		src := s2.Args[1]
++		s3 := s2.Args[2]
++		if s3.Op != OpPPC64MOVDstore {
++			break
++		}
++		mem := s3.Args[2]
++		dst := s3.Args[1]
++		if !(sz >= 0 && isSameCall(sym, "runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, sz, config) && clobber(s1, s2, s3, call)) {
++			break
++		}
++		v.reset(OpMove)
++		v.AuxInt = int64ToAuxInt(sz)
++		v.AddArg3(dst, src, mem)
++		return true
++	}
++	// match: (SelectN [0] call:(CALLstatic {sym} dst src (MOVDconst [sz]) mem))
++	// cond: sz >= 0 && isSameCall(sym, "runtime.memmove") && call.Uses == 1 && isInlinableMemmove(dst, src, sz, config) && clobber(call)
++	// result: (Move [sz] dst src mem)
++	for {
++		if auxIntToInt64(v.AuxInt) != 0 {
++			break
++		}
++		call := v_0
++		if call.Op != OpPPC64CALLstatic || len(call.Args) != 4 {
++			break
++		}
++		sym := auxToCall(call.Aux)
++		mem := call.Args[3]
++		dst := call.Args[0]
++		src := call.Args[1]
++		call_2 := call.Args[2]
++		if call_2.Op != OpPPC64MOVDconst {
++			break
++		}
++		sz := auxIntToInt64(call_2.AuxInt)
++		if !(sz >= 0 && isSameCall(sym, "runtime.memmove") && call.Uses == 1 && isInlinableMemmove(dst, src, sz, config) && clobber(call)) {
++			break
++		}
++		v.reset(OpMove)
++		v.AuxInt = int64ToAuxInt(sz)
++		v.AddArg3(dst, src, mem)
++		return true
++	}
++	return false
++}
+ func rewriteValuePPC64_OpSlicemask(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+diff --git a/test/codegen/copy.go b/test/codegen/copy.go
+index ea8a01f803..9b3bf75b7a 100644
+--- a/test/codegen/copy.go
++++ b/test/codegen/copy.go
+@@ -103,6 +103,8 @@ func moveArchLowering1(b []byte, x *[1]byte) {
+ 	_ = b[1]
+ 	// amd64:-".*memmove"
+ 	// arm64:-".*memmove"
++	// ppc64:-".*memmove"
++	// ppc64le:-".*memmove"
+ 	copy(b, x[:])
+ }
+ 
+@@ -110,6 +112,8 @@ func moveArchLowering2(b []byte, x *[2]byte) {
+ 	_ = b[2]
+ 	// amd64:-".*memmove"
+ 	// arm64:-".*memmove"
++	// ppc64:-".*memmove"
++	// ppc64le:-".*memmove"
+ 	copy(b, x[:])
+ }
+ 
+@@ -117,6 +121,8 @@ func moveArchLowering4(b []byte, x *[4]byte) {
+ 	_ = b[4]
+ 	// amd64:-".*memmove"
+ 	// arm64:-".*memmove"
++	// ppc64:-".*memmove"
++	// ppc64le:-".*memmove"
+ 	copy(b, x[:])
+ }
+ 
+@@ -124,6 +130,8 @@ func moveArchLowering8(b []byte, x *[8]byte) {
+ 	_ = b[8]
+ 	// amd64:-".*memmove"
+ 	// arm64:-".*memmove"
++	// ppc64:-".*memmove"
++	// ppc64le:-".*memmove"
+ 	copy(b, x[:])
+ }
+ 

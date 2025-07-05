@@ -14,7 +14,68 @@ Date:   Sat Mar 30 09:31:49 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/8197044
-
+---
  src/cmd/6g/peep.c | 5 +++--
  src/cmd/6g/reg.c  | 5 ++---
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/6g/peep.c b/src/cmd/6g/peep.c
+index 569655786a..bb24d41449 100644
+--- a/src/cmd/6g/peep.c
++++ b/src/cmd/6g/peep.c
+@@ -472,6 +472,7 @@ elimshortmov(Reg *r)
+ {
+ 	Prog *p;
+ 
++	USED(r);
+ 	for(r=firstr; r!=R; r=r->link) {
+ 		p = r->prog;
+ 		if(regtyp(&p->to)) {
+@@ -555,7 +556,7 @@ elimshortmov(Reg *r)
+ 	}
+ }
+ 
+-int
++static int
+ regconsttyp(Adr *a)
+ {
+ 	if(regtyp(a))
+@@ -758,7 +759,7 @@ subprop(Reg *r0)
+ 		}
+ 	}
+ 	if(debug['P'] && debug['v'])
+-		print("\tran off end; return 0\n", p);
++		print("\tran off end; return 0\n");
+ 	return 0;
+ 
+ gotit:
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index c56d71678b..7db6beab93 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -182,7 +182,6 @@ regopt(Prog *firstp)
+ 		return;
+ 	}
+ 
+-	r1 = R;
+ 	firstr = R;
+ 	lastr = R;
+ 
+@@ -783,7 +782,7 @@ brk:
+ 				Var *v;
+ 
+ 				v = var + rgp->varno;
+-				print("registerize %N+%d (bit=%2d et=%2E) in %R\n",
++				print("registerize %N+%lld (bit=%2d et=%2E) in %R\n",
+ 						v->node, v->offset, rgp->varno, v->etype, rgp->regno);
+ 			}
+ 			paint3(rgp->enter, rgp->varno, vreg, rgp->regno);
+@@ -1061,7 +1060,7 @@ mkvar(Reg *r, Adr *a)
+ 	v->node = node;
+ 
+ 	if(debug['R'])
+-		print("bit=%2d et=%2E w=%d+%d %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
++		print("bit=%2d et=%2E w=%d+%lld %#N %D flag=%d\n", i, et, o, w, node, a, v->addr);
+ 
+ 	ostats.nvar++;
+ 

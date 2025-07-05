@@ -7,6 +7,33 @@ Date:   Wed May 11 13:04:22 2016 +0900
     Change-Id: I323231f31c4e1e7415661ebd943a90b2f1e9da1c
     Reviewed-on: https://go-review.googlesource.com/23020
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/dnsclient_unix_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index c1ef5a32d3..09bbd48866 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -582,11 +582,11 @@ func TestIgnoreLameReferrals(t *testing.T) {
+ 	}
+ 
+ 	if got := len(addrs); got != 1 {
+-		t.Fatal("got %d addresses, want 1", got)
++		t.Fatalf("got %d addresses, want 1", got)
+ 	}
+ 
+ 	if got, want := addrs[0].String(), "192.0.2.1"; got != want {
+-		t.Fatal("got address %v, want %v", got, want)
++		t.Fatalf("got address %v, want %v", got, want)
+ 	}
+ }
+ 
+@@ -721,6 +721,6 @@ func TestIgnoreDNSForgeries(t *testing.T) {
+ 	}
+ 
+ 	if got := resp.answer[0].(*dnsRR_A).A; got != TestAddr {
+-		t.Error("got address %v, want %v", got, TestAddr)
++		t.Errorf("got address %v, want %v", got, TestAddr)
+ 	}
+ }

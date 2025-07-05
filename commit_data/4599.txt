@@ -7,6 +7,19 @@ Date:   Wed Jan 13 13:29:49 2010 -0800
     R=gri
     CC=golang-dev
     https://golang.org/cl/186139
-
+---
  src/pkg/container/vector/Makefile | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/pkg/container/vector/Makefile b/src/pkg/container/vector/Makefile
+index 1004e4d2a9..1f58f7bba9 100644
+--- a/src/pkg/container/vector/Makefile
++++ b/src/pkg/container/vector/Makefile
+@@ -66,7 +66,4 @@ generate: vector.go vector_test.go
+ 	| gofmt -r='TestVectorData -> TestStrVectorData'\
+ 	> stringvector_test.go
+ 
+-bench:
+-	gotest -v -match Nums -benchmarks Nums
+-
+ include ../../../Make.pkg

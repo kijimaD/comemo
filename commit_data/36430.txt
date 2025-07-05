@@ -11,6 +11,21 @@ Date:   Thu Apr 26 15:46:12 2018 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/prove.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index e92f6ee079..11efbb516b 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -774,6 +774,9 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
+ 				continue
+ 			}
+ 			if lim.umin > 0 || lim.min > 0 || lim.max < 0 {
++				if b.Func.pass.debug > 0 {
++					b.Func.Warnl(v.Pos, "Proved %v non-zero", v.Op)
++				}
+ 				v.Op = ctzNonZeroOp[v.Op]
+ 			}
+ 		}

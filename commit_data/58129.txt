@@ -18,6 +18,17 @@ Date:   Wed Sep 27 07:11:05 2023 +0000
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Auto-Submit: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/crypto/x509/root_linux.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/crypto/x509/root_linux.go b/src/crypto/x509/root_linux.go
+index e32989b999..76a64a80dd 100644
+--- a/src/crypto/x509/root_linux.go
++++ b/src/crypto/x509/root_linux.go
+@@ -19,4 +19,5 @@ var certDirectories = []string{
+ 	"/etc/ssl/certs",               // SLES10/SLES11, https://golang.org/issue/12139
+ 	"/etc/pki/tls/certs",           // Fedora/RHEL
+ 	"/system/etc/security/cacerts", // Android
++	"/data/misc/keychain/certs-added", // Android user trusted CA folder
+ }

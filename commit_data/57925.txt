@@ -28,6 +28,21 @@ Date:   Mon Sep 11 15:53:49 2023 -0400
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/main.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index ccc7d29bf2..aa6c00ce88 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -245,6 +245,9 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 		*FlagW = true
+ 	case ternaryFlagUnset:
+ 		*FlagW = *FlagS // -s implies -w if not explicitly set
++		if ctxt.IsDarwin() && ctxt.BuildMode == BuildModeCShared {
++			*FlagW = true // default to -w in c-shared mode on darwin, see #61229
++		}
+ 	}
+ 
+ 	if !buildcfg.Experiment.RegabiWrappers {

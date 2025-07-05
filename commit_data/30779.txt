@@ -16,7 +16,43 @@ Date:   Thu Dec 1 22:48:52 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go            | 9 +++++++++
  src/cmd/link/internal/ld/data.go | 7 +++++++
  2 files changed, 16 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 6c597ed744..1c84512ed4 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3718,3 +3718,12 @@ func TestLinkXImportPathEscape(t *testing.T) {
+ 		tg.t.Fatal(`incorrect output: expected "linkXworked\n"`)
+ 	}
+ }
++
++// Issue 18044.
++func TestLdBindNow(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.setenv("LD_BIND_NOW", "1")
++	tg.run("help")
++}
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index eaf6aa2080..ed8193294e 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1976,6 +1976,13 @@ func dodataSect(ctxt *Link, symn obj.SymKind, syms []*Symbol) (result []*Symbol,
+ 			copy(syms[first+2:], syms[first+1:second])
+ 			syms[first+0] = rel
+ 			syms[first+1] = plt
++
++			// Make sure alignment doesn't introduce a gap.
++			// Setting the alignment explicitly prevents
++			// symalign from basing it on the size and
++			// getting it wrong.
++			rel.Align = int32(SysArch.RegSize)
++			plt.Align = int32(SysArch.RegSize)
+ 		}
+ 	}
+ 

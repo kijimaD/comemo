@@ -14,8 +14,67 @@ Date:   Fri Dec 6 15:02:28 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/import.go              | 13 +++++++------
  src/cmd/go/testdata/script/mod_list_e_readonly.txt |  2 +-
  src/cmd/go/testdata/script/mod_readonly.txt        |  3 ++-
  3 files changed, 10 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 1899abbd8f..c7508d1702 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -183,13 +183,14 @@ func Import(path string) (m module.Version, dir string, err error) {
+ 	// Look up module containing the package, for addition to the build list.
+ 	// Goal is to determine the module, download it to dir, and return m, dir, ErrMissing.
+ 	if cfg.BuildMod == "readonly" {
+-		if pathIsStd {
+-			// 'import lookup disabled' would be confusing for standard-library paths,
+-			// since the user probably isn't expecting us to look up a module for
+-			// those anyway.
+-			return module.Version{}, "", &ImportMissingError{Path: path}
++		var queryErr error
++		if !pathIsStd {
++			if cfg.BuildModReason == "" {
++				queryErr = fmt.Errorf("import lookup disabled by -mod=%s", cfg.BuildMod)
++			}
++			queryErr = fmt.Errorf("import lookup disabled by -mod=%s\n\t(%s)", cfg.BuildMod, cfg.BuildModReason)
+ 		}
+-		return module.Version{}, "", fmt.Errorf("import lookup disabled by -mod=%s", cfg.BuildMod)
++		return module.Version{}, "", &ImportMissingError{Path: path, QueryErr: queryErr}
+ 	}
+ 	if modRoot == "" && !allowMissingModuleImports {
+ 		return module.Version{}, "", &ImportMissingError{
+diff --git a/src/cmd/go/testdata/script/mod_list_e_readonly.txt b/src/cmd/go/testdata/script/mod_list_e_readonly.txt
+index 5baeea2497..4969434e52 100644
+--- a/src/cmd/go/testdata/script/mod_list_e_readonly.txt
++++ b/src/cmd/go/testdata/script/mod_list_e_readonly.txt
+@@ -2,7 +2,7 @@
+ # to individual missing packages.
+ # Verifies golang.org/issue/34829.
+ go list -mod=readonly -e -deps -f '{{if .Error}}{{.ImportPath}}: {{.Error}}{{end}}' .
+-stdout 'example.com/missing: use.go:3:8: import lookup disabled by -mod=readonly'
++stdout 'example.com/missing: use.go:3:8: cannot find module providing package example.com/missing: import lookup disabled by -mod=readonly'
+ 
+ -- go.mod --
+ module example.com/m
+diff --git a/src/cmd/go/testdata/script/mod_readonly.txt b/src/cmd/go/testdata/script/mod_readonly.txt
+index 1c89b49f51..1d1771e9cc 100644
+--- a/src/cmd/go/testdata/script/mod_readonly.txt
++++ b/src/cmd/go/testdata/script/mod_readonly.txt
+@@ -6,13 +6,14 @@ env GOFLAGS=-mod=readonly
+ go mod edit -fmt
+ cp go.mod go.mod.empty
+ ! go list all
+-stderr 'import lookup disabled by -mod=readonly'
++stderr '^can''t load package: x.go:2:8: cannot find module providing package rsc\.io/quote: import lookup disabled by -mod=readonly'
+ cmp go.mod go.mod.empty
+ 
+ # -mod=readonly should be set implicitly if the go.mod file is read-only
+ chmod 0400 go.mod
+ env GOFLAGS=
+ ! go list all
++stderr '^can''t load package: x.go:2:8: cannot find module providing package rsc\.io/quote: import lookup disabled by -mod=readonly\n\t\(go.mod file is read-only\.\)$'
+ 
+ chmod 0600 go.mod
+ env GOFLAGS=-mod=readonly

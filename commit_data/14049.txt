@@ -7,6 +7,32 @@ Date:   Sun Oct 7 14:14:46 2012 +0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6610060
-
+---
  src/cmd/gc/lex.c | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 46728c904d..601f182997 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -2190,7 +2190,7 @@ mkpackage(char* pkgname)
+ {
+ 	Sym *s;
+ 	int32 h;
+-	char *p;
++	char *p, *q;
+ 
+ 	if(localpkg->name == nil) {
+ 		if(strcmp(pkgname, "_") == 0)
+@@ -2230,6 +2230,11 @@ mkpackage(char* pkgname)
+ 
+ 	if(outfile == nil) {
+ 		p = strrchr(infile, '/');
++		if(windows) {
++			q = strrchr(infile, '\\');
++			if(q > p)
++				p = q;
++		}
+ 		if(p == nil)
+ 			p = infile;
+ 		else

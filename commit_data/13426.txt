@@ -7,7 +7,49 @@ Date:   Sat Jun 30 12:26:06 2012 -0700
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/6356050
-
+---
  src/pkg/net/http/fs.go      | 14 ++++++++++++++
  src/pkg/net/http/fs_test.go |  1 +
  2 files changed, 15 insertions(+)
+
+diff --git a/src/pkg/net/http/fs.go b/src/pkg/net/http/fs.go
+index 74a341a5ce..474a432d27 100644
+--- a/src/pkg/net/http/fs.go
++++ b/src/pkg/net/http/fs.go
+@@ -152,6 +152,13 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time,
+ 			Error(w, err.Error(), StatusRequestedRangeNotSatisfiable)
+ 			return
+ 		}
++		if sumRangesSize(ranges) >= size {
++			// The total number of bytes in all the ranges
++			// is larger the the size of the file by
++			// itself, so this is probably an attack, or a
++			// dumb client.  Ignore the range request.
++			ranges = nil
++		}
+ 		switch {
+ 		case len(ranges) == 1:
+ 			// RFC 2616, Section 14.16:
+@@ -446,3 +453,10 @@ func rangesMIMESize(ranges []httpRange, contentType string, contentSize int64) (
+ 	encSize += int64(w)
+ 	return
+ }
++
++func sumRangesSize(ranges []httpRange) (size int64) {
++	for _, ra := range ranges {
++		size += ra.length
++	}
++	return
++}
+diff --git a/src/pkg/net/http/fs_test.go b/src/pkg/net/http/fs_test.go
+index 26408a3948..12b51aea72 100644
+--- a/src/pkg/net/http/fs_test.go
++++ b/src/pkg/net/http/fs_test.go
+@@ -50,6 +50,7 @@ var ServeFileRangeTests = []struct {
+ 	{r: "bytes=0-0,-2", code: StatusPartialContent, ranges: []wantRange{{0, 1}, {testFileLen - 2, testFileLen}}},
+ 	{r: "bytes=0-1,5-8", code: StatusPartialContent, ranges: []wantRange{{0, 2}, {5, 9}}},
+ 	{r: "bytes=0-1,5-", code: StatusPartialContent, ranges: []wantRange{{0, 2}, {5, testFileLen}}},
++	{r: "bytes=0-,1-,2-,3-,4-", code: StatusOK}, // ignore wasteful range request
+ }
+ 
+ func TestServeFile(t *testing.T) {

@@ -7,6 +7,27 @@ Date:   Mon Nov 14 11:18:00 2011 -0800
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5369057
-
+---
  misc/bbedit/Go.plist | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/misc/bbedit/Go.plist b/misc/bbedit/Go.plist
+index 45535350aa..791f93d16c 100755
+--- a/misc/bbedit/Go.plist
++++ b/misc/bbedit/Go.plist
+@@ -23,6 +23,7 @@
+ 		default,      
+ 		defer,
+ 		else,
++		error,
+ 		fallthrough,
+ 		false,
+ 		float32,
+@@ -54,6 +55,7 @@
+ 		real,
+ 		recover,
+ 		return,
++		rune,
+ 		select,
+ 		string,
+ 		struct,

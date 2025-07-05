@@ -9,6 +9,20 @@ Date:   Thu Jun 2 14:34:37 2016 +0200
     Change-Id: I120cbeac73a052fb3f328774e6d5e1534f11bf6b
     Reviewed-on: https://go-review.googlesource.com/23682
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.7.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.7.html b/doc/go1.7.html
+index 3ae036cc5b..a657fcc48a 100644
+--- a/doc/go1.7.html
++++ b/doc/go1.7.html
+@@ -795,7 +795,7 @@ Go 1.7 adds the hexadecimal encoding of the bytes, as in <code>"?12ab"</code>.
+ 
+ <p>
+ The pure Go <a href="/pkg/net/#hdr-Name_Resolution">name resolution</a>
+-implementation now respects <code>nsswtch.conf</code>'s
++implementation now respects <code>nsswitch.conf</code>'s
+ stated preference for the priority of DNS lookups compared to
+ local file (that is, <code>/etc/hosts</code>) lookups.
+ </p>

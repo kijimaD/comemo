@@ -17,7 +17,7 @@ Date:   Tue Sep 27 04:18:15 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/asm/internal/asm/endtoend_test.go        | 2 +-
  src/cmd/cgo/out.go                               | 2 +-
  src/cmd/compile/internal/amd64/versions_test.go  | 4 ++--
@@ -36,3 +36,260 @@ Date:   Tue Sep 27 04:18:15 2022 +0000
  src/go/types/version.go                          | 2 +-
  test/run.go                                      | 4 ++--
  17 files changed, 23 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index a234b2f1fe..8af4db6ee4 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -261,7 +261,7 @@ func isHexes(s string) bool {
+ // the standard file:line: prefix,
+ // but that's not where we are today.
+ // It might be at the beginning but it might be in the middle of the printed instruction.
+-var fileLineRE = regexp.MustCompile(`(?:^|\()(testdata[/\\][0-9a-z]+\.s:[0-9]+)(?:$|\)|:)`)
++var fileLineRE = regexp.MustCompile(`(?:^|\()(testdata[/\\][\da-z]+\.s:\d+)(?:$|\)|:)`)
+ 
+ // Same as in test/run.go
+ var (
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 9522358825..e2e2e0b8c5 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -1282,7 +1282,7 @@ func (p *Package) writeExportHeader(fgcch io.Writer) {
+ 	// They aren't useful for people using the header file,
+ 	// and they mean that the header files change based on the
+ 	// exact location of GOPATH.
+-	re := regexp.MustCompile(`(?m)^(#line\s+[0-9]+\s+")[^"]*[/\\]([^"]*")`)
++	re := regexp.MustCompile(`(?m)^(#line\s+\d+\s+")[^"]*[/\\]([^"]*")`)
+ 	preamble := re.ReplaceAllString(p.Preamble, "$1$2")
+ 
+ 	fmt.Fprintf(fgcch, "/* Start of preamble from import \"C\" comments.  */\n\n")
+diff --git a/src/cmd/compile/internal/amd64/versions_test.go b/src/cmd/compile/internal/amd64/versions_test.go
+index 647bcdc2f0..28cd073e6f 100644
+--- a/src/cmd/compile/internal/amd64/versions_test.go
++++ b/src/cmd/compile/internal/amd64/versions_test.go
+@@ -113,7 +113,7 @@ func clobber(t *testing.T, src string, dst *os.File, opcodes map[string]bool) {
+ 		if err := cmd.Start(); err != nil {
+ 			t.Fatal(err)
+ 		}
+-		re = regexp.MustCompile(`^[^:]*:[-0-9]+\s+0x([0-9a-f]+)\s+([0-9a-f]+)\s+([A-Z]+)`)
++		re = regexp.MustCompile(`^[^:]*:[-\d]+\s+0x([\da-f]+)\s+([\da-f]+)\s+([A-Z]+)`)
+ 	} else {
+ 		// TODO: we're depending on platform-native objdump here. Hence the Skipf
+ 		// below if it doesn't run for some reason.
+@@ -129,7 +129,7 @@ func clobber(t *testing.T, src string, dst *os.File, opcodes map[string]bool) {
+ 			}
+ 			t.Fatal(err)
+ 		}
+-		re = regexp.MustCompile(`^\s*([0-9a-f]+):\s*((?:[0-9a-f][0-9a-f] )+)\s*([a-z0-9]+)`)
++		re = regexp.MustCompile(`^\s*([\da-f]+):\s*((?:[\da-f][\da-f] )+)\s*([a-z\d]+)`)
+ 	}
+ 
+ 	// Find all the instruction addresses we need to edit.
+diff --git a/src/cmd/compile/internal/ssa/debug_lines_test.go b/src/cmd/compile/internal/ssa/debug_lines_test.go
+index cde1015b4b..b5607d7efc 100644
+--- a/src/cmd/compile/internal/ssa/debug_lines_test.go
++++ b/src/cmd/compile/internal/ssa/debug_lines_test.go
+@@ -24,14 +24,14 @@ import (
+ )
+ 
+ // Matches lines in genssa output that are marked "isstmt", and the parenthesized plus-prefixed line number is a submatch
+-var asmLine *regexp.Regexp = regexp.MustCompile(`^\s[vb][0-9]+\s+[0-9]+\s\(\+([0-9]+)\)`)
++var asmLine *regexp.Regexp = regexp.MustCompile(`^\s[vb]\d+\s+\d+\s\(\+(\d+)\)`)
+ 
+ // this matches e.g.                            `   v123456789   000007   (+9876654310) MOVUPS	X15, ""..autotmp_2-32(SP)`
+ 
+ // Matches lines in genssa output that describe an inlined file.
+ // Note it expects an unadventurous choice of basename.
+ var sepRE = regexp.QuoteMeta(string(filepath.Separator))
+-var inlineLine *regexp.Regexp = regexp.MustCompile(`^#\s.*` + sepRE + `[-a-zA-Z0-9_]+\.go:([0-9]+)`)
++var inlineLine *regexp.Regexp = regexp.MustCompile(`^#\s.*` + sepRE + `[-\w]+\.go:(\d+)`)
+ 
+ // this matches e.g.                                 #  /pa/inline-dumpxxxx.go:6
+ 
+diff --git a/src/cmd/compile/internal/ssa/debug_test.go b/src/cmd/compile/internal/ssa/debug_test.go
+index f96c5b131c..af32ba7047 100644
+--- a/src/cmd/compile/internal/ssa/debug_test.go
++++ b/src/cmd/compile/internal/ssa/debug_test.go
+@@ -32,11 +32,11 @@ var (
+ 
+ var (
+ 	hexRe                 = regexp.MustCompile("0x[a-zA-Z0-9]+")
+-	numRe                 = regexp.MustCompile("-?[0-9]+")
++	numRe                 = regexp.MustCompile("-?\\d+")
+ 	stringRe              = regexp.MustCompile("\"([^\\\"]|(\\.))*\"")
+-	leadingDollarNumberRe = regexp.MustCompile("^[$][0-9]+")
++	leadingDollarNumberRe = regexp.MustCompile("^[$]\\d+")
+ 	optOutGdbRe           = regexp.MustCompile("[<]optimized out[>]")
+-	numberColonRe         = regexp.MustCompile("^ *[0-9]+:")
++	numberColonRe         = regexp.MustCompile("^ *\\d+:")
+ )
+ 
+ var gdb = "gdb"      // Might be "ggdb" on Darwin, because gdb no longer part of XCode
+diff --git a/src/cmd/compile/internal/types/goversion.go b/src/cmd/compile/internal/types/goversion.go
+index ceb2ed366e..3ece95bf0a 100644
+--- a/src/cmd/compile/internal/types/goversion.go
++++ b/src/cmd/compile/internal/types/goversion.go
+@@ -81,4 +81,4 @@ func currentLang() string {
+ 
+ // goVersionRE is a regular expression that matches the valid
+ // arguments to the -lang flag.
+-var goVersionRE = regexp.MustCompile(`^go([1-9][0-9]*)\.(0|[1-9][0-9]*)$`)
++var goVersionRE = regexp.MustCompile(`^go([1-9]\d*)\.(0|[1-9]\d*)$`)
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 5bc9c9ca89..e0224fa834 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1414,7 +1414,7 @@ func (t *tester) hasSwig() bool {
+ 		return false
+ 	}
+ 
+-	re := regexp.MustCompile(`[vV]ersion +([\d]+)([.][\d]+)?([.][\d]+)?`)
++	re := regexp.MustCompile(`[vV]ersion +(\d+)([.]\d+)?([.]\d+)?`)
+ 	matches := re.FindSubmatch(out)
+ 	if matches == nil {
+ 		// Can't find version number; hope for the best.
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index e0b9472fa1..6885e3ecad 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -3147,7 +3147,7 @@ func (b *Builder) swigDoVersionCheck() error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	re := regexp.MustCompile(`[vV]ersion +([\d]+)([.][\d]+)?([.][\d]+)?`)
++	re := regexp.MustCompile(`[vV]ersion +(\d+)([.]\d+)?([.]\d+)?`)
+ 	matches := re.FindSubmatch(out)
+ 	if matches == nil {
+ 		// Can't find version number; hope for the best.
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index b2f68b67f9..006c4346c7 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -238,7 +238,7 @@ func (ts *testScript) setup() {
+ func goVersion() (string, error) {
+ 	tags := build.Default.ReleaseTags
+ 	version := tags[len(tags)-1]
+-	if !regexp.MustCompile(`^go([1-9][0-9]*)\.(0|[1-9][0-9]*)$`).MatchString(version) {
++	if !regexp.MustCompile(`^go([1-9]\d*)\.(0|[1-9]\d*)$`).MatchString(version) {
+ 		return "", fmt.Errorf("invalid go version %q", version)
+ 	}
+ 	return version[2:], nil
+diff --git a/src/cmd/link/internal/ld/stackcheck_test.go b/src/cmd/link/internal/ld/stackcheck_test.go
+index 2089badbe9..d935401740 100644
+--- a/src/cmd/link/internal/ld/stackcheck_test.go
++++ b/src/cmd/link/internal/ld/stackcheck_test.go
+@@ -34,7 +34,7 @@ func TestStackCheckOutput(t *testing.T) {
+ 	t.Logf("linker output:\n%s", out)
+ 
+ 	// Get expected limit.
+-	limitRe := regexp.MustCompile("nosplit stack over ([0-9]+) byte limit")
++	limitRe := regexp.MustCompile(`nosplit stack over (\d+) byte limit`)
+ 	m := limitRe.FindStringSubmatch(out)
+ 	if m == nil {
+ 		t.Fatalf("no overflow errors in output")
+@@ -66,7 +66,7 @@ func TestStackCheckOutput(t *testing.T) {
+ 	}
+ 
+ 	// Parse stanzas
+-	stanza := regexp.MustCompile(`^(.*): nosplit stack over [0-9]+ byte limit\n(.*\n(?: .*\n)*)`)
++	stanza := regexp.MustCompile(`^(.*): nosplit stack over \d+ byte limit\n(.*\n(?: .*\n)*)`)
+ 	// Strip comments from cmd/go
+ 	out = regexp.MustCompile(`(?m)^#.*\n`).ReplaceAllString(out, "")
+ 	for len(out) > 0 {
+diff --git a/src/cmd/link/internal/wasm/asm.go b/src/cmd/link/internal/wasm/asm.go
+index 45cb209e97..041b4e2780 100644
+--- a/src/cmd/link/internal/wasm/asm.go
++++ b/src/cmd/link/internal/wasm/asm.go
+@@ -520,7 +520,7 @@ func writeProducerSec(ctxt *ld.Link) {
+ 	writeSecSize(ctxt, sizeOffset)
+ }
+ 
+-var nameRegexp = regexp.MustCompile(`[^\w\.]`)
++var nameRegexp = regexp.MustCompile(`[^\w.]`)
+ 
+ // writeNameSec writes an optional section that assigns names to the functions declared by the "func" section.
+ // The names are only used by WebAssembly stack traces, debuggers and decompilers.
+diff --git a/src/cmd/vet/vet_test.go b/src/cmd/vet/vet_test.go
+index cfe58a07c8..1b74fa3fd5 100644
+--- a/src/cmd/vet/vet_test.go
++++ b/src/cmd/vet/vet_test.go
+@@ -337,7 +337,7 @@ var (
+ 	errRx       = regexp.MustCompile(`// (?:GC_)?ERROR(NEXT)? (.*)`)
+ 	errAutoRx   = regexp.MustCompile(`// (?:GC_)?ERRORAUTO(NEXT)? (.*)`)
+ 	errQuotesRx = regexp.MustCompile(`"([^"]*)"`)
+-	lineRx      = regexp.MustCompile(`LINE(([+-])([0-9]+))?`)
++	lineRx      = regexp.MustCompile(`LINE(([+-])(\d+))?`)
+ )
+ 
+ // wantedErrors parses expected errors from comments in a file.
+diff --git a/src/go/internal/gccgoimporter/importer_test.go b/src/go/internal/gccgoimporter/importer_test.go
+index 8a7ee1aa4f..55e2feb9fa 100644
+--- a/src/go/internal/gccgoimporter/importer_test.go
++++ b/src/go/internal/gccgoimporter/importer_test.go
+@@ -135,7 +135,7 @@ func TestObjImporter(t *testing.T) {
+ 		t.Logf("%s", verout)
+ 		t.Fatal(err)
+ 	}
+-	vers := regexp.MustCompile(`([0-9]+)\.([0-9]+)`).FindSubmatch(verout)
++	vers := regexp.MustCompile(`(\d+)\.(\d+)`).FindSubmatch(verout)
+ 	if len(vers) == 0 {
+ 		t.Fatalf("could not find version number in %s", verout)
+ 	}
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index a743d9d41d..21e1856683 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -50,7 +50,7 @@ var (
+ var fset = token.NewFileSet()
+ 
+ // Positioned errors are of the form filename:line:column: message .
+-var posMsgRx = regexp.MustCompile(`^(.*:[0-9]+:[0-9]+): *(?s)(.*)`)
++var posMsgRx = regexp.MustCompile(`^(.*:\d+:\d+): *(?s)(.*)`)
+ 
+ // splitError splits an error's error message into a position string
+ // and the actual error message. If there's no position information,
+diff --git a/src/go/types/example_test.go b/src/go/types/example_test.go
+index e752a77881..75233e6dd5 100644
+--- a/src/go/types/example_test.go
++++ b/src/go/types/example_test.go
+@@ -73,7 +73,7 @@ func Unused() { {}; {{ var x int; _ = x }} } // make sure empty block scopes get
+ 	// For determinism, we redact addresses.
+ 	var buf strings.Builder
+ 	pkg.Scope().WriteTo(&buf, 0, true)
+-	rx := regexp.MustCompile(` 0x[a-fA-F0-9]*`)
++	rx := regexp.MustCompile(` 0x[a-fA-F\d]*`)
+ 	fmt.Println(rx.ReplaceAllString(buf.String(), ""))
+ 
+ 	// Output:
+diff --git a/src/go/types/version.go b/src/go/types/version.go
+index 71093c6818..a311829672 100644
+--- a/src/go/types/version.go
++++ b/src/go/types/version.go
+@@ -79,4 +79,4 @@ func parseGoVersion(s string) (v version, err error) {
+ }
+ 
+ // goVersionRx matches a Go version string, e.g. "go1.12".
+-var goVersionRx = regexp.MustCompile(`^go([1-9][0-9]*)\.(0|[1-9][0-9]*)$`)
++var goVersionRx = regexp.MustCompile(`^go([1-9]\d*)\.(0|[1-9]\d*)$`)
+diff --git a/test/run.go b/test/run.go
+index f4d24c597b..5bd174e967 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -1427,7 +1427,7 @@ func (t *test) updateErrors(out, file string) {
+ 	}
+ 	// Parse new errors.
+ 	errors := make(map[int]map[string]bool)
+-	tmpRe := regexp.MustCompile(`autotmp_[0-9]+`)
++	tmpRe := regexp.MustCompile(`autotmp_\d+`)
+ 	for _, errStr := range splitOutput(out, false) {
+ 		errFile, rest, ok := strings.Cut(errStr, ":")
+ 		if !ok || errFile != file {
+@@ -1520,7 +1520,7 @@ var (
+ 	errRx       = regexp.MustCompile(`// (?:GC_)?ERROR (.*)`)
+ 	errAutoRx   = regexp.MustCompile(`// (?:GC_)?ERRORAUTO (.*)`)
+ 	errQuotesRx = regexp.MustCompile(`"([^"]*)"`)
+-	lineRx      = regexp.MustCompile(`LINE(([+-])([0-9]+))?`)
++	lineRx      = regexp.MustCompile(`LINE(([+-])(\d+))?`)
+ )
+ 
+ func (t *test) wantedErrors(file, short string) (errs []wantedError) {

@@ -17,6 +17,20 @@ Date:   Thu Apr 7 20:07:09 2016 -0400
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 6fc6de3818..63caf9cf79 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1116,7 +1116,7 @@ func symalign(s *LSym) int32 {
+ 	} else if s.Align != 0 {
+ 		return min
+ 	}
+-	if strings.HasPrefix(s.Name, "go.string.") && !strings.HasPrefix(s.Name, "go.string.hdr.") {
++	if (strings.HasPrefix(s.Name, "go.string.") && !strings.HasPrefix(s.Name, "go.string.hdr.")) || strings.HasPrefix(s.Name, "type..namedata.") {
+ 		// String data is just bytes.
+ 		// If we align it, we waste a lot of space to padding.
+ 		return min

@@ -20,7 +20,7 @@ Date:   Wed Sep 9 16:35:56 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/base/flag.go       | 35 +++++++++++++++++++++++++++++++---
  src/cmd/go/internal/cfg/cfg.go         |  3 ++-
  src/cmd/go/internal/fmtcmd/fmt.go      |  3 ++-
@@ -36,3 +36,371 @@ Date:   Wed Sep 9 16:35:56 2020 -0400
  src/cmd/go/internal/work/build.go      | 14 +++-----------
  src/cmd/go/internal/work/init.go       |  2 +-
  14 files changed, 61 insertions(+), 43 deletions(-)
+
+diff --git a/src/cmd/go/internal/base/flag.go b/src/cmd/go/internal/base/flag.go
+index 6727196816..c97c744520 100644
+--- a/src/cmd/go/internal/base/flag.go
++++ b/src/cmd/go/internal/base/flag.go
+@@ -28,13 +28,42 @@ func (v *StringsFlag) String() string {
+ 	return "<StringsFlag>"
+ }
+ 
++// explicitStringFlag is like a regular string flag, but it also tracks whether
++// the string was set explicitly to a non-empty value.
++type explicitStringFlag struct {
++	value    *string
++	explicit *bool
++}
++
++func (f explicitStringFlag) String() string {
++	if f.value == nil {
++		return ""
++	}
++	return *f.value
++}
++
++func (f explicitStringFlag) Set(v string) error {
++	*f.value = v
++	if v != "" {
++		*f.explicit = true
++	}
++	return nil
++}
++
+ // AddBuildFlagsNX adds the -n and -x build flags to the flag set.
+ func AddBuildFlagsNX(flags *flag.FlagSet) {
+ 	flags.BoolVar(&cfg.BuildN, "n", false, "")
+ 	flags.BoolVar(&cfg.BuildX, "x", false, "")
+ }
+ 
+-// AddLoadFlags adds the -mod build flag to the flag set.
+-func AddLoadFlags(flags *flag.FlagSet) {
+-	flags.StringVar(&cfg.BuildMod, "mod", "", "")
++// AddModFlag adds the -mod build flag to the flag set.
++func AddModFlag(flags *flag.FlagSet) {
++	flags.Var(explicitStringFlag{value: &cfg.BuildMod, explicit: &cfg.BuildModExplicit}, "mod", "")
++}
++
++// AddModCommonFlags adds the module-related flags common to build commands
++// and 'go mod' subcommands.
++func AddModCommonFlags(flags *flag.FlagSet) {
++	flags.BoolVar(&cfg.ModCacheRW, "modcacherw", false, "")
++	flags.StringVar(&cfg.ModFile, "modfile", "", "")
+ }
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index f9bbcd9180..f874b880a6 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -27,7 +27,8 @@ var (
+ 	BuildBuildmode         string // -buildmode flag
+ 	BuildContext           = defaultContext()
+ 	BuildMod               string             // -mod flag
+-	BuildModReason         string             // reason -mod flag is set, if set by default
++	BuildModExplicit       bool               // whether -mod was set explicitly
++	BuildModReason         string             // reason -mod was set, if set by default
+ 	BuildI                 bool               // -i flag
+ 	BuildLinkshared        bool               // -linkshared flag
+ 	BuildMSan              bool               // -msan flag
+diff --git a/src/cmd/go/internal/fmtcmd/fmt.go b/src/cmd/go/internal/fmtcmd/fmt.go
+index f96cff429c..b0c1c59b40 100644
+--- a/src/cmd/go/internal/fmtcmd/fmt.go
++++ b/src/cmd/go/internal/fmtcmd/fmt.go
+@@ -23,7 +23,8 @@ import (
+ 
+ func init() {
+ 	base.AddBuildFlagsNX(&CmdFmt.Flag)
+-	base.AddLoadFlags(&CmdFmt.Flag)
++	base.AddModFlag(&CmdFmt.Flag)
++	base.AddModCommonFlags(&CmdFmt.Flag)
+ }
+ 
+ var CmdFmt = &base.Command{
+diff --git a/src/cmd/go/internal/modcmd/download.go b/src/cmd/go/internal/modcmd/download.go
+index 41f294d475..0ea5638e70 100644
+--- a/src/cmd/go/internal/modcmd/download.go
++++ b/src/cmd/go/internal/modcmd/download.go
+@@ -14,7 +14,6 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modload"
+-	"cmd/go/internal/work"
+ 
+ 	"golang.org/x/mod/module"
+ )
+@@ -64,7 +63,7 @@ func init() {
+ 
+ 	// TODO(jayconrod): https://golang.org/issue/35849 Apply -x to other 'go mod' commands.
+ 	cmdDownload.Flag.BoolVar(&cfg.BuildX, "x", false, "")
+-	work.AddModCommonFlags(cmdDownload)
++	base.AddModCommonFlags(&cmdDownload.Flag)
+ }
+ 
+ type moduleJSON struct {
+diff --git a/src/cmd/go/internal/modcmd/edit.go b/src/cmd/go/internal/modcmd/edit.go
+index 18bdd34cd0..03a774b824 100644
+--- a/src/cmd/go/internal/modcmd/edit.go
++++ b/src/cmd/go/internal/modcmd/edit.go
+@@ -19,7 +19,6 @@ import (
+ 	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modload"
+-	"cmd/go/internal/work"
+ 
+ 	"golang.org/x/mod/modfile"
+ 	"golang.org/x/mod/module"
+@@ -154,7 +153,7 @@ func init() {
+ 	cmdEdit.Flag.Var(flagFunc(flagRetract), "retract", "")
+ 	cmdEdit.Flag.Var(flagFunc(flagDropRetract), "dropretract", "")
+ 
+-	work.AddModCommonFlags(cmdEdit)
++	base.AddModCommonFlags(&cmdEdit.Flag)
+ 	base.AddBuildFlagsNX(&cmdEdit.Flag)
+ }
+ 
+diff --git a/src/cmd/go/internal/modcmd/graph.go b/src/cmd/go/internal/modcmd/graph.go
+index 513536a010..a149b65605 100644
+--- a/src/cmd/go/internal/modcmd/graph.go
++++ b/src/cmd/go/internal/modcmd/graph.go
+@@ -15,7 +15,6 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/modload"
+-	"cmd/go/internal/work"
+ 
+ 	"golang.org/x/mod/module"
+ )
+@@ -33,7 +32,7 @@ path@version, except for the main module, which has no @version suffix.
+ }
+ 
+ func init() {
+-	work.AddModCommonFlags(cmdGraph)
++	base.AddModCommonFlags(&cmdGraph.Flag)
+ }
+ 
+ func runGraph(ctx context.Context, cmd *base.Command, args []string) {
+diff --git a/src/cmd/go/internal/modcmd/init.go b/src/cmd/go/internal/modcmd/init.go
+index b6cffd332d..21b235653e 100644
+--- a/src/cmd/go/internal/modcmd/init.go
++++ b/src/cmd/go/internal/modcmd/init.go
+@@ -9,7 +9,6 @@ package modcmd
+ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/modload"
+-	"cmd/go/internal/work"
+ 	"context"
+ 	"os"
+ 	"strings"
+@@ -30,7 +29,7 @@ To override this guess, supply the module path as an argument.
+ }
+ 
+ func init() {
+-	work.AddModCommonFlags(cmdInit)
++	base.AddModCommonFlags(&cmdInit.Flag)
+ }
+ 
+ func runInit(ctx context.Context, cmd *base.Command, args []string) {
+diff --git a/src/cmd/go/internal/modcmd/tidy.go b/src/cmd/go/internal/modcmd/tidy.go
+index 4dcb62e02f..30df674ef6 100644
+--- a/src/cmd/go/internal/modcmd/tidy.go
++++ b/src/cmd/go/internal/modcmd/tidy.go
+@@ -10,7 +10,6 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/modload"
+-	"cmd/go/internal/work"
+ 	"context"
+ )
+ 
+@@ -32,7 +31,7 @@ to standard error.
+ func init() {
+ 	cmdTidy.Run = runTidy // break init cycle
+ 	cmdTidy.Flag.BoolVar(&cfg.BuildV, "v", false, "")
+-	work.AddModCommonFlags(cmdTidy)
++	base.AddModCommonFlags(&cmdTidy.Flag)
+ }
+ 
+ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index 30334f3a42..91d2509452 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -19,7 +19,6 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/imports"
+ 	"cmd/go/internal/modload"
+-	"cmd/go/internal/work"
+ 
+ 	"golang.org/x/mod/module"
+ 	"golang.org/x/mod/semver"
+@@ -41,7 +40,7 @@ modules and packages to standard error.
+ 
+ func init() {
+ 	cmdVendor.Flag.BoolVar(&cfg.BuildV, "v", false, "")
+-	work.AddModCommonFlags(cmdVendor)
++	base.AddModCommonFlags(&cmdVendor.Flag)
+ }
+ 
+ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
+diff --git a/src/cmd/go/internal/modcmd/verify.go b/src/cmd/go/internal/modcmd/verify.go
+index d542825823..7700588bde 100644
+--- a/src/cmd/go/internal/modcmd/verify.go
++++ b/src/cmd/go/internal/modcmd/verify.go
+@@ -17,7 +17,6 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modload"
+-	"cmd/go/internal/work"
+ 
+ 	"golang.org/x/mod/module"
+ 	"golang.org/x/mod/sumdb/dirhash"
+@@ -38,7 +37,7 @@ non-zero status.
+ }
+ 
+ func init() {
+-	work.AddModCommonFlags(cmdVerify)
++	base.AddModCommonFlags(&cmdVerify.Flag)
+ }
+ 
+ func runVerify(ctx context.Context, cmd *base.Command, args []string) {
+diff --git a/src/cmd/go/internal/modcmd/why.go b/src/cmd/go/internal/modcmd/why.go
+index 30b15fc153..8454fdfec6 100644
+--- a/src/cmd/go/internal/modcmd/why.go
++++ b/src/cmd/go/internal/modcmd/why.go
+@@ -11,7 +11,6 @@ import (
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/modload"
+-	"cmd/go/internal/work"
+ 
+ 	"golang.org/x/mod/module"
+ )
+@@ -58,7 +57,7 @@ var (
+ 
+ func init() {
+ 	cmdWhy.Run = runWhy // break init cycle
+-	work.AddModCommonFlags(cmdWhy)
++	base.AddModCommonFlags(&cmdWhy.Flag)
+ }
+ 
+ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 8e8fb9e6a1..1f50dcb11c 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -518,17 +518,20 @@ func modFileToBuildList() {
+ // setDefaultBuildMod sets a default value for cfg.BuildMod
+ // if it is currently empty.
+ func setDefaultBuildMod() {
+-	if cfg.BuildMod != "" {
++	if cfg.BuildModExplicit {
+ 		// Don't override an explicit '-mod=' argument.
+ 		return
+ 	}
+-	cfg.BuildMod = "mod"
++
+ 	if cfg.CmdName == "get" || strings.HasPrefix(cfg.CmdName, "mod ") {
+-		// Don't set -mod implicitly for commands whose purpose is to
+-		// manipulate the build list.
++		// 'get' and 'go mod' commands may update go.mod automatically.
++		// TODO(jayconrod): should this narrower? Should 'go mod download' or
++		// 'go mod graph' update go.mod by default?
++		cfg.BuildMod = "mod"
+ 		return
+ 	}
+ 	if modRoot == "" {
++		cfg.BuildMod = "mod"
+ 		return
+ 	}
+ 
+@@ -546,18 +549,18 @@ func setDefaultBuildMod() {
+ 			}
+ 		}
+ 
+-		// Since a vendor directory exists, we have a non-trivial reason for
+-		// choosing -mod=mod, although it probably won't be used for anything.
+-		// Record the reason anyway for consistency.
+-		// It may be overridden if we switch to mod=readonly below.
+-		cfg.BuildModReason = fmt.Sprintf("Go version in go.mod is %s.", modGo)
++		// Since a vendor directory exists, we should record why we didn't use it.
++		// This message won't normally be shown, but it may appear with import errors.
++		cfg.BuildModReason = fmt.Sprintf("Go version in go.mod is %s, so vendor directory was not used.", modGo)
+ 	}
+ 
+ 	p := ModFilePath()
+ 	if fi, err := os.Stat(p); err == nil && !hasWritePerm(p, fi) {
+ 		cfg.BuildMod = "readonly"
+ 		cfg.BuildModReason = "go.mod file is read-only."
++		return
+ 	}
++	cfg.BuildMod = "mod"
+ }
+ 
+ func legacyModInit() {
+@@ -857,7 +860,7 @@ func WriteGoMod() {
+ 		// prefer to report a dirty go.mod over a dirty go.sum
+ 		if cfg.BuildModReason != "" {
+ 			base.Fatalf("go: updates to go.mod needed, disabled by -mod=readonly\n\t(%s)", cfg.BuildModReason)
+-		} else {
++		} else if cfg.BuildModExplicit {
+ 			base.Fatalf("go: updates to go.mod needed, disabled by -mod=readonly")
+ 		}
+ 	}
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index d020aa6e9f..e99982ed36 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -240,13 +240,12 @@ const (
+ // AddBuildFlags adds the flags common to the build, clean, get,
+ // install, list, run, and test commands.
+ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
++	base.AddBuildFlagsNX(&cmd.Flag)
+ 	cmd.Flag.BoolVar(&cfg.BuildA, "a", false, "")
+-	cmd.Flag.BoolVar(&cfg.BuildN, "n", false, "")
+ 	cmd.Flag.IntVar(&cfg.BuildP, "p", cfg.BuildP, "")
+ 	if mask&OmitVFlag == 0 {
+ 		cmd.Flag.BoolVar(&cfg.BuildV, "v", false, "")
+ 	}
+-	cmd.Flag.BoolVar(&cfg.BuildX, "x", false, "")
+ 
+ 	cmd.Flag.Var(&load.BuildAsmflags, "asmflags", "")
+ 	cmd.Flag.Var(buildCompiler{}, "compiler", "")
+@@ -254,10 +253,10 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
+ 	cmd.Flag.Var(&load.BuildGcflags, "gcflags", "")
+ 	cmd.Flag.Var(&load.BuildGccgoflags, "gccgoflags", "")
+ 	if mask&OmitModFlag == 0 {
+-		cmd.Flag.StringVar(&cfg.BuildMod, "mod", "", "")
++		base.AddModFlag(&cmd.Flag)
+ 	}
+ 	if mask&OmitModCommonFlags == 0 {
+-		AddModCommonFlags(cmd)
++		base.AddModCommonFlags(&cmd.Flag)
+ 	}
+ 	cmd.Flag.StringVar(&cfg.BuildContext.InstallSuffix, "installsuffix", "", "")
+ 	cmd.Flag.Var(&load.BuildLdflags, "ldflags", "")
+@@ -275,13 +274,6 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
+ 	cmd.Flag.StringVar(&cfg.DebugTrace, "debug-trace", "", "")
+ }
+ 
+-// AddModCommonFlags adds the module-related flags common to build commands
+-// and 'go mod' subcommands.
+-func AddModCommonFlags(cmd *base.Command) {
+-	cmd.Flag.BoolVar(&cfg.ModCacheRW, "modcacherw", false, "")
+-	cmd.Flag.StringVar(&cfg.ModFile, "modfile", "", "")
+-}
+-
+ // tagsFlag is the implementation of the -tags flag.
+ type tagsFlag []string
+ 
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index dad3b10111..f78020032c 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -252,7 +252,7 @@ func buildModeInit() {
+ 
+ 	switch cfg.BuildMod {
+ 	case "":
+-		// ok
++		// Behavior will be determined automatically, as if no flag were passed.
+ 	case "readonly", "vendor", "mod":
+ 		if !cfg.ModulesEnabled && !inGOFLAGS("-mod") {
+ 			base.Fatalf("build flag -mod=%s only valid when using modules", cfg.BuildMod)

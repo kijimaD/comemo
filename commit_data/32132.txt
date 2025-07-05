@@ -11,6 +11,17 @@ Date:   Fri Apr 7 08:28:00 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/all/whitelist/amd64.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/vet/all/whitelist/amd64.txt b/src/cmd/vet/all/whitelist/amd64.txt
+index 9056f809f2..b77756d174 100644
+--- a/src/cmd/vet/all/whitelist/amd64.txt
++++ b/src/cmd/vet/all/whitelist/amd64.txt
+@@ -36,4 +36,4 @@ runtime/duff_amd64.s: [amd64] duffzero: function duffzero missing Go declaration
+ runtime/duff_amd64.s: [amd64] duffcopy: function duffcopy missing Go declaration
+ runtime/asm_amd64.s: [amd64] stackcheck: function stackcheck missing Go declaration
+ runtime/asm_amd64.s: [amd64] indexShortStr: function indexShortStr missing Go declaration
+-
++runtime/asm_amd64.s: [amd64] countByte: function countByte missing Go declaration

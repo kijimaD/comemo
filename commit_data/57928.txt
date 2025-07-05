@@ -12,9 +12,146 @@ Date:   Tue Sep 12 10:45:54 2023 +0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/loopvar/loopvar.go  | 19 ++++--------
  src/cmd/compile/internal/staticinit/sched.go |  6 ++--
  src/cmd/compile/internal/typecheck/const.go  | 45 ----------------------------
  src/cmd/compile/internal/walk/builtin.go     |  2 +-
  4 files changed, 8 insertions(+), 64 deletions(-)
+
+diff --git a/src/cmd/compile/internal/loopvar/loopvar.go b/src/cmd/compile/internal/loopvar/loopvar.go
+index 7126d780b6..ecf9401eeb 100644
+--- a/src/cmd/compile/internal/loopvar/loopvar.go
++++ b/src/cmd/compile/internal/loopvar/loopvar.go
+@@ -355,26 +355,17 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
+ 					})
+ 
+ 					postNotNil := x.Post != nil
+-					var tmpFirstDcl *ir.AssignStmt
++					var tmpFirstDcl ir.Node
+ 					if postNotNil {
+ 						// body' = prebody +
+ 						// (6)     if tmp_first {tmp_first = false} else {Post} +
+ 						//         if !cond {break} + ...
+ 						tmpFirst := typecheck.TempAt(base.Pos, fn, types.Types[types.TBOOL])
+-
+-						// tmpFirstAssign assigns val to tmpFirst
+-						tmpFirstAssign := func(val bool) *ir.AssignStmt {
+-							s := ir.NewAssignStmt(x.Pos(), tmpFirst, typecheck.OrigBool(tmpFirst, val))
+-							s.SetTypecheck(1)
+-							return s
+-						}
+-
+-						tmpFirstDcl = tmpFirstAssign(true)
+-						tmpFirstDcl.Def = true // also declares tmpFirst
+-						tmpFirstSetFalse := tmpFirstAssign(false)
++						tmpFirstDcl = typecheck.Stmt(ir.NewAssignStmt(x.Pos(), tmpFirst, ir.NewBool(base.Pos, true)))
++						tmpFirstSetFalse := typecheck.Stmt(ir.NewAssignStmt(x.Pos(), tmpFirst, ir.NewBool(base.Pos, false)))
+ 						ifTmpFirst := ir.NewIfStmt(x.Pos(), tmpFirst, ir.Nodes{tmpFirstSetFalse}, ir.Nodes{x.Post})
+-						ifTmpFirst.SetTypecheck(1)
+-						preBody.Append(ifTmpFirst)
++						ifTmpFirst.PtrInit().Append(typecheck.Stmt(ir.NewDecl(base.Pos, ir.ODCL, tmpFirst))) // declares tmpFirst
++						preBody.Append(typecheck.Stmt(ifTmpFirst))
+ 					}
+ 
+ 					// body' = prebody +
+diff --git a/src/cmd/compile/internal/staticinit/sched.go b/src/cmd/compile/internal/staticinit/sched.go
+index 4358ac678a..4191f6997e 100644
+--- a/src/cmd/compile/internal/staticinit/sched.go
++++ b/src/cmd/compile/internal/staticinit/sched.go
+@@ -1033,7 +1033,7 @@ func addStr(n *ir.AddStringExpr) ir.Node {
+ 		for _, c := range s {
+ 			strs = append(strs, ir.StringVal(c))
+ 		}
+-		return typecheck.OrigConst(n, constant.MakeString(strings.Join(strs, "")))
++		return ir.NewConstExpr(constant.MakeString(strings.Join(strs, "")), n)
+ 	}
+ 	newList := make([]ir.Node, 0, need)
+ 	for i := 0; i < len(s); i++ {
+@@ -1046,9 +1046,7 @@ func addStr(n *ir.AddStringExpr) ir.Node {
+ 				i2++
+ 			}
+ 
+-			nl := ir.Copy(n).(*ir.AddStringExpr)
+-			nl.List = s[i:i2]
+-			newList = append(newList, typecheck.OrigConst(nl, constant.MakeString(strings.Join(strs, ""))))
++			newList = append(newList, ir.NewConstExpr(constant.MakeString(strings.Join(strs, "")), s[i]))
+ 			i = i2 - 1
+ 		} else {
+ 			newList = append(newList, s[i])
+diff --git a/src/cmd/compile/internal/typecheck/const.go b/src/cmd/compile/internal/typecheck/const.go
+index 56a2072d29..119cc37ad6 100644
+--- a/src/cmd/compile/internal/typecheck/const.go
++++ b/src/cmd/compile/internal/typecheck/const.go
+@@ -8,7 +8,6 @@ import (
+ 	"fmt"
+ 	"go/constant"
+ 	"go/token"
+-	"internal/types/errors"
+ 	"math"
+ 	"math/big"
+ 	"unicode"
+@@ -330,50 +329,6 @@ func makeComplex(real, imag constant.Value) constant.Value {
+ 	return constant.BinaryOp(constant.ToFloat(real), token.ADD, constant.MakeImag(constant.ToFloat(imag)))
+ }
+ 
+-// For matching historical "constant OP overflow" error messages.
+-// TODO(mdempsky): Replace with error messages like go/types uses.
+-var overflowNames = [...]string{
+-	ir.OADD:    "addition",
+-	ir.OSUB:    "subtraction",
+-	ir.OMUL:    "multiplication",
+-	ir.OLSH:    "shift",
+-	ir.OXOR:    "bitwise XOR",
+-	ir.OBITNOT: "bitwise complement",
+-}
+-
+-// OrigConst returns an OLITERAL with orig n and value v.
+-func OrigConst(n ir.Node, v constant.Value) ir.Node {
+-	lno := ir.SetPos(n)
+-	v = ConvertVal(v, n.Type(), false)
+-	base.Pos = lno
+-
+-	switch v.Kind() {
+-	case constant.Int:
+-		if constant.BitLen(v) <= ir.ConstPrec {
+-			break
+-		}
+-		fallthrough
+-	case constant.Unknown:
+-		what := overflowNames[n.Op()]
+-		if what == "" {
+-			base.Fatalf("unexpected overflow: %v", n.Op())
+-		}
+-		base.ErrorfAt(n.Pos(), errors.NumericOverflow, "constant %v overflow", what)
+-		n.SetType(nil)
+-		return n
+-	}
+-
+-	return ir.NewConstExpr(v, n)
+-}
+-
+-func OrigBool(n ir.Node, v bool) ir.Node {
+-	return OrigConst(n, constant.MakeBool(v))
+-}
+-
+-func OrigInt(n ir.Node, v int64) ir.Node {
+-	return OrigConst(n, constant.MakeInt64(v))
+-}
+-
+ // DefaultLit on both nodes simultaneously;
+ // if they're both ideal going in they better
+ // get the same type going out.
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index 56dad14f21..cb481f40ef 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -274,7 +274,7 @@ func walkLenCap(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
+ 	}
+ 	if t.IsArray() {
+ 		safeExpr(n.X, init)
+-		con := typecheck.OrigInt(n, t.NumElem())
++		con := ir.NewConstExpr(constant.MakeInt64(t.NumElem()), n)
+ 		con.SetTypecheck(1)
+ 		return con
+ 	}

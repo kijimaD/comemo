@@ -18,7 +18,36 @@ Date:   Mon Feb 15 23:12:15 2021 -0500
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/metrics/doc.go    | 4 +---
  src/runtime/metrics/sample.go | 2 +-
  2 files changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index 5da050f973..7f790afc12 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -16,9 +16,7 @@ Interface
+ Metrics are designated by a string key, rather than, for example, a field name in
+ a struct. The full list of supported metrics is always available in the slice of
+ Descriptions returned by All. Each Description also includes useful information
+-about the metric, such as how to display it (for example, gauge vs. counter)
+-and how difficult or disruptive it is to obtain it (for example, do you need to
+-stop the world?).
++about the metric.
+ 
+ Thus, users of this API are encouraged to sample supported metrics defined by the
+ slice returned by All to remain compatible across Go versions. Of course, situations
+diff --git a/src/runtime/metrics/sample.go b/src/runtime/metrics/sample.go
+index b3933e266e..4cf8cdf799 100644
+--- a/src/runtime/metrics/sample.go
++++ b/src/runtime/metrics/sample.go
+@@ -14,7 +14,7 @@ type Sample struct {
+ 	// Name is the name of the metric sampled.
+ 	//
+ 	// It must correspond to a name in one of the metric descriptions
+-	// returned by Descriptions.
++	// returned by All.
+ 	Name string
+ 
+ 	// Value is the value of the metric sample.

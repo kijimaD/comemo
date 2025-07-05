@@ -18,6 +18,27 @@ Date:   Wed Mar 9 11:18:29 2011 -0500
     R=r
     CC=golang-dev
     https://golang.org/cl/4241056
-
+---
  src/cmd/ld/data.c | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 4066cd8143..848c3637d3 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -788,7 +788,6 @@ dodata(void)
+ 	for(; s != nil && s->type < SDATA; s = s->next) {
+ 		s->type = SRODATA;
+ 		t = rnd(s->size, PtrSize);
+-		s->size = t;
+ 		s->value = datsize;
+ 		datsize += t;
+ 	}
+@@ -835,7 +834,6 @@ dodata(void)
+ 			datsize = rnd(datsize, 4);
+ 		else
+ 			datsize = rnd(datsize, 8);
+-		s->size = t;
+ 		s->value = datsize;
+ 		datsize += t;
+ 	}

@@ -10,7 +10,7 @@ Date:   Thu May 21 13:13:20 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/amd64/asm.go  | 15 ++-------------
  src/cmd/link/internal/arm/asm.go    |  9 +--------
  src/cmd/link/internal/arm64/asm.go  | 16 ----------------
@@ -19,3 +19,230 @@ Date:   Thu May 21 13:13:20 2020 -0400
  src/cmd/link/internal/ppc64/asm.go  | 16 ----------------
  src/cmd/link/internal/x86/asm.go    | 12 ++----------
  7 files changed, 28 insertions(+), 83 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 6e784b59f4..43601563e1 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -766,19 +766,8 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 	switch ctxt.HeadType {
+ 	default:
+ 	case objabi.Hplan9: /* plan9 */
+-		magic := int32(4*26*26 + 7)
+-
+-		magic |= 0x00008000                           /* fat header */
+-		ctxt.Out.Write32b(uint32(magic))              /* magic */
+-		ctxt.Out.Write32b(uint32(ld.Segtext.Filelen)) /* sizes */
+-		ctxt.Out.Write32b(uint32(ld.Segdata.Filelen))
+-		ctxt.Out.Write32b(uint32(ld.Segdata.Length - ld.Segdata.Filelen))
+-		ctxt.Out.Write32b(uint32(ld.Symsize)) /* nsyms */
+-		vl := ld.Entryvalue(ctxt)
+-		ctxt.Out.Write32b(PADDR(uint32(vl))) /* va of entry */
+-		ctxt.Out.Write32b(uint32(ld.Spsize)) /* sp offsets */
+-		ctxt.Out.Write32b(uint32(ld.Lcsize)) /* line offsets */
+-		ctxt.Out.Write64b(uint64(vl))        /* va of entry */
++		magic := uint32(4*26*26 + 7)
++		ld.WritePlan9Header(ctxt.Out, magic, ld.Entryvalue(ctxt), true)
+ 
+ 	case objabi.Hdarwin:
+ 		ld.Asmbmacho(ctxt)
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index db2e2cf69a..d9e0df5192 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -718,14 +718,7 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 	switch ctxt.HeadType {
+ 	default:
+ 	case objabi.Hplan9: /* plan 9 */
+-		ctxt.Out.Write32b(0x647)                      /* magic */
+-		ctxt.Out.Write32b(uint32(ld.Segtext.Filelen)) /* sizes */
+-		ctxt.Out.Write32b(uint32(ld.Segdata.Filelen))
+-		ctxt.Out.Write32b(uint32(ld.Segdata.Length - ld.Segdata.Filelen))
+-		ctxt.Out.Write32b(uint32(ld.Symsize))          /* nsyms */
+-		ctxt.Out.Write32b(uint32(ld.Entryvalue(ctxt))) /* va of entry */
+-		ctxt.Out.Write32b(0)
+-		ctxt.Out.Write32b(uint32(ld.Lcsize))
++		ld.WritePlan9Header(ctxt.Out, 0x647, ld.Entryvalue(ctxt), false)
+ 
+ 	case objabi.Hlinux,
+ 		objabi.Hfreebsd,
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index 94c86e0b46..1822d29f28 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -816,9 +816,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 				symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
+ 			}
+ 
+-		case objabi.Hplan9:
+-			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+-
+ 		case objabi.Hdarwin:
+ 			symo = uint32(ld.Segdwarf.Fileoff + uint64(ld.Rnd(int64(ld.Segdwarf.Filelen), int64(*ld.FlagRound))) + uint64(machlink))
+ 		}
+@@ -835,9 +832,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 				}
+ 			}
+ 
+-		case objabi.Hplan9:
+-			ld.Asmplan9sym(ctxt)
+-
+ 		case objabi.Hdarwin:
+ 			if ctxt.LinkMode == ld.LinkExternal {
+ 				ld.Machoemitreloc(ctxt)
+@@ -848,16 +842,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 	ctxt.Out.SeekSet(0)
+ 	switch ctxt.HeadType {
+ 	default:
+-	case objabi.Hplan9: /* plan 9 */
+-		ctxt.Out.Write32(0x647)                      /* magic */
+-		ctxt.Out.Write32(uint32(ld.Segtext.Filelen)) /* sizes */
+-		ctxt.Out.Write32(uint32(ld.Segdata.Filelen))
+-		ctxt.Out.Write32(uint32(ld.Segdata.Length - ld.Segdata.Filelen))
+-		ctxt.Out.Write32(uint32(ld.Symsize))          /* nsyms */
+-		ctxt.Out.Write32(uint32(ld.Entryvalue(ctxt))) /* va of entry */
+-		ctxt.Out.Write32(0)
+-		ctxt.Out.Write32(uint32(ld.Lcsize))
+-
+ 	case objabi.Hlinux,
+ 		objabi.Hfreebsd,
+ 		objabi.Hnetbsd,
+diff --git a/src/cmd/link/internal/ld/asmb.go b/src/cmd/link/internal/ld/asmb.go
+index ede4f91664..6d553e8ccb 100644
+--- a/src/cmd/link/internal/ld/asmb.go
++++ b/src/cmd/link/internal/ld/asmb.go
+@@ -68,3 +68,26 @@ func asmb(ctxt *Link, ldr *loader.Loader) {
+ 
+ 	wg.Wait()
+ }
++
++// WritePlan9Header writes out the plan9 header at the present position in the OutBuf.
++func WritePlan9Header(buf *OutBuf, magic uint32, entry int64, is64Bit bool) {
++	if is64Bit {
++		magic |= 0x00008000
++	}
++	buf.Write32b(magic)
++	buf.Write32b(uint32(Segtext.Filelen))
++	buf.Write32b(uint32(Segdata.Filelen))
++	buf.Write32b(uint32(Segdata.Length - Segdata.Filelen))
++	buf.Write32b(uint32(Symsize))
++	if is64Bit {
++		buf.Write32b(uint32(entry &^ 0x80000000))
++	} else {
++		buf.Write32b(uint32(entry))
++	}
++	buf.Write32b(uint32(Spsize))
++	buf.Write32b(uint32(Lcsize))
++	// amd64 includes the entry at the beginning of the symbol table.
++	if is64Bit {
++		buf.Write64b(uint64(entry))
++	}
++}
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index c10bbb4fec..7719377e2f 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -172,9 +172,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 				symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
+ 				symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
+ 			}
+-
+-		case objabi.Hplan9:
+-			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+ 		}
+ 
+ 		ctxt.Out.SeekSet(int64(symo))
+@@ -188,29 +185,12 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 					ld.Elfemitreloc(ctxt)
+ 				}
+ 			}
+-
+-		case objabi.Hplan9:
+-			ld.Asmplan9sym(ctxt)
+ 		}
+ 	}
+ 
+ 	ctxt.Out.SeekSet(0)
+ 	switch ctxt.HeadType {
+ 	default:
+-	case objabi.Hplan9: /* plan 9 */
+-		magic := uint32(4*18*18 + 7)
+-		if ctxt.Arch == sys.ArchMIPS64LE {
+-			magic = uint32(4*26*26 + 7)
+-		}
+-		ctxt.Out.Write32(magic)                      /* magic */
+-		ctxt.Out.Write32(uint32(ld.Segtext.Filelen)) /* sizes */
+-		ctxt.Out.Write32(uint32(ld.Segdata.Filelen))
+-		ctxt.Out.Write32(uint32(ld.Segdata.Length - ld.Segdata.Filelen))
+-		ctxt.Out.Write32(uint32(ld.Symsize))          /* nsyms */
+-		ctxt.Out.Write32(uint32(ld.Entryvalue(ctxt))) /* va of entry */
+-		ctxt.Out.Write32(0)
+-		ctxt.Out.Write32(uint32(ld.Lcsize))
+-
+ 	case objabi.Hlinux,
+ 		objabi.Hfreebsd,
+ 		objabi.Hnetbsd,
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 74c4c4d05d..dd1b2b463c 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -1095,9 +1095,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 				symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
+ 			}
+ 
+-		case objabi.Hplan9:
+-			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+-
+ 		case objabi.Haix:
+ 			// Nothing to do
+ 		}
+@@ -1114,9 +1111,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 				}
+ 			}
+ 
+-		case objabi.Hplan9:
+-			ld.Asmplan9sym(ctxt)
+-
+ 		case objabi.Haix:
+ 			// symtab must be added once sections have been created in ld.Asmbxcoff
+ 		}
+@@ -1125,16 +1119,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 	ctxt.Out.SeekSet(0)
+ 	switch ctxt.HeadType {
+ 	default:
+-	case objabi.Hplan9: /* plan 9 */
+-		ctxt.Out.Write32(0x647)                      /* magic */
+-		ctxt.Out.Write32(uint32(ld.Segtext.Filelen)) /* sizes */
+-		ctxt.Out.Write32(uint32(ld.Segdata.Filelen))
+-		ctxt.Out.Write32(uint32(ld.Segdata.Length - ld.Segdata.Filelen))
+-		ctxt.Out.Write32(uint32(ld.Symsize))          /* nsyms */
+-		ctxt.Out.Write32(uint32(ld.Entryvalue(ctxt))) /* va of entry */
+-		ctxt.Out.Write32(0)
+-		ctxt.Out.Write32(uint32(ld.Lcsize))
+-
+ 	case objabi.Hlinux,
+ 		objabi.Hfreebsd,
+ 		objabi.Hnetbsd,
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index 967261a8cd..6e2d18f518 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -569,16 +569,8 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 	switch ctxt.HeadType {
+ 	default:
+ 	case objabi.Hplan9: /* plan9 */
+-		magic := int32(4*11*11 + 7)
+-
+-		ctxt.Out.Write32b(uint32(magic))              /* magic */
+-		ctxt.Out.Write32b(uint32(ld.Segtext.Filelen)) /* sizes */
+-		ctxt.Out.Write32b(uint32(ld.Segdata.Filelen))
+-		ctxt.Out.Write32b(uint32(ld.Segdata.Length - ld.Segdata.Filelen))
+-		ctxt.Out.Write32b(uint32(ld.Symsize))          /* nsyms */
+-		ctxt.Out.Write32b(uint32(ld.Entryvalue(ctxt))) /* va of entry */
+-		ctxt.Out.Write32b(uint32(ld.Spsize))           /* sp offsets */
+-		ctxt.Out.Write32b(uint32(ld.Lcsize))           /* line offsets */
++		magic := uint32(4*11*11 + 7)
++		ld.WritePlan9Header(ctxt.Out, magic, ld.Entryvalue(ctxt), false)
+ 
+ 	case objabi.Hdarwin:
+ 		ld.Asmbmacho(ctxt)

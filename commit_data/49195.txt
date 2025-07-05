@@ -20,7 +20,7 @@ Date:   Wed Jul 21 12:12:22 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types2/builtins.go        |   2 +-
  src/cmd/compile/internal/types2/check.go           |   5 -
  src/cmd/compile/internal/types2/decl.go            |  12 +-
@@ -39,3 +39,834 @@ Date:   Wed Jul 21 12:12:22 2021 -0400
  src/cmd/compile/internal/types2/typestring.go      |  10 +-
  src/cmd/compile/internal/types2/typexpr.go         |   2 +-
  17 files changed, 127 insertions(+), 329 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 2af2679d5e..b9fcf3c898 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -798,7 +798,7 @@ func hasVarSize(t Type) bool {
+ 		}
+ 	case *TypeParam:
+ 		return true
+-	case *Named, *Union, *instance, *top:
++	case *Named, *Union, *top:
+ 		unreachable()
+ 	}
+ 	return false
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index 071afef058..6bc965c497 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -282,11 +282,6 @@ func (check *Checker) checkFiles(files []*syntax.File) (err error) {
+ 	print("== recordUntyped ==")
+ 	check.recordUntyped()
+ 
+-	if check.Info != nil {
+-		print("== sanitizeInfo ==")
+-		sanitizeInfo(check.Info)
+-	}
+-
+ 	check.pkg.complete = true
+ 
+ 	// no longer needed - release memory
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 4f656e374a..6ca8f75e9a 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -317,6 +317,8 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
+ 		}
+ 
+ 	case *Named:
++		t.expand()
++
+ 		// don't touch the type if it is from a different package or the Universe scope
+ 		// (doing so would lead to a race condition - was issue #35049)
+ 		if t.obj.pkg != check.pkg {
+@@ -349,9 +351,6 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
+ 			panic("internal error: cycle start not found")
+ 		}
+ 		return t.info
+-
+-	case *instance:
+-		return check.validType(t.expand(), path)
+ 	}
+ 
+ 	return valid
+@@ -557,7 +556,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
+ 
+ 	// determine underlying type of named
+ 	named.fromRHS = check.definedType(tdecl.Type, named)
+-
++	assert(named.fromRHS != nil)
+ 	// The underlying type of named may be itself a named type that is
+ 	// incomplete:
+ 	//
+@@ -624,7 +623,8 @@ func (check *Checker) boundType(e syntax.Expr) Type {
+ 
+ 	bound := check.typ(e)
+ 	check.later(func() {
+-		if _, ok := under(bound).(*Interface); !ok && bound != Typ[Invalid] {
++		u := under(bound)
++		if _, ok := u.(*Interface); !ok && u != Typ[Invalid] {
+ 			check.errorf(e, "%s is not an interface", bound)
+ 		}
+ 	})
+@@ -692,7 +692,7 @@ func (check *Checker) collectMethods(obj *TypeName) {
+ 		}
+ 
+ 		if base != nil {
+-			base.expand() // TODO(mdempsky): Probably unnecessary.
++			base.load() // TODO(mdempsky): Probably unnecessary.
+ 			base.methods = append(base.methods, m)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index b44ff7377a..6e7a217709 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -342,9 +342,6 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
+ 		// t must be one of w.tparams
+ 		return t.index < len(w.tparams) && w.tparams[t.index].typ == t
+ 
+-	case *instance:
+-		return w.isParameterizedList(t.targs)
+-
+ 	default:
+ 		unreachable()
+ 	}
+diff --git a/src/cmd/compile/internal/types2/instance.go b/src/cmd/compile/internal/types2/instance.go
+index 798d58811f..df0fc17ba7 100644
+--- a/src/cmd/compile/internal/types2/instance.go
++++ b/src/cmd/compile/internal/types2/instance.go
+@@ -4,56 +4,40 @@
+ 
+ package types2
+ 
++// TODO(rfindley): move this code to named.go.
++
+ import "cmd/compile/internal/syntax"
+ 
+-// An instance represents an instantiated generic type syntactically
+-// (without expanding the instantiation). Type instances appear only
+-// during type-checking and are replaced by their fully instantiated
+-// (expanded) types before the end of type-checking.
++// instance holds position information for use in lazy instantiation.
++//
++// TODO(rfindley): come up with a better name for this type, now that its usage
++// has changed.
+ type instance struct {
+-	check   *Checker     // for lazy instantiation
+ 	pos     syntax.Pos   // position of type instantiation; for error reporting only
+-	base    *Named       // parameterized type to be instantiated
+-	targs   []Type       // type arguments
+ 	posList []syntax.Pos // position of each targ; for error reporting only
+-	verify  bool         // if set, constraint satisfaction is verified
+-	value   Type         // base[targs...] after instantiation or Typ[Invalid]; nil if not yet set
++	verify  bool         // if set, check constraint satisfaction upon instantiation
+ }
+ 
+-// expand returns the instantiated (= expanded) type of t.
+-// The result is either an instantiated *Named type, or
+-// Typ[Invalid] if there was an error.
+-func (t *instance) expand() Type {
+-	v := t.value
+-	if v == nil {
+-		v = t.check.Instantiate(t.pos, t.base, t.targs, t.posList, t.verify)
+-		if v == nil {
+-			v = Typ[Invalid]
+-		}
+-		t.value = v
+-	}
+-	// After instantiation we must have an invalid or a *Named type.
+-	if debug && v != Typ[Invalid] {
+-		_ = v.(*Named)
++// expand ensures that the underlying type of n is instantiated.
++// The underlying type will be Typ[Invalid] if there was an error.
++func (n *Named) expand() {
++	if n.instance != nil {
++		// n must be loaded before instantiation, in order to have accurate
++		// tparams. This is done implicitly by the call to n.TParams, but making it
++		// explicit is harmless: load is idempotent.
++		n.load()
++		inst := n.check.instantiate(n.instance.pos, n.orig.underlying, n.TParams(), n.targs, n.instance.posList, n.instance.verify)
++		n.underlying = inst
++		n.fromRHS = inst
++		n.instance = nil
+ 	}
+-	return v
+ }
+ 
+-// expand expands a type instance into its instantiated
+-// type and leaves all other types alone. expand does
+-// not recurse.
++// expand expands uninstantiated named types and leaves all other types alone.
++// expand does not recurse.
+ func expand(typ Type) Type {
+-	if t, _ := typ.(*instance); t != nil {
+-		return t.expand()
++	if t, _ := typ.(*Named); t != nil {
++		t.expand()
+ 	}
+ 	return typ
+ }
+-
+-// expandf is set to expand.
+-// Call expandf when calling expand causes compile-time cycle error.
+-var expandf func(Type) Type
+-
+-func init() { expandf = expand }
+-
+-func (t *instance) Underlying() Type { return t }
+-func (t *instance) String() string   { return TypeString(t, nil) }
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index db398c6563..1294b08490 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -25,28 +25,6 @@ import (
+ // Any methods attached to a *Named are simply copied; they are not
+ // instantiated.
+ func (check *Checker) Instantiate(pos syntax.Pos, typ Type, targs []Type, posList []syntax.Pos, verify bool) (res Type) {
+-	if verify && check == nil {
+-		panic("cannot have nil receiver if verify is set")
+-	}
+-
+-	if check != nil && check.conf.Trace {
+-		check.trace(pos, "-- instantiating %s with %s", typ, typeListString(targs))
+-		check.indent++
+-		defer func() {
+-			check.indent--
+-			var under Type
+-			if res != nil {
+-				// Calling under() here may lead to endless instantiations.
+-				// Test case: type T[P any] T[P]
+-				// TODO(gri) investigate if that's a bug or to be expected.
+-				under = res.Underlying()
+-			}
+-			check.trace(pos, "=> %s (under = %s)", res, under)
+-		}()
+-	}
+-
+-	assert(len(posList) <= len(targs))
+-
+ 	// TODO(gri) What is better here: work with TypeParams, or work with TypeNames?
+ 	var tparams []*TypeName
+ 	switch t := typ.(type) {
+@@ -76,7 +54,10 @@ func (check *Checker) Instantiate(pos syntax.Pos, typ Type, targs []Type, posLis
+ 		// only types and functions can be generic
+ 		panic(fmt.Sprintf("%v: cannot instantiate %v", pos, typ))
+ 	}
++	return check.instantiate(pos, typ, tparams, targs, posList, verify)
++}
+ 
++func (check *Checker) instantiate(pos syntax.Pos, typ Type, tparams []*TypeName, targs []Type, posList []syntax.Pos, verify bool) (res Type) {
+ 	// the number of supplied types must match the number of type parameters
+ 	if len(targs) != len(tparams) {
+ 		// TODO(gri) provide better error message
+@@ -86,6 +67,27 @@ func (check *Checker) Instantiate(pos syntax.Pos, typ Type, targs []Type, posLis
+ 		}
+ 		panic(fmt.Sprintf("%v: got %d arguments but %d type parameters", pos, len(targs), len(tparams)))
+ 	}
++	if verify && check == nil {
++		panic("cannot have nil receiver if verify is set")
++	}
++
++	if check != nil && check.conf.Trace {
++		check.trace(pos, "-- instantiating %s with %s", typ, typeListString(targs))
++		check.indent++
++		defer func() {
++			check.indent--
++			var under Type
++			if res != nil {
++				// Calling under() here may lead to endless instantiations.
++				// Test case: type T[P any] T[P]
++				// TODO(gri) investigate if that's a bug or to be expected.
++				under = res.Underlying()
++			}
++			check.trace(pos, "=> %s (under = %s)", res, under)
++		}()
++	}
++
++	assert(len(posList) <= len(targs))
+ 
+ 	if len(tparams) == 0 {
+ 		return typ // nothing to do (minor optimization)
+@@ -115,19 +117,35 @@ func (check *Checker) Instantiate(pos syntax.Pos, typ Type, targs []Type, posLis
+ // instantiating the type until needed. typ must be a *Named
+ // type.
+ func (check *Checker) InstantiateLazy(pos syntax.Pos, typ Type, targs []Type, posList []syntax.Pos, verify bool) Type {
+-	base := asNamed(typ)
++	// Don't use asNamed here: we don't want to expand the base during lazy
++	// instantiation.
++	base := typ.(*Named)
++
+ 	if base == nil {
+ 		panic(fmt.Sprintf("%v: cannot instantiate %v", pos, typ))
+ 	}
++	h := instantiatedHash(base, targs)
++	if check != nil {
++		// typ may already have been instantiated with identical type arguments. In
++		// that case, re-use the existing instance.
++		if named := check.typMap[h]; named != nil {
++			return named
++		}
++	}
+ 
+-	return &instance{
+-		check:   check,
++	tname := NewTypeName(pos, base.obj.pkg, base.obj.name, nil)
++	named := check.newNamed(tname, base, nil, nil, nil) // methods and tparams are set when named is loaded.
++	named.targs = targs
++	named.instance = &instance{
+ 		pos:     pos,
+-		base:    base,
+-		targs:   targs,
+ 		posList: posList,
+ 		verify:  verify,
+ 	}
++
++	if check != nil {
++		check.typMap[h] = named
++	}
++	return named
+ }
+ 
+ // satisfies reports whether the type argument targ satisfies the constraint of type parameter
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index ecf6926c0a..9e9d6dfb29 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -119,7 +119,7 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 				seen[named] = true
+ 
+ 				// look for a matching attached method
+-				named.expand()
++				named.load()
+ 				if i, m := lookupMethod(named.methods, pkg, name); m != nil {
+ 					// potential match
+ 					// caution: method may not have a proper signature yet
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index da098b58b7..a88aeb0077 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -10,12 +10,13 @@ import "sync"
+ 
+ // A Named represents a named (defined) type.
+ type Named struct {
+-	check      *Checker    // for Named.under implementation; nilled once under has been called
++	check      *Checker
+ 	info       typeInfo    // for cycle detection
+ 	obj        *TypeName   // corresponding declared object
+ 	orig       *Named      // original, uninstantiated type
+ 	fromRHS    Type        // type (on RHS of declaration) this *Named type is derived from (for cycle reporting)
+ 	underlying Type        // possibly a *Named during setup; never a *Named once set up completely
++	instance   *instance   // position information for lazy instantiation, or nil
+ 	tparams    []*TypeName // type parameters, or nil
+ 	targs      []Type      // type arguments (after instantiation), or nil
+ 	methods    []*Func     // methods declared for this type (not the method set of this type); signatures are type-checked lazily
+@@ -34,7 +35,19 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
+ 	return (*Checker)(nil).newNamed(obj, nil, underlying, nil, methods)
+ }
+ 
+-func (t *Named) expand() *Named {
++func (t *Named) load() *Named {
++	// If t is an instantiated type, it derives its methods and tparams from its
++	// base type. Since we expect type parameters and methods to be set after a
++	// call to load, we must load the base and copy here.
++	//
++	// underlying is set when t is expanded.
++	//
++	// By convention, a type instance is loaded iff its tparams are set.
++	if len(t.targs) > 0 && t.tparams == nil {
++		t.orig.load()
++		t.tparams = t.orig.tparams
++		t.methods = t.orig.methods
++	}
+ 	if t.resolve == nil {
+ 		return t
+ 	}
+@@ -83,7 +96,7 @@ func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tpar
+ 	if check != nil {
+ 		check.later(func() {
+ 			switch typ.under().(type) {
+-			case *Named, *instance:
++			case *Named:
+ 				panic("internal error: unexpanded underlying type")
+ 			}
+ 			typ.check = nil
+@@ -104,10 +117,12 @@ func (t *Named) Orig() *Named { return t.orig }
+ 
+ // TParams returns the type parameters of the named type t, or nil.
+ // The result is non-nil for an (originally) parameterized type even if it is instantiated.
+-func (t *Named) TParams() []*TypeName { return t.expand().tparams }
++func (t *Named) TParams() []*TypeName {
++	return t.load().tparams
++}
+ 
+ // SetTParams sets the type parameters of the named type t.
+-func (t *Named) SetTParams(tparams []*TypeName) { t.expand().tparams = tparams }
++func (t *Named) SetTParams(tparams []*TypeName) { t.load().tparams = tparams }
+ 
+ // TArgs returns the type arguments after instantiation of the named type t, or nil if not instantiated.
+ func (t *Named) TArgs() []Type { return t.targs }
+@@ -116,10 +131,10 @@ func (t *Named) TArgs() []Type { return t.targs }
+ func (t *Named) SetTArgs(args []Type) { t.targs = args }
+ 
+ // NumMethods returns the number of explicit methods whose receiver is named type t.
+-func (t *Named) NumMethods() int { return len(t.expand().methods) }
++func (t *Named) NumMethods() int { return len(t.load().methods) }
+ 
+ // Method returns the i'th method of named type t for 0 <= i < t.NumMethods().
+-func (t *Named) Method(i int) *Func { return t.expand().methods[i] }
++func (t *Named) Method(i int) *Func { return t.load().methods[i] }
+ 
+ // SetUnderlying sets the underlying type and marks t as complete.
+ func (t *Named) SetUnderlying(underlying Type) {
+@@ -129,18 +144,18 @@ func (t *Named) SetUnderlying(underlying Type) {
+ 	if _, ok := underlying.(*Named); ok {
+ 		panic("types2.Named.SetUnderlying: underlying type must not be *Named")
+ 	}
+-	t.expand().underlying = underlying
++	t.load().underlying = underlying
+ }
+ 
+ // AddMethod adds method m unless it is already in the method list.
+ func (t *Named) AddMethod(m *Func) {
+-	t.expand()
++	t.load()
+ 	if i, _ := lookupMethod(t.methods, m.pkg, m.name); i < 0 {
+ 		t.methods = append(t.methods, m)
+ 	}
+ }
+ 
+-func (t *Named) Underlying() Type { return t.expand().underlying }
++func (t *Named) Underlying() Type { return t.load().underlying }
+ func (t *Named) String() string   { return TypeString(t, nil) }
+ 
+ // ----------------------------------------------------------------------------
+@@ -153,6 +168,8 @@ func (t *Named) String() string   { return TypeString(t, nil) }
+ // is detected, the result is Typ[Invalid]. If a cycle is detected and
+ // n0.check != nil, the cycle is reported.
+ func (n0 *Named) under() Type {
++	n0.expand()
++
+ 	u := n0.Underlying()
+ 
+ 	if u == Typ[Invalid] {
+@@ -168,7 +185,7 @@ func (n0 *Named) under() Type {
+ 	default:
+ 		// common case
+ 		return u
+-	case *Named, *instance:
++	case *Named:
+ 		// handled below
+ 	}
+ 
+@@ -199,12 +216,8 @@ func (n0 *Named) under() Type {
+ 		var n1 *Named
+ 		switch u1 := u.(type) {
+ 		case *Named:
++			u1.expand()
+ 			n1 = u1
+-		case *instance:
+-			n1, _ = u1.expand().(*Named)
+-			if n1 == nil {
+-				u = Typ[Invalid]
+-			}
+ 		}
+ 		if n1 == nil {
+ 			break // end of chain
+diff --git a/src/cmd/compile/internal/types2/object.go b/src/cmd/compile/internal/types2/object.go
+index 82297ff17f..48fd1e44de 100644
+--- a/src/cmd/compile/internal/types2/object.go
++++ b/src/cmd/compile/internal/types2/object.go
+@@ -475,6 +475,9 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
+ 		if _, ok := typ.(*Basic); ok {
+ 			return
+ 		}
++		if named, _ := typ.(*Named); named != nil && len(named.tparams) > 0 {
++			writeTParamList(buf, named.tparams, qf, nil)
++		}
+ 		if tname.IsAlias() {
+ 			buf.WriteString(" =")
+ 		} else {
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index f2215b36cb..e448ade9e5 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -10,7 +10,7 @@ package types2
+ // isNamed may be called with types that are not fully set up.
+ func isNamed(typ Type) bool {
+ 	switch typ.(type) {
+-	case *Basic, *Named, *TypeParam, *instance:
++	case *Basic, *Named, *TypeParam:
+ 		return true
+ 	}
+ 	return false
+@@ -21,7 +21,7 @@ func isNamed(typ Type) bool {
+ func isGeneric(typ Type) bool {
+ 	// A parameterized type is only instantiated if it doesn't have an instantiation already.
+ 	named, _ := typ.(*Named)
+-	return named != nil && named.obj != nil && named.TParams() != nil && named.targs == nil
++	return named != nil && named.obj != nil && named.targs == nil && named.TParams() != nil
+ }
+ 
+ func is(typ Type, what BasicInfo) bool {
+@@ -144,8 +144,8 @@ func (p *ifacePair) identical(q *ifacePair) bool {
+ // For changes to this code the corresponding changes should be made to unifier.nify.
+ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 	// types must be expanded for comparison
+-	x = expandf(x)
+-	y = expandf(y)
++	x = expand(x)
++	y = expand(y)
+ 
+ 	if x == y {
+ 		return true
+diff --git a/src/cmd/compile/internal/types2/sanitize.go b/src/cmd/compile/internal/types2/sanitize.go
+deleted file mode 100644
+index 3d2323a0a2..0000000000
+--- a/src/cmd/compile/internal/types2/sanitize.go
++++ /dev/null
+@@ -1,205 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package types2
+-
+-// sanitizeInfo walks the types contained in info to ensure that all instances
+-// are expanded.
+-//
+-// This includes some objects that may be shared across concurrent
+-// type-checking passes (such as those in the universe scope), so we are
+-// careful here not to write types that are already sanitized. This avoids a
+-// data race as any shared types should already be sanitized.
+-func sanitizeInfo(info *Info) {
+-	var s sanitizer = make(map[Type]Type)
+-
+-	// Note: Some map entries are not references.
+-	// If modified, they must be assigned back.
+-
+-	for e, tv := range info.Types {
+-		if typ := s.typ(tv.Type); typ != tv.Type {
+-			tv.Type = typ
+-			info.Types[e] = tv
+-		}
+-	}
+-
+-	for e, inf := range info.Inferred {
+-		changed := false
+-		for i, targ := range inf.TArgs {
+-			if typ := s.typ(targ); typ != targ {
+-				inf.TArgs[i] = typ
+-				changed = true
+-			}
+-		}
+-		if typ := s.typ(inf.Sig); typ != inf.Sig {
+-			inf.Sig = typ.(*Signature)
+-			changed = true
+-		}
+-		if changed {
+-			info.Inferred[e] = inf
+-		}
+-	}
+-
+-	for _, obj := range info.Defs {
+-		if obj != nil {
+-			if typ := s.typ(obj.Type()); typ != obj.Type() {
+-				obj.setType(typ)
+-			}
+-		}
+-	}
+-
+-	for _, obj := range info.Uses {
+-		if obj != nil {
+-			if typ := s.typ(obj.Type()); typ != obj.Type() {
+-				obj.setType(typ)
+-			}
+-		}
+-	}
+-
+-	// TODO(gri) sanitize as needed
+-	// - info.Implicits
+-	// - info.Selections
+-	// - info.Scopes
+-	// - info.InitOrder
+-}
+-
+-type sanitizer map[Type]Type
+-
+-func (s sanitizer) typ(typ Type) Type {
+-	if typ == nil {
+-		return nil
+-	}
+-
+-	if t, found := s[typ]; found {
+-		return t
+-	}
+-	s[typ] = typ
+-
+-	switch t := typ.(type) {
+-	case *Basic, *top:
+-		// nothing to do
+-
+-	case *Array:
+-		if elem := s.typ(t.elem); elem != t.elem {
+-			t.elem = elem
+-		}
+-
+-	case *Slice:
+-		if elem := s.typ(t.elem); elem != t.elem {
+-			t.elem = elem
+-		}
+-
+-	case *Struct:
+-		s.varList(t.fields)
+-
+-	case *Pointer:
+-		if base := s.typ(t.base); base != t.base {
+-			t.base = base
+-		}
+-
+-	case *Tuple:
+-		s.tuple(t)
+-
+-	case *Signature:
+-		s.var_(t.recv)
+-		s.tuple(t.params)
+-		s.tuple(t.results)
+-
+-	case *Union:
+-		s.typeList(t.types)
+-
+-	case *Interface:
+-		s.funcList(t.methods)
+-		s.typeList(t.embeddeds)
+-		// TODO(gri) do we need to sanitize type sets?
+-		tset := t.typeSet()
+-		s.funcList(tset.methods)
+-		if types := s.typ(tset.types); types != tset.types {
+-			tset.types = types
+-		}
+-
+-	case *Map:
+-		if key := s.typ(t.key); key != t.key {
+-			t.key = key
+-		}
+-		if elem := s.typ(t.elem); elem != t.elem {
+-			t.elem = elem
+-		}
+-
+-	case *Chan:
+-		if elem := s.typ(t.elem); elem != t.elem {
+-			t.elem = elem
+-		}
+-
+-	case *Named:
+-		if debug && t.check != nil {
+-			panic("internal error: Named.check != nil")
+-		}
+-		t.expand()
+-		if orig := s.typ(t.fromRHS); orig != t.fromRHS {
+-			t.fromRHS = orig
+-		}
+-		if under := s.typ(t.underlying); under != t.underlying {
+-			t.underlying = under
+-		}
+-		s.typeList(t.targs)
+-		s.funcList(t.methods)
+-
+-	case *TypeParam:
+-		if bound := s.typ(t.bound); bound != t.bound {
+-			t.bound = bound
+-		}
+-
+-	case *instance:
+-		typ = t.expand()
+-		s[t] = typ
+-
+-	default:
+-		unimplemented()
+-	}
+-
+-	return typ
+-}
+-
+-func (s sanitizer) var_(v *Var) {
+-	if v != nil {
+-		if typ := s.typ(v.typ); typ != v.typ {
+-			v.typ = typ
+-		}
+-	}
+-}
+-
+-func (s sanitizer) varList(list []*Var) {
+-	for _, v := range list {
+-		s.var_(v)
+-	}
+-}
+-
+-func (s sanitizer) tuple(t *Tuple) {
+-	if t != nil {
+-		s.varList(t.vars)
+-	}
+-}
+-
+-func (s sanitizer) func_(f *Func) {
+-	if f != nil {
+-		if typ := s.typ(f.typ); typ != f.typ {
+-			f.typ = typ
+-		}
+-	}
+-}
+-
+-func (s sanitizer) funcList(list []*Func) {
+-	for _, f := range list {
+-		s.func_(f)
+-	}
+-}
+-
+-func (s sanitizer) typeList(list []Type) {
+-	for i, t := range list {
+-		if typ := s.typ(t); typ != t {
+-			list[i] = typ
+-		}
+-	}
+-}
+diff --git a/src/cmd/compile/internal/types2/sizeof_test.go b/src/cmd/compile/internal/types2/sizeof_test.go
+index 22ef369683..a62b7cb3e2 100644
+--- a/src/cmd/compile/internal/types2/sizeof_test.go
++++ b/src/cmd/compile/internal/types2/sizeof_test.go
+@@ -31,9 +31,8 @@ func TestSizeof(t *testing.T) {
+ 		{Interface{}, 40, 80},
+ 		{Map{}, 16, 32},
+ 		{Chan{}, 12, 24},
+-		{Named{}, 84, 160},
++		{Named{}, 88, 168},
+ 		{TypeParam{}, 28, 48},
+-		{instance{}, 56, 104},
+ 		{top{}, 0, 0},
+ 
+ 		// Objects
+diff --git a/src/cmd/compile/internal/types2/subst.go b/src/cmd/compile/internal/types2/subst.go
+index 63b234a60e..87e3e3018e 100644
+--- a/src/cmd/compile/internal/types2/subst.go
++++ b/src/cmd/compile/internal/types2/subst.go
+@@ -26,12 +26,7 @@ func makeSubstMap(tpars []*TypeName, targs []Type) *substMap {
+ 	assert(len(tpars) == len(targs))
+ 	proj := make(map[*TypeParam]Type, len(tpars))
+ 	for i, tpar := range tpars {
+-		// We must expand type arguments otherwise *instance
+-		// types end up as components in composite types.
+-		// TODO(gri) explain why this causes problems, if it does
+-		targ := expand(targs[i]) // possibly nil
+-		targs[i] = targ
+-		proj[tpar.typ.(*TypeParam)] = targ
++		proj[tpar.typ.(*TypeParam)] = targs[i]
+ 	}
+ 	return &substMap{targs, proj}
+ }
+@@ -83,6 +78,7 @@ func (check *Checker) subst(pos syntax.Pos, typ Type, smap *substMap) Type {
+ 		// for recursive types (example: type T[P any] *T[P]).
+ 		subst.typMap = make(map[string]*Named)
+ 	}
++
+ 	return subst.typ(typ)
+ }
+ 
+@@ -241,10 +237,13 @@ func (subst *subster) typ(typ Type) Type {
+ 		named := subst.check.newNamed(tname, t, t.Underlying(), t.TParams(), t.methods) // method signatures are updated lazily
+ 		named.targs = new_targs
+ 		subst.typMap[h] = named
++		t.expand() // must happen after typMap update to avoid infinite recursion
+ 
+ 		// do the substitution
+ 		dump(">>> subst %s with %s (new: %s)", t.underlying, subst.smap, new_targs)
+ 		named.underlying = subst.typOrNil(t.Underlying())
++		dump(">>> underlying: %v", named.underlying)
++		assert(named.underlying != nil)
+ 		named.fromRHS = named.underlying // for cycle detection (Checker.validType)
+ 
+ 		return named
+@@ -252,10 +251,6 @@ func (subst *subster) typ(typ Type) Type {
+ 	case *TypeParam:
+ 		return subst.smap.lookup(t)
+ 
+-	case *instance:
+-		// TODO(gri) can we avoid the expansion here and just substitute the type parameters?
+-		return subst.typ(t.expand())
+-
+ 	default:
+ 		unimplemented()
+ 	}
+diff --git a/src/cmd/compile/internal/types2/testdata/check/issues.go2 b/src/cmd/compile/internal/types2/testdata/check/issues.go2
+index 1ede383ebe..e29357de0b 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/issues.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/issues.go2
+@@ -74,8 +74,10 @@ func (u T2[U]) Add1() U {
+     return u.s + 1
+ }
+ 
++// TODO(rfindley): we should probably report an error here as well, not
++//                 just when the type is first instantiated.
+ func NewT2[U any]() T2[U /* ERROR U has no constraints */ ] {
+-    return T2[U /* ERROR U has no constraints */ ]{}
++    return T2[U]{}
+ }
+ 
+ func _() {
+diff --git a/src/cmd/compile/internal/types2/typeparam.go b/src/cmd/compile/internal/types2/typeparam.go
+index 0aca227c0a..b66256cf00 100644
+--- a/src/cmd/compile/internal/types2/typeparam.go
++++ b/src/cmd/compile/internal/types2/typeparam.go
+@@ -21,7 +21,8 @@ type TypeParam struct {
+ 	id    uint64    // unique id, for debugging only
+ 	obj   *TypeName // corresponding type name
+ 	index int       // type parameter index in source order, starting at 0
+-	bound Type      // *Named or *Interface; underlying type is always *Interface
++	// TODO(rfindley): this could also be Typ[Invalid]. Verify that this is handled correctly.
++	bound Type // *Named or *Interface; underlying type is always *Interface
+ }
+ 
+ // Obj returns the type name for the type parameter t.
+diff --git a/src/cmd/compile/internal/types2/typestring.go b/src/cmd/compile/internal/types2/typestring.go
+index 44099133a0..74d2f1dc51 100644
+--- a/src/cmd/compile/internal/types2/typestring.go
++++ b/src/cmd/compile/internal/types2/typestring.go
+@@ -269,6 +269,9 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 		}
+ 
+ 	case *Named:
++		if t.instance != nil {
++			buf.WriteByte(instanceMarker)
++		}
+ 		writeTypeName(buf, t.obj, qf)
+ 		if t.targs != nil {
+ 			// instantiated type
+@@ -294,13 +297,6 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 		}
+ 		buf.WriteString(s + subscript(t.id))
+ 
+-	case *instance:
+-		buf.WriteByte(instanceMarker) // indicate "non-evaluated" syntactic instance
+-		writeTypeName(buf, t.base.obj, qf)
+-		buf.WriteByte('[')
+-		writeTypeList(buf, t.targs, qf, visited)
+-		buf.WriteByte(']')
+-
+ 	case *top:
+ 		buf.WriteString("⊤")
+ 
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 83cefa19ba..c55d5c093a 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -446,7 +446,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, targsx []syntax.Expr, def
+ 	// make sure we check instantiation works at least once
+ 	// and that the resulting type is valid
+ 	check.later(func() {
+-		t := typ.(*instance).expand()
++		t := expand(typ)
+ 		check.validType(t, nil)
+ 	})
+ 

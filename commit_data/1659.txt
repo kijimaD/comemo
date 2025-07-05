@@ -10,6 +10,26 @@ Date:   Tue Feb 10 13:57:31 2009 -0800
     R=ken
     OCL=24783
     CL=24783
-
+---
  src/cmd/gc/export.c | 8 --------
  1 file changed, 8 deletions(-)
+
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index ee1ce40da4..7697e3037f 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -410,14 +410,6 @@ importtype(Node *ss, Type *t)
+ 	s->otype->sym = s;
+ 	checkwidth(s->otype);
+ 
+-	// If type name should not be visible to importers,
+-	// hide it by setting the lexical type to name.
+-	// This will make references in the ordinary program
+-	// (but not the import sections) look at s->oname,
+-	// which is nil, as for an undefined name.
+-	if(s->export == 2 && !mypackage(ss))
+-		s->lexical = LNAME;
+-
+ 	if(debug['e'])
+ 		print("import type %S %lT\n", s, t);
+ }

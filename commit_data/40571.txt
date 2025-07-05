@@ -9,6 +9,25 @@ Date:   Thu Apr 11 16:20:27 2019 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/dwarf_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/dwarf_test.go b/src/cmd/link/dwarf_test.go
+index e52e26af49..9c411ff1b8 100644
+--- a/src/cmd/link/dwarf_test.go
++++ b/src/cmd/link/dwarf_test.go
+@@ -93,11 +93,11 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string)
+ 					// Ensure Apple's tooling can parse our object for symbols.
+ 					out, err = exec.Command("symbols", exe).CombinedOutput()
+ 					if err != nil {
+-						t.Fatal(err)
++						t.Fatalf("symbols %v: %v: %s", filepath.Base(exe), err, out)
+ 					} else {
+ 						if bytes.HasPrefix(out, []byte("Unable to find file")) {
+ 							// This failure will cause the App Store to reject our binaries.
+-							t.Fatalf("/usr/bin/symbols %v: failed to parse file", filepath.Base(exe))
++							t.Fatalf("symbols %v: failed to parse file", filepath.Base(exe))
+ 						}
+ 					}
+ 				}

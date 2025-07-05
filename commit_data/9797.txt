@@ -7,6 +7,20 @@ Date:   Mon Sep 26 13:10:16 2011 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/5131044
-
+---
  src/pkg/unicode/maketables.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/unicode/maketables.go b/src/pkg/unicode/maketables.go
+index b586bc655f..087422de38 100644
+--- a/src/pkg/unicode/maketables.go
++++ b/src/pkg/unicode/maketables.go
+@@ -77,7 +77,7 @@ func open(url string) *reader {
+ 		}
+ 		return &reader{bufio.NewReader(fd), fd, nil}
+ 	}
+-	resp, err := http.Get(*dataURL)
++	resp, err := http.Get(url)
+ 	if err != nil {
+ 		logger.Fatal(err)
+ 	}

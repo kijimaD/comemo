@@ -15,9 +15,384 @@ Date:   Sun Dec 12 13:13:07 2010 -0800
     R=rsc, adg
     CC=golang-dev
     https://golang.org/cl/3585041
-
+---
  lib/godoc/search.html  |  50 +++++++++++-------------
  lib/godoc/search.txt   |  19 ++++++---
  src/cmd/godoc/godoc.go | 103 ++++++++++++++++++++++++++++++++++++++-----------
  src/cmd/godoc/index.go |  15 ++++---
  4 files changed, 126 insertions(+), 61 deletions(-)
+
+diff --git a/lib/godoc/search.html b/lib/godoc/search.html
+index 29ea41cc92..92cd4faf89 100644
+--- a/lib/godoc/search.html
++++ b/lib/godoc/search.html
+@@ -7,7 +7,7 @@
+ {.section Accurate}
+ {.or}
+ 	<p>
+-	<span class="alert" style="font-size:120%">Indexing in progress - result may be inaccurate</span>
++	<span class="alert" style="font-size:120%">Indexing in progress - result may be inaccurate.</span>
+ 	</p>
+ {.end}
+ {.section Alt}
+@@ -26,7 +26,7 @@
+ 			{.repeated section Files}
+ 				{.repeated section Groups}
+ 					{.repeated section Infos}
+-						<a href="/{File.Path|url-src}?h={Query|html-esc}#L{@|infoLine}">{File.Path|url-src}:{@|infoLine}</a>
++						<a href="/{File.Path|url-src}?h={Query|urlquery-esc}#L{@|infoLine}">{File.Path|url-src}:{@|infoLine}</a>
+ 						<pre>{@|infoSnippet}</pre>
+ 					{.end}
+ 				{.end}
+@@ -38,7 +38,7 @@
+ 		{.repeated section @}
+ 			<h3 id="Local_{Pak.Path|url-pkg}">package <a href="/{Pak.Path|url-pkg}">{Pak.Name|html-esc}</a></h3>
+ 			{.repeated section Files}
+-				<a href="/{File.Path|url-src}?h={Query|html-esc}">{File.Path|url-src}</a>
++				<a href="/{File.Path|url-src}?h={Query|urlquery-esc}">{File.Path|url-src}</a>
+ 				<table class="layout">
+ 				{.repeated section Groups}
+ 					<tr>
+@@ -47,7 +47,7 @@
+ 					<td align="left" width="4"></td>
+ 					<td>
+ 					{.repeated section Infos}
+-						<a href="/{File.Path|url-src}?h={Query|html-esc}#L{@|infoLine}">{@|infoLine}</a>
++						<a href="/{File.Path|url-src}?h={Query|urlquery-esc}#L{@|infoLine}">{@|infoLine}</a>
+ 					{.end}
+ 					</td>
+ 					</tr>
+@@ -57,36 +57,32 @@
+ 		{.end}
+ 	{.end}
+ {.end}
+-{.section Illegal}
+-	<p>
+-	<span class="alert" style="font-size:120%">Illegal query syntax</span>
+-	</p>
+-	<p>
+-	A legal query is a single identifier (such as <a href="search?q=ToLower">ToLower</a>)
+-	or a qualified identifier (such as <a href="search?q=math.Sin">math.Sin</a>).
+-	</p>
+-{.end}
+ {.section Textual}
+-	<h2 id="Textual">Textual occurences</h2>
++	{.section Complete}
++		<h2 id="Textual">{Found|html-esc} textual occurences</h2>
++	{.or}
++		<h2 id="Textual">More than {Found|html-esc} textual occurences</h2>
++		<p>
++		<span class="alert" style="font-size:120%">Not all files or lines containing {Query|html-esc} are shown.</span>
++		</p>
++	{.end}
++	<p>
+ 	<table class="layout">
+-	<tr>
+-		<th align=left>File</th>
+-		<th align=left>Occurences</th>
+-		<th align=left>Lines</th>
+-	</tr>
+ 	{.repeated section @}
+ 		<tr>
+-		<td>
+-		<a href="/{Filename|url-src}?h={Query|html-esc}">{Filename|url-src}</a>:
++		<td align="left" valign="top">
++		<a href="/{Filename|url-src}?g={Query|urlquery-esc}">{Filename|url-src}</a>:
+ 		</td>
+-		{Lines|linelist}
++		<td align="left" width="4"></td>
++		<th align="left" valign="top">{Lines|numlines}</th>
++		<td align="left" width="4"></td>
++		<td align="left">{Lines Complete|linelist}</td>
+ 		</tr>
+ 	{.end}
++	{.section Complete}
++	{.or}
++		<tr><td align="left">...</td></tr>
++	{.end}
+ 	</table>
+-{.end}
+-{.section Complete}
+-{.or}
+-	<p>
+-	<span class="alert" style="font-size:120%">Incomplete list of results</span>
+ 	</p>
+ {.end}
+diff --git a/lib/godoc/search.txt b/lib/godoc/search.txt
+index 90266292c4..0c949f9d1d 100644
+--- a/lib/godoc/search.txt
++++ b/lib/godoc/search.txt
+@@ -1,5 +1,5 @@
+ QUERY
+-{Query}
++	{Query}
+ 
+ {.section Accurate}
+ {.or}
+@@ -45,9 +45,18 @@ package {Pak.Name}
+ {.end}
+ {.end}
+ {.end}
+-{.section Illegal}
+-ILLEGAL QUERY SYNTAX
++{.section Textual}
++{.section Complete}
++{Found} TEXTUAL OCCURENCES
++{.or}
++MORE THAN {Found} TEXTUAL OCCURENCES
++{.end}
+ 
+-A legal query is a single identifier (such as ToLower)
+-or a qualified identifier (such as math.Sin).
++{.repeated section @}
++{Lines|numlines}	{Filename|url-src}
++{.end}
++{.section Complete}
++{.or}
++...	...
++{.end}
+ {.end}
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 5dced1498b..d8c1dfc70a 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -361,7 +361,7 @@ func writeObjInfo(w io.Writer, fset *token.FileSet, obj *ast.Object) {
+ // for 0 <= i < s.idcount.
+ func (s *Styler) idList(fset *token.FileSet) []byte {
+ 	var buf bytes.Buffer
+-	fmt.Fprintln(&buf, "[")
++	buf.WriteString("[\n")
+ 
+ 	if s.idcount > 0 {
+ 		// invert objmap: create an array [id]obj from map[obj]id
+@@ -382,7 +382,7 @@ func (s *Styler) idList(fset *token.FileSet) []byte {
+ 		}
+ 	}
+ 
+-	fmt.Fprintln(&buf, "]")
++	buf.WriteString("]\n")
+ 	return buf.Bytes()
+ }
+ 
+@@ -600,7 +600,15 @@ func textFmt(w io.Writer, format string, x ...interface{}) {
+ }
+ 
+ 
+-// Template formatter for the various "url-xxx" formats.
++// Template formatter for "urlquery-esc" format.
++func urlQueryEscFmt(w io.Writer, format string, x ...interface{}) {
++	var buf bytes.Buffer
++	writeAny(&buf, fileset(x), false, x[0])
++	template.HTMLEscape(w, []byte(http.URLEscape(string(buf.Bytes()))))
++}
++
++
++// Template formatter for the various "url-xxx" formats excluding url-esc.
+ func urlFmt(w io.Writer, format string, x ...interface{}) {
+ 	var path string
+ 	var line int
+@@ -737,21 +745,30 @@ func localnameFmt(w io.Writer, format string, x ...interface{}) {
+ }
+ 
+ 
++// Template formatter for "numlines" format.
++func numlinesFmt(w io.Writer, format string, x ...interface{}) {
++	list := x[0].([]int)
++	fmt.Fprintf(w, "%d", len(list))
++}
++
++
+ // Template formatter for "linelist" format.
+ func linelistFmt(w io.Writer, format string, x ...interface{}) {
+-	const max = 20 // show at most this many lines
+ 	list := x[0].([]int)
+-	// print number of occurences
+-	fmt.Fprintf(w, "<td>%d</td>", len(list))
+-	// print actual lines
+-	// TODO(gri) should sort them
+-	for i, line := range list {
+-		if i < max {
+-			fmt.Fprintf(w, "<td>%d</td>", line)
+-		} else {
+-			fmt.Fprint(w, "<td>...</td>")
+-			break
+-		}
++	complete := x[1].(bool)
++
++	const max = 100 // show at most this many lines
++	if len(list) > max {
++		list = list[0:max]
++		complete = false
++	}
++	sort.SortInts(list)
++
++	for _, line := range list {
++		fmt.Fprintf(w, " %d", line)
++	}
++	if !complete {
++		fmt.Fprintf(w, " ...")
+ 	}
+ }
+ 
+@@ -761,6 +778,7 @@ var fmap = template.FormatterMap{
+ 	"html":         htmlFmt,
+ 	"html-esc":     htmlEscFmt,
+ 	"html-comment": htmlCommentFmt,
++	"urlquery-esc": urlQueryEscFmt,
+ 	"url-pkg":      urlFmt,
+ 	"url-src":      urlFmt,
+ 	"url-pos":      urlFmt,
+@@ -771,6 +789,7 @@ var fmap = template.FormatterMap{
+ 	"time":         timeFmt,
+ 	"dir/":         dirslashFmt,
+ 	"localname":    localnameFmt,
++	"numlines":     numlinesFmt,
+ 	"linelist":     linelistFmt,
+ }
+ 
+@@ -998,6 +1017,35 @@ func isTextFile(path string) bool {
+ }
+ 
+ 
++// HTMLSubst replaces all occurences of f in s with r and HTML-escapes
++// everything else in s (but not r). The result is written to w.
++//
++func HTMLSubst(w io.Writer, s, f, r []byte) {
++	for {
++		i := bytes.Index(s, f)
++		if i < 0 {
++			break
++		}
++		template.HTMLEscape(w, s[0:i])
++		w.Write(r)
++		s = s[i+len(f):]
++	}
++	template.HTMLEscape(w, s)
++}
++
++
++// highlight highlights all occurrences of h in s and writes the
++// HTML-escaped result to w.
++//
++func highlight(w io.Writer, s, h []byte) {
++	var r bytes.Buffer
++	r.WriteString(`<span class="highlight">`)
++	template.HTMLEscape(&r, h)
++	r.WriteString(`</span>`)
++	HTMLSubst(w, s, h, r.Bytes())
++}
++
++
+ func serveTextFile(w http.ResponseWriter, r *http.Request, abspath, relpath string) {
+ 	src, err := ioutil.ReadFile(abspath)
+ 	if err != nil {
+@@ -1007,9 +1055,14 @@ func serveTextFile(w http.ResponseWriter, r *http.Request, abspath, relpath stri
+ 	}
+ 
+ 	var buf bytes.Buffer
+-	fmt.Fprintln(&buf, "<pre>")
+-	template.HTMLEscape(&buf, src)
+-	fmt.Fprintln(&buf, "</pre>")
++	buf.WriteString("<pre>\n")
++	g := r.FormValue("g")
++	if g != "" {
++		highlight(&buf, src, []byte(g))
++	} else {
++		template.HTMLEscape(&buf, src)
++	}
++	buf.WriteString("</pre>\n")
+ 
+ 	servePage(w, "Text file "+relpath, "", "", buf.Bytes())
+ }
+@@ -1066,6 +1119,10 @@ func serveFile(w http.ResponseWriter, r *http.Request) {
+ 		return
+ 
+ 	case ".go":
++		if r.FormValue("g") != "" {
++			serveTextFile(w, r, abspath, relpath)
++			return
++		}
+ 		serveGoSource(w, r, abspath, relpath)
+ 		return
+ 	}
+@@ -1332,7 +1389,7 @@ type SearchResult struct {
+ 	Query    string
+ 	Hit      *LookupResult // identifier occurences of Query
+ 	Alt      *AltWords     // alternative identifiers to look for
+-	Illegal  bool          // true if Query for identifier search has incorrect syntax
++	Found    int           // number of textual occurences found
+ 	Textual  []Positions   // textual occurences of Query
+ 	Complete bool          // true if all textual occurences of Query are reported
+ 	Accurate bool          // true if the index is not older than the indexed files
+@@ -1343,10 +1400,10 @@ func lookup(query string) (result SearchResult) {
+ 	result.Query = query
+ 	if index, timestamp := searchIndex.get(); index != nil {
+ 		index := index.(*Index)
+-		result.Hit, result.Alt, result.Illegal = index.Lookup(query)
++		result.Hit, result.Alt, _ = index.Lookup(query)
+ 		// TODO(gri) should max be a flag?
+ 		const max = 5000 // show at most this many fulltext results
+-		result.Textual, result.Complete = index.LookupString(query, max)
++		result.Found, result.Textual, result.Complete = index.LookupString(query, max)
+ 		_, ts := fsModified.get()
+ 		result.Accurate = timestamp >= ts
+ 	}
+@@ -1440,8 +1497,8 @@ func indexer() {
+ 			if *verbose {
+ 				secs := float64((stop-start)/1e6) / 1e3
+ 				stats := index.Stats()
+-				log.Printf("index updated (%gs, %d bytes of source, %d files, %d unique words, %d spots)",
+-					secs, stats.Bytes, stats.Files, stats.Words, stats.Spots)
++				log.Printf("index updated (%gs, %d bytes of source, %d files, %d lines, %d unique words, %d spots)",
++					secs, stats.Bytes, stats.Files, stats.Lines, stats.Words, stats.Spots)
+ 			}
+ 			log.Printf("before GC: bytes = %d footprint = %d\n", runtime.MemStats.HeapAlloc, runtime.MemStats.Sys)
+ 			runtime.GC()
+diff --git a/src/cmd/godoc/index.go b/src/cmd/godoc/index.go
+index ff51a278e4..906c8c9a42 100644
+--- a/src/cmd/godoc/index.go
++++ b/src/cmd/godoc/index.go
+@@ -443,6 +443,7 @@ type IndexResult struct {
+ type Statistics struct {
+ 	Bytes int // total size of indexed source files
+ 	Files int // number of indexed source files
++	Lines int // number of lines (all files)
+ 	Words int // number of different identifiers
+ 	Spots int // number of identifier occurences
+ }
+@@ -699,6 +700,7 @@ func (x *Indexer) visitFile(dirname string, f *os.FileInfo) {
+ 	// (count real file size as opposed to using the padded x.sources.Len())
+ 	x.stats.Bytes += x.current.Size()
+ 	x.stats.Files++
++	x.stats.Lines += x.current.LineCount()
+ }
+ 
+ 
+@@ -891,13 +893,13 @@ type Positions struct {
+ }
+ 
+ 
+-// LookupString returns a list of positions where a string s is found
+-// in the full text index and whether the result is complete or not.
+-// At most n positions (filename and line) are returned. The result is
+-// not complete if the index is not present or there are more than n
+-// occurrences of s.
++// LookupString returns the number and list of positions where a string
++// s is found in the full text index and whether the result is complete
++// or not. At most n positions (filename and line) are returned (and thus
++// found <= n). The result is incomplete if the index is not present or
++// if there are more than n occurrences of s.
+ //
+-func (x *Index) LookupString(s string, n int) (result []Positions, complete bool) {
++func (x *Index) LookupString(s string, n int) (found int, result []Positions, complete bool) {
+ 	if x.suffixes == nil {
+ 		return
+ 	}
+@@ -908,6 +910,7 @@ func (x *Index) LookupString(s string, n int) (result []Positions, complete bool
+ 	} else {
+ 		offsets = offsets[0:n]
+ 	}
++	found = len(offsets)
+ 
+ 	// compute file names and lines and sort the list by filename
+ 	list := make(positionList, len(offsets))

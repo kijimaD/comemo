@@ -17,8 +17,109 @@ Date:   Sat May 14 17:33:23 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/asm_amd64.s      |  1 +
  src/strings/strings_amd64.go |  2 +-
  src/strings/strings_test.go  | 64 ++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 66 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 6cd31f951b..d6e5494180 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1800,6 +1800,7 @@ loop16:
+ 	CMPQ DI,DX
+ 	JB loop16
+ 	JMP fail
++//TODO: the code below is wrong.  Fix it.  See #15679.
+ _17_to_31:
+ 	LEAQ 1(DI)(DX*1), DX
+ 	SUBQ AX, DX
+diff --git a/src/strings/strings_amd64.go b/src/strings/strings_amd64.go
+index 55bf2d2f6f..91b29ce358 100644
+--- a/src/strings/strings_amd64.go
++++ b/src/strings/strings_amd64.go
+@@ -7,7 +7,7 @@ package strings
+ // indexShortStr returns the index of the first instance of c in s, or -1 if c is not present in s.
+ // indexShortStr requires 2 <= len(c) <= shortStringLen
+ func indexShortStr(s, c string) int // ../runtime/asm_$GOARCH.s
+-const shortStringLen = 31
++const shortStringLen = 16           // TODO: restore to 31 when #15679 is fixed
+ 
+ // Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
+ func Index(s, sep string) int {
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index d92dfcc874..6bd6fb5443 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -1036,6 +1036,70 @@ var ContainsTests = []struct {
+ 	{"abc", "bcd", false},
+ 	{"abc", "", true},
+ 	{"", "a", false},
++
++	// cases to cover code in runtime/asm_amd64.s:indexShortStr
++	// 2-byte needle
++	{"xxxxxx", "01", false},
++	{"01xxxx", "01", true},
++	{"xx01xx", "01", true},
++	{"xxxx01", "01", true},
++	{"01xxxxx"[1:], "01", false},
++	{"xxxxx01"[:6], "01", false},
++	// 3-byte needle
++	{"xxxxxxx", "012", false},
++	{"012xxxx", "012", true},
++	{"xx012xx", "012", true},
++	{"xxxx012", "012", true},
++	{"012xxxxx"[1:], "012", false},
++	{"xxxxx012"[:7], "012", false},
++	// 4-byte needle
++	{"xxxxxxxx", "0123", false},
++	{"0123xxxx", "0123", true},
++	{"xx0123xx", "0123", true},
++	{"xxxx0123", "0123", true},
++	{"0123xxxxx"[1:], "0123", false},
++	{"xxxxx0123"[:8], "0123", false},
++	// 5-7-byte needle
++	{"xxxxxxxxx", "01234", false},
++	{"01234xxxx", "01234", true},
++	{"xx01234xx", "01234", true},
++	{"xxxx01234", "01234", true},
++	{"01234xxxxx"[1:], "01234", false},
++	{"xxxxx01234"[:9], "01234", false},
++	// 8-byte needle
++	{"xxxxxxxxxxxx", "01234567", false},
++	{"01234567xxxx", "01234567", true},
++	{"xx01234567xx", "01234567", true},
++	{"xxxx01234567", "01234567", true},
++	{"01234567xxxxx"[1:], "01234567", false},
++	{"xxxxx01234567"[:12], "01234567", false},
++	// 9-15-byte needle
++	{"xxxxxxxxxxxxx", "012345678", false},
++	{"012345678xxxx", "012345678", true},
++	{"xx012345678xx", "012345678", true},
++	{"xxxx012345678", "012345678", true},
++	{"012345678xxxxx"[1:], "012345678", false},
++	{"xxxxx012345678"[:13], "012345678", false},
++	// 16-byte needle
++	{"xxxxxxxxxxxxxxxxxxxx", "0123456789ABCDEF", false},
++	{"0123456789ABCDEFxxxx", "0123456789ABCDEF", true},
++	{"xx0123456789ABCDEFxx", "0123456789ABCDEF", true},
++	{"xxxx0123456789ABCDEF", "0123456789ABCDEF", true},
++	{"0123456789ABCDEFxxxxx"[1:], "0123456789ABCDEF", false},
++	{"xxxxx0123456789ABCDEF"[:20], "0123456789ABCDEF", false},
++	// 17-31-byte needle
++	{"xxxxxxxxxxxxxxxxxxxxx", "0123456789ABCDEFG", false},
++	{"0123456789ABCDEFGxxxx", "0123456789ABCDEFG", true},
++	{"xx0123456789ABCDEFGxx", "0123456789ABCDEFG", true},
++	{"xxxx0123456789ABCDEFG", "0123456789ABCDEFG", true},
++	{"0123456789ABCDEFGxxxxx"[1:], "0123456789ABCDEFG", false},
++	{"xxxxx0123456789ABCDEFG"[:21], "0123456789ABCDEFG", false},
++
++	// partial match cases
++	{"xx01x", "012", false},                             // 3
++	{"xx0123x", "01234", false},                         // 5-7
++	{"xx01234567x", "012345678", false},                 // 9-15
++	{"xx0123456789ABCDEFx", "0123456789ABCDEFG", false}, // 17-31, issue 15679
+ }
+ 
+ func TestContains(t *testing.T) {

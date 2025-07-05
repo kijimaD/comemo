@@ -20,9 +20,104 @@ Date:   Wed May 24 14:16:38 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Run-TryBot: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/compile/internal/types2/struct.go     | 4 ++--
  src/go/types/struct.go                        | 4 ++--
  src/internal/types/testdata/check/decls3.go   | 4 ++--
  src/internal/types/testdata/examples/types.go | 8 ++++----
  4 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/struct.go b/src/cmd/compile/internal/types2/struct.go
+index 5de3fa8f42..125e94647b 100644
+--- a/src/cmd/compile/internal/types2/struct.go
++++ b/src/cmd/compile/internal/types2/struct.go
+@@ -127,7 +127,7 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
+ 			// spec: "An embedded type must be specified as a type name T or as a
+ 			// pointer to a non-interface type name *T, and T itself may not be a
+ 			// pointer type."
+-			pos := syntax.StartPos(f.Type)
++			pos := syntax.StartPos(f.Type) // position of type, for errors
+ 			name := embeddedFieldIdent(f.Type)
+ 			if name == nil {
+ 				check.errorf(pos, InvalidSyntaxTree, "invalid embedded field type %s", f.Type)
+@@ -135,7 +135,7 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
+ 				addInvalid(name, pos)
+ 				continue
+ 			}
+-			add(name, true, pos)
++			add(name, true, name.Pos()) // struct{p.T} field has position of T
+ 
+ 			// Because we have a name, typ must be of the form T or *T, where T is the name
+ 			// of a (named or alias) type, and t (= deref(typ)) must be the type of T.
+diff --git a/src/go/types/struct.go b/src/go/types/struct.go
+index 89aea02cca..7247a25719 100644
+--- a/src/go/types/struct.go
++++ b/src/go/types/struct.go
+@@ -122,7 +122,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
+ 			// spec: "An embedded type must be specified as a type name T or as a
+ 			// pointer to a non-interface type name *T, and T itself may not be a
+ 			// pointer type."
+-			pos := f.Type.Pos()
++			pos := f.Type.Pos() // position of type, for errors
+ 			name := embeddedFieldIdent(f.Type)
+ 			if name == nil {
+ 				check.errorf(f.Type, InvalidSyntaxTree, "embedded field type %s has no name", f.Type)
+@@ -131,7 +131,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
+ 				addInvalid(name, pos)
+ 				continue
+ 			}
+-			add(name, true, pos)
++			add(name, true, name.Pos()) // struct{p.T} field has position of T
+ 
+ 			// Because we have a name, typ must be of the form T or *T, where T is the name
+ 			// of a (named or alias) type, and t (= deref(typ)) must be the type of T.
+diff --git a/src/internal/types/testdata/check/decls3.go b/src/internal/types/testdata/check/decls3.go
+index fed2f60055..3d00a580ab 100644
+--- a/src/internal/types/testdata/check/decls3.go
++++ b/src/internal/types/testdata/check/decls3.go
+@@ -99,9 +99,9 @@ func _() {
+ 	// unsafe.Pointers are treated like regular pointers when embedded
+ 	type T2 struct {
+ 		unsafe /* ERROR "cannot be unsafe.Pointer" */ .Pointer
+-		*/* ERROR "cannot be unsafe.Pointer" */ /* ERROR "Pointer redeclared" */ unsafe.Pointer
++		*/* ERROR "cannot be unsafe.Pointer" */ unsafe.Pointer /* ERROR "Pointer redeclared" */
+ 		UP /* ERROR "cannot be unsafe.Pointer" */
+-		* /* ERROR "cannot be unsafe.Pointer" */  /* ERROR "UP redeclared" */ UP
++		* /* ERROR "cannot be unsafe.Pointer" */ UP /* ERROR "UP redeclared" */
+ 	}
+ }
+ 
+diff --git a/src/internal/types/testdata/examples/types.go b/src/internal/types/testdata/examples/types.go
+index 562080b928..67f1534be3 100644
+--- a/src/internal/types/testdata/examples/types.go
++++ b/src/internal/types/testdata/examples/types.go
+@@ -152,7 +152,7 @@ type _ struct {
+ 	List[int]
+ 
+ 	int8 /* ERROR "int8 redeclared" */
+-	* /* ERROR "int16 redeclared" */ int16
++	*int16 /* ERROR "int16 redeclared" */
+ 	List /* ERROR "List redeclared" */ [int]
+ }
+ 
+@@ -166,17 +166,17 @@ type _ struct {
+ // func _[T interface{ m(); ~int }]() {
+ // 	type L T
+ // 	var x L
+-// 
++//
+ // 	// m is not defined on L (it is not "inherited" from
+ // 	// its underlying type).
+ // 	x.m /* ERROR "x.m undefined" */ ()
+-// 
++//
+ // 	// But the properties of T, such that as that it supports
+ // 	// the operations of the types given by its type bound,
+ // 	// are also the properties of L.
+ // 	x++
+ // 	_ = x - x
+-// 
++//
+ // 	// On the other hand, if we define a local alias for T,
+ // 	// that alias stands for T as expected.
+ // 	type A = T

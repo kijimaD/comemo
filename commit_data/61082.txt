@@ -13,7 +13,62 @@ Date:   Fri Sep 27 14:19:30 2024 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/internal/randutil/randutil.go | 22 +++++-----------------
  src/go/build/deps_test.go                |  2 +-
  2 files changed, 6 insertions(+), 18 deletions(-)
+
+diff --git a/src/crypto/internal/randutil/randutil.go b/src/crypto/internal/randutil/randutil.go
+index 84b1295a87..5a8b096d15 100644
+--- a/src/crypto/internal/randutil/randutil.go
++++ b/src/crypto/internal/randutil/randutil.go
+@@ -8,31 +8,19 @@ package randutil
+ 
+ import (
+ 	"io"
+-	"sync"
++	"math/rand/v2"
+ )
+ 
+-var (
+-	closedChanOnce sync.Once
+-	closedChan     chan struct{}
+-)
+-
+-// MaybeReadByte reads a single byte from r with ~50% probability. This is used
++// MaybeReadByte reads a single byte from r with 50% probability. This is used
+ // to ensure that callers do not depend on non-guaranteed behaviour, e.g.
+ // assuming that rsa.GenerateKey is deterministic w.r.t. a given random stream.
+ //
+ // This does not affect tests that pass a stream of fixed bytes as the random
+ // source (e.g. a zeroReader).
+ func MaybeReadByte(r io.Reader) {
+-	closedChanOnce.Do(func() {
+-		closedChan = make(chan struct{})
+-		close(closedChan)
+-	})
+-
+-	select {
+-	case <-closedChan:
++	if rand.Uint64()&1 == 1 {
+ 		return
+-	case <-closedChan:
+-		var buf [1]byte
+-		r.Read(buf[:])
+ 	}
++	var buf [1]byte
++	r.Read(buf[:])
+ }
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 40034263cc..e233535f75 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -460,7 +460,7 @@ var depsRules = `
+ 	< crypto/internal/boring
+ 	< crypto/boring;
+ 
+-	crypto/internal/alias
++	crypto/internal/alias, math/rand/v2
+ 	< crypto/internal/randutil
+ 	< crypto/internal/nistec/fiat
+ 	< crypto/internal/nistec

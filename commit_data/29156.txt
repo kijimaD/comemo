@@ -10,7 +10,41 @@ Date:   Thu Aug 18 09:14:22 2016 -0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/go.go     | 2 +-
  src/cmd/compile/internal/gc/syntax.go | 6 +++---
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index b6b858c0d9..5c273bbd30 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -67,7 +67,7 @@ type Label struct {
+ 	Breakpc  *obj.Prog // pointer to code
+ 	Continpc *obj.Prog // pointer to code
+ 
+-	Used bool
++	Used bool // for "label defined and not used" error
+ }
+ 
+ type SymFlags uint8
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 79d9d8ce20..001e15b327 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -60,12 +60,12 @@ type Node struct {
+ 	Colas     bool  // OAS resulting from :=
+ 	Diag      uint8 // already printed error about this
+ 	Noescape  bool  // func arguments do not escape; TODO(rsc): move Noescape to Func struct (see CL 7360)
+-	Walkdef   uint8
+-	Typecheck uint8
++	Walkdef   uint8 // tracks state during typecheckdef; 2 == loop detected
++	Typecheck uint8 // tracks state during typechecking; 2 == loop detected
+ 	Local     bool
+ 	IsStatic  bool // whether this Node will be converted to purely static data
+ 	Initorder uint8
+-	Used      bool
++	Used      bool // for variable/label declared and not used error
+ 	Isddd     bool // is the argument variadic
+ 	Implicit  bool
+ 	Addrtaken bool  // address taken, even if not moved to heap

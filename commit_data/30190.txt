@@ -11,6 +11,20 @@ Date:   Thu Oct 27 12:43:37 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/signal_sighandler.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/signal_sighandler.go b/src/runtime/signal_sighandler.go
+index 8f12011ba8..5af12d7b2f 100644
+--- a/src/runtime/signal_sighandler.go
++++ b/src/runtime/signal_sighandler.go
+@@ -87,7 +87,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 		print("Signal ", sig, "\n")
+ 	}
+ 
+-	print("PC=", hex(c.sigpc()), " m=", _g_.m.id, "\n")
++	print("PC=", hex(c.sigpc()), " m=", _g_.m.id, " sigcode=", c.sigcode(), "\n")
+ 	if _g_.m.lockedg != nil && _g_.m.ncgo > 0 && gp == _g_.m.g0 {
+ 		print("signal arrived during cgo execution\n")
+ 		gp = _g_.m.lockedg

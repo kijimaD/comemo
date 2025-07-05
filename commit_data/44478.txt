@@ -7,7 +7,32 @@ Date:   Sun Jul 12 17:15:35 2020 -0400
     Change-Id: I20e5b580b3e0505473816fe7f277a74e13d33e64
     Reviewed-on: https://go-review.googlesource.com/c/go/+/242080
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/compile/internal/gc/plive.go   | 1 +
  src/cmd/compile/internal/gc/reflect.go | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 7e1c0c1a95..b366c8a4a0 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -1563,6 +1563,7 @@ func (lv *Liveness) emit() (argsSym, liveSym, regsSym *obj.LSym) {
+ 	makeSym := func(tmpSym *obj.LSym) *obj.LSym {
+ 		return Ctxt.LookupInit(fmt.Sprintf("gclocals·%x", md5.Sum(tmpSym.P)), func(lsym *obj.LSym) {
+ 			lsym.P = tmpSym.P
++			lsym.Set(obj.AttrContentAddressable, true)
+ 		})
+ 	}
+ 	if !go115ReduceLiveness {
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index f614b60685..05e64a5a9a 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1715,6 +1715,7 @@ func dgcptrmask(t *types.Type) *obj.LSym {
+ 			duint8(lsym, i, x)
+ 		}
+ 		ggloblsym(lsym, int32(len(ptrmask)), obj.DUPOK|obj.RODATA|obj.LOCAL)
++		lsym.Set(obj.AttrContentAddressable, true)
+ 	}
+ 	return lsym
+ }

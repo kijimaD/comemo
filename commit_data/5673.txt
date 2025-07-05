@@ -7,6 +7,20 @@ Date:   Fri Jun 18 20:33:03 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1689042
-
+---
  doc/effective_go.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 86c24664f3..41a7b8af93 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -1457,7 +1457,7 @@ function <code>log.Stderr</code> we used above. It passes its arguments directly
+ <code>fmt.Sprintln</code> for the actual formatting.
+ </p>
+ <pre>
+-// Stderr is a helper function for easy logging to stderr. It is analogous to Fprint(os.Stderr).
++// Stderr is a helper function for easy logging to stderr. It is analogous to Fprintln(os.Stderr).
+ func Stderr(v ...interface{}) {
+     stderr.Output(2, fmt.Sprintln(v))  // Output takes parameters (int, string)
+ }

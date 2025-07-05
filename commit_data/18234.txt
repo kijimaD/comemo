@@ -9,6 +9,20 @@ Date:   Tue Jan 14 07:36:38 2014 +0900
     R=golang-codereviews, r
     CC=golang-codereviews
     https://golang.org/cl/50660044
-
+---
  src/pkg/net/dialgoogle_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/dialgoogle_test.go b/src/pkg/net/dialgoogle_test.go
+index 79d150f8aa..df5895afa7 100644
+--- a/src/pkg/net/dialgoogle_test.go
++++ b/src/pkg/net/dialgoogle_test.go
+@@ -104,7 +104,7 @@ var googleaddrsipv4 = []string{
+ 	"[::ffff:%02x%02x:%02x%02x]:80",
+ 	"[0:0:0:0:0000:ffff:%d.%d.%d.%d]:80",
+ 	"[0:0:0:0:000000:ffff:%d.%d.%d.%d]:80",
+-	"[0:0:0:0:0:ffff::%d.%d.%d.%d]:80",
++	"[0:0:0:0::ffff:%d.%d.%d.%d]:80",
+ }
+ 
+ func TestDialGoogleIPv4(t *testing.T) {

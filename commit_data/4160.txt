@@ -9,7 +9,43 @@ Date:   Thu Nov 19 18:20:06 2009 -0800
     R=ken2
     CC=agl1
     https://golang.org/cl/156102
-
+---
  src/cmd/gc/align.c | 12 ++++++++++++
  src/cmd/gc/go.h    |  1 +
  2 files changed, 13 insertions(+)
+
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index d1cc9c23b6..b74ac0f29f 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -186,6 +186,18 @@ dowidth(Type *t)
+ 	case TCHAN:		// implemented as pointer
+ 		w = widthptr;
+ 		checkwidth(t->type);
++
++		// make fake type to check later to
++		// trigger channel argument check.
++		t1 = typ(TCHANARGS);
++		t1->type = t;
++		checkwidth(t1);
++		break;
++	case TCHANARGS:
++		t1 = t->type;
++		dowidth(t->type);	// just in case
++		if(t1->type->width >= (1<<16))
++			yyerror("channel element type too large (>64kB)");
+ 		break;
+ 	case TMAP:		// implemented as pointer
+ 		w = widthptr;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 7702efbf74..595d7c8b8c 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -441,6 +441,7 @@ enum
+ 	
+ 	// pseudo-type for frame layout
+ 	TFUNCARGS,
++	TCHANARGS,
+ 
+ 	NTYPE,
+ };

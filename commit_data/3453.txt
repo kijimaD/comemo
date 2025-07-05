@@ -20,6 +20,20 @@ Date:   Tue Oct 6 10:01:39 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=35356
     CL=35377
-
+---
  src/pkg/time/time.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/time/time.go b/src/pkg/time/time.go
+index 911fa82ee2..bd4988aa08 100644
+--- a/src/pkg/time/time.go
++++ b/src/pkg/time/time.go
+@@ -47,7 +47,7 @@ type Time struct {
+ 	Month, Day int;	// Sep-17 is 9, 17
+ 	Hour, Minute, Second int;	// 10:43:12 is 10, 43, 12
+ 	Weekday int;		// Sunday, Monday, ...
+-	ZoneOffset int;	// seconds west of UTC
++	ZoneOffset int;	// seconds east of UTC
+ 	Zone string;
+ }
+ 

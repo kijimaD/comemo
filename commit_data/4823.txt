@@ -8,7 +8,32 @@ Date:   Tue Feb 9 13:45:38 2010 -0800
     R=agl1
     CC=golang-dev
     https://golang.org/cl/206051
-
+---
  misc/dashboard/buildcron.sh | 3 +++
  misc/dashboard/builder.sh   | 1 +
  2 files changed, 4 insertions(+)
+
+diff --git a/misc/dashboard/buildcron.sh b/misc/dashboard/buildcron.sh
+index 42a12b2e79..5f43007964 100644
+--- a/misc/dashboard/buildcron.sh
++++ b/misc/dashboard/buildcron.sh
+@@ -41,6 +41,9 @@ fi
+ if [ ! -d $GOROOT ]; then
+ 	mkdir -p $GOROOT
+ 	hg clone https://go.googlecode.com/hg/ $GOROOT
++else
++	cd $GOROOT
++	hg pull -u || exit 1
+ fi
+ mkdir -p $GOROOT/bin
+ 
+diff --git a/misc/dashboard/builder.sh b/misc/dashboard/builder.sh
+index fb2e6defb5..b302acec28 100644
+--- a/misc/dashboard/builder.sh
++++ b/misc/dashboard/builder.sh
+@@ -74,4 +74,5 @@ while true ; do
+         fi
+     fi
+     cd ../.. || fatal "Cannot cd up"
++    sleep 10
+ done

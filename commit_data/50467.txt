@@ -12,7 +12,194 @@ Date:   Fri Oct 22 18:23:18 2021 +1100
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/internal/vcs/vcs.go                     |  58 ++++++++++++
  .../go/testdata/script/version_buildvcs_bzr.txt    | 104 +++++++++++++++++++++
  2 files changed, 162 insertions(+)
+
+diff --git a/src/cmd/go/internal/vcs/vcs.go b/src/cmd/go/internal/vcs/vcs.go
+index 6d2996e17a..b2ce80325a 100644
+--- a/src/cmd/go/internal/vcs/vcs.go
++++ b/src/cmd/go/internal/vcs/vcs.go
+@@ -346,6 +346,7 @@ var vcsBzr = &Cmd{
+ 	PingCmd:     "info -- {scheme}://{repo}",
+ 	RemoteRepo:  bzrRemoteRepo,
+ 	ResolveRepo: bzrResolveRepo,
++	Status:      bzrStatus,
+ }
+ 
+ func bzrRemoteRepo(vcsBzr *Cmd, rootDir string) (remoteRepo string, err error) {
+@@ -389,6 +390,63 @@ func bzrResolveRepo(vcsBzr *Cmd, rootDir, remoteRepo string) (realRepo string, e
+ 	return strings.TrimSpace(out), nil
+ }
+ 
++func bzrStatus(vcsBzr *Cmd, rootDir string) (Status, error) {
++	outb, err := vcsBzr.runOutputVerboseOnly(rootDir, "version-info")
++	if err != nil {
++		return Status{}, err
++	}
++	out := string(outb)
++
++	// Expect (non-empty repositories only):
++	//
++	// revision-id: gopher@gopher.net-20211021072330-qshok76wfypw9lpm
++	// date: 2021-09-21 12:00:00 +1000
++	// ...
++	var rev string
++	var commitTime time.Time
++
++	for _, line := range strings.Split(out, "\n") {
++		i := strings.IndexByte(line, ':')
++		if i < 0 {
++			continue
++		}
++		key := line[:i]
++		value := strings.TrimSpace(line[i+1:])
++
++		switch key {
++		case "revision-id":
++			rev = value
++		case "date":
++			var err error
++			commitTime, err = time.Parse("2006-01-02 15:04:05 -0700", value)
++			if err != nil {
++				return Status{}, errors.New("unable to parse output of bzr version-info")
++			}
++		}
++	}
++
++	outb, err = vcsBzr.runOutputVerboseOnly(rootDir, "status")
++	if err != nil {
++		return Status{}, err
++	}
++
++	// Skip warning when working directory is set to an older revision.
++	if bytes.HasPrefix(outb, []byte("working tree is out of date")) {
++		i := bytes.IndexByte(outb, '\n')
++		if i < 0 {
++			i = len(outb)
++		}
++		outb = outb[:i]
++	}
++	uncommitted := len(outb) > 0
++
++	return Status{
++		Revision:    rev,
++		CommitTime:  commitTime,
++		Uncommitted: uncommitted,
++	}, nil
++}
++
+ // vcsSvn describes how to use Subversion.
+ var vcsSvn = &Cmd{
+ 	Name:      "Subversion",
+diff --git a/src/cmd/go/testdata/script/version_buildvcs_bzr.txt b/src/cmd/go/testdata/script/version_buildvcs_bzr.txt
+new file mode 100644
+index 0000000000..83069713d7
+--- /dev/null
++++ b/src/cmd/go/testdata/script/version_buildvcs_bzr.txt
+@@ -0,0 +1,104 @@
++# This test checks that VCS information is stamped into Go binaries by default,
++# controlled with -buildvcs. This test focuses on Bazaar specifics.
++# The Git test covers common functionality.
++
++[!exec:bzr] skip
++[short] skip
++env GOBIN=$WORK/gopath/bin
++env oldpath=$PATH
++env HOME=$WORK
++cd repo/a
++exec bzr whoami 'J.R. Gopher <gopher@golang.org>'
++
++# If there's no local repository, there's no VCS info.
++go install
++go version -m $GOBIN/a$GOEXE
++! stdout bzrrevision
++rm $GOBIN/a$GOEXE
++
++# If there is a repository, but it can't be used for some reason,
++# there should be an error. It should hint about -buildvcs=false.
++cd ..
++mkdir .bzr
++env PATH=$WORK${/}fakebin${:}$oldpath
++chmod 0755 $WORK/fakebin/bzr
++! exec bzr help
++cd a
++! go install
++stderr '^error obtaining VCS status: exit status 1\n\tUse -buildvcs=false to disable VCS stamping.$'
++rm $GOBIN/a$GOEXE
++cd ..
++env PATH=$oldpath
++rm .bzr
++
++# If there is an empty repository in a parent directory, only "uncommitted" is tagged.
++exec bzr init
++cd a
++go install
++go version -m $GOBIN/a$GOEXE
++! stdout bzrrevision
++! stdout bzrcommittime
++stdout '^\tbuild\tbzruncommitted\ttrue$'
++cd ..
++
++# Revision and commit time are tagged for repositories with commits.
++exec bzr add a README
++exec bzr commit -m 'initial commit'
++cd a
++go install
++go version -m $GOBIN/a$GOEXE
++stdout '^\tbuild\tbzrrevision\t'
++stdout '^\tbuild\tbzrcommittime\t'
++stdout '^\tbuild\tbzruncommitted\tfalse$'
++rm $GOBIN/a$GOEXE
++
++# Building an earlier commit should still build clean.
++cp ../../outside/empty.txt ../NEWS
++exec bzr add ../NEWS
++exec bzr commit -m 'add NEWS'
++exec bzr update -r1
++go install
++go version -m $GOBIN/a$GOEXE
++stdout '^\tbuild\tbzrrevision\t'
++stdout '^\tbuild\tbzrcommittime\t'
++stdout '^\tbuild\tbzruncommitted\tfalse$'
++
++# Building with -buildvcs=false suppresses the info.
++go install -buildvcs=false
++go version -m $GOBIN/a$GOEXE
++! stdout bzrrevision
++rm $GOBIN/a$GOEXE
++
++# An untracked file is shown as uncommitted, even if it isn't part of the build.
++cp ../../outside/empty.txt .
++go install
++go version -m $GOBIN/a$GOEXE
++stdout '^\tbuild\tbzruncommitted\ttrue$'
++rm empty.txt
++rm $GOBIN/a$GOEXE
++
++# An edited file is shown as uncommitted, even if it isn't part of the build.
++cp ../../outside/empty.txt ../README
++go install
++go version -m $GOBIN/a$GOEXE
++stdout '^\tbuild\tbzruncommitted\ttrue$'
++exec bzr revert ../README
++rm $GOBIN/a$GOEXE
++
++-- $WORK/fakebin/bzr --
++#!/bin/sh
++exit 1
++-- $WORK/fakebin/bzr.bat --
++exit 1
++-- repo/README --
++Far out in the uncharted backwaters of the unfashionable end of the western
++spiral arm of the Galaxy lies a small, unregarded yellow sun.
++-- repo/a/go.mod --
++module example.com/a
++
++go 1.18
++-- repo/a/a.go --
++package main
++
++func main() {}
++-- outside/empty.txt --

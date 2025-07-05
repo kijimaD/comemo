@@ -14,8 +14,85 @@ Date:   Thu Mar 2 09:11:03 2017 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/vet/all/main.go               | 25 ++-----------------------
  src/cmd/vet/all/whitelist/all.txt     |  3 +++
  src/cmd/vet/all/whitelist/windows.txt |  2 ++
  3 files changed, 7 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/vet/all/main.go b/src/cmd/vet/all/main.go
+index 317137941c..9d6bf9ed48 100644
+--- a/src/cmd/vet/all/main.go
++++ b/src/cmd/vet/all/main.go
+@@ -182,14 +182,6 @@ var ignorePathPrefixes = [...]string{
+ 	"cmd/go/testdata/",
+ 	"cmd/vet/testdata/",
+ 	"go/printer/testdata/",
+-	// fmt_test contains a known bad format string.
+-	// We cannot add it to any given whitelist,
+-	// because it won't show up for any non-host platform,
+-	// due to deficiencies in vet.
+-	// Just whitelist the whole file.
+-	// TODO: If vet ever uses go/loader and starts working off source,
+-	// this problem will likely go away.
+-	"fmt/fmt_test.go",
+ 	// Ignore pprof for the moment to get the builders happy.
+ 	// TODO: Fix all the issues and reinstate.
+ 	"cmd/vendor/github.com/google/pprof",
+@@ -209,28 +201,15 @@ func (p platform) vet() {
+ 	w := make(whitelist)
+ 	w.load(p.os, p.arch)
+ 
+-	env := append(os.Environ(), "GOOS="+p.os, "GOARCH="+p.arch, "CGO_ENABLED=0")
+-
+ 	// 'go tool vet .' is considerably faster than 'go vet ./...'
+ 	// TODO: The unsafeptr checks are disabled for now,
+ 	// because there are so many false positives,
+ 	// and no clear way to improve vet to eliminate large chunks of them.
+ 	// And having them in the whitelists will just cause annoyance
+ 	// and churn when working on the runtime.
+-	args := []string{"tool", "vet", "-unsafeptr=false", "-source"}
+-	if p != hostPlatform {
+-		// When not checking the host platform, vet gets confused by
+-		// the fmt.Formatters in cmd/compile,
+-		// so just skip the printf checks on non-host platforms for now.
+-		// There's not too much platform-specific code anyway.
+-		// TODO: If vet ever uses go/loader and starts working off source,
+-		// this problem will likely go away.
+-		args = append(args, "-printf=false")
+-	}
+-	args = append(args, ".")
+-	cmd := exec.Command(cmdGoPath, args...)
++	cmd := exec.Command(cmdGoPath, "tool", "vet", "-unsafeptr=false", "-source", ".")
+ 	cmd.Dir = filepath.Join(runtime.GOROOT(), "src")
+-	cmd.Env = env
++	cmd.Env = append(os.Environ(), "GOOS="+p.os, "GOARCH="+p.arch, "CGO_ENABLED=0")
+ 	stderr, err := cmd.StderrPipe()
+ 	if err != nil {
+ 		log.Fatal(err)
+diff --git a/src/cmd/vet/all/whitelist/all.txt b/src/cmd/vet/all/whitelist/all.txt
+index 3a154e9d23..6323c4c2b6 100644
+--- a/src/cmd/vet/all/whitelist/all.txt
++++ b/src/cmd/vet/all/whitelist/all.txt
+@@ -13,6 +13,9 @@ go/types/scope.go: method WriteTo(w io.Writer, n int, recurse bool) should have
+ 
+ // False positives.
+ 
++// Test of how fmt handles nil.
++fmt/fmt_test.go: arg nil for printf verb %s of wrong type: untyped nil
++
+ // Nothing much to do about cross-package assembly. Unfortunate.
+ runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: call is in package reflect
+ runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: Equal is in package bytes
+diff --git a/src/cmd/vet/all/whitelist/windows.txt b/src/cmd/vet/all/whitelist/windows.txt
+index 2c101aeb98..1a208ad697 100644
+--- a/src/cmd/vet/all/whitelist/windows.txt
++++ b/src/cmd/vet/all/whitelist/windows.txt
+@@ -3,5 +3,7 @@
+ // Issue 18609
+ crypto/x509/root_windows.go: unreachable code
+ 
++path/filepath/path_windows_test.go: possible formatting directive in Fatal call
++
+ runtime/sys_windows_ARCHSUFF.s: [GOARCH] sigtramp: function sigtramp missing Go declaration
+ runtime/sys_windows_ARCHSUFF.s: [GOARCH] onosstack: unknown variable usec; offset 0 is fn+0(FP)

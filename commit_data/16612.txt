@@ -9,7 +9,7 @@ Date:   Fri Jun 21 13:14:06 2013 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/10204043
-
+---
  src/pkg/go/ast/ast.go                          |  1 +
  src/pkg/go/ast/walk.go                         |  3 +++
  src/pkg/go/parser/parser.go                    | 26 +++++++++++++++---------
@@ -19,3 +19,228 @@ Date:   Fri Jun 21 13:14:06 2013 -0700
  src/pkg/go/printer/testdata/expressions.input  | 17 ++++++++++++++++
  src/pkg/go/printer/testdata/expressions.raw    | 17 ++++++++++++++++
  8 files changed, 99 insertions(+), 20 deletions(-)
+
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index e75df82501..c68f94d17b 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -297,6 +297,7 @@ type (
+ 		Lbrack token.Pos // position of "["
+ 		Low    Expr      // begin of slice range; or nil
+ 		High   Expr      // end of slice range; or nil
++		Max    Expr      // maximum capacity of slice; or nil
+ 		Rbrack token.Pos // position of "]"
+ 	}
+ 
+diff --git a/src/pkg/go/ast/walk.go b/src/pkg/go/ast/walk.go
+index fef2503c37..fedffb3f22 100644
+--- a/src/pkg/go/ast/walk.go
++++ b/src/pkg/go/ast/walk.go
+@@ -122,6 +122,9 @@ func Walk(v Visitor, node Node) {
+ 		if n.High != nil {
+ 			Walk(v, n.High)
+ 		}
++		if n.Max != nil {
++			Walk(v, n.Max)
++		}
+ 
+ 	case *TypeAssertExpr:
+ 		Walk(v, n.X)
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index d1840728da..809687fef9 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -1170,25 +1170,31 @@ func (p *parser) parseIndexOrSlice(x ast.Expr) ast.Expr {
+ 
+ 	lbrack := p.expect(token.LBRACK)
+ 	p.exprLev++
+-	var low, high ast.Expr
+-	isSlice := false
++	var index [3]ast.Expr // change the 3 to 2 to disable slice expressions w/ cap
+ 	if p.tok != token.COLON {
+-		low = p.parseRhs()
++		index[0] = p.parseRhs()
+ 	}
+-	if p.tok == token.COLON {
+-		isSlice = true
++	ncolons := 0
++	for p.tok == token.COLON && ncolons < len(index)-1 {
+ 		p.next()
+-		if p.tok != token.RBRACK {
+-			high = p.parseRhs()
++		ncolons++
++		if p.tok != token.COLON && p.tok != token.RBRACK && p.tok != token.EOF {
++			index[ncolons] = p.parseRhs()
+ 		}
+ 	}
+ 	p.exprLev--
+ 	rbrack := p.expect(token.RBRACK)
+ 
+-	if isSlice {
+-		return &ast.SliceExpr{X: x, Lbrack: lbrack, Low: low, High: high, Rbrack: rbrack}
++	if ncolons > 0 {
++		// slice expression
++		if ncolons == 2 && (index[1] == nil || index[2] == nil) {
++			// only i is optional in a[i:j:k]
++			p.error(rbrack, "2nd and 3rd index must be present full slice expression")
++		}
++		return &ast.SliceExpr{X: x, Lbrack: lbrack, Low: index[0], High: index[1], Max: index[2], Rbrack: rbrack}
+ 	}
+-	return &ast.IndexExpr{X: x, Lbrack: lbrack, Index: low, Rbrack: rbrack}
++
++	return &ast.IndexExpr{X: x, Lbrack: lbrack, Index: index[0], Rbrack: rbrack}
+ }
+ 
+ func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
+diff --git a/src/pkg/go/parser/short_test.go b/src/pkg/go/parser/short_test.go
+index 62277c0d26..57bb78c533 100644
+--- a/src/pkg/go/parser/short_test.go
++++ b/src/pkg/go/parser/short_test.go
+@@ -33,6 +33,7 @@ var valids = []string{
+ 	`package p; func f() { if ; true {} };`,
+ 	`package p; func f() { switch ; {} };`,
+ 	`package p; func f() { for _ = range "foo" + "bar" {} };`,
++	`package p; func f() { var s []int; g(s[:], s[i:], s[:j], s[i:j], s[i:j:k], s[:j:k]) };`,
+ }
+ 
+ func TestValid(t *testing.T) {
+@@ -74,6 +75,15 @@ var invalids = []string{
+ 	`package p; func f() { if x := g(); x = /* ERROR "expected '=='" */ 0 {}};`,
+ 	`package p; func f() { _ = x = /* ERROR "expected '=='" */ 0 {}};`,
+ 	`package p; func f() { _ = 1 == func()int { var x bool; x = x = /* ERROR "expected '=='" */ true; return x }() };`,
++	`package p; func f() { var s []int; _ = s[] /* ERROR "expected operand" */ };`,
++	`package p; func f() { var s []int; _ = s[::: /* ERROR "expected ']'" */ ] };`,
++	`package p; func f() { var s []int; _ = s[i:j:k: /* ERROR "expected ']'" */ l] };`,
++	`package p; func f() { var s []int; g(s[::] /* ERROR "index must be present" */) };`,
++	`package p; func f() { var s []int; g(s[i::] /* ERROR "index must be present" */) };`,
++	`package p; func f() { var s []int; g(s[i:j:] /* ERROR "index must be present" */) };`,
++	`package p; func f() { var s []int; g(s[::k] /* ERROR "index must be present" */) };`,
++	`package p; func f() { var s []int; g(s[:j:] /* ERROR "index must be present" */) };`,
++	`package p; func f() { var s []int; g(s[i::k] /* ERROR "index must be present" */) };`,
+ }
+ 
+ func TestInvalid(t *testing.T) {
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 6c0234dd09..583c6c3709 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -773,17 +773,25 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
+ 		// TODO(gri): should treat[] like parentheses and undo one level of depth
+ 		p.expr1(x.X, token.HighestPrec, 1)
+ 		p.print(x.Lbrack, token.LBRACK)
+-		if x.Low != nil {
+-			p.expr0(x.Low, depth+1)
++		indices := []ast.Expr{x.Low, x.High}
++		if x.Max != nil {
++			indices = append(indices, x.Max)
+ 		}
+-		// blanks around ":" if both sides exist and either side is a binary expression
+-		if depth <= 1 && x.Low != nil && x.High != nil && (isBinary(x.Low) || isBinary(x.High)) {
+-			p.print(blank, token.COLON, blank)
+-		} else {
+-			p.print(token.COLON)
+-		}
+-		if x.High != nil {
+-			p.expr0(x.High, depth+1)
++		for i, y := range indices {
++			if i > 0 {
++				// blanks around ":" if both sides exist and either side is a binary expression
++				// TODO(gri) once we have committed a variant of a[i:j:k] we may want to fine-
++				//           tune the formatting here
++				x := indices[i-1]
++				if depth <= 1 && x != nil && y != nil && (isBinary(x) || isBinary(y)) {
++					p.print(blank, token.COLON, blank)
++				} else {
++					p.print(token.COLON)
++				}
++			}
++			if y != nil {
++				p.expr0(y, depth+1)
++			}
+ 		}
+ 		p.print(x.Rbrack, token.RBRACK)
+ 
+diff --git a/src/pkg/go/printer/testdata/expressions.golden b/src/pkg/go/printer/testdata/expressions.golden
+index 4291c557ce..fbe8275b3a 100644
+--- a/src/pkg/go/printer/testdata/expressions.golden
++++ b/src/pkg/go/printer/testdata/expressions.golden
+@@ -114,6 +114,23 @@ func _() {
+ 	x < y || z > 42
+ }
+ 
++// slice expressions with cap
++func _() {
++	_ = x[a:b:c]
++	_ = x[a:b : c+d]
++	_ = x[a : b+d : c]
++	_ = x[a : b+d : c+d]
++	_ = x[a+d : b:c]
++	_ = x[a+d : b : c+d]
++	_ = x[a+d : b+d : c]
++	_ = x[a+d : b+d : c+d]
++
++	_ = x[:b:c]
++	_ = x[:b : c+d]
++	_ = x[:b+d : c]
++	_ = x[:b+d : c+d]
++}
++
+ func _() {
+ 	_ = a + b
+ 	_ = a + b + c
+diff --git a/src/pkg/go/printer/testdata/expressions.input b/src/pkg/go/printer/testdata/expressions.input
+index 1ec12a0504..f4d20fa0f7 100644
+--- a/src/pkg/go/printer/testdata/expressions.input
++++ b/src/pkg/go/printer/testdata/expressions.input
+@@ -116,6 +116,23 @@ func _() {
+ }
+ 
+ 
++// slice expressions with cap
++func _() {
++	_ = x[a:b:c]
++	_ = x[a:b:c+d]
++	_ = x[a:b+d:c]
++	_ = x[a:b+d:c+d]
++	_ = x[a+d:b:c]
++	_ = x[a+d:b:c+d]
++	_ = x[a+d:b+d:c]
++	_ = x[a+d:b+d:c+d]
++
++	_ = x[:b:c]
++	_ = x[:b:c+d]
++	_ = x[:b+d:c]
++	_ = x[:b+d:c+d]
++}
++
+ func _() {
+ 	_ = a+b
+ 	_ = a+b+c
+diff --git a/src/pkg/go/printer/testdata/expressions.raw b/src/pkg/go/printer/testdata/expressions.raw
+index 062900e072..97bc81dad8 100644
+--- a/src/pkg/go/printer/testdata/expressions.raw
++++ b/src/pkg/go/printer/testdata/expressions.raw
+@@ -114,6 +114,23 @@ func _() {
+ 	x < y || z > 42
+ }
+ 
++// slice expressions with cap
++func _() {
++	_ = x[a:b:c]
++	_ = x[a:b : c+d]
++	_ = x[a : b+d : c]
++	_ = x[a : b+d : c+d]
++	_ = x[a+d : b:c]
++	_ = x[a+d : b : c+d]
++	_ = x[a+d : b+d : c]
++	_ = x[a+d : b+d : c+d]
++
++	_ = x[:b:c]
++	_ = x[:b : c+d]
++	_ = x[:b+d : c]
++	_ = x[:b+d : c+d]
++}
++
+ func _() {
+ 	_ = a + b
+ 	_ = a + b + c

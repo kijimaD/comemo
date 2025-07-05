@@ -13,7 +13,33 @@ Date:   Tue Nov 14 19:22:43 2017 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/crypto/sha1/sha1block_arm64.go     | 2 +-
  src/crypto/sha256/sha256block_arm64.go | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/sha1/sha1block_arm64.go b/src/crypto/sha1/sha1block_arm64.go
+index ab296e3793..173c40fec8 100644
+--- a/src/crypto/sha1/sha1block_arm64.go
++++ b/src/crypto/sha1/sha1block_arm64.go
+@@ -15,7 +15,7 @@ var k = []uint32{
+ 
+ var hasSHA1 = cpu.ARM64.HasSHA1
+ 
+-
++//go:noescape
+ func sha1block(h []uint32, p []byte, k []uint32)
+ 
+ func block(dig *digest, p []byte) {
+diff --git a/src/crypto/sha256/sha256block_arm64.go b/src/crypto/sha256/sha256block_arm64.go
+index 48c436baf3..75bbcbe0eb 100644
+--- a/src/crypto/sha256/sha256block_arm64.go
++++ b/src/crypto/sha256/sha256block_arm64.go
+@@ -10,6 +10,7 @@ var k = _K
+ 
+ var hasSHA2 = cpu.ARM64.HasSHA2
+ 
++//go:noescape
+ func sha256block(h []uint32, p []byte, k []uint32)
+ 
+ func block(dig *digest, p []byte) {

@@ -12,7 +12,44 @@ Date:   Mon Sep 5 15:05:27 2022 +0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssagen/nowb.go | 4 ++--
  src/cmd/compile/internal/ssagen/ssa.go  | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/nowb.go b/src/cmd/compile/internal/ssagen/nowb.go
+index 1fbc6a847d..2085618b88 100644
+--- a/src/cmd/compile/internal/ssagen/nowb.go
++++ b/src/cmd/compile/internal/ssagen/nowb.go
+@@ -5,8 +5,8 @@
+ package ssagen
+ 
+ import (
+-	"bytes"
+ 	"fmt"
++	"strings"
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+@@ -179,7 +179,7 @@ func (c *nowritebarrierrecChecker) check() {
+ 
+ 		// Check fn.
+ 		if fn.WBPos.IsKnown() {
+-			var err bytes.Buffer
++			var err strings.Builder
+ 			call := funcs[fn]
+ 			for call.target != nil {
+ 				fmt.Fprintf(&err, "\n\t%v: called by %v", base.FmtPos(call.lineno), call.target.Nname)
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 16388b5fd5..21b8fbc8ec 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -7249,7 +7249,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 		}
+ 	}
+ 	if f.HTMLWriter != nil { // spew to ssa.html
+-		var buf bytes.Buffer
++		var buf strings.Builder
+ 		buf.WriteString("<code>")
+ 		buf.WriteString("<dl class=\"ssa-gen\">")
+ 		filename := ""

@@ -9,6 +9,22 @@ Date:   Mon Apr 20 15:31:07 2015 -0700
     Change-Id: Ifdc59c3a5d8aba420b34ae4e37b3c2315dd7c783
     Reviewed-on: https://go-review.googlesource.com/9162
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/pprof/trace_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/pprof/trace_test.go b/src/runtime/pprof/trace_test.go
+index 4f93c494d5..a333a3f83a 100644
+--- a/src/runtime/pprof/trace_test.go
++++ b/src/runtime/pprof/trace_test.go
+@@ -371,6 +371,10 @@ func TestTraceFutileWakeup(t *testing.T) {
+ 	// The test generates a full-load of futile wakeups on channels,
+ 	// and ensures that the trace is consistent after their removal.
+ 	skipTraceTestsIfNeeded(t)
++	if runtime.GOOS == "linux" && runtime.GOARCH == "ppc64le" {
++		t.Skip("test is unreliable; issue #10512")
++	}
++
+ 	buf := new(bytes.Buffer)
+ 	if err := StartTrace(buf); err != nil {
+ 		t.Fatalf("failed to start tracing: %v", err)

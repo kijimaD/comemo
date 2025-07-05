@@ -8,7 +8,7 @@ Date:   Mon Jun 21 20:53:49 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/1701045
-
+---
  src/pkg/runtime/Makefile     |   2 +
  src/pkg/runtime/debug.go     | 142 +++++++++++++++++++++++++++++++++++++++++
  src/pkg/runtime/extern.go    | 148 -------------------------------------------
@@ -16,3 +16,396 @@ Date:   Mon Jun 21 20:53:49 2010 -0700
  src/pkg/runtime/runtime1.goc |   4 --
  src/pkg/runtime/sig.go       |  16 +++++
  6 files changed, 164 insertions(+), 152 deletions(-)
+
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 0d5de29b33..6571d802d4 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -21,8 +21,10 @@ CFLAGS_windows=-D__WINDOWS__
+ CFLAGS=-I$(GOOS) -I$(GOARCH) -I$(GOOS)/$(GOARCH) -wF $(CFLAGS_$(SIZE)) $(CFLAGS_$(GOARCH)) $(CFLAGS_$(GOOS))
+ 
+ GOFILES=\
++	debug.go\
+ 	error.go\
+ 	extern.go\
++	sig.go\
+ 	type.go\
+ 	version.go\
+ 
+diff --git a/src/pkg/runtime/debug.go b/src/pkg/runtime/debug.go
+new file mode 100644
+index 0000000000..b65cc66933
+--- /dev/null
++++ b/src/pkg/runtime/debug.go
+@@ -0,0 +1,142 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++// Breakpoint() executes a breakpoint trap.
++func Breakpoint()
++
++// LockOSThread wires the calling goroutine to its current operating system thread.
++// Until the calling goroutine exits or calls UnlockOSThread, it will always
++// execute in that thread, and no other goroutine can.
++// LockOSThread cannot be used during init functions.
++func LockOSThread()
++
++// UnlockOSThread unwires the calling goroutine from its fixed operating system thread.
++// If the calling goroutine has not called LockOSThread, UnlockOSThread is a no-op.
++func UnlockOSThread()
++
++// GOMAXPROCS sets the maximum number of CPUs that can be executing
++// simultaneously and returns the previous setting.  If n < 1, it does not
++// change the current setting.
++// This call will go away when the scheduler improves.
++func GOMAXPROCS(n int) int
++
++// Cgocalls returns the number of cgo calls made by the current process.
++func Cgocalls() int64
++
++type MemStatsType struct {
++	// General statistics.
++	// Not locked during update; approximate.
++	Alloc      uint64 // bytes allocated and still in use
++	TotalAlloc uint64 // bytes allocated (even if freed)
++	Sys        uint64 // bytes obtained from system (should be sum of XxxSys below)
++	Lookups    uint64 // number of pointer lookups
++	Mallocs    uint64 // number of mallocs
++
++	// Main allocation heap statistics.
++	HeapAlloc uint64 // bytes allocated and still in use
++	HeapSys   uint64 // bytes obtained from system
++	HeapIdle  uint64 // bytes in idle spans
++	HeapInuse uint64 // bytes in non-idle span
++
++	// Low-level fixed-size structure allocator statistics.
++	//	Inuse is bytes used now.
++	//	Sys is bytes obtained from system.
++	StackInuse  uint64 // bootstrap stacks
++	StackSys    uint64
++	MSpanInuse  uint64 // mspan structures
++	MSpanSys    uint64
++	MCacheInuse uint64 // mcache structures
++	MCacheSys   uint64
++	MHeapMapSys uint64 // heap map
++	BuckHashSys uint64 // profiling bucket hash table
++
++	// Garbage collector statistics.
++	NextGC   uint64
++	PauseNs  uint64
++	NumGC    uint32
++	EnableGC bool
++	DebugGC  bool
++
++	// Per-size allocation statistics.
++	// Not locked during update; approximate.
++	BySize [67]struct {
++		Size    uint32
++		Mallocs uint64
++		Frees   uint64
++	}
++}
++
++// MemStats holds statistics about the memory system.
++// The statistics are only approximate, as they are not interlocked on update.
++var MemStats MemStatsType
++
++// Alloc allocates a block of the given size.
++// FOR TESTING AND DEBUGGING ONLY.
++func Alloc(uintptr) *byte
++
++// Free frees the block starting at the given pointer.
++// FOR TESTING AND DEBUGGING ONLY.
++func Free(*byte)
++
++// Lookup returns the base and size of the block containing the given pointer.
++// FOR TESTING AND DEBUGGING ONLY.
++func Lookup(*byte) (*byte, uintptr)
++
++// GC runs a garbage collection.
++func GC()
++
++// MemProfileRate controls the fraction of memory allocations
++// that are recorded and reported in the memory profile.
++// The profiler aims to sample an average of
++// one allocation per MemProfileRate bytes allocated.
++//
++// To include every allocated block in the profile, set MemProfileRate to 1.
++// To turn off profiling entirely, set MemProfileRate to 0.
++//
++// The tools that process the memory profiles assume that the
++// profile rate is constant across the lifetime of the program
++// and equal to the current value.  Programs that change the
++// memory profiling rate should do so just once, as early as
++// possible in the execution of the program (for example,
++// at the beginning of main).
++var MemProfileRate int = 512 * 1024
++
++// A MemProfileRecord describes the live objects allocated
++// by a particular call sequence (stack trace).
++type MemProfileRecord struct {
++	AllocBytes, FreeBytes     int64       // number of bytes allocated, freed
++	AllocObjects, FreeObjects int64       // number of objects allocated, freed
++	Stack0                    [32]uintptr // stack trace for this record; ends at first 0 entry
++}
++
++// InUseBytes returns the number of bytes in use (AllocBytes - FreeBytes).
++func (r *MemProfileRecord) InUseBytes() int64 { return r.AllocBytes - r.FreeBytes }
++
++// InUseObjects returns the number of objects in use (AllocObjects - FreeObjects).
++func (r *MemProfileRecord) InUseObjects() int64 {
++	return r.AllocObjects - r.FreeObjects
++}
++
++// Stack returns the stack trace associated with the record,
++// a prefix of r.Stack0.
++func (r *MemProfileRecord) Stack() []uintptr {
++	for i, v := range r.Stack0 {
++		if v == 0 {
++			return r.Stack0[0:i]
++		}
++	}
++	return r.Stack0[0:]
++}
++
++// MemProfile returns n, the number of records in the current memory profile.
++// If len(p) >= n, MemProfile copies the profile into p and returns n, true.
++// If len(p) < n, MemProfile does not change p and returns n, false.
++//
++// If inuseZero is true, the profile includes allocation records
++// where r.AllocBytes > 0 but r.AllocBytes == r.FreeBytes.
++// These are sites where memory was allocated, but it has all
++// been released back to the runtime.
++func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool)
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index 72b43ae9bd..d3d1dabdf6 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -18,9 +18,6 @@ func Gosched()
+ // Goexit runs all deferred calls before terminating the goroutine.
+ func Goexit()
+ 
+-// Breakpoint() executes a breakpoint trap.
+-func Breakpoint()
+-
+ // Caller reports file and line number information about function invocations on
+ // the calling goroutine's stack.  The argument skip is the number of stack frames to
+ // ascend, with 0 identifying the the caller of Caller.  The return values report the
+@@ -95,25 +92,6 @@ func (f *Func) FileLine(pc uintptr) (file string, line int) {
+ // mid returns the current os thread (m) id.
+ func mid() uint32
+ 
+-// LockOSThread wires the calling goroutine to its current operating system thread.
+-// Until the calling goroutine exits or calls UnlockOSThread, it will always
+-// execute in that thread, and no other goroutine can.
+-// LockOSThread cannot be used during init functions.
+-func LockOSThread()
+-
+-// UnlockOSThread unwires the calling goroutine from its fixed operating system thread.
+-// If the calling goroutine has not called LockOSThread, UnlockOSThread is a no-op.
+-func UnlockOSThread()
+-
+-// GOMAXPROCS sets the maximum number of CPUs that can be executing
+-// simultaneously and returns the previous setting.  If n < 1, it does not
+-// change the current setting.
+-// This call will go away when the scheduler improves.
+-func GOMAXPROCS(n int) int
+-
+-// Cgocalls returns the number of cgo calls made by the current process.
+-func Cgocalls() int64
+-
+ // Semacquire waits until *s > 0 and then atomically decrements it.
+ // It is intended as a simple sleep primitive for use by the synchronization
+ // library and should not be used directly.
+@@ -125,79 +103,6 @@ func Semacquire(s *uint32)
+ // library and should not be used directly.
+ func Semrelease(s *uint32)
+ 
+-// Sigrecv returns a bitmask of signals that have arrived since the last call to Sigrecv.
+-// It blocks until at least one signal arrives.
+-func Sigrecv() uint32
+-
+-// Signame returns a string describing the signal, or "" if the signal is unknown.
+-func Signame(sig int32) string
+-
+-// Siginit enables receipt of signals via Sigrecv.  It should typically
+-// be called during initialization.
+-func Siginit()
+-
+-type MemStatsType struct {
+-	// General statistics.
+-	// Not locked during update; approximate.
+-	Alloc      uint64 // bytes allocated and still in use
+-	TotalAlloc uint64 // bytes allocated (even if freed)
+-	Sys        uint64 // bytes obtained from system (should be sum of XxxSys below)
+-	Lookups    uint64 // number of pointer lookups
+-	Mallocs    uint64 // number of mallocs
+-
+-	// Main allocation heap statistics.
+-	HeapAlloc uint64 // bytes allocated and still in use
+-	HeapSys   uint64 // bytes obtained from system
+-	HeapIdle  uint64 // bytes in idle spans
+-	HeapInuse uint64 // bytes in non-idle span
+-
+-	// Low-level fixed-size structure allocator statistics.
+-	//	Inuse is bytes used now.
+-	//	Sys is bytes obtained from system.
+-	StackInuse  uint64 // bootstrap stacks
+-	StackSys    uint64
+-	MSpanInuse  uint64 // mspan structures
+-	MSpanSys    uint64
+-	MCacheInuse uint64 // mcache structures
+-	MCacheSys   uint64
+-	MHeapMapSys uint64 // heap map
+-	BuckHashSys uint64 // profiling bucket hash table
+-
+-	// Garbage collector statistics.
+-	NextGC   uint64
+-	PauseNs  uint64
+-	NumGC    uint32
+-	EnableGC bool
+-	DebugGC  bool
+-
+-	// Per-size allocation statistics.
+-	// Not locked during update; approximate.
+-	BySize [67]struct {
+-		Size    uint32
+-		Mallocs uint64
+-		Frees   uint64
+-	}
+-}
+-
+-// MemStats holds statistics about the memory system.
+-// The statistics are only approximate, as they are not interlocked on update.
+-var MemStats MemStatsType
+-
+-// Alloc allocates a block of the given size.
+-// FOR TESTING AND DEBUGGING ONLY.
+-func Alloc(uintptr) *byte
+-
+-// Free frees the block starting at the given pointer.
+-// FOR TESTING AND DEBUGGING ONLY.
+-func Free(*byte)
+-
+-// Lookup returns the base and size of the block containing the given pointer.
+-// FOR TESTING AND DEBUGGING ONLY.
+-func Lookup(*byte) (*byte, uintptr)
+-
+-// GC runs a garbage collection.
+-func GC()
+-
+ // SetFinalizer sets the finalizer associated with x to f.
+ // When the garbage collector finds an unreachable block
+ // with an associated finalizer, it clears the association and creates
+@@ -261,56 +166,3 @@ func GOROOT() string {
+ // A trailing + indicates that the tree had local modifications
+ // at the time of the build.
+ func Version() string { return defaultVersion }
+-
+-// MemProfileRate controls the fraction of memory allocations
+-// that are recorded and reported in the memory profile.
+-// The profiler aims to sample an average of
+-// one allocation per MemProfileRate bytes allocated.
+-//
+-// To include every allocated block in the profile, set MemProfileRate to 1.
+-// To turn off profiling entirely, set MemProfileRate to 0.
+-//
+-// The tools that process the memory profiles assume that the
+-// profile rate is constant across the lifetime of the program
+-// and equal to the current value.  Programs that change the
+-// memory profiling rate should do so just once, as early as
+-// possible in the execution of the program (for example,
+-// at the beginning of main).
+-var MemProfileRate int = 512 * 1024
+-
+-// A MemProfileRecord describes the live objects allocated
+-// by a particular call sequence (stack trace).
+-type MemProfileRecord struct {
+-	AllocBytes, FreeBytes     int64       // number of bytes allocated, freed
+-	AllocObjects, FreeObjects int64       // number of objects allocated, freed
+-	Stack0                    [32]uintptr // stack trace for this record; ends at first 0 entry
+-}
+-
+-// InUseBytes returns the number of bytes in use (AllocBytes - FreeBytes).
+-func (r *MemProfileRecord) InUseBytes() int64 { return r.AllocBytes - r.FreeBytes }
+-
+-// InUseObjects returns the number of objects in use (AllocObjects - FreeObjects).
+-func (r *MemProfileRecord) InUseObjects() int64 {
+-	return r.AllocObjects - r.FreeObjects
+-}
+-
+-// Stack returns the stack trace associated with the record,
+-// a prefix of r.Stack0.
+-func (r *MemProfileRecord) Stack() []uintptr {
+-	for i, v := range r.Stack0 {
+-		if v == 0 {
+-			return r.Stack0[0:i]
+-		}
+-	}
+-	return r.Stack0[0:]
+-}
+-
+-// MemProfile returns n, the number of records in the current memory profile.
+-// If len(p) >= n, MemProfile copies the profile into p and returns n, true.
+-// If len(p) < n, MemProfile does not change p and returns n, false.
+-//
+-// If inuseZero is true, the profile includes allocation records
+-// where r.AllocBytes > 0 but r.AllocBytes == r.FreeBytes.
+-// These are sites where memory was allocated, but it has all
+-// been released back to the runtime.
+-func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool)
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index e6b965444e..59aeba7398 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -261,6 +261,10 @@ mal(uintptr n)
+ 	return mallocgc(n, 0, 1, 1);
+ }
+ 
++func mal(n uint32) (ret *uint8) {
++	ret = mal(n);
++}
++
+ // Stack allocator uses malloc/free most of the time,
+ // but if we're in the middle of malloc and need stack,
+ // we have to do something else to avoid deadlock.
+diff --git a/src/pkg/runtime/runtime1.goc b/src/pkg/runtime/runtime1.goc
+index 64178e98c9..548844329d 100644
+--- a/src/pkg/runtime/runtime1.goc
++++ b/src/pkg/runtime/runtime1.goc
+@@ -5,10 +5,6 @@
+ package runtime
+ #include "runtime.h"
+ 
+-func mal(n uint32) (ret *uint8) {
+-	ret = mal(n);
+-}
+-
+ func GOMAXPROCS(n int32) (ret int32) {
+ 	ret = gomaxprocsfunc(n);
+ }
+diff --git a/src/pkg/runtime/sig.go b/src/pkg/runtime/sig.go
+new file mode 100644
+index 0000000000..6d560b9007
+--- /dev/null
++++ b/src/pkg/runtime/sig.go
+@@ -0,0 +1,16 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++// Sigrecv returns a bitmask of signals that have arrived since the last call to Sigrecv.
++// It blocks until at least one signal arrives.
++func Sigrecv() uint32
++
++// Signame returns a string describing the signal, or "" if the signal is unknown.
++func Signame(sig int32) string
++
++// Siginit enables receipt of signals via Sigrecv.  It should typically
++// be called during initialization.
++func Siginit()

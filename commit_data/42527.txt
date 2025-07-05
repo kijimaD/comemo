@@ -21,10 +21,182 @@ Date:   Fri Dec 27 16:48:23 2019 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/extern.go      | 28 +++++++++++++---------------
  src/runtime/mgcscavenge.go | 35 ++++++++++++++++++++++++++++-------
  src/runtime/mheap.go       |  9 +++------
  src/runtime/mpagealloc.go  |  5 +++++
  src/runtime/runtime1.go    |  2 ++
  5 files changed, 51 insertions(+), 28 deletions(-)
+
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index dc3772d936..0ecc4eaf71 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -78,21 +78,6 @@ It is a comma-separated list of name=val pairs setting these named variables:
+ 	If the line ends with "(forced)", this GC was forced by a
+ 	runtime.GC() call.
+ 
+-	Setting gctrace to any value > 0 also causes the garbage collector
+-	to emit a summary when memory is released back to the system.
+-	This process of returning memory to the system is called scavenging.
+-	The format of this summary is subject to change.
+-	Currently it is:
+-		scvg#: # MB released  printed only if non-zero
+-		scvg#: inuse: # idle: # sys: # released: # consumed: # (MB)
+-	where the fields are as follows:
+-		scvg#        the scavenge cycle number, incremented at each scavenge
+-		inuse: #     MB used or partially used spans
+-		idle: #      MB spans pending scavenging
+-		sys: #       MB mapped from the system
+-		released: #  MB released to the system
+-		consumed: #  MB allocated from the system
+-
+ 	madvdontneed: setting madvdontneed=1 will use MADV_DONTNEED
+ 	instead of MADV_FREE on Linux when returning memory to the
+ 	kernel. This is less efficient, but causes RSS numbers to drop
+@@ -114,6 +99,19 @@ It is a comma-separated list of name=val pairs setting these named variables:
+ 
+ 	scavenge: scavenge=1 enables debugging mode of heap scavenger.
+ 
++	scavtrace: setting scavtrace=1 causes the runtime to emit a single line to standard
++	error, roughly once per GC cycle, summarizing the amount of work done by the
++	scavenger as well as the total amount of memory returned to the operating system
++	and an estimate of physical memory utilization. The format of this line is subject
++	to change, but currently it is:
++		scav # KiB work, # KiB total, #% util
++	where the fields are as follows:
++		# KiB work   the amount of memory returned to the OS since the last scav line
++		# KiB total  how much of the heap at this point in time has been released to the OS
++		#% util      the fraction of all unscavenged memory which is in-use
++	If the line ends with "(forced)", then scavenging was forced by a
++	debug.FreeOSMemory() call.
++
+ 	scheddetail: setting schedtrace=X and scheddetail=1 causes the scheduler to emit
+ 	detailed multiline info every X milliseconds, describing state of the scheduler,
+ 	processors, threads and goroutines.
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 8015bf5d19..24c5554b0b 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -264,16 +264,10 @@ func bgscavenge(c chan int) {
+ 			// Scavenge one page, and measure the amount of time spent scavenging.
+ 			start := nanotime()
+ 			released = mheap_.pages.scavengeOne(physPageSize, false)
++			atomic.Xadduintptr(&mheap_.pages.scavReleased, released)
+ 			crit = nanotime() - start
+ 		})
+ 
+-		if debug.gctrace > 0 {
+-			if released > 0 {
+-				print("scvg: ", released>>10, " KB released\n")
+-			}
+-			print("scvg: inuse: ", memstats.heap_inuse>>20, ", idle: ", memstats.heap_idle>>20, ", sys: ", memstats.heap_sys>>20, ", released: ", memstats.heap_released>>20, ", consumed: ", (memstats.heap_sys-memstats.heap_released)>>20, " (MB)\n")
+-		}
+-
+ 		if released == 0 {
+ 			lock(&scavenge.lock)
+ 			scavenge.parked = true
+@@ -346,12 +340,39 @@ func (s *pageAlloc) scavenge(nbytes uintptr, locked bool) uintptr {
+ 	return released
+ }
+ 
++// printScavTrace prints a scavenge trace line to standard error.
++//
++// released should be the amount of memory released since the last time this
++// was called, and forced indicates whether the scavenge was forced by the
++// application.
++func printScavTrace(released uintptr, forced bool) {
++	printlock()
++	print("scav ",
++		released>>10, " KiB work, ",
++		atomic.Load64(&memstats.heap_released)>>10, " KiB total, ",
++		(atomic.Load64(&memstats.heap_inuse)*100)/heapRetained(), "% util",
++	)
++	if forced {
++		print(" (forced)")
++	}
++	println()
++	printunlock()
++}
++
+ // resetScavengeAddr sets the scavenge start address to the top of the heap's
+ // address space. This should be called each time the scavenger's pacing
+ // changes.
+ //
+ // s.mheapLock must be held.
+ func (s *pageAlloc) resetScavengeAddr() {
++	released := atomic.Loaduintptr(&s.scavReleased)
++	if debug.scavtrace > 0 {
++		printScavTrace(released, false)
++	}
++	// Subtract from scavReleased instead of just setting it to zero because
++	// the scavenger could have increased scavReleased concurrently with the
++	// load above, and we may miss an update by just blindly zeroing the field.
++	atomic.Xadduintptr(&s.scavReleased, -released)
+ 	s.scavAddr = chunkBase(s.end) - 1
+ }
+ 
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index d8bba1f871..5427d8839d 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -70,7 +70,7 @@ type mheap struct {
+ 	// on the swept stack.
+ 	sweepSpans [2]gcSweepBuf
+ 
+-	_ uint32 // align uint64 fields on 32-bit for atomics
++	// _ uint32 // align uint64 fields on 32-bit for atomics
+ 
+ 	// Proportional sweep
+ 	//
+@@ -1434,11 +1434,8 @@ func (h *mheap) scavengeAll() {
+ 	unlock(&h.lock)
+ 	gp.m.mallocing--
+ 
+-	if debug.gctrace > 0 {
+-		if released > 0 {
+-			print("forced scvg: ", released>>20, " MB released\n")
+-		}
+-		print("forced scvg: inuse: ", memstats.heap_inuse>>20, ", idle: ", memstats.heap_idle>>20, ", sys: ", memstats.heap_sys>>20, ", released: ", memstats.heap_released>>20, ", consumed: ", (memstats.heap_sys-memstats.heap_released)>>20, " (MB)\n")
++	if debug.scavtrace > 0 {
++		printScavTrace(released, true)
+ 	}
+ }
+ 
+diff --git a/src/runtime/mpagealloc.go b/src/runtime/mpagealloc.go
+index 572e6a9bc5..3c3921ea5e 100644
+--- a/src/runtime/mpagealloc.go
++++ b/src/runtime/mpagealloc.go
+@@ -240,6 +240,11 @@ type pageAlloc struct {
+ 	// The address to start a scavenge candidate search with.
+ 	scavAddr uintptr
+ 
++	// The amount of memory scavenged since the last scavtrace print.
++	//
++	// Read and updated atomically.
++	scavReleased uintptr
++
+ 	// start and end represent the chunk indices
+ 	// which pageAlloc knows about. It assumes
+ 	// chunks in the range [start, end) are
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 148717f83d..88a99fc08b 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -312,6 +312,7 @@ var debug struct {
+ 	madvdontneed       int32 // for Linux; issue 28466
+ 	sbrk               int32
+ 	scavenge           int32
++	scavtrace          int32
+ 	scheddetail        int32
+ 	schedtrace         int32
+ 	tracebackancestors int32
+@@ -332,6 +333,7 @@ var dbgvars = []dbgVar{
+ 	{"madvdontneed", &debug.madvdontneed},
+ 	{"sbrk", &debug.sbrk},
+ 	{"scavenge", &debug.scavenge},
++	{"scavtrace", &debug.scavtrace},
+ 	{"scheddetail", &debug.scheddetail},
+ 	{"schedtrace", &debug.schedtrace},
+ 	{"tracebackancestors", &debug.tracebackancestors},

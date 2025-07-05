@@ -12,7 +12,7 @@ Date:   Tue Feb 23 18:06:31 2016 +0900
     Change-Id: I28ba1e8ceda7b182ee3aa85f0ca3321388ba45e2
     Reviewed-on: https://go-review.googlesource.com/19787
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/{ipraw_test.go => iprawsock_test.go}      |  0
  src/net/main_conf_test.go                         | 38 +++++++++++++++++++++++
  src/net/{non_unix_test.go => main_noconf_test.go} |  4 +--
@@ -20,3 +20,125 @@ Date:   Tue Feb 23 18:06:31 2016 +0900
  src/net/{udp_test.go => udpsock_test.go}          |  0
  src/net/{unix_test.go => unixsock_test.go}        | 31 ------------------
  6 files changed, 40 insertions(+), 33 deletions(-)
+
+diff --git a/src/net/ipraw_test.go b/src/net/iprawsock_test.go
+similarity index 100%
+rename from src/net/ipraw_test.go
+rename to src/net/iprawsock_test.go
+diff --git a/src/net/main_conf_test.go b/src/net/main_conf_test.go
+new file mode 100644
+index 0000000000..ba91e8b17d
+--- /dev/null
++++ b/src/net/main_conf_test.go
+@@ -0,0 +1,38 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !nacl,!plan9,!windows
++
++package net
++
++// forceGoDNS forces the resolver configuration to use the pure Go resolver
++// and returns a fixup function to restore the old settings.
++func forceGoDNS() func() {
++	c := systemConf()
++	oldGo := c.netGo
++	oldCgo := c.netCgo
++	fixup := func() {
++		c.netGo = oldGo
++		c.netCgo = oldCgo
++	}
++	c.netGo = true
++	c.netCgo = false
++	return fixup
++}
++
++// forceCgoDNS forces the resolver configuration to use the cgo resolver
++// and returns a fixup function to restore the old settings.
++// (On non-Unix systems forceCgoDNS returns nil.)
++func forceCgoDNS() func() {
++	c := systemConf()
++	oldGo := c.netGo
++	oldCgo := c.netCgo
++	fixup := func() {
++		c.netGo = oldGo
++		c.netCgo = oldCgo
++	}
++	c.netGo = false
++	c.netCgo = true
++	return fixup
++}
+diff --git a/src/net/non_unix_test.go b/src/net/main_noconf_test.go
+similarity index 78%
+rename from src/net/non_unix_test.go
+rename to src/net/main_noconf_test.go
+index db3427e7cb..a3a3d6e2ee 100644
+--- a/src/net/non_unix_test.go
++++ b/src/net/main_noconf_test.go
+@@ -8,7 +8,7 @@ package net
+ 
+ import "runtime"
+ 
+-// See unix_test.go for what these (don't) do.
++// See main_unix_test.go for what these (don't) do.
+ func forceGoDNS() func() {
+ 	switch runtime.GOOS {
+ 	case "plan9", "windows":
+@@ -18,5 +18,5 @@ func forceGoDNS() func() {
+ 	}
+ }
+ 
+-// See unix_test.go for what these (don't) do.
++// See main_unix_test.go for what these (don't) do.
+ func forceCgoDNS() func() { return nil }
+diff --git a/src/net/tcp_test.go b/src/net/tcpsock_test.go
+similarity index 100%
+rename from src/net/tcp_test.go
+rename to src/net/tcpsock_test.go
+diff --git a/src/net/udp_test.go b/src/net/udpsock_test.go
+similarity index 100%
+rename from src/net/udp_test.go
+rename to src/net/udpsock_test.go
+diff --git a/src/net/unix_test.go b/src/net/unixsock_test.go
+similarity index 93%
+rename from src/net/unix_test.go
+rename to src/net/unixsock_test.go
+index f0c583068e..f5e069a121 100644
+--- a/src/net/unix_test.go
++++ b/src/net/unixsock_test.go
+@@ -440,34 +440,3 @@ func TestUnixUnlink(t *testing.T) {
+ 		t.Fatal("closing unix listener did not remove unix socket")
+ 	}
+ }
+-
+-// forceGoDNS forces the resolver configuration to use the pure Go resolver
+-// and returns a fixup function to restore the old settings.
+-func forceGoDNS() func() {
+-	c := systemConf()
+-	oldGo := c.netGo
+-	oldCgo := c.netCgo
+-	fixup := func() {
+-		c.netGo = oldGo
+-		c.netCgo = oldCgo
+-	}
+-	c.netGo = true
+-	c.netCgo = false
+-	return fixup
+-}
+-
+-// forceCgoDNS forces the resolver configuration to use the cgo resolver
+-// and returns a fixup function to restore the old settings.
+-// (On non-Unix systems forceCgoDNS returns nil.)
+-func forceCgoDNS() func() {
+-	c := systemConf()
+-	oldGo := c.netGo
+-	oldCgo := c.netCgo
+-	fixup := func() {
+-		c.netGo = oldGo
+-		c.netCgo = oldCgo
+-	}
+-	c.netGo = false
+-	c.netCgo = true
+-	return fixup
+-}

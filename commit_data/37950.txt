@@ -10,6 +10,38 @@ Date:   Sat Sep 15 18:31:49 2018 +0200
     Change-Id: I95855991bd0b1fa1c78a900b39c4382f65d83468
     Reviewed-on: https://go-review.googlesource.com/135436
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/poll/splice_linux.go | 19 +++++++++++--------
  1 file changed, 11 insertions(+), 8 deletions(-)
+
+diff --git a/src/internal/poll/splice_linux.go b/src/internal/poll/splice_linux.go
+index 9ba94d648b..4f97298417 100644
+--- a/src/internal/poll/splice_linux.go
++++ b/src/internal/poll/splice_linux.go
+@@ -39,15 +39,18 @@ func Splice(dst, src *FD, remain int64) (written int64, handled bool, sc string,
+ 			max = int(remain)
+ 		}
+ 		inPipe, err = spliceDrain(pwfd, src, max)
+-		// the operation is considered handled if splice returns no error, or
+-		// an error other than EINVAL. An EINVAL means the kernel does not
+-		// support splice for the socket type of dst and/or src. The failed
+-		// syscall does not consume any data so it is safe to fall back to a
+-		// generic copy.
+-		handled = handled || (err != syscall.EINVAL)
++		// The operation is considered handled if splice returns no
++		// error, or an error other than EINVAL. An EINVAL means the
++		// kernel does not support splice for the socket type of src.
++		// The failed syscall does not consume any data so it is safe
++		// to fall back to a generic copy.
++		//
+ 		// spliceDrain should never return EAGAIN, so if err != nil,
+-		// Splice cannot continue. If inPipe == 0 && err == nil,
+-		// src is at EOF, and the transfer is complete.
++		// Splice cannot continue.
++		//
++		// If inPipe == 0 && err == nil, src is at EOF, and the
++		// transfer is complete.
++		handled = handled || (err != syscall.EINVAL)
+ 		if err != nil || (inPipe == 0 && err == nil) {
+ 			break
+ 		}

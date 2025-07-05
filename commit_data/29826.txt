@@ -11,8 +11,75 @@ Date:   Mon Aug 1 20:34:12 2016 +1000
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go  |  1 +
  src/cmd/compile/internal/gc/trace.go | 27 +++++++++++++++++++++++++++
  src/cmd/compile/internal/gc/util.go  |  5 +++++
  3 files changed, 33 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 5179f68f4a..321f34776a 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -208,6 +208,7 @@ func Main() {
+ 	flag.StringVar(&cpuprofile, "cpuprofile", "", "write cpu profile to `file`")
+ 	flag.StringVar(&memprofile, "memprofile", "", "write memory profile to `file`")
+ 	flag.Int64Var(&memprofilerate, "memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
++	flag.StringVar(&traceprofile, "traceprofile", "", "write an execution trace to `file`")
+ 	flag.StringVar(&benchfile, "bench", "", "append benchmark times to `file`")
+ 	obj.Flagparse(usage)
+ 
+diff --git a/src/cmd/compile/internal/gc/trace.go b/src/cmd/compile/internal/gc/trace.go
+new file mode 100644
+index 0000000000..ed4b5a268d
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/trace.go
+@@ -0,0 +1,27 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build go1.7
++
++package gc
++
++import (
++	"os"
++	tracepkg "runtime/trace"
++)
++
++func init() {
++	traceHandler = traceHandlerGo17
++}
++
++func traceHandlerGo17(traceprofile string) {
++	f, err := os.Create(traceprofile)
++	if err != nil {
++		Fatalf("%v", err)
++	}
++	if err := tracepkg.Start(f); err != nil {
++		Fatalf("%v", err)
++	}
++	atExit(tracepkg.Stop)
++}
+diff --git a/src/cmd/compile/internal/gc/util.go b/src/cmd/compile/internal/gc/util.go
+index 3786769a24..bb5cede5a6 100644
+--- a/src/cmd/compile/internal/gc/util.go
++++ b/src/cmd/compile/internal/gc/util.go
+@@ -33,6 +33,8 @@ var (
+ 	cpuprofile     string
+ 	memprofile     string
+ 	memprofilerate int64
++	traceprofile   string
++	traceHandler   func(string)
+ )
+ 
+ func startProfile() {
+@@ -61,4 +63,7 @@ func startProfile() {
+ 			}
+ 		})
+ 	}
++	if traceprofile != "" && traceHandler != nil {
++		traceHandler(traceprofile)
++	}
+ }

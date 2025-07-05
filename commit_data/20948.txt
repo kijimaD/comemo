@@ -9,6 +9,20 @@ Date:   Wed Oct 29 06:53:05 2014 -0700
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/166880043
-
+---
  src/fmt/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index 28387f5d4b..ee54463e27 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -39,7 +39,7 @@
+ 		%f	decimal point but no exponent, e.g. 123.456
+ 		%F	synonym for %f
+ 		%g	%e for large exponents, %f otherwise
+-		%G	%E for large exponents, %G otherwise
++		%G	%E for large exponents, %F otherwise
+ 	String and slice of bytes:
+ 		%s	the uninterpreted bytes of the string or slice
+ 		%q	a double-quoted string safely escaped with Go syntax

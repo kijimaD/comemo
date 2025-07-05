@@ -23,10 +23,212 @@ Date:   Wed Nov 15 18:25:01 2017 -0800
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/racewalk.go            |  4 +
  src/cmd/compile/internal/ssa/debug_test.go         | 13 ++-
  .../internal/ssa/testdata/hist.opt-dlv.nexts       | 95 ++++++++++++++++++++++
  .../ssa/testdata/i22600.dbg-race-gdb.nexts         |  6 ++
  src/cmd/compile/internal/ssa/testdata/i22600.go    | 15 ++++
  5 files changed, 130 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 90bfdbf688..4b92ce9e0e 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -70,11 +70,15 @@ func instrument(fn *Node) {
+ 		nodpc := *nodfp
+ 		nodpc.Type = types.Types[TUINTPTR]
+ 		nodpc.Xoffset = int64(-Widthptr)
++		savedLineno := lineno
++		lineno = src.NoXPos
+ 		nd := mkcall("racefuncenter", nil, nil, &nodpc)
++
+ 		fn.Func.Enter.Prepend(nd)
+ 		nd = mkcall("racefuncexit", nil, nil)
+ 		fn.Func.Exit.Append(nd)
+ 		fn.Func.Dcl = append(fn.Func.Dcl, &nodpc)
++		lineno = savedLineno
+ 	}
+ 
+ 	if Debug['W'] != 0 {
+diff --git a/src/cmd/compile/internal/ssa/debug_test.go b/src/cmd/compile/internal/ssa/debug_test.go
+index 0930c65142..0e34902512 100644
+--- a/src/cmd/compile/internal/ssa/debug_test.go
++++ b/src/cmd/compile/internal/ssa/debug_test.go
+@@ -132,6 +132,9 @@ func TestNexting(t *testing.T) {
+ 	t.Run("dbg-"+debugger, func(t *testing.T) {
+ 		testNexting(t, "hist", "dbg", "-N -l")
+ 	})
++	t.Run("dbg-race-"+debugger, func(t *testing.T) {
++		testNexting(t, "i22600", "dbg-race", "-N -l", "-race")
++	})
+ 	t.Run("opt-"+debugger, func(t *testing.T) {
+ 		// If this is test is run with a runtime compiled with -N -l, it is very likely to fail.
+ 		// This occurs in the noopt builders (for example).
+@@ -148,7 +151,7 @@ func TestNexting(t *testing.T) {
+ 	})
+ }
+ 
+-func testNexting(t *testing.T, base, tag, gcflags string) {
++func testNexting(t *testing.T, base, tag, gcflags string, moreArgs ...string) {
+ 	// (1) In testdata, build sample.go into sample
+ 	// (2) Run debugger gathering a history
+ 	// (3) Read expected history from testdata/sample.<variant>.nexts
+@@ -171,7 +174,11 @@ func testNexting(t *testing.T, base, tag, gcflags string) {
+ 		defer os.RemoveAll(tmpdir)
+ 	}
+ 
+-	runGo(t, "", "build", "-o", exe, "-gcflags=all="+gcflags, filepath.Join("testdata", base+".go"))
++	runGoArgs := []string{"build", "-o", exe, "-gcflags=all=" + gcflags}
++	runGoArgs = append(runGoArgs, moreArgs...)
++	runGoArgs = append(runGoArgs, filepath.Join("testdata", base+".go"))
++
++	runGo(t, "", runGoArgs...)
+ 
+ 	var h1 *nextHist
+ 	nextlog := logbase + "-" + debugger + ".nexts"
+@@ -533,7 +540,7 @@ func newGdb(tag, executable string, args ...string) dbgr {
+ 	s := &gdbState{tag: tag, cmd: cmd, args: args}
+ 	s.atLineRe = regexp.MustCompile("(^|\n)([0-9]+)(.*)")
+ 	s.funcFileLinePCre = regexp.MustCompile(
+-		"([^ ]+) [(][)][ \\t\\n]+at ([^:]+):([0-9]+)")
++		"([^ ]+) [(][^)]*[)][ \\t\\n]+at ([^:]+):([0-9]+)")
+ 	// runtime.main () at /Users/drchase/GoogleDrive/work/go/src/runtime/proc.go:201
+ 	//                                    function              file    line
+ 	// Thread 2 hit Breakpoint 1, main.main () at /Users/drchase/GoogleDrive/work/debug/hist.go:18
+diff --git a/src/cmd/compile/internal/ssa/testdata/hist.opt-dlv.nexts b/src/cmd/compile/internal/ssa/testdata/hist.opt-dlv.nexts
+index 5a0a8be00d..a6321d904b 100644
+--- a/src/cmd/compile/internal/ssa/testdata/hist.opt-dlv.nexts
++++ b/src/cmd/compile/internal/ssa/testdata/hist.opt-dlv.nexts
+@@ -9,3 +9,98 @@
+ 63:		hist := make([]int, 7)                                //gdb-opt=(sink,dx/O,dy/O)
+ 64:		var reader io.Reader = strings.NewReader(cannedInput) //gdb-dbg=(hist/A,cannedInput/A)
+ 19:		"strings"
++65:		if len(os.Args) > 1 {
++14:		"bufio"
++74:		for scanner.Scan() { //gdb-opt=(scanner/A)
++76:			i, err := strconv.ParseInt(s, 10, 64)
++77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
++81:			hist = ensure(int(i), hist)
++82:			hist[int(i)]++
++74:		for scanner.Scan() { //gdb-opt=(scanner/A)
++76:			i, err := strconv.ParseInt(s, 10, 64)
++77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
++81:			hist = ensure(int(i), hist)
++82:			hist[int(i)]++
++74:		for scanner.Scan() { //gdb-opt=(scanner/A)
++76:			i, err := strconv.ParseInt(s, 10, 64)
++77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
++81:			hist = ensure(int(i), hist)
++82:			hist[int(i)]++
++74:		for scanner.Scan() { //gdb-opt=(scanner/A)
++76:			i, err := strconv.ParseInt(s, 10, 64)
++77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
++81:			hist = ensure(int(i), hist)
++82:			hist[int(i)]++
++74:		for scanner.Scan() { //gdb-opt=(scanner/A)
++76:			i, err := strconv.ParseInt(s, 10, 64)
++77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
++81:			hist = ensure(int(i), hist)
++82:			hist[int(i)]++
++74:		for scanner.Scan() { //gdb-opt=(scanner/A)
++76:			i, err := strconv.ParseInt(s, 10, 64)
++77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
++81:			hist = ensure(int(i), hist)
++82:			hist[int(i)]++
++74:		for scanner.Scan() { //gdb-opt=(scanner/A)
++76:			i, err := strconv.ParseInt(s, 10, 64)
++77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
++81:			hist = ensure(int(i), hist)
++82:			hist[int(i)]++
++74:		for scanner.Scan() { //gdb-opt=(scanner/A)
++76:			i, err := strconv.ParseInt(s, 10, 64)
++77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
++81:			hist = ensure(int(i), hist)
++82:			hist[int(i)]++
++74:		for scanner.Scan() { //gdb-opt=(scanner/A)
++76:			i, err := strconv.ParseInt(s, 10, 64)
++77:			if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
++81:			hist = ensure(int(i), hist)
++82:			hist[int(i)]++
++74:		for scanner.Scan() { //gdb-opt=(scanner/A)
++86:		for i, a := range hist {
++87:			if a == 0 { //gdb-opt=(a,n,t)
++88:				continue
++87:			if a == 0 { //gdb-opt=(a,n,t)
++92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
++91:			n += a
++92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
++90:			t += i * a
++92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
++90:			t += i * a
++92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
++86:		for i, a := range hist {
++92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
++87:			if a == 0 { //gdb-opt=(a,n,t)
++92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
++91:			n += a
++92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
++90:			t += i * a
++92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
++90:			t += i * a
++92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
++86:		for i, a := range hist {
++92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
++87:			if a == 0 { //gdb-opt=(a,n,t)
++88:				continue
++87:			if a == 0 { //gdb-opt=(a,n,t)
++92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
++91:			n += a
++92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
++90:			t += i * a
++92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
++90:			t += i * a
++92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
++86:		for i, a := range hist {
++92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
++87:			if a == 0 { //gdb-opt=(a,n,t)
++92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
++91:			n += a
++92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
++90:			t += i * a
++92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
++90:			t += i * a
++92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
++86:		for i, a := range hist {
++92:			fmt.Fprintf(os.Stderr, "%d\t%d\t%d\t%d\t%d\n", i, a, n, i*a, t) //gdb-dbg=(n,i,t)
++87:			if a == 0 { //gdb-opt=(a,n,t)
++88:				continue
+diff --git a/src/cmd/compile/internal/ssa/testdata/i22600.dbg-race-gdb.nexts b/src/cmd/compile/internal/ssa/testdata/i22600.dbg-race-gdb.nexts
+new file mode 100644
+index 0000000000..681167d3af
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/testdata/i22600.dbg-race-gdb.nexts
+@@ -0,0 +1,6 @@
++  src/cmd/compile/internal/ssa/testdata/i22600.go
++8:	func main() {
++9:		pwd, err := os.Getwd()
++10:		if err != nil {
++14:		fmt.Println(pwd)
++15:	}
+diff --git a/src/cmd/compile/internal/ssa/testdata/i22600.go b/src/cmd/compile/internal/ssa/testdata/i22600.go
+new file mode 100644
+index 0000000000..8cecd14a4b
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/testdata/i22600.go
+@@ -0,0 +1,15 @@
++package main
++
++import (
++	"fmt"
++	"os"
++)
++
++func main() {
++	pwd, err := os.Getwd()
++	if err != nil {
++		fmt.Println(err)
++		os.Exit(1)
++	}
++	fmt.Println(pwd)
++}

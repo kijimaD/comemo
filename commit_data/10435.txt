@@ -9,6 +9,23 @@ Date:   Fri Nov 18 01:53:07 2011 +1100
     R=golang-dev, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/5408042
-
+---
  src/pkg/os/os_test.go | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 1b6cb8028c..7041136ec9 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -942,11 +942,6 @@ func TestHostname(t *testing.T) {
+ 		return
+ 	}
+ 
+-	// TODO(jsing): Fix nametomib() on OpenBSD
+-	if syscall.OS == "openbsd" {
+-		return
+-	}
+-
+ 	// Check internal Hostname() against the output of /bin/hostname.
+ 	// Allow that the internal Hostname returns a Fully Qualified Domain Name
+ 	// and the /bin/hostname only returns the first component

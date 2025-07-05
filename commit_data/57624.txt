@@ -13,6 +13,25 @@ Date:   Sat Aug 19 09:08:38 2023 -0700
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/slices/slices.go | 7 ++-----
  1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/slices/slices.go b/src/slices/slices.go
+index a4d9f7e3f5..252a8eecfc 100644
+--- a/src/slices/slices.go
++++ b/src/slices/slices.go
+@@ -333,11 +333,8 @@ func Replace[S ~[]E, E any](s S, i, j int, v ...E) S {
+ // Clone returns a copy of the slice.
+ // The elements are copied using assignment, so this is a shallow clone.
+ func Clone[S ~[]E, E any](s S) S {
+-	// Preserve nil in case it matters.
+-	if s == nil {
+-		return nil
+-	}
+-	return append(S([]E{}), s...)
++	// The s[:0:0] preserves nil in case it matters.
++	return append(s[:0:0], s...)
+ }
+ 
+ // Compact replaces consecutive runs of equal elements with a single copy.

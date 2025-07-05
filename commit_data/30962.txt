@@ -20,8 +20,65 @@ Date:   Sun Dec 25 08:51:21 2016 +1100
     Change-Id: I9881713c5671b847b84a0df0115f57e7cba17d72
     Reviewed-on: https://go-review.googlesource.com/34730
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/vet/copylock.go               | 2 +-
  src/cmd/vet/testdata/copylock.go      | 6 +++---
  src/cmd/vet/testdata/copylock_func.go | 6 ++++--
  3 files changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/vet/copylock.go b/src/cmd/vet/copylock.go
+index f3ab8e2e05..27eb5d4651 100644
+--- a/src/cmd/vet/copylock.go
++++ b/src/cmd/vet/copylock.go
+@@ -101,7 +101,7 @@ func checkCopyLocksCallExpr(f *File, ce *ast.CallExpr) {
+ 	}
+ 	for _, x := range ce.Args {
+ 		if path := lockPathRhs(f, x); path != nil {
+-			f.Badf(x.Pos(), "function call copies lock value: %v", path)
++			f.Badf(x.Pos(), "call of %s copies lock value: %v", f.gofmt(ce.Fun), path)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/vet/testdata/copylock.go b/src/cmd/vet/testdata/copylock.go
+index 3ce06f88d4..6fabbc337a 100644
+--- a/src/cmd/vet/testdata/copylock.go
++++ b/src/cmd/vet/testdata/copylock.go
+@@ -67,7 +67,7 @@ func BadFunc() {
+ 
+ 	// override 'new' keyword
+ 	new := func(interface{}) {}
+-	new(t) // ERROR "function call copies lock value: testdata.Tlock contains sync.Once contains sync.Mutex"
++	new(t) // ERROR "call of new copies lock value: testdata.Tlock contains sync.Once contains sync.Mutex"
+ 
+ 	// copy of array of locks
+ 	var muA [5]sync.Mutex
+@@ -96,10 +96,10 @@ func LenAndCapOnLockArrays() {
+ 	// override 'len' and 'cap' keywords
+ 
+ 	len := func(interface{}) {}
+-	len(a) // ERROR "function call copies lock value: sync.Mutex"
++	len(a) // ERROR "call of len copies lock value: sync.Mutex"
+ 
+ 	cap := func(interface{}) {}
+-	cap(a) // ERROR "function call copies lock value: sync.Mutex"
++	cap(a) // ERROR "call of cap copies lock value: sync.Mutex"
+ }
+ 
+ // SyncTypesCheck checks copying of sync.* types except sync.Mutex
+diff --git a/src/cmd/vet/testdata/copylock_func.go b/src/cmd/vet/testdata/copylock_func.go
+index bfafa124fa..d51ff27cda 100644
+--- a/src/cmd/vet/testdata/copylock_func.go
++++ b/src/cmd/vet/testdata/copylock_func.go
+@@ -86,8 +86,10 @@ func FuncCallInterfaceArg(f func(a int, b interface{})) {
+ 	f(1, "foo")
+ 	f(2, &t)
+ 	f(3, &sync.Mutex{})
+-	f(4, m) // ERROR "function call copies lock value: sync.Mutex"
+-	f(5, t) // ERROR "function call copies lock value: struct{lock sync.Mutex} contains sync.Mutex"
++	f(4, m) // ERROR "call of f copies lock value: sync.Mutex"
++	f(5, t) // ERROR "call of f copies lock value: struct{lock sync.Mutex} contains sync.Mutex"
++	var fntab []func(t)
++	fntab[0](t) // ERROR "call of fntab.0. copies lock value: struct{lock sync.Mutex} contains sync.Mutex"
+ }
+ 
+ // Returning lock via interface value

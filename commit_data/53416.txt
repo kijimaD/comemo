@@ -16,6 +16,24 @@ Date:   Fri Aug 12 19:08:35 2022 +0200
     Reviewed-by: Martin Möhrmann <moehrmann@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/runtime/extern.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 15c519d233..8fb8720e89 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -42,6 +42,12 @@ It is a comma-separated list of name=val pairs setting these named variables:
+ 	clobber the memory content of an object with bad content when it frees
+ 	the object.
+ 
++	cpu.*: cpu.all=off disables the use of all optional instruction set extensions.
++	cpu.extension=off disables use of instructions from the specified instruction set extension.
++	extension is the lower case name for the instruction set extension such as sse41 or avx
++	as listed in internal/cpu package. As an example cpu.avx=off disables runtime detection
++	and thereby use of AVX instructions.
++
+ 	cgocheck: setting cgocheck=0 disables all checks for packages
+ 	using cgo to incorrectly pass Go pointers to non-Go code.
+ 	Setting cgocheck=1 (the default) enables relatively cheap

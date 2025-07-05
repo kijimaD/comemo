@@ -7,7 +7,111 @@ Date:   Thu Jun 2 12:00:26 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4559067
-
+---
  src/pkg/http/serve_test.go | 18 ++++++++++++++++++
  src/pkg/http/server.go     | 30 +++++++++++++++++++++++++++++-
  2 files changed, 47 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/serve_test.go b/src/pkg/http/serve_test.go
+index 0acec226d5..c923c8a76d 100644
+--- a/src/pkg/http/serve_test.go
++++ b/src/pkg/http/serve_test.go
+@@ -13,6 +13,7 @@ import (
+ 	. "http"
+ 	"http/httptest"
+ 	"io/ioutil"
++	"log"
+ 	"os"
+ 	"net"
+ 	"reflect"
+@@ -432,6 +433,9 @@ func TestSetsRemoteAddr(t *testing.T) {
+ }
+ 
+ func TestChunkedResponseHeaders(t *testing.T) {
++	log.SetOutput(ioutil.Discard) // is noisy otherwise
++	defer log.SetOutput(os.Stderr)
++
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		w.Header().Set("Content-Length", "intentional gibberish") // we check that this is deleted
+ 		fmt.Fprintf(w, "I am a chunked response.")
+@@ -755,6 +759,20 @@ func TestZeroLengthPostAndResponse(t *testing.T) {
+ 	}
+ }
+ 
++func TestHandlerPanic(t *testing.T) {
++	log.SetOutput(ioutil.Discard) // is noisy otherwise
++	defer log.SetOutput(os.Stderr)
++
++	ts := httptest.NewServer(HandlerFunc(func(ResponseWriter, *Request) {
++		panic("intentional death for testing")
++	}))
++	defer ts.Close()
++	_, err := Get(ts.URL)
++	if err == nil {
++		t.Logf("expected an error")
++	}
++}
++
+ func BenchmarkClientServer(b *testing.B) {
+ 	b.StopTimer()
+ 	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, r *Request) {
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index ffeac034ef..93d9d2ff4f 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -6,12 +6,12 @@
+ 
+ // TODO(rsc):
+ //	logging
+-//	post support
+ 
+ package http
+ 
+ import (
+ 	"bufio"
++	"bytes"
+ 	"crypto/rand"
+ 	"crypto/tls"
+ 	"fmt"
+@@ -20,6 +20,7 @@ import (
+ 	"net"
+ 	"os"
+ 	"path"
++	"runtime"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+@@ -475,6 +476,33 @@ func (c *conn) close() {
+ 
+ // Serve a new connection.
+ func (c *conn) serve() {
++	defer func() {
++		err := recover()
++		if err == nil {
++			return
++		}
++		c.rwc.Close()
++
++		// TODO(rsc,bradfitz): this is boilerplate. move it to runtime.Stack()
++		var buf bytes.Buffer
++		fmt.Fprintf(&buf, "http: panic serving %v: %v\n", c.remoteAddr, err)
++		for i := 1; i < 20; i++ {
++			pc, file, line, ok := runtime.Caller(i)
++			if !ok {
++				break
++			}
++			var name string
++			f := runtime.FuncForPC(pc)
++			if f != nil {
++				name = f.Name()
++			} else {
++				name = fmt.Sprintf("%#x", pc)
++			}
++			fmt.Fprintf(&buf, "  %s %s:%d\n", name, file, line)
++		}
++		log.Print(buf.String())
++	}()
++
+ 	for {
+ 		w, err := c.readRequest()
+ 		if err != nil {

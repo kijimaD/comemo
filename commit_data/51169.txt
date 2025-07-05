@@ -21,10 +21,212 @@ Date:   Thu Dec 9 12:25:04 2021 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/internal/testenv/testenv.go                    | 51 ++++++++++++++++++++++
  .../testenv/testenv_notunix.go}                    |  8 ++--
  src/internal/testenv/testenv_unix.go               | 13 ++++++
  src/runtime/crash_test.go                          | 41 +----------------
  src/runtime/crash_unix_test.go                     |  6 +--
  5 files changed, 71 insertions(+), 48 deletions(-)
+
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index c902b1404f..eeb7d65a9b 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -11,6 +11,7 @@
+ package testenv
+ 
+ import (
++	"bytes"
+ 	"errors"
+ 	"flag"
+ 	"internal/cfg"
+@@ -22,6 +23,7 @@ import (
+ 	"strings"
+ 	"sync"
+ 	"testing"
++	"time"
+ )
+ 
+ // Builder reports the name of the builder running this test
+@@ -306,3 +308,52 @@ func SkipIfShortAndSlow(t testing.TB) {
+ 		t.Skipf("skipping test in -short mode on %s", runtime.GOARCH)
+ 	}
+ }
++
++// RunWithTimeout runs cmd and returns its combined output. If the
++// subprocess exits with a non-zero status, it will log that status
++// and return a non-nil error, but this is not considered fatal.
++func RunWithTimeout(t testing.TB, cmd *exec.Cmd) ([]byte, error) {
++	args := cmd.Args
++	if args == nil {
++		args = []string{cmd.Path}
++	}
++
++	var b bytes.Buffer
++	cmd.Stdout = &b
++	cmd.Stderr = &b
++	if err := cmd.Start(); err != nil {
++		t.Fatalf("starting %s: %v", args, err)
++	}
++
++	// If the process doesn't complete within 1 minute,
++	// assume it is hanging and kill it to get a stack trace.
++	p := cmd.Process
++	done := make(chan bool)
++	go func() {
++		scale := 1
++		// This GOARCH/GOOS test is copied from cmd/dist/test.go.
++		// TODO(iant): Have cmd/dist update the environment variable.
++		if runtime.GOARCH == "arm" || runtime.GOOS == "windows" {
++			scale = 2
++		}
++		if s := os.Getenv("GO_TEST_TIMEOUT_SCALE"); s != "" {
++			if sc, err := strconv.Atoi(s); err == nil {
++				scale = sc
++			}
++		}
++
++		select {
++		case <-done:
++		case <-time.After(time.Duration(scale) * time.Minute):
++			p.Signal(Sigquit)
++		}
++	}()
++
++	err := cmd.Wait()
++	if err != nil {
++		t.Logf("%s exit status: %v", args, err)
++	}
++	close(done)
++
++	return b.Bytes(), err
++}
+diff --git a/src/runtime/crash_nonunix_test.go b/src/internal/testenv/testenv_notunix.go
+similarity index 57%
+rename from src/runtime/crash_nonunix_test.go
+rename to src/internal/testenv/testenv_notunix.go
+index 73c1cd3101..180206bc9b 100644
+--- a/src/runtime/crash_nonunix_test.go
++++ b/src/internal/testenv/testenv_notunix.go
+@@ -1,13 +1,13 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
++// Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+ //go:build windows || plan9 || (js && wasm)
+ 
+-package runtime_test
++package testenv
+ 
+ import "os"
+ 
+-// sigquit is the signal to send to kill a hanging testdata program.
++// Sigquit is the signal to send to kill a hanging subprocess.
+ // On Unix we send SIGQUIT, but on non-Unix we only have os.Kill.
+-var sigquit = os.Kill
++var Sigquit = os.Kill
+diff --git a/src/internal/testenv/testenv_unix.go b/src/internal/testenv/testenv_unix.go
+new file mode 100644
+index 0000000000..3dc5daf45e
+--- /dev/null
++++ b/src/internal/testenv/testenv_unix.go
+@@ -0,0 +1,13 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
++
++package testenv
++
++import "syscall"
++
++// Sigquit is the signal to send to kill a hanging subprocess.
++// Send SIGQUIT to get a stack trace.
++var Sigquit = syscall.SIGQUIT
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index ec4db99d78..01b1ebcdd7 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -15,11 +15,9 @@ import (
+ 	"path/filepath"
+ 	"regexp"
+ 	"runtime"
+-	"strconv"
+ 	"strings"
+ 	"sync"
+ 	"testing"
+-	"time"
+ )
+ 
+ var toRemove []string
+@@ -71,43 +69,8 @@ func runBuiltTestProg(t *testing.T, exe, name string, env ...string) string {
+ 	if testing.Short() {
+ 		cmd.Env = append(cmd.Env, "RUNTIME_TEST_SHORT=1")
+ 	}
+-	var b bytes.Buffer
+-	cmd.Stdout = &b
+-	cmd.Stderr = &b
+-	if err := cmd.Start(); err != nil {
+-		t.Fatalf("starting %s %s: %v", exe, name, err)
+-	}
+-
+-	// If the process doesn't complete within 1 minute,
+-	// assume it is hanging and kill it to get a stack trace.
+-	p := cmd.Process
+-	done := make(chan bool)
+-	go func() {
+-		scale := 1
+-		// This GOARCH/GOOS test is copied from cmd/dist/test.go.
+-		// TODO(iant): Have cmd/dist update the environment variable.
+-		if runtime.GOARCH == "arm" || runtime.GOOS == "windows" {
+-			scale = 2
+-		}
+-		if s := os.Getenv("GO_TEST_TIMEOUT_SCALE"); s != "" {
+-			if sc, err := strconv.Atoi(s); err == nil {
+-				scale = sc
+-			}
+-		}
+-
+-		select {
+-		case <-done:
+-		case <-time.After(time.Duration(scale) * time.Minute):
+-			p.Signal(sigquit)
+-		}
+-	}()
+-
+-	if err := cmd.Wait(); err != nil {
+-		t.Logf("%s %s exit status: %v", exe, name, err)
+-	}
+-	close(done)
+-
+-	return b.String()
++	out, _ := testenv.RunWithTimeout(t, cmd)
++	return string(out)
+ }
+ 
+ var serializeBuild = make(chan bool, 2)
+diff --git a/src/runtime/crash_unix_test.go b/src/runtime/crash_unix_test.go
+index b93a760276..1eb10f9b60 100644
+--- a/src/runtime/crash_unix_test.go
++++ b/src/runtime/crash_unix_test.go
+@@ -21,16 +21,12 @@ import (
+ 	"unsafe"
+ )
+ 
+-// sigquit is the signal to send to kill a hanging testdata program.
+-// Send SIGQUIT to get a stack trace.
+-var sigquit = syscall.SIGQUIT
+-
+ func init() {
+ 	if runtime.Sigisblocked(int(syscall.SIGQUIT)) {
+ 		// We can't use SIGQUIT to kill subprocesses because
+ 		// it's blocked. Use SIGKILL instead. See issue
+ 		// #19196 for an example of when this happens.
+-		sigquit = syscall.SIGKILL
++		testenv.Sigquit = syscall.SIGKILL
+ 	}
+ }
+ 

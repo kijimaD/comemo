@@ -9,9 +9,164 @@ Date:   Mon Oct 10 15:21:32 2022 -0400
     Change-Id: I3d3a6f13dccffda060449948769c305d93a0389c
     Reviewed-on: https://go-review.googlesource.com/c/go/+/441936
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/covdata/subtractintersect.go |  1 -
  src/cmd/covdata/tool_test.go         | 12 +++++-------
  src/cmd/cover/cfg_test.go            |  4 ++--
  src/cmd/cover/cover.go               | 34 ++--------------------------------
  4 files changed, 9 insertions(+), 42 deletions(-)
+
+diff --git a/src/cmd/covdata/subtractintersect.go b/src/cmd/covdata/subtractintersect.go
+index 99e5dcde7c..5d71e3d8ec 100644
+--- a/src/cmd/covdata/subtractintersect.go
++++ b/src/cmd/covdata/subtractintersect.go
+@@ -37,7 +37,6 @@ func makeSubtractIntersectOp(mode string) covOperation {
+ // away most of the grubby details of reading coverage data files.
+ type sstate struct {
+ 	mm    *metaMerge
+-	indir string // current input directory
+ 	inidx int
+ 	mode  string
+ 	// Used only for intersection; keyed by pkg/fn ID, it keeps track of
+diff --git a/src/cmd/covdata/tool_test.go b/src/cmd/covdata/tool_test.go
+index 8076916c52..3134f14446 100644
+--- a/src/cmd/covdata/tool_test.go
++++ b/src/cmd/covdata/tool_test.go
+@@ -11,7 +11,6 @@ import (
+ 	"internal/coverage/pods"
+ 	"internal/goexperiment"
+ 	"internal/testenv"
+-	"io/ioutil"
+ 	"log"
+ 	"os"
+ 	"os/exec"
+@@ -104,11 +103,11 @@ func gobuild(t *testing.T, indir string, bargs []string) {
+ }
+ 
+ func emitFile(t *testing.T, dst, src string) {
+-	payload, err := ioutil.ReadFile(src)
++	payload, err := os.ReadFile(src)
+ 	if err != nil {
+ 		t.Fatalf("error reading %q: %v", src, err)
+ 	}
+-	if err := ioutil.WriteFile(dst, payload, 0666); err != nil {
++	if err := os.WriteFile(dst, payload, 0666); err != nil {
+ 		t.Fatalf("writing %q: %v", dst, err)
+ 	}
+ }
+@@ -134,8 +133,8 @@ func buildProg(t *testing.T, prog string, dir string, tag string, flags []string
+ 
+ 	// Emit go.mod.
+ 	mod := filepath.Join(subdir, "go.mod")
+-	modsrc := fmt.Sprintf("\nmodule prog\n\ngo 1.19\n")
+-	if err := ioutil.WriteFile(mod, []byte(modsrc), 0666); err != nil {
++	modsrc := "\nmodule prog\n\ngo 1.19\n"
++	if err := os.WriteFile(mod, []byte(modsrc), 0666); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	exepath := filepath.Join(subdir, prog+".exe")
+@@ -418,7 +417,7 @@ func testTextfmt(t *testing.T, s state) {
+ 	}
+ 
+ 	// Open and read the first few bits of the file.
+-	payload, err := ioutil.ReadFile(outf)
++	payload, err := os.ReadFile(outf)
+ 	if err != nil {
+ 		t.Errorf("opening %s: %v\n", outf, err)
+ 	}
+@@ -616,7 +615,6 @@ func testMergeSelect(t *testing.T, s state, indir1, indir2 string, tag string) {
+ 			}
+ 			want[line] = 1
+ 			continue
+-		} else {
+ 		}
+ 		// no other functions or packages expected.
+ 		if strings.HasPrefix(line, "Func:") || strings.HasPrefix(line, "Package path:") {
+diff --git a/src/cmd/cover/cfg_test.go b/src/cmd/cover/cfg_test.go
+index 7d812074d9..a3576ddf01 100644
+--- a/src/cmd/cover/cfg_test.go
++++ b/src/cmd/cover/cfg_test.go
+@@ -167,7 +167,7 @@ func TestCoverWithCfg(t *testing.T) {
+ 
+ 	// Expect err if config file contains unknown stuff.
+ 	t.Logf("mangling in config")
+-	writeFile(t, incfg, []byte(fmt.Sprintf("blah=foo\n")))
++	writeFile(t, incfg, []byte("blah=foo\n"))
+ 	_, _, errmsg = runPkgCover(t, instdira, tag, incfg, mode,
+ 		pfiles("a"), errExpected)
+ 	want = "error reading pkgconfig file"
+@@ -177,7 +177,7 @@ func TestCoverWithCfg(t *testing.T) {
+ 
+ 	// Expect error on empty config file.
+ 	t.Logf("writing empty config")
+-	writeFile(t, incfg, []byte(fmt.Sprintf("\n")))
++	writeFile(t, incfg, []byte("\n"))
+ 	_, _, errmsg = runPkgCover(t, instdira, tag, incfg, mode,
+ 		pfiles("a"), errExpected)
+ 	if !strings.Contains(errmsg, want) {
+diff --git a/src/cmd/cover/cover.go b/src/cmd/cover/cover.go
+index 1be5ce5276..5be64d25c0 100644
+--- a/src/cmd/cover/cover.go
++++ b/src/cmd/cover/cover.go
+@@ -16,7 +16,6 @@ import (
+ 	"internal/coverage/encodemeta"
+ 	"internal/coverage/slicewriter"
+ 	"io"
+-	"io/ioutil"
+ 	"log"
+ 	"os"
+ 	"path/filepath"
+@@ -190,7 +189,7 @@ func parseFlags() error {
+ }
+ 
+ func readOutFileList(path string) ([]string, error) {
+-	data, err := ioutil.ReadFile(path)
++	data, err := os.ReadFile(path)
+ 	if err != nil {
+ 		return nil, fmt.Errorf("error reading -outfilelist file %q: %v", path, err)
+ 	}
+@@ -198,7 +197,7 @@ func readOutFileList(path string) ([]string, error) {
+ }
+ 
+ func readPackageConfig(path string) error {
+-	data, err := ioutil.ReadFile(path)
++	data, err := os.ReadFile(path)
+ 	if err != nil {
+ 		return fmt.Errorf("error reading pkgconfig file %q: %v", path, err)
+ 	}
+@@ -1008,35 +1007,6 @@ func dedup(p1, p2 token.Position) (r1, r2 token.Position) {
+ 	return key.p1, key.p2
+ }
+ 
+-type sliceWriteSeeker struct {
+-	payload []byte
+-	off     int64
+-}
+-
+-func (d *sliceWriteSeeker) Write(p []byte) (n int, err error) {
+-	amt := len(p)
+-	towrite := d.payload[d.off:]
+-	if len(towrite) < amt {
+-		d.payload = append(d.payload, make([]byte, amt-len(towrite))...)
+-		towrite = d.payload[d.off:]
+-	}
+-	copy(towrite, p)
+-	d.off += int64(amt)
+-	return amt, nil
+-}
+-
+-func (d *sliceWriteSeeker) Seek(offset int64, whence int) (int64, error) {
+-	if whence == io.SeekStart {
+-		d.off = offset
+-		return offset, nil
+-	} else if whence == io.SeekCurrent {
+-		d.off += offset
+-		return d.off, nil
+-	}
+-	// other modes not supported
+-	panic("bad")
+-}
+-
+ func (p *Package) emitMetaData(w io.Writer) {
+ 	if *pkgcfg == "" {
+ 		return

@@ -37,9 +37,118 @@ Date:   Tue Feb 22 09:05:21 2022 -0500
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/crypto/x509/internal/macos/corefoundation.go | 8 ++++----
  src/runtime/sys_darwin.go                        | 6 +++---
  src/runtime/sys_darwin_amd64.s                   | 9 +++++----
  src/runtime/sys_darwin_arm64.s                   | 9 +++++----
  4 files changed, 17 insertions(+), 15 deletions(-)
+
+diff --git a/src/crypto/x509/internal/macos/corefoundation.go b/src/crypto/x509/internal/macos/corefoundation.go
+index cda1d95d81..75c212910b 100644
+--- a/src/crypto/x509/internal/macos/corefoundation.go
++++ b/src/crypto/x509/internal/macos/corefoundation.go
+@@ -48,7 +48,7 @@ func CFStringToString(ref CFRef) string {
+ // TimeToCFDateRef converts a time.Time into an apple CFDateRef
+ func TimeToCFDateRef(t time.Time) CFRef {
+ 	secs := t.Sub(time.Date(2001, 1, 1, 0, 0, 0, 0, time.UTC)).Seconds()
+-	ref := CFDateCreate(int(secs))
++	ref := CFDateCreate(secs)
+ 	return ref
+ }
+ 
+@@ -170,8 +170,8 @@ func x509_CFArrayAppendValue_trampoline()
+ 
+ //go:cgo_import_dynamic x509_CFDateCreate CFDateCreate "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
+ 
+-func CFDateCreate(seconds int) CFRef {
+-	ret := syscall(abi.FuncPCABI0(x509_CFDateCreate_trampoline), kCFAllocatorDefault, uintptr(seconds), 0, 0, 0, 0)
++func CFDateCreate(seconds float64) CFRef {
++	ret := syscall(abi.FuncPCABI0(x509_CFDateCreate_trampoline), kCFAllocatorDefault, 0, 0, 0, 0, seconds)
+ 	return CFRef(ret)
+ }
+ func x509_CFDateCreate_trampoline()
+@@ -193,7 +193,7 @@ func CFStringCreateExternalRepresentation(strRef CFRef) CFRef {
+ func x509_CFStringCreateExternalRepresentation_trampoline()
+ 
+ // syscall is implemented in the runtime package (runtime/sys_darwin.go)
+-func syscall(fn, a1, a2, a3, a4, a5, a6 uintptr) uintptr
++func syscall(fn, a1, a2, a3, a4, a5 uintptr, f1 float64) uintptr
+ 
+ // ReleaseCFArray iterates through an array, releasing its contents, and then
+ // releases the array itself. This is necessary because we cannot, easily, set the
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index 80dd1a0378..7573d0f9b3 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -91,13 +91,13 @@ func syscall_rawSyscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintpt
+ //go:linkname crypto_x509_syscall crypto/x509/internal/macos.syscall
+ //go:nosplit
+ //go:cgo_unsafe_args
+-func crypto_x509_syscall(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1 uintptr) {
++func crypto_x509_syscall(fn, a1, a2, a3, a4, a5 uintptr, f1 float64) (r1 uintptr) {
+ 	entersyscall()
+-	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscallNoErr)), unsafe.Pointer(&fn))
++	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscall_x509)), unsafe.Pointer(&fn))
+ 	exitsyscall()
+ 	return
+ }
+-func syscallNoErr()
++func syscall_x509()
+ 
+ // The *_trampoline functions convert from the Go calling convention to the C calling convention
+ // and then call the underlying libc function.  They are defined in sys_darwin_$ARCH.s.
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index 5d89cda8e6..db4715d2b7 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -831,9 +831,10 @@ ok:
+ 	POPQ	BP
+ 	RET
+ 
+-// syscallNoErr is like syscall6 but does not check for errors, and
+-// only returns one value, for use with standard C ABI library functions.
+-TEXT runtime·syscallNoErr(SB),NOSPLIT,$0
++// syscall_x509 is for crypto/x509. It is like syscall6 but does not check for errors,
++// takes 5 uintptrs and 1 float64, and only returns one value,
++// for use with standard C ABI functions.
++TEXT runtime·syscall_x509(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	SUBQ	$16, SP
+@@ -842,7 +843,7 @@ TEXT runtime·syscallNoErr(SB),NOSPLIT,$0
+ 	MOVQ	(3*8)(DI), DX // a3
+ 	MOVQ	(4*8)(DI), CX // a4
+ 	MOVQ	(5*8)(DI), R8 // a5
+-	MOVQ	(6*8)(DI), R9 // a6
++	MOVQ	(6*8)(DI), X0 // f1
+ 	MOVQ	DI, (SP)
+ 	MOVQ	(1*8)(DI), DI // a1
+ 	XORL	AX, AX	      // vararg: say "no float args"
+diff --git a/src/runtime/sys_darwin_arm64.s b/src/runtime/sys_darwin_arm64.s
+index 96d2ed1076..e57ac53e10 100644
+--- a/src/runtime/sys_darwin_arm64.s
++++ b/src/runtime/sys_darwin_arm64.s
+@@ -736,9 +736,10 @@ TEXT runtime·syscall6X(SB),NOSPLIT,$0
+ ok:
+ 	RET
+ 
+-// syscallNoErr is like syscall6 but does not check for errors, and
+-// only returns one value, for use with standard C ABI library functions.
+-TEXT runtime·syscallNoErr(SB),NOSPLIT,$0
++// syscall_x509 is for crypto/x509. It is like syscall6 but does not check for errors,
++// takes 5 uintptrs and 1 float64, and only returns one value,
++// for use with standard C ABI functions.
++TEXT runtime·syscall_x509(SB),NOSPLIT,$0
+ 	SUB	$16, RSP	// push structure pointer
+ 	MOVD	R0, (RSP)
+ 
+@@ -747,7 +748,7 @@ TEXT runtime·syscallNoErr(SB),NOSPLIT,$0
+ 	MOVD	24(R0), R2	// a3
+ 	MOVD	32(R0), R3	// a4
+ 	MOVD	40(R0), R4	// a5
+-	MOVD	48(R0), R5	// a6
++	FMOVD	48(R0), F0	// f1
+ 	MOVD	8(R0), R0	// a1
+ 	BL	(R12)
+ 

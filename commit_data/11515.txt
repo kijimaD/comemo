@@ -7,6 +7,22 @@ Date:   Wed Feb 1 02:42:56 2012 +0900
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5603043
-
+---
  src/pkg/net/multicast_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/net/multicast_test.go b/src/pkg/net/multicast_test.go
+index 0daca19ce5..bf0fe4d8d0 100644
+--- a/src/pkg/net/multicast_test.go
++++ b/src/pkg/net/multicast_test.go
+@@ -32,6 +32,10 @@ func TestListenMulticastUDP(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "netbsd", "openbsd", "plan9", "windows":
+ 		return
++	case "linux":
++		if runtime.GOARCH == "arm" {
++			return
++		}
+ 	}
+ 
+ 	for _, tt := range listenMulticastUDPTests {

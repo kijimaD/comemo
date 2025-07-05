@@ -261,3 +261,630 @@ Date:   Wed Feb 17 16:34:00 2021 -0500
  test/reflectmethod7.go                             |   24 +
  test/run.go                                        |    1 +
  239 files changed, 2274 insertions(+), 36382 deletions(-)
+
+diff --cc src/go/types/check.go
+index d1672837b8,3bc8ee067c..57c6a2e7b8
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@@ -78,12 -85,11 +85,13 @@@ type Checker struct 
+  	fset *token.FileSet
+  	pkg  *Package
+  	*Info
+- 	nextId uint64                     // unique Id for type parameters (first valid Id is 1)
+- 	objMap map[Object]*declInfo       // maps package-level objects and (non-interface) methods to declaration info
+- 	impMap map[importKey]*Package     // maps (import path, source directory) to (complete or fake) package
+- 	posMap map[*Interface][]token.Pos // maps interface types to lists of embedded interface positions
+- 	typMap map[string]*Named          // maps an instantiated named type hash to a *Named type
+- 	pkgCnt map[string]int             // counts number of imported packages with a given name (for better error messages)
++ 	version version                    // accepted language version
+++	nextId  uint64                     // unique Id for type parameters (first valid Id is 1)
++ 	objMap  map[Object]*declInfo       // maps package-level objects and (non-interface) methods to declaration info
++ 	impMap  map[importKey]*Package     // maps (import path, source directory) to (complete or fake) package
++ 	posMap  map[*Interface][]token.Pos // maps interface types to lists of embedded interface positions
+++	typMap  map[string]*Named          // maps an instantiated named type hash to a *Named type
++ 	pkgCnt  map[string]int             // counts number of imported packages with a given name (for better error messages)
+  
+  	// information collected during type-checking of a set of package files
+  	// (initialized by Files, valid only for the duration of check.Files;
+@@@ -187,17 -178,21 +180,23 @@@ func NewChecker(conf *Config, fset *tok
+  		info = new(Info)
+  	}
+  
++ 	version, err := parseGoVersion(conf.GoVersion)
++ 	if err != nil {
++ 		panic(fmt.Sprintf("invalid Go version %q (%v)", conf.GoVersion, err))
++ 	}
++ 
+  	return &Checker{
+- 		conf:   conf,
+- 		fset:   fset,
+- 		pkg:    pkg,
+- 		Info:   info,
+- 		nextId: 1,
+- 		objMap: make(map[Object]*declInfo),
+- 		impMap: make(map[importKey]*Package),
+- 		posMap: make(map[*Interface][]token.Pos),
+- 		typMap: make(map[string]*Named),
+- 		pkgCnt: make(map[string]int),
++ 		conf:    conf,
++ 		fset:    fset,
++ 		pkg:     pkg,
++ 		Info:    info,
++ 		version: version,
+++		nextId:  1,
++ 		objMap:  make(map[Object]*declInfo),
++ 		impMap:  make(map[importKey]*Package),
++ 		posMap:  make(map[*Interface][]token.Pos),
+++		typMap:  make(map[string]*Named),
++ 		pkgCnt:  make(map[string]int),
+  	}
+  }
+  
+@@@ -279,11 -278,10 +282,14 @@@ func (check *Checker) checkFiles(files 
+  
+  	check.recordUntyped()
+  
+ +	if check.Info != nil {
+ +		sanitizeInfo(check.Info)
+ +	}
+ +
+  	check.pkg.complete = true
++ 
++ 	// TODO(rFindley) There's more memory we should release at this point.
++ 
+  	return
+  }
+  
+diff --cc src/go/types/check_test.go
+index 51eae052f3,ca7d926ca9..c92855b3d8
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@@ -68,11 -69,11 +69,11 @@@ func splitError(err error) (pos, msg st
+  	return
+  }
+  
+- func parseFiles(t *testing.T, filenames []string, mode parser.Mode) ([]*ast.File, []error) {
+ -func parseFiles(t *testing.T, filenames []string, srcs [][]byte) ([]*ast.File, []error) {
+++func parseFiles(t *testing.T, filenames []string, srcs [][]byte, mode parser.Mode) ([]*ast.File, []error) {
+  	var files []*ast.File
+  	var errlist []error
+- 	for _, filename := range filenames {
+- 		file, err := parser.ParseFile(fset, filename, nil, mode)
++ 	for i, filename := range filenames {
+ -		file, err := parser.ParseFile(fset, filename, srcs[i], parser.AllErrors)
+++		file, err := parser.ParseFile(fset, filename, srcs[i], mode)
+  		if file == nil {
+  			t.Fatalf("%s: %s", filename, err)
+  		}
+@@@ -195,13 -208,8 +208,13 @@@ func checkFiles(t *testing.T, goVersio
+  		t.Fatal("no source files")
+  	}
+  
+ +	mode := parser.AllErrors
+- 	if strings.HasSuffix(sources[0], ".go2") {
+++	if strings.HasSuffix(filenames[0], ".go2") {
+ +		mode |= parser.ParseTypeParams
+ +	}
+ +
+  	// parse files and collect parser errors
+- 	files, errlist := parseFiles(t, sources, mode)
+ -	files, errlist := parseFiles(t, filenames, srcs)
+++	files, errlist := parseFiles(t, filenames, srcs, mode)
+  
+  	pkgName := "<no package>"
+  	if len(files) > 0 {
+diff --cc src/go/types/decl.go
+index f2e68bbd5c,6462edbd75..c97b1a66bb
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@@ -511,23 -504,9 +511,9 @@@ func (check *Checker) constDecl(obj *Co
+  func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
+  	assert(obj.typ == nil)
+  
+- 	// If we have undefined variable types due to errors,
+- 	// mark variables as used to avoid follow-on errors.
+- 	// Matches compiler behavior.
+- 	defer func() {
+- 		if obj.typ == Typ[Invalid] {
+- 			obj.used = true
+- 		}
+- 		for _, lhs := range lhs {
+- 			if lhs.typ == Typ[Invalid] {
+- 				lhs.used = true
+- 			}
+- 		}
+- 	}()
+- 
+  	// determine type, if any
+  	if typ != nil {
+ -		obj.typ = check.typ(typ)
+ +		obj.typ = check.varType(typ)
+  		// We cannot spread the type to all lhs variables if there
+  		// are more than one since that would mark them as checked
+  		// (see Checker.objDecl) and the assignment of init exprs,
+@@@ -658,24 -633,17 +644,27 @@@ func (check *Checker) typeDecl(obj *Typ
+  		check.validType(obj.typ, nil)
+  	})
+  
+ -	if aliasPos.IsValid() {
+ +	alias := tdecl.Assign.IsValid()
+ +	if alias && tdecl.TParams != nil {
+ +		// The parser will ensure this but we may still get an invalid AST.
+ +		// Complain and continue as regular type definition.
+ +		check.error(atPos(tdecl.Assign), 0, "generic type cannot be alias")
+ +		alias = false
+ +	}
+ +
+ +	if alias {
+ +		// type alias declaration
++ 		if !check.allowVersion(obj.pkg, 1, 9) {
+ -			check.errorf(atPos(aliasPos), _BadDecl, "type aliases requires go1.9 or later")
+++			check.errorf(atPos(tdecl.Assign), _BadDecl, "type aliases requires go1.9 or later")
++ 		}
+  
+  		obj.typ = Typ[Invalid]
+ -		obj.typ = check.typ(typ)
+ +		obj.typ = check.anyType(tdecl.Type)
+  
+  	} else {
+ +		// defined type declaration
+  
+ -		named := &Named{obj: obj}
+ +		named := &Named{check: check, obj: obj}
+  		def.setUnderlying(named)
+  		obj.typ = named // make sure recursive type declarations terminate
+  
+diff --cc src/go/types/errorcodes.go
+index 2837019bf5,ac28c3bd13..1e39aed07d
+--- a/src/go/types/errorcodes.go
++++ b/src/go/types/errorcodes.go
+@@@ -6,6 -6,6 +6,9 @@@ package type
+  
+  type errorCode int
+  
+++// TODO(rFindley): ensure that existing error codes do not change in the
+++//                 dev.typeparams branch.
+++
+  // This file defines the error codes that can be produced during type-checking.
+  // Collectively, these codes provide an identifier that may be used to
+  // implement special handling for certain types of errors.
+@@@ -1315,7 -1367,6 +1318,10 @@@ const 
+  	//  }
+  	_InvalidGo
+  
++ 	// _BadDecl occurs when a declaration has invalid syntax.
++ 	_BadDecl
+++
+ +	// _Todo is a placeholder for error codes that have not been decided.
+ +	// TODO(rFindley) remove this error code after deciding on errors for generics code.
+ +	_Todo
+  )
+diff --cc src/go/types/expr.go
+index 0d95402455,aec3172327..45cf8c6b41
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@@ -84,9 -78,73 +84,73 @@@ func (check *Checker) op(m opPredicates
+  	return true
+  }
+  
++ // overflow checks that the constant x is representable by its type.
++ // For untyped constants, it checks that the value doesn't become
++ // arbitrarily large.
++ func (check *Checker) overflow(x *operand, op token.Token, opPos token.Pos) {
++ 	assert(x.mode == constant_)
++ 
++ 	if x.val.Kind() == constant.Unknown {
++ 		// TODO(gri) We should report exactly what went wrong. At the
++ 		//           moment we don't have the (go/constant) API for that.
++ 		//           See also TODO in go/constant/value.go.
++ 		check.errorf(atPos(opPos), _InvalidConstVal, "constant result is not representable")
++ 		return
++ 	}
++ 
++ 	// Typed constants must be representable in
++ 	// their type after each constant operation.
+ -	if typ, ok := x.typ.Underlying().(*Basic); ok && isTyped(typ) {
+++	if typ := asBasic(x.typ); typ != nil && isTyped(typ) {
++ 		check.representable(x, typ)
++ 		return
++ 	}
++ 
++ 	// Untyped integer values must not grow arbitrarily.
++ 	const prec = 512 // 512 is the constant precision
++ 	if x.val.Kind() == constant.Int && constant.BitLen(x.val) > prec {
++ 		check.errorf(atPos(opPos), _InvalidConstVal, "constant %s overflow", opName(x.expr))
++ 		x.val = constant.MakeUnknown()
++ 	}
++ }
++ 
++ // opName returns the name of an operation, or the empty string.
++ // For now, only operations that might overflow are handled.
++ // TODO(gri) Expand this to a general mechanism giving names to
++ //           nodes?
++ func opName(e ast.Expr) string {
++ 	switch e := e.(type) {
++ 	case *ast.BinaryExpr:
++ 		if int(e.Op) < len(op2str2) {
++ 			return op2str2[e.Op]
++ 		}
++ 	case *ast.UnaryExpr:
++ 		if int(e.Op) < len(op2str1) {
++ 			return op2str1[e.Op]
++ 		}
++ 	}
++ 	return ""
++ }
++ 
++ var op2str1 = [...]string{
++ 	token.XOR: "bitwise complement",
++ }
++ 
++ // This is only used for operations that may cause overflow.
++ var op2str2 = [...]string{
++ 	token.ADD: "addition",
++ 	token.SUB: "subtraction",
++ 	token.XOR: "bitwise XOR",
++ 	token.MUL: "multiplication",
++ 	token.SHL: "shift",
++ }
++ 
+  // The unary expression e may be nil. It's passed in for better error messages only.
+- func (check *Checker) unary(x *operand, e *ast.UnaryExpr, op token.Token) {
+- 	switch op {
++ func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
++ 	check.expr(x, e.X)
++ 	if x.mode == invalid {
++ 		return
++ 	}
++ 	switch e.Op {
+  	case token.AND:
+  		// spec: "As an exception to the addressability
+  		// requirement x may also be a composite literal."
+@@@ -123,20 -181,17 +187,18 @@@
+  	}
+  
+  	if x.mode == constant_ {
++ 		if x.val.Kind() == constant.Unknown {
++ 			// nothing to do (and don't cause an error below in the overflow check)
++ 			return
++ 		}
+ +		typ := asBasic(x.typ)
+  		var prec uint
+ -		if isUnsigned(x.typ) {
+ -			prec = uint(check.conf.sizeof(x.typ) * 8)
+ +		if isUnsigned(typ) {
+ +			prec = uint(check.conf.sizeof(typ) * 8)
+  		}
+- 		x.val = constant.UnaryOp(op, x.val, prec)
+- 		// Typed constants must be representable in
+- 		// their type after each constant operation.
+- 		if isTyped(typ) {
+- 			if e != nil {
+- 				x.expr = e // for better error message
+- 			}
+- 			check.representable(x, typ)
+- 		}
++ 		x.val = constant.UnaryOp(e.Op, x.val, prec)
++ 		x.expr = e
++ 		check.overflow(x, e.Op, x.Pos())
+  		return
+  	}
+  
+@@@ -806,29 -870,25 +890,30 @@@ func (check *Checker) shift(x, y *opera
+  	x.mode = value
+  }
+  
+ -var binaryOpPredicates = opPredicates{
+ -	token.ADD: func(typ Type) bool { return isNumeric(typ) || isString(typ) },
+ -	token.SUB: isNumeric,
+ -	token.MUL: isNumeric,
+ -	token.QUO: isNumeric,
+ -	token.REM: isInteger,
+ +var binaryOpPredicates opPredicates
+ +
+ +func init() {
+ +	// Setting binaryOpPredicates in init avoids declaration cycles.
+ +	binaryOpPredicates = opPredicates{
+ +		token.ADD: isNumericOrString,
+ +		token.SUB: isNumeric,
+ +		token.MUL: isNumeric,
+ +		token.QUO: isNumeric,
+ +		token.REM: isInteger,
+  
+ -	token.AND:     isInteger,
+ -	token.OR:      isInteger,
+ -	token.XOR:     isInteger,
+ -	token.AND_NOT: isInteger,
+ +		token.AND:     isInteger,
+ +		token.OR:      isInteger,
+ +		token.XOR:     isInteger,
+ +		token.AND_NOT: isInteger,
+  
+ -	token.LAND: isBoolean,
+ -	token.LOR:  isBoolean,
+ +		token.LAND: isBoolean,
+ +		token.LOR:  isBoolean,
+ +	}
+  }
+  
+- // The binary expression e may be nil. It's passed in for better error messages only.
+- func (check *Checker) binary(x *operand, e *ast.BinaryExpr, lhs, rhs ast.Expr, op token.Token, opPos token.Pos) {
++ // If e != nil, it must be the binary expression; it may be nil for non-constant expressions
++ // (when invoked for an assignment operation where the binary expression is implicit).
++ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token.Token, opPos token.Pos) {
+  	var y operand
+  
+  	check.expr(x, lhs)
+@@@ -903,30 -963,19 +988,20 @@@
+  	}
+  
+  	if x.mode == constant_ && y.mode == constant_ {
+- 		xval := x.val
+- 		yval := y.val
++ 		// if either x or y has an unknown value, the result is unknown
++ 		if x.val.Kind() == constant.Unknown || y.val.Kind() == constant.Unknown {
++ 			x.val = constant.MakeUnknown()
++ 			// x.typ is unchanged
++ 			return
++ 		}
+ +		typ := asBasic(x.typ)
+  		// force integer division of integer operands
+ -		if op == token.QUO && isInteger(x.typ) {
+ +		if op == token.QUO && isInteger(typ) {
+  			op = token.QUO_ASSIGN
+  		}
+- 		x.val = constant.BinaryOp(xval, op, yval)
+- 		// report error if valid operands lead to an invalid result
+- 		if xval.Kind() != constant.Unknown && yval.Kind() != constant.Unknown && x.val.Kind() == constant.Unknown {
+- 			// TODO(gri) We should report exactly what went wrong. At the
+- 			//           moment we don't have the (go/constant) API for that.
+- 			//           See also TODO in go/constant/value.go.
+- 			check.errorf(atPos(opPos), _InvalidConstVal, "constant result is not representable")
+- 			// TODO(gri) Should we mark operands with unknown values as invalid?
+- 		}
+- 		// Typed constants must be representable in
+- 		// their type after each constant operation.
+- 		if isTyped(typ) {
+- 			if e != nil {
+- 				x.expr = e // for better error message
+- 			}
+- 			check.representable(x, typ)
+- 		}
++ 		x.val = constant.BinaryOp(x.val, op, y.val)
++ 		x.expr = e
++ 		check.overflow(x, op, opPos)
+  		return
+  	}
+  
+diff --cc src/go/types/predicates.go
+index 0233274967,954a7ca987..7a99c1ff99
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@@ -6,76 -6,68 +6,75 @@@
+  
+  package types
+  
+ +import (
+ +	"go/token"
+- 	"sort"
+ +)
+ +
+ +// isNamed reports whether typ has a name.
+ +// isNamed may be called with types that are not fully set up.
+  func isNamed(typ Type) bool {
+ -	if _, ok := typ.(*Basic); ok {
+ -		return ok
+ +	switch typ.(type) {
+ +	case *Basic, *Named, *TypeParam, *instance:
+ +		return true
+  	}
+ -	_, ok := typ.(*Named)
+ -	return ok
+ -}
+ -
+ -func isBoolean(typ Type) bool {
+ -	t, ok := typ.Underlying().(*Basic)
+ -	return ok && t.info&IsBoolean != 0
+ -}
+ -
+ -func isInteger(typ Type) bool {
+ -	t, ok := typ.Underlying().(*Basic)
+ -	return ok && t.info&IsInteger != 0
+ -}
+ -
+ -func isUnsigned(typ Type) bool {
+ -	t, ok := typ.Underlying().(*Basic)
+ -	return ok && t.info&IsUnsigned != 0
+ -}
+ -
+ -func isFloat(typ Type) bool {
+ -	t, ok := typ.Underlying().(*Basic)
+ -	return ok && t.info&IsFloat != 0
+ -}
+ -
+ -func isComplex(typ Type) bool {
+ -	t, ok := typ.Underlying().(*Basic)
+ -	return ok && t.info&IsComplex != 0
+ +	return false
+  }
+  
+ -func isNumeric(typ Type) bool {
+ -	t, ok := typ.Underlying().(*Basic)
+ -	return ok && t.info&IsNumeric != 0
+ +// isGeneric reports whether a type is a generic, uninstantiated type (generic
+ +// signatures are not included).
+ +func isGeneric(typ Type) bool {
+ +	// A parameterized type is only instantiated if it doesn't have an instantiation already.
+ +	named, _ := typ.(*Named)
+ +	return named != nil && named.obj != nil && named.tparams != nil && named.targs == nil
+  }
+  
+ -func isString(typ Type) bool {
+ -	t, ok := typ.Underlying().(*Basic)
+ -	return ok && t.info&IsString != 0
+ +func is(typ Type, what BasicInfo) bool {
+ +	switch t := optype(typ).(type) {
+ +	case *Basic:
+ +		return t.info&what != 0
+ +	case *Sum:
+ +		return t.is(func(typ Type) bool { return is(typ, what) })
+ +	}
+ +	return false
+  }
+  
+ +func isBoolean(typ Type) bool  { return is(typ, IsBoolean) }
+ +func isInteger(typ Type) bool  { return is(typ, IsInteger) }
+ +func isUnsigned(typ Type) bool { return is(typ, IsUnsigned) }
+ +func isFloat(typ Type) bool    { return is(typ, IsFloat) }
+ +func isComplex(typ Type) bool  { return is(typ, IsComplex) }
+ +func isNumeric(typ Type) bool  { return is(typ, IsNumeric) }
+ +func isString(typ Type) bool   { return is(typ, IsString) }
+ +
+ +// Note that if typ is a type parameter, isInteger(typ) || isFloat(typ) does not
+ +// produce the expected result because a type list that contains both an integer
+ +// and a floating-point type is neither (all) integers, nor (all) floats.
+ +// Use isIntegerOrFloat instead.
+ +func isIntegerOrFloat(typ Type) bool { return is(typ, IsInteger|IsFloat) }
+ +
+ +// isNumericOrString is the equivalent of isIntegerOrFloat for isNumeric(typ) || isString(typ).
+ +func isNumericOrString(typ Type) bool { return is(typ, IsNumeric|IsString) }
+ +
+ +// isTyped reports whether typ is typed; i.e., not an untyped
+ +// constant or boolean. isTyped may be called with types that
+ +// are not fully set up.
+  func isTyped(typ Type) bool {
+ -	t, ok := typ.Underlying().(*Basic)
+ -	return !ok || t.info&IsUntyped == 0
+ +	// isTyped is called with types that are not fully
+ +	// set up. Must not call asBasic()!
+ +	// A *Named or *instance type is always typed, so
+ +	// we only need to check if we have a true *Basic
+ +	// type.
+ +	t, _ := typ.(*Basic)
+ +	return t == nil || t.info&IsUntyped == 0
+  }
+  
+ +// isUntyped(typ) is the same as !isTyped(typ).
+  func isUntyped(typ Type) bool {
+ -	t, ok := typ.Underlying().(*Basic)
+ -	return ok && t.info&IsUntyped != 0
+ -}
+ -
+ -func isOrdered(typ Type) bool {
+ -	t, ok := typ.Underlying().(*Basic)
+ -	return ok && t.info&IsOrdered != 0
+ +	return !isTyped(typ)
+  }
+  
+ -func isConstType(typ Type) bool {
+ -	t, ok := typ.Underlying().(*Basic)
+ -	return ok && t.info&IsConstType != 0
+ -}
+ +func isOrdered(typ Type) bool   { return is(typ, IsOrdered) }
+ +func isConstType(typ Type) bool { return is(typ, IsConstType) }
+  
+  // IsInterface reports whether typ is an interface type.
+  func IsInterface(typ Type) bool {
+diff --cc src/go/types/type.go
+index 0fcefefb73,66e194e967..21892c9270
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@@ -4,12 -4,6 +4,11 @@@
+  
+  package types
+  
+ +import (
+ +	"fmt"
+ +	"go/token"
+- 	"sort"
+ +)
+ +
+  // A Type represents a type of Go.
+  // All types implement the Type interface.
+  type Type interface {
+@@@ -591,10 -394,9 +590,10 @@@ func (t *Interface) Complete() *Interfa
+  	}
+  
+  	if methods != nil {
+- 		sort.Sort(byUniqueMethodName(methods))
++ 		sortMethods(methods)
+  		t.allMethods = methods
+  	}
+ +	t.allTypes = allTypes
+  
+  	return t
+  }
+diff --cc src/go/types/typexpr.go
+index bca0a6664f,b9249494fa..503f9c71ac
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@@ -832,13 -518,13 +832,13 @@@ func (check *Checker) interfaceType(ity
+  	}
+  
+  	// sort for API stability
+- 	sort.Sort(byUniqueMethodName(ityp.methods))
+- 	sort.Stable(byUniqueTypeName(ityp.embeddeds))
++ 	sortMethods(ityp.methods)
++ 	sortTypes(ityp.embeddeds)
+  
+ -	check.later(func() { check.completeInterface(ityp) })
+ +	check.later(func() { check.completeInterface(iface.Pos(), ityp) })
+  }
+  
+ -func (check *Checker) completeInterface(ityp *Interface) {
+ +func (check *Checker) completeInterface(pos token.Pos, ityp *Interface) {
+  	if ityp.allMethods != nil {
+  		return
+  	}
+@@@ -945,47 -615,12 +949,51 @@@
+  		sort.Sort(byUniqueMethodName(methods))
+  		ityp.allMethods = methods
+  	}
+ +	ityp.allTypes = allTypes
+ +}
+ +
+ +// intersect computes the intersection of the types x and y.
+ +// Note: A incomming nil type stands for the top type. A top
+ +// type result is returned as nil.
+ +func intersect(x, y Type) (r Type) {
+ +	defer func() {
+ +		if r == theTop {
+ +			r = nil
+ +		}
+ +	}()
+ +
+ +	switch {
+ +	case x == theBottom || y == theBottom:
+ +		return theBottom
+ +	case x == nil || x == theTop:
+ +		return y
+ +	case y == nil || x == theTop:
+ +		return x
+ +	}
+ +
+ +	xtypes := unpackType(x)
+ +	ytypes := unpackType(y)
+ +	// Compute the list rtypes which includes only
+ +	// types that are in both xtypes and ytypes.
+ +	// Quadratic algorithm, but good enough for now.
+ +	// TODO(gri) fix this
+ +	var rtypes []Type
+ +	for _, x := range xtypes {
+ +		if includes(ytypes, x) {
+ +			rtypes = append(rtypes, x)
+ +		}
+ +	}
+ +
+ +	if rtypes == nil {
+ +		return theBottom
+ +	}
+ +	return NewSum(rtypes)
+  }
+  
++ func sortTypes(list []Type) {
++ 	sort.Stable(byUniqueTypeName(list))
++ }
++ 
+  // byUniqueTypeName named type lists can be sorted by their unique type names.
+  type byUniqueTypeName []Type
+  

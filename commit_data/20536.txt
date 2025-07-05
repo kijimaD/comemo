@@ -13,7 +13,107 @@ Date:   Tue Sep 16 17:40:10 2014 -0400
     R=gri, r
     CC=golang-codereviews
     https://golang.org/cl/144020043
-
+---
  src/reflect/all_test.go | 38 ++++++++++++++++++++++++++++++++++++++
  src/reflect/type.go     | 18 +++++++++++++++++-
  2 files changed, 55 insertions(+), 1 deletion(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 688b5d3107..4be0e353df 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -3185,6 +3185,44 @@ func TestConvert(t *testing.T) {
+ 	}
+ }
+ 
++type ComparableStruct struct {
++	X int
++}
++
++type NonComparableStruct struct {
++	X int
++	Y map[string]int
++}
++
++var comparableTests = []struct {
++	typ Type
++	ok  bool
++}{
++	{TypeOf(1), true},
++	{TypeOf("hello"), true},
++	{TypeOf(new(byte)), true},
++	{TypeOf((func())(nil)), false},
++	{TypeOf([]byte{}), false},
++	{TypeOf(map[string]int{}), false},
++	{TypeOf(make(chan int)), true},
++	{TypeOf(1.5), true},
++	{TypeOf(false), true},
++	{TypeOf(1i), true},
++	{TypeOf(ComparableStruct{}), true},
++	{TypeOf(NonComparableStruct{}), false},
++	{TypeOf([10]map[string]int{}), false},
++	{TypeOf([10]string{}), true},
++	{TypeOf(new(interface{})).Elem(), true},
++}
++
++func TestComparable(t *testing.T) {
++	for _, tt := range comparableTests {
++		if ok := tt.typ.Comparable(); ok != tt.ok {
++			t.Errorf("TypeOf(%v).Comparable() = %v, want %v", tt.typ, ok, tt.ok)
++		}
++	}
++}
++
+ func TestOverflow(t *testing.T) {
+ 	if ovf := V(float64(0)).OverflowFloat(1e300); ovf {
+ 		t.Errorf("%v wrongly overflows float64", 1e300)
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 67818f7f4c..f099546d27 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -96,6 +96,9 @@ type Type interface {
+ 	// ConvertibleTo returns true if a value of the type is convertible to type u.
+ 	ConvertibleTo(u Type) bool
+ 
++	// Comparable returns true if values of this type are comparable.
++	Comparable() bool
++
+ 	// Methods applicable only to some types, depending on Kind.
+ 	// The methods allowed for each kind are:
+ 	//
+@@ -248,7 +251,7 @@ type rtype struct {
+ 	align         uint8             // alignment of variable with this type
+ 	fieldAlign    uint8             // alignment of struct field with this type
+ 	kind          uint8             // enumeration for C
+-	alg           *uintptr          // algorithm table (../runtime/runtime.h:/Alg)
++	alg           *typeAlg          // algorithm table (../runtime/runtime.h:/Alg)
+ 	gc            [2]unsafe.Pointer // garbage collection data
+ 	string        *string           // string form; unnecessary but undeniably useful
+ 	*uncommonType                   // (relatively) uncommon fields
+@@ -256,6 +259,15 @@ type rtype struct {
+ 	zero          unsafe.Pointer    // pointer to zero value
+ }
+ 
++type typeAlg struct {
++	// function for hashing objects of this type
++	// (ptr to object, size, seed) -> hash
++	hash func(unsafe.Pointer, uintptr, uintptr) uintptr
++	// function for comparing objects of this type
++	// (ptr to object A, ptr to object B, size) -> ==?
++	equal func(unsafe.Pointer, unsafe.Pointer, uintptr) bool
++}
++
+ // Method on non-interface type
+ type method struct {
+ 	name    *string        // name of method
+@@ -1096,6 +1108,10 @@ func (t *rtype) ConvertibleTo(u Type) bool {
+ 	return convertOp(uu, t) != nil
+ }
+ 
++func (t *rtype) Comparable() bool {
++	return t.alg != nil && t.alg.equal != nil
++}
++
+ // implements returns true if the type V implements the interface type T.
+ func implements(T, V *rtype) bool {
+ 	if T.Kind() != Interface {

@@ -7,6 +7,23 @@ Date:   Thu Jul 9 16:54:08 2009 -0700
     R=rsc
     OCL=31421
     CL=31421
-
+---
  src/pkg/go/scanner/scanner_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index 17491e6565..18dae19cc2 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -221,6 +221,11 @@ func TestScan(t *testing.T) {
+ 			}
+ 			eloc.Offset += len(lit) + len(whitespace);
+ 			eloc.Line += NewlineCount(lit) + whitespace_linecount;
++			if tok == token.COMMENT && litb[1] == '/' {
++				// correct for unaccounted '/n' in //-style comment
++				eloc.Offset++;
++				eloc.Line++;
++			}
+ 			index++;
+ 			return tok != token.EOF;
+ 		}

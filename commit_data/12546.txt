@@ -16,7 +16,7 @@ Date:   Fri Mar 9 14:12:02 2012 -0800
     R=golang-dev, alex.brainman, nigeltao, rsc
     CC=golang-dev
     https://golang.org/cl/5787062
-
+---
  src/pkg/archive/zip/reader.go                      |  60 +++++++---
  src/pkg/archive/zip/reader_test.go                 | 131 +++++++++++++++------
  src/pkg/archive/zip/struct.go                      |   9 +-
@@ -25,3 +25,392 @@ Date:   Fri Mar 9 14:12:02 2012 -0800
  src/pkg/archive/zip/writer.go                      |   1 +
  src/pkg/archive/zip/writer_test.go                 |   2 +-
  7 files changed, 146 insertions(+), 57 deletions(-)
+
+diff --git a/src/pkg/archive/zip/reader.go b/src/pkg/archive/zip/reader.go
+index f3826dcc48..a209ae7bdc 100644
+--- a/src/pkg/archive/zip/reader.go
++++ b/src/pkg/archive/zip/reader.go
+@@ -124,10 +124,6 @@ func (f *File) Open() (rc io.ReadCloser, err error) {
+ 		return
+ 	}
+ 	size := int64(f.CompressedSize)
+-	if size == 0 && f.hasDataDescriptor() {
+-		// permit SectionReader to see the rest of the file
+-		size = f.zipsize - (f.headerOffset + bodyOffset)
+-	}
+ 	r := io.NewSectionReader(f.zipr, f.headerOffset+bodyOffset, size)
+ 	switch f.Method {
+ 	case Store: // (no compression)
+@@ -136,10 +132,13 @@ func (f *File) Open() (rc io.ReadCloser, err error) {
+ 		rc = flate.NewReader(r)
+ 	default:
+ 		err = ErrAlgorithm
++		return
+ 	}
+-	if rc != nil {
+-		rc = &checksumReader{rc, crc32.NewIEEE(), f, r}
++	var desr io.Reader
++	if f.hasDataDescriptor() {
++		desr = io.NewSectionReader(f.zipr, f.headerOffset+bodyOffset+size, dataDescriptorLen)
+ 	}
++	rc = &checksumReader{rc, crc32.NewIEEE(), f, desr, nil}
+ 	return
+ }
+ 
+@@ -147,23 +146,31 @@ type checksumReader struct {
+ 	rc   io.ReadCloser
+ 	hash hash.Hash32
+ 	f    *File
+-	zipr io.Reader // for reading the data descriptor
++	desr io.Reader // if non-nil, where to read the data descriptor
++	err  error     // sticky error
+ }
+ 
+ func (r *checksumReader) Read(b []byte) (n int, err error) {
++	if r.err != nil {
++		return 0, r.err
++	}
+ 	n, err = r.rc.Read(b)
+ 	r.hash.Write(b[:n])
+-	if err != io.EOF {
++	if err == nil {
+ 		return
+ 	}
+-	if r.f.hasDataDescriptor() {
+-		if err = readDataDescriptor(r.zipr, r.f); err != nil {
+-			return
++	if err == io.EOF && r.desr != nil {
++		if err1 := readDataDescriptor(r.desr, r.f); err1 != nil {
++			err = err1
++		} else if r.hash.Sum32() != r.f.CRC32 {
++			err = ErrChecksum
+ 		}
++		// TODO(bradfitz): even if there's not a data
++		// descriptor, we could still compare our accumulated
++		// crc32 on EOF with the content-precededing file
++		// header's crc32, if it's non-zero.
+ 	}
+-	if r.hash.Sum32() != r.f.CRC32 {
+-		err = ErrChecksum
+-	}
++	r.err = err
+ 	return
+ }
+ 
+@@ -226,10 +233,31 @@ func readDirectoryHeader(f *File, r io.Reader) error {
+ 
+ func readDataDescriptor(r io.Reader, f *File) error {
+ 	var buf [dataDescriptorLen]byte
+-	if _, err := io.ReadFull(r, buf[:]); err != nil {
++
++	// The spec says: "Although not originally assigned a
++	// signature, the value 0x08074b50 has commonly been adopted
++	// as a signature value for the data descriptor record.
++	// Implementers should be aware that ZIP files may be
++	// encountered with or without this signature marking data
++	// descriptors and should account for either case when reading
++	// ZIP files to ensure compatibility."
++	//
++	// dataDescriptorLen includes the size of the signature but
++	// first read just those 4 bytes to see if it exists.
++	if _, err := io.ReadFull(r, buf[:4]); err != nil {
+ 		return err
+ 	}
+-	b := readBuf(buf[:])
++	off := 0
++	maybeSig := readBuf(buf[:4])
++	if maybeSig.uint32() != dataDescriptorSignature {
++		// No data descriptor signature. Keep these four
++		// bytes.
++		off += 4
++	}
++	if _, err := io.ReadFull(r, buf[off:12]); err != nil {
++		return err
++	}
++	b := readBuf(buf[:12])
+ 	f.CRC32 = b.uint32()
+ 	f.CompressedSize = b.uint32()
+ 	f.UncompressedSize = b.uint32()
+diff --git a/src/pkg/archive/zip/reader_test.go b/src/pkg/archive/zip/reader_test.go
+index 066a61580c..e676d75d3c 100644
+--- a/src/pkg/archive/zip/reader_test.go
++++ b/src/pkg/archive/zip/reader_test.go
+@@ -10,23 +10,26 @@ import (
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
++	"path/filepath"
+ 	"testing"
+ 	"time"
+ )
+ 
+ type ZipTest struct {
+ 	Name    string
++	Source  func() (r io.ReaderAt, size int64) // if non-nil, used instead of testdata/<Name> file
+ 	Comment string
+ 	File    []ZipTestFile
+ 	Error   error // the error that Opening this file should return
+ }
+ 
+ type ZipTestFile struct {
+-	Name    string
+-	Content []byte // if blank, will attempt to compare against File
+-	File    string // name of file to compare to (relative to testdata/)
+-	Mtime   string // modified time in format "mm-dd-yy hh:mm:ss"
+-	Mode    os.FileMode
++	Name       string
++	Content    []byte // if blank, will attempt to compare against File
++	ContentErr error
++	File       string // name of file to compare to (relative to testdata/)
++	Mtime      string // modified time in format "mm-dd-yy hh:mm:ss"
++	Mode       os.FileMode
+ }
+ 
+ // Caution: The Mtime values found for the test files should correspond to
+@@ -107,6 +110,59 @@ var tests = []ZipTest{
+ 		Name: "unix.zip",
+ 		File: crossPlatform,
+ 	},
++	{
++		// created by Go, before we wrote the "optional" data
++		// descriptor signatures (which are required by OS X)
++		Name: "go-no-datadesc-sig.zip",
++		File: []ZipTestFile{
++			{
++				Name:    "foo.txt",
++				Content: []byte("foo\n"),
++				Mtime:   "03-08-12 16:59:10",
++				Mode:    0644,
++			},
++			{
++				Name:    "bar.txt",
++				Content: []byte("bar\n"),
++				Mtime:   "03-08-12 16:59:12",
++				Mode:    0644,
++			},
++		},
++	},
++	{
++		// created by Go, after we wrote the "optional" data
++		// descriptor signatures (which are required by OS X)
++		Name: "go-with-datadesc-sig.zip",
++		File: []ZipTestFile{
++			{
++				Name:    "foo.txt",
++				Content: []byte("foo\n"),
++				Mode:    0666,
++			},
++			{
++				Name:    "bar.txt",
++				Content: []byte("bar\n"),
++				Mode:    0666,
++			},
++		},
++	},
++	{
++		Name:   "Bad-CRC32-in-data-descriptor",
++		Source: returnCorruptCRC32Zip,
++		File: []ZipTestFile{
++			{
++				Name:       "foo.txt",
++				Content:    []byte("foo\n"),
++				Mode:       0666,
++				ContentErr: ErrChecksum,
++			},
++			{
++				Name:    "bar.txt",
++				Content: []byte("bar\n"),
++				Mode:    0666,
++			},
++		},
++	},
+ }
+ 
+ var crossPlatform = []ZipTestFile{
+@@ -139,7 +195,18 @@ func TestReader(t *testing.T) {
+ }
+ 
+ func readTestZip(t *testing.T, zt ZipTest) {
+-	z, err := OpenReader("testdata/" + zt.Name)
++	var z *Reader
++	var err error
++	if zt.Source != nil {
++		rat, size := zt.Source()
++		z, err = NewReader(rat, size)
++	} else {
++		var rc *ReadCloser
++		rc, err = OpenReader(filepath.Join("testdata", zt.Name))
++		if err == nil {
++			z = &rc.Reader
++		}
++	}
+ 	if err != zt.Error {
+ 		t.Errorf("error=%v, want %v", err, zt.Error)
+ 		return
+@@ -149,11 +216,6 @@ func readTestZip(t *testing.T, zt ZipTest) {
+ 	if err == ErrFormat {
+ 		return
+ 	}
+-	defer func() {
+-		if err := z.Close(); err != nil {
+-			t.Errorf("error %q when closing zip file", err)
+-		}
+-	}()
+ 
+ 	// bail here if no Files expected to be tested
+ 	// (there may actually be files in the zip, but we don't care)
+@@ -170,7 +232,7 @@ func readTestZip(t *testing.T, zt ZipTest) {
+ 
+ 	// test read of each file
+ 	for i, ft := range zt.File {
+-		readTestFile(t, ft, z.File[i])
++		readTestFile(t, zt, ft, z.File[i])
+ 	}
+ 
+ 	// test simultaneous reads
+@@ -179,7 +241,7 @@ func readTestZip(t *testing.T, zt ZipTest) {
+ 	for i := 0; i < 5; i++ {
+ 		for j, ft := range zt.File {
+ 			go func(j int, ft ZipTestFile) {
+-				readTestFile(t, ft, z.File[j])
++				readTestFile(t, zt, ft, z.File[j])
+ 				done <- true
+ 			}(j, ft)
+ 			n++
+@@ -188,26 +250,11 @@ func readTestZip(t *testing.T, zt ZipTest) {
+ 	for ; n > 0; n-- {
+ 		<-done
+ 	}
+-
+-	// test invalid checksum
+-	if !z.File[0].hasDataDescriptor() { // skip test when crc32 in dd
+-		z.File[0].CRC32++ // invalidate
+-		r, err := z.File[0].Open()
+-		if err != nil {
+-			t.Error(err)
+-			return
+-		}
+-		var b bytes.Buffer
+-		_, err = io.Copy(&b, r)
+-		if err != ErrChecksum {
+-			t.Errorf("%s: copy error=%v, want %v", z.File[0].Name, err, ErrChecksum)
+-		}
+-	}
+ }
+ 
+-func readTestFile(t *testing.T, ft ZipTestFile, f *File) {
++func readTestFile(t *testing.T, zt ZipTest, ft ZipTestFile, f *File) {
+ 	if f.Name != ft.Name {
+-		t.Errorf("name=%q, want %q", f.Name, ft.Name)
++		t.Errorf("%s: name=%q, want %q", zt.Name, f.Name, ft.Name)
+ 	}
+ 
+ 	if ft.Mtime != "" {
+@@ -217,11 +264,11 @@ func readTestFile(t *testing.T, ft ZipTestFile, f *File) {
+ 			return
+ 		}
+ 		if ft := f.ModTime(); !ft.Equal(mtime) {
+-			t.Errorf("%s: mtime=%s, want %s", f.Name, ft, mtime)
++			t.Errorf("%s: %s: mtime=%s, want %s", zt.Name, f.Name, ft, mtime)
+ 		}
+ 	}
+ 
+-	testFileMode(t, f, ft.Mode)
++	testFileMode(t, zt.Name, f, ft.Mode)
+ 
+ 	size0 := f.UncompressedSize
+ 
+@@ -238,7 +285,9 @@ func readTestFile(t *testing.T, ft ZipTestFile, f *File) {
+ 
+ 	_, err = io.Copy(&b, r)
+ 	if err != nil {
+-		t.Error(err)
++		if err != ft.ContentErr {
++			t.Errorf("%s: copying contents: %v", zt.Name, err)
++		}
+ 		return
+ 	}
+ 	r.Close()
+@@ -264,12 +313,12 @@ func readTestFile(t *testing.T, ft ZipTestFile, f *File) {
+ 	}
+ }
+ 
+-func testFileMode(t *testing.T, f *File, want os.FileMode) {
++func testFileMode(t *testing.T, zipName string, f *File, want os.FileMode) {
+ 	mode := f.Mode()
+ 	if want == 0 {
+-		t.Errorf("%s mode: got %v, want none", f.Name, mode)
++		t.Errorf("%s: %s mode: got %v, want none", zipName, f.Name, mode)
+ 	} else if mode != want {
+-		t.Errorf("%s mode: want %v, got %v", f.Name, want, mode)
++		t.Errorf("%s: %s mode: want %v, got %v", zipName, f.Name, want, mode)
+ 	}
+ }
+ 
+@@ -294,3 +343,13 @@ func TestInvalidFiles(t *testing.T) {
+ 		t.Errorf("sigs: error=%v, want %v", err, ErrFormat)
+ 	}
+ }
++
++func returnCorruptCRC32Zip() (r io.ReaderAt, size int64) {
++	data, err := ioutil.ReadFile(filepath.Join("testdata", "go-with-datadesc-sig.zip"))
++	if err != nil {
++		panic(err)
++	}
++	// Corrupt one of the CRC32s in the data descriptor:
++	data[0x2d]++
++	return bytes.NewReader(data), int64(len(data))
++}
+diff --git a/src/pkg/archive/zip/struct.go b/src/pkg/archive/zip/struct.go
+index fdbd16da04..55f3dcfb82 100644
+--- a/src/pkg/archive/zip/struct.go
++++ b/src/pkg/archive/zip/struct.go
+@@ -27,10 +27,11 @@ const (
+ 	fileHeaderSignature      = 0x04034b50
+ 	directoryHeaderSignature = 0x02014b50
+ 	directoryEndSignature    = 0x06054b50
+-	fileHeaderLen            = 30 // + filename + extra
+-	directoryHeaderLen       = 46 // + filename + extra + comment
+-	directoryEndLen          = 22 // + comment
+-	dataDescriptorLen        = 12
++	dataDescriptorSignature  = 0x08074b50 // de-facto standard; required by OS X Finder
++	fileHeaderLen            = 30         // + filename + extra
++	directoryHeaderLen       = 46         // + filename + extra + comment
++	directoryEndLen          = 22         // + comment
++	dataDescriptorLen        = 16         // four uint32: descriptor signature, crc32, compressed size, size
+ 
+ 	// Constants for the first byte in CreatorVersion
+ 	creatorFAT    = 0
+diff --git a/src/pkg/archive/zip/testdata/go-no-datadesc-sig.zip b/src/pkg/archive/zip/testdata/go-no-datadesc-sig.zip
+new file mode 100644
+index 0000000000..c3d593f44f
+Binary files /dev/null and b/src/pkg/archive/zip/testdata/go-no-datadesc-sig.zip differ
+diff --git a/src/pkg/archive/zip/testdata/go-with-datadesc-sig.zip b/src/pkg/archive/zip/testdata/go-with-datadesc-sig.zip
+new file mode 100644
+index 0000000000..bcfe121bb6
+Binary files /dev/null and b/src/pkg/archive/zip/testdata/go-with-datadesc-sig.zip differ
+diff --git a/src/pkg/archive/zip/writer.go b/src/pkg/archive/zip/writer.go
+index b2cc55bc93..45eb6bd730 100644
+--- a/src/pkg/archive/zip/writer.go
++++ b/src/pkg/archive/zip/writer.go
+@@ -224,6 +224,7 @@ func (w *fileWriter) close() error {
+ 	// write data descriptor
+ 	var buf [dataDescriptorLen]byte
+ 	b := writeBuf(buf[:])
++	b.uint32(dataDescriptorSignature) // de-facto standard, required by OS X
+ 	b.uint32(fh.CRC32)
+ 	b.uint32(fh.CompressedSize)
+ 	b.uint32(fh.UncompressedSize)
+diff --git a/src/pkg/archive/zip/writer_test.go b/src/pkg/archive/zip/writer_test.go
+index 88e5211ff7..8b1c4dfd26 100644
+--- a/src/pkg/archive/zip/writer_test.go
++++ b/src/pkg/archive/zip/writer_test.go
+@@ -108,7 +108,7 @@ func testReadFile(t *testing.T, f *File, wt *WriteTest) {
+ 	if f.Name != wt.Name {
+ 		t.Fatalf("File name: got %q, want %q", f.Name, wt.Name)
+ 	}
+-	testFileMode(t, f, wt.Mode)
++	testFileMode(t, wt.Name, f, wt.Mode)
+ 	rc, err := f.Open()
+ 	if err != nil {
+ 		t.Fatal("opening:", err)

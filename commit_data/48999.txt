@@ -22,9 +22,109 @@ Date:   Sat Jul 3 11:55:31 2021 -0700
     Trust: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/noder/reader.go        |  8 +++-----
  src/cmd/compile/internal/reflectdata/alg.go     |  6 ++----
  src/cmd/compile/internal/typecheck/typecheck.go | 17 +++++------------
  src/cmd/compile/internal/walk/walk.go           |  3 +--
  4 files changed, 11 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 05cfc614a2..122bc70f24 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1526,9 +1526,7 @@ func (r *reader) expr() ir.Node {
+ 		pos := r.pos()
+ 		args := r.exprs()
+ 		dots := r.bool()
+-		n := ir.NewCallExpr(pos, ir.OCALL, fun, args)
+-		n.IsDDD = dots
+-		return n
++		return typecheck.Call(pos, fun, args, dots)
+ 
+ 	case exprTypeSwitchGuard:
+ 		pos := r.pos()
+@@ -2281,8 +2279,8 @@ func addTailCall(pos src.XPos, fn *ir.Func, recv ir.Node, method *types.Field) {
+ 
+ 	fn.SetWrapper(true) // TODO(mdempsky): Leave unset for tail calls?
+ 
+-	call := ir.NewCallExpr(pos, ir.OCALL, ir.NewSelectorExpr(pos, ir.OXDOT, recv, method.Sym), args)
+-	call.IsDDD = method.Type.IsVariadic()
++	dot := ir.NewSelectorExpr(pos, ir.OXDOT, recv, method.Sym)
++	call := typecheck.Call(pos, dot, args, method.Type.IsVariadic()).(*ir.CallExpr)
+ 
+ 	if method.Type.NumResults() == 0 {
+ 		fn.Body.Append(call)
+diff --git a/src/cmd/compile/internal/reflectdata/alg.go b/src/cmd/compile/internal/reflectdata/alg.go
+index 0707e0b61c..36ad389647 100644
+--- a/src/cmd/compile/internal/reflectdata/alg.go
++++ b/src/cmd/compile/internal/reflectdata/alg.go
+@@ -679,8 +679,7 @@ func EqString(s, t ir.Node) (eqlen *ir.BinaryExpr, eqmem *ir.CallExpr) {
+ 
+ 	fn := typecheck.LookupRuntime("memequal")
+ 	fn = typecheck.SubstArgTypes(fn, types.Types[types.TUINT8], types.Types[types.TUINT8])
+-	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, []ir.Node{sptr, tptr, ir.Copy(slen)})
+-	typecheck.Call(call)
++	call := typecheck.Call(base.Pos, fn, []ir.Node{sptr, tptr, ir.Copy(slen)}, false).(*ir.CallExpr)
+ 
+ 	cmp := ir.NewBinaryExpr(base.Pos, ir.OEQ, slen, tlen)
+ 	cmp = typecheck.Expr(cmp).(*ir.BinaryExpr)
+@@ -716,8 +715,7 @@ func EqInterface(s, t ir.Node) (eqtab *ir.BinaryExpr, eqdata *ir.CallExpr) {
+ 	sdata.SetTypecheck(1)
+ 	tdata.SetTypecheck(1)
+ 
+-	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, []ir.Node{stab, sdata, tdata})
+-	typecheck.Call(call)
++	call := typecheck.Call(base.Pos, fn, []ir.Node{stab, sdata, tdata}, false).(*ir.CallExpr)
+ 
+ 	cmp := ir.NewBinaryExpr(base.Pos, ir.OEQ, stab, ttab)
+ 	cmp = typecheck.Expr(cmp).(*ir.BinaryExpr)
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 21d3100f66..8f3d6cf4bb 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -13,6 +13,7 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/types"
++	"cmd/internal/src"
+ )
+ 
+ // Function collecting autotmps generated during typechecking,
+@@ -34,18 +35,10 @@ func Stmt(n ir.Node) ir.Node       { return typecheck(n, ctxStmt) }
+ func Exprs(exprs []ir.Node) { typecheckslice(exprs, ctxExpr) }
+ func Stmts(stmts []ir.Node) { typecheckslice(stmts, ctxStmt) }
+ 
+-func Call(call *ir.CallExpr) {
+-	t := call.X.Type()
+-	if t == nil {
+-		panic("misuse of Call")
+-	}
+-	ctx := ctxStmt
+-	if t.NumResults() > 0 {
+-		ctx = ctxExpr | ctxMultiOK
+-	}
+-	if typecheck(call, ctx) != call {
+-		panic("bad typecheck")
+-	}
++func Call(pos src.XPos, callee ir.Node, args []ir.Node, dots bool) ir.Node {
++	call := ir.NewCallExpr(pos, ir.OCALL, callee, args)
++	call.IsDDD = dots
++	return typecheck(call, ctxStmt|ctxExpr)
+ }
+ 
+ func Callee(n ir.Node) ir.Node {
+diff --git a/src/cmd/compile/internal/walk/walk.go b/src/cmd/compile/internal/walk/walk.go
+index f687127fee..6551fe7a64 100644
+--- a/src/cmd/compile/internal/walk/walk.go
++++ b/src/cmd/compile/internal/walk/walk.go
+@@ -113,8 +113,7 @@ func vmkcall(fn ir.Node, t *types.Type, init *ir.Nodes, va []ir.Node) *ir.CallEx
+ 		base.Fatalf("vmkcall %v needs %v args got %v", fn, n, len(va))
+ 	}
+ 
+-	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, va)
+-	typecheck.Call(call)
++	call := typecheck.Call(base.Pos, fn, va, false).(*ir.CallExpr)
+ 	call.SetType(t)
+ 	return walkExpr(call, init).(*ir.CallExpr)
+ }

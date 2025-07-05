@@ -13,8 +13,77 @@ Date:   Fri Dec 3 13:57:25 2021 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  test/typeparam/select.dir/a.go    | 15 +++++++++++++++
  test/typeparam/select.dir/main.go | 28 ++++++++++++++++++++++++++++
  test/typeparam/select.go          |  7 +++++++
  3 files changed, 50 insertions(+)
+
+diff --git a/test/typeparam/select.dir/a.go b/test/typeparam/select.dir/a.go
+new file mode 100644
+index 0000000000..983e4b1d5f
+--- /dev/null
++++ b/test/typeparam/select.dir/a.go
+@@ -0,0 +1,15 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++func F[T any](c, d chan T) T {
++	select {
++	case x := <- c:
++		return x
++	case x := <- d:
++		return x
++	}
++}
++
+diff --git a/test/typeparam/select.dir/main.go b/test/typeparam/select.dir/main.go
+new file mode 100644
+index 0000000000..6ea3fe2eea
+--- /dev/null
++++ b/test/typeparam/select.dir/main.go
+@@ -0,0 +1,28 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"sort"
++
++	"./a"
++)
++
++func main() {
++	c := make(chan int, 1)
++	d := make(chan int, 1)
++
++	c <- 5
++	d <- 6
++
++	var r [2]int
++	r[0] = a.F(c, d)
++	r[1] = a.F(c, d)
++	sort.Ints(r[:])
++
++	if r != [2]int{5, 6} {
++		panic("incorrect results")
++	}
++}
+diff --git a/test/typeparam/select.go b/test/typeparam/select.go
+new file mode 100644
+index 0000000000..76930e5e4f
+--- /dev/null
++++ b/test/typeparam/select.go
+@@ -0,0 +1,7 @@
++// rundir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

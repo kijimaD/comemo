@@ -12,9 +12,102 @@ Date:   Tue Nov 19 12:19:57 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                            | 17 -------------
  src/cmd/go/testdata/script/test_main_archive.txt | 32 ++++++++++++++++++++++++
  src/cmd/go/testdata/src/main_test/m.go           |  4 ---
  src/cmd/go/testdata/src/main_test/m_test.go      | 10 --------
  4 files changed, 32 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index b6d355ee31..8dbeb2af4a 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1315,23 +1315,6 @@ func TestRelativeGOBINFail(t *testing.T) {
+ 	tg.grepStderr("cannot install, GOBIN must be an absolute path", "go install must fail if $GOBIN is a relative path")
+ }
+ 
+-func TestPackageMainTestImportsArchiveNotBinary(t *testing.T) {
+-	tooSlow(t)
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-	gobin := filepath.Join(tg.pwd(), "testdata", "bin")
+-	tg.creatingTemp(gobin)
+-	tg.setenv("GOBIN", gobin)
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.must(os.Chtimes("./testdata/src/main_test/m.go", time.Now(), time.Now()))
+-	tg.sleep()
+-	tg.run("test", "main_test")
+-	tg.run("install", "main_test")
+-	tg.wantNotStale("main_test", "", "after go install, main listed as stale")
+-	tg.run("test", "main_test")
+-}
+-
+ func TestPackageMainTestCompilerFlags(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/testdata/script/test_main_archive.txt b/src/cmd/go/testdata/script/test_main_archive.txt
+new file mode 100644
+index 0000000000..410d923d23
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_main_archive.txt
+@@ -0,0 +1,32 @@
++env GO111MODULE=off
++
++# Test that a main_test of 'package main' imports the package,
++# not the installed binary.
++
++[short] skip
++
++env GOBIN=$WORK/bin
++go test main_test
++go install main_test
++
++go list -f '{{.Stale}}' main_test
++stdout false
++
++go test main_test
++
++-- main_test/m.go --
++package main
++
++func F()    {}
++func main() {}
++-- main_test/m_test.go --
++package main_test
++
++import (
++	. "main_test"
++	"testing"
++)
++
++func Test1(t *testing.T) {
++	F()
++}
+diff --git a/src/cmd/go/testdata/src/main_test/m.go b/src/cmd/go/testdata/src/main_test/m.go
+deleted file mode 100644
+index c682f030b4..0000000000
+--- a/src/cmd/go/testdata/src/main_test/m.go
++++ /dev/null
+@@ -1,4 +0,0 @@
+-package main
+-
+-func F()    {}
+-func main() {}
+diff --git a/src/cmd/go/testdata/src/main_test/m_test.go b/src/cmd/go/testdata/src/main_test/m_test.go
+deleted file mode 100644
+index f865b7734f..0000000000
+--- a/src/cmd/go/testdata/src/main_test/m_test.go
++++ /dev/null
+@@ -1,10 +0,0 @@
+-package main_test
+-
+-import (
+-	. "main_test"
+-	"testing"
+-)
+-
+-func Test1(t *testing.T) {
+-	F()
+-}

@@ -11,7 +11,7 @@ Date:   Wed Aug 21 23:25:20 2019 +0530
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
     Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  doc/go1.10.html | 2 +-
  doc/go1.11.html | 2 +-
  doc/go1.12.html | 2 +-
@@ -21,3 +21,108 @@ Date:   Wed Aug 21 23:25:20 2019 +0530
  doc/go1.8.html  | 2 +-
  doc/go1.9.html  | 2 +-
  8 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/doc/go1.10.html b/doc/go1.10.html
+index 2974fef9a3..41db36ab1e 100644
+--- a/doc/go1.10.html
++++ b/doc/go1.10.html
+@@ -12,7 +12,7 @@ Do not send CLs removing the interior tags from such phrases.
+ -->
+ 
+ <style>
+-ul li { margin: 0.5em 0; }
++  main ul li { margin: 0.5em 0; }
+ </style>
+ 
+ <h2 id="introduction">Introduction to Go 1.10</h2>
+diff --git a/doc/go1.11.html b/doc/go1.11.html
+index 1d85be9fe4..841ead225f 100644
+--- a/doc/go1.11.html
++++ b/doc/go1.11.html
+@@ -12,7 +12,7 @@ Do not send CLs removing the interior tags from such phrases.
+ -->
+ 
+ <style>
+-  ul li { margin: 0.5em 0; }
++  main ul li { margin: 0.5em 0; }
+ </style>
+ 
+ <h2 id="introduction">Introduction to Go 1.11</h2>
+diff --git a/doc/go1.12.html b/doc/go1.12.html
+index 7f0b221cc3..a8b0c87fe5 100644
+--- a/doc/go1.12.html
++++ b/doc/go1.12.html
+@@ -12,7 +12,7 @@ Do not send CLs removing the interior tags from such phrases.
+ -->
+ 
+ <style>
+-  ul li { margin: 0.5em 0; }
++  main ul li { margin: 0.5em 0; }
+ </style>
+ 
+ <h2 id="introduction">Introduction to Go 1.12</h2>
+diff --git a/doc/go1.13.html b/doc/go1.13.html
+index bd926542c3..df8733ec72 100644
+--- a/doc/go1.13.html
++++ b/doc/go1.13.html
+@@ -12,7 +12,7 @@ Do not send CLs removing the interior tags from such phrases.
+ -->
+ 
+ <style>
+-  ul li { margin: 0.5em 0; }
++  main ul li { margin: 0.5em 0; }
+ </style>
+ 
+ <h2 id="introduction">DRAFT RELEASE NOTES - Introduction to Go 1.13</h2>
+diff --git a/doc/go1.6.html b/doc/go1.6.html
+index 902a82d517..c8ec7e7991 100644
+--- a/doc/go1.6.html
++++ b/doc/go1.6.html
+@@ -10,7 +10,7 @@ Edit .,s;^([a-z][A-Za-z0-9_/]+)\.([A-Z][A-Za-z0-9_]+\.)?([A-Z][A-Za-z0-9_]+)([ .
+ -->
+ 
+ <style>
+-ul li { margin: 0.5em 0; }
++  main ul li { margin: 0.5em 0; }
+ </style>
+ 
+ <h2 id="introduction">Introduction to Go 1.6</h2>
+diff --git a/doc/go1.7.html b/doc/go1.7.html
+index db60702776..61076fd091 100644
+--- a/doc/go1.7.html
++++ b/doc/go1.7.html
+@@ -22,7 +22,7 @@ Do not send CLs removing the interior tags from such phrases.
+ -->
+ 
+ <style>
+-ul li { margin: 0.5em 0; }
++  main ul li { margin: 0.5em 0; }
+ </style>
+ 
+ <h2 id="introduction">Introduction to Go 1.7</h2>
+diff --git a/doc/go1.8.html b/doc/go1.8.html
+index 611f5ee25e..2a47fac420 100644
+--- a/doc/go1.8.html
++++ b/doc/go1.8.html
+@@ -12,7 +12,7 @@ Do not send CLs removing the interior tags from such phrases.
+ -->
+ 
+ <style>
+-ul li { margin: 0.5em 0; }
++  main ul li { margin: 0.5em 0; }
+ </style>
+ 
+ <h2 id="introduction">Introduction to Go 1.8</h2>
+diff --git a/doc/go1.9.html b/doc/go1.9.html
+index fa50ae7805..3dfdf53a81 100644
+--- a/doc/go1.9.html
++++ b/doc/go1.9.html
+@@ -12,7 +12,7 @@ Do not send CLs removing the interior tags from such phrases.
+ -->
+ 
+ <style>
+-ul li { margin: 0.5em 0; }
++  main ul li { margin: 0.5em 0; }
+ </style>
+ 
+ <h2 id="introduction">Introduction to Go 1.9</h2>

@@ -23,7 +23,57 @@ Date:   Mon Mar 29 14:17:18 2021 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/305550
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go | 6 +++---
  src/cmd/compile/internal/walk/order.go | 7 +++++--
  2 files changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 92bddd59da..0062cc5fc7 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -4608,8 +4608,8 @@ func (s *state) openDeferRecord(n *ir.CallExpr) {
+ 	var args []*ssa.Value
+ 	var argNodes []*ir.Name
+ 
+-	if objabi.Experiment.RegabiDefer && (len(n.Args) != 0 || n.Op() == ir.OCALLINTER) {
+-		s.Fatalf("defer call with arguments: %v", n)
++	if objabi.Experiment.RegabiDefer && (len(n.Args) != 0 || n.Op() == ir.OCALLINTER || n.X.Type().NumResults() != 0) {
++		s.Fatalf("defer call with arguments or results: %v", n)
+ 	}
+ 
+ 	opendefer := &openDeferInfo{
+@@ -4860,7 +4860,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 		}
+ 	}
+ 
+-	if objabi.Experiment.RegabiDefer && k != callNormal && (len(n.Args) != 0 || n.Op() == ir.OCALLINTER) {
++	if objabi.Experiment.RegabiDefer && k != callNormal && (len(n.Args) != 0 || n.Op() == ir.OCALLINTER || n.X.Type().NumResults() != 0) {
+ 		s.Fatalf("go/defer call with arguments: %v", n)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 6e3acc624c..bee3dc3e07 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -1504,7 +1504,7 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
+ 		panic("unhandled op")
+ 	}
+ 
+-	// No need to wrap if called func has no args and no receiver.
++	// No need to wrap if called func has no args, no receiver, and no results.
+ 	// However in the case of "defer func() { ... }()" we need to
+ 	// protect against the possibility of directClosureCall rewriting
+ 	// things so that the call does have arguments.
+@@ -1514,7 +1514,10 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
+ 	//
+ 	// Also do wrap builtin functions, because they may be expanded to
+ 	// calls with arguments (e.g. ORECOVER).
+-	if len(callArgs) == 0 && call.Op() == ir.OCALLFUNC {
++	//
++	// TODO: maybe not wrap if the called function has no arguments and
++	// only in-register results?
++	if len(callArgs) == 0 && call.Op() == ir.OCALLFUNC && callX.Type().NumResults() == 0 {
+ 		if c, ok := call.(*ir.CallExpr); ok && callX != nil && callX.Op() == ir.OCLOSURE {
+ 			cloFunc := callX.(*ir.ClosureExpr).Func
+ 			cloFunc.SetClosureCalled(false)

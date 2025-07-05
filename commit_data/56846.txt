@@ -14,10 +14,83 @@ Date:   Thu May 25 00:32:39 2023 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/modload/load.go                         | 1 +
  src/cmd/go/testdata/script/mod_go_version.txt               | 5 ++---
  src/cmd/go/testdata/script/mod_tidy_compat_implicit.txt     | 3 +--
  src/cmd/go/testdata/script/mod_tidy_compat_incompatible.txt | 3 +--
  src/cmd/go/testdata/script/mod_tidy_compat_irrelevant.txt   | 3 +--
  5 files changed, 6 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 9eb9e6ddf8..6c888116fe 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -1056,6 +1056,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 			ld.errorf("go: %v\n", err)
+ 		}
+ 	}
++	base.ExitIfErrors() // or we will report them again
+ 
+ 	for {
+ 		ld.reset()
+diff --git a/src/cmd/go/testdata/script/mod_go_version.txt b/src/cmd/go/testdata/script/mod_go_version.txt
+index e78ef3c139..f0af3ae307 100644
+--- a/src/cmd/go/testdata/script/mod_go_version.txt
++++ b/src/cmd/go/testdata/script/mod_go_version.txt
+@@ -3,11 +3,10 @@
+ env GO111MODULE=on
+ env TESTGO_VERSION=go1.21
+ 
+-# TODO(rsc): go list prints the error twice. Why?
+ ! go list
+-stderr '^go: sub@v1.0.0: sub requires go 1.999 \(running go 1.21; go.mod sets go 1.1\)$'
++stderr -count=1 '^go: sub@v1.0.0: sub requires go 1.999 \(running go 1.21; go.mod sets go 1.1\)$'
+ ! go build sub
+-stderr '^go: sub@v1.0.0: sub requires go 1.999 \(running go 1.21; go.mod sets go 1.1\)$'
++stderr -count=1 '^go: sub@v1.0.0: sub requires go 1.999 \(running go 1.21; go.mod sets go 1.1\)$'
+ 
+ -- go.mod --
+ module m
+diff --git a/src/cmd/go/testdata/script/mod_tidy_compat_implicit.txt b/src/cmd/go/testdata/script/mod_tidy_compat_implicit.txt
+index 8b5869780c..0eded0f458 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_compat_implicit.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_compat_implicit.txt
+@@ -51,8 +51,7 @@ stdout '^example.net/lazy v0.1.0$'
+ go mod edit -go=1.16
+ ! go list -deps -test -f $MODFMT ./...
+ 
+-	# TODO(#46160): -count=1 instead of -count=2.
+-stderr -count=2 '^go: example\.net/lazy@v0\.1\.0 requires\n\texample\.com/retract/incompatible@v1\.0\.0: missing go\.sum entry for go\.mod file; to add it:\n\tgo mod download example\.com/retract/incompatible$'
++stderr -count=1 '^go: example\.net/lazy@v0\.1\.0 requires\n\texample\.com/retract/incompatible@v1\.0\.0: missing go\.sum entry for go\.mod file; to add it:\n\tgo mod download example\.com/retract/incompatible$'
+ 
+ 
+ # If we combine a Go 1.16 go.sum file...
+diff --git a/src/cmd/go/testdata/script/mod_tidy_compat_incompatible.txt b/src/cmd/go/testdata/script/mod_tidy_compat_incompatible.txt
+index 1fef4b629c..e336210003 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_compat_incompatible.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_compat_incompatible.txt
+@@ -48,8 +48,7 @@ cmp go.mod go.mod.orig
+ 
+ go mod edit -go=1.16
+ ! go list -f $MODFMT -deps ./...
+-	# TODO(#46160): -count=1 instead of -count=2.
+-stderr -count=2 '^go: example\.net/lazy@v0\.1\.0 requires\n\texample\.net/requireincompatible@v0\.1\.0 requires\n\texample\.com/retract/incompatible@v2\.0\.0\+incompatible: missing go.sum entry for go.mod file; to add it:\n\tgo mod download example.com/retract/incompatible$'
++stderr -count=1 '^go: example\.net/lazy@v0\.1\.0 requires\n\texample\.net/requireincompatible@v0\.1\.0 requires\n\texample\.com/retract/incompatible@v2\.0\.0\+incompatible: missing go.sum entry for go.mod file; to add it:\n\tgo mod download example.com/retract/incompatible$'
+ 
+ 
+ # There are two ways for the module author to bring the two into alignment.
+diff --git a/src/cmd/go/testdata/script/mod_tidy_compat_irrelevant.txt b/src/cmd/go/testdata/script/mod_tidy_compat_irrelevant.txt
+index 59926d06d6..e4eaea0dd6 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_compat_irrelevant.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_compat_irrelevant.txt
+@@ -47,8 +47,7 @@ cmp stdout out-117.txt
+ 
+ go mod edit -go=1.16
+ ! go list -deps -test -f $MODFMT all
+-	# TODO(#46160): -count=1 instead of -count=2.
+-stderr -count=2 '^go: example.net/lazy@v0.1.0 requires\n\texample.com/retract/incompatible@v1.0.0: missing go.sum entry for go.mod file; to add it:\n\tgo mod download example.com/retract/incompatible$'
++stderr -count=1 '^go: example.net/lazy@v0.1.0 requires\n\texample.com/retract/incompatible@v1.0.0: missing go.sum entry for go.mod file; to add it:\n\tgo mod download example.com/retract/incompatible$'
+ 
+ 
+ -- go.mod --

@@ -21,7 +21,55 @@ Date:   Thu Jan 11 20:23:22 2018 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/path/filepath/match.go      |  7 +++++--
  src/path/filepath/match_test.go | 16 ++++++++++++++++
  2 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/src/path/filepath/match.go b/src/path/filepath/match.go
+index 057f7f3677..46badb5e84 100644
+--- a/src/path/filepath/match.go
++++ b/src/path/filepath/match.go
+@@ -339,6 +339,9 @@ func glob(dir, pattern string, matches []string) (m []string, e error) {
+ // hasMeta reports whether path contains any of the magic characters
+ // recognized by Match.
+ func hasMeta(path string) bool {
+-	// TODO(niemeyer): Should other magic characters be added here?
+-	return strings.ContainsAny(path, "*?[")
++	magicChars := `*?[`
++	if runtime.GOOS != "windows" {
++		magicChars = `*?[\`
++	}
++	return strings.ContainsAny(path, magicChars)
+ }
+diff --git a/src/path/filepath/match_test.go b/src/path/filepath/match_test.go
+index 18d38bf5bb..1d91c274c7 100644
+--- a/src/path/filepath/match_test.go
++++ b/src/path/filepath/match_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"io/ioutil"
+ 	"os"
+ 	. "path/filepath"
++	"reflect"
+ 	"runtime"
+ 	"sort"
+ 	"strings"
+@@ -371,3 +372,18 @@ func TestWindowsGlob(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestNonWindowsGlobEscape(t *testing.T) {
++	if runtime.GOOS == "windows" {
++		t.Skipf("skipping non-windows specific test")
++	}
++	pattern := `\match.go`
++	want := []string{"match.go"}
++	matches, err := Glob(pattern)
++	if err != nil {
++		t.Fatalf("Glob error for %q: %s", pattern, err)
++	}
++	if !reflect.DeepEqual(matches, want) {
++		t.Fatalf("Glob(%#q) = %v want %v", pattern, matches, want)
++	}
++}

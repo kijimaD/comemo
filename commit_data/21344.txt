@@ -18,7 +18,68 @@ Date:   Wed Dec 17 23:22:49 2014 -0500
     Change-Id: I4c6366cb39f0ccc05e038bd31d85f93b76e8d0c8
     Reviewed-on: https://go-review.googlesource.com/1750
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/cgi/child.go      |  6 +++---
  src/net/http/cgi/child_test.go | 21 ++++++++++++++++++++-
  2 files changed, 23 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/http/cgi/child.go b/src/net/http/cgi/child.go
+index 45fc2e57cd..ec10108821 100644
+--- a/src/net/http/cgi/child.go
++++ b/src/net/http/cgi/child.go
+@@ -132,9 +132,9 @@ func RequestFromMap(params map[string]string) (*http.Request, error) {
+ 	}
+ 
+ 	// Request.RemoteAddr has its port set by Go's standard http
+-	// server, so we do here too. We don't have one, though, so we
+-	// use a dummy one.
+-	r.RemoteAddr = net.JoinHostPort(params["REMOTE_ADDR"], "0")
++	// server, so we do here too.
++	remotePort, _ := strconv.Atoi(params["REMOTE_PORT"]) // zero if unset or invalid
++	r.RemoteAddr = net.JoinHostPort(params["REMOTE_ADDR"], strconv.Itoa(remotePort))
+ 
+ 	return r, nil
+ }
+diff --git a/src/net/http/cgi/child_test.go b/src/net/http/cgi/child_test.go
+index 075d8411bc..14e0af475f 100644
+--- a/src/net/http/cgi/child_test.go
++++ b/src/net/http/cgi/child_test.go
+@@ -22,6 +22,7 @@ func TestRequest(t *testing.T) {
+ 		"CONTENT_LENGTH":  "123",
+ 		"CONTENT_TYPE":    "text/xml",
+ 		"REMOTE_ADDR":     "5.6.7.8",
++		"REMOTE_PORT":     "54321",
+ 	}
+ 	req, err := RequestFromMap(env)
+ 	if err != nil {
+@@ -60,7 +61,7 @@ func TestRequest(t *testing.T) {
+ 	if req.TLS != nil {
+ 		t.Errorf("expected nil TLS")
+ 	}
+-	if e, g := "5.6.7.8:0", req.RemoteAddr; e != g {
++	if e, g := "5.6.7.8:54321", req.RemoteAddr; e != g {
+ 		t.Errorf("RemoteAddr: got %q; want %q", g, e)
+ 	}
+ }
+@@ -129,3 +130,21 @@ func TestRequestWithoutRequestURI(t *testing.T) {
+ 		t.Errorf("URL = %q; want %q", g, e)
+ 	}
+ }
++
++func TestRequestWithoutRemotePort(t *testing.T) {
++	env := map[string]string{
++		"SERVER_PROTOCOL": "HTTP/1.1",
++		"HTTP_HOST":       "example.com",
++		"REQUEST_METHOD":  "GET",
++		"REQUEST_URI":     "/path?a=b",
++		"CONTENT_LENGTH":  "123",
++		"REMOTE_ADDR":     "5.6.7.8",
++	}
++	req, err := RequestFromMap(env)
++	if err != nil {
++		t.Fatalf("RequestFromMap: %v", err)
++	}
++	if e, g := "5.6.7.8:0", req.RemoteAddr; e != g {
++		t.Errorf("RemoteAddr: got %q; want %q", g, e)
++	}
++}

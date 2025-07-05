@@ -9,9 +9,153 @@ Date:   Mon Mar 26 14:10:27 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5901055
-
+---
  doc/godocs.js          | 40 ++++++++++++++++++++++------------------
  doc/style.css          | 10 +++++-----
  lib/godoc/example.html |  6 +++---
  lib/godoc/package.html | 13 ++++++++++---
  4 files changed, 40 insertions(+), 29 deletions(-)
+
+diff --git a/doc/godocs.js b/doc/godocs.js
+index 37573136ab..8fd32fef0f 100644
+--- a/doc/godocs.js
++++ b/doc/godocs.js
+@@ -164,21 +164,26 @@ function getElementsByClassName(base, clazz) {
+   return foundElements;
+ }
+ 
+-function godocs_bindExampleToggle(eg) {
+-  var heading = getElementsByClassName(eg, "exampleHeading");
++function godocs_bindToggle(el) {
++  var button = getElementsByClassName(el, "toggleButton");
+   var callback = function() {
+-    if (eg.className == "example") {
+-      eg.className = "exampleVisible";
++    if (el.className == "toggle") {
++      el.className = "toggleVisible";
+     } else {
+-      eg.className = "example";
++      el.className = "toggle";
+     }
+   };
+-  for (var i = 0; i < heading.length; i++) {
+-    bindEvent(heading[i], "click", callback);
++  for (var i = 0; i < button.length; i++) {
++    bindEvent(button[i], "click", callback);
+   }
+ }
+-function godocs_bindExampleLink(l) {
+-  var prefix = "example_";
++function godocs_bindToggles(className) {
++  var els = getElementsByClassName(document, className);
++  for (var i = 0; i < els.length; i++) {
++    godocs_bindToggle(els[i]);
++  }
++}
++function godocs_bindToggleLink(l, prefix) {
+   bindEvent(l, "click", function() {
+     var i = l.href.indexOf("#"+prefix);
+     if (i < 0) {
+@@ -186,24 +191,23 @@ function godocs_bindExampleLink(l) {
+     }
+     var id = prefix + l.href.slice(i+1+prefix.length);
+     var eg = document.getElementById(id);
+-    eg.className = "exampleVisible";
++    eg.className = "toggleVisible";
+   });
+ }
+-function godocs_bindExamples() {
+-  var examples = getElementsByClassName(document, "example");
+-  for (var i = 0; i < examples.length; i++) {
+-    godocs_bindExampleToggle(examples[i]);
+-  }
+-  var links = getElementsByClassName(document, "exampleLink");
++function godocs_bindToggleLinks(className, prefix) {
++  var links = getElementsByClassName(document, className);
+   for (i = 0; i < links.length; i++) {
+-    godocs_bindExampleLink(links[i]);
++    godocs_bindToggleLink(links[i], prefix);
+   }
+ }
+ 
+ function godocs_onload() {
+   godocs_bindSearchEvents();
+   godocs_generateTOC();
+-  godocs_bindExamples();
++  godocs_bindToggles("toggle");
++  godocs_bindToggles("toggleVisible");
++  godocs_bindToggleLinks("exampleLink", "example_");
++  godocs_bindToggleLinks("overviewLink", "");
+ }
+ 
+ bindEvent(window, 'load', godocs_onload);
+diff --git a/doc/style.css b/doc/style.css
+index 53f5e18cd1..ea66f988a6 100644
+--- a/doc/style.css
++++ b/doc/style.css
+@@ -364,11 +364,11 @@ div#blog .read {
+ 	text-align: right;
+ }
+ 
+-.exampleHeading { cursor: pointer; }
+-.example .collapsed { display: block; }
+-.example .expanded { display: none; }
+-.exampleVisible .collapsed { display: none; }
+-.exampleVisible .expanded { display: block; }
++.toggleButton { cursor: pointer; }
++.toggle .collapsed { display: block; }
++.toggle .expanded { display: none; }
++.toggleVisible .collapsed { display: none; }
++.toggleVisible .expanded { display: block; }
+ 
+ table.codetable { margin-left: auto; margin-right: auto; border-style: none; }
+ hr { border-style: none; border-top: 1px solid black; }
+diff --git a/lib/godoc/example.html b/lib/godoc/example.html
+index 43ee4bddc1..ede31d61f9 100644
+--- a/lib/godoc/example.html
++++ b/lib/godoc/example.html
+@@ -1,9 +1,9 @@
+-<div id="example_{{.Name}}" class="example">
++<div id="example_{{.Name}}" class="toggle">
+ 	<div class="collapsed">
+-		<p class="exampleHeading">▹ <span class="text">Example{{example_suffix .Name}}</span></p>
++		<p class="exampleHeading toggleButton">▹ <span class="text">Example{{example_suffix .Name}}</span></p>
+ 	</div>
+ 	<div class="expanded">
+-		<p class="exampleHeading">▾ <span class="text">Example{{example_suffix .Name}}</span></p>
++		<p class="exampleHeading toggleButton">▾ <span class="text">Example{{example_suffix .Name}}</span></p>
+ 		{{with .Doc}}<p>{{html .}}</p>{{end}}
+ 		<p>Code:</p>
+ 		<pre class="code">{{.Code}}</pre>
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index 848e68df77..1a580a2023 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -10,7 +10,7 @@
+ 			<dd><code>import "{{html .ImportPath}}"</code></dd>
+ 			</dl>
+ 			<dl>
+-			<dd><a href="#overview">Overview</a></dd>
++			<dd><a href="#overview" class="overviewLink">Overview</a></dd>
+ 			<dd><a href="#index">Index</a></dd>
+ 			{{if $.Examples}}
+ 				<dd><a href="#examples">Examples</a></dd>
+@@ -20,9 +20,16 @@
+ 			{{end}}
+ 			</dl>
+ 		</div>
+-		<h2 id="overview">Overview</h2>
+ 		<!-- The package's Name is printed as title by the top-level template -->
+-		{{comment_html .Doc}}
++		<div id="overview" class="toggleVisible">
++			<div class="collapsed">
++				<h2 class="toggleButton" title="Click to show Overview section">Overview ▹</h2>
++			</div>
++			<div class="expanded">
++				<h2 class="toggleButton" title="Click to hide Overview section">Overview ▾</h2>
++				{{comment_html .Doc}}
++			</div>
++		</div>
+ 		{{example_html "" $.Examples $.FSet}}
+ 	
+ 		<h2 id="index">Index</h2>

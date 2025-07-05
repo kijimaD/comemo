@@ -11,6 +11,21 @@ Date:   Wed Jan 3 09:55:02 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/cache/default.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/go/internal/cache/default.go b/src/cmd/go/internal/cache/default.go
+index 6411ec7a56..8a5c12c5f5 100644
+--- a/src/cmd/go/internal/cache/default.go
++++ b/src/cmd/go/internal/cache/default.go
+@@ -68,6 +68,9 @@ func DefaultDir() string {
+ 	switch runtime.GOOS {
+ 	case "windows":
+ 		dir = os.Getenv("LocalAppData")
++		if dir == "" {
++			return "off"
++		}
+ 
+ 	case "darwin":
+ 		dir = os.Getenv("HOME")

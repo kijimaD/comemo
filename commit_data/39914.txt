@@ -26,7 +26,7 @@ Date:   Fri Mar 15 13:41:48 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/get/get.go       |   9 +--
  src/cmd/go/internal/load/pkg.go      | 104 ++++-------------------------------
  src/cmd/go/internal/search/search.go |  29 ++++++++--
@@ -34,3 +34,288 @@ Date:   Fri Mar 15 13:41:48 2019 -0400
  src/cmd/go/internal/work/action.go   |   8 +--
  src/cmd/go/internal/work/gc.go       |   2 +-
  6 files changed, 44 insertions(+), 110 deletions(-)
+
+diff --git a/src/cmd/go/internal/get/get.go b/src/cmd/go/internal/get/get.go
+index a314c57160..fe15515efc 100644
+--- a/src/cmd/go/internal/get/get.go
++++ b/src/cmd/go/internal/get/get.go
+@@ -177,12 +177,6 @@ func runGet(cmd *base.Command, args []string) {
+ 	// everything.
+ 	load.ClearPackageCache()
+ 
+-	// In order to rebuild packages information completely,
+-	// we need to clear commands cache. Command packages are
+-	// referring to evicted packages from the package cache.
+-	// This leads to duplicated loads of the standard packages.
+-	load.ClearCmdCache()
+-
+ 	pkgs := load.PackagesForBuild(args)
+ 
+ 	// Phase 3. Install.
+@@ -240,7 +234,8 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
+ 	}
+ 	load1 := func(path string, mode int) *load.Package {
+ 		if parent == nil {
+-			return load.LoadPackageNoFlags(path, stk)
++			mode := 0 // don't do module or vendor resolution
++			return load.LoadImport(path, base.Cwd, nil, stk, nil, mode)
+ 		}
+ 		return load.LoadImport(path, parent.Dir, parent, stk, nil, mode|load.ResolveModule)
+ 	}
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index cc81cc0317..6361862969 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -377,7 +377,7 @@ func ClearPackageCachePartial(args []string) {
+ 	}
+ }
+ 
+-// ReloadPackageNoFlags is like LoadPackageNoFlags but makes sure
++// ReloadPackageNoFlags is like LoadImport but makes sure
+ // not to use the package cache.
+ // It is only for use by GOPATH-based "go get".
+ // TODO(rsc): When GOPATH-based "go get" is removed, delete this function.
+@@ -387,7 +387,7 @@ func ReloadPackageNoFlags(arg string, stk *ImportStack) *Package {
+ 		delete(packageCache, p.Dir)
+ 		delete(packageCache, p.ImportPath)
+ 	}
+-	return LoadPackageNoFlags(arg, stk)
++	return LoadImport(arg, base.Cwd, nil, stk, nil, 0)
+ }
+ 
+ // dirToImportPath returns the pseudo-import path we use for a package
+@@ -552,7 +552,7 @@ func LoadImport(path, srcDir string, parent *Package, stk *ImportStack, importPo
+ 		bp.ImportPath = importPath
+ 		if cfg.GOBIN != "" {
+ 			bp.BinDir = cfg.GOBIN
+-		} else if cfg.ModulesEnabled {
++		} else if cfg.ModulesEnabled && !bp.Goroot {
+ 			bp.BinDir = ModBinDir()
+ 		}
+ 		if modDir == "" && err == nil && !isLocal && bp.ImportComment != "" && bp.ImportComment != path &&
+@@ -1716,99 +1716,17 @@ func TestPackageList(roots []*Package) []*Package {
+ 	return all
+ }
+ 
+-var cmdCache = map[string]*Package{}
+-
+-func ClearCmdCache() {
+-	for name := range cmdCache {
+-		delete(cmdCache, name)
+-	}
+-}
+-
+-// LoadPackage loads the package named by arg.
+-func LoadPackage(arg string, stk *ImportStack) *Package {
+-	p := loadPackage(arg, stk)
++// LoadImportWithFlags loads the package with the given import path and
++// sets tool flags on that package. This function is useful loading implicit
++// dependencies (like sync/atomic for coverage).
++// TODO(jayconrod): delete this function and set flags automatically
++// in LoadImport instead.
++func LoadImportWithFlags(path, srcDir string, parent *Package, stk *ImportStack, importPos []token.Position, mode int) *Package {
++	p := LoadImport(path, srcDir, parent, stk, importPos, mode)
+ 	setToolFlags(p)
+ 	return p
+ }
+ 
+-// LoadPackageNoFlags is like LoadPackage
+-// but does not guarantee that the build tool flags are set in the result.
+-// It is only for use by GOPATH-based "go get"
+-// and is only appropriate for preliminary loading of packages.
+-// A real load using LoadPackage or (more likely)
+-// Packages, PackageAndErrors, or PackagesForBuild
+-// must be done before passing the package to any build
+-// steps, so that the tool flags can be set properly.
+-// TODO(rsc): When GOPATH-based "go get" is removed, delete this function.
+-func LoadPackageNoFlags(arg string, stk *ImportStack) *Package {
+-	return loadPackage(arg, stk)
+-}
+-
+-// loadPackage is like loadImport but is used for command-line arguments,
+-// not for paths found in import statements. In addition to ordinary import paths,
+-// loadPackage accepts pseudo-paths beginning with cmd/ to denote commands
+-// in the Go command directory, as well as paths to those directories.
+-func loadPackage(arg string, stk *ImportStack) *Package {
+-	if arg == "" {
+-		panic("loadPackage called with empty package path")
+-	}
+-	if build.IsLocalImport(arg) {
+-		dir := arg
+-		if !filepath.IsAbs(dir) {
+-			if abs, err := filepath.Abs(dir); err == nil {
+-				// interpret relative to current directory
+-				dir = abs
+-			}
+-		}
+-		if sub, ok := hasSubdir(cfg.GOROOTsrc, dir); ok && strings.HasPrefix(sub, "cmd/") && !strings.Contains(sub[4:], "/") {
+-			arg = sub
+-		}
+-	}
+-	if strings.HasPrefix(arg, "cmd/") && !strings.Contains(arg[4:], "/") {
+-		if p := cmdCache[arg]; p != nil {
+-			return p
+-		}
+-		stk.Push(arg)
+-		defer stk.Pop()
+-
+-		bp, err := cfg.BuildContext.ImportDir(filepath.Join(cfg.GOROOTsrc, arg), 0)
+-		bp.ImportPath = arg
+-		bp.Goroot = true
+-		bp.BinDir = cfg.GOROOTbin
+-		bp.Root = cfg.GOROOT
+-		bp.SrcRoot = cfg.GOROOTsrc
+-		p := new(Package)
+-		cmdCache[arg] = p
+-		p.load(stk, bp, err)
+-		if p.Error == nil && p.Name != "main" {
+-			p.Error = &PackageError{
+-				ImportStack: stk.Copy(),
+-				Err:         fmt.Sprintf("expected package main but found package %s in %s", p.Name, p.Dir),
+-			}
+-		}
+-		return p
+-	}
+-
+-	// Wasn't a command; must be a package.
+-	// If it is a local import path but names a standard package,
+-	// we treat it as if the user specified the standard package.
+-	// This lets you run go test ./ioutil in package io and be
+-	// referring to io/ioutil rather than a hypothetical import of
+-	// "./ioutil".
+-	if build.IsLocalImport(arg) || filepath.IsAbs(arg) {
+-		dir := arg
+-		if !filepath.IsAbs(arg) {
+-			dir = filepath.Join(base.Cwd, arg)
+-		}
+-		bp, _ := cfg.BuildContext.ImportDir(dir, build.FindOnly)
+-		if bp.ImportPath != "" && bp.ImportPath != "." {
+-			arg = bp.ImportPath
+-		}
+-	}
+-
+-	return LoadImport(arg, base.Cwd, nil, stk, nil, 0)
+-}
+-
+ // Packages returns the packages named by the
+ // command line arguments 'args'. If a named package
+ // cannot be loaded at all (for example, if the directory does not exist),
+@@ -1850,7 +1768,7 @@ func PackagesAndErrors(patterns []string) []*Package {
+ 			if pkg == "" {
+ 				panic(fmt.Sprintf("ImportPaths returned empty package for pattern %s", m.Pattern))
+ 			}
+-			p := loadPackage(pkg, &stk)
++			p := LoadImport(pkg, base.Cwd, nil, &stk, nil, 0)
+ 			p.Match = append(p.Match, m.Pattern)
+ 			p.Internal.CmdlinePkg = true
+ 			if m.Literal {
+diff --git a/src/cmd/go/internal/search/search.go b/src/cmd/go/internal/search/search.go
+index 20e8f0ad1e..0167c8d755 100644
+--- a/src/cmd/go/internal/search/search.go
++++ b/src/cmd/go/internal/search/search.go
+@@ -327,14 +327,35 @@ func ImportPathsQuiet(patterns []string) []*Match {
+ 			out = append(out, MatchPackages(a))
+ 			continue
+ 		}
+-		if strings.Contains(a, "...") {
+-			if build.IsLocalImport(a) {
+-				out = append(out, MatchPackagesInFS(a))
++
++		if build.IsLocalImport(a) || filepath.IsAbs(a) {
++			var m *Match
++			if strings.Contains(a, "...") {
++				m = MatchPackagesInFS(a)
+ 			} else {
+-				out = append(out, MatchPackages(a))
++				m = &Match{Pattern: a, Literal: true, Pkgs: []string{a}}
++			}
++
++			// Change the file import path to a regular import path if the package
++			// is in GOPATH or GOROOT. We don't report errors here; LoadImport
++			// (or something similar) will report them later.
++			for i, dir := range m.Pkgs {
++				if !filepath.IsAbs(dir) {
++					dir = filepath.Join(base.Cwd, dir)
++				}
++				if bp, _ := cfg.BuildContext.ImportDir(dir, build.FindOnly); bp.ImportPath != "" && bp.ImportPath != "." {
++					m.Pkgs[i] = bp.ImportPath
++				}
+ 			}
++			out = append(out, m)
+ 			continue
+ 		}
++
++		if strings.Contains(a, "...") {
++			out = append(out, MatchPackages(a))
++			continue
++		}
++
+ 		out = append(out, &Match{Pattern: a, Literal: true, Pkgs: []string{a}})
+ 	}
+ 	return out
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index b43925d5e5..225dab31de 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -760,7 +760,7 @@ func ensureImport(p *load.Package, pkg string) {
+ 		}
+ 	}
+ 
+-	p1 := load.LoadPackage(pkg, &load.ImportStack{})
++	p1 := load.LoadImportWithFlags(pkg, p.Dir, p, &load.ImportStack{}, nil, 0)
+ 	if p1.Error != nil {
+ 		base.Fatalf("load %s: %v", pkg, p1.Error)
+ 	}
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index a47b9ba370..415df94f4a 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -289,7 +289,7 @@ func readpkglist(shlibpath string) (pkgs []*load.Package) {
+ 			if strings.HasPrefix(t, "pkgpath ") {
+ 				t = strings.TrimPrefix(t, "pkgpath ")
+ 				t = strings.TrimSuffix(t, ";")
+-				pkgs = append(pkgs, load.LoadPackage(t, &stk))
++				pkgs = append(pkgs, load.LoadImportWithFlags(t, base.Cwd, nil, &stk, nil, 0))
+ 			}
+ 		}
+ 	} else {
+@@ -300,7 +300,7 @@ func readpkglist(shlibpath string) (pkgs []*load.Package) {
+ 		scanner := bufio.NewScanner(bytes.NewBuffer(pkglistbytes))
+ 		for scanner.Scan() {
+ 			t := scanner.Text()
+-			pkgs = append(pkgs, load.LoadPackage(t, &stk))
++			pkgs = append(pkgs, load.LoadImportWithFlags(t, base.Cwd, nil, &stk, nil, 0))
+ 		}
+ 	}
+ 	return
+@@ -405,7 +405,7 @@ func (b *Builder) vetAction(mode, depMode BuildMode, p *load.Package) *Action {
+ 		// vet expects to be able to import "fmt".
+ 		var stk load.ImportStack
+ 		stk.Push("vet")
+-		p1 := load.LoadPackage("fmt", &stk)
++		p1 := load.LoadImportWithFlags("fmt", p.Dir, p, &stk, nil, 0)
+ 		stk.Pop()
+ 		aFmt := b.CompileAction(ModeBuild, depMode, p1)
+ 
+@@ -705,7 +705,7 @@ func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Ac
+ 					}
+ 				}
+ 				var stk load.ImportStack
+-				p := load.LoadPackage(pkg, &stk)
++				p := load.LoadImportWithFlags(pkg, base.Cwd, nil, &stk, nil, 0)
+ 				if p.Error != nil {
+ 					base.Fatalf("load %s: %v", pkg, p.Error)
+ 				}
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 3d09f69fcc..cdd0989a93 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -304,7 +304,7 @@ func (gcToolchain) symabis(b *Builder, a *Action, sfiles []string) (string, erro
+ 		otherPkgs = []string{"sync/atomic"}
+ 	}
+ 	for _, p2name := range otherPkgs {
+-		p2 := load.LoadPackage(p2name, &load.ImportStack{})
++		p2 := load.LoadImportWithFlags(p2name, p.Dir, p, &load.ImportStack{}, nil, 0)
+ 		if len(p2.SFiles) == 0 {
+ 			continue
+ 		}

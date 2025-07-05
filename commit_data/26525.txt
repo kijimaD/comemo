@@ -12,7 +12,7 @@ Date:   Sun Jan 31 11:39:39 2016 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Todd Neal <todd@tneal.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go                |   8 +-
  src/cmd/compile/internal/ssa/check.go             |  24 +-
  src/cmd/compile/internal/ssa/deadcode_test.go     |   8 +-
@@ -33,3 +33,2647 @@ Date:   Sun Jan 31 11:39:39 2016 -0800
  src/cmd/compile/internal/ssa/shortcircuit_test.go |   2 +-
  src/cmd/compile/internal/ssa/value.go             |  72 ++-
  19 files changed, 696 insertions(+), 487 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 458bccb8dc..59993c23dd 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4022,11 +4022,11 @@ func (s *genState) genValue(v *ssa.Value) {
+ 		var i int64
+ 		switch v.Op {
+ 		case ssa.OpAMD64MOVBconst:
+-			i = int64(int8(v.AuxInt))
++			i = int64(v.AuxInt8())
+ 		case ssa.OpAMD64MOVWconst:
+-			i = int64(int16(v.AuxInt))
++			i = int64(v.AuxInt16())
+ 		case ssa.OpAMD64MOVLconst:
+-			i = int64(int32(v.AuxInt))
++			i = int64(v.AuxInt32())
+ 		case ssa.OpAMD64MOVQconst:
+ 			i = v.AuxInt
+ 		}
+@@ -4116,7 +4116,7 @@ func (s *genState) genValue(v *ssa.Value) {
+ 	case ssa.OpAMD64MOVQstoreconst, ssa.OpAMD64MOVLstoreconst, ssa.OpAMD64MOVWstoreconst, ssa.OpAMD64MOVBstoreconst:
+ 		p := Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_CONST
+-		sc := ssa.ValAndOff(v.AuxInt)
++		sc := v.AuxValAndOff()
+ 		i := sc.Val()
+ 		switch v.Op {
+ 		case ssa.OpAMD64MOVBstoreconst:
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index 1c36160f8f..220877242c 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -148,9 +148,27 @@ func checkFunc(f *Func) {
+ 		}
+ 
+ 		for _, v := range b.Values {
+-			switch v.Aux.(type) {
+-			case bool, float32, float64:
+-				f.Fatalf("value %v has an Aux value of type %T, should be AuxInt", v.LongString(), v.Aux)
++
++			// Check to make sure aux values make sense.
++			canHaveAux := false
++			canHaveAuxInt := false
++			switch opcodeTable[v.Op].auxType {
++			case auxNone:
++			case auxBool, auxInt8, auxInt16, auxInt32, auxInt64, auxFloat:
++				canHaveAuxInt = true
++			case auxString, auxSym:
++				canHaveAux = true
++			case auxSymOff, auxSymValAndOff:
++				canHaveAuxInt = true
++				canHaveAux = true
++			default:
++				f.Fatalf("unknown aux type for %s", v.Op)
++			}
++			if !canHaveAux && v.Aux != nil {
++				f.Fatalf("value %v has an Aux value %v but shouldn't", v.LongString(), v.Aux)
++			}
++			if !canHaveAuxInt && v.AuxInt != 0 {
++				f.Fatalf("value %v has an AuxInt value %d but shouldn't", v.LongString(), v.AuxInt)
+ 			}
+ 
+ 			for _, arg := range v.Args {
+diff --git a/src/cmd/compile/internal/ssa/deadcode_test.go b/src/cmd/compile/internal/ssa/deadcode_test.go
+index c59d77ea60..24934d5ac4 100644
+--- a/src/cmd/compile/internal/ssa/deadcode_test.go
++++ b/src/cmd/compile/internal/ssa/deadcode_test.go
+@@ -10,7 +10,7 @@ func TestDeadLoop(t *testing.T) {
+ 	c := testConfig(t)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+-			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Goto("exit")),
+ 		Bloc("exit",
+ 			Exit("mem")),
+@@ -40,7 +40,7 @@ func TestDeadValue(t *testing.T) {
+ 	c := testConfig(t)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+-			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("deadval", OpConst64, TypeInt64, 37, nil),
+ 			Goto("exit")),
+ 		Bloc("exit",
+@@ -64,7 +64,7 @@ func TestNeverTaken(t *testing.T) {
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("cond", OpConstBool, TypeBool, 0, nil),
+-			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			If("cond", "then", "else")),
+ 		Bloc("then",
+ 			Goto("exit")),
+@@ -98,7 +98,7 @@ func TestNestedDeadBlocks(t *testing.T) {
+ 	c := testConfig(t)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+-			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("cond", OpConstBool, TypeBool, 0, nil),
+ 			If("cond", "b2", "b4")),
+ 		Bloc("b2",
+diff --git a/src/cmd/compile/internal/ssa/deadstore_test.go b/src/cmd/compile/internal/ssa/deadstore_test.go
+index 4514c99004..9ded8bd6e6 100644
+--- a/src/cmd/compile/internal/ssa/deadstore_test.go
++++ b/src/cmd/compile/internal/ssa/deadstore_test.go
+@@ -12,7 +12,7 @@ func TestDeadStore(t *testing.T) {
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr", Elem_: elemType} // dummy for testing
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+-			Valu("start", OpInitMem, TypeMem, 0, ".mem"),
++			Valu("start", OpInitMem, TypeMem, 0, nil),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+ 			Valu("v", OpConstBool, TypeBool, 1, nil),
+ 			Valu("addr1", OpAddr, ptrType, 0, nil, "sb"),
+@@ -47,7 +47,7 @@ func TestDeadStorePhi(t *testing.T) {
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+-			Valu("start", OpInitMem, TypeMem, 0, ".mem"),
++			Valu("start", OpInitMem, TypeMem, 0, nil),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+ 			Valu("v", OpConstBool, TypeBool, 1, nil),
+ 			Valu("addr", OpAddr, ptrType, 0, nil, "sb"),
+@@ -74,7 +74,7 @@ func TestDeadStoreTypes(t *testing.T) {
+ 	t2 := &TypeImpl{Size_: 4, Ptr: true, Name: "t2"}
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+-			Valu("start", OpInitMem, TypeMem, 0, ".mem"),
++			Valu("start", OpInitMem, TypeMem, 0, nil),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+ 			Valu("v", OpConstBool, TypeBool, 1, nil),
+ 			Valu("addr1", OpAddr, t1, 0, nil, "sb"),
+diff --git a/src/cmd/compile/internal/ssa/dom_test.go b/src/cmd/compile/internal/ssa/dom_test.go
+index 7174f10e4d..0328655b6a 100644
+--- a/src/cmd/compile/internal/ssa/dom_test.go
++++ b/src/cmd/compile/internal/ssa/dom_test.go
+@@ -20,7 +20,7 @@ func genLinear(size int) []bloc {
+ 	var blocs []bloc
+ 	blocs = append(blocs,
+ 		Bloc("entry",
+-			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Goto(blockn(0)),
+ 		),
+ 	)
+@@ -43,7 +43,7 @@ func genFwdBack(size int) []bloc {
+ 	var blocs []bloc
+ 	blocs = append(blocs,
+ 		Bloc("entry",
+-			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("p", OpConstBool, TypeBool, 1, nil),
+ 			Goto(blockn(0)),
+ 		),
+@@ -73,7 +73,7 @@ func genManyPred(size int) []bloc {
+ 	var blocs []bloc
+ 	blocs = append(blocs,
+ 		Bloc("entry",
+-			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("p", OpConstBool, TypeBool, 1, nil),
+ 			Goto(blockn(0)),
+ 		),
+@@ -111,7 +111,7 @@ func genMaxPred(size int) []bloc {
+ 	var blocs []bloc
+ 	blocs = append(blocs,
+ 		Bloc("entry",
+-			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("p", OpConstBool, TypeBool, 1, nil),
+ 			Goto(blockn(0)),
+ 		),
+@@ -136,7 +136,7 @@ func genMaxPredValue(size int) []bloc {
+ 	var blocs []bloc
+ 	blocs = append(blocs,
+ 		Bloc("entry",
+-			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("p", OpConstBool, TypeBool, 1, nil),
+ 			Goto(blockn(0)),
+ 		),
+@@ -223,7 +223,7 @@ func TestDominatorsSingleBlock(t *testing.T) {
+ 	c := testConfig(t)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+-			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Exit("mem")))
+ 
+ 	doms := map[string]string{}
+@@ -238,7 +238,7 @@ func TestDominatorsSimple(t *testing.T) {
+ 	c := testConfig(t)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+-			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Goto("a")),
+ 		Bloc("a",
+ 			Goto("b")),
+@@ -266,7 +266,7 @@ func TestDominatorsMultPredFwd(t *testing.T) {
+ 	c := testConfig(t)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+-			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("p", OpConstBool, TypeBool, 1, nil),
+ 			If("p", "a", "c")),
+ 		Bloc("a",
+@@ -294,7 +294,7 @@ func TestDominatorsDeadCode(t *testing.T) {
+ 	c := testConfig(t)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+-			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("p", OpConstBool, TypeBool, 0, nil),
+ 			If("p", "b3", "b5")),
+ 		Bloc("b2", Exit("mem")),
+@@ -319,7 +319,7 @@ func TestDominatorsMultPredRev(t *testing.T) {
+ 		Bloc("entry",
+ 			Goto("first")),
+ 		Bloc("first",
+-			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("p", OpConstBool, TypeBool, 1, nil),
+ 			Goto("a")),
+ 		Bloc("a",
+@@ -348,7 +348,7 @@ func TestDominatorsMultPred(t *testing.T) {
+ 	c := testConfig(t)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+-			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("p", OpConstBool, TypeBool, 1, nil),
+ 			If("p", "a", "c")),
+ 		Bloc("a",
+@@ -376,7 +376,7 @@ func TestPostDominators(t *testing.T) {
+ 	c := testConfig(t)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+-			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("p", OpConstBool, TypeBool, 1, nil),
+ 			If("p", "a", "c")),
+ 		Bloc("a",
+@@ -403,7 +403,7 @@ func TestInfiniteLoop(t *testing.T) {
+ 	// note lack of an exit block
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+-			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("p", OpConstBool, TypeBool, 1, nil),
+ 			Goto("a")),
+ 		Bloc("a",
+diff --git a/src/cmd/compile/internal/ssa/func_test.go b/src/cmd/compile/internal/ssa/func_test.go
+index 590804182a..53213d2c11 100644
+--- a/src/cmd/compile/internal/ssa/func_test.go
++++ b/src/cmd/compile/internal/ssa/func_test.go
+@@ -6,7 +6,7 @@
+ // As an example, the following func
+ //
+ //   b1:
+-//     v1 = Arg <mem> [.mem]
++//     v1 = InitMem <mem>
+ //     Plain -> b2
+ //   b2:
+ //     Exit v1
+@@ -18,7 +18,7 @@
+ //
+ //   fun := Fun("entry",
+ //       Bloc("entry",
+-//           Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++//           Valu("mem", OpInitMem, TypeMem, 0, nil),
+ //           Goto("exit")),
+ //       Bloc("exit",
+ //           Exit("mem")),
+@@ -267,7 +267,7 @@ func TestArgs(t *testing.T) {
+ 			Valu("a", OpConst64, TypeInt64, 14, nil),
+ 			Valu("b", OpConst64, TypeInt64, 26, nil),
+ 			Valu("sum", OpAdd64, TypeInt64, 0, nil, "a", "b"),
+-			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Goto("exit")),
+ 		Bloc("exit",
+ 			Exit("mem")))
+@@ -289,7 +289,7 @@ func TestEquiv(t *testing.T) {
+ 					Valu("a", OpConst64, TypeInt64, 14, nil),
+ 					Valu("b", OpConst64, TypeInt64, 26, nil),
+ 					Valu("sum", OpAdd64, TypeInt64, 0, nil, "a", "b"),
+-					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++					Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 					Goto("exit")),
+ 				Bloc("exit",
+ 					Exit("mem"))),
+@@ -298,7 +298,7 @@ func TestEquiv(t *testing.T) {
+ 					Valu("a", OpConst64, TypeInt64, 14, nil),
+ 					Valu("b", OpConst64, TypeInt64, 26, nil),
+ 					Valu("sum", OpAdd64, TypeInt64, 0, nil, "a", "b"),
+-					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++					Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 					Goto("exit")),
+ 				Bloc("exit",
+ 					Exit("mem"))),
+@@ -310,7 +310,7 @@ func TestEquiv(t *testing.T) {
+ 					Valu("a", OpConst64, TypeInt64, 14, nil),
+ 					Valu("b", OpConst64, TypeInt64, 26, nil),
+ 					Valu("sum", OpAdd64, TypeInt64, 0, nil, "a", "b"),
+-					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++					Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 					Goto("exit")),
+ 				Bloc("exit",
+ 					Exit("mem"))),
+@@ -321,7 +321,7 @@ func TestEquiv(t *testing.T) {
+ 					Valu("a", OpConst64, TypeInt64, 14, nil),
+ 					Valu("b", OpConst64, TypeInt64, 26, nil),
+ 					Valu("sum", OpAdd64, TypeInt64, 0, nil, "a", "b"),
+-					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++					Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 					Goto("exit"))),
+ 		},
+ 	}
+@@ -338,26 +338,26 @@ func TestEquiv(t *testing.T) {
+ 		{
+ 			Fun(testConfig(t), "entry",
+ 				Bloc("entry",
+-					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++					Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 					Goto("exit")),
+ 				Bloc("exit",
+ 					Exit("mem"))),
+ 			Fun(testConfig(t), "entry",
+ 				Bloc("entry",
+-					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++					Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 					Exit("mem"))),
+ 		},
+ 		// value order changed
+ 		{
+ 			Fun(testConfig(t), "entry",
+ 				Bloc("entry",
+-					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++					Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 					Valu("b", OpConst64, TypeInt64, 26, nil),
+ 					Valu("a", OpConst64, TypeInt64, 14, nil),
+ 					Exit("mem"))),
+ 			Fun(testConfig(t), "entry",
+ 				Bloc("entry",
+-					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++					Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 					Valu("a", OpConst64, TypeInt64, 14, nil),
+ 					Valu("b", OpConst64, TypeInt64, 26, nil),
+ 					Exit("mem"))),
+@@ -366,12 +366,12 @@ func TestEquiv(t *testing.T) {
+ 		{
+ 			Fun(testConfig(t), "entry",
+ 				Bloc("entry",
+-					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++					Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 					Valu("a", OpConst64, TypeInt64, 14, nil),
+ 					Exit("mem"))),
+ 			Fun(testConfig(t), "entry",
+ 				Bloc("entry",
+-					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++					Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 					Valu("a", OpConst64, TypeInt64, 26, nil),
+ 					Exit("mem"))),
+ 		},
+@@ -379,12 +379,12 @@ func TestEquiv(t *testing.T) {
+ 		{
+ 			Fun(testConfig(t), "entry",
+ 				Bloc("entry",
+-					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++					Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 					Valu("a", OpConst64, TypeInt64, 0, 14),
+ 					Exit("mem"))),
+ 			Fun(testConfig(t), "entry",
+ 				Bloc("entry",
+-					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++					Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 					Valu("a", OpConst64, TypeInt64, 0, 26),
+ 					Exit("mem"))),
+ 		},
+@@ -392,14 +392,14 @@ func TestEquiv(t *testing.T) {
+ 		{
+ 			Fun(testConfig(t), "entry",
+ 				Bloc("entry",
+-					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++					Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 					Valu("a", OpConst64, TypeInt64, 14, nil),
+ 					Valu("b", OpConst64, TypeInt64, 26, nil),
+ 					Valu("sum", OpAdd64, TypeInt64, 0, nil, "a", "b"),
+ 					Exit("mem"))),
+ 			Fun(testConfig(t), "entry",
+ 				Bloc("entry",
+-					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++					Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 					Valu("a", OpConst64, TypeInt64, 0, nil),
+ 					Valu("b", OpConst64, TypeInt64, 14, nil),
+ 					Valu("sum", OpAdd64, TypeInt64, 0, nil, "b", "a"),
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 10c5d2b227..1cf44f148f 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -152,45 +152,45 @@ func init() {
+ 		{name: "DIVSS", reg: fp21x15, asm: "DIVSS"}, // fp32 div
+ 		{name: "DIVSD", reg: fp21x15, asm: "DIVSD"}, // fp64 div
+ 
+-		{name: "MOVSSload", reg: fpload, asm: "MOVSS"},        // fp32 load
+-		{name: "MOVSDload", reg: fpload, asm: "MOVSD"},        // fp64 load
+-		{name: "MOVSSconst", reg: fp01, asm: "MOVSS"},         // fp32 constant
+-		{name: "MOVSDconst", reg: fp01, asm: "MOVSD"},         // fp64 constant
+-		{name: "MOVSSloadidx4", reg: fploadidx, asm: "MOVSS"}, // fp32 load
+-		{name: "MOVSDloadidx8", reg: fploadidx, asm: "MOVSD"}, // fp64 load
+-
+-		{name: "MOVSSstore", reg: fpstore, asm: "MOVSS"},        // fp32 store
+-		{name: "MOVSDstore", reg: fpstore, asm: "MOVSD"},        // fp64 store
+-		{name: "MOVSSstoreidx4", reg: fpstoreidx, asm: "MOVSS"}, // fp32 indexed by 4i store
+-		{name: "MOVSDstoreidx8", reg: fpstoreidx, asm: "MOVSD"}, // fp64 indexed by 8i store
++		{name: "MOVSSload", reg: fpload, asm: "MOVSS", aux: "SymOff"},                        // fp32 load
++		{name: "MOVSDload", reg: fpload, asm: "MOVSD", aux: "SymOff"},                        // fp64 load
++		{name: "MOVSSconst", reg: fp01, asm: "MOVSS", aux: "Float", rematerializeable: true}, // fp32 constant
++		{name: "MOVSDconst", reg: fp01, asm: "MOVSD", aux: "Float", rematerializeable: true}, // fp64 constant
++		{name: "MOVSSloadidx4", reg: fploadidx, asm: "MOVSS", aux: "SymOff"},                 // fp32 load
++		{name: "MOVSDloadidx8", reg: fploadidx, asm: "MOVSD", aux: "SymOff"},                 // fp64 load
++
++		{name: "MOVSSstore", reg: fpstore, asm: "MOVSS", aux: "SymOff"},        // fp32 store
++		{name: "MOVSDstore", reg: fpstore, asm: "MOVSD", aux: "SymOff"},        // fp64 store
++		{name: "MOVSSstoreidx4", reg: fpstoreidx, asm: "MOVSS", aux: "SymOff"}, // fp32 indexed by 4i store
++		{name: "MOVSDstoreidx8", reg: fpstoreidx, asm: "MOVSD", aux: "SymOff"}, // fp64 indexed by 8i store
+ 
+ 		// binary ops
+-		{name: "ADDQ", reg: gp21, asm: "ADDQ"},                     // arg0 + arg1
+-		{name: "ADDL", reg: gp21, asm: "ADDL"},                     // arg0 + arg1
+-		{name: "ADDW", reg: gp21, asm: "ADDW"},                     // arg0 + arg1
+-		{name: "ADDB", reg: gp21, asm: "ADDB"},                     // arg0 + arg1
+-		{name: "ADDQconst", reg: gp11, asm: "ADDQ", typ: "UInt64"}, // arg0 + auxint
+-		{name: "ADDLconst", reg: gp11, asm: "ADDL"},                // arg0 + auxint
+-		{name: "ADDWconst", reg: gp11, asm: "ADDW"},                // arg0 + auxint
+-		{name: "ADDBconst", reg: gp11, asm: "ADDB"},                // arg0 + auxint
+-
+-		{name: "SUBQ", reg: gp21, asm: "SUBQ"},      // arg0 - arg1
+-		{name: "SUBL", reg: gp21, asm: "SUBL"},      // arg0 - arg1
+-		{name: "SUBW", reg: gp21, asm: "SUBW"},      // arg0 - arg1
+-		{name: "SUBB", reg: gp21, asm: "SUBB"},      // arg0 - arg1
+-		{name: "SUBQconst", reg: gp11, asm: "SUBQ"}, // arg0 - auxint
+-		{name: "SUBLconst", reg: gp11, asm: "SUBL"}, // arg0 - auxint
+-		{name: "SUBWconst", reg: gp11, asm: "SUBW"}, // arg0 - auxint
+-		{name: "SUBBconst", reg: gp11, asm: "SUBB"}, // arg0 - auxint
+-
+-		{name: "MULQ", reg: gp21, asm: "IMULQ"},      // arg0 * arg1
+-		{name: "MULL", reg: gp21, asm: "IMULL"},      // arg0 * arg1
+-		{name: "MULW", reg: gp21, asm: "IMULW"},      // arg0 * arg1
+-		{name: "MULB", reg: gp21, asm: "IMULW"},      // arg0 * arg1
+-		{name: "MULQconst", reg: gp11, asm: "IMULQ"}, // arg0 * auxint
+-		{name: "MULLconst", reg: gp11, asm: "IMULL"}, // arg0 * auxint
+-		{name: "MULWconst", reg: gp11, asm: "IMULW"}, // arg0 * auxint
+-		{name: "MULBconst", reg: gp11, asm: "IMULW"}, // arg0 * auxint
++		{name: "ADDQ", reg: gp21, asm: "ADDQ"},                                   // arg0 + arg1
++		{name: "ADDL", reg: gp21, asm: "ADDL"},                                   // arg0 + arg1
++		{name: "ADDW", reg: gp21, asm: "ADDW"},                                   // arg0 + arg1
++		{name: "ADDB", reg: gp21, asm: "ADDB"},                                   // arg0 + arg1
++		{name: "ADDQconst", reg: gp11, asm: "ADDQ", aux: "Int64", typ: "UInt64"}, // arg0 + auxint
++		{name: "ADDLconst", reg: gp11, asm: "ADDL", aux: "Int32"},                // arg0 + auxint
++		{name: "ADDWconst", reg: gp11, asm: "ADDW", aux: "Int16"},                // arg0 + auxint
++		{name: "ADDBconst", reg: gp11, asm: "ADDB", aux: "Int8"},                 // arg0 + auxint
++
++		{name: "SUBQ", reg: gp21, asm: "SUBQ"},                    // arg0 - arg1
++		{name: "SUBL", reg: gp21, asm: "SUBL"},                    // arg0 - arg1
++		{name: "SUBW", reg: gp21, asm: "SUBW"},                    // arg0 - arg1
++		{name: "SUBB", reg: gp21, asm: "SUBB"},                    // arg0 - arg1
++		{name: "SUBQconst", reg: gp11, asm: "SUBQ", aux: "Int64"}, // arg0 - auxint
++		{name: "SUBLconst", reg: gp11, asm: "SUBL", aux: "Int32"}, // arg0 - auxint
++		{name: "SUBWconst", reg: gp11, asm: "SUBW", aux: "Int16"}, // arg0 - auxint
++		{name: "SUBBconst", reg: gp11, asm: "SUBB", aux: "Int8"},  // arg0 - auxint
++
++		{name: "MULQ", reg: gp21, asm: "IMULQ"},                    // arg0 * arg1
++		{name: "MULL", reg: gp21, asm: "IMULL"},                    // arg0 * arg1
++		{name: "MULW", reg: gp21, asm: "IMULW"},                    // arg0 * arg1
++		{name: "MULB", reg: gp21, asm: "IMULW"},                    // arg0 * arg1
++		{name: "MULQconst", reg: gp11, asm: "IMULQ", aux: "Int64"}, // arg0 * auxint
++		{name: "MULLconst", reg: gp11, asm: "IMULL", aux: "Int32"}, // arg0 * auxint
++		{name: "MULWconst", reg: gp11, asm: "IMULW", aux: "Int16"}, // arg0 * auxint
++		{name: "MULBconst", reg: gp11, asm: "IMULW", aux: "Int8"},  // arg0 * auxint
+ 
+ 		{name: "HMULL", reg: gp11hmul, asm: "IMULL"}, // (arg0 * arg1) >> width
+ 		{name: "HMULW", reg: gp11hmul, asm: "IMULW"}, // (arg0 * arg1) >> width
+@@ -213,86 +213,86 @@ func init() {
+ 		{name: "MODLU", reg: gp11mod, asm: "DIVL"}, // arg0 % arg1
+ 		{name: "MODWU", reg: gp11mod, asm: "DIVW"}, // arg0 % arg1
+ 
+-		{name: "ANDQ", reg: gp21, asm: "ANDQ"},      // arg0 & arg1
+-		{name: "ANDL", reg: gp21, asm: "ANDL"},      // arg0 & arg1
+-		{name: "ANDW", reg: gp21, asm: "ANDW"},      // arg0 & arg1
+-		{name: "ANDB", reg: gp21, asm: "ANDB"},      // arg0 & arg1
+-		{name: "ANDQconst", reg: gp11, asm: "ANDQ"}, // arg0 & auxint
+-		{name: "ANDLconst", reg: gp11, asm: "ANDL"}, // arg0 & auxint
+-		{name: "ANDWconst", reg: gp11, asm: "ANDW"}, // arg0 & auxint
+-		{name: "ANDBconst", reg: gp11, asm: "ANDB"}, // arg0 & auxint
+-
+-		{name: "ORQ", reg: gp21, asm: "ORQ"},      // arg0 | arg1
+-		{name: "ORL", reg: gp21, asm: "ORL"},      // arg0 | arg1
+-		{name: "ORW", reg: gp21, asm: "ORW"},      // arg0 | arg1
+-		{name: "ORB", reg: gp21, asm: "ORB"},      // arg0 | arg1
+-		{name: "ORQconst", reg: gp11, asm: "ORQ"}, // arg0 | auxint
+-		{name: "ORLconst", reg: gp11, asm: "ORL"}, // arg0 | auxint
+-		{name: "ORWconst", reg: gp11, asm: "ORW"}, // arg0 | auxint
+-		{name: "ORBconst", reg: gp11, asm: "ORB"}, // arg0 | auxint
+-
+-		{name: "XORQ", reg: gp21, asm: "XORQ"},      // arg0 ^ arg1
+-		{name: "XORL", reg: gp21, asm: "XORL"},      // arg0 ^ arg1
+-		{name: "XORW", reg: gp21, asm: "XORW"},      // arg0 ^ arg1
+-		{name: "XORB", reg: gp21, asm: "XORB"},      // arg0 ^ arg1
+-		{name: "XORQconst", reg: gp11, asm: "XORQ"}, // arg0 ^ auxint
+-		{name: "XORLconst", reg: gp11, asm: "XORL"}, // arg0 ^ auxint
+-		{name: "XORWconst", reg: gp11, asm: "XORW"}, // arg0 ^ auxint
+-		{name: "XORBconst", reg: gp11, asm: "XORB"}, // arg0 ^ auxint
+-
+-		{name: "CMPQ", reg: gp2flags, asm: "CMPQ", typ: "Flags"},      // arg0 compare to arg1
+-		{name: "CMPL", reg: gp2flags, asm: "CMPL", typ: "Flags"},      // arg0 compare to arg1
+-		{name: "CMPW", reg: gp2flags, asm: "CMPW", typ: "Flags"},      // arg0 compare to arg1
+-		{name: "CMPB", reg: gp2flags, asm: "CMPB", typ: "Flags"},      // arg0 compare to arg1
+-		{name: "CMPQconst", reg: gp1flags, asm: "CMPQ", typ: "Flags"}, // arg0 compare to auxint
+-		{name: "CMPLconst", reg: gp1flags, asm: "CMPL", typ: "Flags"}, // arg0 compare to auxint
+-		{name: "CMPWconst", reg: gp1flags, asm: "CMPW", typ: "Flags"}, // arg0 compare to auxint
+-		{name: "CMPBconst", reg: gp1flags, asm: "CMPB", typ: "Flags"}, // arg0 compare to auxint
++		{name: "ANDQ", reg: gp21, asm: "ANDQ"},                    // arg0 & arg1
++		{name: "ANDL", reg: gp21, asm: "ANDL"},                    // arg0 & arg1
++		{name: "ANDW", reg: gp21, asm: "ANDW"},                    // arg0 & arg1
++		{name: "ANDB", reg: gp21, asm: "ANDB"},                    // arg0 & arg1
++		{name: "ANDQconst", reg: gp11, asm: "ANDQ", aux: "Int64"}, // arg0 & auxint
++		{name: "ANDLconst", reg: gp11, asm: "ANDL", aux: "Int32"}, // arg0 & auxint
++		{name: "ANDWconst", reg: gp11, asm: "ANDW", aux: "Int16"}, // arg0 & auxint
++		{name: "ANDBconst", reg: gp11, asm: "ANDB", aux: "Int8"},  // arg0 & auxint
++
++		{name: "ORQ", reg: gp21, asm: "ORQ"},                    // arg0 | arg1
++		{name: "ORL", reg: gp21, asm: "ORL"},                    // arg0 | arg1
++		{name: "ORW", reg: gp21, asm: "ORW"},                    // arg0 | arg1
++		{name: "ORB", reg: gp21, asm: "ORB"},                    // arg0 | arg1
++		{name: "ORQconst", reg: gp11, asm: "ORQ", aux: "Int64"}, // arg0 | auxint
++		{name: "ORLconst", reg: gp11, asm: "ORL", aux: "Int32"}, // arg0 | auxint
++		{name: "ORWconst", reg: gp11, asm: "ORW", aux: "Int16"}, // arg0 | auxint
++		{name: "ORBconst", reg: gp11, asm: "ORB", aux: "Int8"},  // arg0 | auxint
++
++		{name: "XORQ", reg: gp21, asm: "XORQ"},                    // arg0 ^ arg1
++		{name: "XORL", reg: gp21, asm: "XORL"},                    // arg0 ^ arg1
++		{name: "XORW", reg: gp21, asm: "XORW"},                    // arg0 ^ arg1
++		{name: "XORB", reg: gp21, asm: "XORB"},                    // arg0 ^ arg1
++		{name: "XORQconst", reg: gp11, asm: "XORQ", aux: "Int64"}, // arg0 ^ auxint
++		{name: "XORLconst", reg: gp11, asm: "XORL", aux: "Int32"}, // arg0 ^ auxint
++		{name: "XORWconst", reg: gp11, asm: "XORW", aux: "Int16"}, // arg0 ^ auxint
++		{name: "XORBconst", reg: gp11, asm: "XORB", aux: "Int8"},  // arg0 ^ auxint
++
++		{name: "CMPQ", reg: gp2flags, asm: "CMPQ", typ: "Flags"},                    // arg0 compare to arg1
++		{name: "CMPL", reg: gp2flags, asm: "CMPL", typ: "Flags"},                    // arg0 compare to arg1
++		{name: "CMPW", reg: gp2flags, asm: "CMPW", typ: "Flags"},                    // arg0 compare to arg1
++		{name: "CMPB", reg: gp2flags, asm: "CMPB", typ: "Flags"},                    // arg0 compare to arg1
++		{name: "CMPQconst", reg: gp1flags, asm: "CMPQ", typ: "Flags", aux: "Int64"}, // arg0 compare to auxint
++		{name: "CMPLconst", reg: gp1flags, asm: "CMPL", typ: "Flags", aux: "Int32"}, // arg0 compare to auxint
++		{name: "CMPWconst", reg: gp1flags, asm: "CMPW", typ: "Flags", aux: "Int16"}, // arg0 compare to auxint
++		{name: "CMPBconst", reg: gp1flags, asm: "CMPB", typ: "Flags", aux: "Int8"},  // arg0 compare to auxint
+ 
+ 		{name: "UCOMISS", reg: fp2flags, asm: "UCOMISS", typ: "Flags"}, // arg0 compare to arg1, f32
+ 		{name: "UCOMISD", reg: fp2flags, asm: "UCOMISD", typ: "Flags"}, // arg0 compare to arg1, f64
+ 
+-		{name: "TESTQ", reg: gp2flags, asm: "TESTQ", typ: "Flags"},      // (arg0 & arg1) compare to 0
+-		{name: "TESTL", reg: gp2flags, asm: "TESTL", typ: "Flags"},      // (arg0 & arg1) compare to 0
+-		{name: "TESTW", reg: gp2flags, asm: "TESTW", typ: "Flags"},      // (arg0 & arg1) compare to 0
+-		{name: "TESTB", reg: gp2flags, asm: "TESTB", typ: "Flags"},      // (arg0 & arg1) compare to 0
+-		{name: "TESTQconst", reg: gp1flags, asm: "TESTQ", typ: "Flags"}, // (arg0 & auxint) compare to 0
+-		{name: "TESTLconst", reg: gp1flags, asm: "TESTL", typ: "Flags"}, // (arg0 & auxint) compare to 0
+-		{name: "TESTWconst", reg: gp1flags, asm: "TESTW", typ: "Flags"}, // (arg0 & auxint) compare to 0
+-		{name: "TESTBconst", reg: gp1flags, asm: "TESTB", typ: "Flags"}, // (arg0 & auxint) compare to 0
+-
+-		{name: "SHLQ", reg: gp21shift, asm: "SHLQ"}, // arg0 << arg1, shift amount is mod 64
+-		{name: "SHLL", reg: gp21shift, asm: "SHLL"}, // arg0 << arg1, shift amount is mod 32
+-		{name: "SHLW", reg: gp21shift, asm: "SHLW"}, // arg0 << arg1, shift amount is mod 32
+-		{name: "SHLB", reg: gp21shift, asm: "SHLB"}, // arg0 << arg1, shift amount is mod 32
+-		{name: "SHLQconst", reg: gp11, asm: "SHLQ"}, // arg0 << auxint, shift amount 0-63
+-		{name: "SHLLconst", reg: gp11, asm: "SHLL"}, // arg0 << auxint, shift amount 0-31
+-		{name: "SHLWconst", reg: gp11, asm: "SHLW"}, // arg0 << auxint, shift amount 0-31
+-		{name: "SHLBconst", reg: gp11, asm: "SHLB"}, // arg0 << auxint, shift amount 0-31
++		{name: "TESTQ", reg: gp2flags, asm: "TESTQ", typ: "Flags"},                    // (arg0 & arg1) compare to 0
++		{name: "TESTL", reg: gp2flags, asm: "TESTL", typ: "Flags"},                    // (arg0 & arg1) compare to 0
++		{name: "TESTW", reg: gp2flags, asm: "TESTW", typ: "Flags"},                    // (arg0 & arg1) compare to 0
++		{name: "TESTB", reg: gp2flags, asm: "TESTB", typ: "Flags"},                    // (arg0 & arg1) compare to 0
++		{name: "TESTQconst", reg: gp1flags, asm: "TESTQ", typ: "Flags", aux: "Int64"}, // (arg0 & auxint) compare to 0
++		{name: "TESTLconst", reg: gp1flags, asm: "TESTL", typ: "Flags", aux: "Int32"}, // (arg0 & auxint) compare to 0
++		{name: "TESTWconst", reg: gp1flags, asm: "TESTW", typ: "Flags", aux: "Int16"}, // (arg0 & auxint) compare to 0
++		{name: "TESTBconst", reg: gp1flags, asm: "TESTB", typ: "Flags", aux: "Int8"},  // (arg0 & auxint) compare to 0
++
++		{name: "SHLQ", reg: gp21shift, asm: "SHLQ"},               // arg0 << arg1, shift amount is mod 64
++		{name: "SHLL", reg: gp21shift, asm: "SHLL"},               // arg0 << arg1, shift amount is mod 32
++		{name: "SHLW", reg: gp21shift, asm: "SHLW"},               // arg0 << arg1, shift amount is mod 32
++		{name: "SHLB", reg: gp21shift, asm: "SHLB"},               // arg0 << arg1, shift amount is mod 32
++		{name: "SHLQconst", reg: gp11, asm: "SHLQ", aux: "Int64"}, // arg0 << auxint, shift amount 0-63
++		{name: "SHLLconst", reg: gp11, asm: "SHLL", aux: "Int32"}, // arg0 << auxint, shift amount 0-31
++		{name: "SHLWconst", reg: gp11, asm: "SHLW", aux: "Int16"}, // arg0 << auxint, shift amount 0-31
++		{name: "SHLBconst", reg: gp11, asm: "SHLB", aux: "Int8"},  // arg0 << auxint, shift amount 0-31
+ 		// Note: x86 is weird, the 16 and 8 byte shifts still use all 5 bits of shift amount!
+ 
+-		{name: "SHRQ", reg: gp21shift, asm: "SHRQ"}, // unsigned arg0 >> arg1, shift amount is mod 64
+-		{name: "SHRL", reg: gp21shift, asm: "SHRL"}, // unsigned arg0 >> arg1, shift amount is mod 32
+-		{name: "SHRW", reg: gp21shift, asm: "SHRW"}, // unsigned arg0 >> arg1, shift amount is mod 32
+-		{name: "SHRB", reg: gp21shift, asm: "SHRB"}, // unsigned arg0 >> arg1, shift amount is mod 32
+-		{name: "SHRQconst", reg: gp11, asm: "SHRQ"}, // unsigned arg0 >> auxint, shift amount 0-63
+-		{name: "SHRLconst", reg: gp11, asm: "SHRL"}, // unsigned arg0 >> auxint, shift amount 0-31
+-		{name: "SHRWconst", reg: gp11, asm: "SHRW"}, // unsigned arg0 >> auxint, shift amount 0-31
+-		{name: "SHRBconst", reg: gp11, asm: "SHRB"}, // unsigned arg0 >> auxint, shift amount 0-31
+-
+-		{name: "SARQ", reg: gp21shift, asm: "SARQ"}, // signed arg0 >> arg1, shift amount is mod 64
+-		{name: "SARL", reg: gp21shift, asm: "SARL"}, // signed arg0 >> arg1, shift amount is mod 32
+-		{name: "SARW", reg: gp21shift, asm: "SARW"}, // signed arg0 >> arg1, shift amount is mod 32
+-		{name: "SARB", reg: gp21shift, asm: "SARB"}, // signed arg0 >> arg1, shift amount is mod 32
+-		{name: "SARQconst", reg: gp11, asm: "SARQ"}, // signed arg0 >> auxint, shift amount 0-63
+-		{name: "SARLconst", reg: gp11, asm: "SARL"}, // signed arg0 >> auxint, shift amount 0-31
+-		{name: "SARWconst", reg: gp11, asm: "SARW"}, // signed arg0 >> auxint, shift amount 0-31
+-		{name: "SARBconst", reg: gp11, asm: "SARB"}, // signed arg0 >> auxint, shift amount 0-31
+-
+-		{name: "ROLQconst", reg: gp11, asm: "ROLQ"}, // arg0 rotate left auxint, rotate amount 0-63
+-		{name: "ROLLconst", reg: gp11, asm: "ROLL"}, // arg0 rotate left auxint, rotate amount 0-31
+-		{name: "ROLWconst", reg: gp11, asm: "ROLW"}, // arg0 rotate left auxint, rotate amount 0-15
+-		{name: "ROLBconst", reg: gp11, asm: "ROLB"}, // arg0 rotate left auxint, rotate amount 0-7
++		{name: "SHRQ", reg: gp21shift, asm: "SHRQ"},               // unsigned arg0 >> arg1, shift amount is mod 64
++		{name: "SHRL", reg: gp21shift, asm: "SHRL"},               // unsigned arg0 >> arg1, shift amount is mod 32
++		{name: "SHRW", reg: gp21shift, asm: "SHRW"},               // unsigned arg0 >> arg1, shift amount is mod 32
++		{name: "SHRB", reg: gp21shift, asm: "SHRB"},               // unsigned arg0 >> arg1, shift amount is mod 32
++		{name: "SHRQconst", reg: gp11, asm: "SHRQ", aux: "Int64"}, // unsigned arg0 >> auxint, shift amount 0-63
++		{name: "SHRLconst", reg: gp11, asm: "SHRL", aux: "Int32"}, // unsigned arg0 >> auxint, shift amount 0-31
++		{name: "SHRWconst", reg: gp11, asm: "SHRW", aux: "Int16"}, // unsigned arg0 >> auxint, shift amount 0-31
++		{name: "SHRBconst", reg: gp11, asm: "SHRB", aux: "Int8"},  // unsigned arg0 >> auxint, shift amount 0-31
++
++		{name: "SARQ", reg: gp21shift, asm: "SARQ"},               // signed arg0 >> arg1, shift amount is mod 64
++		{name: "SARL", reg: gp21shift, asm: "SARL"},               // signed arg0 >> arg1, shift amount is mod 32
++		{name: "SARW", reg: gp21shift, asm: "SARW"},               // signed arg0 >> arg1, shift amount is mod 32
++		{name: "SARB", reg: gp21shift, asm: "SARB"},               // signed arg0 >> arg1, shift amount is mod 32
++		{name: "SARQconst", reg: gp11, asm: "SARQ", aux: "Int64"}, // signed arg0 >> auxint, shift amount 0-63
++		{name: "SARLconst", reg: gp11, asm: "SARL", aux: "Int32"}, // signed arg0 >> auxint, shift amount 0-31
++		{name: "SARWconst", reg: gp11, asm: "SARW", aux: "Int16"}, // signed arg0 >> auxint, shift amount 0-31
++		{name: "SARBconst", reg: gp11, asm: "SARB", aux: "Int8"},  // signed arg0 >> auxint, shift amount 0-31
++
++		{name: "ROLQconst", reg: gp11, asm: "ROLQ", aux: "Int64"}, // arg0 rotate left auxint, rotate amount 0-63
++		{name: "ROLLconst", reg: gp11, asm: "ROLL", aux: "Int32"}, // arg0 rotate left auxint, rotate amount 0-31
++		{name: "ROLWconst", reg: gp11, asm: "ROLW", aux: "Int16"}, // arg0 rotate left auxint, rotate amount 0-15
++		{name: "ROLBconst", reg: gp11, asm: "ROLB", aux: "Int8"},  // arg0 rotate left auxint, rotate amount 0-7
+ 
+ 		// unary ops
+ 		{name: "NEGQ", reg: gp11, asm: "NEGQ"}, // -arg0
+@@ -339,10 +339,10 @@ func init() {
+ 		{name: "MOVLQSX", reg: gp11nf, asm: "MOVLQSX"}, // sign extend arg0 from int32 to int64
+ 		{name: "MOVLQZX", reg: gp11nf, asm: "MOVLQZX"}, // zero extend arg0 from int32 to int64
+ 
+-		{name: "MOVBconst", reg: gp01, asm: "MOVB", typ: "UInt8"},  // 8 low bits of auxint
+-		{name: "MOVWconst", reg: gp01, asm: "MOVW", typ: "UInt16"}, // 16 low bits of auxint
+-		{name: "MOVLconst", reg: gp01, asm: "MOVL", typ: "UInt32"}, // 32 low bits of auxint
+-		{name: "MOVQconst", reg: gp01, asm: "MOVQ", typ: "UInt64"}, // auxint
++		{name: "MOVBconst", reg: gp01, asm: "MOVB", typ: "UInt8", aux: "Int8", rematerializeable: true},   // 8 low bits of auxint
++		{name: "MOVWconst", reg: gp01, asm: "MOVW", typ: "UInt16", aux: "Int16", rematerializeable: true}, // 16 low bits of auxint
++		{name: "MOVLconst", reg: gp01, asm: "MOVL", typ: "UInt32", aux: "Int32", rematerializeable: true}, // 32 low bits of auxint
++		{name: "MOVQconst", reg: gp01, asm: "MOVQ", typ: "UInt64", aux: "Int64", rematerializeable: true}, // auxint
+ 
+ 		{name: "CVTTSD2SL", reg: fpgp, asm: "CVTTSD2SL"}, // convert float64 to int32
+ 		{name: "CVTTSD2SQ", reg: fpgp, asm: "CVTTSD2SQ"}, // convert float64 to int64
+@@ -357,44 +357,44 @@ func init() {
+ 
+ 		{name: "PXOR", reg: fp21, asm: "PXOR"}, // exclusive or, applied to X regs for float negation.
+ 
+-		{name: "LEAQ", reg: gp11sb},  // arg0 + auxint + offset encoded in aux
+-		{name: "LEAQ1", reg: gp21sb}, // arg0 + arg1 + auxint
+-		{name: "LEAQ2", reg: gp21sb}, // arg0 + 2*arg1 + auxint
+-		{name: "LEAQ4", reg: gp21sb}, // arg0 + 4*arg1 + auxint
+-		{name: "LEAQ8", reg: gp21sb}, // arg0 + 8*arg1 + auxint
++		{name: "LEAQ", reg: gp11sb, aux: "SymOff", rematerializeable: true}, // arg0 + auxint + offset encoded in aux
++		{name: "LEAQ1", reg: gp21sb, aux: "SymOff"},                         // arg0 + arg1 + auxint + aux
++		{name: "LEAQ2", reg: gp21sb, aux: "SymOff"},                         // arg0 + 2*arg1 + auxint + aux
++		{name: "LEAQ4", reg: gp21sb, aux: "SymOff"},                         // arg0 + 4*arg1 + auxint + aux
++		{name: "LEAQ8", reg: gp21sb, aux: "SymOff"},                         // arg0 + 8*arg1 + auxint + aux
+ 
+ 		// auxint+aux == add auxint and the offset of the symbol in aux (if any) to the effective address
+-		{name: "MOVBload", reg: gpload, asm: "MOVB", typ: "UInt8"},  // load byte from arg0+auxint+aux. arg1=mem
+-		{name: "MOVBQSXload", reg: gpload, asm: "MOVBQSX"},          // ditto, extend to int64
+-		{name: "MOVBQZXload", reg: gpload, asm: "MOVBQZX"},          // ditto, extend to uint64
+-		{name: "MOVWload", reg: gpload, asm: "MOVW", typ: "UInt16"}, // load 2 bytes from arg0+auxint+aux. arg1=mem
+-		{name: "MOVWQSXload", reg: gpload, asm: "MOVWQSX"},          // ditto, extend to int64
+-		{name: "MOVWQZXload", reg: gpload, asm: "MOVWQZX"},          // ditto, extend to uint64
+-		{name: "MOVLload", reg: gpload, asm: "MOVL", typ: "UInt32"}, // load 4 bytes from arg0+auxint+aux. arg1=mem
+-		{name: "MOVLQSXload", reg: gpload, asm: "MOVLQSX"},          // ditto, extend to int64
+-		{name: "MOVLQZXload", reg: gpload, asm: "MOVLQZX"},          // ditto, extend to uint64
+-		{name: "MOVQload", reg: gpload, asm: "MOVQ", typ: "UInt64"}, // load 8 bytes from arg0+auxint+aux. arg1=mem
+-		{name: "MOVQloadidx8", reg: gploadidx, asm: "MOVQ"},         // load 8 bytes from arg0+8*arg1+auxint+aux. arg2=mem
+-		{name: "MOVBstore", reg: gpstore, asm: "MOVB", typ: "Mem"},  // store byte in arg1 to arg0+auxint+aux. arg2=mem
+-		{name: "MOVWstore", reg: gpstore, asm: "MOVW", typ: "Mem"},  // store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem
+-		{name: "MOVLstore", reg: gpstore, asm: "MOVL", typ: "Mem"},  // store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem
+-		{name: "MOVQstore", reg: gpstore, asm: "MOVQ", typ: "Mem"},  // store 8 bytes in arg1 to arg0+auxint+aux. arg2=mem
+-
+-		{name: "MOVBstoreidx1", reg: gpstoreidx, asm: "MOVB"}, // store byte in arg2 to arg0+arg1+auxint+aux. arg3=mem
+-		{name: "MOVWstoreidx2", reg: gpstoreidx, asm: "MOVW"}, // store 2 bytes in arg2 to arg0+2*arg1+auxint+aux. arg3=mem
+-		{name: "MOVLstoreidx4", reg: gpstoreidx, asm: "MOVL"}, // store 4 bytes in arg2 to arg0+4*arg1+auxint+aux. arg3=mem
+-		{name: "MOVQstoreidx8", reg: gpstoreidx, asm: "MOVQ"}, // store 8 bytes in arg2 to arg0+8*arg1+auxint+aux. arg3=mem
+-
+-		{name: "MOVOload", reg: fpload, asm: "MOVUPS", typ: "Int128"}, // load 16 bytes from arg0+auxint+aux. arg1=mem
+-		{name: "MOVOstore", reg: fpstore, asm: "MOVUPS", typ: "Mem"},  // store 16 bytes in arg1 to arg0+auxint+aux. arg2=mem
++		{name: "MOVBload", reg: gpload, asm: "MOVB", aux: "SymOff", typ: "UInt8"},  // load byte from arg0+auxint+aux. arg1=mem
++		{name: "MOVBQSXload", reg: gpload, asm: "MOVBQSX", aux: "SymOff"},          // ditto, extend to int64
++		{name: "MOVBQZXload", reg: gpload, asm: "MOVBQZX", aux: "SymOff"},          // ditto, extend to uint64
++		{name: "MOVWload", reg: gpload, asm: "MOVW", aux: "SymOff", typ: "UInt16"}, // load 2 bytes from arg0+auxint+aux. arg1=mem
++		{name: "MOVWQSXload", reg: gpload, asm: "MOVWQSX", aux: "SymOff"},          // ditto, extend to int64
++		{name: "MOVWQZXload", reg: gpload, asm: "MOVWQZX", aux: "SymOff"},          // ditto, extend to uint64
++		{name: "MOVLload", reg: gpload, asm: "MOVL", aux: "SymOff", typ: "UInt32"}, // load 4 bytes from arg0+auxint+aux. arg1=mem
++		{name: "MOVLQSXload", reg: gpload, asm: "MOVLQSX", aux: "SymOff"},          // ditto, extend to int64
++		{name: "MOVLQZXload", reg: gpload, asm: "MOVLQZX", aux: "SymOff"},          // ditto, extend to uint64
++		{name: "MOVQload", reg: gpload, asm: "MOVQ", aux: "SymOff", typ: "UInt64"}, // load 8 bytes from arg0+auxint+aux. arg1=mem
++		{name: "MOVQloadidx8", reg: gploadidx, asm: "MOVQ", aux: "SymOff"},         // load 8 bytes from arg0+8*arg1+auxint+aux. arg2=mem
++		{name: "MOVBstore", reg: gpstore, asm: "MOVB", aux: "SymOff", typ: "Mem"},  // store byte in arg1 to arg0+auxint+aux. arg2=mem
++		{name: "MOVWstore", reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem"},  // store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem
++		{name: "MOVLstore", reg: gpstore, asm: "MOVL", aux: "SymOff", typ: "Mem"},  // store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem
++		{name: "MOVQstore", reg: gpstore, asm: "MOVQ", aux: "SymOff", typ: "Mem"},  // store 8 bytes in arg1 to arg0+auxint+aux. arg2=mem
++
++		{name: "MOVBstoreidx1", reg: gpstoreidx, asm: "MOVB", aux: "SymOff"}, // store byte in arg2 to arg0+arg1+auxint+aux. arg3=mem
++		{name: "MOVWstoreidx2", reg: gpstoreidx, asm: "MOVW", aux: "SymOff"}, // store 2 bytes in arg2 to arg0+2*arg1+auxint+aux. arg3=mem
++		{name: "MOVLstoreidx4", reg: gpstoreidx, asm: "MOVL", aux: "SymOff"}, // store 4 bytes in arg2 to arg0+4*arg1+auxint+aux. arg3=mem
++		{name: "MOVQstoreidx8", reg: gpstoreidx, asm: "MOVQ", aux: "SymOff"}, // store 8 bytes in arg2 to arg0+8*arg1+auxint+aux. arg3=mem
++
++		{name: "MOVOload", reg: fpload, asm: "MOVUPS", aux: "SymOff", typ: "Int128"}, // load 16 bytes from arg0+auxint+aux. arg1=mem
++		{name: "MOVOstore", reg: fpstore, asm: "MOVUPS", aux: "SymOff", typ: "Mem"},  // store 16 bytes in arg1 to arg0+auxint+aux. arg2=mem
+ 
+ 		// For storeconst ops, the AuxInt field encodes both
+ 		// the value to store and an address offset of the store.
+ 		// Cast AuxInt to a ValAndOff to extract Val and Off fields.
+-		{name: "MOVBstoreconst", reg: gpstoreconst, asm: "MOVB", typ: "Mem"}, // store low byte of ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux.  arg1=mem
+-		{name: "MOVWstoreconst", reg: gpstoreconst, asm: "MOVW", typ: "Mem"}, // store low 2 bytes of ...
+-		{name: "MOVLstoreconst", reg: gpstoreconst, asm: "MOVL", typ: "Mem"}, // store low 4 bytes of ...
+-		{name: "MOVQstoreconst", reg: gpstoreconst, asm: "MOVQ", typ: "Mem"}, // store 8 bytes of ...
++		{name: "MOVBstoreconst", reg: gpstoreconst, asm: "MOVB", aux: "SymValAndOff", typ: "Mem"}, // store low byte of ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux.  arg1=mem
++		{name: "MOVWstoreconst", reg: gpstoreconst, asm: "MOVW", aux: "SymValAndOff", typ: "Mem"}, // store low 2 bytes of ...
++		{name: "MOVLstoreconst", reg: gpstoreconst, asm: "MOVL", aux: "SymValAndOff", typ: "Mem"}, // store low 4 bytes of ...
++		{name: "MOVQstoreconst", reg: gpstoreconst, asm: "MOVQ", aux: "SymValAndOff", typ: "Mem"}, // store 8 bytes of ...
+ 
+ 		// arg0 = (duff-adjusted) pointer to start of memory to zero
+ 		// arg1 = value to store (will always be zero)
+@@ -403,12 +403,13 @@ func init() {
+ 		// returns mem
+ 		{
+ 			name: "DUFFZERO",
++			aux:  "Int64",
+ 			reg: regInfo{
+ 				inputs:   []regMask{buildReg("DI"), buildReg("X0")},
+ 				clobbers: buildReg("DI FLAGS"),
+ 			},
+ 		},
+-		{name: "MOVOconst", reg: regInfo{nil, 0, []regMask{fp}}, typ: "Int128"},
++		{name: "MOVOconst", reg: regInfo{nil, 0, []regMask{fp}}, typ: "Int128", rematerializeable: true},
+ 
+ 		// arg0 = address of memory to zero
+ 		// arg1 = # of 8-byte words to zero
+@@ -423,11 +424,11 @@ func init() {
+ 			},
+ 		},
+ 
+-		{name: "CALLstatic", reg: regInfo{clobbers: callerSave}},                                 // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
+-		{name: "CALLclosure", reg: regInfo{[]regMask{gpsp, buildReg("DX"), 0}, callerSave, nil}}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+-		{name: "CALLdefer", reg: regInfo{clobbers: callerSave}},                                  // call deferproc.  arg0=mem, auxint=argsize, returns mem
+-		{name: "CALLgo", reg: regInfo{clobbers: callerSave}},                                     // call newproc.  arg0=mem, auxint=argsize, returns mem
+-		{name: "CALLinter", reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}},           // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
++		{name: "CALLstatic", reg: regInfo{clobbers: callerSave}, aux: "SymOff"},                                // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
++		{name: "CALLclosure", reg: regInfo{[]regMask{gpsp, buildReg("DX"), 0}, callerSave, nil}, aux: "Int64"}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
++		{name: "CALLdefer", reg: regInfo{clobbers: callerSave}, aux: "Int64"},                                  // call deferproc.  arg0=mem, auxint=argsize, returns mem
++		{name: "CALLgo", reg: regInfo{clobbers: callerSave}, aux: "Int64"},                                     // call newproc.  arg0=mem, auxint=argsize, returns mem
++		{name: "CALLinter", reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64"},           // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+ 
+ 		// arg0 = destination pointer
+ 		// arg1 = source pointer
+@@ -436,6 +437,7 @@ func init() {
+ 		// returns memory
+ 		{
+ 			name: "DUFFCOPY",
++			aux:  "Int64",
+ 			reg: regInfo{
+ 				inputs:   []regMask{buildReg("DI"), buildReg("SI")},
+ 				clobbers: buildReg("DI SI X0 FLAGS"), // uses X0 as a temporary
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 36dd58cd1d..3c7aa84ee3 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -148,10 +148,10 @@ var genericOps = []opData{
+ 	// for rotates is hashing and crypto code with constant
+ 	// distance, rotate instructions are only substituted
+ 	// when arg1 is a constant between 1 and A-1, inclusive.
+-	{name: "Lrot8"},
+-	{name: "Lrot16"},
+-	{name: "Lrot32"},
+-	{name: "Lrot64"},
++	{name: "Lrot8", aux: "Int64"},
++	{name: "Lrot16", aux: "Int64"},
++	{name: "Lrot32", aux: "Int64"},
++	{name: "Lrot64", aux: "Int64"},
+ 
+ 	// 2-input comparisons
+ 	{name: "Eq8"}, // arg0 == arg1
+@@ -247,46 +247,46 @@ var genericOps = []opData{
+ 
+ 	// constants.  Constant values are stored in the aux or
+ 	// auxint fields.
+-	{name: "ConstBool"},                // auxint is 0 for false and 1 for true
+-	{name: "ConstString"},              // value is aux.(string)
+-	{name: "ConstNil", typ: "BytePtr"}, // nil pointer
+-	{name: "Const8"},                   // value is low 8 bits of auxint
+-	{name: "Const16"},                  // value is low 16 bits of auxint
+-	{name: "Const32"},                  // value is low 32 bits of auxint
+-	{name: "Const64"},                  // value is auxint
+-	{name: "Const32F"},                 // value is math.Float64frombits(uint64(auxint))
+-	{name: "Const64F"},                 // value is math.Float64frombits(uint64(auxint))
+-	{name: "ConstInterface"},           // nil interface
+-	{name: "ConstSlice"},               // nil slice
++	{name: "ConstBool", aux: "Bool"},     // auxint is 0 for false and 1 for true
++	{name: "ConstString", aux: "String"}, // value is aux.(string)
++	{name: "ConstNil", typ: "BytePtr"},   // nil pointer
++	{name: "Const8", aux: "Int8"},        // value is low 8 bits of auxint
++	{name: "Const16", aux: "Int16"},      // value is low 16 bits of auxint
++	{name: "Const32", aux: "Int32"},      // value is low 32 bits of auxint
++	{name: "Const64", aux: "Int64"},      // value is auxint
++	{name: "Const32F", aux: "Float"},     // value is math.Float64frombits(uint64(auxint))
++	{name: "Const64F", aux: "Float"},     // value is math.Float64frombits(uint64(auxint))
++	{name: "ConstInterface"},             // nil interface
++	{name: "ConstSlice"},                 // nil slice
+ 
+ 	// Constant-like things
+-	{name: "InitMem"}, // memory input to the function.
+-	{name: "Arg"},     // argument to the function.  aux=GCNode of arg, off = offset in that arg.
++	{name: "InitMem"},            // memory input to the function.
++	{name: "Arg", aux: "SymOff"}, // argument to the function.  aux=GCNode of arg, off = offset in that arg.
+ 
+ 	// The address of a variable.  arg0 is the base pointer (SB or SP, depending
+ 	// on whether it is a global or stack variable).  The Aux field identifies the
+ 	// variable.  It will be either an *ExternSymbol (with arg0=SB), *ArgSymbol (arg0=SP),
+ 	// or *AutoSymbol (arg0=SP).
+-	{name: "Addr"}, // Address of a variable.  Arg0=SP or SB.  Aux identifies the variable.
++	{name: "Addr", aux: "Sym"}, // Address of a variable.  Arg0=SP or SB.  Aux identifies the variable.
+ 
+ 	{name: "SP"},                 // stack pointer
+ 	{name: "SB", typ: "Uintptr"}, // static base pointer (a.k.a. globals pointer)
+-	{name: "Func"},               // entry address of a function
++	{name: "Func", aux: "Sym"},   // entry address of a function
+ 
+ 	// Memory operations
+-	{name: "Load"},              // Load from arg0.  arg1=memory
+-	{name: "Store", typ: "Mem"}, // Store arg1 to arg0.  arg2=memory, auxint=size.  Returns memory.
+-	{name: "Move"},              // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size.  Returns memory.
+-	{name: "Zero"},              // arg0=destptr, arg1=mem, auxint=size. Returns memory.
++	{name: "Load"},                            // Load from arg0.  arg1=memory
++	{name: "Store", typ: "Mem", aux: "Int64"}, // Store arg1 to arg0.  arg2=memory, auxint=size.  Returns memory.
++	{name: "Move", aux: "Int64"},              // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size.  Returns memory.
++	{name: "Zero", aux: "Int64"},              // arg0=destptr, arg1=mem, auxint=size. Returns memory.
+ 
+ 	// Function calls.  Arguments to the call have already been written to the stack.
+ 	// Return values appear on the stack.  The method receiver, if any, is treated
+ 	// as a phantom first argument.
+-	{name: "ClosureCall"}, // arg0=code pointer, arg1=context ptr, arg2=memory.  auxint=arg size.  Returns memory.
+-	{name: "StaticCall"},  // call function aux.(*gc.Sym), arg0=memory.  auxint=arg size.  Returns memory.
+-	{name: "DeferCall"},   // defer call.  arg0=memory, auxint=arg size.  Returns memory.
+-	{name: "GoCall"},      // go call.  arg0=memory, auxint=arg size.  Returns memory.
+-	{name: "InterCall"},   // interface call.  arg0=code pointer, arg1=memory, auxint=arg size.  Returns memory.
++	{name: "ClosureCall", aux: "Int64"}, // arg0=code pointer, arg1=context ptr, arg2=memory.  auxint=arg size.  Returns memory.
++	{name: "StaticCall", aux: "SymOff"}, // call function aux.(*gc.Sym), arg0=memory.  auxint=arg size.  Returns memory.
++	{name: "DeferCall", aux: "Int64"},   // defer call.  arg0=memory, auxint=arg size.  Returns memory.
++	{name: "GoCall", aux: "Int64"},      // go call.  arg0=memory, auxint=arg size.  Returns memory.
++	{name: "InterCall", aux: "Int64"},   // interface call.  arg0=code pointer, arg1=memory, auxint=arg size.  Returns memory.
+ 
+ 	// Conversions: signed extensions, zero (unsigned) extensions, truncations
+ 	{name: "SignExt8to16", typ: "Int16"},
+@@ -330,9 +330,9 @@ var genericOps = []opData{
+ 	{name: "GetClosurePtr"}, // get closure pointer from dedicated register
+ 
+ 	// Indexing operations
+-	{name: "ArrayIndex"}, // arg0=array, arg1=index.  Returns a[i]
+-	{name: "PtrIndex"},   // arg0=ptr, arg1=index. Computes ptr+sizeof(*v.type)*index, where index is extended to ptrwidth type
+-	{name: "OffPtr"},     // arg0 + auxint (arg0 and result are pointers)
++	{name: "ArrayIndex"},           // arg0=array, arg1=index.  Returns a[i]
++	{name: "PtrIndex"},             // arg0=ptr, arg1=index. Computes ptr+sizeof(*v.type)*index, where index is extended to ptrwidth type
++	{name: "OffPtr", aux: "Int64"}, // arg0 + auxint (arg0 and result are pointers)
+ 
+ 	// Slices
+ 	{name: "SliceMake"},                // arg0=ptr, arg1=len, arg2=cap
+@@ -356,12 +356,12 @@ var genericOps = []opData{
+ 	{name: "IData"},                // arg0=interface, returns data field
+ 
+ 	// Structs
+-	{name: "StructMake0"},  // Returns struct with 0 fields.
+-	{name: "StructMake1"},  // arg0=field0.  Returns struct.
+-	{name: "StructMake2"},  // arg0,arg1=field0,field1.  Returns struct.
+-	{name: "StructMake3"},  // arg0..2=field0..2.  Returns struct.
+-	{name: "StructMake4"},  // arg0..3=field0..3.  Returns struct.
+-	{name: "StructSelect"}, // arg0=struct, auxint=field index.  Returns the auxint'th field.
++	{name: "StructMake0"},                // Returns struct with 0 fields.
++	{name: "StructMake1"},                // arg0=field0.  Returns struct.
++	{name: "StructMake2"},                // arg0,arg1=field0,field1.  Returns struct.
++	{name: "StructMake3"},                // arg0..2=field0..2.  Returns struct.
++	{name: "StructMake4"},                // arg0..3=field0..3.  Returns struct.
++	{name: "StructSelect", aux: "Int64"}, // arg0=struct, auxint=field index.  Returns the auxint'th field.
+ 
+ 	// Spill&restore ops for the register allocator.  These are
+ 	// semantically identical to OpCopy; they do not take/return
+@@ -376,9 +376,9 @@ var genericOps = []opData{
+ 	// Unknown value.  Used for Values whose values don't matter because they are dead code.
+ 	{name: "Unknown"},
+ 
+-	{name: "VarDef", typ: "Mem"}, // aux is a *gc.Node of a variable that is about to be initialized.  arg0=mem, returns mem
+-	{name: "VarKill"},            // aux is a *gc.Node of a variable that is known to be dead.  arg0=mem, returns mem
+-	{name: "VarLive"},            // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
++	{name: "VarDef", aux: "Sym", typ: "Mem"}, // aux is a *gc.Node of a variable that is about to be initialized.  arg0=mem, returns mem
++	{name: "VarKill", aux: "Sym"},            // aux is a *gc.Node of a variable that is known to be dead.  arg0=mem, returns mem
++	{name: "VarLive", aux: "Sym"},            // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
+ }
+ 
+ //     kind           control    successors       implicit exit
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/gen/main.go
+index c869de82e7..f8f6c8b5f6 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/gen/main.go
+@@ -26,10 +26,12 @@ type arch struct {
+ }
+ 
+ type opData struct {
+-	name string
+-	reg  regInfo
+-	asm  string
+-	typ  string // default result type
++	name              string
++	reg               regInfo
++	asm               string
++	typ               string // default result type
++	aux               string
++	rematerializeable bool
+ }
+ 
+ type blockData struct {
+@@ -117,6 +119,17 @@ func genOp() {
+ 		for _, v := range a.ops {
+ 			fmt.Fprintln(w, "{")
+ 			fmt.Fprintf(w, "name:\"%s\",\n", v.name)
++
++			// flags
++			if v.aux != "" {
++				fmt.Fprintf(w, "auxType: aux%s,\n", v.aux)
++			}
++			if v.rematerializeable {
++				if v.reg.clobbers != 0 {
++					log.Fatalf("%s is rematerializeable and clobbers registers", v.name)
++				}
++				fmt.Fprintln(w, "rematerializeable: true,")
++			}
+ 			if a.name == "generic" {
+ 				fmt.Fprintln(w, "generic:true,")
+ 				fmt.Fprintln(w, "},") // close op
+diff --git a/src/cmd/compile/internal/ssa/nilcheck_test.go b/src/cmd/compile/internal/ssa/nilcheck_test.go
+index c4aff58d76..14955e77d8 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck_test.go
++++ b/src/cmd/compile/internal/ssa/nilcheck_test.go
+@@ -21,7 +21,7 @@ func benchmarkNilCheckDeep(b *testing.B, depth int) {
+ 	var blocs []bloc
+ 	blocs = append(blocs,
+ 		Bloc("entry",
+-			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+ 			Goto(blockn(0)),
+ 		),
+@@ -67,7 +67,7 @@ func TestNilcheckSimple(t *testing.T) {
+ 	c := NewConfig("amd64", DummyFrontend{t}, nil, true)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+-			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+ 			Goto("checkPtr")),
+ 		Bloc("checkPtr",
+@@ -104,7 +104,7 @@ func TestNilcheckDomOrder(t *testing.T) {
+ 	c := NewConfig("amd64", DummyFrontend{t}, nil, true)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+-			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+ 			Goto("checkPtr")),
+ 		Bloc("checkPtr",
+@@ -140,7 +140,7 @@ func TestNilcheckAddr(t *testing.T) {
+ 	c := NewConfig("amd64", DummyFrontend{t}, nil, true)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+-			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+ 			Goto("checkPtr")),
+ 		Bloc("checkPtr",
+@@ -173,7 +173,7 @@ func TestNilcheckAddPtr(t *testing.T) {
+ 	c := NewConfig("amd64", DummyFrontend{t}, nil, true)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+-			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+ 			Goto("checkPtr")),
+ 		Bloc("checkPtr",
+@@ -207,7 +207,7 @@ func TestNilcheckPhi(t *testing.T) {
+ 	c := NewConfig("amd64", DummyFrontend{t}, nil, true)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+-			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+ 			Valu("sp", OpSP, TypeInvalid, 0, nil),
+ 			Valu("baddr", OpAddr, TypeBool, 0, "b", "sp"),
+@@ -251,7 +251,7 @@ func TestNilcheckKeepRemove(t *testing.T) {
+ 	c := NewConfig("amd64", DummyFrontend{t}, nil, true)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+-			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+ 			Goto("checkPtr")),
+ 		Bloc("checkPtr",
+@@ -299,7 +299,7 @@ func TestNilcheckInFalseBranch(t *testing.T) {
+ 	c := NewConfig("amd64", DummyFrontend{t}, nil, true)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+-			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+ 			Goto("checkPtr")),
+ 		Bloc("checkPtr",
+@@ -350,7 +350,7 @@ func TestNilcheckUser(t *testing.T) {
+ 	c := NewConfig("amd64", DummyFrontend{t}, nil, true)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+-			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+ 			Goto("checkPtr")),
+ 		Bloc("checkPtr",
+@@ -389,7 +389,7 @@ func TestNilcheckBug(t *testing.T) {
+ 	c := NewConfig("amd64", DummyFrontend{t}, nil, true)
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+-			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+ 			Goto("checkPtr")),
+ 		Bloc("checkPtr",
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 526722f7bc..a868fdbb6f 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -15,10 +15,12 @@ import "fmt"
+ type Op int32
+ 
+ type opInfo struct {
+-	name    string
+-	asm     int
+-	reg     regInfo
+-	generic bool // this is a generic (arch-independent) opcode
++	name              string
++	asm               int
++	reg               regInfo
++	auxType           auxType
++	generic           bool // this is a generic (arch-independent) opcode
++	rematerializeable bool // this op is rematerializeable
+ }
+ 
+ type inputInfo struct {
+@@ -32,6 +34,22 @@ type regInfo struct {
+ 	outputs  []regMask // NOTE: values can only have 1 output for now.
+ }
+ 
++type auxType int8
++
++const (
++	auxNone         auxType = iota
++	auxBool                 // auxInt is 0/1 for false/true
++	auxInt8                 // auxInt is an 8-bit integer
++	auxInt16                // auxInt is a 16-bit integer
++	auxInt32                // auxInt is a 32-bit integer
++	auxInt64                // auxInt is a 64-bit integer
++	auxFloat                // auxInt is a float64 (encoded with math.Float64bits)
++	auxString               // auxInt is a string
++	auxSym                  // aux is a symbol
++	auxSymOff               // aux is a symbol, auxInt is an offset
++	auxSymValAndOff         // aux is a symbol, auxInt is a ValAndOff
++)
++
+ // A ValAndOff is used by the several opcodes.  It holds
+ // both a value and a pointer offset.
+ // A ValAndOff is intended to be encoded into an AuxInt field.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 8c6c731969..089adfdec2 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -680,8 +680,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVSSload",
+-		asm:  x86.AMOVSS,
++		name:    "MOVSSload",
++		auxType: auxSymOff,
++		asm:     x86.AMOVSS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+@@ -692,8 +693,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVSDload",
+-		asm:  x86.AMOVSD,
++		name:    "MOVSDload",
++		auxType: auxSymOff,
++		asm:     x86.AMOVSD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+@@ -704,8 +706,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVSSconst",
+-		asm:  x86.AMOVSS,
++		name:              "MOVSSconst",
++		auxType:           auxFloat,
++		rematerializeable: true,
++		asm:               x86.AMOVSS,
+ 		reg: regInfo{
+ 			outputs: []regMask{
+ 				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+@@ -713,8 +717,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVSDconst",
+-		asm:  x86.AMOVSD,
++		name:              "MOVSDconst",
++		auxType:           auxFloat,
++		rematerializeable: true,
++		asm:               x86.AMOVSD,
+ 		reg: regInfo{
+ 			outputs: []regMask{
+ 				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+@@ -722,8 +728,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVSSloadidx4",
+-		asm:  x86.AMOVSS,
++		name:    "MOVSSloadidx4",
++		auxType: auxSymOff,
++		asm:     x86.AMOVSS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -735,8 +742,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVSDloadidx8",
+-		asm:  x86.AMOVSD,
++		name:    "MOVSDloadidx8",
++		auxType: auxSymOff,
++		asm:     x86.AMOVSD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -748,8 +756,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVSSstore",
+-		asm:  x86.AMOVSS,
++		name:    "MOVSSstore",
++		auxType: auxSymOff,
++		asm:     x86.AMOVSS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+@@ -758,8 +767,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVSDstore",
+-		asm:  x86.AMOVSD,
++		name:    "MOVSDstore",
++		auxType: auxSymOff,
++		asm:     x86.AMOVSD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+@@ -768,8 +778,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVSSstoreidx4",
+-		asm:  x86.AMOVSS,
++		name:    "MOVSSstoreidx4",
++		auxType: auxSymOff,
++		asm:     x86.AMOVSS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -779,8 +790,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVSDstoreidx8",
+-		asm:  x86.AMOVSD,
++		name:    "MOVSDstoreidx8",
++		auxType: auxSymOff,
++		asm:     x86.AMOVSD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -846,8 +858,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "ADDQconst",
+-		asm:  x86.AADDQ,
++		name:    "ADDQconst",
++		auxType: auxInt64,
++		asm:     x86.AADDQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -859,8 +872,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "ADDLconst",
+-		asm:  x86.AADDL,
++		name:    "ADDLconst",
++		auxType: auxInt32,
++		asm:     x86.AADDL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -872,8 +886,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "ADDWconst",
+-		asm:  x86.AADDW,
++		name:    "ADDWconst",
++		auxType: auxInt16,
++		asm:     x86.AADDW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -885,8 +900,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "ADDBconst",
+-		asm:  x86.AADDB,
++		name:    "ADDBconst",
++		auxType: auxInt8,
++		asm:     x86.AADDB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -954,8 +970,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SUBQconst",
+-		asm:  x86.ASUBQ,
++		name:    "SUBQconst",
++		auxType: auxInt64,
++		asm:     x86.ASUBQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -967,8 +984,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SUBLconst",
+-		asm:  x86.ASUBL,
++		name:    "SUBLconst",
++		auxType: auxInt32,
++		asm:     x86.ASUBL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -980,8 +998,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SUBWconst",
+-		asm:  x86.ASUBW,
++		name:    "SUBWconst",
++		auxType: auxInt16,
++		asm:     x86.ASUBW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -993,8 +1012,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SUBBconst",
+-		asm:  x86.ASUBB,
++		name:    "SUBBconst",
++		auxType: auxInt8,
++		asm:     x86.ASUBB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1062,8 +1082,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MULQconst",
+-		asm:  x86.AIMULQ,
++		name:    "MULQconst",
++		auxType: auxInt64,
++		asm:     x86.AIMULQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1075,8 +1096,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MULLconst",
+-		asm:  x86.AIMULL,
++		name:    "MULLconst",
++		auxType: auxInt32,
++		asm:     x86.AIMULL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1088,8 +1110,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MULWconst",
+-		asm:  x86.AIMULW,
++		name:    "MULWconst",
++		auxType: auxInt16,
++		asm:     x86.AIMULW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1101,8 +1124,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MULBconst",
+-		asm:  x86.AIMULW,
++		name:    "MULBconst",
++		auxType: auxInt8,
++		asm:     x86.AIMULW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1422,8 +1446,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "ANDQconst",
+-		asm:  x86.AANDQ,
++		name:    "ANDQconst",
++		auxType: auxInt64,
++		asm:     x86.AANDQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1435,8 +1460,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "ANDLconst",
+-		asm:  x86.AANDL,
++		name:    "ANDLconst",
++		auxType: auxInt32,
++		asm:     x86.AANDL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1448,8 +1474,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "ANDWconst",
+-		asm:  x86.AANDW,
++		name:    "ANDWconst",
++		auxType: auxInt16,
++		asm:     x86.AANDW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1461,8 +1488,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "ANDBconst",
+-		asm:  x86.AANDB,
++		name:    "ANDBconst",
++		auxType: auxInt8,
++		asm:     x86.AANDB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1530,8 +1558,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "ORQconst",
+-		asm:  x86.AORQ,
++		name:    "ORQconst",
++		auxType: auxInt64,
++		asm:     x86.AORQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1543,8 +1572,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "ORLconst",
+-		asm:  x86.AORL,
++		name:    "ORLconst",
++		auxType: auxInt32,
++		asm:     x86.AORL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1556,8 +1586,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "ORWconst",
+-		asm:  x86.AORW,
++		name:    "ORWconst",
++		auxType: auxInt16,
++		asm:     x86.AORW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1569,8 +1600,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "ORBconst",
+-		asm:  x86.AORB,
++		name:    "ORBconst",
++		auxType: auxInt8,
++		asm:     x86.AORB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1638,8 +1670,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "XORQconst",
+-		asm:  x86.AXORQ,
++		name:    "XORQconst",
++		auxType: auxInt64,
++		asm:     x86.AXORQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1651,8 +1684,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "XORLconst",
+-		asm:  x86.AXORL,
++		name:    "XORLconst",
++		auxType: auxInt32,
++		asm:     x86.AXORL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1664,8 +1698,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "XORWconst",
+-		asm:  x86.AXORW,
++		name:    "XORWconst",
++		auxType: auxInt16,
++		asm:     x86.AXORW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1677,8 +1712,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "XORBconst",
+-		asm:  x86.AXORB,
++		name:    "XORBconst",
++		auxType: auxInt8,
++		asm:     x86.AXORB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1742,8 +1778,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "CMPQconst",
+-		asm:  x86.ACMPQ,
++		name:    "CMPQconst",
++		auxType: auxInt64,
++		asm:     x86.ACMPQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1754,8 +1791,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "CMPLconst",
+-		asm:  x86.ACMPL,
++		name:    "CMPLconst",
++		auxType: auxInt32,
++		asm:     x86.ACMPL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1766,8 +1804,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "CMPWconst",
+-		asm:  x86.ACMPW,
++		name:    "CMPWconst",
++		auxType: auxInt16,
++		asm:     x86.ACMPW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1778,8 +1817,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "CMPBconst",
+-		asm:  x86.ACMPB,
++		name:    "CMPBconst",
++		auxType: auxInt8,
++		asm:     x86.ACMPB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1868,8 +1908,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "TESTQconst",
+-		asm:  x86.ATESTQ,
++		name:    "TESTQconst",
++		auxType: auxInt64,
++		asm:     x86.ATESTQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1880,8 +1921,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "TESTLconst",
+-		asm:  x86.ATESTL,
++		name:    "TESTLconst",
++		auxType: auxInt32,
++		asm:     x86.ATESTL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1892,8 +1934,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "TESTWconst",
+-		asm:  x86.ATESTW,
++		name:    "TESTWconst",
++		auxType: auxInt16,
++		asm:     x86.ATESTW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1904,8 +1947,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "TESTBconst",
+-		asm:  x86.ATESTB,
++		name:    "TESTBconst",
++		auxType: auxInt8,
++		asm:     x86.ATESTB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1972,8 +2016,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SHLQconst",
+-		asm:  x86.ASHLQ,
++		name:    "SHLQconst",
++		auxType: auxInt64,
++		asm:     x86.ASHLQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1985,8 +2030,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SHLLconst",
+-		asm:  x86.ASHLL,
++		name:    "SHLLconst",
++		auxType: auxInt32,
++		asm:     x86.ASHLL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -1998,8 +2044,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SHLWconst",
+-		asm:  x86.ASHLW,
++		name:    "SHLWconst",
++		auxType: auxInt16,
++		asm:     x86.ASHLW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2011,8 +2058,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SHLBconst",
+-		asm:  x86.ASHLB,
++		name:    "SHLBconst",
++		auxType: auxInt8,
++		asm:     x86.ASHLB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2080,8 +2128,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SHRQconst",
+-		asm:  x86.ASHRQ,
++		name:    "SHRQconst",
++		auxType: auxInt64,
++		asm:     x86.ASHRQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2093,8 +2142,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SHRLconst",
+-		asm:  x86.ASHRL,
++		name:    "SHRLconst",
++		auxType: auxInt32,
++		asm:     x86.ASHRL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2106,8 +2156,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SHRWconst",
+-		asm:  x86.ASHRW,
++		name:    "SHRWconst",
++		auxType: auxInt16,
++		asm:     x86.ASHRW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2119,8 +2170,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SHRBconst",
+-		asm:  x86.ASHRB,
++		name:    "SHRBconst",
++		auxType: auxInt8,
++		asm:     x86.ASHRB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2188,8 +2240,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SARQconst",
+-		asm:  x86.ASARQ,
++		name:    "SARQconst",
++		auxType: auxInt64,
++		asm:     x86.ASARQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2201,8 +2254,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SARLconst",
+-		asm:  x86.ASARL,
++		name:    "SARLconst",
++		auxType: auxInt32,
++		asm:     x86.ASARL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2214,8 +2268,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SARWconst",
+-		asm:  x86.ASARW,
++		name:    "SARWconst",
++		auxType: auxInt16,
++		asm:     x86.ASARW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2227,8 +2282,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "SARBconst",
+-		asm:  x86.ASARB,
++		name:    "SARBconst",
++		auxType: auxInt8,
++		asm:     x86.ASARB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2240,8 +2296,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "ROLQconst",
+-		asm:  x86.AROLQ,
++		name:    "ROLQconst",
++		auxType: auxInt64,
++		asm:     x86.AROLQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2253,8 +2310,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "ROLLconst",
+-		asm:  x86.AROLL,
++		name:    "ROLLconst",
++		auxType: auxInt32,
++		asm:     x86.AROLL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2266,8 +2324,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "ROLWconst",
+-		asm:  x86.AROLW,
++		name:    "ROLWconst",
++		auxType: auxInt16,
++		asm:     x86.AROLW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2279,8 +2338,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "ROLBconst",
+-		asm:  x86.AROLB,
++		name:    "ROLBconst",
++		auxType: auxInt8,
++		asm:     x86.AROLB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2698,8 +2758,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVBconst",
+-		asm:  x86.AMOVB,
++		name:              "MOVBconst",
++		auxType:           auxInt8,
++		rematerializeable: true,
++		asm:               x86.AMOVB,
+ 		reg: regInfo{
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2707,8 +2769,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVWconst",
+-		asm:  x86.AMOVW,
++		name:              "MOVWconst",
++		auxType:           auxInt16,
++		rematerializeable: true,
++		asm:               x86.AMOVW,
+ 		reg: regInfo{
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2716,8 +2780,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVLconst",
+-		asm:  x86.AMOVL,
++		name:              "MOVLconst",
++		auxType:           auxInt32,
++		rematerializeable: true,
++		asm:               x86.AMOVL,
+ 		reg: regInfo{
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2725,8 +2791,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVQconst",
+-		asm:  x86.AMOVQ,
++		name:              "MOVQconst",
++		auxType:           auxInt64,
++		rematerializeable: true,
++		asm:               x86.AMOVQ,
+ 		reg: regInfo{
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2867,7 +2935,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "LEAQ",
++		name:              "LEAQ",
++		auxType:           auxSymOff,
++		rematerializeable: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+@@ -2878,7 +2948,8 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "LEAQ1",
++		name:    "LEAQ1",
++		auxType: auxSymOff,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2890,7 +2961,8 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "LEAQ2",
++		name:    "LEAQ2",
++		auxType: auxSymOff,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2902,7 +2974,8 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "LEAQ4",
++		name:    "LEAQ4",
++		auxType: auxSymOff,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2914,7 +2987,8 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "LEAQ8",
++		name:    "LEAQ8",
++		auxType: auxSymOff,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2926,8 +3000,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVBload",
+-		asm:  x86.AMOVB,
++		name:    "MOVBload",
++		auxType: auxSymOff,
++		asm:     x86.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+@@ -2938,8 +3013,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVBQSXload",
+-		asm:  x86.AMOVBQSX,
++		name:    "MOVBQSXload",
++		auxType: auxSymOff,
++		asm:     x86.AMOVBQSX,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+@@ -2950,8 +3026,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVBQZXload",
+-		asm:  x86.AMOVBQZX,
++		name:    "MOVBQZXload",
++		auxType: auxSymOff,
++		asm:     x86.AMOVBQZX,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+@@ -2962,8 +3039,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVWload",
+-		asm:  x86.AMOVW,
++		name:    "MOVWload",
++		auxType: auxSymOff,
++		asm:     x86.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+@@ -2974,8 +3052,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVWQSXload",
+-		asm:  x86.AMOVWQSX,
++		name:    "MOVWQSXload",
++		auxType: auxSymOff,
++		asm:     x86.AMOVWQSX,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+@@ -2986,8 +3065,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVWQZXload",
+-		asm:  x86.AMOVWQZX,
++		name:    "MOVWQZXload",
++		auxType: auxSymOff,
++		asm:     x86.AMOVWQZX,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+@@ -2998,8 +3078,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVLload",
+-		asm:  x86.AMOVL,
++		name:    "MOVLload",
++		auxType: auxSymOff,
++		asm:     x86.AMOVL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+@@ -3010,8 +3091,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVLQSXload",
+-		asm:  x86.AMOVLQSX,
++		name:    "MOVLQSXload",
++		auxType: auxSymOff,
++		asm:     x86.AMOVLQSX,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+@@ -3022,8 +3104,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVLQZXload",
+-		asm:  x86.AMOVLQZX,
++		name:    "MOVLQZXload",
++		auxType: auxSymOff,
++		asm:     x86.AMOVLQZX,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+@@ -3034,8 +3117,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVQload",
+-		asm:  x86.AMOVQ,
++		name:    "MOVQload",
++		auxType: auxSymOff,
++		asm:     x86.AMOVQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+@@ -3046,8 +3130,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVQloadidx8",
+-		asm:  x86.AMOVQ,
++		name:    "MOVQloadidx8",
++		auxType: auxSymOff,
++		asm:     x86.AMOVQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -3059,8 +3144,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVBstore",
+-		asm:  x86.AMOVB,
++		name:    "MOVBstore",
++		auxType: auxSymOff,
++		asm:     x86.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -3069,8 +3155,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVWstore",
+-		asm:  x86.AMOVW,
++		name:    "MOVWstore",
++		auxType: auxSymOff,
++		asm:     x86.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -3079,8 +3166,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVLstore",
+-		asm:  x86.AMOVL,
++		name:    "MOVLstore",
++		auxType: auxSymOff,
++		asm:     x86.AMOVL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -3089,8 +3177,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVQstore",
+-		asm:  x86.AMOVQ,
++		name:    "MOVQstore",
++		auxType: auxSymOff,
++		asm:     x86.AMOVQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -3099,8 +3188,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVBstoreidx1",
+-		asm:  x86.AMOVB,
++		name:    "MOVBstoreidx1",
++		auxType: auxSymOff,
++		asm:     x86.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -3110,8 +3200,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVWstoreidx2",
+-		asm:  x86.AMOVW,
++		name:    "MOVWstoreidx2",
++		auxType: auxSymOff,
++		asm:     x86.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -3121,8 +3212,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVLstoreidx4",
+-		asm:  x86.AMOVL,
++		name:    "MOVLstoreidx4",
++		auxType: auxSymOff,
++		asm:     x86.AMOVL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -3132,8 +3224,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVQstoreidx8",
+-		asm:  x86.AMOVQ,
++		name:    "MOVQstoreidx8",
++		auxType: auxSymOff,
++		asm:     x86.AMOVQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -3143,8 +3236,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVOload",
+-		asm:  x86.AMOVUPS,
++		name:    "MOVOload",
++		auxType: auxSymOff,
++		asm:     x86.AMOVUPS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+@@ -3155,8 +3249,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVOstore",
+-		asm:  x86.AMOVUPS,
++		name:    "MOVOstore",
++		auxType: auxSymOff,
++		asm:     x86.AMOVUPS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+@@ -3165,8 +3260,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVBstoreconst",
+-		asm:  x86.AMOVB,
++		name:    "MOVBstoreconst",
++		auxType: auxSymValAndOff,
++		asm:     x86.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+@@ -3174,8 +3270,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVWstoreconst",
+-		asm:  x86.AMOVW,
++		name:    "MOVWstoreconst",
++		auxType: auxSymValAndOff,
++		asm:     x86.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+@@ -3183,8 +3280,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVLstoreconst",
+-		asm:  x86.AMOVL,
++		name:    "MOVLstoreconst",
++		auxType: auxSymValAndOff,
++		asm:     x86.AMOVL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+@@ -3192,8 +3290,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVQstoreconst",
+-		asm:  x86.AMOVQ,
++		name:    "MOVQstoreconst",
++		auxType: auxSymValAndOff,
++		asm:     x86.AMOVQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+@@ -3201,7 +3300,8 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "DUFFZERO",
++		name:    "DUFFZERO",
++		auxType: auxInt64,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 128},   // .DI
+@@ -3211,7 +3311,8 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "MOVOconst",
++		name:              "MOVOconst",
++		rematerializeable: true,
+ 		reg: regInfo{
+ 			outputs: []regMask{
+ 				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+@@ -3230,13 +3331,15 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "CALLstatic",
++		name:    "CALLstatic",
++		auxType: auxSymOff,
+ 		reg: regInfo{
+ 			clobbers: 12884901871, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15 .FLAGS
+ 		},
+ 	},
+ 	{
+-		name: "CALLclosure",
++		name:    "CALLclosure",
++		auxType: auxInt64,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 4},     // .DX
+@@ -3246,19 +3349,22 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "CALLdefer",
++		name:    "CALLdefer",
++		auxType: auxInt64,
+ 		reg: regInfo{
+ 			clobbers: 12884901871, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15 .FLAGS
+ 		},
+ 	},
+ 	{
+-		name: "CALLgo",
++		name:    "CALLgo",
++		auxType: auxInt64,
+ 		reg: regInfo{
+ 			clobbers: 12884901871, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15 .FLAGS
+ 		},
+ 	},
+ 	{
+-		name: "CALLinter",
++		name:    "CALLinter",
++		auxType: auxInt64,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65519}, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -3267,7 +3373,8 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "DUFFCOPY",
++		name:    "DUFFCOPY",
++		auxType: auxInt64,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 128}, // .DI
+@@ -3767,18 +3874,22 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:    "Lrot8",
++		auxType: auxInt64,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Lrot16",
++		auxType: auxInt64,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Lrot32",
++		auxType: auxInt64,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Lrot64",
++		auxType: auxInt64,
+ 		generic: true,
+ 	},
+ 	{
+@@ -4075,10 +4186,12 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:    "ConstBool",
++		auxType: auxBool,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "ConstString",
++		auxType: auxString,
+ 		generic: true,
+ 	},
+ 	{
+@@ -4087,26 +4200,32 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:    "Const8",
++		auxType: auxInt8,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Const16",
++		auxType: auxInt16,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Const32",
++		auxType: auxInt32,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Const64",
++		auxType: auxInt64,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Const32F",
++		auxType: auxFloat,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Const64F",
++		auxType: auxFloat,
+ 		generic: true,
+ 	},
+ 	{
+@@ -4123,10 +4242,12 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:    "Arg",
++		auxType: auxSymOff,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Addr",
++		auxType: auxSym,
+ 		generic: true,
+ 	},
+ 	{
+@@ -4139,6 +4260,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:    "Func",
++		auxType: auxSym,
+ 		generic: true,
+ 	},
+ 	{
+@@ -4147,34 +4269,42 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:    "Store",
++		auxType: auxInt64,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Move",
++		auxType: auxInt64,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Zero",
++		auxType: auxInt64,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "ClosureCall",
++		auxType: auxInt64,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "StaticCall",
++		auxType: auxSymOff,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "DeferCall",
++		auxType: auxInt64,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "GoCall",
++		auxType: auxInt64,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "InterCall",
++		auxType: auxInt64,
+ 		generic: true,
+ 	},
+ 	{
+@@ -4323,6 +4453,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:    "OffPtr",
++		auxType: auxInt64,
+ 		generic: true,
+ 	},
+ 	{
+@@ -4399,6 +4530,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:    "StructSelect",
++		auxType: auxInt64,
+ 		generic: true,
+ 	},
+ 	{
+@@ -4419,14 +4551,17 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:    "VarDef",
++		auxType: auxSym,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "VarKill",
++		auxType: auxSym,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "VarLive",
++		auxType: auxSym,
+ 		generic: true,
+ 	},
+ }
+diff --git a/src/cmd/compile/internal/ssa/passbm_test.go b/src/cmd/compile/internal/ssa/passbm_test.go
+index 9b11ff1256..8dff17a5b4 100644
+--- a/src/cmd/compile/internal/ssa/passbm_test.go
++++ b/src/cmd/compile/internal/ssa/passbm_test.go
+@@ -68,7 +68,7 @@ func genFunction(size int) []bloc {
+ 	valn := func(s string, m, n int) string { return fmt.Sprintf("%s%d-%d", s, m, n) }
+ 	blocs = append(blocs,
+ 		Bloc("entry",
+-			Valu(valn("store", 0, 4), OpArg, TypeMem, 0, ".mem"),
++			Valu(valn("store", 0, 4), OpInitMem, TypeMem, 0, nil),
+ 			Valu("sb", OpSB, TypeInvalid, 0, nil),
+ 			Goto(blockn(1)),
+ 		),
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index e1f8dd1935..bfb6f7da76 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -1481,31 +1481,16 @@ func (e *edgeState) findRegFor(typ Type) Location {
+ }
+ 
+ func (v *Value) rematerializeable() bool {
+-	// TODO: add a flags field to opInfo for this test?
+-	regspec := opcodeTable[v.Op].reg
+-
+-	// rematerializeable ops must be able to fill any register.
+-	outputs := regspec.outputs
+-	if len(outputs) == 0 || countRegs(outputs[0]) <= 1 {
+-		// Note: this case handles OpAMD64LoweredGetClosurePtr
+-		// which can't be moved.
++	if !opcodeTable[v.Op].rematerializeable {
+ 		return false
+ 	}
+-
+-	// We can't rematerialize instructions which
+-	// clobber the flags register.
+-	if regspec.clobbers&flagRegMask != 0 {
+-		return false
+-	}
+-
+-	if len(v.Args) == 0 {
+-		return true
+-	}
+-	if len(v.Args) == 1 && (v.Args[0].Op == OpSP || v.Args[0].Op == OpSB) {
++	for _, a := range v.Args {
+ 		// SP and SB (generated by OpSP and OpSB) are always available.
+-		return true
++		if a.Op != OpSP && a.Op != OpSB {
++			return false
++		}
+ 	}
+-	return false
++	return true
+ }
+ 
+ type liveInfo struct {
+diff --git a/src/cmd/compile/internal/ssa/regalloc_test.go b/src/cmd/compile/internal/ssa/regalloc_test.go
+index 596a920858..6f3f690f1e 100644
+--- a/src/cmd/compile/internal/ssa/regalloc_test.go
++++ b/src/cmd/compile/internal/ssa/regalloc_test.go
+@@ -10,9 +10,9 @@ func TestLiveControlOps(t *testing.T) {
+ 	c := testConfig(t)
+ 	f := Fun(c, "entry",
+ 		Bloc("entry",
+-			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+-			Valu("x", OpAMD64MOVBconst, TypeInt8, 0, 1),
+-			Valu("y", OpAMD64MOVBconst, TypeInt8, 0, 2),
++			Valu("mem", OpInitMem, TypeMem, 0, nil),
++			Valu("x", OpAMD64MOVBconst, TypeInt8, 1, nil),
++			Valu("y", OpAMD64MOVBconst, TypeInt8, 2, nil),
+ 			Valu("a", OpAMD64TESTB, TypeFlags, 0, nil, "x", "y"),
+ 			Valu("b", OpAMD64TESTB, TypeFlags, 0, nil, "y", "x"),
+ 			Eq("a", "if", "exit"),
+diff --git a/src/cmd/compile/internal/ssa/schedule_test.go b/src/cmd/compile/internal/ssa/schedule_test.go
+index 30c029ef7c..0ff57e3689 100644
+--- a/src/cmd/compile/internal/ssa/schedule_test.go
++++ b/src/cmd/compile/internal/ssa/schedule_test.go
+@@ -11,7 +11,7 @@ func TestSchedule(t *testing.T) {
+ 	cases := []fun{
+ 		Fun(c, "entry",
+ 			Bloc("entry",
+-				Valu("mem0", OpInitMem, TypeMem, 0, ".mem"),
++				Valu("mem0", OpInitMem, TypeMem, 0, nil),
+ 				Valu("ptr", OpConst64, TypeInt64, 0xABCD, nil),
+ 				Valu("v", OpConst64, TypeInt64, 12, nil),
+ 				Valu("mem1", OpStore, TypeMem, 8, nil, "ptr", "v", "mem0"),
+diff --git a/src/cmd/compile/internal/ssa/shift_test.go b/src/cmd/compile/internal/ssa/shift_test.go
+index 68d5f2ef70..8d5e62f070 100644
+--- a/src/cmd/compile/internal/ssa/shift_test.go
++++ b/src/cmd/compile/internal/ssa/shift_test.go
+@@ -34,7 +34,7 @@ func makeConstShiftFunc(c *Config, amount int64, op Op, typ Type) fun {
+ 	ptyp := &TypeImpl{Size_: 8, Ptr: true, Name: "ptr"}
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+-			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("SP", OpSP, TypeUInt64, 0, nil),
+ 			Valu("argptr", OpOffPtr, ptyp, 8, nil, "SP"),
+ 			Valu("resptr", OpOffPtr, ptyp, 16, nil, "SP"),
+diff --git a/src/cmd/compile/internal/ssa/shortcircuit_test.go b/src/cmd/compile/internal/ssa/shortcircuit_test.go
+index d518dfbabf..f208801fc1 100644
+--- a/src/cmd/compile/internal/ssa/shortcircuit_test.go
++++ b/src/cmd/compile/internal/ssa/shortcircuit_test.go
+@@ -11,7 +11,7 @@ func TestShortCircuit(t *testing.T) {
+ 
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+-			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
++			Valu("mem", OpInitMem, TypeMem, 0, nil),
+ 			Valu("arg1", OpArg, TypeInt64, 0, nil),
+ 			Valu("arg2", OpArg, TypeInt64, 0, nil),
+ 			Valu("arg3", OpArg, TypeInt64, 0, nil),
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index e338c4435b..af6bb3b97e 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -57,34 +57,72 @@ func (v *Value) String() string {
+ 	return fmt.Sprintf("v%d", v.ID)
+ }
+ 
++func (v *Value) AuxInt8() int8 {
++	if opcodeTable[v.Op].auxType != auxInt8 {
++		v.Fatalf("op %s doesn't have an int8 aux field", v.Op)
++	}
++	return int8(v.AuxInt)
++}
++
++func (v *Value) AuxInt16() int16 {
++	if opcodeTable[v.Op].auxType != auxInt16 {
++		v.Fatalf("op %s doesn't have an int16 aux field", v.Op)
++	}
++	return int16(v.AuxInt)
++}
++
++func (v *Value) AuxInt32() int32 {
++	if opcodeTable[v.Op].auxType != auxInt32 {
++		v.Fatalf("op %s doesn't have an int32 aux field", v.Op)
++	}
++	return int32(v.AuxInt)
++}
++func (v *Value) AuxFloat() float64 {
++	if opcodeTable[v.Op].auxType != auxFloat {
++		v.Fatalf("op %s doesn't have a float aux field", v.Op)
++	}
++	return math.Float64frombits(uint64(v.AuxInt))
++}
++func (v *Value) AuxValAndOff() ValAndOff {
++	if opcodeTable[v.Op].auxType != auxSymValAndOff {
++		v.Fatalf("op %s doesn't have a ValAndOff aux field", v.Op)
++	}
++	return ValAndOff(v.AuxInt)
++}
++
+ // long form print.  v# = opcode <type> [aux] args [: reg]
+ func (v *Value) LongString() string {
+ 	s := fmt.Sprintf("v%d = %s", v.ID, v.Op.String())
+ 	s += " <" + v.Type.String() + ">"
+-	// TODO: use some operator property flags to decide
+-	// what is encoded in the AuxInt field.
+-	switch v.Op {
+-	case OpConst32F, OpConst64F:
+-		s += fmt.Sprintf(" [%g]", math.Float64frombits(uint64(v.AuxInt)))
+-	case OpConstBool:
++	switch opcodeTable[v.Op].auxType {
++	case auxBool:
+ 		if v.AuxInt == 0 {
+ 			s += " [false]"
+ 		} else {
+ 			s += " [true]"
+ 		}
+-	case OpAMD64MOVBstoreconst, OpAMD64MOVWstoreconst, OpAMD64MOVLstoreconst, OpAMD64MOVQstoreconst:
+-		s += fmt.Sprintf(" [%s]", ValAndOff(v.AuxInt))
+-	default:
+-		if v.AuxInt != 0 {
+-			s += fmt.Sprintf(" [%d]", v.AuxInt)
++	case auxInt8:
++		s += fmt.Sprintf(" [%d]", v.AuxInt8())
++	case auxInt16:
++		s += fmt.Sprintf(" [%d]", v.AuxInt16())
++	case auxInt32:
++		s += fmt.Sprintf(" [%d]", v.AuxInt32())
++	case auxInt64:
++		s += fmt.Sprintf(" [%d]", v.AuxInt)
++	case auxFloat:
++		s += fmt.Sprintf(" [%g]", v.AuxFloat())
++	case auxString:
++		s += fmt.Sprintf(" {%s}", v.Aux)
++	case auxSymOff:
++		if v.Aux != nil {
++			s += fmt.Sprintf(" {%s}", v.Aux)
+ 		}
+-	}
+-	if v.Aux != nil {
+-		if _, ok := v.Aux.(string); ok {
+-			s += fmt.Sprintf(" {%q}", v.Aux)
+-		} else {
+-			s += fmt.Sprintf(" {%v}", v.Aux)
++		s += fmt.Sprintf(" [%s]", v.AuxInt)
++	case auxSymValAndOff:
++		if v.Aux != nil {
++			s += fmt.Sprintf(" {%s}", v.Aux)
+ 		}
++		s += fmt.Sprintf(" [%s]", v.AuxValAndOff())
+ 	}
+ 	for _, a := range v.Args {
+ 		s += fmt.Sprintf(" %v", a)

@@ -18,8 +18,62 @@ Date:   Sat May 4 00:24:53 2019 +0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/175019
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/syntax.go |  2 +-
  src/cmd/compile/internal/types/sym.go | 12 +++++++++---
  src/cmd/internal/obj/link.go          |  1 +
  3 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 12bc9c3ae6..9f6646af44 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -280,7 +280,7 @@ func (n *Node) isMethodExpression() bool {
+ 	return n.Op == ONAME && n.Left != nil && n.Left.Op == OTYPE && n.Right != nil && n.Right.Op == ONAME
+ }
+ 
+-// funcname returns the name of the function n.
++// funcname returns the name (without the package) of the function n.
+ func (n *Node) funcname() string {
+ 	if n == nil || n.Func == nil || n.Func.Nname == nil {
+ 		return "<nil>"
+diff --git a/src/cmd/compile/internal/types/sym.go b/src/cmd/compile/internal/types/sym.go
+index 13761c7615..2779c368a9 100644
+--- a/src/cmd/compile/internal/types/sym.go
++++ b/src/cmd/compile/internal/types/sym.go
+@@ -11,14 +11,20 @@ import (
+ 	"unicode/utf8"
+ )
+ 
+-// Sym represents an object name. Most commonly, this is a Go identifier naming
+-// an object declared within a package, but Syms are also used to name internal
+-// synthesized objects.
++// Sym represents an object name in a segmented (pkg, name) namespace.
++// Most commonly, this is a Go identifier naming an object declared within a package,
++// but Syms are also used to name internal synthesized objects.
+ //
+ // As an exception, field and method names that are exported use the Sym
+ // associated with localpkg instead of the package that declared them. This
+ // allows using Sym pointer equality to test for Go identifier uniqueness when
+ // handling selector expressions.
++//
++// Ideally, Sym should be used for representing Go language constructs,
++// while cmd/internal/obj.LSym is used for representing emitted artifacts.
++//
++// NOTE: In practice, things can be messier than the description above
++// for various reasons (historical, convenience).
+ type Sym struct {
+ 	Importdef *Pkg   // where imported definition was found
+ 	Linkname  string // link name
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 3ea29a87a9..66748b25d2 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -377,6 +377,7 @@ const (
+ )
+ 
+ // An LSym is the sort of symbol that is written to an object file.
++// It represents Go symbols in a flat pkg+"."+name namespace.
+ type LSym struct {
+ 	Name string
+ 	Type objabi.SymKind

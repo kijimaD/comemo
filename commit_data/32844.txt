@@ -19,8 +19,42 @@ Date:   Mon Jun 5 10:20:00 2017 +0200
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  lib/time/update.bash      |   4 ++--
  lib/time/zoneinfo.zip     | Bin 366113 -> 366776 bytes
  src/time/zoneinfo_test.go |   4 ++--
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/lib/time/update.bash b/lib/time/update.bash
+index b1f9a93061..6261f81dcd 100755
+--- a/lib/time/update.bash
++++ b/lib/time/update.bash
+@@ -8,8 +8,8 @@
+ # Consult http://www.iana.org/time-zones for the latest versions.
+ 
+ # Versions to use.
+-CODE=2016j
+-DATA=2016j
++CODE=2017b
++DATA=2017b
+ 
+ set -e
+ rm -rf work
+diff --git a/lib/time/zoneinfo.zip b/lib/time/zoneinfo.zip
+index d33dc1d273..b60ae7f98e 100644
+Binary files a/lib/time/zoneinfo.zip and b/lib/time/zoneinfo.zip differ
+diff --git a/src/time/zoneinfo_test.go b/src/time/zoneinfo_test.go
+index b25733c1f6..452262f2ca 100644
+--- a/src/time/zoneinfo_test.go
++++ b/src/time/zoneinfo_test.go
+@@ -87,8 +87,8 @@ func TestFirstZone(t *testing.T) {
+ 		{
+ 			"Pacific/Fakaofo",
+ 			1325242799,
+-			"Thu, 29 Dec 2011 23:59:59 -1100 (TKT)",
+-			"Sat, 31 Dec 2011 00:00:00 +1300 (TKT)",
++			"Thu, 29 Dec 2011 23:59:59 -1100 (-11)",
++			"Sat, 31 Dec 2011 00:00:00 +1300 (+13)",
+ 		},
+ 	}
+ 

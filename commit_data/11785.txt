@@ -9,9 +9,87 @@ Date:   Sat Feb 11 09:42:07 2012 +1100
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/5655050
-
+---
  src/pkg/compress/gzip/gunzip.go |  8 ++++++--
  src/pkg/compress/gzip/gzip.go   |  2 ++
  src/pkg/compress/zlib/reader.go | 11 ++++++++---
  src/pkg/compress/zlib/writer.go |  5 ++++-
  4 files changed, 20 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/compress/gzip/gunzip.go b/src/pkg/compress/gzip/gunzip.go
+index 3828f41052..33736f6350 100644
+--- a/src/pkg/compress/gzip/gunzip.go
++++ b/src/pkg/compress/gzip/gunzip.go
+@@ -34,8 +34,12 @@ func makeReader(r io.Reader) flate.Reader {
+ 	return bufio.NewReader(r)
+ }
+ 
+-var ErrHeader = errors.New("invalid gzip header")
+-var ErrChecksum = errors.New("gzip checksum error")
++var (
++	// ErrChecksum is returned when reading GZIP data that has an invalid checksum.
++	ErrChecksum = errors.New("gzip: invalid checksum")
++	// ErrHeader is returned when reading GZIP data that has an invalid header.
++	ErrHeader = errors.New("gzip: invalid header")
++)
+ 
+ // The gzip file stores a header giving metadata about the compressed file.
+ // That header is exposed as the fields of the Writer and Reader structs.
+diff --git a/src/pkg/compress/gzip/gzip.go b/src/pkg/compress/gzip/gzip.go
+index f9adc1bebe..3035dfffcc 100644
+--- a/src/pkg/compress/gzip/gzip.go
++++ b/src/pkg/compress/gzip/gzip.go
+@@ -130,6 +130,8 @@ func (z *Writer) writeString(s string) (err error) {
+ 	return err
+ }
+ 
++// Write writes a compressed form of p to the underlying io.Writer. The
++// compressed bytes are not necessarily flushed until the Writer is closed.
+ func (z *Writer) Write(p []byte) (int, error) {
+ 	if z.err != nil {
+ 		return 0, z.err
+diff --git a/src/pkg/compress/zlib/reader.go b/src/pkg/compress/zlib/reader.go
+index 4638a65484..f38ef5a885 100644
+--- a/src/pkg/compress/zlib/reader.go
++++ b/src/pkg/compress/zlib/reader.go
+@@ -34,9 +34,14 @@ import (
+ 
+ const zlibDeflate = 8
+ 
+-var ErrChecksum = errors.New("zlib checksum error")
+-var ErrHeader = errors.New("invalid zlib header")
+-var ErrDictionary = errors.New("invalid zlib dictionary")
++var (
++	// ErrChecksum is returned when reading ZLIB data that has an invalid checksum.
++	ErrChecksum = errors.New("zlib: invalid checksum")
++	// ErrDictionary is returned when reading ZLIB data that has an invalid dictionary.
++	ErrDictionary = errors.New("zlib: invalid dictionary")
++	// ErrHeader is returned when reading ZLIB data that has an invalid header.
++	ErrHeader = errors.New("zlib: invalid header")
++)
+ 
+ type reader struct {
+ 	r            flate.Reader
+diff --git a/src/pkg/compress/zlib/writer.go b/src/pkg/compress/zlib/writer.go
+index 6f70513e01..cd8dea460a 100644
+--- a/src/pkg/compress/zlib/writer.go
++++ b/src/pkg/compress/zlib/writer.go
+@@ -119,6 +119,9 @@ func (z *Writer) writeHeader() (err error) {
+ 	return nil
+ }
+ 
++// Write writes a compressed form of p to the underlying io.Writer. The
++// compressed bytes are not necessarily flushed until the Writer is closed or
++// explicitly flushed.
+ func (z *Writer) Write(p []byte) (n int, err error) {
+ 	if !z.wroteHeader {
+ 		z.err = z.writeHeader()
+@@ -138,7 +141,7 @@ func (z *Writer) Write(p []byte) (n int, err error) {
+ 	return
+ }
+ 
+-// Flush flushes the underlying compressor.
++// Flush flushes the Writer to its underlying io.Writer.
+ func (z *Writer) Flush() error {
+ 	if !z.wroteHeader {
+ 		z.err = z.writeHeader()

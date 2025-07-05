@@ -13,7 +13,49 @@ Date:   Thu Aug 18 19:15:20 2022 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/pprof/pprof_norusage.go |  2 +-
  src/runtime/pprof/pprof_windows.go  | 22 ++++++++++++++++++++++
  2 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/pprof/pprof_norusage.go b/src/runtime/pprof/pprof_norusage.go
+index 3d6052519c..8de38086c7 100644
+--- a/src/runtime/pprof/pprof_norusage.go
++++ b/src/runtime/pprof/pprof_norusage.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !aix && !darwin && !dragonfly && !freebsd && !linux && !netbsd && !openbsd && !solaris
++//go:build !aix && !darwin && !dragonfly && !freebsd && !linux && !netbsd && !openbsd && !solaris && !windows
+ 
+ package pprof
+ 
+diff --git a/src/runtime/pprof/pprof_windows.go b/src/runtime/pprof/pprof_windows.go
+new file mode 100644
+index 0000000000..23ef2f80fe
+--- /dev/null
++++ b/src/runtime/pprof/pprof_windows.go
+@@ -0,0 +1,22 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package pprof
++
++import (
++	"fmt"
++	"internal/syscall/windows"
++	"io"
++	"syscall"
++	"unsafe"
++)
++
++func addMaxRSS(w io.Writer) {
++	var m windows.PROCESS_MEMORY_COUNTERS
++	p, _ := syscall.GetCurrentProcess()
++	err := windows.GetProcessMemoryInfo(p, &m, uint32(unsafe.Sizeof(m)))
++	if err == nil {
++		fmt.Fprintf(w, "# MaxRSS = %d\n", m.PeakWorkingSetSize)
++	}
++}

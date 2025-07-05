@@ -12,8 +12,111 @@ Date:   Tue Feb 17 14:49:04 2015 -0800
     Change-Id: If195e3a8cf3454a73508633e9b317d66030da826
     Reviewed-on: https://go-review.googlesource.com/5071
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/asm/internal/asm/asm.go          | 15 +++++++--------
  src/cmd/asm/internal/asm/operand_test.go | 20 ++++++++++++++++++--
  src/cmd/asm/internal/asm/parse.go        |  5 ++---
  3 files changed, 27 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index e7bfc4fe89..bd402ed001 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -304,6 +304,12 @@ func (p *Parser) asmJump(op int, cond string, a []obj.Addr) {
+ 		As:     int16(op),
+ 	}
+ 	switch {
++	case target.Type == obj.TYPE_BRANCH:
++		// JMP 4(PC)
++		prog.To = obj.Addr{
++			Type:   obj.TYPE_BRANCH,
++			Offset: p.pc + 1 + target.Offset, // +1 because p.pc is incremented in link, below.
++		}
+ 	case target.Type == obj.TYPE_REG:
+ 		// JMP R1
+ 		prog.To = *target
+@@ -324,14 +330,7 @@ func (p *Parser) asmJump(op int, cond string, a []obj.Addr) {
+ 		}
+ 	case target.Type == obj.TYPE_MEM && target.Name == obj.NAME_NONE:
+ 		// JMP 4(PC)
+-		if target.Reg == arch.RPC {
+-			prog.To = obj.Addr{
+-				Type:   obj.TYPE_BRANCH,
+-				Offset: p.pc + 1 + target.Offset, // +1 because p.pc is incremented in link, below.
+-			}
+-		} else {
+-			prog.To = *target
+-		}
++		prog.To = *target
+ 	default:
+ 		p.errorf("cannot assemble jump %+v", target)
+ 	}
+diff --git a/src/cmd/asm/internal/asm/operand_test.go b/src/cmd/asm/internal/asm/operand_test.go
+index a7d1d846cf..1dc15133dd 100644
+--- a/src/cmd/asm/internal/asm/operand_test.go
++++ b/src/cmd/asm/internal/asm/operand_test.go
+@@ -27,6 +27,21 @@ func TestAMD64OperandParser(t *testing.T) {
+ 			t.Errorf("fail at %s: got %s; expected %s\n", test.input, result, test.output)
+ 		}
+ 	}
++
++	// Special case for AX:DX, which is really two operands so isn't print correcctly
++	// by Aconv, but is OK by the -S output.
++	parser.start(lex.Tokenize("AX:BX)"))
++	addr := obj.Addr{}
++	parser.operand(&addr)
++	want := obj.Addr{
++		Type:  obj.TYPE_REG,
++		Reg:   int16(architecture.Registers["AX"]),
++		Class: int8(architecture.Registers["BX"]),
++	}
++	if want != addr {
++		t.Errorf("AX:DX: expected %+v got %+v", want, addr)
++	}
++
+ }
+ 
+ type operandTest struct {
+@@ -86,13 +101,14 @@ var amd64operandTests = []operandTest{
+ 	{"(SP)", "(SP)"},
+ 	{"(6+8)(AX)", "14(AX)"},
+ 	{"(8*4)(BP)", "32(BP)"},
+-	// {"+3(PC)", "+3(PC)"}, TODO: Need to parse this knowing it's a branch.
++	{"+3(PC)", "3(PC)"},
++	{"-3(PC)", "-3(PC)"},
+ 	{"-1(DI)(BX*1)", "-1(DI)(BX*1)"},
+ 	{"-64(SI)(BX*1)", "-64(SI)(BX*1)"},
+ 	{"-96(SI)(BX*1)", "-96(SI)(BX*1)"},
+ 	{"AL", "AL"},
+ 	{"AX", "AX"},
+-	// {"AX:DX", "AX:DX"}, TODO: prints as AX although -S output is correct.
++	// {"AX:DX", "AX:DX"}, Handled in TestAMD64OperandParser directly.
+ 	{"BP", "BP"},
+ 	{"BX", "BX"},
+ 	{"CX", "CX"},
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index 61198736fd..1613326906 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -126,7 +126,7 @@ func (p *Parser) line() bool {
+ 					continue
+ 				}
+ 				if tok == ':' {
+-					// LABELS
++					// Labels.
+ 					p.pendingLabels = append(p.pendingLabels, word)
+ 					return true
+ 				}
+@@ -506,11 +506,10 @@ func (p *Parser) setPseudoRegister(addr *obj.Addr, reg string, isStatic bool, pr
+ 	case "FP":
+ 		addr.Name = obj.NAME_PARAM
+ 	case "PC":
+-		// Fine as is.
+ 		if prefix != 0 {
+ 			p.errorf("illegal addressing mode for PC")
+ 		}
+-		addr.Reg = arch.RPC // Tells asmJump how to interpret this address.
++		addr.Type = obj.TYPE_BRANCH // We set the type and leave NAME untouched. See asmJump.
+ 	case "SB":
+ 		addr.Name = obj.NAME_EXTERN
+ 		if isStatic {

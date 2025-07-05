@@ -29,9 +29,108 @@ Date:   Thu Oct 27 01:43:16 2022 +0000
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/cgo_unix.go       |  9 ---------
  src/net/ip.go             |  6 ++++++
  src/net/lookup_test.go    | 23 +++++++++++------------
  src/net/lookup_windows.go |  4 ++--
  4 files changed, 19 insertions(+), 23 deletions(-)
+
+diff --git a/src/net/cgo_unix.go b/src/net/cgo_unix.go
+index 81f492f4ef..a944727338 100644
+--- a/src/net/cgo_unix.go
++++ b/src/net/cgo_unix.go
+@@ -327,12 +327,3 @@ func cgoSockaddr(ip IP, zone string) (*_C_struct_sockaddr, _C_socklen_t) {
+ 	}
+ 	return nil, 0
+ }
+-
+-func copyIP(x IP) IP {
+-	if len(x) < 16 {
+-		return x.To16()
+-	}
+-	y := make(IP, len(x))
+-	copy(y, x)
+-	return y
+-}
+diff --git a/src/net/ip.go b/src/net/ip.go
+index 54c52881cf..d9f3da7021 100644
+--- a/src/net/ip.go
++++ b/src/net/ip.go
+@@ -757,3 +757,9 @@ func ParseCIDR(s string) (IP, *IPNet, error) {
+ 	m := CIDRMask(n, 8*iplen)
+ 	return ip, &IPNet{IP: ip.Mask(m), Mask: m}, nil
+ }
++
++func copyIP(x IP) IP {
++	y := make(IP, len(x))
++	copy(y, x)
++	return y
++}
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index ed9f93f3fe..38618c7dd7 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"context"
+ 	"fmt"
+ 	"internal/testenv"
++	"net/netip"
+ 	"reflect"
+ 	"runtime"
+ 	"sort"
+@@ -1289,18 +1290,16 @@ func TestResolverLookupIP(t *testing.T) {
+ 						t.Fatalf("DefaultResolver.LookupIP(%q, %q): failed with unexpected error: %v", network, host, err)
+ 					}
+ 
+-					var v4Addrs []IP
+-					var v6Addrs []IP
++					var v4Addrs []netip.Addr
++					var v6Addrs []netip.Addr
+ 					for _, ip := range ips {
+-						switch {
+-						case ip.To4() != nil:
+-							// We need to skip the test below because To16 will
+-							// convent an IPv4 address to an IPv4-mapped IPv6
+-							// address.
+-							v4Addrs = append(v4Addrs, ip)
+-						case ip.To16() != nil:
+-							v6Addrs = append(v6Addrs, ip)
+-						default:
++						if addr, ok := netip.AddrFromSlice(ip); ok {
++							if addr.Is4() {
++								v4Addrs = append(v4Addrs, addr)
++							} else {
++								v6Addrs = append(v6Addrs, addr)
++							}
++						} else {
+ 							t.Fatalf("IP=%q is neither IPv4 nor IPv6", ip)
+ 						}
+ 					}
+@@ -1322,7 +1321,7 @@ func TestResolverLookupIP(t *testing.T) {
+ 						t.Errorf("DefaultResolver.LookupIP(%q, %q): unexpected IPv4 addresses: %v", network, host, v4Addrs)
+ 					}
+ 					if network == "ip4" && len(v6Addrs) > 0 {
+-						t.Errorf("DefaultResolver.LookupIP(%q, %q): unexpected IPv6 addresses: %v", network, host, v6Addrs)
++						t.Errorf("DefaultResolver.LookupIP(%q, %q): unexpected IPv6 or IPv4-mapped IPv6 addresses: %v", network, host, v6Addrs)
+ 					}
+ 				})
+ 			}
+diff --git a/src/net/lookup_windows.go b/src/net/lookup_windows.go
+index 9ff39c74a4..d73c6062c9 100644
+--- a/src/net/lookup_windows.go
++++ b/src/net/lookup_windows.go
+@@ -134,11 +134,11 @@ func (r *Resolver) lookupIP(ctx context.Context, network, name string) ([]IPAddr
+ 			switch result.Family {
+ 			case syscall.AF_INET:
+ 				a := (*syscall.RawSockaddrInet4)(addr).Addr
+-				addrs = append(addrs, IPAddr{IP: IPv4(a[0], a[1], a[2], a[3])})
++				addrs = append(addrs, IPAddr{IP: copyIP(a[:])})
+ 			case syscall.AF_INET6:
+ 				a := (*syscall.RawSockaddrInet6)(addr).Addr
+ 				zone := zoneCache.name(int((*syscall.RawSockaddrInet6)(addr).Scope_id))
+-				addrs = append(addrs, IPAddr{IP: IP{a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], a[13], a[14], a[15]}, Zone: zone})
++				addrs = append(addrs, IPAddr{IP: copyIP(a[:]), Zone: zone})
+ 			default:
+ 				return nil, &DNSError{Err: syscall.EWINDOWS.Error(), Name: name}
+ 			}

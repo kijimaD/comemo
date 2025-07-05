@@ -10,7 +10,7 @@ Date:   Mon Feb 23 10:22:26 2015 -0500
     Change-Id: Ie04f86b71e0713c7294416c77d349e0d93798403
     Reviewed-on: https://go-review.googlesource.com/5574
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/internal/gc/lex.go  |  6 +++++-
  src/cmd/internal/gc/util.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/new5g/galign.go     |  1 +
@@ -18,3 +18,134 @@ Date:   Mon Feb 23 10:22:26 2015 -0500
  src/cmd/new8g/galign.go     |  1 +
  src/cmd/new9g/galign.go     |  1 +
  6 files changed, 53 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/gc/lex.go b/src/cmd/internal/gc/lex.go
+index 651ba5f65f..555a8fddd6 100644
+--- a/src/cmd/internal/gc/lex.go
++++ b/src/cmd/internal/gc/lex.go
+@@ -72,7 +72,7 @@ const (
+ func usage() {
+ 	fmt.Printf("usage: %cg [options] file.go...\n", Thearch.Thechar)
+ 	obj.Flagprint(1)
+-	os.Exit(2)
++	Exit(2)
+ }
+ 
+ func fault(s int) {
+@@ -225,6 +225,8 @@ func Main() {
+ 		obj.Flagcount("largemodel", "generate code that assumes a large memory model", &flag_largemodel)
+ 	}
+ 
++	obj.Flagstr("cpuprofile", "file: write cpu profile to file", &cpuprofile)
++	obj.Flagstr("memprofile", "file: write memory profile to file", &memprofile)
+ 	obj.Flagparse(usage)
+ 	Ctxt.Debugasm = int32(Debug['S'])
+ 	Ctxt.Debugvlog = int32(Debug['v'])
+@@ -233,6 +235,8 @@ func Main() {
+ 		usage()
+ 	}
+ 
++	startProfile()
++
+ 	if flag_race != 0 {
+ 		racepkg = mkpkg(newstrlit("runtime/race"))
+ 		racepkg.Name = "race"
+diff --git a/src/cmd/internal/gc/util.go b/src/cmd/internal/gc/util.go
+index ceb3eead35..df68d50058 100644
+--- a/src/cmd/internal/gc/util.go
++++ b/src/cmd/internal/gc/util.go
+@@ -2,6 +2,8 @@ package gc
+ 
+ import (
+ 	"cmd/internal/obj"
++	"os"
++	"runtime/pprof"
+ 	"strconv"
+ 	"strings"
+ )
+@@ -68,3 +70,45 @@ func stringsCompare(a, b string) int {
+ 	}
+ 	return +1
+ }
++
++var atExitFuncs []func()
++
++func AtExit(f func()) {
++	atExitFuncs = append(atExitFuncs, f)
++}
++
++func Exit(code int) {
++	for i := len(atExitFuncs) - 1; i >= 0; i-- {
++		f := atExitFuncs[i]
++		atExitFuncs = atExitFuncs[:i]
++		f()
++	}
++	os.Exit(code)
++}
++
++var cpuprofile string
++var memprofile string
++
++func startProfile() {
++	if cpuprofile != "" {
++		f, err := os.Create(cpuprofile)
++		if err != nil {
++			Fatal("%v", err)
++		}
++		if err := pprof.StartCPUProfile(f); err != nil {
++			Fatal("%v", err)
++		}
++		AtExit(pprof.StopCPUProfile)
++	}
++	if memprofile != "" {
++		f, err := os.Create(memprofile)
++		if err != nil {
++			Fatal("%v", err)
++		}
++		AtExit(func() {
++			if err := pprof.WriteHeapProfile(f); err != nil {
++				Fatal("%v", err)
++			}
++		})
++	}
++}
+diff --git a/src/cmd/new5g/galign.go b/src/cmd/new5g/galign.go
+index 95f11ec7dc..d2eeeab456 100644
+--- a/src/cmd/new5g/galign.go
++++ b/src/cmd/new5g/galign.go
+@@ -81,4 +81,5 @@ func main() {
+ 	gc.Thearch.Regnames = regnames
+ 
+ 	gc.Main()
++	gc.Exit(0)
+ }
+diff --git a/src/cmd/new6g/galign.go b/src/cmd/new6g/galign.go
+index d5d1e9ad59..bdd8a3c226 100644
+--- a/src/cmd/new6g/galign.go
++++ b/src/cmd/new6g/galign.go
+@@ -106,4 +106,5 @@ func main() {
+ 	gc.Thearch.Regnames = regnames
+ 
+ 	gc.Main()
++	gc.Exit(0)
+ }
+diff --git a/src/cmd/new8g/galign.go b/src/cmd/new8g/galign.go
+index a4f844dfff..45ef1302f3 100644
+--- a/src/cmd/new8g/galign.go
++++ b/src/cmd/new8g/galign.go
+@@ -81,4 +81,5 @@ func main() {
+ 	gc.Thearch.Regnames = regnames
+ 
+ 	gc.Main()
++	gc.Exit(0)
+ }
+diff --git a/src/cmd/new9g/galign.go b/src/cmd/new9g/galign.go
+index a3ce760e0e..99425c3929 100644
+--- a/src/cmd/new9g/galign.go
++++ b/src/cmd/new9g/galign.go
+@@ -89,4 +89,5 @@ func main() {
+ 	gc.Thearch.Regnames = regnames
+ 
+ 	gc.Main()
++	gc.Exit(0)
+ }

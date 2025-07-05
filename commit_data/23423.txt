@@ -9,7 +9,94 @@ Date:   Wed May 13 16:07:33 2015 -0700
     Change-Id: I5c6e424653657c89da176136ac56597c7565abe5
     Reviewed-on: https://go-review.googlesource.com/10039
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/text/scanner/scanner.go      |  6 +++++-
  src/text/scanner/scanner_test.go | 36 ++++++++++++++++++++++++++++--------
  2 files changed, 33 insertions(+), 9 deletions(-)
+
+diff --git a/src/text/scanner/scanner.go b/src/text/scanner/scanner.go
+index d3eadfd7e1..eacc0a2245 100644
+--- a/src/text/scanner/scanner.go
++++ b/src/text/scanner/scanner.go
+@@ -314,7 +314,9 @@ func (s *Scanner) Next() rune {
+ 	s.tokPos = -1 // don't collect token text
+ 	s.Line = 0    // invalidate token position
+ 	ch := s.Peek()
+-	s.ch = s.next()
++	if ch != EOF {
++		s.ch = s.next()
++	}
+ 	return ch
+ }
+ 
+@@ -597,6 +599,8 @@ redo:
+ 		}
+ 	default:
+ 		switch ch {
++		case EOF:
++			break
+ 		case '"':
+ 			if s.Mode&ScanStrings != 0 {
+ 				s.scanString('"')
+diff --git a/src/text/scanner/scanner_test.go b/src/text/scanner/scanner_test.go
+index aca17b1b27..798bed7e92 100644
+--- a/src/text/scanner/scanner_test.go
++++ b/src/text/scanner/scanner_test.go
+@@ -619,13 +619,12 @@ func TestPos(t *testing.T) {
+ 
+ type countReader int
+ 
+-func (c *countReader) Read([]byte) (int, error) {
+-	*c++
+-
++func (r *countReader) Read([]byte) (int, error) {
++	*r++
+ 	return 0, io.EOF
+ }
+ 
+-func TestPeekEOFHandling(t *testing.T) {
++func TestNextEOFHandling(t *testing.T) {
+ 	var r countReader
+ 
+ 	// corner case: empty source
+@@ -633,15 +632,36 @@ func TestPeekEOFHandling(t *testing.T) {
+ 
+ 	tok := s.Next()
+ 	if tok != EOF {
+-		t.Errorf("EOF not reported")
++		t.Error("1) EOF not reported")
++	}
++
++	tok = s.Peek()
++	if tok != EOF {
++		t.Error("2) EOF not reported")
++	}
++
++	if r != 1 {
++		t.Errorf("scanner called Read %d times, not once", r)
++	}
++}
++
++func TestScanEOFHandling(t *testing.T) {
++	var r countReader
++
++	// corner case: empty source
++	s := new(Scanner).Init(&r)
++
++	tok := s.Scan()
++	if tok != EOF {
++		t.Error("1) EOF not reported")
+ 	}
+ 
+ 	tok = s.Peek()
+ 	if tok != EOF {
+-		t.Errorf("EOF not reported")
++		t.Error("2) EOF not reported")
+ 	}
+ 
+-	if r != 2 {
+-		t.Errorf("scanner called Read %d times, not twice", r)
++	if r != 1 {
++		t.Errorf("scanner called Read %d times, not once", r)
+ 	}
+ }

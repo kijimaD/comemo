@@ -8,6 +8,35 @@ Date:   Mon Sep 16 16:26:07 2013 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/13368053
-
+---
  doc/go1.2.html | 17 +++++++++++++++++
  1 file changed, 17 insertions(+)
+
+diff --git a/doc/go1.2.html b/doc/go1.2.html
+index ce54850c19..ddaf862ade 100644
+--- a/doc/go1.2.html
++++ b/doc/go1.2.html
+@@ -530,6 +530,23 @@ map are unaffected because the associated function map will override the new
+ default function definitions.
+ </p>
+ 
++<h3 id="new_packages">New packages</h3>
++
++<p>
++There are two new packages.
++</p>
++
++<ul>
++<li>
++The <a href="/pkg/encoding/"><code>encoding</code></a> package is
++<a href="#encoding">described above</a>.
++</li>
++<li>
++The <a href="/pkg/image/color/palette/"><code>image/color/palette</code></a> package
++provides standard color palettes.
++</li>
++</ul>
++
+ <h3 id="minor_library_changes">Minor changes to the library</h3>
+ 
+ <p>

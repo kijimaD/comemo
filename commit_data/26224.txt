@@ -12,6 +12,36 @@ Date:   Tue Jan 5 17:29:16 2016 +0000
     Change-Id: I3445c011ed20f29128092c801c7a4bb4dd2b8351
     Reviewed-on: https://go-review.googlesource.com/18281
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  doc/go1.6.html | 11 ++++++++++-
  1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.6.html b/doc/go1.6.html
+index b4ac96ef96..fe079301cd 100644
+--- a/doc/go1.6.html
++++ b/doc/go1.6.html
+@@ -685,7 +685,8 @@ First, the
+ <a href="/pkg/http/#FileServer"><code>FileServer</code></a> now sorts its generated directory listings by file name.
+ Second, the
+ <a href="/pkg/http/#Client"><code>Client</code></a> now allows user code to set the
+-<code>Expect:</code> <code>100-continue</code> header.
++<code>Expect:</code> <code>100-continue</code> header (see
++<a href="/pkg/http/#Transport"><code>Transport.ExpectContinueTimeout</code></a>).
+ Third, there are
+ <a href="/pkg/net/http/#pkg-constants">four new error codes</a> from RFC 6585:
+ <code>StatusPreconditionRequired</code> (428),
+@@ -693,6 +694,14 @@ Third, there are
+ <code>StatusRequestHeaderFieldsTooLarge</code> (431),
+ and
+ <code>StatusNetworkAuthenticationRequired</code> (511).
++Fourth, the implementation and documentation of
++<a href="/pkg/http/#CloseNotifier"><code>CloseNotifier</code></a>
++has been substantially changed.
++The <a href="/pkg/http/#Hijacker"><code>Hijacker</code></a>
++interface now works correctly on connections that have previously
++been used with <code>CloseNotifier</code>.
++The documentation now describes when <code>CloseNotifier</code>
++is expected to work.
+ </li>
+ 
+ <li>

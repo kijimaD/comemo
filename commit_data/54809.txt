@@ -13,6 +13,21 @@ Date:   Tue Nov 15 11:57:10 2022 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/rsa/pss.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/crypto/rsa/pss.go b/src/crypto/rsa/pss.go
+index fd9fc2ef58..72004d96d7 100644
+--- a/src/crypto/rsa/pss.go
++++ b/src/crypto/rsa/pss.go
+@@ -297,6 +297,9 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte,
+ 	switch saltLength {
+ 	case PSSSaltLengthAuto:
+ 		saltLength = (priv.N.BitLen()-1+7)/8 - 2 - hash.Size()
++		if saltLength < 0 {
++			return nil, ErrMessageTooLong
++		}
+ 	case PSSSaltLengthEqualsHash:
+ 		saltLength = hash.Size()
+ 	default:

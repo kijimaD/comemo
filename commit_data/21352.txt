@@ -7,6 +7,20 @@ Date:   Mon Dec 22 23:44:41 2014 -0500
     Change-Id: I17ddcb541dfac8b1e48e01ee005563031b6ade2a
     Reviewed-on: https://go-review.googlesource.com/2062
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/noasm.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/noasm.go b/src/runtime/noasm.go
+index b7e3f82f8e..998309e828 100644
+--- a/src/runtime/noasm.go
++++ b/src/runtime/noasm.go
+@@ -9,6 +9,8 @@
+ 
+ package runtime
+ 
++import _ "unsafe"
++
+ func cmpstring(s1, s2 string) int {
+ 	l := len(s1)
+ 	if len(s2) < l {

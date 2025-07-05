@@ -10,7 +10,7 @@ Date:   Fri Aug 29 16:11:05 2014 -0700
     R=rsc, crawshaw
     CC=golang-codereviews
     https://golang.org/cl/138920043
-
+---
  src/pkg/runtime/defs1_linux.go         | 2 +-
  src/pkg/runtime/defs2_linux.go         | 2 +-
  src/pkg/runtime/defs_arm_linux.go      | 2 +-
@@ -42,3 +42,540 @@ Date:   Fri Aug 29 16:11:05 2014 -0700
  src/pkg/runtime/os_solaris.c           | 2 +-
  src/pkg/runtime/os_solaris.h           | 2 +-
  30 files changed, 47 insertions(+), 47 deletions(-)
+
+diff --git a/src/pkg/runtime/defs1_linux.go b/src/pkg/runtime/defs1_linux.go
+index 451817a67a..392cc4ab58 100644
+--- a/src/pkg/runtime/defs1_linux.go
++++ b/src/pkg/runtime/defs1_linux.go
+@@ -31,7 +31,7 @@ type Fpxreg1 C.struct__fpxreg
+ type Xmmreg1 C.struct__xmmreg
+ type Fpstate1 C.struct__fpstate
+ type Fpreg1 C.struct__fpreg
+-type Sigaltstack C.struct_sigaltstack
++type SigaltstackT C.struct_sigaltstack
+ type Mcontext C.mcontext_t
+ type Ucontext C.ucontext_t
+ type Sigcontext C.struct_sigcontext
+diff --git a/src/pkg/runtime/defs2_linux.go b/src/pkg/runtime/defs2_linux.go
+index 60ecc69bb9..980df9ec31 100644
+--- a/src/pkg/runtime/defs2_linux.go
++++ b/src/pkg/runtime/defs2_linux.go
+@@ -139,7 +139,7 @@ type Timespec C.struct_timespec
+ type Timeval C.struct_timeval
+ type Sigaction C.struct_kernel_sigaction
+ type Siginfo C.siginfo_t
+-type Sigaltstack C.struct_sigaltstack
++type SigaltstackT C.struct_sigaltstack
+ type Sigcontext C.struct_sigcontext
+ type Ucontext C.struct_ucontext
+ type Itimerval C.struct_itimerval
+diff --git a/src/pkg/runtime/defs_arm_linux.go b/src/pkg/runtime/defs_arm_linux.go
+index db0a191542..afd6897e30 100644
+--- a/src/pkg/runtime/defs_arm_linux.go
++++ b/src/pkg/runtime/defs_arm_linux.go
+@@ -115,7 +115,7 @@ const (
+ )
+ 
+ type Timespec C.struct_timespec
+-type Sigaltstack C.struct_sigaltstack
++type SigaltstackT C.struct_sigaltstack
+ type Sigcontext C.struct_sigcontext
+ type Ucontext C.struct_ucontext
+ type Timeval C.struct_timeval
+diff --git a/src/pkg/runtime/defs_dragonfly.go b/src/pkg/runtime/defs_dragonfly.go
+index 8ebc3a9e1a..555b8f5951 100644
+--- a/src/pkg/runtime/defs_dragonfly.go
++++ b/src/pkg/runtime/defs_dragonfly.go
+@@ -110,7 +110,7 @@ const (
+ 
+ type Rtprio C.struct_rtprio
+ type Lwpparams C.struct_lwp_params
+-type Sigaltstack C.struct_sigaltstack
++type SigaltstackT C.struct_sigaltstack
+ type Sigset C.struct___sigset
+ type StackT C.stack_t
+ 
+diff --git a/src/pkg/runtime/defs_dragonfly_386.h b/src/pkg/runtime/defs_dragonfly_386.h
+index 032b23574e..f86b9c6b94 100644
+--- a/src/pkg/runtime/defs_dragonfly_386.h
++++ b/src/pkg/runtime/defs_dragonfly_386.h
+@@ -85,7 +85,7 @@ enum {
+ 
+ typedef struct Rtprio Rtprio;
+ typedef struct Lwpparams Lwpparams;
+-typedef struct Sigaltstack Sigaltstack;
++typedef struct SigaltstackT SigaltstackT;
+ typedef struct Sigset Sigset;
+ typedef struct StackT StackT;
+ typedef struct Siginfo Siginfo;
+@@ -109,7 +109,7 @@ struct Lwpparams {
+ 	int32	*tid1;
+ 	int32	*tid2;
+ };
+-struct Sigaltstack {
++struct SigaltstackT {
+ 	int8	*ss_sp;
+ 	uint32	ss_size;
+ 	int32	ss_flags;
+diff --git a/src/pkg/runtime/defs_dragonfly_amd64.h b/src/pkg/runtime/defs_dragonfly_amd64.h
+index c37a72e729..671555241d 100644
+--- a/src/pkg/runtime/defs_dragonfly_amd64.h
++++ b/src/pkg/runtime/defs_dragonfly_amd64.h
+@@ -85,7 +85,7 @@ enum {
+ 
+ typedef struct Rtprio Rtprio;
+ typedef struct Lwpparams Lwpparams;
+-typedef struct Sigaltstack Sigaltstack;
++typedef struct SigaltstackT SigaltstackT;
+ typedef struct Sigset Sigset;
+ typedef struct StackT StackT;
+ typedef struct Siginfo Siginfo;
+@@ -109,7 +109,7 @@ struct Lwpparams {
+ 	int32	*tid1;
+ 	int32	*tid2;
+ };
+-struct Sigaltstack {
++struct SigaltstackT {
+ 	int8	*ss_sp;
+ 	uint64	ss_size;
+ 	int32	ss_flags;
+diff --git a/src/pkg/runtime/defs_freebsd.go b/src/pkg/runtime/defs_freebsd.go
+index 2832583e06..0253685aac 100644
+--- a/src/pkg/runtime/defs_freebsd.go
++++ b/src/pkg/runtime/defs_freebsd.go
+@@ -117,7 +117,7 @@ const (
+ 
+ type Rtprio C.struct_rtprio
+ type ThrParam C.struct_thr_param
+-type Sigaltstack C.struct_sigaltstack
++type SigaltstackT C.struct_sigaltstack
+ type Sigset C.struct___sigset
+ type StackT C.stack_t
+ 
+diff --git a/src/pkg/runtime/defs_freebsd_386.h b/src/pkg/runtime/defs_freebsd_386.h
+index e625079bc7..156dccba48 100644
+--- a/src/pkg/runtime/defs_freebsd_386.h
++++ b/src/pkg/runtime/defs_freebsd_386.h
+@@ -89,7 +89,7 @@ enum {
+ 
+ typedef struct Rtprio Rtprio;
+ typedef struct ThrParam ThrParam;
+-typedef struct Sigaltstack Sigaltstack;
++typedef struct SigaltstackT SigaltstackT;
+ typedef struct Sigset Sigset;
+ typedef struct StackT StackT;
+ typedef struct Siginfo Siginfo;
+@@ -119,7 +119,7 @@ struct ThrParam {
+ 	Rtprio	*rtp;
+ 	void	*spare[3];
+ };
+-struct Sigaltstack {
++struct SigaltstackT {
+ 	int8	*ss_sp;
+ 	uint32	ss_size;
+ 	int32	ss_flags;
+diff --git a/src/pkg/runtime/defs_freebsd_amd64.h b/src/pkg/runtime/defs_freebsd_amd64.h
+index 40476f9e4f..4ba8956a2c 100644
+--- a/src/pkg/runtime/defs_freebsd_amd64.h
++++ b/src/pkg/runtime/defs_freebsd_amd64.h
+@@ -89,7 +89,7 @@ enum {
+ 
+ typedef struct Rtprio Rtprio;
+ typedef struct ThrParam ThrParam;
+-typedef struct Sigaltstack Sigaltstack;
++typedef struct SigaltstackT SigaltstackT;
+ typedef struct Sigset Sigset;
+ typedef struct StackT StackT;
+ typedef struct Siginfo Siginfo;
+@@ -120,7 +120,7 @@ struct ThrParam {
+ 	Rtprio	*rtp;
+ 	void	*spare[3];
+ };
+-struct Sigaltstack {
++struct SigaltstackT {
+ 	int8	*ss_sp;
+ 	uint64	ss_size;
+ 	int32	ss_flags;
+diff --git a/src/pkg/runtime/defs_freebsd_arm.h b/src/pkg/runtime/defs_freebsd_arm.h
+index 927d3a48b5..17deba68d1 100644
+--- a/src/pkg/runtime/defs_freebsd_arm.h
++++ b/src/pkg/runtime/defs_freebsd_arm.h
+@@ -89,7 +89,7 @@ enum {
+ 
+ typedef struct Rtprio Rtprio;
+ typedef struct ThrParam ThrParam;
+-typedef struct Sigaltstack Sigaltstack;
++typedef struct SigaltstackT SigaltstackT;
+ typedef struct Sigset Sigset;
+ typedef struct StackT StackT;
+ typedef struct Siginfo Siginfo;
+@@ -119,7 +119,7 @@ struct ThrParam {
+ 	Rtprio	*rtp;
+ 	void	*spare[3];
+ };
+-struct Sigaltstack {
++struct SigaltstackT {
+ 	uint8	*ss_sp;
+ 	uint32	ss_size;
+ 	int32	ss_flags;
+diff --git a/src/pkg/runtime/defs_linux_386.h b/src/pkg/runtime/defs_linux_386.h
+index 2df3f66d80..d19bb7a00f 100644
+--- a/src/pkg/runtime/defs_linux_386.h
++++ b/src/pkg/runtime/defs_linux_386.h
+@@ -97,7 +97,7 @@ typedef struct Timespec Timespec;
+ typedef struct Timeval Timeval;
+ typedef struct SigactionT SigactionT;
+ typedef struct Siginfo Siginfo;
+-typedef struct Sigaltstack Sigaltstack;
++typedef struct SigaltstackT SigaltstackT;
+ typedef struct Sigcontext Sigcontext;
+ typedef struct Ucontext Ucontext;
+ typedef struct Itimerval Itimerval;
+@@ -156,7 +156,7 @@ struct Siginfo {
+ 	int32	si_code;
+ 	byte	_sifields[116];
+ };
+-struct Sigaltstack {
++struct SigaltstackT {
+ 	byte	*ss_sp;
+ 	int32	ss_flags;
+ 	uint32	ss_size;
+@@ -194,7 +194,7 @@ struct Sigcontext {
+ struct Ucontext {
+ 	uint32	uc_flags;
+ 	Ucontext	*uc_link;
+-	Sigaltstack	uc_stack;
++	SigaltstackT	uc_stack;
+ 	Sigcontext	uc_mcontext;
+ 	uint32	uc_sigmask;
+ };
+diff --git a/src/pkg/runtime/defs_linux_amd64.h b/src/pkg/runtime/defs_linux_amd64.h
+index 42826c39ee..73fd9947a7 100644
+--- a/src/pkg/runtime/defs_linux_amd64.h
++++ b/src/pkg/runtime/defs_linux_amd64.h
+@@ -144,7 +144,7 @@ typedef struct Fpxreg1 Fpxreg1;
+ typedef struct Xmmreg1 Xmmreg1;
+ typedef struct Fpstate1 Fpstate1;
+ typedef struct Fpreg1 Fpreg1;
+-typedef struct Sigaltstack Sigaltstack;
++typedef struct SigaltstackT SigaltstackT;
+ typedef struct Mcontext Mcontext;
+ typedef struct Ucontext Ucontext;
+ typedef struct Sigcontext Sigcontext;
+@@ -200,7 +200,7 @@ struct Fpreg1 {
+ 	uint16	significand[4];
+ 	uint16	exponent;
+ };
+-struct Sigaltstack {
++struct SigaltstackT {
+ 	byte	*ss_sp;
+ 	int32	ss_flags;
+ 	byte	Pad_cgo_0[4];
+@@ -214,7 +214,7 @@ struct Mcontext {
+ struct Ucontext {
+ 	uint64	uc_flags;
+ 	Ucontext	*uc_link;
+-	Sigaltstack	uc_stack;
++	SigaltstackT	uc_stack;
+ 	Mcontext	uc_mcontext;
+ 	Usigset	uc_sigmask;
+ 	Fpstate	__fpregs_mem;
+diff --git a/src/pkg/runtime/defs_linux_arm.h b/src/pkg/runtime/defs_linux_arm.h
+index 8c17e3805b..61bd30d59c 100644
+--- a/src/pkg/runtime/defs_linux_arm.h
++++ b/src/pkg/runtime/defs_linux_arm.h
+@@ -88,8 +88,8 @@ struct Timespec {
+ 	int32 tv_nsec;
+ };
+ 
+-typedef struct Sigaltstack Sigaltstack;
+-struct Sigaltstack {
++typedef struct SigaltstackT SigaltstackT;
++struct SigaltstackT {
+ 	void *ss_sp;
+ 	int32 ss_flags;
+ 	uint32 ss_size;
+@@ -124,7 +124,7 @@ typedef struct Ucontext Ucontext;
+ struct Ucontext {
+ 	uint32 uc_flags;
+ 	Ucontext *uc_link;
+-	Sigaltstack uc_stack;
++	SigaltstackT uc_stack;
+ 	Sigcontext uc_mcontext;
+ 	uint32 uc_sigmask;
+ 	int32 __unused[31];
+diff --git a/src/pkg/runtime/defs_netbsd.go b/src/pkg/runtime/defs_netbsd.go
+index d1c4cbe96c..b27949e423 100644
+--- a/src/pkg/runtime/defs_netbsd.go
++++ b/src/pkg/runtime/defs_netbsd.go
+@@ -109,7 +109,7 @@ const (
+ 	EVFILT_WRITE = C.EVFILT_WRITE
+ )
+ 
+-type Sigaltstack C.struct_sigaltstack
++type SigaltstackT C.struct_sigaltstack
+ type Sigset C.sigset_t
+ type Siginfo C.struct__ksiginfo
+ 
+diff --git a/src/pkg/runtime/defs_netbsd_386.h b/src/pkg/runtime/defs_netbsd_386.h
+index fb23611990..53d4b30bb7 100644
+--- a/src/pkg/runtime/defs_netbsd_386.h
++++ b/src/pkg/runtime/defs_netbsd_386.h
+@@ -82,7 +82,7 @@ enum {
+ 	EVFILT_WRITE	= 0x1,
+ };
+ 
+-typedef struct Sigaltstack Sigaltstack;
++typedef struct SigaltstackT SigaltstackT;
+ typedef struct Sigset Sigset;
+ typedef struct Siginfo Siginfo;
+ typedef struct StackT StackT;
+@@ -95,7 +95,7 @@ typedef struct KeventT KeventT;
+ 
+ #pragma pack on
+ 
+-struct Sigaltstack {
++struct SigaltstackT {
+ 	byte	*ss_sp;
+ 	uint32	ss_size;
+ 	int32	ss_flags;
+diff --git a/src/pkg/runtime/defs_netbsd_amd64.h b/src/pkg/runtime/defs_netbsd_amd64.h
+index f6ba3db189..6227575c92 100644
+--- a/src/pkg/runtime/defs_netbsd_amd64.h
++++ b/src/pkg/runtime/defs_netbsd_amd64.h
+@@ -82,7 +82,7 @@ enum {
+ 	EVFILT_WRITE	= 0x1,
+ };
+ 
+-typedef struct Sigaltstack Sigaltstack;
++typedef struct SigaltstackT SigaltstackT;
+ typedef struct Sigset Sigset;
+ typedef struct Siginfo Siginfo;
+ typedef struct StackT StackT;
+@@ -95,7 +95,7 @@ typedef struct KeventT KeventT;
+ 
+ #pragma pack on
+ 
+-struct Sigaltstack {
++struct SigaltstackT {
+ 	byte	*ss_sp;
+ 	uint64	ss_size;
+ 	int32	ss_flags;
+diff --git a/src/pkg/runtime/defs_netbsd_arm.h b/src/pkg/runtime/defs_netbsd_arm.h
+index 815d54749b..115fa439a6 100644
+--- a/src/pkg/runtime/defs_netbsd_arm.h
++++ b/src/pkg/runtime/defs_netbsd_arm.h
+@@ -82,7 +82,7 @@ enum {
+ 	EVFILT_WRITE	= 0x1,
+ };
+ 
+-typedef struct Sigaltstack Sigaltstack;
++typedef struct SigaltstackT SigaltstackT;
+ typedef struct Sigset Sigset;
+ typedef struct Siginfo Siginfo;
+ typedef struct StackT StackT;
+@@ -95,7 +95,7 @@ typedef struct KeventT KeventT;
+ 
+ #pragma pack on
+ 
+-struct Sigaltstack {
++struct SigaltstackT {
+ 	byte	*ss_sp;
+ 	uint32	ss_size;
+ 	int32	ss_flags;
+diff --git a/src/pkg/runtime/defs_openbsd.go b/src/pkg/runtime/defs_openbsd.go
+index 4a705796f0..cf4e06d37b 100644
+--- a/src/pkg/runtime/defs_openbsd.go
++++ b/src/pkg/runtime/defs_openbsd.go
+@@ -106,7 +106,7 @@ const (
+ 
+ type Tfork C.struct___tfork
+ 
+-type Sigaltstack C.struct_sigaltstack
++type SigaltstackT C.struct_sigaltstack
+ type Sigcontext C.struct_sigcontext
+ type Siginfo C.siginfo_t
+ type Sigset C.sigset_t
+diff --git a/src/pkg/runtime/defs_openbsd_386.h b/src/pkg/runtime/defs_openbsd_386.h
+index a63b182a04..669a35c357 100644
+--- a/src/pkg/runtime/defs_openbsd_386.h
++++ b/src/pkg/runtime/defs_openbsd_386.h
+@@ -82,7 +82,7 @@ enum {
+ };
+ 
+ typedef struct Tfork Tfork;
+-typedef struct Sigaltstack Sigaltstack;
++typedef struct SigaltstackT SigaltstackT;
+ typedef struct Sigcontext Sigcontext;
+ typedef struct Siginfo Siginfo;
+ typedef struct StackT StackT;
+@@ -99,7 +99,7 @@ struct Tfork {
+ 	byte	*tf_stack;
+ };
+ 
+-struct Sigaltstack {
++struct SigaltstackT {
+ 	byte	*ss_sp;
+ 	uint32	ss_size;
+ 	int32	ss_flags;
+diff --git a/src/pkg/runtime/defs_openbsd_amd64.h b/src/pkg/runtime/defs_openbsd_amd64.h
+index 818ac35207..9877f8b4c2 100644
+--- a/src/pkg/runtime/defs_openbsd_amd64.h
++++ b/src/pkg/runtime/defs_openbsd_amd64.h
+@@ -82,7 +82,7 @@ enum {
+ };
+ 
+ typedef struct Tfork Tfork;
+-typedef struct Sigaltstack Sigaltstack;
++typedef struct SigaltstackT SigaltstackT;
+ typedef struct Sigcontext Sigcontext;
+ typedef struct Siginfo Siginfo;
+ typedef struct StackT StackT;
+@@ -99,7 +99,7 @@ struct Tfork {
+ 	byte	*tf_stack;
+ };
+ 
+-struct Sigaltstack {
++struct SigaltstackT {
+ 	byte	*ss_sp;
+ 	uint64	ss_size;
+ 	int32	ss_flags;
+diff --git a/src/pkg/runtime/defs_solaris.go b/src/pkg/runtime/defs_solaris.go
+index 8dcbb08b7d..ba44e5fd4d 100644
+--- a/src/pkg/runtime/defs_solaris.go
++++ b/src/pkg/runtime/defs_solaris.go
+@@ -133,7 +133,7 @@ const (
+ 
+ type SemT C.sem_t
+ 
+-type Sigaltstack C.struct_sigaltstack
++type SigaltstackT C.struct_sigaltstack
+ type Sigset C.sigset_t
+ type StackT C.stack_t
+ 
+diff --git a/src/pkg/runtime/defs_solaris_amd64.h b/src/pkg/runtime/defs_solaris_amd64.h
+index 08727b017e..cb1cfeadcc 100644
+--- a/src/pkg/runtime/defs_solaris_amd64.h
++++ b/src/pkg/runtime/defs_solaris_amd64.h
+@@ -101,7 +101,7 @@ enum {
+ };
+ 
+ typedef struct SemT SemT;
+-typedef struct Sigaltstack Sigaltstack;
++typedef struct SigaltstackT SigaltstackT;
+ typedef struct Sigset Sigset;
+ typedef struct StackT StackT;
+ typedef struct Siginfo Siginfo;
+@@ -126,7 +126,7 @@ struct SemT {
+ 	uint64	sem_pad2[2];
+ };
+ 
+-struct Sigaltstack {
++struct SigaltstackT {
+ 	byte	*ss_sp;
+ 	uint64	ss_size;
+ 	int32	ss_flags;
+diff --git a/src/pkg/runtime/os_dragonfly.h b/src/pkg/runtime/os_dragonfly.h
+index fddeede85d..4fb71478bf 100644
+--- a/src/pkg/runtime/os_dragonfly.h
++++ b/src/pkg/runtime/os_dragonfly.h
+@@ -8,7 +8,7 @@ typedef byte* kevent_udata;
+ 
+ int32	runtime·lwp_create(Lwpparams*);
+ void	runtime·sigpanic(void);
+-void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
++void	runtime·sigaltstack(SigaltstackT*, SigaltstackT*);
+ struct	sigaction;
+ void	runtime·sigaction(int32, struct sigaction*, struct sigaction*);
+ void	runtime·sigprocmask(Sigset *, Sigset *);
+diff --git a/src/pkg/runtime/os_freebsd.h b/src/pkg/runtime/os_freebsd.h
+index 4b2c253308..ec0be3161f 100644
+--- a/src/pkg/runtime/os_freebsd.h
++++ b/src/pkg/runtime/os_freebsd.h
+@@ -8,7 +8,7 @@ typedef byte* kevent_udata;
+ 
+ int32	runtime·thr_new(ThrParam*, int32);
+ void	runtime·sigpanic(void);
+-void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
++void	runtime·sigaltstack(SigaltstackT*, SigaltstackT*);
+ struct	sigaction;
+ void	runtime·sigaction(int32, struct sigaction*, struct sigaction*);
+ void	runtime·sigprocmask(Sigset *, Sigset *);
+diff --git a/src/pkg/runtime/os_linux.c b/src/pkg/runtime/os_linux.c
+index d3677f2e6c..34521cc86a 100644
+--- a/src/pkg/runtime/os_linux.c
++++ b/src/pkg/runtime/os_linux.c
+@@ -332,7 +332,7 @@ runtime·getsig(int32 i)
+ void
+ runtime·signalstack(byte *p, int32 n)
+ {
+-	Sigaltstack st;
++	SigaltstackT st;
+ 
+ 	st.ss_sp = p;
+ 	st.ss_size = n;
+diff --git a/src/pkg/runtime/os_linux.h b/src/pkg/runtime/os_linux.h
+index 84f516d50c..c475d32405 100644
+--- a/src/pkg/runtime/os_linux.h
++++ b/src/pkg/runtime/os_linux.h
+@@ -11,7 +11,7 @@ int32	runtime·clone(int32, void*, M*, G*, void(*)(void));
+ struct SigactionT;
+ int32	runtime·rt_sigaction(uintptr, struct SigactionT*, void*, uintptr);
+ 
+-void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
++void	runtime·sigaltstack(SigaltstackT*, SigaltstackT*);
+ void	runtime·sigpanic(void);
+ void runtime·setitimer(int32, Itimerval*, Itimerval*);
+ 
+diff --git a/src/pkg/runtime/os_netbsd.h b/src/pkg/runtime/os_netbsd.h
+index 16e9833af5..a7995df92a 100644
+--- a/src/pkg/runtime/os_netbsd.h
++++ b/src/pkg/runtime/os_netbsd.h
+@@ -16,7 +16,7 @@ void	runtime·sigpanic(void);
+ 
+ void	runtime·setitimer(int32, Itimerval*, Itimerval*);
+ void	runtime·sigaction(int32, struct sigaction*, struct sigaction*);
+-void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
++void	runtime·sigaltstack(SigaltstackT*, SigaltstackT*);
+ void	runtime·sigprocmask(int32, Sigset*, Sigset*);
+ void	runtime·unblocksignals(void);
+ int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
+diff --git a/src/pkg/runtime/os_openbsd.h b/src/pkg/runtime/os_openbsd.h
+index bbfde39e26..955432ebd6 100644
+--- a/src/pkg/runtime/os_openbsd.h
++++ b/src/pkg/runtime/os_openbsd.h
+@@ -16,7 +16,7 @@ void	runtime·sigpanic(void);
+ 
+ void	runtime·setitimer(int32, Itimerval*, Itimerval*);
+ void	runtime·sigaction(int32, struct sigaction*, struct sigaction*);
+-void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
++void	runtime·sigaltstack(SigaltstackT*, SigaltstackT*);
+ Sigset	runtime·sigprocmask(int32, Sigset);
+ void	runtime·unblocksignals(void);
+ int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
+diff --git a/src/pkg/runtime/os_solaris.c b/src/pkg/runtime/os_solaris.c
+index 42295aa754..d064384e84 100644
+--- a/src/pkg/runtime/os_solaris.c
++++ b/src/pkg/runtime/os_solaris.c
+@@ -536,7 +536,7 @@ runtime·sigaction(int32 sig, struct SigactionT* act, struct SigactionT* oact)
+ }
+ 
+ /* int32 */ void
+-runtime·sigaltstack(Sigaltstack* ss, Sigaltstack* oss)
++runtime·sigaltstack(SigaltstackT* ss, SigaltstackT* oss)
+ {
+ 	runtime·sysvicall2(libc·sigaltstack, (uintptr)ss, (uintptr)oss);
+ }
+diff --git a/src/pkg/runtime/os_solaris.h b/src/pkg/runtime/os_solaris.h
+index 20a0027205..ba08771cb7 100644
+--- a/src/pkg/runtime/os_solaris.h
++++ b/src/pkg/runtime/os_solaris.h
+@@ -16,7 +16,7 @@ void	runtime·sigpanic(void);
+ 
+ void	runtime·setitimer(int32, Itimerval*, Itimerval*);
+ void	runtime·sigaction(int32, struct SigactionT*, struct SigactionT*);
+-void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
++void	runtime·sigaltstack(SigaltstackT*, SigaltstackT*);
+ void	runtime·sigprocmask(int32, Sigset*, Sigset*);
+ void	runtime·unblocksignals(void);
+ int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);

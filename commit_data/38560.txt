@@ -12,6 +12,19 @@ Date:   Tue Nov 6 12:48:17 2018 +0900
     Run-TryBot: Mikio Hara <mikioh.public.networking@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/socks_bundle.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/net/http/socks_bundle.go b/src/net/http/socks_bundle.go
+index e4314b4128..e6640dd404 100644
+--- a/src/net/http/socks_bundle.go
++++ b/src/net/http/socks_bundle.go
+@@ -380,6 +380,7 @@ func (d *socksDialer) Dial(network, address string) (net.Conn, error) {
+ 		return nil, &net.OpError{Op: d.cmd.String(), Net: network, Source: proxy, Addr: dst, Err: err}
+ 	}
+ 	if _, err := d.DialWithConn(context.Background(), c, network, address); err != nil {
++		c.Close()
+ 		return nil, err
+ 	}
+ 	return c, nil

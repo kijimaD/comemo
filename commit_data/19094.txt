@@ -13,6 +13,21 @@ Date:   Thu Apr 10 06:37:30 2014 +0200
     R=dvyukov, dave, bradfitz
     CC=golang-codereviews, rsc
     https://golang.org/cl/84790044
-
+---
  src/pkg/runtime/stack_test.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/pkg/runtime/stack_test.go b/src/pkg/runtime/stack_test.go
+index f3c531eb93..8add63ad35 100644
+--- a/src/pkg/runtime/stack_test.go
++++ b/src/pkg/runtime/stack_test.go
+@@ -123,9 +123,6 @@ func TestStackMem(t *testing.T) {
+ 
+ // Test stack growing in different contexts.
+ func TestStackGrowth(t *testing.T) {
+-	if testing.Short() {
+-		t.Skip("skipping test in short mode")
+-	}
+ 	t.Parallel()
+ 	var wg sync.WaitGroup
+ 

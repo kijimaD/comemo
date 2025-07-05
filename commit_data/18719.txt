@@ -15,8 +15,86 @@ Date:   Tue Mar 4 09:26:56 2014 +0900
     R=golang-codereviews, rsc, minux.ma, gobot, iant
     CC=golang-codereviews
     https://golang.org/cl/56980043
-
+---
  src/pkg/syscall/route_freebsd.go       | 10 ++++++++--
  src/pkg/syscall/route_freebsd_32bit.go | 24 ++++++++++++++++++++++++
  src/pkg/syscall/route_freebsd_64bit.go | 14 ++++++++++++++
  3 files changed, 46 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/syscall/route_freebsd.go b/src/pkg/syscall/route_freebsd.go
+index d8f80316b8..eba6752b7b 100644
+--- a/src/pkg/syscall/route_freebsd.go
++++ b/src/pkg/syscall/route_freebsd.go
+@@ -8,14 +8,20 @@ package syscall
+ 
+ import "unsafe"
+ 
++// See http://www.freebsd.org/doc/en/books/porters-handbook/freebsd-versions.html.
++var freebsdVersion uint32
++
++func init() {
++	freebsdVersion, _ = SysctlUint32("kern.osreldate")
++}
++
+ func (any *anyMessage) toRoutingMessage(b []byte) RoutingMessage {
+ 	switch any.Type {
+ 	case RTM_ADD, RTM_DELETE, RTM_CHANGE, RTM_GET, RTM_LOSING, RTM_REDIRECT, RTM_MISS, RTM_LOCK, RTM_RESOLVE:
+ 		p := (*RouteMessage)(unsafe.Pointer(any))
+ 		return &RouteMessage{Header: p.Header, Data: b[SizeofRtMsghdr:any.Msglen]}
+ 	case RTM_IFINFO:
+-		p := (*InterfaceMessage)(unsafe.Pointer(any))
+-		return &InterfaceMessage{Header: p.Header, Data: b[SizeofIfMsghdr:any.Msglen]}
++		return any.parseInterfaceMessage(b)
+ 	case RTM_IFANNOUNCE:
+ 		p := (*InterfaceAnnounceMessage)(unsafe.Pointer(any))
+ 		return &InterfaceAnnounceMessage{Header: p.Header}
+diff --git a/src/pkg/syscall/route_freebsd_32bit.go b/src/pkg/syscall/route_freebsd_32bit.go
+new file mode 100644
+index 0000000000..93efdddb3b
+--- /dev/null
++++ b/src/pkg/syscall/route_freebsd_32bit.go
+@@ -0,0 +1,24 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build freebsd,386 freebsd,arm
++
++package syscall
++
++import "unsafe"
++
++func (any *anyMessage) parseInterfaceMessage(b []byte) *InterfaceMessage {
++	p := (*InterfaceMessage)(unsafe.Pointer(any))
++	// FreeBSD 10 and beyond have a restructured mbuf
++	// packet header view.
++	// See http://svnweb.freebsd.org/base?view=revision&revision=254804.
++	if freebsdVersion >= 1000000 {
++		m := (*ifMsghdr)(unsafe.Pointer(any))
++		p.Header.Data.Hwassist = uint32(m.Data.Hwassist)
++		p.Header.Data.Epoch = m.Data.Epoch
++		p.Header.Data.Lastchange = m.Data.Lastchange
++		return &InterfaceMessage{Header: p.Header, Data: b[sizeofIfMsghdr:any.Msglen]}
++	}
++	return &InterfaceMessage{Header: p.Header, Data: b[SizeofIfMsghdr:any.Msglen]}
++}
+diff --git a/src/pkg/syscall/route_freebsd_64bit.go b/src/pkg/syscall/route_freebsd_64bit.go
+new file mode 100644
+index 0000000000..9377f2fedc
+--- /dev/null
++++ b/src/pkg/syscall/route_freebsd_64bit.go
+@@ -0,0 +1,14 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build freebsd,amd64
++
++package syscall
++
++import "unsafe"
++
++func (any *anyMessage) parseInterfaceMessage(b []byte) *InterfaceMessage {
++	p := (*InterfaceMessage)(unsafe.Pointer(any))
++	return &InterfaceMessage{Header: p.Header, Data: b[SizeofIfMsghdr:any.Msglen]}
++}

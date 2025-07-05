@@ -7,6 +7,11 @@ Date:   Wed Oct 15 11:49:34 2008 -0700
     R=ken
     OCL=17208
     CL=17208
-
+---
  test/{bugs => fixedbugs}/bug110.go | 0
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/test/bugs/bug110.go b/test/fixedbugs/bug110.go
+similarity index 100%
+rename from test/bugs/bug110.go
+rename to test/fixedbugs/bug110.go

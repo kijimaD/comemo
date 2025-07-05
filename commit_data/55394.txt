@@ -11,9 +11,146 @@ Date:   Mon Jan 30 14:44:42 2023 -0800
     Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/infer.go | 18 ++----------------
  src/cmd/compile/internal/types2/unify.go | 16 ++++++++++++----
  src/go/types/infer.go                    | 18 ++----------------
  src/go/types/unify.go                    | 16 ++++++++++++----
  4 files changed, 28 insertions(+), 40 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index b5565b78b0..b9defb3e81 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -135,14 +135,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 	// Unify parameter and argument types for generic parameters with typed arguments
+ 	// and collect the indices of generic parameters with untyped arguments.
+ 	// Terminology: generic parameter = function parameter with a type-parameterized type
+-	u := newUnifier(tparams)
+-
+-	// Set the type arguments which we know already.
+-	for i, targ := range targs {
+-		if targ != nil {
+-			u.set(tparams[i], targ)
+-		}
+-	}
++	u := newUnifier(tparams, targs)
+ 
+ 	errorf := func(kind string, tpar, targ Type, arg *operand) {
+ 		// provide a better error message if we can
+@@ -462,14 +455,7 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type,
+ 	}
+ 
+ 	// Unify type parameters with their constraints.
+-	u := newUnifier(tparams)
+-
+-	// Set the type arguments which we know already.
+-	for i, targ := range targs {
+-		if targ != nil {
+-			u.set(tparams[i], targ)
+-		}
+-	}
++	u := newUnifier(tparams, targs)
+ 
+ 	// Repeatedly apply constraint type inference as long as
+ 	// there are still unknown type arguments and progress is
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index 221700b33d..bdafdf9c6a 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -61,15 +61,23 @@ type unifier struct {
+ 	depth   int // recursion depth during unification
+ }
+ 
+-// newUnifier returns a new unifier initialized with the given type parameter list.
+-func newUnifier(tparams []*TypeParam) *unifier {
++// newUnifier returns a new unifier initialized with the given type parameter
++// and corresponding type argument lists. The type argument list may be shorter
++// than the type parameter list, and it may contain nil types. Matching type
++// parameters and arguments must have the same index.
++func newUnifier(tparams []*TypeParam, targs []Type) *unifier {
++	assert(len(tparams) >= len(targs))
+ 	handles := make(map[*TypeParam]*Type, len(tparams))
+ 	// Allocate all handles up-front: in a correct program, all type parameters
+ 	// must be resolved and thus eventually will get a handle.
+ 	// Also, sharing of handles caused by unified type parameters is rare and
+ 	// so it's ok to not optimize for that case (and delay handle allocation).
+-	for _, x := range tparams {
+-		handles[x] = new(Type)
++	for i, x := range tparams {
++		var t Type
++		if i < len(targs) {
++			t = targs[i]
++		}
++		handles[x] = &t
+ 	}
+ 	return &unifier{tparams, handles, 0}
+ }
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index f86cc3b266..70d256bed7 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -137,14 +137,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 	// Unify parameter and argument types for generic parameters with typed arguments
+ 	// and collect the indices of generic parameters with untyped arguments.
+ 	// Terminology: generic parameter = function parameter with a type-parameterized type
+-	u := newUnifier(tparams)
+-
+-	// Set the type arguments which we know already.
+-	for i, targ := range targs {
+-		if targ != nil {
+-			u.set(tparams[i], targ)
+-		}
+-	}
++	u := newUnifier(tparams, targs)
+ 
+ 	errorf := func(kind string, tpar, targ Type, arg *operand) {
+ 		// provide a better error message if we can
+@@ -464,14 +457,7 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type,
+ 	}
+ 
+ 	// Unify type parameters with their constraints.
+-	u := newUnifier(tparams)
+-
+-	// Set the type arguments which we know already.
+-	for i, targ := range targs {
+-		if targ != nil {
+-			u.set(tparams[i], targ)
+-		}
+-	}
++	u := newUnifier(tparams, targs)
+ 
+ 	// Repeatedly apply constraint type inference as long as
+ 	// there are still unknown type arguments and progress is
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index 094aa22fa6..03c4739814 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -63,15 +63,23 @@ type unifier struct {
+ 	depth   int // recursion depth during unification
+ }
+ 
+-// newUnifier returns a new unifier initialized with the given type parameter list.
+-func newUnifier(tparams []*TypeParam) *unifier {
++// newUnifier returns a new unifier initialized with the given type parameter
++// and corresponding type argument lists. The type argument list may be shorter
++// than the type parameter list, and it may contain nil types. Matching type
++// parameters and arguments must have the same index.
++func newUnifier(tparams []*TypeParam, targs []Type) *unifier {
++	assert(len(tparams) >= len(targs))
+ 	handles := make(map[*TypeParam]*Type, len(tparams))
+ 	// Allocate all handles up-front: in a correct program, all type parameters
+ 	// must be resolved and thus eventually will get a handle.
+ 	// Also, sharing of handles caused by unified type parameters is rare and
+ 	// so it's ok to not optimize for that case (and delay handle allocation).
+-	for _, x := range tparams {
+-		handles[x] = new(Type)
++	for i, x := range tparams {
++		var t Type
++		if i < len(targs) {
++			t = targs[i]
++		}
++		handles[x] = &t
+ 	}
+ 	return &unifier{tparams, handles, 0}
+ }

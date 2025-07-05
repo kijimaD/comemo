@@ -15,6 +15,20 @@ Date:   Wed Aug 30 05:09:56 2023 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/compile/internal/types2/typexpr.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index bf353427ab..de420e39c7 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -207,7 +207,7 @@ func (check *Checker) genericType(e syntax.Expr, cause *string) Type {
+ // goTypeName returns the Go type name for typ and
+ // removes any occurrences of "types2." from that name.
+ func goTypeName(typ Type) string {
+-	return strings.Replace(fmt.Sprintf("%T", typ), "types2.", "", -1) // strings.ReplaceAll is not available in Go 1.4
++	return strings.ReplaceAll(fmt.Sprintf("%T", typ), "types2.", "")
+ }
+ 
+ // typInternal drives type checking of types.

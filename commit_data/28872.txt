@@ -7,6 +7,20 @@ Date:   Tue Aug 16 09:38:26 2016 +0900
     Change-Id: I8085ed43d63215237a4871cc1e44257132a7f5de
     Reviewed-on: https://go-review.googlesource.com/27130
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/exec/exec_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 4cc9847721..8d44401d0e 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -938,7 +938,7 @@ func TestContextCancel(t *testing.T) {
+ 	}
+ 
+ 	if err := w.Close(); err != nil {
+-		t.Error("error closing write end of pipe: %v", err)
++		t.Errorf("error closing write end of pipe: %v", err)
+ 	}
+ 	<-readDone
+ 

@@ -10,7 +10,7 @@ Date:   Tue Oct 11 17:43:10 2011 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5188042
-
+---
  src/cmd/Makefile                          | 1 -
  src/pkg/Makefile                          | 6 +++---
  src/pkg/{ => exp}/ebnf/Makefile           | 6 +++---
@@ -22,3 +22,151 @@ Date:   Tue Oct 11 17:43:10 2011 -0700
  src/{cmd => pkg/exp}/ebnflint/ebnflint.go | 2 +-
  src/run.bash                              | 2 +-
  10 files changed, 10 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/Makefile b/src/cmd/Makefile
+index de1410b4f2..d9da50a66b 100644
+--- a/src/cmd/Makefile
++++ b/src/cmd/Makefile
+@@ -38,7 +38,6 @@ CLEANDIRS=\
+ 	8g\
+ 	8l\
+ 	cgo\
+-	ebnflint\
+ 	godoc\
+ 	gofix\
+ 	gofmt\
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index e833fcfbba..321b463b13 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -68,7 +68,6 @@ DIRS=\
+ 	debug/elf\
+ 	debug/gosym\
+ 	debug/pe\
+-	ebnf\
+ 	encoding/ascii85\
+ 	encoding/base32\
+ 	encoding/base64\
+@@ -78,6 +77,8 @@ DIRS=\
+ 	encoding/pem\
+ 	exec\
+ 	exp/datafmt\
++	exp/ebnf\
++	exp/ebnflint\
+ 	exp/gui\
+ 	exp/gui/x11\
+ 	exp/norm\
+@@ -173,7 +174,6 @@ DIRS=\
+ 	websocket\
+ 	xml\
+ 	../cmd/cgo\
+-	../cmd/ebnflint\
+ 	../cmd/godoc\
+ 	../cmd/gofix\
+ 	../cmd/gofmt\
+@@ -201,6 +201,7 @@ NOTEST+=\
+ 	crypto\
+ 	crypto/openpgp/error\
+ 	crypto/x509/pkix\
++	exp/ebnflint\
+ 	exp/gui\
+ 	exp/gui/x11\
+ 	exp/sql/driver\
+@@ -220,7 +221,6 @@ NOTEST+=\
+ 	testing\
+ 	testing/iotest\
+ 	../cmd/cgo\
+-	../cmd/ebnflint\
+ 	../cmd/godoc\
+ 	../cmd/gotest\
+ 	../cmd/goyacc\
+diff --git a/src/pkg/ebnf/Makefile b/src/pkg/exp/ebnf/Makefile
+similarity index 74%
+rename from src/pkg/ebnf/Makefile
+rename to src/pkg/exp/ebnf/Makefile
+index f5555d2720..844de675cb 100644
+--- a/src/pkg/ebnf/Makefile
++++ b/src/pkg/exp/ebnf/Makefile
+@@ -2,11 +2,11 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.inc
++include ../../../Make.inc
+ 
+-TARG=ebnf
++TARG=exp/ebnf
+ GOFILES=\
+ 	ebnf.go\
+ 	parser.go\
+ 
+-include ../../Make.pkg
++include ../../../Make.pkg
+diff --git a/src/pkg/ebnf/ebnf.go b/src/pkg/exp/ebnf/ebnf.go
+similarity index 100%
+rename from src/pkg/ebnf/ebnf.go
+rename to src/pkg/exp/ebnf/ebnf.go
+diff --git a/src/pkg/ebnf/ebnf_test.go b/src/pkg/exp/ebnf/ebnf_test.go
+similarity index 100%
+rename from src/pkg/ebnf/ebnf_test.go
+rename to src/pkg/exp/ebnf/ebnf_test.go
+diff --git a/src/pkg/ebnf/parser.go b/src/pkg/exp/ebnf/parser.go
+similarity index 100%
+rename from src/pkg/ebnf/parser.go
+rename to src/pkg/exp/ebnf/parser.go
+diff --git a/src/cmd/ebnflint/Makefile b/src/pkg/exp/ebnflint/Makefile
+similarity index 83%
+rename from src/cmd/ebnflint/Makefile
+rename to src/pkg/exp/ebnflint/Makefile
+index 8f030aaefa..2057b07d58 100644
+--- a/src/cmd/ebnflint/Makefile
++++ b/src/pkg/exp/ebnflint/Makefile
+@@ -2,13 +2,13 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.inc
++include ../../../Make.inc
+ 
+ TARG=ebnflint
+ GOFILES=\
+ 	ebnflint.go\
+ 
+-include ../../Make.cmd
++include ../../../Make.cmd
+ 
+ test: $(TARG)
+ 	$(TARG) -start="SourceFile" "$(GOROOT)"/doc/go_spec.html
+diff --git a/src/cmd/ebnflint/doc.go b/src/pkg/exp/ebnflint/doc.go
+similarity index 100%
+rename from src/cmd/ebnflint/doc.go
+rename to src/pkg/exp/ebnflint/doc.go
+diff --git a/src/cmd/ebnflint/ebnflint.go b/src/pkg/exp/ebnflint/ebnflint.go
+similarity index 99%
+rename from src/cmd/ebnflint/ebnflint.go
+rename to src/pkg/exp/ebnflint/ebnflint.go
+index 6f307b7060..c827716c44 100644
+--- a/src/cmd/ebnflint/ebnflint.go
++++ b/src/pkg/exp/ebnflint/ebnflint.go
+@@ -6,7 +6,7 @@ package main
+ 
+ import (
+ 	"bytes"
+-	"ebnf"
++	"exp/ebnf"
+ 	"flag"
+ 	"fmt"
+ 	"go/scanner"
+diff --git a/src/run.bash b/src/run.bash
+index b1eaf3abe6..d3d2c69bf5 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -45,7 +45,7 @@ gomake testshort
+ GOMAXPROCS=10 gomake testshort
+ ) || exit $?
+ 
+-(xcd cmd/ebnflint
++(xcd pkg/exp/ebnflint
+ time gomake test
+ ) || exit $?
+ 

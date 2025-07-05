@@ -9,6 +9,21 @@ Date:   Sat Mar 14 18:26:39 2015 -0400
     Change-Id: Ib6c6b2b5dde47744b69f65482a21964fa3c12090
     Reviewed-on: https://go-review.googlesource.com/7600
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/runtime/syscall_windows_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index c40641a0dd..720f70bdfc 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -436,6 +436,9 @@ var cbTests = []cbTest{
+ }
+ 
+ func TestStdcallAndCDeclCallbacks(t *testing.T) {
++	if _, err := exec.LookPath("gcc"); err != nil {
++		t.Skip("skipping test: gcc is missing")
++	}
+ 	tmp, err := ioutil.TempDir("", "TestCDeclCallback")
+ 	if err != nil {
+ 		t.Fatal("TempDir failed: ", err)

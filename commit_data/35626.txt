@@ -15,6 +15,24 @@ Date:   Mon Feb 26 18:23:00 2018 +0000
     GitHub-Pull-Request: golang/go#24072
     Reviewed-on: https://go-review.googlesource.com/96655
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cgo/doc.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index c16b63a313..8375d94c4b 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -109,7 +109,11 @@ it is expected to work. It is disabled by default when
+ cross-compiling. You can control this by setting the CGO_ENABLED
+ environment variable when running the go tool: set it to 1 to enable
+ the use of cgo, and to 0 to disable it. The go tool will set the
+-build constraint "cgo" if cgo is enabled.
++build constraint "cgo" if cgo is enabled. The special import "C"
++implies the "cgo" build constraint, as though the file also said
++"// +build cgo".  Therefore, if cgo is disabled, files that import
++"C" will not be built by the go tool. (For more about build constraints
++see https://golang.org/pkg/go/build/#hdr-Build_Constraints).
+ 
+ When cross-compiling, you must specify a C cross-compiler for cgo to
+ use. You can do this by setting the generic CC_FOR_TARGET or the

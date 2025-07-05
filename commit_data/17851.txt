@@ -11,6 +11,20 @@ Date:   Tue Oct 29 17:11:25 2013 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/19300046
-
+---
  src/pkg/encoding/xml/read.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/encoding/xml/read.go b/src/pkg/encoding/xml/read.go
+index da7ad3baed..8890508f85 100644
+--- a/src/pkg/encoding/xml/read.go
++++ b/src/pkg/encoding/xml/read.go
+@@ -53,7 +53,7 @@ import (
+ //      Unmarshal records the attribute value in that field.
+ //
+ //   * If the XML element contains character data, that data is
+-//      accumulated in the first struct field that has tag "chardata".
++//      accumulated in the first struct field that has tag ",chardata".
+ //      The struct field may have type []byte or string.
+ //      If there is no such field, the character data is discarded.
+ //

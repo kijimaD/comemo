@@ -11,7 +11,33 @@ Date:   Thu Jun 9 12:01:43 2016 -0400
     Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/types_linux.go        | 2 +-
  src/syscall/ztypes_linux_s390x.go | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/syscall/types_linux.go b/src/syscall/types_linux.go
+index 28d0225cbf..2a16650c0b 100644
+--- a/src/syscall/types_linux.go
++++ b/src/syscall/types_linux.go
+@@ -117,7 +117,7 @@ struct my_epoll_event {
+ 	// alignment requirements of EABI
+ 	int32_t padFd;
+ #endif
+-#ifdef  __powerpc64__
++#if defined(__powerpc64__) || defined(__s390x__)
+ 	int32_t _padFd;
+ #endif
+ 	int32_t fd;
+diff --git a/src/syscall/ztypes_linux_s390x.go b/src/syscall/ztypes_linux_s390x.go
+index 3ab8e6a558..cdde47863f 100644
+--- a/src/syscall/ztypes_linux_s390x.go
++++ b/src/syscall/ztypes_linux_s390x.go
+@@ -588,6 +588,7 @@ type Ustat_t struct {
+ 
+ type EpollEvent struct {
+ 	Events uint32
++	_      int32
+ 	Fd     int32
+ 	Pad    int32
+ }

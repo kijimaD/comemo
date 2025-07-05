@@ -7,10 +7,215 @@ Date:   Fri Apr 9 13:31:26 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/881043
-
+---
  misc/cgo/life/Makefile | 31 +++++++++++++++++++++++++++++
  misc/cgo/life/c-life.c | 54 ++++++++++++++++++++++++++++++++++++++++++++++++++
  misc/cgo/life/life.go  | 39 ++++++++++++++++++++++++++++++++++++
  misc/cgo/life/life.h   |  6 ++++++
  misc/cgo/life/main.go  | 44 ++++++++++++++++++++++++++++++++++++++++
  5 files changed, 174 insertions(+)
+
+diff --git a/misc/cgo/life/Makefile b/misc/cgo/life/Makefile
+new file mode 100644
+index 0000000000..cbcdc99275
+--- /dev/null
++++ b/misc/cgo/life/Makefile
+@@ -0,0 +1,31 @@
++# Copyright 2010 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../../src/Make.$(GOARCH)
++
++TARG=life
++
++CGOFILES=\
++	life.go
++
++LDPATH_freebsd=-Wl,-R,`pwd`
++LDPATH_linux=-Wl,-R,`pwd`
++LDPATH_darwin=
++
++CGO_LDFLAGS=_cgo_export.o c-life.so $(LDPATH_$(GOOS))
++CGO_DEPS=_cgo_export.o c-life.so
++
++CLEANFILES += life
++
++include ../../../src/Make.pkg
++
++c-life.o: c-life.c _cgo_export.h
++	gcc $(_CGO_CFLAGS_$(GOARCH)) -g -c -fPIC $(CFLAGS) c-life.c
++
++c-life.so: c-life.o
++	gcc $(_CGO_CFLAGS_$(GOARCH)) -o $@ c-life.o $(_CGO_LDFLAGS_$(GOOS))
++
++life: install main.go
++	$(GC) main.go
++	$(LD) -o $@ main.$O
+diff --git a/misc/cgo/life/c-life.c b/misc/cgo/life/c-life.c
+new file mode 100644
+index 0000000000..71555a9c7a
+--- /dev/null
++++ b/misc/cgo/life/c-life.c
+@@ -0,0 +1,54 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <assert.h>
++#include "life.h"
++#include "_cgo_export.h"
++
++// Do the actual manipulation of the life board in C.  This could be
++// done easily in Go, we are just using C for demonstration
++// purposes.
++void
++Step(int x, int y, int *a, int *n)
++{
++	struct GoStart_return r;
++
++	// Use Go to start 4 goroutines each of which handles 1/4 of the
++	// board.
++	r = GoStart(0, x, y, 0, x / 2, 0, y / 2, a, n);
++	assert(r.r0 == 0 && r.r1 == 100);	// test multiple returns
++	r = GoStart(1, x, y, x / 2, x, 0, y / 2, a, n);
++	assert(r.r0 == 1 && r.r1 == 101);	// test multiple returns
++	GoStart(2, x, y, 0, x / 2, y / 2, y, a, n);
++	GoStart(3, x, y, x / 2, x, y / 2, y, a, n);
++	GoWait(0);
++	GoWait(1);
++	GoWait(2);
++	GoWait(3);
++}
++
++// The actual computation.  This is called in parallel.
++void
++DoStep(int xdim, int ydim, int xstart, int xend, int ystart, int yend, int *a, int *n)
++{
++	int x, y, c, i, j;
++
++	for(x = xstart; x < xend; x++) {
++		for(y = ystart; y < yend; y++) {
++			c = 0;
++			for(i = -1; i <= 1; i++) {
++				for(j = -1; j <= 1; j++) {
++				  if(x+i >= 0 && x+i < xdim &&
++					y+j >= 0 && y+j < ydim &&
++					(i != 0 || j != 0))
++				    c += a[(x+i)*xdim + (y+j)] != 0;
++				}
++			}
++			if(c == 3 || (c == 2 && a[x*xdim + y] != 0))
++				n[x*xdim + y] = 1;
++			else
++				n[x*xdim + y] = 0;
++		}
++	}
++}
+diff --git a/misc/cgo/life/life.go b/misc/cgo/life/life.go
+new file mode 100644
+index 0000000000..0368028537
+--- /dev/null
++++ b/misc/cgo/life/life.go
+@@ -0,0 +1,39 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package life
++
++// #include "life.h"
++import "C"
++
++import "unsafe"
++
++func Run(gen, x, y int, a []int) {
++	n := make([]int, x*y)
++	for i := 0; i < gen; i++ {
++		C.Step(C.int(x), C.int(y), (*C.int)(unsafe.Pointer(&a[0])), (*C.int)(unsafe.Pointer(&n[0])))
++		copy(a, n)
++	}
++}
++
++// Keep the channels visible from Go.
++var chans [4]chan bool
++
++//export GoStart
++// Double return value is just for testing.
++func GoStart(i, xdim, ydim, xstart, xend, ystart, yend C.int, a *C.int, n *C.int) (int, int) {
++	c := make(chan bool)
++	go func() {
++		C.DoStep(xdim, ydim, xstart, xend, ystart, yend, a, n)
++		c <- true
++	}()
++	chans[i] = c
++	return int(i), int(i + 100)
++}
++
++//export GoWait
++func GoWait(i C.int) {
++	<-chans[i]
++	chans[i] = nil
++}
+diff --git a/misc/cgo/life/life.h b/misc/cgo/life/life.h
+new file mode 100644
+index 0000000000..b6e94cf1d3
+--- /dev/null
++++ b/misc/cgo/life/life.h
+@@ -0,0 +1,6 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++extern void Step(int, int, int *, int *);
++extern void DoStep(int, int, int, int, int, int, int *, int *);
+diff --git a/misc/cgo/life/main.go b/misc/cgo/life/main.go
+new file mode 100644
+index 0000000000..7c2c0c73ef
+--- /dev/null
++++ b/misc/cgo/life/main.go
+@@ -0,0 +1,44 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Run the game of life in C using Go for parallelization.
++
++package main
++
++import (
++	"flag"
++	"fmt"
++	"life"
++)
++
++const MAXDIM = 100
++
++var dim = flag.Int("dim", 16, "board dimensions")
++var gen = flag.Int("gen", 10, "generations")
++
++func main() {
++	flag.Parse()
++
++	var a [MAXDIM * MAXDIM]int
++	for i := 2; i < *dim; i += 8 {
++		for j := 2; j < *dim-3; j += 8 {
++			for y := 0; y < 3; y++ {
++				a[i**dim+j+y] = 1
++			}
++		}
++	}
++
++	life.Run(*gen, *dim, *dim, &a)
++
++	for i := 0; i < *dim; i++ {
++		for j := 0; j < *dim; j++ {
++			if a[i**dim+j] == 0 {
++				fmt.Print(" ")
++			} else {
++				fmt.Print("X")
++			}
++		}
++		fmt.Print("\n")
++	}
++}

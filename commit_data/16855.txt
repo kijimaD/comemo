@@ -14,7 +14,70 @@ Date:   Wed Jul 24 10:27:58 2013 +1000
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/11672044
-
+---
  src/pkg/unicode/graphic.go      | 19 +++++++++++++++----
  src/pkg/unicode/graphic_test.go |  4 ++--
  2 files changed, 17 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/unicode/graphic.go b/src/pkg/unicode/graphic.go
+index 5b995fcd0d..ba90b4e518 100644
+--- a/src/pkg/unicode/graphic.go
++++ b/src/pkg/unicode/graphic.go
+@@ -39,7 +39,7 @@ func IsGraphic(r rune) bool {
+ 	if uint32(r) <= MaxLatin1 {
+ 		return properties[uint8(r)]&pg != 0
+ 	}
+-	return IsOneOf(GraphicRanges, r)
++	return In(r, GraphicRanges...)
+ }
+ 
+ // IsPrint reports whether the rune is defined as printable by Go. Such
+@@ -51,12 +51,23 @@ func IsPrint(r rune) bool {
+ 	if uint32(r) <= MaxLatin1 {
+ 		return properties[uint8(r)]&pp != 0
+ 	}
+-	return IsOneOf(PrintRanges, r)
++	return In(r, PrintRanges...)
+ }
+ 
+ // IsOneOf reports whether the rune is a member of one of the ranges.
+-func IsOneOf(set []*RangeTable, r rune) bool {
+-	for _, inside := range set {
++// The function "In" provides a nicer signature and should be used in preference to IsOneOf.
++func IsOneOf(ranges []*RangeTable, r rune) bool {
++	for _, inside := range ranges {
++		if Is(inside, r) {
++			return true
++		}
++	}
++	return false
++}
++
++// In reports whether the rune is a member of one of the ranges.
++func In(r rune, ranges ...*RangeTable) bool {
++	for _, inside := range ranges {
+ 		if Is(inside, r) {
+ 			return true
+ 		}
+diff --git a/src/pkg/unicode/graphic_test.go b/src/pkg/unicode/graphic_test.go
+index 7b1f6209e8..c9f289c7f5 100644
+--- a/src/pkg/unicode/graphic_test.go
++++ b/src/pkg/unicode/graphic_test.go
+@@ -71,7 +71,7 @@ func TestNumberLatin1(t *testing.T) {
+ func TestIsPrintLatin1(t *testing.T) {
+ 	for i := rune(0); i <= MaxLatin1; i++ {
+ 		got := IsPrint(i)
+-		want := IsOneOf(PrintRanges, i)
++		want := In(i, PrintRanges...)
+ 		if i == ' ' {
+ 			want = true
+ 		}
+@@ -84,7 +84,7 @@ func TestIsPrintLatin1(t *testing.T) {
+ func TestIsGraphicLatin1(t *testing.T) {
+ 	for i := rune(0); i <= MaxLatin1; i++ {
+ 		got := IsGraphic(i)
+-		want := IsOneOf(GraphicRanges, i)
++		want := In(i, GraphicRanges...)
+ 		if got != want {
+ 			t.Errorf("%U incorrect: got %t; want %t", i, got, want)
+ 		}

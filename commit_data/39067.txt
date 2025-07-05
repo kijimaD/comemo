@@ -9,6 +9,21 @@ Date:   Wed Dec 19 07:08:38 2018 -0800
     Change-Id: I0ec070127dcacc7fc68dd5baf125eb762e1ea846
     Reviewed-on: https://go-review.googlesource.com/c/155038
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  doc/go1.12.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.12.html b/doc/go1.12.html
+index 7f5847c58b..1a0127d88f 100644
+--- a/doc/go1.12.html
++++ b/doc/go1.12.html
+@@ -640,7 +640,8 @@ for {
+ 
+     <p><!-- CL 130676 -->
+       <a href="/pkg/os/#File.Sync"><code>File.Sync</code></a> now uses <code>F_FULLFSYNC</code> on macOS
+-      to properly flush content to permanent storage. Note that this might have a negative performance impact.
++      to correctly flush the file contents to permanent storage.
++      This may cause the method to run more slowly than in previous releases.
+     </p>
+ 
+ </dl><!-- os -->

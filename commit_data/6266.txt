@@ -7,6 +7,20 @@ Date:   Mon Sep 13 16:03:27 2010 +1000
     R=golang-dev, r2, r
     CC=golang-dev
     https://golang.org/cl/2149047
-
+---
  src/pkg/json/encode.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/json/encode.go b/src/pkg/json/encode.go
+index 882ae0e70a..8b2f99f8f0 100644
+--- a/src/pkg/json/encode.go
++++ b/src/pkg/json/encode.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// The json package implements encoding and decoding of JSON objects as
++// defined in RFC 4627.
+ package json
+ 
+ import (

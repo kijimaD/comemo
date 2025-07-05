@@ -6,6 +6,21 @@ Date:   Tue Nov 10 09:10:08 2009 -0800
     
     R=r
     http://go/go-review/1024046
-
+---
  src/pkg/http/request.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index c91ca3a00b..5c6ce9099b 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -120,8 +120,7 @@ func valueOrDefault(value, def string) string {
+ 	return def;
+ }
+ 
+-// TODO(rsc): Change default UserAgent before open-source release.
+-const defaultUserAgent = "http.Client"
++const defaultUserAgent = "Go http package"
+ 
+ // Write writes an HTTP/1.1 request -- header and body -- in wire format.
+ // This method consults the following fields of req:

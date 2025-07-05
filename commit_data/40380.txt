@@ -19,9 +19,149 @@ Date:   Tue Apr 30 16:04:50 2019 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/init.go | 39 ++++++++++++++++++++++++++++++++++++-
  src/go.mod                          |  1 -
  src/go.sum                          | 11 -----------
  src/vendor/modules.txt              |  8 ++++----
  4 files changed, 42 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 65046fd3c3..ba90756346 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -376,6 +376,7 @@ func InitMod() {
+ 		excluded[x.Mod] = true
+ 	}
+ 	modFileToBuildList()
++	stdVendorMode()
+ 	WriteGoMod()
+ }
+ 
+@@ -383,7 +384,7 @@ func InitMod() {
+ func modFileToBuildList() {
+ 	Target = modFile.Module.Mod
+ 	targetPrefix = Target.Path
+-	if search.InDir(cwd, cfg.GOROOTsrc) != "" {
++	if rel := search.InDir(cwd, cfg.GOROOTsrc); rel != "" && rel != filepath.FromSlash("cmd/vet/all") {
+ 		targetInGorootSrc = true
+ 		if Target.Path == "std" {
+ 			targetPrefix = ""
+@@ -397,6 +398,42 @@ func modFileToBuildList() {
+ 	buildList = list
+ }
+ 
++// stdVendorMode applies inside $GOROOT/src.
++// It checks that the go.mod matches vendor/modules.txt
++// and then sets -mod=vendor unless this is a command
++// that has to do explicitly with modules.
++func stdVendorMode() {
++	if !targetInGorootSrc {
++		return
++	}
++	if cfg.CmdName == "get" || strings.HasPrefix(cfg.CmdName, "mod ") {
++		return
++	}
++
++	readVendorList()
++BuildList:
++	for _, m := range buildList {
++		if m.Path == "cmd" || m.Path == "std" {
++			continue
++		}
++		for _, v := range vendorList {
++			if m.Path == v.Path {
++				if m.Version != v.Version {
++					base.Fatalf("go: inconsistent vendoring in %s:\n"+
++						"\tgo.mod requires %s %s but vendor/modules.txt has %s.\n"+
++						"\trun 'go mod tidy; go mod vendor' to sync",
++						modRoot, m.Path, m.Version, v.Version)
++				}
++				continue BuildList
++			}
++		}
++		base.Fatalf("go: inconsistent vendoring in %s:\n"+
++			"\tgo.mod requires %s %s but vendor/modules.txt does not include it.\n"+
++			"\trun 'go mod tidy; go mod vendor' to sync", modRoot, m.Path, m.Version)
++	}
++	cfg.BuildMod = "vendor"
++}
++
+ // Allowed reports whether module m is allowed (not excluded) by the main module's go.mod.
+ func Allowed(m module.Version) bool {
+ 	return !excluded[m]
+diff --git a/src/go.mod b/src/go.mod
+index a527f9a244..0d2bd16284 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -7,5 +7,4 @@ require (
+ 	golang.org/x/net v0.0.0-20190424112056-4829fb13d2c6
+ 	golang.org/x/sys v0.0.0-20190425145619-16072639606e // indirect
+ 	golang.org/x/text v0.3.2 // indirect
+-	golang.org/x/tools v0.0.0-20190425214124-2d660fb8a000 // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index 9745969900..f1c600348c 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,25 +1,14 @@
+-golang.org/x/crypto v0.0.0-20181025213731-e84da0312774 h1:a4tQYYYuK9QdeO/+kEvNYyuR21S+7ve5EANok6hABhI=
+-golang.org/x/crypto v0.0.0-20181025213731-e84da0312774/go.mod h1:6SG95UA2DQfeDnfUPMdvaQW0Q7yPrPDi9nlGo2tz2b4=
+ golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
+ golang.org/x/crypto v0.0.0-20190424203555-c05e17bb3b2d h1:adrbvkTDn9rGnXg2IJDKozEpXXLZN89pdIA+Syt4/u0=
+ golang.org/x/crypto v0.0.0-20190424203555-c05e17bb3b2d/go.mod h1:yigFU9vqHzYiE8UmvKecakEJjdnWj3jj499lnFckfCI=
+-golang.org/x/net v0.0.0-20181213202711-891ebc4b82d6 h1:gT0Y6H7hbVPUtvtk0YGxMXPgN+p8fYlqWkgJeUCZcaQ=
+-golang.org/x/net v0.0.0-20181213202711-891ebc4b82d6/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
+-golang.org/x/net v0.0.0-20190311183353-d8887717615a/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+ golang.org/x/net v0.0.0-20190424112056-4829fb13d2c6 h1:FP8hkuE6yUEaJnK7O2eTuejKWwW+Rhfj80dQ2JcKxCU=
+ golang.org/x/net v0.0.0-20190424112056-4829fb13d2c6/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+-golang.org/x/sync v0.0.0-20190423024810-112230192c58/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
+ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+-golang.org/x/sys v0.0.0-20190306220234-b354f8bf4d9e h1:UndnRDGP/JcdZX1LBubo1fJ3Jt6GnKREteLJvysiiPE=
+-golang.org/x/sys v0.0.0-20190306220234-b354f8bf4d9e/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+ golang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/sys v0.0.0-20190425145619-16072639606e h1:4ktJgTV34+N3qOZUc5fAaG3Pb11qzMm3PkAoTAgUZ2I=
+ golang.org/x/sys v0.0.0-20190425145619-16072639606e/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+-golang.org/x/text v0.1.1-0.20171102144821-8253218a5ec6 h1:j8pkdn+8tJbBXIFRILFAB5MDo/hAZg4TnknVwnhU6bI=
+-golang.org/x/text v0.1.1-0.20171102144821-8253218a5ec6/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+ golang.org/x/text v0.3.2 h1:tW2bmiBqwgJj/UpqtC8EpXEZVYOwU0yG4iWbprSVAcs=
+ golang.org/x/text v0.3.2/go.mod h1:bEr9sfX3Q8Zfm5fL9x+3itogRgK3+ptLWKqgva+5dAk=
+ golang.org/x/tools v0.0.0-20180917221912-90fa682c2a6e/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=
+-golang.org/x/tools v0.0.0-20190425214124-2d660fb8a000/go.mod h1:RgjU9mgBXZiqYHBnxXauZ1Gv1EHHAz9KjViQ78xBX0Q=
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 75eb2a6e8d..9c4dee7bea 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -1,26 +1,26 @@
+ # golang.org/x/crypto v0.0.0-20190424203555-c05e17bb3b2d
+ golang.org/x/crypto/chacha20poly1305
+ golang.org/x/crypto/cryptobyte
++golang.org/x/crypto/cryptobyte/asn1
+ golang.org/x/crypto/curve25519
+ golang.org/x/crypto/hkdf
+-golang.org/x/crypto/cryptobyte/asn1
+ golang.org/x/crypto/internal/chacha20
+ golang.org/x/crypto/internal/subtle
+ golang.org/x/crypto/poly1305
+ # golang.org/x/net v0.0.0-20190424112056-4829fb13d2c6
+ golang.org/x/net/dns/dnsmessage
+-golang.org/x/net/lif
+-golang.org/x/net/route
+ golang.org/x/net/http/httpguts
+ golang.org/x/net/http/httpproxy
+ golang.org/x/net/http2/hpack
+ golang.org/x/net/idna
++golang.org/x/net/lif
+ golang.org/x/net/nettest
++golang.org/x/net/route
+ # golang.org/x/sys v0.0.0-20190425145619-16072639606e
+ golang.org/x/sys/cpu
+ golang.org/x/sys/unix
+ # golang.org/x/text v0.3.2
+ golang.org/x/text/secure/bidirule
++golang.org/x/text/transform
+ golang.org/x/text/unicode/bidi
+ golang.org/x/text/unicode/norm
+-golang.org/x/text/transform

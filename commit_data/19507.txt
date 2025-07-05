@@ -10,6 +10,19 @@ Date:   Tue Jun 10 11:19:53 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/108840045
-
+---
  doc/docs.html | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/docs.html b/doc/docs.html
+index 212f345a22..edbd89ee46 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -145,6 +145,7 @@ Guided tours of Go programs.
+ <li><a href="/blog/profiling-go-programs">Profiling Go Programs</a></li>
+ <li><a href="/doc/articles/race_detector.html">Data Race Detector</a> - a manual for the data race detector.</li>
+ <li><a href="/blog/race-detector">Introducing the Go Race Detector</a> - an introduction to the race detector.
++<li><a href="/doc/asm">A Quick Guide to Go's Assembler</a> - an introduction to the assembler used by Go.
+ </ul>
+ 
+ <h4 id="articles_more">More</h4>

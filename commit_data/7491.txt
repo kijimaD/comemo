@@ -10,7 +10,91 @@ Date:   Wed Feb 16 22:01:57 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4171057
-
+---
  src/pkg/runtime/arm/cas5.s | 35 +++++++++++++++++++++++++++++++++--
  src/pkg/runtime/arm/cas6.s | 23 +++++++++++++++++++++++
  2 files changed, 56 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/arm/cas5.s b/src/pkg/runtime/arm/cas5.s
+index 20bd3c3e2d..d46cdf9371 100644
+--- a/src/pkg/runtime/arm/cas5.s
++++ b/src/pkg/runtime/arm/cas5.s
+@@ -20,7 +20,6 @@ TEXT runtime·cas(SB),7,$0
+ 	MOVW	8(FP), R2	// new
+ 	MOVW	$1, R3
+ 	MOVW	$runtime·cas_mutex(SB), R4
+-l:
+ 	SWPW	(R4), R3	// acquire mutex
+ 	CMP		$0, R3
+ 	BNE		fail0
+@@ -38,6 +37,38 @@ fail1:
+ fail0:
+ 	MOVW	$0, R0
+ 	RET
+- 
++
++// bool casp(void **p, void *old, void *new)
++// Atomically:
++//	if(*p == old){
++//		*p = new;
++//		return 1;
++//	}else
++//		return 0;
++
++TEXT runtime·casp(SB),7,$0
++	MOVW	0(FP), R0	// *p
++	MOVW	4(FP), R1	// old
++	MOVW	8(FP), R2	// new
++	MOVW	$1, R3
++	MOVW	$runtime·cas_mutex(SB), R4
++	SWPW	(R4), R3	// acquire mutex
++	CMP		$0, R3
++	BNE		failp0
++	
++	MOVW	(R0), R5
++	CMP		R1, R5
++	BNE		failp1
++	
++	MOVW	R2, (R0)	
++	MOVW	R3, (R4)	// release mutex
++	MOVW	$1, R0
++	RET
++failp1:	
++	MOVW	R3, (R4)	// release mutex
++failp0:
++	MOVW	$0, R0
++	RET
++
+ DATA runtime·cas_mutex(SB)/4, $0
+ GLOBL runtime·cas_mutex(SB), $4
+diff --git a/src/pkg/runtime/arm/cas6.s b/src/pkg/runtime/arm/cas6.s
+index 43788b28ae..ba9777120d 100644
+--- a/src/pkg/runtime/arm/cas6.s
++++ b/src/pkg/runtime/arm/cas6.s
+@@ -27,3 +27,26 @@ fail:
+ 	MOVW	$0, R0
+ 	RET
+ 
++// bool casp(void **p, void *old, void *new)
++// Atomically:
++//	if(*p == old){
++//		*p = new;
++//		return 1;
++//	}else
++//		return 0;
++TEXT runtime·casp(SB), 7, $0
++	MOVW	0(FP), R1	// *p
++	MOVW	4(FP), R2	// old
++	MOVW	8(FP), R3	// new
++lp:
++	LDREX	(R1), R0
++	CMP		R0, R2
++	BNE		failp
++	STREX	R3, (R1), R0
++	CMP		$0, R0
++	BNE		lp
++	MOVW	$1, R0
++	RET
++failp:
++	MOVW	$0, R0
++	RET

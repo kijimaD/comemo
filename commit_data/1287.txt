@@ -11,7 +11,7 @@ Date:   Thu Dec 4 21:04:26 2008 -0800
     DELTA=100  (44 added, 44 deleted, 12 changed)
     OCL=20504
     CL=20553
-
+---
  usr/rsc/mem/Makefile     |  4 +++
  usr/rsc/mem/allocator.go |  1 +
  usr/rsc/mem/malloc.c     | 73 ++++++++++++------------------------------------
@@ -19,3 +19,286 @@ Date:   Thu Dec 4 21:04:26 2008 -0800
  usr/rsc/mem/stack.c      | 22 +++++++++++++++
  usr/rsc/mem/triv.c       | 12 +++++++-
  6 files changed, 60 insertions(+), 56 deletions(-)
+
+diff --git a/usr/rsc/mem/Makefile b/usr/rsc/mem/Makefile
+index 8f2eace248..0bfb89b512 100644
+--- a/usr/rsc/mem/Makefile
++++ b/usr/rsc/mem/Makefile
+@@ -31,3 +31,7 @@ test%: test%.$O $(OFILES)
+ 
+ clean:
+ 	rm -f *.$O $(TARG)
++
++runtime: allocator.$O malloc.$O pagemap.$O triv.$O stack.$O
++	6ar grc $(GOROOT)/lib/lib_$(GOARCH)_$(GOOS).a $^
++
+diff --git a/usr/rsc/mem/allocator.go b/usr/rsc/mem/allocator.go
+index da624fcd5c..a0d95e77c8 100644
+--- a/usr/rsc/mem/allocator.go
++++ b/usr/rsc/mem/allocator.go
+@@ -10,3 +10,4 @@ export func memset(*byte, int, int)
+ export var footprint int64
+ export var frozen bool
+ export func testsizetoclass()
++export var allocated int64
+diff --git a/usr/rsc/mem/malloc.c b/usr/rsc/mem/malloc.c
+index f5461cddf7..02fe40bd3d 100644
+--- a/usr/rsc/mem/malloc.c
++++ b/usr/rsc/mem/malloc.c
+@@ -107,13 +107,7 @@ allocspan(int32 npage)
+ 		if(s->length >= npage) {
+ 			*l = s->next;
+ 			s->next = nil;
+-if(s->length > npage) {
+-prints("Chop span");
+-sys·printint(s->length);
+-prints(" for ");
+-sys·printint(npage);
+-prints("\n");
+-}
++//if(s->length > npage) printf("Chop span %D for %d\n", s->length, npage);
+ 			goto havespan;
+ 		}
+ 	}
+@@ -125,11 +119,7 @@ prints("\n");
+ 	if(allocnpage < (1<<20>>PageShift))	// TODO: Tune
+ 		allocnpage = (1<<20>>PageShift);
+ 	s->length = allocnpage;
+-prints("New span ");
+-sys·printint(allocnpage);
+-prints(" for ");
+-sys·printint(npage);
+-prints("\n");
++//printf("New span %d for %d\n", allocnpage, npage);
+ 	s->base = trivalloc(allocnpage<<PageShift);
+ 	insertspan(s);
+ 
+@@ -237,21 +227,13 @@ allocator·testsizetoclass(void)
+ 	for(i=0; i<nelem(classtosize); i++) {
+ 		for(; n <= classtosize[i]; n++) {
+ 			if(sizetoclass(n) != i) {
+-				prints("sizetoclass ");
+-				sys·printint(n);
+-				prints(" = ");
+-				sys·printint(sizetoclass(n));
+-				prints(" want ");
+-				sys·printint(i);
+-				prints("\n");
++				printf("sizetoclass %d = %d want %d\n", n, sizetoclass(n), i);
+ 				throw("testsizetoclass");
+ 			}
+ 		}
+ 	}
+ 	if (n != 32768+1) {
+-		prints("testsizetoclass stopped at ");
+-		sys·printint(n);
+-		prints("\n");
++		printf("testsizetoclass stopped at %d\n", n);
+ 		throw("testsizetoclass");
+ 	}
+ }
+@@ -274,20 +256,19 @@ centralgrab(int32 cl, int32 *pn)
+ 	}
+ 	chunk = (chunk+PageMask) & ~PageMask;
+ 	s = allocspan(chunk>>PageShift);
+-prints("New Class ");
+-sys·printint(cl);
+-prints("\n");
++//printf("New class %d\n", cl);
+ 	s->state = SpanInUse;
+ 	s->cl = cl;
+ 	siz = classtosize[cl];
+ 	n = chunk/siz;
+ 	p = s->base;
++//printf("centralgrab cl=%d siz=%d n=%d\n", cl, siz, n);
+ 	for(i=0; i<n-1; i++) {
+ 		*(void**)p = p+siz;
+ 		p += siz;
+ 	}
+ 	*pn = n;
+-	return p;
++	return s->base;
+ }
+ 
+ // Allocate a small object of size class cl.
+@@ -305,11 +286,13 @@ allocsmall(int32 cl)
+ 	if(p == nil) {
+ 		// otherwise grab some blocks from central cache.
+ 		lock(&central);
++//printf("centralgrab for %d\n", cl);
+ 		p = centralgrab(cl, &n);
+ 		// TODO: update local counters using n
+ 		unlock(&central);
+ 	}
+ 
++//printf("alloc from cl %d\n", cl);
+ 	// advance linked list.
+ 	m->freelist[cl] = *p;
+ 
+@@ -327,9 +310,7 @@ alloclarge(int32 np)
+ 	Span *s;
+ 
+ 	lock(&central);
+-//prints("Alloc span ");
+-//sys·printint(np);
+-//prints("\n");
++//printf("Alloc span %d\n", np);
+ 	s = allocspan(np);
+ 	unlock(&central);
+ 	s->state = SpanInUse;
+@@ -346,17 +327,16 @@ alloc(int32 n)
+ 	if(n < LargeSize) {
+ 		cl = sizetoclass(n);
+ 		if(cl < 0 || cl >= SmallFreeClasses) {
+-			sys·printint(n);
+-			prints(" -> ");
+-			sys·printint(cl);
+-			prints("\n");
++			printf("%d -> %d\n", n, cl);
+ 			throw("alloc - logic error");
+ 		}
+-		return allocsmall(sizetoclass(n));
++		allocator·allocated += classtosize[cl];
++		return allocsmall(cl);
+ 	}
+ 
+ 	// count number of pages; careful about overflow for big n.
+ 	np = (n>>PageShift) + (((n&PageMask)+PageMask)>>PageShift);
++	allocator·allocated += (uint64)np<<PageShift;
+ 	return alloclarge(np);
+ }
+ 
+@@ -386,9 +366,8 @@ free(void *v)
+ 		// TODO: For large spans, maybe just return the
+ 		// memory to the operating system and let it zero it.
+ 		sys·memclr(s->base, s->length << PageShift);
+-//prints("Free big ");
+-//sys·printint(s->length);
+-//prints("\n");
++//printf("Free big %D\n", s->length);
++		allocator·allocated -= s->length << PageShift;
+ 		lock(&central);
+ 		freespan(s);
+ 		unlock(&central);
+@@ -403,9 +382,11 @@ free(void *v)
+ 
+ 	// Zero and add to free list.
+ 	sys·memclr(v, siz);
++	allocator·allocated -= siz;
+ 	p = v;
+ 	*p = m->freelist[s->cl];
+ 	m->freelist[s->cl] = p;
++//printf("Free siz %d cl %d\n", siz, s->cl);
+ }
+ 
+ void
+@@ -423,21 +404,3 @@ allocator·memset(byte *v, int32 c, int32 n)
+ 		v[i] = c;
+ }
+ 
+-// Allocate stack segment.
+-// Must be done without holding locks, because
+-// calling any function might trigger another stack segment allocation.
+-void*
+-allocstack(int32 n)
+-{
+-	// TODO
+-	USED(n);
+-	return nil;
+-}
+-
+-void
+-freestack(void *v)
+-{
+-	// TODO
+-	USED(v);
+-}
+-
+diff --git a/usr/rsc/mem/malloc.h b/usr/rsc/mem/malloc.h
+index aa3bed2c6b..dd51e49b24 100644
+--- a/usr/rsc/mem/malloc.h
++++ b/usr/rsc/mem/malloc.h
+@@ -24,9 +24,13 @@ struct PageMap
+ 	void *level0[PMLevelSize];
+ };
+ 
++extern int64 allocator·allocated;
+ extern int64 allocator·footprint;
+ extern bool allocator·frozen;
+ 
+ void* trivalloc(int32);
+ void* pmlookup(PageMap*, uintptr);
+ void* pminsert(PageMap*, uintptr, void*);
++
++void*	alloc(int32);
++void	free(void*);
+diff --git a/usr/rsc/mem/stack.c b/usr/rsc/mem/stack.c
+new file mode 100644
+index 0000000000..295e709ffb
+--- /dev/null
++++ b/usr/rsc/mem/stack.c
+@@ -0,0 +1,22 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "malloc.h"
++
++void*
++stackalloc(uint32 n)
++{
++	void *v;
++
++	v = alloc(n);
++//printf("stackalloc %d = %p\n", n, v);
++	return v;
++}
++
++void
++stackfree(void *v)
++{
++//printf("stackfree %p\n", v);
++	free(v);
++}
+diff --git a/usr/rsc/mem/triv.c b/usr/rsc/mem/triv.c
+index 631e93a094..935cb9fc08 100644
+--- a/usr/rsc/mem/triv.c
++++ b/usr/rsc/mem/triv.c
+@@ -36,6 +36,7 @@ trivalloc(int32 size)
+ 	static byte *p;
+ 	static int32 n;
+ 	byte *v;
++	uint64 oldfoot;
+ 
+ 	if(allocator·frozen)
+ 		throw("allocator frozen");
+@@ -44,6 +45,7 @@ trivalloc(int32 size)
+ //sys·printint(size);
+ //prints("\n");
+ 
++	oldfoot = allocator·footprint;
+ 	if(size < 4096) {	// TODO: Tune constant.
+ 		size = (size + Round) & ~Round;
+ 		if(size > n) {
+@@ -53,12 +55,20 @@ trivalloc(int32 size)
+ 		}
+ 		v = p;
+ 		p += size;
+-		return v;
++		goto out;
+ 	}
+ 	if(size & PageMask)
+ 		size += (1<<PageShift) - (size & PageMask);
+ 	v = sys·mmap(nil, size, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, 0, 0);
+ 	allocator·footprint += size;
++
++out:
++	if((oldfoot>>24) != (allocator·footprint>>24))
++		printf("memory footprint = %D MB for %D MB\n", allocator·footprint>>20, allocator·allocated>>20);
++	if(allocator·footprint >= 2LL<<30) {
++		prints("out of memory\n");
++		sys·exit(1);
++	}
+ 	return v;
+ }
+ 

@@ -16,7 +16,38 @@ Date:   Thu Oct 6 15:14:58 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/30602
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/{os_linux_s390x.go => os_linux_be64.go} | 4 ++++
  src/runtime/os_linux_generic.go                     | 1 +
  2 files changed, 5 insertions(+)
+
+diff --git a/src/runtime/os_linux_s390x.go b/src/runtime/os_linux_be64.go
+similarity index 89%
+rename from src/runtime/os_linux_s390x.go
+rename to src/runtime/os_linux_be64.go
+index bdda2a3a6e..e66dcac2ad 100644
+--- a/src/runtime/os_linux_s390x.go
++++ b/src/runtime/os_linux_be64.go
+@@ -2,6 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// The standard GNU/Linux sigset type on big-endian 64-bit machines.
++
++// +build ppc64 s390x
++
+ package runtime
+ 
+ const (
+diff --git a/src/runtime/os_linux_generic.go b/src/runtime/os_linux_generic.go
+index 94e5ed996f..43d0093c31 100644
+--- a/src/runtime/os_linux_generic.go
++++ b/src/runtime/os_linux_generic.go
+@@ -5,6 +5,7 @@
+ // +build !mips64
+ // +build !mips64le
+ // +build !s390x
++// +build !ppc64
+ // +build linux
+ 
+ package runtime

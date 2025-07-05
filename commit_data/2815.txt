@@ -8,7 +8,40 @@ Date:   Tue Jul 28 17:52:30 2009 -0700
     DELTA=3  (3 added, 0 deleted, 0 changed)
     OCL=32389
     CL=32392
-
+---
  src/pkg/Make.deps | 1 +
  src/pkg/Makefile  | 2 ++
  2 files changed, 3 insertions(+)
+
+diff --git a/src/pkg/Make.deps b/src/pkg/Make.deps
+index ad5d2e4caf..9508ad946b 100644
+--- a/src/pkg/Make.deps
++++ b/src/pkg/Make.deps
+@@ -6,6 +6,7 @@ bytes.install: os.install utf8.install
+ compress/flate.install: bufio.install io.install os.install strconv.install
+ compress/gzip.install: bufio.install compress/flate.install hash.install hash/crc32.install io.install os.install
+ container/list.install:
++container/ring.install:
+ container/vector.install:
+ crypto/aes.install: os.install strconv.install
+ crypto/block.install: fmt.install io.install os.install strconv.install
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 6fe77af352..2f58fa7b6a 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -20,6 +20,7 @@ DIRS=\
+ 	compress/flate\
+ 	compress/gzip\
+ 	container/list\
++	container/ring\
+ 	container/vector\
+ 	crypto/aes\
+ 	crypto/block\
+@@ -79,6 +80,7 @@ TEST=\
+ 	compress/flate\
+ 	compress/gzip\
+ 	container/list\
++	container/ring\
+ 	container/vector\
+ 	crypto/aes\
+ 	crypto/block\

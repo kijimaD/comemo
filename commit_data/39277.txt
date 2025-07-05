@@ -28,7 +28,7 @@ Date:   Wed Feb 13 17:37:50 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/init.go                | 77 ++++++++++++----------
  src/cmd/go/internal/modload/init_test.go           | 42 ------------
  src/cmd/go/internal/modload/load.go                |  2 +-
@@ -44,3 +44,472 @@ Date:   Wed Feb 13 17:37:50 2019 -0500
  .../go/testdata/script/mod_convert_vendor_yml.txt  |  9 +++
  src/cmd/go/testdata/script/mod_find.txt            | 12 ++++
  14 files changed, 162 insertions(+), 80 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 22d14ccce7..a0514d425e 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -154,7 +154,7 @@ func Init() {
+ 			die() // Don't init a module that we're just going to ignore.
+ 		}
+ 		// No automatic enabling in GOPATH.
+-		if root, _ := FindModuleRoot(cwd, "", false); root != "" {
++		if root := findModuleRoot(cwd); root != "" {
+ 			cfg.GoModInGOPATH = filepath.Join(root, "go.mod")
+ 		}
+ 		return
+@@ -164,7 +164,7 @@ func Init() {
+ 		// Running 'go mod init': go.mod will be created in current directory.
+ 		modRoot = cwd
+ 	} else {
+-		modRoot, _ = FindModuleRoot(cwd, "", MustUseModules)
++		modRoot = findModuleRoot(cwd)
+ 		if modRoot == "" {
+ 			if !MustUseModules {
+ 				// GO111MODULE is 'auto' (or unset), and we can't find a module root.
+@@ -302,6 +302,19 @@ func die() {
+ 	if inGOPATH && !MustUseModules {
+ 		base.Fatalf("go: modules disabled inside GOPATH/src by GO111MODULE=auto; see 'go help modules'")
+ 	}
++	if cwd != "" {
++		if dir, name := findAltConfig(cwd); dir != "" {
++			rel, err := filepath.Rel(cwd, dir)
++			if err != nil {
++				rel = dir
++			}
++			cdCmd := ""
++			if rel != "." {
++				cdCmd = fmt.Sprintf("cd %s && ", rel)
++			}
++			base.Fatalf("go: cannot find main module, but found %s in %s\n\tto create a module there, run:\n\t%sgo mod init", name, dir, cdCmd)
++		}
++	}
+ 	base.Fatalf("go: cannot find main module; see 'go help modules'")
+ }
+ 
+@@ -330,12 +343,6 @@ func InitMod() {
+ 	gomod := filepath.Join(modRoot, "go.mod")
+ 	data, err := ioutil.ReadFile(gomod)
+ 	if err != nil {
+-		if os.IsNotExist(err) {
+-			legacyModInit()
+-			modFileToBuildList()
+-			WriteGoMod()
+-			return
+-		}
+ 		base.Fatalf("go: %v", err)
+ 	}
+ 
+@@ -349,7 +356,7 @@ func InitMod() {
+ 
+ 	if len(f.Syntax.Stmt) == 0 || f.Module == nil {
+ 		// Empty mod file. Must add module path.
+-		path, err := FindModulePath(modRoot)
++		path, err := findModulePath(modRoot)
+ 		if err != nil {
+ 			base.Fatalf("go: %v", err)
+ 		}
+@@ -387,7 +394,7 @@ func Allowed(m module.Version) bool {
+ 
+ func legacyModInit() {
+ 	if modFile == nil {
+-		path, err := FindModulePath(modRoot)
++		path, err := findModulePath(modRoot)
+ 		if err != nil {
+ 			base.Fatalf("go: %v", err)
+ 		}
+@@ -454,19 +461,13 @@ var altConfigs = []string{
+ 	".git/config",
+ }
+ 
+-// Exported only for testing.
+-func FindModuleRoot(dir, limit string, legacyConfigOK bool) (root, file string) {
++func findModuleRoot(dir string) (root string) {
+ 	dir = filepath.Clean(dir)
+-	dir1 := dir
+-	limit = filepath.Clean(limit)
+ 
+ 	// Look for enclosing go.mod.
+ 	for {
+ 		if fi, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil && !fi.IsDir() {
+-			return dir, "go.mod"
+-		}
+-		if dir == limit {
+-			break
++			return dir
+ 		}
+ 		d := filepath.Dir(dir)
+ 		if d == dir {
+@@ -474,37 +475,41 @@ func FindModuleRoot(dir, limit string, legacyConfigOK bool) (root, file string)
+ 		}
+ 		dir = d
+ 	}
++	return ""
++}
+ 
+-	// Failing that, look for enclosing alternate version config.
+-	if legacyConfigOK {
+-		dir = dir1
+-		for {
+-			for _, name := range altConfigs {
+-				if fi, err := os.Stat(filepath.Join(dir, name)); err == nil && !fi.IsDir() {
+-					return dir, name
++func findAltConfig(dir string) (root, name string) {
++	dir = filepath.Clean(dir)
++	for {
++		for _, name := range altConfigs {
++			if fi, err := os.Stat(filepath.Join(dir, name)); err == nil && !fi.IsDir() {
++				if rel := search.InDir(dir, cfg.BuildContext.GOROOT); rel == "." {
++					// Don't suggest creating a module from $GOROOT/.git/config.
++					return "", ""
+ 				}
++				return dir, name
+ 			}
+-			if dir == limit {
+-				break
+-			}
+-			d := filepath.Dir(dir)
+-			if d == dir {
+-				break
+-			}
+-			dir = d
+ 		}
++		d := filepath.Dir(dir)
++		if d == dir {
++			break
++		}
++		dir = d
+ 	}
+-
+ 	return "", ""
+ }
+ 
+-// Exported only for testing.
+-func FindModulePath(dir string) (string, error) {
++func findModulePath(dir string) (string, error) {
+ 	if CmdModModule != "" {
+ 		// Running go mod init x/y/z; return x/y/z.
+ 		return CmdModModule, nil
+ 	}
+ 
++	// TODO(bcmills): once we have located a plausible module path, we should
++	// query version control (if available) to verify that it matches the major
++	// version of the most recent tag.
++	// See https://golang.org/issue/29433 and https://golang.org/issue/27009.
++
+ 	// Cast about for import comments,
+ 	// first in top-level directory, then in subdirectories.
+ 	list, _ := ioutil.ReadDir(dir)
+diff --git a/src/cmd/go/internal/modload/init_test.go b/src/cmd/go/internal/modload/init_test.go
+deleted file mode 100644
+index 2df9d8af7d..0000000000
+--- a/src/cmd/go/internal/modload/init_test.go
++++ /dev/null
+@@ -1,42 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package modload
+-
+-import (
+-	"io/ioutil"
+-	"os"
+-	"path/filepath"
+-	"testing"
+-)
+-
+-func TestFindModuleRootIgnoreDir(t *testing.T) {
+-	// In Plan 9, directories are automatically created in /n.
+-	// For example, /n/go.mod always exist, but it's a directory.
+-	// Test that we ignore directories when trying to find go.mod and other config files.
+-
+-	dir, err := ioutil.TempDir("", "gotest")
+-	if err != nil {
+-		t.Fatalf("failed to create temporary directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
+-	if err := os.Mkdir(filepath.Join(dir, "go.mod"), os.ModeDir|0755); err != nil {
+-		t.Fatalf("Mkdir failed: %v", err)
+-	}
+-	for _, name := range altConfigs {
+-		if err := os.MkdirAll(filepath.Join(dir, name), os.ModeDir|0755); err != nil {
+-			t.Fatalf("MkdirAll failed: %v", err)
+-		}
+-	}
+-	p := filepath.Join(dir, "example")
+-	if err := os.Mkdir(p, os.ModeDir|0755); err != nil {
+-		t.Fatalf("Mkdir failed: %v", err)
+-	}
+-	if root, _ := FindModuleRoot(p, "", false); root != "" {
+-		t.Errorf("FindModuleRoot(%q, \"\", false): %q, want empty string", p, root)
+-	}
+-	if root, _ := FindModuleRoot(p, "", true); root != "" {
+-		t.Errorf("FindModuleRoot(%q, \"\", true): %q, want empty string", p, root)
+-	}
+-}
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 5bb943dd6d..6d6c037af2 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -111,7 +111,7 @@ func ImportPaths(patterns []string) []*search.Match {
+ 						} else {
+ 							pkg = Target.Path + suffix
+ 						}
+-					} else if sub := search.InDir(dir, cfg.GOROOTsrc); sub != "" && !strings.Contains(sub, "@") {
++					} else if sub := search.InDir(dir, cfg.GOROOTsrc); sub != "" && sub != "." && !strings.Contains(sub, "@") {
+ 						pkg = filepath.ToSlash(sub)
+ 					} else if path := pathInModuleCache(dir); path != "" {
+ 						pkg = path
+diff --git a/src/cmd/go/testdata/script/mod_convert_dep.txt b/src/cmd/go/testdata/script/mod_convert_dep.txt
+index cc1083bcba..267c90eb3c 100644
+--- a/src/cmd/go/testdata/script/mod_convert_dep.txt
++++ b/src/cmd/go/testdata/script/mod_convert_dep.txt
+@@ -1,9 +1,31 @@
+ env GO111MODULE=on
+ 
++# We should not create a go.mod file unless the user ran 'go mod init' explicitly.
++# However, we should suggest 'go mod init' if we can find an alternate config file.
+ cd $WORK/test/x
++! go list .
++stderr 'found Gopkg.lock in .*[/\\]test'
++stderr '\s*cd \.\. && go mod init'
++
++# The command we suggested should succeed.
++cd ..
++go mod init
+ go list -m all
+ stdout '^m$'
+ 
++# In Plan 9, directories are automatically created in /n.
++# For example, /n/Gopkg.lock always exists, but it's a directory.
++# Test that we ignore directories when trying to find alternate config files.
++cd $WORK/gopkgdir/x
++! go list .
++stderr 'cannot find main module'
++! stderr 'Gopkg.lock'
++! stderr 'go mod init'
++
+ -- $WORK/test/Gopkg.lock --
+ -- $WORK/test/x/x.go --
+ package x // import "m/x"
++-- $WORK/gopkgdir/Gopkg.lock/README.txt --
++../Gopkg.lock is a directory, not a file.
++-- $WORK/gopkgdir/x/x.go --
++package x // import "m/x"
+diff --git a/src/cmd/go/testdata/script/mod_convert_git.txt b/src/cmd/go/testdata/script/mod_convert_git.txt
+index 5ef534a8f8..ece505a7ba 100644
+--- a/src/cmd/go/testdata/script/mod_convert_git.txt
++++ b/src/cmd/go/testdata/script/mod_convert_git.txt
+@@ -1,10 +1,23 @@
+ env GO111MODULE=on
+ 
+-# detect root of module tree as root of enclosing git repo
++# We should not create a go.mod file unless the user ran 'go mod init' explicitly.
++# However, we should suggest 'go mod init' if we can find an alternate config file.
+ cd $WORK/test/x
++! go list .
++stderr 'found .git/config in .*[/\\]test'
++stderr '\s*cd \.\. && go mod init'
++
++# The command we suggested should succeed.
++cd ..
++go mod init
+ go list -m all
+ stdout '^m$'
+ 
++# We should not suggest creating a go.mod file in $GOROOT, even though there may be a .git/config there.
++cd $GOROOT
++! go list .
++! stderr 'go mod init'
++
+ -- $WORK/test/.git/config --
+ -- $WORK/test/x/x.go --
+ package x // import "m/x"
+diff --git a/src/cmd/go/testdata/script/mod_convert_glide.txt b/src/cmd/go/testdata/script/mod_convert_glide.txt
+index 50460bbf36..9f1fff51bf 100644
+--- a/src/cmd/go/testdata/script/mod_convert_glide.txt
++++ b/src/cmd/go/testdata/script/mod_convert_glide.txt
+@@ -1,6 +1,15 @@
+ env GO111MODULE=on
+ 
++# We should not create a go.mod file unless the user ran 'go mod init' explicitly.
++# However, we should suggest 'go mod init' if we can find an alternate config file.
+ cd $WORK/test/x
++! go list .
++stderr 'found glide.lock in .*[/\\]test'
++stderr '\s*cd \.\. && go mod init'
++
++# The command we suggested should succeed.
++cd ..
++go mod init
+ go list -m all
+ stdout '^m$'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_convert_glockfile.txt b/src/cmd/go/testdata/script/mod_convert_glockfile.txt
+index 4d9aaffab5..6aa0794888 100644
+--- a/src/cmd/go/testdata/script/mod_convert_glockfile.txt
++++ b/src/cmd/go/testdata/script/mod_convert_glockfile.txt
+@@ -1,6 +1,15 @@
+ env GO111MODULE=on
+ 
++# We should not create a go.mod file unless the user ran 'go mod init' explicitly.
++# However, we should suggest 'go mod init' if we can find an alternate config file.
+ cd $WORK/test/x
++! go list .
++stderr 'found GLOCKFILE in .*[/\\]test'
++stderr '\s*cd \.\. && go mod init'
++
++# The command we suggested should succeed.
++cd ..
++go mod init
+ go list -m all
+ stdout '^m$'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_convert_godeps.txt b/src/cmd/go/testdata/script/mod_convert_godeps.txt
+index 61fbab1124..da7b6c1059 100644
+--- a/src/cmd/go/testdata/script/mod_convert_godeps.txt
++++ b/src/cmd/go/testdata/script/mod_convert_godeps.txt
+@@ -1,6 +1,15 @@
+ env GO111MODULE=on
+ 
++# We should not create a go.mod file unless the user ran 'go mod init' explicitly.
++# However, we should suggest 'go mod init' if we can find an alternate config file.
+ cd $WORK/test/x
++! go list .
++stderr 'found Godeps/Godeps.json in .*[/\\]test'
++stderr '\s*cd \.\. && go mod init'
++
++# The command we suggested should succeed.
++cd ..
++go mod init
+ go list -m all
+ stdout '^m$'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_convert_tsv.txt b/src/cmd/go/testdata/script/mod_convert_tsv.txt
+index 5b82d85d65..6015ac8754 100644
+--- a/src/cmd/go/testdata/script/mod_convert_tsv.txt
++++ b/src/cmd/go/testdata/script/mod_convert_tsv.txt
+@@ -1,6 +1,15 @@
+ env GO111MODULE=on
+ 
++# We should not create a go.mod file unless the user ran 'go mod init' explicitly.
++# However, we should suggest 'go mod init' if we can find an alternate config file.
+ cd $WORK/test/x
++! go list .
++stderr 'found dependencies.tsv in .*[/\\]test'
++stderr '\s*cd \.\. && go mod init'
++
++# The command we suggested should succeed.
++cd ..
++go mod init
+ go list -m all
+ stdout '^m$'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_convert_vendor_conf.txt b/src/cmd/go/testdata/script/mod_convert_vendor_conf.txt
+index b45d3b69fe..57ec4191a4 100644
+--- a/src/cmd/go/testdata/script/mod_convert_vendor_conf.txt
++++ b/src/cmd/go/testdata/script/mod_convert_vendor_conf.txt
+@@ -1,6 +1,15 @@
+ env GO111MODULE=on
+ 
++# We should not create a go.mod file unless the user ran 'go mod init' explicitly.
++# However, we should suggest 'go mod init' if we can find an alternate config file.
+ cd $WORK/test/x
++! go list .
++stderr 'found vendor.conf in .*[/\\]test'
++stderr '\s*cd \.\. && go mod init'
++
++# The command we suggested should succeed.
++cd ..
++go mod init
+ go list -m all
+ stdout '^m$'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_convert_vendor_json.txt b/src/cmd/go/testdata/script/mod_convert_vendor_json.txt
+index cb6e5fee15..47d111d4c1 100644
+--- a/src/cmd/go/testdata/script/mod_convert_vendor_json.txt
++++ b/src/cmd/go/testdata/script/mod_convert_vendor_json.txt
+@@ -1,6 +1,15 @@
+ env GO111MODULE=on
+ 
++# We should not create a go.mod file unless the user ran 'go mod init' explicitly.
++# However, we should suggest 'go mod init' if we can find an alternate config file.
+ cd $WORK/test/x
++! go list .
++stderr 'found vendor/vendor.json in .*[/\\]test'
++stderr '\s*cd \.\. && go mod init'
++
++# The command we suggested should succeed.
++cd ..
++go mod init
+ go list -m all
+ stdout '^m$'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_convert_vendor_manifest.txt b/src/cmd/go/testdata/script/mod_convert_vendor_manifest.txt
+index bcf185136b..68edb9dc29 100644
+--- a/src/cmd/go/testdata/script/mod_convert_vendor_manifest.txt
++++ b/src/cmd/go/testdata/script/mod_convert_vendor_manifest.txt
+@@ -1,6 +1,15 @@
+ env GO111MODULE=on
+ 
++# We should not create a go.mod file unless the user ran 'go mod init' explicitly.
++# However, we should suggest 'go mod init' if we can find an alternate config file.
+ cd $WORK/test/x
++! go list .
++stderr 'found vendor/manifest in .*[/\\]test'
++stderr '\s*cd \.\. && go mod init'
++
++# The command we suggested should succeed.
++cd ..
++go mod init
+ go list -m all
+ stdout '^m$'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_convert_vendor_yml.txt b/src/cmd/go/testdata/script/mod_convert_vendor_yml.txt
+index 0cd245bace..4ed140a25a 100644
+--- a/src/cmd/go/testdata/script/mod_convert_vendor_yml.txt
++++ b/src/cmd/go/testdata/script/mod_convert_vendor_yml.txt
+@@ -1,6 +1,15 @@
+ env GO111MODULE=on
+ 
++# We should not create a go.mod file unless the user ran 'go mod init' explicitly.
++# However, we should suggest 'go mod init' if we can find an alternate config file.
+ cd $WORK/test/x
++! go list .
++stderr 'found vendor.yml in .*[/\\]test'
++stderr '\s*cd \.\. && go mod init'
++
++# The command we suggested should succeed.
++cd ..
++go mod init
+ go list -m all
+ stdout '^m$'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_find.txt b/src/cmd/go/testdata/script/mod_find.txt
+index f4ac8d01f5..eb7f974b3b 100644
+--- a/src/cmd/go/testdata/script/mod_find.txt
++++ b/src/cmd/go/testdata/script/mod_find.txt
+@@ -43,6 +43,13 @@ go mod init
+ stderr 'empty'
+ rm go.mod
+ 
++# In Plan 9, directories are automatically created in /n.
++# For example, /n/go.mod always exist, but it's a directory.
++# Test that we ignore directories when trying to find go.mod.
++cd $WORK/gomoddir
++! go list .
++stderr 'cannot find main module'
++
+ [!symlink] stop
+ 
+ # gplink1/src/empty where gopathlink -> GOPATH
+@@ -89,3 +96,8 @@ package y
+ package z
+ -- $GOPATH/src/example.com/x/y/z/Godeps/Godeps.json --
+ {"ImportPath": "unexpected.com/z"}
++
++-- $WORK/gomoddir/go.mod/README.txt --
++../go.mod is a directory, not a file.
++-- $WORK/gomoddir/p.go --
++package p

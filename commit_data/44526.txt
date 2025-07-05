@@ -65,7 +65,51 @@ Date:   Thu Jul 30 18:35:00 2020 -0700
     Change-Id: I88269660b40aeda80a9a9433777601a781b48ac0
     Reviewed-on: https://go-review.googlesource.com/c/go/+/246057
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/test/test.go | 13 +++++++++++++
  src/cmd/cgo/out.go    |  4 +++-
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/test/test.go b/misc/cgo/test/test.go
+index 8c69ad91ac..35bc3a1447 100644
+--- a/misc/cgo/test/test.go
++++ b/misc/cgo/test/test.go
+@@ -901,6 +901,12 @@ typedef struct S32579 { unsigned char data[1]; } S32579;
+ // issue 38649
+ // Test that #define'd type aliases work.
+ #define netbsd_gid unsigned int
++
++// issue 40494
++// Inconsistent handling of tagged enum and union types.
++enum Enum40494 { X_40494 };
++union Union40494 { int x; };
++void issue40494(enum Enum40494 e, union Union40494* up) {}
+ */
+ import "C"
+ 
+@@ -2204,3 +2210,10 @@ var issue38649 C.netbsd_gid = 42
+ // issue 39877
+ 
+ var issue39877 *C.void = nil
++
++// issue 40494
++// No runtime test; just make sure it compiles.
++
++func Issue40494() {
++	C.issue40494(C.enum_Enum40494(C.X_40494), (*C.union_Union40494)(nil))
++}
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 6c221473e0..4064f0ae41 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -123,7 +123,9 @@ func (p *Package) writeDefs() {
+ 		// Moreover, empty file name makes compile emit no source debug info at all.
+ 		var buf bytes.Buffer
+ 		noSourceConf.Fprint(&buf, fset, def.Go)
+-		if bytes.HasPrefix(buf.Bytes(), []byte("_Ctype_")) {
++		if bytes.HasPrefix(buf.Bytes(), []byte("_Ctype_")) ||
++			strings.HasPrefix(name, "_Ctype_enum_") ||
++			strings.HasPrefix(name, "_Ctype_union_") {
+ 			// This typedef is of the form `typedef a b` and should be an alias.
+ 			fmt.Fprintf(fgo2, "= ")
+ 		}

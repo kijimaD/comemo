@@ -7,9 +7,87 @@ Date:   Wed Mar 3 17:23:47 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/229046
-
+---
  src/cmd/gc/lex.c  |  4 ++--
  src/cmd/gc/subr.c |  2 +-
  src/cmd/gc/walk.c |  1 -
  test/import4.go   | 24 ++++++++++++++++++++++++
  4 files changed, 27 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index e6db4e7a7a..8afc737f38 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1610,7 +1610,7 @@ mkpackage(char* pkgname)
+ 					// errors if a conflicting top-level name is
+ 					// introduced by a different file.
+ 					if(!s->def->used && !nsyntaxerrors)
+-						yyerrorl(s->def->lineno, "imported and not used: %s", s->def->sym->name);
++						yyerrorl(s->def->lineno, "imported and not used: %Z", s->def->pkg->path);
+ 					s->def = N;
+ 					continue;
+ 				}
+@@ -1618,7 +1618,7 @@ mkpackage(char* pkgname)
+ 					// throw away top-level name left over
+ 					// from previous import . "x"
+ 					if(s->def->pack != N && !s->def->pack->used && !nsyntaxerrors) {
+-						yyerrorl(s->def->pack->lineno, "imported and not used: %s", s->def->pack->sym->name);
++						yyerrorl(s->def->pack->lineno, "imported and not used: %Z", s->def->pack->pkg->path);
+ 						s->def->pack->used = 1;
+ 					}
+ 					s->def = N;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index f6ca359e89..d3354c904b 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -360,7 +360,7 @@ importdot(Pkg *opkg, Node *pack)
+ 	}
+ 	if(n == 0) {
+ 		// can't possibly be used - there were no symbols
+-		yyerrorl(pack->lineno, "imported and not used: %s", pack->sym->name);
++		yyerrorl(pack->lineno, "imported and not used: %Z", opkg->path);
+ 	}
+ }
+ 
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index fa63646c50..2f151307ab 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1128,7 +1128,6 @@ walkexpr(Node **np, NodeList **init)
+ 	case OARRAYLIT:
+ 	case OMAPLIT:
+ 	case OSTRUCTLIT:
+-	arraylit:
+ 		nvar = nod(OXXX, N, N);
+ 		tempname(nvar, n->type);
+ 		anylit(n, nvar, init);
+diff --git a/test/import4.go b/test/import4.go
+new file mode 100644
+index 0000000000..1ae1d0e4ad
+--- /dev/null
++++ b/test/import4.go
+@@ -0,0 +1,24 @@
++// $G $D/empty.go && errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// various kinds of imported and not used
++
++// standard
++import "fmt"	// ERROR "imported and not used.*fmt"
++
++// renamed
++import X "math"	// ERROR "imported and not used.*math"
++
++// import dot
++import . "bufio"	// ERROR "imported and not used.*bufio"
++
++// again, package without anything in it
++import "./empty"	// ERROR "imported and not used.*empty"
++import Z "./empty"	// ERROR "imported and not used.*empty"
++import . "./empty"	// ERROR "imported and not used.*empty"
++

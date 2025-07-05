@@ -14,7 +14,69 @@ Date:   Fri Nov 3 18:11:24 2017 +0100
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  .../github.com/google/pprof/internal/driver/fetch_test.go  | 14 ++++++++++++--
  src/cmd/vendor/vendor.json                                 |  4 ++--
  2 files changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go
+index dd78bc7a7d..b300aa6641 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch_test.go
+@@ -351,6 +351,13 @@ func stubHTTPGet(source string, _ time.Duration) (*http.Response, error) {
+ 	return c.Get("file:///" + file)
+ }
+ 
++func closedError() string {
++	if runtime.GOOS == "plan9" {
++		return "listen hungup"
++	}
++	return "use of closed"
++}
++
+ func TestHttpsInsecure(t *testing.T) {
+ 	if runtime.GOOS == "nacl" {
+ 		t.Skip("test assumes tcp available")
+@@ -372,7 +379,7 @@ func TestHttpsInsecure(t *testing.T) {
+ 		donec <- http.Serve(l, nil)
+ 	}(donec)
+ 	defer func() {
+-		if got, want := <-donec, "use of closed"; !strings.Contains(got.Error(), want) {
++		if got, want := <-donec, closedError(); !strings.Contains(got.Error(), want) {
+ 			t.Fatalf("Serve got error %v, want %q", got, want)
+ 		}
+ 	}()
+@@ -416,6 +423,10 @@ func TestHttpsInsecure(t *testing.T) {
+ 	if len(p.SampleType) == 0 {
+ 		t.Fatalf("fetchProfiles(%s) got empty profile: len(p.SampleType)==0", address)
+ 	}
++	if runtime.GOOS == "plan9" {
++		// CPU profiling is not supported on Plan9; see golang.org/issues/22564.
++		return
++	}
+ 	if len(p.Function) == 0 {
+ 		t.Fatalf("fetchProfiles(%s) got non-symbolized profile: len(p.Function)==0", address)
+ 	}
+@@ -429,7 +440,6 @@ func TestHttpsInsecure(t *testing.T) {
+ var badSigprofOS = map[string]bool{
+ 	"darwin": true,
+ 	"netbsd": true,
+-	"plan9":  true,
+ }
+ 
+ func checkProfileHasFunction(p *profile.Profile, fname string) error {
+diff --git a/src/cmd/vendor/vendor.json b/src/cmd/vendor/vendor.json
+index 36716cb9eb..41020ced82 100644
+--- a/src/cmd/vendor/vendor.json
++++ b/src/cmd/vendor/vendor.json
+@@ -9,8 +9,8 @@
+ 		{
+ 			"canonical": "github.com/google/pprof",
+ 			"local": "github.com/google/pprof",
+-			"revision": "4fc39a00b6b8c1aad05260f01429ec70e127252c",
+-			"revisionTime": "2017-11-01T07:14:40Z",
++			"revision": "79c4198ef7bd1069f8f56501fc05f0f1d2c33d8a",
++			"revisionTime": "2017-11-03T16:44:35Z",
+ 		},
+ 		{
+ 			"canonical": "golang.org/x/arch/x86/x86asm",

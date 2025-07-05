@@ -21,7 +21,7 @@ Date:   Wed Aug 14 14:54:31 2013 -0400
     R=dvyukov, bradfitz, pieter
     CC=golang-dev
     https://golang.org/cl/12895043
-
+---
  src/pkg/runtime/extern.go      |  2 +-
  src/pkg/runtime/iface.c        | 10 +++++
  src/pkg/runtime/malloc.goc     | 21 ++++++++---
@@ -32,3 +32,392 @@ Date:   Wed Aug 14 14:54:31 2013 -0400
  src/pkg/runtime/runtime.h      |  3 +-
  src/pkg/runtime/type.h         |  4 ++
  9 files changed, 98 insertions(+), 63 deletions(-)
+
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index 92e63b257e..527e9cdf89 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -130,7 +130,7 @@ func funcentry_go(*Func) uintptr
+ // The argument x must be a pointer to an object allocated by
+ // calling new or by taking the address of a composite literal.
+ // The argument f must be a function that takes a single argument
+-// of x's type or interface{}, and can have arbitrary ignored return
++// to which x's type can be assigned, and can have arbitrary ignored return
+ // values. If either of these is not true, SetFinalizer aborts the
+ // program.
+ //
+diff --git a/src/pkg/runtime/iface.c b/src/pkg/runtime/iface.c
+index b86bdd99e9..06a621ac47 100644
+--- a/src/pkg/runtime/iface.c
++++ b/src/pkg/runtime/iface.c
+@@ -482,6 +482,16 @@ runtime·ifaceE2I(InterfaceType *inter, Eface e, Iface *ret)
+ 	ret->tab = itab(inter, t, 0);
+ }
+ 
++bool
++runtime·ifaceE2I2(InterfaceType *inter, Eface e, Iface *ret)
++{
++	ret->tab = itab(inter, e.type, 1);
++	if(ret->tab == nil)
++		return false;
++	ret->data = e.data;
++	return true;
++}
++
+ // For reflect
+ //	func ifaceE2I(t *InterfaceType, e interface{}, dst *Iface)
+ void
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 15deb85fed..179a0682a1 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -741,6 +741,7 @@ func SetFinalizer(obj Eface, finalizer Eface) {
+ 	Type *t;
+ 	Type *fint;
+ 	PtrType *ot;
++	Iface iface;
+ 
+ 	if(obj.type == nil) {
+ 		runtime·printf("runtime.SetFinalizer: first argument is nil interface\n");
+@@ -755,7 +756,8 @@ func SetFinalizer(obj Eface, finalizer Eface) {
+ 		goto throw;
+ 	}
+ 	nret = 0;
+-	ot = nil;
++	ot = (PtrType*)obj.type;
++	fint = nil;
+ 	if(finalizer.type != nil) {
+ 		if(finalizer.type->kind != KindFunc)
+ 			goto badfunc;
+@@ -763,9 +765,16 @@ func SetFinalizer(obj Eface, finalizer Eface) {
+ 		if(ft->dotdotdot || ft->in.len != 1)
+ 			goto badfunc;
+ 		fint = *(Type**)ft->in.array;
+-		if(fint->kind == KindInterface && ((InterfaceType*)fint)->mhdr.len == 0)
+-			ot = (PtrType*)obj.type;
+-		else if(fint != obj.type)
++		if(fint == obj.type) {
++			// ok - same type
++		} else if(fint->kind == KindPtr && (fint->x == nil || fint->x->name == nil || obj.type->x == nil || obj.type->x->name == nil) && ((PtrType*)fint)->elem == ((PtrType*)obj.type)->elem) {
++			// ok - not same type, but both pointers,
++			// one or the other is unnamed, and same element type, so assignable.
++		} else if(fint->kind == KindInterface && ((InterfaceType*)fint)->mhdr.len == 0) {
++			// ok - satisfies empty interface
++		} else if(fint->kind == KindInterface && runtime·ifaceE2I2((InterfaceType*)fint, obj, &iface)) {
++			// ok - satisfies non-empty interface
++		} else
+ 			goto badfunc;
+ 
+ 		// compute size needed for return parameters
+@@ -776,14 +785,14 @@ func SetFinalizer(obj Eface, finalizer Eface) {
+ 		nret = ROUND(nret, sizeof(void*));
+ 	}
+ 	
+-	if(!runtime·addfinalizer(obj.data, finalizer.data, nret, ot)) {
++	if(!runtime·addfinalizer(obj.data, finalizer.data, nret, fint, ot)) {
+ 		runtime·printf("runtime.SetFinalizer: finalizer already set\n");
+ 		goto throw;
+ 	}
+ 	return;
+ 
+ badfunc:
+-	runtime·printf("runtime.SetFinalizer: second argument is %S, not func(%S) or func(interface{})\n", *finalizer.type->string, *obj.type->string);
++	runtime·printf("runtime.SetFinalizer: cannot pass %S to finalizer %S\n", *obj.type->string, *finalizer.type->string);
+ throw:
+ 	runtime·throw("runtime.SetFinalizer");
+ }
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 36166543ee..7efe071855 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -481,7 +481,6 @@ int32	runtime·gcprocs(void);
+ void	runtime·helpgc(int32 nproc);
+ void	runtime·gchelper(void);
+ 
+-bool	runtime·getfinalizer(void *p, bool del, FuncVal **fn, uintptr *nret, void **ot);
+ void	runtime·walkfintab(void (*fn)(void*));
+ 
+ enum
+diff --git a/src/pkg/runtime/mfinal.c b/src/pkg/runtime/mfinal.c
+index 0412c8b196..bd0b619a57 100644
+--- a/src/pkg/runtime/mfinal.c
++++ b/src/pkg/runtime/mfinal.c
+@@ -5,6 +5,7 @@
+ #include "runtime.h"
+ #include "arch_GOARCH.h"
+ #include "malloc.h"
++#include "type.h"
+ 
+ enum { debug = 0 };
+ 
+@@ -13,7 +14,8 @@ struct Fin
+ {
+ 	FuncVal *fn;
+ 	uintptr nret;
+-	void *ot;
++	Type *fint;
++	PtrType *ot;
+ };
+ 
+ // Finalizer hash table.  Direct hash, linear scan, at most 3/4 full.
+@@ -43,7 +45,7 @@ static struct {
+ } fintab[TABSZ];
+ 
+ static void
+-addfintab(Fintab *t, void *k, FuncVal *fn, uintptr nret, void *ot)
++addfintab(Fintab *t, void *k, FuncVal *fn, uintptr nret, Type *fint, PtrType *ot)
+ {
+ 	int32 i, j;
+ 
+@@ -68,6 +70,7 @@ ret:
+ 	t->key[i] = k;
+ 	t->val[i].fn = fn;
+ 	t->val[i].nret = nret;
++	t->val[i].fint = fint;
+ 	t->val[i].ot = ot;
+ }
+ 
+@@ -126,7 +129,7 @@ resizefintab(Fintab *tab)
+ 	for(i=0; i<tab->max; i++) {
+ 		k = tab->key[i];
+ 		if(k != nil && k != (void*)-1)
+-			addfintab(&newtab, k, tab->val[i].fn, tab->val[i].nret, tab->val[i].ot);
++			addfintab(&newtab, k, tab->val[i].fn, tab->val[i].nret, tab->val[i].fint, tab->val[i].ot);
+ 	}
+ 	
+ 	runtime·free(tab->key);
+@@ -140,7 +143,7 @@ resizefintab(Fintab *tab)
+ }
+ 
+ bool
+-runtime·addfinalizer(void *p, FuncVal *f, uintptr nret, void *ot)
++runtime·addfinalizer(void *p, FuncVal *f, uintptr nret, Type *fint, PtrType *ot)
+ {
+ 	Fintab *tab;
+ 	byte *base;
+@@ -169,7 +172,7 @@ runtime·addfinalizer(void *p, FuncVal *f, uintptr nret, void *ot)
+ 		resizefintab(tab);
+ 	}
+ 
+-	addfintab(tab, p, f, nret, ot);
++	addfintab(tab, p, f, nret, fint, ot);
+ 	runtime·setblockspecial(p, true);
+ 	runtime·unlock(tab);
+ 	return true;
+@@ -178,7 +181,7 @@ runtime·addfinalizer(void *p, FuncVal *f, uintptr nret, void *ot)
+ // get finalizer; if del, delete finalizer.
+ // caller is responsible for updating RefHasFinalizer (special) bit.
+ bool
+-runtime·getfinalizer(void *p, bool del, FuncVal **fn, uintptr *nret, void **ot)
++runtime·getfinalizer(void *p, bool del, FuncVal **fn, uintptr *nret, Type **fint, PtrType **ot)
+ {
+ 	Fintab *tab;
+ 	bool res;
+@@ -192,6 +195,7 @@ runtime·getfinalizer(void *p, bool del, FuncVal **fn, uintptr *nret, void **ot)
+ 		return false;
+ 	*fn = f.fn;
+ 	*nret = f.nret;
++	*fint = f.fint;
+ 	*ot = f.ot;
+ 	return true;
+ }
+diff --git a/src/pkg/runtime/mfinal_test.go b/src/pkg/runtime/mfinal_test.go
+index 98874a5c74..0d9b41b574 100644
+--- a/src/pkg/runtime/mfinal_test.go
++++ b/src/pkg/runtime/mfinal_test.go
+@@ -12,55 +12,52 @@ import (
+ 	"time"
+ )
+ 
+-func TestFinalizerTypeSucceed(t *testing.T) {
++type Tintptr *int // assignable to *int
++type Tint int     // *Tint implements Tinter, interface{}
++
++func (t *Tint) m() {}
++
++type Tinter interface {
++	m()
++}
++
++func TestFinalizerType(t *testing.T) {
+ 	if runtime.GOARCH != "amd64" {
+ 		t.Skipf("Skipping on non-amd64 machine")
+ 	}
+-	ch := make(chan bool)
+-	func() {
+-		v := new(int)
+-		*v = 97531
+-		runtime.SetFinalizer(v, func(v *int) {
+-			if *v != 97531 {
+-				t.Errorf("*int in finalizer has the wrong value: %d\n", *v)
+-			}
+-			close(ch)
+-		})
+-		v = nil
+-	}()
+-	runtime.GC()
+-	select {
+-	case <-ch:
+-	case <-time.After(time.Second * 4):
+-		t.Errorf("Finalizer set by SetFinalizer(*int, func(*int)) didn't run")
++
++	ch := make(chan bool, 10)
++	finalize := func(x *int) {
++		if *x != 97531 {
++			t.Errorf("finalizer %d, want %d", *x, 97531)
++		}
++		ch <- true
+ 	}
+-}
+ 
+-func TestFinalizerInterface(t *testing.T) {
+-	if runtime.GOARCH != "amd64" {
+-		t.Skipf("Skipping on non-amd64 machine")
++	var finalizerTests = []struct {
++		convert   func(*int) interface{}
++		finalizer interface{}
++	}{
++		{func(x *int) interface{} { return x }, func(v *int) { finalize(v) }},
++		{func(x *int) interface{} { return Tintptr(x) }, func(v Tintptr) { finalize(v) }},
++		{func(x *int) interface{} { return Tintptr(x) }, func(v *int) { finalize(v) }},
++		{func(x *int) interface{} { return (*Tint)(x) }, func(v *Tint) { finalize((*int)(v)) }},
++		{func(x *int) interface{} { return (*Tint)(x) }, func(v Tinter) { finalize((*int)(v.(*Tint))) }},
+ 	}
+-	ch := make(chan bool)
+-	func() {
+-		v := new(int)
+-		*v = 97531
+-		runtime.SetFinalizer(v, func(v interface{}) {
+-			i, ok := v.(*int)
+-			if !ok {
+-				t.Errorf("Expected *int from interface{} in finalizer, got %v", *i)
+-			}
+-			if *i != 97531 {
+-				t.Errorf("*int from interface{} has the wrong value: %d\n", *i)
+-			}
+-			close(ch)
+-		})
+-		v = nil
+-	}()
+-	runtime.GC()
+-	select {
+-	case <-ch:
+-	case <-time.After(time.Second * 4):
+-		t.Errorf("Finalizer set by SetFinalizer(*int, func(interface{})) didn't run")
++
++	for _, tt := range finalizerTests {
++		func() {
++			v := new(int)
++			*v = 97531
++			runtime.SetFinalizer(tt.convert(v), tt.finalizer)
++			v = nil
++		}()
++		runtime.GC()
++		select {
++		case <-ch:
++		case <-time.After(time.Second * 4):
++			t.Errorf("Finalizer of type %T didn't run", tt.finalizer)
++		}
+ 	}
+ }
+ 
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 5c91388867..6af75ae4df 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -112,6 +112,7 @@ struct Finalizer
+ 	FuncVal *fn;
+ 	void *arg;
+ 	uintptr nret;
++	Type *fint;
+ 	PtrType *ot;
+ };
+ 
+@@ -1607,10 +1608,11 @@ handlespecial(byte *p, uintptr size)
+ 	FuncVal *fn;
+ 	uintptr nret;
+ 	PtrType *ot;
++	Type *fint;
+ 	FinBlock *block;
+ 	Finalizer *f;
+ 
+-	if(!runtime·getfinalizer(p, true, &fn, &nret, &ot)) {
++	if(!runtime·getfinalizer(p, true, &fn, &nret, &fint, &ot)) {
+ 		runtime·setblockspecial(p, false);
+ 		runtime·MProf_Free(p, size);
+ 		return false;
+@@ -1633,6 +1635,7 @@ handlespecial(byte *p, uintptr size)
+ 	finq->cnt++;
+ 	f->fn = fn;
+ 	f->nret = nret;
++	f->fint = fint;
+ 	f->ot = ot;
+ 	f->arg = p;
+ 	runtime·unlock(&finlock);
+@@ -2297,7 +2300,7 @@ runfinq(void)
+ 	FinBlock *fb, *next;
+ 	byte *frame;
+ 	uint32 framesz, framecap, i;
+-	Eface *ef;
++	Eface *ef, ef1;
+ 
+ 	frame = nil;
+ 	framecap = 0;
+@@ -2327,12 +2330,22 @@ runfinq(void)
+ 					frame = runtime·mallocgc(framesz, 0, FlagNoPointers|FlagNoInvokeGC);
+ 					framecap = framesz;
+ 				}
+-				if(f->ot == nil)
++				if(f->fint == nil)
++					runtime·throw("missing type in runfinq");
++				if(f->fint->kind == KindPtr) {
++					// direct use of pointer
+ 					*(void**)frame = f->arg;
+-				else {
++				} else if(((InterfaceType*)f->fint)->mhdr.len == 0) {
++					// convert to empty interface
+ 					ef = (Eface*)frame;
+ 					ef->type = f->ot;
+ 					ef->data = f->arg;
++				} else {
++					// convert to interface with methods, via empty interface.
++					ef1.type = f->ot;
++					ef1.data = f->arg;
++					if(!runtime·ifaceE2I2((InterfaceType*)f->fint, ef1, (Iface*)frame))
++						runtime·throw("invalid type conversion in runfinq");
+ 				}
+ 				reflect·call(f->fn, frame, framesz);
+ 				f->fn = nil;
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index c93a139a6c..cc7ccd4b9f 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -810,7 +810,6 @@ uintptr	runtime·ifacehash(Iface, uintptr);
+ uintptr	runtime·efacehash(Eface, uintptr);
+ void*	runtime·malloc(uintptr size);
+ void	runtime·free(void *v);
+-bool	runtime·addfinalizer(void*, FuncVal *fn, uintptr, void*);
+ void	runtime·runpanic(Panic*);
+ uintptr	runtime·getcallersp(void*);
+ int32	runtime·mcount(void);
+@@ -1046,7 +1045,7 @@ bool	runtime·showframe(Func*, G*);
+ void	runtime·printcreatedby(G*);
+ 
+ void	runtime·ifaceE2I(InterfaceType*, Eface, Iface*);
+-
++bool	runtime·ifaceE2I2(InterfaceType*, Eface, Iface*);
+ uintptr	runtime·memlimit(void);
+ 
+ // float.c
+diff --git a/src/pkg/runtime/type.h b/src/pkg/runtime/type.h
+index 769a8071b7..075fffd5b9 100644
+--- a/src/pkg/runtime/type.h
++++ b/src/pkg/runtime/type.h
+@@ -98,3 +98,7 @@ struct PtrType
+ 	Type;
+ 	Type *elem;
+ };
++
++// Here instead of in runtime.h because it uses the type names.
++bool	runtime·addfinalizer(void*, FuncVal *fn, uintptr, Type*, PtrType*);
++bool	runtime·getfinalizer(void *p, bool del, FuncVal **fn, uintptr *nret, Type**, PtrType**);

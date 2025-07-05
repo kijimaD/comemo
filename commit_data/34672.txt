@@ -13,7 +13,66 @@ Date:   Mon Nov 6 10:16:34 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/76025
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/go/go_test.go            | 28 ++++++++++++++++++++++++++++
  src/cmd/go/internal/work/exec.go |  8 ++++++++
  2 files changed, 36 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 9ec2e0b0ee..c56cd94732 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -4783,6 +4783,34 @@ func TestIssue22531(t *testing.T) {
+ 	tg.run("tool", "buildid", filepath.Join(tg.tempdir, "bin/m"+exeSuffix))
+ }
+ 
++func TestIssue22596(t *testing.T) {
++	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
++		t.Skip("GODEBUG gocacheverify")
++	}
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.makeTempdir()
++	tg.setenv("GOCACHE", filepath.Join(tg.tempdir, "cache"))
++	tg.tempFile("gopath1/src/p/p.go", "package p; func F(){}\n")
++	tg.tempFile("gopath2/src/p/p.go", "package p; func F(){}\n")
++
++	tg.setenv("GOPATH", filepath.Join(tg.tempdir, "gopath1"))
++	tg.run("list", "-f={{.Target}}", "p")
++	target1 := strings.TrimSpace(tg.getStdout())
++	tg.run("install", "p")
++	tg.wantNotStale("p", "", "p stale after install")
++
++	tg.setenv("GOPATH", filepath.Join(tg.tempdir, "gopath2"))
++	tg.run("list", "-f={{.Target}}", "p")
++	target2 := strings.TrimSpace(tg.getStdout())
++	tg.must(os.MkdirAll(filepath.Dir(target2), 0777))
++	tg.must(copyFile(target1, target2, 0666))
++	tg.wantStale("p", "build ID mismatch", "p not stale after copy from gopath1")
++	tg.run("install", "p")
++	tg.wantNotStale("p", "", "p stale after install2")
++}
++
+ func TestTestCache(t *testing.T) {
+ 	if strings.Contains(os.Getenv("GODEBUG"), "gocacheverify") {
+ 		t.Skip("GODEBUG gocacheverify")
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 39b39fa9de..26c875b830 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -177,6 +177,14 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
+ 	// same compiler settings and can reuse each other's results.
+ 	// If not, the reason is already recorded in buildGcflags.
+ 	fmt.Fprintf(h, "compile\n")
++	// The compiler hides the exact value of $GOROOT
++	// when building things in GOROOT,
++	// but it does not hide the exact value of $GOPATH.
++	// Include the full dir in that case.
++	// Assume b.WorkDir is being trimmed properly.
++	if !p.Goroot && !strings.HasPrefix(p.Dir, b.WorkDir) {
++		fmt.Fprintf(h, "dir %s\n", p.Dir)
++	}
+ 	fmt.Fprintf(h, "goos %s goarch %s\n", cfg.Goos, cfg.Goarch)
+ 	fmt.Fprintf(h, "import %q\n", p.ImportPath)
+ 	fmt.Fprintf(h, "omitdebug %v standard %v local %v prefix %q\n", p.Internal.OmitDebug, p.Standard, p.Internal.Local, p.Internal.LocalPrefix)

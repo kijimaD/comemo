@@ -31,10 +31,114 @@ Date:   Thu Apr 23 13:58:46 2020 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/cmd/dist/test.go                   | 11 +++++++++++
  src/crypto/x509/root_darwin_arm64.go   |  2 ++
  src/crypto/x509/root_darwin_arm_gen.go |  2 ++
  src/crypto/x509/root_omit.go           | 21 +++++++++++++++++++++
  src/crypto/x509/root_omit_test.go      | 22 ++++++++++++++++++++++
  5 files changed, 58 insertions(+)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index b9b78bf57d..08ef056164 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -459,6 +459,17 @@ func (t *tester) registerTests() {
+ 		})
+ 	}
+ 
++	if t.iOS() && !t.compileOnly {
++		t.tests = append(t.tests, distTest{
++			name:    "x509omitbundledroots",
++			heading: "crypto/x509 without bundled roots",
++			fn: func(dt *distTest) error {
++				t.addCmd(dt, "src", t.goTest(), t.timeout(300), "-tags=x509omitbundledroots", "-run=OmitBundledRoots", "crypto/x509")
++				return nil
++			},
++		})
++	}
++
+ 	if t.race {
+ 		return
+ 	}
+diff --git a/src/crypto/x509/root_darwin_arm64.go b/src/crypto/x509/root_darwin_arm64.go
+index bfbfee1901..639c6ae7de 100644
+--- a/src/crypto/x509/root_darwin_arm64.go
++++ b/src/crypto/x509/root_darwin_arm64.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !x509omitbundledroots
++
+ package x509
+ 
+ func loadSystemRoots() (*CertPool, error) {
+diff --git a/src/crypto/x509/root_darwin_arm_gen.go b/src/crypto/x509/root_darwin_arm_gen.go
+index 0bd480b45d..cba950fcc9 100644
+--- a/src/crypto/x509/root_darwin_arm_gen.go
++++ b/src/crypto/x509/root_darwin_arm_gen.go
+@@ -172,6 +172,8 @@ const header = `
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !x509omitbundledroots
++
+ package x509
+ 
+ func loadSystemRoots() (*CertPool, error) {
+diff --git a/src/crypto/x509/root_omit.go b/src/crypto/x509/root_omit.go
+new file mode 100644
+index 0000000000..f466e24dce
+--- /dev/null
++++ b/src/crypto/x509/root_omit.go
+@@ -0,0 +1,21 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin,arm64,x509omitbundledroots
++
++// This file provides the loadSystemRoots func when the
++// "x509omitbundledroots" build tag has disabled bundling a copy,
++// which currently on happens on darwin/arm64 (root_darwin_arm64.go).
++// This then saves 256 KiB of binary size and another 560 KiB of
++// runtime memory size retaining the parsed roots forever. Constrained
++// environments can construct minimal x509 root CertPools on the fly
++// in the crypto/tls.Config.VerifyPeerCertificate hook.
++
++package x509
++
++import "errors"
++
++func loadSystemRoots() (*CertPool, error) {
++	return nil, errors.New("x509: system root bundling disabled")
++}
+diff --git a/src/crypto/x509/root_omit_test.go b/src/crypto/x509/root_omit_test.go
+new file mode 100644
+index 0000000000..2a9fb3f0c3
+--- /dev/null
++++ b/src/crypto/x509/root_omit_test.go
+@@ -0,0 +1,22 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin,arm64,x509omitbundledroots
++
++package x509
++
++import (
++	"strings"
++	"testing"
++)
++
++func TestOmitBundledRoots(t *testing.T) {
++	cp, err := loadSystemRoots()
++	if err == nil {
++		t.Fatalf("loadSystemRoots = (pool %p, error %v); want non-nil error", cp, err)
++	}
++	if !strings.Contains(err.Error(), "root bundling disabled") {
++		t.Errorf("unexpected error doesn't mention bundling: %v", err)
++	}
++}

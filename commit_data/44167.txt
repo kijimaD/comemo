@@ -11,8 +11,80 @@ Date:   Tue May 19 15:04:48 2020 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/math/big/link_test.go     | 7 ++++---
  src/os/readfrom_linux_test.go | 5 +++--
  src/testing/testing.go        | 5 ++---
  3 files changed, 9 insertions(+), 8 deletions(-)
+
+diff --git a/src/math/big/link_test.go b/src/math/big/link_test.go
+index ad4359cee0..2212bd444f 100644
+--- a/src/math/big/link_test.go
++++ b/src/math/big/link_test.go
+@@ -20,8 +20,9 @@ func TestLinkerGC(t *testing.T) {
+ 		t.Skip("skipping in short mode")
+ 	}
+ 	t.Parallel()
++	tmp := t.TempDir()
+ 	goBin := testenv.GoToolPath(t)
+-	goFile := filepath.Join(t.TempDir(), "x.go")
++	goFile := filepath.Join(tmp, "x.go")
+ 	file := []byte(`package main
+ import _ "math/big"
+ func main() {}
+@@ -30,13 +31,13 @@ func main() {}
+ 		t.Fatal(err)
+ 	}
+ 	cmd := exec.Command(goBin, "build", "-o", "x.exe", "x.go")
+-	cmd.Dir = t.TempDir()
++	cmd.Dir = tmp
+ 	if out, err := cmd.CombinedOutput(); err != nil {
+ 		t.Fatalf("compile: %v, %s", err, out)
+ 	}
+ 
+ 	cmd = exec.Command(goBin, "tool", "nm", "x.exe")
+-	cmd.Dir = t.TempDir()
++	cmd.Dir = tmp
+ 	nm, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("nm: %v, %s", err, nm)
+diff --git a/src/os/readfrom_linux_test.go b/src/os/readfrom_linux_test.go
+index cecaed5214..b6f5cb7034 100644
+--- a/src/os/readfrom_linux_test.go
++++ b/src/os/readfrom_linux_test.go
+@@ -249,14 +249,15 @@ func newCopyFileRangeTest(t *testing.T, size int64) (dst, src *File, data []byte
+ 	t.Helper()
+ 
+ 	hook = hookCopyFileRange(t)
++	tmp := t.TempDir()
+ 
+-	src, err := Create(filepath.Join(t.TempDir(), "src"))
++	src, err := Create(filepath.Join(tmp, "src"))
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	t.Cleanup(func() { src.Close() })
+ 
+-	dst, err = Create(filepath.Join(t.TempDir(), "dst"))
++	dst, err = Create(filepath.Join(tmp, "dst"))
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index aa1584f2d9..608bb39671 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -822,11 +822,10 @@ var tempDirReplacer struct {
+ }
+ 
+ // TempDir returns a temporary directory for the test to use.
+-// It is lazily created on first access, and calls t.Fatal if the directory
+-// creation fails.
+-// Subsequent calls to t.TempDir return the same directory.
+ // The directory is automatically removed by Cleanup when the test and
+ // all its subtests complete.
++// Each subsequent call to t.TempDir returns a unique directory;
++// if the directory creation fails, TempDir terminates the test by calling Fatal.
+ func (c *common) TempDir() string {
+ 	// Use a single parent directory for all the temporary directories
+ 	// created by a test, each numbered sequentially.

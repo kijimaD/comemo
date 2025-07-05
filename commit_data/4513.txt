@@ -7,8 +7,78 @@ Date:   Tue Dec 29 14:44:56 2009 -0800
     R=iant
     CC=golang-dev
     https://golang.org/cl/183087
-
+---
  test/bugs/bug239.go | 21 +++++++++++++++++++++
  test/bugs/bug240.go | 20 ++++++++++++++++++++
  test/golden.out     |  8 ++++++++
  3 files changed, 49 insertions(+)
+
+diff --git a/test/bugs/bug239.go b/test/bugs/bug239.go
+new file mode 100644
+index 0000000000..32c3d7e1c1
+--- /dev/null
++++ b/test/bugs/bug239.go
+@@ -0,0 +1,21 @@
++// $G $D/$F.go || echo BUG: bug239
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test case for issue 475. This file should compile.
++
++package main
++
++import . "unsafe"
++
++func main() {
++	var x int
++	println(Sizeof(x))
++}
++
++/*
++bug239.go:11: imported and not used: unsafe
++bug239.go:15: undefined: Sizeof
++*/
+diff --git a/test/bugs/bug240.go b/test/bugs/bug240.go
+new file mode 100644
+index 0000000000..dc7cdd8963
+--- /dev/null
++++ b/test/bugs/bug240.go
+@@ -0,0 +1,20 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import . "unsafe"
++
++func main() {
++	var x int
++	println(unsafe.Sizeof(x)) // ERROR "undefined"
++}
++
++/*
++After a '.' import, "unsafe" shouldn't be defined as
++an identifier. 6g complains correctly for imports other
++than "unsafe".
++*/
+diff --git a/test/golden.out b/test/golden.out
+index 8b092f95ca..0795adf44e 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -151,3 +151,11 @@ BUG: bug219
+ 
+ =========== bugs/bug238.go
+ BUG: errchk: command succeeded unexpectedly
++
++=========== bugs/bug239.go
++bugs/bug239.go:11: imported and not used: unsafe
++bugs/bug239.go:15: undefined: Sizeof
++BUG: bug239
++
++=========== bugs/bug240.go
++BUG: errchk: command succeeded unexpectedly

@@ -30,8 +30,140 @@ Date:   Thu Feb 5 15:38:53 2015 -0800
     Change-Id: Ic23a05dfbb1ad91d5f62a6506b35a13e51b33e38
     Reviewed-on: https://go-review.googlesource.com/3980
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/gc/swt.c                          | 11 +++--
  test/fixedbugs/issue9608.dir/issue9608.go | 73 +++++++++++++++++++++++++++++++
  test/fixedbugs/issue9608.go               | 14 ++++++
  3 files changed, 94 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index ca5455d479..e75971d477 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -503,7 +503,7 @@ exprbsw(Case *c0, int ncase, int arg)
+ 
+ /*
+  * normal (expression) switch.
+- * rebulid case statements into if .. goto
++ * rebuild case statements into if .. goto
+  */
+ static void
+ exprswitch(Node *sw)
+@@ -533,12 +533,15 @@ exprswitch(Node *sw)
+ 	 */
+ 	exprname = N;
+ 	cas = nil;
+-	if(arg != Strue && arg != Sfalse) {
++	if(arg == Strue || arg == Sfalse)
++		exprname = nodbool(arg == Strue);
++	else if(consttype(sw->ntest) >= 0)
++		// leave constants to enable dead code elimination (issue 9608)
++		exprname = sw->ntest;
++	else {
+ 		exprname = temp(sw->ntest->type);
+ 		cas = list1(nod(OAS, exprname, sw->ntest));
+ 		typechecklist(cas, Etop);
+-	} else {
+-		exprname = nodbool(arg == Strue);
+ 	}
+ 
+ 	c0 = mkcaselist(sw, arg);
+diff --git a/test/fixedbugs/issue9608.dir/issue9608.go b/test/fixedbugs/issue9608.dir/issue9608.go
+new file mode 100644
+index 0000000000..56b52cc606
+--- /dev/null
++++ b/test/fixedbugs/issue9608.dir/issue9608.go
+@@ -0,0 +1,73 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func fail() // unimplemented, to test dead code elimination
++
++// Test dead code elimination in if statements
++func init() {
++	if false {
++		fail()
++	}
++	if 0 == 1 {
++		fail()
++	}
++}
++
++// Test dead code elimination in ordinary switch statements
++func init() {
++	const x = 0
++	switch x {
++	case 1:
++		fail()
++	}
++
++	switch 1 {
++	case x:
++		fail()
++	}
++
++	switch {
++	case false:
++		fail()
++	}
++
++	const a = "a"
++	switch a {
++	case "b":
++		fail()
++	}
++
++	const snowman = '☃'
++	switch snowman {
++	case '☀':
++		fail()
++	}
++
++	const zero = float64(0.0)
++	const one = float64(1.0)
++	switch one {
++	case -1.0:
++		fail()
++	case zero:
++		fail()
++	}
++
++	switch 1.0i {
++	case 1:
++		fail()
++	case -1i:
++		fail()
++	}
++
++	const no = false
++	switch no {
++	case true:
++		fail()
++	}
++}
++
++func main() {
++}
+diff --git a/test/fixedbugs/issue9608.go b/test/fixedbugs/issue9608.go
+new file mode 100644
+index 0000000000..92592d76ee
+--- /dev/null
++++ b/test/fixedbugs/issue9608.go
+@@ -0,0 +1,14 @@
++// rundir
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 9608: dead code elimination in switch statements.
++
++// This has to be done as a package rather than as a file,
++// because run.go runs files with 'go run', which passes the
++// -complete flag to compiler, causing it to complain about
++// the intentionally unimplemented function fail.
++
++package ignored

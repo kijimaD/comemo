@@ -9,6 +9,27 @@ Date:   Fri Aug 31 23:34:39 2018 +0200
     Change-Id: I5cb6540266901697d3558ce75b8de63b1bfc2ce0
     Reviewed-on: https://go-review.googlesource.com/132695
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/os/exec/exec.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index 88b0a91699..1aa3ab93dc 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -152,6 +152,15 @@ type Cmd struct {
+ // followed by the elements of arg, so arg should not include the
+ // command name itself. For example, Command("echo", "hello").
+ // Args[0] is always name, not the possibly resolved Path.
++//
++// On Windows, processes receive the whole command line as a single string
++// and do their own parsing. Command combines and quotes Args into a command
++// line string with an algorithm compatible with applications using
++// CommandLineToArgvW (which is the most common way). Notable exceptions are
++// msiexec.exe and cmd.exe (and thus, all batch files), which have a different
++// unquoting algorithm. In these or other similar cases, you can do the
++// quoting yourself and provide the full command line in SysProcAttr.CmdLine,
++// leaving Args empty.
+ func Command(name string, arg ...string) *Cmd {
+ 	cmd := &Cmd{
+ 		Path: name,

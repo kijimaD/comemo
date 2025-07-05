@@ -12,9 +12,171 @@ Date:   Thu Sep 8 15:35:56 2011 -0700
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/4962061
-
+---
  lib/godoc/search.html  | 11 +++++++++++
  lib/godoc/search.txt   | 28 +++++++++++++++++-----------
  src/cmd/godoc/godoc.go |  3 ++-
  src/cmd/godoc/index.go | 25 ++++++++++++++++++-------
  4 files changed, 48 insertions(+), 19 deletions(-)
+
+diff --git a/lib/godoc/search.html b/lib/godoc/search.html
+index 9fdd6ddc37..db90935d8a 100644
+--- a/lib/godoc/search.html
++++ b/lib/godoc/search.html
+@@ -17,6 +17,17 @@
+ 	{{end}}
+ 	</p>
+ {{end}}
++{{with .Pak}}
++	<h2 id="Packages">Package {{html $.Query}}</h2>
++	<p>
++	<table class="layout">
++	{{range .}}
++		{{$pkg_html := pkgLink .Pak.Path | html}}
++		<tr><td><a href="/{{$pkg_html}}">{{$pkg_html}}</a></td></tr>
++	{{end}}
++	</table>
++	</p>
++{{end}}
+ {{with .Hit}}
+ 	{{with .Decls}}
+ 		<h2 id="Global">Package-level declarations</h2>
+diff --git a/lib/godoc/search.txt b/lib/godoc/search.txt
+index 1dd64afdb5..3e261d0f04 100644
+--- a/lib/godoc/search.txt
++++ b/lib/godoc/search.txt
+@@ -1,33 +1,39 @@
+ QUERY
+ 	{{.Query}}
+-{{with .Alert}}
+-{{.}}
++
++{{with .Alert}}{{.}}
+ {{end}}{{/* .Alert */}}{{/*
+ 
+ ---------------------------------------
+ 
+-*/}}{{with .Alt}}
+-DID YOU MEAN
++*/}}{{with .Alt}}DID YOU MEAN
++
+ {{range .Alts}}	{{.}}
+-{{end}}{{end}}{{/* .Alts */}}{{/*
++{{end}}{{end}}{{/* .Alt */}}{{/*
++
++---------------------------------------
++
++*/}}{{with .Pak}}PACKAGE {{$.Query}}
++
++{{range .}}{{.Pak.Path}}
++{{end}}
++{{end}}{{/* .Pak */}}{{/*
+ 
+ ---------------------------------------
+ 
+-*/}}{{with .Hit}}{{with .Decls}}
+-PACKAGE-LEVEL DECLARATIONS
++*/}}{{with .Hit}}{{with .Decls}}PACKAGE-LEVEL DECLARATIONS
+ 
+ {{range .}}package {{.Pak.Name}}
+-{{range $file := .Files}}{{range .Groups}}{{range .Infos}}	{{srcLink $file.File.Path}}:{{infoLine .}}{{end}}
++{{range $file := .Files}}{{range .Groups}}{{range .}}	{{srcLink $file.File.Path}}:{{infoLine .}}{{end}}
+ {{end}}{{end}}{{/* .Files */}}
+ {{end}}{{end}}{{/* .Decls */}}{{/*
+ 
+ ---------------------------------------
+ 
+-*/}}{{with .Others}}
+-LOCAL DECLARATIONS AND USES
++*/}}{{with .Others}}LOCAL DECLARATIONS AND USES
+ 
+ {{range .}}package {{.Pak.Name}}
+-{{range $file := .Files}}{{range .Groups}}{{range .Infos}}	{{srcLink $file.File.Path}}:{{infoLine .}}
++{{range $file := .Files}}{{range .Groups}}{{range .}}	{{srcLink $file.File.Path}}:{{infoLine .}}
+ {{end}}{{end}}{{end}}{{/* .Files */}}
+ {{end}}{{end}}{{/* .Others */}}{{end}}{{/* .Hit */}}{{/*
+ 
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 6b646a1a66..c98dca4199 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -1016,6 +1016,7 @@ type SearchResult struct {
+ 	Alert string // error or warning message
+ 
+ 	// identifier matches
++	Pak HitList       // packages matching Query
+ 	Hit *LookupResult // identifier matches of Query
+ 	Alt *AltWords     // alternative identifiers to look for
+ 
+@@ -1034,7 +1035,7 @@ func lookup(query string) (result SearchResult) {
+ 
+ 		// identifier search
+ 		var err os.Error
+-		result.Hit, result.Alt, err = index.Lookup(query)
++		result.Pak, result.Hit, result.Alt, err = index.Lookup(query)
+ 		if err != nil && *maxResults <= 0 {
+ 			// ignore the error if full text search is enabled
+ 			// since the query may be a valid regular expression
+diff --git a/src/cmd/godoc/index.go b/src/cmd/godoc/index.go
+index b99363491b..83e090ffe5 100644
+--- a/src/cmd/godoc/index.go
++++ b/src/cmd/godoc/index.go
+@@ -344,6 +344,8 @@ func reduce(h0 RunList) HitList {
+ 	return h
+ }
+ 
++// filter returns a new HitList created by filtering
++// all PakRuns from h that have a matching pakname.
+ func (h HitList) filter(pakname string) HitList {
+ 	var hh HitList
+ 	for _, p := range h {
+@@ -867,7 +869,7 @@ func (x *Index) Stats() Statistics {
+ 	return x.stats
+ }
+ 
+-func (x *Index) LookupWord(w string) (match *LookupResult, alt *AltWords) {
++func (x *Index) lookupWord(w string) (match *LookupResult, alt *AltWords) {
+ 	match = x.words[w]
+ 	alt = x.alts[canonical(w)]
+ 	// remove current spelling from alternatives
+@@ -891,9 +893,10 @@ func isIdentifier(s string) bool {
+ }
+ 
+ // For a given query, which is either a single identifier or a qualified
+-// identifier, Lookup returns a LookupResult, and a list of alternative
+-// spellings, if any. If the query syntax is wrong, an error is reported.
+-func (x *Index) Lookup(query string) (match *LookupResult, alt *AltWords, err os.Error) {
++// identifier, Lookup returns a list of packages, a LookupResult, and a
++// list of alternative spellings, if any. Any and all results may be nil.
++// If the query syntax is wrong, an error is reported.
++func (x *Index) Lookup(query string) (paks HitList, match *LookupResult, alt *AltWords, err os.Error) {
+ 	ss := strings.Split(query, ".")
+ 
+ 	// check query syntax
+@@ -904,15 +907,23 @@ func (x *Index) Lookup(query string) (match *LookupResult, alt *AltWords, err os
+ 		}
+ 	}
+ 
++	// handle simple and qualified identifiers
+ 	switch len(ss) {
+ 	case 1:
+-		match, alt = x.LookupWord(ss[0])
++		ident := ss[0]
++		match, alt = x.lookupWord(ident)
++		if match != nil {
++			// found a match - filter packages with same name
++			// for the list of packages called ident, if any
++			paks = match.Others.filter(ident)
++		}
+ 
+ 	case 2:
+-		pakname := ss[0]
+-		match, alt = x.LookupWord(ss[1])
++		pakname, ident := ss[0], ss[1]
++		match, alt = x.lookupWord(ident)
+ 		if match != nil {
+ 			// found a match - filter by package name
++			// (no paks - package names are not qualified)
+ 			decls := match.Decls.filter(pakname)
+ 			others := match.Others.filter(pakname)
+ 			match = &LookupResult{decls, others}

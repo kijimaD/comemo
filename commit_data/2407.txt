@@ -7,6 +7,32 @@ Date:   Fri Jun 5 23:52:43 2009 -0700
     R=ken
     OCL=29972
     CL=29972
-
+---
  src/cmd/8l/span.c | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/8l/span.c b/src/cmd/8l/span.c
+index 6adf5295ab..50b5bc0f8b 100644
+--- a/src/cmd/8l/span.c
++++ b/src/cmd/8l/span.c
+@@ -823,6 +823,7 @@ uchar	ymovtab[] =
+ 	ASHRL,	Ycol,	Yml,	6,	0xac,0xad,0,0,
+ 
+ /* extra imul */
++	AIMULW,	Yml,	Yrl,	7,	Pq,0xaf,0,0,
+ 	AIMULL,	Yml,	Yrl,	7,	Pm,0xaf,0,0,
+ 	0
+ };
+@@ -1281,7 +1282,11 @@ mfound:
+ 		break;
+ 
+ 	case 7: /* imul rm,r */
+-		*andptr++ = t[4];
++		if(t[4] == Pq) {
++			*andptr++ = Pe;
++			*andptr++ = Pm;
++		} else
++			*andptr++ = t[4];
+ 		*andptr++ = t[5];
+ 		asmand(&p->from, reg[p->to.type]);
+ 		break;

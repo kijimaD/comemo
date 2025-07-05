@@ -9,8 +9,59 @@ Date:   Thu Dec 8 15:12:08 2011 +0900
     R=golang-dev, mikioh.mikioh, dsymonds
     CC=bradfitz, dsymonds, golang-dev
     https://golang.org/cl/5452060
-
+---
  src/pkg/syscall/mkerrors.sh            | 2 ++
  src/pkg/syscall/zerrors_linux_386.go   | 4 ++++
  src/pkg/syscall/zerrors_linux_amd64.go | 4 ++++
  3 files changed, 10 insertions(+)
+
+diff --git a/src/pkg/syscall/mkerrors.sh b/src/pkg/syscall/mkerrors.sh
+index 91093a1373..ff9ece9a89 100755
+--- a/src/pkg/syscall/mkerrors.sh
++++ b/src/pkg/syscall/mkerrors.sh
+@@ -108,6 +108,7 @@ includes_OpenBSD='
+ 
+ includes='
+ #include <sys/types.h>
++#include <sys/file.h>
+ #include <fcntl.h>
+ #include <dirent.h>
+ #include <sys/socket.h>
+@@ -153,6 +154,7 @@ ccflags="$@"
+ 		$2 ~ /^E[A-Z0-9_]+$/ ||
+ 		$2 ~ /^SIG[^_]/ ||
+ 		$2 ~ /^IN_/ ||
++		$2 ~ /^LOCK_(SH|EX|NB|UN)$/ ||
+ 		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|EVFILT|EV|SHUT|PROT|MAP|PACKET|MSG|SCM|MCL|DT|MADV)_/ ||
+ 		$2 == "SOMAXCONN" ||
+ 		$2 == "NAME_MAX" ||
+diff --git a/src/pkg/syscall/zerrors_linux_386.go b/src/pkg/syscall/zerrors_linux_386.go
+index bbcc74b31a..53ce2fab50 100644
+--- a/src/pkg/syscall/zerrors_linux_386.go
++++ b/src/pkg/syscall/zerrors_linux_386.go
+@@ -478,6 +478,10 @@ const (
+ 	LINUX_REBOOT_CMD_SW_SUSPEND      = 0xd000fce2
+ 	LINUX_REBOOT_MAGIC1              = 0xfee1dead
+ 	LINUX_REBOOT_MAGIC2              = 0x28121969
++	LOCK_EX                          = 0x2
++	LOCK_NB                          = 0x4
++	LOCK_SH                          = 0x1
++	LOCK_UN                          = 0x8
+ 	MADV_DOFORK                      = 0xb
+ 	MADV_DONTFORK                    = 0xa
+ 	MADV_DONTNEED                    = 0x4
+diff --git a/src/pkg/syscall/zerrors_linux_amd64.go b/src/pkg/syscall/zerrors_linux_amd64.go
+index 59c36c5692..e37eb41422 100644
+--- a/src/pkg/syscall/zerrors_linux_amd64.go
++++ b/src/pkg/syscall/zerrors_linux_amd64.go
+@@ -478,6 +478,10 @@ const (
+ 	LINUX_REBOOT_CMD_SW_SUSPEND      = 0xd000fce2
+ 	LINUX_REBOOT_MAGIC1              = 0xfee1dead
+ 	LINUX_REBOOT_MAGIC2              = 0x28121969
++	LOCK_EX                          = 0x2
++	LOCK_NB                          = 0x4
++	LOCK_SH                          = 0x1
++	LOCK_UN                          = 0x8
+ 	MADV_DOFORK                      = 0xb
+ 	MADV_DONTFORK                    = 0xa
+ 	MADV_DONTNEED                    = 0x4

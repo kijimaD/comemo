@@ -11,6 +11,20 @@ Date:   Wed Mar 18 17:52:57 2020 +0000
     GitHub-Pull-Request: golang/go#37932
     Reviewed-on: https://go-review.googlesource.com/c/go/+/223960
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-
+---
  src/database/sql/example_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/database/sql/example_test.go b/src/database/sql/example_test.go
+index 2bf2a9fccf..4533fc78b1 100644
+--- a/src/database/sql/example_test.go
++++ b/src/database/sql/example_test.go
+@@ -41,7 +41,7 @@ func ExampleDB_QueryContext() {
+ 	// encounter an auto-commit error and be forced to rollback changes.
+ 	rerr := rows.Close()
+ 	if rerr != nil {
+-		log.Fatal(err)
++		log.Fatal(rerr)
+ 	}
+ 
+ 	// Rows.Err will report the last error encountered by Rows.Scan.

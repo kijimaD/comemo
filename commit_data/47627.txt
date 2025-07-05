@@ -19,6 +19,24 @@ Date:   Thu Apr 1 19:22:12 2021 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/306709
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/syscall/asm_windows.s | 11 -----------
  1 file changed, 11 deletions(-)
+
+diff --git a/src/syscall/asm_windows.s b/src/syscall/asm_windows.s
+deleted file mode 100644
+index e965914330..0000000000
+--- a/src/syscall/asm_windows.s
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// abi0Syms is a dummy symbol that creates ABI0 wrappers for Go
+-// functions called from assembly in other packages.
+-TEXT abi0Syms<>(SB),NOSPLIT,$0-0
+-	CALL ·getprocaddress(SB)
+-	CALL ·loadlibrary(SB)

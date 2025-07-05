@@ -19,8 +19,81 @@ Date:   Fri Nov 21 20:56:33 2014 +0100
     R=rsc
     CC=austin, golang-codereviews, minux
     https://golang.org/cl/176130043
-
+---
  include/link.h      | 1 +
  src/liblink/list6.c | 6 +++---
  src/liblink/list9.c | 6 +++---
  3 files changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/include/link.h b/include/link.h
+index 225c6f95df..33a66e93cb 100644
+--- a/include/link.h
++++ b/include/link.h
+@@ -639,6 +639,7 @@ extern	LinkArch	linkpower64;
+ extern	LinkArch	linkpower64le;
+ 
+ #pragma	varargck	type	"A"	int
++#pragma	varargck	type	"E"	uint
+ #pragma	varargck	type	"D"	Addr*
+ #pragma	varargck	type	"lD"	Addr*
+ #pragma	varargck	type	"P"	Prog*
+diff --git a/src/liblink/list6.c b/src/liblink/list6.c
+index 54cce4aa4b..ff22273c4a 100644
+--- a/src/liblink/list6.c
++++ b/src/liblink/list6.c
+@@ -91,7 +91,7 @@ Pconv(Fmt *fp)
+ 		if(p->reg)
+ 			s += sprint(s, " reg=%d", p->reg);
+ 		if(p->to.type != D_NONE)
+-			s += sprint(s, " to={%#D}", &p->to);
++			sprint(s, " to={%#D}", &p->to);
+ 		return fmtstrcpy(fp, str);
+ 	}
+ 
+@@ -154,13 +154,13 @@ Dconv(Fmt *fp)
+ 			s += sprint(s, "%s ", dnames6[i]);
+ 		else
+ 			s += sprint(s, "%d ", i);
+-		s += sprint(s, "offset=%ld etype=%E width=%d", a->offset, a->etype, a->width);
++		s += sprint(s, "offset=%lld etype=%E width=%lld", a->offset, a->etype, a->width);
+ 		if(a->class != 0)
+ 			s += sprint(s, " class=%s", cnames9[(int)a->class]);
+ 		if(a->sym != nil)
+ 			s += sprint(s, " sym=%s", a->sym->name);
+ 		if(a->type == D_BRANCH && a->u.branch != nil)
+-			s += sprint(s, " branch=%.5lld", a->u.branch->pc);
++			sprint(s, " branch=%.5lld", a->u.branch->pc);
+ 		goto brk;
+ 	}
+ 
+diff --git a/src/liblink/list9.c b/src/liblink/list9.c
+index 0a158cd61e..32fcf8f87b 100644
+--- a/src/liblink/list9.c
++++ b/src/liblink/list9.c
+@@ -102,7 +102,7 @@ Pconv(Fmt *fp)
+ 		if(p->from3.type != D_NONE)
+ 			s += sprint(s, " from3={%#D}", &p->from3);
+ 		if(p->to.type != D_NONE)
+-			s += sprint(s, " to={%#D}", &p->to);
++			sprint(s, " to={%#D}", &p->to);
+ 		return fmtstrcpy(fp, str);
+ 	}
+ 
+@@ -182,7 +182,7 @@ Dconv(Fmt *fp)
+ 			s += sprint(s, "name=%s ", dnames9[(int)a->name]);
+ 		else
+ 			s += sprint(s, "name=%d ", a->name);
+-		s += sprint(s, "offset=%ld etype=%E width=%d", a->offset, a->etype, a->width);
++		s += sprint(s, "offset=%lld etype=%E width=%lld", a->offset, a->etype, a->width);
+ 		if(a->class != 0)
+ 			s += sprint(s, " class=%s", cnames9[(int)a->class]);
+ 		if(a->reg != NREG)
+@@ -190,7 +190,7 @@ Dconv(Fmt *fp)
+ 		if(a->sym != nil)
+ 			s += sprint(s, " sym=%s", a->sym->name);
+ 		if(a->type == D_BRANCH && a->u.branch != nil)
+-			s += sprint(s, " branch=%.5lld", a->u.branch->pc);
++			sprint(s, " branch=%.5lld", a->u.branch->pc);
+ 		goto ret;
+ 	}
+ 

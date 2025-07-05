@@ -10,9 +10,143 @@ Date:   Fri Nov 14 12:55:23 2014 -0500
     R=austin
     CC=aram, dvyukov, golang-codereviews
     https://golang.org/cl/177750043
-
+---
  src/runtime/lfstack.go                | 19 ++++---------------
  src/runtime/lfstack_32bit.go          | 16 ++++++++++++----
  src/runtime/lfstack_amd64.go          | 24 ++++++++++++++++++------
  src/runtime/lfstack_linux_power64x.go | 26 ++++++++++++++++++++++++++
  4 files changed, 60 insertions(+), 25 deletions(-)
+
+diff --git a/src/runtime/lfstack.go b/src/runtime/lfstack.go
+index c5dc94f073..4a20fff9d8 100644
+--- a/src/runtime/lfstack.go
++++ b/src/runtime/lfstack.go
+@@ -9,23 +9,12 @@ package runtime
+ 
+ import "unsafe"
+ 
+-const (
+-	// lfPtrBits and lfCountMask are defined in lfstack_*.go.
+-	lfPtrMask = 1<<lfPtrBits - 1
+-)
+-
+ func lfstackpush(head *uint64, node *lfnode) {
+-	unode := uintptr(unsafe.Pointer(node))
+-	if unode&^lfPtrMask != 0 {
+-		print("p=", node, "\n")
+-		gothrow("lfstackpush: invalid pointer")
+-	}
+-
+ 	node.pushcnt++
+-	new := uint64(unode) | (uint64(node.pushcnt)&lfCountMask)<<lfPtrBits
++	new := lfstackPack(node, node.pushcnt)
+ 	for {
+ 		old := atomicload64(head)
+-		node.next = (*lfnode)(unsafe.Pointer(uintptr(old & lfPtrMask)))
++		node.next, _ = lfstackUnpack(old)
+ 		if cas64(head, old, new) {
+ 			break
+ 		}
+@@ -38,11 +27,11 @@ func lfstackpop(head *uint64) unsafe.Pointer {
+ 		if old == 0 {
+ 			return nil
+ 		}
+-		node := (*lfnode)(unsafe.Pointer(uintptr(old & lfPtrMask)))
++		node, _ := lfstackUnpack(old)
+ 		node2 := (*lfnode)(atomicloadp(unsafe.Pointer(&node.next)))
+ 		new := uint64(0)
+ 		if node2 != nil {
+-			new = uint64(uintptr(unsafe.Pointer(node2))) | uint64(node2.pushcnt&lfCountMask)<<lfPtrBits
++			new = lfstackPack(node2, node2.pushcnt)
+ 		}
+ 		if cas64(head, old, new) {
+ 			return unsafe.Pointer(node)
+diff --git a/src/runtime/lfstack_32bit.go b/src/runtime/lfstack_32bit.go
+index 0eebbd9740..61d8678d9c 100644
+--- a/src/runtime/lfstack_32bit.go
++++ b/src/runtime/lfstack_32bit.go
+@@ -6,8 +6,16 @@
+ 
+ package runtime
+ 
++import "unsafe"
++
+ // On 32-bit systems, the stored uint64 has a 32-bit pointer and 32-bit count.
+-const (
+-	lfPtrBits   = 32
+-	lfCountMask = 1<<32 - 1
+-)
++
++func lfstackPack(node *lfnode, cnt uintptr) uint64 {
++	return uint64(uintptr(unsafe.Pointer(node)))<<32 | uint64(cnt)
++}
++
++func lfstackUnpack(val uint64) (node *lfnode, cnt uintptr) {
++	node = (*lfnode)(unsafe.Pointer(uintptr(val >> 32)))
++	cnt = uintptr(val)
++	return
++}
+diff --git a/src/runtime/lfstack_amd64.go b/src/runtime/lfstack_amd64.go
+index 1245557819..84e28519f6 100644
+--- a/src/runtime/lfstack_amd64.go
++++ b/src/runtime/lfstack_amd64.go
+@@ -4,9 +4,21 @@
+ 
+ package runtime
+ 
+-// Amd64 uses 48-bit virtual addresses, 47-th bit is used as kernel/user flag.
+-// So we use 17msb of pointers as ABA counter.
+-const (
+-	lfPtrBits   = 47
+-	lfCountMask = 1<<17 - 1
+-)
++import "unsafe"
++
++// On AMD64, virtual addresses are 48-bit numbers sign extended to 64.
++// We shift the address left 16 to eliminate the sign extended part and make
++// room in the bottom for the count.
++// In addition to the 16 bits taken from the top, we can take 3 from the
++// bottom, because node must be pointer-aligned, giving a total of 19 bits
++// of count.
++
++func lfstackPack(node *lfnode, cnt uintptr) uint64 {
++	return uint64(uintptr(unsafe.Pointer(node)))<<16 | uint64(cnt&(1<<19-1))
++}
++
++func lfstackUnpack(val uint64) (node *lfnode, cnt uintptr) {
++	node = (*lfnode)(unsafe.Pointer(uintptr(int64(val) >> 19 << 3)))
++	cnt = uintptr(val & (1<<19 - 1))
++	return
++}
+diff --git a/src/runtime/lfstack_linux_power64x.go b/src/runtime/lfstack_linux_power64x.go
+new file mode 100644
+index 0000000000..7a122bf92c
+--- /dev/null
++++ b/src/runtime/lfstack_linux_power64x.go
+@@ -0,0 +1,26 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build power64 power64le
++// +build linux
++
++package runtime
++
++import "unsafe"
++
++// On Power64, Linux limits the user address space to 43 bits.
++// (https://www.kernel.org/doc/ols/2001/ppc64.pdf)
++// In addition to the 21 bits taken from the top, we can take 3 from the
++// bottom, because node must be pointer-aligned, giving a total of 24 bits
++// of count.
++
++func lfstackPack(node *lfnode, cnt uintptr) uint64 {
++	return uint64(uintptr(unsafe.Pointer(node)))<<21 | uint64(cnt&(1<<24-1))
++}
++
++func lfstackUnpack(val uint64) (node *lfnode, cnt uintptr) {
++	node = (*lfnode)(unsafe.Pointer(uintptr(val >> 24 << 3)))
++	cnt = uintptr(val & (1<<24 - 1))
++	return
++}

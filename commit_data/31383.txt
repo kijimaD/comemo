@@ -78,6 +78,28 @@ Date:   Wed Feb 15 15:41:50 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/37093
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mgc.go | 10 ++++++----
  1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 8475d168d8..f1112a6ae3 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -628,10 +628,12 @@ func (c *gcControllerState) endCycle() {
+ //go:nowritebarrier
+ func (c *gcControllerState) enlistWorker() {
+ 	// If there are idle Ps, wake one so it will run an idle worker.
+-	if atomic.Load(&sched.npidle) != 0 && atomic.Load(&sched.nmspinning) == 0 {
+-		wakep()
+-		return
+-	}
++	// NOTE: This is suspected of causing deadlocks. See golang.org/issue/19112.
++	//
++	//	if atomic.Load(&sched.npidle) != 0 && atomic.Load(&sched.nmspinning) == 0 {
++	//		wakep()
++	//		return
++	//	}
+ 
+ 	// There are no idle Ps. If we need more dedicated workers,
+ 	// try to preempt a running P so it will switch to a worker.

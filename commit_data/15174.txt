@@ -10,8 +10,111 @@ Date:   Fri Feb 8 11:58:24 2013 -0500
     R=iant, rsc
     CC=golang-dev
     https://golang.org/cl/7312066
-
+---
  src/pkg/exp/ssa/interp/external.go         | 24 ++++------------------
  src/pkg/exp/ssa/interp/external_unix.go    | 32 ++++++++++++++++++++++++++++++
  src/pkg/exp/ssa/interp/external_windows.go | 19 ++++++++++++++++++
  3 files changed, 55 insertions(+), 20 deletions(-)
+
+diff --git a/src/pkg/exp/ssa/interp/external.go b/src/pkg/exp/ssa/interp/external.go
+index e67ae5ee65..39c5fd33ba 100644
+--- a/src/pkg/exp/ssa/interp/external.go
++++ b/src/pkg/exp/ssa/interp/external.go
+@@ -1,3 +1,7 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package interp
+ 
+ // Emulated functions that we cannot interpret because they are
+@@ -173,26 +177,6 @@ func ext۰syscall۰Getpid(fn *ssa.Function, args []value, slots []value) value {
+ 	return syscall.Getpid()
+ }
+ 
+-func ext۰syscall۰Kill(fn *ssa.Function, args []value, slots []value) value {
+-	// We could emulate syscall.Syscall but it's more effort.
+-	err := syscall.Kill(args[0].(int), syscall.Signal(args[1].(int)))
+-	err = err // TODO(adonovan): fix: adapt concrete err to interpreted iface (e.g. call interpreted errors.New)
+-	return iface{}
+-}
+-
+-func ext۰syscall۰Write(fn *ssa.Function, args []value, slots []value) value {
+-	// We could emulate syscall.Syscall but it's more effort.
+-	p := args[1].([]value)
+-	b := make([]byte, 0, len(p))
+-	for i := range p {
+-		b = append(b, p[i].(byte))
+-	}
+-	n, _ := syscall.Write(args[0].(int), b)
+-	err := iface{} // TODO(adonovan): fix: adapt concrete err to interpreted iface.
+-	return tuple{n, err}
+-
+-}
+-
+ // The set of remaining native functions we need to implement (as needed):
+ 
+ // bytes/bytes.go:42:func Equal(a, b []byte) bool
+diff --git a/src/pkg/exp/ssa/interp/external_unix.go b/src/pkg/exp/ssa/interp/external_unix.go
+new file mode 100644
+index 0000000000..114a0f3367
+--- /dev/null
++++ b/src/pkg/exp/ssa/interp/external_unix.go
+@@ -0,0 +1,32 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !windows,!plan9
++
++package interp
++
++import (
++	"exp/ssa"
++	"syscall"
++)
++
++func ext۰syscall۰Kill(fn *ssa.Function, args []value, slots []value) value {
++	// We could emulate syscall.Syscall but it's more effort.
++	err := syscall.Kill(args[0].(int), syscall.Signal(args[1].(int)))
++	err = err // TODO(adonovan): fix: adapt concrete err to interpreted iface (e.g. call interpreted errors.New)
++	return iface{}
++}
++
++func ext۰syscall۰Write(fn *ssa.Function, args []value, slots []value) value {
++	// We could emulate syscall.Syscall but it's more effort.
++	p := args[1].([]value)
++	b := make([]byte, 0, len(p))
++	for i := range p {
++		b = append(b, p[i].(byte))
++	}
++	n, _ := syscall.Write(args[0].(int), b)
++	err := iface{} // TODO(adonovan): fix: adapt concrete err to interpreted iface.
++	return tuple{n, err}
++
++}
+diff --git a/src/pkg/exp/ssa/interp/external_windows.go b/src/pkg/exp/ssa/interp/external_windows.go
+new file mode 100644
+index 0000000000..cb86d83c49
+--- /dev/null
++++ b/src/pkg/exp/ssa/interp/external_windows.go
+@@ -0,0 +1,19 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build windows plan9
++
++package interp
++
++import (
++	"exp/ssa"
++)
++
++func ext۰syscall۰Kill(fn *ssa.Function, args []value, slots []value) value {
++	panic("syscall.Kill not yet implemented")
++}
++
++func ext۰syscall۰Write(fn *ssa.Function, args []value, slots []value) value {
++	panic("syscall.Write not yet implemented")
++}

@@ -9,7 +9,7 @@ Date:   Tue Feb 13 17:18:08 2018 -0500
     Change-Id: I673fb29bb3aee96a14fadc0ab860d4f5832143f5
     Reviewed-on: https://go-review.googlesource.com/93795
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/internal/trace/mkcanned.bash                   |   3 +-
  src/internal/trace/parser.go                       |  41 +++++++++++++++-
  src/internal/trace/testdata/http_1_11_good         | Bin 0 -> 2779 bytes
@@ -18,3 +18,213 @@ Date:   Tue Feb 13 17:18:08 2018 -0500
  .../trace/testdata/user_task_span_1_11_good        | Bin 0 -> 2000 bytes
  src/runtime/trace/annotation_test.go               |  54 +++++++++++++++------
  7 files changed, 81 insertions(+), 17 deletions(-)
+
+diff --git a/src/internal/trace/mkcanned.bash b/src/internal/trace/mkcanned.bash
+index 78c5572065..b365b909c8 100755
+--- a/src/internal/trace/mkcanned.bash
++++ b/src/internal/trace/mkcanned.bash
+@@ -14,6 +14,7 @@ if [ $# != 1 ]; then
+ fi
+ 
+ go test -run ClientServerParallel4 -trace "testdata/http_$1_good" net/http
+-go test -run 'TraceStress$|TraceStressStartStop$' runtime/trace -savetraces
++go test -run 'TraceStress$|TraceStressStartStop$|TestUserTaskSpan$' runtime/trace -savetraces
+ mv ../../runtime/trace/TestTraceStress.trace "testdata/stress_$1_good"
+ mv ../../runtime/trace/TestTraceStressStartStop.trace "testdata/stress_start_stop_$1_good"
++mv ../../runtime/trace/TestUserTaskSpan.trace "testdata/user_task_span_$1_good"
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+index e6e1a4d171..155c23940a 100644
+--- a/src/internal/trace/parser.go
++++ b/src/internal/trace/parser.go
+@@ -55,6 +55,9 @@ type Event struct {
+ 	// for blocking GoSysCall: the associated GoSysExit
+ 	// for GoSysExit: the next GoStart
+ 	// for GCMarkAssistStart: the associated GCMarkAssistDone
++	// for UserTaskCreate: the UserTaskEnd
++	// for UsetTaskEnd: the UserTaskCreate
++	// for UserSpan: the corresponding span start or end event
+ 	Link *Event
+ }
+ 
+@@ -584,7 +587,8 @@ func postProcessTrace(ver int, events []*Event) error {
+ 
+ 	gs := make(map[uint64]gdesc)
+ 	ps := make(map[int]pdesc)
+-	tasks := make(map[uint64]*Event) // task id to task events
++	tasks := make(map[uint64]*Event)         // task id to task creation events
++	activeSpans := make(map[uint64][]*Event) // goroutine id to stack of spans
+ 	gs[0] = gdesc{state: gRunning}
+ 	var evGC, evSTW *Event
+ 
+@@ -729,6 +733,15 @@ func postProcessTrace(ver int, events []*Event) error {
+ 			g.evStart = nil
+ 			g.state = gDead
+ 			p.g = 0
++
++			if ev.Type == EvGoEnd { // flush all active spans
++				spans := activeSpans[ev.G]
++				for _, s := range spans {
++					s.Link = ev
++				}
++				delete(activeSpans, ev.G)
++			}
++
+ 		case EvGoSched, EvGoPreempt:
+ 			if err := checkRunning(p, g, ev, false); err != nil {
+ 				return err
+@@ -799,6 +812,32 @@ func postProcessTrace(ver int, events []*Event) error {
+ 		case EvUserTaskEnd:
+ 			if prevEv, ok := tasks[ev.Args[0]]; ok {
+ 				prevEv.Link = ev
++				ev.Link = prevEv
++			}
++		case EvUserSpan:
++			mode := ev.Args[1]
++			spans := activeSpans[ev.G]
++			if mode == 0 { // span start
++				activeSpans[ev.G] = append(spans, ev) // push
++			} else if mode == 1 { // span end
++				n := len(spans)
++				if n > 0 { // matching span start event is in the trace.
++					s := spans[n-1]
++					if s.Args[0] != ev.Args[0] || s.SArgs[0] != ev.SArgs[0] { // task id, span name mismatch
++						return fmt.Errorf("misuse of span in goroutine %d: span end %q when the inner-most active span start event is %q", ev.G, ev, s)
++					}
++					// Link span start event with span end event
++					s.Link = ev
++					ev.Link = s
++
++					if n > 1 {
++						activeSpans[ev.G] = spans[:n-1]
++					} else {
++						delete(activeSpans, ev.G)
++					}
++				}
++			} else {
++				return fmt.Errorf("invalid user span mode: %q", ev)
+ 			}
+ 		}
+ 
+diff --git a/src/internal/trace/testdata/http_1_11_good b/src/internal/trace/testdata/http_1_11_good
+new file mode 100644
+index 0000000000..0efcc6fba1
+Binary files /dev/null and b/src/internal/trace/testdata/http_1_11_good differ
+diff --git a/src/internal/trace/testdata/stress_1_11_good b/src/internal/trace/testdata/stress_1_11_good
+new file mode 100644
+index 0000000000..6468d89290
+Binary files /dev/null and b/src/internal/trace/testdata/stress_1_11_good differ
+diff --git a/src/internal/trace/testdata/stress_start_stop_1_11_good b/src/internal/trace/testdata/stress_start_stop_1_11_good
+new file mode 100644
+index 0000000000..457f01a6cd
+Binary files /dev/null and b/src/internal/trace/testdata/stress_start_stop_1_11_good differ
+diff --git a/src/internal/trace/testdata/user_task_span_1_11_good b/src/internal/trace/testdata/user_task_span_1_11_good
+new file mode 100644
+index 0000000000..f4edb67e65
+Binary files /dev/null and b/src/internal/trace/testdata/user_task_span_1_11_good differ
+diff --git a/src/runtime/trace/annotation_test.go b/src/runtime/trace/annotation_test.go
+index c54eae3a96..7198c0e720 100644
+--- a/src/runtime/trace/annotation_test.go
++++ b/src/runtime/trace/annotation_test.go
+@@ -14,7 +14,7 @@ func TestUserTaskSpan(t *testing.T) {
+ 	bgctx, cancel := context.WithCancel(context.Background())
+ 	defer cancel()
+ 
+-	// TODO(hyangah): test pre-existing spans don't cause troubles
++	preExistingSpanEnd := StartSpan(bgctx, "pre-existing span")
+ 
+ 	buf := new(bytes.Buffer)
+ 	if err := Start(buf); err != nil {
+@@ -27,17 +27,27 @@ func TestUserTaskSpan(t *testing.T) {
+ 	wg.Add(1)
+ 	go func() {
+ 		defer wg.Done()
+-		defer end() // EvUserTaskEnd("span0")
++		defer end() // EvUserTaskEnd("task0")
+ 
+ 		WithSpan(ctx, "span0", func(ctx context.Context) {
+ 			// EvUserSpanCreate("span0", start)
+-			Log(ctx, "key0", "0123456789abcdef") // EvUserLog("task0", "key0", "0....f")
++			WithSpan(ctx, "span1", func(ctx context.Context) {
++				Log(ctx, "key0", "0123456789abcdef") // EvUserLog("task0", "key0", "0....f")
++			})
+ 			// EvUserSpan("span0", end)
+ 		})
+ 	}()
++
+ 	wg.Wait()
++
++	preExistingSpanEnd()
++	postExistingSpanEnd := StartSpan(bgctx, "post-existing span")
++
+ 	// End of traced execution
+ 	Stop()
++
++	postExistingSpanEnd()
++
+ 	saveTrace(t, buf, "TestUserTaskSpan")
+ 	res, err := trace.Parse(buf, "")
+ 	if err != nil {
+@@ -46,9 +56,10 @@ func TestUserTaskSpan(t *testing.T) {
+ 
+ 	// Check whether we see all user annotation related records in order
+ 	type testData struct {
+-		typ  byte
+-		strs []string
+-		args []uint64
++		typ     byte
++		strs    []string
++		args    []uint64
++		setLink bool
+ 	}
+ 
+ 	var got []testData
+@@ -58,27 +69,40 @@ func TestUserTaskSpan(t *testing.T) {
+ 		switch e.Type {
+ 		case trace.EvUserTaskCreate:
+ 			taskName := e.SArgs[0]
+-			got = append(got, testData{trace.EvUserTaskCreate, []string{taskName}, nil})
++			got = append(got, testData{trace.EvUserTaskCreate, []string{taskName}, nil, e.Link != nil})
++			if e.Link != nil && e.Link.Type != trace.EvUserTaskEnd {
++				t.Errorf("Unexpected linked event %q->%q", e, e.Link)
++			}
+ 			tasks[e.Args[0]] = taskName
+ 		case trace.EvUserLog:
+ 			key, val := e.SArgs[0], e.SArgs[1]
+ 			taskName := tasks[e.Args[0]]
+-			got = append(got, testData{trace.EvUserLog, []string{taskName, key, val}, nil})
++			got = append(got, testData{trace.EvUserLog, []string{taskName, key, val}, nil, e.Link != nil})
+ 		case trace.EvUserTaskEnd:
+ 			taskName := tasks[e.Args[0]]
+-			got = append(got, testData{trace.EvUserTaskEnd, []string{taskName}, nil})
++			got = append(got, testData{trace.EvUserTaskEnd, []string{taskName}, nil, e.Link != nil})
++			if e.Link != nil && e.Link.Type != trace.EvUserTaskCreate {
++				t.Errorf("Unexpected linked event %q->%q", e, e.Link)
++			}
+ 		case trace.EvUserSpan:
+ 			taskName := tasks[e.Args[0]]
+ 			spanName := e.SArgs[0]
+-			got = append(got, testData{trace.EvUserSpan, []string{taskName, spanName}, []uint64{e.Args[1]}})
++			got = append(got, testData{trace.EvUserSpan, []string{taskName, spanName}, []uint64{e.Args[1]}, e.Link != nil})
++			if e.Link != nil && (e.Link.Type != trace.EvUserSpan || e.Link.SArgs[0] != spanName) {
++				t.Errorf("Unexpected linked event %q->%q", e, e.Link)
++			}
+ 		}
+ 	}
+ 	want := []testData{
+-		{trace.EvUserTaskCreate, []string{"task0"}, nil},
+-		{trace.EvUserSpan, []string{"task0", "span0"}, []uint64{0}},
+-		{trace.EvUserLog, []string{"task0", "key0", "0123456789abcdef"}, nil},
+-		{trace.EvUserSpan, []string{"task0", "span0"}, []uint64{1}},
+-		{trace.EvUserTaskEnd, []string{"task0"}, nil},
++		{trace.EvUserTaskCreate, []string{"task0"}, nil, true},
++		{trace.EvUserSpan, []string{"task0", "span0"}, []uint64{0}, true},
++		{trace.EvUserSpan, []string{"task0", "span1"}, []uint64{0}, true},
++		{trace.EvUserLog, []string{"task0", "key0", "0123456789abcdef"}, nil, false},
++		{trace.EvUserSpan, []string{"task0", "span1"}, []uint64{1}, true},
++		{trace.EvUserSpan, []string{"task0", "span0"}, []uint64{1}, true},
++		{trace.EvUserTaskEnd, []string{"task0"}, nil, true},
++		{trace.EvUserSpan, []string{"", "pre-existing span"}, []uint64{1}, false},
++		{trace.EvUserSpan, []string{"", "post-existing span"}, []uint64{0}, false},
+ 	}
+ 	if !reflect.DeepEqual(got, want) {
+ 		t.Errorf("Got user span related events %+v\nwant: %+v", got, want)

@@ -16,9 +16,109 @@ Date:   Tue Oct 26 09:13:16 2021 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/syscall/exec_bsd.go               | 33 +++++++++++++++++++++++++--------
  src/syscall/syscall_dragonfly.go      |  2 ++
  src/syscall/syscall_netbsd.go         |  2 ++
  src/syscall/syscall_openbsd_mips64.go |  2 ++
  4 files changed, 31 insertions(+), 8 deletions(-)
+
+diff --git a/src/syscall/exec_bsd.go b/src/syscall/exec_bsd.go
+index 4c36f9ec13..d2e50e3dd3 100644
+--- a/src/syscall/exec_bsd.go
++++ b/src/syscall/exec_bsd.go
+@@ -8,6 +8,7 @@
+ package syscall
+ 
+ import (
++	"runtime"
+ 	"unsafe"
+ )
+ 
+@@ -181,11 +182,19 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 	// Pass 1: look for fd[i] < i and move those up above len(fd)
+ 	// so that pass 2 won't stomp on an fd it needs later.
+ 	if pipe < nextfd {
+-		_, _, err1 = RawSyscall(SYS_DUP2, uintptr(pipe), uintptr(nextfd), 0)
+-		if err1 != 0 {
+-			goto childerror
++		switch runtime.GOOS {
++		case "netbsd":
++			_, _, err1 = RawSyscall(_SYS_DUP3, uintptr(pipe), uintptr(nextfd), O_CLOEXEC)
++			if err1 != 0 {
++				goto childerror
++			}
++		default:
++			_, _, err1 = RawSyscall(SYS_DUP2, uintptr(pipe), uintptr(nextfd), 0)
++			if err1 != 0 {
++				goto childerror
++			}
++			RawSyscall(SYS_FCNTL, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
+ 		}
+-		RawSyscall(SYS_FCNTL, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
+ 		pipe = nextfd
+ 		nextfd++
+ 	}
+@@ -194,11 +203,19 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 			if nextfd == pipe { // don't stomp on pipe
+ 				nextfd++
+ 			}
+-			_, _, err1 = RawSyscall(SYS_DUP2, uintptr(fd[i]), uintptr(nextfd), 0)
+-			if err1 != 0 {
+-				goto childerror
++			switch runtime.GOOS {
++			case "netbsd":
++				_, _, err1 = RawSyscall(_SYS_DUP3, uintptr(fd[i]), uintptr(nextfd), O_CLOEXEC)
++				if err1 != 0 {
++					goto childerror
++				}
++			default:
++				_, _, err1 = RawSyscall(SYS_DUP2, uintptr(fd[i]), uintptr(nextfd), 0)
++				if err1 != 0 {
++					goto childerror
++				}
++				RawSyscall(SYS_FCNTL, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
+ 			}
+-			RawSyscall(SYS_FCNTL, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
+ 			fd[i] = nextfd
+ 			nextfd++
+ 		}
+diff --git a/src/syscall/syscall_dragonfly.go b/src/syscall/syscall_dragonfly.go
+index 16adf306d5..cc92c4a93e 100644
+--- a/src/syscall/syscall_dragonfly.go
++++ b/src/syscall/syscall_dragonfly.go
+@@ -17,6 +17,8 @@ import (
+ 	"unsafe"
+ )
+ 
++const _SYS_DUP3 = 0
++
+ // See version list in https://github.com/DragonFlyBSD/DragonFlyBSD/blob/master/sys/sys/param.h
+ var (
+ 	osreldateOnce sync.Once
+diff --git a/src/syscall/syscall_netbsd.go b/src/syscall/syscall_netbsd.go
+index 6f05b0d43d..cebef10be8 100644
+--- a/src/syscall/syscall_netbsd.go
++++ b/src/syscall/syscall_netbsd.go
+@@ -14,6 +14,8 @@ package syscall
+ 
+ import "unsafe"
+ 
++const _SYS_DUP3 = SYS_DUP3
++
+ type SockaddrDatalink struct {
+ 	Len    uint8
+ 	Family uint8
+diff --git a/src/syscall/syscall_openbsd_mips64.go b/src/syscall/syscall_openbsd_mips64.go
+index b259dc6975..e8ae2e9911 100644
+--- a/src/syscall/syscall_openbsd_mips64.go
++++ b/src/syscall/syscall_openbsd_mips64.go
+@@ -4,6 +4,8 @@
+ 
+ package syscall
+ 
++const _SYS_DUP3 = 0
++
+ func setTimespec(sec, nsec int64) Timespec {
+ 	return Timespec{Sec: sec, Nsec: nsec}
+ }

@@ -14,7 +14,64 @@ Date:   Wed Mar 23 22:38:52 2016 +0100
     Change-Id: I8c76cfa9a03496d9576f72bed2db109271f97c5e
     Reviewed-on: https://go-review.googlesource.com/21045
     Reviewed-by: Nigel Tao <nigeltao@golang.org>
-
+---
  src/image/png/reader.go      |  7 +++++++
  src/image/png/reader_test.go | 27 +++++++++++++++++++++++++++
  2 files changed, 34 insertions(+)
+
+diff --git a/src/image/png/reader.go b/src/image/png/reader.go
+index 9e6f985f7e..2dd5ed8073 100644
+--- a/src/image/png/reader.go
++++ b/src/image/png/reader.go
+@@ -717,6 +717,13 @@ func (d *decoder) parseChunk() error {
+ 	case "IDAT":
+ 		if d.stage < dsSeenIHDR || d.stage > dsSeenIDAT || (d.stage == dsSeenIHDR && cbPaletted(d.cb)) {
+ 			return chunkOrderError
++		} else if d.stage == dsSeenIDAT {
++			// Ignore trailing zero-length or garbage IDAT chunks.
++			//
++			// This does not affect valid PNG images that contain multiple IDAT
++			// chunks, since the first call to parseIDAT below will consume all
++			// consecutive IDAT chunks required for decoding the image.
++			break
+ 		}
+ 		d.stage = dsSeenIDAT
+ 		return d.parseIDAT(length)
+diff --git a/src/image/png/reader_test.go b/src/image/png/reader_test.go
+index f058f6b227..0bc4203acb 100644
+--- a/src/image/png/reader_test.go
++++ b/src/image/png/reader_test.go
+@@ -350,6 +350,33 @@ func TestIncompleteIDATOnRowBoundary(t *testing.T) {
+ 	}
+ }
+ 
++func TestTrailingIDATChunks(t *testing.T) {
++	// The following is a valid 1x1 PNG image containing color.Gray{255} and
++	// a trailing zero-length IDAT chunk (see PNG specification section 12.9):
++	const (
++		ihdr      = "\x00\x00\x00\x0dIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x00\x00\x00\x00\x3a\x7e\x9b\x55"
++		idatWhite = "\x00\x00\x00\x0eIDAT\x78\x9c\x62\xfa\x0f\x08\x00\x00\xff\xff\x01\x05\x01\x02\x5a\xdd\x39\xcd"
++		idatZero  = "\x00\x00\x00\x00IDAT\x35\xaf\x06\x1e"
++		iend      = "\x00\x00\x00\x00IEND\xae\x42\x60\x82"
++	)
++	_, err := Decode(strings.NewReader(pngHeader + ihdr + idatWhite + idatZero + iend))
++	if err != nil {
++		t.Fatalf("decoding valid image: %v", err)
++	}
++
++	// Non-zero-length trailing IDAT chunks should be ignored (recoverable error).
++	// The following chunk contains a single pixel with color.Gray{0}.
++	const idatBlack = "\x00\x00\x00\x0eIDAT\x78\x9c\x62\x62\x00\x04\x00\x00\xff\xff\x00\x06\x00\x03\xfa\xd0\x59\xae"
++
++	img, err := Decode(strings.NewReader(pngHeader + ihdr + idatWhite + idatBlack + iend))
++	if err != nil {
++		t.Fatalf("trailing IDAT not ignored: %v", err)
++	}
++	if img.At(0, 0) == (color.Gray{0}) {
++		t.Fatal("decoded image from trailing IDAT chunk")
++	}
++}
++
+ func TestMultipletRNSChunks(t *testing.T) {
+ 	/*
+ 		The following is a valid 1x1 paletted PNG image with a 1-element palette

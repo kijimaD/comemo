@@ -11,6 +11,27 @@ Date:   Tue Jan 28 21:40:08 2020 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/216757
     Reviewed-by: Joel Sing <joel@sing.id.au>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.14.html | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index f341bd6d99..71781cee18 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -116,6 +116,15 @@ TODO
+   and <code>IsNaN</code> methods.
+ </p>
+ 
++<h3 id="riscv">RISC-V</h3>
++
++<p><!-- Issue 27532 -->
++  Go 1.14 contains experimental support for 64-bit RISC-V on Linux
++  (<code>GOOS=linux</code>, <code>GOARCH=riscv64</code>). Be aware
++  that performance, assembly syntax stability, and possibly
++  correctness are a work in progress.
++</p>
++
+ <h3 id="freebsd">FreeBSD</h3>
+ 
+ <p><!-- CL 199919 -->

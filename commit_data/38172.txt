@@ -13,6 +13,31 @@ Date:   Tue Oct 2 16:43:56 2018 +0000
     Reviewed-by: Rob Pike <r@golang.org>
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/fmt/example_test.go | 13 +++++++++++++
  1 file changed, 13 insertions(+)
+
+diff --git a/src/fmt/example_test.go b/src/fmt/example_test.go
+index ecf3391ce7..c285175976 100644
+--- a/src/fmt/example_test.go
++++ b/src/fmt/example_test.go
+@@ -63,6 +63,19 @@ func ExampleFscanln() {
+ 	// 3: ken, 271828, 3.141590
+ }
+ 
++func ExampleSscanf() {
++	var name string
++	var age int
++	n, err := fmt.Sscanf("Kim is 22 years old", "%s is %d years old", &name, &age)
++	if err != nil {
++		panic(err)
++	}
++	fmt.Printf("%d: %s, %d\n", n, name, age)
++
++	// Output:
++	// 2: Kim, 22
++}
++
+ func ExamplePrint() {
+ 	const name, age = "Kim", 22
+ 	fmt.Print(name, " is ", age, " years old.\n")

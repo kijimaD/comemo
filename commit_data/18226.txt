@@ -12,8 +12,137 @@ Date:   Mon Jan 13 11:25:48 2014 +1100
     R=golang-codereviews, minux.ma
     CC=golang-codereviews
     https://golang.org/cl/50930043
-
+---
  src/pkg/syscall/mkerrors.sh              |  1 +
  src/pkg/syscall/zerrors_openbsd_386.go   | 33 ++++++++++++++++++++++++++++++++
  src/pkg/syscall/zerrors_openbsd_amd64.go | 33 ++++++++++++++++++++++++++++++++
  3 files changed, 67 insertions(+)
+
+diff --git a/src/pkg/syscall/mkerrors.sh b/src/pkg/syscall/mkerrors.sh
+index 870af14905..d60d1be97a 100755
+--- a/src/pkg/syscall/mkerrors.sh
++++ b/src/pkg/syscall/mkerrors.sh
+@@ -143,6 +143,7 @@ includes_OpenBSD='
+ #include <sys/types.h>
+ #include <sys/param.h>
+ #include <sys/event.h>
++#include <sys/mman.h>
+ #include <sys/socket.h>
+ #include <sys/sockio.h>
+ #include <sys/sysctl.h>
+diff --git a/src/pkg/syscall/zerrors_openbsd_386.go b/src/pkg/syscall/zerrors_openbsd_386.go
+index 4c9c357573..c52a67c37d 100644
+--- a/src/pkg/syscall/zerrors_openbsd_386.go
++++ b/src/pkg/syscall/zerrors_openbsd_386.go
+@@ -854,6 +854,32 @@ const (
+ 	LOCK_NB                           = 0x4
+ 	LOCK_SH                           = 0x1
+ 	LOCK_UN                           = 0x8
++	MADV_DONTNEED                     = 0x4
++	MADV_FREE                         = 0x6
++	MADV_NORMAL                       = 0x0
++	MADV_RANDOM                       = 0x1
++	MADV_SEQUENTIAL                   = 0x2
++	MADV_SPACEAVAIL                   = 0x5
++	MADV_WILLNEED                     = 0x3
++	MAP_ANON                          = 0x1000
++	MAP_COPY                          = 0x4
++	MAP_FILE                          = 0x0
++	MAP_FIXED                         = 0x10
++	MAP_FLAGMASK                      = 0x1ff7
++	MAP_HASSEMAPHORE                  = 0x200
++	MAP_INHERIT                       = 0x80
++	MAP_INHERIT_COPY                  = 0x1
++	MAP_INHERIT_DONATE_COPY           = 0x3
++	MAP_INHERIT_NONE                  = 0x2
++	MAP_INHERIT_SHARE                 = 0x0
++	MAP_NOEXTEND                      = 0x100
++	MAP_NORESERVE                     = 0x40
++	MAP_PRIVATE                       = 0x2
++	MAP_RENAME                        = 0x20
++	MAP_SHARED                        = 0x1
++	MAP_TRYFIXED                      = 0x400
++	MCL_CURRENT                       = 0x1
++	MCL_FUTURE                        = 0x2
+ 	MSG_BCAST                         = 0x100
+ 	MSG_CTRUNC                        = 0x20
+ 	MSG_DONTROUTE                     = 0x4
+@@ -865,6 +891,9 @@ const (
+ 	MSG_PEEK                          = 0x2
+ 	MSG_TRUNC                         = 0x10
+ 	MSG_WAITALL                       = 0x40
++	MS_ASYNC                          = 0x1
++	MS_INVALIDATE                     = 0x4
++	MS_SYNC                           = 0x2
+ 	NAME_MAX                          = 0xff
+ 	NET_RT_DUMP                       = 0x1
+ 	NET_RT_FLAGS                      = 0x2
+@@ -926,6 +955,10 @@ const (
+ 	PRIO_PGRP                         = 0x1
+ 	PRIO_PROCESS                      = 0x0
+ 	PRIO_USER                         = 0x2
++	PROT_EXEC                         = 0x4
++	PROT_NONE                         = 0x0
++	PROT_READ                         = 0x1
++	PROT_WRITE                        = 0x2
+ 	PT_MASK                           = 0x3ff000
+ 	RLIMIT_CORE                       = 0x4
+ 	RLIMIT_CPU                        = 0x0
+diff --git a/src/pkg/syscall/zerrors_openbsd_amd64.go b/src/pkg/syscall/zerrors_openbsd_amd64.go
+index c480bab973..3a074119c1 100644
+--- a/src/pkg/syscall/zerrors_openbsd_amd64.go
++++ b/src/pkg/syscall/zerrors_openbsd_amd64.go
+@@ -854,6 +854,32 @@ const (
+ 	LOCK_NB                           = 0x4
+ 	LOCK_SH                           = 0x1
+ 	LOCK_UN                           = 0x8
++	MADV_DONTNEED                     = 0x4
++	MADV_FREE                         = 0x6
++	MADV_NORMAL                       = 0x0
++	MADV_RANDOM                       = 0x1
++	MADV_SEQUENTIAL                   = 0x2
++	MADV_SPACEAVAIL                   = 0x5
++	MADV_WILLNEED                     = 0x3
++	MAP_ANON                          = 0x1000
++	MAP_COPY                          = 0x4
++	MAP_FILE                          = 0x0
++	MAP_FIXED                         = 0x10
++	MAP_FLAGMASK                      = 0x1ff7
++	MAP_HASSEMAPHORE                  = 0x200
++	MAP_INHERIT                       = 0x80
++	MAP_INHERIT_COPY                  = 0x1
++	MAP_INHERIT_DONATE_COPY           = 0x3
++	MAP_INHERIT_NONE                  = 0x2
++	MAP_INHERIT_SHARE                 = 0x0
++	MAP_NOEXTEND                      = 0x100
++	MAP_NORESERVE                     = 0x40
++	MAP_PRIVATE                       = 0x2
++	MAP_RENAME                        = 0x20
++	MAP_SHARED                        = 0x1
++	MAP_TRYFIXED                      = 0x400
++	MCL_CURRENT                       = 0x1
++	MCL_FUTURE                        = 0x2
+ 	MSG_BCAST                         = 0x100
+ 	MSG_CTRUNC                        = 0x20
+ 	MSG_DONTROUTE                     = 0x4
+@@ -865,6 +891,9 @@ const (
+ 	MSG_PEEK                          = 0x2
+ 	MSG_TRUNC                         = 0x10
+ 	MSG_WAITALL                       = 0x40
++	MS_ASYNC                          = 0x1
++	MS_INVALIDATE                     = 0x4
++	MS_SYNC                           = 0x2
+ 	NAME_MAX                          = 0xff
+ 	NET_RT_DUMP                       = 0x1
+ 	NET_RT_FLAGS                      = 0x2
+@@ -926,6 +955,10 @@ const (
+ 	PRIO_PGRP                         = 0x1
+ 	PRIO_PROCESS                      = 0x0
+ 	PRIO_USER                         = 0x2
++	PROT_EXEC                         = 0x4
++	PROT_NONE                         = 0x0
++	PROT_READ                         = 0x1
++	PROT_WRITE                        = 0x2
+ 	RLIMIT_CORE                       = 0x4
+ 	RLIMIT_CPU                        = 0x0
+ 	RLIMIT_DATA                       = 0x2

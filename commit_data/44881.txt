@@ -437,3 +437,21 @@ Date:   Fri Sep 11 12:07:44 2020 -0400
  test/notinheap2.go                                 |   12 +-
  test/runtime.go                                    |    2 +-
  427 files changed, 18985 insertions(+), 15059 deletions(-)
+
+diff --cc src/cmd/link/internal/loader/loader.go
+index ea9cd1bd2e,43a0352e0b..af51d9eb88
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@@ -328,10 -329,10 +329,10 @@@ func NewLoader(flags uint32, elfsetstri
+  	ldr := &Loader{
+  		start:                make(map[*oReader]Sym),
+  		objs:                 []objIdx{{}, {extReader, 0}}, // reserve index 0 for nil symbol, 1 for external symbols
+ -		objSyms:              make([]objSym, 1, 100000),    // reserve index 0 for nil symbol
+ +		objSyms:              make([]objSym, 1, 1),         // This will get overwritten later.
+  		extReader:            extReader,
+  		symsByName:           [2]map[string]Sym{make(map[string]Sym, 80000), make(map[string]Sym, 50000)}, // preallocate ~2MB for ABI0 and ~1MB for ABI1 symbols
+- 		objByPkg:             make(map[string]*oReader),
++ 		objByPkg:             make(map[string]uint32),
+  		outer:                make(map[Sym]Sym),
+  		sub:                  make(map[Sym]Sym),
+  		dynimplib:            make(map[Sym]string),

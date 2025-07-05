@@ -15,7 +15,7 @@ Date:   Sat Jul 31 10:20:10 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/338753
     Trust: Meng Zhuo <mzh@golangcn.org>
     Reviewed-by: Joel Sing <joel@sing.id.au>
-
+---
  src/cmd/compile/internal/riscv64/ssa.go        | 21 +++++++++++++++++++++
  src/cmd/compile/internal/ssa/gen/RISCV64.rules |  1 +
  src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  1 +
@@ -23,3 +23,121 @@ Date:   Sat Jul 31 10:20:10 2021 +0000
  src/cmd/compile/internal/ssa/rewriteRISCV64.go |  3 +++
  src/cmd/compile/internal/ssagen/ssa.go         |  2 +-
  6 files changed, 43 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/riscv64/ssa.go b/src/cmd/compile/internal/riscv64/ssa.go
+index c635d93b71..d3cbb4ec24 100644
+--- a/src/cmd/compile/internal/riscv64/ssa.go
++++ b/src/cmd/compile/internal/riscv64/ssa.go
+@@ -297,6 +297,27 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p1.Reg = r0
+ 		p1.To.Type = obj.TYPE_REG
+ 		p1.To.Reg = v.Reg1()
++	case ssa.OpRISCV64LoweredMuluover:
++		r0 := v.Args[0].Reg()
++		r1 := v.Args[1].Reg()
++		p := s.Prog(riscv.AMULHU)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = r1
++		p.Reg = r0
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg1()
++		p1 := s.Prog(riscv.AMUL)
++		p1.From.Type = obj.TYPE_REG
++		p1.From.Reg = r1
++		p1.Reg = r0
++		p1.To.Type = obj.TYPE_REG
++		p1.To.Reg = v.Reg0()
++		p2 := s.Prog(riscv.ASNEZ)
++		p2.From.Type = obj.TYPE_REG
++		p2.From.Reg = v.Reg1()
++		p2.To.Type = obj.TYPE_REG
++		p2.To.Reg = v.Reg1()
++
+ 	case ssa.OpRISCV64FSQRTS, ssa.OpRISCV64FNEGS, ssa.OpRISCV64FSQRTD, ssa.OpRISCV64FNEGD,
+ 		ssa.OpRISCV64FMVSX, ssa.OpRISCV64FMVDX,
+ 		ssa.OpRISCV64FCVTSW, ssa.OpRISCV64FCVTSL, ssa.OpRISCV64FCVTWS, ssa.OpRISCV64FCVTLS,
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index b21ebe6abb..1acef2a273 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -30,6 +30,7 @@
+ 
+ (Mul64 ...) => (MUL  ...)
+ (Mul64uhilo ...) => (LoweredMuluhilo ...)
++(Mul64uover ...) => (LoweredMuluover ...)
+ (Mul32 ...) => (MULW ...)
+ (Mul16 x y) => (MULW (SignExt16to32 x) (SignExt16to32 y))
+ (Mul8 x y)  => (MULW (SignExt8to32 x)  (SignExt8to32 y))
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+index cb9051f954..d36daa8b83 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+@@ -159,6 +159,7 @@ func init() {
+ 		{name: "MULH", argLength: 2, reg: gp21, asm: "MULH", commutative: true, typ: "Int64"},
+ 		{name: "MULHU", argLength: 2, reg: gp21, asm: "MULHU", commutative: true, typ: "UInt64"},
+ 		{name: "LoweredMuluhilo", argLength: 2, reg: gp22, resultNotInArgs: true}, // arg0 * arg1, return (hi, lo)
++		{name: "LoweredMuluover", argLength: 2, reg: gp22, resultNotInArgs: true}, // arg0 * arg1, return (64 bits of arg0*arg1, overflow)
+ 
+ 		{name: "DIV", argLength: 2, reg: gp21, asm: "DIV", typ: "Int64"}, // arg0 / arg1
+ 		{name: "DIVU", argLength: 2, reg: gp21, asm: "DIVU", typ: "UInt64"},
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 7893ce837e..8ce13abed3 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2070,6 +2070,7 @@ const (
+ 	OpRISCV64MULH
+ 	OpRISCV64MULHU
+ 	OpRISCV64LoweredMuluhilo
++	OpRISCV64LoweredMuluover
+ 	OpRISCV64DIV
+ 	OpRISCV64DIVU
+ 	OpRISCV64DIVW
+@@ -27619,6 +27620,21 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:            "LoweredMuluover",
++		argLen:          2,
++		resultNotInArgs: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++				{1, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++			outputs: []outputInfo{
++				{0, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++				{1, 1006632948}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++		},
++	},
+ 	{
+ 		name:   "DIV",
+ 		argLen: 2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index f315c0d3a8..e9f17206de 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -359,6 +359,9 @@ func rewriteValueRISCV64(v *Value) bool {
+ 	case OpMul64uhilo:
+ 		v.Op = OpRISCV64LoweredMuluhilo
+ 		return true
++	case OpMul64uover:
++		v.Op = OpRISCV64LoweredMuluover
++		return true
+ 	case OpMul8:
+ 		return rewriteValueRISCV64_OpMul8(v)
+ 	case OpNeg16:
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 237135d5c7..39d3b206ac 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -3779,7 +3779,7 @@ func InitTables() {
+ 			}
+ 			return s.newValue2(ssa.OpMul64uover, types.NewTuple(types.Types[types.TUINT], types.Types[types.TUINT]), args[0], args[1])
+ 		},
+-		sys.AMD64, sys.I386, sys.MIPS64)
++		sys.AMD64, sys.I386, sys.MIPS64, sys.RISCV64)
+ 	add("runtime", "KeepAlive",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			data := s.newValue1(ssa.OpIData, s.f.Config.Types.BytePtr, args[0])

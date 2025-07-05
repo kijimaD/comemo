@@ -9,6 +9,35 @@ Date:   Thu Mar 28 02:09:32 2019 +0000
     Change-Id: I5b36bfc6d18eb8c1bbf15abcd92b0e6559cda3c8
     Reviewed-on: https://go-review.googlesource.com/c/go/+/169683
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/net/http/response.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/response.go b/src/net/http/response.go
+index 6d22c2892d..2065a25015 100644
+--- a/src/net/http/response.go
++++ b/src/net/http/response.go
+@@ -12,12 +12,13 @@ import (
+ 	"crypto/tls"
+ 	"errors"
+ 	"fmt"
+-	"golang.org/x/net/http/httpguts"
+ 	"io"
+ 	"net/textproto"
+ 	"net/url"
+ 	"strconv"
+ 	"strings"
++
++	"golang.org/x/net/http/httpguts"
+ )
+ 
+ var respExcludeHeader = map[string]bool{
+@@ -66,7 +67,7 @@ type Response struct {
+ 	// with a "chunked" Transfer-Encoding.
+ 	//
+ 	// As of Go 1.12, the Body will be also implement io.Writer
+-	// on a successful "101 Switching Protocols" responses,
++	// on a successful "101 Switching Protocols" response,
+ 	// as used by WebSockets and HTTP/2's "h2c" mode.
+ 	Body io.ReadCloser
+ 

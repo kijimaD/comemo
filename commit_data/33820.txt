@@ -12,6 +12,20 @@ Date:   Tue Jan 17 16:16:42 2017 +0900
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/syscall/exec_linux_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/syscall/exec_linux_test.go b/src/syscall/exec_linux_test.go
+index 79a7916dde..17df8f445e 100644
+--- a/src/syscall/exec_linux_test.go
++++ b/src/syscall/exec_linux_test.go
+@@ -133,7 +133,7 @@ func TestCloneNEWUSERAndRemapRootEnableSetgroups(t *testing.T) {
+ 	if os.Getuid() != 0 {
+ 		t.Skip("skipping root only test")
+ 	}
+-	testNEWUSERRemap(t, 0, 0, false)
++	testNEWUSERRemap(t, 0, 0, true)
+ }
+ 
+ func TestCloneNEWUSERAndRemapNoRootDisableSetgroups(t *testing.T) {

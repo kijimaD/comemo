@@ -8,7 +8,47 @@ Date:   Mon Feb 23 15:24:49 2015 +0900
     Reviewed-on: https://go-review.googlesource.com/5562
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/cgocall.h     | 13 -------------
  src/runtime/signal_unix.h | 14 --------------
  2 files changed, 27 deletions(-)
+
+diff --git a/src/runtime/cgocall.h b/src/runtime/cgocall.h
+deleted file mode 100644
+index c87a9cdc5d..0000000000
+--- a/src/runtime/cgocall.h
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-/*
+- * Cgo interface.
+- */
+-
+-void runtime·cgocall(void (*fn)(void*), void*);
+-int32 runtime·cgocall_errno(void (*fn)(void*), void*);
+-void runtime·cgocallback(void (*fn)(void), void*, uintptr);
+-void *runtime·cmalloc(uintptr);
+-void runtime·cfree(void*);
+diff --git a/src/runtime/signal_unix.h b/src/runtime/signal_unix.h
+deleted file mode 100644
+index 2d84a01864..0000000000
+--- a/src/runtime/signal_unix.h
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#define SIG_DFL ((void*)0)
+-#define SIG_IGN ((void*)1)
+-
+-typedef void GoSighandler(int32, Siginfo*, void*, G*);
+-void	runtime·setsig(int32, GoSighandler*, bool);
+-GoSighandler* runtime·getsig(int32);
+-
+-void	runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp);
+-void	runtime·raise(int32);
+-

@@ -12,7 +12,41 @@ Date:   Wed May 18 13:28:48 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/23225
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/regalloc.go | 5 +++--
  test/fixedbugs/issue15277.go             | 1 +
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index c05e9ade77..bd40522574 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -948,13 +948,14 @@ func (s *regAllocState) regalloc(f *Func) {
+ 				if vi.spillUsed {
+ 					// Use the spill location.
+ 					v.SetArg(0, vi.spill)
+-					b.Values = append(b.Values, v)
+ 				} else {
+ 					// No need to keep unspilled values live.
+ 					// These are typically rematerializeable constants like nil,
+ 					// or values of a variable that were modified since the last call.
+-					v.Args[0].Uses--
++					v.Op = OpCopy
++					v.SetArgs1(v.Args[1])
+ 				}
++				b.Values = append(b.Values, v)
+ 				continue
+ 			}
+ 			regspec := opcodeTable[v.Op].reg
+diff --git a/test/fixedbugs/issue15277.go b/test/fixedbugs/issue15277.go
+index a3acc614bf..719c9a4f4a 100644
+--- a/test/fixedbugs/issue15277.go
++++ b/test/fixedbugs/issue15277.go
+@@ -3,6 +3,7 @@
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
++// +build amd64
+ 
+ package main
+ 

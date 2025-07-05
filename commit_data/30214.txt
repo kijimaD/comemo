@@ -20,6 +20,20 @@ Date:   Thu Oct 27 21:52:51 2016 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgcmark.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 9489a0a344..954bbef40c 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -966,7 +966,7 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
+ 		throw("gcDrain phase incorrect")
+ 	}
+ 
+-	gp := getg()
++	gp := getg().m.curg
+ 	preemptible := flags&gcDrainUntilPreempt != 0
+ 	blocking := flags&(gcDrainUntilPreempt|gcDrainNoBlock) == 0
+ 	flushBgCredit := flags&gcDrainFlushBgCredit != 0

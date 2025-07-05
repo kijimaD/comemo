@@ -10,6 +10,20 @@ Date:   Sat Apr 27 08:16:36 2019 -0500
     Change-Id: I32cde58c25b48d3c00d4413860dbd49a265b0ff2
     Reviewed-on: https://go-review.googlesource.com/c/go/+/174217
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/bootstrap.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/bootstrap.bash b/src/bootstrap.bash
+index 92a4718286..88c080a948 100755
+--- a/src/bootstrap.bash
++++ b/src/bootstrap.bash
+@@ -45,7 +45,7 @@ fi
+ unset GOROOT
+ src=$(cd .. && pwd)
+ echo "#### Copying to $targ"
+-cp -R "$src" "$targ"
++cp -Rp "$src" "$targ"
+ cd "$targ"
+ echo
+ echo "#### Cleaning $targ"

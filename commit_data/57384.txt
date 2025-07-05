@@ -16,8 +16,82 @@ Date:   Tue Aug 1 05:08:08 2023 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/archive/tar/common.go   |  7 -------
  src/archive/zip/writer.go   | 15 ++++-----------
  src/archive/zip/zip_test.go |  7 -------
  3 files changed, 4 insertions(+), 25 deletions(-)
+
+diff --git a/src/archive/tar/common.go b/src/archive/tar/common.go
+index dc9d350eb7..d26463501b 100644
+--- a/src/archive/tar/common.go
++++ b/src/archive/tar/common.go
+@@ -727,10 +727,3 @@ func isHeaderOnlyType(flag byte) bool {
+ 		return false
+ 	}
+ }
+-
+-func min(a, b int64) int64 {
+-	if a < b {
+-		return a
+-	}
+-	return b
+-}
+diff --git a/src/archive/zip/writer.go b/src/archive/zip/writer.go
+index 0e81c6a5d7..3da5ad612b 100644
+--- a/src/archive/zip/writer.go
++++ b/src/archive/zip/writer.go
+@@ -406,8 +406,8 @@ func writeHeader(w io.Writer, h *header) error {
+ 	// flags.
+ 	if h.raw && !h.hasDataDescriptor() {
+ 		b.uint32(h.CRC32)
+-		b.uint32(uint32(min64(h.CompressedSize64, uint32max)))
+-		b.uint32(uint32(min64(h.UncompressedSize64, uint32max)))
++		b.uint32(uint32(min(h.CompressedSize64, uint32max)))
++		b.uint32(uint32(min(h.UncompressedSize64, uint32max)))
+ 	} else {
+ 		// When this package handle the compression, these values are
+ 		// always written to the trailing data descriptor.
+@@ -427,13 +427,6 @@ func writeHeader(w io.Writer, h *header) error {
+ 	return err
+ }
+ 
+-func min64(x, y uint64) uint64 {
+-	if x < y {
+-		return x
+-	}
+-	return y
+-}
+-
+ // CreateRaw adds a file to the zip archive using the provided FileHeader and
+ // returns a Writer to which the file contents should be written. The file's
+ // contents must be written to the io.Writer before the next call to Create,
+@@ -445,8 +438,8 @@ func (w *Writer) CreateRaw(fh *FileHeader) (io.Writer, error) {
+ 		return nil, err
+ 	}
+ 
+-	fh.CompressedSize = uint32(min64(fh.CompressedSize64, uint32max))
+-	fh.UncompressedSize = uint32(min64(fh.UncompressedSize64, uint32max))
++	fh.CompressedSize = uint32(min(fh.CompressedSize64, uint32max))
++	fh.UncompressedSize = uint32(min(fh.UncompressedSize64, uint32max))
+ 
+ 	h := &header{
+ 		FileHeader: fh,
+diff --git a/src/archive/zip/zip_test.go b/src/archive/zip/zip_test.go
+index 7d1de07c98..f53d1b9913 100644
+--- a/src/archive/zip/zip_test.go
++++ b/src/archive/zip/zip_test.go
+@@ -198,13 +198,6 @@ func (r *rleBuffer) Write(p []byte) (n int, err error) {
+ 	return len(p), nil
+ }
+ 
+-func min(x, y int64) int64 {
+-	if x < y {
+-		return x
+-	}
+-	return y
+-}
+-
+ func memset(a []byte, b byte) {
+ 	if len(a) == 0 {
+ 		return

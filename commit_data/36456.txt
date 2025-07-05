@@ -11,7 +11,34 @@ Date:   Sun Apr 29 17:40:47 2018 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/ssa/prove.go   | 2 +-
  src/cmd/compile/internal/ssa/rewrite.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index 1f9445e1bd..03f657da8a 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -994,7 +994,7 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
+ 			}
+ 			bits := 8 * v.Args[0].Type.Size()
+ 			if lim.umax < uint64(bits) || (lim.max < bits && ft.isNonNegative(by)) {
+-				v.Aux = true
++				v.AuxInt = 1 // see shiftIsBounded
+ 				if b.Func.pass.debug > 0 {
+ 					b.Func.Warnl(v.Pos, "Proved %v bounded", v.Op)
+ 				}
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 6d53342e2a..c4daa7474f 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -393,7 +393,7 @@ func b2i(b bool) int64 {
+ // shiftIsBounded reports whether (left/right) shift Value v is known to be bounded.
+ // A shift is bounded if it is shifting by less than the width of the shifted value.
+ func shiftIsBounded(v *Value) bool {
+-	return v.Aux != nil && v.Aux.(bool)
++	return v.AuxInt != 0
+ }
+ 
+ // i2f is used in rules for converting from an AuxInt to a float.

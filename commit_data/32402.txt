@@ -19,6 +19,21 @@ Date:   Sat Apr 22 18:10:09 2017 +0100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/objdump/main.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/cmd/objdump/main.go b/src/cmd/objdump/main.go
+index 7a3ba55517..71636990a1 100644
+--- a/src/cmd/objdump/main.go
++++ b/src/cmd/objdump/main.go
+@@ -53,9 +53,6 @@ func usage() {
+ 	os.Exit(2)
+ }
+ 
+-type lookupFunc func(addr uint64) (sym string, base uint64)
+-type disasmFunc func(code []byte, pc uint64, lookup lookupFunc) (text string, size int)
+-
+ func main() {
+ 	log.SetFlags(0)
+ 	log.SetPrefix("objdump: ")

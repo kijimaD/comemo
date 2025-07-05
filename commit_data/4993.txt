@@ -15,7 +15,7 @@ Date:   Thu Mar 4 17:37:15 2010 -0800
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/241041
-
+---
  src/pkg/asn1/asn1_test.go                       |   4 +-
  src/pkg/crypto/x509/x509.go                     |   8 +-
  src/pkg/debug/dwarf/type_test.go                |  28 ++--
@@ -30,3 +30,654 @@ Date:   Thu Mar 4 17:37:15 2010 -0800
  src/pkg/syscall/zerrors_nacl_386.go             | 170 ++++++++++++------------
  src/pkg/unicode/tables.go                       |  62 ++++-----
  13 files changed, 278 insertions(+), 185 deletions(-)
+
+diff --git a/src/pkg/asn1/asn1_test.go b/src/pkg/asn1/asn1_test.go
+index f488663ba0..b5bce93b70 100644
+--- a/src/pkg/asn1/asn1_test.go
++++ b/src/pkg/asn1/asn1_test.go
+@@ -388,8 +388,8 @@ func TestRawStructs(t *testing.T) {
+ 
+ var derEncodedSelfSignedCert = Certificate{
+ 	TBSCertificate: TBSCertificate{
+-		Version: 0,
+-		SerialNumber: RawValue{Class: 0, Tag: 2, IsCompound: false, Bytes: []uint8{0x0, 0x8c, 0xc3, 0x37, 0x92, 0x10, 0xec, 0x2c, 0x98}},
++		Version:            0,
++		SerialNumber:       RawValue{Class: 0, Tag: 2, IsCompound: false, Bytes: []uint8{0x0, 0x8c, 0xc3, 0x37, 0x92, 0x10, 0xec, 0x2c, 0x98}},
+ 		SignatureAlgorithm: AlgorithmIdentifier{Algorithm: ObjectIdentifier{1, 2, 840, 113549, 1, 1, 5}},
+ 		Issuer: RDNSequence{
+ 			RelativeDistinguishedNameSET{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 6}, Value: "XX"}},
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index 886a5e7dc9..45197497cc 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -784,14 +784,14 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, priv *rsa.
+ 
+ 	encodedPublicKey := asn1.BitString{BitLength: len(asn1PublicKey) * 8, Bytes: asn1PublicKey}
+ 	c := tbsCertificate{
+-		Version: 3,
+-		SerialNumber: asn1.RawValue{Bytes: template.SerialNumber, Tag: 2},
++		Version:            3,
++		SerialNumber:       asn1.RawValue{Bytes: template.SerialNumber, Tag: 2},
+ 		SignatureAlgorithm: algorithmIdentifier{oidSHA1WithRSA},
+ 		Issuer:             parent.Subject.toRDNSequence(),
+ 		Validity:           validity{template.NotBefore, template.NotAfter},
+ 		Subject:            template.Subject.toRDNSequence(),
+-		PublicKey: publicKeyInfo{algorithmIdentifier{oidRSA}, encodedPublicKey},
+-		Extensions: extensions,
++		PublicKey:          publicKeyInfo{algorithmIdentifier{oidRSA}, encodedPublicKey},
++		Extensions:         extensions,
+ 	}
+ 
+ 	tbsCertContents, err := asn1.MarshalToMemory(c)
+diff --git a/src/pkg/debug/dwarf/type_test.go b/src/pkg/debug/dwarf/type_test.go
+index 80241462b9..c3e456024c 100644
+--- a/src/pkg/debug/dwarf/type_test.go
++++ b/src/pkg/debug/dwarf/type_test.go
+@@ -12,21 +12,21 @@ import (
+ )
+ 
+ var typedefTests = map[string]string{
+-	"t_ptr_volatile_int":             "*volatile int",
+-	"t_ptr_const_char":               "*const char",
+-	"t_long":                         "long int",
+-	"t_ushort":                       "short unsigned int",
+-	"t_func_int_of_float_double":     "func(float, double) int",
+-	"t_ptr_func_int_of_float_double": "*func(float, double) int",
++	"t_ptr_volatile_int":                 "*volatile int",
++	"t_ptr_const_char":                   "*const char",
++	"t_long":                             "long int",
++	"t_ushort":                           "short unsigned int",
++	"t_func_int_of_float_double":         "func(float, double) int",
++	"t_ptr_func_int_of_float_double":     "*func(float, double) int",
+ 	"t_func_ptr_int_of_char_schar_uchar": "func(char, signed char, unsigned char) *int",
+-	"t_func_void_of_char":          "func(char) void",
+-	"t_func_void_of_void":          "func() void",
+-	"t_func_void_of_ptr_char_dots": "func(*char, ...) void",
+-	"t_my_struct": "struct my_struct {vi volatile int@0; x char@4 : 1@7; y int@4 : 4@27; array [40]long long int@8}",
+-	"t_my_union": "union my_union {vi volatile int@0; x char@0 : 1@7; y int@0 : 4@28; array [40]long long int@0}",
+-	"t_my_enum": "enum my_enum {e1=1; e2=2; e3=-5; e4=1000000000000000}",
+-	"t_my_list": "struct list {val short int@0; next *t_my_list@8}",
+-	"t_my_tree": "struct tree {left *struct tree@0; right *struct tree@8; val long long unsigned int@16}",
++	"t_func_void_of_char":                "func(char) void",
++	"t_func_void_of_void":                "func() void",
++	"t_func_void_of_ptr_char_dots":       "func(*char, ...) void",
++	"t_my_struct":                        "struct my_struct {vi volatile int@0; x char@4 : 1@7; y int@4 : 4@27; array [40]long long int@8}",
++	"t_my_union":                         "union my_union {vi volatile int@0; x char@0 : 1@7; y int@0 : 4@28; array [40]long long int@0}",
++	"t_my_enum":                          "enum my_enum {e1=1; e2=2; e3=-5; e4=1000000000000000}",
++	"t_my_list":                          "struct list {val short int@0; next *t_my_list@8}",
++	"t_my_tree":                          "struct tree {left *struct tree@0; right *struct tree@8; val long long unsigned int@16}",
+ }
+ 
+ func elfData(t *testing.T, name string) *Data {
+diff --git a/src/pkg/exp/eval/stmt.go b/src/pkg/exp/eval/stmt.go
+index 07278edd59..bb080375a8 100644
+--- a/src/pkg/exp/eval/stmt.go
++++ b/src/pkg/exp/eval/stmt.go
+@@ -1251,12 +1251,12 @@ func (a *compiler) compileFunc(b *block, decl *FuncDecl, body *ast.BlockStmt) fu
+ 	// Create block context
+ 	cb := newCodeBuf()
+ 	fc := &funcCompiler{
+-		compiler: a,
+-		fnType:   decl.Type,
++		compiler:     a,
++		fnType:       decl.Type,
+ 		outVarsNamed: len(decl.OutNames) > 0 && decl.OutNames[0] != nil,
+-		codeBuf: cb,
+-		flow:    newFlowBuf(cb),
+-		labels:  make(map[string]*label),
++		codeBuf:      cb,
++		flow:         newFlowBuf(cb),
++		labels:       make(map[string]*label),
+ 	}
+ 	bc := &blockCompiler{
+ 		funcCompiler: fc,
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 3045300aaf..d4f6d9d0e7 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -109,10 +109,15 @@ func (p *printer) identList(list []*ast.Ident, indent bool, multiLine *bool) {
+ }
+ 
+ 
+-// isOneLineExpr returns true if x is "small enough" to fit onto a single line.
+-func (p *printer) isOneLineExpr(x ast.Expr) bool {
+-	const maxSize = 60 // aproximate value, excluding space for comments
+-	return p.nodeSize(x, maxSize) <= maxSize
++// Compute the key size of a key:value expression.
++// Returns 0 if the expression doesn't fit onto a single line.
++func (p *printer) keySize(pair *ast.KeyValueExpr) int {
++	const infinity = 1e6 // larger than any source line
++	if p.nodeSize(pair, infinity) <= infinity {
++		// entire expression fits on one line - return key size
++		return p.nodeSize(pair.Key, infinity)
++	}
++	return 0
+ }
+ 
+ 
+@@ -120,6 +125,10 @@ func (p *printer) isOneLineExpr(x ast.Expr) bool {
+ // source lines, the original line breaks are respected between
+ // expressions. Sets multiLine to true if the list spans multiple
+ // lines.
++//
++// TODO(gri) Consider rewriting this to be independent of []ast.Expr
++//           so that we can use the algorithm for any kind of list
++//           (e.g., pass list via a channel over which to range).
+ func (p *printer) exprList(prev token.Position, list []ast.Expr, depth int, mode exprListMode, multiLine *bool, next token.Position) {
+ 	if len(list) == 0 {
+ 		return
+@@ -165,30 +174,69 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, depth int, mode
+ 		ws = indent
+ 	}
+ 
+-	oneLiner := false // true if the previous expression fit on a single line
+-	prevBreak := -1   // index of last expression that was followed by a linebreak
+-
+ 	// the first linebreak is always a formfeed since this section must not
+ 	// depend on any previous formatting
++	prevBreak := -1 // index of last expression that was followed by a linebreak
+ 	if prev.IsValid() && prev.Line < line && p.linebreak(line, 1, 2, ws, true) {
+ 		ws = ignore
+ 		*multiLine = true
+ 		prevBreak = 0
+ 	}
+ 
++	// initialize expression/key size: a zero value indicates expr/key doesn't fit on a single line
++	size := 0
++
++	// print all list elements
+ 	for i, x := range list {
+-		prev := line
++		prevLine := line
+ 		line = x.Pos().Line
++
++		// determine if the next linebreak, if any, needs to use formfeed:
++		// in general, use the entire node size to make the decision; for
++		// key:value expressions, use the key size
++		// TODO(gri) for a better result, should probably incorporate both
++		//           the key and the node size into the decision process
++		useFF := true
++
++		// determine size
++		prevSize := size
++		const infinity = 1e6 // larger than any source line
++		size = p.nodeSize(x, infinity)
++		pair, isPair := x.(*ast.KeyValueExpr)
++		if size <= infinity {
++			// x fits on a single line
++			if isPair {
++				size = p.nodeSize(pair.Key, infinity) // size <= infinity
++			}
++		} else {
++			size = 0
++		}
++
++		// if the previous line and the current line had single-
++		// line-expressions and the key sizes are small or the
++		// the ratio between the key sizes does not exceed a
++		// threshold, align columns and do not use formfeed
++		if prevSize > 0 && size > 0 {
++			const smallSize = 20
++			if prevSize <= smallSize && size <= smallSize {
++				useFF = false
++			} else {
++				const r = 4 // threshold
++				ratio := float(size) / float(prevSize)
++				useFF = ratio <= 1/r || r <= ratio
++			}
++		}
++
+ 		if i > 0 {
+ 			if mode&commaSep != 0 {
+ 				p.print(token.COMMA)
+ 			}
+-			if prev < line && prev > 0 && line > 0 {
+-				// lines are broken using newlines so comments remain aligned,
+-				// but if an expression is not a "one-line" expression, or if
+-				// multiple expressions are on the same line, the section is
++			if prevLine < line && prevLine > 0 && line > 0 {
++				// lines are broken using newlines so comments remain aligned
++				// unless forceFF is set or there are multiple expressions on
++				// the same line in which case formfeed is used
+ 				// broken with a formfeed
+-				if p.linebreak(line, 1, 2, ws, !oneLiner || prevBreak+1 < i) {
++				if p.linebreak(line, 1, 2, ws, useFF || prevBreak+1 < i) {
+ 					ws = ignore
+ 					*multiLine = true
+ 					prevBreak = i
+@@ -197,17 +245,14 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, depth int, mode
+ 				p.print(blank)
+ 			}
+ 		}
+-		// determine if x satisfies the "one-liner" criteria
+-		// TODO(gri): determine if the multiline information returned
+-		//            from p.expr0 is precise enough so it could be
+-		//            used instead
+-		oneLiner = p.isOneLineExpr(x)
+-		if t, isPair := x.(*ast.KeyValueExpr); isPair && oneLiner && len(list) > 1 {
+-			// we have a key:value expression that fits onto one line, and
+-			// is a list with more then one entry: align all the values
+-			p.expr(t.Key, multiLine)
+-			p.print(t.Colon, token.COLON, vtab)
+-			p.expr(t.Value, multiLine)
++
++		if isPair && size > 0 && len(list) > 1 {
++			// we have a key:value expression that fits onto one line and
++			// is in a list with more then one entry: use a column for the
++			// key such that consecutive entries can align if possible
++			p.expr(pair.Key, multiLine)
++			p.print(pair.Colon, token.COLON, vtab)
++			p.expr(pair.Value, multiLine)
+ 		} else {
+ 			p.expr0(x, depth, multiLine)
+ 		}
+diff --git a/src/pkg/go/printer/testdata/declarations.golden b/src/pkg/go/printer/testdata/declarations.golden
+index c19b90c208..2fe518e96b 100644
+--- a/src/pkg/go/printer/testdata/declarations.golden
++++ b/src/pkg/go/printer/testdata/declarations.golden
+@@ -540,6 +540,30 @@ func _() {
+ }
+ 
+ 
++// alignment of map composite entries
++var _ = map[int]int{
++	// small key sizes: always align even if size ratios are large
++	a:			a,
++	abcdefghabcdefgh:	a,
++	ab:			a,
++	abc:			a,
++	abcdefgabcdefg:		a,
++	abcd:			a,
++	abcde:			a,
++	abcdef:			a,
++
++	// mixed key sizes: align when key sizes change within accepted ratio
++	abcdefgh:		a,
++	abcdefghabcdefg:	a,
++	abcdefghij:		a,
++	abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij:	a,	// outlier - do not align with previous line
++	abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij:		a,	// align with previous line
++
++	ab:	a,	// do not align with previous line
++	abcde:	a,	// align with previous line
++}
++
++
+ func _() {
+ 	var _ = T{
+ 		a,	// must introduce trailing comma
+diff --git a/src/pkg/go/printer/testdata/declarations.input b/src/pkg/go/printer/testdata/declarations.input
+index 67dac0da6a..8d63ab7b45 100644
+--- a/src/pkg/go/printer/testdata/declarations.input
++++ b/src/pkg/go/printer/testdata/declarations.input
+@@ -534,6 +534,30 @@ func _() {
+ }
+ 
+ 
++// alignment of map composite entries
++var _ = map[int]int{
++	// small key sizes: always align even if size ratios are large
++	a: a,
++	abcdefghabcdefgh: a,
++	ab: a,
++	abc: a,
++	abcdefgabcdefg: a,
++	abcd: a,
++	abcde: a,
++	abcdef: a,
++
++	// mixed key sizes: align when key sizes change within accepted ratio
++	abcdefgh: a,
++	abcdefghabcdefg: a,
++	abcdefghij: a,
++	abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij: a, // outlier - do not align with previous line
++	abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij: a, // align with previous line
++
++	ab: a, // do not align with previous line
++	abcde: a, // align with previous line
++}
++
++
+ func _() {
+ 	var _ = T{
+ 		a,	// must introduce trailing comma
+diff --git a/src/pkg/http/readrequest_test.go b/src/pkg/http/readrequest_test.go
+index 0ef02d3fca..fa186f1abf 100644
+--- a/src/pkg/http/readrequest_test.go
++++ b/src/pkg/http/readrequest_test.go
+@@ -51,7 +51,7 @@ var reqTests = []reqTest{
+ 			ProtoMajor: 1,
+ 			ProtoMinor: 1,
+ 			Header: map[string]string{
+-				"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
++				"Accept":           "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+ 				"Accept-Language":  "en-us,en;q=0.5",
+ 				"Accept-Encoding":  "gzip,deflate",
+ 				"Accept-Charset":   "ISO-8859-1,utf-8;q=0.7,*;q=0.7",
+diff --git a/src/pkg/http/request_test.go b/src/pkg/http/request_test.go
+index 7d9bca6791..f5b575c957 100644
+--- a/src/pkg/http/request_test.go
++++ b/src/pkg/http/request_test.go
+@@ -81,7 +81,7 @@ var parseContentTypeTests = []parseContentTypeTest{
+ 	parseContentTypeTest{contentType: stringMap{"Content-Type": "text/plain; boundary="}},
+ 	parseContentTypeTest{
+ 		contentType: stringMap{"Content-Type": "application/unknown"},
+-		error: true,
++		error:       true,
+ 	},
+ }
+ 
+diff --git a/src/pkg/http/requestwrite_test.go b/src/pkg/http/requestwrite_test.go
+index 916a18b94e..5671e13ad3 100644
+--- a/src/pkg/http/requestwrite_test.go
++++ b/src/pkg/http/requestwrite_test.go
+@@ -35,7 +35,7 @@ var reqWriteTests = []reqWriteTest{
+ 			ProtoMajor: 1,
+ 			ProtoMinor: 1,
+ 			Header: map[string]string{
+-				"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
++				"Accept":           "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+ 				"Accept-Charset":   "ISO-8859-1,utf-8;q=0.7,*;q=0.7",
+ 				"Accept-Encoding":  "gzip,deflate",
+ 				"Accept-Language":  "en-us,en;q=0.5",
+diff --git a/src/pkg/http/status.go b/src/pkg/http/status.go
+index a446dc4b61..82a66d7ad7 100644
+--- a/src/pkg/http/status.go
++++ b/src/pkg/http/status.go
+@@ -72,24 +72,24 @@ var statusText = map[int]string{
+ 	StatusUseProxy:          "Use Proxy",
+ 	StatusTemporaryRedirect: "Temporary Redirect",
+ 
+-	StatusBadRequest:            "Bad Request",
+-	StatusUnauthorized:          "Unauthorized",
+-	StatusPaymentRequired:       "Payment Required",
+-	StatusForbidden:             "Forbidden",
+-	StatusNotFound:              "Not Found",
+-	StatusMethodNotAllowed:      "Method Not Allowed",
+-	StatusNotAcceptable:         "Not Acceptable",
+-	StatusProxyAuthRequired:     "Proxy Authentication Required",
+-	StatusRequestTimeout:        "Request Timeout",
+-	StatusConflict:              "Conflict",
+-	StatusGone:                  "Gone",
+-	StatusLengthRequired:        "Length Required",
+-	StatusPreconditionFailed:    "Precondition Failed",
+-	StatusRequestEntityTooLarge: "Request Entity Too Large",
+-	StatusRequestURITooLong:     "Request URI Too Long",
+-	StatusUnsupportedMediaType:  "Unsupported Media Type",
++	StatusBadRequest:                   "Bad Request",
++	StatusUnauthorized:                 "Unauthorized",
++	StatusPaymentRequired:              "Payment Required",
++	StatusForbidden:                    "Forbidden",
++	StatusNotFound:                     "Not Found",
++	StatusMethodNotAllowed:             "Method Not Allowed",
++	StatusNotAcceptable:                "Not Acceptable",
++	StatusProxyAuthRequired:            "Proxy Authentication Required",
++	StatusRequestTimeout:               "Request Timeout",
++	StatusConflict:                     "Conflict",
++	StatusGone:                         "Gone",
++	StatusLengthRequired:               "Length Required",
++	StatusPreconditionFailed:           "Precondition Failed",
++	StatusRequestEntityTooLarge:        "Request Entity Too Large",
++	StatusRequestURITooLong:            "Request URI Too Long",
++	StatusUnsupportedMediaType:         "Unsupported Media Type",
+ 	StatusRequestedRangeNotSatisfiable: "Requested Range Not Satisfiable",
+-	StatusExpectationFailed: "Expectation Failed",
++	StatusExpectationFailed:            "Expectation Failed",
+ 
+ 	StatusInternalServerError:     "Internal Server Error",
+ 	StatusNotImplemented:          "Not Implemented",
+diff --git a/src/pkg/syscall/zerrors_nacl_386.go b/src/pkg/syscall/zerrors_nacl_386.go
+index 546e02754c..5ae05a1329 100644
+--- a/src/pkg/syscall/zerrors_nacl_386.go
++++ b/src/pkg/syscall/zerrors_nacl_386.go
+@@ -129,91 +129,91 @@ const (
+ 
+ // Error table
+ var errors = [...]string{
+-	EPERM:        "operation not permitted",
+-	ENOENT:       "no such file or directory",
+-	ESRCH:        "no such process",
+-	EINTR:        "interrupted system call",
+-	EIO:          "I/O error",
+-	ENXIO:        "no such device or address",
+-	E2BIG:        "argument list too long",
+-	ENOEXEC:      "exec format error",
+-	EBADF:        "bad file number",
+-	ECHILD:       "no child processes",
+-	EAGAIN:       "try again",
+-	ENOMEM:       "out of memory",
+-	EACCES:       "permission denied",
+-	EFAULT:       "bad address",
+-	EBUSY:        "device or resource busy",
+-	EEXIST:       "file exists",
+-	EXDEV:        "cross-device link",
+-	ENODEV:       "no such device",
+-	ENOTDIR:      "not a directory",
+-	EISDIR:       "is a directory",
+-	EINVAL:       "invalid argument",
+-	ENFILE:       "file table overflow",
+-	EMFILE:       "too many open files",
+-	ENOTTY:       "not a typewriter",
+-	EFBIG:        "file too large",
+-	ENOSPC:       "no space left on device",
+-	ESPIPE:       "illegal seek",
+-	EROFS:        "read-only file system",
+-	EMLINK:       "too many links",
+-	EPIPE:        "broken pipe",
+-	ENAMETOOLONG: "file name too long",
+-	ENOSYS:       "function not implemented",
+-	EDQUOT:       "quota exceeded",
+-	EDOM:         "math arg out of domain of func",
+-	ERANGE:       "math result not representable",
+-	ENOMSG:       "no message of desired type",
+-	ECHRNG:       "channel number out of range",
+-	EL3HLT:       "level 3 halted",
+-	EL3RST:       "level 3 reset",
+-	ELNRNG:       "link number out of range",
+-	EUNATCH:      "protocol driver not attached",
+-	ENOCSI:       "no CSI structure available",
+-	EL2HLT:       "level 2 halted",
+-	EDEADLK:      "deadlock condition",
+-	ENOLCK:       "no record locks available",
+-	EBADE:        "invalid exchange",
+-	EBADR:        "invalid request descriptor",
+-	EXFULL:       "exchange full",
+-	ENOANO:       "no anode",
+-	EBADRQC:      "invalid request code",
+-	EBADSLT:      "invalid slot",
+-	EBFONT:       "bad font file fmt",
+-	ENOSTR:       "device not a stream",
+-	ENODATA:      "no data (for no delay io)",
+-	ETIME:        "timer expired",
+-	ENOSR:        "out of streams resources",
+-	ENONET:       "machine is not on the network",
+-	ENOPKG:       "package not installed",
+-	EREMOTE:      "the object is remote",
+-	ENOLINK:      "the link has been severed",
+-	EADV:         "advertise error",
+-	ESRMNT:       "srmount error",
+-	ECOMM:        "communication error on send",
+-	EPROTO:       "protocol error",
+-	EMULTIHOP:    "multihop attempted",
+-	ELBIN:        "inode is remote (not really error)",
+-	EDOTDOT:      "cross mount point (not really error)",
+-	EBADMSG:      "trying to read unreadable message",
+-	EFTYPE:       "inappropriate file type or format",
+-	ENOTUNIQ:     "given log. name not unique",
+-	EBADFD:       "f.d. invalid for this operation",
+-	EREMCHG:      "remote address changed",
+-	ELIBACC:      "can't access a needed shared lib",
+-	ELIBBAD:      "accessing a corrupted shared lib",
+-	ELIBSCN:      ".lib section in a.out corrupted",
+-	ELIBMAX:      "attempting to link in too many libs",
+-	ELIBEXEC:     "attempting to exec a shared library",
+-	ENMFILE:      "no more files",
+-	ENOTEMPTY:    "directory not empty",
+-	ELOOP:        "too many symbolic links",
+-	EOPNOTSUPP:   "operation not supported on transport endpoint",
+-	EPFNOSUPPORT: "protocol family not supported",
+-	ECONNRESET:   "connection reset by peer",
+-	ENOBUFS:      "no buffer space available",
+-	EAFNOSUPPORT: "address family not supported by protocol family",
++	EPERM:           "operation not permitted",
++	ENOENT:          "no such file or directory",
++	ESRCH:           "no such process",
++	EINTR:           "interrupted system call",
++	EIO:             "I/O error",
++	ENXIO:           "no such device or address",
++	E2BIG:           "argument list too long",
++	ENOEXEC:         "exec format error",
++	EBADF:           "bad file number",
++	ECHILD:          "no child processes",
++	EAGAIN:          "try again",
++	ENOMEM:          "out of memory",
++	EACCES:          "permission denied",
++	EFAULT:          "bad address",
++	EBUSY:           "device or resource busy",
++	EEXIST:          "file exists",
++	EXDEV:           "cross-device link",
++	ENODEV:          "no such device",
++	ENOTDIR:         "not a directory",
++	EISDIR:          "is a directory",
++	EINVAL:          "invalid argument",
++	ENFILE:          "file table overflow",
++	EMFILE:          "too many open files",
++	ENOTTY:          "not a typewriter",
++	EFBIG:           "file too large",
++	ENOSPC:          "no space left on device",
++	ESPIPE:          "illegal seek",
++	EROFS:           "read-only file system",
++	EMLINK:          "too many links",
++	EPIPE:           "broken pipe",
++	ENAMETOOLONG:    "file name too long",
++	ENOSYS:          "function not implemented",
++	EDQUOT:          "quota exceeded",
++	EDOM:            "math arg out of domain of func",
++	ERANGE:          "math result not representable",
++	ENOMSG:          "no message of desired type",
++	ECHRNG:          "channel number out of range",
++	EL3HLT:          "level 3 halted",
++	EL3RST:          "level 3 reset",
++	ELNRNG:          "link number out of range",
++	EUNATCH:         "protocol driver not attached",
++	ENOCSI:          "no CSI structure available",
++	EL2HLT:          "level 2 halted",
++	EDEADLK:         "deadlock condition",
++	ENOLCK:          "no record locks available",
++	EBADE:           "invalid exchange",
++	EBADR:           "invalid request descriptor",
++	EXFULL:          "exchange full",
++	ENOANO:          "no anode",
++	EBADRQC:         "invalid request code",
++	EBADSLT:         "invalid slot",
++	EBFONT:          "bad font file fmt",
++	ENOSTR:          "device not a stream",
++	ENODATA:         "no data (for no delay io)",
++	ETIME:           "timer expired",
++	ENOSR:           "out of streams resources",
++	ENONET:          "machine is not on the network",
++	ENOPKG:          "package not installed",
++	EREMOTE:         "the object is remote",
++	ENOLINK:         "the link has been severed",
++	EADV:            "advertise error",
++	ESRMNT:          "srmount error",
++	ECOMM:           "communication error on send",
++	EPROTO:          "protocol error",
++	EMULTIHOP:       "multihop attempted",
++	ELBIN:           "inode is remote (not really error)",
++	EDOTDOT:         "cross mount point (not really error)",
++	EBADMSG:         "trying to read unreadable message",
++	EFTYPE:          "inappropriate file type or format",
++	ENOTUNIQ:        "given log. name not unique",
++	EBADFD:          "f.d. invalid for this operation",
++	EREMCHG:         "remote address changed",
++	ELIBACC:         "can't access a needed shared lib",
++	ELIBBAD:         "accessing a corrupted shared lib",
++	ELIBSCN:         ".lib section in a.out corrupted",
++	ELIBMAX:         "attempting to link in too many libs",
++	ELIBEXEC:        "attempting to exec a shared library",
++	ENMFILE:         "no more files",
++	ENOTEMPTY:       "directory not empty",
++	ELOOP:           "too many symbolic links",
++	EOPNOTSUPP:      "operation not supported on transport endpoint",
++	EPFNOSUPPORT:    "protocol family not supported",
++	ECONNRESET:      "connection reset by peer",
++	ENOBUFS:         "no buffer space available",
++	EAFNOSUPPORT:    "address family not supported by protocol family",
+ 	EPROTOTYPE:      "protocol wrong type for socket",
+ 	ENOTSOCK:        "socket operation on non-socket",
+ 	ENOPROTOOPT:     "protocol not available",
+diff --git a/src/pkg/unicode/tables.go b/src/pkg/unicode/tables.go
+index 18990b3541..56b478ed06 100644
+--- a/src/pkg/unicode/tables.go
++++ b/src/pkg/unicode/tables.go
+@@ -3090,38 +3090,38 @@ var (
+ 
+ // Properties is the set of Unicode property tables.
+ var Properties = map[string][]Range{
+-	"Pattern_Syntax":          Pattern_Syntax,
+-	"Other_ID_Start":          Other_ID_Start,
+-	"Pattern_White_Space":     Pattern_White_Space,
+-	"Other_Lowercase":         Other_Lowercase,
+-	"Soft_Dotted":             Soft_Dotted,
+-	"Hex_Digit":               Hex_Digit,
+-	"ASCII_Hex_Digit":         ASCII_Hex_Digit,
+-	"Deprecated":              Deprecated,
+-	"Terminal_Punctuation":    Terminal_Punctuation,
+-	"Quotation_Mark":          Quotation_Mark,
+-	"Other_ID_Continue":       Other_ID_Continue,
+-	"Bidi_Control":            Bidi_Control,
+-	"Variation_Selector":      Variation_Selector,
+-	"Noncharacter_Code_Point": Noncharacter_Code_Point,
+-	"Other_Math":              Other_Math,
+-	"Unified_Ideograph":       Unified_Ideograph,
+-	"Hyphen":                  Hyphen,
+-	"IDS_Binary_Operator":     IDS_Binary_Operator,
+-	"Logical_Order_Exception": Logical_Order_Exception,
+-	"Radical":                 Radical,
+-	"Other_Uppercase":         Other_Uppercase,
+-	"STerm":                   STerm,
+-	"Other_Alphabetic":        Other_Alphabetic,
+-	"Diacritic":               Diacritic,
+-	"Extender":                Extender,
+-	"Join_Control":            Join_Control,
+-	"Ideographic":             Ideographic,
+-	"Dash":                    Dash,
+-	"IDS_Trinary_Operator":    IDS_Trinary_Operator,
+-	"Other_Grapheme_Extend":   Other_Grapheme_Extend,
++	"Pattern_Syntax":                     Pattern_Syntax,
++	"Other_ID_Start":                     Other_ID_Start,
++	"Pattern_White_Space":                Pattern_White_Space,
++	"Other_Lowercase":                    Other_Lowercase,
++	"Soft_Dotted":                        Soft_Dotted,
++	"Hex_Digit":                          Hex_Digit,
++	"ASCII_Hex_Digit":                    ASCII_Hex_Digit,
++	"Deprecated":                         Deprecated,
++	"Terminal_Punctuation":               Terminal_Punctuation,
++	"Quotation_Mark":                     Quotation_Mark,
++	"Other_ID_Continue":                  Other_ID_Continue,
++	"Bidi_Control":                       Bidi_Control,
++	"Variation_Selector":                 Variation_Selector,
++	"Noncharacter_Code_Point":            Noncharacter_Code_Point,
++	"Other_Math":                         Other_Math,
++	"Unified_Ideograph":                  Unified_Ideograph,
++	"Hyphen":                             Hyphen,
++	"IDS_Binary_Operator":                IDS_Binary_Operator,
++	"Logical_Order_Exception":            Logical_Order_Exception,
++	"Radical":                            Radical,
++	"Other_Uppercase":                    Other_Uppercase,
++	"STerm":                              STerm,
++	"Other_Alphabetic":                   Other_Alphabetic,
++	"Diacritic":                          Diacritic,
++	"Extender":                           Extender,
++	"Join_Control":                       Join_Control,
++	"Ideographic":                        Ideographic,
++	"Dash":                               Dash,
++	"IDS_Trinary_Operator":               IDS_Trinary_Operator,
++	"Other_Grapheme_Extend":              Other_Grapheme_Extend,
+ 	"Other_Default_Ignorable_Code_Point": Other_Default_Ignorable_Code_Point,
+-	"White_Space": White_Space,
++	"White_Space":                        White_Space,
+ }
+ 
+ var _Pattern_Syntax = []Range{

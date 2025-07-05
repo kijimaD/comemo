@@ -14,7 +14,48 @@ Date:   Fri Feb 18 09:19:47 2022 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types2/decl.go | 2 --
  src/go/types/decl.go                    | 2 --
  2 files changed, 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 0e8f5085ba..579fa55e59 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -569,7 +569,6 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list []*syntax.Fiel
+ 
+ 	// Keep track of bounds for later validation.
+ 	var bound Type
+-	var bounds []Type
+ 	for i, f := range list {
+ 		// Optimization: Re-use the previous type bound if it hasn't changed.
+ 		// This also preserves the grouped output of type parameter lists
+@@ -584,7 +583,6 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list []*syntax.Fiel
+ 				check.error(f.Type, "cannot use a type parameter as constraint")
+ 				bound = Typ[Invalid]
+ 			}
+-			bounds = append(bounds, bound)
+ 		}
+ 		tparams[i].bound = bound
+ 	}
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index cd6f709a56..93a37d76ce 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -624,7 +624,6 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list *ast.FieldList
+ 	}()
+ 
+ 	index := 0
+-	var bounds []Type
+ 	for _, f := range list.List {
+ 		var bound Type
+ 		// NOTE: we may be able to assert that f.Type != nil here, but this is not
+@@ -642,7 +641,6 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list *ast.FieldList
+ 		} else {
+ 			bound = Typ[Invalid]
+ 		}
+-		bounds = append(bounds, bound)
+ 		for i := range f.Names {
+ 			tparams[index+i].bound = bound
+ 		}

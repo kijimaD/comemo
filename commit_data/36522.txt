@@ -18,10 +18,565 @@ Date:   Sun Mar 4 13:40:08 2018 +0100
     Change-Id: I236ea10a70d95cdd50562212f2c18c3db5009230
     Reviewed-on: https://go-review.googlesource.com/109195
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/wasm/wasm_exec.js    |  36 ++++-----
  src/go/build/deps_test.go |   5 +-
  src/syscall/js/js.go      | 190 ++++++++++++++++++++++++++++++++++++++++++++++
  src/syscall/js/js_js.s    |  73 ++++++++++++++++++
  src/syscall/js/js_test.go | 128 +++++++++++++++++++++++++++++++
  5 files changed, 412 insertions(+), 20 deletions(-)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index a929fbcca3..05522f2236 100755
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -172,47 +172,47 @@ async function run() {
+ 			},
+ 
+ 			// func boolVal(value bool) Value
+-			"runtime/js.boolVal": function (sp) {
++			"syscall/js.boolVal": function (sp) {
+ 				storeValue(sp + 16, mem().getUint8(sp + 8) !== 0);
+ 			},
+ 
+ 			// func intVal(value int) Value
+-			"runtime/js.intVal": function (sp) {
++			"syscall/js.intVal": function (sp) {
+ 				storeValue(sp + 16, getInt64(sp + 8));
+ 			},
+ 
+ 			// func floatVal(value float64) Value
+-			"runtime/js.floatVal": function (sp) {
++			"syscall/js.floatVal": function (sp) {
+ 				storeValue(sp + 16, mem().getFloat64(sp + 8, true));
+ 			},
+ 
+ 			// func stringVal(value string) Value
+-			"runtime/js.stringVal": function (sp) {
++			"syscall/js.stringVal": function (sp) {
+ 				storeValue(sp + 24, loadString(sp + 8));
+ 			},
+ 
+ 			// func (v Value) Get(key string) Value
+-			"runtime/js.Value.Get": function (sp) {
++			"syscall/js.Value.Get": function (sp) {
+ 				storeValue(sp + 32, Reflect.get(loadValue(sp + 8), loadString(sp + 16)));
+ 			},
+ 
+ 			// func (v Value) set(key string, value Value)
+-			"runtime/js.Value.set": function (sp) {
++			"syscall/js.Value.set": function (sp) {
+ 				Reflect.set(loadValue(sp + 8), loadString(sp + 16), loadValue(sp + 32));
+ 			},
+ 
+ 			// func (v Value) Index(i int) Value
+-			"runtime/js.Value.Index": function (sp) {
++			"syscall/js.Value.Index": function (sp) {
+ 				storeValue(sp + 24, Reflect.get(loadValue(sp + 8), getInt64(sp + 16)));
+ 			},
+ 
+ 			// func (v Value) setIndex(i int, value Value)
+-			"runtime/js.Value.setIndex": function (sp) {
++			"syscall/js.Value.setIndex": function (sp) {
+ 				Reflect.set(loadValue(sp + 8), getInt64(sp + 16), loadValue(sp + 24));
+ 			},
+ 
+ 			// func (v Value) call(name string, args []Value) (Value, bool)
+-			"runtime/js.Value.call": function (sp) {
++			"syscall/js.Value.call": function (sp) {
+ 				try {
+ 					const v = loadValue(sp + 8);
+ 					const m = Reflect.get(v, loadString(sp + 16));
+@@ -226,7 +226,7 @@ async function run() {
+ 			},
+ 
+ 			// func (v Value) invoke(args []Value) (Value, bool)
+-			"runtime/js.Value.invoke": function (sp) {
++			"syscall/js.Value.invoke": function (sp) {
+ 				try {
+ 					const v = loadValue(sp + 8);
+ 					const args = loadSliceOfValues(sp + 16);
+@@ -238,8 +238,8 @@ async function run() {
+ 				}
+ 			},
+ 
+-			// func (v Value) wasmnew(args []Value) (Value, bool)
+-			"runtime/js.Value.wasmnew": function (sp) {
++			// func (v Value) new(args []Value) (Value, bool)
++			"syscall/js.Value.new": function (sp) {
+ 				try {
+ 					const v = loadValue(sp + 8);
+ 					const args = loadSliceOfValues(sp + 16);
+@@ -252,34 +252,34 @@ async function run() {
+ 			},
+ 
+ 			// func (v Value) Float() float64
+-			"runtime/js.Value.Float": function (sp) {
++			"syscall/js.Value.Float": function (sp) {
+ 				mem().setFloat64(sp + 16, parseFloat(loadValue(sp + 8)), true);
+ 			},
+ 
+ 			// func (v Value) Int() int
+-			"runtime/js.Value.Int": function (sp) {
++			"syscall/js.Value.Int": function (sp) {
+ 				setInt64(sp + 16, parseInt(loadValue(sp + 8)));
+ 			},
+ 
+ 			// func (v Value) Bool() bool
+-			"runtime/js.Value.Bool": function (sp) {
++			"syscall/js.Value.Bool": function (sp) {
+ 				mem().setUint8(sp + 16, !!loadValue(sp + 8));
+ 			},
+ 
+ 			// func (v Value) Length() int
+-			"runtime/js.Value.Length": function (sp) {
++			"syscall/js.Value.Length": function (sp) {
+ 				setInt64(sp + 16, parseInt(loadValue(sp + 8).length));
+ 			},
+ 
+ 			// func (v Value) prepareString() (Value, int)
+-			"runtime/js.Value.prepareString": function (sp) {
++			"syscall/js.Value.prepareString": function (sp) {
+ 				const str = encoder.encode(String(loadValue(sp + 8)));
+ 				storeValue(sp + 16, str);
+ 				setInt64(sp + 24, str.length);
+ 			},
+ 
+ 			// func (v Value) loadString(b []byte)
+-			"runtime/js.Value.loadString": function (sp) {
++			"syscall/js.Value.loadString": function (sp) {
+ 				const str = loadValue(sp + 8);
+ 				loadSlice(sp + 16).set(str);
+ 			},
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 5fcfcb8b83..71ea97280b 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -139,7 +139,8 @@ var pkgDeps = map[string][]string{
+ 	// End of linear dependency definitions.
+ 
+ 	// Operating system access.
+-	"syscall":                           {"L0", "internal/race", "internal/syscall/windows/sysdll", "unicode/utf16"},
++	"syscall":                           {"L0", "internal/race", "internal/syscall/windows/sysdll", "syscall/js", "unicode/utf16"},
++	"syscall/js":                        {"unsafe"},
+ 	"internal/syscall/unix":             {"L0", "syscall"},
+ 	"internal/syscall/windows":          {"L0", "syscall", "internal/syscall/windows/sysdll"},
+ 	"internal/syscall/windows/registry": {"L0", "syscall", "internal/syscall/windows/sysdll", "unicode/utf16"},
+@@ -356,7 +357,7 @@ var pkgDeps = map[string][]string{
+ 	// Random byte, number generation.
+ 	// This would be part of core crypto except that it imports
+ 	// math/big, which imports fmt.
+-	"crypto/rand": {"L4", "CRYPTO", "OS", "math/big", "syscall", "internal/syscall/unix"},
++	"crypto/rand": {"L4", "CRYPTO", "OS", "math/big", "syscall", "syscall/js", "internal/syscall/unix"},
+ 
+ 	// Mathematical crypto: dependencies on fmt (L4) and math/big.
+ 	// We could avoid some of the fmt, but math/big imports fmt anyway.
+diff --git a/src/syscall/js/js.go b/src/syscall/js/js.go
+new file mode 100644
+index 0000000000..9332a26254
+--- /dev/null
++++ b/src/syscall/js/js.go
+@@ -0,0 +1,190 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build js,wasm
++
++// Package js gives access to the WebAssembly host environment when using the js/wasm architecture.
++// Its API is based on JavaScript semantics.
++//
++// This package is EXPERIMENTAL. Its current scope is only to allow tests to run, but not yet to provide a
++// comprehensive API for users. It is exempt from the Go compatibility promise.
++package js
++
++import "unsafe"
++
++// Value represents a JavaScript value.
++type Value struct {
++	ref uint32
++}
++
++// Error wraps a JavaScript error.
++type Error struct {
++	// Value is the underlying JavaScript error value.
++	Value
++}
++
++// Error implements the error interface.
++func (e Error) Error() string {
++	return "JavaScript error: " + e.Get("message").String()
++}
++
++var (
++	// Undefined is the JavaScript value "undefined". The zero Value equals to Undefined.
++	Undefined = Value{0}
++
++	// Null is the JavaScript value "null".
++	Null = Value{1}
++
++	// Global is the JavaScript global object, usually "window" or "global".
++	Global = Value{2}
++
++	memory = Value{3}
++)
++
++var uint8Array = Global.Get("Uint8Array")
++
++// ValueOf returns x as a JavaScript value.
++func ValueOf(x interface{}) Value {
++	switch x := x.(type) {
++	case Value:
++		return x
++	case nil:
++		return Null
++	case bool:
++		return boolVal(x)
++	case int:
++		return intVal(x)
++	case int8:
++		return intVal(int(x))
++	case int16:
++		return intVal(int(x))
++	case int32:
++		return intVal(int(x))
++	case int64:
++		return intVal(int(x))
++	case uint:
++		return intVal(int(x))
++	case uint8:
++		return intVal(int(x))
++	case uint16:
++		return intVal(int(x))
++	case uint32:
++		return intVal(int(x))
++	case uint64:
++		return intVal(int(x))
++	case uintptr:
++		return intVal(int(x))
++	case unsafe.Pointer:
++		return intVal(int(uintptr(x)))
++	case float32:
++		return floatVal(float64(x))
++	case float64:
++		return floatVal(x)
++	case string:
++		return stringVal(x)
++	case []byte:
++		if len(x) == 0 {
++			return uint8Array.New(memory.Get("buffer"), 0, 0)
++		}
++		return uint8Array.New(memory.Get("buffer"), unsafe.Pointer(&x[0]), len(x))
++	default:
++		panic("invalid value")
++	}
++}
++
++func boolVal(x bool) Value
++
++func intVal(x int) Value
++
++func floatVal(x float64) Value
++
++func stringVal(x string) Value
++
++// Get returns the JavaScript property p of value v.
++func (v Value) Get(p string) Value
++
++// Set sets the JavaScript property p of value v to x.
++func (v Value) Set(p string, x interface{}) {
++	v.set(p, ValueOf(x))
++}
++
++func (v Value) set(p string, x Value)
++
++// Index returns JavaScript index i of value v.
++func (v Value) Index(i int) Value
++
++// SetIndex sets the JavaScript index i of value v to x.
++func (v Value) SetIndex(i int, x interface{}) {
++	v.setIndex(i, ValueOf(x))
++}
++
++func (v Value) setIndex(i int, x Value)
++
++func makeArgs(args []interface{}) []Value {
++	argVals := make([]Value, len(args))
++	for i, arg := range args {
++		argVals[i] = ValueOf(arg)
++	}
++	return argVals
++}
++
++// Length returns the JavaScript property "length" of v.
++func (v Value) Length() int
++
++// Call does a JavaScript call to the method m of value v with the given arguments.
++// It panics if v has no method m.
++func (v Value) Call(m string, args ...interface{}) Value {
++	res, ok := v.call(m, makeArgs(args))
++	if !ok {
++		panic(Error{res})
++	}
++	return res
++}
++
++func (v Value) call(m string, args []Value) (Value, bool)
++
++// Invoke does a JavaScript call of the value v with the given arguments.
++// It panics if v is not a function.
++func (v Value) Invoke(args ...interface{}) Value {
++	res, ok := v.invoke(makeArgs(args))
++	if !ok {
++		panic(Error{res})
++	}
++	return res
++}
++
++func (v Value) invoke(args []Value) (Value, bool)
++
++// New uses JavaScript's "new" operator with value v as constructor and the given arguments.
++// It panics if v is not a function.
++func (v Value) New(args ...interface{}) Value {
++	res, ok := v.new(makeArgs(args))
++	if !ok {
++		panic(Error{res})
++	}
++	return res
++}
++
++func (v Value) new(args []Value) (Value, bool)
++
++// Float returns the value v converted to float64 according to JavaScript type conversions (parseFloat).
++func (v Value) Float() float64
++
++// Int returns the value v converted to int according to JavaScript type conversions (parseInt).
++func (v Value) Int() int
++
++// Bool returns the value v converted to bool according to JavaScript type conversions.
++func (v Value) Bool() bool
++
++// String returns the value v converted to string according to JavaScript type conversions.
++func (v Value) String() string {
++	str, length := v.prepareString()
++	b := make([]byte, length)
++	str.loadString(b)
++	return string(b)
++}
++
++func (v Value) prepareString() (Value, int)
++
++func (v Value) loadString(b []byte)
+diff --git a/src/syscall/js/js_js.s b/src/syscall/js/js_js.s
+new file mode 100644
+index 0000000000..f5bc02ec67
+--- /dev/null
++++ b/src/syscall/js/js_js.s
+@@ -0,0 +1,73 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++TEXT ·boolVal(SB), NOSPLIT, $0
++  CallImport
++  RET
++
++TEXT ·intVal(SB), NOSPLIT, $0
++  CallImport
++  RET
++
++TEXT ·floatVal(SB), NOSPLIT, $0
++  CallImport
++  RET
++
++TEXT ·stringVal(SB), NOSPLIT, $0
++  CallImport
++  RET
++
++TEXT ·Value·Get(SB), NOSPLIT, $0
++  CallImport
++  RET
++
++TEXT ·Value·set(SB), NOSPLIT, $0
++  CallImport
++  RET
++
++TEXT ·Value·Index(SB), NOSPLIT, $0
++  CallImport
++  RET
++
++TEXT ·Value·setIndex(SB), NOSPLIT, $0
++  CallImport
++  RET
++
++TEXT ·Value·call(SB), NOSPLIT, $0
++  CallImport
++  RET
++
++TEXT ·Value·invoke(SB), NOSPLIT, $0
++  CallImport
++  RET
++
++TEXT ·Value·new(SB), NOSPLIT, $0
++  CallImport
++  RET
++
++TEXT ·Value·Float(SB), NOSPLIT, $0
++  CallImport
++  RET
++
++TEXT ·Value·Int(SB), NOSPLIT, $0
++  CallImport
++  RET
++
++TEXT ·Value·Bool(SB), NOSPLIT, $0
++  CallImport
++  RET
++
++TEXT ·Value·Length(SB), NOSPLIT, $0
++  CallImport
++  RET
++
++TEXT ·Value·prepareString(SB), NOSPLIT, $0
++  CallImport
++  RET
++
++TEXT ·Value·loadString(SB), NOSPLIT, $0
++  CallImport
++  RET
+diff --git a/src/syscall/js/js_test.go b/src/syscall/js/js_test.go
+new file mode 100644
+index 0000000000..39e3744a99
+--- /dev/null
++++ b/src/syscall/js/js_test.go
+@@ -0,0 +1,128 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build js,wasm
++
++package js_test
++
++import (
++	"syscall/js"
++	"testing"
++)
++
++var dummys = js.Global.Call("eval", `({
++	someBool: true,
++	someString: "abc\u1234",
++	someInt: 42,
++	someFloat: 42.123,
++	someArray: [41, 42, 43],
++	add: function(a, b) {
++		return a + b;
++	},
++})`)
++
++func TestBool(t *testing.T) {
++	want := true
++	o := dummys.Get("someBool")
++	if got := o.Bool(); got != want {
++		t.Errorf("got %#v, want %#v", got, want)
++	}
++	dummys.Set("otherBool", want)
++	if got := dummys.Get("otherBool").Bool(); got != want {
++		t.Errorf("got %#v, want %#v", got, want)
++	}
++}
++
++func TestString(t *testing.T) {
++	want := "abc\u1234"
++	o := dummys.Get("someString")
++	if got := o.String(); got != want {
++		t.Errorf("got %#v, want %#v", got, want)
++	}
++	dummys.Set("otherString", want)
++	if got := dummys.Get("otherString").String(); got != want {
++		t.Errorf("got %#v, want %#v", got, want)
++	}
++}
++
++func TestInt(t *testing.T) {
++	want := 42
++	o := dummys.Get("someInt")
++	if got := o.Int(); got != want {
++		t.Errorf("got %#v, want %#v", got, want)
++	}
++	dummys.Set("otherInt", want)
++	if got := dummys.Get("otherInt").Int(); got != want {
++		t.Errorf("got %#v, want %#v", got, want)
++	}
++}
++
++func TestFloat(t *testing.T) {
++	want := 42.123
++	o := dummys.Get("someFloat")
++	if got := o.Float(); got != want {
++		t.Errorf("got %#v, want %#v", got, want)
++	}
++	dummys.Set("otherFloat", want)
++	if got := dummys.Get("otherFloat").Float(); got != want {
++		t.Errorf("got %#v, want %#v", got, want)
++	}
++}
++
++func TestUndefined(t *testing.T) {
++	dummys.Set("test", js.Undefined)
++	if dummys == js.Undefined || dummys.Get("test") != js.Undefined || dummys.Get("xyz") != js.Undefined {
++		t.Errorf("js.Undefined expected")
++	}
++}
++
++func TestNull(t *testing.T) {
++	dummys.Set("test1", nil)
++	dummys.Set("test2", js.Null)
++	if dummys == js.Null || dummys.Get("test1") != js.Null || dummys.Get("test2") != js.Null {
++		t.Errorf("js.Null expected")
++	}
++}
++
++func TestLength(t *testing.T) {
++	if got := dummys.Get("someArray").Length(); got != 3 {
++		t.Errorf("got %#v, want %#v", got, 3)
++	}
++}
++
++func TestIndex(t *testing.T) {
++	if got := dummys.Get("someArray").Index(1).Int(); got != 42 {
++		t.Errorf("got %#v, want %#v", got, 42)
++	}
++}
++
++func TestSetIndex(t *testing.T) {
++	dummys.Get("someArray").SetIndex(2, 99)
++	if got := dummys.Get("someArray").Index(2).Int(); got != 99 {
++		t.Errorf("got %#v, want %#v", got, 99)
++	}
++}
++
++func TestCall(t *testing.T) {
++	var i int64 = 40
++	if got := dummys.Call("add", i, 2).Int(); got != 42 {
++		t.Errorf("got %#v, want %#v", got, 42)
++	}
++	if got := dummys.Call("add", js.Global.Call("eval", "40"), 2).Int(); got != 42 {
++		t.Errorf("got %#v, want %#v", got, 42)
++	}
++}
++
++func TestInvoke(t *testing.T) {
++	var i int64 = 40
++	if got := dummys.Get("add").Invoke(i, 2).Int(); got != 42 {
++		t.Errorf("got %#v, want %#v", got, 42)
++	}
++}
++
++func TestNew(t *testing.T) {
++	if got := js.Global.Get("Array").New(42).Length(); got != 42 {
++		t.Errorf("got %#v, want %#v", got, 42)
++	}
++}

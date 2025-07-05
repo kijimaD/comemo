@@ -12,7 +12,34 @@ Date:   Sun Sep 18 02:37:36 2022 +1000
     Run-TryBot: Joel Sing <joel@sing.id.au>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/dist/build.go            | 2 +-
  src/internal/platform/zosarch.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index c6254b0e7c..51bb63c519 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1744,7 +1744,7 @@ var cgoEnabled = map[string]bool{
+ 	"openbsd/arm64":   true,
+ 	"openbsd/mips64":  true,
+ 	"openbsd/ppc64":   false,
+-	"openbsd/riscv64": false,
++	"openbsd/riscv64": true,
+ 	"plan9/386":       false,
+ 	"plan9/amd64":     false,
+ 	"plan9/arm":       false,
+diff --git a/src/internal/platform/zosarch.go b/src/internal/platform/zosarch.go
+index af78b4b220..1df348518c 100644
+--- a/src/internal/platform/zosarch.go
++++ b/src/internal/platform/zosarch.go
+@@ -103,7 +103,7 @@ var distInfo = map[OSArch]osArchInfo{
+ 	{"openbsd", "arm64"}:   {CgoSupported: true},
+ 	{"openbsd", "mips64"}:  {CgoSupported: true, Broken: true},
+ 	{"openbsd", "ppc64"}:   {},
+-	{"openbsd", "riscv64"}: {},
++	{"openbsd", "riscv64"}: {CgoSupported: true},
+ 	{"plan9", "386"}:       {},
+ 	{"plan9", "amd64"}:     {},
+ 	{"plan9", "arm"}:       {},

@@ -18,7 +18,7 @@ Date:   Fri Jun 19 21:02:28 2015 -0700
     Change-Id: Ibdccdaea4bbc63a1f4882959ac374f2b467e3acd
     Reviewed-on: https://go-review.googlesource.com/11238
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 171 ++++++++++++++++++-------
  src/cmd/compile/internal/ssa/TODO              |   8 ++
  src/cmd/compile/internal/ssa/check.go          |   6 +
@@ -38,3 +38,1511 @@ Date:   Fri Jun 19 21:02:28 2015 -0700
  src/cmd/compile/internal/ssa/stackalloc.go     |  58 +++------
  src/cmd/compile/internal/ssa/value.go          |  37 ++++++
  18 files changed, 425 insertions(+), 234 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 0dd2e44ec5..4e0f4b0cc6 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -9,7 +9,7 @@ import (
+ 
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/internal/obj"
+-	"cmd/internal/obj/x86" // TODO: remove
++	"cmd/internal/obj/x86"
+ )
+ 
+ // buildssa builds an SSA function
+@@ -60,13 +60,28 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
+ 	s.exit = s.f.NewBlock(ssa.BlockExit)
+ 
+ 	// Allocate starting values
++	s.vars = map[*Node]*ssa.Value{}
++	s.labels = map[string]*ssa.Block{}
+ 	s.startmem = s.entryNewValue0(ssa.OpArg, ssa.TypeMem)
+-	s.fp = s.entryNewValue0(ssa.OpFP, s.config.Uintptr) // TODO: use generic pointer type (unsafe.Pointer?) instead
+-	s.sp = s.entryNewValue0(ssa.OpSP, s.config.Uintptr)
++	s.sp = s.entryNewValue0(ssa.OpSP, s.config.Uintptr) // TODO: use generic pointer type (unsafe.Pointer?) instead
++	s.sb = s.entryNewValue0(ssa.OpSB, s.config.Uintptr)
+ 
+-	s.vars = map[string]*ssa.Value{}
+-	s.labels = map[string]*ssa.Block{}
+-	s.argOffsets = map[string]int64{}
++	// Generate addresses of local declarations
++	s.decladdrs = map[*Node]*ssa.Value{}
++	for d := fn.Func.Dcl; d != nil; d = d.Next {
++		n := d.N
++		switch n.Class {
++		case PPARAM, PPARAMOUT:
++			aux := &ssa.ArgSymbol{Typ: n.Type, Offset: n.Xoffset, Sym: n.Sym}
++			s.decladdrs[n] = s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
++		case PAUTO:
++			aux := &ssa.AutoSymbol{Typ: n.Type, Offset: -1, Sym: n.Sym} // offset TBD by SSA pass
++			s.decladdrs[n] = s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
++		}
++	}
++	// nodfp is a special argument which is the function's FP.
++	aux := &ssa.ArgSymbol{Typ: s.config.Uintptr, Offset: 0, Sym: nodfp.Sym}
++	s.decladdrs[nodfp] = s.entryNewValue1A(ssa.OpAddr, s.config.Uintptr, aux, s.sp)
+ 
+ 	// Convert the AST-based IR to the SSA-based IR
+ 	s.startBlock(s.f.Entry)
+@@ -116,20 +131,20 @@ type state struct {
+ 	// current location where we're interpreting the AST
+ 	curBlock *ssa.Block
+ 
+-	// variable assignments in the current block (map from variable name to ssa value)
+-	vars map[string]*ssa.Value
++	// variable assignments in the current block (map from variable symbol to ssa value)
++	// *Node is the unique identifier (an ONAME Node) for the variable.
++	vars map[*Node]*ssa.Value
+ 
+ 	// all defined variables at the end of each block.  Indexed by block ID.
+-	defvars []map[string]*ssa.Value
++	defvars []map[*Node]*ssa.Value
+ 
+-	// offsets of argument slots
+-	// unnamed and unused args are not listed.
+-	argOffsets map[string]int64
++	// addresses of PPARAM, PPARAMOUT, and PAUTO variables.
++	decladdrs map[*Node]*ssa.Value
+ 
+ 	// starting values.  Memory, frame pointer, and stack pointer
+ 	startmem *ssa.Value
+-	fp       *ssa.Value
+ 	sp       *ssa.Value
++	sb       *ssa.Value
+ 
+ 	// line number stack.  The current line number is top of stack
+ 	line []int32
+@@ -138,13 +153,16 @@ type state struct {
+ func (s *state) Fatalf(msg string, args ...interface{})         { s.config.Fatalf(msg, args...) }
+ func (s *state) Unimplementedf(msg string, args ...interface{}) { s.config.Unimplementedf(msg, args...) }
+ 
++// dummy node for the memory variable
++var memvar = Node{Op: ONAME, Sym: &Sym{Name: "mem"}}
++
+ // startBlock sets the current block we're generating code in to b.
+ func (s *state) startBlock(b *ssa.Block) {
+ 	if s.curBlock != nil {
+ 		s.Fatalf("starting block %v when block %v has not ended", b, s.curBlock)
+ 	}
+ 	s.curBlock = b
+-	s.vars = map[string]*ssa.Value{}
++	s.vars = map[*Node]*ssa.Value{}
+ }
+ 
+ // endBlock marks the end of generating code for the current block.
+@@ -230,6 +248,11 @@ func (s *state) entryNewValue1I(op ssa.Op, t ssa.Type, auxint int64, arg *ssa.Va
+ 	return s.f.Entry.NewValue1I(s.peekLine(), op, t, auxint, arg)
+ }
+ 
++// entryNewValue1A adds a new value with one argument and an aux value to the entry block.
++func (s *state) entryNewValue1A(op ssa.Op, t ssa.Type, aux interface{}, arg *ssa.Value) *ssa.Value {
++	return s.f.Entry.NewValue1A(s.peekLine(), op, t, aux, arg)
++}
++
+ // entryNewValue2 adds a new value with two arguments to the entry block.
+ func (s *state) entryNewValue2(op ssa.Op, t ssa.Type, arg0, arg1 *ssa.Value) *ssa.Value {
+ 	return s.f.Entry.NewValue2(s.peekLine(), op, t, arg0, arg1)
+@@ -394,11 +417,12 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 	case ONAME:
+ 		if n.Class == PFUNC {
+ 			// "value" of a function is the address of the function's closure
+-			return s.entryNewValue0A(ssa.OpGlobal, Ptrto(n.Type), funcsym(n.Sym))
++			sym := funcsym(n.Sym)
++			aux := &ssa.ExternSymbol{n.Type, sym}
++			return s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sb)
+ 		}
+-		s.argOffsets[n.Sym.Name] = n.Xoffset // TODO: remember this another way?
+ 		if canSSA(n) {
+-			return s.variable(n.Sym.Name, n.Type)
++			return s.variable(n, n.Type)
+ 		}
+ 		addr := s.addr(n)
+ 		return s.newValue2(ssa.OpLoad, n.Type, addr, s.mem())
+@@ -540,12 +564,12 @@ func (s *state) assign(op uint8, left *Node, right *Node) {
+ 	}
+ 	if left.Op == ONAME && canSSA(left) {
+ 		// Update variable assignment.
+-		s.vars[left.Sym.Name] = val
++		s.vars[left] = val
+ 		return
+ 	}
+ 	// not ssa-able.  Treat as a store.
+ 	addr := s.addr(left)
+-	s.vars[".mem"] = s.newValue3(ssa.OpStore, ssa.TypeMem, addr, val, s.mem())
++	s.vars[&memvar] = s.newValue3(ssa.OpStore, ssa.TypeMem, addr, val, s.mem())
+ }
+ 
+ // addr converts the address of the expression n to SSA, adds it to s and returns the SSA result.
+@@ -555,14 +579,14 @@ func (s *state) addr(n *Node) *ssa.Value {
+ 		switch n.Class {
+ 		case PEXTERN:
+ 			// global variable
+-			return s.entryNewValue0A(ssa.OpGlobal, Ptrto(n.Type), n.Sym)
+-		case PPARAMOUT:
+-			// store to parameter slot
+-			return s.entryNewValue1I(ssa.OpOffPtr, Ptrto(n.Type), n.Xoffset, s.fp)
++			aux := &ssa.ExternSymbol{n.Type, n.Sym}
++			return s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sb)
++		case PPARAM, PPARAMOUT, PAUTO:
++			// parameter/result slot or local variable
++			return s.decladdrs[n]
+ 		case PAUTO | PHEAP:
+ 			return s.expr(n.Name.Heapaddr)
+ 		default:
+-			// TODO: address of locals
+ 			s.Unimplementedf("variable address of %v not implemented", n)
+ 			return nil
+ 		}
+@@ -647,7 +671,7 @@ func (s *state) boundsCheck(idx, len *ssa.Value) {
+ }
+ 
+ // variable returns the value of a variable at the current location.
+-func (s *state) variable(name string, t ssa.Type) *ssa.Value {
++func (s *state) variable(name *Node, t ssa.Type) *ssa.Value {
+ 	if s.curBlock == nil {
+ 		// Unimplemented instead of Fatal because fixedbugs/bug303.go
+ 		// demonstrates a case in which this appears to happen legitimately.
+@@ -664,7 +688,7 @@ func (s *state) variable(name string, t ssa.Type) *ssa.Value {
+ }
+ 
+ func (s *state) mem() *ssa.Value {
+-	return s.variable(".mem", ssa.TypeMem)
++	return s.variable(&memvar, ssa.TypeMem)
+ }
+ 
+ func (s *state) linkForwardReferences() {
+@@ -679,7 +703,7 @@ func (s *state) linkForwardReferences() {
+ 			if v.Op != ssa.OpFwdRef {
+ 				continue
+ 			}
+-			name := v.Aux.(string)
++			name := v.Aux.(*Node)
+ 			v.Op = ssa.OpCopy
+ 			v.Aux = nil
+ 			v.SetArgs1(s.lookupVarIncoming(b, v.Type, name))
+@@ -688,17 +712,23 @@ func (s *state) linkForwardReferences() {
+ }
+ 
+ // lookupVarIncoming finds the variable's value at the start of block b.
+-func (s *state) lookupVarIncoming(b *ssa.Block, t ssa.Type, name string) *ssa.Value {
++func (s *state) lookupVarIncoming(b *ssa.Block, t ssa.Type, name *Node) *ssa.Value {
+ 	// TODO(khr): have lookupVarIncoming overwrite the fwdRef or copy it
+ 	// will be used in, instead of having the result used in a copy value.
+ 	if b == s.f.Entry {
+-		if name == ".mem" {
++		if name == &memvar {
+ 			return s.startmem
+ 		}
+ 		// variable is live at the entry block.  Load it.
+-		addr := s.entryNewValue1I(ssa.OpOffPtr, Ptrto(t.(*Type)), s.argOffsets[name], s.fp)
++		addr := s.decladdrs[name]
++		if addr == nil {
++			// TODO: closure args reach here.
++			s.Unimplementedf("variable %s not found", name)
++		}
++		if _, ok := addr.Aux.(*ssa.ArgSymbol); !ok {
++			s.Fatalf("variable live at start of function %s is not an argument %s", b.Func.Name, name)
++		}
+ 		return s.entryNewValue2(ssa.OpLoad, t, addr, s.startmem)
+-
+ 	}
+ 	var vals []*ssa.Value
+ 	for _, p := range b.Preds {
+@@ -721,7 +751,7 @@ func (s *state) lookupVarIncoming(b *ssa.Block, t ssa.Type, name string) *ssa.Va
+ }
+ 
+ // lookupVarOutgoing finds the variable's value at the end of block b.
+-func (s *state) lookupVarOutgoing(b *ssa.Block, t ssa.Type, name string) *ssa.Value {
++func (s *state) lookupVarOutgoing(b *ssa.Block, t ssa.Type, name *Node) *ssa.Value {
+ 	m := s.defvars[b.ID]
+ 	if v, ok := m[name]; ok {
+ 		return v
+@@ -962,13 +992,20 @@ func genValue(v *ssa.Value) {
+ 		p.From.Type = obj.TYPE_REG
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+-	case ssa.OpAMD64LEAQ:
++	case ssa.OpAMD64LEAQ1:
+ 		p := Prog(x86.ALEAQ)
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Reg = regnum(v.Args[0])
+ 		p.From.Scale = 1
+ 		p.From.Index = regnum(v.Args[1])
+-		p.From.Offset = v.AuxInt
++		addAux(&p.From, v)
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = regnum(v)
++	case ssa.OpAMD64LEAQ:
++		p := Prog(x86.ALEAQ)
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = regnum(v.Args[0])
++		addAux(&p.From, v)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = regnum(v)
+ 	case ssa.OpAMD64CMPQ, ssa.OpAMD64TESTB, ssa.OpAMD64TESTQ:
+@@ -994,14 +1031,14 @@ func genValue(v *ssa.Value) {
+ 		p := Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Reg = regnum(v.Args[0])
+-		p.From.Offset = v.AuxInt
++		addAux(&p.From, v)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = regnum(v)
+ 	case ssa.OpAMD64MOVQloadidx8:
+ 		p := Prog(x86.AMOVQ)
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Reg = regnum(v.Args[0])
+-		p.From.Offset = v.AuxInt
++		addAux(&p.From, v)
+ 		p.From.Scale = 8
+ 		p.From.Index = regnum(v.Args[1])
+ 		p.To.Type = obj.TYPE_REG
+@@ -1012,7 +1049,7 @@ func genValue(v *ssa.Value) {
+ 		p.From.Reg = regnum(v.Args[1])
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Reg = regnum(v.Args[0])
+-		p.To.Offset = v.AuxInt
++		addAux(&p.To, v)
+ 	case ssa.OpAMD64MOVLQSX, ssa.OpAMD64MOVWQSX, ssa.OpAMD64MOVBQSX:
+ 		p := Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+@@ -1062,14 +1099,6 @@ func genValue(v *ssa.Value) {
+ 	case ssa.OpArg:
+ 		// memory arg needs no code
+ 		// TODO: check that only mem arg goes here.
+-	case ssa.OpAMD64LEAQglobal:
+-		p := Prog(x86.ALEAQ)
+-		p.From.Type = obj.TYPE_MEM
+-		p.From.Name = obj.NAME_EXTERN
+-		p.From.Sym = Linksym(v.Aux.(*Sym))
+-		p.From.Offset = v.AuxInt
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = regnum(v)
+ 	case ssa.OpAMD64CALLstatic:
+ 		p := Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+@@ -1079,7 +1108,7 @@ func genValue(v *ssa.Value) {
+ 		p := Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = regnum(v.Args[0])
+-	case ssa.OpFP, ssa.OpSP:
++	case ssa.OpSP, ssa.OpSB:
+ 		// nothing to do
+ 	default:
+ 		v.Unimplementedf("value %s not implemented", v.LongString())
+@@ -1195,6 +1224,35 @@ func genBlock(b, next *ssa.Block, branches []branch) []branch {
+ 	return branches
+ }
+ 
++// addAux adds the offset in the aux fields (AuxInt and Aux) of v to a.
++func addAux(a *obj.Addr, v *ssa.Value) {
++	if a.Type != obj.TYPE_MEM {
++		v.Fatalf("bad addAux addr %s", a)
++	}
++	// add integer offset
++	a.Offset += v.AuxInt
++
++	// If no additional symbol offset, we're done.
++	if v.Aux == nil {
++		return
++	}
++	// Add symbol's offset from its base register.
++	switch sym := v.Aux.(type) {
++	case *ssa.ExternSymbol:
++		a.Name = obj.NAME_EXTERN
++		a.Sym = Linksym(sym.Sym.(*Sym))
++	case *ssa.ArgSymbol:
++		a.Offset += v.Block.Func.FrameSize + sym.Offset
++	case *ssa.AutoSymbol:
++		if sym.Offset == -1 {
++			v.Fatalf("auto symbol %s offset not calculated", sym.Sym)
++		}
++		a.Offset += sym.Offset
++	default:
++		v.Fatalf("aux in %s not implemented %#v", v, v.Aux)
++	}
++}
++
+ // ssaRegToReg maps ssa register numbers to obj register numbers.
+ var ssaRegToReg = [...]int16{
+ 	x86.REG_AX,
+@@ -1213,7 +1271,23 @@ var ssaRegToReg = [...]int16{
+ 	x86.REG_R13,
+ 	x86.REG_R14,
+ 	x86.REG_R15,
+-	// TODO: more
++	x86.REG_X0,
++	x86.REG_X1,
++	x86.REG_X2,
++	x86.REG_X3,
++	x86.REG_X4,
++	x86.REG_X5,
++	x86.REG_X6,
++	x86.REG_X7,
++	x86.REG_X8,
++	x86.REG_X9,
++	x86.REG_X10,
++	x86.REG_X11,
++	x86.REG_X12,
++	x86.REG_X13,
++	x86.REG_X14,
++	x86.REG_X15,
++	0, // SB isn't a real register.  We fill an Addr.Reg field with 0 in this case.
+ 	// TODO: arch-dependent
+ }
+ 
+@@ -1240,7 +1314,8 @@ type ssaExport struct {
+ // StringSym returns a symbol (a *Sym wrapped in an interface) which
+ // is a global string constant containing s.
+ func (*ssaExport) StringSym(s string) interface{} {
+-	return stringsym(s)
++	// TODO: is idealstring correct?  It might not matter...
++	return &ssa.ExternSymbol{Typ: idealstring, Sym: stringsym(s)}
+ }
+ 
+ // Log logs a message from the compiler.
+diff --git a/src/cmd/compile/internal/ssa/TODO b/src/cmd/compile/internal/ssa/TODO
+index 66841c36f0..30d49044e1 100644
+--- a/src/cmd/compile/internal/ssa/TODO
++++ b/src/cmd/compile/internal/ssa/TODO
+@@ -28,6 +28,14 @@ Regalloc
+  - Floating point registers
+  - Make calls clobber all registers
+ 
++StackAlloc:
++ - Compute size of outargs section correctly
++ - Sort variables so all ptr-containing ones are first (so stack
++   maps are smaller)
++ - Reuse stack slots for noninterfering and type-compatible variables
++   (both AUTOs and spilled Values).  But see issue 8740 for what
++   "type-compatible variables" mean and what DWARF information provides.
++
+ Rewrites
+  - Strength reduction (both arch-indep and arch-dependent?)
+  - Start another architecture (arm?)
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index 672aeda96a..1ca6e36ae7 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -104,6 +104,12 @@ func checkFunc(f *Func) {
+ 				f.Fatalf("phi length %s does not match pred length %d for block %s", v.LongString(), len(b.Preds), b)
+ 			}
+ 
++			if v.Op == OpAddr {
++				if v.Args[0].Op != OpSP && v.Args[0].Op != OpSB {
++					f.Fatalf("bad arg to OpAddr %v", v)
++				}
++			}
++
+ 			// TODO: check for cycles in values
+ 			// TODO: check type
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/deadstore.go b/src/cmd/compile/internal/ssa/deadstore.go
+index 9d138e3ac1..db3808639a 100644
+--- a/src/cmd/compile/internal/ssa/deadstore.go
++++ b/src/cmd/compile/internal/ssa/deadstore.go
+@@ -56,7 +56,7 @@ func dse(f *Func) {
+ 				continue
+ 			}
+ 			if last != nil {
+-				b.Fatalf("two final stores - simultaneous live stores", last, v)
++				b.Fatalf("two final stores - simultaneous live stores %s %s", last, v)
+ 			}
+ 			last = v
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/deadstore_test.go b/src/cmd/compile/internal/ssa/deadstore_test.go
+index 48ea066aa3..042e7f66ff 100644
+--- a/src/cmd/compile/internal/ssa/deadstore_test.go
++++ b/src/cmd/compile/internal/ssa/deadstore_test.go
+@@ -15,8 +15,8 @@ func TestDeadStore(t *testing.T) {
+ 		Bloc("entry",
+ 			Valu("start", OpArg, TypeMem, 0, ".mem"),
+ 			Valu("v", OpConst, TypeBool, 0, true),
+-			Valu("addr1", OpGlobal, ptrType, 0, nil),
+-			Valu("addr2", OpGlobal, ptrType, 0, nil),
++			Valu("addr1", OpAddr, ptrType, 0, nil),
++			Valu("addr2", OpAddr, ptrType, 0, nil),
+ 			Valu("store1", OpStore, TypeMem, 0, nil, "addr1", "v", "start"),
+ 			Valu("store2", OpStore, TypeMem, 0, nil, "addr2", "v", "store1"),
+ 			Valu("store3", OpStore, TypeMem, 0, nil, "addr1", "v", "store2"),
+@@ -41,7 +41,7 @@ func TestDeadStorePhi(t *testing.T) {
+ 		Bloc("entry",
+ 			Valu("start", OpArg, TypeMem, 0, ".mem"),
+ 			Valu("v", OpConst, TypeBool, 0, true),
+-			Valu("addr", OpGlobal, ptrType, 0, nil),
++			Valu("addr", OpAddr, ptrType, 0, nil),
+ 			Goto("loop")),
+ 		Bloc("loop",
+ 			Valu("phi", OpPhi, TypeMem, 0, nil, "start", "store"),
+@@ -67,8 +67,8 @@ func TestDeadStoreTypes(t *testing.T) {
+ 		Bloc("entry",
+ 			Valu("start", OpArg, TypeMem, 0, ".mem"),
+ 			Valu("v", OpConst, TypeBool, 0, true),
+-			Valu("addr1", OpGlobal, t1, 0, nil),
+-			Valu("addr2", OpGlobal, t2, 0, nil),
++			Valu("addr1", OpAddr, t1, 0, nil),
++			Valu("addr2", OpAddr, t2, 0, nil),
+ 			Valu("store1", OpStore, TypeMem, 0, nil, "addr1", "v", "start"),
+ 			Valu("store2", OpStore, TypeMem, 0, nil, "addr2", "v", "store1"),
+ 			Goto("exit")),
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index aa4e807712..124b13b6f2 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -68,6 +68,8 @@
+ 
+ (Const <t> [val]) && t.IsInteger() -> (MOVQconst [val])
+ 
++(Addr {sym} base) -> (LEAQ {sym} base)
++
+ // block rewrites
+ (If (SETL cmp) yes no) -> (LT cmp yes no)
+ (If (SETNE cmp) yes no) -> (NE cmp yes no)
+@@ -80,9 +82,6 @@
+ // Rules below here apply some simple optimizations after lowering.
+ // TODO: Should this be a separate pass?
+ 
+-// global loads/stores
+-(Global {sym}) -> (LEAQglobal {sym})
+-
+ // fold constants into instructions
+ (ADDQ x (MOVQconst [c])) -> (ADDQconst [c] x) // TODO: restrict c to int32 range?
+ (ADDQ (MOVQconst [c]) x) -> (ADDQconst [c] x)
+@@ -119,6 +118,11 @@
+ (MOVQload [off1] (ADDQconst [off2] ptr) mem) -> (MOVQload [addOff(off1, off2)] ptr mem)
+ (MOVQstore [off1] (ADDQconst [off2] ptr) val mem) -> (MOVQstore [addOff(off1, off2)] ptr val mem)
+ 
++(MOVQload [off1] {sym1} (LEAQ [off2] {sym2} base) mem) && (sym1 == nil || sym2 == nil) ->
++	  (MOVQload [addOff(off1,off2)] {mergeSym(sym1,sym2)} base mem)
++(MOVQstore [off1] {sym1} (LEAQ [off2] {sym2} base) val mem) && (sym1 == nil || sym2 == nil) ->
++	   (MOVQstore [addOff(off1,off2)] {mergeSym(sym1,sym2)} base val mem)
++
+ // indexed loads and stores
+ (MOVQload [off1] (LEAQ8 [off2] ptr idx) mem) -> (MOVQloadidx8 [addOff(off1, off2)] ptr idx mem)
+ (MOVQstore [off1] (LEAQ8 [off2] ptr idx) val mem) -> (MOVQstoreidx8 [addOff(off1, off2)] ptr idx val mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 3733ba9721..c0f36b51b3 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -42,7 +42,7 @@ var regNamesAMD64 = []string{
+ 	".X15",
+ 
+ 	// pseudo-registers
+-	".FP",
++	".SB",
+ 	".FLAGS",
+ }
+ 
+@@ -71,19 +71,22 @@ func init() {
+ 	}
+ 
+ 	gp := buildReg("AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15")
+-	gpsp := gp | buildReg("SP FP")
++	gpsp := gp | buildReg("SP")
++	gpspsb := gpsp | buildReg("SB")
+ 	flags := buildReg("FLAGS")
+ 	gp01 := regInfo{[]regMask{}, 0, []regMask{gp}}
+ 	gp11 := regInfo{[]regMask{gpsp}, 0, []regMask{gp}}
++	gp11sb := regInfo{[]regMask{gpspsb}, 0, []regMask{gp}}
+ 	gp21 := regInfo{[]regMask{gpsp, gpsp}, 0, []regMask{gp}}
++	gp21sb := regInfo{[]regMask{gpspsb, gpsp}, 0, []regMask{gp}}
+ 	gp21shift := regInfo{[]regMask{gpsp, buildReg("CX")}, 0, []regMask{gp}}
+ 	gp2flags := regInfo{[]regMask{gpsp, gpsp}, 0, []regMask{flags}}
+ 	gp1flags := regInfo{[]regMask{gpsp}, 0, []regMask{flags}}
+ 	flagsgp1 := regInfo{[]regMask{flags}, 0, []regMask{gp}}
+-	gpload := regInfo{[]regMask{gpsp, 0}, 0, []regMask{gp}}
+-	gploadidx := regInfo{[]regMask{gpsp, gpsp, 0}, 0, []regMask{gp}}
+-	gpstore := regInfo{[]regMask{gpsp, gpsp, 0}, 0, nil}
+-	gpstoreidx := regInfo{[]regMask{gpsp, gpsp, gpsp, 0}, 0, nil}
++	gpload := regInfo{[]regMask{gpspsb, 0}, 0, []regMask{gp}}
++	gploadidx := regInfo{[]regMask{gpspsb, gpsp, 0}, 0, []regMask{gp}}
++	gpstore := regInfo{[]regMask{gpspsb, gpsp, 0}, 0, nil}
++	gpstoreidx := regInfo{[]regMask{gpspsb, gpsp, gpsp, 0}, 0, nil}
+ 	flagsgp := regInfo{[]regMask{flags}, 0, []regMask{gp}}
+ 	cmov := regInfo{[]regMask{flags, gp, gp}, 0, []regMask{gp}}
+ 
+@@ -129,12 +132,12 @@ func init() {
+ 		{name: "MOVWQSX", reg: gp11, asm: "MOVWQSX"}, // extend arg0 from int16 to int64
+ 		{name: "MOVBQSX", reg: gp11, asm: "MOVBQSX"}, // extend arg0 from int8 to int64
+ 
+-		{name: "MOVQconst", reg: gp01},  // auxint
+-		{name: "LEAQ", reg: gp21},       // arg0 + arg1 + auxint
+-		{name: "LEAQ2", reg: gp21},      // arg0 + 2*arg1 + auxint
+-		{name: "LEAQ4", reg: gp21},      // arg0 + 4*arg1 + auxint
+-		{name: "LEAQ8", reg: gp21},      // arg0 + 8*arg1 + auxint
+-		{name: "LEAQglobal", reg: gp01}, // no args.  address of aux.(*gc.Sym)
++		{name: "MOVQconst", reg: gp01}, // auxint
++		{name: "LEAQ", reg: gp11sb},    // arg0 + auxint + offset encoded in aux
++		{name: "LEAQ1", reg: gp21sb},   // arg0 + arg1 + auxint
++		{name: "LEAQ2", reg: gp21sb},   // arg0 + 2*arg1 + auxint
++		{name: "LEAQ4", reg: gp21sb},   // arg0 + 4*arg1 + auxint
++		{name: "LEAQ8", reg: gp21sb},   // arg0 + 8*arg1 + auxint
+ 
+ 		{name: "MOVBload", reg: gpload, asm: "MOVB"},        // load byte from arg0+auxint. arg1=mem
+ 		{name: "MOVBQZXload", reg: gpload},                  // ditto, extend to uint64
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 9d08a35f1f..9f11a60a6b 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -40,7 +40,7 @@
+ (Store dst (Load <t> src mem) mem) && t.Size() > 8 -> (Move [t.Size()] dst src mem)
+ 
+ // string ops
+-(Const <t> {s}) && t.IsString() -> (StringMake (OffPtr <TypeBytePtr> [2*config.ptrSize] (Global <TypeBytePtr> {config.fe.StringSym(s.(string))})) (Const <config.Uintptr> [int64(len(s.(string)))])) // TODO: ptr
++(Const <t> {s}) && t.IsString() -> (StringMake (OffPtr <TypeBytePtr> [2*config.ptrSize] (Addr <TypeBytePtr> {config.fe.StringSym(s.(string))} (SB <config.Uintptr>))) (Const <config.Uintptr> [int64(len(s.(string)))])) // TODO: ptr
+ (Load <t> ptr mem) && t.IsString() -> (StringMake (Load <TypeBytePtr> ptr mem) (Load <config.Uintptr> (OffPtr <TypeBytePtr> [config.ptrSize] ptr) mem))
+ (StringPtr (StringMake ptr _)) -> ptr
+ (StringLen (StringMake _ len)) -> len
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index c168f2af05..e7c4de8eb1 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -30,11 +30,17 @@ var genericOps = []opData{
+ 	{name: "Const"},
+ 
+ 	// Constant-like things
+-	{name: "Arg"},    // address of a function parameter/result.  Memory input is an arg called ".mem".  aux is a string (TODO: make it something other than a string?)
+-	{name: "Global"}, // the address of a global variable aux.(*gc.Sym)
+-	{name: "SP"},     // stack pointer
+-	{name: "FP"},     // frame pointer
+-	{name: "Func"},   // entry address of a function
++	{name: "Arg"}, // memory input to the function.
++
++	// The address of a variable.  arg0 is the base pointer (SB or SP, depending
++	// on whether it is a global or stack variable).  The Aux field identifies the
++	// variable.  It will be either an *ExternSymbol (with arg0=SB), *ArgSymbol (arg0=SP),
++	// or *AutoSymbol (arg0=SP).
++	{name: "Addr"}, // Address of a variable.  Arg0=SP or SB.  Aux identifies the variable.
++
++	{name: "SP"},   // stack pointer
++	{name: "SB"},   // static base pointer (a.k.a. globals pointer)
++	{name: "Func"}, // entry address of a function
+ 
+ 	// Memory operations
+ 	{name: "Load"},  // Load from arg0.  arg1=memory
+diff --git a/src/cmd/compile/internal/ssa/lower.go b/src/cmd/compile/internal/ssa/lower.go
+index a72006ab2f..6499dc8565 100644
+--- a/src/cmd/compile/internal/ssa/lower.go
++++ b/src/cmd/compile/internal/ssa/lower.go
+@@ -12,7 +12,7 @@ func lower(f *Func) {
+ 	// Check for unlowered opcodes, fail if we find one.
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+-			if opcodeTable[v.Op].generic && v.Op != OpFP && v.Op != OpSP && v.Op != OpArg && v.Op != OpCopy && v.Op != OpPhi {
++			if opcodeTable[v.Op].generic && v.Op != OpSP && v.Op != OpSB && v.Op != OpArg && v.Op != OpCopy && v.Op != OpPhi {
+ 				f.Unimplementedf("%s not lowered", v.LongString())
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 1116be101c..20adc62958 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -81,10 +81,10 @@ const (
+ 	OpAMD64MOVBQSX
+ 	OpAMD64MOVQconst
+ 	OpAMD64LEAQ
++	OpAMD64LEAQ1
+ 	OpAMD64LEAQ2
+ 	OpAMD64LEAQ4
+ 	OpAMD64LEAQ8
+-	OpAMD64LEAQglobal
+ 	OpAMD64MOVBload
+ 	OpAMD64MOVBQZXload
+ 	OpAMD64MOVBQSXload
+@@ -117,9 +117,9 @@ const (
+ 	OpCopy
+ 	OpConst
+ 	OpArg
+-	OpGlobal
++	OpAddr
+ 	OpSP
+-	OpFP
++	OpSB
+ 	OpFunc
+ 	OpLoad
+ 	OpStore
+@@ -152,8 +152,8 @@ var opcodeTable = [...]opInfo{
+ 		name: "ADDQ",
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			clobbers: 0,
+ 			outputs: []regMask{
+@@ -165,7 +165,7 @@ var opcodeTable = [...]opInfo{
+ 		name: "ADDQconst",
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			clobbers: 0,
+ 			outputs: []regMask{
+@@ -178,8 +178,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:  x86.ASUBQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			clobbers: 0,
+ 			outputs: []regMask{
+@@ -192,7 +192,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:  x86.ASUBQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			clobbers: 0,
+ 			outputs: []regMask{
+@@ -205,8 +205,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:  x86.AIMULQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			clobbers: 0,
+ 			outputs: []regMask{
+@@ -219,7 +219,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:  x86.AIMULQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			clobbers: 0,
+ 			outputs: []regMask{
+@@ -232,8 +232,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:  x86.AANDQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			clobbers: 0,
+ 			outputs: []regMask{
+@@ -246,7 +246,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:  x86.AANDQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			clobbers: 0,
+ 			outputs: []regMask{
+@@ -259,8 +259,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:  x86.ASHLQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+-				2,          // .CX
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				2,     // .CX
+ 			},
+ 			clobbers: 0,
+ 			outputs: []regMask{
+@@ -273,7 +273,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:  x86.ASHLQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			clobbers: 0,
+ 			outputs: []regMask{
+@@ -286,8 +286,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:  x86.ASHRQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+-				2,          // .CX
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				2,     // .CX
+ 			},
+ 			clobbers: 0,
+ 			outputs: []regMask{
+@@ -300,7 +300,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:  x86.ASHRQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			clobbers: 0,
+ 			outputs: []regMask{
+@@ -313,8 +313,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:  x86.ASARQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+-				2,          // .CX
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				2,     // .CX
+ 			},
+ 			clobbers: 0,
+ 			outputs: []regMask{
+@@ -327,7 +327,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:  x86.ASARQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			clobbers: 0,
+ 			outputs: []regMask{
+@@ -339,7 +339,7 @@ var opcodeTable = [...]opInfo{
+ 		name: "NEGQ",
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			clobbers: 0,
+ 			outputs: []regMask{
+@@ -352,8 +352,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:  x86.ACMPQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			clobbers: 0,
+ 			outputs: []regMask{
+@@ -366,7 +366,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:  x86.ACMPQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			clobbers: 0,
+ 			outputs: []regMask{
+@@ -379,8 +379,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:  x86.ATESTQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			clobbers: 0,
+ 			outputs: []regMask{
+@@ -393,8 +393,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:  x86.ATESTB,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			clobbers: 0,
+ 			outputs: []regMask{
+@@ -506,7 +506,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:  x86.AMOVLQSX,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			clobbers: 0,
+ 			outputs: []regMask{
+@@ -519,7 +519,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:  x86.AMOVWQSX,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			clobbers: 0,
+ 			outputs: []regMask{
+@@ -532,7 +532,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:  x86.AMOVBQSX,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			clobbers: 0,
+ 			outputs: []regMask{
+@@ -554,8 +554,7 @@ var opcodeTable = [...]opInfo{
+ 		name: "LEAQ",
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 			},
+ 			clobbers: 0,
+ 			outputs: []regMask{
+@@ -564,11 +563,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "LEAQ2",
++		name: "LEAQ1",
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
++				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			clobbers: 0,
+ 			outputs: []regMask{
+@@ -577,11 +576,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "LEAQ4",
++		name: "LEAQ2",
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
++				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			clobbers: 0,
+ 			outputs: []regMask{
+@@ -590,11 +589,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "LEAQ8",
++		name: "LEAQ4",
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
++				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			clobbers: 0,
+ 			outputs: []regMask{
+@@ -603,9 +602,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name: "LEAQglobal",
++		name: "LEAQ8",
+ 		reg: regInfo{
+-			inputs:   []regMask{},
++			inputs: []regMask{
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
++				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
+ 			clobbers: 0,
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -617,7 +619,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:  x86.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 				0,
+ 			},
+ 			clobbers: 0,
+@@ -630,7 +632,7 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVBQZXload",
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 				0,
+ 			},
+ 			clobbers: 0,
+@@ -643,7 +645,7 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVBQSXload",
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 				0,
+ 			},
+ 			clobbers: 0,
+@@ -657,7 +659,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:  x86.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 				0,
+ 			},
+ 			clobbers: 0,
+@@ -671,7 +673,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:  x86.AMOVL,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 				0,
+ 			},
+ 			clobbers: 0,
+@@ -685,7 +687,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:  x86.AMOVQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 				0,
+ 			},
+ 			clobbers: 0,
+@@ -699,8 +701,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:  x86.AMOVQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
++				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 				0,
+ 			},
+ 			clobbers: 0,
+@@ -714,8 +716,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:  x86.AMOVB,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
++				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 				0,
+ 			},
+ 			clobbers: 0,
+@@ -727,8 +729,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:  x86.AMOVW,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
++				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 				0,
+ 			},
+ 			clobbers: 0,
+@@ -740,8 +742,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:  x86.AMOVL,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
++				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 				0,
+ 			},
+ 			clobbers: 0,
+@@ -753,8 +755,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:  x86.AMOVQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
++				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 				0,
+ 			},
+ 			clobbers: 0,
+@@ -765,9 +767,9 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVQstoreidx8",
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
++				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 				0,
+ 			},
+ 			clobbers: 0,
+@@ -802,8 +804,8 @@ var opcodeTable = [...]opInfo{
+ 		name: "CALLclosure",
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+-				4,          // .DX
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				4,     // .DX
+ 				0,
+ 			},
+ 			clobbers: 0,
+@@ -827,8 +829,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:  x86.AADDL,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			clobbers: 0,
+ 			outputs: []regMask{
+@@ -841,8 +843,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:  x86.AADDW,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			clobbers: 0,
+ 			outputs: []regMask{
+@@ -855,8 +857,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:  x86.AADDB,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .FP
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			clobbers: 0,
+ 			outputs: []regMask{
+@@ -964,7 +966,7 @@ var opcodeTable = [...]opInfo{
+ 		generic: true,
+ 	},
+ 	{
+-		name: "Global",
++		name: "Addr",
+ 		reg: regInfo{
+ 			inputs:   []regMask{},
+ 			clobbers: 0,
+@@ -982,7 +984,7 @@ var opcodeTable = [...]opInfo{
+ 		generic: true,
+ 	},
+ 	{
+-		name: "FP",
++		name: "SB",
+ 		reg: regInfo{
+ 			inputs:   []regMask{},
+ 			clobbers: 0,
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index fde1cf457b..27e4f754d1 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -54,7 +54,7 @@ var registers = [...]Register{
+ 	Register{29, "X13"},
+ 	Register{30, "X14"},
+ 	Register{31, "X15"},
+-	Register{32, "FP"}, // pseudo-register, actually a constant offset from SP
++	Register{32, "SB"}, // pseudo-register for global base pointer (aka %rip)
+ 	Register{33, "FLAGS"},
+ 
+ 	// TODO: make arch-dependent
+@@ -101,15 +101,15 @@ func regalloc(f *Func) {
+ 
+ 	var oldSched []*Value
+ 
+-	// Hack to find fp, sp Values and assign them a register. (TODO: make not so hacky)
+-	var fp, sp *Value
++	// Hack to find sp and sb Values and assign them a register. (TODO: make not so hacky)
++	var sp, sb *Value
+ 	for _, v := range f.Entry.Values {
+ 		switch v.Op {
+ 		case OpSP:
+ 			sp = v
+ 			home = setloc(home, v, &registers[4]) // TODO: arch-dependent
+-		case OpFP:
+-			fp = v
++		case OpSB:
++			sb = v
+ 			home = setloc(home, v, &registers[32]) // TODO: arch-dependent
+ 		}
+ 	}
+@@ -147,7 +147,7 @@ func regalloc(f *Func) {
+ 
+ 		// TODO: hack: initialize fixed registers
+ 		regs[4] = regInfo{sp, sp, false}
+-		regs[32] = regInfo{fp, fp, false}
++		regs[32] = regInfo{sb, sb, false}
+ 
+ 		var used regMask  // has a 1 for each non-nil entry in regs
+ 		var dirty regMask // has a 1 for each dirty entry in regs
+@@ -193,7 +193,7 @@ func regalloc(f *Func) {
+ 			// nospill contains registers that we can't spill because
+ 			// we already set them up for use by the current instruction.
+ 			var nospill regMask
+-			nospill |= 0x100000010 // SP and FP can't be spilled (TODO: arch-specific)
++			nospill |= 0x100000010 // SP & SB can't be spilled (TODO: arch-specific)
+ 
+ 			// Move inputs into registers
+ 			for _, o := range order {
+@@ -257,13 +257,15 @@ func regalloc(f *Func) {
+ 					var c *Value
+ 					if len(w.Args) == 0 {
+ 						// Materialize w
+-						if w.Op == OpFP || w.Op == OpSP || w.Op == OpGlobal {
++						if w.Op == OpSB {
++							c = w
++						} else if w.Op == OpSP {
+ 							c = b.NewValue1(w.Line, OpCopy, w.Type, w)
+ 						} else {
+ 							c = b.NewValue0IA(w.Line, w.Op, w.Type, w.AuxInt, w.Aux)
+ 						}
+-					} else if len(w.Args) == 1 && (w.Args[0].Op == OpFP || w.Args[0].Op == OpSP || w.Args[0].Op == OpGlobal) {
+-						// Materialize offsets from SP/FP/Global
++					} else if len(w.Args) == 1 && (w.Args[0].Op == OpSP || w.Args[0].Op == OpSB) {
++						// Materialize offsets from SP/SB
+ 						c = b.NewValue1IA(w.Line, w.Op, w.Type, w.AuxInt, w.Aux, w.Args[0])
+ 					} else if wreg != 0 {
+ 						// Copy from another register.
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 0de8830fb2..b2c45969e4 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -99,6 +99,17 @@ func addOff(x, y int64) int64 {
+ 	return z
+ }
+ 
++func mergeSym(x, y interface{}) interface{} {
++	if x == nil {
++		return y
++	}
++	if y == nil {
++		return x
++	}
++	panic(fmt.Sprintf("mergeSym with two non-nil syms %s %s", x, y))
++	return nil
++}
++
+ func inBounds(idx, len int64) bool {
+ 	return idx >= 0 && idx < len
+ }
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 3490adadd7..dfed084875 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -344,6 +344,24 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto end858e823866524b81b4636f7dd7e8eefe
+ 	end858e823866524b81b4636f7dd7e8eefe:
+ 		;
++	case OpAddr:
++		// match: (Addr {sym} base)
++		// cond:
++		// result: (LEAQ {sym} base)
++		{
++			sym := v.Aux
++			base := v.Args[0]
++			v.Op = OpAMD64LEAQ
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.Aux = sym
++			v.AddArg(base)
++			return true
++		}
++		goto end53cad0c3c9daa5575680e77c14e05e72
++	end53cad0c3c9daa5575680e77c14e05e72:
++		;
+ 	case OpAMD64CMOVQCC:
+ 		// match: (CMOVQCC (CMPQconst [c] (MOVQconst [d])) _ x)
+ 		// cond: inBounds(d, c)
+@@ -501,22 +519,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto endcc7894224d4f6b0bcabcece5d0185912
+ 	endcc7894224d4f6b0bcabcece5d0185912:
+ 		;
+-	case OpGlobal:
+-		// match: (Global {sym})
+-		// cond:
+-		// result: (LEAQglobal {sym})
+-		{
+-			sym := v.Aux
+-			v.Op = OpAMD64LEAQglobal
+-			v.AuxInt = 0
+-			v.Aux = nil
+-			v.resetArgs()
+-			v.Aux = sym
+-			return true
+-		}
+-		goto end8f47b6f351fecaeded45abbe5c2beec0
+-	end8f47b6f351fecaeded45abbe5c2beec0:
+-		;
+ 	case OpIsInBounds:
+ 		// match: (IsInBounds idx len)
+ 		// cond:
+@@ -769,6 +771,35 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		}
+ 		goto end843d29b538c4483b432b632e5666d6e3
+ 	end843d29b538c4483b432b632e5666d6e3:
++		;
++		// match: (MOVQload [off1] {sym1} (LEAQ [off2] {sym2} base) mem)
++		// cond: (sym1 == nil || sym2 == nil)
++		// result: (MOVQload [addOff(off1,off2)] {mergeSym(sym1,sym2)} base mem)
++		{
++			off1 := v.AuxInt
++			sym1 := v.Aux
++			if v.Args[0].Op != OpAMD64LEAQ {
++				goto end227426af95e74caddcf59fdcd30ca8bc
++			}
++			off2 := v.Args[0].AuxInt
++			sym2 := v.Args[0].Aux
++			base := v.Args[0].Args[0]
++			mem := v.Args[1]
++			if !(sym1 == nil || sym2 == nil) {
++				goto end227426af95e74caddcf59fdcd30ca8bc
++			}
++			v.Op = OpAMD64MOVQload
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = addOff(off1, off2)
++			v.Aux = mergeSym(sym1, sym2)
++			v.AddArg(base)
++			v.AddArg(mem)
++			return true
++		}
++		goto end227426af95e74caddcf59fdcd30ca8bc
++	end227426af95e74caddcf59fdcd30ca8bc:
+ 		;
+ 		// match: (MOVQload [off1] (LEAQ8 [off2] ptr idx) mem)
+ 		// cond:
+@@ -846,6 +877,37 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		}
+ 		goto end2108c693a43c79aed10b9246c39c80aa
+ 	end2108c693a43c79aed10b9246c39c80aa:
++		;
++		// match: (MOVQstore [off1] {sym1} (LEAQ [off2] {sym2} base) val mem)
++		// cond: (sym1 == nil || sym2 == nil)
++		// result: (MOVQstore [addOff(off1,off2)] {mergeSym(sym1,sym2)} base val mem)
++		{
++			off1 := v.AuxInt
++			sym1 := v.Aux
++			if v.Args[0].Op != OpAMD64LEAQ {
++				goto end5061f48193268a5eb1e1740bdd23c43d
++			}
++			off2 := v.Args[0].AuxInt
++			sym2 := v.Args[0].Aux
++			base := v.Args[0].Args[0]
++			val := v.Args[1]
++			mem := v.Args[2]
++			if !(sym1 == nil || sym2 == nil) {
++				goto end5061f48193268a5eb1e1740bdd23c43d
++			}
++			v.Op = OpAMD64MOVQstore
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = addOff(off1, off2)
++			v.Aux = mergeSym(sym1, sym2)
++			v.AddArg(base)
++			v.AddArg(val)
++			v.AddArg(mem)
++			return true
++		}
++		goto end5061f48193268a5eb1e1740bdd23c43d
++	end5061f48193268a5eb1e1740bdd23c43d:
+ 		;
+ 		// match: (MOVQstore [off1] (LEAQ8 [off2] ptr idx) val mem)
+ 		// cond:
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index ac4f009881..e2feeb53cc 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -60,12 +60,12 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 	case OpConst:
+ 		// match: (Const <t> {s})
+ 		// cond: t.IsString()
+-		// result: (StringMake (OffPtr <TypeBytePtr> [2*config.ptrSize] (Global <TypeBytePtr> {config.fe.StringSym(s.(string))})) (Const <config.Uintptr> [int64(len(s.(string)))]))
++		// result: (StringMake (OffPtr <TypeBytePtr> [2*config.ptrSize] (Addr <TypeBytePtr> {config.fe.StringSym(s.(string))} (SB <config.Uintptr>))) (Const <config.Uintptr> [int64(len(s.(string)))]))
+ 		{
+ 			t := v.Type
+ 			s := v.Aux
+ 			if !(t.IsString()) {
+-				goto end6d6321106a054a5984b2ed0acec52a5b
++				goto end55cd8fd3b98a2459d0ee9d6cbb456b01
+ 			}
+ 			v.Op = OpStringMake
+ 			v.AuxInt = 0
+@@ -74,19 +74,22 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 			v0 := v.Block.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+ 			v0.Type = TypeBytePtr
+ 			v0.AuxInt = 2 * config.ptrSize
+-			v1 := v.Block.NewValue0(v.Line, OpGlobal, TypeInvalid)
++			v1 := v.Block.NewValue0(v.Line, OpAddr, TypeInvalid)
+ 			v1.Type = TypeBytePtr
+ 			v1.Aux = config.fe.StringSym(s.(string))
++			v2 := v.Block.NewValue0(v.Line, OpSB, TypeInvalid)
++			v2.Type = config.Uintptr
++			v1.AddArg(v2)
+ 			v0.AddArg(v1)
+ 			v.AddArg(v0)
+-			v2 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
+-			v2.Type = config.Uintptr
+-			v2.AuxInt = int64(len(s.(string)))
+-			v.AddArg(v2)
++			v3 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
++			v3.Type = config.Uintptr
++			v3.AuxInt = int64(len(s.(string)))
++			v.AddArg(v3)
+ 			return true
+ 		}
+-		goto end6d6321106a054a5984b2ed0acec52a5b
+-	end6d6321106a054a5984b2ed0acec52a5b:
++		goto end55cd8fd3b98a2459d0ee9d6cbb456b01
++	end55cd8fd3b98a2459d0ee9d6cbb456b01:
+ 		;
+ 	case OpIsInBounds:
+ 		// match: (IsInBounds (Const [c]) (Const [d]))
+diff --git a/src/cmd/compile/internal/ssa/shift_test.go b/src/cmd/compile/internal/ssa/shift_test.go
+index 52ddbbe42d..29b47c125e 100644
+--- a/src/cmd/compile/internal/ssa/shift_test.go
++++ b/src/cmd/compile/internal/ssa/shift_test.go
+@@ -29,9 +29,9 @@ func makeConstShiftFunc(c *Config, amount int64, op Op, typ Type) fun {
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+-			Valu("FP", OpFP, TypeUInt64, 0, nil),
+-			Valu("argptr", OpOffPtr, ptyp, 8, nil, "FP"),
+-			Valu("resptr", OpOffPtr, ptyp, 16, nil, "FP"),
++			Valu("SP", OpSP, TypeUInt64, 0, nil),
++			Valu("argptr", OpOffPtr, ptyp, 8, nil, "SP"),
++			Valu("resptr", OpOffPtr, ptyp, 16, nil, "SP"),
+ 			Valu("load", OpLoad, typ, 0, nil, "argptr", "mem"),
+ 			Valu("c", OpConst, TypeUInt64, amount, nil),
+ 			Valu("shift", op, typ, 0, nil, "load", "c"),
+diff --git a/src/cmd/compile/internal/ssa/stackalloc.go b/src/cmd/compile/internal/ssa/stackalloc.go
+index e39a3e7a59..85a55ece7c 100644
+--- a/src/cmd/compile/internal/ssa/stackalloc.go
++++ b/src/cmd/compile/internal/ssa/stackalloc.go
+@@ -54,7 +54,7 @@ func stackalloc(f *Func) {
+ 				// v will have been materialized wherever it is needed.
+ 				continue
+ 			}
+-			if len(v.Args) == 1 && (v.Args[0].Op == OpFP || v.Args[0].Op == OpSP || v.Args[0].Op == OpGlobal) {
++			if len(v.Args) == 1 && (v.Args[0].Op == OpSP || v.Args[0].Op == OpSB) {
+ 				continue
+ 			}
+ 			n = align(n, v.Type.Alignment())
+@@ -64,54 +64,26 @@ func stackalloc(f *Func) {
+ 		}
+ 	}
+ 
++	// Finally, allocate space for all autos that we used
++	for _, b := range f.Blocks {
++		for _, v := range b.Values {
++			s, ok := v.Aux.(*AutoSymbol)
++			if !ok || s.Offset >= 0 {
++				continue
++			}
++			t := s.Typ
++			n = align(n, t.Alignment())
++			s.Offset = n
++			n += t.Size()
++		}
++	}
++
+ 	n = align(n, f.Config.ptrSize)
+ 	n += f.Config.ptrSize // space for return address.  TODO: arch-dependent
+ 	f.RegAlloc = home
+ 	f.FrameSize = n
+ 
+ 	// TODO: share stack slots among noninterfering (& gc type compatible) values
+-
+-	// adjust all uses of FP to SP now that we have the frame size.
+-	var fp *Value
+-	for _, b := range f.Blocks {
+-		for _, v := range b.Values {
+-			if v.Op == OpFP {
+-				if fp != nil {
+-					b.Fatalf("multiple FP ops: %s %s", fp, v)
+-				}
+-				fp = v
+-			}
+-			for i, a := range v.Args {
+-				if a.Op != OpFP {
+-					continue
+-				}
+-				// TODO: do this with arch-specific rewrite rules somehow?
+-				switch v.Op {
+-				case OpAMD64ADDQ:
+-					// (ADDQ (FP) x) -> (LEAQ [n] (SP) x)
+-					v.Op = OpAMD64LEAQ
+-					v.AuxInt = n
+-				case OpAMD64ADDQconst:
+-					// TODO(matloob): Add LEAQconst op
+-					v.AuxInt = addOff(v.AuxInt, n)
+-				case OpAMD64LEAQ, OpAMD64MOVQload, OpAMD64MOVQstore, OpAMD64MOVLload, OpAMD64MOVLstore, OpAMD64MOVWload, OpAMD64MOVWstore, OpAMD64MOVBload, OpAMD64MOVBstore, OpAMD64MOVQloadidx8:
+-					if v.Op == OpAMD64MOVQloadidx8 && i == 1 {
+-						// Note: we could do it, but it is probably an error
+-						f.Fatalf("can't do FP->SP adjust on index slot of load %s", v.Op)
+-					}
+-					// eg: (MOVQload [c] (FP) mem) -> (MOVQload [c+n] (SP) mem)
+-					v.AuxInt = addOff(v.AuxInt, n)
+-				default:
+-					f.Unimplementedf("can't do FP->SP adjust on %s", v.Op)
+-					// TODO: OpCopy -> ADDQ
+-				}
+-			}
+-		}
+-	}
+-	if fp != nil {
+-		fp.Op = OpSP
+-		home[fp.ID] = &registers[4] // TODO: arch-dependent
+-	}
+ }
+ 
+ // align increases n to the next multiple of a.  a must be a power of 2.
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index 9c7f148a79..e6e23d5270 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -114,3 +114,40 @@ func (v *Value) resetArgs() {
+ func (v *Value) Logf(msg string, args ...interface{})           { v.Block.Logf(msg, args...) }
+ func (v *Value) Fatalf(msg string, args ...interface{})         { v.Block.Fatalf(msg, args...) }
+ func (v *Value) Unimplementedf(msg string, args ...interface{}) { v.Block.Unimplementedf(msg, args...) }
++
++// ExternSymbol is an aux value that encodes a variable's
++// constant offset from the static base pointer.
++type ExternSymbol struct {
++	Typ Type         // Go type
++	Sym fmt.Stringer // A *gc.Sym referring to a global variable
++	// Note: the offset for an external symbol is not
++	// calculated until link time.
++}
++
++// ArgSymbol is an aux value that encodes an argument or result
++// variable's constant offset from FP (FP = SP + framesize).
++type ArgSymbol struct {
++	Typ    Type         // Go type
++	Offset int64        // Distance above frame pointer
++	Sym    fmt.Stringer // A *gc.Sym referring to the argument/result variable.
++}
++
++// AutoSymbol is an aux value that encodes a local variable's
++// constant offset from SP.
++type AutoSymbol struct {
++	Typ    Type         // Go type
++	Offset int64        // Distance above stack pointer.  Set by stackalloc in SSA.
++	Sym    fmt.Stringer // A *gc.Sym referring to a local (auto) variable.
++}
++
++func (s *ExternSymbol) String() string {
++	return s.Sym.String()
++}
++
++func (s *ArgSymbol) String() string {
++	return s.Sym.String()
++}
++
++func (s *AutoSymbol) String() string {
++	return s.Sym.String()
++}

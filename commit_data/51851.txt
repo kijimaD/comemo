@@ -23,7 +23,7 @@ Date:   Thu Mar 10 00:19:05 2022 -0500
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/time/export_android_test.go   | 12 ++++++++----
  src/time/export_test.go           |  3 ++-
  src/time/format_test.go           |  4 ++--
@@ -42,3 +42,456 @@ Date:   Thu Mar 10 00:19:05 2022 -0500
  src/time/zoneinfo_unix.go         |  6 ++----
  src/time/zoneinfo_windows.go      |  5 +----
  17 files changed, 98 insertions(+), 62 deletions(-)
+
+diff --git a/src/time/export_android_test.go b/src/time/export_android_test.go
+index f80e7da717..17e021923c 100644
+--- a/src/time/export_android_test.go
++++ b/src/time/export_android_test.go
+@@ -4,9 +4,13 @@
+ 
+ package time
+ 
+-func ForceAndroidTzdataForTest(tzdata bool) {
+-	forceZipFileForTesting(false)
+-	if tzdata {
+-		zoneSources = zoneSources[:len(zoneSources)-1]
++func ForceAndroidTzdataForTest() (undo func()) {
++	allowGorootSource = false
++	origLoadFromEmbeddedTZData := loadFromEmbeddedTZData
++	loadFromEmbeddedTZData = nil
++
++	return func() {
++		allowGorootSource = true
++		loadFromEmbeddedTZData = origLoadFromEmbeddedTZData
+ 	}
+ }
+diff --git a/src/time/export_test.go b/src/time/export_test.go
+index 9baad60a92..b450aec01f 100644
+--- a/src/time/export_test.go
++++ b/src/time/export_test.go
+@@ -28,7 +28,8 @@ func ResetZoneinfoForTesting() {
+ }
+ 
+ var (
+-	ForceZipFileForTesting = forceZipFileForTesting
++	DisablePlatformSources = disablePlatformSources
++	GorootZoneSource       = gorootZoneSource
+ 	ParseTimeZone          = parseTimeZone
+ 	SetMono                = (*Time).setMono
+ 	GetMono                = (*Time).mono
+diff --git a/src/time/format_test.go b/src/time/format_test.go
+index db95536390..ab72fae323 100644
+--- a/src/time/format_test.go
++++ b/src/time/format_test.go
+@@ -408,8 +408,8 @@ func TestParseInLocation(t *testing.T) {
+ }
+ 
+ func TestLoadLocationZipFile(t *testing.T) {
+-	ForceZipFileForTesting(true)
+-	defer ForceZipFileForTesting(false)
++	undo := DisablePlatformSources()
++	defer undo()
+ 
+ 	_, err := LoadLocation("Australia/Sydney")
+ 	if err != nil {
+diff --git a/src/time/internal_test.go b/src/time/internal_test.go
+index f0dddb7373..4c4a720f74 100644
+--- a/src/time/internal_test.go
++++ b/src/time/internal_test.go
+@@ -5,12 +5,18 @@
+ package time
+ 
+ func init() {
+-	// force US/Pacific for time zone tests
++	// Force US/Pacific for time zone tests.
+ 	ForceUSPacificForTesting()
+ }
+ 
+ func initTestingZone() {
+-	z, err := loadLocation("America/Los_Angeles", zoneSources[len(zoneSources)-1:])
++	// For hermeticity, use only tzinfo source from the test's GOROOT,
++	// not the system sources and not whatever GOROOT may happen to be
++	// set in the process's environment (if any).
++	// This test runs in GOROOT/src/time, so GOROOT is "../..",
++	// but it is theoretically possible
++	sources := []string{"../../lib/time/zoneinfo.zip"}
++	z, err := loadLocation("America/Los_Angeles", sources)
+ 	if err != nil {
+ 		panic("cannot load America/Los_Angeles for testing: " + err.Error() + "; you may want to use -tags=timetzdata")
+ 	}
+@@ -18,13 +24,12 @@ func initTestingZone() {
+ 	localLoc = *z
+ }
+ 
+-var OrigZoneSources = zoneSources
++var origPlatformZoneSources []string = platformZoneSources
+ 
+-func forceZipFileForTesting(zipOnly bool) {
+-	zoneSources = make([]string, len(OrigZoneSources))
+-	copy(zoneSources, OrigZoneSources)
+-	if zipOnly {
+-		zoneSources = zoneSources[len(zoneSources)-1:]
++func disablePlatformSources() (undo func()) {
++	platformZoneSources = nil
++	return func() {
++		platformZoneSources = origPlatformZoneSources
+ 	}
+ }
+ 
+diff --git a/src/time/time_test.go b/src/time/time_test.go
+index 6a4049617c..ea13ffe3c9 100644
+--- a/src/time/time_test.go
++++ b/src/time/time_test.go
+@@ -1557,8 +1557,8 @@ func TestConcurrentTimerResetStop(t *testing.T) {
+ }
+ 
+ func TestTimeIsDST(t *testing.T) {
+-	ForceZipFileForTesting(true)
+-	defer ForceZipFileForTesting(false)
++	undo := DisablePlatformSources()
++	defer undo()
+ 
+ 	tzWithDST, err := LoadLocation("Australia/Sydney")
+ 	if err != nil {
+@@ -1619,8 +1619,8 @@ func TestTimeAddSecOverflow(t *testing.T) {
+ 
+ // Issue 49284: time: ParseInLocation incorrectly because of Daylight Saving Time
+ func TestTimeWithZoneTransition(t *testing.T) {
+-	ForceZipFileForTesting(true)
+-	defer ForceZipFileForTesting(false)
++	undo := DisablePlatformSources()
++	defer undo()
+ 
+ 	loc, err := LoadLocation("Asia/Shanghai")
+ 	if err != nil {
+diff --git a/src/time/tzdata_test.go b/src/time/tzdata_test.go
+index eb6d6c98a8..33c6589d0d 100644
+--- a/src/time/tzdata_test.go
++++ b/src/time/tzdata_test.go
+@@ -17,8 +17,8 @@ var zones = []string{
+ }
+ 
+ func TestEmbeddedTZData(t *testing.T) {
+-	time.ForceZipFileForTesting(true)
+-	defer time.ForceZipFileForTesting(false)
++	undo := time.DisablePlatformSources()
++	defer undo()
+ 
+ 	for _, zone := range zones {
+ 		ref, err := time.LoadLocation(zone)
+diff --git a/src/time/zoneinfo.go b/src/time/zoneinfo.go
+index 7b39f869e6..b460b9e6c5 100644
+--- a/src/time/zoneinfo.go
++++ b/src/time/zoneinfo.go
+@@ -665,7 +665,7 @@ func LoadLocation(name string) (*Location, error) {
+ 			firstErr = err
+ 		}
+ 	}
+-	if z, err := loadLocation(name, zoneSources); err == nil {
++	if z, err := loadLocation(name, platformZoneSources); err == nil {
+ 		return z, nil
+ 	} else if firstErr == nil {
+ 		firstErr = err
+diff --git a/src/time/zoneinfo_android.go b/src/time/zoneinfo_android.go
+index 237ff202f9..e4f688dcec 100644
+--- a/src/time/zoneinfo_android.go
++++ b/src/time/zoneinfo_android.go
+@@ -10,14 +10,12 @@ package time
+ 
+ import (
+ 	"errors"
+-	"runtime"
+ 	"syscall"
+ )
+ 
+-var zoneSources = []string{
++var platformZoneSources = []string{
+ 	"/system/usr/share/zoneinfo/tzdata",
+ 	"/data/misc/zoneinfo/current/tzdata",
+-	runtime.GOROOT() + "/lib/time/zoneinfo.zip",
+ }
+ 
+ func initLocal() {
+@@ -29,6 +27,15 @@ func init() {
+ 	loadTzinfoFromTzdata = androidLoadTzinfoFromTzdata
+ }
+ 
++var allowGorootSource = true
++
++func gorootZoneSource(goroot string) (string, bool) {
++	if goroot == "" || !allowGorootSource {
++		return "", false
++	}
++	return goroot + "/lib/time/zoneinfo.zip", true
++}
++
+ func androidLoadTzinfoFromTzdata(file, name string) ([]byte, error) {
+ 	const (
+ 		headersize = 12 + 3*4
+diff --git a/src/time/zoneinfo_android_test.go b/src/time/zoneinfo_android_test.go
+index ba065d10a6..f8bd7f7674 100644
+--- a/src/time/zoneinfo_android_test.go
++++ b/src/time/zoneinfo_android_test.go
+@@ -10,8 +10,8 @@ import (
+ )
+ 
+ func TestAndroidTzdata(t *testing.T) {
+-	ForceAndroidTzdataForTest(true)
+-	defer ForceAndroidTzdataForTest(false)
++	undo := ForceAndroidTzdataForTest()
++	defer undo()
+ 	if _, err := LoadLocation("America/Los_Angeles"); err != nil {
+ 		t.Error(err)
+ 	}
+diff --git a/src/time/zoneinfo_goroot.go b/src/time/zoneinfo_goroot.go
+new file mode 100644
+index 0000000000..92bdcf4afe
+--- /dev/null
++++ b/src/time/zoneinfo_goroot.go
+@@ -0,0 +1,14 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !ios && !android
++
++package time
++
++func gorootZoneSource(goroot string) (string, bool) {
++	if goroot == "" {
++		return "", false
++	}
++	return goroot + "/lib/time/zoneinfo.zip", true
++}
+diff --git a/src/time/zoneinfo_ios.go b/src/time/zoneinfo_ios.go
+index 7eccabf249..d6ad073e85 100644
+--- a/src/time/zoneinfo_ios.go
++++ b/src/time/zoneinfo_ios.go
+@@ -7,20 +7,20 @@
+ package time
+ 
+ import (
+-	"runtime"
+ 	"syscall"
+ )
+ 
+-var zoneSources = []string{
+-	getZoneRoot() + "/zoneinfo.zip",
+-}
++var platformZoneSources []string // none on iOS
+ 
+-func getZoneRoot() string {
++func gorootZoneSource(goroot string) (string, bool) {
+ 	// The working directory at initialization is the root of the
+ 	// app bundle: "/private/.../bundlename.app". That's where we
+ 	// keep zoneinfo.zip for tethered iOS builds.
+ 	// For self-hosted iOS builds, the zoneinfo.zip is in GOROOT.
+-	roots := []string{runtime.GOROOT() + "/lib/time"}
++	var roots []string
++	if goroot != "" {
++		roots = append(roots, goroot+"/lib/time")
++	}
+ 	wd, err := syscall.Getwd()
+ 	if err == nil {
+ 		roots = append(roots, wd)
+@@ -33,10 +33,10 @@ func getZoneRoot() string {
+ 		}
+ 		defer syscall.Close(fd)
+ 		if err := syscall.Fstat(fd, &st); err == nil {
+-			return r
++			return r + "/zoneinfo.zip", true
+ 		}
+ 	}
+-	return "/XXXNOEXIST"
++	return "", false
+ }
+ 
+ func initLocal() {
+diff --git a/src/time/zoneinfo_js.go b/src/time/zoneinfo_js.go
+index d0aefb9088..06306cfd54 100644
+--- a/src/time/zoneinfo_js.go
++++ b/src/time/zoneinfo_js.go
+@@ -7,15 +7,13 @@
+ package time
+ 
+ import (
+-	"runtime"
+ 	"syscall/js"
+ )
+ 
+-var zoneSources = []string{
++var platformZoneSources = []string{
+ 	"/usr/share/zoneinfo/",
+ 	"/usr/share/lib/zoneinfo/",
+ 	"/usr/lib/locale/TZ/",
+-	runtime.GOROOT() + "/lib/time/zoneinfo.zip",
+ }
+ 
+ func initLocal() {
+diff --git a/src/time/zoneinfo_plan9.go b/src/time/zoneinfo_plan9.go
+index 4ae718c59e..5d432fe297 100644
+--- a/src/time/zoneinfo_plan9.go
++++ b/src/time/zoneinfo_plan9.go
+@@ -7,13 +7,10 @@
+ package time
+ 
+ import (
+-	"runtime"
+ 	"syscall"
+ )
+ 
+-var zoneSources = []string{
+-	runtime.GOROOT() + "/lib/time/zoneinfo.zip",
+-}
++var platformZoneSources []string // none on Plan 9
+ 
+ func isSpace(r rune) bool {
+ 	return r == ' ' || r == '\t' || r == '\n'
+diff --git a/src/time/zoneinfo_read.go b/src/time/zoneinfo_read.go
+index b9830265e1..90814ad36a 100644
+--- a/src/time/zoneinfo_read.go
++++ b/src/time/zoneinfo_read.go
+@@ -528,7 +528,7 @@ func loadTzinfo(name string, source string) ([]byte, error) {
+ // and parsed is returned as a Location.
+ func loadLocation(name string, sources []string) (z *Location, firstErr error) {
+ 	for _, source := range sources {
+-		var zoneData, err = loadTzinfo(name, source)
++		zoneData, err := loadTzinfo(name, source)
+ 		if err == nil {
+ 			if z, err = LoadLocationFromTZData(name, zoneData); err == nil {
+ 				return z, nil
+@@ -539,9 +539,20 @@ func loadLocation(name string, sources []string) (z *Location, firstErr error) {
+ 		}
+ 	}
+ 	if loadFromEmbeddedTZData != nil {
+-		zonedata, err := loadFromEmbeddedTZData(name)
++		zoneData, err := loadFromEmbeddedTZData(name)
+ 		if err == nil {
+-			if z, err = LoadLocationFromTZData(name, []byte(zonedata)); err == nil {
++			if z, err = LoadLocationFromTZData(name, []byte(zoneData)); err == nil {
++				return z, nil
++			}
++		}
++		if firstErr == nil && err != syscall.ENOENT {
++			firstErr = err
++		}
++	}
++	if source, ok := gorootZoneSource(runtime.GOROOT()); ok {
++		zoneData, err := loadTzinfo(name, source)
++		if err == nil {
++			if z, err = LoadLocationFromTZData(name, zoneData); err == nil {
+ 				return z, nil
+ 			}
+ 		}
+diff --git a/src/time/zoneinfo_test.go b/src/time/zoneinfo_test.go
+index f032aa7924..0a5ce6d732 100644
+--- a/src/time/zoneinfo_test.go
++++ b/src/time/zoneinfo_test.go
+@@ -66,8 +66,8 @@ func TestLoadLocationValidatesNames(t *testing.T) {
+ }
+ 
+ func TestVersion3(t *testing.T) {
+-	time.ForceZipFileForTesting(true)
+-	defer time.ForceZipFileForTesting(false)
++	undo := time.DisablePlatformSources()
++	defer undo()
+ 	_, err := time.LoadLocation("Asia/Jerusalem")
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -78,8 +78,8 @@ func TestVersion3(t *testing.T) {
+ // transition time. To do this we explicitly check early dates in a
+ // couple of specific timezones.
+ func TestFirstZone(t *testing.T) {
+-	time.ForceZipFileForTesting(true)
+-	defer time.ForceZipFileForTesting(false)
++	undo := time.DisablePlatformSources()
++	defer undo()
+ 
+ 	const format = "Mon, 02 Jan 2006 15:04:05 -0700 (MST)"
+ 	var tests = []struct {
+@@ -128,8 +128,8 @@ func TestLocationNames(t *testing.T) {
+ }
+ 
+ func TestLoadLocationFromTZData(t *testing.T) {
+-	time.ForceZipFileForTesting(true)
+-	defer time.ForceZipFileForTesting(false)
++	undo := time.DisablePlatformSources()
++	defer undo()
+ 
+ 	const locationName = "Asia/Jerusalem"
+ 	reference, err := time.LoadLocation(locationName)
+@@ -137,7 +137,11 @@ func TestLoadLocationFromTZData(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	tzinfo, err := time.LoadTzinfo(locationName, time.OrigZoneSources[len(time.OrigZoneSources)-1])
++	gorootSource, ok := time.GorootZoneSource("../..")
++	if !ok {
++		t.Fatal("Failed to locate tzinfo source in GOROOT.")
++	}
++	tzinfo, err := time.LoadTzinfo(locationName, gorootSource)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -153,8 +157,8 @@ func TestLoadLocationFromTZData(t *testing.T) {
+ 
+ // Issue 30099.
+ func TestEarlyLocation(t *testing.T) {
+-	time.ForceZipFileForTesting(true)
+-	defer time.ForceZipFileForTesting(false)
++	undo := time.DisablePlatformSources()
++	defer undo()
+ 
+ 	const locName = "America/New_York"
+ 	loc, err := time.LoadLocation(locName)
+diff --git a/src/time/zoneinfo_unix.go b/src/time/zoneinfo_unix.go
+index 23f8b3cdb4..6414be3879 100644
+--- a/src/time/zoneinfo_unix.go
++++ b/src/time/zoneinfo_unix.go
+@@ -12,17 +12,15 @@
+ package time
+ 
+ import (
+-	"runtime"
+ 	"syscall"
+ )
+ 
+ // Many systems use /usr/share/zoneinfo, Solaris 2 has
+ // /usr/share/lib/zoneinfo, IRIX 6 has /usr/lib/locale/TZ.
+-var zoneSources = []string{
++var platformZoneSources = []string{
+ 	"/usr/share/zoneinfo/",
+ 	"/usr/share/lib/zoneinfo/",
+ 	"/usr/lib/locale/TZ/",
+-	runtime.GOROOT() + "/lib/time/zoneinfo.zip",
+ }
+ 
+ func initLocal() {
+@@ -57,7 +55,7 @@ func initLocal() {
+ 				return
+ 			}
+ 		} else if tz != "" && tz != "UTC" {
+-			if z, err := loadLocation(tz, zoneSources); err == nil {
++			if z, err := loadLocation(tz, platformZoneSources); err == nil {
+ 				localLoc = *z
+ 				return
+ 			}
+diff --git a/src/time/zoneinfo_windows.go b/src/time/zoneinfo_windows.go
+index ba66f90ffe..76d79759f7 100644
+--- a/src/time/zoneinfo_windows.go
++++ b/src/time/zoneinfo_windows.go
+@@ -7,13 +7,10 @@ package time
+ import (
+ 	"errors"
+ 	"internal/syscall/windows/registry"
+-	"runtime"
+ 	"syscall"
+ )
+ 
+-var zoneSources = []string{
+-	runtime.GOROOT() + "/lib/time/zoneinfo.zip",
+-}
++var platformZoneSources []string // none: Windows uses system calls instead
+ 
+ // TODO(rsc): Fall back to copy of zoneinfo files.
+ 

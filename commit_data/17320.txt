@@ -9,8 +9,91 @@ Date:   Mon Aug 19 11:53:34 2013 +1000
     R=golang-dev, bradfitz, daniel.morsing, rsc
     CC=golang-dev
     https://golang.org/cl/10255047
-
+---
  src/cmd/gc/reflect.c       |  4 ++--
  test/interface/explicit.go | 19 +++++++++++++++++++
  test/interface/fail.go     | 19 +++++++++++++++++--
  3 files changed, 38 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 9f5f80b281..fc928864e8 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -265,8 +265,8 @@ imethods(Type *t)
+ 		last = a;
+ 
+ 		// Compiler can only refer to wrappers for
+-		// named interface types.
+-		if(t->sym == S)
++		// named interface types and non-blank methods.
++		if(t->sym == S || isblanksym(method))
+ 			continue;
+ 
+ 		// NOTE(rsc): Perhaps an oversight that
+diff --git a/test/interface/explicit.go b/test/interface/explicit.go
+index eb81156e08..36fa1a4224 100644
+--- a/test/interface/explicit.go
++++ b/test/interface/explicit.go
+@@ -80,3 +80,22 @@ var m2 M = jj // ERROR "incompatible|wrong type for M method"
+ 
+ var m3 = M(ii) // ERROR "invalid|missing"
+ var m4 = M(jj) // ERROR "invalid|wrong type for M method"
++
++
++type B1 interface {
++	_()
++}
++
++type B2 interface {
++	M()
++	_()
++}
++
++type T2 struct{}
++
++func (t *T2) M() {}
++func (t *T2) _() {}
++
++// Check that nothing satisfies an interface with blank methods.
++var b1 B1 = &T2{} // ERROR "incompatible|missing _ method"
++var b2 B2 = &T2{} // ERROR "incompatible|missing _ method"
+diff --git a/test/interface/fail.go b/test/interface/fail.go
+index 72b854dc00..81eb6cb3c1 100644
+--- a/test/interface/fail.go
++++ b/test/interface/fail.go
+@@ -14,18 +14,33 @@ type I interface {
+ 
+ func main() {
+ 	shouldPanic(p1)
++	shouldPanic(p2)
+ }
+ 
+ func p1() {
+ 	var s *S
+ 	var i I
+-	var e interface {}
++	var e interface{}
+ 	e = s
+ 	i = e.(I)
+ 	_ = i
+ }
+ 
+-type S struct {
++type S struct{}
++
++func (s *S) _() {}
++
++type B interface {
++	_()
++}
++
++func p2() {
++	var s *S
++	var b B
++	var e interface{}
++	e = s
++	b = e.(B)
++	_ = b
+ }
+ 
+ func shouldPanic(f func()) {

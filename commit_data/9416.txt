@@ -7,7 +7,69 @@ Date:   Thu Aug 18 12:37:42 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4825047
-
+---
  src/pkg/runtime/windows/amd64/signal.c |  1 +
  src/pkg/runtime/windows/amd64/sys.s    | 38 ++++++++++++++++++++++++++++++++--
  2 files changed, 37 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/windows/amd64/signal.c b/src/pkg/runtime/windows/amd64/signal.c
+index 1fc3eb0606..46951152f5 100644
+--- a/src/pkg/runtime/windows/amd64/signal.c
++++ b/src/pkg/runtime/windows/amd64/signal.c
+@@ -9,6 +9,7 @@
+ void
+ runtime·initsig(int32 queue)
+ {
++	runtime·siginit();
+ }
+ 
+ void
+diff --git a/src/pkg/runtime/windows/amd64/sys.s b/src/pkg/runtime/windows/amd64/sys.s
+index 2009d164ec..891e0d50f9 100644
+--- a/src/pkg/runtime/windows/amd64/sys.s
++++ b/src/pkg/runtime/windows/amd64/sys.s
+@@ -61,8 +61,42 @@ TEXT runtime·setlasterror(SB),7,$0
+ 
+ // Windows runs the ctrl handler in a new thread.
+ TEXT runtime·ctrlhandler(SB),7,$0
+-	// TODO
+-	RET
++	PUSHQ	BP
++	MOVQ	SP, BP
++	PUSHQ	BX
++	PUSHQ	SI
++	PUSHQ	DI
++	PUSHQ	0x58(GS)
++	MOVQ	SP, BX
++
++	// setup dummy m, g
++	SUBQ	$(m_gostack+8), SP	// at least space for m_gostack
++	LEAQ	m_tls(SP), CX
++	MOVQ	CX, 0x58(GS)
++	MOVQ	SP, m(CX)
++	MOVQ	SP, DX
++	SUBQ	$16, SP			// space for g_stack{guard,base}
++	MOVQ	SP, g(CX)
++	MOVQ	SP, m_g0(DX)
++	LEAQ	-8192(SP), CX
++	MOVQ	CX, g_stackguard(SP)
++	MOVQ	BX, g_stackbase(SP)
++
++	PUSHQ	16(BP)
++	CALL	runtime·ctrlhandler1(SB)
++	POPQ	CX
++
++	get_tls(CX)
++	MOVQ	g(CX), CX
++	MOVQ	g_stackbase(CX), SP
++	POPQ	0x58(GS)
++	POPQ	DI
++	POPQ	SI
++	POPQ	BX
++	POPQ	BP
++	MOVQ	0(SP), CX
++	ADDQ	$16, SP
++	JMP	CX
+ 	
+ TEXT runtime·callbackasm(SB),7,$0
+ 	// TODO

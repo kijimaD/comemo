@@ -16,8 +16,167 @@ Date:   Sun Apr 12 10:45:24 2020 +0100
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/S390X.rules | 15 +++++---
  src/cmd/compile/internal/ssa/rewriteS390X.go | 14 +++++---
  test/fixedbugs/issue38356.go                 | 54 ++++++++++++++++++++++++++++
  3 files changed, 75 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index c88919a72a..72dbb5f87b 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -1218,10 +1218,17 @@
+ (FCMP (FMOVDconst [c]) x) && auxTo64F(c) == 0 -> (InvertFlags (LTDBR <v.Type> x))
+ (FCMPS (FMOVSconst [c]) x) && auxTo32F(c) == 0 -> (InvertFlags (LTEBR <v.Type> x))
+ 
+-// FSUB, FSUBS, FADD, FADDS now produce a flag, so when a comparison against zero instruction (e.g: LTDBR) is following
+-// one of those instructions, we can use the generated flag and remove the comparison instruction.
+-(LTDBR (Select0 x:(F(ADD|SUB) _ _)))  -> (Select1 x)
+-(LTEBR (Select0 x:(F(ADDS|SUBS) _ _))) -> (Select1 x)
++// FSUB, FSUBS, FADD, FADDS now produce a condition code representing the
++// comparison of the result with 0.0. If a compare with zero instruction
++// (e.g. LTDBR) is following one of those instructions, we can use the
++// generated flag and remove the comparison instruction.
++// Note: when inserting Select1 ops we need to ensure they are in the
++// same block as their argument. We could also use @x.Block for this
++// but moving the flag generating value to a different block seems to
++// increase the likelihood that the flags value will have to be regenerated
++// by flagalloc which is not what we want.
++(LTDBR (Select0 x:(F(ADD|SUB) _ _)))   && b == x.Block -> (Select1 x)
++(LTEBR (Select0 x:(F(ADDS|SUBS) _ _))) && b == x.Block -> (Select1 x)
+ 
+ // Fold memory operations into operations.
+ // Exclude global data (SB) because these instructions cannot handle relative addresses.
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 43fe3d8756..fda0bc6b34 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -8196,14 +8196,16 @@ func rewriteValueS390X_OpS390XLOCGR(v *Value) bool {
+ }
+ func rewriteValueS390X_OpS390XLTDBR(v *Value) bool {
+ 	v_0 := v.Args[0]
++	b := v.Block
+ 	// match: (LTDBR (Select0 x:(FADD _ _)))
++	// cond: b == x.Block
+ 	// result: (Select1 x)
+ 	for {
+ 		if v_0.Op != OpSelect0 {
+ 			break
+ 		}
+ 		x := v_0.Args[0]
+-		if x.Op != OpS390XFADD {
++		if x.Op != OpS390XFADD || !(b == x.Block) {
+ 			break
+ 		}
+ 		v.reset(OpSelect1)
+@@ -8211,13 +8213,14 @@ func rewriteValueS390X_OpS390XLTDBR(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (LTDBR (Select0 x:(FSUB _ _)))
++	// cond: b == x.Block
+ 	// result: (Select1 x)
+ 	for {
+ 		if v_0.Op != OpSelect0 {
+ 			break
+ 		}
+ 		x := v_0.Args[0]
+-		if x.Op != OpS390XFSUB {
++		if x.Op != OpS390XFSUB || !(b == x.Block) {
+ 			break
+ 		}
+ 		v.reset(OpSelect1)
+@@ -8228,14 +8231,16 @@ func rewriteValueS390X_OpS390XLTDBR(v *Value) bool {
+ }
+ func rewriteValueS390X_OpS390XLTEBR(v *Value) bool {
+ 	v_0 := v.Args[0]
++	b := v.Block
+ 	// match: (LTEBR (Select0 x:(FADDS _ _)))
++	// cond: b == x.Block
+ 	// result: (Select1 x)
+ 	for {
+ 		if v_0.Op != OpSelect0 {
+ 			break
+ 		}
+ 		x := v_0.Args[0]
+-		if x.Op != OpS390XFADDS {
++		if x.Op != OpS390XFADDS || !(b == x.Block) {
+ 			break
+ 		}
+ 		v.reset(OpSelect1)
+@@ -8243,13 +8248,14 @@ func rewriteValueS390X_OpS390XLTEBR(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (LTEBR (Select0 x:(FSUBS _ _)))
++	// cond: b == x.Block
+ 	// result: (Select1 x)
+ 	for {
+ 		if v_0.Op != OpSelect0 {
+ 			break
+ 		}
+ 		x := v_0.Args[0]
+-		if x.Op != OpS390XFSUBS {
++		if x.Op != OpS390XFSUBS || !(b == x.Block) {
+ 			break
+ 		}
+ 		v.reset(OpSelect1)
+diff --git a/test/fixedbugs/issue38356.go b/test/fixedbugs/issue38356.go
+new file mode 100644
+index 0000000000..a1c7f4675a
+--- /dev/null
++++ b/test/fixedbugs/issue38356.go
+@@ -0,0 +1,54 @@
++// compile
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Make sure floating point operations that generate flags
++// are scheduled correctly on s390x.
++
++package p
++
++func f1(x, y float64, z int) float64 {
++	a := x + y  // generate flags
++	if z == 0 { // create basic block that does not clobber flags
++		return a
++	}
++	if a > 0 { // use flags in different basic block
++		return y
++	}
++	return x
++}
++
++func f2(x, y float64, z int) float64 {
++	a := x - y  // generate flags
++	if z == 0 { // create basic block that does not clobber flags
++		return a
++	}
++	if a > 0 { // use flags in different basic block
++		return y
++	}
++	return x
++}
++
++func f3(x, y float32, z int) float32 {
++	a := x + y  // generate flags
++	if z == 0 { // create basic block that does not clobber flags
++		return a
++	}
++	if a > 0 { // use flags in different basic block
++		return y
++	}
++	return x
++}
++
++func f4(x, y float32, z int) float32 {
++	a := x - y  // generate flags
++	if z == 0 { // create basic block that does not clobber flags
++		return a
++	}
++	if a > 0 { // use flags in different basic block
++		return y
++	}
++	return x
++}

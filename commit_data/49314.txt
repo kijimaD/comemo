@@ -15,9 +15,108 @@ Date:   Tue Aug 10 12:49:21 2021 -0700
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/importer/iimport.go  | 12 ++++++------
  src/cmd/compile/internal/typecheck/iexport.go | 11 ++++++-----
  src/cmd/compile/internal/typecheck/iimport.go |  2 +-
  src/go/internal/gcimporter/iimport.go         | 12 ++++++------
  4 files changed, 19 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/iimport.go b/src/cmd/compile/internal/importer/iimport.go
+index 6051cdaf23..a317dfc34a 100644
+--- a/src/cmd/compile/internal/importer/iimport.go
++++ b/src/cmd/compile/internal/importer/iimport.go
+@@ -43,12 +43,12 @@ func (r *intReader) uint64() uint64 {
+ 
+ // Keep this in sync with constants in iexport.go.
+ const (
+-	iexportVersionGo1_11   = 0
+-	iexportVersionPosCol   = 1
+-	iexportVersionGenerics = 2
++	iexportVersionGo1_11 = 0
++	iexportVersionPosCol = 1
++	// TODO: before release, change this back to 2.
++	iexportVersionGenerics = iexportVersionPosCol
+ 
+-	// Start of the unstable series of versions, remove "+ n" before release.
+-	iexportVersionCurrent = iexportVersionGenerics + 1
++	iexportVersionCurrent = iexportVersionGenerics
+ )
+ 
+ type ident struct {
+@@ -99,7 +99,7 @@ func ImportData(imports map[string]*types2.Package, data, path string) (pkg *typ
+ 
+ 	version = int64(r.uint64())
+ 	switch version {
+-	case currentVersion, iexportVersionPosCol, iexportVersionGo1_11:
++	case /* iexportVersionGenerics, */ iexportVersionPosCol, iexportVersionGo1_11:
+ 	default:
+ 		if version > iexportVersionGenerics {
+ 			errorf("unstable iexport format version %d, just rebuild compiler and std library", version)
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 5f510a0a25..75b4931c31 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -226,12 +226,13 @@ import (
+ // 1: added column details to Pos
+ // 2: added information for generic function/types (currently unstable)
+ const (
+-	iexportVersionGo1_11   = 0
+-	iexportVersionPosCol   = 1
+-	iexportVersionGenerics = 2
++	iexportVersionGo1_11 = 0
++	iexportVersionPosCol = 1
++	// TODO: before release, change this back to 2.  Kept at previous version
++	// for now (for testing).
++	iexportVersionGenerics = iexportVersionPosCol
+ 
+-	// Start of the unstable series of versions, remove "+ n" before release.
+-	iexportVersionCurrent = iexportVersionGenerics + 1
++	iexportVersionCurrent = iexportVersionGenerics
+ )
+ 
+ // predeclReserved is the number of type offsets reserved for types
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 83974b6d56..2e3fdbc1bc 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -119,7 +119,7 @@ func ReadImports(pkg *types.Pkg, data string) {
+ 
+ 	version := ird.uint64()
+ 	switch version {
+-	case iexportVersionCurrent, iexportVersionPosCol, iexportVersionGo1_11:
++	case /* iexportVersionGenerics, */ iexportVersionPosCol, iexportVersionGo1_11:
+ 	default:
+ 		if version > iexportVersionGenerics {
+ 			base.Errorf("import %q: unstable export format version %d, just recompile", pkg.Path, version)
+diff --git a/src/go/internal/gcimporter/iimport.go b/src/go/internal/gcimporter/iimport.go
+index d4778d3a74..dbc9b3a83e 100644
+--- a/src/go/internal/gcimporter/iimport.go
++++ b/src/go/internal/gcimporter/iimport.go
+@@ -43,12 +43,12 @@ func (r *intReader) uint64() uint64 {
+ 
+ // Keep this in sync with constants in iexport.go.
+ const (
+-	iexportVersionGo1_11   = 0
+-	iexportVersionPosCol   = 1
+-	iexportVersionGenerics = 2
++	iexportVersionGo1_11 = 0
++	iexportVersionPosCol = 1
++	// TODO: before release, change this back to 2.
++	iexportVersionGenerics = iexportVersionPosCol
+ 
+-	// Start of the unstable series of versions, remove "+ n" before release.
+-	iexportVersionCurrent = iexportVersionGenerics + 1
++	iexportVersionCurrent = iexportVersionGenerics
+ )
+ 
+ const predeclReserved = 32
+@@ -91,7 +91,7 @@ func iImportData(fset *token.FileSet, imports map[string]*types.Package, dataRea
+ 
+ 	version = int64(r.uint64())
+ 	switch version {
+-	case currentVersion, iexportVersionPosCol, iexportVersionGo1_11:
++	case /* iexportVersionGenerics, */ iexportVersionPosCol, iexportVersionGo1_11:
+ 	default:
+ 		if version > iexportVersionGenerics {
+ 			errorf("unstable iexport format version %d, just rebuild compiler and std library", version)

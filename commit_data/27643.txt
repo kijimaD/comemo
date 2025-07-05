@@ -10,7 +10,40 @@ Date:   Tue Apr 5 23:54:50 2016 +0800
     Reviewed-on: https://go-review.googlesource.com/21526
     Run-TryBot: Rob Pike <r@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/atomic.go          | 3 +++
  src/cmd/vet/testdata/atomic.go | 9 +++++++++
  2 files changed, 12 insertions(+)
+
+diff --git a/src/cmd/vet/atomic.go b/src/cmd/vet/atomic.go
+index c084f13ab3..b2ca2d80f3 100644
+--- a/src/cmd/vet/atomic.go
++++ b/src/cmd/vet/atomic.go
+@@ -23,6 +23,9 @@ func checkAtomicAssignment(f *File, node ast.Node) {
+ 	if len(n.Lhs) != len(n.Rhs) {
+ 		return
+ 	}
++	if len(n.Lhs) == 1 && n.Tok == token.DEFINE {
++		return
++	}
+ 
+ 	for i, right := range n.Rhs {
+ 		call, ok := right.(*ast.CallExpr)
+diff --git a/src/cmd/vet/testdata/atomic.go b/src/cmd/vet/testdata/atomic.go
+index 1ba261d941..d5a8e61184 100644
+--- a/src/cmd/vet/testdata/atomic.go
++++ b/src/cmd/vet/testdata/atomic.go
+@@ -40,4 +40,13 @@ func AtomicTests() {
+ 	*ap[1] = atomic.AddUint64(ap[0], 1)
+ 
+ 	x = atomic.AddUint64() // Used to make vet crash; now silently ignored.
++
++	{
++		// A variable declaration creates a new variable in the current scope.
++		x := atomic.AddUint64(&x, 1) // ERROR "declaration of .x. shadows declaration at testdata/atomic.go:16"
++
++		// Re-declaration assigns a new value.
++		x, w := atomic.AddUint64(&x, 1), 10 // ERROR "direct assignment to atomic value"
++		_ = w
++	}
+ }

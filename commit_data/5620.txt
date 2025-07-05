@@ -9,6 +9,20 @@ Date:   Mon Jun 7 18:27:26 2010 -0700
     R=ken2, rsc, ken3
     CC=golang-dev
     https://golang.org/cl/1593041
-
+---
  src/cmd/gc/go.y | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 5aac463c8c..c7a1f111bc 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -753,7 +753,7 @@ uexpr:
+ 	}
+ |	'~' uexpr
+ 	{
+-		yyerror("the OCOM operator is ^");
++		yyerror("the bitwise complement operator is ^");
+ 		$$ = nod(OCOM, $2, N);
+ 	}
+ |	'^' uexpr

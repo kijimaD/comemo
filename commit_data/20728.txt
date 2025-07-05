@@ -11,6 +11,29 @@ Date:   Fri Oct 3 16:42:18 2014 -0400
     R=golang-codereviews, iant
     CC=golang-codereviews, r
     https://golang.org/cl/152970043
-
+---
  misc/cgo/test/issue7978.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/misc/cgo/test/issue7978.go b/misc/cgo/test/issue7978.go
+index 39864476ce..5feed07b95 100644
+--- a/misc/cgo/test/issue7978.go
++++ b/misc/cgo/test/issue7978.go
+@@ -29,6 +29,7 @@ static void issue7978c(uint32_t *sync) {
+ import "C"
+ 
+ import (
++	"os"
+ 	"runtime"
+ 	"strings"
+ 	"sync/atomic"
+@@ -81,6 +82,9 @@ func issue7978go() {
+ }
+ 
+ func test7978(t *testing.T) {
++	if os.Getenv("GOTRACEBACK") != "2" {
++		t.Fatalf("GOTRACEBACK must be 2")
++	}
+ 	issue7978sync = 0
+ 	go issue7978go()
+ 	// test in c code, before callback

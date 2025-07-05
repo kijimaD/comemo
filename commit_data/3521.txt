@@ -9,8 +9,128 @@ Date:   Tue Oct 13 13:05:42 2009 -0700
     DELTA=11  (2 added, 0 deleted, 9 changed)
     OCL=35672
     CL=35674
-
+---
  doc/go_tutorial.html | 14 ++++++++------
  doc/go_tutorial.txt  |  6 +++---
  doc/progs/sort.go    |  6 +++---
  3 files changed, 14 insertions(+), 12 deletions(-)
+
+diff --git a/doc/go_tutorial.html b/doc/go_tutorial.html
+index 755e43db81..b797de807c 100644
+--- a/doc/go_tutorial.html
++++ b/doc/go_tutorial.html
+@@ -22,7 +22,7 @@ key features of the language.  All the programs work (at time of writing) and ar
+ checked in at
+ <p>
+ <pre>
+-    /doc/progs
++    //depot2/go/doc/progs
+ 
+ </pre>
+ Program snippets are annotated with the line number in the original file; for
+@@ -162,7 +162,7 @@ or we could go even shorter and write the idiom
+ 
+ </pre>
+ The <code>:=</code> operator is used a lot in Go to represent an initializing declaration.
+-(For those who know Limbo, its <code>:=</code> construct is the same, but notice
++(For those who know Sawzall, its <code>:=</code> construct is the same, but notice
+ that Go has no colon after the name in a full <code>var</code> declaration.
+ Also, for simplicity of parsing, <code>:=</code> only works inside functions, not at
+ the top level.)
+@@ -368,7 +368,7 @@ declaring an uninitialized variable and taking its address.
+ <p>
+ Although integers come in lots of sizes in Go, integer constants do not.
+ There are no constants like <code>0ll</code> or <code>0x0UL</code>.   Instead, integer
+-constants are evaluated as ideal, large-precision values that
++constants are evaluated as large-precision values that
+ can overflow only when they are assigned to an integer variable with
+ too little precision to represent the value.
+ <p>
+@@ -798,7 +798,7 @@ same interface variable.
+ As an example, consider this simple sort algorithm taken from <code>progs/sort.go</code>:
+ <p>
+ <pre> <!-- progs/sort.go /func.Sort/ /^}/ -->
+-09    func Sort(data SortInterface) {
++09    func Sort(data Interface) {
+ 10        for i := 1; i &lt; data.Len(); i++ {
+ 11            for j := i; j &gt; 0 &amp;&amp; data.Less(j, j-1); j-- {
+ 12                data.Swap(j, j-1);
+@@ -807,10 +807,10 @@ As an example, consider this simple sort algorithm taken from <code>progs/sort.g
+ 15    }
+ </pre>
+ <p>
+-The code needs only three methods, which we wrap into <code>SortInterface</code>:
++The code needs only three methods, which we wrap into sort's <code>Interface</code>:
+ <p>
+ <pre> <!-- progs/sort.go /interface/ /^}/ -->
+-03    type SortInterface interface {
++03    type Interface interface {
+ 04        Len() int;
+ 05        Less(i, j int) bool;
+ 06        Swap(i, j int);
+@@ -1350,3 +1350,5 @@ at the end of main:
+ There's a lot more to Go programming and concurrent programming in general but this
+ quick tour should give you some of the basics.
+ </table>
++</body>
++</html>
+diff --git a/doc/go_tutorial.txt b/doc/go_tutorial.txt
+index e14736079f..c1e47045a7 100644
+--- a/doc/go_tutorial.txt
++++ b/doc/go_tutorial.txt
+@@ -16,7 +16,7 @@ The presentation proceeds through a series of modest programs to illustrate
+ key features of the language.  All the programs work (at time of writing) and are
+ checked in at
+ 
+-	/doc/progs
++	//depot2/go/doc/progs
+ 
+ Program snippets are annotated with the line number in the original file; for
+ cleanliness, blank lines remain blank.
+@@ -110,7 +110,7 @@ or we could go even shorter and write the idiom
+ 	s := "";
+ 
+ The ":=" operator is used a lot in Go to represent an initializing declaration.
+-(For those who know Limbo, its ":=" construct is the same, but notice
++(For those who know Sawzall, its ":=" construct is the same, but notice
+ that Go has no colon after the name in a full "var" declaration.
+ Also, for simplicity of parsing, ":=" only works inside functions, not at
+ the top level.)
+@@ -524,7 +524,7 @@ As an example, consider this simple sort algorithm taken from "progs/sort.go":
+ 
+ --PROG progs/sort.go /func.Sort/ /^}/
+ 
+-The code needs only three methods, which we wrap into "SortInterface":
++The code needs only three methods, which we wrap into sort's "Interface":
+ 
+ --PROG progs/sort.go /interface/ /^}/
+ 
+diff --git a/doc/progs/sort.go b/doc/progs/sort.go
+index 687217a316..5b16ad2601 100644
+--- a/doc/progs/sort.go
++++ b/doc/progs/sort.go
+@@ -4,13 +4,13 @@
+ 
+ package sort
+ 
+-type SortInterface interface {
++type Interface interface {
+ 	Len() int;
+ 	Less(i, j int) bool;
+ 	Swap(i, j int);
+ }
+ 
+-func Sort(data SortInterface) {
++func Sort(data Interface) {
+ 	for i := 1; i < data.Len(); i++ {
+ 		for j := i; j > 0 && data.Less(j, j-1); j-- {
+ 			data.Swap(j, j-1);
+@@ -18,7 +18,7 @@ func Sort(data SortInterface) {
+ 	}
+ }
+ 
+-func IsSorted(data SortInterface) bool {
++func IsSorted(data Interface) bool {
+ 	n := data.Len();
+ 	for i := n - 1; i > 0; i-- {
+ 		if data.Less(i, i - 1) {

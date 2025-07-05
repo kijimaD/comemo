@@ -9,8 +9,58 @@ Date:   Sun Jun 23 18:39:07 2013 +0200
     R=rsc, golang-dev, r
     CC=golang-dev
     https://golang.org/cl/10470043
-
+---
  src/cmd/gc/fmt.c               |  2 +-
  test/fixedbugs/bug465.dir/a.go | 15 +++++++++++++++
  test/fixedbugs/bug465.dir/b.go |  2 +-
  3 files changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index d541c967af..c7519c9762 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -1222,7 +1222,7 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 		}
+ 		if(fmtmode == FExp && ptrlit)
+ 			// typecheck has overwritten OIND by OTYPE with pointer type.
+-			return fmtprint(f, "&%T{ %,H }", n->right->type->type, n->list);
++			return fmtprint(f, "(&%T{ %,H })", n->right->type->type, n->list);
+ 		return fmtprint(f, "(%N{ %,H })", n->right, n->list);
+ 
+ 	case OPTRLIT:
+diff --git a/test/fixedbugs/bug465.dir/a.go b/test/fixedbugs/bug465.dir/a.go
+index c5d410de47..a9a8614bb3 100644
+--- a/test/fixedbugs/bug465.dir/a.go
++++ b/test/fixedbugs/bug465.dir/a.go
+@@ -59,3 +59,18 @@ func F7() int {
+ 	}
+ 	return 0
+ }
++
++func F8() int {
++	if a := (&T{1, 1}); a != nil {
++		return 1
++	}
++	return 0
++}
++
++func F9() int {
++	var a *T
++	if a = (&T{1, 1}); a != nil {
++		return 1
++	}
++	return 0
++}
+diff --git a/test/fixedbugs/bug465.dir/b.go b/test/fixedbugs/bug465.dir/b.go
+index 0f4909f4db..c84c6836d6 100644
+--- a/test/fixedbugs/bug465.dir/b.go
++++ b/test/fixedbugs/bug465.dir/b.go
+@@ -9,7 +9,7 @@ import "./a"
+ func main() {
+ 	for _, f := range []func() int{
+ 		a.F1, a.F2, a.F3, a.F4,
+-		a.F5, a.F6, a.F7} {
++		a.F5, a.F6, a.F7, a.F8, a.F9} {
+ 		if f() > 1 {
+ 			panic("f() > 1")
+ 		}

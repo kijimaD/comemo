@@ -20,8 +20,47 @@ Date:   Thu Dec 10 08:44:44 2020 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/flags/flags.go | 1 +
  src/cmd/asm/main.go                 | 1 +
  src/cmd/go/internal/work/init.go    | 3 ++-
  3 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/flags/flags.go b/src/cmd/asm/internal/flags/flags.go
+index 426e0156aa..1335860315 100644
+--- a/src/cmd/asm/internal/flags/flags.go
++++ b/src/cmd/asm/internal/flags/flags.go
+@@ -20,6 +20,7 @@ var (
+ 	TrimPath         = flag.String("trimpath", "", "remove prefix from recorded source file paths")
+ 	Shared           = flag.Bool("shared", false, "generate code that can be linked into a shared library")
+ 	Dynlink          = flag.Bool("dynlink", false, "support references to Go symbols defined in other shared libraries")
++	Linkshared       = flag.Bool("linkshared", false, "generate code that will be linked against Go shared libraries")
+ 	AllErrors        = flag.Bool("e", false, "no limit on number of errors reported")
+ 	SymABIs          = flag.Bool("gensymabis", false, "write symbol ABI information to output file, don't assemble")
+ 	Importpath       = flag.String("p", "", "set expected package import to path")
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index 149925d23f..31636e3045 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -37,6 +37,7 @@ func main() {
+ 	ctxt := obj.Linknew(architecture.LinkArch)
+ 	ctxt.Debugasm = flags.PrintOut
+ 	ctxt.Flag_dynlink = *flags.Dynlink
++	ctxt.Flag_linkshared = *flags.Linkshared
+ 	ctxt.Flag_shared = *flags.Shared || *flags.Dynlink
+ 	ctxt.IsAsm = true
+ 	ctxt.Pkgpath = *flags.Importpath
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index 102def4838..ba7c7c2fbb 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -241,7 +241,8 @@ func buildModeInit() {
+ 		if gccgo {
+ 			codegenArg = "-fPIC"
+ 		} else {
+-			forcedAsmflags = append(forcedAsmflags, "-D=GOBUILDMODE_shared=1")
++			forcedAsmflags = append(forcedAsmflags, "-D=GOBUILDMODE_shared=1",
++				"-linkshared")
+ 			codegenArg = "-dynlink"
+ 			forcedGcflags = append(forcedGcflags, "-linkshared")
+ 			// TODO(mwhudson): remove -w when that gets fixed in linker.

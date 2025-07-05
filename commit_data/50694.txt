@@ -12,7 +12,48 @@ Date:   Wed Nov 3 22:23:29 2021 +0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/time/tick.go      |  6 +++++-
  src/time/tick_test.go | 11 +++++++++++
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/time/tick.go b/src/time/tick.go
+index f9522b0b75..babf865aeb 100644
+--- a/src/time/tick.go
++++ b/src/time/tick.go
+@@ -48,8 +48,12 @@ func (t *Ticker) Stop() {
+ }
+ 
+ // Reset stops a ticker and resets its period to the specified duration.
+-// The next tick will arrive after the new period elapses.
++// The next tick will arrive after the new period elapses. The duration d
++// must be greater than zero; if not, Reset will panic.
+ func (t *Ticker) Reset(d Duration) {
++	if d <= 0 {
++		panic("non-positive interval for Ticker.Reset")
++	}
+ 	if t.r.f == nil {
+ 		panic("time: Reset called on uninitialized Ticker")
+ 	}
+diff --git a/src/time/tick_test.go b/src/time/tick_test.go
+index d8cd59228f..f539091869 100644
+--- a/src/time/tick_test.go
++++ b/src/time/tick_test.go
+@@ -134,6 +134,17 @@ func TestNewTickerLtZeroDuration(t *testing.T) {
+ 	NewTicker(-1)
+ }
+ 
++// Test that Ticker.Reset panics when given a duration less than zero.
++func TestTickerResetLtZeroDuration(t *testing.T) {
++	defer func() {
++		if err := recover(); err == nil {
++			t.Errorf("Ticker.Reset(0) should have panicked")
++		}
++	}()
++	tk := NewTicker(Second)
++	tk.Reset(0)
++}
++
+ func BenchmarkTicker(b *testing.B) {
+ 	benchmark(b, func(n int) {
+ 		ticker := NewTicker(Nanosecond)

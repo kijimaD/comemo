@@ -7,7 +7,100 @@ Date:   Wed Aug 14 23:21:32 2013 -0700
     R=golang-dev, kevlar, rsc, adg, r
     CC=golang-dev
     https://golang.org/cl/12962043
-
+---
  src/pkg/database/sql/sql_test.go | 16 ++++------------
  src/pkg/testing/testing.go       | 27 +++++++++++++++++++++++++++
  2 files changed, 31 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/database/sql/sql_test.go b/src/pkg/database/sql/sql_test.go
+index 693f5e3a3c..2a059da453 100644
+--- a/src/pkg/database/sql/sql_test.go
++++ b/src/pkg/database/sql/sql_test.go
+@@ -39,15 +39,7 @@ const fakeDBName = "foo"
+ 
+ var chrisBirthday = time.Unix(123456789, 0)
+ 
+-type testOrBench interface {
+-	Fatalf(string, ...interface{})
+-	Errorf(string, ...interface{})
+-	Fatal(...interface{})
+-	Error(...interface{})
+-	Logf(string, ...interface{})
+-}
+-
+-func newTestDB(t testOrBench, name string) *DB {
++func newTestDB(t testing.TB, name string) *DB {
+ 	db, err := Open("test", fakeDBName)
+ 	if err != nil {
+ 		t.Fatalf("Open: %v", err)
+@@ -69,14 +61,14 @@ func newTestDB(t testOrBench, name string) *DB {
+ 	return db
+ }
+ 
+-func exec(t testOrBench, db *DB, query string, args ...interface{}) {
++func exec(t testing.TB, db *DB, query string, args ...interface{}) {
+ 	_, err := db.Exec(query, args...)
+ 	if err != nil {
+ 		t.Fatalf("Exec of %q: %v", query, err)
+ 	}
+ }
+ 
+-func closeDB(t testOrBench, db *DB) {
++func closeDB(t testing.TB, db *DB) {
+ 	if e := recover(); e != nil {
+ 		fmt.Printf("Panic: %v\n", e)
+ 		panic(e)
+@@ -1061,7 +1053,7 @@ func TestStmtCloseOrder(t *testing.T) {
+ 	}
+ }
+ 
+-func manyConcurrentQueries(t testOrBench) {
++func manyConcurrentQueries(t testing.TB) {
+ 	maxProcs, numReqs := 16, 500
+ 	if testing.Short() {
+ 		maxProcs, numReqs = 4, 50
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index 852f4e7a62..4c81201a84 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -196,6 +196,31 @@ func decorate(s string) string {
+ 	return buf.String()
+ }
+ 
++// TB is the interface common to T and B.
++type TB interface {
++	Error(args ...interface{})
++	Errorf(format string, args ...interface{})
++	Fail()
++	FailNow()
++	Failed() bool
++	Fatal(args ...interface{})
++	Fatalf(format string, args ...interface{})
++	Log(args ...interface{})
++	Logf(format string, args ...interface{})
++	Skip(args ...interface{})
++	SkipNow()
++	Skipf(format string, args ...interface{})
++	Skipped() bool
++
++	// A private method to prevent users implementing the
++	// interface and so future additions to it will not
++	// violate Go 1 compatibility.
++	private()
++}
++
++var _ TB = (*T)(nil)
++var _ TB = (*B)(nil)
++
+ // T is a type passed to Test functions to manage test state and support formatted test logs.
+ // Logs are accumulated during execution and dumped to standard error when done.
+ type T struct {
+@@ -204,6 +229,8 @@ type T struct {
+ 	startParallel chan bool // Parallel tests will wait on this.
+ }
+ 
++func (c *common) private() {}
++
+ // Fail marks the function as having failed but continues execution.
+ func (c *common) Fail() {
+ 	c.mu.Lock()

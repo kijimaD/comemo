@@ -12,7 +12,50 @@ Date:   Sat Feb 3 15:36:38 2018 +0000
     Reviewed-on: https://go-review.googlesource.com/91795
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/vet/atomic.go          |  6 ++++--
  src/cmd/vet/testdata/atomic.go | 10 ++++++++++
  2 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/vet/atomic.go b/src/cmd/vet/atomic.go
+index b2ca2d80f3..b425669e1a 100644
+--- a/src/cmd/vet/atomic.go
++++ b/src/cmd/vet/atomic.go
+@@ -7,6 +7,7 @@ package main
+ import (
+ 	"go/ast"
+ 	"go/token"
++	"go/types"
+ )
+ 
+ func init() {
+@@ -36,8 +37,9 @@ func checkAtomicAssignment(f *File, node ast.Node) {
+ 		if !ok {
+ 			continue
+ 		}
+-		pkg, ok := sel.X.(*ast.Ident)
+-		if !ok || pkg.Name != "atomic" {
++		pkgIdent, _ := sel.X.(*ast.Ident)
++		pkgName, ok := f.pkg.uses[pkgIdent].(*types.PkgName)
++		if !ok || pkgName.Imported().Path() != "sync/atomic" {
+ 			continue
+ 		}
+ 
+diff --git a/src/cmd/vet/testdata/atomic.go b/src/cmd/vet/testdata/atomic.go
+index d5a8e61184..8b587567c7 100644
+--- a/src/cmd/vet/testdata/atomic.go
++++ b/src/cmd/vet/testdata/atomic.go
+@@ -50,3 +50,13 @@ func AtomicTests() {
+ 		_ = w
+ 	}
+ }
++
++type T struct{}
++
++func (T) AddUint64(addr *uint64, delta uint64) uint64 { return 0 }
++
++func NonAtomic() {
++	x := uint64(1)
++	var atomic T
++	x = atomic.AddUint64(&x, 1) // ok; not the imported pkg
++}

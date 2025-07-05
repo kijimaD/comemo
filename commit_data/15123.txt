@@ -7,6 +7,20 @@ Date:   Mon Feb 4 15:30:41 2013 +1100
     R=gri, rsc
     CC=golang-dev
     https://golang.org/cl/7280044
-
+---
  src/pkg/container/heap/heap.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/container/heap/heap.go b/src/pkg/container/heap/heap.go
+index d17a30aec3..7fd41f785f 100644
+--- a/src/pkg/container/heap/heap.go
++++ b/src/pkg/container/heap/heap.go
+@@ -4,7 +4,7 @@
+ 
+ // Package heap provides heap operations for any type that implements
+ // heap.Interface. A heap is a tree with the property that each node is the
+-// highest-valued node in its subtree.
++// minimum-valued node in its subtree.
+ //
+ // A heap is a common way to implement a priority queue. To build a priority
+ // queue, implement the Heap interface with the (negative) priority as the

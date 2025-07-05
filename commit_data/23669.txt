@@ -35,9 +35,479 @@ Date:   Mon Apr 20 00:00:45 2015 -0400
     Change-Id: I21b4ebf5890c1a39e4a013eabe1ddbb5f3510c04
     Reviewed-on: https://go-review.googlesource.com/9154
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/build.go |  61 +--------------
  src/cmd/go/build.go   |  23 ++++++
  src/cmd/go/pkg.go     | 213 +++++++++++++++++++++++++++++++++++++++++++++++++-
  src/cmd/go/test.bash  |  68 ++++++++++++++++
  4 files changed, 306 insertions(+), 59 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 2fcb12c826..fed3f6791c 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -888,72 +888,19 @@ var buildorder = []string{
+ 	"text/template",
+ 	"go/doc",
+ 	"go/build",
++	"hash",
++	"crypto",
++	"crypto/sha1",
+ 	"cmd/go",
+ }
+ 
+-// cleantab records the directories to clean in 'go clean'.
+-// It is bigger than the buildorder because we clean all the
+-// compilers but build only the $GOARCH ones.
+-var cleantab = []string{
+-	// Commands and C libraries.
+-	"cmd/compile",
+-	"cmd/go",
+-	"cmd/link",
+-	"cmd/old5a",
+-	"cmd/old6a",
+-	"cmd/old8a",
+-	"cmd/old9a",
+-
+-	// Go packages.
+-	"bufio",
+-	"bytes",
+-	"container/heap",
+-	"encoding",
+-	"encoding/base64",
+-	"encoding/json",
+-	"errors",
+-	"flag",
+-	"fmt",
+-	"go/ast",
+-	"go/build",
+-	"go/doc",
+-	"go/parser",
+-	"go/scanner",
+-	"go/token",
+-	"io",
+-	"io/ioutil",
+-	"log",
+-	"math",
+-	"net/url",
+-	"os",
+-	"os/exec",
+-	"path",
+-	"path/filepath",
+-	"reflect",
+-	"regexp",
+-	"regexp/syntax",
+-	"runtime",
+-	"sort",
+-	"strconv",
+-	"strings",
+-	"sync",
+-	"sync/atomic",
+-	"syscall",
+-	"text/template",
+-	"text/template/parse",
+-	"time",
+-	"unicode",
+-	"unicode/utf16",
+-	"unicode/utf8",
+-}
+-
+ var runtimegen = []string{
+ 	"zaexperiment.h",
+ 	"zversion.go",
+ }
+ 
+ func clean() {
+-	for _, name := range cleantab {
++	for _, name := range buildorder {
+ 		path := pathf("%s/src/%s", goroot, name)
+ 		// Remove generated files.
+ 		for _, elem := range xreaddir(path) {
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 17ff7e0cbb..2f88a1f883 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1406,6 +1406,26 @@ func (b *builder) build(a *action) (err error) {
+ 		if err := buildToolchain.ld(b, a.p, a.target, all, a.objpkg, objects); err != nil {
+ 			return err
+ 		}
++
++		// Write build ID to end of binary.
++		// We could try to put it in a custom section or some such,
++		// but then we'd need different code for ELF, Mach-O, PE, and Plan 9.
++		// Instead, just append to the binary. No one should care.
++		// Issue #11048 is to fix this for ELF and Mach-O at least.
++		if buildToolchain == (gcToolchain{}) && a.p.buildID != "" {
++			f, err := os.OpenFile(a.target, os.O_WRONLY|os.O_APPEND, 0)
++			if err != nil {
++				return err
++			}
++			defer f.Close()
++			// Note: This string must match readBuildIDFromBinary in pkg.go.
++			if _, err := fmt.Fprintf(f, "\x00\n\ngo binary\nbuild id %q\nend go binary\n", a.p.buildID); err != nil {
++				return err
++			}
++			if err := f.Close(); err != nil {
++				return err
++			}
++		}
+ 	}
+ 
+ 	return nil
+@@ -2131,6 +2151,9 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool,
+ 	if buildContext.InstallSuffix != "" {
+ 		gcargs = append(gcargs, "-installsuffix", buildContext.InstallSuffix)
+ 	}
++	if p.buildID != "" {
++		gcargs = append(gcargs, "-buildid", p.buildID)
++	}
+ 
+ 	args := []interface{}{buildToolExec, tool("compile"), "-o", ofile, "-trimpath", b.work, buildGcflags, gcargs, "-D", p.localPrefix, importArgs}
+ 	if ofile == archive {
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 8abddecd18..b5bfdb4d70 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -6,17 +6,20 @@ package main
+ 
+ import (
+ 	"bytes"
++	"crypto/sha1"
+ 	"errors"
+ 	"fmt"
+ 	"go/build"
+ 	"go/scanner"
+ 	"go/token"
++	"io"
+ 	"io/ioutil"
+ 	"os"
+ 	pathpkg "path"
+ 	"path/filepath"
+ 	"runtime"
+ 	"sort"
++	"strconv"
+ 	"strings"
+ 	"time"
+ 	"unicode"
+@@ -95,6 +98,7 @@ type Package struct {
+ 	coverMode    string               // preprocess Go source files with the coverage tool in this mode
+ 	coverVars    map[string]*CoverVar // variables created by coverage analysis
+ 	omitDWARF    bool                 // tell linker not to write DWARF information
++	buildID      string               // expected build ID for generated package
+ }
+ 
+ // CoverVar holds the name of the generated coverage variables targeting the named file.
+@@ -687,6 +691,36 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 		}
+ 	}
+ 
++	// Compute build ID for this package.
++	// Build ID is hash of information we want to detect changes in.
++	// The mtime-based checks in computeStale take care of most
++	// of that information, but they cannot detect the removal of a
++	// source file from a directory (with no changes to files that remain
++	// and no new files in that directory). We hash the list of source
++	// files (without full path, to allow moving the entire tree)
++	// so that if one is removed, we detect it via the build IDs.
++	// In the future we might include other relevant information,
++	// like build tags or whether we're using the race detector or
++	// (if it becomes cheap enough) file contents.
++	h := sha1.New()
++	inputFiles := stringList(
++		p.GoFiles,
++		p.CgoFiles,
++		p.CFiles,
++		p.CXXFiles,
++		p.MFiles,
++		p.HFiles,
++		p.SFiles,
++		p.SysoFiles,
++		p.SwigFiles,
++		p.SwigCXXFiles,
++	)
++	fmt.Fprintf(h, "%d files\n", len(inputFiles))
++	for _, file := range inputFiles {
++		fmt.Fprintf(h, "%s\n", file)
++	}
++	p.buildID = fmt.Sprintf("%x", h.Sum(nil))
++
+ 	return p
+ }
+ 
+@@ -795,6 +829,14 @@ func isStale(p *Package, topRoot map[string]bool) bool {
+ 		}
+ 	}
+ 
++	// Package is stale if the expected build ID differs from the
++	// recorded build ID. This catches changes like a source file
++	// being removed from a package directory. See issue 3895.
++	targetBuildID, err := readBuildID(p)
++	if err == nil && targetBuildID != p.buildID {
++		return true
++	}
++
+ 	// As a courtesy to developers installing new versions of the compiler
+ 	// frequently, define that packages are stale if they are
+ 	// older than the compiler, and commands if they are older than
+@@ -814,9 +856,10 @@ func isStale(p *Package, topRoot map[string]bool) bool {
+ 	}
+ 
+ 	// Have installed copy, probably built using current compilers,
+-	// and built after its imported packages.  The only reason now
++	// built with the right set of source files,
++	// and built after its imported packages. The only reason now
+ 	// that we'd have to rebuild it is if the sources were newer than
+-	// the package.   If a package p is not in the same tree as any
++	// the package. If a package p is not in the same tree as any
+ 	// package named on the command-line, assume it is up-to-date
+ 	// no matter what the modification times on the source files indicate.
+ 	// This avoids rebuilding $GOROOT packages when people are
+@@ -994,3 +1037,169 @@ func hasSubdir(root, dir string) (rel string, ok bool) {
+ 	}
+ 	return filepath.ToSlash(dir[len(root):]), true
+ }
++
++var (
++	errBuildIDToolchain = fmt.Errorf("build ID only supported in gc toolchain")
++	errBuildIDMalformed = fmt.Errorf("malformed object file")
++	errBuildIDUnknown   = fmt.Errorf("lost build ID")
++)
++
++var (
++	bangArch = []byte("!<arch>")
++	pkgdef   = []byte("__.PKGDEF")
++	goobject = []byte("go object ")
++	buildid  = []byte("build id ")
++)
++
++// readBuildID reads the build ID from an archive or binary.
++// It only supports the gc toolchain.
++// Other toolchain maintainers should adjust this function.
++func readBuildID(p *Package) (id string, err error) {
++	if buildToolchain != (gcToolchain{}) {
++		return "", errBuildIDToolchain
++	}
++
++	// For commands, read build ID directly from binary.
++	if p.Name == "main" {
++		return readBuildIDFromBinary(p)
++	}
++
++	// Otherwise, we expect to have an archive (.a) file,
++	// and we can read the build ID from the Go export data.
++	if !strings.HasSuffix(p.Target, ".a") {
++		return "", &os.PathError{Op: "parse", Path: p.Target, Err: errBuildIDUnknown}
++	}
++
++	// Read just enough of the target to fetch the build ID.
++	// The archive is expected to look like:
++	//
++	//	!<arch>
++	//	__.PKGDEF       0           0     0     644     7955      `
++	//	go object darwin amd64 devel X:none
++	//	build id "b41e5c45250e25c9fd5e9f9a1de7857ea0d41224"
++	//
++	// The variable-sized strings are GOOS, GOARCH, and the experiment list (X:none).
++	// Reading the first 1024 bytes should be plenty.
++	f, err := os.Open(p.Target)
++	if err != nil {
++		return "", err
++	}
++	data := make([]byte, 1024)
++	n, err := io.ReadFull(f, data)
++	f.Close()
++
++	if err != nil && n == 0 {
++		return "", err
++	}
++
++	bad := func() (string, error) {
++		return "", &os.PathError{Op: "parse", Path: p.Target, Err: errBuildIDMalformed}
++	}
++
++	// Archive header.
++	for i := 0; ; i++ { // returns during i==3
++		j := bytes.IndexByte(data, '\n')
++		if j < 0 {
++			return bad()
++		}
++		line := data[:j]
++		data = data[j+1:]
++		switch i {
++		case 0:
++			if !bytes.Equal(line, bangArch) {
++				return bad()
++			}
++		case 1:
++			if !bytes.HasPrefix(line, pkgdef) {
++				return bad()
++			}
++		case 2:
++			if !bytes.HasPrefix(line, goobject) {
++				return bad()
++			}
++		case 3:
++			if !bytes.HasPrefix(line, buildid) {
++				// Found the object header, just doesn't have a build id line.
++				// Treat as successful, with empty build id.
++				return "", nil
++			}
++			id, err := strconv.Unquote(string(line[len(buildid):]))
++			if err != nil {
++				return bad()
++			}
++			return id, nil
++		}
++	}
++}
++
++var (
++	goBinary          = []byte("\x00\n\ngo binary\n")
++	endGoBinary       = []byte("\nend go binary\n")
++	newlineAndBuildid = []byte("\nbuild id ")
++)
++
++// readBuildIDFromBinary reads the build ID from a binary.
++// Instead of trying to be good citizens and store the build ID in a
++// custom section of the binary, which would be different for each
++// of the four binary types we support (ELF, Mach-O, Plan 9, PE),
++// we write a few lines to the end of the binary.
++//
++// At the very end of the binary we expect to find:
++//
++//	<NUL>
++//
++//	go binary
++//	build id "XXX"
++//	end go binary
++//
++func readBuildIDFromBinary(p *Package) (id string, err error) {
++	if p.Target == "" {
++		return "", &os.PathError{Op: "parse", Path: p.Target, Err: errBuildIDUnknown}
++	}
++
++	f, err := os.Open(p.Target)
++	if err != nil {
++		return "", err
++	}
++	defer f.Close()
++
++	off, err := f.Seek(0, 2)
++	if err != nil {
++		return "", err
++	}
++	n := 1024
++	if off < int64(n) {
++		n = int(off)
++	}
++	if _, err := f.Seek(off-int64(n), 0); err != nil {
++		return "", err
++	}
++	data := make([]byte, n)
++	if _, err := io.ReadFull(f, data); err != nil {
++		return "", err
++	}
++	if !bytes.HasSuffix(data, endGoBinary) {
++		// Trailer missing. Treat as successful but build ID empty.
++		return "", nil
++	}
++	i := bytes.LastIndex(data, goBinary)
++	if i < 0 {
++		// Trailer missing. Treat as successful but build ID empty.
++		return "", nil
++	}
++
++	// Have trailer. Find build id line.
++	data = data[i:]
++	i = bytes.Index(data, newlineAndBuildid)
++	if i < 0 {
++		// Trailer present; build ID missing. Treat as successful but empty.
++		return "", nil
++	}
++	line := data[i+len(newlineAndBuildid):]
++	j := bytes.IndexByte(line, '\n') // must succeed - endGoBinary is at end and has newlines
++	id, err = strconv.Unquote(string(line[:j]))
++	if err != nil {
++		return "", &os.PathError{Op: "parse", Path: p.Target, Err: errBuildIDMalformed}
++	}
++	return id, nil
++}
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index 8e28d11011..ab46010629 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -96,6 +96,74 @@ elif grep -q runtime $d/err.out; then
+ fi
+ rm -r $d
+ 
++TEST 'go install detects removed files'
++d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
++export GOPATH=$d
++mkdir -p $d/src/mypkg
++echo package mypkg >$d/src/mypkg/x.go
++echo package mypkg >$d/src/mypkg/y.go
++echo '// +build missingtag
++
++package mypkg' >$d/src/mypkg/z.go
++if ! ./testgo install mypkg; then
++	echo "testgo install mypkg failed"
++	ok=false
++elif [ "$(./testgo list -f '{{.Stale}}' mypkg)" != false ]; then
++	echo "./testgo list mypkg claims mypkg is stale, incorrectly"
++	ok=false
++else
++	# z.go was not part of the build; removing it is okay.
++	rm $d/src/mypkg/z.go
++	if [ "$(./testgo list -f '{{.Stale}}' mypkg)" != false ]; then
++		echo "./testgo list mypkg claims mypkg is stale after removing z.go; should not be stale"
++		ok=false
++		./testgo install mypkg
++	fi
++	# y.go was part of the package; removing it should be detected.
++	rm $d/src/mypkg/y.go
++	if [ "$(./testgo list -f '{{.Stale}}' mypkg)" != true ]; then
++		echo "./testgo list mypkg claims mypkg is NOT stale after removing y.go; should be stale"
++		ok=false
++	fi
++fi
++rm -r $d
++
++TEST 'go install detects removed files in package main'
++d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
++export GOPATH=$d
++mkdir -p $d/src/mycmd
++echo 'package main
++
++func main() {}
++' >$d/src/mycmd/x.go
++echo package main >$d/src/mycmd/y.go
++echo '// +build missingtag
++
++package main' >$d/src/mycmd/z.go
++if ! ./testgo install mycmd; then
++	echo "./testgo install mycmd failed"
++	ok=false
++elif [ "$(./testgo list -f '{{.Stale}}' mycmd)" != false ]; then
++	echo "./testgo list mypkg claims mycmd is stale, incorrectly"
++	ok=false
++else
++	# z.go was not part of the build; removing it is okay.
++	rm $d/src/mycmd/z.go
++	if [ "$(./testgo list -f '{{.Stale}}' mycmd)" != false ]; then
++		echo "./testgo list mycmd claims mycmd is stale after removing z.go; should not be stale"
++		ok=false
++		./testgo install mycmd
++	fi
++	# y.go was part of the package; removing it should be detected.
++	rm $d/src/mycmd/y.go
++	if [ "$(./testgo list -f '{{.Stale}}' mycmd)" != true ]; then
++		echo "./testgo list mycmd claims mycmd is NOT stale after removing y.go; should be stale"
++		ok=false
++	fi
++fi
++rm -r $d
++
++
+ # Test local (./) imports.
+ testlocal() {
+ 	local="$1"

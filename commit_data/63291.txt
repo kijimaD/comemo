@@ -22,7 +22,28 @@ Date:   Mon Jun 9 17:04:55 2025 +0800
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/all.bash | 2 +-
  src/all.rc   | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/all.bash b/src/all.bash
+index 1b8ca093e4..adbc60e361 100755
+--- a/src/all.bash
++++ b/src/all.bash
+@@ -10,4 +10,4 @@ if [ ! -f make.bash ]; then
+ fi
+ . ./make.bash "$@" --no-banner
+ bash run.bash --no-rebuild
+-"$GOTOOLDIR/dist" banner  # print build info
++../bin/go tool dist banner # print build info
+diff --git a/src/all.rc b/src/all.rc
+index 45b1261a20..ad8c3e143e 100755
+--- a/src/all.rc
++++ b/src/all.rc
+@@ -13,4 +13,4 @@ if(! test -f make.rc){
+ . ./make.rc --no-banner $*
+ bind -b $GOROOT/bin /bin
+ ./run.rc --no-rebuild
+-$GOTOOLDIR/dist banner  # print build info
++../bin/go tool dist banner # print build info

@@ -11,8 +11,89 @@ Date:   Thu Feb 23 21:26:46 2023 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/infer.go           | 21 +++++++++++++++++++--
  src/go/types/infer.go                              | 21 +++++++++++++++++++--
  src/internal/types/testdata/check/funcinference.go |  8 ++++++++
  3 files changed, 46 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 4d842fa388..2328671f10 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -73,8 +73,25 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 
+ 	// Substitute type arguments for their respective type parameters in params,
+ 	// if any. Note that nil targs entries are ignored by check.subst.
+-	// TODO(gri) Can we avoid this (we're setting known type arguments below,
+-	//           but that doesn't impact the isParameterized check for now).
++	// We do this for better error messages; it's not needed for correctness.
++	// For instance, given:
++	//
++	//   func f[P, Q any](P, Q) {}
++	//
++	//   func _(s string) {
++	//           f[int](s, s) // ERROR
++	//   }
++	//
++	// With substitution, we get the error:
++	//   "cannot use s (variable of type string) as int value in argument to f[int]"
++	//
++	// Without substitution we get the (worse) error:
++	//   "type string of s does not match inferred type int for P"
++	// even though the type int was provided (not inferred) for P.
++	//
++	// TODO(gri) We might be able to finesse this in the error message reporting
++	//           (which only happens in case of an error) and then avoid doing
++	//           the substitution (which always happens).
+ 	if params.Len() > 0 {
+ 		smap := makeSubstMap(tparams, targs)
+ 		params = check.subst(nopos, params, smap, nil, check.context()).(*Tuple)
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 59f982b584..4143d2aabe 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -75,8 +75,25 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 
+ 	// Substitute type arguments for their respective type parameters in params,
+ 	// if any. Note that nil targs entries are ignored by check.subst.
+-	// TODO(gri) Can we avoid this (we're setting known type arguments below,
+-	//           but that doesn't impact the isParameterized check for now).
++	// We do this for better error messages; it's not needed for correctness.
++	// For instance, given:
++	//
++	//   func f[P, Q any](P, Q) {}
++	//
++	//   func _(s string) {
++	//           f[int](s, s) // ERROR
++	//   }
++	//
++	// With substitution, we get the error:
++	//   "cannot use s (variable of type string) as int value in argument to f[int]"
++	//
++	// Without substitution we get the (worse) error:
++	//   "type string of s does not match inferred type int for P"
++	// even though the type int was provided (not inferred) for P.
++	//
++	// TODO(gri) We might be able to finesse this in the error message reporting
++	//           (which only happens in case of an error) and then avoid doing
++	//           the substitution (which always happens).
+ 	if params.Len() > 0 {
+ 		smap := makeSubstMap(tparams, targs)
+ 		params = check.subst(nopos, params, smap, nil, check.context()).(*Tuple)
+diff --git a/src/internal/types/testdata/check/funcinference.go b/src/internal/types/testdata/check/funcinference.go
+index fedf1991dd..e0e978f25a 100644
+--- a/src/internal/types/testdata/check/funcinference.go
++++ b/src/internal/types/testdata/check/funcinference.go
+@@ -102,3 +102,11 @@ func (p *Settable) Set(s string) {
+ }
+ 
+ var _ = FromStrings[Settable]([]string{"1", "2"})
++
++// Suitable error message when the type parameter is provided (rather than inferred).
++
++func f8[P, Q any](P, Q) {}
++
++func _(s string) {
++	f8[int](s /* ERROR "cannot use s (variable of type string) as int value in argument to f8[int]" */ , s)
++}

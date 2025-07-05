@@ -9,7 +9,32 @@ Date:   Thu Sep 12 10:11:51 2013 +1000
     R=gobot
     CC=golang-dev
     https://golang.org/cl/13261053
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 732baec685..649e54b2b5 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -240,6 +240,7 @@ Nicholas Waples <nwaples@gmail.com>
+ Nick Craig-Wood <nick@craig-wood.com> <nickcw@gmail.com>
+ Nicolas Owens <mischief@offblast.org>
+ Nigel Kerr <nigel.kerr@gmail.com>
++Noah Campbell <noahcampbell@gmail.com>
+ Oling Cat <olingcat@gmail.com>
+ Oliver Hookins <ohookins@gmail.com>
+ Olivier Antoine <olivier.antoine@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 713d07116f..0e146e6802 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -350,6 +350,7 @@ Nick Craig-Wood <nick@craig-wood.com> <nickcw@gmail.com>
+ Nicolas Owens <mischief@offblast.org>
+ Nigel Kerr <nigel.kerr@gmail.com>
+ Nigel Tao <nigeltao@golang.org>
++Noah Campbell <noahcampbell@gmail.com>
+ Oling Cat <olingcat@gmail.com>
+ Oliver Hookins <ohookins@gmail.com>
+ Olivier Antoine <olivier.antoine@gmail.com>

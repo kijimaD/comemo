@@ -9,6 +9,31 @@ Date:   Tue Feb 28 10:15:23 2012 +1100
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5695080
-
+---
  src/pkg/encoding/binary/example_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/encoding/binary/example_test.go b/src/pkg/encoding/binary/example_test.go
+index 405ea67891..dec12ebf5d 100644
+--- a/src/pkg/encoding/binary/example_test.go
++++ b/src/pkg/encoding/binary/example_test.go
+@@ -25,9 +25,9 @@ func ExampleWrite() {
+ func ExampleWrite_multi() {
+ 	buf := new(bytes.Buffer)
+ 	var data = []interface{}{
++		uint16(61374),
+ 		int8(-54),
+ 		uint8(254),
+-		uint16(48826),
+ 	}
+ 	for _, v := range data {
+ 		err := binary.Write(buf, binary.LittleEndian, v)
+@@ -36,7 +36,7 @@ func ExampleWrite_multi() {
+ 		}
+ 	}
+ 	fmt.Printf("%x", buf.Bytes())
+-	// Output: cafebabe
++	// Output: beefcafe
+ }
+ 
+ func ExampleRead() {

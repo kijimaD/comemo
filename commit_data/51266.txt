@@ -19,6 +19,26 @@ Date:   Tue Dec 21 13:20:20 2021 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/os/path_test.go | 7 +------
  1 file changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/src/os/path_test.go b/src/os/path_test.go
+index 4535abbc52..59f7283485 100644
+--- a/src/os/path_test.go
++++ b/src/os/path_test.go
+@@ -96,13 +96,8 @@ func TestMkdirAllWithSymlink(t *testing.T) {
+ 
+ func TestMkdirAllAtSlash(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "android", "plan9", "windows":
++	case "android", "ios", "plan9", "windows":
+ 		t.Skipf("skipping on %s", runtime.GOOS)
+-	case "darwin", "ios":
+-		switch runtime.GOARCH {
+-		case "arm64":
+-			t.Skipf("skipping on darwin/arm64, mkdir returns EPERM")
+-		}
+ 	}
+ 	RemoveAll("/_go_os_test")
+ 	const dir = "/_go_os_test/dir"

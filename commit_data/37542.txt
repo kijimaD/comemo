@@ -12,8 +12,67 @@ Date:   Thu Aug 16 16:55:32 2018 +0200
     Change-Id: Ie13fdb71cd7d5481366a02eb711ca48f094026fd
     Reviewed-on: https://go-review.googlesource.com/129576
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/alldocs.go                  | 7 ++++---
  src/cmd/go/internal/list/list.go       | 2 +-
  src/cmd/go/internal/modcmd/download.go | 2 +-
  3 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 1292596697..70d655747c 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -722,7 +722,8 @@
+ // The -compiled flag causes list to set CompiledGoFiles to the Go source
+ // files presented to the compiler. Typically this means that it repeats
+ // the files listed in GoFiles and then also adds the Go code generated
+-// by processing CgoFiles and SwigFiles.
++// by processing CgoFiles and SwigFiles. The Imports list contains the
++// union of all imports from both GoFiles and CompiledGoFiles.
+ //
+ // The -deps flag causes list to iterate over not just the named packages
+ // but also all their dependencies. It visits them in a depth-first post-order
+@@ -842,7 +843,7 @@
+ // module paths match the pattern.
+ // A query of the form path@version specifies the result of that query,
+ // which is not limited to active modules.
+-// See 'go help module' for more about module queries.
++// See 'go help modules' for more about module queries.
+ //
+ // The template function "module" takes a single string argument
+ // that must be a module path or query and returns the specified
+@@ -912,7 +913,7 @@
+ //         Dir     string // absolute path to cached source root directory
+ //     }
+ //
+-// See 'go help module' for more about module queries.
++// See 'go help modules' for more about module queries.
+ //
+ //
+ // Edit go.mod from tools or scripts
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index e75270fa55..423516aad7 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -268,7 +268,7 @@ A pattern containing "..." specifies the active modules whose
+ module paths match the pattern.
+ A query of the form path@version specifies the result of that query,
+ which is not limited to active modules.
+-See 'go help module' for more about module queries.
++See 'go help modules' for more about module queries.
+ 
+ The template function "module" takes a single string argument
+ that must be a module path or query and returns the specified
+diff --git a/src/cmd/go/internal/modcmd/download.go b/src/cmd/go/internal/modcmd/download.go
+index 0a457a56f2..2f072d73cf 100644
+--- a/src/cmd/go/internal/modcmd/download.go
++++ b/src/cmd/go/internal/modcmd/download.go
+@@ -41,7 +41,7 @@ corresponding to this Go struct:
+         Dir     string // absolute path to cached source root directory
+     }
+ 
+-See 'go help module' for more about module queries.
++See 'go help modules' for more about module queries.
+ 	`,
+ }
+ 

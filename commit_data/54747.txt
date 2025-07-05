@@ -15,6 +15,20 @@ Date:   Fri Nov 11 03:55:08 2022 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/exec/exec_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index cb1545a651..edff9a201e 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -1357,7 +1357,7 @@ func TestWaitInterrupt(t *testing.T) {
+ 		// context expired, a successful exit is valid (even if late) and does
+ 		// not merit a non-nil error.
+ 		if err != nil {
+-			t.Errorf("Wait: %v; want %v", err, ctx.Err())
++			t.Errorf("Wait: %v; want nil", err)
+ 		}
+ 		if ps := cmd.ProcessState; !ps.Exited() {
+ 			t.Errorf("cmd did not exit: %v", ps)

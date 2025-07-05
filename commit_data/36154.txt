@@ -17,7 +17,7 @@ Date:   Tue Apr 3 15:52:30 2018 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go           | 24 ++++++-------
  src/cmd/compile/internal/ssa/func.go         | 51 ++++++++++++++--------------
  src/cmd/compile/internal/ssa/func_test.go    |  8 ++---
@@ -26,3 +26,279 @@ Date:   Tue Apr 3 15:52:30 2018 +0100
  src/cmd/link/internal/arm/asm.go             |  4 +--
  src/cmd/link/internal/ld/elf.go              | 14 ++++----
  7 files changed, 51 insertions(+), 56 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index c6a6c275bb..47bfb05b9c 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -505,35 +505,35 @@ func (s *state) entryNewValue2(op ssa.Op, t *types.Type, arg0, arg1 *ssa.Value)
+ 
+ // const* routines add a new const value to the entry block.
+ func (s *state) constSlice(t *types.Type) *ssa.Value {
+-	return s.f.ConstSlice(s.peekPos(), t)
++	return s.f.ConstSlice(t)
+ }
+ func (s *state) constInterface(t *types.Type) *ssa.Value {
+-	return s.f.ConstInterface(s.peekPos(), t)
++	return s.f.ConstInterface(t)
+ }
+-func (s *state) constNil(t *types.Type) *ssa.Value { return s.f.ConstNil(s.peekPos(), t) }
++func (s *state) constNil(t *types.Type) *ssa.Value { return s.f.ConstNil(t) }
+ func (s *state) constEmptyString(t *types.Type) *ssa.Value {
+-	return s.f.ConstEmptyString(s.peekPos(), t)
++	return s.f.ConstEmptyString(t)
+ }
+ func (s *state) constBool(c bool) *ssa.Value {
+-	return s.f.ConstBool(s.peekPos(), types.Types[TBOOL], c)
++	return s.f.ConstBool(types.Types[TBOOL], c)
+ }
+ func (s *state) constInt8(t *types.Type, c int8) *ssa.Value {
+-	return s.f.ConstInt8(s.peekPos(), t, c)
++	return s.f.ConstInt8(t, c)
+ }
+ func (s *state) constInt16(t *types.Type, c int16) *ssa.Value {
+-	return s.f.ConstInt16(s.peekPos(), t, c)
++	return s.f.ConstInt16(t, c)
+ }
+ func (s *state) constInt32(t *types.Type, c int32) *ssa.Value {
+-	return s.f.ConstInt32(s.peekPos(), t, c)
++	return s.f.ConstInt32(t, c)
+ }
+ func (s *state) constInt64(t *types.Type, c int64) *ssa.Value {
+-	return s.f.ConstInt64(s.peekPos(), t, c)
++	return s.f.ConstInt64(t, c)
+ }
+ func (s *state) constFloat32(t *types.Type, c float64) *ssa.Value {
+-	return s.f.ConstFloat32(s.peekPos(), t, c)
++	return s.f.ConstFloat32(t, c)
+ }
+ func (s *state) constFloat64(t *types.Type, c float64) *ssa.Value {
+-	return s.f.ConstFloat64(s.peekPos(), t, c)
++	return s.f.ConstFloat64(t, c)
+ }
+ func (s *state) constInt(t *types.Type, c int64) *ssa.Value {
+ 	if s.config.PtrSize == 8 {
+@@ -545,7 +545,7 @@ func (s *state) constInt(t *types.Type, c int64) *ssa.Value {
+ 	return s.constInt32(t, int32(c))
+ }
+ func (s *state) constOffPtrSP(t *types.Type, c int64) *ssa.Value {
+-	return s.f.ConstOffPtrSP(s.peekPos(), t, c, s.sp)
++	return s.f.ConstOffPtrSP(t, c, s.sp)
+ }
+ 
+ // newValueOrSfCall* are wrappers around newValue*, which may create a call to a
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index bde36a5b3f..0a74e6ef86 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -444,8 +444,7 @@ func (b *Block) NewValue4(pos src.XPos, op Op, t *types.Type, arg0, arg1, arg2,
+ }
+ 
+ // constVal returns a constant value for c.
+-func (f *Func) constVal(pos src.XPos, op Op, t *types.Type, c int64, setAuxInt bool) *Value {
+-	// TODO remove unused pos parameter, both here and in *func.ConstXXX callers.
++func (f *Func) constVal(op Op, t *types.Type, c int64, setAuxInt bool) *Value {
+ 	if f.constants == nil {
+ 		f.constants = make(map[int64][]*Value)
+ 	}
+@@ -480,48 +479,48 @@ const (
+ )
+ 
+ // ConstInt returns an int constant representing its argument.
+-func (f *Func) ConstBool(pos src.XPos, t *types.Type, c bool) *Value {
++func (f *Func) ConstBool(t *types.Type, c bool) *Value {
+ 	i := int64(0)
+ 	if c {
+ 		i = 1
+ 	}
+-	return f.constVal(pos, OpConstBool, t, i, true)
++	return f.constVal(OpConstBool, t, i, true)
+ }
+-func (f *Func) ConstInt8(pos src.XPos, t *types.Type, c int8) *Value {
+-	return f.constVal(pos, OpConst8, t, int64(c), true)
++func (f *Func) ConstInt8(t *types.Type, c int8) *Value {
++	return f.constVal(OpConst8, t, int64(c), true)
+ }
+-func (f *Func) ConstInt16(pos src.XPos, t *types.Type, c int16) *Value {
+-	return f.constVal(pos, OpConst16, t, int64(c), true)
++func (f *Func) ConstInt16(t *types.Type, c int16) *Value {
++	return f.constVal(OpConst16, t, int64(c), true)
+ }
+-func (f *Func) ConstInt32(pos src.XPos, t *types.Type, c int32) *Value {
+-	return f.constVal(pos, OpConst32, t, int64(c), true)
++func (f *Func) ConstInt32(t *types.Type, c int32) *Value {
++	return f.constVal(OpConst32, t, int64(c), true)
+ }
+-func (f *Func) ConstInt64(pos src.XPos, t *types.Type, c int64) *Value {
+-	return f.constVal(pos, OpConst64, t, c, true)
++func (f *Func) ConstInt64(t *types.Type, c int64) *Value {
++	return f.constVal(OpConst64, t, c, true)
+ }
+-func (f *Func) ConstFloat32(pos src.XPos, t *types.Type, c float64) *Value {
+-	return f.constVal(pos, OpConst32F, t, int64(math.Float64bits(float64(float32(c)))), true)
++func (f *Func) ConstFloat32(t *types.Type, c float64) *Value {
++	return f.constVal(OpConst32F, t, int64(math.Float64bits(float64(float32(c)))), true)
+ }
+-func (f *Func) ConstFloat64(pos src.XPos, t *types.Type, c float64) *Value {
+-	return f.constVal(pos, OpConst64F, t, int64(math.Float64bits(c)), true)
++func (f *Func) ConstFloat64(t *types.Type, c float64) *Value {
++	return f.constVal(OpConst64F, t, int64(math.Float64bits(c)), true)
+ }
+ 
+-func (f *Func) ConstSlice(pos src.XPos, t *types.Type) *Value {
+-	return f.constVal(pos, OpConstSlice, t, constSliceMagic, false)
++func (f *Func) ConstSlice(t *types.Type) *Value {
++	return f.constVal(OpConstSlice, t, constSliceMagic, false)
+ }
+-func (f *Func) ConstInterface(pos src.XPos, t *types.Type) *Value {
+-	return f.constVal(pos, OpConstInterface, t, constInterfaceMagic, false)
++func (f *Func) ConstInterface(t *types.Type) *Value {
++	return f.constVal(OpConstInterface, t, constInterfaceMagic, false)
+ }
+-func (f *Func) ConstNil(pos src.XPos, t *types.Type) *Value {
+-	return f.constVal(pos, OpConstNil, t, constNilMagic, false)
++func (f *Func) ConstNil(t *types.Type) *Value {
++	return f.constVal(OpConstNil, t, constNilMagic, false)
+ }
+-func (f *Func) ConstEmptyString(pos src.XPos, t *types.Type) *Value {
+-	v := f.constVal(pos, OpConstString, t, constEmptyStringMagic, false)
++func (f *Func) ConstEmptyString(t *types.Type) *Value {
++	v := f.constVal(OpConstString, t, constEmptyStringMagic, false)
+ 	v.Aux = ""
+ 	return v
+ }
+-func (f *Func) ConstOffPtrSP(pos src.XPos, t *types.Type, c int64, sp *Value) *Value {
+-	v := f.constVal(pos, OpOffPtr, t, c, true)
++func (f *Func) ConstOffPtrSP(t *types.Type, c int64, sp *Value) *Value {
++	v := f.constVal(OpOffPtr, t, c, true)
+ 	if len(v.Args) == 0 {
+ 		v.AddArg(sp)
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/func_test.go b/src/cmd/compile/internal/ssa/func_test.go
+index 94ff27e9f5..79d26c7ea2 100644
+--- a/src/cmd/compile/internal/ssa/func_test.go
++++ b/src/cmd/compile/internal/ssa/func_test.go
+@@ -437,12 +437,12 @@ func TestConstCache(t *testing.T) {
+ 		Bloc("entry",
+ 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+ 			Exit("mem")))
+-	v1 := f.f.ConstBool(src.NoXPos, c.config.Types.Bool, false)
+-	v2 := f.f.ConstBool(src.NoXPos, c.config.Types.Bool, true)
++	v1 := f.f.ConstBool(c.config.Types.Bool, false)
++	v2 := f.f.ConstBool(c.config.Types.Bool, true)
+ 	f.f.freeValue(v1)
+ 	f.f.freeValue(v2)
+-	v3 := f.f.ConstBool(src.NoXPos, c.config.Types.Bool, false)
+-	v4 := f.f.ConstBool(src.NoXPos, c.config.Types.Bool, true)
++	v3 := f.f.ConstBool(c.config.Types.Bool, false)
++	v4 := f.f.ConstBool(c.config.Types.Bool, true)
+ 	if v3.AuxInt != 0 {
+ 		t.Errorf("expected %s to have auxint of 0\n", v3.LongString())
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/shortcircuit.go b/src/cmd/compile/internal/ssa/shortcircuit.go
+index 506be4e7a0..5be1ec98f9 100644
+--- a/src/cmd/compile/internal/ssa/shortcircuit.go
++++ b/src/cmd/compile/internal/ssa/shortcircuit.go
+@@ -37,12 +37,12 @@ func shortcircuit(f *Func) {
+ 				}
+ 				if e.i == 0 {
+ 					if ct == nil {
+-						ct = f.ConstBool(f.Entry.Pos, f.Config.Types.Bool, true)
++						ct = f.ConstBool(f.Config.Types.Bool, true)
+ 					}
+ 					v.SetArg(i, ct)
+ 				} else {
+ 					if cf == nil {
+-						cf = f.ConstBool(f.Entry.Pos, f.Config.Types.Bool, false)
++						cf = f.ConstBool(f.Config.Types.Bool, false)
+ 					}
+ 					v.SetArg(i, cf)
+ 				}
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index c41a677159..b11b87de23 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -99,7 +99,7 @@ func writebarrier(f *Func) {
+ 			gcWriteBarrier = f.fe.Syslook("gcWriteBarrier")
+ 			typedmemmove = f.fe.Syslook("typedmemmove")
+ 			typedmemclr = f.fe.Syslook("typedmemclr")
+-			const0 = f.ConstInt32(initpos, f.Config.Types.UInt32, 0)
++			const0 = f.ConstInt32(f.Config.Types.UInt32, 0)
+ 
+ 			// allocate auxiliary data structures for computing store order
+ 			sset = f.newSparseSet(f.NumValues())
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index d0bebce4bb..9932d56e1a 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -649,7 +649,7 @@ func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64
+ 	return t
+ }
+ 
+-func addpltreloc(ctxt *ld.Link, plt *sym.Symbol, got *sym.Symbol, s *sym.Symbol, typ objabi.RelocType) *sym.Reloc {
++func addpltreloc(ctxt *ld.Link, plt *sym.Symbol, got *sym.Symbol, s *sym.Symbol, typ objabi.RelocType) {
+ 	r := plt.AddRel()
+ 	r.Sym = got
+ 	r.Off = int32(plt.Size)
+@@ -660,8 +660,6 @@ func addpltreloc(ctxt *ld.Link, plt *sym.Symbol, got *sym.Symbol, s *sym.Symbol,
+ 	plt.Attr |= sym.AttrReachable
+ 	plt.Size += 4
+ 	plt.Grow(plt.Size)
+-
+-	return r
+ }
+ 
+ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 817ba4693b..231c00d3c1 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -791,13 +791,11 @@ func elfwriteinterp(out *OutBuf) int {
+ 	return int(sh.size)
+ }
+ 
+-func elfnote(sh *ElfShdr, startva uint64, resoff uint64, sz int, alloc bool) int {
++func elfnote(sh *ElfShdr, startva uint64, resoff uint64, sz int) int {
+ 	n := 3*4 + uint64(sz) + resoff%4
+ 
+ 	sh.type_ = SHT_NOTE
+-	if alloc {
+-		sh.flags = SHF_ALLOC
+-	}
++	sh.flags = SHF_ALLOC
+ 	sh.addralign = 4
+ 	sh.addr = startva + resoff - n
+ 	sh.off = resoff - n
+@@ -831,7 +829,7 @@ var ELF_NOTE_NETBSD_NAME = []byte("NetBSD\x00")
+ 
+ func elfnetbsdsig(sh *ElfShdr, startva uint64, resoff uint64) int {
+ 	n := int(Rnd(ELF_NOTE_NETBSD_NAMESZ, 4) + Rnd(ELF_NOTE_NETBSD_DESCSZ, 4))
+-	return elfnote(sh, startva, resoff, n, true)
++	return elfnote(sh, startva, resoff, n)
+ }
+ 
+ func elfwritenetbsdsig(out *OutBuf) int {
+@@ -862,7 +860,7 @@ var ELF_NOTE_OPENBSD_NAME = []byte("OpenBSD\x00")
+ 
+ func elfopenbsdsig(sh *ElfShdr, startva uint64, resoff uint64) int {
+ 	n := ELF_NOTE_OPENBSD_NAMESZ + ELF_NOTE_OPENBSD_DESCSZ
+-	return elfnote(sh, startva, resoff, n, true)
++	return elfnote(sh, startva, resoff, n)
+ }
+ 
+ func elfwriteopenbsdsig(out *OutBuf) int {
+@@ -918,12 +916,12 @@ var ELF_NOTE_BUILDINFO_NAME = []byte("GNU\x00")
+ 
+ func elfbuildinfo(sh *ElfShdr, startva uint64, resoff uint64) int {
+ 	n := int(ELF_NOTE_BUILDINFO_NAMESZ + Rnd(int64(len(buildinfo)), 4))
+-	return elfnote(sh, startva, resoff, n, true)
++	return elfnote(sh, startva, resoff, n)
+ }
+ 
+ func elfgobuildid(sh *ElfShdr, startva uint64, resoff uint64) int {
+ 	n := len(ELF_NOTE_GO_NAME) + int(Rnd(int64(len(*flagBuildid)), 4))
+-	return elfnote(sh, startva, resoff, n, true)
++	return elfnote(sh, startva, resoff, n)
+ }
+ 
+ func elfwritebuildinfo(out *OutBuf) int {

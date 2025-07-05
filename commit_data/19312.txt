@@ -8,6 +8,38 @@ Date:   Sat May 10 07:13:42 2014 +0900
     R=golang-codereviews, mikioh.mikioh
     CC=golang-codereviews
     https://golang.org/cl/94240045
-
+---
  src/pkg/bytes/bytes_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index b16ac9f515..394dd7a443 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -1144,7 +1144,7 @@ func TestEqualFold(t *testing.T) {
+ func TestBufferGrowNegative(t *testing.T) {
+ 	defer func() {
+ 		if err := recover(); err == nil {
+-			t.Fatal("Grow(-1) should have paniced")
++			t.Fatal("Grow(-1) should have panicked")
+ 		}
+ 	}()
+ 	var b Buffer
+@@ -1154,7 +1154,7 @@ func TestBufferGrowNegative(t *testing.T) {
+ func TestBufferTruncateNegative(t *testing.T) {
+ 	defer func() {
+ 		if err := recover(); err == nil {
+-			t.Fatal("Truncate(-1) should have paniced")
++			t.Fatal("Truncate(-1) should have panicked")
+ 		}
+ 	}()
+ 	var b Buffer
+@@ -1164,7 +1164,7 @@ func TestBufferTruncateNegative(t *testing.T) {
+ func TestBufferTruncateOutOfRange(t *testing.T) {
+ 	defer func() {
+ 		if err := recover(); err == nil {
+-			t.Fatal("Truncate(20) should have paniced")
++			t.Fatal("Truncate(20) should have panicked")
+ 		}
+ 	}()
+ 	var b Buffer

@@ -10,8 +10,67 @@ Date:   Tue Feb 1 17:41:46 2022 -0800
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/reader.go  | 2 ++
  src/cmd/compile/internal/noder/reader2.go | 7 ++++++-
  src/cmd/compile/internal/noder/writer.go  | 9 +++++++++
  3 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 82add23abd..e97cf4e6b6 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -449,6 +449,8 @@ func (r *reader) interfaceType() *types.Type {
+ 	tpkg := types.LocalPkg // TODO(mdempsky): Remove after iexport is gone.
+ 
+ 	nmethods, nembeddeds := r.Len(), r.Len()
++	implicit := nmethods == 0 && nembeddeds == 1 && r.Bool()
++	assert(!implicit) // implicit interfaces only appear in constraints
+ 
+ 	fields := make([]*types.Field, nmethods+nembeddeds)
+ 	methods, embeddeds := fields[:nmethods], fields[nmethods:]
+diff --git a/src/cmd/compile/internal/noder/reader2.go b/src/cmd/compile/internal/noder/reader2.go
+index a8960fdbec..8d1f9087a5 100644
+--- a/src/cmd/compile/internal/noder/reader2.go
++++ b/src/cmd/compile/internal/noder/reader2.go
+@@ -295,6 +295,7 @@ func (r *reader2) unionType() *types2.Union {
+ func (r *reader2) interfaceType() *types2.Interface {
+ 	methods := make([]*types2.Func, r.Len())
+ 	embeddeds := make([]types2.Type, r.Len())
++	implicit := len(methods) == 0 && len(embeddeds) == 1 && r.Bool()
+ 
+ 	for i := range methods {
+ 		pos := r.pos()
+@@ -307,7 +308,11 @@ func (r *reader2) interfaceType() *types2.Interface {
+ 		embeddeds[i] = r.typ()
+ 	}
+ 
+-	return types2.NewInterfaceType(methods, embeddeds)
++	iface := types2.NewInterfaceType(methods, embeddeds)
++	if implicit {
++		iface.MarkImplicit()
++	}
++	return iface
+ }
+ 
+ func (r *reader2) signature(recv *types2.Var, rtparams, tparams []*types2.TypeParam) *types2.Signature {
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 432a2a7195..59e9409b97 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -396,6 +396,15 @@ func (w *writer) interfaceType(typ *types2.Interface) {
+ 	w.Len(typ.NumExplicitMethods())
+ 	w.Len(typ.NumEmbeddeds())
+ 
++	if typ.NumExplicitMethods() == 0 && typ.NumEmbeddeds() == 1 {
++		w.Bool(typ.IsImplicit())
++	} else {
++		// Implicit interfaces always have 0 explicit methods and 1
++		// embedded type, so we skip writing out the implicit flag
++		// otherwise as a space optimization.
++		assert(!typ.IsImplicit())
++	}
++
+ 	for i := 0; i < typ.NumExplicitMethods(); i++ {
+ 		m := typ.ExplicitMethod(i)
+ 		sig := m.Type().(*types2.Signature)

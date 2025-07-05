@@ -15,6 +15,27 @@ Date:   Wed May 1 14:17:24 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/582896
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-
+---
  src/cmd/go/main.go | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index dc2a8fd49c..86f3c65a92 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -252,7 +252,14 @@ func invoke(cmd *base.Command, args []string) {
+ 	} else {
+ 		base.SetFromGOFLAGS(&cmd.Flag)
+ 		cmd.Flag.Parse(args[1:])
+-		telemetry.CountFlags("go/flag:"+strings.ReplaceAll(cfg.CmdName, " ", "-")+"-", cmd.Flag)
++		prefix := "go/flag:" + strings.ReplaceAll(cfg.CmdName, " ", "-") + "-"
++		cmd.Flag.Visit(func(f *flag.Flag) {
++			counterName := prefix + f.Name
++			if f.Name == "buildmode" { // Special case: there is a limited set of buildmode values
++				counterName += "-" + f.Value.String()
++			}
++			telemetry.Inc(counterName)
++		})
+ 		args = cmd.Flag.Args()
+ 	}
+ 

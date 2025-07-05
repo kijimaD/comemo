@@ -17,10 +17,134 @@ Date:   Tue Apr 13 08:32:21 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/os_windows.go       | 18 +++++++++---------
  src/runtime/sys_windows_386.s   |  9 ---------
  src/runtime/sys_windows_amd64.s |  6 ------
  src/runtime/sys_windows_arm.s   |  4 ----
  src/runtime/sys_windows_arm64.s |  4 ----
  5 files changed, 9 insertions(+), 32 deletions(-)
+
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 77ad075be1..5bff4b6646 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -1198,9 +1198,6 @@ func ctrlHandler(_type uint32) uintptr {
+ 	return 0
+ }
+ 
+-// in sys_windows_386.s and sys_windows_amd64.s
+-func profileloop()
+-
+ // called from zcallback_windows_*.s to sys_windows_*.s
+ func callbackasm1()
+ 
+@@ -1233,13 +1230,18 @@ func gFromSP(mp *m, sp uintptr) *g {
+ 	return nil
+ }
+ 
+-func profileloop1(param uintptr) uint32 {
++func profileLoop() {
+ 	stdcall2(_SetThreadPriority, currentThread, _THREAD_PRIORITY_HIGHEST)
+ 
+ 	for {
+ 		stdcall2(_WaitForSingleObject, profiletimer, _INFINITE)
+ 		first := (*m)(atomic.Loadp(unsafe.Pointer(&allm)))
+ 		for mp := first; mp != nil; mp = mp.alllink {
++			if mp == getg().m {
++				// Don't profile ourselves.
++				continue
++			}
++
+ 			lock(&mp.threadLock)
+ 			// Do not profile threads blocked on Notes,
+ 			// this includes idle worker threads,
+@@ -1251,8 +1253,8 @@ func profileloop1(param uintptr) uint32 {
+ 			// Acquire our own handle to the thread.
+ 			var thread uintptr
+ 			if stdcall7(_DuplicateHandle, currentProcess, mp.thread, currentProcess, uintptr(unsafe.Pointer(&thread)), 0, 0, _DUPLICATE_SAME_ACCESS) == 0 {
+-				print("runtime.profileloop1: duplicatehandle failed; errno=", getlasterror(), "\n")
+-				throw("runtime.profileloop1: duplicatehandle failed")
++				print("runtime: duplicatehandle failed; errno=", getlasterror(), "\n")
++				throw("duplicatehandle failed")
+ 			}
+ 			unlock(&mp.threadLock)
+ 
+@@ -1280,9 +1282,7 @@ func setProcessCPUProfiler(hz int32) {
+ 	if profiletimer == 0 {
+ 		timer := stdcall3(_CreateWaitableTimerA, 0, 0, 0)
+ 		atomic.Storeuintptr(&profiletimer, timer)
+-		thread := stdcall6(_CreateThread, 0, 0, funcPC(profileloop), 0, 0, 0)
+-		stdcall2(_SetThreadPriority, thread, _THREAD_PRIORITY_HIGHEST)
+-		stdcall1(_CloseHandle, thread)
++		newm(profileLoop, nil, -1)
+ 	}
+ }
+ 
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index b1c27c40d9..c8839b9976 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -156,15 +156,6 @@ TEXT runtime·lastcontinuetramp<ABIInternal>(SB),NOSPLIT,$0-0
+ 	MOVL	$runtime·lastcontinuehandler(SB), AX
+ 	JMP	sigtramp<>(SB)
+ 
+-// Called by OS using stdcall ABI: uint32 profileloop(void*).
+-TEXT runtime·profileloop<ABIInternal>(SB),NOSPLIT,$0
+-	PUSHL	$runtime·profileloop1(SB)
+-	NOP	SP	// tell vet SP changed - stop checking offsets
+-	CALL	runtime·externalthreadhandler(SB)
+-	MOVL	4(SP), CX
+-	ADDL	$12, SP
+-	JMP	CX
+-
+ TEXT runtime·externalthreadhandler<ABIInternal>(SB),NOSPLIT|TOPFRAME,$0
+ 	PUSHL	BP
+ 	MOVL	SP, BP
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index e9428c36db..df1462b877 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -202,12 +202,6 @@ TEXT runtime·lastcontinuetramp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVQ	$runtime·lastcontinuehandler(SB), AX
+ 	JMP	sigtramp<>(SB)
+ 
+-TEXT runtime·profileloop<ABIInternal>(SB),NOSPLIT|NOFRAME,$8
+-	MOVQ	$runtime·profileloop1(SB), CX
+-	MOVQ	CX, 0(SP)
+-	CALL	runtime·externalthreadhandler<ABIInternal>(SB)
+-	RET
+-
+ TEXT runtime·externalthreadhandler<ABIInternal>(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+diff --git a/src/runtime/sys_windows_arm.s b/src/runtime/sys_windows_arm.s
+index 304bba22e0..8914a2688f 100644
+--- a/src/runtime/sys_windows_arm.s
++++ b/src/runtime/sys_windows_arm.s
+@@ -233,10 +233,6 @@ TEXT runtime·lastcontinuetramp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	$runtime·lastcontinuehandler(SB), R1
+ 	B	sigtramp<>(SB)
+ 
+-TEXT runtime·profileloop<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+-	MOVW	$runtime·profileloop1(SB), R1
+-	B	runtime·externalthreadhandler<ABIInternal>(SB)
+-
+ // int32 externalthreadhandler(uint32 arg, int (*func)(uint32))
+ // stack layout:
+ //   +----------------+
+diff --git a/src/runtime/sys_windows_arm64.s b/src/runtime/sys_windows_arm64.s
+index 4512fbc8b0..70f628c27d 100644
+--- a/src/runtime/sys_windows_arm64.s
++++ b/src/runtime/sys_windows_arm64.s
+@@ -299,10 +299,6 @@ TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	$runtime·lastcontinuehandler<ABIInternal>(SB), R1
+ 	B	sigtramp<>(SB)
+ 
+-TEXT runtime·profileloop<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+-	MOVD	$runtime·profileloop1(SB), R1
+-	B	runtime·externalthreadhandler<ABIInternal>(SB)
+-
+ // externalthreadhander called with R0 = uint32 arg, R1 = Go function f.
+ // Need to call f(arg), which returns a uint32, and return it in R0.
+ TEXT runtime·externalthreadhandler<ABIInternal>(SB),NOSPLIT|TOPFRAME,$96-0

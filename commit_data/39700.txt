@@ -14,7 +14,61 @@ Date:   Wed Mar 13 14:36:34 2019 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  2 ++
  src/cmd/compile/internal/ssa/rewritegeneric.go | 29 ++++++++++++++++++++++++++
  2 files changed, 31 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 43e788562c..aac7438e0a 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -425,6 +425,8 @@
+ (Geq32 (And32 _ (Const32 [c])) (Const32 [0])) && int32(c) >= 0 -> (ConstBool [1])
+ (Geq64 (And64 _ (Const64 [c])) (Const64 [0])) && int64(c) >= 0 -> (ConstBool [1])
+ 
++(Geq64 (Rsh64Ux64 _ (Const64 [c])) (Const64 [0])) && c > 0 -> (ConstBool [1])
++
+ (Greater64U (Const64 [c]) (Const64 [d])) -> (ConstBool [b2i(uint64(c) > uint64(d))])
+ (Greater32U (Const32 [c]) (Const32 [d])) -> (ConstBool [b2i(uint32(c) > uint32(d))])
+ (Greater16U (Const16 [c]) (Const16 [d])) -> (ConstBool [b2i(uint16(c) > uint16(d))])
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index b25012cb31..543664c8bc 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -10714,6 +10714,35 @@ func rewriteValuegeneric_OpGeq64_0(v *Value) bool {
+ 		v.AuxInt = 1
+ 		return true
+ 	}
++	// match: (Geq64 (Rsh64Ux64 _ (Const64 [c])) (Const64 [0]))
++	// cond: c > 0
++	// result: (ConstBool [1])
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpRsh64Ux64 {
++			break
++		}
++		_ = v_0.Args[1]
++		v_0_1 := v_0.Args[1]
++		if v_0_1.Op != OpConst64 {
++			break
++		}
++		c := v_0_1.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		if v_1.AuxInt != 0 {
++			break
++		}
++		if !(c > 0) {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = 1
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpGeq64F_0(v *Value) bool {

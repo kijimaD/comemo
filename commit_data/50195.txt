@@ -17,6 +17,26 @@ Date:   Thu Oct 7 14:23:54 2021 -0400
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  test/fixedbugs/issue48784.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/test/fixedbugs/issue48784.go b/test/fixedbugs/issue48784.go
+index 6048518df2..b07f524305 100644
+--- a/test/fixedbugs/issue48784.go
++++ b/test/fixedbugs/issue48784.go
+@@ -15,9 +15,9 @@ var t T
+ var a [1]int
+ 
+ var (
+-	_ = s == nil // ERROR "invalid operation:.*mismatched types string and untyped nil"
+-	_ = b == nil // ERROR "invalid operation:.*mismatched types bool and untyped nil"
+-	_ = i == nil // ERROR "invalid operation:.*mismatched types int and untyped nil"
+-	_ = t == nil // ERROR "invalid operation:.*mismatched types T and untyped nil"
+-	_ = a == nil // ERROR "invalid operation:.*mismatched types \[1\]int and untyped nil"
++	_ = s == nil // ERROR "invalid operation:.*mismatched types string and (untyped )?nil"
++	_ = b == nil // ERROR "invalid operation:.*mismatched types bool and (untyped )?nil"
++	_ = i == nil // ERROR "invalid operation:.*mismatched types int and (untyped )?nil"
++	_ = t == nil // ERROR "invalid operation:.*mismatched types T and (untyped )?nil"
++	_ = a == nil // ERROR "invalid operation:.*mismatched types \[1\]int and (untyped )?nil"
+ )

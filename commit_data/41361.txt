@@ -22,7 +22,7 @@ Date:   Wed Sep 25 00:21:23 2019 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/closure.go   |  20 ++---
  src/cmd/compile/internal/gc/fmt.go       |   8 +-
  src/cmd/compile/internal/gc/iexport.go   |   4 +-
@@ -31,3 +31,339 @@ Date:   Wed Sep 25 00:21:23 2019 -0700
  src/cmd/compile/internal/gc/typecheck.go | 122 +++++++++++++------------------
  test/complit1.go                         |   4 +-
  7 files changed, 67 insertions(+), 113 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 21b3461b47..6080777e8e 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -395,18 +395,16 @@ func walkclosure(clo *Node, init *Nodes) *Node {
+ 
+ 	typ := closureType(clo)
+ 
+-	clos := nod(OCOMPLIT, nil, nod(ODEREF, typenod(typ), nil))
++	clos := nod(OCOMPLIT, nil, typenod(typ))
+ 	clos.Esc = clo.Esc
+-	clos.Right.SetImplicit(true)
+ 	clos.List.Set(append([]*Node{nod(OCFUNC, xfunc.Func.Nname, nil)}, clo.Func.Enter.Slice()...))
+ 
++	clos = nod(OADDR, clos, nil)
++	clos.Esc = clo.Esc
++
+ 	// Force type conversion from *struct to the func type.
+ 	clos = convnop(clos, clo.Type)
+ 
+-	// typecheck will insert a PTRLIT node under CONVNOP,
+-	// tag it with escape analysis result.
+-	clos.Left.Esc = clo.Esc
+-
+ 	// non-escaping temp to use, if any.
+ 	if x := prealloc[clo]; x != nil {
+ 		if !types.Identical(typ, x.Type) {
+@@ -547,18 +545,16 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
+ 
+ 	typ := partialCallType(n)
+ 
+-	clos := nod(OCOMPLIT, nil, nod(ODEREF, typenod(typ), nil))
++	clos := nod(OCOMPLIT, nil, typenod(typ))
+ 	clos.Esc = n.Esc
+-	clos.Right.SetImplicit(true)
+ 	clos.List.Set2(nod(OCFUNC, n.Func.Nname, nil), n.Left)
+ 
++	clos = nod(OADDR, clos, nil)
++	clos.Esc = n.Esc
++
+ 	// Force type conversion from *struct to the func type.
+ 	clos = convnop(clos, n.Type)
+ 
+-	// The typecheck inside convnop will insert a PTRLIT node under CONVNOP.
+-	// Tag it with escape analysis result.
+-	clos.Left.Esc = n.Esc
+-
+ 	// non-escaping temp to use, if any.
+ 	if x := prealloc[n]; x != nil {
+ 		if !types.Identical(typ, x.Type) {
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index e7a2def950..e449444ca5 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -1304,12 +1304,8 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
+ 
+ 	case OCOMPLIT:
+ 		if mode == FErr {
+-			if n.Right != nil && n.Right.Type != nil && !n.Implicit() {
+-				if n.Right.Implicit() && n.Right.Type.IsPtr() {
+-					mode.Fprintf(s, "&%v literal", n.Right.Type.Elem())
+-					return
+-				}
+-				mode.Fprintf(s, "%v literal", n.Right.Type)
++			if n.Right != nil {
++				mode.Fprintf(s, "%v literal", n.Right)
+ 				return
+ 			}
+ 
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index eeca0b4083..da0a8be30e 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -1181,10 +1181,10 @@ func (w *exportWriter) expr(n *Node) {
+ 	// 	should have been resolved by typechecking - handled by default case
+ 
+ 	case OPTRLIT:
+-		w.op(OPTRLIT)
++		w.op(OPTRLIT) // TODO(mdempsky): Replace with OADDR.
+ 		w.pos(n.Pos)
+ 		w.expr(n.Left)
+-		w.bool(n.Implicit())
++		w.bool(false)
+ 
+ 	case OSTRUCTLIT:
+ 		w.op(OSTRUCTLIT)
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 4862f86344..dd35b9ba46 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -802,17 +802,8 @@ func (r *importReader) node() *Node {
+ 	//	unimplemented
+ 
+ 	case OPTRLIT:
+-		pos := r.pos()
+-		n := npos(pos, r.expr())
+-		if !r.bool() /* !implicit, i.e. '&' operator */ {
+-			if n.Op == OCOMPLIT {
+-				// Special case for &T{...}: turn into (*T){...}.
+-				n.Right = nodl(pos, ODEREF, n.Right, nil)
+-				n.Right.SetImplicit(true)
+-			} else {
+-				n = nodl(pos, OADDR, n, nil)
+-			}
+-		}
++		n := nodl(r.pos(), OADDR, r.expr(), nil)
++		_ = r.bool()
+ 		return n
+ 
+ 	case OSTRUCTLIT:
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 91c7fd49b1..2922f9a872 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -662,15 +662,6 @@ func (p *noder) expr(expr syntax.Expr) *Node {
+ 		}
+ 		x := p.expr(expr.X)
+ 		if expr.Y == nil {
+-			if expr.Op == syntax.And {
+-				x = unparen(x) // TODO(mdempsky): Needed?
+-				if x.Op == OCOMPLIT {
+-					// Special case for &T{...}: turn into (*T){...}.
+-					x.Right = p.nod(expr, ODEREF, x.Right, nil)
+-					x.Right.SetImplicit(true)
+-					return x
+-				}
+-			}
+ 			return p.nod(expr, p.unOp(expr.Op), x, nil)
+ 		}
+ 		return p.nod(expr, p.binOp(expr.Op), x, p.expr(expr.Y))
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 7d0d5f35be..989805c1df 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -830,36 +830,38 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 			n.Type = nil
+ 			return n
+ 		}
+-		checklvalue(n.Left, "take the address of")
+-		r := outervalue(n.Left)
+-		var l *Node
+-		for l = n.Left; l != r; l = l.Left {
+-			l.SetAddrtaken(true)
+-			if l.IsClosureVar() && !capturevarscomplete {
+-				// Mark the original variable as Addrtaken so that capturevars
+-				// knows not to pass it by value.
+-				// But if the capturevars phase is complete, don't touch it,
+-				// in case l.Name's containing function has not yet been compiled.
+-				l.Name.Defn.SetAddrtaken(true)
++
++		switch n.Left.Op {
++		case OARRAYLIT, OMAPLIT, OSLICELIT, OSTRUCTLIT:
++			n.Op = OPTRLIT
++
++		default:
++			checklvalue(n.Left, "take the address of")
++			r := outervalue(n.Left)
++			if r.Orig != r && r.Op == ONAME {
++				Fatalf("found non-orig name node %v", r) // TODO(mdempsky): What does this mean?
++			}
++			for l := n.Left; ; l = l.Left {
++				l.SetAddrtaken(true)
++				if l.IsClosureVar() && !capturevarscomplete {
++					// Mark the original variable as Addrtaken so that capturevars
++					// knows not to pass it by value.
++					// But if the capturevars phase is complete, don't touch it,
++					// in case l.Name's containing function has not yet been compiled.
++					l.Name.Defn.SetAddrtaken(true)
++				}
++				if l == r {
++					break
++				}
++			}
++			n.Left = defaultlit(n.Left, nil)
++			if n.Left.Type == nil {
++				n.Type = nil
++				return n
+ 			}
+ 		}
+ 
+-		if l.Orig != l && l.Op == ONAME {
+-			Fatalf("found non-orig name node %v", l)
+-		}
+-		l.SetAddrtaken(true)
+-		if l.IsClosureVar() && !capturevarscomplete {
+-			// See comments above about closure variables.
+-			l.Name.Defn.SetAddrtaken(true)
+-		}
+-		n.Left = defaultlit(n.Left, nil)
+-		l = n.Left
+-		t := l.Type
+-		if t == nil {
+-			n.Type = nil
+-			return n
+-		}
+-		n.Type = types.NewPtr(t)
++		n.Type = types.NewPtr(n.Left.Type)
+ 
+ 	case OCOMPLIT:
+ 		ok |= ctxExpr
+@@ -2723,13 +2725,8 @@ func fielddup(name string, hash map[string]bool) {
+ 	hash[name] = true
+ }
+ 
+-// iscomptype reports whether type t is a composite literal type
+-// or a pointer to one.
++// iscomptype reports whether type t is a composite literal type.
+ func iscomptype(t *types.Type) bool {
+-	if t.IsPtr() {
+-		t = t.Elem()
+-	}
+-
+ 	switch t.Etype {
+ 	case TARRAY, TSLICE, TSTRUCT, TMAP:
+ 		return true
+@@ -2738,16 +2735,27 @@ func iscomptype(t *types.Type) bool {
+ 	}
+ }
+ 
+-func pushtype(n *Node, t *types.Type) {
+-	if n == nil || n.Op != OCOMPLIT || !iscomptype(t) {
+-		return
++// pushtype adds elided type information for composite literals if
++// appropriate, and returns the resulting expression.
++func pushtype(n *Node, t *types.Type) *Node {
++	if n == nil || n.Op != OCOMPLIT || n.Right != nil {
++		return n
+ 	}
+ 
+-	if n.Right == nil {
++	switch {
++	case iscomptype(t):
++		// For T, return T{...}.
+ 		n.Right = typenod(t)
+-		n.SetImplicit(true)       // don't print
+-		n.Right.SetImplicit(true) // * is okay
++
++	case t.IsPtr() && iscomptype(t.Elem()):
++		// For *T, return &T{...}.
++		n.Right = typenod(t.Elem())
++
++		n = nodl(n.Pos, OADDR, n, nil)
++		n.SetImplicit(true)
+ 	}
++
++	return n
+ }
+ 
+ // The result of typecheckcomplit MUST be assigned back to n, e.g.
+@@ -2782,28 +2790,9 @@ func typecheckcomplit(n *Node) (res *Node) {
+ 	nerr := nerrors
+ 	n.Type = t
+ 
+-	if t.IsPtr() {
+-		// For better or worse, we don't allow pointers as the composite literal type,
+-		// except when using the &T syntax, which sets implicit on the ODEREF.
+-		if !n.Right.Implicit() {
+-			yyerror("invalid pointer type %v for composite literal (use &%v instead)", t, t.Elem())
+-			n.Type = nil
+-			return n
+-		}
+-
+-		// Also, the underlying type must be a struct, map, slice, or array.
+-		if !iscomptype(t) {
+-			yyerror("invalid pointer type %v for composite literal", t)
+-			n.Type = nil
+-			return n
+-		}
+-
+-		t = t.Elem()
+-	}
+-
+ 	switch t.Etype {
+ 	default:
+-		yyerror("invalid type for composite literal: %v", t)
++		yyerror("invalid composite literal type %v", t)
+ 		n.Type = nil
+ 
+ 	case TARRAY, TSLICE:
+@@ -2850,7 +2839,7 @@ func typecheckcomplit(n *Node) (res *Node) {
+ 			}
+ 
+ 			r := *vp
+-			pushtype(r, t.Elem())
++			r = pushtype(r, t.Elem())
+ 			r = typecheck(r, ctxExpr)
+ 			*vp = assignconv(r, t.Elem(), "array or slice literal")
+ 
+@@ -2887,13 +2876,13 @@ func typecheckcomplit(n *Node) (res *Node) {
+ 			}
+ 
+ 			r := l.Left
+-			pushtype(r, t.Key())
++			r = pushtype(r, t.Key())
+ 			r = typecheck(r, ctxExpr)
+ 			l.Left = assignconv(r, t.Key(), "map key")
+ 			cs.add(lineno, l.Left, "key", "map literal")
+ 
+ 			r = l.Right
+-			pushtype(r, t.Elem())
++			r = pushtype(r, t.Elem())
+ 			r = typecheck(r, ctxExpr)
+ 			l.Right = assignconv(r, t.Elem(), "map value")
+ 		}
+@@ -3024,15 +3013,6 @@ func typecheckcomplit(n *Node) (res *Node) {
+ 		return n
+ 	}
+ 
+-	n.Orig = norig
+-	if n.Type.IsPtr() {
+-		n = nodl(n.Pos, OPTRLIT, n, nil)
+-		n.SetTypecheck(1)
+-		n.Type = n.Left.Type
+-		n.Left.Type = t
+-		n.Left.SetTypecheck(1)
+-	}
+-
+ 	n.Orig = norig
+ 	return n
+ }
+diff --git a/test/complit1.go b/test/complit1.go
+index 83695a9e88..eb0f920fcb 100644
+--- a/test/complit1.go
++++ b/test/complit1.go
+@@ -46,8 +46,8 @@ var (
+ 	_ = &T{0, 0, "", nil}               // ok
+ 	_ = &T{i: 0, f: 0, s: "", next: {}} // ERROR "missing type in composite literal|omit types within composite literal"
+ 	_ = &T{0, 0, "", {}}                // ERROR "missing type in composite literal|omit types within composite literal"
+-	_ = TP{i: 0, f: 0, s: "", next: {}} // ERROR "invalid pointer type"
+-	_ = &Ti{}                           // ERROR "invalid pointer type"
++	_ = TP{i: 0, f: 0, s: "", next: {}} // ERROR "invalid composite literal type TP"
++	_ = &Ti{}                           // ERROR "invalid composite literal type Ti"
+ )
+ 
+ type M map[T]T

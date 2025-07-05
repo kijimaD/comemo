@@ -9,8 +9,79 @@ Date:   Mon Sep 3 12:12:51 2012 +1000
     R=golang-dev, minux.ma
     CC=golang-dev, vcc.163
     https://golang.org/cl/6490056
-
+---
  misc/cgo/test/cgo_test.go   |  1 +
  misc/cgo/test/issue3945.go  | 22 ++++++++++++++++++++++
  src/pkg/runtime/asm_amd64.s | 12 +++++++-----
  3 files changed, 30 insertions(+), 5 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 1aa21cb65b..c3c35b53c2 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -29,5 +29,6 @@ func TestSetEnv(t *testing.T)              { testSetEnv(t) }
+ func TestHelpers(t *testing.T)             { testHelpers(t) }
+ func TestLibgcc(t *testing.T)              { testLibgcc(t) }
+ func Test1635(t *testing.T)                { test1635(t) }
++func TestPrintf(t *testing.T)              { testPrintf(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/misc/cgo/test/issue3945.go b/misc/cgo/test/issue3945.go
+new file mode 100644
+index 0000000000..331cd0baf5
+--- /dev/null
++++ b/misc/cgo/test/issue3945.go
+@@ -0,0 +1,22 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++// Test that cgo reserves enough stack space during cgo call.
++// See http://golang.org/issue/3945 for details.
++
++// #include <stdio.h>
++//
++// void say() {
++//    printf("%s from C\n", "hello");
++// }
++//
++import "C"
++
++import "testing"
++
++func testPrintf(t *testing.T) {
++	C.say()
++}
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 08133f02d2..216c89c29f 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -489,19 +489,21 @@ TEXT runtime·asmcgocall(SB),7,$0
+ 	MOVQ	(g_sched+gobuf_sp)(SI), SP
+ 
+ 	// Now on a scheduling stack (a pthread-created stack).
+-	SUBQ	$48, SP
++	// Make sure we have enough room for 4 stack-backed fast-call
++	// registers as per windows amd64 calling convention.
++	SUBQ	$64, SP
+ 	ANDQ	$~15, SP	// alignment for gcc ABI
+-	MOVQ	DI, 32(SP)	// save g
+-	MOVQ	DX, 24(SP)	// save SP
++	MOVQ	DI, 48(SP)	// save g
++	MOVQ	DX, 40(SP)	// save SP
+ 	MOVQ	BX, DI		// DI = first argument in AMD64 ABI
+ 	MOVQ	BX, CX		// CX = first argument in Win64
+ 	CALL	AX
+ 
+ 	// Restore registers, g, stack pointer.
+ 	get_tls(CX)
+-	MOVQ	32(SP), DI
++	MOVQ	48(SP), DI
+ 	MOVQ	DI, g(CX)
+-	MOVQ	24(SP), SP
++	MOVQ	40(SP), SP
+ 	RET
+ 
+ // cgocallback(void (*fn)(void*), void *frame, uintptr framesize)

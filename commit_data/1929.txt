@@ -14,7 +14,7 @@ Date:   Tue Mar 31 15:45:12 2009 -0700
     DELTA=1140  (1021 added, 114 deleted, 5 changed)
     OCL=26942
     CL=26968
-
+---
  src/runtime/386/vlrt.c                  |   5 +-
  src/runtime/darwin/386/defs.h           | 229 ++++++++++++++++++++++++++++++++
  src/runtime/darwin/386/rt0.s            |   8 ++
@@ -27,3 +27,1053 @@ Date:   Tue Mar 31 15:45:12 2009 -0700
  src/runtime/linux/386/sys.s             | 222 +++++++++++++++++++++++++++++++
  src/runtime/runtime.c                   |  11 +-
  11 files changed, 939 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/386/vlrt.c b/src/runtime/386/vlrt.c
+index 254eb3e717..9f205b92c9 100755
+--- a/src/runtime/386/vlrt.c
++++ b/src/runtime/386/vlrt.c
+@@ -43,6 +43,7 @@ struct	Vlong
+ {
+ 	union
+ 	{
++		long long	v;
+ 		struct
+ 		{
+ 			ulong	lo;
+@@ -60,8 +61,6 @@ struct	Vlong
+ 
+ void	abort(void);
+ 
+-void _subv(Vlong*, Vlong, Vlong);
+-
+ void
+ _d2v(Vlong *y, double d)
+ {
+@@ -236,7 +235,7 @@ dodiv(Vlong num, Vlong den, Vlong *qp, Vlong *rp)
+ 			slowdodiv(num, den, &q, &r);
+ 		else {
+ 			q.lo = n;
+-			_subv(&r, num, x);
++			r.v = num.v - x.v;
+ 		}
+ 	} else {
+ 		if(num.hi >= den.lo){
+diff --git a/src/runtime/darwin/386/defs.h b/src/runtime/darwin/386/defs.h
+new file mode 100644
+index 0000000000..b66a5d8b4e
+--- /dev/null
++++ b/src/runtime/darwin/386/defs.h
+@@ -0,0 +1,229 @@
++// godefs -f -m32 defs.c
++
++// MACHINE GENERATED - DO NOT EDIT.
++
++// Constants
++enum {
++	PROT_NONE = 0,
++	PROT_READ = 0x1,
++	PROT_WRITE = 0x2,
++	PROT_EXEC = 0x4,
++	MAP_ANON = 0x1000,
++	MAP_PRIVATE = 0x2,
++	MACH_MSG_TYPE_MOVE_RECEIVE = 0x10,
++	MACH_MSG_TYPE_MOVE_SEND = 0x11,
++	MACH_MSG_TYPE_MOVE_SEND_ONCE = 0x12,
++	MACH_MSG_TYPE_COPY_SEND = 0x13,
++	MACH_MSG_TYPE_MAKE_SEND = 0x14,
++	MACH_MSG_TYPE_MAKE_SEND_ONCE = 0x15,
++	MACH_MSG_TYPE_COPY_RECEIVE = 0x16,
++	MACH_MSG_PORT_DESCRIPTOR = 0,
++	MACH_MSG_OOL_DESCRIPTOR = 0x1,
++	MACH_MSG_OOL_PORTS_DESCRIPTOR = 0x2,
++	MACH_MSG_OOL_VOLATILE_DESCRIPTOR = 0x3,
++	MACH_MSGH_BITS_COMPLEX = 0x80000000,
++	MACH_SEND_MSG = 0x1,
++	MACH_RCV_MSG = 0x2,
++	MACH_RCV_LARGE = 0x4,
++	MACH_SEND_TIMEOUT = 0x10,
++	MACH_SEND_INTERRUPT = 0x40,
++	MACH_SEND_CANCEL = 0x80,
++	MACH_SEND_ALWAYS = 0x10000,
++	MACH_SEND_TRAILER = 0x20000,
++	MACH_RCV_TIMEOUT = 0x100,
++	MACH_RCV_NOTIFY = 0x200,
++	MACH_RCV_INTERRUPT = 0x400,
++	MACH_RCV_OVERWRITE = 0x1000,
++	NDR_PROTOCOL_2_0 = 0,
++	NDR_INT_BIG_ENDIAN = 0,
++	NDR_INT_LITTLE_ENDIAN = 0x1,
++	NDR_FLOAT_IEEE = 0,
++	NDR_CHAR_ASCII = 0,
++	SA_SIGINFO = 0x40,
++	SA_RESTART = 0x2,
++	SA_ONSTACK = 0x1,
++	SA_USERTRAMP = 0x100,
++	SA_64REGSET = 0x200,
++};
++
++// Types
++#pragma pack on
++
++typedef struct MachBody MachBody;
++struct MachBody {
++	uint32 msgh_descriptor_count;
++};
++
++typedef struct MachHeader MachHeader;
++struct MachHeader {
++	uint32 msgh_bits;
++	uint32 msgh_size;
++	uint32 msgh_remote_port;
++	uint32 msgh_local_port;
++	uint32 msgh_reserved;
++	int32 msgh_id;
++};
++
++typedef struct MachNDR MachNDR;
++struct MachNDR {
++	uint8 mig_vers;
++	uint8 if_vers;
++	uint8 reserved1;
++	uint8 mig_encoding;
++	uint8 int_rep;
++	uint8 char_rep;
++	uint8 float_rep;
++	uint8 reserved2;
++};
++
++typedef struct MachPort MachPort;
++struct MachPort {
++	uint32 name;
++	uint32 pad1;
++	uint16 pad2;
++	uint8 disposition;
++	uint8 type;
++};
++
++typedef struct StackT StackT;
++struct StackT {
++	void *ss_sp;
++	uint32 ss_size;
++	int32 ss_flags;
++};
++
++typedef union Sighandler Sighandler;
++union Sighandler {
++	void *__sa_handler;
++	void *__sa_sigaction;
++};
++
++typedef struct Sigaction Sigaction;
++struct Sigaction {
++	Sighandler __sigaction_u;
++	void *sa_tramp;
++	uint32 sa_mask;
++	int32 sa_flags;
++};
++
++typedef union Sigval Sigval;
++union Sigval {
++	int32 sival_int;
++	void *sival_ptr;
++};
++
++typedef struct Siginfo Siginfo;
++struct Siginfo {
++	int32 si_signo;
++	int32 si_errno;
++	int32 si_code;
++	int32 si_pid;
++	uint32 si_uid;
++	int32 si_status;
++	void *si_addr;
++	Sigval si_value;
++	int32 si_band;
++	uint32 __pad[7];
++};
++
++typedef struct FPControl FPControl;
++struct FPControl {
++	byte pad0[2];
++};
++
++typedef struct FPStatus FPStatus;
++struct FPStatus {
++	byte pad0[2];
++};
++
++typedef struct RegMMST RegMMST;
++struct RegMMST {
++	int8 mmst_reg[10];
++	int8 mmst_rsrv[6];
++};
++
++typedef struct RegXMM RegXMM;
++struct RegXMM {
++	int8 xmm_reg[16];
++};
++
++typedef struct Regs Regs;
++struct Regs {
++	uint32 eax;
++	uint32 ebx;
++	uint32 ecx;
++	uint32 edx;
++	uint32 edi;
++	uint32 esi;
++	uint32 ebp;
++	uint32 esp;
++	uint32 ss;
++	uint32 eflags;
++	uint32 eip;
++	uint32 cs;
++	uint32 ds;
++	uint32 es;
++	uint32 fs;
++	uint32 gs;
++};
++
++typedef struct FloatState FloatState;
++struct FloatState {
++	int32 fpu_reserved[2];
++	FPControl fpu_fcw;
++	FPStatus fpu_fsw;
++	uint8 fpu_ftw;
++	uint8 fpu_rsrv1;
++	uint16 fpu_fop;
++	uint32 fpu_ip;
++	uint16 fpu_cs;
++	uint16 fpu_rsrv2;
++	uint32 fpu_dp;
++	uint16 fpu_ds;
++	uint16 fpu_rsrv3;
++	uint32 fpu_mxcsr;
++	uint32 fpu_mxcsrmask;
++	RegMMST fpu_stmm0;
++	RegMMST fpu_stmm1;
++	RegMMST fpu_stmm2;
++	RegMMST fpu_stmm3;
++	RegMMST fpu_stmm4;
++	RegMMST fpu_stmm5;
++	RegMMST fpu_stmm6;
++	RegMMST fpu_stmm7;
++	RegXMM fpu_xmm0;
++	RegXMM fpu_xmm1;
++	RegXMM fpu_xmm2;
++	RegXMM fpu_xmm3;
++	RegXMM fpu_xmm4;
++	RegXMM fpu_xmm5;
++	RegXMM fpu_xmm6;
++	RegXMM fpu_xmm7;
++	int8 fpu_rsrv4[224];
++	int32 fpu_reserved1;
++};
++
++typedef struct ExceptionState ExceptionState;
++struct ExceptionState {
++	uint32 trapno;
++	uint32 err;
++	uint32 faultvaddr;
++};
++
++typedef struct Mcontext Mcontext;
++struct Mcontext {
++	ExceptionState es;
++	Regs ss;
++	FloatState fs;
++};
++
++typedef struct Ucontext Ucontext;
++struct Ucontext {
++	int32 uc_onstack;
++	uint32 uc_sigmask;
++	StackT uc_stack;
++	Ucontext *uc_link;
++	uint32 uc_mcsize;
++	Mcontext *uc_mcontext;
++};
++#pragma pack off
+diff --git a/src/runtime/darwin/386/rt0.s b/src/runtime/darwin/386/rt0.s
+new file mode 100755
+index 0000000000..5b52e912ce
+--- /dev/null
++++ b/src/runtime/darwin/386/rt0.s
+@@ -0,0 +1,8 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Darwin and Linux use the same linkage to main
++
++TEXT	_rt0_386_darwin(SB),7,$0
++	JMP	_rt0_386(SB)
+diff --git a/src/runtime/darwin/386/signal.c b/src/runtime/darwin/386/signal.c
+new file mode 100644
+index 0000000000..a6c782294f
+--- /dev/null
++++ b/src/runtime/darwin/386/signal.c
+@@ -0,0 +1,103 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++#include "defs.h"
++#include "os.h"
++#include "signals.h"
++
++void
++dumpregs(Regs *r)
++{
++	printf("eax     %x\n", r->eax);
++	printf("ebx     %x\n", r->ebx);
++	printf("ecx     %x\n", r->ecx);
++	printf("edx     %x\n", r->edx);
++	printf("edi     %x\n", r->edi);
++	printf("esi     %x\n", r->esi);
++	printf("ebp     %x\n", r->ebp);
++	printf("esp     %x\n", r->esp);
++	printf("eip     %x\n", r->eip);
++	printf("eflags  %x\n", r->eflags);
++	printf("cs      %x\n", r->cs);
++	printf("fs      %x\n", r->fs);
++	printf("gs      %x\n", r->gs);
++}
++
++void
++sighandler(int32 sig, Siginfo *info, void *context)
++{
++	Ucontext *uc;
++	Mcontext *mc;
++	Regs *r;
++
++	if(panicking)	// traceback already printed
++		sys_Exit(2);
++	panicking = 1;
++
++	if(sig < 0 || sig >= NSIG){
++		printf("Signal %d\n", sig);
++	}else{
++		printf("%s\n", sigtab[sig].name);
++	}
++
++	uc = context;
++	mc = uc->uc_mcontext;
++	r = &mc->ss;
++
++	printf("Faulting address: %p\n", info->si_addr);
++	printf("pc: %x\n", r->eip);
++	printf("\n");
++
++	if(gotraceback()){
++		traceback((void*)r->eip, (void*)r->esp, m->curg);
++		tracebackothers(m->curg);
++		dumpregs(r);
++	}
++
++	sys·Breakpoint();
++	sys_Exit(2);
++}
++
++void
++sigignore(int32, Siginfo*, void*)
++{
++}
++
++void
++signalstack(byte *p, int32 n)
++{
++	StackT st;
++
++	st.ss_sp = p;
++	st.ss_size = n;
++	st.ss_flags = 0;
++	sigaltstack(&st, nil);
++}
++
++void
++initsig(void)
++{
++	int32 i;
++	static Sigaction sa;
++
++	sa.sa_flags |= SA_SIGINFO|SA_ONSTACK;
++	sa.sa_mask = 0; // 0xFFFFFFFFU;
++	sa.sa_tramp = sigtramp;	// sigtramp's job is to call into real handler
++	for(i = 0; i<NSIG; i++) {
++		if(sigtab[i].flags) {
++			if(sigtab[i].flags & SigCatch) {
++				sa.__sigaction_u.__sa_sigaction = sighandler;
++			} else {
++				sa.__sigaction_u.__sa_sigaction = sigignore;
++			}
++			if(sigtab[i].flags & SigRestart)
++				sa.sa_flags |= SA_RESTART;
++			else
++				sa.sa_flags &= ~SA_RESTART;
++			sigaction(i, &sa, nil);
++		}
++	}
++}
++
+diff --git a/src/runtime/darwin/386/sys.s b/src/runtime/darwin/386/sys.s
+new file mode 100644
+index 0000000000..1f9f82f17f
+--- /dev/null
++++ b/src/runtime/darwin/386/sys.s
+@@ -0,0 +1,223 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// System calls and other sys.stuff for 386, Darwin
++// See http://fxr.watson.org/fxr/source/bsd/kern/syscalls.c?v=xnu-1228
++// or /usr/include/sys/syscall.h (on a Mac) for system call numbers.
++
++TEXT notok(SB),7,$0
++	MOVL	$0xf1, 0xf1
++	RET
++
++// Exit the entire program (like C exit)
++TEXT sys·Exit(SB),7,$0
++	MOVL	$1, AX
++	INT	$0x80
++	CALL	notok(SB)
++	RET
++
++// Exit this OS thread (like pthread_exit, which eventually
++// calls __bsdthread_terminate).
++TEXT exit1(SB),7,$0
++	MOVL	$361, AX
++	INT	$0x80
++	JAE 2(PC)
++	CALL	notok(SB)
++	RET
++
++TEXT sys·write(SB),7,$0
++	MOVL	$4, AX
++	INT	$0x80
++	JAE	2(PC)
++	CALL	notok(SB)
++	RET
++
++TEXT sys·mmap(SB),7,$0
++	MOVL	$197, AX
++	INT	$0x80
++	JAE	2(PC)
++	CALL	notok(SB)
++	RET
++
++TEXT sigaction(SB),7,$0
++	MOVL	$46, AX
++	INT	$0x80
++	JAE	2(PC)
++	CALL	notok(SB)
++	RET
++
++// Sigtramp's job is to call the actual signal handler.
++// It is called with the following arguments on the stack:
++//	0(FP)	"return address" - ignored
++//	4(FP)	actual handler
++//	8(FP)	siginfo style - ignored
++//	12(FP)	signal number
++//	16(FP)	siginfo
++//	20(FP)	context
++TEXT sigtramp(SB),7,$40
++	MOVL	4(FS), BP	// m
++	MOVL	28(BP), BP	// m->gsignal
++	MOVL	BP, 0(FS)	// g = m->gsignal
++
++	MOVL	handler+4(FP), DI
++	MOVL	signo+12(FP), AX
++	MOVL	siginfo+16(FP), BX
++	MOVL	context+20(FP), CX
++
++	MOVL	AX, 0(SP)
++	MOVL	BX, 4(SP)
++	MOVL	CX, 8(SP)
++	CALL	DI
++
++	MOVL	context+20(FP), CX
++	MOVL	style+8(FP), BX
++
++	MOVL	$0, 0(SP)	// "caller PC" - ignored
++	MOVL	CX, 4(SP)
++	MOVL	BX, 8(SP)
++	MOVL	$184, AX	// sigreturn(ucontext, infostyle)
++	INT	$0x80
++	CALL	notok(SB)
++	RET
++
++TEXT sigaltstack(SB),7,$0
++	MOVL	$53, AX
++	INT	$0x80
++	JAE	2(PC)
++	CALL	notok(SB)
++	RET
++
++TEXT bsdthread_create(SB),7,$0
++	MOVL	$360, AX
++	INT	$0x80
++	JAE	2(PC)
++	CALL	notok(SB)
++	RET
++
++TEXT bsdthread_register(SB),7,$40
++	MOVL	$366, AX
++	MOVL	$bsdthread_start(SB), 0(SP)	// threadstart
++	MOVL	$0, 4(SP)	// wqthread, not used by us
++	MOVL	$0, 8(SP)	// pthsize, not used by us
++	MOVL	$0, 12(SP)	// paranoia
++	MOVL	$0, 16(SP)
++	MOVL	$0, 20(SP)
++	INT	$0x80
++	JAE	2(PC)
++	CALL	notok(SB)
++	RET
++
++// Invoke Mach system call.
++// Assumes system call number in AX,
++// caller PC on stack, caller's caller PC next,
++// and then the system call arguments.
++//
++// Can be used for BSD too, but we don't,
++// because if you use this interface the BSD
++// system call numbers need an extra field
++// in the high 16 bits that seems to be the
++// argument count in bytes but is not always.
++// INT $0x80 works fine for those.
++TEXT sysenter(SB),7,$0
++	POPL	DX
++	MOVL	SP, CX
++	BYTE $0x0F; BYTE $0x34;  // SYSENTER
++	// returns to DX with SP set to CX
++
++TEXT mach_msg_trap(SB),7,$0
++	MOVL	$-31, AX
++	CALL	sysenter(SB)
++	RET
++
++TEXT mach_reply_port(SB),7,$0
++	MOVL	$-26, AX
++	CALL	sysenter(SB)
++	RET
++
++TEXT mach_task_self(SB),7,$0
++	MOVL	$-28, AX
++	CALL	sysenter(SB)
++	RET
++
++// Mach provides trap versions of the semaphore ops,
++// instead of requiring the use of RPC.
++
++// uint32 mach_semaphore_wait(uint32)
++TEXT mach_semaphore_wait(SB),7,$0
++	MOVL	$-36, AX
++	CALL	sysenter(SB)
++	RET
++
++// uint32 mach_semaphore_timedwait(uint32, uint32, uint32)
++TEXT mach_semaphore_timedwait(SB),7,$0
++	MOVL	$-38, AX
++	CALL	sysenter(SB)
++	RET
++
++// uint32 mach_semaphore_signal(uint32)
++TEXT mach_semaphore_signal(SB),7,$0
++	MOVL	$-33, AX
++	CALL	sysenter(SB)
++	RET
++
++// uint32 mach_semaphore_signal_all(uint32)
++TEXT mach_semaphore_signal_all(SB),7,$0
++	MOVL	$-34, AX
++	CALL	sysenter(SB)
++	RET
++
++/*
++descriptor entry format for system call
++is the native machine format, ugly as it is:
++
++	2-byte limit
++	3-byte base
++	1-byte: 0x80=present, 0x60=dpl<<5, 0x1F=type
++	1-byte: 0x80=limit is *4k, 0x40=32-bit operand size,
++		0x0F=4 more bits of limit
++	1 byte: 8 more bits of base
++
++int i386_get_ldt(int, union ldt_entry *, int);
++int i386_set_ldt(int, const union ldt_entry *, int);
++
++*/
++
++// setldt(int entry, int address, int limit)
++TEXT setldt(SB),7,$32
++	// set up data_desc
++	LEAL	16(SP), AX	// struct data_desc
++	MOVL	$0, 0(AX)
++	MOVL	$0, 4(AX)
++
++	MOVL	address+4(FP), BX	// aka base
++	MOVW	BX, 2(AX)
++	SHRL	$16, BX
++	MOVB	BX, 4(AX)
++	SHRL	$8, BX
++	MOVB	BX, 7(AX)
++
++	MOVL	limit+8(FP), BX
++	MOVW	BX, 0(AX)
++	SHRL	$16, BX
++	ANDL	$0x0F, BX
++	ORL	$0x40, BX		// 32-bit operand size
++	MOVB	BX, 6(AX)
++
++	MOVL	$0xF2, 5(AX)	// r/w data descriptor, dpl=3, present
++
++	// call i386_set_ldt(entry, desc, 1)
++	MOVL	entry+0(FP), BX
++	MOVL	BX, 0(SP)
++	MOVL	AX, 4(SP)
++	MOVL	$1, 8(SP)
++	CALL	i386_set_ldt(SB)
++	RET
++
++TEXT i386_set_ldt(SB),7,$0
++	MOVL	$5, AX
++	INT	$0x82	// sic
++	JAE	2(PC)
++	CALL	notok(SB)
++	RET
++
+diff --git a/src/runtime/darwin/signal.c b/src/runtime/darwin/amd64/signal.c
+similarity index 100%
+rename from src/runtime/darwin/signal.c
+rename to src/runtime/darwin/amd64/signal.c
+diff --git a/src/runtime/darwin/thread.c b/src/runtime/darwin/thread.c
+index 0d541775f8..c780e16197 100644
+--- a/src/runtime/darwin/thread.c
++++ b/src/runtime/darwin/thread.c
+@@ -169,11 +169,7 @@ minit(void)
+ static void
+ macherror(int32 r, int8 *fn)
+ {
+-	prints("mach error ");
+-	prints(fn);
+-	prints(": ");
+-	sys·printint(r);
+-	prints("\n");
++	printf("mach error %s: %d\n", fn, r);
+ 	throw("mach error");
+ }
+ 
+diff --git a/src/runtime/linux/386/defs.h b/src/runtime/linux/386/defs.h
+new file mode 100755
+index 0000000000..112fc7b094
+--- /dev/null
++++ b/src/runtime/linux/386/defs.h
+@@ -0,0 +1,136 @@
++// godefs -f -m32 -f -I/home/rsc/pub/linux-2.6/arch/x86/include -f -I/home/rsc/pub/linux-2.6/include defs2.c
++
++// MACHINE GENERATED - DO NOT EDIT.
++
++// Constants
++enum {
++	PROT_NONE = 0,
++	PROT_READ = 0x1,
++	PROT_WRITE = 0x2,
++	PROT_EXEC = 0x4,
++	MAP_ANON = 0x20,
++	MAP_PRIVATE = 0x2,
++	SA_RESTART = 0x10000000,
++	SA_ONSTACK = 0x8000000,
++	SA_RESTORER = 0x4000000,
++	SA_SIGINFO = 0x4,
++};
++
++// Types
++#pragma pack on
++
++typedef struct Fpreg Fpreg;
++struct Fpreg {
++	uint16 significand[4];
++	uint16 exponent;
++};
++
++typedef struct Fpxreg Fpxreg;
++struct Fpxreg {
++	uint16 significand[4];
++	uint16 exponent;
++	uint16 padding[3];
++};
++
++typedef struct Xmmreg Xmmreg;
++struct Xmmreg {
++	uint32 element[4];
++};
++
++typedef struct Fpstate Fpstate;
++struct Fpstate {
++	uint32 cw;
++	uint32 sw;
++	uint32 tag;
++	uint32 ipoff;
++	uint32 cssel;
++	uint32 dataoff;
++	uint32 datasel;
++	Fpreg _st[8];
++	uint16 status;
++	uint16 magic;
++	uint32 _fxsr_env[6];
++	uint32 mxcsr;
++	uint32 reserved;
++	Fpxreg _fxsr_st[8];
++	Xmmreg _xmm[8];
++	uint32 padding1[44];
++	byte _anon_[48];
++};
++
++typedef struct Timespec Timespec;
++struct Timespec {
++	int32 tv_sec;
++	int32 tv_nsec;
++};
++
++typedef struct Timeval Timeval;
++struct Timeval {
++	int32 tv_sec;
++	int32 tv_usec;
++};
++
++typedef struct Sigaction Sigaction;
++struct Sigaction {
++	byte _u[4];
++	uint32 sa_mask;
++	uint32 sa_flags;
++	void *sa_restorer;
++};
++
++typedef struct Siginfo Siginfo;
++struct Siginfo {
++	int32 si_signo;
++	int32 si_errno;
++	int32 si_code;
++	byte _sifields[116];
++};
++
++typedef struct Sigaltstack Sigaltstack;
++struct Sigaltstack {
++	void *ss_sp;
++	int32 ss_flags;
++	uint32 ss_size;
++};
++
++typedef struct Sigcontext Sigcontext;
++struct Sigcontext {
++	uint16 gs;
++	uint16 __gsh;
++	uint16 fs;
++	uint16 __fsh;
++	uint16 es;
++	uint16 __esh;
++	uint16 ds;
++	uint16 __dsh;
++	uint32 edi;
++	uint32 esi;
++	uint32 ebp;
++	uint32 esp;
++	uint32 ebx;
++	uint32 edx;
++	uint32 ecx;
++	uint32 eax;
++	uint32 trapno;
++	uint32 err;
++	uint32 eip;
++	uint16 cs;
++	uint16 __csh;
++	uint32 eflags;
++	uint32 esp_at_signal;
++	uint16 ss;
++	uint16 __ssh;
++	Fpstate *fpstate;
++	uint32 oldmask;
++	uint32 cr2;
++};
++
++typedef struct Ucontext Ucontext;
++struct Ucontext {
++	uint32 uc_flags;
++	Ucontext *uc_link;
++	Sigaltstack uc_stack;
++	Sigcontext uc_mcontext;
++	uint32 uc_sigmask;
++};
++#pragma pack off
+diff --git a/src/runtime/linux/386/rt0.s b/src/runtime/linux/386/rt0.s
+new file mode 100755
+index 0000000000..7717c37e86
+--- /dev/null
++++ b/src/runtime/linux/386/rt0.s
+@@ -0,0 +1,8 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Darwin and Linux use the same linkage to main
++
++TEXT	_rt0_386_linux(SB),7,$0
++	JMP	_rt0_386(SB)
+diff --git a/src/runtime/linux/386/sys.s b/src/runtime/linux/386/sys.s
+new file mode 100755
+index 0000000000..379d153e4c
+--- /dev/null
++++ b/src/runtime/linux/386/sys.s
+@@ -0,0 +1,222 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//
++// System calls and other sys.stuff for 386, Linux
++//
++
++TEXT syscall(SB),7,$0
++	MOVL 4(SP), AX	// syscall number
++	MOVL 8(SP), BX	// arg1
++	MOVL 12(SP), CX	// arg2
++	MOVL 16(SP), DX	// arg3
++	MOVL 20(SP), SI	// arg4
++	MOVL 24(SP), DI	// arg5
++	MOVL 28(SP), BP	// arg6
++	INT $0x80
++	CMPL AX, $0xfffff001
++	JLS 2(PC)
++	INT $3	// not reached
++	RET
++
++TEXT sys·Exit(SB),7,$0
++	MOVL	$252, AX	// syscall number
++	MOVL	4(SP), BX
++	INT	$0x80
++	INT $3	// not reached
++	RET
++
++TEXT exit1(SB),7,$0
++	MOVL	$1, AX	// exit - exit the current os thread
++	MOVL	4(SP), BX
++	INT	$0x80
++	INT $3	// not reached
++	RET
++
++TEXT write(SB),7,$0
++	MOVL	$4, AX		// syscall - write
++	MOVL	4(SP),  BX
++	MOVL	8(SP), CX
++	MOVL	12(SP), DX
++	INT	$0x80
++	RET
++
++TEXT getpid(SB),7,$0
++	MOVL	$20, AX
++	INT	$0x80
++	RET
++
++TEXT kill(SB),7,$0
++	MOVL	$37, AX
++	MOVL	4(SP), BX
++	MOVL	8(SP), CX
++	INT	$0x80
++	RET
++
++TEXT sys·write(SB),7,$0
++	MOVL	$4, AX		// syscall - write
++	MOVL	4(SP), BX
++	MOVL	8(SP), CX
++	MOVL	12(SP), DX
++	INT	$0x80
++	RET
++
++TEXT rt_sigaction(SB),7,$0
++	MOVL	$174, AX		// syscall - rt_sigaction
++	MOVL	4(SP), BX
++	MOVL	8(SP), CX
++	MOVL	12(SP), DX
++	MOVL	16(SP), SI
++	INT	$0x80
++	RET
++
++TEXT sigtramp(SB),7,$0
++	MOVL	4(FS), BP	// m
++	MOVL	20(BP), AX	// m->gsignal
++	MOVL	AX, 0(FS)	// g = m->gsignal
++	JMP	sighandler(SB)
++
++TEXT sigignore(SB),7,$0
++	RET
++
++TEXT sigreturn(SB),7,$0
++	MOVL	4(FS), BP	// m
++	MOVL	32(BP), BP	// m->curg
++	MOVL	BP, 0(FS)	// g = m->curg
++	MOVL	$173, AX	// rt_sigreturn
++	INT $0x80
++	INT $3	// not reached
++	RET
++
++TEXT sys·mmap(SB),7,$0
++	MOVL	$192, AX	// mmap2
++	MOVL	4(SP), BX
++	MOVL	8(SP), CX
++	MOVL	12(SP), DX
++	MOVL	16(SP), SI
++	MOVL	20(SP), DI
++	MOVL	24(SP), BP
++	SHRL	$12, BP
++	INT	$0x80
++	CMPL	AX, $0xfffff001
++	JLS	2(PC)
++	INT	$3
++	RET
++
++// int64 futex(int32 *uaddr, int32 op, int32 val,
++//	struct timespec *timeout, int32 *uaddr2, int32 val2);
++TEXT futex(SB),7,$0
++	MOVL	$240, AX	// futex
++	MOVL	4(SP), BX
++	MOVL	8(SP), CX
++	MOVL	12(SP), DX
++	MOVL	16(SP), SI
++	MOVL	20(SP), DI
++	MOVL	24(SP), BP
++	INT	$0x80
++	RET
++
++// int64 clone(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
++TEXT clone(SB),7,$0
++	MOVL	$120, AX	// clone
++	MOVL	flags+4(SP), BX
++	MOVL	stack+8(SP), CX
++
++	// Copy m, g, fn off parent stack for use by child.
++	SUBL	$12, CX
++	MOVL	m+12(SP), DX
++	MOVL	DX, 0(CX)
++	MOVL	g+16(SP), DX
++	MOVL	DX, 4(CX)
++	MOVL	fn+20(SP), DX
++	MOVL	DX, 8(CX)
++
++	MOVL	$120, AX
++	INT	$0x80
++
++	// In parent, return.
++	CMPL	AX, $0
++	JEQ	2(PC)
++	RET
++
++	// In child, set up new stack, etc.
++	MOVL	0(CX), BX	// m
++	MOVL	12(AX), AX	// fs (= m->cret)
++	MOVW	AX, FS
++	MOVL	8(CX), DX	// fn
++	ADDL	$12, CX
++	MOVL	CX, SP
++
++	// fn is now on top of stack.
++
++	// initialize m->procid to Linux tid
++	MOVL	$224, AX
++	INT	$0x80
++	MOVL	AX, 20(BX)
++
++	// call fn
++	CALL	DX
++
++	// It shouldn't return; if it does, exit.
++	MOVL	$111, DI
++	MOVL	$1, AX
++	INT	$0x80
++	JMP	-3(PC)	// keep exiting
++
++TEXT sigaltstack(SB),7,$-8
++	MOVL	$186, AX	// sigaltstack
++	MOVL	new+4(SP), BX
++	MOVL	old+8(SP), CX
++	INT	$0x80
++	CMPL	AX, $0xfffff001
++	JLS	2(PC)
++	INT	$3
++	RET
++
++//	// fake the per-goroutine and per-mach registers
++//	LEAL	m0(SB),
++
++// TODO(rsc): move to linux.s
++// <asm-i386/ldt.h>
++// struct user_desc {
++// 	unsigned int  entry_number;
++// 	unsigned long base_addr;
++// 	unsigned int  limit;
++// 	unsigned int  seg_32bit:1;
++// 	unsigned int  contents:2;
++// 	unsigned int  read_exec_only:1;
++// 	unsigned int  limit_in_pages:1;
++// 	unsigned int  seg_not_present:1;
++// 	unsigned int  useable:1;
++// };
++#define SEG_32BIT 0x01
++// contents are the 2 bits 0x02 and 0x04.
++#define CONTENTS_DATA 0x00
++#define CONTENTS_STACK 0x02
++#define CONTENTS_CODE 0x04
++#define READ_EXEC_ONLY 0x08
++#define LIMIT_IN_PAGES 0x10
++#define SEG_NOT_PRESENT 0x20
++#define USEABLE 0x40
++
++// setldt(int entry, int address, int limit)
++TEXT setldt(SB),7,$32
++	// set up user_desc
++	LEAL	16(SP), AX	// struct user_desc
++	MOVL	entry+0(FP), BX	// entry
++	MOVL	BX, 0(AX)
++	MOVL	address+4(FP), BX	// base address
++	MOVL	BX, 4(AX)
++	MOVL	limit+8(FP), BX	// limit
++	MOVL	BX, 8(AX)
++	MOVL	$(SEG_32BIT|USEABLE|CONTENTS_DATA), 12(AX)	// flag bits
++
++	// call modify_ldt
++	MOVL	$123, 0(SP)	// syscall - modify_ldt
++	MOVL	$1, 4(SP)	// func = 1 (write)
++	MOVL	AX, 8(SP)	// user_desc
++	MOVL	$16, 12(SP)	// sizeof(user_desc)
++	CALL	syscall(SB)
++	RET
++
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index 8a740f801e..25e2568c06 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -23,15 +23,18 @@ sys·panicl(int32 lno)
+ {
+ 	uint8 *sp;
+ 
+-	prints("\npanic ");
+-	sys·printpc(&lno);
+-	prints("\n");
++	if(panicking) {
++		printf("double panic\n");
++		sys_Exit(3);
++	}
++	panicking++;
++
++	printf("\npanic PC=%X [%d]\n", (uint64)(uintptr)&lno, panicking);
+ 	sp = (uint8*)&lno;
+ 	if(gotraceback()){
+ 		traceback(sys·getcallerpc(&lno), sp, g);
+ 		tracebackothers(g);
+ 	}
+-	panicking = 1;
+ 	sys·Breakpoint();  // so we can grab it in a debugger
+ 	sys_Exit(2);
+ }

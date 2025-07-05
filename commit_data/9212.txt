@@ -9,7 +9,7 @@ Date:   Tue Jul 26 00:52:46 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4810054
-
+---
  src/cmd/gc/range.c                |  4 ++++
  src/pkg/runtime/amd64/traceback.c |  7 +++++-
  src/pkg/runtime/arm/traceback.c   |  7 +++++-
@@ -17,3 +17,250 @@ Date:   Tue Jul 26 00:52:46 2011 -0400
  src/pkg/runtime/runtime.c         | 28 +++++++++++++++++++-----
  test/fixedbugs/bug348.go          | 46 +++++++++++++++++++++++++++++++++++++++
  6 files changed, 96 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/gc/range.c b/src/cmd/gc/range.c
+index dfb2b8efd6..fb33e4e485 100644
+--- a/src/cmd/gc/range.c
++++ b/src/cmd/gc/range.c
+@@ -98,11 +98,13 @@ walkrange(Node *n)
+ 	Node *fn, *tmp;
+ 	NodeList *body, *init;
+ 	Type *th, *t;
++	int lno;
+ 
+ 	t = n->type;
+ 	init = nil;
+ 
+ 	a = n->right;
++	lno = setlineno(a);
+ 	if(t->etype == TSTRING && !eqtype(t, types[TSTRING])) {
+ 		a = nod(OCONV, n->right, N);
+ 		a->type = types[TSTRING];
+@@ -248,5 +250,7 @@ walkrange(Node *n)
+ 	typechecklist(body, Etop);
+ 	n->nbody = concat(body, n->nbody);
+ 	walkstmt(&n);
++	
++	lineno = lno;
+ }
+ 
+diff --git a/src/pkg/runtime/amd64/traceback.c b/src/pkg/runtime/amd64/traceback.c
+index d422cb6922..3e85d36bd7 100644
+--- a/src/pkg/runtime/amd64/traceback.c
++++ b/src/pkg/runtime/amd64/traceback.c
+@@ -10,6 +10,7 @@ void runtime·deferproc(void);
+ void runtime·newproc(void);
+ void runtime·newstack(void);
+ void runtime·morestack(void);
++void runtime·sigpanic(void);
+ 
+ // This code is also used for the 386 tracebacks.
+ // Use uintptr for an appropriate word-sized integer.
+@@ -27,11 +28,13 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr
+ 	byte *fp;
+ 	Stktop *stk;
+ 	Func *f;
++	bool waspanic;
+ 
+ 	USED(lr0);
+ 	pc = (uintptr)pc0;
+ 	lr = 0;
+ 	fp = nil;
++	waspanic = false;
+ 	
+ 	// If the PC is goexit, the goroutine hasn't started yet.
+ 	if(pc0 == g->sched.pc && sp == g->sched.sp && pc0 == (byte*)runtime·goexit) {
+@@ -127,7 +130,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr
+ 			if(pc > f->entry)
+ 				runtime·printf("+%p", (uintptr)(pc - f->entry));
+ 			tracepc = pc;	// back up to CALL instruction for funcline.
+-			if(n > 0 && pc > f->entry)
++			if(n > 0 && pc > f->entry && !waspanic)
+ 				tracepc--;
+ 			runtime·printf(" %S:%d\n", f->src, runtime·funcline(f, tracepc));
+ 			runtime·printf("\t%S(", f->name);
+@@ -144,6 +147,8 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr
+ 			n++;
+ 		}
+ 		
++		waspanic = f->entry == (uintptr)runtime·sigpanic;
++
+ 		if(f->entry == (uintptr)runtime·deferproc || f->entry == (uintptr)runtime·newproc)
+ 			fp += 2*sizeof(uintptr);
+ 
+diff --git a/src/pkg/runtime/arm/traceback.c b/src/pkg/runtime/arm/traceback.c
+index c3934c37cb..5628b8349e 100644
+--- a/src/pkg/runtime/arm/traceback.c
++++ b/src/pkg/runtime/arm/traceback.c
+@@ -9,6 +9,7 @@ void runtime·deferproc(void);
+ void runtime·newproc(void);
+ void runtime·newstack(void);
+ void runtime·morestack(void);
++void runtime·sigpanic(void);
+ void _div(void);
+ void _mod(void);
+ void _divu(void);
+@@ -20,12 +21,14 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr
+ 	int32 i, n, iter;
+ 	uintptr pc, lr, tracepc, x;
+ 	byte *fp, *p;
++	bool waspanic;
+ 	Stktop *stk;
+ 	Func *f;
+ 	
+ 	pc = (uintptr)pc0;
+ 	lr = (uintptr)lr0;
+ 	fp = nil;
++	waspanic = false;
+ 
+ 	// If the PC is goexit, the goroutine hasn't started yet.
+ 	if(pc == (uintptr)runtime·goexit) {
+@@ -121,7 +124,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr
+ 			if(pc > f->entry)
+ 				runtime·printf("+%p", (uintptr)(pc - f->entry));
+ 			tracepc = pc;	// back up to CALL instruction for funcline.
+-			if(n > 0 && pc > f->entry)
++			if(n > 0 && pc > f->entry && !waspanic)
+ 				tracepc -= sizeof(uintptr);
+ 			runtime·printf(" %S:%d\n", f->src, runtime·funcline(f, tracepc));
+ 			runtime·printf("\t%S(", f->name);
+@@ -137,6 +140,8 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr
+ 			runtime·prints(")\n");
+ 			n++;
+ 		}
++		
++		waspanic = f->entry == (uintptr)runtime·sigpanic;
+ 
+ 		if(pcbuf == nil && f->entry == (uintptr)runtime·newstack && g == m->g0) {
+ 			runtime·printf("----- newstack called from goroutine %d -----\n", m->curg->goid);
+diff --git a/src/pkg/runtime/plan9/thread.c b/src/pkg/runtime/plan9/thread.c
+index d428e7fcde..b091c59788 100644
+--- a/src/pkg/runtime/plan9/thread.c
++++ b/src/pkg/runtime/plan9/thread.c
+@@ -167,3 +167,14 @@ os·sigpipe(void)
+ {
+ 	runtime·throw("too many writes on closed pipe");
+ }
++
++/*
++ * placeholder - once notes are implemented,
++ * a signal generating a panic must appear as
++ * a call to this function for correct handling by
++ * traceback.
++ */
++void
++runtime·sigpanic(void)
++{
++}
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index 00116c001a..c572897d2c 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -11,6 +11,14 @@ enum {
+ 
+ uint32	runtime·panicking;
+ 
++/*
++ * We assume that all architectures turn faults and the like
++ * into apparent calls to runtime.sigpanic.  If we see a "call"
++ * to runtime.sigpanic, we do not back up the PC to find the
++ * line number of the CALL instruction, because there is no CALL.
++ */
++void	runtime·sigpanic(void);
++
+ int32
+ runtime·gotraceback(void)
+ {
+@@ -519,25 +527,35 @@ runtime·nanotime(void)
+ void
+ runtime·Caller(int32 skip, uintptr retpc, String retfile, int32 retline, bool retbool)
+ {
+-	Func *f;
++	Func *f, *g;
+ 	uintptr pc;
+-
+-	if(runtime·callers(1+skip, &retpc, 1) == 0) {
++	uintptr rpc[2];
++
++	/*
++	 * Ask for two PCs: the one we were asked for
++	 * and what it called, so that we can see if it
++	 * "called" sigpanic.
++	 */
++	retpc = 0;
++	if(runtime·callers(1+skip-1, rpc, 2) < 2) {
+ 		retfile = runtime·emptystring;
+ 		retline = 0;
+ 		retbool = false;
+-	} else if((f = runtime·findfunc(retpc)) == nil) {
++	} else if((f = runtime·findfunc(rpc[1])) == nil) {
+ 		retfile = runtime·emptystring;
+ 		retline = 0;
+ 		retbool = true;  // have retpc at least
+ 	} else {
++		retpc = rpc[1];
+ 		retfile = f->src;
+ 		pc = retpc;
+-		if(pc > f->entry)
++		g = runtime·findfunc(rpc[0]);
++		if(pc > f->entry && (g == nil || g->entry != (uintptr)runtime·sigpanic))
+ 			pc--;
+ 		retline = runtime·funcline(f, pc);
+ 		retbool = true;
+ 	}
++	FLUSH(&retpc);
+ 	FLUSH(&retfile);
+ 	FLUSH(&retline);
+ 	FLUSH(&retbool);
+diff --git a/test/fixedbugs/bug348.go b/test/fixedbugs/bug348.go
+new file mode 100644
+index 0000000000..1a539aa3e4
+--- /dev/null
++++ b/test/fixedbugs/bug348.go
+@@ -0,0 +1,46 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"runtime"
++	"strings"
++)
++
++func f() {
++	var x *string
++	
++	for _, i := range *x {  // THIS IS LINE 17
++		println(i)
++	}
++}
++
++func g() {
++}
++
++func main() {
++	defer func() {
++		for i := 0;; i++ {
++			pc, file, line, ok := runtime.Caller(i)
++			if !ok {
++				print("BUG: bug348: cannot find caller\n")
++				return
++			}
++			if !strings.Contains(file, "bug348.go") || runtime.FuncForPC(pc).Name() != "main.f" {
++				// walk past runtime frames
++				continue
++			}
++			if line != 17 {
++				print("BUG: bug348: panic at ", file, ":", line, " in ", runtime.FuncForPC(pc).Name(), "\n")
++				return
++			}
++			recover()
++			return
++		}
++	}()
++	f()
++}

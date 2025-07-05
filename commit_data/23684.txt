@@ -13,9 +13,249 @@ Date:   Tue May 26 14:43:25 2015 -0700
     Change-Id: I2bf54e3a342608fc4e01edbe1b429e83f24764ab
     Reviewed-on: https://go-review.googlesource.com/10386
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/compile.go        |   4 +
  src/cmd/compile/internal/ssa/deadstore.go      | 103 +++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/deadstore_test.go |  87 +++++++++++++++++++++
  src/cmd/compile/internal/ssa/op.go             |   4 +-
  4 files changed, 196 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index b497beade9..02c9b5a4a9 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -56,6 +56,7 @@ var passes = [...]pass{
+ 	{"opt", opt},
+ 	{"generic cse", cse},
+ 	{"generic deadcode", deadcode},
++	{"dse", dse},
+ 	{"fuse", fuse},
+ 	{"lower", lower},
+ 	{"lowered cse", cse},
+@@ -76,6 +77,9 @@ type constraint struct {
+ }
+ 
+ var passOrder = [...]constraint{
++	// common-subexpression before dead-store elim, so that we recognize
++	// when two address expressions are the same.
++	{"generic cse", "dse"},
+ 	// don't layout blocks until critical edges have been removed
+ 	{"critical", "layout"},
+ 	// regalloc requires the removal of all critical edges
+diff --git a/src/cmd/compile/internal/ssa/deadstore.go b/src/cmd/compile/internal/ssa/deadstore.go
+new file mode 100644
+index 0000000000..b02b35460a
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/deadstore.go
+@@ -0,0 +1,103 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++import "log"
++
++// dse does dead-store elimination on the Function.
++// Dead stores are those which are unconditionally followed by
++// another store to the same location, with no intervening load.
++// This implementation only works within a basic block.  TODO: use something more global.
++func dse(f *Func) {
++	var stores []*Value
++	loadUse := newSparseSet(f.NumValues())
++	storeUse := newSparseSet(f.NumValues())
++	shadowed := newSparseSet(f.NumValues())
++	for _, b := range f.Blocks {
++		// Find all the stores in this block.  Categorize their uses:
++		//  loadUse contains stores which are used by a subsequent load.
++		//  storeUse contains stores which are used by a subsequent store.
++		loadUse.clear()
++		storeUse.clear()
++		stores = stores[:0]
++		for _, v := range b.Values {
++			if v.Op == OpPhi {
++				// Ignore phis - they will always be first and can't be eliminated
++				continue
++			}
++			if v.Type.IsMemory() {
++				stores = append(stores, v)
++				for _, a := range v.Args {
++					if a.Block == b && a.Type.IsMemory() {
++						storeUse.add(a.ID)
++						if v.Op != OpStore {
++							// CALL, DUFFCOPY, etc. are both
++							// reads and writes.
++							loadUse.add(a.ID)
++						}
++					}
++				}
++			} else {
++				for _, a := range v.Args {
++					if a.Block == b && a.Type.IsMemory() {
++						loadUse.add(a.ID)
++					}
++				}
++			}
++		}
++		if len(stores) == 0 {
++			continue
++		}
++
++		// find last store in the block
++		var last *Value
++		for _, v := range stores {
++			if storeUse.contains(v.ID) {
++				continue
++			}
++			if last != nil {
++				log.Fatalf("two final stores - simultaneous live stores", last, v)
++			}
++			last = v
++		}
++		if last == nil {
++			log.Fatalf("no last store found - cycle?")
++		}
++
++		// Walk backwards looking for dead stores.  Keep track of shadowed addresses.
++		// An "address" is an SSA Value which encodes both the address and size of
++		// the write.  This code will not remove dead stores to the same address
++		// of different types.
++		shadowed.clear()
++		v := last
++
++	walkloop:
++		if loadUse.contains(v.ID) {
++			// Someone might be reading this memory state.
++			// Clear all shadowed addresses.
++			shadowed.clear()
++		}
++		if v.Op == OpStore {
++			if shadowed.contains(v.Args[0].ID) {
++				// Modify store into a copy
++				v.Op = OpCopy
++				v.Aux = nil
++				v.SetArgs1(v.Args[2])
++			} else {
++				shadowed.add(v.Args[0].ID)
++			}
++		}
++		// walk to previous store
++		if v.Op == OpPhi {
++			continue // At start of block.  Move on to next block.
++		}
++		for _, a := range v.Args {
++			if a.Block == b && a.Type.IsMemory() {
++				v = a
++				goto walkloop
++			}
++		}
++	}
++}
+diff --git a/src/cmd/compile/internal/ssa/deadstore_test.go b/src/cmd/compile/internal/ssa/deadstore_test.go
+new file mode 100644
+index 0000000000..70b2092ec3
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/deadstore_test.go
+@@ -0,0 +1,87 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++import (
++	"testing"
++)
++
++func TestDeadStore(t *testing.T) {
++	c := NewConfig("amd64", DummyFrontend{})
++	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
++	fun := Fun(c, "entry",
++		Bloc("entry",
++			Valu("start", OpArg, TypeMem, ".mem"),
++			Valu("v", OpConst, TypeBool, true),
++			Valu("addr1", OpGlobal, ptrType, nil),
++			Valu("addr2", OpGlobal, ptrType, nil),
++			Valu("store1", OpStore, TypeMem, nil, "addr1", "v", "start"),
++			Valu("store2", OpStore, TypeMem, nil, "addr2", "v", "store1"),
++			Valu("store3", OpStore, TypeMem, nil, "addr1", "v", "store2"),
++			Goto("exit")),
++		Bloc("exit",
++			Exit("store3")))
++
++	CheckFunc(fun.f)
++	dse(fun.f)
++	CheckFunc(fun.f)
++
++	v := fun.values["store1"]
++	if v.Op != OpCopy {
++		t.Errorf("dead store not removed")
++	}
++}
++func TestDeadStorePhi(t *testing.T) {
++	// make sure we don't get into an infinite loop with phi values.
++	c := NewConfig("amd64", DummyFrontend{})
++	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
++	fun := Fun(c, "entry",
++		Bloc("entry",
++			Valu("start", OpArg, TypeMem, ".mem"),
++			Valu("v", OpConst, TypeBool, true),
++			Valu("addr", OpGlobal, ptrType, nil),
++			Goto("loop")),
++		Bloc("loop",
++			Valu("phi", OpPhi, TypeMem, nil, "start", "store"),
++			Valu("store", OpStore, TypeMem, nil, "addr", "v", "phi"),
++			If("v", "loop", "exit")),
++		Bloc("exit",
++			Exit("store")))
++
++	CheckFunc(fun.f)
++	dse(fun.f)
++	CheckFunc(fun.f)
++}
++
++func TestDeadStoreTypes(t *testing.T) {
++	// Make sure a narrow store can't shadow a wider one.  We test an even
++	// stronger restriction, that one store can't shadow another unless the
++	// types of the address fields are identical (where identicalness is
++	// decided by the CSE pass).
++	c := NewConfig("amd64", DummyFrontend{})
++	t1 := &TypeImpl{Size_: 8, Ptr: true, Name: "t1"}
++	t2 := &TypeImpl{Size_: 4, Ptr: true, Name: "t2"}
++	fun := Fun(c, "entry",
++		Bloc("entry",
++			Valu("start", OpArg, TypeMem, ".mem"),
++			Valu("v", OpConst, TypeBool, true),
++			Valu("addr1", OpGlobal, t1, nil),
++			Valu("addr2", OpGlobal, t2, nil),
++			Valu("store1", OpStore, TypeMem, nil, "addr1", "v", "start"),
++			Valu("store2", OpStore, TypeMem, nil, "addr2", "v", "store1"),
++			Goto("exit")),
++		Bloc("exit",
++			Exit("store2")))
++
++	CheckFunc(fun.f)
++	cse(fun.f)
++	dse(fun.f)
++	CheckFunc(fun.f)
++
++	v := fun.values["store1"]
++	if v.Op == OpCopy {
++		t.Errorf("store %s incorrectly removed", v)
++	}
++}
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 5f6b2ca6a6..c8bd3d2f3a 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -70,8 +70,8 @@ const (
+ 	OpStringPtr  // ptr(arg0)
+ 	OpStringLen  // len(arg0)
+ 
+-	OpLoad       // Load from arg0+aux.(int64).  arg1=memory
+-	OpStore      // Store arg1 to arg0+aux.(int64).  arg2=memory.  Returns memory.
++	OpLoad       // Load from arg0.  arg1=memory
++	OpStore      // Store arg1 to arg0.  arg2=memory.  Returns memory.
+ 	OpArrayIndex // arg0=array, arg1=index.  Returns a[i]
+ 	OpPtrIndex   // arg0=ptr, arg1=index. Computes ptr+sizeof(*v.type)*index, where index is extended to ptrwidth type
+ 	OpIsNonNil   // arg0 != nil

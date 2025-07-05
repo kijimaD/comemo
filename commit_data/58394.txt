@@ -15,7 +15,51 @@ Date:   Wed Nov 1 14:43:42 2023 -0500
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/_gen/PPC64.rules |  1 +
  src/cmd/compile/internal/ssa/rewritePPC64.go  | 20 ++++++++++++++++++++
  2 files changed, 21 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/PPC64.rules b/src/cmd/compile/internal/ssa/_gen/PPC64.rules
+index 5780260c24..c9cd34b9a6 100644
+--- a/src/cmd/compile/internal/ssa/_gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/PPC64.rules
+@@ -800,6 +800,7 @@
+ (AtomicOr(8|32)   ...) => (LoweredAtomicOr(8|32)   ...)
+ 
+ (Slicemask <t> x) => (SRADconst (NEG <t> x) [63])
++(Select0 (ANDCCconst [1] z:(SRADconst [63] x))) && z.Uses == 1  => (SRDconst [63] x)
+ 
+ // Note that MOV??reg returns a 64-bit int, x is not necessarily that wide
+ // This may interact with other patterns in the future. (Compare with arm64)
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 7ec6bb4e46..473a8ff9d9 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -14552,6 +14552,26 @@ func rewriteValuePPC64_OpSelect0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Select0 (ANDCCconst [1] z:(SRADconst [63] x)))
++	// cond: z.Uses == 1
++	// result: (SRDconst [63] x)
++	for {
++		if v_0.Op != OpPPC64ANDCCconst || auxIntToInt64(v_0.AuxInt) != 1 {
++			break
++		}
++		z := v_0.Args[0]
++		if z.Op != OpPPC64SRADconst || auxIntToInt64(z.AuxInt) != 63 {
++			break
++		}
++		x := z.Args[0]
++		if !(z.Uses == 1) {
++			break
++		}
++		v.reset(OpPPC64SRDconst)
++		v.AuxInt = int64ToAuxInt(63)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuePPC64_OpSelect1(v *Value) bool {

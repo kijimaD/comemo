@@ -24,8 +24,391 @@ Date:   Sun Oct 22 17:18:51 2017 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/range.go     | 53 +++++++++----------
  src/cmd/compile/internal/gc/select.go    | 88 ++++++++++++++++----------------
  src/cmd/compile/internal/gc/typecheck.go | 22 +++-----
  3 files changed, 75 insertions(+), 88 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index 31a3340af0..db852e83a2 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -13,14 +13,6 @@ import (
+ 
+ // range
+ func typecheckrange(n *Node) {
+-	var toomany bool
+-	var why string
+-	var t1 *types.Type
+-	var t2 *types.Type
+-	var v1 *Node
+-	var v2 *Node
+-	var ls []*Node
+-
+ 	// Typechecking order is important here:
+ 	// 0. first typecheck range expression (slice/map/chan),
+ 	//	it is evaluated only once and so logically it is not part of the loop.
+@@ -30,15 +22,31 @@ func typecheckrange(n *Node) {
+ 	// 2. decldepth++ to denote loop body.
+ 	// 3. typecheck body.
+ 	// 4. decldepth--.
++	typecheckrangeExpr(n)
++
++	// second half of dance, the first half being typecheckrangeExpr
++	n.SetTypecheck(1)
++	ls := n.List.Slice()
++	for i1, n1 := range ls {
++		if n1.Typecheck() == 0 {
++			ls[i1] = typecheck(ls[i1], Erv|Easgn)
++		}
++	}
++
++	decldepth++
++	typecheckslice(n.Nbody.Slice(), Etop)
++	decldepth--
++}
+ 
++func typecheckrangeExpr(n *Node) {
+ 	n.Right = typecheck(n.Right, Erv)
+ 
+ 	t := n.Right.Type
+ 	if t == nil {
+-		goto out
++		return
+ 	}
+ 	// delicate little dance.  see typecheckas2
+-	ls = n.List.Slice()
++	ls := n.List.Slice()
+ 	for i1, n1 := range ls {
+ 		if n1.Name == nil || n1.Name.Defn != n {
+ 			ls[i1] = typecheck(ls[i1], Erv|Easgn)
+@@ -50,11 +58,12 @@ func typecheckrange(n *Node) {
+ 	}
+ 	n.Type = t
+ 
+-	toomany = false
++	var t1, t2 *types.Type
++	toomany := false
+ 	switch t.Etype {
+ 	default:
+ 		yyerrorl(n.Pos, "cannot range over %L", n.Right)
+-		goto out
++		return
+ 
+ 	case TARRAY, TSLICE:
+ 		t1 = types.Types[TINT]
+@@ -67,7 +76,7 @@ func typecheckrange(n *Node) {
+ 	case TCHAN:
+ 		if !t.ChanDir().CanRecv() {
+ 			yyerrorl(n.Pos, "invalid operation: range %v (receive from send-only type %v)", n.Right, n.Right.Type)
+-			goto out
++			return
+ 		}
+ 
+ 		t1 = t.Elem()
+@@ -85,11 +94,10 @@ func typecheckrange(n *Node) {
+ 		yyerrorl(n.Pos, "too many variables in range")
+ 	}
+ 
+-	v1 = nil
++	var v1, v2 *Node
+ 	if n.List.Len() != 0 {
+ 		v1 = n.List.First()
+ 	}
+-	v2 = nil
+ 	if n.List.Len() > 1 {
+ 		v2 = n.List.Second()
+ 	}
+@@ -105,6 +113,7 @@ func typecheckrange(n *Node) {
+ 		v2 = nil
+ 	}
+ 
++	var why string
+ 	if v1 != nil {
+ 		if v1.Name != nil && v1.Name.Defn == n {
+ 			v1.Type = t1
+@@ -122,20 +131,6 @@ func typecheckrange(n *Node) {
+ 		}
+ 		checkassign(n, v2)
+ 	}
+-
+-	// second half of dance
+-out:
+-	n.SetTypecheck(1)
+-	ls = n.List.Slice()
+-	for i1, n1 := range ls {
+-		if n1.Typecheck() == 0 {
+-			ls[i1] = typecheck(ls[i1], Erv|Easgn)
+-		}
+-	}
+-
+-	decldepth++
+-	typecheckslice(n.Nbody.Slice(), Etop)
+-	decldepth--
+ }
+ 
+ func cheapComputableIndex(width int64) bool {
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index 6d5fe298d0..38eaaccfd2 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -78,35 +78,41 @@ func typecheckselect(sel *Node) {
+ 		typecheckslice(ncase.Nbody.Slice(), Etop)
+ 	}
+ 
+-	sel.Xoffset = int64(sel.List.Len())
+ 	lineno = lno
+ }
+ 
+ func walkselect(sel *Node) {
+-	if sel.List.Len() == 0 && sel.Xoffset != 0 {
+-		Fatalf("double walkselect") // already rewrote
++	lno := setlineno(sel)
++	if sel.Nbody.Len() != 0 {
++		Fatalf("double walkselect")
+ 	}
+ 
+-	lno := setlineno(sel)
+-	i := sel.List.Len()
++	init := sel.Ninit.Slice()
++	sel.Ninit.Set(nil)
++
++	init = append(init, walkselectcases(&sel.List)...)
++	sel.List.Set(nil)
++
++	sel.Nbody.Set(init)
++	walkstmtlist(sel.Nbody.Slice())
++
++	lineno = lno
++}
++
++func walkselectcases(cases *Nodes) []*Node {
++	n := cases.Len()
++	sellineno := lineno
+ 
+ 	// optimization: zero-case select
+-	var init []*Node
+-	var r *Node
+-	var n *Node
+-	var var_ *Node
+-	var selv *Node
+-	var chosen *Node
+-	if i == 0 {
+-		sel.Nbody.Set1(mkcall("block", nil, nil))
+-		goto out
++	if n == 0 {
++		return []*Node{mkcall("block", nil, nil)}
+ 	}
+ 
+ 	// optimization: one-case select: single op.
+ 	// TODO(rsc): Reenable optimization once order.go can handle it.
+ 	// golang.org/issue/7672.
+-	if i == 1 {
+-		cas := sel.List.First()
++	if n == 1 {
++		cas := cases.First()
+ 		setlineno(cas)
+ 		l := cas.Ninit.Slice()
+ 		if cas.Left != nil { // not default:
+@@ -161,15 +167,14 @@ func walkselect(sel *Node) {
+ 
+ 		l = append(l, cas.Nbody.Slice()...)
+ 		l = append(l, nod(OBREAK, nil, nil))
+-		sel.Nbody.Set(l)
+-		goto out
++		return l
+ 	}
+ 
+ 	// convert case value arguments to addresses.
+ 	// this rewrite is used by both the general code and the next optimization.
+-	for _, cas := range sel.List.Slice() {
++	for _, cas := range cases.Slice() {
+ 		setlineno(cas)
+-		n = cas.Left
++		n := cas.Left
+ 		if n == nil {
+ 			continue
+ 		}
+@@ -197,15 +202,15 @@ func walkselect(sel *Node) {
+ 	}
+ 
+ 	// optimization: two-case select but one is default: single non-blocking op.
+-	if i == 2 && (sel.List.First().Left == nil || sel.List.Second().Left == nil) {
++	if n == 2 && (cases.First().Left == nil || cases.Second().Left == nil) {
+ 		var cas *Node
+ 		var dflt *Node
+-		if sel.List.First().Left == nil {
+-			cas = sel.List.Second()
+-			dflt = sel.List.First()
++		if cases.First().Left == nil {
++			cas = cases.Second()
++			dflt = cases.First()
+ 		} else {
+-			dflt = sel.List.Second()
+-			cas = sel.List.First()
++			dflt = cases.Second()
++			cas = cases.First()
+ 		}
+ 
+ 		n := cas.Left
+@@ -239,26 +244,24 @@ func walkselect(sel *Node) {
+ 		r.Left = typecheck(r.Left, Erv)
+ 		r.Nbody.Set(cas.Nbody.Slice())
+ 		r.Rlist.Set(append(dflt.Ninit.Slice(), dflt.Nbody.Slice()...))
+-		sel.Nbody.Set2(r, nod(OBREAK, nil, nil))
+-		goto out
++		return []*Node{r, nod(OBREAK, nil, nil)}
+ 	}
+ 
+-	init = sel.Ninit.Slice()
+-	sel.Ninit.Set(nil)
++	var init []*Node
+ 
+ 	// generate sel-struct
+-	setlineno(sel)
+-	selv = temp(selecttype(sel.Xoffset))
+-	r = nod(OAS, selv, nil)
++	lineno = sellineno
++	selv := temp(selecttype(int64(n)))
++	r := nod(OAS, selv, nil)
+ 	r = typecheck(r, Etop)
+ 	init = append(init, r)
+-	var_ = conv(conv(nod(OADDR, selv, nil), types.Types[TUNSAFEPTR]), types.NewPtr(types.Types[TUINT8]))
+-	r = mkcall("newselect", nil, nil, var_, nodintconst(selv.Type.Width), nodintconst(sel.Xoffset))
++	var_ := conv(conv(nod(OADDR, selv, nil), types.Types[TUNSAFEPTR]), types.NewPtr(types.Types[TUINT8]))
++	r = mkcall("newselect", nil, nil, var_, nodintconst(selv.Type.Width), nodintconst(int64(n)))
+ 	r = typecheck(r, Etop)
+ 	init = append(init, r)
+ 
+ 	// register cases
+-	for _, cas := range sel.List.Slice() {
++	for _, cas := range cases.Slice() {
+ 		setlineno(cas)
+ 
+ 		init = append(init, cas.Ninit.Slice()...)
+@@ -290,8 +293,8 @@ func walkselect(sel *Node) {
+ 	}
+ 
+ 	// run the select
+-	setlineno(sel)
+-	chosen = temp(types.Types[TINT])
++	lineno = sellineno
++	chosen := temp(types.Types[TINT])
+ 	r = nod(OAS, chosen, mkcall("selectgo", types.Types[TINT], nil, var_))
+ 	r = typecheck(r, Etop)
+ 	init = append(init, r)
+@@ -300,7 +303,7 @@ func walkselect(sel *Node) {
+ 	init = append(init, nod(OVARKILL, selv, nil))
+ 
+ 	// dispatch cases
+-	for i, cas := range sel.List.Slice() {
++	for i, cas := range cases.Slice() {
+ 		setlineno(cas)
+ 
+ 		cond := nod(OEQ, chosen, nodintconst(int64(i)))
+@@ -312,12 +315,7 @@ func walkselect(sel *Node) {
+ 		init = append(init, r)
+ 	}
+ 
+-	sel.Nbody.Set(init)
+-
+-out:
+-	sel.List.Set(nil)
+-	walkstmtlist(sel.Nbody.Slice())
+-	lineno = lno
++	return init
+ }
+ 
+ // Keep in sync with src/runtime/select.go.
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 67bb00b8b6..b900faa10a 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2547,18 +2547,18 @@ func hasddd(t *types.Type) bool {
+ // typecheck assignment: type list = expression list
+ func typecheckaste(op Op, call *Node, isddd bool, tstruct *types.Type, nl Nodes, desc func() string) {
+ 	var t *types.Type
+-	var n *Node
+ 	var n1 int
+ 	var n2 int
+ 	var i int
+ 
+ 	lno := lineno
++	defer func() { lineno = lno }()
+ 
+ 	if tstruct.Broke() {
+-		goto out
++		return
+ 	}
+ 
+-	n = nil
++	var n *Node
+ 	if nl.Len() == 1 {
+ 		n = nl.First()
+ 		if n.Type != nil && n.Type.IsFuncArgStruct() {
+@@ -2587,7 +2587,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *types.Type, nl Nodes,
+ 							}
+ 						}
+ 					}
+-					goto out
++					return
+ 				}
+ 
+ 				if i >= len(rfs) {
+@@ -2606,7 +2606,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *types.Type, nl Nodes,
+ 			if len(rfs) > len(lfs) {
+ 				goto toomany
+ 			}
+-			goto out
++			return
+ 		}
+ 	}
+ 
+@@ -2650,7 +2650,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *types.Type, nl Nodes,
+ 				if n.Type != nil {
+ 					nl.SetIndex(i, assignconvfn(n, t, desc))
+ 				}
+-				goto out
++				return
+ 			}
+ 
+ 			for ; i < nl.Len(); i++ {
+@@ -2660,8 +2660,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *types.Type, nl Nodes,
+ 					nl.SetIndex(i, assignconvfn(n, t.Elem(), desc))
+ 				}
+ 			}
+-
+-			goto out
++			return
+ 		}
+ 
+ 		if i >= nl.Len() {
+@@ -2685,9 +2684,6 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *types.Type, nl Nodes,
+ 			yyerror("invalid use of ... in %v", op)
+ 		}
+ 	}
+-
+-out:
+-	lineno = lno
+ 	return
+ 
+ notenough:
+@@ -2709,8 +2705,7 @@ notenough:
+ 			n.SetDiag(true)
+ 		}
+ 	}
+-
+-	goto out
++	return
+ 
+ toomany:
+ 	details := errorDetails(nl, tstruct, isddd)
+@@ -2719,7 +2714,6 @@ toomany:
+ 	} else {
+ 		yyerror("too many arguments to %v%s", op, details)
+ 	}
+-	goto out
+ }
+ 
+ func errorDetails(nl Nodes, tstruct *types.Type, isddd bool) string {

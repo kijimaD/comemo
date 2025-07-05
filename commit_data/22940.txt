@@ -7,6 +7,19 @@ Date:   Thu Apr 16 15:37:51 2015 +1000
     Change-Id: I6089cebf7de73ce9c4e53ad3e8ef2673d970bda2
     Reviewed-on: https://go-review.googlesource.com/8908
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.5.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index a98f83aa99..2ecbef5d98 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -42,6 +42,7 @@ net/http: ignore the Unix epoch time in ServeContent (https://golang.org/cl/7915
+ net/http/cgi: fix REMOTE_ADDR, REMOTE_HOST, add REMOTE_PORT (https://golang.org/cl/4933)
+ net/smtp: add TLSConnectionState accessor (https://golang.org/cl/2151)
+ os/signal: add Ignore and Reset (https://golang.org/cl/3580)
++reflect: add FuncOf (https://golang.org/cl/1996)
+ runtime, syscall: use SYSCALL instruction on FreeBSD (Go 1.5 now requires FreeBSD 8-STABLE+) (https://golang.org/cl/3020)
+ runtime, syscall: use get_random_bytes syscall for NaCl (Go 1.5 now requires NaCl SDK pepper-39 or above) (https://golang.org/cl/1755)
+ strings: add Compare(x, y string) int, for symmetry with bytes.Compare (https://golang.org/cl/2828)

@@ -9,6 +9,20 @@ Date:   Thu Dec 1 10:17:33 2011 +1100
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5451055
-
+---
  src/pkg/syscall/syscall_bsd.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/syscall/syscall_bsd.go b/src/pkg/syscall/syscall_bsd.go
+index 163232ad48..8969c5d672 100644
+--- a/src/pkg/syscall/syscall_bsd.go
++++ b/src/pkg/syscall/syscall_bsd.go
+@@ -563,7 +563,7 @@ func Sysctl(name string) (value string, err error) {
+ 		// Work around a bug that was fixed after OpenBSD 5.0.
+ 		// The length for kern.hostname and kern.domainname is always
+ 		// returned as 0 when a nil value is passed for oldp.
+-		if OS == "openbsd" && (value == "kern.hostname" || value == "kern.domainname") {
++		if OS == "openbsd" && (name == "kern.hostname" || name == "kern.domainname") {
+ 			// MAXHOSTNAMELEN
+ 			n = 256
+ 		} else {

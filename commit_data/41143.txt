@@ -13,7 +13,34 @@ Date:   Sun Sep 8 01:13:14 2019 +0200
     Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/syscall/zsyscall_darwin_arm.s   | 2 --
  src/syscall/zsyscall_darwin_arm64.s | 2 --
  2 files changed, 4 deletions(-)
+
+diff --git a/src/syscall/zsyscall_darwin_arm.s b/src/syscall/zsyscall_darwin_arm.s
+index c7cd83d83e..6462a198b0 100644
+--- a/src/syscall/zsyscall_darwin_arm.s
++++ b/src/syscall/zsyscall_darwin_arm.s
+@@ -229,8 +229,6 @@ TEXT ·libc_execve_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_execve(SB)
+ TEXT ·libc_exit_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_exit(SB)
+-TEXT ·libc_sysctl_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_sysctl(SB)
+ TEXT ·libc_unlinkat_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_unlinkat(SB)
+ TEXT ·libc_openat_trampoline(SB),NOSPLIT,$0-0
+diff --git a/src/syscall/zsyscall_darwin_arm64.s b/src/syscall/zsyscall_darwin_arm64.s
+index 7b8b3764a8..ec2210f1df 100644
+--- a/src/syscall/zsyscall_darwin_arm64.s
++++ b/src/syscall/zsyscall_darwin_arm64.s
+@@ -229,8 +229,6 @@ TEXT ·libc_execve_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_execve(SB)
+ TEXT ·libc_exit_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_exit(SB)
+-TEXT ·libc_sysctl_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_sysctl(SB)
+ TEXT ·libc_unlinkat_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_unlinkat(SB)
+ TEXT ·libc_openat_trampoline(SB),NOSPLIT,$0-0

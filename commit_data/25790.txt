@@ -9,7 +9,146 @@ Date:   Sun Nov 1 14:29:45 2015 +0900
     Change-Id: Ibbba7c86007d74b853fb59aa742f87783bd69503
     Reviewed-on: https://go-review.googlesource.com/16541
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/lookup_test.go | 54 +++++++++++++++++++++++++++++++++++++++++++
  src/net/port_test.go   | 63 --------------------------------------------------
  2 files changed, 54 insertions(+), 63 deletions(-)
+
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 86957b5575..0b6d92f6e3 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -7,6 +7,7 @@ package net
+ import (
+ 	"bytes"
+ 	"fmt"
++	"runtime"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -501,3 +502,56 @@ func srvString(srvs []*SRV) string {
+ 	fmt.Fprintf(&buf, "]")
+ 	return buf.String()
+ }
++
++var lookupPortTests = []struct {
++	network string
++	name    string
++	port    int
++	ok      bool
++}{
++	{"tcp", "0", 0, true},
++	{"tcp", "echo", 7, true},
++	{"tcp", "discard", 9, true},
++	{"tcp", "systat", 11, true},
++	{"tcp", "daytime", 13, true},
++	{"tcp", "chargen", 19, true},
++	{"tcp", "ftp-data", 20, true},
++	{"tcp", "ftp", 21, true},
++	{"tcp", "telnet", 23, true},
++	{"tcp", "smtp", 25, true},
++	{"tcp", "time", 37, true},
++	{"tcp", "domain", 53, true},
++	{"tcp", "finger", 79, true},
++	{"tcp", "42", 42, true},
++
++	{"udp", "0", 0, true},
++	{"udp", "echo", 7, true},
++	{"udp", "tftp", 69, true},
++	{"udp", "bootpc", 68, true},
++	{"udp", "bootps", 67, true},
++	{"udp", "domain", 53, true},
++	{"udp", "ntp", 123, true},
++	{"udp", "snmp", 161, true},
++	{"udp", "syslog", 514, true},
++	{"udp", "42", 42, true},
++
++	{"--badnet--", "zzz", 0, false},
++	{"tcp", "--badport--", 0, false},
++	{"tcp", "-1", 0, false},
++	{"tcp", "65536", 0, false},
++	{"udp", "-1", 0, false},
++	{"udp", "65536", 0, false},
++}
++
++func TestLookupPort(t *testing.T) {
++	switch runtime.GOOS {
++	case "nacl":
++		t.Skipf("not supported on %s", runtime.GOOS)
++	}
++
++	for _, tt := range lookupPortTests {
++		if port, err := LookupPort(tt.network, tt.name); port != tt.port || (err == nil) != tt.ok {
++			t.Errorf("LookupPort(%q, %q) = %d, %v; want %d", tt.network, tt.name, port, err, tt.port)
++		}
++	}
++}
+diff --git a/src/net/port_test.go b/src/net/port_test.go
+deleted file mode 100644
+index 362e6af933..0000000000
+--- a/src/net/port_test.go
++++ /dev/null
+@@ -1,63 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package net
+-
+-import (
+-	"runtime"
+-	"testing"
+-)
+-
+-var lookupPortTests = []struct {
+-	network string
+-	name    string
+-	port    int
+-	ok      bool
+-}{
+-	{"tcp", "0", 0, true},
+-	{"tcp", "echo", 7, true},
+-	{"tcp", "discard", 9, true},
+-	{"tcp", "systat", 11, true},
+-	{"tcp", "daytime", 13, true},
+-	{"tcp", "chargen", 19, true},
+-	{"tcp", "ftp-data", 20, true},
+-	{"tcp", "ftp", 21, true},
+-	{"tcp", "telnet", 23, true},
+-	{"tcp", "smtp", 25, true},
+-	{"tcp", "time", 37, true},
+-	{"tcp", "domain", 53, true},
+-	{"tcp", "finger", 79, true},
+-	{"tcp", "42", 42, true},
+-
+-	{"udp", "0", 0, true},
+-	{"udp", "echo", 7, true},
+-	{"udp", "tftp", 69, true},
+-	{"udp", "bootpc", 68, true},
+-	{"udp", "bootps", 67, true},
+-	{"udp", "domain", 53, true},
+-	{"udp", "ntp", 123, true},
+-	{"udp", "snmp", 161, true},
+-	{"udp", "syslog", 514, true},
+-	{"udp", "42", 42, true},
+-
+-	{"--badnet--", "zzz", 0, false},
+-	{"tcp", "--badport--", 0, false},
+-	{"tcp", "-1", 0, false},
+-	{"tcp", "65536", 0, false},
+-	{"udp", "-1", 0, false},
+-	{"udp", "65536", 0, false},
+-}
+-
+-func TestLookupPort(t *testing.T) {
+-	switch runtime.GOOS {
+-	case "nacl":
+-		t.Skipf("not supported on %s", runtime.GOOS)
+-	}
+-
+-	for _, tt := range lookupPortTests {
+-		if port, err := LookupPort(tt.network, tt.name); port != tt.port || (err == nil) != tt.ok {
+-			t.Errorf("LookupPort(%q, %q) = %d, %v; want %d", tt.network, tt.name, port, err, tt.port)
+-		}
+-	}
+-}

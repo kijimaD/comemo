@@ -14,7 +14,7 @@ Date:   Thu Mar 28 16:15:14 2019 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go                                | 4 ++--
  .../x/tools/go/analysis/passes/lostcancel/lostcancel.go           | 4 ++--
  src/context/context.go                                            | 6 +++---
@@ -38,3 +38,445 @@ Date:   Thu Mar 28 16:15:14 2019 -0700
  src/runtime/signal_solaris.go                                     | 2 +-
  src/vendor/golang.org/x/net/nettest/conntest.go                   | 6 +++---
  22 files changed, 40 insertions(+), 40 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 6c06362385..8159dc7bca 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2094,7 +2094,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			addop := ssa.OpAdd64F
+ 			subop := ssa.OpSub64F
+ 			pt := floatForComplex(n.Type) // Could be Float32 or Float64
+-			wt := types.Types[TFLOAT64]   // Compute in Float64 to minimize cancelation error
++			wt := types.Types[TFLOAT64]   // Compute in Float64 to minimize cancellation error
+ 
+ 			areal := s.newValue1(ssa.OpComplexReal, pt, a)
+ 			breal := s.newValue1(ssa.OpComplexReal, pt, b)
+@@ -2137,7 +2137,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			subop := ssa.OpSub64F
+ 			divop := ssa.OpDiv64F
+ 			pt := floatForComplex(n.Type) // Could be Float32 or Float64
+-			wt := types.Types[TFLOAT64]   // Compute in Float64 to minimize cancelation error
++			wt := types.Types[TFLOAT64]   // Compute in Float64 to minimize cancellation error
+ 
+ 			areal := s.newValue1(ssa.OpComplexReal, pt, a)
+ 			breal := s.newValue1(ssa.OpComplexReal, pt, b)
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go
+index b5161836a5..5be1ef0d57 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package lostcancel defines an Analyzer that checks for failure to
+-// call a context cancelation function.
++// call a context cancellation function.
+ package lostcancel
+ 
+ import (
+@@ -20,7 +20,7 @@ import (
+ 
+ const Doc = `check cancel func returned by context.WithCancel is called
+ 
+-The cancelation function returned by context.WithCancel, WithTimeout,
++The cancellation function returned by context.WithCancel, WithTimeout,
+ and WithDeadline must be called or the new context will remain live
+ until its parent context is cancelled.
+ (The background context is never cancelled.)`
+diff --git a/src/context/context.go b/src/context/context.go
+index ad67d2301d..93bf5b627d 100644
+--- a/src/context/context.go
++++ b/src/context/context.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package context defines the Context type, which carries deadlines,
+-// cancelation signals, and other request-scoped values across API boundaries
++// cancellation signals, and other request-scoped values across API boundaries
+ // and between processes.
+ //
+ // Incoming requests to a server should create a Context, and outgoing
+@@ -54,7 +54,7 @@ import (
+ 	"time"
+ )
+ 
+-// A Context carries a deadline, a cancelation signal, and other values across
++// A Context carries a deadline, a cancellation signal, and other values across
+ // API boundaries.
+ //
+ // Context's methods may be called by multiple goroutines simultaneously.
+@@ -92,7 +92,7 @@ type Context interface {
+ 	//  }
+ 	//
+ 	// See https://blog.golang.org/pipelines for more examples of how to use
+-	// a Done channel for cancelation.
++	// a Done channel for cancellation.
+ 	Done() <-chan struct{}
+ 
+ 	// If Done is not yet closed, Err returns nil.
+diff --git a/src/context/context_test.go b/src/context/context_test.go
+index 0cec169915..0e69e2f6fd 100644
+--- a/src/context/context_test.go
++++ b/src/context/context_test.go
+@@ -94,7 +94,7 @@ func XTestWithCancel(t testingT) {
+ 	}
+ 
+ 	cancel()
+-	time.Sleep(100 * time.Millisecond) // let cancelation propagate
++	time.Sleep(100 * time.Millisecond) // let cancellation propagate
+ 
+ 	for i, c := range contexts {
+ 		select {
+@@ -306,7 +306,7 @@ func XTestCanceledTimeout(t testingT) {
+ 	o := otherContext{c}
+ 	c, cancel := WithTimeout(o, 2*time.Second)
+ 	cancel()
+-	time.Sleep(100 * time.Millisecond) // let cancelation propagate
++	time.Sleep(100 * time.Millisecond) // let cancellation propagate
+ 	select {
+ 	case <-c.Done():
+ 	default:
+diff --git a/src/context/example_test.go b/src/context/example_test.go
+index 2b28b57704..b91a8acef3 100644
+--- a/src/context/example_test.go
++++ b/src/context/example_test.go
+@@ -59,7 +59,7 @@ func ExampleWithDeadline() {
+ 	ctx, cancel := context.WithDeadline(context.Background(), d)
+ 
+ 	// Even though ctx will be expired, it is good practice to call its
+-	// cancelation function in any case. Failure to do so may keep the
++	// cancellation function in any case. Failure to do so may keep the
+ 	// context and its parent alive longer than necessary.
+ 	defer cancel()
+ 
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 3b3ac27436..5013505cd9 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -8,7 +8,7 @@
+ // The sql package must be used in conjunction with a database driver.
+ // See https://golang.org/s/sqldrivers for a list of drivers.
+ //
+-// Drivers that do not support context cancelation will not return until
++// Drivers that do not support context cancellation will not return until
+ // after the query is completed.
+ //
+ // For usage examples, see the wiki page at
+diff --git a/src/internal/poll/fd_windows.go b/src/internal/poll/fd_windows.go
+index 92bab5f9dd..f96e441abe 100644
+--- a/src/internal/poll/fd_windows.go
++++ b/src/internal/poll/fd_windows.go
+@@ -258,7 +258,7 @@ func (s *ioSrv) ExecIO(o *operation, submit func(o *operation) error) (int, erro
+ 		s.req <- ioSrvReq{o, nil}
+ 		<-o.errc
+ 	}
+-	// Wait for cancelation to complete.
++	// Wait for cancellation to complete.
+ 	fd.pd.waitCanceled(int(o.mode))
+ 	if o.errno != 0 {
+ 		err = syscall.Errno(o.errno)
+@@ -267,8 +267,8 @@ func (s *ioSrv) ExecIO(o *operation, submit func(o *operation) error) (int, erro
+ 		}
+ 		return 0, err
+ 	}
+-	// We issued a cancelation request. But, it seems, IO operation succeeded
+-	// before the cancelation request run. We need to treat the IO operation as
++	// We issued a cancellation request. But, it seems, IO operation succeeded
++	// before the cancellation request run. We need to treat the IO operation as
+ 	// succeeded (the bytes are actually sent/recv from network).
+ 	return int(o.qty), nil
+ }
+diff --git a/src/math/j0.go b/src/math/j0.go
+index 5523fc34a0..cb5f07bca6 100644
+--- a/src/math/j0.go
++++ b/src/math/j0.go
+@@ -38,7 +38,7 @@ package math
+ //                      = 1/sqrt(2) * (cos(x) + sin(x))
+ //              sin(x0) = sin(x)cos(pi/4)-cos(x)sin(pi/4)
+ //                      = 1/sqrt(2) * (sin(x) - cos(x))
+-//         (To avoid cancelation, use
++//         (To avoid cancellation, use
+ //              sin(x) +- cos(x) = -cos(2x)/(sin(x) -+ cos(x))
+ //         to compute the worse one.)
+ //
+@@ -186,7 +186,7 @@ func Y0(x float64) float64 {
+ 		//             =  1/sqrt(2) * (sin(x) + cos(x))
+ 		//     sin(x0) = sin(x)cos(3pi/4)-cos(x)sin(3pi/4)
+ 		//             =  1/sqrt(2) * (sin(x) - cos(x))
+-		// To avoid cancelation, use
++		// To avoid cancellation, use
+ 		//     sin(x) +- cos(x) = -cos(2x)/(sin(x) -+ cos(x))
+ 		// to compute the worse one.
+ 
+diff --git a/src/math/j1.go b/src/math/j1.go
+index f1adcb6f41..7c7d279730 100644
+--- a/src/math/j1.go
++++ b/src/math/j1.go
+@@ -39,7 +39,7 @@ package math
+ //                      =  1/sqrt(2) * (sin(x) - cos(x))
+ //              sin(x1) =  sin(x)cos(3pi/4)-cos(x)sin(3pi/4)
+ //                      = -1/sqrt(2) * (sin(x) + cos(x))
+-//         (To avoid cancelation, use
++//         (To avoid cancellation, use
+ //              sin(x) +- cos(x) = -cos(2x)/(sin(x) -+ cos(x))
+ //         to compute the worse one.)
+ //
+@@ -197,7 +197,7 @@ func Y1(x float64) float64 {
+ 		//                 =  1/sqrt(2) * (sin(x) - cos(x))
+ 		//         sin(x0) = sin(x)cos(3pi/4)-cos(x)sin(3pi/4)
+ 		//                 = -1/sqrt(2) * (cos(x) + sin(x))
+-		// To avoid cancelation, use
++		// To avoid cancellation, use
+ 		//     sin(x) +- cos(x) = -cos(2x)/(sin(x) -+ cos(x))
+ 		// to compute the worse one.
+ 
+diff --git a/src/net/dial.go b/src/net/dial.go
+index 1f3ce1dfa3..7c03b54ceb 100644
+--- a/src/net/dial.go
++++ b/src/net/dial.go
+@@ -76,7 +76,7 @@ type Dialer struct {
+ 
+ 	// Cancel is an optional channel whose closure indicates that
+ 	// the dial should be canceled. Not all types of dials support
+-	// cancelation.
++	// cancellation.
+ 	//
+ 	// Deprecated: Use DialContext instead.
+ 	Cancel <-chan struct{}
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index 3a2c59a2d1..3646ab9815 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -463,7 +463,7 @@ func TestDialParallelSpuriousConnection(t *testing.T) {
+ 	origTestHookDialTCP := testHookDialTCP
+ 	defer func() { testHookDialTCP = origTestHookDialTCP }()
+ 	testHookDialTCP = func(ctx context.Context, net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
+-		// Sleep long enough for Happy Eyeballs to kick in, and inhibit cancelation.
++		// Sleep long enough for Happy Eyeballs to kick in, and inhibit cancellation.
+ 		// This forces dialParallel to juggle two successful connections.
+ 		time.Sleep(fallbackDelay * 2)
+ 
+@@ -865,7 +865,7 @@ func TestCancelAfterDial(t *testing.T) {
+ 		d := &Dialer{Cancel: cancel}
+ 		c, err := d.Dial("tcp", ln.Addr().String())
+ 
+-		// Immediately after dialing, request cancelation and sleep.
++		// Immediately after dialing, request cancellation and sleep.
+ 		// Before Issue 15078 was fixed, this would cause subsequent operations
+ 		// to fail with an i/o timeout roughly 50% of the time.
+ 		close(cancel)
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index 921f86bd92..aa54806c45 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -100,7 +100,7 @@ type Client struct {
+ 	// For compatibility, the Client will also use the deprecated
+ 	// CancelRequest method on Transport if found. New
+ 	// RoundTripper implementations should use the Request's Context
+-	// for cancelation instead of implementing CancelRequest.
++	// for cancellation instead of implementing CancelRequest.
+ 	Timeout time.Duration
+ }
+ 
+@@ -643,7 +643,7 @@ func (c *Client) do(req *Request) (retres *Response, reterr error) {
+ 			reqBodyClosed = true
+ 			if !deadline.IsZero() && didTimeout() {
+ 				err = &httpError{
+-					// TODO: early in cycle: s/Client.Timeout exceeded/timeout or context cancelation/
++					// TODO: early in cycle: s/Client.Timeout exceeded/timeout or context cancellation/
+ 					err:     err.Error() + " (Client.Timeout exceeded while awaiting headers)",
+ 					timeout: true,
+ 				}
+@@ -870,7 +870,7 @@ func (b *cancelTimerBody) Read(p []byte) (n int, err error) {
+ 	}
+ 	if b.reqDidTimeout() {
+ 		err = &httpError{
+-			// TODO: early in cycle: s/Client.Timeout exceeded/timeout or context cancelation/
++			// TODO: early in cycle: s/Client.Timeout exceeded/timeout or context cancellation/
+ 			err:     err.Error() + " (Client.Timeout exceeded while reading body)",
+ 			timeout: true,
+ 		}
+diff --git a/src/net/http/http.go b/src/net/http/http.go
+index 1c829ae87f..3510fe604d 100644
+--- a/src/net/http/http.go
++++ b/src/net/http/http.go
+@@ -19,7 +19,7 @@ import (
+ const maxInt64 = 1<<63 - 1
+ 
+ // aLongTimeAgo is a non-zero time, far in the past, used for
+-// immediate cancelation of network operations.
++// immediate cancellation of network operations.
+ var aLongTimeAgo = time.Unix(1, 0)
+ 
+ // TODO(bradfitz): move common stuff here. The other files have accumulated
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 24e941f038..da5ac2c71b 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -327,7 +327,7 @@ type Request struct {
+ // The returned context is always non-nil; it defaults to the
+ // background context.
+ //
+-// For outgoing client requests, the context controls cancelation.
++// For outgoing client requests, the context controls cancellation.
+ //
+ // For incoming server requests, the context is canceled when the
+ // client's connection closes, the request is canceled (with HTTP/2),
+diff --git a/src/net/http/socks_bundle.go b/src/net/http/socks_bundle.go
+index e6640dd404..3a947a0c91 100644
+--- a/src/net/http/socks_bundle.go
++++ b/src/net/http/socks_bundle.go
+@@ -453,7 +453,7 @@ func (up *socksUsernamePassword) Authenticate(ctx context.Context, rw io.ReadWri
+ 		b = append(b, up.Username...)
+ 		b = append(b, byte(len(up.Password)))
+ 		b = append(b, up.Password...)
+-		// TODO(mikio): handle IO deadlines and cancelation if
++		// TODO(mikio): handle IO deadlines and cancellation if
+ 		// necessary
+ 		if _, err := rw.Write(b); err != nil {
+ 			return err
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 6d82f44ff6..377914177f 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -1039,7 +1039,7 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (*persistC
+ 		t.decHostConnCount(cmKey)
+ 		select {
+ 		case <-req.Cancel:
+-			// It was an error due to cancelation, so prioritize that
++			// It was an error due to cancellation, so prioritize that
+ 			// error value. (Issue 16049)
+ 			return nil, errRequestCanceledConn
+ 		case <-req.Context().Done():
+@@ -1050,7 +1050,7 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (*persistC
+ 			}
+ 			return nil, err
+ 		default:
+-			// It wasn't an error due to cancelation, so
++			// It wasn't an error due to cancellation, so
+ 			// return the original error message:
+ 			return nil, v.err
+ 		}
+@@ -1557,7 +1557,7 @@ func (pc *persistConn) isBroken() bool {
+ }
+ 
+ // canceled returns non-nil if the connection was closed due to
+-// CancelRequest or due to context cancelation.
++// CancelRequest or due to context cancellation.
+ func (pc *persistConn) canceled() error {
+ 	pc.mu.Lock()
+ 	defer pc.mu.Unlock()
+@@ -1813,7 +1813,7 @@ func (pc *persistConn) readLoop() {
+ 
+ 		// Before looping back to the top of this function and peeking on
+ 		// the bufio.Reader, wait for the caller goroutine to finish
+-		// reading the response body. (or for cancelation or death)
++		// reading the response body. (or for cancellation or death)
+ 		select {
+ 		case bodyEOF := <-waitForBodyRead:
+ 			pc.t.setReqCanceler(rc.req, nil) // before pc might return to idle pool
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 5b1dbf9eff..857f0d5928 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -2114,7 +2114,7 @@ func testCancelRequestWithChannelBeforeDo(t *testing.T, withCtx bool) {
+ 		}
+ 	} else {
+ 		if err == nil || !strings.Contains(err.Error(), "canceled") {
+-			t.Errorf("Do error = %v; want cancelation", err)
++			t.Errorf("Do error = %v; want cancellation", err)
+ 		}
+ 	}
+ }
+diff --git a/src/net/lookup.go b/src/net/lookup.go
+index 08e8d01385..0af1e2c289 100644
+--- a/src/net/lookup.go
++++ b/src/net/lookup.go
+@@ -255,7 +255,7 @@ func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IP
+ 		resolverFunc = alt
+ 	}
+ 
+-	// We don't want a cancelation of ctx to affect the
++	// We don't want a cancellation of ctx to affect the
+ 	// lookupGroup operation. Otherwise if our context gets
+ 	// canceled it might cause an error to be returned to a lookup
+ 	// using a completely different context. However we need to preserve
+diff --git a/src/net/net.go b/src/net/net.go
+index 3bdccc8468..b44ecb6711 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -473,7 +473,7 @@ func (e *OpError) Error() string {
+ 
+ var (
+ 	// aLongTimeAgo is a non-zero time, far in the past, used for
+-	// immediate cancelation of dials.
++	// immediate cancellation of dials.
+ 	aLongTimeAgo = time.Unix(1, 0)
+ 
+ 	// nonDeadline and noCancel are just zero values for
+diff --git a/src/os/timeout_test.go b/src/os/timeout_test.go
+index 4720738d24..5d7ea7ea29 100644
+--- a/src/os/timeout_test.go
++++ b/src/os/timeout_test.go
+@@ -514,7 +514,7 @@ func TestReadWriteDeadlineRace(t *testing.T) {
+ }
+ 
+ // TestRacyRead tests that it is safe to mutate the input Read buffer
+-// immediately after cancelation has occurred.
++// immediately after cancellation has occurred.
+ func TestRacyRead(t *testing.T) {
+ 	t.Parallel()
+ 
+@@ -553,7 +553,7 @@ func TestRacyRead(t *testing.T) {
+ }
+ 
+ // TestRacyWrite tests that it is safe to mutate the input Write buffer
+-// immediately after cancelation has occurred.
++// immediately after cancellation has occurred.
+ func TestRacyWrite(t *testing.T) {
+ 	t.Parallel()
+ 
+diff --git a/src/runtime/signal_solaris.go b/src/runtime/signal_solaris.go
+index a8eeeee129..25f8ad55a6 100644
+--- a/src/runtime/signal_solaris.go
++++ b/src/runtime/signal_solaris.go
+@@ -41,7 +41,7 @@ var sigtable = [...]sigTabT{
+ 	/* 33 */ {_SigNotify, "SIGLWP: reserved signal no longer used by"},
+ 	/* 34 */ {_SigNotify, "SIGFREEZE: special signal used by CPR"},
+ 	/* 35 */ {_SigNotify, "SIGTHAW: special signal used by CPR"},
+-	/* 36 */ {_SigSetStack + _SigUnblock, "SIGCANCEL: reserved signal for thread cancellation"}, // Oracle's spelling of cancelation.
++	/* 36 */ {_SigSetStack + _SigUnblock, "SIGCANCEL: reserved signal for thread cancellation"}, // Oracle's spelling of cancellation.
+ 	/* 37 */ {_SigNotify, "SIGLOST: resource lost (eg, record-lock lost)"},
+ 	/* 38 */ {_SigNotify, "SIGXRES: resource control exceeded"},
+ 	/* 39 */ {_SigNotify, "SIGJVM1: reserved signal for Java Virtual Machine"},
+diff --git a/src/vendor/golang.org/x/net/nettest/conntest.go b/src/vendor/golang.org/x/net/nettest/conntest.go
+index 5bd3a8c68c..adbcaf02c6 100644
+--- a/src/vendor/golang.org/x/net/nettest/conntest.go
++++ b/src/vendor/golang.org/x/net/nettest/conntest.go
+@@ -138,7 +138,7 @@ func testPingPong(t *testing.T, c1, c2 net.Conn) {
+ }
+ 
+ // testRacyRead tests that it is safe to mutate the input Read buffer
+-// immediately after cancelation has occurred.
++// immediately after cancellation has occurred.
+ func testRacyRead(t *testing.T, c1, c2 net.Conn) {
+ 	go chunkedCopy(c2, rand.New(rand.NewSource(0)))
+ 
+@@ -166,7 +166,7 @@ func testRacyRead(t *testing.T, c1, c2 net.Conn) {
+ }
+ 
+ // testRacyWrite tests that it is safe to mutate the input Write buffer
+-// immediately after cancelation has occurred.
++// immediately after cancellation has occurred.
+ func testRacyWrite(t *testing.T, c1, c2 net.Conn) {
+ 	go chunkedCopy(ioutil.Discard, c2)
+ 
+@@ -314,7 +314,7 @@ func testCloseTimeout(t *testing.T, c1, c2 net.Conn) {
+ 	defer wg.Wait()
+ 	wg.Add(3)
+ 
+-	// Test for cancelation upon connection closure.
++	// Test for cancellation upon connection closure.
+ 	c1.SetDeadline(neverTimeout)
+ 	go func() {
+ 		defer wg.Done()

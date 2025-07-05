@@ -9,6 +9,24 @@ Date:   Wed Mar 30 14:26:04 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/cgen.go | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index 4b2bf456b1..c594ad4c11 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -3469,11 +3469,7 @@ func cgen_slice(n, res *Node, wb bool) {
+ 		} else {
+ 			var ptr *Type
+ 			if n.Op == OSLICESTR {
+-				// Yikes! Ptrto(nil)?!
+-				// Prior to CL 21331, that's what this code did implicitly.
+-				// Now it does it explicitly, to safely preserve old behavior.
+-				// This will all be replaced by SSA anyway.
+-				ptr = Ptrto(nil)
++				ptr = ptrToUint8
+ 			} else {
+ 				ptr = Ptrto(n.Type.Elem())
+ 			}

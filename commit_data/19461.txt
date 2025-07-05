@@ -23,8 +23,179 @@ Date:   Wed May 28 14:04:31 2014 -0400
     R=golang-codereviews, iant, r
     CC=golang-codereviews
     https://golang.org/cl/98580046
-
+---
  doc/go1.3.html             |  8 +++++++-
  misc/cgo/test/issue7786.go | 51 ++++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/cgo/gcc.go         | 51 +++++++++++++++++++++++++++++++++++++++-------
  3 files changed, 102 insertions(+), 8 deletions(-)
+
+diff --git a/doc/go1.3.html b/doc/go1.3.html
+index 9a9f9f8d46..f4e055ae80 100644
+--- a/doc/go1.3.html
++++ b/doc/go1.3.html
+@@ -253,7 +253,13 @@ with the effect that the Go compiler could not diagnose passing one kind of stru
+ to a function expecting another.
+ Go 1.3 corrects this mistake by translating each different
+ incomplete struct to a different named type.
+-However, some Go code took advantage of this bug to pass (for example) a <code>*C.FILE</code>
++</p>
++
++<p>
++Given the C declaration <code>typedef struct S T</code> for an incomplete <code>struct S</code>,
++some Go code used this bug to refer to the types <code>C.struct_S</code> and <code>C.T</code> interchangeably.
++Cgo now explicitly allows this use, even for completed struct types.
++However, some Go code also used this bug to pass (for example) a <code>*C.FILE</code>
+ from one package to another.
+ This is not legal and no longer works: in general Go packages
+ should avoid exposing C types and names in their APIs.
+diff --git a/misc/cgo/test/issue7786.go b/misc/cgo/test/issue7786.go
+new file mode 100644
+index 0000000000..b92763789b
+--- /dev/null
++++ b/misc/cgo/test/issue7786.go
+@@ -0,0 +1,51 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 7786. No runtime test, just make sure that typedef and struct/union/class are interchangeable at compile time.
++
++package cgotest
++
++// struct test7786;
++// typedef struct test7786 typedef_test7786;
++// void f7786(struct test7786 *ctx) {}
++// void g7786(typedef_test7786 *ctx) {}
++//
++// typedef struct body7786 typedef_body7786;
++// struct body7786 { int x; };
++// void b7786(struct body7786 *ctx) {}
++// void c7786(typedef_body7786 *ctx) {}
++//
++// typedef union union7786 typedef_union7786;
++// void u7786(union union7786 *ctx) {}
++// void v7786(typedef_union7786 *ctx) {}
++import "C"
++
++func f() {
++	var x1 *C.typedef_test7786
++	var x2 *C.struct_test7786
++	x1 = x2
++	x2 = x1
++	C.f7786(x1)
++	C.f7786(x2)
++	C.g7786(x1)
++	C.g7786(x2)
++
++	var b1 *C.typedef_body7786
++	var b2 *C.struct_body7786
++	b1 = b2
++	b2 = b1
++	C.b7786(b1)
++	C.b7786(b2)
++	C.c7786(b1)
++	C.c7786(b2)
++
++	var u1 *C.typedef_union7786
++	var u2 *C.union_union7786
++	u1 = u2
++	u2 = u1
++	C.u7786(u1)
++	C.u7786(u2)
++	C.v7786(u1)
++	C.v7786(u2)
++}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index c5fcdfc3df..e403f6f510 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1197,12 +1197,12 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 		return t
+ 
+ 	case *dwarf.StructType:
+-		if dt.ByteSize < 0 { // opaque struct
+-			break
+-		}
+ 		// Convert to Go struct, being careful about alignment.
+ 		// Have to give it a name to simulate C "struct foo" references.
+ 		tag := dt.StructName
++		if dt.ByteSize < 0 && tag == "" { // opaque unnamed struct - should not be possible
++			break
++		}
+ 		if tag == "" {
+ 			tag = "__" + strconv.Itoa(tagGen)
+ 			tagGen++
+@@ -1212,6 +1212,16 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 		name := c.Ident("_Ctype_" + dt.Kind + "_" + tag)
+ 		t.Go = name // publish before recursive calls
+ 		goIdent[name.Name] = name
++		if dt.ByteSize < 0 {
++			// Size calculation in c.Struct/c.Opaque will die with size=-1 (unknown),
++			// so execute the basic things that the struct case would do
++			// other than try to determine a Go representation.
++			tt := *t
++			tt.C = &TypeRepr{"%s %s", []interface{}{dt.Kind, tag}}
++			tt.Go = c.Ident("struct{}")
++			typedef[name.Name] = &tt
++			break
++		}
+ 		switch dt.Kind {
+ 		case "class", "union":
+ 			t.Go = c.Opaque(t.Size)
+@@ -1264,7 +1274,12 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 			tt.Go = sub.Go
+ 			typedef[name.Name] = &tt
+ 		}
+-		if *godefs || *cdefs {
++
++		// If sub.Go.Name is "_Ctype_struct_foo" or "_Ctype_union_foo" or "_Ctype_class_foo",
++		// use that as the Go form for this typedef too, so that the typedef will be interchangeable
++		// with the base type.
++		// In -godefs and -cdefs mode, do this for all typedefs.
++		if isStructUnionClass(sub.Go) || *godefs || *cdefs {
+ 			t.Go = sub.Go
+ 		}
+ 
+@@ -1327,10 +1342,19 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 		// be correct, so calling dtype.Size again will produce the correct value.
+ 		t.Size = dtype.Size()
+ 		if t.Size < 0 {
+-			// Unsized types are [0]byte, unless they're typedefs of other types.
+-			// if so, use the name of the typedef for the go name.
++			// Unsized types are [0]byte, unless they're typedefs of other types
++			// or structs with tags.
++			// if so, use the name we've already defined.
+ 			t.Size = 0
+-			if _, ok := dtype.(*dwarf.TypedefType); !ok {
++			switch dt := dtype.(type) {
++			case *dwarf.TypedefType:
++				// ok
++			case *dwarf.StructType:
++				if dt.StructName != "" {
++					break
++				}
++				t.Go = c.Opaque(0)
++			default:
+ 				t.Go = c.Opaque(0)
+ 			}
+ 			if t.C.Empty() {
+@@ -1347,6 +1371,19 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 	return t
+ }
+ 
++// isStructUnionClass reports whether the type described by the Go syntax x
++// is a struct, union, or class with a tag.
++func isStructUnionClass(x ast.Expr) bool {
++	id, ok := x.(*ast.Ident)
++	if !ok {
++		return false
++	}
++	name := id.Name
++	return strings.HasPrefix(name, "_Ctype_struct_") ||
++		strings.HasPrefix(name, "_Ctype_union_") ||
++		strings.HasPrefix(name, "_Ctype_class_")
++}
++
+ // FuncArg returns a Go type with the same memory layout as
+ // dtype when used as the type of a C function argument.
+ func (c *typeConv) FuncArg(dtype dwarf.Type, pos token.Pos) *Type {

@@ -8,6 +8,20 @@ Date:   Sun Apr 27 17:39:13 2014 -0700
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/98740045
-
+---
  src/pkg/net/tcp_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/tcp_test.go b/src/pkg/net/tcp_test.go
+index abd305aa4e..c04198ea00 100644
+--- a/src/pkg/net/tcp_test.go
++++ b/src/pkg/net/tcp_test.go
+@@ -399,7 +399,7 @@ func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
+ 		{"tcp6", "[" + laddr + "%" + ifi.Name + "]:0", false},
+ 	}
+ 	switch runtime.GOOS {
+-	case "darwin", "freebsd", "opensbd", "netbsd":
++	case "darwin", "freebsd", "openbsd", "netbsd":
+ 		tests = append(tests, []test{
+ 			{"tcp", "[localhost%" + ifi.Name + "]:0", true},
+ 			{"tcp6", "[localhost%" + ifi.Name + "]:0", true},

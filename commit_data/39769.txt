@@ -12,6 +12,22 @@ Date:   Tue Mar 19 15:52:10 2019 +0200
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/work/security.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/go/internal/work/security.go b/src/cmd/go/internal/work/security.go
+index e3d85e29c1..9e26ab8353 100644
+--- a/src/cmd/go/internal/work/security.go
++++ b/src/cmd/go/internal/work/security.go
+@@ -101,6 +101,10 @@ var validCompilerFlags = []*lazyregexp.Regexp{
+ 	re(`-mmacosx-(.+)`),
+ 	re(`-mios-simulator-version-min=(.+)`),
+ 	re(`-miphoneos-version-min=(.+)`),
++	re(`-mtvos-simulator-version-min=(.+)`),
++	re(`-mtvos-version-min=(.+)`),
++	re(`-mwatchos-simulator-version-min=(.+)`),
++	re(`-mwatchos-version-min=(.+)`),
+ 	re(`-mnop-fun-dllimport`),
+ 	re(`-m(no-)?sse[0-9.]*`),
+ 	re(`-m(no-)?ssse3`),

@@ -58,10 +58,320 @@ Date:   Thu Mar 11 15:45:52 2021 -0800
     Trust: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/mbitmap.go       |  48 ++++++++----------
  src/runtime/mcentral.go      |   2 +-
  src/runtime/mheap.go         |  16 +-----
  src/runtime/mksizeclasses.go | 118 ++++++++++++++++++++-----------------------
  src/runtime/sizeclasses.go   |  10 +---
  5 files changed, 80 insertions(+), 114 deletions(-)
+
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index fbfaae0f93..2d12c563b8 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -226,16 +226,25 @@ func (s *mspan) isFree(index uintptr) bool {
+ 	return *bytep&mask == 0
+ }
+ 
+-func (s *mspan) objIndex(p uintptr) uintptr {
+-	byteOffset := p - s.base()
+-	if byteOffset == 0 {
+-		return 0
+-	}
+-	if s.baseMask != 0 {
+-		// s.baseMask is non-0, elemsize is a power of two, so shift by s.divShift
+-		return byteOffset >> s.divShift
++// divideByElemSize returns n/s.elemsize.
++// n must be within [0, s.npages*_PageSize),
++// or may be exactly s.npages*_PageSize
++// if s.elemsize is from sizeclasses.go.
++func (s *mspan) divideByElemSize(n uintptr) uintptr {
++	const doubleCheck = false
++
++	// See explanation in mksizeclasses.go's computeDivMagic.
++	q := uintptr((uint64(n) * uint64(s.divMul)) >> 32)
++
++	if doubleCheck && q != n/s.elemsize {
++		println(n, "/", s.elemsize, "should be", n/s.elemsize, "but got", q)
++		throw("bad magic division")
+ 	}
+-	return uintptr(((uint64(byteOffset) >> s.divShift) * uint64(s.divMul)) >> s.divShift2)
++	return q
++}
++
++func (s *mspan) objIndex(p uintptr) uintptr {
++	return s.divideByElemSize(p - s.base())
+ }
+ 
+ func markBitsForAddr(p uintptr) markBits {
+@@ -388,24 +397,9 @@ func findObject(p, refBase, refOff uintptr) (base uintptr, s *mspan, objIndex ui
+ 		}
+ 		return
+ 	}
+-	// If this span holds object of a power of 2 size, just mask off the bits to
+-	// the interior of the object. Otherwise use the size to get the base.
+-	if s.baseMask != 0 {
+-		// optimize for power of 2 sized objects.
+-		base = s.base()
+-		base = base + (p-base)&uintptr(s.baseMask)
+-		objIndex = (base - s.base()) >> s.divShift
+-		// base = p & s.baseMask is faster for small spans,
+-		// but doesn't work for large spans.
+-		// Overall, it's faster to use the more general computation above.
+-	} else {
+-		base = s.base()
+-		if p-base >= s.elemsize {
+-			// n := (p - base) / s.elemsize, using division by multiplication
+-			objIndex = uintptr(p-base) >> s.divShift * uintptr(s.divMul) >> s.divShift2
+-			base += objIndex * s.elemsize
+-		}
+-	}
++
++	objIndex = s.objIndex(p)
++	base = s.base() + objIndex*s.elemsize
+ 	return
+ }
+ 
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index cd20dec539..8664ed48ab 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -236,7 +236,7 @@ func (c *mcentral) grow() *mspan {
+ 
+ 	// Use division by multiplication and shifts to quickly compute:
+ 	// n := (npages << _PageShift) / size
+-	n := (npages << _PageShift) >> s.divShift * uintptr(s.divMul) >> s.divShift2
++	n := s.divideByElemSize(npages << _PageShift)
+ 	s.limit = s.base() + size*n
+ 	heapBitsForAddr(s.base()).initSpan(s)
+ 	return s
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 1855330da5..08019a4101 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -451,14 +451,11 @@ type mspan struct {
+ 	// h->sweepgen is incremented by 2 after every GC
+ 
+ 	sweepgen    uint32
+-	divMul      uint16        // for divide by elemsize - divMagic.mul
+-	baseMask    uint16        // if non-0, elemsize is a power of 2, & this will get object allocation base
++	divMul      uint32        // for divide by elemsize
+ 	allocCount  uint16        // number of allocated objects
+ 	spanclass   spanClass     // size class and noscan (uint8)
+ 	state       mSpanStateBox // mSpanInUse etc; accessed atomically (get/set methods)
+ 	needzero    uint8         // needs to be zeroed before allocation
+-	divShift    uint8         // for divide by elemsize - divMagic.shift
+-	divShift2   uint8         // for divide by elemsize - divMagic.shift2
+ 	elemsize    uintptr       // computed from sizeclass or from npages
+ 	limit       uintptr       // end of data in span
+ 	speciallock mutex         // guards specials list
+@@ -1224,20 +1221,11 @@ HaveSpan:
+ 		if sizeclass := spanclass.sizeclass(); sizeclass == 0 {
+ 			s.elemsize = nbytes
+ 			s.nelems = 1
+-
+-			s.divShift = 0
+ 			s.divMul = 0
+-			s.divShift2 = 0
+-			s.baseMask = 0
+ 		} else {
+ 			s.elemsize = uintptr(class_to_size[sizeclass])
+ 			s.nelems = nbytes / s.elemsize
+-
+-			m := &class_to_divmagic[sizeclass]
+-			s.divShift = m.shift
+-			s.divMul = m.mul
+-			s.divShift2 = m.shift2
+-			s.baseMask = m.baseMask
++			s.divMul = class_to_divmagic[sizeclass]
+ 		}
+ 
+ 		// Initialize mark and allocation structures.
+diff --git a/src/runtime/mksizeclasses.go b/src/runtime/mksizeclasses.go
+index 8b9bbe01e6..ddbf1bf7fe 100644
+--- a/src/runtime/mksizeclasses.go
++++ b/src/runtime/mksizeclasses.go
+@@ -37,6 +37,7 @@ import (
+ 	"go/format"
+ 	"io"
+ 	"log"
++	"math"
+ 	"math/bits"
+ 	"os"
+ )
+@@ -88,11 +89,6 @@ const (
+ type class struct {
+ 	size   int // max size
+ 	npages int // number of pages
+-
+-	mul    int
+-	shift  uint
+-	shift2 uint
+-	mask   int
+ }
+ 
+ func powerOfTwo(x int) bool {
+@@ -169,9 +165,9 @@ func makeClasses() []class {
+ 	return classes
+ }
+ 
+-// computeDivMagic computes some magic constants to implement
+-// the division required to compute object number from span offset.
+-// n / c.size is implemented as n >> c.shift * c.mul >> c.shift2
++// computeDivMagic checks that the division required to compute object
++// index from span offset can be computed using 32-bit multiplication.
++// n / c.size is implemented as (n * (^uint32(0)/uint32(c.size) + 1)) >> 32
+ // for all 0 <= n <= c.npages * pageSize
+ func computeDivMagic(c *class) {
+ 	// divisor
+@@ -183,62 +179,60 @@ func computeDivMagic(c *class) {
+ 	// maximum input value for which the formula needs to work.
+ 	max := c.npages * pageSize
+ 
++	// As reported in [1], if n and d are unsigned N-bit integers, we
++	// can compute n / d as ⌊n * c / 2^F⌋, where c is ⌈2^F / d⌉ and F is
++	// computed with:
++	//
++	// 	Algorithm 2: Algorithm to select the number of fractional bits
++	// 	and the scaled approximate reciprocal in the case of unsigned
++	// 	integers.
++	//
++	// 	if d is a power of two then
++	// 		Let F ← log₂(d) and c = 1.
++	// 	else
++	// 		Let F ← N + L where L is the smallest integer
++	// 		such that d ≤ (2^(N+L) mod d) + 2^L.
++	// 	end if
++	//
++	// [1] "Faster Remainder by Direct Computation: Applications to
++	// Compilers and Software Libraries" Daniel Lemire, Owen Kaser,
++	// Nathan Kurz arXiv:1902.01961
++	//
++	// To minimize the risk of introducing errors, we implement the
++	// algorithm exactly as stated, rather than trying to adapt it to
++	// fit typical Go idioms.
++	N := bits.Len(uint(max))
++	var F int
+ 	if powerOfTwo(d) {
+-		// If the size is a power of two, heapBitsForObject can divide even faster by masking.
+-		// Compute this mask.
+-		if max >= 1<<16 {
+-			panic("max too big for power of two size")
++		F = int(math.Log2(float64(d)))
++		if d != 1<<F {
++			panic("imprecise log2")
+ 		}
+-		c.mask = 1<<16 - d
+-	}
+-
+-	// Compute pre-shift by factoring power of 2 out of d.
+-	for d%2 == 0 {
+-		c.shift++
+-		d >>= 1
+-		max >>= 1
+-	}
+-
+-	// Find the smallest k that works.
+-	// A small k allows us to fit the math required into 32 bits
+-	// so we can use 32-bit multiplies and shifts on 32-bit platforms.
+-nextk:
+-	for k := uint(0); ; k++ {
+-		mul := (int(1)<<k + d - 1) / d //  ⌈2^k / d⌉
+-
+-		// Test to see if mul works.
+-		for n := 0; n <= max; n++ {
+-			if n*mul>>k != n/d {
+-				continue nextk
++	} else {
++		for L := 0; ; L++ {
++			if d <= ((1<<(N+L))%d)+(1<<L) {
++				F = N + L
++				break
+ 			}
+ 		}
+-		if mul >= 1<<16 {
+-			panic("mul too big")
+-		}
+-		if uint64(mul)*uint64(max) >= 1<<32 {
+-			panic("mul*max too big")
+-		}
+-		c.mul = mul
+-		c.shift2 = k
+-		break
+ 	}
+ 
+-	// double-check.
++	// Also, noted in the paper, F is the smallest number of fractional
++	// bits required. We use 32 bits, because it works for all size
++	// classes and is fast on all CPU architectures that we support.
++	if F > 32 {
++		fmt.Printf("d=%d max=%d N=%d F=%d\n", c.size, max, N, F)
++		panic("size class requires more than 32 bits of precision")
++	}
++
++	// Brute force double-check with the exact computation that will be
++	// done by the runtime.
++	m := ^uint32(0)/uint32(c.size) + 1
+ 	for n := 0; n <= max; n++ {
+-		if n*c.mul>>c.shift2 != n/d {
+-			fmt.Printf("d=%d max=%d mul=%d shift2=%d n=%d\n", d, max, c.mul, c.shift2, n)
+-			panic("bad multiply magic")
+-		}
+-		// Also check the exact computations that will be done by the runtime,
+-		// for both 32 and 64 bit operations.
+-		if uint32(n)*uint32(c.mul)>>uint8(c.shift2) != uint32(n/d) {
+-			fmt.Printf("d=%d max=%d mul=%d shift2=%d n=%d\n", d, max, c.mul, c.shift2, n)
++		if uint32((uint64(n)*uint64(m))>>32) != uint32(n/c.size) {
++			fmt.Printf("d=%d max=%d m=%d n=%d\n", d, max, m, n)
+ 			panic("bad 32-bit multiply magic")
+ 		}
+-		if uint64(n)*uint64(c.mul)>>uint8(c.shift2) != uint64(n/d) {
+-			fmt.Printf("d=%d max=%d mul=%d shift2=%d n=%d\n", d, max, c.mul, c.shift2, n)
+-			panic("bad 64-bit multiply magic")
+-		}
+ 	}
+ }
+ 
+@@ -302,15 +296,13 @@ func printClasses(w io.Writer, classes []class) {
+ 	}
+ 	fmt.Fprintln(w, "}")
+ 
+-	fmt.Fprintln(w, "type divMagic struct {")
+-	fmt.Fprintln(w, "  shift uint8")
+-	fmt.Fprintln(w, "  shift2 uint8")
+-	fmt.Fprintln(w, "  mul uint16")
+-	fmt.Fprintln(w, "  baseMask uint16")
+-	fmt.Fprintln(w, "}")
+-	fmt.Fprint(w, "var class_to_divmagic = [_NumSizeClasses]divMagic {")
++	fmt.Fprint(w, "var class_to_divmagic = [_NumSizeClasses]uint32 {")
+ 	for _, c := range classes {
+-		fmt.Fprintf(w, "{%d,%d,%d,%d},", c.shift, c.shift2, c.mul, c.mask)
++		if c.size == 0 {
++			fmt.Fprintf(w, "0,")
++			continue
++		}
++		fmt.Fprintf(w, "^uint32(0)/%d+1,", c.size)
+ 	}
+ 	fmt.Fprintln(w, "}")
+ 
+diff --git a/src/runtime/sizeclasses.go b/src/runtime/sizeclasses.go
+index d71ceeab7b..65c72cfb1a 100644
+--- a/src/runtime/sizeclasses.go
++++ b/src/runtime/sizeclasses.go
+@@ -92,14 +92,6 @@ const (
+ 
+ var class_to_size = [_NumSizeClasses]uint16{0, 8, 16, 24, 32, 48, 64, 80, 96, 112, 128, 144, 160, 176, 192, 208, 224, 240, 256, 288, 320, 352, 384, 416, 448, 480, 512, 576, 640, 704, 768, 896, 1024, 1152, 1280, 1408, 1536, 1792, 2048, 2304, 2688, 3072, 3200, 3456, 4096, 4864, 5376, 6144, 6528, 6784, 6912, 8192, 9472, 9728, 10240, 10880, 12288, 13568, 14336, 16384, 18432, 19072, 20480, 21760, 24576, 27264, 28672, 32768}
+ var class_to_allocnpages = [_NumSizeClasses]uint8{0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1, 3, 2, 3, 1, 3, 2, 3, 4, 5, 6, 1, 7, 6, 5, 4, 3, 5, 7, 2, 9, 7, 5, 8, 3, 10, 7, 4}
+-
+-type divMagic struct {
+-	shift    uint8
+-	shift2   uint8
+-	mul      uint16
+-	baseMask uint16
+-}
+-
+-var class_to_divmagic = [_NumSizeClasses]divMagic{{0, 0, 0, 0}, {3, 0, 1, 65528}, {4, 0, 1, 65520}, {3, 11, 683, 0}, {5, 0, 1, 65504}, {4, 11, 683, 0}, {6, 0, 1, 65472}, {4, 10, 205, 0}, {5, 9, 171, 0}, {4, 11, 293, 0}, {7, 0, 1, 65408}, {4, 13, 911, 0}, {5, 10, 205, 0}, {4, 12, 373, 0}, {6, 9, 171, 0}, {4, 13, 631, 0}, {5, 11, 293, 0}, {4, 13, 547, 0}, {8, 0, 1, 65280}, {5, 9, 57, 0}, {6, 9, 103, 0}, {5, 12, 373, 0}, {7, 7, 43, 0}, {5, 10, 79, 0}, {6, 10, 147, 0}, {5, 11, 137, 0}, {9, 0, 1, 65024}, {6, 9, 57, 0}, {7, 9, 103, 0}, {6, 11, 187, 0}, {8, 7, 43, 0}, {7, 8, 37, 0}, {10, 0, 1, 64512}, {7, 9, 57, 0}, {8, 6, 13, 0}, {7, 11, 187, 0}, {9, 5, 11, 0}, {8, 8, 37, 0}, {11, 0, 1, 63488}, {8, 9, 57, 0}, {7, 10, 49, 0}, {10, 5, 11, 0}, {7, 10, 41, 0}, {7, 9, 19, 0}, {12, 0, 1, 61440}, {8, 9, 27, 0}, {8, 10, 49, 0}, {11, 5, 11, 0}, {7, 13, 161, 0}, {7, 13, 155, 0}, {8, 9, 19, 0}, {13, 0, 1, 57344}, {8, 12, 111, 0}, {9, 9, 27, 0}, {11, 6, 13, 0}, {7, 14, 193, 0}, {12, 3, 3, 0}, {8, 13, 155, 0}, {11, 8, 37, 0}, {14, 0, 1, 49152}, {11, 8, 29, 0}, {7, 13, 55, 0}, {12, 5, 7, 0}, {8, 14, 193, 0}, {13, 3, 3, 0}, {7, 14, 77, 0}, {12, 7, 19, 0}, {15, 0, 1, 32768}}
++var class_to_divmagic = [_NumSizeClasses]uint32{0, ^uint32(0)/8 + 1, ^uint32(0)/16 + 1, ^uint32(0)/24 + 1, ^uint32(0)/32 + 1, ^uint32(0)/48 + 1, ^uint32(0)/64 + 1, ^uint32(0)/80 + 1, ^uint32(0)/96 + 1, ^uint32(0)/112 + 1, ^uint32(0)/128 + 1, ^uint32(0)/144 + 1, ^uint32(0)/160 + 1, ^uint32(0)/176 + 1, ^uint32(0)/192 + 1, ^uint32(0)/208 + 1, ^uint32(0)/224 + 1, ^uint32(0)/240 + 1, ^uint32(0)/256 + 1, ^uint32(0)/288 + 1, ^uint32(0)/320 + 1, ^uint32(0)/352 + 1, ^uint32(0)/384 + 1, ^uint32(0)/416 + 1, ^uint32(0)/448 + 1, ^uint32(0)/480 + 1, ^uint32(0)/512 + 1, ^uint32(0)/576 + 1, ^uint32(0)/640 + 1, ^uint32(0)/704 + 1, ^uint32(0)/768 + 1, ^uint32(0)/896 + 1, ^uint32(0)/1024 + 1, ^uint32(0)/1152 + 1, ^uint32(0)/1280 + 1, ^uint32(0)/1408 + 1, ^uint32(0)/1536 + 1, ^uint32(0)/1792 + 1, ^uint32(0)/2048 + 1, ^uint32(0)/2304 + 1, ^uint32(0)/2688 + 1, ^uint32(0)/3072 + 1, ^uint32(0)/3200 + 1, ^uint32(0)/3456 + 1, ^uint32(0)/4096 + 1, ^uint32(0)/4864 + 1, ^uint32(0)/5376 + 1, ^uint32(0)/6144 + 1, ^uint32(0)/6528 + 1, ^uint32(0)/6784 + 1, ^uint32(0)/6912 + 1, ^uint32(0)/8192 + 1, ^uint32(0)/9472 + 1, ^uint32(0)/9728 + 1, ^uint32(0)/10240 + 1, ^uint32(0)/10880 + 1, ^uint32(0)/12288 + 1, ^uint32(0)/13568 + 1, ^uint32(0)/14336 + 1, ^uint32(0)/16384 + 1, ^uint32(0)/18432 + 1, ^uint32(0)/19072 + 1, ^uint32(0)/20480 + 1, ^uint32(0)/21760 + 1, ^uint32(0)/24576 + 1, ^uint32(0)/27264 + 1, ^uint32(0)/28672 + 1, ^uint32(0)/32768 + 1}
+ var size_to_class8 = [smallSizeMax/smallSizeDiv + 1]uint8{0, 1, 2, 3, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 15, 16, 16, 17, 17, 18, 18, 19, 19, 19, 19, 20, 20, 20, 20, 21, 21, 21, 21, 22, 22, 22, 22, 23, 23, 23, 23, 24, 24, 24, 24, 25, 25, 25, 25, 26, 26, 26, 26, 27, 27, 27, 27, 27, 27, 27, 27, 28, 28, 28, 28, 28, 28, 28, 28, 29, 29, 29, 29, 29, 29, 29, 29, 30, 30, 30, 30, 30, 30, 30, 30, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32}
+ var size_to_class128 = [(_MaxSmallSize-smallSizeMax)/largeSizeDiv + 1]uint8{32, 33, 34, 35, 36, 37, 37, 38, 38, 39, 39, 40, 40, 40, 41, 41, 41, 42, 43, 43, 44, 44, 44, 44, 44, 45, 45, 45, 45, 45, 45, 46, 46, 46, 46, 47, 47, 47, 47, 47, 47, 48, 48, 48, 49, 49, 50, 51, 51, 51, 51, 51, 51, 51, 51, 51, 51, 52, 52, 52, 52, 52, 52, 52, 52, 52, 52, 53, 53, 54, 54, 54, 54, 55, 55, 55, 55, 55, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 58, 58, 58, 58, 58, 58, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 61, 61, 61, 61, 61, 62, 62, 62, 62, 62, 62, 62, 62, 62, 62, 62, 63, 63, 63, 63, 63, 63, 63, 63, 63, 63, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67, 67}

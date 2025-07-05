@@ -11,6 +11,20 @@ Date:   Thu Jun 22 16:33:06 2023 +0300
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/internal/fuzz/counters_unsupported.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/fuzz/counters_unsupported.go b/src/internal/fuzz/counters_unsupported.go
+index 028065ce30..287bb4bd3c 100644
+--- a/src/internal/fuzz/counters_unsupported.go
++++ b/src/internal/fuzz/counters_unsupported.go
+@@ -6,7 +6,7 @@
+ // the instrumentation is OS specific, but only amd64 and arm64 are
+ // supported in the runtime. See src/runtime/libfuzzer*.
+ //
+-// If you update this constraint, also update internal/platform.FuzzInstrumeted.
++// If you update this constraint, also update internal/platform.FuzzInstrumented.
+ //
+ //go:build !((darwin || linux || windows || freebsd) && (amd64 || arm64))
+ 

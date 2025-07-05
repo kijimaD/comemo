@@ -29,7 +29,89 @@ Date:   Thu Oct 5 21:55:06 2023 +0000
     Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/encoding/json/encode_test.go | 26 ++++++++++++++++++++++++++
  src/encoding/json/indent.go      | 18 +++++++++++++-----
  2 files changed, 39 insertions(+), 5 deletions(-)
+
+diff --git a/src/encoding/json/encode_test.go b/src/encoding/json/encode_test.go
+index 9c37028037..53259f4a9b 100644
+--- a/src/encoding/json/encode_test.go
++++ b/src/encoding/json/encode_test.go
+@@ -1193,3 +1193,29 @@ func TestMarshalerError(t *testing.T) {
+ 		})
+ 	}
+ }
++
++type marshaledValue string
++
++func (v marshaledValue) MarshalJSON() ([]byte, error) {
++	return []byte(v), nil
++}
++
++func TestIssue63379(t *testing.T) {
++	for _, v := range []string{
++		"[]<",
++		"[]>",
++		"[]&",
++		"[]\u2028",
++		"[]\u2029",
++		"{}<",
++		"{}>",
++		"{}&",
++		"{}\u2028",
++		"{}\u2029",
++	} {
++		_, err := Marshal(marshaledValue(v))
++		if err == nil {
++			t.Errorf("expected error for %q", v)
++		}
++	}
++}
+diff --git a/src/encoding/json/indent.go b/src/encoding/json/indent.go
+index 26bb5d2e47..01bfdf65e7 100644
+--- a/src/encoding/json/indent.go
++++ b/src/encoding/json/indent.go
+@@ -53,29 +53,37 @@ func appendCompact(dst, src []byte, escape bool) ([]byte, error) {
+ 	start := 0
+ 	for i, c := range src {
+ 		if escape && (c == '<' || c == '>' || c == '&') {
+-			dst = append(dst, src[start:i]...)
++			if start < i {
++				dst = append(dst, src[start:i]...)
++			}
+ 			dst = append(dst, '\\', 'u', '0', '0', hex[c>>4], hex[c&0xF])
+ 			start = i + 1
+ 		}
+ 		// Convert U+2028 and U+2029 (E2 80 A8 and E2 80 A9).
+ 		if escape && c == 0xE2 && i+2 < len(src) && src[i+1] == 0x80 && src[i+2]&^1 == 0xA8 {
+-			dst = append(dst, src[start:i]...)
++			if start < i {
++				dst = append(dst, src[start:i]...)
++			}
+ 			dst = append(dst, '\\', 'u', '2', '0', '2', hex[src[i+2]&0xF])
+-			start = i + len("\u2029")
++			start = i + 3
+ 		}
+ 		v := scan.step(scan, c)
+ 		if v >= scanSkipSpace {
+ 			if v == scanError {
+ 				break
+ 			}
+-			dst = append(dst, src[start:i]...)
++			if start < i {
++				dst = append(dst, src[start:i]...)
++			}
+ 			start = i + 1
+ 		}
+ 	}
+ 	if scan.eof() == scanError {
+ 		return dst[:origLen], scan.err
+ 	}
+-	dst = append(dst, src[start:]...)
++	if start < len(src) {
++		dst = append(dst, src[start:]...)
++	}
+ 	return dst, nil
+ }
+ 

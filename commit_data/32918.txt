@@ -13,7 +13,36 @@ Date:   Wed Jun 14 10:17:29 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/crash_cgo_test.go                    | 4 ++++
  src/runtime/testdata/testprogcgo/numgoroutine.go | 2 ++
  2 files changed, 6 insertions(+)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 70f1c1d16e..c102608748 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -397,6 +397,10 @@ func TestRaceSignal(t *testing.T) {
+ }
+ 
+ func TestCgoNumGoroutine(t *testing.T) {
++	switch runtime.GOOS {
++	case "windows", "plan9":
++		t.Skipf("skipping numgoroutine test on %s", runtime.GOOS)
++	}
+ 	t.Parallel()
+ 	got := runTestProg(t, "testprogcgo", "NumGoroutine")
+ 	want := "OK\n"
+diff --git a/src/runtime/testdata/testprogcgo/numgoroutine.go b/src/runtime/testdata/testprogcgo/numgoroutine.go
+index c1ac3eff8a..12fda49a13 100644
+--- a/src/runtime/testdata/testprogcgo/numgoroutine.go
++++ b/src/runtime/testdata/testprogcgo/numgoroutine.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !plan9,!windows
++
+ package main
+ 
+ /*

@@ -13,6 +13,20 @@ Date:   Fri Feb 15 22:16:54 2019 +1100
     Change-Id: Ib10e5a4adf366c700bff6f8d246bd5e3111ed61c
     Reviewed-on: https://go-review.googlesource.com/c/go/+/162918
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  doc/install.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/install.html b/doc/install.html
+index a41c60ba6c..dda39fcaa7 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -204,7 +204,7 @@ you will need to <a href="https://golang.org/wiki/SettingGOPATH">set the <code>G
+ </p>
+ 
+ <p>
+-Next, make the directory <code>src/hello</code> inside your workspace,
++Next, make the directory <code class="testUnix">src/hello</code><code class="testWindows">src\hello</code> inside your workspace,
+ and in that directory create a file named <code>hello.go</code> that looks like:
+ </p>
+ 

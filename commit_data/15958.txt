@@ -10,6 +10,23 @@ Date:   Tue Mar 26 14:01:12 2013 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/7741050
-
+---
  src/pkg/runtime/malloc.goc | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index fa28e2b738..a30129ffc1 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -318,7 +318,10 @@ runtime·mallocinit(void)
+ 
+ 	runtime·InitSizes();
+ 
+-	limit = runtime·memlimit();
++	// limit = runtime·memlimit();
++	// See https://code.google.com/p/go/issues/detail?id=5049
++	// TODO(rsc): Fix after 1.1.
++	limit = 0;
+ 
+ 	// Set up the allocation arena, a contiguous area of memory where
+ 	// allocated data will be found.  The arena begins with a bitmap large

@@ -14,9 +14,128 @@ Date:   Wed Jul 22 12:56:49 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/244357
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/arm/asm.go   | 38 +++++++++++++++++++++++---------------
  src/cmd/link/internal/arm/obj.go   |  1 +
  src/cmd/link/internal/ld/pe.go     | 19 +++++++++++++------
  src/cmd/link/internal/ld/target.go |  4 ++--
  4 files changed, 39 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index 64e06b33aa..8aaeb38ced 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -535,23 +535,13 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
+ 		switch r.Type() {
+ 		case objabi.R_CALLARM:
+ 			// set up addend for eventual relocation via outer symbol.
+-			rs, off := ld.FoldSubSymbolOffset(ldr, rs)
+-			rr.Xadd = int64(signext24(r.Add() & 0xffffff))
+-			rr.Xadd *= 4
+-			rr.Xadd += off
+-			rst := ldr.SymType(rs)
+-			if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && rst != sym.SUNDEFEXT && ldr.SymSect(rs) == nil {
+-				ldr.Errorf(s, "missing section for %s", ldr.SymName(rs))
++			_, off := ld.FoldSubSymbolOffset(ldr, rs)
++			xadd := int64(signext24(r.Add()&0xffffff))*4 + off
++			if xadd/4 > 0x7fffff || xadd/4 < -0x800000 {
++				ldr.Errorf(s, "direct call too far %d", xadd/4)
+ 			}
+-			rr.Xsym = rs
+-
+-			if rr.Xadd/4 > 0x7fffff || rr.Xadd/4 < -0x800000 {
+-				ldr.Errorf(s, "direct call too far %d", rr.Xadd/4)
+-			}
+-
+-			return int64(braddoff(int32(0xff000000&uint32(r.Add())), int32(0xffffff&uint32(rr.Xadd/4)))), 1, true
++			return int64(braddoff(int32(0xff000000&uint32(r.Add())), int32(0xffffff&uint32(xadd/4)))), 1, true
+ 		}
+-
+ 		return -1, 0, false
+ 	}
+ 
+@@ -587,6 +577,24 @@ func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc2, sym.RelocVarian
+ 	return -1
+ }
+ 
++func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc2, s loader.Sym) (loader.ExtReloc, bool) {
++	rs := ldr.ResolveABIAlias(r.Sym())
++	var rr loader.ExtReloc
++	switch r.Type() {
++	case objabi.R_CALLARM:
++		// set up addend for eventual relocation via outer symbol.
++		rs, off := ld.FoldSubSymbolOffset(ldr, rs)
++		rr.Xadd = int64(signext24(r.Add()&0xffffff))*4 + off
++		rst := ldr.SymType(rs)
++		if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && rst != sym.SUNDEFEXT && ldr.SymSect(rs) == nil {
++			ldr.Errorf(s, "missing section for %s", ldr.SymName(rs))
++		}
++		rr.Xsym = rs
++		return rr, true
++	}
++	return rr, false
++}
++
+ func addpltreloc(ldr *loader.Loader, plt *loader.SymbolBuilder, got *loader.SymbolBuilder, s loader.Sym, typ objabi.RelocType) {
+ 	r, _ := plt.AddRel(typ)
+ 	r.SetSym(got.Sym())
+diff --git a/src/cmd/link/internal/arm/obj.go b/src/cmd/link/internal/arm/obj.go
+index f25f735b0b..fed8dce4de 100644
+--- a/src/cmd/link/internal/arm/obj.go
++++ b/src/cmd/link/internal/arm/obj.go
+@@ -52,6 +52,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
++		Extreloc:         extreloc,
+ 		Trampoline:       trampoline,
+ 		Elfreloc1:        elfreloc1,
+ 		ElfrelocSize:     8,
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 9a76b3a775..38b99fabbe 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -517,17 +517,24 @@ func (f *peFile) emitRelocations(ctxt *Link) {
+ 			if ldr.SymValue(s) >= int64(eaddr) {
+ 				break
+ 			}
+-			relocs := ldr.ExtRelocs(s)
++			// Compute external relocations on the go, and pass to PEreloc1
++			// to stream out.
++			relocs := ldr.Relocs(s)
+ 			for ri := 0; ri < relocs.Count(); ri++ {
+-				r := relocs.At(ri)
+-				if r.Xsym == 0 {
++				r := relocs.At2(ri)
++				rr, ok := extreloc(ctxt, ldr, s, r, ri)
++				if !ok {
++					continue
++				}
++				if rr.Xsym == 0 {
+ 					ctxt.Errorf(s, "missing xsym in relocation")
+ 					continue
+ 				}
+-				if ldr.SymDynid(r.Xsym) < 0 {
+-					ctxt.Errorf(s, "reloc %d to non-coff symbol %s (outer=%s) %d", r.Type(), ldr.SymName(r.Sym()), ldr.SymName(r.Xsym), ldr.SymType(r.Sym()))
++				if ldr.SymDynid(rr.Xsym) < 0 {
++					ctxt.Errorf(s, "reloc %d to non-coff symbol %s (outer=%s) %d", r.Type(), ldr.SymName(r.Sym()), ldr.SymName(rr.Xsym), ldr.SymType(r.Sym()))
+ 				}
+-				if !thearch.PEreloc1(ctxt.Arch, ctxt.Out, ldr, s, r, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-base)) {
++				rv := loader.ExtRelocView{Reloc2: r, ExtReloc: rr}
++				if !thearch.PEreloc1(ctxt.Arch, ctxt.Out, ldr, s, rv, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-base)) {
+ 					ctxt.Errorf(s, "unsupported obj reloc %d/%d to %s", r.Type(), r.Siz(), ldr.SymName(r.Sym()))
+ 				}
+ 				nrelocs++
+diff --git a/src/cmd/link/internal/ld/target.go b/src/cmd/link/internal/ld/target.go
+index 40e53d4c9d..2dafe9bb1f 100644
+--- a/src/cmd/link/internal/ld/target.go
++++ b/src/cmd/link/internal/ld/target.go
+@@ -184,6 +184,6 @@ func (t *Target) IsBigEndian() bool {
+ 
+ // Temporary helper.
+ func (t *Target) StreamExtRelocs() bool {
+-	return (t.IsELF || t.IsDarwin()) &&
+-		(t.IsAMD64() || t.Is386() || t.IsARM64() || t.IsMIPS() || t.IsMIPS64() || t.IsS390X())
++	return (t.IsELF || t.IsDarwin() || t.IsWindows()) &&
++		(t.IsAMD64() || t.Is386() || t.IsARM() || t.IsARM64() || t.IsMIPS() || t.IsMIPS64() || t.IsS390X())
+ }

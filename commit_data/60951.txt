@@ -14,7 +14,90 @@ Date:   Sun Sep 8 21:45:36 2024 +0700
     Reviewed-by: Keith Randall <khr@google.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Tim King <taking@google.com>
-
+---
  src/cmd/compile/internal/typecheck/expr.go      | 10 +++------
  src/cmd/compile/internal/typecheck/typecheck.go | 30 +------------------------
  2 files changed, 4 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/expr.go b/src/cmd/compile/internal/typecheck/expr.go
+index eb92797259..2eec8d41ad 100644
+--- a/src/cmd/compile/internal/typecheck/expr.go
++++ b/src/cmd/compile/internal/typecheck/expr.go
+@@ -788,19 +788,15 @@ func tcSlice(n *ir.SliceExpr) ir.Node {
+ 		return n
+ 	}
+ 
+-	if n.Low != nil && !checksliceindex(l, n.Low, tp) {
++	if n.Low != nil && !checksliceindex(n.Low) {
+ 		n.SetType(nil)
+ 		return n
+ 	}
+-	if n.High != nil && !checksliceindex(l, n.High, tp) {
++	if n.High != nil && !checksliceindex(n.High) {
+ 		n.SetType(nil)
+ 		return n
+ 	}
+-	if n.Max != nil && !checksliceindex(l, n.Max, tp) {
+-		n.SetType(nil)
+-		return n
+-	}
+-	if !checksliceconst(n.Low, n.High) || !checksliceconst(n.Low, n.Max) || !checksliceconst(n.High, n.Max) {
++	if n.Max != nil && !checksliceindex(n.Max) {
+ 		n.SetType(nil)
+ 		return n
+ 	}
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 5d041b1939..cb48bfd7e3 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -7,7 +7,6 @@ package typecheck
+ import (
+ 	"fmt"
+ 	"go/constant"
+-	"go/token"
+ 	"strings"
+ 
+ 	"cmd/compile/internal/base"
+@@ -681,7 +680,7 @@ func RewriteMultiValueCall(n ir.InitNode, call ir.Node) {
+ 	}
+ }
+ 
+-func checksliceindex(l ir.Node, r ir.Node, tp *types.Type) bool {
++func checksliceindex(r ir.Node) bool {
+ 	t := r.Type()
+ 	if t == nil {
+ 		return false
+@@ -690,33 +689,6 @@ func checksliceindex(l ir.Node, r ir.Node, tp *types.Type) bool {
+ 		base.Errorf("invalid slice index %v (type %v)", r, t)
+ 		return false
+ 	}
+-
+-	if r.Op() == ir.OLITERAL {
+-		x := r.Val()
+-		if constant.Sign(x) < 0 {
+-			base.Errorf("invalid slice index %v (index must be non-negative)", r)
+-			return false
+-		} else if tp != nil && tp.NumElem() >= 0 && constant.Compare(x, token.GTR, constant.MakeInt64(tp.NumElem())) {
+-			base.Errorf("invalid slice index %v (out of bounds for %d-element array)", r, tp.NumElem())
+-			return false
+-		} else if ir.IsConst(l, constant.String) && constant.Compare(x, token.GTR, constant.MakeInt64(int64(len(ir.StringVal(l))))) {
+-			base.Errorf("invalid slice index %v (out of bounds for %d-byte string)", r, len(ir.StringVal(l)))
+-			return false
+-		} else if ir.ConstOverflow(x, types.Types[types.TINT]) {
+-			base.Errorf("invalid slice index %v (index too large)", r)
+-			return false
+-		}
+-	}
+-
+-	return true
+-}
+-
+-func checksliceconst(lo ir.Node, hi ir.Node) bool {
+-	if lo != nil && hi != nil && lo.Op() == ir.OLITERAL && hi.Op() == ir.OLITERAL && constant.Compare(lo.Val(), token.GTR, hi.Val()) {
+-		base.Errorf("invalid slice index: %v > %v", lo, hi)
+-		return false
+-	}
+-
+ 	return true
+ }
+ 

@@ -20,6 +20,33 @@ Date:   Fri Mar 14 12:04:51 2025 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/internal/buildcfg/exp.go | 8 ++------
  1 file changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/internal/buildcfg/exp.go b/src/internal/buildcfg/exp.go
+index 8fb4beb7c9..ccdf465ffb 100644
+--- a/src/internal/buildcfg/exp.go
++++ b/src/internal/buildcfg/exp.go
+@@ -67,11 +67,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
+ 		regabiSupported = true
+ 	}
+ 
+-	var haveXchg8 bool
+-	switch goarch {
+-	case "386", "amd64", "arm", "arm64", "ppc64le", "ppc64":
+-		haveXchg8 = true
+-	}
++	haveThreads := goarch != "wasm"
+ 
+ 	// Older versions (anything before V16) of dsymutil don't handle
+ 	// the .debug_rnglists section in DWARF5. See
+@@ -89,7 +85,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
+ 		RegabiArgs:      regabiSupported,
+ 		AliasTypeParams: true,
+ 		SwissMap:        true,
+-		SpinbitMutex:    haveXchg8,
++		SpinbitMutex:    haveThreads,
+ 		SyncHashTrieMap: true,
+ 		Dwarf5:          dwarf5Supported,
+ 	}

@@ -16,9 +16,60 @@ Date:   Thu Nov 25 20:40:21 2021 +0900
     Trust: Than McIntosh <thanm@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  AUTHORS                              | 1 +
  CONTRIBUTORS                         | 1 +
  src/cmd/link/internal/ld/elf.go      | 2 +-
  src/cmd/link/internal/ld/elf_test.go | 2 +-
  4 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/AUTHORS b/AUTHORS
+index bffd52275d..3835243896 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -570,6 +570,7 @@ Hootsuite Inc.
+ Hsin-Ho Yeh <yhh92u@gmail.com>
+ Hu Keping <hukeping@huawei.com>
+ Hugues Bruant <hugues.bruant@gmail.com>
++HyperConnect Inc.
+ Ian Gudger <ian@loosescre.ws>
+ Ian Kent <iankent85@gmail.com>
+ IBM
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index e6ac7bda21..7c0531cd6f 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -451,6 +451,7 @@ Bryan Ford <brynosaurus@gmail.com>
+ Bryan Heden <b.heden@gmail.com>
+ Bulat Gaifullin <gaifullinbf@gmail.com>
+ Burak Guven <bguven@gmail.com>
++Byoungchan Lee <daniel.l@hpcnt.com>
+ Caine Tighe <arctanofyourface@gmail.com>
+ Caio Marcelo de Oliveira Filho <caio.oliveira@intel.com>
+ Caleb Martinez <accounts@calebmartinez.com>
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 7f45a8fce5..cb094a373a 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -2258,7 +2258,7 @@ func elfadddynsym(ldr *loader.Loader, target *Target, syms *ArchSyms, s loader.S
+ 
+ 		dil := ldr.SymDynimplib(s)
+ 
+-		if target.Arch.Family == sys.AMD64 && !cgoeDynamic && dil != "" && !seenlib[dil] {
++		if !cgoeDynamic && dil != "" && !seenlib[dil] {
+ 			du := ldr.MakeSymbolUpdater(syms.Dynamic)
+ 			Elfwritedynent(target.Arch, du, elf.DT_NEEDED, uint64(dstru.Addstring(dil)))
+ 			seenlib[dil] = true
+diff --git a/src/cmd/link/internal/ld/elf_test.go b/src/cmd/link/internal/ld/elf_test.go
+index d86ebb89e0..15eaa1388b 100644
+--- a/src/cmd/link/internal/ld/elf_test.go
++++ b/src/cmd/link/internal/ld/elf_test.go
+@@ -86,7 +86,7 @@ func TestNoDuplicateNeededEntries(t *testing.T) {
+ 	// across the board given the nature of the test).
+ 	pair := runtime.GOOS + "-" + runtime.GOARCH
+ 	switch pair {
+-	case "linux-amd64", "freebsd-amd64", "openbsd-amd64":
++	case "linux-amd64", "linux-arm64", "freebsd-amd64", "openbsd-amd64":
+ 	default:
+ 		t.Skip("no need for test on " + pair)
+ 	}

@@ -11,9 +11,99 @@ Date:   Thu May 16 09:01:43 2013 +0200
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/9303050
-
+---
  src/cmd/gc/export.c               |  5 ++++-
  test/fixedbugs/issue5470.dir/a.go | 27 +++++++++++++++++++++++++++
  test/fixedbugs/issue5470.dir/b.go | 13 +++++++++++++
  test/fixedbugs/issue5470.go       | 10 ++++++++++
  4 files changed, 54 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index b7311665ae..d7b46b1145 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -165,12 +165,15 @@ reexportdep(Node *n)
+ 	case ODOTTYPE2:
+ 	case OSTRUCTLIT:
+ 	case OPTRLIT:
++	case OMAKEMAP:
++	case OMAKESLICE:
++	case OMAKECHAN:
+ 		t = n->type;
+ 		if(!t->sym && t->type)
+ 			t = t->type;
+ 		if(t && t->sym && t->sym->def && !exportedsym(t->sym)) {
+ 			if(debug['E'])
+-				print("reexport type for convnop %S\n", t->sym);
++				print("reexport type for expression %S\n", t->sym);
+ 			exportlist = list(exportlist, t->sym->def);
+ 		}
+ 		break;
+diff --git a/test/fixedbugs/issue5470.dir/a.go b/test/fixedbugs/issue5470.dir/a.go
+new file mode 100644
+index 0000000000..302822d238
+--- /dev/null
++++ b/test/fixedbugs/issue5470.dir/a.go
+@@ -0,0 +1,27 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type Foo interface {
++	Hi() string
++}
++
++func Test1() Foo { return make(tst1) }
++
++type tst1 map[string]bool
++
++func (r tst1) Hi() string { return "Hi!" }
++
++func Test2() Foo { return make(tst2, 0) }
++
++type tst2 []string
++
++func (r tst2) Hi() string { return "Hi!" }
++
++func Test3() Foo { return make(tst3) }
++
++type tst3 chan string
++
++func (r tst3) Hi() string { return "Hi!" }
+diff --git a/test/fixedbugs/issue5470.dir/b.go b/test/fixedbugs/issue5470.dir/b.go
+new file mode 100644
+index 0000000000..0801c149cf
+--- /dev/null
++++ b/test/fixedbugs/issue5470.dir/b.go
+@@ -0,0 +1,13 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++func main() {
++	a.Test1()
++	a.Test2()
++	a.Test3()
++}
+diff --git a/test/fixedbugs/issue5470.go b/test/fixedbugs/issue5470.go
+new file mode 100644
+index 0000000000..6123c0983a
+--- /dev/null
++++ b/test/fixedbugs/issue5470.go
+@@ -0,0 +1,10 @@
++// compiledir
++
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 5470: exported data for inlining may miss
++// the type argument of make.
++
++package ignored

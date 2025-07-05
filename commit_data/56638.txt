@@ -15,8 +15,106 @@ Date:   Thu May 18 16:26:13 2023 -0400
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
-
+---
  src/cmd/cgo/internal/testtls/tls.c       | 32 ++++++++++++++++++++++++++++----
  src/cmd/cgo/internal/testtls/tls.go      |  8 +++++---
  src/cmd/cgo/internal/testtls/tls_none.go |  4 ++--
  3 files changed, 35 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/testtls/tls.c b/src/cmd/cgo/internal/testtls/tls.c
+index 0e2bbee542..8839cc8676 100644
+--- a/src/cmd/cgo/internal/testtls/tls.c
++++ b/src/cmd/cgo/internal/testtls/tls.c
+@@ -2,13 +2,18 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Darwin does not have __thread.
++#include <stddef.h>
+ 
+-//go:build cgo && unix && !darwin
++#if __STDC_VERSION__ >= 201112L && !defined(__STDC_NO_THREADS__)
+ 
+-#include <pthread.h>
++// Mingw seems not to have threads.h, so we use the _Thread_local keyword rather
++// than the thread_local macro.
++static _Thread_local int tls;
+ 
+-static __thread int tls;
++const char *
++checkTLS() {
++	return NULL;
++}
+ 
+ void
+ setTLS(int v)
+@@ -21,3 +26,22 @@ getTLS()
+ {
+ 	return tls;
+ }
++
++#else
++
++const char *
++checkTLS() {
++	return "_Thread_local requires C11 and not __STDC_NO_THREADS__";
++}
++
++void
++setTLS(int v) {
++}
++
++int
++getTLS()
++{
++	return 0;
++}
++
++#endif
+diff --git a/src/cmd/cgo/internal/testtls/tls.go b/src/cmd/cgo/internal/testtls/tls.go
+index eb59ad41eb..78628f5caa 100644
+--- a/src/cmd/cgo/internal/testtls/tls.go
++++ b/src/cmd/cgo/internal/testtls/tls.go
+@@ -2,11 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build cgo && unix && !darwin
+-
+ package cgotlstest
+ 
+-// #include <pthread.h>
++// extern const char *checkTLS();
+ // extern void setTLS(int);
+ // extern int getTLS();
+ import "C"
+@@ -17,6 +15,10 @@ import (
+ )
+ 
+ func testTLS(t *testing.T) {
++	if skip := C.checkTLS(); skip != nil {
++		t.Skipf("%s", C.GoString(skip))
++	}
++
+ 	runtime.LockOSThread()
+ 	defer runtime.UnlockOSThread()
+ 
+diff --git a/src/cmd/cgo/internal/testtls/tls_none.go b/src/cmd/cgo/internal/testtls/tls_none.go
+index 81c9c5e23d..b6033fb76d 100644
+--- a/src/cmd/cgo/internal/testtls/tls_none.go
++++ b/src/cmd/cgo/internal/testtls/tls_none.go
+@@ -2,12 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !(cgo && unix && !darwin)
++//go:build !cgo
+ 
+ package cgotlstest
+ 
+ import "testing"
+ 
+ func testTLS(t *testing.T) {
+-	t.Skip("__thread is not supported")
++	t.Skip("cgo not supported")
+ }

@@ -11,7 +11,106 @@ Date:   Wed Dec 31 21:18:59 2014 +0100
     Change-Id: I89d7e742383c5c4aeef8780501c78a3e1af87a6f
     Reviewed-on: https://go-review.googlesource.com/2213
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/exec_posix.go | 31 ++-----------------------------
  src/os/str.go        | 25 ++++++++++++++++++-------
  2 files changed, 20 insertions(+), 36 deletions(-)
+
+diff --git a/src/os/exec_posix.go b/src/os/exec_posix.go
+index fb9d291e66..94dd04beb2 100644
+--- a/src/os/exec_posix.go
++++ b/src/os/exec_posix.go
+@@ -81,33 +81,6 @@ func (p *ProcessState) sysUsage() interface{} {
+ 	return p.rusage
+ }
+ 
+-// Convert i to decimal string.
+-func itod(i int) string {
+-	if i == 0 {
+-		return "0"
+-	}
+-
+-	u := uint64(i)
+-	if i < 0 {
+-		u = -u
+-	}
+-
+-	// Assemble decimal in reverse order.
+-	var b [32]byte
+-	bp := len(b)
+-	for ; u > 0; u /= 10 {
+-		bp--
+-		b[bp] = byte(u%10) + '0'
+-	}
+-
+-	if i < 0 {
+-		bp--
+-		b[bp] = '-'
+-	}
+-
+-	return string(b[bp:])
+-}
+-
+ func (p *ProcessState) String() string {
+ 	if p == nil {
+ 		return "<nil>"
+@@ -116,13 +89,13 @@ func (p *ProcessState) String() string {
+ 	res := ""
+ 	switch {
+ 	case status.Exited():
+-		res = "exit status " + itod(status.ExitStatus())
++		res = "exit status " + itoa(status.ExitStatus())
+ 	case status.Signaled():
+ 		res = "signal: " + status.Signal().String()
+ 	case status.Stopped():
+ 		res = "stop signal: " + status.StopSignal().String()
+ 		if status.StopSignal() == syscall.SIGTRAP && status.TrapCause() != 0 {
+-			res += " (trap " + itod(status.TrapCause()) + ")"
++			res += " (trap " + itoa(status.TrapCause()) + ")"
+ 		}
+ 	case status.Continued():
+ 		res = "continued"
+diff --git a/src/os/str.go b/src/os/str.go
+index e3606b61eb..d3e03e9849 100644
+--- a/src/os/str.go
++++ b/src/os/str.go
+@@ -2,21 +2,32 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build plan9
++// Simple converions to avoid depending on strconv.
+ 
+ package os
+ 
+-func itoa(val int) string { // do it here rather than with fmt to avoid dependency
++// Convert integer to decimal string
++func itoa(val int) string {
+ 	if val < 0 {
+-		return "-" + itoa(-val)
++		return "-" + uitoa(uint(-val))
+ 	}
+-	var buf [32]byte // big enough for int64
++	return uitoa(uint(val))
++}
++
++// Convert unsigned integer to decimal string
++func uitoa(val uint) string {
++	if val == 0 { // avoid string allocation
++		return "0"
++	}
++	var buf [20]byte // big enough for 64bit value base 10
+ 	i := len(buf) - 1
+ 	for val >= 10 {
+-		buf[i] = byte(val%10 + '0')
++		q := val / 10
++		buf[i] = byte('0' + val - q*10)
+ 		i--
+-		val /= 10
++		val = q
+ 	}
+-	buf[i] = byte(val + '0')
++	// val < 10
++	buf[i] = byte('0' + val)
+ 	return string(buf[i:])
+ }

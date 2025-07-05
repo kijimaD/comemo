@@ -8,7 +8,46 @@ Date:   Tue Jun 16 09:39:57 2009 -0700
     DELTA=5  (0 added, 1 deleted, 4 changed)
     OCL=30343
     CL=30343
-
+---
  src/cmd/make.bash | 2 +-
  src/make.bash     | 7 +++----
  2 files changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/make.bash b/src/cmd/make.bash
+index 2019b440ff..ca4517218e 100644
+--- a/src/cmd/make.bash
++++ b/src/cmd/make.bash
+@@ -18,7 +18,7 @@ bash mkenam
+ make enam.o
+ cd ..
+ 
+-for i in cc ${O}l ${O}a ${O}c gc ${O}g ar db nm acid cov godefs godoc prof gotest
++for i in cc ${O}l ${O}a ${O}c gc ${O}g ar db nm acid cov godefs prof gotest
+ do
+ 	echo; echo; echo %%%% making $i %%%%; echo
+ 	cd $i
+diff --git a/src/make.bash b/src/make.bash
+index 841a136c7d..5a852a309a 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -18,8 +18,8 @@ rm -f $HOME/bin/quietgcc
+ cp quietgcc.bash $HOME/bin/quietgcc
+ chmod +x $HOME/bin/quietgcc
+ 
+-for i in lib9 libbio libmach_amd64 libregexp cmd pkg cmd/gobuild
+-do
++for i in lib9 libbio libmach_amd64 libregexp cmd pkg cmd/gobuild cmd/godoc
++do (
+ 	echo; echo; echo %%%% making $i %%%%; echo
+ 	cd $i
+ 	case $i in
+@@ -29,8 +29,7 @@ do
+ 	*)
+ 		make install
+ 	esac
+-	cd ..
+-done
++) done
+ 
+ case "`uname`" in
+ Darwin)

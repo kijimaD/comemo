@@ -9,8 +9,112 @@ Date:   Fri Aug 9 15:11:03 2013 -0700
     R=golang-dev, dave, bradfitz
     CC=golang-dev
     https://golang.org/cl/9821043
-
+---
  src/pkg/net/http/response.go      | 21 ++++++++++-----------
  src/pkg/net/http/response_test.go | 23 +++++++++++++++++++++++
  src/pkg/net/http/transfer.go      |  7 ++++---
  3 files changed, 37 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/net/http/response.go b/src/pkg/net/http/response.go
+index 30d785f541..35d0ba3bb1 100644
+--- a/src/pkg/net/http/response.go
++++ b/src/pkg/net/http/response.go
+@@ -98,18 +98,17 @@ func (r *Response) Location() (*url.URL, error) {
+ 	return url.Parse(lv)
+ }
+ 
+-// ReadResponse reads and returns an HTTP response from r.  The
+-// req parameter specifies the Request that corresponds to
+-// this Response.  Clients must call resp.Body.Close when finished
+-// reading resp.Body.  After that call, clients can inspect
+-// resp.Trailer to find key/value pairs included in the response
+-// trailer.
+-func ReadResponse(r *bufio.Reader, req *Request) (resp *Response, err error) {
+-
++// ReadResponse reads and returns an HTTP response from r.
++// The req parameter optionally specifies the Request that corresponds
++// to this Response. If nil, a GET request is assumed.
++// Clients must call resp.Body.Close when finished reading resp.Body.
++// After that call, clients can inspect resp.Trailer to find key/value
++// pairs included in the response trailer.
++func ReadResponse(r *bufio.Reader, req *Request) (*Response, error) {
+ 	tp := textproto.NewReader(r)
+-	resp = new(Response)
+-
+-	resp.Request = req
++	resp := &Response{
++		Request: req,
++	}
+ 
+ 	// Parse the first line of the response.
+ 	line, err := tp.ReadLine()
+diff --git a/src/pkg/net/http/response_test.go b/src/pkg/net/http/response_test.go
+index 1f44750880..181937a782 100644
+--- a/src/pkg/net/http/response_test.go
++++ b/src/pkg/net/http/response_test.go
+@@ -348,6 +348,29 @@ some body`,
+ 
+ 		"some body",
+ 	},
++
++	// Unchunked response without Content-Length, Request is nil
++	{
++		"HTTP/1.0 200 OK\r\n" +
++			"Connection: close\r\n" +
++			"\r\n" +
++			"Body here\n",
++
++		Response{
++			Status:     "200 OK",
++			StatusCode: 200,
++			Proto:      "HTTP/1.0",
++			ProtoMajor: 1,
++			ProtoMinor: 0,
++			Header: Header{
++				"Connection": {"close"}, // TODO(rsc): Delete?
++			},
++			Close:         true,
++			ContentLength: -1,
++		},
++
++		"Body here\n",
++	},
+ }
+ 
+ func TestReadResponse(t *testing.T) {
+diff --git a/src/pkg/net/http/transfer.go b/src/pkg/net/http/transfer.go
+index ce56a563e5..bacd83732d 100644
+--- a/src/pkg/net/http/transfer.go
++++ b/src/pkg/net/http/transfer.go
+@@ -254,7 +254,7 @@ func bodyAllowedForStatus(status int) bool {
+ 
+ // msg is *Request or *Response.
+ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
+-	t := &transferReader{}
++	t := &transferReader{RequestMethod: "GET"}
+ 
+ 	// Unify input
+ 	isResponse := false
+@@ -262,11 +262,13 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
+ 	case *Response:
+ 		t.Header = rr.Header
+ 		t.StatusCode = rr.StatusCode
+-		t.RequestMethod = rr.Request.Method
+ 		t.ProtoMajor = rr.ProtoMajor
+ 		t.ProtoMinor = rr.ProtoMinor
+ 		t.Close = shouldClose(t.ProtoMajor, t.ProtoMinor, t.Header)
+ 		isResponse = true
++		if rr.Request != nil {
++			t.RequestMethod = rr.Request.Method
++		}
+ 	case *Request:
+ 		t.Header = rr.Header
+ 		t.ProtoMajor = rr.ProtoMajor
+@@ -274,7 +276,6 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
+ 		// Transfer semantics for Requests are exactly like those for
+ 		// Responses with status code 200, responding to a GET method
+ 		t.StatusCode = 200
+-		t.RequestMethod = "GET"
+ 	default:
+ 		panic("unexpected type")
+ 	}

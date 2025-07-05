@@ -14,6 +14,24 @@ Date:   Fri Dec 1 17:00:58 2017 +0000
     Change-Id: Ib68efddb67f59b1374e8ed94effd4a326988dee7
     Reviewed-on: https://go-review.googlesource.com/81436
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/url/url.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index bb44be3117..b2de6d6319 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -441,7 +441,11 @@ func split(s string, c string, cutc bool) (string, string) {
+ }
+ 
+ // Parse parses rawurl into a URL structure.
+-// The rawurl may be relative or absolute.
++//
++// The rawurl may be relative (a path, without a host) or absolute
++// (starting with a scheme). Trying to parse a hostname and path
++// without a scheme is invalid but may not necessarily return an
++// error, due to parsing ambiguities.
+ func Parse(rawurl string) (*URL, error) {
+ 	// Cut off #frag
+ 	u, frag := split(rawurl, "#", true)

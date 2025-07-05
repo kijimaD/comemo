@@ -10,6 +10,21 @@ Date:   Wed Sep 14 11:35:11 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/29161
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/vet/all/whitelist/all.txt | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/cmd/vet/all/whitelist/all.txt b/src/cmd/vet/all/whitelist/all.txt
+index 786e65972c..4cbb790cbd 100644
+--- a/src/cmd/vet/all/whitelist/all.txt
++++ b/src/cmd/vet/all/whitelist/all.txt
+@@ -1,9 +1,5 @@
+ // Non-platform-specific vet whitelist. See readme.txt for details.
+ 
+-// Issue 16228. Fixed, just waiting for an http2 re-vendor.
+-net/http/h2_bundle.go: assignment copies lock value to *cfg: crypto/tls.Config contains sync.Once contains sync.Mutex
+-
+-
+ // Real problems that we can't fix.
+ 
+ // This is a bad WriteTo signature. Errors are being ignored!

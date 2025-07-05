@@ -8,6 +8,32 @@ Date:   Sat Aug 10 09:11:58 2013 +1000
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/12713043
-
+---
  src/pkg/encoding/binary/binary.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/encoding/binary/binary.go b/src/pkg/encoding/binary/binary.go
+index 107b80b9fe..a6bed8b34d 100644
+--- a/src/pkg/encoding/binary/binary.go
++++ b/src/pkg/encoding/binary/binary.go
+@@ -135,7 +135,7 @@ func (bigEndian) GoString() string { return "binary.BigEndian" }
+ // may be used for padding.
+ func Read(r io.Reader, order ByteOrder, data interface{}) error {
+ 	// Fast path for basic types and slices.
+-	if n := intDestSize(data); n != 0 {
++	if n := intReadSize(data); n != 0 {
+ 		var b [8]byte
+ 		var bs []byte
+ 		if n > len(b) {
+@@ -609,8 +609,9 @@ func (e *encoder) skip(v reflect.Value) {
+ 	e.buf = e.buf[n:]
+ }
+ 
+-// intDestSize returns the size of the data required to represent the data when encoded.
+-func intDestSize(data interface{}) int {
++// intReadSize returns the size of the data required to represent the data when encoded.
++// It returns zero if the type cannot be implemented by the fast path in Read.
++func intReadSize(data interface{}) int {
+ 	switch data := data.(type) {
+ 	case *int8, *uint8:
+ 		return 1

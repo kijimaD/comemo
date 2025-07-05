@@ -7,7 +7,34 @@ Date:   Tue Feb 28 09:22:55 2012 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5695072
-
+---
  doc/go1.html | 2 +-
  doc/go1.tmpl | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index 75a309fe9e..88fec19724 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -1786,7 +1786,7 @@ The compiler will catch code using the old interface.
+ The <a href="/pkg/regexp/"><code>regexp</code></a> package has been rewritten.
+ It has the same interface but the specification of the regular expressions 
+ it supports has changed from the old "egrep" form to that of
+-<a href="code.google.com/p/re2">RE2</a>.
++<a href="http://code.google.com/p/re2/">RE2</a>.
+ </p>
+ 
+ <p>
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index 6551daefd2..4e57ff48bf 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -1671,7 +1671,7 @@ The compiler will catch code using the old interface.
+ The <a href="/pkg/regexp/"><code>regexp</code></a> package has been rewritten.
+ It has the same interface but the specification of the regular expressions 
+ it supports has changed from the old "egrep" form to that of
+-<a href="code.google.com/p/re2">RE2</a>.
++<a href="http://code.google.com/p/re2/">RE2</a>.
+ </p>
+ 
+ <p>

@@ -9,6 +9,21 @@ Date:   Wed Feb 22 21:24:44 2017 +0200
     Change-Id: Ia9b36b405d4fec3fee9a77498a839b6d90c2ec0d
     Reviewed-on: https://go-review.googlesource.com/37379
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/ip.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/ip.go b/src/net/ip.go
+index c482ef6303..db6bc38798 100644
+--- a/src/net/ip.go
++++ b/src/net/ip.go
+@@ -340,7 +340,8 @@ func ipEmptyString(ip IP) string {
+ }
+ 
+ // MarshalText implements the encoding.TextMarshaler interface.
+-// The encoding is the same as returned by String.
++// The encoding is the same as returned by String, with one exception:
++// When len(ip) is zero, it returns an empty slice.
+ func (ip IP) MarshalText() ([]byte, error) {
+ 	if len(ip) == 0 {
+ 		return []byte(""), nil

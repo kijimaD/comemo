@@ -7,6 +7,40 @@ Date:   Fri Nov 23 12:52:53 2018 +0700
     Change-Id: Ia071f6914b3c155a88103f930af00028986ec8c7
     Reviewed-on: https://go-review.googlesource.com/c/151019
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/internal/obj/x86/asm6.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index c3da29ce2c..987ded2fca 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -92,7 +92,7 @@ type Optab struct {
+ 	op     opBytes
+ }
+ 
+-type Movtab struct {
++type movtab struct {
+ 	as   obj.As
+ 	ft   uint8
+ 	f3t  uint8
+@@ -3619,7 +3619,7 @@ const (
+ 	movTLSReg
+ )
+ 
+-var ymovtab = []Movtab{
++var ymovtab = []movtab{
+ 	// push
+ 	{APUSHL, Ycs, Ynone, Ynone, movLit, [4]uint8{0x0e, 0}},
+ 	{APUSHL, Yss, Ynone, Ynone, movLit, [4]uint8{0x16, 0}},
+@@ -3733,8 +3733,8 @@ var ymovtab = []Movtab{
+ 	{AMOVW, Ytask, Ynone, Yml, movRegMem2op, [4]uint8{0x0f, 0x00, 1, 0}},
+ 
+ 	/* load full pointer - unsupported
+-	Movtab{AMOVL, Yml, Ycol, movFullPtr, [4]uint8{0, 0, 0, 0}},
+-	Movtab{AMOVW, Yml, Ycol, movFullPtr, [4]uint8{Pe, 0, 0, 0}},
++	{AMOVL, Yml, Ycol, movFullPtr, [4]uint8{0, 0, 0, 0}},
++	{AMOVW, Yml, Ycol, movFullPtr, [4]uint8{Pe, 0, 0, 0}},
+ 	*/
+ 
+ 	// double shift

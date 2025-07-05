@@ -15,10 +15,117 @@ Date:   Wed Jan 11 13:53:34 2017 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/alg.go     |  8 ++++++--
  src/cmd/compile/internal/gc/bimport.go |  4 +++-
  src/cmd/compile/internal/gc/main.go    | 13 +++++++------
  src/cmd/compile/internal/gc/noder.go   |  1 +
  src/cmd/compile/internal/gc/subr.go    |  4 +++-
  5 files changed, 20 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index 8113710e39..d4f3d9884e 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -303,7 +303,9 @@ func genhash(sym *Sym, t *Type) {
+ 	typecheckslice(fn.Nbody.Slice(), Etop)
+ 	Curfn = nil
+ 	popdcl()
+-	testdclstack()
++	if debug_dclstack != 0 {
++		testdclstack()
++	}
+ 
+ 	// Disable safemode while compiling this code: the code we
+ 	// generate internally can refer to unsafe.Pointer.
+@@ -493,7 +495,9 @@ func geneq(sym *Sym, t *Type) {
+ 	typecheckslice(fn.Nbody.Slice(), Etop)
+ 	Curfn = nil
+ 	popdcl()
+-	testdclstack()
++	if debug_dclstack != 0 {
++		testdclstack()
++	}
+ 
+ 	// Disable safemode while compiling this code: the code we
+ 	// generate internally can refer to unsafe.Pointer.
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 1d668412a1..94c1184138 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -217,7 +217,9 @@ func Import(in *bufio.Reader) {
+ 	typecheckok = tcok
+ 	resumecheckwidth()
+ 
+-	testdclstack() // debugging only
++	if debug_dclstack != 0 {
++		testdclstack()
++	}
+ }
+ 
+ func formatErrorf(format string, args ...interface{}) {
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 75f58a731c..1690944b3d 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -30,11 +30,12 @@ var (
+ )
+ 
+ var (
+-	Debug_append  int
+-	Debug_closure int
+-	Debug_panic   int
+-	Debug_slice   int
+-	Debug_wb      int
++	Debug_append   int
++	Debug_closure  int
++	debug_dclstack int
++	Debug_panic    int
++	Debug_slice    int
++	Debug_wb       int
+ )
+ 
+ // Debug arguments.
+@@ -48,6 +49,7 @@ var debugtab = []struct {
+ 	{"append", &Debug_append},         // print information about append compilation
+ 	{"closure", &Debug_closure},       // print information about closure compilation
+ 	{"disablenil", &disable_checknil}, // disable nil checks
++	{"dclstack", &debug_dclstack},     // run internal dclstack checks
+ 	{"gcprog", &Debug_gcprog},         // print dump of GC programs
+ 	{"nil", &Debug_checknil},          // print information about nil checks
+ 	{"panic", &Debug_panic},           // do not hide any compiler panic
+@@ -325,7 +327,6 @@ func Main() {
+ 	timings.Stop()
+ 	timings.AddEvent(int64(lexlineno-lexlineno0), "lines")
+ 
+-	testdclstack()
+ 	mkpackage(localpkg.Name) // final import not used checks
+ 	finishUniverse()
+ 
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index ca99adea27..ce18297ac3 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -34,6 +34,7 @@ func parseFile(filename string) {
+ 	}
+ 
+ 	if nsyntaxerrors == 0 {
++		// Always run testdclstack here, even when debug_dclstack is not set, as a sanity measure.
+ 		testdclstack()
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 9b9a3f1210..7d008dfa65 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1833,7 +1833,9 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
+ 	funcbody(fn)
+ 	Curfn = fn
+ 	popdcl()
+-	testdclstack()
++	if debug_dclstack != 0 {
++		testdclstack()
++	}
+ 
+ 	// wrappers where T is anonymous (struct or interface) can be duplicated.
+ 	if rcvr.IsStruct() || rcvr.IsInterface() || rcvr.IsPtr() && rcvr.Elem().IsStruct() {

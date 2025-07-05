@@ -13,10 +13,130 @@ Date:   Wed Jan 24 14:45:28 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/test/issue4029.c   |  2 +-
  misc/cgo/test/issue4029.go  |  2 +-
  misc/cgo/test/issue4029w.go |  2 +-
  src/cmd/cgo/out.go          | 25 +++++--------------------
  src/cmd/dist/test.go        |  6 ++++++
  5 files changed, 14 insertions(+), 23 deletions(-)
+
+diff --git a/misc/cgo/test/issue4029.c b/misc/cgo/test/issue4029.c
+index 7205c5a5a2..30646ade02 100644
+--- a/misc/cgo/test/issue4029.c
++++ b/misc/cgo/test/issue4029.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !windows
++// +build !windows,!static
+ 
+ #include <stdint.h>
+ #include <dlfcn.h>
+diff --git a/misc/cgo/test/issue4029.go b/misc/cgo/test/issue4029.go
+index 8e468d367d..1bf029d760 100644
+--- a/misc/cgo/test/issue4029.go
++++ b/misc/cgo/test/issue4029.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !windows
++// +build !windows,!static
+ 
+ package cgotest
+ 
+diff --git a/misc/cgo/test/issue4029w.go b/misc/cgo/test/issue4029w.go
+index 18c720191b..eee33f7010 100644
+--- a/misc/cgo/test/issue4029w.go
++++ b/misc/cgo/test/issue4029w.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build windows
++// +build windows static
+ 
+ package cgotest
+ 
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index dbc17d2d56..384791d077 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -272,10 +272,7 @@ func dynimport(obj string) {
+ 				}
+ 			}
+ 		}
+-		sym, err := f.ImportedSymbols()
+-		if err != nil {
+-			fatalf("cannot load imported symbols from ELF file %s: %v", obj, err)
+-		}
++		sym, _ := f.ImportedSymbols()
+ 		for _, s := range sym {
+ 			targ := s.Name
+ 			if s.Version != "" {
+@@ -283,10 +280,7 @@ func dynimport(obj string) {
+ 			}
+ 			fmt.Fprintf(stdout, "//go:cgo_import_dynamic %s %s %q\n", s.Name, targ, s.Library)
+ 		}
+-		lib, err := f.ImportedLibraries()
+-		if err != nil {
+-			fatalf("cannot load imported libraries from ELF file %s: %v", obj, err)
+-		}
++		lib, _ := f.ImportedLibraries()
+ 		for _, l := range lib {
+ 			fmt.Fprintf(stdout, "//go:cgo_import_dynamic _ _ %q\n", l)
+ 		}
+@@ -294,20 +288,14 @@ func dynimport(obj string) {
+ 	}
+ 
+ 	if f, err := macho.Open(obj); err == nil {
+-		sym, err := f.ImportedSymbols()
+-		if err != nil {
+-			fatalf("cannot load imported symbols from Mach-O file %s: %v", obj, err)
+-		}
++		sym, _ := f.ImportedSymbols()
+ 		for _, s := range sym {
+ 			if len(s) > 0 && s[0] == '_' {
+ 				s = s[1:]
+ 			}
+ 			fmt.Fprintf(stdout, "//go:cgo_import_dynamic %s %s %q\n", s, s, "")
+ 		}
+-		lib, err := f.ImportedLibraries()
+-		if err != nil {
+-			fatalf("cannot load imported libraries from Mach-O file %s: %v", obj, err)
+-		}
++		lib, _ := f.ImportedLibraries()
+ 		for _, l := range lib {
+ 			fmt.Fprintf(stdout, "//go:cgo_import_dynamic _ _ %q\n", l)
+ 		}
+@@ -315,10 +303,7 @@ func dynimport(obj string) {
+ 	}
+ 
+ 	if f, err := pe.Open(obj); err == nil {
+-		sym, err := f.ImportedSymbols()
+-		if err != nil {
+-			fatalf("cannot load imported symbols from PE file %s: %v", obj, err)
+-		}
++		sym, _ := f.ImportedSymbols()
+ 		for _, s := range sym {
+ 			ss := strings.Split(s, ":")
+ 			name := strings.Split(ss[0], "@")[0]
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 5be4bcfa65..a6c0f387ff 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1065,6 +1065,12 @@ func (t *tester) cgoTest(dt *distTest) error {
+ 				t.addCmd(dt, "misc/cgo/nocgo", t.goTest(), "-ldflags", `-linkmode=external`)
+ 				if goos != "android" {
+ 					t.addCmd(dt, "misc/cgo/nocgo", t.goTest(), "-ldflags", `-linkmode=external -extldflags "-static -pthread"`)
++					t.addCmd(dt, "misc/cgo/test", t.goTest(), "-tags=static", "-ldflags", `-linkmode=external -extldflags "-static -pthread"`)
++					// -static in CGO_LDFLAGS triggers a different code path
++					// than -static in -extldflags, so test both.
++					// See issue #16651.
++					cmd := t.addCmd(dt, "misc/cgo/test", t.goTest(), "-tags=static")
++					cmd.Env = append(os.Environ(), "CGO_LDFLAGS=-static -pthread")
+ 				}
+ 			}
+ 

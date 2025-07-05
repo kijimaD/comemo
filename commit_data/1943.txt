@@ -10,7 +10,106 @@ Date:   Thu Apr 2 15:58:38 2009 -0700
     DELTA=11  (0 added, 0 deleted, 11 changed)
     OCL=27029
     CL=27038
-
+---
  src/lib/go/ast.go    | 12 ++++++------
  src/lib/go/parser.go | 10 +++++-----
  2 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/lib/go/ast.go b/src/lib/go/ast.go
+index 79e14484b5..9ee88c3696 100644
+--- a/src/lib/go/ast.go
++++ b/src/lib/go/ast.go
+@@ -129,7 +129,7 @@ type (
+ 	// An Ident node represents an identifier.
+ 	Ident struct {
+ 		token.Position;  // identifier position
+-		Lit []byte;  // identifier string (e.g. foobar)
++		Value string;  // identifier string (e.g. foobar)
+ 	};
+ 
+ 	// An Ellipsis node stands for the "..." type in a
+@@ -142,25 +142,25 @@ type (
+ 	// An IntLit node represents an integer literal.
+ 	IntLit struct {
+ 		token.Position;  // int literal position
+-		Lit []byte;  // literal string; e.g. 42 or 0x7f
++		Value []byte;  // literal string; e.g. 42 or 0x7f
+ 	};
+ 
+ 	// A FloatLit node represents a floating-point literal.
+ 	FloatLit struct {
+ 		token.Position;  // float literal position
+-		Lit []byte;  // literal string; e.g. 3.14 or 1e-9
++		Value []byte;  // literal string; e.g. 3.14 or 1e-9
+ 	};
+ 
+ 	// A CharLit node represents a character literal.
+ 	CharLit struct {
+ 		token.Position;  // char literal position
+-		Lit []byte;  // literal string, including quotes; e.g. 'a' or '\x7f'
++		Value []byte;  // literal string, including quotes; e.g. 'a' or '\x7f'
+ 	};
+ 
+ 	// A StringLit node represents a string literal.
+ 	StringLit struct {
+ 		token.Position;  // string literal position
+-		Lit []byte;  // literal string, including quotes; e.g. "foo" or `\m\n\o`
++		Value []byte;  // literal string, including quotes; e.g. "foo" or `\m\n\o`
+ 	};
+ 
+ 	// A StringList node represents a sequence of adjacent string literals.
+@@ -236,7 +236,7 @@ type (
+ 	};
+ 
+ 	// A UnaryExpr node represents a unary expression.
+-	// Unary "*" expressions are represented via DerefExpr nodes.
++	// Unary "*" expressions are represented via StarExpr nodes.
+ 	//
+ 	UnaryExpr struct {
+ 		token.Position;  // position of Op
+diff --git a/src/lib/go/parser.go b/src/lib/go/parser.go
+index 39aeb5c159..038b27266b 100644
+--- a/src/lib/go/parser.go
++++ b/src/lib/go/parser.go
+@@ -229,12 +229,12 @@ func (p *parser) parseDeclaration() ast.Decl;
+ 
+ func (p *parser) parseIdent() *ast.Ident {
+ 	if p.tok == token.IDENT {
+-		x := &ast.Ident{p.pos, p.lit};
++		x := &ast.Ident{p.pos, string(p.lit)};
+ 		p.next();
+ 		return x;
+ 	}
+ 	p.expect(token.IDENT);  // use expect() error handling
+-	return &ast.Ident{p.pos, [0]byte{}};
++	return &ast.Ident{p.pos, ""};
+ }
+ 
+ 
+@@ -360,7 +360,7 @@ func (p *parser) makeIdentList(list *vector.Vector) []*ast.Ident {
+ 		if !is_ident {
+ 			pos := list.At(i).(ast.Expr).Pos();
+ 			p.error_expected(pos, "identifier");
+-			idents[i] = &ast.Ident{pos, []byte{}};
++			idents[i] = &ast.Ident{pos, ""};
+ 		}
+ 		idents[i] = ident;
+ 	}
+@@ -907,7 +907,7 @@ func (p *parser) parseSelectorOrTypeAssertion(x ast.Expr) ast.Expr {
+ 	var typ ast.Expr;
+ 	if p.tok == token.TYPE {
+ 		// special case for type switch
+-		typ = &ast.Ident{p.pos, p.lit};
++		typ = &ast.Ident{p.pos, "type"};
+ 		p.next();
+ 	} else {
+ 		typ = p.parseType();
+@@ -1654,7 +1654,7 @@ func parseImportSpec(p *parser, doc ast.Comments) ast.Spec {
+ 
+ 	var ident *ast.Ident;
+ 	if p.tok == token.PERIOD {
+-		ident = &ast.Ident{p.pos, []byte{'.'}};
++		ident = &ast.Ident{p.pos, "."};
+ 		p.next();
+ 	} else if p.tok == token.IDENT {
+ 		ident = p.parseIdent();

@@ -11,6 +11,20 @@ Date:   Tue Dec 5 09:21:25 2017 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/server.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 5338bee9b5..a46823c704 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2998,6 +2998,8 @@ func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
+ 		return err
+ 	}
+ 
++	defer ln.Close()
++
+ 	return srv.ServeTLS(tcpKeepAliveListener{ln.(*net.TCPListener)}, certFile, keyFile)
+ }
+ 

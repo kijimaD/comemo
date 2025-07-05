@@ -26,7 +26,7 @@ Date:   Fri Aug 6 16:15:48 2021 -0700
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/cmd/go/testdata/script/test_fuzz_deadline.txt  |   2 +-
  src/cmd/go/testdata/script/test_fuzz_fuzztime.txt  |  17 ++-
  src/cmd/go/testdata/script/test_fuzz_minimize.txt  |   4 +-
@@ -34,3 +34,559 @@ Date:   Fri Aug 6 16:15:48 2021 -0700
  src/internal/fuzz/fuzz.go                          | 133 ++++++++++++++++-----
  src/internal/fuzz/worker.go                        |  49 +++++---
  6 files changed, 162 insertions(+), 73 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_deadline.txt b/src/cmd/go/testdata/script/test_fuzz_deadline.txt
+index f0826478ec..12f1054f61 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_deadline.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_deadline.txt
+@@ -14,7 +14,7 @@ go test -fuzz=FuzzDeadline -timeout=0 -fuzztime=1s -wantdeadline=false
+ go test -fuzz=FuzzDeadline -timeout=0 -fuzztime=100x -wantdeadline=false
+ 
+ -- go.mod --
+-module fzz
++module fuzz
+ 
+ go 1.16
+ -- fuzz_deadline_test.go --
+diff --git a/src/cmd/go/testdata/script/test_fuzz_fuzztime.txt b/src/cmd/go/testdata/script/test_fuzz_fuzztime.txt
+index 617980e940..5eb8c86708 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_fuzztime.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_fuzztime.txt
+@@ -6,7 +6,7 @@
+ # There are no seed values, so 'go test' should finish quickly.
+ go test
+ 
+-# Fuzzing should exit 0 when after fuzztime, even if timeout is short.
++# Fuzzing should exit 0 after fuzztime, even if timeout is short.
+ go test -timeout=10ms -fuzz=FuzzFast -fuzztime=5s
+ 
+ # We should see the same behavior when invoking the test binary directly.
+@@ -21,9 +21,8 @@ exec ./fuzz.test$GOEXE -test.timeout=10ms -test.fuzz=FuzzFast -test.fuzztime=5s
+ # We count the files to find the number of runs.
+ mkdir count
+ env GOCACHE=$WORK/tmp
+-go test -fuzz=FuzzCount -fuzztime=1000x
+-go run count_files.go
+-stdout '^1000$'
++go test -fuzz=FuzzCount -fuzztime=1000x -fuzzminimizetime=1x
++go run check_file_count.go 1000
+ 
+ -- go.mod --
+ module fuzz
+@@ -57,7 +56,7 @@ func FuzzCount(f *testing.F) {
+ 		n++
+ 	})
+ }
+--- count_files.go --
++-- check_file_count.go --
+ // +build ignore
+ 
+ package main
+@@ -65,6 +64,7 @@ package main
+ import (
+ 	"fmt"
+ 	"os"
++	"strconv"
+ )
+ 
+ func main() {
+@@ -73,5 +73,10 @@ func main() {
+ 		fmt.Fprintln(os.Stderr, err)
+ 		os.Exit(1)
+ 	}
+-	fmt.Println(len(dir))
++	got := len(dir)
++	want, _ := strconv.Atoi(os.Args[1])
++	if got != want {
++		fmt.Fprintf(os.Stderr, "got %d files; want %d\n", got, want)
++		os.Exit(1)
++	}
+ }
+diff --git a/src/cmd/go/testdata/script/test_fuzz_minimize.txt b/src/cmd/go/testdata/script/test_fuzz_minimize.txt
+index 215ce04dbc..337059da3f 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_minimize.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_minimize.txt
+@@ -7,7 +7,7 @@
+ env GOCACHE=$WORK/gocache
+ 
+ # Test that minimization is working for recoverable errors.
+-! go test -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -fuzztime=100x -fuzzminimizetime=10000x minimizer_test.go
++! go test -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -fuzztime=10000x minimizer_test.go
+ ! stdout '^ok'
+ stdout 'got the minimum size!'
+ stdout 'contains a non-zero byte'
+@@ -21,7 +21,7 @@ go run check_testdata.go FuzzMinimizerRecoverable 50
+ rm testdata
+ 
+ # Test that minimization is working for non-recoverable errors.
+-! go test -fuzz=FuzzMinimizerNonrecoverable -run=FuzzMinimizerNonrecoverable -fuzztime=100x -fuzzminimizetime=10000x minimizer_test.go
++! go test -fuzz=FuzzMinimizerNonrecoverable -run=FuzzMinimizerNonrecoverable -fuzztime=10000x minimizer_test.go
+ ! stdout '^ok'
+ stdout 'found a crash, minimizing'
+ stdout 'fuzzing process terminated unexpectedly while minimizing: exit status 99'
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt b/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
+index cba91a99cf..92a52ccdea 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
+@@ -13,7 +13,7 @@
+ go test
+ 
+ # Running the fuzzer should find a crashing input quickly.
+-! go test -fuzz=FuzzWithBug -fuzztime=100x
++! go test -fuzz=FuzzWithBug -fuzztime=100x -fuzzminimizetime=1000x
+ stdout 'testdata[/\\]corpus[/\\]FuzzWithBug[/\\]'
+ stdout 'this input caused a crash!'
+ go run check_testdata.go FuzzWithBug
+@@ -24,78 +24,78 @@ go run check_testdata.go FuzzWithBug
+ stdout 'testdata[/\\]corpus[/\\]FuzzWithBug[/\\][a-f0-9]{64}'
+ stdout 'this input caused a crash!'
+ 
+-! go test -run=FuzzWithNilPanic -fuzz=FuzzWithNilPanic -fuzztime=100x
++! go test -run=FuzzWithNilPanic -fuzz=FuzzWithNilPanic -fuzztime=100x -fuzzminimizetime=1000x
+ stdout 'testdata[/\\]corpus[/\\]FuzzWithNilPanic[/\\]'
+ stdout 'runtime.Goexit'
+ go run check_testdata.go FuzzWithNilPanic
+ 
+-! go test -run=FuzzWithFail -fuzz=FuzzWithFail -fuzztime=100x
++! go test -run=FuzzWithFail -fuzz=FuzzWithFail -fuzztime=100x -fuzzminimizetime=1000x
+ stdout 'testdata[/\\]corpus[/\\]FuzzWithFail[/\\]'
+ go run check_testdata.go FuzzWithFail
+ 
+-! go test -run=FuzzWithLogFail -fuzz=FuzzWithLogFail -fuzztime=100x
++! go test -run=FuzzWithLogFail -fuzz=FuzzWithLogFail -fuzztime=100x -fuzzminimizetime=1000x
+ stdout 'testdata[/\\]corpus[/\\]FuzzWithLogFail[/\\]'
+ stdout 'logged something'
+ go run check_testdata.go FuzzWithLogFail
+ 
+-! go test -run=FuzzWithErrorf -fuzz=FuzzWithErrorf -fuzztime=100x
++! go test -run=FuzzWithErrorf -fuzz=FuzzWithErrorf -fuzztime=100x -fuzzminimizetime=1000x
+ stdout 'testdata[/\\]corpus[/\\]FuzzWithErrorf[/\\]'
+ stdout 'errorf was called here'
+ go run check_testdata.go FuzzWithErrorf
+ 
+-! go test -run=FuzzWithFatalf -fuzz=FuzzWithFatalf -fuzztime=100x
++! go test -run=FuzzWithFatalf -fuzz=FuzzWithFatalf -fuzztime=100x -fuzzminimizetime=1000x
+ stdout 'testdata[/\\]corpus[/\\]FuzzWithFatalf[/\\]'
+ stdout 'fatalf was called here'
+ go run check_testdata.go FuzzWithFatalf
+ 
+-! go test -run=FuzzWithBadExit -fuzz=FuzzWithBadExit -fuzztime=100x
++! go test -run=FuzzWithBadExit -fuzz=FuzzWithBadExit -fuzztime=100x -fuzzminimizetime=1000x
+ stdout 'testdata[/\\]corpus[/\\]FuzzWithBadExit[/\\]'
+ stdout 'unexpectedly'
+ go run check_testdata.go FuzzWithBadExit
+ 
+ # Running the fuzzer should find a crashing input quickly for fuzzing two types.
+-! go test -run=FuzzWithTwoTypes -fuzz=FuzzWithTwoTypes -fuzztime=100x
++! go test -run=FuzzWithTwoTypes -fuzz=FuzzWithTwoTypes -fuzztime=100x -fuzzminimizetime=1000x
+ stdout 'testdata[/\\]corpus[/\\]FuzzWithTwoTypes[/\\]'
+ stdout 'these inputs caused a crash!'
+ go run check_testdata.go FuzzWithTwoTypes
+ 
+ # Running the fuzzer should find a crashing input quickly for an integer.
+-! go test -run=FuzzInt -fuzz=FuzzInt -fuzztime=100x
++! go test -run=FuzzInt -fuzz=FuzzInt -fuzztime=100x -fuzzminimizetime=1000x
+ stdout 'testdata[/\\]corpus[/\\]FuzzInt[/\\]'
+ stdout 'this input caused a crash!'
+ go run check_testdata.go FuzzInt
+ 
+-! go test -run=FuzzUint -fuzz=FuzzUint -fuzztime=100x
++! go test -run=FuzzUint -fuzz=FuzzUint -fuzztime=100x -fuzzminimizetime=1000x
+ stdout 'testdata[/\\]corpus[/\\]FuzzUint[/\\]'
+ stdout 'this input caused a crash!'
+ go run check_testdata.go FuzzUint
+ 
+ # Running the fuzzer should find a crashing input quickly for a bool.
+-! go test -run=FuzzBool -fuzz=FuzzBool -fuzztime=100x
++! go test -run=FuzzBool -fuzz=FuzzBool -fuzztime=100x -fuzzminimizetime=1000x
+ stdout 'testdata[/\\]corpus[/\\]FuzzBool[/\\]'
+ stdout 'this input caused a crash!'
+ go run check_testdata.go FuzzBool
+ 
+ # Running the fuzzer should find a crashing input quickly for a float.
+-! go test -run=FuzzFloat -fuzz=FuzzFloat -fuzztime=100x
++! go test -run=FuzzFloat -fuzz=FuzzFloat -fuzztime=100x -fuzzminimizetime=1000x
+ stdout 'testdata[/\\]corpus[/\\]FuzzFloat[/\\]'
+ stdout 'this input caused a crash!'
+ go run check_testdata.go FuzzFloat
+ 
+ # Running the fuzzer should find a crashing input quickly for a byte.
+-! go test -run=FuzzByte -fuzz=FuzzByte -fuzztime=100x
++! go test -run=FuzzByte -fuzz=FuzzByte -fuzztime=100x -fuzzminimizetime=1000x
+ stdout 'testdata[/\\]corpus[/\\]FuzzByte[/\\]'
+ stdout 'this input caused a crash!'
+ go run check_testdata.go FuzzByte
+ 
+ # Running the fuzzer should find a crashing input quickly for a rune.
+-! go test -run=FuzzRune -fuzz=FuzzRune -fuzztime=100x
++! go test -run=FuzzRune -fuzz=FuzzRune -fuzztime=100x -fuzzminimizetime=1000x
+ stdout 'testdata[/\\]corpus[/\\]FuzzRune[/\\]'
+ stdout 'this input caused a crash!'
+ go run check_testdata.go FuzzRune
+ 
+ # Running the fuzzer should find a crashing input quickly for a string.
+-! go test -run=FuzzString -fuzz=FuzzString -fuzztime=100x
++! go test -run=FuzzString -fuzz=FuzzString -fuzztime=100x -fuzzminimizetime=1000x
+ stdout 'testdata[/\\]corpus[/\\]FuzzString[/\\]'
+ stdout 'this input caused a crash!'
+ go run check_testdata.go FuzzString
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index 419faac5ac..b06ab146f7 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -45,7 +45,8 @@ type CoordinateFuzzingOpts struct {
+ 
+ 	// MinimizeLimit is the maximum number of calls to the fuzz function to be
+ 	// made while minimizing after finding a crash. If zero, there will be
+-	// no limit.
++	// no limit. Calls to the fuzz function made when minimizing also count
++	// toward Limit.
+ 	MinimizeLimit int64
+ 
+ 	// parallel is the number of worker processes to run in parallel. If zero,
+@@ -92,13 +93,6 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
+ 		// Don't start more workers than we need.
+ 		opts.Parallel = int(opts.Limit)
+ 	}
+-	canMinimize := false
+-	for _, t := range opts.Types {
+-		if isMinimizable(t) {
+-			canMinimize = true
+-			break
+-		}
+-	}
+ 
+ 	c, err := newCoordinator(opts)
+ 	if err != nil {
+@@ -199,17 +193,19 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
+ 			}
+ 
+ 			if result.crasherMsg != "" {
+-				if canMinimize && !result.minimized {
+-					// Found a crasher but haven't yet attempted to minimize it.
+-					// Send it back to a worker for minimization. Disable inputC so
+-					// other workers don't continue fuzzing.
++				if c.canMinimize() && !result.minimizeAttempted {
+ 					if crashMinimizing {
++						// This crash is not minimized, and another crash is being minimized.
++						// Ignore this one and wait for the other one to finish.
+ 						break
+ 					}
++					// Found a crasher but haven't yet attempted to minimize it.
++					// Send it back to a worker for minimization. Disable inputC so
++					// other workers don't continue fuzzing.
+ 					crashMinimizing = true
+ 					inputC = nil
+ 					fmt.Fprintf(c.opts.Log, "found a crash, minimizing...\n")
+-					c.minimizeC <- result
++					c.minimizeC <- c.minimizeInputForResult(result)
+ 				} else if !crashWritten {
+ 					// Found a crasher that's either minimized or not minimizable.
+ 					// Write to corpus and stop.
+@@ -402,9 +398,15 @@ type fuzzInput struct {
+ 	// values from this starting point.
+ 	entry CorpusEntry
+ 
+-	// countRequested is the number of values to test. If non-zero, the worker
+-	// will stop after testing this many values, if it hasn't already stopped.
+-	countRequested int64
++	// timeout is the time to spend fuzzing variations of this input,
++	// not including starting or cleaning up.
++	timeout time.Duration
++
++	// limit is the maximum number of calls to the fuzz function the worker may
++	// make. The worker may make fewer calls, for example, if it finds an
++	// error early. If limit is zero, there is no limit on calls to the
++	// fuzz function.
++	limit int64
+ 
+ 	// coverageOnly indicates whether this input is for a coverage-only run. If
+ 	// true, the input should not be fuzzed.
+@@ -425,16 +427,16 @@ type fuzzResult struct {
+ 	// crasherMsg is an error message from a crash. It's "" if no crash was found.
+ 	crasherMsg string
+ 
+-	// minimized is true if a worker attempted to minimize entry.
+-	// Minimization may not have actually been completed.
+-	minimized bool
++	// minimizeAttempted is true if the worker attempted to minimize this input.
++	// The worker may or may not have succeeded.
++	minimizeAttempted bool
+ 
+ 	// coverageData is set if the worker found new coverage.
+ 	coverageData []byte
+ 
+-	// countRequested is the number of values the coordinator asked the worker
++	// limit is the number of values the coordinator asked the worker
+ 	// to test. 0 if there was no limit.
+-	countRequested int64
++	limit int64
+ 
+ 	// count is the number of values the worker actually tested.
+ 	count int64
+@@ -446,6 +448,25 @@ type fuzzResult struct {
+ 	entryDuration time.Duration
+ }
+ 
++type fuzzMinimizeInput struct {
++	// entry is an interesting value or crasher to minimize.
++	entry CorpusEntry
++
++	// crasherMsg is an error message from a crash. It's "" if no crash was found.
++	// If set, the worker will attempt to find a smaller input that also produces
++	// an error, though not necessarily the same error.
++	crasherMsg string
++
++	// limit is the maximum number of calls to the fuzz function the worker may
++	// make. The worker may make fewer calls, for example, if it can't reproduce
++	// an error. If limit is zero, there is no limit on calls to the fuzz function.
++	limit int64
++
++	// timeout is the time to spend minimizing this input.
++	// A zero timeout means no limit.
++	timeout time.Duration
++}
++
+ // coordinator holds channels that workers can use to communicate with
+ // the coordinator.
+ type coordinator struct {
+@@ -461,7 +482,7 @@ type coordinator struct {
+ 
+ 	// minimizeC is sent values to minimize by the coordinator. Any worker may
+ 	// receive values from this channel. Workers send results to resultC.
+-	minimizeC chan fuzzResult
++	minimizeC chan fuzzMinimizeInput
+ 
+ 	// resultC is sent results of fuzzing by workers. The coordinator
+ 	// receives these. Multiple types of messages are allowed.
+@@ -482,8 +503,8 @@ type coordinator struct {
+ 	// starting up or tearing down.
+ 	duration time.Duration
+ 
+-	// countWaiting is the number of values the coordinator is currently waiting
+-	// for workers to fuzz.
++	// countWaiting is the number of fuzzing executions the coordinator is
++	// waiting on workers to complete.
+ 	countWaiting int64
+ 
+ 	// corpus is a set of interesting values, including the seed corpus and
+@@ -495,6 +516,10 @@ type coordinator struct {
+ 	// which corpus value to send next (or generates something new).
+ 	corpusIndex int
+ 
++	// typesAreMinimizable is true if one or more of the types of fuzz function's
++	// parameters can be minimized.
++	typesAreMinimizable bool
++
+ 	// coverageMask aggregates coverage that was found for all inputs in the
+ 	// corpus. Each byte represents a single basic execution block. Each set bit
+ 	// within the byte indicates that an input has triggered that block at least
+@@ -530,11 +555,17 @@ func newCoordinator(opts CoordinateFuzzingOpts) (*coordinator, error) {
+ 		opts:          opts,
+ 		startTime:     time.Now(),
+ 		inputC:        make(chan fuzzInput),
+-		minimizeC:     make(chan fuzzResult),
++		minimizeC:     make(chan fuzzMinimizeInput),
+ 		resultC:       make(chan fuzzResult),
+ 		corpus:        corpus,
+ 		covOnlyInputs: covOnlyInputs,
+ 	}
++	for _, t := range opts.Types {
++		if isMinimizable(t) {
++			c.typesAreMinimizable = true
++			break
++		}
++	}
+ 
+ 	covSize := len(coverage())
+ 	if covSize == 0 {
+@@ -555,9 +586,8 @@ func newCoordinator(opts CoordinateFuzzingOpts) (*coordinator, error) {
+ }
+ 
+ func (c *coordinator) updateStats(result fuzzResult) {
+-	// Adjust total stats.
+ 	c.count += result.count
+-	c.countWaiting -= result.countRequested
++	c.countWaiting -= result.limit
+ 	c.duration += result.totalDuration
+ }
+ 
+@@ -584,6 +614,7 @@ func (c *coordinator) nextInput() (fuzzInput, bool) {
+ 		entry:            c.corpus.entries[c.corpusIndex],
+ 		interestingCount: c.interestingCount,
+ 		coverageData:     make([]byte, len(c.coverageMask)),
++		timeout:          workerFuzzDuration,
+ 	}
+ 	copy(input.coverageData, c.coverageMask)
+ 	c.corpusIndex = (c.corpusIndex + 1) % (len(c.corpus.entries))
+@@ -596,19 +627,50 @@ func (c *coordinator) nextInput() (fuzzInput, bool) {
+ 	}
+ 
+ 	if c.opts.Limit > 0 {
+-		input.countRequested = c.opts.Limit / int64(c.opts.Parallel)
++		input.limit = c.opts.Limit / int64(c.opts.Parallel)
+ 		if c.opts.Limit%int64(c.opts.Parallel) > 0 {
+-			input.countRequested++
++			input.limit++
+ 		}
+ 		remaining := c.opts.Limit - c.count - c.countWaiting
+-		if input.countRequested > remaining {
+-			input.countRequested = remaining
++		if input.limit > remaining {
++			input.limit = remaining
+ 		}
+-		c.countWaiting += input.countRequested
++		c.countWaiting += input.limit
+ 	}
+ 	return input, true
+ }
+ 
++// minimizeInputForResult returns an input for minimization based on the given
++// fuzzing result that either caused a failure or expanded coverage.
++func (c *coordinator) minimizeInputForResult(result fuzzResult) fuzzMinimizeInput {
++	input := fuzzMinimizeInput{
++		entry:      result.entry,
++		crasherMsg: result.crasherMsg,
++	}
++	input.limit = 0
++	if c.opts.MinimizeTimeout > 0 {
++		input.timeout = c.opts.MinimizeTimeout
++	}
++	if c.opts.MinimizeLimit > 0 {
++		input.limit = c.opts.MinimizeLimit
++	} else if c.opts.Limit > 0 {
++		if result.crasherMsg != "" {
++			input.limit = c.opts.Limit
++		} else {
++			input.limit = c.opts.Limit / int64(c.opts.Parallel)
++			if c.opts.Limit%int64(c.opts.Parallel) > 0 {
++				input.limit++
++			}
++		}
++	}
++	remaining := c.opts.Limit - c.count - c.countWaiting
++	if input.limit > remaining {
++		input.limit = remaining
++	}
++	c.countWaiting += input.limit
++	return input
++}
++
+ func (c *coordinator) coverageOnlyRun() bool {
+ 	return c.covOnlyInputs > 0
+ }
+@@ -629,6 +691,13 @@ func (c *coordinator) updateCoverage(newCoverage []byte) int {
+ 	return newBitCount
+ }
+ 
++// canMinimize returns whether the coordinator should attempt to find smaller
++// inputs that reproduce a crash or new coverage.
++func (c *coordinator) canMinimize() bool {
++	return c.typesAreMinimizable &&
++		(c.opts.Limit == 0 || c.count+c.countWaiting < c.opts.Limit)
++}
++
+ // readCache creates a combined corpus from seed values and values in the cache
+ // (in GOCACHE/fuzz).
+ //
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index de4f6b08b6..290e09846b 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -151,7 +151,7 @@ func (w *worker) coordinate(ctx context.Context) error {
+ 
+ 		case input := <-w.coordinator.inputC:
+ 			// Received input from coordinator.
+-			args := fuzzArgs{Limit: input.countRequested, Timeout: workerFuzzDuration, CoverageOnly: input.coverageOnly}
++			args := fuzzArgs{Limit: input.limit, Timeout: input.timeout, CoverageOnly: input.coverageOnly}
+ 			if interestingCount < input.interestingCount {
+ 				// The coordinator's coverage data has changed, so send the data
+ 				// to the client.
+@@ -191,11 +191,11 @@ func (w *worker) coordinate(ctx context.Context) error {
+ 				resp.Err = fmt.Sprintf("fuzzing process terminated unexpectedly: %v", w.waitErr)
+ 			}
+ 			result := fuzzResult{
+-				countRequested: input.countRequested,
+-				count:          resp.Count,
+-				totalDuration:  resp.TotalDuration,
+-				entryDuration:  resp.InterestingDuration,
+-				entry:          entry,
++				limit:         input.limit,
++				count:         resp.Count,
++				totalDuration: resp.TotalDuration,
++				entryDuration: resp.InterestingDuration,
++				entry:         entry,
+ 			}
+ 			if resp.Err != "" {
+ 				result.crasherMsg = resp.Err
+@@ -204,16 +204,20 @@ func (w *worker) coordinate(ctx context.Context) error {
+ 			}
+ 			w.coordinator.resultC <- result
+ 
+-		case crasher := <-w.coordinator.minimizeC:
++		case input := <-w.coordinator.minimizeC:
+ 			// Received input to minimize from coordinator.
+-			minRes, err := w.minimize(ctx, crasher)
++			result, err := w.minimize(ctx, input)
+ 			if err != nil {
+ 				// Failed to minimize. Send back the original crash.
+ 				fmt.Fprintln(w.coordinator.opts.Log, err)
+-				minRes = crasher
+-				minRes.minimized = true
++				result = fuzzResult{
++					entry:             input.entry,
++					crasherMsg:        input.crasherMsg,
++					minimizeAttempted: true,
++					limit:             input.limit,
++				}
+ 			}
+-			w.coordinator.resultC <- minRes
++			w.coordinator.resultC <- result
+ 		}
+ 	}
+ }
+@@ -224,19 +228,23 @@ func (w *worker) coordinate(ctx context.Context) error {
+ //
+ // TODO: support minimizing inputs that expand coverage in a specific way,
+ // for example, by ensuring that an input activates a specific set of counters.
+-func (w *worker) minimize(ctx context.Context, input fuzzResult) (min fuzzResult, err error) {
++func (w *worker) minimize(ctx context.Context, input fuzzMinimizeInput) (min fuzzResult, err error) {
+ 	if w.coordinator.opts.MinimizeTimeout != 0 {
+ 		var cancel func()
+ 		ctx, cancel = context.WithTimeout(ctx, w.coordinator.opts.MinimizeTimeout)
+ 		defer cancel()
+ 	}
+ 
+-	min = input
+-	min.minimized = true
++	min = fuzzResult{
++		entry:             input.entry,
++		crasherMsg:        input.crasherMsg,
++		minimizeAttempted: true,
++		limit:             input.limit,
++	}
+ 
+ 	args := minimizeArgs{
+-		Limit:   w.coordinator.opts.MinimizeLimit,
+-		Timeout: w.coordinator.opts.MinimizeTimeout,
++		Limit:   input.limit,
++		Timeout: input.timeout,
+ 	}
+ 	minEntry, resp, err := w.client.minimize(ctx, input.entry, args)
+ 	if err != nil {
+@@ -660,7 +668,14 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
+ 
+ 	if args.CoverageOnly {
+ 		fStart := time.Now()
+-		ws.fuzzFn(CorpusEntry{Values: vals})
++		err := ws.fuzzFn(CorpusEntry{Values: vals})
++		if err != nil {
++			resp.Err = err.Error()
++			if resp.Err == "" {
++				resp.Err = "fuzz function failed with no output"
++			}
++			return resp
++		}
+ 		resp.InterestingDuration = time.Since(fStart)
+ 		resp.CoverageData = coverageSnapshot
+ 		return resp

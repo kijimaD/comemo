@@ -10,7 +10,7 @@ Date:   Mon Mar 16 15:27:19 2015 -0400
     Change-Id: I96d120afe266e68f94d5e82b00886bf6bd458f85
     Reviewed-on: https://go-review.googlesource.com/7742
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/5g/ggen.go           |  2 +-
  src/cmd/5g/gsubr.go          | 26 +++++++-------------------
  src/cmd/6g/gsubr.go          | 27 ++++++++-------------------
@@ -22,3 +22,438 @@ Date:   Mon Mar 16 15:27:19 2015 -0400
  src/cmd/internal/gc/gsubr.go | 22 ++++++++++++----------
  src/cmd/internal/gc/plive.go |  4 ++--
  10 files changed, 50 insertions(+), 106 deletions(-)
+
+diff --git a/src/cmd/5g/ggen.go b/src/cmd/5g/ggen.go
+index ec782fc07d..52fe20bdc8 100644
+--- a/src/cmd/5g/ggen.go
++++ b/src/cmd/5g/ggen.go
+@@ -78,7 +78,7 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, r0 *uint32) *obj.Pr
+ 		p.Reg = arm.REGSP
+ 		p = appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
+ 		f := gc.Sysfunc("duffzero")
+-		p.To = gc.Naddr(f)
++		gc.Naddr(&p.To, f)
+ 		gc.Afunclit(&p.To, f)
+ 		p.To.Offset = 4 * (128 - cnt/int64(gc.Widthptr))
+ 	} else {
+diff --git a/src/cmd/5g/gsubr.go b/src/cmd/5g/gsubr.go
+index cf6bd1f431..29dc958e70 100644
+--- a/src/cmd/5g/gsubr.go
++++ b/src/cmd/5g/gsubr.go
+@@ -842,22 +842,11 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ 	//		constnode.vconst = v;
+ 	//		idx.reg = nod.reg;
+ 	//		regfree(&nod);
+-	var af obj.Addr
+ 
+-	var at obj.Addr
+-	if f != nil {
+-		af = gc.Naddr(f)
+-	}
+-	if t != nil {
+-		at = gc.Naddr(t)
+-	}
+ 	p := gc.Prog(as)
+-	if f != nil {
+-		p.From = af
+-	}
+-	if t != nil {
+-		p.To = at
+-	}
++	gc.Naddr(&p.From, f)
++	gc.Naddr(&p.To, t)
++
+ 	if gc.Debug['g'] != 0 {
+ 		fmt.Printf("%v\n", p)
+ 	}
+@@ -869,8 +858,7 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+  */
+ func raddr(n *gc.Node, p *obj.Prog) {
+ 	var a obj.Addr
+-
+-	a = gc.Naddr(n)
++	gc.Naddr(&a, n)
+ 	if a.Type != obj.TYPE_REG {
+ 		if n != nil {
+ 			gc.Fatal("bad in raddr: %v", gc.Oconv(int(n.Op), 0))
+@@ -1306,7 +1294,7 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr, w *int) bool {
+ 		reg1 := &clean[cleani-2]
+ 		reg.Op = gc.OEMPTY
+ 		reg1.Op = gc.OEMPTY
+-		*a = gc.Naddr(n)
++		gc.Naddr(a, n)
+ 		return true
+ 
+ 	case gc.ODOT,
+@@ -1330,7 +1318,7 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr, w *int) bool {
+ 
+ 			n1.Type = n.Type
+ 			n1.Xoffset += oary[0]
+-			*a = gc.Naddr(&n1)
++			gc.Naddr(a, &n1)
+ 			return true
+ 		}
+ 
+@@ -1358,7 +1346,7 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr, w *int) bool {
+ 		a.Type = obj.TYPE_NONE
+ 		a.Name = obj.NAME_NONE
+ 		n1.Type = n.Type
+-		*a = gc.Naddr(&n1)
++		gc.Naddr(a, &n1)
+ 		return true
+ 
+ 	case gc.OINDEX:
+diff --git a/src/cmd/6g/gsubr.go b/src/cmd/6g/gsubr.go
+index 4338796af7..6284b8c4ad 100644
+--- a/src/cmd/6g/gsubr.go
++++ b/src/cmd/6g/gsubr.go
+@@ -746,21 +746,10 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ 		}
+ 	}
+ 
+-	var af obj.Addr
+-	if f != nil {
+-		af = gc.Naddr(f)
+-	}
+-	var at obj.Addr
+-	if t != nil {
+-		at = gc.Naddr(t)
+-	}
+ 	p := gc.Prog(as)
+-	if f != nil {
+-		p.From = af
+-	}
+-	if t != nil {
+-		p.To = at
+-	}
++	gc.Naddr(&p.From, f)
++	gc.Naddr(&p.To, t)
++
+ 	if gc.Debug['g'] != 0 {
+ 		fmt.Printf("%v\n", p)
+ 	}
+@@ -780,10 +769,10 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ 		w = 8
+ 	}
+ 
+-	if w != 0 && ((f != nil && af.Width < int64(w)) || (t != nil && at.Width > int64(w))) {
++	if w != 0 && ((f != nil && p.From.Width < int64(w)) || (t != nil && p.To.Width > int64(w))) {
+ 		gc.Dump("f", f)
+ 		gc.Dump("t", t)
+-		gc.Fatal("bad width: %v (%d, %d)\n", p, af.Width, at.Width)
++		gc.Fatal("bad width: %v (%d, %d)\n", p, p.From.Width, p.To.Width)
+ 	}
+ 
+ 	if p.To.Type == obj.TYPE_ADDR && w > 0 {
+@@ -1405,7 +1394,7 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
+ 		reg1 := &clean[cleani-2]
+ 		reg.Op = gc.OEMPTY
+ 		reg1.Op = gc.OEMPTY
+-		*a = gc.Naddr(n)
++		gc.Naddr(a, n)
+ 		return true
+ 
+ 	case gc.ODOT,
+@@ -1429,7 +1418,7 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
+ 
+ 			n1.Type = n.Type
+ 			n1.Xoffset += oary[0]
+-			*a = gc.Naddr(&n1)
++			gc.Naddr(a, &n1)
+ 			return true
+ 		}
+ 
+@@ -1457,7 +1446,7 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
+ 		a.Type = obj.TYPE_NONE
+ 		a.Index = obj.TYPE_NONE
+ 		fixlargeoffset(&n1)
+-		*a = gc.Naddr(&n1)
++		gc.Naddr(a, &n1)
+ 		return true
+ 
+ 	case gc.OINDEX:
+diff --git a/src/cmd/7g/ggen.go b/src/cmd/7g/ggen.go
+index 367d655f2c..fe04bdf7c3 100644
+--- a/src/cmd/7g/ggen.go
++++ b/src/cmd/7g/ggen.go
+@@ -77,7 +77,7 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
+ 		p.Reg = arm64.REGRT1
+ 		p = appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
+ 		f := gc.Sysfunc("duffzero")
+-		p.To = gc.Naddr(f)
++		gc.Naddr(&p.To, f)
+ 		gc.Afunclit(&p.To, f)
+ 		p.To.Offset = 4 * (128 - cnt/int64(gc.Widthptr))
+ 	} else {
+diff --git a/src/cmd/7g/gsubr.go b/src/cmd/7g/gsubr.go
+index 74da595f76..edde1fd77e 100644
+--- a/src/cmd/7g/gsubr.go
++++ b/src/cmd/7g/gsubr.go
+@@ -615,22 +615,10 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ 	// TODO(austin): Add self-move test like in 6g (but be careful
+ 	// of truncation moves)
+ 
+-	af := obj.Addr(obj.Addr{})
++	p := gc.Prog(as)
++	gc.Naddr(&p.From, f)
++	gc.Naddr(&p.To, t)
+ 
+-	at := obj.Addr(obj.Addr{})
+-	if f != nil {
+-		af = gc.Naddr(f)
+-	}
+-	if t != nil {
+-		at = gc.Naddr(t)
+-	}
+-	p := (*obj.Prog)(gc.Prog(as))
+-	if f != nil {
+-		p.From = af
+-	}
+-	if t != nil {
+-		p.To = at
+-	}
+ 	if gc.Debug['g'] != 0 {
+ 		fmt.Printf("%v\n", p)
+ 	}
+@@ -650,16 +638,16 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ 		w = 4
+ 
+ 	case arm64.AMOVD:
+-		if af.Type == obj.TYPE_CONST || af.Type == obj.TYPE_ADDR {
++		if p.From.Type == obj.TYPE_CONST || p.From.Type == obj.TYPE_ADDR {
+ 			break
+ 		}
+ 		w = 8
+ 	}
+ 
+-	if w != 0 && ((f != nil && af.Width < int64(w)) || (t != nil && at.Type != obj.TYPE_REG && at.Width > int64(w))) {
++	if w != 0 && ((f != nil && p.From.Width < int64(w)) || (t != nil && p.To.Type != obj.TYPE_REG && p.To.Width > int64(w))) {
+ 		gc.Dump("f", f)
+ 		gc.Dump("t", t)
+-		gc.Fatal("bad width: %v (%d, %d)\n", p, af.Width, at.Width)
++		gc.Fatal("bad width: %v (%d, %d)\n", p, p.From.Width, p.To.Width)
+ 	}
+ 
+ 	return p
+@@ -690,7 +678,7 @@ func fixlargeoffset(n *gc.Node) {
+ func raddr(n *gc.Node, p *obj.Prog) {
+ 	var a obj.Addr
+ 
+-	a = gc.Naddr(n)
++	gc.Naddr(&a, n)
+ 	if a.Type != obj.TYPE_REG {
+ 		if n != nil {
+ 			gc.Fatal("bad in raddr: %v", gc.Oconv(int(n.Op), 0))
+diff --git a/src/cmd/8g/gsubr.go b/src/cmd/8g/gsubr.go
+index d8a7903bd8..cc5efdf009 100644
+--- a/src/cmd/8g/gsubr.go
++++ b/src/cmd/8g/gsubr.go
+@@ -1844,21 +1844,10 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ 		}
+ 	}
+ 
+-	var af obj.Addr
+-	var at obj.Addr
+-	if f != nil {
+-		af = gc.Naddr(f)
+-	}
+-	if t != nil {
+-		at = gc.Naddr(t)
+-	}
+ 	p := gc.Prog(as)
+-	if f != nil {
+-		p.From = af
+-	}
+-	if t != nil {
+-		p.To = at
+-	}
++	gc.Naddr(&p.From, f)
++	gc.Naddr(&p.To, t)
++
+ 	if gc.Debug['g'] != 0 {
+ 		fmt.Printf("%v\n", p)
+ 	}
+@@ -1875,10 +1864,10 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ 		w = 4
+ 	}
+ 
+-	if true && w != 0 && f != nil && (af.Width > int64(w) || at.Width > int64(w)) {
++	if true && w != 0 && f != nil && (p.From.Width > int64(w) || p.To.Width > int64(w)) {
+ 		gc.Dump("bad width from:", f)
+ 		gc.Dump("bad width to:", t)
+-		gc.Fatal("bad width: %v (%d, %d)\n", p, af.Width, at.Width)
++		gc.Fatal("bad width: %v (%d, %d)\n", p, p.From.Width, p.To.Width)
+ 	}
+ 
+ 	if p.To.Type == obj.TYPE_ADDR && w > 0 {
+diff --git a/src/cmd/9g/ggen.go b/src/cmd/9g/ggen.go
+index 27836a835e..6127619999 100644
+--- a/src/cmd/9g/ggen.go
++++ b/src/cmd/9g/ggen.go
+@@ -76,7 +76,7 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
+ 		p.Reg = ppc64.REGSP
+ 		p = appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
+ 		f := gc.Sysfunc("duffzero")
+-		p.To = gc.Naddr(f)
++		gc.Naddr(&p.To, f)
+ 		gc.Afunclit(&p.To, f)
+ 		p.To.Offset = 4 * (128 - cnt/int64(gc.Widthptr))
+ 	} else {
+diff --git a/src/cmd/9g/gsubr.go b/src/cmd/9g/gsubr.go
+index 01572195c8..0c5bcf2d83 100644
+--- a/src/cmd/9g/gsubr.go
++++ b/src/cmd/9g/gsubr.go
+@@ -696,22 +696,10 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ 	// TODO(austin): Add self-move test like in 6g (but be careful
+ 	// of truncation moves)
+ 
+-	af := obj.Addr(obj.Addr{})
++	p := gc.Prog(as)
++	gc.Naddr(&p.From, f)
++	gc.Naddr(&p.To, t)
+ 
+-	at := obj.Addr(obj.Addr{})
+-	if f != nil {
+-		af = gc.Naddr(f)
+-	}
+-	if t != nil {
+-		at = gc.Naddr(t)
+-	}
+-	p := (*obj.Prog)(gc.Prog(as))
+-	if f != nil {
+-		p.From = af
+-	}
+-	if t != nil {
+-		p.To = at
+-	}
+ 	if gc.Debug['g'] != 0 {
+ 		fmt.Printf("%v\n", p)
+ 	}
+@@ -738,16 +726,16 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ 
+ 	case ppc64.AMOVD,
+ 		ppc64.AMOVDU:
+-		if af.Type == obj.TYPE_CONST || af.Type == obj.TYPE_ADDR {
++		if p.From.Type == obj.TYPE_CONST || p.From.Type == obj.TYPE_ADDR {
+ 			break
+ 		}
+ 		w = 8
+ 	}
+ 
+-	if w != 0 && ((f != nil && af.Width < int64(w)) || (t != nil && at.Type != obj.TYPE_REG && at.Width > int64(w))) {
++	if w != 0 && ((f != nil && p.From.Width < int64(w)) || (t != nil && p.To.Type != obj.TYPE_REG && p.To.Width > int64(w))) {
+ 		gc.Dump("f", f)
+ 		gc.Dump("t", t)
+-		gc.Fatal("bad width: %v (%d, %d)\n", p, af.Width, at.Width)
++		gc.Fatal("bad width: %v (%d, %d)\n", p, p.From.Width, p.To.Width)
+ 	}
+ 
+ 	return p
+diff --git a/src/cmd/internal/gc/gsubr.go b/src/cmd/internal/gc/gsubr.go
+index 09949665c5..626a16b2ba 100644
+--- a/src/cmd/internal/gc/gsubr.go
++++ b/src/cmd/internal/gc/gsubr.go
+@@ -273,7 +273,9 @@ func markautoused(p *obj.Prog) {
+ 	}
+ }
+ 
+-func Naddr(n *Node) (a obj.Addr) {
++// Naddr rewrites a to refer to n.
++// It assumes that a is zeroed on entry.
++func Naddr(a *obj.Addr, n *Node) {
+ 	if n == nil {
+ 		return
+ 	}
+@@ -293,7 +295,7 @@ func Naddr(n *Node) (a obj.Addr) {
+ 	switch n.Op {
+ 	default:
+ 		a := a // copy to let escape into Ctxt.Dconv
+-		Fatal("naddr: bad %v %v", Oconv(int(n.Op), 0), Ctxt.Dconv(&a))
++		Fatal("naddr: bad %v %v", Oconv(int(n.Op), 0), Ctxt.Dconv(a))
+ 
+ 	case OREGISTER:
+ 		a.Type = obj.TYPE_REG
+@@ -337,7 +339,7 @@ func Naddr(n *Node) (a obj.Addr) {
+ 		a.Offset = n.Xoffset
+ 
+ 	case OCFUNC:
+-		a = Naddr(n.Left)
++		Naddr(a, n.Left)
+ 		a.Sym = Linksym(n.Left.Sym)
+ 
+ 	case ONAME:
+@@ -407,7 +409,7 @@ func Naddr(n *Node) (a obj.Addr) {
+ 			a.Offset = Mpgetfix(n.Val.U.Xval)
+ 
+ 		case CTSTR:
+-			datagostring(n.Val.U.Sval, &a)
++			datagostring(n.Val.U.Sval, a)
+ 
+ 		case CTBOOL:
+ 			a.Sym = nil
+@@ -421,20 +423,20 @@ func Naddr(n *Node) (a obj.Addr) {
+ 		}
+ 
+ 	case OADDR:
+-		a = Naddr(n.Left)
++		Naddr(a, n.Left)
+ 		a.Etype = uint8(Tptr)
+ 		if Thearch.Thechar != '5' && Thearch.Thechar != '7' && Thearch.Thechar != '9' { // TODO(rsc): Do this even for arm, ppc64.
+ 			a.Width = int64(Widthptr)
+ 		}
+ 		if a.Type != obj.TYPE_MEM {
+ 			a := a // copy to let escape into Ctxt.Dconv
+-			Fatal("naddr: OADDR %v (from %v)", Ctxt.Dconv(&a), Oconv(int(n.Left.Op), 0))
++			Fatal("naddr: OADDR %v (from %v)", Ctxt.Dconv(a), Oconv(int(n.Left.Op), 0))
+ 		}
+ 		a.Type = obj.TYPE_ADDR
+ 
+ 		// itable of interface value
+ 	case OITAB:
+-		a = Naddr(n.Left)
++		Naddr(a, n.Left)
+ 
+ 		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
+ 			break // itab(nil)
+@@ -444,7 +446,7 @@ func Naddr(n *Node) (a obj.Addr) {
+ 
+ 		// pointer in a string or slice
+ 	case OSPTR:
+-		a = Naddr(n.Left)
++		Naddr(a, n.Left)
+ 
+ 		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
+ 			break // ptr(nil)
+@@ -455,7 +457,7 @@ func Naddr(n *Node) (a obj.Addr) {
+ 
+ 		// len of string or slice
+ 	case OLEN:
+-		a = Naddr(n.Left)
++		Naddr(a, n.Left)
+ 
+ 		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
+ 			break // len(nil)
+@@ -471,7 +473,7 @@ func Naddr(n *Node) (a obj.Addr) {
+ 
+ 		// cap of string or slice
+ 	case OCAP:
+-		a = Naddr(n.Left)
++		Naddr(a, n.Left)
+ 
+ 		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
+ 			break // cap(nil)
+diff --git a/src/cmd/internal/gc/plive.go b/src/cmd/internal/gc/plive.go
+index 59f678958f..5e5ae3090e 100644
+--- a/src/cmd/internal/gc/plive.go
++++ b/src/cmd/internal/gc/plive.go
+@@ -1054,8 +1054,8 @@ func newpcdataprog(prog *obj.Prog, index int32) *obj.Prog {
+ 	Nodconst(&to, Types[TINT32], int64(index))
+ 	pcdata := unlinkedprog(obj.APCDATA)
+ 	pcdata.Lineno = prog.Lineno
+-	pcdata.From = Naddr(&from)
+-	pcdata.To = Naddr(&to)
++	Naddr(&pcdata.From, &from)
++	Naddr(&pcdata.To, &to)
+ 	return pcdata
+ }
+ 

@@ -7,6 +7,22 @@ Date:   Mon Jan 27 15:37:11 2020 -0500
     Change-Id: I682193eb06b55eb3e9392146579f57a928c728d0
     Reviewed-on: https://go-review.googlesource.com/c/go/+/216598
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  doc/go1.14.html | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index f5f0735741..f341bd6d99 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -139,10 +139,6 @@ TODO
+ 
+ <h2 id="tools">Tools</h2>
+ 
+-<p>
+-TODO
+-</p>
+-
+ <h3 id="go-command">Go command</h3>
+ 
+ <h4 id="vendor">Vendoring</h4>

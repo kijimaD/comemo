@@ -14,9 +14,153 @@ Date:   Thu Aug 25 03:27:02 2022 +0800
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/runtime/export_debug_test.go |  2 +-
  src/runtime/proc.go              | 18 +++++++++---------
  src/runtime/runtime-gdb.py       |  8 ++++----
  src/runtime/runtime2.go          |  2 +-
  4 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/runtime/export_debug_test.go b/src/runtime/export_debug_test.go
+index 09e9779696..2d8a133409 100644
+--- a/src/runtime/export_debug_test.go
++++ b/src/runtime/export_debug_test.go
+@@ -109,7 +109,7 @@ func (h *debugCallHandler) inject(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
+ 	// a signal handler. Add the go:nowritebarrierrec annotation and restructure
+ 	// this to avoid write barriers.
+ 
+-	switch h.gp.atomicstatus {
++	switch h.gp.atomicstatus.Load() {
+ 	case _Grunning:
+ 		if getg().m != h.mp {
+ 			println("trap on wrong M", getg().m, h.mp)
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 6ecb786d1b..49f2caceac 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -899,7 +899,7 @@ func freezetheworld() {
+ //
+ //go:nosplit
+ func readgstatus(gp *g) uint32 {
+-	return atomic.Load(&gp.atomicstatus)
++	return gp.atomicstatus.Load()
+ }
+ 
+ // The Gscanstatuses are acting like locks and this releases them.
+@@ -921,7 +921,7 @@ func casfrom_Gscanstatus(gp *g, oldval, newval uint32) {
+ 		_Gscansyscall,
+ 		_Gscanpreempted:
+ 		if newval == oldval&^_Gscan {
+-			success = atomic.Cas(&gp.atomicstatus, oldval, newval)
++			success = gp.atomicstatus.CompareAndSwap(oldval, newval)
+ 		}
+ 	}
+ 	if !success {
+@@ -941,7 +941,7 @@ func castogscanstatus(gp *g, oldval, newval uint32) bool {
+ 		_Gwaiting,
+ 		_Gsyscall:
+ 		if newval == oldval|_Gscan {
+-			r := atomic.Cas(&gp.atomicstatus, oldval, newval)
++			r := gp.atomicstatus.CompareAndSwap(oldval, newval)
+ 			if r {
+ 				acquireLockRank(lockRankGscan)
+ 			}
+@@ -977,15 +977,15 @@ func casgstatus(gp *g, oldval, newval uint32) {
+ 
+ 	// loop if gp->atomicstatus is in a scan state giving
+ 	// GC time to finish and change the state to oldval.
+-	for i := 0; !atomic.Cas(&gp.atomicstatus, oldval, newval); i++ {
+-		if oldval == _Gwaiting && gp.atomicstatus == _Grunnable {
++	for i := 0; !gp.atomicstatus.CompareAndSwap(oldval, newval); i++ {
++		if oldval == _Gwaiting && gp.atomicstatus.Load() == _Grunnable {
+ 			throw("casgstatus: waiting for Gwaiting but is Grunnable")
+ 		}
+ 		if i == 0 {
+ 			nextYield = nanotime() + yieldDelay
+ 		}
+ 		if nanotime() < nextYield {
+-			for x := 0; x < 10 && gp.atomicstatus != oldval; x++ {
++			for x := 0; x < 10 && gp.atomicstatus.Load() != oldval; x++ {
+ 				procyield(1)
+ 			}
+ 		} else {
+@@ -1040,7 +1040,7 @@ func casgcopystack(gp *g) uint32 {
+ 		if oldstatus != _Gwaiting && oldstatus != _Grunnable {
+ 			throw("copystack: bad status, not Gwaiting or Grunnable")
+ 		}
+-		if atomic.Cas(&gp.atomicstatus, oldstatus, _Gcopystack) {
++		if gp.atomicstatus.CompareAndSwap(oldstatus, _Gcopystack) {
+ 			return oldstatus
+ 		}
+ 	}
+@@ -1055,7 +1055,7 @@ func casGToPreemptScan(gp *g, old, new uint32) {
+ 		throw("bad g transition")
+ 	}
+ 	acquireLockRank(lockRankGscan)
+-	for !atomic.Cas(&gp.atomicstatus, _Grunning, _Gscan|_Gpreempted) {
++	for !gp.atomicstatus.CompareAndSwap(_Grunning, _Gscan|_Gpreempted) {
+ 	}
+ }
+ 
+@@ -1066,7 +1066,7 @@ func casGFromPreempted(gp *g, old, new uint32) bool {
+ 	if old != _Gpreempted || new != _Gwaiting {
+ 		throw("bad g transition")
+ 	}
+-	return atomic.Cas(&gp.atomicstatus, _Gpreempted, _Gwaiting)
++	return gp.atomicstatus.CompareAndSwap(_Gpreempted, _Gwaiting)
+ }
+ 
+ // stopTheWorld stops all P's from executing goroutines, interrupting
+diff --git a/src/runtime/runtime-gdb.py b/src/runtime/runtime-gdb.py
+index 5bb605cc37..c4462de851 100644
+--- a/src/runtime/runtime-gdb.py
++++ b/src/runtime/runtime-gdb.py
+@@ -447,7 +447,7 @@ class GoroutinesCmd(gdb.Command):
+ 		# args = gdb.string_to_argv(arg)
+ 		vp = gdb.lookup_type('void').pointer()
+ 		for ptr in SliceValue(gdb.parse_and_eval("'runtime.allgs'")):
+-			if ptr['atomicstatus'] == G_DEAD:
++			if ptr['atomicstatus']['value'] == G_DEAD:
+ 				continue
+ 			s = ' '
+ 			if ptr['m']:
+@@ -455,7 +455,7 @@ class GoroutinesCmd(gdb.Command):
+ 			pc = ptr['sched']['pc'].cast(vp)
+ 			pc = pc_to_int(pc)
+ 			blk = gdb.block_for_pc(pc)
+-			status = int(ptr['atomicstatus'])
++			status = int(ptr['atomicstatus']['value'])
+ 			st = sts.get(status, "unknown(%d)" % status)
+ 			print(s, ptr['goid'], "{0:8s}".format(st), blk.function)
+ 
+@@ -472,7 +472,7 @@ def find_goroutine(goid):
+ 	"""
+ 	vp = gdb.lookup_type('void').pointer()
+ 	for ptr in SliceValue(gdb.parse_and_eval("'runtime.allgs'")):
+-		if ptr['atomicstatus'] == G_DEAD:
++		if ptr['atomicstatus']['value'] == G_DEAD:
+ 			continue
+ 		if ptr['goid'] == goid:
+ 			break
+@@ -480,7 +480,7 @@ def find_goroutine(goid):
+ 		return None, None
+ 	# Get the goroutine's saved state.
+ 	pc, sp = ptr['sched']['pc'], ptr['sched']['sp']
+-	status = ptr['atomicstatus']&~G_SCAN
++	status = ptr['atomicstatus']['value']&~G_SCAN
+ 	# Goroutine is not running nor in syscall, so use the info in goroutine
+ 	if status != G_RUNNING and status != G_SYSCALL:
+ 		return pc.cast(vp), sp.cast(vp)
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index f9bdb8e236..40d3805808 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -435,7 +435,7 @@ type g struct {
+ 	// 3. By debugCallWrap to pass parameters to a new goroutine because allocating a
+ 	//    closure in the runtime is forbidden.
+ 	param        unsafe.Pointer
+-	atomicstatus uint32
++	atomicstatus atomic.Uint32
+ 	stackLock    uint32 // sigprof/scang lock; TODO: fold in to atomicstatus
+ 	goid         uint64
+ 	schedlink    guintptr

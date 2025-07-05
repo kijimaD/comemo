@@ -15,6 +15,20 @@ Date:   Thu Jun 9 01:42:26 2022 +0900
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
     Reviewed-by: hopehook <hopehook@golangcn.org>
     Reviewed-by: Subham <sarkar.subhams2@gmail.com>
-
+---
  src/encoding/asn1/asn1.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/encoding/asn1/asn1.go b/src/encoding/asn1/asn1.go
+index c90bba47dc..4408352cff 100644
+--- a/src/encoding/asn1/asn1.go
++++ b/src/encoding/asn1/asn1.go
+@@ -162,7 +162,7 @@ type BitString struct {
+ }
+ 
+ // At returns the bit at the given index. If the index is out of range it
+-// returns false.
++// returns 0.
+ func (b BitString) At(i int) int {
+ 	if i < 0 || i >= b.BitLength {
+ 		return 0

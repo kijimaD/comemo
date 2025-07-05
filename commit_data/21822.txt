@@ -16,8 +16,57 @@ Date:   Tue Feb 3 10:52:18 2015 -0800
     Change-Id: Id8abf000119e3335f7250d8ef34aac7811fc9dff
     Reviewed-on: https://go-review.googlesource.com/3812
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  test/gc2.go     | 3 +--
  test/nosplit.go | 3 +--
  test/run.go     | 6 ++----
  3 files changed, 4 insertions(+), 8 deletions(-)
+
+diff --git a/test/gc2.go b/test/gc2.go
+index 561516b8bb..b33a027804 100644
+--- a/test/gc2.go
++++ b/test/gc2.go
+@@ -1,6 +1,5 @@
+-// run
+-
+ // +build !nacl
++// run
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/nosplit.go b/test/nosplit.go
+index a639150511..0bd13c1db4 100644
+--- a/test/nosplit.go
++++ b/test/nosplit.go
+@@ -1,6 +1,5 @@
+-// run
+-
+ // +build !nacl
++// run
+ 
+ // Copyright 2014 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/run.go b/test/run.go
+index aa26061af8..6adf93cd98 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -325,9 +325,6 @@ type context struct {
+ // shouldTest looks for build tags in a source file and returns
+ // whether the file should be used according to the tags.
+ func shouldTest(src string, goos, goarch string) (ok bool, whyNot string) {
+-	if idx := strings.Index(src, "\npackage"); idx >= 0 {
+-		src = src[:idx]
+-	}
+ 	for _, line := range strings.Split(src, "\n") {
+ 		line = strings.TrimSpace(line)
+ 		if strings.HasPrefix(line, "//") {
+@@ -417,7 +414,8 @@ func (t *test) run() {
+ 		t.err = errors.New("double newline not found")
+ 		return
+ 	}
+-	if ok, why := shouldTest(t.src, goos, goarch); !ok {
++	// Check for build constraints only upto the first blank line.
++	if ok, why := shouldTest(t.src[:pos], goos, goarch); !ok {
+ 		t.action = "skip"
+ 		if *showSkips {
+ 			fmt.Printf("%-20s %-20s: %s\n", t.action, t.goFileName(), why)

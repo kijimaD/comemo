@@ -8,8 +8,462 @@ Date:   Tue Jun 30 16:20:31 2009 -0700
     DELTA=172  (40 added, 6 deleted, 126 changed)
     OCL=30941
     CL=30944
-
+---
  src/pkg/gob/codec_test.go |  42 +++++++++------
  src/pkg/gob/decode.go     |  42 ++++++++++-----
  src/pkg/gob/encode.go     | 130 +++++++++++++++++++++++++---------------------
  3 files changed, 124 insertions(+), 90 deletions(-)
+
+diff --git a/src/pkg/gob/codec_test.go b/src/pkg/gob/codec_test.go
+index a35586e4ae..c0df22310f 100644
+--- a/src/pkg/gob/codec_test.go
++++ b/src/pkg/gob/codec_test.go
+@@ -36,26 +36,30 @@ var encodeT = []EncodeT {
+ 
+ // Test basic encode/decode routines for unsigned integers
+ func TestUintCodec(t *testing.T) {
+-	var b = new(bytes.Buffer);
++	b := new(bytes.Buffer);
++	encState := new(EncState);
++	encState.w = b;
+ 	for i, tt := range encodeT {
+ 		b.Reset();
+-		err := EncodeUint(b, tt.x);
+-		if err != nil {
+-			t.Error("EncodeUint:", tt.x, err)
++		EncodeUint(encState, tt.x);
++		if encState.err != nil {
++			t.Error("EncodeUint:", tt.x, encState.err)
+ 		}
+ 		if !bytes.Equal(tt.b, b.Data()) {
+ 			t.Errorf("EncodeUint: expected % x got % x", tt.b, b.Data())
+ 		}
+ 	}
++	decState := new(DecState);
++	decState.r = b;
+ 	for u := uint64(0); ; u = (u+1) * 7 {
+ 		b.Reset();
+-		err := EncodeUint(b, u);
+-		if err != nil {
+-			t.Error("EncodeUint:", u, err)
++		EncodeUint(encState, u);
++		if encState.err != nil {
++			t.Error("EncodeUint:", u, encState.err)
+ 		}
+-		v, err := DecodeUint(b);
+-		if err != nil {
+-			t.Error("DecodeUint:", u, err)
++		v := DecodeUint(decState);
++		if decState.err != nil {
++			t.Error("DecodeUint:", u, decState.err)
+ 		}
+ 		if u != v {
+ 			t.Errorf("Encode/Decode: sent %#x received %#x\n", u, v)
+@@ -68,13 +72,17 @@ func TestUintCodec(t *testing.T) {
+ 
+ func verifyInt(i int64, t *testing.T) {
+ 	var b = new(bytes.Buffer);
+-	err := EncodeInt(b, i);
+-	if err != nil {
+-		t.Error("EncodeInt:", i, err)
++	encState := new(EncState);
++	encState.w = b;
++	EncodeInt(encState, i);
++	if encState.err != nil {
++		t.Error("EncodeInt:", i, encState.err)
+ 	}
+-	j, err := DecodeInt(b);
+-	if err != nil {
+-		t.Error("DecodeInt:", i, err)
++	decState := new(DecState);
++	decState.r = b;
++	j := DecodeInt(decState);
++	if decState.err != nil {
++		t.Error("DecodeInt:", i, decState.err)
+ 	}
+ 	if i != j {
+ 		t.Errorf("Encode/Decode: sent %#x received %#x\n", uint64(i), uint64(j))
+@@ -109,7 +117,7 @@ var floatResult = []byte{0x80, 0x40, 0xe2, 0x81, 0x40, 0xe2, 0x82, 0x40, 0xe2}
+ // Do not run the machine yet; instead do individual instructions crafted by hand.
+ func TestScalarEncInstructions(t *testing.T) {
+ 	var b = new(bytes.Buffer);
+-	var state encState;
++	var state EncState;
+ 
+ 	// bool
+ 	{
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index 5104627cd0..db34c9d785 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -7,34 +7,48 @@ package gob
+ import (
+ 	"io";
+ 	"os";
++	"unsafe";
+ )
+ 
+-// DecodeUint reads an encoded unsigned integer from r.
+-func DecodeUint(r io.Reader) (x uint64, err os.Error) {
+-	var buf [1]byte;
++// The global execution state of an instance of the decoder.
++type DecState struct {
++	r	io.Reader;
++	err	os.Error;
++	base	uintptr;
++	buf [1]byte;	// buffer used by the decoder; here to avoid allocation.
++}
++
++// DecodeUint reads an encoded unsigned integer from state.r.
++// Sets state.err.  If state.err is already non-nil, it does nothing.
++func DecodeUint(state *DecState) (x uint64) {
++	if state.err != nil {
++		return
++	}
+ 	for shift := uint(0);; shift += 7 {
+-		n, err := r.Read(&buf);
++		var n int;
++		n, state.err = state.r.Read(&state.buf);
+ 		if n != 1 {
+-			return 0, err
++			return 0
+ 		}
+-		b := uint64(buf[0]);
++		b := uint64(state.buf[0]);
+ 		x |= b << shift;
+ 		if b&0x80 != 0 {
+ 			x &^= 0x80 << shift;
+ 			break
+ 		}
+ 	}
+-	return x, nil;
++	return x;
+ }
+ 
+-// DecodeInt reads an encoded signed integer from r.
+-func DecodeInt(r io.Reader) (i int64, err os.Error) {
+-	x, err := DecodeUint(r);
+-	if err != nil {
+-		return
++// DecodeInt reads an encoded signed integer from state.r.
++// Sets state.err.  If state.err is already non-nil, it does nothing.
++func DecodeInt(state *DecState) int64 {
++	x := DecodeUint(state);
++	if state.err != nil {
++		return 0
+ 	}
+ 	if x & 1 != 0 {
+-		return ^int64(x>>1), nil
++		return ^int64(x>>1)
+ 	}
+-	return int64(x >> 1), nil
++	return int64(x >> 1)
+ }
+diff --git a/src/pkg/gob/encode.go b/src/pkg/gob/encode.go
+index 83a4abb39f..6654ac5d8e 100644
+--- a/src/pkg/gob/encode.go
++++ b/src/pkg/gob/encode.go
+@@ -11,51 +11,63 @@ import (
+ 	"unsafe";
+ )
+ 
++// The global execution state of an instance of the encoder.
++type EncState struct {
++	w	io.Writer;
++	base	uintptr;	// the base address of the data structure being written
++	err	os.Error;	// error encountered during encoding;
++	buf [16]byte;	// buffer used by the encoder; here to avoid allocation.
++}
++
+ // Integers encode as a variant of Google's protocol buffer varint (varvarint?).
+ // The variant is that the continuation bytes have a zero top bit instead of a one.
+ // That way there's only one bit to clear and the value is a little easier to see if
+ // you're the unfortunate sort of person who must read the hex to debug.
+ 
+-// EncodeUint writes an encoded unsigned integer to w.
+-func EncodeUint(w io.Writer, x uint64) os.Error {
+-	var buf [16]byte;
++// EncodeUint writes an encoded unsigned integer to state.w.  Sets state.err.
++// If state.err is already non-nil, it does nothing.
++func EncodeUint(state *EncState, x uint64) {
+ 	var n int;
++	if state.err != nil {
++		return
++	}
+ 	for n = 0; x > 127; n++ {
+-		buf[n] = uint8(x & 0x7F);
++		state.buf[n] = uint8(x & 0x7F);
+ 		x >>= 7;
+ 	}
+-	buf[n] = 0x80 | uint8(x);
+-	nn, err := w.Write(buf[0:n+1]);
+-	return err;
++	state.buf[n] = 0x80 | uint8(x);
++	var nn int;
++	nn, state.err = state.w.Write(state.buf[0:n+1]);
+ }
+ 
+-// EncodeInt writes an encoded signed integer to w.
++// EncodeInt writes an encoded signed integer to state.w.
+ // The low bit of the encoding says whether to bit complement the (other bits of the) uint to recover the int.
+-func EncodeInt(w io.Writer, i int64) os.Error {
++// Sets state.err. If state.err is already non-nil, it does nothing.
++func EncodeInt(state *EncState, i int64){
+ 	var x uint64;
+ 	if i < 0 {
+ 		x = uint64(^i << 1) | 1
+ 	} else {
+ 		x = uint64(i << 1)
+ 	}
+-	return EncodeUint(w, uint64(x))
+-}
+-
+-// The global execution state of an instance of the encoder.
+-type encState struct {
+-	w	io.Writer;
+-	base	uintptr;
++	EncodeUint(state, uint64(x))
+ }
+ 
+ // The 'instructions' of the encoding machine
+ type encInstr struct {
+-	op	func(i *encInstr, state *encState);
++	op	func(i *encInstr, state *EncState);
+ 	field		int;	// field number
+ 	indir	int;	// how many pointer indirections to reach the value in the struct
+ 	offset	uintptr;	// offset in the structure of the field to encode
+ }
+ 
+-func encBool(i *encInstr, state *encState) {
++// Each encoder is responsible for handling any indirections associated
++// with the data structure.  If any pointer so reached is nil, no bytes are written.
++// If the data item is zero, no bytes are written.
++// Otherwise, the output (for a scalar) is the field number, as an encoded integer,
++// followed by the field data in its appropriate format.
++
++func encBool(i *encInstr, state *EncState) {
+ 	p := unsafe.Pointer(state.base+i.offset);
+ 	for indir := i.indir; indir > 0; indir-- {
+ 		p = *(*unsafe.Pointer)(p);
+@@ -65,12 +77,12 @@ func encBool(i *encInstr, state *encState) {
+ 	}
+ 	b := *(*bool)(p);
+ 	if b {
+-		EncodeUint(state.w, uint64(i.field));
+-		EncodeUint(state.w, 1);
++		EncodeUint(state, uint64(i.field));
++		EncodeUint(state, 1);
+ 	}
+ }
+ 
+-func encInt(i *encInstr, state *encState) {
++func encInt(i *encInstr, state *EncState) {
+ 	p := unsafe.Pointer(state.base+i.offset);
+ 	for indir := i.indir; indir > 0; indir-- {
+ 		p = *(*unsafe.Pointer)(p);
+@@ -80,12 +92,12 @@ func encInt(i *encInstr, state *encState) {
+ 	}
+ 	v := int64(*(*int)(p));
+ 	if v != 0 {
+-		EncodeUint(state.w, uint64(i.field));
+-		EncodeInt(state.w, v);
++		EncodeUint(state, uint64(i.field));
++		EncodeInt(state, v);
+ 	}
+ }
+ 
+-func encUint(i *encInstr, state *encState) {
++func encUint(i *encInstr, state *EncState) {
+ 	p := unsafe.Pointer(state.base+i.offset);
+ 	for indir := i.indir; indir > 0; indir-- {
+ 		p = *(*unsafe.Pointer)(p);
+@@ -95,12 +107,12 @@ func encUint(i *encInstr, state *encState) {
+ 	}
+ 	v := uint64(*(*uint)(p));
+ 	if v != 0 {
+-		EncodeUint(state.w, uint64(i.field));
+-		EncodeUint(state.w, v);
++		EncodeUint(state, uint64(i.field));
++		EncodeUint(state, v);
+ 	}
+ }
+ 
+-func encInt8(i *encInstr, state *encState) {
++func encInt8(i *encInstr, state *EncState) {
+ 	p := unsafe.Pointer(state.base+i.offset);
+ 	for indir := i.indir; indir > 0; indir-- {
+ 		p = *(*unsafe.Pointer)(p);
+@@ -110,12 +122,12 @@ func encInt8(i *encInstr, state *encState) {
+ 	}
+ 	v := int64(*(*int8)(p));
+ 	if v != 0 {
+-		EncodeUint(state.w, uint64(i.field));
+-		EncodeInt(state.w, v);
++		EncodeUint(state, uint64(i.field));
++		EncodeInt(state, v);
+ 	}
+ }
+ 
+-func encUint8(i *encInstr, state *encState) {
++func encUint8(i *encInstr, state *EncState) {
+ 	p := unsafe.Pointer(state.base+i.offset);
+ 	for indir := i.indir; indir > 0; indir-- {
+ 		p = *(*unsafe.Pointer)(p);
+@@ -125,12 +137,12 @@ func encUint8(i *encInstr, state *encState) {
+ 	}
+ 	v := uint64(*(*uint8)(p));
+ 	if v != 0 {
+-		EncodeUint(state.w, uint64(i.field));
+-		EncodeUint(state.w, v);
++		EncodeUint(state, uint64(i.field));
++		EncodeUint(state, v);
+ 	}
+ }
+ 
+-func encInt16(i *encInstr, state *encState) {
++func encInt16(i *encInstr, state *EncState) {
+ 	p := unsafe.Pointer(state.base+i.offset);
+ 	for indir := i.indir; indir > 0; indir-- {
+ 		p = *(*unsafe.Pointer)(p);
+@@ -140,12 +152,12 @@ func encInt16(i *encInstr, state *encState) {
+ 	}
+ 	v := int64(*(*int16)(p));
+ 	if v != 0 {
+-		EncodeUint(state.w, uint64(i.field));
+-		EncodeInt(state.w, v);
++		EncodeUint(state, uint64(i.field));
++		EncodeInt(state, v);
+ 	}
+ }
+ 
+-func encUint16(i *encInstr, state *encState) {
++func encUint16(i *encInstr, state *EncState) {
+ 	p := unsafe.Pointer(state.base+i.offset);
+ 	for indir := i.indir; indir > 0; indir-- {
+ 		p = *(*unsafe.Pointer)(p);
+@@ -155,12 +167,12 @@ func encUint16(i *encInstr, state *encState) {
+ 	}
+ 	v := uint64(*(*uint16)(p));
+ 	if v != 0 {
+-		EncodeUint(state.w, uint64(i.field));
+-		EncodeUint(state.w, v);
++		EncodeUint(state, uint64(i.field));
++		EncodeUint(state, v);
+ 	}
+ }
+ 
+-func encInt32(i *encInstr, state *encState) {
++func encInt32(i *encInstr, state *EncState) {
+ 	p := unsafe.Pointer(state.base+i.offset);
+ 	for indir := i.indir; indir > 0; indir-- {
+ 		p = *(*unsafe.Pointer)(p);
+@@ -170,12 +182,12 @@ func encInt32(i *encInstr, state *encState) {
+ 	}
+ 	v := int64(*(*int32)(p));
+ 	if v != 0 {
+-		EncodeUint(state.w, uint64(i.field));
+-		EncodeInt(state.w, v);
++		EncodeUint(state, uint64(i.field));
++		EncodeInt(state, v);
+ 	}
+ }
+ 
+-func encUint32(i *encInstr, state *encState) {
++func encUint32(i *encInstr, state *EncState) {
+ 	p := unsafe.Pointer(state.base+i.offset);
+ 	for indir := i.indir; indir > 0; indir-- {
+ 		p = *(*unsafe.Pointer)(p);
+@@ -185,12 +197,12 @@ func encUint32(i *encInstr, state *encState) {
+ 	}
+ 	v := uint64(*(*uint32)(p));
+ 	if v != 0 {
+-		EncodeUint(state.w, uint64(i.field));
+-		EncodeUint(state.w, v);
++		EncodeUint(state, uint64(i.field));
++		EncodeUint(state, v);
+ 	}
+ }
+ 
+-func encInt64(i *encInstr, state *encState) {
++func encInt64(i *encInstr, state *EncState) {
+ 	p := unsafe.Pointer(state.base+i.offset);
+ 	for indir := i.indir; indir > 0; indir-- {
+ 		p = *(*unsafe.Pointer)(p);
+@@ -200,12 +212,12 @@ func encInt64(i *encInstr, state *encState) {
+ 	}
+ 	v := *(*int64)(p);
+ 	if v != 0 {
+-		EncodeUint(state.w, uint64(i.field));
+-		EncodeInt(state.w, v);
++		EncodeUint(state, uint64(i.field));
++		EncodeInt(state, v);
+ 	}
+ }
+ 
+-func encUint64(i *encInstr, state *encState) {
++func encUint64(i *encInstr, state *EncState) {
+ 	p := unsafe.Pointer(state.base+i.offset);
+ 	for indir := i.indir; indir > 0; indir-- {
+ 		p = *(*unsafe.Pointer)(p);
+@@ -215,8 +227,8 @@ func encUint64(i *encInstr, state *encState) {
+ 	}
+ 	v := *(*uint64)(p);
+ 	if v != 0 {
+-		EncodeUint(state.w, uint64(i.field));
+-		EncodeUint(state.w, v);
++		EncodeUint(state, uint64(i.field));
++		EncodeUint(state, v);
+ 	}
+ }
+ 
+@@ -236,7 +248,7 @@ func floatBits(f float64) uint64 {
+ 	return v;
+ }
+ 
+-func encFloat(i *encInstr, state *encState) {
++func encFloat(i *encInstr, state *EncState) {
+ 	p := unsafe.Pointer(state.base+i.offset);
+ 	for indir := i.indir; indir > 0; indir-- {
+ 		p = *(*unsafe.Pointer)(p);
+@@ -247,12 +259,12 @@ func encFloat(i *encInstr, state *encState) {
+ 	f := float(*(*float)(p));
+ 	if f != 0 {
+ 		v := floatBits(float64(f));
+-		EncodeUint(state.w, uint64(i.field));
+-		EncodeUint(state.w, v);
++		EncodeUint(state, uint64(i.field));
++		EncodeUint(state, v);
+ 	}
+ }
+ 
+-func encFloat32(i *encInstr, state *encState) {
++func encFloat32(i *encInstr, state *EncState) {
+ 	p := unsafe.Pointer(state.base+i.offset);
+ 	for indir := i.indir; indir > 0; indir-- {
+ 		p = *(*unsafe.Pointer)(p);
+@@ -263,12 +275,12 @@ func encFloat32(i *encInstr, state *encState) {
+ 	f := float32(*(*float32)(p));
+ 	if f != 0 {
+ 		v := floatBits(float64(f));
+-		EncodeUint(state.w, uint64(i.field));
+-		EncodeUint(state.w, v);
++		EncodeUint(state, uint64(i.field));
++		EncodeUint(state, v);
+ 	}
+ }
+ 
+-func encFloat64(i *encInstr, state *encState) {
++func encFloat64(i *encInstr, state *EncState) {
+ 	p := unsafe.Pointer(state.base+i.offset);
+ 	for indir := i.indir; indir > 0; indir-- {
+ 		p = *(*unsafe.Pointer)(p);
+@@ -279,7 +291,7 @@ func encFloat64(i *encInstr, state *encState) {
+ 	f := *(*float64)(p);
+ 	if f != 0 {
+ 		v := floatBits(f);
+-		EncodeUint(state.w, uint64(i.field));
+-		EncodeUint(state.w, v);
++		EncodeUint(state, uint64(i.field));
++		EncodeUint(state, v);
+ 	}
+ }

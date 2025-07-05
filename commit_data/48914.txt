@@ -16,8 +16,48 @@ Date:   Tue Jun 22 00:24:05 2021 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Alexander Rakoczy <alex@golang.org>
-
+---
  src/runtime/cgocall.go | 2 ++
  src/runtime/debug.go   | 2 +-
  src/runtime/proc.go    | 2 ++
  3 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 0e287d0b8e..8ffb48a888 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -110,6 +110,8 @@ func syscall_cgocaller(fn unsafe.Pointer, args ...uintptr) uintptr {
+ 	return as.retval
+ }
+ 
++var ncgocall uint64 // number of cgo calls in total for dead m
++
+ // Call from Go to C.
+ //
+ // This must be nosplit because it's used for syscalls on some
+diff --git a/src/runtime/debug.go b/src/runtime/debug.go
+index f411b22676..82deefa200 100644
+--- a/src/runtime/debug.go
++++ b/src/runtime/debug.go
+@@ -45,7 +45,7 @@ func NumCPU() int {
+ 
+ // NumCgoCall returns the number of cgo calls made by the current process.
+ func NumCgoCall() int64 {
+-	var n int64
++	var n = int64(atomic.Load64(&ncgocall))
+ 	for mp := (*m)(atomic.Loadp(unsafe.Pointer(&allm))); mp != nil; mp = mp.alllink {
+ 		n += int64(mp.ncgocall)
+ 	}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 8f1a443945..4c92588a66 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1522,6 +1522,8 @@ found:
+ 	}
+ 	unlock(&sched.lock)
+ 
++	atomic.Xadd64(&ncgocall, int64(m.ncgocall))
++
+ 	// Release the P.
+ 	handoffp(releasep())
+ 	// After this point we must not have write barriers.

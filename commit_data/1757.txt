@@ -8,10 +8,307 @@ Date:   Thu Mar 5 15:29:04 2009 -0800
     DELTA=110  (64 added, 19 deleted, 27 changed)
     OCL=25761
     CL=25782
-
+---
  src/lib/strconv/atof.go  | 32 ++++++++++++++++++-------------
  src/lib/strconv/atoi.go  | 49 ++++++++++++++++++++++++++++--------------------
  src/lib/strconv/ftoa.go  | 23 +++++++++++++++++++++++
  src/lib/strconv/itoa.go  |  7 ++++---
  src/lib/strconv/quote.go |  6 ++++++
  5 files changed, 81 insertions(+), 36 deletions(-)
+
+diff --git a/src/lib/strconv/atof.go b/src/lib/strconv/atof.go
+index 3585944163..ec94b7c741 100644
+--- a/src/lib/strconv/atof.go
++++ b/src/lib/strconv/atof.go
+@@ -8,6 +8,8 @@
+ //   2) Multiply/divide decimal by powers of two until in range [0.5, 1)
+ //   3) Multiply by 2^precision and round to get mantissa.
+ 
++// The strconv package implements conversions to and from
++// string representations of basic data types.
+ package strconv
+ 
+ import (
+@@ -308,53 +310,57 @@ func decimalAtof32(neg bool, d *decimal, trunc bool) (f float32, ok bool) {
+ 	return;
+ }
+ 
+-// Convert string s to floating-point number.
++// Atof32 converts the string s to a 32-bit floating-point number.
+ //
+ // If s is well-formed and near a valid floating point number,
+-// returns f, false, true, where f is the nearest floating point
+-// number rounded using IEEE754 unbiased rounding.
++// Atof32 returns the nearest floating point number rounded
++// using IEEE754 unbiased rounding.
+ //
+-// If s is not syntactically well-formed, returns err = os.EINVAL.
++// If s is not syntactically well-formed, Atof32 returns err = os.EINVAL.
+ //
+ // If s is syntactically well-formed but is more than 1/2 ULP
+ // away from the largest floating point number of the given size,
+-// returns f = ±Inf, err = os.ERANGE.
+-func Atof64(s string) (f float64, err *os.Error) {
++// Atof32 returns f = ±Inf, err = os.ERANGE.
++func Atof32(s string) (f float32, err *os.Error) {
+ 	neg, d, trunc, ok := stringToDecimal(s);
+ 	if !ok {
+ 		return 0, os.EINVAL;
+ 	}
+ 	if optimize {
+-		if f, ok := decimalAtof64(neg, d, trunc); ok {
++		if f, ok := decimalAtof32(neg, d, trunc); ok {
+ 			return f, nil;
+ 		}
+ 	}
+-	b, ovf := decimalToFloatBits(neg, d, trunc, &float64info);
+-	f = math.Float64frombits(b);
++	b, ovf := decimalToFloatBits(neg, d, trunc, &float32info);
++	f = math.Float32frombits(uint32(b));
+ 	if ovf {
+ 		err = os.ERANGE;
+ 	}
+ 	return f, err
+ }
+ 
+-func Atof32(s string) (f float32, err *os.Error) {
++// Atof64 converts the string s to a 64-bit floating-point number.
++// Except for the type of its result, its definition is the same as that
++// of Atof32.
++func Atof64(s string) (f float64, err *os.Error) {
+ 	neg, d, trunc, ok := stringToDecimal(s);
+ 	if !ok {
+ 		return 0, os.EINVAL;
+ 	}
+ 	if optimize {
+-		if f, ok := decimalAtof32(neg, d, trunc); ok {
++		if f, ok := decimalAtof64(neg, d, trunc); ok {
+ 			return f, nil;
+ 		}
+ 	}
+-	b, ovf := decimalToFloatBits(neg, d, trunc, &float32info);
+-	f = math.Float32frombits(uint32(b));
++	b, ovf := decimalToFloatBits(neg, d, trunc, &float64info);
++	f = math.Float64frombits(b);
+ 	if ovf {
+ 		err = os.ERANGE;
+ 	}
+ 	return f, err
+ }
+ 
++// Atof is like Atof32 or Atof64, depending on the size of float.
+ func Atof(s string) (f float, err *os.Error) {
+ 	if FloatSize == 32 {
+ 		f1, err1 := Atof32(s);
+diff --git a/src/lib/strconv/atoi.go b/src/lib/strconv/atoi.go
+index 337c32777e..467c37737c 100644
+--- a/src/lib/strconv/atoi.go
++++ b/src/lib/strconv/atoi.go
+@@ -22,14 +22,20 @@ func cutoff64(base int) uint64 {
+ 	return (1<<64 - 1) / uint64(base) + 1;
+ }
+ 
+-// Convert arbitrary base string to unsigned integer.
+-func Btoui64(base int, s string) (n uint64, err *os.Error) {
+-	if base < 2 || base > 36 || len(s) < 1 {
++// Btoui64 interprets a string s in an arbitrary base b (2 to 36)
++// and returns the corresponding value n.
++//
++// Btoui64 returns err == os.EINVAL if b is out of
++// range or s is empty or contains invalid digits.
++// It returns err == os.ERANGE if the value corresponding
++// to s cannot be represented by a uint64.
++func Btoui64(s string, b int) (n uint64, err *os.Error) {
++	if b < 2 || b > 36 || len(s) < 1 {
+ 		return 0, os.EINVAL;
+ 	}
+ 
+ 	n = 0;
+-	cutoff := cutoff64(base);
++	cutoff := cutoff64(b);
+ 
+ 	for i := 0; i < len(s); i++ {
+ 		var v byte;
+@@ -43,15 +49,15 @@ func Btoui64(base int, s string) (n uint64, err *os.Error) {
+ 		default:
+ 			return 0, os.EINVAL;
+ 		}
+-		if int(v) >= base {
++		if int(v) >= b {
+ 			return 0, os.EINVAL;
+ 		}
+ 
+ 		if n >= cutoff {
+-			// n*base overflows
++			// n*b overflows
+ 			return 1<<64-1, os.ERANGE;
+ 		}
+-		n *= uint64(base);
++		n *= uint64(b);
+ 
+ 		n1 := n+uint64(v);
+ 		if n1 < n {
+@@ -64,10 +70,14 @@ func Btoui64(base int, s string) (n uint64, err *os.Error) {
+ 	return n, nil;
+ }
+ 
+-
+-// Convert string to uint64.
+-// Use standard prefixes to signal octal, hexadecimal.
+-func Atoui64(s string) (i uint64, err *os.Error) {
++// Atoui64 interprets a string s as an unsigned decimal, octal, or
++// hexadecimal number and returns the corresponding value n.
++// The default base is decimal.  Strings beginning with 0x are
++// hexadecimal; strings beginning with 0 are octal.
++//
++// Atoui64 returns err == os.EINVAL if s is empty or contains invalid digits.
++// It returns err == os.ERANGE if s cannot be represented by a uint64.
++func Atoui64(s string) (n uint64, err *os.Error) {
+ 	// Empty string bad.
+ 	if len(s) == 0 {
+ 		return 0, os.EINVAL
+@@ -77,17 +87,18 @@ func Atoui64(s string) (i uint64, err *os.Error) {
+ 	if s[0] == '0' && len(s) > 1 {
+ 		if s[1] == 'x' || s[1] == 'X' {
+ 			// hex
+-			return Btoui64(16, s[2:len(s)]);
++			return Btoui64(s[2:len(s)], 16);
+ 		}
+ 		// octal
+-		return Btoui64(8, s[1:len(s)]);
++		return Btoui64(s[1:len(s)], 8);
+ 	}
+ 	// decimal
+-	return Btoui64(10, s);
++	return Btoui64(s, 10);
+ }
+ 
+-// Convert string to int64.
+-// Use standard prefixes to signal octal, hexadecimal.
++
++// Atoi64 is like Atoui64 but allows signed numbers and
++// returns its result in an int64.
+ func Atoi64(s string) (i int64, err *os.Error) {
+ 	// Empty string bad.
+ 	if len(s) == 0 {
+@@ -122,8 +133,7 @@ func Atoi64(s string) (i int64, err *os.Error) {
+ 	return n, nil
+ }
+ 
+-// Convert string to uint.
+-// Use standard prefixes to signal octal, hexadecimal.
++// Atoui is like Atoui64 but returns its result as a uint.
+ func Atoui(s string) (i uint, err *os.Error) {
+ 	i1, e1 := Atoui64(s);
+ 	if e1 != nil && e1 != os.ERANGE {
+@@ -138,8 +148,7 @@ func Atoui(s string) (i uint, err *os.Error) {
+ 	return i, nil
+ }
+ 
+-// Convert string to int.
+-// Use standard prefixes to signal octal, hexadecimal.
++// Atoi is like Atoi64 but returns its result as an int.
+ func Atoi(s string) (i int, err *os.Error) {
+ 	i1, e1 := Atoi64(s);
+ 	if e1 != nil && e1 != os.ERANGE {
+diff --git a/src/lib/strconv/ftoa.go b/src/lib/strconv/ftoa.go
+index 52835c803e..b171151758 100644
+--- a/src/lib/strconv/ftoa.go
++++ b/src/lib/strconv/ftoa.go
+@@ -41,16 +41,39 @@ func floatsize() int {
+ 	}
+ 	return 64;
+ }
++
++// Floatsize gives the size of the float type, either 32 or 64.
+ var FloatSize = floatsize()
+ 
++// Ftoa32 converts the 32-bit floating-point number f to a string,
++// according to the format fmt and precision prec.
++//
++// The format fmt is one of
++// 'b' (-ddddp±ddd, a binary exponent),
++// 'e' (-d.dddde±dd, a decimal exponent),
++// 'f' (-ddd.dddd, no exponent), or
++// 'g' ('e' for large exponents, 'f' otherwise).
++//
++// The precision prec controls the number of digits
++// (excluding the exponent) printed by the 'e', 'f', and 'g' formats.
++// For 'e' and 'f' it is the number of digits after the decimal point.
++// For 'g' it is the total number of digits.
++// The special precision -1 uses the smallest number of digits
++// necessary such that Atof32 will return f exactly.
++//
++// Ftoa32(f) is not the same as Ftoa64(float32(f)),
++// because correct rounding and the number of digits
++// needed to identify f depend on the precision of the representation.
+ func Ftoa32(f float32, fmt byte, prec int) string {
+ 	return genericFtoa(uint64(math.Float32bits(f)), fmt, prec, &float32info);
+ }
+ 
++// Ftoa64 is like Ftoa32 but converts a 64-bit floating-point number.
+ func Ftoa64(f float64, fmt byte, prec int) string {
+ 	return genericFtoa(math.Float64bits(f), fmt, prec, &float64info);
+ }
+ 
++// Ftoa behaves as Ftoa32 or Ftoa64, depending on the size of the float type.
+ func Ftoa(f float, fmt byte, prec int) string {
+ 	if FloatSize == 32 {
+ 		return Ftoa32(float32(f), fmt, prec);
+diff --git a/src/lib/strconv/itoa.go b/src/lib/strconv/itoa.go
+index d50e7887e0..7f693ea8cf 100644
+--- a/src/lib/strconv/itoa.go
++++ b/src/lib/strconv/itoa.go
+@@ -4,6 +4,7 @@
+ 
+ package strconv
+ 
++// Itob64 returns the string representation of i in the given base.
+ func Itob64(i int64, base uint) string {
+ 	if i == 0 {
+ 		return "0"
+@@ -32,17 +33,17 @@ func Itob64(i int64, base uint) string {
+ 	return string(buf[j:len(buf)])
+ }
+ 
+-
++// Itoa64 returns the decimal string representation of i.
+ func Itoa64(i int64) string {
+ 	return Itob64(i, 10);
+ }
+ 
+-
++// Itob returns the string representation of i in the given base.
+ func Itob(i int, base uint) string {
+ 	return Itob64(int64(i), base);
+ }
+ 
+-
++// Itoa returns the decimal string representation of i.
+ func Itoa(i int) string {
+ 	return Itob64(int64(i), 10);
+ }
+diff --git a/src/lib/strconv/quote.go b/src/lib/strconv/quote.go
+index b11d738175..442821a53d 100644
+--- a/src/lib/strconv/quote.go
++++ b/src/lib/strconv/quote.go
+@@ -10,6 +10,10 @@ import (
+ 
+ const lowerhex = "0123456789abcdef"
+ 
++// Quote returns a double-quoted Go string literal
++// representing s.  The returned string s uses Go escape
++// sequences (\t, \n, \xFF, \u0100) for control characters
++// and non-ASCII characters.
+ func Quote(s string) string {
+ 	t := `"`;
+ 	for i := 0; i < len(s); i++ {
+@@ -67,6 +71,8 @@ func Quote(s string) string {
+ 	return t;
+ }
+ 
++// CanBackquote returns whether the string s would be
++// a valid Go string literal if enclosed in backquotes.
+ func CanBackquote(s string) bool {
+ 	for i := 0; i < len(s); i++ {
+ 		if s[i] < ' ' || s[i] == '`' {

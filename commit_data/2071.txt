@@ -8,6 +8,27 @@ Date:   Tue Apr 21 17:00:08 2009 -0700
     R=r
     OCL=27695
     CL=27695
-
+---
  src/cmd/gc/walk.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 1e013e8c32..c1ac526d5a 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -465,6 +465,7 @@ loop:
+ 		case OINDEX:
+ 			if(cl == 2 && cr == 1) {
+ 				// a,b = map[] - mapaccess2
++				implicitstar(&r->left);
+ 				walktype(r->left, Erv);
+ 				if(!istype(r->left->type, TMAP))
+ 					break;
+@@ -3227,6 +3228,7 @@ multi:
+ 		// if so, types are valuetype,bool
+ 		if(cl != 2)
+ 			goto badt;
++		implicitstar(&nr->left);
+ 		walktype(nr->left, Elv);
+ 		t = nr->left->type;
+ 		if(!istype(t, TMAP))

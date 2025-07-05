@@ -9,6 +9,29 @@ Date:   Tue Sep 20 21:52:11 2016 +0000
     Change-Id: I939f087df133710495fdf6f09040051cb9b176d7
     Reviewed-on: https://go-review.googlesource.com/29442
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go_faq.html | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index 921c0b8a7c..450a521681 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -889,6 +889,7 @@ Why does Go not have covariant result types?</h3>
+ 
+ <p>
+ Covariant result types would mean that an interface like
++</p>
+ 
+ <pre>
+ type Copyable interface {
+@@ -896,7 +897,9 @@ type Copyable interface {
+ }
+ </pre>
+ 
++<p>
+ would be satisfied by the method
++</p>
+ 
+ <pre>
+ func (v Value) Copy() Value

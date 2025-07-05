@@ -23,7 +23,7 @@ Date:   Fri Feb 15 13:37:43 2013 -0800
     R=iant, minux.ma
     CC=golang-dev
     https://golang.org/cl/7323068
-
+---
  include/libc.h            |  2 +-
  misc/cgo/testso/test.bash |  2 +-
  src/cmd/cgo/gcc.go        | 34 +++++++++++++++++++++++---------
@@ -33,3 +33,382 @@ Date:   Fri Feb 15 13:37:43 2013 -0800
  src/make.bash             |  5 ++++-
  src/run.bash              |  8 ++++++--
  8 files changed, 73 insertions(+), 37 deletions(-)
+
+diff --git a/include/libc.h b/include/libc.h
+index 9486b11430..1440209e30 100644
+--- a/include/libc.h
++++ b/include/libc.h
+@@ -374,7 +374,7 @@ extern	char*	unsharp(char*);
+ /* command line */
+ extern char	*argv0;
+ extern void __fixargv0(void);
+-#define	ARGBEGIN	for((argv0?0:(argv0=(__fixargv0(),*argv))),argv++,argc--;\
++#define	ARGBEGIN	for((void)(argv0?0:(argv0=(__fixargv0(),*argv))),argv++,argc--;\
+ 			    argv[0] && argv[0][0]=='-' && argv[0][1];\
+ 			    argc--, argv++) {\
+ 				char *_args, *_argt;\
+diff --git a/misc/cgo/testso/test.bash b/misc/cgo/testso/test.bash
+index ecef873c8d..5f113d2162 100755
+--- a/misc/cgo/testso/test.bash
++++ b/misc/cgo/testso/test.bash
+@@ -4,7 +4,7 @@
+ # license that can be found in the LICENSE file.
+ 
+ set -e
+-gcc $(go env GOGCCFLAGS) -shared -o libcgosotest.so cgoso_c.c
++$(go env CC) $(go env GOGCCFLAGS) -shared -o libcgosotest.so cgoso_c.c
+ go build main.go
+ LD_LIBRARY_PATH=. ./main
+ rm -f libcgosotest.so main
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 1449a8d6b5..ad28ec18cb 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -391,9 +391,9 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 	b.WriteString(builtinProlog)
+ 	b.WriteString(f.Preamble)
+ 	b.WriteString("void __cgo__f__(void) {\n")
+-	b.WriteString("#line 0 \"cgo-test\"\n")
++	b.WriteString("#line 1 \"cgo-test\"\n")
+ 	for i, n := range toSniff {
+-		fmt.Fprintf(&b, "%s; enum { _cgo_enum_%d = %s }; /* cgo-test:%d */\n", n.C, i, n.C, i)
++		fmt.Fprintf(&b, "%s; /* #%d */\nenum { _cgo_enum_%d = %s }; /* #%d */\n", n.C, i, i, n.C, i)
+ 	}
+ 	b.WriteString("}\n")
+ 	stderr := p.gccErrors(b.Bytes())
+@@ -423,14 +423,18 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 		if err != nil {
+ 			continue
+ 		}
++		i = (i - 1) / 2
+ 		what := ""
+ 		switch {
+ 		default:
+ 			continue
+-		case strings.Contains(line, ": useless type name in empty declaration"):
++		case strings.Contains(line, ": useless type name in empty declaration"),
++			strings.Contains(line, ": declaration does not declare anything"),
++			strings.Contains(line, ": unexpected type name"):
+ 			what = "type"
+ 			isConst[i] = false
+-		case strings.Contains(line, ": statement with no effect"):
++		case strings.Contains(line, ": statement with no effect"),
++			strings.Contains(line, ": expression result unused"):
+ 			what = "not-type" // const or func or var
+ 		case strings.Contains(line, "undeclared"):
+ 			error_(token.NoPos, "%s", strings.TrimSpace(line[colon+1:]))
+@@ -731,14 +735,19 @@ func (p *Package) rewriteRef(f *File) {
+ 	}
+ }
+ 
+-// gccName returns the name of the compiler to run.  Use $GCC if set in
++// gccName returns the name of the compiler to run.  Use $CC if set in
+ // the environment, otherwise just "gcc".
+ 
+-func (p *Package) gccName() (ret string) {
+-	if ret = os.Getenv("GCC"); ret == "" {
+-		ret = "gcc"
++func (p *Package) gccName() string {
++	// Use $CC if set, since that's what the build uses.
++	if ret := os.Getenv("CC"); ret != "" {
++		return ret
+ 	}
+-	return
++	// Fall back to $GCC if set, since that's what we used to use.
++	if ret := os.Getenv("GCC"); ret != "" {
++		return ret
++	}
++	return "gcc"
+ }
+ 
+ // gccMachine returns the gcc -m flag to use, either "-m32", "-m64" or "-marm".
+@@ -771,6 +780,13 @@ func (p *Package) gccCmd() []string {
+ 		"-c",  // do not link
+ 		"-xc", // input language is C
+ 	}
++	if strings.Contains(p.gccName(), "clang") {
++		c = append(c,
++			"-ferror-limit=0",
++			"-Wno-unneeded-internal-declaration",
++		)
++	}
++
+ 	c = append(c, p.GccOptions...)
+ 	c = append(c, p.gccMachine()...)
+ 	c = append(c, "-") //read input from standard input
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index afa0c470eb..eb72074ec8 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -409,7 +409,6 @@ static char *proto_gccargs[] = {
+ 	"-Wno-comment",
+ 	"-Werror",
+ 	"-fno-common",
+-	"-ggdb",
+ 	"-pipe",
+ 	"-O2",
+ };
+@@ -552,7 +551,7 @@ static void
+ install(char *dir)
+ {
+ 	char *name, *p, *elem, *prefix, *exe;
+-	bool islib, ispkg, isgo, stale;
++	bool islib, ispkg, isgo, stale, clang;
+ 	Buf b, b1, path;
+ 	Vec compile, files, link, go, missing, clean, lib, extra;
+ 	Time ttarg, t;
+@@ -601,9 +600,14 @@ install(char *dir)
+ 		xgetenv(&b, "CC");
+ 		if(b.len == 0)
+ 			bprintf(&b, "gcc");
++		clang = contains(bstr(&b), "clang");
+ 		splitfields(&gccargs, bstr(&b));
+ 		for(i=0; i<nelem(proto_gccargs); i++)
+ 			vadd(&gccargs, proto_gccargs[i]);
++		if(clang)
++			vadd(&gccargs, "-g");
++		else
++			vadd(&gccargs, "-ggdb");
+ 	}
+ 
+ 	islib = hasprefix(dir, "lib") || streq(dir, "cmd/cc") || streq(dir, "cmd/gc");
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index e7c9e69669..dee87853af 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -126,7 +126,7 @@ func (c buildCompiler) Set(value string) error {
+ 	case "gc":
+ 		buildToolchain = gcToolchain{}
+ 	case "gccgo":
+-		buildToolchain = gccgcToolchain{}
++		buildToolchain = gccgoToolchain{}
+ 	default:
+ 		return fmt.Errorf("unknown compiler %q", value)
+ 	}
+@@ -143,7 +143,7 @@ func init() {
+ 	case "gc":
+ 		buildToolchain = gcToolchain{}
+ 	case "gccgo":
+-		buildToolchain = gccgcToolchain{}
++		buildToolchain = gccgoToolchain{}
+ 	}
+ }
+ 
+@@ -527,7 +527,7 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action
+ 			return a
+ 		}
+ 		// gccgo standard library is "fake" too.
+-		if _, ok := buildToolchain.(gccgcToolchain); ok {
++		if _, ok := buildToolchain.(gccgoToolchain); ok {
+ 			// the target name is needed for cgo.
+ 			a.target = p.target
+ 			return a
+@@ -848,7 +848,7 @@ func (b *builder) build(a *action) (err error) {
+ 	}
+ 
+ 	objExt := archChar
+-	if _, ok := buildToolchain.(gccgcToolchain); ok {
++	if _, ok := buildToolchain.(gccgoToolchain); ok {
+ 		objExt = "o"
+ 	}
+ 
+@@ -974,7 +974,7 @@ func (b *builder) includeArgs(flag string, all []*action) []string {
+ 	for _, a1 := range all {
+ 		if dir := a1.pkgdir; dir == a1.p.build.PkgRoot && !incMap[dir] {
+ 			incMap[dir] = true
+-			if _, ok := buildToolchain.(gccgcToolchain); ok {
++			if _, ok := buildToolchain.(gccgoToolchain); ok {
+ 				dir = filepath.Join(dir, "gccgo_"+goos+"_"+goarch)
+ 			} else {
+ 				dir = filepath.Join(dir, goos+"_"+goarch)
+@@ -1475,19 +1475,19 @@ func (gcToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error
+ }
+ 
+ // The Gccgo toolchain.
+-type gccgcToolchain struct{}
++type gccgoToolchain struct{}
+ 
+ var gccgoBin, _ = exec.LookPath("gccgo")
+ 
+-func (gccgcToolchain) compiler() string {
++func (gccgoToolchain) compiler() string {
+ 	return gccgoBin
+ }
+ 
+-func (gccgcToolchain) linker() string {
++func (gccgoToolchain) linker() string {
+ 	return gccgoBin
+ }
+ 
+-func (gccgcToolchain) gc(b *builder, p *Package, obj string, importArgs []string, gofiles []string) (ofile string, err error) {
++func (gccgoToolchain) gc(b *builder, p *Package, obj string, importArgs []string, gofiles []string) (ofile string, err error) {
+ 	out := p.Name + ".o"
+ 	ofile = obj + out
+ 	gcargs := []string{"-g"}
+@@ -1505,7 +1505,7 @@ func (gccgcToolchain) gc(b *builder, p *Package, obj string, importArgs []string
+ 	return ofile, b.run(p.Dir, p.ImportPath, args)
+ }
+ 
+-func (gccgcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
++func (gccgoToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
+ 	sfile = mkAbs(p.Dir, sfile)
+ 	defs := []string{"-D", "GOOS_" + goos, "-D", "GOARCH_" + goarch}
+ 	if pkgpath := gccgoCleanPkgpath(p); pkgpath != "" {
+@@ -1515,14 +1515,14 @@ func (gccgcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) erro
+ 	return b.run(p.Dir, p.ImportPath, "gccgo", "-I", obj, "-o", ofile, defs, sfile)
+ }
+ 
+-func (gccgcToolchain) pkgpath(basedir string, p *Package) string {
++func (gccgoToolchain) pkgpath(basedir string, p *Package) string {
+ 	end := filepath.FromSlash(p.ImportPath + ".a")
+ 	afile := filepath.Join(basedir, end)
+ 	// add "lib" to the final element
+ 	return filepath.Join(filepath.Dir(afile), "lib"+filepath.Base(afile))
+ }
+ 
+-func (gccgcToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles []string) error {
++func (gccgoToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles []string) error {
+ 	var absOfiles []string
+ 	for _, f := range ofiles {
+ 		absOfiles = append(absOfiles, mkAbs(objDir, f))
+@@ -1530,7 +1530,7 @@ func (gccgcToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles
+ 	return b.run(p.Dir, p.ImportPath, "ar", "cru", mkAbs(objDir, afile), absOfiles)
+ }
+ 
+-func (tools gccgcToolchain) ld(b *builder, p *Package, out string, allactions []*action, mainpkg string, ofiles []string) error {
++func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []*action, mainpkg string, ofiles []string) error {
+ 	// gccgo needs explicit linking with all package dependencies,
+ 	// and all LDFLAGS from cgo dependencies.
+ 	afiles := make(map[*Package]string)
+@@ -1572,7 +1572,7 @@ func (tools gccgcToolchain) ld(b *builder, p *Package, out string, allactions []
+ 	return b.run(".", p.ImportPath, "gccgo", "-o", out, ofiles, "-Wl,-(", ldflags, "-Wl,-)", buildGccgoflags)
+ }
+ 
+-func (gccgcToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
++func (gccgoToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
+ 	inc := filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", goos, goarch))
+ 	cfile = mkAbs(p.Dir, cfile)
+ 	defs := []string{"-D", "GOOS_" + goos, "-D", "GOARCH_" + goarch}
+@@ -1580,6 +1580,7 @@ func (gccgcToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) er
+ 	if pkgpath := gccgoCleanPkgpath(p); pkgpath != "" {
+ 		defs = append(defs, `-D`, `GOPKGPATH="`+pkgpath+`"`)
+ 	}
++	// TODO: Support using clang here (during gccgo build)?
+ 	return b.run(p.Dir, p.ImportPath, "gcc", "-Wall", "-g",
+ 		"-I", objdir, "-I", inc, "-o", ofile, defs, "-c", cfile)
+ }
+@@ -1647,8 +1648,12 @@ func (b *builder) gccCmd(objdir string) []string {
+ 	// NOTE: env.go's mkEnv knows that the first three
+ 	// strings returned are "gcc", "-I", objdir (and cuts them off).
+ 
+-	// TODO: HOST_CC?
+-	a := []string{"gcc", "-I", objdir, "-g", "-O2"}
++	gcc := strings.Fields(os.Getenv("CC"))
++	if len(gcc) == 0 {
++		gcc = append(gcc, "gcc")
++	}
++	a := []string{gcc[0], "-I", objdir, "-g", "-O2"}
++	a = append(a, gcc[1:]...)
+ 
+ 	// Definitely want -fPIC but on Windows gcc complains
+ 	// "-fPIC ignored for target (all code is position independent)"
+@@ -1657,13 +1662,16 @@ func (b *builder) gccCmd(objdir string) []string {
+ 	}
+ 	a = append(a, b.gccArchArgs()...)
+ 	// gcc-4.5 and beyond require explicit "-pthread" flag
+-	// for multithreading with pthread library.
++	// for multithreading with pthread library, but clang whines
++	// about unused arguments if we pass it.
+ 	if buildContext.CgoEnabled {
+ 		switch goos {
+ 		case "windows":
+ 			a = append(a, "-mthreads")
+ 		default:
+-			a = append(a, "-pthread")
++			if !strings.Contains(a[0], "clang") {
++				a = append(a, "-pthread")
++			}
+ 		}
+ 	}
+ 
+@@ -1756,7 +1764,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
+ 		cgoflags = append(cgoflags, "-import_syscall=false")
+ 	}
+ 
+-	if _, ok := buildToolchain.(gccgcToolchain); ok {
++	if _, ok := buildToolchain.(gccgoToolchain); ok {
+ 		cgoflags = append(cgoflags, "-gccgo")
+ 		if pkgpath := gccgoPkgpath(p); pkgpath != "" {
+ 			cgoflags = append(cgoflags, "-gccgopkgpath="+pkgpath)
+@@ -1839,7 +1847,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
+ 		cgoLDFLAGS = cgoLDFLAGS[0 : len(cgoLDFLAGS)-1]
+ 	}
+ 
+-	if _, ok := buildToolchain.(gccgcToolchain); ok {
++	if _, ok := buildToolchain.(gccgoToolchain); ok {
+ 		// we don't use dynimport when using gccgo.
+ 		return outGo, outObj, nil
+ 	}
+@@ -1922,7 +1930,7 @@ func (b *builder) swigOne(p *Package, file, obj string, cxx bool) (outGo, outObj
+ 	}
+ 	soname := p.swigSoname(file)
+ 
+-	_, gccgo := buildToolchain.(gccgcToolchain)
++	_, gccgo := buildToolchain.(gccgoToolchain)
+ 
+ 	// swig
+ 	args := []string{
+diff --git a/src/cmd/go/env.go b/src/cmd/go/env.go
+index 3e51674f75..1f449d86cb 100644
+--- a/src/cmd/go/env.go
++++ b/src/cmd/go/env.go
+@@ -34,6 +34,7 @@ func mkEnv() []envVar {
+ 	b.init()
+ 
+ 	env := []envVar{
++		{"CC", b.gccCmd(".")[0]},
+ 		{"GOARCH", goarch},
+ 		{"GOBIN", gobin},
+ 		{"GOCHAR", archChar},
+diff --git a/src/make.bash b/src/make.bash
+index 6c78f93ce6..2d83b6f4d1 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -29,6 +29,9 @@
+ # CGO_ENABLED: Controls cgo usage during the build. Set it to 1
+ # to include all cgo related files, .c and .go file with "cgo"
+ # build directive, in the build. Set it to 0 to ignore them.
++#
++# CC: Command line to run to get at host C compiler.
++# Default is "gcc". Also supported: "clang".
+ 
+ set -e
+ if [ ! -f run.bash ]; then
+@@ -103,7 +106,7 @@ case "$GOHOSTARCH" in
+ 386) mflag=-m32;;
+ amd64) mflag=-m64;;
+ esac
+-gcc $mflag -O2 -Wall -Werror -ggdb -o cmd/dist/dist -Icmd/dist "$DEFGOROOT" cmd/dist/*.c
++${CC:-gcc} $mflag -O2 -Wall -Werror -o cmd/dist/dist -Icmd/dist "$DEFGOROOT" cmd/dist/*.c
+ 
+ eval $(./cmd/dist/dist env -p)
+ echo
+diff --git a/src/run.bash b/src/run.bash
+index 83859781c1..f8716a6ee8 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -46,8 +46,12 @@ echo
+ echo '# sync -cpu=10'
+ go test sync -short -timeout=120s -cpu=10
+ 
+-case "$GOHOSTOS-$GOOS-$GOARCH-$CGO_ENABLED" in
+-linux-linux-amd64-1 | darwin-darwin-amd64-1)
++# Race detector only supported on Linux and OS X,
++# and only on amd64, and only when cgo is enabled.
++# Also, clang can't seem to link the .syso files, so only
++# run if we're using gcc.
++case "$GOHOSTOS-$GOOS-$GOARCH-$CGO_ENABLED-${CC:-gcc}" in
++linux-linux-amd64-1-*gcc* | darwin-darwin-amd64-1-*gcc*)
+ 	echo
+ 	echo '# Testing race detector.'
+ 	go test -race -i flag

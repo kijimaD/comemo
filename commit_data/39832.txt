@@ -29,6 +29,23 @@ Date:   Sun Feb 17 21:29:39 2019 +0300
     Reviewed-by: Volker Dobler <dr.volker.dobler@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/cookie.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/net/http/cookie.go b/src/net/http/cookie.go
+index 63f62214db..b8bc72b622 100644
+--- a/src/net/http/cookie.go
++++ b/src/net/http/cookie.go
+@@ -168,7 +168,11 @@ func (c *Cookie) String() string {
+ 	if c == nil || !isCookieNameValid(c.Name) {
+ 		return ""
+ 	}
++	// extraCookieLength derived from typical length of cookie attributes
++	// see RFC 6265 Sec 4.1.
++	const extraCookieLength = 110
+ 	var b strings.Builder
++	b.Grow(len(c.Name) + len(c.Value) + len(c.Domain) + len(c.Path) + extraCookieLength)
+ 	b.WriteString(sanitizeCookieName(c.Name))
+ 	b.WriteRune('=')
+ 	b.WriteString(sanitizeCookieValue(c.Value))

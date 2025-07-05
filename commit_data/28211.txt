@@ -48,10 +48,93 @@ Date:   Wed May 4 01:42:13 2016 -0600
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/os1_nacl.go       | 7 +++++++
  src/runtime/os1_plan9.go      | 7 +++++++
  src/runtime/panic.go          | 8 +++++++-
  src/runtime/signal_unix.go    | 7 +++++++
  src/runtime/signal_windows.go | 4 ++++
  5 files changed, 32 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/os1_nacl.go b/src/runtime/os1_nacl.go
+index 622755119d..feea496652 100644
+--- a/src/runtime/os1_nacl.go
++++ b/src/runtime/os1_nacl.go
+@@ -56,6 +56,13 @@ func osinit() {
+ 	//nacl_exception_handler(funcPC(sigtramp), nil);
+ }
+ 
++func signame(sig uint32) string {
++	if sig >= uint32(len(sigtable)) {
++		return ""
++	}
++	return sigtable[sig].name
++}
++
+ func crash() {
+ 	*(*int32)(nil) = 0
+ }
+diff --git a/src/runtime/os1_plan9.go b/src/runtime/os1_plan9.go
+index eb7a0c6481..6c7e36d062 100644
+--- a/src/runtime/os1_plan9.go
++++ b/src/runtime/os1_plan9.go
+@@ -286,3 +286,10 @@ func _atoi(b []byte) int {
+ 	}
+ 	return n
+ }
++
++func signame(sig uint32) string {
++	if sig >= uint32(len(sigtable)) {
++		return ""
++	}
++	return sigtable[sig].name
++}
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 382a20e4e7..60b277d52c 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -641,7 +641,13 @@ var deadlock mutex
+ 
+ func dopanic_m(gp *g, pc, sp uintptr) {
+ 	if gp.sig != 0 {
+-		print("[signal ", hex(gp.sig), " code=", hex(gp.sigcode0), " addr=", hex(gp.sigcode1), " pc=", hex(gp.sigpc), "]\n")
++		signame := signame(gp.sig)
++		if signame != "" {
++			print("[signal ", signame)
++		} else {
++			print("[signal ", hex(gp.sig))
++		}
++		print(" code=", hex(gp.sigcode0), " addr=", hex(gp.sigcode1), " pc=", hex(gp.sigpc), "]\n")
+ 	}
+ 
+ 	level, all, docrash := gotraceback()
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 5ce2380daa..f59c9b9549 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -12,3 +12,10 @@ import _ "unsafe" // for go:linkname
+ func os_sigpipe() {
+ 	systemstack(sigpipe)
+ }
++
++func signame(sig uint32) string {
++	if sig >= uint32(len(sigtable)) {
++		return ""
++	}
++	return sigtable[sig].name
++}
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index d54dbf7616..298dcc96a0 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -209,6 +209,10 @@ func raisebadsignal(sig int32) {
+ 	badsignal2()
+ }
+ 
++func signame(sig uint32) string {
++	return ""
++}
++
+ func crash() {
+ 	// TODO: This routine should do whatever is needed
+ 	// to make the Windows program abort/crash as it

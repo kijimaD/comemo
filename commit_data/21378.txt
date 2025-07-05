@@ -9,6 +9,29 @@ Date:   Sun Dec 28 06:12:19 2014 +0100
     Change-Id: Ia207b320f5795c63cdfa71f92c19ca6d05cc833f
     Reviewed-on: https://go-review.googlesource.com/2160
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/pack/pack.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/pack/pack.go b/src/cmd/pack/pack.go
+index ffb2d617ae..f65ae0cf94 100644
+--- a/src/cmd/pack/pack.go
++++ b/src/cmd/pack/pack.go
+@@ -183,7 +183,7 @@ func existingArchive(name string) bool {
+ 		if os.IsNotExist(err) {
+ 			return false
+ 		}
+-		log.Fatal("cannot open file: %s", err)
++		log.Fatalf("cannot open file: %s", err)
+ 	}
+ 	checkHeader(fd)
+ 	fd.Close()
+@@ -196,7 +196,7 @@ func checkHeader(fd *os.File) {
+ 	buf := make([]byte, len(arHeader))
+ 	_, err := io.ReadFull(fd, buf)
+ 	if err != nil || string(buf) != arHeader {
+-		log.Fatal("%s is not an archive: bad header", fd.Name())
++		log.Fatalf("%s is not an archive: bad header", fd.Name())
+ 	}
+ }
+ 

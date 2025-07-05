@@ -8,6 +8,28 @@ Date:   Mon Oct 19 09:11:46 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/16051
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/cgo/godefs.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/godefs.go b/src/cmd/cgo/godefs.go
+index 1b0ece29ef..aff616ea57 100644
+--- a/src/cmd/cgo/godefs.go
++++ b/src/cmd/cgo/godefs.go
+@@ -11,6 +11,7 @@ import (
+ 	"go/printer"
+ 	"go/token"
+ 	"os"
++	"path/filepath"
+ 	"strings"
+ )
+ 
+@@ -19,7 +20,7 @@ func (p *Package) godefs(f *File, srcfile string) string {
+ 	var buf bytes.Buffer
+ 
+ 	fmt.Fprintf(&buf, "// Created by cgo -godefs - DO NOT EDIT\n")
+-	fmt.Fprintf(&buf, "// %s\n", strings.Join(os.Args, " "))
++	fmt.Fprintf(&buf, "// %s %s\n", filepath.Base(os.Args[0]), strings.Join(os.Args[1:], " "))
+ 	fmt.Fprintf(&buf, "\n")
+ 
+ 	override := make(map[string]string)

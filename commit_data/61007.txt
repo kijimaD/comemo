@@ -14,7 +14,84 @@ Date:   Fri Sep 20 00:12:48 2024 -0600
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/modcmd/edit.go      | 23 ++---------------------
  src/cmd/go/testdata/script/mod_edit.txt | 13 -------------
  2 files changed, 2 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/go/internal/modcmd/edit.go b/src/cmd/go/internal/modcmd/edit.go
+index da84c9ff11..ba3d6ed299 100644
+--- a/src/cmd/go/internal/modcmd/edit.go
++++ b/src/cmd/go/internal/modcmd/edit.go
+@@ -339,25 +339,6 @@ func parsePath(flag, arg string) (path string) {
+ 	return path
+ }
+ 
+-// parsePath parses -flag=arg expecting arg to be path to a tool (allows ./)
+-func parseToolPath(flag, arg string) (path string) {
+-	if strings.Contains(arg, "@") {
+-		base.Fatalf("go: -%s=%s: need just path, not path@version", flag, arg)
+-	}
+-	if arg == "." {
+-		return arg
+-	}
+-	toCheck := arg
+-	if strings.HasPrefix(arg, "./") {
+-		toCheck = arg[2:]
+-	}
+-	if err := module.CheckImportPath(toCheck); err != nil {
+-		base.Fatalf("go: -%s=%s: invalid path: %v", flag, arg, err)
+-	}
+-
+-	return arg
+-}
+-
+ // parsePathVersionOptional parses path[@version], using adj to
+ // describe any errors.
+ func parsePathVersionOptional(adj, arg string, allowDirPath bool) (path, version string, err error) {
+@@ -547,7 +528,7 @@ func flagDropRetract(arg string) {
+ 
+ // flagTool implements the -tool flag.
+ func flagTool(arg string) {
+-	path := parseToolPath("tool", arg)
++	path := parsePath("tool", arg)
+ 	edits = append(edits, func(f *modfile.File) {
+ 		if err := f.AddTool(path); err != nil {
+ 			base.Fatalf("go: -tool=%s: %v", arg, err)
+@@ -557,7 +538,7 @@ func flagTool(arg string) {
+ 
+ // flagDropTool implements the -droptool flag.
+ func flagDropTool(arg string) {
+-	path := parseToolPath("droptool", arg)
++	path := parsePath("droptool", arg)
+ 	edits = append(edits, func(f *modfile.File) {
+ 		if err := f.DropTool(path); err != nil {
+ 			base.Fatalf("go: -droptool=%s: %v", arg, err)
+diff --git a/src/cmd/go/testdata/script/mod_edit.txt b/src/cmd/go/testdata/script/mod_edit.txt
+index 0b676cf6f9..e525756833 100644
+--- a/src/cmd/go/testdata/script/mod_edit.txt
++++ b/src/cmd/go/testdata/script/mod_edit.txt
+@@ -102,10 +102,6 @@ cd $WORK/h
+ cp go.mod.start go.mod
+ go mod edit -tool example.com/tool
+ cmpenv go.mod go.mod.edit
+-go mod edit -tool ./local
+-cmpenv go.mod go.mod.edit2
+-go mod edit -droptool ./local
+-cmpenv go.mod go.mod.edit
+ go mod edit -droptool example.com/tool2
+ cmpenv go.mod go.mod.edit
+ go mod edit -droptool example.com/tool
+@@ -386,12 +382,3 @@ module g
+ go 1.24
+ 
+ tool example.com/tool
+--- $WORK/h/go.mod.edit2 --
+-module g
+-
+-go 1.24
+-
+-tool (
+-	./local
+-	example.com/tool
+-)

@@ -12,6 +12,29 @@ Date:   Mon Oct 17 16:25:33 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt b/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
+index d2ded27f85..aa4aa854d0 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
+@@ -20,7 +20,7 @@ go run check_testdata.go FuzzWithBug
+ # Now, the failing bytes should have been added to the seed corpus for
+ # the target, and should fail when run without fuzzing.
+ ! go test
+-stdout 'FuzzWithBug/[a-f0-9]{64}'
++stdout 'FuzzWithBug/[a-f0-9]{16}'
+ stdout 'this input caused a crash!'
+ 
+ ! go test -run=FuzzWithNilPanic -fuzz=FuzzWithNilPanic -fuzztime=100x -fuzzminimizetime=1000x
+@@ -315,7 +315,7 @@ func main() {
+ 	}
+ 	// The hash of the bytes in the file should match the filename.
+ 	h := []byte(fmt.Sprintf("%x", sha256.Sum256(contents)))
+-	if !bytes.Equal([]byte(fname), h) {
++	if !bytes.HasPrefix(h, []byte(fname)) {
+ 		fmt.Fprintf(os.Stderr, "hash of bytes %q does not match filename %q\n", h, fname)
+ 		os.Exit(1)
+ 	}

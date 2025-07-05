@@ -7,6 +7,60 @@ Date:   Wed Mar 14 20:25:57 2012 -0700
     R=golang-dev, bradfitz, dsymonds, dave, r
     CC=golang-dev
     https://golang.org/cl/5795069
-
+---
  src/pkg/net/http/triv.go | 28 ++++++----------------------
  1 file changed, 6 insertions(+), 22 deletions(-)
+
+diff --git a/src/pkg/net/http/triv.go b/src/pkg/net/http/triv.go
+index 269af0ca3d..adf5a00be1 100644
+--- a/src/pkg/net/http/triv.go
++++ b/src/pkg/net/http/triv.go
+@@ -15,6 +15,7 @@ import (
+ 	"log"
+ 	"net/http"
+ 	"os"
++	"os/exec"
+ 	"strconv"
+ )
+ 
+@@ -95,35 +96,18 @@ func (ch Chan) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+ // exec a program, redirecting output
+ func DateServer(rw http.ResponseWriter, req *http.Request) {
+ 	rw.Header().Set("Content-Type", "text/plain; charset=utf-8")
+-	r, w, err := os.Pipe()
+-	if err != nil {
+-		fmt.Fprintf(rw, "pipe: %s\n", err)
+-		return
+-	}
+ 
+-	p, err := os.StartProcess("/bin/date", []string{"date"}, &os.ProcAttr{Files: []*os.File{nil, w, w}})
+-	defer r.Close()
+-	w.Close()
+-	if err != nil {
+-		fmt.Fprintf(rw, "fork/exec: %s\n", err)
+-		return
+-	}
+-	io.Copy(rw, r)
+-	wait, err := p.Wait(0)
++	date, err := exec.Command("/bin/date").Output()
+ 	if err != nil {
+-		fmt.Fprintf(rw, "wait: %s\n", err)
+-		return
+-	}
+-	if !wait.Exited() || wait.ExitStatus() != 0 {
+-		fmt.Fprintf(rw, "date: %v\n", wait)
++		http.Error(rw, err.Error(), 500)
+ 		return
+ 	}
++	rw.Write(date)
+ }
+ 
+ func Logger(w http.ResponseWriter, req *http.Request) {
+-	log.Print(req.URL.Raw)
+-	w.WriteHeader(404)
+-	w.Write([]byte("oops"))
++	log.Print(req.URL)
++	http.Error(w, "oops", 404)
+ }
+ 
+ var webroot = flag.String("root", "/home/rsc", "web root directory")

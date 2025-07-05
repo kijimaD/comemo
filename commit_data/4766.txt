@@ -10,6 +10,29 @@ Date:   Mon Feb 1 23:27:33 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/198058
-
+---
  test/fixedbugs/bug249.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/fixedbugs/bug249.go b/test/fixedbugs/bug249.go
+index b88a444292..c85708fd8e 100644
+--- a/test/fixedbugs/bug249.go
++++ b/test/fixedbugs/bug249.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ var c1 chan <- chan int = (chan<- (chan int))(nil)
+-var c2 chan <- chan int = (chan (<-chan int))(nil)  // ERROR "chan"
++var c2 chan <- chan int = (chan (<-chan int))(nil)  // ERROR "chan|incompatible"
+ var c3 <- chan chan int = (<-chan (chan int))(nil)
+ var c4 chan chan <- int = (chan (chan<- int))(nil)
+ 
+@@ -23,7 +23,7 @@ var c12 chan chan <- <- chan int = (chan (chan<- (<-chan int)))(nil)
+ var c13 chan chan <- chan <- int = (chan (chan<- (chan<- int)))(nil)
+ 
+ var r1 chan<- (chan int) = (chan <- chan int)(nil)
+-var r2 chan (<-chan int) = (chan <- chan int)(nil)  // ERROR "chan"
++var r2 chan (<-chan int) = (chan <- chan int)(nil)  // ERROR "chan|incompatible"
+ var r3 <-chan (chan int) = (<- chan chan int)(nil)
+ var r4 chan (chan<- int) = (chan chan <- int)(nil)
+ 

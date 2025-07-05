@@ -10,6 +10,20 @@ Date:   Fri Oct 31 00:48:57 2014 -0300
     R=r, adg
     CC=golang-codereviews
     https://golang.org/cl/161630044
-
+---
  src/sync/atomic/value.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/sync/atomic/value.go b/src/sync/atomic/value.go
+index ab46d9a240..ab3aa11285 100644
+--- a/src/sync/atomic/value.go
++++ b/src/sync/atomic/value.go
+@@ -38,7 +38,7 @@ func (v *Value) Load() (x interface{}) {
+ 	return
+ }
+ 
+-// Store sets the value of the Value to v.
++// Store sets the value of the Value to x.
+ // All calls to Store for a given Value must use values of the same concrete type.
+ // Store of an inconsistent type panics, as does Store(nil).
+ func (v *Value) Store(x interface{}) {

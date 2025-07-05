@@ -14,7 +14,46 @@ Date:   Sun Apr 28 17:59:05 2019 +1000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/174129
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/auxv_none.go        |  1 +
  src/runtime/os_openbsd_arm64.go | 11 +++++++++++
  2 files changed, 12 insertions(+)
+
+diff --git a/src/runtime/auxv_none.go b/src/runtime/auxv_none.go
+index 3ca617b21e..3a560a1793 100644
+--- a/src/runtime/auxv_none.go
++++ b/src/runtime/auxv_none.go
+@@ -7,6 +7,7 @@
+ // +build !dragonfly
+ // +build !freebsd
+ // +build !netbsd
++// +build !openbsd !arm64
+ // +build !solaris
+ 
+ package runtime
+diff --git a/src/runtime/os_openbsd_arm64.go b/src/runtime/os_openbsd_arm64.go
+index 5130ce66c5..f15a95b653 100644
+--- a/src/runtime/os_openbsd_arm64.go
++++ b/src/runtime/os_openbsd_arm64.go
+@@ -4,6 +4,10 @@
+ 
+ package runtime
+ 
++import (
++	"internal/cpu"
++)
++
+ //go:nosplit
+ func cputicks() int64 {
+ 	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
+@@ -11,3 +15,10 @@ func cputicks() int64 {
+ 	// TODO: need more entropy to better seed fastrand.
+ 	return nanotime()
+ }
++
++func sysargs(argc int32, argv **byte) {
++	// OpenBSD does not have auxv, however we still need to initialise cpu.HWCaps.
++	// For now specify the bare minimum until we add some form of capabilities
++	// detection. See issue #31746.
++	cpu.HWCap = 1<<1 | 1<<0 // ASIMD, FP
++}

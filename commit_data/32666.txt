@@ -11,6 +11,20 @@ Date:   Sat May 13 15:49:15 2017 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/builtin/builtin.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/builtin/builtin.go b/src/builtin/builtin.go
+index 281de0b436..dc166837ae 100644
+--- a/src/builtin/builtin.go
++++ b/src/builtin/builtin.go
+@@ -179,7 +179,7 @@ func cap(v Type) int
+ //	Channel: The channel's buffer is initialized with the specified
+ //	buffer capacity. If zero, or the size is omitted, the channel is
+ //	unbuffered.
+-func make(Type, size IntegerType) Type
++func make(t Type, size ...IntegerType) Type
+ 
+ // The new built-in function allocates memory. The first argument is a type,
+ // not a value, and the value returned is a pointer to a newly

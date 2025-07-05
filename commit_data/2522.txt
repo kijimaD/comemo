@@ -7,6 +7,40 @@ Date:   Thu Jun 25 14:44:45 2009 -0700
     R=ken
     OCL=30593
     CL=30756
-
+---
  src/cmd/gc/walk.c | 14 +++++---------
  1 file changed, 5 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 22711bc7d5..18fc7f3359 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -209,15 +209,8 @@ implicitstar(Node **nn)
+ 	t = t->type;
+ 	if(t == T)
+ 		return;
+-	switch(t->etype) {
+-	case TMAP:
+-	case TSTRING:
+-	case TARRAY:
+-	case TINTER:
+-		break;
+-	default:
++	if(!isfixedarray(t))
+ 		return;
+-	}
+ 	n = nod(OIND, n, N);
+ 	walktype(n, Elv);
+ 	*nn = n;
+@@ -1736,7 +1729,10 @@ lookdot(Node *n, Type *t)
+ 		n->xoffset = f1->width;
+ 		n->type = f1->type;
+ 		if(t->etype == TINTER) {
+-			implicitstar(&n->left);
++			if(isptr[n->left->type->etype]) {
++				n->left = nod(OIND, n->left, N);	// implicitstar
++				walktype(n->left, Elv);
++			}
+ 			n->op = ODOTINTER;
+ 		}
+ 		return 1;

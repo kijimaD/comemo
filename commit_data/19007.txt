@@ -11,7 +11,34 @@ Date:   Wed Apr 2 09:17:42 2014 -0700
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/83430044
-
+---
  src/cmd/6g/ggen.c | 2 +-
  src/cmd/8g/ggen.c | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 51319f23db..b980a78c25 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -45,7 +45,7 @@ defframe(Prog *ptxt)
+ 		if(n->type->width % widthreg != 0 || n->xoffset % widthreg != 0 || n->type->width == 0)
+ 			fatal("var %lN has size %d offset %d", n, (int)n->type->width, (int)n->xoffset);
+ 
+-		if(n->xoffset + n->type->width >= lo - 2*widthptr) {
++		if(lo != hi && n->xoffset + n->type->width >= lo - 2*widthptr) {
+ 			// merge with range we already have
+ 			lo = n->xoffset;
+ 			continue;
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 0a1523871e..35494f795b 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -42,7 +42,7 @@ defframe(Prog *ptxt)
+ 			fatal("needzero class %d", n->class);
+ 		if(n->type->width % widthptr != 0 || n->xoffset % widthptr != 0 || n->type->width == 0)
+ 			fatal("var %lN has size %d offset %d", n, (int)n->type->width, (int)n->xoffset);
+-		if(n->xoffset + n->type->width == lo - 2*widthptr) {
++		if(lo != hi && n->xoffset + n->type->width == lo - 2*widthptr) {
+ 			// merge with range we already have
+ 			lo = n->xoffset;
+ 			continue;

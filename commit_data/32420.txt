@@ -97,8 +97,133 @@ Date:   Tue Mar 21 14:51:38 2017 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/compile.go      |  3 ++
  src/cmd/compile/internal/ssa/likelyadjust.go |  5 --
  src/cmd/compile/internal/ssa/looprotate.go   | 81 ++++++++++++++++++++++++++++
  3 files changed, 84 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 38054a1fde..fc02bd1688 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -369,6 +369,7 @@ var passes = [...]pass{
+ 	{name: "late nilcheck", fn: nilcheckelim2},
+ 	{name: "flagalloc", fn: flagalloc, required: true}, // allocate flags register
+ 	{name: "regalloc", fn: regalloc, required: true},   // allocate int & float registers + stack slots
++	{name: "loop rotate", fn: loopRotate},
+ 	{name: "stackframe", fn: stackframe, required: true},
+ 	{name: "trim", fn: trim}, // remove empty blocks
+ }
+@@ -427,6 +428,8 @@ var passOrder = [...]constraint{
+ 	{"schedule", "flagalloc"},
+ 	// regalloc needs flags to be allocated first.
+ 	{"flagalloc", "regalloc"},
++	// loopRotate will confuse regalloc.
++	{"regalloc", "loop rotate"},
+ 	// stackframe needs to know about spilled registers.
+ 	{"regalloc", "stackframe"},
+ 	// trim needs regalloc to be done first.
+diff --git a/src/cmd/compile/internal/ssa/likelyadjust.go b/src/cmd/compile/internal/ssa/likelyadjust.go
+index 1d95cfd82e..a5d5a83537 100644
+--- a/src/cmd/compile/internal/ssa/likelyadjust.go
++++ b/src/cmd/compile/internal/ssa/likelyadjust.go
+@@ -16,11 +16,6 @@ type loop struct {
+ 	children []*loop  // loops nested directly within this loop. Initialized by assembleChildren().
+ 	exits    []*Block // exits records blocks reached by exits from this loop. Initialized by findExits().
+ 
+-	// Loops aren't that common, so rather than force regalloc to keep
+-	// a map or slice for its data, just put it here.
+-	spills  []*Value
+-	scratch int32
+-
+ 	// Next three fields used by regalloc and/or
+ 	// aid in computation of inner-ness and list of blocks.
+ 	nBlocks int32 // Number of blocks in this loop but not within inner loops
+diff --git a/src/cmd/compile/internal/ssa/looprotate.go b/src/cmd/compile/internal/ssa/looprotate.go
+new file mode 100644
+index 0000000000..fc186124df
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/looprotate.go
+@@ -0,0 +1,81 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++// loopRotate converts loops with a check-loop-condition-at-beginning
++// to loops with a check-loop-condition-at-end.
++// This helps loops avoid extra unnecessary jumps.
++//
++//   loop:
++//     CMPQ ...
++//     JGE exit
++//     ...
++//     JMP loop
++//   exit:
++//
++//    JMP entry
++//  loop:
++//    ...
++//  entry:
++//    CMPQ ...
++//    JLT loop
++func loopRotate(f *Func) {
++	loopnest := f.loopnest()
++	if len(loopnest.loops) == 0 {
++		return
++	}
++
++	// Set of blocks we're moving, by ID.
++	move := map[ID]struct{}{}
++
++	// Map from block ID to the moving block that should
++	// come right after it.
++	after := map[ID]*Block{}
++
++	// Check each loop header and decide if we want to move it.
++	for _, loop := range loopnest.loops {
++		b := loop.header
++		var p *Block // b's in-loop predecessor
++		for _, e := range b.Preds {
++			if e.b.Kind != BlockPlain {
++				continue
++			}
++			if loopnest.b2l[e.b.ID] != loop {
++				continue
++			}
++			p = e.b
++		}
++		if p == nil || p == b {
++			continue
++		}
++
++		// Place b after p.
++		move[b.ID] = struct{}{}
++		after[p.ID] = b
++	}
++
++	// Move blocks to their destinations in a single pass.
++	// We rely here on the fact that loop headers must come
++	// before the rest of the loop.  And that relies on the
++	// fact that we only identify reducible loops.
++	j := 0
++	for i, b := range f.Blocks {
++		if _, ok := move[b.ID]; ok {
++			continue
++		}
++		f.Blocks[j] = b
++		j++
++		if a := after[b.ID]; a != nil {
++			if j > i {
++				f.Fatalf("head before tail in loop %s", b)
++			}
++			f.Blocks[j] = a
++			j++
++		}
++	}
++	if j != len(f.Blocks) {
++		f.Fatalf("bad reordering in looprotate")
++	}
++}

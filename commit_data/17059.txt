@@ -9,7 +9,32 @@ Date:   Tue Aug 6 12:00:46 2013 -0700
     R=gobot
     CC=golang-dev
     https://golang.org/cl/12557043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 0e62240c55..754e0e05dc 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -101,6 +101,7 @@ Dmitry Chestnykh <dchest@gmail.com>
+ Dominik Honnef <dominik.honnef@gmail.com>
+ Donovan Hide <donovanhide@gmail.com>
+ Duncan Holm <mail@frou.org>
++Dustin Sallings <dsallings@gmail.com>
+ Dustin Shields-Cloues <dcloues@gmail.com>
+ Eden Li <eden.li@gmail.com>
+ Egon Elbre <egonelbre@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 7f5a8809ea..7860958b1e 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -160,6 +160,7 @@ Dominik Honnef <dominik.honnef@gmail.com>
+ Donovan Hide <donovanhide@gmail.com>
+ Drew Hintz <adhintz@google.com>
+ Duncan Holm <mail@frou.org>
++Dustin Sallings <dsallings@gmail.com>
+ Dustin Shields-Cloues <dcloues@gmail.com>
+ Eden Li <eden.li@gmail.com>
+ Egon Elbre <egonelbre@gmail.com>

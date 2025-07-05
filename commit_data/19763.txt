@@ -12,8 +12,136 @@ Date:   Fri Jul 18 16:30:38 2014 +1000
     R=khr, rsc
     CC=golang-codereviews
     https://golang.org/cl/115860045
-
+---
  src/pkg/runtime/hashmap.go | 28 +++++++++++++---------------
  src/pkg/runtime/panic.c    | 12 ++++++++++++
  src/pkg/runtime/stubs.go   |  4 ++++
  3 files changed, 29 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/runtime/hashmap.go b/src/pkg/runtime/hashmap.go
+index a2d5cf8e36..4cd61f3bda 100644
+--- a/src/pkg/runtime/hashmap.go
++++ b/src/pkg/runtime/hashmap.go
+@@ -153,9 +153,8 @@ func evacuated(b *bmap) bool {
+ }
+ 
+ func makemap(t *maptype, hint int64) *hmap {
+-
+ 	if unsafe.Sizeof(hmap{}) > 48 {
+-		panic("hmap too large")
++		throwgo("hmap too large")
+ 	}
+ 
+ 	if hint < 0 || int64(int32(hint)) != hint {
+@@ -164,7 +163,7 @@ func makemap(t *maptype, hint int64) *hmap {
+ 	}
+ 
+ 	if !ismapkey(t.key) {
+-		panic("runtime.makemap: unsupported map key type")
++		throwgo("runtime.makemap: unsupported map key type")
+ 	}
+ 
+ 	flags := uint32(0)
+@@ -182,32 +181,31 @@ func makemap(t *maptype, hint int64) *hmap {
+ 	}
+ 	bucketsize := dataOffset + bucketCnt*(keysize+valuesize)
+ 	if bucketsize != uintptr(t.bucket.size) {
+-		panic("bucketsize wrong")
++		throwgo("bucketsize wrong")
+ 	}
+ 
+ 	// invariants we depend on.  We should probably check these at compile time
+ 	// somewhere, but for now we'll do it here.
+-	// TODO: make these throw(), not panic()
+ 	if t.key.align > bucketCnt {
+-		panic("key align too big")
++		throwgo("key align too big")
+ 	}
+ 	if t.elem.align > bucketCnt {
+-		panic("value align too big")
++		throwgo("value align too big")
+ 	}
+ 	if uintptr(t.key.size)%uintptr(t.key.align) != 0 {
+-		panic("key size not a multiple of key align")
++		throwgo("key size not a multiple of key align")
+ 	}
+ 	if uintptr(t.elem.size)%uintptr(t.elem.align) != 0 {
+-		panic("value size not a multiple of value align")
++		throwgo("value size not a multiple of value align")
+ 	}
+ 	if bucketCnt < 8 {
+-		panic("bucketsize too small for proper alignment")
++		throwgo("bucketsize too small for proper alignment")
+ 	}
+ 	if dataOffset%uintptr(t.key.align) != 0 {
+-		panic("need padding in bucket (key)")
++		throwgo("need padding in bucket (key)")
+ 	}
+ 	if dataOffset%uintptr(t.elem.align) != 0 {
+-		panic("need padding in bucket (value)")
++		throwgo("need padding in bucket (value)")
+ 	}
+ 
+ 	// find size parameter which will hold the requested # of elements
+@@ -570,7 +568,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
+ 	}
+ 
+ 	if unsafe.Sizeof(hiter{})/ptrSize != 10 {
+-		panic("hash_iter size incorrect") // see ../../cmd/gc/reflect.c
++		throwgo("hash_iter size incorrect") // see ../../cmd/gc/reflect.c
+ 	}
+ 	it.t = t
+ 	it.h = h
+@@ -738,7 +736,7 @@ next:
+ 
+ func hashGrow(t *maptype, h *hmap) {
+ 	if h.oldbuckets != nil {
+-		panic("evacuation not done in time")
++		throwgo("evacuation not done in time")
+ 	}
+ 	oldbuckets := h.buckets
+ 	if checkgc {
+@@ -798,7 +796,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
+ 					continue
+ 				}
+ 				if top < minTopHash {
+-					panic("bad map state")
++					throwgo("bad map state")
+ 				}
+ 				k2 := k
+ 				if h.flags&indirectKey != 0 {
+diff --git a/src/pkg/runtime/panic.c b/src/pkg/runtime/panic.c
+index 8225df7db7..ce05725037 100644
+--- a/src/pkg/runtime/panic.c
++++ b/src/pkg/runtime/panic.c
+@@ -524,6 +524,18 @@ runtime·throw(int8 *s)
+ 	runtime·exit(1);	// even more not reached
+ }
+ 
++void
++runtime·throwgo(String s)
++{
++	if(g->m->throwing == 0)
++		g->m->throwing = 1;
++	runtime·startpanic();
++	runtime·printf("fatal error: %S\n", s);
++	runtime·dopanic(0);
++	*(int32*)0 = 0;	// not reached
++	runtime·exit(1);	// even more not reached
++}
++
+ void
+ runtime·panicstring(int8 *s)
+ {
+diff --git a/src/pkg/runtime/stubs.go b/src/pkg/runtime/stubs.go
+index 77b0186564..a40de86bf5 100644
+--- a/src/pkg/runtime/stubs.go
++++ b/src/pkg/runtime/stubs.go
+@@ -82,3 +82,7 @@ func gomemeq(a, b unsafe.Pointer, size uintptr) bool
+ 
+ // Code pointer for the nohash algorithm. Used for producing better error messages.
+ var nohashcode uintptr
++
++// Go version of runtime.throw.
++// in panic.c
++func throwgo(s string)

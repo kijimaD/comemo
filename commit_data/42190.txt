@@ -9,7 +9,7 @@ Date:   Mon Nov 11 20:37:50 2019 -0500
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/crypto/tls/key_schedule.go                     |  39 +-
  src/go.mod                                         |   2 +-
  src/go.sum                                         |   4 +-
@@ -57,3 +57,6117 @@ Date:   Mon Nov 11 20:37:50 2019 -0500
  .../golang.org/x/crypto/poly1305/sum_s390x.go      |   5 +-
  src/vendor/modules.txt                             |   4 +-
  46 files changed, 2652 insertions(+), 2813 deletions(-)
+
+diff --git a/src/crypto/tls/key_schedule.go b/src/crypto/tls/key_schedule.go
+index 83e5480fc5..2aab323202 100644
+--- a/src/crypto/tls/key_schedule.go
++++ b/src/crypto/tls/key_schedule.go
+@@ -7,14 +7,14 @@ package tls
+ import (
+ 	"crypto/elliptic"
+ 	"crypto/hmac"
+-	"crypto/subtle"
+ 	"errors"
+-	"golang.org/x/crypto/cryptobyte"
+-	"golang.org/x/crypto/curve25519"
+-	"golang.org/x/crypto/hkdf"
+ 	"hash"
+ 	"io"
+ 	"math/big"
++
++	"golang.org/x/crypto/cryptobyte"
++	"golang.org/x/crypto/curve25519"
++	"golang.org/x/crypto/hkdf"
+ )
+ 
+ // This file contains the functions necessary to compute the TLS 1.3 key
+@@ -111,12 +111,15 @@ type ecdheParameters interface {
+ 
+ func generateECDHEParameters(rand io.Reader, curveID CurveID) (ecdheParameters, error) {
+ 	if curveID == X25519 {
+-		p := &x25519Parameters{}
+-		if _, err := io.ReadFull(rand, p.privateKey[:]); err != nil {
++		privateKey := make([]byte, curve25519.ScalarSize)
++		if _, err := io.ReadFull(rand, privateKey); err != nil {
++			return nil, err
++		}
++		publicKey, err := curve25519.X25519(privateKey, curve25519.Basepoint)
++		if err != nil {
+ 			return nil, err
+ 		}
+-		curve25519.ScalarBaseMult(&p.publicKey, &p.privateKey)
+-		return p, nil
++		return &x25519Parameters{privateKey: privateKey, publicKey: publicKey}, nil
+ 	}
+ 
+ 	curve, ok := curveForCurveID(curveID)
+@@ -178,8 +181,8 @@ func (p *nistParameters) SharedKey(peerPublicKey []byte) []byte {
+ }
+ 
+ type x25519Parameters struct {
+-	privateKey [32]byte
+-	publicKey  [32]byte
++	privateKey []byte
++	publicKey  []byte
+ }
+ 
+ func (p *x25519Parameters) CurveID() CurveID {
+@@ -191,19 +194,9 @@ func (p *x25519Parameters) PublicKey() []byte {
+ }
+ 
+ func (p *x25519Parameters) SharedKey(peerPublicKey []byte) []byte {
+-	if len(peerPublicKey) != 32 {
+-		return nil
+-	}
+-
+-	var theirPublicKey, sharedKey [32]byte
+-	copy(theirPublicKey[:], peerPublicKey)
+-	curve25519.ScalarMult(&sharedKey, &p.privateKey, &theirPublicKey)
+-
+-	// Check for low-order inputs. See RFC 8422, Section 5.11.
+-	var allZeroes [32]byte
+-	if subtle.ConstantTimeCompare(allZeroes[:], sharedKey[:]) == 1 {
++	sharedKey, err := curve25519.X25519(p.privateKey, peerPublicKey)
++	if err != nil {
+ 		return nil
+ 	}
+-
+-	return sharedKey[:]
++	return sharedKey
+ }
+diff --git a/src/go.mod b/src/go.mod
+index de1cca8462..bfc7ae2d20 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -3,7 +3,7 @@ module std
+ go 1.14
+ 
+ require (
+-	golang.org/x/crypto v0.0.0-20190611184440-5c40567a22f8
++	golang.org/x/crypto v0.0.0-20191111213947-16651526fdb4
+ 	golang.org/x/net v0.0.0-20191105084925-a882066a44e0
+ 	golang.org/x/sys v0.0.0-20190529130038-5219a1e1c5f8 // indirect
+ 	golang.org/x/text v0.3.3-0.20191031172631-4b67af870c6f // indirect
+diff --git a/src/go.sum b/src/go.sum
+index 449aca2d1b..a71e1d276b 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,6 +1,6 @@
+ golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
+-golang.org/x/crypto v0.0.0-20190611184440-5c40567a22f8 h1:1wopBVtVdWnn03fZelqdXTqk7U7zPQCb+T4rbU9ZEoU=
+-golang.org/x/crypto v0.0.0-20190611184440-5c40567a22f8/go.mod h1:yigFU9vqHzYiE8UmvKecakEJjdnWj3jj499lnFckfCI=
++golang.org/x/crypto v0.0.0-20191111213947-16651526fdb4 h1:AGVXd+IAyeAb3FuQvYDYQ9+WR2JHm0+C0oYJaU1C4rs=
++golang.org/x/crypto v0.0.0-20191111213947-16651526fdb4/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
+ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+ golang.org/x/net v0.0.0-20191105084925-a882066a44e0 h1:QPlSTtPE2k6PZPasQUbzuK3p9JbS+vMXYVto8g/yrsg=
+ golang.org/x/net v0.0.0-20191105084925-a882066a44e0/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
+diff --git a/src/vendor/golang.org/x/crypto/chacha20/chacha_arm64.go b/src/vendor/golang.org/x/crypto/chacha20/chacha_arm64.go
+new file mode 100644
+index 0000000000..87f1e369cc
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/chacha20/chacha_arm64.go
+@@ -0,0 +1,17 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build go1.11
++// +build !gccgo,!appengine
++
++package chacha20
++
++const bufSize = 256
++
++//go:noescape
++func xorKeyStreamVX(dst, src []byte, key *[8]uint32, nonce *[3]uint32, counter *uint32)
++
++func (c *Cipher) xorKeyStreamBlocks(dst, src []byte) {
++	xorKeyStreamVX(dst, src, &c.key, &c.nonce, &c.counter)
++}
+diff --git a/src/vendor/golang.org/x/crypto/internal/chacha20/asm_arm64.s b/src/vendor/golang.org/x/crypto/chacha20/chacha_arm64.s
+similarity index 100%
+rename from src/vendor/golang.org/x/crypto/internal/chacha20/asm_arm64.s
+rename to src/vendor/golang.org/x/crypto/chacha20/chacha_arm64.s
+diff --git a/src/vendor/golang.org/x/crypto/chacha20/chacha_generic.go b/src/vendor/golang.org/x/crypto/chacha20/chacha_generic.go
+new file mode 100644
+index 0000000000..098ec9f6be
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/chacha20/chacha_generic.go
+@@ -0,0 +1,364 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package chacha20 implements the ChaCha20 and XChaCha20 encryption algorithms
++// as specified in RFC 8439 and draft-irtf-cfrg-xchacha-01.
++package chacha20
++
++import (
++	"crypto/cipher"
++	"encoding/binary"
++	"errors"
++	"math/bits"
++
++	"golang.org/x/crypto/internal/subtle"
++)
++
++const (
++	// KeySize is the size of the key used by this cipher, in bytes.
++	KeySize = 32
++
++	// NonceSize is the size of the nonce used with the standard variant of this
++	// cipher, in bytes.
++	//
++	// Note that this is too short to be safely generated at random if the same
++	// key is reused more than 2³² times.
++	NonceSize = 12
++
++	// NonceSizeX is the size of the nonce used with the XChaCha20 variant of
++	// this cipher, in bytes.
++	NonceSizeX = 24
++)
++
++// Cipher is a stateful instance of ChaCha20 or XChaCha20 using a particular key
++// and nonce. A *Cipher implements the cipher.Stream interface.
++type Cipher struct {
++	// The ChaCha20 state is 16 words: 4 constant, 8 of key, 1 of counter
++	// (incremented after each block), and 3 of nonce.
++	key     [8]uint32
++	counter uint32
++	nonce   [3]uint32
++
++	// The last len bytes of buf are leftover key stream bytes from the previous
++	// XORKeyStream invocation. The size of buf depends on how many blocks are
++	// computed at a time.
++	buf [bufSize]byte
++	len int
++
++	// The counter-independent results of the first round are cached after they
++	// are computed the first time.
++	precompDone      bool
++	p1, p5, p9, p13  uint32
++	p2, p6, p10, p14 uint32
++	p3, p7, p11, p15 uint32
++}
++
++var _ cipher.Stream = (*Cipher)(nil)
++
++// NewUnauthenticatedCipher creates a new ChaCha20 stream cipher with the given
++// 32 bytes key and a 12 or 24 bytes nonce. If a nonce of 24 bytes is provided,
++// the XChaCha20 construction will be used. It returns an error if key or nonce
++// have any other length.
++//
++// Note that ChaCha20, like all stream ciphers, is not authenticated and allows
++// attackers to silently tamper with the plaintext. For this reason, it is more
++// appropriate as a building block than as a standalone encryption mechanism.
++// Instead, consider using package golang.org/x/crypto/chacha20poly1305.
++func NewUnauthenticatedCipher(key, nonce []byte) (*Cipher, error) {
++	// This function is split into a wrapper so that the Cipher allocation will
++	// be inlined, and depending on how the caller uses the return value, won't
++	// escape to the heap.
++	c := &Cipher{}
++	return newUnauthenticatedCipher(c, key, nonce)
++}
++
++func newUnauthenticatedCipher(c *Cipher, key, nonce []byte) (*Cipher, error) {
++	if len(key) != KeySize {
++		return nil, errors.New("chacha20: wrong key size")
++	}
++	if len(nonce) == NonceSizeX {
++		// XChaCha20 uses the ChaCha20 core to mix 16 bytes of the nonce into a
++		// derived key, allowing it to operate on a nonce of 24 bytes. See
++		// draft-irtf-cfrg-xchacha-01, Section 2.3.
++		key, _ = HChaCha20(key, nonce[0:16])
++		cNonce := make([]byte, NonceSize)
++		copy(cNonce[4:12], nonce[16:24])
++		nonce = cNonce
++	} else if len(nonce) != NonceSize {
++		return nil, errors.New("chacha20: wrong nonce size")
++	}
++
++	c.key = [8]uint32{
++		binary.LittleEndian.Uint32(key[0:4]),
++		binary.LittleEndian.Uint32(key[4:8]),
++		binary.LittleEndian.Uint32(key[8:12]),
++		binary.LittleEndian.Uint32(key[12:16]),
++		binary.LittleEndian.Uint32(key[16:20]),
++		binary.LittleEndian.Uint32(key[20:24]),
++		binary.LittleEndian.Uint32(key[24:28]),
++		binary.LittleEndian.Uint32(key[28:32]),
++	}
++	c.nonce = [3]uint32{
++		binary.LittleEndian.Uint32(nonce[0:4]),
++		binary.LittleEndian.Uint32(nonce[4:8]),
++		binary.LittleEndian.Uint32(nonce[8:12]),
++	}
++	return c, nil
++}
++
++// The constant first 4 words of the ChaCha20 state.
++const (
++	j0 uint32 = 0x61707865 // expa
++	j1 uint32 = 0x3320646e // nd 3
++	j2 uint32 = 0x79622d32 // 2-by
++	j3 uint32 = 0x6b206574 // te k
++)
++
++const blockSize = 64
++
++// quarterRound is the core of ChaCha20. It shuffles the bits of 4 state words.
++// It's executed 4 times for each of the 20 ChaCha20 rounds, operating on all 16
++// words each round, in columnar or diagonal groups of 4 at a time.
++func quarterRound(a, b, c, d uint32) (uint32, uint32, uint32, uint32) {
++	a += b
++	d ^= a
++	d = bits.RotateLeft32(d, 16)
++	c += d
++	b ^= c
++	b = bits.RotateLeft32(b, 12)
++	a += b
++	d ^= a
++	d = bits.RotateLeft32(d, 8)
++	c += d
++	b ^= c
++	b = bits.RotateLeft32(b, 7)
++	return a, b, c, d
++}
++
++// XORKeyStream XORs each byte in the given slice with a byte from the
++// cipher's key stream. Dst and src must overlap entirely or not at all.
++//
++// If len(dst) < len(src), XORKeyStream will panic. It is acceptable
++// to pass a dst bigger than src, and in that case, XORKeyStream will
++// only update dst[:len(src)] and will not touch the rest of dst.
++//
++// Multiple calls to XORKeyStream behave as if the concatenation of
++// the src buffers was passed in a single run. That is, Cipher
++// maintains state and does not reset at each XORKeyStream call.
++func (s *Cipher) XORKeyStream(dst, src []byte) {
++	if len(src) == 0 {
++		return
++	}
++	if len(dst) < len(src) {
++		panic("chacha20: output smaller than input")
++	}
++	dst = dst[:len(src)]
++	if subtle.InexactOverlap(dst, src) {
++		panic("chacha20: invalid buffer overlap")
++	}
++
++	// First, drain any remaining key stream from a previous XORKeyStream.
++	if s.len != 0 {
++		keyStream := s.buf[bufSize-s.len:]
++		if len(src) < len(keyStream) {
++			keyStream = keyStream[:len(src)]
++		}
++		_ = src[len(keyStream)-1] // bounds check elimination hint
++		for i, b := range keyStream {
++			dst[i] = src[i] ^ b
++		}
++		s.len -= len(keyStream)
++		src = src[len(keyStream):]
++		dst = dst[len(keyStream):]
++	}
++
++	const blocksPerBuf = bufSize / blockSize
++	numBufs := (uint64(len(src)) + bufSize - 1) / bufSize
++	if uint64(s.counter)+numBufs*blocksPerBuf >= 1<<32 {
++		panic("chacha20: counter overflow")
++	}
++
++	// xorKeyStreamBlocks implementations expect input lengths that are a
++	// multiple of bufSize. Platform-specific ones process multiple blocks at a
++	// time, so have bufSizes that are a multiple of blockSize.
++
++	rem := len(src) % bufSize
++	full := len(src) - rem
++
++	if full > 0 {
++		s.xorKeyStreamBlocks(dst[:full], src[:full])
++	}
++
++	// If we have a partial (multi-)block, pad it for xorKeyStreamBlocks, and
++	// keep the leftover keystream for the next XORKeyStream invocation.
++	if rem > 0 {
++		s.buf = [bufSize]byte{}
++		copy(s.buf[:], src[full:])
++		s.xorKeyStreamBlocks(s.buf[:], s.buf[:])
++		s.len = bufSize - copy(dst[full:], s.buf[:])
++	}
++}
++
++func (s *Cipher) xorKeyStreamBlocksGeneric(dst, src []byte) {
++	if len(dst) != len(src) || len(dst)%blockSize != 0 {
++		panic("chacha20: internal error: wrong dst and/or src length")
++	}
++
++	// To generate each block of key stream, the initial cipher state
++	// (represented below) is passed through 20 rounds of shuffling,
++	// alternatively applying quarterRounds by columns (like 1, 5, 9, 13)
++	// or by diagonals (like 1, 6, 11, 12).
++	//
++	//      0:cccccccc   1:cccccccc   2:cccccccc   3:cccccccc
++	//      4:kkkkkkkk   5:kkkkkkkk   6:kkkkkkkk   7:kkkkkkkk
++	//      8:kkkkkkkk   9:kkkkkkkk  10:kkkkkkkk  11:kkkkkkkk
++	//     12:bbbbbbbb  13:nnnnnnnn  14:nnnnnnnn  15:nnnnnnnn
++	//
++	//            c=constant k=key b=blockcount n=nonce
++	var (
++		c0, c1, c2, c3   = j0, j1, j2, j3
++		c4, c5, c6, c7   = s.key[0], s.key[1], s.key[2], s.key[3]
++		c8, c9, c10, c11 = s.key[4], s.key[5], s.key[6], s.key[7]
++		_, c13, c14, c15 = s.counter, s.nonce[0], s.nonce[1], s.nonce[2]
++	)
++
++	// Three quarters of the first round don't depend on the counter, so we can
++	// calculate them here, and reuse them for multiple blocks in the loop, and
++	// for future XORKeyStream invocations.
++	if !s.precompDone {
++		s.p1, s.p5, s.p9, s.p13 = quarterRound(c1, c5, c9, c13)
++		s.p2, s.p6, s.p10, s.p14 = quarterRound(c2, c6, c10, c14)
++		s.p3, s.p7, s.p11, s.p15 = quarterRound(c3, c7, c11, c15)
++		s.precompDone = true
++	}
++
++	for i := 0; i < len(src); i += blockSize {
++		// The remainder of the first column round.
++		fcr0, fcr4, fcr8, fcr12 := quarterRound(c0, c4, c8, s.counter)
++
++		// The second diagonal round.
++		x0, x5, x10, x15 := quarterRound(fcr0, s.p5, s.p10, s.p15)
++		x1, x6, x11, x12 := quarterRound(s.p1, s.p6, s.p11, fcr12)
++		x2, x7, x8, x13 := quarterRound(s.p2, s.p7, fcr8, s.p13)
++		x3, x4, x9, x14 := quarterRound(s.p3, fcr4, s.p9, s.p14)
++
++		// The remaining 18 rounds.
++		for i := 0; i < 9; i++ {
++			// Column round.
++			x0, x4, x8, x12 = quarterRound(x0, x4, x8, x12)
++			x1, x5, x9, x13 = quarterRound(x1, x5, x9, x13)
++			x2, x6, x10, x14 = quarterRound(x2, x6, x10, x14)
++			x3, x7, x11, x15 = quarterRound(x3, x7, x11, x15)
++
++			// Diagonal round.
++			x0, x5, x10, x15 = quarterRound(x0, x5, x10, x15)
++			x1, x6, x11, x12 = quarterRound(x1, x6, x11, x12)
++			x2, x7, x8, x13 = quarterRound(x2, x7, x8, x13)
++			x3, x4, x9, x14 = quarterRound(x3, x4, x9, x14)
++		}
++
++		// Finally, add back the initial state to generate the key stream.
++		x0 += c0
++		x1 += c1
++		x2 += c2
++		x3 += c3
++		x4 += c4
++		x5 += c5
++		x6 += c6
++		x7 += c7
++		x8 += c8
++		x9 += c9
++		x10 += c10
++		x11 += c11
++		x12 += s.counter
++		x13 += c13
++		x14 += c14
++		x15 += c15
++
++		s.counter += 1
++		if s.counter == 0 {
++			panic("chacha20: internal error: counter overflow")
++		}
++
++		in, out := src[i:], dst[i:]
++		in, out = in[:blockSize], out[:blockSize] // bounds check elimination hint
++
++		// XOR the key stream with the source and write out the result.
++		xor(out[0:], in[0:], x0)
++		xor(out[4:], in[4:], x1)
++		xor(out[8:], in[8:], x2)
++		xor(out[12:], in[12:], x3)
++		xor(out[16:], in[16:], x4)
++		xor(out[20:], in[20:], x5)
++		xor(out[24:], in[24:], x6)
++		xor(out[28:], in[28:], x7)
++		xor(out[32:], in[32:], x8)
++		xor(out[36:], in[36:], x9)
++		xor(out[40:], in[40:], x10)
++		xor(out[44:], in[44:], x11)
++		xor(out[48:], in[48:], x12)
++		xor(out[52:], in[52:], x13)
++		xor(out[56:], in[56:], x14)
++		xor(out[60:], in[60:], x15)
++	}
++}
++
++// HChaCha20 uses the ChaCha20 core to generate a derived key from a 32 bytes
++// key and a 16 bytes nonce. It returns an error if key or nonce have any other
++// length. It is used as part of the XChaCha20 construction.
++func HChaCha20(key, nonce []byte) ([]byte, error) {
++	// This function is split into a wrapper so that the slice allocation will
++	// be inlined, and depending on how the caller uses the return value, won't
++	// escape to the heap.
++	out := make([]byte, 32)
++	return hChaCha20(out, key, nonce)
++}
++
++func hChaCha20(out, key, nonce []byte) ([]byte, error) {
++	if len(key) != KeySize {
++		return nil, errors.New("chacha20: wrong HChaCha20 key size")
++	}
++	if len(nonce) != 16 {
++		return nil, errors.New("chacha20: wrong HChaCha20 nonce size")
++	}
++
++	x0, x1, x2, x3 := j0, j1, j2, j3
++	x4 := binary.LittleEndian.Uint32(key[0:4])
++	x5 := binary.LittleEndian.Uint32(key[4:8])
++	x6 := binary.LittleEndian.Uint32(key[8:12])
++	x7 := binary.LittleEndian.Uint32(key[12:16])
++	x8 := binary.LittleEndian.Uint32(key[16:20])
++	x9 := binary.LittleEndian.Uint32(key[20:24])
++	x10 := binary.LittleEndian.Uint32(key[24:28])
++	x11 := binary.LittleEndian.Uint32(key[28:32])
++	x12 := binary.LittleEndian.Uint32(nonce[0:4])
++	x13 := binary.LittleEndian.Uint32(nonce[4:8])
++	x14 := binary.LittleEndian.Uint32(nonce[8:12])
++	x15 := binary.LittleEndian.Uint32(nonce[12:16])
++
++	for i := 0; i < 10; i++ {
++		// Diagonal round.
++		x0, x4, x8, x12 = quarterRound(x0, x4, x8, x12)
++		x1, x5, x9, x13 = quarterRound(x1, x5, x9, x13)
++		x2, x6, x10, x14 = quarterRound(x2, x6, x10, x14)
++		x3, x7, x11, x15 = quarterRound(x3, x7, x11, x15)
++
++		// Column round.
++		x0, x5, x10, x15 = quarterRound(x0, x5, x10, x15)
++		x1, x6, x11, x12 = quarterRound(x1, x6, x11, x12)
++		x2, x7, x8, x13 = quarterRound(x2, x7, x8, x13)
++		x3, x4, x9, x14 = quarterRound(x3, x4, x9, x14)
++	}
++
++	_ = out[31] // bounds check elimination hint
++	binary.LittleEndian.PutUint32(out[0:4], x0)
++	binary.LittleEndian.PutUint32(out[4:8], x1)
++	binary.LittleEndian.PutUint32(out[8:12], x2)
++	binary.LittleEndian.PutUint32(out[12:16], x3)
++	binary.LittleEndian.PutUint32(out[16:20], x12)
++	binary.LittleEndian.PutUint32(out[20:24], x13)
++	binary.LittleEndian.PutUint32(out[24:28], x14)
++	binary.LittleEndian.PutUint32(out[28:32], x15)
++	return out, nil
++}
+diff --git a/src/vendor/golang.org/x/crypto/chacha20/chacha_noasm.go b/src/vendor/golang.org/x/crypto/chacha20/chacha_noasm.go
+new file mode 100644
+index 0000000000..ec609ed868
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/chacha20/chacha_noasm.go
+@@ -0,0 +1,13 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !arm64,!s390x,!ppc64le arm64,!go1.11 gccgo appengine
++
++package chacha20
++
++const bufSize = blockSize
++
++func (s *Cipher) xorKeyStreamBlocks(dst, src []byte) {
++	s.xorKeyStreamBlocksGeneric(dst, src)
++}
+diff --git a/src/vendor/golang.org/x/crypto/chacha20/chacha_ppc64le.go b/src/vendor/golang.org/x/crypto/chacha20/chacha_ppc64le.go
+new file mode 100644
+index 0000000000..d0ec61f08d
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/chacha20/chacha_ppc64le.go
+@@ -0,0 +1,16 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !gccgo,!appengine
++
++package chacha20
++
++const bufSize = 256
++
++//go:noescape
++func chaCha20_ctr32_vsx(out, inp *byte, len int, key *[8]uint32, counter *uint32)
++
++func (c *Cipher) xorKeyStreamBlocks(dst, src []byte) {
++	chaCha20_ctr32_vsx(&dst[0], &src[0], len(src), &c.key, &c.counter)
++}
+diff --git a/src/vendor/golang.org/x/crypto/chacha20/chacha_ppc64le.s b/src/vendor/golang.org/x/crypto/chacha20/chacha_ppc64le.s
+new file mode 100644
+index 0000000000..533014ea3e
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/chacha20/chacha_ppc64le.s
+@@ -0,0 +1,449 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Based on CRYPTOGAMS code with the following comment:
++// # ====================================================================
++// # Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
++// # project. The module is, however, dual licensed under OpenSSL and
++// # CRYPTOGAMS licenses depending on where you obtain it. For further
++// # details see http://www.openssl.org/~appro/cryptogams/.
++// # ====================================================================
++
++// Code for the perl script that generates the ppc64 assembler
++// can be found in the cryptogams repository at the link below. It is based on
++// the original from openssl.
++
++// https://github.com/dot-asm/cryptogams/commit/a60f5b50ed908e91
++
++// The differences in this and the original implementation are
++// due to the calling conventions and initialization of constants.
++
++// +build !gccgo,!appengine
++
++#include "textflag.h"
++
++#define OUT  R3
++#define INP  R4
++#define LEN  R5
++#define KEY  R6
++#define CNT  R7
++#define TMP  R15
++
++#define CONSTBASE  R16
++#define BLOCKS R17
++
++DATA consts<>+0x00(SB)/8, $0x3320646e61707865
++DATA consts<>+0x08(SB)/8, $0x6b20657479622d32
++DATA consts<>+0x10(SB)/8, $0x0000000000000001
++DATA consts<>+0x18(SB)/8, $0x0000000000000000
++DATA consts<>+0x20(SB)/8, $0x0000000000000004
++DATA consts<>+0x28(SB)/8, $0x0000000000000000
++DATA consts<>+0x30(SB)/8, $0x0a0b08090e0f0c0d
++DATA consts<>+0x38(SB)/8, $0x0203000106070405
++DATA consts<>+0x40(SB)/8, $0x090a0b080d0e0f0c
++DATA consts<>+0x48(SB)/8, $0x0102030005060704
++DATA consts<>+0x50(SB)/8, $0x6170786561707865
++DATA consts<>+0x58(SB)/8, $0x6170786561707865
++DATA consts<>+0x60(SB)/8, $0x3320646e3320646e
++DATA consts<>+0x68(SB)/8, $0x3320646e3320646e
++DATA consts<>+0x70(SB)/8, $0x79622d3279622d32
++DATA consts<>+0x78(SB)/8, $0x79622d3279622d32
++DATA consts<>+0x80(SB)/8, $0x6b2065746b206574
++DATA consts<>+0x88(SB)/8, $0x6b2065746b206574
++DATA consts<>+0x90(SB)/8, $0x0000000100000000
++DATA consts<>+0x98(SB)/8, $0x0000000300000002
++GLOBL consts<>(SB), RODATA, $0xa0
++
++//func chaCha20_ctr32_vsx(out, inp *byte, len int, key *[8]uint32, counter *uint32)
++TEXT ·chaCha20_ctr32_vsx(SB),NOSPLIT,$64-40
++	MOVD out+0(FP), OUT
++	MOVD inp+8(FP), INP
++	MOVD len+16(FP), LEN
++	MOVD key+24(FP), KEY
++	MOVD counter+32(FP), CNT
++
++	// Addressing for constants
++	MOVD $consts<>+0x00(SB), CONSTBASE
++	MOVD $16, R8
++	MOVD $32, R9
++	MOVD $48, R10
++	MOVD $64, R11
++	SRD $6, LEN, BLOCKS
++	// V16
++	LXVW4X (CONSTBASE)(R0), VS48
++	ADD $80,CONSTBASE
++
++	// Load key into V17,V18
++	LXVW4X (KEY)(R0), VS49
++	LXVW4X (KEY)(R8), VS50
++
++	// Load CNT, NONCE into V19
++	LXVW4X (CNT)(R0), VS51
++
++	// Clear V27
++	VXOR V27, V27, V27
++
++	// V28
++	LXVW4X (CONSTBASE)(R11), VS60
++
++	// splat slot from V19 -> V26
++	VSPLTW $0, V19, V26
++
++	VSLDOI $4, V19, V27, V19
++	VSLDOI $12, V27, V19, V19
++
++	VADDUWM V26, V28, V26
++
++	MOVD $10, R14
++	MOVD R14, CTR
++
++loop_outer_vsx:
++	// V0, V1, V2, V3
++	LXVW4X (R0)(CONSTBASE), VS32
++	LXVW4X (R8)(CONSTBASE), VS33
++	LXVW4X (R9)(CONSTBASE), VS34
++	LXVW4X (R10)(CONSTBASE), VS35
++
++	// splat values from V17, V18 into V4-V11
++	VSPLTW $0, V17, V4
++	VSPLTW $1, V17, V5
++	VSPLTW $2, V17, V6
++	VSPLTW $3, V17, V7
++	VSPLTW $0, V18, V8
++	VSPLTW $1, V18, V9
++	VSPLTW $2, V18, V10
++	VSPLTW $3, V18, V11
++
++	// VOR
++	VOR V26, V26, V12
++
++	// splat values from V19 -> V13, V14, V15
++	VSPLTW $1, V19, V13
++	VSPLTW $2, V19, V14
++	VSPLTW $3, V19, V15
++
++	// splat   const values
++	VSPLTISW $-16, V27
++	VSPLTISW $12, V28
++	VSPLTISW $8, V29
++	VSPLTISW $7, V30
++
++loop_vsx:
++	VADDUWM V0, V4, V0
++	VADDUWM V1, V5, V1
++	VADDUWM V2, V6, V2
++	VADDUWM V3, V7, V3
++
++	VXOR V12, V0, V12
++	VXOR V13, V1, V13
++	VXOR V14, V2, V14
++	VXOR V15, V3, V15
++
++	VRLW V12, V27, V12
++	VRLW V13, V27, V13
++	VRLW V14, V27, V14
++	VRLW V15, V27, V15
++
++	VADDUWM V8, V12, V8
++	VADDUWM V9, V13, V9
++	VADDUWM V10, V14, V10
++	VADDUWM V11, V15, V11
++
++	VXOR V4, V8, V4
++	VXOR V5, V9, V5
++	VXOR V6, V10, V6
++	VXOR V7, V11, V7
++
++	VRLW V4, V28, V4
++	VRLW V5, V28, V5
++	VRLW V6, V28, V6
++	VRLW V7, V28, V7
++
++	VADDUWM V0, V4, V0
++	VADDUWM V1, V5, V1
++	VADDUWM V2, V6, V2
++	VADDUWM V3, V7, V3
++
++	VXOR V12, V0, V12
++	VXOR V13, V1, V13
++	VXOR V14, V2, V14
++	VXOR V15, V3, V15
++
++	VRLW V12, V29, V12
++	VRLW V13, V29, V13
++	VRLW V14, V29, V14
++	VRLW V15, V29, V15
++
++	VADDUWM V8, V12, V8
++	VADDUWM V9, V13, V9
++	VADDUWM V10, V14, V10
++	VADDUWM V11, V15, V11
++
++	VXOR V4, V8, V4
++	VXOR V5, V9, V5
++	VXOR V6, V10, V6
++	VXOR V7, V11, V7
++
++	VRLW V4, V30, V4
++	VRLW V5, V30, V5
++	VRLW V6, V30, V6
++	VRLW V7, V30, V7
++
++	VADDUWM V0, V5, V0
++	VADDUWM V1, V6, V1
++	VADDUWM V2, V7, V2
++	VADDUWM V3, V4, V3
++
++	VXOR V15, V0, V15
++	VXOR V12, V1, V12
++	VXOR V13, V2, V13
++	VXOR V14, V3, V14
++
++	VRLW V15, V27, V15
++	VRLW V12, V27, V12
++	VRLW V13, V27, V13
++	VRLW V14, V27, V14
++
++	VADDUWM V10, V15, V10
++	VADDUWM V11, V12, V11
++	VADDUWM V8, V13, V8
++	VADDUWM V9, V14, V9
++
++	VXOR V5, V10, V5
++	VXOR V6, V11, V6
++	VXOR V7, V8, V7
++	VXOR V4, V9, V4
++
++	VRLW V5, V28, V5
++	VRLW V6, V28, V6
++	VRLW V7, V28, V7
++	VRLW V4, V28, V4
++
++	VADDUWM V0, V5, V0
++	VADDUWM V1, V6, V1
++	VADDUWM V2, V7, V2
++	VADDUWM V3, V4, V3
++
++	VXOR V15, V0, V15
++	VXOR V12, V1, V12
++	VXOR V13, V2, V13
++	VXOR V14, V3, V14
++
++	VRLW V15, V29, V15
++	VRLW V12, V29, V12
++	VRLW V13, V29, V13
++	VRLW V14, V29, V14
++
++	VADDUWM V10, V15, V10
++	VADDUWM V11, V12, V11
++	VADDUWM V8, V13, V8
++	VADDUWM V9, V14, V9
++
++	VXOR V5, V10, V5
++	VXOR V6, V11, V6
++	VXOR V7, V8, V7
++	VXOR V4, V9, V4
++
++	VRLW V5, V30, V5
++	VRLW V6, V30, V6
++	VRLW V7, V30, V7
++	VRLW V4, V30, V4
++	BC   16, LT, loop_vsx
++
++	VADDUWM V12, V26, V12
++
++	WORD $0x13600F8C		// VMRGEW V0, V1, V27
++	WORD $0x13821F8C		// VMRGEW V2, V3, V28
++
++	WORD $0x10000E8C		// VMRGOW V0, V1, V0
++	WORD $0x10421E8C		// VMRGOW V2, V3, V2
++
++	WORD $0x13A42F8C		// VMRGEW V4, V5, V29
++	WORD $0x13C63F8C		// VMRGEW V6, V7, V30
++
++	XXPERMDI VS32, VS34, $0, VS33
++	XXPERMDI VS32, VS34, $3, VS35
++	XXPERMDI VS59, VS60, $0, VS32
++	XXPERMDI VS59, VS60, $3, VS34
++
++	WORD $0x10842E8C		// VMRGOW V4, V5, V4
++	WORD $0x10C63E8C		// VMRGOW V6, V7, V6
++
++	WORD $0x13684F8C		// VMRGEW V8, V9, V27
++	WORD $0x138A5F8C		// VMRGEW V10, V11, V28
++
++	XXPERMDI VS36, VS38, $0, VS37
++	XXPERMDI VS36, VS38, $3, VS39
++	XXPERMDI VS61, VS62, $0, VS36
++	XXPERMDI VS61, VS62, $3, VS38
++
++	WORD $0x11084E8C		// VMRGOW V8, V9, V8
++	WORD $0x114A5E8C		// VMRGOW V10, V11, V10
++
++	WORD $0x13AC6F8C		// VMRGEW V12, V13, V29
++	WORD $0x13CE7F8C		// VMRGEW V14, V15, V30
++
++	XXPERMDI VS40, VS42, $0, VS41
++	XXPERMDI VS40, VS42, $3, VS43
++	XXPERMDI VS59, VS60, $0, VS40
++	XXPERMDI VS59, VS60, $3, VS42
++
++	WORD $0x118C6E8C		// VMRGOW V12, V13, V12
++	WORD $0x11CE7E8C		// VMRGOW V14, V15, V14
++
++	VSPLTISW $4, V27
++	VADDUWM V26, V27, V26
++
++	XXPERMDI VS44, VS46, $0, VS45
++	XXPERMDI VS44, VS46, $3, VS47
++	XXPERMDI VS61, VS62, $0, VS44
++	XXPERMDI VS61, VS62, $3, VS46
++
++	VADDUWM V0, V16, V0
++	VADDUWM V4, V17, V4
++	VADDUWM V8, V18, V8
++	VADDUWM V12, V19, V12
++
++	CMPU LEN, $64
++	BLT tail_vsx
++
++	// Bottom of loop
++	LXVW4X (INP)(R0), VS59
++	LXVW4X (INP)(R8), VS60
++	LXVW4X (INP)(R9), VS61
++	LXVW4X (INP)(R10), VS62
++
++	VXOR V27, V0, V27
++	VXOR V28, V4, V28
++	VXOR V29, V8, V29
++	VXOR V30, V12, V30
++
++	STXVW4X VS59, (OUT)(R0)
++	STXVW4X VS60, (OUT)(R8)
++	ADD     $64, INP
++	STXVW4X VS61, (OUT)(R9)
++	ADD     $-64, LEN
++	STXVW4X VS62, (OUT)(R10)
++	ADD     $64, OUT
++	BEQ     done_vsx
++
++	VADDUWM V1, V16, V0
++	VADDUWM V5, V17, V4
++	VADDUWM V9, V18, V8
++	VADDUWM V13, V19, V12
++
++	CMPU  LEN, $64
++	BLT   tail_vsx
++
++	LXVW4X (INP)(R0), VS59
++	LXVW4X (INP)(R8), VS60
++	LXVW4X (INP)(R9), VS61
++	LXVW4X (INP)(R10), VS62
++	VXOR   V27, V0, V27
++
++	VXOR V28, V4, V28
++	VXOR V29, V8, V29
++	VXOR V30, V12, V30
++
++	STXVW4X VS59, (OUT)(R0)
++	STXVW4X VS60, (OUT)(R8)
++	ADD     $64, INP
++	STXVW4X VS61, (OUT)(R9)
++	ADD     $-64, LEN
++	STXVW4X VS62, (OUT)(V10)
++	ADD     $64, OUT
++	BEQ     done_vsx
++
++	VADDUWM V2, V16, V0
++	VADDUWM V6, V17, V4
++	VADDUWM V10, V18, V8
++	VADDUWM V14, V19, V12
++
++	CMPU LEN, $64
++	BLT  tail_vsx
++
++	LXVW4X (INP)(R0), VS59
++	LXVW4X (INP)(R8), VS60
++	LXVW4X (INP)(R9), VS61
++	LXVW4X (INP)(R10), VS62
++
++	VXOR V27, V0, V27
++	VXOR V28, V4, V28
++	VXOR V29, V8, V29
++	VXOR V30, V12, V30
++
++	STXVW4X VS59, (OUT)(R0)
++	STXVW4X VS60, (OUT)(R8)
++	ADD     $64, INP
++	STXVW4X VS61, (OUT)(R9)
++	ADD     $-64, LEN
++	STXVW4X VS62, (OUT)(R10)
++	ADD     $64, OUT
++	BEQ     done_vsx
++
++	VADDUWM V3, V16, V0
++	VADDUWM V7, V17, V4
++	VADDUWM V11, V18, V8
++	VADDUWM V15, V19, V12
++
++	CMPU  LEN, $64
++	BLT   tail_vsx
++
++	LXVW4X (INP)(R0), VS59
++	LXVW4X (INP)(R8), VS60
++	LXVW4X (INP)(R9), VS61
++	LXVW4X (INP)(R10), VS62
++
++	VXOR V27, V0, V27
++	VXOR V28, V4, V28
++	VXOR V29, V8, V29
++	VXOR V30, V12, V30
++
++	STXVW4X VS59, (OUT)(R0)
++	STXVW4X VS60, (OUT)(R8)
++	ADD     $64, INP
++	STXVW4X VS61, (OUT)(R9)
++	ADD     $-64, LEN
++	STXVW4X VS62, (OUT)(R10)
++	ADD     $64, OUT
++
++	MOVD $10, R14
++	MOVD R14, CTR
++	BNE  loop_outer_vsx
++
++done_vsx:
++	// Increment counter by number of 64 byte blocks
++	MOVD (CNT), R14
++	ADD  BLOCKS, R14
++	MOVD R14, (CNT)
++	RET
++
++tail_vsx:
++	ADD  $32, R1, R11
++	MOVD LEN, CTR
++
++	// Save values on stack to copy from
++	STXVW4X VS32, (R11)(R0)
++	STXVW4X VS36, (R11)(R8)
++	STXVW4X VS40, (R11)(R9)
++	STXVW4X VS44, (R11)(R10)
++	ADD $-1, R11, R12
++	ADD $-1, INP
++	ADD $-1, OUT
++
++looptail_vsx:
++	// Copying the result to OUT
++	// in bytes.
++	MOVBZU 1(R12), KEY
++	MOVBZU 1(INP), TMP
++	XOR    KEY, TMP, KEY
++	MOVBU  KEY, 1(OUT)
++	BC     16, LT, looptail_vsx
++
++	// Clear the stack values
++	STXVW4X VS48, (R11)(R0)
++	STXVW4X VS48, (R11)(R8)
++	STXVW4X VS48, (R11)(R9)
++	STXVW4X VS48, (R11)(R10)
++	BR      done_vsx
+diff --git a/src/vendor/golang.org/x/crypto/chacha20/chacha_s390x.go b/src/vendor/golang.org/x/crypto/chacha20/chacha_s390x.go
+new file mode 100644
+index 0000000000..cd55f45a33
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/chacha20/chacha_s390x.go
+@@ -0,0 +1,26 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !gccgo,!appengine
++
++package chacha20
++
++import "golang.org/x/sys/cpu"
++
++var haveAsm = cpu.S390X.HasVX
++
++const bufSize = 256
++
++// xorKeyStreamVX is an assembly implementation of XORKeyStream. It must only
++// be called when the vector facility is available. Implementation in asm_s390x.s.
++//go:noescape
++func xorKeyStreamVX(dst, src []byte, key *[8]uint32, nonce *[3]uint32, counter *uint32)
++
++func (c *Cipher) xorKeyStreamBlocks(dst, src []byte) {
++	if cpu.S390X.HasVX {
++		xorKeyStreamVX(dst, src, &c.key, &c.nonce, &c.counter)
++	} else {
++		c.xorKeyStreamBlocksGeneric(dst, src)
++	}
++}
+diff --git a/src/vendor/golang.org/x/crypto/internal/chacha20/chacha_s390x.s b/src/vendor/golang.org/x/crypto/chacha20/chacha_s390x.s
+similarity index 87%
+rename from src/vendor/golang.org/x/crypto/internal/chacha20/chacha_s390x.s
+rename to src/vendor/golang.org/x/crypto/chacha20/chacha_s390x.s
+index 57df404465..de52a2ea8d 100644
+--- a/src/vendor/golang.org/x/crypto/internal/chacha20/chacha_s390x.s
++++ b/src/vendor/golang.org/x/crypto/chacha20/chacha_s390x.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build s390x,!gccgo,!appengine
++// +build !gccgo,!appengine
+ 
+ #include "go_asm.h"
+ #include "textflag.h"
+@@ -24,15 +24,6 @@ DATA ·constants<>+0x14(SB)/4, $0x3320646e
+ DATA ·constants<>+0x18(SB)/4, $0x79622d32
+ DATA ·constants<>+0x1c(SB)/4, $0x6b206574
+ 
+-// EXRL targets:
+-TEXT ·mvcSrcToBuf(SB), NOFRAME|NOSPLIT, $0
+-	MVC $1, (R1), (R8)
+-	RET
+-
+-TEXT ·mvcBufToDst(SB), NOFRAME|NOSPLIT, $0
+-	MVC $1, (R8), (R9)
+-	RET
+-
+ #define BSWAP V5
+ #define J0    V6
+ #define KEY0  V7
+@@ -144,7 +135,7 @@ TEXT ·mvcBufToDst(SB), NOFRAME|NOSPLIT, $0
+ 	VMRHF v, w, c \ // c = {a[2], b[2], c[2], d[2]}
+ 	VMRLF v, w, d // d = {a[3], b[3], c[3], d[3]}
+ 
+-// func xorKeyStreamVX(dst, src []byte, key *[8]uint32, nonce *[3]uint32, counter *uint32, buf *[256]byte, len *int)
++// func xorKeyStreamVX(dst, src []byte, key *[8]uint32, nonce *[3]uint32, counter *uint32)
+ TEXT ·xorKeyStreamVX(SB), NOSPLIT, $0
+ 	MOVD $·constants<>(SB), R1
+ 	MOVD dst+0(FP), R2         // R2=&dst[0]
+@@ -152,25 +143,10 @@ TEXT ·xorKeyStreamVX(SB), NOSPLIT, $0
+ 	MOVD key+48(FP), R5        // R5=key
+ 	MOVD nonce+56(FP), R6      // R6=nonce
+ 	MOVD counter+64(FP), R7    // R7=counter
+-	MOVD buf+72(FP), R8        // R8=buf
+-	MOVD len+80(FP), R9        // R9=len
+ 
+ 	// load BSWAP and J0
+ 	VLM (R1), BSWAP, J0
+ 
+-	// set up tail buffer
+-	ADD     $-1, R4, R12
+-	MOVBZ   R12, R12
+-	CMPUBEQ R12, $255, aligned
+-	MOVD    R4, R1
+-	AND     $~255, R1
+-	MOVD    $(R3)(R1*1), R1
+-	EXRL    $·mvcSrcToBuf(SB), R12
+-	MOVD    $255, R0
+-	SUB     R12, R0
+-	MOVD    R0, (R9)               // update len
+-
+-aligned:
+ 	// setup
+ 	MOVD  $95, R0
+ 	VLM   (R5), KEY0, KEY1
+@@ -217,9 +193,7 @@ loop:
+ 
+ 	// decrement length
+ 	ADD $-256, R4
+-	BLT tail
+ 
+-continue:
+ 	// rearrange vectors
+ 	SHUFFLE(X0, X1, X2, X3, M0, M1, M2, M3)
+ 	ADDV(J0, X0, X1, X2, X3)
+@@ -245,16 +219,6 @@ continue:
+ 	MOVD $256(R3), R3
+ 
+ 	CMPBNE  R4, $0, chacha
+-	CMPUBEQ R12, $255, return
+-	EXRL    $·mvcBufToDst(SB), R12 // len was updated during setup
+ 
+-return:
+ 	VSTEF $0, CTR, (R7)
+ 	RET
+-
+-tail:
+-	MOVD R2, R9
+-	MOVD R8, R2
+-	MOVD R8, R3
+-	MOVD $0, R4
+-	JMP  continue
+diff --git a/src/vendor/golang.org/x/crypto/internal/chacha20/xor.go b/src/vendor/golang.org/x/crypto/chacha20/xor.go
+similarity index 98%
+rename from src/vendor/golang.org/x/crypto/internal/chacha20/xor.go
+rename to src/vendor/golang.org/x/crypto/chacha20/xor.go
+index 9c5ba0b33a..0110c9865a 100644
+--- a/src/vendor/golang.org/x/crypto/internal/chacha20/xor.go
++++ b/src/vendor/golang.org/x/crypto/chacha20/xor.go
+@@ -4,9 +4,7 @@
+ 
+ package chacha20
+ 
+-import (
+-	"runtime"
+-)
++import "runtime"
+ 
+ // Platforms that have fast unaligned 32-bit little endian accesses.
+ const unaligned = runtime.GOARCH == "386" ||
+diff --git a/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305.go b/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305.go
+index bbb86efef5..0d7bac3f7d 100644
+--- a/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305.go
++++ b/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305.go
+@@ -2,13 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package chacha20poly1305 implements the ChaCha20-Poly1305 AEAD as specified in RFC 7539,
+-// and its extended nonce variant XChaCha20-Poly1305.
++// Package chacha20poly1305 implements the ChaCha20-Poly1305 AEAD and its
++// extended nonce variant XChaCha20-Poly1305, as specified in RFC 8439 and
++// draft-irtf-cfrg-xchacha-01.
+ package chacha20poly1305 // import "golang.org/x/crypto/chacha20poly1305"
+ 
+ import (
+ 	"crypto/cipher"
+-	"encoding/binary"
+ 	"errors"
+ )
+ 
+@@ -29,7 +29,7 @@ const (
+ )
+ 
+ type chacha20poly1305 struct {
+-	key [8]uint32
++	key [KeySize]byte
+ }
+ 
+ // New returns a ChaCha20-Poly1305 AEAD that uses the given 256-bit key.
+@@ -38,14 +38,7 @@ func New(key []byte) (cipher.AEAD, error) {
+ 		return nil, errors.New("chacha20poly1305: bad key length")
+ 	}
+ 	ret := new(chacha20poly1305)
+-	ret.key[0] = binary.LittleEndian.Uint32(key[0:4])
+-	ret.key[1] = binary.LittleEndian.Uint32(key[4:8])
+-	ret.key[2] = binary.LittleEndian.Uint32(key[8:12])
+-	ret.key[3] = binary.LittleEndian.Uint32(key[12:16])
+-	ret.key[4] = binary.LittleEndian.Uint32(key[16:20])
+-	ret.key[5] = binary.LittleEndian.Uint32(key[20:24])
+-	ret.key[6] = binary.LittleEndian.Uint32(key[24:28])
+-	ret.key[7] = binary.LittleEndian.Uint32(key[28:32])
++	copy(ret.key[:], key)
+ 	return ret, nil
+ }
+ 
+diff --git a/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305_amd64.go b/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305_amd64.go
+index 2aa4fd89db..737e46aa5a 100644
+--- a/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305_amd64.go
++++ b/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305_amd64.go
+@@ -25,23 +25,23 @@ var (
+ 
+ // setupState writes a ChaCha20 input matrix to state. See
+ // https://tools.ietf.org/html/rfc7539#section-2.3.
+-func setupState(state *[16]uint32, key *[8]uint32, nonce []byte) {
++func setupState(state *[16]uint32, key *[32]byte, nonce []byte) {
+ 	state[0] = 0x61707865
+ 	state[1] = 0x3320646e
+ 	state[2] = 0x79622d32
+ 	state[3] = 0x6b206574
+ 
+-	state[4] = key[0]
+-	state[5] = key[1]
+-	state[6] = key[2]
+-	state[7] = key[3]
+-	state[8] = key[4]
+-	state[9] = key[5]
+-	state[10] = key[6]
+-	state[11] = key[7]
++	state[4] = binary.LittleEndian.Uint32(key[0:4])
++	state[5] = binary.LittleEndian.Uint32(key[4:8])
++	state[6] = binary.LittleEndian.Uint32(key[8:12])
++	state[7] = binary.LittleEndian.Uint32(key[12:16])
++	state[8] = binary.LittleEndian.Uint32(key[16:20])
++	state[9] = binary.LittleEndian.Uint32(key[20:24])
++	state[10] = binary.LittleEndian.Uint32(key[24:28])
++	state[11] = binary.LittleEndian.Uint32(key[28:32])
+ 
+ 	state[12] = 0
+-	state[13] = binary.LittleEndian.Uint32(nonce[:4])
++	state[13] = binary.LittleEndian.Uint32(nonce[0:4])
+ 	state[14] = binary.LittleEndian.Uint32(nonce[4:8])
+ 	state[15] = binary.LittleEndian.Uint32(nonce[8:12])
+ }
+diff --git a/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305_generic.go b/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305_generic.go
+index c27971216c..91b38568ce 100644
+--- a/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305_generic.go
++++ b/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305_generic.go
+@@ -7,7 +7,7 @@ package chacha20poly1305
+ import (
+ 	"encoding/binary"
+ 
+-	"golang.org/x/crypto/internal/chacha20"
++	"golang.org/x/crypto/chacha20"
+ 	"golang.org/x/crypto/internal/subtle"
+ 	"golang.org/x/crypto/poly1305"
+ )
+@@ -22,14 +22,10 @@ func (c *chacha20poly1305) sealGeneric(dst, nonce, plaintext, additionalData []b
+ 		panic("chacha20poly1305: invalid buffer overlap")
+ 	}
+ 
+-	var polyKey [32]byte
+-	s := chacha20.New(c.key, [3]uint32{
+-		binary.LittleEndian.Uint32(nonce[0:4]),
+-		binary.LittleEndian.Uint32(nonce[4:8]),
+-		binary.LittleEndian.Uint32(nonce[8:12]),
+-	})
++	var polyKey, discardBuf [32]byte
++	s, _ := chacha20.NewUnauthenticatedCipher(c.key[:], nonce)
+ 	s.XORKeyStream(polyKey[:], polyKey[:])
+-	s.Advance() // skip the next 32 bytes
++	s.XORKeyStream(discardBuf[:], discardBuf[:]) // skip the next 32 bytes
+ 	s.XORKeyStream(out, plaintext)
+ 
+ 	polyInput := make([]byte, roundTo16(len(additionalData))+roundTo16(len(plaintext))+8+8)
+@@ -50,14 +46,10 @@ func (c *chacha20poly1305) openGeneric(dst, nonce, ciphertext, additionalData []
+ 	copy(tag[:], ciphertext[len(ciphertext)-16:])
+ 	ciphertext = ciphertext[:len(ciphertext)-16]
+ 
+-	var polyKey [32]byte
+-	s := chacha20.New(c.key, [3]uint32{
+-		binary.LittleEndian.Uint32(nonce[0:4]),
+-		binary.LittleEndian.Uint32(nonce[4:8]),
+-		binary.LittleEndian.Uint32(nonce[8:12]),
+-	})
++	var polyKey, discardBuf [32]byte
++	s, _ := chacha20.NewUnauthenticatedCipher(c.key[:], nonce)
+ 	s.XORKeyStream(polyKey[:], polyKey[:])
+-	s.Advance() // skip the next 32 bytes
++	s.XORKeyStream(discardBuf[:], discardBuf[:]) // skip the next 32 bytes
+ 
+ 	polyInput := make([]byte, roundTo16(len(additionalData))+roundTo16(len(ciphertext))+8+8)
+ 	copy(polyInput, additionalData)
+diff --git a/src/vendor/golang.org/x/crypto/chacha20poly1305/xchacha20poly1305.go b/src/vendor/golang.org/x/crypto/chacha20poly1305/xchacha20poly1305.go
+index a02fa57192..d9d46b9639 100644
+--- a/src/vendor/golang.org/x/crypto/chacha20poly1305/xchacha20poly1305.go
++++ b/src/vendor/golang.org/x/crypto/chacha20poly1305/xchacha20poly1305.go
+@@ -6,14 +6,13 @@ package chacha20poly1305
+ 
+ import (
+ 	"crypto/cipher"
+-	"encoding/binary"
+ 	"errors"
+ 
+-	"golang.org/x/crypto/internal/chacha20"
++	"golang.org/x/crypto/chacha20"
+ )
+ 
+ type xchacha20poly1305 struct {
+-	key [8]uint32
++	key [KeySize]byte
+ }
+ 
+ // NewX returns a XChaCha20-Poly1305 AEAD that uses the given 256-bit key.
+@@ -27,14 +26,7 @@ func NewX(key []byte) (cipher.AEAD, error) {
+ 		return nil, errors.New("chacha20poly1305: bad key length")
+ 	}
+ 	ret := new(xchacha20poly1305)
+-	ret.key[0] = binary.LittleEndian.Uint32(key[0:4])
+-	ret.key[1] = binary.LittleEndian.Uint32(key[4:8])
+-	ret.key[2] = binary.LittleEndian.Uint32(key[8:12])
+-	ret.key[3] = binary.LittleEndian.Uint32(key[12:16])
+-	ret.key[4] = binary.LittleEndian.Uint32(key[16:20])
+-	ret.key[5] = binary.LittleEndian.Uint32(key[20:24])
+-	ret.key[6] = binary.LittleEndian.Uint32(key[24:28])
+-	ret.key[7] = binary.LittleEndian.Uint32(key[28:32])
++	copy(ret.key[:], key)
+ 	return ret, nil
+ }
+ 
+@@ -60,15 +52,10 @@ func (x *xchacha20poly1305) Seal(dst, nonce, plaintext, additionalData []byte) [
+ 		panic("chacha20poly1305: plaintext too large")
+ 	}
+ 
+-	hNonce := [4]uint32{
+-		binary.LittleEndian.Uint32(nonce[0:4]),
+-		binary.LittleEndian.Uint32(nonce[4:8]),
+-		binary.LittleEndian.Uint32(nonce[8:12]),
+-		binary.LittleEndian.Uint32(nonce[12:16]),
+-	}
+-	c := &chacha20poly1305{
+-		key: chacha20.HChaCha20(&x.key, &hNonce),
+-	}
++	c := new(chacha20poly1305)
++	hKey, _ := chacha20.HChaCha20(x.key[:], nonce[0:16])
++	copy(c.key[:], hKey)
++
+ 	// The first 4 bytes of the final nonce are unused counter space.
+ 	cNonce := make([]byte, NonceSize)
+ 	copy(cNonce[4:12], nonce[16:24])
+@@ -87,15 +74,10 @@ func (x *xchacha20poly1305) Open(dst, nonce, ciphertext, additionalData []byte)
+ 		panic("chacha20poly1305: ciphertext too large")
+ 	}
+ 
+-	hNonce := [4]uint32{
+-		binary.LittleEndian.Uint32(nonce[0:4]),
+-		binary.LittleEndian.Uint32(nonce[4:8]),
+-		binary.LittleEndian.Uint32(nonce[8:12]),
+-		binary.LittleEndian.Uint32(nonce[12:16]),
+-	}
+-	c := &chacha20poly1305{
+-		key: chacha20.HChaCha20(&x.key, &hNonce),
+-	}
++	c := new(chacha20poly1305)
++	hKey, _ := chacha20.HChaCha20(x.key[:], nonce[0:16])
++	copy(c.key[:], hKey)
++
+ 	// The first 4 bytes of the final nonce are unused counter space.
+ 	cNonce := make([]byte, NonceSize)
+ 	copy(cNonce[4:12], nonce[16:24])
+diff --git a/src/vendor/golang.org/x/crypto/curve25519/const_amd64.h b/src/vendor/golang.org/x/crypto/curve25519/const_amd64.h
+deleted file mode 100644
+index b3f74162f6..0000000000
+--- a/src/vendor/golang.org/x/crypto/curve25519/const_amd64.h
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This code was translated into a form compatible with 6a from the public
+-// domain sources in SUPERCOP: https://bench.cr.yp.to/supercop.html
+-
+-#define REDMASK51     0x0007FFFFFFFFFFFF
+diff --git a/src/vendor/golang.org/x/crypto/curve25519/const_amd64.s b/src/vendor/golang.org/x/crypto/curve25519/const_amd64.s
+deleted file mode 100644
+index ee7b4bd5f8..0000000000
+--- a/src/vendor/golang.org/x/crypto/curve25519/const_amd64.s
++++ /dev/null
+@@ -1,20 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This code was translated into a form compatible with 6a from the public
+-// domain sources in SUPERCOP: https://bench.cr.yp.to/supercop.html
+-
+-// +build amd64,!gccgo,!appengine
+-
+-// These constants cannot be encoded in non-MOVQ immediates.
+-// We access them directly from memory instead.
+-
+-DATA ·_121666_213(SB)/8, $996687872
+-GLOBL ·_121666_213(SB), 8, $8
+-
+-DATA ·_2P0(SB)/8, $0xFFFFFFFFFFFDA
+-GLOBL ·_2P0(SB), 8, $8
+-
+-DATA ·_2P1234(SB)/8, $0xFFFFFFFFFFFFE
+-GLOBL ·_2P1234(SB), 8, $8
+diff --git a/src/vendor/golang.org/x/crypto/curve25519/cswap_amd64.s b/src/vendor/golang.org/x/crypto/curve25519/cswap_amd64.s
+deleted file mode 100644
+index cd793a5b5f..0000000000
+--- a/src/vendor/golang.org/x/crypto/curve25519/cswap_amd64.s
++++ /dev/null
+@@ -1,65 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build amd64,!gccgo,!appengine
+-
+-// func cswap(inout *[4][5]uint64, v uint64)
+-TEXT ·cswap(SB),7,$0
+-	MOVQ inout+0(FP),DI
+-	MOVQ v+8(FP),SI
+-
+-	SUBQ $1, SI
+-	NOTQ SI
+-	MOVQ SI, X15
+-	PSHUFD $0x44, X15, X15
+-
+-	MOVOU 0(DI), X0
+-	MOVOU 16(DI), X2
+-	MOVOU 32(DI), X4
+-	MOVOU 48(DI), X6
+-	MOVOU 64(DI), X8
+-	MOVOU 80(DI), X1
+-	MOVOU 96(DI), X3
+-	MOVOU 112(DI), X5
+-	MOVOU 128(DI), X7
+-	MOVOU 144(DI), X9
+-
+-	MOVO X1, X10
+-	MOVO X3, X11
+-	MOVO X5, X12
+-	MOVO X7, X13
+-	MOVO X9, X14
+-
+-	PXOR X0, X10
+-	PXOR X2, X11
+-	PXOR X4, X12
+-	PXOR X6, X13
+-	PXOR X8, X14
+-	PAND X15, X10
+-	PAND X15, X11
+-	PAND X15, X12
+-	PAND X15, X13
+-	PAND X15, X14
+-	PXOR X10, X0
+-	PXOR X10, X1
+-	PXOR X11, X2
+-	PXOR X11, X3
+-	PXOR X12, X4
+-	PXOR X12, X5
+-	PXOR X13, X6
+-	PXOR X13, X7
+-	PXOR X14, X8
+-	PXOR X14, X9
+-
+-	MOVOU X0, 0(DI)
+-	MOVOU X2, 16(DI)
+-	MOVOU X4, 32(DI)
+-	MOVOU X6, 48(DI)
+-	MOVOU X8, 64(DI)
+-	MOVOU X1, 80(DI)
+-	MOVOU X3, 96(DI)
+-	MOVOU X5, 112(DI)
+-	MOVOU X7, 128(DI)
+-	MOVOU X9, 144(DI)
+-	RET
+diff --git a/src/vendor/golang.org/x/crypto/curve25519/curve25519.go b/src/vendor/golang.org/x/crypto/curve25519/curve25519.go
+index 75f24babb6..4b9a655d1b 100644
+--- a/src/vendor/golang.org/x/crypto/curve25519/curve25519.go
++++ b/src/vendor/golang.org/x/crypto/curve25519/curve25519.go
+@@ -1,834 +1,95 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
++// Copyright 2019 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// We have an implementation in amd64 assembly so this code is only run on
+-// non-amd64 platforms. The amd64 assembly does not support gccgo.
+-// +build !amd64 gccgo appengine
+-
+-package curve25519
++// Package curve25519 provides an implementation of the X25519 function, which
++// performs scalar multiplication on the elliptic curve known as Curve25519.
++// See RFC 7748.
++package curve25519 // import "golang.org/x/crypto/curve25519"
+ 
+ import (
+-	"encoding/binary"
++	"crypto/subtle"
++	"fmt"
+ )
+ 
+-// This code is a port of the public domain, "ref10" implementation of
+-// curve25519 from SUPERCOP 20130419 by D. J. Bernstein.
+-
+-// fieldElement represents an element of the field GF(2^255 - 19). An element
+-// t, entries t[0]...t[9], represents the integer t[0]+2^26 t[1]+2^51 t[2]+2^77
+-// t[3]+2^102 t[4]+...+2^230 t[9]. Bounds on each t[i] vary depending on
+-// context.
+-type fieldElement [10]int32
+-
+-func feZero(fe *fieldElement) {
+-	for i := range fe {
+-		fe[i] = 0
+-	}
+-}
+-
+-func feOne(fe *fieldElement) {
+-	feZero(fe)
+-	fe[0] = 1
+-}
+-
+-func feAdd(dst, a, b *fieldElement) {
+-	for i := range dst {
+-		dst[i] = a[i] + b[i]
+-	}
+-}
+-
+-func feSub(dst, a, b *fieldElement) {
+-	for i := range dst {
+-		dst[i] = a[i] - b[i]
+-	}
+-}
+-
+-func feCopy(dst, src *fieldElement) {
+-	for i := range dst {
+-		dst[i] = src[i]
+-	}
+-}
+-
+-// feCSwap replaces (f,g) with (g,f) if b == 1; replaces (f,g) with (f,g) if b == 0.
+-//
+-// Preconditions: b in {0,1}.
+-func feCSwap(f, g *fieldElement, b int32) {
+-	b = -b
+-	for i := range f {
+-		t := b & (f[i] ^ g[i])
+-		f[i] ^= t
+-		g[i] ^= t
+-	}
+-}
+-
+-// load3 reads a 24-bit, little-endian value from in.
+-func load3(in []byte) int64 {
+-	var r int64
+-	r = int64(in[0])
+-	r |= int64(in[1]) << 8
+-	r |= int64(in[2]) << 16
+-	return r
+-}
+-
+-// load4 reads a 32-bit, little-endian value from in.
+-func load4(in []byte) int64 {
+-	return int64(binary.LittleEndian.Uint32(in))
+-}
+-
+-func feFromBytes(dst *fieldElement, src *[32]byte) {
+-	h0 := load4(src[:])
+-	h1 := load3(src[4:]) << 6
+-	h2 := load3(src[7:]) << 5
+-	h3 := load3(src[10:]) << 3
+-	h4 := load3(src[13:]) << 2
+-	h5 := load4(src[16:])
+-	h6 := load3(src[20:]) << 7
+-	h7 := load3(src[23:]) << 5
+-	h8 := load3(src[26:]) << 4
+-	h9 := (load3(src[29:]) & 0x7fffff) << 2
+-
+-	var carry [10]int64
+-	carry[9] = (h9 + 1<<24) >> 25
+-	h0 += carry[9] * 19
+-	h9 -= carry[9] << 25
+-	carry[1] = (h1 + 1<<24) >> 25
+-	h2 += carry[1]
+-	h1 -= carry[1] << 25
+-	carry[3] = (h3 + 1<<24) >> 25
+-	h4 += carry[3]
+-	h3 -= carry[3] << 25
+-	carry[5] = (h5 + 1<<24) >> 25
+-	h6 += carry[5]
+-	h5 -= carry[5] << 25
+-	carry[7] = (h7 + 1<<24) >> 25
+-	h8 += carry[7]
+-	h7 -= carry[7] << 25
+-
+-	carry[0] = (h0 + 1<<25) >> 26
+-	h1 += carry[0]
+-	h0 -= carry[0] << 26
+-	carry[2] = (h2 + 1<<25) >> 26
+-	h3 += carry[2]
+-	h2 -= carry[2] << 26
+-	carry[4] = (h4 + 1<<25) >> 26
+-	h5 += carry[4]
+-	h4 -= carry[4] << 26
+-	carry[6] = (h6 + 1<<25) >> 26
+-	h7 += carry[6]
+-	h6 -= carry[6] << 26
+-	carry[8] = (h8 + 1<<25) >> 26
+-	h9 += carry[8]
+-	h8 -= carry[8] << 26
+-
+-	dst[0] = int32(h0)
+-	dst[1] = int32(h1)
+-	dst[2] = int32(h2)
+-	dst[3] = int32(h3)
+-	dst[4] = int32(h4)
+-	dst[5] = int32(h5)
+-	dst[6] = int32(h6)
+-	dst[7] = int32(h7)
+-	dst[8] = int32(h8)
+-	dst[9] = int32(h9)
+-}
+-
+-// feToBytes marshals h to s.
+-// Preconditions:
+-//   |h| bounded by 1.1*2^25,1.1*2^24,1.1*2^25,1.1*2^24,etc.
+-//
+-// Write p=2^255-19; q=floor(h/p).
+-// Basic claim: q = floor(2^(-255)(h + 19 2^(-25)h9 + 2^(-1))).
+-//
+-// Proof:
+-//   Have |h|<=p so |q|<=1 so |19^2 2^(-255) q|<1/4.
+-//   Also have |h-2^230 h9|<2^230 so |19 2^(-255)(h-2^230 h9)|<1/4.
+-//
+-//   Write y=2^(-1)-19^2 2^(-255)q-19 2^(-255)(h-2^230 h9).
+-//   Then 0<y<1.
++// ScalarMult sets dst to the product scalar * point.
+ //
+-//   Write r=h-pq.
+-//   Have 0<=r<=p-1=2^255-20.
+-//   Thus 0<=r+19(2^-255)r<r+19(2^-255)2^255<=2^255-1.
+-//
+-//   Write x=r+19(2^-255)r+y.
+-//   Then 0<x<2^255 so floor(2^(-255)x) = 0 so floor(q+2^(-255)x) = q.
+-//
+-//   Have q+2^(-255)x = 2^(-255)(h + 19 2^(-25) h9 + 2^(-1))
+-//   so floor(2^(-255)(h + 19 2^(-25) h9 + 2^(-1))) = q.
+-func feToBytes(s *[32]byte, h *fieldElement) {
+-	var carry [10]int32
+-
+-	q := (19*h[9] + (1 << 24)) >> 25
+-	q = (h[0] + q) >> 26
+-	q = (h[1] + q) >> 25
+-	q = (h[2] + q) >> 26
+-	q = (h[3] + q) >> 25
+-	q = (h[4] + q) >> 26
+-	q = (h[5] + q) >> 25
+-	q = (h[6] + q) >> 26
+-	q = (h[7] + q) >> 25
+-	q = (h[8] + q) >> 26
+-	q = (h[9] + q) >> 25
+-
+-	// Goal: Output h-(2^255-19)q, which is between 0 and 2^255-20.
+-	h[0] += 19 * q
+-	// Goal: Output h-2^255 q, which is between 0 and 2^255-20.
+-
+-	carry[0] = h[0] >> 26
+-	h[1] += carry[0]
+-	h[0] -= carry[0] << 26
+-	carry[1] = h[1] >> 25
+-	h[2] += carry[1]
+-	h[1] -= carry[1] << 25
+-	carry[2] = h[2] >> 26
+-	h[3] += carry[2]
+-	h[2] -= carry[2] << 26
+-	carry[3] = h[3] >> 25
+-	h[4] += carry[3]
+-	h[3] -= carry[3] << 25
+-	carry[4] = h[4] >> 26
+-	h[5] += carry[4]
+-	h[4] -= carry[4] << 26
+-	carry[5] = h[5] >> 25
+-	h[6] += carry[5]
+-	h[5] -= carry[5] << 25
+-	carry[6] = h[6] >> 26
+-	h[7] += carry[6]
+-	h[6] -= carry[6] << 26
+-	carry[7] = h[7] >> 25
+-	h[8] += carry[7]
+-	h[7] -= carry[7] << 25
+-	carry[8] = h[8] >> 26
+-	h[9] += carry[8]
+-	h[8] -= carry[8] << 26
+-	carry[9] = h[9] >> 25
+-	h[9] -= carry[9] << 25
+-	// h10 = carry9
+-
+-	// Goal: Output h[0]+...+2^255 h10-2^255 q, which is between 0 and 2^255-20.
+-	// Have h[0]+...+2^230 h[9] between 0 and 2^255-1;
+-	// evidently 2^255 h10-2^255 q = 0.
+-	// Goal: Output h[0]+...+2^230 h[9].
+-
+-	s[0] = byte(h[0] >> 0)
+-	s[1] = byte(h[0] >> 8)
+-	s[2] = byte(h[0] >> 16)
+-	s[3] = byte((h[0] >> 24) | (h[1] << 2))
+-	s[4] = byte(h[1] >> 6)
+-	s[5] = byte(h[1] >> 14)
+-	s[6] = byte((h[1] >> 22) | (h[2] << 3))
+-	s[7] = byte(h[2] >> 5)
+-	s[8] = byte(h[2] >> 13)
+-	s[9] = byte((h[2] >> 21) | (h[3] << 5))
+-	s[10] = byte(h[3] >> 3)
+-	s[11] = byte(h[3] >> 11)
+-	s[12] = byte((h[3] >> 19) | (h[4] << 6))
+-	s[13] = byte(h[4] >> 2)
+-	s[14] = byte(h[4] >> 10)
+-	s[15] = byte(h[4] >> 18)
+-	s[16] = byte(h[5] >> 0)
+-	s[17] = byte(h[5] >> 8)
+-	s[18] = byte(h[5] >> 16)
+-	s[19] = byte((h[5] >> 24) | (h[6] << 1))
+-	s[20] = byte(h[6] >> 7)
+-	s[21] = byte(h[6] >> 15)
+-	s[22] = byte((h[6] >> 23) | (h[7] << 3))
+-	s[23] = byte(h[7] >> 5)
+-	s[24] = byte(h[7] >> 13)
+-	s[25] = byte((h[7] >> 21) | (h[8] << 4))
+-	s[26] = byte(h[8] >> 4)
+-	s[27] = byte(h[8] >> 12)
+-	s[28] = byte((h[8] >> 20) | (h[9] << 6))
+-	s[29] = byte(h[9] >> 2)
+-	s[30] = byte(h[9] >> 10)
+-	s[31] = byte(h[9] >> 18)
++// Deprecated: when provided a low-order point, ScalarMult will set dst to all
++// zeroes, irrespective of the scalar. Instead, use the X25519 function, which
++// will return an error.
++func ScalarMult(dst, scalar, point *[32]byte) {
++	scalarMult(dst, scalar, point)
+ }
+ 
+-// feMul calculates h = f * g
+-// Can overlap h with f or g.
+-//
+-// Preconditions:
+-//    |f| bounded by 1.1*2^26,1.1*2^25,1.1*2^26,1.1*2^25,etc.
+-//    |g| bounded by 1.1*2^26,1.1*2^25,1.1*2^26,1.1*2^25,etc.
+-//
+-// Postconditions:
+-//    |h| bounded by 1.1*2^25,1.1*2^24,1.1*2^25,1.1*2^24,etc.
+-//
+-// Notes on implementation strategy:
+-//
+-// Using schoolbook multiplication.
+-// Karatsuba would save a little in some cost models.
++// ScalarBaseMult sets dst to the product scalar * base where base is the
++// standard generator.
+ //
+-// Most multiplications by 2 and 19 are 32-bit precomputations;
+-// cheaper than 64-bit postcomputations.
+-//
+-// There is one remaining multiplication by 19 in the carry chain;
+-// one *19 precomputation can be merged into this,
+-// but the resulting data flow is considerably less clean.
+-//
+-// There are 12 carries below.
+-// 10 of them are 2-way parallelizable and vectorizable.
+-// Can get away with 11 carries, but then data flow is much deeper.
+-//
+-// With tighter constraints on inputs can squeeze carries into int32.
+-func feMul(h, f, g *fieldElement) {
+-	f0 := f[0]
+-	f1 := f[1]
+-	f2 := f[2]
+-	f3 := f[3]
+-	f4 := f[4]
+-	f5 := f[5]
+-	f6 := f[6]
+-	f7 := f[7]
+-	f8 := f[8]
+-	f9 := f[9]
+-	g0 := g[0]
+-	g1 := g[1]
+-	g2 := g[2]
+-	g3 := g[3]
+-	g4 := g[4]
+-	g5 := g[5]
+-	g6 := g[6]
+-	g7 := g[7]
+-	g8 := g[8]
+-	g9 := g[9]
+-	g1_19 := 19 * g1 // 1.4*2^29
+-	g2_19 := 19 * g2 // 1.4*2^30; still ok
+-	g3_19 := 19 * g3
+-	g4_19 := 19 * g4
+-	g5_19 := 19 * g5
+-	g6_19 := 19 * g6
+-	g7_19 := 19 * g7
+-	g8_19 := 19 * g8
+-	g9_19 := 19 * g9
+-	f1_2 := 2 * f1
+-	f3_2 := 2 * f3
+-	f5_2 := 2 * f5
+-	f7_2 := 2 * f7
+-	f9_2 := 2 * f9
+-	f0g0 := int64(f0) * int64(g0)
+-	f0g1 := int64(f0) * int64(g1)
+-	f0g2 := int64(f0) * int64(g2)
+-	f0g3 := int64(f0) * int64(g3)
+-	f0g4 := int64(f0) * int64(g4)
+-	f0g5 := int64(f0) * int64(g5)
+-	f0g6 := int64(f0) * int64(g6)
+-	f0g7 := int64(f0) * int64(g7)
+-	f0g8 := int64(f0) * int64(g8)
+-	f0g9 := int64(f0) * int64(g9)
+-	f1g0 := int64(f1) * int64(g0)
+-	f1g1_2 := int64(f1_2) * int64(g1)
+-	f1g2 := int64(f1) * int64(g2)
+-	f1g3_2 := int64(f1_2) * int64(g3)
+-	f1g4 := int64(f1) * int64(g4)
+-	f1g5_2 := int64(f1_2) * int64(g5)
+-	f1g6 := int64(f1) * int64(g6)
+-	f1g7_2 := int64(f1_2) * int64(g7)
+-	f1g8 := int64(f1) * int64(g8)
+-	f1g9_38 := int64(f1_2) * int64(g9_19)
+-	f2g0 := int64(f2) * int64(g0)
+-	f2g1 := int64(f2) * int64(g1)
+-	f2g2 := int64(f2) * int64(g2)
+-	f2g3 := int64(f2) * int64(g3)
+-	f2g4 := int64(f2) * int64(g4)
+-	f2g5 := int64(f2) * int64(g5)
+-	f2g6 := int64(f2) * int64(g6)
+-	f2g7 := int64(f2) * int64(g7)
+-	f2g8_19 := int64(f2) * int64(g8_19)
+-	f2g9_19 := int64(f2) * int64(g9_19)
+-	f3g0 := int64(f3) * int64(g0)
+-	f3g1_2 := int64(f3_2) * int64(g1)
+-	f3g2 := int64(f3) * int64(g2)
+-	f3g3_2 := int64(f3_2) * int64(g3)
+-	f3g4 := int64(f3) * int64(g4)
+-	f3g5_2 := int64(f3_2) * int64(g5)
+-	f3g6 := int64(f3) * int64(g6)
+-	f3g7_38 := int64(f3_2) * int64(g7_19)
+-	f3g8_19 := int64(f3) * int64(g8_19)
+-	f3g9_38 := int64(f3_2) * int64(g9_19)
+-	f4g0 := int64(f4) * int64(g0)
+-	f4g1 := int64(f4) * int64(g1)
+-	f4g2 := int64(f4) * int64(g2)
+-	f4g3 := int64(f4) * int64(g3)
+-	f4g4 := int64(f4) * int64(g4)
+-	f4g5 := int64(f4) * int64(g5)
+-	f4g6_19 := int64(f4) * int64(g6_19)
+-	f4g7_19 := int64(f4) * int64(g7_19)
+-	f4g8_19 := int64(f4) * int64(g8_19)
+-	f4g9_19 := int64(f4) * int64(g9_19)
+-	f5g0 := int64(f5) * int64(g0)
+-	f5g1_2 := int64(f5_2) * int64(g1)
+-	f5g2 := int64(f5) * int64(g2)
+-	f5g3_2 := int64(f5_2) * int64(g3)
+-	f5g4 := int64(f5) * int64(g4)
+-	f5g5_38 := int64(f5_2) * int64(g5_19)
+-	f5g6_19 := int64(f5) * int64(g6_19)
+-	f5g7_38 := int64(f5_2) * int64(g7_19)
+-	f5g8_19 := int64(f5) * int64(g8_19)
+-	f5g9_38 := int64(f5_2) * int64(g9_19)
+-	f6g0 := int64(f6) * int64(g0)
+-	f6g1 := int64(f6) * int64(g1)
+-	f6g2 := int64(f6) * int64(g2)
+-	f6g3 := int64(f6) * int64(g3)
+-	f6g4_19 := int64(f6) * int64(g4_19)
+-	f6g5_19 := int64(f6) * int64(g5_19)
+-	f6g6_19 := int64(f6) * int64(g6_19)
+-	f6g7_19 := int64(f6) * int64(g7_19)
+-	f6g8_19 := int64(f6) * int64(g8_19)
+-	f6g9_19 := int64(f6) * int64(g9_19)
+-	f7g0 := int64(f7) * int64(g0)
+-	f7g1_2 := int64(f7_2) * int64(g1)
+-	f7g2 := int64(f7) * int64(g2)
+-	f7g3_38 := int64(f7_2) * int64(g3_19)
+-	f7g4_19 := int64(f7) * int64(g4_19)
+-	f7g5_38 := int64(f7_2) * int64(g5_19)
+-	f7g6_19 := int64(f7) * int64(g6_19)
+-	f7g7_38 := int64(f7_2) * int64(g7_19)
+-	f7g8_19 := int64(f7) * int64(g8_19)
+-	f7g9_38 := int64(f7_2) * int64(g9_19)
+-	f8g0 := int64(f8) * int64(g0)
+-	f8g1 := int64(f8) * int64(g1)
+-	f8g2_19 := int64(f8) * int64(g2_19)
+-	f8g3_19 := int64(f8) * int64(g3_19)
+-	f8g4_19 := int64(f8) * int64(g4_19)
+-	f8g5_19 := int64(f8) * int64(g5_19)
+-	f8g6_19 := int64(f8) * int64(g6_19)
+-	f8g7_19 := int64(f8) * int64(g7_19)
+-	f8g8_19 := int64(f8) * int64(g8_19)
+-	f8g9_19 := int64(f8) * int64(g9_19)
+-	f9g0 := int64(f9) * int64(g0)
+-	f9g1_38 := int64(f9_2) * int64(g1_19)
+-	f9g2_19 := int64(f9) * int64(g2_19)
+-	f9g3_38 := int64(f9_2) * int64(g3_19)
+-	f9g4_19 := int64(f9) * int64(g4_19)
+-	f9g5_38 := int64(f9_2) * int64(g5_19)
+-	f9g6_19 := int64(f9) * int64(g6_19)
+-	f9g7_38 := int64(f9_2) * int64(g7_19)
+-	f9g8_19 := int64(f9) * int64(g8_19)
+-	f9g9_38 := int64(f9_2) * int64(g9_19)
+-	h0 := f0g0 + f1g9_38 + f2g8_19 + f3g7_38 + f4g6_19 + f5g5_38 + f6g4_19 + f7g3_38 + f8g2_19 + f9g1_38
+-	h1 := f0g1 + f1g0 + f2g9_19 + f3g8_19 + f4g7_19 + f5g6_19 + f6g5_19 + f7g4_19 + f8g3_19 + f9g2_19
+-	h2 := f0g2 + f1g1_2 + f2g0 + f3g9_38 + f4g8_19 + f5g7_38 + f6g6_19 + f7g5_38 + f8g4_19 + f9g3_38
+-	h3 := f0g3 + f1g2 + f2g1 + f3g0 + f4g9_19 + f5g8_19 + f6g7_19 + f7g6_19 + f8g5_19 + f9g4_19
+-	h4 := f0g4 + f1g3_2 + f2g2 + f3g1_2 + f4g0 + f5g9_38 + f6g8_19 + f7g7_38 + f8g6_19 + f9g5_38
+-	h5 := f0g5 + f1g4 + f2g3 + f3g2 + f4g1 + f5g0 + f6g9_19 + f7g8_19 + f8g7_19 + f9g6_19
+-	h6 := f0g6 + f1g5_2 + f2g4 + f3g3_2 + f4g2 + f5g1_2 + f6g0 + f7g9_38 + f8g8_19 + f9g7_38
+-	h7 := f0g7 + f1g6 + f2g5 + f3g4 + f4g3 + f5g2 + f6g1 + f7g0 + f8g9_19 + f9g8_19
+-	h8 := f0g8 + f1g7_2 + f2g6 + f3g5_2 + f4g4 + f5g3_2 + f6g2 + f7g1_2 + f8g0 + f9g9_38
+-	h9 := f0g9 + f1g8 + f2g7 + f3g6 + f4g5 + f5g4 + f6g3 + f7g2 + f8g1 + f9g0
+-	var carry [10]int64
+-
+-	// |h0| <= (1.1*1.1*2^52*(1+19+19+19+19)+1.1*1.1*2^50*(38+38+38+38+38))
+-	//   i.e. |h0| <= 1.2*2^59; narrower ranges for h2, h4, h6, h8
+-	// |h1| <= (1.1*1.1*2^51*(1+1+19+19+19+19+19+19+19+19))
+-	//   i.e. |h1| <= 1.5*2^58; narrower ranges for h3, h5, h7, h9
+-
+-	carry[0] = (h0 + (1 << 25)) >> 26
+-	h1 += carry[0]
+-	h0 -= carry[0] << 26
+-	carry[4] = (h4 + (1 << 25)) >> 26
+-	h5 += carry[4]
+-	h4 -= carry[4] << 26
+-	// |h0| <= 2^25
+-	// |h4| <= 2^25
+-	// |h1| <= 1.51*2^58
+-	// |h5| <= 1.51*2^58
+-
+-	carry[1] = (h1 + (1 << 24)) >> 25
+-	h2 += carry[1]
+-	h1 -= carry[1] << 25
+-	carry[5] = (h5 + (1 << 24)) >> 25
+-	h6 += carry[5]
+-	h5 -= carry[5] << 25
+-	// |h1| <= 2^24; from now on fits into int32
+-	// |h5| <= 2^24; from now on fits into int32
+-	// |h2| <= 1.21*2^59
+-	// |h6| <= 1.21*2^59
+-
+-	carry[2] = (h2 + (1 << 25)) >> 26
+-	h3 += carry[2]
+-	h2 -= carry[2] << 26
+-	carry[6] = (h6 + (1 << 25)) >> 26
+-	h7 += carry[6]
+-	h6 -= carry[6] << 26
+-	// |h2| <= 2^25; from now on fits into int32 unchanged
+-	// |h6| <= 2^25; from now on fits into int32 unchanged
+-	// |h3| <= 1.51*2^58
+-	// |h7| <= 1.51*2^58
+-
+-	carry[3] = (h3 + (1 << 24)) >> 25
+-	h4 += carry[3]
+-	h3 -= carry[3] << 25
+-	carry[7] = (h7 + (1 << 24)) >> 25
+-	h8 += carry[7]
+-	h7 -= carry[7] << 25
+-	// |h3| <= 2^24; from now on fits into int32 unchanged
+-	// |h7| <= 2^24; from now on fits into int32 unchanged
+-	// |h4| <= 1.52*2^33
+-	// |h8| <= 1.52*2^33
+-
+-	carry[4] = (h4 + (1 << 25)) >> 26
+-	h5 += carry[4]
+-	h4 -= carry[4] << 26
+-	carry[8] = (h8 + (1 << 25)) >> 26
+-	h9 += carry[8]
+-	h8 -= carry[8] << 26
+-	// |h4| <= 2^25; from now on fits into int32 unchanged
+-	// |h8| <= 2^25; from now on fits into int32 unchanged
+-	// |h5| <= 1.01*2^24
+-	// |h9| <= 1.51*2^58
+-
+-	carry[9] = (h9 + (1 << 24)) >> 25
+-	h0 += carry[9] * 19
+-	h9 -= carry[9] << 25
+-	// |h9| <= 2^24; from now on fits into int32 unchanged
+-	// |h0| <= 1.8*2^37
+-
+-	carry[0] = (h0 + (1 << 25)) >> 26
+-	h1 += carry[0]
+-	h0 -= carry[0] << 26
+-	// |h0| <= 2^25; from now on fits into int32 unchanged
+-	// |h1| <= 1.01*2^24
+-
+-	h[0] = int32(h0)
+-	h[1] = int32(h1)
+-	h[2] = int32(h2)
+-	h[3] = int32(h3)
+-	h[4] = int32(h4)
+-	h[5] = int32(h5)
+-	h[6] = int32(h6)
+-	h[7] = int32(h7)
+-	h[8] = int32(h8)
+-	h[9] = int32(h9)
++// It is recommended to use the X25519 function with Basepoint instead, as
++// copying into fixed size arrays can lead to unexpected bugs.
++func ScalarBaseMult(dst, scalar *[32]byte) {
++	ScalarMult(dst, scalar, &basePoint)
+ }
+ 
+-// feSquare calculates h = f*f. Can overlap h with f.
+-//
+-// Preconditions:
+-//    |f| bounded by 1.1*2^26,1.1*2^25,1.1*2^26,1.1*2^25,etc.
+-//
+-// Postconditions:
+-//    |h| bounded by 1.1*2^25,1.1*2^24,1.1*2^25,1.1*2^24,etc.
+-func feSquare(h, f *fieldElement) {
+-	f0 := f[0]
+-	f1 := f[1]
+-	f2 := f[2]
+-	f3 := f[3]
+-	f4 := f[4]
+-	f5 := f[5]
+-	f6 := f[6]
+-	f7 := f[7]
+-	f8 := f[8]
+-	f9 := f[9]
+-	f0_2 := 2 * f0
+-	f1_2 := 2 * f1
+-	f2_2 := 2 * f2
+-	f3_2 := 2 * f3
+-	f4_2 := 2 * f4
+-	f5_2 := 2 * f5
+-	f6_2 := 2 * f6
+-	f7_2 := 2 * f7
+-	f5_38 := 38 * f5 // 1.31*2^30
+-	f6_19 := 19 * f6 // 1.31*2^30
+-	f7_38 := 38 * f7 // 1.31*2^30
+-	f8_19 := 19 * f8 // 1.31*2^30
+-	f9_38 := 38 * f9 // 1.31*2^30
+-	f0f0 := int64(f0) * int64(f0)
+-	f0f1_2 := int64(f0_2) * int64(f1)
+-	f0f2_2 := int64(f0_2) * int64(f2)
+-	f0f3_2 := int64(f0_2) * int64(f3)
+-	f0f4_2 := int64(f0_2) * int64(f4)
+-	f0f5_2 := int64(f0_2) * int64(f5)
+-	f0f6_2 := int64(f0_2) * int64(f6)
+-	f0f7_2 := int64(f0_2) * int64(f7)
+-	f0f8_2 := int64(f0_2) * int64(f8)
+-	f0f9_2 := int64(f0_2) * int64(f9)
+-	f1f1_2 := int64(f1_2) * int64(f1)
+-	f1f2_2 := int64(f1_2) * int64(f2)
+-	f1f3_4 := int64(f1_2) * int64(f3_2)
+-	f1f4_2 := int64(f1_2) * int64(f4)
+-	f1f5_4 := int64(f1_2) * int64(f5_2)
+-	f1f6_2 := int64(f1_2) * int64(f6)
+-	f1f7_4 := int64(f1_2) * int64(f7_2)
+-	f1f8_2 := int64(f1_2) * int64(f8)
+-	f1f9_76 := int64(f1_2) * int64(f9_38)
+-	f2f2 := int64(f2) * int64(f2)
+-	f2f3_2 := int64(f2_2) * int64(f3)
+-	f2f4_2 := int64(f2_2) * int64(f4)
+-	f2f5_2 := int64(f2_2) * int64(f5)
+-	f2f6_2 := int64(f2_2) * int64(f6)
+-	f2f7_2 := int64(f2_2) * int64(f7)
+-	f2f8_38 := int64(f2_2) * int64(f8_19)
+-	f2f9_38 := int64(f2) * int64(f9_38)
+-	f3f3_2 := int64(f3_2) * int64(f3)
+-	f3f4_2 := int64(f3_2) * int64(f4)
+-	f3f5_4 := int64(f3_2) * int64(f5_2)
+-	f3f6_2 := int64(f3_2) * int64(f6)
+-	f3f7_76 := int64(f3_2) * int64(f7_38)
+-	f3f8_38 := int64(f3_2) * int64(f8_19)
+-	f3f9_76 := int64(f3_2) * int64(f9_38)
+-	f4f4 := int64(f4) * int64(f4)
+-	f4f5_2 := int64(f4_2) * int64(f5)
+-	f4f6_38 := int64(f4_2) * int64(f6_19)
+-	f4f7_38 := int64(f4) * int64(f7_38)
+-	f4f8_38 := int64(f4_2) * int64(f8_19)
+-	f4f9_38 := int64(f4) * int64(f9_38)
+-	f5f5_38 := int64(f5) * int64(f5_38)
+-	f5f6_38 := int64(f5_2) * int64(f6_19)
+-	f5f7_76 := int64(f5_2) * int64(f7_38)
+-	f5f8_38 := int64(f5_2) * int64(f8_19)
+-	f5f9_76 := int64(f5_2) * int64(f9_38)
+-	f6f6_19 := int64(f6) * int64(f6_19)
+-	f6f7_38 := int64(f6) * int64(f7_38)
+-	f6f8_38 := int64(f6_2) * int64(f8_19)
+-	f6f9_38 := int64(f6) * int64(f9_38)
+-	f7f7_38 := int64(f7) * int64(f7_38)
+-	f7f8_38 := int64(f7_2) * int64(f8_19)
+-	f7f9_76 := int64(f7_2) * int64(f9_38)
+-	f8f8_19 := int64(f8) * int64(f8_19)
+-	f8f9_38 := int64(f8) * int64(f9_38)
+-	f9f9_38 := int64(f9) * int64(f9_38)
+-	h0 := f0f0 + f1f9_76 + f2f8_38 + f3f7_76 + f4f6_38 + f5f5_38
+-	h1 := f0f1_2 + f2f9_38 + f3f8_38 + f4f7_38 + f5f6_38
+-	h2 := f0f2_2 + f1f1_2 + f3f9_76 + f4f8_38 + f5f7_76 + f6f6_19
+-	h3 := f0f3_2 + f1f2_2 + f4f9_38 + f5f8_38 + f6f7_38
+-	h4 := f0f4_2 + f1f3_4 + f2f2 + f5f9_76 + f6f8_38 + f7f7_38
+-	h5 := f0f5_2 + f1f4_2 + f2f3_2 + f6f9_38 + f7f8_38
+-	h6 := f0f6_2 + f1f5_4 + f2f4_2 + f3f3_2 + f7f9_76 + f8f8_19
+-	h7 := f0f7_2 + f1f6_2 + f2f5_2 + f3f4_2 + f8f9_38
+-	h8 := f0f8_2 + f1f7_4 + f2f6_2 + f3f5_4 + f4f4 + f9f9_38
+-	h9 := f0f9_2 + f1f8_2 + f2f7_2 + f3f6_2 + f4f5_2
+-	var carry [10]int64
+-
+-	carry[0] = (h0 + (1 << 25)) >> 26
+-	h1 += carry[0]
+-	h0 -= carry[0] << 26
+-	carry[4] = (h4 + (1 << 25)) >> 26
+-	h5 += carry[4]
+-	h4 -= carry[4] << 26
+-
+-	carry[1] = (h1 + (1 << 24)) >> 25
+-	h2 += carry[1]
+-	h1 -= carry[1] << 25
+-	carry[5] = (h5 + (1 << 24)) >> 25
+-	h6 += carry[5]
+-	h5 -= carry[5] << 25
+-
+-	carry[2] = (h2 + (1 << 25)) >> 26
+-	h3 += carry[2]
+-	h2 -= carry[2] << 26
+-	carry[6] = (h6 + (1 << 25)) >> 26
+-	h7 += carry[6]
+-	h6 -= carry[6] << 26
+-
+-	carry[3] = (h3 + (1 << 24)) >> 25
+-	h4 += carry[3]
+-	h3 -= carry[3] << 25
+-	carry[7] = (h7 + (1 << 24)) >> 25
+-	h8 += carry[7]
+-	h7 -= carry[7] << 25
++const (
++	// ScalarSize is the size of the scalar input to X25519.
++	ScalarSize = 32
++	// PointSize is the size of the point input to X25519.
++	PointSize = 32
++)
+ 
+-	carry[4] = (h4 + (1 << 25)) >> 26
+-	h5 += carry[4]
+-	h4 -= carry[4] << 26
+-	carry[8] = (h8 + (1 << 25)) >> 26
+-	h9 += carry[8]
+-	h8 -= carry[8] << 26
++// Basepoint is the canonical Curve25519 generator.
++var Basepoint []byte
+ 
+-	carry[9] = (h9 + (1 << 24)) >> 25
+-	h0 += carry[9] * 19
+-	h9 -= carry[9] << 25
++var basePoint = [32]byte{9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+ 
+-	carry[0] = (h0 + (1 << 25)) >> 26
+-	h1 += carry[0]
+-	h0 -= carry[0] << 26
++func init() { Basepoint = basePoint[:] }
+ 
+-	h[0] = int32(h0)
+-	h[1] = int32(h1)
+-	h[2] = int32(h2)
+-	h[3] = int32(h3)
+-	h[4] = int32(h4)
+-	h[5] = int32(h5)
+-	h[6] = int32(h6)
+-	h[7] = int32(h7)
+-	h[8] = int32(h8)
+-	h[9] = int32(h9)
++func checkBasepoint() {
++	if subtle.ConstantTimeCompare(Basepoint, []byte{
++		0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++	}) != 1 {
++		panic("curve25519: global Basepoint value was modified")
++	}
+ }
+ 
+-// feMul121666 calculates h = f * 121666. Can overlap h with f.
++// X25519 returns the result of the scalar multiplication (scalar * point),
++// according to RFC 7748, Section 5. scalar, point and the return value are
++// slices of 32 bytes.
+ //
+-// Preconditions:
+-//    |f| bounded by 1.1*2^26,1.1*2^25,1.1*2^26,1.1*2^25,etc.
++// scalar can be generated at random, for example with crypto/rand. point should
++// be either Basepoint or the output of another X25519 call.
+ //
+-// Postconditions:
+-//    |h| bounded by 1.1*2^25,1.1*2^24,1.1*2^25,1.1*2^24,etc.
+-func feMul121666(h, f *fieldElement) {
+-	h0 := int64(f[0]) * 121666
+-	h1 := int64(f[1]) * 121666
+-	h2 := int64(f[2]) * 121666
+-	h3 := int64(f[3]) * 121666
+-	h4 := int64(f[4]) * 121666
+-	h5 := int64(f[5]) * 121666
+-	h6 := int64(f[6]) * 121666
+-	h7 := int64(f[7]) * 121666
+-	h8 := int64(f[8]) * 121666
+-	h9 := int64(f[9]) * 121666
+-	var carry [10]int64
+-
+-	carry[9] = (h9 + (1 << 24)) >> 25
+-	h0 += carry[9] * 19
+-	h9 -= carry[9] << 25
+-	carry[1] = (h1 + (1 << 24)) >> 25
+-	h2 += carry[1]
+-	h1 -= carry[1] << 25
+-	carry[3] = (h3 + (1 << 24)) >> 25
+-	h4 += carry[3]
+-	h3 -= carry[3] << 25
+-	carry[5] = (h5 + (1 << 24)) >> 25
+-	h6 += carry[5]
+-	h5 -= carry[5] << 25
+-	carry[7] = (h7 + (1 << 24)) >> 25
+-	h8 += carry[7]
+-	h7 -= carry[7] << 25
+-
+-	carry[0] = (h0 + (1 << 25)) >> 26
+-	h1 += carry[0]
+-	h0 -= carry[0] << 26
+-	carry[2] = (h2 + (1 << 25)) >> 26
+-	h3 += carry[2]
+-	h2 -= carry[2] << 26
+-	carry[4] = (h4 + (1 << 25)) >> 26
+-	h5 += carry[4]
+-	h4 -= carry[4] << 26
+-	carry[6] = (h6 + (1 << 25)) >> 26
+-	h7 += carry[6]
+-	h6 -= carry[6] << 26
+-	carry[8] = (h8 + (1 << 25)) >> 26
+-	h9 += carry[8]
+-	h8 -= carry[8] << 26
+-
+-	h[0] = int32(h0)
+-	h[1] = int32(h1)
+-	h[2] = int32(h2)
+-	h[3] = int32(h3)
+-	h[4] = int32(h4)
+-	h[5] = int32(h5)
+-	h[6] = int32(h6)
+-	h[7] = int32(h7)
+-	h[8] = int32(h8)
+-	h[9] = int32(h9)
+-}
+-
+-// feInvert sets out = z^-1.
+-func feInvert(out, z *fieldElement) {
+-	var t0, t1, t2, t3 fieldElement
+-	var i int
+-
+-	feSquare(&t0, z)
+-	for i = 1; i < 1; i++ {
+-		feSquare(&t0, &t0)
+-	}
+-	feSquare(&t1, &t0)
+-	for i = 1; i < 2; i++ {
+-		feSquare(&t1, &t1)
+-	}
+-	feMul(&t1, z, &t1)
+-	feMul(&t0, &t0, &t1)
+-	feSquare(&t2, &t0)
+-	for i = 1; i < 1; i++ {
+-		feSquare(&t2, &t2)
+-	}
+-	feMul(&t1, &t1, &t2)
+-	feSquare(&t2, &t1)
+-	for i = 1; i < 5; i++ {
+-		feSquare(&t2, &t2)
+-	}
+-	feMul(&t1, &t2, &t1)
+-	feSquare(&t2, &t1)
+-	for i = 1; i < 10; i++ {
+-		feSquare(&t2, &t2)
+-	}
+-	feMul(&t2, &t2, &t1)
+-	feSquare(&t3, &t2)
+-	for i = 1; i < 20; i++ {
+-		feSquare(&t3, &t3)
+-	}
+-	feMul(&t2, &t3, &t2)
+-	feSquare(&t2, &t2)
+-	for i = 1; i < 10; i++ {
+-		feSquare(&t2, &t2)
+-	}
+-	feMul(&t1, &t2, &t1)
+-	feSquare(&t2, &t1)
+-	for i = 1; i < 50; i++ {
+-		feSquare(&t2, &t2)
+-	}
+-	feMul(&t2, &t2, &t1)
+-	feSquare(&t3, &t2)
+-	for i = 1; i < 100; i++ {
+-		feSquare(&t3, &t3)
+-	}
+-	feMul(&t2, &t3, &t2)
+-	feSquare(&t2, &t2)
+-	for i = 1; i < 50; i++ {
+-		feSquare(&t2, &t2)
+-	}
+-	feMul(&t1, &t2, &t1)
+-	feSquare(&t1, &t1)
+-	for i = 1; i < 5; i++ {
+-		feSquare(&t1, &t1)
+-	}
+-	feMul(out, &t1, &t0)
++// If point is Basepoint (but not if it's a different slice with the same
++// contents) a precomputed implementation might be used for performance.
++func X25519(scalar, point []byte) ([]byte, error) {
++	// Outline the body of function, to let the allocation be inlined in the
++	// caller, and possibly avoid escaping to the heap.
++	var dst [32]byte
++	return x25519(&dst, scalar, point)
+ }
+ 
+-func scalarMult(out, in, base *[32]byte) {
+-	var e [32]byte
+-
+-	copy(e[:], in[:])
+-	e[0] &= 248
+-	e[31] &= 127
+-	e[31] |= 64
+-
+-	var x1, x2, z2, x3, z3, tmp0, tmp1 fieldElement
+-	feFromBytes(&x1, base)
+-	feOne(&x2)
+-	feCopy(&x3, &x1)
+-	feOne(&z3)
+-
+-	swap := int32(0)
+-	for pos := 254; pos >= 0; pos-- {
+-		b := e[pos/8] >> uint(pos&7)
+-		b &= 1
+-		swap ^= int32(b)
+-		feCSwap(&x2, &x3, swap)
+-		feCSwap(&z2, &z3, swap)
+-		swap = int32(b)
+-
+-		feSub(&tmp0, &x3, &z3)
+-		feSub(&tmp1, &x2, &z2)
+-		feAdd(&x2, &x2, &z2)
+-		feAdd(&z2, &x3, &z3)
+-		feMul(&z3, &tmp0, &x2)
+-		feMul(&z2, &z2, &tmp1)
+-		feSquare(&tmp0, &tmp1)
+-		feSquare(&tmp1, &x2)
+-		feAdd(&x3, &z3, &z2)
+-		feSub(&z2, &z3, &z2)
+-		feMul(&x2, &tmp1, &tmp0)
+-		feSub(&tmp1, &tmp1, &tmp0)
+-		feSquare(&z2, &z2)
+-		feMul121666(&z3, &tmp1)
+-		feSquare(&x3, &x3)
+-		feAdd(&tmp0, &tmp0, &z3)
+-		feMul(&z3, &x1, &z2)
+-		feMul(&z2, &tmp1, &tmp0)
+-	}
+-
+-	feCSwap(&x2, &x3, swap)
+-	feCSwap(&z2, &z3, swap)
+-
+-	feInvert(&z2, &z2)
+-	feMul(&x2, &x2, &z2)
+-	feToBytes(out, &x2)
++func x25519(dst *[32]byte, scalar, point []byte) ([]byte, error) {
++	var in [32]byte
++	if l := len(scalar); l != 32 {
++		return nil, fmt.Errorf("bad scalar length: %d, expected %d", l, 32)
++	}
++	if l := len(point); l != 32 {
++		return nil, fmt.Errorf("bad point length: %d, expected %d", l, 32)
++	}
++	copy(in[:], scalar)
++	if &point[0] == &Basepoint[0] {
++		checkBasepoint()
++		ScalarBaseMult(dst, &in)
++	} else {
++		var base, zero [32]byte
++		copy(base[:], point)
++		ScalarMult(dst, &in, &base)
++		if subtle.ConstantTimeCompare(dst[:], zero[:]) == 1 {
++			return nil, fmt.Errorf("bad input point: low order point")
++		}
++	}
++	return dst[:], nil
+ }
+diff --git a/src/vendor/golang.org/x/crypto/curve25519/mont25519_amd64.go b/src/vendor/golang.org/x/crypto/curve25519/curve25519_amd64.go
+similarity index 99%
+rename from src/vendor/golang.org/x/crypto/curve25519/mont25519_amd64.go
+rename to src/vendor/golang.org/x/crypto/curve25519/curve25519_amd64.go
+index 5822bd5338..5120b779b9 100644
+--- a/src/vendor/golang.org/x/crypto/curve25519/mont25519_amd64.go
++++ b/src/vendor/golang.org/x/crypto/curve25519/curve25519_amd64.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build amd64,!gccgo,!appengine
++// +build amd64,!gccgo,!appengine,!purego
+ 
+ package curve25519
+ 
+diff --git a/src/vendor/golang.org/x/crypto/curve25519/ladderstep_amd64.s b/src/vendor/golang.org/x/crypto/curve25519/curve25519_amd64.s
+similarity index 76%
+rename from src/vendor/golang.org/x/crypto/curve25519/ladderstep_amd64.s
+rename to src/vendor/golang.org/x/crypto/curve25519/curve25519_amd64.s
+index e0ac30c70f..0250c88859 100644
+--- a/src/vendor/golang.org/x/crypto/curve25519/ladderstep_amd64.s
++++ b/src/vendor/golang.org/x/crypto/curve25519/curve25519_amd64.s
+@@ -5,9 +5,84 @@
+ // This code was translated into a form compatible with 6a from the public
+ // domain sources in SUPERCOP: https://bench.cr.yp.to/supercop.html
+ 
+-// +build amd64,!gccgo,!appengine
++// +build amd64,!gccgo,!appengine,!purego
+ 
+-#include "const_amd64.h"
++#define REDMASK51     0x0007FFFFFFFFFFFF
++
++// These constants cannot be encoded in non-MOVQ immediates.
++// We access them directly from memory instead.
++
++DATA ·_121666_213(SB)/8, $996687872
++GLOBL ·_121666_213(SB), 8, $8
++
++DATA ·_2P0(SB)/8, $0xFFFFFFFFFFFDA
++GLOBL ·_2P0(SB), 8, $8
++
++DATA ·_2P1234(SB)/8, $0xFFFFFFFFFFFFE
++GLOBL ·_2P1234(SB), 8, $8
++
++// func freeze(inout *[5]uint64)
++TEXT ·freeze(SB),7,$0-8
++	MOVQ inout+0(FP), DI
++
++	MOVQ 0(DI),SI
++	MOVQ 8(DI),DX
++	MOVQ 16(DI),CX
++	MOVQ 24(DI),R8
++	MOVQ 32(DI),R9
++	MOVQ $REDMASK51,AX
++	MOVQ AX,R10
++	SUBQ $18,R10
++	MOVQ $3,R11
++REDUCELOOP:
++	MOVQ SI,R12
++	SHRQ $51,R12
++	ANDQ AX,SI
++	ADDQ R12,DX
++	MOVQ DX,R12
++	SHRQ $51,R12
++	ANDQ AX,DX
++	ADDQ R12,CX
++	MOVQ CX,R12
++	SHRQ $51,R12
++	ANDQ AX,CX
++	ADDQ R12,R8
++	MOVQ R8,R12
++	SHRQ $51,R12
++	ANDQ AX,R8
++	ADDQ R12,R9
++	MOVQ R9,R12
++	SHRQ $51,R12
++	ANDQ AX,R9
++	IMUL3Q $19,R12,R12
++	ADDQ R12,SI
++	SUBQ $1,R11
++	JA REDUCELOOP
++	MOVQ $1,R12
++	CMPQ R10,SI
++	CMOVQLT R11,R12
++	CMPQ AX,DX
++	CMOVQNE R11,R12
++	CMPQ AX,CX
++	CMOVQNE R11,R12
++	CMPQ AX,R8
++	CMOVQNE R11,R12
++	CMPQ AX,R9
++	CMOVQNE R11,R12
++	NEGQ R12
++	ANDQ R12,AX
++	ANDQ R12,R10
++	SUBQ R10,SI
++	SUBQ AX,DX
++	SUBQ AX,CX
++	SUBQ AX,R8
++	SUBQ AX,R9
++	MOVQ SI,0(DI)
++	MOVQ DX,8(DI)
++	MOVQ CX,16(DI)
++	MOVQ R8,24(DI)
++	MOVQ R9,32(DI)
++	RET
+ 
+ // func ladderstep(inout *[5][5]uint64)
+ TEXT ·ladderstep(SB),0,$296-8
+@@ -1375,3 +1450,344 @@ TEXT ·ladderstep(SB),0,$296-8
+ 	MOVQ AX,104(DI)
+ 	MOVQ R10,112(DI)
+ 	RET
++
++// func cswap(inout *[4][5]uint64, v uint64)
++TEXT ·cswap(SB),7,$0
++	MOVQ inout+0(FP),DI
++	MOVQ v+8(FP),SI
++
++	SUBQ $1, SI
++	NOTQ SI
++	MOVQ SI, X15
++	PSHUFD $0x44, X15, X15
++
++	MOVOU 0(DI), X0
++	MOVOU 16(DI), X2
++	MOVOU 32(DI), X4
++	MOVOU 48(DI), X6
++	MOVOU 64(DI), X8
++	MOVOU 80(DI), X1
++	MOVOU 96(DI), X3
++	MOVOU 112(DI), X5
++	MOVOU 128(DI), X7
++	MOVOU 144(DI), X9
++
++	MOVO X1, X10
++	MOVO X3, X11
++	MOVO X5, X12
++	MOVO X7, X13
++	MOVO X9, X14
++
++	PXOR X0, X10
++	PXOR X2, X11
++	PXOR X4, X12
++	PXOR X6, X13
++	PXOR X8, X14
++	PAND X15, X10
++	PAND X15, X11
++	PAND X15, X12
++	PAND X15, X13
++	PAND X15, X14
++	PXOR X10, X0
++	PXOR X10, X1
++	PXOR X11, X2
++	PXOR X11, X3
++	PXOR X12, X4
++	PXOR X12, X5
++	PXOR X13, X6
++	PXOR X13, X7
++	PXOR X14, X8
++	PXOR X14, X9
++
++	MOVOU X0, 0(DI)
++	MOVOU X2, 16(DI)
++	MOVOU X4, 32(DI)
++	MOVOU X6, 48(DI)
++	MOVOU X8, 64(DI)
++	MOVOU X1, 80(DI)
++	MOVOU X3, 96(DI)
++	MOVOU X5, 112(DI)
++	MOVOU X7, 128(DI)
++	MOVOU X9, 144(DI)
++	RET
++
++// func mul(dest, a, b *[5]uint64)
++TEXT ·mul(SB),0,$16-24
++	MOVQ dest+0(FP), DI
++	MOVQ a+8(FP), SI
++	MOVQ b+16(FP), DX
++
++	MOVQ DX,CX
++	MOVQ 24(SI),DX
++	IMUL3Q $19,DX,AX
++	MOVQ AX,0(SP)
++	MULQ 16(CX)
++	MOVQ AX,R8
++	MOVQ DX,R9
++	MOVQ 32(SI),DX
++	IMUL3Q $19,DX,AX
++	MOVQ AX,8(SP)
++	MULQ 8(CX)
++	ADDQ AX,R8
++	ADCQ DX,R9
++	MOVQ 0(SI),AX
++	MULQ 0(CX)
++	ADDQ AX,R8
++	ADCQ DX,R9
++	MOVQ 0(SI),AX
++	MULQ 8(CX)
++	MOVQ AX,R10
++	MOVQ DX,R11
++	MOVQ 0(SI),AX
++	MULQ 16(CX)
++	MOVQ AX,R12
++	MOVQ DX,R13
++	MOVQ 0(SI),AX
++	MULQ 24(CX)
++	MOVQ AX,R14
++	MOVQ DX,R15
++	MOVQ 0(SI),AX
++	MULQ 32(CX)
++	MOVQ AX,BX
++	MOVQ DX,BP
++	MOVQ 8(SI),AX
++	MULQ 0(CX)
++	ADDQ AX,R10
++	ADCQ DX,R11
++	MOVQ 8(SI),AX
++	MULQ 8(CX)
++	ADDQ AX,R12
++	ADCQ DX,R13
++	MOVQ 8(SI),AX
++	MULQ 16(CX)
++	ADDQ AX,R14
++	ADCQ DX,R15
++	MOVQ 8(SI),AX
++	MULQ 24(CX)
++	ADDQ AX,BX
++	ADCQ DX,BP
++	MOVQ 8(SI),DX
++	IMUL3Q $19,DX,AX
++	MULQ 32(CX)
++	ADDQ AX,R8
++	ADCQ DX,R9
++	MOVQ 16(SI),AX
++	MULQ 0(CX)
++	ADDQ AX,R12
++	ADCQ DX,R13
++	MOVQ 16(SI),AX
++	MULQ 8(CX)
++	ADDQ AX,R14
++	ADCQ DX,R15
++	MOVQ 16(SI),AX
++	MULQ 16(CX)
++	ADDQ AX,BX
++	ADCQ DX,BP
++	MOVQ 16(SI),DX
++	IMUL3Q $19,DX,AX
++	MULQ 24(CX)
++	ADDQ AX,R8
++	ADCQ DX,R9
++	MOVQ 16(SI),DX
++	IMUL3Q $19,DX,AX
++	MULQ 32(CX)
++	ADDQ AX,R10
++	ADCQ DX,R11
++	MOVQ 24(SI),AX
++	MULQ 0(CX)
++	ADDQ AX,R14
++	ADCQ DX,R15
++	MOVQ 24(SI),AX
++	MULQ 8(CX)
++	ADDQ AX,BX
++	ADCQ DX,BP
++	MOVQ 0(SP),AX
++	MULQ 24(CX)
++	ADDQ AX,R10
++	ADCQ DX,R11
++	MOVQ 0(SP),AX
++	MULQ 32(CX)
++	ADDQ AX,R12
++	ADCQ DX,R13
++	MOVQ 32(SI),AX
++	MULQ 0(CX)
++	ADDQ AX,BX
++	ADCQ DX,BP
++	MOVQ 8(SP),AX
++	MULQ 16(CX)
++	ADDQ AX,R10
++	ADCQ DX,R11
++	MOVQ 8(SP),AX
++	MULQ 24(CX)
++	ADDQ AX,R12
++	ADCQ DX,R13
++	MOVQ 8(SP),AX
++	MULQ 32(CX)
++	ADDQ AX,R14
++	ADCQ DX,R15
++	MOVQ $REDMASK51,SI
++	SHLQ $13,R8,R9
++	ANDQ SI,R8
++	SHLQ $13,R10,R11
++	ANDQ SI,R10
++	ADDQ R9,R10
++	SHLQ $13,R12,R13
++	ANDQ SI,R12
++	ADDQ R11,R12
++	SHLQ $13,R14,R15
++	ANDQ SI,R14
++	ADDQ R13,R14
++	SHLQ $13,BX,BP
++	ANDQ SI,BX
++	ADDQ R15,BX
++	IMUL3Q $19,BP,DX
++	ADDQ DX,R8
++	MOVQ R8,DX
++	SHRQ $51,DX
++	ADDQ R10,DX
++	MOVQ DX,CX
++	SHRQ $51,DX
++	ANDQ SI,R8
++	ADDQ R12,DX
++	MOVQ DX,R9
++	SHRQ $51,DX
++	ANDQ SI,CX
++	ADDQ R14,DX
++	MOVQ DX,AX
++	SHRQ $51,DX
++	ANDQ SI,R9
++	ADDQ BX,DX
++	MOVQ DX,R10
++	SHRQ $51,DX
++	ANDQ SI,AX
++	IMUL3Q $19,DX,DX
++	ADDQ DX,R8
++	ANDQ SI,R10
++	MOVQ R8,0(DI)
++	MOVQ CX,8(DI)
++	MOVQ R9,16(DI)
++	MOVQ AX,24(DI)
++	MOVQ R10,32(DI)
++	RET
++
++// func square(out, in *[5]uint64)
++TEXT ·square(SB),7,$0-16
++	MOVQ out+0(FP), DI
++	MOVQ in+8(FP), SI
++
++	MOVQ 0(SI),AX
++	MULQ 0(SI)
++	MOVQ AX,CX
++	MOVQ DX,R8
++	MOVQ 0(SI),AX
++	SHLQ $1,AX
++	MULQ 8(SI)
++	MOVQ AX,R9
++	MOVQ DX,R10
++	MOVQ 0(SI),AX
++	SHLQ $1,AX
++	MULQ 16(SI)
++	MOVQ AX,R11
++	MOVQ DX,R12
++	MOVQ 0(SI),AX
++	SHLQ $1,AX
++	MULQ 24(SI)
++	MOVQ AX,R13
++	MOVQ DX,R14
++	MOVQ 0(SI),AX
++	SHLQ $1,AX
++	MULQ 32(SI)
++	MOVQ AX,R15
++	MOVQ DX,BX
++	MOVQ 8(SI),AX
++	MULQ 8(SI)
++	ADDQ AX,R11
++	ADCQ DX,R12
++	MOVQ 8(SI),AX
++	SHLQ $1,AX
++	MULQ 16(SI)
++	ADDQ AX,R13
++	ADCQ DX,R14
++	MOVQ 8(SI),AX
++	SHLQ $1,AX
++	MULQ 24(SI)
++	ADDQ AX,R15
++	ADCQ DX,BX
++	MOVQ 8(SI),DX
++	IMUL3Q $38,DX,AX
++	MULQ 32(SI)
++	ADDQ AX,CX
++	ADCQ DX,R8
++	MOVQ 16(SI),AX
++	MULQ 16(SI)
++	ADDQ AX,R15
++	ADCQ DX,BX
++	MOVQ 16(SI),DX
++	IMUL3Q $38,DX,AX
++	MULQ 24(SI)
++	ADDQ AX,CX
++	ADCQ DX,R8
++	MOVQ 16(SI),DX
++	IMUL3Q $38,DX,AX
++	MULQ 32(SI)
++	ADDQ AX,R9
++	ADCQ DX,R10
++	MOVQ 24(SI),DX
++	IMUL3Q $19,DX,AX
++	MULQ 24(SI)
++	ADDQ AX,R9
++	ADCQ DX,R10
++	MOVQ 24(SI),DX
++	IMUL3Q $38,DX,AX
++	MULQ 32(SI)
++	ADDQ AX,R11
++	ADCQ DX,R12
++	MOVQ 32(SI),DX
++	IMUL3Q $19,DX,AX
++	MULQ 32(SI)
++	ADDQ AX,R13
++	ADCQ DX,R14
++	MOVQ $REDMASK51,SI
++	SHLQ $13,CX,R8
++	ANDQ SI,CX
++	SHLQ $13,R9,R10
++	ANDQ SI,R9
++	ADDQ R8,R9
++	SHLQ $13,R11,R12
++	ANDQ SI,R11
++	ADDQ R10,R11
++	SHLQ $13,R13,R14
++	ANDQ SI,R13
++	ADDQ R12,R13
++	SHLQ $13,R15,BX
++	ANDQ SI,R15
++	ADDQ R14,R15
++	IMUL3Q $19,BX,DX
++	ADDQ DX,CX
++	MOVQ CX,DX
++	SHRQ $51,DX
++	ADDQ R9,DX
++	ANDQ SI,CX
++	MOVQ DX,R8
++	SHRQ $51,DX
++	ADDQ R11,DX
++	ANDQ SI,R8
++	MOVQ DX,R9
++	SHRQ $51,DX
++	ADDQ R13,DX
++	ANDQ SI,R9
++	MOVQ DX,AX
++	SHRQ $51,DX
++	ADDQ R15,DX
++	ANDQ SI,AX
++	MOVQ DX,R10
++	SHRQ $51,DX
++	IMUL3Q $19,DX,DX
++	ADDQ DX,CX
++	ANDQ SI,R10
++	MOVQ CX,0(DI)
++	MOVQ R8,8(DI)
++	MOVQ R9,16(DI)
++	MOVQ AX,24(DI)
++	MOVQ R10,32(DI)
++	RET
+diff --git a/src/vendor/golang.org/x/crypto/curve25519/curve25519_generic.go b/src/vendor/golang.org/x/crypto/curve25519/curve25519_generic.go
+new file mode 100644
+index 0000000000..c43b13fc83
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/curve25519/curve25519_generic.go
+@@ -0,0 +1,828 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package curve25519
++
++import "encoding/binary"
++
++// This code is a port of the public domain, "ref10" implementation of
++// curve25519 from SUPERCOP 20130419 by D. J. Bernstein.
++
++// fieldElement represents an element of the field GF(2^255 - 19). An element
++// t, entries t[0]...t[9], represents the integer t[0]+2^26 t[1]+2^51 t[2]+2^77
++// t[3]+2^102 t[4]+...+2^230 t[9]. Bounds on each t[i] vary depending on
++// context.
++type fieldElement [10]int32
++
++func feZero(fe *fieldElement) {
++	for i := range fe {
++		fe[i] = 0
++	}
++}
++
++func feOne(fe *fieldElement) {
++	feZero(fe)
++	fe[0] = 1
++}
++
++func feAdd(dst, a, b *fieldElement) {
++	for i := range dst {
++		dst[i] = a[i] + b[i]
++	}
++}
++
++func feSub(dst, a, b *fieldElement) {
++	for i := range dst {
++		dst[i] = a[i] - b[i]
++	}
++}
++
++func feCopy(dst, src *fieldElement) {
++	for i := range dst {
++		dst[i] = src[i]
++	}
++}
++
++// feCSwap replaces (f,g) with (g,f) if b == 1; replaces (f,g) with (f,g) if b == 0.
++//
++// Preconditions: b in {0,1}.
++func feCSwap(f, g *fieldElement, b int32) {
++	b = -b
++	for i := range f {
++		t := b & (f[i] ^ g[i])
++		f[i] ^= t
++		g[i] ^= t
++	}
++}
++
++// load3 reads a 24-bit, little-endian value from in.
++func load3(in []byte) int64 {
++	var r int64
++	r = int64(in[0])
++	r |= int64(in[1]) << 8
++	r |= int64(in[2]) << 16
++	return r
++}
++
++// load4 reads a 32-bit, little-endian value from in.
++func load4(in []byte) int64 {
++	return int64(binary.LittleEndian.Uint32(in))
++}
++
++func feFromBytes(dst *fieldElement, src *[32]byte) {
++	h0 := load4(src[:])
++	h1 := load3(src[4:]) << 6
++	h2 := load3(src[7:]) << 5
++	h3 := load3(src[10:]) << 3
++	h4 := load3(src[13:]) << 2
++	h5 := load4(src[16:])
++	h6 := load3(src[20:]) << 7
++	h7 := load3(src[23:]) << 5
++	h8 := load3(src[26:]) << 4
++	h9 := (load3(src[29:]) & 0x7fffff) << 2
++
++	var carry [10]int64
++	carry[9] = (h9 + 1<<24) >> 25
++	h0 += carry[9] * 19
++	h9 -= carry[9] << 25
++	carry[1] = (h1 + 1<<24) >> 25
++	h2 += carry[1]
++	h1 -= carry[1] << 25
++	carry[3] = (h3 + 1<<24) >> 25
++	h4 += carry[3]
++	h3 -= carry[3] << 25
++	carry[5] = (h5 + 1<<24) >> 25
++	h6 += carry[5]
++	h5 -= carry[5] << 25
++	carry[7] = (h7 + 1<<24) >> 25
++	h8 += carry[7]
++	h7 -= carry[7] << 25
++
++	carry[0] = (h0 + 1<<25) >> 26
++	h1 += carry[0]
++	h0 -= carry[0] << 26
++	carry[2] = (h2 + 1<<25) >> 26
++	h3 += carry[2]
++	h2 -= carry[2] << 26
++	carry[4] = (h4 + 1<<25) >> 26
++	h5 += carry[4]
++	h4 -= carry[4] << 26
++	carry[6] = (h6 + 1<<25) >> 26
++	h7 += carry[6]
++	h6 -= carry[6] << 26
++	carry[8] = (h8 + 1<<25) >> 26
++	h9 += carry[8]
++	h8 -= carry[8] << 26
++
++	dst[0] = int32(h0)
++	dst[1] = int32(h1)
++	dst[2] = int32(h2)
++	dst[3] = int32(h3)
++	dst[4] = int32(h4)
++	dst[5] = int32(h5)
++	dst[6] = int32(h6)
++	dst[7] = int32(h7)
++	dst[8] = int32(h8)
++	dst[9] = int32(h9)
++}
++
++// feToBytes marshals h to s.
++// Preconditions:
++//   |h| bounded by 1.1*2^25,1.1*2^24,1.1*2^25,1.1*2^24,etc.
++//
++// Write p=2^255-19; q=floor(h/p).
++// Basic claim: q = floor(2^(-255)(h + 19 2^(-25)h9 + 2^(-1))).
++//
++// Proof:
++//   Have |h|<=p so |q|<=1 so |19^2 2^(-255) q|<1/4.
++//   Also have |h-2^230 h9|<2^230 so |19 2^(-255)(h-2^230 h9)|<1/4.
++//
++//   Write y=2^(-1)-19^2 2^(-255)q-19 2^(-255)(h-2^230 h9).
++//   Then 0<y<1.
++//
++//   Write r=h-pq.
++//   Have 0<=r<=p-1=2^255-20.
++//   Thus 0<=r+19(2^-255)r<r+19(2^-255)2^255<=2^255-1.
++//
++//   Write x=r+19(2^-255)r+y.
++//   Then 0<x<2^255 so floor(2^(-255)x) = 0 so floor(q+2^(-255)x) = q.
++//
++//   Have q+2^(-255)x = 2^(-255)(h + 19 2^(-25) h9 + 2^(-1))
++//   so floor(2^(-255)(h + 19 2^(-25) h9 + 2^(-1))) = q.
++func feToBytes(s *[32]byte, h *fieldElement) {
++	var carry [10]int32
++
++	q := (19*h[9] + (1 << 24)) >> 25
++	q = (h[0] + q) >> 26
++	q = (h[1] + q) >> 25
++	q = (h[2] + q) >> 26
++	q = (h[3] + q) >> 25
++	q = (h[4] + q) >> 26
++	q = (h[5] + q) >> 25
++	q = (h[6] + q) >> 26
++	q = (h[7] + q) >> 25
++	q = (h[8] + q) >> 26
++	q = (h[9] + q) >> 25
++
++	// Goal: Output h-(2^255-19)q, which is between 0 and 2^255-20.
++	h[0] += 19 * q
++	// Goal: Output h-2^255 q, which is between 0 and 2^255-20.
++
++	carry[0] = h[0] >> 26
++	h[1] += carry[0]
++	h[0] -= carry[0] << 26
++	carry[1] = h[1] >> 25
++	h[2] += carry[1]
++	h[1] -= carry[1] << 25
++	carry[2] = h[2] >> 26
++	h[3] += carry[2]
++	h[2] -= carry[2] << 26
++	carry[3] = h[3] >> 25
++	h[4] += carry[3]
++	h[3] -= carry[3] << 25
++	carry[4] = h[4] >> 26
++	h[5] += carry[4]
++	h[4] -= carry[4] << 26
++	carry[5] = h[5] >> 25
++	h[6] += carry[5]
++	h[5] -= carry[5] << 25
++	carry[6] = h[6] >> 26
++	h[7] += carry[6]
++	h[6] -= carry[6] << 26
++	carry[7] = h[7] >> 25
++	h[8] += carry[7]
++	h[7] -= carry[7] << 25
++	carry[8] = h[8] >> 26
++	h[9] += carry[8]
++	h[8] -= carry[8] << 26
++	carry[9] = h[9] >> 25
++	h[9] -= carry[9] << 25
++	// h10 = carry9
++
++	// Goal: Output h[0]+...+2^255 h10-2^255 q, which is between 0 and 2^255-20.
++	// Have h[0]+...+2^230 h[9] between 0 and 2^255-1;
++	// evidently 2^255 h10-2^255 q = 0.
++	// Goal: Output h[0]+...+2^230 h[9].
++
++	s[0] = byte(h[0] >> 0)
++	s[1] = byte(h[0] >> 8)
++	s[2] = byte(h[0] >> 16)
++	s[3] = byte((h[0] >> 24) | (h[1] << 2))
++	s[4] = byte(h[1] >> 6)
++	s[5] = byte(h[1] >> 14)
++	s[6] = byte((h[1] >> 22) | (h[2] << 3))
++	s[7] = byte(h[2] >> 5)
++	s[8] = byte(h[2] >> 13)
++	s[9] = byte((h[2] >> 21) | (h[3] << 5))
++	s[10] = byte(h[3] >> 3)
++	s[11] = byte(h[3] >> 11)
++	s[12] = byte((h[3] >> 19) | (h[4] << 6))
++	s[13] = byte(h[4] >> 2)
++	s[14] = byte(h[4] >> 10)
++	s[15] = byte(h[4] >> 18)
++	s[16] = byte(h[5] >> 0)
++	s[17] = byte(h[5] >> 8)
++	s[18] = byte(h[5] >> 16)
++	s[19] = byte((h[5] >> 24) | (h[6] << 1))
++	s[20] = byte(h[6] >> 7)
++	s[21] = byte(h[6] >> 15)
++	s[22] = byte((h[6] >> 23) | (h[7] << 3))
++	s[23] = byte(h[7] >> 5)
++	s[24] = byte(h[7] >> 13)
++	s[25] = byte((h[7] >> 21) | (h[8] << 4))
++	s[26] = byte(h[8] >> 4)
++	s[27] = byte(h[8] >> 12)
++	s[28] = byte((h[8] >> 20) | (h[9] << 6))
++	s[29] = byte(h[9] >> 2)
++	s[30] = byte(h[9] >> 10)
++	s[31] = byte(h[9] >> 18)
++}
++
++// feMul calculates h = f * g
++// Can overlap h with f or g.
++//
++// Preconditions:
++//    |f| bounded by 1.1*2^26,1.1*2^25,1.1*2^26,1.1*2^25,etc.
++//    |g| bounded by 1.1*2^26,1.1*2^25,1.1*2^26,1.1*2^25,etc.
++//
++// Postconditions:
++//    |h| bounded by 1.1*2^25,1.1*2^24,1.1*2^25,1.1*2^24,etc.
++//
++// Notes on implementation strategy:
++//
++// Using schoolbook multiplication.
++// Karatsuba would save a little in some cost models.
++//
++// Most multiplications by 2 and 19 are 32-bit precomputations;
++// cheaper than 64-bit postcomputations.
++//
++// There is one remaining multiplication by 19 in the carry chain;
++// one *19 precomputation can be merged into this,
++// but the resulting data flow is considerably less clean.
++//
++// There are 12 carries below.
++// 10 of them are 2-way parallelizable and vectorizable.
++// Can get away with 11 carries, but then data flow is much deeper.
++//
++// With tighter constraints on inputs can squeeze carries into int32.
++func feMul(h, f, g *fieldElement) {
++	f0 := f[0]
++	f1 := f[1]
++	f2 := f[2]
++	f3 := f[3]
++	f4 := f[4]
++	f5 := f[5]
++	f6 := f[6]
++	f7 := f[7]
++	f8 := f[8]
++	f9 := f[9]
++	g0 := g[0]
++	g1 := g[1]
++	g2 := g[2]
++	g3 := g[3]
++	g4 := g[4]
++	g5 := g[5]
++	g6 := g[6]
++	g7 := g[7]
++	g8 := g[8]
++	g9 := g[9]
++	g1_19 := 19 * g1 // 1.4*2^29
++	g2_19 := 19 * g2 // 1.4*2^30; still ok
++	g3_19 := 19 * g3
++	g4_19 := 19 * g4
++	g5_19 := 19 * g5
++	g6_19 := 19 * g6
++	g7_19 := 19 * g7
++	g8_19 := 19 * g8
++	g9_19 := 19 * g9
++	f1_2 := 2 * f1
++	f3_2 := 2 * f3
++	f5_2 := 2 * f5
++	f7_2 := 2 * f7
++	f9_2 := 2 * f9
++	f0g0 := int64(f0) * int64(g0)
++	f0g1 := int64(f0) * int64(g1)
++	f0g2 := int64(f0) * int64(g2)
++	f0g3 := int64(f0) * int64(g3)
++	f0g4 := int64(f0) * int64(g4)
++	f0g5 := int64(f0) * int64(g5)
++	f0g6 := int64(f0) * int64(g6)
++	f0g7 := int64(f0) * int64(g7)
++	f0g8 := int64(f0) * int64(g8)
++	f0g9 := int64(f0) * int64(g9)
++	f1g0 := int64(f1) * int64(g0)
++	f1g1_2 := int64(f1_2) * int64(g1)
++	f1g2 := int64(f1) * int64(g2)
++	f1g3_2 := int64(f1_2) * int64(g3)
++	f1g4 := int64(f1) * int64(g4)
++	f1g5_2 := int64(f1_2) * int64(g5)
++	f1g6 := int64(f1) * int64(g6)
++	f1g7_2 := int64(f1_2) * int64(g7)
++	f1g8 := int64(f1) * int64(g8)
++	f1g9_38 := int64(f1_2) * int64(g9_19)
++	f2g0 := int64(f2) * int64(g0)
++	f2g1 := int64(f2) * int64(g1)
++	f2g2 := int64(f2) * int64(g2)
++	f2g3 := int64(f2) * int64(g3)
++	f2g4 := int64(f2) * int64(g4)
++	f2g5 := int64(f2) * int64(g5)
++	f2g6 := int64(f2) * int64(g6)
++	f2g7 := int64(f2) * int64(g7)
++	f2g8_19 := int64(f2) * int64(g8_19)
++	f2g9_19 := int64(f2) * int64(g9_19)
++	f3g0 := int64(f3) * int64(g0)
++	f3g1_2 := int64(f3_2) * int64(g1)
++	f3g2 := int64(f3) * int64(g2)
++	f3g3_2 := int64(f3_2) * int64(g3)
++	f3g4 := int64(f3) * int64(g4)
++	f3g5_2 := int64(f3_2) * int64(g5)
++	f3g6 := int64(f3) * int64(g6)
++	f3g7_38 := int64(f3_2) * int64(g7_19)
++	f3g8_19 := int64(f3) * int64(g8_19)
++	f3g9_38 := int64(f3_2) * int64(g9_19)
++	f4g0 := int64(f4) * int64(g0)
++	f4g1 := int64(f4) * int64(g1)
++	f4g2 := int64(f4) * int64(g2)
++	f4g3 := int64(f4) * int64(g3)
++	f4g4 := int64(f4) * int64(g4)
++	f4g5 := int64(f4) * int64(g5)
++	f4g6_19 := int64(f4) * int64(g6_19)
++	f4g7_19 := int64(f4) * int64(g7_19)
++	f4g8_19 := int64(f4) * int64(g8_19)
++	f4g9_19 := int64(f4) * int64(g9_19)
++	f5g0 := int64(f5) * int64(g0)
++	f5g1_2 := int64(f5_2) * int64(g1)
++	f5g2 := int64(f5) * int64(g2)
++	f5g3_2 := int64(f5_2) * int64(g3)
++	f5g4 := int64(f5) * int64(g4)
++	f5g5_38 := int64(f5_2) * int64(g5_19)
++	f5g6_19 := int64(f5) * int64(g6_19)
++	f5g7_38 := int64(f5_2) * int64(g7_19)
++	f5g8_19 := int64(f5) * int64(g8_19)
++	f5g9_38 := int64(f5_2) * int64(g9_19)
++	f6g0 := int64(f6) * int64(g0)
++	f6g1 := int64(f6) * int64(g1)
++	f6g2 := int64(f6) * int64(g2)
++	f6g3 := int64(f6) * int64(g3)
++	f6g4_19 := int64(f6) * int64(g4_19)
++	f6g5_19 := int64(f6) * int64(g5_19)
++	f6g6_19 := int64(f6) * int64(g6_19)
++	f6g7_19 := int64(f6) * int64(g7_19)
++	f6g8_19 := int64(f6) * int64(g8_19)
++	f6g9_19 := int64(f6) * int64(g9_19)
++	f7g0 := int64(f7) * int64(g0)
++	f7g1_2 := int64(f7_2) * int64(g1)
++	f7g2 := int64(f7) * int64(g2)
++	f7g3_38 := int64(f7_2) * int64(g3_19)
++	f7g4_19 := int64(f7) * int64(g4_19)
++	f7g5_38 := int64(f7_2) * int64(g5_19)
++	f7g6_19 := int64(f7) * int64(g6_19)
++	f7g7_38 := int64(f7_2) * int64(g7_19)
++	f7g8_19 := int64(f7) * int64(g8_19)
++	f7g9_38 := int64(f7_2) * int64(g9_19)
++	f8g0 := int64(f8) * int64(g0)
++	f8g1 := int64(f8) * int64(g1)
++	f8g2_19 := int64(f8) * int64(g2_19)
++	f8g3_19 := int64(f8) * int64(g3_19)
++	f8g4_19 := int64(f8) * int64(g4_19)
++	f8g5_19 := int64(f8) * int64(g5_19)
++	f8g6_19 := int64(f8) * int64(g6_19)
++	f8g7_19 := int64(f8) * int64(g7_19)
++	f8g8_19 := int64(f8) * int64(g8_19)
++	f8g9_19 := int64(f8) * int64(g9_19)
++	f9g0 := int64(f9) * int64(g0)
++	f9g1_38 := int64(f9_2) * int64(g1_19)
++	f9g2_19 := int64(f9) * int64(g2_19)
++	f9g3_38 := int64(f9_2) * int64(g3_19)
++	f9g4_19 := int64(f9) * int64(g4_19)
++	f9g5_38 := int64(f9_2) * int64(g5_19)
++	f9g6_19 := int64(f9) * int64(g6_19)
++	f9g7_38 := int64(f9_2) * int64(g7_19)
++	f9g8_19 := int64(f9) * int64(g8_19)
++	f9g9_38 := int64(f9_2) * int64(g9_19)
++	h0 := f0g0 + f1g9_38 + f2g8_19 + f3g7_38 + f4g6_19 + f5g5_38 + f6g4_19 + f7g3_38 + f8g2_19 + f9g1_38
++	h1 := f0g1 + f1g0 + f2g9_19 + f3g8_19 + f4g7_19 + f5g6_19 + f6g5_19 + f7g4_19 + f8g3_19 + f9g2_19
++	h2 := f0g2 + f1g1_2 + f2g0 + f3g9_38 + f4g8_19 + f5g7_38 + f6g6_19 + f7g5_38 + f8g4_19 + f9g3_38
++	h3 := f0g3 + f1g2 + f2g1 + f3g0 + f4g9_19 + f5g8_19 + f6g7_19 + f7g6_19 + f8g5_19 + f9g4_19
++	h4 := f0g4 + f1g3_2 + f2g2 + f3g1_2 + f4g0 + f5g9_38 + f6g8_19 + f7g7_38 + f8g6_19 + f9g5_38
++	h5 := f0g5 + f1g4 + f2g3 + f3g2 + f4g1 + f5g0 + f6g9_19 + f7g8_19 + f8g7_19 + f9g6_19
++	h6 := f0g6 + f1g5_2 + f2g4 + f3g3_2 + f4g2 + f5g1_2 + f6g0 + f7g9_38 + f8g8_19 + f9g7_38
++	h7 := f0g7 + f1g6 + f2g5 + f3g4 + f4g3 + f5g2 + f6g1 + f7g0 + f8g9_19 + f9g8_19
++	h8 := f0g8 + f1g7_2 + f2g6 + f3g5_2 + f4g4 + f5g3_2 + f6g2 + f7g1_2 + f8g0 + f9g9_38
++	h9 := f0g9 + f1g8 + f2g7 + f3g6 + f4g5 + f5g4 + f6g3 + f7g2 + f8g1 + f9g0
++	var carry [10]int64
++
++	// |h0| <= (1.1*1.1*2^52*(1+19+19+19+19)+1.1*1.1*2^50*(38+38+38+38+38))
++	//   i.e. |h0| <= 1.2*2^59; narrower ranges for h2, h4, h6, h8
++	// |h1| <= (1.1*1.1*2^51*(1+1+19+19+19+19+19+19+19+19))
++	//   i.e. |h1| <= 1.5*2^58; narrower ranges for h3, h5, h7, h9
++
++	carry[0] = (h0 + (1 << 25)) >> 26
++	h1 += carry[0]
++	h0 -= carry[0] << 26
++	carry[4] = (h4 + (1 << 25)) >> 26
++	h5 += carry[4]
++	h4 -= carry[4] << 26
++	// |h0| <= 2^25
++	// |h4| <= 2^25
++	// |h1| <= 1.51*2^58
++	// |h5| <= 1.51*2^58
++
++	carry[1] = (h1 + (1 << 24)) >> 25
++	h2 += carry[1]
++	h1 -= carry[1] << 25
++	carry[5] = (h5 + (1 << 24)) >> 25
++	h6 += carry[5]
++	h5 -= carry[5] << 25
++	// |h1| <= 2^24; from now on fits into int32
++	// |h5| <= 2^24; from now on fits into int32
++	// |h2| <= 1.21*2^59
++	// |h6| <= 1.21*2^59
++
++	carry[2] = (h2 + (1 << 25)) >> 26
++	h3 += carry[2]
++	h2 -= carry[2] << 26
++	carry[6] = (h6 + (1 << 25)) >> 26
++	h7 += carry[6]
++	h6 -= carry[6] << 26
++	// |h2| <= 2^25; from now on fits into int32 unchanged
++	// |h6| <= 2^25; from now on fits into int32 unchanged
++	// |h3| <= 1.51*2^58
++	// |h7| <= 1.51*2^58
++
++	carry[3] = (h3 + (1 << 24)) >> 25
++	h4 += carry[3]
++	h3 -= carry[3] << 25
++	carry[7] = (h7 + (1 << 24)) >> 25
++	h8 += carry[7]
++	h7 -= carry[7] << 25
++	// |h3| <= 2^24; from now on fits into int32 unchanged
++	// |h7| <= 2^24; from now on fits into int32 unchanged
++	// |h4| <= 1.52*2^33
++	// |h8| <= 1.52*2^33
++
++	carry[4] = (h4 + (1 << 25)) >> 26
++	h5 += carry[4]
++	h4 -= carry[4] << 26
++	carry[8] = (h8 + (1 << 25)) >> 26
++	h9 += carry[8]
++	h8 -= carry[8] << 26
++	// |h4| <= 2^25; from now on fits into int32 unchanged
++	// |h8| <= 2^25; from now on fits into int32 unchanged
++	// |h5| <= 1.01*2^24
++	// |h9| <= 1.51*2^58
++
++	carry[9] = (h9 + (1 << 24)) >> 25
++	h0 += carry[9] * 19
++	h9 -= carry[9] << 25
++	// |h9| <= 2^24; from now on fits into int32 unchanged
++	// |h0| <= 1.8*2^37
++
++	carry[0] = (h0 + (1 << 25)) >> 26
++	h1 += carry[0]
++	h0 -= carry[0] << 26
++	// |h0| <= 2^25; from now on fits into int32 unchanged
++	// |h1| <= 1.01*2^24
++
++	h[0] = int32(h0)
++	h[1] = int32(h1)
++	h[2] = int32(h2)
++	h[3] = int32(h3)
++	h[4] = int32(h4)
++	h[5] = int32(h5)
++	h[6] = int32(h6)
++	h[7] = int32(h7)
++	h[8] = int32(h8)
++	h[9] = int32(h9)
++}
++
++// feSquare calculates h = f*f. Can overlap h with f.
++//
++// Preconditions:
++//    |f| bounded by 1.1*2^26,1.1*2^25,1.1*2^26,1.1*2^25,etc.
++//
++// Postconditions:
++//    |h| bounded by 1.1*2^25,1.1*2^24,1.1*2^25,1.1*2^24,etc.
++func feSquare(h, f *fieldElement) {
++	f0 := f[0]
++	f1 := f[1]
++	f2 := f[2]
++	f3 := f[3]
++	f4 := f[4]
++	f5 := f[5]
++	f6 := f[6]
++	f7 := f[7]
++	f8 := f[8]
++	f9 := f[9]
++	f0_2 := 2 * f0
++	f1_2 := 2 * f1
++	f2_2 := 2 * f2
++	f3_2 := 2 * f3
++	f4_2 := 2 * f4
++	f5_2 := 2 * f5
++	f6_2 := 2 * f6
++	f7_2 := 2 * f7
++	f5_38 := 38 * f5 // 1.31*2^30
++	f6_19 := 19 * f6 // 1.31*2^30
++	f7_38 := 38 * f7 // 1.31*2^30
++	f8_19 := 19 * f8 // 1.31*2^30
++	f9_38 := 38 * f9 // 1.31*2^30
++	f0f0 := int64(f0) * int64(f0)
++	f0f1_2 := int64(f0_2) * int64(f1)
++	f0f2_2 := int64(f0_2) * int64(f2)
++	f0f3_2 := int64(f0_2) * int64(f3)
++	f0f4_2 := int64(f0_2) * int64(f4)
++	f0f5_2 := int64(f0_2) * int64(f5)
++	f0f6_2 := int64(f0_2) * int64(f6)
++	f0f7_2 := int64(f0_2) * int64(f7)
++	f0f8_2 := int64(f0_2) * int64(f8)
++	f0f9_2 := int64(f0_2) * int64(f9)
++	f1f1_2 := int64(f1_2) * int64(f1)
++	f1f2_2 := int64(f1_2) * int64(f2)
++	f1f3_4 := int64(f1_2) * int64(f3_2)
++	f1f4_2 := int64(f1_2) * int64(f4)
++	f1f5_4 := int64(f1_2) * int64(f5_2)
++	f1f6_2 := int64(f1_2) * int64(f6)
++	f1f7_4 := int64(f1_2) * int64(f7_2)
++	f1f8_2 := int64(f1_2) * int64(f8)
++	f1f9_76 := int64(f1_2) * int64(f9_38)
++	f2f2 := int64(f2) * int64(f2)
++	f2f3_2 := int64(f2_2) * int64(f3)
++	f2f4_2 := int64(f2_2) * int64(f4)
++	f2f5_2 := int64(f2_2) * int64(f5)
++	f2f6_2 := int64(f2_2) * int64(f6)
++	f2f7_2 := int64(f2_2) * int64(f7)
++	f2f8_38 := int64(f2_2) * int64(f8_19)
++	f2f9_38 := int64(f2) * int64(f9_38)
++	f3f3_2 := int64(f3_2) * int64(f3)
++	f3f4_2 := int64(f3_2) * int64(f4)
++	f3f5_4 := int64(f3_2) * int64(f5_2)
++	f3f6_2 := int64(f3_2) * int64(f6)
++	f3f7_76 := int64(f3_2) * int64(f7_38)
++	f3f8_38 := int64(f3_2) * int64(f8_19)
++	f3f9_76 := int64(f3_2) * int64(f9_38)
++	f4f4 := int64(f4) * int64(f4)
++	f4f5_2 := int64(f4_2) * int64(f5)
++	f4f6_38 := int64(f4_2) * int64(f6_19)
++	f4f7_38 := int64(f4) * int64(f7_38)
++	f4f8_38 := int64(f4_2) * int64(f8_19)
++	f4f9_38 := int64(f4) * int64(f9_38)
++	f5f5_38 := int64(f5) * int64(f5_38)
++	f5f6_38 := int64(f5_2) * int64(f6_19)
++	f5f7_76 := int64(f5_2) * int64(f7_38)
++	f5f8_38 := int64(f5_2) * int64(f8_19)
++	f5f9_76 := int64(f5_2) * int64(f9_38)
++	f6f6_19 := int64(f6) * int64(f6_19)
++	f6f7_38 := int64(f6) * int64(f7_38)
++	f6f8_38 := int64(f6_2) * int64(f8_19)
++	f6f9_38 := int64(f6) * int64(f9_38)
++	f7f7_38 := int64(f7) * int64(f7_38)
++	f7f8_38 := int64(f7_2) * int64(f8_19)
++	f7f9_76 := int64(f7_2) * int64(f9_38)
++	f8f8_19 := int64(f8) * int64(f8_19)
++	f8f9_38 := int64(f8) * int64(f9_38)
++	f9f9_38 := int64(f9) * int64(f9_38)
++	h0 := f0f0 + f1f9_76 + f2f8_38 + f3f7_76 + f4f6_38 + f5f5_38
++	h1 := f0f1_2 + f2f9_38 + f3f8_38 + f4f7_38 + f5f6_38
++	h2 := f0f2_2 + f1f1_2 + f3f9_76 + f4f8_38 + f5f7_76 + f6f6_19
++	h3 := f0f3_2 + f1f2_2 + f4f9_38 + f5f8_38 + f6f7_38
++	h4 := f0f4_2 + f1f3_4 + f2f2 + f5f9_76 + f6f8_38 + f7f7_38
++	h5 := f0f5_2 + f1f4_2 + f2f3_2 + f6f9_38 + f7f8_38
++	h6 := f0f6_2 + f1f5_4 + f2f4_2 + f3f3_2 + f7f9_76 + f8f8_19
++	h7 := f0f7_2 + f1f6_2 + f2f5_2 + f3f4_2 + f8f9_38
++	h8 := f0f8_2 + f1f7_4 + f2f6_2 + f3f5_4 + f4f4 + f9f9_38
++	h9 := f0f9_2 + f1f8_2 + f2f7_2 + f3f6_2 + f4f5_2
++	var carry [10]int64
++
++	carry[0] = (h0 + (1 << 25)) >> 26
++	h1 += carry[0]
++	h0 -= carry[0] << 26
++	carry[4] = (h4 + (1 << 25)) >> 26
++	h5 += carry[4]
++	h4 -= carry[4] << 26
++
++	carry[1] = (h1 + (1 << 24)) >> 25
++	h2 += carry[1]
++	h1 -= carry[1] << 25
++	carry[5] = (h5 + (1 << 24)) >> 25
++	h6 += carry[5]
++	h5 -= carry[5] << 25
++
++	carry[2] = (h2 + (1 << 25)) >> 26
++	h3 += carry[2]
++	h2 -= carry[2] << 26
++	carry[6] = (h6 + (1 << 25)) >> 26
++	h7 += carry[6]
++	h6 -= carry[6] << 26
++
++	carry[3] = (h3 + (1 << 24)) >> 25
++	h4 += carry[3]
++	h3 -= carry[3] << 25
++	carry[7] = (h7 + (1 << 24)) >> 25
++	h8 += carry[7]
++	h7 -= carry[7] << 25
++
++	carry[4] = (h4 + (1 << 25)) >> 26
++	h5 += carry[4]
++	h4 -= carry[4] << 26
++	carry[8] = (h8 + (1 << 25)) >> 26
++	h9 += carry[8]
++	h8 -= carry[8] << 26
++
++	carry[9] = (h9 + (1 << 24)) >> 25
++	h0 += carry[9] * 19
++	h9 -= carry[9] << 25
++
++	carry[0] = (h0 + (1 << 25)) >> 26
++	h1 += carry[0]
++	h0 -= carry[0] << 26
++
++	h[0] = int32(h0)
++	h[1] = int32(h1)
++	h[2] = int32(h2)
++	h[3] = int32(h3)
++	h[4] = int32(h4)
++	h[5] = int32(h5)
++	h[6] = int32(h6)
++	h[7] = int32(h7)
++	h[8] = int32(h8)
++	h[9] = int32(h9)
++}
++
++// feMul121666 calculates h = f * 121666. Can overlap h with f.
++//
++// Preconditions:
++//    |f| bounded by 1.1*2^26,1.1*2^25,1.1*2^26,1.1*2^25,etc.
++//
++// Postconditions:
++//    |h| bounded by 1.1*2^25,1.1*2^24,1.1*2^25,1.1*2^24,etc.
++func feMul121666(h, f *fieldElement) {
++	h0 := int64(f[0]) * 121666
++	h1 := int64(f[1]) * 121666
++	h2 := int64(f[2]) * 121666
++	h3 := int64(f[3]) * 121666
++	h4 := int64(f[4]) * 121666
++	h5 := int64(f[5]) * 121666
++	h6 := int64(f[6]) * 121666
++	h7 := int64(f[7]) * 121666
++	h8 := int64(f[8]) * 121666
++	h9 := int64(f[9]) * 121666
++	var carry [10]int64
++
++	carry[9] = (h9 + (1 << 24)) >> 25
++	h0 += carry[9] * 19
++	h9 -= carry[9] << 25
++	carry[1] = (h1 + (1 << 24)) >> 25
++	h2 += carry[1]
++	h1 -= carry[1] << 25
++	carry[3] = (h3 + (1 << 24)) >> 25
++	h4 += carry[3]
++	h3 -= carry[3] << 25
++	carry[5] = (h5 + (1 << 24)) >> 25
++	h6 += carry[5]
++	h5 -= carry[5] << 25
++	carry[7] = (h7 + (1 << 24)) >> 25
++	h8 += carry[7]
++	h7 -= carry[7] << 25
++
++	carry[0] = (h0 + (1 << 25)) >> 26
++	h1 += carry[0]
++	h0 -= carry[0] << 26
++	carry[2] = (h2 + (1 << 25)) >> 26
++	h3 += carry[2]
++	h2 -= carry[2] << 26
++	carry[4] = (h4 + (1 << 25)) >> 26
++	h5 += carry[4]
++	h4 -= carry[4] << 26
++	carry[6] = (h6 + (1 << 25)) >> 26
++	h7 += carry[6]
++	h6 -= carry[6] << 26
++	carry[8] = (h8 + (1 << 25)) >> 26
++	h9 += carry[8]
++	h8 -= carry[8] << 26
++
++	h[0] = int32(h0)
++	h[1] = int32(h1)
++	h[2] = int32(h2)
++	h[3] = int32(h3)
++	h[4] = int32(h4)
++	h[5] = int32(h5)
++	h[6] = int32(h6)
++	h[7] = int32(h7)
++	h[8] = int32(h8)
++	h[9] = int32(h9)
++}
++
++// feInvert sets out = z^-1.
++func feInvert(out, z *fieldElement) {
++	var t0, t1, t2, t3 fieldElement
++	var i int
++
++	feSquare(&t0, z)
++	for i = 1; i < 1; i++ {
++		feSquare(&t0, &t0)
++	}
++	feSquare(&t1, &t0)
++	for i = 1; i < 2; i++ {
++		feSquare(&t1, &t1)
++	}
++	feMul(&t1, z, &t1)
++	feMul(&t0, &t0, &t1)
++	feSquare(&t2, &t0)
++	for i = 1; i < 1; i++ {
++		feSquare(&t2, &t2)
++	}
++	feMul(&t1, &t1, &t2)
++	feSquare(&t2, &t1)
++	for i = 1; i < 5; i++ {
++		feSquare(&t2, &t2)
++	}
++	feMul(&t1, &t2, &t1)
++	feSquare(&t2, &t1)
++	for i = 1; i < 10; i++ {
++		feSquare(&t2, &t2)
++	}
++	feMul(&t2, &t2, &t1)
++	feSquare(&t3, &t2)
++	for i = 1; i < 20; i++ {
++		feSquare(&t3, &t3)
++	}
++	feMul(&t2, &t3, &t2)
++	feSquare(&t2, &t2)
++	for i = 1; i < 10; i++ {
++		feSquare(&t2, &t2)
++	}
++	feMul(&t1, &t2, &t1)
++	feSquare(&t2, &t1)
++	for i = 1; i < 50; i++ {
++		feSquare(&t2, &t2)
++	}
++	feMul(&t2, &t2, &t1)
++	feSquare(&t3, &t2)
++	for i = 1; i < 100; i++ {
++		feSquare(&t3, &t3)
++	}
++	feMul(&t2, &t3, &t2)
++	feSquare(&t2, &t2)
++	for i = 1; i < 50; i++ {
++		feSquare(&t2, &t2)
++	}
++	feMul(&t1, &t2, &t1)
++	feSquare(&t1, &t1)
++	for i = 1; i < 5; i++ {
++		feSquare(&t1, &t1)
++	}
++	feMul(out, &t1, &t0)
++}
++
++func scalarMultGeneric(out, in, base *[32]byte) {
++	var e [32]byte
++
++	copy(e[:], in[:])
++	e[0] &= 248
++	e[31] &= 127
++	e[31] |= 64
++
++	var x1, x2, z2, x3, z3, tmp0, tmp1 fieldElement
++	feFromBytes(&x1, base)
++	feOne(&x2)
++	feCopy(&x3, &x1)
++	feOne(&z3)
++
++	swap := int32(0)
++	for pos := 254; pos >= 0; pos-- {
++		b := e[pos/8] >> uint(pos&7)
++		b &= 1
++		swap ^= int32(b)
++		feCSwap(&x2, &x3, swap)
++		feCSwap(&z2, &z3, swap)
++		swap = int32(b)
++
++		feSub(&tmp0, &x3, &z3)
++		feSub(&tmp1, &x2, &z2)
++		feAdd(&x2, &x2, &z2)
++		feAdd(&z2, &x3, &z3)
++		feMul(&z3, &tmp0, &x2)
++		feMul(&z2, &z2, &tmp1)
++		feSquare(&tmp0, &tmp1)
++		feSquare(&tmp1, &x2)
++		feAdd(&x3, &z3, &z2)
++		feSub(&z2, &z3, &z2)
++		feMul(&x2, &tmp1, &tmp0)
++		feSub(&tmp1, &tmp1, &tmp0)
++		feSquare(&z2, &z2)
++		feMul121666(&z3, &tmp1)
++		feSquare(&x3, &x3)
++		feAdd(&tmp0, &tmp0, &z3)
++		feMul(&z3, &x1, &z2)
++		feMul(&z2, &tmp1, &tmp0)
++	}
++
++	feCSwap(&x2, &x3, swap)
++	feCSwap(&z2, &z3, swap)
++
++	feInvert(&z2, &z2)
++	feMul(&x2, &x2, &z2)
++	feToBytes(out, &x2)
++}
+diff --git a/src/vendor/golang.org/x/crypto/curve25519/curve25519_noasm.go b/src/vendor/golang.org/x/crypto/curve25519/curve25519_noasm.go
+new file mode 100644
+index 0000000000..047d49afc2
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/curve25519/curve25519_noasm.go
+@@ -0,0 +1,11 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !amd64 gccgo appengine purego
++
++package curve25519
++
++func scalarMult(out, in, base *[32]byte) {
++	scalarMultGeneric(out, in, base)
++}
+diff --git a/src/vendor/golang.org/x/crypto/curve25519/doc.go b/src/vendor/golang.org/x/crypto/curve25519/doc.go
+deleted file mode 100644
+index da9b10d9c1..0000000000
+--- a/src/vendor/golang.org/x/crypto/curve25519/doc.go
++++ /dev/null
+@@ -1,23 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Package curve25519 provides an implementation of scalar multiplication on
+-// the elliptic curve known as curve25519. See https://cr.yp.to/ecdh.html
+-package curve25519 // import "golang.org/x/crypto/curve25519"
+-
+-// basePoint is the x coordinate of the generator of the curve.
+-var basePoint = [32]byte{9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+-
+-// ScalarMult sets dst to the product in*base where dst and base are the x
+-// coordinates of group points and all values are in little-endian form.
+-func ScalarMult(dst, in, base *[32]byte) {
+-	scalarMult(dst, in, base)
+-}
+-
+-// ScalarBaseMult sets dst to the product in*base where dst and base are the x
+-// coordinates of group points, base is the standard generator and all values
+-// are in little-endian form.
+-func ScalarBaseMult(dst, in *[32]byte) {
+-	ScalarMult(dst, in, &basePoint)
+-}
+diff --git a/src/vendor/golang.org/x/crypto/curve25519/freeze_amd64.s b/src/vendor/golang.org/x/crypto/curve25519/freeze_amd64.s
+deleted file mode 100644
+index 390816106e..0000000000
+--- a/src/vendor/golang.org/x/crypto/curve25519/freeze_amd64.s
++++ /dev/null
+@@ -1,73 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This code was translated into a form compatible with 6a from the public
+-// domain sources in SUPERCOP: https://bench.cr.yp.to/supercop.html
+-
+-// +build amd64,!gccgo,!appengine
+-
+-#include "const_amd64.h"
+-
+-// func freeze(inout *[5]uint64)
+-TEXT ·freeze(SB),7,$0-8
+-	MOVQ inout+0(FP), DI
+-
+-	MOVQ 0(DI),SI
+-	MOVQ 8(DI),DX
+-	MOVQ 16(DI),CX
+-	MOVQ 24(DI),R8
+-	MOVQ 32(DI),R9
+-	MOVQ $REDMASK51,AX
+-	MOVQ AX,R10
+-	SUBQ $18,R10
+-	MOVQ $3,R11
+-REDUCELOOP:
+-	MOVQ SI,R12
+-	SHRQ $51,R12
+-	ANDQ AX,SI
+-	ADDQ R12,DX
+-	MOVQ DX,R12
+-	SHRQ $51,R12
+-	ANDQ AX,DX
+-	ADDQ R12,CX
+-	MOVQ CX,R12
+-	SHRQ $51,R12
+-	ANDQ AX,CX
+-	ADDQ R12,R8
+-	MOVQ R8,R12
+-	SHRQ $51,R12
+-	ANDQ AX,R8
+-	ADDQ R12,R9
+-	MOVQ R9,R12
+-	SHRQ $51,R12
+-	ANDQ AX,R9
+-	IMUL3Q $19,R12,R12
+-	ADDQ R12,SI
+-	SUBQ $1,R11
+-	JA REDUCELOOP
+-	MOVQ $1,R12
+-	CMPQ R10,SI
+-	CMOVQLT R11,R12
+-	CMPQ AX,DX
+-	CMOVQNE R11,R12
+-	CMPQ AX,CX
+-	CMOVQNE R11,R12
+-	CMPQ AX,R8
+-	CMOVQNE R11,R12
+-	CMPQ AX,R9
+-	CMOVQNE R11,R12
+-	NEGQ R12
+-	ANDQ R12,AX
+-	ANDQ R12,R10
+-	SUBQ R10,SI
+-	SUBQ AX,DX
+-	SUBQ AX,CX
+-	SUBQ AX,R8
+-	SUBQ AX,R9
+-	MOVQ SI,0(DI)
+-	MOVQ DX,8(DI)
+-	MOVQ CX,16(DI)
+-	MOVQ R8,24(DI)
+-	MOVQ R9,32(DI)
+-	RET
+diff --git a/src/vendor/golang.org/x/crypto/curve25519/mul_amd64.s b/src/vendor/golang.org/x/crypto/curve25519/mul_amd64.s
+deleted file mode 100644
+index 1f76d1a3f5..0000000000
+--- a/src/vendor/golang.org/x/crypto/curve25519/mul_amd64.s
++++ /dev/null
+@@ -1,169 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This code was translated into a form compatible with 6a from the public
+-// domain sources in SUPERCOP: https://bench.cr.yp.to/supercop.html
+-
+-// +build amd64,!gccgo,!appengine
+-
+-#include "const_amd64.h"
+-
+-// func mul(dest, a, b *[5]uint64)
+-TEXT ·mul(SB),0,$16-24
+-	MOVQ dest+0(FP), DI
+-	MOVQ a+8(FP), SI
+-	MOVQ b+16(FP), DX
+-
+-	MOVQ DX,CX
+-	MOVQ 24(SI),DX
+-	IMUL3Q $19,DX,AX
+-	MOVQ AX,0(SP)
+-	MULQ 16(CX)
+-	MOVQ AX,R8
+-	MOVQ DX,R9
+-	MOVQ 32(SI),DX
+-	IMUL3Q $19,DX,AX
+-	MOVQ AX,8(SP)
+-	MULQ 8(CX)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 0(SI),AX
+-	MULQ 0(CX)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 0(SI),AX
+-	MULQ 8(CX)
+-	MOVQ AX,R10
+-	MOVQ DX,R11
+-	MOVQ 0(SI),AX
+-	MULQ 16(CX)
+-	MOVQ AX,R12
+-	MOVQ DX,R13
+-	MOVQ 0(SI),AX
+-	MULQ 24(CX)
+-	MOVQ AX,R14
+-	MOVQ DX,R15
+-	MOVQ 0(SI),AX
+-	MULQ 32(CX)
+-	MOVQ AX,BX
+-	MOVQ DX,BP
+-	MOVQ 8(SI),AX
+-	MULQ 0(CX)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 8(SI),AX
+-	MULQ 8(CX)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ 8(SI),AX
+-	MULQ 16(CX)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ 8(SI),AX
+-	MULQ 24(CX)
+-	ADDQ AX,BX
+-	ADCQ DX,BP
+-	MOVQ 8(SI),DX
+-	IMUL3Q $19,DX,AX
+-	MULQ 32(CX)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 16(SI),AX
+-	MULQ 0(CX)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ 16(SI),AX
+-	MULQ 8(CX)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ 16(SI),AX
+-	MULQ 16(CX)
+-	ADDQ AX,BX
+-	ADCQ DX,BP
+-	MOVQ 16(SI),DX
+-	IMUL3Q $19,DX,AX
+-	MULQ 24(CX)
+-	ADDQ AX,R8
+-	ADCQ DX,R9
+-	MOVQ 16(SI),DX
+-	IMUL3Q $19,DX,AX
+-	MULQ 32(CX)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 24(SI),AX
+-	MULQ 0(CX)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ 24(SI),AX
+-	MULQ 8(CX)
+-	ADDQ AX,BX
+-	ADCQ DX,BP
+-	MOVQ 0(SP),AX
+-	MULQ 24(CX)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 0(SP),AX
+-	MULQ 32(CX)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ 32(SI),AX
+-	MULQ 0(CX)
+-	ADDQ AX,BX
+-	ADCQ DX,BP
+-	MOVQ 8(SP),AX
+-	MULQ 16(CX)
+-	ADDQ AX,R10
+-	ADCQ DX,R11
+-	MOVQ 8(SP),AX
+-	MULQ 24(CX)
+-	ADDQ AX,R12
+-	ADCQ DX,R13
+-	MOVQ 8(SP),AX
+-	MULQ 32(CX)
+-	ADDQ AX,R14
+-	ADCQ DX,R15
+-	MOVQ $REDMASK51,SI
+-	SHLQ $13,R8,R9
+-	ANDQ SI,R8
+-	SHLQ $13,R10,R11
+-	ANDQ SI,R10
+-	ADDQ R9,R10
+-	SHLQ $13,R12,R13
+-	ANDQ SI,R12
+-	ADDQ R11,R12
+-	SHLQ $13,R14,R15
+-	ANDQ SI,R14
+-	ADDQ R13,R14
+-	SHLQ $13,BX,BP
+-	ANDQ SI,BX
+-	ADDQ R15,BX
+-	IMUL3Q $19,BP,DX
+-	ADDQ DX,R8
+-	MOVQ R8,DX
+-	SHRQ $51,DX
+-	ADDQ R10,DX
+-	MOVQ DX,CX
+-	SHRQ $51,DX
+-	ANDQ SI,R8
+-	ADDQ R12,DX
+-	MOVQ DX,R9
+-	SHRQ $51,DX
+-	ANDQ SI,CX
+-	ADDQ R14,DX
+-	MOVQ DX,AX
+-	SHRQ $51,DX
+-	ANDQ SI,R9
+-	ADDQ BX,DX
+-	MOVQ DX,R10
+-	SHRQ $51,DX
+-	ANDQ SI,AX
+-	IMUL3Q $19,DX,DX
+-	ADDQ DX,R8
+-	ANDQ SI,R10
+-	MOVQ R8,0(DI)
+-	MOVQ CX,8(DI)
+-	MOVQ R9,16(DI)
+-	MOVQ AX,24(DI)
+-	MOVQ R10,32(DI)
+-	RET
+diff --git a/src/vendor/golang.org/x/crypto/curve25519/square_amd64.s b/src/vendor/golang.org/x/crypto/curve25519/square_amd64.s
+deleted file mode 100644
+index 07511a45af..0000000000
+--- a/src/vendor/golang.org/x/crypto/curve25519/square_amd64.s
++++ /dev/null
+@@ -1,132 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This code was translated into a form compatible with 6a from the public
+-// domain sources in SUPERCOP: https://bench.cr.yp.to/supercop.html
+-
+-// +build amd64,!gccgo,!appengine
+-
+-#include "const_amd64.h"
+-
+-// func square(out, in *[5]uint64)
+-TEXT ·square(SB),7,$0-16
+-	MOVQ out+0(FP), DI
+-	MOVQ in+8(FP), SI
+-
+-	MOVQ 0(SI),AX
+-	MULQ 0(SI)
+-	MOVQ AX,CX
+-	MOVQ DX,R8
+-	MOVQ 0(SI),AX
+-	SHLQ $1,AX
+-	MULQ 8(SI)
+-	MOVQ AX,R9
+-	MOVQ DX,R10
+-	MOVQ 0(SI),AX
+-	SHLQ $1,AX
+-	MULQ 16(SI)
+-	MOVQ AX,R11
+-	MOVQ DX,R12
+-	MOVQ 0(SI),AX
+-	SHLQ $1,AX
+-	MULQ 24(SI)
+-	MOVQ AX,R13
+-	MOVQ DX,R14
+-	MOVQ 0(SI),AX
+-	SHLQ $1,AX
+-	MULQ 32(SI)
+-	MOVQ AX,R15
+-	MOVQ DX,BX
+-	MOVQ 8(SI),AX
+-	MULQ 8(SI)
+-	ADDQ AX,R11
+-	ADCQ DX,R12
+-	MOVQ 8(SI),AX
+-	SHLQ $1,AX
+-	MULQ 16(SI)
+-	ADDQ AX,R13
+-	ADCQ DX,R14
+-	MOVQ 8(SI),AX
+-	SHLQ $1,AX
+-	MULQ 24(SI)
+-	ADDQ AX,R15
+-	ADCQ DX,BX
+-	MOVQ 8(SI),DX
+-	IMUL3Q $38,DX,AX
+-	MULQ 32(SI)
+-	ADDQ AX,CX
+-	ADCQ DX,R8
+-	MOVQ 16(SI),AX
+-	MULQ 16(SI)
+-	ADDQ AX,R15
+-	ADCQ DX,BX
+-	MOVQ 16(SI),DX
+-	IMUL3Q $38,DX,AX
+-	MULQ 24(SI)
+-	ADDQ AX,CX
+-	ADCQ DX,R8
+-	MOVQ 16(SI),DX
+-	IMUL3Q $38,DX,AX
+-	MULQ 32(SI)
+-	ADDQ AX,R9
+-	ADCQ DX,R10
+-	MOVQ 24(SI),DX
+-	IMUL3Q $19,DX,AX
+-	MULQ 24(SI)
+-	ADDQ AX,R9
+-	ADCQ DX,R10
+-	MOVQ 24(SI),DX
+-	IMUL3Q $38,DX,AX
+-	MULQ 32(SI)
+-	ADDQ AX,R11
+-	ADCQ DX,R12
+-	MOVQ 32(SI),DX
+-	IMUL3Q $19,DX,AX
+-	MULQ 32(SI)
+-	ADDQ AX,R13
+-	ADCQ DX,R14
+-	MOVQ $REDMASK51,SI
+-	SHLQ $13,CX,R8
+-	ANDQ SI,CX
+-	SHLQ $13,R9,R10
+-	ANDQ SI,R9
+-	ADDQ R8,R9
+-	SHLQ $13,R11,R12
+-	ANDQ SI,R11
+-	ADDQ R10,R11
+-	SHLQ $13,R13,R14
+-	ANDQ SI,R13
+-	ADDQ R12,R13
+-	SHLQ $13,R15,BX
+-	ANDQ SI,R15
+-	ADDQ R14,R15
+-	IMUL3Q $19,BX,DX
+-	ADDQ DX,CX
+-	MOVQ CX,DX
+-	SHRQ $51,DX
+-	ADDQ R9,DX
+-	ANDQ SI,CX
+-	MOVQ DX,R8
+-	SHRQ $51,DX
+-	ADDQ R11,DX
+-	ANDQ SI,R8
+-	MOVQ DX,R9
+-	SHRQ $51,DX
+-	ADDQ R13,DX
+-	ANDQ SI,R9
+-	MOVQ DX,AX
+-	SHRQ $51,DX
+-	ADDQ R15,DX
+-	ANDQ SI,AX
+-	MOVQ DX,R10
+-	SHRQ $51,DX
+-	IMUL3Q $19,DX,DX
+-	ADDQ DX,CX
+-	ANDQ SI,R10
+-	MOVQ CX,0(DI)
+-	MOVQ R8,8(DI)
+-	MOVQ R9,16(DI)
+-	MOVQ AX,24(DI)
+-	MOVQ R10,32(DI)
+-	RET
+diff --git a/src/vendor/golang.org/x/crypto/internal/chacha20/asm_ppc64le.s b/src/vendor/golang.org/x/crypto/internal/chacha20/asm_ppc64le.s
+deleted file mode 100644
+index cde3fc989b..0000000000
+--- a/src/vendor/golang.org/x/crypto/internal/chacha20/asm_ppc64le.s
++++ /dev/null
+@@ -1,668 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Based on CRYPTOGAMS code with the following comment:
+-// # ====================================================================
+-// # Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+-// # project. The module is, however, dual licensed under OpenSSL and
+-// # CRYPTOGAMS licenses depending on where you obtain it. For further
+-// # details see http://www.openssl.org/~appro/cryptogams/.
+-// # ====================================================================
+-
+-// Original code can be found at the link below:
+-// https://github.com/dot-asm/cryptogams/commit/a60f5b50ed908e91e5c39ca79126a4a876d5d8ff
+-
+-// There are some differences between CRYPTOGAMS code and this one. The round
+-// loop for "_int" isn't the same as the original. Some adjustments were
+-// necessary because there are less vector registers available.  For example, some
+-// X variables (r12, r13, r14, and r15) share the same register used by the
+-// counter. The original code uses ctr to name the counter. Here we use CNT
+-// because golang uses CTR as the counter register name.
+-
+-// +build ppc64le,!gccgo,!appengine
+-
+-#include "textflag.h"
+-
+-#define OUT  R3
+-#define INP  R4
+-#define LEN  R5
+-#define KEY  R6
+-#define CNT  R7
+-
+-#define TEMP R8
+-
+-#define X0   R11
+-#define X1   R12
+-#define X2   R14
+-#define X3   R15
+-#define X4   R16
+-#define X5   R17
+-#define X6   R18
+-#define X7   R19
+-#define X8   R20
+-#define X9   R21
+-#define X10  R22
+-#define X11  R23
+-#define X12  R24
+-#define X13  R25
+-#define X14  R26
+-#define X15  R27
+-
+-#define CON0 X0
+-#define CON1 X1
+-#define CON2 X2
+-#define CON3 X3
+-
+-#define KEY0 X4
+-#define KEY1 X5
+-#define KEY2 X6
+-#define KEY3 X7
+-#define KEY4 X8
+-#define KEY5 X9
+-#define KEY6 X10
+-#define KEY7 X11
+-
+-#define CNT0 X12
+-#define CNT1 X13
+-#define CNT2 X14
+-#define CNT3 X15
+-
+-#define TMP0 R9
+-#define TMP1 R10
+-#define TMP2 R28
+-#define TMP3 R29
+-
+-#define CONSTS  R8
+-
+-#define A0      V0
+-#define B0      V1
+-#define C0      V2
+-#define D0      V3
+-#define A1      V4
+-#define B1      V5
+-#define C1      V6
+-#define D1      V7
+-#define A2      V8
+-#define B2      V9
+-#define C2      V10
+-#define D2      V11
+-#define T0      V12
+-#define T1      V13
+-#define T2      V14
+-
+-#define K0      V15
+-#define K1      V16
+-#define K2      V17
+-#define K3      V18
+-#define K4      V19
+-#define K5      V20
+-
+-#define FOUR    V21
+-#define SIXTEEN V22
+-#define TWENTY4 V23
+-#define TWENTY  V24
+-#define TWELVE  V25
+-#define TWENTY5 V26
+-#define SEVEN   V27
+-
+-#define INPPERM V28
+-#define OUTPERM V29
+-#define OUTMASK V30
+-
+-#define DD0     V31
+-#define DD1     SEVEN
+-#define DD2     T0
+-#define DD3     T1
+-#define DD4     T2
+-
+-DATA  ·consts+0x00(SB)/8, $0x3320646e61707865
+-DATA  ·consts+0x08(SB)/8, $0x6b20657479622d32
+-DATA  ·consts+0x10(SB)/8, $0x0000000000000001
+-DATA  ·consts+0x18(SB)/8, $0x0000000000000000
+-DATA  ·consts+0x20(SB)/8, $0x0000000000000004
+-DATA  ·consts+0x28(SB)/8, $0x0000000000000000
+-DATA  ·consts+0x30(SB)/8, $0x0a0b08090e0f0c0d
+-DATA  ·consts+0x38(SB)/8, $0x0203000106070405
+-DATA  ·consts+0x40(SB)/8, $0x090a0b080d0e0f0c
+-DATA  ·consts+0x48(SB)/8, $0x0102030005060704
+-GLOBL ·consts(SB), RODATA, $80
+-
+-//func chaCha20_ctr32_vmx(out, inp *byte, len int, key *[32]byte, counter *[16]byte)
+-TEXT ·chaCha20_ctr32_vmx(SB),NOSPLIT|NOFRAME,$0
+-	// Load the arguments inside the registers
+-	MOVD out+0(FP), OUT
+-	MOVD inp+8(FP), INP
+-	MOVD len+16(FP), LEN
+-	MOVD key+24(FP), KEY
+-	MOVD counter+32(FP), CNT
+-
+-	MOVD $·consts(SB), CONSTS // point to consts addr
+-
+-	MOVD $16, X0
+-	MOVD $32, X1
+-	MOVD $48, X2
+-	MOVD $64, X3
+-	MOVD $31, X4
+-	MOVD $15, X5
+-
+-	// Load key
+-	LVX  (KEY)(R0), K1
+-	LVSR (KEY)(R0), T0
+-	LVX  (KEY)(X0), K2
+-	LVX  (KEY)(X4), DD0
+-
+-	// Load counter
+-	LVX  (CNT)(R0), K3
+-	LVSR (CNT)(R0), T1
+-	LVX  (CNT)(X5), DD1
+-
+-	// Load constants
+-	LVX (CONSTS)(R0), K0
+-	LVX (CONSTS)(X0), K5
+-	LVX (CONSTS)(X1), FOUR
+-	LVX (CONSTS)(X2), SIXTEEN
+-	LVX (CONSTS)(X3), TWENTY4
+-
+-	// Align key and counter
+-	VPERM K2,  K1, T0, K1
+-	VPERM DD0, K2, T0, K2
+-	VPERM DD1, K3, T1, K3
+-
+-	// Load counter to GPR
+-	MOVWZ 0(CNT), CNT0
+-	MOVWZ 4(CNT), CNT1
+-	MOVWZ 8(CNT), CNT2
+-	MOVWZ 12(CNT), CNT3
+-
+-	// Adjust vectors for the initial state
+-	VADDUWM K3, K5, K3
+-	VADDUWM K3, K5, K4
+-	VADDUWM K4, K5, K5
+-
+-	// Synthesized constants
+-	VSPLTISW $-12, TWENTY
+-	VSPLTISW $12, TWELVE
+-	VSPLTISW $-7, TWENTY5
+-
+-	VXOR T0, T0, T0
+-	VSPLTISW $-1, OUTMASK
+-	LVSR (INP)(R0), INPPERM
+-	LVSL (OUT)(R0), OUTPERM
+-	VPERM OUTMASK, T0, OUTPERM, OUTMASK
+-
+-loop_outer_vmx:
+-	// Load constant
+-	MOVD $0x61707865, CON0
+-	MOVD $0x3320646e, CON1
+-	MOVD $0x79622d32, CON2
+-	MOVD $0x6b206574, CON3
+-
+-	VOR K0, K0, A0
+-	VOR K0, K0, A1
+-	VOR K0, K0, A2
+-	VOR K1, K1, B0
+-
+-	MOVD $10, TEMP
+-
+-	// Load key to GPR
+-	MOVWZ 0(KEY), X4
+-	MOVWZ 4(KEY), X5
+-	MOVWZ 8(KEY), X6
+-	MOVWZ 12(KEY), X7
+-	VOR K1, K1, B1
+-	VOR K1, K1, B2
+-	MOVWZ 16(KEY), X8
+-	MOVWZ  0(CNT), X12
+-	MOVWZ 20(KEY), X9
+-	MOVWZ 4(CNT), X13
+-	VOR K2, K2, C0
+-	VOR K2, K2, C1
+-	MOVWZ 24(KEY), X10
+-	MOVWZ 8(CNT), X14
+-	VOR K2, K2, C2
+-	VOR K3, K3, D0
+-	MOVWZ 28(KEY), X11
+-	MOVWZ 12(CNT), X15
+-	VOR K4, K4, D1
+-	VOR K5, K5, D2
+-
+-	MOVD X4, TMP0
+-	MOVD X5, TMP1
+-	MOVD X6, TMP2
+-	MOVD X7, TMP3
+-	VSPLTISW $7, SEVEN
+-
+-	MOVD TEMP, CTR
+-
+-loop_vmx:
+-	// CRYPTOGAMS uses a macro to create a loop using perl. This isn't possible
+-	// using assembly macros.  Therefore, the macro expansion result was used
+-	// in order to maintain the algorithm efficiency.
+-	// This loop generates three keystream blocks using VMX instructions and,
+-	// in parallel, one keystream block using scalar instructions.
+-	ADD X4, X0, X0
+-	ADD X5, X1, X1
+-	VADDUWM A0, B0, A0
+-	VADDUWM A1, B1, A1
+-	ADD X6, X2, X2
+-	ADD X7, X3, X3
+-	VADDUWM A2, B2, A2
+-	VXOR D0, A0, D0
+-	XOR X0, X12, X12
+-	XOR X1, X13, X13
+-	VXOR D1, A1, D1
+-	VXOR D2, A2, D2
+-	XOR X2, X14, X14
+-	XOR X3, X15, X15
+-	VPERM D0, D0, SIXTEEN, D0
+-	VPERM D1, D1, SIXTEEN, D1
+-	ROTLW $16, X12, X12
+-	ROTLW $16, X13, X13
+-	VPERM D2, D2, SIXTEEN, D2
+-	VADDUWM C0, D0, C0
+-	ROTLW $16, X14, X14
+-	ROTLW $16, X15, X15
+-	VADDUWM C1, D1, C1
+-	VADDUWM C2, D2, C2
+-	ADD X12, X8, X8
+-	ADD X13, X9, X9
+-	VXOR B0, C0, T0
+-	VXOR B1, C1, T1
+-	ADD X14, X10, X10
+-	ADD X15, X11, X11
+-	VXOR B2, C2, T2
+-	VRLW T0, TWELVE, B0
+-	XOR X8, X4, X4
+-	XOR X9, X5, X5
+-	VRLW T1, TWELVE, B1
+-	VRLW T2, TWELVE, B2
+-	XOR X10, X6, X6
+-	XOR X11, X7, X7
+-	VADDUWM A0, B0, A0
+-	VADDUWM A1, B1, A1
+-	ROTLW $12, X4, X4
+-	ROTLW $12, X5, X5
+-	VADDUWM A2, B2, A2
+-	VXOR D0, A0, D0
+-	ROTLW $12, X6, X6
+-	ROTLW $12, X7, X7
+-	VXOR D1, A1, D1
+-	VXOR D2, A2, D2
+-	ADD X4, X0, X0
+-	ADD X5, X1, X1
+-	VPERM D0, D0, TWENTY4, D0
+-	VPERM D1, D1, TWENTY4, D1
+-	ADD X6, X2, X2
+-	ADD X7, X3, X3
+-	VPERM D2, D2, TWENTY4, D2
+-	VADDUWM C0, D0, C0
+-	XOR X0, X12, X12
+-	XOR X1, X13, X13
+-	VADDUWM C1, D1, C1
+-	VADDUWM C2, D2, C2
+-	XOR X2, X14, X14
+-	XOR X3, X15, X15
+-	VXOR B0, C0, T0
+-	VXOR B1, C1, T1
+-	ROTLW $8, X12, X12
+-	ROTLW $8, X13, X13
+-	VXOR B2, C2, T2
+-	VRLW T0, SEVEN, B0
+-	ROTLW $8, X14, X14
+-	ROTLW $8, X15, X15
+-	VRLW T1, SEVEN, B1
+-	VRLW T2, SEVEN, B2
+-	ADD X12, X8, X8
+-	ADD X13, X9, X9
+-	VSLDOI $8, C0, C0, C0
+-	VSLDOI $8, C1, C1, C1
+-	ADD X14, X10, X10
+-	ADD X15, X11, X11
+-	VSLDOI $8, C2, C2, C2
+-	VSLDOI $12, B0, B0, B0
+-	XOR X8, X4, X4
+-	XOR X9, X5, X5
+-	VSLDOI $12, B1, B1, B1
+-	VSLDOI $12, B2, B2, B2
+-	XOR X10, X6, X6
+-	XOR X11, X7, X7
+-	VSLDOI $4, D0, D0, D0
+-	VSLDOI $4, D1, D1, D1
+-	ROTLW $7, X4, X4
+-	ROTLW $7, X5, X5
+-	VSLDOI $4, D2, D2, D2
+-	VADDUWM A0, B0, A0
+-	ROTLW $7, X6, X6
+-	ROTLW $7, X7, X7
+-	VADDUWM A1, B1, A1
+-	VADDUWM A2, B2, A2
+-	ADD X5, X0, X0
+-	ADD X6, X1, X1
+-	VXOR D0, A0, D0
+-	VXOR D1, A1, D1
+-	ADD X7, X2, X2
+-	ADD X4, X3, X3
+-	VXOR D2, A2, D2
+-	VPERM D0, D0, SIXTEEN, D0
+-	XOR X0, X15, X15
+-	XOR X1, X12, X12
+-	VPERM D1, D1, SIXTEEN, D1
+-	VPERM D2, D2, SIXTEEN, D2
+-	XOR X2, X13, X13
+-	XOR X3, X14, X14
+-	VADDUWM C0, D0, C0
+-	VADDUWM C1, D1, C1
+-	ROTLW $16, X15, X15
+-	ROTLW $16, X12, X12
+-	VADDUWM C2, D2, C2
+-	VXOR B0, C0, T0
+-	ROTLW $16, X13, X13
+-	ROTLW $16, X14, X14
+-	VXOR B1, C1, T1
+-	VXOR B2, C2, T2
+-	ADD X15, X10, X10
+-	ADD X12, X11, X11
+-	VRLW T0, TWELVE, B0
+-	VRLW T1, TWELVE, B1
+-	ADD X13, X8, X8
+-	ADD X14, X9, X9
+-	VRLW T2, TWELVE, B2
+-	VADDUWM A0, B0, A0
+-	XOR X10, X5, X5
+-	XOR X11, X6, X6
+-	VADDUWM A1, B1, A1
+-	VADDUWM A2, B2, A2
+-	XOR X8, X7, X7
+-	XOR X9, X4, X4
+-	VXOR D0, A0, D0
+-	VXOR D1, A1, D1
+-	ROTLW $12, X5, X5
+-	ROTLW $12, X6, X6
+-	VXOR D2, A2, D2
+-	VPERM D0, D0, TWENTY4, D0
+-	ROTLW $12, X7, X7
+-	ROTLW $12, X4, X4
+-	VPERM D1, D1, TWENTY4, D1
+-	VPERM D2, D2, TWENTY4, D2
+-	ADD X5, X0, X0
+-	ADD X6, X1, X1
+-	VADDUWM C0, D0, C0
+-	VADDUWM C1, D1, C1
+-	ADD X7, X2, X2
+-	ADD X4, X3, X3
+-	VADDUWM C2, D2, C2
+-	VXOR B0, C0, T0
+-	XOR X0, X15, X15
+-	XOR X1, X12, X12
+-	VXOR B1, C1, T1
+-	VXOR B2, C2, T2
+-	XOR X2, X13, X13
+-	XOR X3, X14, X14
+-	VRLW T0, SEVEN, B0
+-	VRLW T1, SEVEN, B1
+-	ROTLW $8, X15, X15
+-	ROTLW $8, X12, X12
+-	VRLW T2, SEVEN, B2
+-	VSLDOI $8, C0, C0, C0
+-	ROTLW $8, X13, X13
+-	ROTLW $8, X14, X14
+-	VSLDOI $8, C1, C1, C1
+-	VSLDOI $8, C2, C2, C2
+-	ADD X15, X10, X10
+-	ADD X12, X11, X11
+-	VSLDOI $4, B0, B0, B0
+-	VSLDOI $4, B1, B1, B1
+-	ADD X13, X8, X8
+-	ADD X14, X9, X9
+-	VSLDOI $4, B2, B2, B2
+-	VSLDOI $12, D0, D0, D0
+-	XOR X10, X5, X5
+-	XOR X11, X6, X6
+-	VSLDOI $12, D1, D1, D1
+-	VSLDOI $12, D2, D2, D2
+-	XOR X8, X7, X7
+-	XOR X9, X4, X4
+-	ROTLW $7, X5, X5
+-	ROTLW $7, X6, X6
+-	ROTLW $7, X7, X7
+-	ROTLW $7, X4, X4
+-	BC 0x10, 0, loop_vmx
+-
+-	SUB $256, LEN, LEN
+-
+-	// Accumulate key block
+-	ADD $0x61707865, X0, X0
+-	ADD $0x3320646e, X1, X1
+-	ADD $0x79622d32, X2, X2
+-	ADD $0x6b206574, X3, X3
+-	ADD TMP0, X4, X4
+-	ADD TMP1, X5, X5
+-	ADD TMP2, X6, X6
+-	ADD TMP3, X7, X7
+-	MOVWZ 16(KEY), TMP0
+-	MOVWZ 20(KEY), TMP1
+-	MOVWZ 24(KEY), TMP2
+-	MOVWZ 28(KEY), TMP3
+-	ADD TMP0, X8, X8
+-	ADD TMP1, X9, X9
+-	ADD TMP2, X10, X10
+-	ADD TMP3, X11, X11
+-
+-	MOVWZ 12(CNT), TMP0
+-	MOVWZ 8(CNT), TMP1
+-	MOVWZ 4(CNT), TMP2
+-	MOVWZ 0(CNT), TEMP
+-	ADD TMP0, X15, X15
+-	ADD TMP1, X14, X14
+-	ADD TMP2, X13, X13
+-	ADD TEMP, X12, X12
+-
+-	// Accumulate key block
+-	VADDUWM A0, K0, A0
+-	VADDUWM A1, K0, A1
+-	VADDUWM A2, K0, A2
+-	VADDUWM B0, K1, B0
+-	VADDUWM B1, K1, B1
+-	VADDUWM B2, K1, B2
+-	VADDUWM C0, K2, C0
+-	VADDUWM C1, K2, C1
+-	VADDUWM C2, K2, C2
+-	VADDUWM D0, K3, D0
+-	VADDUWM D1, K4, D1
+-	VADDUWM D2, K5, D2
+-
+-	// Increment counter
+-	ADD $4, TEMP, TEMP
+-	MOVW TEMP, 0(CNT)
+-
+-	VADDUWM K3, FOUR, K3
+-	VADDUWM K4, FOUR, K4
+-	VADDUWM K5, FOUR, K5
+-
+-	// XOR the input slice (INP) with the keystream, which is stored in GPRs (X0-X3).
+-
+-	// Load input (aligned or not)
+-	MOVWZ 0(INP), TMP0
+-	MOVWZ 4(INP), TMP1
+-	MOVWZ 8(INP), TMP2
+-	MOVWZ 12(INP), TMP3
+-
+-	// XOR with input
+-	XOR TMP0, X0, X0
+-	XOR TMP1, X1, X1
+-	XOR TMP2, X2, X2
+-	XOR TMP3, X3, X3
+-	MOVWZ 16(INP), TMP0
+-	MOVWZ 20(INP), TMP1
+-	MOVWZ 24(INP), TMP2
+-	MOVWZ 28(INP), TMP3
+-	XOR TMP0, X4, X4
+-	XOR TMP1, X5, X5
+-	XOR TMP2, X6, X6
+-	XOR TMP3, X7, X7
+-	MOVWZ 32(INP), TMP0
+-	MOVWZ 36(INP), TMP1
+-	MOVWZ 40(INP), TMP2
+-	MOVWZ 44(INP), TMP3
+-	XOR TMP0, X8, X8
+-	XOR TMP1, X9, X9
+-	XOR TMP2, X10, X10
+-	XOR TMP3, X11, X11
+-	MOVWZ 48(INP), TMP0
+-	MOVWZ 52(INP), TMP1
+-	MOVWZ 56(INP), TMP2
+-	MOVWZ 60(INP), TMP3
+-	XOR TMP0, X12, X12
+-	XOR TMP1, X13, X13
+-	XOR TMP2, X14, X14
+-	XOR TMP3, X15, X15
+-
+-	// Store output (aligned or not)
+-	MOVW X0, 0(OUT)
+-	MOVW X1, 4(OUT)
+-	MOVW X2, 8(OUT)
+-	MOVW X3, 12(OUT)
+-
+-	ADD $64, INP, INP // INP points to the end of the slice for the alignment code below
+-
+-	MOVW X4, 16(OUT)
+-	MOVD $16, TMP0
+-	MOVW X5, 20(OUT)
+-	MOVD $32, TMP1
+-	MOVW X6, 24(OUT)
+-	MOVD $48, TMP2
+-	MOVW X7, 28(OUT)
+-	MOVD $64, TMP3
+-	MOVW X8, 32(OUT)
+-	MOVW X9, 36(OUT)
+-	MOVW X10, 40(OUT)
+-	MOVW X11, 44(OUT)
+-	MOVW X12, 48(OUT)
+-	MOVW X13, 52(OUT)
+-	MOVW X14, 56(OUT)
+-	MOVW X15, 60(OUT)
+-	ADD $64, OUT, OUT
+-
+-	// Load input
+-	LVX (INP)(R0), DD0
+-	LVX (INP)(TMP0), DD1
+-	LVX (INP)(TMP1), DD2
+-	LVX (INP)(TMP2), DD3
+-	LVX (INP)(TMP3), DD4
+-	ADD $64, INP, INP
+-
+-	VPERM DD1, DD0, INPPERM, DD0 // Align input
+-	VPERM DD2, DD1, INPPERM, DD1
+-	VPERM DD3, DD2, INPPERM, DD2
+-	VPERM DD4, DD3, INPPERM, DD3
+-	VXOR A0, DD0, A0 // XOR with input
+-	VXOR B0, DD1, B0
+-	LVX (INP)(TMP0), DD1 // Keep loading input
+-	VXOR C0, DD2, C0
+-	LVX (INP)(TMP1), DD2
+-	VXOR D0, DD3, D0
+-	LVX (INP)(TMP2), DD3
+-	LVX (INP)(TMP3), DD0
+-	ADD $64, INP, INP
+-	MOVD $63, TMP3 // 63 is not a typo
+-	VPERM A0, A0, OUTPERM, A0
+-	VPERM B0, B0, OUTPERM, B0
+-	VPERM C0, C0, OUTPERM, C0
+-	VPERM D0, D0, OUTPERM, D0
+-
+-	VPERM DD1, DD4, INPPERM, DD4 // Align input
+-	VPERM DD2, DD1, INPPERM, DD1
+-	VPERM DD3, DD2, INPPERM, DD2
+-	VPERM DD0, DD3, INPPERM, DD3
+-	VXOR A1, DD4, A1
+-	VXOR B1, DD1, B1
+-	LVX (INP)(TMP0), DD1 // Keep loading
+-	VXOR C1, DD2, C1
+-	LVX (INP)(TMP1), DD2
+-	VXOR D1, DD3, D1
+-	LVX (INP)(TMP2), DD3
+-
+-	// Note that the LVX address is always rounded down to the nearest 16-byte
+-	// boundary, and that it always points to at most 15 bytes beyond the end of
+-	// the slice, so we cannot cross a page boundary.
+-	LVX (INP)(TMP3), DD4 // Redundant in aligned case.
+-	ADD $64, INP, INP
+-	VPERM A1, A1, OUTPERM, A1 // Pre-misalign output
+-	VPERM B1, B1, OUTPERM, B1
+-	VPERM C1, C1, OUTPERM, C1
+-	VPERM D1, D1, OUTPERM, D1
+-
+-	VPERM DD1, DD0, INPPERM, DD0 // Align Input
+-	VPERM DD2, DD1, INPPERM, DD1
+-	VPERM DD3, DD2, INPPERM, DD2
+-	VPERM DD4, DD3, INPPERM, DD3
+-	VXOR A2, DD0, A2
+-	VXOR B2, DD1, B2
+-	VXOR C2, DD2, C2
+-	VXOR D2, DD3, D2
+-	VPERM A2, A2, OUTPERM, A2
+-	VPERM B2, B2, OUTPERM, B2
+-	VPERM C2, C2, OUTPERM, C2
+-	VPERM D2, D2, OUTPERM, D2
+-
+-	ANDCC $15, OUT, X1 // Is out aligned?
+-	MOVD OUT, X0
+-
+-	VSEL A0, B0, OUTMASK, DD0 // Collect pre-misaligned output
+-	VSEL B0, C0, OUTMASK, DD1
+-	VSEL C0, D0, OUTMASK, DD2
+-	VSEL D0, A1, OUTMASK, DD3
+-	VSEL A1, B1, OUTMASK, B0
+-	VSEL B1, C1, OUTMASK, C0
+-	VSEL C1, D1, OUTMASK, D0
+-	VSEL D1, A2, OUTMASK, A1
+-	VSEL A2, B2, OUTMASK, B1
+-	VSEL B2, C2, OUTMASK, C1
+-	VSEL C2, D2, OUTMASK, D1
+-
+-	STVX DD0, (OUT+TMP0)
+-	STVX DD1, (OUT+TMP1)
+-	STVX DD2, (OUT+TMP2)
+-	ADD $64, OUT, OUT
+-	STVX DD3, (OUT+R0)
+-	STVX B0, (OUT+TMP0)
+-	STVX C0, (OUT+TMP1)
+-	STVX D0, (OUT+TMP2)
+-	ADD $64, OUT, OUT
+-	STVX A1, (OUT+R0)
+-	STVX B1, (OUT+TMP0)
+-	STVX C1, (OUT+TMP1)
+-	STVX D1, (OUT+TMP2)
+-	ADD $64, OUT, OUT
+-
+-	BEQ aligned_vmx
+-
+-	SUB X1, OUT, X2 // in misaligned case edges
+-	MOVD $0, X3 // are written byte-by-byte
+-
+-unaligned_tail_vmx:
+-	STVEBX D2, (X2+X3)
+-	ADD $1, X3, X3
+-	CMPW X3, X1
+-	BNE unaligned_tail_vmx
+-	SUB X1, X0, X2
+-
+-unaligned_head_vmx:
+-	STVEBX A0, (X2+X1)
+-	CMPW X1, $15
+-	ADD $1, X1, X1
+-	BNE unaligned_head_vmx
+-
+-	CMPU LEN, $255 // done with 256-byte block yet?
+-	BGT loop_outer_vmx
+-
+-	JMP done_vmx
+-
+-aligned_vmx:
+-	STVX A0, (X0+R0)
+-	CMPU LEN, $255 // done with 256-byte block yet?
+-	BGT loop_outer_vmx
+-
+-done_vmx:
+-	RET
+diff --git a/src/vendor/golang.org/x/crypto/internal/chacha20/chacha_arm64.go b/src/vendor/golang.org/x/crypto/internal/chacha20/chacha_arm64.go
+deleted file mode 100644
+index ad74e23aef..0000000000
+--- a/src/vendor/golang.org/x/crypto/internal/chacha20/chacha_arm64.go
++++ /dev/null
+@@ -1,31 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build go1.11
+-// +build !gccgo
+-
+-package chacha20
+-
+-const (
+-	haveAsm = true
+-	bufSize = 256
+-)
+-
+-//go:noescape
+-func xorKeyStreamVX(dst, src []byte, key *[8]uint32, nonce *[3]uint32, counter *uint32)
+-
+-func (c *Cipher) xorKeyStreamAsm(dst, src []byte) {
+-
+-	if len(src) >= bufSize {
+-		xorKeyStreamVX(dst, src, &c.key, &c.nonce, &c.counter)
+-	}
+-
+-	if len(src)%bufSize != 0 {
+-		i := len(src) - len(src)%bufSize
+-		c.buf = [bufSize]byte{}
+-		copy(c.buf[:], src[i:])
+-		xorKeyStreamVX(c.buf[:], c.buf[:], &c.key, &c.nonce, &c.counter)
+-		c.len = bufSize - copy(dst[i:], c.buf[:len(src)%bufSize])
+-	}
+-}
+diff --git a/src/vendor/golang.org/x/crypto/internal/chacha20/chacha_generic.go b/src/vendor/golang.org/x/crypto/internal/chacha20/chacha_generic.go
+deleted file mode 100644
+index 6570847f5e..0000000000
+--- a/src/vendor/golang.org/x/crypto/internal/chacha20/chacha_generic.go
++++ /dev/null
+@@ -1,264 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Package ChaCha20 implements the core ChaCha20 function as specified
+-// in https://tools.ietf.org/html/rfc7539#section-2.3.
+-package chacha20
+-
+-import (
+-	"crypto/cipher"
+-	"encoding/binary"
+-
+-	"golang.org/x/crypto/internal/subtle"
+-)
+-
+-// assert that *Cipher implements cipher.Stream
+-var _ cipher.Stream = (*Cipher)(nil)
+-
+-// Cipher is a stateful instance of ChaCha20 using a particular key
+-// and nonce. A *Cipher implements the cipher.Stream interface.
+-type Cipher struct {
+-	key     [8]uint32
+-	counter uint32 // incremented after each block
+-	nonce   [3]uint32
+-	buf     [bufSize]byte // buffer for unused keystream bytes
+-	len     int           // number of unused keystream bytes at end of buf
+-}
+-
+-// New creates a new ChaCha20 stream cipher with the given key and nonce.
+-// The initial counter value is set to 0.
+-func New(key [8]uint32, nonce [3]uint32) *Cipher {
+-	return &Cipher{key: key, nonce: nonce}
+-}
+-
+-// ChaCha20 constants spelling "expand 32-byte k"
+-const (
+-	j0 uint32 = 0x61707865
+-	j1 uint32 = 0x3320646e
+-	j2 uint32 = 0x79622d32
+-	j3 uint32 = 0x6b206574
+-)
+-
+-func quarterRound(a, b, c, d uint32) (uint32, uint32, uint32, uint32) {
+-	a += b
+-	d ^= a
+-	d = (d << 16) | (d >> 16)
+-	c += d
+-	b ^= c
+-	b = (b << 12) | (b >> 20)
+-	a += b
+-	d ^= a
+-	d = (d << 8) | (d >> 24)
+-	c += d
+-	b ^= c
+-	b = (b << 7) | (b >> 25)
+-	return a, b, c, d
+-}
+-
+-// XORKeyStream XORs each byte in the given slice with a byte from the
+-// cipher's key stream. Dst and src must overlap entirely or not at all.
+-//
+-// If len(dst) < len(src), XORKeyStream will panic. It is acceptable
+-// to pass a dst bigger than src, and in that case, XORKeyStream will
+-// only update dst[:len(src)] and will not touch the rest of dst.
+-//
+-// Multiple calls to XORKeyStream behave as if the concatenation of
+-// the src buffers was passed in a single run. That is, Cipher
+-// maintains state and does not reset at each XORKeyStream call.
+-func (s *Cipher) XORKeyStream(dst, src []byte) {
+-	if len(dst) < len(src) {
+-		panic("chacha20: output smaller than input")
+-	}
+-	if subtle.InexactOverlap(dst[:len(src)], src) {
+-		panic("chacha20: invalid buffer overlap")
+-	}
+-
+-	// xor src with buffered keystream first
+-	if s.len != 0 {
+-		buf := s.buf[len(s.buf)-s.len:]
+-		if len(src) < len(buf) {
+-			buf = buf[:len(src)]
+-		}
+-		td, ts := dst[:len(buf)], src[:len(buf)] // BCE hint
+-		for i, b := range buf {
+-			td[i] = ts[i] ^ b
+-		}
+-		s.len -= len(buf)
+-		if s.len != 0 {
+-			return
+-		}
+-		s.buf = [len(s.buf)]byte{} // zero the empty buffer
+-		src = src[len(buf):]
+-		dst = dst[len(buf):]
+-	}
+-
+-	if len(src) == 0 {
+-		return
+-	}
+-	if haveAsm {
+-		if uint64(len(src))+uint64(s.counter)*64 > (1<<38)-64 {
+-			panic("chacha20: counter overflow")
+-		}
+-		s.xorKeyStreamAsm(dst, src)
+-		return
+-	}
+-
+-	// set up a 64-byte buffer to pad out the final block if needed
+-	// (hoisted out of the main loop to avoid spills)
+-	rem := len(src) % 64  // length of final block
+-	fin := len(src) - rem // index of final block
+-	if rem > 0 {
+-		copy(s.buf[len(s.buf)-64:], src[fin:])
+-	}
+-
+-	// pre-calculate most of the first round
+-	s1, s5, s9, s13 := quarterRound(j1, s.key[1], s.key[5], s.nonce[0])
+-	s2, s6, s10, s14 := quarterRound(j2, s.key[2], s.key[6], s.nonce[1])
+-	s3, s7, s11, s15 := quarterRound(j3, s.key[3], s.key[7], s.nonce[2])
+-
+-	n := len(src)
+-	src, dst = src[:n:n], dst[:n:n] // BCE hint
+-	for i := 0; i < n; i += 64 {
+-		// calculate the remainder of the first round
+-		s0, s4, s8, s12 := quarterRound(j0, s.key[0], s.key[4], s.counter)
+-
+-		// execute the second round
+-		x0, x5, x10, x15 := quarterRound(s0, s5, s10, s15)
+-		x1, x6, x11, x12 := quarterRound(s1, s6, s11, s12)
+-		x2, x7, x8, x13 := quarterRound(s2, s7, s8, s13)
+-		x3, x4, x9, x14 := quarterRound(s3, s4, s9, s14)
+-
+-		// execute the remaining 18 rounds
+-		for i := 0; i < 9; i++ {
+-			x0, x4, x8, x12 = quarterRound(x0, x4, x8, x12)
+-			x1, x5, x9, x13 = quarterRound(x1, x5, x9, x13)
+-			x2, x6, x10, x14 = quarterRound(x2, x6, x10, x14)
+-			x3, x7, x11, x15 = quarterRound(x3, x7, x11, x15)
+-
+-			x0, x5, x10, x15 = quarterRound(x0, x5, x10, x15)
+-			x1, x6, x11, x12 = quarterRound(x1, x6, x11, x12)
+-			x2, x7, x8, x13 = quarterRound(x2, x7, x8, x13)
+-			x3, x4, x9, x14 = quarterRound(x3, x4, x9, x14)
+-		}
+-
+-		x0 += j0
+-		x1 += j1
+-		x2 += j2
+-		x3 += j3
+-
+-		x4 += s.key[0]
+-		x5 += s.key[1]
+-		x6 += s.key[2]
+-		x7 += s.key[3]
+-		x8 += s.key[4]
+-		x9 += s.key[5]
+-		x10 += s.key[6]
+-		x11 += s.key[7]
+-
+-		x12 += s.counter
+-		x13 += s.nonce[0]
+-		x14 += s.nonce[1]
+-		x15 += s.nonce[2]
+-
+-		// increment the counter
+-		s.counter += 1
+-		if s.counter == 0 {
+-			panic("chacha20: counter overflow")
+-		}
+-
+-		// pad to 64 bytes if needed
+-		in, out := src[i:], dst[i:]
+-		if i == fin {
+-			// src[fin:] has already been copied into s.buf before
+-			// the main loop
+-			in, out = s.buf[len(s.buf)-64:], s.buf[len(s.buf)-64:]
+-		}
+-		in, out = in[:64], out[:64] // BCE hint
+-
+-		// XOR the key stream with the source and write out the result
+-		xor(out[0:], in[0:], x0)
+-		xor(out[4:], in[4:], x1)
+-		xor(out[8:], in[8:], x2)
+-		xor(out[12:], in[12:], x3)
+-		xor(out[16:], in[16:], x4)
+-		xor(out[20:], in[20:], x5)
+-		xor(out[24:], in[24:], x6)
+-		xor(out[28:], in[28:], x7)
+-		xor(out[32:], in[32:], x8)
+-		xor(out[36:], in[36:], x9)
+-		xor(out[40:], in[40:], x10)
+-		xor(out[44:], in[44:], x11)
+-		xor(out[48:], in[48:], x12)
+-		xor(out[52:], in[52:], x13)
+-		xor(out[56:], in[56:], x14)
+-		xor(out[60:], in[60:], x15)
+-	}
+-	// copy any trailing bytes out of the buffer and into dst
+-	if rem != 0 {
+-		s.len = 64 - rem
+-		copy(dst[fin:], s.buf[len(s.buf)-64:])
+-	}
+-}
+-
+-// Advance discards bytes in the key stream until the next 64 byte block
+-// boundary is reached and updates the counter accordingly. If the key
+-// stream is already at a block boundary no bytes will be discarded and
+-// the counter will be unchanged.
+-func (s *Cipher) Advance() {
+-	s.len -= s.len % 64
+-	if s.len == 0 {
+-		s.buf = [len(s.buf)]byte{}
+-	}
+-}
+-
+-// XORKeyStream crypts bytes from in to out using the given key and counters.
+-// In and out must overlap entirely or not at all. Counter contains the raw
+-// ChaCha20 counter bytes (i.e. block counter followed by nonce).
+-func XORKeyStream(out, in []byte, counter *[16]byte, key *[32]byte) {
+-	s := Cipher{
+-		key: [8]uint32{
+-			binary.LittleEndian.Uint32(key[0:4]),
+-			binary.LittleEndian.Uint32(key[4:8]),
+-			binary.LittleEndian.Uint32(key[8:12]),
+-			binary.LittleEndian.Uint32(key[12:16]),
+-			binary.LittleEndian.Uint32(key[16:20]),
+-			binary.LittleEndian.Uint32(key[20:24]),
+-			binary.LittleEndian.Uint32(key[24:28]),
+-			binary.LittleEndian.Uint32(key[28:32]),
+-		},
+-		nonce: [3]uint32{
+-			binary.LittleEndian.Uint32(counter[4:8]),
+-			binary.LittleEndian.Uint32(counter[8:12]),
+-			binary.LittleEndian.Uint32(counter[12:16]),
+-		},
+-		counter: binary.LittleEndian.Uint32(counter[0:4]),
+-	}
+-	s.XORKeyStream(out, in)
+-}
+-
+-// HChaCha20 uses the ChaCha20 core to generate a derived key from a key and a
+-// nonce. It should only be used as part of the XChaCha20 construction.
+-func HChaCha20(key *[8]uint32, nonce *[4]uint32) [8]uint32 {
+-	x0, x1, x2, x3 := j0, j1, j2, j3
+-	x4, x5, x6, x7 := key[0], key[1], key[2], key[3]
+-	x8, x9, x10, x11 := key[4], key[5], key[6], key[7]
+-	x12, x13, x14, x15 := nonce[0], nonce[1], nonce[2], nonce[3]
+-
+-	for i := 0; i < 10; i++ {
+-		x0, x4, x8, x12 = quarterRound(x0, x4, x8, x12)
+-		x1, x5, x9, x13 = quarterRound(x1, x5, x9, x13)
+-		x2, x6, x10, x14 = quarterRound(x2, x6, x10, x14)
+-		x3, x7, x11, x15 = quarterRound(x3, x7, x11, x15)
+-
+-		x0, x5, x10, x15 = quarterRound(x0, x5, x10, x15)
+-		x1, x6, x11, x12 = quarterRound(x1, x6, x11, x12)
+-		x2, x7, x8, x13 = quarterRound(x2, x7, x8, x13)
+-		x3, x4, x9, x14 = quarterRound(x3, x4, x9, x14)
+-	}
+-
+-	var out [8]uint32
+-	out[0], out[1], out[2], out[3] = x0, x1, x2, x3
+-	out[4], out[5], out[6], out[7] = x12, x13, x14, x15
+-	return out
+-}
+diff --git a/src/vendor/golang.org/x/crypto/internal/chacha20/chacha_noasm.go b/src/vendor/golang.org/x/crypto/internal/chacha20/chacha_noasm.go
+deleted file mode 100644
+index bf8beba670..0000000000
+--- a/src/vendor/golang.org/x/crypto/internal/chacha20/chacha_noasm.go
++++ /dev/null
+@@ -1,16 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build !ppc64le,!arm64,!s390x arm64,!go1.11 gccgo appengine
+-
+-package chacha20
+-
+-const (
+-	bufSize = 64
+-	haveAsm = false
+-)
+-
+-func (*Cipher) xorKeyStreamAsm(dst, src []byte) {
+-	panic("not implemented")
+-}
+diff --git a/src/vendor/golang.org/x/crypto/internal/chacha20/chacha_ppc64le.go b/src/vendor/golang.org/x/crypto/internal/chacha20/chacha_ppc64le.go
+deleted file mode 100644
+index 638cb5e5de..0000000000
+--- a/src/vendor/golang.org/x/crypto/internal/chacha20/chacha_ppc64le.go
++++ /dev/null
+@@ -1,52 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ppc64le,!gccgo,!appengine
+-
+-package chacha20
+-
+-import "encoding/binary"
+-
+-const (
+-	bufSize = 256
+-	haveAsm = true
+-)
+-
+-//go:noescape
+-func chaCha20_ctr32_vmx(out, inp *byte, len int, key *[8]uint32, counter *uint32)
+-
+-func (c *Cipher) xorKeyStreamAsm(dst, src []byte) {
+-	if len(src) >= bufSize {
+-		chaCha20_ctr32_vmx(&dst[0], &src[0], len(src)-len(src)%bufSize, &c.key, &c.counter)
+-	}
+-	if len(src)%bufSize != 0 {
+-		chaCha20_ctr32_vmx(&c.buf[0], &c.buf[0], bufSize, &c.key, &c.counter)
+-		start := len(src) - len(src)%bufSize
+-		ts, td, tb := src[start:], dst[start:], c.buf[:]
+-		// Unroll loop to XOR 32 bytes per iteration.
+-		for i := 0; i < len(ts)-32; i += 32 {
+-			td, tb = td[:len(ts)], tb[:len(ts)] // bounds check elimination
+-			s0 := binary.LittleEndian.Uint64(ts[0:8])
+-			s1 := binary.LittleEndian.Uint64(ts[8:16])
+-			s2 := binary.LittleEndian.Uint64(ts[16:24])
+-			s3 := binary.LittleEndian.Uint64(ts[24:32])
+-			b0 := binary.LittleEndian.Uint64(tb[0:8])
+-			b1 := binary.LittleEndian.Uint64(tb[8:16])
+-			b2 := binary.LittleEndian.Uint64(tb[16:24])
+-			b3 := binary.LittleEndian.Uint64(tb[24:32])
+-			binary.LittleEndian.PutUint64(td[0:8], s0^b0)
+-			binary.LittleEndian.PutUint64(td[8:16], s1^b1)
+-			binary.LittleEndian.PutUint64(td[16:24], s2^b2)
+-			binary.LittleEndian.PutUint64(td[24:32], s3^b3)
+-			ts, td, tb = ts[32:], td[32:], tb[32:]
+-		}
+-		td, tb = td[:len(ts)], tb[:len(ts)] // bounds check elimination
+-		for i, v := range ts {
+-			td[i] = tb[i] ^ v
+-		}
+-		c.len = bufSize - (len(src) % bufSize)
+-
+-	}
+-
+-}
+diff --git a/src/vendor/golang.org/x/crypto/internal/chacha20/chacha_s390x.go b/src/vendor/golang.org/x/crypto/internal/chacha20/chacha_s390x.go
+deleted file mode 100644
+index aad645b447..0000000000
+--- a/src/vendor/golang.org/x/crypto/internal/chacha20/chacha_s390x.go
++++ /dev/null
+@@ -1,29 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build s390x,!gccgo,!appengine
+-
+-package chacha20
+-
+-import (
+-	"golang.org/x/sys/cpu"
+-)
+-
+-var haveAsm = cpu.S390X.HasVX
+-
+-const bufSize = 256
+-
+-// xorKeyStreamVX is an assembly implementation of XORKeyStream. It must only
+-// be called when the vector facility is available.
+-// Implementation in asm_s390x.s.
+-//go:noescape
+-func xorKeyStreamVX(dst, src []byte, key *[8]uint32, nonce *[3]uint32, counter *uint32, buf *[256]byte, len *int)
+-
+-func (c *Cipher) xorKeyStreamAsm(dst, src []byte) {
+-	xorKeyStreamVX(dst, src, &c.key, &c.nonce, &c.counter, &c.buf, &c.len)
+-}
+-
+-// EXRL targets, DO NOT CALL!
+-func mvcSrcToBuf()
+-func mvcBufToDst()
+diff --git a/src/vendor/golang.org/x/crypto/poly1305/bits_compat.go b/src/vendor/golang.org/x/crypto/poly1305/bits_compat.go
+new file mode 100644
+index 0000000000..157a69f61b
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/poly1305/bits_compat.go
+@@ -0,0 +1,39 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !go1.13
++
++package poly1305
++
++// Generic fallbacks for the math/bits intrinsics, copied from
++// src/math/bits/bits.go. They were added in Go 1.12, but Add64 and Sum64 had
++// variable time fallbacks until Go 1.13.
++
++func bitsAdd64(x, y, carry uint64) (sum, carryOut uint64) {
++	sum = x + y + carry
++	carryOut = ((x & y) | ((x | y) &^ sum)) >> 63
++	return
++}
++
++func bitsSub64(x, y, borrow uint64) (diff, borrowOut uint64) {
++	diff = x - y - borrow
++	borrowOut = ((^x & y) | (^(x ^ y) & diff)) >> 63
++	return
++}
++
++func bitsMul64(x, y uint64) (hi, lo uint64) {
++	const mask32 = 1<<32 - 1
++	x0 := x & mask32
++	x1 := x >> 32
++	y0 := y & mask32
++	y1 := y >> 32
++	w0 := x0 * y0
++	t := x1*y0 + w0>>32
++	w1 := t & mask32
++	w2 := t >> 32
++	w1 += x0 * y1
++	hi = x1*y1 + w2 + w1>>32
++	lo = x * y
++	return
++}
+diff --git a/src/vendor/golang.org/x/crypto/poly1305/bits_go1.13.go b/src/vendor/golang.org/x/crypto/poly1305/bits_go1.13.go
+new file mode 100644
+index 0000000000..a0a185f0fc
+--- /dev/null
++++ b/src/vendor/golang.org/x/crypto/poly1305/bits_go1.13.go
+@@ -0,0 +1,21 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build go1.13
++
++package poly1305
++
++import "math/bits"
++
++func bitsAdd64(x, y, carry uint64) (sum, carryOut uint64) {
++	return bits.Add64(x, y, carry)
++}
++
++func bitsSub64(x, y, borrow uint64) (diff, borrowOut uint64) {
++	return bits.Sub64(x, y, borrow)
++}
++
++func bitsMul64(x, y uint64) (hi, lo uint64) {
++	return bits.Mul64(x, y)
++}
+diff --git a/src/vendor/golang.org/x/crypto/poly1305/poly1305.go b/src/vendor/golang.org/x/crypto/poly1305/poly1305.go
+index d076a56235..066159b797 100644
+--- a/src/vendor/golang.org/x/crypto/poly1305/poly1305.go
++++ b/src/vendor/golang.org/x/crypto/poly1305/poly1305.go
+@@ -22,8 +22,14 @@ import "crypto/subtle"
+ // TagSize is the size, in bytes, of a poly1305 authenticator.
+ const TagSize = 16
+ 
+-// Verify returns true if mac is a valid authenticator for m with the given
+-// key.
++// Sum generates an authenticator for msg using a one-time key and puts the
++// 16-byte result into out. Authenticating two different messages with the same
++// key allows an attacker to forge messages at will.
++func Sum(out *[16]byte, m []byte, key *[32]byte) {
++	sum(out, m, key)
++}
++
++// Verify returns true if mac is a valid authenticator for m with the given key.
+ func Verify(mac *[16]byte, m []byte, key *[32]byte) bool {
+ 	var tmp [16]byte
+ 	Sum(&tmp, m, key)
+diff --git a/src/vendor/golang.org/x/crypto/poly1305/sum_amd64.go b/src/vendor/golang.org/x/crypto/poly1305/sum_amd64.go
+index 2dbf42aa53..df56a652ff 100644
+--- a/src/vendor/golang.org/x/crypto/poly1305/sum_amd64.go
++++ b/src/vendor/golang.org/x/crypto/poly1305/sum_amd64.go
+@@ -7,62 +7,52 @@
+ package poly1305
+ 
+ //go:noescape
+-func initialize(state *[7]uint64, key *[32]byte)
++func update(state *macState, msg []byte)
+ 
+-//go:noescape
+-func update(state *[7]uint64, msg []byte)
+-
+-//go:noescape
+-func finalize(tag *[TagSize]byte, state *[7]uint64)
+-
+-// Sum generates an authenticator for m using a one-time key and puts the
+-// 16-byte result into out. Authenticating two different messages with the same
+-// key allows an attacker to forge messages at will.
+-func Sum(out *[16]byte, m []byte, key *[32]byte) {
++func sum(out *[16]byte, m []byte, key *[32]byte) {
+ 	h := newMAC(key)
+ 	h.Write(m)
+ 	h.Sum(out)
+ }
+ 
+ func newMAC(key *[32]byte) (h mac) {
+-	initialize(&h.state, key)
++	initialize(key, &h.r, &h.s)
+ 	return
+ }
+ 
+-type mac struct {
+-	state [7]uint64 // := uint64{ h0, h1, h2, r0, r1, pad0, pad1 }
+-
+-	buffer [TagSize]byte
+-	offset int
+-}
++// mac is a wrapper for macGeneric that redirects calls that would have gone to
++// updateGeneric to update.
++//
++// Its Write and Sum methods are otherwise identical to the macGeneric ones, but
++// using function pointers would carry a major performance cost.
++type mac struct{ macGeneric }
+ 
+-func (h *mac) Write(p []byte) (n int, err error) {
+-	n = len(p)
++func (h *mac) Write(p []byte) (int, error) {
++	nn := len(p)
+ 	if h.offset > 0 {
+-		remaining := TagSize - h.offset
+-		if n < remaining {
+-			h.offset += copy(h.buffer[h.offset:], p)
+-			return n, nil
++		n := copy(h.buffer[h.offset:], p)
++		if h.offset+n < TagSize {
++			h.offset += n
++			return nn, nil
+ 		}
+-		copy(h.buffer[h.offset:], p[:remaining])
+-		p = p[remaining:]
++		p = p[n:]
+ 		h.offset = 0
+-		update(&h.state, h.buffer[:])
++		update(&h.macState, h.buffer[:])
+ 	}
+-	if nn := len(p) - (len(p) % TagSize); nn > 0 {
+-		update(&h.state, p[:nn])
+-		p = p[nn:]
++	if n := len(p) - (len(p) % TagSize); n > 0 {
++		update(&h.macState, p[:n])
++		p = p[n:]
+ 	}
+ 	if len(p) > 0 {
+ 		h.offset += copy(h.buffer[h.offset:], p)
+ 	}
+-	return n, nil
++	return nn, nil
+ }
+ 
+ func (h *mac) Sum(out *[16]byte) {
+-	state := h.state
++	state := h.macState
+ 	if h.offset > 0 {
+ 		update(&state, h.buffer[:h.offset])
+ 	}
+-	finalize(out, &state)
++	finalize(out, &state.h, &state.s)
+ }
+diff --git a/src/vendor/golang.org/x/crypto/poly1305/sum_amd64.s b/src/vendor/golang.org/x/crypto/poly1305/sum_amd64.s
+index 7d600f13cc..8c0cefbb3c 100644
+--- a/src/vendor/golang.org/x/crypto/poly1305/sum_amd64.s
++++ b/src/vendor/golang.org/x/crypto/poly1305/sum_amd64.s
+@@ -54,10 +54,6 @@
+ 	ADCQ  t3, h1;                  \
+ 	ADCQ  $0, h2
+ 
+-DATA ·poly1305Mask<>+0x00(SB)/8, $0x0FFFFFFC0FFFFFFF
+-DATA ·poly1305Mask<>+0x08(SB)/8, $0x0FFFFFFC0FFFFFFC
+-GLOBL ·poly1305Mask<>(SB), RODATA, $16
+-
+ // func update(state *[7]uint64, msg []byte)
+ TEXT ·update(SB), $0-32
+ 	MOVQ state+0(FP), DI
+@@ -110,39 +106,3 @@ done:
+ 	MOVQ R9, 8(DI)
+ 	MOVQ R10, 16(DI)
+ 	RET
+-
+-// func initialize(state *[7]uint64, key *[32]byte)
+-TEXT ·initialize(SB), $0-16
+-	MOVQ state+0(FP), DI
+-	MOVQ key+8(FP), SI
+-
+-	// state[0...7] is initialized with zero
+-	MOVOU 0(SI), X0
+-	MOVOU 16(SI), X1
+-	MOVOU ·poly1305Mask<>(SB), X2
+-	PAND  X2, X0
+-	MOVOU X0, 24(DI)
+-	MOVOU X1, 40(DI)
+-	RET
+-
+-// func finalize(tag *[TagSize]byte, state *[7]uint64)
+-TEXT ·finalize(SB), $0-16
+-	MOVQ tag+0(FP), DI
+-	MOVQ state+8(FP), SI
+-
+-	MOVQ    0(SI), AX
+-	MOVQ    8(SI), BX
+-	MOVQ    16(SI), CX
+-	MOVQ    AX, R8
+-	MOVQ    BX, R9
+-	SUBQ    $0xFFFFFFFFFFFFFFFB, AX
+-	SBBQ    $0xFFFFFFFFFFFFFFFF, BX
+-	SBBQ    $3, CX
+-	CMOVQCS R8, AX
+-	CMOVQCS R9, BX
+-	ADDQ    40(SI), AX
+-	ADCQ    48(SI), BX
+-
+-	MOVQ AX, 0(DI)
+-	MOVQ BX, 8(DI)
+-	RET
+diff --git a/src/vendor/golang.org/x/crypto/poly1305/sum_arm.go b/src/vendor/golang.org/x/crypto/poly1305/sum_arm.go
+index 5dc321c2f3..6e695e4272 100644
+--- a/src/vendor/golang.org/x/crypto/poly1305/sum_arm.go
++++ b/src/vendor/golang.org/x/crypto/poly1305/sum_arm.go
+@@ -6,14 +6,11 @@
+ 
+ package poly1305
+ 
+-// This function is implemented in sum_arm.s
++// poly1305_auth_armv6 is implemented in sum_arm.s
+ //go:noescape
+ func poly1305_auth_armv6(out *[16]byte, m *byte, mlen uint32, key *[32]byte)
+ 
+-// Sum generates an authenticator for m using a one-time key and puts the
+-// 16-byte result into out. Authenticating two different messages with the same
+-// key allows an attacker to forge messages at will.
+-func Sum(out *[16]byte, m []byte, key *[32]byte) {
++func sum(out *[16]byte, m []byte, key *[32]byte) {
+ 	var mPtr *byte
+ 	if len(m) > 0 {
+ 		mPtr = &m[0]
+diff --git a/src/vendor/golang.org/x/crypto/poly1305/sum_generic.go b/src/vendor/golang.org/x/crypto/poly1305/sum_generic.go
+index bab76ef0d8..1187eab78f 100644
+--- a/src/vendor/golang.org/x/crypto/poly1305/sum_generic.go
++++ b/src/vendor/golang.org/x/crypto/poly1305/sum_generic.go
+@@ -2,18 +2,29 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// This file provides the generic implementation of Sum and MAC. Other files
++// might provide optimized assembly implementations of some of this code.
++
+ package poly1305
+ 
+ import "encoding/binary"
+ 
+-const (
+-	msgBlock   = uint32(1 << 24)
+-	finalBlock = uint32(0)
+-)
++// Poly1305 [RFC 7539] is a relatively simple algorithm: the authentication tag
++// for a 64 bytes message is approximately
++//
++//     s + m[0:16] * r⁴ + m[16:32] * r³ + m[32:48] * r² + m[48:64] * r  mod  2¹³⁰ - 5
++//
++// for some secret r and s. It can be computed sequentially like
++//
++//     for len(msg) > 0:
++//         h += read(msg, 16)
++//         h *= r
++//         h %= 2¹³⁰ - 5
++//     return h + s
++//
++// All the complexity is about doing performant constant-time math on numbers
++// larger than any available numeric type.
+ 
+-// sumGeneric generates an authenticator for msg using a one-time key and
+-// puts the 16-byte result into out. This is the generic implementation of
+-// Sum and should be called if no assembly implementation is available.
+ func sumGeneric(out *[TagSize]byte, msg []byte, key *[32]byte) {
+ 	h := newMACGeneric(key)
+ 	h.Write(msg)
+@@ -21,152 +32,276 @@ func sumGeneric(out *[TagSize]byte, msg []byte, key *[32]byte) {
+ }
+ 
+ func newMACGeneric(key *[32]byte) (h macGeneric) {
+-	h.r[0] = binary.LittleEndian.Uint32(key[0:]) & 0x3ffffff
+-	h.r[1] = (binary.LittleEndian.Uint32(key[3:]) >> 2) & 0x3ffff03
+-	h.r[2] = (binary.LittleEndian.Uint32(key[6:]) >> 4) & 0x3ffc0ff
+-	h.r[3] = (binary.LittleEndian.Uint32(key[9:]) >> 6) & 0x3f03fff
+-	h.r[4] = (binary.LittleEndian.Uint32(key[12:]) >> 8) & 0x00fffff
+-
+-	h.s[0] = binary.LittleEndian.Uint32(key[16:])
+-	h.s[1] = binary.LittleEndian.Uint32(key[20:])
+-	h.s[2] = binary.LittleEndian.Uint32(key[24:])
+-	h.s[3] = binary.LittleEndian.Uint32(key[28:])
++	initialize(key, &h.r, &h.s)
+ 	return
+ }
+ 
++// macState holds numbers in saturated 64-bit little-endian limbs. That is,
++// the value of [x0, x1, x2] is x[0] + x[1] * 2⁶⁴ + x[2] * 2¹²⁸.
++type macState struct {
++	// h is the main accumulator. It is to be interpreted modulo 2¹³⁰ - 5, but
++	// can grow larger during and after rounds.
++	h [3]uint64
++	// r and s are the private key components.
++	r [2]uint64
++	s [2]uint64
++}
++
+ type macGeneric struct {
+-	h, r [5]uint32
+-	s    [4]uint32
++	macState
+ 
+ 	buffer [TagSize]byte
+ 	offset int
+ }
+ 
+-func (h *macGeneric) Write(p []byte) (n int, err error) {
+-	n = len(p)
++// Write splits the incoming message into TagSize chunks, and passes them to
++// update. It buffers incomplete chunks.
++func (h *macGeneric) Write(p []byte) (int, error) {
++	nn := len(p)
+ 	if h.offset > 0 {
+-		remaining := TagSize - h.offset
+-		if n < remaining {
+-			h.offset += copy(h.buffer[h.offset:], p)
+-			return n, nil
++		n := copy(h.buffer[h.offset:], p)
++		if h.offset+n < TagSize {
++			h.offset += n
++			return nn, nil
+ 		}
+-		copy(h.buffer[h.offset:], p[:remaining])
+-		p = p[remaining:]
++		p = p[n:]
+ 		h.offset = 0
+-		updateGeneric(h.buffer[:], msgBlock, &(h.h), &(h.r))
++		updateGeneric(&h.macState, h.buffer[:])
+ 	}
+-	if nn := len(p) - (len(p) % TagSize); nn > 0 {
+-		updateGeneric(p, msgBlock, &(h.h), &(h.r))
+-		p = p[nn:]
++	if n := len(p) - (len(p) % TagSize); n > 0 {
++		updateGeneric(&h.macState, p[:n])
++		p = p[n:]
+ 	}
+ 	if len(p) > 0 {
+ 		h.offset += copy(h.buffer[h.offset:], p)
+ 	}
+-	return n, nil
++	return nn, nil
+ }
+ 
+-func (h *macGeneric) Sum(out *[16]byte) {
+-	H, R := h.h, h.r
++// Sum flushes the last incomplete chunk from the buffer, if any, and generates
++// the MAC output. It does not modify its state, in order to allow for multiple
++// calls to Sum, even if no Write is allowed after Sum.
++func (h *macGeneric) Sum(out *[TagSize]byte) {
++	state := h.macState
+ 	if h.offset > 0 {
+-		var buffer [TagSize]byte
+-		copy(buffer[:], h.buffer[:h.offset])
+-		buffer[h.offset] = 1 // invariant: h.offset < TagSize
+-		updateGeneric(buffer[:], finalBlock, &H, &R)
++		updateGeneric(&state, h.buffer[:h.offset])
+ 	}
+-	finalizeGeneric(out, &H, &(h.s))
++	finalize(out, &state.h, &state.s)
++}
++
++// [rMask0, rMask1] is the specified Poly1305 clamping mask in little-endian. It
++// clears some bits of the secret coefficient to make it possible to implement
++// multiplication more efficiently.
++const (
++	rMask0 = 0x0FFFFFFC0FFFFFFF
++	rMask1 = 0x0FFFFFFC0FFFFFFC
++)
++
++func initialize(key *[32]byte, r, s *[2]uint64) {
++	r[0] = binary.LittleEndian.Uint64(key[0:8]) & rMask0
++	r[1] = binary.LittleEndian.Uint64(key[8:16]) & rMask1
++	s[0] = binary.LittleEndian.Uint64(key[16:24])
++	s[1] = binary.LittleEndian.Uint64(key[24:32])
++}
++
++// uint128 holds a 128-bit number as two 64-bit limbs, for use with the
++// bits.Mul64 and bits.Add64 intrinsics.
++type uint128 struct {
++	lo, hi uint64
++}
++
++func mul64(a, b uint64) uint128 {
++	hi, lo := bitsMul64(a, b)
++	return uint128{lo, hi}
+ }
+ 
+-func updateGeneric(msg []byte, flag uint32, h, r *[5]uint32) {
+-	h0, h1, h2, h3, h4 := h[0], h[1], h[2], h[3], h[4]
+-	r0, r1, r2, r3, r4 := uint64(r[0]), uint64(r[1]), uint64(r[2]), uint64(r[3]), uint64(r[4])
+-	R1, R2, R3, R4 := r1*5, r2*5, r3*5, r4*5
+-
+-	for len(msg) >= TagSize {
+-		// h += msg
+-		h0 += binary.LittleEndian.Uint32(msg[0:]) & 0x3ffffff
+-		h1 += (binary.LittleEndian.Uint32(msg[3:]) >> 2) & 0x3ffffff
+-		h2 += (binary.LittleEndian.Uint32(msg[6:]) >> 4) & 0x3ffffff
+-		h3 += (binary.LittleEndian.Uint32(msg[9:]) >> 6) & 0x3ffffff
+-		h4 += (binary.LittleEndian.Uint32(msg[12:]) >> 8) | flag
+-
+-		// h *= r
+-		d0 := (uint64(h0) * r0) + (uint64(h1) * R4) + (uint64(h2) * R3) + (uint64(h3) * R2) + (uint64(h4) * R1)
+-		d1 := (d0 >> 26) + (uint64(h0) * r1) + (uint64(h1) * r0) + (uint64(h2) * R4) + (uint64(h3) * R3) + (uint64(h4) * R2)
+-		d2 := (d1 >> 26) + (uint64(h0) * r2) + (uint64(h1) * r1) + (uint64(h2) * r0) + (uint64(h3) * R4) + (uint64(h4) * R3)
+-		d3 := (d2 >> 26) + (uint64(h0) * r3) + (uint64(h1) * r2) + (uint64(h2) * r1) + (uint64(h3) * r0) + (uint64(h4) * R4)
+-		d4 := (d3 >> 26) + (uint64(h0) * r4) + (uint64(h1) * r3) + (uint64(h2) * r2) + (uint64(h3) * r1) + (uint64(h4) * r0)
+-
+-		// h %= p
+-		h0 = uint32(d0) & 0x3ffffff
+-		h1 = uint32(d1) & 0x3ffffff
+-		h2 = uint32(d2) & 0x3ffffff
+-		h3 = uint32(d3) & 0x3ffffff
+-		h4 = uint32(d4) & 0x3ffffff
+-
+-		h0 += uint32(d4>>26) * 5
+-		h1 += h0 >> 26
+-		h0 = h0 & 0x3ffffff
+-
+-		msg = msg[TagSize:]
++func add128(a, b uint128) uint128 {
++	lo, c := bitsAdd64(a.lo, b.lo, 0)
++	hi, c := bitsAdd64(a.hi, b.hi, c)
++	if c != 0 {
++		panic("poly1305: unexpected overflow")
+ 	}
++	return uint128{lo, hi}
++}
+ 
+-	h[0], h[1], h[2], h[3], h[4] = h0, h1, h2, h3, h4
++func shiftRightBy2(a uint128) uint128 {
++	a.lo = a.lo>>2 | (a.hi&3)<<62
++	a.hi = a.hi >> 2
++	return a
+ }
+ 
+-func finalizeGeneric(out *[TagSize]byte, h *[5]uint32, s *[4]uint32) {
+-	h0, h1, h2, h3, h4 := h[0], h[1], h[2], h[3], h[4]
+-
+-	// h %= p reduction
+-	h2 += h1 >> 26
+-	h1 &= 0x3ffffff
+-	h3 += h2 >> 26
+-	h2 &= 0x3ffffff
+-	h4 += h3 >> 26
+-	h3 &= 0x3ffffff
+-	h0 += 5 * (h4 >> 26)
+-	h4 &= 0x3ffffff
+-	h1 += h0 >> 26
+-	h0 &= 0x3ffffff
+-
+-	// h - p
+-	t0 := h0 + 5
+-	t1 := h1 + (t0 >> 26)
+-	t2 := h2 + (t1 >> 26)
+-	t3 := h3 + (t2 >> 26)
+-	t4 := h4 + (t3 >> 26) - (1 << 26)
+-	t0 &= 0x3ffffff
+-	t1 &= 0x3ffffff
+-	t2 &= 0x3ffffff
+-	t3 &= 0x3ffffff
+-
+-	// select h if h < p else h - p
+-	t_mask := (t4 >> 31) - 1
+-	h_mask := ^t_mask
+-	h0 = (h0 & h_mask) | (t0 & t_mask)
+-	h1 = (h1 & h_mask) | (t1 & t_mask)
+-	h2 = (h2 & h_mask) | (t2 & t_mask)
+-	h3 = (h3 & h_mask) | (t3 & t_mask)
+-	h4 = (h4 & h_mask) | (t4 & t_mask)
+-
+-	// h %= 2^128
+-	h0 |= h1 << 26
+-	h1 = ((h1 >> 6) | (h2 << 20))
+-	h2 = ((h2 >> 12) | (h3 << 14))
+-	h3 = ((h3 >> 18) | (h4 << 8))
+-
+-	// s: the s part of the key
+-	// tag = (h + s) % (2^128)
+-	t := uint64(h0) + uint64(s[0])
+-	h0 = uint32(t)
+-	t = uint64(h1) + uint64(s[1]) + (t >> 32)
+-	h1 = uint32(t)
+-	t = uint64(h2) + uint64(s[2]) + (t >> 32)
+-	h2 = uint32(t)
+-	t = uint64(h3) + uint64(s[3]) + (t >> 32)
+-	h3 = uint32(t)
+-
+-	binary.LittleEndian.PutUint32(out[0:], h0)
+-	binary.LittleEndian.PutUint32(out[4:], h1)
+-	binary.LittleEndian.PutUint32(out[8:], h2)
+-	binary.LittleEndian.PutUint32(out[12:], h3)
++// updateGeneric absorbs msg into the state.h accumulator. For each chunk m of
++// 128 bits of message, it computes
++//
++//     h₊ = (h + m) * r  mod  2¹³⁰ - 5
++//
++// If the msg length is not a multiple of TagSize, it assumes the last
++// incomplete chunk is the final one.
++func updateGeneric(state *macState, msg []byte) {
++	h0, h1, h2 := state.h[0], state.h[1], state.h[2]
++	r0, r1 := state.r[0], state.r[1]
++
++	for len(msg) > 0 {
++		var c uint64
++
++		// For the first step, h + m, we use a chain of bits.Add64 intrinsics.
++		// The resulting value of h might exceed 2¹³⁰ - 5, but will be partially
++		// reduced at the end of the multiplication below.
++		//
++		// The spec requires us to set a bit just above the message size, not to
++		// hide leading zeroes. For full chunks, that's 1 << 128, so we can just
++		// add 1 to the most significant (2¹²⁸) limb, h2.
++		if len(msg) >= TagSize {
++			h0, c = bitsAdd64(h0, binary.LittleEndian.Uint64(msg[0:8]), 0)
++			h1, c = bitsAdd64(h1, binary.LittleEndian.Uint64(msg[8:16]), c)
++			h2 += c + 1
++
++			msg = msg[TagSize:]
++		} else {
++			var buf [TagSize]byte
++			copy(buf[:], msg)
++			buf[len(msg)] = 1
++
++			h0, c = bitsAdd64(h0, binary.LittleEndian.Uint64(buf[0:8]), 0)
++			h1, c = bitsAdd64(h1, binary.LittleEndian.Uint64(buf[8:16]), c)
++			h2 += c
++
++			msg = nil
++		}
++
++		// Multiplication of big number limbs is similar to elementary school
++		// columnar multiplication. Instead of digits, there are 64-bit limbs.
++		//
++		// We are multiplying a 3 limbs number, h, by a 2 limbs number, r.
++		//
++		//                        h2    h1    h0  x
++		//                              r1    r0  =
++		//                       ----------------
++		//                      h2r0  h1r0  h0r0     <-- individual 128-bit products
++		//            +   h2r1  h1r1  h0r1
++		//               ------------------------
++		//                 m3    m2    m1    m0      <-- result in 128-bit overlapping limbs
++		//               ------------------------
++		//         m3.hi m2.hi m1.hi m0.hi           <-- carry propagation
++		//     +         m3.lo m2.lo m1.lo m0.lo
++		//        -------------------------------
++		//           t4    t3    t2    t1    t0      <-- final result in 64-bit limbs
++		//
++		// The main difference from pen-and-paper multiplication is that we do
++		// carry propagation in a separate step, as if we wrote two digit sums
++		// at first (the 128-bit limbs), and then carried the tens all at once.
++
++		h0r0 := mul64(h0, r0)
++		h1r0 := mul64(h1, r0)
++		h2r0 := mul64(h2, r0)
++		h0r1 := mul64(h0, r1)
++		h1r1 := mul64(h1, r1)
++		h2r1 := mul64(h2, r1)
++
++		// Since h2 is known to be at most 7 (5 + 1 + 1), and r0 and r1 have their
++		// top 4 bits cleared by rMask{0,1}, we know that their product is not going
++		// to overflow 64 bits, so we can ignore the high part of the products.
++		//
++		// This also means that the product doesn't have a fifth limb (t4).
++		if h2r0.hi != 0 {
++			panic("poly1305: unexpected overflow")
++		}
++		if h2r1.hi != 0 {
++			panic("poly1305: unexpected overflow")
++		}
++
++		m0 := h0r0
++		m1 := add128(h1r0, h0r1) // These two additions don't overflow thanks again
++		m2 := add128(h2r0, h1r1) // to the 4 masked bits at the top of r0 and r1.
++		m3 := h2r1
++
++		t0 := m0.lo
++		t1, c := bitsAdd64(m1.lo, m0.hi, 0)
++		t2, c := bitsAdd64(m2.lo, m1.hi, c)
++		t3, _ := bitsAdd64(m3.lo, m2.hi, c)
++
++		// Now we have the result as 4 64-bit limbs, and we need to reduce it
++		// modulo 2¹³⁰ - 5. The special shape of this Crandall prime lets us do
++		// a cheap partial reduction according to the reduction identity
++		//
++		//     c * 2¹³⁰ + n  =  c * 5 + n  mod  2¹³⁰ - 5
++		//
++		// because 2¹³⁰ = 5 mod 2¹³⁰ - 5. Partial reduction since the result is
++		// likely to be larger than 2¹³⁰ - 5, but still small enough to fit the
++		// assumptions we make about h in the rest of the code.
++		//
++		// See also https://speakerdeck.com/gtank/engineering-prime-numbers?slide=23
++
++		// We split the final result at the 2¹³⁰ mark into h and cc, the carry.
++		// Note that the carry bits are effectively shifted left by 2, in other
++		// words, cc = c * 4 for the c in the reduction identity.
++		h0, h1, h2 = t0, t1, t2&maskLow2Bits
++		cc := uint128{t2 & maskNotLow2Bits, t3}
++
++		// To add c * 5 to h, we first add cc = c * 4, and then add (cc >> 2) = c.
++
++		h0, c = bitsAdd64(h0, cc.lo, 0)
++		h1, c = bitsAdd64(h1, cc.hi, c)
++		h2 += c
++
++		cc = shiftRightBy2(cc)
++
++		h0, c = bitsAdd64(h0, cc.lo, 0)
++		h1, c = bitsAdd64(h1, cc.hi, c)
++		h2 += c
++
++		// h2 is at most 3 + 1 + 1 = 5, making the whole of h at most
++		//
++		//     5 * 2¹²⁸ + (2¹²⁸ - 1) = 6 * 2¹²⁸ - 1
++	}
++
++	state.h[0], state.h[1], state.h[2] = h0, h1, h2
++}
++
++const (
++	maskLow2Bits    uint64 = 0x0000000000000003
++	maskNotLow2Bits uint64 = ^maskLow2Bits
++)
++
++// select64 returns x if v == 1 and y if v == 0, in constant time.
++func select64(v, x, y uint64) uint64 { return ^(v-1)&x | (v-1)&y }
++
++// [p0, p1, p2] is 2¹³⁰ - 5 in little endian order.
++const (
++	p0 = 0xFFFFFFFFFFFFFFFB
++	p1 = 0xFFFFFFFFFFFFFFFF
++	p2 = 0x0000000000000003
++)
++
++// finalize completes the modular reduction of h and computes
++//
++//     out = h + s  mod  2¹²⁸
++//
++func finalize(out *[TagSize]byte, h *[3]uint64, s *[2]uint64) {
++	h0, h1, h2 := h[0], h[1], h[2]
++
++	// After the partial reduction in updateGeneric, h might be more than
++	// 2¹³⁰ - 5, but will be less than 2 * (2¹³⁰ - 5). To complete the reduction
++	// in constant time, we compute t = h - (2¹³⁰ - 5), and select h as the
++	// result if the subtraction underflows, and t otherwise.
++
++	hMinusP0, b := bitsSub64(h0, p0, 0)
++	hMinusP1, b := bitsSub64(h1, p1, b)
++	_, b = bitsSub64(h2, p2, b)
++
++	// h = h if h < p else h - p
++	h0 = select64(b, h0, hMinusP0)
++	h1 = select64(b, h1, hMinusP1)
++
++	// Finally, we compute the last Poly1305 step
++	//
++	//     tag = h + s  mod  2¹²⁸
++	//
++	// by just doing a wide addition with the 128 low bits of h and discarding
++	// the overflow.
++	h0, c := bitsAdd64(h0, s[0], 0)
++	h1, _ = bitsAdd64(h1, s[1], c)
++
++	binary.LittleEndian.PutUint64(out[0:8], h0)
++	binary.LittleEndian.PutUint64(out[8:16], h1)
+ }
+diff --git a/src/vendor/golang.org/x/crypto/poly1305/sum_noasm.go b/src/vendor/golang.org/x/crypto/poly1305/sum_noasm.go
+index 8a9c2070b9..1682eda45f 100644
+--- a/src/vendor/golang.org/x/crypto/poly1305/sum_noasm.go
++++ b/src/vendor/golang.org/x/crypto/poly1305/sum_noasm.go
+@@ -6,10 +6,7 @@
+ 
+ package poly1305
+ 
+-// Sum generates an authenticator for msg using a one-time key and puts the
+-// 16-byte result into out. Authenticating two different messages with the same
+-// key allows an attacker to forge messages at will.
+-func Sum(out *[TagSize]byte, msg []byte, key *[32]byte) {
++func sum(out *[TagSize]byte, msg []byte, key *[32]byte) {
+ 	h := newMAC(key)
+ 	h.Write(msg)
+ 	h.Sum(out)
+diff --git a/src/vendor/golang.org/x/crypto/poly1305/sum_ppc64le.go b/src/vendor/golang.org/x/crypto/poly1305/sum_ppc64le.go
+index 2402b6371b..3233616935 100644
+--- a/src/vendor/golang.org/x/crypto/poly1305/sum_ppc64le.go
++++ b/src/vendor/golang.org/x/crypto/poly1305/sum_ppc64le.go
+@@ -7,62 +7,52 @@
+ package poly1305
+ 
+ //go:noescape
+-func initialize(state *[7]uint64, key *[32]byte)
++func update(state *macState, msg []byte)
+ 
+-//go:noescape
+-func update(state *[7]uint64, msg []byte)
+-
+-//go:noescape
+-func finalize(tag *[TagSize]byte, state *[7]uint64)
+-
+-// Sum generates an authenticator for m using a one-time key and puts the
+-// 16-byte result into out. Authenticating two different messages with the same
+-// key allows an attacker to forge messages at will.
+-func Sum(out *[16]byte, m []byte, key *[32]byte) {
++func sum(out *[16]byte, m []byte, key *[32]byte) {
+ 	h := newMAC(key)
+ 	h.Write(m)
+ 	h.Sum(out)
+ }
+ 
+ func newMAC(key *[32]byte) (h mac) {
+-	initialize(&h.state, key)
++	initialize(key, &h.r, &h.s)
+ 	return
+ }
+ 
+-type mac struct {
+-	state [7]uint64 // := uint64{ h0, h1, h2, r0, r1, pad0, pad1 }
+-
+-	buffer [TagSize]byte
+-	offset int
+-}
++// mac is a wrapper for macGeneric that redirects calls that would have gone to
++// updateGeneric to update.
++//
++// Its Write and Sum methods are otherwise identical to the macGeneric ones, but
++// using function pointers would carry a major performance cost.
++type mac struct{ macGeneric }
+ 
+-func (h *mac) Write(p []byte) (n int, err error) {
+-	n = len(p)
++func (h *mac) Write(p []byte) (int, error) {
++	nn := len(p)
+ 	if h.offset > 0 {
+-		remaining := TagSize - h.offset
+-		if n < remaining {
+-			h.offset += copy(h.buffer[h.offset:], p)
+-			return n, nil
++		n := copy(h.buffer[h.offset:], p)
++		if h.offset+n < TagSize {
++			h.offset += n
++			return nn, nil
+ 		}
+-		copy(h.buffer[h.offset:], p[:remaining])
+-		p = p[remaining:]
++		p = p[n:]
+ 		h.offset = 0
+-		update(&h.state, h.buffer[:])
++		update(&h.macState, h.buffer[:])
+ 	}
+-	if nn := len(p) - (len(p) % TagSize); nn > 0 {
+-		update(&h.state, p[:nn])
+-		p = p[nn:]
++	if n := len(p) - (len(p) % TagSize); n > 0 {
++		update(&h.macState, p[:n])
++		p = p[n:]
+ 	}
+ 	if len(p) > 0 {
+ 		h.offset += copy(h.buffer[h.offset:], p)
+ 	}
+-	return n, nil
++	return nn, nil
+ }
+ 
+ func (h *mac) Sum(out *[16]byte) {
+-	state := h.state
++	state := h.macState
+ 	if h.offset > 0 {
+ 		update(&state, h.buffer[:h.offset])
+ 	}
+-	finalize(out, &state)
++	finalize(out, &state.h, &state.s)
+ }
+diff --git a/src/vendor/golang.org/x/crypto/poly1305/sum_ppc64le.s b/src/vendor/golang.org/x/crypto/poly1305/sum_ppc64le.s
+index 55c7167ec9..4e20bf299a 100644
+--- a/src/vendor/golang.org/x/crypto/poly1305/sum_ppc64le.s
++++ b/src/vendor/golang.org/x/crypto/poly1305/sum_ppc64le.s
+@@ -58,7 +58,6 @@ DATA ·poly1305Mask<>+0x08(SB)/8, $0x0FFFFFFC0FFFFFFC
+ GLOBL ·poly1305Mask<>(SB), RODATA, $16
+ 
+ // func update(state *[7]uint64, msg []byte)
+-
+ TEXT ·update(SB), $0-32
+ 	MOVD state+0(FP), R3
+ 	MOVD msg_base+8(FP), R4
+@@ -180,68 +179,3 @@ done:
+ 	MOVD R9, 8(R3)
+ 	MOVD R10, 16(R3)
+ 	RET
+-
+-// func initialize(state *[7]uint64, key *[32]byte)
+-TEXT ·initialize(SB), $0-16
+-	MOVD state+0(FP), R3
+-	MOVD key+8(FP), R4
+-
+-	// state[0...7] is initialized with zero
+-	// Load key
+-	MOVD 0(R4), R5
+-	MOVD 8(R4), R6
+-	MOVD 16(R4), R7
+-	MOVD 24(R4), R8
+-
+-	// Address of key mask
+-	MOVD $·poly1305Mask<>(SB), R9
+-
+-	// Save original key in state
+-	MOVD R7, 40(R3)
+-	MOVD R8, 48(R3)
+-
+-	// Get mask
+-	MOVD (R9), R7
+-	MOVD 8(R9), R8
+-
+-	// And with key
+-	AND R5, R7, R5
+-	AND R6, R8, R6
+-
+-	// Save masked key in state
+-	MOVD R5, 24(R3)
+-	MOVD R6, 32(R3)
+-	RET
+-
+-// func finalize(tag *[TagSize]byte, state *[7]uint64)
+-TEXT ·finalize(SB), $0-16
+-	MOVD tag+0(FP), R3
+-	MOVD state+8(FP), R4
+-
+-	// Get h0, h1, h2 from state
+-	MOVD 0(R4), R5
+-	MOVD 8(R4), R6
+-	MOVD 16(R4), R7
+-
+-	// Save h0, h1
+-	MOVD  R5, R8
+-	MOVD  R6, R9
+-	MOVD  $3, R20
+-	MOVD  $-1, R21
+-	SUBC  $-5, R5
+-	SUBE  R21, R6
+-	SUBE  R20, R7
+-	MOVD  $0, R21
+-	SUBZE R21
+-
+-	// Check for carry
+-	CMP  $0, R21
+-	ISEL $2, R5, R8, R5
+-	ISEL $2, R6, R9, R6
+-	MOVD 40(R4), R8
+-	MOVD 48(R4), R9
+-	ADDC R8, R5
+-	ADDE R9, R6
+-	MOVD R5, 0(R3)
+-	MOVD R6, 8(R3)
+-	RET
+diff --git a/src/vendor/golang.org/x/crypto/poly1305/sum_s390x.go b/src/vendor/golang.org/x/crypto/poly1305/sum_s390x.go
+index ec99e07e9f..a8920ee9d2 100644
+--- a/src/vendor/golang.org/x/crypto/poly1305/sum_s390x.go
++++ b/src/vendor/golang.org/x/crypto/poly1305/sum_s390x.go
+@@ -22,10 +22,7 @@ func poly1305vx(out *[16]byte, m *byte, mlen uint64, key *[32]byte)
+ //go:noescape
+ func poly1305vmsl(out *[16]byte, m *byte, mlen uint64, key *[32]byte)
+ 
+-// Sum generates an authenticator for m using a one-time key and puts the
+-// 16-byte result into out. Authenticating two different messages with the same
+-// key allows an attacker to forge messages at will.
+-func Sum(out *[16]byte, m []byte, key *[32]byte) {
++func sum(out *[16]byte, m []byte, key *[32]byte) {
+ 	if cpu.S390X.HasVX {
+ 		var mPtr *byte
+ 		if len(m) > 0 {
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index d69a99133c..88ea5f1e56 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -1,11 +1,11 @@
+-# golang.org/x/crypto v0.0.0-20190611184440-5c40567a22f8
++# golang.org/x/crypto v0.0.0-20191111213947-16651526fdb4
+ ## explicit
++golang.org/x/crypto/chacha20
+ golang.org/x/crypto/chacha20poly1305
+ golang.org/x/crypto/cryptobyte
+ golang.org/x/crypto/cryptobyte/asn1
+ golang.org/x/crypto/curve25519
+ golang.org/x/crypto/hkdf
+-golang.org/x/crypto/internal/chacha20
+ golang.org/x/crypto/internal/subtle
+ golang.org/x/crypto/poly1305
+ # golang.org/x/net v0.0.0-20191105084925-a882066a44e0

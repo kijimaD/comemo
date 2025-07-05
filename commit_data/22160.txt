@@ -15,7 +15,7 @@ Date:   Thu Feb 26 11:35:20 2015 +1100
     Change-Id: I5570389c462360f98c3160f3c6963d9466d511de
     Reviewed-on: https://go-review.googlesource.com/6041
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/image/jpeg/reader.go                              |  17 ++++++-----------
  src/image/jpeg/reader_test.go                         |   2 ++
  src/image/jpeg/scan.go                                |  13 ++++++-------
@@ -24,3 +24,100 @@ Date:   Thu Feb 26 11:35:20 2015 +1100
  src/image/testdata/video-001.q50.411.jpeg             | Bin 0 -> 3362 bytes
  src/image/testdata/video-001.q50.411.progressive.jpeg | Bin 0 -> 3251 bytes
  7 files changed, 14 insertions(+), 18 deletions(-)
+
+diff --git a/src/image/jpeg/reader.go b/src/image/jpeg/reader.go
+index 5d7fefc6cd..8fcb2e06c1 100644
+--- a/src/image/jpeg/reader.go
++++ b/src/image/jpeg/reader.go
+@@ -42,12 +42,6 @@ const (
+ 	maxTq   = 3
+ 
+ 	maxComponents = 4
+-
+-	// We only support 4:4:4, 4:4:0, 4:2:2 and 4:2:0 downsampling, and therefore the
+-	// number of luma samples per chroma sample is at most 2 in the horizontal
+-	// and 2 in the vertical direction.
+-	maxH = 2
+-	maxV = 2
+ )
+ 
+ const (
+@@ -346,12 +340,13 @@ func (d *decoder) processSOF(n int) error {
+ 		d.comp[i].v = int(hv & 0x0f)
+ 		switch d.nComp {
+ 		case 3:
+-			// For YCbCr images, we only support 4:4:4, 4:4:0, 4:2:2 or 4:2:0 chroma
+-			// downsampling ratios. This implies that the (h, v) values for the Y
+-			// component are either (1, 1), (1, 2), (2, 1) or (2, 2), and the (h, v)
+-			// values for the Cr and Cb components must be (1, 1).
++			// For YCbCr images, we only support 4:4:4, 4:4:0, 4:2:2, 4:2:0,
++			// 4:1:1 or 4:1:0 chroma downsampling ratios. This implies that the
++			// (h, v) values for the Y component are either (1, 1), (1, 2),
++			// (2, 1), (2, 2), (4, 1) or (4, 2), and the (h, v) values for the Cr
++			// and Cb components must be (1, 1).
+ 			if i == 0 {
+-				if hv != 0x11 && hv != 0x21 && hv != 0x22 && hv != 0x12 {
++				if hv != 0x11 && hv != 0x21 && hv != 0x22 && hv != 0x12 && hv != 0x41 && hv != 0x42 {
+ 					return UnsupportedError("luma/chroma downsample ratio")
+ 				}
+ 			} else if hv != 0x11 {
+diff --git a/src/image/jpeg/reader_test.go b/src/image/jpeg/reader_test.go
+index 4de2e8ee73..c5a36cba21 100644
+--- a/src/image/jpeg/reader_test.go
++++ b/src/image/jpeg/reader_test.go
+@@ -23,6 +23,8 @@ import (
+ func TestDecodeProgressive(t *testing.T) {
+ 	testCases := []string{
+ 		"../testdata/video-001",
++		"../testdata/video-001.q50.410",
++		"../testdata/video-001.q50.411",
+ 		"../testdata/video-001.q50.420",
+ 		"../testdata/video-001.q50.422",
+ 		"../testdata/video-001.q50.440",
+diff --git a/src/image/jpeg/scan.go b/src/image/jpeg/scan.go
+index 4168936312..8fcf401dd8 100644
+--- a/src/image/jpeg/scan.go
++++ b/src/image/jpeg/scan.go
+@@ -26,6 +26,10 @@ func (d *decoder) makeImg(h0, v0, mxx, myy int) {
+ 		subsampleRatio = image.YCbCrSubsampleRatio422
+ 	case h0 == 2 && v0 == 2:
+ 		subsampleRatio = image.YCbCrSubsampleRatio420
++	case h0 == 4 && v0 == 1:
++		subsampleRatio = image.YCbCrSubsampleRatio411
++	case h0 == 4 && v0 == 2:
++		subsampleRatio = image.YCbCrSubsampleRatio410
+ 	default:
+ 		panic("unreachable")
+ 	}
+@@ -175,13 +179,8 @@ func (d *decoder) processSOS(n int) error {
+ 					//	0 1 2
+ 					//	3 4 5
+ 					if nComp != 1 {
+-						bx, by = d.comp[compIndex].h*mx, d.comp[compIndex].v*my
+-						if h0 == 1 {
+-							by += j
+-						} else {
+-							bx += j % 2
+-							by += j / 2
+-						}
++						bx = d.comp[compIndex].h*mx + j%h0
++						by = d.comp[compIndex].v*my + j/h0
+ 					} else {
+ 						q := mxx * d.comp[compIndex].h
+ 						bx = blockCount % q
+diff --git a/src/image/testdata/video-001.q50.410.jpeg b/src/image/testdata/video-001.q50.410.jpeg
+new file mode 100644
+index 0000000000..4cebd1eb25
+Binary files /dev/null and b/src/image/testdata/video-001.q50.410.jpeg differ
+diff --git a/src/image/testdata/video-001.q50.410.progressive.jpeg b/src/image/testdata/video-001.q50.410.progressive.jpeg
+new file mode 100644
+index 0000000000..fb7140217e
+Binary files /dev/null and b/src/image/testdata/video-001.q50.410.progressive.jpeg differ
+diff --git a/src/image/testdata/video-001.q50.411.jpeg b/src/image/testdata/video-001.q50.411.jpeg
+new file mode 100644
+index 0000000000..b90de18721
+Binary files /dev/null and b/src/image/testdata/video-001.q50.411.jpeg differ
+diff --git a/src/image/testdata/video-001.q50.411.progressive.jpeg b/src/image/testdata/video-001.q50.411.progressive.jpeg
+new file mode 100644
+index 0000000000..1ddb22b8b0
+Binary files /dev/null and b/src/image/testdata/video-001.q50.411.progressive.jpeg differ

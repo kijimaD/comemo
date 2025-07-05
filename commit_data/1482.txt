@@ -8,8 +8,46 @@ Date:   Thu Jan 15 15:21:12 2009 -0800
     R=rsc
     OCL=22872
     CL=22872
-
+---
  src/cmd/6l/asm.c | 2 ++
  src/cmd/6l/go.c  | 2 +-
  src/cmd/6l/l.h   | 1 +
  3 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index fec8fd0e16..68e7ec54cf 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -708,6 +708,8 @@ datblk(int32 s, int32 n)
+ 				if(p->to.sym) {
+ 					if(p->to.sym->type == SUNDEF)
+ 						ckoff(p->to.sym, o);
++					if(p->to.sym->type == Sxxx)
++						diag("missing symbol %s", p->to.sym->name);
+ 					o += p->to.sym->value;
+ 					if(p->to.sym->type != STEXT && p->to.sym->type != SUNDEF)
+ 						o += INITDAT;
+diff --git a/src/cmd/6l/go.c b/src/cmd/6l/go.c
+index 5128c51fa9..06eea3407a 100644
+--- a/src/cmd/6l/go.c
++++ b/src/cmd/6l/go.c
+@@ -487,6 +487,6 @@ definetypesigs(void)
+ 	prog->to.offset = n;
+ 
+ 	if(debug['v'])
+-		Bprint(&bso, "%5.2f typestrings %d\n", cputime(), n);
++		Bprint(&bso, "%5.2f typesigs %d\n", cputime(), n);
+ 
+ }
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 7367bfec2a..e6ce0e7b23 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -137,6 +137,7 @@ struct	Movtab
+ 
+ enum
+ {
++	Sxxx,
+ 	STEXT		= 1,
+ 	SDATA,
+ 	SBSS,

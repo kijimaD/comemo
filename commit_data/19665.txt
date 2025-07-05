@@ -29,7 +29,7 @@ Date:   Thu Jul 3 16:14:34 2014 -0400
     R=elias.naur, minux, dave, josharian
     CC=golang-codereviews
     https://golang.org/cl/106380043
-
+---
  src/cmd/go/build.go                   |  5 ++--
  src/cmd/ld/data.c                     |  4 +++
  src/cmd/ld/elf.c                      |  3 +-
@@ -44,3 +44,378 @@ Date:   Thu Jul 3 16:14:34 2014 -0400
  src/pkg/runtime/cgo/gcc_linux_arm.c   | 38 +++++++++++++-----------
  src/pkg/runtime/tls_arm.s             | 54 +++++++++++++++++++++++++++++++++++
  13 files changed, 153 insertions(+), 65 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 1dc13cf068..152806f876 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -2262,13 +2262,14 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles, gxxfiles, mfiles
+ 
+ 	linkobj = append(linkobj, p.SysoFiles...)
+ 	dynobj := obj + "_cgo_.o"
+-	if goarch == "arm" && goos == "linux" { // we need to use -pie for Linux/ARM to get accurate imported sym
++	pie := goarch == "arm" && (goos == "linux" || goos == "android")
++	if pie { // we need to use -pie for Linux/ARM to get accurate imported sym
+ 		cgoLDFLAGS = append(cgoLDFLAGS, "-pie")
+ 	}
+ 	if err := b.gccld(p, dynobj, cgoLDFLAGS, linkobj); err != nil {
+ 		return nil, nil, err
+ 	}
+-	if goarch == "arm" && goos == "linux" { // but we don't need -pie for normal cgo programs
++	if pie { // but we don't need -pie for normal cgo programs
+ 		cgoLDFLAGS = cgoLDFLAGS[0 : len(cgoLDFLAGS)-1]
+ 	}
+ 
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 03b93c77ce..b2075f2d66 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -160,6 +160,10 @@ relocsym(LSym *s)
+ 		if(r->sym != S && r->sym->type != STLSBSS && !r->sym->reachable)
+ 			diag("unreachable sym in relocation: %s %s", s->name, r->sym->name);
+ 
++		// Android emulates runtime.tlsg as a regular variable.
++		if (r->type == R_TLS && strcmp(goos, "android") == 0)
++			r->type = R_ADDR;
++
+ 		switch(r->type) {
+ 		default:
+ 			o = 0;
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index 0555cf46aa..3196961f35 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -776,7 +776,8 @@ elfshbits(Section *sect)
+ 	if(sect->rwx & 2)
+ 		sh->flags |= SHF_WRITE;
+ 	if(strcmp(sect->name, ".tbss") == 0) {
+-		sh->flags |= SHF_TLS;
++		if(strcmp(goos, "android") != 0)
++			sh->flags |= SHF_TLS; // no TLS on android
+ 		sh->type = SHT_NOBITS;
+ 	}
+ 	if(linkmode != LinkExternal)
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index ef638a66a6..0a5d8d99f2 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -226,6 +226,10 @@ loadlib(void)
+ 			linkmode = LinkExternal;
+ 		else
+ 			linkmode = LinkInternal;
++
++		// Force external linking for android.
++		if(strcmp(goos, "android") == 0)
++			linkmode = LinkExternal;
+ 	}
+ 
+ 	if(linkmode == LinkInternal) {
+diff --git a/src/cmd/ld/pobj.c b/src/cmd/ld/pobj.c
+index 819c37954a..d3a15a7705 100644
+--- a/src/cmd/ld/pobj.c
++++ b/src/cmd/ld/pobj.c
+@@ -139,7 +139,7 @@ main(int argc, char *argv[])
+ 	if(HEADTYPE == -1)
+ 		HEADTYPE = headtype(goos);
+ 	ctxt->headtype = HEADTYPE;
+-	if (headstring == nil)
++	if(headstring == nil)
+ 		headstring = headstr(HEADTYPE);
+ 
+ 	archinit();
+diff --git a/src/cmd/ld/symtab.c b/src/cmd/ld/symtab.c
+index 1bc384e805..1805f97d3a 100644
+--- a/src/cmd/ld/symtab.c
++++ b/src/cmd/ld/symtab.c
+@@ -204,7 +204,12 @@ asmelfsym(void)
+ 			diag("missing section for %s", s->name);
+ 			errorexit();
+ 		}
+-		putelfsyment(putelfstr(s->name), 0, s->size, (STB_LOCAL<<4)|STT_TLS, s->sect->elfsect->shnum, 0);
++		if (strcmp(goos, "android") == 0) {
++			// Android emulates runtime.tlsg as a regular variable.
++			putelfsyment(putelfstr(s->name), 0, s->size, (STB_LOCAL<<4)|STT_OBJECT, s->sect->elfsect->shnum, 0);
++		} else {
++			putelfsyment(putelfstr(s->name), 0, s->size, (STB_LOCAL<<4)|STT_TLS, s->sect->elfsect->shnum, 0);
++		}
+ 		s->elfsym = numelfsym++;
+ 	}
+ 
+diff --git a/src/pkg/os/user/lookup_stubs.go b/src/pkg/os/user/lookup_stubs.go
+index 86f0e6e645..4fb0e3c6ed 100644
+--- a/src/pkg/os/user/lookup_stubs.go
++++ b/src/pkg/os/user/lookup_stubs.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !cgo,!windows,!plan9
++// +build !cgo,!windows,!plan9 android
+ 
+ package user
+ 
+diff --git a/src/pkg/os/user/lookup_unix.go b/src/pkg/os/user/lookup_unix.go
+index f2baf05bbf..0871473df1 100644
+--- a/src/pkg/os/user/lookup_unix.go
++++ b/src/pkg/os/user/lookup_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++// +build darwin dragonfly freebsd !android,linux netbsd openbsd solaris
+ // +build cgo
+ 
+ package user
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 4f029c850a..6711d5105b 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -40,10 +40,12 @@ TEXT _rt0_go(SB),NOSPLIT,$-4
+ 	MOVW	_cgo_init(SB), R4
+ 	CMP	$0, R4
+ 	B.EQ	nocgo
+-	BL		runtime·save_g(SB);
+-	MOVW	g, R0 // first argument of _cgo_init is g
+-	MOVW	$setg_gcc<>(SB), R1 // second argument is address of save_g
+-	BL		(R4) // will clobber R0-R3
++	MRC     15, 0, R0, C13, C0, 3 	// load TLS base pointer
++	MOVW 	R0, R3 			// arg 3: TLS base pointer
++	MOVW 	$runtime·tlsg(SB), R2 	// arg 2: tlsg
++	MOVW	$setg_gcc<>(SB), R1 	// arg 1: setg
++	MOVW	g, R0 			// arg 0: G
++	BL	(R4) // will clobber R0-R3
+ 
+ nocgo:
+ 	// update stackguard after _cgo_init
+@@ -688,42 +690,6 @@ _eqnext:
+ 	MOVB	R7, v+16(FP)
+ 	RET
+ 
+-// We have to resort to TLS variable to save g(R10).
+-// One reason is that external code might trigger
+-// SIGSEGV, and our runtime.sigtramp don't even know we
+-// are in external code, and will continue to use R10,
+-// this might as well result in another SIGSEGV.
+-// Note: all three functions will clobber R0, and the last
+-// two can be called from 5c ABI code.
+-
+-// save_g saves the g register into pthread-provided
+-// thread-local memory, so that we can call externally compiled
+-// ARM code that will overwrite those registers.
+-// NOTE: runtime.gogo assumes that R1 is preserved by this function.
+-//       runtime.mcall assumes this function only clobbers R0 and R11.
+-TEXT runtime·save_g(SB),NOSPLIT,$0
+-	MRC		15, 0, R0, C13, C0, 3 // fetch TLS base pointer
+-	// $runtime.tlsg(SB) is a special linker symbol.
+-	// It is the offset from the TLS base pointer to our
+-	// thread-local storage for g.
+-	MOVW	$runtime·tlsg(SB), R11
+-	ADD	R11, R0
+-	MOVW	g, 0(R0)
+-	RET
+-
+-// load_g loads the g register from pthread-provided
+-// thread-local memory, for use after calling externally compiled
+-// ARM code that overwrote those registers.
+-TEXT runtime·load_g(SB),NOSPLIT,$0
+-	MRC		15, 0, R0, C13, C0, 3 // fetch TLS base pointer
+-	// $runtime.tlsg(SB) is a special linker symbol.
+-	// It is the offset from the TLS base pointer to our
+-	// thread-local storage for g.
+-	MOVW	$runtime·tlsg(SB), R11
+-	ADD	R11, R0
+-	MOVW	0(R0), g
+-	RET
+-
+ // void setg_gcc(G*); set g called from gcc.
+ TEXT setg_gcc<>(SB),NOSPLIT,$0
+ 	MOVW	R0, g
+diff --git a/src/pkg/runtime/cgo/cgo.go b/src/pkg/runtime/cgo/cgo.go
+index 258b6fba10..786ae515c8 100644
+--- a/src/pkg/runtime/cgo/cgo.go
++++ b/src/pkg/runtime/cgo/cgo.go
+@@ -14,7 +14,8 @@ package cgo
+ #cgo darwin LDFLAGS: -lpthread
+ #cgo dragonfly LDFLAGS: -lpthread
+ #cgo freebsd LDFLAGS: -lpthread
+-#cgo linux LDFLAGS: -lpthread
++#cgo android LDFLAGS: -llog
++#cgo !android,linux LDFLAGS: -lpthread
+ #cgo netbsd LDFLAGS: -lpthread
+ #cgo openbsd LDFLAGS: -lpthread
+ #cgo windows LDFLAGS: -lm -mthreads
+diff --git a/src/pkg/runtime/cgo/gcc_android_arm.c b/src/pkg/runtime/cgo/gcc_android_arm.c
+new file mode 100644
+index 0000000000..58b5fc4a36
+--- /dev/null
++++ b/src/pkg/runtime/cgo/gcc_android_arm.c
+@@ -0,0 +1,48 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <android/log.h>
++#include <pthread.h>
++#include <signal.h>
++#include <stdio.h>
++#include <sys/limits.h>
++#include "libcgo.h"
++
++#define magic1 (0x23581321U)
++
++// PTHREAD_KEYS_MAX has been added to sys/limits.h at head in bionic:
++// https://android.googlesource.com/platform/bionic/+/master/libc/include/sys/limits.h
++// TODO(crawshaw): remove this definition when a new NDK is released.
++#define PTHREAD_KEYS_MAX 128
++
++// inittls allocates a thread-local storage slot for g.
++//
++// It finds the first available slot using pthread_key_create and uses
++// it as the offset value for runtime.tlsg.
++static void
++inittls(void **tlsg, void **tlsbase)
++{
++	pthread_key_t k;
++	int i, err;
++
++	err = pthread_key_create(&k, nil);
++	if(err != 0) {
++		fprintf(stderr, "runtime/cgo: pthread_key_create failed: %d\n", err);
++		__android_log_print(ANDROID_LOG_FATAL, "runtime/cgo", "pthread_key_create failed: %d", err);
++		abort();
++	}
++	pthread_setspecific(k, (void*)magic1);
++	for (i=0; i<PTHREAD_KEYS_MAX; i++) {
++		if (*(tlsbase+i) == (void*)magic1) {
++			*tlsg = (void*)(i*sizeof(void *));
++			pthread_setspecific(k, 0);
++			return;
++		}
++	}
++	fprintf(stderr, "runtime/cgo: could not find pthread key\n");
++	__android_log_print(ANDROID_LOG_FATAL, "runtime/cgo", "could not find pthread key");
++	abort();
++}
++
++void (*x_cgo_inittls)(void **tlsg, void **tlsbase) = inittls;
+diff --git a/src/pkg/runtime/cgo/gcc_linux_arm.c b/src/pkg/runtime/cgo/gcc_linux_arm.c
+index 3b108fec22..a746ca5f5a 100644
+--- a/src/pkg/runtime/cgo/gcc_linux_arm.c
++++ b/src/pkg/runtime/cgo/gcc_linux_arm.c
+@@ -9,21 +9,7 @@
+ 
+ static void *threadentry(void*);
+ 
+-static void (*setg_gcc)(void*);
+-
+-void
+-x_cgo_init(G *g, void (*setg)(void*))
+-{
+-	pthread_attr_t attr;
+-	size_t size;
+-
+-	setg_gcc = setg;
+-	pthread_attr_init(&attr);
+-	pthread_attr_getstacksize(&attr, &size);
+-	g->stackguard = (uintptr)&attr - size + 4096;
+-	pthread_attr_destroy(&attr);
+-}
+-
++void (*setg_gcc)(void*);
+ 
+ void
+ _cgo_sys_thread_start(ThreadStart *ts)
+@@ -50,8 +36,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+ 	if (err != 0) {
+-		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+-		abort();
++		fatalf("pthread_create failed: %s", strerror(err));
+ 	}
+ }
+ 
+@@ -75,3 +60,22 @@ threadentry(void *v)
+ 	crosscall_arm1(ts.fn, setg_gcc, (void*)ts.g);
+ 	return nil;
+ }
++
++void (*x_cgo_inittls)(void **tlsg, void **tlsbase);
++
++void
++x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
++{
++	pthread_attr_t attr;
++	size_t size;
++
++	setg_gcc = setg;
++	pthread_attr_init(&attr);
++	pthread_attr_getstacksize(&attr, &size);
++	g->stackguard = (uintptr)&attr - size + 4096;
++	pthread_attr_destroy(&attr);
++
++	if (x_cgo_inittls) {
++		x_cgo_inittls(tlsg, tlsbase);
++	}
++}
+diff --git a/src/pkg/runtime/tls_arm.s b/src/pkg/runtime/tls_arm.s
+new file mode 100644
+index 0000000000..040ce7d856
+--- /dev/null
++++ b/src/pkg/runtime/tls_arm.s
+@@ -0,0 +1,54 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "zasm_GOOS_GOARCH.h"
++#include "funcdata.h"
++#include "../../cmd/ld/textflag.h"
++
++// We have to resort to TLS variable to save g(R10).
++// One reason is that external code might trigger
++// SIGSEGV, and our runtime.sigtramp don't even know we
++// are in external code, and will continue to use R10,
++// this might as well result in another SIGSEGV.
++// Note: both functions will clobber R0 and R11 and
++// can be called from 5c ABI code.
++
++// On android, runtime.tlsg is a normal variable.
++// TLS offset is computed in x_cgo_inittls.
++
++// save_g saves the g register into pthread-provided
++// thread-local memory, so that we can call externally compiled
++// ARM code that will overwrite those registers.
++// NOTE: runtime.gogo assumes that R1 is preserved by this function.
++//       runtime.mcall assumes this function only clobbers R0 and R11.
++TEXT runtime·save_g(SB),NOSPLIT,$0
++	MRC		15, 0, R0, C13, C0, 3 // fetch TLS base pointer
++	// $runtime.tlsg(SB) is a special linker symbol.
++	// It is the offset from the TLS base pointer to our
++	// thread-local storage for g.
++#ifdef GOOS_android
++	MOVW	runtime·tlsg(SB), R11
++#else
++	MOVW	$runtime·tlsg(SB), R11
++#endif
++	ADD	R11, R0
++	MOVW	g, 0(R0)
++	RET
++
++// load_g loads the g register from pthread-provided
++// thread-local memory, for use after calling externally compiled
++// ARM code that overwrote those registers.
++TEXT runtime·load_g(SB),NOSPLIT,$0
++	MRC		15, 0, R0, C13, C0, 3 // fetch TLS base pointer
++	// $runtime.tlsg(SB) is a special linker symbol.
++	// It is the offset from the TLS base pointer to our
++	// thread-local storage for g.
++#ifdef GOOS_android
++	MOVW	runtime·tlsg(SB), R11
++#else
++	MOVW	$runtime·tlsg(SB), R11
++#endif
++	ADD	R11, R0
++	MOVW	0(R0), g
++	RET

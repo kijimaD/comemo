@@ -9,6 +9,27 @@ Date:   Thu Dec 7 16:34:14 2017 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/httputil/dump_test.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/net/http/httputil/dump_test.go b/src/net/http/httputil/dump_test.go
+index f881020fef..5703a7fb86 100644
+--- a/src/net/http/httputil/dump_test.go
++++ b/src/net/http/httputil/dump_test.go
+@@ -27,7 +27,6 @@ type dumpTest struct {
+ }
+ 
+ var dumpTests = []dumpTest{
+-
+ 	// HTTP/1.1 => chunked coding; body; empty trailer
+ 	{
+ 		Req: http.Request{
+@@ -214,7 +213,6 @@ func TestDumpRequest(t *testing.T) {
+ 				t.Fatalf("Test %d: unsupported Body of %T", i, tt.Body)
+ 			}
+ 		}
+-		setBody()
+ 		if tt.Req.Header == nil {
+ 			tt.Req.Header = make(http.Header)
+ 		}

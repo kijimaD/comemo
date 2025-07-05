@@ -11,7 +11,87 @@ Date:   Wed May 18 13:19:24 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  misc/cgo/errors/ptr.go  | 24 ++++++++++++++++++++++++
  src/runtime/cgocheck.go | 19 ++++++++++++++++++-
  2 files changed, 42 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/errors/ptr.go b/misc/cgo/errors/ptr.go
+index b6cec8e10d..27eb78e36c 100644
+--- a/misc/cgo/errors/ptr.go
++++ b/misc/cgo/errors/ptr.go
+@@ -290,6 +290,30 @@ var ptrTests = []ptrTest{
+ 		},
+ 		fail: true,
+ 	},
++	{
++		// Don't check non-pointer data.
++		// Uses unsafe code to get a pointer we shouldn't check.
++		// Although we use unsafe, the uintptr represents an integer
++		// that happens to have the same representation as a pointer;
++		// that is, we are testing something that is not unsafe.
++		name: "ptrdata1",
++		c: `#include <stdlib.h>
++                    void f(void* p) {}`,
++		imports: []string{"unsafe"},
++		support: `type S struct { p *int; a [8*8]byte; u uintptr }`,
++		body:    `i := 0; p := &S{u:uintptr(unsafe.Pointer(&i))}; q := (*S)(C.malloc(C.size_t(unsafe.Sizeof(*p)))); *q = *p; C.f(unsafe.Pointer(q))`,
++		fail:    false,
++	},
++	{
++		// Like ptrdata1, but with a type that uses a GC program.
++		name: "ptrdata2",
++		c: `#include <stdlib.h>
++                    void f(void* p) {}`,
++		imports: []string{"unsafe"},
++		support: `type S struct { p *int; a [32769*8]byte; q *int; u uintptr }`,
++		body:    `i := 0; p := S{u:uintptr(unsafe.Pointer(&i))}; q := (*S)(C.malloc(C.size_t(unsafe.Sizeof(p)))); *q = p; C.f(unsafe.Pointer(q))`,
++		fail:    false,
++	},
+ }
+ 
+ func main() {
+diff --git a/src/runtime/cgocheck.go b/src/runtime/cgocheck.go
+index d85d5fe5a8..2d064145a4 100644
+--- a/src/runtime/cgocheck.go
++++ b/src/runtime/cgocheck.go
+@@ -94,6 +94,14 @@ func cgoCheckSliceCopy(typ *_type, dst, src slice, n int) {
+ //go:nosplit
+ //go:nowritebarrier
+ func cgoCheckTypedBlock(typ *_type, src unsafe.Pointer, off, size uintptr) {
++	// Anything past typ.ptrdata is not a pointer.
++	if typ.ptrdata <= off {
++		return
++	}
++	if ptrdataSize := typ.ptrdata - off; size > ptrdataSize {
++		size = ptrdataSize
++	}
++
+ 	if typ.kind&kindGCProg == 0 {
+ 		cgoCheckBits(src, typ.gcdata, off, size)
+ 		return
+@@ -184,7 +192,7 @@ func cgoCheckBits(src unsafe.Pointer, gcbits *byte, off, size uintptr) {
+ 
+ // cgoCheckUsingType is like cgoCheckTypedBlock, but is a last ditch
+ // fall back to look for pointers in src using the type information.
+-// We only this when looking at a value on the stack when the type
++// We only use this when looking at a value on the stack when the type
+ // uses a GC program, because otherwise it's more efficient to use the
+ // GC bits. This is called on the system stack.
+ //go:nowritebarrier
+@@ -193,6 +201,15 @@ func cgoCheckUsingType(typ *_type, src unsafe.Pointer, off, size uintptr) {
+ 	if typ.kind&kindNoPointers != 0 {
+ 		return
+ 	}
++
++	// Anything past typ.ptrdata is not a pointer.
++	if typ.ptrdata <= off {
++		return
++	}
++	if ptrdataSize := typ.ptrdata - off; size > ptrdataSize {
++		size = ptrdataSize
++	}
++
+ 	if typ.kind&kindGCProg == 0 {
+ 		cgoCheckBits(src, typ.gcdata, off, size)
+ 		return

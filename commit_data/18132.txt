@@ -7,6 +7,19 @@ Date:   Mon Dec 30 11:39:47 2013 -0800
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/46510043
-
+---
  src/pkg/reflect/all_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index eb84a862d9..23e4e235f2 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -678,6 +678,7 @@ var deepEqualTests = []DeepEqualTest{
+ 	{1, nil, false},
+ 	{fn1, fn3, false},
+ 	{fn3, fn3, false},
++	{[][]int{[]int{1}}, [][]int{[]int{2}}, false},
+ 
+ 	// Nil vs empty: not the same.
+ 	{[]int{}, []int(nil), false},

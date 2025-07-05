@@ -7,6 +7,19 @@ Date:   Mon Feb 13 23:05:19 2012 -0500
     TBR=r
     CC=golang-dev
     https://golang.org/cl/5661053
-
+---
  src/pkg/runtime/debug/stack_test.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/runtime/debug/stack_test.go b/src/pkg/runtime/debug/stack_test.go
+index cf4bd0238e..94293bb934 100644
+--- a/src/pkg/runtime/debug/stack_test.go
++++ b/src/pkg/runtime/debug/stack_test.go
+@@ -5,7 +5,6 @@
+ package debug
+ 
+ import (
+-	. "runtime/debug"
+ 	"strings"
+ 	"testing"
+ )

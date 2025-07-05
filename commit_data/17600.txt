@@ -9,6 +9,22 @@ Date:   Sun Sep 15 11:29:06 2013 -0400
     R=golang-dev, dominik.honnef
     CC=golang-dev
     https://golang.org/cl/13702043
-
+---
  src/pkg/encoding/xml/xml.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/encoding/xml/xml.go b/src/pkg/encoding/xml/xml.go
+index 467c2ae14f..5b9d670024 100644
+--- a/src/pkg/encoding/xml/xml.go
++++ b/src/pkg/encoding/xml/xml.go
+@@ -150,6 +150,10 @@ type Decoder struct {
+ 	//	d.Entity = HTMLEntity
+ 	//
+ 	// creates a parser that can handle typical HTML.
++	//
++	// Strict mode does not enforce the requirements of the XML name spaces TR.
++	// In particular it does not reject name space tags using undefined prefixes.
++	// Such tags are recorded with the unknown prefix as the name space URL.
+ 	Strict bool
+ 
+ 	// When Strict == false, AutoClose indicates a set of elements to

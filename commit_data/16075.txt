@@ -17,7 +17,76 @@ Date:   Wed Apr 3 10:52:20 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/8279043
-
+---
  src/pkg/net/smtp/auth.go      | 11 ++++++++++-
  src/pkg/net/smtp/smtp_test.go | 35 +++++++++++++++++++++++++++++++++++
  2 files changed, 45 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/smtp/auth.go b/src/pkg/net/smtp/auth.go
+index d401e3c21f..3f1339ebc5 100644
+--- a/src/pkg/net/smtp/auth.go
++++ b/src/pkg/net/smtp/auth.go
+@@ -54,7 +54,16 @@ func PlainAuth(identity, username, password, host string) Auth {
+ 
+ func (a *plainAuth) Start(server *ServerInfo) (string, []byte, error) {
+ 	if !server.TLS {
+-		return "", nil, errors.New("unencrypted connection")
++		advertised := false
++		for _, mechanism := range server.Auth {
++			if mechanism == "PLAIN" {
++				advertised = true
++				break
++			}
++		}
++		if !advertised {
++			return "", nil, errors.New("unencrypted connection")
++		}
+ 	}
+ 	if server.Name != a.host {
+ 		return "", nil, errors.New("wrong host name")
+diff --git a/src/pkg/net/smtp/smtp_test.go b/src/pkg/net/smtp/smtp_test.go
+index 8317428cb8..c190b32c05 100644
+--- a/src/pkg/net/smtp/smtp_test.go
++++ b/src/pkg/net/smtp/smtp_test.go
+@@ -57,6 +57,41 @@ testLoop:
+ 	}
+ }
+ 
++func TestAuthPlain(t *testing.T) {
++	auth := PlainAuth("foo", "bar", "baz", "servername")
++
++	tests := []struct {
++		server *ServerInfo
++		err    string
++	}{
++		{
++			server: &ServerInfo{Name: "servername", TLS: true},
++		},
++		{
++			// Okay; explicitly advertised by server.
++			server: &ServerInfo{Name: "servername", Auth: []string{"PLAIN"}},
++		},
++		{
++			server: &ServerInfo{Name: "servername", Auth: []string{"CRAM-MD5"}},
++			err:    "unencrypted connection",
++		},
++		{
++			server: &ServerInfo{Name: "attacker", TLS: true},
++			err:    "wrong host name",
++		},
++	}
++	for i, tt := range tests {
++		_, _, err := auth.Start(tt.server)
++		got := ""
++		if err != nil {
++			got = err.Error()
++		}
++		if got != tt.err {
++			t.Errorf("%d. got error = %q; want %q", i, got, tt.err)
++		}
++	}
++}
++
+ type faker struct {
+ 	io.ReadWriter
+ }

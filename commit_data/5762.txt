@@ -7,7 +7,7 @@ Date:   Thu Jul 1 17:49:28 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/1712048
-
+---
  src/pkg/os/dir_darwin.go         | 2 +-
  src/pkg/os/dir_freebsd.go        | 2 +-
  src/pkg/os/dir_linux.go          | 2 +-
@@ -15,3 +15,86 @@ Date:   Thu Jul 1 17:49:28 2010 -0700
  src/pkg/syscall/syscall_bsd.go   | 4 ++--
  src/pkg/syscall/syscall_linux.go | 4 ++--
  6 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/os/dir_darwin.go b/src/pkg/os/dir_darwin.go
+index 7917daec6b..f9f51221da 100644
+--- a/src/pkg/os/dir_darwin.go
++++ b/src/pkg/os/dir_darwin.go
+@@ -58,7 +58,7 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 			if dirent.Ino == 0 { // File absent in directory.
+ 				continue
+ 			}
+-			bytes := (*[len(dirent.Name)]byte)(unsafe.Pointer(&dirent.Name[0]))
++			bytes := (*[10000]byte)(unsafe.Pointer(&dirent.Name[0]))
+ 			var name = string(bytes[0:dirent.Namlen])
+ 			if name == "." || name == ".." { // Useless names
+ 				continue
+diff --git a/src/pkg/os/dir_freebsd.go b/src/pkg/os/dir_freebsd.go
+index 7a0290ac6a..b32c474e69 100644
+--- a/src/pkg/os/dir_freebsd.go
++++ b/src/pkg/os/dir_freebsd.go
+@@ -53,7 +53,7 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 			if dirent.Fileno == 0 { // File absent in directory.
+ 				continue
+ 			}
+-			bytes := (*[len(dirent.Name)]byte)(unsafe.Pointer(&dirent.Name[0]))
++			bytes := (*[10000]byte)(unsafe.Pointer(&dirent.Name[0]))
+ 			var name = string(bytes[0:dirent.Namlen])
+ 			if name == "." || name == ".." { // Useless names
+ 				continue
+diff --git a/src/pkg/os/dir_linux.go b/src/pkg/os/dir_linux.go
+index 84f87007ed..42cc88a8a7 100644
+--- a/src/pkg/os/dir_linux.go
++++ b/src/pkg/os/dir_linux.go
+@@ -56,7 +56,7 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 			if dirent.Ino == 0 { // File absent in directory.
+ 				continue
+ 			}
+-			bytes := (*[len(dirent.Name)]byte)(unsafe.Pointer(&dirent.Name[0]))
++			bytes := (*[10000]byte)(unsafe.Pointer(&dirent.Name[0]))
+ 			var name = string(bytes[0:clen(bytes[0:])])
+ 			if name == "." || name == ".." { // Useless names
+ 				continue
+diff --git a/src/pkg/os/dir_nacl.go b/src/pkg/os/dir_nacl.go
+index e693794f02..e76b2bea09 100644
+--- a/src/pkg/os/dir_nacl.go
++++ b/src/pkg/os/dir_nacl.go
+@@ -56,7 +56,7 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 			if dirent.Ino == 0 { // File absent in directory.
+ 				continue
+ 			}
+-			bytes := (*[len(dirent.Name)]byte)(unsafe.Pointer(&dirent.Name[0]))
++			bytes := (*[10000]byte)(unsafe.Pointer(&dirent.Name[0]))
+ 			var name = string(bytes[0:clen(bytes)])
+ 			if name == "." || name == ".." { // Useless names
+ 				continue
+diff --git a/src/pkg/syscall/syscall_bsd.go b/src/pkg/syscall/syscall_bsd.go
+index 14dfab1539..66be580e7d 100644
+--- a/src/pkg/syscall/syscall_bsd.go
++++ b/src/pkg/syscall/syscall_bsd.go
+@@ -239,8 +239,8 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, int) {
+ 				break
+ 			}
+ 		}
+-		bytes := (*[len(pp.Path)]byte)(unsafe.Pointer(&pp.Path[0]))
+-		sa.Name = string(bytes[0:n])
++		bytes := (*[10000]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
++		sa.Name = string(bytes)
+ 		return sa, 0
+ 
+ 	case AF_INET:
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index 2ce3c08828..8442d8485c 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -284,8 +284,8 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, int) {
+ 		for n < len(pp.Path) && pp.Path[n] != 0 {
+ 			n++
+ 		}
+-		bytes := (*[len(pp.Path)]byte)(unsafe.Pointer(&pp.Path[0]))
+-		sa.Name = string(bytes[0:n])
++		bytes := (*[10000]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
++		sa.Name = string(bytes)
+ 		return sa, 0
+ 
+ 	case AF_INET:

@@ -7,6 +7,35 @@ Date:   Sat Oct 25 14:24:51 2008 -0700
     R=r
     OCL=17853
     CL=17853
-
+---
  src/cmd/gc/subr.c | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 88bb1f02f6..d4b46a4415 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2586,12 +2586,15 @@ expandmeth(Sym *s, Type *t)
+ 	if(t == T)
+ 		return;
+ 
++//print("s=%S t=%lT\n", s, t);
++
+ 	// generate all reachable methods
+ 	slist = nil;
+ 	expand1(t, nelem(dotlist)-1);
+ 
+ 	// check each method to be uniquely reachable
+ 	for(sl=slist; sl!=nil; sl=sl->link) {
++		sl->field->sym->uniq = 0;
+ 		for(d=0; d<nelem(dotlist); d++) {
+ 			c = adddot1(sl->field->sym, t, d);
+ 			if(c == 0)
+@@ -2604,6 +2607,7 @@ expandmeth(Sym *s, Type *t)
+ 
+ 	for(sl=slist; sl!=nil; sl=sl->link) {
+ 		if(sl->good) {
++//print("	%lT\n", sl->field);
+ 			// add it to the base type method list
+ 			f = typ(TFIELD);
+ 			*f = *sl->field;

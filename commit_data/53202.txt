@@ -15,10 +15,108 @@ Date:   Wed Jul 20 11:09:14 2022 -0400
     Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/os_js.go          |  2 +-
  src/runtime/os_plan9.go       |  2 +-
  src/runtime/panic.go          | 19 +++++++++++--------
  src/runtime/signal_unix.go    |  2 +-
  src/runtime/signal_windows.go |  2 +-
  5 files changed, 15 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/os_js.go b/src/runtime/os_js.go
+index 34cc0271f0..7fbeb5a832 100644
+--- a/src/runtime/os_js.go
++++ b/src/runtime/os_js.go
+@@ -50,7 +50,7 @@ const _SIGSEGV = 0xb
+ 
+ func sigpanic() {
+ 	g := getg()
+-	if !canpanic(g) {
++	if !canpanic() {
+ 		throw("unexpected signal during runtime execution")
+ 	}
+ 
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index f0e7c6ae70..b86bd6b3a9 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -76,7 +76,7 @@ func os_sigpipe() {
+ 
+ func sigpanic() {
+ 	g := getg()
+-	if !canpanic(g) {
++	if !canpanic() {
+ 		throw("unexpected signal during runtime execution")
+ 	}
+ 
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 121f2022a4..ab8d1f82b4 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -1290,29 +1290,32 @@ func dopanic_m(gp *g, pc, sp uintptr) bool {
+ // panicking.
+ //
+ //go:nosplit
+-func canpanic(gp *g) bool {
+-	// Note that g is m->gsignal, different from gp.
+-	// Note also that g->m can change at preemption, so m can go stale
+-	// if this function ever makes a function call.
+-	_g_ := getg()
+-	mp := _g_.m
++func canpanic() bool {
++	gp := getg()
++	mp := acquirem()
+ 
+ 	// Is it okay for gp to panic instead of crashing the program?
+ 	// Yes, as long as it is running Go code, not runtime code,
+ 	// and not stuck in a system call.
+-	if gp == nil || gp != mp.curg {
++	if gp != mp.curg {
++		releasem(mp)
+ 		return false
+ 	}
+-	if mp.locks != 0 || mp.mallocing != 0 || mp.throwing != throwTypeNone || mp.preemptoff != "" || mp.dying != 0 {
++	// N.B. mp.locks != 1 instead of 0 to account for acquirem.
++	if mp.locks != 1 || mp.mallocing != 0 || mp.throwing != throwTypeNone || mp.preemptoff != "" || mp.dying != 0 {
++		releasem(mp)
+ 		return false
+ 	}
+ 	status := readgstatus(gp)
+ 	if status&^_Gscan != _Grunning || gp.syscallsp != 0 {
++		releasem(mp)
+ 		return false
+ 	}
+ 	if GOOS == "windows" && mp.libcallsp != 0 {
++		releasem(mp)
+ 		return false
+ 	}
++	releasem(mp)
+ 	return true
+ }
+ 
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 0be499b2e9..a220f8347e 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -815,7 +815,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ //go:linkname sigpanic
+ func sigpanic() {
+ 	g := getg()
+-	if !canpanic(g) {
++	if !canpanic() {
+ 		throw("unexpected signal during runtime execution")
+ 	}
+ 
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index c5cf38c5c2..f732d1d5c0 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -245,7 +245,7 @@ func winthrow(info *exceptionrecord, r *context, gp *g) {
+ 
+ func sigpanic() {
+ 	g := getg()
+-	if !canpanic(g) {
++	if !canpanic() {
+ 		throw("unexpected signal during runtime execution")
+ 	}
+ 

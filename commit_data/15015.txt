@@ -8,6 +8,35 @@ Date:   Tue Jan 29 08:20:43 2013 -0800
     R=bradfitz, minux.ma, rsc
     CC=golang-dev
     https://golang.org/cl/7094049
-
+---
  src/cmd/go/vcs.go | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index 437e6400bb..8042935b9d 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -180,6 +180,14 @@ func (v *vcsCmd) run1(dir string, cmdline string, keyval []string, verbose bool)
+ 		args[i] = expand(m, arg)
+ 	}
+ 
++	_, err := exec.LookPath(v.cmd)
++	if err != nil {
++		fmt.Fprintf(os.Stderr,
++			"go: missing %s command. See http://golang.org/s/gogetcmd\n",
++			v.name)
++		return nil, err
++	}
++
+ 	cmd := exec.Command(v.cmd, args...)
+ 	cmd.Dir = dir
+ 	if buildX {
+@@ -189,7 +197,7 @@ func (v *vcsCmd) run1(dir string, cmdline string, keyval []string, verbose bool)
+ 	var buf bytes.Buffer
+ 	cmd.Stdout = &buf
+ 	cmd.Stderr = &buf
+-	err := cmd.Run()
++	err = cmd.Run()
+ 	out := buf.Bytes()
+ 	if err != nil {
+ 		if verbose || buildV {

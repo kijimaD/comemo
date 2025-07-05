@@ -15,6 +15,20 @@ Date:   Thu Jan 5 18:05:31 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/hosts.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/hosts.go b/src/net/hosts.go
+index 7c8642c6ac..dbf8fea136 100644
+--- a/src/net/hosts.go
++++ b/src/net/hosts.go
+@@ -125,7 +125,7 @@ func readHosts() {
+ 	file.close()
+ }
+ 
+-// lookupStaticHost looks up the addresses and the cannonical name for the given host from /etc/hosts.
++// lookupStaticHost looks up the addresses and the canonical name for the given host from /etc/hosts.
+ func lookupStaticHost(host string) ([]string, string) {
+ 	hosts.Lock()
+ 	defer hosts.Unlock()

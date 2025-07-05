@@ -14,7 +14,63 @@ Date:   Mon Feb 2 21:37:52 2015 +0900
     Change-Id: If8925a701e4fae820cd9df7446503403fc0785d4
     Reviewed-on: https://go-review.googlesource.com/3686
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/io/io.go      |  5 +++--
  src/io/io_test.go | 28 ++++++++++++++++++++++++++++
  2 files changed, 31 insertions(+), 2 deletions(-)
+
+diff --git a/src/io/io.go b/src/io/io.go
+index 7507a84929..12833ef214 100644
+--- a/src/io/io.go
++++ b/src/io/io.go
+@@ -336,8 +336,9 @@ func CopyN(dst Writer, src Reader, n int64) (written int64, err error) {
+ }
+ 
+ // Copy copies from src to dst until either EOF is reached
+-// on src or an error occurs.  It returns the number of bytes
+-// copied and the first error encountered while copying, if any.
++// on src or an error occurs. It returns the number of bytes
++// copied and the error that prevented it from progressing
++// further, if any.
+ //
+ // A successful Copy returns err == nil, not err == EOF.
+ // Because Copy is defined to read from src until EOF, it does
+diff --git a/src/io/io_test.go b/src/io/io_test.go
+index 57db1fbf0b..d2f725a94d 100644
+--- a/src/io/io_test.go
++++ b/src/io/io_test.go
+@@ -78,6 +78,34 @@ func TestCopyPriority(t *testing.T) {
+ 	}
+ }
+ 
++type zeroErrReader struct {
++	err error
++}
++
++func (r zeroErrReader) Read(p []byte) (int, error) {
++	return copy(p, []byte{0}), r.err
++}
++
++type errWriter struct {
++	err error
++}
++
++func (w errWriter) Write([]byte) (int, error) {
++	return 0, w.err
++}
++
++// In case a Read results in an error with non-zero bytes read, and
++// the subsequent Write also results in an error, the error from Write
++// is returned, as it is the one that prevented progressing further.
++func TestCopyReadErrWriteErr(t *testing.T) {
++	er, ew := errors.New("readError"), errors.New("writeError")
++	r, w := zeroErrReader{err: er}, errWriter{err: ew}
++	n, err := Copy(w, r)
++	if n != 0 || err != ew {
++		t.Errorf("Copy(zeroErrReader, errWriter) = %d, %v; want 0, writeError", n, err)
++	}
++}
++
+ func TestCopyN(t *testing.T) {
+ 	rb := new(Buffer)
+ 	wb := new(Buffer)

@@ -50,7 +50,7 @@ Date:   Mon Sep 29 17:04:48 2014 -0700
     R=golang-codereviews, bradfitz, gri
     CC=golang-codereviews
     https://golang.org/cl/142360043
-
+---
  src/cmd/gofmt/gofmt.go               | 163 +++++++++++++++------------
  src/cmd/gofmt/long_test.go           |   4 +-
  src/cmd/gofmt/testdata/stdin6.golden |  19 ++++
@@ -60,3 +60,630 @@ Date:   Mon Sep 29 17:04:48 2014 -0700
  src/go/format/format.go              | 207 +++++++++++++++++++++--------------
  src/go/format/format_test.go         |   6 +-
  8 files changed, 305 insertions(+), 155 deletions(-)
+
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index f322a2b0a0..8542957248 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -87,13 +87,13 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
+ 		return err
+ 	}
+ 
+-	file, adjust, err := parse(fileSet, filename, src, stdin)
++	file, sourceAdj, indentAdj, err := parse(fileSet, filename, src, stdin)
+ 	if err != nil {
+ 		return err
+ 	}
+ 
+ 	if rewrite != nil {
+-		if adjust == nil {
++		if sourceAdj == nil {
+ 			file = rewrite(file)
+ 		} else {
+ 			fmt.Fprintf(os.Stderr, "warning: rewrite ignored for incomplete programs\n")
+@@ -106,15 +106,10 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
+ 		simplify(file)
+ 	}
+ 
+-	var buf bytes.Buffer
+-	err = (&printer.Config{Mode: printerMode, Tabwidth: tabWidth}).Fprint(&buf, fileSet, file)
++	res, err := format(fileSet, file, sourceAdj, indentAdj, src)
+ 	if err != nil {
+ 		return err
+ 	}
+-	res := buf.Bytes()
+-	if adjust != nil {
+-		res = adjust(src, res)
+-	}
+ 
+ 	if !bytes.Equal(src, res) {
+ 		// formatting has changed
+@@ -242,17 +237,19 @@ func diff(b1, b2 []byte) (data []byte, err error) {
+ 
+ // parse parses src, which was read from filename,
+ // as a Go source file or statement list.
+-func parse(fset *token.FileSet, filename string, src []byte, stdin bool) (*ast.File, func(orig, src []byte) []byte, error) {
++func parse(fset *token.FileSet, filename string, src []byte, fragmentOk bool) (
++	file *ast.File,
++	sourceAdj func(src []byte, indent int) []byte,
++	indentAdj int,
++	err error,
++) {
+ 	// Try as whole source file.
+-	file, err := parser.ParseFile(fset, filename, src, parserMode)
+-	if err == nil {
+-		return file, nil, nil
+-	}
+-	// If the error is that the source file didn't begin with a
+-	// package line and this is standard input, fall through to
++	file, err = parser.ParseFile(fset, filename, src, parserMode)
++	// If there's no error, return.  If the error is that the source file didn't begin with a
++	// package line and source fragments are ok, fall through to
+ 	// try as a source fragment.  Stop and return on any other error.
+-	if !stdin || !strings.Contains(err.Error(), "expected 'package'") {
+-		return nil, nil, err
++	if err == nil || !fragmentOk || !strings.Contains(err.Error(), "expected 'package'") {
++		return
+ 	}
+ 
+ 	// If this is a declaration list, make it a source file
+@@ -262,19 +259,19 @@ func parse(fset *token.FileSet, filename string, src []byte, stdin bool) (*ast.F
+ 	psrc := append([]byte("package p;"), src...)
+ 	file, err = parser.ParseFile(fset, filename, psrc, parserMode)
+ 	if err == nil {
+-		adjust := func(orig, src []byte) []byte {
++		sourceAdj = func(src []byte, indent int) []byte {
+ 			// Remove the package clause.
+ 			// Gofmt has turned the ; into a \n.
+-			src = src[len("package p\n"):]
+-			return matchSpace(orig, src)
++			src = src[indent+len("package p\n"):]
++			return bytes.TrimSpace(src)
+ 		}
+-		return file, adjust, nil
++		return
+ 	}
+ 	// If the error is that the source file didn't begin with a
+ 	// declaration, fall through to try as a statement list.
+ 	// Stop and return on any other error.
+ 	if !strings.Contains(err.Error(), "expected declaration") {
+-		return nil, nil, err
++		return
+ 	}
+ 
+ 	// If this is a statement list, make it a source file
+@@ -285,65 +282,89 @@ func parse(fset *token.FileSet, filename string, src []byte, stdin bool) (*ast.F
+ 	fsrc := append(append([]byte("package p; func _() {"), src...), '\n', '}')
+ 	file, err = parser.ParseFile(fset, filename, fsrc, parserMode)
+ 	if err == nil {
+-		adjust := func(orig, src []byte) []byte {
++		sourceAdj = func(src []byte, indent int) []byte {
++			// Cap adjusted indent to zero.
++			if indent < 0 {
++				indent = 0
++			}
+ 			// Remove the wrapping.
+ 			// Gofmt has turned the ; into a \n\n.
+-			src = src[len("package p\n\nfunc _() {"):]
+-			src = src[:len(src)-len("\n}\n")]
+-			// Gofmt has also indented the function body one level.
+-			// Remove that indent.
+-			src = bytes.Replace(src, []byte("\n\t"), []byte("\n"), -1)
+-			return matchSpace(orig, src)
++			// There will be two non-blank lines with indent, hence 2*indent.
++			src = src[2*indent+len("package p\n\nfunc _() {"):]
++			src = src[:len(src)-(indent+len("\n}\n"))]
++			return bytes.TrimSpace(src)
+ 		}
+-		return file, adjust, nil
++		// Gofmt has also indented the function body one level.
++		// Adjust that with indentAdj.
++		indentAdj = -1
+ 	}
+ 
+-	// Failed, and out of options.
+-	return nil, nil, err
++	// Succeeded, or out of options.
++	return
+ }
+ 
+-func cutSpace(b []byte) (before, middle, after []byte) {
+-	i := 0
+-	for i < len(b) && (b[i] == ' ' || b[i] == '\t' || b[i] == '\n') {
+-		i++
+-	}
+-	j := len(b)
+-	for j > 0 && (b[j-1] == ' ' || b[j-1] == '\t' || b[j-1] == '\n') {
+-		j--
+-	}
+-	if i <= j {
+-		return b[:i], b[i:j], b[j:]
++func format(fset *token.FileSet, file *ast.File, sourceAdj func(src []byte, indent int) []byte, indentAdj int, src []byte) ([]byte, error) {
++	if sourceAdj == nil {
++		// Complete source file.
++		var buf bytes.Buffer
++		err := (&printer.Config{Mode: printerMode, Tabwidth: tabWidth}).Fprint(&buf, fset, file)
++		if err != nil {
++			return nil, err
++		}
++		return buf.Bytes(), nil
+ 	}
+-	return nil, nil, b[j:]
+-}
+ 
+-// matchSpace reformats src to use the same space context as orig.
+-// 1) If orig begins with blank lines, matchSpace inserts them at the beginning of src.
+-// 2) matchSpace copies the indentation of the first non-blank line in orig
+-//    to every non-blank line in src.
+-// 3) matchSpace copies the trailing space from orig and uses it in place
+-//   of src's trailing space.
+-func matchSpace(orig []byte, src []byte) []byte {
+-	before, _, after := cutSpace(orig)
+-	i := bytes.LastIndex(before, []byte{'\n'})
+-	before, indent := before[:i+1], before[i+1:]
+-
+-	_, src, _ = cutSpace(src)
+-
+-	var b bytes.Buffer
+-	b.Write(before)
+-	for len(src) > 0 {
+-		line := src
+-		if i := bytes.IndexByte(line, '\n'); i >= 0 {
+-			line, src = line[:i+1], line[i+1:]
+-		} else {
+-			src = nil
++	// Partial source file.
++	// Determine and prepend leading space.
++	i, j := 0, 0
++	for j < len(src) && isSpace(src[j]) {
++		if src[j] == '\n' {
++			i = j + 1 // byte offset of last line in leading space
+ 		}
+-		if len(line) > 0 && line[0] != '\n' { // not blank
+-			b.Write(indent)
++		j++
++	}
++	var res []byte
++	res = append(res, src[:i]...)
++
++	// Determine and prepend indentation of first code line.
++	// Spaces are ignored unless there are no tabs,
++	// in which case spaces count as one tab.
++	indent := 0
++	hasSpace := false
++	for _, b := range src[i:j] {
++		switch b {
++		case ' ':
++			hasSpace = true
++		case '\t':
++			indent++
+ 		}
+-		b.Write(line)
+ 	}
+-	b.Write(after)
+-	return b.Bytes()
++	if indent == 0 && hasSpace {
++		indent = 1
++	}
++	for i := 0; i < indent; i++ {
++		res = append(res, '\t')
++	}
++
++	// Format the source.
++	// Write it without any leading and trailing space.
++	cfg := &printer.Config{Mode: printerMode, Tabwidth: tabWidth}
++	cfg.Indent = indent + indentAdj
++	var buf bytes.Buffer
++	err := cfg.Fprint(&buf, fset, file)
++	if err != nil {
++		return nil, err
++	}
++	res = append(res, sourceAdj(buf.Bytes(), cfg.Indent)...)
++
++	// Determine and append trailing space.
++	i = len(src)
++	for i > 0 && isSpace(src[i-1]) {
++		i--
++	}
++	return append(res, src[i:]...), nil
++}
++
++func isSpace(b byte) bool {
++	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
+ }
+diff --git a/src/cmd/gofmt/long_test.go b/src/cmd/gofmt/long_test.go
+index 108278b336..237b86021b 100644
+--- a/src/cmd/gofmt/long_test.go
++++ b/src/cmd/gofmt/long_test.go
+@@ -32,7 +32,7 @@ var (
+ )
+ 
+ func gofmt(fset *token.FileSet, filename string, src *bytes.Buffer) error {
+-	f, _, err := parse(fset, filename, src.Bytes(), false)
++	f, _, _, err := parse(fset, filename, src.Bytes(), false)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -60,7 +60,7 @@ func testFile(t *testing.T, b1, b2 *bytes.Buffer, filename string) {
+ 
+ 	// exclude files w/ syntax errors (typically test cases)
+ 	fset := token.NewFileSet()
+-	if _, _, err = parse(fset, filename, b1.Bytes(), false); err != nil {
++	if _, _, _, err = parse(fset, filename, b1.Bytes(), false); err != nil {
+ 		if *verbose {
+ 			fmt.Fprintf(os.Stderr, "ignoring %s\n", err)
+ 		}
+diff --git a/src/cmd/gofmt/testdata/stdin6.golden b/src/cmd/gofmt/testdata/stdin6.golden
+new file mode 100644
+index 0000000000..ffcea8011b
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/stdin6.golden
+@@ -0,0 +1,19 @@
++	//gofmt -stdin
++
++	if err != nil {
++		source := strings.NewReader(`line 1.
++line 2.
++`)
++		return source
++	}
++
++	f := func(hat, tail string) {
++
++		fmt.Println(hat+`
++foo
++
++
++`+tail,
++			"more",
++			"and more")
++	}
+diff --git a/src/cmd/gofmt/testdata/stdin6.input b/src/cmd/gofmt/testdata/stdin6.input
+new file mode 100644
+index 0000000000..78330020c6
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/stdin6.input
+@@ -0,0 +1,21 @@
++	//gofmt -stdin
++
++	if err != nil {
++		source := strings.NewReader(`line 1.
++line 2.
++`)
++		return source
++	}
++
++	f:=func(  hat, tail string){
++
++
++
++		   fmt.  Println  (   hat+   `
++foo
++
++
++`+ tail  ,
++ "more" ,
++		"and more"   )
++	}
+diff --git a/src/cmd/gofmt/testdata/stdin7.golden b/src/cmd/gofmt/testdata/stdin7.golden
+new file mode 100644
+index 0000000000..bbac7133c8
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/stdin7.golden
+@@ -0,0 +1,19 @@
++															//gofmt -stdin
++
++															if err != nil {
++																source := strings.NewReader(`line 1.
++line 2.
++`)
++																return source
++															}
++
++															f := func(hat, tail string) {
++
++																fmt.Println(hat+`
++		foo
++
++
++	`+tail,
++																	"more",
++																	"and more")
++															}
+diff --git a/src/cmd/gofmt/testdata/stdin7.input b/src/cmd/gofmt/testdata/stdin7.input
+new file mode 100644
+index 0000000000..fd772a3c4e
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/stdin7.input
+@@ -0,0 +1,21 @@
++															//gofmt -stdin
++
++															if err != nil {
++								source := strings.NewReader(`line 1.
++line 2.
++`)
++								return source
++							}
++
++							f:=func(  hat, tail string){
++
++
++
++								   fmt.  Println  (   hat+   `
++		foo
++
++
++	`+ tail  ,
++						 "more" ,
++								"and more"   )
++							}
+diff --git a/src/go/format/format.go b/src/go/format/format.go
+index 3d00a645db..08a9047b99 100644
+--- a/src/go/format/format.go
++++ b/src/go/format/format.go
+@@ -18,6 +18,8 @@ import (
+ 
+ var config = printer.Config{Mode: printer.UseSpaces | printer.TabIndent, Tabwidth: 8}
+ 
++const parserMode = parser.ParseComments
++
+ // Node formats node in canonical gofmt style and writes the result to dst.
+ //
+ // The node type must be *ast.File, *printer.CommentedNode, []ast.Decl,
+@@ -52,7 +54,7 @@ func Node(dst io.Writer, fset *token.FileSet, node interface{}) error {
+ 		if err != nil {
+ 			return err
+ 		}
+-		file, err = parser.ParseFile(fset, "", buf.Bytes(), parser.ParseComments)
++		file, err = parser.ParseFile(fset, "", buf.Bytes(), parserMode)
+ 		if err != nil {
+ 			// We should never get here. If we do, provide good diagnostic.
+ 			return fmt.Errorf("format.Node internal error (%s)", err)
+@@ -80,66 +82,12 @@ func Node(dst io.Writer, fset *token.FileSet, node interface{}) error {
+ //
+ func Source(src []byte) ([]byte, error) {
+ 	fset := token.NewFileSet()
+-	node, err := parse(fset, src)
++	file, sourceAdj, indentAdj, err := parse(fset, "", src, true)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 
+-	var buf bytes.Buffer
+-	if file, ok := node.(*ast.File); ok {
+-		// Complete source file.
+-		ast.SortImports(fset, file)
+-		err := config.Fprint(&buf, fset, file)
+-		if err != nil {
+-			return nil, err
+-		}
+-
+-	} else {
+-		// Partial source file.
+-		// Determine and prepend leading space.
+-		i, j := 0, 0
+-		for j < len(src) && isSpace(src[j]) {
+-			if src[j] == '\n' {
+-				i = j + 1 // index of last line in leading space
+-			}
+-			j++
+-		}
+-		buf.Write(src[:i])
+-
+-		// Determine indentation of first code line.
+-		// Spaces are ignored unless there are no tabs,
+-		// in which case spaces count as one tab.
+-		indent := 0
+-		hasSpace := false
+-		for _, b := range src[i:j] {
+-			switch b {
+-			case ' ':
+-				hasSpace = true
+-			case '\t':
+-				indent++
+-			}
+-		}
+-		if indent == 0 && hasSpace {
+-			indent = 1
+-		}
+-
+-		// Format the source.
+-		cfg := config
+-		cfg.Indent = indent
+-		err := cfg.Fprint(&buf, fset, node)
+-		if err != nil {
+-			return nil, err
+-		}
+-
+-		// Determine and append trailing space.
+-		i = len(src)
+-		for i > 0 && isSpace(src[i-1]) {
+-			i--
+-		}
+-		buf.Write(src[i:])
+-	}
+-
+-	return buf.Bytes(), nil
++	return format(fset, file, sourceAdj, indentAdj, src)
+ }
+ 
+ func hasUnsortedImports(file *ast.File) bool {
+@@ -160,40 +108,137 @@ func hasUnsortedImports(file *ast.File) bool {
+ 	return false
+ }
+ 
+-func isSpace(b byte) bool {
+-	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
+-}
++// parse parses src, which was read from filename,
++// as a Go source file or statement list.
++func parse(fset *token.FileSet, filename string, src []byte, fragmentOk bool) (
++	file *ast.File,
++	sourceAdj func(src []byte, indent int) []byte,
++	indentAdj int,
++	err error,
++) {
++	// Try as whole source file.
++	file, err = parser.ParseFile(fset, filename, src, parserMode)
++	// If there's no error, return.  If the error is that the source file didn't begin with a
++	// package line and source fragments are ok, fall through to
++	// try as a source fragment.  Stop and return on any other error.
++	if err == nil || !fragmentOk || !strings.Contains(err.Error(), "expected 'package'") {
++		return
++	}
+ 
+-func parse(fset *token.FileSet, src []byte) (interface{}, error) {
+-	// Try as a complete source file.
+-	file, err := parser.ParseFile(fset, "", src, parser.ParseComments)
++	// If this is a declaration list, make it a source file
++	// by inserting a package clause.
++	// Insert using a ;, not a newline, so that the line numbers
++	// in psrc match the ones in src.
++	psrc := append([]byte("package p;"), src...)
++	file, err = parser.ParseFile(fset, filename, psrc, parserMode)
+ 	if err == nil {
+-		return file, nil
++		sourceAdj = func(src []byte, indent int) []byte {
++			// Remove the package clause.
++			// Gofmt has turned the ; into a \n.
++			src = src[indent+len("package p\n"):]
++			return bytes.TrimSpace(src)
++		}
++		return
+ 	}
+-	// If the source is missing a package clause, try as a source fragment; otherwise fail.
+-	if !strings.Contains(err.Error(), "expected 'package'") {
+-		return nil, err
++	// If the error is that the source file didn't begin with a
++	// declaration, fall through to try as a statement list.
++	// Stop and return on any other error.
++	if !strings.Contains(err.Error(), "expected declaration") {
++		return
+ 	}
+ 
+-	// Try as a declaration list by prepending a package clause in front of src.
+-	// Use ';' not '\n' to keep line numbers intact.
+-	psrc := append([]byte("package p;"), src...)
+-	file, err = parser.ParseFile(fset, "", psrc, parser.ParseComments)
++	// If this is a statement list, make it a source file
++	// by inserting a package clause and turning the list
++	// into a function body.  This handles expressions too.
++	// Insert using a ;, not a newline, so that the line numbers
++	// in fsrc match the ones in src.
++	fsrc := append(append([]byte("package p; func _() {"), src...), '\n', '}')
++	file, err = parser.ParseFile(fset, filename, fsrc, parserMode)
+ 	if err == nil {
+-		return file.Decls, nil
++		sourceAdj = func(src []byte, indent int) []byte {
++			// Cap adjusted indent to zero.
++			if indent < 0 {
++				indent = 0
++			}
++			// Remove the wrapping.
++			// Gofmt has turned the ; into a \n\n.
++			// There will be two non-blank lines with indent, hence 2*indent.
++			src = src[2*indent+len("package p\n\nfunc _() {"):]
++			src = src[:len(src)-(indent+len("\n}\n"))]
++			return bytes.TrimSpace(src)
++		}
++		// Gofmt has also indented the function body one level.
++		// Adjust that with indentAdj.
++		indentAdj = -1
+ 	}
+-	// If the source is missing a declaration, try as a statement list; otherwise fail.
+-	if !strings.Contains(err.Error(), "expected declaration") {
++
++	// Succeeded, or out of options.
++	return
++}
++
++func format(fset *token.FileSet, file *ast.File, sourceAdj func(src []byte, indent int) []byte, indentAdj int, src []byte) ([]byte, error) {
++	if sourceAdj == nil {
++		// Complete source file.
++		ast.SortImports(fset, file)
++		var buf bytes.Buffer
++		err := config.Fprint(&buf, fset, file)
++		if err != nil {
++			return nil, err
++		}
++		return buf.Bytes(), nil
++	}
++
++	// Partial source file.
++	// Determine and prepend leading space.
++	i, j := 0, 0
++	for j < len(src) && isSpace(src[j]) {
++		if src[j] == '\n' {
++			i = j + 1 // byte offset of last line in leading space
++		}
++		j++
++	}
++	var res []byte
++	res = append(res, src[:i]...)
++
++	// Determine and prepend indentation of first code line.
++	// Spaces are ignored unless there are no tabs,
++	// in which case spaces count as one tab.
++	indent := 0
++	hasSpace := false
++	for _, b := range src[i:j] {
++		switch b {
++		case ' ':
++			hasSpace = true
++		case '\t':
++			indent++
++		}
++	}
++	if indent == 0 && hasSpace {
++		indent = 1
++	}
++	for i := 0; i < indent; i++ {
++		res = append(res, '\t')
++	}
++
++	// Format the source.
++	// Write it without any leading and trailing space.
++	cfg := config
++	cfg.Indent = indent + indentAdj
++	var buf bytes.Buffer
++	err := cfg.Fprint(&buf, fset, file)
++	if err != nil {
+ 		return nil, err
+ 	}
++	res = append(res, sourceAdj(buf.Bytes(), cfg.Indent)...)
+ 
+-	// Try as statement list by wrapping a function around src.
+-	fsrc := append(append([]byte("package p; func _() {"), src...), '}')
+-	file, err = parser.ParseFile(fset, "", fsrc, parser.ParseComments)
+-	if err == nil {
+-		return file.Decls[0].(*ast.FuncDecl).Body.List, nil
++	// Determine and append trailing space.
++	i = len(src)
++	for i > 0 && isSpace(src[i-1]) {
++		i--
+ 	}
++	return append(res, src[i:]...), nil
++}
+ 
+-	// Failed, and out of options.
+-	return nil, err
++func isSpace(b byte) bool {
++	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
+ }
+diff --git a/src/go/format/format_test.go b/src/go/format/format_test.go
+index 93f0992477..d7846bec65 100644
+--- a/src/go/format/format_test.go
++++ b/src/go/format/format_test.go
+@@ -87,7 +87,11 @@ var tests = []string{
+ 	"\tx := 0\n\tgo f()\n\n\n",
+ 	"\n\t\t\n\n\tx := 0\n\tgo f()\n\n\n",
+ 	"\n\t\t\n\n\t\t\tx := 0\n\t\t\tgo f()\n\n\n",
+-	"\n\t\t\n\n\t\t\tx := 0\n\t\t\tconst s = `\nfoo\n`\n\n\n", // no indentation inside raw strings
++	"\n\t\t\n\n\t\t\tx := 0\n\t\t\tconst s = `\nfoo\n`\n\n\n",     // no indentation added inside raw strings
++	"\n\t\t\n\n\t\t\tx := 0\n\t\t\tconst s = `\n\t\tfoo\n`\n\n\n", // no indentation removed inside raw strings
++
++	// comments
++	"i := 5 /* Comment */", // Issue 5551.
+ 
+ 	// erroneous programs
+ 	"ERROR1 + 2 +",

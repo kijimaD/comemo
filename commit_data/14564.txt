@@ -18,8 +18,112 @@ Date:   Wed Dec 5 15:46:45 2012 -0800
     R=golang-dev, daniel.morsing
     CC=golang-dev
     https://golang.org/cl/6871058
-
+---
  src/cmd/gc/typecheck.c      | 28 ++++++++++++++++++++++------
  src/cmd/gc/walk.c           |  4 ----
  test/fixedbugs/issue4251.go | 21 +++++++++++++++++++++
  3 files changed, 43 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 2b6af2b6de..78e2047a6e 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -950,12 +950,16 @@ reswitch:
+ 				goto error;
+ 			}
+ 			if(n->right->left->op == OLITERAL) {
+-				if(mpgetfix(n->right->left->val.u.xval) < 0)
++				if(mpgetfix(n->right->left->val.u.xval) < 0) {
+ 					yyerror("invalid slice index %N (index must be non-negative)", n->right->left);
+-				else if(tp != nil && tp->bound > 0 && mpgetfix(n->right->left->val.u.xval) > tp->bound)
++					goto error;
++				} else if(tp != nil && tp->bound > 0 && mpgetfix(n->right->left->val.u.xval) > tp->bound) {
+ 					yyerror("invalid slice index %N (out of bounds for %d-element array)", n->right->left, tp->bound);
+-				else if(mpcmpfixfix(n->right->left->val.u.xval, maxintval[TINT]) > 0)
++					goto error;
++				} else if(mpcmpfixfix(n->right->left->val.u.xval, maxintval[TINT]) > 0) {
+ 					yyerror("invalid slice index %N (index too large)", n->right->left);
++					goto error;
++				}
+ 			}
+ 		}
+ 		if(n->right->right != N) {
+@@ -966,14 +970,26 @@ reswitch:
+ 				goto error;
+ 			}
+ 			if(n->right->right->op == OLITERAL) {
+-				if(mpgetfix(n->right->right->val.u.xval) < 0)
++				if(mpgetfix(n->right->right->val.u.xval) < 0) {
+ 					yyerror("invalid slice index %N (index must be non-negative)", n->right->right);
+-				else if(tp != nil && tp->bound > 0 && mpgetfix(n->right->right->val.u.xval) > tp->bound)
++					goto error;
++				} else if(tp != nil && tp->bound > 0 && mpgetfix(n->right->right->val.u.xval) > tp->bound) {
+ 					yyerror("invalid slice index %N (out of bounds for %d-element array)", n->right->right, tp->bound);
+-				else if(mpcmpfixfix(n->right->right->val.u.xval, maxintval[TINT]) > 0)
++					goto error;
++				} else if(mpcmpfixfix(n->right->right->val.u.xval, maxintval[TINT]) > 0) {
+ 					yyerror("invalid slice index %N (index too large)", n->right->right);
++					goto error;
++				}
+ 			}
+ 		}
++		if(n->right->left != N
++		   && n->right->right != N
++		   && n->right->left->op == OLITERAL
++		   && n->right->right->op == OLITERAL
++		   && mpcmpfixfix(n->right->left->val.u.xval, n->right->right->val.u.xval) > 0) {
++			yyerror("inverted slice index %N > %N", n->right->left, n->right->right);
++			goto error;
++		}
+ 		goto ret;
+ 
+ 	/*
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index ee8a481f06..98b2a4fa74 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -2517,8 +2517,6 @@ sliceany(Node* n, NodeList **init)
+ 		else
+ 			bv = mpgetfix(bound->val.u.xval);
+ 	}
+-	lbv = -1;
+-	hbv = -1;
+ 
+ 	if(isconst(hb, CTINT)) {
+ 		hbv = mpgetfix(hb->val.u.xval);
+@@ -2536,8 +2534,6 @@ sliceany(Node* n, NodeList **init)
+ 		if(lbv == 0)
+ 			lb = N;
+ 	}
+-	if(lbv >= 0 && hbv >= 0 && lbv > hbv)
+-		yyerror("inverted slice range");
+ 
+ 	// dynamic checks convert all bounds to unsigned to save us the bound < 0 comparison
+ 	// generate
+diff --git a/test/fixedbugs/issue4251.go b/test/fixedbugs/issue4251.go
+new file mode 100644
+index 0000000000..a14e0896a4
+--- /dev/null
++++ b/test/fixedbugs/issue4251.go
+@@ -0,0 +1,21 @@
++// errorcheck
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 4251: slice with inverted range is an error.
++
++package p
++
++func F1(s []byte) []byte {
++	return s[2:1]		// ERROR "inverted"
++}
++
++func F2(a [10]byte) []byte {
++	return a[2:1]		// ERROR "inverted"
++}
++
++func F3(s string) string {
++	return s[2:1]		// ERROR "inverted"
++}

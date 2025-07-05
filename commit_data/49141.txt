@@ -19,6 +19,51 @@ Date:   Wed Jul 21 18:38:05 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/malloc.go | 20 +++++++++-----------
  1 file changed, 9 insertions(+), 11 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 2759bbdaf9..cc22b0f276 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1135,13 +1135,21 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 		msanmalloc(x, size)
+ 	}
+ 
++	if rate := MemProfileRate; rate > 0 {
++		// Note cache c only valid while m acquired; see #47302
++		if rate != 1 && size < c.nextSample {
++			c.nextSample -= size
++		} else {
++			profilealloc(mp, x, size)
++		}
++	}
+ 	mp.mallocing = 0
+ 	releasem(mp)
+ 
+ 	// Pointerfree data can be zeroed late in a context where preemption can occur.
+ 	// x will keep the memory alive.
+ 	if !isZeroed && needzero {
+-		memclrNoHeapPointersChunked(size, x)
++		memclrNoHeapPointersChunked(size, x) // This is a possible preemption point: see #47302
+ 	}
+ 
+ 	if debug.malloc {
+@@ -1155,16 +1163,6 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 		}
+ 	}
+ 
+-	if rate := MemProfileRate; rate > 0 {
+-		if rate != 1 && size < c.nextSample {
+-			c.nextSample -= size
+-		} else {
+-			mp := acquirem()
+-			profilealloc(mp, x, size)
+-			releasem(mp)
+-		}
+-	}
+-
+ 	if assistG != nil {
+ 		// Account for internal fragmentation in the assist
+ 		// debt now that we know it.

@@ -15,6 +15,21 @@ Date:   Tue Nov 8 17:02:49 2022 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Damien Neil <dneil@google.com>
-
+---
  src/cmd/go/go_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 4f451e614b..eebc3266c8 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -129,7 +129,8 @@ func TestMain(m *testing.M) {
+ 					}
+ 					callerPos = fmt.Sprintf("%s:%d: ", file, line)
+ 				}
+-				return fmt.Errorf("%stestgo must not write to GOROOT (installing to %s)", callerPos, filepath.Join("GOROOT", rel))
++				notice := "This error error can occur if GOROOT is stale, in which case rerunning make.bash will fix it."
++				return fmt.Errorf("%stestgo must not write to GOROOT (installing to %s) (%v)", callerPos, filepath.Join("GOROOT", rel), notice)
+ 			}
+ 		}
+ 

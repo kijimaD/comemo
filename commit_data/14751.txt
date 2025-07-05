@@ -12,6 +12,29 @@ Date:   Fri Dec 28 02:35:04 2012 +0800
     R=dvyukov, rsc, dave, minux.ma, remyoudompheng, iant
     CC=golang-dev
     https://golang.org/cl/7000059
-
+---
  src/pkg/reflect/value.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 93401fea52..10a4c0775b 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -1491,7 +1491,7 @@ func (v Value) Slice(beg, end int) Value {
+ 	}
+ 
+ 	// Declare slice so that gc can see the base pointer in it.
+-	var x []byte
++	var x []unsafe.Pointer
+ 
+ 	// Reinterpret as *SliceHeader to edit.
+ 	s := (*SliceHeader)(unsafe.Pointer(&x))
+@@ -1899,7 +1899,7 @@ func MakeSlice(typ Type, len, cap int) Value {
+ 	}
+ 
+ 	// Declare slice so that gc can see the base pointer in it.
+-	var x []byte
++	var x []unsafe.Pointer
+ 
+ 	// Reinterpret as *SliceHeader to edit.
+ 	s := (*SliceHeader)(unsafe.Pointer(&x))

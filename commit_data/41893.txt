@@ -9,6 +9,20 @@ Date:   Thu Oct 31 09:51:20 2019 -0400
     Run-TryBot: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/loader/loader.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index ff38e7cf88..f0689032f3 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -478,7 +478,7 @@ func (l *Loader) AuxSym(i Sym, j int) Sym {
+ // slice passed as a parameter. If the slice capacity is not large enough, a new
+ // larger slice will be allocated. Final slice is returned.
+ func (l *Loader) ReadAuxSyms(symIdx Sym, dst []Sym) []Sym {
+-	if l.isExternal(symIdx) {
++	if l.IsExternal(symIdx) {
+ 		return dst[:0]
+ 	}
+ 	naux := l.NAux(symIdx)

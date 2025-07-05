@@ -7,6 +7,36 @@ Date:   Tue Dec 31 19:29:09 2013 +1100
     R=golang-codereviews, bradfitz, dave
     CC=golang-codereviews
     https://golang.org/cl/43550047
-
+---
  src/pkg/crypto/sha512/sha512_test.go | 18 ++++++++++++++++++
  1 file changed, 18 insertions(+)
+
+diff --git a/src/pkg/crypto/sha512/sha512_test.go b/src/pkg/crypto/sha512/sha512_test.go
+index 167c20ad07..541860f701 100644
+--- a/src/pkg/crypto/sha512/sha512_test.go
++++ b/src/pkg/crypto/sha512/sha512_test.go
+@@ -132,6 +132,24 @@ func TestGolden(t *testing.T) {
+ 	}
+ }
+ 
++func TestSize(t *testing.T) {
++	c := New()
++	if got := c.Size(); got != Size {
++		t.Errorf("Size = %d; want %d", got, Size)
++	}
++	c = New384()
++	if got := c.Size(); got != Size384 {
++		t.Errorf("New384.Size = %d; want %d", got, Size384)
++	}
++}
++
++func TestBlockSize(t *testing.T) {
++	c := New()
++	if got := c.BlockSize(); got != BlockSize {
++		t.Errorf("BlockSize = %d; want %d", got, BlockSize)
++	}
++}
++
+ var bench = New()
+ var buf = make([]byte, 8192)
+ 

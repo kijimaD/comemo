@@ -13,7 +13,89 @@ Date:   Tue Jul 31 08:38:49 2012 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6448053
-
+---
  src/pkg/net/http/httputil/reverseproxy.go      | 10 ++++--
  src/pkg/net/http/httputil/reverseproxy_test.go | 42 ++++++++++++++++++++++++++
  2 files changed, 50 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/http/httputil/reverseproxy.go b/src/pkg/net/http/httputil/reverseproxy.go
+index 479945fc21..134c452999 100644
+--- a/src/pkg/net/http/httputil/reverseproxy.go
++++ b/src/pkg/net/http/httputil/reverseproxy.go
+@@ -106,8 +106,14 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 		outreq.Header.Del("Connection")
+ 	}
+ 
+-	if clientIp, _, err := net.SplitHostPort(req.RemoteAddr); err == nil {
+-		outreq.Header.Set("X-Forwarded-For", clientIp)
++	if clientIP, _, err := net.SplitHostPort(req.RemoteAddr); err == nil {
++		// If we aren't the first proxy retain prior
++		// X-Forwarded-For information as a comma+space
++		// separated list and fold multiple headers into one.
++		if prior, ok := outreq.Header["X-Forwarded-For"]; ok {
++			clientIP = strings.Join(prior, ", ") + ", " + clientIP
++		}
++		outreq.Header.Set("X-Forwarded-For", clientIP)
+ 	}
+ 
+ 	res, err := transport.RoundTrip(outreq)
+diff --git a/src/pkg/net/http/httputil/reverseproxy_test.go b/src/pkg/net/http/httputil/reverseproxy_test.go
+index b42c031cac..8639271626 100644
+--- a/src/pkg/net/http/httputil/reverseproxy_test.go
++++ b/src/pkg/net/http/httputil/reverseproxy_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"net/http"
+ 	"net/http/httptest"
+ 	"net/url"
++	"strings"
+ 	"testing"
+ 	"time"
+ )
+@@ -71,6 +72,47 @@ func TestReverseProxy(t *testing.T) {
+ 	}
+ }
+ 
++func TestXForwardedFor(t *testing.T) {
++	const prevForwardedFor = "client ip"
++	const backendResponse = "I am the backend"
++	const backendStatus = 404
++	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		if r.Header.Get("X-Forwarded-For") == "" {
++			t.Errorf("didn't get X-Forwarded-For header")
++		}
++		if !strings.Contains(r.Header.Get("X-Forwarded-For"), prevForwardedFor) {
++			t.Errorf("X-Forwarded-For didn't contain prior data")
++		}
++		w.WriteHeader(backendStatus)
++		w.Write([]byte(backendResponse))
++	}))
++	defer backend.Close()
++	backendURL, err := url.Parse(backend.URL)
++	if err != nil {
++		t.Fatal(err)
++	}
++	proxyHandler := NewSingleHostReverseProxy(backendURL)
++	frontend := httptest.NewServer(proxyHandler)
++	defer frontend.Close()
++
++	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
++	getReq.Host = "some-name"
++	getReq.Header.Set("Connection", "close")
++	getReq.Header.Set("X-Forwarded-For", prevForwardedFor)
++	getReq.Close = true
++	res, err := http.DefaultClient.Do(getReq)
++	if err != nil {
++		t.Fatalf("Get: %v", err)
++	}
++	if g, e := res.StatusCode, backendStatus; g != e {
++		t.Errorf("got res.StatusCode %d; expected %d", g, e)
++	}
++	bodyBytes, _ := ioutil.ReadAll(res.Body)
++	if g, e := string(bodyBytes), backendResponse; g != e {
++		t.Errorf("got body %q; expected %q", g, e)
++	}
++}
++
+ var proxyQueryTests = []struct {
+ 	baseSuffix string // suffix to add to backend URL
+ 	reqSuffix  string // suffix to add to frontend's request URL

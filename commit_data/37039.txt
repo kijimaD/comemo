@@ -13,6 +13,24 @@ Date:   Thu Jun 7 20:54:08 2018 +0100
     Reviewed-on: https://go-review.googlesource.com/117178
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/contribute.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index e7970537dd..7ed5e3779a 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -384,10 +384,10 @@ This is an overview of the overall process:
+ 
+ <ul>
+ <li>
+-<b>Step 1:</b> Clone the Go source code from GitHub or go.googlesource.com
++<b>Step 1:</b> Clone the Go source code from go.googlesource.com
+ and make sure it's stable by compiling and testing it once:
+ <pre>
+-$ git clone https://github.com/golang/go    # or https://go.googlesource.com/go
++$ git clone https://go.googlesource.com/go
+ $ cd go/src
+ $ ./all.bash                                # compile and test
+ </pre>

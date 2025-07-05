@@ -7,10 +7,215 @@ Date:   Mon May 27 11:29:11 2013 +0400
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/9648044
-
+---
  src/pkg/reflect/all_test.go | 19 +++++++++++++++++
  src/pkg/runtime/iface.c     | 32 ++---------------------------
  src/pkg/runtime/malloc.goc  | 50 ++++++++++++++++++++++++++-------------------
  src/pkg/runtime/malloc.h    |  1 +
  src/pkg/runtime/slice.c     | 20 +-----------------
  5 files changed, 52 insertions(+), 70 deletions(-)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 56cb315ad6..a61f663084 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -3032,6 +3032,25 @@ func TestSliceOf(t *testing.T) {
+ 	checkSameType(t, Zero(SliceOf(TypeOf(T1(1)))).Interface(), []T1{})
+ }
+ 
++func TestSliceOverflow(t *testing.T) {
++	// check that MakeSlice panics when size of slice overflows uint
++	const S = 1e6
++	s := uint(S)
++	l := (1<<(unsafe.Sizeof((*byte)(nil))*8)-1)/s + 1
++	if l*s >= s {
++		t.Fatal("slice size does not overflow")
++	}
++	var x [S]byte
++	st := SliceOf(TypeOf(x))
++	defer func() {
++		err := recover()
++		if err == nil {
++			t.Fatal("slice overflow does not panic")
++		}
++	}()
++	MakeSlice(st, int(l), int(l))
++}
++
+ func TestSliceOfGC(t *testing.T) {
+ 	type T *uintptr
+ 	tt := TypeOf(T(nil))
+diff --git a/src/pkg/runtime/iface.c b/src/pkg/runtime/iface.c
+index 370edffb81..5973d6d03c 100644
+--- a/src/pkg/runtime/iface.c
++++ b/src/pkg/runtime/iface.c
+@@ -687,42 +687,14 @@ reflect·unsafe_Typeof(Eface e, Eface ret)
+ void
+ reflect·unsafe_New(Type *t, void *ret)
+ {
+-	uint32 flag;
+-
+-	flag = t->kind&KindNoPointers ? FlagNoPointers : 0;
+-	ret = runtime·mallocgc(t->size, flag, 1, 1);
+-
+-	if(UseSpanType && !flag) {
+-		if(false) {
+-			runtime·printf("unsafe_New %S: %p\n", *t->string, ret);
+-		}
+-		runtime·settype(ret, (uintptr)t | TypeInfo_SingleObject);
+-	}
+-
++	ret = runtime·cnew(t);
+ 	FLUSH(&ret);
+ }
+ 
+ void
+ reflect·unsafe_NewArray(Type *t, intgo n, void *ret)
+ {
+-	uint64 size;
+-
+-	size = n*t->size;
+-	if(size == 0)
+-		ret = (byte*)&runtime·zerobase;
+-	else if(t->kind&KindNoPointers)
+-		ret = runtime·mallocgc(size, FlagNoPointers, 1, 1);
+-	else {
+-		ret = runtime·mallocgc(size, 0, 1, 1);
+-
+-		if(UseSpanType) {
+-			if(false) {
+-				runtime·printf("unsafe_NewArray [%D]%S: %p\n", (int64)n, *t->string, ret);
+-			}
+-			runtime·settype(ret, (uintptr)t | TypeInfo_Array);
+-		}
+-	}
+-
++	ret = runtime·cnewarray(t, n);
+ 	FLUSH(&ret);
+ }
+ 
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 7e691fe9c8..b59693b598 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -729,9 +729,8 @@ runtime·new(Type *typ, uint8 *ret)
+ 		ret = runtime·mallocgc(typ->size, flag, 1, 1);
+ 
+ 		if(UseSpanType && !flag) {
+-			if(false) {
++			if(false)
+ 				runtime·printf("new %S: %p\n", *typ->string, ret);
+-			}
+ 			runtime·settype(ret, (uintptr)typ | TypeInfo_SingleObject);
+ 		}
+ 	}
+@@ -739,36 +738,45 @@ runtime·new(Type *typ, uint8 *ret)
+ 	FLUSH(&ret);
+ }
+ 
+-// same as runtime·new, but callable from C
+-void*
+-runtime·cnew(Type *typ)
++static void*
++cnew(Type *typ, intgo n, int32 objtyp)
+ {
+ 	uint32 flag;
+ 	void *ret;
+ 
+-	if(raceenabled)
+-		m->racepc = runtime·getcallerpc(&typ);
+-
+-	if(typ->size == 0) {
++	if((objtyp&(PtrSize-1)) != objtyp)
++		runtime·throw("runtime: invalid objtyp");
++	if(n < 0 || (typ->size > 0 && n > MaxMem/typ->size))
++		runtime·panicstring("runtime: allocation size out of range");
++	if(typ->size == 0 || n == 0) {
+ 		// All 0-length allocations use this pointer.
+ 		// The language does not require the allocations to
+ 		// have distinct values.
+-		ret = (uint8*)&runtime·zerobase;
+-	} else {
+-		flag = typ->kind&KindNoPointers ? FlagNoPointers : 0;
+-		ret = runtime·mallocgc(typ->size, flag, 1, 1);
+-
+-		if(UseSpanType && !flag) {
+-			if(false) {
+-				runtime·printf("new %S: %p\n", *typ->string, ret);
+-			}
+-			runtime·settype(ret, (uintptr)typ | TypeInfo_SingleObject);
+-		}
++		return &runtime·zerobase;
++	}
++	flag = typ->kind&KindNoPointers ? FlagNoPointers : 0;
++	ret = runtime·mallocgc(typ->size*n, flag, 1, 1);
++	if(UseSpanType && !flag) {
++		if(false)
++			runtime·printf("cnew [%D]%S: %p\n", (int64)n, *typ->string, ret);
++		runtime·settype(ret, (uintptr)typ | objtyp);
+ 	}
+-
+ 	return ret;
+ }
+ 
++// same as runtime·new, but callable from C
++void*
++runtime·cnew(Type *typ)
++{
++	return cnew(typ, 1, TypeInfo_SingleObject);
++}
++
++void*
++runtime·cnewarray(Type *typ, intgo n)
++{
++	return cnew(typ, n, TypeInfo_Array);
++}
++
+ func GC() {
+ 	runtime·gc(1);
+ }
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 0d31326a22..e732e3d15d 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -458,6 +458,7 @@ bool	runtime·blockspecial(void*);
+ void	runtime·setblockspecial(void*, bool);
+ void	runtime·purgecachedstats(MCache*);
+ void*	runtime·cnew(Type*);
++void*	runtime·cnewarray(Type*, intgo);
+ 
+ void	runtime·settype(void*, uintptr);
+ void	runtime·settype_flush(M*, bool);
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+index d46d60f24a..fe1290d63c 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.c
+@@ -51,27 +51,9 @@ uintptr runtime·zerobase;
+ static void
+ makeslice1(SliceType *t, intgo len, intgo cap, Slice *ret)
+ {
+-	uintptr size;
+-
+-	size = cap*t->elem->size;
+-
+ 	ret->len = len;
+ 	ret->cap = cap;
+-
+-	if(size == 0)
+-		ret->array = (byte*)&runtime·zerobase;
+-	else if((t->elem->kind&KindNoPointers))
+-		ret->array = runtime·mallocgc(size, FlagNoPointers, 1, 1);
+-	else {
+-		ret->array = runtime·mallocgc(size, 0, 1, 1);
+-
+-		if(UseSpanType) {
+-			if(false) {
+-				runtime·printf("new slice [%D]%S: %p\n", (int64)cap, *t->elem->string, ret->array);
+-			}
+-			runtime·settype(ret->array, (uintptr)t->elem | TypeInfo_Array);
+-		}
+-	}
++	ret->array = runtime·cnewarray(t->elem, cap);
+ }
+ 
+ // appendslice(type *Type, x, y, []T) []T

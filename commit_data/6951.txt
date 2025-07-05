@@ -7,6 +7,20 @@ Date:   Tue Dec 14 12:22:40 2010 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3545042
-
+---
  src/Make.ccmd | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/Make.ccmd b/src/Make.ccmd
+index fe53f5d054..cb2b255123 100644
+--- a/src/Make.ccmd
++++ b/src/Make.ccmd
+@@ -13,6 +13,8 @@ $(TARG): $(OFILES) $(LIB)
+ 
+ $(OFILES): $(HFILES)
+ 
++CLEANFILES+=y.tab.[ch]
++
+ clean:
+ 	rm -f *.$(HOST_O) $(TARG) $(CLEANFILES)
+ 

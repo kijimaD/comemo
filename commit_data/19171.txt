@@ -32,9 +32,93 @@ Date:   Wed Apr 16 13:12:18 2014 -0400
     R=golang-codereviews, iant, dvyukov, r
     CC=golang-codereviews
     https://golang.org/cl/88210044
-
+---
  doc/go1.3.html                |  9 +++++++++
  src/pkg/runtime/crash_test.go | 14 +++++++-------
  src/pkg/runtime/extern.go     |  5 +++++
  src/pkg/runtime/proc.c        |  2 +-
  4 files changed, 22 insertions(+), 8 deletions(-)
+
+diff --git a/doc/go1.3.html b/doc/go1.3.html
+index 916ed04d25..466eeb1a16 100644
+--- a/doc/go1.3.html
++++ b/doc/go1.3.html
+@@ -379,6 +379,15 @@ In particular, it only calls <a href="/pkg/os/exec/#LookPath"><code>LookPath</co
+ when the binary's file name contains no path separators.
+ </li>
+ 
++<li>
++If the main goroutine calls 
++<a href="/pkg/runtime/#Goexit"><code>runtime.Goexit</code>
++and all other goroutines finish execution, the program now always crashes,
++reporting a detected deadlock.
++Earlier versions of Go handled this situation inconsistently: most instances
++were reported as deadlocks, but some trivial cases exited cleanly instead.
++</li>
++
+ <li>
+ The <a href="/pkg/strconv/#CanBackquote"><code>CanBackquote</code></a>
+ function in the <a href="/pkg/strconv/"><code>strconv</code></a> package
+diff --git a/src/pkg/runtime/crash_test.go b/src/pkg/runtime/crash_test.go
+index cd9520b165..dbcd9486de 100644
+--- a/src/pkg/runtime/crash_test.go
++++ b/src/pkg/runtime/crash_test.go
+@@ -111,8 +111,9 @@ func TestLockedDeadlock2(t *testing.T) {
+ 
+ func TestGoexitDeadlock(t *testing.T) {
+ 	output := executeTest(t, goexitDeadlockSource, nil)
+-	if output != "" {
+-		t.Fatalf("expected no output, got:\n%s", output)
++	want := "no goroutines (main called runtime.Goexit) - deadlock!"
++	if !strings.Contains(output, want) {
++		t.Fatalf("output:\n%s\n\nwant output containing: %s", output, want)
+ 	}
+ }
+ 
+@@ -144,13 +145,12 @@ panic: again
+ 
+ }
+ 
+-func TestGoexitExit(t *testing.T) {
++func TestGoexitCrash(t *testing.T) {
+ 	output := executeTest(t, goexitExitSource, nil)
+-	want := ""
+-	if output != want {
+-		t.Fatalf("output:\n%s\n\nwanted:\n%s", output, want)
++	want := "no goroutines (main called runtime.Goexit) - deadlock!"
++	if !strings.Contains(output, want) {
++		t.Fatalf("output:\n%s\n\nwant output containing: %s", output, want)
+ 	}
+-
+ }
+ 
+ const crashSource = `
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index 0c5041d38b..2466911dd6 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -79,6 +79,11 @@ func Gosched()
+ 
+ // Goexit terminates the goroutine that calls it.  No other goroutine is affected.
+ // Goexit runs all deferred calls before terminating the goroutine.
++//
++// Calling Goexit from the main goroutine terminates that goroutine
++// without func main returning. Since func main has not returned,
++// the program continues execution of other goroutines.
++// If all other goroutines exit, the program crashes.
+ func Goexit()
+ 
+ // Caller reports file and line number information about function invocations on
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 6b5c031c87..52b02d94bb 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -2501,7 +2501,7 @@ checkdead(void)
+ 	}
+ 	runtime·unlock(&allglock);
+ 	if(grunning == 0)  // possible if main goroutine calls runtime·Goexit()
+-		runtime·exit(0);
++		runtime·throw("no goroutines (main called runtime.Goexit) - deadlock!");
+ 	m->throwing = -1;  // do not dump full stacks
+ 	runtime·throw("all goroutines are asleep - deadlock!");
+ }

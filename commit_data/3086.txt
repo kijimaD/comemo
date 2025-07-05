@@ -8,7 +8,7 @@ Date:   Wed Aug 26 12:55:54 2009 -0700
     DELTA=113  (10 added, 30 deleted, 73 changed)
     OCL=33877
     CL=33882
-
+---
  src/pkg/big/Makefile      |   1 -
  src/pkg/big/arith.go      |   3 +-
  src/pkg/big/arith_386.s   |  11 ++--
@@ -16,3 +16,366 @@ Date:   Wed Aug 26 12:55:54 2009 -0700
  src/pkg/big/big.go        |  28 -----------
  src/pkg/big/nat.go        |  17 +++++--
  6 files changed, 83 insertions(+), 103 deletions(-)
+
+diff --git a/src/pkg/big/Makefile b/src/pkg/big/Makefile
+index 8cf98911cb..595a607970 100644
+--- a/src/pkg/big/Makefile
++++ b/src/pkg/big/Makefile
+@@ -7,7 +7,6 @@ include $(GOROOT)/src/Make.$(GOARCH)
+ TARG=big
+ GOFILES=\
+ 	arith.go\
+-	big.go\
+ 	nat.go\
+ 	int.go\
+ 
+diff --git a/src/pkg/big/arith.go b/src/pkg/big/arith.go
+index 59f99e98d2..6af5de9bc0 100644
+--- a/src/pkg/big/arith.go
++++ b/src/pkg/big/arith.go
+@@ -190,8 +190,7 @@ func useAsm() bool
+ 
+ func init() {
+ 	if useAsm() {
+-		// Install assemby routines.
+-		// TODO(gri) This should only be done if the assembly routines are present.
++		// Install assembly routines.
+ 		addVV = addVV_s;
+ 		subVV = subVV_s;
+ 		addVW = addVW_s;
+diff --git a/src/pkg/big/arith_386.s b/src/pkg/big/arith_386.s
+index b8f4dfc004..9fb982bec9 100644
+--- a/src/pkg/big/arith_386.s
++++ b/src/pkg/big/arith_386.s
+@@ -21,12 +21,13 @@ TEXT big·divWVW_s(SB),7,$0
+ 	RET
+ 
+ 
++// func divWWW_s(x1, x0, y Word) (q, r Word)
+ // TODO(gri) Implement this routine completely in Go.
+ //           At the moment we need this assembly version.
+ TEXT big·divWWW_s(SB),7,$0
+-	MOVL a+0(FP), DX
+-	MOVL a+4(FP), AX
+-	DIVL a+8(FP)
+-	MOVL AX, a+12(FP)
+-	MOVL DX, a+16(FP)
++	MOVL x1+0(FP), DX
++	MOVL x0+4(FP), AX
++	DIVL y+8(FP)
++	MOVL AX, q+12(FP)
++	MOVL DX, r+16(FP)
+ 	RET
+diff --git a/src/pkg/big/arith_amd64.s b/src/pkg/big/arith_amd64.s
+index 1309d0ebe7..7daf404179 100644
+--- a/src/pkg/big/arith_amd64.s
++++ b/src/pkg/big/arith_amd64.s
+@@ -14,12 +14,12 @@ TEXT big·useAsm(SB),7,$0
+ 
+ // func addVV_s(z, x, y *Word, n int) (c Word)
+ TEXT big·addVV_s(SB),7,$0
+-	MOVQ a+0(FP), R10	// z
+-	MOVQ a+8(FP), R8	// x
+-	MOVQ a+16(FP), R9	// y
+-	MOVL a+24(FP), R11	// n
+-	XORQ BX, BX			// i = 0
+-	XORQ DX, DX			// c = 0
++	MOVQ z+0(FP), R10
++	MOVQ x+8(FP), R8
++	MOVQ y+16(FP), R9
++	MOVL n+24(FP), R11
++	MOVQ $0, BX         // i = 0
++	MOVQ $0, DX         // c = 0
+ 	JMP E1
+ 
+ L1:	MOVQ (R8)(BX*8), AX
+@@ -32,19 +32,19 @@ L1:	MOVQ (R8)(BX*8), AX
+ E1:	CMPQ BX, R11		// i < n
+ 	JL L1
+ 
+-	MOVQ DX, a+32(FP)	// return c
++	MOVQ DX, c+32(FP)
+ 	RET
+ 
+ 
+ // func subVV_s(z, x, y *Word, n int) (c Word)
+ // (same as addVV_s except for SBBQ instead of ADCQ and label names)
+ TEXT big·subVV_s(SB),7,$0
+-	MOVQ a+0(FP), R10	// z
+-	MOVQ a+8(FP), R8	// x
+-	MOVQ a+16(FP), R9	// y
+-	MOVL a+24(FP), R11	// n
+-	XORQ BX, BX			// i = 0
+-	XORQ DX, DX			// c = 0
++	MOVQ z+0(FP), R10
++	MOVQ x+8(FP), R8
++	MOVQ y+16(FP), R9
++	MOVL n+24(FP), R11
++	MOVQ $0, BX         // i = 0
++	MOVQ $0, DX         // c = 0
+ 	JMP E2
+ 
+ L2:	MOVQ (R8)(BX*8), AX
+@@ -52,44 +52,44 @@ L2:	MOVQ (R8)(BX*8), AX
+ 	SBBQ (R9)(BX*8), AX
+ 	RCLQ $1, DX
+ 	MOVQ AX, (R10)(BX*8)
+-	ADDL $1, BX			// i++
++	ADDL $1, BX         // i++
+ 
+-E2:	CMPQ BX, R11		// i < n
++E2:	CMPQ BX, R11        // i < n
+ 	JL L2
+ 
+-	MOVQ DX, a+32(FP)	// return c
++	MOVQ DX, c+32(FP)
+ 	RET
+ 
+ 
+ // func addVW_s(z, x *Word, y Word, n int) (c Word)
+ TEXT big·addVW_s(SB),7,$0
+-	MOVQ a+0(FP), R10	// z
+-	MOVQ a+8(FP), R8	// x
+-	MOVQ a+16(FP), AX	// c = y
+-	MOVL a+24(FP), R11	// n
+-	XORQ BX, BX			// i = 0
++	MOVQ z+0(FP), R10
++	MOVQ x+8(FP), R8
++	MOVQ y+16(FP), AX   // c = y
++	MOVL n+24(FP), R11
++	MOVQ $0, BX         // i = 0
+ 	JMP E3
+ 
+ L3:	ADDQ (R8)(BX*8), AX
+ 	MOVQ AX, (R10)(BX*8)
+ 	RCLQ $1, AX
+ 	ANDQ $1, AX
+-	ADDL $1, BX			// i++
++	ADDL $1, BX         // i++
+ 
+-E3:	CMPQ BX, R11		// i < n
++E3:	CMPQ BX, R11        // i < n
+ 	JL L3
+ 
+-	MOVQ AX, a+32(FP)	// return c
++	MOVQ AX, c+32(FP)
+ 	RET
+ 
+ 
+ // func subVW_s(z, x *Word, y Word, n int) (c Word)
+ TEXT big·subVW_s(SB),7,$0
+-	MOVQ a+0(FP), R10	// z
+-	MOVQ a+8(FP), R8	// x
+-	MOVQ a+16(FP), AX	// c = y
+-	MOVL a+24(FP), R11	// n
+-	XORQ BX, BX			// i = 0
++	MOVQ z+0(FP), R10
++	MOVQ x+8(FP), R8
++	MOVQ y+16(FP), AX   // c = y
++	MOVL n+24(FP), R11
++	MOVQ $0, BX         // i = 0
+ 	JMP E4
+ 
+ L4:	MOVQ (R8)(BX*8), DX	// TODO(gri) is there a reverse SUBQ?
+@@ -97,23 +97,23 @@ L4:	MOVQ (R8)(BX*8), DX	// TODO(gri) is there a reverse SUBQ?
+ 	MOVQ DX, (R10)(BX*8)
+ 	RCLQ $1, AX
+ 	ANDQ $1, AX
+-	ADDL $1, BX			// i++
++	ADDL $1, BX          // i++
+ 
+-E4:	CMPQ BX, R11		// i < n
++E4:	CMPQ BX, R11         // i < n
+ 	JL L4
+ 
+-	MOVQ AX, a+32(FP)	// return c
++	MOVQ AX, c+32(FP)
+ 	RET
+ 
+ 
+ // func mulAddVWW_s(z, x *Word, y, r Word, n int) (c Word)
+ TEXT big·mulAddVWW_s(SB),7,$0
+-	MOVQ a+0(FP), R10	// z
+-	MOVQ a+8(FP), R8	// x
+-	MOVQ a+16(FP), R9	// y
+-	MOVQ a+24(FP), CX	// c = r
+-	MOVL a+32(FP), R11	// n
+-	XORQ BX, BX			// i = 0
++	MOVQ z+0(FP), R10
++	MOVQ x+8(FP), R8
++	MOVQ y+16(FP), R9
++	MOVQ r+24(FP), CX   // c = r
++	MOVL n+32(FP), R11
++	MOVQ $0, BX         // i = 0
+ 	JMP E5
+ 
+ L5:	MOVQ (R8)(BX*8), AX
+@@ -122,23 +122,23 @@ L5:	MOVQ (R8)(BX*8), AX
+ 	ADCQ $0, DX
+ 	MOVQ AX, (R10)(BX*8)
+ 	MOVQ DX, CX
+-	ADDL $1, BX			// i++
++	ADDL $1, BX         // i++
+ 
+-E5:	CMPQ BX, R11		// i < n
++E5:	CMPQ BX, R11        // i < n
+ 	JL L5
+ 
+-	MOVQ CX, a+40(FP)	// return c
++	MOVQ CX, c+40(FP)
+ 	RET
+ 
+ 
+ // func addMulVVW_s(z, x *Word, y Word, n int) (c Word)
+ TEXT big·addMulVVW_s(SB),7,$0
+-	MOVQ a+0(FP), R10	// z
+-	MOVQ a+8(FP), R8	// x
+-	MOVQ a+16(FP), R9	// y
+-	MOVL a+24(FP), R11	// n
+-	XORQ BX, BX			// i = 0
+-	XORQ CX, CX			// c = 0
++	MOVQ z+0(FP), R10
++	MOVQ x+8(FP), R8
++	MOVQ y+16(FP), R9
++	MOVL n+24(FP), R11
++	MOVQ $0, BX         // i = 0
++	MOVQ $0, CX         // c = 0
+ 	JMP E6
+ 
+ L6:	MOVQ (R8)(BX*8), AX
+@@ -149,41 +149,41 @@ L6:	MOVQ (R8)(BX*8), AX
+ 	ADCQ $0, DX
+ 	MOVQ AX, (R10)(BX*8)
+ 	MOVQ DX, CX
+-	ADDL $1, BX			// i++
++	ADDL $1, BX         // i++
+ 
+-E6:	CMPQ BX, R11		// i < n
++E6:	CMPQ BX, R11        // i < n
+ 	JL L6
+ 
+-	MOVQ CX, a+32(FP)	// return c
++	MOVQ CX, c+32(FP)
+ 	RET
+ 
+ 
+ // divWVW_s(z* Word, xn Word, x *Word, y Word, n int) (r Word)
+ TEXT big·divWVW_s(SB),7,$0
+-	MOVQ a+0(FP), R10	// z
+-	MOVQ a+8(FP), DX	// r = xn
+-	MOVQ a+16(FP), R8	// x
+-	MOVQ a+24(FP), R9	// y
+-	MOVL a+32(FP), BX	// i = n
++	MOVQ z+0(FP), R10
++	MOVQ xn+8(FP), DX   // r = xn
++	MOVQ x+16(FP), R8
++	MOVQ y+24(FP), R9
++	MOVL n+32(FP), BX   // i = n
+ 	JMP E7
+ 
+ L7:	MOVQ (R8)(BX*8), AX
+ 	DIVQ R9
+ 	MOVQ AX, (R10)(BX*8)
+ 
+-E7:	SUBL $1, BX			// i--
+-	JGE L7				// i >= 0
++E7:	SUBL $1, BX         // i--
++	JGE L7              // i >= 0
+ 
+-	MOVQ DX, a+40(FP)	// return r
++	MOVQ DX, r+40(FP)
+ 	RET
+ 
+ 
+ // TODO(gri) Implement this routine completely in Go.
+ //           At the moment we need this assembly version.
+ TEXT big·divWWW_s(SB),7,$0
+-	MOVQ a+0(FP), DX
+-	MOVQ a+8(FP), AX
+-	DIVQ a+16(FP)
+-	MOVQ AX, a+24(FP)
+-	MOVQ DX, a+32(FP)
++	MOVQ x1+0(FP), DX
++	MOVQ x0+8(FP), AX
++	DIVQ y+16(FP)
++	MOVQ AX, q+24(FP)
++	MOVQ DX, r+32(FP)
+ 	RET
+diff --git a/src/pkg/big/big.go b/src/pkg/big/big.go
+deleted file mode 100644
+index 4c175f29f5..0000000000
+--- a/src/pkg/big/big.go
++++ /dev/null
+@@ -1,28 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// A package for multi-precision arithmetic.
+-// It implements the following numeric types:
+-//
+-//	W	unsigned single word with limited precision (uintptr)
+-//	Z	signed integers
+-//	Q	rational numbers
+-//
+-// Operations follow a regular naming scheme: The
+-// operation name is followed by the type names of
+-// the operands. Examples:
+-//
+-//	AddWW	implements W + W
+-//	SubZZ	implements Z + Z
+-//	MulZW	implements Z * W
+-//
+-// All operations returning a multi-precision result take the
+-// result as the first argument; if it is one of the operands
+-// it may be overwritten (and its memory reused). To enable
+-// chaining of operations, the result is also returned.
+-//
+-package big
+-
+-// This file is intentionally left without declarations for now. It may
+-// contain more documentation eventually; otherwise it should be removed.
+diff --git a/src/pkg/big/nat.go b/src/pkg/big/nat.go
+index ce9690442a..d1b12c753a 100644
+--- a/src/pkg/big/nat.go
++++ b/src/pkg/big/nat.go
+@@ -6,6 +6,15 @@
+ // These are the building blocks for the operations on signed integers
+ // and rationals.
+ 
++// This package implements multi-precision arithmetic (big numbers).
++// The following numeric types are supported:
++//
++//	- Int	signed integers
++//
++// All methods on Int take the result as the receiver; if it is one
++// of the operands it may be overwritten (and its memory reused).
++// To enable chaining of operations, the result is also returned.
++//
+ package big
+ 
+ // An unsigned integer x of the form
+@@ -242,9 +251,9 @@ func divNW(z, x []Word, y Word) (q []Word, r Word) {
+ }
+ 
+ 
+-// log2 computes the binary logarithm of x.
++// log2 computes the integer binary logarithm of x.
+ // The result is the integer n for which 2^n <= x < 2^(n+1).
+-// If x == 0, the result is < 0.
++// If x == 0, the result is -1.
+ func log2(x Word) int {
+ 	n := 0;
+ 	for ; x > 0; x >>= 1 {
+@@ -254,9 +263,9 @@ func log2(x Word) int {
+ }
+ 
+ 
+-// log2N computes the binary logarithm of x.
++// log2N computes the integer binary logarithm of x.
+ // The result is the integer n for which 2^n <= x < 2^(n+1).
+-// If x == 0, the result is < 0.
++// If x == 0, the result is -1.
+ func log2N(x []Word) int {
+ 	m := len(x);
+ 	if m > 0 {

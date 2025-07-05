@@ -10,8 +10,75 @@ Date:   Tue May 10 17:00:15 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4530045
-
+---
  src/cmd/gc/unsafe.c      |  1 +
  test/fixedbugs/bug338.go | 22 ++++++++++++++++++++++
  test/fixedbugs/bug339.go | 20 ++++++++++++++++++++
  3 files changed, 43 insertions(+)
+
+diff --git a/src/cmd/gc/unsafe.c b/src/cmd/gc/unsafe.c
+index 33f3756311..540994dddb 100644
+--- a/src/cmd/gc/unsafe.c
++++ b/src/cmd/gc/unsafe.c
+@@ -41,6 +41,7 @@ unsafenmagic(Node *nn)
+ 		tr = r->type;
+ 		if(tr == T)
+ 			goto bad;
++		dowidth(tr);
+ 		v = tr->width;
+ 		goto yes;
+ 	}
+diff --git a/test/fixedbugs/bug338.go b/test/fixedbugs/bug338.go
+new file mode 100644
+index 0000000000..c368a7fadc
+--- /dev/null
++++ b/test/fixedbugs/bug338.go
+@@ -0,0 +1,22 @@
++// $G $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 1787.
++
++package main
++
++import "unsafe"
++
++const x = unsafe.Sizeof([8]byte{})
++
++func main() {
++	var b [x]int
++	_ = b
++}
++
++/*
++bug338.go:14: array bound must be non-negative
++*/
+diff --git a/test/fixedbugs/bug339.go b/test/fixedbugs/bug339.go
+new file mode 100644
+index 0000000000..eac7c5ee62
+--- /dev/null
++++ b/test/fixedbugs/bug339.go
+@@ -0,0 +1,20 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 1608.
++// Size used to be -1000000000.
++
++package main
++
++import "unsafe"
++
++func main() {
++	var a interface{} = 0
++	size := unsafe.Sizeof(a)
++	if size != 2*unsafe.Sizeof((*int)(nil)) {
++		println("wrong size: ", size)
++	}
++}

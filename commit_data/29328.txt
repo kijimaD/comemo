@@ -12,7 +12,106 @@ Date:   Fri Aug 26 20:13:44 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/cookiejar/dummy_publicsuffix_test.go | 21 ++++++++
  src/net/http/cookiejar/example_test.go            | 65 +++++++++++++++++++++++
  2 files changed, 86 insertions(+)
+
+diff --git a/src/net/http/cookiejar/dummy_publicsuffix_test.go b/src/net/http/cookiejar/dummy_publicsuffix_test.go
+new file mode 100644
+index 0000000000..9b3117358f
+--- /dev/null
++++ b/src/net/http/cookiejar/dummy_publicsuffix_test.go
+@@ -0,0 +1,21 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cookiejar_test
++
++import "net/http/cookiejar"
++
++type dummypsl struct {
++	List cookiejar.PublicSuffixList
++}
++
++func (dummypsl) PublicSuffix(domain string) string {
++	return domain
++}
++
++func (dummypsl) String() string {
++	return "dummy"
++}
++
++var publicsuffix = dummypsl{}
+diff --git a/src/net/http/cookiejar/example_test.go b/src/net/http/cookiejar/example_test.go
+new file mode 100644
+index 0000000000..91728ca982
+--- /dev/null
++++ b/src/net/http/cookiejar/example_test.go
+@@ -0,0 +1,65 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cookiejar_test
++
++import (
++	"fmt"
++	"log"
++	"net/http"
++	"net/http/cookiejar"
++	"net/http/httptest"
++	"net/url"
++)
++
++func ExampleNew() {
++	// Start a server to give us cookies.
++	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		if cookie, err := r.Cookie("Flavor"); err != nil {
++			http.SetCookie(w, &http.Cookie{Name: "Flavor", Value: "Chocolate Chip"})
++		} else {
++			cookie.Value = "Oatmeal Raisin"
++			http.SetCookie(w, cookie)
++		}
++	}))
++	defer ts.Close()
++
++	u, err := url.Parse(ts.URL)
++	if err != nil {
++		log.Fatal(err)
++	}
++
++	// All users of cookiejar should import "golang.org/x/net/publicsuffix"
++	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
++	if err != nil {
++		log.Fatal(err)
++	}
++
++	client := &http.Client{
++		Jar: jar,
++	}
++
++	if _, err = client.Get(u.String()); err != nil {
++		log.Fatal(err)
++	}
++
++	fmt.Println("After 1st request:")
++	for _, cookie := range jar.Cookies(u) {
++		fmt.Printf("  %s: %s\n", cookie.Name, cookie.Value)
++	}
++
++	if _, err = client.Get(u.String()); err != nil {
++		log.Fatal(err)
++	}
++
++	fmt.Println("After 2nd request:")
++	for _, cookie := range jar.Cookies(u) {
++		fmt.Printf("  %s: %s\n", cookie.Name, cookie.Value)
++	}
++	// Output:
++	// After 1st request:
++	//   Flavor: Chocolate Chip
++	// After 2nd request:
++	//   Flavor: Oatmeal Raisin
++}

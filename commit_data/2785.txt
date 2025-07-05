@@ -11,7 +11,60 @@ Date:   Mon Jul 27 14:16:28 2009 -0700
     DELTA=9  (4 added, 2 deleted, 3 changed)
     OCL=32232
     CL=32237
-
+---
  src/pkg/runtime/amd64/traceback.c |  1 +
  src/pkg/runtime/mgc0.c            | 11 ++++++-----
  2 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/runtime/amd64/traceback.c b/src/pkg/runtime/amd64/traceback.c
+index 80e79b0e8b..df4e787a75 100644
+--- a/src/pkg/runtime/amd64/traceback.c
++++ b/src/pkg/runtime/amd64/traceback.c
+@@ -26,6 +26,7 @@ traceback(byte *pc0, byte *sp, G *g)
+ 	for(n=0; n<100; n++) {
+ 		if(pc == (uint64)sys·lessstack) {
+ 			// pop to earlier stack block
++			// printf("-- stack jump %p => %p\n", sp, stk->gobuf.sp);
+ 			pc = (uintptr)stk->gobuf.pc;
+ 			sp = stk->gobuf.sp;
+ 			stk = (Stktop*)stk->stackbase;
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 6fea924d83..52e36745fb 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -61,13 +61,16 @@ scanblock(int32 depth, byte *b, int64 n)
+ }
+ 
+ static void
+-scanstack(G *g)
++scanstack(G *gp)
+ {
+ 	Stktop *stk;
+ 	byte *sp;
+ 
+-	sp = g->sched.sp;
+-	stk = (Stktop*)g->stackbase;
++	if(gp == g)
++		sp = (byte*)&gp;
++	else
++		sp = gp->sched.sp;
++	stk = (Stktop*)gp->stackbase;
+ 	while(stk) {
+ 		scanblock(0, sp, (byte*)stk - sp);
+ 		sp = stk->gobuf.sp;
+@@ -220,7 +223,6 @@ gc(int32 force)
+ //printf("gc...\n");
+ 	m->gcing = 1;
+ 	semacquire(&gcsema);
+-	gosave(&g->sched);	// update g's stack pointer for scanstack
+ 	stoptheworld();
+ 	if(mheap.Lock.key != 0)
+ 		throw("mheap locked during gc");
+@@ -230,7 +232,6 @@ gc(int32 force)
+ 		mstats.next_gc = mstats.inuse_pages+mstats.inuse_pages*gcpercent/100;
+ 	}
+ 	starttheworld();
+-	gosave(&g->sched);	// update g's stack pointer for debugging
+ 	semrelease(&gcsema);
+ 	m->gcing = 0;
+ }

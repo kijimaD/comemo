@@ -26,7 +26,7 @@ Date:   Wed May 21 14:33:13 2025 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Jake Bailey <jacob.b.bailey@gmail.com>
-
+---
  src/cmd/compile/internal/escape/call.go | 12 ++++---
  src/cmd/compile/internal/inline/inl.go  | 17 +++++----
  src/cmd/compile/internal/walk/expr.go   |  4 +--
@@ -36,3 +36,283 @@ Date:   Wed May 21 14:33:13 2025 -0400
  src/unique/handle_test.go               |  6 ++--
  test/escape_unique.go                   | 62 +++++++++++++++++++++++++++++++++
  8 files changed, 119 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/call.go b/src/cmd/compile/internal/escape/call.go
+index a80e2707e2..58c44eb9bb 100644
+--- a/src/cmd/compile/internal/escape/call.go
++++ b/src/cmd/compile/internal/escape/call.go
+@@ -84,15 +84,19 @@ func (e *escape) call(ks []hole, call ir.Node) {
+ 			argument(e.tagHole(ks, fn, param), arg)
+ 		}
+ 
+-		// hash/maphash.escapeForHash forces its argument to be on
+-		// the heap, if it contains a non-string pointer. We cannot
++		// internal/abi.EscapeNonString forces its argument to be on
++		// the heap, if it contains a non-string pointer.
++		// This is used in hash/maphash.Comparable, where we cannot
+ 		// hash pointers to local variables, as the address of the
+ 		// local variable might change on stack growth.
+ 		// Strings are okay as the hash depends on only the content,
+ 		// not the pointer.
++		// This is also used in unique.clone, to model the data flow
++		// edge on the value with strings excluded, because strings
++		// are cloned (by content).
+ 		// The actual call we match is
+-		//   hash/maphash.escapeForHash[go.shape.T](dict, go.shape.T)
+-		if fn != nil && fn.Sym().Pkg.Path == "hash/maphash" && strings.HasPrefix(fn.Sym().Name, "escapeForHash[") {
++		//   internal/abi.EscapeNonString[go.shape.T](dict, go.shape.T)
++		if fn != nil && fn.Sym().Pkg.Path == "internal/abi" && strings.HasPrefix(fn.Sym().Name, "EscapeNonString[") {
+ 			ps := fntype.Params()
+ 			if len(ps) == 2 && ps[1].Type.IsShape() {
+ 				if !hasNonStringPointers(ps[1].Type) {
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index e3480c2463..8bba604214 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -454,6 +454,11 @@ opSwitch:
+ 						// generate code.
+ 						cheap = true
+ 					}
++					if strings.HasPrefix(fn, "EscapeNonString[") {
++						// internal/abi.EscapeNonString[T] is a compiler intrinsic
++						// implemented in the escape analysis phase.
++						cheap = true
++					}
+ 				case "internal/runtime/sys":
+ 					switch fn {
+ 					case "GetCallerPC", "GetCallerSP":
+@@ -472,12 +477,6 @@ opSwitch:
+ 					case "panicrangestate":
+ 						cheap = true
+ 					}
+-				case "hash/maphash":
+-					if strings.HasPrefix(fn, "escapeForHash[") {
+-						// hash/maphash.escapeForHash[T] is a compiler intrinsic
+-						// implemented in the escape analysis phase.
+-						cheap = true
+-					}
+ 				}
+ 			}
+ 			// Special case for coverage counter updates; although
+@@ -801,10 +800,10 @@ func inlineCallCheck(callerfn *ir.Func, call *ir.CallExpr) (bool, bool) {
+ 		}
+ 	}
+ 
+-	// hash/maphash.escapeForHash[T] is a compiler intrinsic implemented
++	// internal/abi.EscapeNonString[T] is a compiler intrinsic implemented
+ 	// in the escape analysis phase.
+-	if fn := ir.StaticCalleeName(call.Fun); fn != nil && fn.Sym().Pkg.Path == "hash/maphash" &&
+-		strings.HasPrefix(fn.Sym().Name, "escapeForHash[") {
++	if fn := ir.StaticCalleeName(call.Fun); fn != nil && fn.Sym().Pkg.Path == "internal/abi" &&
++		strings.HasPrefix(fn.Sym().Name, "EscapeNonString[") {
+ 		return false, true
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 96087e16b7..6775bc4fc8 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -594,8 +594,8 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 
+ 	if n.Op() == ir.OCALLFUNC {
+ 		fn := ir.StaticCalleeName(n.Fun)
+-		if fn != nil && fn.Sym().Pkg.Path == "hash/maphash" && strings.HasPrefix(fn.Sym().Name, "escapeForHash[") {
+-			// hash/maphash.escapeForHash[T] is a compiler intrinsic
++		if fn != nil && fn.Sym().Pkg.Path == "internal/abi" && strings.HasPrefix(fn.Sym().Name, "EscapeNonString[") {
++			// internal/abi.EscapeNonString[T] is a compiler intrinsic
+ 			// for the escape analysis to escape its argument based on
+ 			// the type. The call itself is no-op. Just walk the
+ 			// argument.
+diff --git a/src/hash/maphash/maphash.go b/src/hash/maphash/maphash.go
+index 5004539f07..d328cd3929 100644
+--- a/src/hash/maphash/maphash.go
++++ b/src/hash/maphash/maphash.go
+@@ -14,6 +14,7 @@ package maphash
+ 
+ import (
+ 	"hash"
++	"internal/abi"
+ 	"internal/byteorder"
+ 	"math"
+ )
+@@ -293,26 +294,13 @@ func (h *Hash) Clone() (hash.Cloner, error) {
+ // such that Comparable(s, v1) == Comparable(s, v2) if v1 == v2.
+ // If v != v, then the resulting hash is randomly distributed.
+ func Comparable[T comparable](seed Seed, v T) uint64 {
+-	escapeForHash(v)
++	abi.EscapeNonString(v)
+ 	return comparableHash(v, seed)
+ }
+ 
+-// escapeForHash forces v to be on the heap, if v contains a
+-// non-string pointer. We cannot hash pointers to local variables,
+-// as the address of the local variable might change on stack growth.
+-// Strings are okay as the hash depends on only the content, not
+-// the pointer.
+-//
+-// This is essentially
+-//
+-//	if hasNonStringPointers(T) { abi.Escape(v) }
+-//
+-// Implemented as a compiler intrinsic.
+-func escapeForHash[T comparable](v T) { panic("intrinsic") }
+-
+ // WriteComparable adds x to the data hashed by h.
+ func WriteComparable[T comparable](h *Hash, x T) {
+-	escapeForHash(x)
++	abi.EscapeNonString(x)
+ 	// writeComparable (not in purego mode) directly operates on h.state
+ 	// without using h.buf. Mix in the buffer length so it won't
+ 	// commute with a buffered write, which either changes h.n or changes
+diff --git a/src/internal/abi/escape.go b/src/internal/abi/escape.go
+index 8cdae1438e..d37be0177e 100644
+--- a/src/internal/abi/escape.go
++++ b/src/internal/abi/escape.go
+@@ -31,3 +31,35 @@ func Escape[T any](x T) T {
+ 	}
+ 	return x
+ }
++
++// EscapeNonString forces v to be on the heap, if v contains a
++// non-string pointer.
++//
++// This is used in hash/maphash.Comparable. We cannot hash pointers
++// to local variables on stack, as their addresses might change on
++// stack growth. Strings are okay as the hash depends on only the
++// content, not the pointer.
++//
++// This is essentially
++//
++//	if hasNonStringPointers(T) { Escape(v) }
++//
++// Implemented as a compiler intrinsic.
++func EscapeNonString[T any](v T) { panic("intrinsic") }
++
++// EscapeToResultNonString models a data flow edge from v to the result,
++// if v contains a non-string pointer. If v contains only string pointers,
++// it returns a copy of v, but is not modeled as a data flow edge
++// from the escape analysis's perspective.
++//
++// This is used in unique.clone, to model the data flow edge on the
++// value with strings excluded, because strings are cloned (by
++// content).
++//
++// TODO: probably we should define this as a intrinsic and EscapeNonString
++// could just be "heap = EscapeToResultNonString(v)". This way we can model
++// an edge to the result but not necessarily heap.
++func EscapeToResultNonString[T any](v T) T {
++	EscapeNonString(v)
++	return *(*T)(NoEscape(unsafe.Pointer(&v)))
++}
+diff --git a/src/unique/clone.go b/src/unique/clone.go
+index 36ced14ece..b67029b654 100644
+--- a/src/unique/clone.go
++++ b/src/unique/clone.go
+@@ -23,7 +23,7 @@ func clone[T comparable](value T, seq *cloneSeq) T {
+ 		ps := (*string)(unsafe.Pointer(uintptr(unsafe.Pointer(&value)) + offset))
+ 		*ps = stringslite.Clone(*ps)
+ 	}
+-	return value
++	return abi.EscapeToResultNonString(value)
+ }
+ 
+ // singleStringClone describes how to clone a single string.
+diff --git a/src/unique/handle_test.go b/src/unique/handle_test.go
+index 20ab93b68d..5c42cb494c 100644
+--- a/src/unique/handle_test.go
++++ b/src/unique/handle_test.go
+@@ -227,7 +227,7 @@ func TestMakeAllocs(t *testing.T) {
+ 			stringHandle = Make(heapString)
+ 		}},
+ 
+-		{name: "stack string", allocs: 1, f: func() {
++		{name: "stack string", allocs: 0, f: func() {
+ 			var b [16]byte
+ 			b[8] = 'a'
+ 			stringHandle = Make(string(b[:]))
+@@ -237,7 +237,7 @@ func TestMakeAllocs(t *testing.T) {
+ 			stringHandle = Make(string(heapBytes))
+ 		}},
+ 
+-		{name: "bytes truncated short", allocs: 1, f: func() {
++		{name: "bytes truncated short", allocs: 0, f: func() {
+ 			stringHandle = Make(string(heapBytes[:16]))
+ 		}},
+ 
+@@ -261,7 +261,7 @@ func TestMakeAllocs(t *testing.T) {
+ 			pairHandle = Make([2]string{heapString, heapString})
+ 		}},
+ 
+-		{name: "pair from stack", allocs: 2, f: func() {
++		{name: "pair from stack", allocs: 0, f: func() {
+ 			var b [16]byte
+ 			b[8] = 'a'
+ 			pairHandle = Make([2]string{string(b[:]), string(b[:])})
+diff --git a/test/escape_unique.go b/test/escape_unique.go
+new file mode 100644
+index 0000000000..78d6eeb777
+--- /dev/null
++++ b/test/escape_unique.go
+@@ -0,0 +1,62 @@
++// errorcheck -0 -m -l
++
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test escape analysis for unique.
++
++package escape
++
++import "unique"
++
++type T string
++
++func f1(s string) unique.Handle[string] { // ERROR "s does not escape$"
++	return unique.Make(s)
++}
++
++func f1a(s []byte) unique.Handle[string] { // ERROR "s does not escape$"
++	return unique.Make(string(s)) // ERROR "string\(s\) does not escape$"
++}
++
++func gen[S ~string](s S) unique.Handle[S] {
++	return unique.Make(s)
++}
++
++func f2(s T) unique.Handle[T] { // ERROR "s does not escape$"
++	return unique.Make(s)
++}
++
++func f3(s T) unique.Handle[T] { // ERROR "s does not escape$"
++	return gen(s)
++}
++
++type pair struct {
++	s1 string
++	s2 string
++}
++
++func f4(s1 string, s2 string) unique.Handle[pair] { // ERROR "s1 does not escape$" "s2 does not escape$"
++	return unique.Make(pair{s1, s2})
++}
++
++type viaInterface struct {
++	s any
++}
++
++func f5(s string) unique.Handle[viaInterface] { // ERROR "leaking param: s$"
++	return unique.Make(viaInterface{s}) // ERROR "s escapes to heap$"
++}
++
++var sink any
++
++func f6(s string) unique.Handle[string] { // ERROR "leaking param: s$"
++	sink = s // ERROR "s escapes to heap$"
++	return unique.Make(s)
++}
++
++func f6a(s []byte) unique.Handle[string] { // ERROR "leaking param: s$"
++	sink = s                      // ERROR "s escapes to heap$"
++	return unique.Make(string(s)) // ERROR "string\(s\) does not escape$"
++}

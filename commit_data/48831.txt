@@ -16,6 +16,21 @@ Date:   Fri Jun 18 03:14:09 2021 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/go/go_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index c0c86ab9f5..eaafe79235 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -806,7 +806,9 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
+ 		"src/internal/abi",
+ 		"src/internal/bytealg",
+ 		"src/internal/cpu",
++		"src/internal/goarch",
+ 		"src/internal/goexperiment",
++		"src/internal/goos",
+ 		"src/math/bits",
+ 		"src/unsafe",
+ 		filepath.Join("pkg", runtime.GOOS+"_"+runtime.GOARCH),

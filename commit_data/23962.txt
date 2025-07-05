@@ -11,6 +11,19 @@ Date:   Thu Jun 25 20:01:45 2015 -0700
     Change-Id: I96b3f03c291440130303a2b95a651e97e4d8113c
     Reviewed-on: https://go-review.googlesource.com/11542
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 4e0f4b0cc6..8a81dbd57f 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -380,6 +380,7 @@ func (s *state) stmt(n *Node) {
+ 			s.Unimplementedf("cond n.Left == nil: %v", n)
+ 		}
+ 		s.startBlock(bCond)
++		s.stmtList(n.Left.Ninit)
+ 		cond := s.expr(n.Left)
+ 		b = s.endBlock()
+ 		b.Kind = ssa.BlockIf

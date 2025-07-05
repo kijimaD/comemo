@@ -13,7 +13,46 @@ Date:   Thu Jun 18 14:28:54 2015 +0200
     Change-Id: I883be89da1489dc84f98523786b019d1d0169d46
     Reviewed-on: https://go-review.googlesource.com/11242
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/textproto/reader.go      | 7 +++++++
  src/net/textproto/reader_test.go | 9 +++++++++
  2 files changed, 16 insertions(+)
+
+diff --git a/src/net/textproto/reader.go b/src/net/textproto/reader.go
+index 09b3352edd..e4b8f6bb91 100644
+--- a/src/net/textproto/reader.go
++++ b/src/net/textproto/reader.go
+@@ -485,6 +485,13 @@ func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
+ 		}
+ 		key := canonicalMIMEHeaderKey(kv[:endKey])
+ 
++		// As per RFC 7230 field-name is a token, tokens consist of one or more chars.
++		// We could return a ProtocolError here, but better to be liberal in what we
++		// accept, so if we get an empty key, skip it.
++		if key == "" {
++			continue
++		}
++
+ 		// Skip initial spaces in value.
+ 		i++ // skip colon
+ 		for i < len(kv) && (kv[i] == ' ' || kv[i] == '\t') {
+diff --git a/src/net/textproto/reader_test.go b/src/net/textproto/reader_test.go
+index cbc0ed183e..6bbd993b8c 100644
+--- a/src/net/textproto/reader_test.go
++++ b/src/net/textproto/reader_test.go
+@@ -153,6 +153,15 @@ func TestReadMIMEHeaderSingle(t *testing.T) {
+ 	}
+ }
+ 
++func TestReadMIMEHeaderNoKey(t *testing.T) {
++	r := reader(": bar\ntest-1: 1\n\n")
++	m, err := r.ReadMIMEHeader()
++	want := MIMEHeader{"Test-1": {"1"}}
++	if !reflect.DeepEqual(m, want) || err != nil {
++		t.Fatalf("ReadMIMEHeader: %v, %v; want %v", m, err, want)
++	}
++}
++
+ func TestLargeReadMIMEHeader(t *testing.T) {
+ 	data := make([]byte, 16*1024)
+ 	for i := 0; i < len(data); i++ {

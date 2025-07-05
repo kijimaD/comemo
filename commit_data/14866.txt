@@ -58,7 +58,7 @@ Date:   Fri Jan 11 13:53:38 2013 -0800
     R=adonovan
     CC=golang-dev
     https://golang.org/cl/7058060
-
+---
  src/pkg/exp/gotype/gotype.go        |  19 ++---
  src/pkg/go/ast/scope.go             |  13 ++--
  src/pkg/go/types/api.go             |  23 +++++-
@@ -78,3 +78,1633 @@ Date:   Fri Jan 11 13:53:38 2013 -0800
  src/pkg/go/types/types_test.go      |   7 +-
  src/pkg/go/types/universe.go        |  59 +++++++++------
  18 files changed, 599 insertions(+), 240 deletions(-)
+
+diff --git a/src/pkg/exp/gotype/gotype.go b/src/pkg/exp/gotype/gotype.go
+index 311def89f5..d1de18a411 100644
+--- a/src/pkg/exp/gotype/gotype.go
++++ b/src/pkg/exp/gotype/gotype.go
+@@ -5,7 +5,6 @@
+ package main
+ 
+ import (
+-	"errors"
+ 	"flag"
+ 	"fmt"
+ 	"go/ast"
+@@ -92,8 +91,7 @@ func parse(fset *token.FileSet, filename string, src []byte) *ast.File {
+ 	return file
+ }
+ 
+-func parseStdin(fset *token.FileSet) (files map[string]*ast.File) {
+-	files = make(map[string]*ast.File)
++func parseStdin(fset *token.FileSet) (files []*ast.File) {
+ 	src, err := ioutil.ReadAll(os.Stdin)
+ 	if err != nil {
+ 		report(err)
+@@ -101,13 +99,12 @@ func parseStdin(fset *token.FileSet) (files map[string]*ast.File) {
+ 	}
+ 	const filename = "<standard input>"
+ 	if file := parse(fset, filename, src); file != nil {
+-		files[filename] = file
++		files = []*ast.File{file}
+ 	}
+ 	return
+ }
+ 
+-func parseFiles(fset *token.FileSet, filenames []string) (files map[string]*ast.File) {
+-	files = make(map[string]*ast.File)
++func parseFiles(fset *token.FileSet, filenames []string) (files []*ast.File) {
+ 	for _, filename := range filenames {
+ 		src, err := ioutil.ReadFile(filename)
+ 		if err != nil {
+@@ -115,11 +112,7 @@ func parseFiles(fset *token.FileSet, filenames []string) (files map[string]*ast.
+ 			continue
+ 		}
+ 		if file := parse(fset, filename, src); file != nil {
+-			if files[filename] != nil {
+-				report(errors.New(fmt.Sprintf("%q: duplicate file", filename)))
+-				continue
+-			}
+-			files[filename] = file
++			files = append(files, file)
+ 		}
+ 	}
+ 	return
+@@ -169,8 +162,8 @@ func processFiles(filenames []string, allFiles bool) {
+ 	processPackage(fset, parseFiles(fset, filenames[0:i]))
+ }
+ 
+-func processPackage(fset *token.FileSet, files map[string]*ast.File) {
+-	_, err := types.Check(fset, files)
++func processPackage(fset *token.FileSet, files []*ast.File) {
++	_, _, err := types.Check(fset, files)
+ 	if err != nil {
+ 		report(err)
+ 	}
+diff --git a/src/pkg/go/ast/scope.go b/src/pkg/go/ast/scope.go
+index 6edb31016e..c32369a518 100644
+--- a/src/pkg/go/ast/scope.go
++++ b/src/pkg/go/ast/scope.go
+@@ -64,19 +64,16 @@ func (s *Scope) String() string {
+ // ----------------------------------------------------------------------------
+ // Objects
+ 
+-// TODO(gri) Consider replacing the Object struct with an interface
+-//           and a corresponding set of object implementations.
+-
+ // An Object describes a named language entity such as a package,
+ // constant, type, variable, function (incl. methods), or label.
+ //
+ // The Data fields contains object-specific data:
+ //
+-//	Kind    Data type    Data value
+-//	Pkg	*Scope       package scope
+-//	Con     int          iota for the respective declaration
+-//	Con     != nil       constant value
+-//	Typ     *Scope       method scope; nil if no methods
++//	Kind    Data type         Data value
++//	Pkg	*types.Package    package scope
++//	Con     int               iota for the respective declaration
++//	Con     != nil            constant value
++//	Typ     *Scope            (used as method scope during type checking - transient)
+ //
+ type Object struct {
+ 	Kind ObjKind
+diff --git a/src/pkg/go/types/api.go b/src/pkg/go/types/api.go
+index 8ccd969a8d..c1d762e33c 100644
+--- a/src/pkg/go/types/api.go
++++ b/src/pkg/go/types/api.go
+@@ -41,9 +41,20 @@ type Context struct {
+ 	Expr func(x ast.Expr, typ Type, val interface{})
+ 
+ 	// If Import is not nil, it is used instead of GcImport.
+-	Import ast.Importer
++	Import Importer
+ }
+ 
++// An Importer resolves import paths to Package objects.
++// The imports map records the packages already imported,
++// indexed by package id (canonical import path).
++// An Importer must determine the canonical import path and
++// check the map to see if it is already present in the imports map.
++// If so, the Importer can return the map entry.  Otherwise, the
++// Importer should load the package data for the given path into
++// a new *Package, record pkg in the imports map, and then
++// return pkg.
++type Importer func(imports map[string]*Package, path string) (pkg *Package, err error)
++
+ // Default is the default context for type checking.
+ var Default = Context{
+ 	// TODO(gri) Perhaps this should depend on GOARCH?
+@@ -57,11 +68,17 @@ var Default = Context{
+ // it returns the first error. If the context's Error handler is nil,
+ // Check terminates as soon as the first error is encountered.
+ //
+-func (ctxt *Context) Check(fset *token.FileSet, files map[string]*ast.File) (*ast.Package, error) {
++// CAUTION: At the moment, the returned *ast.Package only contains the package
++//          name and scope - the other fields are not set up. The returned
++//          *Package contains the name and imports (but no scope yet). Once
++//          we have the scope moved from *ast.Scope to *Scope, only *Package
++//          will be returned.
++//
++func (ctxt *Context) Check(fset *token.FileSet, files []*ast.File) (*ast.Package, *Package, error) {
+ 	return check(ctxt, fset, files)
+ }
+ 
+ // Check is shorthand for Default.Check.
+-func Check(fset *token.FileSet, files map[string]*ast.File) (*ast.Package, error) {
++func Check(fset *token.FileSet, files []*ast.File) (*ast.Package, *Package, error) {
+ 	return Default.Check(fset, files)
+ }
+diff --git a/src/pkg/go/types/check.go b/src/pkg/go/types/check.go
+index cebba7abf5..158941b053 100644
+--- a/src/pkg/go/types/check.go
++++ b/src/pkg/go/types/check.go
+@@ -9,9 +9,7 @@ package types
+ import (
+ 	"fmt"
+ 	"go/ast"
+-	"go/scanner"
+ 	"go/token"
+-	"sort"
+ )
+ 
+ // enable for debugging
+@@ -23,6 +21,7 @@ type checker struct {
+ 	files []*ast.File
+ 
+ 	// lazily initialized
++	pkg      *Package
+ 	pkgscope *ast.Scope
+ 	firsterr error
+ 	initspec map[*ast.ValueSpec]*ast.ValueSpec // "inherited" type and initialization expressions for constant declarations
+@@ -164,7 +163,7 @@ func (check *checker) object(obj *ast.Object, cycleOk bool) {
+ 		check.valueSpec(spec.Pos(), obj, spec.Names, init.Type, init.Values, iota)
+ 
+ 	case ast.Typ:
+-		typ := &NamedType{Obj: obj}
++		typ := &NamedType{obj: obj}
+ 		obj.Type = typ // "mark" object so recursion terminates
+ 		typ.Underlying = underlying(check.typ(obj.Decl.(*ast.TypeSpec).Type, cycleOk))
+ 		// typecheck associated method signatures
+@@ -188,14 +187,18 @@ func (check *checker) object(obj *ast.Object, cycleOk bool) {
+ 				}
+ 			}
+ 			// typecheck method signatures
++			var methods []*Method
+ 			for _, obj := range scope.Objects {
+ 				mdecl := obj.Decl.(*ast.FuncDecl)
+ 				sig := check.typ(mdecl.Type, cycleOk).(*Signature)
+ 				params, _ := check.collectParams(mdecl.Recv, false)
+ 				sig.Recv = params[0] // the parser/assocMethod ensure there is exactly one parameter
+ 				obj.Type = sig
++				methods = append(methods, &Method{QualifiedName{check.pkg, obj.Name}, sig})
+ 				check.later(obj, sig, mdecl.Body)
+ 			}
++			typ.Methods = methods
++			obj.Data = nil // don't use obj.Data later, accidentally
+ 		}
+ 
+ 	case ast.Fun:
+@@ -346,33 +349,15 @@ func (check *checker) iterate(f func(*checker, ast.Decl)) {
+ 	}
+ }
+ 
+-// sortedFiles returns the sorted list of package files given a package file map.
+-func sortedFiles(m map[string]*ast.File) []*ast.File {
+-	keys := make([]string, len(m))
+-	i := 0
+-	for k, _ := range m {
+-		keys[i] = k
+-		i++
+-	}
+-	sort.Strings(keys)
+-
+-	files := make([]*ast.File, len(m))
+-	for i, k := range keys {
+-		files[i] = m[k]
+-	}
+-
+-	return files
+-}
+-
+ // A bailout panic is raised to indicate early termination.
+ type bailout struct{}
+ 
+-func check(ctxt *Context, fset *token.FileSet, files map[string]*ast.File) (pkg *ast.Package, err error) {
++func check(ctxt *Context, fset *token.FileSet, files []*ast.File) (astpkg *ast.Package, pkg *Package, err error) {
+ 	// initialize checker
+ 	check := checker{
+ 		ctxt:     ctxt,
+ 		fset:     fset,
+-		files:    sortedFiles(files),
++		files:    files,
+ 		initspec: make(map[*ast.ValueSpec]*ast.ValueSpec),
+ 	}
+ 
+@@ -394,8 +379,9 @@ func check(ctxt *Context, fset *token.FileSet, files map[string]*ast.File) (pkg
+ 	imp := ctxt.Import
+ 	if imp == nil {
+ 		// wrap GcImport to import packages only once by default.
++		// TODO(gri) move this into resolve
+ 		imported := make(map[string]bool)
+-		imp = func(imports map[string]*ast.Object, path string) (*ast.Object, error) {
++		imp = func(imports map[string]*Package, path string) (*Package, error) {
+ 			if imported[path] && imports[path] != nil {
+ 				return imports[path], nil
+ 			}
+@@ -406,17 +392,13 @@ func check(ctxt *Context, fset *token.FileSet, files map[string]*ast.File) (pkg
+ 			return pkg, err
+ 		}
+ 	}
+-	pkg, err = ast.NewPackage(fset, files, imp, Universe)
+-	if err != nil {
+-		if list, _ := err.(scanner.ErrorList); len(list) > 0 {
+-			for _, err := range list {
+-				check.err(err)
+-			}
+-		} else {
+-			check.err(err)
+-		}
+-	}
+-	check.pkgscope = pkg.Scope
++	astpkg, pkg = check.resolve(imp)
++
++	// Imported packages and all types refer to types.Objects,
++	// the current package files' AST uses ast.Objects.
++	// Use an ast.Scope for the current package scope.
++	check.pkg = pkg
++	check.pkgscope = astpkg.Scope
+ 
+ 	// determine missing constant initialization expressions
+ 	// and associate methods with types
+diff --git a/src/pkg/go/types/check_test.go b/src/pkg/go/types/check_test.go
+index 4e73d93baf..285c130596 100644
+--- a/src/pkg/go/types/check_test.go
++++ b/src/pkg/go/types/check_test.go
+@@ -88,18 +88,15 @@ func splitError(err error) (pos, msg string) {
+ 	return
+ }
+ 
+-func parseFiles(t *testing.T, testname string, filenames []string) (map[string]*ast.File, []error) {
+-	files := make(map[string]*ast.File)
++func parseFiles(t *testing.T, testname string, filenames []string) ([]*ast.File, []error) {
++	var files []*ast.File
+ 	var errlist []error
+ 	for _, filename := range filenames {
+-		if _, exists := files[filename]; exists {
+-			t.Fatalf("%s: duplicate file %s", testname, filename)
+-		}
+ 		file, err := parser.ParseFile(fset, filename, nil, parser.DeclarationErrors)
+ 		if file == nil {
+ 			t.Fatalf("%s: could not parse file %s", testname, filename)
+ 		}
+-		files[filename] = file
++		files = append(files, file)
+ 		if err != nil {
+ 			if list, _ := err.(scanner.ErrorList); len(list) > 0 {
+ 				for _, err := range list {
+@@ -121,10 +118,11 @@ var errRx = regexp.MustCompile(`^/\* *ERROR *"([^"]*)" *\*/$`)
+ // errMap collects the regular expressions of ERROR comments found
+ // in files and returns them as a map of error positions to error messages.
+ //
+-func errMap(t *testing.T, testname string, files map[string]*ast.File) map[string][]string {
++func errMap(t *testing.T, testname string, files []*ast.File) map[string][]string {
+ 	errmap := make(map[string][]string)
+ 
+-	for filename := range files {
++	for _, file := range files {
++		filename := fset.Position(file.Package).Filename
+ 		src, err := ioutil.ReadFile(filename)
+ 		if err != nil {
+ 			t.Fatalf("%s: could not read %s", testname, filename)
+@@ -236,8 +234,8 @@ func TestCheck(t *testing.T) {
+ 	// Declare builtins for testing.
+ 	// Not done in an init func to avoid an init race with
+ 	// the construction of the Universe var.
+-	def(ast.Fun, "assert").Type = &builtin{aType, _Assert, "assert", 1, false, true}
+-	def(ast.Fun, "trace").Type = &builtin{aType, _Trace, "trace", 0, true, true}
++	def(ast.Fun, "assert", &builtin{aType, _Assert, "assert", 1, false, true})
++	def(ast.Fun, "trace", &builtin{aType, _Trace, "trace", 0, true, true})
+ 
+ 	// For easy debugging w/o changing the testing code,
+ 	// if there is a local test file, only test that file.
+diff --git a/src/pkg/go/types/conversions.go b/src/pkg/go/types/conversions.go
+index cbaef8aa9a..5a6bea80d1 100644
+--- a/src/pkg/go/types/conversions.go
++++ b/src/pkg/go/types/conversions.go
+@@ -29,7 +29,7 @@ func (check *checker) conversion(x *operand, conv *ast.CallExpr, typ Type, iota
+ 	}
+ 
+ 	// TODO(gri) fix this - implement all checks and constant evaluation
+-	if x.mode != constant {
++	if x.mode != constant || !isConstType(typ) {
+ 		x.mode = value
+ 	}
+ 	x.expr = conv
+diff --git a/src/pkg/go/types/errors.go b/src/pkg/go/types/errors.go
+index 85a9db729e..96446949b4 100644
+--- a/src/pkg/go/types/errors.go
++++ b/src/pkg/go/types/errors.go
+@@ -311,7 +311,16 @@ func writeType(buf *bytes.Buffer, typ Type) {
+ 		writeType(buf, t.Elt)
+ 
+ 	case *NamedType:
+-		buf.WriteString(t.Obj.Name)
++		var s string
++		switch {
++		case t.obj != nil:
++			s = t.obj.Name
++		case t.Obj != nil:
++			s = t.Obj.GetName()
++		default:
++			s = "<NamedType w/o object>"
++		}
++		buf.WriteString(s)
+ 
+ 	default:
+ 		fmt.Fprintf(buf, "<type %T>", t)
+diff --git a/src/pkg/go/types/expr.go b/src/pkg/go/types/expr.go
+index 7b80978aad..99a038e26d 100644
+--- a/src/pkg/go/types/expr.go
++++ b/src/pkg/go/types/expr.go
+@@ -48,14 +48,14 @@ func (check *checker) collectParams(list *ast.FieldList, variadicOk bool) (param
+ 				obj := name.Obj
+ 				obj.Type = typ
+ 				last = obj
+-				params = append(params, &Var{obj.Name, typ})
++				params = append(params, &Var{Name: obj.Name, Type: typ})
+ 			}
+ 		} else {
+ 			// anonymous parameter
+ 			obj := ast.NewObj(ast.Var, "")
+ 			obj.Type = typ
+ 			last = obj
+-			params = append(params, &Var{obj.Name, typ})
++			params = append(params, &Var{Name: obj.Name, Type: typ})
+ 		}
+ 	}
+ 	// For a variadic function, change the last parameter's object type
+@@ -84,7 +84,7 @@ func (check *checker) collectMethods(list *ast.FieldList) (methods []*Method) {
+ 				continue
+ 			}
+ 			for _, name := range f.Names {
+-				methods = append(methods, &Method{name.Name, sig})
++				methods = append(methods, &Method{QualifiedName{check.pkg, name.Name}, sig})
+ 			}
+ 		} else {
+ 			// embedded interface
+@@ -137,15 +137,24 @@ func (check *checker) collectFields(list *ast.FieldList, cycleOk bool) (fields [
+ 		if len(f.Names) > 0 {
+ 			// named fields
+ 			for _, name := range f.Names {
+-				fields = append(fields, &Field{name.Name, typ, tag, false})
++				fields = append(fields, &Field{QualifiedName{check.pkg, name.Name}, typ, tag, false})
+ 			}
+ 		} else {
+ 			// anonymous field
+ 			switch t := deref(typ).(type) {
+ 			case *Basic:
+-				fields = append(fields, &Field{t.Name, typ, tag, true})
++				fields = append(fields, &Field{QualifiedName{check.pkg, t.Name}, typ, tag, true})
+ 			case *NamedType:
+-				fields = append(fields, &Field{t.Obj.Name, typ, tag, true})
++				var name string
++				switch {
++				case t.obj != nil:
++					name = t.obj.Name
++				case t.Obj != nil:
++					name = t.Obj.GetName()
++				default:
++					unreachable()
++				}
++				fields = append(fields, &Field{QualifiedName{check.pkg, name}, typ, tag, true})
+ 			default:
+ 				if typ != Typ[Invalid] {
+ 					check.invalidAST(f.Type.Pos(), "anonymous field type %s must be named", typ)
+@@ -183,9 +192,6 @@ func (check *checker) unary(x *operand, op token.Token) {
+ 	case token.AND:
+ 		// spec: "As an exception to the addressability
+ 		// requirement x may also be a composite literal."
+-		// (The spec doesn't specify whether the literal
+-		// can be parenthesized or not, but all compilers
+-		// accept parenthesized literals.)
+ 		if _, ok := unparen(x.expr).(*ast.CompositeLit); ok {
+ 			x.mode = variable
+ 		}
+@@ -872,29 +878,33 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 		// selector expressions.
+ 		if ident, ok := e.X.(*ast.Ident); ok {
+ 			if obj := ident.Obj; obj != nil && obj.Kind == ast.Pkg {
+-				exp := obj.Data.(*ast.Scope).Lookup(sel)
++				exp := obj.Data.(*Package).Scope.Lookup(sel)
+ 				if exp == nil {
+ 					check.errorf(e.Sel.Pos(), "cannot refer to unexported %s", sel)
+ 					goto Error
+ 				}
+-				// simplified version of the code for *ast.Idents:
+-				// imported objects are always fully initialized
+-				switch exp.Kind {
+-				case ast.Con:
+-					assert(exp.Data != nil)
++				// Simplified version of the code for *ast.Idents:
++				// - imported packages use types.Scope and types.Objects
++				// - imported objects are always fully initialized
++				switch exp := exp.(type) {
++				case *Const:
++					assert(exp.Val != nil)
+ 					x.mode = constant
+-					x.val = exp.Data
+-				case ast.Typ:
++					x.typ = exp.Type
++					x.val = exp.Val
++				case *TypeName:
+ 					x.mode = typexpr
+-				case ast.Var:
++					x.typ = exp.Type
++				case *Var:
+ 					x.mode = variable
+-				case ast.Fun:
++					x.typ = exp.Type
++				case *Func:
+ 					x.mode = value
++					x.typ = exp.Type
+ 				default:
+ 					unreachable()
+ 				}
+ 				x.expr = e
+-				x.typ = exp.Type.(Type)
+ 				return
+ 			}
+ 		}
+@@ -903,7 +913,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 		if x.mode == invalid {
+ 			goto Error
+ 		}
+-		mode, typ := lookupField(x.typ, sel)
++		mode, typ := lookupField(x.typ, QualifiedName{check.pkg, sel})
+ 		if mode == invalid {
+ 			check.invalidOp(e.Pos(), "%s has no single field or method %s", x, sel)
+ 			goto Error
+@@ -921,7 +931,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 			// pointer vs non-pointer receivers => typechecker is too lenient
+ 			x.mode = value
+ 			x.typ = &Signature{
+-				Params:     append([]*Var{{"", x.typ}}, sig.Params...),
++				Params:     append([]*Var{{Type: x.typ}}, sig.Params...),
+ 				Results:    sig.Results,
+ 				IsVariadic: sig.IsVariadic,
+ 			}
+diff --git a/src/pkg/go/types/gcimporter.go b/src/pkg/go/types/gcimporter.go
+index 96603b1a0f..7af014acda 100644
+--- a/src/pkg/go/types/gcimporter.go
++++ b/src/pkg/go/types/gcimporter.go
+@@ -2,8 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This file implements an ast.Importer for gc-generated object files.
+-// TODO(gri) Eventually move this into a separate package outside types.
++// This file implements an Importer for gc-generated object files.
+ 
+ package types
+ 
+@@ -83,7 +82,7 @@ func FindPkg(path, srcDir string) (filename, id string) {
+ // be the beginning of the export data section. The filename is only used
+ // in error messages.
+ //
+-func GcImportData(imports map[string]*ast.Object, filename, id string, data *bufio.Reader) (pkg *ast.Object, err error) {
++func GcImportData(imports map[string]*Package, filename, id string, data *bufio.Reader) (pkg *Package, err error) {
+ 	// support for gcParser error handling
+ 	defer func() {
+ 		if r := recover(); r != nil {
+@@ -104,7 +103,7 @@ func GcImportData(imports map[string]*ast.Object, filename, id string, data *buf
+ // The imports map must contains all packages already imported.
+ // GcImport satisfies the ast.Importer signature.
+ //
+-func GcImport(imports map[string]*ast.Object, path string) (pkg *ast.Object, err error) {
++func GcImport(imports map[string]*Package, path string) (pkg *Package, err error) {
+ 	if path == "unsafe" {
+ 		return Unsafe, nil
+ 	}
+@@ -156,13 +155,13 @@ func GcImport(imports map[string]*ast.Object, path string) (pkg *ast.Object, err
+ // object/archive file and populates its scope with the results.
+ type gcParser struct {
+ 	scanner scanner.Scanner
+-	tok     rune                   // current token
+-	lit     string                 // literal string; only valid for Ident, Int, String tokens
+-	id      string                 // package id of imported package
+-	imports map[string]*ast.Object // package id -> package object
++	tok     rune                // current token
++	lit     string              // literal string; only valid for Ident, Int, String tokens
++	id      string              // package id of imported package
++	imports map[string]*Package // package id -> package object
+ }
+ 
+-func (p *gcParser) init(filename, id string, src io.Reader, imports map[string]*ast.Object) {
++func (p *gcParser) init(filename, id string, src io.Reader, imports map[string]*Package) {
+ 	p.scanner.Init(src)
+ 	p.scanner.Error = func(_ *scanner.Scanner, msg string) { p.error(msg) }
+ 	p.scanner.Mode = scanner.ScanIdents | scanner.ScanInts | scanner.ScanChars | scanner.ScanStrings | scanner.ScanComments | scanner.SkipComments
+@@ -187,27 +186,45 @@ func (p *gcParser) next() {
+ 	}
+ }
+ 
+-// Declare inserts a named object of the given kind in scope.
+-func (p *gcParser) declare(scope *ast.Scope, kind ast.ObjKind, name string) *ast.Object {
+-	// the object may have been imported before - if it exists
+-	// already in the respective package scope, return that object
++func declConst(scope *Scope, name string) *Const {
++	// the constant may have been imported before - if it exists
++	// already in the respective scope, return that constant
+ 	if obj := scope.Lookup(name); obj != nil {
+-		assert(obj.Kind == kind)
+-		return obj
++		return obj.(*Const)
+ 	}
++	// otherwise create a new constant and insert it into the scope
++	obj := &Const{Name: name}
++	scope.Insert(obj)
++	return obj
++}
+ 
+-	// otherwise create a new object and insert it into the package scope
+-	obj := ast.NewObj(kind, name)
+-	if scope.Insert(obj) != nil {
+-		unreachable() // Lookup should have found it
++func declTypeName(scope *Scope, name string) *TypeName {
++	if obj := scope.Lookup(name); obj != nil {
++		return obj.(*TypeName)
+ 	}
++	obj := &TypeName{Name: name}
++	// a named type may be referred to before the underlying type
++	// is known - set it up
++	obj.Type = &NamedType{Obj: obj}
++	scope.Insert(obj)
++	return obj
++}
+ 
+-	// if the new type object is a named type it may be referred
+-	// to before the underlying type is known - set it up
+-	if kind == ast.Typ {
+-		obj.Type = &NamedType{Obj: obj}
++func declVar(scope *Scope, name string) *Var {
++	if obj := scope.Lookup(name); obj != nil {
++		return obj.(*Var)
+ 	}
++	obj := &Var{Name: name}
++	scope.Insert(obj)
++	return obj
++}
+ 
++func declFunc(scope *Scope, name string) *Func {
++	if obj := scope.Lookup(name); obj != nil {
++		return obj.(*Func)
++	}
++	obj := &Func{Name: name}
++	scope.Insert(obj)
+ 	return obj
+ }
+ 
+@@ -270,7 +287,7 @@ func (p *gcParser) expectKeyword(keyword string) {
+ 
+ // ImportPath = string_lit .
+ //
+-func (p *gcParser) parsePkgId() *ast.Object {
++func (p *gcParser) parsePkgId() *Package {
+ 	id, err := strconv.Unquote(p.expect(scanner.String))
+ 	if err != nil {
+ 		p.error(err)
+@@ -288,8 +305,7 @@ func (p *gcParser) parsePkgId() *ast.Object {
+ 
+ 	pkg := p.imports[id]
+ 	if pkg == nil {
+-		pkg = ast.NewObj(ast.Pkg, "")
+-		pkg.Data = ast.NewScope(nil)
++		pkg = &Package{Scope: new(Scope)}
+ 		p.imports[id] = pkg
+ 	}
+ 
+@@ -315,7 +331,7 @@ func (p *gcParser) parseDotIdent() string {
+ 
+ // ExportedName = "@" ImportPath "." dotIdentifier .
+ //
+-func (p *gcParser) parseExportedName() (*ast.Object, string) {
++func (p *gcParser) parseExportedName() (*Package, string) {
+ 	p.expect('@')
+ 	pkg := p.parsePkgId()
+ 	p.expect('.')
+@@ -364,7 +380,7 @@ func (p *gcParser) parseMapType() Type {
+ 
+ // Name = identifier | "?" | ExportedName  .
+ //
+-func (p *gcParser) parseName() (name string) {
++func (p *gcParser) parseName() (pkg *Package, name string) {
+ 	switch p.tok {
+ 	case scanner.Ident:
+ 		name = p.lit
+@@ -374,7 +390,7 @@ func (p *gcParser) parseName() (name string) {
+ 		p.next()
+ 	case '@':
+ 		// exported name prefixed with package path
+-		_, name = p.parseExportedName()
++		pkg, name = p.parseExportedName()
+ 	default:
+ 		p.error("name expected")
+ 	}
+@@ -385,7 +401,7 @@ func (p *gcParser) parseName() (name string) {
+ //
+ func (p *gcParser) parseField() *Field {
+ 	var f Field
+-	f.Name = p.parseName()
++	f.Pkg, f.Name = p.parseName()
+ 	f.Type = p.parseType()
+ 	if p.tok == scanner.String {
+ 		f.Tag = p.expect(scanner.String)
+@@ -393,7 +409,7 @@ func (p *gcParser) parseField() *Field {
+ 	if f.Name == "" {
+ 		// anonymous field - typ must be T or *T and T must be a type name
+ 		if typ, ok := deref(f.Type).(*NamedType); ok && typ.Obj != nil {
+-			f.Name = typ.Obj.Name
++			f.Name = typ.Obj.GetName()
+ 			f.IsAnonymous = true
+ 		} else {
+ 			p.errorf("anonymous field expected")
+@@ -424,7 +440,7 @@ func (p *gcParser) parseStructType() Type {
+ // Parameter = ( identifier | "?" ) [ "..." ] Type [ string_lit ] .
+ //
+ func (p *gcParser) parseParameter() (par *Var, isVariadic bool) {
+-	name := p.parseName()
++	_, name := p.parseName()
+ 	if name == "" {
+ 		name = "_" // cannot access unnamed identifiers
+ 	}
+@@ -437,7 +453,7 @@ func (p *gcParser) parseParameter() (par *Var, isVariadic bool) {
+ 	if p.tok == scanner.String {
+ 		p.next()
+ 	}
+-	par = &Var{name, typ}
++	par = &Var{Name: name, Type: typ}
+ 	return
+ }
+ 
+@@ -475,7 +491,7 @@ func (p *gcParser) parseSignature() *Signature {
+ 	switch p.tok {
+ 	case scanner.Ident, '[', '*', '<', '@':
+ 		// single, unnamed result
+-		results = []*Var{{"", p.parseType()}}
++		results = []*Var{{Type: p.parseType()}}
+ 	case '(':
+ 		// named or multiple result(s)
+ 		var variadic bool
+@@ -505,9 +521,9 @@ func (p *gcParser) parseInterfaceType() Type {
+ 		if len(methods) > 0 {
+ 			p.expect(';')
+ 		}
+-		name := p.parseName()
++		pkg, name := p.parseName()
+ 		typ := p.parseSignature()
+-		methods = append(methods, &Method{name, typ})
++		methods = append(methods, &Method{QualifiedName{pkg, name}, typ})
+ 	}
+ 	p.expect('}')
+ 
+@@ -566,7 +582,7 @@ func (p *gcParser) parseType() Type {
+ 	case '@':
+ 		// TypeName
+ 		pkg, name := p.parseExportedName()
+-		return p.declare(pkg.Data.(*ast.Scope), ast.Typ, name).Type.(Type)
++		return declTypeName(pkg.Scope, name).Type
+ 	case '[':
+ 		p.next() // look ahead
+ 		if p.tok == ']' {
+@@ -674,7 +690,7 @@ func (p *gcParser) parseNumber() (x operand) {
+ func (p *gcParser) parseConstDecl() {
+ 	p.expectKeyword("const")
+ 	pkg, name := p.parseExportedName()
+-	obj := p.declare(pkg.Data.(*ast.Scope), ast.Con, name)
++	obj := declConst(pkg.Scope, name)
+ 	var x operand
+ 	if p.tok != '=' {
+ 		obj.Type = p.parseType()
+@@ -732,7 +748,7 @@ func (p *gcParser) parseConstDecl() {
+ 		obj.Type = x.typ
+ 	}
+ 	assert(x.val != nil)
+-	obj.Data = x.val
++	obj.Val = x.val
+ }
+ 
+ // TypeDecl = "type" ExportedName Type .
+@@ -740,7 +756,7 @@ func (p *gcParser) parseConstDecl() {
+ func (p *gcParser) parseTypeDecl() {
+ 	p.expectKeyword("type")
+ 	pkg, name := p.parseExportedName()
+-	obj := p.declare(pkg.Data.(*ast.Scope), ast.Typ, name)
++	obj := declTypeName(pkg.Scope, name)
+ 
+ 	// The type object may have been imported before and thus already
+ 	// have a type associated with it. We still need to parse the type
+@@ -759,17 +775,15 @@ func (p *gcParser) parseTypeDecl() {
+ func (p *gcParser) parseVarDecl() {
+ 	p.expectKeyword("var")
+ 	pkg, name := p.parseExportedName()
+-	obj := p.declare(pkg.Data.(*ast.Scope), ast.Var, name)
++	obj := declVar(pkg.Scope, name)
+ 	obj.Type = p.parseType()
+ }
+ 
+ // Func = Signature [ Body ] .
+ // Body = "{" ... "}" .
+ //
+-func (p *gcParser) parseFunc(scope *ast.Scope, name string) *Signature {
+-	obj := p.declare(scope, ast.Fun, name)
++func (p *gcParser) parseFunc() *Signature {
+ 	sig := p.parseSignature()
+-	obj.Type = sig
+ 	if p.tok == '{' {
+ 		p.next()
+ 		for i := 1; i > 0; p.next() {
+@@ -794,25 +808,26 @@ func (p *gcParser) parseMethodDecl() {
+ 	p.expect(')')
+ 
+ 	// determine receiver base type object
+-	typ := recv.Type.(Type)
++	typ := recv.Type
+ 	if ptr, ok := typ.(*Pointer); ok {
+ 		typ = ptr.Base
+ 	}
+-	obj := typ.(*NamedType).Obj
+-
+-	// determine base type scope
+-	var scope *ast.Scope
+-	if obj.Data != nil {
+-		scope = obj.Data.(*ast.Scope)
+-	} else {
+-		scope = ast.NewScope(nil)
+-		obj.Data = scope
+-	}
++	base := typ.(*NamedType)
+ 
+-	// declare method in base type scope
+-	name := p.parseName() // unexported method names in imports are qualified with their package.
+-	sig := p.parseFunc(scope, name)
++	// parse method name, signature, and possibly inlined body
++	pkg, name := p.parseName() // unexported method names in imports are qualified with their package.
++	sig := p.parseFunc()
+ 	sig.Recv = recv
++
++	// add method to type unless type was imported before
++	// and method exists already
++	// TODO(gri) investigate if this can be avoided
++	for _, m := range base.Methods {
++		if m.Name == name {
++			return // method was added before
++		}
++	}
++	base.Methods = append(base.Methods, &Method{QualifiedName{pkg, name}, sig})
+ }
+ 
+ // FuncDecl = "func" ExportedName Func .
+@@ -820,7 +835,8 @@ func (p *gcParser) parseMethodDecl() {
+ func (p *gcParser) parseFuncDecl() {
+ 	// "func" already consumed
+ 	pkg, name := p.parseExportedName()
+-	p.parseFunc(pkg.Data.(*ast.Scope), name)
++	typ := p.parseFunc()
++	declFunc(pkg.Scope, name).Type = typ
+ }
+ 
+ // Decl = [ ImportDecl | ConstDecl | TypeDecl | VarDecl | FuncDecl | MethodDecl ] "\n" .
+@@ -852,7 +868,7 @@ func (p *gcParser) parseDecl() {
+ // Export        = "PackageClause { Decl } "$$" .
+ // PackageClause = "package" identifier [ "safe" ] "\n" .
+ //
+-func (p *gcParser) parseExport() *ast.Object {
++func (p *gcParser) parseExport() *Package {
+ 	p.expectKeyword("package")
+ 	name := p.expect(scanner.Ident)
+ 	if p.tok != '\n' {
+@@ -865,8 +881,7 @@ func (p *gcParser) parseExport() *ast.Object {
+ 
+ 	pkg := p.imports[p.id]
+ 	if pkg == nil {
+-		pkg = ast.NewObj(ast.Pkg, name)
+-		pkg.Data = ast.NewScope(nil)
++		pkg = &Package{Name: name, Scope: new(Scope)}
+ 		p.imports[p.id] = pkg
+ 	}
+ 
+diff --git a/src/pkg/go/types/gcimporter_test.go b/src/pkg/go/types/gcimporter_test.go
+index 5f3236e0f3..8a2e8c21d5 100644
+--- a/src/pkg/go/types/gcimporter_test.go
++++ b/src/pkg/go/types/gcimporter_test.go
+@@ -51,7 +51,7 @@ func compile(t *testing.T, dirname, filename string) string {
+ 
+ // Use the same global imports map for all tests. The effect is
+ // as if all tested packages were imported into a single package.
+-var imports = make(map[string]*ast.Object)
++var imports = make(map[string]*Package)
+ 
+ func testPath(t *testing.T, path string) bool {
+ 	t0 := time.Now()
+@@ -147,12 +147,34 @@ func TestGcImportedTypes(t *testing.T) {
+ 			continue
+ 		}
+ 
+-		obj := pkg.Data.(*ast.Scope).Lookup(objName)
+-		if obj.Kind != test.kind {
+-			t.Errorf("%s: got kind = %q; want %q", test.name, obj.Kind, test.kind)
++		obj := pkg.Scope.Lookup(objName)
++
++		// TODO(gri) should define an accessor on Object
++		var kind ast.ObjKind
++		var typ Type
++		switch obj := obj.(type) {
++		case *Const:
++			kind = ast.Con
++			typ = obj.Type
++		case *TypeName:
++			kind = ast.Typ
++			typ = obj.Type
++		case *Var:
++			kind = ast.Var
++			typ = obj.Type
++		case *Func:
++			kind = ast.Fun
++			typ = obj.Type
++		default:
++			unreachable()
+ 		}
+-		typ := typeString(underlying(obj.Type.(Type)))
+-		if typ != test.typ {
++
++		if kind != test.kind {
++			t.Errorf("%s: got kind = %q; want %q", test.name, kind, test.kind)
++		}
++
++		str := typeString(underlying(typ))
++		if str != test.typ {
+ 			t.Errorf("%s: got type = %q; want %q", test.name, typ, test.typ)
+ 		}
+ 	}
+diff --git a/src/pkg/go/types/objects.go b/src/pkg/go/types/objects.go
+new file mode 100644
+index 0000000000..39b5b06ed5
+--- /dev/null
++++ b/src/pkg/go/types/objects.go
+@@ -0,0 +1,120 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package types
++
++// An Object describes a named language entity such as a package,
++// constant, type, variable, function (incl. methods), or label.
++// All objects implement the Object interface.
++//
++type Object interface {
++	anObject()
++	GetName() string
++}
++
++// A Package represents the contents (objects) of a Go package.
++type Package struct {
++	implementsObject
++	Name    string
++	Path    string              // import path, "" for current (non-imported) package
++	Scope   *Scope              // nil for current (non-imported) package for now
++	Imports map[string]*Package // map of import paths to packages
++}
++
++// A Const represents a declared constant.
++type Const struct {
++	implementsObject
++	Name string
++	Type Type
++	Val  interface{}
++}
++
++// A TypeName represents a declared type.
++type TypeName struct {
++	implementsObject
++	Name string
++	Type Type // *NamedType or *Basic
++}
++
++// A Variable represents a declared variable (including function parameters and results).
++type Var struct {
++	implementsObject
++	Name string
++	Type Type
++}
++
++// A Func represents a declared function.
++type Func struct {
++	implementsObject
++	Name string
++	Type Type // *Signature or *Builtin
++}
++
++func (obj *Package) GetName() string  { return obj.Name }
++func (obj *Const) GetName() string    { return obj.Name }
++func (obj *TypeName) GetName() string { return obj.Name }
++func (obj *Var) GetName() string      { return obj.Name }
++func (obj *Func) GetName() string     { return obj.Name }
++
++func (obj *Package) GetType() Type  { return nil }
++func (obj *Const) GetType() Type    { return obj.Type }
++func (obj *TypeName) GetType() Type { return obj.Type }
++func (obj *Var) GetType() Type      { return obj.Type }
++func (obj *Func) GetType() Type     { return obj.Type }
++
++// All concrete objects embed implementsObject which
++// ensures that they all implement the Object interface.
++type implementsObject struct{}
++
++func (*implementsObject) anObject() {}
++
++// A Scope maintains the set of named language entities declared
++// in the scope and a link to the immediately surrounding (outer)
++// scope.
++//
++type Scope struct {
++	Outer *Scope
++	Elems []Object          // scope entries in insertion order
++	large map[string]Object // for fast lookup - only used for larger scopes
++}
++
++// Lookup returns the object with the given name if it is
++// found in scope s, otherwise it returns nil. Outer scopes
++// are ignored.
++//
++func (s *Scope) Lookup(name string) Object {
++	if s.large != nil {
++		return s.large[name]
++	}
++	for _, obj := range s.Elems {
++		if obj.GetName() == name {
++			return obj
++		}
++	}
++	return nil
++}
++
++// Insert attempts to insert an object obj into scope s.
++// If s already contains an object with the same name,
++// Insert leaves s unchanged and returns that object.
++// Otherwise it inserts obj and returns nil.
++//
++func (s *Scope) Insert(obj Object) Object {
++	name := obj.GetName()
++	if alt := s.Lookup(name); alt != nil {
++		return alt
++	}
++	s.Elems = append(s.Elems, obj)
++	if len(s.Elems) > 20 {
++		if s.large == nil {
++			m := make(map[string]Object, len(s.Elems))
++			for _, obj := range s.Elems {
++				m[obj.GetName()] = obj
++			}
++			s.large = m
++		}
++		s.large[name] = obj
++	}
++	return nil
++}
+diff --git a/src/pkg/go/types/operand.go b/src/pkg/go/types/operand.go
+index f85e6b4036..77aacacdc9 100644
+--- a/src/pkg/go/types/operand.go
++++ b/src/pkg/go/types/operand.go
+@@ -222,11 +222,11 @@ type embeddedType struct {
+ }
+ 
+ // lookupFieldBreadthFirst searches all types in list for a single entry (field
+-// or method) of the given name. If such a field is found, the result describes
+-// the field mode and type; otherwise the result mode is invalid.
++// or method) of the given name from the given package. If such a field is found,
++// the result describes the field mode and type; otherwise the result mode is invalid.
+ // (This function is similar in structure to FieldByNameFunc in reflect/type.go)
+ //
+-func lookupFieldBreadthFirst(list []embeddedType, name string) (res lookupResult) {
++func lookupFieldBreadthFirst(list []embeddedType, name QualifiedName) (res lookupResult) {
+ 	// visited records the types that have been searched already.
+ 	visited := make(map[*NamedType]bool)
+ 
+@@ -265,20 +265,23 @@ func lookupFieldBreadthFirst(list []embeddedType, name string) (res lookupResult
+ 			visited[typ] = true
+ 
+ 			// look for a matching attached method
+-			if data := typ.Obj.Data; data != nil {
+-				if obj := data.(*ast.Scope).Lookup(name); obj != nil {
+-					assert(obj.Type != nil)
+-					if !potentialMatch(e.multiples, value, obj.Type.(Type)) {
++			if typ.obj != nil {
++				assert(typ.obj.Data == nil) // methods must have been moved to typ.Methods
++			}
++			for _, m := range typ.Methods {
++				if identicalNames(name, m.QualifiedName) {
++					assert(m.Type != nil)
++					if !potentialMatch(e.multiples, value, m.Type) {
+ 						return // name collision
+ 					}
+ 				}
+ 			}
+ 
+-			switch typ := underlying(typ).(type) {
++			switch t := typ.Underlying.(type) {
+ 			case *Struct:
+ 				// look for a matching field and collect embedded types
+-				for _, f := range typ.Fields {
+-					if f.Name == name {
++				for _, f := range t.Fields {
++					if identicalNames(name, f.QualifiedName) {
+ 						assert(f.Type != nil)
+ 						if !potentialMatch(e.multiples, variable, f.Type) {
+ 							return // name collision
+@@ -301,8 +304,8 @@ func lookupFieldBreadthFirst(list []embeddedType, name string) (res lookupResult
+ 
+ 			case *Interface:
+ 				// look for a matching method
+-				for _, m := range typ.Methods {
+-					if m.Name == name {
++				for _, m := range t.Methods {
++					if identicalNames(name, m.QualifiedName) {
+ 						assert(m.Type != nil)
+ 						if !potentialMatch(e.multiples, value, m.Type) {
+ 							return // name collision
+@@ -348,23 +351,27 @@ func findType(list []embeddedType, typ *NamedType) *embeddedType {
+ 	return nil
+ }
+ 
+-func lookupField(typ Type, name string) (operandMode, Type) {
++func lookupField(typ Type, name QualifiedName) (operandMode, Type) {
+ 	typ = deref(typ)
+ 
+-	if typ, ok := typ.(*NamedType); ok {
+-		if data := typ.Obj.Data; data != nil {
+-			if obj := data.(*ast.Scope).Lookup(name); obj != nil {
+-				assert(obj.Type != nil)
+-				return value, obj.Type.(Type)
++	if t, ok := typ.(*NamedType); ok {
++		if t.obj != nil {
++			assert(t.obj.Data == nil) // methods must have been moved to t.Methods
++		}
++		for _, m := range t.Methods {
++			if identicalNames(name, m.QualifiedName) {
++				assert(m.Type != nil)
++				return value, m.Type
+ 			}
+ 		}
++		typ = t.Underlying
+ 	}
+ 
+-	switch typ := underlying(typ).(type) {
++	switch t := typ.(type) {
+ 	case *Struct:
+ 		var next []embeddedType
+-		for _, f := range typ.Fields {
+-			if f.Name == name {
++		for _, f := range t.Fields {
++			if identicalNames(name, f.QualifiedName) {
+ 				return variable, f.Type
+ 			}
+ 			if f.IsAnonymous {
+@@ -380,8 +387,8 @@ func lookupField(typ Type, name string) (operandMode, Type) {
+ 		}
+ 
+ 	case *Interface:
+-		for _, m := range typ.Methods {
+-			if m.Name == name {
++		for _, m := range t.Methods {
++			if identicalNames(name, m.QualifiedName) {
+ 				return value, m.Type
+ 			}
+ 		}
+diff --git a/src/pkg/go/types/predicates.go b/src/pkg/go/types/predicates.go
+index 0f4aad6a12..b16b8ce7b0 100644
+--- a/src/pkg/go/types/predicates.go
++++ b/src/pkg/go/types/predicates.go
+@@ -6,6 +6,8 @@
+ 
+ package types
+ 
++import "go/ast"
++
+ func isNamed(typ Type) bool {
+ 	if _, ok := typ.(*Basic); ok {
+ 		return ok
+@@ -126,11 +128,10 @@ func isIdentical(x, y Type) bool {
+ 		// and identical tags. Two anonymous fields are considered to have the same
+ 		// name. Lower-case field names from different packages are always different.
+ 		if y, ok := y.(*Struct); ok {
+-			// TODO(gri) handle structs from different packages
+ 			if len(x.Fields) == len(y.Fields) {
+ 				for i, f := range x.Fields {
+ 					g := y.Fields[i]
+-					if f.Name != g.Name ||
++					if !identicalNames(f.QualifiedName, g.QualifiedName) ||
+ 						!isIdentical(f.Type, g.Type) ||
+ 						f.Tag != g.Tag ||
+ 						f.IsAnonymous != g.IsAnonymous {
+@@ -183,13 +184,31 @@ func isIdentical(x, y Type) bool {
+ 		// Two named types are identical if their type names originate
+ 		// in the same type declaration.
+ 		if y, ok := y.(*NamedType); ok {
+-			return x.Obj == y.Obj
++			switch {
++			case x.obj != nil:
++				return x.obj == y.obj
++			case x.Obj != nil:
++				return x.Obj == y.Obj
++			default:
++				unreachable()
++			}
+ 		}
+ 	}
+ 
+ 	return false
+ }
+ 
++// identicalNames returns true if the names a and b are equal.
++func identicalNames(a, b QualifiedName) bool {
++	if a.Name != b.Name {
++		return false
++	}
++	// a.Name == b.Name
++	// TODO(gri) Guarantee that packages are canonicalized
++	//           and then we can compare p == q directly.
++	return ast.IsExported(a.Name) || a.Pkg.Path == b.Pkg.Path
++}
++
+ // identicalTypes returns true if both lists a and b have the
+ // same length and corresponding objects have identical types.
+ func identicalTypes(a, b []*Var) bool {
+@@ -212,12 +231,13 @@ func identicalMethods(a, b []*Method) bool {
+ 	if len(a) != len(b) {
+ 		return false
+ 	}
+-	m := make(map[string]*Method)
++	m := make(map[QualifiedName]*Method)
+ 	for _, x := range a {
+-		m[x.Name] = x
++		assert(m[x.QualifiedName] == nil) // method list must not have duplicate entries
++		m[x.QualifiedName] = x
+ 	}
+ 	for _, y := range b {
+-		if x := m[y.Name]; x == nil || !isIdentical(x.Type, y.Type) {
++		if x := m[y.QualifiedName]; x == nil || !isIdentical(x.Type, y.Type) {
+ 			return false
+ 		}
+ 	}
+@@ -275,12 +295,13 @@ func defaultType(typ Type) Type {
+ // is missing or simply has the wrong type.
+ //
+ func missingMethod(typ Type, T *Interface) (method *Method, wrongType bool) {
++	// TODO(gri): this needs to correctly compare method names (taking package into account)
+ 	// TODO(gri): distinguish pointer and non-pointer receivers
+ 	// an interface type implements T if it has no methods with conflicting signatures
+ 	// Note: This is stronger than the current spec. Should the spec require this?
+ 	if ityp, _ := underlying(typ).(*Interface); ityp != nil {
+ 		for _, m := range T.Methods {
+-			mode, sig := lookupField(ityp, m.Name) // TODO(gri) no need to go via lookupField
++			mode, sig := lookupField(ityp, m.QualifiedName) // TODO(gri) no need to go via lookupField
+ 			if mode != invalid && !isIdentical(sig, m.Type) {
+ 				return m, true
+ 			}
+@@ -290,7 +311,7 @@ func missingMethod(typ Type, T *Interface) (method *Method, wrongType bool) {
+ 
+ 	// a concrete type implements T if it implements all methods of T.
+ 	for _, m := range T.Methods {
+-		mode, sig := lookupField(typ, m.Name)
++		mode, sig := lookupField(typ, m.QualifiedName)
+ 		if mode == invalid {
+ 			return m, false
+ 		}
+diff --git a/src/pkg/go/types/resolve.go b/src/pkg/go/types/resolve.go
+new file mode 100644
+index 0000000000..031be28fd9
+--- /dev/null
++++ b/src/pkg/go/types/resolve.go
+@@ -0,0 +1,146 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package types
++
++import (
++	"fmt"
++	"go/ast"
++	"strconv"
++)
++
++func (check *checker) declareObj(scope, altScope *ast.Scope, obj *ast.Object) {
++	alt := scope.Insert(obj)
++	if alt == nil && altScope != nil {
++		// see if there is a conflicting declaration in altScope
++		alt = altScope.Lookup(obj.Name)
++	}
++	if alt != nil {
++		prevDecl := ""
++		if pos := alt.Pos(); pos.IsValid() {
++			prevDecl = fmt.Sprintf("\n\tprevious declaration at %s", check.fset.Position(pos))
++		}
++		check.errorf(obj.Pos(), fmt.Sprintf("%s redeclared in this block%s", obj.Name, prevDecl))
++	}
++}
++
++func resolve(scope *ast.Scope, ident *ast.Ident) bool {
++	for ; scope != nil; scope = scope.Outer {
++		if obj := scope.Lookup(ident.Name); obj != nil {
++			ident.Obj = obj
++			return true
++		}
++	}
++	// handle universe scope lookups
++	return false
++}
++
++// TODO(gri) eventually resolve should only return *Package.
++func (check *checker) resolve(importer Importer) (*ast.Package, *Package) {
++	// complete package scope
++	pkgName := ""
++	pkgScope := ast.NewScope(Universe)
++
++	i := 0
++	for _, file := range check.files {
++		// package names must match
++		switch name := file.Name.Name; {
++		case pkgName == "":
++			pkgName = name
++		case name != pkgName:
++			check.errorf(file.Package, "package %s; expected %s", name, pkgName)
++			continue // ignore this file
++		}
++
++		// keep this file
++		check.files[i] = file
++		i++
++
++		// collect top-level file objects in package scope
++		for _, obj := range file.Scope.Objects {
++			check.declareObj(pkgScope, nil, obj)
++		}
++	}
++	check.files = check.files[0:i]
++
++	// package global mapping of imported package ids to package objects
++	imports := make(map[string]*Package)
++
++	// complete file scopes with imports and resolve identifiers
++	for _, file := range check.files {
++		// build file scope by processing all imports
++		importErrors := false
++		fileScope := ast.NewScope(pkgScope)
++		for _, spec := range file.Imports {
++			if importer == nil {
++				importErrors = true
++				continue
++			}
++			path, _ := strconv.Unquote(spec.Path.Value)
++			pkg, err := importer(imports, path)
++			if err != nil {
++				check.errorf(spec.Path.Pos(), "could not import %s (%s)", path, err)
++				importErrors = true
++				continue
++			}
++			// TODO(gri) If a local package name != "." is provided,
++			// global identifier resolution could proceed even if the
++			// import failed. Consider adjusting the logic here a bit.
++
++			// local name overrides imported package name
++			name := pkg.Name
++			if spec.Name != nil {
++				name = spec.Name.Name
++			}
++
++			// add import to file scope
++			if name == "." {
++				// merge imported scope with file scope
++				// TODO(gri) Imported packages use Objects but the current
++				//           package scope is based on ast.Scope and ast.Objects
++				//           at the moment. Don't try to convert the imported
++				//           objects for now. Once we get rid of ast.Object
++				//           dependency, this loop can be enabled again.
++				panic("cannot handle dot-import")
++				/*
++					for _, obj := range pkg.Scope.Elems {
++						check.declareObj(fileScope, pkgScope, obj)
++					}
++				*/
++			} else if name != "_" {
++				// declare imported package object in file scope
++				// (do not re-use pkg in the file scope but create
++				// a new object instead; the Decl field is different
++				// for different files)
++				obj := ast.NewObj(ast.Pkg, name)
++				obj.Decl = spec
++				obj.Data = pkg
++				check.declareObj(fileScope, pkgScope, obj)
++			}
++		}
++
++		// resolve identifiers
++		if importErrors {
++			// don't use the universe scope without correct imports
++			// (objects in the universe may be shadowed by imports;
++			// with missing imports, identifiers might get resolved
++			// incorrectly to universe objects)
++			pkgScope.Outer = nil
++		}
++		i := 0
++		for _, ident := range file.Unresolved {
++			if !resolve(fileScope, ident) {
++				check.errorf(ident.Pos(), "undeclared name: %s", ident.Name)
++				file.Unresolved[i] = ident
++				i++
++			}
++
++		}
++		file.Unresolved = file.Unresolved[0:i]
++		pkgScope.Outer = Universe // reset outer scope
++	}
++
++	// TODO(gri) Once we have a pkgScope of type *Scope, only return *Package.
++	return &ast.Package{Name: pkgName, Scope: pkgScope}, &Package{Name: pkgName, Imports: imports}
++}
+diff --git a/src/pkg/go/types/resolver_test.go b/src/pkg/go/types/resolver_test.go
+index 4e9aa0938d..fd2a4a67c1 100644
+--- a/src/pkg/go/types/resolver_test.go
++++ b/src/pkg/go/types/resolver_test.go
+@@ -28,15 +28,19 @@ var sources = []string{
+ 	func f() string {
+ 		return fmt.Sprintf("%d", g())
+ 	}
++	func g() (x int) { return }
+ 	`,
+-	`package p
+-	import . "go/parser"
+-	func g() Mode { return ImportsOnly }`,
++	// TODO(gri) fix this
++	// cannot handle dot-import at the moment
++	/*
++		`package p
++		import . "go/parser"
++		func g() Mode { return ImportsOnly }`,
++	*/
+ }
+ 
+ var pkgnames = []string{
+ 	"fmt",
+-	"go/parser",
+ 	"math",
+ }
+ 
+@@ -74,18 +78,17 @@ func ResolveQualifiedIdents(fset *token.FileSet, pkg *ast.Package) error {
+ func TestResolveQualifiedIdents(t *testing.T) {
+ 	// parse package files
+ 	fset := token.NewFileSet()
+-	files := make(map[string]*ast.File)
++	files := make([]*ast.File, len(sources))
+ 	for i, src := range sources {
+-		filename := fmt.Sprintf("file%d", i)
+-		f, err := parser.ParseFile(fset, filename, src, parser.DeclarationErrors)
++		f, err := parser.ParseFile(fset, "", src, parser.DeclarationErrors)
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+-		files[filename] = f
++		files[i] = f
+ 	}
+ 
+ 	// resolve package AST
+-	pkg, err := ast.NewPackage(fset, files, GcImport, Universe)
++	astpkg, pkg, err := Check(fset, files)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -97,20 +100,22 @@ func TestResolveQualifiedIdents(t *testing.T) {
+ 		}
+ 	}
+ 
++	// TODO(gri) fix this
++	// unresolved identifiers are not collected at the moment
+ 	// check that there are no top-level unresolved identifiers
+-	for _, f := range pkg.Files {
++	for _, f := range astpkg.Files {
+ 		for _, x := range f.Unresolved {
+ 			t.Errorf("%s: unresolved global identifier %s", fset.Position(x.Pos()), x.Name)
+ 		}
+ 	}
+ 
+ 	// resolve qualified identifiers
+-	if err := ResolveQualifiedIdents(fset, pkg); err != nil {
++	if err := ResolveQualifiedIdents(fset, astpkg); err != nil {
+ 		t.Error(err)
+ 	}
+ 
+ 	// check that qualified identifiers are resolved
+-	ast.Inspect(pkg, func(n ast.Node) bool {
++	ast.Inspect(astpkg, func(n ast.Node) bool {
+ 		if s, ok := n.(*ast.SelectorExpr); ok {
+ 			if x, ok := s.X.(*ast.Ident); ok {
+ 				if x.Obj == nil {
+diff --git a/src/pkg/go/types/types.go b/src/pkg/go/types/types.go
+index 5a4e81856e..69ea32701d 100644
+--- a/src/pkg/go/types/types.go
++++ b/src/pkg/go/types/types.go
+@@ -91,9 +91,15 @@ type Slice struct {
+ 	Elt Type
+ }
+ 
++// A QualifiedName is a name qualified with the package the declared the name.
++type QualifiedName struct {
++	Pkg  *Package // Pkg.Path == "" for current (non-imported) package
++	Name string   // unqualified type name for anonymous fields
++}
++
+ // A Field represents a field of a struct.
+ type Field struct {
+-	Name        string // unqualified type name for anonymous fields
++	QualifiedName
+ 	Type        Type
+ 	Tag         string
+ 	IsAnonymous bool
+@@ -120,12 +126,6 @@ type Pointer struct {
+ 	Base Type
+ }
+ 
+-// A Variable represents a variable (including function parameters and results).
+-type Var struct {
+-	Name string
+-	Type Type
+-}
+-
+ // A Result represents a (multi-value) function call result.
+ type Result struct {
+ 	implementsType
+@@ -183,9 +183,9 @@ type builtin struct {
+ 	isStatement bool // true if the built-in is valid as an expression statement
+ }
+ 
+-// A Method represents a method of an interface.
++// A Method represents a method.
+ type Method struct {
+-	Name string
++	QualifiedName
+ 	Type *Signature
+ }
+ 
+@@ -211,8 +211,11 @@ type Chan struct {
+ // A NamedType represents a named type as declared in a type declaration.
+ type NamedType struct {
+ 	implementsType
+-	Obj        *ast.Object // corresponding declared object; Obj.Data.(*ast.Scope) contains methods, if any
++	// TODO(gri) remove obj once we have moved away from ast.Objects
++	obj        *ast.Object // corresponding declared object (current package)
++	Obj        Object      // corresponding declared object (imported package)
+ 	Underlying Type        // nil if not fully declared yet; never a *NamedType
++	Methods    []*Method   // TODO(gri) consider keeping them in sorted order
+ }
+ 
+ // All concrete types embed implementsType which
+diff --git a/src/pkg/go/types/types_test.go b/src/pkg/go/types/types_test.go
+index 48a1d61e3b..ef83c840b2 100644
+--- a/src/pkg/go/types/types_test.go
++++ b/src/pkg/go/types/types_test.go
+@@ -20,7 +20,8 @@ func makePkg(t *testing.T, src string) (*ast.Package, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return Check(fset, map[string]*ast.File{filename: file})
++	astpkg, _, err := Check(fset, []*ast.File{file})
++	return astpkg, err
+ }
+ 
+ type testEntry struct {
+@@ -153,14 +154,14 @@ var testExprs = []testEntry{
+ func TestExprs(t *testing.T) {
+ 	for _, test := range testExprs {
+ 		src := "package p; var _ = " + test.src + "; var (x, y int; s []string; f func(int, float32) int; i interface{}; t interface { foo() })"
+-		pkg, err := makePkg(t, src)
++		file, err := parser.ParseFile(fset, filename, src, parser.DeclarationErrors)
+ 		if err != nil {
+ 			t.Errorf("%s: %s", src, err)
+ 			continue
+ 		}
+ 		// TODO(gri) writing the code below w/o the decl variable will
+ 		//           cause a 386 compiler error (out of fixed registers)
+-		decl := pkg.Files[filename].Decls[0].(*ast.GenDecl)
++		decl := file.Decls[0].(*ast.GenDecl)
+ 		expr := decl.Specs[0].(*ast.ValueSpec).Values[0]
+ 		str := exprString(expr)
+ 		if str != test.str {
+diff --git a/src/pkg/go/types/universe.go b/src/pkg/go/types/universe.go
+index 1306a59fa5..bbc33795d9 100644
+--- a/src/pkg/go/types/universe.go
++++ b/src/pkg/go/types/universe.go
+@@ -12,9 +12,9 @@ import (
+ )
+ 
+ var (
+-	aType            implementsType
+-	Universe, unsafe *ast.Scope
+-	Unsafe           *ast.Object // package unsafe
++	aType    implementsType
++	Universe *ast.Scope
++	Unsafe   *Package // package unsafe
+ )
+ 
+ // Predeclared types, indexed by BasicKind.
+@@ -102,35 +102,31 @@ func init() {
+ 	Universe = ast.NewScope(nil)
+ 
+ 	// unsafe package and its scope
+-	unsafe = ast.NewScope(nil)
+-	Unsafe = ast.NewObj(ast.Pkg, "unsafe")
+-	Unsafe.Data = unsafe
++	Unsafe = &Package{Name: "unsafe", Scope: new(Scope)}
+ 
+ 	// predeclared types
+ 	for _, t := range Typ {
+-		def(ast.Typ, t.Name).Type = t
++		def(ast.Typ, t.Name, t)
+ 	}
+ 	for _, t := range aliases {
+-		def(ast.Typ, t.Name).Type = t
++		def(ast.Typ, t.Name, t)
+ 	}
+ 
+ 	// error type
+ 	{
+-		err := &Method{"Error", &Signature{Results: []*Var{{"", Typ[String]}}}}
+-		obj := def(ast.Typ, "error")
+-		obj.Type = &NamedType{Underlying: &Interface{Methods: []*Method{err}}, Obj: obj}
++		err := &Method{QualifiedName{Name: "Error"}, &Signature{Results: []*Var{{Name: "", Type: Typ[String]}}}}
++		def(ast.Typ, "error", &NamedType{Underlying: &Interface{Methods: []*Method{err}}})
+ 	}
+ 
+ 	// predeclared constants
+ 	for _, t := range predeclaredConstants {
+-		obj := def(ast.Con, t.name)
+-		obj.Type = Typ[t.kind]
++		obj := def(ast.Con, t.name, Typ[t.kind])
+ 		obj.Data = t.val
+ 	}
+ 
+ 	// predeclared functions
+ 	for _, f := range predeclaredFunctions {
+-		def(ast.Fun, f.name).Type = f
++		def(ast.Fun, f.name, f)
+ 	}
+ 
+ 	universeIota = Universe.Lookup("iota")
+@@ -140,19 +136,36 @@ func init() {
+ // a scope. Objects with exported names are inserted in the unsafe package
+ // scope; other objects are inserted in the universe scope.
+ //
+-func def(kind ast.ObjKind, name string) *ast.Object {
+-	obj := ast.NewObj(kind, name)
++func def(kind ast.ObjKind, name string, typ Type) *ast.Object {
+ 	// insert non-internal objects into respective scope
+ 	if strings.Index(name, " ") < 0 {
+-		scope := Universe
+ 		// exported identifiers go into package unsafe
+ 		if ast.IsExported(name) {
+-			scope = unsafe
++			var obj Object
++			switch kind {
++			case ast.Typ:
++				obj = &TypeName{Name: name, Type: typ}
++			case ast.Fun:
++				obj = &Func{Name: name, Type: typ}
++			default:
++				unreachable()
++
++			}
++			if Unsafe.Scope.Insert(obj) != nil {
++				panic("internal error: double declaration")
++			}
++		} else {
++			obj := ast.NewObj(kind, name)
++			obj.Decl = Universe
++			obj.Type = typ
++			if typ, ok := typ.(*NamedType); ok {
++				typ.obj = obj
++			}
++			if Universe.Insert(obj) != nil {
++				panic("internal error: double declaration")
++			}
++			return obj
+ 		}
+-		if scope.Insert(obj) != nil {
+-			panic("internal error: double declaration")
+-		}
+-		obj.Decl = scope
+ 	}
+-	return obj
++	return nil
+ }

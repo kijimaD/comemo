@@ -9,10 +9,261 @@ Date:   Fri Oct 23 16:08:20 2015 -0400
     Change-Id: Icc50dfb6130fe1e189d45f923c2f7408d3cf9401
     Reviewed-on: https://go-review.googlesource.com/16047
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/encoding/xml/marshal.go      | 34 ++++++++++++++++++++--------
  src/encoding/xml/marshal_test.go | 49 ++++++++++++++++++++++++++++++++++++++++
  src/encoding/xml/read.go         |  2 +-
  src/encoding/xml/typeinfo.go     |  7 ++++--
  src/encoding/xml/xml.go          | 40 ++++++++++++++++++++++++++++++++
  5 files changed, 120 insertions(+), 12 deletions(-)
+
+diff --git a/src/encoding/xml/marshal.go b/src/encoding/xml/marshal.go
+index 86d1422a5b..f908ccb1cb 100644
+--- a/src/encoding/xml/marshal.go
++++ b/src/encoding/xml/marshal.go
+@@ -768,7 +768,11 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
+ 		}
+ 
+ 		switch finfo.flags & fMode {
+-		case fCharData:
++		case fCDATA, fCharData:
++			emit := EscapeText
++			if finfo.flags&fMode == fCDATA {
++				emit = emitCDATA
++			}
+ 			if err := s.trim(finfo.parents); err != nil {
+ 				return err
+ 			}
+@@ -777,7 +781,9 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
+ 				if err != nil {
+ 					return err
+ 				}
+-				Escape(p, data)
++				if err := emit(p, data); err != nil {
++					return err
++				}
+ 				continue
+ 			}
+ 			if vf.CanAddr() {
+@@ -787,27 +793,37 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
+ 					if err != nil {
+ 						return err
+ 					}
+-					Escape(p, data)
++					if err := emit(p, data); err != nil {
++						return err
++					}
+ 					continue
+ 				}
+ 			}
+ 			var scratch [64]byte
+ 			switch vf.Kind() {
+ 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+-				Escape(p, strconv.AppendInt(scratch[:0], vf.Int(), 10))
++				if err := emit(p, strconv.AppendInt(scratch[:0], vf.Int(), 10)); err != nil {
++					return err
++				}
+ 			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+-				Escape(p, strconv.AppendUint(scratch[:0], vf.Uint(), 10))
++				if err := emit(p, strconv.AppendUint(scratch[:0], vf.Uint(), 10)); err != nil {
++					return err
++				}
+ 			case reflect.Float32, reflect.Float64:
+-				Escape(p, strconv.AppendFloat(scratch[:0], vf.Float(), 'g', -1, vf.Type().Bits()))
++				if err := emit(p, strconv.AppendFloat(scratch[:0], vf.Float(), 'g', -1, vf.Type().Bits())); err != nil {
++					return err
++				}
+ 			case reflect.Bool:
+-				Escape(p, strconv.AppendBool(scratch[:0], vf.Bool()))
++				if err := emit(p, strconv.AppendBool(scratch[:0], vf.Bool())); err != nil {
++					return err
++				}
+ 			case reflect.String:
+-				if err := EscapeText(p, []byte(vf.String())); err != nil {
++				if err := emit(p, []byte(vf.String())); err != nil {
+ 					return err
+ 				}
+ 			case reflect.Slice:
+ 				if elem, ok := vf.Interface().([]byte); ok {
+-					if err := EscapeText(p, elem); err != nil {
++					if err := emit(p, elem); err != nil {
+ 						return err
+ 					}
+ 				}
+diff --git a/src/encoding/xml/marshal_test.go b/src/encoding/xml/marshal_test.go
+index aab94b16f3..fe8b16fe43 100644
+--- a/src/encoding/xml/marshal_test.go
++++ b/src/encoding/xml/marshal_test.go
+@@ -356,6 +356,15 @@ type NestedAndComment struct {
+ 	Comment string   `xml:",comment"`
+ }
+ 
++type CDataTest struct {
++	Chardata string `xml:",cdata"`
++}
++
++type NestedAndCData struct {
++	AB    []string `xml:"A>B"`
++	CDATA string   `xml:",cdata"`
++}
++
+ func ifaceptr(x interface{}) interface{} {
+ 	return &x
+ }
+@@ -978,6 +987,42 @@ var marshalTests = []struct {
+ 			MyInt: 42,
+ 		},
+ 	},
++	// Test outputting CDATA-wrapped text.
++	{
++		ExpectXML: `<CDataTest></CDataTest>`,
++		Value:     &CDataTest{},
++	},
++	{
++		ExpectXML: `<CDataTest><![CDATA[http://example.com/tests/1?foo=1&bar=baz]]></CDataTest>`,
++		Value: &CDataTest{
++			Chardata: "http://example.com/tests/1?foo=1&bar=baz",
++		},
++	},
++	{
++		ExpectXML: `<CDataTest><![CDATA[Literal <![CDATA[Nested]]]]><![CDATA[>!]]></CDataTest>`,
++		Value: &CDataTest{
++			Chardata: "Literal <![CDATA[Nested]]>!",
++		},
++	},
++	{
++		ExpectXML: `<CDataTest><![CDATA[<![CDATA[Nested]]]]><![CDATA[> Literal!]]></CDataTest>`,
++		Value: &CDataTest{
++			Chardata: "<![CDATA[Nested]]> Literal!",
++		},
++	},
++	{
++		ExpectXML: `<CDataTest><![CDATA[<![CDATA[Nested]]]]><![CDATA[> Literal! <![CDATA[Nested]]]]><![CDATA[> Literal!]]></CDataTest>`,
++		Value: &CDataTest{
++			Chardata: "<![CDATA[Nested]]> Literal! <![CDATA[Nested]]> Literal!",
++		},
++	},
++	{
++		ExpectXML: `<CDataTest><![CDATA[<![CDATA[<![CDATA[Nested]]]]><![CDATA[>]]]]><![CDATA[>]]></CDataTest>`,
++		Value: &CDataTest{
++			Chardata: "<![CDATA[<![CDATA[Nested]]>]]>",
++		},
++	},
++
+ 	// Test omitempty with parent chain; see golang.org/issue/4168.
+ 	{
+ 		ExpectXML: `<Strings><A></A></Strings>`,
+@@ -1016,6 +1061,10 @@ var marshalTests = []struct {
+ 		ExpectXML: `<NestedAndComment><A><B></B><B></B></A><!--test--></NestedAndComment>`,
+ 		Value:     &NestedAndComment{AB: make([]string, 2), Comment: "test"},
+ 	},
++	{
++		ExpectXML: `<NestedAndCData><A><B></B><B></B></A><![CDATA[test]]></NestedAndCData>`,
++		Value:     &NestedAndCData{AB: make([]string, 2), CDATA: "test"},
++	},
+ }
+ 
+ func TestMarshal(t *testing.T) {
+diff --git a/src/encoding/xml/read.go b/src/encoding/xml/read.go
+index 75b9f2ba1b..77b4c7b495 100644
+--- a/src/encoding/xml/read.go
++++ b/src/encoding/xml/read.go
+@@ -431,7 +431,7 @@ func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
+ 					}
+ 				}
+ 
+-			case fCharData:
++			case fCDATA, fCharData:
+ 				if !saveData.IsValid() {
+ 					saveData = finfo.value(sv)
+ 				}
+diff --git a/src/encoding/xml/typeinfo.go b/src/encoding/xml/typeinfo.go
+index 6766b88f09..6483c8dbe6 100644
+--- a/src/encoding/xml/typeinfo.go
++++ b/src/encoding/xml/typeinfo.go
+@@ -31,6 +31,7 @@ type fieldFlags int
+ const (
+ 	fElement fieldFlags = 1 << iota
+ 	fAttr
++	fCDATA
+ 	fCharData
+ 	fInnerXml
+ 	fComment
+@@ -38,7 +39,7 @@ const (
+ 
+ 	fOmitEmpty
+ 
+-	fMode = fElement | fAttr | fCharData | fInnerXml | fComment | fAny
++	fMode = fElement | fAttr | fCDATA | fCharData | fInnerXml | fComment | fAny
+ )
+ 
+ var tinfoMap = make(map[reflect.Type]*typeInfo)
+@@ -130,6 +131,8 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
+ 			switch flag {
+ 			case "attr":
+ 				finfo.flags |= fAttr
++			case "cdata":
++				finfo.flags |= fCDATA
+ 			case "chardata":
+ 				finfo.flags |= fCharData
+ 			case "innerxml":
+@@ -148,7 +151,7 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
+ 		switch mode := finfo.flags & fMode; mode {
+ 		case 0:
+ 			finfo.flags |= fElement
+-		case fAttr, fCharData, fInnerXml, fComment, fAny:
++		case fAttr, fCDATA, fCharData, fInnerXml, fComment, fAny:
+ 			if f.Name == "XMLName" || tag != "" && mode != fAttr {
+ 				valid = false
+ 			}
+diff --git a/src/encoding/xml/xml.go b/src/encoding/xml/xml.go
+index 6c7debe521..bd766a6934 100644
+--- a/src/encoding/xml/xml.go
++++ b/src/encoding/xml/xml.go
+@@ -1943,6 +1943,46 @@ func Escape(w io.Writer, s []byte) {
+ 	EscapeText(w, s)
+ }
+ 
++var (
++	cdataStart  = []byte("<![CDATA[")
++	cdataEnd    = []byte("]]>")
++	cdataEscape = []byte("]]]]><![CDATA[>")
++)
++
++// emitCDATA writes to w the CDATA-wrapped plain text data s.
++// It escapes CDATA directives nested in s.
++func emitCDATA(w io.Writer, s []byte) error {
++	if len(s) == 0 {
++		return nil
++	}
++	if _, err := w.Write(cdataStart); err != nil {
++		return err
++	}
++	for {
++		i := bytes.Index(s, cdataEnd)
++		if i >= 0 && i+len(cdataEnd) <= len(s) {
++			// Found a nested CDATA directive end.
++			if _, err := w.Write(s[:i]); err != nil {
++				return err
++			}
++			if _, err := w.Write(cdataEscape); err != nil {
++				return err
++			}
++			i += len(cdataEnd)
++		} else {
++			if _, err := w.Write(s); err != nil {
++				return err
++			}
++			break
++		}
++		s = s[i:]
++	}
++	if _, err := w.Write(cdataEnd); err != nil {
++		return err
++	}
++	return nil
++}
++
+ // procInst parses the `param="..."` or `param='...'`
+ // value out of the provided string, returning "" if not found.
+ func procInst(param, s string) string {

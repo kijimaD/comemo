@@ -11,8 +11,60 @@ Date:   Thu Aug 13 12:39:04 2020 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/phiopt.go |  2 +-
  src/cmd/compile/internal/ssa/prove.go  |  2 +-
  test/fixedbugs/issue40746.go           | 19 +++++++++++++++++++
  3 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/phiopt.go b/src/cmd/compile/internal/ssa/phiopt.go
+index 8643fa584c..db7b02275c 100644
+--- a/src/cmd/compile/internal/ssa/phiopt.go
++++ b/src/cmd/compile/internal/ssa/phiopt.go
+@@ -154,7 +154,7 @@ func phioptint(v *Value, b0 *Block, reverse int) {
+ 	}
+ 	v.AddArg(a)
+ 
+-	cvt := v.Block.NewValue1(v.Pos, OpCvtBoolToUint8, a.Type, a)
++	cvt := v.Block.NewValue1(v.Pos, OpCvtBoolToUint8, v.Block.Func.Config.Types.UInt8, a)
+ 	switch v.Type.Size() {
+ 	case 1:
+ 		v.reset(OpCopy)
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index 6c6be39d34..ce7d689f93 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -1334,7 +1334,7 @@ func removeBranch(b *Block, branch branch) {
+ // isNonNegative reports whether v is known to be greater or equal to zero.
+ func isNonNegative(v *Value) bool {
+ 	if !v.Type.IsInteger() {
+-		panic("isNonNegative bad type")
++		v.Fatalf("isNonNegative bad type: %v", v.Type)
+ 	}
+ 	// TODO: return true if !v.Type.IsSigned()
+ 	// SSA isn't type-safe enough to do that now (issue 37753).
+diff --git a/test/fixedbugs/issue40746.go b/test/fixedbugs/issue40746.go
+new file mode 100644
+index 0000000000..235282fd90
+--- /dev/null
++++ b/test/fixedbugs/issue40746.go
+@@ -0,0 +1,19 @@
++// compile
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f(x byte, b bool) byte {
++	var c byte
++	if b {
++		c = 1
++	}
++
++	if int8(c) < 0 {
++		x++
++	}
++	return x
++}

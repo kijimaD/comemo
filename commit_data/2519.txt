@@ -8,8 +8,146 @@ Date:   Thu Jun 25 14:25:38 2009 -0700
     DELTA=40  (30 added, 2 deleted, 8 changed)
     OCL=30742
     CL=30753
-
+---
  src/pkg/reflect/all_test.go  | 11 +++++++++++
  src/pkg/reflect/deepequal.go | 20 +++++++++++++-------
  src/pkg/reflect/value.go     | 17 ++++++++++++++---
  3 files changed, 38 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 987acd48e5..84f52ab86f 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -419,6 +419,7 @@ var deepEqualTests = []DeepEqualTest {
+ 	DeepEqualTest{ make([]int, 10), make([]int, 10), true },
+ 	DeepEqualTest{ &[3]int{ 1, 2, 3 }, &[3]int{ 1, 2, 3 }, true },
+ 	DeepEqualTest{ Basic{ 1, 0.5 }, Basic{ 1, 0.5 }, true },
++	DeepEqualTest{ os.Error(nil), os.Error(nil), true },
+ 	// Inequalities
+ 	DeepEqualTest{ 1, 2, false },
+ 	DeepEqualTest{ int32(1), int32(2), false },
+@@ -445,6 +446,16 @@ func TestDeepEqual(t *testing.T) {
+ 	}
+ }
+ 
++func TestTypeof(t *testing.T) {
++	for i, test := range deepEqualTests {
++		v := NewValue(test.a);
++		typ := Typeof(test.a);
++		if typ != v.Type() {
++			t.Errorf("Typeof(%v) = %v, but NewValue(%v).Type() = %v", test.a, typ, test.a, v.Type());
++		}
++	}
++}
++
+ func TestDeepEqualRecursiveStruct(t *testing.T) {
+ 	a, b := new(Recursive), new(Recursive);
+ 	*a = Recursive{ 12, a };
+diff --git a/src/pkg/reflect/deepequal.go b/src/pkg/reflect/deepequal.go
+index 5c3cd4a825..0195a43a63 100644
+--- a/src/pkg/reflect/deepequal.go
++++ b/src/pkg/reflect/deepequal.go
+@@ -11,7 +11,7 @@ import "reflect"
+ // Tests for deep equality using reflected types. The map argument tracks
+ // comparisons that have already been seen, which allows short circuiting on
+ // recursive types.
+-func deepValueEqual(v1, v2 Value, visited map[Addr]Addr) bool {
++func deepValueEqual(v1, v2 Value, visited map[Addr]Addr, depth int) bool {
+ 	if v1 == nil {
+ 		return v2 == nil
+ 	}
+@@ -22,6 +22,8 @@ func deepValueEqual(v1, v2 Value, visited map[Addr]Addr) bool {
+ 		return false;
+ 	}
+ 
++	// if depth > 10 { panic("deepValueEqual") }	// for debugging
++
+ 	// Short circuit if references are identical or already seen
+ 	addr1 := v1.Addr();
+ 	addr2 := v2.Addr();
+@@ -42,19 +44,23 @@ func deepValueEqual(v1, v2 Value, visited map[Addr]Addr) bool {
+ 			return false;
+ 		}
+ 		for i := 0; i < arr1.Len(); i++ {
+-			if !deepValueEqual(arr1.Elem(i), arr2.Elem(i), visited) {
++			if !deepValueEqual(arr1.Elem(i), arr2.Elem(i), visited, depth+1) {
+ 				return false;
+ 			}
+ 		}
+ 		return true;
+ 	case InterfaceKind:
+-		return deepValueEqual(NewValue(v1.(InterfaceValue).Get()),
+-				NewValue(v2.(InterfaceValue).Get()), visited);
++		i1 := v1.(InterfaceValue).Get();
++		i2 := v2.(InterfaceValue).Get();
++		if i1 == nil || i2 == nil {
++			return i1 == i2;
++		}
++		return deepValueEqual(NewValue(i1), NewValue(i2), visited, depth+1);
+ 	case MapKind:
+ 		// TODO(dnadasi): Implement this fully once MapValue is implemented
+ 		return v1.Interface() == v2.Interface();
+ 	case PtrKind:
+-		return deepValueEqual(v1.(PtrValue).Sub(), v2.(PtrValue).Sub(), visited);
++		return deepValueEqual(v1.(PtrValue).Sub(), v2.(PtrValue).Sub(), visited, depth+1);
+ 	case StructKind:
+ 		struct1 := v1.(StructValue);
+ 		struct2 := v2.(StructValue);
+@@ -62,7 +68,7 @@ func deepValueEqual(v1, v2 Value, visited map[Addr]Addr) bool {
+ 			return false;
+ 		}
+ 		for i := 0; i < struct1.Len(); i++ {
+-			if !deepValueEqual(struct1.Field(i), struct2.Field(i), visited) {
++			if !deepValueEqual(struct1.Field(i), struct2.Field(i), visited, depth+1) {
+ 				return false;
+ 			}
+ 		}
+@@ -85,5 +91,5 @@ func DeepEqual(a1, a2 interface{}) bool {
+ 	if !equalType(v1.Type(), v2.Type()) {
+ 		return false;
+ 	}
+-	return deepValueEqual(v1, v2, make(map[Addr]Addr));
++	return deepValueEqual(v1, v2, make(map[Addr]Addr), 0);
+ }
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 5c39583829..61410af997 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -942,9 +942,7 @@ func copyArray(dst ArrayValue, src ArrayValue, n int) {
+ 	}
+ }
+ 
+-// NewValue creates a new Value from the interface{} object provided.
+-func NewValue(e interface {}) Value {
+-	value, typestring, indir := unsafe.Reflect(e);
++func typeof(typestring string) Type {
+ 	typ, ok := typecache[typestring];
+ 	if !ok {
+ 		typ = ParseTypeString("", typestring);
+@@ -958,6 +956,13 @@ func NewValue(e interface {}) Value {
+ 		}
+ 		typecache[typestring] = typ;
+ 	}
++	return typ;
++}
++
++// NewValue creates a new Value from the interface{} object provided.
++func NewValue(e interface {}) Value {
++	value, typestring, indir := unsafe.Reflect(e);
++	typ := typeof(typestring);
+ 	var ap Addr;
+ 	if indir {
+ 		// Content of interface is large and didn't
+@@ -984,6 +989,12 @@ func NewValue(e interface {}) Value {
+ 	return newValueAddr(typ, ap);
+ }
+ 
++// Typeof returns the type of the value in the interface{} object provided.
++func Typeof(e interface{}) Type {
++	value, typestring, indir := unsafe.Reflect(e);
++	return typeof(typestring);
++}
++
+ // Indirect indirects one level through a value, if it is a pointer.
+ // If not a pointer, the value is returned unchanged.
+ // Useful when walking arbitrary data structures.

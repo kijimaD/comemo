@@ -14,6 +14,23 @@ Date:   Thu Oct 8 20:14:03 2015 +1100
     Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/obj/link.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 4d6f7d7bdb..3a1faa2edf 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -247,10 +247,10 @@ func (p *Prog) From3Offset() int64 {
+ // by clients such as the compiler. The exact meaning of this
+ // data is up to the client and is not interpreted by the cmd/internal/obj/... packages.
+ type ProgInfo struct {
+-	Flags    uint32   // flag bits
+ 	Reguse   uint64   // registers implicitly used by this instruction
+ 	Regset   uint64   // registers implicitly set by this instruction
+ 	Regindex uint64   // registers used by addressing mode
++	Flags    uint32   // flag bits
+ 	_        struct{} // to prevent unkeyed literals
+ }
+ 

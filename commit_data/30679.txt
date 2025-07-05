@@ -14,6 +14,30 @@ Date:   Tue Nov 22 16:19:25 2016 +0100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/env.go | 12 +++++-------
  1 file changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/env.go b/src/cmd/go/env.go
+index 7de72ef289..31710b7e6d 100644
+--- a/src/cmd/go/env.go
++++ b/src/cmd/go/env.go
+@@ -62,13 +62,11 @@ func mkEnv() []envVar {
+ 		env = append(env, envVar{"GO386", os.Getenv("GO386")})
+ 	}
+ 
+-	if goos != "plan9" {
+-		cmd := b.gccCmd(".")
+-		env = append(env, envVar{"CC", cmd[0]})
+-		env = append(env, envVar{"GOGCCFLAGS", strings.Join(cmd[3:], " ")})
+-		cmd = b.gxxCmd(".")
+-		env = append(env, envVar{"CXX", cmd[0]})
+-	}
++	cmd := b.gccCmd(".")
++	env = append(env, envVar{"CC", cmd[0]})
++	env = append(env, envVar{"GOGCCFLAGS", strings.Join(cmd[3:], " ")})
++	cmd = b.gxxCmd(".")
++	env = append(env, envVar{"CXX", cmd[0]})
+ 
+ 	if buildContext.CgoEnabled {
+ 		env = append(env, envVar{"CGO_ENABLED", "1"})

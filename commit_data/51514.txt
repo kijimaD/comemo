@@ -12,6 +12,26 @@ Date:   Tue Feb 8 13:11:09 2022 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/builtin/builtin.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/builtin/builtin.go b/src/builtin/builtin.go
+index 08ae7ed313..5657be4564 100644
+--- a/src/builtin/builtin.go
++++ b/src/builtin/builtin.go
+@@ -95,11 +95,11 @@ type rune = int32
+ type any = interface{}
+ 
+ // comparable is an interface that is implemented by all comparable types
+-// (booleans, numbers, strings, pointers, channels, interfaces,
+-// arrays of comparable types, structs whose fields are all comparable types).
++// (booleans, numbers, strings, pointers, channels, arrays of comparable types,
++// structs whose fields are all comparable types).
+ // The comparable interface may only be used as a type parameter constraint,
+ // not as the type of a variable.
+-type comparable comparable
++type comparable interface{ comparable }
+ 
+ // iota is a predeclared identifier representing the untyped integer ordinal
+ // number of the current const specification in a (usually parenthesized)

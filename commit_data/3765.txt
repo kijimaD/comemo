@@ -6,7 +6,34 @@ Date:   Wed Nov 4 13:13:17 2009 -0800
     
     R=rsc
     http://go/go-review/1017028
-
+---
  src/cmd/nm/doc.go   | 2 +-
  src/cmd/prof/doc.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/nm/doc.go b/src/cmd/nm/doc.go
+index 5c171797b0..60f08f568c 100644
+--- a/src/cmd/nm/doc.go
++++ b/src/cmd/nm/doc.go
+@@ -4,7 +4,7 @@
+ 
+ /*
+ 
+-nm is a version of the Plan 9 nm command documented at
++This nm is a version of the Plan 9 nm command documented at
+ 
+ 	http://plan9.bell-labs.com/magic/man2html/1/nm
+ 
+diff --git a/src/cmd/prof/doc.go b/src/cmd/prof/doc.go
+index 8b2732ab3c..1493c641d2 100644
+--- a/src/cmd/prof/doc.go
++++ b/src/cmd/prof/doc.go
+@@ -4,7 +4,7 @@
+ 
+ /*
+ 
+-prof is a rudimentary real-time profiler.
++Prof is a rudimentary real-time profiler.
+ 
+ Given a command to run or the process id (pid) of a command already
+ running, it samples the program's state at regular intervals and reports

@@ -11,6 +11,28 @@ Date:   Sun Aug 3 15:14:59 2014 -0700
     R=golang-codereviews, crawshaw, ruiu
     CC=golang-codereviews
     https://golang.org/cl/117520043
-
+---
  src/pkg/encoding/gob/decode.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/encoding/gob/decode.go b/src/pkg/encoding/gob/decode.go
+index 76274a0cac..2367650c8b 100644
+--- a/src/pkg/encoding/gob/decode.go
++++ b/src/pkg/encoding/gob/decode.go
+@@ -747,13 +747,14 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProg
+ 
+ 		case reflect.Struct:
+ 			// Generate a closure that calls out to the engine for the nested type.
+-			enginePtr, err := dec.getDecEnginePtr(wireId, userType(typ))
++			ut := userType(typ)
++			enginePtr, err := dec.getDecEnginePtr(wireId, ut)
+ 			if err != nil {
+ 				error_(err)
+ 			}
+ 			op = func(i *decInstr, state *decoderState, value reflect.Value) {
+ 				// indirect through enginePtr to delay evaluation for recursive structs.
+-				dec.decodeStruct(*enginePtr, userType(typ), value)
++				dec.decodeStruct(*enginePtr, ut, value)
+ 			}
+ 		case reflect.Interface:
+ 			op = func(i *decInstr, state *decoderState, value reflect.Value) {

@@ -14,7 +14,7 @@ Date:   Tue Jan 26 15:47:08 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/18947
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go           |   4 +-
  src/cmd/compile/internal/ssa/TODO            |   7 +-
  src/cmd/compile/internal/ssa/flagalloc.go    |   7 +-
@@ -24,3 +24,1070 @@ Date:   Tue Jan 26 15:47:08 2016 -0800
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 268 +++++++++++++--------------
  src/cmd/compile/internal/ssa/value.go        |  31 +++-
  8 files changed, 245 insertions(+), 218 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index a05e33196a..89286f4356 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4092,7 +4092,7 @@ func (s *genState) genValue(v *ssa.Value) {
+ 	case ssa.OpAMD64MOVQstoreconst, ssa.OpAMD64MOVLstoreconst, ssa.OpAMD64MOVWstoreconst, ssa.OpAMD64MOVBstoreconst:
+ 		p := Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_CONST
+-		sc := ssa.StoreConst(v.AuxInt)
++		sc := ssa.ValAndOff(v.AuxInt)
+ 		i := sc.Val()
+ 		switch v.Op {
+ 		case ssa.OpAMD64MOVBstoreconst:
+@@ -4372,7 +4372,7 @@ func (s *genState) genValue(v *ssa.Value) {
+ 					return
+ 				}
+ 			case ssa.OpAMD64MOVQstoreconst, ssa.OpAMD64MOVLstoreconst, ssa.OpAMD64MOVWstoreconst, ssa.OpAMD64MOVBstoreconst:
+-				off := ssa.StoreConst(v.AuxInt).Off()
++				off := ssa.ValAndOff(v.AuxInt).Off()
+ 				if w.Args[0] == v.Args[0] && w.Aux == nil && off >= 0 && off < minZeroPage {
+ 					if Debug_checknil != 0 && int(v.Line) > 1 {
+ 						Warnl(int(v.Line), "removed nil check")
+diff --git a/src/cmd/compile/internal/ssa/TODO b/src/cmd/compile/internal/ssa/TODO
+index 2f7973c5a3..5245753c07 100644
+--- a/src/cmd/compile/internal/ssa/TODO
++++ b/src/cmd/compile/internal/ssa/TODO
+@@ -20,7 +20,6 @@ Optimizations (better compiled code)
+ - Expand current optimizations to all bit widths
+ - Add a value range propagation pass (for bounds elim & bitwidth reduction)
+ - Make dead store pass inter-block
+-- (x86) Combine loads into other ops
+ - (x86) More combining address arithmetic into loads/stores
+ - (x86) use ADDQ instead of LEAQ when we can
+ - redundant CMP in sequences like this:
+@@ -38,8 +37,6 @@ Optimizations (better compiled code)
+   Same for interfaces?
+ - boolean logic: movb/xorb$1/testb/jeq -> movb/testb/jne
+ - (ADDQconst (SUBQconst x)) and vice-versa
+-- (CMP (Load ...)) and (CMPconst (Load ...)) in one instruction
+-  (all instructions, really)
+ - combine LEAQs
+ - store followed by load to same address
+ - (CMPconst [0] (AND x y)) -> (TEST x y)
+@@ -50,6 +47,10 @@ Optimizations (better compiled code)
+ - better computing of &&/|| in non-if/for contexts
+ - OpArrayIndex should take its index in AuxInt, not a full value.
+ - remove FLAGS from REP instruction clobbers
++- (x86) Combine loads into other ops
++  Note that this is challenging for ops that generate flags
++  because flagalloc wants to move those instructions around for
++  flag regeneration.
+ 
+ Optimizations (better compiler)
+ -------------------------------
+diff --git a/src/cmd/compile/internal/ssa/flagalloc.go b/src/cmd/compile/internal/ssa/flagalloc.go
+index f4e289e782..85e9c4fbee 100644
+--- a/src/cmd/compile/internal/ssa/flagalloc.go
++++ b/src/cmd/compile/internal/ssa/flagalloc.go
+@@ -42,11 +42,14 @@ func flagalloc(f *Func) {
+ 					}
+ 				}
+ 			}
+-			for _, p := range b.Preds {
+-				end[p.ID] = flag
++			if flag != nil {
++				for _, p := range b.Preds {
++					end[p.ID] = flag
++				}
+ 			}
+ 		}
+ 	}
++
+ 	// For blocks which have a flags control value, that's the only value
+ 	// we can leave in the flags register at the end of the block. (There
+ 	// is no place to put a flag regeneration instruction.)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 9db3abb9f0..a6ad6c1ca0 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -556,24 +556,24 @@
+ (MOVOstore  [off1] {sym} (ADDQconst [off2] ptr) val mem) -> (MOVOstore  [addOff(off1, off2)] {sym} ptr val mem)
+ 
+ // Fold constants into stores.
+-(MOVQstore [off] {sym} ptr (MOVQconst [c]) mem) && validStoreConst(c,off) ->
+-	(MOVQstoreconst [makeStoreConst(c,off)] {sym} ptr mem)
+-(MOVLstore [off] {sym} ptr (MOVLconst [c]) mem) && validStoreConstOff(off) ->
+-	(MOVLstoreconst [makeStoreConst(int64(int32(c)),off)] {sym} ptr mem)
+-(MOVWstore [off] {sym} ptr (MOVWconst [c]) mem) && validStoreConstOff(off) ->
+-	(MOVWstoreconst [makeStoreConst(int64(int16(c)),off)] {sym} ptr mem)
+-(MOVBstore [off] {sym} ptr (MOVBconst [c]) mem) && validStoreConstOff(off) ->
+-	(MOVBstoreconst [makeStoreConst(int64(int8(c)),off)] {sym} ptr mem)
++(MOVQstore [off] {sym} ptr (MOVQconst [c]) mem) && validValAndOff(c,off) ->
++	(MOVQstoreconst [makeValAndOff(c,off)] {sym} ptr mem)
++(MOVLstore [off] {sym} ptr (MOVLconst [c]) mem) && validOff(off) ->
++	(MOVLstoreconst [makeValAndOff(int64(int32(c)),off)] {sym} ptr mem)
++(MOVWstore [off] {sym} ptr (MOVWconst [c]) mem) && validOff(off) ->
++	(MOVWstoreconst [makeValAndOff(int64(int16(c)),off)] {sym} ptr mem)
++(MOVBstore [off] {sym} ptr (MOVBconst [c]) mem) && validOff(off) ->
++	(MOVBstoreconst [makeValAndOff(int64(int8(c)),off)] {sym} ptr mem)
+ 
+ // Fold address offsets into constant stores.
+-(MOVQstoreconst [sc] {s} (ADDQconst [off] ptr) mem) && StoreConst(sc).canAdd(off) ->
+-	(MOVQstoreconst [StoreConst(sc).add(off)] {s} ptr mem)
+-(MOVLstoreconst [sc] {s} (ADDQconst [off] ptr) mem) && StoreConst(sc).canAdd(off) ->
+-	(MOVLstoreconst [StoreConst(sc).add(off)] {s} ptr mem)
+-(MOVWstoreconst [sc] {s} (ADDQconst [off] ptr) mem) && StoreConst(sc).canAdd(off) ->
+-	(MOVWstoreconst [StoreConst(sc).add(off)] {s} ptr mem)
+-(MOVBstoreconst [sc] {s} (ADDQconst [off] ptr) mem) && StoreConst(sc).canAdd(off) ->
+-	(MOVBstoreconst [StoreConst(sc).add(off)] {s} ptr mem)
++(MOVQstoreconst [sc] {s} (ADDQconst [off] ptr) mem) && ValAndOff(sc).canAdd(off) ->
++	(MOVQstoreconst [ValAndOff(sc).add(off)] {s} ptr mem)
++(MOVLstoreconst [sc] {s} (ADDQconst [off] ptr) mem) && ValAndOff(sc).canAdd(off) ->
++	(MOVLstoreconst [ValAndOff(sc).add(off)] {s} ptr mem)
++(MOVWstoreconst [sc] {s} (ADDQconst [off] ptr) mem) && ValAndOff(sc).canAdd(off) ->
++	(MOVWstoreconst [ValAndOff(sc).add(off)] {s} ptr mem)
++(MOVBstoreconst [sc] {s} (ADDQconst [off] ptr) mem) && ValAndOff(sc).canAdd(off) ->
++	(MOVBstoreconst [ValAndOff(sc).add(off)] {s} ptr mem)
+ 
+ // We need to fold LEAQ into the MOVx ops so that the live variable analysis knows
+ // what variables are being read/written by the ops.
+@@ -607,14 +607,14 @@
+ (MOVOstore [off1] {sym1} (LEAQ [off2] {sym2} base) val mem) && canMergeSym(sym1, sym2) ->
+ 	(MOVOstore [addOff(off1,off2)] {mergeSym(sym1,sym2)} base val mem)
+ 
+-(MOVQstoreconst [sc] {sym1} (LEAQ [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && StoreConst(sc).canAdd(off) ->
+-	(MOVQstoreconst [StoreConst(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
+-(MOVLstoreconst [sc] {sym1} (LEAQ [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && StoreConst(sc).canAdd(off) ->
+-	(MOVLstoreconst [StoreConst(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
+-(MOVWstoreconst [sc] {sym1} (LEAQ [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && StoreConst(sc).canAdd(off) ->
+-	(MOVWstoreconst [StoreConst(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
+-(MOVBstoreconst [sc] {sym1} (LEAQ [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && StoreConst(sc).canAdd(off) ->
+-	(MOVBstoreconst [StoreConst(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
++(MOVQstoreconst [sc] {sym1} (LEAQ [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off) ->
++	(MOVQstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
++(MOVLstoreconst [sc] {sym1} (LEAQ [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off) ->
++	(MOVLstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
++(MOVWstoreconst [sc] {sym1} (LEAQ [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off) ->
++	(MOVWstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
++(MOVBstoreconst [sc] {sym1} (LEAQ [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off) ->
++	(MOVBstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
+ 
+ // indexed loads and stores
+ (MOVQloadidx8 [off1] {sym} (ADDQconst [off2] ptr) idx mem) -> (MOVQloadidx8 [addOff(off1, off2)] {sym} ptr idx mem)
+@@ -647,16 +647,16 @@
+ (Zero [8] destptr mem) -> (MOVQstoreconst [0] destptr mem)
+ 
+ (Zero [3] destptr mem) ->
+-	(MOVBstoreconst [makeStoreConst(0,2)] destptr
++	(MOVBstoreconst [makeValAndOff(0,2)] destptr
+ 		(MOVWstoreconst [0] destptr mem))
+ (Zero [5] destptr mem) ->
+-	(MOVBstoreconst [makeStoreConst(0,4)] destptr
++	(MOVBstoreconst [makeValAndOff(0,4)] destptr
+ 		(MOVLstoreconst [0] destptr mem))
+ (Zero [6] destptr mem) ->
+-	(MOVWstoreconst [makeStoreConst(0,4)] destptr
++	(MOVWstoreconst [makeValAndOff(0,4)] destptr
+ 		(MOVLstoreconst [0] destptr mem))
+ (Zero [7] destptr mem) ->
+-	(MOVLstoreconst [makeStoreConst(0,3)] destptr
++	(MOVLstoreconst [makeValAndOff(0,3)] destptr
+ 		(MOVLstoreconst [0] destptr mem))
+ 
+ // Strip off any fractional word zeroing.
+@@ -666,16 +666,16 @@
+ 
+ // Zero small numbers of words directly.
+ (Zero [16] destptr mem) ->
+-	(MOVQstoreconst [makeStoreConst(0,8)] destptr
++	(MOVQstoreconst [makeValAndOff(0,8)] destptr
+ 		(MOVQstoreconst [0] destptr mem))
+ (Zero [24] destptr mem) ->
+-	(MOVQstoreconst [makeStoreConst(0,16)] destptr
+-		(MOVQstoreconst [makeStoreConst(0,8)] destptr
++	(MOVQstoreconst [makeValAndOff(0,16)] destptr
++		(MOVQstoreconst [makeValAndOff(0,8)] destptr
+ 			(MOVQstoreconst [0] destptr mem)))
+ (Zero [32] destptr mem) ->
+-	(MOVQstoreconst [makeStoreConst(0,24)] destptr
+-		(MOVQstoreconst [makeStoreConst(0,16)] destptr
+-			(MOVQstoreconst [makeStoreConst(0,8)] destptr
++	(MOVQstoreconst [makeValAndOff(0,24)] destptr
++		(MOVQstoreconst [makeValAndOff(0,16)] destptr
++			(MOVQstoreconst [makeValAndOff(0,8)] destptr
+ 				(MOVQstoreconst [0] destptr mem))))
+ 
+ // Medium zeroing uses a duff device.
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index dcffb49f63..9cf4a2e70b 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -382,8 +382,8 @@ func init() {
+ 
+ 		// For storeconst ops, the AuxInt field encodes both
+ 		// the value to store and an address offset of the store.
+-		// Cast AuxInt to a StoreConst to extract Val and Off fields.
+-		{name: "MOVBstoreconst", reg: gpstoreconst, asm: "MOVB", typ: "Mem"}, // store low byte of StoreConst(AuxInt).Val() to arg0+StoreConst(AuxInt).Off()+aux.  arg1=mem
++		// Cast AuxInt to a ValAndOff to extract Val and Off fields.
++		{name: "MOVBstoreconst", reg: gpstoreconst, asm: "MOVB", typ: "Mem"}, // store low byte of ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux.  arg1=mem
+ 		{name: "MOVWstoreconst", reg: gpstoreconst, asm: "MOVW", typ: "Mem"}, // store low 2 bytes of ...
+ 		{name: "MOVLstoreconst", reg: gpstoreconst, asm: "MOVL", typ: "Mem"}, // store low 4 bytes of ...
+ 		{name: "MOVQstoreconst", reg: gpstoreconst, asm: "MOVQ", typ: "Mem"}, // store 8 bytes of ...
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 78cca9e0b8..526722f7bc 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -4,6 +4,8 @@
+ 
+ package ssa
+ 
++import "fmt"
++
+ // An Op encodes the specific operation that a Value performs.
+ // Opcodes' semantics can be modified by the type and aux fields of the Value.
+ // For instance, OpAdd can be 32 or 64 bit, signed or unsigned, float or complex, depending on Value.Type.
+@@ -30,57 +32,67 @@ type regInfo struct {
+ 	outputs  []regMask // NOTE: values can only have 1 output for now.
+ }
+ 
+-// A StoreConst is used by the MOVXstoreconst opcodes.  It holds
+-// both the value to store and an offset from the store pointer.
+-// A StoreConst is intended to be encoded into an AuxInt field.
+-// The zero StoreConst encodes a value of 0 and an offset of 0.
+-// The high 32 bits hold a value to be stored.
++// A ValAndOff is used by the several opcodes.  It holds
++// both a value and a pointer offset.
++// A ValAndOff is intended to be encoded into an AuxInt field.
++// The zero ValAndOff encodes a value of 0 and an offset of 0.
++// The high 32 bits hold a value.
+ // The low 32 bits hold a pointer offset.
+-type StoreConst int64
++type ValAndOff int64
+ 
+-func (sc StoreConst) Val() int64 {
+-	return int64(sc) >> 32
++func (x ValAndOff) Val() int64 {
++	return int64(x) >> 32
++}
++func (x ValAndOff) Off() int64 {
++	return int64(int32(x))
+ }
+-func (sc StoreConst) Off() int64 {
+-	return int64(int32(sc))
++func (x ValAndOff) Int64() int64 {
++	return int64(x)
+ }
+-func (sc StoreConst) Int64() int64 {
+-	return int64(sc)
++func (x ValAndOff) String() string {
++	return fmt.Sprintf("val=%d,off=%d", x.Val(), x.Off())
+ }
+ 
+-// validStoreConstOff reports whether the offset can be used
+-// as an argument to makeStoreConst.
+-func validStoreConstOff(off int64) bool {
++// validVal reports whether the value can be used
++// as an argument to makeValAndOff.
++func validVal(val int64) bool {
++	return val == int64(int32(val))
++}
++
++// validOff reports whether the offset can be used
++// as an argument to makeValAndOff.
++func validOff(off int64) bool {
+ 	return off == int64(int32(off))
+ }
+ 
+-// validStoreConst reports whether we can fit the value and offset into
+-// a StoreConst value.
+-func validStoreConst(val, off int64) bool {
+-	if val != int64(int32(val)) {
++// validValAndOff reports whether we can fit the value and offset into
++// a ValAndOff value.
++func validValAndOff(val, off int64) bool {
++	if !validVal(val) {
+ 		return false
+ 	}
+-	if !validStoreConstOff(off) {
++	if !validOff(off) {
+ 		return false
+ 	}
+ 	return true
+ }
+ 
+-// encode encodes a StoreConst into an int64 suitable for storing in an AuxInt field.
+-func makeStoreConst(val, off int64) int64 {
+-	if !validStoreConst(val, off) {
+-		panic("invalid makeStoreConst")
++// makeValAndOff encodes a ValAndOff into an int64 suitable for storing in an AuxInt field.
++func makeValAndOff(val, off int64) int64 {
++	if !validValAndOff(val, off) {
++		panic("invalid makeValAndOff")
+ 	}
+-	return StoreConst(val<<32 + int64(uint32(off))).Int64()
++	return ValAndOff(val<<32 + int64(uint32(off))).Int64()
+ }
+ 
+-func (sc StoreConst) canAdd(off int64) bool {
+-	newoff := sc.Off() + off
++func (x ValAndOff) canAdd(off int64) bool {
++	newoff := x.Off() + off
+ 	return newoff == int64(int32(newoff))
+ }
+-func (sc StoreConst) add(off int64) int64 {
+-	if !sc.canAdd(off) {
+-		panic("invalid StoreConst.add")
++
++func (x ValAndOff) add(off int64) int64 {
++	if !x.canAdd(off) {
++		panic("invalid ValAndOff.add")
+ 	}
+-	return makeStoreConst(sc.Val(), sc.Off()+off)
++	return makeValAndOff(x.Val(), x.Off()+off)
+ }
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 3d682f0040..ec3bbe53c2 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -6059,32 +6059,32 @@ end3a2e55db7e03920700c4875f6a55de3b:
+ ende6347ac19d0469ee59d2e7f2e18d1070:
+ 	;
+ 	// match: (MOVBstore [off] {sym} ptr (MOVBconst [c]) mem)
+-	// cond: validStoreConstOff(off)
+-	// result: (MOVBstoreconst [makeStoreConst(int64(int8(c)),off)] {sym} ptr mem)
++	// cond: validOff(off)
++	// result: (MOVBstoreconst [makeValAndOff(int64(int8(c)),off)] {sym} ptr mem)
+ 	{
+ 		off := v.AuxInt
+ 		sym := v.Aux
+ 		ptr := v.Args[0]
+ 		if v.Args[1].Op != OpAMD64MOVBconst {
+-			goto enda8ebda583a842dae6377b7f562040318
++			goto endfdf24c49923451a076f1868988b8c9d9
+ 		}
+ 		c := v.Args[1].AuxInt
+ 		mem := v.Args[2]
+-		if !(validStoreConstOff(off)) {
+-			goto enda8ebda583a842dae6377b7f562040318
++		if !(validOff(off)) {
++			goto endfdf24c49923451a076f1868988b8c9d9
+ 		}
+ 		v.Op = OpAMD64MOVBstoreconst
+ 		v.AuxInt = 0
+ 		v.Aux = nil
+ 		v.resetArgs()
+-		v.AuxInt = makeStoreConst(int64(int8(c)), off)
++		v.AuxInt = makeValAndOff(int64(int8(c)), off)
+ 		v.Aux = sym
+ 		v.AddArg(ptr)
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	goto enda8ebda583a842dae6377b7f562040318
+-enda8ebda583a842dae6377b7f562040318:
++	goto endfdf24c49923451a076f1868988b8c9d9
++endfdf24c49923451a076f1868988b8c9d9:
+ 	;
+ 	// match: (MOVBstore  [off1] {sym1} (LEAQ [off2] {sym2} base) val mem)
+ 	// cond: canMergeSym(sym1, sym2)
+@@ -6123,61 +6123,61 @@ func rewriteValueAMD64_OpAMD64MOVBstoreconst(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (MOVBstoreconst [sc] {s} (ADDQconst [off] ptr) mem)
+-	// cond: StoreConst(sc).canAdd(off)
+-	// result: (MOVBstoreconst [StoreConst(sc).add(off)] {s} ptr mem)
++	// cond: ValAndOff(sc).canAdd(off)
++	// result: (MOVBstoreconst [ValAndOff(sc).add(off)] {s} ptr mem)
+ 	{
+ 		sc := v.AuxInt
+ 		s := v.Aux
+ 		if v.Args[0].Op != OpAMD64ADDQconst {
+-			goto ende1cdf6d463f91ba4dd1956f8ba4cb128
++			goto end8d35ca650b7c40bc43984d3f5925a052
+ 		}
+ 		off := v.Args[0].AuxInt
+ 		ptr := v.Args[0].Args[0]
+ 		mem := v.Args[1]
+-		if !(StoreConst(sc).canAdd(off)) {
+-			goto ende1cdf6d463f91ba4dd1956f8ba4cb128
++		if !(ValAndOff(sc).canAdd(off)) {
++			goto end8d35ca650b7c40bc43984d3f5925a052
+ 		}
+ 		v.Op = OpAMD64MOVBstoreconst
+ 		v.AuxInt = 0
+ 		v.Aux = nil
+ 		v.resetArgs()
+-		v.AuxInt = StoreConst(sc).add(off)
++		v.AuxInt = ValAndOff(sc).add(off)
+ 		v.Aux = s
+ 		v.AddArg(ptr)
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	goto ende1cdf6d463f91ba4dd1956f8ba4cb128
+-ende1cdf6d463f91ba4dd1956f8ba4cb128:
++	goto end8d35ca650b7c40bc43984d3f5925a052
++end8d35ca650b7c40bc43984d3f5925a052:
+ 	;
+ 	// match: (MOVBstoreconst [sc] {sym1} (LEAQ [off] {sym2} ptr) mem)
+-	// cond: canMergeSym(sym1, sym2) && StoreConst(sc).canAdd(off)
+-	// result: (MOVBstoreconst [StoreConst(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
++	// cond: canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)
++	// result: (MOVBstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
+ 	{
+ 		sc := v.AuxInt
+ 		sym1 := v.Aux
+ 		if v.Args[0].Op != OpAMD64LEAQ {
+-			goto end5feed29bca3ce7d5fccda89acf71c855
++			goto end8deb839acf84818dd8fc827c0338f42c
+ 		}
+ 		off := v.Args[0].AuxInt
+ 		sym2 := v.Args[0].Aux
+ 		ptr := v.Args[0].Args[0]
+ 		mem := v.Args[1]
+-		if !(canMergeSym(sym1, sym2) && StoreConst(sc).canAdd(off)) {
+-			goto end5feed29bca3ce7d5fccda89acf71c855
++		if !(canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)) {
++			goto end8deb839acf84818dd8fc827c0338f42c
+ 		}
+ 		v.Op = OpAMD64MOVBstoreconst
+ 		v.AuxInt = 0
+ 		v.Aux = nil
+ 		v.resetArgs()
+-		v.AuxInt = StoreConst(sc).add(off)
++		v.AuxInt = ValAndOff(sc).add(off)
+ 		v.Aux = mergeSym(sym1, sym2)
+ 		v.AddArg(ptr)
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	goto end5feed29bca3ce7d5fccda89acf71c855
+-end5feed29bca3ce7d5fccda89acf71c855:
++	goto end8deb839acf84818dd8fc827c0338f42c
++end8deb839acf84818dd8fc827c0338f42c:
+ 	;
+ 	return false
+ }
+@@ -6323,32 +6323,32 @@ end199e8c23a5e7e99728a43d6a83b2c2cf:
+ end43bffdb8d9c1fc85a95778d4911955f1:
+ 	;
+ 	// match: (MOVLstore [off] {sym} ptr (MOVLconst [c]) mem)
+-	// cond: validStoreConstOff(off)
+-	// result: (MOVLstoreconst [makeStoreConst(int64(int32(c)),off)] {sym} ptr mem)
++	// cond: validOff(off)
++	// result: (MOVLstoreconst [makeValAndOff(int64(int32(c)),off)] {sym} ptr mem)
+ 	{
+ 		off := v.AuxInt
+ 		sym := v.Aux
+ 		ptr := v.Args[0]
+ 		if v.Args[1].Op != OpAMD64MOVLconst {
+-			goto end14bc0c027d67d279cf3ef2038b759ce2
++			goto enda62a54c45bf42db801af4095d27faccd
+ 		}
+ 		c := v.Args[1].AuxInt
+ 		mem := v.Args[2]
+-		if !(validStoreConstOff(off)) {
+-			goto end14bc0c027d67d279cf3ef2038b759ce2
++		if !(validOff(off)) {
++			goto enda62a54c45bf42db801af4095d27faccd
+ 		}
+ 		v.Op = OpAMD64MOVLstoreconst
+ 		v.AuxInt = 0
+ 		v.Aux = nil
+ 		v.resetArgs()
+-		v.AuxInt = makeStoreConst(int64(int32(c)), off)
++		v.AuxInt = makeValAndOff(int64(int32(c)), off)
+ 		v.Aux = sym
+ 		v.AddArg(ptr)
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	goto end14bc0c027d67d279cf3ef2038b759ce2
+-end14bc0c027d67d279cf3ef2038b759ce2:
++	goto enda62a54c45bf42db801af4095d27faccd
++enda62a54c45bf42db801af4095d27faccd:
+ 	;
+ 	// match: (MOVLstore  [off1] {sym1} (LEAQ [off2] {sym2} base) val mem)
+ 	// cond: canMergeSym(sym1, sym2)
+@@ -6387,61 +6387,61 @@ func rewriteValueAMD64_OpAMD64MOVLstoreconst(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (MOVLstoreconst [sc] {s} (ADDQconst [off] ptr) mem)
+-	// cond: StoreConst(sc).canAdd(off)
+-	// result: (MOVLstoreconst [StoreConst(sc).add(off)] {s} ptr mem)
++	// cond: ValAndOff(sc).canAdd(off)
++	// result: (MOVLstoreconst [ValAndOff(sc).add(off)] {s} ptr mem)
+ 	{
+ 		sc := v.AuxInt
+ 		s := v.Aux
+ 		if v.Args[0].Op != OpAMD64ADDQconst {
+-			goto end7665f96d0aaa57009bf98632f19bf8e7
++			goto end4981598152dd0763f1d735810a7d34e8
+ 		}
+ 		off := v.Args[0].AuxInt
+ 		ptr := v.Args[0].Args[0]
+ 		mem := v.Args[1]
+-		if !(StoreConst(sc).canAdd(off)) {
+-			goto end7665f96d0aaa57009bf98632f19bf8e7
++		if !(ValAndOff(sc).canAdd(off)) {
++			goto end4981598152dd0763f1d735810a7d34e8
+ 		}
+ 		v.Op = OpAMD64MOVLstoreconst
+ 		v.AuxInt = 0
+ 		v.Aux = nil
+ 		v.resetArgs()
+-		v.AuxInt = StoreConst(sc).add(off)
++		v.AuxInt = ValAndOff(sc).add(off)
+ 		v.Aux = s
+ 		v.AddArg(ptr)
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	goto end7665f96d0aaa57009bf98632f19bf8e7
+-end7665f96d0aaa57009bf98632f19bf8e7:
++	goto end4981598152dd0763f1d735810a7d34e8
++end4981598152dd0763f1d735810a7d34e8:
+ 	;
+ 	// match: (MOVLstoreconst [sc] {sym1} (LEAQ [off] {sym2} ptr) mem)
+-	// cond: canMergeSym(sym1, sym2) && StoreConst(sc).canAdd(off)
+-	// result: (MOVLstoreconst [StoreConst(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
++	// cond: canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)
++	// result: (MOVLstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
+ 	{
+ 		sc := v.AuxInt
+ 		sym1 := v.Aux
+ 		if v.Args[0].Op != OpAMD64LEAQ {
+-			goto end1664c6056a9c65fcbe30eca273e8ee64
++			goto endd579250954b5df84a77518b36f739e12
+ 		}
+ 		off := v.Args[0].AuxInt
+ 		sym2 := v.Args[0].Aux
+ 		ptr := v.Args[0].Args[0]
+ 		mem := v.Args[1]
+-		if !(canMergeSym(sym1, sym2) && StoreConst(sc).canAdd(off)) {
+-			goto end1664c6056a9c65fcbe30eca273e8ee64
++		if !(canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)) {
++			goto endd579250954b5df84a77518b36f739e12
+ 		}
+ 		v.Op = OpAMD64MOVLstoreconst
+ 		v.AuxInt = 0
+ 		v.Aux = nil
+ 		v.resetArgs()
+-		v.AuxInt = StoreConst(sc).add(off)
++		v.AuxInt = ValAndOff(sc).add(off)
+ 		v.Aux = mergeSym(sym1, sym2)
+ 		v.AddArg(ptr)
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	goto end1664c6056a9c65fcbe30eca273e8ee64
+-end1664c6056a9c65fcbe30eca273e8ee64:
++	goto endd579250954b5df84a77518b36f739e12
++endd579250954b5df84a77518b36f739e12:
+ 	;
+ 	return false
+ }
+@@ -6720,32 +6720,32 @@ func rewriteValueAMD64_OpAMD64MOVQstore(v *Value, config *Config) bool {
+ end0a110b5e42a4576c32fda50590092848:
+ 	;
+ 	// match: (MOVQstore [off] {sym} ptr (MOVQconst [c]) mem)
+-	// cond: validStoreConst(c,off)
+-	// result: (MOVQstoreconst [makeStoreConst(c,off)] {sym} ptr mem)
++	// cond: validValAndOff(c,off)
++	// result: (MOVQstoreconst [makeValAndOff(c,off)] {sym} ptr mem)
+ 	{
+ 		off := v.AuxInt
+ 		sym := v.Aux
+ 		ptr := v.Args[0]
+ 		if v.Args[1].Op != OpAMD64MOVQconst {
+-			goto end8368f37d24b6a2f59c3d00966c4d4111
++			goto endda0f4b36e19753762dbd1c6ee05e4c81
+ 		}
+ 		c := v.Args[1].AuxInt
+ 		mem := v.Args[2]
+-		if !(validStoreConst(c, off)) {
+-			goto end8368f37d24b6a2f59c3d00966c4d4111
++		if !(validValAndOff(c, off)) {
++			goto endda0f4b36e19753762dbd1c6ee05e4c81
+ 		}
+ 		v.Op = OpAMD64MOVQstoreconst
+ 		v.AuxInt = 0
+ 		v.Aux = nil
+ 		v.resetArgs()
+-		v.AuxInt = makeStoreConst(c, off)
++		v.AuxInt = makeValAndOff(c, off)
+ 		v.Aux = sym
+ 		v.AddArg(ptr)
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	goto end8368f37d24b6a2f59c3d00966c4d4111
+-end8368f37d24b6a2f59c3d00966c4d4111:
++	goto endda0f4b36e19753762dbd1c6ee05e4c81
++endda0f4b36e19753762dbd1c6ee05e4c81:
+ 	;
+ 	// match: (MOVQstore  [off1] {sym1} (LEAQ [off2] {sym2} base) val mem)
+ 	// cond: canMergeSym(sym1, sym2)
+@@ -6817,61 +6817,61 @@ func rewriteValueAMD64_OpAMD64MOVQstoreconst(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (MOVQstoreconst [sc] {s} (ADDQconst [off] ptr) mem)
+-	// cond: StoreConst(sc).canAdd(off)
+-	// result: (MOVQstoreconst [StoreConst(sc).add(off)] {s} ptr mem)
++	// cond: ValAndOff(sc).canAdd(off)
++	// result: (MOVQstoreconst [ValAndOff(sc).add(off)] {s} ptr mem)
+ 	{
+ 		sc := v.AuxInt
+ 		s := v.Aux
+ 		if v.Args[0].Op != OpAMD64ADDQconst {
+-			goto end5826e30265c68ea8c4cd595ceedf9405
++			goto end3694207cd20e8e1cc719e179bdfe0c74
+ 		}
+ 		off := v.Args[0].AuxInt
+ 		ptr := v.Args[0].Args[0]
+ 		mem := v.Args[1]
+-		if !(StoreConst(sc).canAdd(off)) {
+-			goto end5826e30265c68ea8c4cd595ceedf9405
++		if !(ValAndOff(sc).canAdd(off)) {
++			goto end3694207cd20e8e1cc719e179bdfe0c74
+ 		}
+ 		v.Op = OpAMD64MOVQstoreconst
+ 		v.AuxInt = 0
+ 		v.Aux = nil
+ 		v.resetArgs()
+-		v.AuxInt = StoreConst(sc).add(off)
++		v.AuxInt = ValAndOff(sc).add(off)
+ 		v.Aux = s
+ 		v.AddArg(ptr)
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	goto end5826e30265c68ea8c4cd595ceedf9405
+-end5826e30265c68ea8c4cd595ceedf9405:
++	goto end3694207cd20e8e1cc719e179bdfe0c74
++end3694207cd20e8e1cc719e179bdfe0c74:
+ 	;
+ 	// match: (MOVQstoreconst [sc] {sym1} (LEAQ [off] {sym2} ptr) mem)
+-	// cond: canMergeSym(sym1, sym2) && StoreConst(sc).canAdd(off)
+-	// result: (MOVQstoreconst [StoreConst(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
++	// cond: canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)
++	// result: (MOVQstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
+ 	{
+ 		sc := v.AuxInt
+ 		sym1 := v.Aux
+ 		if v.Args[0].Op != OpAMD64LEAQ {
+-			goto endb9c7f7a9dbc6b885d84f851c74b018e5
++			goto endf405b27b22dbf76f83abd1b5ad5e53d9
+ 		}
+ 		off := v.Args[0].AuxInt
+ 		sym2 := v.Args[0].Aux
+ 		ptr := v.Args[0].Args[0]
+ 		mem := v.Args[1]
+-		if !(canMergeSym(sym1, sym2) && StoreConst(sc).canAdd(off)) {
+-			goto endb9c7f7a9dbc6b885d84f851c74b018e5
++		if !(canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)) {
++			goto endf405b27b22dbf76f83abd1b5ad5e53d9
+ 		}
+ 		v.Op = OpAMD64MOVQstoreconst
+ 		v.AuxInt = 0
+ 		v.Aux = nil
+ 		v.resetArgs()
+-		v.AuxInt = StoreConst(sc).add(off)
++		v.AuxInt = ValAndOff(sc).add(off)
+ 		v.Aux = mergeSym(sym1, sym2)
+ 		v.AddArg(ptr)
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	goto endb9c7f7a9dbc6b885d84f851c74b018e5
+-endb9c7f7a9dbc6b885d84f851c74b018e5:
++	goto endf405b27b22dbf76f83abd1b5ad5e53d9
++endf405b27b22dbf76f83abd1b5ad5e53d9:
+ 	;
+ 	return false
+ }
+@@ -7567,32 +7567,32 @@ end187fe73dfaf9cf5f4c349283b4dfd9d1:
+ endda15fdd59aa956ded0440188f38de1aa:
+ 	;
+ 	// match: (MOVWstore [off] {sym} ptr (MOVWconst [c]) mem)
+-	// cond: validStoreConstOff(off)
+-	// result: (MOVWstoreconst [makeStoreConst(int64(int16(c)),off)] {sym} ptr mem)
++	// cond: validOff(off)
++	// result: (MOVWstoreconst [makeValAndOff(int64(int16(c)),off)] {sym} ptr mem)
+ 	{
+ 		off := v.AuxInt
+ 		sym := v.Aux
+ 		ptr := v.Args[0]
+ 		if v.Args[1].Op != OpAMD64MOVWconst {
+-			goto end226f449215b8ea54ac24fb8d52356ffa
++			goto end60327daf9965d73a8c1971d098e1e31d
+ 		}
+ 		c := v.Args[1].AuxInt
+ 		mem := v.Args[2]
+-		if !(validStoreConstOff(off)) {
+-			goto end226f449215b8ea54ac24fb8d52356ffa
++		if !(validOff(off)) {
++			goto end60327daf9965d73a8c1971d098e1e31d
+ 		}
+ 		v.Op = OpAMD64MOVWstoreconst
+ 		v.AuxInt = 0
+ 		v.Aux = nil
+ 		v.resetArgs()
+-		v.AuxInt = makeStoreConst(int64(int16(c)), off)
++		v.AuxInt = makeValAndOff(int64(int16(c)), off)
+ 		v.Aux = sym
+ 		v.AddArg(ptr)
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	goto end226f449215b8ea54ac24fb8d52356ffa
+-end226f449215b8ea54ac24fb8d52356ffa:
++	goto end60327daf9965d73a8c1971d098e1e31d
++end60327daf9965d73a8c1971d098e1e31d:
+ 	;
+ 	// match: (MOVWstore  [off1] {sym1} (LEAQ [off2] {sym2} base) val mem)
+ 	// cond: canMergeSym(sym1, sym2)
+@@ -7631,61 +7631,61 @@ func rewriteValueAMD64_OpAMD64MOVWstoreconst(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (MOVWstoreconst [sc] {s} (ADDQconst [off] ptr) mem)
+-	// cond: StoreConst(sc).canAdd(off)
+-	// result: (MOVWstoreconst [StoreConst(sc).add(off)] {s} ptr mem)
++	// cond: ValAndOff(sc).canAdd(off)
++	// result: (MOVWstoreconst [ValAndOff(sc).add(off)] {s} ptr mem)
+ 	{
+ 		sc := v.AuxInt
+ 		s := v.Aux
+ 		if v.Args[0].Op != OpAMD64ADDQconst {
+-			goto end2b764f9cf1bb32af25ba4e70a6705b91
++			goto end8825edac065f0e1c615ca5e6ba40e2de
+ 		}
+ 		off := v.Args[0].AuxInt
+ 		ptr := v.Args[0].Args[0]
+ 		mem := v.Args[1]
+-		if !(StoreConst(sc).canAdd(off)) {
+-			goto end2b764f9cf1bb32af25ba4e70a6705b91
++		if !(ValAndOff(sc).canAdd(off)) {
++			goto end8825edac065f0e1c615ca5e6ba40e2de
+ 		}
+ 		v.Op = OpAMD64MOVWstoreconst
+ 		v.AuxInt = 0
+ 		v.Aux = nil
+ 		v.resetArgs()
+-		v.AuxInt = StoreConst(sc).add(off)
++		v.AuxInt = ValAndOff(sc).add(off)
+ 		v.Aux = s
+ 		v.AddArg(ptr)
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	goto end2b764f9cf1bb32af25ba4e70a6705b91
+-end2b764f9cf1bb32af25ba4e70a6705b91:
++	goto end8825edac065f0e1c615ca5e6ba40e2de
++end8825edac065f0e1c615ca5e6ba40e2de:
+ 	;
+ 	// match: (MOVWstoreconst [sc] {sym1} (LEAQ [off] {sym2} ptr) mem)
+-	// cond: canMergeSym(sym1, sym2) && StoreConst(sc).canAdd(off)
+-	// result: (MOVWstoreconst [StoreConst(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
++	// cond: canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)
++	// result: (MOVWstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
+ 	{
+ 		sc := v.AuxInt
+ 		sym1 := v.Aux
+ 		if v.Args[0].Op != OpAMD64LEAQ {
+-			goto enda15bfd8d540015b2245c65be486d2ffd
++			goto endba47397e07b40a64fa4cad36ac2e32ad
+ 		}
+ 		off := v.Args[0].AuxInt
+ 		sym2 := v.Args[0].Aux
+ 		ptr := v.Args[0].Args[0]
+ 		mem := v.Args[1]
+-		if !(canMergeSym(sym1, sym2) && StoreConst(sc).canAdd(off)) {
+-			goto enda15bfd8d540015b2245c65be486d2ffd
++		if !(canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)) {
++			goto endba47397e07b40a64fa4cad36ac2e32ad
+ 		}
+ 		v.Op = OpAMD64MOVWstoreconst
+ 		v.AuxInt = 0
+ 		v.Aux = nil
+ 		v.resetArgs()
+-		v.AuxInt = StoreConst(sc).add(off)
++		v.AuxInt = ValAndOff(sc).add(off)
+ 		v.Aux = mergeSym(sym1, sym2)
+ 		v.AddArg(ptr)
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	goto enda15bfd8d540015b2245c65be486d2ffd
+-enda15bfd8d540015b2245c65be486d2ffd:
++	goto endba47397e07b40a64fa4cad36ac2e32ad
++endba47397e07b40a64fa4cad36ac2e32ad:
+ 	;
+ 	return false
+ }
+@@ -14596,10 +14596,10 @@ end07aaaebfa15a48c52cd79b68e28d266f:
+ 	;
+ 	// match: (Zero [3] destptr mem)
+ 	// cond:
+-	// result: (MOVBstoreconst [makeStoreConst(0,2)] destptr 		(MOVWstoreconst [0] destptr mem))
++	// result: (MOVBstoreconst [makeValAndOff(0,2)] destptr 		(MOVWstoreconst [0] destptr mem))
+ 	{
+ 		if v.AuxInt != 3 {
+-			goto end03b2ae08f901891919e454f05273fb4e
++			goto end3bf4a24a87e0727b9bcfbb5fcd24aabe
+ 		}
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
+@@ -14607,7 +14607,7 @@ end07aaaebfa15a48c52cd79b68e28d266f:
+ 		v.AuxInt = 0
+ 		v.Aux = nil
+ 		v.resetArgs()
+-		v.AuxInt = makeStoreConst(0, 2)
++		v.AuxInt = makeValAndOff(0, 2)
+ 		v.AddArg(destptr)
+ 		v0 := b.NewValue0(v.Line, OpAMD64MOVWstoreconst, TypeInvalid)
+ 		v0.AuxInt = 0
+@@ -14617,15 +14617,15 @@ end07aaaebfa15a48c52cd79b68e28d266f:
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+-	goto end03b2ae08f901891919e454f05273fb4e
+-end03b2ae08f901891919e454f05273fb4e:
++	goto end3bf4a24a87e0727b9bcfbb5fcd24aabe
++end3bf4a24a87e0727b9bcfbb5fcd24aabe:
+ 	;
+ 	// match: (Zero [5] destptr mem)
+ 	// cond:
+-	// result: (MOVBstoreconst [makeStoreConst(0,4)] destptr 		(MOVLstoreconst [0] destptr mem))
++	// result: (MOVBstoreconst [makeValAndOff(0,4)] destptr 		(MOVLstoreconst [0] destptr mem))
+ 	{
+ 		if v.AuxInt != 5 {
+-			goto endc473059deb6291d483262b08312eab48
++			goto end567e4a90c6867faf1dfc2cd57daf2ce4
+ 		}
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
+@@ -14633,7 +14633,7 @@ end03b2ae08f901891919e454f05273fb4e:
+ 		v.AuxInt = 0
+ 		v.Aux = nil
+ 		v.resetArgs()
+-		v.AuxInt = makeStoreConst(0, 4)
++		v.AuxInt = makeValAndOff(0, 4)
+ 		v.AddArg(destptr)
+ 		v0 := b.NewValue0(v.Line, OpAMD64MOVLstoreconst, TypeInvalid)
+ 		v0.AuxInt = 0
+@@ -14643,15 +14643,15 @@ end03b2ae08f901891919e454f05273fb4e:
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+-	goto endc473059deb6291d483262b08312eab48
+-endc473059deb6291d483262b08312eab48:
++	goto end567e4a90c6867faf1dfc2cd57daf2ce4
++end567e4a90c6867faf1dfc2cd57daf2ce4:
+ 	;
+ 	// match: (Zero [6] destptr mem)
+ 	// cond:
+-	// result: (MOVWstoreconst [makeStoreConst(0,4)] destptr 		(MOVLstoreconst [0] destptr mem))
++	// result: (MOVWstoreconst [makeValAndOff(0,4)] destptr 		(MOVLstoreconst [0] destptr mem))
+ 	{
+ 		if v.AuxInt != 6 {
+-			goto end41b38839f25e3749384d53b5945bd56b
++			goto end7cddcaf215fcc2cbca9aa958147b2380
+ 		}
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
+@@ -14659,7 +14659,7 @@ endc473059deb6291d483262b08312eab48:
+ 		v.AuxInt = 0
+ 		v.Aux = nil
+ 		v.resetArgs()
+-		v.AuxInt = makeStoreConst(0, 4)
++		v.AuxInt = makeValAndOff(0, 4)
+ 		v.AddArg(destptr)
+ 		v0 := b.NewValue0(v.Line, OpAMD64MOVLstoreconst, TypeInvalid)
+ 		v0.AuxInt = 0
+@@ -14669,15 +14669,15 @@ endc473059deb6291d483262b08312eab48:
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+-	goto end41b38839f25e3749384d53b5945bd56b
+-end41b38839f25e3749384d53b5945bd56b:
++	goto end7cddcaf215fcc2cbca9aa958147b2380
++end7cddcaf215fcc2cbca9aa958147b2380:
+ 	;
+ 	// match: (Zero [7] destptr mem)
+ 	// cond:
+-	// result: (MOVLstoreconst [makeStoreConst(0,3)] destptr 		(MOVLstoreconst [0] destptr mem))
++	// result: (MOVLstoreconst [makeValAndOff(0,3)] destptr 		(MOVLstoreconst [0] destptr mem))
+ 	{
+ 		if v.AuxInt != 7 {
+-			goto end06e677d4c1ac43e08783eb8117a589b6
++			goto end1b58cabccbc912ea4e1cf99be8a9fbf7
+ 		}
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
+@@ -14685,7 +14685,7 @@ end41b38839f25e3749384d53b5945bd56b:
+ 		v.AuxInt = 0
+ 		v.Aux = nil
+ 		v.resetArgs()
+-		v.AuxInt = makeStoreConst(0, 3)
++		v.AuxInt = makeValAndOff(0, 3)
+ 		v.AddArg(destptr)
+ 		v0 := b.NewValue0(v.Line, OpAMD64MOVLstoreconst, TypeInvalid)
+ 		v0.AuxInt = 0
+@@ -14695,8 +14695,8 @@ end41b38839f25e3749384d53b5945bd56b:
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+-	goto end06e677d4c1ac43e08783eb8117a589b6
+-end06e677d4c1ac43e08783eb8117a589b6:
++	goto end1b58cabccbc912ea4e1cf99be8a9fbf7
++end1b58cabccbc912ea4e1cf99be8a9fbf7:
+ 	;
+ 	// match: (Zero [size] destptr mem)
+ 	// cond: size%8 != 0 && size > 8
+@@ -14731,10 +14731,10 @@ endc8760f86b83b1372fce0042ab5200fc1:
+ 	;
+ 	// match: (Zero [16] destptr mem)
+ 	// cond:
+-	// result: (MOVQstoreconst [makeStoreConst(0,8)] destptr 		(MOVQstoreconst [0] destptr mem))
++	// result: (MOVQstoreconst [makeValAndOff(0,8)] destptr 		(MOVQstoreconst [0] destptr mem))
+ 	{
+ 		if v.AuxInt != 16 {
+-			goto endce0bdb028011236be9f04fb53462204d
++			goto endf1447d60cbf8025adaf1a02a2cd219c4
+ 		}
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
+@@ -14742,7 +14742,7 @@ endc8760f86b83b1372fce0042ab5200fc1:
+ 		v.AuxInt = 0
+ 		v.Aux = nil
+ 		v.resetArgs()
+-		v.AuxInt = makeStoreConst(0, 8)
++		v.AuxInt = makeValAndOff(0, 8)
+ 		v.AddArg(destptr)
+ 		v0 := b.NewValue0(v.Line, OpAMD64MOVQstoreconst, TypeInvalid)
+ 		v0.AuxInt = 0
+@@ -14752,15 +14752,15 @@ endc8760f86b83b1372fce0042ab5200fc1:
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+-	goto endce0bdb028011236be9f04fb53462204d
+-endce0bdb028011236be9f04fb53462204d:
++	goto endf1447d60cbf8025adaf1a02a2cd219c4
++endf1447d60cbf8025adaf1a02a2cd219c4:
+ 	;
+ 	// match: (Zero [24] destptr mem)
+ 	// cond:
+-	// result: (MOVQstoreconst [makeStoreConst(0,16)] destptr 		(MOVQstoreconst [makeStoreConst(0,8)] destptr 			(MOVQstoreconst [0] destptr mem)))
++	// result: (MOVQstoreconst [makeValAndOff(0,16)] destptr 		(MOVQstoreconst [makeValAndOff(0,8)] destptr 			(MOVQstoreconst [0] destptr mem)))
+ 	{
+ 		if v.AuxInt != 24 {
+-			goto end859fe3911b36516ea096299b2a85350e
++			goto end57f2984a61c64f71a528e7fa75576095
+ 		}
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
+@@ -14768,10 +14768,10 @@ endce0bdb028011236be9f04fb53462204d:
+ 		v.AuxInt = 0
+ 		v.Aux = nil
+ 		v.resetArgs()
+-		v.AuxInt = makeStoreConst(0, 16)
++		v.AuxInt = makeValAndOff(0, 16)
+ 		v.AddArg(destptr)
+ 		v0 := b.NewValue0(v.Line, OpAMD64MOVQstoreconst, TypeInvalid)
+-		v0.AuxInt = makeStoreConst(0, 8)
++		v0.AuxInt = makeValAndOff(0, 8)
+ 		v0.AddArg(destptr)
+ 		v1 := b.NewValue0(v.Line, OpAMD64MOVQstoreconst, TypeInvalid)
+ 		v1.AuxInt = 0
+@@ -14783,15 +14783,15 @@ endce0bdb028011236be9f04fb53462204d:
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+-	goto end859fe3911b36516ea096299b2a85350e
+-end859fe3911b36516ea096299b2a85350e:
++	goto end57f2984a61c64f71a528e7fa75576095
++end57f2984a61c64f71a528e7fa75576095:
+ 	;
+ 	// match: (Zero [32] destptr mem)
+ 	// cond:
+-	// result: (MOVQstoreconst [makeStoreConst(0,24)] destptr 		(MOVQstoreconst [makeStoreConst(0,16)] destptr 			(MOVQstoreconst [makeStoreConst(0,8)] destptr 				(MOVQstoreconst [0] destptr mem))))
++	// result: (MOVQstoreconst [makeValAndOff(0,24)] destptr 		(MOVQstoreconst [makeValAndOff(0,16)] destptr 			(MOVQstoreconst [makeValAndOff(0,8)] destptr 				(MOVQstoreconst [0] destptr mem))))
+ 	{
+ 		if v.AuxInt != 32 {
+-			goto end2c246614f6a9a07f1a683691b3f5780f
++			goto end418a59f9f84dd389d37ae5c24aba2760
+ 		}
+ 		destptr := v.Args[0]
+ 		mem := v.Args[1]
+@@ -14799,13 +14799,13 @@ end859fe3911b36516ea096299b2a85350e:
+ 		v.AuxInt = 0
+ 		v.Aux = nil
+ 		v.resetArgs()
+-		v.AuxInt = makeStoreConst(0, 24)
++		v.AuxInt = makeValAndOff(0, 24)
+ 		v.AddArg(destptr)
+ 		v0 := b.NewValue0(v.Line, OpAMD64MOVQstoreconst, TypeInvalid)
+-		v0.AuxInt = makeStoreConst(0, 16)
++		v0.AuxInt = makeValAndOff(0, 16)
+ 		v0.AddArg(destptr)
+ 		v1 := b.NewValue0(v.Line, OpAMD64MOVQstoreconst, TypeInvalid)
+-		v1.AuxInt = makeStoreConst(0, 8)
++		v1.AuxInt = makeValAndOff(0, 8)
+ 		v1.AddArg(destptr)
+ 		v2 := b.NewValue0(v.Line, OpAMD64MOVQstoreconst, TypeInvalid)
+ 		v2.AuxInt = 0
+@@ -14819,8 +14819,8 @@ end859fe3911b36516ea096299b2a85350e:
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+-	goto end2c246614f6a9a07f1a683691b3f5780f
+-end2c246614f6a9a07f1a683691b3f5780f:
++	goto end418a59f9f84dd389d37ae5c24aba2760
++end418a59f9f84dd389d37ae5c24aba2760:
+ 	;
+ 	// match: (Zero [size] destptr mem)
+ 	// cond: size <= 1024 && size%8 == 0 && size%16 != 0
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index 420c408e88..7e6e544e26 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -61,16 +61,22 @@ func (v *Value) String() string {
+ func (v *Value) LongString() string {
+ 	s := fmt.Sprintf("v%d = %s", v.ID, v.Op.String())
+ 	s += " <" + v.Type.String() + ">"
+-	if v.AuxInt != 0 {
+-		s += fmt.Sprintf(" [%d]", v.AuxInt)
+-
+-		switch {
+-		case v.Op == OpConst32F || v.Op == OpConst64F:
+-			s += fmt.Sprintf("(%g)", math.Float64frombits(uint64(v.AuxInt)))
+-		case v.Op == OpConstBool && v.AuxInt == 0:
+-			s += " (false)"
+-		case v.Op == OpConstBool && v.AuxInt == 1:
+-			s += " (true)"
++	// TODO: use some operator property flags to decide
++	// what is encoded in the AuxInt field.
++	switch v.Op {
++	case OpConst32F, OpConst64F:
++		s += fmt.Sprintf(" [%g]", math.Float64frombits(uint64(v.AuxInt)))
++	case OpConstBool:
++		if v.AuxInt == 0 {
++			s += " [false]"
++		} else {
++			s += " [true]"
++		}
++	case OpAMD64MOVBstoreconst, OpAMD64MOVWstoreconst, OpAMD64MOVLstoreconst, OpAMD64MOVQstoreconst:
++		s += fmt.Sprintf(" [%s]", ValAndOff(v.AuxInt))
++	default:
++		if v.AuxInt != 0 {
++			s += fmt.Sprintf(" [%d]", v.AuxInt)
+ 		}
+ 	}
+ 	if v.Aux != nil {
+@@ -132,6 +138,11 @@ func (v *Value) copyInto(b *Block) *Value {
+ 	c.Aux = v.Aux
+ 	c.AuxInt = v.AuxInt
+ 	c.AddArgs(v.Args...)
++	for _, a := range v.Args {
++		if a.Type.IsMemory() {
++			v.Fatalf("can't move a value with a memory arg %s", v.LongString())
++		}
++	}
+ 	return c
+ }
+ 

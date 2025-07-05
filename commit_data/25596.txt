@@ -7,8 +7,108 @@ Date:   Wed Sep 23 14:05:16 2015 -0400
     Change-Id: Ia496470e48b3c5d39fb9fef99fac356dfb73a949
     Reviewed-on: https://go-review.googlesource.com/14927
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/arch_mips64.go   | 19 +++++++++++++++++++
  src/runtime/arch_mips64le.go | 19 +++++++++++++++++++
  src/runtime/sys_mips64x.go   | 43 +++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 81 insertions(+)
+
+diff --git a/src/runtime/arch_mips64.go b/src/runtime/arch_mips64.go
+new file mode 100644
+index 0000000000..dff830fe98
+--- /dev/null
++++ b/src/runtime/arch_mips64.go
+@@ -0,0 +1,19 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++const (
++	thechar        = '0'
++	_BigEndian     = 1
++	_CacheLineSize = 32
++	_PhysPageSize  = 16384
++	_PCQuantum     = 4
++	_Int64Align    = 8
++	hugePageSize   = 0
++	minFrameSize   = 8
++)
++
++type uintreg uint64
++type intptr int64 // TODO(rsc): remove
+diff --git a/src/runtime/arch_mips64le.go b/src/runtime/arch_mips64le.go
+new file mode 100644
+index 0000000000..bc4b73f0ff
+--- /dev/null
++++ b/src/runtime/arch_mips64le.go
+@@ -0,0 +1,19 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++const (
++	thechar        = '0'
++	_BigEndian     = 0
++	_CacheLineSize = 32
++	_PhysPageSize  = 16384
++	_PCQuantum     = 4
++	_Int64Align    = 8
++	hugePageSize   = 0
++	minFrameSize   = 8
++)
++
++type uintreg uint64
++type intptr int64 // TODO(rsc): remove
+diff --git a/src/runtime/sys_mips64x.go b/src/runtime/sys_mips64x.go
+new file mode 100644
+index 0000000000..9e7d805d7d
+--- /dev/null
++++ b/src/runtime/sys_mips64x.go
+@@ -0,0 +1,43 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build mips64 mips64le
++
++package runtime
++
++import "unsafe"
++
++// adjust Gobuf as if it executed a call to fn with context ctxt
++// and then did an immediate Gosave.
++func gostartcall(buf *gobuf, fn, ctxt unsafe.Pointer) {
++	if buf.lr != 0 {
++		throw("invalid use of gostartcall")
++	}
++	buf.lr = buf.pc
++	buf.pc = uintptr(fn)
++	buf.ctxt = ctxt
++}
++
++// Called to rewind context saved during morestack back to beginning of function.
++// To help us, the linker emits a jmp back to the beginning right after the
++// call to morestack. We just have to decode and apply that jump.
++func rewindmorestack(buf *gobuf) {
++	var inst uint32
++	if buf.pc&3 == 0 && buf.pc != 0 {
++		inst = *(*uint32)(unsafe.Pointer(buf.pc))
++		if inst>>26 == 2 { // JMP addr
++			//print("runtime: rewind pc=", hex(buf.pc), " to pc=", hex(buf.pc &^ uintptr(1<<28-1) | uintptr((inst&^0xfc000000)<<2)), "\n");
++			buf.pc &^= 1<<28 - 1
++			buf.pc |= uintptr((inst &^ 0xfc000000) << 2)
++			return
++		}
++		if inst>>16 == 0x1000 { // BEQ	R0, R0, offset
++			//print("runtime: rewind pc=", hex(buf.pc), " to pc=", hex(buf.pc + uintptr(int32(int16(inst&0xffff))<<2 + 4)), "\n");
++			buf.pc += uintptr(int32(int16(inst&0xffff))<<2 + 4)
++			return
++		}
++	}
++	print("runtime: pc=", hex(buf.pc), " ", hex(inst), "\n")
++	throw("runtime: misuse of rewindmorestack")
++}

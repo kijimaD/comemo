@@ -17,7 +17,7 @@ Date:   Thu Apr 19 19:59:39 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/signal/signal.go       |  9 +++++++
  src/os/signal/signal_plan9.go |  5 ++++
  src/os/signal/signal_test.go  | 59 +++++++++++++++++++++++++++++++++++++++++++
@@ -26,3 +26,181 @@ Date:   Thu Apr 19 19:59:39 2018 -0700
  src/runtime/sigqueue.go       |  9 +++++++
  src/runtime/sigqueue_plan9.go |  5 ++++
  7 files changed, 94 insertions(+)
+
+diff --git a/src/os/signal/signal.go b/src/os/signal/signal.go
+index e5a21e8532..dc6b674c4f 100644
+--- a/src/os/signal/signal.go
++++ b/src/os/signal/signal.go
+@@ -86,6 +86,15 @@ func Ignore(sig ...os.Signal) {
+ 	cancel(sig, ignoreSignal)
+ }
+ 
++// Ignored reports whether sig is currently ignored.
++func Ignored(sig os.Signal) bool {
++	if sn := signum(sig); sn < 0 {
++		return false
++	} else {
++		return signalIgnored(sn)
++	}
++}
++
+ // Notify causes package signal to relay incoming signals to c.
+ // If no signals are provided, all incoming signals will be relayed to c.
+ // Otherwise, just the provided signals will.
+diff --git a/src/os/signal/signal_plan9.go b/src/os/signal/signal_plan9.go
+index b065ae520d..a1eb68855e 100644
+--- a/src/os/signal/signal_plan9.go
++++ b/src/os/signal/signal_plan9.go
+@@ -15,6 +15,7 @@ var sigtab = make(map[os.Signal]int)
+ func signal_disable(uint32)
+ func signal_enable(uint32)
+ func signal_ignore(uint32)
++func signal_ignored(uint32) bool
+ func signal_recv() string
+ 
+ func init() {
+@@ -58,3 +59,7 @@ func disableSignal(sig int) {
+ func ignoreSignal(sig int) {
+ 	signal_ignore(uint32(sig))
+ }
++
++func signalIgnored(sig int) bool {
++	return signal_ignored(uint32(sig))
++}
+diff --git a/src/os/signal/signal_test.go b/src/os/signal/signal_test.go
+index e4df8af816..3d79c7a861 100644
+--- a/src/os/signal/signal_test.go
++++ b/src/os/signal/signal_test.go
+@@ -192,6 +192,65 @@ func TestIgnore(t *testing.T) {
+ 	testCancel(t, true)
+ }
+ 
++// Test that Ignored correctly detects changes to the ignored status of a signal.
++func TestIgnored(t *testing.T) {
++	// Ask to be notified on SIGWINCH.
++	c := make(chan os.Signal, 1)
++	Notify(c, syscall.SIGWINCH)
++
++	// If we're being notified, then the signal should not be ignored.
++	if Ignored(syscall.SIGWINCH) {
++		t.Errorf("expected SIGWINCH to not be ignored.")
++	}
++	Stop(c)
++	Ignore(syscall.SIGWINCH)
++
++	// We're no longer paying attention to this signal.
++	if !Ignored(syscall.SIGWINCH) {
++		t.Errorf("expected SIGWINCH to be ignored when explicitly ignoring it.")
++	}
++
++	Reset()
++}
++
++var checkSighupIgnored = flag.Bool("check_sighup_ignored", false, "if true, TestDetectNohup will fail if SIGHUP is not ignored.")
++
++// Test that Ignored(SIGHUP) correctly detects whether it is being run under nohup.
++func TestDetectNohup(t *testing.T) {
++	if *checkSighupIgnored {
++		if !Ignored(syscall.SIGHUP) {
++			t.Fatal("SIGHUP is not ignored.")
++		} else {
++			t.Log("SIGHUP is ignored.")
++		}
++	} else {
++		defer Reset()
++		// Ugly: ask for SIGHUP so that child will not have no-hup set
++		// even if test is running under nohup environment.
++		// We have no intention of reading from c.
++		c := make(chan os.Signal, 1)
++		Notify(c, syscall.SIGHUP)
++		if out, err := exec.Command(os.Args[0], "-test.run=TestDetectNohup", "-check_sighup_ignored").CombinedOutput(); err == nil {
++			t.Errorf("ran test with -check_sighup_ignored and it succeeded: expected failure.\nOutput:\n%s", out)
++		}
++		Stop(c)
++		// Again, this time with nohup, assuming we can find it.
++		_, err := os.Stat("/usr/bin/nohup")
++		if err != nil {
++			t.Skip("cannot find nohup; skipping second half of test")
++		}
++		Ignore(syscall.SIGHUP)
++		os.Remove("nohup.out")
++		out, err := exec.Command("/usr/bin/nohup", os.Args[0], "-test.run=TestDetectNohup", "-check_sighup_ignored").CombinedOutput()
++
++		data, _ := ioutil.ReadFile("nohup.out")
++		os.Remove("nohup.out")
++		if err != nil {
++			t.Errorf("ran test with -check_sighup_ignored under nohup and it failed: expected success.\nError: %v\nOutput:\n%s%s", err, out, data)
++		}
++	}
++}
++
+ var sendUncaughtSighup = flag.Int("send_uncaught_sighup", 0, "send uncaught SIGHUP during TestStop")
+ 
+ // Test that Stop cancels the channel's registrations.
+diff --git a/src/os/signal/signal_unix.go b/src/os/signal/signal_unix.go
+index 01b1b14fd1..0987c1730a 100644
+--- a/src/os/signal/signal_unix.go
++++ b/src/os/signal/signal_unix.go
+@@ -15,6 +15,7 @@ import (
+ func signal_disable(uint32)
+ func signal_enable(uint32)
+ func signal_ignore(uint32)
++func signal_ignored(uint32) bool
+ func signal_recv() uint32
+ 
+ func loop() {
+@@ -56,3 +57,7 @@ func disableSignal(sig int) {
+ func ignoreSignal(sig int) {
+ 	signal_ignore(uint32(sig))
+ }
++
++func signalIgnored(sig int) bool {
++	return signal_ignored(uint32(sig))
++}
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index d87f1bed16..0d8caae7a0 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -103,6 +103,8 @@ func initsig(preinit bool) {
+ 			// set SA_ONSTACK if necessary.
+ 			if fwdSig[i] != _SIG_DFL && fwdSig[i] != _SIG_IGN {
+ 				setsigstack(i)
++			} else if fwdSig[i] == _SIG_IGN {
++				sigInitIgnored(i)
+ 			}
+ 			continue
+ 		}
+diff --git a/src/runtime/sigqueue.go b/src/runtime/sigqueue.go
+index 98331627eb..9f53240954 100644
+--- a/src/runtime/sigqueue.go
++++ b/src/runtime/sigqueue.go
+@@ -237,7 +237,16 @@ func signal_ignore(s uint32) {
+ 	atomic.Store(&sig.ignored[s/32], i)
+ }
+ 
++// sigInitIgnored marks the signal as already ignored.  This is called at
++// program start by siginit.
++func sigInitIgnored(s uint32) {
++	i := sig.ignored[s/32]
++	i |= 1 << (s & 31)
++	atomic.Store(&sig.ignored[s/32], i)
++}
++
+ // Checked by signal handlers.
++//go:linkname signal_ignored os/signal.signal_ignored
+ func signal_ignored(s uint32) bool {
+ 	i := atomic.Load(&sig.ignored[s/32])
+ 	return i&(1<<(s&31)) != 0
+diff --git a/src/runtime/sigqueue_plan9.go b/src/runtime/sigqueue_plan9.go
+index 76668045a8..934742a1f4 100644
+--- a/src/runtime/sigqueue_plan9.go
++++ b/src/runtime/sigqueue_plan9.go
+@@ -152,3 +152,8 @@ func signal_disable(s uint32) {
+ //go:linkname signal_ignore os/signal.signal_ignore
+ func signal_ignore(s uint32) {
+ }
++
++//go:linkname signal_ignored os/signal.signal_ignored
++func signal_ignored(s uint32) bool {
++	return false
++}

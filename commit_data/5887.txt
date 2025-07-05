@@ -7,6 +7,39 @@ Date:   Mon Jul 26 16:52:51 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1882043
-
+---
  src/cmd/gc/lex.c | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 7c9fb07dd6..726cab7533 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -90,12 +90,27 @@ usage(void)
+ 	exit(0);
+ }
+ 
++void
++fault(int s)
++{
++	// If we've already complained about things
++	// in the program, don't bother complaining
++	// about the seg fault too; let the user clean up
++	// the code and try again.
++	if(nerrors > 0)
++		errorexit();
++	fatal("fault");
++}
++
+ int
+ main(int argc, char *argv[])
+ {
+ 	int i, c;
+ 	NodeList *l;
+ 	char *p;
++	
++	signal(SIGBUS, fault);
++	signal(SIGSEGV, fault);
+ 
+ 	localpkg = mkpkg(strlit(""));
+ 	localpkg->prefix = "\"\"";

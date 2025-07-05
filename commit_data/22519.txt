@@ -8,6 +8,20 @@ Date:   Mon Mar 9 15:42:49 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/7729
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/6g/cgen.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/6g/cgen.go b/src/cmd/6g/cgen.go
+index fba794ae20..b757232d69 100644
+--- a/src/cmd/6g/cgen.go
++++ b/src/cmd/6g/cgen.go
+@@ -1668,7 +1668,7 @@ func componentgen(nr *gc.Node, nl *gc.Node) bool {
+ 		fldcount := int64(0)
+ 
+ 		for t := nl.Type.Type; t != nil; t = t.Down {
+-			if gc.Isfat(t.Type) {
++			if gc.Isfat(t.Type) && !gc.Isslice(t) {
+ 				goto no
+ 			}
+ 			if t.Etype != gc.TFIELD {

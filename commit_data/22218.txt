@@ -18,6 +18,60 @@ Date:   Sat Feb 28 19:43:50 2015 +0100
     Change-Id: I9d50ffe2f3eb7bf65dd17c8c76a2677571de68ba
     Reviewed-on: https://go-review.googlesource.com/6267
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/runtime-gdb_test.go | 16 ++--------------
  1 file changed, 2 insertions(+), 14 deletions(-)
+
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 36c96ac1c8..7184120122 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"path/filepath"
+ 	"regexp"
+ 	"runtime"
+-	"strings"
+ 	"testing"
+ )
+ 
+@@ -28,14 +27,11 @@ func checkGdbPython(t *testing.T) {
+ const helloSource = `
+ package main
+ import "fmt"
+-func finish() {
+-	fmt.Println("hi")
+-}
+ func main() {
+ 	mapvar := make(map[string]string,5)
+ 	mapvar["abc"] = "def"
+ 	mapvar["ghi"] = "jkl"
+-	finish()
++	fmt.Println("hi") // line 8
+ }
+ `
+ 
+@@ -43,13 +39,6 @@ func TestGdbPython(t *testing.T) {
+ 	if runtime.GOOS == "darwin" {
+ 		t.Skip("gdb does not work on darwin")
+ 	}
+-	if strings.HasPrefix(runtime.GOARCH, "ppc64") {
+-		t.Skip("gdb does not work on ppc64 - issue 10017")
+-	}
+-
+-	if runtime.GOOS == "linux" && runtime.GOARCH == "arm" {
+-		t.Skip("issue 10002")
+-	}
+ 
+ 	checkGdbPython(t)
+ 
+@@ -74,9 +63,8 @@ func TestGdbPython(t *testing.T) {
+ 
+ 	got, _ := exec.Command("gdb", "-nx", "-q", "--batch", "-iex",
+ 		fmt.Sprintf("add-auto-load-safe-path %s/src/runtime", runtime.GOROOT()),
+-		"-ex", "br 'main.finish'",
++		"-ex", "br main.go:8",
+ 		"-ex", "run",
+-		"-ex", "up",
+ 		"-ex", "echo BEGIN info goroutines\n",
+ 		"-ex", "info goroutines",
+ 		"-ex", "echo END\n",

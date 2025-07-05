@@ -9,6 +9,34 @@ Date:   Wed Jul 6 16:22:21 2011 -0400
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/4635092
-
+---
  src/pkg/crypto/tls/generate_cert.go | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/generate_cert.go b/src/pkg/crypto/tls/generate_cert.go
+index f461888799..41206e276b 100644
+--- a/src/pkg/crypto/tls/generate_cert.go
++++ b/src/pkg/crypto/tls/generate_cert.go
+@@ -8,8 +8,10 @@
+ package main
+ 
+ import (
+-	"crypto/rsa"
++	"big"
++	"crypto/x509/pkix"
+ 	"crypto/rand"
++	"crypto/rsa"
+ 	"crypto/x509"
+ 	"encoding/pem"
+ 	"flag"
+@@ -32,8 +34,8 @@ func main() {
+ 	now := time.Seconds()
+ 
+ 	template := x509.Certificate{
+-		SerialNumber: []byte{0},
+-		Subject: x509.Name{
++		SerialNumber: new(big.Int).SetInt64(0),
++		Subject: pkix.Name{
+ 			CommonName:   *hostName,
+ 			Organization: []string{"Acme Co"},
+ 		},

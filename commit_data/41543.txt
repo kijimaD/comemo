@@ -12,7 +12,46 @@ Date:   Tue Oct 8 21:43:20 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/obj/objfile.go  | 5 ++---
  src/cmd/internal/obj/objfile2.go | 4 ++++
  2 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index a27004a389..76fbc58f10 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -228,8 +228,7 @@ func (w *objWriter) writeRefs(s *LSym) {
+ 	}
+ }
+ 
+-func (w *objWriter) writeSymDebug(s *LSym) {
+-	ctxt := w.ctxt
++func (ctxt *Link) writeSymDebug(s *LSym) {
+ 	fmt.Fprintf(ctxt.Bso, "%s ", s.Name)
+ 	if s.Type != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "%v ", s.Type)
+@@ -309,7 +308,7 @@ func (w *objWriter) writeSymDebug(s *LSym) {
+ func (w *objWriter) writeSym(s *LSym) {
+ 	ctxt := w.ctxt
+ 	if ctxt.Debugasm > 0 {
+-		w.writeSymDebug(s)
++		w.ctxt.writeSymDebug(s)
+ 	}
+ 
+ 	w.wr.WriteByte(symPrefix)
+diff --git a/src/cmd/internal/obj/objfile2.go b/src/cmd/internal/obj/objfile2.go
+index 4043e0b9fe..c51be0265b 100644
+--- a/src/cmd/internal/obj/objfile2.go
++++ b/src/cmd/internal/obj/objfile2.go
+@@ -17,6 +17,10 @@ import (
+ 
+ // Entry point of writing new object file.
+ func WriteObjFile2(ctxt *Link, b *bio.Writer, pkgpath string) {
++	if ctxt.Debugasm > 0 {
++		ctxt.traverseSyms(traverseDefs, ctxt.writeSymDebug)
++	}
++
+ 	genFuncInfoSyms(ctxt)
+ 
+ 	w := writer{

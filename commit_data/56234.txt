@@ -16,7 +16,7 @@ Date:   Wed Apr 19 18:48:00 2023 -0400
     Run-TryBot: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Alan Donovan <adonovan@google.com>
-
+---
  src/bytes/buffer_test.go               | 2 +-
  src/crypto/internal/bigmod/nat_test.go | 2 +-
  src/encoding/xml/xml_test.go           | 5 +++--
@@ -24,3 +24,116 @@ Date:   Wed Apr 19 18:48:00 2023 -0400
  src/os/timeout_test.go                 | 7 ++++---
  src/testing/example.go                 | 3 +--
  6 files changed, 14 insertions(+), 12 deletions(-)
+
+diff --git a/src/bytes/buffer_test.go b/src/bytes/buffer_test.go
+index 81476fbae1..845e5e2209 100644
+--- a/src/bytes/buffer_test.go
++++ b/src/bytes/buffer_test.go
+@@ -268,7 +268,7 @@ type panicReader struct{ panic bool }
+ 
+ func (r panicReader) Read(p []byte) (int, error) {
+ 	if r.panic {
+-		panic(nil)
++		panic("oops")
+ 	}
+ 	return 0, io.EOF
+ }
+diff --git a/src/crypto/internal/bigmod/nat_test.go b/src/crypto/internal/bigmod/nat_test.go
+index 6431d25954..4593a2e493 100644
+--- a/src/crypto/internal/bigmod/nat_test.go
++++ b/src/crypto/internal/bigmod/nat_test.go
+@@ -181,7 +181,7 @@ func TestSetBytes(t *testing.T) {
+ 			}
+ 			continue
+ 		}
+-		if err == nil && tt.fail {
++		if tt.fail {
+ 			t.Errorf("%d: unexpected success", i)
+ 			continue
+ 		}
+diff --git a/src/encoding/xml/xml_test.go b/src/encoding/xml/xml_test.go
+index 8205ac3148..f5c7259cfb 100644
+--- a/src/encoding/xml/xml_test.go
++++ b/src/encoding/xml/xml_test.go
+@@ -1359,8 +1359,9 @@ func TestParseErrors(t *testing.T) {
+ 			}
+ 			continue
+ 		}
+-		if err == nil || err == io.EOF {
+-			t.Errorf("parse %s: have no error, expected a non-nil error", test.src)
++		// Inv: err != nil
++		if err == io.EOF {
++			t.Errorf("parse %s: unexpected EOF", test.src)
+ 			continue
+ 		}
+ 		if !strings.Contains(err.Error(), test.err) {
+diff --git a/src/net/timeout_test.go b/src/net/timeout_test.go
+index 6b3554ed79..89605d92fc 100644
+--- a/src/net/timeout_test.go
++++ b/src/net/timeout_test.go
+@@ -812,10 +812,11 @@ func TestWriteTimeoutFluctuation(t *testing.T) {
+ 		t.Logf("SetWriteDeadline(+%v)", d)
+ 		t0 := time.Now()
+ 		deadline := t0.Add(d)
+-		if err = c.SetWriteDeadline(deadline); err != nil {
++		if err := c.SetWriteDeadline(deadline); err != nil {
+ 			t.Fatalf("SetWriteDeadline(%v): %v", deadline, err)
+ 		}
+ 		var n int64
++		var err error
+ 		for {
+ 			var dn int
+ 			dn, err = c.Write([]byte("TIMEOUT TRANSMITTER"))
+@@ -825,8 +826,8 @@ func TestWriteTimeoutFluctuation(t *testing.T) {
+ 			}
+ 		}
+ 		t1 := time.Now()
+-
+-		if err == nil || !err.(Error).Timeout() {
++		// Inv: err != nil
++		if !err.(Error).Timeout() {
+ 			t.Fatalf("Write did not return (any, timeout): (%d, %v)", n, err)
+ 		}
+ 		if perr := parseWriteError(err); perr != nil {
+diff --git a/src/os/timeout_test.go b/src/os/timeout_test.go
+index 3cf06d5647..a65d703ebf 100644
+--- a/src/os/timeout_test.go
++++ b/src/os/timeout_test.go
+@@ -355,10 +355,11 @@ func TestWriteTimeoutFluctuation(t *testing.T) {
+ 		t.Logf("SetWriteDeadline(+%v)", d)
+ 		t0 := time.Now()
+ 		deadline := t0.Add(d)
+-		if err = w.SetWriteDeadline(deadline); err != nil {
++		if err := w.SetWriteDeadline(deadline); err != nil {
+ 			t.Fatalf("SetWriteDeadline(%v): %v", deadline, err)
+ 		}
+ 		var n int64
++		var err error
+ 		for {
+ 			var dn int
+ 			dn, err = w.Write([]byte("TIMEOUT TRANSMITTER"))
+@@ -368,8 +369,8 @@ func TestWriteTimeoutFluctuation(t *testing.T) {
+ 			}
+ 		}
+ 		t1 := time.Now()
+-
+-		if err == nil || !isDeadlineExceeded(err) {
++		// Inv: err != nil
++		if !isDeadlineExceeded(err) {
+ 			t.Fatalf("Write did not return (any, timeout): (%d, %v)", n, err)
+ 		}
+ 
+diff --git a/src/testing/example.go b/src/testing/example.go
+index f618b06de1..42ee555cb2 100644
+--- a/src/testing/example.go
++++ b/src/testing/example.go
+@@ -93,8 +93,7 @@ func (eg *InternalExample) processRunResult(stdout string, timeSpent time.Durati
+ 	if recovered != nil {
+ 		// Propagate the previously recovered result, by panicking.
+ 		panic(recovered)
+-	}
+-	if !finished && recovered == nil {
++	} else if !finished {
+ 		panic(errNilPanicOrGoexit)
+ 	}
+ 

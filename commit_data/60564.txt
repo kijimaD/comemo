@@ -15,6 +15,33 @@ Date:   Wed Jun 26 14:58:12 2024 -0400
     Auto-Submit: Michael Pratt <mpratt@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/test/inl_test.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/test/inl_test.go b/src/cmd/compile/internal/test/inl_test.go
+index 58f5df953b..5a8a156f02 100644
+--- a/src/cmd/compile/internal/test/inl_test.go
++++ b/src/cmd/compile/internal/test/inl_test.go
+@@ -97,10 +97,6 @@ func TestIntendedInlining(t *testing.T) {
+ 			"traceLocker.ok",
+ 			"traceEnabled",
+ 		},
+-		"internal/runtime/sys": {},
+-		"internal/runtime/math": {
+-			"MulUintptr",
+-		},
+ 		"bytes": {
+ 			"(*Buffer).Bytes",
+ 			"(*Buffer).Cap",
+@@ -117,6 +113,10 @@ func TestIntendedInlining(t *testing.T) {
+ 		"internal/abi": {
+ 			"UseInterfaceSwitchCache",
+ 		},
++		"internal/runtime/math": {
++			"MulUintptr",
++		},
++		"internal/runtime/sys": {},
+ 		"compress/flate": {
+ 			"byLiteral.Len",
+ 			"byLiteral.Less",

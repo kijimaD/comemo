@@ -9,7 +9,56 @@ Date:   Sun Mar 10 10:19:31 2019 -0700
     Change-Id: Ia4c6e37282edc44788cd8af3f6cfa10895a19e4f
     Reviewed-on: https://go-review.googlesource.com/c/go/+/166519
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/mpint.go | 14 +++++---------
  test/fixedbugs/issue30722.go         | 17 +++++++++++++++++
  2 files changed, 22 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/mpint.go b/src/cmd/compile/internal/gc/mpint.go
+index e4dd22d0a0..340350bca7 100644
+--- a/src/cmd/compile/internal/gc/mpint.go
++++ b/src/cmd/compile/internal/gc/mpint.go
+@@ -283,15 +283,11 @@ func (a *Mpint) SetInt64(c int64) {
+ func (a *Mpint) SetString(as string) {
+ 	_, ok := a.Val.SetString(as, 0)
+ 	if !ok {
+-		// required syntax is [+-][0[x]]d*
+-		// At the moment we lose precise error cause;
+-		// the old code distinguished between:
+-		// - malformed hex constant
+-		// - malformed octal constant
+-		// - malformed decimal constant
+-		// TODO(gri) use different conversion function
+-		yyerror("malformed integer constant: %s", as)
+-		a.Val.SetUint64(0)
++		// The lexer checks for correct syntax of the literal
++		// and reports detailed errors. Thus SetString should
++		// never fail (in theory it might run out of memory,
++		// but that wouldn't be reported as an error here).
++		Fatalf("malformed integer constant: %s", as)
+ 		return
+ 	}
+ 	if a.checkOverflow(0) {
+diff --git a/test/fixedbugs/issue30722.go b/test/fixedbugs/issue30722.go
+new file mode 100644
+index 0000000000..02258f0bea
+--- /dev/null
++++ b/test/fixedbugs/issue30722.go
+@@ -0,0 +1,17 @@
++// errorcheck
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify that we only get one error per invalid integer literal.
++
++package p
++
++const (
++	_ = 1_       // ERROR "'_' must separate successive digits"
++	_ = 0b       // ERROR "binary literal has no digits"
++	_ = 0o       // ERROR "octal literal has no digits"
++	_ = 0x       // ERROR "hexadecimal literal has no digits"
++	_ = 0xde__ad // ERROR "'_' must separate successive digits"
++)

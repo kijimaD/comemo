@@ -11,6 +11,20 @@ Date:   Thu Jan 12 11:05:54 2012 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5540043
-
+---
  src/pkg/go/build/dir.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/build/dir.go b/src/pkg/go/build/dir.go
+index 265261f22e..7f24754298 100644
+--- a/src/pkg/go/build/dir.go
++++ b/src/pkg/go/build/dir.go
+@@ -476,7 +476,7 @@ func (ctxt *Context) saveCgo(filename string, di *DirInfo, cg *ast.CommentGroup)
+ 	return nil
+ }
+ 
+-var safeBytes = []byte("+-.,/0123456789=ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz")
++var safeBytes = []byte("+-.,/0123456789=ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz:")
+ 
+ func safeName(s string) bool {
+ 	if s == "" {

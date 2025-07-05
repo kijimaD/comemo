@@ -7,6 +7,29 @@ Date:   Wed May 18 10:56:20 2011 -0700
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/4536069
-
+---
  src/pkg/image/jpeg/writer.go | 9 +++------
  1 file changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/image/jpeg/writer.go b/src/pkg/image/jpeg/writer.go
+index 4a861b3951..c23372f0ec 100644
+--- a/src/pkg/image/jpeg/writer.go
++++ b/src/pkg/image/jpeg/writer.go
+@@ -302,14 +302,11 @@ func (e *encoder) writeMarkerHeader(marker uint8, markerlen int) {
+ 
+ // writeDQT writes the Define Quantization Table marker.
+ func (e *encoder) writeDQT() {
+-	markerlen := 2
+-	for _, q := range e.quant {
+-		markerlen += 1 + len(q)
+-	}
++	markerlen := 2 + int(nQuantIndex)*(1+blockSize)
+ 	e.writeMarkerHeader(dqtMarker, markerlen)
+-	for i, q := range e.quant {
++	for i := range e.quant {
+ 		e.writeByte(uint8(i))
+-		e.write(q[:])
++		e.write(e.quant[i][:])
+ 	}
+ }
+ 

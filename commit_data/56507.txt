@@ -19,7 +19,59 @@ Date:   Thu May 11 14:01:02 2023 -0700
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/crash_cgo_test.go               |  5 +----
  src/runtime/testdata/testprogcgo/racesig.go | 10 ----------
  2 files changed, 1 insertion(+), 14 deletions(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index f4126d2337..c31586cce0 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -410,9 +410,6 @@ func TestRaceSignal(t *testing.T) {
+ 		t.Skipf("skipping: test requires pthread support")
+ 		// TODO: Can this test be rewritten to use the C11 thread API instead?
+ 	}
+-	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+-		testenv.SkipFlaky(t, 59807)
+-	}
+ 
+ 	t.Parallel()
+ 
+@@ -429,7 +426,7 @@ func TestRaceSignal(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	got, err := testenv.CleanCmdEnv(exec.Command(exe, "CgoRaceSignal")).CombinedOutput()
++	got, err := testenv.CleanCmdEnv(testenv.Command(t, exe, "CgoRaceSignal")).CombinedOutput()
+ 	if err != nil {
+ 		t.Logf("%s\n", got)
+ 		t.Fatal(err)
+diff --git a/src/runtime/testdata/testprogcgo/racesig.go b/src/runtime/testdata/testprogcgo/racesig.go
+index b7f3a21529..06670205ff 100644
+--- a/src/runtime/testdata/testprogcgo/racesig.go
++++ b/src/runtime/testdata/testprogcgo/racesig.go
+@@ -81,8 +81,6 @@ import "C"
+ 
+ import (
+ 	"fmt"
+-	"os"
+-	"time"
+ )
+ 
+ func init() {
+@@ -90,14 +88,6 @@ func init() {
+ }
+ 
+ func CgoRaceSignal() {
+-	// The failure symptom is that the program hangs because of a
+-	// deadlock in malloc, so set an alarm.
+-	go func() {
+-		time.Sleep(5 * time.Second)
+-		fmt.Println("Hung for 5 seconds")
+-		os.Exit(1)
+-	}()
+-
+ 	C.runRaceSignalThread()
+ 	fmt.Println("OK")
+ }

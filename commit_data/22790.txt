@@ -7,6 +7,23 @@ Date:   Wed Apr 8 15:11:04 2015 -0400
     Change-Id: Ie75a01e899e68f4f9643410f5e161152a81b8ba0
     Reviewed-on: https://go-review.googlesource.com/8655
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/ld/macho.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/internal/ld/macho.go b/src/cmd/internal/ld/macho.go
+index bff7333910..27cdaa67b8 100644
+--- a/src/cmd/internal/ld/macho.go
++++ b/src/cmd/internal/ld/macho.go
+@@ -390,6 +390,11 @@ func machoshbits(mseg *MachoSeg, sect *Section, segname string) {
+ 		msect.flag = 6                                                     /* section with nonlazy symbol pointers */
+ 		msect.res1 = uint32(Linklookup(Ctxt, ".linkedit.plt", 0).Size / 4) /* offset into indirect symbol table */
+ 	}
++
++	if sect.Name == ".init_array" {
++		msect.name = "__mod_init_func"
++		msect.flag = 9 // S_MOD_INIT_FUNC_POINTERS
++	}
+ }
+ 
+ func Asmbmacho() {

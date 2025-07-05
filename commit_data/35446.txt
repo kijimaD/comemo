@@ -11,6 +11,32 @@ Date:   Fri Feb 2 11:16:56 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  test/fixedbugs/issue20923.go | 19 +++++++++++++++++++
  1 file changed, 19 insertions(+)
+
+diff --git a/test/fixedbugs/issue20923.go b/test/fixedbugs/issue20923.go
+new file mode 100644
+index 0000000000..5fd1ad8a46
+--- /dev/null
++++ b/test/fixedbugs/issue20923.go
+@@ -0,0 +1,19 @@
++// compile
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 20923: gccgo failed to compile parenthesized select case expressions.
++
++package p
++
++func F(c chan bool) {
++	select {
++	case (<-c):
++	case _ = (<-c):
++	case _, _ = (<-c):
++	case (c) <- true:
++	default:
++	}
++}

@@ -11,9 +11,113 @@ Date:   Sun Mar 29 17:36:05 2015 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/x509/sha2_windows_test.go             | 15 +++++++++++++++
  src/crypto/x509/verify_test.go                   |  7 +++++++
  src/internal/syscall/windows/syscall_windows.go  |  6 ++++++
  src/internal/syscall/windows/zsyscall_windows.go |  7 +++++++
  4 files changed, 35 insertions(+)
+
+diff --git a/src/crypto/x509/sha2_windows_test.go b/src/crypto/x509/sha2_windows_test.go
+new file mode 100644
+index 0000000000..02dd07774f
+--- /dev/null
++++ b/src/crypto/x509/sha2_windows_test.go
+@@ -0,0 +1,15 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package x509
++
++import "internal/syscall/windows"
++
++func init() {
++	if major, _ := windows.GetVersion(); major < 6 {
++		// Windows XP SP2 and Windows 2003 do not support SHA2.
++		// http://blogs.technet.com/b/pki/archive/2010/09/30/sha2-and-windows.aspx
++		supportSHA2 = false
++	}
++}
+diff --git a/src/crypto/x509/verify_test.go b/src/crypto/x509/verify_test.go
+index 96b9d9b420..20a3e31878 100644
+--- a/src/crypto/x509/verify_test.go
++++ b/src/crypto/x509/verify_test.go
+@@ -14,6 +14,8 @@ import (
+ 	"time"
+ )
+ 
++var supportSHA2 = true
++
+ type verifyTest struct {
+ 	leaf                 string
+ 	intermediates        []string
+@@ -23,6 +25,7 @@ type verifyTest struct {
+ 	systemSkip           bool
+ 	keyUsages            []ExtKeyUsage
+ 	testSystemRootsError bool
++	sha2                 bool
+ 
+ 	errorCallback  func(*testing.T, int, error) bool
+ 	expectedChains [][]string
+@@ -218,6 +221,7 @@ var verifyTests = []verifyTest{
+ 		currentTime:   1397502195,
+ 		dnsName:       "api.moip.com.br",
+ 
++		sha2: true,
+ 		expectedChains: [][]string{
+ 			{
+ 				"api.moip.com.br",
+@@ -297,6 +301,9 @@ func testVerify(t *testing.T, useSystemRoots bool) {
+ 		if runtime.GOOS == "windows" && test.testSystemRootsError {
+ 			continue
+ 		}
++		if useSystemRoots && !supportSHA2 && test.sha2 {
++			continue
++		}
+ 
+ 		opts := VerifyOptions{
+ 			Intermediates: NewCertPool(),
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index 49bfeea1f4..28aa13b5e7 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -97,6 +97,7 @@ const (
+ //sys GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapterAddresses *IpAdapterAddresses, sizeOfPointer *uint32) (errcode error) = iphlpapi.GetAdaptersAddresses
+ 
+ //sys	GetComputerNameEx(nameformat uint32, buf *uint16, n *uint32) (err error) = GetComputerNameExW
++//sys	getVersion() (v uint32) = GetVersion
+ 
+ const (
+ 	ComputerNameNetBIOS                   = 0
+@@ -109,3 +110,8 @@ const (
+ 	ComputerNamePhysicalDnsFullyQualified = 7
+ 	ComputerNameMax                       = 8
+ )
++
++func GetVersion() (major, minor byte) {
++	low := uint16(getVersion())
++	return byte(low), byte(low >> 8)
++}
+diff --git a/src/internal/syscall/windows/zsyscall_windows.go b/src/internal/syscall/windows/zsyscall_windows.go
+index 50c7c5165b..bff242126c 100644
+--- a/src/internal/syscall/windows/zsyscall_windows.go
++++ b/src/internal/syscall/windows/zsyscall_windows.go
+@@ -13,6 +13,7 @@ var (
+ 
+ 	procGetAdaptersAddresses = modiphlpapi.NewProc("GetAdaptersAddresses")
+ 	procGetComputerNameExW   = modkernel32.NewProc("GetComputerNameExW")
++	procGetVersion           = modkernel32.NewProc("GetVersion")
+ )
+ 
+ func GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapterAddresses *IpAdapterAddresses, sizeOfPointer *uint32) (errcode error) {
+@@ -34,3 +35,9 @@ func GetComputerNameEx(nameformat uint32, buf *uint16, n *uint32) (err error) {
+ 	}
+ 	return
+ }
++
++func getVersion() (v uint32) {
++	r0, _, _ := syscall.Syscall(procGetVersion.Addr(), 0, 0, 0, 0)
++	v = uint32(r0)
++	return
++}

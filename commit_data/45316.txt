@@ -16,9 +16,110 @@ Date:   Mon Oct 19 18:32:15 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/align.go | 10 +++++-----
  src/go/types/stdlib_test.go          |  2 ++
  test/fixedbugs/issue42058a.go        | 13 +++++++++++++
  test/fixedbugs/issue42058b.go        | 13 +++++++++++++
  4 files changed, 33 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 4bc454df22..a3a0c8fce8 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -86,7 +86,7 @@ func expandiface(t *types.Type) {
+ 	sort.Sort(methcmp(methods))
+ 
+ 	if int64(len(methods)) >= thearch.MAXWIDTH/int64(Widthptr) {
+-		yyerror("interface too large")
++		yyerrorl(typePos(t), "interface too large")
+ 	}
+ 	for i, m := range methods {
+ 		m.Offset = int64(i) * int64(Widthptr)
+@@ -150,7 +150,7 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
+ 			maxwidth = 1<<31 - 1
+ 		}
+ 		if o >= maxwidth {
+-			yyerror("type %L too large", errtype)
++			yyerrorl(typePos(errtype), "type %L too large", errtype)
+ 			o = 8 // small but nonzero
+ 		}
+ 	}
+@@ -381,7 +381,7 @@ func dowidth(t *types.Type) {
+ 		t1 := t.ChanArgs()
+ 		dowidth(t1) // just in case
+ 		if t1.Elem().Width >= 1<<16 {
+-			yyerror("channel element type too large (>64kB)")
++			yyerrorl(typePos(t1), "channel element type too large (>64kB)")
+ 		}
+ 		w = 1 // anything will do
+ 
+@@ -414,7 +414,7 @@ func dowidth(t *types.Type) {
+ 		if t.Elem().Width != 0 {
+ 			cap := (uint64(thearch.MAXWIDTH) - 1) / uint64(t.Elem().Width)
+ 			if uint64(t.NumElem()) > cap {
+-				yyerror("type %L larger than address space", t)
++				yyerrorl(typePos(t), "type %L larger than address space", t)
+ 			}
+ 		}
+ 		w = t.NumElem() * t.Elem().Width
+@@ -456,7 +456,7 @@ func dowidth(t *types.Type) {
+ 	}
+ 
+ 	if Widthptr == 4 && w != int64(int32(w)) {
+-		yyerror("type %v too large", t)
++		yyerrorl(typePos(t), "type %v too large", t)
+ 	}
+ 
+ 	t.Width = w
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index f5a3273fa1..669e7bec20 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -183,6 +183,8 @@ func TestStdFixed(t *testing.T) {
+ 		"issue31747.go",  // go/types does not have constraints on language level (-lang=go1.12) (see #31793)
+ 		"issue34329.go",  // go/types does not have constraints on language level (-lang=go1.13) (see #31793)
+ 		"bug251.go",      // issue #34333 which was exposed with fix for #34151
++		"issue42058a.go", // go/types does not have constraints on channel element size
++		"issue42058b.go", // go/types does not have constraints on channel element size
+ 	)
+ }
+ 
+diff --git a/test/fixedbugs/issue42058a.go b/test/fixedbugs/issue42058a.go
+new file mode 100644
+index 0000000000..67751a1b0c
+--- /dev/null
++++ b/test/fixedbugs/issue42058a.go
+@@ -0,0 +1,13 @@
++// errorcheck
++
++// Copyright 2020 The Go Authors. All rights reserved.  Use of this
++// source code is governed by a BSD-style license that can be found in
++// the LICENSE file.
++
++package p
++
++var c chan [2 << 16]byte // ERROR "channel element type too large"
++
++type T [1 << 17]byte
++
++var x chan T // ERROR "channel element type too large"
+diff --git a/test/fixedbugs/issue42058b.go b/test/fixedbugs/issue42058b.go
+new file mode 100644
+index 0000000000..03f86ee1b1
+--- /dev/null
++++ b/test/fixedbugs/issue42058b.go
+@@ -0,0 +1,13 @@
++// errorcheck
++
++// Copyright 2020 The Go Authors. All rights reserved.  Use of this
++// source code is governed by a BSD-style license that can be found in
++// the LICENSE file.
++
++package p
++
++var c chan [2 << 16]byte // ERROR "channel element type too large"
++
++func f() {
++	_ = 42
++}

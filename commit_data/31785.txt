@@ -11,8 +11,165 @@ Date:   Thu Mar 16 10:43:54 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/noder.go      |  6 +++---
  src/cmd/compile/internal/syntax/nodes.go  | 24 +++++++++++-----------
  src/cmd/compile/internal/syntax/parser.go | 34 +++++++++++++++----------------
  3 files changed, 31 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 80edeee710..ada3440622 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -325,7 +325,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
+ 		yyerror("go:nosplit and go:systemstack cannot be combined")
+ 	}
+ 	f.Func.Pragma = pragma
+-	lineno = makePos(fun.Pos().Base(), fun.EndLine, 0)
++	lineno = Ctxt.PosTable.XPos(fun.Rbrace)
+ 	f.Func.Endlineno = lineno
+ 
+ 	funcbody(f)
+@@ -451,14 +451,14 @@ func (p *noder) expr(expr syntax.Expr) *Node {
+ 			l[i] = p.wrapname(expr.ElemList[i], e)
+ 		}
+ 		n.List.Set(l)
+-		lineno = makePos(expr.Pos().Base(), expr.EndLine, 0)
++		lineno = Ctxt.PosTable.XPos(expr.Rbrace)
+ 		return n
+ 	case *syntax.KeyValueExpr:
+ 		return p.nod(expr, OKEY, p.expr(expr.Key), p.wrapname(expr.Value, p.expr(expr.Value)))
+ 	case *syntax.FuncLit:
+ 		closurehdr(p.typeExpr(expr.Type))
+ 		body := p.stmts(expr.Body)
+-		lineno = makePos(expr.Pos().Base(), expr.EndLine, 0)
++		lineno = Ctxt.PosTable.XPos(expr.Rbrace)
+ 		return p.setlineno(expr, closurebody(body))
+ 	case *syntax.ParenExpr:
+ 		return p.nod(expr, OPAREN, p.expr(expr.X), nil)
+diff --git a/src/cmd/compile/internal/syntax/nodes.go b/src/cmd/compile/internal/syntax/nodes.go
+index efcf64717c..0f7e8c2f17 100644
+--- a/src/cmd/compile/internal/syntax/nodes.go
++++ b/src/cmd/compile/internal/syntax/nodes.go
+@@ -100,13 +100,13 @@ type (
+ 	// func Receiver Name Type { Body }
+ 	// func Receiver Name Type
+ 	FuncDecl struct {
+-		Attr    map[string]bool // go:attr map
+-		Recv    *Field          // nil means regular function
+-		Name    *Name
+-		Type    *FuncType
+-		Body    []Stmt // nil means no body (forward declaration)
+-		Pragma  Pragma // TODO(mdempsky): Cleaner solution.
+-		EndLine uint   // TODO(mdempsky): Cleaner solution.
++		Attr   map[string]bool // go:attr map
++		Recv   *Field          // nil means regular function
++		Name   *Name
++		Type   *FuncType
++		Body   []Stmt  // nil means no body (forward declaration)
++		Pragma Pragma  // TODO(mdempsky): Cleaner solution.
++		Rbrace src.Pos // TODO(mdempsky): Cleaner solution.
+ 		decl
+ 	}
+ )
+@@ -146,8 +146,8 @@ type (
+ 	CompositeLit struct {
+ 		Type     Expr // nil means no literal type
+ 		ElemList []Expr
+-		NKeys    int  // number of elements with keys
+-		EndLine  uint // TODO(mdempsky): Cleaner solution.
++		NKeys    int     // number of elements with keys
++		Rbrace   src.Pos // TODO(mdempsky): Cleaner solution.
+ 		expr
+ 	}
+ 
+@@ -159,9 +159,9 @@ type (
+ 
+ 	// func Type { Body }
+ 	FuncLit struct {
+-		Type    *FuncType
+-		Body    []Stmt
+-		EndLine uint // TODO(mdempsky): Cleaner solution.
++		Type   *FuncType
++		Body   []Stmt
++		Rbrace src.Pos // TODO(mdempsky): Cleaner solution.
+ 		expr
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index d57e02bfe0..48a02e716f 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -480,10 +480,13 @@ func (p *parser) funcDecl() *FuncDecl {
+ 
+ 	f.Name = p.name()
+ 	f.Type = p.funcType()
+-	f.Body = p.funcBody()
++	if p.got(_Lbrace) {
++		f.Body = p.funcBody()
++		f.Rbrace = p.pos()
++		p.want(_Rbrace)
++	}
+ 
+ 	f.Pragma = p.pragma
+-	f.EndLine = p.line
+ 
+ 	// TODO(gri) deal with function properties
+ 	// if noescape && body != nil {
+@@ -700,18 +703,17 @@ func (p *parser) operand(keep_parens bool) Expr {
+ 		pos := p.pos()
+ 		p.next()
+ 		t := p.funcType()
+-		if p.tok == _Lbrace {
+-			p.fnest++
++		if p.got(_Lbrace) {
+ 			p.xnest++
+ 
+ 			f := new(FuncLit)
+ 			f.pos = pos
+ 			f.Type = t
+ 			f.Body = p.funcBody()
+-			f.EndLine = p.line
++			f.Rbrace = p.pos()
++			p.want(_Rbrace)
+ 
+ 			p.xnest--
+-			p.fnest--
+ 			return f
+ 		}
+ 		return t
+@@ -920,7 +922,7 @@ func (p *parser) complitexpr() *CompositeLit {
+ 		}
+ 	}
+ 
+-	x.EndLine = p.line
++	x.Rbrace = p.pos()
+ 	p.xnest--
+ 	p.want(_Rbrace)
+ 
+@@ -1148,18 +1150,14 @@ func (p *parser) funcBody() []Stmt {
+ 		defer p.trace("funcBody")()
+ 	}
+ 
+-	if p.got(_Lbrace) {
+-		p.fnest++
+-		body := p.stmtList()
+-		p.fnest--
+-		p.want(_Rbrace)
+-		if body == nil {
+-			body = []Stmt{new(EmptyStmt)}
+-		}
+-		return body
+-	}
++	p.fnest++
++	body := p.stmtList()
++	p.fnest--
+ 
+-	return nil
++	if body == nil {
++		body = []Stmt{new(EmptyStmt)}
++	}
++	return body
+ }
+ 
+ // Result = Parameters | Type .

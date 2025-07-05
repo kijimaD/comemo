@@ -12,6 +12,61 @@ Date:   Thu May 16 12:59:01 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/586256
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/time/time_test.go | 29 +++++++++++++++++++++++++++++
  1 file changed, 29 insertions(+)
+
+diff --git a/src/time/time_test.go b/src/time/time_test.go
+index 86335e3796..70eb614784 100644
+--- a/src/time/time_test.go
++++ b/src/time/time_test.go
+@@ -1539,6 +1539,13 @@ func BenchmarkSecond(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkDate(b *testing.B) {
++	t := Now()
++	for i := 0; i < b.N; i++ {
++		_, _, _ = t.Date()
++	}
++}
++
+ func BenchmarkYear(b *testing.B) {
+ 	t := Now()
+ 	for i := 0; i < b.N; i++ {
+@@ -1546,6 +1553,20 @@ func BenchmarkYear(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkYearDay(b *testing.B) {
++	t := Now()
++	for i := 0; i < b.N; i++ {
++		_ = t.YearDay()
++	}
++}
++
++func BenchmarkMonth(b *testing.B) {
++	t := Now()
++	for i := 0; i < b.N; i++ {
++		_ = t.Month()
++	}
++}
++
+ func BenchmarkDay(b *testing.B) {
+ 	t := Now()
+ 	for i := 0; i < b.N; i++ {
+@@ -1567,6 +1588,14 @@ func BenchmarkGoString(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkDateFunc(b *testing.B) {
++	var t Time
++	for range b.N {
++		t = Date(2020, 8, 22, 11, 27, 43, 123456789, UTC)
++	}
++	_ = t
++}
++
+ func BenchmarkUnmarshalText(b *testing.B) {
+ 	var t Time
+ 	in := []byte("2020-08-22T11:27:43.123456789-02:00")

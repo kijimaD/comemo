@@ -9,6 +9,20 @@ Date:   Thu Sep 21 13:41:31 2023 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
-
+---
  src/cmd/compile/internal/ir/expr.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 1436170a43..02d762b11a 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -1138,7 +1138,7 @@ func MethodSym(recv *types.Type, msym *types.Sym) *types.Sym {
+ 	return sym
+ }
+ 
+-// MethodSymSuffix is like methodsym, but allows attaching a
++// MethodSymSuffix is like MethodSym, but allows attaching a
+ // distinguisher suffix. To avoid collisions, the suffix must not
+ // start with a letter, number, or period.
+ func MethodSymSuffix(recv *types.Type, msym *types.Sym, suffix string) *types.Sym {

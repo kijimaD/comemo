@@ -14,7 +14,7 @@ Date:   Mon Jan 7 10:03:49 2013 +1100
     R=golang-dev, dave, adg, rsc
     CC=golang-dev
     https://golang.org/cl/7038051
-
+---
  src/cmd/gofmt/gofmt_test.go                | 2 +-
  src/cmd/gofmt/long_test.go                 | 2 +-
  src/pkg/bufio/bufio_test.go                | 2 +-
@@ -30,3 +30,280 @@ Date:   Mon Jan 7 10:03:49 2013 +1100
  src/pkg/go/doc/doc_test.go                 | 2 +-
  src/pkg/math/big/int_test.go               | 2 +-
  14 files changed, 25 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/gofmt/gofmt_test.go b/src/cmd/gofmt/gofmt_test.go
+index ee943989b6..51d16bb648 100644
+--- a/src/cmd/gofmt/gofmt_test.go
++++ b/src/cmd/gofmt/gofmt_test.go
+@@ -56,7 +56,7 @@ func runTest(t *testing.T, in, out, flags string) {
+ 		return
+ 	}
+ 
+-	if got := buf.Bytes(); bytes.Compare(got, expected) != 0 {
++	if got := buf.Bytes(); !bytes.Equal(got, expected) {
+ 		t.Errorf("(gofmt %s) != %s (see %s.gofmt)", in, out, in)
+ 		d, err := diff(expected, got)
+ 		if err == nil {
+diff --git a/src/cmd/gofmt/long_test.go b/src/cmd/gofmt/long_test.go
+index edbce606a5..862e9d9877 100644
+--- a/src/cmd/gofmt/long_test.go
++++ b/src/cmd/gofmt/long_test.go
+@@ -84,7 +84,7 @@ func testFile(t *testing.T, b1, b2 *bytes.Buffer, filename string) {
+ 	}
+ 
+ 	// the first and 2nd result should be identical
+-	if bytes.Compare(b1.Bytes(), b2.Bytes()) != 0 {
++	if !bytes.Equal(b1.Bytes(), b2.Bytes()) {
+ 		t.Errorf("gofmt %s not idempotent", filename)
+ 	}
+ }
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index 564621150e..4ffb29eaf0 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -748,7 +748,7 @@ func testReadLineNewlines(t *testing.T, input string, expect []readLineResult) {
+ 	b := NewReaderSize(strings.NewReader(input), minReadBufferSize)
+ 	for i, e := range expect {
+ 		line, isPrefix, err := b.ReadLine()
+-		if bytes.Compare(line, e.line) != 0 {
++		if !bytes.Equal(line, e.line) {
+ 			t.Errorf("%q call %d, line == %q, want %q", input, i, line, e.line)
+ 			return
+ 		}
+diff --git a/src/pkg/crypto/rsa/pkcs1v15_test.go b/src/pkg/crypto/rsa/pkcs1v15_test.go
+index 58d5fda197..bf9219bae1 100644
+--- a/src/pkg/crypto/rsa/pkcs1v15_test.go
++++ b/src/pkg/crypto/rsa/pkcs1v15_test.go
+@@ -57,7 +57,7 @@ func TestDecryptPKCS1v15(t *testing.T) {
+ 			t.Errorf("#%d error decrypting", i)
+ 		}
+ 		want := []byte(test.out)
+-		if bytes.Compare(out, want) != 0 {
++		if !bytes.Equal(out, want) {
+ 			t.Errorf("#%d got:%#v want:%#v", i, out, want)
+ 		}
+ 	}
+@@ -90,7 +90,7 @@ func TestEncryptPKCS1v15(t *testing.T) {
+ 			return false
+ 		}
+ 
+-		if bytes.Compare(plaintext, in) != 0 {
++		if !bytes.Equal(plaintext, in) {
+ 			t.Errorf("output mismatch: %#v %#v", plaintext, in)
+ 			return false
+ 		}
+@@ -132,7 +132,7 @@ func TestEncryptPKCS1v15SessionKey(t *testing.T) {
+ 			t.Errorf("#%d error decrypting", i)
+ 		}
+ 		want := []byte(test.out)
+-		if bytes.Compare(key, want) != 0 {
++		if !bytes.Equal(key, want) {
+ 			t.Errorf("#%d got:%#v want:%#v", i, key, want)
+ 		}
+ 	}
+@@ -176,7 +176,7 @@ func TestSignPKCS1v15(t *testing.T) {
+ 		}
+ 
+ 		expected, _ := hex.DecodeString(test.out)
+-		if bytes.Compare(s, expected) != 0 {
++		if !bytes.Equal(s, expected) {
+ 			t.Errorf("#%d got: %x want: %x", i, s, expected)
+ 		}
+ 	}
+diff --git a/src/pkg/crypto/rsa/rsa_test.go b/src/pkg/crypto/rsa/rsa_test.go
+index 5fdf0b4914..9be22a8f0b 100644
+--- a/src/pkg/crypto/rsa/rsa_test.go
++++ b/src/pkg/crypto/rsa/rsa_test.go
+@@ -179,7 +179,7 @@ func TestEncryptOAEP(t *testing.T) {
+ 			if err != nil {
+ 				t.Errorf("#%d,%d error: %s", i, j, err)
+ 			}
+-			if bytes.Compare(out, message.out) != 0 {
++			if !bytes.Equal(out, message.out) {
+ 				t.Errorf("#%d,%d bad result: %x (want %x)", i, j, out, message.out)
+ 			}
+ 		}
+@@ -203,7 +203,7 @@ func TestDecryptOAEP(t *testing.T) {
+ 			out, err := DecryptOAEP(sha1, nil, private, message.out, nil)
+ 			if err != nil {
+ 				t.Errorf("#%d,%d error: %s", i, j, err)
+-			} else if bytes.Compare(out, message.in) != 0 {
++			} else if !bytes.Equal(out, message.in) {
+ 				t.Errorf("#%d,%d bad result: %#v (want %#v)", i, j, out, message.in)
+ 			}
+ 
+@@ -211,7 +211,7 @@ func TestDecryptOAEP(t *testing.T) {
+ 			out, err = DecryptOAEP(sha1, random, private, message.out, nil)
+ 			if err != nil {
+ 				t.Errorf("#%d,%d (blind) error: %s", i, j, err)
+-			} else if bytes.Compare(out, message.in) != 0 {
++			} else if !bytes.Equal(out, message.in) {
+ 				t.Errorf("#%d,%d (blind) bad result: %#v (want %#v)", i, j, out, message.in)
+ 			}
+ 		}
+diff --git a/src/pkg/encoding/asn1/asn1_test.go b/src/pkg/encoding/asn1/asn1_test.go
+index cabdf03b48..6e98dcf0b9 100644
+--- a/src/pkg/encoding/asn1/asn1_test.go
++++ b/src/pkg/encoding/asn1/asn1_test.go
+@@ -124,7 +124,7 @@ func TestBitString(t *testing.T) {
+ 			t.Errorf("#%d: Incorrect error result (did fail? %v, expected: %v)", i, err == nil, test.ok)
+ 		}
+ 		if err == nil {
+-			if test.bitLength != ret.BitLength || bytes.Compare(ret.Bytes, test.out) != 0 {
++			if test.bitLength != ret.BitLength || !bytes.Equal(ret.Bytes, test.out) {
+ 				t.Errorf("#%d: Bad result: %v (expected %v %v)", i, ret, test.out, test.bitLength)
+ 			}
+ 		}
+@@ -166,7 +166,7 @@ func TestBitStringRightAlign(t *testing.T) {
+ 	for i, test := range bitStringRightAlignTests {
+ 		bs := BitString{test.in, test.inlen}
+ 		out := bs.RightAlign()
+-		if bytes.Compare(out, test.out) != 0 {
++		if !bytes.Equal(out, test.out) {
+ 			t.Errorf("#%d got: %x want: %x", i, out, test.out)
+ 		}
+ 	}
+@@ -477,7 +477,7 @@ func TestRawStructs(t *testing.T) {
+ 	if s.A != 0x50 {
+ 		t.Errorf("bad value for A: got %d want %d", s.A, 0x50)
+ 	}
+-	if bytes.Compare([]byte(s.Raw), input) != 0 {
++	if !bytes.Equal([]byte(s.Raw), input) {
+ 		t.Errorf("bad value for Raw: got %x want %x", s.Raw, input)
+ 	}
+ }
+diff --git a/src/pkg/encoding/asn1/marshal_test.go b/src/pkg/encoding/asn1/marshal_test.go
+index 55d34a709a..b4dbe71ef3 100644
+--- a/src/pkg/encoding/asn1/marshal_test.go
++++ b/src/pkg/encoding/asn1/marshal_test.go
+@@ -132,7 +132,7 @@ func TestMarshal(t *testing.T) {
+ 			t.Errorf("#%d failed: %s", i, err)
+ 		}
+ 		out, _ := hex.DecodeString(test.out)
+-		if bytes.Compare(out, data) != 0 {
++		if !bytes.Equal(out, data) {
+ 			t.Errorf("#%d got: %x want %x\n\t%q\n\t%q", i, data, out, data, out)
+ 
+ 		}
+diff --git a/src/pkg/encoding/hex/hex_test.go b/src/pkg/encoding/hex/hex_test.go
+index 456f9eac72..356f590f02 100644
+--- a/src/pkg/encoding/hex/hex_test.go
++++ b/src/pkg/encoding/hex/hex_test.go
+@@ -65,7 +65,7 @@ func TestDecodeString(t *testing.T) {
+ 			t.Errorf("#%d: unexpected err value: %s", i, err)
+ 			continue
+ 		}
+-		if bytes.Compare(dst, test.dec) != 0 {
++		if !bytes.Equal(dst, test.dec) {
+ 			t.Errorf("#%d: got: %#v want: #%v", i, dst, test.dec)
+ 		}
+ 	}
+diff --git a/src/pkg/encoding/json/decode_test.go b/src/pkg/encoding/json/decode_test.go
+index 4f334d1347..93055abd1c 100644
+--- a/src/pkg/encoding/json/decode_test.go
++++ b/src/pkg/encoding/json/decode_test.go
+@@ -422,7 +422,7 @@ func TestUnmarshalMarshal(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("Marshal: %v", err)
+ 	}
+-	if bytes.Compare(jsonBig, b) != 0 {
++	if !bytes.Equal(jsonBig, b) {
+ 		t.Errorf("Marshal jsonBig")
+ 		diff(t, b, jsonBig)
+ 		return
+@@ -474,7 +474,7 @@ func TestLargeByteSlice(t *testing.T) {
+ 	if err := Unmarshal(b, &s1); err != nil {
+ 		t.Fatalf("Unmarshal: %v", err)
+ 	}
+-	if bytes.Compare(s0, s1) != 0 {
++	if !bytes.Equal(s0, s1) {
+ 		t.Errorf("Marshal large byte slice")
+ 		diff(t, s0, s1)
+ 	}
+diff --git a/src/pkg/encoding/json/scanner_test.go b/src/pkg/encoding/json/scanner_test.go
+index 14d850865a..adb35715b9 100644
+--- a/src/pkg/encoding/json/scanner_test.go
++++ b/src/pkg/encoding/json/scanner_test.go
+@@ -92,7 +92,7 @@ func TestCompactBig(t *testing.T) {
+ 		t.Fatalf("Compact: %v", err)
+ 	}
+ 	b := buf.Bytes()
+-	if bytes.Compare(b, jsonBig) != 0 {
++	if !bytes.Equal(b, jsonBig) {
+ 		t.Error("Compact(jsonBig) != jsonBig")
+ 		diff(t, b, jsonBig)
+ 		return
+@@ -118,7 +118,7 @@ func TestIndentBig(t *testing.T) {
+ 		t.Fatalf("Indent2: %v", err)
+ 	}
+ 	b1 := buf1.Bytes()
+-	if bytes.Compare(b1, b) != 0 {
++	if !bytes.Equal(b1, b) {
+ 		t.Error("Indent(Indent(jsonBig)) != Indent(jsonBig)")
+ 		diff(t, b1, b)
+ 		return
+@@ -130,7 +130,7 @@ func TestIndentBig(t *testing.T) {
+ 		t.Fatalf("Compact: %v", err)
+ 	}
+ 	b1 = buf1.Bytes()
+-	if bytes.Compare(b1, jsonBig) != 0 {
++	if !bytes.Equal(b1, jsonBig) {
+ 		t.Error("Compact(Indent(jsonBig)) != jsonBig")
+ 		diff(t, b1, jsonBig)
+ 		return
+diff --git a/src/pkg/exp/locale/collate/collate_test.go b/src/pkg/exp/locale/collate/collate_test.go
+index 2889a06012..0b470b07b2 100644
+--- a/src/pkg/exp/locale/collate/collate_test.go
++++ b/src/pkg/exp/locale/collate/collate_test.go
+@@ -388,10 +388,10 @@ func TestKey(t *testing.T) {
+ 	}
+ 	// Separate generation from testing to ensure buffers are not overwritten.
+ 	for i, tt := range keyTests {
+-		if bytes.Compare(keys1[i], tt.out) != 0 {
++		if !bytes.Equal(keys1[i], tt.out) {
+ 			t.Errorf("%d: Key(%q) = %d; want %d", i, tt.in, keys1[i], tt.out)
+ 		}
+-		if bytes.Compare(keys2[i], tt.out) != 0 {
++		if !bytes.Equal(keys2[i], tt.out) {
+ 			t.Errorf("%d: KeyFromString(%q) = %d; want %d", i, tt.in, keys2[i], tt.out)
+ 		}
+ 	}
+diff --git a/src/pkg/exp/locale/collate/maketables.go b/src/pkg/exp/locale/collate/maketables.go
+index 40bf10ab44..42df613e60 100644
+--- a/src/pkg/exp/locale/collate/maketables.go
++++ b/src/pkg/exp/locale/collate/maketables.go
+@@ -674,7 +674,7 @@ func testCollator(c *collate.Collator) {
+ 	for _, str := range testInput.values() {
+ 		k0 := c0.KeyFromString(&buf, str)
+ 		k := c.KeyFromString(&buf, str)
+-		if bytes.Compare(k0, k) != 0 {
++		if !bytes.Equal(k0, k) {
+ 			failOnError(fmt.Errorf("test:%U: keys differ (%x vs %x)", []rune(str), k0, k))
+ 		}
+ 		buf.Reset()
+diff --git a/src/pkg/go/doc/doc_test.go b/src/pkg/go/doc/doc_test.go
+index f957ede4ab..8043038b4a 100644
+--- a/src/pkg/go/doc/doc_test.go
++++ b/src/pkg/go/doc/doc_test.go
+@@ -123,7 +123,7 @@ func test(t *testing.T, mode Mode) {
+ 		}
+ 
+ 		// compare
+-		if bytes.Compare(got, want) != 0 {
++		if !bytes.Equal(got, want) {
+ 			t.Errorf("package %s\n\tgot:\n%s\n\twant:\n%s", pkg.Name, got, want)
+ 		}
+ 	}
+diff --git a/src/pkg/math/big/int_test.go b/src/pkg/math/big/int_test.go
+index fd6d152b39..6c981e7752 100644
+--- a/src/pkg/math/big/int_test.go
++++ b/src/pkg/math/big/int_test.go
+@@ -643,7 +643,7 @@ func TestSetBytes(t *testing.T) {
+ 
+ func checkBytes(b []byte) bool {
+ 	b2 := new(Int).SetBytes(b).Bytes()
+-	return bytes.Compare(b, b2) == 0
++	return bytes.Equal(b, b2)
+ }
+ 
+ func TestBytes(t *testing.T) {

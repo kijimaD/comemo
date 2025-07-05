@@ -9,6 +9,20 @@ Date:   Tue May 9 17:54:26 2017 +0300
     Change-Id: I32ac862fe00180210a04103cc94c4d9fef5d1b6c
     Reviewed-on: https://go-review.googlesource.com/42992
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/token/position.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/token/position.go b/src/go/token/position.go
+index d4171d80e0..8442b270db 100644
+--- a/src/go/token/position.go
++++ b/src/go/token/position.go
+@@ -71,7 +71,7 @@ func (pos Position) String() string {
+ type Pos int
+ 
+ // The zero value for Pos is NoPos; there is no file and line information
+-// associated with it, and NoPos().IsValid() is false. NoPos is always
++// associated with it, and NoPos.IsValid() is false. NoPos is always
+ // smaller than any other Pos value. The corresponding Position value
+ // for NoPos is the zero value for Position.
+ //

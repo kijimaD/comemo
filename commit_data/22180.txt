@@ -7,6 +7,22 @@ Date:   Thu Feb 26 17:49:59 2015 -0500
     Change-Id: I44f1240a766f20de5997faca4f13f96af6da3534
     Reviewed-on: https://go-review.googlesource.com/6190
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/cmd/nm/nm_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/nm/nm_test.go b/src/cmd/nm/nm_test.go
+index cb555d8273..3081921584 100644
+--- a/src/cmd/nm/nm_test.go
++++ b/src/cmd/nm/nm_test.go
+@@ -58,6 +58,10 @@ func TestNM(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "android", "nacl":
+ 		t.Skipf("skipping on %s", runtime.GOOS)
++	case "darwin":
++		if runtime.GOARCH == "arm" {
++			t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
++		}
+ 	}
+ 
+ 	tmpDir, err := ioutil.TempDir("", "TestNM")

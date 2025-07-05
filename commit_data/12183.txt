@@ -7,6 +7,27 @@ Date:   Fri Feb 24 11:55:31 2012 +1100
     R=golang-dev, bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/5688067
-
+---
  src/pkg/net/http/status.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/net/http/status.go b/src/pkg/net/http/status.go
+index b6e2d65c6a..5af0b77c42 100644
+--- a/src/pkg/net/http/status.go
++++ b/src/pkg/net/http/status.go
+@@ -43,6 +43,7 @@ const (
+ 	StatusUnsupportedMediaType         = 415
+ 	StatusRequestedRangeNotSatisfiable = 416
+ 	StatusExpectationFailed            = 417
++	StatusTeapot                       = 418
+ 
+ 	StatusInternalServerError     = 500
+ 	StatusNotImplemented          = 501
+@@ -90,6 +91,7 @@ var statusText = map[int]string{
+ 	StatusUnsupportedMediaType:         "Unsupported Media Type",
+ 	StatusRequestedRangeNotSatisfiable: "Requested Range Not Satisfiable",
+ 	StatusExpectationFailed:            "Expectation Failed",
++	StatusTeapot:                       "I'm a teapot",
+ 
+ 	StatusInternalServerError:     "Internal Server Error",
+ 	StatusNotImplemented:          "Not Implemented",

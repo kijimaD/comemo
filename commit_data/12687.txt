@@ -12,7 +12,73 @@ Date:   Mon Mar 19 15:57:28 2012 -0700
     R=rsc, lvd
     CC=golang-dev
     https://golang.org/cl/5848062
-
+---
  src/cmd/gc/walk.c        |  2 ++
  test/fixedbugs/bug427.go | 39 +++++++++++++++++++++++++++++++++++++++
  2 files changed, 41 insertions(+)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 0ed68f86b0..5c8282b52e 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -2514,6 +2514,7 @@ walkcompare(Node **np, NodeList **init)
+ 			expr = nodbool(n->op == OEQ);
+ 		typecheck(&expr, Erv);
+ 		walkexpr(&expr, init);
++		expr->type = n->type;
+ 		*np = expr;
+ 		return;
+ 	}
+@@ -2534,6 +2535,7 @@ walkcompare(Node **np, NodeList **init)
+ 			expr = nodbool(n->op == OEQ);
+ 		typecheck(&expr, Erv);
+ 		walkexpr(&expr, init);
++		expr->type = n->type;
+ 		*np = expr;
+ 		return;
+ 	}
+diff --git a/test/fixedbugs/bug427.go b/test/fixedbugs/bug427.go
+new file mode 100644
+index 0000000000..1239e7a332
+--- /dev/null
++++ b/test/fixedbugs/bug427.go
+@@ -0,0 +1,39 @@
++// compile
++
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// http://code.google.com/p/go/issues/detail?id=3351
++
++package main
++
++// struct with four fields of basic type
++type S struct {a, b, c, d int}
++
++// struct with five fields of basic type
++type T struct {a, b, c, d, e int}
++
++// array with four elements
++type A [4]int
++
++// array with five elements
++type B [5]int
++
++func main() {
++	var i interface{}
++
++	var s1, s2 S
++	i = s1 == s2
++
++	var t1, t2 T
++	i = t1 == t2
++
++	var a1, a2 A
++	i = a1 == a2
++
++	var b1, b2 B
++	i = b1 == b2
++
++	_ = i
++}

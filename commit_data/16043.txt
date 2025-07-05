@@ -8,6 +8,20 @@ Date:   Mon Apr 1 15:52:15 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/8118046
-
+---
  doc/codewalk/markov.xml | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/codewalk/markov.xml b/doc/codewalk/markov.xml
+index 7f12818177..76c448ac32 100644
+--- a/doc/codewalk/markov.xml
++++ b/doc/codewalk/markov.xml
+@@ -181,7 +181,7 @@ p == Prefix{"am", "not"}</pre>
+ 	one index to the left (if you consider zero as the leftmost index).
+ 	<pre>
+ p := Prefix{"I", "am"}
+-copy(p, p[:1])
++copy(p, p[1:])
+ // p == Prefix{"am", "am"}</pre>
+ 	We then assign the provided <code>word</code> to the last index
+ 	of the slice:

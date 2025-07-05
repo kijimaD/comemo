@@ -36,7 +36,94 @@ Date:   Fri Aug 18 12:04:35 2023 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/errors/wrap.go      | 19 +++++++++++++++----
  src/errors/wrap_test.go | 21 +++++++++++++++++++++
  2 files changed, 36 insertions(+), 4 deletions(-)
+
+diff --git a/src/errors/wrap.go b/src/errors/wrap.go
+index 2c934eed5a..756de6cc1c 100644
+--- a/src/errors/wrap.go
++++ b/src/errors/wrap.go
+@@ -47,8 +47,12 @@ func Is(err, target error) bool {
+ 	}
+ 
+ 	isComparable := reflectlite.TypeOf(target).Comparable()
++	return is(err, target, isComparable)
++}
++
++func is(err, target error, targetComparable bool) bool {
+ 	for {
+-		if isComparable && err == target {
++		if targetComparable && err == target {
+ 			return true
+ 		}
+ 		if x, ok := err.(interface{ Is(error) bool }); ok && x.Is(target) {
+@@ -62,7 +66,7 @@ func Is(err, target error) bool {
+ 			}
+ 		case interface{ Unwrap() []error }:
+ 			for _, err := range x.Unwrap() {
+-				if Is(err, target) {
++				if is(err, target, targetComparable) {
+ 					return true
+ 				}
+ 			}
+@@ -106,9 +110,13 @@ func As(err error, target any) bool {
+ 	if targetType.Kind() != reflectlite.Interface && !targetType.Implements(errorType) {
+ 		panic("errors: *target must be interface or implement error")
+ 	}
++	return as(err, target, val, targetType)
++}
++
++func as(err error, target any, targetVal reflectlite.Value, targetType reflectlite.Type) bool {
+ 	for {
+ 		if reflectlite.TypeOf(err).AssignableTo(targetType) {
+-			val.Elem().Set(reflectlite.ValueOf(err))
++			targetVal.Elem().Set(reflectlite.ValueOf(err))
+ 			return true
+ 		}
+ 		if x, ok := err.(interface{ As(any) bool }); ok && x.As(target) {
+@@ -122,7 +130,10 @@ func As(err error, target any) bool {
+ 			}
+ 		case interface{ Unwrap() []error }:
+ 			for _, err := range x.Unwrap() {
+-				if As(err, target) {
++				if err == nil {
++					continue
++				}
++				if as(err, target, targetVal, targetType) {
+ 					return true
+ 				}
+ 			}
+diff --git a/src/errors/wrap_test.go b/src/errors/wrap_test.go
+index ca9dc0f111..0a7bc5d16a 100644
+--- a/src/errors/wrap_test.go
++++ b/src/errors/wrap_test.go
+@@ -238,6 +238,27 @@ func TestAsValidation(t *testing.T) {
+ 	}
+ }
+ 
++func BenchmarkIs(b *testing.B) {
++	err1 := errors.New("1")
++	err2 := multiErr{multiErr{multiErr{err1, errorT{"a"}}, errorT{"b"}}}
++
++	for i := 0; i < b.N; i++ {
++		if !errors.Is(err2, err1) {
++			b.Fatal("Is failed")
++		}
++	}
++}
++
++func BenchmarkAs(b *testing.B) {
++	err := multiErr{multiErr{multiErr{errors.New("a"), errorT{"a"}}, errorT{"b"}}}
++	for i := 0; i < b.N; i++ {
++		var target errorT
++		if !errors.As(err, &target) {
++			b.Fatal("As failed")
++		}
++	}
++}
++
+ func TestUnwrap(t *testing.T) {
+ 	err1 := errors.New("1")
+ 	erra := wrapped{"wrap 2", err1}

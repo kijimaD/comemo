@@ -25,7 +25,7 @@ Date:   Fri Jun 16 14:46:24 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/46031
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
-
+---
  src/cmd/go/go_test.go                        | 58 ++++++++++++++++++++++++
  src/cmd/go/testdata/src/testregexp/x_test.go | 17 +++++++
  src/cmd/go/testdata/src/testregexp/z_test.go | 19 ++++++++
@@ -35,3 +35,321 @@ Date:   Fri Jun 16 14:46:24 2017 -0400
  src/testing/sub_test.go                      |  2 -
  src/testing/testing.go                       |  2 +-
  8 files changed, 142 insertions(+), 43 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index a59da8bc90..e7fc5fc103 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -4194,3 +4194,61 @@ func main() {}`)
+ 		tg.setenv("GOARM", "7")
+ 	}))
+ }
++
++func TestTestRegexps(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++	tg.run("test", "-cpu=1", "-run=X/Y", "-bench=X/Y", "-count=2", "-v", "testregexp")
++	var lines []string
++	for _, line := range strings.SplitAfter(tg.getStdout(), "\n") {
++		if strings.Contains(line, "=== RUN") || strings.Contains(line, "--- BENCH") || strings.Contains(line, "LOG") {
++			lines = append(lines, line)
++		}
++	}
++
++	// Important parts:
++	//	TestX is run, twice
++	//	TestX/Y is run, twice
++	//	TestXX is run, twice
++	//	TestZ is not run
++	//	BenchmarkX is run but only with N=1, once
++	//	BenchmarkXX is run but only with N=1, once
++	//	BenchmarkX/Y is run in full, twice
++	want := `=== RUN   TestX
++=== RUN   TestX/Y
++	x_test.go:6: LOG: X running
++    	x_test.go:8: LOG: Y running
++=== RUN   TestXX
++	z_test.go:10: LOG: XX running
++=== RUN   TestX
++=== RUN   TestX/Y
++	x_test.go:6: LOG: X running
++    	x_test.go:8: LOG: Y running
++=== RUN   TestXX
++	z_test.go:10: LOG: XX running
++--- BENCH: BenchmarkX/Y
++	x_test.go:15: LOG: Y running N=1
++	x_test.go:15: LOG: Y running N=100
++	x_test.go:15: LOG: Y running N=10000
++	x_test.go:15: LOG: Y running N=1000000
++	x_test.go:15: LOG: Y running N=100000000
++	x_test.go:15: LOG: Y running N=2000000000
++--- BENCH: BenchmarkX/Y
++	x_test.go:15: LOG: Y running N=1
++	x_test.go:15: LOG: Y running N=100
++	x_test.go:15: LOG: Y running N=10000
++	x_test.go:15: LOG: Y running N=1000000
++	x_test.go:15: LOG: Y running N=100000000
++	x_test.go:15: LOG: Y running N=2000000000
++--- BENCH: BenchmarkX
++	x_test.go:13: LOG: X running N=1
++--- BENCH: BenchmarkXX
++	z_test.go:18: LOG: XX running N=1
++`
++
++	have := strings.Join(lines, "")
++	if have != want {
++		t.Errorf("reduced output:<<<\n%s>>> want:<<<\n%s>>>", have, want)
++	}
++}
+diff --git a/src/cmd/go/testdata/src/testregexp/x_test.go b/src/cmd/go/testdata/src/testregexp/x_test.go
+new file mode 100644
+index 0000000000..7573e79e16
+--- /dev/null
++++ b/src/cmd/go/testdata/src/testregexp/x_test.go
+@@ -0,0 +1,17 @@
++package x
++
++import "testing"
++
++func TestX(t *testing.T) {
++	t.Logf("LOG: X running")
++	t.Run("Y", func(t *testing.T) {
++		t.Logf("LOG: Y running")
++	})
++}
++
++func BenchmarkX(b *testing.B) {
++	b.Logf("LOG: X running N=%d", b.N)
++	b.Run("Y", func(b *testing.B) {
++		b.Logf("LOG: Y running N=%d", b.N)
++	})
++}
+diff --git a/src/cmd/go/testdata/src/testregexp/z_test.go b/src/cmd/go/testdata/src/testregexp/z_test.go
+new file mode 100644
+index 0000000000..4fd1979154
+--- /dev/null
++++ b/src/cmd/go/testdata/src/testregexp/z_test.go
+@@ -0,0 +1,19 @@
++package x
++
++import "testing"
++
++func TestZ(t *testing.T) {
++	t.Logf("LOG: Z running")
++}
++
++func TestXX(t *testing.T) {
++	t.Logf("LOG: XX running")
++}
++
++func BenchmarkZ(b *testing.B) {
++	b.Logf("LOG: Z running N=%d", b.N)
++}
++
++func BenchmarkXX(b *testing.B) {
++	b.Logf("LOG: XX running N=%d", b.N)
++}
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index 18a46d93bf..8b7f5cebaf 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -405,7 +405,7 @@ func runBenchmarks(importPath string, matchString func(pat, str string) (bool, e
+ 	}
+ 	var bs []InternalBenchmark
+ 	for _, Benchmark := range benchmarks {
+-		if _, matched := ctx.match.fullName(nil, Benchmark.Name); matched {
++		if _, matched, _ := ctx.match.fullName(nil, Benchmark.Name); matched {
+ 			bs = append(bs, Benchmark)
+ 			benchName := benchmarkName(Benchmark.Name, maxprocs)
+ 			if l := len(benchName) + ctx.extLen + 1; l > ctx.maxLen {
+@@ -492,9 +492,9 @@ func (b *B) Run(name string, f func(b *B)) bool {
+ 	benchmarkLock.Unlock()
+ 	defer benchmarkLock.Lock()
+ 
+-	benchName, ok := b.name, true
++	benchName, ok, partial := b.name, true, false
+ 	if b.context != nil {
+-		benchName, ok = b.context.match.fullName(&b.common, name)
++		benchName, ok, partial = b.context.match.fullName(&b.common, name)
+ 	}
+ 	if !ok {
+ 		return true
+@@ -513,6 +513,11 @@ func (b *B) Run(name string, f func(b *B)) bool {
+ 		benchTime:  b.benchTime,
+ 		context:    b.context,
+ 	}
++	if partial {
++		// Partial name match, like -bench=X/Y matching BenchmarkX.
++		// Only process sub-benchmarks, if any.
++		atomic.StoreInt32(&sub.hasSub, 1)
++	}
+ 	if sub.run1() {
+ 		sub.run()
+ 	}
+diff --git a/src/testing/match.go b/src/testing/match.go
+index 7751035760..89e30d01a7 100644
+--- a/src/testing/match.go
++++ b/src/testing/match.go
+@@ -47,7 +47,7 @@ func newMatcher(matchString func(pat, str string) (bool, error), patterns, name
+ 	}
+ }
+ 
+-func (m *matcher) fullName(c *common, subname string) (name string, ok bool) {
++func (m *matcher) fullName(c *common, subname string) (name string, ok, partial bool) {
+ 	name = subname
+ 
+ 	m.mu.Lock()
+@@ -62,15 +62,16 @@ func (m *matcher) fullName(c *common, subname string) (name string, ok bool) {
+ 
+ 	// We check the full array of paths each time to allow for the case that
+ 	// a pattern contains a '/'.
+-	for i, s := range strings.Split(name, "/") {
++	elem := strings.Split(name, "/")
++	for i, s := range elem {
+ 		if i >= len(m.filter) {
+ 			break
+ 		}
+ 		if ok, _ := m.matchFunc(m.filter[i], s); !ok {
+-			return name, false
++			return name, false, false
+ 		}
+ 	}
+-	return name, true
++	return name, true, len(elem) < len(m.filter)
+ }
+ 
+ func splitRegexp(s string) []string {
+diff --git a/src/testing/match_test.go b/src/testing/match_test.go
+index 8c1c5f4452..8c09dc660f 100644
+--- a/src/testing/match_test.go
++++ b/src/testing/match_test.go
+@@ -88,43 +88,44 @@ func TestMatcher(t *T) {
+ 		pattern     string
+ 		parent, sub string
+ 		ok          bool
++		partial     bool
+ 	}{
+ 		// Behavior without subtests.
+-		{"", "", "TestFoo", true},
+-		{"TestFoo", "", "TestFoo", true},
+-		{"TestFoo/", "", "TestFoo", true},
+-		{"TestFoo/bar/baz", "", "TestFoo", true},
+-		{"TestFoo", "", "TestBar", false},
+-		{"TestFoo/", "", "TestBar", false},
+-		{"TestFoo/bar/baz", "", "TestBar/bar/baz", false},
++		{"", "", "TestFoo", true, false},
++		{"TestFoo", "", "TestFoo", true, false},
++		{"TestFoo/", "", "TestFoo", true, true},
++		{"TestFoo/bar/baz", "", "TestFoo", true, true},
++		{"TestFoo", "", "TestBar", false, false},
++		{"TestFoo/", "", "TestBar", false, false},
++		{"TestFoo/bar/baz", "", "TestBar/bar/baz", false, false},
+ 
+ 		// with subtests
+-		{"", "TestFoo", "x", true},
+-		{"TestFoo", "TestFoo", "x", true},
+-		{"TestFoo/", "TestFoo", "x", true},
+-		{"TestFoo/bar/baz", "TestFoo", "bar", true},
++		{"", "TestFoo", "x", true, false},
++		{"TestFoo", "TestFoo", "x", true, false},
++		{"TestFoo/", "TestFoo", "x", true, false},
++		{"TestFoo/bar/baz", "TestFoo", "bar", true, true},
+ 		// Subtest with a '/' in its name still allows for copy and pasted names
+ 		// to match.
+-		{"TestFoo/bar/baz", "TestFoo", "bar/baz", true},
+-		{"TestFoo/bar/baz", "TestFoo/bar", "baz", true},
+-		{"TestFoo/bar/baz", "TestFoo", "x", false},
+-		{"TestFoo", "TestBar", "x", false},
+-		{"TestFoo/", "TestBar", "x", false},
+-		{"TestFoo/bar/baz", "TestBar", "x/bar/baz", false},
++		{"TestFoo/bar/baz", "TestFoo", "bar/baz", true, false},
++		{"TestFoo/bar/baz", "TestFoo/bar", "baz", true, false},
++		{"TestFoo/bar/baz", "TestFoo", "x", false, false},
++		{"TestFoo", "TestBar", "x", false, false},
++		{"TestFoo/", "TestBar", "x", false, false},
++		{"TestFoo/bar/baz", "TestBar", "x/bar/baz", false, false},
+ 
+ 		// subtests only
+-		{"", "TestFoo", "x", true},
+-		{"/", "TestFoo", "x", true},
+-		{"./", "TestFoo", "x", true},
+-		{"./.", "TestFoo", "x", true},
+-		{"/bar/baz", "TestFoo", "bar", true},
+-		{"/bar/baz", "TestFoo", "bar/baz", true},
+-		{"//baz", "TestFoo", "bar/baz", true},
+-		{"//", "TestFoo", "bar/baz", true},
+-		{"/bar/baz", "TestFoo/bar", "baz", true},
+-		{"//foo", "TestFoo", "bar/baz", false},
+-		{"/bar/baz", "TestFoo", "x", false},
+-		{"/bar/baz", "TestBar", "x/bar/baz", false},
++		{"", "TestFoo", "x", true, false},
++		{"/", "TestFoo", "x", true, false},
++		{"./", "TestFoo", "x", true, false},
++		{"./.", "TestFoo", "x", true, false},
++		{"/bar/baz", "TestFoo", "bar", true, true},
++		{"/bar/baz", "TestFoo", "bar/baz", true, false},
++		{"//baz", "TestFoo", "bar/baz", true, false},
++		{"//", "TestFoo", "bar/baz", true, false},
++		{"/bar/baz", "TestFoo/bar", "baz", true, false},
++		{"//foo", "TestFoo", "bar/baz", false, false},
++		{"/bar/baz", "TestFoo", "x", false, false},
++		{"/bar/baz", "TestBar", "x/bar/baz", false, false},
+ 	}
+ 
+ 	for _, tc := range testCases {
+@@ -134,9 +135,9 @@ func TestMatcher(t *T) {
+ 		if tc.parent != "" {
+ 			parent.level = 1
+ 		}
+-		if n, ok := m.fullName(parent, tc.sub); ok != tc.ok {
+-			t.Errorf("for pattern %q, fullName(parent=%q, sub=%q) = %q, ok %v; want ok %v",
+-				tc.pattern, tc.parent, tc.sub, n, ok, tc.ok)
++		if n, ok, partial := m.fullName(parent, tc.sub); ok != tc.ok || partial != tc.partial {
++			t.Errorf("for pattern %q, fullName(parent=%q, sub=%q) = %q, ok %v partial %v; want ok %v partial %v",
++				tc.pattern, tc.parent, tc.sub, n, ok, partial, tc.ok, tc.partial)
+ 		}
+ 	}
+ }
+@@ -178,7 +179,7 @@ func TestNaming(t *T) {
+ 	}
+ 
+ 	for i, tc := range testCases {
+-		if got, _ := m.fullName(parent, tc.name); got != tc.want {
++		if got, _, _ := m.fullName(parent, tc.name); got != tc.want {
+ 			t.Errorf("%d:%s: got %q; want %q", i, tc.name, got, tc.want)
+ 		}
+ 	}
+diff --git a/src/testing/sub_test.go b/src/testing/sub_test.go
+index ab145b5bf4..af2d39c5be 100644
+--- a/src/testing/sub_test.go
++++ b/src/testing/sub_test.go
+@@ -7,7 +7,6 @@ package testing
+ import (
+ 	"bytes"
+ 	"fmt"
+-	"os"
+ 	"regexp"
+ 	"runtime"
+ 	"strings"
+@@ -602,7 +601,6 @@ func TestBenchmark(t *T) {
+ 	res := Benchmark(func(b *B) {
+ 		for i := 0; i < 5; i++ {
+ 			b.Run("", func(b *B) {
+-				fmt.Fprintf(os.Stderr, "b.N: %v\n", b.N)
+ 				for i := 0; i < b.N; i++ {
+ 					time.Sleep(time.Millisecond)
+ 				}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index fa6c36c6d3..96c34a5aea 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -763,7 +763,7 @@ func tRunner(t *T, fn func(t *T)) {
+ // must happen before the outer test function for t returns.
+ func (t *T) Run(name string, f func(t *T)) bool {
+ 	atomic.StoreInt32(&t.hasSub, 1)
+-	testName, ok := t.context.match.fullName(&t.common, name)
++	testName, ok, _ := t.context.match.fullName(&t.common, name)
+ 	if !ok {
+ 		return true
+ 	}

@@ -7,6 +7,26 @@ Date:   Tue Dec 11 12:03:18 2012 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6912063
-
+---
  src/pkg/syscall/mkall.sh | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/syscall/mkall.sh b/src/pkg/syscall/mkall.sh
+index 4ef3a12cfe..3900a93ab0 100755
+--- a/src/pkg/syscall/mkall.sh
++++ b/src/pkg/syscall/mkall.sh
+@@ -145,8 +145,13 @@ linux_386)
+ 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+ 	;;
+ linux_amd64)
++	unistd_h=$(ls -1 /usr/include/asm/unistd_64.h /usr/include/x86_64-linux-gnu/asm/unistd_64.h 2>/dev/null | head -1)
++	if [ "$unistd_h" = "" ]; then
++		echo >&2 cannot find unistd_64.h
++		exit 1
++	fi
+ 	mkerrors="$mkerrors -m64"
+-	mksysnum="./mksysnum_linux.pl /usr/include/asm/unistd_64.h"
++	mksysnum="./mksysnum_linux.pl $unistd_h"
+ 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+ 	;;
+ linux_arm)

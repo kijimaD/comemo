@@ -16,7 +16,46 @@ Date:   Mon Nov 6 08:00:31 2023 +0700
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/go/internal/modload/init.go           |  8 +++++++-
  src/cmd/go/testdata/script/env_issue46807.txt | 12 ++++++++++++
  2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index b9d9d2e552..f4f4a68254 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -485,7 +485,13 @@ func Init() {
+ 	if len(list) > 0 && list[0] != "" {
+ 		gopath = list[0]
+ 		if _, err := fsys.Stat(filepath.Join(gopath, "go.mod")); err == nil {
+-			base.Fatalf("$GOPATH/go.mod exists but should not")
++			fmt.Fprintf(os.Stderr, "go: warning: ignoring go.mod in $GOPATH %v\n", gopath)
++			if RootMode == NeedRoot {
++				base.Fatal(ErrNoModRoot)
++			}
++			if !mustUseModules {
++				return
++			}
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/go/testdata/script/env_issue46807.txt b/src/cmd/go/testdata/script/env_issue46807.txt
+new file mode 100644
+index 0000000000..e37bc63e6c
+--- /dev/null
++++ b/src/cmd/go/testdata/script/env_issue46807.txt
+@@ -0,0 +1,12 @@
++! go mod tidy
++stderr '^go: warning: ignoring go.mod in \$GOPATH'
++stderr '^go: go.mod file not found in current directory or any parent directory; see ''go help modules'''
++
++go env
++stdout 'GOPATH='
++stderr '^go: warning: ignoring go.mod in \$GOPATH'
++
++-- $GOPATH/go.mod --
++module bug
++
++go 1.21
+\ No newline at end of file

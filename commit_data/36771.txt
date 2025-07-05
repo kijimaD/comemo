@@ -12,10 +12,196 @@ Date:   Fri May 25 14:01:25 2018 +0200
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/asm_386.s      | 36 ------------------------------------
  src/runtime/asm_amd64.s    | 32 --------------------------------
  src/runtime/asm_amd64p32.s | 38 --------------------------------------
  src/runtime/proc.go        |  6 ++++++
  src/runtime/runtime2.go    |  3 +--
  5 files changed, 7 insertions(+), 108 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 5ca26a2d5f..a6a81c3f63 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -164,42 +164,6 @@ notintel:
+ 	TESTL	$(1<<23), DX // MMX
+ 	JZ	bad_proc
+ 
+-	TESTL	$(1<<26), DX // SSE2
+-	SETNE	runtime·support_sse2(SB)
+-
+-	TESTL	$(1<<19), DI // SSE4.1
+-	SETNE	runtime·support_sse41(SB)
+-
+-	TESTL	$(1<<23), DI // POPCNT
+-	SETNE	runtime·support_popcnt(SB)
+-
+-	TESTL	$(1<<27), DI // OSXSAVE
+-	SETNE	runtime·support_osxsave(SB)
+-
+-eax7:
+-	// Load EAX=7/ECX=0 cpuid flags
+-	CMPL	SI, $7
+-	JLT	osavx
+-	MOVL	$7, AX
+-	MOVL	$0, CX
+-	CPUID
+-
+-	TESTL	$(1<<9), BX // ERMS
+-	SETNE	runtime·support_erms(SB)
+-
+-osavx:
+-	// nacl does not support XGETBV to test
+-	// for XMM and YMM OS support.
+-#ifndef GOOS_nacl
+-	CMPB	runtime·support_osxsave(SB), $1
+-	JNE	nocpuinfo
+-	MOVL	$0, CX
+-	// For XGETBV, OSXSAVE bit is required and sufficient
+-	XGETBV
+-	ANDL	$6, AX
+-	CMPL	AX, $6 // Check for OS support of XMM and YMM registers.
+-#endif
+-
+ nocpuinfo:
+ 	// if there is an _cgo_init, call it to let it
+ 	// initialize and to set up GS.  if not,
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 214d1608d6..6902ce2c22 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -127,38 +127,6 @@ notintel:
+ 	CPUID
+ 	MOVL	AX, runtime·processorVersionInfo(SB)
+ 
+-	TESTL	$(1<<26), DX // SSE2
+-	SETNE	runtime·support_sse2(SB)
+-
+-	TESTL	$(1<<19), CX // SSE4.1
+-	SETNE	runtime·support_sse41(SB)
+-
+-	TESTL	$(1<<23), CX // POPCNT
+-	SETNE	runtime·support_popcnt(SB)
+-
+-	TESTL	$(1<<27), CX // OSXSAVE
+-	SETNE	runtime·support_osxsave(SB)
+-
+-eax7:
+-	// Load EAX=7/ECX=0 cpuid flags
+-	CMPL	SI, $7
+-	JLT	osavx
+-	MOVL	$7, AX
+-	MOVL	$0, CX
+-	CPUID
+-
+-	TESTL	$(1<<9), BX // ERMS
+-	SETNE	runtime·support_erms(SB)
+-
+-osavx:
+-	CMPB	runtime·support_osxsave(SB), $1
+-	JNE	nocpuinfo
+-	MOVL	$0, CX
+-	// For XGETBV, OSXSAVE bit is required and sufficient
+-	XGETBV
+-	ANDL	$6, AX
+-	CMPL	AX, $6 // Check for OS support of XMM and YMM registers.
+-
+ nocpuinfo:
+ 	// if there is an _cgo_init, call it.
+ 	MOVQ	_cgo_init(SB), AX
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index 9c0d788ea5..49958d0c88 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -47,45 +47,7 @@ notintel:
+ 	CPUID
+ 	MOVL	AX, runtime·processorVersionInfo(SB)
+ 
+-	TESTL	$(1<<26), DX // SSE2
+-	SETNE	runtime·support_sse2(SB)
+-
+-	TESTL	$(1<<19), CX // SSE4.1
+-	SETNE	runtime·support_sse41(SB)
+-
+-	TESTL	$(1<<23), CX // POPCNT
+-	SETNE	runtime·support_popcnt(SB)
+-
+-	TESTL	$(1<<27), CX // OSXSAVE
+-	SETNE	runtime·support_osxsave(SB)
+-
+-eax7:
+-	// Load EAX=7/ECX=0 cpuid flags
+-	CMPL	SI, $7
+-	JLT	osavx
+-	MOVL	$7, AX
+-	MOVL	$0, CX
+-	CPUID
+-
+-	TESTL	$(1<<9), BX // ERMS
+-	SETNE	runtime·support_erms(SB)
+-
+-osavx:
+-	// nacl does not support XGETBV to test
+-	// for XMM and YMM OS support.
+-#ifndef GOOS_nacl
+-	CMPB	runtime·support_osxsave(SB), $1
+-	JNE	nocpuinfo
+-	MOVL	$0, CX
+-	// For XGETBV, OSXSAVE bit is required and sufficient
+-	XGETBV
+-	ANDL	$6, AX
+-	CMPL	AX, $6 // Check for OS support of XMM and YMM registers.
+-#endif
+-
+ nocpuinfo:
+-
+-needtls:
+ 	LEAL	runtime·m0+m_tls(SB), DI
+ 	CALL	runtime·settls(SB)
+ 
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index ba76f7c3e7..e312c575d0 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -5,6 +5,7 @@
+ package runtime
+ 
+ import (
++	"internal/cpu"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+@@ -507,6 +508,11 @@ func cpuinit() {
+ 	}
+ 
+ 	internal_cpu_initialize(env)
++
++	support_erms = cpu.X86.HasERMS
++	support_popcnt = cpu.X86.HasPOPCNT
++	support_sse2 = cpu.X86.HasSSE2
++	support_sse41 = cpu.X86.HasSSE41
+ }
+ 
+ // The bootstrap sequence is:
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index a8b0cd76ac..1ac0083828 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -833,7 +833,7 @@ var (
+ 	newprocs   int32
+ 
+ 	// Information about what cpu features are available.
+-	// Set on startup in asm_{386,amd64,amd64p32}.s.
++	// Set on startup in runtime.cpuinit.
+ 	// Packages outside the runtime should not use these
+ 	// as they are not an external api.
+ 	// TODO: deprecate these; use internal/cpu directly.
+@@ -841,7 +841,6 @@ var (
+ 	isIntel              bool
+ 	lfenceBeforeRdtsc    bool
+ 	support_erms         bool
+-	support_osxsave      bool
+ 	support_popcnt       bool
+ 	support_sse2         bool
+ 	support_sse41        bool

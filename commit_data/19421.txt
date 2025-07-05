@@ -10,7 +10,35 @@ Date:   Tue May 20 16:26:04 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/95560046
-
+---
  src/pkg/reflect/all_test.go | 3 +++
  src/pkg/runtime/hashmap.goc | 2 +-
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 9c5eb4e554..e9949012c4 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -993,6 +993,9 @@ func TestNilMap(t *testing.T) {
+ 	if x.Kind() != Invalid {
+ 		t.Errorf("mbig.MapIndex(\"hello\") for nil map = %v, want Invalid Value", x)
+ 	}
++
++	// Test that deletes from a nil map succeed.
++	mv.SetMapIndex(ValueOf("hi"), Value{})
+ }
+ 
+ func TestChan(t *testing.T) {
+diff --git a/src/pkg/runtime/hashmap.goc b/src/pkg/runtime/hashmap.goc
+index 36707c6ede..3327bed65e 100644
+--- a/src/pkg/runtime/hashmap.goc
++++ b/src/pkg/runtime/hashmap.goc
+@@ -990,7 +990,7 @@ func reflect·mapassign(t *MapType, h *Hmap, key *byte, val *byte) {
+ #pragma textflag NOSPLIT
+ func reflect·mapdelete(t *MapType, h *Hmap, key *byte) {
+ 	if(h == nil)
+-		runtime·panicstring("delete from nil map");
++		return; // see bug 8051
+ 	if(raceenabled) {
+ 		runtime·racewritepc(h, runtime·getcallerpc(&t), reflect·mapdelete);
+ 		runtime·racereadobjectpc(key, t->key, runtime·getcallerpc(&t), reflect·mapdelete);

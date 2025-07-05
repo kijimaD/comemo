@@ -12,8 +12,49 @@ Date:   Fri Nov 8 11:21:18 2024 -0800
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Commit-Queue: Tim King <taking@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/importer/gcimporter.go | 2 +-
  src/cmd/compile/internal/noder/import.go        | 2 +-
  src/go/internal/gcimporter/gcimporter.go        | 3 +--
  3 files changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/gcimporter.go b/src/cmd/compile/internal/importer/gcimporter.go
+index 9bc180d987..b89d7477c7 100644
+--- a/src/cmd/compile/internal/importer/gcimporter.go
++++ b/src/cmd/compile/internal/importer/gcimporter.go
+@@ -213,7 +213,7 @@ func Import(packages map[string]*types2.Package, path, srcDir string, lookup fun
+ 
+ 	switch hdr {
+ 	case "$$\n":
+-		err = fmt.Errorf("import %q: old textual export format no longer supported (recompile library)", path)
++		err = fmt.Errorf("import %q: old textual export format no longer supported (recompile package)", path)
+ 
+ 	case "$$B\n":
+ 		// TODO(taking): minimize code delta with src/go/internal/gcimporter.Import.
+diff --git a/src/cmd/compile/internal/noder/import.go b/src/cmd/compile/internal/noder/import.go
+index e9bb1e313b..1e4c1ecb63 100644
+--- a/src/cmd/compile/internal/noder/import.go
++++ b/src/cmd/compile/internal/noder/import.go
+@@ -308,7 +308,7 @@ func findExportData(f *os.File) (r *bio.Reader, end int64, err error) {
+ 
+ 	// Expect $$B\n to signal binary import format.
+ 	if line != "$$B\n" {
+-		err = errors.New("old export format no longer supported (recompile library)")
++		err = errors.New("old export format no longer supported (recompile package)")
+ 		return
+ 	}
+ 
+diff --git a/src/go/internal/gcimporter/gcimporter.go b/src/go/internal/gcimporter/gcimporter.go
+index a019510447..f86b20da8d 100644
+--- a/src/go/internal/gcimporter/gcimporter.go
++++ b/src/go/internal/gcimporter/gcimporter.go
+@@ -209,8 +209,7 @@ func Import(fset *token.FileSet, packages map[string]*types.Package, path, srcDi
+ 
+ 	switch hdr {
+ 	case "$$\n":
+-		// TODO(taking): 's/(recompile library)/(recompile package)/g'.
+-		err = fmt.Errorf("import %q: old textual export format no longer supported (recompile library)", path)
++		err = fmt.Errorf("import %q: old textual export format no longer supported (recompile package)", path)
+ 
+ 	case "$$B\n":
+ 		var exportFormat byte

@@ -12,6 +12,19 @@ Date:   Tue Jun 27 20:21:39 2017 +0000
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/main_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/net/http/main_test.go b/src/net/http/main_test.go
+index 230ebaacfb..21c850566c 100644
+--- a/src/net/http/main_test.go
++++ b/src/net/http/main_test.go
+@@ -37,6 +37,7 @@ func interestingGoroutines() (gs []string) {
+ 		}
+ 		stack := strings.TrimSpace(sl[1])
+ 		if stack == "" ||
++			strings.Contains(stack, "testing.(*M).before.func1") ||
+ 			strings.Contains(stack, "os/signal.signal_recv") ||
+ 			strings.Contains(stack, "created by net.startServer") ||
+ 			strings.Contains(stack, "created by testing.RunTests") ||

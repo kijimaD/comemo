@@ -26,7 +26,7 @@ Date:   Wed Oct 2 10:51:09 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  doc/go1.14.html                                   |  7 +++++++
  src/cmd/go/internal/clean/clean.go                |  2 +-
  src/cmd/go/internal/generate/generate.go          |  2 +-
@@ -39,3 +39,214 @@ Date:   Wed Oct 2 10:51:09 2019 -0400
  src/cmd/go/internal/work/build.go                 | 17 +++++++++++++----
  src/cmd/go/testdata/script/mod_getmode_vendor.txt |  2 +-
  11 files changed, 29 insertions(+), 23 deletions(-)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index e68cca56df..322481c9e3 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -58,6 +58,13 @@ TODO
+   graphic characters and spaces.
+ </p>
+ 
++<p><!-- golang.org/issue/32502, golang.org/issue/30345 -->
++  The <code>go</code> <code>get</code> subcommand no longer accepts
++  the <code>-mod</code> flag. Previously, the flag's setting either
++  <a href="https://golang.org/issue/30345">was ignored</a> or
++  <a href="https://golang.org/issue/32502">caused the build to fail</a>.
++</p>
++
+ <h2 id="runtime">Runtime</h2>
+ 
+ <p>
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index f7d80ff6dc..5f4bf4e6c8 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -102,7 +102,7 @@ func init() {
+ 	// mentioned explicitly in the docs but they
+ 	// are part of the build flags.
+ 
+-	work.AddBuildFlags(CmdClean)
++	work.AddBuildFlags(CmdClean, work.DefaultBuildFlags)
+ }
+ 
+ func runClean(cmd *base.Command, args []string) {
+diff --git a/src/cmd/go/internal/generate/generate.go b/src/cmd/go/internal/generate/generate.go
+index f2ae80e5dc..198ca1c1b9 100644
+--- a/src/cmd/go/internal/generate/generate.go
++++ b/src/cmd/go/internal/generate/generate.go
+@@ -149,7 +149,7 @@ var (
+ )
+ 
+ func init() {
+-	work.AddBuildFlags(CmdGenerate)
++	work.AddBuildFlags(CmdGenerate, work.DefaultBuildFlags)
+ 	CmdGenerate.Flag.StringVar(&generateRunFlag, "run", "", "")
+ }
+ 
+diff --git a/src/cmd/go/internal/get/get.go b/src/cmd/go/internal/get/get.go
+index e4945fe144..44fd316f35 100644
+--- a/src/cmd/go/internal/get/get.go
++++ b/src/cmd/go/internal/get/get.go
+@@ -108,7 +108,7 @@ var (
+ )
+ 
+ func init() {
+-	work.AddBuildFlags(CmdGet)
++	work.AddBuildFlags(CmdGet, work.OmitModFlag)
+ 	CmdGet.Run = runGet // break init loop
+ 	CmdGet.Flag.BoolVar(&Insecure, "insecure", Insecure, "")
+ }
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index a5f1abe64a..67819939e6 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -287,7 +287,7 @@ For more about modules, see 'go help modules'.
+ 
+ func init() {
+ 	CmdList.Run = runList // break init cycle
+-	work.AddBuildFlags(CmdList)
++	work.AddBuildFlags(CmdList, work.DefaultBuildFlags)
+ }
+ 
+ var (
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 1cae311c4c..ced5abcc71 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -7,7 +7,6 @@ package modget
+ 
+ import (
+ 	"cmd/go/internal/base"
+-	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/get"
+ 	"cmd/go/internal/imports"
+ 	"cmd/go/internal/load"
+@@ -199,7 +198,7 @@ func (v *upgradeFlag) Set(s string) error {
+ func (v *upgradeFlag) String() string { return "" }
+ 
+ func init() {
+-	work.AddBuildFlags(CmdGet)
++	work.AddBuildFlags(CmdGet, work.OmitModFlag)
+ 	CmdGet.Run = runGet // break init loop
+ 	CmdGet.Flag.BoolVar(&get.Insecure, "insecure", get.Insecure, "")
+ 	CmdGet.Flag.Var(&getU, "u", "")
+@@ -256,11 +255,6 @@ type query struct {
+ }
+ 
+ func runGet(cmd *base.Command, args []string) {
+-	// -mod=readonly has no effect on "go get".
+-	if cfg.BuildMod == "readonly" {
+-		cfg.BuildMod = ""
+-	}
+-
+ 	switch getU {
+ 	case "", "upgrade", "patch":
+ 		// ok
+@@ -278,10 +272,6 @@ func runGet(cmd *base.Command, args []string) {
+ 	}
+ 	modload.LoadTests = *getT
+ 
+-	if cfg.BuildMod == "vendor" {
+-		base.Fatalf("go get: disabled by -mod=%s", cfg.BuildMod)
+-	}
+-
+ 	buildList := modload.LoadBuildList()
+ 	buildList = buildList[:len(buildList):len(buildList)] // copy on append
+ 	versionByPath := make(map[string]string)
+diff --git a/src/cmd/go/internal/run/run.go b/src/cmd/go/internal/run/run.go
+index 71da5adc93..648a87f665 100644
+--- a/src/cmd/go/internal/run/run.go
++++ b/src/cmd/go/internal/run/run.go
+@@ -49,7 +49,7 @@ See also: go build.
+ func init() {
+ 	CmdRun.Run = runRun // break init loop
+ 
+-	work.AddBuildFlags(CmdRun)
++	work.AddBuildFlags(CmdRun, work.DefaultBuildFlags)
+ 	CmdRun.Flag.Var((*base.StringsFlag)(&work.ExecCmd), "exec", "")
+ }
+ 
+diff --git a/src/cmd/go/internal/test/testflag.go b/src/cmd/go/internal/test/testflag.go
+index 138e1f9d2a..79dc5eb2a0 100644
+--- a/src/cmd/go/internal/test/testflag.go
++++ b/src/cmd/go/internal/test/testflag.go
+@@ -65,7 +65,7 @@ var testFlagDefn = []*cmdflag.Defn{
+ func init() {
+ 	cmdflag.AddKnownFlags("test", testFlagDefn)
+ 	var cmd base.Command
+-	work.AddBuildFlags(&cmd)
++	work.AddBuildFlags(&cmd, work.DefaultBuildFlags)
+ 	cmd.Flag.VisitAll(func(f *flag.Flag) {
+ 		if f.Name == "v" {
+ 			// test overrides the build -v flag
+diff --git a/src/cmd/go/internal/vet/vetflag.go b/src/cmd/go/internal/vet/vetflag.go
+index cbe7f8ce08..7179f73cfc 100644
+--- a/src/cmd/go/internal/vet/vetflag.go
++++ b/src/cmd/go/internal/vet/vetflag.go
+@@ -114,7 +114,7 @@ func vetFlags(usage func(), args []string) (passToVet, packageNames []string) {
+ 
+ 	// Add build flags to vetFlagDefn.
+ 	var cmd base.Command
+-	work.AddBuildFlags(&cmd)
++	work.AddBuildFlags(&cmd, work.DefaultBuildFlags)
+ 	// This flag declaration is a placeholder:
+ 	// -vettool is actually parsed by the init function above.
+ 	cmd.Flag.StringVar(new(string), "vettool", "", "path to vet tool binary")
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 9d6fa0c25b..1fc47a36c7 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -167,8 +167,8 @@ func init() {
+ 
+ 	CmdInstall.Flag.BoolVar(&cfg.BuildI, "i", false, "")
+ 
+-	AddBuildFlags(CmdBuild)
+-	AddBuildFlags(CmdInstall)
++	AddBuildFlags(CmdBuild, DefaultBuildFlags)
++	AddBuildFlags(CmdInstall, DefaultBuildFlags)
+ }
+ 
+ // Note that flags consulted by other parts of the code
+@@ -216,9 +216,16 @@ func init() {
+ 	}
+ }
+ 
++type BuildFlagMask int
++
++const (
++	DefaultBuildFlags BuildFlagMask = 0
++	OmitModFlag       BuildFlagMask = 1 << iota
++)
++
+ // addBuildFlags adds the flags common to the build, clean, get,
+ // install, list, run, and test commands.
+-func AddBuildFlags(cmd *base.Command) {
++func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
+ 	cmd.Flag.BoolVar(&cfg.BuildA, "a", false, "")
+ 	cmd.Flag.BoolVar(&cfg.BuildN, "n", false, "")
+ 	cmd.Flag.IntVar(&cfg.BuildP, "p", cfg.BuildP, "")
+@@ -230,7 +237,9 @@ func AddBuildFlags(cmd *base.Command) {
+ 	cmd.Flag.StringVar(&cfg.BuildBuildmode, "buildmode", "default", "")
+ 	cmd.Flag.Var(&load.BuildGcflags, "gcflags", "")
+ 	cmd.Flag.Var(&load.BuildGccgoflags, "gccgoflags", "")
+-	cmd.Flag.StringVar(&cfg.BuildMod, "mod", "", "")
++	if mask&OmitModFlag == 0 {
++		cmd.Flag.StringVar(&cfg.BuildMod, "mod", "", "")
++	}
+ 	cmd.Flag.StringVar(&cfg.BuildContext.InstallSuffix, "installsuffix", "", "")
+ 	cmd.Flag.Var(&load.BuildLdflags, "ldflags", "")
+ 	cmd.Flag.BoolVar(&cfg.BuildLinkshared, "linkshared", false, "")
+diff --git a/src/cmd/go/testdata/script/mod_getmode_vendor.txt b/src/cmd/go/testdata/script/mod_getmode_vendor.txt
+index 7e1f6aa323..c532cee9cb 100644
+--- a/src/cmd/go/testdata/script/mod_getmode_vendor.txt
++++ b/src/cmd/go/testdata/script/mod_getmode_vendor.txt
+@@ -13,7 +13,7 @@ stdout '^golang.org/x/text v0.0.0.* .*vendor[\\/]golang.org[\\/]x[\\/]text$'
+ ! go list -mod=vendor -m rsc.io/quote@latest
+ stderr 'module lookup disabled by -mod=vendor'
+ ! go get -mod=vendor -u
+-stderr 'go get: disabled by -mod=vendor'
++stderr 'flag provided but not defined: -mod'
+ 
+ -- go.mod --
+ module x

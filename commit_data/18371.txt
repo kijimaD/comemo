@@ -16,6 +16,44 @@ Date:   Tue Jan 28 22:38:39 2014 +0400
     R=golang-codereviews, gobot, khr, dave
     CC=bradfitz, golang-codereviews, iant
     https://golang.org/cl/57310043
-
+---
  src/pkg/runtime/malloc.goc | 12 +++++++++---
  1 file changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 3dfa63dbec..b00d690aad 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -40,7 +40,7 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
+ 	intgo rate;
+ 	MCache *c;
+ 	MCacheList *l;
+-	MLink *v;
++	MLink *v, *next;
+ 	byte *tiny;
+ 
+ 	if(size == 0) {
+@@ -120,7 +120,10 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
+ 			if(l->list == nil)
+ 				runtime·MCache_Refill(c, TinySizeClass);
+ 			v = l->list;
+-			l->list = v->next;
++			next = v->next;
++			if(next != nil)  // prefetching nil leads to a DTLB miss
++				PREFETCH(next);
++			l->list = next;
+ 			l->nlist--;
+ 			((uint64*)v)[0] = 0;
+ 			((uint64*)v)[1] = 0;
+@@ -144,7 +147,10 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
+ 		if(l->list == nil)
+ 			runtime·MCache_Refill(c, sizeclass);
+ 		v = l->list;
+-		l->list = v->next;
++		next = v->next;
++		if(next != nil)  // prefetching nil leads to a DTLB miss
++			PREFETCH(next);
++		l->list = next;
+ 		l->nlist--;
+ 		if(!(flag & FlagNoZero)) {
+ 			v->next = nil;

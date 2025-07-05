@@ -13,7 +13,45 @@ Date:   Wed Jun 7 18:13:38 2017 +0000
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/request.go      | 8 +++++---
  src/net/http/request_test.go | 7 +++++++
  2 files changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 7f473dd15d..c493aeb2d7 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -333,9 +333,11 @@ func (r *Request) WithContext(ctx context.Context) *Request {
+ 	// Deep copy the URL because it isn't
+ 	// a map and the URL is mutable by users
+ 	// of WithContext.
+-	r2URL := new(url.URL)
+-	*r2URL = *r.URL
+-	r2.URL = r2URL
++	if r.URL != nil {
++		r2URL := new(url.URL)
++		*r2URL = *r.URL
++		r2.URL = r2URL
++	}
+ 
+ 	return r2
+ }
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index 1608d1c4fe..967156bac9 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -799,6 +799,13 @@ func TestWithContextDeepCopiesURL(t *testing.T) {
+ 	if firstURL == secondURL {
+ 		t.Errorf("unexpected change to original request's URL")
+ 	}
++
++	// And also check we don't crash on nil (Issue 20601)
++	req.URL = nil
++	reqCopy = req.WithContext(context.Background())
++	if reqCopy.URL != nil {
++		t.Error("expected nil URL in cloned request")
++	}
+ }
+ 
+ // verify that NewRequest sets Request.GetBody and that it works

@@ -14,6 +14,20 @@ Date:   Sat Jul 21 01:37:21 2018 +0800
     Run-TryBot: Baokun Lee <nototon@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modfetch/codehost/git.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modfetch/codehost/git.go b/src/cmd/go/internal/modfetch/codehost/git.go
+index ca5fcfe783..0f159bd519 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git.go
++++ b/src/cmd/go/internal/modfetch/codehost/git.go
+@@ -378,7 +378,7 @@ func (r *gitRepo) stat(rev string) (*RevInfo, error) {
+ // statLocal returns a RevInfo describing rev in the local git repository.
+ // It uses version as info.Version.
+ func (r *gitRepo) statLocal(version, rev string) (*RevInfo, error) {
+-	out, err := Run(r.dir, "git", "log", "-n1", "--format=format:%H %ct %D", "--no-show-signature", rev)
++	out, err := Run(r.dir, "git", "-c", "log.showsignature=false", "log", "-n1", "--format=format:%H %ct %D", rev)
+ 	if err != nil {
+ 		return nil, fmt.Errorf("unknown revision %s", rev)
+ 	}

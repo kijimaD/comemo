@@ -14,7 +14,49 @@ Date:   Thu Apr 28 23:20:53 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: mzh <mzh@golangcn.org>
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-
+---
  src/internal/bytealg/count_riscv64.s     | 3 ++-
  src/internal/bytealg/indexbyte_riscv64.s | 2 ++
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/bytealg/count_riscv64.s b/src/internal/bytealg/count_riscv64.s
+index 1e081e2c8c..a15d07d768 100644
+--- a/src/internal/bytealg/count_riscv64.s
++++ b/src/internal/bytealg/count_riscv64.s
+@@ -15,7 +15,7 @@ TEXT ·Count<ABIInternal>(SB),NOSPLIT,$0-40
+ 	// X11 = b_len
+ 	// X12 = b_cap (unused)
+ 	// X13 = byte to count (want in X12)
+-	MOV	X13, X12
++	AND	$0xff, X13, X12
+ #endif
+ 	MOV	ZERO, X14	// count
+ 	ADD	X10, X11	// end
+@@ -45,6 +45,7 @@ TEXT ·CountString<ABIInternal>(SB),NOSPLIT,$0-32
+ 	// X10 = s_base
+ 	// X11 = s_len
+ 	// X12 = byte to count
++	AND	$0xff, X12
+ 	MOV	ZERO, X14	// count
+ 	ADD	X10, X11	// end
+ 
+diff --git a/src/internal/bytealg/indexbyte_riscv64.s b/src/internal/bytealg/indexbyte_riscv64.s
+index e9d3e6be39..a20396592b 100644
+--- a/src/internal/bytealg/indexbyte_riscv64.s
++++ b/src/internal/bytealg/indexbyte_riscv64.s
+@@ -15,6 +15,7 @@ TEXT ·IndexByte<ABIInternal>(SB),NOSPLIT,$0-40
+ 	// X11 = b_len
+ 	// X12 = b_cap (unused)
+ 	// X13 = byte to find
++	AND	$0xff, X13
+ 	MOV	X10, X12		// store base for later
+ 	ADD	X10, X11		// end
+ 	ADD	$-1, X10
+@@ -47,6 +48,7 @@ TEXT ·IndexByteString<ABIInternal>(SB),NOSPLIT,$0-32
+ 	// X10 = b_base
+ 	// X11 = b_len
+ 	// X12 = byte to find
++	AND	$0xff, X12
+ 	MOV	X10, X13		// store base for later
+ 	ADD	X10, X11		// end
+ 	ADD	$-1, X10

@@ -9,9 +9,86 @@ Date:   Thu Feb 14 14:21:44 2013 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/7324055
-
+---
  src/cmd/go/build.go |  2 +-
  src/cmd/go/main.go  | 19 +++++++++++++++++++
  src/cmd/go/test.go  |  3 ++-
  src/cmd/go/vcs.go   |  1 +
  4 files changed, 23 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 126bb465e4..e7c9e69669 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1226,7 +1226,7 @@ func (b *builder) runOut(dir string, desc string, cmdargs ...interface{}) ([]byt
+ 		cmd.Stdout = &buf
+ 		cmd.Stderr = &buf
+ 		cmd.Dir = dir
+-		// TODO: cmd.Env
++		cmd.Env = envForDir(cmd.Dir)
+ 		err := cmd.Run()
+ 
+ 		// cmd.Run will fail on Unix if some other process has the binary
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index bd5d889711..10513d7235 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -379,6 +379,25 @@ func runOut(dir string, cmdargs ...interface{}) []byte {
+ 	return out
+ }
+ 
++// envForDir returns a copy of the environment
++// suitable for running in the given directory.
++// The environment is the current process's environment
++// but with an updated $PWD, so that an os.Getwd in the
++// child will be faster.
++func envForDir(dir string) []string {
++	env := os.Environ()
++	for i, kv := range env {
++		if strings.HasPrefix(kv, "PWD=") {
++			env[i] = "PWD=" + dir
++			return env
++		}
++	}
++	// Internally we only use rooted paths, so dir is rooted.
++	// Even if dir is not rooted, no harm done.
++	env = append(env, "PWD="+dir)
++	return env
++}
++
+ // matchPattern(pattern)(name) reports whether
+ // name matches pattern.  Pattern is a limited glob
+ // pattern in which '...' means 'any string' and there
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 9a8e11d27c..3132ab2100 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -635,6 +635,7 @@ func (b *builder) runTest(a *action) error {
+ 
+ 	cmd := exec.Command(args[0], args[1:]...)
+ 	cmd.Dir = a.p.Dir
++	cmd.Env = envForDir(cmd.Dir)
+ 	var buf bytes.Buffer
+ 	if testStreamOutput {
+ 		cmd.Stdout = os.Stdout
+@@ -647,7 +648,7 @@ func (b *builder) runTest(a *action) error {
+ 	// If there are any local SWIG dependencies, we want to load
+ 	// the shared library from the build directory.
+ 	if a.p.usesSwig() {
+-		env := os.Environ()
++		env := cmd.Env
+ 		found := false
+ 		prefix := "LD_LIBRARY_PATH="
+ 		for i, v := range env {
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index 8042935b9d..b995794416 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -190,6 +190,7 @@ func (v *vcsCmd) run1(dir string, cmdline string, keyval []string, verbose bool)
+ 
+ 	cmd := exec.Command(v.cmd, args...)
+ 	cmd.Dir = dir
++	cmd.Env = envForDir(cmd.Dir)
+ 	if buildX {
+ 		fmt.Printf("cd %s\n", dir)
+ 		fmt.Printf("%s %s\n", v.cmd, strings.Join(args, " "))

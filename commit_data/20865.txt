@@ -16,6 +16,29 @@ Date:   Mon Oct 20 15:48:42 2014 -0700
     R=dvyukov, dave
     CC=golang-codereviews
     https://golang.org/cl/159150043
-
+---
  src/runtime/mprof.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index f4676fad6e..803da56670 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -284,6 +284,8 @@ func SetBlockProfileRate(rate int) {
+ 	var r int64
+ 	if rate <= 0 {
+ 		r = 0 // disable profiling
++	} else if rate == 1 {
++		r = 1 // profile everything
+ 	} else {
+ 		// convert ns to cycles, use float64 to prevent overflow during multiplication
+ 		r = int64(float64(rate) * float64(tickspersecond()) / (1000 * 1000 * 1000))
+@@ -297,7 +299,7 @@ func SetBlockProfileRate(rate int) {
+ 
+ func blockevent(cycles int64, skip int) {
+ 	if cycles <= 0 {
+-		return
++		cycles = 1
+ 	}
+ 	rate := int64(atomicload64(&blockprofilerate))
+ 	if rate <= 0 || (rate > cycles && int64(fastrand1())%rate > cycles) {

@@ -17,6 +17,27 @@ Date:   Mon Oct 10 12:18:00 2016 -0400
     Change-Id: I2ed8b4f0fc9f008ff060aa926f4334b662ac7d3f
     Reviewed-on: https://go-review.googlesource.com/30701
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgcmark.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 286563752c..5dd7c52b21 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -406,6 +406,7 @@ func gcAssistAlloc(gp *g) {
+ 		return
+ 	}
+ 
++retry:
+ 	// Compute the amount of scan work we need to do to make the
+ 	// balance positive. When the required amount of work is low,
+ 	// we over-assist to build up credit for future allocations
+@@ -417,7 +418,6 @@ func gcAssistAlloc(gp *g) {
+ 		debtBytes = int64(gcController.assistBytesPerWork * float64(scanWork))
+ 	}
+ 
+-retry:
+ 	// Steal as much credit as we can from the background GC's
+ 	// scan credit. This is racy and may drop the background
+ 	// credit below 0 if two mutators steal at the same time. This

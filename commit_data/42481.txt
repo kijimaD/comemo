@@ -16,6 +16,28 @@ Date:   Wed Jan 1 01:44:54 2020 +1100
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/riscv/obj.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 2e9ac6750b..b024a6a546 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -58,14 +58,14 @@ func jalrToSym(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, lr int16) *ob
+ 	p.Mark |= NEED_PCREL_ITYPE_RELOC
+ 	p = obj.Appendp(p, newprog)
+ 
+-	// Leave p.To.Sym only for the CALL reloc in assemble.
++	// Leave Sym only for the CALL reloc in assemble.
+ 	p.As = AJALR
+ 	p.From.Type = obj.TYPE_REG
+ 	p.From.Reg = lr
++	p.From.Sym = to.Sym
+ 	p.Reg = 0
+ 	p.To.Type = obj.TYPE_REG
+ 	p.To.Reg = REG_TMP
+-	p.To.Sym = to.Sym
+ 	lowerJALR(p)
+ 
+ 	return p

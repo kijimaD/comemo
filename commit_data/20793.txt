@@ -37,6 +37,27 @@ Date:   Sat Oct 11 21:34:10 2014 +1100
     R=golang-codereviews, iant, jfrederich
     CC=golang-codereviews
     https://golang.org/cl/154210044
-
+---
  src/cmd/ld/ldpe.c | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/cmd/ld/ldpe.c b/src/cmd/ld/ldpe.c
+index 1b05916148..9257c243c9 100644
+--- a/src/cmd/ld/ldpe.c
++++ b/src/cmd/ld/ldpe.c
+@@ -179,6 +179,15 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	Bseek(f, base+obj->fh.PointerToSymbolTable+sizeof(symbuf)*obj->fh.NumberOfSymbols, 0);
+ 	if(Bread(f, obj->snames, l) != l)
+ 		goto bad;
++	// rewrite section names if they start with /
++	for(i=0; i < obj->fh.NumberOfSections; i++) {
++		if(obj->sect[i].name == nil)
++			continue;
++		if(obj->sect[i].name[0] != '/')
++			continue;
++		l = atoi(obj->sect[i].name + 1);
++		obj->sect[i].name = (char*)&obj->snames[l];
++	}
+ 	// read symbols
+ 	obj->pesym = mal(obj->fh.NumberOfSymbols*sizeof obj->pesym[0]);
+ 	obj->npesym = obj->fh.NumberOfSymbols;

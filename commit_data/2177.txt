@@ -7,6 +7,34 @@ Date:   Fri May 8 15:29:43 2009 -0700
     TBR=r
     OCL=28575
     CL=28575
-
+---
  src/lib/os/proc.go | 21 +++++++++++++++++++++
  1 file changed, 21 insertions(+)
+
+diff --git a/src/lib/os/proc.go b/src/lib/os/proc.go
+new file mode 100644
+index 0000000000..6a91306091
+--- /dev/null
++++ b/src/lib/os/proc.go
+@@ -0,0 +1,21 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import (
++	"os";
++	"syscall";
++)
++
++var Args []string;	// provided by runtime
++var Envs []string;	// provided by runtime
++
++// Exit causes the current program to exit with the given status code.
++// Conventionally, code zero indicates success, non-zero an error.
++// returning exit status n.
++func Exit(code int) {
++	syscall.Syscall(syscall.SYS_EXIT, int64(code), 0, 0)
++}
++

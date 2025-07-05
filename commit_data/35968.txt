@@ -81,7 +81,69 @@ Date:   Fri Mar 23 15:08:18 2018 -0500
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  4 ++++
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 28 ++++++++++++++++++++++++++++
  2 files changed, 32 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index b662ce99a1..f0315e8c57 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -1441,6 +1441,10 @@
+ // If we cared, we might do:
+ //  (ANDLconst <t> [c] x) && t.Size()==1 && int8(x)==0 -> (MOVLconst [0])
+ 
++// Remove redundant ops
++// Not in generic rules, because they may appear after lowering e. g. Slicemask
++(NEG(Q|L) (NEG(Q|L) x)) -> x
++
+ // Convert constant subtracts to constant adds
+ (SUBQconst [c] x) && c != -(1<<31) -> (ADDQconst [-c] x)
+ (SUBLconst [c] x) -> (ADDLconst [int64(int32(-c))] x)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 69cd15f480..3aac711105 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -19847,6 +19847,20 @@ func rewriteValueAMD64_OpAMD64MULSSmem_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64NEGL_0(v *Value) bool {
++	// match: (NEGL (NEGL x))
++	// cond:
++	// result: x
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpAMD64NEGL {
++			break
++		}
++		x := v_0.Args[0]
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (NEGL (MOVLconst [c]))
+ 	// cond:
+ 	// result: (MOVLconst [int64(int32(-c))])
+@@ -19863,6 +19877,20 @@ func rewriteValueAMD64_OpAMD64NEGL_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64NEGQ_0(v *Value) bool {
++	// match: (NEGQ (NEGQ x))
++	// cond:
++	// result: x
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpAMD64NEGQ {
++			break
++		}
++		x := v_0.Args[0]
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (NEGQ (MOVQconst [c]))
+ 	// cond:
+ 	// result: (MOVQconst [-c])

@@ -11,6 +11,19 @@ Date:   Tue Nov 3 09:36:53 2015 +1300
     Change-Id: Icd3906760f8aaf7bef31ffd4f2d866d73d36dc2c
     Reviewed-on: https://go-review.googlesource.com/16581
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/symtab.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index c53037168a..005e876d28 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -175,6 +175,7 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
+ 		putelfsyment(putelfstr("local."+s), addr, size, STB_LOCAL<<4|type_&0xf, elfshnum, other)
+ 		x.LocalElfsym = int32(numelfsym)
+ 		numelfsym++
++		return
+ 	} else if bind != elfbind {
+ 		return
+ 	}

@@ -11,8 +11,154 @@ Date:   Fri Mar 7 20:50:30 2014 +0400
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/72480043
-
+---
  src/pkg/runtime/crash_test.go | 38 ++++++++++++++++++++++++++++++++++++++
  src/pkg/runtime/panic.c       | 37 ++++++++++++++++++++++++++++++++++++-
  src/pkg/runtime/runtime.h     |  2 ++
  3 files changed, 76 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/crash_test.go b/src/pkg/runtime/crash_test.go
+index 5476924bbd..0e5056d822 100644
+--- a/src/pkg/runtime/crash_test.go
++++ b/src/pkg/runtime/crash_test.go
+@@ -132,6 +132,18 @@ func TestThreadExhaustion(t *testing.T) {
+ 	}
+ }
+ 
++func TestRecursivePanic(t *testing.T) {
++	output := executeTest(t, recursivePanicSource, nil)
++	want := `wrap: bad
++panic: again
++
++`
++	if !strings.HasPrefix(output, want) {
++		t.Fatalf("output does not start with %q:\n%s", want, output)
++	}
++
++}
++
+ const crashSource = `
+ package main
+ 
+@@ -272,3 +284,29 @@ func main() {
+ 	}
+ }
+ `
++
++const recursivePanicSource = `
++package main
++
++import (
++	"fmt"
++)
++
++func main() {
++	func() {
++		defer func() {
++			fmt.Println(recover())
++		}()
++		var x [8192]byte
++		func(x [8192]byte) {
++			defer func() {
++				if err := recover(); err != nil {
++					panic("wrap: " + err.(string))
++				}
++			}()
++			panic("bad")
++		}(x)
++	}()
++	panic("again")
++}
++`
+diff --git a/src/pkg/runtime/panic.c b/src/pkg/runtime/panic.c
+index ffb4031ec9..a580e9f310 100644
+--- a/src/pkg/runtime/panic.c
++++ b/src/pkg/runtime/panic.c
+@@ -205,12 +205,14 @@ printpanics(Panic *p)
+ }
+ 
+ static void recovery(G*);
++static void abortpanic(Panic*);
++static FuncVal abortpanicV = { (void(*)(void))abortpanic };
+ 
+ // The implementation of the predeclared function panic.
+ void
+ runtime·panic(Eface e)
+ {
+-	Defer *d;
++	Defer *d, dabort;
+ 	Panic p;
+ 	void *pc, *argp;
+ 
+@@ -220,6 +222,12 @@ runtime·panic(Eface e)
+ 	p.stackbase = g->stackbase;
+ 	g->panic = &p;
+ 
++	dabort.fn = &abortpanicV;
++	dabort.siz = sizeof(&p);
++	dabort.args[0] = &p;
++	dabort.argp = (void*)-1;  // unused because abortpanic never recovers
++	dabort.special = true;
++
+ 	for(;;) {
+ 		d = g->defer;
+ 		if(d == nil)
+@@ -229,10 +237,31 @@ runtime·panic(Eface e)
+ 		g->ispanic = true;	// rock for runtime·newstack, where runtime·newstackcall ends up
+ 		argp = d->argp;
+ 		pc = d->pc;
++
++		// The deferred function may cause another panic,
++		// so newstackcall may not return. Set up a defer
++		// to mark this panic aborted if that happens.
++		dabort.link = g->defer;
++		g->defer = &dabort;
++		p.defer = d;
++
+ 		runtime·newstackcall(d->fn, (byte*)d->args, d->siz);
++
++		// Newstackcall did not panic. Remove dabort.
++		if(g->defer != &dabort)
++			runtime·throw("bad defer entry in panic");
++		g->defer = dabort.link;
++
+ 		freedefer(d);
+ 		if(p.recovered) {
+ 			g->panic = p.link;
++			// Aborted panics are marked but remain on the g->panic list.
++			// Recovery will unwind the stack frames containing their Panic structs.
++			// Remove them from the list and free the associated defers.
++			while(g->panic && g->panic->aborted) {
++				freedefer(g->panic->defer);
++				g->panic = g->panic->link;
++			}
+ 			if(g->panic == nil)	// must be done with signal
+ 				g->sig = 0;
+ 			// Pass information about recovering frame to recovery.
+@@ -250,6 +279,12 @@ runtime·panic(Eface e)
+ 	runtime·exit(1);	// not reached
+ }
+ 
++static void
++abortpanic(Panic *p)
++{
++	p->aborted = true;
++}
++
+ // Unwind the stack after a deferred function calls recover
+ // after a panic.  Then arrange to continue running as though
+ // the caller of the deferred function returned normally.
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 6b421348ef..2db18003de 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -733,7 +733,9 @@ struct Panic
+ 	Eface	arg;		// argument to panic
+ 	uintptr	stackbase;	// g->stackbase in panic
+ 	Panic*	link;		// link to earlier panic
++	Defer*	defer;		// current executing defer
+ 	bool	recovered;	// whether this panic is over
++	bool	aborted;	// the panic was aborted
+ };
+ 
+ /*

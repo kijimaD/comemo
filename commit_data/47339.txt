@@ -8,7 +8,34 @@ Date:   Thu Mar 11 14:22:16 2021 +0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/300470
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  AUTHORS      | 2 +-
  CONTRIBUTORS | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/AUTHORS b/AUTHORS
+index eb05706811..1763ab88d8 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -145,7 +145,7 @@ Andy Davis <andy@bigandian.com>
+ Andy Finkenstadt <afinkenstadt@zynga.com>
+ Andy Lindeman <andy@lindeman.io>
+ Andy Maloney <asmaloney@gmail.com>
+-Andy Pan <panjf2000@gmail.com>
++Andy Pan <panjf2000@gmail.com> <panjf2000@golangcn.org> <i@andypan.me>
+ Andy Walker <walkeraj@gmail.com>
+ Anfernee Yongkun Gui <anfernee.gui@gmail.com>
+ Angelo Bulfone <mbulfone@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index b176a03328..5574026b75 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -240,7 +240,7 @@ Andy Davis <andy@bigandian.com>
+ Andy Finkenstadt <afinkenstadt@zynga.com>
+ Andy Lindeman <andy@lindeman.io>
+ Andy Maloney <asmaloney@gmail.com>
+-Andy Pan <panjf2000@gmail.com>
++Andy Pan <panjf2000@gmail.com> <panjf2000@golangcn.org> <i@andypan.me>
+ Andy Walker <walkeraj@gmail.com>
+ Andy Wang <cbeuw.andy@gmail.com>
+ Andy Williams <andy@andy.xyz>

@@ -9,7 +9,34 @@ Date:   Sun Dec 30 08:22:27 2018 -1000
     Change-Id: I5db8bc80e5bd0778dced8471581c67e66853aada
     Reviewed-on: https://go-review.googlesource.com/c/155924
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/strconv/atoi.go | 2 +-
  src/strconv/itoa.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/strconv/atoi.go b/src/strconv/atoi.go
+index bbfdb7dc39..ff33d555e4 100644
+--- a/src/strconv/atoi.go
++++ b/src/strconv/atoi.go
+@@ -198,7 +198,7 @@ func ParseInt(s string, base int, bitSize int) (i int64, err error) {
+ 	return n, nil
+ }
+ 
+-// Atoi returns the result of ParseInt(s, 10, 0) converted to type int.
++// Atoi is equivalent to ParseInt(s, 10, 0), converted to type int.
+ func Atoi(s string) (int, error) {
+ 	const fnAtoi = "Atoi"
+ 
+diff --git a/src/strconv/itoa.go b/src/strconv/itoa.go
+index 4aaf57830c..45e4192c82 100644
+--- a/src/strconv/itoa.go
++++ b/src/strconv/itoa.go
+@@ -30,7 +30,7 @@ func FormatInt(i int64, base int) string {
+ 	return s
+ }
+ 
+-// Itoa is shorthand for FormatInt(int64(i), 10).
++// Itoa is equivalent to FormatInt(int64(i), 10).
+ func Itoa(i int) string {
+ 	return FormatInt(int64(i), 10)
+ }

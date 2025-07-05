@@ -32,6 +32,29 @@ Date:   Tue May 15 18:22:52 2018 +0100
     Run-TryBot: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/compile/internal/ssa/debug.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/debug.go b/src/cmd/compile/internal/ssa/debug.go
+index 036806182c..d1d767b0a6 100644
+--- a/src/cmd/compile/internal/ssa/debug.go
++++ b/src/cmd/compile/internal/ssa/debug.go
+@@ -157,7 +157,7 @@ type RegisterSet uint64
+ // changing this to a Fprintf(os.Stderr) and running make.bash generates
+ // thousands of warnings.
+ func (s *debugState) unexpected(v *Value, msg string, args ...interface{}) {
+-	s.f.Logf("unexpected at "+fmt.Sprint(v.ID)+":"+msg, args...)
++	s.f.Logf("debug info generation: "+fmt.Sprint(v)+": "+msg, args...)
+ }
+ 
+ func (s *debugState) logf(msg string, args ...interface{}) {
+@@ -477,7 +477,7 @@ func (state *debugState) liveness() []*BlockDebug {
+ 				case OpStoreReg:
+ 					source = a.Args[0]
+ 				default:
+-					state.unexpected(v, "load with unexpected source op %v", a)
++					state.unexpected(v, "load with unexpected source op: %v (%v)\n", a.Op, a)
+ 				}
+ 			}
+ 			// Update valueNames with the source so that later steps

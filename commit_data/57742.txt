@@ -19,7 +19,39 @@ Date:   Tue Jul 25 12:47:05 2023 +0100
     Reviewed-by: Robert Griesemer <gri@google.com>
     Run-TryBot: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go/scanner/scanner.go      | 8 +++++++-
  src/go/scanner/scanner_test.go | 1 +
  2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/scanner/scanner.go b/src/go/scanner/scanner.go
+index 75f835d310..8742c29906 100644
+--- a/src/go/scanner/scanner.go
++++ b/src/go/scanner/scanner.go
+@@ -943,7 +943,13 @@ scanAgain:
+ 		default:
+ 			// next reports unexpected BOMs - don't repeat
+ 			if ch != bom {
+-				s.errorf(s.file.Offset(pos), "illegal character %#U", ch)
++				// Report an informative error for U+201[CD] quotation
++				// marks, which are easily introduced via copy and paste.
++				if ch == '“' || ch == '”' {
++					s.errorf(s.file.Offset(pos), "curly quotation mark %q (use neutral %q)", ch, '"')
++				} else {
++					s.errorf(s.file.Offset(pos), "illegal character %#U", ch)
++				}
+ 			}
+ 			insertSemi = s.insertSemi // preserve insertSemi info
+ 			tok = token.ILLEGAL
+diff --git a/src/go/scanner/scanner_test.go b/src/go/scanner/scanner_test.go
+index 9046148ac2..916a40a874 100644
+--- a/src/go/scanner/scanner_test.go
++++ b/src/go/scanner/scanner_test.go
+@@ -813,6 +813,7 @@ var errors = []struct {
+ 	{`"` + "abc\ufeffdef" + `"`, token.STRING, 4, `"` + "abc\ufeffdef" + `"`, "illegal byte order mark"}, // only first BOM is ignored
+ 	{"abc\x00def", token.IDENT, 3, "abc", "illegal character NUL"},
+ 	{"abc\x00", token.IDENT, 3, "abc", "illegal character NUL"},
++	{"“abc”", token.ILLEGAL, 0, "abc", `curly quotation mark '“' (use neutral '"')`},
+ }
+ 
+ func TestScanErrors(t *testing.T) {

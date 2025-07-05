@@ -14,7 +14,7 @@ Date:   Tue Nov 11 17:08:14 2014 -0500
     R=r
     CC=austin, dvyukov, golang-codereviews, iant, khr
     https://golang.org/cl/172250044
-
+---
  src/runtime/norace_test.go |   4 +-
  src/runtime/race.c         | 314 ---------------------------------------------
  src/runtime/race.go        |  38 ------
@@ -22,3 +22,762 @@ Date:   Tue Nov 11 17:08:14 2014 -0500
  src/runtime/race0.go       |   2 +-
  src/runtime/race1.go       | 304 +++++++++++++++++++++++++++++++++++++++++++
  6 files changed, 307 insertions(+), 389 deletions(-)
+
+diff --git a/src/runtime/norace_test.go b/src/runtime/norace_test.go
+index 3b171877a6..3681bf190d 100644
+--- a/src/runtime/norace_test.go
++++ b/src/runtime/norace_test.go
+@@ -34,12 +34,12 @@ func benchmarkSyscall(b *testing.B, work, excess int) {
+ 	b.RunParallel(func(pb *testing.PB) {
+ 		foo := 42
+ 		for pb.Next() {
+-			runtime.Entersyscall()
++			runtime.Entersyscall(0)
+ 			for i := 0; i < work; i++ {
+ 				foo *= 2
+ 				foo /= 2
+ 			}
+-			runtime.Exitsyscall()
++			runtime.Exitsyscall(0)
+ 		}
+ 		_ = foo
+ 	})
+diff --git a/src/runtime/race.c b/src/runtime/race.c
+deleted file mode 100644
+index 9ac73fbccf..0000000000
+--- a/src/runtime/race.c
++++ /dev/null
+@@ -1,314 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Implementation of the race detector API.
+-// +build race
+-
+-#include "runtime.h"
+-#include "arch_GOARCH.h"
+-#include "malloc.h"
+-#include "race.h"
+-#include "type.h"
+-#include "typekind.h"
+-#include "textflag.h"
+-
+-// Race runtime functions called via runtime·racecall.
+-void __tsan_init(void);
+-void __tsan_fini(void);
+-void __tsan_map_shadow(void);
+-void __tsan_finalizer_goroutine(void);
+-void __tsan_go_start(void);
+-void __tsan_go_end(void);
+-void __tsan_malloc(void);
+-void __tsan_acquire(void);
+-void __tsan_release(void);
+-void __tsan_release_merge(void);
+-void __tsan_go_ignore_sync_begin(void);
+-void __tsan_go_ignore_sync_end(void);
+-
+-// Mimic what cmd/cgo would do.
+-#pragma cgo_import_static __tsan_init
+-#pragma cgo_import_static __tsan_fini
+-#pragma cgo_import_static __tsan_map_shadow
+-#pragma cgo_import_static __tsan_finalizer_goroutine
+-#pragma cgo_import_static __tsan_go_start
+-#pragma cgo_import_static __tsan_go_end
+-#pragma cgo_import_static __tsan_malloc
+-#pragma cgo_import_static __tsan_acquire
+-#pragma cgo_import_static __tsan_release
+-#pragma cgo_import_static __tsan_release_merge
+-#pragma cgo_import_static __tsan_go_ignore_sync_begin
+-#pragma cgo_import_static __tsan_go_ignore_sync_end
+-
+-// These are called from race_amd64.s.
+-#pragma cgo_import_static __tsan_read
+-#pragma cgo_import_static __tsan_read_pc
+-#pragma cgo_import_static __tsan_read_range
+-#pragma cgo_import_static __tsan_write
+-#pragma cgo_import_static __tsan_write_pc
+-#pragma cgo_import_static __tsan_write_range
+-#pragma cgo_import_static __tsan_func_enter
+-#pragma cgo_import_static __tsan_func_exit
+-
+-#pragma cgo_import_static __tsan_go_atomic32_load
+-#pragma cgo_import_static __tsan_go_atomic64_load
+-#pragma cgo_import_static __tsan_go_atomic32_store
+-#pragma cgo_import_static __tsan_go_atomic64_store
+-#pragma cgo_import_static __tsan_go_atomic32_exchange
+-#pragma cgo_import_static __tsan_go_atomic64_exchange
+-#pragma cgo_import_static __tsan_go_atomic32_fetch_add
+-#pragma cgo_import_static __tsan_go_atomic64_fetch_add
+-#pragma cgo_import_static __tsan_go_atomic32_compare_exchange
+-#pragma cgo_import_static __tsan_go_atomic64_compare_exchange
+-
+-extern byte runtime·noptrdata[];
+-extern byte runtime·enoptrbss[];
+-  
+-// start/end of heap for race_amd64.s
+-uintptr runtime·racearenastart;
+-uintptr runtime·racearenaend;
+-
+-void runtime·racefuncenter(void *callpc);
+-void runtime·racefuncexit(void);
+-void runtime·racereadrangepc1(void *addr, uintptr sz, void *pc);
+-void runtime·racewriterangepc1(void *addr, uintptr sz, void *pc);
+-void runtime·racesymbolizethunk(void*);
+-
+-// racecall allows calling an arbitrary function f from C race runtime
+-// with up to 4 uintptr arguments.
+-void runtime·racecall(void(*f)(void), ...);
+-
+-// checks if the address has shadow (i.e. heap or data/bss)
+-#pragma textflag NOSPLIT
+-static bool
+-isvalidaddr(uintptr addr)
+-{
+-	if(addr >= runtime·racearenastart && addr < runtime·racearenaend)
+-		return true;
+-	if(addr >= (uintptr)runtime·noptrdata && addr < (uintptr)runtime·enoptrbss)
+-		return true;
+-	return false;
+-}
+-
+-#pragma textflag NOSPLIT
+-uintptr
+-runtime·raceinit(void)
+-{
+-	uintptr racectx, start, size;
+-
+-	// cgo is required to initialize libc, which is used by race runtime
+-	if(!runtime·iscgo)
+-		runtime·throw("raceinit: race build must use cgo");
+-	runtime·racecall(__tsan_init, &racectx, runtime·racesymbolizethunk);
+-	// Round data segment to page boundaries, because it's used in mmap().
+-	start = (uintptr)runtime·noptrdata & ~(PageSize-1);
+-	size = ROUND((uintptr)runtime·enoptrbss - start, PageSize);
+-	runtime·racecall(__tsan_map_shadow, start, size);
+-	return racectx;
+-}
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·racefini(void)
+-{
+-	runtime·racecall(__tsan_fini);
+-}
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·racemapshadow(void *addr, uintptr size)
+-{
+-	if(runtime·racearenastart == 0)
+-		runtime·racearenastart = (uintptr)addr;
+-	if(runtime·racearenaend < (uintptr)addr+size)
+-		runtime·racearenaend = (uintptr)addr+size;
+-	runtime·racecall(__tsan_map_shadow, addr, size);
+-}
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·racemalloc(void *p, uintptr sz)
+-{
+-	runtime·racecall(__tsan_malloc, p, sz);
+-}
+-
+-#pragma textflag NOSPLIT
+-uintptr
+-runtime·racegostart(void *pc)
+-{
+-	uintptr racectx;
+-	G *spawng;
+-
+-	if(g->m->curg != nil)
+-		spawng = g->m->curg;
+-	else
+-		spawng = g;
+-
+-	runtime·racecall(__tsan_go_start, spawng->racectx, &racectx, pc);
+-	return racectx;
+-}
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·racegoend(void)
+-{
+-	runtime·racecall(__tsan_go_end, g->racectx);
+-}
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·racewriterangepc(void *addr, uintptr sz, void *callpc, void *pc)
+-{
+-	if(g != g->m->curg) {
+-		// The call is coming from manual instrumentation of Go code running on g0/gsignal.
+-		// Not interesting.
+-		return;
+-	}
+-	if(callpc != nil)
+-		runtime·racefuncenter(callpc);
+-	runtime·racewriterangepc1(addr, sz, pc);
+-	if(callpc != nil)
+-		runtime·racefuncexit();
+-}
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·racereadrangepc(void *addr, uintptr sz, void *callpc, void *pc)
+-{
+-	if(g != g->m->curg) {
+-		// The call is coming from manual instrumentation of Go code running on g0/gsignal.
+-		// Not interesting.
+-		return;
+-	}
+-	if(callpc != nil)
+-		runtime·racefuncenter(callpc);
+-	runtime·racereadrangepc1(addr, sz, pc);
+-	if(callpc != nil)
+-		runtime·racefuncexit();
+-}
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·racewriteobjectpc(void *addr, Type *t, void *callpc, void *pc)
+-{
+-	uint8 kind;
+-
+-	kind = t->kind & KindMask;
+-	if(kind == KindArray || kind == KindStruct)
+-		runtime·racewriterangepc(addr, t->size, callpc, pc);
+-	else
+-		runtime·racewritepc(addr, callpc, pc);
+-}
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·racereadobjectpc(void *addr, Type *t, void *callpc, void *pc)
+-{
+-	uint8 kind;
+-
+-	kind = t->kind & KindMask;
+-	if(kind == KindArray || kind == KindStruct)
+-		runtime·racereadrangepc(addr, t->size, callpc, pc);
+-	else
+-		runtime·racereadpc(addr, callpc, pc);
+-}
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·raceacquire(void *addr)
+-{
+-	runtime·raceacquireg(g, addr);
+-}
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·raceacquireg(G *gp, void *addr)
+-{
+-	if(g->raceignore || !isvalidaddr((uintptr)addr))
+-		return;
+-	runtime·racecall(__tsan_acquire, gp->racectx, addr);
+-}
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·racerelease(void *addr)
+-{
+-	if(g->raceignore || !isvalidaddr((uintptr)addr))
+-		return;
+-	runtime·racereleaseg(g, addr);
+-}
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·racereleaseg(G *gp, void *addr)
+-{
+-	if(g->raceignore || !isvalidaddr((uintptr)addr))
+-		return;
+-	runtime·racecall(__tsan_release, gp->racectx, addr);
+-}
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·racereleasemerge(void *addr)
+-{
+-	runtime·racereleasemergeg(g, addr);
+-}
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·racereleasemergeg(G *gp, void *addr)
+-{
+-	if(g->raceignore || !isvalidaddr((uintptr)addr))
+-		return;
+-	runtime·racecall(__tsan_release_merge, gp->racectx, addr);
+-}
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·racefingo(void)
+-{
+-	runtime·racecall(__tsan_finalizer_goroutine, g->racectx);
+-}
+-
+-// func RaceAcquire(addr unsafe.Pointer)
+-#pragma textflag NOSPLIT
+-void
+-runtime·RaceAcquire(void *addr)
+-{
+-	runtime·raceacquire(addr);
+-}
+-
+-// func RaceRelease(addr unsafe.Pointer)
+-#pragma textflag NOSPLIT
+-void
+-runtime·RaceRelease(void *addr)
+-{
+-	runtime·racerelease(addr);
+-}
+-
+-// func RaceReleaseMerge(addr unsafe.Pointer)
+-#pragma textflag NOSPLIT
+-void
+-runtime·RaceReleaseMerge(void *addr)
+-{
+-	runtime·racereleasemerge(addr);
+-}
+-
+-// func RaceDisable()
+-#pragma textflag NOSPLIT
+-void
+-runtime·RaceDisable(void)
+-{
+-	if(g->raceignore++ == 0)
+-		runtime·racecall(__tsan_go_ignore_sync_begin, g->racectx);
+-}
+-
+-// func RaceEnable()
+-#pragma textflag NOSPLIT
+-void
+-runtime·RaceEnable(void)
+-{
+-	if(--g->raceignore == 0)
+-		runtime·racecall(__tsan_go_ignore_sync_end, g->racectx);
+-}
+diff --git a/src/runtime/race.go b/src/runtime/race.go
+index bb0ee6df65..7d38fae1c3 100644
+--- a/src/runtime/race.go
++++ b/src/runtime/race.go
+@@ -12,18 +12,6 @@ import (
+ 	"unsafe"
+ )
+ 
+-func racefini()
+-
+-// RaceDisable disables handling of race events in the current goroutine.
+-func RaceDisable()
+-
+-// RaceEnable re-enables handling of race events in the current goroutine.
+-func RaceEnable()
+-
+-func RaceAcquire(addr unsafe.Pointer)
+-func RaceRelease(addr unsafe.Pointer)
+-func RaceReleaseMerge(addr unsafe.Pointer)
+-
+ func RaceRead(addr unsafe.Pointer)
+ func RaceWrite(addr unsafe.Pointer)
+ func RaceReadRange(addr unsafe.Pointer, len int)
+@@ -67,32 +55,6 @@ func racereadpc(addr unsafe.Pointer, callpc, pc uintptr)
+ //go:noescape
+ func racewritepc(addr unsafe.Pointer, callpc, pc uintptr)
+ 
+-//go:noescape
+-func racereadrangepc(addr unsafe.Pointer, len uintptr, callpc, pc uintptr)
+-
+-//go:noescape
+-func racewriterangepc(addr unsafe.Pointer, len uintptr, callpc, pc uintptr)
+-
+-//go:noescape
+-func raceacquire(addr unsafe.Pointer)
+-
+-//go:noescape
+-func racerelease(addr unsafe.Pointer)
+-
+-//go:noescape
+-func raceacquireg(gp *g, addr unsafe.Pointer)
+-
+-//go:noescape
+-func racereleaseg(gp *g, addr unsafe.Pointer)
+-
+-func racefingo()
+-
+-//go:noescape
+-func racemalloc(p unsafe.Pointer, size uintptr)
+-
+-//go:noescape
+-func racereleasemerge(addr unsafe.Pointer)
+-
+ type symbolizeContext struct {
+ 	pc   uintptr
+ 	fn   *byte
+diff --git a/src/runtime/race.h b/src/runtime/race.h
+deleted file mode 100644
+index fee31e09f5..0000000000
+--- a/src/runtime/race.h
++++ /dev/null
+@@ -1,34 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Definitions related to data race detection.
+-
+-#ifdef RACE
+-enum { raceenabled = 1 };
+-#else
+-enum { raceenabled = 0 };
+-#endif
+-
+-// Initialize race detection subsystem.
+-uintptr	runtime·raceinit(void);
+-// Finalize race detection subsystem, does not return.
+-void	runtime·racefini(void);
+-
+-void	runtime·racemapshadow(void *addr, uintptr size);
+-void	runtime·racemalloc(void *p, uintptr sz);
+-uintptr	runtime·racegostart(void *pc);
+-void	runtime·racegoend(void);
+-void	runtime·racewritepc(void *addr, void *callpc, void *pc);
+-void	runtime·racereadpc(void *addr, void *callpc, void *pc);
+-void	runtime·racewriterangepc(void *addr, uintptr sz, void *callpc, void *pc);
+-void	runtime·racereadrangepc(void *addr, uintptr sz, void *callpc, void *pc);
+-void	runtime·racereadobjectpc(void *addr, Type *t, void *callpc, void *pc);
+-void	runtime·racewriteobjectpc(void *addr, Type *t, void *callpc, void *pc);
+-void	runtime·racefingo(void);
+-void	runtime·raceacquire(void *addr);
+-void	runtime·raceacquireg(G *gp, void *addr);
+-void	runtime·racerelease(void *addr);
+-void	runtime·racereleaseg(G *gp, void *addr);
+-void	runtime·racereleasemerge(void *addr);
+-void	runtime·racereleasemergeg(G *gp, void *addr);
+diff --git a/src/runtime/race0.go b/src/runtime/race0.go
+index 5d90cc859a..dadb6083fe 100644
+--- a/src/runtime/race0.go
++++ b/src/runtime/race0.go
+@@ -18,7 +18,7 @@ const raceenabled = false
+ 
+ func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr)  { gothrow("race") }
+ func raceWriteObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) { gothrow("race") }
+-func raceinit()                                                             { gothrow("race") }
++func raceinit() uintptr                                                     { gothrow("race"); return 0 }
+ func racefini()                                                             { gothrow("race") }
+ func racemapshadow(addr unsafe.Pointer, size uintptr)                       { gothrow("race") }
+ func racewritepc(addr unsafe.Pointer, callerpc, pc uintptr)                 { gothrow("race") }
+diff --git a/src/runtime/race1.go b/src/runtime/race1.go
+new file mode 100644
+index 0000000000..4c580429c8
+--- /dev/null
++++ b/src/runtime/race1.go
+@@ -0,0 +1,304 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Implementation of the race detector API.
++// +build race
++
++package runtime
++
++import "unsafe"
++
++// Race runtime functions called via runtime·racecall.
++//go:linkname __tsan_init __tsan_init
++var __tsan_init byte
++
++//go:linkname __tsan_fini __tsan_fini
++var __tsan_fini byte
++
++//go:linkname __tsan_map_shadow __tsan_map_shadow
++var __tsan_map_shadow byte
++
++//go:linkname __tsan_finalizer_goroutine __tsan_finalizer_goroutine
++var __tsan_finalizer_goroutine byte
++
++//go:linkname __tsan_go_start __tsan_go_start
++var __tsan_go_start byte
++
++//go:linkname __tsan_go_end __tsan_go_end
++var __tsan_go_end byte
++
++//go:linkname __tsan_malloc __tsan_malloc
++var __tsan_malloc byte
++
++//go:linkname __tsan_acquire __tsan_acquire
++var __tsan_acquire byte
++
++//go:linkname __tsan_release __tsan_release
++var __tsan_release byte
++
++//go:linkname __tsan_release_merge __tsan_release_merge
++var __tsan_release_merge byte
++
++//go:linkname __tsan_go_ignore_sync_begin __tsan_go_ignore_sync_begin
++var __tsan_go_ignore_sync_begin byte
++
++//go:linkname __tsan_go_ignore_sync_end __tsan_go_ignore_sync_end
++var __tsan_go_ignore_sync_end byte
++
++// Mimic what cmd/cgo would do.
++//go:cgo_import_static __tsan_init
++//go:cgo_import_static __tsan_fini
++//go:cgo_import_static __tsan_map_shadow
++//go:cgo_import_static __tsan_finalizer_goroutine
++//go:cgo_import_static __tsan_go_start
++//go:cgo_import_static __tsan_go_end
++//go:cgo_import_static __tsan_malloc
++//go:cgo_import_static __tsan_acquire
++//go:cgo_import_static __tsan_release
++//go:cgo_import_static __tsan_release_merge
++//go:cgo_import_static __tsan_go_ignore_sync_begin
++//go:cgo_import_static __tsan_go_ignore_sync_end
++
++// These are called from race_amd64.s.
++//go:cgo_import_static __tsan_read
++//go:cgo_import_static __tsan_read_pc
++//go:cgo_import_static __tsan_read_range
++//go:cgo_import_static __tsan_write
++//go:cgo_import_static __tsan_write_pc
++//go:cgo_import_static __tsan_write_range
++//go:cgo_import_static __tsan_func_enter
++//go:cgo_import_static __tsan_func_exit
++
++//go:cgo_import_static __tsan_go_atomic32_load
++//go:cgo_import_static __tsan_go_atomic64_load
++//go:cgo_import_static __tsan_go_atomic32_store
++//go:cgo_import_static __tsan_go_atomic64_store
++//go:cgo_import_static __tsan_go_atomic32_exchange
++//go:cgo_import_static __tsan_go_atomic64_exchange
++//go:cgo_import_static __tsan_go_atomic32_fetch_add
++//go:cgo_import_static __tsan_go_atomic64_fetch_add
++//go:cgo_import_static __tsan_go_atomic32_compare_exchange
++//go:cgo_import_static __tsan_go_atomic64_compare_exchange
++
++// start/end of heap for race_amd64.s
++var racearenastart uintptr
++var racearenaend uintptr
++
++func racefuncenter(uintptr)
++func racefuncexit()
++func racereadrangepc1(uintptr, uintptr, uintptr)
++func racewriterangepc1(uintptr, uintptr, uintptr)
++func racesymbolizethunk(uintptr)
++
++// racecall allows calling an arbitrary function f from C race runtime
++// with up to 4 uintptr arguments.
++func racecall(*byte, uintptr, uintptr, uintptr, uintptr)
++
++// checks if the address has shadow (i.e. heap or data/bss)
++//go:nosplit
++func isvalidaddr(addr unsafe.Pointer) bool {
++	return racearenastart <= uintptr(addr) && uintptr(addr) < racearenaend ||
++		uintptr(unsafe.Pointer(&noptrdata)) <= uintptr(addr) && uintptr(addr) < uintptr(unsafe.Pointer(&enoptrbss))
++}
++
++//go:nosplit
++func raceinit() uintptr {
++	// cgo is required to initialize libc, which is used by race runtime
++	if !iscgo {
++		gothrow("raceinit: race build must use cgo")
++	}
++
++	var racectx uintptr
++	racecall(&__tsan_init, uintptr(unsafe.Pointer(&racectx)), funcPC(racesymbolizethunk), 0, 0)
++
++	// Round data segment to page boundaries, because it's used in mmap().
++	start := uintptr(unsafe.Pointer(&noptrdata)) &^ (_PageSize - 1)
++	size := round(uintptr(unsafe.Pointer(&enoptrbss))-start, _PageSize)
++	racecall(&__tsan_map_shadow, start, size, 0, 0)
++
++	return racectx
++}
++
++//go:nosplit
++func racefini() {
++	racecall(&__tsan_fini, 0, 0, 0, 0)
++}
++
++//go:nosplit
++func racemapshadow(addr unsafe.Pointer, size uintptr) {
++	if racearenastart == 0 {
++		racearenastart = uintptr(addr)
++	}
++	if racearenaend < uintptr(addr)+size {
++		racearenaend = uintptr(addr) + size
++	}
++	racecall(&__tsan_map_shadow, uintptr(addr), size, 0, 0)
++}
++
++//go:nosplit
++func racemalloc(p unsafe.Pointer, sz uintptr) {
++	racecall(&__tsan_malloc, uintptr(p), sz, 0, 0)
++}
++
++//go:nosplit
++func racegostart(pc uintptr) uintptr {
++	_g_ := getg()
++	var spawng *g
++	if _g_.m.curg != nil {
++		spawng = _g_.m.curg
++	} else {
++		spawng = _g_
++	}
++
++	var racectx uintptr
++	racecall(&__tsan_go_start, spawng.racectx, uintptr(unsafe.Pointer(&racectx)), pc, 0)
++	return racectx
++}
++
++//go:nosplit
++func racegoend() {
++	racecall(&__tsan_go_end, getg().racectx, 0, 0, 0)
++}
++
++//go:nosplit
++func racewriterangepc(addr unsafe.Pointer, sz, callpc, pc uintptr) {
++	_g_ := getg()
++	if _g_ != _g_.m.curg {
++		// The call is coming from manual instrumentation of Go code running on g0/gsignal.
++		// Not interesting.
++		return
++	}
++	if callpc != 0 {
++		racefuncenter(callpc)
++	}
++	racewriterangepc1(uintptr(addr), sz, pc)
++	if callpc != 0 {
++		racefuncexit()
++	}
++}
++
++//go:nosplit
++func racereadrangepc(addr unsafe.Pointer, sz, callpc, pc uintptr) {
++	_g_ := getg()
++	if _g_ != _g_.m.curg {
++		// The call is coming from manual instrumentation of Go code running on g0/gsignal.
++		// Not interesting.
++		return
++	}
++	if callpc != 0 {
++		racefuncenter(callpc)
++	}
++	racereadrangepc1(uintptr(addr), sz, pc)
++	if callpc != 0 {
++		racefuncexit()
++	}
++}
++
++//go:nosplit
++func racewriteobjectpc(addr unsafe.Pointer, t *_type, callpc, pc uintptr) {
++	kind := t.kind & _KindMask
++	if kind == _KindArray || kind == _KindStruct {
++		racewriterangepc(addr, t.size, callpc, pc)
++	} else {
++		racewritepc(addr, callpc, pc)
++	}
++}
++
++//go:nosplit
++func racereadobjectpc(addr unsafe.Pointer, t *_type, callpc, pc uintptr) {
++	kind := t.kind & _KindMask
++	if kind == _KindArray || kind == _KindStruct {
++		racereadrangepc(addr, t.size, callpc, pc)
++	} else {
++		racereadpc(addr, callpc, pc)
++	}
++}
++
++//go:nosplit
++func raceacquire(addr unsafe.Pointer) {
++	raceacquireg(getg(), addr)
++}
++
++//go:nosplit
++func raceacquireg(gp *g, addr unsafe.Pointer) {
++	if getg().raceignore != 0 || !isvalidaddr(addr) {
++		return
++	}
++	racecall(&__tsan_acquire, gp.racectx, uintptr(addr), 0, 0)
++}
++
++//go:nosplit
++func racerelease(addr unsafe.Pointer) {
++	_g_ := getg()
++	if _g_.raceignore != 0 || !isvalidaddr(addr) {
++		return
++	}
++	racereleaseg(_g_, addr)
++}
++
++//go:nosplit
++func racereleaseg(gp *g, addr unsafe.Pointer) {
++	if getg().raceignore != 0 || !isvalidaddr(addr) {
++		return
++	}
++	racecall(&__tsan_release, gp.racectx, uintptr(addr), 0, 0)
++}
++
++//go:nosplit
++func racereleasemerge(addr unsafe.Pointer) {
++	racereleasemergeg(getg(), addr)
++}
++
++//go:nosplit
++func racereleasemergeg(gp *g, addr unsafe.Pointer) {
++	if getg().raceignore != 0 || !isvalidaddr(addr) {
++		return
++	}
++	racecall(&__tsan_release_merge, gp.racectx, uintptr(addr), 0, 0)
++}
++
++//go:nosplit
++func racefingo() {
++	racecall(&__tsan_finalizer_goroutine, getg().racectx, 0, 0, 0)
++}
++
++//go:nosplit
++
++func RaceAcquire(addr unsafe.Pointer) {
++	raceacquire(addr)
++}
++
++//go:nosplit
++
++func RaceRelease(addr unsafe.Pointer) {
++	racerelease(addr)
++}
++
++//go:nosplit
++
++func RaceReleaseMerge(addr unsafe.Pointer) {
++	racereleasemerge(addr)
++}
++
++//go:nosplit
++
++// RaceEnable re-enables handling of race events in the current goroutine.
++func RaceDisable() {
++	_g_ := getg()
++	if _g_.raceignore == 0 {
++		racecall(&__tsan_go_ignore_sync_begin, _g_.racectx, 0, 0, 0)
++	}
++	_g_.raceignore++
++}
++
++//go:nosplit
++
++// RaceDisable disables handling of race events in the current goroutine.
++func RaceEnable() {
++	_g_ := getg()
++	_g_.raceignore--
++	if _g_.raceignore == 0 {
++		racecall(&__tsan_go_ignore_sync_end, _g_.racectx, 0, 0, 0)
++	}
++}

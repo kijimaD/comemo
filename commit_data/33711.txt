@@ -14,8 +14,86 @@ Date:   Wed Aug 23 11:08:56 2017 -0500
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  2 ++
  src/cmd/compile/internal/ssa/rewrite.go      | 32 ++++++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 13 +++++++++++
  3 files changed, 47 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 0f1249a1d6..0bbe14dd8c 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -995,6 +995,8 @@
+ (MOVLQZX x:(MOVLload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVLload <v.Type> [off] {sym} ptr mem)
+ (MOVLQZX x:(MOVQload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVLload <v.Type> [off] {sym} ptr mem)
+ 
++(MOVLQZX x) && zeroUpper32Bits(x,3) -> x
++
+ (MOVBQZX x:(MOVBloadidx1 [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBloadidx1 <v.Type> [off] {sym} ptr idx mem)
+ (MOVWQZX x:(MOVWloadidx1 [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWloadidx1 <v.Type> [off] {sym} ptr idx mem)
+ (MOVWQZX x:(MOVWloadidx2 [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWloadidx2 <v.Type> [off] {sym} ptr idx mem)
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 561946f640..2002a1ab59 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -648,3 +648,35 @@ func overlap(offset1, size1, offset2, size2 int64) bool {
+ 	}
+ 	return false
+ }
++
++// check if value zeroes out upper 32-bit of 64-bit register.
++// depth limits recursion depth. In AMD64.rules 3 is used as limit,
++// because it catches same amount of cases as 4.
++func zeroUpper32Bits(x *Value, depth int) bool {
++	switch x.Op {
++	case OpAMD64MOVLconst, OpAMD64MOVLload, OpAMD64MOVLQZX, OpAMD64MOVLloadidx1,
++		OpAMD64MOVWload, OpAMD64MOVWloadidx1, OpAMD64MOVBload, OpAMD64MOVBloadidx1,
++		OpAMD64MOVLloadidx4, OpAMD64ADDLmem, OpAMD64SUBLmem, OpAMD64ANDLmem,
++		OpAMD64ORLmem, OpAMD64XORLmem, OpAMD64CVTTSD2SL,
++		OpAMD64ADDL, OpAMD64ADDLconst, OpAMD64SUBL, OpAMD64SUBLconst,
++		OpAMD64ANDL, OpAMD64ANDLconst, OpAMD64ORL, OpAMD64ORLconst,
++		OpAMD64XORL, OpAMD64XORLconst, OpAMD64NEGL, OpAMD64NOTL:
++		return true
++	case OpArg, OpSelect0, OpSelect1:
++		return x.Type.Width == 4
++	case OpPhi:
++		// Phis can use each-other as an arguments, instead of tracking visited values,
++		// just limit recursion depth.
++		if depth <= 0 {
++			return false
++		}
++		for i := range x.Args {
++			if !zeroUpper32Bits(x.Args[i], depth-1) {
++				return false
++			}
++		}
++		return true
++
++	}
++	return false
++}
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 24eda50f40..e707fcd519 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -6957,6 +6957,19 @@ func rewriteValueAMD64_OpAMD64MOVLQZX_0(v *Value) bool {
+ 		v0.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVLQZX x)
++	// cond: zeroUpper32Bits(x,3)
++	// result: x
++	for {
++		x := v.Args[0]
++		if !(zeroUpper32Bits(x, 3)) {
++			break
++		}
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (MOVLQZX x:(MOVLloadidx1 [off] {sym} ptr idx mem))
+ 	// cond: x.Uses == 1 && clobber(x)
+ 	// result: @x.Block (MOVLloadidx1 <v.Type> [off] {sym} ptr idx mem)

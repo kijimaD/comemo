@@ -13,6 +13,23 @@ Date:   Thu Sep 29 21:34:02 2022 +0800
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-
+---
  src/encoding/json/fold.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/encoding/json/fold.go b/src/encoding/json/fold.go
+index ab249b2bbe..0f9b09d712 100644
+--- a/src/encoding/json/fold.go
++++ b/src/encoding/json/fold.go
+@@ -97,10 +97,7 @@ func equalFoldRight(s, t []byte) bool {
+ 		t = t[size:]
+ 
+ 	}
+-	if len(t) > 0 {
+-		return false
+-	}
+-	return true
++	return len(t) == 0
+ }
+ 
+ // asciiEqualFold is a specialization of bytes.EqualFold for use when

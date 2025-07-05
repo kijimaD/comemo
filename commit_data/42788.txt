@@ -13,7 +13,56 @@ Date:   Mon Jan 13 10:51:28 2020 -0500
     Change-Id: I16fb0910196c96caef6ed380f96010a548407f9e
     Reviewed-on: https://go-review.googlesource.com/c/go/+/214424
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/go_test.go                         | 15 ---------------
  src/cmd/go/testdata/script/run_issue11709.txt | 15 +++++++++++++++
  2 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index f67cf2583a..198eafccb1 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2174,21 +2174,6 @@ func TestGoBuildGOPATHOrderBroken(t *testing.T) {
+ 	tg.run("install", "-x", "bar")
+ }
+ 
+-func TestIssue11709(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.tempFile("run.go", `
+-		package main
+-		import "os"
+-		func main() {
+-			if os.Getenv("TERM") != "" {
+-				os.Exit(1)
+-			}
+-		}`)
+-	tg.unsetenv("TERM")
+-	tg.run("run", tg.path("run.go"))
+-}
+-
+ func TestGoBuildARM(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("skipping cross-compile in short mode")
+diff --git a/src/cmd/go/testdata/script/run_issue11709.txt b/src/cmd/go/testdata/script/run_issue11709.txt
+new file mode 100644
+index 0000000000..c8ba9982b2
+--- /dev/null
++++ b/src/cmd/go/testdata/script/run_issue11709.txt
+@@ -0,0 +1,15 @@
++# 'go run' should not pass extraneous environment variables to the subprocess.
++go run run.go
++! stdout .
++! stderr .
++
++-- run.go --
++package main
++
++import "os"
++
++func main() {
++	if os.Getenv("TERM") != "" {
++		os.Exit(1)
++	}
++}
+\ No newline at end of file

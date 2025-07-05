@@ -15,6 +15,19 @@ Date:   Sat Mar 9 14:54:56 2013 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/7641047
-
+---
  src/cmd/8l/obj.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 8144dfadd0..c0c4795599 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -147,6 +147,7 @@ main(int argc, char *argv[])
+ 		default:
+ 			sysfatal("cannot use -hostobj with -H %s", headstr(HEADTYPE));
+ 		case Hlinux:
++		case Hnetbsd:
+ 			break;
+ 		}
+ 	}

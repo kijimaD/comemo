@@ -17,8 +17,124 @@ Date:   Fri Mar 1 12:51:19 2013 -0500
     R=gri
     CC=golang-dev
     https://golang.org/cl/7437047
-
+---
  src/pkg/exp/ssa/builder.go |  1 -
  src/pkg/exp/ssa/emit.go    |  8 +++++++-
  src/pkg/exp/ssa/promote.go | 43 +++++++++++++++++--------------------------
  3 files changed, 24 insertions(+), 28 deletions(-)
+
+diff --git a/src/pkg/exp/ssa/builder.go b/src/pkg/exp/ssa/builder.go
+index 0e62104e2e..79f7285761 100644
+--- a/src/pkg/exp/ssa/builder.go
++++ b/src/pkg/exp/ssa/builder.go
+@@ -23,7 +23,6 @@ package ssa
+ 
+ // TODO(adonovan):
+ // - fix: support f(g()) where g has multiple result parameters.
+-// - fix: multiple labels on same statement.
+ 
+ import (
+ 	"fmt"
+diff --git a/src/pkg/exp/ssa/emit.go b/src/pkg/exp/ssa/emit.go
+index 1246306fb7..16661f3bd3 100644
+--- a/src/pkg/exp/ssa/emit.go
++++ b/src/pkg/exp/ssa/emit.go
+@@ -221,11 +221,17 @@ func emitExtract(f *Function, tuple Value, index int, typ types.Type) Value {
+ 	return f.emit(e)
+ }
+ 
+-// emitTailCall emits to f a function call in tail position.
++// emitTailCall emits to f a function call in tail position,
++// passing on all but the first formal parameter to f as actual
++// values in the call.  Intended for delegating bridge methods.
+ // Precondition: f does/will not use deferred procedure calls.
+ // Postcondition: f.currentBlock is nil.
+ //
+ func emitTailCall(f *Function, call *Call) {
++	for _, arg := range f.Params[1:] {
++		call.Args = append(call.Args, arg)
++	}
++	call.Type_ = &types.Result{Values: f.Signature.Results}
+ 	tuple := f.emit(call)
+ 	var ret Ret
+ 	switch {
+diff --git a/src/pkg/exp/ssa/promote.go b/src/pkg/exp/ssa/promote.go
+index 0b206eab33..91d4491c14 100644
+--- a/src/pkg/exp/ssa/promote.go
++++ b/src/pkg/exp/ssa/promote.go
+@@ -272,13 +272,7 @@ func makeBridgeMethod(prog *Program, typ types.Type, cand *candidate) *Function
+ 	}
+ 	fn.start(nil)
+ 	fn.addSpilledParam(sig.Recv)
+-	var last *Parameter
+-	for _, p := range fn.Signature.Params {
+-		last = fn.addParam(p.Name, p.Type)
+-	}
+-	if fn.Signature.IsVariadic {
+-		last.Type_ = &types.Slice{Elt: last.Type_}
+-	}
++	createParams(fn)
+ 
+ 	// Each bridge method performs a sequence of selections,
+ 	// then tailcalls the promoted method.
+@@ -315,22 +309,30 @@ func makeBridgeMethod(prog *Program, typ types.Type, cand *candidate) *Function
+ 		fn.Pos = c.Func.(*Function).Pos // TODO(adonovan): fix: wrong.
+ 		c.Pos = fn.Pos                  // TODO(adonovan): fix: wrong.
+ 		c.Args = append(c.Args, v)
+-		for _, arg := range fn.Params[1:] {
+-			c.Args = append(c.Args, arg)
+-		}
+ 	} else {
+ 		c.Recv = v
+ 		c.Method = 0
+-		for _, arg := range fn.Params {
+-			c.Args = append(c.Args, arg)
+-		}
+ 	}
+-	c.Type_ = &types.Result{Values: sig.Results}
+ 	emitTailCall(fn, &c)
+ 	fn.finish()
+ 	return fn
+ }
+ 
++// createParams creates parameters for bridge method fn based on its Signature.
++func createParams(fn *Function) {
++	var last *Parameter
++	for i, p := range fn.Signature.Params {
++		name := p.Name
++		if name == "" {
++			name = fmt.Sprintf("arg%d", i)
++		}
++		last = fn.addParam(name, p.Type)
++	}
++	if fn.Signature.IsVariadic {
++		last.Type_ = &types.Slice{Elt: last.Type_}
++	}
++}
++
+ // Thunks for standalone interface methods ----------------------------------------
+ 
+ // makeImethodThunk returns a synthetic thunk function permitting an
+@@ -373,21 +375,10 @@ func makeImethodThunk(prog *Program, typ types.Type, id Id) *Function {
+ 	// TODO(adonovan): set fn.Pos to location of interface method ast.Field.
+ 	fn.start(nil)
+ 	fn.addParam("recv", typ)
+-	var last *Parameter
+-	for _, p := range fn.Signature.Params {
+-		last = fn.addParam(p.Name, p.Type)
+-	}
+-	if fn.Signature.IsVariadic {
+-		last.Type_ = &types.Slice{Elt: last.Type_}
+-	}
+-
++	createParams(fn)
+ 	var c Call
+ 	c.Method = index
+ 	c.Recv = fn.Params[0]
+-	for _, arg := range fn.Params[1:] {
+-		c.Args = append(c.Args, arg)
+-	}
+-	c.Type_ = &types.Result{Values: sig.Results}
+ 	emitTailCall(fn, &c)
+ 	fn.finish()
+ 	return fn

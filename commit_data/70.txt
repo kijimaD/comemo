@@ -5,6 +5,20 @@ Date:   Wed May 7 17:32:58 2008 -0700
     fix double declaration of g
     
     SVN=118016
-
+---
  src/lib/fmt.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/lib/fmt.go b/src/lib/fmt.go
+index f957167c71..8c4b249626 100644
+--- a/src/lib/fmt.go
++++ b/src/lib/fmt.go
+@@ -346,7 +346,7 @@ func unpack(a double) (negative bool, exp int, num double) {
+ 	var e2 int;
+ 	e2, g = sys.frexp(a);
+ 	e := int(e2 * .301029995663981);
+-	g := a * pow10(-e);
++	g = a * pow10(-e);
+ 	for g < 1 {
+ 		e--;
+ 		g = a * pow10(-e);

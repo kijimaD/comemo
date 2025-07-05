@@ -9,7 +9,32 @@ Date:   Tue Aug 5 11:25:47 2014 -0700
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/121240043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 5fb861bbd5..110220f761 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -330,6 +330,7 @@ Paul Lalonde <paul.a.lalonde@gmail.com>
+ Paul Sbarra <Sbarra.Paul@gmail.com>
+ Paul van Brouwershaven <paul@vanbrouwershaven.com>
+ Pavel Zinovkin <pavel.zinovkin@gmail.com>
++Percy Wegmann <ox.to.a.cart@gmail.com>
+ Petar Maymounkov <petarm@gmail.com>
+ Peter Armitage <peter.armitage@gmail.com>
+ Peter Froehlich <peter.hans.froehlich@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index fb17b08a18..287d7ffc55 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -458,6 +458,7 @@ Paul Sbarra <Sbarra.Paul@gmail.com>
+ Paul van Brouwershaven <paul@vanbrouwershaven.com>
+ Pavel Zinovkin <pavel.zinovkin@gmail.com>
+ Pawel Szczur <filemon@google.com>
++Percy Wegmann <ox.to.a.cart@gmail.com>
+ Petar Maymounkov <petarm@gmail.com>
+ Peter Armitage <peter.armitage@gmail.com>
+ Peter Collingbourne <pcc@google.com>

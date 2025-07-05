@@ -16,7 +16,7 @@ Date:   Tue Feb 1 13:47:51 2011 -0800
     R=rsc, gri
     CC=golang-dev
     https://golang.org/cl/3989056
-
+---
  misc/cgo/stdio/chain.go          |  2 +-
  src/cmd/cgo/ast.go               |  6 ++-
  src/pkg/go/ast/ast.go            | 19 ++++++---
@@ -27,3 +27,498 @@ Date:   Tue Feb 1 13:47:51 2011 -0800
  src/pkg/go/token/token.go        | 12 +++---
  src/pkg/netchan/netchan_test.go  |  4 +-
  9 files changed, 130 insertions(+), 92 deletions(-)
+
+diff --git a/misc/cgo/stdio/chain.go b/misc/cgo/stdio/chain.go
+index c2b105072e..c188b2dd92 100644
+--- a/misc/cgo/stdio/chain.go
++++ b/misc/cgo/stdio/chain.go
+@@ -23,7 +23,7 @@ func link(left chan<- int, right <-chan int) {
+ 	for {
+ 		v := <-right
+ 		stdio.Stdout.WriteString(strconv.Itoa(v) + "\n")
+-		left <- 1+v
++		left <- 1 + v
+ 	}
+ }
+ 
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 9bb8a55fd4..2eae22aed9 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -305,6 +305,9 @@ func (f *File) walk(x interface{}, context string, visit func(*File, interface{}
+ 		f.walk(n.Stmt, "stmt", visit)
+ 	case *ast.ExprStmt:
+ 		f.walk(&n.X, "expr", visit)
++	case *ast.SendStmt:
++		f.walk(&n.Chan, "expr", visit)
++		f.walk(&n.Value, "expr", visit)
+ 	case *ast.IncDecStmt:
+ 		f.walk(&n.X, "expr", visit)
+ 	case *ast.AssignStmt:
+@@ -343,8 +346,7 @@ func (f *File) walk(x interface{}, context string, visit func(*File, interface{}
+ 		f.walk(n.Assign, "stmt", visit)
+ 		f.walk(n.Body, "stmt", visit)
+ 	case *ast.CommClause:
+-		f.walk(n.Lhs, "expr", visit)
+-		f.walk(n.Rhs, "expr", visit)
++		f.walk(n.Comm, "stmt", visit)
+ 		f.walk(n.Body, "stmt", visit)
+ 	case *ast.SelectStmt:
+ 		f.walk(n.Body, "stmt", visit)
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index cf2ce36df8..2e8f0973fa 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -535,6 +535,13 @@ type (
+ 		X Expr // expression
+ 	}
+ 
++	// A SendStmt node represents a send statement.
++	SendStmt struct {
++		Chan  Expr
++		Arrow token.Pos // position of "<-"
++		Value Expr
++	}
++
+ 	// An IncDecStmt node represents an increment or decrement statement.
+ 	IncDecStmt struct {
+ 		X      Expr
+@@ -629,11 +636,10 @@ type (
+ 
+ 	// A CommClause node represents a case of a select statement.
+ 	CommClause struct {
+-		Case     token.Pos   // position of "case" or "default" keyword
+-		Tok      token.Token // ASSIGN or DEFINE (valid only if Lhs != nil)
+-		Lhs, Rhs Expr        // Rhs == nil means default case
+-		Colon    token.Pos   // position of ":"
+-		Body     []Stmt      // statement list; or nil
++		Case  token.Pos // position of "case" or "default" keyword
++		Comm  Stmt      // send or receive statement; nil means default case
++		Colon token.Pos // position of ":"
++		Body  []Stmt    // statement list; or nil
+ 	}
+ 
+ 	// An SelectStmt node represents a select statement.
+@@ -670,6 +676,7 @@ func (s *DeclStmt) Pos() token.Pos       { return s.Decl.Pos() }
+ func (s *EmptyStmt) Pos() token.Pos      { return s.Semicolon }
+ func (s *LabeledStmt) Pos() token.Pos    { return s.Label.Pos() }
+ func (s *ExprStmt) Pos() token.Pos       { return s.X.Pos() }
++func (s *SendStmt) Pos() token.Pos       { return s.Chan.Pos() }
+ func (s *IncDecStmt) Pos() token.Pos     { return s.X.Pos() }
+ func (s *AssignStmt) Pos() token.Pos     { return s.Lhs[0].Pos() }
+ func (s *GoStmt) Pos() token.Pos         { return s.Go }
+@@ -695,6 +702,7 @@ func (s *EmptyStmt) End() token.Pos {
+ }
+ func (s *LabeledStmt) End() token.Pos { return s.Stmt.End() }
+ func (s *ExprStmt) End() token.Pos    { return s.X.End() }
++func (s *SendStmt) End() token.Pos    { return s.Value.End() }
+ func (s *IncDecStmt) End() token.Pos {
+ 	return s.TokPos + 2 /* len("++") */
+ }
+@@ -753,6 +761,7 @@ func (s *DeclStmt) stmtNode()       {}
+ func (s *EmptyStmt) stmtNode()      {}
+ func (s *LabeledStmt) stmtNode()    {}
+ func (s *ExprStmt) stmtNode()       {}
++func (s *SendStmt) stmtNode()       {}
+ func (s *IncDecStmt) stmtNode()     {}
+ func (s *AssignStmt) stmtNode()     {}
+ func (s *GoStmt) stmtNode()         {}
+diff --git a/src/pkg/go/ast/walk.go b/src/pkg/go/ast/walk.go
+index 875a92f3f4..d90c789363 100644
+--- a/src/pkg/go/ast/walk.go
++++ b/src/pkg/go/ast/walk.go
+@@ -258,11 +258,8 @@ func Walk(v Visitor, node Node) {
+ 		Walk(v, n.Body)
+ 
+ 	case *CommClause:
+-		if n.Lhs != nil {
+-			Walk(v, n.Lhs)
+-		}
+-		if n.Rhs != nil {
+-			Walk(v, n.Rhs)
++		if n.Comm != nil {
++			Walk(v, n.Comm)
+ 		}
+ 		walkStmtList(v, n.Body)
+ 
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index f1746e0405..2395b81587 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -1193,18 +1193,6 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
+ 	x := p.parseExprList()
+ 
+ 	switch p.tok {
+-	case token.COLON:
+-		// labeled statement
+-		colon := p.pos
+-		p.next()
+-		if labelOk && len(x) == 1 {
+-			if label, isIdent := x[0].(*ast.Ident); isIdent {
+-				return &ast.LabeledStmt{label, colon, p.parseStmt()}
+-			}
+-		}
+-		p.error(x[0].Pos(), "illegal label declaration")
+-		return &ast.BadStmt{x[0].Pos(), colon + 1}
+-
+ 	case
+ 		token.DEFINE, token.ASSIGN, token.ADD_ASSIGN,
+ 		token.SUB_ASSIGN, token.MUL_ASSIGN, token.QUO_ASSIGN,
+@@ -1218,11 +1206,29 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
+ 	}
+ 
+ 	if len(x) > 1 {
+-		p.error(x[0].Pos(), "only one expression allowed")
++		p.errorExpected(x[0].Pos(), "1 expression")
+ 		// continue with first expression
+ 	}
+ 
+-	if p.tok == token.INC || p.tok == token.DEC {
++	switch p.tok {
++	case token.COLON:
++		// labeled statement
++		colon := p.pos
++		p.next()
++		if label, isIdent := x[0].(*ast.Ident); labelOk && isIdent {
++			return &ast.LabeledStmt{label, colon, p.parseStmt()}
++		}
++		p.error(x[0].Pos(), "illegal label declaration")
++		return &ast.BadStmt{x[0].Pos(), colon + 1}
++
++	case token.ARROW:
++		// send statement
++		arrow := p.pos
++		p.next() // consume "<-"
++		y := p.parseExpr()
++		return &ast.SendStmt{x[0], arrow, y}
++
++	case token.INC, token.DEC:
+ 		// increment or decrement
+ 		s := &ast.IncDecStmt{x[0], p.pos, p.tok}
+ 		p.next() // consume "++" or "--"
+@@ -1486,28 +1492,52 @@ func (p *parser) parseCommClause() *ast.CommClause {
+ 
+ 	// CommCase
+ 	pos := p.pos
+-	var tok token.Token
+-	var lhs, rhs ast.Expr
++	var comm ast.Stmt
+ 	if p.tok == token.CASE {
+ 		p.next()
++		lhs := p.parseExprList()
+ 		if p.tok == token.ARROW {
+-			// RecvExpr without assignment
+-			rhs = p.parseExpr()
++			// SendStmt
++			if len(lhs) > 1 {
++				p.errorExpected(lhs[0].Pos(), "1 expression")
++				// continue with first expression
++			}
++			arrow := p.pos
++			p.next()
++			rhs := p.parseExpr()
++			comm = &ast.SendStmt{lhs[0], arrow, rhs}
+ 		} else {
+-			// SendExpr or RecvExpr
+-			rhs = p.parseExpr()
++			// RecvStmt
++			pos := p.pos
++			tok := p.tok
++			var rhs ast.Expr
+ 			if p.tok == token.ASSIGN || p.tok == token.DEFINE {
+-				// RecvExpr with assignment
+-				tok = p.tok
++				// RecvStmt with assignment
++				if len(lhs) > 2 {
++					p.errorExpected(lhs[0].Pos(), "1 or 2 expressions")
++					// continue with first two expressions
++					lhs = lhs[0:2]
++				}
+ 				p.next()
+-				lhs = rhs
+-				if p.tok == token.ARROW {
+-					rhs = p.parseExpr()
+-				} else {
+-					p.expect(token.ARROW) // use expect() error handling
++				rhs = p.parseExpr()
++			} else {
++				// rhs must be single receive operation
++				if len(lhs) > 1 {
++					p.errorExpected(lhs[0].Pos(), "1 expression")
++					// continue with first expression
+ 				}
++				rhs = lhs[0]
++				lhs = nil // there is no lhs
++			}
++			if x, isUnary := rhs.(*ast.UnaryExpr); !isUnary || x.Op != token.ARROW {
++				p.errorExpected(rhs.Pos(), "send or receive operation")
++				rhs = &ast.BadExpr{rhs.Pos(), rhs.End()}
++			}
++			if lhs != nil {
++				comm = &ast.AssignStmt{lhs, pos, tok, []ast.Expr{rhs}}
++			} else {
++				comm = &ast.ExprStmt{rhs}
+ 			}
+-			// else SendExpr
+ 		}
+ 	} else {
+ 		p.expect(token.DEFAULT)
+@@ -1516,7 +1546,7 @@ func (p *parser) parseCommClause() *ast.CommClause {
+ 	colon := p.expect(token.COLON)
+ 	body := p.parseStmtList()
+ 
+-	return &ast.CommClause{pos, tok, lhs, rhs, colon, body}
++	return &ast.CommClause{pos, comm, colon, body}
+ }
+ 
+ 
+@@ -1568,7 +1598,7 @@ func (p *parser) parseForStmt() ast.Stmt {
+ 		}
+ 		// check rhs
+ 		if len(as.Rhs) != 1 {
+-			p.errorExpected(as.Rhs[0].Pos(), "1 expressions")
++			p.errorExpected(as.Rhs[0].Pos(), "1 expression")
+ 			return &ast.BadStmt{pos, body.End()}
+ 		}
+ 		if rhs, isUnary := as.Rhs[0].(*ast.UnaryExpr); isUnary && rhs.Op == token.RANGE {
+diff --git a/src/pkg/go/parser/parser_test.go b/src/pkg/go/parser/parser_test.go
+index 56bd80ef1f..5a7f05ca83 100644
+--- a/src/pkg/go/parser/parser_test.go
++++ b/src/pkg/go/parser/parser_test.go
+@@ -46,6 +46,7 @@ var validPrograms = []interface{}{
+ 	`package main; type T []int; func g(int) bool { return true }; func f() { if g(T{42}[0]) {} };`,
+ 	`package main; type T []int; func f() { for _ = range []int{T{42}[0]} {} };`,
+ 	`package main; var a = T{{1, 2}, {3, 4}}`,
++	`package main; func f() { select { case <- c: case c <- d: case c <- <- d: case <-c <- d: } };`,
+ }
+ 
+ 
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 8207996dcd..7933c2f182 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -506,12 +506,12 @@ const (
+ )
+ 
+ 
+-func walkBinary(e *ast.BinaryExpr) (has5, has6 bool, maxProblem int) {
++func walkBinary(e *ast.BinaryExpr) (has4, has5 bool, maxProblem int) {
+ 	switch e.Op.Precedence() {
++	case 4:
++		has4 = true
+ 	case 5:
+ 		has5 = true
+-	case 6:
+-		has6 = true
+ 	}
+ 
+ 	switch l := e.X.(type) {
+@@ -521,9 +521,9 @@ func walkBinary(e *ast.BinaryExpr) (has5, has6 bool, maxProblem int) {
+ 			// pretend this is an *ast.ParenExpr and do nothing.
+ 			break
+ 		}
+-		h5, h6, mp := walkBinary(l)
++		h4, h5, mp := walkBinary(l)
++		has4 = has4 || h4
+ 		has5 = has5 || h5
+-		has6 = has6 || h6
+ 		if maxProblem < mp {
+ 			maxProblem = mp
+ 		}
+@@ -536,25 +536,25 @@ func walkBinary(e *ast.BinaryExpr) (has5, has6 bool, maxProblem int) {
+ 			// pretend this is an *ast.ParenExpr and do nothing.
+ 			break
+ 		}
+-		h5, h6, mp := walkBinary(r)
++		h4, h5, mp := walkBinary(r)
++		has4 = has4 || h4
+ 		has5 = has5 || h5
+-		has6 = has6 || h6
+ 		if maxProblem < mp {
+ 			maxProblem = mp
+ 		}
+ 
+ 	case *ast.StarExpr:
+ 		if e.Op.String() == "/" {
+-			maxProblem = 6
++			maxProblem = 5
+ 		}
+ 
+ 	case *ast.UnaryExpr:
+ 		switch e.Op.String() + r.Op.String() {
+ 		case "/*", "&&", "&^":
+-			maxProblem = 6
++			maxProblem = 5
+ 		case "++", "--":
+-			if maxProblem < 5 {
+-				maxProblem = 5
++			if maxProblem < 4 {
++				maxProblem = 4
+ 			}
+ 		}
+ 	}
+@@ -563,20 +563,20 @@ func walkBinary(e *ast.BinaryExpr) (has5, has6 bool, maxProblem int) {
+ 
+ 
+ func cutoff(e *ast.BinaryExpr, depth int) int {
+-	has5, has6, maxProblem := walkBinary(e)
++	has4, has5, maxProblem := walkBinary(e)
+ 	if maxProblem > 0 {
+ 		return maxProblem + 1
+ 	}
+-	if has5 && has6 {
++	if has4 && has5 {
+ 		if depth == 1 {
+-			return 6
++			return 5
+ 		}
+-		return 5
++		return 4
+ 	}
+ 	if depth == 1 {
+-		return 7
++		return 6
+ 	}
+-	return 5
++	return 4
+ }
+ 
+ 
+@@ -603,15 +603,14 @@ func reduceDepth(depth int) int {
+ // (Algorithm suggestion by Russ Cox.)
+ //
+ // The precedences are:
+-//	6             *  /  %  <<  >>  &  &^
+-//	5             +  -  |  ^
+-//	4             ==  !=  <  <=  >  >=
+-//	3             <-
++//	5             *  /  %  <<  >>  &  &^
++//	4             +  -  |  ^
++//	3             ==  !=  <  <=  >  >=
+ //	2             &&
+ //	1             ||
+ //
+-// The only decision is whether there will be spaces around levels 5 and 6.
+-// There are never spaces at level 7 (unary), and always spaces at levels 4 and below.
++// The only decision is whether there will be spaces around levels 4 and 5.
++// There are never spaces at level 6 (unary), and always spaces at levels 3 and below.
+ //
+ // To choose the cutoff, look at the whole expression but excluding primary
+ // expressions (function calls, parenthesized exprs), and apply these rules:
+@@ -619,21 +618,21 @@ func reduceDepth(depth int) int {
+ //	1) If there is a binary operator with a right side unary operand
+ //	   that would clash without a space, the cutoff must be (in order):
+ //
+-//		/*	7
+-//		&&	7
+-//		&^	7
+-//		++	6
+-//		--	6
++//		/*	6
++//		&&	6
++//		&^	6
++//		++	5
++//		--	5
+ //
+ //         (Comparison operators always have spaces around them.)
+ //
+-//	2) If there is a mix of level 6 and level 5 operators, then the cutoff
+-//	   is 6 (use spaces to distinguish precedence) in Normal mode
+-//	   and 5 (never use spaces) in Compact mode.
++//	2) If there is a mix of level 5 and level 4 operators, then the cutoff
++//	   is 5 (use spaces to distinguish precedence) in Normal mode
++//	   and 4 (never use spaces) in Compact mode.
+ //
+-//	3) If there are no level 5 operators or no level 6 operators, then the
+-//	   cutoff is 7 (always use spaces) in Normal mode
+-//	   and 5 (never use spaces) in Compact mode.
++//	3) If there are no level 4 operators or no level 5 operators, then the
++//	   cutoff is 6 (always use spaces) in Normal mode
++//	   and 4 (never use spaces) in Compact mode.
+ //
+ // Sets multiLine to true if the binary expression spans multiple lines.
+ func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1, cutoff, depth int, multiLine *bool) {
+@@ -1083,6 +1082,12 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool, multiLine *bool) {
+ 		const depth = 1
+ 		p.expr0(s.X, depth, multiLine)
+ 
++	case *ast.SendStmt:
++		const depth = 1
++		p.expr0(s.Chan, depth, multiLine)
++		p.print(blank, s.Arrow, token.ARROW, blank)
++		p.expr0(s.Value, depth, multiLine)
++
+ 	case *ast.IncDecStmt:
+ 		const depth = 1
+ 		p.expr0(s.X, depth+1, multiLine)
+@@ -1179,13 +1184,9 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool, multiLine *bool) {
+ 		*multiLine = true
+ 
+ 	case *ast.CommClause:
+-		if s.Rhs != nil {
++		if s.Comm != nil {
+ 			p.print(token.CASE, blank)
+-			if s.Lhs != nil {
+-				p.expr(s.Lhs, multiLine)
+-				p.print(blank, s.Tok, blank)
+-			}
+-			p.expr(s.Rhs, multiLine)
++			p.stmt(s.Comm, false, ignoreMultiLine)
+ 		} else {
+ 			p.print(token.DEFAULT)
+ 		}
+diff --git a/src/pkg/go/token/token.go b/src/pkg/go/token/token.go
+index 1bd81c1b14..2a2d3ecc4f 100644
+--- a/src/pkg/go/token/token.go
++++ b/src/pkg/go/token/token.go
+@@ -252,8 +252,8 @@ func (tok Token) String() string {
+ //
+ const (
+ 	LowestPrec  = 0 // non-operators
+-	UnaryPrec   = 7
+-	HighestPrec = 8
++	UnaryPrec   = 6
++	HighestPrec = 7
+ )
+ 
+ 
+@@ -267,14 +267,12 @@ func (op Token) Precedence() int {
+ 		return 1
+ 	case LAND:
+ 		return 2
+-	case ARROW:
+-		return 3
+ 	case EQL, NEQ, LSS, LEQ, GTR, GEQ:
+-		return 4
++		return 3
+ 	case ADD, SUB, OR, XOR:
+-		return 5
++		return 4
+ 	case MUL, QUO, REM, SHL, SHR, AND, AND_NOT:
+-		return 6
++		return 5
+ 	}
+ 	return LowestPrec
+ }
+diff --git a/src/pkg/netchan/netchan_test.go b/src/pkg/netchan/netchan_test.go
+index 6d7d63f988..4076aefebf 100644
+--- a/src/pkg/netchan/netchan_test.go
++++ b/src/pkg/netchan/netchan_test.go
+@@ -23,7 +23,7 @@ func exportSend(exp *Exporter, n int, t *testing.T, done chan bool) {
+ 	}
+ 	go func() {
+ 		for i := 0; i < n; i++ {
+-			ch <- base+i
++			ch <- base + i
+ 		}
+ 		close(ch)
+ 		if done != nil {
+@@ -61,7 +61,7 @@ func importSend(imp *Importer, n int, t *testing.T, done chan bool) {
+ 	}
+ 	go func() {
+ 		for i := 0; i < n; i++ {
+-			ch <- base+i
++			ch <- base + i
+ 		}
+ 		close(ch)
+ 		if done != nil {

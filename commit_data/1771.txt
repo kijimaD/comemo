@@ -8,6 +8,41 @@ Date:   Fri Mar 6 03:36:50 2009 -0800
     DELTA=14  (7 added, 5 deleted, 2 changed)
     OCL=25818
     CL=25834
-
+---
  src/lib/once.go | 16 +++++++++-------
  1 file changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/src/lib/once.go b/src/lib/once.go
+index 2a09a179bc..6047df2364 100644
+--- a/src/lib/once.go
++++ b/src/lib/once.go
+@@ -2,13 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// For one-time initialization that is not done during init.
+-// Wrap the initialization in a niladic function f() and call
+-//	once.Do(f)
+-// If multiple processes call once.Do(f) simultaneously
+-// with the same f argument, only one will call f, and the
+-// others will block until f finishes running.
+-
++// This package provides a single function, Do, to run a function
++// exactly once, usually used as part of initialization.
+ package once
+ 
+ import "sync"
+@@ -21,6 +16,13 @@ type job struct {
+ var jobs = make(map[func()]*job)
+ var joblock sync.Mutex;
+ 
++// Do is the the only exported piece of the package.
++// For one-time initialization that is not done during init,
++// wrap the initialization in a niladic function f() and call
++//	Do(f)
++// If multiple processes call Do(f) simultaneously
++// with the same f argument, only one will call f, and the
++// others will block until f finishes running.
+ func Do(f func()) {
+ 	joblock.Lock();
+ 	j, present := jobs[f];

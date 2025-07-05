@@ -11,7 +11,66 @@ Date:   Wed Oct 16 19:15:39 2019 +0800
     Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  3 ---
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 26 --------------------------
  2 files changed, 29 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 44c9e030d4..d4484084a1 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -226,9 +226,6 @@
+ (NeqPtr x y) && config.PtrSize == 4 -> (SETNE (CMPL x y))
+ (Neq(32|64)F x y) -> (SETNEF (UCOMIS(S|D) x y))
+ 
+-(Int64Hi x) -> (SHRQconst [32] x)         // needed for amd64p32
+-(Int64Lo x) -> x
+-
+ // Lowering loads
+ (Load <t> ptr mem) && (is64BitInt(t) || isPtr(t) && config.PtrSize == 8) -> (MOVQload ptr mem)
+ (Load <t> ptr mem) && (is32BitInt(t) || isPtr(t) && config.PtrSize == 4) -> (MOVLload ptr mem)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index f1aa3f2bd3..45634a25eb 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -826,10 +826,6 @@ func rewriteValueAMD64(v *Value) bool {
+ 		return rewriteValueAMD64_OpHmul64_0(v)
+ 	case OpHmul64u:
+ 		return rewriteValueAMD64_OpHmul64u_0(v)
+-	case OpInt64Hi:
+-		return rewriteValueAMD64_OpInt64Hi_0(v)
+-	case OpInt64Lo:
+-		return rewriteValueAMD64_OpInt64Lo_0(v)
+ 	case OpInterCall:
+ 		return rewriteValueAMD64_OpInterCall_0(v)
+ 	case OpIsInBounds:
+@@ -52729,28 +52725,6 @@ func rewriteValueAMD64_OpHmul64u_0(v *Value) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueAMD64_OpInt64Hi_0(v *Value) bool {
+-	// match: (Int64Hi x)
+-	// result: (SHRQconst [32] x)
+-	for {
+-		x := v.Args[0]
+-		v.reset(OpAMD64SHRQconst)
+-		v.AuxInt = 32
+-		v.AddArg(x)
+-		return true
+-	}
+-}
+-func rewriteValueAMD64_OpInt64Lo_0(v *Value) bool {
+-	// match: (Int64Lo x)
+-	// result: x
+-	for {
+-		x := v.Args[0]
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+-}
+ func rewriteValueAMD64_OpInterCall_0(v *Value) bool {
+ 	// match: (InterCall [argwid] entry mem)
+ 	// result: (CALLinter [argwid] entry mem)

@@ -9,6 +9,23 @@ Date:   Wed Jan 11 22:48:34 2017 -0500
     Change-Id: Ic965f5f7088c3270adbca7162226be486d1b9b4e
     Reviewed-on: https://go-review.googlesource.com/35130
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.8.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.8.html b/doc/go1.8.html
+index 2ac478632e..f99c5ea96c 100644
+--- a/doc/go1.8.html
++++ b/doc/go1.8.html
+@@ -1617,9 +1617,9 @@ crypto/x509: return error for missing SerialNumber (CL 27238)
+       June 31 and July 32.
+     </p>
+ 
+-    <p> <!-- CL 33029 -->
++    <p> <!-- CL 33029 --> <!-- CL 34816 -->
+       The <code>tzdata</code> database has been updated to version
+-      2016i for systems that don't already have a local time zone
++      2016j for systems that don't already have a local time zone
+       database.
+     </p>
+ 

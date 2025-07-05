@@ -7,6 +7,28 @@ Date:   Fri Jul 3 18:41:28 2015 -0700
     Change-Id: Ie23b13142fd820d7071a348a8370175e58b76d64
     Reviewed-on: https://go-review.googlesource.com/11878
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 14c39d337f..1be5f0cb85 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -521,6 +521,16 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			return s.newValue2(ssa.OpLoad, n.Left.Type.Type, p, s.mem())
+ 		}
+ 
++	case OLEN:
++		switch {
++		case n.Left.Type.Bound < 0: // slice
++			return s.newValue1(ssa.OpSliceLen, s.config.Uintptr, s.expr(n.Left))
++		case n.Left.Type.IsString(): // string
++			return s.newValue1(ssa.OpStringLen, s.config.Uintptr, s.expr(n.Left))
++		default: // array
++			return s.constInt(s.config.Uintptr, n.Left.Type.Bound)
++		}
++
+ 	case OCALLFUNC:
+ 		static := n.Left.Op == ONAME && n.Left.Class == PFUNC
+ 

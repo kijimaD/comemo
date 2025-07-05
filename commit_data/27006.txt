@@ -14,8 +14,101 @@ Date:   Mon Mar 7 14:32:18 2016 -0800
     Change-Id: I678abafdd9129c6cccb0ec980511932eaed496a0
     Reviewed-on: https://go-review.googlesource.com/20343
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/dcl.go    |  4 ++--
  src/cmd/compile/internal/gc/parser.go | 16 +++++++++-------
  src/cmd/compile/internal/gc/syntax.go |  6 +++---
  3 files changed, 14 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index e7113baa8f..c10c6a7d65 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -489,10 +489,10 @@ func colas(left *NodeList, right *NodeList, lno int32) *Node {
+ 	setNodeSeq(&as.Rlist, right)
+ 	as.Colas = true
+ 	as.Lineno = lno
+-	colasdefn(left, as)
++	colasdefn(as.List, as)
+ 
+ 	// make the tree prettier; not necessary
+-	if count(left) == 1 && count(right) == 1 {
++	if nodeSeqLen(as.List) == 1 && nodeSeqLen(as.Rlist) == 1 {
+ 		as.Left = nodeSeqFirst(as.List)
+ 		as.Right = nodeSeqFirst(as.Rlist)
+ 		setNodeSeq(&as.List, nil)
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index 66804e49a9..15b121a0a8 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -633,7 +633,7 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
+ 			r := Nod(ORANGE, nil, p.expr())
+ 			setNodeSeq(&r.List, lhs)
+ 			r.Colas = true
+-			colasdefn(lhs, r)
++			colasdefn(r.List, r)
+ 			return r
+ 		}
+ 
+@@ -685,9 +685,9 @@ func (p *parser) labeled_stmt(label *Node) *Node {
+ 	l := list1(label)
+ 	if ls != nil {
+ 		if ls.Op == OBLOCK && nodeSeqLen(ls.Ninit) == 0 {
+-			l = concat(l, ls.List)
++			appendNodeSeq(&l, ls.List)
+ 		} else {
+-			l = list(l, ls)
++			appendNodeSeqNode(&l, ls)
+ 		}
+ 	}
+ 	return liststmt(l)
+@@ -1021,7 +1021,9 @@ func (p *parser) if_header() *Node {
+ 
+ 	init, cond, _ := p.header(false)
+ 	h := Nod(OIF, nil, nil)
+-	setNodeSeq(&h.Ninit, []*Node{init})
++	if init != nil {
++		setNodeSeq(&h.Ninit, []*Node{init})
++	}
+ 	h.Left = cond
+ 	return h
+ }
+@@ -1048,7 +1050,7 @@ func (p *parser) if_stmt() *Node {
+ 			setNodeSeq(&stmt.Rlist, []*Node{p.if_stmt()})
+ 		} else {
+ 			cs := p.compound_stmt(true)
+-			if cs.Op == OBLOCK && cs.Ninit == nil {
++			if cs.Op == OBLOCK && nodeSeqLen(cs.Ninit) == 0 {
+ 				setNodeSeq(&stmt.Rlist, cs.List)
+ 			} else {
+ 				setNodeSeq(&stmt.Rlist, []*Node{cs})
+@@ -2548,9 +2550,9 @@ func (p *parser) stmt_list() (l *NodeList) {
+ 			break
+ 		}
+ 		if s != nil && s.Op == OBLOCK && nodeSeqLen(s.Ninit) == 0 {
+-			l = concat(l, s.List)
++			appendNodeSeq(&l, s.List)
+ 		} else {
+-			l = list(l, s)
++			appendNodeSeqNode(&l, s)
+ 		}
+ 		// customized version of osemi:
+ 		// ';' is optional before a closing ')' or '}'
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 7aec6ae7de..755b57d26d 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -15,10 +15,10 @@ type Node struct {
+ 	// Generic recursive walks should follow these fields.
+ 	Left  *Node
+ 	Right *Node
+-	Ninit *NodeList
++	Ninit Nodes
+ 	Nbody Nodes
+-	List  *NodeList
+-	Rlist *NodeList
++	List  Nodes
++	Rlist Nodes
+ 
+ 	// most nodes
+ 	Type *Type

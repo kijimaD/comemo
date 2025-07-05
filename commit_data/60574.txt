@@ -24,7 +24,52 @@ Date:   Fri Jul 26 10:14:20 2024 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/export_test.go  |  3 +++
  src/runtime/runtime_test.go | 22 ++++++++++++++++++++++
  2 files changed, 25 insertions(+)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 759463755a..b18480d0af 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1223,6 +1223,9 @@ func PageCachePagesLeaked() (leaked uintptr) {
+ 	return
+ }
+ 
++var ProcYield = procyield
++var OSYield = osyield
++
+ type Mutex = mutex
+ 
+ var Lock = lock
+diff --git a/src/runtime/runtime_test.go b/src/runtime/runtime_test.go
+index c1bf7f87db..0b51dd8c8d 100644
+--- a/src/runtime/runtime_test.go
++++ b/src/runtime/runtime_test.go
+@@ -539,3 +539,25 @@ func TestTimediv(t *testing.T) {
+ 		})
+ 	}
+ }
++
++func BenchmarkProcYield(b *testing.B) {
++	benchN := func(n uint32) func(*testing.B) {
++		return func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				ProcYield(n)
++			}
++		}
++	}
++
++	b.Run("1", benchN(1))
++	b.Run("10", benchN(10))
++	b.Run("30", benchN(30)) // active_spin_cnt in lock_sema.go and lock_futex.go
++	b.Run("100", benchN(100))
++	b.Run("1000", benchN(1000))
++}
++
++func BenchmarkOSYield(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		OSYield()
++	}
++}

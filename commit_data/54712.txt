@@ -21,8 +21,74 @@ Date:   Thu Nov 10 10:03:21 2022 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modindex/read.go                  |  2 +-
  src/cmd/go/testdata/script/install_goroot_targets.txt | 16 ++++++++++------
  src/go/build/build.go                                 |  2 +-
  3 files changed, 12 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/internal/modindex/read.go b/src/cmd/go/internal/modindex/read.go
+index fa0271f6ec..3e068d5600 100644
+--- a/src/cmd/go/internal/modindex/read.go
++++ b/src/cmd/go/internal/modindex/read.go
+@@ -436,7 +436,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
+ 				p.PkgTargetRoot = ctxt.joinPath(p.Root, pkgtargetroot)
+ 
+ 				// Set the install target if applicable.
+-				if strings.ToLower(godebug.Get("installgoroot")) == "all" || !p.Goroot {
++				if !p.Goroot || (strings.EqualFold(godebug.Get("installgoroot"), "all") && p.ImportPath != "unsafe" && p.ImportPath != "builtin") {
+ 					p.PkgObj = ctxt.joinPath(p.Root, pkga)
+ 				}
+ 			}
+diff --git a/src/cmd/go/testdata/script/install_goroot_targets.txt b/src/cmd/go/testdata/script/install_goroot_targets.txt
+index 4d6ca13e24..25b97b4b73 100644
+--- a/src/cmd/go/testdata/script/install_goroot_targets.txt
++++ b/src/cmd/go/testdata/script/install_goroot_targets.txt
+@@ -1,5 +1,4 @@
+ [short] skip
+-[!cgo] skip
+ 
+ # Most packages in std do not have an install target.
+ go list -f '{{.Target}}' fmt
+@@ -8,11 +7,11 @@ go list -export -f '{{.Export}}' fmt
+ stdout $GOCACHE
+ 
+ # Packages that use cgo still do.
+-go list -f '{{.Target}}' runtime/cgo
+-stdout .
+-go list -export -f '{{.Export}}' runtime/cgo
+-! stdout $GOCACHE
+-stdout cgo\.a
++[cgo] go list -f '{{.Target}}' runtime/cgo
++[cgo] stdout .
++[cgo] go list -export -f '{{.Export}}' runtime/cgo
++[cgo] ! stdout $GOCACHE
++[cgo] stdout cgo\.a
+ 
+ # With GODEBUG=installgoroot=all, fmt has a target.
+ # (Though we can't try installing it without modifying goroot).
+@@ -20,6 +19,11 @@ env GODEBUG=installgoroot=all
+ go list -f '{{.Target}}' fmt
+ stdout fmt\.a
+ 
++# However, the fake packages "builtin" and "unsafe" do not.
++go list -f '{{.Target}}' builtin unsafe
++! stdout .
++go install builtin unsafe  # Should succeed as no-ops.
++
+ # With CGO_ENABLED=0, packages that would have
+ # an install target with cgo on no longer do.
+ env GODEBUG=
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 4c0388149d..6925154da1 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -783,7 +783,7 @@ Found:
+ 			p.PkgTargetRoot = ctxt.joinPath(p.Root, pkgtargetroot)
+ 
+ 			// Set the install target if applicable.
+-			if strings.ToLower(godebug.Get("installgoroot")) == "all" || !p.Goroot {
++			if !p.Goroot || (strings.EqualFold(godebug.Get("installgoroot"), "all") && p.ImportPath != "unsafe" && p.ImportPath != "builtin") {
+ 				p.PkgObj = ctxt.joinPath(p.Root, pkga)
+ 			}
+ 		}

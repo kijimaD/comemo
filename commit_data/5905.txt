@@ -12,6 +12,19 @@ Date:   Wed Jul 28 18:26:29 2010 -0700
     R=rsc, iant
     CC=golang-dev
     https://golang.org/cl/1863046
-
+---
  test/sigchld.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/sigchld.go b/test/sigchld.go
+index 3887e2d024..214e72b622 100644
+--- a/test/sigchld.go
++++ b/test/sigchld.go
+@@ -10,6 +10,6 @@ package main
+ import "syscall"
+ 
+ func main() {
+-	syscall.Syscall(syscall.SYS_KILL, uintptr(syscall.Getpid()), syscall.SIGCHLD, 0);
++	syscall.Kill(syscall.Getpid(), syscall.SIGCHLD);
+ 	println("survived SIGCHLD");
+ }

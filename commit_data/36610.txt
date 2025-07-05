@@ -14,6 +14,20 @@ Date:   Fri May 4 15:29:09 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/go/internal/work/action.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index 8b53fad19a..c83fe4e58d 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -588,7 +588,7 @@ func (b *Builder) addInstallHeaderAction(a *Action) {
+ 	p := a.Package
+ 	if p.UsesCgo() && (cfg.BuildBuildmode == "c-archive" || cfg.BuildBuildmode == "c-shared") {
+ 		hdrTarget := a.Target[:len(a.Target)-len(filepath.Ext(a.Target))] + ".h"
+-		if cfg.BuildContext.Compiler == "gccgo" {
++		if cfg.BuildContext.Compiler == "gccgo" && cfg.BuildO == "" {
+ 			// For the header file, remove the "lib"
+ 			// added by go/build, so we generate pkg.h
+ 			// rather than libpkg.h.

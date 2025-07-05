@@ -9,7 +9,57 @@ Date:   Sun Feb 24 21:57:16 2013 -0800
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/7383051
-
+---
  src/pkg/go/types/expr.go            | 2 ++
  src/pkg/go/types/testdata/expr3.src | 9 +++++++--
  2 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/go/types/expr.go b/src/pkg/go/types/expr.go
+index e7ea2843a0..9d43a887bf 100644
+--- a/src/pkg/go/types/expr.go
++++ b/src/pkg/go/types/expr.go
+@@ -543,6 +543,8 @@ func (check *checker) compositeLitKey(key ast.Expr) {
+ 	if ident, ok := key.(*ast.Ident); ok && ident.Obj == nil {
+ 		if obj := check.pkg.Scope.Lookup(ident.Name); obj != nil {
+ 			check.register(ident, obj)
++		} else if obj := Universe.Lookup(ident.Name); obj != nil {
++			check.register(ident, obj)
+ 		} else {
+ 			check.errorf(ident.Pos(), "undeclared name: %s", ident.Name)
+ 		}
+diff --git a/src/pkg/go/types/testdata/expr3.src b/src/pkg/go/types/testdata/expr3.src
+index 519e3f567a..9dc95b4af3 100644
+--- a/src/pkg/go/types/testdata/expr3.src
++++ b/src/pkg/go/types/testdata/expr3.src
+@@ -259,6 +259,8 @@ var index2 int = 2
+ 
+ func map_literals() {
+ 	type M0 map[string]int
++	type M1 map[bool]int
++	type M2 map[*int]int
+ 
+ 	_ = M0{}
+ 	_ = M0{1 /* ERROR "missing key" */ }
+@@ -267,11 +269,14 @@ func map_literals() {
+ 	_ = M0{"foo": 1, "bar": 2, "foo" /* ERROR "duplicate key" */ : 3 }
+ 
+ 	// map keys must be resolved correctly
+-	// (for detials, see comment in go/parser/parser.go, method parseElement)
++	// (for details, see comment in go/parser/parser.go, method parseElement)
+ 	key1 := "foo"
+ 	_ = M0{key1: 1}
+ 	_ = M0{key2: 2}
+ 	_ = M0{key3 /* ERROR "undeclared name" */ : 2}
++
++	_ = M1{true: 1, false: 0}
++	_ = M2{nil: 0, &index2: 1}
+ }
+ 
+ var key2 string = "bar"
+@@ -364,4 +369,4 @@ func _calls() {
+ 	fi(g2())
+ 	fi(0, g2)
+ 	fi(0, g2 /* ERROR "2-valued expression" */ ())
+-}
+\ No newline at end of file
++}

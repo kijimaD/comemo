@@ -12,8 +12,102 @@ Date:   Thu Oct 15 22:16:31 2009 -0700
     DELTA=27  (26 added, 1 deleted, 0 changed)
     OCL=35815
     CL=35818
-
+---
  src/cmd/5g/cgen.c  |  8 ++++++++
  src/cmd/5g/gsubr.c | 11 ++++++++++-
  test/arm-pass.txt  |  8 ++++++++
  3 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index b8556e5618..a05dcf621c 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -605,6 +605,14 @@ agen(Node *n, Node *res)
+ 			n4.op = OADDR;
+ 			n4.left = &n2;
+ 			cgen(&n4, &n3);
++			if (w == 1)
++				gins(AADD, &n2, &n3);
++			else if(w == 2)
++				gshift(AADD, &n2, SHIFT_LL, 1, &n3);
++			else if(w == 4)
++				gshift(AADD, &n2, SHIFT_LL, 2, &n3);
++			else if(w == 8)
++				gshift(AADD, &n2, SHIFT_LL, 3, &n3);	
+ 		} else {
+ 			regalloc(&n4, t, N);
+ 			nodconst(&n1, t, w);
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index d22d4b4687..3f8fd3f689 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -1709,10 +1709,19 @@ oindex:
+ 		gmove(&n2, reg);
+ 	}
+ 
++	if (*w == 1)
++		gins(AADD, reg1, reg);
++	else if(*w == 2)
++		gshift(AADD, reg1, SHIFT_LL, 1, reg);
++	else if(*w == 4)
++		gshift(AADD, reg1, SHIFT_LL, 2, reg);
++	else if(*w == 8)
++		gshift(AADD, reg1, SHIFT_LL, 3, reg);
++
+ 	naddr(reg1, a);
+-	a->offset = 0;
+ 	a->type = D_OREG;
+ 	a->reg = reg->val.u.reg;
++	a->offset = 0;
+ 
+ 	goto yes;
+ 
+diff --git a/test/arm-pass.txt b/test/arm-pass.txt
+index b64ab71203..4953c32a81 100644
+--- a/test/arm-pass.txt
++++ b/test/arm-pass.txt
+@@ -2,6 +2,7 @@
+ args.go
+ assign.go
+ bigalg.go
++blank.go
+ blank1.go
+ bugs/bug136.go
+ bugs/bug162.go
+@@ -242,6 +243,8 @@ interface/recursive.go
+ interface/returntype.go
+ interface/struct.go
+ iota.go
++ken/array.go
++ken/complit.go
+ ken/divmod.go
+ ken/embed.go
+ ken/for.go
+@@ -251,6 +254,7 @@ ken/intervar.go
+ ken/label.go
+ ken/mfunc.go
+ ken/ptrvar.go
++ken/range.go
+ ken/rob1.go
+ ken/rob2.go
+ ken/robfor.go
+@@ -262,6 +266,8 @@ ken/simpfun.go
+ ken/simpprint.go
+ ken/simpswitch.go
+ ken/simpvar.go
++ken/slicearray.go
++ken/sliceslice.go
+ ken/string.go
+ ken/strvar.go
+ method.go
+@@ -279,8 +285,10 @@ sieve.go
+ sigchld.go
+ simassign.go
+ string_lit.go
++stringrange.go
+ switch.go
+ switch1.go
+ test0.go
+ typeswitch.go
++utf.go
+ varinit.go

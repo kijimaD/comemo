@@ -24,6 +24,44 @@ Date:   Sat Aug 26 04:49:53 2023 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/cgo/internal/test/test.go | 19 +++++++++++++++++++
  1 file changed, 19 insertions(+)
+
+diff --git a/src/cmd/cgo/internal/test/test.go b/src/cmd/cgo/internal/test/test.go
+index 7da5a856b3..9a6c6d82ce 100644
+--- a/src/cmd/cgo/internal/test/test.go
++++ b/src/cmd/cgo/internal/test/test.go
+@@ -115,6 +115,13 @@ int add(int x, int y) {
+ 	return x+y;
+ };
+ 
++// escape vs noescape
++
++#cgo noescape handleGoStringPointerNoescape
++void handleGoStringPointerNoescape(void *s) {}
++
++void handleGoStringPointerEscape(void *s) {}
++
+ // Following mimics vulkan complex definitions for benchmarking cgocheck overhead.
+ 
+ typedef uint32_t VkFlags;
+@@ -1106,6 +1113,18 @@ func benchCgoCall(b *testing.B) {
+ 			C.handleComplexPointer(&a0)
+ 		}
+ 	})
++	b.Run("string-pointer-escape", func(b *testing.B) {
++		for i := 0; i < b.N; i++ {
++			var s string
++			C.handleGoStringPointerEscape(unsafe.Pointer(&s))
++		}
++	})
++	b.Run("string-pointer-noescape", func(b *testing.B) {
++		for i := 0; i < b.N; i++ {
++			var s string
++			C.handleGoStringPointerNoescape(unsafe.Pointer(&s))
++		}
++	})
+ 	b.Run("eight-pointers", func(b *testing.B) {
+ 		var a0, a1, a2, a3, a4, a5, a6, a7 C.VkDeviceCreateInfo
+ 		for i := 0; i < b.N; i++ {

@@ -12,8 +12,174 @@ Date:   Mon Sep 24 14:58:57 2012 -0400
     R=iant, r, dave
     CC=golang-dev
     https://golang.org/cl/6548061
-
+---
  src/cmd/cgo/gcc.go  |  6 ++++--
  src/cmd/cgo/main.go | 14 +++++++++++++-
  src/cmd/cgo/out.go  | 29 +++++++++++++++++++++--------
  3 files changed, 38 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 963efa58de..723338ea70 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -601,7 +601,7 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
+ 
+ 	// Record types and typedef information.
+ 	var conv typeConv
+-	conv.Init(p.PtrSize)
++	conv.Init(p.PtrSize, p.IntSize)
+ 	for i, n := range names {
+ 		if types[i] == nil {
+ 			continue
+@@ -928,14 +928,16 @@ type typeConv struct {
+ 	string                                 ast.Expr
+ 
+ 	ptrSize int64
++	intSize int64
+ }
+ 
+ var tagGen int
+ var typedef = make(map[string]*Type)
+ var goIdent = make(map[string]*ast.Ident)
+ 
+-func (c *typeConv) Init(ptrSize int64) {
++func (c *typeConv) Init(ptrSize, intSize int64) {
+ 	c.ptrSize = ptrSize
++	c.intSize = intSize
+ 	c.m = make(map[dwarf.Type]*Type)
+ 	c.bool = c.Ident("bool")
+ 	c.byte = c.Ident("byte")
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 892b1198f5..a4ff51933e 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -31,6 +31,7 @@ type Package struct {
+ 	PackageName string // name of package
+ 	PackagePath string
+ 	PtrSize     int64
++	IntSize     int64
+ 	GccOptions  []string
+ 	CgoFlags    map[string]string // #cgo flags (CFLAGS, LDFLAGS)
+ 	Written     map[string]bool
+@@ -129,6 +130,12 @@ var ptrSizeMap = map[string]int64{
+ 	"arm":   4,
+ }
+ 
++var intSizeMap = map[string]int64{
++	"386":   4,
++	"amd64": 4,
++	"arm":   4,
++}
++
+ var cPrefix string
+ 
+ var fset = token.NewFileSet()
+@@ -289,7 +296,11 @@ func newPackage(args []string) *Package {
+ 	}
+ 	ptrSize := ptrSizeMap[goarch]
+ 	if ptrSize == 0 {
+-		fatalf("unknown $GOARCH %q", goarch)
++		fatalf("unknown ptrSize for $GOARCH %q", goarch)
++	}
++	intSize := intSizeMap[goarch]
++	if intSize == 0 {
++		fatalf("unknown intSize for $GOARCH %q", goarch)
+ 	}
+ 
+ 	// Reset locale variables so gcc emits English errors [sic].
+@@ -298,6 +309,7 @@ func newPackage(args []string) *Package {
+ 
+ 	p := &Package{
+ 		PtrSize:    ptrSize,
++		IntSize:    intSize,
+ 		GccOptions: gccOptions,
+ 		CgoFlags:   make(map[string]string),
+ 		Written:    make(map[string]bool),
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 02ef5873f0..941d1f64ca 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -59,7 +59,7 @@ func (p *Package) writeDefs() {
+ 	}
+ 	fmt.Fprintf(fgo2, "type _ unsafe.Pointer\n\n")
+ 	if *importSyscall {
+-		fmt.Fprintf(fgo2, "func _Cerrno(dst *error, x int) { *dst = syscall.Errno(x) }\n")
++		fmt.Fprintf(fgo2, "func _Cerrno(dst *error, x int32) { *dst = syscall.Errno(x) }\n")
+ 	}
+ 
+ 	typedefNames := make([]string, 0, len(typedef))
+@@ -473,7 +473,7 @@ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
+ 
+ 	fmt.Fprintf(fgcch, "/* Created by cgo - DO NOT EDIT. */\n")
+ 	fmt.Fprintf(fgcch, "%s\n", p.Preamble)
+-	fmt.Fprintf(fgcch, "%s\n", gccExportHeaderProlog)
++	fmt.Fprintf(fgcch, "%s\n", p.gccExportHeaderProlog())
+ 
+ 	fmt.Fprintf(fgcc, "/* Created by cgo - DO NOT EDIT. */\n")
+ 	fmt.Fprintf(fgcc, "#include \"_cgo_export.h\"\n")
+@@ -664,7 +664,7 @@ func (p *Package) writeGccgoExports(fgo2, fc, fm *os.File) {
+ 
+ 	fmt.Fprintf(fgcch, "/* Created by cgo - DO NOT EDIT. */\n")
+ 	fmt.Fprintf(fgcch, "%s\n", p.Preamble)
+-	fmt.Fprintf(fgcch, "%s\n", gccExportHeaderProlog)
++	fmt.Fprintf(fgcch, "%s\n", p.gccExportHeaderProlog())
+ 	fmt.Fprintf(fm, "#include \"_cgo_export.h\"\n")
+ 
+ 	clean := func(r rune) rune {
+@@ -775,8 +775,8 @@ func c(repr string, args ...interface{}) *TypeRepr {
+ var goTypes = map[string]*Type{
+ 	"bool":       {Size: 1, Align: 1, C: c("GoUint8")},
+ 	"byte":       {Size: 1, Align: 1, C: c("GoUint8")},
+-	"int":        {Size: 4, Align: 4, C: c("GoInt")},
+-	"uint":       {Size: 4, Align: 4, C: c("GoUint")},
++	"int":        {Size: 0, Align: 0, C: c("GoInt")},
++	"uint":       {Size: 0, Align: 0, C: c("GoUint")},
+ 	"rune":       {Size: 4, Align: 4, C: c("GoInt32")},
+ 	"int8":       {Size: 1, Align: 1, C: c("GoInt8")},
+ 	"uint8":      {Size: 1, Align: 1, C: c("GoUint8")},
+@@ -837,12 +837,21 @@ func (p *Package) cgoType(e ast.Expr) *Type {
+ 			return &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("GoUintptr")}
+ 		}
+ 		if t.Name == "string" {
+-			return &Type{Size: p.PtrSize + 4, Align: p.PtrSize, C: c("GoString")}
++			// The string data is 1 pointer + 1 int, but this always
++			// rounds to 2 pointers due to alignment.
++			return &Type{Size: 2 * p.PtrSize, Align: p.PtrSize, C: c("GoString")}
+ 		}
+ 		if t.Name == "error" {
+ 			return &Type{Size: 2 * p.PtrSize, Align: p.PtrSize, C: c("GoInterface")}
+ 		}
+ 		if r, ok := goTypes[t.Name]; ok {
++			if r.Size == 0 { // int or uint
++				rr := new(Type)
++				*rr = *r
++				rr.Size = p.IntSize
++				rr.Align = p.IntSize
++				r = rr
++			}
+ 			if r.Align > p.PtrSize {
+ 				r.Align = p.PtrSize
+ 			}
+@@ -964,9 +973,11 @@ Slice GoBytes(char *p, int n) {
+ }
+ `
+ 
++func (p *Package) gccExportHeaderProlog() string {
++	return strings.Replace(gccExportHeaderProlog, "GOINTBITS", fmt.Sprint(8*p.IntSize), -1)
++}
++
+ const gccExportHeaderProlog = `
+-typedef int GoInt;
+-typedef unsigned int GoUint;
+ typedef signed char GoInt8;
+ typedef unsigned char GoUint8;
+ typedef short GoInt16;
+@@ -975,6 +986,8 @@ typedef int GoInt32;
+ typedef unsigned int GoUint32;
+ typedef long long GoInt64;
+ typedef unsigned long long GoUint64;
++typedef GoIntGOINTBITS GoInt;
++typedef GoUintGOINTBITS GoUint;
+ typedef __SIZE_TYPE__ GoUintptr;
+ typedef float GoFloat32;
+ typedef double GoFloat64;

@@ -9,7 +9,45 @@ Date:   Thu Jan 20 12:50:10 2011 -0500
     R=ken2, r
     CC=golang-dev
     https://golang.org/cl/4006045
-
+---
  src/cmd/5l/doc.go | 3 +++
  src/cmd/5l/obj.c  | 5 +++++
  2 files changed, 8 insertions(+)
+
+diff --git a/src/cmd/5l/doc.go b/src/cmd/5l/doc.go
+index 6f7408116b..72b5c33925 100644
+--- a/src/cmd/5l/doc.go
++++ b/src/cmd/5l/doc.go
+@@ -20,6 +20,9 @@ Original options are listed in the link above.
+ 
+ Options new in this version:
+ 
++-F
++	Force use of software floating point.
++	Also implied by setting GOARM=5 in the environment.
+ -L dir1 -L dir2
+ 	Search for libraries (package files) in dir1, dir2, etc.
+ 	The default is the single location $GOROOT/pkg/$GOOS_arm.
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index cb9ad9805e..b3e20fbd81 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -69,6 +69,7 @@ void
+ main(int argc, char *argv[])
+ {
+ 	int c, i;
++	char *p;
+ 
+ 	Binit(&bso, 1, OWRITE);
+ 	cout = -1;
+@@ -80,6 +81,10 @@ main(int argc, char *argv[])
+ 	INITDAT = -1;
+ 	INITRND = -1;
+ 	INITENTRY = 0;
++	
++	p = getenv("GOARM");
++	if(p != nil && strcmp(p, "5") == 0)
++		debug['F'] = 1;
+ 
+ 	ARGBEGIN {
+ 	default:

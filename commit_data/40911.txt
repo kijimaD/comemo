@@ -17,7 +17,38 @@ Date:   Fri Aug 16 10:42:18 2019 -0700
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/gofmt/testdata/import.golden | 5 +++++
  src/cmd/gofmt/testdata/import.input  | 3 +++
  2 files changed, 8 insertions(+)
+
+diff --git a/src/cmd/gofmt/testdata/import.golden b/src/cmd/gofmt/testdata/import.golden
+index 51d7be79df..29bdc9baf4 100644
+--- a/src/cmd/gofmt/testdata/import.golden
++++ b/src/cmd/gofmt/testdata/import.golden
+@@ -8,6 +8,11 @@ import (
+ 	"math"
+ )
+ 
++import (
++	"fmt"
++	"math"
++)
++
+ import (
+ 	"fmt"
+ 
+diff --git a/src/cmd/gofmt/testdata/import.input b/src/cmd/gofmt/testdata/import.input
+index 9a4b09dbf9..78ab4f6544 100644
+--- a/src/cmd/gofmt/testdata/import.input
++++ b/src/cmd/gofmt/testdata/import.input
+@@ -8,6 +8,9 @@ import (
+ 	"io"
+ )
+ 
++import("fmt"
++"math")
++
+ import (
+ 	"fmt"
+ 

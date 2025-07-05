@@ -49,7 +49,55 @@ Date:   Wed Mar 12 14:45:17 2025 -0400
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Jake Bailey <jacob.b.bailey@gmail.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/escape/graph.go | 7 +++++++
  src/cmd/compile/internal/escape/solve.go | 4 ++--
  2 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/graph.go b/src/cmd/compile/internal/escape/graph.go
+index 75e2546a7b..cd800bc4d6 100644
+--- a/src/cmd/compile/internal/escape/graph.go
++++ b/src/cmd/compile/internal/escape/graph.go
+@@ -75,6 +75,8 @@ type location struct {
+ 	captured   bool // has a closure captured this variable?
+ 	reassigned bool // has this variable been reassigned?
+ 	addrtaken  bool // has this variable's address been taken?
++	param      bool // is this variable a parameter (ONAME of class ir.PPARAM)?
++	paramOut   bool // is this variable an out parameter (ONAME of class ir.PPARAMOUT)?
+ }
+ 
+ type locAttr uint8
+@@ -281,6 +283,11 @@ func (e *escape) newLoc(n ir.Node, persists bool) *location {
+ 		curfn:     e.curfn,
+ 		loopDepth: e.loopDepth,
+ 	}
++	if loc.isName(ir.PPARAM) {
++		loc.param = true
++	} else if loc.isName(ir.PPARAMOUT) {
++		loc.paramOut = true
++	}
+ 	if persists {
+ 		loc.attrs |= attrPersists
+ 	}
+diff --git a/src/cmd/compile/internal/escape/solve.go b/src/cmd/compile/internal/escape/solve.go
+index 2002f2fbe4..4b0db1884d 100644
+--- a/src/cmd/compile/internal/escape/solve.go
++++ b/src/cmd/compile/internal/escape/solve.go
+@@ -126,7 +126,7 @@ func (b *batch) walkOne(root *location, walkgen uint32, enqueue func(*location))
+ 		// corresponding result parameter, then record
+ 		// that value flow for tagging the function
+ 		// later.
+-		if l.isName(ir.PPARAM) {
++		if l.param {
+ 			if b.outlives(root, l) {
+ 				if !l.hasAttr(attrEscapes) && (logopt.Enabled() || base.Flag.LowerM >= 2) {
+ 					if base.Flag.LowerM >= 2 {
+@@ -270,7 +270,7 @@ func (b *batch) outlives(l, other *location) bool {
+ 	// We don't know what callers do with returned values, so
+ 	// pessimistically we need to assume they flow to the heap and
+ 	// outlive everything too.
+-	if l.isName(ir.PPARAMOUT) {
++	if l.paramOut {
+ 		// Exception: Closures can return locations allocated outside of
+ 		// them without forcing them to the heap, if we can statically
+ 		// identify all call sites. For example:

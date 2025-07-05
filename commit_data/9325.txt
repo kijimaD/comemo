@@ -23,7 +23,95 @@ Date:   Wed Aug 10 17:17:28 2011 +1000
     R=golang-dev, r
     CC=golang-dev, hectorchu
     https://golang.org/cl/4832060
-
+---
  src/pkg/runtime/runtime.h         |  3 ---
  src/pkg/runtime/windows/386/sys.s | 26 +++++++++++++++-----------
  2 files changed, 15 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 8c5403f444..00be565ce0 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -248,12 +248,9 @@ struct	M
+ 	uint32	freghi[16];	// D[i] msb and F[i+16]
+ 	uint32	fflag;		// floating point compare flags
+ #ifdef __WINDOWS__
+-	void*	sehframe;
+-
+ #ifdef _64BIT	
+ 	void*	gostack;
+ #endif
+-
+ #endif
+ };
+ 
+diff --git a/src/pkg/runtime/windows/386/sys.s b/src/pkg/runtime/windows/386/sys.s
+index d38405075b..703f77d55b 100644
+--- a/src/pkg/runtime/windows/386/sys.s
++++ b/src/pkg/runtime/windows/386/sys.s
+@@ -14,8 +14,6 @@ TEXT runtime·stdcall_raw(SB),7,$0
+ 	// Switch to m->g0 if needed.
+ 	get_tls(DI)
+ 	MOVL	m(DI), DX
+-	MOVL	0(FS), SI
+-	MOVL	SI, m_sehframe(DX)
+ 	MOVL	m_g0(DX), SI
+ 	CMPL	g(DI), SI
+ 	MOVL	SP, BX
+@@ -116,7 +114,7 @@ TEXT runtime·ctrlhandler(SB),7,$0
+ 	MOVL	SP, BX
+ 
+ 	// setup dummy m, g
+-	SUBL	$(m_sehframe+4), SP	// at least space for m_sehframe
++	SUBL	$(m_fflag+4), SP	// at least space for m_fflag
+ 	LEAL	m_tls(SP), CX
+ 	MOVL	CX, 0x2c(FS)
+ 	MOVL	SP, m(CX)
+@@ -159,33 +157,39 @@ TEXT runtime·callbackasm+0(SB),7,$0
+ 	ADDL	$4, DX			// extend argsize by size of return value
+ 
+ 	// save registers as required for windows callback
+-	PUSHL	0(FS)
+ 	PUSHL	DI
+ 	PUSHL	SI
+ 	PUSHL	BP
+ 	PUSHL	BX
++
++	// set up SEH frame again
++	PUSHL	$runtime·sigtramp(SB)
++	PUSHL	0(FS)
++	MOVL	SP, 0(FS)
++
++	// callback parameters
+ 	PUSHL	DX
+ 	PUSHL	CX
+ 	PUSHL	AX
+ 
+-	// reinstall our SEH handler
+-	get_tls(CX)
+-	MOVL	m(CX), CX
+-	MOVL	m_sehframe(CX), CX
+-	MOVL	CX, 0(FS)
+ 	CLD
+ 
+ 	CALL	runtime·cgocallback(SB)
+ 
+-	// restore registers as required for windows callback
+ 	POPL	AX
+ 	POPL	CX
+ 	POPL	DX
++
++	// pop SEH frame
++	POPL	0(FS)
++	POPL	BX
++
++	// restore registers as required for windows callback
+ 	POPL	BX
+ 	POPL	BP
+ 	POPL	SI
+ 	POPL	DI
+-	POPL	0(FS)
++
+ 	CLD
+ 
+ 	MOVL	-4(CX)(DX*1), AX

@@ -10,6 +10,20 @@ Date:   Tue Jun 3 18:11:17 2014 +1000
     R=adg
     CC=agl, golang-codereviews, r
     https://golang.org/cl/107740043
-
+---
  src/pkg/crypto/tls/tls.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/tls/tls.go b/src/pkg/crypto/tls/tls.go
+index 0b856c4e16..d50e120292 100644
+--- a/src/pkg/crypto/tls/tls.go
++++ b/src/pkg/crypto/tls/tls.go
+@@ -28,7 +28,7 @@ func Server(conn net.Conn, config *Config) *Conn {
+ 
+ // Client returns a new TLS client side connection
+ // using conn as the underlying transport.
+-// The config cannot be nil: users must set either ServerHostname or
++// The config cannot be nil: users must set either ServerName or
+ // InsecureSkipVerify in the config.
+ func Client(conn net.Conn, config *Config) *Conn {
+ 	return &Conn{conn: conn, config: config, isClient: true}

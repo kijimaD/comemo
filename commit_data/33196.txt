@@ -12,6 +12,29 @@ Date:   Thu Jul 27 04:33:18 2017 +0000
     (cherry picked from commit 4833e920c1d7f6b23458e6ff3c73951fcf754219)
     Reviewed-on: https://go-review.googlesource.com/51450
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/test.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 6846970ecf..73432d31ea 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -447,6 +447,17 @@ func (t *tester) registerTests() {
+ 				t.runPending(dt)
+ 				moved := t.goroot + "-moved"
+ 				if err := os.Rename(t.goroot, moved); err != nil {
++					if t.goos == "windows" {
++						// Fails on Windows (with "Access is denied") if a process
++						// or binary is in this directory. For instance, using all.bat
++						// when run from c:\workdir\go\src fails here
++						// if GO_BUILDER_NAME is set. Our builders invoke tests
++						// a different way which happens to work when sharding
++						// tests, but we should be tolerant of the non-sharded
++						// all.bat case.
++						log.Printf("skipping test on Windows")
++						return nil
++					}
+ 					return err
+ 				}
+ 

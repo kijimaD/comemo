@@ -14,7 +14,42 @@ Date:   Sun Aug 22 15:21:29 2021 -0700
     Trust: Dan Scales <danscales@google.com>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/go/types/api_test.go | 3 +++
  src/go/types/builtins.go | 9 +++++++++
  2 files changed, 12 insertions(+)
+
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 1631215d15..a49f2113b9 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -362,6 +362,9 @@ func TestTypesInfo(t *testing.T) {
+ 
+ 		// issue 45096
+ 		{genericPkg + `issue45096; func _[T interface{ ~int8 | ~int16 | ~int32  }](x T) { _ = x < 0 }`, `0`, `generic_issue45096.T₁`},
++
++		// issue 47895
++		{`package p; import "unsafe"; type S struct { f int }; var s S; var _ = unsafe.Offsetof(s.f)`, `s.f`, `int`},
+ 	}
+ 
+ 	for _, test := range tests {
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 9c772d3844..698435bc20 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -671,6 +671,15 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		// TODO(gri) Should we pass x.typ instead of base (and have indirect report if derefStructPtr indirected)?
+ 		check.recordSelection(selx, FieldVal, base, obj, index, false)
+ 
++		// record the selector expression (was bug - issue #47895)
++		{
++			mode := value
++			if x.mode == variable || indirect {
++				mode = variable
++			}
++			check.record(&operand{mode, selx, obj.Type(), nil, 0})
++		}
++
+ 		// The field offset is considered a variable even if the field is declared before
+ 		// the part of the struct which is variable-sized. This makes both the rules
+ 		// simpler and also permits (or at least doesn't prevent) a compiler from re-

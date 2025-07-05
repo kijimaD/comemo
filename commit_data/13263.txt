@@ -9,6 +9,20 @@ Date:   Sun Jun 3 22:40:16 2012 -0700
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/6278049
-
+---
  src/pkg/net/http/request.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/request.go b/src/pkg/net/http/request.go
+index f42d43e404..d442b13fda 100644
+--- a/src/pkg/net/http/request.go
++++ b/src/pkg/net/http/request.go
+@@ -515,7 +515,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err error) {
+ 	if req.Host == "" {
+ 		req.Host = req.Header.get("Host")
+ 	}
+-	req.Header.Del("Host")
++	delete(req.Header, "Host")
+ 
+ 	fixPragmaCacheControl(req.Header)
+ 

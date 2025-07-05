@@ -14,6 +14,32 @@ Date:   Mon Aug 7 13:44:17 2023 +0000
     Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/testing/benchmark.go | 14 --------------
  1 file changed, 14 deletions(-)
+
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index 0faf075d93..e408595993 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -198,20 +198,6 @@ func (b *B) runN(n int) {
+ 	}
+ }
+ 
+-func min(x, y int64) int64 {
+-	if x > y {
+-		return y
+-	}
+-	return x
+-}
+-
+-func max(x, y int64) int64 {
+-	if x < y {
+-		return y
+-	}
+-	return x
+-}
+-
+ // run1 runs the first iteration of benchFunc. It reports whether more
+ // iterations of this benchmarks should be run.
+ func (b *B) run1() bool {

@@ -13,6 +13,21 @@ Date:   Sun Mar 13 22:38:15 2022 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/codes.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/codes.go b/src/cmd/compile/internal/noder/codes.go
+index bc0831dd78..8f54a07ca4 100644
+--- a/src/cmd/compile/internal/noder/codes.go
++++ b/src/cmd/compile/internal/noder/codes.go
+@@ -29,9 +29,6 @@ const (
+ 	stmtFor
+ 	stmtSwitch
+ 	stmtSelect
+-
+-	// TODO(mdempsky): Remove after we don't care about toolstash -cmp.
+-	stmtTypeDeclHack
+ )
+ 
+ type codeExpr int

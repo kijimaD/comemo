@@ -9,7 +9,7 @@ Date:   Fri Feb 17 14:36:40 2012 +1100
     R=rsc, minux.ma, r, rsc
     CC=golang-dev
     https://golang.org/cl/5674072
-
+---
  src/pkg/runtime/runtime.h              |  8 +++++---
  src/pkg/runtime/signal_plan9_386.c     |  5 +++++
  src/pkg/runtime/signal_unix.c          | 22 ++++++++++++++++++++--
@@ -22,3 +22,287 @@ Date:   Fri Feb 17 14:36:40 2012 +1100
  src/pkg/runtime/signals_openbsd.h      |  8 +++++---
  src/pkg/runtime/sigqueue.goc           |  2 ++
  11 files changed, 67 insertions(+), 20 deletions(-)
+
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 48f6b3e34b..910f00c8a2 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -268,9 +268,10 @@ struct	SigTab
+ enum
+ {
+ 	SigNotify = 1<<0,	// let signal.Notify have signal, even if from kernel
+-	SigKill = 1<<1,  // if signal.Notify doesn't take it, exit quietly
+-	SigThrow = 1<<2,  // if signal.Notify doesn't take it, exit loudly
+-	SigPanic = 1<<3,  // if the signal is from the kernel, panic
++	SigKill = 1<<1,		// if signal.Notify doesn't take it, exit quietly
++	SigThrow = 1<<2,	// if signal.Notify doesn't take it, exit loudly
++	SigPanic = 1<<3,	// if the signal is from the kernel, panic
++	SigDefault = 1<<4,	// if the signal isn't explicitly requested, don't monitor it
+ };
+ 
+ // NOTE(rsc): keep in sync with extern.go:/type.Func.
+@@ -501,6 +502,7 @@ Slice	runtime·gobytes(byte*, int32);
+ String	runtime·gostringnocopy(byte*);
+ String	runtime·gostringw(uint16*);
+ void	runtime·initsig(void);
++void	runtime·sigenable(uint32 sig);
+ int32	runtime·gotraceback(void);
+ void	runtime·goroutineheader(G*);
+ void	runtime·traceback(uint8 *pc, uint8 *sp, uint8 *lr, G* gp);
+diff --git a/src/pkg/runtime/signal_plan9_386.c b/src/pkg/runtime/signal_plan9_386.c
+index c0b759c713..996ce8b40e 100644
+--- a/src/pkg/runtime/signal_plan9_386.c
++++ b/src/pkg/runtime/signal_plan9_386.c
+@@ -10,6 +10,11 @@ runtime·signame(int32)
+ 	return runtime·emptystring;
+ }
+ 
++void
++runtime·sigenable(uint32 sig)
++{
++}
++
+ void
+ runtime·resetcpuprofiler(int32 hz)
+ {
+diff --git a/src/pkg/runtime/signal_unix.c b/src/pkg/runtime/signal_unix.c
+index 14ce1418f8..13708415b9 100644
+--- a/src/pkg/runtime/signal_unix.c
++++ b/src/pkg/runtime/signal_unix.c
+@@ -27,9 +27,27 @@ runtime·initsig(void)
+ 	// First call: basic setup.
+ 	for(i = 0; i<NSIG; i++) {
+ 		t = &runtime·sigtab[i];
+-		if(t->flags == 0)
++		if((t->flags == 0) || (t->flags & SigDefault))
+ 			continue;
+-		runtime·setsig(i, runtime·sighandler, 1);
++		runtime·setsig(i, runtime·sighandler, true);
++	}
++}
++
++void
++runtime·sigenable(uint32 sig)
++{
++	int32 i;
++	SigTab *t;
++
++	for(i = 0; i<NSIG; i++) {
++		// ~0 means all signals.
++		if(~sig == 0 || i == sig) {
++			t = &runtime·sigtab[i];
++			if(t->flags & SigDefault) {
++				runtime·setsig(i, runtime·sighandler, true);
++				t->flags &= ~SigDefault;  // make this idempotent
++			}
++		}
+ 	}
+ }
+ 
+diff --git a/src/pkg/runtime/signal_windows_386.c b/src/pkg/runtime/signal_windows_386.c
+index 0efa8c0731..7b3492ff35 100644
+--- a/src/pkg/runtime/signal_windows_386.c
++++ b/src/pkg/runtime/signal_windows_386.c
+@@ -80,6 +80,11 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
+ 	return 0;
+ }
+ 
++void
++runtime·sigenable(uint32 sig)
++{
++}
++
+ void
+ runtime·dosigprof(Context *r, G *gp)
+ {
+diff --git a/src/pkg/runtime/signal_windows_amd64.c b/src/pkg/runtime/signal_windows_amd64.c
+index 3db89e6d3e..e5e20fa0ba 100644
+--- a/src/pkg/runtime/signal_windows_amd64.c
++++ b/src/pkg/runtime/signal_windows_amd64.c
+@@ -87,6 +87,11 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
+ 	return 0;
+ }
+ 
++void
++runtime·sigenable(uint32 sig)
++{
++}
++
+ void
+ runtime·dosigprof(Context *r, G *gp)
+ {
+diff --git a/src/pkg/runtime/signals_darwin.h b/src/pkg/runtime/signals_darwin.h
+index 4ff08bcdc9..229b585902 100644
+--- a/src/pkg/runtime/signals_darwin.h
++++ b/src/pkg/runtime/signals_darwin.h
+@@ -6,6 +6,7 @@
+ #define K SigKill
+ #define T SigThrow
+ #define P SigPanic
++#define D SigDefault
+ 
+ SigTab runtime·sigtab[] = {
+ 	/* 0 */	0, "SIGNONE: no trap",
+@@ -26,11 +27,11 @@ SigTab runtime·sigtab[] = {
+ 	/* 15 */	N+K, "SIGTERM: termination",
+ 	/* 16 */	N, "SIGURG: urgent condition on socket",
+ 	/* 17 */	0, "SIGSTOP: stop",
+-	/* 18 */	N, "SIGTSTP: keyboard stop",
++	/* 18 */	N+D, "SIGTSTP: keyboard stop",
+ 	/* 19 */	0, "SIGCONT: continue after stop",
+ 	/* 20 */	N, "SIGCHLD: child status has changed",
+-	/* 21 */	N, "SIGTTIN: background read from tty",
+-	/* 22 */	N, "SIGTTOU: background write to tty",
++	/* 21 */	N+D, "SIGTTIN: background read from tty",
++	/* 22 */	N+D, "SIGTTOU: background write to tty",
+ 	/* 23 */	N, "SIGIO: i/o now possible",
+ 	/* 24 */	N, "SIGXCPU: cpu limit exceeded",
+ 	/* 25 */	N, "SIGXFSZ: file size limit exceeded",
+@@ -46,3 +47,4 @@ SigTab runtime·sigtab[] = {
+ #undef K
+ #undef T
+ #undef P
++#undef D
+diff --git a/src/pkg/runtime/signals_freebsd.h b/src/pkg/runtime/signals_freebsd.h
+index 6a15017325..4d27e050d0 100644
+--- a/src/pkg/runtime/signals_freebsd.h
++++ b/src/pkg/runtime/signals_freebsd.h
+@@ -6,6 +6,7 @@
+ #define K SigKill
+ #define T SigThrow
+ #define P SigPanic
++#define D SigDefault
+ 
+ SigTab runtime·sigtab[] = {
+ 	/* 0 */	0, "SIGNONE: no trap",
+@@ -26,11 +27,11 @@ SigTab runtime·sigtab[] = {
+ 	/* 15 */	N+K, "SIGTERM: termination",
+ 	/* 16 */	N, "SIGURG: urgent condition on socket",
+ 	/* 17 */	0, "SIGSTOP: stop",
+-	/* 18 */	N, "SIGTSTP: keyboard stop",
++	/* 18 */	N+D, "SIGTSTP: keyboard stop",
+ 	/* 19 */	0, "SIGCONT: continue after stop",
+ 	/* 20 */	N, "SIGCHLD: child status has changed",
+-	/* 21 */	N, "SIGTTIN: background read from tty",
+-	/* 22 */	N, "SIGTTOU: background write to tty",
++	/* 21 */	N+D, "SIGTTIN: background read from tty",
++	/* 22 */	N+D, "SIGTTOU: background write to tty",
+ 	/* 23 */	N, "SIGIO: i/o now possible",
+ 	/* 24 */	N, "SIGXCPU: cpu limit exceeded",
+ 	/* 25 */	N, "SIGXFSZ: file size limit exceeded",
+@@ -47,3 +48,4 @@ SigTab runtime·sigtab[] = {
+ #undef K
+ #undef T
+ #undef P
++#undef D
+diff --git a/src/pkg/runtime/signals_linux.h b/src/pkg/runtime/signals_linux.h
+index 1df063a187..345a6c5d11 100644
+--- a/src/pkg/runtime/signals_linux.h
++++ b/src/pkg/runtime/signals_linux.h
+@@ -6,6 +6,7 @@
+ #define K SigKill
+ #define T SigThrow
+ #define P SigPanic
++#define D SigDefault
+ 
+ SigTab runtime·sigtab[] = {
+ 	/* 0 */	0, "SIGNONE: no trap",
+@@ -28,9 +29,9 @@ SigTab runtime·sigtab[] = {
+ 	/* 17 */	N, "SIGCHLD: child status has changed",
+ 	/* 18 */	0, "SIGCONT: continue",
+ 	/* 19 */	0, "SIGSTOP: stop, unblockable",
+-	/* 20 */	N, "SIGTSTP: keyboard stop",
+-	/* 21 */	N, "SIGTTIN: background read from tty",
+-	/* 22 */	N, "SIGTTOU: background write to tty",
++	/* 20 */	N+D, "SIGTSTP: keyboard stop",
++	/* 21 */	N+D, "SIGTTIN: background read from tty",
++	/* 22 */	N+D, "SIGTTOU: background write to tty",
+ 	/* 23 */	N, "SIGURG: urgent condition on socket",
+ 	/* 24 */	N, "SIGXCPU: cpu limit exceeded",
+ 	/* 25 */	N, "SIGXFSZ: file size limit exceeded",
+@@ -79,3 +80,4 @@ SigTab runtime·sigtab[] = {
+ #undef K
+ #undef T
+ #undef P
++#undef D
+diff --git a/src/pkg/runtime/signals_netbsd.h b/src/pkg/runtime/signals_netbsd.h
+index 6a15017325..4d27e050d0 100644
+--- a/src/pkg/runtime/signals_netbsd.h
++++ b/src/pkg/runtime/signals_netbsd.h
+@@ -6,6 +6,7 @@
+ #define K SigKill
+ #define T SigThrow
+ #define P SigPanic
++#define D SigDefault
+ 
+ SigTab runtime·sigtab[] = {
+ 	/* 0 */	0, "SIGNONE: no trap",
+@@ -26,11 +27,11 @@ SigTab runtime·sigtab[] = {
+ 	/* 15 */	N+K, "SIGTERM: termination",
+ 	/* 16 */	N, "SIGURG: urgent condition on socket",
+ 	/* 17 */	0, "SIGSTOP: stop",
+-	/* 18 */	N, "SIGTSTP: keyboard stop",
++	/* 18 */	N+D, "SIGTSTP: keyboard stop",
+ 	/* 19 */	0, "SIGCONT: continue after stop",
+ 	/* 20 */	N, "SIGCHLD: child status has changed",
+-	/* 21 */	N, "SIGTTIN: background read from tty",
+-	/* 22 */	N, "SIGTTOU: background write to tty",
++	/* 21 */	N+D, "SIGTTIN: background read from tty",
++	/* 22 */	N+D, "SIGTTOU: background write to tty",
+ 	/* 23 */	N, "SIGIO: i/o now possible",
+ 	/* 24 */	N, "SIGXCPU: cpu limit exceeded",
+ 	/* 25 */	N, "SIGXFSZ: file size limit exceeded",
+@@ -47,3 +48,4 @@ SigTab runtime·sigtab[] = {
+ #undef K
+ #undef T
+ #undef P
++#undef D
+diff --git a/src/pkg/runtime/signals_openbsd.h b/src/pkg/runtime/signals_openbsd.h
+index 6a15017325..4d27e050d0 100644
+--- a/src/pkg/runtime/signals_openbsd.h
++++ b/src/pkg/runtime/signals_openbsd.h
+@@ -6,6 +6,7 @@
+ #define K SigKill
+ #define T SigThrow
+ #define P SigPanic
++#define D SigDefault
+ 
+ SigTab runtime·sigtab[] = {
+ 	/* 0 */	0, "SIGNONE: no trap",
+@@ -26,11 +27,11 @@ SigTab runtime·sigtab[] = {
+ 	/* 15 */	N+K, "SIGTERM: termination",
+ 	/* 16 */	N, "SIGURG: urgent condition on socket",
+ 	/* 17 */	0, "SIGSTOP: stop",
+-	/* 18 */	N, "SIGTSTP: keyboard stop",
++	/* 18 */	N+D, "SIGTSTP: keyboard stop",
+ 	/* 19 */	0, "SIGCONT: continue after stop",
+ 	/* 20 */	N, "SIGCHLD: child status has changed",
+-	/* 21 */	N, "SIGTTIN: background read from tty",
+-	/* 22 */	N, "SIGTTOU: background write to tty",
++	/* 21 */	N+D, "SIGTTIN: background read from tty",
++	/* 22 */	N+D, "SIGTTOU: background write to tty",
+ 	/* 23 */	N, "SIGIO: i/o now possible",
+ 	/* 24 */	N, "SIGXCPU: cpu limit exceeded",
+ 	/* 25 */	N, "SIGXFSZ: file size limit exceeded",
+@@ -47,3 +48,4 @@ SigTab runtime·sigtab[] = {
+ #undef K
+ #undef T
+ #undef P
++#undef D
+diff --git a/src/pkg/runtime/sigqueue.goc b/src/pkg/runtime/sigqueue.goc
+index 02b5755012..b49fdba86e 100644
+--- a/src/pkg/runtime/sigqueue.goc
++++ b/src/pkg/runtime/sigqueue.goc
+@@ -140,10 +140,12 @@ func signal_enable(s uint32) {
+ 		// Special case: want everything.
+ 		for(i=0; i<nelem(sig.wanted); i++)
+ 			sig.wanted[i] = ~(uint32)0;
++		runtime·sigenable(s);
+ 		return;
+ 	}
+ 
+ 	if(s >= nelem(sig.wanted)*32)
+ 		return;
+ 	sig.wanted[s/32] |= 1U<<(s&31);
++	runtime·sigenable(s);
+ }

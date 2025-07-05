@@ -18,6 +18,26 @@ Date:   Wed Jan 31 14:01:12 2024 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/559800
     Reviewed-by: Alan Donovan <adonovan@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/debug/stack.go | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/debug/stack.go b/src/runtime/debug/stack.go
+index 508afe1f97..7072d29c96 100644
+--- a/src/runtime/debug/stack.go
++++ b/src/runtime/debug/stack.go
+@@ -33,9 +33,11 @@ func Stack() []byte {
+ 
+ // SetCrashOutput configures a single additional file where unhandled
+ // panics and other fatal errors are printed, in addition to standard error.
+-// There is only one additional file: calling SetCrashOutput again
+-// overrides any earlier call; it does not close the previous file.
+-// SetCrashOutput(nil) disables the use of any additional file.
++// There is only one additional file: calling SetCrashOutput again overrides
++// any earlier call.
++// SetCrashOutput duplicates f's file descriptor, so the caller may safely
++// close f as soon as SetCrashOutput returns.
++// To disable this additional crash output, call SetCrashOutput(nil).
+ func SetCrashOutput(f *os.File) error {
+ 	fd := ^uintptr(0)
+ 	if f != nil {

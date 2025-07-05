@@ -17,7 +17,45 @@ Date:   Wed Nov 3 11:26:37 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/types/pkg.go  | 9 ++++++++-
  src/cmd/compile/internal/types/type.go | 2 +-
  2 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types/pkg.go b/src/cmd/compile/internal/types/pkg.go
+index f63a357f0d..fe42049cee 100644
+--- a/src/cmd/compile/internal/types/pkg.go
++++ b/src/cmd/compile/internal/types/pkg.go
+@@ -9,6 +9,7 @@ import (
+ 	"cmd/internal/objabi"
+ 	"fmt"
+ 	"sort"
++	"strings"
+ 	"sync"
+ )
+ 
+@@ -48,7 +49,13 @@ func NewPkg(path, name string) *Pkg {
+ 	p := new(Pkg)
+ 	p.Path = path
+ 	p.Name = name
+-	p.Prefix = objabi.PathToPrefix(path)
++	if strings.HasPrefix(path, "go.") {
++		// Special compiler-internal packages don't need to be escaped.
++		// This particularly helps with the go.shape package.
++		p.Prefix = path
++	} else {
++		p.Prefix = objabi.PathToPrefix(path)
++	}
+ 	p.Syms = make(map[string]*Sym)
+ 	pkgMap[path] = p
+ 
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index c3efbc9f07..6288df30d6 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -2202,4 +2202,4 @@ var (
+ 
+ var SimType [NTYPE]Kind
+ 
+-var ShapePkg = NewPkg(".shape", ".shape")
++var ShapePkg = NewPkg("go.shape", "go.shape")

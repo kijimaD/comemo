@@ -9,8 +9,151 @@ Date:   Wed Mar 1 21:46:08 2017 -0800
     Change-Id: I3f4fcc0b189c53819ac29ef8de86fdad76a17488
     Reviewed-on: https://go-review.googlesource.com/37663
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go  |  5 ++++
  src/cmd/compile/internal/gc/walk.go | 41 ++++++++++++++++++++++----
  test/fixedbugs/issue19168.go        | 58 +++++++++++++++++++++++++++++++++++++
  3 files changed, 98 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 63f9d8720d..6fc6c0efbe 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3454,6 +3454,11 @@ func (s *state) insertWBstore(t *Type, left, right *ssa.Value, skip skipMask) {
+ 	if !s.WBPos.IsKnown() {
+ 		s.WBPos = left.Pos
+ 	}
++	if t == Types[TUINTPTR] {
++		// Stores to reflect.{Slice,String}Header.Data.
++		s.vars[&memVar] = s.newValue3I(ssa.OpStoreWB, ssa.TypeMem, s.config.PtrSize, left, right, s.mem())
++		return
++	}
+ 	s.storeTypeScalars(t, left, right, skip)
+ 	s.storeTypePtrsWB(t, left, right)
+ }
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 2ba994991b..0bcea85e25 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -2006,6 +2006,29 @@ func isstack(n *Node) bool {
+ 	return false
+ }
+ 
++// isReflectHeaderDataField reports whether l is an expression p.Data
++// where p has type reflect.SliceHeader or reflect.StringHeader.
++func isReflectHeaderDataField(l *Node) bool {
++	if l.Type != Types[TUINTPTR] {
++		return false
++	}
++
++	var tsym *Sym
++	switch l.Op {
++	case ODOT:
++		tsym = l.Left.Type.Sym
++	case ODOTPTR:
++		tsym = l.Left.Type.Elem().Sym
++	default:
++		return false
++	}
++
++	if tsym == nil || l.Sym.Name != "Data" || tsym.Pkg.Path != "reflect" {
++		return false
++	}
++	return tsym.Name == "SliceHeader" || tsym.Name == "StringHeader"
++}
++
+ // Do we need a write barrier for assigning to l?
+ func needwritebarrier(l *Node) bool {
+ 	if !use_writebarrier {
+@@ -2016,15 +2039,21 @@ func needwritebarrier(l *Node) bool {
+ 		return false
+ 	}
+ 
+-	// No write barrier for write of non-pointers.
+-	dowidth(l.Type)
+-
+-	if !haspointers(l.Type) {
++	// No write barrier for write to stack.
++	if isstack(l) {
+ 		return false
+ 	}
+ 
+-	// No write barrier for write to stack.
+-	if isstack(l) {
++	// Package unsafe's documentation says storing pointers into
++	// reflect.SliceHeader and reflect.StringHeader's Data fields
++	// is valid, even though they have type uintptr (#19168).
++	if isReflectHeaderDataField(l) {
++		return true
++	}
++
++	// No write barrier for write of non-pointers.
++	dowidth(l.Type)
++	if !haspointers(l.Type) {
+ 		return false
+ 	}
+ 
+diff --git a/test/fixedbugs/issue19168.go b/test/fixedbugs/issue19168.go
+new file mode 100644
+index 0000000000..b94b1d0a99
+--- /dev/null
++++ b/test/fixedbugs/issue19168.go
+@@ -0,0 +1,58 @@
++// errorcheck -0 -l -d=wb
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import (
++	"reflect"
++	"unsafe"
++
++	reflect2 "reflect"
++)
++
++func sink(e interface{})
++
++func a(hdr *reflect.SliceHeader, p *byte) {
++	hdr.Data = uintptr(unsafe.Pointer(p)) // ERROR "write barrier"
++}
++
++func b(hdr *reflect.StringHeader, p *byte) {
++	hdr.Data = uintptr(unsafe.Pointer(p)) // ERROR "write barrier"
++}
++
++func c(hdrs *[1]reflect.SliceHeader, p *byte) {
++	hdrs[0].Data = uintptr(unsafe.Pointer(p)) // ERROR "write barrier"
++}
++
++func d(hdr *struct{ s reflect.StringHeader }, p *byte) {
++	hdr.s.Data = uintptr(unsafe.Pointer(p)) // ERROR "write barrier"
++}
++
++func e(p *byte) (resHeap, resStack string) {
++	sink(&resHeap)
++
++	hdr := (*reflect.StringHeader)(unsafe.Pointer(&resHeap))
++	hdr.Data = uintptr(unsafe.Pointer(p)) // ERROR "write barrier"
++
++	// No write barrier for non-escaping stack vars.
++	hdr = (*reflect.StringHeader)(unsafe.Pointer(&resStack))
++	hdr.Data = uintptr(unsafe.Pointer(p))
++
++	return
++}
++
++func f(hdr *reflect2.SliceHeader, p *byte) {
++	hdr.Data = uintptr(unsafe.Pointer(p)) // ERROR "write barrier"
++}
++
++type SliceHeader struct {
++	Data uintptr
++}
++
++func g(hdr *SliceHeader, p *byte) {
++	// No write barrier for lookalike SliceHeader.
++	hdr.Data = uintptr(unsafe.Pointer(p))
++}

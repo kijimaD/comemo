@@ -16,8 +16,61 @@ Date:   Tue Sep 25 15:44:27 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/mcentral.go | 2 +-
  src/runtime/mgcsweep.go | 2 +-
  src/runtime/mheap.go    | 8 ++++++--
  3 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index 9ca8e5d222..baede31405 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -244,7 +244,7 @@ func (c *mcentral) freeSpan(s *mspan, preserve bool, wasempty bool) bool {
+ 
+ 	c.nonempty.remove(s)
+ 	unlock(&c.lock)
+-	mheap_.freeSpan(s, 0)
++	mheap_.freeSpan(s, false)
+ 	return true
+ }
+ 
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 00950aede2..104bd868fa 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -366,7 +366,7 @@ func (s *mspan) sweep(preserve bool) bool {
+ 			s.limit = 0 // prevent mlookup from finding this span
+ 			sysFault(unsafe.Pointer(s.base()), size)
+ 		} else {
+-			mheap_.freeSpan(s, 1)
++			mheap_.freeSpan(s, true)
+ 		}
+ 		c.local_nlargefree++
+ 		c.local_largefree += size
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 1d672cdf21..48b3f5364a 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -945,7 +945,10 @@ func (h *mheap) grow(npage uintptr) bool {
+ }
+ 
+ // Free the span back into the heap.
+-func (h *mheap) freeSpan(s *mspan, acct int32) {
++//
++// large must match the value of large passed to mheap.alloc. This is
++// used for accounting.
++func (h *mheap) freeSpan(s *mspan, large bool) {
+ 	systemstack(func() {
+ 		mp := getg().m
+ 		lock(&h.lock)
+@@ -959,7 +962,8 @@ func (h *mheap) freeSpan(s *mspan, acct int32) {
+ 			bytes := s.npages << _PageShift
+ 			msanfree(base, bytes)
+ 		}
+-		if acct != 0 {
++		if large {
++			// Match accounting done in mheap.alloc.
+ 			memstats.heap_objects--
+ 		}
+ 		if gcBlackenEnabled != 0 {

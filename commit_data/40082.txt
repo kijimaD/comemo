@@ -17,6 +17,30 @@ Date:   Sun Apr 14 07:52:05 2019 +0200
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modload/init.go | 9 +--------
  1 file changed, 1 insertion(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index d0beb6e747..4bc4a2449c 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -559,17 +559,10 @@ func findModulePath(dir string) (string, error) {
+ 		}
+ 	}
+ 
+-	// Look for .git/config with github origin as last resort.
+-	data, _ = ioutil.ReadFile(filepath.Join(dir, ".git/config"))
+-	if m := gitOriginRE.FindSubmatch(data); m != nil {
+-		return "github.com/" + string(m[1]), nil
+-	}
+-
+-	return "", fmt.Errorf("cannot determine module path for source directory %s (outside GOPATH, module path not specified)", dir)
++	return "", fmt.Errorf("cannot determine module path for source directory %s (outside GOPATH, module path must be specified)", dir)
+ }
+ 
+ var (
+-	gitOriginRE     = lazyregexp.New(`(?m)^\[remote "origin"\]\r?\n\turl = (?:https://github.com/|git@github.com:|gh:)([^/]+/[^/]+?)(\.git)?\r?\n`)
+ 	importCommentRE = lazyregexp.New(`(?m)^package[ \t]+[^ \t\r\n/]+[ \t]+//[ \t]+import[ \t]+(\"[^"]+\")[ \t]*\r?\n`)
+ )
+ 

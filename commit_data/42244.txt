@@ -14,8 +14,66 @@ Date:   Mon Nov 18 14:28:15 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go                          | 13 -------------
  src/cmd/go/testdata/dep_test.go                |  7 -------
  src/cmd/go/testdata/script/test_rebuildall.txt | 14 ++++++++++++++
  3 files changed, 14 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 0a5021e459..aaeb42d98c 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2711,19 +2711,6 @@ func TestIssue7108(t *testing.T) {
+ 	tg.runFail("test", "notest")
+ }
+ 
+-// cmd/go: go test -a foo does not rebuild regexp.
+-func TestIssue6844(t *testing.T) {
+-	if testing.Short() {
+-		t.Skip("don't rebuild the standard library in short mode")
+-	}
+-
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.creatingTemp("deps.test" + exeSuffix)
+-	tg.run("test", "-x", "-a", "-c", "testdata/dep_test.go")
+-	tg.grepStderr("regexp", "go test -x -a -c testdata/dep-test.go did not rebuild regexp")
+-}
+-
+ func TestGoBuildTestOnly(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/testdata/dep_test.go b/src/cmd/go/testdata/dep_test.go
+deleted file mode 100644
+index ac39a5bb1c..0000000000
+--- a/src/cmd/go/testdata/dep_test.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package deps
+-
+-import _ "testing"
+diff --git a/src/cmd/go/testdata/script/test_rebuildall.txt b/src/cmd/go/testdata/script/test_rebuildall.txt
+new file mode 100644
+index 0000000000..38233c1892
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_rebuildall.txt
+@@ -0,0 +1,14 @@
++env GO111MODULE=off
++
++# Regression test for golang.org/issue/6844:
++# 'go test -a' should force dependencies in the standard library to be rebuilt.
++
++[short] skip
++
++go test -x -a -c testdata/dep_test.go
++stderr '^.*[/\\]compile'$GOEXE'["]? (.* )?regexp .*[/\\]regexp\.go'
++
++-- testdata/dep_test.go --
++package deps
++
++import _ "testing"

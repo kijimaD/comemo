@@ -33,7 +33,7 @@ Date:   Wed Jul 16 14:16:19 2014 -0700
     R=golang-codereviews, dave, dvyukov, rsc, gobot, khr
     CC=golang-codereviews
     https://golang.org/cl/99380043
-
+---
  src/cmd/api/goapi.go            |   13 +
  src/cmd/dist/buildruntime.c     |    2 +
  src/cmd/ld/dwarf.c              |    2 +-
@@ -64,3 +64,3826 @@ Date:   Wed Jul 16 14:16:19 2014 -0700
  src/pkg/runtime/stubs.go        |   54 ++
  src/pkg/runtime/stubs.goc       |   15 +
  29 files changed, 1971 insertions(+), 1520 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 4bde794a13..508056a937 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -370,6 +370,14 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
+ 			log.Fatalf("incorrect generated file: %s", err)
+ 		}
+ 	}
++	if w.context != nil && file == fmt.Sprintf("zruntime_defs_%s_%s.go", w.context.GOOS, w.context.GOARCH) {
++		// Just enough to keep the api checker happy.
++		src := "package runtime; type maptype struct{}; type _type struct{}; type alg struct{}"
++		f, err = parser.ParseFile(fset, filename, src, 0)
++		if err != nil {
++			log.Fatalf("incorrect generated file: %s", err)
++		}
++	}
+ 
+ 	if f == nil {
+ 		f, err = parser.ParseFile(fset, filename, nil, 0)
+@@ -488,6 +496,11 @@ func (w *Walker) Import(name string) (pkg *types.Package) {
+ 		if !contains(filenames, n) {
+ 			filenames = append(filenames, n)
+ 		}
++
++		n = fmt.Sprintf("zruntime_defs_%s_%s.go", w.context.GOOS, w.context.GOARCH)
++		if !contains(filenames, n) {
++			filenames = append(filenames, n)
++		}
+ 	}
+ 
+ 	// Parse package files.
+diff --git a/src/cmd/dist/buildruntime.c b/src/cmd/dist/buildruntime.c
+index b36454f809..4e5295b658 100644
+--- a/src/cmd/dist/buildruntime.c
++++ b/src/cmd/dist/buildruntime.c
+@@ -231,6 +231,8 @@ ok:
+ 				aggr = "cbctxt";
+ 			else if(streq(fields.p[1], "SEH"))
+ 				aggr = "seh";
++			else if(streq(fields.p[1], "Alg"))
++				aggr = "alg";
+ 		}
+ 		if(hasprefix(lines.p[i], "}"))
+ 			aggr = nil;
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index c9bb1bd8f0..9277ebc54b 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -1222,7 +1222,7 @@ synthesizemaptypes(DWDie *die)
+ 	DWAttr *a;
+ 
+ 	hash		= walktypedef(defgotype(lookup_or_diag("type.runtime.hmap")));
+-	bucket		= walktypedef(defgotype(lookup_or_diag("type.runtime.bucket")));
++	bucket		= walktypedef(defgotype(lookup_or_diag("type.runtime.bmap")));
+ 
+ 	if (hash == nil)
+ 		return;
+diff --git a/src/pkg/reflect/asm_386.s b/src/pkg/reflect/asm_386.s
+index 75413c7521..18b348adc1 100644
+--- a/src/pkg/reflect/asm_386.s
++++ b/src/pkg/reflect/asm_386.s
+@@ -25,3 +25,24 @@ TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$8
+ 	MOVL	CX, 4(SP)
+ 	CALL	·callMethod(SB)
+ 	RET
++
++// Stubs to give reflect package access to runtime services
++// TODO: should probably be done another way.
++TEXT ·makemap(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_makemap(SB)
++TEXT ·mapaccess(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_mapaccess(SB)
++TEXT ·mapassign(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_mapassign(SB)
++TEXT ·mapdelete(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_mapdelete(SB)
++TEXT ·mapiterinit(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_mapiterinit(SB)
++TEXT ·mapiterkey(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_mapiterkey(SB)
++TEXT ·mapiternext(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_mapiternext(SB)
++TEXT ·maplen(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_maplen(SB)
++TEXT ·ismapkey(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_ismapkey(SB)
+diff --git a/src/pkg/reflect/asm_amd64.s b/src/pkg/reflect/asm_amd64.s
+index 7129598437..9a9eed02aa 100644
+--- a/src/pkg/reflect/asm_amd64.s
++++ b/src/pkg/reflect/asm_amd64.s
+@@ -25,3 +25,24 @@ TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$16
+ 	MOVQ	CX, 8(SP)
+ 	CALL	·callMethod(SB)
+ 	RET
++
++// Stubs to give reflect package access to runtime services
++// TODO: should probably be done another way.
++TEXT ·makemap(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_makemap(SB)
++TEXT ·mapaccess(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_mapaccess(SB)
++TEXT ·mapassign(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_mapassign(SB)
++TEXT ·mapdelete(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_mapdelete(SB)
++TEXT ·mapiterinit(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_mapiterinit(SB)
++TEXT ·mapiterkey(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_mapiterkey(SB)
++TEXT ·mapiternext(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_mapiternext(SB)
++TEXT ·maplen(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_maplen(SB)
++TEXT ·ismapkey(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_ismapkey(SB)
+diff --git a/src/pkg/reflect/asm_amd64p32.s b/src/pkg/reflect/asm_amd64p32.s
+index 75413c7521..18b348adc1 100644
+--- a/src/pkg/reflect/asm_amd64p32.s
++++ b/src/pkg/reflect/asm_amd64p32.s
+@@ -25,3 +25,24 @@ TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$8
+ 	MOVL	CX, 4(SP)
+ 	CALL	·callMethod(SB)
+ 	RET
++
++// Stubs to give reflect package access to runtime services
++// TODO: should probably be done another way.
++TEXT ·makemap(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_makemap(SB)
++TEXT ·mapaccess(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_mapaccess(SB)
++TEXT ·mapassign(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_mapassign(SB)
++TEXT ·mapdelete(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_mapdelete(SB)
++TEXT ·mapiterinit(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_mapiterinit(SB)
++TEXT ·mapiterkey(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_mapiterkey(SB)
++TEXT ·mapiternext(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_mapiternext(SB)
++TEXT ·maplen(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_maplen(SB)
++TEXT ·ismapkey(SB),NOSPLIT,$0-0
++	JMP	runtime·reflect_ismapkey(SB)
+diff --git a/src/pkg/reflect/asm_arm.s b/src/pkg/reflect/asm_arm.s
+index 68ded4ac6b..1db6b9b9d4 100644
+--- a/src/pkg/reflect/asm_arm.s
++++ b/src/pkg/reflect/asm_arm.s
+@@ -25,3 +25,24 @@ TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$8
+ 	MOVW	R1, 8(R13)
+ 	BL	·callMethod(SB)
+ 	RET
++
++// Stubs to give reflect package access to runtime services
++// TODO: should probably be done another way.
++TEXT ·makemap(SB),NOSPLIT,$-4-0
++	B	runtime·reflect_makemap(SB)
++TEXT ·mapaccess(SB),NOSPLIT,$-4-0
++	B	runtime·reflect_mapaccess(SB)
++TEXT ·mapassign(SB),NOSPLIT,$-4-0
++	B	runtime·reflect_mapassign(SB)
++TEXT ·mapdelete(SB),NOSPLIT,$-4-0
++	B	runtime·reflect_mapdelete(SB)
++TEXT ·mapiterinit(SB),NOSPLIT,$-4-0
++	B	runtime·reflect_mapiterinit(SB)
++TEXT ·mapiterkey(SB),NOSPLIT,$-4-0
++	B	runtime·reflect_mapiterkey(SB)
++TEXT ·mapiternext(SB),NOSPLIT,$-4-0
++	B	runtime·reflect_mapiternext(SB)
++TEXT ·maplen(SB),NOSPLIT,$-4-0
++	B	runtime·reflect_maplen(SB)
++TEXT ·ismapkey(SB),NOSPLIT,$-4-0
++	B	runtime·reflect_ismapkey(SB)
+diff --git a/src/pkg/runtime/alg.goc b/src/pkg/runtime/alg.goc
+index f1b8d5982b..3db1456280 100644
+--- a/src/pkg/runtime/alg.goc
++++ b/src/pkg/runtime/alg.goc
+@@ -425,6 +425,8 @@ runtime·nohash(uintptr *h, uintptr s, void *a)
+ 	runtime·panicstring("hash of unhashable type");
+ }
+ 
++extern uintptr runtime·nohashcode;
++
+ void
+ runtime·noequal(bool *eq, uintptr s, void *a, void *b)
+ {
+@@ -471,6 +473,7 @@ byte runtime·aeskeysched[HashRandomBytes];
+ void
+ runtime·hashinit(void)
+ {
++	runtime·nohashcode = (uintptr)runtime·nohash;
+         if(NaCl)
+                 return;
+ 
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 0b093588cb..2aeb4bdeef 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -1107,6 +1107,14 @@ TEXT runtime·memeq(SB),NOSPLIT,$0-12
+ 	MOVL	count+8(FP), BX
+ 	JMP	runtime·memeqbody(SB)
+ 
++TEXT runtime·gomemeq(SB),NOSPLIT,$0-13
++	MOVL	a+0(FP), SI
++	MOVL	b+4(FP), DI
++	MOVL	size+8(FP), BX
++	CALL	runtime·memeqbody(SB)
++	MOVB	AX, ret+12(FP)
++	RET
++
+ // eqstring tests whether two strings are equal.
+ // See runtime_test.go:eqstring_generic for
+ // equivlaent Go code.
+@@ -2197,3 +2205,81 @@ TEXT runtime·duffcopy(SB), NOSPLIT, $0-0
+ 
+ TEXT runtime·timenow(SB), NOSPLIT, $0-0
+ 	JMP	time·now(SB)
++
++TEXT runtime·fastrand2(SB), NOSPLIT, $0-4
++	get_tls(CX)
++	MOVL	g(CX), AX
++	MOVL	g_m(AX), AX
++	MOVL	m_fastrand(AX), DX
++	ADDL	DX, DX
++	MOVL	DX, BX
++	XORL	$0x88888eef, DX
++	CMOVLMI	BX, DX
++	MOVL	DX, m_fastrand(AX)
++	MOVL	DX, ret+0(FP)
++	RET
++
++// The gohash and goeq trampolines are necessary while we have
++// both Go and C calls to alg functions.  Once we move all call
++// sites to Go, we can redo the hash/eq functions to use the
++// Go calling convention and remove these.
++
++// convert call to:
++//   func (alg unsafe.Pointer, p unsafe.Pointer, size uintpr, seed uintptr) uintptr
++// to:
++//   func (hash *uintptr, size uintptr, p unsafe.Pointer)
++TEXT runtime·gohash(SB), NOSPLIT, $12-20
++	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_gohash<>(SB)
++	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_gohash<>(SB)
++	MOVL	a+0(FP), AX
++	MOVL	alg_hash(AX), AX
++	MOVL	p+4(FP), CX
++	MOVL	size+8(FP), DX
++	MOVL	seed+12(FP), DI
++	MOVL	DI, ret+16(FP)
++	LEAL	ret+16(FP), SI
++	MOVL	SI, 0(SP)
++	MOVL	DX, 4(SP)
++	MOVL	CX, 8(SP)
++	PCDATA  $PCDATA_StackMapIndex, $0
++	CALL	*AX
++	RET
++
++DATA gcargs_gohash<>+0x00(SB)/4, $1  // 1 stackmap
++DATA gcargs_gohash<>+0x04(SB)/4, $10  // 5 args
++DATA gcargs_gohash<>+0x08(SB)/4, $(const_BitsPointer+(const_BitsPointer<<2))
++GLOBL gcargs_gohash<>(SB),RODATA,$12
++
++DATA gclocals_gohash<>+0x00(SB)/4, $1  // 1 stackmap
++DATA gclocals_gohash<>+0x04(SB)/4, $0  // 0 locals
++GLOBL gclocals_gohash<>(SB),RODATA,$8
++
++// convert call to:
++//   func (alg unsafe.Pointer, p, q unsafe.Pointer, size uintptr) bool
++// to:
++//   func (eq *bool, size uintptr, p, q unsafe.Pointer)
++TEXT runtime·goeq(SB), NOSPLIT, $16-17
++	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_goeq<>(SB)
++	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_goeq<>(SB)
++	MOVL	alg+0(FP), AX
++	MOVL	alg_equal(AX), AX
++	MOVL	p+4(FP), CX
++	MOVL	q+8(FP), DX
++	MOVL	size+12(FP), DI
++	LEAL	ret+16(FP), SI
++	MOVL	SI, 0(SP)
++	MOVL	DI, 4(SP)
++	MOVL	CX, 8(SP)
++	MOVL	DX, 12(SP)
++	PCDATA  $PCDATA_StackMapIndex, $0
++	CALL	*AX
++	RET
++
++DATA gcargs_goeq<>+0x00(SB)/4, $1  // 1 stackmap
++DATA gcargs_goeq<>+0x04(SB)/4, $10  // 5 args
++DATA gcargs_goeq<>+0x08(SB)/4, $(const_BitsPointer+(const_BitsPointer<<2)+(const_BitsPointer<<4))
++GLOBL gcargs_goeq<>(SB),RODATA,$12
++
++DATA gclocals_goeq<>+0x00(SB)/4, $1  // 1 stackmap
++DATA gclocals_goeq<>+0x04(SB)/4, $0  // 0 locals
++GLOBL gclocals_goeq<>(SB),RODATA,$8
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 4057f77761..9f8a2514e3 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -1075,6 +1075,14 @@ TEXT runtime·memeq(SB),NOSPLIT,$0-24
+ 	MOVQ	count+16(FP), BX
+ 	JMP	runtime·memeqbody(SB)
+ 
++TEXT runtime·gomemeq(SB),NOSPLIT,$0-25
++	MOVQ	a+0(FP), SI
++	MOVQ	b+8(FP), DI
++	MOVQ	size+16(FP), BX
++	CALL	runtime·memeqbody(SB)
++	MOVB	AX, ret+24(FP)
++	RET
++
+ // eqstring tests whether two strings are equal.
+ // See runtime_test.go:eqstring_generic for
+ // equivlaent Go code.
+@@ -2236,3 +2244,81 @@ TEXT runtime·duffcopy(SB), NOSPLIT, $0-0
+ 
+ TEXT runtime·timenow(SB), NOSPLIT, $0-0
+ 	JMP	time·now(SB)
++
++TEXT runtime·fastrand2(SB), NOSPLIT, $0-4
++	get_tls(CX)
++	MOVQ	g(CX), AX
++	MOVQ	g_m(AX), AX
++	MOVL	m_fastrand(AX), DX
++	ADDL	DX, DX
++	MOVL	DX, BX
++	XORL	$0x88888eef, DX
++	CMOVLMI	BX, DX
++	MOVL	DX, m_fastrand(AX)
++	MOVL	DX, ret+0(FP)
++	RET
++
++// The gohash and goeq trampolines are necessary while we have
++// both Go and C calls to alg functions.  Once we move all call
++// sites to Go, we can redo the hash/eq functions to use the
++// Go calling convention and remove these.
++
++// convert call to:
++//   func (alg unsafe.Pointer, p unsafe.Pointer, size uintpr, seed uintptr) uintptr
++// to:
++//   func (hash *uintptr, size uintptr, p unsafe.Pointer)
++TEXT runtime·gohash(SB), NOSPLIT, $24-40
++	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_gohash<>(SB)
++	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_gohash<>(SB)
++	MOVQ	a+0(FP), AX
++	MOVQ	alg_hash(AX), AX
++	MOVQ	p+8(FP), CX
++	MOVQ	size+16(FP), DX
++	MOVQ	seed+24(FP), DI
++	MOVQ	DI, ret+32(FP)
++	LEAQ	ret+32(FP), SI	// TODO: go vet complains here: "invalid LEAQ of ret+32(FP); bool is 1-byte value"
++	MOVQ	SI, 0(SP)
++	MOVQ	DX, 8(SP)
++	MOVQ	CX, 16(SP)
++	PCDATA  $PCDATA_StackMapIndex, $0
++	CALL	*AX
++	RET
++
++DATA gcargs_gohash<>+0x00(SB)/4, $1  // 1 stackmap
++DATA gcargs_gohash<>+0x04(SB)/4, $10  // 5 args
++DATA gcargs_gohash<>+0x08(SB)/4, $(const_BitsPointer+(const_BitsPointer<<2))
++GLOBL gcargs_gohash<>(SB),RODATA,$12
++
++DATA gclocals_gohash<>+0x00(SB)/4, $1  // 1 stackmap
++DATA gclocals_gohash<>+0x04(SB)/4, $0  // 0 locals
++GLOBL gclocals_gohash<>(SB),RODATA,$8
++
++// convert call to:
++//   func (alg unsafe.Pointer, p, q unsafe.Pointer, size uintptr) bool
++// to:
++//   func (eq *bool, size uintptr, p, q unsafe.Pointer)
++TEXT runtime·goeq(SB), NOSPLIT, $32-33
++	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_goeq<>(SB)
++	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_goeq<>(SB)
++	MOVQ	alg+0(FP), AX
++	MOVQ	alg_equal(AX), AX
++	MOVQ	p+8(FP), CX
++	MOVQ	q+16(FP), DX
++	MOVQ	size+24(FP), DI
++	LEAQ	ret+32(FP), SI
++	MOVQ	SI, 0(SP)
++	MOVQ	DI, 8(SP)
++	MOVQ	CX, 16(SP)
++	MOVQ	DX, 24(SP)
++	PCDATA  $PCDATA_StackMapIndex, $0
++	CALL	*AX
++	RET
++
++DATA gcargs_goeq<>+0x00(SB)/4, $1  // 1 stackmap
++DATA gcargs_goeq<>+0x04(SB)/4, $10  // 5 args
++DATA gcargs_goeq<>+0x08(SB)/4, $(const_BitsPointer+(const_BitsPointer<<2)+(const_BitsPointer<<4))
++GLOBL gcargs_goeq<>(SB),RODATA,$12
++
++DATA gclocals_goeq<>+0x00(SB)/4, $1  // 1 stackmap
++DATA gclocals_goeq<>+0x04(SB)/4, $0  // 0 locals
++GLOBL gclocals_goeq<>(SB),RODATA,$8
+diff --git a/src/pkg/runtime/asm_amd64p32.s b/src/pkg/runtime/asm_amd64p32.s
+index a1cc631e05..71207f0698 100644
+--- a/src/pkg/runtime/asm_amd64p32.s
++++ b/src/pkg/runtime/asm_amd64p32.s
+@@ -653,8 +653,8 @@ TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
+ 	RET
+ 
+ TEXT runtime·memclr(SB),NOSPLIT,$0-8
+-	MOVL	addr+0(FP), DI
+-	MOVL	count+4(FP), CX
++	MOVL	ptr+0(FP), DI
++	MOVL	n+4(FP), CX
+ 	MOVQ	CX, BX
+ 	ANDQ	$7, BX
+ 	SHRQ	$3, CX
+@@ -730,6 +730,14 @@ TEXT runtime·memeq(SB),NOSPLIT,$0-12
+ 	MOVL	count+8(FP), BX
+ 	JMP	runtime·memeqbody(SB)
+ 
++TEXT runtime·gomemeq(SB),NOSPLIT,$0-13
++	MOVL	a+0(FP), SI
++	MOVL	b+4(FP), DI
++	MOVL	size+8(FP), BX
++	CALL	runtime·memeqbody(SB)
++	MOVB	AX, ret+12(FP)
++	RET
++
+ // eqstring tests whether two strings are equal.
+ // See runtime_test.go:eqstring_generic for
+ // equivlaent Go code.
+@@ -1108,3 +1116,81 @@ eqret:
+ 
+ TEXT runtime·timenow(SB), NOSPLIT, $0-0
+ 	JMP	time·now(SB)
++
++TEXT runtime·fastrand2(SB), NOSPLIT, $0-4
++	get_tls(CX)
++	MOVL	g(CX), AX
++	MOVL	g_m(AX), AX
++	MOVL	m_fastrand(AX), DX
++	ADDL	DX, DX
++	MOVL	DX, BX
++	XORL	$0x88888eef, DX
++	CMOVLMI	BX, DX
++	MOVL	DX, m_fastrand(AX)
++	MOVL	DX, ret+0(FP)
++	RET
++
++// The gohash and goeq trampolines are necessary while we have
++// both Go and C calls to alg functions.  Once we move all call
++// sites to Go, we can redo the hash/eq functions to use the
++// Go calling convention and remove these.
++
++// convert call to:
++//   func (alg unsafe.Pointer, p unsafe.Pointer, size uintpr, seed uintptr) uintptr
++// to:
++//   func (hash *uintptr, size uintptr, p unsafe.Pointer)
++TEXT runtime·gohash(SB), NOSPLIT, $12-20
++	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_gohash<>(SB)
++	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_gohash<>(SB)
++	MOVL	a+0(FP), AX
++	MOVL	alg_hash(AX), AX
++	MOVL	p+4(FP), CX
++	MOVL	size+8(FP), DX
++	MOVL	seed+12(FP), DI
++	MOVL	DI, ret+16(FP)
++	LEAL	ret+16(FP), SI
++	MOVL	SI, 0(SP)
++	MOVL	DX, 4(SP)
++	MOVL	CX, 8(SP)
++	PCDATA  $PCDATA_StackMapIndex, $0
++	CALL	*AX
++	RET
++
++DATA gcargs_gohash<>+0x00(SB)/4, $1  // 1 stackmap
++DATA gcargs_gohash<>+0x04(SB)/4, $10  // 5 args
++DATA gcargs_gohash<>+0x08(SB)/4, $(const_BitsPointer+(const_BitsPointer<<2))
++GLOBL gcargs_gohash<>(SB),RODATA,$12
++
++DATA gclocals_gohash<>+0x00(SB)/4, $1  // 1 stackmap
++DATA gclocals_gohash<>+0x04(SB)/4, $0  // 0 locals
++GLOBL gclocals_gohash<>(SB),RODATA,$8
++
++// convert call to:
++//   func (alg unsafe.Pointer, p, q unsafe.Pointer, size uintptr) bool
++// to:
++//   func (eq *bool, size uintptr, p, q unsafe.Pointer)
++TEXT runtime·goeq(SB), NOSPLIT, $16-17
++	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_goeq<>(SB)
++	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_goeq<>(SB)
++	MOVL	alg+0(FP), AX
++	MOVL	alg_equal(AX), AX
++	MOVL	p+4(FP), CX
++	MOVL	q+8(FP), DX
++	MOVL	size+12(FP), DI
++	LEAL	ret+16(FP), SI
++	MOVL	SI, 0(SP)
++	MOVL	DI, 4(SP)
++	MOVL	CX, 8(SP)
++	MOVL	DX, 12(SP)
++	PCDATA  $PCDATA_StackMapIndex, $0
++	CALL	*AX
++	RET
++
++DATA gcargs_goeq<>+0x00(SB)/4, $1  // 1 stackmap
++DATA gcargs_goeq<>+0x04(SB)/4, $10  // 5 args
++DATA gcargs_goeq<>+0x08(SB)/4, $(const_BitsPointer+(const_BitsPointer<<2)+(const_BitsPointer<<4))
++GLOBL gcargs_goeq<>(SB),RODATA,$12
++
++DATA gclocals_goeq<>+0x00(SB)/4, $1  // 1 stackmap
++DATA gclocals_goeq<>+0x04(SB)/4, $0  // 0 locals
++GLOBL gclocals_goeq<>(SB),RODATA,$8
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 36b2577f30..1d2065c30b 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -670,6 +670,25 @@ _next:
+ 	MOVW	$0, R0
+ 	RET
+ 
++TEXT runtime·gomemeq(SB),NOSPLIT,$-4-13
++	MOVW	a+0(FP), R1
++	MOVW	b+4(FP), R2
++	MOVW	size+8(FP), R3
++	ADD	R1, R3, R6
++	MOVW	$1, R0
++	MOVB	R0, ret+12(FP)
++_next2:
++	CMP	R1, R6
++	RET.EQ
++	MOVBU.P	1(R1), R4
++	MOVBU.P	1(R2), R5
++	CMP	R4, R5
++	BEQ	_next2
++
++	MOVW	$0, R0
++	MOVB	R0, ret+12(FP)
++	RET
++
+ // eqstring tests whether two strings are equal.
+ // See runtime_test.go:eqstring_generic for
+ // equivlaent Go code.
+@@ -1190,3 +1209,77 @@ TEXT runtime·duffcopy(SB), NOSPLIT, $0-0
+ 	MOVW.P	4(R1), R0
+ 	MOVW.P	R0, 4(R2)
+ 	RET
++
++TEXT runtime·fastrand2(SB), NOSPLIT, $-4-4
++	MOVW	g_m(g), R1
++	MOVW	m_fastrand(R1), R0
++	ADD.S	R0, R0
++	EOR.MI	$0x88888eef, R0
++	MOVW	R0, m_fastrand(R1)
++	MOVW	R0, ret+0(FP)
++	RET
++
++// The gohash and goeq trampolines are necessary while we have
++// both Go and C calls to alg functions.  Once we move all call
++// sites to Go, we can redo the hash/eq functions to use the
++// Go calling convention and remove these.
++
++// convert call to:
++//   func (alg unsafe.Pointer, p unsafe.Pointer, size uintpr, seed uintptr) uintptr
++// to:
++//   func (hash *uintptr, size uintptr, p unsafe.Pointer)
++TEXT runtime·gohash(SB), NOSPLIT, $12-20
++	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_gohash<>(SB)
++	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_gohash<>(SB)
++	MOVW	a+0(FP), R0
++	MOVW	alg_hash(R0), R0
++	MOVW	p+4(FP), R1
++	MOVW	size+8(FP), R2
++	MOVW	seed+12(FP), R3
++	MOVW	R3, ret+16(FP)
++	ADD	$36, R13, R4
++	MOVW	R4, 4(R13)
++	MOVW	R2, 8(R13)
++	MOVW	R1, 12(R13)
++	PCDATA  $PCDATA_StackMapIndex, $0
++	BL	(R0)
++	RET
++
++DATA gcargs_gohash<>+0x00(SB)/4, $1  // 1 stackmap
++DATA gcargs_gohash<>+0x04(SB)/4, $10  // 5 args
++DATA gcargs_gohash<>+0x08(SB)/4, $(const_BitsPointer+(const_BitsPointer<<2))
++GLOBL gcargs_gohash<>(SB),RODATA,$12
++
++DATA gclocals_gohash<>+0x00(SB)/4, $1  // 1 stackmap
++DATA gclocals_gohash<>+0x04(SB)/4, $0  // 0 locals
++GLOBL gclocals_gohash<>(SB),RODATA,$8
++
++// convert call to:
++//   func (alg unsafe.Pointer, p, q unsafe.Pointer, size uintptr) bool
++// to:
++//   func (eq *bool, size uintptr, p, q unsafe.Pointer)
++TEXT runtime·goeq(SB), NOSPLIT, $16-17
++	FUNCDATA $FUNCDATA_ArgsPointerMaps,gcargs_goeq<>(SB)
++	FUNCDATA $FUNCDATA_LocalsPointerMaps,gclocals_goeq<>(SB)
++	MOVW	alg+0(FP), R0
++	MOVW	alg_equal(R0), R0
++	MOVW	p+4(FP), R1
++	MOVW	q+8(FP), R2
++	MOVW	size+12(FP), R3
++	ADD	$40, R13, R4
++	MOVW	R4, 4(R13)
++	MOVW	R3, 8(R13)
++	MOVW	R2, 12(R13)
++	MOVW	R1, 16(R13)
++	PCDATA  $PCDATA_StackMapIndex, $0
++	BL	(R0)
++	RET
++
++DATA gcargs_goeq<>+0x00(SB)/4, $1  // 1 stackmap
++DATA gcargs_goeq<>+0x04(SB)/4, $10  // 5 args
++DATA gcargs_goeq<>+0x08(SB)/4, $(const_BitsPointer+(const_BitsPointer<<2)+(const_BitsPointer<<4))
++GLOBL gcargs_goeq<>(SB),RODATA,$12
++
++DATA gclocals_goeq<>+0x00(SB)/4, $1  // 1 stackmap
++DATA gclocals_goeq<>+0x04(SB)/4, $0  // 0 locals
++GLOBL gclocals_goeq<>(SB),RODATA,$8
+diff --git a/src/pkg/runtime/defs.c b/src/pkg/runtime/defs.c
+index 1c76198fc5..7563344578 100644
+--- a/src/pkg/runtime/defs.c
++++ b/src/pkg/runtime/defs.c
+@@ -10,5 +10,5 @@
+ #include "malloc.h"
+ #include "type.h"
+ #include "race.h"
+-#include "hashmap.h"
+ #include "chan.h"
++#include "mprof.h"
+diff --git a/src/pkg/runtime/export_test.go b/src/pkg/runtime/export_test.go
+index 4f29106c55..c71130b9cc 100644
+--- a/src/pkg/runtime/export_test.go
++++ b/src/pkg/runtime/export_test.go
+@@ -80,7 +80,6 @@ var BytesHash = bytesHash
+ var Int32Hash = int32Hash
+ var Int64Hash = int64Hash
+ 
+-var hashLoad float64 // declared in hashmap.c
+ var HashLoad = &hashLoad
+ 
+ func memclrBytes(b []byte)
+diff --git a/src/pkg/runtime/hashmap.go b/src/pkg/runtime/hashmap.go
+new file mode 100644
+index 0000000000..a2d5cf8e36
+--- /dev/null
++++ b/src/pkg/runtime/hashmap.go
+@@ -0,0 +1,965 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++// This file contains the implementation of Go's map type.
++//
++// A map is just a hash table.  The data is arranged
++// into an array of buckets.  Each bucket contains up to
++// 8 key/value pairs.  The low-order bits of the hash are
++// used to select a bucket.  Each bucket contains a few
++// high-order bits of each hash to distinguish the entries
++// within a single bucket.
++//
++// If more than 8 keys hash to a bucket, we chain on
++// extra buckets.
++//
++// When the hashtable grows, we allocate a new array
++// of buckets twice as big.  Buckets are incrementally
++// copied from the old bucket array to the new bucket array.
++//
++// Map iterators walk through the array of buckets and
++// return the keys in walk order (bucket #, then overflow
++// chain order, then bucket index).  To maintain iteration
++// semantics, we never move keys within their bucket (if
++// we did, keys might be returned 0 or 2 times).  When
++// growing the table, iterators remain iterating through the
++// old table and must check the new table if the bucket
++// they are iterating through has been moved ("evacuated")
++// to the new table.
++
++// Picking loadFactor: too large and we have lots of overflow
++// buckets, too small and we waste a lot of space.  I wrote
++// a simple program to check some stats for different loads:
++// (64-bit, 8 byte keys and values)
++//  loadFactor    %overflow  bytes/entry     hitprobe    missprobe
++//        4.00         2.13        20.77         3.00         4.00
++//        4.50         4.05        17.30         3.25         4.50
++//        5.00         6.85        14.77         3.50         5.00
++//        5.50        10.55        12.94         3.75         5.50
++//        6.00        15.27        11.67         4.00         6.00
++//        6.50        20.90        10.79         4.25         6.50
++//        7.00        27.14        10.15         4.50         7.00
++//        7.50        34.03         9.73         4.75         7.50
++//        8.00        41.10         9.40         5.00         8.00
++//
++// %overflow   = percentage of buckets which have an overflow bucket
++// bytes/entry = overhead bytes used per key/value pair
++// hitprobe    = # of entries to check when looking up a present key
++// missprobe   = # of entries to check when looking up an absent key
++//
++// Keep in mind this data is for maximally loaded tables, i.e. just
++// before the table grows.  Typical tables will be somewhat less loaded.
++
++import (
++	"unsafe"
++)
++
++const (
++	// Maximum number of key/value pairs a bucket can hold.
++	bucketCnt = 8
++
++	// Maximum average load of a bucket that triggers growth.
++	loadFactor = 6.5
++
++	// Maximum key or value size to keep inline (instead of mallocing per element).
++	// Must fit in a uint8.
++	// Fast versions cannot handle big values - the cutoff size for
++	// fast versions in ../../cmd/gc/walk.c must be at most this value.
++	maxKeySize   = 128
++	maxValueSize = 128
++
++	// data offset should be the size of the bmap struct, but needs to be
++	// aligned correctly.  For amd64p32 this means 64-bit alignment
++	// even though pointers are 32 bit.
++	dataOffset = unsafe.Offsetof(struct {
++		b bmap
++		v int64
++	}{}.v)
++
++	// Possible tophash values.  We reserve a few possibilities for special marks.
++	// Each bucket (including its overflow buckets, if any) will have either all or none of its
++	// entries in the evacuated* states (except during the evacuate() method, which only happens
++	// during map writes and thus no one else can observe the map during that time).
++	empty          = 0 // cell is empty
++	evacuatedEmpty = 1 // cell is empty, bucket is evacuated.
++	evacuatedX     = 2 // key/value is valid.  Entry has been evacuated to first half of larger table.
++	evacuatedY     = 3 // same as above, but evacuated to second half of larger table.
++	minTopHash     = 4 // minimum tophash for a normal filled cell.
++
++	// flags
++	indirectKey   = 1 // storing pointers to keys
++	indirectValue = 2 // storing pointers to values
++	iterator      = 4 // there may be an iterator using buckets
++	oldIterator   = 8 // there may be an iterator using oldbuckets
++
++	// sentinel bucket ID for iterator checks
++	noCheck = 1<<(8*ptrSize) - 1
++
++	// trigger a garbage collection at every alloc called from this code
++	checkgc = false
++)
++
++// A header for a Go map.
++type hmap struct {
++	// Note: the format of the Hmap is encoded in ../../cmd/gc/reflect.c and
++	// ../reflect/type.go.  Don't change this structure without also changing that code!
++	count      int // # live cells == size of map.  Must be first (used by len() builtin)
++	flags      uint32
++	hash0      uint32 // hash seed
++	B          uint8  // log_2 of # of buckets (can hold up to loadFactor * 2^B items)
++	keysize    uint8  // key size in bytes
++	valuesize  uint8  // value size in bytes
++	bucketsize uint16 // bucket size in bytes
++
++	buckets    unsafe.Pointer // array of 2^B Buckets. may be nil if count==0.
++	oldbuckets unsafe.Pointer // previous bucket array of half the size, non-nil only when growing
++	nevacuate  uintptr        // progress counter for evacuation (buckets less than this have been evacuated)
++}
++
++// A bucket for a Go map.
++type bmap struct {
++	tophash  [bucketCnt]uint8
++	overflow *bmap
++	// Followed by bucketCnt keys and then bucketCnt values.
++	// NOTE: packing all the keys together and then all the values together makes the
++	// code a bit more complicated than alternating key/value/key/value/... but it allows
++	// us to eliminate padding which would be needed for, e.g., map[int64]int8.
++}
++
++// A hash iteration structure.
++// If you modify hiter, also change cmd/gc/reflect.c to indicate
++// the layout of this structure.
++type hiter struct {
++	key         unsafe.Pointer // Must be in first position.  Write nil to indicate iteration end (see cmd/gc/range.c).
++	value       unsafe.Pointer // Must be in second position (see cmd/gc/range.c).
++	t           *maptype
++	h           *hmap
++	buckets     unsafe.Pointer // bucket ptr at hash_iter initialization time
++	bptr        *bmap          // current bucket
++	offset      uint8          // intra-bucket offset to start from during iteration (should be big enough to hold bucketCnt-1)
++	done        bool
++	B           uint8
++	bucket      uintptr
++	i           uintptr
++	checkBucket uintptr
++}
++
++func evacuated(b *bmap) bool {
++	h := b.tophash[0]
++	return h > empty && h < minTopHash
++}
++
++func makemap(t *maptype, hint int64) *hmap {
++
++	if unsafe.Sizeof(hmap{}) > 48 {
++		panic("hmap too large")
++	}
++
++	if hint < 0 || int64(int32(hint)) != hint {
++		panic("makemap: size out of range")
++		// TODO: make hint an int, then none of this nonsense
++	}
++
++	if !ismapkey(t.key) {
++		panic("runtime.makemap: unsupported map key type")
++	}
++
++	flags := uint32(0)
++
++	// figure out how big we have to make everything
++	keysize := uintptr(t.key.size)
++	if keysize > maxKeySize {
++		flags |= indirectKey
++		keysize = ptrSize
++	}
++	valuesize := uintptr(t.elem.size)
++	if valuesize > maxValueSize {
++		flags |= indirectValue
++		valuesize = ptrSize
++	}
++	bucketsize := dataOffset + bucketCnt*(keysize+valuesize)
++	if bucketsize != uintptr(t.bucket.size) {
++		panic("bucketsize wrong")
++	}
++
++	// invariants we depend on.  We should probably check these at compile time
++	// somewhere, but for now we'll do it here.
++	// TODO: make these throw(), not panic()
++	if t.key.align > bucketCnt {
++		panic("key align too big")
++	}
++	if t.elem.align > bucketCnt {
++		panic("value align too big")
++	}
++	if uintptr(t.key.size)%uintptr(t.key.align) != 0 {
++		panic("key size not a multiple of key align")
++	}
++	if uintptr(t.elem.size)%uintptr(t.elem.align) != 0 {
++		panic("value size not a multiple of value align")
++	}
++	if bucketCnt < 8 {
++		panic("bucketsize too small for proper alignment")
++	}
++	if dataOffset%uintptr(t.key.align) != 0 {
++		panic("need padding in bucket (key)")
++	}
++	if dataOffset%uintptr(t.elem.align) != 0 {
++		panic("need padding in bucket (value)")
++	}
++
++	// find size parameter which will hold the requested # of elements
++	B := uint8(0)
++	for ; hint > bucketCnt && float32(hint) > loadFactor*float32(uintptr(1)<<B); B++ {
++	}
++
++	// allocate initial hash table
++	// if B == 0, the buckets field is allocated lazily later (in mapassign)
++	// If hint is large zeroing this memory could take a while.
++	var buckets unsafe.Pointer
++	if B != 0 {
++		if checkgc {
++			memstats.next_gc = memstats.heap_alloc
++		}
++		buckets = unsafe_NewArray(t.bucket, uintptr(1)<<B)
++	}
++
++	// initialize Hmap
++	if checkgc {
++		memstats.next_gc = memstats.heap_alloc
++	}
++	h := (*hmap)(unsafe_New(t.hmap))
++	h.count = 0
++	h.B = B
++	h.flags = flags
++	h.keysize = uint8(keysize)
++	h.valuesize = uint8(valuesize)
++	h.bucketsize = uint16(bucketsize)
++	h.hash0 = fastrand2()
++	h.buckets = buckets
++	h.oldbuckets = nil
++	h.nevacuate = 0
++
++	return h
++}
++
++// mapaccess1 returns a pointer to h[key].  Never returns nil, instead
++// it will return a reference to the zero object for the value type if
++// the key is not in the map.
++// NOTE: The returned pointer may keep the whole map live, so don't
++// hold onto it for very long.
++func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
++	if raceenabled && h != nil {
++		callerpc := gogetcallerpc(unsafe.Pointer(&t))
++		fn := mapaccess1
++		pc := **(**uintptr)(unsafe.Pointer(&fn))
++		racereadpc(unsafe.Pointer(h), callerpc, pc)
++		raceReadObjectPC(t.key, key, callerpc, pc)
++	}
++	if h == nil || h.count == 0 {
++		return unsafe.Pointer(t.elem.zero)
++	}
++	hash := gohash(t.key.alg, key, uintptr(t.key.size), uintptr(h.hash0))
++	m := uintptr(1)<<h.B - 1
++	b := (*bmap)(add(h.buckets, (hash&m)*uintptr(h.bucketsize)))
++	if c := h.oldbuckets; c != nil {
++		oldb := (*bmap)(add(c, (hash&(m>>1))*uintptr(h.bucketsize)))
++		if !evacuated(oldb) {
++			b = oldb
++		}
++	}
++	top := uint8(hash >> (ptrSize*8 - 8))
++	if top < minTopHash {
++		top += minTopHash
++	}
++	for {
++		for i := uintptr(0); i < bucketCnt; i++ {
++			if b.tophash[i] != top {
++				continue
++			}
++			k := add(unsafe.Pointer(b), dataOffset+i*uintptr(h.keysize))
++			if h.flags&indirectKey != 0 {
++				k = *((*unsafe.Pointer)(k))
++			}
++			if goeq(t.key.alg, key, k, uintptr(t.key.size)) {
++				v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(h.keysize)+i*uintptr(h.valuesize))
++				if h.flags&indirectValue != 0 {
++					v = *((*unsafe.Pointer)(v))
++				}
++				return v
++			}
++		}
++		b = b.overflow
++		if b == nil {
++			return unsafe.Pointer(t.elem.zero)
++		}
++	}
++}
++
++func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) {
++	if raceenabled && h != nil {
++		callerpc := gogetcallerpc(unsafe.Pointer(&t))
++		fn := mapaccess2
++		pc := **(**uintptr)(unsafe.Pointer(&fn))
++		racereadpc(unsafe.Pointer(h), callerpc, pc)
++		raceReadObjectPC(t.key, key, callerpc, pc)
++	}
++	if h == nil || h.count == 0 {
++		return unsafe.Pointer(t.elem.zero), false
++	}
++	hash := gohash(t.key.alg, key, uintptr(t.key.size), uintptr(h.hash0))
++	m := uintptr(1)<<h.B - 1
++	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + (hash&m)*uintptr(h.bucketsize)))
++	if c := h.oldbuckets; c != nil {
++		oldb := (*bmap)(unsafe.Pointer(uintptr(c) + (hash&(m>>1))*uintptr(h.bucketsize)))
++		if !evacuated(oldb) {
++			b = oldb
++		}
++	}
++	top := uint8(hash >> (ptrSize*8 - 8))
++	if top < minTopHash {
++		top += minTopHash
++	}
++	for {
++		for i := uintptr(0); i < bucketCnt; i++ {
++			if b.tophash[i] != top {
++				continue
++			}
++			k := add(unsafe.Pointer(b), dataOffset+i*uintptr(h.keysize))
++			if h.flags&indirectKey != 0 {
++				k = *((*unsafe.Pointer)(k))
++			}
++			if goeq(t.key.alg, key, k, uintptr(t.key.size)) {
++				v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(h.keysize)+i*uintptr(h.valuesize))
++				if h.flags&indirectValue != 0 {
++					v = *((*unsafe.Pointer)(v))
++				}
++				return v, true
++			}
++		}
++		b = b.overflow
++		if b == nil {
++			return unsafe.Pointer(t.elem.zero), false
++		}
++	}
++}
++
++// returns both key and value.  Used by map iterator
++func mapaccessK(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, unsafe.Pointer) {
++	if h == nil || h.count == 0 {
++		return nil, nil
++	}
++	hash := gohash(t.key.alg, key, uintptr(t.key.size), uintptr(h.hash0))
++	m := uintptr(1)<<h.B - 1
++	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + (hash&m)*uintptr(h.bucketsize)))
++	if c := h.oldbuckets; c != nil {
++		oldb := (*bmap)(unsafe.Pointer(uintptr(c) + (hash&(m>>1))*uintptr(h.bucketsize)))
++		if !evacuated(oldb) {
++			b = oldb
++		}
++	}
++	top := uint8(hash >> (ptrSize*8 - 8))
++	if top < minTopHash {
++		top += minTopHash
++	}
++	for {
++		for i := uintptr(0); i < bucketCnt; i++ {
++			if b.tophash[i] != top {
++				continue
++			}
++			k := add(unsafe.Pointer(b), dataOffset+i*uintptr(h.keysize))
++			if h.flags&indirectKey != 0 {
++				k = *((*unsafe.Pointer)(k))
++			}
++			if goeq(t.key.alg, key, k, uintptr(t.key.size)) {
++				v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(h.keysize)+i*uintptr(h.valuesize))
++				if h.flags&indirectValue != 0 {
++					v = *((*unsafe.Pointer)(v))
++				}
++				return k, v
++			}
++		}
++		b = b.overflow
++		if b == nil {
++			return nil, nil
++		}
++	}
++}
++
++func mapassign1(t *maptype, h *hmap, key unsafe.Pointer, val unsafe.Pointer) {
++	if h == nil {
++		panic("assignment to entry in nil map")
++	}
++	if raceenabled {
++		callerpc := gogetcallerpc(unsafe.Pointer(&t))
++		fn := mapassign1
++		pc := **(**uintptr)(unsafe.Pointer(&fn))
++		racewritepc(unsafe.Pointer(h), callerpc, pc)
++		raceReadObjectPC(t.key, key, callerpc, pc)
++		raceReadObjectPC(t.elem, val, callerpc, pc)
++	}
++
++	hash := gohash(t.key.alg, key, uintptr(t.key.size), uintptr(h.hash0))
++
++	if h.buckets == nil {
++		if checkgc {
++			memstats.next_gc = memstats.heap_alloc
++		}
++		h.buckets = unsafe_NewArray(t.bucket, 1)
++	}
++
++again:
++	bucket := hash & (uintptr(1)<<h.B - 1)
++	if h.oldbuckets != nil {
++		growWork(t, h, bucket)
++	}
++	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(h.bucketsize)))
++	top := uint8(hash >> (ptrSize*8 - 8))
++	if top < minTopHash {
++		top += minTopHash
++	}
++
++	var inserti *uint8
++	var insertk unsafe.Pointer
++	var insertv unsafe.Pointer
++	for {
++		for i := uintptr(0); i < bucketCnt; i++ {
++			if b.tophash[i] != top {
++				if b.tophash[i] == empty && inserti == nil {
++					inserti = &b.tophash[i]
++					insertk = add(unsafe.Pointer(b), dataOffset+i*uintptr(h.keysize))
++					insertv = add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(h.keysize)+i*uintptr(h.valuesize))
++				}
++				continue
++			}
++			k := add(unsafe.Pointer(b), dataOffset+i*uintptr(h.keysize))
++			k2 := k
++			if h.flags&indirectKey != 0 {
++				k2 = *((*unsafe.Pointer)(k2))
++			}
++			if !goeq(t.key.alg, key, k2, uintptr(t.key.size)) {
++				continue
++			}
++			// already have a mapping for key.  Update it.
++			memmove(k2, key, uintptr(t.key.size))
++			v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(h.keysize)+i*uintptr(h.valuesize))
++			v2 := v
++			if h.flags&indirectValue != 0 {
++				v2 = *((*unsafe.Pointer)(v2))
++			}
++			memmove(v2, val, uintptr(t.elem.size))
++			return
++		}
++		if b.overflow == nil {
++			break
++		}
++		b = b.overflow
++	}
++
++	// did not find mapping for key.  Allocate new cell & add entry.
++	if float32(h.count) >= loadFactor*float32((uintptr(1)<<h.B)) && h.count >= bucketCnt {
++		hashGrow(t, h)
++		goto again // Growing the table invalidates everything, so try again
++	}
++
++	if inserti == nil {
++		// all current buckets are full, allocate a new one.
++		if checkgc {
++			memstats.next_gc = memstats.heap_alloc
++		}
++		newb := (*bmap)(unsafe_New(t.bucket))
++		b.overflow = newb
++		inserti = &newb.tophash[0]
++		insertk = add(unsafe.Pointer(newb), dataOffset)
++		insertv = add(insertk, bucketCnt*uintptr(h.keysize))
++	}
++
++	// store new key/value at insert position
++	if h.flags&indirectKey != 0 {
++		if checkgc {
++			memstats.next_gc = memstats.heap_alloc
++		}
++		kmem := unsafe_New(t.key)
++		*(*unsafe.Pointer)(insertk) = kmem
++		insertk = kmem
++	}
++	if h.flags&indirectValue != 0 {
++		if checkgc {
++			memstats.next_gc = memstats.heap_alloc
++		}
++		vmem := unsafe_New(t.elem)
++		*(*unsafe.Pointer)(insertv) = vmem
++		insertv = vmem
++	}
++	memmove(insertk, key, uintptr(t.key.size))
++	memmove(insertv, val, uintptr(t.elem.size))
++	*inserti = top
++	h.count++
++}
++
++func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
++	if raceenabled && h != nil {
++		callerpc := gogetcallerpc(unsafe.Pointer(&t))
++		fn := mapdelete
++		pc := **(**uintptr)(unsafe.Pointer(&fn))
++		racewritepc(unsafe.Pointer(h), callerpc, pc)
++		raceReadObjectPC(t.key, key, callerpc, pc)
++	}
++	if h == nil || h.count == 0 {
++		return
++	}
++	hash := gohash(t.key.alg, key, uintptr(t.key.size), uintptr(h.hash0))
++	bucket := hash & (uintptr(1)<<h.B - 1)
++	if h.oldbuckets != nil {
++		growWork(t, h, bucket)
++	}
++	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(h.bucketsize)))
++	top := uint8(hash >> (ptrSize*8 - 8))
++	if top < minTopHash {
++		top += minTopHash
++	}
++	for {
++		for i := uintptr(0); i < bucketCnt; i++ {
++			if b.tophash[i] != top {
++				continue
++			}
++			k := add(unsafe.Pointer(b), dataOffset+i*uintptr(h.keysize))
++			k2 := k
++			if h.flags&indirectKey != 0 {
++				k2 = *((*unsafe.Pointer)(k2))
++			}
++			if !goeq(t.key.alg, key, k2, uintptr(t.key.size)) {
++				continue
++			}
++			memclr(k, uintptr(h.keysize))
++			v := unsafe.Pointer(uintptr(unsafe.Pointer(b)) + dataOffset + bucketCnt*uintptr(h.keysize) + i*uintptr(h.valuesize))
++			memclr(v, uintptr(h.valuesize))
++			b.tophash[i] = empty
++			h.count--
++			return
++		}
++		b = b.overflow
++		if b == nil {
++			return
++		}
++	}
++}
++
++func mapiterinit(t *maptype, h *hmap, it *hiter) {
++	// Clear pointer fields so garbage collector does not complain.
++	it.key = nil
++	it.value = nil
++	it.t = nil
++	it.h = nil
++	it.buckets = nil
++	it.bptr = nil
++
++	if raceenabled && h != nil {
++		callerpc := gogetcallerpc(unsafe.Pointer(&t))
++		fn := mapiterinit
++		pc := **(**uintptr)(unsafe.Pointer(&fn))
++		racereadpc(unsafe.Pointer(h), callerpc, pc)
++	}
++
++	if h == nil || h.count == 0 {
++		it.key = nil
++		it.value = nil
++		return
++	}
++
++	if unsafe.Sizeof(hiter{})/ptrSize != 10 {
++		panic("hash_iter size incorrect") // see ../../cmd/gc/reflect.c
++	}
++	it.t = t
++	it.h = h
++
++	// grab snapshot of bucket state
++	it.B = h.B
++	it.buckets = h.buckets
++
++	// iterator state
++	it.bucket = 0
++	it.offset = uint8(fastrand2() & (bucketCnt - 1))
++	it.done = false
++	it.bptr = nil
++
++	// Remember we have an iterator.
++	// Can run concurrently with another hash_iter_init().
++	for {
++		old := h.flags
++		if old == old|iterator|oldIterator {
++			break
++		}
++		if gocas(&h.flags, old, old|iterator|oldIterator) {
++			break
++		}
++	}
++
++	mapiternext(it)
++}
++
++func mapiternext(it *hiter) {
++	h := it.h
++	if raceenabled {
++		callerpc := gogetcallerpc(unsafe.Pointer(&it))
++		fn := mapiternext
++		pc := **(**uintptr)(unsafe.Pointer(&fn))
++		racereadpc(unsafe.Pointer(h), callerpc, pc)
++	}
++	t := it.t
++	bucket := it.bucket
++	b := it.bptr
++	i := it.i
++	checkBucket := it.checkBucket
++
++next:
++	if b == nil {
++		if it.done {
++			// end of iteration
++			it.key = nil
++			it.value = nil
++			return
++		}
++		if h.oldbuckets != nil && it.B == h.B {
++			// Iterator was started in the middle of a grow, and the grow isn't done yet.
++			// If the bucket we're looking at hasn't been filled in yet (i.e. the old
++			// bucket hasn't been evacuated) then we need to iterate through the old
++			// bucket and only return the ones that will be migrated to this bucket.
++			oldbucket := bucket & (uintptr(1)<<(it.B-1) - 1)
++			b = (*bmap)(add(h.oldbuckets, oldbucket*uintptr(h.bucketsize)))
++			if !evacuated(b) {
++				checkBucket = bucket
++			} else {
++				b = (*bmap)(add(it.buckets, bucket*uintptr(h.bucketsize)))
++				checkBucket = noCheck
++			}
++		} else {
++			b = (*bmap)(add(it.buckets, bucket*uintptr(h.bucketsize)))
++			checkBucket = noCheck
++		}
++		bucket++
++		if bucket == uintptr(1)<<it.B {
++			bucket = 0
++			it.done = true
++		}
++		i = 0
++	}
++	for ; i < bucketCnt; i++ {
++		offi := (i + uintptr(it.offset)) & (bucketCnt - 1)
++		k := add(unsafe.Pointer(b), dataOffset+offi*uintptr(h.keysize))
++		v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(h.keysize)+offi*uintptr(h.valuesize))
++		if b.tophash[offi] != empty && b.tophash[offi] != evacuatedEmpty {
++			if checkBucket != noCheck {
++				// Special case: iterator was started during a grow and the
++				// grow is not done yet.  We're working on a bucket whose
++				// oldbucket has not been evacuated yet.  Or at least, it wasn't
++				// evacuated when we started the bucket.  So we're iterating
++				// through the oldbucket, skipping any keys that will go
++				// to the other new bucket (each oldbucket expands to two
++				// buckets during a grow).
++				k2 := k
++				if h.flags&indirectKey != 0 {
++					k2 = *((*unsafe.Pointer)(k2))
++				}
++				if goeq(t.key.alg, k2, k2, uintptr(t.key.size)) {
++					// If the item in the oldbucket is not destined for
++					// the current new bucket in the iteration, skip it.
++					hash := gohash(t.key.alg, k2, uintptr(t.key.size), uintptr(h.hash0))
++					if hash&(uintptr(1)<<it.B-1) != checkBucket {
++						continue
++					}
++				} else {
++					// Hash isn't repeatable if k != k (NaNs).  We need a
++					// repeatable and randomish choice of which direction
++					// to send NaNs during evacuation.  We'll use the low
++					// bit of tophash to decide which way NaNs go.
++					// NOTE: this case is why we need two evacuate tophash
++					// values, evacuatedX and evacuatedY, that differ in
++					// their low bit.
++					if checkBucket>>(it.B-1) != uintptr(b.tophash[offi]&1) {
++						continue
++					}
++				}
++			}
++			if b.tophash[offi] != evacuatedX && b.tophash[offi] != evacuatedY {
++				// this is the golden data, we can return it.
++				if h.flags&indirectKey != 0 {
++					k = *((*unsafe.Pointer)(k))
++				}
++				it.key = k
++				if h.flags&indirectValue != 0 {
++					v = *((*unsafe.Pointer)(v))
++				}
++				it.value = v
++			} else {
++				// The hash table has grown since the iterator was started.
++				// The golden data for this key is now somewhere else.
++				k2 := k
++				if h.flags&indirectKey != 0 {
++					k2 = *((*unsafe.Pointer)(k2))
++				}
++				if goeq(t.key.alg, k2, k2, uintptr(t.key.size)) {
++					// Check the current hash table for the data.
++					// This code handles the case where the key
++					// has been deleted, updated, or deleted and reinserted.
++					// NOTE: we need to regrab the key as it has potentially been
++					// updated to an equal() but not identical key (e.g. +0.0 vs -0.0).
++					rk, rv := mapaccessK(t, h, k2)
++					if rk == nil {
++						continue // key has been deleted
++					}
++					it.key = rk
++					it.value = rv
++				} else {
++					// if key!=key then the entry can't be deleted or
++					// updated, so we can just return it.  That's lucky for
++					// us because when key!=key we can't look it up
++					// successfully in the current table.
++					it.key = k2
++					if h.flags&indirectValue != 0 {
++						v = *((*unsafe.Pointer)(v))
++					}
++					it.value = v
++				}
++			}
++			it.bucket = bucket
++			it.bptr = b
++			it.i = i + 1
++			it.checkBucket = checkBucket
++			return
++		}
++	}
++	b = b.overflow
++	i = 0
++	goto next
++}
++
++func hashGrow(t *maptype, h *hmap) {
++	if h.oldbuckets != nil {
++		panic("evacuation not done in time")
++	}
++	oldbuckets := h.buckets
++	if checkgc {
++		memstats.next_gc = memstats.heap_alloc
++	}
++	newbuckets := unsafe_NewArray(t.bucket, uintptr(1)<<(h.B+1))
++	flags := h.flags &^ (iterator | oldIterator)
++	if h.flags&iterator != 0 {
++		flags |= oldIterator
++	}
++	// commit the grow (atomic wrt gc)
++	h.B++
++	h.flags = flags
++	h.oldbuckets = oldbuckets
++	h.buckets = newbuckets
++	h.nevacuate = 0
++
++	// the actual copying of the hash table data is done incrementally
++	// by growWork() and evacuate().
++}
++
++func growWork(t *maptype, h *hmap, bucket uintptr) {
++	noldbuckets := uintptr(1) << (h.B - 1)
++
++	// make sure we evacuate the oldbucket corresponding
++	// to the bucket we're about to use
++	evacuate(t, h, bucket&(noldbuckets-1))
++
++	// evacuate one more oldbucket to make progress on growing
++	if h.oldbuckets != nil {
++		evacuate(t, h, h.nevacuate)
++	}
++}
++
++func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
++	b := (*bmap)(add(h.oldbuckets, oldbucket*uintptr(h.bucketsize)))
++	newbit := uintptr(1) << (h.B - 1)
++	if !evacuated(b) {
++		// TODO: reuse overflow buckets instead of using new ones, if there
++		// is no iterator using the old buckets.  (If !oldIterator.)
++
++		x := (*bmap)(add(h.buckets, oldbucket*uintptr(h.bucketsize)))
++		y := (*bmap)(add(h.buckets, (oldbucket+newbit)*uintptr(h.bucketsize)))
++		xi := 0
++		yi := 0
++		xk := add(unsafe.Pointer(x), dataOffset)
++		yk := add(unsafe.Pointer(y), dataOffset)
++		xv := add(xk, bucketCnt*uintptr(h.keysize))
++		yv := add(yk, bucketCnt*uintptr(h.keysize))
++		for ; b != nil; b = b.overflow {
++			k := add(unsafe.Pointer(b), dataOffset)
++			v := add(k, bucketCnt*uintptr(h.keysize))
++			for i := 0; i < bucketCnt; i, k, v = i+1, add(k, uintptr(h.keysize)), add(v, uintptr(h.valuesize)) {
++				top := b.tophash[i]
++				if top == empty {
++					b.tophash[i] = evacuatedEmpty
++					continue
++				}
++				if top < minTopHash {
++					panic("bad map state")
++				}
++				k2 := k
++				if h.flags&indirectKey != 0 {
++					k2 = *((*unsafe.Pointer)(k2))
++				}
++				// Compute hash to make our evacuation decision (whether we need
++				// to send this key/value to bucket x or bucket y).
++				hash := gohash(t.key.alg, k2, uintptr(t.key.size), uintptr(h.hash0))
++				if h.flags&iterator != 0 {
++					if !goeq(t.key.alg, k2, k2, uintptr(t.key.size)) {
++						// If key != key (NaNs), then the hash could be (and probably
++						// will be) entirely different from the old hash.  Moreover,
++						// it isn't reproducible.  Reproducibility is required in the
++						// presence of iterators, as our evacuation decision must
++						// match whatever decision the iterator made.
++						// Fortunately, we have the freedom to send these keys either
++						// way.  Also, tophash is meaningless for these kinds of keys.
++						// We let the low bit of tophash drive the evacuation decision.
++						// We recompute a new random tophash for the next level so
++						// these keys will get evenly distributed across all buckets
++						// after multiple grows.
++						if (top & 1) != 0 {
++							hash |= newbit
++						} else {
++							hash &^= newbit
++						}
++						top = uint8(hash >> (ptrSize*8 - 8))
++						if top < minTopHash {
++							top += minTopHash
++						}
++					}
++				}
++				if (hash & newbit) == 0 {
++					b.tophash[i] = evacuatedX
++					if xi == bucketCnt {
++						if checkgc {
++							memstats.next_gc = memstats.heap_alloc
++						}
++						newx := (*bmap)(unsafe_New(t.bucket))
++						x.overflow = newx
++						x = newx
++						xi = 0
++						xk = add(unsafe.Pointer(x), dataOffset)
++						xv = add(xk, bucketCnt*uintptr(h.keysize))
++					}
++					x.tophash[xi] = top
++					if h.flags&indirectKey != 0 {
++						*(*unsafe.Pointer)(xk) = k2 // copy pointer
++					} else {
++						memmove(xk, k, uintptr(t.key.size)) // copy value
++					}
++					if h.flags&indirectValue != 0 {
++						*(*unsafe.Pointer)(xv) = *(*unsafe.Pointer)(v)
++					} else {
++						memmove(xv, v, uintptr(t.elem.size))
++					}
++					xi++
++					xk = add(xk, uintptr(h.keysize))
++					xv = add(xv, uintptr(h.valuesize))
++				} else {
++					b.tophash[i] = evacuatedY
++					if yi == bucketCnt {
++						if checkgc {
++							memstats.next_gc = memstats.heap_alloc
++						}
++						newy := (*bmap)(unsafe_New(t.bucket))
++						y.overflow = newy
++						y = newy
++						yi = 0
++						yk = add(unsafe.Pointer(y), dataOffset)
++						yv = add(yk, bucketCnt*uintptr(h.keysize))
++					}
++					y.tophash[yi] = top
++					if h.flags&indirectKey != 0 {
++						*(*unsafe.Pointer)(yk) = k2
++					} else {
++						memmove(yk, k, uintptr(t.key.size))
++					}
++					if h.flags&indirectValue != 0 {
++						*(*unsafe.Pointer)(yv) = *(*unsafe.Pointer)(v)
++					} else {
++						memmove(yv, v, uintptr(t.elem.size))
++					}
++					yi++
++					yk = add(yk, uintptr(h.keysize))
++					yv = add(yv, uintptr(h.valuesize))
++				}
++			}
++		}
++		// Unlink the overflow buckets & clear key/value to help GC.
++		if h.flags&oldIterator == 0 {
++			b = (*bmap)(add(h.oldbuckets, oldbucket*uintptr(h.bucketsize)))
++			b.overflow = nil
++			memclr(add(unsafe.Pointer(b), dataOffset), uintptr(h.bucketsize)-dataOffset)
++		}
++	}
++
++	// Advance evacuation mark
++	if oldbucket == h.nevacuate {
++		h.nevacuate = oldbucket + 1
++		if oldbucket+1 == newbit { // newbit == # of oldbuckets
++			// Growing is all done.  Free old main bucket array.
++			h.oldbuckets = nil
++		}
++	}
++}
++
++func ismapkey(t *_type) bool {
++	return *(*uintptr)(unsafe.Pointer(&t.alg.hash)) != nohashcode
++}
++
++// Reflect stubs.  Called from ../reflect/asm_*.s
++
++func reflect_makemap(t *maptype) *hmap {
++	return makemap(t, 0)
++}
++
++func reflect_mapaccess(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
++	val, ok := mapaccess2(t, h, key)
++	if !ok {
++		// reflect wants nil for a missing element
++		val = nil
++	}
++	return val
++}
++
++func reflect_mapassign(t *maptype, h *hmap, key unsafe.Pointer, val unsafe.Pointer) {
++	mapassign1(t, h, key, val)
++}
++
++func reflect_mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
++	mapdelete(t, h, key)
++}
++
++func reflect_mapiterinit(t *maptype, h *hmap) *hiter {
++	it := new(hiter)
++	mapiterinit(t, h, it)
++	return it
++}
++
++func reflect_mapiternext(it *hiter) {
++	mapiternext(it)
++}
++
++func reflect_mapiterkey(it *hiter) unsafe.Pointer {
++	return it.key
++}
++
++func reflect_maplen(h *hmap) int {
++	if h == nil {
++		return 0
++	}
++	if raceenabled {
++		callerpc := gogetcallerpc(unsafe.Pointer(&h))
++		fn := reflect_maplen
++		pc := **(**uintptr)(unsafe.Pointer(&fn))
++		racereadpc(unsafe.Pointer(h), callerpc, pc)
++	}
++	return h.count
++}
++
++func reflect_ismapkey(t *_type) bool {
++	return ismapkey(t)
++}
+diff --git a/src/pkg/runtime/hashmap.goc b/src/pkg/runtime/hashmap.goc
+deleted file mode 100644
+index 3327bed65e..0000000000
+--- a/src/pkg/runtime/hashmap.goc
++++ /dev/null
+@@ -1,1078 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package runtime
+-#include "runtime.h"
+-#include "arch_GOARCH.h"
+-#include "malloc.h"
+-#include "type.h"
+-#include "race.h"
+-#include "hashmap.h"
+-#include "typekind.h"
+-#include "../../cmd/ld/textflag.h"
+-
+-enum
+-{
+-	docheck = 0,  // check invariants before and after every op.  Slow!!!
+-	debug = 0,    // print every operation
+-	checkgc = 0 || docheck,  // check interaction of mallocgc() with the garbage collector
+-};
+-static void
+-check(MapType *t, Hmap *h)
+-{
+-	uintptr bucket, oldbucket;
+-	Bucket *b;
+-	uintptr i;
+-	uintptr hash;
+-	uintgo cnt;
+-	uint8 top;
+-	bool eq;
+-	byte *k, *v;
+-
+-	cnt = 0;
+-
+-	// check buckets
+-	for(bucket = 0; bucket < (uintptr)1 << h->B; bucket++) {
+-		for(b = (Bucket*)(h->buckets + bucket * h->bucketsize); b != nil; b = b->overflow) {
+-			for(i = 0, k = (byte*)b->data, v = k + h->keysize * BUCKETSIZE; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
+-				if(b->tophash[i] == Empty)
+-					continue;
+-				if(b->tophash[i] > Empty && b->tophash[i] < MinTopHash)
+-					runtime·throw("evacuated cell in buckets");
+-				cnt++;
+-				t->key->alg->equal(&eq, t->key->size, IK(h, k), IK(h, k));
+-				if(!eq)
+-					continue; // NaN!
+-				hash = h->hash0;
+-				t->key->alg->hash(&hash, t->key->size, IK(h, k));
+-				top = hash >> (8*sizeof(uintptr) - 8);
+-				if(top < MinTopHash)
+-					top += MinTopHash;
+-				if(top != b->tophash[i])
+-					runtime·throw("bad hash");
+-			}
+-		}
+-	}
+-
+-	// check oldbuckets
+-	if(h->oldbuckets != nil) {
+-		for(oldbucket = 0; oldbucket < (uintptr)1 << (h->B - 1); oldbucket++) {
+-			b = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
+-			for(; b != nil; b = b->overflow) {
+-				for(i = 0, k = (byte*)b->data, v = k + h->keysize * BUCKETSIZE; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
+-					if(b->tophash[i] < MinTopHash)
+-						continue;
+-					if(oldbucket < h->nevacuate)
+-						runtime·throw("unevacuated entry in an evacuated bucket");
+-					cnt++;
+-					t->key->alg->equal(&eq, t->key->size, IK(h, k), IK(h, k));
+-					if(!eq)
+-						continue; // NaN!
+-					hash = h->hash0;
+-					t->key->alg->hash(&hash, t->key->size, IK(h, k));
+-					top = hash >> (8*sizeof(uintptr) - 8);
+-					if(top < MinTopHash)
+-						top += MinTopHash;
+-					if(top != b->tophash[i])
+-						runtime·throw("bad hash (old)");
+-				}
+-			}
+-		}
+-	}
+-
+-	if(cnt != h->count) {
+-		runtime·printf("%D %D\n", (uint64)cnt, (uint64)h->count);
+-		runtime·throw("entries missing");
+-	}
+-}
+-
+-static void
+-hash_init(MapType *t, Hmap *h, uint32 hint)
+-{
+-	uint8 B;
+-	byte *buckets;
+-	uintptr keysize, valuesize, bucketsize;
+-	uint8 flags;
+-
+-	flags = 0;
+-
+-	// figure out how big we have to make everything
+-	keysize = t->key->size;
+-	if(keysize > MAXKEYSIZE) {
+-		flags |= IndirectKey;
+-		keysize = sizeof(byte*);
+-	}
+-	valuesize = t->elem->size;
+-	if(valuesize > MAXVALUESIZE) {
+-		flags |= IndirectValue;
+-		valuesize = sizeof(byte*);
+-	}
+-	bucketsize = offsetof(Bucket, data[0]) + (keysize + valuesize) * BUCKETSIZE;
+-	if(bucketsize != t->bucket->size) {
+-		runtime·printf("runtime: bucketsize=%p but t->bucket->size=%p; t=%S\n", bucketsize, t->bucket->size, *t->string);
+-		runtime·throw("bucketsize wrong");
+-	}
+-
+-	// invariants we depend on.  We should probably check these at compile time
+-	// somewhere, but for now we'll do it here.
+-	if(t->key->align > BUCKETSIZE)
+-		runtime·throw("key align too big");
+-	if(t->elem->align > BUCKETSIZE)
+-		runtime·throw("value align too big");
+-	if(t->key->size % t->key->align != 0)
+-		runtime·throw("key size not a multiple of key align");
+-	if(t->elem->size % t->elem->align != 0)
+-		runtime·throw("value size not a multiple of value align");
+-	if(BUCKETSIZE < 8)
+-		runtime·throw("bucketsize too small for proper alignment");
+-	if((offsetof(Bucket, data[0]) & (t->key->align-1)) != 0)
+-		runtime·throw("need padding in bucket (key)");
+-	if((offsetof(Bucket, data[0]) & (t->elem->align-1)) != 0)
+-		runtime·throw("need padding in bucket (value)");
+-
+-	// find size parameter which will hold the requested # of elements
+-	B = 0;
+-	while(hint > BUCKETSIZE && hint > LOAD * ((uintptr)1 << B))
+-		B++;
+-
+-	// allocate initial hash table
+-	// If hint is large zeroing this memory could take a while.
+-	if(checkgc) mstats.next_gc = mstats.heap_alloc;
+-	if(B == 0) {
+-		// done lazily later.
+-		buckets = nil;
+-	} else {
+-		buckets = runtime·cnewarray(t->bucket, (uintptr)1 << B);
+-	}
+-
+-	// initialize Hmap
+-	h->count = 0;
+-	h->B = B;
+-	h->flags = flags;
+-	h->keysize = keysize;
+-	h->valuesize = valuesize;
+-	h->bucketsize = bucketsize;
+-	h->hash0 = runtime·fastrand1();
+-	h->buckets = buckets;
+-	h->oldbuckets = nil;
+-	h->nevacuate = 0;
+-	if(docheck)
+-		check(t, h);
+-}
+-
+-// Moves entries in oldbuckets[i] to buckets[i] and buckets[i+2^k].
+-// We leave the original bucket intact, except for marking the topbits
+-// entries as evacuated, so that iterators can still iterate through the old buckets.
+-static void
+-evacuate(MapType *t, Hmap *h, uintptr oldbucket)
+-{
+-	Bucket *b;
+-	Bucket *x, *y;
+-	Bucket *newx, *newy;
+-	uintptr xi, yi;
+-	uintptr newbit;
+-	uintptr hash;
+-	uintptr i;
+-	byte *k, *v;
+-	byte *xk, *yk, *xv, *yv;
+-	uint8 top;
+-	bool eq;
+-
+-	b = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
+-	newbit = (uintptr)1 << (h->B - 1);
+-
+-	if(!evacuated(b)) {
+-		// TODO: reuse overflow buckets instead of using new ones, if there
+-		// is no iterator using the old buckets.  (If !OldIterator.)
+-
+-		x = (Bucket*)(h->buckets + oldbucket * h->bucketsize);
+-		y = (Bucket*)(h->buckets + (oldbucket + newbit) * h->bucketsize);
+-		xi = 0;
+-		yi = 0;
+-		xk = (byte*)x->data;
+-		yk = (byte*)y->data;
+-		xv = xk + h->keysize * BUCKETSIZE;
+-		yv = yk + h->keysize * BUCKETSIZE;
+-		for(; b != nil; b = b->overflow) {
+-			for(i = 0, k = (byte*)b->data, v = k + h->keysize * BUCKETSIZE; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
+-				top = b->tophash[i];
+-				if(top == Empty) {
+-					b->tophash[i] = EvacuatedEmpty;
+-					continue;
+-				}
+-				if(top < MinTopHash)
+-					runtime·throw("bad state");
+-
+-				// Compute hash to make our evacuation decision (whether we need
+-				// to send this key/value to bucket x or bucket y).
+-				hash = h->hash0;
+-				t->key->alg->hash(&hash, t->key->size, IK(h, k));
+-				if((h->flags & Iterator) != 0) {
+-					t->key->alg->equal(&eq, t->key->size, IK(h, k), IK(h, k));
+-					if(!eq) {
+-						// If key != key (NaNs), then the hash could be (and probably
+-						// will be) entirely different from the old hash.  Moreover,
+-						// it isn't reproducible.  Reproducibility is required in the
+-						// presence of iterators, as our evacuation decision must
+-						// match whatever decision the iterator made.
+-						// Fortunately, we have the freedom to send these keys either
+-						// way.  Also, tophash is meaningless for these kinds of keys.
+-						// We let the low bit of tophash drive the evacuation decision.
+-						// We recompute a new random tophash for the next level so
+-						// these keys will get evenly distributed across all buckets
+-						// after multiple grows.
+-						if((top & 1) != 0)
+-							hash |= newbit;
+-						else
+-							hash &= ~newbit;
+-						top = hash >> (8*sizeof(uintptr)-8);
+-						if(top < MinTopHash)
+-							top += MinTopHash;
+-					}
+-				}
+-
+-				if((hash & newbit) == 0) {
+-					b->tophash[i] = EvacuatedX;
+-					if(xi == BUCKETSIZE) {
+-						if(checkgc) mstats.next_gc = mstats.heap_alloc;
+-						newx = runtime·cnew(t->bucket);
+-						x->overflow = newx;
+-						x = newx;
+-						xi = 0;
+-						xk = (byte*)x->data;
+-						xv = xk + h->keysize * BUCKETSIZE;
+-					}
+-					x->tophash[xi] = top;
+-					if((h->flags & IndirectKey) != 0) {
+-						*(byte**)xk = *(byte**)k;               // copy pointer
+-					} else {
+-						t->key->alg->copy(t->key->size, xk, k); // copy value
+-					}
+-					if((h->flags & IndirectValue) != 0) {
+-						*(byte**)xv = *(byte**)v;
+-					} else {
+-						t->elem->alg->copy(t->elem->size, xv, v);
+-					}
+-					xi++;
+-					xk += h->keysize;
+-					xv += h->valuesize;
+-				} else {
+-					b->tophash[i] = EvacuatedY;
+-					if(yi == BUCKETSIZE) {
+-						if(checkgc) mstats.next_gc = mstats.heap_alloc;
+-						newy = runtime·cnew(t->bucket);
+-						y->overflow = newy;
+-						y = newy;
+-						yi = 0;
+-						yk = (byte*)y->data;
+-						yv = yk + h->keysize * BUCKETSIZE;
+-					}
+-					y->tophash[yi] = top;
+-					if((h->flags & IndirectKey) != 0) {
+-						*(byte**)yk = *(byte**)k;
+-					} else {
+-						t->key->alg->copy(t->key->size, yk, k);
+-					}
+-					if((h->flags & IndirectValue) != 0) {
+-						*(byte**)yv = *(byte**)v;
+-					} else {
+-						t->elem->alg->copy(t->elem->size, yv, v);
+-					}
+-					yi++;
+-					yk += h->keysize;
+-					yv += h->valuesize;
+-				}
+-			}
+-		}
+-
+-		// Unlink the overflow buckets & clear key/value to help GC.
+-		if((h->flags & OldIterator) == 0) {
+-			b = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
+-			b->overflow = nil;
+-			runtime·memclr((byte*)b->data, h->bucketsize - offsetof(Bucket, data[0]));
+-		}
+-	}
+-
+-	// Advance evacuation mark
+-	if(oldbucket == h->nevacuate) {
+-		h->nevacuate = oldbucket + 1;
+-		if(oldbucket + 1 == newbit) // newbit == # of oldbuckets
+-			// Growing is all done.  Free old main bucket array.
+-			h->oldbuckets = nil;
+-	}
+-	if(docheck)
+-		check(t, h);
+-}
+-
+-static void
+-grow_work(MapType *t, Hmap *h, uintptr bucket)
+-{
+-	uintptr noldbuckets;
+-
+-	noldbuckets = (uintptr)1 << (h->B - 1);
+-
+-	// make sure we evacuate the oldbucket corresponding
+-	// to the bucket we're about to use
+-	evacuate(t, h, bucket & (noldbuckets - 1));
+-
+-	// evacuate one more oldbucket to make progress on growing
+-	if(h->oldbuckets != nil)
+-		evacuate(t, h, h->nevacuate);
+-}
+-
+-static void
+-hash_grow(MapType *t, Hmap *h)
+-{
+-	byte *old_buckets;
+-	byte *new_buckets;
+-	uint8 flags;
+-
+-	// allocate a bigger hash table
+-	if(h->oldbuckets != nil)
+-		runtime·throw("evacuation not done in time");
+-	old_buckets = h->buckets;
+-	if(checkgc) mstats.next_gc = mstats.heap_alloc;
+-	new_buckets = runtime·cnewarray(t->bucket, (uintptr)1 << (h->B + 1));
+-	flags = (h->flags & ~(Iterator | OldIterator));
+-	if((h->flags & Iterator) != 0)
+-		flags |= OldIterator;
+-
+-	// commit the grow (atomic wrt gc)
+-	h->B++;
+-	h->flags = flags;
+-	h->oldbuckets = old_buckets;
+-	h->buckets = new_buckets;
+-	h->nevacuate = 0;
+-
+-	// the actual copying of the hash table data is done incrementally
+-	// by grow_work() and evacuate().
+-	if(docheck)
+-		check(t, h);
+-}
+-
+-// returns ptr to value associated with key *keyp, or nil if none.
+-// if it returns non-nil, updates *keyp to point to the currently stored key.
+-static byte*
+-hash_lookup(MapType *t, Hmap *h, byte **keyp)
+-{
+-	void *key;
+-	uintptr hash;
+-	uintptr bucket, oldbucket;
+-	Bucket *b;
+-	uint8 top;
+-	uintptr i;
+-	bool eq;
+-	byte *k, *k2, *v;
+-
+-	key = *keyp;
+-	if(docheck)
+-		check(t, h);
+-	if(h->count == 0)
+-		return nil;
+-	hash = h->hash0;
+-	t->key->alg->hash(&hash, t->key->size, key);
+-	bucket = hash & (((uintptr)1 << h->B) - 1);
+-	if(h->oldbuckets != nil) {
+-		oldbucket = bucket & (((uintptr)1 << (h->B - 1)) - 1);
+-		b = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
+-		if(evacuated(b)) {
+-			b = (Bucket*)(h->buckets + bucket * h->bucketsize);
+-		}
+-	} else {
+-		b = (Bucket*)(h->buckets + bucket * h->bucketsize);
+-	}
+-	top = hash >> (sizeof(uintptr)*8 - 8);
+-	if(top < MinTopHash)
+-		top += MinTopHash;
+-	do {
+-		for(i = 0, k = (byte*)b->data, v = k + h->keysize * BUCKETSIZE; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
+-			if(b->tophash[i] == top) {
+-				k2 = IK(h, k);
+-				t->key->alg->equal(&eq, t->key->size, key, k2);
+-				if(eq) {
+-					*keyp = k2;
+-					return IV(h, v);
+-				}
+-			}
+-		}
+-		b = b->overflow;
+-	} while(b != nil);
+-	return nil;
+-}
+-
+-// Specialized versions of mapaccess1 for specific types.
+-// See ./hashmap_fast.c and ../../cmd/gc/walk.c.
+-#define HASH_LOOKUP1 runtime·mapaccess1_fast32
+-#define HASH_LOOKUP2 runtime·mapaccess2_fast32
+-#define KEYTYPE uint32
+-#define HASHFUNC runtime·algarray[AMEM32].hash
+-#define FASTKEY(x) true
+-#define QUICK_NE(x,y) ((x) != (y))
+-#define QUICK_EQ(x,y) true
+-#define SLOW_EQ(x,y) true
+-#define MAYBE_EQ(x,y) true
+-#include "hashmap_fast.c"
+-
+-#undef HASH_LOOKUP1
+-#undef HASH_LOOKUP2
+-#undef KEYTYPE
+-#undef HASHFUNC
+-#undef FASTKEY
+-#undef QUICK_NE
+-#undef QUICK_EQ
+-#undef SLOW_EQ
+-#undef MAYBE_EQ
+-
+-#define HASH_LOOKUP1 runtime·mapaccess1_fast64
+-#define HASH_LOOKUP2 runtime·mapaccess2_fast64
+-#define KEYTYPE uint64
+-#define HASHFUNC runtime·algarray[AMEM64].hash
+-#define FASTKEY(x) true
+-#define QUICK_NE(x,y) ((x) != (y))
+-#define QUICK_EQ(x,y) true
+-#define SLOW_EQ(x,y) true
+-#define MAYBE_EQ(x,y) true
+-#include "hashmap_fast.c"
+-
+-#undef HASH_LOOKUP1
+-#undef HASH_LOOKUP2
+-#undef KEYTYPE
+-#undef HASHFUNC
+-#undef FASTKEY
+-#undef QUICK_NE
+-#undef QUICK_EQ
+-#undef SLOW_EQ
+-#undef MAYBE_EQ
+-
+-#ifdef GOARCH_amd64
+-#define CHECKTYPE uint64
+-#endif
+-#ifdef GOARCH_amd64p32
+-#define CHECKTYPE uint32
+-#endif
+-#ifdef GOARCH_386
+-#define CHECKTYPE uint32
+-#endif
+-#ifdef GOARCH_arm
+-// can't use uint32 on arm because our loads aren't aligned.
+-// TODO: use uint32 for arm v6+?
+-#define CHECKTYPE uint8
+-#endif
+-
+-#define HASH_LOOKUP1 runtime·mapaccess1_faststr
+-#define HASH_LOOKUP2 runtime·mapaccess2_faststr
+-#define KEYTYPE String
+-#define HASHFUNC runtime·algarray[ASTRING].hash
+-#define FASTKEY(x) ((x).len < 32)
+-#define QUICK_NE(x,y) ((x).len != (y).len)
+-#define QUICK_EQ(x,y) ((x).str == (y).str)
+-#define SLOW_EQ(x,y) runtime·memeq((x).str, (y).str, (x).len)
+-#define MAYBE_EQ(x,y) (*(CHECKTYPE*)(x).str == *(CHECKTYPE*)(y).str && *(CHECKTYPE*)((x).str + (x).len - sizeof(CHECKTYPE)) == *(CHECKTYPE*)((y).str + (x).len - sizeof(CHECKTYPE)))
+-#include "hashmap_fast.c"
+-
+-static void
+-hash_insert(MapType *t, Hmap *h, void *key, void *value)
+-{
+-	uintptr hash;
+-	uintptr bucket;
+-	uintptr i;
+-	bool eq;
+-	Bucket *b;
+-	Bucket *newb;
+-	uint8 *inserti;
+-	byte *insertk, *insertv;
+-	uint8 top;
+-	byte *k, *v;
+-	byte *kmem, *vmem;
+-
+-	if(docheck)
+-		check(t, h);
+-	hash = h->hash0;
+-	t->key->alg->hash(&hash, t->key->size, key);
+-	if(h->buckets == nil)
+-		h->buckets = runtime·cnewarray(t->bucket, 1);
+-
+- again:
+-	bucket = hash & (((uintptr)1 << h->B) - 1);
+-	if(h->oldbuckets != nil)
+-		grow_work(t, h, bucket);
+-	b = (Bucket*)(h->buckets + bucket * h->bucketsize);
+-	top = hash >> (sizeof(uintptr)*8 - 8);
+-	if(top < MinTopHash)
+-		top += MinTopHash;
+-	inserti = nil;
+-	insertk = nil;
+-	insertv = nil;
+-	while(true) {
+-		for(i = 0, k = (byte*)b->data, v = k + h->keysize * BUCKETSIZE; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
+-			if(b->tophash[i] != top) {
+-				if(b->tophash[i] == Empty && inserti == nil) {
+-					inserti = &b->tophash[i];
+-					insertk = k;
+-					insertv = v;
+-				}
+-				continue;
+-			}
+-			t->key->alg->equal(&eq, t->key->size, key, IK(h, k));
+-			if(!eq)
+-				continue;
+-			// already have a mapping for key.  Update it.
+-			t->key->alg->copy(t->key->size, IK(h, k), key); // Need to update key for keys which are distinct but equal (e.g. +0.0 and -0.0)
+-			t->elem->alg->copy(t->elem->size, IV(h, v), value);
+-			if(docheck)
+-				check(t, h);
+-			return;
+-		}
+-		if(b->overflow == nil)
+-			break;
+-		b = b->overflow;
+-	}
+-
+-	// did not find mapping for key.  Allocate new cell & add entry.
+-	if(h->count >= LOAD * ((uintptr)1 << h->B) && h->count >= BUCKETSIZE) {
+-		hash_grow(t, h);
+-		goto again; // Growing the table invalidates everything, so try again
+-	}
+-
+-	if(inserti == nil) {
+-		// all current buckets are full, allocate a new one.
+-		if(checkgc) mstats.next_gc = mstats.heap_alloc;
+-		newb = runtime·cnew(t->bucket);
+-		b->overflow = newb;
+-		inserti = newb->tophash;
+-		insertk = (byte*)newb->data;
+-		insertv = insertk + h->keysize * BUCKETSIZE;
+-	}
+-
+-	// store new key/value at insert position
+-	if((h->flags & IndirectKey) != 0) {
+-		if(checkgc) mstats.next_gc = mstats.heap_alloc;
+-		kmem = runtime·cnew(t->key);
+-		*(byte**)insertk = kmem;
+-		insertk = kmem;
+-	}
+-	if((h->flags & IndirectValue) != 0) {
+-		if(checkgc) mstats.next_gc = mstats.heap_alloc;
+-		vmem = runtime·cnew(t->elem);
+-		*(byte**)insertv = vmem;
+-		insertv = vmem;
+-	}
+-	t->key->alg->copy(t->key->size, insertk, key);
+-	t->elem->alg->copy(t->elem->size, insertv, value);
+-	*inserti = top;
+-	h->count++;
+-	if(docheck)
+-		check(t, h);
+-}
+-
+-static void
+-hash_remove(MapType *t, Hmap *h, void *key)
+-{
+-	uintptr hash;
+-	uintptr bucket;
+-	Bucket *b;
+-	uint8 top;
+-	uintptr i;
+-	byte *k, *v;
+-	bool eq;
+-	
+-	if(docheck)
+-		check(t, h);
+-	if(h->count == 0)
+-		return;
+-	hash = h->hash0;
+-	t->key->alg->hash(&hash, t->key->size, key);
+-	bucket = hash & (((uintptr)1 << h->B) - 1);
+-	if(h->oldbuckets != nil)
+-		grow_work(t, h, bucket);
+-	b = (Bucket*)(h->buckets + bucket * h->bucketsize);
+-	top = hash >> (sizeof(uintptr)*8 - 8);
+-	if(top < MinTopHash)
+-		top += MinTopHash;
+-	do {
+-		for(i = 0, k = (byte*)b->data, v = k + h->keysize * BUCKETSIZE; i < BUCKETSIZE; i++, k += h->keysize, v += h->valuesize) {
+-			if(b->tophash[i] != top)
+-				continue;
+-			t->key->alg->equal(&eq, t->key->size, key, IK(h, k));
+-			if(!eq)
+-				continue;
+-
+-			if((h->flags & IndirectKey) != 0) {
+-				*(byte**)k = nil;
+-			} else {
+-				t->key->alg->copy(t->key->size, k, nil);
+-			}
+-			if((h->flags & IndirectValue) != 0) {
+-				*(byte**)v = nil;
+-			} else {
+-				t->elem->alg->copy(t->elem->size, v, nil);
+-			}
+-
+-			b->tophash[i] = Empty;
+-			h->count--;
+-			
+-			// TODO: consolidate buckets if they are mostly empty
+-			// can only consolidate if there are no live iterators at this size.
+-			if(docheck)
+-				check(t, h);
+-			return;
+-		}
+-		b = b->overflow;
+-	} while(b != nil);
+-}
+-
+-// TODO: shrink the map, the same way we grow it.
+-
+-// iterator state:
+-// bucket: the current bucket ID
+-// b: the current Bucket in the chain
+-// i: the next offset to check in the current bucket
+-static void
+-hash_iter_init(MapType *t, Hmap *h, Hiter *it)
+-{
+-	uint32 old;
+-
+-	if(sizeof(Hiter) / sizeof(uintptr) != 10) {
+-		runtime·throw("hash_iter size incorrect"); // see ../../cmd/gc/reflect.c
+-	}
+-	it->t = t;
+-	it->h = h;
+-
+-	// grab snapshot of bucket state
+-	it->B = h->B;
+-	it->buckets = h->buckets;
+-
+-	// iterator state
+-	it->bucket = 0;
+-	it->offset = runtime·fastrand1() & (BUCKETSIZE - 1);
+-	it->done = false;
+-	it->bptr = nil;
+-
+-	// Remember we have an iterator.
+-	// Can run concurrently with another hash_iter_init().
+-	for(;;) {
+-		old = h->flags;
+-		if((old&(Iterator|OldIterator)) == (Iterator|OldIterator))
+-			break;
+-		if(runtime·cas(&h->flags, old, old|Iterator|OldIterator))
+-			break;
+-	}
+-
+-	if(h->buckets == nil) {
+-		// Empty map. Force next hash_next to exit without
+-		// evaluating h->bucket.
+-		it->done = true;
+-	}
+-}
+-
+-// initializes it->key and it->value to the next key/value pair
+-// in the iteration, or nil if we've reached the end.
+-static void
+-hash_next(Hiter *it)
+-{
+-	Hmap *h;
+-	MapType *t;
+-	uintptr bucket, oldbucket;
+-	uintptr hash;
+-	Bucket *b;
+-	uintptr i, offi;
+-	intptr check_bucket;
+-	bool eq;
+-	byte *k, *v;
+-	byte *rk, *rv;
+-
+-	h = it->h;
+-	t = it->t;
+-	bucket = it->bucket;
+-	b = it->bptr;
+-	i = it->i;
+-	check_bucket = it->check_bucket;
+-
+-next:
+-	if(b == nil) {
+-		if(it->done) {
+-			// end of iteration
+-			it->key = nil;
+-			it->value = nil;
+-			return;
+-		}
+-		if(h->oldbuckets != nil && it->B == h->B) {
+-			// Iterator was started in the middle of a grow, and the grow isn't done yet.
+-			// If the bucket we're looking at hasn't been filled in yet (i.e. the old
+-			// bucket hasn't been evacuated) then we need to iterate through the old
+-			// bucket and only return the ones that will be migrated to this bucket.
+-			oldbucket = bucket & (((uintptr)1 << (it->B - 1)) - 1);
+-			b = (Bucket*)(h->oldbuckets + oldbucket * h->bucketsize);
+-			if(!evacuated(b)) {
+-				check_bucket = bucket;
+-			} else {
+-				b = (Bucket*)(it->buckets + bucket * h->bucketsize);
+-				check_bucket = -1;
+-			}
+-		} else {
+-			b = (Bucket*)(it->buckets + bucket * h->bucketsize);
+-			check_bucket = -1;
+-		}
+-		bucket++;
+-		if(bucket == ((uintptr)1 << it->B)) {
+-			bucket = 0;
+-			it->done = true;
+-		}
+-		i = 0;
+-	}
+-	for(; i < BUCKETSIZE; i++) {
+-		offi = (i + it->offset) & (BUCKETSIZE - 1);
+-		k = (byte*)b->data + h->keysize * offi;
+-		v = (byte*)b->data + h->keysize * BUCKETSIZE + h->valuesize * offi;
+-		if(b->tophash[offi] != Empty && b->tophash[offi] != EvacuatedEmpty) {
+-			if(check_bucket >= 0) {
+-				// Special case: iterator was started during a grow and the
+-				// grow is not done yet.  We're working on a bucket whose
+-				// oldbucket has not been evacuated yet.  Or at least, it wasn't
+-				// evacuated when we started the bucket.  So we're iterating
+-				// through the oldbucket, skipping any keys that will go
+-				// to the other new bucket (each oldbucket expands to two
+-				// buckets during a grow).
+-				t->key->alg->equal(&eq, t->key->size, IK(h, k), IK(h, k));
+-				if(eq) {
+-					// If the item in the oldbucket is not destined for
+-					// the current new bucket in the iteration, skip it.
+-					hash = h->hash0;
+-					t->key->alg->hash(&hash, t->key->size, IK(h, k));
+-					if((hash & (((uintptr)1 << it->B) - 1)) != check_bucket) {
+-						continue;
+-					}
+-				} else {
+-					// Hash isn't repeatable if k != k (NaNs).  We need a
+-					// repeatable and randomish choice of which direction
+-					// to send NaNs during evacuation.  We'll use the low
+-					// bit of tophash to decide which way NaNs go.
+-					// NOTE: this case is why we need two evacuate tophash
+-					// values, evacuatedX and evacuatedY, that differ in
+-					// their low bit.
+-					if(check_bucket >> (it->B - 1) != (b->tophash[offi] & 1)) {
+-						continue;
+-					}
+-				}
+-			}
+-			if(b->tophash[offi] != EvacuatedX && b->tophash[offi] != EvacuatedY) {
+-				// this is the golden data, we can return it.
+-				it->key = IK(h, k);
+-				it->value = IV(h, v);
+-			} else {
+-				// The hash table has grown since the iterator was started.
+-				// The golden data for this key is now somewhere else.
+-				t->key->alg->equal(&eq, t->key->size, IK(h, k), IK(h, k));
+-				if(eq) {
+-					// Check the current hash table for the data.
+-					// This code handles the case where the key
+-					// has been deleted, updated, or deleted and reinserted.
+-					// NOTE: we need to regrab the key as it has potentially been
+-					// updated to an equal() but not identical key (e.g. +0.0 vs -0.0).
+-					rk = IK(h, k);
+-					rv = hash_lookup(t, it->h, &rk);
+-					if(rv == nil)
+-						continue; // key has been deleted
+-					it->key = rk;
+-					it->value = rv;
+-				} else {
+-					// if key!=key then the entry can't be deleted or
+-					// updated, so we can just return it.  That's lucky for
+-					// us because when key!=key we can't look it up
+-					// successfully in the current table.
+-					it->key = IK(h, k);
+-					it->value = IV(h, v);
+-				}
+-			}
+-			it->bucket = bucket;
+-			it->bptr = b;
+-			it->i = i + 1;
+-			it->check_bucket = check_bucket;
+-			return;
+-		}
+-	}
+-	b = b->overflow;
+-	i = 0;
+-	goto next;
+-}
+-
+-//
+-/// interfaces to go runtime
+-//
+-
+-func reflect·ismapkey(typ *Type) (ret bool) {
+-	ret = typ != nil && typ->alg->hash != runtime·nohash;
+-}
+-
+-static Hmap*
+-makemap_c(MapType *typ, int64 hint)
+-{
+-	Hmap *h;
+-	Type *key;
+-
+-	key = typ->key;
+-	
+-	if(sizeof(Hmap) > 48)
+-		runtime·panicstring("hmap too large");
+-
+-	if(hint < 0 || (int32)hint != hint)
+-		runtime·panicstring("makemap: size out of range");
+-
+-	if(key->alg->hash == runtime·nohash)
+-		runtime·throw("runtime.makemap: unsupported map key type");
+-
+-	h = runtime·cnew(typ->hmap);
+-	hash_init(typ, h, hint);
+-
+-	// these calculations are compiler dependent.
+-	// figure out offsets of map call arguments.
+-
+-	if(debug) {
+-		runtime·printf("makemap: map=%p; keysize=%p; valsize=%p; keyalg=%p; valalg=%p\n",
+-			       h, key->size, typ->elem->size, key->alg, typ->elem->alg);
+-	}
+-
+-	return h;
+-}
+-
+-func makemap(typ *MapType, hint int64) (ret *Hmap) {
+-	ret = makemap_c(typ, hint);
+-}
+-
+-func reflect·makemap(t *MapType) (ret *Hmap) {
+-	ret = makemap_c(t, 0);
+-}
+-
+-// NOTE: The returned pointer may keep the whole map live, so don't
+-// hold onto it for very long.
+-#pragma textflag NOSPLIT
+-func mapaccess1(t *MapType, h *Hmap, key *byte) (val *byte) {
+-	if(raceenabled && h != nil) {
+-		runtime·racereadpc(h, runtime·getcallerpc(&t), runtime·mapaccess1);
+-		runtime·racereadobjectpc(key, t->key, runtime·getcallerpc(&t), runtime·mapaccess1);
+-	}
+-	if(h == nil || h->count == 0) {
+-		val = t->elem->zero;
+-	} else {
+-		val = hash_lookup(t, h, &key);
+-		if(val == nil)
+-			val = t->elem->zero;
+-	}
+-
+-	if(debug) {
+-		runtime·prints("runtime.mapaccess1: map=");
+-		runtime·printpointer(h);
+-		runtime·prints("; key=");
+-		t->key->alg->print(t->key->size, key);
+-		runtime·prints("; val=");
+-		t->elem->alg->print(t->elem->size, val);
+-		runtime·prints("\n");
+-	}
+-}
+-
+-// NOTE: The returned pointer keeps the whole map live, so don't
+-// hold onto it for very long.
+-#pragma textflag NOSPLIT
+-func mapaccess2(t *MapType, h *Hmap, key *byte) (val *byte, pres bool) {
+-	if(raceenabled && h != nil) {
+-		runtime·racereadpc(h, runtime·getcallerpc(&t), runtime·mapaccess2);
+-		runtime·racereadobjectpc(key, t->key, runtime·getcallerpc(&t), runtime·mapaccess2);
+-	}
+-
+-	if(h == nil || h->count == 0) {
+-		val = t->elem->zero;
+-		pres = false;
+-	} else {
+-		val = hash_lookup(t, h, &key);
+-		if(val == nil) {
+-			val = t->elem->zero;
+-			pres = false;
+-		} else {
+-			pres = true;
+-		}
+-	}
+-
+-	if(debug) {
+-		runtime·prints("runtime.mapaccess2: map=");
+-		runtime·printpointer(h);
+-		runtime·prints("; key=");
+-		t->key->alg->print(t->key->size, key);
+-		runtime·prints("; val=");
+-		t->elem->alg->print(t->elem->size, val);
+-		runtime·prints("; pres=");
+-		runtime·printbool(pres);
+-		runtime·prints("\n");
+-	}
+-}
+-
+-#pragma textflag NOSPLIT
+-func reflect·mapaccess(t *MapType, h *Hmap, key *byte) (val *byte) {
+-	if(h == nil)
+-		val = nil;
+-	else {
+-		if(raceenabled) {
+-			runtime·racereadpc(h, runtime·getcallerpc(&t), reflect·mapaccess);
+-			runtime·racereadobjectpc(key, t->key, runtime·getcallerpc(&t), reflect·mapaccess);
+-		}
+-		val = hash_lookup(t, h, &key);
+-	}
+-}
+-
+-#pragma textflag NOSPLIT
+-func mapassign1(t *MapType, h *Hmap, key *byte, val *byte) {
+-	if(h == nil)
+-		runtime·panicstring("assignment to entry in nil map");
+-
+-	if(raceenabled) {
+-		runtime·racewritepc(h, runtime·getcallerpc(&t), runtime·mapassign1);
+-		runtime·racereadobjectpc(key, t->key, runtime·getcallerpc(&t), runtime·mapassign1);
+-		runtime·racereadobjectpc(val, t->elem, runtime·getcallerpc(&t), runtime·mapassign1);
+-	}
+-
+-	hash_insert(t, h, key, val);
+-
+-	if(debug) {
+-		runtime·prints("mapassign1: map=");
+-		runtime·printpointer(h);
+-		runtime·prints("; key=");
+-		t->key->alg->print(t->key->size, key);
+-		runtime·prints("; val=");
+-		t->elem->alg->print(t->elem->size, val);
+-		runtime·prints("\n");
+-	}
+-}
+-
+-#pragma textflag NOSPLIT
+-func mapdelete(t *MapType, h *Hmap, key *byte) {
+-	if(h == nil)
+-		return;
+-
+-	if(raceenabled) {
+-		runtime·racewritepc(h, runtime·getcallerpc(&t), runtime·mapdelete);
+-		runtime·racereadobjectpc(key, t->key, runtime·getcallerpc(&t), runtime·mapdelete);
+-	}
+-
+-	hash_remove(t, h, key);
+-
+-	if(debug) {
+-		runtime·prints("mapdelete: map=");
+-		runtime·printpointer(h);
+-		runtime·prints("; key=");
+-		t->key->alg->print(t->key->size, key);
+-		runtime·prints("\n");
+-	}
+-}
+-
+-#pragma textflag NOSPLIT
+-func reflect·mapassign(t *MapType, h *Hmap, key *byte, val *byte) {
+-	if(h == nil)
+-		runtime·panicstring("assignment to entry in nil map");
+-	if(raceenabled) {
+-		runtime·racewritepc(h, runtime·getcallerpc(&t), reflect·mapassign);
+-		runtime·racereadobjectpc(key, t->key, runtime·getcallerpc(&t), reflect·mapassign);
+-		runtime·racereadobjectpc(val, t->elem, runtime·getcallerpc(&t), reflect·mapassign);
+-	}
+-
+-	hash_insert(t, h, key, val);
+-
+-	if(debug) {
+-		runtime·prints("mapassign: map=");
+-		runtime·printpointer(h);
+-		runtime·prints("; key=");
+-		t->key->alg->print(t->key->size, key);
+-		runtime·prints("; val=");
+-		t->elem->alg->print(t->elem->size, val);
+-		runtime·prints("\n");
+-	}
+-}
+-
+-#pragma textflag NOSPLIT
+-func reflect·mapdelete(t *MapType, h *Hmap, key *byte) {
+-	if(h == nil)
+-		return; // see bug 8051
+-	if(raceenabled) {
+-		runtime·racewritepc(h, runtime·getcallerpc(&t), reflect·mapdelete);
+-		runtime·racereadobjectpc(key, t->key, runtime·getcallerpc(&t), reflect·mapdelete);
+-	}
+-	hash_remove(t, h, key);
+-
+-	if(debug) {
+-		runtime·prints("mapdelete: map=");
+-		runtime·printpointer(h);
+-		runtime·prints("; key=");
+-		t->key->alg->print(t->key->size, key);
+-		runtime·prints("\n");
+-	}
+-}
+-
+-#pragma textflag NOSPLIT
+-func mapiterinit(t *MapType, h *Hmap, it *Hiter) {
+-	// Clear pointer fields so garbage collector does not complain.
+-	it->key = nil;
+-	it->value = nil;
+-	it->t = nil;
+-	it->h = nil;
+-	it->buckets = nil;
+-	it->bptr = nil;
+-
+-	if(h == nil || h->count == 0) {
+-		it->key = nil;
+-		return;
+-	}
+-	if(raceenabled)
+-		runtime·racereadpc(h, runtime·getcallerpc(&t), runtime·mapiterinit);
+-	hash_iter_init(t, h, it);
+-	hash_next(it);
+-	if(debug) {
+-		runtime·prints("runtime.mapiterinit: map=");
+-		runtime·printpointer(h);
+-		runtime·prints("; iter=");
+-		runtime·printpointer(it);
+-		runtime·prints("; key=");
+-		runtime·printpointer(it->key);
+-		runtime·prints("\n");
+-	}
+-}
+-
+-func reflect·mapiterinit(t *MapType, h *Hmap) (it *Hiter) {
+-	it = runtime·mal(sizeof *it);
+-	runtime·mapiterinit(t, h, it);
+-}
+-
+-#pragma textflag NOSPLIT
+-func mapiternext(it *Hiter) {
+-	if(raceenabled)
+-		runtime·racereadpc(it->h, runtime·getcallerpc(&it), runtime·mapiternext);
+-
+-	hash_next(it);
+-	if(debug) {
+-		runtime·prints("runtime.mapiternext: iter=");
+-		runtime·printpointer(it);
+-		runtime·prints("; key=");
+-		runtime·printpointer(it->key);
+-		runtime·prints("\n");
+-	}
+-}
+-
+-func reflect·mapiternext(it *Hiter) {
+-	runtime·mapiternext(it);
+-}
+-
+-func reflect·mapiterkey(it *Hiter) (key *byte) {
+-	key = it->key;
+-}
+-
+-#pragma textflag NOSPLIT
+-func reflect·maplen(h *Hmap) (len int) {
+-	if(h == nil)
+-		len = 0;
+-	else {
+-		len = h->count;
+-		if(raceenabled)
+-			runtime·racereadpc(h, runtime·getcallerpc(&h), reflect·maplen);
+-	}
+-}
+-
+-// exported value for testing
+-float64 runtime·hashLoad = LOAD;
+diff --git a/src/pkg/runtime/hashmap.h b/src/pkg/runtime/hashmap.h
+deleted file mode 100644
+index 522d1ad01a..0000000000
+--- a/src/pkg/runtime/hashmap.h
++++ /dev/null
+@@ -1,147 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This file contains the implementation of Go's map type.
+-//
+-// The map is just a hash table.  The data is arranged
+-// into an array of buckets.  Each bucket contains up to
+-// 8 key/value pairs.  The low-order bits of the hash are
+-// used to select a bucket.  Each bucket contains a few
+-// high-order bits of each hash to distinguish the entries
+-// within a single bucket.
+-//
+-// If more than 8 keys hash to a bucket, we chain on
+-// extra buckets.
+-//
+-// When the hashtable grows, we allocate a new array
+-// of buckets twice as big.  Buckets are incrementally
+-// copied from the old bucket array to the new bucket array.
+-//
+-// Map iterators walk through the array of buckets and
+-// return the keys in walk order (bucket #, then overflow
+-// chain order, then bucket index).  To maintain iteration
+-// semantics, we never move keys within their bucket (if
+-// we did, keys might be returned 0 or 2 times).  When
+-// growing the table, iterators remain iterating through the
+-// old table and must check the new table if the bucket
+-// they are iterating through has been moved ("evacuated")
+-// to the new table.
+-
+-// Maximum number of key/value pairs a bucket can hold.
+-#define BUCKETSIZE 8
+-
+-// Maximum average load of a bucket that triggers growth.
+-#define LOAD 6.5
+-
+-// Picking LOAD: too large and we have lots of overflow
+-// buckets, too small and we waste a lot of space.  I wrote
+-// a simple program to check some stats for different loads:
+-// (64-bit, 8 byte keys and values)
+-//        LOAD    %overflow  bytes/entry     hitprobe    missprobe
+-//        4.00         2.13        20.77         3.00         4.00
+-//        4.50         4.05        17.30         3.25         4.50
+-//        5.00         6.85        14.77         3.50         5.00
+-//        5.50        10.55        12.94         3.75         5.50
+-//        6.00        15.27        11.67         4.00         6.00
+-//        6.50        20.90        10.79         4.25         6.50
+-//        7.00        27.14        10.15         4.50         7.00
+-//        7.50        34.03         9.73         4.75         7.50
+-//        8.00        41.10         9.40         5.00         8.00
+-//
+-// %overflow   = percentage of buckets which have an overflow bucket
+-// bytes/entry = overhead bytes used per key/value pair
+-// hitprobe    = # of entries to check when looking up a present key
+-// missprobe   = # of entries to check when looking up an absent key
+-//
+-// Keep in mind this data is for maximally loaded tables, i.e. just
+-// before the table grows.  Typical tables will be somewhat less loaded.
+-
+-// Maximum key or value size to keep inline (instead of mallocing per element).
+-// Must fit in a uint8.
+-// Fast versions cannot handle big values - the cutoff size for
+-// fast versions in ../../cmd/gc/walk.c must be at most this value.
+-#define MAXKEYSIZE 128
+-#define MAXVALUESIZE 128
+-
+-typedef struct Bucket Bucket;
+-struct Bucket
+-{
+-	// Note: the format of the Bucket is encoded in ../../cmd/gc/reflect.c and
+-	// ../reflect/type.go.  Don't change this structure without also changing that code!
+-	uint8  tophash[BUCKETSIZE]; // top 8 bits of hash of each entry (or special mark below)
+-	Bucket *overflow;           // overflow bucket, if any
+-	uint64 data[1];             // BUCKETSIZE keys followed by BUCKETSIZE values
+-};
+-// NOTE: packing all the keys together and then all the values together makes the
+-// code a bit more complicated than alternating key/value/key/value/... but it allows
+-// us to eliminate padding which would be needed for, e.g., map[int64]int8.
+-
+-// tophash values.  We reserve a few possibilities for special marks.
+-// Each bucket (including its overflow buckets, if any) will have either all or none of its
+-// entries in the Evacuated* states (except during the evacuate() method, which only happens
+-// during map writes and thus no one else can observe the map during that time).
+-enum
+-{
+-	Empty = 0,		// cell is empty
+-	EvacuatedEmpty = 1,	// cell is empty, bucket is evacuated.
+-	EvacuatedX = 2,		// key/value is valid.  Entry has been evacuated to first half of larger table.
+-	EvacuatedY = 3,		// same as above, but evacuated to second half of larger table.
+-	MinTopHash = 4, 	// minimum tophash for a normal filled cell.
+-};
+-#define evacuated(b) ((b)->tophash[0] > Empty && (b)->tophash[0] < MinTopHash)
+-
+-struct Hmap
+-{
+-	// Note: the format of the Hmap is encoded in ../../cmd/gc/reflect.c and
+-	// ../reflect/type.go.  Don't change this structure without also changing that code!
+-	uintgo  count;        // # live cells == size of map.  Must be first (used by len() builtin)
+-	uint32  flags;
+-	uint32  hash0;        // hash seed
+-	uint8   B;            // log_2 of # of buckets (can hold up to LOAD * 2^B items)
+-	uint8   keysize;      // key size in bytes
+-	uint8   valuesize;    // value size in bytes
+-	uint16  bucketsize;   // bucket size in bytes
+-
+-	byte    *buckets;     // array of 2^B Buckets. may be nil if count==0.
+-	byte    *oldbuckets;  // previous bucket array of half the size, non-nil only when growing
+-	uintptr nevacuate;    // progress counter for evacuation (buckets less than this have been evacuated)
+-};
+-
+-// possible flags
+-enum
+-{
+-	IndirectKey = 1,    // storing pointers to keys
+-	IndirectValue = 2,  // storing pointers to values
+-	Iterator = 4,       // there may be an iterator using buckets
+-	OldIterator = 8,    // there may be an iterator using oldbuckets
+-};
+-
+-// Macros for dereferencing indirect keys
+-#define IK(h, p) (((h)->flags & IndirectKey) != 0 ? *(byte**)(p) : (p))
+-#define IV(h, p) (((h)->flags & IndirectValue) != 0 ? *(byte**)(p) : (p))
+-
+-// If you modify Hiter, also change cmd/gc/reflect.c to indicate
+-// the layout of this structure.
+-struct Hiter
+-{
+-	uint8* key; // Must be in first position.  Write nil to indicate iteration end (see cmd/gc/range.c).
+-	uint8* value; // Must be in second position (see cmd/gc/range.c).
+-
+-	MapType *t;
+-	Hmap *h;
+-	byte *buckets; // bucket ptr at hash_iter initialization time
+-	struct Bucket *bptr; // current bucket
+-
+-	uint8 offset; // intra-bucket offset to start from during iteration (should be big enough to hold BUCKETSIZE-1)
+-	bool done;
+-
+-	// state of table at time iterator is initialized
+-	uint8 B;
+-
+-	// iter state
+-	uintptr bucket;
+-	uintptr i;
+-	intptr check_bucket;
+-};
+-
+diff --git a/src/pkg/runtime/hashmap_fast.c b/src/pkg/runtime/hashmap_fast.c
+deleted file mode 100644
+index 83bf6feb55..0000000000
+--- a/src/pkg/runtime/hashmap_fast.c
++++ /dev/null
+@@ -1,233 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Fast hashmap lookup specialized to a specific key type.
+-// Included by hashmap.c once for each specialized type.
+-
+-// +build ignore
+-
+-// Because this file is #included, it cannot be processed by goc2c,
+-// so we have to handle the Go resuts ourselves.
+-
+-#pragma textflag NOSPLIT
+-void
+-HASH_LOOKUP1(MapType *t, Hmap *h, KEYTYPE key, GoOutput base, ...)
+-{
+-	uintptr bucket, i;
+-	Bucket *b;
+-	KEYTYPE *k;
+-	byte *v, **valueptr;
+-	uint8 top;
+-	int8 keymaybe;
+-
+-	valueptr = (byte**)&base;
+-	if(debug) {
+-		runtime·prints("runtime.mapaccess1_fastXXX: map=");
+-		runtime·printpointer(h);
+-		runtime·prints("; key=");
+-		t->key->alg->print(t->key->size, &key);
+-		runtime·prints("\n");
+-	}
+-	if(h == nil || h->count == 0) {
+-		*valueptr = t->elem->zero;
+-		return;
+-	}
+-	if(raceenabled)
+-		runtime·racereadpc(h, runtime·getcallerpc(&t), HASH_LOOKUP1);
+-	if(docheck)
+-		check(t, h);
+-
+-	if(h->B == 0) {
+-		// One-bucket table. Don't hash, just check each bucket entry.
+-		b = (Bucket*)h->buckets;
+-		if(FASTKEY(key)) {
+-			for(i = 0, k = (KEYTYPE*)b->data, v = (byte*)(k + BUCKETSIZE); i < BUCKETSIZE; i++, k++, v += h->valuesize) {
+-				if(b->tophash[i] == Empty)
+-					continue;
+-				if(QUICK_NE(key, *k))
+-					continue;
+-				if(QUICK_EQ(key, *k) || SLOW_EQ(key, *k)) {
+-					*valueptr = v;
+-					return;
+-				}
+-			}
+-		} else {
+-			keymaybe = -1;
+-			for(i = 0, k = (KEYTYPE*)b->data, v = (byte*)(k + BUCKETSIZE); i < BUCKETSIZE; i++, k++, v += h->valuesize) {
+-				if(b->tophash[i] == Empty)
+-					continue;
+-				if(QUICK_NE(key, *k))
+-					continue;
+-				if(QUICK_EQ(key, *k)) {
+-					*valueptr = v;
+-					return;
+-				}
+-				if(MAYBE_EQ(key, *k)) {
+-					if(keymaybe >= 0) {
+-						// Two same-length strings in this bucket.
+-						// use slow path.
+-						// TODO: keep track of more than just 1.  We could
+-						// afford about 3 equals calls before it would be more
+-						// expensive than 1 hash + 1 equals.
+-						goto dohash;
+-					}
+-					keymaybe = i;
+-				}
+-			}
+-			if(keymaybe >= 0) {
+-				k = (KEYTYPE*)b->data + keymaybe;
+-				if(SLOW_EQ(key, *k)) {
+-					*valueptr = (byte*)((KEYTYPE*)b->data + BUCKETSIZE) + keymaybe * h->valuesize;
+-					return;
+-				}
+-			}
+-		}
+-	} else {
+-dohash:
+-		bucket = h->hash0;
+-		HASHFUNC(&bucket, sizeof(KEYTYPE), &key);
+-		top = bucket >> (sizeof(uintptr)*8 - 8);
+-		if(top < MinTopHash)
+-			top += MinTopHash;
+-		bucket &= (((uintptr)1 << h->B) - 1);
+-		if(h->oldbuckets != nil) {
+-			i = bucket & (((uintptr)1 << (h->B - 1)) - 1);
+-			b = (Bucket*)(h->oldbuckets + i * h->bucketsize);
+-			if(evacuated(b)) {
+-				b = (Bucket*)(h->buckets + bucket * h->bucketsize);
+-			}
+-		} else {
+-			b = (Bucket*)(h->buckets + bucket * h->bucketsize);
+-		}
+-		do {
+-			for(i = 0, k = (KEYTYPE*)b->data, v = (byte*)(k + BUCKETSIZE); i < BUCKETSIZE; i++, k++, v += h->valuesize) {
+-				if(b->tophash[i] != top)
+-					continue;
+-				if(QUICK_NE(key, *k))
+-					continue;
+-				if(QUICK_EQ(key, *k) || SLOW_EQ(key, *k)) {
+-					*valueptr = v;
+-					return;
+-				}
+-			}
+-			b = b->overflow;
+-		} while(b != nil);
+-	}
+-	*valueptr = t->elem->zero;
+-}
+-
+-#pragma textflag NOSPLIT
+-void
+-HASH_LOOKUP2(MapType *t, Hmap *h, KEYTYPE key, GoOutput base, ...)
+-{
+-	uintptr bucket, i;
+-	Bucket *b;
+-	KEYTYPE *k;
+-	byte *v, **valueptr;
+-	uint8 top;
+-	int8 keymaybe;
+-	bool *okptr;
+-
+-	valueptr = (byte**)&base;
+-	okptr = (bool*)(valueptr+1);
+-	if(debug) {
+-		runtime·prints("runtime.mapaccess2_fastXXX: map=");
+-		runtime·printpointer(h);
+-		runtime·prints("; key=");
+-		t->key->alg->print(t->key->size, &key);
+-		runtime·prints("\n");
+-	}
+-	if(h == nil || h->count == 0) {
+-		*valueptr = t->elem->zero;
+-		*okptr = false;
+-		return;
+-	}
+-	if(raceenabled)
+-		runtime·racereadpc(h, runtime·getcallerpc(&t), HASH_LOOKUP2);
+-	if(docheck)
+-		check(t, h);
+-
+-	if(h->B == 0) {
+-		// One-bucket table. Don't hash, just check each bucket entry.
+-		b = (Bucket*)h->buckets;
+-		if(FASTKEY(key)) {
+-			for(i = 0, k = (KEYTYPE*)b->data, v = (byte*)(k + BUCKETSIZE); i < BUCKETSIZE; i++, k++, v += h->valuesize) {
+-				if(b->tophash[i] == Empty)
+-					continue;
+-				if(QUICK_NE(key, *k))
+-					continue;
+-				if(QUICK_EQ(key, *k) || SLOW_EQ(key, *k)) {
+-					*valueptr = v;
+-					*okptr = true;
+-					return;
+-				}
+-			}
+-		} else {
+-			keymaybe = -1;
+-			for(i = 0, k = (KEYTYPE*)b->data, v = (byte*)(k + BUCKETSIZE); i < BUCKETSIZE; i++, k++, v += h->valuesize) {
+-				if(b->tophash[i] == Empty)
+-					continue;
+-				if(QUICK_NE(key, *k))
+-					continue;
+-				if(QUICK_EQ(key, *k)) {
+-					*valueptr = v;
+-					*okptr = true;
+-					return;
+-				}
+-				if(MAYBE_EQ(key, *k)) {
+-					if(keymaybe >= 0) {
+-						// Two same-length strings in this bucket.
+-						// use slow path.
+-						// TODO: keep track of more than just 1.  We could
+-						// afford about 3 equals calls before it would be more
+-						// expensive than 1 hash + 1 equals.
+-						goto dohash;
+-					}
+-					keymaybe = i;
+-				}
+-			}
+-			if(keymaybe >= 0) {
+-				k = (KEYTYPE*)b->data + keymaybe;
+-				if(SLOW_EQ(key, *k)) {
+-					*valueptr = (byte*)((KEYTYPE*)b->data + BUCKETSIZE) + keymaybe * h->valuesize;
+-					*okptr = true;
+-					return;
+-				}
+-			}
+-		}
+-	} else {
+-dohash:
+-		bucket = h->hash0;
+-		HASHFUNC(&bucket, sizeof(KEYTYPE), &key);
+-		top = bucket >> (sizeof(uintptr)*8 - 8);
+-		if(top < MinTopHash)
+-			top += MinTopHash;
+-		bucket &= (((uintptr)1 << h->B) - 1);
+-		if(h->oldbuckets != nil) {
+-			i = bucket & (((uintptr)1 << (h->B - 1)) - 1);
+-			b = (Bucket*)(h->oldbuckets + i * h->bucketsize);
+-			if(evacuated(b)) {
+-				b = (Bucket*)(h->buckets + bucket * h->bucketsize);
+-			}
+-		} else {
+-			b = (Bucket*)(h->buckets + bucket * h->bucketsize);
+-		}
+-		do {
+-			for(i = 0, k = (KEYTYPE*)b->data, v = (byte*)(k + BUCKETSIZE); i < BUCKETSIZE; i++, k++, v += h->valuesize) {
+-				if(b->tophash[i] != top)
+-					continue;
+-				if(QUICK_NE(key, *k))
+-					continue;
+-				if(QUICK_EQ(key, *k) || SLOW_EQ(key, *k)) {
+-					*valueptr = v;
+-					*okptr = true;
+-					return;
+-				}
+-			}
+-			b = b->overflow;
+-		} while(b != nil);
+-	}
+-	*valueptr = t->elem->zero;
+-	*okptr = false;
+-}
+diff --git a/src/pkg/runtime/hashmap_fast.go b/src/pkg/runtime/hashmap_fast.go
+new file mode 100644
+index 0000000000..5055af4a7b
+--- /dev/null
++++ b/src/pkg/runtime/hashmap_fast.go
+@@ -0,0 +1,391 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import (
++	"unsafe"
++)
++
++func mapaccess1_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
++	if raceenabled && h != nil {
++		callerpc := gogetcallerpc(unsafe.Pointer(&t))
++		fn := mapaccess1_fast32
++		pc := **(**uintptr)(unsafe.Pointer(&fn))
++		racereadpc(unsafe.Pointer(h), callerpc, pc)
++	}
++	if h == nil || h.count == 0 {
++		return unsafe.Pointer(t.elem.zero)
++	}
++	var b *bmap
++	if h.B == 0 {
++		// One-bucket table.  No need to hash.
++		b = (*bmap)(h.buckets)
++	} else {
++		hash := gohash(t.key.alg, unsafe.Pointer(&key), 4, uintptr(h.hash0))
++		m := uintptr(1)<<h.B - 1
++		b = (*bmap)(add(h.buckets, (hash&m)*uintptr(h.bucketsize)))
++		if c := h.oldbuckets; c != nil {
++			oldb := (*bmap)(add(c, (hash&(m>>1))*uintptr(h.bucketsize)))
++			if !evacuated(oldb) {
++				b = oldb
++			}
++		}
++	}
++	for {
++		for i := uintptr(0); i < bucketCnt; i++ {
++			k := *((*uint32)(add(unsafe.Pointer(b), dataOffset+i*4)))
++			if k != key {
++				continue
++			}
++			t := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
++			if t == empty {
++				continue
++			}
++			return add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(h.valuesize))
++		}
++		b = b.overflow
++		if b == nil {
++			return unsafe.Pointer(t.elem.zero)
++		}
++	}
++}
++
++func mapaccess2_fast32(t *maptype, h *hmap, key uint32) (unsafe.Pointer, bool) {
++	if raceenabled && h != nil {
++		callerpc := gogetcallerpc(unsafe.Pointer(&t))
++		fn := mapaccess2_fast32
++		pc := **(**uintptr)(unsafe.Pointer(&fn))
++		racereadpc(unsafe.Pointer(h), callerpc, pc)
++	}
++	if h == nil || h.count == 0 {
++		return unsafe.Pointer(t.elem.zero), false
++	}
++	var b *bmap
++	if h.B == 0 {
++		// One-bucket table.  No need to hash.
++		b = (*bmap)(h.buckets)
++	} else {
++		hash := gohash(t.key.alg, unsafe.Pointer(&key), 4, uintptr(h.hash0))
++		m := uintptr(1)<<h.B - 1
++		b = (*bmap)(add(h.buckets, (hash&m)*uintptr(h.bucketsize)))
++		if c := h.oldbuckets; c != nil {
++			oldb := (*bmap)(add(c, (hash&(m>>1))*uintptr(h.bucketsize)))
++			if !evacuated(oldb) {
++				b = oldb
++			}
++		}
++	}
++	for {
++		for i := uintptr(0); i < bucketCnt; i++ {
++			k := *((*uint32)(add(unsafe.Pointer(b), dataOffset+i*4)))
++			if k != key {
++				continue
++			}
++			t := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
++			if t == empty {
++				continue
++			}
++			return add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(h.valuesize)), true
++		}
++		b = b.overflow
++		if b == nil {
++			return unsafe.Pointer(t.elem.zero), false
++		}
++	}
++}
++
++func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
++	if raceenabled && h != nil {
++		callerpc := gogetcallerpc(unsafe.Pointer(&t))
++		fn := mapaccess1_fast64
++		pc := **(**uintptr)(unsafe.Pointer(&fn))
++		racereadpc(unsafe.Pointer(h), callerpc, pc)
++	}
++	if h == nil || h.count == 0 {
++		return unsafe.Pointer(t.elem.zero)
++	}
++	var b *bmap
++	if h.B == 0 {
++		// One-bucket table.  No need to hash.
++		b = (*bmap)(h.buckets)
++	} else {
++		hash := gohash(t.key.alg, unsafe.Pointer(&key), 8, uintptr(h.hash0))
++		m := uintptr(1)<<h.B - 1
++		b = (*bmap)(add(h.buckets, (hash&m)*uintptr(h.bucketsize)))
++		if c := h.oldbuckets; c != nil {
++			oldb := (*bmap)(add(c, (hash&(m>>1))*uintptr(h.bucketsize)))
++			if !evacuated(oldb) {
++				b = oldb
++			}
++		}
++	}
++	for {
++		for i := uintptr(0); i < bucketCnt; i++ {
++			k := *((*uint64)(add(unsafe.Pointer(b), dataOffset+i*8)))
++			if k != key {
++				continue
++			}
++			t := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
++			if t == empty {
++				continue
++			}
++			return add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(h.valuesize))
++		}
++		b = b.overflow
++		if b == nil {
++			return unsafe.Pointer(t.elem.zero)
++		}
++	}
++}
++
++func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
++	if raceenabled && h != nil {
++		callerpc := gogetcallerpc(unsafe.Pointer(&t))
++		fn := mapaccess2_fast64
++		pc := **(**uintptr)(unsafe.Pointer(&fn))
++		racereadpc(unsafe.Pointer(h), callerpc, pc)
++	}
++	if h == nil || h.count == 0 {
++		return unsafe.Pointer(t.elem.zero), false
++	}
++	var b *bmap
++	if h.B == 0 {
++		// One-bucket table.  No need to hash.
++		b = (*bmap)(h.buckets)
++	} else {
++		hash := gohash(t.key.alg, unsafe.Pointer(&key), 8, uintptr(h.hash0))
++		m := uintptr(1)<<h.B - 1
++		b = (*bmap)(add(h.buckets, (hash&m)*uintptr(h.bucketsize)))
++		if c := h.oldbuckets; c != nil {
++			oldb := (*bmap)(add(c, (hash&(m>>1))*uintptr(h.bucketsize)))
++			if !evacuated(oldb) {
++				b = oldb
++			}
++		}
++	}
++	for {
++		for i := uintptr(0); i < bucketCnt; i++ {
++			k := *((*uint64)(add(unsafe.Pointer(b), dataOffset+i*8)))
++			if k != key {
++				continue
++			}
++			t := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
++			if t == empty {
++				continue
++			}
++			return add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(h.valuesize)), true
++		}
++		b = b.overflow
++		if b == nil {
++			return unsafe.Pointer(t.elem.zero), false
++		}
++	}
++}
++
++func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
++	if raceenabled && h != nil {
++		callerpc := gogetcallerpc(unsafe.Pointer(&t))
++		fn := mapaccess1_faststr
++		pc := **(**uintptr)(unsafe.Pointer(&fn))
++		racereadpc(unsafe.Pointer(h), callerpc, pc)
++	}
++	if h == nil || h.count == 0 {
++		return unsafe.Pointer(t.elem.zero)
++	}
++	key := (*stringStruct)(unsafe.Pointer(&ky))
++	if h.B == 0 {
++		// One-bucket table.
++		b := (*bmap)(h.buckets)
++		if key.len < 32 {
++			// short key, doing lots of comparisons is ok
++			for i := uintptr(0); i < bucketCnt; i++ {
++				t := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
++				if t == empty {
++					continue
++				}
++				k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*ptrSize))
++				if k.len != key.len {
++					continue
++				}
++				if k.str == key.str || gomemeq(k.str, key.str, uintptr(key.len)) {
++					return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(h.valuesize))
++				}
++			}
++			return unsafe.Pointer(t.elem.zero)
++		}
++		// long key, try not to do more comparisons than necessary
++		keymaybe := uintptr(bucketCnt)
++		for i := uintptr(0); i < bucketCnt; i++ {
++			t := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
++			if t == empty {
++				continue
++			}
++			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*ptrSize))
++			if k.len != key.len {
++				continue
++			}
++			if k.str == key.str {
++				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(h.valuesize))
++			}
++			// check first 4 bytes
++			// TODO: on amd64/386 at least, make this compile to one 4-byte comparison instead of
++			// four 1-byte comparisons.
++			if *((*[4]byte)(key.str)) != *((*[4]byte)(k.str)) {
++				continue
++			}
++			// check last 4 bytes
++			if *((*[4]byte)(add(key.str, uintptr(key.len)-4))) != *((*[4]byte)(add(k.str, uintptr(key.len)-4))) {
++				continue
++			}
++			if keymaybe != bucketCnt {
++				// Two keys are potential matches.  Use hash to distinguish them.
++				goto dohash
++			}
++			keymaybe = i
++		}
++		if keymaybe != bucketCnt {
++			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+keymaybe*2*ptrSize))
++			if gomemeq(k.str, key.str, uintptr(key.len)) {
++				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+keymaybe*uintptr(h.valuesize))
++			}
++		}
++		return unsafe.Pointer(t.elem.zero)
++	}
++dohash:
++	hash := gohash(t.key.alg, unsafe.Pointer(&ky), 2*ptrSize, uintptr(h.hash0))
++	m := uintptr(1)<<h.B - 1
++	b := (*bmap)(add(h.buckets, (hash&m)*uintptr(h.bucketsize)))
++	if c := h.oldbuckets; c != nil {
++		oldb := (*bmap)(add(c, (hash&(m>>1))*uintptr(h.bucketsize)))
++		if !evacuated(oldb) {
++			b = oldb
++		}
++	}
++	top := uint8(hash >> (ptrSize*8 - 8))
++	if top < minTopHash {
++		top += minTopHash
++	}
++	for {
++		for i := uintptr(0); i < bucketCnt; i++ {
++			t := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
++			if t != top {
++				continue
++			}
++			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*ptrSize))
++			if k.len != key.len {
++				continue
++			}
++			if k.str == key.str || gomemeq(k.str, key.str, uintptr(key.len)) {
++				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(h.valuesize))
++			}
++		}
++		b = b.overflow
++		if b == nil {
++			return unsafe.Pointer(t.elem.zero)
++		}
++	}
++}
++
++func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
++	if raceenabled && h != nil {
++		callerpc := gogetcallerpc(unsafe.Pointer(&t))
++		fn := mapaccess2_faststr
++		pc := **(**uintptr)(unsafe.Pointer(&fn))
++		racereadpc(unsafe.Pointer(h), callerpc, pc)
++	}
++	if h == nil || h.count == 0 {
++		return unsafe.Pointer(t.elem.zero), false
++	}
++	key := (*stringStruct)(unsafe.Pointer(&ky))
++	if h.B == 0 {
++		// One-bucket table.
++		b := (*bmap)(h.buckets)
++		if key.len < 32 {
++			// short key, doing lots of comparisons is ok
++			for i := uintptr(0); i < bucketCnt; i++ {
++				t := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
++				if t == empty {
++					continue
++				}
++				k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*ptrSize))
++				if k.len != key.len {
++					continue
++				}
++				if k.str == key.str || gomemeq(k.str, key.str, uintptr(key.len)) {
++					return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(h.valuesize)), true
++				}
++			}
++			return unsafe.Pointer(t.elem.zero), false
++		}
++		// long key, try not to do more comparisons than necessary
++		keymaybe := uintptr(bucketCnt)
++		for i := uintptr(0); i < bucketCnt; i++ {
++			t := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
++			if t == empty {
++				continue
++			}
++			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*ptrSize))
++			if k.len != key.len {
++				continue
++			}
++			if k.str == key.str {
++				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(h.valuesize)), true
++			}
++			// check first 4 bytes
++			if *((*[4]byte)(key.str)) != *((*[4]byte)(k.str)) {
++				continue
++			}
++			// check last 4 bytes
++			if *((*[4]byte)(add(key.str, uintptr(key.len)-4))) != *((*[4]byte)(add(k.str, uintptr(key.len)-4))) {
++				continue
++			}
++			if keymaybe != bucketCnt {
++				// Two keys are potential matches.  Use hash to distinguish them.
++				goto dohash
++			}
++			keymaybe = i
++		}
++		if keymaybe != bucketCnt {
++			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+keymaybe*2*ptrSize))
++			if gomemeq(k.str, key.str, uintptr(key.len)) {
++				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+keymaybe*uintptr(h.valuesize)), true
++			}
++		}
++		return unsafe.Pointer(t.elem.zero), false
++	}
++dohash:
++	hash := gohash(t.key.alg, unsafe.Pointer(&ky), 2*ptrSize, uintptr(h.hash0))
++	m := uintptr(1)<<h.B - 1
++	b := (*bmap)(add(h.buckets, (hash&m)*uintptr(h.bucketsize)))
++	if c := h.oldbuckets; c != nil {
++		oldb := (*bmap)(add(c, (hash&(m>>1))*uintptr(h.bucketsize)))
++		if !evacuated(oldb) {
++			b = oldb
++		}
++	}
++	top := uint8(hash >> (ptrSize*8 - 8))
++	if top < minTopHash {
++		top += minTopHash
++	}
++	for {
++		for i := uintptr(0); i < bucketCnt; i++ {
++			t := *((*uint8)(add(unsafe.Pointer(b), i))) // b.topbits[i] without the bounds check
++			if t != top {
++				continue
++			}
++			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*ptrSize))
++			if k.len != key.len {
++				continue
++			}
++			if k.str == key.str || gomemeq(k.str, key.str, uintptr(key.len)) {
++				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(h.valuesize)), true
++			}
++		}
++		b = b.overflow
++		if b == nil {
++			return unsafe.Pointer(t.elem.zero), false
++		}
++	}
++}
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 798c130ad5..c7e088c636 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -398,7 +398,7 @@ struct SpecialFinalizer
+ };
+ 
+ // The described object is being heap profiled.
+-typedef struct Bucket Bucket; // from mprof.goc
++typedef struct Bucket Bucket; // from mprof.h
+ typedef struct SpecialProfile SpecialProfile;
+ struct SpecialProfile
+ {
+diff --git a/src/pkg/runtime/memmove_386.s b/src/pkg/runtime/memmove_386.s
+index 3aed8ad07b..1fd9ba2bcc 100644
+--- a/src/pkg/runtime/memmove_386.s
++++ b/src/pkg/runtime/memmove_386.s
+@@ -29,7 +29,7 @@
+ 
+ TEXT runtime·memmove(SB), NOSPLIT, $0-12
+ 	MOVL	to+0(FP), DI
+-	MOVL	fr+4(FP), SI
++	MOVL	from+4(FP), SI
+ 	MOVL	n+8(FP), BX
+ 
+ 	// REP instructions have a high startup cost, so we handle small sizes
+diff --git a/src/pkg/runtime/memmove_amd64.s b/src/pkg/runtime/memmove_amd64.s
+index 7e384bd58d..672fce90b3 100644
+--- a/src/pkg/runtime/memmove_amd64.s
++++ b/src/pkg/runtime/memmove_amd64.s
+@@ -31,7 +31,7 @@
+ TEXT runtime·memmove(SB), NOSPLIT, $0-24
+ 
+ 	MOVQ	to+0(FP), DI
+-	MOVQ	fr+8(FP), SI
++	MOVQ	from+8(FP), SI
+ 	MOVQ	n+16(FP), BX
+ 
+ 	// REP instructions have a high startup cost, so we handle small sizes
+diff --git a/src/pkg/runtime/mprof.goc b/src/pkg/runtime/mprof.goc
+index 0aea545b4e..ea1c13ae20 100644
+--- a/src/pkg/runtime/mprof.goc
++++ b/src/pkg/runtime/mprof.goc
+@@ -9,6 +9,7 @@ package runtime
+ #include "runtime.h"
+ #include "arch_GOARCH.h"
+ #include "malloc.h"
++#include "mprof.h"
+ #include "defs_GOOS_GOARCH.h"
+ #include "type.h"
+ 
+@@ -20,58 +21,6 @@ static Lock proflock;
+ 
+ enum { MProf, BProf };  // profile types
+ 
+-// Per-call-stack profiling information.
+-// Lookup by hashing call stack into a linked-list hash table.
+-struct Bucket
+-{
+-	Bucket	*next;	// next in hash list
+-	Bucket	*allnext;	// next in list of all mbuckets/bbuckets
+-	int32	typ;
+-	// Generally unions can break precise GC,
+-	// this one is fine because it does not contain pointers.
+-	union
+-	{
+-		struct  // typ == MProf
+-		{
+-			// The following complex 3-stage scheme of stats accumulation
+-			// is required to obtain a consistent picture of mallocs and frees
+-			// for some point in time.
+-			// The problem is that mallocs come in real time, while frees
+-			// come only after a GC during concurrent sweeping. So if we would
+-			// naively count them, we would get a skew toward mallocs.
+-			//
+-			// Mallocs are accounted in recent stats.
+-			// Explicit frees are accounted in recent stats.
+-			// GC frees are accounted in prev stats.
+-			// After GC prev stats are added to final stats and
+-			// recent stats are moved into prev stats.
+-			uintptr	allocs;
+-			uintptr	frees;
+-			uintptr	alloc_bytes;
+-			uintptr	free_bytes;
+-
+-			uintptr	prev_allocs;  // since last but one till last gc
+-			uintptr	prev_frees;
+-			uintptr	prev_alloc_bytes;
+-			uintptr	prev_free_bytes;
+-
+-			uintptr	recent_allocs;  // since last gc till now
+-			uintptr	recent_frees;
+-			uintptr	recent_alloc_bytes;
+-			uintptr	recent_free_bytes;
+-
+-		};
+-		struct  // typ == BProf
+-		{
+-			int64	count;
+-			int64	cycles;
+-		};
+-	};
+-	uintptr	hash;	// hash of size + stk
+-	uintptr	size;
+-	uintptr	nstk;
+-	uintptr	stk[1];
+-};
+ enum {
+ 	BuckHashSize = 179999,
+ };
+diff --git a/src/pkg/runtime/mprof.h b/src/pkg/runtime/mprof.h
+new file mode 100644
+index 0000000000..de5e707d60
+--- /dev/null
++++ b/src/pkg/runtime/mprof.h
+@@ -0,0 +1,56 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Per-call-stack profiling information.
++// Lookup by hashing call stack into a linked-list hash table.
++struct Bucket
++{
++	Bucket	*next;	// next in hash list
++	Bucket	*allnext;	// next in list of all mbuckets/bbuckets
++	int32	typ;
++	// Generally unions can break precise GC,
++	// this one is fine because it does not contain pointers.
++	union
++	{
++		struct  // typ == MProf
++		{
++			// The following complex 3-stage scheme of stats accumulation
++			// is required to obtain a consistent picture of mallocs and frees
++			// for some point in time.
++			// The problem is that mallocs come in real time, while frees
++			// come only after a GC during concurrent sweeping. So if we would
++			// naively count them, we would get a skew toward mallocs.
++			//
++			// Mallocs are accounted in recent stats.
++			// Explicit frees are accounted in recent stats.
++			// GC frees are accounted in prev stats.
++			// After GC prev stats are added to final stats and
++			// recent stats are moved into prev stats.
++			uintptr	allocs;
++			uintptr	frees;
++			uintptr	alloc_bytes;
++			uintptr	free_bytes;
++
++			uintptr	prev_allocs;  // since last but one till last gc
++			uintptr	prev_frees;
++			uintptr	prev_alloc_bytes;
++			uintptr	prev_free_bytes;
++
++			uintptr	recent_allocs;  // since last gc till now
++			uintptr	recent_frees;
++			uintptr	recent_alloc_bytes;
++			uintptr	recent_free_bytes;
++
++		};
++		struct  // typ == BProf
++		{
++			int64	count;
++			int64	cycles;
++		};
++	};
++	uintptr	hash;	// hash of size + stk
++	uintptr	size;
++	uintptr	nstk;
++	uintptr	stk[1];
++};
+diff --git a/src/pkg/runtime/race.go b/src/pkg/runtime/race.go
+index 2fe524058d..a2c9cbb152 100644
+--- a/src/pkg/runtime/race.go
++++ b/src/pkg/runtime/race.go
+@@ -12,6 +12,13 @@ import (
+ 	"unsafe"
+ )
+ 
++const (
++	// TODO: where should these live?
++	kindNoPointers = 1 << 7
++	kindArray      = 17
++	kindStruct     = 25
++)
++
+ // RaceDisable disables handling of race events in the current goroutine.
+ func RaceDisable()
+ 
+@@ -32,3 +39,16 @@ func RaceSemrelease(s *uint32)
+ 
+ // private interface for the runtime
+ const raceenabled = true
++
++func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
++	kind := t.kind &^ kindNoPointers
++	if kind == kindArray || kind == kindStruct {
++		// for composite objects we have to read every address
++		// because a write might happen to any subobject.
++		racereadrangepc(addr, int(t.size), callerpc, pc)
++	} else {
++		// for non-composite objects we can read just the start
++		// address, as any write must write the first byte.
++		racereadpc(addr, callerpc, pc)
++	}
++}
+diff --git a/src/pkg/runtime/race0.go b/src/pkg/runtime/race0.go
+index e9f72a45f3..f228c6d7b4 100644
+--- a/src/pkg/runtime/race0.go
++++ b/src/pkg/runtime/race0.go
+@@ -8,4 +8,11 @@
+ 
+ package runtime
+ 
++import (
++	"unsafe"
++)
++
+ const raceenabled = false
++
++func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
++}
+diff --git a/src/pkg/runtime/string.go b/src/pkg/runtime/string.go
+index 69516af066..475c837e36 100644
+--- a/src/pkg/runtime/string.go
++++ b/src/pkg/runtime/string.go
+@@ -144,7 +144,7 @@ func slicerunetostring(a []rune) string {
+ }
+ 
+ type stringStruct struct {
+-	str *byte
++	str unsafe.Pointer
+ 	len int
+ }
+ 
+@@ -156,7 +156,7 @@ func cstringToGo(str uintptr) (s string) {
+ 		}
+ 	}
+ 	t := (*stringStruct)(unsafe.Pointer(&s))
+-	t.str = (*byte)(unsafe.Pointer(str))
++	t.str = unsafe.Pointer(str)
+ 	t.len = i
+ 	return
+ }
+diff --git a/src/pkg/runtime/stubs.go b/src/pkg/runtime/stubs.go
+index b19b0e0a49..77b0186564 100644
+--- a/src/pkg/runtime/stubs.go
++++ b/src/pkg/runtime/stubs.go
+@@ -11,6 +11,10 @@ import "unsafe"
+ // Assembly implementations are in various files, see comments with
+ // each function.
+ 
++const (
++	ptrSize = unsafe.Sizeof((*byte)(nil))
++)
++
+ // rawstring allocates storage for a new string. The returned
+ // string and byte slice both refer to the same storage.
+ // The storage is not zeroed. Callers should use
+@@ -26,5 +30,55 @@ func rawruneslice(size int) []rune
+ //go:noescape
+ func gogetcallerpc(p unsafe.Pointer) uintptr
+ 
++//go:noescape
++func racereadpc(addr unsafe.Pointer, callpc, pc uintptr)
++
++//go:noescape
++func racewritepc(addr unsafe.Pointer, callpc, pc uintptr)
++
+ //go:noescape
+ func racereadrangepc(addr unsafe.Pointer, len int, callpc, pc uintptr)
++
++// Should be a built-in for unsafe.Pointer?
++func add(p unsafe.Pointer, x uintptr) unsafe.Pointer {
++	return unsafe.Pointer(uintptr(p) + x)
++}
++
++// Make a new object of the given type
++// in stubs.goc
++func unsafe_New(t *_type) unsafe.Pointer
++func unsafe_NewArray(t *_type, n uintptr) unsafe.Pointer
++
++// memclr clears n bytes starting at ptr.
++// in memclr_*.s
++func memclr(ptr unsafe.Pointer, n uintptr)
++
++// memmove copies n bytes from "from" to "to".
++// in memmove_*.s
++func memmove(to unsafe.Pointer, from unsafe.Pointer, n uintptr)
++
++// in asm_*.s
++func fastrand2() uint32
++
++// in asm_*.s
++// if *p == x { *p = y; return true } else { return false }, atomically
++//go:noescape
++func gocas(p *uint32, x uint32, y uint32) bool
++
++// in asm_*.s
++//go:noescape
++func gohash(a *alg, p unsafe.Pointer, size uintptr, seed uintptr) uintptr
++
++// in asm_*.s
++//go:noescape
++func goeq(alg *alg, p, q unsafe.Pointer, size uintptr) bool
++
++// exported value for testing
++var hashLoad = loadFactor
++
++// in asm_*.s
++//go:noescape
++func gomemeq(a, b unsafe.Pointer, size uintptr) bool
++
++// Code pointer for the nohash algorithm. Used for producing better error messages.
++var nohashcode uintptr
+diff --git a/src/pkg/runtime/stubs.goc b/src/pkg/runtime/stubs.goc
+index 137c10e297..6b7e83ad74 100644
+--- a/src/pkg/runtime/stubs.goc
++++ b/src/pkg/runtime/stubs.goc
+@@ -75,3 +75,18 @@ func rawruneslice(size intgo) (b Slice) {
+ func gostringW(str Slice) (s String) {
+ 	s = runtime·gostringw((uint16*)str.array);
+ }
++
++#pragma textflag NOSPLIT
++func runtime·unsafe_New(t *Type) (ret *byte) {
++	ret = runtime·cnew(t);
++}
++
++#pragma textflag NOSPLIT
++func runtime·unsafe_NewArray(t *Type, n int) (ret *byte) {
++	ret = runtime·cnewarray(t, n);
++}
++
++#pragma textflag NOSPLIT
++func runtime·gocas(p *uint32, x uint32, y uint32) (ret bool) {
++	ret = runtime·cas(p, x, y);
++}

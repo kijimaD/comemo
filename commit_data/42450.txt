@@ -23,8 +23,101 @@ Date:   Thu Dec 19 17:44:58 2019 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/runtime/mgcscavenge_test.go |  3 +++
  src/runtime/mpagealloc_test.go  | 15 +++++++++++++++
  src/runtime/mpagecache_test.go  |  6 ++++++
  3 files changed, 24 insertions(+)
+
+diff --git a/src/runtime/mgcscavenge_test.go b/src/runtime/mgcscavenge_test.go
+index 518d5ab27a..a6eba8d972 100644
+--- a/src/runtime/mgcscavenge_test.go
++++ b/src/runtime/mgcscavenge_test.go
+@@ -272,6 +272,9 @@ func TestPallocDataFindScavengeCandidate(t *testing.T) {
+ 
+ // Tests end-to-end scavenging on a pageAlloc.
+ func TestPageAllocScavenge(t *testing.T) {
++	if GOOS == "openbsd" && testing.Short() {
++		t.Skip("skipping because virtual memory is limited; see #36210")
++	}
+ 	type test struct {
+ 		request, expect uintptr
+ 	}
+diff --git a/src/runtime/mpagealloc_test.go b/src/runtime/mpagealloc_test.go
+index 6c48296487..1284cad710 100644
+--- a/src/runtime/mpagealloc_test.go
++++ b/src/runtime/mpagealloc_test.go
+@@ -41,6 +41,9 @@ func checkPageAlloc(t *testing.T, want, got *PageAlloc) {
+ }
+ 
+ func TestPageAllocGrow(t *testing.T) {
++	if GOOS == "openbsd" && testing.Short() {
++		t.Skip("skipping because virtual memory is limited; see #36210")
++	}
+ 	type test struct {
+ 		chunks []ChunkIdx
+ 		inUse  []AddrRange
+@@ -216,6 +219,9 @@ func TestPageAllocGrow(t *testing.T) {
+ }
+ 
+ func TestPageAllocAlloc(t *testing.T) {
++	if GOOS == "openbsd" && testing.Short() {
++		t.Skip("skipping because virtual memory is limited; see #36210")
++	}
+ 	type hit struct {
+ 		npages, base, scav uintptr
+ 	}
+@@ -589,6 +595,9 @@ func TestPageAllocAlloc(t *testing.T) {
+ }
+ 
+ func TestPageAllocExhaust(t *testing.T) {
++	if GOOS == "openbsd" && testing.Short() {
++		t.Skip("skipping because virtual memory is limited; see #36210")
++	}
+ 	for _, npages := range []uintptr{1, 2, 3, 4, 5, 8, 16, 64, 1024, 1025, 2048, 2049} {
+ 		npages := npages
+ 		t.Run(fmt.Sprintf("%d", npages), func(t *testing.T) {
+@@ -638,6 +647,9 @@ func TestPageAllocExhaust(t *testing.T) {
+ }
+ 
+ func TestPageAllocFree(t *testing.T) {
++	if GOOS == "openbsd" && testing.Short() {
++		t.Skip("skipping because virtual memory is limited; see #36210")
++	}
+ 	tests := map[string]struct {
+ 		before map[ChunkIdx][]BitRange
+ 		after  map[ChunkIdx][]BitRange
+@@ -867,6 +879,9 @@ func TestPageAllocFree(t *testing.T) {
+ }
+ 
+ func TestPageAllocAllocAndFree(t *testing.T) {
++	if GOOS == "openbsd" && testing.Short() {
++		t.Skip("skipping because virtual memory is limited; see #36210")
++	}
+ 	type hit struct {
+ 		alloc  bool
+ 		npages uintptr
+diff --git a/src/runtime/mpagecache_test.go b/src/runtime/mpagecache_test.go
+index 6fdaa04d72..b8cc0bd965 100644
+--- a/src/runtime/mpagecache_test.go
++++ b/src/runtime/mpagecache_test.go
+@@ -180,6 +180,9 @@ func TestPageCacheAlloc(t *testing.T) {
+ }
+ 
+ func TestPageCacheFlush(t *testing.T) {
++	if GOOS == "openbsd" && testing.Short() {
++		t.Skip("skipping because virtual memory is limited; see #36210")
++	}
+ 	bits64ToBitRanges := func(bits uint64, base uint) []BitRange {
+ 		var ranges []BitRange
+ 		start, size := uint(0), uint(0)
+@@ -254,6 +257,9 @@ func TestPageCacheFlush(t *testing.T) {
+ }
+ 
+ func TestPageAllocAllocToCache(t *testing.T) {
++	if GOOS == "openbsd" && testing.Short() {
++		t.Skip("skipping because virtual memory is limited; see #36210")
++	}
+ 	tests := map[string]struct {
+ 		before map[ChunkIdx][]BitRange
+ 		scav   map[ChunkIdx][]BitRange

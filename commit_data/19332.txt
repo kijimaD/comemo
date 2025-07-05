@@ -10,7 +10,81 @@ Date:   Mon May 12 14:45:05 2014 -0400
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/100390044
-
+---
  src/cmd/gc/esc.c |  7 +++++--
  test/escape2.go  | 32 ++++++++++++++++++++++++++++++++
  2 files changed, 37 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/esc.c b/src/cmd/gc/esc.c
+index 028163abbf..4091682485 100644
+--- a/src/cmd/gc/esc.c
++++ b/src/cmd/gc/esc.c
+@@ -767,8 +767,8 @@ escassign(EscState *e, Node *dst, Node *src)
+ 	case ODOTTYPE:
+ 	case ODOTTYPE2:
+ 	case OSLICE:
+-	case OSLICEARR:
+ 	case OSLICE3:
++	case OSLICEARR:
+ 	case OSLICE3ARR:
+ 		// Conversions, field access, slice all preserve the input value.
+ 		escassign(e, dst, src->left);
+@@ -1155,6 +1155,10 @@ escwalk(EscState *e, int level, Node *dst, Node *src)
+ 		break;
+ 
+ 	case ODOT:
++	case OSLICE:
++	case OSLICEARR:
++	case OSLICE3:
++	case OSLICE3ARR:
+ 		escwalk(e, level, dst, src->left);
+ 		break;
+ 
+@@ -1164,7 +1168,6 @@ escwalk(EscState *e, int level, Node *dst, Node *src)
+ 			break;
+ 		}
+ 		// fall through
+-	case OSLICE:
+ 	case ODOTPTR:
+ 	case OINDEXMAP:
+ 	case OIND:
+diff --git a/test/escape2.go b/test/escape2.go
+index 220f9d91f1..382e8e6d64 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -1411,3 +1411,35 @@ func foo150(x ...byte) { // ERROR "leaking param: x"
+ func bar150() {
+ 	foo150(1, 2, 3) // ERROR "[.][.][.] argument escapes to heap"
+ }
++
++// issue 7931: bad handling of slice of array
++
++var save151 *int
++
++func foo151(x *int) { // ERROR "leaking param: x"
++	save151 = x
++}
++
++func bar151() {
++	var a [64]int // ERROR "moved to heap: a"
++	a[4] = 101
++	foo151(&(&a)[4:8][0]) // ERROR "&\(&a\)\[4:8\]\[0\] escapes to heap" "&a escapes to heap"
++}
++
++func bar151b() {
++	var a [10]int      // ERROR "moved to heap: a"
++	b := a[:]          // ERROR "a escapes to heap"
++	foo151(&b[4:8][0]) // ERROR "&b\[4:8\]\[0\] escapes to heap"
++}
++
++func bar151c() {
++	var a [64]int // ERROR "moved to heap: a"
++	a[4] = 101
++	foo151(&(&a)[4:8:8][0]) // ERROR "&\(&a\)\[4:8:8\]\[0\] escapes to heap" "&a escapes to heap"
++}
++
++func bar151d() {
++	var a [10]int        // ERROR "moved to heap: a"
++	b := a[:]            // ERROR "a escapes to heap"
++	foo151(&b[4:8:8][0]) // ERROR "&b\[4:8:8\]\[0\] escapes to heap"
++}

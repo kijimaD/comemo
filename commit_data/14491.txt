@@ -16,9 +16,134 @@ Date:   Mon Nov 26 21:51:48 2012 +0100
     R=rsc, golang-dev
     CC=golang-dev
     https://golang.org/cl/6855088
-
+---
  src/cmd/6l/pass.c           | 10 +++++++
  src/cmd/8l/obj.c            |  1 +
  src/cmd/8l/pass.c           | 10 +++++++
  test/fixedbugs/issue4316.go | 64 +++++++++++++++++++++++++++++++++++++++++++++
  4 files changed, 85 insertions(+)
+
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index c2d5dc1067..043048e8a0 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -604,6 +604,16 @@ dostkoff(void)
+ 			p->spadj = autoffset;
+ 			if(q != P)
+ 				q->pcond = p;
++		} else {
++			// zero-byte stack adjustment.
++			// Insert a fake non-zero adjustment so that stkcheck can
++			// recognize the end of the stack-splitting prolog.
++			p = appendp(p);
++			p->as = ANOP;
++			p->spadj = -PtrSize;
++			p = appendp(p);
++			p->as = ANOP;
++			p->spadj = PtrSize;
+ 		}
+ 		deltasp = autoffset;
+ 
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index eebf9fcfe5..66f1205e5a 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -308,6 +308,7 @@ main(int argc, char *argv[])
+ 	if(HEADTYPE == Hwindows)
+ 		dope();
+ 	dostkoff();
++	dostkcheck();
+ 	if(debug['p'])
+ 		if(debug['1'])
+ 			doprof1();
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index 27d8d4ee2a..6cf3009e2c 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -580,6 +580,16 @@ dostkoff(void)
+ 			p->spadj = autoffset;
+ 			if(q != P)
+ 				q->pcond = p;
++		} else {
++			// zero-byte stack adjustment.
++			// Insert a fake non-zero adjustment so that stkcheck can
++			// recognize the end of the stack-splitting prolog.
++			p = appendp(p);
++			p->as = ANOP;
++			p->spadj = -PtrSize;
++			p = appendp(p);
++			p->as = ANOP;
++			p->spadj = PtrSize;
+ 		}
+ 		deltasp = autoffset;
+ 		
+diff --git a/test/fixedbugs/issue4316.go b/test/fixedbugs/issue4316.go
+new file mode 100644
+index 0000000000..bb18a08962
+--- /dev/null
++++ b/test/fixedbugs/issue4316.go
+@@ -0,0 +1,64 @@
++// run
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 4316: the stack overflow check in the linker
++// is confused when it encounters a split-stack function
++// that needs 0 bytes of stack space.
++
++package main
++
++type Peano *Peano
++
++func makePeano(n int) *Peano {
++	if n == 0 {
++		return nil
++	}
++	p := Peano(makePeano(n - 1))
++	return &p
++}
++
++var countArg Peano
++var countResult int
++
++func countPeano() {
++	if countArg == nil {
++		countResult = 0
++		return
++	}
++	countArg = *countArg
++	countPeano()
++	countResult++
++}
++
++var s = "(())"
++var pT = 0
++
++func p() {
++	if pT >= len(s) {
++		return
++	}
++	if s[pT] == '(' {
++		pT += 1
++		p()
++		if pT < len(s) && s[pT] == ')' {
++			pT += 1
++		} else {
++			return
++		}
++		p()
++	}
++}
++
++func main() {
++	countArg = makePeano(4096)
++	countPeano()
++	if countResult != 4096 {
++		println("countResult =", countResult)
++		panic("countResult != 4096")
++	}
++
++	p()
++}

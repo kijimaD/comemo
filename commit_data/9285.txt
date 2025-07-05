@@ -11,7 +11,7 @@ Date:   Thu Aug 4 00:22:52 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4808062
-
+---
  src/pkg/net/Makefile             |   2 +
  src/pkg/net/interface.go         |   9 ++++
  src/pkg/net/interface_bsd.go     |  44 ++++++++++++++---
@@ -22,3 +22,409 @@ Date:   Thu Aug 4 00:22:52 2011 -0400
  src/pkg/net/interface_test.go    |   7 +++
  src/pkg/net/interface_windows.go |   7 +++
  9 files changed, 260 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/net/Makefile b/src/pkg/net/Makefile
+index 536fe369d1..d17f52ce00 100644
+--- a/src/pkg/net/Makefile
++++ b/src/pkg/net/Makefile
+@@ -29,6 +29,7 @@ GOFILES_freebsd=\
+ 	fd.go\
+ 	file.go\
+ 	interface_bsd.go\
++	interface_freebsd.go\
+ 	lookup_unix.go\
+ 	newpollserver.go\
+ 	port.go\
+@@ -45,6 +46,7 @@ GOFILES_darwin=\
+ 	fd.go\
+ 	file.go\
+ 	interface_bsd.go\
++	interface_darwin.go\
+ 	lookup_unix.go\
+ 	newpollserver.go\
+ 	port.go\
+diff --git a/src/pkg/net/interface.go b/src/pkg/net/interface.go
+index f6de36f645..8a14cb2320 100644
+--- a/src/pkg/net/interface.go
++++ b/src/pkg/net/interface.go
+@@ -79,6 +79,15 @@ func (ifi *Interface) Addrs() ([]Addr, os.Error) {
+ 	return interfaceAddrTable(ifi.Index)
+ }
+ 
++// MulticastAddrs returns multicast, joined group addresses for
++// a specific interface.
++func (ifi *Interface) MulticastAddrs() ([]Addr, os.Error) {
++	if ifi == nil {
++		return nil, os.NewError("net: invalid interface")
++	}
++	return interfaceMulticastAddrTable(ifi.Index)
++}
++
+ // Interfaces returns a list of the systems's network interfaces.
+ func Interfaces() ([]Interface, os.Error) {
+ 	return interfaceTable(0)
+diff --git a/src/pkg/net/interface_bsd.go b/src/pkg/net/interface_bsd.go
+index a4c3e71feb..130820d4a4 100644
+--- a/src/pkg/net/interface_bsd.go
++++ b/src/pkg/net/interface_bsd.go
+@@ -148,25 +148,55 @@ func newAddr(m *syscall.InterfaceAddrMessage) ([]Addr, os.Error) {
+ 	}
+ 
+ 	for _, s := range sas {
+-		var ifa IPAddr
++
+ 		switch v := s.(type) {
+ 		case *syscall.SockaddrInet4:
+-			ifa.IP = IPv4(v.Addr[0], v.Addr[1], v.Addr[2], v.Addr[3])
++			ifa := &IPAddr{IP: IPv4(v.Addr[0], v.Addr[1], v.Addr[2], v.Addr[3])}
++			ifat = append(ifat, ifa.toAddr())
+ 		case *syscall.SockaddrInet6:
+-			ifa.IP = make(IP, IPv6len)
++			ifa := &IPAddr{IP: make(IP, IPv6len)}
+ 			copy(ifa.IP, v.Addr[:])
+ 			// NOTE: KAME based IPv6 protcol stack usually embeds
+ 			// the interface index in the interface-local or link-
+ 			// local address as the kernel-internal form.
+-			if ifa.IP.IsLinkLocalUnicast() ||
+-				ifa.IP.IsInterfaceLocalMulticast() ||
+-				ifa.IP.IsLinkLocalMulticast() {
++			if ifa.IP.IsLinkLocalUnicast() {
+ 				// remove embedded scope zone ID
+ 				ifa.IP[2], ifa.IP[3] = 0, 0
+ 			}
++			ifat = append(ifat, ifa.toAddr())
+ 		}
+-		ifat = append(ifat, ifa.toAddr())
+ 	}
+ 
+ 	return ifat, nil
+ }
++
++func newMulticastAddr(m *syscall.InterfaceMulticastAddrMessage) ([]Addr, os.Error) {
++	var ifmat []Addr
++
++	sas, e := syscall.ParseRoutingSockaddr(m)
++	if e != 0 {
++		return nil, os.NewSyscallError("route sockaddr", e)
++	}
++
++	for _, s := range sas {
++		switch v := s.(type) {
++		case *syscall.SockaddrInet4:
++			ifma := &IPAddr{IP: IPv4(v.Addr[0], v.Addr[1], v.Addr[2], v.Addr[3])}
++			ifmat = append(ifmat, ifma.toAddr())
++		case *syscall.SockaddrInet6:
++			ifma := &IPAddr{IP: make(IP, IPv6len)}
++			copy(ifma.IP, v.Addr[:])
++			// NOTE: KAME based IPv6 protcol stack usually embeds
++			// the interface index in the interface-local or link-
++			// local address as the kernel-internal form.
++			if ifma.IP.IsInterfaceLocalMulticast() ||
++				ifma.IP.IsLinkLocalMulticast() {
++				// remove embedded scope zone ID
++				ifma.IP[2], ifma.IP[3] = 0, 0
++			}
++			ifmat = append(ifmat, ifma.toAddr())
++		}
++	}
++
++	return ifmat, nil
++}
+diff --git a/src/pkg/net/interface_darwin.go b/src/pkg/net/interface_darwin.go
+new file mode 100644
+index 0000000000..6fbcd37230
+--- /dev/null
++++ b/src/pkg/net/interface_darwin.go
+@@ -0,0 +1,49 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Network interface identification for Darwin
++
++package net
++
++import (
++	"os"
++	"syscall"
++)
++
++// If the ifindex is zero, interfaceMulticastAddrTable returns
++// addresses for all network interfaces.  Otherwise it returns
++// addresses for a specific interface.
++func interfaceMulticastAddrTable(ifindex int) ([]Addr, os.Error) {
++	var (
++		tab   []byte
++		e     int
++		msgs  []syscall.RoutingMessage
++		ifmat []Addr
++	)
++
++	tab, e = syscall.RouteRIB(syscall.NET_RT_IFLIST2, ifindex)
++	if e != 0 {
++		return nil, os.NewSyscallError("route rib", e)
++	}
++
++	msgs, e = syscall.ParseRoutingMessage(tab)
++	if e != 0 {
++		return nil, os.NewSyscallError("route message", e)
++	}
++
++	for _, m := range msgs {
++		switch v := m.(type) {
++		case *syscall.InterfaceMulticastAddrMessage:
++			if ifindex == 0 || ifindex == int(v.Header.Index) {
++				ifma, err := newMulticastAddr(v)
++				if err != nil {
++					return nil, err
++				}
++				ifmat = append(ifmat, ifma...)
++			}
++		}
++	}
++
++	return ifmat, nil
++}
+diff --git a/src/pkg/net/interface_freebsd.go b/src/pkg/net/interface_freebsd.go
+new file mode 100644
+index 0000000000..e0ff6caf00
+--- /dev/null
++++ b/src/pkg/net/interface_freebsd.go
+@@ -0,0 +1,49 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Network interface identification for FreeBSD
++
++package net
++
++import (
++	"os"
++	"syscall"
++)
++
++// If the ifindex is zero, interfaceMulticastAddrTable returns
++// addresses for all network interfaces.  Otherwise it returns
++// addresses for a specific interface.
++func interfaceMulticastAddrTable(ifindex int) ([]Addr, os.Error) {
++	var (
++		tab   []byte
++		e     int
++		msgs  []syscall.RoutingMessage
++		ifmat []Addr
++	)
++
++	tab, e = syscall.RouteRIB(syscall.NET_RT_IFMALIST, ifindex)
++	if e != 0 {
++		return nil, os.NewSyscallError("route rib", e)
++	}
++
++	msgs, e = syscall.ParseRoutingMessage(tab)
++	if e != 0 {
++		return nil, os.NewSyscallError("route message", e)
++	}
++
++	for _, m := range msgs {
++		switch v := m.(type) {
++		case *syscall.InterfaceMulticastAddrMessage:
++			if ifindex == 0 || ifindex == int(v.Header.Index) {
++				ifma, err := newMulticastAddr(v)
++				if err != nil {
++					return nil, err
++				}
++				ifmat = append(ifmat, ifma...)
++			}
++		}
++	}
++
++	return ifmat, nil
++}
+diff --git a/src/pkg/net/interface_linux.go b/src/pkg/net/interface_linux.go
+index e869cd6304..5af531dee6 100644
+--- a/src/pkg/net/interface_linux.go
++++ b/src/pkg/net/interface_linux.go
+@@ -7,6 +7,7 @@
+ package net
+ 
+ import (
++	"fmt"
+ 	"os"
+ 	"syscall"
+ 	"unsafe"
+@@ -102,13 +103,13 @@ func linkFlags(rawFlags uint32) Flags {
+ // for a specific interface.
+ func interfaceAddrTable(ifindex int) ([]Addr, os.Error) {
+ 	var (
++		tab   []byte
++		e     int
++		err   os.Error
+ 		ifat4 []Addr
+ 		ifat6 []Addr
+-		tab   []byte
+ 		msgs4 []syscall.NetlinkMessage
+ 		msgs6 []syscall.NetlinkMessage
+-		e     int
+-		err   os.Error
+ 	)
+ 
+ 	tab, e = syscall.NetlinkRIB(syscall.RTM_GETADDR, syscall.AF_INET)
+@@ -169,17 +170,102 @@ func newAddr(attrs []syscall.NetlinkRouteAttr, family int) []Addr {
+ 	for _, a := range attrs {
+ 		switch a.Attr.Type {
+ 		case syscall.IFA_ADDRESS:
+-			ifa := IPAddr{}
+ 			switch family {
+ 			case syscall.AF_INET:
+-				ifa.IP = IPv4(a.Value[0], a.Value[1], a.Value[2], a.Value[3])
++				ifa := &IPAddr{IP: IPv4(a.Value[0], a.Value[1], a.Value[2], a.Value[3])}
++				ifat = append(ifat, ifa.toAddr())
+ 			case syscall.AF_INET6:
+-				ifa.IP = make(IP, IPv6len)
++				ifa := &IPAddr{IP: make(IP, IPv6len)}
+ 				copy(ifa.IP, a.Value[:])
++				ifat = append(ifat, ifa.toAddr())
+ 			}
+-			ifat = append(ifat, ifa.toAddr())
+ 		}
+ 	}
+ 
+ 	return ifat
+ }
++
++// If the ifindex is zero, interfaceMulticastAddrTable returns
++// addresses for all network interfaces.  Otherwise it returns
++// addresses for a specific interface.
++func interfaceMulticastAddrTable(ifindex int) ([]Addr, os.Error) {
++	var (
++		ifi    *Interface
++		err    os.Error
++		ifmat4 []Addr
++		ifmat6 []Addr
++	)
++
++	if ifindex > 0 {
++		ifi, err = InterfaceByIndex(ifindex)
++		if err != nil {
++			return nil, err
++		}
++	}
++
++	ifmat4, err = parseProcNetIGMP(ifi)
++	if err != nil {
++		return nil, err
++	}
++
++	ifmat6, err = parseProcNetIGMP6(ifi)
++	if err != nil {
++		return nil, err
++	}
++
++	return append(ifmat4, ifmat6...), nil
++}
++
++func parseProcNetIGMP(ifi *Interface) ([]Addr, os.Error) {
++	var (
++		ifmat []Addr
++		name  string
++	)
++
++	fd, err := open("/proc/net/igmp")
++	if err != nil {
++		return nil, err
++	}
++	defer fd.close()
++
++	fd.readLine() // skip first line
++	b := make([]byte, IPv4len)
++	for l, ok := fd.readLine(); ok; l, ok = fd.readLine() {
++		f := getFields(l)
++		switch len(f) {
++		case 4:
++			if ifi == nil || name == ifi.Name {
++				fmt.Sscanf(f[0], "%08x", &b)
++				ifma := IPAddr{IP: IPv4(b[3], b[2], b[1], b[0])}
++				ifmat = append(ifmat, ifma.toAddr())
++			}
++		case 5:
++			name = f[1]
++		}
++	}
++
++	return ifmat, nil
++}
++
++func parseProcNetIGMP6(ifi *Interface) ([]Addr, os.Error) {
++	var ifmat []Addr
++
++	fd, err := open("/proc/net/igmp6")
++	if err != nil {
++		return nil, err
++	}
++	defer fd.close()
++
++	b := make([]byte, IPv6len)
++	for l, ok := fd.readLine(); ok; l, ok = fd.readLine() {
++		f := getFields(l)
++		if ifi == nil || f[1] == ifi.Name {
++			fmt.Sscanf(f[2], "%32x", &b)
++			ifma := IPAddr{IP: IP{b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15]}}
++			ifmat = append(ifmat, ifma.toAddr())
++
++		}
++	}
++
++	return ifmat, nil
++}
+diff --git a/src/pkg/net/interface_stub.go b/src/pkg/net/interface_stub.go
+index 24a7431c56..950de6c592 100644
+--- a/src/pkg/net/interface_stub.go
++++ b/src/pkg/net/interface_stub.go
+@@ -21,3 +21,10 @@ func interfaceTable(ifindex int) ([]Interface, os.Error) {
+ func interfaceAddrTable(ifindex int) ([]Addr, os.Error) {
+ 	return nil, nil
+ }
++
++// If the ifindex is zero, interfaceMulticastAddrTable returns
++// addresses for all network interfaces.  Otherwise it returns
++// addresses for a specific interface.
++func interfaceMulticastAddrTable(ifindex int) ([]Addr, os.Error) {
++	return nil, nil
++}
+diff --git a/src/pkg/net/interface_test.go b/src/pkg/net/interface_test.go
+index ac523a0490..0e4089abf8 100644
+--- a/src/pkg/net/interface_test.go
++++ b/src/pkg/net/interface_test.go
+@@ -45,10 +45,17 @@ func TestInterfaces(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatalf("Interface.Addrs() failed: %v", err)
+ 		}
++		ifmat, err := ifi.MulticastAddrs()
++		if err != nil {
++			t.Fatalf("Interface.MulticastAddrs() failed: %v", err)
++		}
+ 		t.Logf("%q: flags %q, ifindex %v, mtu %v\n", ifi.Name, ifi.Flags.String(), ifi.Index, ifi.MTU)
+ 		for _, ifa := range ifat {
+ 			t.Logf("\tinterface address %q\n", ifa.String())
+ 		}
++		for _, ifma := range ifmat {
++			t.Logf("\tjoined group address %q\n", ifma.String())
++		}
+ 		t.Logf("\thardware address %q", ifi.HardwareAddr.String())
+ 	}
+ }
+diff --git a/src/pkg/net/interface_windows.go b/src/pkg/net/interface_windows.go
+index 571f74cdc8..7f5169c879 100644
+--- a/src/pkg/net/interface_windows.go
++++ b/src/pkg/net/interface_windows.go
+@@ -149,3 +149,10 @@ func interfaceAddrTable(ifindex int) ([]Addr, os.Error) {
+ 	}
+ 	return ifat, nil
+ }
++
++// If the ifindex is zero, interfaceMulticastAddrTable returns
++// addresses for all network interfaces.  Otherwise it returns
++// addresses for a specific interface.
++func interfaceMulticastAddrTable(ifindex int) ([]Addr, os.Error) {
++	return nil, nil
++}

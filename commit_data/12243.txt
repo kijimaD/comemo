@@ -7,6 +7,20 @@ Date:   Tue Feb 28 11:21:56 2012 +1100
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5701063
-
+---
  misc/dashboard/builder/http.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/dashboard/builder/http.go b/misc/dashboard/builder/http.go
+index 3f3bc412ca..f5a1fcf9bd 100644
+--- a/misc/dashboard/builder/http.go
++++ b/misc/dashboard/builder/http.go
+@@ -169,7 +169,7 @@ func postCommit(key, pkg string, l *HgLog) error {
+ 		"PackagePath": pkg,
+ 		"Hash":        l.Hash,
+ 		"ParentHash":  l.Parent,
+-		"Time":        t.Unix() * 1e6, // in microseconds, yuck!
++		"Time":        t.Format(time.RFC3339),
+ 		"User":        l.Author,
+ 		"Desc":        l.Desc,
+ 	}, nil)

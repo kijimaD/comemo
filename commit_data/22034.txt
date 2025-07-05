@@ -10,6 +10,22 @@ Date:   Thu Feb 19 15:45:29 2015 -0500
     Change-Id: I9dd772c84edefad96c4b16785fdd2dea04a4a0d6
     Reviewed-on: https://go-review.googlesource.com/5320
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mgc.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 497695cf18..70661e46d0 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -423,7 +423,9 @@ func gcinstallmarkwb() {
+ // This is the concurrent mark phase.
+ //go:nowritebarrier
+ func gcmark_m() {
+-	gcDrain(nil)
++	var gcw gcWork
++	gcDrain(&gcw)
++	gcw.dispose()
+ 	// TODO add another harvestwbuf and reset work.nwait=0, work.ndone=0, and work.nproc=1
+ 	// and repeat the above gcDrain.
+ }

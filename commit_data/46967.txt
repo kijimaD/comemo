@@ -37,7 +37,7 @@ Date:   Thu Jan 28 15:21:33 2021 -0500
     Trust: Jason A. Donenfeld <Jason@zx2c4.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
-
+---
  src/cmd/asm/internal/asm/endtoend_test.go       |  2 +
  src/cmd/asm/internal/flags/flags.go             |  2 +
  src/cmd/asm/main.go                             |  1 +
@@ -63,3 +63,797 @@ Date:   Thu Jan 28 15:21:33 2021 -0500
  src/runtime/runtime2.go                         |  9 ++--
  src/runtime/symtab.go                           |  9 ++++
  24 files changed, 209 insertions(+), 101 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index 7472507caf..a4153f3af1 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -36,6 +36,7 @@ func testEndToEnd(t *testing.T, goarch, file string) {
+ 	var ok bool
+ 	testOut = new(bytes.Buffer) // The assembler writes test output to this buffer.
+ 	ctxt.Bso = bufio.NewWriter(os.Stdout)
++	ctxt.IsAsm = true
+ 	defer ctxt.Bso.Flush()
+ 	failed := false
+ 	ctxt.DiagFunc = func(format string, args ...interface{}) {
+@@ -278,6 +279,7 @@ func testErrors(t *testing.T, goarch, file string) {
+ 	var ok bool
+ 	testOut = new(bytes.Buffer) // The assembler writes test output to this buffer.
+ 	ctxt.Bso = bufio.NewWriter(os.Stdout)
++	ctxt.IsAsm = true
+ 	defer ctxt.Bso.Flush()
+ 	failed := false
+ 	var errBuf bytes.Buffer
+diff --git a/src/cmd/asm/internal/flags/flags.go b/src/cmd/asm/internal/flags/flags.go
+index 1335860315..dd947c7b5b 100644
+--- a/src/cmd/asm/internal/flags/flags.go
++++ b/src/cmd/asm/internal/flags/flags.go
+@@ -32,11 +32,13 @@ var (
+ 	D        MultiFlag
+ 	I        MultiFlag
+ 	PrintOut int
++	DebugV   bool
+ )
+ 
+ func init() {
+ 	flag.Var(&D, "D", "predefined symbol with optional simple value -D=identifier=value; can be set multiple times")
+ 	flag.Var(&I, "I", "include directory; can be set multiple times")
++	flag.BoolVar(&DebugV, "v", false, "print debug output")
+ 	objabi.AddVersionFlag() // -V
+ 	objabi.Flagcount("S", "print assembly and machine code", &PrintOut)
+ }
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index 31636e3045..98618a67ef 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -36,6 +36,7 @@ func main() {
+ 
+ 	ctxt := obj.Linknew(architecture.LinkArch)
+ 	ctxt.Debugasm = flags.PrintOut
++	ctxt.Debugvlog = flags.DebugV
+ 	ctxt.Flag_dynlink = *flags.Dynlink
+ 	ctxt.Flag_linkshared = *flags.Linkshared
+ 	ctxt.Flag_shared = *flags.Shared || *flags.Dynlink
+diff --git a/src/cmd/compile/internal/test/fixedbugs_test.go b/src/cmd/compile/internal/test/fixedbugs_test.go
+index e7e2f7e58e..376b45edfc 100644
+--- a/src/cmd/compile/internal/test/fixedbugs_test.go
++++ b/src/cmd/compile/internal/test/fixedbugs_test.go
+@@ -75,7 +75,7 @@ func TestIssue16214(t *testing.T) {
+ 	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-S", "-o", filepath.Join(dir, "out.o"), src)
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+-		t.Fatalf("fail to run go tool compile: %v", err)
++		t.Fatalf("go tool compile: %v\n%s", err, out)
+ 	}
+ 
+ 	if strings.Contains(string(out), "unknown line number") {
+diff --git a/src/cmd/compile/internal/test/global_test.go b/src/cmd/compile/internal/test/global_test.go
+index 5f5f7d6198..93de894f37 100644
+--- a/src/cmd/compile/internal/test/global_test.go
++++ b/src/cmd/compile/internal/test/global_test.go
+@@ -50,7 +50,7 @@ func main() {
+ 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", dst, src)
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+-		t.Fatalf("could not build target: %v", err)
++		t.Fatalf("could not build target: %v\n%s", err, out)
+ 	}
+ 
+ 	// Check destination to see if scanf code was included.
+@@ -95,7 +95,7 @@ func main() {
+ 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags", "-S", "-o", filepath.Join(dir, "test"), src)
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+-		t.Fatalf("could not build target: %v", err)
++		t.Fatalf("could not build target: %v\n%s", err, out)
+ 	}
+ 
+ 	patterns := []string{
+diff --git a/src/cmd/internal/goobj/funcinfo.go b/src/cmd/internal/goobj/funcinfo.go
+index 2cca8f6c4e..6d33a10a51 100644
+--- a/src/cmd/internal/goobj/funcinfo.go
++++ b/src/cmd/internal/goobj/funcinfo.go
+@@ -19,9 +19,10 @@ type CUFileIndex uint32
+ //
+ // TODO: make each pcdata a separate symbol?
+ type FuncInfo struct {
+-	Args   uint32
+-	Locals uint32
+-	FuncID objabi.FuncID
++	Args     uint32
++	Locals   uint32
++	FuncID   objabi.FuncID
++	FuncFlag objabi.FuncFlag
+ 
+ 	Pcsp        SymRef
+ 	Pcfile      SymRef
+@@ -35,6 +36,9 @@ type FuncInfo struct {
+ }
+ 
+ func (a *FuncInfo) Write(w *bytes.Buffer) {
++	writeUint8 := func(x uint8) {
++		w.WriteByte(x)
++	}
+ 	var b [4]byte
+ 	writeUint32 := func(x uint32) {
+ 		binary.LittleEndian.PutUint32(b[:], x)
+@@ -47,8 +51,10 @@ func (a *FuncInfo) Write(w *bytes.Buffer) {
+ 
+ 	writeUint32(a.Args)
+ 	writeUint32(a.Locals)
+-	writeUint32(uint32(a.FuncID))
+-
++	writeUint8(uint8(a.FuncID))
++	writeUint8(uint8(a.FuncFlag))
++	writeUint8(0) // pad to uint32 boundary
++	writeUint8(0)
+ 	writeSymRef(a.Pcsp)
+ 	writeSymRef(a.Pcfile)
+ 	writeSymRef(a.Pcline)
+@@ -72,46 +78,6 @@ func (a *FuncInfo) Write(w *bytes.Buffer) {
+ 	}
+ }
+ 
+-func (a *FuncInfo) Read(b []byte) {
+-	readUint32 := func() uint32 {
+-		x := binary.LittleEndian.Uint32(b)
+-		b = b[4:]
+-		return x
+-	}
+-	readSymIdx := func() SymRef {
+-		return SymRef{readUint32(), readUint32()}
+-	}
+-
+-	a.Args = readUint32()
+-	a.Locals = readUint32()
+-	a.FuncID = objabi.FuncID(readUint32())
+-
+-	a.Pcsp = readSymIdx()
+-	a.Pcfile = readSymIdx()
+-	a.Pcline = readSymIdx()
+-	a.Pcinline = readSymIdx()
+-	a.Pcdata = make([]SymRef, readUint32())
+-	for i := range a.Pcdata {
+-		a.Pcdata[i] = readSymIdx()
+-	}
+-
+-	funcdataofflen := readUint32()
+-	a.Funcdataoff = make([]uint32, funcdataofflen)
+-	for i := range a.Funcdataoff {
+-		a.Funcdataoff[i] = readUint32()
+-	}
+-	filelen := readUint32()
+-	a.File = make([]CUFileIndex, filelen)
+-	for i := range a.File {
+-		a.File[i] = CUFileIndex(readUint32())
+-	}
+-	inltreelen := readUint32()
+-	a.InlTree = make([]InlTreeNode, inltreelen)
+-	for i := range a.InlTree {
+-		b = a.InlTree[i].Read(b)
+-	}
+-}
+-
+ // FuncInfoLengths is a cache containing a roadmap of offsets and
+ // lengths for things within a serialized FuncInfo. Each length field
+ // stores the number of items (e.g. files, inltree nodes, etc), and the
+@@ -159,7 +125,9 @@ func (*FuncInfo) ReadArgs(b []byte) uint32 { return binary.LittleEndian.Uint32(b
+ 
+ func (*FuncInfo) ReadLocals(b []byte) uint32 { return binary.LittleEndian.Uint32(b[4:]) }
+ 
+-func (*FuncInfo) ReadFuncID(b []byte) uint32 { return binary.LittleEndian.Uint32(b[8:]) }
++func (*FuncInfo) ReadFuncID(b []byte) objabi.FuncID { return objabi.FuncID(b[8]) }
++
++func (*FuncInfo) ReadFuncFlag(b []byte) objabi.FuncFlag { return objabi.FuncFlag(b[9]) }
+ 
+ func (*FuncInfo) ReadPcsp(b []byte) SymRef {
+ 	return SymRef{binary.LittleEndian.Uint32(b[12:]), binary.LittleEndian.Uint32(b[16:])}
+diff --git a/src/cmd/internal/goobj/objfile.go b/src/cmd/internal/goobj/objfile.go
+index e6447e455d..d1b838f676 100644
+--- a/src/cmd/internal/goobj/objfile.go
++++ b/src/cmd/internal/goobj/objfile.go
+@@ -298,7 +298,6 @@ const (
+ 	SymFlagNoSplit
+ 	SymFlagReflectMethod
+ 	SymFlagGoType
+-	SymFlagTopFrame
+ )
+ 
+ // Sym.Flag2
+@@ -332,7 +331,6 @@ func (s *Sym) Leaf() bool          { return s.Flag()&SymFlagLeaf != 0 }
+ func (s *Sym) NoSplit() bool       { return s.Flag()&SymFlagNoSplit != 0 }
+ func (s *Sym) ReflectMethod() bool { return s.Flag()&SymFlagReflectMethod != 0 }
+ func (s *Sym) IsGoType() bool      { return s.Flag()&SymFlagGoType != 0 }
+-func (s *Sym) TopFrame() bool      { return s.Flag()&SymFlagTopFrame != 0 }
+ func (s *Sym) UsedInIface() bool   { return s.Flag2()&SymFlagUsedInIface != 0 }
+ func (s *Sym) IsItab() bool        { return s.Flag2()&SymFlagItab != 0 }
+ 
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index 29d3a5867d..7de04302d9 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -34,6 +34,7 @@ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
++	"log"
+ )
+ 
+ var progedit_tlsfallback *obj.LSym
+@@ -613,6 +614,21 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				p.From.Reg = REGSP
+ 			}
+ 		}
++
++		if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.Spadj == 0 {
++			f := c.cursym.Func()
++			if f.FuncFlag&objabi.FuncFlag_SPWRITE == 0 {
++				c.cursym.Func().FuncFlag |= objabi.FuncFlag_SPWRITE
++				if ctxt.Debugvlog || !ctxt.IsAsm {
++					ctxt.Logf("auto-SPWRITE: %s %v\n", c.cursym.Name, p)
++					if !ctxt.IsAsm {
++						ctxt.Diag("invalid auto-SPWRITE in non-assembly")
++						ctxt.DiagFlush()
++						log.Fatalf("bad SPWRITE")
++					}
++				}
++			}
++		}
+ 	}
+ }
+ 
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index 0baf51973a..3b88543852 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -35,6 +35,7 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ 	"cmd/internal/sys"
++	"log"
+ 	"math"
+ )
+ 
+@@ -970,6 +971,21 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				p = q5
+ 			}
+ 		}
++
++		if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.Spadj == 0 {
++			f := c.cursym.Func()
++			if f.FuncFlag&objabi.FuncFlag_SPWRITE == 0 {
++				c.cursym.Func().FuncFlag |= objabi.FuncFlag_SPWRITE
++				if ctxt.Debugvlog || !ctxt.IsAsm {
++					ctxt.Logf("auto-SPWRITE: %s %v\n", c.cursym.Name, p)
++					if !ctxt.IsAsm {
++						ctxt.Diag("invalid auto-SPWRITE in non-assembly")
++						ctxt.DiagFlush()
++						log.Fatalf("bad SPWRITE")
++					}
++				}
++			}
++		}
+ 	}
+ }
+ 
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 8206902328..a48db3bdc8 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -454,6 +454,7 @@ type FuncInfo struct {
+ 	Locals   int32
+ 	Align    int32
+ 	FuncID   objabi.FuncID
++	FuncFlag objabi.FuncFlag
+ 	Text     *Prog
+ 	Autot    map[*LSym]struct{}
+ 	Pcln     Pcln
+@@ -619,10 +620,6 @@ const (
+ 	// target of an inline during compilation
+ 	AttrWasInlined
+ 
+-	// TopFrame means that this function is an entry point and unwinders should not
+-	// keep unwinding beyond this frame.
+-	AttrTopFrame
+-
+ 	// Indexed indicates this symbol has been assigned with an index (when using the
+ 	// new object file format).
+ 	AttrIndexed
+@@ -663,7 +660,6 @@ func (a *Attribute) NeedCtxt() bool           { return a.load()&AttrNeedCtxt !=
+ func (a *Attribute) NoFrame() bool            { return a.load()&AttrNoFrame != 0 }
+ func (a *Attribute) Static() bool             { return a.load()&AttrStatic != 0 }
+ func (a *Attribute) WasInlined() bool         { return a.load()&AttrWasInlined != 0 }
+-func (a *Attribute) TopFrame() bool           { return a.load()&AttrTopFrame != 0 }
+ func (a *Attribute) Indexed() bool            { return a.load()&AttrIndexed != 0 }
+ func (a *Attribute) UsedInIface() bool        { return a.load()&AttrUsedInIface != 0 }
+ func (a *Attribute) ContentAddressable() bool { return a.load()&AttrContentAddressable != 0 }
+@@ -713,14 +709,13 @@ var textAttrStrings = [...]struct {
+ 	{bit: AttrNoFrame, s: "NOFRAME"},
+ 	{bit: AttrStatic, s: "STATIC"},
+ 	{bit: AttrWasInlined, s: ""},
+-	{bit: AttrTopFrame, s: "TOPFRAME"},
+ 	{bit: AttrIndexed, s: ""},
+ 	{bit: AttrContentAddressable, s: ""},
+ 	{bit: AttrABIWrapper, s: "ABIWRAPPER"},
+ }
+ 
+-// TextAttrString formats a for printing in as part of a TEXT prog.
+-func (a Attribute) TextAttrString() string {
++// String formats a for printing in as part of a TEXT prog.
++func (a Attribute) String() string {
+ 	var s string
+ 	for _, x := range textAttrStrings {
+ 		if a&x.bit != 0 {
+@@ -746,6 +741,18 @@ func (a Attribute) TextAttrString() string {
+ 	return s
+ }
+ 
++// TextAttrString formats the symbol attributes for printing in as part of a TEXT prog.
++func (s *LSym) TextAttrString() string {
++	attr := s.Attribute.String()
++	if s.Func().FuncFlag&objabi.FuncFlag_TOPFRAME != 0 {
++		if attr != "" {
++			attr += "|"
++		}
++		attr += "TOPFRAME"
++	}
++	return attr
++}
++
+ func (s *LSym) String() string {
+ 	return s.Name
+ }
+diff --git a/src/cmd/internal/obj/mips/obj0.go b/src/cmd/internal/obj/mips/obj0.go
+index 135a8df3aa..91bba90d41 100644
+--- a/src/cmd/internal/obj/mips/obj0.go
++++ b/src/cmd/internal/obj/mips/obj0.go
+@@ -35,6 +35,7 @@ import (
+ 	"cmd/internal/sys"
+ 	"encoding/binary"
+ 	"fmt"
++	"log"
+ 	"math"
+ )
+ 
+@@ -536,6 +537,21 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				p.From.Reg = REGSP
+ 			}
+ 		}
++
++		if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.Spadj == 0 {
++			f := c.cursym.Func()
++			if f.FuncFlag&objabi.FuncFlag_SPWRITE == 0 {
++				c.cursym.Func().FuncFlag |= objabi.FuncFlag_SPWRITE
++				if ctxt.Debugvlog || !ctxt.IsAsm {
++					ctxt.Logf("auto-SPWRITE: %s %v\n", c.cursym.Name, p)
++					if !ctxt.IsAsm {
++						ctxt.Diag("invalid auto-SPWRITE in non-assembly")
++						ctxt.DiagFlush()
++						log.Fatalf("bad SPWRITE")
++					}
++				}
++			}
++		}
+ 	}
+ 
+ 	if c.ctxt.Arch.Family == sys.MIPS {
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index bb58b4f0c2..85f0570e5d 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -330,9 +330,6 @@ func (w *writer) Sym(s *LSym) {
+ 	if s.ReflectMethod() {
+ 		flag |= goobj.SymFlagReflectMethod
+ 	}
+-	if s.TopFrame() {
+-		flag |= goobj.SymFlagTopFrame
+-	}
+ 	if strings.HasPrefix(s.Name, "type.") && s.Name[5] != '.' && s.Type == objabi.SRODATA {
+ 		flag |= goobj.SymFlagGoType
+ 	}
+@@ -673,9 +670,10 @@ func genFuncInfoSyms(ctxt *Link) {
+ 			continue
+ 		}
+ 		o := goobj.FuncInfo{
+-			Args:   uint32(fn.Args),
+-			Locals: uint32(fn.Locals),
+-			FuncID: objabi.FuncID(fn.FuncID),
++			Args:     uint32(fn.Args),
++			Locals:   uint32(fn.Locals),
++			FuncID:   fn.FuncID,
++			FuncFlag: fn.FuncFlag,
+ 		}
+ 		pc := &fn.Pcln
+ 		o.Pcsp = makeSymRef(preparePcSym(pc.Pcsp))
+@@ -788,7 +786,7 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
+ 	if s.NoSplit() {
+ 		fmt.Fprintf(ctxt.Bso, "nosplit ")
+ 	}
+-	if s.TopFrame() {
++	if s.Func() != nil && s.Func().FuncFlag&objabi.FuncFlag_TOPFRAME != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "topframe ")
+ 	}
+ 	fmt.Fprintf(ctxt.Bso, "size=%d", s.Size)
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 679ce7eb8f..177083261c 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -134,6 +134,7 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
+ 	}
+ 	name := strings.Replace(s.Name, "\"\"", ctxt.Pkgpath, -1)
+ 	s.Func().FuncID = objabi.GetFuncID(name, flag&WRAPPER != 0)
++	s.Func().FuncFlag = toFuncFlag(flag)
+ 	s.Set(AttrOnList, true)
+ 	s.Set(AttrDuplicateOK, flag&DUPOK != 0)
+ 	s.Set(AttrNoSplit, flag&NOSPLIT != 0)
+@@ -142,7 +143,6 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
+ 	s.Set(AttrABIWrapper, flag&ABIWRAPPER != 0)
+ 	s.Set(AttrNeedCtxt, flag&NEEDCTXT != 0)
+ 	s.Set(AttrNoFrame, flag&NOFRAME != 0)
+-	s.Set(AttrTopFrame, flag&TOPFRAME != 0)
+ 	s.Type = objabi.STEXT
+ 	ctxt.Text = append(ctxt.Text, s)
+ 
+@@ -150,6 +150,14 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
+ 	ctxt.dwarfSym(s)
+ }
+ 
++func toFuncFlag(flag int) objabi.FuncFlag {
++	var out objabi.FuncFlag
++	if flag&TOPFRAME != 0 {
++		out |= objabi.FuncFlag_TOPFRAME
++	}
++	return out
++}
++
+ func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
+ 	if s.OnList() {
+ 		ctxt.Diag("symbol %s listed multiple times", s.Name)
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index fddf552156..a77be29cf0 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -34,6 +34,7 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ 	"cmd/internal/sys"
++	"log"
+ )
+ 
+ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+@@ -984,6 +985,21 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				p.From.Reg = REGSP
+ 			}
+ 		}
++
++		if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.Spadj == 0 && p.As != ACMPU {
++			f := c.cursym.Func()
++			if f.FuncFlag&objabi.FuncFlag_SPWRITE == 0 {
++				c.cursym.Func().FuncFlag |= objabi.FuncFlag_SPWRITE
++				if ctxt.Debugvlog || !ctxt.IsAsm {
++					ctxt.Logf("auto-SPWRITE: %s %v\n", c.cursym.Name, p)
++					if !ctxt.IsAsm {
++						ctxt.Diag("invalid auto-SPWRITE in non-assembly")
++						ctxt.DiagFlush()
++						log.Fatalf("bad SPWRITE")
++					}
++				}
++			}
++		}
+ 	}
+ }
+ 
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 5ef334dd6a..d104f1cfa5 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -25,6 +25,7 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"fmt"
++	"log"
+ )
+ 
+ func buildop(ctxt *obj.Link) {}
+@@ -716,6 +717,21 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				p.Spadj = int32(-p.From.Offset)
+ 			}
+ 		}
++
++		if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.Spadj == 0 {
++			f := cursym.Func()
++			if f.FuncFlag&objabi.FuncFlag_SPWRITE == 0 {
++				f.FuncFlag |= objabi.FuncFlag_SPWRITE
++				if ctxt.Debugvlog || !ctxt.IsAsm {
++					ctxt.Logf("auto-SPWRITE: %s %v\n", cursym.Name, p)
++					if !ctxt.IsAsm {
++						ctxt.Diag("invalid auto-SPWRITE in non-assembly")
++						ctxt.DiagFlush()
++						log.Fatalf("bad SPWRITE")
++					}
++				}
++			}
++		}
+ 	}
+ 
+ 	// Rewrite MOV pseudo-instructions. This cannot be done in
+diff --git a/src/cmd/internal/obj/s390x/objz.go b/src/cmd/internal/obj/s390x/objz.go
+index 970cf827d6..a02c4fc17f 100644
+--- a/src/cmd/internal/obj/s390x/objz.go
++++ b/src/cmd/internal/obj/s390x/objz.go
+@@ -33,6 +33,7 @@ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
++	"log"
+ 	"math"
+ )
+ 
+@@ -545,6 +546,21 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				p.From.Reg = REGSP
+ 			}
+ 		}
++
++		if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.Spadj == 0 {
++			f := c.cursym.Func()
++			if f.FuncFlag&objabi.FuncFlag_SPWRITE == 0 {
++				c.cursym.Func().FuncFlag |= objabi.FuncFlag_SPWRITE
++				if ctxt.Debugvlog || !ctxt.IsAsm {
++					ctxt.Logf("auto-SPWRITE: %s\n", c.cursym.Name)
++					if !ctxt.IsAsm {
++						ctxt.Diag("invalid auto-SPWRITE in non-assembly")
++						ctxt.DiagFlush()
++						log.Fatalf("bad SPWRITE")
++					}
++				}
++			}
++		}
+ 	}
+ 	if wasSplit {
+ 		c.stacksplitPost(pLast, pPre, pPreempt, autosize) // emit post part of split check
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index b9bacb7a22..1c34b4e833 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -187,7 +187,7 @@ func (p *Prog) WriteInstructionString(w io.Writer) {
+ 		// In short, print one of these two:
+ 		// TEXT	foo(SB), DUPOK|NOSPLIT, $0
+ 		// TEXT	foo(SB), $0
+-		s := p.From.Sym.Attribute.TextAttrString()
++		s := p.From.Sym.TextAttrString()
+ 		if s != "" {
+ 			fmt.Fprintf(w, "%s%s", sep, s)
+ 			sep = ", "
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 84de58a4c4..bc3a3b4bbe 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -35,6 +35,7 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ 	"cmd/internal/sys"
++	"log"
+ 	"math"
+ 	"strings"
+ )
+@@ -839,6 +840,20 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 
+ 		switch p.As {
+ 		default:
++			if p.To.Type == obj.TYPE_REG && p.To.Reg == REG_SP && p.As != ACMPL && p.As != ACMPQ {
++				f := cursym.Func()
++				if f.FuncFlag&objabi.FuncFlag_SPWRITE == 0 {
++					f.FuncFlag |= objabi.FuncFlag_SPWRITE
++					if ctxt.Debugvlog || !ctxt.IsAsm {
++						ctxt.Logf("auto-SPWRITE: %s %v\n", cursym.Name, p)
++						if !ctxt.IsAsm {
++							ctxt.Diag("invalid auto-SPWRITE in non-assembly")
++							ctxt.DiagFlush()
++							log.Fatalf("bad SPWRITE")
++						}
++					}
++				}
++			}
+ 			continue
+ 
+ 		case APUSHL, APUSHFL:
+diff --git a/src/cmd/internal/objabi/funcid.go b/src/cmd/internal/objabi/funcid.go
+index e921a82c0c..6e188e31bb 100644
+--- a/src/cmd/internal/objabi/funcid.go
++++ b/src/cmd/internal/objabi/funcid.go
+@@ -6,13 +6,22 @@ package objabi
+ 
+ import "strings"
+ 
++// A FuncFlag records bits about a function, passed to the runtime.
++type FuncFlag uint8
++
++// Note: This list must match the list in runtime/symtab.go.
++const (
++	FuncFlag_TOPFRAME = 1 << iota
++	FuncFlag_SPWRITE
++)
++
+ // A FuncID identifies particular functions that need to be treated
+ // specially by the runtime.
+ // Note that in some situations involving plugins, there may be multiple
+ // copies of a particular special runtime function.
+-// Note: this list must match the list in runtime/symtab.go.
+ type FuncID uint8
+ 
++// Note: this list must match the list in runtime/symtab.go.
+ const (
+ 	FuncID_normal FuncID = iota // not a special function
+ 	FuncID_asmcgocall
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 2ab9a55e96..561f6f1475 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1454,7 +1454,7 @@ func (d *dwctxt) writeframes(fs loader.Sym) dwarfSecInfo {
+ 		// Emit a FDE, Section 6.4.1.
+ 		// First build the section contents into a byte buffer.
+ 		deltaBuf = deltaBuf[:0]
+-		if haslr && d.ldr.AttrTopFrame(fn) {
++		if haslr && fi.TopFrame() {
+ 			// Mark the link register as having an undefined value.
+ 			// This stops call stack unwinders progressing any further.
+ 			// TODO: similar mark on non-LR architectures.
+@@ -1480,7 +1480,7 @@ func (d *dwctxt) writeframes(fs loader.Sym) dwarfSecInfo {
+ 				spdelta += int64(d.arch.PtrSize)
+ 			}
+ 
+-			if haslr && !d.ldr.AttrTopFrame(fn) {
++			if haslr && !fi.TopFrame() {
+ 				// TODO(bryanpkc): This is imprecise. In general, the instruction
+ 				// that stores the return address to the stack frame is not the
+ 				// same one that allocates the frame.
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 72bf33e611..fb733117be 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -796,7 +796,14 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
+ 		}
+ 		off = uint32(sb.SetUint8(ctxt.Arch, int64(off), uint8(funcID)))
+ 
+-		off += 2 // pad
++		// flag uint8
++		var flag objabi.FuncFlag
++		if fi.Valid() {
++			flag = fi.FuncFlag()
++		}
++		off = uint32(sb.SetUint8(ctxt.Arch, int64(off), uint8(flag)))
++
++		off += 1 // pad
+ 
+ 		// nfuncdata must be the final entry.
+ 		funcdata, funcdataoff = funcData(fi, 0, funcdata, funcdataoff)
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 98c2131c2b..68dc3de273 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -241,7 +241,6 @@ type Loader struct {
+ 	attrExternal         Bitmap // external symbols, indexed by ext sym index
+ 
+ 	attrReadOnly         map[Sym]bool     // readonly data for this sym
+-	attrTopFrame         map[Sym]struct{} // top frame symbols
+ 	attrSpecial          map[Sym]struct{} // "special" frame symbols
+ 	attrCgoExportDynamic map[Sym]struct{} // "cgo_export_dynamic" symbols
+ 	attrCgoExportStatic  map[Sym]struct{} // "cgo_export_static" symbols
+@@ -349,7 +348,6 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc, reporter *ErrorRepor
+ 		plt:                  make(map[Sym]int32),
+ 		got:                  make(map[Sym]int32),
+ 		dynid:                make(map[Sym]int32),
+-		attrTopFrame:         make(map[Sym]struct{}),
+ 		attrSpecial:          make(map[Sym]struct{}),
+ 		attrCgoExportDynamic: make(map[Sym]struct{}),
+ 		attrCgoExportStatic:  make(map[Sym]struct{}),
+@@ -1009,24 +1007,6 @@ func (l *Loader) SetAttrExternal(i Sym, v bool) {
+ 	}
+ }
+ 
+-// AttrTopFrame returns true for a function symbol that is an entry
+-// point, meaning that unwinders should stop when they hit this
+-// function.
+-func (l *Loader) AttrTopFrame(i Sym) bool {
+-	_, ok := l.attrTopFrame[i]
+-	return ok
+-}
+-
+-// SetAttrTopFrame sets the "top frame" property for a symbol (see
+-// AttrTopFrame).
+-func (l *Loader) SetAttrTopFrame(i Sym, v bool) {
+-	if v {
+-		l.attrTopFrame[i] = struct{}{}
+-	} else {
+-		delete(l.attrTopFrame, i)
+-	}
+-}
+-
+ // AttrSpecial returns true for a symbols that do not have their
+ // address (i.e. Value) computed by the usual mechanism of
+ // data.go:dodata() & data.go:address().
+@@ -1905,7 +1885,11 @@ func (fi *FuncInfo) Locals() int {
+ }
+ 
+ func (fi *FuncInfo) FuncID() objabi.FuncID {
+-	return objabi.FuncID((*goobj.FuncInfo)(nil).ReadFuncID(fi.data))
++	return (*goobj.FuncInfo)(nil).ReadFuncID(fi.data)
++}
++
++func (fi *FuncInfo) FuncFlag() objabi.FuncFlag {
++	return (*goobj.FuncInfo)(nil).ReadFuncFlag(fi.data)
+ }
+ 
+ func (fi *FuncInfo) Pcsp() Sym {
+@@ -1992,6 +1976,13 @@ func (fi *FuncInfo) File(k int) goobj.CUFileIndex {
+ 	return (*goobj.FuncInfo)(nil).ReadFile(fi.data, fi.lengths.FileOff, uint32(k))
+ }
+ 
++// TopFrame returns true if the function associated with this FuncInfo
++// is an entry point, meaning that unwinders should stop when they hit
++// this function.
++func (fi *FuncInfo) TopFrame() bool {
++	return (fi.FuncFlag() & objabi.FuncFlag_TOPFRAME) != 0
++}
++
+ type InlTreeNode struct {
+ 	Parent   int32
+ 	File     goobj.CUFileIndex
+@@ -2151,9 +2142,6 @@ func (st *loadState) preloadSyms(r *oReader, kind int) {
+ 		}
+ 		gi := st.addSym(name, v, r, i, kind, osym)
+ 		r.syms[i] = gi
+-		if osym.TopFrame() {
+-			l.SetAttrTopFrame(gi, true)
+-		}
+ 		if osym.Local() {
+ 			l.SetAttrLocal(gi, true)
+ 		}
+@@ -2411,7 +2399,6 @@ func (l *Loader) CopyAttributes(src Sym, dst Sym) {
+ 		// when copying attributes from a dupOK ABI wrapper symbol to
+ 		// the real target symbol (which may not be marked dupOK).
+ 	}
+-	l.SetAttrTopFrame(dst, l.AttrTopFrame(src))
+ 	l.SetAttrSpecial(dst, l.AttrSpecial(src))
+ 	l.SetAttrCgoExportDynamic(dst, l.AttrCgoExportDynamic(src))
+ 	l.SetAttrCgoExportStatic(dst, l.AttrCgoExportStatic(src))
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 675c613b6e..05520d07b2 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -833,10 +833,11 @@ type _func struct {
+ 	pcfile    uint32
+ 	pcln      uint32
+ 	npcdata   uint32
+-	cuOffset  uint32  // runtime.cutab offset of this function's CU
+-	funcID    funcID  // set for certain special runtime functions
+-	_         [2]byte // pad
+-	nfuncdata uint8   // must be last
++	cuOffset  uint32 // runtime.cutab offset of this function's CU
++	funcID    funcID // set for certain special runtime functions
++	flag      funcFlag
++	_         [1]byte // pad
++	nfuncdata uint8   // must be last, must end on a uint32-aligned boundary
+ }
+ 
+ // Pseudo-Func that is returned for PCs that occur in inlined code.
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index fc93c00c2d..d7da255e43 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -332,6 +332,15 @@ const (
+ 	funcID_wrapper // any autogenerated code (hash/eq algorithms, method wrappers, etc.)
+ )
+ 
++// A FuncFlag holds bits about a function.
++// This list must match the list in cmd/internal/objabi/funcid.go.
++type funcFlag uint8
++
++const (
++	funcFlag_TOPFRAME funcFlag = 1 << iota
++	funcFlag_SPWRITE
++)
++
+ // pcHeader holds data used by the pclntab lookups.
+ type pcHeader struct {
+ 	magic          uint32  // 0xFFFFFFFA

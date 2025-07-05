@@ -13,6 +13,30 @@ Date:   Fri Apr 26 06:56:58 2019 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/runtime-gdb_test.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 66f275969b..63d6e52dea 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -7,7 +7,6 @@ package runtime_test
+ import (
+ 	"bytes"
+ 	"fmt"
+-	"go/build"
+ 	"internal/testenv"
+ 	"io/ioutil"
+ 	"os"
+@@ -140,8 +139,8 @@ func TestGdbPythonCgo(t *testing.T) {
+ }
+ 
+ func testGdbPython(t *testing.T, cgo bool) {
+-	if cgo && !build.Default.CgoEnabled {
+-		t.Skip("skipping because cgo is not enabled")
++	if cgo {
++		testenv.MustHaveCGO(t)
+ 	}
+ 
+ 	checkGdbEnvironment(t)

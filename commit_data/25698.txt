@@ -9,7 +9,39 @@ Date:   Wed Nov 4 15:28:47 2015 -0500
     Change-Id: I0fdfa410939f7e42020cbb19d74a67e1cc3cd610
     Reviewed-on: https://go-review.googlesource.com/16919
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/lex.go |  3 +++
  test/fixedbugs/issue11359.go       | 11 +++++++++++
  2 files changed, 14 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 7fd6a62dba..1f468c1dea 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -1469,6 +1469,9 @@ talph:
+ 			if !unicode.IsLetter(r) && !unicode.IsDigit(r) && (importpkg == nil || r != 0xb7) {
+ 				Yyerror("invalid identifier character U+%04x", r)
+ 			}
++			if cp.Len() == 0 && unicode.IsDigit(r) {
++				Yyerror("identifier cannot begin with digit U+%04x", r)
++			}
+ 			cp.WriteRune(r)
+ 		} else if !isAlnum(c) && c != '_' {
+ 			break
+diff --git a/test/fixedbugs/issue11359.go b/test/fixedbugs/issue11359.go
+new file mode 100644
+index 0000000000..6ffffede6b
+--- /dev/null
++++ b/test/fixedbugs/issue11359.go
+@@ -0,0 +1,11 @@
++// errorcheck
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// identifiers beginning with non-ASCII digits were incorrectly accepted.
++// issue 11359.
++
++package p
++var ۶ = 0 // ERROR "identifier cannot begin with digit"

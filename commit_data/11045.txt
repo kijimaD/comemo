@@ -7,7 +7,43 @@ Date:   Sat Jan 7 20:53:53 2012 -0500
     R=golang-dev, gri, bradfitz, iant
     CC=golang-dev, rsc
     https://golang.org/cl/5523049
-
+---
  src/pkg/time/sleep.go | 4 ++--
  src/pkg/time/tick.go  | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/time/sleep.go b/src/pkg/time/sleep.go
+index b4680db238..27820b0eaa 100644
+--- a/src/pkg/time/sleep.go
++++ b/src/pkg/time/sleep.go
+@@ -41,7 +41,7 @@ func (t *Timer) Stop() (ok bool) {
+ }
+ 
+ // NewTimer creates a new Timer that will send
+-// the current time on its channel after at least ns nanoseconds.
++// the current time on its channel after at least duration d.
+ func NewTimer(d Duration) *Timer {
+ 	c := make(chan Time, 1)
+ 	t := &Timer{
+@@ -70,7 +70,7 @@ func sendTime(now int64, c interface{}) {
+ 
+ // After waits for the duration to elapse and then sends the current time
+ // on the returned channel.
+-// It is equivalent to NewTimer(ns).C.
++// It is equivalent to NewTimer(d).C.
+ func After(d Duration) <-chan Time {
+ 	return NewTimer(d).C
+ }
+diff --git a/src/pkg/time/tick.go b/src/pkg/time/tick.go
+index 4440c2207b..8c6b9bc3b2 100644
+--- a/src/pkg/time/tick.go
++++ b/src/pkg/time/tick.go
+@@ -14,7 +14,7 @@ type Ticker struct {
+ }
+ 
+ // NewTicker returns a new Ticker containing a channel that will send the
+-// time, in nanoseconds, with a period specified by the duration argument.
++// time with a period specified by the duration argument.
+ // It adjusts the intervals or drops ticks to make up for slow receivers.
+ // The duration d must be greater than zero; if not, NewTicker will panic.
+ func NewTicker(d Duration) *Ticker {

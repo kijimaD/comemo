@@ -19,7 +19,36 @@ Date:   Tue Feb 16 14:40:49 2021 +0000
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/work/security.go      | 4 ++--
  src/cmd/go/internal/work/security_test.go | 2 ++
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/security.go b/src/cmd/go/internal/work/security.go
+index 36bbab37ee..e9b9f6c6c0 100644
+--- a/src/cmd/go/internal/work/security.go
++++ b/src/cmd/go/internal/work/security.go
+@@ -208,8 +208,8 @@ var validLinkerFlags = []*lazyregexp.Regexp{
+ 	re(`-Wl,-z,(no)?execstack`),
+ 	re(`-Wl,-z,relro`),
+ 
+-	re(`[a-zA-Z0-9_/].*\.(a|o|obj|dll|dylib|so)`), // direct linker inputs: x.o or libfoo.so (but not -foo.o or @foo.o)
+-	re(`\./.*\.(a|o|obj|dll|dylib|so)`),
++	re(`[a-zA-Z0-9_/].*\.(a|o|obj|dll|dylib|so|tbd)`), // direct linker inputs: x.o or libfoo.so (but not -foo.o or @foo.o)
++	re(`\./.*\.(a|o|obj|dll|dylib|so|tbd)`),
+ }
+ 
+ var validLinkerFlagsWithNextArg = []string{
+diff --git a/src/cmd/go/internal/work/security_test.go b/src/cmd/go/internal/work/security_test.go
+index 4f2e0eb21a..8d4be0abfc 100644
+--- a/src/cmd/go/internal/work/security_test.go
++++ b/src/cmd/go/internal/work/security_test.go
+@@ -164,6 +164,8 @@ var goodLinkerFlags = [][]string{
+ 	{"-Wl,-framework", "-Wl,Chocolate"},
+ 	{"-Wl,-framework,Chocolate"},
+ 	{"-Wl,-unresolved-symbols=ignore-all"},
++	{"libcgotbdtest.tbd"},
++	{"./libcgotbdtest.tbd"},
+ }
+ 
+ var badLinkerFlags = [][]string{

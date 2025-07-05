@@ -13,7 +13,7 @@ Date:   Tue May 17 17:09:28 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/compile/internal/ppc64/ssa.go                         | 4 ++--
  src/cmd/compile/internal/test/reproduciblebuilds_test.go      | 2 +-
  src/cmd/go/testdata/script/test_fuzz_seed_corpus.txt          | 4 ++--
@@ -31,3 +31,230 @@ Date:   Tue May 17 17:09:28 2022 +0000
  src/runtime/sys_aix_ppc64.s                                   | 2 +-
  test/live_uintptrkeepalive.go                                 | 2 +-
  16 files changed, 18 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index d19201331b..d3a0ba1d80 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -830,7 +830,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 	case ssa.OpPPC64MOVDload, ssa.OpPPC64MOVWload:
+ 
+ 		// MOVDload and MOVWload are DS form instructions that are restricted to
+-		// offsets that are a multiple of 4. If the offset is not a multple of 4,
++		// offsets that are a multiple of 4. If the offset is not a multiple of 4,
+ 		// then the address of the symbol to be loaded is computed (base + offset)
+ 		// and used as the new base register and the offset field in the instruction
+ 		// can be set to zero.
+@@ -933,7 +933,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 	case ssa.OpPPC64MOVDstore, ssa.OpPPC64MOVDstorezero:
+ 
+ 		// MOVDstore and MOVDstorezero become DS form instructions that are restricted
+-		// to offset values that are a multple of 4. If the offset field is not a
++		// to offset values that are a multiple of 4. If the offset field is not a
+ 		// multiple of 4, then the full address of the store target is computed (base +
+ 		// offset) and used as the new base register and the offset in the instruction
+ 		// is set to 0.
+diff --git a/src/cmd/compile/internal/test/reproduciblebuilds_test.go b/src/cmd/compile/internal/test/reproduciblebuilds_test.go
+index 0a1a5e9b99..10913ae32f 100644
+--- a/src/cmd/compile/internal/test/reproduciblebuilds_test.go
++++ b/src/cmd/compile/internal/test/reproduciblebuilds_test.go
+@@ -68,7 +68,7 @@ func TestIssue38068(t *testing.T) {
+ 	// Compile a small package with and without the concurrent
+ 	// backend, then check to make sure that the resulting archives
+ 	// are identical.  Note: this uses "go tool compile" instead of
+-	// "go build" since the latter will generate differnent build IDs
++	// "go build" since the latter will generate different build IDs
+ 	// if it sees different command line flags.
+ 	scenarios := []struct {
+ 		tag     string
+diff --git a/src/cmd/go/testdata/script/test_fuzz_seed_corpus.txt b/src/cmd/go/testdata/script/test_fuzz_seed_corpus.txt
+index 57c8a8ba65..3e3fbade23 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_seed_corpus.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_seed_corpus.txt
+@@ -9,7 +9,7 @@ env GOCACHE=$WORK/cache
+ ! stdout 'Failing input written to testdata[/\\]fuzz[/\\]FuzzWithAdd[/\\]'
+ stdout FAIL
+ 
+-# Test that fuzzing a target with a sucess in f.Add and a fuzztime of only
++# Test that fuzzing a target with a success in f.Add and a fuzztime of only
+ # 1 does not produce a crash.
+ go test -fuzz=FuzzWithGoodAdd -run=FuzzWithGoodAdd -fuzztime=1x
+ stdout ok
+@@ -73,7 +73,7 @@ go clean -fuzzcache
+ ! stdout 'Failing input written to testdata[/\\]fuzz[/\\]FuzzWithAdd[/\\]'
+ stdout FAIL
+ 
+-# Test that fuzzing a target (with -run=None set) with a sucess in f.Add and a
++# Test that fuzzing a target (with -run=None set) with a success in f.Add and a
+ # fuzztime of only 1 does not produce a crash.
+ go test -fuzz=FuzzWithGoodAdd -run=None -fuzztime=1x
+ stdout ok
+diff --git a/src/cmd/go/testdata/script/version.txt b/src/cmd/go/testdata/script/version.txt
+index adca7af7a9..f7ead395c0 100644
+--- a/src/cmd/go/testdata/script/version.txt
++++ b/src/cmd/go/testdata/script/version.txt
+@@ -2,7 +2,7 @@
+ go version
+ stdout '^go version'
+ 
+-# Flags without files, or paths to misisng files, should error.
++# Flags without files, or paths to missing files, should error.
+ ! go version missing.exe
+ ! go version -m
+ stderr 'with arguments'
+diff --git a/src/cmd/link/internal/ld/outbuf.go b/src/cmd/link/internal/ld/outbuf.go
+index e078ee442f..54fafcaf99 100644
+--- a/src/cmd/link/internal/ld/outbuf.go
++++ b/src/cmd/link/internal/ld/outbuf.go
+@@ -21,7 +21,7 @@ const outbufMode = 0775
+ 
+ // OutBuf is a buffered file writer.
+ //
+-// It is simlar to the Writer in cmd/internal/bio with a few small differences.
++// It is similar to the Writer in cmd/internal/bio with a few small differences.
+ //
+ // First, it tracks the output architecture and uses it to provide
+ // endian helpers.
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index c51a01fa86..e984ef279e 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -356,7 +356,7 @@ func TestGoObjOtherVersion(t *testing.T) {
+ 	cmd := exec.Command(exe, obj)
+ 	out, err := cmd.CombinedOutput()
+ 	if err == nil {
+-		t.Fatalf("objdump go116.o succeeded unexpectly")
++		t.Fatalf("objdump go116.o succeeded unexpectedly")
+ 	}
+ 	if !strings.Contains(string(out), "go object of a different version") {
+ 		t.Errorf("unexpected error message:\n%s", out)
+diff --git a/src/cmd/vendor/github.com/ianlancetaylor/demangle/demangle.go b/src/cmd/vendor/github.com/ianlancetaylor/demangle/demangle.go
+index 66ac7dde62..af5134deb9 100644
+--- a/src/cmd/vendor/github.com/ianlancetaylor/demangle/demangle.go
++++ b/src/cmd/vendor/github.com/ianlancetaylor/demangle/demangle.go
+@@ -1715,7 +1715,7 @@ func (st *state) demangleCastTemplateArgs(tp AST, addSubst bool) AST {
+ 	return tp
+ }
+ 
+-// mergeQualifiers merges two qualifer lists into one.
++// mergeQualifiers merges two qualifier lists into one.
+ func mergeQualifiers(q1AST, q2AST AST) AST {
+ 	if q1AST == nil {
+ 		return q2AST
+diff --git a/src/compress/flate/huffman_code.go b/src/compress/flate/huffman_code.go
+index 9b64d15e75..a3fe80b442 100644
+--- a/src/compress/flate/huffman_code.go
++++ b/src/compress/flate/huffman_code.go
+@@ -130,7 +130,7 @@ const maxBitsLimit = 16
+ // maxBits is the maximum number of bits that should be used to encode any literal.
+ // It must be less than 16.
+ //
+-// bitCounts retruns an integer slice in which slice[i] indicates the number of literals
++// bitCounts returns an integer slice in which slice[i] indicates the number of literals
+ // that should be encoded in i bits.
+ func (h *huffmanEncoder) bitCounts(list []literalNode, maxBits int32) []int32 {
+ 	if maxBits >= maxBitsLimit {
+diff --git a/src/crypto/tls/handshake_server_test.go b/src/crypto/tls/handshake_server_test.go
+index 1f3a174d58..5ff5270a7c 100644
+--- a/src/crypto/tls/handshake_server_test.go
++++ b/src/crypto/tls/handshake_server_test.go
+@@ -345,7 +345,7 @@ func TestTLSPointFormats(t *testing.T) {
+ 				}
+ 			} else {
+ 				if len(serverHello.supportedPoints) != 0 {
+-					t.Fatalf("unexcpected ec_point_format extension from server: %v", serverHello.supportedPoints)
++					t.Fatalf("unexpected ec_point_format extension from server: %v", serverHello.supportedPoints)
+ 				}
+ 			}
+ 		})
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index a921dd5a84..41631c735f 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -2986,7 +2986,7 @@ func TestConnExpiresFreshOutOfPool(t *testing.T) {
+ }
+ 
+ // TestIssue20575 ensures the Rows from query does not block
+-// closing a transaction. Ensure Rows is closed while closing a trasaction.
++// closing a transaction. Ensure Rows is closed while closing a transaction.
+ func TestIssue20575(t *testing.T) {
+ 	db := newTestDB(t, "people")
+ 	defer closeDB(t, db)
+diff --git a/src/encoding/xml/xml.go b/src/encoding/xml/xml.go
+index a7a02f5b57..4a8c154802 100644
+--- a/src/encoding/xml/xml.go
++++ b/src/encoding/xml/xml.go
+@@ -933,7 +933,7 @@ func (d *Decoder) InputOffset() int64 {
+ 	return d.offset
+ }
+ 
+-// InputPos retuns the line of the current decoder position and the 1 based
++// InputPos returns the line of the current decoder position and the 1 based
+ // input position of the line. The position gives the location of the end of the
+ // most recently returned token.
+ func (d *Decoder) InputPos() (line, column int) {
+diff --git a/src/runtime/mgcpacer.go b/src/runtime/mgcpacer.go
+index 9fbbe83c6b..7acedfcded 100644
+--- a/src/runtime/mgcpacer.go
++++ b/src/runtime/mgcpacer.go
+@@ -1044,7 +1044,7 @@ func (c *gcControllerState) memoryLimitHeapGoal() uint64 {
+ 	//
+ 	// Let's take a step back. In an ideal world, this term would look something like just
+ 	// the heap goal. That is, we "reserve" enough space for the heap to grow to the heap
+-	// goal, and subtract out everything else. This is of course impossible; the defintion
++	// goal, and subtract out everything else. This is of course impossible; the definition
+ 	// is circular! However, this impossible definition contains a key insight: the amount
+ 	// we're *going* to use matters just as much as whatever we're currently using.
+ 	//
+diff --git a/src/runtime/pprof/label.go b/src/runtime/pprof/label.go
+index b614f12544..0c58a7ac47 100644
+--- a/src/runtime/pprof/label.go
++++ b/src/runtime/pprof/label.go
+@@ -37,7 +37,7 @@ func labelValue(ctx context.Context) labelMap {
+ // that admits incremental immutable modification more efficiently.
+ type labelMap map[string]string
+ 
+-// String statisfies Stringer and returns key, value pairs in a consistent
++// String satisfies Stringer and returns key, value pairs in a consistent
+ // order.
+ func (l *labelMap) String() string {
+ 	if l == nil {
+diff --git a/src/runtime/race_ppc64le.s b/src/runtime/race_ppc64le.s
+index a1bf3665ad..ac335b1819 100644
+--- a/src/runtime/race_ppc64le.s
++++ b/src/runtime/race_ppc64le.s
+@@ -410,7 +410,7 @@ racecallatomic_ignore:
+ 	BL	racecall<>(SB)
+ 	// Call __tsan_go_ignore_sync_end.
+ 	MOVD	$__tsan_go_ignore_sync_end(SB), R8
+-	MOVD	g_racectx(g), R3	// goroutine context g should sitll be good?
++	MOVD	g_racectx(g), R3	// goroutine context g should still be good?
+ 	BL	racecall<>(SB)
+ 	RET
+ 
+diff --git a/src/runtime/sys_aix_ppc64.s b/src/runtime/sys_aix_ppc64.s
+index 772f357ca9..ab18c5eb00 100644
+--- a/src/runtime/sys_aix_ppc64.s
++++ b/src/runtime/sys_aix_ppc64.s
+@@ -22,7 +22,7 @@ TEXT callCfunction<>(SB),	NOSPLIT|NOFRAME,$0
+ 
+ 
+ // asmsyscall6 calls a library function with a function descriptor
+-// stored in libcall_fn and store the results in libcall struture
++// stored in libcall_fn and store the results in libcall structure
+ // Up to 6 arguments can be passed to this C function
+ // Called by runtime.asmcgocall
+ // It reserves a stack of 288 bytes for the C function. It must
+diff --git a/test/live_uintptrkeepalive.go b/test/live_uintptrkeepalive.go
+index 10c4c7505b..e39e31f77f 100644
+--- a/test/live_uintptrkeepalive.go
++++ b/test/live_uintptrkeepalive.go
+@@ -12,7 +12,7 @@
+ // bodies (assembly, linkname), as well as explicitly on complete functions
+ // with //go:uintptrkeepalive.
+ //
+-// This is most important for syscall.Syscall (and similiar functions), so we
++// This is most important for syscall.Syscall (and similar functions), so we
+ // test it explicitly.
+ 
+ package p

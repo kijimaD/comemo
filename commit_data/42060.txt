@@ -23,7 +23,113 @@ Date:   Mon Oct 28 00:49:13 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/203822
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ppc64/ssa.go |  4 ++--
  src/cmd/internal/obj/ppc64/obj9.go    | 30 ++++++++++++------------------
  2 files changed, 14 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 4af6e9d5ed..73d1d9d3a0 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -1239,14 +1239,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[0].Reg()
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = ppc64.REG_CTR
++		p.To.Reg = ppc64.REG_LR
+ 
+ 		if v.Args[0].Reg() != ppc64.REG_R12 {
+ 			v.Fatalf("Function address for %v should be in R12 %d but is in %d", v.LongString(), ppc64.REG_R12, p.From.Reg)
+ 		}
+ 
+ 		pp := s.Call(v)
+-		pp.To.Reg = ppc64.REG_CTR
++		pp.To.Reg = ppc64.REG_LR
+ 
+ 		if gc.Ctxt.Flag_shared {
+ 			// When compiling Go into PIC, the function we just
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 916116d1a3..2a4f005592 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -130,8 +130,8 @@ func (c *ctxt9) rewriteToUseTOC(p *obj.Prog) {
+ 		// becomes
+ 		//     MOVD runtime.duffxxx@TOC, R12
+ 		//     ADD $offset, R12
+-		//     MOVD R12, CTR
+-		//     BL (CTR)
++		//     MOVD R12, LR
++		//     BL (LR)
+ 		var sym *obj.LSym
+ 		if p.As == obj.ADUFFZERO {
+ 			sym = c.ctxt.Lookup("runtime.duffzero")
+@@ -167,13 +167,11 @@ func (c *ctxt9) rewriteToUseTOC(p *obj.Prog) {
+ 		p2.From.Type = obj.TYPE_REG
+ 		p2.From.Reg = REG_R12
+ 		p2.To.Type = obj.TYPE_REG
+-		p2.To.Reg = REG_CTR
++		p2.To.Reg = REG_LR
+ 		p3 := obj.Appendp(p2, c.newprog)
+ 		p3.As = obj.ACALL
+-		p3.From.Type = obj.TYPE_REG
+-		p3.From.Reg = REG_R12
+ 		p3.To.Type = obj.TYPE_REG
+-		p3.To.Reg = REG_CTR
++		p3.To.Reg = REG_LR
+ 	}
+ 
+ 	var source *obj.Addr
+@@ -288,8 +286,8 @@ func (c *ctxt9) rewriteToUseGot(p *obj.Prog) {
+ 		// becomes
+ 		//     MOVD runtime.duffxxx@GOT, R12
+ 		//     ADD $offset, R12
+-		//     MOVD R12, CTR
+-		//     BL (CTR)
++		//     MOVD R12, LR
++		//     BL (LR)
+ 		var sym *obj.LSym
+ 		if p.As == obj.ADUFFZERO {
+ 			sym = c.ctxt.Lookup("runtime.duffzero")
+@@ -317,13 +315,11 @@ func (c *ctxt9) rewriteToUseGot(p *obj.Prog) {
+ 		p2.From.Type = obj.TYPE_REG
+ 		p2.From.Reg = REG_R12
+ 		p2.To.Type = obj.TYPE_REG
+-		p2.To.Reg = REG_CTR
++		p2.To.Reg = REG_LR
+ 		p3 := obj.Appendp(p2, c.newprog)
+ 		p3.As = obj.ACALL
+-		p3.From.Type = obj.TYPE_REG
+-		p3.From.Reg = REG_R12
+ 		p3.To.Type = obj.TYPE_REG
+-		p3.To.Reg = REG_CTR
++		p3.To.Reg = REG_LR
+ 	}
+ 
+ 	// We only care about global data: NAME_EXTERN means a global
+@@ -1196,21 +1192,19 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = REG_R12
+ 
+-		// MOVD R12, CTR
++		// MOVD R12, LR
+ 		p = obj.Appendp(p, c.newprog)
+ 		p.As = AMOVD
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = REG_R12
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = REG_CTR
++		p.To.Reg = REG_LR
+ 
+-		// BL CTR
++		// BL LR
+ 		p = obj.Appendp(p, c.newprog)
+ 		p.As = obj.ACALL
+-		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = REG_R12
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = REG_CTR
++		p.To.Reg = REG_LR
+ 	} else {
+ 		// BL	runtime.morestack(SB)
+ 		p = obj.Appendp(p, c.newprog)

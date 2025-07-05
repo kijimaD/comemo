@@ -22,7 +22,7 @@ Date:   Thu Apr 3 03:26:25 2025 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/runtime/os3_solaris.go            |  5 ++++-
  src/runtime/os_aix.go                 |  5 ++++-
  src/runtime/os_darwin.go              |  5 ++++-
@@ -36,3 +36,211 @@ Date:   Thu Apr 3 03:26:25 2025 +0000
  src/runtime/vgetrandom_linux.go       | 11 +++++++++--
  src/runtime/vgetrandom_unsupported.go |  2 +-
  12 files changed, 48 insertions(+), 16 deletions(-)
+
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index cf163a6bf4..ded821b2e6 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -234,8 +234,11 @@ func unminit() {
+ 	getg().m.procid = 0
+ }
+ 
+-// Called from exitm, but not from drop, to undo the effect of thread-owned
++// Called from mexit, but not from dropm, to undo the effect of thread-owned
+ // resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
++//
++// This always runs without a P, so //go:nowritebarrierrec is required.
++//go:nowritebarrierrec
+ func mdestroy(mp *m) {
+ }
+ 
+diff --git a/src/runtime/os_aix.go b/src/runtime/os_aix.go
+index 93464cb997..1b483c2a7e 100644
+--- a/src/runtime/os_aix.go
++++ b/src/runtime/os_aix.go
+@@ -186,8 +186,11 @@ func unminit() {
+ 	getg().m.procid = 0
+ }
+ 
+-// Called from exitm, but not from drop, to undo the effect of thread-owned
++// Called from mexit, but not from dropm, to undo the effect of thread-owned
+ // resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
++//
++// This always runs without a P, so //go:nowritebarrierrec is required.
++//go:nowritebarrierrec
+ func mdestroy(mp *m) {
+ }
+ 
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index 0ecbea7ae4..6eab3b5c3d 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -344,8 +344,11 @@ func unminit() {
+ 	getg().m.procid = 0
+ }
+ 
+-// Called from exitm, but not from drop, to undo the effect of thread-owned
++// Called from mexit, but not from dropm, to undo the effect of thread-owned
+ // resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
++//
++// This always runs without a P, so //go:nowritebarrierrec is required.
++//go:nowritebarrierrec
+ func mdestroy(mp *m) {
+ }
+ 
+diff --git a/src/runtime/os_dragonfly.go b/src/runtime/os_dragonfly.go
+index a02696eb4f..9b3235084d 100644
+--- a/src/runtime/os_dragonfly.go
++++ b/src/runtime/os_dragonfly.go
+@@ -216,8 +216,11 @@ func unminit() {
+ 	getg().m.procid = 0
+ }
+ 
+-// Called from exitm, but not from drop, to undo the effect of thread-owned
++// Called from mexit, but not from dropm, to undo the effect of thread-owned
+ // resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
++//
++// This always runs without a P, so //go:nowritebarrierrec is required.
++//go:nowritebarrierrec
+ func mdestroy(mp *m) {
+ }
+ 
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 55c4ac8f61..f24d18027b 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -412,13 +412,12 @@ func unminit() {
+ 	getg().m.procid = 0
+ }
+ 
+-// Called from exitm, but not from drop, to undo the effect of thread-owned
++// Called from mexit, but not from dropm, to undo the effect of thread-owned
+ // resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
++//
++// This always runs without a P, so //go:nowritebarrierrec is required.
++//go:nowritebarrierrec
+ func mdestroy(mp *m) {
+-	if mp.vgetrandomState != 0 {
+-		vgetrandomPutState(mp.vgetrandomState)
+-		mp.vgetrandomState = 0
+-	}
+ }
+ 
+ // #ifdef GOARCH_386
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index 735ace25ad..a06e5febbd 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -320,8 +320,11 @@ func unminit() {
+ 	// must continue working after unminit.
+ }
+ 
+-// Called from exitm, but not from drop, to undo the effect of thread-owned
++// Called from mexit, but not from dropm, to undo the effect of thread-owned
+ // resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
++//
++// This always runs without a P, so //go:nowritebarrierrec is required.
++//go:nowritebarrierrec
+ func mdestroy(mp *m) {
+ }
+ 
+diff --git a/src/runtime/os_openbsd.go b/src/runtime/os_openbsd.go
+index 574bfa8b17..4ce4c3c58d 100644
+--- a/src/runtime/os_openbsd.go
++++ b/src/runtime/os_openbsd.go
+@@ -182,8 +182,11 @@ func unminit() {
+ 	getg().m.procid = 0
+ }
+ 
+-// Called from exitm, but not from drop, to undo the effect of thread-owned
++// Called from mexit, but not from dropm, to undo the effect of thread-owned
+ // resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
++//
++// This always runs without a P, so //go:nowritebarrierrec is required.
++//go:nowritebarrierrec
+ func mdestroy(mp *m) {
+ }
+ 
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index b45e409b3a..6ddf1d21d4 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -218,8 +218,11 @@ func minit() {
+ func unminit() {
+ }
+ 
+-// Called from exitm, but not from drop, to undo the effect of thread-owned
++// Called from mexit, but not from dropm, to undo the effect of thread-owned
+ // resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
++//
++// This always runs without a P, so //go:nowritebarrierrec is required.
++//go:nowritebarrierrec
+ func mdestroy(mp *m) {
+ }
+ 
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 489b396fc9..a84832e0ce 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -905,9 +905,11 @@ func unminit() {
+ 	mp.procid = 0
+ }
+ 
+-// Called from exitm, but not from drop, to undo the effect of thread-owned
++// Called from mexit, but not from dropm, to undo the effect of thread-owned
+ // resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
+ //
++// This always runs without a P, so //go:nowritebarrierrec is required.
++//go:nowritebarrierrec
+ //go:nosplit
+ func mdestroy(mp *m) {
+ 	if mp.highResTimer != 0 {
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 74c19e9e43..cee91b6ce8 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1958,6 +1958,9 @@ func mexit(osStack bool) {
+ 		mp.gsignal = nil
+ 	}
+ 
++	// Free vgetrandom state.
++	vgetrandomDestroy(mp)
++
+ 	// Remove m from allm.
+ 	lock(&sched.lock)
+ 	for pprev := &allm; *pprev != nil; pprev = &(*pprev).alllink {
+diff --git a/src/runtime/vgetrandom_linux.go b/src/runtime/vgetrandom_linux.go
+index 00ef2c2d4e..6ab12e3c67 100644
+--- a/src/runtime/vgetrandom_linux.go
++++ b/src/runtime/vgetrandom_linux.go
+@@ -74,9 +74,16 @@ func vgetrandomGetState() uintptr {
+ 	return state
+ }
+ 
+-func vgetrandomPutState(state uintptr) {
++// Free vgetrandom state from the M (if any) prior to destroying the M.
++//
++// This may allocate, so it must have a P.
++func vgetrandomDestroy(mp *m) {
++	if mp.vgetrandomState == 0 {
++		return
++	}
++
+ 	lock(&vgetrandomAlloc.statesLock)
+-	vgetrandomAlloc.states = append(vgetrandomAlloc.states, state)
++	vgetrandomAlloc.states = append(vgetrandomAlloc.states, mp.vgetrandomState)
+ 	unlock(&vgetrandomAlloc.statesLock)
+ }
+ 
+diff --git a/src/runtime/vgetrandom_unsupported.go b/src/runtime/vgetrandom_unsupported.go
+index 070392cfaa..43c53e1198 100644
+--- a/src/runtime/vgetrandom_unsupported.go
++++ b/src/runtime/vgetrandom_unsupported.go
+@@ -13,6 +13,6 @@ func vgetrandom(p []byte, flags uint32) (ret int, supported bool) {
+ 	return -1, false
+ }
+ 
+-func vgetrandomPutState(state uintptr) {}
++func vgetrandomDestroy(mp *m) {}
+ 
+ func vgetrandomInit() {}

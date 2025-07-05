@@ -11,6 +11,34 @@ Date:   Fri Aug 15 17:47:02 2014 -0700
     R=agl
     CC=golang-codereviews
     https://golang.org/cl/129250044
-
+---
  src/pkg/crypto/x509/verify.go | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/crypto/x509/verify.go b/src/pkg/crypto/x509/verify.go
+index 5fd8e37174..ec1981423d 100644
+--- a/src/pkg/crypto/x509/verify.go
++++ b/src/pkg/crypto/x509/verify.go
+@@ -116,10 +116,9 @@ func (e UnknownAuthorityError) Error() string {
+ }
+ 
+ // SystemRootsError results when we fail to load the system root certificates.
+-type SystemRootsError struct {
+-}
++type SystemRootsError struct{}
+ 
+-func (e SystemRootsError) Error() string {
++func (SystemRootsError) Error() string {
+ 	return "x509: failed to load system roots and no roots provided"
+ }
+ 
+@@ -206,6 +205,9 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
+ // needed. If successful, it returns one or more chains where the first
+ // element of the chain is c and the last element is from opts.Roots.
+ //
++// If opts.Roots is nil and system roots are unavailable the returned error
++// will be of type SystemRootsError.
++//
+ // WARNING: this doesn't do any revocation checking.
+ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err error) {
+ 	// Use Windows's own verification and chain building.

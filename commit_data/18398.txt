@@ -10,7 +10,32 @@ Date:   Sun Feb 2 12:56:30 2014 +0100
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/59450043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 21bec05a73..6a79e64659 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -190,6 +190,7 @@ Jingcheng Zhang <diogin@gmail.com>
+ Joakim Sernbrant <serbaut@gmail.com>
+ Joe Poirier <jdpoirier@gmail.com>
+ John Asmuth <jasmuth@gmail.com>
++John C Barstow <jbowtie@amathaine.com>
+ John Graham-Cumming <jgc@jgc.org> <jgrahamc@gmail.com>
+ John Howard Palevich <jack.palevich@gmail.com>
+ John Shahid <jvshahid@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index fcb576d756..6a73b5ba13 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -273,6 +273,7 @@ Joel Sing <jsing@google.com>
+ Johan Euphrosine <proppy@google.com>
+ John Asmuth <jasmuth@gmail.com>
+ John Beisley <huin@google.com>
++John C Barstow <jbowtie@amathaine.com>
+ John DeNero <denero@google.com>
+ John Graham-Cumming <jgc@jgc.org> <jgrahamc@gmail.com>
+ John Howard Palevich <jack.palevich@gmail.com>

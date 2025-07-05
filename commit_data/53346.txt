@@ -32,7 +32,102 @@ Date:   Sun Aug 7 23:49:19 2022 +0530
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
     Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
-
+---
  src/time/format.go    | 51 +++++++++++++++++++++++++++++++++++++++++++++++++++
  src/time/time_test.go | 14 ++++++++++++++
  2 files changed, 65 insertions(+)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index 61a9eb3301..721a207c0e 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -626,6 +626,15 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
+ 		min   int
+ 		sec   int
+ 	)
++
++	// Handle most frequent layouts separately.
++	switch layout {
++	case RFC3339:
++		return t.appendFormatRFC3339(b, abs, offset, false)
++	case RFC3339Nano:
++		return t.appendFormatRFC3339(b, abs, offset, true)
++	}
++
+ 	// Each iteration generates one std value.
+ 	for layout != "" {
+ 		prefix, std, suffix := nextStdChunk(layout)
+@@ -781,6 +790,48 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
+ 	return b
+ }
+ 
++func (t Time) appendFormatRFC3339(b []byte, abs uint64, offset int, nanos bool) []byte {
++	// Format date.
++	year, month, day, _ := absDate(abs, true)
++	b = appendInt(b, year, 4)
++	b = append(b, '-')
++	b = appendInt(b, int(month), 2)
++	b = append(b, '-')
++	b = appendInt(b, day, 2)
++
++	b = append(b, 'T')
++
++	// Format time.
++	hour, min, sec := absClock(abs)
++	b = appendInt(b, hour, 2)
++	b = append(b, ':')
++	b = appendInt(b, min, 2)
++	b = append(b, ':')
++	b = appendInt(b, sec, 2)
++
++	if nanos {
++		std := stdFracSecond(stdFracSecond9, 9, '.')
++		b = formatNano(b, uint(t.Nanosecond()), std)
++	}
++
++	if offset == 0 {
++		return append(b, 'Z')
++	}
++
++	// Format zone.
++	zone := offset / 60 // convert to minutes
++	if zone < 0 {
++		b = append(b, '-')
++		zone = -zone
++	} else {
++		b = append(b, '+')
++	}
++	b = appendInt(b, zone/60, 2)
++	b = append(b, ':')
++	b = appendInt(b, zone%60, 2)
++	return b
++}
++
+ var errBad = errors.New("bad value for field") // placeholder not passed to user
+ 
+ // ParseError describes a problem parsing a time string.
+diff --git a/src/time/time_test.go b/src/time/time_test.go
+index 6fde5f6470..059c71bb8a 100644
+--- a/src/time/time_test.go
++++ b/src/time/time_test.go
+@@ -1402,6 +1402,20 @@ func BenchmarkFormat(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkFormatRFC3339(b *testing.B) {
++	t := Unix(1265346057, 0)
++	for i := 0; i < b.N; i++ {
++		t.Format("2006-01-02T15:04:05Z07:00")
++	}
++}
++
++func BenchmarkFormatRFC3339Nano(b *testing.B) {
++	t := Unix(1265346057, 0)
++	for i := 0; i < b.N; i++ {
++		t.Format("2006-01-02T15:04:05.999999999Z07:00")
++	}
++}
++
+ func BenchmarkFormatNow(b *testing.B) {
+ 	// Like BenchmarkFormat, but easier, because the time zone
+ 	// lookup cache is optimized for the present.

@@ -11,7 +11,53 @@ Date:   Thu Jun 11 12:20:42 2015 +1000
     Change-Id: Ie9b9af8b041c483a236b46adad4a50aa6e598c92
     Reviewed-on: https://go-review.googlesource.com/10930
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/build.go   | 6 ++++--
  src/cmd/go/go_test.go | 8 ++------
  2 files changed, 6 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index e0bf59f6d0..9f6054070e 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -559,8 +559,10 @@ func runInstall(cmd *Command, args []string) {
+ 		fi, err := os.Stat(targ)
+ 		if err == nil {
+ 			m := fi.Mode()
+-			if m.IsRegular() && m&0111 != 0 {
+-				os.Remove(targ)
++			if m.IsRegular() {
++				if m&0111 != 0 || goos == "windows" { // windows never sets executable bit
++					os.Remove(targ)
++				}
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 104805ec20..cdbdfd79ea 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -589,10 +589,6 @@ func TestGoBuilDashAInReleaseBranch(t *testing.T) {
+ }
+ 
+ func TestGoInstallCleansUpAfterGoBuild(t *testing.T) {
+-	if runtime.GOOS == "windows" {
+-		t.Skip("skipping on Windows because of http://golang.org/issue/9645")
+-	}
+-
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.tempFile("src/mycmd/main.go", `package main; func main(){}`)
+@@ -621,10 +617,10 @@ func TestGoInstallCleansUpAfterGoBuild(t *testing.T) {
+ 	tg.wantExecutable("mycmd"+exeSuffix, "testgo build did not write command binary (third time)")
+ 	// And especially not outside the directory.
+ 	tg.cd(tg.path("."))
+-	if data, err := ioutil.ReadFile("src/mycmd/mycmd"); err != nil {
++	if data, err := ioutil.ReadFile("src/mycmd/mycmd" + exeSuffix); err != nil {
+ 		t.Fatal("could not read file:", err)
+ 	} else {
+-		if err := ioutil.WriteFile("mycmd", data, 0555); err != nil {
++		if err := ioutil.WriteFile("mycmd"+exeSuffix, data, 0555); err != nil {
+ 			t.Fatal("could not write file:", err)
+ 		}
+ 	}

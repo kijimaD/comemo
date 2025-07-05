@@ -14,7 +14,77 @@ Date:   Thu Aug 29 15:19:44 2019 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/191784
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  misc/cgo/testcarchive/testdata/main3.c | 21 ---------------------
  src/runtime/signal_unix.go             |  7 -------
  2 files changed, 28 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/testdata/main3.c b/misc/cgo/testcarchive/testdata/main3.c
+index 4d11d9ce4c..60a16cf5fc 100644
+--- a/misc/cgo/testcarchive/testdata/main3.c
++++ b/misc/cgo/testcarchive/testdata/main3.c
+@@ -12,7 +12,6 @@
+ #include <time.h>
+ #include <sched.h>
+ #include <unistd.h>
+-#include <pthread.h>
+ 
+ #include "libgo3.h"
+ 
+@@ -52,18 +51,11 @@ static void init() {
+ 	}
+ }
+ 
+-static void *provokeSIGPIPE(void *arg) {
+-	ProvokeSIGPIPE();
+-	return NULL;
+-}
+-
+ int main(int argc, char** argv) {
+ 	int verbose;
+ 	struct sigaction sa;
+ 	int i;
+ 	struct timespec ts;
+-	int res;
+-	pthread_t tid;
+ 
+ 	verbose = argc > 2;
+ 	setvbuf(stdout, NULL, _IONBF, 0);
+@@ -76,19 +68,6 @@ int main(int argc, char** argv) {
+ 	// a non-default SIGPIPE handler before the runtime initializes.
+ 	ProvokeSIGPIPE();
+ 
+-	// Test that SIGPIPE on a non-main thread is also handled by Go.
+-	res = pthread_create(&tid, NULL, provokeSIGPIPE, NULL);
+-	if (res != 0) {
+-		fprintf(stderr, "pthread_create: %s\n", strerror(res));
+-		exit(EXIT_FAILURE);
+-	}
+-
+-	res = pthread_join(tid, NULL);
+-	if (res != 0) {
+-		fprintf(stderr, "pthread_join: %s\n", strerror(res));
+-		exit(EXIT_FAILURE);
+-	}
+-
+ 	if (verbose) {
+ 		printf("calling sigaction\n");
+ 	}
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 436c18c126..ad51dc1800 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -636,13 +636,6 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
+ 		return true
+ 	}
+ 
+-	// This function and its caller sigtrampgo assumes SIGPIPE is delivered on the
+-	// originating thread. This property does not hold on macOS (golang.org/issue/33384),
+-	// so we have no choice but to ignore SIGPIPE.
+-	if GOOS == "darwin" && sig == _SIGPIPE {
+-		return true
+-	}
+-
+ 	// If there is no handler to forward to, no need to forward.
+ 	if fwdFn == _SIG_DFL {
+ 		return false

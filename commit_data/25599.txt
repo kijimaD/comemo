@@ -8,7 +8,7 @@ Date:   Wed Sep 23 18:58:05 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/14929
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/cputicks.go         | 2 ++
  src/runtime/gcinfo_test.go      | 2 +-
  src/runtime/hash64.go           | 2 +-
@@ -16,3 +16,82 @@ Date:   Wed Sep 23 18:58:05 2015 -0400
  src/runtime/runtime-gdb_test.go | 2 +-
  src/runtime/unaligned2.go       | 2 +-
  6 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/cputicks.go b/src/runtime/cputicks.go
+index 162e026b29..f5a60e66c1 100644
+--- a/src/runtime/cputicks.go
++++ b/src/runtime/cputicks.go
+@@ -4,6 +4,8 @@
+ 
+ // +build !arm
+ // +build !arm64
++// +build !mips64
++// +build !mips64le
+ 
+ package runtime
+ 
+diff --git a/src/runtime/gcinfo_test.go b/src/runtime/gcinfo_test.go
+index f330bf2430..edb6361642 100644
+--- a/src/runtime/gcinfo_test.go
++++ b/src/runtime/gcinfo_test.go
+@@ -144,7 +144,7 @@ func infoBigStruct() []byte {
+ 			typeScalar, typeScalar, typeScalar, typeScalar, // t int; y uint16; u uint64
+ 			typePointer, typeScalar, // i string
+ 		}
+-	case "arm64", "amd64", "ppc64", "ppc64le":
++	case "arm64", "amd64", "mips64", "mips64le", "ppc64", "ppc64le":
+ 		return []byte{
+ 			typePointer,                        // q *int
+ 			typeScalar, typeScalar, typeScalar, // w byte; e [17]byte
+diff --git a/src/runtime/hash64.go b/src/runtime/hash64.go
+index f339a3020e..fb3dba4000 100644
+--- a/src/runtime/hash64.go
++++ b/src/runtime/hash64.go
+@@ -6,7 +6,7 @@
+ //   xxhash: https://code.google.com/p/xxhash/
+ // cityhash: https://code.google.com/p/cityhash/
+ 
+-// +build amd64 amd64p32 arm64 ppc64 ppc64le
++// +build amd64 amd64p32 arm64 mips64 mips64le ppc64 ppc64le
+ 
+ package runtime
+ 
+diff --git a/src/runtime/noasm.go b/src/runtime/noasm.go
+index 30fa31c3ab..351e325f4f 100644
+--- a/src/runtime/noasm.go
++++ b/src/runtime/noasm.go
+@@ -4,7 +4,7 @@
+ 
+ // Routines that are implemented in assembly in asm_{amd64,386,arm,arm64,ppc64x}.s
+ 
+-// +build ignore
++// +build mips64 mips64le
+ 
+ package runtime
+ 
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 2843633ee1..3c045713af 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -103,7 +103,7 @@ func TestGdbPython(t *testing.T) {
+ 	// stack frames on RISC architectures.
+ 	canBackTrace := false
+ 	switch runtime.GOARCH {
+-	case "amd64", "386", "ppc64", "ppc64le", "arm", "arm64":
++	case "amd64", "386", "ppc64", "ppc64le", "arm", "arm64", "mips64", "mips64le":
+ 		canBackTrace = true
+ 		args = append(args,
+ 			"-ex", "echo BEGIN goroutine 2 bt\n",
+diff --git a/src/runtime/unaligned2.go b/src/runtime/unaligned2.go
+index 4fc7917662..1ec1d166e4 100644
+--- a/src/runtime/unaligned2.go
++++ b/src/runtime/unaligned2.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build arm ppc64 ppc64le
++// +build arm ppc64 ppc64le mips64 mips64le
+ 
+ package runtime
+ 

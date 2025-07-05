@@ -27,6 +27,27 @@ Date:   Sun Aug 6 23:34:18 2023 +0000
     Run-TryBot: Keith Randall <khr@golang.org>
     Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/internal/bytealg/index_amd64.s | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/internal/bytealg/index_amd64.s b/src/internal/bytealg/index_amd64.s
+index 04314917b8..31730e5394 100644
+--- a/src/internal/bytealg/index_amd64.s
++++ b/src/internal/bytealg/index_amd64.s
+@@ -39,6 +39,7 @@ no_sse42:
+ 	JA   _3_or_more
+ 	MOVW (R8), R8
+ 	LEAQ -1(DI)(DX*1), DX
++	PCALIGN $16
+ loop2:
+ 	MOVW (DI), SI
+ 	CMPW SI,R8
+@@ -250,6 +251,7 @@ sse42:
+ 	LEAQ -15(DI)(DX*1), SI
+ 	MOVQ $16, R9
+ 	SUBQ AX, R9 // We advance by 16-len(sep) each iteration, so precalculate it into R9
++	PCALIGN $16
+ loop_sse42:
+ 	// 0x0c means: unsigned byte compare (bits 0,1 are 00)
+ 	// for equality (bits 2,3 are 11)

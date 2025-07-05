@@ -25,9 +25,173 @@ Date:   Sat Aug 26 16:37:24 2023 -0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/inline/inl.go   | 53 +++++---------------------------
  src/cmd/compile/internal/ir/func.go      | 12 ++++----
  src/cmd/compile/internal/noder/linker.go |  2 +-
  src/cmd/compile/internal/noder/reader.go | 10 ++++--
  4 files changed, 22 insertions(+), 55 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 739705aa8a..9fae23ec59 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -339,7 +339,7 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
+ 	// when creating the "Inline.Dcl" field below; to accomplish this,
+ 	// the hairyVisitor below builds up a map of used/referenced
+ 	// locals, and we use this map to produce a pruned Inline.Dcl
+-	// list. See issue 25249 for more context.
++	// list. See issue 25459 for more context.
+ 
+ 	visitor := hairyVisitor{
+ 		curFunc:       fn,
+@@ -354,15 +354,15 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
+ 	}
+ 
+ 	n.Func.Inl = &ir.Inline{
+-		Cost: budget - visitor.budget,
+-		Dcl:  pruneUnusedAutos(n.Defn.(*ir.Func).Dcl, &visitor),
+-		Body: inlcopylist(fn.Body),
++		Cost:    budget - visitor.budget,
++		Dcl:     pruneUnusedAutos(n.Func.Dcl, &visitor),
++		HaveDcl: true,
+ 
+ 		CanDelayResults: canDelayResults(fn),
+ 	}
+ 
+ 	if base.Flag.LowerM > 1 {
+-		fmt.Printf("%v: can inline %v with cost %d as: %v { %v }\n", ir.Line(fn), n, budget-visitor.budget, fn.Type(), ir.Nodes(n.Func.Inl.Body))
++		fmt.Printf("%v: can inline %v with cost %d as: %v { %v }\n", ir.Line(fn), n, budget-visitor.budget, fn.Type(), ir.Nodes(fn.Body))
+ 	} else if base.Flag.LowerM != 0 {
+ 		fmt.Printf("%v: can inline %v\n", ir.Line(fn), n)
+ 	}
+@@ -789,46 +789,6 @@ func isBigFunc(fn *ir.Func) bool {
+ 	})
+ }
+ 
+-// inlcopylist (together with inlcopy) recursively copies a list of nodes, except
+-// that it keeps the same ONAME, OTYPE, and OLITERAL nodes. It is used for copying
+-// the body and dcls of an inlineable function.
+-func inlcopylist(ll []ir.Node) []ir.Node {
+-	s := make([]ir.Node, len(ll))
+-	for i, n := range ll {
+-		s[i] = inlcopy(n)
+-	}
+-	return s
+-}
+-
+-// inlcopy is like DeepCopy(), but does extra work to copy closures.
+-func inlcopy(n ir.Node) ir.Node {
+-	var edit func(ir.Node) ir.Node
+-	edit = func(x ir.Node) ir.Node {
+-		switch x.Op() {
+-		case ir.ONAME, ir.OTYPE, ir.OLITERAL, ir.ONIL:
+-			return x
+-		}
+-		m := ir.Copy(x)
+-		ir.EditChildren(m, edit)
+-		if x.Op() == ir.OCLOSURE {
+-			x := x.(*ir.ClosureExpr)
+-			// Need to save/duplicate x.Func.Nname,
+-			// x.Func.Nname.Ntype, x.Func.Dcl, x.Func.ClosureVars, and
+-			// x.Func.Body for iexport and local inlining.
+-			oldfn := x.Func
+-			newfn := ir.NewFunc(oldfn.Pos(), oldfn.Nname.Pos(), oldfn.Nname.Sym(), oldfn.Nname.Type())
+-			m.(*ir.ClosureExpr).Func = newfn
+-			// XXX OK to share fn.Type() ??
+-			newfn.Body = inlcopylist(oldfn.Body)
+-			// Make shallow copy of the Dcl and ClosureVar slices
+-			newfn.Dcl = append([]*ir.Name(nil), oldfn.Dcl...)
+-			newfn.ClosureVars = append([]*ir.Name(nil), oldfn.ClosureVars...)
+-		}
+-		return m
+-	}
+-	return edit(n)
+-}
+-
+ // InlineCalls/inlnode walks fn's statements and expressions and substitutes any
+ // calls made to inlineable functions. This is the external entry point.
+ func InlineCalls(fn *ir.Func, profile *pgo.Profile) {
+@@ -1208,6 +1168,9 @@ func pruneUnusedAutos(ll []*ir.Name, vis *hairyVisitor) []*ir.Name {
+ 	for _, n := range ll {
+ 		if n.Class == ir.PAUTO {
+ 			if !vis.usedLocals.Has(n) {
++				// TODO(mdempsky): Simplify code after confident that this
++				// never happens anymore.
++				base.FatalfAt(n.Pos(), "unused auto: %v", n)
+ 				continue
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 356d0b070f..e3db3ed9ea 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -193,12 +193,12 @@ func (f *Func) LinksymABI(abi obj.ABI) *obj.LSym { return f.Nname.LinksymABI(abi
+ type Inline struct {
+ 	Cost int32 // heuristic cost of inlining this function
+ 
+-	// Copies of Func.Dcl and Func.Body for use during inlining. Copies are
+-	// needed because the function's dcl/body may be changed by later compiler
+-	// transformations. These fields are also populated when a function from
+-	// another package is imported.
+-	Dcl  []*Name
+-	Body []Node
++	// Copy of Func.Dcl for use during inlining. This copy is needed
++	// because the function's Dcl may change from later compiler
++	// transformations. This field is also populated when a function
++	// from another package is imported and inlined.
++	Dcl     []*Name
++	HaveDcl bool // whether we've loaded Dcl
+ 
+ 	// CanDelayResults reports whether it's safe for the inliner to delay
+ 	// initializing the result parameters until immediately before the
+diff --git a/src/cmd/compile/internal/noder/linker.go b/src/cmd/compile/internal/noder/linker.go
+index 3a0b32501d..00a7743085 100644
+--- a/src/cmd/compile/internal/noder/linker.go
++++ b/src/cmd/compile/internal/noder/linker.go
+@@ -233,7 +233,7 @@ func (l *linker) exportBody(obj *ir.Name, local bool) {
+ 	//
+ 	// TODO(mdempsky): Reimplement the reachable method crawling logic
+ 	// from typecheck/crawler.go.
+-	exportBody := local || fn.Inl.Body != nil
++	exportBody := local || fn.Inl.HaveDcl
+ 	if !exportBody {
+ 		return
+ 	}
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 374d9225b9..26865fdae2 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -3463,7 +3463,7 @@ func unifiedInlineCall(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlInd
+ 		base.FatalfAt(call.Pos(), "cannot inline call to %v: missing inline body", fn)
+ 	}
+ 
+-	if fn.Inl.Body == nil {
++	if !fn.Inl.HaveDcl {
+ 		expandInline(fn, pri)
+ 	}
+ 
+@@ -3631,7 +3631,7 @@ func (r *reader) inlReturn(ret *ir.ReturnStmt) *ir.BlockStmt {
+ }
+ 
+ // expandInline reads in an extra copy of IR to populate
+-// fn.Inl.{Dcl,Body}.
++// fn.Inl.Dcl.
+ func expandInline(fn *ir.Func, pri pkgReaderIndex) {
+ 	// TODO(mdempsky): Remove this function. It's currently needed by
+ 	// dwarfgen/dwarf.go:preInliningDcls, which requires fn.Inl.Dcl to
+@@ -3659,9 +3659,13 @@ func expandInline(fn *ir.Func, pri pkgReaderIndex) {
+ 		if name.Class != ir.PAUTO || used.Has(name) {
+ 			name.Curfn = fn
+ 			fn.Inl.Dcl = append(fn.Inl.Dcl, name)
++		} else {
++			// TODO(mdempsky): Simplify code after confident that this never
++			// happens anymore.
++			base.FatalfAt(name.Pos(), "unused auto: %v", name)
+ 		}
+ 	}
+-	fn.Inl.Body = tmpfn.Body
++	fn.Inl.HaveDcl = true
+ 
+ 	// Double check that we didn't change fn.Dcl by accident.
+ 	assert(fndcls == len(fn.Dcl))

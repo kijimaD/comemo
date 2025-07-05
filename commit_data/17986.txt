@@ -11,7 +11,7 @@ Date:   Fri Dec 13 15:44:57 2013 -0500
     R=iant, r
     CC=golang-dev
     https://golang.org/cl/41640043
-
+---
  src/pkg/runtime/mgc0.c               | 22 +-------------
  src/pkg/runtime/mprof.goc            |  4 +--
  src/pkg/runtime/proc.c               |  4 +--
@@ -19,3 +19,187 @@ Date:   Fri Dec 13 15:44:57 2013 -0500
  src/pkg/runtime/traceback_arm.c      | 12 ++++++++
  src/pkg/runtime/traceback_x86.c      | 10 +++++++
  6 files changed, 83 insertions(+), 25 deletions(-)
+
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 99d45faa88..8b8a3e52b6 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1515,27 +1515,7 @@ scanframe(Stkframe *frame, void *arg)
+ static void
+ scanstack(G* gp, void *scanbuf)
+ {
+-	uintptr pc;
+-	uintptr sp;
+-	uintptr lr;
+-
+-	if(gp->syscallstack != (uintptr)nil) {
+-		// Scanning another goroutine that is about to enter or might
+-		// have just exited a system call. It may be executing code such
+-		// as schedlock and may have needed to start a new stack segment.
+-		// Use the stack segment and stack pointer at the time of
+-		// the system call instead, since that won't change underfoot.
+-		sp = gp->syscallsp;
+-		pc = gp->syscallpc;
+-		lr = 0;
+-	} else {
+-		// Scanning another goroutine's stack.
+-		// The goroutine is usually asleep (the world is stopped).
+-		sp = gp->sched.sp;
+-		pc = gp->sched.pc;
+-		lr = gp->sched.lr;
+-	}
+-	runtime·gentraceback(pc, sp, lr, gp, 0, nil, 0x7fffffff, scanframe, scanbuf, false);
++	runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, 0x7fffffff, scanframe, scanbuf, false);
+ }
+ 
+ static void
+diff --git a/src/pkg/runtime/mprof.goc b/src/pkg/runtime/mprof.goc
+index 91bdb42ead..58d9e1c613 100644
+--- a/src/pkg/runtime/mprof.goc
++++ b/src/pkg/runtime/mprof.goc
+@@ -528,7 +528,7 @@ saveg(uintptr pc, uintptr sp, G *gp, TRecord *r)
+ {
+ 	int32 n;
+ 	
+-	n = runtime·gentraceback((uintptr)pc, (uintptr)sp, 0, gp, 0, r->stk, nelem(r->stk), nil, nil, false);
++	n = runtime·gentraceback(pc, sp, 0, gp, 0, r->stk, nelem(r->stk), nil, nil, false);
+ 	if(n < nelem(r->stk))
+ 		r->stk[n] = 0;
+ }
+@@ -556,7 +556,7 @@ func GoroutineProfile(b Slice) (n int, ok bool) {
+ 			for(gp = runtime·allg; gp != nil; gp = gp->alllink) {
+ 				if(gp == g || gp->status == Gdead)
+ 					continue;
+-				saveg(gp->sched.pc, gp->sched.sp, gp, r++);
++				saveg(~(uintptr)0, ~(uintptr)0, gp, r++);
+ 			}
+ 		}
+ 	
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index de26c72d3d..ed3e1e73ee 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -276,7 +276,7 @@ runtime·tracebackothers(G *me)
+ 	if((gp = m->curg) != nil && gp != me) {
+ 		runtime·printf("\n");
+ 		runtime·goroutineheader(gp);
+-		runtime·traceback(gp->sched.pc, gp->sched.sp, gp->sched.lr, gp);
++		runtime·traceback(~(uintptr)0, ~(uintptr)0, 0, gp);
+ 	}
+ 
+ 	for(gp = runtime·allg; gp != nil; gp = gp->alllink) {
+@@ -290,7 +290,7 @@ runtime·tracebackothers(G *me)
+ 			runtime·printf("\tgoroutine running on other thread; stack unavailable\n");
+ 			runtime·printcreatedby(gp);
+ 		} else
+-			runtime·traceback(gp->sched.pc, gp->sched.sp, gp->sched.lr, gp);
++			runtime·traceback(~(uintptr)0, ~(uintptr)0, 0, gp);
+ 	}
+ }
+ 
+diff --git a/src/pkg/runtime/runtime_unix_test.go b/src/pkg/runtime/runtime_unix_test.go
+new file mode 100644
+index 0000000000..963de8cdb8
+--- /dev/null
++++ b/src/pkg/runtime/runtime_unix_test.go
+@@ -0,0 +1,56 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Only works on systems with syscall.Close.
++// We need a fast system call to provoke the race,
++// and Close(-1) is nearly universally fast.
++
++// +build darwin dragonfly freebsd linux netbsd openbsd plan9
++
++package runtime_test
++
++import (
++	"runtime"
++	"sync"
++	"sync/atomic"
++	"syscall"
++	"testing"
++)
++
++func TestGoroutineProfile(t *testing.T) {
++	// GoroutineProfile used to use the wrong starting sp for
++	// goroutines coming out of system calls, causing possible
++	// crashes.
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(100))
++
++	var stop uint32
++	defer atomic.StoreUint32(&stop, 1) // in case of panic
++
++	var wg sync.WaitGroup
++	for i := 0; i < 4; i++ {
++		wg.Add(1)
++		go func() {
++			for atomic.LoadUint32(&stop) == 0 {
++				syscall.Close(-1)
++			}
++			wg.Done()
++		}()
++	}
++
++	max := 10000
++	if testing.Short() {
++		max = 100
++	}
++	stk := make([]runtime.StackRecord, 100)
++	for n := 0; n < max; n++ {
++		_, ok := runtime.GoroutineProfile(stk)
++		if !ok {
++			t.Fatalf("GoroutineProfile failed")
++		}
++	}
++
++	// If the program didn't crash, we passed.
++	atomic.StoreUint32(&stop, 1)
++	wg.Wait()
++}
+diff --git a/src/pkg/runtime/traceback_arm.c b/src/pkg/runtime/traceback_arm.c
+index 341aa20588..8a3685e76c 100644
+--- a/src/pkg/runtime/traceback_arm.c
++++ b/src/pkg/runtime/traceback_arm.c
+@@ -20,6 +20,18 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 	Stktop *stk;
+ 	String file;
+ 
++	if(pc0 == ~(uintptr)0 && sp0 == ~(uintptr)0) { // Signal to fetch saved values from gp.
++		if(gp->syscallstack != (uintptr)nil) {
++			pc0 = gp->syscallpc;
++			sp0 = gp->syscallsp;
++			lr0 = 0;
++		} else {
++			pc0 = gp->sched.pc;
++			sp0 = gp->sched.sp;
++			lr0 = gp->sched.lr;
++		}
++	}
++
+ 	nprint = 0;
+ 	runtime·memclr((byte*)&frame, sizeof frame);
+ 	frame.pc = pc0;
+diff --git a/src/pkg/runtime/traceback_x86.c b/src/pkg/runtime/traceback_x86.c
+index d658e8f11a..8e3063f43a 100644
+--- a/src/pkg/runtime/traceback_x86.c
++++ b/src/pkg/runtime/traceback_x86.c
+@@ -30,6 +30,16 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 	String file;
+ 
+ 	USED(lr0);
++	
++	if(pc0 == ~(uintptr)0 && sp0 == ~(uintptr)0) { // Signal to fetch saved values from gp.
++		if(gp->syscallstack != (uintptr)nil) {
++			pc0 = gp->syscallpc;
++			sp0 = gp->syscallsp;
++		} else {
++			pc0 = gp->sched.pc;
++			sp0 = gp->sched.sp;
++		}
++	}
+ 
+ 	nprint = 0;
+ 	runtime·memclr((byte*)&frame, sizeof frame);

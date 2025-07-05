@@ -41,6 +41,30 @@ Date:   Wed May 3 07:45:20 2017 -0700
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/fmt.go | 10 ++--------
  1 file changed, 2 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 7534effe28..41502268a7 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -1509,16 +1509,10 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
+ 		}
+ 		mode.Fprintf(s, "make(%v)", n.Type)
+ 
++	case OPLUS, OMINUS, OADDR, OCOM, OIND, ONOT, ORECV:
+ 		// Unary
+-	case OPLUS,
+-		OMINUS,
+-		OADDR,
+-		OCOM,
+-		OIND,
+-		ONOT,
+-		ORECV:
+ 		mode.Fprintf(s, "%#v", n.Op)
+-		if n.Left.Op == n.Op {
++		if n.Left != nil && n.Left.Op == n.Op {
+ 			fmt.Fprint(s, " ")
+ 		}
+ 		n.Left.exprfmt(s, nprec+1, mode)

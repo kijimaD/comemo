@@ -11,7 +11,33 @@ Date:   Fri Dec 9 09:55:50 2016 -0500
     Change-Id: Ibacae583606e1a6fdf0c0f01abe2e22e9e608393
     Reviewed-on: https://go-review.googlesource.com/34194
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/call.go               | 2 +-
  src/go/types/testdata/builtins.src | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 7f5823c829..7c54baa67a 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -250,7 +250,7 @@ func (check *Checker) argument(fun ast.Expr, sig *Signature, i int, x *operand,
+ 			check.errorf(ellipsis, "can only use ... with matching parameter")
+ 			return
+ 		}
+-		if _, ok := x.typ.Underlying().(*Slice); !ok {
++		if _, ok := x.typ.Underlying().(*Slice); !ok && x.typ != Typ[UntypedNil] { // see issue #18268
+ 			check.errorf(x.pos(), "cannot use %s as parameter of type %s", x, typ)
+ 			return
+ 		}
+diff --git a/src/go/types/testdata/builtins.src b/src/go/types/testdata/builtins.src
+index 7fb7b58a48..ecdba51553 100644
+--- a/src/go/types/testdata/builtins.src
++++ b/src/go/types/testdata/builtins.src
+@@ -19,6 +19,7 @@ func append1() {
+ 	_ = append(nil /* ERROR not a slice */ , s)
+ 	_ = append(x /* ERROR not a slice */ , s)
+ 	_ = append(s)
++	_ = append(s, nil...)
+ 	append /* ERROR not used */ (s)
+ 
+ 	_ = append(s, b)

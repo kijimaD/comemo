@@ -16,8 +16,69 @@ Date:   Sun Jan 9 20:20:43 2022 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/gc/export.go |  2 +-
  test/asmhdr.dir/main.go               | 12 +++++++++---
  test/asmhdr.dir/main.s                |  3 +++
  3 files changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index eed438705a..c9acfc1710 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -31,7 +31,7 @@ func dumpasmhdr() {
+ 			if t == constant.Float || t == constant.Complex {
+ 				break
+ 			}
+-			fmt.Fprintf(b, "#define const_%s %v\n", n.Sym().Name, n.Val())
++			fmt.Fprintf(b, "#define const_%s %v\n", n.Sym().Name, n.Val().ExactString())
+ 
+ 		case ir.OTYPE:
+ 			t := n.Type()
+diff --git a/test/asmhdr.dir/main.go b/test/asmhdr.dir/main.go
+index 808b5de7bb..4e1813d2ed 100644
+--- a/test/asmhdr.dir/main.go
++++ b/test/asmhdr.dir/main.go
+@@ -16,12 +16,15 @@ const (
+ 	bigInt = 0xffffffffffffffff
+ 
+ 	stringVal = "test"
++
++	longStringVal = "this_is_a_string_constant_longer_than_seventy_characters_which_used_to_fail_see_issue_50253"
+ )
+ 
+ var (
+-	smallIntAsm int64
+-	bigIntAsm   uint64
+-	stringAsm   [len(stringVal)]byte
++	smallIntAsm   int64
++	bigIntAsm     uint64
++	stringAsm     [len(stringVal)]byte
++	longStringAsm [len(longStringVal)]byte
+ )
+ 
+ type typ struct {
+@@ -46,6 +49,9 @@ func main() {
+ 	if stringVal != string(stringAsm[:]) {
+ 		println("stringVal", stringVal, "!=", string(stringAsm[:]))
+ 	}
++	if longStringVal != string(longStringAsm[:]) {
++		println("longStringVal", longStringVal, "!=", string(longStringAsm[:]))
++	}
+ 
+ 	// We also include boolean consts in go_asm.h, but they're
+ 	// defined to be "true" or "false", and it's not clear how to
+diff --git a/test/asmhdr.dir/main.s b/test/asmhdr.dir/main.s
+index 7e2d8e7abd..bc2aa99b0b 100644
+--- a/test/asmhdr.dir/main.s
++++ b/test/asmhdr.dir/main.s
+@@ -14,6 +14,9 @@ GLOBL ·bigIntAsm(SB),RODATA,$8
+ DATA ·stringAsm(SB)/4, $const_stringVal
+ GLOBL ·stringAsm(SB),RODATA,$4
+ 
++DATA ·longStringAsm(SB)/91, $const_longStringVal
++GLOBL ·longStringAsm(SB),RODATA,$91
++
+ DATA ·typSize(SB)/8, $typ__size
+ GLOBL ·typSize(SB),RODATA,$8
+ 

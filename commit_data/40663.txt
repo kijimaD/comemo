@@ -13,6 +13,19 @@ Date:   Sat Jun 1 17:43:09 2019 -0400
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/test/test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 8440a83951..eed2d437c9 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -507,6 +507,7 @@ var testVetFlags = []string{
+ 	// "-cgocall",
+ 	// "-composites",
+ 	// "-copylocks",
++	"-errorsas",
+ 	// "-httpresponse",
+ 	// "-lostcancel",
+ 	// "-methods",

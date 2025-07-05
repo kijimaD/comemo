@@ -8,7 +8,7 @@ Date:   Fri Apr 10 21:28:09 2015 -0400
     Signed-off-by: Shenghou Ma <minux@golang.org>
     Reviewed-on: https://go-review.googlesource.com/8781
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/7l/asm.go            | 148 +++++++++++++++++++++++++++++++++++++++----
  src/cmd/7l/obj.go            |  21 +++++-
  src/cmd/internal/ld/data.go  |  12 +++-
@@ -17,3 +17,439 @@ Date:   Fri Apr 10 21:28:09 2015 -0400
  src/cmd/internal/ld/sym.go   |   9 ++-
  src/cmd/internal/obj/sym.go  |   9 ++-
  7 files changed, 213 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/7l/asm.go b/src/cmd/7l/asm.go
+index 525ccc660b..b7ddaa0acb 100644
+--- a/src/cmd/7l/asm.go
++++ b/src/cmd/7l/asm.go
+@@ -109,7 +109,82 @@ func elfsetupplt() {
+ }
+ 
+ func machoreloc1(r *ld.Reloc, sectoff int64) int {
+-	return -1
++	var v uint32
++
++	rs := r.Xsym
++
++	// ld64 has a bug handling MACHO_ARM64_RELOC_UNSIGNED with !extern relocation.
++	// see cmd/internal/ld/data.go for details. The workarond is that don't use !extern
++	// UNSIGNED relocation at all.
++	if rs.Type == ld.SHOSTOBJ || r.Type == ld.R_CALLARM64 || r.Type == ld.R_ADDRARM64 || r.Type == ld.R_ADDR {
++		if rs.Dynid < 0 {
++			ld.Diag("reloc %d to non-macho symbol %s type=%d", r.Type, rs.Name, rs.Type)
++			return -1
++		}
++
++		v = uint32(rs.Dynid)
++		v |= 1 << 27 // external relocation
++	} else {
++		v = uint32((rs.Sect.(*ld.Section)).Extnum)
++		if v == 0 {
++			ld.Diag("reloc %d to symbol %s in non-macho section %s type=%d", r.Type, rs.Name, (rs.Sect.(*ld.Section)).Name, rs.Type)
++			return -1
++		}
++	}
++
++	switch r.Type {
++	default:
++		return -1
++
++	case ld.R_ADDR:
++		v |= ld.MACHO_ARM64_RELOC_UNSIGNED << 28
++
++	case ld.R_CALLARM64:
++		if r.Xadd != 0 {
++			ld.Diag("ld64 doesn't allow BR26 reloc with non-zero addend: %s+%d", rs.Name, r.Xadd)
++		}
++
++		v |= 1 << 24 // pc-relative bit
++		v |= ld.MACHO_ARM64_RELOC_BRANCH26 << 28
++
++	case ld.R_ADDRARM64:
++		r.Siz = 4
++		// Two relocation entries: MACHO_ARM64_RELOC_PAGEOFF12 MACHO_ARM64_RELOC_PAGE21
++		// if r.Xadd is non-zero, add two MACHO_ARM64_RELOC_ADDEND.
++		if r.Xadd != 0 {
++			ld.Thearch.Lput(uint32(sectoff + 4))
++			ld.Thearch.Lput((ld.MACHO_ARM64_RELOC_ADDEND << 28) | (2 << 25) | uint32(r.Xadd&0xffffff))
++		}
++		ld.Thearch.Lput(uint32(sectoff + 4))
++		ld.Thearch.Lput(v | (ld.MACHO_ARM64_RELOC_PAGEOFF12 << 28) | (2 << 25))
++		if r.Xadd != 0 {
++			ld.Thearch.Lput(uint32(sectoff))
++			ld.Thearch.Lput((ld.MACHO_ARM64_RELOC_ADDEND << 28) | (2 << 25) | uint32(r.Xadd&0xffffff))
++		}
++		v |= 1 << 24 // pc-relative bit
++		v |= ld.MACHO_ARM64_RELOC_PAGE21 << 28
++	}
++
++	switch r.Siz {
++	default:
++		return -1
++
++	case 1:
++		v |= 0 << 25
++
++	case 2:
++		v |= 1 << 25
++
++	case 4:
++		v |= 2 << 25
++
++	case 8:
++		v |= 3 << 25
++	}
++
++	ld.Thearch.Lput(uint32(sectoff))
++	ld.Thearch.Lput(v)
++	return 0
+ }
+ 
+ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
+@@ -121,18 +196,6 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
+ 		case ld.R_ADDRARM64:
+ 			r.Done = 0
+ 
+-			// the first instruction is always at the lower address, this is endian neutral;
+-			// but note that o0 and o1 should still use the target endian.
+-			o0 := ld.Thelinkarch.ByteOrder.Uint32(s.P[r.Off : r.Off+4])
+-			o1 := ld.Thelinkarch.ByteOrder.Uint32(s.P[r.Off+4 : r.Off+8])
+-
+-			// when laid out, the instruction order must always be o1, o2.
+-			if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
+-				*val = int64(o0)<<32 | int64(o1)
+-			} else {
+-				*val = int64(o1)<<32 | int64(o0)
+-			}
+-
+ 			// set up addend for eventual relocation via outer symbol.
+ 			rs := r.Sym
+ 			r.Xadd = r.Add
+@@ -146,6 +209,34 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
+ 			}
+ 			r.Xsym = rs
+ 
++			// the first instruction is always at the lower address, this is endian neutral;
++			// but note that o0 and o1 should still use the target endian.
++			o0 := ld.Thelinkarch.ByteOrder.Uint32(s.P[r.Off : r.Off+4])
++			o1 := ld.Thelinkarch.ByteOrder.Uint32(s.P[r.Off+4 : r.Off+8])
++
++			// Note: ld64 currently has a bug that any non-zero addend for BR26 relocation
++			// will make the linking fail because it thinks the code is not PIC even though
++			// the BR26 relocation should be fully resolved at link time.
++			// That is the reason why the next if block is disabled. When the bug in ld64
++			// is fixed, we can enable this block and also enable duff's device in cmd/7g.
++			if false && ld.HEADTYPE == ld.Hdarwin {
++				// Mach-O wants the addend to be encoded in the instruction
++				// Note that although Mach-O supports ARM64_RELOC_ADDEND, it
++				// can only encode 24-bit of signed addend, but the instructions
++				// supports 33-bit of signed addend, so we always encode the
++				// addend in place.
++				o0 |= (uint32((r.Xadd>>12)&3) << 29) | (uint32((r.Xadd>>12>>2)&0x7ffff) << 5)
++				o1 |= uint32(r.Xadd&0xfff) << 10
++				r.Xadd = 0
++			}
++
++			// when laid out, the instruction order must always be o1, o2.
++			if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
++				*val = int64(o0)<<32 | int64(o1)
++			} else {
++				*val = int64(o1)<<32 | int64(o0)
++			}
++
+ 			return 0
+ 
+ 		case ld.R_CALLARM64:
+@@ -217,6 +308,8 @@ func adddynlib(lib string) {
+ 			ld.Addstring(s, "")
+ 		}
+ 		ld.Elfwritedynent(ld.Linklookup(ld.Ctxt, ".dynamic", 0), ld.DT_NEEDED, uint64(ld.Addstring(s, lib)))
++	} else if ld.HEADTYPE == ld.Hdarwin {
++		ld.Machoadddynlib(lib)
+ 	} else {
+ 		ld.Diag("adddynlib: unsupported binary format")
+ 	}
+@@ -258,6 +351,24 @@ func asmb() {
+ 	ld.Cseek(int64(ld.Segdata.Fileoff))
+ 	ld.Datblk(int64(ld.Segdata.Vaddr), int64(ld.Segdata.Filelen))
+ 
++	machlink := uint32(0)
++	if ld.HEADTYPE == ld.Hdarwin {
++		if ld.Debug['v'] != 0 {
++			fmt.Fprintf(&ld.Bso, "%5.2f dwarf\n", obj.Cputime())
++		}
++
++		if ld.Debug['w'] == 0 { // TODO(minux): enable DWARF Support
++			dwarfoff := uint32(ld.Rnd(int64(uint64(ld.HEADR)+ld.Segtext.Length), int64(ld.INITRND)) + ld.Rnd(int64(ld.Segdata.Filelen), int64(ld.INITRND)))
++			ld.Cseek(int64(dwarfoff))
++
++			ld.Segdwarf.Fileoff = uint64(ld.Cpos())
++			ld.Dwarfemitdebugsections()
++			ld.Segdwarf.Filelen = uint64(ld.Cpos()) - ld.Segdwarf.Fileoff
++		}
++
++		machlink = uint32(ld.Domacholink())
++	}
++
+ 	/* output symbol table */
+ 	ld.Symsize = 0
+ 
+@@ -278,6 +389,9 @@ func asmb() {
+ 
+ 		case ld.Hplan9:
+ 			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
++
++		case ld.Hdarwin:
++			symo = uint32(ld.Rnd(int64(uint64(ld.HEADR)+ld.Segtext.Filelen), int64(ld.INITRND)) + ld.Rnd(int64(ld.Segdata.Filelen), int64(ld.INITRND)) + int64(machlink))
+ 		}
+ 
+ 		ld.Cseek(int64(symo))
+@@ -314,6 +428,11 @@ func asmb() {
+ 
+ 				ld.Cflush()
+ 			}
++
++		case ld.Hdarwin:
++			if ld.Linkmode == ld.LinkExternal {
++				ld.Machoemitreloc()
++			}
+ 		}
+ 	}
+ 
+@@ -341,6 +460,9 @@ func asmb() {
+ 		ld.Hopenbsd,
+ 		ld.Hnacl:
+ 		ld.Asmbelf(int64(symo))
++
++	case ld.Hdarwin:
++		ld.Asmbmacho()
+ 	}
+ 
+ 	ld.Cflush()
+diff --git a/src/cmd/7l/obj.go b/src/cmd/7l/obj.go
+index c6ea541552..1e03fa8e75 100644
+--- a/src/cmd/7l/obj.go
++++ b/src/cmd/7l/obj.go
+@@ -88,6 +88,11 @@ func archinit() {
+ 		ld.Linkmode = ld.LinkInternal
+ 	}
+ 
++	// Darwin/arm64 only supports external linking
++	if ld.HEADTYPE == ld.Hdarwin {
++		ld.Linkmode = ld.LinkExternal
++	}
++
+ 	switch ld.HEADTYPE {
+ 	default:
+ 		if ld.Linkmode == ld.LinkAuto {
+@@ -96,7 +101,7 @@ func archinit() {
+ 		if ld.Linkmode == ld.LinkExternal && obj.Getgoextlinkenabled() != "1" {
+ 			log.Fatalf("cannot use -linkmode=external with -H %s", ld.Headstr(int(ld.HEADTYPE)))
+ 		}
+-	case ld.Hlinux:
++	case ld.Hlinux, ld.Hdarwin:
+ 		break
+ 	}
+ 
+@@ -132,6 +137,20 @@ func archinit() {
+ 			ld.INITRND = 0x10000
+ 		}
+ 
++	case ld.Hdarwin: /* apple MACH */
++		ld.Debug['w'] = 1 // disable DWARF generation
++		ld.Machoinit()
++		ld.HEADR = ld.INITIAL_MACHO_HEADR
++		if ld.INITTEXT == -1 {
++			ld.INITTEXT = 4096 + int64(ld.HEADR)
++		}
++		if ld.INITDAT == -1 {
++			ld.INITDAT = 0
++		}
++		if ld.INITRND == -1 {
++			ld.INITRND = 4096
++		}
++
+ 	case ld.Hnacl:
+ 		ld.Elfinit()
+ 		ld.HEADR = 0x10000
+diff --git a/src/cmd/internal/ld/data.go b/src/cmd/internal/ld/data.go
+index 4175d4d3a1..1b4f319ff9 100644
+--- a/src/cmd/internal/ld/data.go
++++ b/src/cmd/internal/ld/data.go
+@@ -451,8 +451,18 @@ func relocsym(s *LSym) {
+ 						o = 0
+ 					}
+ 				} else if HEADTYPE == Hdarwin {
++					// ld64 for arm64 has a bug where if the address pointed to by o exists in the
++					// symbol table (dynid >= 0), or is inside a symbol that exists in the symbol
++					// table, then it will add o twice into the relocated value.
++					// The workaround is that on arm64 don't ever add symaddr to o and always use
++					// extern relocation by requiring rs->dynid >= 0.
+ 					if rs.Type != SHOSTOBJ {
+-						o += Symaddr(rs)
++						if Thearch.Thechar == '7' && rs.Dynid < 0 {
++							Diag("R_ADDR reloc to %s+%d is not supported on darwin/arm64", rs.Name, o)
++						}
++						if Thearch.Thechar != '7' {
++							o += Symaddr(rs)
++						}
+ 					}
+ 				} else if HEADTYPE == Hwindows {
+ 					// nothing to do
+diff --git a/src/cmd/internal/ld/lib.go b/src/cmd/internal/ld/lib.go
+index aa382717fd..390d320be2 100644
+--- a/src/cmd/internal/ld/lib.go
++++ b/src/cmd/internal/ld/lib.go
+@@ -475,7 +475,7 @@ func loadlib() {
+ 		// dependency problems when compiling natively (external linking requires
+ 		// runtime/cgo, runtime/cgo requires cmd/cgo, but cmd/cgo needs to be
+ 		// compiled using external linking.)
+-		if Thearch.Thechar == '5' && HEADTYPE == Hdarwin && iscgo {
++		if (Thearch.Thechar == '5' || Thearch.Thechar == '7') && HEADTYPE == Hdarwin && iscgo {
+ 			Linkmode = LinkExternal
+ 		}
+ 	}
+@@ -1599,6 +1599,7 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
+ 			STYPE,
+ 			SSTRING,
+ 			SGOSTRING,
++			SGOFUNC,
+ 			SWINDOWS:
+ 			if !s.Reachable {
+ 				continue
+diff --git a/src/cmd/internal/ld/macho.go b/src/cmd/internal/ld/macho.go
+index 27cdaa67b8..e7ad8e2d85 100644
+--- a/src/cmd/internal/ld/macho.go
++++ b/src/cmd/internal/ld/macho.go
+@@ -63,6 +63,8 @@ const (
+ 	MACHO_CPU_ARM                 = 12
+ 	MACHO_SUBCPU_ARM              = 0
+ 	MACHO_SUBCPU_ARMV7            = 9
++	MACHO_CPU_ARM64               = 1<<24 | 12
++	MACHO_SUBCPU_ARM64_ALL        = 0
+ 	MACHO32SYMSIZE                = 12
+ 	MACHO64SYMSIZE                = 16
+ 	MACHO_X86_64_RELOC_UNSIGNED   = 0
+@@ -76,6 +78,11 @@ const (
+ 	MACHO_X86_64_RELOC_SIGNED_4   = 8
+ 	MACHO_ARM_RELOC_VANILLA       = 0
+ 	MACHO_ARM_RELOC_BR24          = 5
++	MACHO_ARM64_RELOC_UNSIGNED    = 0
++	MACHO_ARM64_RELOC_BRANCH26    = 2
++	MACHO_ARM64_RELOC_PAGE21      = 3
++	MACHO_ARM64_RELOC_PAGEOFF12   = 4
++	MACHO_ARM64_RELOC_ADDEND      = 10
+ 	MACHO_GENERIC_RELOC_VANILLA   = 0
+ 	MACHO_FAKE_GOTPCREL           = 100
+ )
+@@ -125,7 +132,7 @@ var load_budget int = INITIAL_MACHO_HEADR - 2*1024
+ func Machoinit() {
+ 	switch Thearch.Thechar {
+ 	// 64-bit architectures
+-	case '6', '9':
++	case '6', '7', '9':
+ 		macho64 = true
+ 
+ 		// 32-bit architectures
+@@ -349,7 +356,15 @@ func Machoadddynlib(lib string) {
+ func machoshbits(mseg *MachoSeg, sect *Section, segname string) {
+ 	buf := "__" + strings.Replace(sect.Name[1:], ".", "_", -1)
+ 
+-	msect := newMachoSect(mseg, buf, segname)
++	var msect *MachoSect
++	if Thearch.Thechar == '7' && sect.Rwx&1 == 0 {
++		// darwin/arm64 forbids absolute relocs in __TEXT, so if
++		// the section is not executable, put it in __DATA segment.
++		msect = newMachoSect(mseg, buf, "__DATA")
++	} else {
++		msect = newMachoSect(mseg, buf, segname)
++	}
++
+ 	if sect.Rellen > 0 {
+ 		msect.reloc = uint32(sect.Reloff)
+ 		msect.nreloc = uint32(sect.Rellen / 8)
+@@ -416,6 +431,10 @@ func Asmbmacho() {
+ 		mh.cpu = MACHO_CPU_AMD64
+ 		mh.subcpu = MACHO_SUBCPU_X86
+ 
++	case '7':
++		mh.cpu = MACHO_CPU_ARM64
++		mh.subcpu = MACHO_SUBCPU_ARM64_ALL
++
+ 	case '8':
+ 		mh.cpu = MACHO_CPU_386
+ 		mh.subcpu = MACHO_SUBCPU_X86
+@@ -483,11 +502,18 @@ func Asmbmacho() {
+ 			ml.data[2+15] = uint32(Entryvalue()) /* start pc */
+ 
+ 		case '6':
+-			ml := newMachoLoad(5, 42+2)                        /* unix thread */
+-			ml.data[0] = 4                                     /* thread type */
+-			ml.data[1] = 42                                    /* word count */
+-			ml.data[2+32] = uint32(Entryvalue())               /* start pc */
+-			ml.data[2+32+1] = uint32(Entryvalue() >> 16 >> 16) // hide >>32 for 8l
++			ml := newMachoLoad(5, 42+2)          /* unix thread */
++			ml.data[0] = 4                       /* thread type */
++			ml.data[1] = 42                      /* word count */
++			ml.data[2+32] = uint32(Entryvalue()) /* start pc */
++			ml.data[2+32+1] = uint32(Entryvalue() >> 32)
++
++		case '7':
++			ml := newMachoLoad(5, 68+2)          /* unix thread */
++			ml.data[0] = 6                       /* thread type */
++			ml.data[1] = 68                      /* word count */
++			ml.data[2+64] = uint32(Entryvalue()) /* start pc */
++			ml.data[2+64+1] = uint32(Entryvalue() >> 32)
+ 
+ 		case '8':
+ 			ml := newMachoLoad(5, 16+2)          /* unix thread */
+diff --git a/src/cmd/internal/ld/sym.go b/src/cmd/internal/ld/sym.go
+index d0a80e6677..de983f38c1 100644
+--- a/src/cmd/internal/ld/sym.go
++++ b/src/cmd/internal/ld/sym.go
+@@ -132,14 +132,17 @@ func linknew(arch *LinkArch) *Link {
+ 		default:
+ 			log.Fatalf("unknown thread-local storage offset for darwin/%s", ctxt.Arch.Name)
+ 
++		case '5':
++			ctxt.Tlsoffset = 0 // dummy value, not needed
++
+ 		case '6':
+ 			ctxt.Tlsoffset = 0x8a0
+ 
++		case '7':
++			ctxt.Tlsoffset = 0 // dummy value, not needed
++
+ 		case '8':
+ 			ctxt.Tlsoffset = 0x468
+-
+-		case '5':
+-			ctxt.Tlsoffset = 0 // dummy value, not needed
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 03584b20b0..046b0f19c2 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -158,14 +158,17 @@ func Linknew(arch *LinkArch) *Link {
+ 		default:
+ 			log.Fatalf("unknown thread-local storage offset for darwin/%s", ctxt.Arch.Name)
+ 
++		case '5':
++			ctxt.Tlsoffset = 0 // dummy value, not needed
++
+ 		case '6':
+ 			ctxt.Tlsoffset = 0x8a0
+ 
++		case '7':
++			ctxt.Tlsoffset = 0 // dummy value, not needed
++
+ 		case '8':
+ 			ctxt.Tlsoffset = 0x468
+-
+-		case '5':
+-			ctxt.Tlsoffset = 0 // dummy value, not needed
+ 		}
+ 	}
+ 

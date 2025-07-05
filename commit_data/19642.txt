@@ -14,7 +14,7 @@ Date:   Tue Jul 1 09:21:25 2014 -0700
     R=golang-codereviews, rminnich, kamil.kisiel, gri, rsc, dominik.honnef, dave, josharian, ruiu, ajstarks
     CC=golang-codereviews
     https://golang.org/cl/105470043
-
+---
  misc/IntelliJIDEA/Go.xml            |   99 ---
  misc/bash/go                        |  237 -------
  misc/bbedit/Go.plist                |  104 ---
@@ -48,3 +48,4538 @@ Date:   Tue Jul 1 09:21:25 2014 -0700
  misc/xcode/4/go4xcode.sh            |  112 ----
  misc/zsh/go                         |  161 -----
  32 files changed, 5 insertions(+), 4335 deletions(-)
+
+diff --git a/misc/IntelliJIDEA/Go.xml b/misc/IntelliJIDEA/Go.xml
+deleted file mode 100644
+index 51abdf4127..0000000000
+--- a/misc/IntelliJIDEA/Go.xml
++++ /dev/null
+@@ -1,99 +0,0 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<!--
+-    Copyright 2011 The Go Authors. All rights reserved.
+-    Use of this source code is governed by a BSD-style
+-    license that can be found in the LICENSE file.
+-
+-Copy this custom language definition & configuration file to
+-        * Mac             : ~/Library/Preferences/IntelliJIdea10/filetypes/
+-        * Linux & Windows : ~/.IntelliJIdea10/config/filetypes/
+--->
+-
+-<filetype binary="false" default_extension="" description="Go" name="Go">
+-    <highlighting>
+-        <options>
+-            <option name="LINE_COMMENT" value="//"/>
+-            <option name="COMMENT_START" value="/*"/>
+-            <option name="COMMENT_END" value="*/"/>
+-            <option name="HEX_PREFIX" value="0x"/>
+-            <option name="NUM_POSTFIXES" value=""/>
+-            <option name="HAS_BRACKETS" value="true"/>
+-            <option name="HAS_BRACES" value="true"/>
+-            <option name="HAS_PARENS" value="true"/>
+-            <option name="HAS_STRING_ESCAPES" value="true"/>
+-        </options>
+-        <keywords ignore_case="false">
+-            <keyword name="break"/>
+-            <keyword name="case"/>
+-            <keyword name="chan"/>
+-            <keyword name="const"/>
+-            <keyword name="continue"/>
+-            <keyword name="default"/>
+-            <keyword name="defer"/>
+-            <keyword name="else"/>
+-            <keyword name="fallthrough"/>
+-            <keyword name="for"/>
+-            <keyword name="func"/>
+-            <keyword name="go"/>
+-            <keyword name="goto"/>
+-            <keyword name="if"/>
+-            <keyword name="import"/>
+-            <keyword name="interface"/>
+-            <keyword name="map"/>
+-            <keyword name="package"/>
+-            <keyword name="range"/>
+-            <keyword name="return"/>
+-            <keyword name="select"/>
+-            <keyword name="struct"/>
+-            <keyword name="switch"/>
+-            <keyword name="type"/>
+-            <keyword name="var"/>
+-        </keywords>
+-        <keywords2>
+-            <keyword name="bool"/>
+-            <keyword name="byte"/>
+-            <keyword name="complex64"/>
+-            <keyword name="complex128"/>
+-            <keyword name="float32"/>
+-            <keyword name="float64"/>
+-            <keyword name="int"/>
+-            <keyword name="int8"/>
+-            <keyword name="int16"/>
+-            <keyword name="int32"/>
+-            <keyword name="int64"/>
+-            <keyword name="string"/>
+-            <keyword name="uint"/>
+-            <keyword name="uint8"/>
+-            <keyword name="uint16"/>
+-            <keyword name="uint32"/>
+-            <keyword name="uint64"/>
+-            <keyword name="uintptr"/>
+-        </keywords2>
+-        <keywords3>
+-            <keyword name="append"/>
+-            <keyword name="cap"/>
+-            <keyword name="close"/>
+-            <keyword name="complex"/>
+-            <keyword name="copy"/>
+-            <keyword name="delete"/>
+-            <keyword name="imag"/>
+-            <keyword name="len"/>
+-            <keyword name="make"/>
+-            <keyword name="new"/>
+-            <keyword name="panic"/>
+-            <keyword name="print"/>
+-            <keyword name="println"/>
+-            <keyword name="real"/>
+-            <keyword name="recover"/>
+-        </keywords3>
+-        <keywords4>
+-            <keyword name="false"/>
+-            <keyword name="iota"/>
+-            <keyword name="nil"/>
+-            <keyword name="true"/>
+-        </keywords4>
+-    </highlighting>
+-    <extensionMap>
+-        <mapping ext="go"/>
+-    </extensionMap>
+-</filetype>
+diff --git a/misc/bash/go b/misc/bash/go
+deleted file mode 100644
+index 50f4f720b4..0000000000
+--- a/misc/bash/go
++++ /dev/null
+@@ -1,237 +0,0 @@
+-# install in /etc/bash_completion.d/ or your personal directory
+-
+-complete -f -X '!*.8' 8l
+-complete -f -X '!*.6' 6l
+-complete -f -X '!*.5' 5l
+-complete -f -X '!*.go' 8g 6g 5g gofmt gccgo
+-
+-_go_importpath()
+-{
+-  echo "$(compgen -W "$(go list all) all std" -- "$1")"
+-}
+-
+-_go()
+-{
+-  # TODO: Only allow flags before other arguments. run already does
+-  # this.
+-
+-  local cur=`_get_cword`
+-  local prev="${COMP_WORDS[COMP_CWORD-1]}"
+-
+-  local cmd="${COMP_WORDS[1]}"
+-
+-  local cmds="build clean env fix fmt get
+-    install list run test tool version vet"
+-  local addhelp="c gopath importpath packages testflag testfunc"
+-  local other="help"
+-
+-  if [ "$COMP_CWORD" == 1 ]; then
+-    for opt in $cmds; do
+-      if [[ "$opt" == "$cmd" ]]; then
+-        COMPREPLY=("$opt")
+-        return
+-      fi
+-    done
+-  fi
+-
+-  case "$cmd" in
+-    'build')
+-      case "$prev" in
+-        '-o')
+-          _filedir
+-          ;;
+-        '-p')
+-          ;;
+-        *)
+-          if [[ "$cur" == -* ]]; then
+-            COMPREPLY=($(compgen -W "-a -n -o -p -v -x" -- "$cur"))
+-          else
+-            local found=0
+-            for ((i=0; i < ${#COMP_WORDS[@]}; i++)); do
+-              case "$i" in
+-                0|1|"$COMP_CWORD")
+-                  continue
+-                  ;;
+-              esac
+-              local opt="${COMP_WORDS[i]}"
+-              if [[ "$opt" != -* ]]; then
+-                if [[ "$opt" == *.go && -f "$opt" ]]; then
+-                  found=1
+-                  break
+-                else
+-                  found=2
+-                  break
+-                fi
+-              fi
+-            done
+-            case "$found" in
+-              0)
+-                _filedir go
+-                COMPREPLY+=(`_go_importpath "$cur"`)
+-                ;;
+-              1)
+-                _filedir go
+-                ;;
+-              2)
+-                COMPREPLY=(`_go_importpath "$cur"`)
+-                ;;
+-            esac
+-          fi
+-          ;;
+-      esac
+-      ;;
+-    'clean')
+-      if [[ "$cur" == -* ]]; then
+-        COMPREPLY=($(compgen -W "-i -r -n -x" -- "$cur"))
+-      else
+-        COMPREPLY=(`_go_importpath "$cur"`)
+-      fi
+-      ;;
+-    'fix')
+-      COMPREPLY=(`_go_importpath "$cur"`)
+-      ;;
+-    'fmt')
+-      COMPREPLY=(`_go_importpath "$cur"`)
+-      ;;
+-    'get')
+-      case "$prev" in
+-        '-p')
+-          ;;
+-        *)
+-          if [[ "$cur" == -* ]]; then
+-            COMPREPLY=($(compgen -W "-a -d -fix -n -p -u -v -x" -- "$cur"))
+-          else
+-            COMPREPLY=(`_go_importpath "$cur"`)
+-          fi
+-          ;;
+-      esac
+-      ;;
+-    'install')
+-      case "$prev" in
+-        '-p')
+-          ;;
+-        *)
+-          if [[ "$cur" == -* ]]; then
+-            COMPREPLY=($(compgen -W "-a -n -p -v -x" -- "$cur"))
+-          else
+-            COMPREPLY=(`_go_importpath "$cur"`)
+-          fi
+-          ;;
+-      esac
+-      ;;
+-    'list')
+-      case "$prev" in
+-        '-f')
+-          ;;
+-        *)
+-          if [[ "$cur" == -* ]]; then
+-            COMPREPLY=($(compgen -W "-e -f -json" -- "$cur"))
+-          else
+-            COMPREPLY=(`_go_importpath "$cur"`)
+-          fi
+-          ;;
+-      esac
+-      ;;
+-    'run')
+-      if [[ "$cur" == -* && "$prev" != *.go ]]; then
+-        COMPREPLY=($(compgen -W "-a -n -x" -- "$cur"))
+-      else
+-        _filedir
+-      fi
+-      ;;
+-    'test') # TODO: Support for testflags.
+-      case "$prev" in
+-        '-file')
+-          _filedir go
+-          ;;
+-        '-p')
+-          ;;
+-        *)
+-          if [[ "$cur" == -* ]]; then
+-            COMPREPLY=($(compgen -W "-c -file -i -p -x" -- "$cur"))
+-          else
+-            COMPREPLY=(`_go_importpath "$cur"`)
+-          fi
+-          ;;
+-        esac
+-      ;;
+-    'tool')
+-      if [ "$COMP_CWORD" == 2 ]; then
+-        COMPREPLY=($(compgen -W "$(go tool)" -- "$cur"))
+-      else
+-        case "${COMP_WORDS[2]}" in
+-          [568]a) # TODO: Implement something.
+-            #_go_tool_568a
+-            ;;
+-          [568]c) # TODO: Implement something.
+-            #_go_tool_568c
+-            ;;
+-          [568]g) # TODO: Implement something.
+-            #_go_tool_568g
+-            ;;
+-          [568]l) # TODO: Implement something.
+-            #_go_tool_568l
+-            ;;
+-          'api') # TODO: Implement something.
+-            #_go_tool_api
+-            ;;
+-          'cgo') # TODO: Implement something.
+-            #_go_tool_cgo
+-            ;;
+-          'cov') # TODO: Implement something.
+-            #_go_tool_cov
+-            ;;
+-          'dist') # TODO: Implement something.
+-            #_go_tool_dist
+-            ;;
+-          'fix') # TODO: Implement something.
+-            #_go_tool_fix
+-            ;;
+-          'nm') # TODO: Implement something.
+-            #_go_tool_nm
+-            ;;
+-          'pack') # TODO: Implement something.
+-            #_go_tool_pack
+-            ;;
+-          'pprof') # TODO: Implement something.
+-            #_go_tool_pprof
+-            ;;
+-          'vet') # TODO: Implement something.
+-            #_go_tool_vet
+-            ;;
+-          'yacc') # TODO: Implement something.
+-            #_go_tool_yacc
+-            ;;
+-        esac
+-        if [[ "$cur" == -* ]]; then
+-          COMPREPLY=($(compgen -W "${COMPREPLY[*]} -h" -- "$cur"))
+-        fi
+-      fi
+-      ;;
+-    'version')
+-      ;;
+-    'vet')
+-      if [[ "$cur" == -* ]]; then
+-        :
+-      else
+-        COMPREPLY=(`_go_importpath "$cur"`)
+-      fi
+-      ;;
+-    'help')
+-      if [ "$COMP_CWORD" == 2 ]; then
+-        COMPREPLY=($(compgen -W "$cmds $addhelp" -- "$cur"))
+-      fi
+-      ;;
+-    *)
+-      if [ "$COMP_CWORD" == 1 ]; then
+-        COMPREPLY=($(compgen -W "$cmds $other" -- "$cur"))
+-      else
+-        _filedir
+-      fi
+-      ;;
+-  esac
+-}
+-
+-complete $filenames -F _go go
+-
+-# vim:ts=2 sw=2 et syn=sh
+diff --git a/misc/bbedit/Go.plist b/misc/bbedit/Go.plist
+deleted file mode 100644
+index 1220d6efb4..0000000000
+--- a/misc/bbedit/Go.plist
++++ /dev/null
+@@ -1,104 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-{
+-	BBEditDocumentType = "CodelessLanguageModule";
+-	BBLMColorsSyntax = YES;
+-	BBLMIsCaseSensitive = YES;
+-	BBLMKeywordList = (
+-		append,
+-		bool,
+-		break,
+-		byte,
+-		cap,
+-		case,
+-		chan,
+-		close,
+-		complex,
+-		complex128,
+-		complex64,
+-		const,
+-		continue,
+-		copy,
+-		default,
+-		defer,
+-		delete,
+-		else,
+-		error,
+-		fallthrough,
+-		false,
+-		float32,
+-		float64,
+-		for,
+-		func,         
+-		go,
+-		goto,
+-		if,
+-		iota,
+-		imag,
+-		import,
+-		int,
+-		int16,
+-		int32,
+-		int64,
+-		int8,
+-		interface,
+-		len,
+-		make,
+-		map,
+-		new,
+-		nil,
+-		package,
+-		panic,
+-		print,
+-		println,
+-		range,
+-		real,
+-		recover,
+-		return,
+-		rune,
+-		select,
+-		string,
+-		struct,
+-		switch,
+-		true,
+-		type,
+-		uint,
+-		uint16,
+-		uint32,
+-		uint64,
+-		uint8,
+-		uintptr,
+-		var,
+-	);
+-	BBLMLanguageCode = go;
+-	"BBLMLanguageDisplayName" = "Go";
+-	BBLMScansFunctions = YES;
+-	BBLMSuffixMap = (
+-		{
+-			BBLMLanguageSuffix = ".go";
+-		},
+-	);
+-	"Language Features" = {
+-		"Close Block Comments" = "*/";
+-		"Close Parameter Lists" = ")";
+-		"Close Statement Blocks" = "}";
+-		"Close Strings 1" = "`";
+-		"Close Strings 2" = "\"";
+-		"End-of-line Ends Strings 1" = YES;
+-		"End-of-line Ends Strings 2" = YES;
+-		"Escape Char in Strings 1" = "\\";
+-		"Escape Char in Strings 2" = "\\";
+-		"Identifier and Keyword Characters" = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz";
+-		"Open Block Comments" = "/*";
+-		"Open Line Comments" = "//";
+-		"Open Parameter Lists" = "(";
+-		"Open Statement Blocks" = "{";
+-		"Open Strings 1" = "`";
+-		"Open Strings 2" = "\"";
+-		"Prefix for Functions" = "func";
+-		"Prefix for Procedures" = "func";
+-		"Terminator for Prototypes 1" = ";";
+-		"Terminator for Prototypes 2" = "";
+-	};
+-}
+diff --git a/misc/editors b/misc/editors
+new file mode 100644
+index 0000000000..850ec34011
+--- /dev/null
++++ b/misc/editors
+@@ -0,0 +1,5 @@
++For information about plugins and other support for Go in editors and shells,
++see this page on the Go Wiki:
++
++https://code.google.com/p/go-wiki/wiki/IDEsAndTextEditorPlugins
++
+diff --git a/misc/emacs/go-mode-load.el b/misc/emacs/go-mode-load.el
+deleted file mode 100644
+index 3fc35c1169..0000000000
+--- a/misc/emacs/go-mode-load.el
++++ /dev/null
+@@ -1,96 +0,0 @@
+-;;; go-mode-load.el --- automatically extracted autoloads
+-;;; Commentary:
+-
+-;; To install go-mode, add the following lines to your .emacs file:
+-;;   (add-to-list 'load-path "PATH CONTAINING go-mode-load.el" t)
+-;;   (require 'go-mode-load)
+-;;
+-;; After this, go-mode will be used for files ending in '.go'.
+-;;
+-;; To compile go-mode from the command line, run the following
+-;;   emacs -batch -f batch-byte-compile go-mode.el
+-;;
+-;; See go-mode.el for documentation.
+-;;
+-;; To update this file, evaluate the following form
+-;;   (let ((generated-autoload-file buffer-file-name)) (update-file-autoloads "go-mode.el"))
+-
+-;;; Code:
+-
+-
+-;;;### (autoloads (go-download-play godoc gofmt-before-save go-mode)
+-;;;;;;  "go-mode" "go-mode.el" (20767 50749))
+-;;; Generated autoloads from go-mode.el
+-
+-(autoload 'go-mode "go-mode" "\
+-Major mode for editing Go source text.
+-
+-This mode provides (not just) basic editing capabilities for
+-working with Go code. It offers almost complete syntax
+-highlighting, indentation that is almost identical to gofmt,
+-proper parsing of the buffer content to allow features such as
+-navigation by function, manipulation of comments or detection of
+-strings.
+-
+-Additionally to these core features, it offers various features to
+-help with writing Go code. You can directly run buffer content
+-through gofmt, read godoc documentation from within Emacs, modify
+-and clean up the list of package imports or interact with the
+-Playground (uploading and downloading pastes).
+-
+-The following extra functions are defined:
+-
+-- `gofmt'
+-- `godoc'
+-- `go-import-add'
+-- `go-remove-unused-imports'
+-- `go-goto-imports'
+-- `go-play-buffer' and `go-play-region'
+-- `go-download-play'
+-
+-If you want to automatically run `gofmt' before saving a file,
+-add the following hook to your emacs configuration:
+-
+-\(add-hook 'before-save-hook 'gofmt-before-save)
+-
+-If you're looking for even more integration with Go, namely
+-on-the-fly syntax checking, auto-completion and snippets, it is
+-recommended to look at goflymake
+-\(https://github.com/dougm/goflymake), gocode
+-\(https://github.com/nsf/gocode) and yasnippet-go
+-\(https://github.com/dominikh/yasnippet-go)
+-
+-\(fn)" t nil)
+-
+-(add-to-list 'auto-mode-alist (cons "\\.go\\'" 'go-mode))
+-
+-(autoload 'gofmt-before-save "go-mode" "\
+-Add this to .emacs to run gofmt on the current buffer when saving:
+- (add-hook 'before-save-hook 'gofmt-before-save).
+-
+-Note that this will cause go-mode to get loaded the first time
+-you save any file, kind of defeating the point of autoloading.
+-
+-\(fn)" t nil)
+-
+-(autoload 'godoc "go-mode" "\
+-Show go documentation for a query, much like M-x man.
+-
+-\(fn QUERY)" t nil)
+-
+-(autoload 'go-download-play "go-mode" "\
+-Downloads a paste from the playground and inserts it in a Go
+-buffer. Tries to look for a URL at point.
+-
+-\(fn URL)" t nil)
+-
+-;;;***
+-
+-(provide 'go-mode-load)
+-;; Local Variables:
+-;; version-control: never
+-;; no-byte-compile: t
+-;; no-update-autoloads: t
+-;; coding: utf-8
+-;; End:
+-;;; go-mode-load.el ends here
+diff --git a/misc/emacs/go-mode.el b/misc/emacs/go-mode.el
+deleted file mode 100644
+index de71e30978..0000000000
+--- a/misc/emacs/go-mode.el
++++ /dev/null
+@@ -1,1234 +0,0 @@
+-;;; go-mode.el --- Major mode for the Go programming language
+-
+-;; Copyright 2013 The Go Authors. All rights reserved.
+-;; Use of this source code is governed by a BSD-style
+-;; license that can be found in the LICENSE file.
+-
+-(require 'cl)
+-(require 'etags)
+-(require 'ffap)
+-(require 'find-file)
+-(require 'ring)
+-(require 'url)
+-
+-;; XEmacs compatibility guidelines
+-;; - Minimum required version of XEmacs: 21.5.32
+-;;   - Feature that cannot be backported: POSIX character classes in
+-;;     regular expressions
+-;;   - Functions that could be backported but won't because 21.5.32
+-;;     covers them: plenty.
+-;;   - Features that are still partly broken:
+-;;     - godef will not work correctly if multibyte characters are
+-;;       being used
+-;;     - Fontification will not handle unicode correctly
+-;;
+-;; - Do not use \_< and \_> regexp delimiters directly; use
+-;;   go--regexp-enclose-in-symbol
+-;;
+-;; - The character `_` must not be a symbol constituent but a
+-;;   character constituent
+-;;
+-;; - Do not use process-lines
+-;;
+-;; - Use go--old-completion-list-style when using a plain list as the
+-;;   collection for completing-read
+-;;
+-;; - Use go--position-bytes instead of position-bytes
+-(defmacro go--xemacs-p ()
+-  `(featurep 'xemacs))
+-
+-;; Delete the current line without putting it in the kill-ring.
+-(defun go--delete-whole-line (&optional arg)
+-  ;; Derived from `kill-whole-line'.
+-  ;; ARG is defined as for that function.
+-  (setq arg (or arg 1))
+-  (if (and (> arg 0)
+-           (eobp)
+-           (save-excursion (forward-visible-line 0) (eobp)))
+-      (signal 'end-of-buffer nil))
+-  (if (and (< arg 0)
+-           (bobp)
+-           (save-excursion (end-of-visible-line) (bobp)))
+-      (signal 'beginning-of-buffer nil))
+-  (cond ((zerop arg)
+-         (delete-region (progn (forward-visible-line 0) (point))
+-                        (progn (end-of-visible-line) (point))))
+-        ((< arg 0)
+-         (delete-region (progn (end-of-visible-line) (point))
+-                        (progn (forward-visible-line (1+ arg))
+-                               (unless (bobp)
+-                                 (backward-char))
+-                               (point))))
+-        (t
+-         (delete-region (progn (forward-visible-line 0) (point))
+-                        (progn (forward-visible-line arg) (point))))))
+-
+-;; declare-function is an empty macro that only byte-compile cares
+-;; about. Wrap in always false if to satisfy Emacsen without that
+-;; macro.
+-(if nil
+-    (declare-function go--position-bytes "go-mode" (point)))
+-
+-;; XEmacs unfortunately does not offer position-bytes. We can fall
+-;; back to just using (point), but it will be incorrect as soon as
+-;; multibyte characters are being used.
+-(if (fboundp 'position-bytes)
+-    (defalias 'go--position-bytes #'position-bytes)
+-  (defun go--position-bytes (point) point))
+-
+-(defun go--old-completion-list-style (list)
+-  (mapcar (lambda (x) (cons x nil)) list))
+-
+-;; GNU Emacs 24 has prog-mode, older GNU Emacs and XEmacs do not, so
+-;; copy its definition for those.
+-(if (not (fboundp 'prog-mode))
+-    (define-derived-mode prog-mode fundamental-mode "Prog"
+-      "Major mode for editing source code."
+-      (set (make-local-variable 'require-final-newline) mode-require-final-newline)
+-      (set (make-local-variable 'parse-sexp-ignore-comments) t)
+-      (setq bidi-paragraph-direction 'left-to-right)))
+-
+-(defun go--regexp-enclose-in-symbol (s)
+-  ;; XEmacs does not support \_<, GNU Emacs does. In GNU Emacs we make
+-  ;; extensive use of \_< to support unicode in identifiers. Until we
+-  ;; come up with a better solution for XEmacs, this solution will
+-  ;; break fontification in XEmacs for identifiers such as "typeµ".
+-  ;; XEmacs will consider "type" a keyword, GNU Emacs won't.
+-
+-  (if (go--xemacs-p)
+-      (concat "\\<" s "\\>")
+-    (concat "\\_<" s "\\_>")))
+-
+-;; Move up one level of parentheses.
+-(defun go-goto-opening-parenthesis (&optional legacy-unused)
+-  ;; The old implementation of go-goto-opening-parenthesis had an
+-  ;; optional argument to speed up the function. It didn't change the
+-  ;; function's outcome.
+-
+-  ;; Silently fail if there's no matching opening parenthesis.
+-  (condition-case nil
+-      (backward-up-list)
+-    (scan-error nil)))
+-
+-
+-(defconst go-dangling-operators-regexp "[^-]-\\|[^+]\\+\\|[/*&><.=|^]")
+-(defconst go-identifier-regexp "[[:word:][:multibyte:]]+")
+-(defconst go-label-regexp go-identifier-regexp)
+-(defconst go-type-regexp "[[:word:][:multibyte:]*]+")
+-(defconst go-func-regexp (concat (go--regexp-enclose-in-symbol "func") "\\s *\\(" go-identifier-regexp "\\)"))
+-(defconst go-func-meth-regexp (concat
+-                               (go--regexp-enclose-in-symbol "func") "\\s *\\(?:(\\s *"
+-                               "\\(" go-identifier-regexp "\\s +\\)?" go-type-regexp
+-                               "\\s *)\\s *\\)?\\("
+-                               go-identifier-regexp
+-                               "\\)("))
+-(defconst go-builtins
+-  '("append" "cap"   "close"   "complex" "copy"
+-    "delete" "imag"  "len"     "make"    "new"
+-    "panic"  "print" "println" "real"    "recover")
+-  "All built-in functions in the Go language. Used for font locking.")
+-
+-(defconst go-mode-keywords
+-  '("break"    "default"     "func"   "interface" "select"
+-    "case"     "defer"       "go"     "map"       "struct"
+-    "chan"     "else"        "goto"   "package"   "switch"
+-    "const"    "fallthrough" "if"     "range"     "type"
+-    "continue" "for"         "import" "return"    "var")
+-  "All keywords in the Go language.  Used for font locking.")
+-
+-(defconst go-constants '("nil" "true" "false" "iota"))
+-(defconst go-type-name-regexp (concat "\\(?:[*(]\\)*\\(?:" go-identifier-regexp "\\.\\)?\\(" go-identifier-regexp "\\)"))
+-
+-(defvar go-dangling-cache)
+-(defvar go-godoc-history nil)
+-(defvar go--coverage-current-file-name)
+-
+-(defgroup go nil
+-  "Major mode for editing Go code"
+-  :group 'languages)
+-
+-(defgroup go-cover nil
+-  "Options specific to `cover`"
+-  :group 'go)
+-
+-(defcustom go-fontify-function-calls t
+-  "Fontify function and method calls if this is non-nil."
+-  :type 'boolean
+-  :group 'go)
+-
+-(defcustom go-mode-hook nil
+-  "Hook called by `go-mode'."
+-  :type 'hook
+-  :group 'go)
+-
+-(defcustom go-command "go"
+-  "The 'go' command.  Some users have multiple Go development
+-trees and invoke the 'go' tool via a wrapper that sets GOROOT and
+-GOPATH based on the current directory.  Such users should
+-customize this variable to point to the wrapper script."
+-  :type 'string
+-  :group 'go)
+-
+-(defcustom gofmt-command "gofmt"
+-  "The 'gofmt' command.  Some users may replace this with 'goimports'
+-from https://github.com/bradfitz/goimports."
+-  :type 'string
+-  :group 'go)
+-
+-(defcustom go-other-file-alist
+-  '(("_test\\.go\\'" (".go"))
+-    ("\\.go\\'" ("_test.go")))
+-  "See the documentation of `ff-other-file-alist' for details."
+-  :type '(repeat (list regexp (choice (repeat string) function)))
+-  :group 'go)
+-
+-(defface go-coverage-untracked
+-  '((t (:foreground "#505050")))
+-  "Coverage color of untracked code."
+-  :group 'go-cover)
+-
+-(defface go-coverage-0
+-  '((t (:foreground "#c00000")))
+-  "Coverage color for uncovered code."
+-  :group 'go-cover)
+-(defface go-coverage-1
+-  '((t (:foreground "#808080")))
+-  "Coverage color for covered code with weight 1."
+-  :group 'go-cover)
+-(defface go-coverage-2
+-  '((t (:foreground "#748c83")))
+-  "Coverage color for covered code with weight 2."
+-  :group 'go-cover)
+-(defface go-coverage-3
+-  '((t (:foreground "#689886")))
+-  "Coverage color for covered code with weight 3."
+-  :group 'go-cover)
+-(defface go-coverage-4
+-  '((t (:foreground "#5ca489")))
+-  "Coverage color for covered code with weight 4."
+-  :group 'go-cover)
+-(defface go-coverage-5
+-  '((t (:foreground "#50b08c")))
+-  "Coverage color for covered code with weight 5."
+-  :group 'go-cover)
+-(defface go-coverage-6
+-  '((t (:foreground "#44bc8f")))
+-  "Coverage color for covered code with weight 6."
+-  :group 'go-cover)
+-(defface go-coverage-7
+-  '((t (:foreground "#38c892")))
+-  "Coverage color for covered code with weight 7."
+-  :group 'go-cover)
+-(defface go-coverage-8
+-  '((t (:foreground "#2cd495")))
+-  "Coverage color for covered code with weight 8.
+-For mode=set, all covered lines will have this weight."
+-  :group 'go-cover)
+-(defface go-coverage-9
+-  '((t (:foreground "#20e098")))
+-  "Coverage color for covered code with weight 9."
+-  :group 'go-cover)
+-(defface go-coverage-10
+-  '((t (:foreground "#14ec9b")))
+-  "Coverage color for covered code with weight 10."
+-  :group 'go-cover)
+-(defface go-coverage-covered
+-  '((t (:foreground "#2cd495")))
+-  "Coverage color of covered code."
+-  :group 'go-cover)
+-
+-(defvar go-mode-syntax-table
+-  (let ((st (make-syntax-table)))
+-    (modify-syntax-entry ?+  "." st)
+-    (modify-syntax-entry ?-  "." st)
+-    (modify-syntax-entry ?%  "." st)
+-    (modify-syntax-entry ?&  "." st)
+-    (modify-syntax-entry ?|  "." st)
+-    (modify-syntax-entry ?^  "." st)
+-    (modify-syntax-entry ?!  "." st)
+-    (modify-syntax-entry ?=  "." st)
+-    (modify-syntax-entry ?<  "." st)
+-    (modify-syntax-entry ?>  "." st)
+-    (modify-syntax-entry ?/ (if (go--xemacs-p) ". 1456" ". 124b") st)
+-    (modify-syntax-entry ?*  ". 23" st)
+-    (modify-syntax-entry ?\n "> b" st)
+-    (modify-syntax-entry ?\" "\"" st)
+-    (modify-syntax-entry ?\' "\"" st)
+-    (modify-syntax-entry ?`  "\"" st)
+-    (modify-syntax-entry ?\\ "\\" st)
+-    ;; It would be nicer to have _ as a symbol constituent, but that
+-    ;; would trip up XEmacs, which does not support the \_< anchor
+-    (modify-syntax-entry ?_  "w" st)
+-
+-    st)
+-  "Syntax table for Go mode.")
+-
+-(defun go--build-font-lock-keywords ()
+-  ;; we cannot use 'symbols in regexp-opt because GNU Emacs <24
+-  ;; doesn't understand that
+-  (append
+-   `((,(go--regexp-enclose-in-symbol (regexp-opt go-mode-keywords t)) . font-lock-keyword-face)
+-     (,(concat "\\(" (go--regexp-enclose-in-symbol (regexp-opt go-builtins t)) "\\)[[:space:]]*(") 1 font-lock-builtin-face)
+-     (,(go--regexp-enclose-in-symbol (regexp-opt go-constants t)) . font-lock-constant-face)
+-     (,go-func-regexp 1 font-lock-function-name-face)) ;; function (not method) name
+-
+-   (if go-fontify-function-calls
+-       `((,(concat "\\(" go-identifier-regexp "\\)[[:space:]]*(") 1 font-lock-function-name-face) ;; function call/method name
+-         (,(concat "[^[:word:][:multibyte:]](\\(" go-identifier-regexp "\\))[[:space:]]*(") 1 font-lock-function-name-face)) ;; bracketed function call
+-     `((,go-func-meth-regexp 2 font-lock-function-name-face))) ;; method name
+-
+-   `(
+-     ("\\(`[^`]*`\\)" 1 font-lock-multiline) ;; raw string literal, needed for font-lock-syntactic-keywords
+-     (,(concat (go--regexp-enclose-in-symbol "type") "[[:space:]]+\\([^[:space:]]+\\)") 1 font-lock-type-face) ;; types
+-     (,(concat (go--regexp-enclose-in-symbol "type") "[[:space:]]+" go-identifier-regexp "[[:space:]]*" go-type-name-regexp) 1 font-lock-type-face) ;; types
+-     (,(concat "[^[:word:][:multibyte:]]\\[\\([[:digit:]]+\\|\\.\\.\\.\\)?\\]" go-type-name-regexp) 2 font-lock-type-face) ;; Arrays/slices
+-     (,(concat "\\(" go-identifier-regexp "\\)" "{") 1 font-lock-type-face)
+-     (,(concat (go--regexp-enclose-in-symbol "map") "\\[[^]]+\\]" go-type-name-regexp) 1 font-lock-type-face) ;; map value type
+-     (,(concat (go--regexp-enclose-in-symbol "map") "\\[" go-type-name-regexp) 1 font-lock-type-face) ;; map key type
+-     (,(concat (go--regexp-enclose-in-symbol "chan") "[[:space:]]*\\(?:<-\\)?" go-type-name-regexp) 1 font-lock-type-face) ;; channel type
+-     (,(concat (go--regexp-enclose-in-symbol "\\(?:new\\|make\\)") "\\(?:[[:space:]]\\|)\\)*(" go-type-name-regexp) 1 font-lock-type-face) ;; new/make type
+-     ;; TODO do we actually need this one or isn't it just a function call?
+-     (,(concat "\\.\\s *(" go-type-name-regexp) 1 font-lock-type-face) ;; Type conversion
+-     (,(concat (go--regexp-enclose-in-symbol "func") "[[:space:]]+(" go-identifier-regexp "[[:space:]]+" go-type-name-regexp ")") 1 font-lock-type-face) ;; Method receiver
+-     (,(concat (go--regexp-enclose-in-symbol "func") "[[:space:]]+(" go-type-name-regexp ")") 1 font-lock-type-face) ;; Method receiver without variable name
+-     ;; Like the original go-mode this also marks compound literal
+-     ;; fields. There, it was marked as to fix, but I grew quite
+-     ;; accustomed to it, so it'll stay for now.
+-     (,(concat "^[[:space:]]*\\(" go-label-regexp "\\)[[:space:]]*:\\(\\S.\\|$\\)") 1 font-lock-constant-face) ;; Labels and compound literal fields
+-     (,(concat (go--regexp-enclose-in-symbol "\\(goto\\|break\\|continue\\)") "[[:space:]]*\\(" go-label-regexp "\\)") 2 font-lock-constant-face)))) ;; labels in goto/break/continue
+-
+-(defconst go--font-lock-syntactic-keywords
+-  ;; Override syntax property of raw string literal contents, so that
+-  ;; backslashes have no special meaning in ``. Used in Emacs 23 or older.
+-  '((go--match-raw-string-literal
+-     (1 (7 . ?`))
+-     (2 (15 . nil))  ;; 15 = "generic string"
+-     (3 (7 . ?`)))))
+-
+-(defvar go-mode-map
+-  (let ((m (make-sparse-keymap)))
+-    (define-key m "}" #'go-mode-insert-and-indent)
+-    (define-key m ")" #'go-mode-insert-and-indent)
+-    (define-key m "," #'go-mode-insert-and-indent)
+-    (define-key m ":" #'go-mode-insert-and-indent)
+-    (define-key m "=" #'go-mode-insert-and-indent)
+-    (define-key m (kbd "C-c C-a") #'go-import-add)
+-    (define-key m (kbd "C-c C-j") #'godef-jump)
+-    (define-key m (kbd "C-x 4 C-c C-j") #'godef-jump-other-window)
+-    (define-key m (kbd "C-c C-d") #'godef-describe)
+-    m)
+-  "Keymap used by Go mode to implement electric keys.")
+-
+-(defun go-mode-insert-and-indent (key)
+-  "Invoke the global binding of KEY, then reindent the line."
+-
+-  (interactive (list (this-command-keys)))
+-  (call-interactively (lookup-key (current-global-map) key))
+-  (indent-according-to-mode))
+-
+-(defmacro go-paren-level ()
+-  `(car (syntax-ppss)))
+-
+-(defmacro go-in-string-or-comment-p ()
+-  `(nth 8 (syntax-ppss)))
+-
+-(defmacro go-in-string-p ()
+-  `(nth 3 (syntax-ppss)))
+-
+-(defmacro go-in-comment-p ()
+-  `(nth 4 (syntax-ppss)))
+-
+-(defmacro go-goto-beginning-of-string-or-comment ()
+-  `(goto-char (nth 8 (syntax-ppss))))
+-
+-(defun go--backward-irrelevant (&optional stop-at-string)
+-  "Skips backwards over any characters that are irrelevant for
+-indentation and related tasks.
+-
+-It skips over whitespace, comments, cases and labels and, if
+-STOP-AT-STRING is not true, over strings."
+-
+-  (let (pos (start-pos (point)))
+-    (skip-chars-backward "\n\s\t")
+-    (if (and (save-excursion (beginning-of-line) (go-in-string-p)) (looking-back "`") (not stop-at-string))
+-        (backward-char))
+-    (if (and (go-in-string-p) (not stop-at-string))
+-        (go-goto-beginning-of-string-or-comment))
+-    (if (looking-back "\\*/")
+-        (backward-char))
+-    (if (go-in-comment-p)
+-        (go-goto-beginning-of-string-or-comment))
+-    (setq pos (point))
+-    (beginning-of-line)
+-    (if (or (looking-at (concat "^" go-label-regexp ":")) (looking-at "^[[:space:]]*\\(case .+\\|default\\):"))
+-        (end-of-line 0)
+-      (goto-char pos))
+-    (if (/= start-pos (point))
+-        (go--backward-irrelevant stop-at-string))
+-    (/= start-pos (point))))
+-
+-(defun go--buffer-narrowed-p ()
+-  "Return non-nil if the current buffer is narrowed."
+-  (/= (buffer-size)
+-      (- (point-max)
+-         (point-min))))
+-
+-(defun go--match-raw-string-literal (end)
+-  "Search for a raw string literal. Set point to the end of the
+-occurence found on success. Returns nil on failure."
+-  (when (search-forward "`" end t)
+-    (goto-char (match-beginning 0))
+-    (if (go-in-string-or-comment-p)
+-        (progn (goto-char (match-end 0))
+-               (go--match-raw-string-literal end))
+-      (when (looking-at "\\(`\\)\\([^`]*\\)\\(`\\)")
+-        (goto-char (match-end 0))
+-        t))))
+-
+-(defun go-previous-line-has-dangling-op-p ()
+-  "Returns non-nil if the current line is a continuation line."
+-  (let* ((cur-line (line-number-at-pos))
+-         (val (gethash cur-line go-dangling-cache 'nope)))
+-    (if (or (go--buffer-narrowed-p) (equal val 'nope))
+-        (save-excursion
+-          (beginning-of-line)
+-          (go--backward-irrelevant t)
+-          (setq val (looking-back go-dangling-operators-regexp))
+-          (if (not (go--buffer-narrowed-p))
+-              (puthash cur-line val go-dangling-cache))))
+-    val))
+-
+-(defun go--at-function-definition ()
+-  "Return non-nil if point is on the opening curly brace of a
+-function definition.
+-
+-We do this by first calling (beginning-of-defun), which will take
+-us to the start of *some* function. We then look for the opening
+-curly brace of that function and compare its position against the
+-curly brace we are checking. If they match, we return non-nil."
+-  (if (= (char-after) ?\{)
+-      (save-excursion
+-        (let ((old-point (point))
+-              start-nesting)
+-          (beginning-of-defun)
+-          (when (looking-at "func ")
+-            (setq start-nesting (go-paren-level))
+-            (skip-chars-forward "^{")
+-            (while (> (go-paren-level) start-nesting)
+-              (forward-char)
+-              (skip-chars-forward "^{") 0)
+-            (if (and (= (go-paren-level) start-nesting) (= old-point (point)))
+-                t))))))
+-
+-(defun go--indentation-for-opening-parenthesis ()
+-  "Return the semantic indentation for the current opening parenthesis.
+-
+-If point is on an opening curly brace and said curly brace
+-belongs to a function declaration, the indentation of the func
+-keyword will be returned. Otherwise the indentation of the
+-current line will be returned."
+-  (save-excursion
+-    (if (go--at-function-definition)
+-        (progn
+-          (beginning-of-defun)
+-          (current-indentation))
+-      (current-indentation))))
+-
+-(defun go-indentation-at-point ()
+-  (save-excursion
+-    (let (start-nesting)
+-      (back-to-indentation)
+-      (setq start-nesting (go-paren-level))
+-
+-      (cond
+-       ((go-in-string-p)
+-        (current-indentation))
+-       ((looking-at "[])}]")
+-        (go-goto-opening-parenthesis)
+-        (if (go-previous-line-has-dangling-op-p)
+-            (- (current-indentation) tab-width)
+-          (go--indentation-for-opening-parenthesis)))
+-       ((progn (go--backward-irrelevant t) (looking-back go-dangling-operators-regexp))
+-        ;; only one nesting for all dangling operators in one operation
+-        (if (go-previous-line-has-dangling-op-p)
+-            (current-indentation)
+-          (+ (current-indentation) tab-width)))
+-       ((zerop (go-paren-level))
+-        0)
+-       ((progn (go-goto-opening-parenthesis) (< (go-paren-level) start-nesting))
+-        (if (go-previous-line-has-dangling-op-p)
+-            (current-indentation)
+-          (+ (go--indentation-for-opening-parenthesis) tab-width)))
+-       (t
+-        (current-indentation))))))
+-
+-(defun go-mode-indent-line ()
+-  (interactive)
+-  (let (indent
+-        shift-amt
+-        (pos (- (point-max) (point)))
+-        (point (point))
+-        (beg (line-beginning-position)))
+-    (back-to-indentation)
+-    (if (go-in-string-or-comment-p)
+-        (goto-char point)
+-      (setq indent (go-indentation-at-point))
+-      (if (looking-at (concat go-label-regexp ":\\([[:space:]]*/.+\\)?$\\|case .+:\\|default:"))
+-          (decf indent tab-width))
+-      (setq shift-amt (- indent (current-column)))
+-      (if (zerop shift-amt)
+-          nil
+-        (delete-region beg (point))
+-        (indent-to indent))
+-      ;; If initial point was within line's indentation,
+-      ;; position after the indentation.  Else stay at same point in text.
+-      (if (> (- (point-max) pos) (point))
+-          (goto-char (- (point-max) pos))))))
+-
+-(defun go-beginning-of-defun (&optional count)
+-  (setq count (or count 1))
+-  (let ((first t)
+-        failure)
+-    (dotimes (i (abs count))
+-      (while (and (not failure)
+-                  (or first (go-in-string-or-comment-p)))
+-        (if (>= count 0)
+-            (progn
+-              (go--backward-irrelevant)
+-              (if (not (re-search-backward go-func-meth-regexp nil t))
+-                  (setq failure t)))
+-          (if (looking-at go-func-meth-regexp)
+-              (forward-char))
+-          (if (not (re-search-forward go-func-meth-regexp nil t))
+-              (setq failure t)))
+-        (setq first nil)))
+-    (if (< count 0)
+-        (beginning-of-line))
+-    (not failure)))
+-
+-(defun go-end-of-defun ()
+-  (let (orig-level)
+-    ;; It can happen that we're not placed before a function by emacs
+-    (if (not (looking-at "func"))
+-        (go-beginning-of-defun -1))
+-    (skip-chars-forward "^{")
+-    (forward-char)
+-    (setq orig-level (go-paren-level))
+-    (while (>= (go-paren-level) orig-level)
+-      (skip-chars-forward "^}")
+-      (forward-char))))
+-
+-;;;###autoload
+-(define-derived-mode go-mode prog-mode "Go"
+-  "Major mode for editing Go source text.
+-
+-This mode provides (not just) basic editing capabilities for
+-working with Go code. It offers almost complete syntax
+-highlighting, indentation that is almost identical to gofmt and
+-proper parsing of the buffer content to allow features such as
+-navigation by function, manipulation of comments or detection of
+-strings.
+-
+-In addition to these core features, it offers various features to
+-help with writing Go code. You can directly run buffer content
+-through gofmt, read godoc documentation from within Emacs, modify
+-and clean up the list of package imports or interact with the
+-Playground (uploading and downloading pastes).
+-
+-The following extra functions are defined:
+-
+-- `gofmt'
+-- `godoc'
+-- `go-import-add'
+-- `go-remove-unused-imports'
+-- `go-goto-imports'
+-- `go-play-buffer' and `go-play-region'
+-- `go-download-play'
+-- `godef-describe' and `godef-jump'
+-- `go-coverage'
+-
+-If you want to automatically run `gofmt' before saving a file,
+-add the following hook to your emacs configuration:
+-
+-\(add-hook 'before-save-hook #'gofmt-before-save)
+-
+-If you want to use `godef-jump' instead of etags (or similar),
+-consider binding godef-jump to `M-.', which is the default key
+-for `find-tag':
+-
+-\(add-hook 'go-mode-hook (lambda ()
+-                          (local-set-key (kbd \"M-.\") #'godef-jump)))
+-
+-Please note that godef is an external dependency. You can install
+-it with
+-
+-go get code.google.com/p/rog-go/exp/cmd/godef
+-
+-
+-If you're looking for even more integration with Go, namely
+-on-the-fly syntax checking, auto-completion and snippets, it is
+-recommended that you look at goflymake
+-\(https://github.com/dougm/goflymake), gocode
+-\(https://github.com/nsf/gocode), go-eldoc
+-\(github.com/syohex/emacs-go-eldoc) and yasnippet-go
+-\(https://github.com/dominikh/yasnippet-go)"
+-
+-  ;; Font lock
+-  (set (make-local-variable 'font-lock-defaults)
+-       '(go--build-font-lock-keywords))
+-
+-  ;; Indentation
+-  (set (make-local-variable 'indent-line-function) #'go-mode-indent-line)
+-
+-  ;; Comments
+-  (set (make-local-variable 'comment-start) "// ")
+-  (set (make-local-variable 'comment-end)   "")
+-  (set (make-local-variable 'comment-use-syntax) t)
+-  (set (make-local-variable 'comment-start-skip) "\\(//+\\|/\\*+\\)\\s *")
+-
+-  (set (make-local-variable 'beginning-of-defun-function) #'go-beginning-of-defun)
+-  (set (make-local-variable 'end-of-defun-function) #'go-end-of-defun)
+-
+-  (set (make-local-variable 'parse-sexp-lookup-properties) t)
+-  (if (boundp 'syntax-propertize-function)
+-      (set (make-local-variable 'syntax-propertize-function) #'go-propertize-syntax)
+-    (set (make-local-variable 'font-lock-syntactic-keywords)
+-         go--font-lock-syntactic-keywords)
+-    (set (make-local-variable 'font-lock-multiline) t))
+-
+-  (set (make-local-variable 'go-dangling-cache) (make-hash-table :test 'eql))
+-  (add-hook 'before-change-functions (lambda (x y) (setq go-dangling-cache (make-hash-table :test 'eql))) t t)
+-
+-  ;; ff-find-other-file
+-  (setq ff-other-file-alist 'go-other-file-alist)
+-
+-  (setq imenu-generic-expression
+-        '(("type" "^type *\\([^ \t\n\r\f]*\\)" 1)
+-          ("func" "^func *\\(.*\\) {" 1)))
+-  (imenu-add-to-menubar "Index")
+-
+-  ;; Go style
+-  (setq indent-tabs-mode t)
+-
+-  ;; Handle unit test failure output in compilation-mode
+-  ;;
+-  ;; Note the final t argument to add-to-list for append, ie put these at the
+-  ;; *ends* of compilation-error-regexp-alist[-alist]. We want go-test to be
+-  ;; handled first, otherwise other elements will match that don't work, and
+-  ;; those alists are traversed in *reverse* order:
+-  ;; http://lists.gnu.org/archive/html/bug-gnu-emacs/2001-12/msg00674.html
+-  (when (and (boundp 'compilation-error-regexp-alist)
+-             (boundp 'compilation-error-regexp-alist-alist))
+-    (add-to-list 'compilation-error-regexp-alist 'go-test t)
+-    (add-to-list 'compilation-error-regexp-alist-alist
+-                 '(go-test . ("^\t+\\([^()\t\n]+\\):\\([0-9]+\\):? .*$" 1 2)) t)))
+-
+-;;;###autoload
+-(add-to-list 'auto-mode-alist (cons "\\.go\\'" 'go-mode))
+-
+-(defun go--apply-rcs-patch (patch-buffer)
+-  "Apply an RCS-formatted diff from PATCH-BUFFER to the current
+-buffer."
+-  (let ((target-buffer (current-buffer))
+-        ;; Relative offset between buffer line numbers and line numbers
+-        ;; in patch.
+-        ;;
+-        ;; Line numbers in the patch are based on the source file, so
+-        ;; we have to keep an offset when making changes to the
+-        ;; buffer.
+-        ;;
+-        ;; Appending lines decrements the offset (possibly making it
+-        ;; negative), deleting lines increments it. This order
+-        ;; simplifies the forward-line invocations.
+-        (line-offset 0))
+-    (save-excursion
+-      (with-current-buffer patch-buffer
+-        (goto-char (point-min))
+-        (while (not (eobp))
+-          (unless (looking-at "^\\([ad]\\)\\([0-9]+\\) \\([0-9]+\\)")
+-            (error "invalid rcs patch or internal error in go--apply-rcs-patch"))
+-          (forward-line)
+-          (let ((action (match-string 1))
+-                (from (string-to-number (match-string 2)))
+-                (len  (string-to-number (match-string 3))))
+-            (cond
+-             ((equal action "a")
+-              (let ((start (point)))
+-                (forward-line len)
+-                (let ((text (buffer-substring start (point))))
+-                  (with-current-buffer target-buffer
+-                    (decf line-offset len)
+-                    (goto-char (point-min))
+-                    (forward-line (- from len line-offset))
+-                    (insert text)))))
+-             ((equal action "d")
+-              (with-current-buffer target-buffer
+-                (go--goto-line (- from line-offset))
+-                (incf line-offset len)
+-                (go--delete-whole-line len)))
+-             (t
+-              (error "invalid rcs patch or internal error in go--apply-rcs-patch")))))))))
+-
+-(defun gofmt ()
+-  "Formats the current buffer according to the gofmt tool."
+-
+-  (interactive)
+-  (let ((tmpfile (make-temp-file "gofmt" nil ".go"))
+-        (patchbuf (get-buffer-create "*Gofmt patch*"))
+-        (errbuf (get-buffer-create "*Gofmt Errors*"))
+-        (coding-system-for-read 'utf-8)
+-        (coding-system-for-write 'utf-8))
+-
+-    (with-current-buffer errbuf
+-      (setq buffer-read-only nil)
+-      (erase-buffer))
+-    (with-current-buffer patchbuf
+-      (erase-buffer))
+-
+-    (write-region nil nil tmpfile)
+-
+-    ;; We're using errbuf for the mixed stdout and stderr output. This
+-    ;; is not an issue because gofmt -w does not produce any stdout
+-    ;; output in case of success.
+-    (if (zerop (call-process gofmt-command nil errbuf nil "-w" tmpfile))
+-        (if (zerop (call-process-region (point-min) (point-max) "diff" nil patchbuf nil "-n" "-" tmpfile))
+-            (progn
+-              (kill-buffer errbuf)
+-              (message "Buffer is already gofmted"))
+-          (go--apply-rcs-patch patchbuf)
+-          (kill-buffer errbuf)
+-          (message "Applied gofmt"))
+-      (message "Could not apply gofmt. Check errors for details")
+-      (gofmt--process-errors (buffer-file-name) tmpfile errbuf))
+-
+-    (kill-buffer patchbuf)
+-    (delete-file tmpfile)))
+-
+-
+-(defun gofmt--process-errors (filename tmpfile errbuf)
+-  ;; Convert the gofmt stderr to something understood by the compilation mode.
+-  (with-current-buffer errbuf
+-    (goto-char (point-min))
+-    (insert "gofmt errors:\n")
+-    (while (search-forward-regexp (concat "^\\(" (regexp-quote tmpfile) "\\):") nil t)
+-      (replace-match (file-name-nondirectory filename) t t nil 1))
+-    (compilation-mode)
+-    (display-buffer errbuf)))
+-
+-;;;###autoload
+-(defun gofmt-before-save ()
+-  "Add this to .emacs to run gofmt on the current buffer when saving:
+- (add-hook 'before-save-hook 'gofmt-before-save).
+-
+-Note that this will cause go-mode to get loaded the first time
+-you save any file, kind of defeating the point of autoloading."
+-
+-  (interactive)
+-  (when (eq major-mode 'go-mode) (gofmt)))
+-
+-(defun godoc--read-query ()
+-  "Read a godoc query from the minibuffer."
+-  ;; Compute the default query as the symbol under the cursor.
+-  ;; TODO: This does the wrong thing for e.g. multipart.NewReader (it only grabs
+-  ;; half) but I see no way to disambiguate that from e.g. foobar.SomeMethod.
+-  (let* ((bounds (bounds-of-thing-at-point 'symbol))
+-         (symbol (if bounds
+-                     (buffer-substring-no-properties (car bounds)
+-                                                     (cdr bounds)))))
+-    (completing-read (if symbol
+-                         (format "godoc (default %s): " symbol)
+-                       "godoc: ")
+-                     (go--old-completion-list-style (go-packages)) nil nil nil 'go-godoc-history symbol)))
+-
+-(defun godoc--get-buffer (query)
+-  "Get an empty buffer for a godoc query."
+-  (let* ((buffer-name (concat "*godoc " query "*"))
+-         (buffer (get-buffer buffer-name)))
+-    ;; Kill the existing buffer if it already exists.
+-    (when buffer (kill-buffer buffer))
+-    (get-buffer-create buffer-name)))
+-
+-(defun godoc--buffer-sentinel (proc event)
+-  "Sentinel function run when godoc command completes."
+-  (with-current-buffer (process-buffer proc)
+-    (cond ((string= event "finished\n")  ;; Successful exit.
+-           (goto-char (point-min))
+-           (view-mode 1)
+-           (display-buffer (current-buffer) t))
+-          ((/= (process-exit-status proc) 0)  ;; Error exit.
+-           (let ((output (buffer-string)))
+-             (kill-buffer (current-buffer))
+-             (message (concat "godoc: " output)))))))
+-
+-;;;###autoload
+-(defun godoc (query)
+-  "Show Go documentation for a query, much like M-x man."
+-  (interactive (list (godoc--read-query)))
+-  (unless (string= query "")
+-    (set-process-sentinel
+-     (start-process-shell-command "godoc" (godoc--get-buffer query)
+-                                  (concat "godoc " query))
+-     'godoc--buffer-sentinel)
+-    nil))
+-
+-(defun godoc-at-point (point)
+-  "Show Go documentation for the identifier at POINT.
+-
+-`godoc-at-point' requires godef to work.
+-
+-Due to a limitation in godoc, it is not possible to differentiate
+-between functions and methods, which may cause `godoc-at-point'
+-to display more documentation than desired."
+-  ;; TODO(dominikh): Support executing godoc-at-point on a package
+-  ;; name.
+-  (interactive "d")
+-  (condition-case nil
+-      (let* ((output (godef--call point))
+-             (file (car output))
+-             (name-parts (split-string (cadr output) " "))
+-             (first (car name-parts)))
+-        (if (not (godef--successful-p file))
+-            (message "%s" (godef--error file))
+-          (godoc (format "%s %s"
+-                         (file-name-directory file)
+-                         (if (or (string= first "type") (string= first "const"))
+-                             (cadr name-parts)
+-                           (car name-parts))))))
+-    (file-error (message "Could not run godef binary"))))
+-
+-(defun go-goto-imports ()
+-  "Move point to the block of imports.
+-
+-If using
+-
+-  import (
+-    \"foo\"
+-    \"bar\"
+-  )
+-
+-it will move point directly behind the last import.
+-
+-If using
+-
+-  import \"foo\"
+-  import \"bar\"
+-
+-it will move point to the next line after the last import.
+-
+-If no imports can be found, point will be moved after the package
+-declaration."
+-  (interactive)
+-  ;; FIXME if there's a block-commented import before the real
+-  ;; imports, we'll jump to that one.
+-
+-  ;; Generally, this function isn't very forgiving. it'll bark on
+-  ;; extra whitespace. It works well for clean code.
+-  (let ((old-point (point)))
+-    (goto-char (point-min))
+-    (cond
+-     ((re-search-forward "^import ()" nil t)
+-      (backward-char 1)
+-      'block-empty)
+-     ((re-search-forward "^import ([^)]+)" nil t)
+-      (backward-char 2)
+-      'block)
+-     ((re-search-forward "\\(^import \\([^\"]+ \\)?\"[^\"]+\"\n?\\)+" nil t)
+-      'single)
+-     ((re-search-forward "^[[:space:]\n]*package .+?\n" nil t)
+-      (message "No imports found, moving point after package declaration")
+-      'none)
+-     (t
+-      (goto-char old-point)
+-      (message "No imports or package declaration found. Is this really a Go file?")
+-      'fail))))
+-
+-(defun go-play-buffer ()
+-  "Like `go-play-region', but acts on the entire buffer."
+-  (interactive)
+-  (go-play-region (point-min) (point-max)))
+-
+-(defun go-play-region (start end)
+-  "Send the region to the Playground and stores the resulting
+-link in the kill ring."
+-  (interactive "r")
+-  (let* ((url-request-method "POST")
+-         (url-request-extra-headers
+-          '(("Content-Type" . "application/x-www-form-urlencoded")))
+-         (url-request-data
+-          (encode-coding-string
+-           (buffer-substring-no-properties start end)
+-           'utf-8))
+-         (content-buf (url-retrieve
+-                       "http://play.golang.org/share"
+-                       (lambda (arg)
+-                         (cond
+-                          ((equal :error (car arg))
+-                           (signal 'go-play-error (cdr arg)))
+-                          (t
+-                           (re-search-forward "\n\n")
+-                           (kill-new (format "http://play.golang.org/p/%s" (buffer-substring (point) (point-max))))
+-                           (message "http://play.golang.org/p/%s" (buffer-substring (point) (point-max)))))))))))
+-
+-;;;###autoload
+-(defun go-download-play (url)
+-  "Downloads a paste from the playground and inserts it in a Go
+-buffer. Tries to look for a URL at point."
+-  (interactive (list (read-from-minibuffer "Playground URL: " (ffap-url-p (ffap-string-at-point 'url)))))
+-  (with-current-buffer
+-      (let ((url-request-method "GET") url-request-data url-request-extra-headers)
+-        (url-retrieve-synchronously (concat url ".go")))
+-    (let ((buffer (generate-new-buffer (concat (car (last (split-string url "/"))) ".go"))))
+-      (goto-char (point-min))
+-      (re-search-forward "\n\n")
+-      (copy-to-buffer buffer (point) (point-max))
+-      (kill-buffer)
+-      (with-current-buffer buffer
+-        (go-mode)
+-        (switch-to-buffer buffer)))))
+-
+-(defun go-propertize-syntax (start end)
+-  (save-excursion
+-    (goto-char start)
+-    (while (search-forward "\\" end t)
+-      (put-text-property (1- (point)) (point) 'syntax-table (if (= (char-after) ?`) '(1) '(9))))))
+-
+-(defun go-import-add (arg import)
+-  "Add a new import to the list of imports.
+-
+-When called with a prefix argument asks for an alternative name
+-to import the package as.
+-
+-If no list exists yet, one will be created if possible.
+-
+-If an identical import has been commented, it will be
+-uncommented, otherwise a new import will be added."
+-
+-  ;; - If there's a matching `// import "foo"`, uncomment it
+-  ;; - If we're in an import() block and there's a matching `"foo"`, uncomment it
+-  ;; - Otherwise add a new import, with the appropriate syntax
+-  (interactive
+-   (list
+-    current-prefix-arg
+-    (replace-regexp-in-string "^[\"']\\|[\"']$" "" (completing-read "Package: " (go--old-completion-list-style (go-packages))))))
+-  (save-excursion
+-    (let (as line import-start)
+-      (if arg
+-          (setq as (read-from-minibuffer "Import as: ")))
+-      (if as
+-          (setq line (format "%s \"%s\"" as import))
+-        (setq line (format "\"%s\"" import)))
+-
+-      (goto-char (point-min))
+-      (if (re-search-forward (concat "^[[:space:]]*//[[:space:]]*import " line "$") nil t)
+-          (uncomment-region (line-beginning-position) (line-end-position))
+-        (case (go-goto-imports)
+-          ('fail (message "Could not find a place to add import."))
+-          ('block-empty
+-           (insert "\n\t" line "\n"))
+-          ('block
+-              (save-excursion
+-                (re-search-backward "^import (")
+-                (setq import-start (point)))
+-            (if (re-search-backward (concat "^[[:space:]]*//[[:space:]]*" line "$")  import-start t)
+-                (uncomment-region (line-beginning-position) (line-end-position))
+-              (insert "\n\t" line)))
+-          ('single (insert "import " line "\n"))
+-          ('none (insert "\nimport (\n\t" line "\n)\n")))))))
+-
+-(defun go-root-and-paths ()
+-  (let* ((output (split-string (shell-command-to-string (concat go-command " env GOROOT GOPATH"))
+-                               "\n"))
+-         (root (car output))
+-         (paths (split-string (cadr output) ":")))
+-    (append (list root) paths)))
+-
+-(defun go--string-prefix-p (s1 s2 &optional ignore-case)
+-  "Return non-nil if S1 is a prefix of S2.
+-If IGNORE-CASE is non-nil, the comparison is case-insensitive."
+-  (eq t (compare-strings s1 nil nil
+-                         s2 0 (length s1) ignore-case)))
+-
+-(defun go--directory-dirs (dir)
+-  "Recursively return all subdirectories in DIR."
+-  (if (file-directory-p dir)
+-      (let ((dir (directory-file-name dir))
+-            (dirs '())
+-            (files (directory-files dir nil nil t)))
+-        (dolist (file files)
+-          (unless (member file '("." ".."))
+-            (let ((file (concat dir "/" file)))
+-              (if (file-directory-p file)
+-                  (setq dirs (append (cons file
+-                                           (go--directory-dirs file))
+-                                     dirs))))))
+-        dirs)
+-    '()))
+-
+-
+-(defun go-packages ()
+-  (sort
+-   (delete-dups
+-    (mapcan
+-     (lambda (topdir)
+-       (let ((pkgdir (concat topdir "/pkg/")))
+-         (mapcan (lambda (dir)
+-                   (mapcar (lambda (file)
+-                             (let ((sub (substring file (length pkgdir) -2)))
+-                               (unless (or (go--string-prefix-p "obj/" sub) (go--string-prefix-p "tool/" sub))
+-                                 (mapconcat #'identity (cdr (split-string sub "/")) "/"))))
+-                           (if (file-directory-p dir)
+-                               (directory-files dir t "\\.a$"))))
+-                 (if (file-directory-p pkgdir)
+-                     (go--directory-dirs pkgdir)))))
+-     (go-root-and-paths)))
+-   #'string<))
+-
+-(defun go-unused-imports-lines ()
+-  ;; FIXME Technically, -o /dev/null fails in quite some cases (on
+-  ;; Windows, when compiling from within GOPATH). Practically,
+-  ;; however, it has the same end result: There won't be a
+-  ;; compiled binary/archive, and we'll get our import errors when
+-  ;; there are any.
+-  (reverse (remove nil
+-                   (mapcar
+-                    (lambda (line)
+-                      (if (string-match "^\\(.+\\):\\([[:digit:]]+\\): imported and not used: \".+\".*$" line)
+-                          (if (string= (file-truename (match-string 1 line)) (file-truename buffer-file-name))
+-                              (string-to-number (match-string 2 line)))))
+-                    (split-string (shell-command-to-string
+-                                   (concat go-command
+-                                           (if (string-match "_test\.go$" buffer-file-truename)
+-                                               " test -c"
+-                                             " build -o /dev/null"))) "\n")))))
+-
+-(defun go-remove-unused-imports (arg)
+-  "Removes all unused imports. If ARG is non-nil, unused imports
+-will be commented, otherwise they will be removed completely."
+-  (interactive "P")
+-  (save-excursion
+-    (let ((cur-buffer (current-buffer)) flymake-state lines)
+-      (when (boundp 'flymake-mode)
+-        (setq flymake-state flymake-mode)
+-        (flymake-mode-off))
+-      (save-some-buffers nil (lambda () (equal cur-buffer (current-buffer))))
+-      (if (buffer-modified-p)
+-          (message "Cannot operate on unsaved buffer")
+-        (setq lines (go-unused-imports-lines))
+-        (dolist (import lines)
+-          (go--goto-line import)
+-          (beginning-of-line)
+-          (if arg
+-              (comment-region (line-beginning-position) (line-end-position))
+-            (go--delete-whole-line)))
+-        (message "Removed %d imports" (length lines)))
+-      (if flymake-state (flymake-mode-on)))))
+-
+-(defun godef--find-file-line-column (specifier other-window)
+-  "Given a file name in the format of `filename:line:column',
+-visit FILENAME and go to line LINE and column COLUMN."
+-  (if (not (string-match "\\(.+\\):\\([0-9]+\\):\\([0-9]+\\)" specifier))
+-      ;; We've only been given a directory name
+-      (funcall (if other-window #'find-file-other-window #'find-file) specifier)
+-    (let ((filename (match-string 1 specifier))
+-          (line (string-to-number (match-string 2 specifier)))
+-          (column (string-to-number (match-string 3 specifier))))
+-      (with-current-buffer (funcall (if other-window #'find-file-other-window #'find-file) filename)
+-        (go--goto-line line)
+-        (beginning-of-line)
+-        (forward-char (1- column))
+-        (if (buffer-modified-p)
+-            (message "Buffer is modified, file position might not have been correct"))))))
+-
+-(defun godef--call (point)
+-  "Call godef, acquiring definition position and expression
+-description at POINT."
+-  (if (go--xemacs-p)
+-      (error "godef does not reliably work in XEmacs, expect bad results"))
+-  (if (not (buffer-file-name (go--coverage-origin-buffer)))
+-      (error "Cannot use godef on a buffer without a file name")
+-    (let ((outbuf (get-buffer-create "*godef*")))
+-      (with-current-buffer outbuf
+-        (erase-buffer))
+-      (call-process-region (point-min)
+-                           (point-max)
+-                           "godef"
+-                           nil
+-                           outbuf
+-                           nil
+-                           "-i"
+-                           "-t"
+-                           "-f"
+-                           (file-truename (buffer-file-name (go--coverage-origin-buffer)))
+-                           "-o"
+-                           (number-to-string (go--position-bytes point)))
+-      (with-current-buffer outbuf
+-        (split-string (buffer-substring-no-properties (point-min) (point-max)) "\n")))))
+-
+-(defun godef--successful-p (output)
+-  (not (or (string= "-" output)
+-           (string= "godef: no identifier found" output)
+-           (go--string-prefix-p "godef: no declaration found for " output)
+-           (go--string-prefix-p "error finding import path for " output))))
+-
+-(defun godef--error (output)
+-  (cond
+-   ((godef--successful-p output)
+-    nil)
+-   ((string= "-" output)
+-    "godef: expression is not defined anywhere")
+-   (t
+-    output)))
+-
+-(defun godef-describe (point)
+-  "Describe the expression at POINT."
+-  (interactive "d")
+-  (condition-case nil
+-      (let ((description (cdr (butlast (godef--call point) 1))))
+-        (if (not description)
+-            (message "No description found for expression at point")
+-          (message "%s" (mapconcat #'identity description "\n"))))
+-    (file-error (message "Could not run godef binary"))))
+-
+-(defun godef-jump (point &optional other-window)
+-  "Jump to the definition of the expression at POINT."
+-  (interactive "d")
+-  (condition-case nil
+-      (let ((file (car (godef--call point))))
+-        (if (not (godef--successful-p file))
+-            (message "%s" (godef--error file))
+-          (push-mark)
+-          (ring-insert find-tag-marker-ring (point-marker))
+-          (godef--find-file-line-column file other-window)))
+-    (file-error (message "Could not run godef binary"))))
+-
+-(defun godef-jump-other-window (point)
+-  (interactive "d")
+-  (godef-jump point t))
+-
+-(defun go--goto-line (line)
+-  (goto-char (point-min))
+-  (forward-line (1- line)))
+-
+-(defun go--line-column-to-point (line column)
+-  (save-excursion
+-    (go--goto-line line)
+-    (forward-char (1- column))
+-    (point)))
+-
+-(defstruct go--covered
+-  start-line start-column end-line end-column covered count)
+-
+-(defun go--coverage-file ()
+-  "Return the coverage file to use, either by reading it from the
+-current coverage buffer or by prompting for it."
+-  (if (boundp 'go--coverage-current-file-name)
+-      go--coverage-current-file-name
+-    (read-file-name "Coverage file: " nil nil t)))
+-
+-(defun go--coverage-origin-buffer ()
+-  "Return the buffer to base the coverage on."
+-  (or (buffer-base-buffer) (current-buffer)))
+-
+-(defun go--coverage-face (count divisor)
+-  "Return the intensity face for COUNT when using DIVISOR
+-to scale it to a range [0,10].
+-
+-DIVISOR scales the absolute cover count to values from 0 to 10.
+-For DIVISOR = 0 the count will always translate to 8."
+-  (let* ((norm (cond
+-                ((= count 0)
+-                 -0.1) ;; Uncovered code, set to -0.1 so n becomes 0.
+-                ((= divisor 0)
+-                 0.8) ;; covermode=set, set to 0.8 so n becomes 8.
+-                (t
+-                 (/ (log count) divisor))))
+-         (n (1+ (floor (* norm 9))))) ;; Convert normalized count [0,1] to intensity [0,10]
+-    (concat "go-coverage-" (number-to-string n))))
+-
+-(defun go--coverage-make-overlay (range divisor)
+-  "Create a coverage overlay for a RANGE of covered/uncovered
+-code. Uses DIVISOR to scale absolute counts to a [0,10] scale."
+-  (let* ((count (go--covered-count range))
+-         (face (go--coverage-face count divisor))
+-         (ov (make-overlay (go--line-column-to-point (go--covered-start-line range)
+-                                                     (go--covered-start-column range))
+-                           (go--line-column-to-point (go--covered-end-line range)
+-                                                     (go--covered-end-column range)))))
+-
+-    (overlay-put ov 'face face)
+-    (overlay-put ov 'help-echo (format "Count: %d" count))))
+-
+-(defun go--coverage-clear-overlays ()
+-  "Remove existing overlays and put a single untracked overlay
+-over the entire buffer."
+-  (remove-overlays)
+-  (overlay-put (make-overlay (point-min) (point-max))
+-               'face
+-               'go-coverage-untracked))
+-
+-(defun go--coverage-parse-file (coverage-file file-name)
+-  "Parse COVERAGE-FILE and extract coverage information and
+-divisor for FILE-NAME."
+-  (let (ranges
+-        (max-count 0))
+-    (with-temp-buffer
+-      (insert-file-contents coverage-file)
+-      (go--goto-line 2) ;; Skip over mode
+-      (while (not (eobp))
+-        (let* ((parts (split-string (buffer-substring (point-at-bol) (point-at-eol)) ":"))
+-               (file (car parts))
+-               (rest (split-string (nth 1 parts) "[., ]")))
+-
+-          (destructuring-bind
+-              (start-line start-column end-line end-column num count)
+-              (mapcar #'string-to-number rest)
+-
+-            (when (string= (file-name-nondirectory file) file-name)
+-              (if (> count max-count)
+-                  (setq max-count count))
+-              (push (make-go--covered :start-line start-line
+-                                      :start-column start-column
+-                                      :end-line end-line
+-                                      :end-column end-column
+-                                      :covered (/= count 0)
+-                                      :count count)
+-                    ranges)))
+-
+-          (forward-line)))
+-
+-      (list ranges (if (> max-count 0) (log max-count) 0)))))
+-
+-(defun go-coverage (&optional coverage-file)
+-  "Open a clone of the current buffer and overlay it with
+-coverage information gathered via go test -coverprofile=COVERAGE-FILE.
+-
+-If COVERAGE-FILE is nil, it will either be inferred from the
+-current buffer if it's already a coverage buffer, or be prompted
+-for."
+-  (interactive)
+-  (let* ((cur-buffer (current-buffer))
+-         (origin-buffer (go--coverage-origin-buffer))
+-         (gocov-buffer-name (concat (buffer-name origin-buffer) "<gocov>"))
+-         (coverage-file (or coverage-file (go--coverage-file)))
+-         (ranges-and-divisor (go--coverage-parse-file
+-                              coverage-file
+-                              (file-name-nondirectory (buffer-file-name origin-buffer))))
+-         (cov-mtime (nth 5 (file-attributes coverage-file)))
+-         (cur-mtime (nth 5 (file-attributes (buffer-file-name origin-buffer)))))
+-
+-    (if (< (float-time cov-mtime) (float-time cur-mtime))
+-        (message "Coverage file is older than the source file."))
+-
+-    (with-current-buffer (or (get-buffer gocov-buffer-name)
+-                             (make-indirect-buffer origin-buffer gocov-buffer-name t))
+-      (set (make-local-variable 'go--coverage-current-file-name) coverage-file)
+-
+-      (save-excursion
+-        (go--coverage-clear-overlays)
+-        (dolist (range (car ranges-and-divisor))
+-          (go--coverage-make-overlay range (cadr ranges-and-divisor))))
+-
+-      (if (not (eq cur-buffer (current-buffer)))
+-          (display-buffer (current-buffer) #'display-buffer-reuse-window)))))
+-
+-(provide 'go-mode)
+diff --git a/misc/fraise/go.plist b/misc/fraise/go.plist
+deleted file mode 100644
+index 17f416221e..0000000000
+--- a/misc/fraise/go.plist
++++ /dev/null
+@@ -1,92 +0,0 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+-<plist version="1.0">
+-<dict>
+-	<key>beginCommand</key>
+-	<string></string>
+-	<key>endCommand</key>
+-	<string></string>
+-	<key>beginInstruction</key>
+-	<string></string>
+-	<key>endInstruction</key>
+-	<string></string>
+-	<key>beginVariable</key>
+-	<string></string>
+-	<key>endVariable</key>
+-	<string></string>
+-	<key>firstString</key>
+-	<string>&quot;</string>
+-	<key>secondString</key>
+-	<string>&apos;</string>
+-	<key>firstSingleLineComment</key>
+-	<string>//</string>
+-	<key>secondSingleLineComment</key>
+-	<string></string>
+-	<key>beginFirstMultiLineComment</key>
+-	<string>/*</string>
+-	<key>endFirstMultiLineComment</key>
+-	<string>*/</string>
+-	<key>beginSecondMultiLineComment</key>
+-	<string></string>
+-	<key>endSecondMultiLineComment</key>
+-	<string></string>
+-	<key>functionDefinition</key>
+-	<string>^func\s*.*\(.*\)\s?\{</string>
+-	<key>removeFromFunction</key>
+-	<string></string>
+-	<key>keywordsCaseSensitive</key>
+-	<true/>
+-	<key>recolourKeywordIfAlreadyColoured</key>
+-	<true/>
+-	<key>keywords</key>
+-	<array>
+-		<string>break</string>
+-		<string>case</string>
+-		<string>chan</string>
+-		<string>const</string>
+-		<string>continue</string>
+-		<string>default</string>
+-		<string>defer</string>
+-		<string>else</string>
+-		<string>fallthrough</string>
+-		<string>for</string>
+-		<string>func</string>
+-		<string>go</string>
+-		<string>goto</string>
+-		<string>if</string>
+-		<string>import</string>
+-		<string>interface</string>
+-		<string>map</string>
+-		<string>package</string>
+-		<string>range</string>
+-		<string>return</string>
+-		<string>select</string>
+-		<string>struct</string>
+-		<string>switch</string>
+-		<string>type</string>
+-		<string>var</string>
+-		<string>bool</string>
+-		<string>byte</string>
+-		<string>chan</string>
+-		<string>complex64</string>
+-		<string>complex128</string>
+-		<string>float32</string>
+-		<string>float64</string>
+-		<string>int</string>
+-		<string>int8</string>
+-		<string>int16</string>
+-		<string>int32</string>
+-		<string>int64</string>
+-		<string>map</string>
+-		<string>string</string>
+-		<string>uint</string>
+-		<string>uintptr</string>
+-		<string>uint8</string>
+-		<string>uint16</string>
+-		<string>uint32</string>
+-		<string>uint64</string>
+-	</array>
+-	<key>autocompleteWords</key>
+-	<array/>
+-</dict>
+-</plist>
+diff --git a/misc/fraise/readme.txt b/misc/fraise/readme.txt
+deleted file mode 100644
+index fb0f2c8c10..0000000000
+--- a/misc/fraise/readme.txt
++++ /dev/null
+@@ -1,16 +0,0 @@
+-##Instructions for enabling Go syntax highlighting in Fraise.app##
+-1. Move go.plist to /Applications/Fraise.app/Contents/Resources/Syntax\ Definitions/
+-2. Open /Applications/Fraise.app/Contents/Resources/SyntaxDefinitions.plist and add
+-
+-	<dict>
+-		<key>name</key>
+-		<string>GoogleGo</string>
+-		<key>file</key>
+-		<string>go</string>
+-		<key>extensions</key>
+-		<string>go</string>
+-	</dict>
+-	
+-before </array>
+-
+-3. Restart Fraise and you're good to Go!
+\ No newline at end of file
+diff --git a/misc/kate/go.xml b/misc/kate/go.xml
+deleted file mode 100644
+index 03f4f2a0c8..0000000000
+--- a/misc/kate/go.xml
++++ /dev/null
+@@ -1,150 +0,0 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<!DOCTYPE language SYSTEM "language.dtd">
+-<language name="Go" section="Sources"
+-          version="1.00" kateversion="2.4"
+-          indenter="cstyle"
+-          extensions="*.go"
+-          mimetype=""
+-          priority="5"
+-          author="The Go Authors"
+-          license="BSD">
+-  <highlighting>
+-    <list name="keywords">
+-      <item> break </item>
+-      <item> case </item>
+-      <item> chan </item>
+-      <item> const </item>
+-      <item> continue </item>
+-      <item> default </item>
+-      <item> defer </item>
+-      <item> else </item>
+-      <item> fallthrough </item>
+-      <item> for </item>
+-      <item> func </item>
+-      <item> go </item>
+-      <item> goto </item>
+-      <item> if </item>
+-      <item> import </item>
+-      <item> interface </item>
+-      <item> map </item>
+-      <item> package </item>
+-      <item> range </item>
+-      <item> return </item>
+-      <item> select </item>
+-      <item> struct </item>
+-      <item> switch </item>
+-      <item> type </item>
+-      <item> var </item>
+-    </list>
+-    <list name="predeclared">
+-      <item> false </item>
+-      <item> iota </item>
+-      <item> nil </item>
+-      <item> true </item>
+-    </list>
+-    <list name="types">
+-      <item> bool </item>
+-      <item> byte </item>
+-      <item> complex64 </item>
+-      <item> complex128 </item>
+-      <item> error </item>
+-      <item> float32 </item>
+-      <item> float64 </item>
+-      <item> int </item>
+-      <item> int8 </item>
+-      <item> int16 </item>
+-      <item> int32 </item>
+-      <item> int64 </item>
+-      <item> rune </item>
+-      <item> string </item>
+-      <item> uint </item>
+-      <item> uintptr </item>
+-      <item> uint8 </item>
+-      <item> uint16 </item>
+-      <item> uint32 </item>
+-      <item> uint64 </item>
+-    </list>
+-    <list name="functions">
+-      <item> append </item>
+-      <item> cap </item>
+-      <item> close </item>
+-      <item> complex </item>
+-      <item> copy </item>
+-      <item> delete </item>
+-      <item> imag </item>
+-      <item> len </item>
+-      <item> make </item>
+-      <item> new </item>
+-      <item> panic </item>
+-      <item> print </item>
+-      <item> println </item>
+-      <item> real </item>
+-      <item> recover </item>
+-    </list>
+-    <contexts>
+-      <context attribute="Normal Text" lineEndContext="#stay" name="Normal">
+-        <DetectSpaces />
+-        <keyword attribute="Keyword" context="#stay" String="keywords"/>
+-        <keyword attribute="Predeclared Identifier" context="#stay"
+-          String="predeclared"/>
+-        <keyword attribute="Data Type" context="#stay" String="types"/>
+-        <keyword attribute="Builtin Function" context="#stay" String="functions"/>
+-        <DetectIdentifier />
+-        <DetectChar attribute="Symbol" context="#stay" char="{" beginRegion="Brace1" />
+-        <DetectChar attribute="Symbol" context="#stay" char="}" endRegion="Brace1" />
+-        <HlCOct attribute="Octal" context="#stay"/>
+-        <HlCHex attribute="Hex" context="#stay"/>
+-        <HlCChar attribute="Char" context="#stay"/>
+-        <DetectChar attribute="String" context="String" char="&quot;"/>
+-        <DetectChar attribute="String" context="Multiline String" char="`"/>
+-        <Detect2Chars attribute="Comment" context="Comment 1" char="/" char1="/"/>
+-        <Detect2Chars attribute="Comment" context="Comment 2" char="/" char1="*" beginRegion="Comment"/>
+-        <AnyChar attribute="Symbol" context="#stay" String=":!%&amp;()+,-/.*&lt;=&gt;?[]|~^&#59;"/>
+-      </context>
+-
+-      <context attribute="String" lineEndContext="#pop" name="String">
+-        <LineContinue attribute="String" context="#stay"/>
+-        <HlCStringChar attribute="String Char" context="#stay"/>
+-        <DetectChar attribute="String" context="#pop" char="&quot;"/>
+-      </context>
+-
+-      <context attribute="String" lineEndContext="#stay" name="Multiline String">
+-        <LineContinue attribute="String" context="#stay"/>
+-        <HlCStringChar attribute="String Char" context="#stay"/>
+-        <DetectChar attribute="String" context="#pop" char="`"/>
+-      </context>
+-
+-      <context attribute="Comment" lineEndContext="#pop" name="Comment 1">
+-        <LineContinue attribute="Comment" context="#stay"/>
+-      </context>
+-
+-      <context attribute="Comment" lineEndContext="#stay" name="Comment 2">
+-        <Detect2Chars attribute="Comment" context="#pop" char="*" char1="/" endRegion="Comment"/>
+-      </context>
+-    </contexts>
+-    <itemDatas>
+-      <itemData name="Normal Text"  defStyleNum="dsNormal" spellChecking="false"/>
+-      <itemData name="Keyword"      defStyleNum="dsKeyword" spellChecking="false"/>
+-      <itemData name="Predeclared Identifier" defStyleNum="dsOthers" spellChecking="false"/>
+-      <itemData name="Builtin Function" defStyleNum="dsFunction" spellChecking="false"/>
+-      <itemData name="Data Type"    defStyleNum="dsDataType" spellChecking="false"/>
+-      <itemData name="Decimal"      defStyleNum="dsDecVal" spellChecking="false"/>
+-      <itemData name="Octal"        defStyleNum="dsBaseN" spellChecking="false"/>
+-      <itemData name="Hex"          defStyleNum="dsBaseN" spellChecking="false"/>
+-      <itemData name="Float"        defStyleNum="dsFloat" spellChecking="false"/>
+-      <itemData name="Char"         defStyleNum="dsChar" spellChecking="false"/>
+-      <itemData name="String"       defStyleNum="dsString"/>
+-      <itemData name="String Char"  defStyleNum="dsChar"/>
+-      <itemData name="Comment"      defStyleNum="dsComment"/>
+-      <itemData name="Symbol"       defStyleNum="dsNormal" spellChecking="false"/>
+-      <itemData name="Error"        defStyleNum="dsError" spellChecking="false"/>
+-    </itemDatas>
+-  </highlighting>
+-  <general>
+-    <comments>
+-      <comment name="singleLine" start="//" />
+-      <comment name="multiLine" start="/*" end="*/" />
+-    </comments>
+-    <keywords casesensitive="1" additionalDeliminator="'&quot;" />
+-  </general>
+-</language>
+diff --git a/misc/notepadplus/README b/misc/notepadplus/README
+deleted file mode 100644
+index fca4f5f099..0000000000
+--- a/misc/notepadplus/README
++++ /dev/null
+@@ -1,59 +0,0 @@
+-Notepad++ syntax highlighting
+------------------------------
+-
+-The userDefineLang.xml uses the new User Defined Language system (UDL2),
+-which needs Notepad++ v6.2 or higher.
+-
+-Installing from Notepad++ Installer
+-
+-  1. Add the contents of userDefineLang.xml at %APPDATA%\Notepad++\userDefineLang.xml
+-     between <NotepadPlus> ... </NotepadPlus>
+-  2. Restart Notepad++
+-
+-Installing from Notepad++ zip/7z package
+-
+-  1. Given a Notepad++ installation at <DIR>.
+-  2. Add the contents of userDefineLang.xml at <DIR>\userDefineLang.xml
+-     between <NotepadPlus> ... </NotepadPlus>
+-  3. Restart Notepad++
+-
+-Reference
+-
+-  1. http://sourceforge.net/apps/mediawiki/notepad-plus/index.php?title=User_Defined_Languages
+-  2. http://notepad-plus-plus.org/news/notepad-6.2-release-udl2.html
+-  3. http://udl20.weebly.com/index.html
+-
+-
+-Notepad++ keyword auto-completion
+----------------------------------
+-
+-  1. Given a Notepad++ installation at <DIR>.
+-  2. Copy go.xml to <DIR>\plugins\APIs
+-  3. Restart Notepad++
+-
+-Reference
+-
+-  1. http://sourceforge.net/apps/mediawiki/notepad-plus/index.php?title=Auto_Completion
+-
+-Notepad++ Function List
+------------------------
+-
+-The functionList.xml uses the Function List Pane new feature,
+-which needs Notepad++ v6.4 or higher.
+-
+-Installing from Notepad++ Installer
+-
+-  1. Add the contents of userDefineLang.xml at %APPDATA%\Notepad++\functionList.xml
+-     between <associationMap> ... </associationMap> and <parsers> ... </parsers>
+-  2. Restart Notepad++
+-
+-Installing from Notepad++ zip/7z package
+-
+-  1. Given a Notepad++ installation at <DIR>.
+-  2. Add the contents of functionList.xml at <DIR>\functionList.xml
+-     between <associationMap> ... </associationMap> and <parsers> ... </parsers>
+-  3. Restart Notepad++
+-
+-Reference
+-
+-  1. http://notepad-plus-plus.org/features/function-list.html
+diff --git a/misc/notepadplus/functionList.xml b/misc/notepadplus/functionList.xml
+deleted file mode 100644
+index 7c605db4f0..0000000000
+--- a/misc/notepadplus/functionList.xml
++++ /dev/null
+@@ -1,50 +0,0 @@
+-<!-- <NotepadPlus> -->
+-	<!-- <functionList> -->
+-		<!-- <associationMap> -->
+-
+-		<!--
+-			if npp version == 6.4:
+-			<association ext=".go" id="go"/>
+-
+-			if npp version >= 6.5:
+-			<association userDefinedLangName="go" id="go"/>
+-		-->
+-
+-		<!-- </associationMap> -->
+-		<!-- <parsers> -->
+-			<parser id="go" displayName="Go" commentExpr="((/\*.*?\*)/|(//.*?$))">
+-				<classRange
+-					mainExpr="^type\s+\w+\s+interface\s*\{"
+-					openSymbole = "\{"
+-					closeSymbole = "\}"
+-					displayMode="node">
+-					<className>
+-						<nameExpr expr="type\s+\w+"/>
+-						<nameExpr expr="\s+\w+"/>
+-						<nameExpr expr="\w+"/>
+-					</className>
+-					<function
+-						mainExpr="^\s+\w+\s*\(">
+-						<functionName>
+-							<funcNameExpr expr="\w+"/>
+-						</functionName>
+-					</function>
+-				</classRange>
+-				<function
+-					mainExpr="(^func\s+\w+)|(^func\s*\(\s*\w*\s*\*?\s*\w+\s*\)\s*\w+)"
+-					displayMode="$className->$functionName">
+-					<functionName>
+-						<nameExpr expr="((func\s+\w+)|(\)\s*\w+))"/>
+-						<nameExpr expr="((\s+\w+)|(\)\s*\w+))"/>
+-						<nameExpr expr="\w+"/>
+-					</functionName>
+-					<className>
+-						<nameExpr expr="\w+\s*\)"/>
+-						<nameExpr expr="\w+"/>
+-					</className>
+-				</function>
+-			</parser>
+-
+-		<!-- </parsers> -->
+-	<!-- </functionList> -->
+-<!-- </NotepadPlus> -->
+diff --git a/misc/notepadplus/go.xml b/misc/notepadplus/go.xml
+deleted file mode 100644
+index 59e4116d6d..0000000000
+--- a/misc/notepadplus/go.xml
++++ /dev/null
+@@ -1,133 +0,0 @@
+-<NotepadPlus>
+-	<!-- Go Programming Language  builtins and keywords -->
+-	<AutoComplete>
+-		<KeyWord name="append" func="yes">
+-			<Overload retVal="[]Type">
+-				<Param name="slice []Type" />
+-				<Param name="elems ...Type" />
+-			</Overload>
+-		</KeyWord>
+-		<KeyWord name="bool" />
+-		<KeyWord name="break" />
+-		<KeyWord name="byte" />
+-		<KeyWord name="cap" func="yes">
+-			<Overload retVal="int">
+-				<Param name="v Type" />
+-			</Overload>
+-		</KeyWord>
+-		<KeyWord name="case" />
+-		<KeyWord name="chan" />
+-		<KeyWord name="close" func="yes">
+-			<Overload retVal="">
+-				<Param name="c chan<- Type" />
+-			</Overload>
+-		</KeyWord>
+-		<KeyWord name="complex" func="yes">
+-			<Overload retVal="ComplexType">
+-				<Param name="r" />
+-				<Param name="i FloatType" />
+-			</Overload>
+-		</KeyWord>
+-		<KeyWord name="complex128" />
+-		<KeyWord name="complex64" />
+-		<KeyWord name="const" />
+-		<KeyWord name="continue" />
+-		<KeyWord name="copy" func="yes">
+-			<Overload retVal="int">
+-				<Param name="dst" />
+-				<Param name="src []Type" />
+-			</Overload>
+-		</KeyWord>
+-		<KeyWord name="default" />
+-		<KeyWord name="defer" />
+-		<KeyWord name="delete" func="yes">
+-			<Overload retVal="">
+-				<Param name="m map[Type]Type1" />
+-				<Param name="key Type" />
+-			</Overload>
+-		</KeyWord>
+-		<KeyWord name="else" />
+-		<KeyWord name="error" />
+-		<KeyWord name="fallthrough" />
+-		<KeyWord name="false" />
+-		<KeyWord name="float32" />
+-		<KeyWord name="float64" />
+-		<KeyWord name="for" />
+-		<KeyWord name="func" />
+-		<KeyWord name="go" />
+-		<KeyWord name="goto" />
+-		<KeyWord name="if" />
+-		<KeyWord name="iota" />
+-		<KeyWord name="imag" func="yes">
+-			<Overload retVal="FloatType">
+-				<Param name="c ComplexType" />
+-			</Overload>
+-		</KeyWord>
+-		<KeyWord name="import" />
+-		<KeyWord name="int" />
+-		<KeyWord name="int16" />
+-		<KeyWord name="int32" />
+-		<KeyWord name="int64" />
+-		<KeyWord name="int8" />
+-		<KeyWord name="interface" />
+-		<KeyWord name="len" func="yes">
+-			<Overload retVal="int">
+-				<Param name="v Type" />
+-			</Overload>
+-		</KeyWord>
+-		<KeyWord name="make" func="yes">
+-			<Overload retVal="Type">
+-				<Param name="Type" />
+-				<Param name="size IntegerType" />
+-			</Overload>
+-		</KeyWord>
+-		<KeyWord name="map" />
+-		<KeyWord name="new" func="yes">
+-			<Overload retVal="*Type">
+-				<Param name="Type" />
+-			</Overload>
+-		</KeyWord>
+-		<KeyWord name="nil" />
+-		<KeyWord name="package" />
+-		<KeyWord name="panic" func="yes">
+-			<Overload retVal="">
+-				<Param name="v interface{}" />
+-			</Overload>
+-		</KeyWord>
+-		<KeyWord name="print" func="yes">
+-			<Overload retVal="">
+-				<Param name="args ...Type" />
+-			</Overload>
+-		</KeyWord>
+-		<KeyWord name="println" func="yes">
+-			<Overload retVal="" >
+-				<Param name="args ...Type" />
+-			</Overload>
+-		</KeyWord>
+-		<KeyWord name="range" />
+-		<KeyWord name="real" func="yes">
+-			<Overload retVal="FloatType">
+-				<Param name="c ComplexType" />
+-			</Overload>
+-		</KeyWord>
+-		<KeyWord name="recover" func="yes">
+-			<Overload retVal="interface{}">
+-			</Overload>
+-		</KeyWord>
+-		<KeyWord name="return" />
+-		<KeyWord name="rune" />
+-		<KeyWord name="select" />
+-		<KeyWord name="string" />
+-		<KeyWord name="struct" />
+-		<KeyWord name="switch" />
+-		<KeyWord name="true" />
+-		<KeyWord name="type" />
+-		<KeyWord name="uint" />
+-		<KeyWord name="uint16" />
+-		<KeyWord name="uint32" />
+-		<KeyWord name="uint64" />
+-		<KeyWord name="uint8" />
+-		<KeyWord name="uintptr" />
+-		<KeyWord name="var" />
+-	</AutoComplete>
+-</NotepadPlus>
+diff --git a/misc/notepadplus/userDefineLang.xml b/misc/notepadplus/userDefineLang.xml
+deleted file mode 100644
+index 9751f7901b..0000000000
+--- a/misc/notepadplus/userDefineLang.xml
++++ /dev/null
+@@ -1,64 +0,0 @@
+-<!-- <NotepadPlus> -->
+-    <UserLang name="go" ext="go" udlVersion="2.1">
+-        <Settings>
+-            <Global caseIgnored="no" allowFoldOfComments="yes" foldCompact="no" forcePureLC="0" decimalSeparator="0" />
+-            <Prefix Keywords1="no" Keywords2="no" Keywords3="no" Keywords4="no" Keywords5="no" Keywords6="no" Keywords7="no" Keywords8="no" />
+-        </Settings>
+-        <KeywordLists>
+-            <Keywords name="Comments">00// 01 02 03/* 04*/</Keywords>
+-            <Keywords name="Numbers, prefix1"></Keywords>
+-            <Keywords name="Numbers, prefix2">0x 0X</Keywords>
+-            <Keywords name="Numbers, extras1">a b c d e f A B C D E F</Keywords>
+-            <Keywords name="Numbers, extras2"></Keywords>
+-            <Keywords name="Numbers, suffix1"></Keywords>
+-            <Keywords name="Numbers, suffix2">i</Keywords>
+-            <Keywords name="Numbers, range"></Keywords>
+-            <Keywords name="Operators1">( ) [ ] { } ... , ; &amp; ^ % &gt; &lt; ! = + - * / | :</Keywords>
+-            <Keywords name="Operators2"></Keywords>
+-            <Keywords name="Folders in code1, open"></Keywords>
+-            <Keywords name="Folders in code1, middle"></Keywords>
+-            <Keywords name="Folders in code1, close"></Keywords>
+-            <Keywords name="Folders in code2, open"></Keywords>
+-            <Keywords name="Folders in code2, middle"></Keywords>
+-            <Keywords name="Folders in code2, close"></Keywords>
+-            <Keywords name="Folders in comment, open"></Keywords>
+-            <Keywords name="Folders in comment, middle"></Keywords>
+-            <Keywords name="Folders in comment, close"></Keywords>
+-            <Keywords name="Keywords1">break default func interface select case defer go map struct chan else goto package switch const fallthrough if range type continue for import return var</Keywords>
+-            <Keywords name="Keywords2">bool byte complex64 complex128 error float32 float64 int int8 int16 int32 int64 rune string uint uint8 uint16 uint32 uint64 uintptr true false iota nil</Keywords>
+-            <Keywords name="Keywords3">append cap close complex copy delete imag len make new panic print println real recover _</Keywords>
+-            <Keywords name="Keywords4"></Keywords>
+-            <Keywords name="Keywords5"></Keywords>
+-            <Keywords name="Keywords6"></Keywords>
+-            <Keywords name="Keywords7"></Keywords>
+-            <Keywords name="Keywords8"></Keywords>
+-            <Keywords name="Delimiters">00&quot; 01\ 02&quot; 03&apos; 04\ 05&apos; 06` 07 08` 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23</Keywords>
+-        </KeywordLists>
+-        <Styles>
+-            <WordsStyle name="DEFAULT" fgColor="000000" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+-            <WordsStyle name="COMMENTS" fgColor="008000" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+-            <WordsStyle name="LINE COMMENTS" fgColor="008000" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+-            <WordsStyle name="NUMBERS" fgColor="A52A2A" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+-            <WordsStyle name="KEYWORDS1" fgColor="AA0000" bgColor="FFFFFF" fontName="" fontStyle="1" nesting="0" />
+-            <WordsStyle name="KEYWORDS2" fgColor="AA0000" bgColor="FFFFFF" fontName="" fontStyle="1" nesting="0" />
+-            <WordsStyle name="KEYWORDS3" fgColor="AA0000" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+-            <WordsStyle name="KEYWORDS4" fgColor="A00000" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+-            <WordsStyle name="KEYWORDS5" fgColor="000000" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+-            <WordsStyle name="KEYWORDS6" fgColor="000000" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+-            <WordsStyle name="KEYWORDS7" fgColor="000000" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+-            <WordsStyle name="KEYWORDS8" fgColor="000000" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+-            <WordsStyle name="OPERATORS" fgColor="8000FF" bgColor="FFFFFF" fontName="" fontStyle="1" nesting="0" />
+-            <WordsStyle name="FOLDER IN CODE1" fgColor="8000FF" bgColor="FFFFFF" fontName="" fontStyle="1" nesting="0" />
+-            <WordsStyle name="FOLDER IN CODE2" fgColor="000000" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+-            <WordsStyle name="FOLDER IN COMMENT" fgColor="000000" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+-            <WordsStyle name="DELIMITERS1" fgColor="0000FF" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+-            <WordsStyle name="DELIMITERS2" fgColor="0000FF" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+-            <WordsStyle name="DELIMITERS3" fgColor="0000FF" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+-            <WordsStyle name="DELIMITERS4" fgColor="000000" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+-            <WordsStyle name="DELIMITERS5" fgColor="000000" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+-            <WordsStyle name="DELIMITERS6" fgColor="000000" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+-            <WordsStyle name="DELIMITERS7" fgColor="000000" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+-            <WordsStyle name="DELIMITERS8" fgColor="000000" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+-        </Styles>
+-    </UserLang>
+-<!-- </NotepadPlus> -->
+diff --git a/misc/vim/autoload/go/complete.vim b/misc/vim/autoload/go/complete.vim
+deleted file mode 100644
+index a4fa6b6684..0000000000
+--- a/misc/vim/autoload/go/complete.vim
++++ /dev/null
+@@ -1,103 +0,0 @@
+-" Copyright 2011 The Go Authors. All rights reserved.
+-" Use of this source code is governed by a BSD-style
+-" license that can be found in the LICENSE file.
+-"
+-" This file provides a utility function that performs auto-completion of
+-" package names, for use by other commands.
+-
+-let s:goos = $GOOS
+-let s:goarch = $GOARCH
+-
+-if len(s:goos) == 0
+-  if exists('g:golang_goos')
+-    let s:goos = g:golang_goos
+-  elseif has('win32') || has('win64')
+-    let s:goos = 'windows'
+-  elseif has('macunix')
+-    let s:goos = 'darwin'
+-  else
+-    let s:goos = '*'
+-  endif
+-endif
+-
+-if len(s:goarch) == 0
+-  if exists('g:golang_goarch')
+-    let s:goarch = g:golang_goarch
+-  else
+-    let s:goarch = '*'
+-  endif
+-endif
+-
+-function! go#complete#PackageMembers(package, member)
+-  silent! let content = system('godoc ' . a:package)
+-  if v:shell_error || !len(content)
+-    return []
+-  endif
+-  let lines = filter(split(content, "\n"),"v:val !~ '^\\s\\+$'")
+-  try
+-    let mx1 = '^\s\+\(\S+\)\s\+=\s\+.*'
+-    let mx2 = '^\%(const\|var\|type\|func\) \([A-Z][^ (]\+\).*'
+-    let candidates =
+-    \   map(filter(copy(lines), 'v:val =~ mx1'), 'substitute(v:val, mx1, "\\1", "")')
+-    \ + map(filter(copy(lines), 'v:val =~ mx2'), 'substitute(v:val, mx2, "\\1", "")')
+-    return filter(candidates, '!stridx(v:val, a:member)')
+-  catch
+-    return []
+-  endtry
+-endfunction
+-
+-function! go#complete#Package(ArgLead, CmdLine, CursorPos)
+-  let dirs = []
+-
+-  let words = split(a:CmdLine, '\s\+', 1)
+-  if len(words) > 2
+-    " Complete package members
+-    return go#complete#PackageMembers(words[1], words[2])
+-  endif
+-
+-  if executable('go')
+-    let goroot = substitute(system('go env GOROOT'), '\n', '', 'g')
+-    if v:shell_error
+-      echomsg '''go env GOROOT'' failed'
+-    endif
+-  else
+-    let goroot = $GOROOT
+-  endif
+-
+-  if len(goroot) != 0 && isdirectory(goroot)
+-    let dirs += [goroot]
+-  endif
+-
+-  let pathsep = ':'
+-  if s:goos == 'windows'
+-    let pathsep = ';'
+-  endif
+-  let workspaces = split($GOPATH, pathsep)
+-  if workspaces != []
+-    let dirs += workspaces
+-  endif
+-
+-  if len(dirs) == 0
+-    " should not happen
+-    return []
+-  endif
+-
+-  let ret = {}
+-  for dir in dirs
+-    " this may expand to multiple lines
+-    let root = split(expand(dir . '/pkg/' . s:goos . '_' . s:goarch), "\n")
+-    call add(root, expand(dir . '/src'))
+-    for r in root
+-      for i in split(globpath(r, a:ArgLead.'*'), "\n")
+-        if isdirectory(i)
+-          let i .= '/'
+-        elseif i !~ '\.a$'
+-          continue
+-        endif
+-        let i = substitute(substitute(i[len(r)+1:], '[\\]', '/', 'g'), '\.a$', '', 'g')
+-        let ret[i] = i
+-      endfor
+-    endfor
+-  endfor
+-  return sort(keys(ret))
+-endfunction
+diff --git a/misc/vim/compiler/go.vim b/misc/vim/compiler/go.vim
+deleted file mode 100644
+index 2c8cce4973..0000000000
+--- a/misc/vim/compiler/go.vim
++++ /dev/null
+@@ -1,30 +0,0 @@
+-" Copyright 2013 The Go Authors. All rights reserved.
+-" Use of this source code is governed by a BSD-style
+-" license that can be found in the LICENSE file.
+-"
+-" compiler/go.vim: Vim compiler file for Go.
+-
+-if exists("current_compiler")
+-    finish
+-endif
+-let current_compiler = "go"
+-
+-if exists(":CompilerSet") != 2
+-    command -nargs=* CompilerSet setlocal <args>
+-endif
+-
+-let s:save_cpo = &cpo
+-set cpo-=C
+-
+-CompilerSet makeprg=go\ build
+-CompilerSet errorformat=
+-        \%-G#\ %.%#,
+-        \%A%f:%l:%c:\ %m,
+-        \%A%f:%l:\ %m,
+-        \%C%*\\s%m,
+-        \%-G%.%#
+-
+-let &cpo = s:save_cpo
+-unlet s:save_cpo
+-
+-" vim:ts=4:sw=4:et
+diff --git a/misc/vim/ftdetect/gofiletype.vim b/misc/vim/ftdetect/gofiletype.vim
+deleted file mode 100644
+index b658f6b0e8..0000000000
+--- a/misc/vim/ftdetect/gofiletype.vim
++++ /dev/null
+@@ -1,23 +0,0 @@
+-" We take care to preserve the user's fileencodings and fileformats,
+-" because those settings are global (not buffer local), yet we want
+-" to override them for loading Go files, which are defined to be UTF-8.
+-let s:current_fileformats = ''
+-let s:current_fileencodings = ''
+-
+-" define fileencodings to open as utf-8 encoding even if it's ascii.
+-function! s:gofiletype_pre()
+-  let s:current_fileformats = &g:fileformats
+-  let s:current_fileencodings = &g:fileencodings
+-  set fileencodings=utf-8 fileformats=unix
+-  setlocal filetype=go
+-endfunction
+-
+-" restore fileencodings as others
+-function! s:gofiletype_post()
+-  let &g:fileformats = s:current_fileformats
+-  let &g:fileencodings = s:current_fileencodings
+-endfunction
+-
+-au BufNewFile *.go setlocal filetype=go fileencoding=utf-8 fileformat=unix
+-au BufRead *.go call s:gofiletype_pre()
+-au BufReadPost *.go call s:gofiletype_post()
+diff --git a/misc/vim/ftplugin/go.vim b/misc/vim/ftplugin/go.vim
+deleted file mode 100644
+index 532fb17236..0000000000
+--- a/misc/vim/ftplugin/go.vim
++++ /dev/null
+@@ -1,19 +0,0 @@
+-" Copyright 2013 The Go Authors. All rights reserved.
+-" Use of this source code is governed by a BSD-style
+-" license that can be found in the LICENSE file.
+-"
+-" go.vim: Vim filetype plugin for Go.
+-
+-if exists("b:did_ftplugin")
+-    finish
+-endif
+-let b:did_ftplugin = 1
+-
+-setlocal formatoptions-=t
+-
+-setlocal comments=s1:/*,mb:*,ex:*/,://
+-setlocal commentstring=//\ %s
+-
+-let b:undo_ftplugin = "setl fo< com< cms<"
+-
+-" vim:ts=4:sw=4:et
+diff --git a/misc/vim/ftplugin/go/fmt.vim b/misc/vim/ftplugin/go/fmt.vim
+deleted file mode 100644
+index 359545bd40..0000000000
+--- a/misc/vim/ftplugin/go/fmt.vim
++++ /dev/null
+@@ -1,69 +0,0 @@
+-" Copyright 2011 The Go Authors. All rights reserved.
+-" Use of this source code is governed by a BSD-style
+-" license that can be found in the LICENSE file.
+-"
+-" fmt.vim: Vim command to format Go files with gofmt.
+-"
+-" This filetype plugin add a new commands for go buffers:
+-"
+-"   :Fmt
+-"
+-"       Filter the current Go buffer through gofmt.
+-"       It tries to preserve cursor position and avoids
+-"       replacing the buffer with stderr output.
+-"
+-" Options:
+-"
+-"   g:go_fmt_commands [default=1]
+-"
+-"       Flag to indicate whether to enable the commands listed above.
+-"
+-"   g:gofmt_command [default="gofmt"]
+-"
+-"       Flag naming the gofmt executable to use.
+-"
+-if exists("b:did_ftplugin_go_fmt")
+-    finish
+-endif
+-
+-if !exists("g:go_fmt_commands")
+-    let g:go_fmt_commands = 1
+-endif
+-
+-if !exists("g:gofmt_command")
+-    let g:gofmt_command = "gofmt"
+-endif
+-
+-if g:go_fmt_commands
+-    command! -buffer Fmt call s:GoFormat()
+-endif
+-
+-function! s:GoFormat()
+-    let view = winsaveview()
+-    silent execute "%!" . g:gofmt_command
+-    if v:shell_error
+-        let errors = []
+-        for line in getline(1, line('$'))
+-            let tokens = matchlist(line, '^\(.\{-}\):\(\d\+\):\(\d\+\)\s*\(.*\)')
+-            if !empty(tokens)
+-                call add(errors, {"filename": @%,
+-                                 \"lnum":     tokens[2],
+-                                 \"col":      tokens[3],
+-                                 \"text":     tokens[4]})
+-            endif
+-        endfor
+-        if empty(errors)
+-            % | " Couldn't detect gofmt error format, output errors
+-        endif
+-        undo
+-        if !empty(errors)
+-            call setqflist(errors, 'r')
+-        endif
+-        echohl Error | echomsg "Gofmt returned error" | echohl None
+-    endif
+-    call winrestview(view)
+-endfunction
+-
+-let b:did_ftplugin_go_fmt = 1
+-
+-" vim:ts=4:sw=4:et
+diff --git a/misc/vim/ftplugin/go/import.vim b/misc/vim/ftplugin/go/import.vim
+deleted file mode 100644
+index 91c8697a4c..0000000000
+--- a/misc/vim/ftplugin/go/import.vim
++++ /dev/null
+@@ -1,250 +0,0 @@
+-" Copyright 2011 The Go Authors. All rights reserved.
+-" Use of this source code is governed by a BSD-style
+-" license that can be found in the LICENSE file.
+-"
+-" import.vim: Vim commands to import/drop Go packages.
+-"
+-" This filetype plugin adds three new commands for go buffers:
+-"
+-"   :Import {path}
+-"
+-"       Import ensures that the provided package {path} is imported
+-"       in the current Go buffer, using proper style and ordering.
+-"       If {path} is already being imported, an error will be
+-"       displayed and the buffer will be untouched.
+-"
+-"   :ImportAs {localname} {path}
+-"
+-"       Same as Import, but uses a custom local name for the package.
+-"
+-"   :Drop {path}
+-"
+-"       Remove the import line for the provided package {path}, if
+-"       present in the current Go buffer.  If {path} is not being
+-"       imported, an error will be displayed and the buffer will be
+-"       untouched.
+-"
+-" If you would like to add shortcuts, you can do so by doing the following:
+-"
+-"   Import fmt
+-"   au Filetype go nnoremap <buffer> <LocalLeader>f :Import fmt<CR>
+-"
+-"   Drop fmt
+-"   au Filetype go nnoremap <buffer> <LocalLeader>F :Drop fmt<CR>
+-"
+-"   Import the word under your cursor
+-"   au Filetype go nnoremap <buffer> <LocalLeader>k
+-"       \ :exe 'Import ' . expand('<cword>')<CR>
+-"
+-" The backslash '\' is the default maplocalleader, so it is possible that
+-" your vim is set to use a different character (:help maplocalleader).
+-"
+-" Options:
+-"
+-"   g:go_import_commands [default=1]
+-"
+-"       Flag to indicate whether to enable the commands listed above.
+-"
+-if exists("b:did_ftplugin_go_import")
+-    finish
+-endif
+-
+-if !exists("g:go_import_commands")
+-    let g:go_import_commands = 1
+-endif
+-
+-if g:go_import_commands
+-    command! -buffer -nargs=? -complete=customlist,go#complete#Package Drop call s:SwitchImport(0, '', <f-args>)
+-    command! -buffer -nargs=1 -complete=customlist,go#complete#Package Import call s:SwitchImport(1, '', <f-args>)
+-    command! -buffer -nargs=* -complete=customlist,go#complete#Package ImportAs call s:SwitchImport(1, <f-args>)
+-endif
+-
+-function! s:SwitchImport(enabled, localname, path)
+-    let view = winsaveview()
+-    let path = a:path
+-
+-    " Quotes are not necessary, so remove them if provided.
+-    if path[0] == '"'
+-        let path = strpart(path, 1)
+-    endif
+-    if path[len(path)-1] == '"'
+-        let path = strpart(path, 0, len(path) - 1)
+-    endif
+-    if path == ''
+-        call s:Error('Import path not provided')
+-        return
+-    endif
+-
+-    " Extract any site prefix (e.g. github.com/).
+-    " If other imports with the same prefix are grouped separately,
+-    " we will add this new import with them.
+-    " Only up to and including the first slash is used.
+-    let siteprefix = matchstr(path, "^[^/]*/")
+-
+-    let qpath = '"' . path . '"'
+-    if a:localname != ''
+-        let qlocalpath = a:localname . ' ' . qpath
+-    else
+-        let qlocalpath = qpath
+-    endif
+-    let indentstr = 0
+-    let packageline = -1 " Position of package name statement
+-    let appendline = -1  " Position to introduce new import
+-    let deleteline = -1  " Position of line with existing import
+-    let linesdelta = 0   " Lines added/removed
+-
+-    " Find proper place to add/remove import.
+-    let line = 0
+-    while line <= line('$')
+-        let linestr = getline(line)
+-
+-        if linestr =~# '^package\s'
+-            let packageline = line
+-            let appendline = line
+-
+-        elseif linestr =~# '^import\s\+('
+-            let appendstr = qlocalpath
+-            let indentstr = 1
+-            let appendline = line
+-            let firstblank = -1
+-            let lastprefix = ""
+-            while line <= line("$")
+-                let line = line + 1
+-                let linestr = getline(line)
+-                let m = matchlist(getline(line), '^\()\|\(\s\+\)\(\S*\s*\)"\(.\+\)"\)')
+-                if empty(m)
+-                    if siteprefix == "" && a:enabled
+-                        " must be in the first group
+-                        break
+-                    endif
+-                    " record this position, but keep looking
+-                    if firstblank < 0
+-                        let firstblank = line
+-                    endif
+-                    continue
+-                endif
+-                if m[1] == ')'
+-                    " if there's no match, add it to the first group
+-                    if appendline < 0 && firstblank >= 0
+-                        let appendline = firstblank
+-                    endif
+-                    break
+-                endif
+-                let lastprefix = matchstr(m[4], "^[^/]*/")
+-                if a:localname != '' && m[3] != ''
+-                    let qlocalpath = printf('%-' . (len(m[3])-1) . 's %s', a:localname, qpath)
+-                endif
+-                let appendstr = m[2] . qlocalpath
+-                let indentstr = 0
+-                if m[4] == path
+-                    let appendline = -1
+-                    let deleteline = line
+-                    break
+-                elseif m[4] < path
+-                    " don't set candidate position if we have a site prefix,
+-                    " we've passed a blank line, and this doesn't share the same
+-                    " site prefix.
+-                    if siteprefix == "" || firstblank < 0 || match(m[4], "^" . siteprefix) >= 0
+-                        let appendline = line
+-                    endif
+-                elseif siteprefix != "" && match(m[4], "^" . siteprefix) >= 0
+-                    " first entry of site group
+-                    let appendline = line - 1
+-                    break
+-                endif
+-            endwhile
+-            break
+-
+-        elseif linestr =~# '^import '
+-            if appendline == packageline
+-                let appendstr = 'import ' . qlocalpath
+-                let appendline = line - 1
+-            endif
+-            let m = matchlist(linestr, '^import\(\s\+\)\(\S*\s*\)"\(.\+\)"')
+-            if !empty(m)
+-                if m[3] == path
+-                    let appendline = -1
+-                    let deleteline = line
+-                    break
+-                endif
+-                if m[3] < path
+-                    let appendline = line
+-                endif
+-                if a:localname != '' && m[2] != ''
+-                    let qlocalpath = printf("%s %" . len(m[2])-1 . "s", a:localname, qpath)
+-                endif
+-                let appendstr = 'import' . m[1] . qlocalpath
+-            endif
+-
+-        elseif linestr =~# '^\(var\|const\|type\|func\)\>'
+-            break
+-
+-        endif
+-        let line = line + 1
+-    endwhile
+-
+-    " Append or remove the package import, as requested.
+-    if a:enabled
+-        if deleteline != -1
+-            call s:Error(qpath . ' already being imported')
+-        elseif appendline == -1
+-            call s:Error('No package line found')
+-        else
+-            if appendline == packageline
+-                call append(appendline + 0, '')
+-                call append(appendline + 1, 'import (')
+-                call append(appendline + 2, ')')
+-                let appendline += 2
+-                let linesdelta += 3
+-                let appendstr = qlocalpath
+-                let indentstr = 1
+-            endif
+-            call append(appendline, appendstr)
+-            execute appendline + 1
+-            if indentstr
+-                execute 'normal >>'
+-            endif
+-            let linesdelta += 1
+-        endif
+-    else
+-        if deleteline == -1
+-            call s:Error(qpath . ' not being imported')
+-        else
+-            execute deleteline . 'd'
+-            let linesdelta -= 1
+-
+-            if getline(deleteline-1) =~# '^import\s\+(' && getline(deleteline) =~# '^)'
+-                " Delete empty import block
+-                let deleteline -= 1
+-                execute deleteline . "d"
+-                execute deleteline . "d"
+-                let linesdelta -= 2
+-            endif
+-
+-            if getline(deleteline) == '' && getline(deleteline - 1) == ''
+-                " Delete spacing for removed line too.
+-                execute deleteline . "d"
+-                let linesdelta -= 1
+-            endif
+-        endif
+-    endif
+-
+-    " Adjust view for any changes.
+-    let view.lnum += linesdelta
+-    let view.topline += linesdelta
+-    if view.topline < 0
+-        let view.topline = 0
+-    endif
+-
+-    " Put buffer back where it was.
+-    call winrestview(view)
+-
+-endfunction
+-
+-function! s:Error(s)
+-    echohl Error | echo a:s | echohl None
+-endfunction
+-
+-let b:did_ftplugin_go_import = 1
+-
+-" vim:ts=4:sw=4:et
+diff --git a/misc/vim/ftplugin/go/test.sh b/misc/vim/ftplugin/go/test.sh
+deleted file mode 100755
+index d8a5b89511..0000000000
+--- a/misc/vim/ftplugin/go/test.sh
++++ /dev/null
+@@ -1,78 +0,0 @@
+-#!/bin/bash -e
+-#
+-# Copyright 2012 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-#
+-# Tests for import.vim.
+-
+-cd $(dirname $0)
+-
+-cat > base.go <<EOF
+-package test
+-
+-import (
+-	"bytes"
+-	"io"
+-	"net"
+-
+-	"mycorp/foo"
+-)
+-EOF
+-
+-fail=0
+-
+-# usage: test_one command pattern
+-# Pattern is a PCRE expression that will match across lines.
+-test_one() {
+-  echo 2>&1 -n "$1: "
+-  vim -e -s -u /dev/null -U /dev/null --noplugin -c "source import.vim" \
+-    -c "$1" -c 'wq! test.go' base.go
+-  # ensure blank lines are treated correctly
+-  if ! gofmt test.go | cmp test.go -; then
+-    echo 2>&1 "gofmt conflict"
+-    gofmt test.go | diff -u test.go - | sed "s/^/	/" 2>&1
+-    fail=1
+-    return
+-  fi
+-  if ! [[ $(cat test.go) =~ $2 ]]; then
+-    echo 2>&1 "$2 did not match"
+-    cat test.go | sed "s/^/	/" 2>&1
+-    fail=1
+-    return
+-  fi
+-  echo 2>&1 "ok"
+-}
+-
+-# Tests for Import
+-
+-test_one "Import baz" '"baz".*"bytes"'
+-test_one "Import io/ioutil" '"io".*"io/ioutil".*"net"'
+-test_one "Import myc" '"io".*"myc".*"net"'  # prefix of a site prefix
+-test_one "Import nat" '"io".*"nat".*"net"'
+-test_one "Import net/http" '"net".*"net/http".*"mycorp/foo"'
+-test_one "Import zoo" '"net".*"zoo".*"mycorp/foo"'
+-test_one "Import mycorp/bar" '"net".*"mycorp/bar".*"mycorp/foo"'
+-test_one "Import mycorp/goo" '"net".*"mycorp/foo".*"mycorp/goo"'
+-
+-# Tests for Drop
+-
+-cat > base.go <<EOF
+-package test
+-
+-import (
+-	"foo"
+-
+-	"something"
+-	"zoo"
+-)
+-EOF
+-
+-test_one "Drop something" '\([^"]*"foo"[^"]*"zoo"[^"]*\)'
+-
+-rm -f base.go test.go
+-if [ $fail -gt 0 ]; then
+-  echo 2>&1 "FAIL"
+-  exit 1
+-fi
+-echo 2>&1 "PASS"
+diff --git a/misc/vim/indent/go.vim b/misc/vim/indent/go.vim
+deleted file mode 100644
+index e3d6e84169..0000000000
+--- a/misc/vim/indent/go.vim
++++ /dev/null
+@@ -1,77 +0,0 @@
+-" Copyright 2011 The Go Authors. All rights reserved.
+-" Use of this source code is governed by a BSD-style
+-" license that can be found in the LICENSE file.
+-"
+-" indent/go.vim: Vim indent file for Go.
+-"
+-" TODO:
+-" - function invocations split across lines
+-" - general line splits (line ends in an operator)
+-
+-if exists("b:did_indent")
+-    finish
+-endif
+-let b:did_indent = 1
+-
+-" C indentation is too far off useful, mainly due to Go's := operator.
+-" Let's just define our own.
+-setlocal nolisp
+-setlocal autoindent
+-setlocal indentexpr=GoIndent(v:lnum)
+-setlocal indentkeys+=<:>,0=},0=)
+-
+-if exists("*GoIndent")
+-  finish
+-endif
+-
+-" The shiftwidth() function is relatively new.
+-" Don't require it to exist.
+-if exists('*shiftwidth')
+-  func s:sw()
+-    return shiftwidth()
+-  endfunc
+-else
+-  func s:sw()
+-    return &shiftwidth
+-  endfunc
+-endif
+-
+-function! GoIndent(lnum)
+-  let prevlnum = prevnonblank(a:lnum-1)
+-  if prevlnum == 0
+-    " top of file
+-    return 0
+-  endif
+-
+-  " grab the previous and current line, stripping comments.
+-  let prevl = substitute(getline(prevlnum), '//.*$', '', '')
+-  let thisl = substitute(getline(a:lnum), '//.*$', '', '')
+-  let previ = indent(prevlnum)
+-
+-  let ind = previ
+-
+-  if prevl =~ '[({]\s*$'
+-    " previous line opened a block
+-    let ind += s:sw()
+-  endif
+-  if prevl =~# '^\s*\(case .*\|default\):$'
+-    " previous line is part of a switch statement
+-    let ind += s:sw()
+-  endif
+-  " TODO: handle if the previous line is a label.
+-
+-  if thisl =~ '^\s*[)}]'
+-    " this line closed a block
+-    let ind -= s:sw()
+-  endif
+-
+-  " Colons are tricky.
+-  " We want to outdent if it's part of a switch ("case foo:" or "default:").
+-  " We ignore trying to deal with jump labels because (a) they're rare, and
+-  " (b) they're hard to disambiguate from a composite literal key.
+-  if thisl =~# '^\s*\(case .*\|default\):$'
+-    let ind -= s:sw()
+-  endif
+-
+-  return ind
+-endfunction
+diff --git a/misc/vim/plugin/godoc.vim b/misc/vim/plugin/godoc.vim
+deleted file mode 100644
+index a145d313fe..0000000000
+--- a/misc/vim/plugin/godoc.vim
++++ /dev/null
+@@ -1,130 +0,0 @@
+-" Copyright 2011 The Go Authors. All rights reserved.
+-" Use of this source code is governed by a BSD-style
+-" license that can be found in the LICENSE file.
+-"
+-" godoc.vim: Vim command to see godoc.
+-"
+-"
+-" Commands:
+-"
+-"   :Godoc
+-"
+-"       Open the relevant Godoc for either the word[s] passed to the command or
+-"       the, by default, the word under the cursor.
+-"
+-" Options:
+-"
+-"   g:go_godoc_commands [default=1]
+-"
+-"       Flag to indicate whether to enable the commands listed above.
+-
+-if exists("g:loaded_godoc")
+-  finish
+-endif
+-let g:loaded_godoc = 1
+-
+-let s:buf_nr = -1
+-let s:last_word = ''
+-
+-if !exists('g:go_godoc_commands')
+-  let g:go_godoc_commands = 1
+-endif
+-
+-if g:go_godoc_commands
+-  command! -nargs=* -range -complete=customlist,go#complete#Package Godoc :call s:Godoc(<f-args>)
+-endif
+-
+-nnoremap <silent> <Plug>(godoc-keyword) :<C-u>call <SID>Godoc('')<CR>
+-
+-function! s:GodocView()
+-  if !bufexists(s:buf_nr)
+-    leftabove new
+-    file `="[Godoc]"`
+-    let s:buf_nr = bufnr('%')
+-  elseif bufwinnr(s:buf_nr) == -1
+-    leftabove split
+-    execute s:buf_nr . 'buffer'
+-    delete _
+-  elseif bufwinnr(s:buf_nr) != bufwinnr('%')
+-    execute bufwinnr(s:buf_nr) . 'wincmd w'
+-  endif
+-
+-  setlocal filetype=godoc
+-  setlocal bufhidden=delete
+-  setlocal buftype=nofile
+-  setlocal noswapfile
+-  setlocal nobuflisted
+-  setlocal modifiable
+-  setlocal nocursorline
+-  setlocal nocursorcolumn
+-  setlocal iskeyword+=:
+-  setlocal iskeyword-=-
+-
+-  nnoremap <buffer> <silent> K :Godoc<cr>
+-
+-  au BufHidden <buffer> call let <SID>buf_nr = -1
+-endfunction
+-
+-function! s:GodocWord(word)
+-  if !executable('godoc')
+-    echohl WarningMsg
+-    echo "godoc command not found."
+-    echo "  install with: go get code.google.com/p/go.tools/cmd/godoc"
+-    echohl None
+-    return 0
+-  endif
+-  let word = a:word
+-  silent! let content = system('godoc ' . word)
+-  if v:shell_error || !len(content)
+-    if len(s:last_word)
+-      silent! let content = system('godoc ' . s:last_word.'/'.word)
+-      if v:shell_error || !len(content)
+-        echo 'No documentation found for "' . word . '".'
+-        return 0
+-      endif
+-      let word = s:last_word.'/'.word
+-    else
+-      echo 'No documentation found for "' . word . '".'
+-      return 0
+-    endif
+-  endif
+-  let s:last_word = word
+-  silent! call s:GodocView()
+-  setlocal modifiable
+-  silent! %d _
+-  silent! put! =content
+-  silent! normal gg
+-  setlocal nomodifiable
+-  setfiletype godoc
+-  return 1
+-endfunction
+-
+-function! s:Godoc(...)
+-  if !len(a:000)
+-    let oldiskeyword = &iskeyword
+-    setlocal iskeyword+=.
+-    let word = expand('<cword>')
+-    let &iskeyword = oldiskeyword
+-    let word = substitute(word, '[^a-zA-Z0-9\\/._~-]', '', 'g')
+-    let words = split(word, '\.\ze[^./]\+$')
+-  else
+-    let words = a:000
+-  endif
+-  if !len(words)
+-    return
+-  endif
+-  if s:GodocWord(words[0])
+-    if len(words) > 1
+-      if search('^\%(const\|var\|type\|\s\+\) ' . words[1] . '\s\+=\s')
+-        return
+-      endif
+-      if search('^func ' . words[1] . '(')
+-        silent! normal zt
+-        return
+-      endif
+-      echo 'No documentation found for "' . words[1] . '".'
+-    endif
+-  endif
+-endfunction
+-
+-" vim:ts=4:sw=4:et
+diff --git a/misc/vim/readme.txt b/misc/vim/readme.txt
+deleted file mode 100644
+index 9a9e228709..0000000000
+--- a/misc/vim/readme.txt
++++ /dev/null
+@@ -1,103 +0,0 @@
+-Vim plugins for Go (http://golang.org)
+-======================================
+-
+-To use all the Vim plugins, add these lines to your $HOME/.vimrc.
+-
+-  " Some Linux distributions set filetype in /etc/vimrc.
+-  " Clear filetype flags before changing runtimepath to force Vim to reload them.
+-  if exists("g:did_load_filetypes")
+-    filetype off
+-    filetype plugin indent off
+-  endif
+-  set runtimepath+=$GOROOT/misc/vim " replace $GOROOT with the output of: go env GOROOT
+-  filetype plugin indent on
+-  syntax on
+-
+-If you want to select fewer plugins, use the instructions in the rest of
+-this file.
+-
+-A popular configuration is to gofmt Go source files when they are saved.
+-To do that, add this line to the end of your $HOME/.vimrc.
+-
+-  autocmd FileType go autocmd BufWritePre <buffer> Fmt
+-
+-
+-Vim syntax highlighting
+------------------------
+-
+-To install automatic syntax highlighting for GO programs:
+-
+-  1. Copy or link the filetype detection script to the ftdetect directory
+-     underneath your vim runtime directory (normally $HOME/.vim/ftdetect)
+-  2. Copy or link syntax/go.vim to the syntax directory underneath your vim
+-     runtime directory (normally $HOME/.vim/syntax). Linking this file rather
+-     than just copying it will ensure any changes are automatically reflected
+-     in your syntax highlighting.
+-  3. Add the following line to your .vimrc file (normally $HOME/.vimrc):
+-
+-     syntax on
+-
+-In a typical unix environment you might accomplish this using the following
+-commands:
+-
+-  mkdir -p $HOME/.vim/ftdetect
+-  mkdir -p $HOME/.vim/syntax
+-  mkdir -p $HOME/.vim/autoload/go
+-  ln -s $GOROOT/misc/vim/ftdetect/gofiletype.vim $HOME/.vim/ftdetect/
+-  ln -s $GOROOT/misc/vim/syntax/go.vim $HOME/.vim/syntax
+-  ln -s $GOROOT/misc/vim/autoload/go/complete.vim $HOME/.vim/autoload/go
+-  echo "syntax on" >> $HOME/.vimrc
+-
+-
+-Vim filetype plugins
+---------------------
+-
+-To install one of the available filetype plugins:
+-
+-  1. Same as 1 above.
+-  2. Copy or link ftplugin/go.vim to the ftplugin directory underneath your vim
+-     runtime directory (normally $HOME/.vim/ftplugin). Copy or link one or more
+-     additional plugins from ftplugin/go/*.vim to the Go-specific subdirectory
+-     in the same place ($HOME/.vim/ftplugin/go/*.vim).
+-  3. Add the following line to your .vimrc file (normally $HOME/.vimrc):
+-
+-     filetype plugin on
+-
+-
+-Vim indentation plugin
+-----------------------
+-
+-To install automatic indentation:
+-
+-  1. Same as 1 above.
+-  2. Copy or link indent/go.vim to the indent directory underneath your vim
+-     runtime directory (normally $HOME/.vim/indent).
+-  3. Add the following line to your .vimrc file (normally $HOME/.vimrc):
+-
+-     filetype indent on
+-
+-
+-Vim compiler plugin
+--------------------
+-
+-To install the compiler plugin:
+-
+-  1. Same as 1 above.
+-  2. Copy or link compiler/go.vim to the compiler directory underneath your vim
+-     runtime directory (normally $HOME/.vim/compiler).
+-  3. Activate the compiler plugin with ":compiler go". To always enable the
+-     compiler plugin in Go source files add an autocommand to your .vimrc file
+-     (normally $HOME/.vimrc):
+-
+-     autocmd FileType go compiler go
+-
+-
+-Godoc plugin
+-------------
+-
+-To install godoc plugin:
+-
+-  1. Same as 1 above.
+-  2. Copy or link plugin/godoc.vim to $HOME/.vim/plugin/godoc,
+-     syntax/godoc.vim to $HOME/.vim/syntax/godoc.vim,
+-     and autoload/go/complete.vim to $HOME/.vim/autoload/go/complete.vim.
+diff --git a/misc/vim/syntax/go.vim b/misc/vim/syntax/go.vim
+deleted file mode 100644
+index 1ce6cb27f7..0000000000
+--- a/misc/vim/syntax/go.vim
++++ /dev/null
+@@ -1,207 +0,0 @@
+-" Copyright 2009 The Go Authors. All rights reserved.
+-" Use of this source code is governed by a BSD-style
+-" license that can be found in the LICENSE file.
+-"
+-" go.vim: Vim syntax file for Go.
+-"
+-" Options:
+-"   There are some options for customizing the highlighting; the recommended
+-"   settings are the default values, but you can write:
+-"     let OPTION_NAME = 0
+-"   in your ~/.vimrc file to disable particular options. You can also write:
+-"     let OPTION_NAME = 1
+-"   to enable particular options. At present, all options default to on.
+-"
+-"   - go_highlight_array_whitespace_error
+-"     Highlights white space after "[]".
+-"   - go_highlight_chan_whitespace_error
+-"     Highlights white space around the communications operator that don't follow
+-"     the standard style.
+-"   - go_highlight_extra_types
+-"     Highlights commonly used library types (io.Reader, etc.).
+-"   - go_highlight_space_tab_error
+-"     Highlights instances of tabs following spaces.
+-"   - go_highlight_trailing_whitespace_error
+-"     Highlights trailing white space.
+-
+-" Quit when a (custom) syntax file was already loaded
+-if exists("b:current_syntax")
+-  finish
+-endif
+-
+-if !exists("go_highlight_array_whitespace_error")
+-  let go_highlight_array_whitespace_error = 1
+-endif
+-if !exists("go_highlight_chan_whitespace_error")
+-  let go_highlight_chan_whitespace_error = 1
+-endif
+-if !exists("go_highlight_extra_types")
+-  let go_highlight_extra_types = 1
+-endif
+-if !exists("go_highlight_space_tab_error")
+-  let go_highlight_space_tab_error = 1
+-endif
+-if !exists("go_highlight_trailing_whitespace_error")
+-  let go_highlight_trailing_whitespace_error = 1
+-endif
+-
+-syn case match
+-
+-syn keyword     goDirective         package import
+-syn keyword     goDeclaration       var const type
+-syn keyword     goDeclType          struct interface
+-
+-hi def link     goDirective         Statement
+-hi def link     goDeclaration       Keyword
+-hi def link     goDeclType          Keyword
+-
+-" Keywords within functions
+-syn keyword     goStatement         defer go goto return break continue fallthrough
+-syn keyword     goConditional       if else switch select
+-syn keyword     goLabel             case default
+-syn keyword     goRepeat            for range
+-
+-hi def link     goStatement         Statement
+-hi def link     goConditional       Conditional
+-hi def link     goLabel             Label
+-hi def link     goRepeat            Repeat
+-
+-" Predefined types
+-syn keyword     goType              chan map bool string error
+-syn keyword     goSignedInts        int int8 int16 int32 int64 rune
+-syn keyword     goUnsignedInts      byte uint uint8 uint16 uint32 uint64 uintptr
+-syn keyword     goFloats            float32 float64
+-syn keyword     goComplexes         complex64 complex128
+-
+-hi def link     goType              Type
+-hi def link     goSignedInts        Type
+-hi def link     goUnsignedInts      Type
+-hi def link     goFloats            Type
+-hi def link     goComplexes         Type
+-
+-" Treat func specially: it's a declaration at the start of a line, but a type
+-" elsewhere. Order matters here.
+-syn match       goType              /\<func\>/
+-syn match       goDeclaration       /^func\>/
+-
+-" Predefined functions and values
+-syn keyword     goBuiltins          append cap close complex copy delete imag len
+-syn keyword     goBuiltins          make new panic print println real recover
+-syn keyword     goConstants         iota true false nil
+-
+-hi def link     goBuiltins          Keyword
+-hi def link     goConstants         Keyword
+-
+-" Comments; their contents
+-syn keyword     goTodo              contained TODO FIXME XXX BUG
+-syn cluster     goCommentGroup      contains=goTodo
+-syn region      goComment           start="/\*" end="\*/" contains=@goCommentGroup,@Spell
+-syn region      goComment           start="//" end="$" contains=@goCommentGroup,@Spell
+-
+-hi def link     goComment           Comment
+-hi def link     goTodo              Todo
+-
+-" Go escapes
+-syn match       goEscapeOctal       display contained "\\[0-7]\{3}"
+-syn match       goEscapeC           display contained +\\[abfnrtv\\'"]+
+-syn match       goEscapeX           display contained "\\x\x\{2}"
+-syn match       goEscapeU           display contained "\\u\x\{4}"
+-syn match       goEscapeBigU        display contained "\\U\x\{8}"
+-syn match       goEscapeError       display contained +\\[^0-7xuUabfnrtv\\'"]+
+-
+-hi def link     goEscapeOctal       goSpecialString
+-hi def link     goEscapeC           goSpecialString
+-hi def link     goEscapeX           goSpecialString
+-hi def link     goEscapeU           goSpecialString
+-hi def link     goEscapeBigU        goSpecialString
+-hi def link     goSpecialString     Special
+-hi def link     goEscapeError       Error
+-
+-" Strings and their contents
+-syn cluster     goStringGroup       contains=goEscapeOctal,goEscapeC,goEscapeX,goEscapeU,goEscapeBigU,goEscapeError
+-syn region      goString            start=+"+ skip=+\\\\\|\\"+ end=+"+ contains=@goStringGroup
+-syn region      goRawString         start=+`+ end=+`+
+-
+-hi def link     goString            String
+-hi def link     goRawString         String
+-
+-" Characters; their contents
+-syn cluster     goCharacterGroup    contains=goEscapeOctal,goEscapeC,goEscapeX,goEscapeU,goEscapeBigU
+-syn region      goCharacter         start=+'+ skip=+\\\\\|\\'+ end=+'+ contains=@goCharacterGroup
+-
+-hi def link     goCharacter         Character
+-
+-" Regions
+-syn region      goBlock             start="{" end="}" transparent fold
+-syn region      goParen             start='(' end=')' transparent
+-
+-" Integers
+-syn match       goDecimalInt        "\<\d\+\([Ee]\d\+\)\?\>"
+-syn match       goHexadecimalInt    "\<0x\x\+\>"
+-syn match       goOctalInt          "\<0\o\+\>"
+-syn match       goOctalError        "\<0\o*[89]\d*\>"
+-
+-hi def link     goDecimalInt        Integer
+-hi def link     goHexadecimalInt    Integer
+-hi def link     goOctalInt          Integer
+-hi def link     Integer             Number
+-
+-" Floating point
+-syn match       goFloat             "\<\d\+\.\d*\([Ee][-+]\d\+\)\?\>"
+-syn match       goFloat             "\<\.\d\+\([Ee][-+]\d\+\)\?\>"
+-syn match       goFloat             "\<\d\+[Ee][-+]\d\+\>"
+-
+-hi def link     goFloat             Float
+-
+-" Imaginary literals
+-syn match       goImaginary         "\<\d\+i\>"
+-syn match       goImaginary         "\<\d\+\.\d*\([Ee][-+]\d\+\)\?i\>"
+-syn match       goImaginary         "\<\.\d\+\([Ee][-+]\d\+\)\?i\>"
+-syn match       goImaginary         "\<\d\+[Ee][-+]\d\+i\>"
+-
+-hi def link     goImaginary         Number
+-
+-" Spaces after "[]"
+-if go_highlight_array_whitespace_error != 0
+-  syn match goSpaceError display "\(\[\]\)\@<=\s\+"
+-endif
+-
+-" Spacing errors around the 'chan' keyword
+-if go_highlight_chan_whitespace_error != 0
+-  " receive-only annotation on chan type
+-  syn match goSpaceError display "\(<-\)\@<=\s\+\(chan\>\)\@="
+-  " send-only annotation on chan type
+-  syn match goSpaceError display "\(\<chan\)\@<=\s\+\(<-\)\@="
+-  " value-ignoring receives in a few contexts
+-  syn match goSpaceError display "\(\(^\|[={(,;]\)\s*<-\)\@<=\s\+"
+-endif
+-
+-" Extra types commonly seen
+-if go_highlight_extra_types != 0
+-  syn match goExtraType /\<bytes\.\(Buffer\)\>/
+-  syn match goExtraType /\<io\.\(Reader\|Writer\|ReadWriter\|ReadWriteCloser\)\>/
+-  syn match goExtraType /\<reflect\.\(Kind\|Type\|Value\)\>/
+-  syn match goExtraType /\<unsafe\.Pointer\>/
+-endif
+-
+-" Space-tab error
+-if go_highlight_space_tab_error != 0
+-  syn match goSpaceError display " \+\t"me=e-1
+-endif
+-
+-" Trailing white space error
+-if go_highlight_trailing_whitespace_error != 0
+-  syn match goSpaceError display excludenl "\s\+$"
+-endif
+-
+-hi def link     goExtraType         Type
+-hi def link     goSpaceError        Error
+-
+-" Search backwards for a global declaration to start processing the syntax.
+-"syn sync match goSync grouphere NONE /^\(const\|var\|type\|func\)\>/
+-
+-" There's a bug in the implementation of grouphere. For now, use the
+-" following as a more expensive/less precise workaround.
+-syn sync minlines=500
+-
+-let b:current_syntax = "go"
+diff --git a/misc/vim/syntax/godoc.vim b/misc/vim/syntax/godoc.vim
+deleted file mode 100644
+index bd4443f7c4..0000000000
+--- a/misc/vim/syntax/godoc.vim
++++ /dev/null
+@@ -1,20 +0,0 @@
+-" Copyright 2011 The Go Authors. All rights reserved.
+-" Use of this source code is governed by a BSD-style
+-" license that can be found in the LICENSE file.
+-
+-if exists("b:current_syntax")
+-  finish
+-endif
+-
+-syn case match
+-syn match  godocTitle "^\([A-Z][A-Z ]*\)$"
+-
+-command -nargs=+ HiLink hi def link <args>
+-
+-HiLink godocTitle Title
+-
+-delcommand HiLink
+-
+-let b:current_syntax = "godoc"
+-
+-" vim:ts=4 sts=2 sw=2:
+diff --git a/misc/xcode/3/README b/misc/xcode/3/README
+deleted file mode 100644
+index 69f371c2cc..0000000000
+--- a/misc/xcode/3/README
++++ /dev/null
+@@ -1,3 +0,0 @@
+-This directory contains files for Go syntax highlighting in Xcode 3.x.
+-See the comments in go.pbfilespec and go.xclangspec for installation
+-instructions.
+diff --git a/misc/xcode/3/go.pbfilespec b/misc/xcode/3/go.pbfilespec
+deleted file mode 100644
+index 1034778f56..0000000000
+--- a/misc/xcode/3/go.pbfilespec
++++ /dev/null
+@@ -1,31 +0,0 @@
+-/*
+-	Copyright 2009 The Go Authors. All rights reserved.
+-	Use of this source code is governed by a BSD-style
+-	license that can be found in the LICENSE file.
+-
+-	go.pbfilespec
+-	Go source file spec for Xcode 3
+-
+-	There is not much documentation available regarding the format
+-	of .pbfilespec files. As a starting point, see for instance the
+-	outdated documentation at:
+-	http://maxao.free.fr/xcode-plugin-interface/specifications.html
+-	and the files in:
+-	/Developer/Library/PrivateFrameworks/XcodeEdit.framework/Versions/A/Resources/
+-
+-	Place this file in directory:
+-	~/Library/Application Support/Developer/Shared/Xcode/Specifications/
+-*/
+-
+-(
+-	{
+-		Identifier = sourcecode.go;
+-		BasedOn = sourcecode;
+-		Name = "Go Files";
+-		Extensions = ("go");
+-		MIMETypes = ("text/go");
+-		Language = "xcode.lang.go";
+-		IsTextFile = YES;
+-		IsSourceFile = YES;
+-	}
+-)
+diff --git a/misc/xcode/3/go.xclangspec b/misc/xcode/3/go.xclangspec
+deleted file mode 100644
+index 4a8c94d5b6..0000000000
+--- a/misc/xcode/3/go.xclangspec
++++ /dev/null
+@@ -1,293 +0,0 @@
+-/*
+-	Copyright 2009 The Go Authors. All rights reserved.
+-	Use of this source code is governed by a BSD-style
+-	license that can be found in the LICENSE file.
+-
+-	Go.xclangspec
+-	Go language specification for Xcode 3
+-
+-	This is a preliminary version that supports basic syntax high-lighting
+-	(such as keywords, literals, and comments) and an attempt to provide
+-	some structure information (incomplete).
+-
+-	There is not much documentation available regarding the format
+-	of .xclangspec files. As a starting point, see for instance the
+-	outdated documentation at:
+-	http://maxao.free.fr/xcode-plugin-interface/specifications.html
+-	and the files in:
+-	/Developer/Library/PrivateFrameworks/XcodeEdit.framework/Versions/A/Resources/
+-
+-	Place this file in directory:
+-	~/Library/Application Support/Developer/Shared/Xcode/Specifications/
+-*/
+-
+-(
+-
+-// ----------------------------------------------------------------------------
+-// Keywords
+-
+-// TODO How do we get general Unicode identifiers?
+-
+-	{
+-		Identifier = "xcode.lang.go.identifier";
+-		Syntax = {
+-			StartChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_";
+-			Chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_";
+-			Words = (
+-				"break",
+-				"case",
+-				"chan",
+-				"const",
+-				"continue",
+-
+-				"default",
+-				"defer",
+-				"else",
+-				"fallthrough",
+-				"for",
+-
+-				"func",
+-				"go",
+-				"goto",
+-				"if",
+-				"import",
+-
+-				"interface",
+-				"map",
+-				"package",
+-				"range",
+-				"return",
+-
+-				"select",
+-				"struct",
+-				"switch",
+-				"type",
+-				"var",
+-			);
+-			Type = "xcode.syntax.keyword";
+-			AltType = "xcode.syntax.identifier";  // non-keywords are identifiers
+-		};
+-	},
+-
+-// TODO decide what should go here, if anything
+-	{
+-		Identifier = "xcode.lang.go.interestingOperators";
+-		Syntax = {
+-			Words = (
+-				"...",
+-				".",
+-				"*",
+-				",",
+-				":",
+- 			);
+-			Type = "xcode.syntax.plain";
+-		};
+-	},
+-
+-	{
+-		Identifier = "xcode.lang.go.rawstring";
+-		Syntax = {
+-			Start = "`";
+-			End = "`";
+-			Type = "xcode.syntax.string";
+-		};
+-	},
+-
+-// ----------------------------------------------------------------------------
+-// Syntax Coloring
+-
+-	{
+-		Identifier = "xcode.lang.go";
+-		Description = "Go Coloring";
+-		BasedOn = "xcode.lang.simpleColoring";
+-		IncludeInMenu = YES;
+-		Name = "Go";
+-		Syntax = {
+-			Tokenizer = "xcode.lang.go.lexer.toplevel";
+-			IncludeRules = (
+-				"xcode.lang.go.block",
+-				"xcode.lang.go.bracketexpr",
+-				"xcode.lang.go.parenexpr",
+-			);
+-			Type = "xcode.syntax.plain";
+-		};
+-	},
+-
+-	// The following rule returns tokens to the other rules
+-	{
+-		Identifier = "xcode.lang.go.lexer";
+-		Syntax = {
+-			IncludeRules = (
+-				"xcode.lang.go.comment",
+-				"xcode.lang.go.comment.singleline",
+-				"xcode.lang.string",
+-				"xcode.lang.character",
+-				"xcode.lang.go.rawstring",
+-				"xcode.lang.go.identifier",
+-				"xcode.lang.number",
+-				"xcode.lang.go.interestingOperators",
+-			);
+-		};
+-	},
+-
+-	{
+-		Identifier = "xcode.lang.go.lexer.toplevel";
+-		Syntax = {
+-			IncludeRules = (
+-				"xcode.lang.go.comment",
+-				"xcode.lang.go.comment.singleline",
+-				"xcode.lang.string",
+-				"xcode.lang.character",
+-				"xcode.lang.go.rawstring",
+-				"xcode.lang.go.type.declaration",
+-				"xcode.lang.go.method.declaration",
+-				"xcode.lang.go.function.declaration",
+-				"xcode.lang.go.identifier",
+-				"xcode.lang.number",
+-			);
+-		};
+-	},
+-
+-	{
+-		Identifier = "xcode.lang.go.method.declaration";
+-		Syntax = {
+-			Tokenizer = "xcode.lang.go.lexer";
+-			Rules = (
+-				"func",
+-				"xcode.lang.go.parenexpr",
+-				"xcode.lang.go.identifier",
+-				"xcode.lang.go.parenexpr",
+-			);
+-			Type = "xcode.syntax.declaration.method";
+-		};
+-	},
+-
+-	{
+-		Identifier = "xcode.lang.go.type.declaration";
+-		Syntax = {
+-			Tokenizer = "xcode.lang.go.lexer";
+-			Rules = (
+-				"type",
+-				"xcode.lang.go.identifier",
+-			);
+-			Type = "xcode.syntax.typedef";
+-		};
+-	},
+-
+-	{
+-		Identifier = "xcode.lang.go.function.declaration";
+-		Syntax = {
+-			Tokenizer = "xcode.lang.go.lexer";
+-			Rules = (
+-				"func",
+-				"xcode.lang.go.identifier",
+-				"xcode.lang.go.parenexpr",
+-			);
+-			Type = "xcode.syntax.declaration.function";
+-		};
+-	},
+-
+-// ----------------------------------------------------------------------------
+-// Blocks
+-
+-	{
+-		Identifier = "xcode.lang.go.block";
+-		Syntax = {
+-			Tokenizer = "xcode.lang.go.lexer";
+-			Start = "{";
+-			End = "}";
+-			Foldable = YES;
+-			Recursive = YES;
+-			IncludeRules = (
+-				"xcode.lang.go.bracketexpr",
+-				"xcode.lang.go.parenexpr",
+-			);
+-		};
+-	},
+-
+-	{
+-		Identifier = "xcode.lang.go.parenexpr";
+-		Syntax = {
+-			Tokenizer = "xcode.lang.go.lexer";
+-			Start = "(";
+-			End = ")";
+-			Recursive = YES;
+-			IncludeRules = (
+-				"xcode.lang.go.bracketexpr",
+-				"xcode.lang.go.block",
+-			);
+-		};
+-	},
+-
+-	{
+-		Identifier = "xcode.lang.go.bracketexpr";
+-		Syntax = {
+-			Tokenizer = "xcode.lang.go.lexer";
+-			Start = "[";
+-			End = "]";
+-			Recursive = YES;
+-			IncludeRules = (
+-				"xcode.lang.go.parenexpr",
+-			);
+-		};
+-	},
+-
+-	{
+-		Identifier = "xcode.lang.go.comment";
+-		Syntax = {
+-			Start = "/*";
+-			End = "*/";
+-			Foldable = YES;
+-			IncludeRules = (
+-				"xcode.lang.url",
+-				"xcode.lang.url.mail",
+-				"xcode.lang.comment.mark",
+-			);
+-			Type = "xcode.syntax.comment";
+-		};
+-	},
+-
+-	{
+-		Identifier = "xcode.lang.go.comment.singleline";
+-		Syntax = {
+-			Start = "//";
+-			End = "\n";
+-			IncludeRules = (
+-				"xcode.lang.url",
+-				"xcode.lang.url.mail",
+-				"xcode.lang.comment.mark",
+-			);
+-			Type = "xcode.syntax.comment";
+-		};
+-	},
+-
+-	// This rule recognizes special comments markers and adds them
+-	// to the list of file markers at the top of the editor window.
+-	// This overrides the markers specified in
+-	// /Developer/Library/PrivateFrameworks/XcodeEdit.framework/Versions/A/Resources/BaseSupport.xclangspec
+-	// and appears to apply them to all languages. Thus, for now
+-	// "inherit" the existing markers here for backward-compatibility.
+-	{
+-		Identifier = "xcode.lang.comment.mark";
+-		Syntax = {
+-			StartChars = "BMTF!?";
+-			Match = (
+-				// Go-specific markers
+-				"^\(BUG.*$\)$",			// include "BUG" in the markers list
+-				"^\(TODO.*$\)$",		// include "TODO" in the markers list
+-				// inherited markers
+-				"^MARK:[ \t]+\(.*\)$",
+-				"^\(TODO:[ \t]+.*\)$",		// include "TODO: " in the markers list
+-				"^\(FIXME:[ \t]+.*\)$",		// include "FIXME: " in the markers list
+-				"^\(!!!:.*\)$",			// include "!!!:" in the markers list
+-				"^\(\\?\\?\\?:.*\)$"		// include "???:" in the markers list
+-			);
+-			// This is the order of captures. All of the match strings above need the same order.
+-			CaptureTypes = (
+-				"xcode.syntax.mark"
+-			);
+-			Type = "xcode.syntax.comment";
+-		};
+-	},
+-
+-)
+diff --git a/misc/xcode/4/README b/misc/xcode/4/README
+deleted file mode 100644
+index 09576d6d5d..0000000000
+--- a/misc/xcode/4/README
++++ /dev/null
+@@ -1,2 +0,0 @@
+-This directory contains files for Go syntax highlighting in Xcode 4.x.
+-For installation, read, edit, and run go4xcode.sh .
+\ No newline at end of file
+diff --git a/misc/xcode/4/go.xclangspec b/misc/xcode/4/go.xclangspec
+deleted file mode 100644
+index 96edc80003..0000000000
+--- a/misc/xcode/4/go.xclangspec
++++ /dev/null
+@@ -1,290 +0,0 @@
+-/*
+-	Copyright 2012 The Go Authors. All rights reserved.
+-	Use of this source code is governed by a BSD-style
+-	license that can be found in the LICENSE file.
+-
+-	go.xclangspec
+-	Go language specification for Xcode 4.x.
+-
+-	This is a preliminary version that supports basic syntax coloring
+-	(such as keywords, literals, and comments) and an attempt to provide
+-	some structure information (incomplete).
+-
+-	There is not much documentation available regarding the format
+-	of .xclangspec files. As a starting point, see for instance the
+-	outdated documentation at:
+-
+-		http://maxao.free.fr/xcode-plugin-interface/specifications.html
+-
+-*/
+-
+-(
+-
+-// ----------------------------------------------------------------------------
+-// Keywords
+-
+-// TODO How do we get general Unicode identifiers?
+-
+-	{
+-		Identifier = "xcode.lang.go.identifier";
+-		Syntax = {
+-			StartChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_";
+-			Chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_";
+-			Words = (
+-				"break",
+-				"case",
+-				"chan",
+-				"const",
+-				"continue",
+-
+-				"default",
+-				"defer",
+-				"else",
+-				"fallthrough",
+-				"for",
+-
+-				"func",
+-				"go",
+-				"goto",
+-				"if",
+-				"import",
+-
+-				"interface",
+-				"map",
+-				"package",
+-				"range",
+-				"return",
+-
+-				"select",
+-				"struct",
+-				"switch",
+-				"type",
+-				"var",
+-			);
+-			Type = "xcode.syntax.keyword";
+-			AltType = "xcode.syntax.identifier";  // non-keywords are identifiers
+-		};
+-	},
+-
+-// TODO decide what should go here, if anything
+-	{
+-		Identifier = "xcode.lang.go.interestingOperators";
+-		Syntax = {
+-			Words = (
+-				"...",
+-				".",
+-				"*",
+-				",",
+-				":",
+- 			);
+-			Type = "xcode.syntax.plain";
+-		};
+-	},
+-
+-	{
+-		Identifier = "xcode.lang.go.rawstring";
+-		Syntax = {
+-			Start = "`";
+-			End = "`";
+-			Type = "xcode.syntax.string";
+-		};
+-	},
+-
+-// ----------------------------------------------------------------------------
+-// Syntax Coloring
+-
+-	{
+-		Identifier = "xcode.lang.go";
+-		Description = "Go Coloring";
+-		BasedOn = "xcode.lang.simpleColoring";
+-		IncludeInMenu = YES;
+-		Name = "Go";
+-		Syntax = {
+-			Tokenizer = "xcode.lang.go.lexer.toplevel";
+-			IncludeRules = (
+-				"xcode.lang.go.block",
+-				"xcode.lang.go.bracketexpr",
+-				"xcode.lang.go.parenexpr",
+-			);
+-			Type = "xcode.syntax.plain";
+-		};
+-	},
+-
+-	// The following rule returns tokens to the other rules
+-	{
+-		Identifier = "xcode.lang.go.lexer";
+-		Syntax = {
+-			IncludeRules = (
+-				"xcode.lang.go.comment",
+-				"xcode.lang.go.comment.singleline",
+-				"xcode.lang.string",
+-				"xcode.lang.character",
+-				"xcode.lang.go.rawstring",
+-				"xcode.lang.go.identifier",
+-				"xcode.lang.number",
+-				"xcode.lang.go.interestingOperators",
+-			);
+-		};
+-	},
+-
+-	{
+-		Identifier = "xcode.lang.go.lexer.toplevel";
+-		Syntax = {
+-			IncludeRules = (
+-				"xcode.lang.go.comment",
+-				"xcode.lang.go.comment.singleline",
+-				"xcode.lang.string",
+-				"xcode.lang.character",
+-				"xcode.lang.go.rawstring",
+-				"xcode.lang.go.type.declaration",
+-				"xcode.lang.go.method.declaration",
+-				"xcode.lang.go.function.declaration",
+-				"xcode.lang.go.identifier",
+-				"xcode.lang.number",
+-			);
+-		};
+-	},
+-
+-	{
+-		Identifier = "xcode.lang.go.method.declaration";
+-		Syntax = {
+-			Tokenizer = "xcode.lang.go.lexer";
+-			Rules = (
+-				"func",
+-				"xcode.lang.go.parenexpr",
+-				"xcode.lang.go.identifier",
+-				"xcode.lang.go.parenexpr",
+-			);
+-			Type = "xcode.syntax.declaration.method";
+-		};
+-	},
+-
+-	{
+-		Identifier = "xcode.lang.go.type.declaration";
+-		Syntax = {
+-			Tokenizer = "xcode.lang.go.lexer";
+-			Rules = (
+-				"type",
+-				"xcode.lang.go.identifier",
+-			);
+-			Type = "xcode.syntax.typedef";
+-		};
+-	},
+-
+-	{
+-		Identifier = "xcode.lang.go.function.declaration";
+-		Syntax = {
+-			Tokenizer = "xcode.lang.go.lexer";
+-			Rules = (
+-				"func",
+-				"xcode.lang.go.identifier",
+-				"xcode.lang.go.parenexpr",
+-			);
+-			Type = "xcode.syntax.declaration.function";
+-		};
+-	},
+-
+-// ----------------------------------------------------------------------------
+-// Blocks
+-
+-	{
+-		Identifier = "xcode.lang.go.block";
+-		Syntax = {
+-			Tokenizer = "xcode.lang.go.lexer";
+-			Start = "{";
+-			End = "}";
+-			Foldable = YES;
+-			Recursive = YES;
+-			IncludeRules = (
+-				"xcode.lang.go.bracketexpr",
+-				"xcode.lang.go.parenexpr",
+-			);
+-		};
+-	},
+-
+-	{
+-		Identifier = "xcode.lang.go.parenexpr";
+-		Syntax = {
+-			Tokenizer = "xcode.lang.go.lexer";
+-			Start = "(";
+-			End = ")";
+-			Recursive = YES;
+-			IncludeRules = (
+-				"xcode.lang.go.bracketexpr",
+-				"xcode.lang.go.block",
+-			);
+-		};
+-	},
+-
+-	{
+-		Identifier = "xcode.lang.go.bracketexpr";
+-		Syntax = {
+-			Tokenizer = "xcode.lang.go.lexer";
+-			Start = "[";
+-			End = "]";
+-			Recursive = YES;
+-			IncludeRules = (
+-				"xcode.lang.go.parenexpr",
+-			);
+-		};
+-	},
+-
+-	{
+-		Identifier = "xcode.lang.go.comment";
+-		Syntax = {
+-			Start = "/*";
+-			End = "*/";
+-			Foldable = YES;
+-			IncludeRules = (
+-				"xcode.lang.url",
+-				"xcode.lang.url.mail",
+-				"xcode.lang.comment.mark",
+-			);
+-			Type = "xcode.syntax.comment";
+-		};
+-	},
+-
+-	{
+-		Identifier = "xcode.lang.go.comment.singleline";
+-		Syntax = {
+-			Start = "//";
+-			End = "\n";
+-			IncludeRules = (
+-				"xcode.lang.url",
+-				"xcode.lang.url.mail",
+-				"xcode.lang.comment.mark",
+-			);
+-			Type = "xcode.syntax.comment";
+-		};
+-	},
+-
+-	// This rule recognizes special comments markers and adds them
+-	// to the list of file markers at the top of the editor window.
+-	// This overrides the markers specified in
+-	// /Developer/Library/PrivateFrameworks/XcodeEdit.framework/Versions/A/Resources/BaseSupport.xclangspec
+-	// and appears to apply them to all languages. Thus, for now
+-	// "inherit" the existing markers here for backward-compatibility.
+-	{
+-		Identifier = "xcode.lang.comment.mark";
+-		Syntax = {
+-			StartChars = "BMTF!?";
+-			Match = (
+-				// Go-specific markers
+-				"^\(BUG.*$\)$",			// include "BUG" in the markers list
+-				"^\(TODO.*$\)$",		// include "TODO" in the markers list
+-				// inherited markers
+-				"^MARK:[ \t]+\(.*\)$",
+-				"^\(TODO:[ \t]+.*\)$",		// include "TODO: " in the markers list
+-				"^\(FIXME:[ \t]+.*\)$",		// include "FIXME: " in the markers list
+-				"^\(!!!:.*\)$",			// include "!!!:" in the markers list
+-				"^\(\\?\\?\\?:.*\)$"		// include "???:" in the markers list
+-			);
+-			// This is the order of captures. All of the match strings above need the same order.
+-			CaptureTypes = (
+-				"xcode.syntax.mark"
+-			);
+-			Type = "xcode.syntax.comment";
+-		};
+-	},
+-
+-)
+diff --git a/misc/xcode/4/go4xcode.sh b/misc/xcode/4/go4xcode.sh
+deleted file mode 100755
+index 4b0125e46c..0000000000
+--- a/misc/xcode/4/go4xcode.sh
++++ /dev/null
+@@ -1,112 +0,0 @@
+-#!/usr/bin/env bash
+-# Copyright 2012 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-# Illustrates how a Go language specification can be installed for Xcode 4+,
+-# to enable syntax coloring, by adding an entry to a plugindata file.
+-#
+-# FIXME: Write a decent Xcode plugin to handle the file type association and
+-# language specification properly instead of altering Xcode library files.
+-
+-set -e
+-
+-# Assumes Xcode 4+.
+-XCODE_MAJOR_VERSION=`xcodebuild -version | awk 'NR == 1 {print substr($2,1,1)}'`
+-if [ "$XCODE_MAJOR_VERSION" -lt "4" ]; then
+-	echo "Xcode 4+ not found."
+-	exit 1
+-fi
+-
+-# DVTFOUNDATION_DIR may vary depending on Xcode setup. If Xcode has installed
+-# the `xcode-select` command, it will be determined automatically. Otherwise,
+-# change it to reflect your current Xcode setup. Find suitable path with e.g.:
+-#
+-#	find / -type f -name 'DVTFoundation.xcplugindata' 2> /dev/null
+-#
+-# Example of DVTFOUNDATION_DIR's from "default" Xcode 4+ setups;
+-#
+-#	Xcode 4.1: /Developer/Library/PrivateFrameworks/DVTFoundation.framework/Versions/A/Resources/
+-#	Xcode 4.3: /Applications/Xcode.app/Contents/SharedFrameworks/DVTFoundation.framework/Versions/A/Resources/
+-
+-# Defaults to Xcode 4.3's DVTFOUNDATION_DIR. Path is modified automatically if
+-# `xcode-select` command is available, as mentioned above.
+-DVTFOUNDATION_DIR="/Applications/Xcode.app/Contents/SharedFrameworks/DVTFoundation.framework/Versions/A/Resources/"
+-
+-if type "xcode-select" > /dev/null; then
+-    DVTFOUNDATION_DIR=`xcode-select --print-path`
+-    DVTFOUNDATION_DIR+="/.."
+-    FRAMEWORK_NAME="DVTFoundation.framework"    
+-    DVTFOUNDATION_DIR=`find $DVTFOUNDATION_DIR -name $FRAMEWORK_NAME -print`
+-    DVTFOUNDATION_DIR+="/Versions/A/Resources"
+-fi
+-
+-PLUGINDATA_FILE="DVTFoundation.xcplugindata"
+-
+-PLISTBUDDY=/usr/libexec/PlistBuddy
+-PLIST_FILE=tmp.plist
+-
+-# Provide means of deleting the Go entry from the plugindata file.
+-if [ "$1" = "--delete-entry" ]; then
+-	echo "Removing Go language specification entry."
+-	$PLISTBUDDY -c "Delete :plug-in:extensions:Xcode.SourceCodeLanguage.Go" $DVTFOUNDATION_DIR/$PLUGINDATA_FILE
+-	echo "Run 'sudo rm -rf /var/folders/*' and restart Xcode to update change immediately."
+-	exit 0
+-fi
+-
+-GO_VERSION="`go version`"
+-
+-GO_LANG_ENTRY="
+-	<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+-	<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+-	<plist version=\"1.0\">
+-		<dict>
+-			<key>Xcode.SourceCodeLanguage.Go</key>
+-			<dict>
+-				<key>conformsTo</key>
+-				<array>
+-					<dict>
+-						<key>identifier</key>
+-						<string>Xcode.SourceCodeLanguage.Generic</string>
+-					</dict>
+-				</array>
+-				<key>documentationAbbreviation</key>
+-				<string>go</string>
+-				<key>fileDataType</key>
+-				<array>
+-					<dict>
+-						<key>identifier</key>
+-						<string>com.apple.xcode.go-source</string>
+-					</dict>
+-				</array>
+-				<key>id</key>
+-				<string>Xcode.SourceCodeLanguage.Go</string>
+-				<key>languageName</key>
+-				<string>Go</string>
+-				<key>languageSpecification</key>
+-				<string>xcode.lang.go</string>
+-				<key>name</key>
+-				<string>The Go Programming Language</string>
+-				<key>point</key>
+-				<string>Xcode.SourceCodeLanguage</string>
+-				<key>version</key>
+-				<string>$GO_VERSION</string>
+-			</dict>
+-		</dict>
+-	</plist>
+-"
+-
+-echo "Backing up plugindata file (copied to $PLUGINDATA_FILE.bak)."
+-cp $DVTFOUNDATION_DIR/$PLUGINDATA_FILE $DVTFOUNDATION_DIR/$PLUGINDATA_FILE.bak
+-
+-echo "Adding Go language specification entry."
+-echo $GO_LANG_ENTRY > $PLIST_FILE
+-$PLISTBUDDY -c "Merge $PLIST_FILE plug-in:extensions" $DVTFOUNDATION_DIR/$PLUGINDATA_FILE
+-
+-rm -f $PLIST_FILE
+-
+-echo "Installing Go language specification file for Xcode."
+-cp $GOROOT/misc/xcode/4/go.xclangspec $DVTFOUNDATION_DIR
+-
+-echo "Run 'sudo rm -rf /var/folders/*' and restart Xcode to update change immediately."
+-echo "Syntax coloring must be manually selected from the Editor - Syntax Coloring menu in Xcode."
+diff --git a/misc/zsh/go b/misc/zsh/go
+deleted file mode 100644
+index 066cf40654..0000000000
+--- a/misc/zsh/go
++++ /dev/null
+@@ -1,161 +0,0 @@
+-# install in /etc/zsh/zshrc or your personal .zshrc
+-
+-# gc
+-prefixes=(5 6 8)
+-for p in $prefixes; do
+-	compctl -g "*.${p}" ${p}l
+-	compctl -g "*.go" ${p}g
+-done
+-
+-# standard go tools
+-compctl -g "*.go" gofmt
+-
+-# gccgo
+-compctl -g "*.go" gccgo
+-
+-# go tool
+-__go_tool_complete() {
+-  typeset -a commands build_flags
+-  commands+=(
+-    'build[compile packages and dependencies]'
+-    'clean[remove object files]'
+-    'env[print Go environment information]'
+-    'fix[run go tool fix on packages]'
+-    'fmt[run gofmt on package sources]'
+-    'get[download and install packages and dependencies]'
+-    'help[display help]'
+-    'install[compile and install packages and dependencies]'
+-    'list[list packages]'
+-    'run[compile and run Go program]'
+-    'test[test packages]'
+-    'tool[run specified go tool]'
+-    'version[print Go version]'
+-    'vet[run go tool vet on packages]'
+-  )
+-  if (( CURRENT == 2 )); then
+-    # explain go commands
+-    _values 'go tool commands' ${commands[@]}
+-    return
+-  fi
+-  build_flags=(
+-    '-a[force reinstallation of packages that are already up-to-date]'
+-    '-n[print the commands but do not run them]'
+-    '-p[number of parallel builds]:number'
+-    '-race[enable data race detection]'
+-    '-x[print the commands]'
+-    '-work[print temporary directory name and keep it]'
+-    '-ccflags[flags for 5c/6c/8c]:flags'
+-    '-gcflags[flags for 5g/6g/8g]:flags'
+-    '-ldflags[flags for 5l/6l/8l]:flags'
+-    '-gccgoflags[flags for gccgo]:flags'
+-    '-compiler[name of compiler to use]:name'
+-    '-installsuffix[suffix to add to package directory]:suffix'
+-    '-tags[list of build tags to consider satisfied]:tags'
+-  )
+-  __go_list() {
+-      local expl importpaths
+-      declare -a importpaths
+-      importpaths=($(go list ${words[$CURRENT]}... 2>/dev/null))
+-      _wanted importpaths expl 'import paths' compadd "$@" - "${importpaths[@]}"
+-  }
+-  case ${words[2]} in
+-  clean|doc)
+-      _arguments -s -w : '*:importpaths:__go_list'
+-      ;;
+-  fix|fmt|list|vet)
+-      _alternative ':importpaths:__go_list' ':files:_path_files -g "*.go"'
+-      ;;
+-  install)
+-      _arguments -s -w : ${build_flags[@]} \
+-        "-v[show package names]" \
+-        '*:importpaths:__go_list'
+-      ;;
+-  get)
+-      _arguments -s -w : \
+-        ${build_flags[@]}
+-      ;;
+-  build)
+-      _arguments -s -w : \
+-        ${build_flags[@]} \
+-        "-v[show package names]" \
+-        "-o[output file]:file:_files" \
+-        "*:args:{ _alternative ':importpaths:__go_list' ':files:_path_files -g \"*.go\"' }"
+-      ;;
+-  test)
+-      _arguments -s -w : \
+-        ${build_flags[@]} \
+-        "-c[do not run, compile the test binary]" \
+-        "-i[do not run, install dependencies]" \
+-        "-v[print test output]" \
+-        "-x[print the commands]" \
+-        "-short[use short mode]" \
+-        "-parallel[number of parallel tests]:number" \
+-        "-cpu[values of GOMAXPROCS to use]:number list" \
+-	"-cover[enable coverage analysis]" \
+-        "-run[run tests and examples matching regexp]:regexp" \
+-        "-bench[run benchmarks matching regexp]:regexp" \
+-        "-benchmem[print memory allocation stats]" \
+-        "-benchtime[run each benchmark until taking this long]:duration" \
+-        "-blockprofile[write goroutine blocking profile to file]:file" \
+-        "-blockprofilerate[set sampling rate of goroutine blocking profile]:number" \
+-        "-timeout[kill test after that duration]:duration" \
+-        "-cpuprofile[write CPU profile to file]:file:_files" \
+-        "-memprofile[write heap profile to file]:file:_files" \
+-        "-memprofilerate[set heap profiling rate]:number" \
+-        "*:args:{ _alternative ':importpaths:__go_list' ':files:_path_files -g \"*.go\"' }"
+-      ;;
+-  help)
+-      _values "${commands[@]}" \
+-        'c[how to call C code]' \
+-        'importpath[description of import path]' \
+-        'gopath[GOPATH environment variable]' \
+-        'packages[description of package lists]' \
+-        'testflag[description of testing flags]' \
+-        'testfunc[description of testing functions]'
+-      ;;
+-  run)
+-      _arguments -s -w : \
+-          ${build_flags[@]} \
+-          '*:file:_path_files -g "*.go"'
+-      ;;
+-  tool)
+-      if (( CURRENT == 3 )); then
+-          _values "go tool" $(go tool)
+-          return
+-      fi
+-      case ${words[3]} in
+-      [568]g)
+-          _arguments -s -w : \
+-              '-I[search for packages in DIR]:includes:_path_files -/' \
+-              '-L[show full path in file:line prints]' \
+-              '-S[print the assembly language]' \
+-              '-V[print the compiler version]' \
+-              '-e[no limit on number of errors printed]' \
+-              '-h[panic on an error]' \
+-              '-l[disable inlining]' \
+-              '-m[print optimization decisions]' \
+-              '-o[file specify output file]:file' \
+-              '-p[assumed import path for this code]:importpath' \
+-              '-u[disable package unsafe]' \
+-              "*:file:_files -g '*.go'"
+-          ;;
+-      [568]l)
+-          local O=${words[3]%l}
+-          _arguments -s -w : \
+-              '-o[file specify output file]:file' \
+-              '-L[search for packages in DIR]:includes:_path_files -/' \
+-              "*:file:_files -g '*.[ao$O]'"
+-          ;;
+-      dist)
+-          _values "dist tool" banner bootstrap clean env install version
+-          ;;
+-      *)
+-          # use files by default
+-          _files
+-          ;;
+-      esac
+-      ;;
+-  esac
+-}
+-
+-compdef __go_tool_complete go

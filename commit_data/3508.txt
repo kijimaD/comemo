@@ -9,8 +9,118 @@ Date:   Mon Oct 12 10:12:37 2009 -0700
     R=ken
     OCL=35602
     CL=35602
-
+---
  src/cmd/gc/builtin.c.boot |  2 ++
  src/cmd/gc/go.y           |  6 +++++-
  src/cmd/gc/print.c        | 47 ++++++++++++++++++++++++++++++++++++++++++++++-
  3 files changed, 53 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index 408fdde028..ed2bea22ac 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -71,6 +71,8 @@ char *sysimport =
+ 	"func sys.uint64div (? uint64, ? uint64) (? uint64)\n"
+ 	"func sys.int64mod (? int64, ? int64) (? int64)\n"
+ 	"func sys.uint64mod (? uint64, ? uint64) (? uint64)\n"
++	"func sys.float64toint64 (? float64) (? int64)\n"
++	"func sys.int64tofloat64 (? int64) (? float64)\n"
+ 	"\n"
+ 	"$$\n";
+ char *unsafeimport =
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 93d25674cb..45e0292059 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -188,7 +188,11 @@ import_stmt:
+ 		if(my->name[0] == '_' && my->name[1] == '\0')
+ 			break;
+ 
+-		if(my->def) {
++		// Can end up with my->def->op set to ONONAME
++		// if one package refers to p without importing it.
++		// Don't want to give an error on a good import
++		// in another file.
++		if(my->def && my->def->op != ONONAME) {
+ 			lineno = $1;
+ 			redeclare(my, "as imported package name");
+ 		}
+diff --git a/src/cmd/gc/print.c b/src/cmd/gc/print.c
+index 70d80c5e6a..2960f2a11e 100644
+--- a/src/cmd/gc/print.c
++++ b/src/cmd/gc/print.c
+@@ -36,6 +36,35 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case ONONAME:
+ 	case OPACK:
+ 	case OLITERAL:
++	case ODOT:
++	case ODOTPTR:
++	case ODOTINTER:
++	case ODOTMETH:
++	case OARRAYBYTESTR:
++	case OCAP:
++	case OCLOSE:
++	case OCLOSED:
++	case OLEN:
++	case OMAKE:
++	case ONEW:
++	case OPANIC:
++	case OPANICN:
++	case OPRINT:
++	case OPRINTN:
++	case OCALL:
++	case OCONV:
++	case OCONVNOP:
++	case OCONVSLICE:
++	case OCONVIFACE:
++	case OMAKESLICE:
++	case ORUNESTR:
++	case OADDR:
++	case OCOM:
++	case OIND:
++	case OMINUS:
++	case ONOT:
++	case OPLUS:
++	case ORECV:
+ 		nprec = 7;
+ 		break;
+ 
+@@ -232,6 +261,7 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 
+ 	case OINDEX:
+ 	case OINDEXMAP:
++	case OINDEXSTR:
+ 		exprfmt(f, n->left, 7);
+ 		fmtprint(f, "[");
+ 		exprfmt(f, n->right, 0);
+@@ -261,7 +291,12 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case OCONVNOP:
+ 	case OCONVSLICE:
+ 	case OCONVIFACE:
+-		fmtprint(f, "%T(", n->type);
++	case OARRAYBYTESTR:
++	case ORUNESTR:
++		if(n->type->sym == S)
++			fmtprint(f, "(%T)(", n->type);
++		else
++			fmtprint(f, "%T(", n->type);
+ 		exprfmt(f, n->left, 0);
+ 		fmtprint(f, ")");
+ 		break;
+@@ -283,6 +318,16 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 			exprlistfmt(f, n->list);
+ 		fmtprint(f, ")");
+ 		break;
++
++	case OMAKESLICE:
++		fmtprint(f, "make(%#T, ", n->type);
++		exprfmt(f, n->left, 0);
++		if(count(n->list) > 2) {
++			fmtprint(f, ", ");
++			exprfmt(f, n->right, 0);
++		}
++		fmtprint(f, ")");
++		break;
+ 	}
+ 
+ 	if(prec > nprec)

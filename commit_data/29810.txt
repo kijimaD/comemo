@@ -9,6 +9,20 @@ Date:   Mon Jul 25 15:53:15 2016 +0300
     Change-Id: I453b4e799301e758799c93df1e32f5244ca2fb84
     Reviewed-on: https://go-review.googlesource.com/25174
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index e076c89c21..ee86c5a4fe 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -235,7 +235,7 @@ func setGCPercent(in int32) (out int32) {
+ }
+ 
+ // Garbage collector phase.
+-// Indicates to write barrier and sychronization task to preform.
++// Indicates to write barrier and synchronization task to perform.
+ var gcphase uint32
+ 
+ // The compiler knows about this variable.

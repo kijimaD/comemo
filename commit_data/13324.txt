@@ -10,7 +10,7 @@ Date:   Fri Jun 8 13:54:48 2012 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6307065
-
+---
  api/next.txt                              | 26 --------------------------
  src/pkg/os/file_windows.go                |  6 +++---
  src/pkg/syscall/syscall_windows.go        | 27 ++++++++++++++++++++++-----
@@ -18,3 +18,226 @@ Date:   Fri Jun 8 13:54:48 2012 -0400
  src/pkg/syscall/zsyscall_windows_amd64.go |  4 ++--
  src/pkg/syscall/ztypes_windows.go         | 24 ++++++++++++++++++++----
  6 files changed, 49 insertions(+), 42 deletions(-)
+
+diff --git a/api/next.txt b/api/next.txt
+index 38cfc5c938..8b45feb691 100644
+--- a/api/next.txt
++++ b/api/next.txt
+@@ -422,38 +422,12 @@ pkg syscall (darwin-amd64-cgo), type Termios struct, Pad_cgo_0 [4]byte
+ pkg syscall (windows-386), const CREATE_NEW_PROCESS_GROUP ideal-int
+ pkg syscall (windows-386), const CTRL_BREAK_EVENT ideal-int
+ pkg syscall (windows-386), const CTRL_C_EVENT ideal-int
+-pkg syscall (windows-386), func FindFirstFile1(*uint16, *Win32finddata1) (Handle, error)
+-pkg syscall (windows-386), func FindNextFile1(Handle, *Win32finddata1) error
+ pkg syscall (windows-386), func GetCurrentProcessId() uint32
+ pkg syscall (windows-386), func Getsockopt(Handle, int32, int32, *byte, *int32) error
+ pkg syscall (windows-386), type SysProcAttr struct, CreationFlags uint32
+-pkg syscall (windows-386), type Win32finddata1 struct
+-pkg syscall (windows-386), type Win32finddata1 struct, AlternateFileName [14]uint16
+-pkg syscall (windows-386), type Win32finddata1 struct, CreationTime Filetime
+-pkg syscall (windows-386), type Win32finddata1 struct, FileAttributes uint32
+-pkg syscall (windows-386), type Win32finddata1 struct, FileName [MAX_PATH]uint16
+-pkg syscall (windows-386), type Win32finddata1 struct, FileSizeHigh uint32
+-pkg syscall (windows-386), type Win32finddata1 struct, FileSizeLow uint32
+-pkg syscall (windows-386), type Win32finddata1 struct, LastAccessTime Filetime
+-pkg syscall (windows-386), type Win32finddata1 struct, LastWriteTime Filetime
+-pkg syscall (windows-386), type Win32finddata1 struct, Reserved0 uint32
+-pkg syscall (windows-386), type Win32finddata1 struct, Reserved1 uint32
+ pkg syscall (windows-amd64), const CREATE_NEW_PROCESS_GROUP ideal-int
+ pkg syscall (windows-amd64), const CTRL_BREAK_EVENT ideal-int
+ pkg syscall (windows-amd64), const CTRL_C_EVENT ideal-int
+-pkg syscall (windows-amd64), func FindFirstFile1(*uint16, *Win32finddata1) (Handle, error)
+-pkg syscall (windows-amd64), func FindNextFile1(Handle, *Win32finddata1) error
+ pkg syscall (windows-amd64), func GetCurrentProcessId() uint32
+ pkg syscall (windows-amd64), func Getsockopt(Handle, int32, int32, *byte, *int32) error
+ pkg syscall (windows-amd64), type SysProcAttr struct, CreationFlags uint32
+-pkg syscall (windows-amd64), type Win32finddata1 struct
+-pkg syscall (windows-amd64), type Win32finddata1 struct, AlternateFileName [14]uint16
+-pkg syscall (windows-amd64), type Win32finddata1 struct, CreationTime Filetime
+-pkg syscall (windows-amd64), type Win32finddata1 struct, FileAttributes uint32
+-pkg syscall (windows-amd64), type Win32finddata1 struct, FileName [MAX_PATH]uint16
+-pkg syscall (windows-amd64), type Win32finddata1 struct, FileSizeHigh uint32
+-pkg syscall (windows-amd64), type Win32finddata1 struct, FileSizeLow uint32
+-pkg syscall (windows-amd64), type Win32finddata1 struct, LastAccessTime Filetime
+-pkg syscall (windows-amd64), type Win32finddata1 struct, LastWriteTime Filetime
+-pkg syscall (windows-amd64), type Win32finddata1 struct, Reserved0 uint32
+-pkg syscall (windows-amd64), type Win32finddata1 struct, Reserved1 uint32
+diff --git a/src/pkg/os/file_windows.go b/src/pkg/os/file_windows.go
+index df0e71d680..88fa77bb84 100644
+--- a/src/pkg/os/file_windows.go
++++ b/src/pkg/os/file_windows.go
+@@ -50,7 +50,7 @@ func NewFile(fd uintptr, name string) *File {
+ 
+ // Auxiliary information if the File describes a directory
+ type dirInfo struct {
+-	data     syscall.Win32finddata1
++	data     syscall.Win32finddata
+ 	needdata bool
+ 	path     string
+ }
+@@ -76,7 +76,7 @@ func openFile(name string, flag int, perm FileMode) (file *File, err error) {
+ 
+ func openDir(name string) (file *File, err error) {
+ 	d := new(dirInfo)
+-	r, e := syscall.FindFirstFile1(syscall.StringToUTF16Ptr(name+`\*`), &d.data)
++	r, e := syscall.FindFirstFile(syscall.StringToUTF16Ptr(name+`\*`), &d.data)
+ 	if e != nil {
+ 		return nil, &PathError{"open", name, e}
+ 	}
+@@ -159,7 +159,7 @@ func (file *File) readdir(n int) (fi []FileInfo, err error) {
+ 	d := &file.dirinfo.data
+ 	for n != 0 {
+ 		if file.dirinfo.needdata {
+-			e := syscall.FindNextFile1(syscall.Handle(file.fd), d)
++			e := syscall.FindNextFile(syscall.Handle(file.fd), d)
+ 			if e != nil {
+ 				if e == syscall.ERROR_NO_MORE_FILES {
+ 					break
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 618df94f68..35f3bbfdc2 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -7,7 +7,6 @@
+ package syscall
+ 
+ import (
+-	errorspkg "errors"
+ 	"unicode/utf16"
+ 	"unsafe"
+ )
+@@ -130,8 +129,8 @@ func NewCallback(fn interface{}) uintptr
+ //sys	SetFilePointer(handle Handle, lowoffset int32, highoffsetptr *int32, whence uint32) (newlowoffset uint32, err error) [failretval==0xffffffff]
+ //sys	CloseHandle(handle Handle) (err error)
+ //sys	GetStdHandle(stdhandle int) (handle Handle, err error) [failretval==InvalidHandle]
+-//sys	FindFirstFile1(name *uint16, data *Win32finddata1) (handle Handle, err error) [failretval==InvalidHandle] = FindFirstFileW
+-//sys	FindNextFile1(handle Handle, data *Win32finddata1) (err error) = FindNextFileW
++//sys	findFirstFile1(name *uint16, data *win32finddata1) (handle Handle, err error) [failretval==InvalidHandle] = FindFirstFileW
++//sys	findNextFile1(handle Handle, data *win32finddata1) (err error) = FindNextFileW
+ //sys	FindClose(handle Handle) (err error)
+ //sys	GetFileInformationByHandle(handle Handle, data *ByHandleFileInformation) (err error)
+ //sys	GetCurrentDirectory(buflen uint32, buf *uint16) (n uint32, err error) = GetCurrentDirectoryW
+@@ -706,11 +705,29 @@ func SetsockoptIPv6Mreq(fd Handle, level, opt int, mreq *IPv6Mreq) (err error) {
+ func Getpid() (pid int) { return int(GetCurrentProcessId()) }
+ 
+ func FindFirstFile(name *uint16, data *Win32finddata) (handle Handle, err error) {
+-	return InvalidHandle, errorspkg.New("FindFirstFile is broken, use FindFirstFile1 instead")
++	// NOTE(rsc): The Win32finddata struct is wrong for the system call:
++	// the two paths are each one uint16 short. Use the correct struct,
++	// a win32finddata1, and then copy the results out.
++	// There is no loss of expressivity here, because the final
++	// uint16, if it is used, is supposed to be a NUL, and Go doesn't need that.
++	// For Go 1.1, we might avoid the allocation of win32finddata1 here
++	// by adding a final Bug [2]uint16 field to the struct and then
++	// adjusting the fields in the result directly.
++	var data1 win32finddata1
++	handle, err = findFirstFile1(name, &data1)
++	if err == nil {
++		copyFindData(data, &data1)
++	}
++	return
+ }
+ 
+ func FindNextFile(handle Handle, data *Win32finddata) (err error) {
+-	return errorspkg.New("FindNextFile is broken, use FindNextFile1 instead")
++	var data1 win32finddata1
++	err = findNextFile1(handle, &data1)
++	if err == nil {
++		copyFindData(data, &data1)
++	}
++	return
+ }
+ 
+ // TODO(brainman): fix all needed for os
+diff --git a/src/pkg/syscall/zsyscall_windows_386.go b/src/pkg/syscall/zsyscall_windows_386.go
+index 2b3a9c64b1..02be967268 100644
+--- a/src/pkg/syscall/zsyscall_windows_386.go
++++ b/src/pkg/syscall/zsyscall_windows_386.go
+@@ -310,7 +310,7 @@ func GetStdHandle(stdhandle int) (handle Handle, err error) {
+ 	return
+ }
+ 
+-func FindFirstFile1(name *uint16, data *Win32finddata1) (handle Handle, err error) {
++func findFirstFile1(name *uint16, data *win32finddata1) (handle Handle, err error) {
+ 	r0, _, e1 := Syscall(procFindFirstFileW.Addr(), 2, uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(data)), 0)
+ 	handle = Handle(r0)
+ 	if handle == InvalidHandle {
+@@ -323,7 +323,7 @@ func FindFirstFile1(name *uint16, data *Win32finddata1) (handle Handle, err erro
+ 	return
+ }
+ 
+-func FindNextFile1(handle Handle, data *Win32finddata1) (err error) {
++func findNextFile1(handle Handle, data *win32finddata1) (err error) {
+ 	r1, _, e1 := Syscall(procFindNextFileW.Addr(), 2, uintptr(handle), uintptr(unsafe.Pointer(data)), 0)
+ 	if int(r1) == 0 {
+ 		if e1 != 0 {
+diff --git a/src/pkg/syscall/zsyscall_windows_amd64.go b/src/pkg/syscall/zsyscall_windows_amd64.go
+index 565b0a2dcc..6f95e52962 100644
+--- a/src/pkg/syscall/zsyscall_windows_amd64.go
++++ b/src/pkg/syscall/zsyscall_windows_amd64.go
+@@ -310,7 +310,7 @@ func GetStdHandle(stdhandle int) (handle Handle, err error) {
+ 	return
+ }
+ 
+-func FindFirstFile1(name *uint16, data *Win32finddata1) (handle Handle, err error) {
++func findFirstFile1(name *uint16, data *win32finddata1) (handle Handle, err error) {
+ 	r0, _, e1 := Syscall(procFindFirstFileW.Addr(), 2, uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(data)), 0)
+ 	handle = Handle(r0)
+ 	if handle == InvalidHandle {
+@@ -323,7 +323,7 @@ func FindFirstFile1(name *uint16, data *Win32finddata1) (handle Handle, err erro
+ 	return
+ }
+ 
+-func FindNextFile1(handle Handle, data *Win32finddata1) (err error) {
++func findNextFile1(handle Handle, data *win32finddata1) (err error) {
+ 	r1, _, e1 := Syscall(procFindNextFileW.Addr(), 2, uintptr(handle), uintptr(unsafe.Pointer(data)), 0)
+ 	if int(r1) == 0 {
+ 		if e1 != 0 {
+diff --git a/src/pkg/syscall/ztypes_windows.go b/src/pkg/syscall/ztypes_windows.go
+index 276c34f4ef..73c780c5d7 100644
+--- a/src/pkg/syscall/ztypes_windows.go
++++ b/src/pkg/syscall/ztypes_windows.go
+@@ -338,9 +338,6 @@ func NsecToFiletime(nsec int64) (ft Filetime) {
+ 	return ft
+ }
+ 
+-// Win32finddata is an incorrect struct definition, preserved for
+-// backwards compatibility. Use Win32finddata1 and the
+-// FindFirstFile1 and FindNextFile1 functions instead.
+ type Win32finddata struct {
+ 	FileAttributes    uint32
+ 	CreationTime      Filetime
+@@ -354,7 +351,9 @@ type Win32finddata struct {
+ 	AlternateFileName [13]uint16
+ }
+ 
+-type Win32finddata1 struct {
++// This is the actual system call structure.
++// Win32finddata is what we committed to in Go 1.
++type win32finddata1 struct {
+ 	FileAttributes    uint32
+ 	CreationTime      Filetime
+ 	LastAccessTime    Filetime
+@@ -367,6 +366,23 @@ type Win32finddata1 struct {
+ 	AlternateFileName [14]uint16
+ }
+ 
++func copyFindData(dst *Win32finddata, src *win32finddata1) {
++	dst.FileAttributes = src.FileAttributes
++	dst.CreationTime = src.CreationTime
++	dst.LastAccessTime = src.LastAccessTime
++	dst.LastWriteTime = src.LastWriteTime
++	dst.FileSizeHigh = src.FileSizeHigh
++	dst.FileSizeLow = src.FileSizeLow
++	dst.Reserved0 = src.Reserved0
++	dst.Reserved1 = src.Reserved1
++
++	// The src is 1 element shorter than dst. Zero that last one.
++	copy(dst.FileName[:], src.FileName[:])
++	dst.FileName[len(dst.FileName)-1] = 0
++	copy(dst.AlternateFileName[:], src.AlternateFileName[:])
++	src.AlternateFileName[len(dst.AlternateFileName)-1] = 0
++}
++
+ type ByHandleFileInformation struct {
+ 	FileAttributes     uint32
+ 	CreationTime       Filetime

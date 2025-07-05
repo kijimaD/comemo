@@ -5,6 +5,20 @@ Date:   Tue May 27 17:09:40 2008 -0700
     - fixed a typo
     
     SVN=120165
-
+---
  doc/go_lang.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_lang.txt b/doc/go_lang.txt
+index 574f3c7d19..3b908f1e02 100644
+--- a/doc/go_lang.txt
++++ b/doc/go_lang.txt
+@@ -1237,7 +1237,7 @@ initial values.
+ For instance,
+ 
+   type S struct { a int; b float }
+-  new(int32)
++  new(S)
+ 
+ allocates storage for an S, initializes it (a=0, b=0.0), and returns a
+ value of type *S pointing to that storage.

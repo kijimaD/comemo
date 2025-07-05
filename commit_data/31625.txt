@@ -11,6 +11,19 @@ Date:   Fri Mar 3 16:33:06 2017 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/go.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 9bf4b49395..06f511a558 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -12,7 +12,6 @@ import (
+ )
+ 
+ const (
+-	UINF            = 100
+ 	BADWIDTH        = -1000000000
+ 	MaxStackVarSize = 10 * 1024 * 1024
+ )

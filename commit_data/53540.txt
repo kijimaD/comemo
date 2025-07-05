@@ -12,6 +12,20 @@ Date:   Sat Aug 20 01:36:14 2022 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/netpoll.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/netpoll.go b/src/runtime/netpoll.go
+index 833d793d88..31473fea80 100644
+--- a/src/runtime/netpoll.go
++++ b/src/runtime/netpoll.go
+@@ -492,7 +492,7 @@ func netpollgoready(gp *g, traceskip int) {
+ 	goready(gp, traceskip+1)
+ }
+ 
+-// returns true if IO is ready, or false if timedout or closed
++// returns true if IO is ready, or false if timed out or closed
+ // waitio - wait only for completed IO, ignore errors
+ // Concurrent calls to netpollblock in the same mode are forbidden, as pollDesc
+ // can hold only a single waiting goroutine for each mode.

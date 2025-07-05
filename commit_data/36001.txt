@@ -15,6 +15,31 @@ Date:   Sun Jan 28 23:30:48 2018 +0100
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/tls/tls.go | 9 ++++-----
  1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/crypto/tls/tls.go b/src/crypto/tls/tls.go
+index 615d1e5576..8fd4294315 100644
+--- a/src/crypto/tls/tls.go
++++ b/src/crypto/tls/tls.go
+@@ -237,15 +237,14 @@ func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (Certificate, error) {
+ 		skippedBlockTypes = append(skippedBlockTypes, keyDERBlock.Type)
+ 	}
+ 
+-	var err error
+-	cert.PrivateKey, err = parsePrivateKey(keyDERBlock.Bytes)
++	// We don't need to parse the public key for TLS, but we so do anyway
++	// to check that it looks sane and matches the private key.
++	x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
+ 	if err != nil {
+ 		return fail(err)
+ 	}
+ 
+-	// We don't need to parse the public key for TLS, but we so do anyway
+-	// to check that it looks sane and matches the private key.
+-	x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
++	cert.PrivateKey, err = parsePrivateKey(keyDERBlock.Bytes)
+ 	if err != nil {
+ 		return fail(err)
+ 	}

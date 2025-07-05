@@ -23,6 +23,21 @@ Date:   Sun Jan 24 21:26:14 2021 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/os/os_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 698dbca91e..c02dc2c375 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -2689,6 +2689,9 @@ func TestOpenFileKeepsPermissions(t *testing.T) {
+ }
+ 
+ func TestDirFS(t *testing.T) {
++	if runtime.GOOS == "windows" {
++		t.Skip("workaround for dev.regabi/dev.typeparams until #42637 is fixed")
++	}
+ 	if err := fstest.TestFS(DirFS("./testdata/dirfs"), "a", "b", "dir/x"); err != nil {
+ 		t.Fatal(err)
+ 	}

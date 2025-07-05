@@ -8,7 +8,7 @@ Date:   Tue May 7 05:20:00 2013 +0800
     R=golang-dev, iant, r, rsc
     CC=golang-dev
     https://golang.org/cl/9157044
-
+---
  api/except.txt                            |  6 ++++++
  doc/go1.1.html                            | 10 +++++++++-
  src/pkg/syscall/syscall_darwin.go         |  2 +-
@@ -24,3 +24,251 @@ Date:   Tue May 7 05:20:00 2013 +0800
  src/pkg/syscall/zsyscall_openbsd_386.go   |  9 ++-------
  src/pkg/syscall/zsyscall_openbsd_amd64.go |  9 ++-------
  14 files changed, 35 insertions(+), 61 deletions(-)
+
+diff --git a/api/except.txt b/api/except.txt
+index 7f8f81df50..930d03721e 100644
+--- a/api/except.txt
++++ b/api/except.txt
+@@ -1,3 +1,9 @@
+ pkg net, func ListenUnixgram(string, *UnixAddr) (*UDPConn, error)
++pkg syscall (darwin-386), func Fchflags(string, int) error
++pkg syscall (darwin-386-cgo), func Fchflags(string, int) error
++pkg syscall (darwin-amd64), func Fchflags(string, int) error
++pkg syscall (darwin-amd64-cgo), func Fchflags(string, int) error
++pkg syscall (freebsd-386), func Fchflags(string, int) error
++pkg syscall (freebsd-amd64), func Fchflags(string, int) error
+ pkg text/template/parse, type DotNode bool
+ pkg text/template/parse, type Node interface { Copy, String, Type }
+diff --git a/doc/go1.1.html b/doc/go1.1.html
+index 1ab5c173df..b242e0734b 100644
+--- a/doc/go1.1.html
++++ b/doc/go1.1.html
+@@ -1023,7 +1023,15 @@ type now implements the
+ </li>
+ 
+ <li>
+-The <a href="/pkg/syscall/"><code>syscall</code></a> package has received many updates to make it more inclusive of constants and system calls for each supported operating system.
++The <a href="/pkg/syscall/"><code>syscall</code></a> package's
++<a href="/pkg/syscall/#Fchflags"><code>Fchflags</code></a> function on various BSDs
++(including Darwin) has changed signature.
++It now takes an int as the first parameter instead of a string.
++Since this API change fixes a bug, it is permitted by the Go 1 compatibility rules.
++</li>
++<li>
++The <a href="/pkg/syscall/"><code>syscall</code></a> package also has received many updates
++to make it more inclusive of constants and system calls for each supported operating system.
+ </li>
+ 
+ <li>
+diff --git a/src/pkg/syscall/syscall_darwin.go b/src/pkg/syscall/syscall_darwin.go
+index 7fe406aaa2..75ef8f0a92 100644
+--- a/src/pkg/syscall/syscall_darwin.go
++++ b/src/pkg/syscall/syscall_darwin.go
+@@ -125,7 +125,7 @@ func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1)
+ //sys	Exchangedata(path1 string, path2 string, options int) (err error)
+ //sys	Exit(code int)
+ //sys	Fchdir(fd int) (err error)
+-//sys	Fchflags(path string, flags int) (err error)
++//sys	Fchflags(fd int, flags int) (err error)
+ //sys	Fchmod(fd int, mode uint32) (err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+ //sys	Flock(fd int, how int) (err error)
+diff --git a/src/pkg/syscall/syscall_freebsd.go b/src/pkg/syscall/syscall_freebsd.go
+index c7ffe223ea..9fbcc48c6c 100644
+--- a/src/pkg/syscall/syscall_freebsd.go
++++ b/src/pkg/syscall/syscall_freebsd.go
+@@ -118,7 +118,7 @@ func SetsockoptIPMreqn(fd, level, opt int, mreq *IPMreqn) (err error) {
+ //sysnb	Dup2(from int, to int) (err error)
+ //sys	Exit(code int)
+ //sys	Fchdir(fd int) (err error)
+-//sys	Fchflags(path string, flags int) (err error)
++//sys	Fchflags(fd int, flags int) (err error)
+ //sys	Fchmod(fd int, mode uint32) (err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+ //sys	Flock(fd int, how int) (err error)
+diff --git a/src/pkg/syscall/syscall_netbsd.go b/src/pkg/syscall/syscall_netbsd.go
+index b0fa1112da..97812717f5 100644
+--- a/src/pkg/syscall/syscall_netbsd.go
++++ b/src/pkg/syscall/syscall_netbsd.go
+@@ -152,7 +152,7 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
+ //sysnb	Dup2(from int, to int) (err error)
+ //sys	Exit(code int)
+ //sys	Fchdir(fd int) (err error)
+-//sys	Fchflags(path string, flags int) (err error)
++//sys	Fchflags(fd int, flags int) (err error)
+ //sys	Fchmod(fd int, mode uint32) (err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+ //sys	Flock(fd int, how int) (err error)
+diff --git a/src/pkg/syscall/syscall_openbsd.go b/src/pkg/syscall/syscall_openbsd.go
+index a146dca2cd..89c73215a0 100644
+--- a/src/pkg/syscall/syscall_openbsd.go
++++ b/src/pkg/syscall/syscall_openbsd.go
+@@ -110,7 +110,7 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
+ //sysnb	Dup2(from int, to int) (err error)
+ //sys	Exit(code int)
+ //sys	Fchdir(fd int) (err error)
+-//sys	Fchflags(path string, flags int) (err error)
++//sys	Fchflags(fd int, flags int) (err error)
+ //sys	Fchmod(fd int, mode uint32) (err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+ //sys	Flock(fd int, how int) (err error)
+diff --git a/src/pkg/syscall/zsyscall_darwin_386.go b/src/pkg/syscall/zsyscall_darwin_386.go
+index 2f99b7f6c2..98500792d5 100644
+--- a/src/pkg/syscall/zsyscall_darwin_386.go
++++ b/src/pkg/syscall/zsyscall_darwin_386.go
+@@ -458,13 +458,8 @@ func Fchdir(fd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Fchflags(path string, flags int) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_FCHFLAGS, uintptr(unsafe.Pointer(_p0)), uintptr(flags), 0)
++func Fchflags(fd int, flags int) (err error) {
++	_, _, e1 := Syscall(SYS_FCHFLAGS, uintptr(fd), uintptr(flags), 0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/pkg/syscall/zsyscall_darwin_amd64.go b/src/pkg/syscall/zsyscall_darwin_amd64.go
+index 0f08df4c52..ee810e0766 100644
+--- a/src/pkg/syscall/zsyscall_darwin_amd64.go
++++ b/src/pkg/syscall/zsyscall_darwin_amd64.go
+@@ -458,13 +458,8 @@ func Fchdir(fd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Fchflags(path string, flags int) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_FCHFLAGS, uintptr(unsafe.Pointer(_p0)), uintptr(flags), 0)
++func Fchflags(fd int, flags int) (err error) {
++	_, _, e1 := Syscall(SYS_FCHFLAGS, uintptr(fd), uintptr(flags), 0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/pkg/syscall/zsyscall_freebsd_386.go b/src/pkg/syscall/zsyscall_freebsd_386.go
+index 5ca0bcb16b..631994fbad 100644
+--- a/src/pkg/syscall/zsyscall_freebsd_386.go
++++ b/src/pkg/syscall/zsyscall_freebsd_386.go
+@@ -418,13 +418,8 @@ func Fchdir(fd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Fchflags(path string, flags int) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_FCHFLAGS, uintptr(unsafe.Pointer(_p0)), uintptr(flags), 0)
++func Fchflags(fd int, flags int) (err error) {
++	_, _, e1 := Syscall(SYS_FCHFLAGS, uintptr(fd), uintptr(flags), 0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/pkg/syscall/zsyscall_freebsd_amd64.go b/src/pkg/syscall/zsyscall_freebsd_amd64.go
+index 260677473f..1d51808530 100644
+--- a/src/pkg/syscall/zsyscall_freebsd_amd64.go
++++ b/src/pkg/syscall/zsyscall_freebsd_amd64.go
+@@ -418,13 +418,8 @@ func Fchdir(fd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Fchflags(path string, flags int) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_FCHFLAGS, uintptr(unsafe.Pointer(_p0)), uintptr(flags), 0)
++func Fchflags(fd int, flags int) (err error) {
++	_, _, e1 := Syscall(SYS_FCHFLAGS, uintptr(fd), uintptr(flags), 0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/pkg/syscall/zsyscall_netbsd_386.go b/src/pkg/syscall/zsyscall_netbsd_386.go
+index 10ac072db8..0ee19bee1e 100644
+--- a/src/pkg/syscall/zsyscall_netbsd_386.go
++++ b/src/pkg/syscall/zsyscall_netbsd_386.go
+@@ -435,13 +435,8 @@ func Fchdir(fd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Fchflags(path string, flags int) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_FCHFLAGS, uintptr(unsafe.Pointer(_p0)), uintptr(flags), 0)
++func Fchflags(fd int, flags int) (err error) {
++	_, _, e1 := Syscall(SYS_FCHFLAGS, uintptr(fd), uintptr(flags), 0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/pkg/syscall/zsyscall_netbsd_amd64.go b/src/pkg/syscall/zsyscall_netbsd_amd64.go
+index f10dc0bf41..b9d2721443 100644
+--- a/src/pkg/syscall/zsyscall_netbsd_amd64.go
++++ b/src/pkg/syscall/zsyscall_netbsd_amd64.go
+@@ -435,13 +435,8 @@ func Fchdir(fd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Fchflags(path string, flags int) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_FCHFLAGS, uintptr(unsafe.Pointer(_p0)), uintptr(flags), 0)
++func Fchflags(fd int, flags int) (err error) {
++	_, _, e1 := Syscall(SYS_FCHFLAGS, uintptr(fd), uintptr(flags), 0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/pkg/syscall/zsyscall_openbsd_386.go b/src/pkg/syscall/zsyscall_openbsd_386.go
+index 60e907bd27..2c2a56732f 100644
+--- a/src/pkg/syscall/zsyscall_openbsd_386.go
++++ b/src/pkg/syscall/zsyscall_openbsd_386.go
+@@ -416,13 +416,8 @@ func Fchdir(fd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Fchflags(path string, flags int) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_FCHFLAGS, uintptr(unsafe.Pointer(_p0)), uintptr(flags), 0)
++func Fchflags(fd int, flags int) (err error) {
++	_, _, e1 := Syscall(SYS_FCHFLAGS, uintptr(fd), uintptr(flags), 0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/pkg/syscall/zsyscall_openbsd_amd64.go b/src/pkg/syscall/zsyscall_openbsd_amd64.go
+index 1403dd7e79..4e14706965 100644
+--- a/src/pkg/syscall/zsyscall_openbsd_amd64.go
++++ b/src/pkg/syscall/zsyscall_openbsd_amd64.go
+@@ -416,13 +416,8 @@ func Fchdir(fd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Fchflags(path string, flags int) (err error) {
+-	var _p0 *byte
+-	_p0, err = BytePtrFromString(path)
+-	if err != nil {
+-		return
+-	}
+-	_, _, e1 := Syscall(SYS_FCHFLAGS, uintptr(unsafe.Pointer(_p0)), uintptr(flags), 0)
++func Fchflags(fd int, flags int) (err error) {
++	_, _, e1 := Syscall(SYS_FCHFLAGS, uintptr(fd), uintptr(flags), 0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}

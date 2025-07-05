@@ -13,7 +13,236 @@ Date:   Wed Nov 25 16:08:32 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/17241
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/net/http/clientserver_test.go | 50 +++++++++++++++++++--------
  src/net/http/h2_bundle.go         | 73 +++++++++++++++++++++++++++++++++++----
  2 files changed, 101 insertions(+), 22 deletions(-)
+
+diff --git a/src/net/http/clientserver_test.go b/src/net/http/clientserver_test.go
+index 5cb529104f..a7e0bac282 100644
+--- a/src/net/http/clientserver_test.go
++++ b/src/net/http/clientserver_test.go
+@@ -8,6 +8,7 @@ package http_test
+ 
+ import (
+ 	"bytes"
++	"compress/gzip"
+ 	"crypto/tls"
+ 	"fmt"
+ 	"io"
+@@ -154,10 +155,12 @@ func (tt h12Compare) run(t *testing.T) {
+ 	tt.normalizeRes(t, res1, "HTTP/1.1")
+ 	tt.normalizeRes(t, res2, "HTTP/2.0")
+ 	res1body, res2body := res1.Body, res2.Body
+-	res1.Body, res2.Body = nil, nil
+-	if !reflect.DeepEqual(res1, res2) {
++
++	eres1 := mostlyCopy(res1)
++	eres2 := mostlyCopy(res2)
++	if !reflect.DeepEqual(eres1, eres2) {
+ 		t.Errorf("Response headers to handler differed:\nhttp/1 (%v):\n\t%#v\nhttp/2 (%v):\n\t%#v",
+-			cst1.ts.URL, res1, cst2.ts.URL, res2)
++			cst1.ts.URL, eres1, cst2.ts.URL, eres2)
+ 	}
+ 	if !reflect.DeepEqual(res1body, res2body) {
+ 		t.Errorf("Response bodies to handler differed.\nhttp1: %v\nhttp2: %v\n", res1body, res2body)
+@@ -169,6 +172,15 @@ func (tt h12Compare) run(t *testing.T) {
+ 	}
+ }
+ 
++func mostlyCopy(r *Response) *Response {
++	c := *r
++	c.Body = nil
++	c.TransferEncoding = nil
++	c.TLS = nil
++	c.Request = nil
++	return &c
++}
++
+ type slurpResult struct {
+ 	io.ReadCloser
+ 	body []byte
+@@ -193,18 +205,11 @@ func (tt h12Compare) normalizeRes(t *testing.T, res *Response, wantProto string)
+ 	for i, v := range res.Header["Date"] {
+ 		res.Header["Date"][i] = strings.Repeat("x", len(v))
+ 	}
+-	res.Request = nil
+-	if (res.TLS != nil) != (wantProto == "HTTP/2.0") {
+-		t.Errorf("%d. TLS set = %v; want %v", res.TLS != nil, res.TLS == nil)
++	if res.Request == nil {
++		t.Errorf("for %s, no request", wantProto)
+ 	}
+-	res.TLS = nil
+-	// For now the HTTP/2 code isn't lying and saying
+-	// things are "chunked", since that's an HTTP/1.1
+-	// thing. I'd prefer not to lie and it shouldn't break
+-	// people.  I hope nobody's relying on that as a
+-	// heuristic for anything.
+-	if wantProto == "HTTP/2.0" && res.ContentLength == -1 && res.TransferEncoding == nil {
+-		res.TransferEncoding = []string{"chunked"}
++	if (res.TLS != nil) != (wantProto == "HTTP/2.0") {
++		t.Errorf("TLS set = %v; want %v", res.TLS != nil, res.TLS == nil)
+ 	}
+ }
+ 
+@@ -318,7 +323,22 @@ func TestH12_HandlerWritesTooMuch(t *testing.T) {
+ }
+ 
+ // TODO: TestH12_Trailers
+-// TODO: TestH12_AutoGzip (golang.org/issue/13298)
++
++// Verify that both our HTTP/1 and HTTP/2 request and auto-decompress gzip.
++// Some hosts send gzip even if you don't ask for it; see golang.org/issue/13298
++func TestH12_AutoGzip(t *testing.T) {
++	h12Compare{
++		Handler: func(w ResponseWriter, r *Request) {
++			if ae := r.Header.Get("Accept-Encoding"); ae != "gzip" {
++				t.Errorf("%s Accept-Encoding = %q; want gzip", r.Proto, ae)
++			}
++			w.Header().Set("Content-Encoding", "gzip")
++			gz := gzip.NewWriter(w)
++			io.WriteString(gz, "I am some gzipped content. Go go go go go go go go go go go go should compress well.")
++			gz.Close()
++		},
++	}.run(t)
++}
+ 
+ // Test304Responses verifies that 304s don't declare that they're
+ // chunking in their response headers and aren't allowed to produce
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 1052868876..d9046c4c18 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -18,6 +18,7 @@ package http
+ import (
+ 	"bufio"
+ 	"bytes"
++	"compress/gzip"
+ 	"crypto/tls"
+ 	"encoding/binary"
+ 	"errors"
+@@ -3721,10 +3722,28 @@ type http2Transport struct {
+ 	// If nil, the default is used.
+ 	ConnPool http2ClientConnPool
+ 
++	// DisableCompression, if true, prevents the Transport from
++	// requesting compression with an "Accept-Encoding: gzip"
++	// request header when the Request contains no existing
++	// Accept-Encoding value. If the Transport requests gzip on
++	// its own and gets a gzipped response, it's transparently
++	// decoded in the Response.Body. However, if the user
++	// explicitly requested gzip it is not automatically
++	// uncompressed.
++	DisableCompression bool
++
+ 	connPoolOnce  sync.Once
+ 	connPoolOrDef http2ClientConnPool // non-nil version of ConnPool
+ }
+ 
++func (t *http2Transport) disableCompression() bool {
++	if t.DisableCompression {
++		return true
++	}
++
++	return false
++}
++
+ var http2errTransportVersion = errors.New("http2: ConfigureTransport is only supported starting at Go 1.6")
+ 
+ // ConfigureTransport configures a net/http HTTP/1 Transport to use HTTP/2.
+@@ -3784,11 +3803,12 @@ type http2ClientConn struct {
+ // clientStream is the state for a single HTTP/2 stream. One of these
+ // is created for each Transport.RoundTrip call.
+ type http2clientStream struct {
+-	cc      *http2ClientConn
+-	req     *Request
+-	ID      uint32
+-	resc    chan http2resAndError
+-	bufPipe http2pipe // buffered pipe with the flow-controlled response payload
++	cc            *http2ClientConn
++	req           *Request
++	ID            uint32
++	resc          chan http2resAndError
++	bufPipe       http2pipe // buffered pipe with the flow-controlled response payload
++	requestedGzip bool
+ 
+ 	flow        http2flow // guarded by cc.mu
+ 	inflow      http2flow // guarded by cc.mu
+@@ -4097,7 +4117,15 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
+ 	cs.req = req
+ 	hasBody := req.Body != nil
+ 
+-	hdrs := cc.encodeHeaders(req)
++	if !cc.t.disableCompression() &&
++		req.Header.Get("Accept-Encoding") == "" &&
++		req.Header.Get("Range") == "" &&
++		req.Method != "HEAD" {
++
++		cs.requestedGzip = true
++	}
++
++	hdrs := cc.encodeHeaders(req, cs.requestedGzip)
+ 	first := true
+ 
+ 	cc.wmu.Lock()
+@@ -4253,7 +4281,7 @@ func (cs *http2clientStream) awaitFlowControl(maxBytes int32) (taken int32, err
+ }
+ 
+ // requires cc.mu be held.
+-func (cc *http2ClientConn) encodeHeaders(req *Request) []byte {
++func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool) []byte {
+ 	cc.hbuf.Reset()
+ 
+ 	host := req.Host
+@@ -4275,6 +4303,9 @@ func (cc *http2ClientConn) encodeHeaders(req *Request) []byte {
+ 			cc.writeHeader(lowKey, v)
+ 		}
+ 	}
++	if addGzipHeader {
++		cc.writeHeader("accept-encoding", "gzip")
++	}
+ 	return cc.hbuf.Bytes()
+ }
+ 
+@@ -4489,6 +4520,13 @@ func (rl *http2clientConnReadLoop) processHeaderBlockFragment(frag []byte, strea
+ 		cs.bufPipe = http2pipe{b: buf}
+ 		cs.bytesRemain = res.ContentLength
+ 		res.Body = http2transportResponseBody{cs}
++
++		if cs.requestedGzip && res.Header.Get("Content-Encoding") == "gzip" {
++			res.Header.Del("Content-Encoding")
++			res.Header.Del("Content-Length")
++			res.ContentLength = -1
++			res.Body = &http2gzipReader{body: res.Body}
++		}
+ 	}
+ 
+ 	rl.activeRes[cs.ID] = cs
+@@ -4765,6 +4803,27 @@ type http2erringRoundTripper struct{ err error }
+ 
+ func (rt http2erringRoundTripper) RoundTrip(*Request) (*Response, error) { return nil, rt.err }
+ 
++// gzipReader wraps a response body so it can lazily
++// call gzip.NewReader on the first call to Read
++type http2gzipReader struct {
++	body io.ReadCloser // underlying Response.Body
++	zr   io.Reader     // lazily-initialized gzip reader
++}
++
++func (gz *http2gzipReader) Read(p []byte) (n int, err error) {
++	if gz.zr == nil {
++		gz.zr, err = gzip.NewReader(gz.body)
++		if err != nil {
++			return 0, err
++		}
++	}
++	return gz.zr.Read(p)
++}
++
++func (gz *http2gzipReader) Close() error {
++	return gz.body.Close()
++}
++
+ // writeFramer is implemented by any type that is used to write frames.
+ type http2writeFramer interface {
+ 	writeFrame(http2writeContext) error

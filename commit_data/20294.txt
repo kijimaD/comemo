@@ -8,9 +8,321 @@ Date:   Fri Aug 29 09:55:33 2014 -0700
     R=minux, rsc, remyoudompheng, dave
     CC=golang-codereviews
     https://golang.org/cl/133790043
-
+---
  src/pkg/runtime/vlop_386.s |   6 +-
  src/pkg/runtime/vlop_arm.s |   9 +++
  src/pkg/runtime/vlrt.c     |  33 ++--------
  src/pkg/runtime/vlrt.go    | 155 ++++++++++++++++++++++++++++++++++++++++++++-
  4 files changed, 170 insertions(+), 33 deletions(-)
+
+diff --git a/src/pkg/runtime/vlop_386.s b/src/pkg/runtime/vlop_386.s
+index f3d792c724..7af67c987a 100644
+--- a/src/pkg/runtime/vlop_386.s
++++ b/src/pkg/runtime/vlop_386.s
+@@ -29,9 +29,9 @@
+  * C runtime for 64-bit divide.
+  */
+ 
+-// _mul64x32(r *uint64, a uint64, b uint32) uint32
++// runtime·_mul64x32(r *uint64, a uint64, b uint32) uint32
+ // sets *r = low 64 bits of 96-bit product a*b; returns high 32 bits.
+-TEXT _mul64by32(SB), NOSPLIT, $0
++TEXT runtime·_mul64by32(SB), NOSPLIT, $0
+ 	MOVL	r+0(FP), CX
+ 	MOVL	a+4(FP), AX
+ 	MULL	b+12(FP)
+@@ -46,7 +46,7 @@ TEXT _mul64by32(SB), NOSPLIT, $0
+ 	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT _div64by32(SB), NOSPLIT, $0
++TEXT runtime·_div64by32(SB), NOSPLIT, $0
+ 	MOVL	r+12(FP), CX
+ 	MOVL	a+0(FP), AX
+ 	MOVL	a+4(FP), DX
+diff --git a/src/pkg/runtime/vlop_arm.s b/src/pkg/runtime/vlop_arm.s
+index 9dfb295e87..0953deee78 100644
+--- a/src/pkg/runtime/vlop_arm.s
++++ b/src/pkg/runtime/vlop_arm.s
+@@ -294,3 +294,12 @@ out:
+ 	MOVW	12(R13), R(s)
+ 	MOVW	16(R13), R(M)
+ 	RET
++
++// _mul64by32 and _div64by32 not implemented on arm
++TEXT runtime·_mul64by32(SB), NOSPLIT, $0
++	MOVW	$0, R0
++	MOVW	(R0), R1 // crash
++
++TEXT runtime·_div64by32(SB), NOSPLIT, $0
++	MOVW	$0, R0
++	MOVW	(R0), R1 // crash
+diff --git a/src/pkg/runtime/vlrt.c b/src/pkg/runtime/vlrt.c
+index cab74c5fe8..d4367c30e6 100644
+--- a/src/pkg/runtime/vlrt.c
++++ b/src/pkg/runtime/vlrt.c
+@@ -34,7 +34,6 @@
+  * to generate the code directly now.  Find and remove.
+  */
+ 
+-void	runtime·panicstring(char*);
+ void	runtime·panicdivide(void);
+ 
+ typedef	unsigned long	ulong;
+@@ -182,8 +181,8 @@ _v2f(Vlong x)
+ 	return _v2d(x);
+ }
+ 
+-ulong	_div64by32(Vlong, ulong, ulong*);
+-int	_mul64by32(Vlong*, Vlong, ulong);
++ulong	runtime·_div64by32(Vlong, ulong, ulong*);
++int	runtime·_mul64by32(Vlong*, Vlong, ulong);
+ 
+ static void
+ slowdodiv(Vlong num, Vlong den, Vlong *q, Vlong *r)
+@@ -277,7 +276,7 @@ dodiv(Vlong num, Vlong den, Vlong *qp, Vlong *rp)
+ 	if(den.hi != 0){
+ 		q.hi = 0;
+ 		n = num.hi/den.hi;
+-		if(_mul64by32(&x, den, n) || x.hi > num.hi || (x.hi == num.hi && x.lo > num.lo))
++		if(runtime·_mul64by32(&x, den, n) || x.hi > num.hi || (x.hi == num.hi && x.lo > num.lo))
+ 			slowdodiv(num, den, &q, &r);
+ 		else {
+ 			q.lo = n;
+@@ -292,7 +291,7 @@ dodiv(Vlong num, Vlong den, Vlong *qp, Vlong *rp)
+ 		} else {
+ 			q.hi = 0;
+ 		}
+-		q.lo = _div64by32(num, den.lo, &r.lo);
++		q.lo = runtime·_div64by32(num, den.lo, &r.lo);
+ 		r.hi = 0;
+ 	}
+ 	if(qp) {
+@@ -322,12 +321,6 @@ _divvu(Vlong n, Vlong d)
+ 	return q;
+ }
+ 
+-Vlong
+-runtime·uint64div(Vlong n, Vlong d)
+-{
+-	return _divvu(n, d);
+-}
+-
+ Vlong
+ _modvu(Vlong n, Vlong d)
+ {
+@@ -344,12 +337,6 @@ _modvu(Vlong n, Vlong d)
+ 	return r;
+ }
+ 
+-Vlong
+-runtime·uint64mod(Vlong n, Vlong d)
+-{
+-	return _modvu(n, d);
+-}
+-
+ static void
+ vneg(Vlong *v)
+ {
+@@ -394,12 +381,6 @@ _divv(Vlong n, Vlong d)
+ 	return q;
+ }
+ 
+-Vlong
+-runtime·int64div(Vlong n, Vlong d)
+-{
+-	return _divv(n, d);
+-}
+-
+ Vlong
+ _modv(Vlong n, Vlong d)
+ {
+@@ -432,12 +413,6 @@ _modv(Vlong n, Vlong d)
+ 	return r;
+ }
+ 
+-Vlong
+-runtime·int64mod(Vlong n, Vlong d)
+-{
+-	return _modv(n, d);
+-}
+-
+ Vlong
+ _rshav(Vlong a, int b)
+ {
+diff --git a/src/pkg/runtime/vlrt.go b/src/pkg/runtime/vlrt.go
+index c346812aec..50097edde7 100644
+--- a/src/pkg/runtime/vlrt.go
++++ b/src/pkg/runtime/vlrt.go
+@@ -23,13 +23,14 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-// +build arm
++// +build arm 386
+ 
+ package runtime
+ 
+ import "unsafe"
+ 
+ const (
++	sign32 = 1 << (32 - 1)
+ 	sign64 = 1 << (64 - 1)
+ )
+ 
+@@ -105,3 +106,155 @@ func _d2v(y *uint64, d float64) {
+ 
+ 	*y = uint64(yhi)<<32 | uint64(ylo)
+ }
++
++func uint64div(n, d uint64) uint64 {
++	// Check for 32 bit operands
++	if uint32(n>>32) == 0 && uint32(d>>32) == 0 {
++		if uint32(d) == 0 {
++			panicdivide()
++		}
++		return uint64(uint32(n) / uint32(d))
++	}
++	q, _ := dodiv(n, d)
++	return q
++}
++
++func uint64mod(n, d uint64) uint64 {
++	// Check for 32 bit operands
++	if uint32(n>>32) == 0 && uint32(d>>32) == 0 {
++		if uint32(d) == 0 {
++			panicdivide()
++		}
++		return uint64(uint32(n) % uint32(d))
++	}
++	_, r := dodiv(n, d)
++	return r
++}
++
++func int64div(n, d int64) int64 {
++	// Check for 32 bit operands
++	if int64(int32(n)) == n && int64(int32(d)) == d {
++		if int32(n) == -0x80000000 && int32(d) == -1 {
++			// special case: 32-bit -0x80000000 / -1 = -0x80000000,
++			// but 64-bit -0x80000000 / -1 = 0x80000000.
++			return 0x80000000
++		}
++		if int32(d) == 0 {
++			panicdivide()
++		}
++		return int64(int32(n) / int32(d))
++	}
++
++	nneg := n < 0
++	dneg := d < 0
++	if nneg {
++		n = -n
++	}
++	if dneg {
++		d = -d
++	}
++	uq, _ := dodiv(uint64(n), uint64(d))
++	q := int64(uq)
++	if nneg != dneg {
++		q = -q
++	}
++	return q
++}
++
++func int64mod(n, d int64) int64 {
++	// Check for 32 bit operands
++	if int64(int32(n)) == n && int64(int32(d)) == d {
++		if int32(d) == 0 {
++			panicdivide()
++		}
++		return int64(int32(n) % int32(d))
++	}
++
++	nneg := n < 0
++	if nneg {
++		n = -n
++	}
++	if d < 0 {
++		d = -d
++	}
++	_, ur := dodiv(uint64(n), uint64(d))
++	r := int64(ur)
++	if nneg {
++		r = -r
++	}
++	return r
++}
++
++//go:noescape
++func _mul64by32(lo64 *uint64, a uint64, b uint32) (hi32 uint32)
++
++//go:noescape
++func _div64by32(a uint64, b uint32, r *uint32) (q uint32)
++
++func dodiv(n, d uint64) (q, r uint64) {
++	if GOARCH == "arm" {
++		// arm doesn't have a division instruction, so
++		// slowdodiv is the best that we can do.
++		// TODO: revisit for arm64.
++		return slowdodiv(n, d)
++	}
++
++	if d > n {
++		return 0, n
++	}
++
++	if uint32(d>>32) != 0 {
++		t := uint32(n>>32) / uint32(d>>32)
++		var lo64 uint64
++		hi32 := _mul64by32(&lo64, d, t)
++		if hi32 != 0 || lo64 > n {
++			return slowdodiv(n, d)
++		}
++		return uint64(t), n - lo64
++	}
++
++	// d is 32 bit
++	var qhi uint32
++	if uint32(n>>32) >= uint32(d) {
++		if uint32(d) == 0 {
++			panicdivide()
++		}
++		qhi = uint32(n>>32) / uint32(d)
++		n -= uint64(uint32(d)*qhi) << 32
++	} else {
++		qhi = 0
++	}
++
++	var rlo uint32
++	qlo := _div64by32(n, uint32(d), &rlo)
++	return uint64(qhi)<<32 + uint64(qlo), uint64(rlo)
++}
++
++func slowdodiv(n, d uint64) (q, r uint64) {
++	if d == 0 {
++		panicdivide()
++	}
++
++	// Set up the divisor and find the number of iterations needed.
++	capn := n
++	if n >= sign64 {
++		capn = sign64
++	}
++	i := 0
++	for d < capn {
++		d <<= 1
++		i++
++	}
++
++	for ; i >= 0; i-- {
++		q <<= 1
++		if n >= d {
++			n -= d
++			q |= 1
++		}
++		d >>= 1
++	}
++	return q, n
++}
++
++func panicdivide()

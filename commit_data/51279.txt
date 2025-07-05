@@ -15,6 +15,22 @@ Date:   Thu Jan 6 11:27:57 2022 +0000
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
     Trust: Benny Siegert <bsiegert@gmail.com>
-
+---
  src/runtime/sys_netbsd_arm64.s | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/sys_netbsd_arm64.s b/src/runtime/sys_netbsd_arm64.s
+index 2d0b894d47..8a0496e807 100644
+--- a/src/runtime/sys_netbsd_arm64.s
++++ b/src/runtime/sys_netbsd_arm64.s
+@@ -279,8 +279,8 @@ fail:
+ TEXT sigreturn_tramp<>(SB),NOSPLIT,$-8
+ 	MOVD	g, R0
+ 	SVC	$SYS_setcontext
+-	MOVD	$0x4242, R0		// Something failed, return magic number
+-	SVC	$SYS_exit
++	MOVD	$0, R0
++	MOVD	R0, (R0)		// crash
+ 
+ TEXT runtime·sigaction(SB),NOSPLIT,$-8
+ 	MOVW	sig+0(FP), R0		// arg 1 - signum

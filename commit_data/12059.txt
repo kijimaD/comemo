@@ -18,7 +18,7 @@ Date:   Sun Feb 19 13:32:55 2012 -0500
     R=golang-dev, r, r
     CC=golang-dev
     https://golang.org/cl/5672080
-
+---
  doc/go1.html                               |  19 ++++++++++++++-
  doc/go1.tmpl                               |  19 ++++++++++++++-
  src/cmd/cgo/ast.go                         |  15 ++++++++----
@@ -34,3 +34,511 @@ Date:   Sun Feb 19 13:32:55 2012 -0500
  src/pkg/debug/dwarf/type.go                |  36 ++++++++++++++++++++++++++++-
  src/pkg/debug/dwarf/type_test.go           |  19 +++++++++++----
  14 files changed, 157 insertions(+), 35 deletions(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index 05d3eb5031..f4a4623db6 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -1853,7 +1853,24 @@ Code that uses the old fields will fail to compile and must be updated by hand.
+ The semantic changes make it difficult for the fix tool to update automatically.
+ </p>
+ 
+-<h2 id="go_command">The go command</h2>
++<h2 id="cmd_go">The go command</h2>
++
++<p>
++TODO: Write this.
++</p>
++
++<h2 id="cmd_cgo">The cgo command</h2>
++
++<p>
++In Go 1, the <a href="/cmd/cgo">cgo command</a>
++uses a different <code>_cgo_export.h</code>
++file, which is generated for packages containing <code>//export</code> lines.
++The <code>_cgo_export.h</code> file now begins with the C preamble comment,
++so that exported function definitions can use types defined there.
++This has the effect of compiling the preamble multiple times, so a
++package using <code>//export</code> must not put function definitions
++or variable initializations in the C preamble.
++</p
+ 
+ <h2 id="releases">Packaged releases</h2>
+ 
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index 7a28be3c3a..314a6de93d 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -1725,7 +1725,24 @@ Code that uses the old fields will fail to compile and must be updated by hand.
+ The semantic changes make it difficult for the fix tool to update automatically.
+ </p>
+ 
+-<h2 id="go_command">The go command</h2>
++<h2 id="cmd_go">The go command</h2>
++
++<p>
++TODO: Write this.
++</p>
++
++<h2 id="cmd_cgo">The cgo command</h2>
++
++<p>
++In Go 1, the <a href="/cmd/cgo">cgo command</a>
++uses a different <code>_cgo_export.h</code>
++file, which is generated for packages containing <code>//export</code> lines.
++The <code>_cgo_export.h</code> file now begins with the C preamble comment,
++so that exported function definitions can use types defined there.
++This has the effect of compiling the preamble multiple times, so a
++package using <code>//export</code> must not put function definitions
++or variable initializations in the C preamble.
++</p
+ 
+ <h2 id="releases">Packaged releases</h2>
+ 
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index da6ae4176d..381e606ef4 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -147,6 +147,9 @@ func (f *File) saveRef(x interface{}, context string) {
+ 			if context == "as2" {
+ 				context = "expr"
+ 			}
++			if context == "embed-type" {
++				error_(sel.Pos(), "cannot embed C type")
++			}
+ 			goname := sel.Sel.Name
+ 			if goname == "errno" {
+ 				error_(sel.Pos(), "cannot refer to errno directly; see documentation")
+@@ -232,7 +235,11 @@ func (f *File) walk(x interface{}, context string, visit func(*File, interface{}
+ 
+ 	// These are ordered and grouped to match ../../pkg/go/ast/ast.go
+ 	case *ast.Field:
+-		f.walk(&n.Type, "type", visit)
++		if len(n.Names) == 0 && context == "field" {
++			f.walk(&n.Type, "embed-type", visit)
++		} else {
++			f.walk(&n.Type, "type", visit)
++		}
+ 	case *ast.FieldList:
+ 		for _, field := range n.List {
+ 			f.walk(field, context, visit)
+@@ -289,9 +296,9 @@ func (f *File) walk(x interface{}, context string, visit func(*File, interface{}
+ 	case *ast.StructType:
+ 		f.walk(n.Fields, "field", visit)
+ 	case *ast.FuncType:
+-		f.walk(n.Params, "field", visit)
++		f.walk(n.Params, "param", visit)
+ 		if n.Results != nil {
+-			f.walk(n.Results, "field", visit)
++			f.walk(n.Results, "param", visit)
+ 		}
+ 	case *ast.InterfaceType:
+ 		f.walk(n.Methods, "field", visit)
+@@ -379,7 +386,7 @@ func (f *File) walk(x interface{}, context string, visit func(*File, interface{}
+ 		f.walk(n.Specs, "spec", visit)
+ 	case *ast.FuncDecl:
+ 		if n.Recv != nil {
+-			f.walk(n.Recv, "field", visit)
++			f.walk(n.Recv, "param", visit)
+ 		}
+ 		f.walk(n.Type, "type", visit)
+ 		if n.Body != nil {
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 1d64c75ada..83f1ba46c0 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -16,8 +16,8 @@ the pseudo-package "C" and then refers to types such as C.size_t,
+ variables such as C.stdout, or functions such as C.putchar.
+ 
+ If the import of "C" is immediately preceded by a comment, that
+-comment is used as a header when compiling the C parts of
+-the package.  For example:
++comment, called the preamble, is used as a header when compiling
++the C parts of the package.  For example:
+ 
+ 	// #include <stdio.h>
+ 	// #include <errno.h>
+@@ -57,6 +57,8 @@ The C type void* is represented by Go's unsafe.Pointer.
+ To access a struct, union, or enum type directly, prefix it with
+ struct_, union_, or enum_, as in C.struct_stat.
+ 
++Go structs cannot embed fields with C types.
++
+ Any C function that returns a value may be called in a multiple
+ assignment context to retrieve both the return value and the
+ C errno variable as an error.  For example:
+@@ -100,7 +102,8 @@ They will be available in the C code as:
+ 	extern int64 MyFunction(int arg1, int arg2, GoString arg3);
+ 	extern struct MyFunction2_return MyFunction2(int arg1, int arg2, GoString arg3);
+ 
+-found in _cgo_export.h generated header. Functions with multiple
++found in _cgo_export.h generated header, after any preambles
++copied from the cgo input files. Functions with multiple
+ return values are mapped to functions returning a struct.
+ Not all Go types can be mapped to C types in a useful way.
+ 
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 71a9457f5f..342a8a530d 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -709,7 +709,7 @@ func (p *Package) rewriteRef(f *File) {
+ 			// Substitute definition for mangled type name.
+ 			if id, ok := expr.(*ast.Ident); ok {
+ 				if t := typedef[id.Name]; t != nil {
+-					expr = t
++					expr = t.Go
+ 				}
+ 				if id.Name == r.Name.Mangle && r.Name.Const != "" {
+ 					expr = ast.NewIdent(r.Name.Const)
+@@ -894,7 +894,7 @@ type typeConv struct {
+ }
+ 
+ var tagGen int
+-var typedef = make(map[string]ast.Expr)
++var typedef = make(map[string]*Type)
+ var goIdent = make(map[string]*ast.Ident)
+ 
+ func (c *typeConv) Init(ptrSize int64) {
+@@ -1164,17 +1164,22 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 		goIdent[name.Name] = name
+ 		switch dt.Kind {
+ 		case "union", "class":
+-			typedef[name.Name] = c.Opaque(t.Size)
+ 			if t.C.Empty() {
+ 				t.C.Set("typeof(unsigned char[%d])", t.Size)
+ 			}
++			typedef[name.Name] = t
+ 		case "struct":
+ 			g, csyntax, align := c.Struct(dt, pos)
+ 			if t.C.Empty() {
+ 				t.C.Set(csyntax)
+ 			}
+ 			t.Align = align
+-			typedef[name.Name] = g
++			tt := *t
++			if tag != "" {
++				tt.C = &TypeRepr{"struct %s", []interface{}{tag}}
++			}
++			tt.Go = g
++			typedef[name.Name] = &tt
+ 		}
+ 
+ 	case *dwarf.TypedefType:
+@@ -1203,7 +1208,9 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 		t.Size = sub.Size
+ 		t.Align = sub.Align
+ 		if _, ok := typedef[name.Name]; !ok {
+-			typedef[name.Name] = sub.Go
++			tt := *t
++			tt.Go = sub.Go
++			typedef[name.Name] = &tt
+ 		}
+ 		if *godefs || *cdefs {
+ 			t.Go = sub.Go
+@@ -1250,7 +1257,8 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 			}
+ 			s = strings.Join(strings.Split(s, " "), "") // strip spaces
+ 			name := c.Ident("_Ctype_" + s)
+-			typedef[name.Name] = t.Go
++			tt := *t
++			typedef[name.Name] = &tt
+ 			if !*godefs && !*cdefs {
+ 				t.Go = name
+ 			}
+@@ -1288,9 +1296,18 @@ func (c *typeConv) FuncArg(dtype dwarf.Type, pos token.Pos) *Type {
+ 		if ptr, ok := base(dt.Type).(*dwarf.PtrType); ok {
+ 			// Unless the typedef happens to point to void* since
+ 			// Go has special rules around using unsafe.Pointer.
+-			if _, void := base(ptr.Type).(*dwarf.VoidType); !void {
+-				return c.Type(ptr, pos)
++			if _, void := base(ptr.Type).(*dwarf.VoidType); void {
++				break
+ 			}
++
++			t = c.Type(ptr, pos)
++			if t == nil {
++				return nil
++			}
++
++			// Remember the C spelling, in case the struct
++			// has __attribute__((unavailable)) on it.  See issue 2888.
++			t.Typedef = dt.Name
+ 		}
+ 	}
+ 	return t
+@@ -1443,7 +1460,7 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
+ 		off = dt.ByteSize
+ 	}
+ 	if off != dt.ByteSize {
+-		fatalf("%s: struct size calculation error", lineno(pos))
++		fatalf("%s: struct size calculation error off=%d bytesize=%d", lineno(pos), off, dt.ByteSize)
+ 	}
+ 	buf.WriteString("}")
+ 	csyntax = buf.String()
+diff --git a/src/cmd/cgo/godefs.go b/src/cmd/cgo/godefs.go
+index 478ed261cb..fec70a334b 100644
+--- a/src/cmd/cgo/godefs.go
++++ b/src/cmd/cgo/godefs.go
+@@ -80,7 +80,7 @@ func (p *Package) godefs(f *File, srcfile string) string {
+ 	// and xxx is a typedef for yyy, make C.yyy format as T.
+ 	for typ, def := range typedef {
+ 		if new := override[typ]; new != "" {
+-			if id, ok := def.(*ast.Ident); ok {
++			if id, ok := def.Go.(*ast.Ident); ok {
+ 				override[id.Name] = new
+ 			}
+ 		}
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index fb5074e814..a8be7be7d9 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -39,6 +39,7 @@ type Package struct {
+ 	Decl        []ast.Decl
+ 	GoFiles     []string // list of Go files
+ 	GccFiles    []string // list of gcc output files
++	Preamble    string   // collected preamble for _cgo_export.h
+ }
+ 
+ // A File collects information about a single Go input file.
+@@ -98,6 +99,7 @@ type Type struct {
+ 	C          *TypeRepr
+ 	Go         ast.Expr
+ 	EnumValues map[string]int64
++	Typedef    string
+ }
+ 
+ // A FuncType collects information about a function type in both the C and Go worlds.
+@@ -312,6 +314,9 @@ func (p *Package) Record(f *File) {
+ 		}
+ 	}
+ 
+-	p.ExpFunc = append(p.ExpFunc, f.ExpFunc...)
++	if f.ExpFunc != nil {
++		p.ExpFunc = append(p.ExpFunc, f.ExpFunc...)
++		p.Preamble += "\n" + f.Preamble
++	}
+ 	p.Decl = append(p.Decl, f.AST.Decls...)
+ }
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 2a012177b3..4dc0f84549 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -59,7 +59,7 @@ func (p *Package) writeDefs() {
+ 
+ 	for name, def := range typedef {
+ 		fmt.Fprintf(fgo2, "type %s ", name)
+-		conf.Fprint(fgo2, fset, def)
++		conf.Fprint(fgo2, fset, def.Go)
+ 		fmt.Fprintf(fgo2, "\n\n")
+ 	}
+ 	fmt.Fprintf(fgo2, "type _Ctype_void [0]byte\n")
+@@ -196,7 +196,11 @@ func (p *Package) structType(n *Name) (string, int64) {
+ 			fmt.Fprintf(&buf, "\t\tchar __pad%d[%d];\n", off, pad)
+ 			off += pad
+ 		}
+-		fmt.Fprintf(&buf, "\t\t%s p%d;\n", t.C, i)
++		c := t.Typedef
++		if c == "" {
++			c = t.C.String()
++		}
++		fmt.Fprintf(&buf, "\t\t%s p%d;\n", c, i)
+ 		off += t.Size
+ 	}
+ 	if off%p.PtrSize != 0 {
+@@ -428,6 +432,7 @@ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
+ 	fgcch := creat(*objDir + "_cgo_export.h")
+ 
+ 	fmt.Fprintf(fgcch, "/* Created by cgo - DO NOT EDIT. */\n")
++	fmt.Fprintf(fgcch, "%s\n", p.Preamble)
+ 	fmt.Fprintf(fgcch, "%s\n", gccExportHeaderProlog)
+ 
+ 	fmt.Fprintf(fgcc, "/* Created by cgo - DO NOT EDIT. */\n")
+@@ -693,10 +698,8 @@ func (p *Package) cgoType(e ast.Expr) *Type {
+ 				}
+ 			}
+ 		}
+-		for name, def := range typedef {
+-			if name == t.Name {
+-				return p.cgoType(def)
+-			}
++		if def := typedef[t.Name]; def != nil {
++			return def
+ 		}
+ 		if t.Name == "uintptr" {
+ 			return &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("uintptr")}
+@@ -721,7 +724,7 @@ func (p *Package) cgoType(e ast.Expr) *Type {
+ 			return &Type{Size: p.PtrSize, Align: p.PtrSize, C: c("void*")}
+ 		}
+ 	}
+-	error_(e.Pos(), "unrecognized Go type %T", e)
++	error_(e.Pos(), "Go type not supported in export: %s", gofmt(e))
+ 	return &Type{Size: 4, Align: 4, C: c("int")}
+ }
+ 
+diff --git a/src/cmd/cgo/util.go b/src/cmd/cgo/util.go
+index 1bf665ff47..d6b6a7abb6 100644
+--- a/src/cmd/cgo/util.go
++++ b/src/cmd/cgo/util.go
+@@ -70,7 +70,11 @@ func lineno(pos token.Pos) string {
+ 
+ // Die with an error message.
+ func fatalf(msg string, args ...interface{}) {
+-	fmt.Fprintf(os.Stderr, msg+"\n", args...)
++	// If we've already printed other errors, they might have
++	// caused the fatal condition.  Assume they're enough.
++	if nerrors == 0 {
++		fmt.Fprintf(os.Stderr, msg+"\n", args...)
++	}
+ 	os.Exit(2)
+ }
+ 
+diff --git a/src/pkg/debug/dwarf/testdata/typedef.c b/src/pkg/debug/dwarf/testdata/typedef.c
+index 664d021ced..f05f01564f 100644
+--- a/src/pkg/debug/dwarf/testdata/typedef.c
++++ b/src/pkg/debug/dwarf/testdata/typedef.c
+@@ -28,8 +28,13 @@ typedef struct my_struct {
+ 	volatile int vi;
+ 	char x : 1;
+ 	int y : 4;
++	int z[0];
+ 	long long array[40];
++	int zz[0];
+ } t_my_struct;
++typedef struct my_struct1 {
++	int zz [1];
++} t_my_struct1;
+ typedef union my_union {
+ 	volatile int vi;
+ 	char x : 1;
+@@ -65,7 +70,8 @@ t_func_void_of_char *a9;
+ t_func_void_of_void *a10;
+ t_func_void_of_ptr_char_dots *a11;
+ t_my_struct *a12;
+-t_my_union *a12a;
++t_my_struct1 *a12a;
++t_my_union *a12b;
+ t_my_enum *a13;
+ t_my_list *a14;
+ t_my_tree *a15;
+diff --git a/src/pkg/debug/dwarf/testdata/typedef.elf b/src/pkg/debug/dwarf/testdata/typedef.elf
+index 44df8da9bc..b2062d2c4b 100755
+Binary files a/src/pkg/debug/dwarf/testdata/typedef.elf and b/src/pkg/debug/dwarf/testdata/typedef.elf differ
+diff --git a/src/pkg/debug/dwarf/testdata/typedef.macho b/src/pkg/debug/dwarf/testdata/typedef.macho
+index 41019c1e14..f75afcccbf 100644
+Binary files a/src/pkg/debug/dwarf/testdata/typedef.macho and b/src/pkg/debug/dwarf/testdata/typedef.macho differ
+diff --git a/src/pkg/debug/dwarf/type.go b/src/pkg/debug/dwarf/type.go
+index 9be66658fe..4502355022 100644
+--- a/src/pkg/debug/dwarf/type.go
++++ b/src/pkg/debug/dwarf/type.go
+@@ -426,6 +426,8 @@ func (d *Data) Type(off Offset) (Type, error) {
+ 		t.StructName, _ = e.Val(AttrName).(string)
+ 		t.Incomplete = e.Val(AttrDeclaration) != nil
+ 		t.Field = make([]*StructField, 0, 8)
++		var lastFieldType Type
++		var lastFieldBitOffset int64
+ 		for kid := next(); kid != nil; kid = next() {
+ 			if kid.Tag == TagMember {
+ 				f := new(StructField)
+@@ -444,11 +446,32 @@ func (d *Data) Type(off Offset) (Type, error) {
+ 						goto Error
+ 					}
+ 				}
++
++				haveBitOffset := false
+ 				f.Name, _ = kid.Val(AttrName).(string)
+ 				f.ByteSize, _ = kid.Val(AttrByteSize).(int64)
+-				f.BitOffset, _ = kid.Val(AttrBitOffset).(int64)
++				f.BitOffset, haveBitOffset = kid.Val(AttrBitOffset).(int64)
+ 				f.BitSize, _ = kid.Val(AttrBitSize).(int64)
+ 				t.Field = append(t.Field, f)
++
++				bito := f.BitOffset
++				if !haveBitOffset {
++					bito = f.ByteOffset * 8
++				}
++				if bito == lastFieldBitOffset && t.Kind != "union" {
++					// Last field was zero width.  Fix array length.
++					// (DWARF writes out 0-length arrays as if they were 1-length arrays.)
++					zeroArray(lastFieldType)
++				}
++				lastFieldType = f.Type
++				lastFieldBitOffset = bito
++			}
++		}
++		if t.Kind != "union" {
++			b, ok := e.Val(AttrByteSize).(int64)
++			if ok && b*8 == lastFieldBitOffset {
++				// Final field must be zero width.  Fix array length.
++				zeroArray(lastFieldType)
+ 			}
+ 		}
+ 
+@@ -579,3 +602,14 @@ Error:
+ 	delete(d.typeCache, off)
+ 	return nil, err
+ }
++
++func zeroArray(t Type) {
++	for {
++		at, ok := t.(*ArrayType)
++		if !ok {
++			break
++		}
++		at.Count = 0
++		t = at.Type
++	}
++}
+diff --git a/src/pkg/debug/dwarf/type_test.go b/src/pkg/debug/dwarf/type_test.go
+index b9470a4fcb..b5b255f6f4 100644
+--- a/src/pkg/debug/dwarf/type_test.go
++++ b/src/pkg/debug/dwarf/type_test.go
+@@ -25,13 +25,22 @@ var typedefTests = map[string]string{
+ 	"t_func_void_of_char":                   "func(char) void",
+ 	"t_func_void_of_void":                   "func() void",
+ 	"t_func_void_of_ptr_char_dots":          "func(*char, ...) void",
+-	"t_my_struct":                           "struct my_struct {vi volatile int@0; x char@4 : 1@7; y int@4 : 4@27; array [40]long long int@8}",
++	"t_my_struct":                           "struct my_struct {vi volatile int@0; x char@4 : 1@7; y int@4 : 4@27; z [0]int@8; array [40]long long int@8; zz [0]int@328}",
++	"t_my_struct1":                          "struct my_struct1 {zz [1]int@0}",
+ 	"t_my_union":                            "union my_union {vi volatile int@0; x char@0 : 1@7; y int@0 : 4@28; array [40]long long int@0}",
+ 	"t_my_enum":                             "enum my_enum {e1=1; e2=2; e3=-5; e4=1000000000000000}",
+ 	"t_my_list":                             "struct list {val short int@0; next *t_my_list@8}",
+ 	"t_my_tree":                             "struct tree {left *struct tree@0; right *struct tree@8; val long long unsigned int@16}",
+ }
+ 
++// As Apple converts gcc to a clang-based front end
++// they keep breaking the DWARF output.  This map lists the
++// conversion from real answer to Apple answer.
++var machoBug = map[string]string{
++	"func(*char, ...) void":                                 "func(*char) void",
++	"enum my_enum {e1=1; e2=2; e3=-5; e4=1000000000000000}": "enum my_enum {e1=1; e2=2; e3=-5; e4=-1530494976}",
++}
++
+ func elfData(t *testing.T, name string) *Data {
+ 	f, err := elf.Open(name)
+ 	if err != nil {
+@@ -58,13 +67,13 @@ func machoData(t *testing.T, name string) *Data {
+ 	return d
+ }
+ 
+-func TestTypedefsELF(t *testing.T) { testTypedefs(t, elfData(t, "testdata/typedef.elf")) }
++func TestTypedefsELF(t *testing.T) { testTypedefs(t, elfData(t, "testdata/typedef.elf"), "elf") }
+ 
+ func TestTypedefsMachO(t *testing.T) {
+-	testTypedefs(t, machoData(t, "testdata/typedef.macho"))
++	testTypedefs(t, machoData(t, "testdata/typedef.macho"), "macho")
+ }
+ 
+-func testTypedefs(t *testing.T, d *Data) {
++func testTypedefs(t *testing.T, d *Data, kind string) {
+ 	r := d.Reader()
+ 	seen := make(map[string]bool)
+ 	for {
+@@ -93,7 +102,7 @@ func testTypedefs(t *testing.T, d *Data) {
+ 					t.Errorf("multiple definitions for %s", t1.Name)
+ 				}
+ 				seen[t1.Name] = true
+-				if typstr != want {
++				if typstr != want && (kind != "macho" || typstr != machoBug[want]) {
+ 					t.Errorf("%s:\n\thave %s\n\twant %s", t1.Name, typstr, want)
+ 				}
+ 			}

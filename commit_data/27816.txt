@@ -8,7 +8,7 @@ Date:   Thu Apr 14 12:17:44 2016 +0900
     Reviewed-on: https://go-review.googlesource.com/22074
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/dial_test.go           | 29 ++++++++++++---------------
  src/net/dnsclient_unix_test.go | 21 ++++++--------------
  src/net/external_test.go       | 11 +++++------
@@ -20,3 +20,539 @@ Date:   Thu Apr 14 12:17:44 2016 +0900
  src/net/tcpsock_test.go        | 10 ++++------
  src/net/udpsock_test.go        | 10 ++++------
  10 files changed, 79 insertions(+), 88 deletions(-)
+
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index 466adf060e..d4f04e0a4f 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -24,13 +24,12 @@ var prohibitionaryDialArgTests = []struct {
+ }
+ 
+ func TestProhibitionaryDialArg(t *testing.T) {
++	testenv.MustHaveExternalNetwork(t)
++
+ 	switch runtime.GOOS {
+ 	case "plan9":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+-	if testing.Short() || !*testExternal {
+-		t.Skip("avoid external network")
+-	}
+ 	if !supportsIPv4map {
+ 		t.Skip("mapping ipv4 address inside ipv6 address not supported")
+ 	}
+@@ -243,9 +242,8 @@ func dialClosedPort() (actual, expected time.Duration) {
+ }
+ 
+ func TestDialParallel(t *testing.T) {
+-	if testing.Short() || !*testExternal {
+-		t.Skip("avoid external network")
+-	}
++	testenv.MustHaveExternalNetwork(t)
++
+ 	if !supportsIPv4 || !supportsIPv6 {
+ 		t.Skip("both IPv4 and IPv6 are required")
+ 	}
+@@ -422,9 +420,8 @@ func lookupSlowFast(fn func(string) ([]IPAddr, error), host string) ([]IPAddr, e
+ }
+ 
+ func TestDialerFallbackDelay(t *testing.T) {
+-	if testing.Short() || !*testExternal {
+-		t.Skip("avoid external network")
+-	}
++	testenv.MustHaveExternalNetwork(t)
++
+ 	if !supportsIPv4 || !supportsIPv6 {
+ 		t.Skip("both IPv4 and IPv6 are required")
+ 	}
+@@ -814,18 +811,18 @@ func TestDialerKeepAlive(t *testing.T) {
+ }
+ 
+ func TestDialCancel(t *testing.T) {
++	switch testenv.Builder() {
++	case "linux-arm64-buildlet":
++		t.Skip("skipping on linux-arm64-buildlet; incompatible network config? issue 15191")
++	case "":
++		testenv.MustHaveExternalNetwork(t)
++	}
++
+ 	if runtime.GOOS == "plan9" || runtime.GOOS == "nacl" {
+ 		// plan9 is not implemented and nacl doesn't have
+ 		// external network access.
+ 		t.Skipf("skipping on %s", runtime.GOOS)
+ 	}
+-	onGoBuildFarm := testenv.Builder() != ""
+-	if testing.Short() && !onGoBuildFarm {
+-		t.Skip("skipping in short mode")
+-	}
+-	if testenv.Builder() == "linux-arm64-buildlet" {
+-		t.Skip("skipping on linux-arm64-buildlet; incompatible network config? issue 15191")
+-	}
+ 
+ 	blackholeIPPort := JoinHostPort(slowDst4, "1234")
+ 	if !supportsIPv4 {
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index 6845481e17..edf7c00f72 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -8,6 +8,7 @@ package net
+ 
+ import (
+ 	"fmt"
++	"internal/testenv"
+ 	"io/ioutil"
+ 	"os"
+ 	"path"
+@@ -32,9 +33,7 @@ var dnsTransportFallbackTests = []struct {
+ }
+ 
+ func TestDNSTransportFallback(t *testing.T) {
+-	if testing.Short() || !*testExternal {
+-		t.Skip("avoid external network")
+-	}
++	testenv.MustHaveExternalNetwork(t)
+ 
+ 	for _, tt := range dnsTransportFallbackTests {
+ 		timeout := time.Duration(tt.timeout) * time.Second
+@@ -74,9 +73,7 @@ var specialDomainNameTests = []struct {
+ }
+ 
+ func TestSpecialDomainName(t *testing.T) {
+-	if testing.Short() || !*testExternal {
+-		t.Skip("avoid external network")
+-	}
++	testenv.MustHaveExternalNetwork(t)
+ 
+ 	server := "8.8.8.8:53"
+ 	for _, tt := range specialDomainNameTests {
+@@ -232,9 +229,7 @@ var updateResolvConfTests = []struct {
+ }
+ 
+ func TestUpdateResolvConf(t *testing.T) {
+-	if testing.Short() || !*testExternal {
+-		t.Skip("avoid external network")
+-	}
++	testenv.MustHaveExternalNetwork(t)
+ 
+ 	conf, err := newResolvConfTest()
+ 	if err != nil {
+@@ -389,9 +384,7 @@ var goLookupIPWithResolverConfigTests = []struct {
+ }
+ 
+ func TestGoLookupIPWithResolverConfig(t *testing.T) {
+-	if testing.Short() || !*testExternal {
+-		t.Skip("avoid external network")
+-	}
++	testenv.MustHaveExternalNetwork(t)
+ 
+ 	conf, err := newResolvConfTest()
+ 	if err != nil {
+@@ -436,9 +429,7 @@ func TestGoLookupIPWithResolverConfig(t *testing.T) {
+ 
+ // Test that goLookupIPOrder falls back to the host file when no DNS servers are available.
+ func TestGoLookupIPOrderFallbackToFile(t *testing.T) {
+-	if testing.Short() || !*testExternal {
+-		t.Skip("avoid external network")
+-	}
++	testenv.MustHaveExternalNetwork(t)
+ 
+ 	// Add a config that simulates no dns servers being available.
+ 	conf, err := newResolvConfTest()
+diff --git a/src/net/external_test.go b/src/net/external_test.go
+index d5ff2be20a..e18b547cac 100644
+--- a/src/net/external_test.go
++++ b/src/net/external_test.go
+@@ -6,15 +6,15 @@ package net
+ 
+ import (
+ 	"fmt"
++	"internal/testenv"
+ 	"io"
+ 	"strings"
+ 	"testing"
+ )
+ 
+ func TestResolveGoogle(t *testing.T) {
+-	if testing.Short() || !*testExternal {
+-		t.Skip("avoid external network")
+-	}
++	testenv.MustHaveExternalNetwork(t)
++
+ 	if !supportsIPv4 || !supportsIPv6 || !*testIPv4 || !*testIPv6 {
+ 		t.Skip("both IPv4 and IPv6 are required")
+ 	}
+@@ -60,9 +60,8 @@ var dialGoogleTests = []struct {
+ }
+ 
+ func TestDialGoogle(t *testing.T) {
+-	if testing.Short() || !*testExternal {
+-		t.Skip("avoid external network")
+-	}
++	testenv.MustHaveExternalNetwork(t)
++
+ 	if !supportsIPv4 || !supportsIPv6 || !*testIPv4 || !*testIPv6 {
+ 		t.Skip("both IPv4 and IPv6 are required")
+ 	}
+diff --git a/src/net/listen_test.go b/src/net/listen_test.go
+index a4320eb5a5..6037f3600d 100644
+--- a/src/net/listen_test.go
++++ b/src/net/listen_test.go
+@@ -8,6 +8,7 @@ package net
+ 
+ import (
+ 	"fmt"
++	"internal/testenv"
+ 	"os"
+ 	"runtime"
+ 	"syscall"
+@@ -483,13 +484,12 @@ func checkDualStackAddrFamily(fd *netFD) error {
+ }
+ 
+ func TestWildWildcardListener(t *testing.T) {
++	testenv.MustHaveExternalNetwork(t)
++
+ 	switch runtime.GOOS {
+ 	case "plan9":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+-	if testing.Short() || !*testExternal {
+-		t.Skip("avoid external network")
+-	}
+ 
+ 	defer func() {
+ 		if p := recover(); p != nil {
+@@ -527,12 +527,17 @@ var ipv4MulticastListenerTests = []struct {
+ // test listener with same address family, same group address and same
+ // port.
+ func TestIPv4MulticastListener(t *testing.T) {
++	testenv.MustHaveExternalNetwork(t)
++
+ 	switch runtime.GOOS {
+ 	case "android", "nacl", "plan9":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	case "solaris":
+ 		t.Skipf("not supported on solaris, see golang.org/issue/7399")
+ 	}
++	if !supportsIPv4 {
++		t.Skip("IPv4 is not supported")
++	}
+ 
+ 	closer := func(cs []*UDPConn) {
+ 		for _, c := range cs {
+@@ -548,7 +553,7 @@ func TestIPv4MulticastListener(t *testing.T) {
+ 		// routing stuff for finding out an appropriate
+ 		// nexthop containing both network and link layer
+ 		// adjacencies.
+-		if ifi == nil && (testing.Short() || !*testExternal) {
++		if ifi == nil || !*testIPv4 {
+ 			continue
+ 		}
+ 		for _, tt := range ipv4MulticastListenerTests {
+@@ -597,6 +602,8 @@ var ipv6MulticastListenerTests = []struct {
+ // test listener with same address family, same group address and same
+ // port.
+ func TestIPv6MulticastListener(t *testing.T) {
++	testenv.MustHaveExternalNetwork(t)
++
+ 	switch runtime.GOOS {
+ 	case "plan9":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+@@ -604,7 +611,7 @@ func TestIPv6MulticastListener(t *testing.T) {
+ 		t.Skipf("not supported on solaris, see issue 7399")
+ 	}
+ 	if !supportsIPv6 {
+-		t.Skip("ipv6 is not supported")
++		t.Skip("IPv6 is not supported")
+ 	}
+ 	if os.Getuid() != 0 {
+ 		t.Skip("must be root")
+@@ -624,7 +631,7 @@ func TestIPv6MulticastListener(t *testing.T) {
+ 		// routing stuff for finding out an appropriate
+ 		// nexthop containing both network and link layer
+ 		// adjacencies.
+-		if ifi == nil && (testing.Short() || !*testExternal || !*testIPv6) {
++		if ifi == nil && !*testIPv6 {
+ 			continue
+ 		}
+ 		for _, tt := range ipv6MulticastListenerTests {
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 6307a8612d..1345751cfd 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -58,9 +58,10 @@ var lookupGoogleSRVTests = []struct {
+ }
+ 
+ func TestLookupGoogleSRV(t *testing.T) {
+-	if testing.Short() && testenv.Builder() == "" || !*testExternal {
+-		t.Skip("avoid external network")
++	if testenv.Builder() == "" {
++		testenv.MustHaveExternalNetwork(t)
+ 	}
++
+ 	if !supportsIPv4 || !*testIPv4 {
+ 		t.Skip("IPv4 is required")
+ 	}
+@@ -92,9 +93,10 @@ var lookupGmailMXTests = []struct {
+ }
+ 
+ func TestLookupGmailMX(t *testing.T) {
+-	if testing.Short() && testenv.Builder() == "" || !*testExternal {
+-		t.Skip("avoid external network")
++	if testenv.Builder() == "" {
++		testenv.MustHaveExternalNetwork(t)
+ 	}
++
+ 	if !supportsIPv4 || !*testIPv4 {
+ 		t.Skip("IPv4 is required")
+ 	}
+@@ -123,9 +125,10 @@ var lookupGmailNSTests = []struct {
+ }
+ 
+ func TestLookupGmailNS(t *testing.T) {
+-	if testing.Short() && testenv.Builder() == "" || !*testExternal {
+-		t.Skip("avoid external network")
++	if testenv.Builder() == "" {
++		testenv.MustHaveExternalNetwork(t)
+ 	}
++
+ 	if !supportsIPv4 || !*testIPv4 {
+ 		t.Skip("IPv4 is required")
+ 	}
+@@ -154,9 +157,10 @@ var lookupGmailTXTTests = []struct {
+ }
+ 
+ func TestLookupGmailTXT(t *testing.T) {
+-	if testing.Short() && testenv.Builder() == "" || !*testExternal {
+-		t.Skip("avoid external network")
++	if testenv.Builder() == "" {
++		testenv.MustHaveExternalNetwork(t)
+ 	}
++
+ 	if !supportsIPv4 || !*testIPv4 {
+ 		t.Skip("IPv4 is required")
+ 	}
+@@ -188,9 +192,10 @@ var lookupGooglePublicDNSAddrTests = []struct {
+ }
+ 
+ func TestLookupGooglePublicDNSAddr(t *testing.T) {
+-	if testing.Short() && testenv.Builder() == "" || !*testExternal {
+-		t.Skip("avoid external network")
++	if testenv.Builder() == "" {
++		testenv.MustHaveExternalNetwork(t)
+ 	}
++
+ 	if !supportsIPv4 || !supportsIPv6 || !*testIPv4 || !*testIPv6 {
+ 		t.Skip("both IPv4 and IPv6 are required")
+ 	}
+@@ -243,9 +248,10 @@ var lookupIANACNAMETests = []struct {
+ }
+ 
+ func TestLookupIANACNAME(t *testing.T) {
+-	if testing.Short() && testenv.Builder() == "" || !*testExternal {
+-		t.Skip("avoid external network")
++	if testenv.Builder() == "" {
++		testenv.MustHaveExternalNetwork(t)
+ 	}
++
+ 	if !supportsIPv4 || !*testIPv4 {
+ 		t.Skip("IPv4 is required")
+ 	}
+@@ -269,9 +275,10 @@ var lookupGoogleHostTests = []struct {
+ }
+ 
+ func TestLookupGoogleHost(t *testing.T) {
+-	if testing.Short() && testenv.Builder() == "" || !*testExternal {
+-		t.Skip("avoid external network")
++	if testenv.Builder() == "" {
++		testenv.MustHaveExternalNetwork(t)
+ 	}
++
+ 	if !supportsIPv4 || !*testIPv4 {
+ 		t.Skip("IPv4 is required")
+ 	}
+@@ -300,9 +307,10 @@ var lookupGoogleIPTests = []struct {
+ }
+ 
+ func TestLookupGoogleIP(t *testing.T) {
+-	if testing.Short() && testenv.Builder() == "" || !*testExternal {
+-		t.Skip("avoid external network")
++	if testenv.Builder() == "" {
++		testenv.MustHaveExternalNetwork(t)
+ 	}
++
+ 	if !supportsIPv4 || !*testIPv4 {
+ 		t.Skip("IPv4 is required")
+ 	}
+@@ -463,9 +471,10 @@ func TestLookupDotsWithLocalSource(t *testing.T) {
+ }
+ 
+ func TestLookupDotsWithRemoteSource(t *testing.T) {
+-	if testing.Short() && testenv.Builder() == "" || !*testExternal {
+-		t.Skip("avoid external network")
++	if testenv.Builder() == "" {
++		testenv.MustHaveExternalNetwork(t)
+ 	}
++
+ 	if !supportsIPv4 || !*testIPv4 {
+ 		t.Skip("IPv4 is required")
+ 	}
+diff --git a/src/net/lookup_windows_test.go b/src/net/lookup_windows_test.go
+index 7ff32b809b..9af2c61b74 100644
+--- a/src/net/lookup_windows_test.go
++++ b/src/net/lookup_windows_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"encoding/json"
+ 	"errors"
++	"internal/testenv"
+ 	"os/exec"
+ 	"reflect"
+ 	"regexp"
+@@ -24,9 +25,7 @@ func toJson(v interface{}) string {
+ }
+ 
+ func TestLookupMX(t *testing.T) {
+-	if testing.Short() || !*testExternal {
+-		t.Skip("avoid external network")
+-	}
++	testenv.MustHaveExternalNetwork(t)
+ 
+ 	for _, server := range nslookupTestServers {
+ 		mx, err := LookupMX(server)
+@@ -51,9 +50,7 @@ func TestLookupMX(t *testing.T) {
+ }
+ 
+ func TestLookupCNAME(t *testing.T) {
+-	if testing.Short() || !*testExternal {
+-		t.Skip("avoid external network")
+-	}
++	testenv.MustHaveExternalNetwork(t)
+ 
+ 	for _, server := range nslookupTestServers {
+ 		cname, err := LookupCNAME(server)
+@@ -76,9 +73,7 @@ func TestLookupCNAME(t *testing.T) {
+ }
+ 
+ func TestLookupNS(t *testing.T) {
+-	if testing.Short() || !*testExternal {
+-		t.Skip("avoid external network")
+-	}
++	testenv.MustHaveExternalNetwork(t)
+ 
+ 	for _, server := range nslookupTestServers {
+ 		ns, err := LookupNS(server)
+@@ -104,9 +99,7 @@ func TestLookupNS(t *testing.T) {
+ }
+ 
+ func TestLookupTXT(t *testing.T) {
+-	if testing.Short() || !*testExternal {
+-		t.Skip("avoid external network")
+-	}
++	testenv.MustHaveExternalNetwork(t)
+ 
+ 	for _, server := range nslookupTestServers {
+ 		txt, err := LookupTXT(server)
+diff --git a/src/net/main_test.go b/src/net/main_test.go
+index f3f8b1a900..7573ded93b 100644
+--- a/src/net/main_test.go
++++ b/src/net/main_test.go
+@@ -26,8 +26,6 @@ var (
+ var (
+ 	testDNSFlood = flag.Bool("dnsflood", false, "whether to test DNS query flooding")
+ 
+-	testExternal = flag.Bool("external", true, "allow use of external networks during long test")
+-
+ 	// If external IPv4 connectivity exists, we can try dialing
+ 	// non-node/interface local scope IPv4 addresses.
+ 	// On Windows, Lookup APIs may not return IPv4-related
+diff --git a/src/net/platform_test.go b/src/net/platform_test.go
+index 76c53138cd..2a14095cc2 100644
+--- a/src/net/platform_test.go
++++ b/src/net/platform_test.go
+@@ -5,6 +5,7 @@
+ package net
+ 
+ import (
++	"internal/testenv"
+ 	"os"
+ 	"runtime"
+ 	"strings"
+@@ -110,7 +111,7 @@ func testableListenArgs(network, address, client string) bool {
+ 	}
+ 
+ 	// Test wildcard IP addresses.
+-	if wildcard && (testing.Short() || !*testExternal) {
++	if wildcard && !testenv.HasExternalNetwork() {
+ 		return false
+ 	}
+ 
+diff --git a/src/net/tcpsock_test.go b/src/net/tcpsock_test.go
+index 8de6ad71ce..4af47fcf1a 100644
+--- a/src/net/tcpsock_test.go
++++ b/src/net/tcpsock_test.go
+@@ -5,6 +5,7 @@
+ package net
+ 
+ import (
++	"internal/testenv"
+ 	"io"
+ 	"reflect"
+ 	"runtime"
+@@ -345,9 +346,7 @@ var tcpListenerNameTests = []struct {
+ }
+ 
+ func TestTCPListenerName(t *testing.T) {
+-	if testing.Short() || !*testExternal {
+-		t.Skip("avoid external network")
+-	}
++	testenv.MustHaveExternalNetwork(t)
+ 
+ 	for _, tt := range tcpListenerNameTests {
+ 		ln, err := ListenTCP(tt.net, tt.laddr)
+@@ -363,9 +362,8 @@ func TestTCPListenerName(t *testing.T) {
+ }
+ 
+ func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
+-	if testing.Short() || !*testExternal {
+-		t.Skip("avoid external network")
+-	}
++	testenv.MustHaveExternalNetwork(t)
++
+ 	if !supportsIPv6 {
+ 		t.Skip("IPv6 is not supported")
+ 	}
+diff --git a/src/net/udpsock_test.go b/src/net/udpsock_test.go
+index 1404b7ce80..1da24b2cc8 100644
+--- a/src/net/udpsock_test.go
++++ b/src/net/udpsock_test.go
+@@ -5,6 +5,7 @@
+ package net
+ 
+ import (
++	"internal/testenv"
+ 	"reflect"
+ 	"runtime"
+ 	"testing"
+@@ -178,9 +179,7 @@ var udpConnLocalNameTests = []struct {
+ }
+ 
+ func TestUDPConnLocalName(t *testing.T) {
+-	if testing.Short() || !*testExternal {
+-		t.Skip("avoid external network")
+-	}
++	testenv.MustHaveExternalNetwork(t)
+ 
+ 	for _, tt := range udpConnLocalNameTests {
+ 		c, err := ListenUDP(tt.net, tt.laddr)
+@@ -234,9 +233,8 @@ func TestUDPConnLocalAndRemoteNames(t *testing.T) {
+ }
+ 
+ func TestIPv6LinkLocalUnicastUDP(t *testing.T) {
+-	if testing.Short() || !*testExternal {
+-		t.Skip("avoid external network")
+-	}
++	testenv.MustHaveExternalNetwork(t)
++
+ 	if !supportsIPv6 {
+ 		t.Skip("IPv6 is not supported")
+ 	}

@@ -11,7 +11,48 @@ Date:   Fri Jul 18 12:04:39 2014 -0400
     R=iant, minux
     CC=golang-codereviews
     https://golang.org/cl/112420043
-
+---
  AUTHORS      | 2 +-
  CONTRIBUTORS | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/AUTHORS b/AUTHORS
+index c27856ca87..5fb861bbd5 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -380,7 +380,6 @@ Shawn Smith <shawn.p.smith@gmail.com>
+ Shenghou Ma <minux.ma@gmail.com>
+ Shivakumar GN <shivakumar.gn@gmail.com>
+ Simon Whitehead <chemnova@gmail.com>
+-snyh <snyh@snyh.org>
+ Sokolov Yura <funny.falcon@gmail.com>
+ Spring Mc <heresy.mc@gmail.com>
+ StalkR <stalkr@stalkr.net>
+@@ -421,6 +420,7 @@ Wei Guangjing <vcc.163@gmail.com>
+ Willem van der Schyff <willemvds@gmail.com>
+ William Josephson <wjosephson@gmail.com>
+ William Orr <will@worrbase.com> <ay1244@gmail.com>
++Xia Bin <snyh@snyh.org>
+ Xing Xing <mikespook@gmail.com>
+ Yasuhiro Matsumoto <mattn.jp@gmail.com>
+ Yissakhar Z. Beck <yissakhar.beck@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 8f6d6ae99f..fb17b08a18 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -526,7 +526,6 @@ Shawn Smith <shawn.p.smith@gmail.com>
+ Shenghou Ma <minux@golang.org> <minux.ma@gmail.com>
+ Shivakumar GN <shivakumar.gn@gmail.com>
+ Simon Whitehead <chemnova@gmail.com>
+-snyh <snyh@snyh.org>
+ Sokolov Yura <funny.falcon@gmail.com>
+ Spring Mc <heresy.mc@gmail.com>
+ StalkR <stalkr@stalkr.net>
+@@ -577,6 +576,7 @@ Willem van der Schyff <willemvds@gmail.com>
+ William Chan <willchan@chromium.org>
+ William Josephson <wjosephson@gmail.com>
+ William Orr <will@worrbase.com> <ay1244@gmail.com>
++Xia Bin <snyh@snyh.org>
+ Xing Xing <mikespook@gmail.com>
+ Yan Zou <yzou@google.com>
+ Yasuhiro Matsumoto <mattn.jp@gmail.com>

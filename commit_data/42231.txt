@@ -19,7 +19,7 @@ Date:   Mon Nov 18 13:58:58 2019 +0000
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/dist/test.go        | 14 +++++++++-----
  test/fixedbugs/bug302.go    | 24 ++++++++++++++++++------
  test/fixedbugs/bug369.go    | 22 +++++++++++++---------
@@ -27,3 +27,269 @@ Date:   Mon Nov 18 13:58:58 2019 +0000
  test/linkmain_run.go        | 44 +++++++++++++++++++++++++++-----------------
  test/sinit_run.go           | 16 ++++++++++++++--
  6 files changed, 91 insertions(+), 41 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 1a4c6344b4..559c61a916 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1358,17 +1358,21 @@ var runtest struct {
+ 
+ func (t *tester) testDirTest(dt *distTest, shard, shards int) error {
+ 	runtest.Do(func() {
+-		const exe = "runtest.exe" // named exe for Windows, but harmless elsewhere
+-		cmd := t.dirCmd("test", "go", "build", "-o", exe, "run.go")
+-		cmd.Env = append(os.Environ(), "GOOS="+gohostos, "GOARCH="+gohostarch)
+-		runtest.exe = filepath.Join(cmd.Dir, exe)
+-		if err := cmd.Run(); err != nil {
++		f, err := ioutil.TempFile("", "runtest-*.exe") // named exe for Windows, but harmless elsewhere
++		if err != nil {
+ 			runtest.err = err
+ 			return
+ 		}
++		f.Close()
++
++		runtest.exe = f.Name()
+ 		xatexit(func() {
+ 			os.Remove(runtest.exe)
+ 		})
++
++		cmd := t.dirCmd("test", "go", "build", "-o", runtest.exe, "run.go")
++		cmd.Env = append(os.Environ(), "GOOS="+gohostos, "GOARCH="+gohostarch)
++		runtest.err = cmd.Run()
+ 	})
+ 	if runtest.err != nil {
+ 		return runtest.err
+diff --git a/test/fixedbugs/bug302.go b/test/fixedbugs/bug302.go
+index c763b87786..87f9d4ef70 100644
+--- a/test/fixedbugs/bug302.go
++++ b/test/fixedbugs/bug302.go
+@@ -9,22 +9,34 @@ package main
+ 
+ import (
+ 	"fmt"
++	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+ )
+ 
++var tmpDir string
++
+ func main() {
+-	run("go", "tool", "compile", filepath.Join("fixedbugs", "bug302.dir", "p.go"))
++	fb, err := filepath.Abs("fixedbugs")
++	if err == nil {
++		tmpDir, err = ioutil.TempDir("", "bug302")
++	}
++	if err != nil {
++		fmt.Println(err)
++		os.Exit(1)
++	}
++	defer os.RemoveAll(tmpDir)
++
++	run("go", "tool", "compile", filepath.Join(fb, "bug302.dir", "p.go"))
+ 	run("go", "tool", "pack", "grc", "pp.a", "p.o")
+-	run("go", "tool", "compile", "-I", ".", filepath.Join("fixedbugs", "bug302.dir", "main.go"))
+-	os.Remove("p.o")
+-	os.Remove("pp.a")
+-	os.Remove("main.o")
++	run("go", "tool", "compile", "-I", ".", filepath.Join(fb, "bug302.dir", "main.go"))
+ }
+ 
+ func run(cmd string, args ...string) {
+-	out, err := exec.Command(cmd, args...).CombinedOutput()
++	c := exec.Command(cmd, args...)
++	c.Dir = tmpDir
++	out, err := c.CombinedOutput()
+ 	if err != nil {
+ 		fmt.Println(string(out))
+ 		fmt.Println(err)
+diff --git a/test/fixedbugs/bug369.go b/test/fixedbugs/bug369.go
+index e2a1147735..9316f7aad0 100644
+--- a/test/fixedbugs/bug369.go
++++ b/test/fixedbugs/bug369.go
+@@ -11,6 +11,7 @@ package main
+ 
+ import (
+ 	"fmt"
++	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -20,16 +21,19 @@ func main() {
+ 	err := os.Chdir(filepath.Join(".", "fixedbugs", "bug369.dir"))
+ 	check(err)
+ 
+-	run("go", "tool", "compile", "-N", "-o", "slow.o", "pkg.go")
+-	run("go", "tool", "compile", "-o", "fast.o", "pkg.go")
+-	run("go", "tool", "compile", "-o", "main.o", "main.go")
+-	run("go", "tool", "link", "-o", "a.exe", "main.o")
+-	run("." + string(filepath.Separator) + "a.exe")
++	tmpDir, err := ioutil.TempDir("", "bug369")
++	check(err)
++	defer os.RemoveAll(tmpDir)
++
++	tmp := func(name string) string {
++		return filepath.Join(tmpDir, name)
++	}
+ 
+-	os.Remove("slow.o")
+-	os.Remove("fast.o")
+-	os.Remove("main.o")
+-	os.Remove("a.exe")
++	run("go", "tool", "compile", "-N", "-o", tmp("slow.o"), "pkg.go")
++	run("go", "tool", "compile", "-o", tmp("fast.o"), "pkg.go")
++	run("go", "tool", "compile", "-D", tmpDir, "-o", tmp("main.o"), "main.go")
++	run("go", "tool", "link", "-o", tmp("a.exe"), tmp("main.o"))
++	run(tmp("a.exe"))
+ }
+ 
+ func run(name string, args ...string) {
+diff --git a/test/fixedbugs/issue9355.go b/test/fixedbugs/issue9355.go
+index 9657e64491..2498bf6a1b 100644
+--- a/test/fixedbugs/issue9355.go
++++ b/test/fixedbugs/issue9355.go
+@@ -8,6 +8,7 @@ package main
+ 
+ import (
+ 	"fmt"
++	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -23,8 +24,15 @@ func main() {
+ 	err := os.Chdir(filepath.Join("fixedbugs", "issue9355.dir"))
+ 	check(err)
+ 
+-	out := run("go", "tool", "compile", "-S", "a.go")
+-	os.Remove("a.o")
++	f, err := ioutil.TempFile("", "issue9355-*.o")
++	if err != nil {
++		fmt.Println(err)
++		os.Exit(1)
++	}
++	f.Close()
++
++	out := run("go", "tool", "compile", "-o", f.Name(), "-S", "a.go")
++	os.Remove(f.Name())
+ 
+ 	// 6g/8g print the offset as dec, but 5g/9g print the offset as hex.
+ 	patterns := []string{
+diff --git a/test/linkmain_run.go b/test/linkmain_run.go
+index 68d53e8cad..077f7ee917 100644
+--- a/test/linkmain_run.go
++++ b/test/linkmain_run.go
+@@ -11,21 +11,21 @@ package main
+ 
+ import (
+ 	"fmt"
++	"io/ioutil"
+ 	"os"
+ 	"os/exec"
++	"path/filepath"
+ 	"strings"
+ )
+ 
++var tmpDir string
++
+ func cleanup() {
+-	os.Remove("linkmain.o")
+-	os.Remove("linkmain.a")
+-	os.Remove("linkmain1.o")
+-	os.Remove("linkmain1.a")
+-	os.Remove("linkmain.exe")
++	os.RemoveAll(tmpDir)
+ }
+ 
+-func run(cmdline string) {
+-	args := strings.Fields(cmdline)
++func run(cmdline ...string) {
++	args := strings.Fields(strings.Join(cmdline, " "))
+ 	cmd := exec.Command(args[0], args[1:]...)
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+@@ -37,8 +37,8 @@ func run(cmdline string) {
+ 	}
+ }
+ 
+-func runFail(cmdline string) {
+-	args := strings.Fields(cmdline)
++func runFail(cmdline ...string) {
++	args := strings.Fields(strings.Join(cmdline, " "))
+ 	cmd := exec.Command(args[0], args[1:]...)
+ 	out, err := cmd.CombinedOutput()
+ 	if err == nil {
+@@ -51,16 +51,26 @@ func runFail(cmdline string) {
+ }
+ 
+ func main() {
++	var err error
++	tmpDir, err = ioutil.TempDir("", "")
++	if err != nil {
++		fmt.Println(err)
++		os.Exit(1)
++	}
++	tmp := func(name string) string {
++		return filepath.Join(tmpDir, name)
++	}
++
+ 	// helloworld.go is package main
+-	run("go tool compile -o linkmain.o helloworld.go")
+-	run("go tool compile -pack -o linkmain.a helloworld.go")
+-	run("go tool link -o linkmain.exe linkmain.o")
+-	run("go tool link -o linkmain.exe linkmain.a")
++	run("go tool compile -o", tmp("linkmain.o"), "helloworld.go")
++	run("go tool compile -pack -o", tmp("linkmain.a"), "helloworld.go")
++	run("go tool link -o", tmp("linkmain.exe"), tmp("linkmain.o"))
++	run("go tool link -o", tmp("linkmain.exe"), tmp("linkmain.a"))
+ 
+ 	// linkmain.go is not
+-	run("go tool compile -o linkmain1.o linkmain.go")
+-	run("go tool compile -pack -o linkmain1.a linkmain.go")
+-	runFail("go tool link -o linkmain.exe linkmain1.o")
+-	runFail("go tool link -o linkmain.exe linkmain1.a")
++	run("go tool compile -o", tmp("linkmain1.o"), "linkmain.go")
++	run("go tool compile -pack -o", tmp("linkmain1.a"), "linkmain.go")
++	runFail("go tool link -o", tmp("linkmain.exe"), tmp("linkmain1.o"))
++	runFail("go tool link -o", tmp("linkmain.exe"), tmp("linkmain1.a"))
+ 	cleanup()
+ }
+diff --git a/test/sinit_run.go b/test/sinit_run.go
+index fdd19c492f..c37fc9b88c 100644
+--- a/test/sinit_run.go
++++ b/test/sinit_run.go
+@@ -12,20 +12,32 @@ package main
+ import (
+ 	"bytes"
+ 	"fmt"
++	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ )
+ 
+ func main() {
+-	cmd := exec.Command("go", "tool", "compile", "-S", "sinit.go")
++	f, err := ioutil.TempFile("", "sinit-*.o")
++	if err != nil {
++		fmt.Println(err)
++		os.Exit(1)
++	}
++	f.Close()
++
++	cmd := exec.Command("go", "tool", "compile", "-o", f.Name(), "-S", "sinit.go")
+ 	out, err := cmd.CombinedOutput()
++	os.Remove(f.Name())
+ 	if err != nil {
+ 		fmt.Println(string(out))
+ 		fmt.Println(err)
+ 		os.Exit(1)
+ 	}
+-	os.Remove("sinit.o")
+ 
++	if len(bytes.TrimSpace(out)) == 0 {
++		fmt.Println("'go tool compile -S sinit.go' printed no output")
++		os.Exit(1)
++	}
+ 	if bytes.Contains(out, []byte("initdone")) {
+ 		fmt.Println("sinit generated an init function")
+ 		os.Exit(1)

@@ -12,6 +12,20 @@ Date:   Thu Aug 4 11:55:33 2022 +0100
     Reviewed-by: hopehook <hopehook@qq.com>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Dan Kortschak <dan@kortschak.io>
-
+---
  src/encoding/xml/xml.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/encoding/xml/xml.go b/src/encoding/xml/xml.go
+index 4a8c154802..3459a8604f 100644
+--- a/src/encoding/xml/xml.go
++++ b/src/encoding/xml/xml.go
+@@ -1100,7 +1100,7 @@ Input:
+ 
+ 			if haveText {
+ 				d.buf.Truncate(before)
+-				d.buf.Write([]byte(text))
++				d.buf.WriteString(text)
+ 				b0, b1 = 0, 0
+ 				continue Input
+ 			}

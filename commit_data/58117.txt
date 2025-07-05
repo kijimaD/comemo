@@ -13,6 +13,25 @@ Date:   Mon Sep 25 08:43:18 2023 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/database/sql/sql.go | 7 +------
  1 file changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 7592bad1d3..013c03d97a 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -964,12 +964,7 @@ func (db *DB) shortestIdleTimeLocked() time.Duration {
+ 	if db.maxLifetime <= 0 {
+ 		return db.maxIdleTime
+ 	}
+-
+-	min := db.maxIdleTime
+-	if min > db.maxLifetime {
+-		min = db.maxLifetime
+-	}
+-	return min
++	return min(db.maxIdleTime, db.maxLifetime)
+ }
+ 
+ // SetMaxIdleConns sets the maximum number of connections in the idle

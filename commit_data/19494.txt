@@ -12,8 +12,113 @@ Date:   Mon Jun 2 21:26:32 2014 -0400
     R=golang-codereviews, bradfitz
     CC=dsymonds, golang-codereviews, iant, khr, r
     https://golang.org/cl/96670046
-
+---
  src/cmd/gc/inl.c |  1 +
  test/live.go     | 32 ++++++++++++++++++++++++++++++++
  test/live2.go    | 39 +++++++++++++++++++++++++++++++++++++++
  3 files changed, 72 insertions(+)
+
+diff --git a/src/cmd/gc/inl.c b/src/cmd/gc/inl.c
+index 298a4c0d70..cf89b00902 100644
+--- a/src/cmd/gc/inl.c
++++ b/src/cmd/gc/inl.c
+@@ -802,6 +802,7 @@ inlvar(Node *var)
+ 	n->class = PAUTO;
+ 	n->used = 1;
+ 	n->curfn = curfn;   // the calling function, not the called one
++	n->addrtaken = var->addrtaken;
+ 
+ 	// esc pass wont run if we're inlining into a iface wrapper
+ 	// luckily, we can steal the results from the target func
+diff --git a/test/live.go b/test/live.go
+index 286fcc3064..b4cced47e3 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// liveness tests with inlining disabled.
++// see also live2.go.
++
+ package main
+ 
+ func f1() {
+@@ -590,3 +593,32 @@ func f39c() (x [10]*int) {
+ 	println() // ERROR "live at call to printnl: x"
+ 	return
+ }
++
++// issue 8142: lost 'addrtaken' bit on inlined variables.
++// no inlining in this test, so just checking that non-inlined works.
++
++type T40 struct {
++	m map[int]int
++}
++
++func newT40() *T40 {
++	ret := T40{ // ERROR "live at call to makemap: &ret"
++		make(map[int]int), 
++	}
++	return &ret
++}
++
++func bad40() {
++	t := newT40()
++	println()
++	_ = t
++}
++
++func good40() {
++	ret := T40{ // ERROR "live at call to makemap: ret"
++		make(map[int]int),
++	}
++	t := &ret
++	println() // ERROR "live at call to printnl: ret"
++	_ = t
++}
+diff --git a/test/live2.go b/test/live2.go
+new file mode 100644
+index 0000000000..1e32794026
+--- /dev/null
++++ b/test/live2.go
+@@ -0,0 +1,39 @@
++// errorcheck -0 -live
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// liveness tests with inlining ENABLED
++// see also live.go.
++
++package main
++
++// issue 8142: lost 'addrtaken' bit on inlined variables.
++// no inlining in this test, so just checking that non-inlined works.
++
++type T40 struct {
++	m map[int]int
++}
++
++func newT40() *T40 {
++	ret := T40{ // ERROR "live at call to makemap: &ret"
++		make(map[int]int),
++	}
++	return &ret
++}
++
++func bad40() {
++	t := newT40() // ERROR "live at call to makemap: ret"
++	println()     // ERROR "live at call to printnl: ret"
++	_ = t
++}
++
++func good40() {
++	ret := T40{ // ERROR "live at call to makemap: ret"
++		make(map[int]int),
++	}
++	t := &ret
++	println() // ERROR "live at call to printnl: ret"
++	_ = t
++}

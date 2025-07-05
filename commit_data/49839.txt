@@ -17,6 +17,20 @@ Date:   Tue Sep 14 15:09:06 2021 -0700
     Trust: Jay Conrod <jayconrod@google.com>
     Trust: Katie Hockman <katie@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/testing/testing.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index f4d2b26650..18a0657561 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1635,7 +1635,7 @@ func (m *M) Run() (code int) {
+ 	}
+ 
+ 	fuzzingOk := runFuzzing(m.deps, m.fuzzTargets)
+-	if !*isFuzzWorker && !fuzzingOk {
++	if !fuzzingOk {
+ 		fmt.Println("FAIL")
+ 		if *isFuzzWorker {
+ 			m.exitCode = fuzzWorkerExitCode

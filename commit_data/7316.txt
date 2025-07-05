@@ -9,7 +9,7 @@ Date:   Tue Feb 1 12:47:35 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4001048
-
+---
  doc/codelab/wiki/get.go             |  8 +++---
  doc/codelab/wiki/srcextract.go      |  2 +-
  doc/effective_go.html               |  4 +--
@@ -30,3 +30,645 @@ Date:   Tue Feb 1 12:47:35 2011 -0800
  src/pkg/websocket/websocket_test.go |  2 +-
  test/garbage/parser.go              |  2 +-
  19 files changed, 77 insertions(+), 77 deletions(-)
+
+diff --git a/doc/codelab/wiki/get.go b/doc/codelab/wiki/get.go
+index 7c583bda9b..3428314162 100644
+--- a/doc/codelab/wiki/get.go
++++ b/doc/codelab/wiki/get.go
+@@ -21,7 +21,7 @@ func main() {
+ 	if *addr {
+ 		l, err := net.Listen("tcp", "127.0.0.1:0")
+ 		if err != nil {
+-			log.Exit(err)
++			log.Fatal(err)
+ 		}
+ 		defer l.Close()
+ 		fmt.Print(l.Addr())
+@@ -29,7 +29,7 @@ func main() {
+ 	}
+ 	url := flag.Arg(0)
+ 	if url == "" {
+-		log.Exit("no url supplied")
++		log.Fatal("no url supplied")
+ 	}
+ 	var r *http.Response
+ 	var err os.Error
+@@ -40,11 +40,11 @@ func main() {
+ 		r, _, err = http.Get(url)
+ 	}
+ 	if err != nil {
+-		log.Exit(err)
++		log.Fatal(err)
+ 	}
+ 	defer r.Body.Close()
+ 	_, err = io.Copy(os.Stdout, r.Body)
+ 	if err != nil {
+-		log.Exit(err)
++		log.Fatal(err)
+ 	}
+ }
+diff --git a/doc/codelab/wiki/srcextract.go b/doc/codelab/wiki/srcextract.go
+index fdb7a5e1fc..cab092f58b 100644
+--- a/doc/codelab/wiki/srcextract.go
++++ b/doc/codelab/wiki/srcextract.go
+@@ -29,7 +29,7 @@ func main() {
+ 	fs := token.NewFileSet()
+ 	file, err := parser.ParseFile(fs, *srcFn, nil, 0)
+ 	if err != nil {
+-		log.Exit(err)
++		log.Fatal(err)
+ 	}
+ 	// create printer
+ 	p := &printer.Config{
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index e30251f6ae..3f6f89b8bc 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -1653,7 +1653,7 @@ correctness of the program state before real execution begins.
+ <pre>
+ func init() {
+     if USER == "" {
+-        log.Exit("$USER not set")
++        log.Fatal("$USER not set")
+     }
+     if HOME == "" {
+         HOME = "/usr/" + USER
+@@ -2871,7 +2871,7 @@ func main() {
+     http.Handle("/", http.HandlerFunc(QR))
+     err := http.ListenAndServe(*addr, nil)
+     if err != nil {
+-        log.Exit("ListenAndServe:", err)
++        log.Fatal("ListenAndServe:", err)
+     }
+ }
+ 
+diff --git a/doc/htmlgen.go b/doc/htmlgen.go
+index 4bed9ed737..5d0bad8b59 100644
+--- a/doc/htmlgen.go
++++ b/doc/htmlgen.go
+@@ -50,7 +50,7 @@ func read() {
+ 			break
+ 		}
+ 		if err != nil {
+-			log.Exit(err)
++			log.Fatal(err)
+ 		}
+ 		n := len(lines)
+ 		lines = lines[0 : n+1]
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index 32a2e10da0..7e80934e14 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -66,24 +66,24 @@ func main() {
+ 	for i, builder := range flag.Args() {
+ 		b, err := NewBuilder(builder)
+ 		if err != nil {
+-			log.Exit(err)
++			log.Fatal(err)
+ 		}
+ 		builders[i] = b
+ 	}
+ 	if err := os.RemoveAll(*buildroot); err != nil {
+-		log.Exitf("Error removing build root (%s): %s", *buildroot, err)
++		log.Fatalf("Error removing build root (%s): %s", *buildroot, err)
+ 	}
+ 	if err := os.Mkdir(*buildroot, mkdirPerm); err != nil {
+-		log.Exitf("Error making build root (%s): %s", *buildroot, err)
++		log.Fatalf("Error making build root (%s): %s", *buildroot, err)
+ 	}
+ 	if err := run(nil, *buildroot, "hg", "clone", hgUrl, goroot); err != nil {
+-		log.Exit("Error cloning repository:", err)
++		log.Fatal("Error cloning repository:", err)
+ 	}
+ 	// if specified, build revision and return
+ 	if *buildRevision != "" {
+ 		c, err := getCommit(*buildRevision)
+ 		if err != nil {
+-			log.Exit("Error finding revision: ", err)
++			log.Fatal("Error finding revision: ", err)
+ 		}
+ 		for _, b := range builders {
+ 			if err := b.buildCommit(c); err != nil {
+diff --git a/misc/goplay/goplay.go b/misc/goplay/goplay.go
+index 5923360f62..bc11bb759b 100644
+--- a/misc/goplay/goplay.go
++++ b/misc/goplay/goplay.go
+@@ -42,7 +42,7 @@ func main() {
+ 	case "386":
+ 		archChar = "8"
+ 	default:
+-		log.Exitln("unrecognized GOARCH:", runtime.GOARCH)
++		log.Fatalln("unrecognized GOARCH:", runtime.GOARCH)
+ 	}
+ 
+ 	// source of unique numbers
+@@ -54,7 +54,7 @@ func main() {
+ 
+ 	http.HandleFunc("/", FrontPage)
+ 	http.HandleFunc("/compile", Compile)
+-	log.Exit(http.ListenAndServe(*httpListen, nil))
++	log.Fatal(http.ListenAndServe(*httpListen, nil))
+ }
+ 
+ // FrontPage is an HTTP handler that renders the goplay interface. 
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 1d47a737ac..6a00a3e703 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -625,11 +625,11 @@ func readTemplate(name string) *template.Template {
+ 	path := pathutil.Join(*goroot, "lib/godoc/"+name)
+ 	data, err := ioutil.ReadFile(path)
+ 	if err != nil {
+-		log.Exitf("ReadFile %s: %v", path, err)
++		log.Fatalf("ReadFile %s: %v", path, err)
+ 	}
+ 	t, err := template.Parse(string(data), fmap)
+ 	if err != nil {
+-		log.Exitf("%s: %v", name, err)
++		log.Fatalf("%s: %v", name, err)
+ 	}
+ 	return t
+ }
+@@ -874,7 +874,7 @@ type PageInfoMode uint
+ 
+ const (
+ 	exportsOnly PageInfoMode = 1 << iota // only keep exported stuff
+-	genDoc      // generate documentation
++	genDoc                               // generate documentation
+ )
+ 
+ 
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 20e2e82108..f1b11a760c 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -227,7 +227,7 @@ func main() {
+ 	}
+ 
+ 	if *tabwidth < 0 {
+-		log.Exitf("negative tabwidth %d", *tabwidth)
++		log.Fatalf("negative tabwidth %d", *tabwidth)
+ 	}
+ 
+ 	initHandlers()
+@@ -284,7 +284,7 @@ func main() {
+ 
+ 		// Start http server.
+ 		if err := http.ListenAndServe(*httpAddr, handler); err != nil {
+-			log.Exitf("ListenAndServe %s: %v", *httpAddr, err)
++			log.Fatalf("ListenAndServe %s: %v", *httpAddr, err)
+ 		}
+ 
+ 		return
+@@ -301,7 +301,7 @@ func main() {
+ 		for i := 0; i < flag.NArg(); i++ {
+ 			res, err := remoteSearch(flag.Arg(i))
+ 			if err != nil {
+-				log.Exitf("remoteSearch: %s", err)
++				log.Fatalf("remoteSearch: %s", err)
+ 			}
+ 			io.Copy(os.Stdout, res.Body)
+ 		}
+@@ -344,7 +344,7 @@ func main() {
+ 		info = cmdHandler.getPageInfo(abspath, relpath, "", mode)
+ 	}
+ 	if info.Err != nil {
+-		log.Exitf("%v", info.Err)
++		log.Fatalf("%v", info.Err)
+ 	}
+ 
+ 	// If we have more than one argument, use the remaining arguments for filtering
+@@ -352,7 +352,7 @@ func main() {
+ 		args := flag.Args()[1:]
+ 		rx := makeRx(args)
+ 		if rx == nil {
+-			log.Exitf("illegal regular expression from %v", args)
++			log.Fatalf("illegal regular expression from %v", args)
+ 		}
+ 
+ 		filter := func(s string) bool { return rx.MatchString(s) }
+diff --git a/src/pkg/exec/lp_test.go b/src/pkg/exec/lp_test.go
+index 0ef6d252fa..54081771ec 100644
+--- a/src/pkg/exec/lp_test.go
++++ b/src/pkg/exec/lp_test.go
+@@ -27,7 +27,7 @@ func TestLookPathNotFound(t *testing.T) {
+ 			t.Fatal("LookPath error is not a PathError")
+ 		}
+ 		if perr.Name != name {
+-			t.Fatal("want PathError name %q, got %q", name, perr.Name)
++			t.Fatalf("want PathError name %q, got %q", name, perr.Name)
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index 9eb70a4c75..6672c494bf 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -711,7 +711,7 @@ func Serve(l net.Listener, handler Handler) os.Error {
+ //		http.HandleFunc("/hello", HelloServer)
+ //		err := http.ListenAndServe(":12345", nil)
+ //		if err != nil {
+-//			log.Exit("ListenAndServe: ", err.String())
++//			log.Fatal("ListenAndServe: ", err.String())
+ //		}
+ //	}
+ func ListenAndServe(addr string, handler Handler) os.Error {
+@@ -745,7 +745,7 @@ func ListenAndServe(addr string, handler Handler) os.Error {
+ //		log.Printf("About to listen on 10443. Go to https://127.0.0.1:10443/")
+ //		err := http.ListenAndServeTLS(":10443", "cert.pem", "key.pem", nil)
+ //		if err != nil {
+-//			log.Exit(err)
++//			log.Fatal(err)
+ //		}
+ //	}
+ //
+diff --git a/src/pkg/log/log.go b/src/pkg/log/log.go
+index d34af9e5e4..658e3bd94b 100644
+--- a/src/pkg/log/log.go
++++ b/src/pkg/log/log.go
+@@ -4,11 +4,11 @@
+ 
+ // Simple logging package. It defines a type, Logger, with methods
+ // for formatting output. It also has a predefined 'standard' Logger
+-// accessible through helper functions Print[f|ln], Exit[f|ln], and
++// accessible through helper functions Print[f|ln], Fatal[f|ln], and
+ // Panic[f|ln], which are easier to use than creating a Logger manually.
+ // That logger writes to standard error and prints the date and time
+ // of each logged message.
+-// The Exit functions call os.Exit(1) after writing the log message.
++// The Fatal functions call os.Exit(1) after writing the log message.
+ // The Panic functions call panic after writing the log message.
+ package log
+ 
+@@ -164,20 +164,20 @@ func (l *Logger) Print(v ...interface{}) { l.Output(2, fmt.Sprint(v...)) }
+ // Arguments are handled in the manner of fmt.Println.
+ func (l *Logger) Println(v ...interface{}) { l.Output(2, fmt.Sprintln(v...)) }
+ 
+-// Exit is equivalent to l.Print() followed by a call to os.Exit(1).
+-func (l *Logger) Exit(v ...interface{}) {
++// Fatal is equivalent to l.Print() followed by a call to os.Exit(1).
++func (l *Logger) Fatal(v ...interface{}) {
+ 	l.Output(2, fmt.Sprint(v...))
+ 	os.Exit(1)
+ }
+ 
+-// Exitf is equivalent to l.Printf() followed by a call to os.Exit(1).
+-func (l *Logger) Exitf(format string, v ...interface{}) {
++// Fatalf is equivalent to l.Printf() followed by a call to os.Exit(1).
++func (l *Logger) Fatalf(format string, v ...interface{}) {
+ 	l.Output(2, fmt.Sprintf(format, v...))
+ 	os.Exit(1)
+ }
+ 
+-// Exitln is equivalent to l.Println() followed by a call to os.Exit(1).
+-func (l *Logger) Exitln(v ...interface{}) {
++// Fatalln is equivalent to l.Println() followed by a call to os.Exit(1).
++func (l *Logger) Fatalln(v ...interface{}) {
+ 	l.Output(2, fmt.Sprintln(v...))
+ 	os.Exit(1)
+ }
+@@ -238,20 +238,20 @@ func Println(v ...interface{}) {
+ 	std.Output(2, fmt.Sprintln(v...))
+ }
+ 
+-// Exit is equivalent to Print() followed by a call to os.Exit(1).
+-func Exit(v ...interface{}) {
++// Fatal is equivalent to Print() followed by a call to os.Exit(1).
++func Fatal(v ...interface{}) {
+ 	std.Output(2, fmt.Sprint(v...))
+ 	os.Exit(1)
+ }
+ 
+-// Exitf is equivalent to Printf() followed by a call to os.Exit(1).
+-func Exitf(format string, v ...interface{}) {
++// Fatalf is equivalent to Printf() followed by a call to os.Exit(1).
++func Fatalf(format string, v ...interface{}) {
+ 	std.Output(2, fmt.Sprintf(format, v...))
+ 	os.Exit(1)
+ }
+ 
+-// Exitln is equivalent to Println() followed by a call to os.Exit(1).
+-func Exitln(v ...interface{}) {
++// Fatalln is equivalent to Println() followed by a call to os.Exit(1).
++func Fatalln(v ...interface{}) {
+ 	std.Output(2, fmt.Sprintln(v...))
+ 	os.Exit(1)
+ }
+diff --git a/src/pkg/netchan/export.go b/src/pkg/netchan/export.go
+index 0f72ca7a94..0b28536edf 100644
+--- a/src/pkg/netchan/export.go
++++ b/src/pkg/netchan/export.go
+@@ -169,7 +169,7 @@ func (client *expClient) run() {
+ 				nch.acked()
+ 			}
+ 		default:
+-			log.Exit("netchan export: unknown payload type", hdr.PayloadType)
++			log.Fatal("netchan export: unknown payload type", hdr.PayloadType)
+ 		}
+ 	}
+ 	client.exp.delClient(client)
+diff --git a/src/pkg/netchan/import.go b/src/pkg/netchan/import.go
+index d1e9bbd406..d220d9a662 100644
+--- a/src/pkg/netchan/import.go
++++ b/src/pkg/netchan/import.go
+@@ -176,10 +176,10 @@ func (imp *Importer) Import(name string, chT interface{}, dir Dir, size int) os.
+ //	ImportNValues(name string, chT chan T, dir Dir, size, n int) os.Error
+ // Example usage:
+ //	imp, err := NewImporter("tcp", "netchanserver.mydomain.com:1234")
+-//	if err != nil { log.Exit(err) }
++//	if err != nil { log.Fatal(err) }
+ //	ch := make(chan myType)
+ //	err = imp.ImportNValues("name", ch, Recv, 1, 1)
+-//	if err != nil { log.Exit(err) }
++//	if err != nil { log.Fatal(err) }
+ //	fmt.Printf("%+v\n", <-ch)
+ func (imp *Importer) ImportNValues(name string, chT interface{}, dir Dir, size, n int) os.Error {
+ 	ch, err := checkChan(chT, dir)
+diff --git a/src/pkg/rpc/server.go b/src/pkg/rpc/server.go
+index 5c50bcc3a3..91e9cd5c8d 100644
+--- a/src/pkg/rpc/server.go
++++ b/src/pkg/rpc/server.go
+@@ -73,7 +73,7 @@
+ 		rpc.HandleHTTP()
+ 		l, e := net.Listen("tcp", ":1234")
+ 		if e != nil {
+-			log.Exit("listen error:", e)
++			log.Fatal("listen error:", e)
+ 		}
+ 		go http.Serve(l, nil)
+ 
+@@ -82,7 +82,7 @@
+ 
+ 		client, err := rpc.DialHTTP("tcp", serverAddress + ":1234")
+ 		if err != nil {
+-			log.Exit("dialing:", err)
++			log.Fatal("dialing:", err)
+ 		}
+ 
+ 	Then it can make a remote call:
+@@ -92,7 +92,7 @@
+ 		var reply int
+ 		err = client.Call("Arith.Multiply", args, &reply)
+ 		if err != nil {
+-			log.Exit("arith error:", err)
++			log.Fatal("arith error:", err)
+ 		}
+ 		fmt.Printf("Arith: %d*%d=%d", args.A, args.B, *reply)
+ 
+@@ -225,7 +225,7 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) os.E
+ 		sname = name
+ 	}
+ 	if sname == "" {
+-		log.Exit("rpc: no service name for type", s.typ.String())
++		log.Fatal("rpc: no service name for type", s.typ.String())
+ 	}
+ 	if s.typ.PkgPath() != "" && !isExported(sname) && !useName {
+ 		s := "rpc Register: type " + sname + " is not exported"
+@@ -445,7 +445,7 @@ func (server *Server) Accept(lis net.Listener) {
+ 	for {
+ 		conn, err := lis.Accept()
+ 		if err != nil {
+-			log.Exit("rpc.Serve: accept:", err.String()) // TODO(r): exit?
++			log.Fatal("rpc.Serve: accept:", err.String()) // TODO(r): exit?
+ 		}
+ 		go server.ServeConn(conn)
+ 	}
+diff --git a/src/pkg/rpc/server_test.go b/src/pkg/rpc/server_test.go
+index 67b8762fa5..1f080faa5b 100644
+--- a/src/pkg/rpc/server_test.go
++++ b/src/pkg/rpc/server_test.go
+@@ -72,7 +72,7 @@ func (t *Arith) Error(args *Args, reply *Reply) os.Error {
+ func listenTCP() (net.Listener, string) {
+ 	l, e := net.Listen("tcp", "127.0.0.1:0") // any available address
+ 	if e != nil {
+-		log.Exitf("net.Listen tcp :0: %v", e)
++		log.Fatalf("net.Listen tcp :0: %v", e)
+ 	}
+ 	return l, l.Addr().String()
+ }
+diff --git a/src/pkg/syslog/syslog_test.go b/src/pkg/syslog/syslog_test.go
+index 063ab71b44..2958bcb1f8 100644
+--- a/src/pkg/syslog/syslog_test.go
++++ b/src/pkg/syslog/syslog_test.go
+@@ -28,7 +28,7 @@ func runSyslog(c net.PacketConn, done chan<- string) {
+ func startServer(done chan<- string) {
+ 	c, e := net.ListenPacket("udp", "127.0.0.1:0")
+ 	if e != nil {
+-		log.Exitf("net.ListenPacket failed udp :0 %v", e)
++		log.Fatalf("net.ListenPacket failed udp :0 %v", e)
+ 	}
+ 	serverAddr = c.LocalAddr().String()
+ 	c.SetReadTimeout(100e6) // 100ms
+diff --git a/src/pkg/unicode/maketables.go b/src/pkg/unicode/maketables.go
+index 043c0f3461..0c367673ec 100644
+--- a/src/pkg/unicode/maketables.go
++++ b/src/pkg/unicode/maketables.go
+@@ -141,11 +141,11 @@ const (
+ func parseCategory(line string) (state State) {
+ 	field := strings.Split(line, ";", -1)
+ 	if len(field) != NumField {
+-		logger.Exitf("%5s: %d fields (expected %d)\n", line, len(field), NumField)
++		logger.Fatalf("%5s: %d fields (expected %d)\n", line, len(field), NumField)
+ 	}
+ 	point, err := strconv.Btoui64(field[FCodePoint], 16)
+ 	if err != nil {
+-		logger.Exitf("%.5s...: %s", line, err)
++		logger.Fatalf("%.5s...: %s", line, err)
+ 	}
+ 	lastChar = uint32(point)
+ 	if point == 0 {
+@@ -157,7 +157,7 @@ func parseCategory(line string) (state State) {
+ 	char := &chars[point]
+ 	char.field = field
+ 	if char.codePoint != 0 {
+-		logger.Exitf("point %U reused", point)
++		logger.Fatalf("point %U reused", point)
+ 	}
+ 	char.codePoint = lastChar
+ 	char.category = field[FGeneralCategory]
+@@ -167,7 +167,7 @@ func parseCategory(line string) (state State) {
+ 		// Decimal digit
+ 		_, err := strconv.Atoi(field[FNumericValue])
+ 		if err != nil {
+-			logger.Exitf("%U: bad numeric field: %s", point, err)
++			logger.Fatalf("%U: bad numeric field: %s", point, err)
+ 		}
+ 	case "Lu":
+ 		char.letter(field[FCodePoint], field[FSimpleLowercaseMapping], field[FSimpleTitlecaseMapping])
+@@ -208,7 +208,7 @@ func (char *Char) letterValue(s string, cas string) int {
+ 	v, err := strconv.Btoui64(s, 16)
+ 	if err != nil {
+ 		char.dump(cas)
+-		logger.Exitf("%U: bad letter(%s): %s", char.codePoint, s, err)
++		logger.Fatalf("%U: bad letter(%s): %s", char.codePoint, s, err)
+ 	}
+ 	return int(v)
+ }
+@@ -242,7 +242,7 @@ func version() string {
+ 			return f
+ 		}
+ 	}
+-	logger.Exit("unknown version")
++	logger.Fatal("unknown version")
+ 	return "Unknown"
+ }
+ 
+@@ -260,10 +260,10 @@ func loadChars() {
+ 	}
+ 	resp, _, err := http.Get(*dataURL)
+ 	if err != nil {
+-		logger.Exit(err)
++		logger.Fatal(err)
+ 	}
+ 	if resp.StatusCode != 200 {
+-		logger.Exit("bad GET status for UnicodeData.txt", resp.Status)
++		logger.Fatal("bad GET status for UnicodeData.txt", resp.Status)
+ 	}
+ 	input := bufio.NewReader(resp.Body)
+ 	var first uint32 = 0
+@@ -273,21 +273,21 @@ func loadChars() {
+ 			if err == os.EOF {
+ 				break
+ 			}
+-			logger.Exit(err)
++			logger.Fatal(err)
+ 		}
+ 		switch parseCategory(line[0 : len(line)-1]) {
+ 		case SNormal:
+ 			if first != 0 {
+-				logger.Exitf("bad state normal at U+%04X", lastChar)
++				logger.Fatalf("bad state normal at U+%04X", lastChar)
+ 			}
+ 		case SFirst:
+ 			if first != 0 {
+-				logger.Exitf("bad state first at U+%04X", lastChar)
++				logger.Fatalf("bad state first at U+%04X", lastChar)
+ 			}
+ 			first = lastChar
+ 		case SLast:
+ 			if first == 0 {
+-				logger.Exitf("bad state last at U+%04X", lastChar)
++				logger.Fatalf("bad state last at U+%04X", lastChar)
+ 			}
+ 			for i := first + 1; i <= lastChar; i++ {
+ 				chars[i] = chars[first]
+@@ -336,7 +336,7 @@ func printCategories() {
+ 	ndecl := 0
+ 	for _, name := range list {
+ 		if _, ok := category[name]; !ok {
+-			logger.Exit("unknown category", name)
++			logger.Fatal("unknown category", name)
+ 		}
+ 		// We generate an UpperCase name to serve as concise documentation and an _UnderScored
+ 		// name to store the data.  This stops godoc dumping all the tables but keeps them
+@@ -437,11 +437,11 @@ func dumpRange(header string, inCategory Op) {
+ func fullCategoryTest(list []string) {
+ 	for _, name := range list {
+ 		if _, ok := category[name]; !ok {
+-			logger.Exit("unknown category", name)
++			logger.Fatal("unknown category", name)
+ 		}
+ 		r, ok := unicode.Categories[name]
+ 		if !ok {
+-			logger.Exit("unknown table", name)
++			logger.Fatal("unknown table", name)
+ 		}
+ 		if name == "letter" {
+ 			verifyRange(name, letterOp, r)
+@@ -475,21 +475,21 @@ func parseScript(line string, scripts map[string][]Script) {
+ 	}
+ 	field := strings.Split(line, ";", -1)
+ 	if len(field) != 2 {
+-		logger.Exitf("%s: %d fields (expected 2)\n", line, len(field))
++		logger.Fatalf("%s: %d fields (expected 2)\n", line, len(field))
+ 	}
+ 	matches := scriptRe.FindStringSubmatch(line)
+ 	if len(matches) != 4 {
+-		logger.Exitf("%s: %d matches (expected 3)\n", line, len(matches))
++		logger.Fatalf("%s: %d matches (expected 3)\n", line, len(matches))
+ 	}
+ 	lo, err := strconv.Btoui64(matches[1], 16)
+ 	if err != nil {
+-		logger.Exitf("%.5s...: %s", line, err)
++		logger.Fatalf("%.5s...: %s", line, err)
+ 	}
+ 	hi := lo
+ 	if len(matches[2]) > 2 { // ignore leading ..
+ 		hi, err = strconv.Btoui64(matches[2][2:], 16)
+ 		if err != nil {
+-			logger.Exitf("%.5s...: %s", line, err)
++			logger.Fatalf("%.5s...: %s", line, err)
+ 		}
+ 	}
+ 	name := matches[3]
+@@ -515,11 +515,11 @@ func foldAdjacent(r []Script) []unicode.Range {
+ func fullScriptTest(list []string, installed map[string][]unicode.Range, scripts map[string][]Script) {
+ 	for _, name := range list {
+ 		if _, ok := scripts[name]; !ok {
+-			logger.Exit("unknown script", name)
++			logger.Fatal("unknown script", name)
+ 		}
+ 		_, ok := installed[name]
+ 		if !ok {
+-			logger.Exit("unknown table", name)
++			logger.Fatal("unknown table", name)
+ 		}
+ 		for _, script := range scripts[name] {
+ 			for r := script.lo; r <= script.hi; r++ {
+@@ -551,10 +551,10 @@ func printScriptOrProperty(doProps bool) {
+ 	var err os.Error
+ 	resp, _, err := http.Get(*url + file)
+ 	if err != nil {
+-		logger.Exit(err)
++		logger.Fatal(err)
+ 	}
+ 	if resp.StatusCode != 200 {
+-		logger.Exit("bad GET status for ", file, ":", resp.Status)
++		logger.Fatal("bad GET status for ", file, ":", resp.Status)
+ 	}
+ 	input := bufio.NewReader(resp.Body)
+ 	for {
+@@ -563,7 +563,7 @@ func printScriptOrProperty(doProps bool) {
+ 			if err == os.EOF {
+ 				break
+ 			}
+-			logger.Exit(err)
++			logger.Fatal(err)
+ 		}
+ 		parseScript(line[0:len(line)-1], table)
+ 	}
+@@ -808,7 +808,7 @@ func printCaseRange(lo, hi *caseState) {
+ 		fmt.Printf("\t{0x%04X, 0x%04X, d{UpperLower, UpperLower, UpperLower}},\n",
+ 			lo.point, hi.point)
+ 	case hi.point > lo.point && lo.isLowerUpper():
+-		logger.Exitf("LowerUpper sequence: should not happen: U+%04X.  If it's real, need to fix To()", lo.point)
++		logger.Fatalf("LowerUpper sequence: should not happen: U+%04X.  If it's real, need to fix To()", lo.point)
+ 		fmt.Printf("\t{0x%04X, 0x%04X, d{LowerUpper, LowerUpper, LowerUpper}},\n",
+ 			lo.point, hi.point)
+ 	default:
+diff --git a/src/pkg/websocket/websocket_test.go b/src/pkg/websocket/websocket_test.go
+index cc4b9dc189..204a9de1e1 100644
+--- a/src/pkg/websocket/websocket_test.go
++++ b/src/pkg/websocket/websocket_test.go
+@@ -24,7 +24,7 @@ func echoServer(ws *Conn) { io.Copy(ws, ws) }
+ func startServer() {
+ 	l, e := net.Listen("tcp", "127.0.0.1:0") // any available address
+ 	if e != nil {
+-		log.Exitf("net.Listen tcp :0 %v", e)
++		log.Fatalf("net.Listen tcp :0 %v", e)
+ 	}
+ 	serverAddr = l.Addr().String()
+ 	log.Print("Test WebSocket server listening on ", serverAddr)
+diff --git a/test/garbage/parser.go b/test/garbage/parser.go
+index d8716dfb12..19a96bc63b 100644
+--- a/test/garbage/parser.go
++++ b/test/garbage/parser.go
+@@ -127,7 +127,7 @@ func main() {
+ 	gcstats("BenchmarkParser", *n, t1-t0)
+ 
+ 	if *serve != "" {
+-		log.Exit(http.ListenAndServe(*serve, nil))
++		log.Fatal(http.ListenAndServe(*serve, nil))
+ 		println(lastParsed)
+ 	}
+ }

@@ -13,6 +13,47 @@ Date:   Sat Feb 5 13:54:25 2011 -0500
     R=golang-dev, r2
     CC=golang-dev
     https://golang.org/cl/4119057
-
+---
  src/pkg/crypto/tls/tls.go | 18 +++++++++++++-----
  1 file changed, 13 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/tls.go b/src/pkg/crypto/tls/tls.go
+index b11d3225da..e8290d728d 100644
+--- a/src/pkg/crypto/tls/tls.go
++++ b/src/pkg/crypto/tls/tls.go
+@@ -124,14 +124,22 @@ func LoadX509KeyPair(certFile string, keyFile string) (cert Certificate, err os.
+ 		return
+ 	}
+ 
+-	certDERBlock, _ := pem.Decode(certPEMBlock)
+-	if certDERBlock == nil {
++	var certDERBlock *pem.Block
++	for {
++		certDERBlock, certPEMBlock = pem.Decode(certPEMBlock)
++		if certDERBlock == nil {
++			break
++		}
++		if certDERBlock.Type == "CERTIFICATE" {
++			cert.Certificate = append(cert.Certificate, certDERBlock.Bytes)
++		}
++	}
++
++	if len(cert.Certificate) == 0 {
+ 		err = os.ErrorString("crypto/tls: failed to parse certificate PEM data")
+ 		return
+ 	}
+ 
+-	cert.Certificate = [][]byte{certDERBlock.Bytes}
+-
+ 	keyPEMBlock, err := ioutil.ReadFile(keyFile)
+ 	if err != nil {
+ 		return
+@@ -153,7 +161,7 @@ func LoadX509KeyPair(certFile string, keyFile string) (cert Certificate, err os.
+ 
+ 	// We don't need to parse the public key for TLS, but we so do anyway
+ 	// to check that it looks sane and matches the private key.
+-	x509Cert, err := x509.ParseCertificate(certDERBlock.Bytes)
++	x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
+ 	if err != nil {
+ 		return
+ 	}

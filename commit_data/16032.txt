@@ -9,6 +9,20 @@ Date:   Sun Mar 31 12:28:22 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/8178044
-
+---
  src/lib9/utf/utf.h | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/lib9/utf/utf.h b/src/lib9/utf/utf.h
+index 8a79828bc8..72d01ed636 100644
+--- a/src/lib9/utf/utf.h
++++ b/src/lib9/utf/utf.h
+@@ -16,8 +16,6 @@
+ #ifndef _UTFH_
+ #define _UTFH_ 1
+ 
+-#include <stdint.h>
+-
+ typedef unsigned int Rune;	/* Code-point values in Unicode 4.0 are 21 bits wide.*/
+ 
+ enum

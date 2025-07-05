@@ -18,6 +18,44 @@ Date:   Wed Jun 29 07:45:23 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/tls/tls_test.go | 11 +++++++++--
  1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/tls/tls_test.go b/src/crypto/tls/tls_test.go
+index b4b5f4a1c6..48b46a003a 100644
+--- a/src/crypto/tls/tls_test.go
++++ b/src/crypto/tls/tls_test.go
+@@ -538,7 +538,12 @@ func throughput(b *testing.B, totalBytes int64, dynamicRecordSizingDisabled bool
+ 
+ 	N := b.N
+ 
++	// Less than 64KB because Windows appears to use a TCP rwin < 64KB.
++	// See Issue #15899.
++	const bufsize = 32 << 10
++
+ 	go func() {
++		buf := make([]byte, bufsize)
+ 		for i := 0; i < N; i++ {
+ 			sconn, err := ln.Accept()
+ 			if err != nil {
+@@ -552,7 +557,9 @@ func throughput(b *testing.B, totalBytes int64, dynamicRecordSizingDisabled bool
+ 			if err := srv.Handshake(); err != nil {
+ 				panic(fmt.Errorf("handshake: %v", err))
+ 			}
+-			io.Copy(srv, srv)
++			if _, err := io.CopyBuffer(srv, srv, buf); err != nil {
++				panic(fmt.Errorf("copy buffer: %v", err))
++			}
+ 		}
+ 	}()
+ 
+@@ -560,7 +567,7 @@ func throughput(b *testing.B, totalBytes int64, dynamicRecordSizingDisabled bool
+ 	clientConfig := testConfig.clone()
+ 	clientConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
+ 
+-	buf := make([]byte, 1<<14)
++	buf := make([]byte, bufsize)
+ 	chunks := int(math.Ceil(float64(totalBytes) / float64(len(buf))))
+ 	for i := 0; i < N; i++ {
+ 		conn, err := Dial("tcp", ln.Addr().String(), clientConfig)

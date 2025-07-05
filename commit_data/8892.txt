@@ -9,6 +9,20 @@ Date:   Wed Jun 29 13:55:49 2011 +1000
     R=dsymonds
     CC=golang-dev
     https://golang.org/cl/4630075
-
+---
  src/pkg/exp/template/Makefile | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/template/Makefile b/src/pkg/exp/template/Makefile
+index 2128ab1a57..a2d39e248a 100644
+--- a/src/pkg/exp/template/Makefile
++++ b/src/pkg/exp/template/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../../Make.inc
+ 
+-TARG=template
++TARG=exp/template
+ GOFILES=\
+ 	exec.go\
+ 	lex.go\

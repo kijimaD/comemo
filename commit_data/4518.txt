@@ -7,6 +7,31 @@ Date:   Mon Jan 4 07:36:39 2010 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/183107
-
+---
  doc/effective_go.html | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 2932709502..ab9e3a8c3d 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -1360,6 +1360,8 @@ const (
+     GB
+     TB
+     PB
++    EB
++    ZB
+     YB
+ )
+ </pre>
+@@ -1373,6 +1375,10 @@ func (b ByteSize) String() string {
+     switch {
+     case b &gt;= YB:
+         return fmt.Sprintf("%.2fYB", b/YB)
++    case b &gt;= ZB:
++        return fmt.Sprintf("%.2fZB", b/ZB)
++    case b &gt;= EB:
++        return fmt.Sprintf("%.2fEB", b/EB)
+     case b &gt;= PB:
+         return fmt.Sprintf("%.2fPB", b/PB)
+     case b &gt;= TB:

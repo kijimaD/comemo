@@ -10,6 +10,29 @@ Date:   Wed Aug 6 23:43:36 2014 -0400
     R=rsc, iant, dave
     CC=golang-codereviews
     https://golang.org/cl/126780043
-
+---
  src/cmd/9g/doc.go | 16 ++++++++++++++++
  1 file changed, 16 insertions(+)
+
+diff --git a/src/cmd/9g/doc.go b/src/cmd/9g/doc.go
+new file mode 100644
+index 0000000000..200be2eda2
+--- /dev/null
++++ b/src/cmd/9g/doc.go
+@@ -0,0 +1,16 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ignore
++
++/*
++
++9g is the version of the gc compiler for the Power64.
++The $GOARCH for these tools is power64 (big endian) or
++power64le (little endian).
++
++It reads .go files and outputs .9 files. The flags are documented in ../gc/doc.go.
++
++*/
++package main

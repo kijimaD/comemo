@@ -13,6 +13,37 @@ Date:   Fri Feb 3 14:38:47 2017 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/dist/buildtool.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 716f994243..2f8136600f 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -70,6 +70,13 @@ var bootstrapDirs = []string{
+ 	"math/big",
+ }
+ 
++// File prefixes that are ignored by go/build anyway, and cause
++// problems with editor generated temporary files (#18931).
++var ignorePrefixes = []string{
++	".",
++	"_",
++}
++
+ // File suffixes that use build tags introduced since Go 1.4.
+ // These must not be copied into the bootstrap build directory.
+ var ignoreSuffixes = []string{
+@@ -103,6 +110,11 @@ func bootstrapBuildTools() {
+ 		xmkdirall(dst)
+ 	Dir:
+ 		for _, name := range xreaddirfiles(src) {
++			for _, pre := range ignorePrefixes {
++				if strings.HasPrefix(name, pre) {
++					continue Dir
++				}
++			}
+ 			for _, suf := range ignoreSuffixes {
+ 				if strings.HasSuffix(name, suf) {
+ 					continue Dir

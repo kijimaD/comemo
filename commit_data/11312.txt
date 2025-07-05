@@ -9,8 +9,139 @@ Date:   Sat Jan 21 09:46:59 2012 -0800
     R=golang-dev, minux.ma, bradfitz
     CC=golang-dev
     https://golang.org/cl/5563045
-
+---
  src/pkg/bytes/buffer.go      | 25 ++++++++++---------------
  src/pkg/bytes/buffer_test.go | 15 ++++++++++-----
  src/pkg/io/ioutil/ioutil.go  | 17 +++++++++++++++--
  3 files changed, 35 insertions(+), 22 deletions(-)
+
+diff --git a/src/pkg/bytes/buffer.go b/src/pkg/bytes/buffer.go
+index ccddd95a49..08f3f3b665 100644
+--- a/src/pkg/bytes/buffer.go
++++ b/src/pkg/bytes/buffer.go
+@@ -33,7 +33,7 @@ const (
+ 	opRead                   // Any other read operation.
+ )
+ 
+-// ErrTooLarge is returned if there is too much data to fit in a buffer.
++// ErrTooLarge is passed to panic if memory cannot be allocated to store data in a buffer.
+ var ErrTooLarge = errors.New("bytes.Buffer: too large")
+ 
+ // Bytes returns a slice of the contents of the unread portion of the buffer;
+@@ -73,8 +73,7 @@ func (b *Buffer) Reset() { b.Truncate(0) }
+ 
+ // grow grows the buffer to guarantee space for n more bytes.
+ // It returns the index where bytes should be written.
+-// If the buffer can't grow, it returns -1, which will
+-// become ErrTooLarge in the caller.
++// If the buffer can't grow it will panic with ErrTooLarge.
+ func (b *Buffer) grow(n int) int {
+ 	m := b.Len()
+ 	// If buffer is empty, reset to recover space.
+@@ -88,9 +87,6 @@ func (b *Buffer) grow(n int) int {
+ 		} else {
+ 			// not enough space anywhere
+ 			buf = makeSlice(2*cap(b.buf) + n)
+-			if buf == nil {
+-				return -1
+-			}
+ 			copy(buf, b.buf[b.off:])
+ 		}
+ 		b.buf = buf
+@@ -102,6 +98,8 @@ func (b *Buffer) grow(n int) int {
+ 
+ // Write appends the contents of p to the buffer.  The return
+ // value n is the length of p; err is always nil.
++// If the buffer becomes too large, Write will panic with
++// ErrTooLarge.
+ func (b *Buffer) Write(p []byte) (n int, err error) {
+ 	b.lastRead = opInvalid
+ 	m := b.grow(len(p))
+@@ -146,9 +144,6 @@ func (b *Buffer) ReadFrom(r io.Reader) (n int64, err error) {
+ 				// not enough space using beginning of buffer;
+ 				// double buffer capacity
+ 				newBuf = makeSlice(2*cap(b.buf) + MinRead)
+-				if newBuf == nil {
+-					return n, ErrTooLarge
+-				}
+ 			}
+ 			copy(newBuf, b.buf[b.off:])
+ 			b.buf = newBuf[:len(b.buf)-b.off]
+@@ -167,14 +162,14 @@ func (b *Buffer) ReadFrom(r io.Reader) (n int64, err error) {
+ 	return n, nil // err is EOF, so return nil explicitly
+ }
+ 
+-// makeSlice allocates a slice of size n, returning nil if the slice cannot be allocated.
++// makeSlice allocates a slice of size n. If the allocation fails, it panics
++// with ErrTooLarge.
+ func makeSlice(n int) []byte {
+-	if n < 0 {
+-		return nil
+-	}
+-	// Catch out of memory panics.
++	// If the make fails, give a known error.
+ 	defer func() {
+-		recover()
++		if recover() != nil {
++			panic(ErrTooLarge)
++		}
+ 	}()
+ 	return make([]byte, n)
+ }
+diff --git a/src/pkg/bytes/buffer_test.go b/src/pkg/bytes/buffer_test.go
+index a36d1d010a..59211deb21 100644
+--- a/src/pkg/bytes/buffer_test.go
++++ b/src/pkg/bytes/buffer_test.go
+@@ -392,13 +392,18 @@ func TestHuge(t *testing.T) {
+ 	if testing.Short() {
+ 		return
+ 	}
++	// We expect a panic.
++	defer func() {
++		if err, ok := recover().(error); ok && err == ErrTooLarge {
++			return
++		} else {
++			t.Error(`expected "too large" error; got`, err)
++		}
++	}()
+ 	b := new(Buffer)
+ 	big := make([]byte, 500e6)
+ 	for i := 0; i < 1000; i++ {
+-		if _, err := b.Write(big); err != nil {
+-			// Got error as expected. Stop
+-			return
+-		}
++		b.Write(big)
+ 	}
+-	t.Error("error expected")
++	t.Error("panic expected")
+ }
+diff --git a/src/pkg/io/ioutil/ioutil.go b/src/pkg/io/ioutil/ioutil.go
+index 65f4b3ac2e..cbe1a5839d 100644
+--- a/src/pkg/io/ioutil/ioutil.go
++++ b/src/pkg/io/ioutil/ioutil.go
+@@ -14,9 +14,22 @@ import (
+ 
+ // readAll reads from r until an error or EOF and returns the data it read
+ // from the internal buffer allocated with a specified capacity.
+-func readAll(r io.Reader, capacity int64) ([]byte, error) {
++func readAll(r io.Reader, capacity int64) (b []byte, err error) {
+ 	buf := bytes.NewBuffer(make([]byte, 0, capacity))
+-	_, err := buf.ReadFrom(r)
++	// If the buffer overflows, we will get bytes.ErrTooLarge.
++	// Return that as an error. Any other panic remains.
++	defer func() {
++		e := recover()
++		if e == nil {
++			return
++		}
++		if panicErr, ok := e.(error); ok && panicErr == bytes.ErrTooLarge {
++			err = panicErr
++		} else {
++			panic(e)
++		}
++	}()
++	_, err = buf.ReadFrom(r)
+ 	return buf.Bytes(), err
+ }
+ 

@@ -7,7 +7,65 @@ Date:   Mon Nov 19 12:36:15 2012 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6853069
-
+---
  doc/articles/wiki/get.go    | 19 ++++++++++++++-----
  doc/articles/wiki/test.bash |  4 +---
  2 files changed, 15 insertions(+), 8 deletions(-)
+
+diff --git a/doc/articles/wiki/get.go b/doc/articles/wiki/get.go
+index c6e9bf28b7..b3e464b344 100644
+--- a/doc/articles/wiki/get.go
++++ b/doc/articles/wiki/get.go
+@@ -13,11 +13,13 @@ import (
+ 	"net/http"
+ 	"os"
+ 	"strings"
++	"time"
+ )
+ 
+ var (
+ 	post = flag.String("post", "", "urlencoded form data to POST")
+ 	addr = flag.Bool("addr", false, "find open address and print to stdout")
++	wait = flag.Duration("wait_for_port", 0, "if non-zero, the amount of time to wait for the address to become available")
+ )
+ 
+ func main() {
+@@ -37,11 +39,18 @@ func main() {
+ 	}
+ 	var r *http.Response
+ 	var err error
+-	if *post != "" {
+-		b := strings.NewReader(*post)
+-		r, err = http.Post(url, "application/x-www-form-urlencoded", b)
+-	} else {
+-		r, err = http.Get(url)
++	loopUntil := time.Now().Add(*wait)
++	for {
++		if *post != "" {
++			b := strings.NewReader(*post)
++			r, err = http.Post(url, "application/x-www-form-urlencoded", b)
++		} else {
++			r, err = http.Get(url)
++		}
++		if err == nil || *wait == 0 || time.Now().After(loopUntil) {
++			break
++		}
++		time.Sleep(100 * time.Millisecond)
+ 	}
+ 	if err != nil {
+ 		log.Fatal(err)
+diff --git a/doc/articles/wiki/test.bash b/doc/articles/wiki/test.bash
+index 5c2cb60dc0..8bd8580f02 100755
+--- a/doc/articles/wiki/test.bash
++++ b/doc/articles/wiki/test.bash
+@@ -18,9 +18,7 @@ go build -o final-test.bin final-test.go
+ (./final-test.bin) &
+ wiki_pid=$!
+ 
+-sleep 1
+-
+-./get.bin http://$addr/edit/Test > test_edit.out
++./get.bin --wait_for_port=5s http://$addr/edit/Test > test_edit.out
+ diff -u test_edit.out test_edit.good
+ ./get.bin -post=body=some%20content http://$addr/save/Test
+ diff -u Test.txt test_Test.txt.good

@@ -44,6 +44,35 @@ Date:   Mon Dec 4 10:53:53 2017 +0800
     Reviewed-on: https://go-review.googlesource.com/81736
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-
+---
  src/database/sql/sql.go | 12 +++++++++---
  1 file changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 22458c0aeb..9f4fa14534 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -1913,14 +1913,20 @@ func (tx *Tx) closePrepared() {
+ 
+ // Commit commits the transaction.
+ func (tx *Tx) Commit() error {
+-	if !atomic.CompareAndSwapInt32(&tx.done, 0, 1) {
+-		return ErrTxDone
+-	}
++	// Check context first to avoid transaction leak.
++	// If put it behind tx.done CompareAndSwap statement, we cant't ensure
++	// the consistency between tx.done and the real COMMIT operation.
+ 	select {
+ 	default:
+ 	case <-tx.ctx.Done():
++		if atomic.LoadInt32(&tx.done) == 1 {
++			return ErrTxDone
++		}
+ 		return tx.ctx.Err()
+ 	}
++	if !atomic.CompareAndSwapInt32(&tx.done, 0, 1) {
++		return ErrTxDone
++	}
+ 	var err error
+ 	withLock(tx.dc, func() {
+ 		err = tx.txi.Commit()

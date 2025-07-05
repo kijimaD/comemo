@@ -8,7 +8,53 @@ Date:   Tue Jul 20 19:53:28 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1869043
-
+---
  src/pkg/gob/encode.go       | 4 ----
  src/pkg/gob/encoder_test.go | 5 ++++-
  2 files changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/gob/encode.go b/src/pkg/gob/encode.go
+index 00548868bb..55abeaf657 100644
+--- a/src/pkg/gob/encode.go
++++ b/src/pkg/gob/encode.go
+@@ -722,10 +722,6 @@ func encOpFor(rt reflect.Type) (encOp, int, os.Error) {
+ 				return nil, 0, err
+ 			}
+ 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
+-				slice := (*reflect.SliceHeader)(p)
+-				if slice.Len == 0 {
+-					return
+-				}
+ 				state.update(i)
+ 				state.err = encodeArray(state.b, uintptr(p), elemOp, t.Elem().Size(), indir, t.Len())
+ 			}
+diff --git a/src/pkg/gob/encoder_test.go b/src/pkg/gob/encoder_test.go
+index b578cd0f87..f5b68113ee 100644
+--- a/src/pkg/gob/encoder_test.go
++++ b/src/pkg/gob/encoder_test.go
+@@ -274,6 +274,7 @@ var testFloat32 float32
+ var testString string
+ var testSlice []string
+ var testMap map[string]int
++var testArray [7]int
+ 
+ type SingleTest struct {
+ 	in  interface{}
+@@ -287,6 +288,8 @@ var singleTests = []SingleTest{
+ 	SingleTest{"bike shed", &testString, ""},
+ 	SingleTest{[]string{"bike", "shed", "paint", "color"}, &testSlice, ""},
+ 	SingleTest{map[string]int{"seven": 7, "twelve": 12}, &testMap, ""},
++	SingleTest{[7]int{4, 55, 0, 0, 0, 0, 0}, &testArray, ""}, // case that once triggered a bug
++	SingleTest{[7]int{4, 55, 1, 44, 22, 66, 1234}, &testArray, ""},
+ 
+ 	// Decode errors
+ 	SingleTest{172, &testFloat32, "wrong type"},
+@@ -320,7 +323,7 @@ func TestSingletons(t *testing.T) {
+ 		// Get rid of the pointer in the rhs
+ 		val := reflect.NewValue(test.out).(*reflect.PtrValue).Elem().Interface()
+ 		if !reflect.DeepEqual(test.in, val) {
+-			t.Errorf("decoding int: expected %v got %v", test.in, val)
++			t.Errorf("decoding singleton: expected %v got %v", test.in, val)
+ 		}
+ 	}
+ }

@@ -12,7 +12,7 @@ Date:   Wed May 27 00:44:05 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/10530
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/align.go     |  4 +--
  src/cmd/compile/internal/gc/cgen.go      |  4 +--
  src/cmd/compile/internal/gc/closure.go   | 54 ++++++++++++++++----------------
@@ -31,3 +31,1120 @@ Date:   Wed May 27 00:44:05 2015 -0400
  src/cmd/compile/internal/gc/walk.go      | 14 ++++-----
  src/cmd/compile/internal/gc/y.go         |  4 +--
  17 files changed, 156 insertions(+), 173 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 54e840d8da..741c5dd76c 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -71,8 +71,8 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
+ 			// in typecheck.c.  usually addrescapes runs after
+ 			// widstruct, in which case we could drop this,
+ 			// but function closure functions are the exception.
+-			if f.Nname.Param.Stackparam != nil {
+-				f.Nname.Param.Stackparam.Xoffset = o
++			if f.Nname.Name.Param.Stackparam != nil {
++				f.Nname.Name.Param.Stackparam.Xoffset = o
+ 				f.Nname.Xoffset = 0
+ 			} else {
+ 				f.Nname.Xoffset = o
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index ca58b1c6a3..cc4aea1929 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -1574,9 +1574,9 @@ func Agen(n *Node, res *Node) {
+ 
+ 	case ONAME:
+ 		// should only get here with names in this func.
+-		if n.Funcdepth > 0 && n.Funcdepth != Funcdepth {
++		if n.Name.Funcdepth > 0 && n.Name.Funcdepth != Funcdepth {
+ 			Dump("bad agen", n)
+-			Fatal("agen: bad ONAME funcdepth %d != %d", n.Funcdepth, Funcdepth)
++			Fatal("agen: bad ONAME funcdepth %d != %d", n.Name.Funcdepth, Funcdepth)
+ 		}
+ 
+ 		// should only get here for heap vars or paramref
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 329342f8e7..1fe7c44d19 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -17,8 +17,8 @@ func closurehdr(ntype *Node) {
+ 	var a *Node
+ 
+ 	n := Nod(OCLOSURE, nil, nil)
+-	n.Param.Ntype = ntype
+-	n.Funcdepth = Funcdepth
++	n.Func.Ntype = ntype
++	n.Func.Depth = Funcdepth
+ 	n.Func.Outerfunc = Curfn
+ 
+ 	funchdr(n)
+@@ -72,8 +72,8 @@ func closurebody(body *NodeList) *Node {
+ 	var v *Node
+ 	for l := func_.Func.Cvars; l != nil; l = l.Next {
+ 		v = l.N
+-		v.Param.Closure.Param.Closure = v.Param.Outer
+-		v.Param.Outerexpr = oldname(v.Sym)
++		v.Name.Param.Closure.Name.Closure = v.Name.Outer
++		v.Name.Param.Outerexpr = oldname(v.Sym)
+ 	}
+ 
+ 	return func_
+@@ -83,7 +83,7 @@ func typecheckclosure(func_ *Node, top int) {
+ 	var n *Node
+ 
+ 	for l := func_.Func.Cvars; l != nil; l = l.Next {
+-		n = l.N.Param.Closure
++		n = l.N.Name.Param.Closure
+ 		if !n.Name.Captured {
+ 			n.Name.Captured = true
+ 			if n.Name.Decldepth == 0 {
+@@ -105,9 +105,9 @@ func typecheckclosure(func_ *Node, top int) {
+ 	}
+ 
+ 	oldfn := Curfn
+-	typecheck(&func_.Param.Ntype, Etype)
+-	func_.Type = func_.Param.Ntype.Type
+-	func_.Param.Top = top
++	typecheck(&func_.Func.Ntype, Etype)
++	func_.Type = func_.Func.Ntype.Type
++	func_.Func.Top = top
+ 
+ 	// Type check the body now, but only if we're inside a function.
+ 	// At top level (in a variable initialization: curfn==nil) we're not
+@@ -193,11 +193,11 @@ func makeclosure(func_ *Node) *Node {
+ 
+ 	xfunc.Nname = newfuncname(closurename(func_))
+ 	xfunc.Nname.Sym.Flags |= SymExported // disable export
+-	xfunc.Nname.Param.Ntype = xtype
++	xfunc.Nname.Name.Param.Ntype = xtype
+ 	xfunc.Nname.Name.Defn = xfunc
+ 	declare(xfunc.Nname, PFUNC)
+-	xfunc.Nname.Funcdepth = func_.Funcdepth
+-	xfunc.Funcdepth = func_.Funcdepth
++	xfunc.Nname.Name.Funcdepth = func_.Func.Depth
++	xfunc.Func.Depth = func_.Func.Depth
+ 	xfunc.Func.Endlineno = func_.Func.Endlineno
+ 
+ 	xfunc.Nbody = func_.Nbody
+@@ -207,8 +207,8 @@ func makeclosure(func_ *Node) *Node {
+ 	}
+ 	typecheck(&xfunc, Etop)
+ 
+-	xfunc.Param.Closure = func_
+-	func_.Param.Closure = xfunc
++	xfunc.Func.Closure = func_
++	func_.Func.Closure = xfunc
+ 
+ 	func_.Nbody = nil
+ 	func_.List = nil
+@@ -229,7 +229,7 @@ func capturevars(xfunc *Node) {
+ 	lno := int(lineno)
+ 	lineno = xfunc.Lineno
+ 
+-	func_ := xfunc.Param.Closure
++	func_ := xfunc.Func.Closure
+ 	func_.Func.Enter = nil
+ 	for l := func_.Func.Cvars; l != nil; l = l.Next {
+ 		v = l.N
+@@ -249,14 +249,14 @@ func capturevars(xfunc *Node) {
+ 		// so that the outer frame also grabs them and knows they escape.
+ 		dowidth(v.Type)
+ 
+-		outer = v.Param.Outerexpr
+-		v.Param.Outerexpr = nil
++		outer = v.Name.Param.Outerexpr
++		v.Name.Param.Outerexpr = nil
+ 
+ 		// out parameters will be assigned to implicitly upon return.
+-		if outer.Class != PPARAMOUT && !v.Param.Closure.Addrtaken && !v.Param.Closure.Assigned && v.Type.Width <= 128 {
++		if outer.Class != PPARAMOUT && !v.Name.Param.Closure.Addrtaken && !v.Name.Param.Closure.Assigned && v.Type.Width <= 128 {
+ 			v.Name.Byval = true
+ 		} else {
+-			v.Param.Closure.Addrtaken = true
++			v.Name.Param.Closure.Addrtaken = true
+ 			outer = Nod(OADDR, outer, nil)
+ 		}
+ 
+@@ -269,7 +269,7 @@ func capturevars(xfunc *Node) {
+ 			if v.Name.Byval {
+ 				how = "value"
+ 			}
+-			Warnl(int(v.Lineno), "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym, v.Param.Closure.Addrtaken, v.Param.Closure.Assigned, int32(v.Type.Width))
++			Warnl(int(v.Lineno), "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym, v.Name.Param.Closure.Addrtaken, v.Name.Param.Closure.Assigned, int32(v.Type.Width))
+ 		}
+ 
+ 		typecheck(&outer, Erv)
+@@ -284,9 +284,9 @@ func capturevars(xfunc *Node) {
+ func transformclosure(xfunc *Node) {
+ 	lno := int(lineno)
+ 	lineno = xfunc.Lineno
+-	func_ := xfunc.Param.Closure
++	func_ := xfunc.Func.Closure
+ 
+-	if func_.Param.Top&Ecall != 0 {
++	if func_.Func.Top&Ecall != 0 {
+ 		// If the closure is directly called, we transform it to a plain function call
+ 		// with variables passed as args. This avoids allocation of a closure object.
+ 		// Here we do only a part of the transformation. Walk of OCALLFUNC(OCLOSURE)
+@@ -395,7 +395,7 @@ func transformclosure(xfunc *Node) {
+ 				// Declare variable holding addresses taken from closure
+ 				// and initialize in entry prologue.
+ 				addr = newname(Lookupf("&%s", v.Sym.Name))
+-				addr.Param.Ntype = Nod(OIND, typenod(v.Type), nil)
++				addr.Name.Param.Ntype = Nod(OIND, typenod(v.Type), nil)
+ 				addr.Class = PAUTO
+ 				addr.Used = true
+ 				addr.Curfn = xfunc
+@@ -420,7 +420,7 @@ func transformclosure(xfunc *Node) {
+ func walkclosure(func_ *Node, init **NodeList) *Node {
+ 	// If no closure vars, don't bother wrapping.
+ 	if func_.Func.Cvars == nil {
+-		return func_.Param.Closure.Nname
++		return func_.Func.Closure.Nname
+ 	}
+ 
+ 	// Create closure in the form of a composite literal.
+@@ -457,7 +457,7 @@ func walkclosure(func_ *Node, init **NodeList) *Node {
+ 	clos := Nod(OCOMPLIT, nil, Nod(OIND, typ, nil))
+ 	clos.Esc = func_.Esc
+ 	clos.Right.Implicit = true
+-	clos.List = concat(list1(Nod(OCFUNC, func_.Param.Closure.Nname, nil)), func_.Func.Enter)
++	clos.List = concat(list1(Nod(OCFUNC, func_.Func.Closure.Nname, nil)), func_.Func.Enter)
+ 
+ 	// Force type conversion from *struct to the func type.
+ 	clos = Nod(OCONVNOP, clos, nil)
+@@ -583,7 +583,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
+ 	xfunc.Func.Dupok = true
+ 	xfunc.Nname = newfuncname(sym)
+ 	xfunc.Nname.Sym.Flags |= SymExported // disable export
+-	xfunc.Nname.Param.Ntype = xtype
++	xfunc.Nname.Name.Param.Ntype = xtype
+ 	xfunc.Nname.Name.Defn = xfunc
+ 	declare(xfunc.Nname, PFUNC)
+ 
+@@ -606,10 +606,10 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
+ 	xfunc.Func.Dcl = list(xfunc.Func.Dcl, ptr)
+ 	var body *NodeList
+ 	if Isptr[rcvrtype.Etype] || Isinter(rcvrtype) {
+-		ptr.Param.Ntype = typenod(rcvrtype)
++		ptr.Name.Param.Ntype = typenod(rcvrtype)
+ 		body = list(body, Nod(OAS, ptr, cv))
+ 	} else {
+-		ptr.Param.Ntype = typenod(Ptrto(rcvrtype))
++		ptr.Name.Param.Ntype = typenod(Ptrto(rcvrtype))
+ 		body = list(body, Nod(OAS, ptr, Nod(OADDR, cv, nil)))
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 0c50cb4787..3d593323e1 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -230,7 +230,7 @@ func declare(n *Node, ctxt uint8) {
+ 	s.Lastlineno = int32(parserline())
+ 	s.Def = n
+ 	n.Name.Vargen = int32(gen)
+-	n.Funcdepth = Funcdepth
++	n.Name.Funcdepth = Funcdepth
+ 	n.Class = uint8(ctxt)
+ 
+ 	autoexport(n, ctxt)
+@@ -264,7 +264,7 @@ func variter(vl *NodeList, t *Node, el *NodeList) *NodeList {
+ 			v = vl.N
+ 			v.Op = ONAME
+ 			declare(v, dclcontext)
+-			v.Param.Ntype = t
++			v.Name.Param.Ntype = t
+ 			v.Name.Defn = as2
+ 			if Funcdepth > 0 {
+ 				init = list(init, Nod(ODCL, v, nil))
+@@ -292,7 +292,7 @@ func variter(vl *NodeList, t *Node, el *NodeList) *NodeList {
+ 		v = vl.N
+ 		v.Op = ONAME
+ 		declare(v, dclcontext)
+-		v.Param.Ntype = t
++		v.Name.Param.Ntype = t
+ 
+ 		if e != nil || Funcdepth > 0 || isblank(v) {
+ 			if Funcdepth > 0 {
+@@ -347,7 +347,7 @@ func constiter(vl *NodeList, t *Node, cl *NodeList) *NodeList {
+ 		v.Op = OLITERAL
+ 		declare(v, dclcontext)
+ 
+-		v.Param.Ntype = t
++		v.Name.Param.Ntype = t
+ 		v.Name.Defn = c
+ 
+ 		vv = list(vv, Nod(ODCLCONST, v, nil))
+@@ -427,14 +427,14 @@ func oldname(s *Sym) *Node {
+ 		n.Name.Iota = iota_ // save current iota value in const declarations
+ 	}
+ 
+-	if Curfn != nil && n.Funcdepth > 0 && n.Funcdepth != Funcdepth && n.Op == ONAME {
++	if Curfn != nil && n.Op == ONAME && n.Name.Funcdepth > 0 && n.Name.Funcdepth != Funcdepth {
+ 		// inner func is referring to var in outer func.
+ 		//
+ 		// TODO(rsc): If there is an outer variable x and we
+ 		// are parsing x := 5 inside the closure, until we get to
+ 		// the := it looks like a reference to the outer x so we'll
+ 		// make x a closure variable unnecessarily.
+-		if n.Param.Closure == nil || n.Param.Closure.Funcdepth != Funcdepth {
++		if n.Name.Param.Closure == nil || n.Name.Param.Closure.Name.Funcdepth != Funcdepth {
+ 			// create new closure var.
+ 			c := Nod(ONAME, nil, nil)
+ 
+@@ -444,16 +444,16 @@ func oldname(s *Sym) *Node {
+ 			c.Name.Defn = n
+ 			c.Addable = false
+ 			c.Ullman = 2
+-			c.Funcdepth = Funcdepth
+-			c.Param.Outer = n.Param.Closure
+-			n.Param.Closure = c
+-			c.Param.Closure = n
++			c.Name.Funcdepth = Funcdepth
++			c.Name.Param.Outer = n.Name.Param.Closure
++			n.Name.Param.Closure = c
++			c.Name.Param.Closure = n
+ 			c.Xoffset = 0
+ 			Curfn.Func.Cvars = list(Curfn.Func.Cvars, c)
+ 		}
+ 
+ 		// return ref to closure var, not original
+-		return n.Param.Closure
++		return n.Name.Param.Closure
+ 	}
+ 
+ 	return n
+@@ -558,7 +558,7 @@ func ifacedcl(n *Node) {
+ 	dclcontext = PPARAM
+ 	markdcl()
+ 	Funcdepth++
+-	n.Param.Outer = Curfn
++	n.Func.Outer = Curfn
+ 	Curfn = n
+ 	funcargs(n.Right)
+ 
+@@ -587,13 +587,13 @@ func funchdr(n *Node) {
+ 	markdcl()
+ 	Funcdepth++
+ 
+-	n.Param.Outer = Curfn
++	n.Func.Outer = Curfn
+ 	Curfn = n
+ 
+ 	if n.Nname != nil {
+-		funcargs(n.Nname.Param.Ntype)
+-	} else if n.Param.Ntype != nil {
+-		funcargs(n.Param.Ntype)
++		funcargs(n.Nname.Name.Param.Ntype)
++	} else if n.Func.Ntype != nil {
++		funcargs(n.Func.Ntype)
+ 	} else {
+ 		funcargs2(n.Type)
+ 	}
+@@ -619,7 +619,7 @@ func funcargs(nt *Node) {
+ 		}
+ 		if n.Left != nil {
+ 			n.Left.Op = ONAME
+-			n.Left.Param.Ntype = n.Right
++			n.Left.Name.Param.Ntype = n.Right
+ 			declare(n.Left, PPARAM)
+ 			if dclcontext == PAUTO {
+ 				vargen++
+@@ -636,7 +636,7 @@ func funcargs(nt *Node) {
+ 		}
+ 		if n.Left != nil {
+ 			n.Left.Op = ONAME
+-			n.Left.Param.Ntype = n.Right
++			n.Left.Name.Param.Ntype = n.Right
+ 			declare(n.Left, PPARAM)
+ 			if dclcontext == PAUTO {
+ 				vargen++
+@@ -683,7 +683,7 @@ func funcargs(nt *Node) {
+ 			n.Left = nn
+ 		}
+ 
+-		n.Left.Param.Ntype = n.Right
++		n.Left.Name.Param.Ntype = n.Right
+ 		declare(n.Left, PPARAMOUT)
+ 		if dclcontext == PAUTO {
+ 			i++
+@@ -751,8 +751,8 @@ func funcbody(n *Node) {
+ 	}
+ 	popdcl()
+ 	Funcdepth--
+-	Curfn = n.Param.Outer
+-	n.Param.Outer = nil
++	Curfn = n.Func.Outer
++	n.Func.Outer = nil
+ 	if Funcdepth == 0 {
+ 		dclcontext = PEXTERN
+ 	}
+@@ -774,7 +774,7 @@ func typedcl0(s *Sym) *Node {
+  * return the ODCLTYPE node to use.
+  */
+ func typedcl1(n *Node, t *Node, local bool) *Node {
+-	n.Param.Ntype = t
++	n.Name.Param.Ntype = t
+ 	n.Local = local
+ 	return Nod(ODCLTYPE, n, nil)
+ }
+@@ -916,7 +916,7 @@ func tofunargs(l *NodeList) *Type {
+ 
+ 		// esc.c needs to find f given a PPARAM to add the tag.
+ 		if l.N.Left != nil && l.N.Left.Class == PPARAM {
+-			l.N.Left.Param.Field = f
++			l.N.Left.Name.Param.Field = f
+ 		}
+ 
+ 		*tp = f
+@@ -1474,7 +1474,7 @@ func funccompile(n *Node) {
+ 
+ 	Stksize = 0
+ 	dclcontext = PAUTO
+-	Funcdepth = n.Funcdepth + 1
++	Funcdepth = n.Func.Depth + 1
+ 	compile(n)
+ 	Curfn = nil
+ 	Funcdepth = 0
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 9e1e1313ea..e4e04ad60b 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -33,12 +33,10 @@ import (
+ // more precise when analyzing a single non-recursive function than
+ // when analyzing a set of mutually recursive functions.
+ 
+-// TODO(rsc): Look into using a map[*Node]bool instead of walkgen,
+-// to allow analysis passes to use walkgen themselves.
+-
+ type bottomUpVisitor struct {
+ 	analyze  func(*NodeList, bool)
+ 	visitgen uint32
++	nodeID   map[*Node]uint32
+ 	stack    *NodeList
+ }
+ 
+@@ -56,31 +54,25 @@ type bottomUpVisitor struct {
+ // If recursive is true, the list may still contain only a single function,
+ // if that function is itself recursive.
+ func visitBottomUp(list *NodeList, analyze func(list *NodeList, recursive bool)) {
+-	for l := list; l != nil; l = l.Next {
+-		l.N.Walkgen = 0
+-	}
+-
+ 	var v bottomUpVisitor
+ 	v.analyze = analyze
++	v.nodeID = make(map[*Node]uint32)
+ 	for l := list; l != nil; l = l.Next {
+ 		if l.N.Op == ODCLFUNC && l.N.Curfn == nil {
+ 			v.visit(l.N)
+ 		}
+ 	}
+-
+-	for l := list; l != nil; l = l.Next {
+-		l.N.Walkgen = 0
+-	}
+ }
+ 
+ func (v *bottomUpVisitor) visit(n *Node) uint32 {
+-	if n.Walkgen > 0 {
++	if id := v.nodeID[n]; id > 0 {
+ 		// already visited
+-		return n.Walkgen
++		return id
+ 	}
+ 
+ 	v.visitgen++
+-	n.Walkgen = v.visitgen
++	id := v.visitgen
++	v.nodeID[n] = id
+ 	v.visitgen++
+ 	min := v.visitgen
+ 
+@@ -89,14 +81,14 @@ func (v *bottomUpVisitor) visit(n *Node) uint32 {
+ 	l.N = n
+ 	v.stack = l
+ 	min = v.visitcodelist(n.Nbody, min)
+-	if (min == n.Walkgen || min == n.Walkgen+1) && n.Curfn == nil {
++	if (min == id || min == id+1) && n.Curfn == nil {
+ 		// This node is the root of a strongly connected component.
+ 
+ 		// The original min passed to visitcodelist was n->walkgen+1.
+ 		// If visitcodelist found its way back to n->walkgen, then this
+ 		// block is a set of mutually recursive functions.
+ 		// Otherwise it's just a lone function that does not recurse.
+-		recursive := min == n.Walkgen
++		recursive := min == id
+ 
+ 		// Remove connected component from stack.
+ 		// Mark walkgen so that future visits return a large number
+@@ -105,9 +97,9 @@ func (v *bottomUpVisitor) visit(n *Node) uint32 {
+ 
+ 		var l *NodeList
+ 		for l = v.stack; l.N != n; l = l.Next {
+-			l.N.Walkgen = ^uint32(0)
++			v.nodeID[l.N] = ^uint32(0)
+ 		}
+-		n.Walkgen = ^uint32(0)
++		v.nodeID[n] = ^uint32(0)
+ 		v.stack = l.Next
+ 		l.Next = nil
+ 
+@@ -151,7 +143,7 @@ func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
+ 	}
+ 
+ 	if n.Op == OCLOSURE {
+-		m := v.visit(n.Param.Closure)
++		m := v.visit(n.Func.Closure)
+ 		if m < min {
+ 			min = m
+ 		}
+@@ -322,6 +314,7 @@ type NodeEscState struct {
+ 	Escretval    *NodeList // on OCALLxxx, list of dummy return values
+ 	Escloopdepth int32     // -1: global, 0: return variables, 1:function top level, increased inside function for every loop or label to mark scopes
+ 	Esclevel     Level
++	Walkgen      uint32
+ }
+ 
+ func (e *EscState) nodeEscState(n *Node) *NodeEscState {
+@@ -403,6 +396,7 @@ type EscState struct {
+ 	noesc     *NodeList // list of possible non-escaping nodes, for printing
+ 	recursive bool      // recursive function or group of mutually recursive functions.
+ 	opts      []*Node   // nodes with .Opt initialized
++	walkgen   uint32
+ }
+ 
+ // funcSym returns n.Nname.Sym if no nils are encountered along the way.
+@@ -865,7 +859,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 			if v.Op == OXXX { // unnamed out argument; see dcl.c:/^funcargs
+ 				continue
+ 			}
+-			a = v.Param.Closure
++			a = v.Name.Param.Closure
+ 			if !v.Name.Byval {
+ 				a = Nod(OADDR, a, nil)
+ 				a.Lineno = v.Lineno
+@@ -1382,7 +1376,7 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 
+ 	nE := e.nodeEscState(n)
+ 	if fn != nil && fn.Op == ONAME && fn.Class == PFUNC &&
+-		fn.Name.Defn != nil && fn.Name.Defn.Nbody != nil && fn.Param.Ntype != nil && fn.Name.Defn.Esc < EscFuncTagged {
++		fn.Name.Defn != nil && fn.Name.Defn.Nbody != nil && fn.Name.Param.Ntype != nil && fn.Name.Defn.Esc < EscFuncTagged {
+ 		if Debug['m'] > 2 {
+ 			fmt.Printf("%v::esccall:: %v in recursive group\n", Ctxt.Line(int(lineno)), Nconv(n, obj.FmtShort))
+ 		}
+@@ -1394,17 +1388,17 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 		}
+ 
+ 		// set up out list on this call node
+-		for lr := fn.Param.Ntype.Rlist; lr != nil; lr = lr.Next {
++		for lr := fn.Name.Param.Ntype.Rlist; lr != nil; lr = lr.Next {
+ 			nE.Escretval = list(nE.Escretval, lr.N.Left) // type.rlist ->  dclfield -> ONAME (PPARAMOUT)
+ 		}
+ 
+ 		// Receiver.
+ 		if n.Op != OCALLFUNC {
+-			escassign(e, fn.Param.Ntype.Left.Left, n.Left.Left)
++			escassign(e, fn.Name.Param.Ntype.Left.Left, n.Left.Left)
+ 		}
+ 
+ 		var src *Node
+-		for lr := fn.Param.Ntype.List; ll != nil && lr != nil; ll, lr = ll.Next, lr.Next {
++		for lr := fn.Name.Param.Ntype.List; ll != nil && lr != nil; ll, lr = ll.Next, lr.Next {
+ 			src = ll.N
+ 			if lr.N.Isddd && !n.Isddd {
+ 				// Introduce ODDDARG node to represent ... allocation.
+@@ -1570,11 +1564,11 @@ func escflood(e *EscState, dst *Node) {
+ 
+ 	dstE := e.nodeEscState(dst)
+ 	if Debug['m'] > 1 {
+-		fmt.Printf("\nescflood:%d: dst %v scope:%v[%d]\n", walkgen, Nconv(dst, obj.FmtShort), curfnSym(dst), dstE.Escloopdepth)
++		fmt.Printf("\nescflood:%d: dst %v scope:%v[%d]\n", e.walkgen, Nconv(dst, obj.FmtShort), curfnSym(dst), dstE.Escloopdepth)
+ 	}
+ 
+ 	for l := dstE.Escflowsrc; l != nil; l = l.Next {
+-		walkgen++
++		e.walkgen++
+ 		escwalk(e, levelFrom(0), dst, l.N)
+ 	}
+ }
+@@ -1588,7 +1582,7 @@ func funcOutputAndInput(dst, src *Node) bool {
+ 
+ func escwalk(e *EscState, level Level, dst *Node, src *Node) {
+ 	srcE := e.nodeEscState(src)
+-	if src.Walkgen == walkgen {
++	if srcE.Walkgen == e.walkgen {
+ 		// Esclevels are vectors, do not compare as integers,
+ 		// and must use "min" of old and new to guarantee
+ 		// convergence.
+@@ -1598,7 +1592,7 @@ func escwalk(e *EscState, level Level, dst *Node, src *Node) {
+ 		}
+ 	}
+ 
+-	src.Walkgen = walkgen
++	srcE.Walkgen = e.walkgen
+ 	srcE.Esclevel = level
+ 
+ 	if Debug['m'] > 1 {
+@@ -1676,7 +1670,7 @@ func escwalk(e *EscState, level Level, dst *Node, src *Node) {
+ 			if leaks && Debug['m'] != 0 {
+ 				Warnl(int(src.Lineno), "leaking closure reference %v", Nconv(src, obj.FmtShort))
+ 			}
+-			escwalk(e, level, dst, src.Param.Closure)
++			escwalk(e, level, dst, src.Name.Param.Closure)
+ 		}
+ 
+ 	case OPTRLIT, OADDR:
+@@ -1807,7 +1801,7 @@ func esctag(e *EscState, func_ *Node) {
+ 		case EscNone, // not touched by escflood
+ 			EscReturn:
+ 			if haspointers(ll.N.Type) { // don't bother tagging for scalars
+-				ll.N.Param.Field.Note = mktag(int(ll.N.Esc))
++				ll.N.Name.Param.Field.Note = mktag(int(ll.N.Esc))
+ 			}
+ 
+ 		case EscHeap, // touched by escflood, moved to heap
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 33aa0ad11f..0d64fdb5f0 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -64,7 +64,7 @@ func autoexport(n *Node, ctxt uint8) {
+ 	if (ctxt != PEXTERN && ctxt != PFUNC) || dclcontext != PEXTERN {
+ 		return
+ 	}
+-	if n.Param != nil && n.Param.Ntype != nil && n.Param.Ntype.Op == OTFUNC && n.Param.Ntype.Left != nil { // method
++	if n.Name.Param != nil && n.Name.Param.Ntype != nil && n.Name.Param.Ntype.Op == OTFUNC && n.Name.Param.Ntype.Left != nil { // method
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 8cbae2b8b5..f9a35cd3b3 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -233,8 +233,8 @@ func Jconv(n *Node, flag int) string {
+ 		fmt.Fprintf(&buf, " colas(%v)", n.Colas)
+ 	}
+ 
+-	if n.Funcdepth != 0 {
+-		fmt.Fprintf(&buf, " f(%d)", n.Funcdepth)
++	if n.Name != nil && n.Name.Funcdepth != 0 {
++		fmt.Fprintf(&buf, " f(%d)", n.Name.Funcdepth)
+ 	}
+ 
+ 	switch n.Esc {
+@@ -1199,7 +1199,7 @@ func exprfmt(n *Node, prec int) string {
+ 		if n.Nbody != nil {
+ 			return fmt.Sprintf("%v { %v }", n.Type, n.Nbody)
+ 		}
+-		return fmt.Sprintf("%v { %v }", n.Type, n.Param.Closure.Nbody)
++		return fmt.Sprintf("%v { %v }", n.Type, n.Name.Param.Closure.Nbody)
+ 
+ 	case OCOMPLIT:
+ 		ptrlit := n.Right != nil && n.Right.Implicit && n.Right.Type != nil && Isptr[n.Right.Type.Etype]
+@@ -1521,9 +1521,9 @@ func nodedump(n *Node, flag int) string {
+ 		} else {
+ 			fmt.Fprintf(&buf, "%v%v", Oconv(int(n.Op), 0), Jconv(n, 0))
+ 		}
+-		if recur && n.Type == nil && n.Param.Ntype != nil {
++		if recur && n.Type == nil && n.Name.Param.Ntype != nil {
+ 			indent(&buf)
+-			fmt.Fprintf(&buf, "%v-ntype%v", Oconv(int(n.Op), 0), n.Param.Ntype)
++			fmt.Fprintf(&buf, "%v-ntype%v", Oconv(int(n.Op), 0), n.Name.Param.Ntype)
+ 		}
+ 
+ 	case OASOP:
+@@ -1531,9 +1531,9 @@ func nodedump(n *Node, flag int) string {
+ 
+ 	case OTYPE:
+ 		fmt.Fprintf(&buf, "%v %v%v type=%v", Oconv(int(n.Op), 0), n.Sym, Jconv(n, 0), n.Type)
+-		if recur && n.Type == nil && n.Param.Ntype != nil {
++		if recur && n.Type == nil && n.Name.Param.Ntype != nil {
+ 			indent(&buf)
+-			fmt.Fprintf(&buf, "%v-ntype%v", Oconv(int(n.Op), 0), n.Param.Ntype)
++			fmt.Fprintf(&buf, "%v-ntype%v", Oconv(int(n.Op), 0), n.Name.Param.Ntype)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 296462cd44..6c9b44c576 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -57,14 +57,14 @@ func addrescapes(n *Node) {
+ 
+ 		// expression to refer to stack copy
+ 		case PPARAM, PPARAMOUT:
+-			n.Param.Stackparam = Nod(OPARAM, n, nil)
++			n.Name.Param.Stackparam = Nod(OPARAM, n, nil)
+ 
+-			n.Param.Stackparam.Type = n.Type
+-			n.Param.Stackparam.Addable = true
++			n.Name.Param.Stackparam.Type = n.Type
++			n.Name.Param.Stackparam.Addable = true
+ 			if n.Xoffset == BADWIDTH {
+ 				Fatal("addrescapes before param assignment")
+ 			}
+-			n.Param.Stackparam.Xoffset = n.Xoffset
++			n.Name.Param.Stackparam.Xoffset = n.Xoffset
+ 			fallthrough
+ 
+ 		case PAUTO:
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index 1685aee545..54099bceed 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -116,7 +116,7 @@ func fninit(n *NodeList) {
+ 	initsym := Lookup("init")
+ 	fn.Nname = newname(initsym)
+ 	fn.Nname.Name.Defn = fn
+-	fn.Nname.Param.Ntype = Nod(OTFUNC, nil, nil)
++	fn.Nname.Name.Param.Ntype = Nod(OTFUNC, nil, nil)
+ 	declare(fn.Nname, PFUNC)
+ 	funchdr(fn)
+ 
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 15e9f58c68..93e405dbad 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -400,7 +400,7 @@ func Main() {
+ 	// This needs to run before escape analysis,
+ 	// because variables captured by value do not escape.
+ 	for l := xtop; l != nil; l = l.Next {
+-		if l.N.Op == ODCLFUNC && l.N.Param.Closure != nil {
++		if l.N.Op == ODCLFUNC && l.N.Func.Closure != nil {
+ 			Curfn = l.N
+ 			capturevars(l.N)
+ 		}
+@@ -454,7 +454,7 @@ func Main() {
+ 	// This needs to happen before walk, because closures must be transformed
+ 	// before walk reaches a call of a closure.
+ 	for l := xtop; l != nil; l = l.Next {
+-		if l.N.Op == ODCLFUNC && l.N.Param.Closure != nil {
++		if l.N.Op == ODCLFUNC && l.N.Func.Closure != nil {
+ 			Curfn = l.N
+ 			transformclosure(l.N)
+ 		}
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index db32932027..3ff6b2f151 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -220,7 +220,7 @@ func init2(n *Node, out **NodeList) {
+ 	init2list(n.Nbody, out)
+ 
+ 	if n.Op == OCLOSURE {
+-		init2list(n.Param.Closure.Nbody, out)
++		init2list(n.Func.Closure.Nbody, out)
+ 	}
+ 	if n.Op == ODOTMETH || n.Op == OCALLPART {
+ 		init2(n.Type.Nname, out)
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 5bd71848dd..179739884b 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -374,14 +374,18 @@ func Nod(op int, nleft *Node, nright *Node) *Node {
+ 	switch op {
+ 	case OCLOSURE, ODCLFUNC:
+ 		n.Func = new(Func)
+-		n.Param = new(Param)
+ 	case ONAME:
+ 		n.Name = new(Name)
+-		n.Param = new(Param)
++		n.Name.Param = new(Param)
+ 	case OLABEL, OPACK:
+ 		n.Name = new(Name)
+ 	case ODCLFIELD:
+-		n.Param = new(Param)
++		if nleft != nil {
++			n.Name = nleft.Name
++		} else {
++			n.Name = new(Name)
++			n.Name.Param = new(Param)
++		}
+ 	}
+ 	return n
+ }
+@@ -759,7 +763,7 @@ func treecopy(n *Node, lineno int32) *Node {
+ 		if lineno != -1 {
+ 			m.Lineno = lineno
+ 		}
+-		if m.Name != nil {
++		if m.Name != nil && n.Op != ODCLFIELD {
+ 			Dump("treecopy", n)
+ 			Fatal("treecopy Name")
+ 		}
+@@ -2378,7 +2382,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
+ 	markdcl()
+ 
+ 	this := Nod(ODCLFIELD, newname(Lookup(".this")), typenod(rcvr))
+-	this.Left.Param.Ntype = this.Right
++	this.Left.Name.Param.Ntype = this.Right
+ 	in := structargs(getinarg(method.Type), 1)
+ 	out := structargs(Getoutarg(method.Type), 0)
+ 
+@@ -2404,7 +2408,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
+ 	fn := Nod(ODCLFUNC, nil, nil)
+ 	fn.Nname = newname(newnam)
+ 	fn.Nname.Name.Defn = fn
+-	fn.Nname.Param.Ntype = t
++	fn.Nname.Name.Param.Ntype = t
+ 	declare(fn.Nname, PFUNC)
+ 	funchdr(fn)
+ 
+@@ -2577,7 +2581,7 @@ func genhash(sym *Sym, t *Type) {
+ 	fn.Nname = newname(sym)
+ 	fn.Nname.Class = PFUNC
+ 	tfn := Nod(OTFUNC, nil, nil)
+-	fn.Nname.Param.Ntype = tfn
++	fn.Nname.Name.Param.Ntype = tfn
+ 
+ 	n := Nod(ODCLFIELD, newname(Lookup("p")), typenod(Ptrto(t)))
+ 	tfn.List = list(tfn.List, n)
+@@ -2589,7 +2593,7 @@ func genhash(sym *Sym, t *Type) {
+ 	tfn.Rlist = list(tfn.Rlist, n)
+ 
+ 	funchdr(fn)
+-	typecheck(&fn.Nname.Param.Ntype, Etype)
++	typecheck(&fn.Nname.Name.Param.Ntype, Etype)
+ 
+ 	// genhash is only called for types that have equality but
+ 	// cannot be handled by the standard algorithms,
+@@ -2829,7 +2833,7 @@ func geneq(sym *Sym, t *Type) {
+ 	fn.Nname = newname(sym)
+ 	fn.Nname.Class = PFUNC
+ 	tfn := Nod(OTFUNC, nil, nil)
+-	fn.Nname.Param.Ntype = tfn
++	fn.Nname.Name.Param.Ntype = tfn
+ 
+ 	n := Nod(ODCLFIELD, newname(Lookup("p")), typenod(Ptrto(t)))
+ 	tfn.List = list(tfn.List, n)
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 6f04328d47..82a64571e0 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -169,10 +169,10 @@ func typecheckswitch(n *Node) {
+ 			if nvar != nil {
+ 				if ll != nil && ll.Next == nil && ll.N.Type != nil && !Istype(ll.N.Type, TNIL) {
+ 					// single entry type switch
+-					nvar.Param.Ntype = typenod(ll.N.Type)
++					nvar.Name.Param.Ntype = typenod(ll.N.Type)
+ 				} else {
+ 					// multiple entry type switch or default
+-					nvar.Param.Ntype = typenod(n.Type)
++					nvar.Name.Param.Ntype = typenod(n.Type)
+ 				}
+ 
+ 				typecheck(&nvar, Erv|Easgn)
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 4f362e45a8..a985e80226 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -31,7 +31,6 @@ type Node struct {
+ 	// ONAME
+ 	Name  *Name
+ 	Curfn *Node // function for local variables
+-	Param *Param
+ 
+ 	Sym *Sym // various
+ 
+@@ -42,10 +41,7 @@ type Node struct {
+ 
+ 	Xoffset int64
+ 
+-	Lineno  int32
+-	Walkgen uint32
+-
+-	Funcdepth int32
++	Lineno int32
+ 
+ 	// OREGISTER, OINDREG
+ 	Reg int16
+@@ -79,15 +75,17 @@ type Node struct {
+ 
+ // Name holds Node fields used only by named nodes (ONAME, OPACK, some OLITERAL).
+ type Name struct {
+-	Pack      *Node // real package for import . names
+-	Pkg       *Pkg  // pkg for OPACK nodes
+-	Heapaddr  *Node // temp holding heap address of param
+-	Inlvar    *Node // ONAME substitute while inlining
+-	Defn      *Node // initializing assignment
++	Pack     *Node // real package for import . names
++	Pkg      *Pkg  // pkg for OPACK nodes
++	Heapaddr *Node // temp holding heap address of param
++	Inlvar   *Node // ONAME substitute while inlining
++	Defn     *Node // initializing assignment
++	*Param
+ 	Decldepth int32 // declaration loop depth, increased for every loop or label
+ 	Vargen    int32 // unique name for OTYPE/ONAME within a function.  Function outputs are numbered starting at one.
+ 	Iota      int32 // value if this name is iota
+-	Method    bool  // OCALLMETH name
++	Funcdepth int32
++	Method    bool // OCALLMETH name
+ 	Readonly  bool
+ 	Captured  bool // is the variable captured by a closure
+ 	Byval     bool // is the variable captured by value or by reference
+@@ -107,7 +105,6 @@ type Param struct {
+ 	// ONAME closure param with PPARAMREF
+ 	Outer   *Node // outer PPARAMREF in nested closure
+ 	Closure *Node // ONAME/PHEAP <-> ONAME/PPARAMREF
+-	Top     int   // top context (Ecall, Eproc, etc)
+ }
+ 
+ // Func holds Node fields used only with function-like nodes.
+@@ -121,9 +118,14 @@ type Func struct {
+ 	Closgen    int
+ 	Outerfunc  *Node
+ 	Fieldtrack []*Type
++	Outer      *Node // outer func for closure
++	Ntype      *Node // signature
++	Top        int   // top context (Ecall, Eproc, etc)
++	Closure    *Node // OCLOSURE <-> ODCLFUNC
+ 
+ 	Inl     *NodeList // copy of the body for use in inlining
+ 	InlCost int32
++	Depth   int32
+ 
+ 	Endlineno int32
+ 
+@@ -311,22 +313,6 @@ const (
+ 	OEND
+ )
+ 
+-/*
+- * Every node has a walkgen field.
+- * If you want to do a traversal of a node graph that
+- * might contain duplicates and want to avoid
+- * visiting the same nodes twice, increment walkgen
+- * before starting.  Then before processing a node, do
+- *
+- *	if(n->walkgen == walkgen)
+- *		return;
+- *	n->walkgen = walkgen;
+- *
+- * Such a walk cannot call another such walk recursively,
+- * because of the use of the global walkgen.
+- */
+-var walkgen uint32
+-
+ // A NodeList is a linked list of nodes.
+ // TODO(rsc): Some uses of NodeList should be made into slices.
+ // The remaining ones probably just need a simple linked list,
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 44501be7bb..101fee6c40 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -813,8 +813,8 @@ OpSwitch:
+ 		var l *Node
+ 		for l = n.Left; l != r; l = l.Left {
+ 			l.Addrtaken = true
+-			if l.Param != nil && l.Param.Closure != nil {
+-				l.Param.Closure.Addrtaken = true
++			if l.Name != nil && l.Name.Param != nil && l.Name.Param.Closure != nil {
++				l.Name.Param.Closure.Addrtaken = true
+ 			}
+ 		}
+ 
+@@ -822,8 +822,8 @@ OpSwitch:
+ 			Fatal("found non-orig name node %v", l)
+ 		}
+ 		l.Addrtaken = true
+-		if l.Param != nil && l.Param.Closure != nil {
+-			l.Param.Closure.Addrtaken = true
++		if l.Name != nil && l.Name.Param != nil && l.Name.Param.Closure != nil {
++			l.Name.Closure.Addrtaken = true
+ 		}
+ 		defaultlit(&n.Left, nil)
+ 		l = n.Left
+@@ -3231,14 +3231,14 @@ func checkassign(stmt *Node, n *Node) {
+ 		var l *Node
+ 		for l = n; l != r; l = l.Left {
+ 			l.Assigned = true
+-			if l.Param != nil && l.Param.Closure != nil {
+-				l.Param.Closure.Assigned = true
++			if l.Name != nil && l.Name.Param != nil && l.Name.Param.Closure != nil {
++				l.Name.Param.Closure.Assigned = true
+ 			}
+ 		}
+ 
+ 		l.Assigned = true
+-		if l.Param != nil && l.Param.Closure != nil {
+-			l.Param.Closure.Assigned = true
++		if l.Name != nil && l.Name.Param != nil && l.Name.Param.Closure != nil {
++			l.Name.Param.Closure.Assigned = true
+ 		}
+ 	}
+ 
+@@ -3303,7 +3303,7 @@ func typecheckas(n *Node) {
+ 	// so that the conversion below happens).
+ 	n.Left = resolve(n.Left)
+ 
+-	if n.Left.Name == nil || n.Left.Name.Defn != n || n.Left.Param.Ntype != nil {
++	if n.Left.Name == nil || n.Left.Name.Defn != n || n.Left.Name.Param.Ntype != nil {
+ 		typecheck(&n.Left, Erv|Easgn)
+ 	}
+ 
+@@ -3315,7 +3315,7 @@ func typecheckas(n *Node) {
+ 		}
+ 	}
+ 
+-	if n.Left.Name != nil && n.Left.Name.Defn == n && n.Left.Param.Ntype == nil {
++	if n.Left.Name != nil && n.Left.Name.Defn == n && n.Left.Name.Param.Ntype == nil {
+ 		defaultlit(&n.Right, nil)
+ 		n.Left.Type = n.Right.Type
+ 	}
+@@ -3344,7 +3344,7 @@ func typecheckas2(n *Node) {
+ 		// delicate little dance.
+ 		ll.N = resolve(ll.N)
+ 
+-		if ll.N.Name == nil || ll.N.Name.Defn != n || ll.N.Param.Ntype != nil {
++		if ll.N.Name == nil || ll.N.Name.Defn != n || ll.N.Name.Param.Ntype != nil {
+ 			typecheck(&ll.N, Erv|Easgn)
+ 		}
+ 	}
+@@ -3368,7 +3368,7 @@ func typecheckas2(n *Node) {
+ 			if ll.N.Type != nil && lr.N.Type != nil {
+ 				lr.N = assignconv(lr.N, ll.N.Type, "assignment")
+ 			}
+-			if ll.N.Name != nil && ll.N.Name.Defn == n && ll.N.Param.Ntype == nil {
++			if ll.N.Name != nil && ll.N.Name.Defn == n && ll.N.Name.Param.Ntype == nil {
+ 				defaultlit(&lr.N, nil)
+ 				ll.N.Type = lr.N.Type
+ 			}
+@@ -3401,7 +3401,7 @@ func typecheckas2(n *Node) {
+ 				if t.Type != nil && ll.N.Type != nil {
+ 					checkassignto(t.Type, ll.N)
+ 				}
+-				if ll.N.Name != nil && ll.N.Name.Defn == n && ll.N.Param.Ntype == nil {
++				if ll.N.Name != nil && ll.N.Name.Defn == n && ll.N.Name.Param.Ntype == nil {
+ 					ll.N.Type = t.Type
+ 				}
+ 				t = structnext(&s)
+@@ -3440,7 +3440,7 @@ func typecheckas2(n *Node) {
+ 			if l.Type != nil && l.Type.Etype != TBOOL {
+ 				checkassignto(Types[TBOOL], l)
+ 			}
+-			if l.Name != nil && l.Name.Defn == n && l.Param.Ntype == nil {
++			if l.Name != nil && l.Name.Defn == n && l.Name.Param.Ntype == nil {
+ 				l.Type = Types[TBOOL]
+ 			}
+ 			goto out
+@@ -3606,8 +3606,8 @@ func typecheckdeftype(n *Node) {
+ 	setlineno(n)
+ 	n.Type.Sym = n.Sym
+ 	n.Typecheck = 1
+-	typecheck(&n.Param.Ntype, Etype)
+-	t := n.Param.Ntype.Type
++	typecheck(&n.Name.Param.Ntype, Etype)
++	t := n.Name.Param.Ntype.Type
+ 	if t == nil {
+ 		n.Diag = 1
+ 		n.Type = nil
+@@ -3717,10 +3717,10 @@ func typecheckdef(n *Node) *Node {
+ 		break
+ 
+ 	case OLITERAL:
+-		if n.Param.Ntype != nil {
+-			typecheck(&n.Param.Ntype, Etype)
+-			n.Type = n.Param.Ntype.Type
+-			n.Param.Ntype = nil
++		if n.Name.Param.Ntype != nil {
++			typecheck(&n.Name.Param.Ntype, Etype)
++			n.Type = n.Name.Param.Ntype.Type
++			n.Name.Param.Ntype = nil
+ 			if n.Type == nil {
+ 				n.Diag = 1
+ 				goto ret
+@@ -3769,10 +3769,9 @@ func typecheckdef(n *Node) *Node {
+ 		n.Type = e.Type
+ 
+ 	case ONAME:
+-		if n.Param.Ntype != nil {
+-			typecheck(&n.Param.Ntype, Etype)
+-			n.Type = n.Param.Ntype.Type
+-
++		if n.Name.Param.Ntype != nil {
++			typecheck(&n.Name.Param.Ntype, Etype)
++			n.Type = n.Name.Param.Ntype.Type
+ 			if n.Type == nil {
+ 				n.Diag = 1
+ 				goto ret
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 368cd42f4b..7c13be5c0e 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -615,7 +615,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 			n.Left.Func.Enter = nil
+ 
+ 			// Replace OCLOSURE with ONAME/PFUNC.
+-			n.Left = n.Left.Param.Closure.Nname
++			n.Left = n.Left.Func.Closure.Nname
+ 
+ 			// Update type of OCALLFUNC node.
+ 			// Output arguments had not changed, but their offsets could.
+@@ -1336,7 +1336,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 	case ONEW:
+ 		if n.Esc == EscNone {
+ 			if n.Type.Type.Width >= 1<<16 {
+-				Fatal("Large ONEW with EscNone, %v", n)
++				Fatal("large ONEW with EscNone: %v", n)
+ 			}
+ 			r := temp(n.Type.Type)
+ 			r = Nod(OAS, r, nil) // zero temp
+@@ -1477,7 +1477,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 		t := n.Type
+ 		if n.Esc == EscNone {
+ 			if !isSmallMakeSlice(n) {
+-				Fatal("Non-small OMAKESLICE with EscNone, %v", n)
++				Fatal("non-small OMAKESLICE with EscNone: %v", n)
+ 			}
+ 			// var arr [r]T
+ 			// n = arr[:l]
+@@ -2687,8 +2687,8 @@ func paramstoheap(argin **Type, out int) *NodeList {
+ 		}
+ 		nn = list(nn, Nod(OAS, v.Name.Heapaddr, prealloc[v]))
+ 		if v.Class&^PHEAP != PPARAMOUT {
+-			as = Nod(OAS, v, v.Param.Stackparam)
+-			v.Param.Stackparam.Typecheck = 1
++			as = Nod(OAS, v, v.Name.Stackparam)
++			v.Name.Param.Stackparam.Typecheck = 1
+ 			typecheck(&as, Etop)
+ 			as = applywritebarrier(as, &nn)
+ 			nn = list(nn, as)
+@@ -2711,7 +2711,7 @@ func returnsfromheap(argin **Type) *NodeList {
+ 		if v == nil || v.Class != PHEAP|PPARAMOUT {
+ 			continue
+ 		}
+-		nn = list(nn, Nod(OAS, v.Param.Stackparam, v))
++		nn = list(nn, Nod(OAS, v.Name.Param.Stackparam, v))
+ 	}
+ 
+ 	return nn
+@@ -4029,7 +4029,7 @@ func walkprintfunc(np **Node, init **NodeList) {
+ 	buf = fmt.Sprintf("print·%d", walkprintfunc_prgen)
+ 	fn.Nname = newname(Lookup(buf))
+ 	fn.Nname.Name.Defn = fn
+-	fn.Nname.Param.Ntype = t
++	fn.Nname.Name.Param.Ntype = t
+ 	declare(fn.Nname, PFUNC)
+ 
+ 	oldfn := Curfn
+diff --git a/src/cmd/compile/internal/gc/y.go b/src/cmd/compile/internal/gc/y.go
+index 5ef933b72c..6c51eed46d 100644
+--- a/src/cmd/compile/internal/gc/y.go
++++ b/src/cmd/compile/internal/gc/y.go
+@@ -2560,7 +2560,7 @@ yydefault:
+ 			yyVAL.node = Nod(ODCLFUNC, nil, nil)
+ 			yyVAL.node.Nname = newfuncname(yyDollar[1].sym)
+ 			yyVAL.node.Nname.Name.Defn = yyVAL.node
+-			yyVAL.node.Nname.Param.Ntype = t // TODO: check if nname already has an ntype
++			yyVAL.node.Nname.Name.Param.Ntype = t // TODO: check if nname already has an ntype
+ 			declare(yyVAL.node.Nname, PFUNC)
+ 
+ 			funchdr(yyVAL.node)
+@@ -2597,7 +2597,7 @@ yydefault:
+ 			yyVAL.node.Func.Shortname = newfuncname(yyDollar[4].sym)
+ 			yyVAL.node.Nname = methodname1(yyVAL.node.Func.Shortname, rcvr.Right)
+ 			yyVAL.node.Nname.Name.Defn = yyVAL.node
+-			yyVAL.node.Nname.Param.Ntype = t
++			yyVAL.node.Nname.Name.Param.Ntype = t
+ 			yyVAL.node.Nname.Nointerface = nointerface
+ 			declare(yyVAL.node.Nname, PFUNC)
+ 

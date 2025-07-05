@@ -10,8 +10,61 @@ Date:   Tue Apr 20 15:43:17 2021 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/312045
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/link_test.go     | 3 ++-
  src/cmd/nm/nm_cgo_test.go     | 5 +++++
  src/debug/pe/file_cgo_test.go | 4 ++++
  3 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index 985aed49e2..285c650282 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -177,7 +177,8 @@ func TestIssue33979(t *testing.T) {
+ 	case "mips", "mipsle", "mips64", "mips64le":
+ 		t.Skipf("Skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+ 	}
+-	if runtime.GOOS == "aix" {
++	if runtime.GOOS == "aix" ||
++		runtime.GOOS == "windows" && runtime.GOARCH == "arm64" {
+ 		t.Skipf("Skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+ 	}
+ 
+diff --git a/src/cmd/nm/nm_cgo_test.go b/src/cmd/nm/nm_cgo_test.go
+index 536e87e4ae..d0937904a2 100644
+--- a/src/cmd/nm/nm_cgo_test.go
++++ b/src/cmd/nm/nm_cgo_test.go
+@@ -33,6 +33,11 @@ func canInternalLink() bool {
+ 		case "arm64":
+ 			return false
+ 		}
++	case "windows":
++		switch runtime.GOARCH {
++		case "arm64":
++			return false
++		}
+ 	}
+ 	return true
+ }
+diff --git a/src/debug/pe/file_cgo_test.go b/src/debug/pe/file_cgo_test.go
+index bba3a068d6..13eb4e62b2 100644
+--- a/src/debug/pe/file_cgo_test.go
++++ b/src/debug/pe/file_cgo_test.go
+@@ -9,6 +9,7 @@ package pe
+ 
+ import (
+ 	"os/exec"
++	"runtime"
+ 	"testing"
+ )
+ 
+@@ -24,6 +25,9 @@ func TestDefaultLinkerDWARF(t *testing.T) {
+ }
+ 
+ func TestInternalLinkerDWARF(t *testing.T) {
++	if runtime.GOARCH == "arm64" {
++		t.Skip("internal linker disabled on windows/arm64")
++	}
+ 	testCgoDWARF(t, linkCgoInternal)
+ }
+ 

@@ -14,8 +14,108 @@ Date:   Sat Mar 30 19:45:46 2019 +0000
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/elliptic/p256_asm_amd64.s | 8 ++++----
  src/math/big/arith_386.s             | 8 ++++----
  src/math/big/arith_amd64.s           | 8 ++++----
  3 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/crypto/elliptic/p256_asm_amd64.s b/src/crypto/elliptic/p256_asm_amd64.s
+index a4e3757977..7afa54a58c 100644
+--- a/src/crypto/elliptic/p256_asm_amd64.s
++++ b/src/crypto/elliptic/p256_asm_amd64.s
+@@ -2300,10 +2300,10 @@ TEXT ·p256PointDoubleAsm(SB),NOSPLIT,$256-48
+ 	CMOVQEQ t3, acc7
+ 	ANDQ t0, mul0
+ 
+-	SHRQ $1, acc4:acc5
+-	SHRQ $1, acc5:acc6
+-	SHRQ $1, acc6:acc7
+-	SHRQ $1, acc7:mul0
++	SHRQ $1, acc5, acc4
++	SHRQ $1, acc6, acc5
++	SHRQ $1, acc7, acc6
++	SHRQ $1, mul0, acc7
+ 	ST (y)
+ 	/////////////////////////
+ 	LDacc (x)
+diff --git a/src/math/big/arith_386.s b/src/math/big/arith_386.s
+index 864fbc554e..f61da2aba7 100644
+--- a/src/math/big/arith_386.s
++++ b/src/math/big/arith_386.s
+@@ -136,7 +136,7 @@ TEXT ·shlVU(SB),NOSPLIT,$0
+ 	MOVL s+24(FP), CX
+ 	MOVL (SI)(BX*4), AX	// w1 = x[n-1]
+ 	MOVL $0, DX
+-	SHLL CX, DX:AX		// w1>>ŝ
++	SHLL CX, AX, DX		// w1>>ŝ
+ 	MOVL DX, c+28(FP)
+ 
+ 	CMPL BX, $0
+@@ -145,7 +145,7 @@ TEXT ·shlVU(SB),NOSPLIT,$0
+ 	// i > 0
+ L8:	MOVL AX, DX		// w = w1
+ 	MOVL -4(SI)(BX*4), AX	// w1 = x[i-1]
+-	SHLL CX, DX:AX		// w<<s | w1>>ŝ
++	SHLL CX, AX, DX		// w<<s | w1>>ŝ
+ 	MOVL DX, (DI)(BX*4)	// z[i] = w<<s | w1>>ŝ
+ 	SUBL $1, BX		// i--
+ 	JG L8			// i > 0
+@@ -171,7 +171,7 @@ TEXT ·shrVU(SB),NOSPLIT,$0
+ 	MOVL s+24(FP), CX
+ 	MOVL (SI), AX		// w1 = x[0]
+ 	MOVL $0, DX
+-	SHRL CX, DX:AX		// w1<<ŝ
++	SHRL CX, AX, DX		// w1<<ŝ
+ 	MOVL DX, c+28(FP)
+ 
+ 	MOVL $0, BX		// i = 0
+@@ -180,7 +180,7 @@ TEXT ·shrVU(SB),NOSPLIT,$0
+ 	// i < n-1
+ L9:	MOVL AX, DX		// w = w1
+ 	MOVL 4(SI)(BX*4), AX	// w1 = x[i+1]
+-	SHRL CX, DX:AX		// w>>s | w1<<ŝ
++	SHRL CX, AX, DX		// w>>s | w1<<ŝ
+ 	MOVL DX, (DI)(BX*4)	// z[i] = w>>s | w1<<ŝ
+ 	ADDL $1, BX		// i++
+ 
+diff --git a/src/math/big/arith_amd64.s b/src/math/big/arith_amd64.s
+index a0d1660f51..b75639f540 100644
+--- a/src/math/big/arith_amd64.s
++++ b/src/math/big/arith_amd64.s
+@@ -264,7 +264,7 @@ TEXT ·shlVU(SB),NOSPLIT,$0
+ 	MOVQ s+48(FP), CX
+ 	MOVQ (R8)(BX*8), AX	// w1 = x[n-1]
+ 	MOVQ $0, DX
+-	SHLQ CX, DX:AX		// w1>>ŝ
++	SHLQ CX, AX, DX		// w1>>ŝ
+ 	MOVQ DX, c+56(FP)
+ 
+ 	CMPQ BX, $0
+@@ -273,7 +273,7 @@ TEXT ·shlVU(SB),NOSPLIT,$0
+ 	// i > 0
+ L8:	MOVQ AX, DX		// w = w1
+ 	MOVQ -8(R8)(BX*8), AX	// w1 = x[i-1]
+-	SHLQ CX, DX:AX		// w<<s | w1>>ŝ
++	SHLQ CX, AX, DX		// w<<s | w1>>ŝ
+ 	MOVQ DX, (R10)(BX*8)	// z[i] = w<<s | w1>>ŝ
+ 	SUBQ $1, BX		// i--
+ 	JG L8			// i > 0
+@@ -299,7 +299,7 @@ TEXT ·shrVU(SB),NOSPLIT,$0
+ 	MOVQ s+48(FP), CX
+ 	MOVQ (R8), AX		// w1 = x[0]
+ 	MOVQ $0, DX
+-	SHRQ CX, DX:AX		// w1<<ŝ
++	SHRQ CX, AX, DX		// w1<<ŝ
+ 	MOVQ DX, c+56(FP)
+ 
+ 	MOVQ $0, BX		// i = 0
+@@ -308,7 +308,7 @@ TEXT ·shrVU(SB),NOSPLIT,$0
+ 	// i < n-1
+ L9:	MOVQ AX, DX		// w = w1
+ 	MOVQ 8(R8)(BX*8), AX	// w1 = x[i+1]
+-	SHRQ CX, DX:AX		// w>>s | w1<<ŝ
++	SHRQ CX, AX, DX		// w>>s | w1<<ŝ
+ 	MOVQ DX, (R10)(BX*8)	// z[i] = w>>s | w1<<ŝ
+ 	ADDQ $1, BX		// i++
+ 

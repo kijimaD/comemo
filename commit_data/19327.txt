@@ -10,6 +10,30 @@ Date:   Tue May 13 00:38:36 2014 +0900
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/92210044
-
+---
  src/pkg/net/sockopt_posix.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/sockopt_posix.go b/src/pkg/net/sockopt_posix.go
+index 921918c37f..0bfaecea41 100644
+--- a/src/pkg/net/sockopt_posix.go
++++ b/src/pkg/net/sockopt_posix.go
+@@ -8,6 +8,7 @@ package net
+ 
+ import (
+ 	"os"
++	"runtime"
+ 	"syscall"
+ )
+ 
+@@ -137,5 +138,9 @@ func setLinger(fd *netFD, sec int) error {
+ 		return err
+ 	}
+ 	defer fd.decref()
+-	return os.NewSyscallError("setsockopt", syscall.SetsockoptLinger(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_LINGER, &l))
++	opt := syscall.SO_LINGER
++	if runtime.GOOS == "darwin" {
++		opt = syscall.SO_LINGER_SEC
++	}
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptLinger(fd.sysfd, syscall.SOL_SOCKET, opt, &l))
+ }

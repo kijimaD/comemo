@@ -7,6 +7,19 @@ Date:   Tue Aug 30 08:00:07 2011 -0400
     R=golang-dev
     CC=golang-dev, rsc
     https://golang.org/cl/4975044
-
+---
  src/cmd/gc/esc.c | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/gc/esc.c b/src/cmd/gc/esc.c
+index 8664dc606a..790709cff2 100644
+--- a/src/cmd/gc/esc.c
++++ b/src/cmd/gc/esc.c
+@@ -471,7 +471,6 @@ esccall(Node *n)
+ 	Type *t, *fntype;
+ 
+ 	fn = N;
+-	fntype = T;
+ 	switch(n->op) {
+ 	default:
+ 		fatal("esccall");

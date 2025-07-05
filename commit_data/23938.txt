@@ -7,7 +7,46 @@ Date:   Tue Jun 23 16:44:06 2015 -0700
     Change-Id: Id949db82ddaf802c1aa245a337081d4d46fd914f
     Reviewed-on: https://go-review.googlesource.com/11380
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/compile/internal/ssa/cse.go   | 3 ++-
  src/cmd/compile/internal/ssa/value.go | 6 +++++-
  2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/cse.go b/src/cmd/compile/internal/ssa/cse.go
+index 403c845152..7a1cf53ccb 100644
+--- a/src/cmd/compile/internal/ssa/cse.go
++++ b/src/cmd/compile/internal/ssa/cse.go
+@@ -15,6 +15,7 @@ func cse(f *Func) {
+ 	//   v.op == w.op
+ 	//   v.type == w.type
+ 	//   v.aux == w.aux
++	//   v.auxint == w.auxint
+ 	//   len(v.args) == len(w.args)
+ 	//   equivalent(v.args[i], w.args[i]) for i in 0..len(v.args)-1
+ 
+@@ -23,7 +24,7 @@ func cse(f *Func) {
+ 	// It starts with a coarse partition and iteratively refines it
+ 	// until it reaches a fixed point.
+ 
+-	// Make initial partition based on opcode/type/aux/nargs
++	// Make initial partition based on opcode/type/aux/auxint/nargs
+ 	// TODO(khr): types are not canonical, so we split unnecessarily.
+ 	// For example, all pointer types are distinct. Fix this.
+ 	// As a data point, using v.Type.String() instead of
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index bfba8dc369..ef10fb20cd 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -59,7 +59,11 @@ func (v *Value) LongString() string {
+ 		s += fmt.Sprintf(" [%d]", v.AuxInt)
+ 	}
+ 	if v.Aux != nil {
+-		s += fmt.Sprintf(" {%v}", v.Aux)
++		if _, ok := v.Aux.(string); ok {
++			s += fmt.Sprintf(" {%q}", v.Aux)
++		} else {
++			s += fmt.Sprintf(" {%v}", v.Aux)
++		}
+ 	}
+ 	for _, a := range v.Args {
+ 		s += fmt.Sprintf(" %v", a)

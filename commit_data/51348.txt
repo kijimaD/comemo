@@ -15,6 +15,40 @@ Date:   Fri Jan 14 09:23:25 2022 -0500
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/crash_cgo_test.go | 20 +++++++++++---------
  1 file changed, 11 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index abaed40977..6f1265c014 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -622,17 +622,19 @@ func TestSegv(t *testing.T) {
+ 			// No runtime errors like "runtime: unknown pc".
+ 			switch runtime.GOOS {
+ 			case "darwin", "illumos", "solaris":
+-				// TODO(golang.org/issue/49182): Skip, runtime
+-				// throws while attempting to generate
+-				// traceback.
+-				return
++				// Runtime sometimes throws when generating the traceback.
++				testenv.SkipFlaky(t, 49182)
+ 			case "linux":
+ 				if runtime.GOARCH == "386" {
+-					// TODO(golang.org/issue/50504): Skip,
+-					// runtime throws while attempting to
+-					// generate traceback from VDSO call
+-					// via asmcgocall.
+-					return
++					// Runtime throws when generating a traceback from
++					// a VDSO call via asmcgocall.
++					testenv.SkipFlaky(t, 50504)
++				}
++				if testenv.Builder() == "linux-mips64le-mengzhuo" && strings.Contains(got, "runtime: unknown pc") {
++					// Runtime sometimes throw "unknown pc" when generating the traceback.
++					// Curiously, that doesn't seem to happen on the linux-mips64le-rtrk
++					// builder.
++					testenv.SkipFlaky(t, 50605)
+ 				}
+ 			}
+ 			nowant := "runtime: "

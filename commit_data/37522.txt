@@ -17,7 +17,46 @@ Date:   Thu Aug 9 13:05:54 2018 -0400
     Change-Id: Id61fad7d976e179c6c7711a394ce43ec8302fd7a
     Reviewed-on: https://go-review.googlesource.com/128836
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/load/test.go                 |  2 ++
  src/cmd/go/testdata/script/list_test_imports.txt | 19 +++++++++++++++++++
  2 files changed, 21 insertions(+)
+
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index 2cc7c6cb2a..bb9568d07e 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -342,6 +342,8 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) {
+ 			p1.ForTest = preal.ImportPath
+ 			p1.Internal.Imports = make([]*Package, len(p.Internal.Imports))
+ 			copy(p1.Internal.Imports, p.Internal.Imports)
++			p1.Imports = make([]string, len(p.Imports))
++			copy(p1.Imports, p.Imports)
+ 			p = p1
+ 			p.Target = ""
+ 		}
+diff --git a/src/cmd/go/testdata/script/list_test_imports.txt b/src/cmd/go/testdata/script/list_test_imports.txt
+new file mode 100644
+index 0000000000..51d1ce9a69
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_test_imports.txt
+@@ -0,0 +1,19 @@
++# issue 26880: list with tests has wrong variant in imports
++go list -test -f '{{.ImportPath}}:{{with .Imports}} {{join . ", "}}{{end}}' a b
++cmp stdout imports.txt
++
++-- a/a.go --
++package a; import _ "b"
++-- b/b.go --
++package b
++-- b/b_test.go --
++package b
++-- b/b_x_test.go --
++package b_test; import _ "a"
++
++-- imports.txt --
++a: b
++b:
++b.test: b [b.test], b_test [b.test], os, testing, testing/internal/testdeps
++b [b.test]:
++b_test [b.test]: a [b.test]

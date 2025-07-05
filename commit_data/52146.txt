@@ -18,7 +18,7 @@ Date:   Sun Apr 3 08:20:31 2022 -0400
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  api/next/51082.txt                     |  12 ++++
  src/go/doc/comment/html.go             |  81 ++++++++++++++++++++++
  src/go/doc/comment/markdown.go         | 115 +++++++++++++++++++++++++++++++
@@ -29,3 +29,591 @@ Date:   Sun Apr 3 08:20:31 2022 -0400
  src/go/doc/comment/testdata_test.go    |   9 +++
  src/go/doc/comment/text.go             |  69 +++++++++++++++++++
  9 files changed, 500 insertions(+), 4 deletions(-)
+
+diff --git a/api/next/51082.txt b/api/next/51082.txt
+index 2cafd4b533..e078547b55 100644
+--- a/api/next/51082.txt
++++ b/api/next/51082.txt
+@@ -1,6 +1,10 @@
+ pkg go/doc/comment, method (*List) BlankBefore() bool #51082
+ pkg go/doc/comment, method (*List) BlankBetween() bool #51082
+ pkg go/doc/comment, method (*Parser) Parse(string) *Doc #51082
++pkg go/doc/comment, method (*Printer) Comment(*Doc) []uint8 #51082
++pkg go/doc/comment, method (*Printer) HTML(*Doc) []uint8 #51082
++pkg go/doc/comment, method (*Printer) Markdown(*Doc) []uint8 #51082
++pkg go/doc/comment, method (*Printer) Text(*Doc) []uint8 #51082
+ pkg go/doc/comment, type Block interface, unexported methods #51082
+ pkg go/doc/comment, type Code struct #51082
+ pkg go/doc/comment, type Code struct, Text string #51082
+@@ -37,4 +41,12 @@ pkg go/doc/comment, type Parser struct, LookupPackage func(string) (string, bool
+ pkg go/doc/comment, type Parser struct, LookupSym func(string, string) bool #51082
+ pkg go/doc/comment, type Parser struct, Words map[string]string #51082
+ pkg go/doc/comment, type Plain string #51082
++pkg go/doc/comment, type Printer struct #51082
++pkg go/doc/comment, type Printer struct, DocLinkBaseURL string #51082
++pkg go/doc/comment, type Printer struct, DocLinkURL func(*DocLink) string #51082
++pkg go/doc/comment, type Printer struct, HeadingID func(*Heading) string #51082
++pkg go/doc/comment, type Printer struct, HeadingLevel int #51082
++pkg go/doc/comment, type Printer struct, TextCodePrefix string #51082
++pkg go/doc/comment, type Printer struct, TextPrefix string #51082
++pkg go/doc/comment, type Printer struct, TextWidth int #51082
+ pkg go/doc/comment, type Text interface, unexported methods #51082
+diff --git a/src/go/doc/comment/html.go b/src/go/doc/comment/html.go
+new file mode 100644
+index 0000000000..d41e36cefe
+--- /dev/null
++++ b/src/go/doc/comment/html.go
+@@ -0,0 +1,81 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package comment
++
++import (
++	"bytes"
++	"fmt"
++)
++
++// An htmlPrinter holds the state needed for printing a Doc as HTML.
++type htmlPrinter struct {
++	*Printer
++}
++
++// HTML returns an HTML formatting of the Doc.
++// See the [Printer] documentation for ways to customize the HTML output.
++func (p *Printer) HTML(d *Doc) []byte {
++	hp := &htmlPrinter{Printer: p}
++	var out bytes.Buffer
++	for _, x := range d.Content {
++		hp.block(&out, x)
++	}
++	return out.Bytes()
++}
++
++// block prints the block x to out.
++func (p *htmlPrinter) block(out *bytes.Buffer, x Block) {
++	switch x := x.(type) {
++	default:
++		fmt.Fprintf(out, "?%T", x)
++
++	case *Paragraph:
++		out.WriteString("<p>")
++		p.text(out, x.Text)
++		out.WriteString("\n")
++	}
++}
++
++// text prints the text sequence x to out.
++func (p *htmlPrinter) text(out *bytes.Buffer, x []Text) {
++	for _, t := range x {
++		switch t := t.(type) {
++		case Plain:
++			p.escape(out, string(t))
++		}
++	}
++}
++
++// escape prints s to out as plain text,
++// escaping < & " ' and > to avoid being misinterpreted
++// in larger HTML constructs.
++func (p *htmlPrinter) escape(out *bytes.Buffer, s string) {
++	start := 0
++	for i := 0; i < len(s); i++ {
++		switch s[i] {
++		case '<':
++			out.WriteString(s[start:i])
++			out.WriteString("&lt;")
++			start = i + 1
++		case '&':
++			out.WriteString(s[start:i])
++			out.WriteString("&amp;")
++			start = i + 1
++		case '"':
++			out.WriteString(s[start:i])
++			out.WriteString("&quot;")
++			start = i + 1
++		case '\'':
++			out.WriteString(s[start:i])
++			out.WriteString("&apos;")
++			start = i + 1
++		case '>':
++			out.WriteString(s[start:i])
++			out.WriteString("&gt;")
++			start = i + 1
++		}
++	}
++	out.WriteString(s[start:])
++}
+diff --git a/src/go/doc/comment/markdown.go b/src/go/doc/comment/markdown.go
+new file mode 100644
+index 0000000000..888868e130
+--- /dev/null
++++ b/src/go/doc/comment/markdown.go
+@@ -0,0 +1,115 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package comment
++
++import (
++	"bytes"
++	"fmt"
++)
++
++// An mdPrinter holds the state needed for printing a Doc as Markdown.
++type mdPrinter struct {
++	*Printer
++	raw bytes.Buffer
++}
++
++// Markdown returns a Markdown formatting of the Doc.
++// See the [Printer] documentation for ways to customize the Markdown output.
++func (p *Printer) Markdown(d *Doc) []byte {
++	mp := &mdPrinter{Printer: p}
++
++	var out bytes.Buffer
++	for i, x := range d.Content {
++		if i > 0 {
++			out.WriteByte('\n')
++		}
++		mp.block(&out, x)
++	}
++	return out.Bytes()
++}
++
++// block prints the block x to out.
++func (p *mdPrinter) block(out *bytes.Buffer, x Block) {
++	switch x := x.(type) {
++	default:
++		fmt.Fprintf(out, "?%T", x)
++
++	case *Paragraph:
++		p.text(out, x.Text)
++		out.WriteString("\n")
++	}
++}
++
++// text prints the text sequence x to out.
++func (p *mdPrinter) text(out *bytes.Buffer, x []Text) {
++	p.raw.Reset()
++	p.rawText(&p.raw, x)
++	line := bytes.TrimSpace(p.raw.Bytes())
++	if len(line) == 0 {
++		return
++	}
++	switch line[0] {
++	case '+', '-', '*', '#':
++		// Escape what would be the start of an unordered list or heading.
++		out.WriteByte('\\')
++	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
++		i := 1
++		for i < len(line) && '0' <= line[i] && line[i] <= '9' {
++			i++
++		}
++		if i < len(line) && (line[i] == '.' || line[i] == ')') {
++			// Escape what would be the start of an ordered list.
++			out.Write(line[:i])
++			out.WriteByte('\\')
++			line = line[i:]
++		}
++	}
++	out.Write(line)
++}
++
++// rawText prints the text sequence x to out,
++// without worrying about escaping characters
++// that have special meaning at the start of a Markdown line.
++func (p *mdPrinter) rawText(out *bytes.Buffer, x []Text) {
++	for _, t := range x {
++		switch t := t.(type) {
++		case Plain:
++			p.escape(out, string(t))
++		}
++	}
++}
++
++// escape prints s to out as plain text,
++// escaping special characters to avoid being misinterpreted
++// as Markdown markup sequences.
++func (p *mdPrinter) escape(out *bytes.Buffer, s string) {
++	start := 0
++	for i := 0; i < len(s); i++ {
++		switch s[i] {
++		case '\n':
++			// Turn all \n into spaces, for a few reasons:
++			//   - Avoid introducing paragraph breaks accidentally.
++			//   - Avoid the need to reindent after the newline.
++			//   - Avoid problems with Markdown renderers treating
++			//     every mid-paragraph newline as a <br>.
++			out.WriteString(s[start:i])
++			out.WriteByte(' ')
++			start = i + 1
++			continue
++		case '`', '_', '*', '[', '<', '\\':
++			// Not all of these need to be escaped all the time,
++			// but is valid and easy to do so.
++			// We assume the Markdown is being passed to a
++			// Markdown renderer, not edited by a person,
++			// so it's fine to have escapes that are not strictly
++			// necessary in some cases.
++			out.WriteString(s[start:i])
++			out.WriteByte('\\')
++			out.WriteByte(s[i])
++			start = i + 1
++		}
++	}
++	out.WriteString(s[start:])
++}
+diff --git a/src/go/doc/comment/print.go b/src/go/doc/comment/print.go
+new file mode 100644
+index 0000000000..b1e509d1b6
+--- /dev/null
++++ b/src/go/doc/comment/print.go
+@@ -0,0 +1,122 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package comment
++
++import (
++	"bytes"
++	"fmt"
++	"strings"
++)
++
++// A Printer is a doc comment printer.
++// The fields in the struct can be filled in before calling
++// any of the printing methods
++// in order to customize the details of the printing process.
++type Printer struct {
++	// HeadingLevel is the nesting level used for
++	// HTML and Markdown headings.
++	// If HeadingLevel is zero, it defaults to level 3,
++	// meaning to use <h3> and ###.
++	HeadingLevel int
++
++	// HeadingID is a function that computes the heading ID
++	// (anchor tag) to use for the heading h when generating
++	// HTML and Markdown. If HeadingID returns an empty string,
++	// then the heading ID is omitted.
++	// If HeadingID is nil, h.DefaultID is used.
++	HeadingID func(h *Heading) string
++
++	// DocLinkURL is a function that computes the URL for the given DocLink.
++	// If DocLinkURL is nil, then link.DefaultURL(p.DocLinkBaseURL) is used.
++	DocLinkURL func(link *DocLink) string
++
++	// DocLinkBaseURL is used when DocLinkURL is nil,
++	// passed to [DocLink.DefaultURL] to construct a DocLink's URL.
++	// See that method's documentation for details.
++	DocLinkBaseURL string
++
++	// TextPrefix is a prefix to print at the start of every line
++	// when generating text output using the Text method.
++	TextPrefix string
++
++	// TextCodePrefix is the prefix to print at the start of each
++	// preformatted (code block) line when generating text output,
++	// instead of (not in addition to) TextPrefix.
++	// If TextCodePrefix is the empty string, it defaults to TextPrefix+"\t".
++	TextCodePrefix string
++
++	// TextWidth is the maximum width text line to generate,
++	// measured in Unicode code points,
++	// excluding TextPrefix and the newline character.
++	// If TextWidth is zero, it defaults to 80 minus the number of code points in TextPrefix.
++	// If TextWidth is negative, there is no limit.
++	TextWidth int
++}
++
++type commentPrinter struct {
++	*Printer
++	headingPrefix string
++	needDoc       map[string]bool
++}
++
++// Comment returns the standard Go formatting of the Doc,
++// without any comment markers.
++func (p *Printer) Comment(d *Doc) []byte {
++	cp := &commentPrinter{Printer: p}
++	var out bytes.Buffer
++	for i, x := range d.Content {
++		if i > 0 && blankBefore(x) {
++			out.WriteString("\n")
++		}
++		cp.block(&out, x)
++	}
++
++	return out.Bytes()
++}
++
++// blankBefore reports whether the block x requires a blank line before it.
++// All blocks do, except for Lists that return false from x.BlankBefore().
++func blankBefore(x Block) bool {
++	if x, ok := x.(*List); ok {
++		return x.BlankBefore()
++	}
++	return true
++}
++
++// block prints the block x to out.
++func (p *commentPrinter) block(out *bytes.Buffer, x Block) {
++	switch x := x.(type) {
++	default:
++		fmt.Fprintf(out, "?%T", x)
++
++	case *Paragraph:
++		p.text(out, "", x.Text)
++		out.WriteString("\n")
++	}
++}
++
++// text prints the text sequence x to out.
++func (p *commentPrinter) text(out *bytes.Buffer, indent string, x []Text) {
++	for _, t := range x {
++		switch t := t.(type) {
++		case Plain:
++			p.indent(out, indent, string(t))
++		}
++	}
++}
++
++// indent prints s to out, indenting with the indent string
++// after each newline in s.
++func (p *commentPrinter) indent(out *bytes.Buffer, indent, s string) {
++	for s != "" {
++		line, rest, ok := strings.Cut(s, "\n")
++		out.WriteString(line)
++		if ok {
++			out.WriteString("\n")
++			out.WriteString(indent)
++		}
++		s = rest
++	}
++}
+\ No newline at end of file
+diff --git a/src/go/doc/comment/testdata/blank.txt b/src/go/doc/comment/testdata/blank.txt
+new file mode 100644
+index 0000000000..9049fde76e
+--- /dev/null
++++ b/src/go/doc/comment/testdata/blank.txt
+@@ -0,0 +1,12 @@
++-- input --
++	$
++	Blank line at start and end.
++	$
++-- gofmt --
++Blank line at start and end.
++-- text --
++Blank line at start and end.
++-- markdown --
++Blank line at start and end.
++-- html --
++<p>Blank line at start and end.
+diff --git a/src/go/doc/comment/testdata/escape.txt b/src/go/doc/comment/testdata/escape.txt
+new file mode 100644
+index 0000000000..f54663f5c3
+--- /dev/null
++++ b/src/go/doc/comment/testdata/escape.txt
+@@ -0,0 +1,55 @@
++-- input --
++What the ~!@#$%^&*()_+-=`{}|[]\:";',./<>?
++
+++ Line
++
++- Line
++
++* Line
++
++999. Line
++
++## Line
++-- gofmt --
++What the ~!@#$%^&*()_+-=`{}|[]\:";',./<>?
++
+++ Line
++
++- Line
++
++* Line
++
++999. Line
++
++## Line
++-- text --
++What the ~!@#$%^&*()_+-=`{}|[]\:";',./<>?
++
+++ Line
++
++- Line
++
++* Line
++
++999. Line
++
++## Line
++-- markdown --
++What the ~!@#$%^&\*()\_+-=\`{}|\[]\\:";',./\<>?
++
++\+ Line
++
++\- Line
++
++\* Line
++
++999\. Line
++
++\## Line
++-- html --
++<p>What the ~!@#$%^&amp;*()_+-=`{}|[]\:&quot;;&apos;,./&lt;&gt;?
++<p>+ Line
++<p>- Line
++<p>* Line
++<p>999. Line
++<p>## Line
+diff --git a/src/go/doc/comment/testdata/hello.txt b/src/go/doc/comment/testdata/hello.txt
+index 4f669fc363..b998c77fef 100644
+--- a/src/go/doc/comment/testdata/hello.txt
++++ b/src/go/doc/comment/testdata/hello.txt
+@@ -1,9 +1,9 @@
+ -- input --
+-Hello,
+-world
++	Hello,
++	world
+ 
+-This is
+-a test.
++	This is
++	a test.
+ -- dump --
+ Doc
+ 	Paragraph
+@@ -14,3 +14,24 @@ Doc
+ 		Plain
+ 			"This is\n"
+ 			"a test."
++-- gofmt --
++Hello,
++world
++
++This is
++a test.
++-- html --
++<p>Hello,
++world
++<p>This is
++a test.
++-- markdown --
++Hello, world
++
++This is a test.
++-- text --
++Hello,
++world
++
++This is
++a test.
+diff --git a/src/go/doc/comment/testdata_test.go b/src/go/doc/comment/testdata_test.go
+index a94e76ca02..d00b636442 100644
+--- a/src/go/doc/comment/testdata_test.go
++++ b/src/go/doc/comment/testdata_test.go
+@@ -44,11 +44,20 @@ func TestTestdata(t *testing.T) {
+ 					want = want[:len(want)-1]
+ 				}
+ 				var out []byte
++				var pr Printer
+ 				switch f.Name {
+ 				default:
+ 					t.Fatalf("unknown output file %q", f.Name)
+ 				case "dump":
+ 					out = dump(d)
++				case "gofmt":
++					out = pr.Comment(d)
++				case "html":
++					out = pr.HTML(d)
++				case "markdown":
++					out = pr.Markdown(d)
++				case "text":
++					out = pr.Text(d)
+ 				}
+ 				if string(out) != string(want) {
+ 					t.Errorf("%s: %s", file, diff.Diff(f.Name, want, "have", out))
+diff --git a/src/go/doc/comment/text.go b/src/go/doc/comment/text.go
+new file mode 100644
+index 0000000000..2e75567464
+--- /dev/null
++++ b/src/go/doc/comment/text.go
+@@ -0,0 +1,69 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package comment
++
++import (
++	"bytes"
++	"fmt"
++)
++
++// A textPrinter holds the state needed for printing a Doc as plain text.
++type textPrinter struct {
++	*Printer
++}
++
++// Text returns a textual formatting of the Doc.
++// See the [Printer] documentation for ways to customize the text output.
++func (p *Printer) Text(d *Doc) []byte {
++	tp := &textPrinter{
++		Printer: p,
++	}
++	var out bytes.Buffer
++	for i, x := range d.Content {
++		if i > 0 && blankBefore(x) {
++			writeNL(&out)
++		}
++		tp.block(&out, x)
++	}
++	return out.Bytes()
++}
++
++// writeNL calls out.WriteByte('\n')
++// but first trims trailing spaces on the previous line.
++func writeNL(out *bytes.Buffer) {
++	// Trim trailing spaces.
++	data := out.Bytes()
++	n := 0
++	for n < len(data) && (data[len(data)-n-1] == ' ' || data[len(data)-n-1] == '\t') {
++		n++
++	}
++	if n > 0 {
++		out.Truncate(len(data) - n)
++	}
++	out.WriteByte('\n')
++}
++
++// block prints the block x to out.
++func (p *textPrinter) block(out *bytes.Buffer, x Block) {
++	switch x := x.(type) {
++	default:
++		fmt.Fprintf(out, "?%T\n", x)
++
++	case *Paragraph:
++		p.text(out, x.Text)
++	}
++}
++
++// text prints the text sequence x to out.
++// TODO: Wrap lines.
++func (p *textPrinter) text(out *bytes.Buffer, x []Text) {
++	for _, t := range x {
++		switch t := t.(type) {
++		case Plain:
++			out.WriteString(string(t))
++		}
++	}
++	writeNL(out)
++}

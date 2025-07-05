@@ -17,7 +17,33 @@ Date:   Thu Apr 15 13:41:01 2021 -0500
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
     Trust: Carlos Eduardo Seo <carlos.seo@linaro.org>
-
+---
  src/cmd/compile/internal/ssa/rewrite.go      | 2 +-
  src/cmd/compile/internal/ssa/rewrite_test.go | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index b8a9062d83..bdc4f799aa 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1492,7 +1492,7 @@ func mergePPC64AndSrwi(m, s int64) int64 {
+ 	if !isPPC64WordRotateMask(mask) {
+ 		return 0
+ 	}
+-	return encodePPC64RotateMask(32-s, mask, 32)
++	return encodePPC64RotateMask((32-s)&31, mask, 32)
+ }
+ 
+ // Test if a shift right feeding into a CLRLSLDI can be merged into RLWINM.
+diff --git a/src/cmd/compile/internal/ssa/rewrite_test.go b/src/cmd/compile/internal/ssa/rewrite_test.go
+index 272b080d88..357fe1183f 100644
+--- a/src/cmd/compile/internal/ssa/rewrite_test.go
++++ b/src/cmd/compile/internal/ssa/rewrite_test.go
+@@ -205,6 +205,7 @@ func TestMergePPC64AndSrwi(t *testing.T) {
+ 		{0x00000000, 4, false, 0, 0},
+ 		{0xF0000000, 4, false, 0, 0},
+ 		{0xF0000000, 32, false, 0, 0},
++		{0xFFFFFFFF, 0, true, 0, 0xFFFFFFFF},
+ 	}
+ 	for i, v := range tests {
+ 		result := mergePPC64AndSrwi(v.and, v.srw)

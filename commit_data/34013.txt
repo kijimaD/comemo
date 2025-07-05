@@ -25,7 +25,40 @@ Date:   Mon Sep 25 14:23:38 2017 -0700
     Change-Id: I2bb1b2d54e78567baf2bf7b490a272c0853d7bfe
     Reviewed-on: https://go-review.googlesource.com/66110
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/compress/bzip2/bzip2.go      | 2 +-
  src/compress/bzip2/bzip2_test.go | 8 ++++++++
  2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/compress/bzip2/bzip2.go b/src/compress/bzip2/bzip2.go
+index 42788443bc..f07c7e81e8 100644
+--- a/src/compress/bzip2/bzip2.go
++++ b/src/compress/bzip2/bzip2.go
+@@ -163,7 +163,7 @@ func (bz2 *reader) readFromBlock(buf []byte) int {
+ func (bz2 *reader) read(buf []byte) (int, error) {
+ 	for {
+ 		n := bz2.readFromBlock(buf)
+-		if n > 0 {
++		if n > 0 || len(buf) == 0 {
+ 			bz2.blockCRC = updateCRC(bz2.blockCRC, buf[:n])
+ 			return n, nil
+ 		}
+diff --git a/src/compress/bzip2/bzip2_test.go b/src/compress/bzip2/bzip2_test.go
+index a6c3080db3..3848603e0d 100644
+--- a/src/compress/bzip2/bzip2_test.go
++++ b/src/compress/bzip2/bzip2_test.go
+@@ -204,6 +204,14 @@ func TestMTF(t *testing.T) {
+ 	}
+ }
+ 
++func TestZeroRead(t *testing.T) {
++	b := mustDecodeHex("425a6839314159265359b5aa5098000000600040000004200021008283177245385090b5aa5098")
++	r := NewReader(bytes.NewReader(b))
++	if n, err := r.Read(nil); n != 0 || err != nil {
++		t.Errorf("Read(nil) = (%d, %v), want (0, nil)", n, err)
++	}
++}
++
+ var (
+ 	digits = mustLoadFile("testdata/e.txt.bz2")
+ 	twain  = mustLoadFile("testdata/Mark.Twain-Tom.Sawyer.txt.bz2")

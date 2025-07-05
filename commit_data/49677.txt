@@ -15,6 +15,20 @@ Date:   Fri Sep 3 20:27:35 2021 +0000
     Trust: Cherry Mui <cherryyz@google.com>
     Trust: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/go/ast/ast.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index f6abb2d175..b0f1330564 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -290,7 +290,7 @@ type (
+ 	Ident struct {
+ 		NamePos token.Pos // identifier position
+ 		Name    string    // identifier name
+-		Obj     *Object   // denoted object; or nil if the referenced declaration is not found in the parsed scope
++		Obj     *Object   // denoted object; or nil
+ 	}
+ 
+ 	// An Ellipsis node stands for the "..." type in a

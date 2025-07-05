@@ -36,7 +36,534 @@ Date:   Mon Mar 7 11:26:18 2022 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/internal/fuzz/encoding.go      |  84 ++++++++++--
  src/internal/fuzz/encoding_test.go | 272 +++++++++++++++++++++++++++++++++----
  2 files changed, 311 insertions(+), 45 deletions(-)
+
+diff --git a/src/internal/fuzz/encoding.go b/src/internal/fuzz/encoding.go
+index fe070eca34..c95d9e088b 100644
+--- a/src/internal/fuzz/encoding.go
++++ b/src/internal/fuzz/encoding.go
+@@ -12,6 +12,7 @@ import (
+ 	"go/token"
+ 	"math"
+ 	"strconv"
++	"unicode/utf8"
+ )
+ 
+ // encVersion1 will be the first line of a file with version 1 encoding.
+@@ -32,21 +33,60 @@ func marshalCorpusFile(vals ...any) []byte {
+ 			fmt.Fprintf(b, "%T(%v)\n", t, t)
+ 		case float32:
+ 			if math.IsNaN(float64(t)) && math.Float32bits(t) != math.Float32bits(float32(math.NaN())) {
+-				fmt.Fprintf(b, "math.Float32frombits(%v)\n", math.Float32bits(t))
++				// We encode unusual NaNs as hex values, because that is how users are
++				// likely to encounter them in literature about floating-point encoding.
++				// This allows us to reproduce fuzz failures that depend on the specific
++				// NaN representation (for float32 there are about 2^24 possibilities!),
++				// not just the fact that the value is *a* NaN.
++				//
++				// Note that the specific value of float32(math.NaN()) can vary based on
++				// whether the architecture represents signaling NaNs using a low bit
++				// (as is common) or a high bit (as commonly implemented on MIPS
++				// hardware before around 2012). We believe that the increase in clarity
++				// from identifying "NaN" with math.NaN() is worth the slight ambiguity
++				// from a platform-dependent value.
++				fmt.Fprintf(b, "math.Float32frombits(0x%x)\n", math.Float32bits(t))
+ 			} else {
++				// We encode all other values — including the NaN value that is
++				// bitwise-identical to float32(math.Nan()) — using the default
++				// formatting, which is equivalent to strconv.FormatFloat with format
++				// 'g' and can be parsed by strconv.ParseFloat.
++				//
++				// For an ordinary floating-point number this format includes
++				// sufficiently many digits to reconstruct the exact value. For positive
++				// or negative infinity it is the string "+Inf" or "-Inf". For positive
++				// or negative zero it is "0" or "-0". For NaN, it is the string "NaN".
+ 				fmt.Fprintf(b, "%T(%v)\n", t, t)
+ 			}
+ 		case float64:
+ 			if math.IsNaN(t) && math.Float64bits(t) != math.Float64bits(math.NaN()) {
+-				fmt.Fprintf(b, "math.Float64frombits(%v)\n", math.Float64bits(t))
++				fmt.Fprintf(b, "math.Float64frombits(0x%x)\n", math.Float64bits(t))
+ 			} else {
+ 				fmt.Fprintf(b, "%T(%v)\n", t, t)
+ 			}
+ 		case string:
+ 			fmt.Fprintf(b, "string(%q)\n", t)
+ 		case rune: // int32
+-			fmt.Fprintf(b, "rune(%q)\n", t)
++			// Although rune and int32 are represented by the same type, only a subset
++			// of valid int32 values can be expressed as rune literals. Notably,
++			// negative numbers, surrogate halves, and values above unicode.MaxRune
++			// have no quoted representation.
++			//
++			// fmt with "%q" (and the corresponding functions in the strconv package)
++			// would quote out-of-range values to the Unicode replacement character
++			// instead of the original value (see https://go.dev/issue/51526), so
++			// they must be treated as int32 instead.
++			//
++			// We arbitrarily draw the line at UTF-8 validity, which biases toward the
++			// "rune" interpretation. (However, we accept either format as input.)
++			if utf8.ValidRune(t) {
++				fmt.Fprintf(b, "rune(%q)\n", t)
++			} else {
++				fmt.Fprintf(b, "int32(%v)\n", t)
++			}
+ 		case byte: // uint8
++			// For bytes, we arbitrarily prefer the character interpretation.
++			// (Every byte has a valid character encoding.)
+ 			fmt.Fprintf(b, "byte(%q)\n", t)
+ 		case []byte: // []uint8
+ 			fmt.Fprintf(b, "[]byte(%q)\n", t)
+@@ -199,6 +239,14 @@ func parseCorpusValue(line []byte) (any, error) {
+ 		}
+ 		return strconv.Unquote(val)
+ 	case "byte", "rune":
++		if kind == token.INT {
++			switch typ {
++			case "rune":
++				return parseInt(val, typ)
++			case "byte":
++				return parseUint(val, typ)
++			}
++		}
+ 		if kind != token.CHAR {
+ 			return nil, fmt.Errorf("character literal required for byte/rune types")
+ 		}
+@@ -265,18 +313,24 @@ func parseCorpusValue(line []byte) (any, error) {
+ func parseInt(val, typ string) (any, error) {
+ 	switch typ {
+ 	case "int":
+-		return strconv.Atoi(val)
++		// The int type may be either 32 or 64 bits. If 32, the fuzz tests in the
++		// corpus may include 64-bit values produced by fuzzing runs on 64-bit
++		// architectures. When running those tests, we implicitly wrap the values to
++		// fit in a regular int. (The test case is still “interesting”, even if the
++		// specific values of its inputs are platform-dependent.)
++		i, err := strconv.ParseInt(val, 0, 64)
++		return int(i), err
+ 	case "int8":
+-		i, err := strconv.ParseInt(val, 10, 8)
++		i, err := strconv.ParseInt(val, 0, 8)
+ 		return int8(i), err
+ 	case "int16":
+-		i, err := strconv.ParseInt(val, 10, 16)
++		i, err := strconv.ParseInt(val, 0, 16)
+ 		return int16(i), err
+-	case "int32":
+-		i, err := strconv.ParseInt(val, 10, 32)
++	case "int32", "rune":
++		i, err := strconv.ParseInt(val, 0, 32)
+ 		return int32(i), err
+ 	case "int64":
+-		return strconv.ParseInt(val, 10, 64)
++		return strconv.ParseInt(val, 0, 64)
+ 	default:
+ 		panic("unreachable")
+ 	}
+@@ -286,19 +340,19 @@ func parseInt(val, typ string) (any, error) {
+ func parseUint(val, typ string) (any, error) {
+ 	switch typ {
+ 	case "uint":
+-		i, err := strconv.ParseUint(val, 10, 0)
++		i, err := strconv.ParseUint(val, 0, 64)
+ 		return uint(i), err
+-	case "uint8":
+-		i, err := strconv.ParseUint(val, 10, 8)
++	case "uint8", "byte":
++		i, err := strconv.ParseUint(val, 0, 8)
+ 		return uint8(i), err
+ 	case "uint16":
+-		i, err := strconv.ParseUint(val, 10, 16)
++		i, err := strconv.ParseUint(val, 0, 16)
+ 		return uint16(i), err
+ 	case "uint32":
+-		i, err := strconv.ParseUint(val, 10, 32)
++		i, err := strconv.ParseUint(val, 0, 32)
+ 		return uint32(i), err
+ 	case "uint64":
+-		return strconv.ParseUint(val, 10, 64)
++		return strconv.ParseUint(val, 0, 64)
+ 	default:
+ 		panic("unreachable")
+ 	}
+diff --git a/src/internal/fuzz/encoding_test.go b/src/internal/fuzz/encoding_test.go
+index 3a614f5bd2..8e3800eb77 100644
+--- a/src/internal/fuzz/encoding_test.go
++++ b/src/internal/fuzz/encoding_test.go
+@@ -5,85 +5,104 @@
+ package fuzz
+ 
+ import (
++	"math"
+ 	"strconv"
+-	"strings"
+ 	"testing"
++	"unicode"
+ )
+ 
+ func TestUnmarshalMarshal(t *testing.T) {
+ 	var tests = []struct {
+-		in string
+-		ok bool
++		desc   string
++		in     string
++		reject bool
++		want   string // if different from in
+ 	}{
+ 		{
+-			in: "int(1234)",
+-			ok: false, // missing version
++			desc:   "missing version",
++			in:     "int(1234)",
++			reject: true,
+ 		},
+ 		{
++			desc: "malformed string",
+ 			in: `go test fuzz v1
+ string("a"bcad")`,
+-			ok: false, // malformed
++			reject: true,
+ 		},
+ 		{
++			desc: "empty value",
+ 			in: `go test fuzz v1
+ int()`,
+-			ok: false, // empty value
++			reject: true,
+ 		},
+ 		{
++			desc: "negative uint",
+ 			in: `go test fuzz v1
+ uint(-32)`,
+-			ok: false, // invalid negative uint
++			reject: true,
+ 		},
+ 		{
++			desc: "int8 too large",
+ 			in: `go test fuzz v1
+ int8(1234456)`,
+-			ok: false, // int8 too large
++			reject: true,
+ 		},
+ 		{
++			desc: "multiplication in int value",
+ 			in: `go test fuzz v1
+ int(20*5)`,
+-			ok: false, // expression in int value
++			reject: true,
+ 		},
+ 		{
++			desc: "double negation",
+ 			in: `go test fuzz v1
+ int(--5)`,
+-			ok: false, // expression in int value
++			reject: true,
+ 		},
+ 		{
++			desc: "malformed bool",
+ 			in: `go test fuzz v1
+ bool(0)`,
+-			ok: false, // malformed bool
++			reject: true,
+ 		},
+ 		{
++			desc: "malformed byte",
+ 			in: `go test fuzz v1
+ byte('aa)`,
+-			ok: false, // malformed byte
++			reject: true,
+ 		},
+ 		{
++			desc: "byte out of range",
+ 			in: `go test fuzz v1
+ byte('☃')`,
+-			ok: false, // byte out of range
++			reject: true,
+ 		},
+ 		{
++			desc: "extra newline",
+ 			in: `go test fuzz v1
+-string("has final newline")
++string("has extra newline")
+ `,
+-			ok: true, // has final newline
++			want: `go test fuzz v1
++string("has extra newline")`,
+ 		},
+ 		{
++			desc: "trailing spaces",
+ 			in: `go test fuzz v1
+ string("extra")
+ []byte("spacing")  
+     `,
+-			ok: true, // extra spaces in the final newline
++			want: `go test fuzz v1
++string("extra")
++[]byte("spacing")`,
+ 		},
+ 		{
++			desc: "float types",
+ 			in: `go test fuzz v1
+ float64(0)
+ float32(0)`,
+-			ok: true, // will be an integer literal since there is no decimal
+ 		},
+ 		{
++			desc: "various types",
+ 			in: `go test fuzz v1
+ int(-23)
+ int8(-2)
+@@ -101,9 +120,9 @@ bool(true)
+ string("hello\\xbd\\xb2=\\xbc ⌘")
+ float64(-12.5)
+ float32(2.5)`,
+-			ok: true,
+ 		},
+ 		{
++			desc: "float edge cases",
+ 			// The two IEEE 754 bit patterns used for the math.Float{64,32}frombits
+ 			// encodings are non-math.NAN quiet-NaN values. Since they are not equal
+ 			// to math.NaN(), they should be re-encoded to their bit patterns. They
+@@ -119,21 +138,94 @@ float32(NaN)
+ float64(+Inf)
+ float64(-Inf)
+ float64(NaN)
++math.Float64frombits(0x7ff8000000000002)
++math.Float32frombits(0x7fc00001)`,
++		},
++		{
++			desc: "int variations",
++			// Although we arbitrarily choose default integer bases (0 or 16), we may
++			// want to change those arbitrary choices in the future and should not
++			// break the parser. Verify that integers in the opposite bases still
++			// parse correctly.
++			in: `go test fuzz v1
++int(0x0)
++int32(0x41)
++int64(0xfffffffff)
++uint32(0xcafef00d)
++uint64(0xffffffffffffffff)
++uint8(0b0000000)
++byte(0x0)
++byte('\000')
++byte('\u0000')
++byte('\'')
+ math.Float64frombits(9221120237041090562)
+ math.Float32frombits(2143289345)`,
+-			ok: true,
++			want: `go test fuzz v1
++int(0)
++rune('A')
++int64(68719476735)
++uint32(3405705229)
++uint64(18446744073709551615)
++byte('\x00')
++byte('\x00')
++byte('\x00')
++byte('\x00')
++byte('\'')
++math.Float64frombits(0x7ff8000000000002)
++math.Float32frombits(0x7fc00001)`,
++		},
++		{
++			desc: "rune validation",
++			in: `go test fuzz v1
++rune(0)
++rune(0x41)
++rune(-1)
++rune(0xfffd)
++rune(0xd800)
++rune(0x10ffff)
++rune(0x110000)
++`,
++			want: `go test fuzz v1
++rune('\x00')
++rune('A')
++int32(-1)
++rune('�')
++int32(55296)
++rune('\U0010ffff')
++int32(1114112)`,
++		},
++		{
++			desc: "int overflow",
++			in: `go test fuzz v1
++int(0x7fffffffffffffff)
++uint(0xffffffffffffffff)`,
++			want: func() string {
++				switch strconv.IntSize {
++				case 32:
++					return `go test fuzz v1
++int(-1)
++uint(4294967295)`
++				case 64:
++					return `go test fuzz v1
++int(9223372036854775807)
++uint(18446744073709551615)`
++				default:
++					panic("unreachable")
++				}
++			}(),
+ 		},
+ 	}
+ 	for _, test := range tests {
+-		t.Run(test.in, func(t *testing.T) {
++		t.Run(test.desc, func(t *testing.T) {
+ 			vals, err := unmarshalCorpusFile([]byte(test.in))
+-			if test.ok && err != nil {
+-				t.Fatalf("unmarshal unexpected error: %v", err)
+-			} else if !test.ok && err == nil {
+-				t.Fatalf("unmarshal unexpected success")
++			if test.reject {
++				if err == nil {
++					t.Fatalf("unmarshal unexpected success")
++				}
++				return
+ 			}
+-			if !test.ok {
+-				return // skip the rest of the test
++			if err != nil {
++				t.Fatalf("unmarshal unexpected error: %v", err)
+ 			}
+ 			newB := marshalCorpusFile(vals...)
+ 			if err != nil {
+@@ -142,9 +234,15 @@ math.Float32frombits(2143289345)`,
+ 			if newB[len(newB)-1] != '\n' {
+ 				t.Error("didn't write final newline to corpus file")
+ 			}
+-			before, after := strings.TrimSpace(test.in), strings.TrimSpace(string(newB))
+-			if before != after {
+-				t.Errorf("values changed after unmarshal then marshal\nbefore: %q\nafter:  %q", before, after)
++
++			want := test.want
++			if want == "" {
++				want = test.in
++			}
++			want += "\n"
++			got := string(newB)
++			if got != want {
++				t.Errorf("unexpected marshaled value\ngot:\n%s\nwant:\n%s", got, want)
+ 			}
+ 		})
+ 	}
+@@ -190,3 +288,117 @@ func BenchmarkUnmarshalCorpusFile(b *testing.B) {
+ 		})
+ 	}
+ }
++
++func TestByteRoundTrip(t *testing.T) {
++	for x := 0; x < 256; x++ {
++		b1 := byte(x)
++		buf := marshalCorpusFile(b1)
++		vs, err := unmarshalCorpusFile(buf)
++		if err != nil {
++			t.Fatal(err)
++		}
++		b2 := vs[0].(byte)
++		if b2 != b1 {
++			t.Fatalf("unmarshaled %v, want %v:\n%s", b2, b1, buf)
++		}
++	}
++}
++
++func TestInt8RoundTrip(t *testing.T) {
++	for x := -128; x < 128; x++ {
++		i1 := int8(x)
++		buf := marshalCorpusFile(i1)
++		vs, err := unmarshalCorpusFile(buf)
++		if err != nil {
++			t.Fatal(err)
++		}
++		i2 := vs[0].(int8)
++		if i2 != i1 {
++			t.Fatalf("unmarshaled %v, want %v:\n%s", i2, i1, buf)
++		}
++	}
++}
++
++func FuzzFloat64RoundTrip(f *testing.F) {
++	f.Add(math.Float64bits(0))
++	f.Add(math.Float64bits(math.Copysign(0, -1)))
++	f.Add(math.Float64bits(math.MaxFloat64))
++	f.Add(math.Float64bits(math.SmallestNonzeroFloat64))
++	f.Add(math.Float64bits(math.NaN()))
++	f.Add(uint64(0x7FF0000000000001)) // signaling NaN
++	f.Add(math.Float64bits(math.Inf(1)))
++	f.Add(math.Float64bits(math.Inf(-1)))
++
++	f.Fuzz(func(t *testing.T, u1 uint64) {
++		x1 := math.Float64frombits(u1)
++
++		b := marshalCorpusFile(x1)
++		t.Logf("marshaled math.Float64frombits(0x%x):\n%s", u1, b)
++
++		xs, err := unmarshalCorpusFile(b)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if len(xs) != 1 {
++			t.Fatalf("unmarshaled %d values", len(xs))
++		}
++		x2 := xs[0].(float64)
++		u2 := math.Float64bits(x2)
++		if u2 != u1 {
++			t.Errorf("unmarshaled %v (bits 0x%x)", x2, u2)
++		}
++	})
++}
++
++func FuzzRuneRoundTrip(f *testing.F) {
++	f.Add(rune(-1))
++	f.Add(rune(0xd800))
++	f.Add(rune(0xdfff))
++	f.Add(rune(unicode.ReplacementChar))
++	f.Add(rune(unicode.MaxASCII))
++	f.Add(rune(unicode.MaxLatin1))
++	f.Add(rune(unicode.MaxRune))
++	f.Add(rune(unicode.MaxRune + 1))
++	f.Add(rune(-0x80000000))
++	f.Add(rune(0x7fffffff))
++
++	f.Fuzz(func(t *testing.T, r1 rune) {
++		b := marshalCorpusFile(r1)
++		t.Logf("marshaled rune(0x%x):\n%s", r1, b)
++
++		rs, err := unmarshalCorpusFile(b)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if len(rs) != 1 {
++			t.Fatalf("unmarshaled %d values", len(rs))
++		}
++		r2 := rs[0].(rune)
++		if r2 != r1 {
++			t.Errorf("unmarshaled rune(0x%x)", r2)
++		}
++	})
++}
++
++func FuzzStringRoundTrip(f *testing.F) {
++	f.Add("")
++	f.Add("\x00")
++	f.Add(string([]rune{unicode.ReplacementChar}))
++
++	f.Fuzz(func(t *testing.T, s1 string) {
++		b := marshalCorpusFile(s1)
++		t.Logf("marshaled %q:\n%s", s1, b)
++
++		rs, err := unmarshalCorpusFile(b)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if len(rs) != 1 {
++			t.Fatalf("unmarshaled %d values", len(rs))
++		}
++		s2 := rs[0].(string)
++		if s2 != s1 {
++			t.Errorf("unmarshaled %q", s2)
++		}
++	})
++}

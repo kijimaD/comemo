@@ -13,8 +13,57 @@ Date:   Mon Jun 24 13:17:56 2013 -0700
     R=golang-dev, iant, r
     CC=golang-dev
     https://golang.org/cl/10496043
-
+---
  misc/IntelliJIDEA/Go.xml | 1 +
  misc/bbedit/Go.plist     | 5 +++--
  misc/kate/go.xml         | 1 +
  3 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/misc/IntelliJIDEA/Go.xml b/misc/IntelliJIDEA/Go.xml
+index 09265a2e0f..51abdf4127 100644
+--- a/misc/IntelliJIDEA/Go.xml
++++ b/misc/IntelliJIDEA/Go.xml
+@@ -75,6 +75,7 @@ Copy this custom language definition & configuration file to
+             <keyword name="close"/>
+             <keyword name="complex"/>
+             <keyword name="copy"/>
++            <keyword name="delete"/>
+             <keyword name="imag"/>
+             <keyword name="len"/>
+             <keyword name="make"/>
+diff --git a/misc/bbedit/Go.plist b/misc/bbedit/Go.plist
+index 791f93d16c..1220d6efb4 100644
+--- a/misc/bbedit/Go.plist
++++ b/misc/bbedit/Go.plist
+@@ -11,7 +11,7 @@
+ 		break,
+ 		byte,
+ 		cap,
+-		case,         
++		case,
+ 		chan,
+ 		close,
+ 		complex,
+@@ -20,8 +20,9 @@
+ 		const,
+ 		continue,
+ 		copy,
+-		default,      
++		default,
+ 		defer,
++		delete,
+ 		else,
+ 		error,
+ 		fallthrough,
+diff --git a/misc/kate/go.xml b/misc/kate/go.xml
+index c187eda82b..03f4f2a0c8 100644
+--- a/misc/kate/go.xml
++++ b/misc/kate/go.xml
+@@ -70,6 +70,7 @@
+       <item> close </item>
+       <item> complex </item>
+       <item> copy </item>
++      <item> delete </item>
+       <item> imag </item>
+       <item> len </item>
+       <item> make </item>

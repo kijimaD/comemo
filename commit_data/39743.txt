@@ -74,8 +74,231 @@ Date:   Sun Mar 17 22:45:30 2019 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/json/bench_test.go  | 12 ++++++++++++
  src/encoding/json/decode.go      | 28 +++++++++++++++-------------
  src/encoding/json/decode_test.go | 14 +++++++++++++-
  3 files changed, 40 insertions(+), 14 deletions(-)
+
+diff --git a/src/encoding/json/bench_test.go b/src/encoding/json/bench_test.go
+index 72cb349062..c81ab8e993 100644
+--- a/src/encoding/json/bench_test.go
++++ b/src/encoding/json/bench_test.go
+@@ -82,6 +82,7 @@ func codeInit() {
+ }
+ 
+ func BenchmarkCodeEncoder(b *testing.B) {
++	b.ReportAllocs()
+ 	if codeJSON == nil {
+ 		b.StopTimer()
+ 		codeInit()
+@@ -99,6 +100,7 @@ func BenchmarkCodeEncoder(b *testing.B) {
+ }
+ 
+ func BenchmarkCodeMarshal(b *testing.B) {
++	b.ReportAllocs()
+ 	if codeJSON == nil {
+ 		b.StopTimer()
+ 		codeInit()
+@@ -133,6 +135,7 @@ func benchMarshalBytes(n int) func(*testing.B) {
+ }
+ 
+ func BenchmarkMarshalBytes(b *testing.B) {
++	b.ReportAllocs()
+ 	// 32 fits within encodeState.scratch.
+ 	b.Run("32", benchMarshalBytes(32))
+ 	// 256 doesn't fit in encodeState.scratch, but is small enough to
+@@ -143,6 +146,7 @@ func BenchmarkMarshalBytes(b *testing.B) {
+ }
+ 
+ func BenchmarkCodeDecoder(b *testing.B) {
++	b.ReportAllocs()
+ 	if codeJSON == nil {
+ 		b.StopTimer()
+ 		codeInit()
+@@ -167,6 +171,7 @@ func BenchmarkCodeDecoder(b *testing.B) {
+ }
+ 
+ func BenchmarkUnicodeDecoder(b *testing.B) {
++	b.ReportAllocs()
+ 	j := []byte(`"\uD83D\uDE01"`)
+ 	b.SetBytes(int64(len(j)))
+ 	r := bytes.NewReader(j)
+@@ -182,6 +187,7 @@ func BenchmarkUnicodeDecoder(b *testing.B) {
+ }
+ 
+ func BenchmarkDecoderStream(b *testing.B) {
++	b.ReportAllocs()
+ 	b.StopTimer()
+ 	var buf bytes.Buffer
+ 	dec := NewDecoder(&buf)
+@@ -204,6 +210,7 @@ func BenchmarkDecoderStream(b *testing.B) {
+ }
+ 
+ func BenchmarkCodeUnmarshal(b *testing.B) {
++	b.ReportAllocs()
+ 	if codeJSON == nil {
+ 		b.StopTimer()
+ 		codeInit()
+@@ -221,6 +228,7 @@ func BenchmarkCodeUnmarshal(b *testing.B) {
+ }
+ 
+ func BenchmarkCodeUnmarshalReuse(b *testing.B) {
++	b.ReportAllocs()
+ 	if codeJSON == nil {
+ 		b.StopTimer()
+ 		codeInit()
+@@ -238,6 +246,7 @@ func BenchmarkCodeUnmarshalReuse(b *testing.B) {
+ }
+ 
+ func BenchmarkUnmarshalString(b *testing.B) {
++	b.ReportAllocs()
+ 	data := []byte(`"hello, world"`)
+ 	b.RunParallel(func(pb *testing.PB) {
+ 		var s string
+@@ -250,6 +259,7 @@ func BenchmarkUnmarshalString(b *testing.B) {
+ }
+ 
+ func BenchmarkUnmarshalFloat64(b *testing.B) {
++	b.ReportAllocs()
+ 	data := []byte(`3.14`)
+ 	b.RunParallel(func(pb *testing.PB) {
+ 		var f float64
+@@ -262,6 +272,7 @@ func BenchmarkUnmarshalFloat64(b *testing.B) {
+ }
+ 
+ func BenchmarkUnmarshalInt64(b *testing.B) {
++	b.ReportAllocs()
+ 	data := []byte(`3`)
+ 	b.RunParallel(func(pb *testing.PB) {
+ 		var x int64
+@@ -300,6 +311,7 @@ func BenchmarkUnmapped(b *testing.B) {
+ }
+ 
+ func BenchmarkTypeFieldsCache(b *testing.B) {
++	b.ReportAllocs()
+ 	var maxTypes int = 1e6
+ 	if testenv.Builder() != "" {
+ 		maxTypes = 1e3 // restrict cache sizes on builders
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index 3900bcc165..3f9fe1f573 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -14,6 +14,7 @@ import (
+ 	"fmt"
+ 	"reflect"
+ 	"strconv"
++	"strings"
+ 	"unicode"
+ 	"unicode/utf16"
+ 	"unicode/utf8"
+@@ -266,8 +267,8 @@ type decodeState struct {
+ 	opcode       int // last read result
+ 	scan         scanner
+ 	errorContext struct { // provides context for type errors
+-		Struct reflect.Type
+-		Field  string
++		Struct     reflect.Type
++		FieldStack []string
+ 	}
+ 	savedError            error
+ 	useNumber             bool
+@@ -289,7 +290,9 @@ func (d *decodeState) init(data []byte) *decodeState {
+ 	d.off = 0
+ 	d.savedError = nil
+ 	d.errorContext.Struct = nil
+-	d.errorContext.Field = ""
++
++	// Reuse the allocated space for the FieldStack slice.
++	d.errorContext.FieldStack = d.errorContext.FieldStack[:0]
+ 	return d
+ }
+ 
+@@ -303,11 +306,11 @@ func (d *decodeState) saveError(err error) {
+ 
+ // addErrorContext returns a new error enhanced with information from d.errorContext
+ func (d *decodeState) addErrorContext(err error) error {
+-	if d.errorContext.Struct != nil || d.errorContext.Field != "" {
++	if d.errorContext.Struct != nil || len(d.errorContext.FieldStack) > 0 {
+ 		switch err := err.(type) {
+ 		case *UnmarshalTypeError:
+ 			err.Struct = d.errorContext.Struct.Name()
+-			err.Field = d.errorContext.Field
++			err.Field = strings.Join(d.errorContext.FieldStack, ".")
+ 			return err
+ 		}
+ 	}
+@@ -659,7 +662,7 @@ func (d *decodeState) object(v reflect.Value) error {
+ 	}
+ 
+ 	var mapElem reflect.Value
+-	originalErrorContext := d.errorContext
++	origErrorContext := d.errorContext
+ 
+ 	for {
+ 		// Read opening " of string key or closing }.
+@@ -730,11 +733,7 @@ func (d *decodeState) object(v reflect.Value) error {
+ 					}
+ 					subv = subv.Field(i)
+ 				}
+-				if originalErrorContext.Field == "" {
+-					d.errorContext.Field = f.name
+-				} else {
+-					d.errorContext.Field = originalErrorContext.Field + "." + f.name
+-				}
++				d.errorContext.FieldStack = append(d.errorContext.FieldStack, f.name)
+ 				d.errorContext.Struct = t
+ 			} else if d.disallowUnknownFields {
+ 				d.saveError(fmt.Errorf("json: unknown field %q", key))
+@@ -814,14 +813,17 @@ func (d *decodeState) object(v reflect.Value) error {
+ 		if d.opcode == scanSkipSpace {
+ 			d.scanWhile(scanSkipSpace)
+ 		}
++		// Reset errorContext to its original state.
++		// Keep the same underlying array for FieldStack, to reuse the
++		// space and avoid unnecessary allocs.
++		d.errorContext.FieldStack = d.errorContext.FieldStack[:len(origErrorContext.FieldStack)]
++		d.errorContext.Struct = origErrorContext.Struct
+ 		if d.opcode == scanEndObject {
+ 			break
+ 		}
+ 		if d.opcode != scanObjectValue {
+ 			panic(phasePanicMsg)
+ 		}
+-
+-		d.errorContext = originalErrorContext
+ 	}
+ 	return nil
+ }
+diff --git a/src/encoding/json/decode_test.go b/src/encoding/json/decode_test.go
+index d99d65d763..8da74fa3d3 100644
+--- a/src/encoding/json/decode_test.go
++++ b/src/encoding/json/decode_test.go
+@@ -50,7 +50,8 @@ type P struct {
+ }
+ 
+ type PP struct {
+-	T T
++	T  T
++	Ts []T
+ }
+ 
+ type SS string
+@@ -943,6 +944,17 @@ var unmarshalTests = []unmarshalTest{
+ 			Offset: 29,
+ 		},
+ 	},
++	{
++		in:  `{"Ts": [{"Y": 1}, {"Y": 2}, {"Y": "bad-type"}]}`,
++		ptr: new(PP),
++		err: &UnmarshalTypeError{
++			Value:  "string",
++			Struct: "T",
++			Field:  "Ts.Y",
++			Type:   reflect.TypeOf(int(0)),
++			Offset: 29,
++		},
++	},
+ }
+ 
+ func TestMarshal(t *testing.T) {

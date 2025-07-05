@@ -7,6 +7,66 @@ Date:   Tue Mar 27 11:19:30 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5921043
-
+---
  doc/install.html | 32 ++++++++++++++++----------------
  1 file changed, 16 insertions(+), 16 deletions(-)
+
+diff --git a/doc/install.html b/doc/install.html
+index 1c8f9942f3..ad3eaf338b 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -125,38 +125,38 @@ Terminal sessions for the change to take effect.
+ <p>
+ The Go project provides two installation options for Windows users
+ (besides <a href="/doc/install/source">installing from source</a>):
+-an MSI installer that configures your installation automatically,
+-and a zip archive that requires you to set some environment variables.
++a zip archive that requires you to set some environment variables and an
++experimental MSI installer that configures your installation automatically.
+ </p>
+ 
+-<h4 id="windows_msi">MSI installer</h3>
++<h4 id="windows_zip">Zip archive</h3>
+ 
+ <p>
+-Open the <a href="http://code.google.com/p/go/downloads/list?q=OpSys-Windows+Type%3DInstaller">MSI file</a>
+-and follow the prompts to install the Go tools.
+-By default, the installer puts the Go distribution in <code>c:\Go</code>.
++Extract the <a href="http://code.google.com/p/go/downloads/list?q=OpSys-Windows+Type%3DArchive">zip file</a>
++to the directory of your choice (we suggest <code>c:\Go</code>).
+ </p>
+ 
+ <p>
+-The installer should put the <code>c:\Go\bin</code> directory in your
+-<code>PATH</code> environment variable. You may need to restart any open
+-command prompts for the change to take effect.
++If you chose a directory other than <code>c:\Go</code>, you must set
++the <code>GOROOT</code> environment variable to your chosen path.
+ </p>
+ 
+-<h4 id="windows_zip">Zip archive</h3>
+-
+ <p>
+-Extract the <a href="http://code.google.com/p/go/downloads/list?q=OpSys-Windows+Type%3DArchive">ZIP file</a>
+-to the directory of your choice (we suggest <code>c:\Go</code>).
++Add the <code>bin</code> subdirectory of your Go root (for example, <code>c:\Go\bin</code>) to to your <code>PATH</code> environment variable.
+ </p>
+ 
++<h4 id="windows_msi">MSI installer (experimental)</h3>
++
+ <p>
+-If you chose a directory other than <code>c:\Go</code>, you must set
+-the <code>GOROOT</code> environment variable to your chosen path.
++Open the <a href="http://code.google.com/p/go/downloads/list?q=OpSys-Windows+Type%3DInstaller">MSI file</a>
++and follow the prompts to install the Go tools.
++By default, the installer puts the Go distribution in <code>c:\Go</code>.
+ </p>
+ 
+ <p>
+-Add the <code>bin</code> subdirectory of your Go root (for example, <code>c:\Go\bin</code>) to to your <code>PATH</code> environment variable.
++The installer should put the <code>c:\Go\bin</code> directory in your
++<code>PATH</code> environment variable. You may need to restart any open
++command prompts for the change to take effect.
+ </p>
+ 
+ <h4 id="windows_env">Setting environment variables under Windows</h4>

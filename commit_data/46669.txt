@@ -15,10 +15,337 @@ Date:   Tue Dec 29 22:44:30 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/279519
     Trust: David Chase <drchase@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/compile/internal/ir/fmt.go           |  5 ++
  src/cmd/compile/internal/ssa/expand_calls.go | 78 ++++++++++++++++++++++------
  src/cmd/compile/internal/ssa/func.go         |  6 ++-
  src/cmd/compile/internal/ssa/op.go           | 10 +++-
  src/cmd/compile/internal/ssagen/ssa.go       | 77 ++++++++++++++++++++-------
  5 files changed, 138 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index 0ebfb84286..01197ad272 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -1119,6 +1119,11 @@ func dumpNode(w io.Writer, n Node, depth int) {
+ 		return
+ 	}
+ 
++	if n == nil {
++		fmt.Fprint(w, "NilIrNode")
++		return
++	}
++
+ 	if len(n.Init()) != 0 {
+ 		fmt.Fprintf(w, "%+v-init", n.Op())
+ 		dumpNodes(w, n.Init(), depth+1)
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index e1c657d4a4..66ef1b3515 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -24,6 +24,10 @@ type offsetKey struct {
+ 	pt     *types.Type
+ }
+ 
++func isBlockMultiValueExit(b *Block) bool {
++	return (b.Kind == BlockRet || b.Kind == BlockRetJmp) && len(b.Controls) > 0 && b.Controls[0].Op == OpMakeResult
++}
++
+ // expandCalls converts LE (Late Expansion) calls that act like they receive value args into a lower-level form
+ // that is more oriented to a platform's ABI.  The SelectN operations that extract results are rewritten into
+ // more appropriate forms, and any StructMake or ArrayMake inputs are decomposed until non-struct values are
+@@ -624,6 +628,24 @@ func expandCalls(f *Func) {
+ 		return x
+ 	}
+ 
++	rewriteDereference := func(b *Block, base, a, mem *Value, offset, size int64, typ *types.Type, pos src.XPos) *Value {
++		source := a.Args[0]
++		dst := offsetFrom(base, offset, source.Type)
++		if a.Uses == 1 && a.Block == b {
++			a.reset(OpMove)
++			a.Pos = pos
++			a.Type = types.TypeMem
++			a.Aux = typ
++			a.AuxInt = size
++			a.SetArgs3(dst, source, mem)
++			mem = a
++		} else {
++			mem = b.NewValue3A(pos, OpMove, types.TypeMem, typ, dst, source, mem)
++			mem.AuxInt = size
++		}
++		return mem
++	}
++
+ 	// rewriteArgs removes all the Args from a call and converts the call args into appropriate
+ 	// stores (or later, register movement).  Extra args for interface and closure calls are ignored,
+ 	// but removed.
+@@ -631,7 +653,7 @@ func expandCalls(f *Func) {
+ 		// Thread the stores on the memory arg
+ 		aux := v.Aux.(*AuxCall)
+ 		pos := v.Pos.WithNotStmt()
+-		m0 := v.Args[len(v.Args)-1]
++		m0 := v.MemoryArg()
+ 		mem := m0
+ 		for i, a := range v.Args {
+ 			if i < firstArg {
+@@ -647,20 +669,7 @@ func expandCalls(f *Func) {
+ 				}
+ 				// "Dereference" of addressed (probably not-SSA-eligible) value becomes Move
+ 				// TODO this will be more complicated with registers in the picture.
+-				source := a.Args[0]
+-				dst := f.ConstOffPtrSP(source.Type, aux.OffsetOfArg(auxI), sp)
+-				if a.Uses == 1 && a.Block == v.Block {
+-					a.reset(OpMove)
+-					a.Pos = pos
+-					a.Type = types.TypeMem
+-					a.Aux = aux.TypeOfArg(auxI)
+-					a.AuxInt = aux.SizeOfArg(auxI)
+-					a.SetArgs3(dst, source, mem)
+-					mem = a
+-				} else {
+-					mem = v.Block.NewValue3A(pos, OpMove, types.TypeMem, aux.TypeOfArg(auxI), dst, source, mem)
+-					mem.AuxInt = aux.SizeOfArg(auxI)
+-				}
++				mem = rewriteDereference(v.Block, sp, a, mem, aux.OffsetOfArg(auxI), aux.SizeOfArg(auxI), aux.TypeOfArg(auxI), pos)
+ 			} else {
+ 				if debug {
+ 					fmt.Printf("storeArg %s, %v, %d\n", a.LongString(), aux.TypeOfArg(auxI), aux.OffsetOfArg(auxI))
+@@ -692,6 +701,45 @@ func expandCalls(f *Func) {
+ 				v.SetArgs2(code, mem)
+ 			}
+ 		}
++		if isBlockMultiValueExit(b) {
++			// Very similar to code in rewriteArgs, but results instead of args.
++			v := b.Controls[0]
++			m0 := v.MemoryArg()
++			mem := m0
++			aux := f.OwnAux
++			pos := v.Pos.WithNotStmt()
++			for j, a := range v.Args {
++				i := int64(j)
++				if a == m0 {
++					break
++				}
++				auxType := aux.TypeOfResult(i)
++				auxBase := b.NewValue2A(v.Pos, OpLocalAddr, types.NewPtr(auxType), aux.results[i].Name, sp, mem)
++				auxOffset := int64(0)
++				auxSize := aux.SizeOfResult(i)
++				if a.Op == OpDereference {
++					// Avoid a self-move, and if one is detected try to remove the already-inserted VarDef for the assignment that won't happen.
++					if dAddr, dMem := a.Args[0], a.Args[1]; dAddr.Op == OpLocalAddr && dAddr.Args[0].Op == OpSP &&
++						dAddr.Args[1] == dMem && dAddr.Aux == aux.results[i].Name {
++						if dMem.Op == OpVarDef && dMem.Aux == dAddr.Aux {
++							dMem.copyOf(dMem.MemoryArg()) // elide the VarDef
++						}
++						continue
++					}
++					mem = rewriteDereference(v.Block, auxBase, a, mem, auxOffset, auxSize, auxType, pos)
++				} else {
++					if a.Op == OpLoad && a.Args[0].Op == OpLocalAddr {
++						addr := a.Args[0]
++						if addr.MemoryArg() == a.MemoryArg() && addr.Aux == aux.results[i].Name {
++							continue
++						}
++					}
++					mem = storeArgOrLoad(v.Pos, b, auxBase, a, mem, aux.TypeOfResult(i), auxOffset)
++				}
++			}
++			b.SetControl(mem)
++			v.reset(OpInvalid) // otherwise it can have a mem operand which will fail check(), even though it is dead.
++		}
+ 	}
+ 
+ 	for i, name := range f.Names {
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index f753b4407b..de99a8d4af 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -60,6 +60,8 @@ type Func struct {
+ 
+ 	// RegArgs is a slice of register-memory pairs that must be spilled and unspilled in the uncommon path of function entry.
+ 	RegArgs []ArgPair
++	// AuxCall describing parameters and results for this function.
++	OwnAux *AuxCall
+ 
+ 	// WBLoads is a list of Blocks that branch on the write
+ 	// barrier flag. Safe-points are disabled from the OpLoad that
+@@ -774,7 +776,7 @@ func DebugNameMatch(evname, name string) bool {
+ }
+ 
+ func (f *Func) spSb() (sp, sb *Value) {
+-	initpos := f.Entry.Pos
++	initpos := src.NoXPos // These are originally created with no position in ssa.go; if they are optimized out then recreated, should be the same.
+ 	for _, v := range f.Entry.Values {
+ 		if v.Op == OpSB {
+ 			sb = v
+@@ -783,7 +785,7 @@ func (f *Func) spSb() (sp, sb *Value) {
+ 			sp = v
+ 		}
+ 		if sb != nil && sp != nil {
+-			break
++			return
+ 		}
+ 	}
+ 	if sb == nil {
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 5e6ce2b508..c64b145107 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -5,6 +5,7 @@
+ package ssa
+ 
+ import (
++	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"fmt"
+@@ -70,7 +71,8 @@ type auxType int8
+ 
+ type Param struct {
+ 	Type   *types.Type
+-	Offset int32 // TODO someday this will be a register
++	Offset int32    // Offset of Param if not in a register.
++	Name   *ir.Name // For OwnAux, need to prepend stores with Vardefs
+ }
+ 
+ type AuxCall struct {
+@@ -199,6 +201,12 @@ func ClosureAuxCall(args []Param, results []Param) *AuxCall {
+ 
+ func (*AuxCall) CanBeAnSSAAux() {}
+ 
++// OwnAuxCall returns a function's own AuxCall
++func OwnAuxCall(args []Param, results []Param) *AuxCall {
++	// TODO if this remains identical to ClosureAuxCall above after new ABI is done, should deduplicate.
++	return &AuxCall{Fn: nil, args: args, results: results}
++}
++
+ const (
+ 	auxNone         auxType = iota
+ 	auxBool                 // auxInt is 0/1 for false/true
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 8ed0e6101c..5ba8579f6a 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -459,7 +459,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 			args = append(args, ssa.Param{Type: n.Type(), Offset: int32(n.FrameOffset())})
+ 		case ir.PPARAMOUT:
+ 			s.decladdrs[n] = s.entryNewValue2A(ssa.OpLocalAddr, types.NewPtr(n.Type()), n, s.sp, s.startmem)
+-			results = append(results, ssa.Param{Type: n.Type(), Offset: int32(n.FrameOffset())})
++			results = append(results, ssa.Param{Type: n.Type(), Offset: int32(n.FrameOffset()), Name: n})
+ 		case ir.PAUTO:
+ 			// processed at each use, to prevent Addr coming
+ 			// before the decl.
+@@ -467,6 +467,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 			s.Fatalf("local variable with class %v unimplemented", n.Class)
+ 		}
+ 	}
++	s.f.OwnAux = ssa.OwnAuxCall(args, results)
+ 
+ 	// Populate SSAable arguments.
+ 	for _, n := range fn.Dcl {
+@@ -532,6 +533,8 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 		}
+ 	}
+ 
++	s.f.HTMLWriter.WritePhase("before insert phis", "before insert phis")
++
+ 	s.insertPhis()
+ 
+ 	// Main call to ssa package to compile function
+@@ -1799,6 +1802,7 @@ const shareDeferExits = false
+ // It returns a BlockRet block that ends the control flow. Its control value
+ // will be set to the final memory state.
+ func (s *state) exit() *ssa.Block {
++	lateResultLowering := s.f.DebugTest && ssa.LateCallExpansionEnabledWithin(s.f)
+ 	if s.hasdefer {
+ 		if s.hasOpenDefers {
+ 			if shareDeferExits && s.lastDeferExit != nil && len(s.openDefers) == s.lastDeferCount {
+@@ -1815,28 +1819,61 @@ func (s *state) exit() *ssa.Block {
+ 		}
+ 	}
+ 
+-	// Store SSAable and heap-escaped PPARAMOUT variables back to stack locations.
+-	for _, f := range s.curfn.Type().Results().FieldSlice() {
+-		n := f.Nname.(*ir.Name)
+-		if s.canSSA(n) {
+-			val := s.variable(n, n.Type())
+-			s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, n, s.mem())
+-			s.store(n.Type(), s.decladdrs[n], val)
+-		} else if !n.OnStack() {
++	var b *ssa.Block
++	var m *ssa.Value
++	// Do actual return.
++	// These currently turn into self-copies (in many cases).
++	if lateResultLowering {
++		resultFields := s.curfn.Type().Results().FieldSlice()
++		results := make([]*ssa.Value, len(resultFields)+1, len(resultFields)+1)
++		m = s.newValue0(ssa.OpMakeResult, s.f.OwnAux.LateExpansionResultType())
++		// Store SSAable and heap-escaped PPARAMOUT variables back to stack locations.
++		for i, f := range resultFields {
++			n := f.Nname.(*ir.Name)
+ 			s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, n, s.mem())
+-			s.move(n.Type(), s.decladdrs[n], s.expr(n.Heapaddr))
++			if s.canSSA(n) { // result is in some SSA variable
++				results[i] = s.variable(n, n.Type())
++			} else if !n.OnStack() { // result is actually heap allocated
++				ha := s.expr(n.Heapaddr)
++				s.instrumentFields(n.Type(), ha, instrumentRead)
++				results[i] = s.newValue2(ssa.OpDereference, n.Type(), ha, s.mem())
++			} else { // result is not SSA-able; not escaped, so not on heap, but too large for SSA.
++				// Before register ABI this ought to be a self-move, home=dest,
++				// With register ABI, it's still a self-move if parameter is on stack (i.e., too big or overflowed)
++				results[i] = s.newValue2(ssa.OpDereference, n.Type(), s.addr(n), s.mem())
++			}
+ 		}
+-		// TODO: if val is ever spilled, we'd like to use the
+-		// PPARAMOUT slot for spilling it. That won't happen
+-		// currently.
+-	}
+ 
+-	// Run exit code. Today, this is just raceexit, in -race mode.
+-	s.stmtList(s.curfn.Exit)
++		// Run exit code. Today, this is just racefuncexit, in -race mode.
++		// TODO this seems risky here with a register-ABI, but not clear it is right to do it earlier either.
++		// Spills in register allocation might just fix it.
++		s.stmtList(s.curfn.Exit)
+ 
+-	// Do actual return.
+-	m := s.mem()
+-	b := s.endBlock()
++		results[len(results)-1] = s.mem()
++		m.AddArgs(results...)
++	} else {
++		// Store SSAable and heap-escaped PPARAMOUT variables back to stack locations.
++		for _, f := range s.curfn.Type().Results().FieldSlice() {
++			n := f.Nname.(*ir.Name)
++			if s.canSSA(n) {
++				val := s.variable(n, n.Type())
++				s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, n, s.mem())
++				s.store(n.Type(), s.decladdrs[n], val)
++			} else if !n.OnStack() {
++				s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, n, s.mem())
++				s.move(n.Type(), s.decladdrs[n], s.expr(n.Heapaddr))
++			} // else, on stack but too large to SSA, the result is already in its destination by construction, so no store needed.
++
++			// TODO: if (SSA) val is ever spilled, we'd like to use the PPARAMOUT slot for spilling it. That won't happen currently.
++		}
++
++		// Run exit code. Today, this is just racefuncexit, in -race mode.
++		s.stmtList(s.curfn.Exit)
++
++		// Do actual return.
++		m = s.mem()
++	}
++	b = s.endBlock()
+ 	b.Kind = ssa.BlockRet
+ 	b.SetControl(m)
+ 	if s.hasdefer && s.hasOpenDefers {
+@@ -5253,7 +5290,7 @@ func (s *state) canSSAName(name *ir.Name) bool {
+ 	// TODO: try to make more variables SSAable?
+ }
+ 
+-// canSSA reports whether variables of type t are SSA-able.
++// TypeOK reports whether variables of type t are SSA-able.
+ func TypeOK(t *types.Type) bool {
+ 	types.CalcSize(t)
+ 	if t.Width > int64(4*types.PtrSize) {

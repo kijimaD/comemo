@@ -7,7 +7,7 @@ Date:   Wed Nov 30 11:59:44 2011 -0500
     R=r, bradfitz, gri, dsymonds, iant
     CC=golang-dev
     https://golang.org/cl/5392041
-
+---
  src/pkg/runtime/darwin/386/sys.s    |   16 +
  src/pkg/runtime/darwin/amd64/sys.s  |   13 +
  src/pkg/runtime/freebsd/386/sys.s   |   17 +
@@ -37,3 +37,3945 @@ Date:   Wed Nov 30 11:59:44 2011 -0500
  src/pkg/time/zoneinfo_unix.go       |  141 +++--
  src/pkg/time/zoneinfo_windows.go    |  269 +++-------
  28 files changed, 1967 insertions(+), 872 deletions(-)
+
+diff --git a/src/pkg/runtime/darwin/386/sys.s b/src/pkg/runtime/darwin/386/sys.s
+index c8b89bfa3f..426367b9e2 100644
+--- a/src/pkg/runtime/darwin/386/sys.s
++++ b/src/pkg/runtime/darwin/386/sys.s
+@@ -60,6 +60,22 @@ TEXT runtime·setitimer(SB),7,$0
+ 	INT	$0x80
+ 	RET
+ 
++// func now() (sec int64, nsec int32)
++TEXT time·now(SB), 7, $32
++	LEAL	12(SP), AX	// must be non-nil, unused
++	MOVL	AX, 4(SP)
++	MOVL	$0, 8(SP)	// time zone pointer
++	MOVL	$116, AX
++	INT	$0x80
++	MOVL	DX, BX
++
++	// sec is in AX, usec in BX
++	MOVL	AX, sec+0(FP)
++	MOVL	$0, sec+4(FP)
++	IMULL	$1000, BX
++	MOVL	BX, nsec+8(FP)
++	RET
++
+ // int64 nanotime(void) so really
+ // void nanotime(int64 *nsec)
+ TEXT runtime·nanotime(SB), 7, $32
+diff --git a/src/pkg/runtime/darwin/amd64/sys.s b/src/pkg/runtime/darwin/amd64/sys.s
+index f049d973db..5a504e3ecf 100644
+--- a/src/pkg/runtime/darwin/amd64/sys.s
++++ b/src/pkg/runtime/darwin/amd64/sys.s
+@@ -55,6 +55,19 @@ TEXT runtime·setitimer(SB), 7, $0
+ 	SYSCALL
+ 	RET
+ 
++// func now() (sec int64, nsec int32)
++TEXT time·now(SB), 7, $32
++	MOVQ	SP, DI	// must be non-nil, unused
++	MOVQ	$0, SI
++	MOVL	$(0x2000000+116), AX
++	SYSCALL
++
++	// sec is in AX, usec in DX
++	MOVQ	AX, sec+0(FP)
++	IMULQ	$1000, DX
++	MOVL	DX, nsec+8(FP)
++	RET
++
+ // int64 nanotime(void)
+ TEXT runtime·nanotime(SB), 7, $32
+ 	MOVQ	SP, DI	// must be non-nil, unused
+diff --git a/src/pkg/runtime/freebsd/386/sys.s b/src/pkg/runtime/freebsd/386/sys.s
+index 3856a53707..41134ad61f 100644
+--- a/src/pkg/runtime/freebsd/386/sys.s
++++ b/src/pkg/runtime/freebsd/386/sys.s
+@@ -106,6 +106,23 @@ TEXT runtime·setitimer(SB), 7, $-4
+ 	INT	$0x80
+ 	RET
+ 
++// func now() (sec int64, nsec int32)
++TEXT time·now(SB), 7, $32
++	MOVL	$116, AX
++	LEAL	12(SP), BX
++	MOVL	BX, 4(SP)
++	MOVL	$0, 8(SP)
++	INT	$0x80
++	MOVL	12(SP), AX	// sec
++	MOVL	16(SP), BX	// usec
++
++	// sec is in AX, usec in BX
++	MOVL	AX, sec+0(FP)
++	MOVL	$0, sec+4(FP)
++	IMULL	$1000, BX
++	MOVL	BX, nsec+8(FP)
++	RET
++
+ // int64 nanotime(void) so really
+ // void nanotime(int64 *nsec)
+ TEXT runtime·nanotime(SB), 7, $32
+diff --git a/src/pkg/runtime/freebsd/amd64/sys.s b/src/pkg/runtime/freebsd/amd64/sys.s
+index 252069e0db..bd63650236 100644
+--- a/src/pkg/runtime/freebsd/amd64/sys.s
++++ b/src/pkg/runtime/freebsd/amd64/sys.s
+@@ -85,6 +85,21 @@ TEXT runtime·setitimer(SB), 7, $-8
+ 	SYSCALL
+ 	RET
+ 
++// func now() (sec int64, nsec int32)
++TEXT time·now(SB), 7, $32
++	MOVL	$116, AX
++	LEAQ	8(SP), DI
++	MOVQ	$0, SI
++	SYSCALL
++	MOVQ	8(SP), AX	// sec
++	MOVL	16(SP), DX	// usec
++
++	// sec is in AX, usec in DX
++	MOVQ	AX, sec+0(FP)
++	IMULQ	$1000, DX
++	MOVL	DX, nsec+8(FP)
++	RET
++
+ TEXT runtime·nanotime(SB), 7, $32
+ 	MOVL	$116, AX
+ 	LEAQ	8(SP), DI
+diff --git a/src/pkg/runtime/linux/386/sys.s b/src/pkg/runtime/linux/386/sys.s
+index 97d9d5ed9c..7baeb34bce 100644
+--- a/src/pkg/runtime/linux/386/sys.s
++++ b/src/pkg/runtime/linux/386/sys.s
+@@ -95,6 +95,23 @@ TEXT runtime·mincore(SB),7,$0-24
+ 	CALL	*runtime·_vdso(SB)
+ 	RET
+ 
++// func now() (sec int64, nsec int32)
++TEXT time·now(SB), 7, $32
++	MOVL	$78, AX			// syscall - gettimeofday
++	LEAL	8(SP), BX
++	MOVL	$0, CX
++	MOVL	$0, DX
++	CALL	*runtime·_vdso(SB)
++	MOVL	8(SP), AX	// sec
++	MOVL	12(SP), BX	// usec
++
++	// sec is in AX, usec in BX
++	MOVL	AX, sec+0(FP)
++	MOVL	$0, sec+4(FP)
++	IMULL	$1000, BX
++	MOVL	BX, nsec+8(FP)
++	RET
++
+ // int64 nanotime(void) so really
+ // void nanotime(int64 *nsec)
+ TEXT runtime·nanotime(SB), 7, $32
+diff --git a/src/pkg/runtime/linux/amd64/sys.s b/src/pkg/runtime/linux/amd64/sys.s
+index 227c8e62cc..ff72a75340 100644
+--- a/src/pkg/runtime/linux/amd64/sys.s
++++ b/src/pkg/runtime/linux/amd64/sys.s
+@@ -93,6 +93,21 @@ TEXT runtime·mincore(SB),7,$0-24
+ 	SYSCALL
+ 	RET
+ 
++// func now() (sec int64, nsec int32)
++TEXT time·now(SB), 7, $32
++	LEAQ	8(SP), DI
++	MOVQ	$0, SI
++	MOVQ	$0xffffffffff600000, AX
++	CALL	AX
++	MOVQ	8(SP), AX	// sec
++	MOVL	16(SP), DX	// usec
++
++	// sec is in AX, usec in DX
++	MOVQ	AX, sec+0(FP)
++	IMULQ	$1000, DX
++	MOVL	DX, nsec+8(FP)
++	RET
++
+ TEXT runtime·nanotime(SB), 7, $32
+ 	LEAQ	8(SP), DI
+ 	MOVQ	$0, SI
+diff --git a/src/pkg/runtime/linux/arm/sys.s b/src/pkg/runtime/linux/arm/sys.s
+index 3d26ff0a41..80f956fb08 100644
+--- a/src/pkg/runtime/linux/arm/sys.s
++++ b/src/pkg/runtime/linux/arm/sys.s
+@@ -127,6 +127,23 @@ TEXT runtime·mincore(SB),7,$0
+ 	SWI	$0
+ 	RET
+ 
++TEXT time·now(SB), 7, $32
++	MOVW	$8(R13), R0  // timeval
++	MOVW	$0, R1  // zone
++	MOVW	$SYS_gettimeofday, R7
++	SWI	$0
++	
++	MOVW	8(R13), R0  // sec
++	MOVW	12(R13), R2  // usec
++	
++	MOVW	R0, 0(FP)
++	MOVW	$0, R1
++	MOVW	R1, 4(FP)
++	MOVW	$1000, R3
++	MUL	R3, R2
++	MOVW	R2, 8(FP)
++	RET	
++
+ // int64 nanotime(void) so really
+ // void nanotime(int64 *nsec)
+ TEXT runtime·nanotime(SB),7,$32
+diff --git a/src/pkg/runtime/openbsd/386/sys.s b/src/pkg/runtime/openbsd/386/sys.s
+index 6a6a7bbd3b..2b1be7ee6b 100644
+--- a/src/pkg/runtime/openbsd/386/sys.s
++++ b/src/pkg/runtime/openbsd/386/sys.s
+@@ -91,6 +91,23 @@ TEXT runtime·setitimer(SB),7,$-4
+ 	INT	$0x80
+ 	RET
+ 
++// func now() (sec int64, nsec int32)
++TEXT time·now(SB), 7, $32
++	MOVL	$116, AX
++	LEAL	12(SP), BX
++	MOVL	BX, 4(SP)
++	MOVL	$0, 8(SP)
++	INT	$0x80
++	MOVL	12(SP), AX		// sec
++	MOVL	16(SP), BX		// usec
++
++	// sec is in AX, usec in BX
++	MOVL	AX, sec+0(FP)
++	MOVL	$0, sec+4(FP)
++	IMULL	$1000, BX
++	MOVL	BX, nsec+8(FP)
++	RET
++
+ // int64 nanotime(void) so really
+ // void nanotime(int64 *nsec)
+ TEXT runtime·nanotime(SB),7,$32
+diff --git a/src/pkg/runtime/openbsd/amd64/sys.s b/src/pkg/runtime/openbsd/amd64/sys.s
+index 7bb44d6a95..9c2d403b25 100644
+--- a/src/pkg/runtime/openbsd/amd64/sys.s
++++ b/src/pkg/runtime/openbsd/amd64/sys.s
+@@ -133,6 +133,21 @@ TEXT runtime·setitimer(SB),7,$-8
+ 	SYSCALL
+ 	RET
+ 
++// func now() (sec int64, nsec int32)
++TEXT time·now(SB), 7, $32
++	LEAQ	8(SP), DI		// arg 1 - tp
++	MOVQ	$0, SI			// arg 2 - tzp
++	MOVL	$116, AX		// sys_gettimeofday
++	SYSCALL
++	MOVQ	8(SP), AX		// sec
++	MOVL	16(SP), DX	// usec
++
++	// sec is in AX, usec in DX
++	MOVQ	AX, sec+0(FP)
++	IMULQ	$1000, DX
++	MOVL	DX, nsec+8(FP)
++	RET
++
+ TEXT runtime·nanotime(SB),7,$32
+ 	LEAQ	8(SP), DI		// arg 1 - tp
+ 	MOVQ	$0, SI			// arg 2 - tzp
+diff --git a/src/pkg/runtime/time.goc b/src/pkg/runtime/time.goc
+index ad9f3aac56..8306e61358 100644
+--- a/src/pkg/runtime/time.goc
++++ b/src/pkg/runtime/time.goc
+@@ -19,10 +19,7 @@ static bool deltimer(Timer*);
+ // Package time APIs.
+ // Godoc uses the comments in package time, not these.
+ 
+-// Nanoseconds returns the current time in nanoseconds.
+-func Nanoseconds() (ret int64) {
+-	ret = runtime·nanotime();
+-}
++// time.now is implemented in assembly.
+ 
+ // Sleep puts the current goroutine to sleep for at least ns nanoseconds.
+ func Sleep(ns int64) {
+diff --git a/src/pkg/runtime/windows/thread.c b/src/pkg/runtime/windows/thread.c
+index 9abc9cd728..4b963f374e 100644
+--- a/src/pkg/runtime/windows/thread.c
++++ b/src/pkg/runtime/windows/thread.c
+@@ -219,6 +219,18 @@ runtime·nanotime(void)
+ 	return (filetime - 116444736000000000LL) * 100LL;
+ }
+ 
++void
++time·now(int64 sec, int32 usec)
++{
++	int64 ns;
++	
++	ns = runtime·nanotime();
++	sec = ns / 1000000000LL;
++	usec = ns - sec * 1000000000LL;
++	FLUSH(&sec);
++	FLUSH(&usec);
++}
++
+ // Calling stdcall on os stack.
+ #pragma textflag 7
+ void *
+diff --git a/src/pkg/time/Makefile b/src/pkg/time/Makefile
+index 473e7ea937..24a18747f5 100644
+--- a/src/pkg/time/Makefile
++++ b/src/pkg/time/Makefile
+@@ -11,25 +11,22 @@ GOFILES=\
+ 	sys.go\
+ 	tick.go\
+ 	time.go\
++	zoneinfo.go\
+ 
+ GOFILES_freebsd=\
+ 	sys_unix.go\
+-	zoneinfo_posix.go\
+ 	zoneinfo_unix.go\
+ 
+ GOFILES_darwin=\
+ 	sys_unix.go\
+-	zoneinfo_posix.go\
+ 	zoneinfo_unix.go\
+ 
+ GOFILES_linux=\
+ 	sys_unix.go\
+-	zoneinfo_posix.go\
+ 	zoneinfo_unix.go\
+ 
+ GOFILES_openbsd=\
+ 	sys_unix.go\
+-	zoneinfo_posix.go\
+ 	zoneinfo_unix.go\
+ 
+ GOFILES_windows=\
+@@ -38,7 +35,6 @@ GOFILES_windows=\
+ 
+ GOFILES_plan9=\
+ 	sys_plan9.go\
+-	zoneinfo_posix.go\
+ 	zoneinfo_plan9.go\
+ 
+ GOFILES+=$(GOFILES_$(GOOS))
+diff --git a/src/pkg/time/example_test.go b/src/pkg/time/example_test.go
+new file mode 100644
+index 0000000000..153b1a3b66
+--- /dev/null
++++ b/src/pkg/time/example_test.go
+@@ -0,0 +1,58 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package time_test
++
++import (
++	"fmt"
++	"time"
++)
++
++func expensiveCall() {}
++
++func ExampleDuration() {
++	t0 := time.Now()
++	expensiveCall()
++	t1 := time.Now()
++	fmt.Printf("The call took %v to run.\n", t1.Sub(t0))
++}
++
++var c chan int
++
++func handle(int) {}
++
++func ExampleAfter() {
++	select {
++	case m := <-c:
++		handle(m)
++	case <-time.After(5 * time.Minute):
++		fmt.Println("timed out")
++	}
++}
++
++func ExampleSleep() {
++	time.Sleep(100 * time.Millisecond)
++}
++
++func statusUpdate() string { return "" }
++
++func ExampleTick() {
++	c := time.Tick(1 * time.Minute)
++	for now := range c {
++		fmt.Printf("%v %s\n", now, statusUpdate())
++	}
++}
++
++func ExampleMonth() {
++	_, month, day := time.Now().Date()
++	if month == time.November && day == 10 {
++		fmt.Println("Happy Go day!")
++	}
++}
++
++// Go launched at Tue Nov 10 15:00:00 -0800 PST 2009
++func ExampleDate() {
++	t := time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC)
++	fmt.Printf("Go launched at %s\n", t.Local())
++}
+diff --git a/src/pkg/time/format.go b/src/pkg/time/format.go
+index 14b712ad08..d09735763f 100644
+--- a/src/pkg/time/format.go
++++ b/src/pkg/time/format.go
+@@ -1,10 +1,6 @@
+ package time
+ 
+-import (
+-	"bytes"
+-	"errors"
+-	"strconv"
+-)
++import "errors"
+ 
+ const (
+ 	numeric = iota
+@@ -259,8 +255,60 @@ func lookup(tab []string, val string) (int, string, error) {
+ 	return -1, val, errBad
+ }
+ 
++// Duplicates functionality in strconv, but avoids dependency.
++func itoa(x int) string {
++	var buf [32]byte
++	n := len(buf)
++	if x == 0 {
++		return "0"
++	}
++	u := uint(x)
++	if x < 0 {
++		u = -u
++	}
++	for u > 0 {
++		n--
++		buf[n] = byte(u%10 + '0')
++		u /= 10
++	}
++	if x < 0 {
++		n--
++		buf[n] = '-'
++	}
++	return string(buf[n:])
++}
++
++// Never printed, just needs to be non-nil for return by atoi.
++var atoiError = errors.New("time: invalid number")
++
++// Duplicates functionality in strconv, but avoids dependency.
++func atoi(s string) (x int, err error) {
++	i := 0
++	if len(s) > 0 && s[0] == '-' {
++		i++
++	}
++	if i >= len(s) {
++		return 0, atoiError
++	}
++	for ; i < len(s); i++ {
++		c := s[i]
++		if c < '0' || c > '9' {
++			return 0, atoiError
++		}
++		if x >= (1<<31-10)/10 {
++			// will overflow
++			return 0, atoiError
++		}
++		x = x*10 + int(c) - '0'
++	}
++	if s[0] == '-' {
++		x = -x
++	}
++	return x, nil
++}
++
+ func pad(i int, padding string) string {
+-	s := strconv.Itoa(i)
++	s := itoa(i)
+ 	if i < 10 {
+ 		s = padding + s
+ 	}
+@@ -273,7 +321,7 @@ func zeroPad(i int) string { return pad(i, "0") }
+ func formatNano(nanosec, n int) string {
+ 	// User might give us bad data. Make sure it's positive and in range.
+ 	// They'll get nonsense output but it will have the right format.
+-	s := strconv.Uitoa(uint(nanosec) % 1e9)
++	s := itoa(int(uint(nanosec) % 1e9))
+ 	// Zero pad left without fmt.
+ 	if len(s) < 9 {
+ 		s = "000000000"[:9-len(s)] + s
+@@ -284,14 +332,42 @@ func formatNano(nanosec, n int) string {
+ 	return "." + s[:n]
+ }
+ 
++// String returns the time formatted using the format string
++//	"Mon Jan _2 15:04:05 -0700 MST 2006"
++func (t Time) String() string {
++	return t.Format("Mon Jan _2 15:04:05 -0700 MST 2006")
++}
++
++type buffer []byte
++
++func (b *buffer) WriteString(s string) {
++	*b = append(*b, s...)
++}
++
++func (b *buffer) WriteByte(c byte) {
++	*b = append(*b, c)
++}
++
++func (b *buffer) String() string {
++	return string([]byte(*b))
++}
++
+ // Format returns a textual representation of the time value formatted
+ // according to layout.  The layout defines the format by showing the
+ // representation of a standard time, which is then used to describe
+ // the time to be formatted.  Predefined layouts ANSIC, UnixDate,
+ // RFC3339 and others describe standard representations. For more
+ // information about the formats, see the documentation for ANSIC.
+-func (t *Time) Format(layout string) string {
+-	b := new(bytes.Buffer)
++func (t Time) Format(layout string) string {
++	var (
++		year  int = -1
++		month Month
++		day   int
++		hour  int = -1
++		min   int
++		sec   int
++		b     buffer
++	)
+ 	// Each iteration generates one std value.
+ 	for {
+ 		prefix, std, suffix := nextStdChunk(layout)
+@@ -299,62 +375,92 @@ func (t *Time) Format(layout string) string {
+ 		if std == "" {
+ 			break
+ 		}
++
++		// Compute year, month, day if needed.
++		if year < 0 {
++			// Jan 01 02 2006
++			if a, z := std[0], std[len(std)-1]; a == 'J' || a == 'j' || z == '1' || z == '2' || z == '6' {
++				year, month, day = t.Date()
++			}
++		}
++
++		// Compute hour, minute, second if needed.
++		if hour < 0 {
++			// 03 04 05 15 pm
++			if z := std[len(std)-1]; z == '3' || z == '4' || z == '5' || z == 'm' || z == 'M' {
++				hour, min, sec = t.Clock()
++			}
++		}
++
+ 		var p string
+ 		switch std {
+ 		case stdYear:
+-			p = zeroPad(int(t.Year % 100))
++			p = zeroPad(year % 100)
+ 		case stdLongYear:
+-			p = strconv.Itoa64(t.Year)
++			p = itoa(year)
+ 		case stdMonth:
+-			p = shortMonthNames[t.Month]
++			p = month.String()[:3]
+ 		case stdLongMonth:
+-			p = longMonthNames[t.Month]
++			p = month.String()
+ 		case stdNumMonth:
+-			p = strconv.Itoa(t.Month)
++			p = itoa(int(month))
+ 		case stdZeroMonth:
+-			p = zeroPad(t.Month)
++			p = zeroPad(int(month))
+ 		case stdWeekDay:
+-			p = shortDayNames[t.Weekday()]
++			p = t.Weekday().String()[:3]
+ 		case stdLongWeekDay:
+-			p = longDayNames[t.Weekday()]
++			p = t.Weekday().String()
+ 		case stdDay:
+-			p = strconv.Itoa(t.Day)
++			p = itoa(day)
+ 		case stdUnderDay:
+-			p = pad(t.Day, " ")
++			p = pad(day, " ")
+ 		case stdZeroDay:
+-			p = zeroPad(t.Day)
++			p = zeroPad(day)
+ 		case stdHour:
+-			p = zeroPad(t.Hour)
++			p = zeroPad(hour)
+ 		case stdHour12:
+ 			// Noon is 12PM, midnight is 12AM.
+-			hr := t.Hour % 12
++			hr := hour % 12
+ 			if hr == 0 {
+ 				hr = 12
+ 			}
+-			p = strconv.Itoa(hr)
++			p = itoa(hr)
+ 		case stdZeroHour12:
+ 			// Noon is 12PM, midnight is 12AM.
+-			hr := t.Hour % 12
++			hr := hour % 12
+ 			if hr == 0 {
+ 				hr = 12
+ 			}
+ 			p = zeroPad(hr)
+ 		case stdMinute:
+-			p = strconv.Itoa(t.Minute)
++			p = itoa(min)
+ 		case stdZeroMinute:
+-			p = zeroPad(t.Minute)
++			p = zeroPad(min)
+ 		case stdSecond:
+-			p = strconv.Itoa(t.Second)
++			p = itoa(sec)
+ 		case stdZeroSecond:
+-			p = zeroPad(t.Second)
++			p = zeroPad(sec)
++		case stdPM:
++			if hour >= 12 {
++				p = "PM"
++			} else {
++				p = "AM"
++			}
++		case stdpm:
++			if hour >= 12 {
++				p = "pm"
++			} else {
++				p = "am"
++			}
+ 		case stdISO8601TZ, stdISO8601ColonTZ, stdNumTZ, stdNumColonTZ:
+ 			// Ugly special case.  We cheat and take the "Z" variants
+ 			// to mean "the time zone as formatted for ISO 8601".
+-			if t.ZoneOffset == 0 && std[0] == 'Z' {
++			_, offset := t.Zone()
++			if offset == 0 && std[0] == 'Z' {
+ 				p = "Z"
+ 				break
+ 			}
+-			zone := t.ZoneOffset / 60 // convert to minutes
++			zone := offset / 60 // convert to minutes
+ 			if zone < 0 {
+ 				p = "-"
+ 				zone = -zone
+@@ -366,25 +472,14 @@ func (t *Time) Format(layout string) string {
+ 				p += ":"
+ 			}
+ 			p += zeroPad(zone % 60)
+-		case stdPM:
+-			if t.Hour >= 12 {
+-				p = "PM"
+-			} else {
+-				p = "AM"
+-			}
+-		case stdpm:
+-			if t.Hour >= 12 {
+-				p = "pm"
+-			} else {
+-				p = "am"
+-			}
+ 		case stdTZ:
+-			if t.Zone != "" {
+-				p = t.Zone
++			name, offset := t.Zone()
++			if name != "" {
++				p = name
+ 			} else {
+ 				// No time zone known for this time, but we must print one.
+ 				// Use the -0700 format.
+-				zone := t.ZoneOffset / 60 // convert to minutes
++				zone := offset / 60 // convert to minutes
+ 				if zone < 0 {
+ 					p = "-"
+ 					zone = -zone
+@@ -396,7 +491,7 @@ func (t *Time) Format(layout string) string {
+ 			}
+ 		default:
+ 			if len(std) >= 2 && std[0:2] == ".0" {
+-				p = formatNano(t.Nanosecond, len(std)-1)
++				p = formatNano(t.Nanosecond(), len(std)-1)
+ 			}
+ 		}
+ 		b.WriteString(p)
+@@ -405,14 +500,6 @@ func (t *Time) Format(layout string) string {
+ 	return b.String()
+ }
+ 
+-// String returns a Unix-style representation of the time value.
+-func (t *Time) String() string {
+-	if t == nil {
+-		return "<nil>"
+-	}
+-	return t.Format(UnixDate)
+-}
+-
+ var errBad = errors.New("bad value for field") // placeholder not passed to user
+ 
+ // ParseError describes a problem parsing a time string.
+@@ -424,17 +511,21 @@ type ParseError struct {
+ 	Message    string
+ }
+ 
++func quote(s string) string {
++	return "\"" + s + "\""
++}
++
+ // String is the string representation of a ParseError.
+ func (e *ParseError) Error() string {
+ 	if e.Message == "" {
+ 		return "parsing time " +
+-			strconv.Quote(e.Value) + " as " +
+-			strconv.Quote(e.Layout) + ": cannot parse " +
+-			strconv.Quote(e.ValueElem) + " as " +
+-			strconv.Quote(e.LayoutElem)
++			quote(e.Value) + " as " +
++			quote(e.Layout) + ": cannot parse " +
++			quote(e.ValueElem) + " as " +
++			quote(e.LayoutElem)
+ 	}
+ 	return "parsing time " +
+-		strconv.Quote(e.Value) + e.Message
++		quote(e.Value) + e.Message
+ }
+ 
+ // isDigit returns true if s[i] is a decimal digit, false if not or
+@@ -498,30 +589,42 @@ func skip(value, prefix string) (string, error) {
+ // representations.For more information about the formats, see the
+ // documentation for ANSIC.
+ //
+-// Only those elements present in the value will be set in the returned time
+-// structure.  Also, if the input string represents an inconsistent time
+-// (such as having the wrong day of the week), the returned value will also
+-// be inconsistent.  In any case, the elements of the returned time will be
+-// sane: hours in 0..23, minutes in 0..59, day of month in 1..31, etc.
++// Elements omitted from the value are assumed to be zero, or when
++// zero is impossible, one, so parsing "3:04pm" returns the time
++// corresponding to Jan 1, year 0, 15:04:00 UTC.
+ // Years must be in the range 0000..9999. The day of the week is checked
+ // for syntax but it is otherwise ignored.
+-func Parse(alayout, avalue string) (*Time, error) {
+-	var t Time
++func Parse(layout, value string) (Time, error) {
++	alayout, avalue := layout, value
+ 	rangeErrString := "" // set if a value is out of range
+ 	amSet := false       // do we need to subtract 12 from the hour for midnight?
+ 	pmSet := false       // do we need to add 12 to the hour?
+-	layout, value := alayout, avalue
++
++	// Time being constructed.
++	var (
++		year       int
++		month      int = 1 // January
++		day        int = 1
++		hour       int
++		min        int
++		sec        int
++		nsec       int
++		z          *Location
++		zoneOffset int = -1
++		zoneName   string
++	)
++
+ 	// Each iteration processes one std value.
+ 	for {
+ 		var err error
+ 		prefix, std, suffix := nextStdChunk(layout)
+ 		value, err = skip(value, prefix)
+ 		if err != nil {
+-			return nil, &ParseError{alayout, avalue, prefix, value, ""}
++			return Time{}, &ParseError{alayout, avalue, prefix, value, ""}
+ 		}
+ 		if len(std) == 0 {
+ 			if len(value) != 0 {
+-				return nil, &ParseError{alayout, avalue, "", value, ": extra text: " + value}
++				return Time{}, &ParseError{alayout, avalue, "", value, ": extra text: " + value}
+ 			}
+ 			break
+ 		}
+@@ -534,11 +637,11 @@ func Parse(alayout, avalue string) (*Time, error) {
+ 				break
+ 			}
+ 			p, value = value[0:2], value[2:]
+-			t.Year, err = strconv.Atoi64(p)
+-			if t.Year >= 69 { // Unix time starts Dec 31 1969 in some time zones
+-				t.Year += 1900
++			year, err = atoi(p)
++			if year >= 69 { // Unix time starts Dec 31 1969 in some time zones
++				year += 1900
+ 			} else {
+-				t.Year += 2000
++				year += 2000
+ 			}
+ 		case stdLongYear:
+ 			if len(value) < 4 || !isDigit(value, 0) {
+@@ -546,14 +649,14 @@ func Parse(alayout, avalue string) (*Time, error) {
+ 				break
+ 			}
+ 			p, value = value[0:4], value[4:]
+-			t.Year, err = strconv.Atoi64(p)
++			year, err = atoi(p)
+ 		case stdMonth:
+-			t.Month, value, err = lookup(shortMonthNames, value)
++			month, value, err = lookup(shortMonthNames, value)
+ 		case stdLongMonth:
+-			t.Month, value, err = lookup(longMonthNames, value)
++			month, value, err = lookup(longMonthNames, value)
+ 		case stdNumMonth, stdZeroMonth:
+-			t.Month, value, err = getnum(value, std == stdZeroMonth)
+-			if t.Month <= 0 || 12 < t.Month {
++			month, value, err = getnum(value, std == stdZeroMonth)
++			if month <= 0 || 12 < month {
+ 				rangeErrString = "month"
+ 			}
+ 		case stdWeekDay:
+@@ -565,29 +668,28 @@ func Parse(alayout, avalue string) (*Time, error) {
+ 			if std == stdUnderDay && len(value) > 0 && value[0] == ' ' {
+ 				value = value[1:]
+ 			}
+-			t.Day, value, err = getnum(value, std == stdZeroDay)
+-			if t.Day < 0 || 31 < t.Day {
+-				// TODO: be more thorough in date check?
++			day, value, err = getnum(value, std == stdZeroDay)
++			if day < 0 || 31 < day {
+ 				rangeErrString = "day"
+ 			}
+ 		case stdHour:
+-			t.Hour, value, err = getnum(value, false)
+-			if t.Hour < 0 || 24 <= t.Hour {
++			hour, value, err = getnum(value, false)
++			if hour < 0 || 24 <= hour {
+ 				rangeErrString = "hour"
+ 			}
+ 		case stdHour12, stdZeroHour12:
+-			t.Hour, value, err = getnum(value, std == stdZeroHour12)
+-			if t.Hour < 0 || 12 < t.Hour {
++			hour, value, err = getnum(value, std == stdZeroHour12)
++			if hour < 0 || 12 < hour {
+ 				rangeErrString = "hour"
+ 			}
+ 		case stdMinute, stdZeroMinute:
+-			t.Minute, value, err = getnum(value, std == stdZeroMinute)
+-			if t.Minute < 0 || 60 <= t.Minute {
++			min, value, err = getnum(value, std == stdZeroMinute)
++			if min < 0 || 60 <= min {
+ 				rangeErrString = "minute"
+ 			}
+ 		case stdSecond, stdZeroSecond:
+-			t.Second, value, err = getnum(value, std == stdZeroSecond)
+-			if t.Second < 0 || 60 <= t.Second {
++			sec, value, err = getnum(value, std == stdZeroSecond)
++			if sec < 0 || 60 <= sec {
+ 				rangeErrString = "second"
+ 			}
+ 			// Special case: do we have a fractional second but no
+@@ -602,16 +704,44 @@ func Parse(alayout, avalue string) (*Time, error) {
+ 				n := 2
+ 				for ; n < len(value) && isDigit(value, n); n++ {
+ 				}
+-				rangeErrString, err = t.parseNanoseconds(value, n)
++				nsec, rangeErrString, err = parseNanoseconds(value, n)
+ 				value = value[n:]
+ 			}
++		case stdPM:
++			if len(value) < 2 {
++				err = errBad
++				break
++			}
++			p, value = value[0:2], value[2:]
++			switch p {
++			case "PM":
++				pmSet = true
++			case "AM":
++				amSet = true
++			default:
++				err = errBad
++			}
++		case stdpm:
++			if len(value) < 2 {
++				err = errBad
++				break
++			}
++			p, value = value[0:2], value[2:]
++			switch p {
++			case "pm":
++				pmSet = true
++			case "am":
++				amSet = true
++			default:
++				err = errBad
++			}
+ 		case stdISO8601TZ, stdISO8601ColonTZ, stdNumTZ, stdNumShortTZ, stdNumColonTZ:
+ 			if std[0] == 'Z' && len(value) >= 1 && value[0] == 'Z' {
+ 				value = value[1:]
+-				t.Zone = "UTC"
++				z = UTC
+ 				break
+ 			}
+-			var sign, hh, mm string
++			var sign, hour, min string
+ 			if std == stdISO8601ColonTZ || std == stdNumColonTZ {
+ 				if len(value) < 6 {
+ 					err = errBad
+@@ -621,65 +751,38 @@ func Parse(alayout, avalue string) (*Time, error) {
+ 					err = errBad
+ 					break
+ 				}
+-				sign, hh, mm, value = value[0:1], value[1:3], value[4:6], value[6:]
++				sign, hour, min, value = value[0:1], value[1:3], value[4:6], value[6:]
+ 			} else if std == stdNumShortTZ {
+ 				if len(value) < 3 {
+ 					err = errBad
+ 					break
+ 				}
+-				sign, hh, mm, value = value[0:1], value[1:3], "00", value[3:]
++				sign, hour, min, value = value[0:1], value[1:3], "00", value[3:]
+ 			} else {
+ 				if len(value) < 5 {
+ 					err = errBad
+ 					break
+ 				}
+-				sign, hh, mm, value = value[0:1], value[1:3], value[3:5], value[5:]
++				sign, hour, min, value = value[0:1], value[1:3], value[3:5], value[5:]
+ 			}
+-			var hr, min int
+-			hr, err = strconv.Atoi(hh)
++			var hr, mm int
++			hr, err = atoi(hour)
+ 			if err == nil {
+-				min, err = strconv.Atoi(mm)
++				mm, err = atoi(min)
+ 			}
+-			t.ZoneOffset = (hr*60 + min) * 60 // offset is in seconds
++			zoneOffset = (hr*60 + mm) * 60 // offset is in seconds
+ 			switch sign[0] {
+ 			case '+':
+ 			case '-':
+-				t.ZoneOffset = -t.ZoneOffset
+-			default:
+-				err = errBad
+-			}
+-		case stdPM:
+-			if len(value) < 2 {
+-				err = errBad
+-				break
+-			}
+-			p, value = value[0:2], value[2:]
+-			switch p {
+-			case "PM":
+-				pmSet = true
+-			case "AM":
+-				amSet = true
+-			default:
+-				err = errBad
+-			}
+-		case stdpm:
+-			if len(value) < 2 {
+-				err = errBad
+-				break
+-			}
+-			p, value = value[0:2], value[2:]
+-			switch p {
+-			case "pm":
+-				pmSet = true
+-			case "am":
+-				amSet = true
++				zoneOffset = -zoneOffset
+ 			default:
+ 				err = errBad
+ 			}
+ 		case stdTZ:
+ 			// Does it look like a time zone?
+ 			if len(value) >= 3 && value[0:3] == "UTC" {
+-				t.Zone, value = value[0:3], value[3:]
++				z = UTC
++				value = value[3:]
+ 				break
+ 			}
+ 
+@@ -700,47 +803,86 @@ func Parse(alayout, avalue string) (*Time, error) {
+ 				break
+ 			}
+ 			// It's a valid format.
+-			t.Zone = p
+-			// Can we find its offset?
+-			if offset, found := lookupByName(p); found {
+-				t.ZoneOffset = offset
+-			}
++			zoneName = p
+ 		default:
+ 			if len(value) < len(std) {
+ 				err = errBad
+ 				break
+ 			}
+ 			if len(std) >= 2 && std[0:2] == ".0" {
+-				rangeErrString, err = t.parseNanoseconds(value, len(std))
++				nsec, rangeErrString, err = parseNanoseconds(value, len(std))
+ 				value = value[len(std):]
+ 			}
+ 		}
+ 		if rangeErrString != "" {
+-			return nil, &ParseError{alayout, avalue, std, value, ": " + rangeErrString + " out of range"}
++			return Time{}, &ParseError{alayout, avalue, std, value, ": " + rangeErrString + " out of range"}
+ 		}
+ 		if err != nil {
+-			return nil, &ParseError{alayout, avalue, std, value, ""}
++			return Time{}, &ParseError{alayout, avalue, std, value, ""}
++		}
++	}
++	if pmSet && hour < 12 {
++		hour += 12
++	} else if amSet && hour == 12 {
++		hour = 0
++	}
++
++	// TODO: be more aggressive checking day?
++	if z != nil {
++		return Date(year, Month(month), day, hour, min, sec, nsec, z), nil
++	}
++
++	t := Date(year, Month(month), day, hour, min, sec, nsec, UTC)
++	if zoneOffset != -1 {
++		t.sec -= int64(zoneOffset)
++
++		// Look for local zone with the given offset.
++		// If that zone was in effect at the given time, use it.
++		name, offset, _, _, _ := Local.lookup(t.sec + internalToUnix)
++		if offset == zoneOffset && (zoneName == "" || name == zoneName) {
++			t.loc = Local
++			return t, nil
+ 		}
++
++		// Otherwise create fake zone to record offset.
++		t.loc = FixedZone(zoneName, zoneOffset)
++		return t, nil
+ 	}
+-	if pmSet && t.Hour < 12 {
+-		t.Hour += 12
+-	} else if amSet && t.Hour == 12 {
+-		t.Hour = 0
++
++	if zoneName != "" {
++		// Look for local zone with the given offset.
++		// If that zone was in effect at the given time, use it.
++		offset, _, ok := Local.lookupName(zoneName)
++		if ok {
++			name, off, _, _, _ := Local.lookup(t.sec + internalToUnix - int64(offset))
++			if name == zoneName && off == offset {
++				t.sec -= int64(offset)
++				t.loc = Local
++				return t, nil
++			}
++		}
++
++		// Otherwise, create fake zone with unknown offset.
++		t.loc = FixedZone(zoneName, 0)
++		return t, nil
+ 	}
+-	return &t, nil
++
++	// Otherwise, fall back to UTC.
++	return t, nil
+ }
+ 
+-func (t *Time) parseNanoseconds(value string, nbytes int) (rangErrString string, err error) {
++func parseNanoseconds(value string, nbytes int) (ns int, rangeErrString string, err error) {
+ 	if value[0] != '.' {
+-		return "", errBad
++		err = errBad
++		return
+ 	}
+-	var ns int
+-	ns, err = strconv.Atoi(value[1:nbytes])
++	ns, err = atoi(value[1:nbytes])
+ 	if err != nil {
+-		return "", err
++		return
+ 	}
+ 	if ns < 0 || 1e9 <= ns {
+-		return "fractional second", nil
++		rangeErrString = "fractional second"
++		return
+ 	}
+ 	// We need nanoseconds, which means scaling by the number
+ 	// of missing digits in the format, maximum length 10. If it's
+@@ -749,6 +891,5 @@ func (t *Time) parseNanoseconds(value string, nbytes int) (rangErrString string,
+ 	for i := 0; i < scaleDigits; i++ {
+ 		ns *= 10
+ 	}
+-	t.Nanosecond = ns
+ 	return
+ }
+diff --git a/src/pkg/time/internal_test.go b/src/pkg/time/internal_test.go
+index d7e7076539..2c4df335f9 100644
+--- a/src/pkg/time/internal_test.go
++++ b/src/pkg/time/internal_test.go
+@@ -6,7 +6,7 @@ package time
+ 
+ func init() {
+ 	// force US/Pacific for time zone tests
+-	onceSetupZone.Do(setupTestingZone)
++	localOnce.Do(initTestingZone)
+ }
+ 
+ var Interrupt = interrupt
+diff --git a/src/pkg/time/sleep.go b/src/pkg/time/sleep.go
+index 967fca09b9..1e23118f37 100644
+--- a/src/pkg/time/sleep.go
++++ b/src/pkg/time/sleep.go
+@@ -4,6 +4,11 @@
+ 
+ package time
+ 
++func nano() int64 {
++	sec, nsec := now()
++	return sec*1e9 + int64(nsec)
++}
++
+ // Interface to timers implemented in package runtime.
+ // Must be in sync with ../runtime/runtime.h:/^struct.Timer$
+ type runtimeTimer struct {
+@@ -21,7 +26,7 @@ func stopTimer(*runtimeTimer) bool
+ // When the Timer expires, the current time will be sent on C,
+ // unless the Timer was created by AfterFunc.
+ type Timer struct {
+-	C <-chan int64
++	C <-chan Time
+ 	r runtimeTimer
+ }
+ 
+@@ -34,12 +39,12 @@ func (t *Timer) Stop() (ok bool) {
+ 
+ // NewTimer creates a new Timer that will send
+ // the current time on its channel after at least ns nanoseconds.
+-func NewTimer(ns int64) *Timer {
+-	c := make(chan int64, 1)
++func NewTimer(d Duration) *Timer {
++	c := make(chan Time, 1)
+ 	t := &Timer{
+ 		C: c,
+ 		r: runtimeTimer{
+-			when: Nanoseconds() + ns,
++			when: nano() + int64(d),
+ 			f:    sendTime,
+ 			arg:  c,
+ 		},
+@@ -55,16 +60,16 @@ func sendTime(now int64, c interface{}) {
+ 	// the desired behavior when the reader gets behind,
+ 	// because the sends are periodic.
+ 	select {
+-	case c.(chan int64) <- now:
++	case c.(chan Time) <- Unix(0, now):
+ 	default:
+ 	}
+ }
+ 
+-// After waits at least ns nanoseconds before sending the current time
++// After waits for the duration to elapse and then sends the current time
+ // on the returned channel.
+ // It is equivalent to NewTimer(ns).C.
+-func After(ns int64) <-chan int64 {
+-	return NewTimer(ns).C
++func After(d Duration) <-chan Time {
++	return NewTimer(d).C
+ }
+ 
+ // AfterFunc waits at least ns nanoseconds before calling f
+@@ -73,7 +78,7 @@ func After(ns int64) <-chan int64 {
+ func AfterFunc(ns int64, f func()) *Timer {
+ 	t := &Timer{
+ 		r: runtimeTimer{
+-			when: Nanoseconds() + ns,
++			when: nano() + ns,
+ 			f:    goFunc,
+ 			arg:  f,
+ 		},
+diff --git a/src/pkg/time/sleep_test.go b/src/pkg/time/sleep_test.go
+index 6fa2b69c50..91771fee6e 100644
+--- a/src/pkg/time/sleep_test.go
++++ b/src/pkg/time/sleep_test.go
+@@ -15,16 +15,16 @@ import (
+ )
+ 
+ func TestSleep(t *testing.T) {
+-	const delay = int64(100e6)
++	const delay = 100 * Millisecond
+ 	go func() {
+ 		Sleep(delay / 2)
+ 		Interrupt()
+ 	}()
+-	start := Nanoseconds()
++	start := Now()
+ 	Sleep(delay)
+-	duration := Nanoseconds() - start
++	duration := Now().Sub(start)
+ 	if duration < delay {
+-		t.Fatalf("Sleep(%d) slept for only %d ns", delay, duration)
++		t.Fatalf("Sleep(%s) slept for only %s", delay, duration)
+ 	}
+ }
+ 
+@@ -96,32 +96,32 @@ func BenchmarkStop(b *testing.B) {
+ }
+ 
+ func TestAfter(t *testing.T) {
+-	const delay = int64(100e6)
+-	start := Nanoseconds()
++	const delay = 100 * Millisecond
++	start := Now()
+ 	end := <-After(delay)
+-	if duration := Nanoseconds() - start; duration < delay {
+-		t.Fatalf("After(%d) slept for only %d ns", delay, duration)
++	if duration := Now().Sub(start); duration < delay {
++		t.Fatalf("After(%s) slept for only %d ns", delay, duration)
+ 	}
+-	if min := start + delay; end < min {
+-		t.Fatalf("After(%d) expect >= %d, got %d", delay, min, end)
++	if min := start.Add(delay); end.Before(min) {
++		t.Fatalf("After(%s) expect >= %s, got %s", delay, min, end)
+ 	}
+ }
+ 
+ func TestAfterTick(t *testing.T) {
+ 	const (
+-		Delta = 100 * 1e6
++		Delta = 100 * Millisecond
+ 		Count = 10
+ 	)
+-	t0 := Nanoseconds()
++	t0 := Now()
+ 	for i := 0; i < Count; i++ {
+ 		<-After(Delta)
+ 	}
+-	t1 := Nanoseconds()
+-	ns := t1 - t0
+-	target := int64(Delta * Count)
++	t1 := Now()
++	d := t1.Sub(t0)
++	target := Delta * Count
+ 	slop := target * 2 / 10
+-	if ns < target-slop || ns > target+slop {
+-		t.Fatalf("%d ticks of %g ns took %g ns, expected %g", Count, float64(Delta), float64(ns), float64(target))
++	if d < target-slop || d > target+slop {
++		t.Fatalf("%d ticks of %s took %s, expected %s", Count, Delta, d, target)
+ 	}
+ }
+ 
+@@ -170,37 +170,37 @@ var slots = []int{5, 3, 6, 6, 6, 1, 1, 2, 7, 9, 4, 8, 0}
+ 
+ type afterResult struct {
+ 	slot int
+-	t    int64
++	t    Time
+ }
+ 
+-func await(slot int, result chan<- afterResult, ac <-chan int64) {
++func await(slot int, result chan<- afterResult, ac <-chan Time) {
+ 	result <- afterResult{slot, <-ac}
+ }
+ 
+ func testAfterQueuing(t *testing.T) error {
+ 	const (
+-		Delta = 100 * 1e6
++		Delta = 100 * Millisecond
+ 	)
+ 	// make the result channel buffered because we don't want
+ 	// to depend on channel queueing semantics that might
+ 	// possibly change in the future.
+ 	result := make(chan afterResult, len(slots))
+ 
+-	t0 := Nanoseconds()
++	t0 := Now()
+ 	for _, slot := range slots {
+-		go await(slot, result, After(int64(slot)*Delta))
++		go await(slot, result, After(Duration(slot)*Delta))
+ 	}
+ 	sort.Ints(slots)
+ 	for _, slot := range slots {
+ 		r := <-result
+ 		if r.slot != slot {
+-			return fmt.Errorf("after queue got slot %d, expected %d", r.slot, slot)
++			return fmt.Errorf("after slot %d, expected %d", r.slot, slot)
+ 		}
+-		ns := r.t - t0
+-		target := int64(slot * Delta)
+-		slop := int64(Delta) / 4
+-		if ns < target-slop || ns > target+slop {
+-			return fmt.Errorf("after queue slot %d arrived at %g, expected [%g,%g]", slot, float64(ns), float64(target-slop), float64(target+slop))
++		dt := r.t.Sub(t0)
++		target := Duration(slot) * Delta
++		slop := Delta / 4
++		if dt < target-slop || dt > target+slop {
++			return fmt.Errorf("After(%s) arrived at %s, expected [%s,%s]", target, dt, target-slop, target+slop)
+ 		}
+ 	}
+ 	return nil
+diff --git a/src/pkg/time/sys.go b/src/pkg/time/sys.go
+index a5e529b814..fe6bc27d30 100644
+--- a/src/pkg/time/sys.go
++++ b/src/pkg/time/sys.go
+@@ -4,17 +4,33 @@
+ 
+ package time
+ 
+-// Seconds reports the number of seconds since the Unix epoch,
+-// January 1, 1970 00:00:00 UTC.
+-func Seconds() int64 {
+-	return Nanoseconds() / 1e9
+-}
+-
+-// Nanoseconds is implemented by package runtime.
++import "syscall"
+ 
+-// Nanoseconds reports the number of nanoseconds since the Unix epoch,
+-// January 1, 1970 00:00:00 UTC.
+-func Nanoseconds() int64
++// Sleep pauses the current goroutine for the duration d.
++func Sleep(d Duration)
+ 
+-// Sleep pauses the current goroutine for at least ns nanoseconds.
+-func Sleep(ns int64)
++// readFile reads and returns the content of the named file.
++// It is a trivial implementation of ioutil.ReadFile, reimplemented
++// here to avoid depending on io/ioutil or os.
++func readFile(name string) ([]byte, error) {
++	f, err := syscall.Open(name, syscall.O_RDONLY, 0)
++	if err != nil {
++		return nil, err
++	}
++	defer syscall.Close(f)
++	var (
++		buf [4096]byte
++		ret []byte
++		n   int
++	)
++	for {
++		n, err = syscall.Read(f, buf[:])
++		if n > 0 {
++			ret = append(ret, buf[:n]...)
++		}
++		if n == 0 || err != nil {
++			break
++		}
++	}
++	return ret, err
++}
+diff --git a/src/pkg/time/sys_unix.go b/src/pkg/time/sys_unix.go
+index 3d313228b0..715d186be1 100644
+--- a/src/pkg/time/sys_unix.go
++++ b/src/pkg/time/sys_unix.go
+@@ -6,12 +6,9 @@
+ 
+ package time
+ 
+-import (
+-	"os"
+-	"syscall"
+-)
++import "syscall"
+ 
+ // for testing: whatever interrupts a sleep
+ func interrupt() {
+-	syscall.Kill(os.Getpid(), syscall.SIGCHLD)
++	syscall.Kill(syscall.Getpid(), syscall.SIGCHLD)
+ }
+diff --git a/src/pkg/time/tick.go b/src/pkg/time/tick.go
+index 95941a1e81..4440c2207b 100644
+--- a/src/pkg/time/tick.go
++++ b/src/pkg/time/tick.go
+@@ -9,27 +9,27 @@ import "errors"
+ // A Ticker holds a synchronous channel that delivers `ticks' of a clock
+ // at intervals.
+ type Ticker struct {
+-	C <-chan int64 // The channel on which the ticks are delivered.
++	C <-chan Time // The channel on which the ticks are delivered.
+ 	r runtimeTimer
+ }
+ 
+-// NewTicker returns a new Ticker containing a channel that will
+-// send the time, in nanoseconds, every ns nanoseconds.  It adjusts the
+-// intervals to make up for pauses in delivery of the ticks. The value of
+-// ns must be greater than zero; if not, NewTicker will panic.
+-func NewTicker(ns int64) *Ticker {
+-	if ns <= 0 {
++// NewTicker returns a new Ticker containing a channel that will send the
++// time, in nanoseconds, with a period specified by the duration argument.
++// It adjusts the intervals or drops ticks to make up for slow receivers.
++// The duration d must be greater than zero; if not, NewTicker will panic.
++func NewTicker(d Duration) *Ticker {
++	if d <= 0 {
+ 		panic(errors.New("non-positive interval for NewTicker"))
+ 	}
+ 	// Give the channel a 1-element time buffer.
+ 	// If the client falls behind while reading, we drop ticks
+ 	// on the floor until the client catches up.
+-	c := make(chan int64, 1)
++	c := make(chan Time, 1)
+ 	t := &Ticker{
+ 		C: c,
+ 		r: runtimeTimer{
+-			when:   Nanoseconds() + ns,
+-			period: ns,
++			when:   nano() + int64(d),
++			period: int64(d),
+ 			f:      sendTime,
+ 			arg:    c,
+ 		},
+@@ -45,9 +45,9 @@ func (t *Ticker) Stop() {
+ 
+ // Tick is a convenience wrapper for NewTicker providing access to the ticking
+ // channel only.  Useful for clients that have no need to shut down the ticker.
+-func Tick(ns int64) <-chan int64 {
+-	if ns <= 0 {
++func Tick(d Duration) <-chan Time {
++	if d <= 0 {
+ 		return nil
+ 	}
+-	return NewTicker(ns).C
++	return NewTicker(d).C
+ }
+diff --git a/src/pkg/time/tick_test.go b/src/pkg/time/tick_test.go
+index 4dcb63956b..36349349ce 100644
+--- a/src/pkg/time/tick_test.go
++++ b/src/pkg/time/tick_test.go
+@@ -11,21 +11,21 @@ import (
+ 
+ func TestTicker(t *testing.T) {
+ 	const (
+-		Delta = 100 * 1e6
++		Delta = 100 * Millisecond
+ 		Count = 10
+ 	)
+ 	ticker := NewTicker(Delta)
+-	t0 := Nanoseconds()
++	t0 := Now()
+ 	for i := 0; i < Count; i++ {
+ 		<-ticker.C
+ 	}
+ 	ticker.Stop()
+-	t1 := Nanoseconds()
+-	ns := t1 - t0
+-	target := int64(Delta * Count)
++	t1 := Now()
++	dt := t1.Sub(t0)
++	target := Delta * Count
+ 	slop := target * 2 / 10
+-	if ns < target-slop || ns > target+slop {
+-		t.Fatalf("%d ticks of %g ns took %g ns, expected %g", Count, float64(Delta), float64(ns), float64(target))
++	if dt < target-slop || dt > target+slop {
++		t.Fatalf("%d %s ticks took %s, expected [%s,%s]", Count, Delta, dt, target-slop, target+slop)
+ 	}
+ 	// Now test that the ticker stopped
+ 	Sleep(2 * Delta)
+diff --git a/src/pkg/time/time.go b/src/pkg/time/time.go
+index e11d17731b..04ed86cf25 100644
+--- a/src/pkg/time/time.go
++++ b/src/pkg/time/time.go
+@@ -3,11 +3,109 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package time provides functionality for measuring and displaying time.
++//
++// The calendrical calculations always assume a Gregorian calendar.
+ package time
+ 
+-// Days of the week.
++// A Time represents an instant in time with nanosecond precision.
++//
++// Programs using times should typically store and pass them as values,
++// not pointers.  That is, time variables and struct fields should be of
++// type time.Time, not *time.Time.
++//
++// Time instants can be compared using the Before, After, and Equal methods.
++// The Sub method subtracts two instants, producing a Duration.
++// The Add method adds a Time and a Duration, producing a Time.
++//
++// The zero value of type Time is January 1, year 1, 00:00:00.000000000 UTC.
++// As this time is unlikely to come up in practice, the IsZero method gives
++// a simple way of detecting a time that has not been initialized explicitly.
++//
++// Each Time has associated with it a Location, consulted when computing the
++// presentation form of the time, such as in the Format, Hour, and Year methods.
++// The methods Local, UTC, and In return a Time with a specific location.
++// Changing the location in this way changes only the presentation; it does not
++// change the instant in time being denoted and therefore does not affect the
++// computations described in earlier paragraphs.
++//
++type Time struct {
++	// sec gives the number of seconds elapsed since
++	// January 1, year 1 00:00:00 UTC.
++	sec int64
++
++	// nsec specifies a non-negative nanosecond
++	// offset within the second named by Seconds.
++	// It must be in the range [0, 999999999].
++	nsec int32
++
++	// loc specifies the Location that should be used to
++	// determine the minute, hour, month, day, and year
++	// that correspond to this Time.
++	// Only the zero Time has a nil Location.
++	// In that case it is interpreted to mean UTC.
++	loc *Location
++}
++
++// After reports whether the time instant t is after u.
++func (t Time) After(u Time) bool {
++	return t.sec > u.sec || t.sec == u.sec && t.nsec > u.nsec
++}
++
++// Before reports whether the time instant t is before u.
++func (t Time) Before(u Time) bool {
++	return t.sec < u.sec || t.sec == u.sec && t.nsec < u.nsec
++}
++
++// Equal reports whether t and u represent the same time instant.
++// Two times can be equal even if they are in different locations.
++// For example, 6:00 +0200 CEST and 4:00 UTC are Equal.
++// This comparison is different from using t == u, which also compares
++// the locations.
++func (t Time) Equal(u Time) bool {
++	return t.sec == u.sec && t.nsec == u.nsec
++}
++
++// A Month specifies a month of the year (January = 1, ...).
++type Month int
++
+ const (
+-	Sunday = iota
++	January Month = 1 + iota
++	February
++	March
++	April
++	May
++	June
++	July
++	August
++	September
++	October
++	November
++	December
++)
++
++var months = [...]string{
++	"January",
++	"February",
++	"March",
++	"April",
++	"May",
++	"June",
++	"July",
++	"August",
++	"September",
++	"October",
++	"November",
++	"December",
++}
++
++// String returns the English name of the month ("January", "February", ...).
++func (m Month) String() string { return months[m-1] }
++
++// A Weekday specifies a day of the week (Sunday = 0, ...).
++type Weekday int
++
++const (
++	Sunday Weekday = iota
+ 	Monday
+ 	Tuesday
+ 	Wednesday
+@@ -16,284 +114,749 @@ const (
+ 	Saturday
+ )
+ 
+-// Time is the struct representing a parsed time value.
+-type Time struct {
+-	Year                 int64  // 2006 is 2006
+-	Month, Day           int    // Jan-2 is 1, 2
+-	Hour, Minute, Second int    // 15:04:05 is 15, 4, 5.
+-	Nanosecond           int    // Fractional second.
+-	ZoneOffset           int    // seconds east of UTC, e.g. -7*60*60 for -0700
+-	Zone                 string // e.g., "MST"
++var days = [...]string{
++	"Sunday",
++	"Monday",
++	"Tuesday",
++	"Wednesday",
++	"Thursday",
++	"Friday",
++	"Saturday",
+ }
+ 
+-var nonleapyear = []int{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
+-var leapyear = []int{31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
++// String returns the English name of the day ("Sunday", "Monday", ...).
++func (d Weekday) String() string { return days[d] }
++
++// Computations on time.
++// 
++// The zero value for a Time is defined to be
++//	January 1, year 1, 00:00:00.000000000 UTC
++// which (1) looks like a zero, or as close as you can get in a date
++// (1-1-1 00:00:00 UTC), (2) is unlikely enough to arise in practice to
++// be a suitable "not set" sentinel, unlike Jan 1 1970, and (3) has a
++// non-negative year even in time zones west of UTC, unlike 1-1-0
++// 00:00:00 UTC, which would be 12-31-(-1) 19:00:00 in New York.
++// 
++// The zero Time value does not force a specific epoch for the time
++// representation.  For example, to use the Unix epoch internally, we
++// could define that to distinguish a zero value from Jan 1 1970, that
++// time would be represented by sec=-1, nsec=1e9.  However, it does
++// suggest a representation, namely using 1-1-1 00:00:00 UTC as the
++// epoch, and that's what we do.
++// 
++// The Add and Sub computations are oblivious to the choice of epoch.
++// 
++// The presentation computations - year, month, minute, and so on - all
++// rely heavily on division and modulus by positive constants.  For
++// calendrical calculations we want these divisions to round down, even
++// for negative values, so that the remainder is always positive, but
++// Go's division (like most hardware divison instructions) rounds to
++// zero.  We can still do those computations and then adjust the result
++// for a negative numerator, but it's annoying to write the adjustment
++// over and over.  Instead, we can change to a different epoch so long
++// ago that all the times we care about will be positive, and then round
++// to zero and round down coincide.  These presentation routines already
++// have to add the zone offset, so adding the translation to the
++// alternate epoch is cheap.  For example, having a non-negative time t
++// means that we can write
++//
++//	sec = t % 60
++//
++// instead of
++//
++//	sec = t % 60
++//	if sec < 0 {
++//		sec += 60
++//	}
++//
++// everywhere.
++// 
++// The calendar runs on an exact 400 year cycle: a 400-year calendar
++// printed for 1970-2469 will apply as well to 2470-2869.  Even the days
++// of the week match up.  It simplifies the computations to choose the
++// cycle boundaries so that the exceptional years are always delayed as
++// long as possible.  That means choosing a year equal to 1 mod 400, so
++// that the first leap year is the 4th year, the first missed leap year
++// is the 100th year, and the missed missed leap year is the 400th year.
++// So we'd prefer instead to print a calendar for 2001-2400 and reuse it
++// for 2401-2800.
++// 
++// Finally, it's convenient if the delta between the Unix epoch and
++// long-ago epoch is representable by an int64 constant.
++// 
++// These three considerations—choose an epoch as early as possible, that
++// uses a year equal to 1 mod 400, and that is no more than 2⁶³ seconds
++// earlier than 1970—bring us to the year -292277022399.  We refer to
++// this year as the absolute zero year, and to times measured as a uint64
++// seconds since this year as absolute times.
++// 
++// Times measured as an int64 seconds since the year 1—the representation
++// used for Time's sec field—are called internal times.
++// 
++// Times measured as an int64 seconds since the year 1970 are called Unix
++// times.
++// 
++// It is tempting to just use the year 1 as the absolute epoch, defining
++// that the routines are only valid for years >= 1.  However, the
++// routines would then be invalid when displaying the epoch in time zones
++// west of UTC, since it is year 0.  It doesn't seem tenable to say that
++// printing the zero time correctly isn't supported in half the time
++// zones.  By comparison, it's reasonable to mishandle some times in
++// the year -292277022399.
++// 
++// All this is opaque to clients of the API and can be changed if a
++// better implementation presents itself.
+ 
+-func months(year int64) []int {
+-	if year%4 == 0 && (year%100 != 0 || year%400 == 0) {
+-		return leapyear
++const (
++	// The unsigned zero year for internal calculations.
++	// Must be 1 mod 400, and times before it will not compute correctly,
++	// but otherwise can be changed at will.
++	absoluteZeroYear = -292277022399
++
++	// The year of the zero Time.
++	// Assumed by the unixToInternal computation below.
++	internalYear = 1
++
++	// The year of the zero Unix time.
++	unixYear = 1970
++
++	// Offsets to convert between internal and absolute or Unix times.
++	absoluteToInternal int64 = (absoluteZeroYear - internalYear) * 365.2425 * secondsPerDay
++	internalToAbsolute       = -absoluteToInternal
++
++	unixToInternal int64 = (1969*365 + 1969/4 - 1969/100 + 1969/400) * secondsPerDay
++	internalToUnix int64 = -unixToInternal
++)
++
++// IsZero reports whether t represents the zero time instant,
++// January 1, year 1, 00:00:00 UTC.
++func (t Time) IsZero() bool {
++	return t.sec == 0 && t.nsec == 0
++}
++
++// abs returns the time t as an absolute time, adjusted by the zone offset.
++// It is called when computing a presentation property like Month or Hour.
++func (t Time) abs() uint64 {
++	l := t.loc
++	if l == nil {
++		l = &utcLoc
+ 	}
+-	return nonleapyear
++	// Avoid function call if we hit the local time cache.
++	sec := t.sec + internalToUnix
++	if l != &utcLoc {
++		if l.cacheZone != nil && l.cacheStart <= sec && sec < l.cacheEnd {
++			sec += int64(l.cacheZone.offset)
++		} else {
++			_, offset, _, _, _ := l.lookup(sec)
++			sec += int64(offset)
++		}
++	}
++	return uint64(sec + (unixToInternal + internalToAbsolute))
+ }
+ 
+-const (
+-	secondsPerDay   = 24 * 60 * 60
+-	daysPer400Years = 365*400 + 97
+-	daysPer100Years = 365*100 + 24
+-	daysPer4Years   = 365*4 + 1
+-	days1970To2001  = 31*365 + 8
+-)
++// Date returns the year, month, and day in which t occurs.
++func (t Time) Date() (year int, month Month, day int) {
++	year, month, day, _ = t.date(true)
++	return
++}
+ 
+-// SecondsToUTC converts sec, in number of seconds since the Unix epoch,
+-// into a parsed Time value in the UTC time zone.
+-func SecondsToUTC(sec int64) *Time {
+-	t := new(Time)
++// Year returns the year in which t occurs.
++func (t Time) Year() int {
++	year, _, _, _ := t.date(false)
++	return year
++}
+ 
+-	// Split into time and day.
+-	day := sec / secondsPerDay
+-	sec -= day * secondsPerDay
+-	if sec < 0 {
+-		day--
+-		sec += secondsPerDay
++// Month returns the month of the year specified by t.
++func (t Time) Month() Month {
++	_, month, _, _ := t.date(true)
++	return month
++}
++
++// Day returns the day of the month specified by t.
++func (t Time) Day() int {
++	_, _, day, _ := t.date(true)
++	return day
++}
++
++// Weekday returns the day of the week specified by t.
++func (t Time) Weekday() Weekday {
++	// January 1 of the absolute year, like January 1 of 2001, was a Monday.
++	sec := (t.abs() + uint64(Monday)*secondsPerDay) % secondsPerWeek
++	return Weekday(int(sec) / secondsPerDay)
++}
++
++// ISOWeek returns the ISO 8601 year and week number in which t occurs.
++// Week ranges from 1 to 53. Jan 01 to Jan 03 of year n might belong to 
++// week 52 or 53 of year n-1, and Dec 29 to Dec 31 might belong to week 1 
++// of year n+1.
++func (t Time) ISOWeek() (year, week int) {
++	year, month, day, yday := t.date(true)
++	wday := int(t.Weekday()+6) % 7 // weekday but Monday = 0.
++	const (
++		Mon int = iota
++		Tue
++		Wed
++		Thu
++		Fri
++		Sat
++		Sun
++	)
++
++	// Calculate week as number of Mondays in year up to
++	// and including today, plus 1 because the first week is week 0.
++	// Putting the + 1 inside the numerator as a + 7 keeps the
++	// numerator from being negative, which would cause it to
++	// round incorrectly.
++	week = (yday - wday + 7) / 7
++
++	// The week number is now correct under the assumption
++	// that the first Monday of the year is in week 1.
++	// If Jan 1 is a Tuesday, Wednesday, or Thursday, the first Monday
++	// is actually in week 2.
++	jan1wday := (wday - yday + 7*53) % 7
++	if Tue <= jan1wday && jan1wday <= Thu {
++		week++
+ 	}
+ 
+-	// Time
+-	t.Hour = int(sec / 3600)
+-	t.Minute = int((sec / 60) % 60)
+-	t.Second = int(sec % 60)
+-
+-	// Change day from 0 = 1970 to 0 = 2001,
+-	// to make leap year calculations easier
+-	// (2001 begins 4-, 100-, and 400-year cycles ending in a leap year.)
+-	day -= days1970To2001
+-
+-	year := int64(2001)
+-	if day < 0 {
+-		// Go back enough 400 year cycles to make day positive.
+-		n := -day/daysPer400Years + 1
+-		year -= 400 * n
+-		day += daysPer400Years * n
++	// If the week number is still 0, we're in early January but in
++	// the last week of last year.
++	if week == 0 {
++		year--
++		week = 52
++		// A year has 53 weeks when Jan 1 or Dec 31 is a Thursday,
++		// meaning Jan 1 of the next year is a Friday
++		// or it was a leap year and Jan 1 of the next year is a Saturday.
++		if jan1wday == Fri || (jan1wday == Sat && isLeap(year)) {
++			week++
++		}
+ 	}
+ 
+-	// Cut off 400 year cycles.
+-	n := day / daysPer400Years
+-	year += 400 * n
+-	day -= daysPer400Years * n
++	// December 29 to 31 are in week 1 of next year if
++	// they are after the last Thursday of the year and
++	// December 31 is a Monday, Tuesday, or Wednesday.
++	if month == December && day >= 29 && wday < Thu {
++		if dec31wday := (wday + 31 - day) % 7; Mon <= dec31wday && dec31wday <= Wed {
++			year++
++			week = 1
++		}
++	}
++
++	return
++}
++
++// Clock returns the hour, minute, and second within the day specified by t.
++func (t Time) Clock() (hour, min, sec int) {
++	sec = int(t.abs() % secondsPerDay)
++	hour = sec / secondsPerHour
++	sec -= hour * secondsPerHour
++	min = sec / secondsPerMinute
++	sec -= min * secondsPerMinute
++	return
++}
++
++// Hour returns the hour within the day specified by t, in the range [0, 23].
++func (t Time) Hour() int {
++	return int(t.abs()%secondsPerDay) / secondsPerHour
++}
++
++// Minute returns the minute offset within the hour specified by t, in the range [0, 59].
++func (t Time) Minute() int {
++	return int(t.abs()%secondsPerHour) / secondsPerMinute
++}
++
++// Second returns the second offset within the minute specified by t, in the range [0, 59].
++func (t Time) Second() int {
++	return int(t.abs() % secondsPerMinute)
++}
++
++// Nanosecond returns the nanosecond offset within the second specified by t,
++// in the range [0, 999999999].
++func (t Time) Nanosecond() int {
++	return int(t.nsec)
++}
++
++// A Duration represents the elapsed time between two instants
++// as an int64 nanosecond count.  The representation limits the
++// largest representable duration to approximately 290 years.
++type Duration int64
+ 
+-	// Cut off 100-year cycles
+-	n = day / daysPer100Years
+-	if n > 3 { // happens on last day of 400th year
+-		n = 3
++// Common durations.  There is no definition for units of Day or larger
++// to avoid confusion across daylight savings time zone transitions.
++const (
++	Nanosecond  Duration = 1
++	Microsecond          = 1000 * Nanosecond
++	Millisecond          = 1000 * Microsecond
++	Second               = 1000 * Millisecond
++	Minute               = 60 * Second
++	Hour                 = 60 * Minute
++)
++
++// Duration returns a string representing the duration in the form "72h3m0.5s".
++// Leading zero units are omitted.  As a special case, durations less than one
++// second format use a smaller unit (milli-, micro-, or nanoseconds) to ensure
++// that the leading digit is non-zero.  The zero duration formats as 0,
++// with no unit.
++func (d Duration) String() string {
++	// Largest time is 2540400h10m10.000000000s
++	var buf [32]byte
++	w := len(buf)
++
++	u := uint64(d)
++	neg := d < 0
++	if neg {
++		u = -u
+ 	}
+-	year += 100 * n
+-	day -= daysPer100Years * n
+ 
+-	// Cut off 4-year cycles
+-	n = day / daysPer4Years
+-	if n > 24 { // happens on last day of 100th year
+-		n = 24
++	if u < uint64(Second) {
++		// Special case: if duration is smaller than a second,
++		// use smaller units, like 1.2ms
++		var (
++			prec int
++			unit byte
++		)
++		switch {
++		case u == 0:
++			return "0"
++		case u < uint64(Microsecond):
++			// print nanoseconds
++			prec = 0
++			unit = 'n'
++		case u < uint64(Millisecond):
++			// print microseconds
++			prec = 3
++			unit = 'u'
++		default:
++			// print milliseconds
++			prec = 6
++			unit = 'm'
++		}
++		w -= 2
++		buf[w] = unit
++		buf[w+1] = 's'
++		w, u = fmtFrac(buf[:w], u, prec)
++		w = fmtInt(buf[:w], u)
++	} else {
++		w--
++		buf[w] = 's'
++
++		w, u = fmtFrac(buf[:w], u, 9)
++
++		// u is now integer seconds
++		w = fmtInt(buf[:w], u%60)
++		u /= 60
++
++		// u is now integer minutes
++		if u > 0 {
++			w--
++			buf[w] = 'm'
++			w = fmtInt(buf[:w], u%60)
++			u /= 60
++
++			// u is now integer hours
++			// Stop at hours because days can be different lengths.
++			if u > 0 {
++				w--
++				buf[w] = 'h'
++				w = fmtInt(buf[:w], u)
++			}
++		}
+ 	}
+-	year += 4 * n
+-	day -= daysPer4Years * n
+ 
+-	// Cut off non-leap years.
+-	n = day / 365
+-	if n > 3 { // happens on last day of 4th year
+-		n = 3
++	if neg {
++		w--
++		buf[w] = '-'
+ 	}
+-	year += n
+-	day -= 365 * n
+ 
+-	t.Year = year
++	return string(buf[w:])
++}
+ 
+-	// If someone ever needs yearday,
+-	// tyearday = day (+1?)
++// fmtFrac formats the fraction of v/10**prec (e.g., ".12345") into the
++// tail of buf, omitting trailing zeros.  it omits the decimal
++// point too when the fraction is 0.  It returns the index where the
++// output bytes begin and the value v/10**prec.
++func fmtFrac(buf []byte, v uint64, prec int) (nw int, nv uint64) {
++	// Omit trailing zeros up to and including decimal point.
++	w := len(buf)
++	print := false
++	for i := 0; i < prec; i++ {
++		digit := v % 10
++		print = print || digit != 0
++		if print {
++			w--
++			buf[w] = byte(digit) + '0'
++		}
++		v /= 10
++	}
++	if print {
++		w--
++		buf[w] = '.'
++	}
++	return w, v
++}
+ 
+-	months := months(year)
+-	var m int
+-	yday := int(day)
+-	for m = 0; m < 12 && yday >= months[m]; m++ {
+-		yday -= months[m]
++// fmtInt formats v into the tail of buf.
++// It returns the index where the output begins.
++func fmtInt(buf []byte, v uint64) int {
++	w := len(buf)
++	if v == 0 {
++		w--
++		buf[w] = '0'
++	} else {
++		for v > 0 {
++			w--
++			buf[w] = byte(v%10) + '0'
++			v /= 10
++		}
+ 	}
+-	t.Month = m + 1
+-	t.Day = yday + 1
+-	t.Zone = "UTC"
++	return w
++}
+ 
+-	return t
++// Nanoseconds returns the duration as an integer nanosecond count.
++func (d Duration) Nanoseconds() int64 { return int64(d) }
++
++// These methods return float64 because the dominant
++// use case is for printing a floating point number like 1.5s, and
++// a truncation to integer would make them not useful in those cases.
++// Splitting the integer and fraction ourselves guarantees that
++// converting the returned float64 to an integer rounds the same
++// way that a pure integer conversion would have, even in cases
++// where, say, float64(d.Nanoseconds())/1e9 would have rounded
++// differently.
++
++// Seconds returns the duration as a floating point number of seconds.
++func (d Duration) Seconds() float64 {
++	sec := d / Second
++	nsec := d % Second
++	return float64(sec) + float64(nsec)*1e-9
+ }
+ 
+-// NanosecondsToUTC converts nsec, in number of nanoseconds since the Unix epoch,
+-// into a parsed Time value in the UTC time zone.
+-func NanosecondsToUTC(nsec int64) *Time {
+-	// This one calls SecondsToUTC rather than the other way around because
+-	// that admits a much larger span of time; NanosecondsToUTC is limited
+-	// to a few hundred years only.
+-	t := SecondsToUTC(nsec / 1e9)
+-	t.Nanosecond = int(nsec % 1e9)
+-	return t
++// Minutes returns the duration as a floating point number of minutes.
++func (d Duration) Minutes() float64 {
++	min := d / Minute
++	nsec := d % Minute
++	return float64(min) + float64(nsec)*(1e-9/60)
+ }
+ 
+-// UTC returns the current time as a parsed Time value in the UTC time zone.
+-func UTC() *Time { return NanosecondsToUTC(Nanoseconds()) }
++// Hours returns the duration as a floating point number of hours.
++func (d Duration) Hours() float64 {
++	hour := d / Hour
++	nsec := d % Hour
++	return float64(hour) + float64(nsec)*(1e-9/60/60)
++}
+ 
+-// SecondsToLocalTime converts sec, in number of seconds since the Unix epoch,
+-// into a parsed Time value in the local time zone.
+-func SecondsToLocalTime(sec int64) *Time {
+-	z, offset := lookupTimezone(sec)
+-	t := SecondsToUTC(sec + int64(offset))
+-	t.Zone = z
+-	t.ZoneOffset = offset
++// Add returns the time t+d.
++func (t Time) Add(d Duration) Time {
++	t.sec += int64(d / 1e9)
++	t.nsec += int32(d % 1e9)
++	if t.nsec > 1e9 {
++		t.sec++
++		t.nsec -= 1e9
++	} else if t.nsec < 0 {
++		t.sec--
++		t.nsec += 1e9
++	}
+ 	return t
+ }
+ 
+-// NanosecondsToLocalTime converts nsec, in number of nanoseconds since the Unix epoch,
+-// into a parsed Time value in the local time zone.
+-func NanosecondsToLocalTime(nsec int64) *Time {
+-	t := SecondsToLocalTime(nsec / 1e9)
+-	t.Nanosecond = int(nsec % 1e9)
+-	return t
++// Sub returns the duration t-u.
++// To compute t-d for a duration d, use t.Add(-d).
++func (t Time) Sub(u Time) Duration {
++	return Duration(t.sec-u.sec)*Second + Duration(t.nsec-u.nsec)
+ }
+ 
+-// LocalTime returns the current time as a parsed Time value in the local time zone.
+-func LocalTime() *Time { return NanosecondsToLocalTime(Nanoseconds()) }
+-
+-// Seconds returns the number of seconds since January 1, 1970 represented by the
+-// parsed Time value.
+-func (t *Time) Seconds() int64 {
+-	// First, accumulate days since January 1, 2001.
+-	// Using 2001 instead of 1970 makes the leap-year
+-	// handling easier (see SecondsToUTC), because
+-	// it is at the beginning of the 4-, 100-, and 400-year cycles.
+-	day := int64(0)
+-
+-	// Rewrite year to be >= 2001.
+-	year := t.Year
+-	if year < 2001 {
+-		n := (2001-year)/400 + 1
+-		year += 400 * n
+-		day -= daysPer400Years * n
++const (
++	secondsPerMinute = 60
++	secondsPerHour   = 60 * 60
++	secondsPerDay    = 24 * secondsPerHour
++	secondsPerWeek   = 7 * secondsPerDay
++	daysPer400Years  = 365*400 + 97
++	daysPer100Years  = 365*100 + 24
++	daysPer4Years    = 365*4 + 1
++	days1970To2001   = 31*365 + 8
++)
++
++// date computes the year and, only when full=true,
++// the month and day in which t occurs.
++func (t Time) date(full bool) (year int, month Month, day int, yday int) {
++	// Split into time and day.
++	d := t.abs() / secondsPerDay
++
++	// Account for 400 year cycles.
++	n := d / daysPer400Years
++	y := 400 * n
++	d -= daysPer400Years * n
++
++	// Cut off 100-year cycles.
++	// The last cycle has one extra leap year, so on the last day
++	// of that year, day / daysPer100Years will be 4 instead of 3.
++	// Cut it back down to 3 by subtracting n>>2.
++	n = d / daysPer100Years
++	n -= n >> 2
++	y += 100 * n
++	d -= daysPer100Years * n
++
++	// Cut off 4-year cycles.
++	// The last cycle has a missing leap year, which does not
++	// affect the computation.
++	n = d / daysPer4Years
++	y += 4 * n
++	d -= daysPer4Years * n
++
++	// Cut off years within a 4-year cycle.
++	// The last year is a leap year, so on the last day of that year,
++	// day / 365 will be 4 instead of 3.  Cut it back down to 3
++	// by subtracting n>>2.
++	n = d / 365
++	n -= n >> 2
++	y += n
++	d -= 365 * n
++
++	year = int(int64(y) + absoluteZeroYear)
++	yday = int(d)
++
++	if !full {
++		return
+ 	}
+ 
+-	// Add in days from 400-year cycles.
+-	n := (year - 2001) / 400
+-	year -= 400 * n
+-	day += daysPer400Years * n
++	day = yday
++	if isLeap(year) {
++		// Leap year
++		switch {
++		case day > 31+29-1:
++			// After leap day; pretend it wasn't there.
++			day--
++		case day == 31+29-1:
++			// Leap day.
++			month = February
++			day = 29
++			return
++		}
++	}
+ 
+-	// Add in 100-year cycles.
+-	n = (year - 2001) / 100
+-	year -= 100 * n
+-	day += daysPer100Years * n
++	// Estimate month on assumption that every month has 31 days.
++	// The estimate may be too low by at most one month, so adjust.
++	month = Month(day / 31)
++	end := int(daysBefore[month+1])
++	var begin int
++	if day >= end {
++		month++
++		begin = end
++	} else {
++		begin = int(daysBefore[month])
++	}
+ 
+-	// Add in 4-year cycles.
+-	n = (year - 2001) / 4
+-	year -= 4 * n
+-	day += daysPer4Years * n
++	month++ // because January is 1
++	day = day - begin + 1
++	return
++}
+ 
+-	// Add in non-leap years.
+-	n = year - 2001
+-	day += 365 * n
++// daysBefore[m] counts the number of days in a non-leap year
++// before month m begins.  There is an entry for m=12, counting
++// the number of days before January of next year (365).
++var daysBefore = [...]int32{
++	0,
++	31,
++	31 + 28,
++	31 + 28 + 31,
++	31 + 28 + 31 + 30,
++	31 + 28 + 31 + 30 + 31,
++	31 + 28 + 31 + 30 + 31 + 30,
++	31 + 28 + 31 + 30 + 31 + 30 + 31,
++	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31,
++	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30,
++	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31,
++	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30,
++	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + 31,
++}
+ 
+-	// Add in days this year.
+-	months := months(t.Year)
+-	for m := 0; m < t.Month-1; m++ {
+-		day += int64(months[m])
++func daysIn(m Month, year int) int {
++	if m == February && isLeap(year) {
++		return 29
+ 	}
+-	day += int64(t.Day - 1)
+-
+-	// Convert days to seconds since January 1, 2001.
+-	sec := day * secondsPerDay
++	return int(daysBefore[m+1] - daysBefore[m])
++}
+ 
+-	// Add in time elapsed today.
+-	sec += int64(t.Hour) * 3600
+-	sec += int64(t.Minute) * 60
+-	sec += int64(t.Second)
++// Provided by package runtime.
++func now() (sec int64, nsec int32)
+ 
+-	// Convert from seconds since 2001 to seconds since 1970.
+-	sec += days1970To2001 * secondsPerDay
++// Now returns the current local time.
++func Now() Time {
++	sec, nsec := now()
++	return Time{sec + unixToInternal, nsec, Local}
++}
+ 
+-	// Account for local time zone.
+-	sec -= int64(t.ZoneOffset)
+-	return sec
++// UTC returns t with the location set to UTC.
++func (t Time) UTC() Time {
++	t.loc = UTC
++	return t
+ }
+ 
+-// Nanoseconds returns the number of nanoseconds since January 1, 1970 represented by the
+-// parsed Time value.
+-func (t *Time) Nanoseconds() int64 {
+-	return t.Seconds()*1e9 + int64(t.Nanosecond)
++// Local returns t with the location set to local time.
++func (t Time) Local() Time {
++	t.loc = Local
++	return t
+ }
+ 
+-// Weekday returns the time's day of the week. Sunday is day 0.
+-func (t *Time) Weekday() int {
+-	sec := t.Seconds() + int64(t.ZoneOffset)
+-	day := sec / secondsPerDay
+-	sec -= day * secondsPerDay
+-	if sec < 0 {
+-		day--
++// In returns t with the location information set to loc.
++//
++// In panics if loc is nil.
++func (t Time) In(loc *Location) Time {
++	if loc == nil {
++		panic("time: missing Location in call to Time.In")
+ 	}
+-	// Day 0 = January 1, 1970 was a Thursday
+-	weekday := int((day + Thursday) % 7)
+-	if weekday < 0 {
+-		weekday += 7
+-	}
+-	return weekday
++	t.loc = loc
++	return t
+ }
+ 
+-// julianDayNumber returns the time's Julian Day Number
+-// relative to the epoch 12:00 January 1, 4713 BC, Monday.
+-func julianDayNumber(year int64, month, day int) int64 {
+-	a := int64(14-month) / 12
+-	y := year + 4800 - a
+-	m := int64(month) + 12*a - 3
+-	return int64(day) + (153*m+2)/5 + 365*y + y/4 - y/100 + y/400 - 32045
++// Location returns the time zone information associated with t.
++func (t Time) Location() *Location {
++	l := t.loc
++	if l == nil {
++		l = UTC
++	}
++	return l
+ }
+ 
+-// startOfFirstWeek returns the julian day number of the first day
+-// of the first week of the given year.
+-func startOfFirstWeek(year int64) (d int64) {
+-	jan01 := julianDayNumber(year, 1, 1)
+-	weekday := (jan01 % 7) + 1
+-	if weekday <= 4 {
+-		d = jan01 - weekday + 1
+-	} else {
+-		d = jan01 + 8 - weekday
+-	}
++// Zone computes the time zone in effect at time t, returning the abbreviated
++// name of the zone (such as "CET") and its offset in seconds east of UTC.
++func (t Time) Zone() (name string, offset int) {
++	name, offset, _, _, _ = t.loc.lookup(t.sec + internalToUnix)
+ 	return
+ }
+ 
+-// dayOfWeek returns the weekday of the given date.
+-func dayOfWeek(year int64, month, day int) int {
+-	t := Time{Year: year, Month: month, Day: day}
+-	return t.Weekday()
++// Unix returns the Unix time, the number of seconds elapsed
++// since January 1, 1970 UTC.
++func (t Time) Unix() int64 {
++	return t.sec + internalToUnix
+ }
+ 
+-// ISOWeek returns the time's year and week number according to ISO 8601. 
+-// Week ranges from 1 to 53. Jan 01 to Jan 03 of year n might belong to 
+-// week 52 or 53 of year n-1, and Dec 29 to Dec 31 might belong to week 1 
+-// of year n+1.
+-func (t *Time) ISOWeek() (year int64, week int) {
+-	d := julianDayNumber(t.Year, t.Month, t.Day)
+-	week1Start := startOfFirstWeek(t.Year)
+-
+-	if d < week1Start {
+-		// Previous year, week 52 or 53
+-		year = t.Year - 1
+-		if dayOfWeek(t.Year-1, 1, 1) == 4 || dayOfWeek(t.Year-1, 12, 31) == 4 {
+-			week = 53
+-		} else {
+-			week = 52
++// UnixNano returns the Unix time, the number of nanoseconds elapsed
++// since January 1, 1970 UTC.
++func (t Time) UnixNano() int64 {
++	return (t.sec+internalToUnix)*1e9 + int64(t.nsec)
++}
++
++// Unix returns the local Time corresponding to the given Unix time,
++// sec seconds and nsec nanoseconds since January 1, 1970 UTC.
++// It is valid to pass nsec outside the range [0, 999999999].
++func Unix(sec int64, nsec int64) Time {
++	if nsec < 0 || nsec >= 1e9 {
++		n := nsec / 1e9
++		sec += n
++		nsec -= n * 1e9
++		if nsec < 0 {
++			nsec += 1e9
++			sec--
+ 		}
+-		return
+ 	}
++	return Time{sec + unixToInternal, int32(nsec), Local}
++}
++
++func isLeap(year int) bool {
++	return year%4 == 0 && (year%100 != 0 || year%400 == 0)
++}
++
++// norm returns nhi, nlo such that
++//	hi * base + lo == nhi * base + nlo
++//	0 <= nlo < base
++func norm(hi, lo, base int) (nhi, nlo int) {
++	if lo < 0 {
++		n := (-lo-1)/base + 1
++		hi -= n
++		lo += n * base
++	}
++	if lo >= base {
++		n := lo / base
++		hi += n
++		lo -= n * base
++	}
++	return hi, lo
++}
+ 
+-	if d < startOfFirstWeek(t.Year+1) {
+-		// Current year, week 01..52(,53)
+-		year = t.Year
+-		week = int((d-week1Start)/7 + 1)
+-		return
++// Date returns the Time corresponding to
++//	yyyy-mm-dd hh:mm:ss + nsec nanoseconds
++// in the appropriate zone for that time in the given location.
++//
++// The month, day, hour, min, sec, and nsec values may be outside
++// their usual ranges and will be normalized during the conversion.
++// For example, October 32 converts to November 1.
++//
++// A daylight savings time transition skips or repeats times.
++// For example, in the United States, March 13, 2011 2:15am never occurred,
++// while November 6, 2011 1:15am occurred twice.  In such cases, the
++// choice of time zone, and therefore the time, is not well-defined.
++// Date returns a time that is correct in one of the two zones involved
++// in the transition, but it does not guarantee which.
++//
++// Date panics if loc is nil.
++func Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location) Time {
++	if loc == nil {
++		panic("time: missing Location in call to Date")
+ 	}
+ 
+-	// Next year, week 1
+-	year = t.Year + 1
+-	week = 1
+-	return
++	// Normalize month, overflowing into year.
++	m := int(month) - 1
++	year, m = norm(year, m, 12)
++	month = Month(m) + 1
++
++	// Normalize nsec, sec, min, hour, overflowing into day.
++	sec, nsec = norm(sec, nsec, 1e9)
++	min, sec = norm(min, sec, 60)
++	hour, min = norm(hour, min, 60)
++	day, hour = norm(day, hour, 24)
++
++	y := uint64(int64(year) - absoluteZeroYear)
++
++	// Compute days since the absolute epoch.
++
++	// Add in days from 400-year cycles.
++	n := y / 400
++	y -= 400 * n
++	d := daysPer400Years * n
++
++	// Add in 100-year cycles.
++	n = y / 100
++	y -= 100 * n
++	d += daysPer100Years * n
++
++	// Add in 4-year cycles.
++	n = y / 4
++	y -= 4 * n
++	d += daysPer4Years * n
++
++	// Add in non-leap years.
++	n = y
++	d += 365 * n
++
++	// Add in days before this month.
++	d += uint64(daysBefore[month-1])
++	if isLeap(year) && month >= March {
++		d++ // February 29
++	}
++
++	// Add in days before today.
++	d += uint64(day - 1)
++
++	// Add in time elapsed today.
++	abs := d * secondsPerDay
++	abs += uint64(hour*secondsPerHour + min*secondsPerMinute + sec)
++
++	unix := int64(abs) + (absoluteToInternal + internalToUnix)
++
++	// Look for zone offset for t, so we can adjust to UTC.
++	// The lookup function expects UTC, so we pass t in the
++	// hope that it will not be too close to a zone transition,
++	// and then adjust if it is.
++	_, offset, _, start, end := loc.lookup(unix)
++	if offset != 0 {
++		switch utc := unix - int64(offset); {
++		case utc < start:
++			_, offset, _, _, _ = loc.lookup(start - 1)
++		case utc >= end:
++			_, offset, _, _, _ = loc.lookup(end)
++		}
++		unix -= int64(offset)
++	}
++
++	return Time{unix + unixToInternal, int32(nsec), loc}
+ }
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index 01b8bea4aa..9590e281a6 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -16,73 +16,89 @@ import (
+ // won't be. The purpose of this test is to at least explain why some of
+ // the subsequent tests fail.
+ func TestZoneData(t *testing.T) {
+-	lt := LocalTime()
++	lt := Now()
+ 	// PST is 8 hours west, PDT is 7 hours west.  We could use the name but it's not unique.
+-	if off := lt.ZoneOffset; off != -8*60*60 && off != -7*60*60 {
+-		t.Errorf("Unable to find US Pacific time zone data for testing; time zone is %q offset %d", lt.Zone, off)
++	if name, off := lt.Zone(); off != -8*60*60 && off != -7*60*60 {
++		t.Errorf("Unable to find US Pacific time zone data for testing; time zone is %q offset %d", name, off)
+ 		t.Error("Likely problem: the time zone files have not been installed.")
+ 	}
+ }
+ 
++// parsedTime is the struct representing a parsed time value.
++type parsedTime struct {
++	Year                 int
++	Month                Month
++	Day                  int
++	Hour, Minute, Second int // 15:04:05 is 15, 4, 5.
++	Nanosecond           int // Fractional second.
++	Weekday              Weekday
++	ZoneOffset           int    // seconds east of UTC, e.g. -7*60*60 for -0700
++	Zone                 string // e.g., "MST"
++}
++
+ type TimeTest struct {
+ 	seconds int64
+-	golden  Time
++	golden  parsedTime
+ }
+ 
+ var utctests = []TimeTest{
+-	{0, Time{1970, 1, 1, 0, 0, 0, 0, 0, "UTC"}},
+-	{1221681866, Time{2008, 9, 17, 20, 4, 26, 0, 0, "UTC"}},
+-	{-1221681866, Time{1931, 4, 16, 3, 55, 34, 0, 0, "UTC"}},
+-	{-11644473600, Time{1601, 1, 1, 0, 0, 0, 0, 0, "UTC"}},
+-	{599529660, Time{1988, 12, 31, 0, 1, 0, 0, 0, "UTC"}},
+-	{978220860, Time{2000, 12, 31, 0, 1, 0, 0, 0, "UTC"}},
+-	{1e18, Time{31688740476, 10, 23, 1, 46, 40, 0, 0, "UTC"}},
+-	{-1e18, Time{-31688736537, 3, 10, 22, 13, 20, 0, 0, "UTC"}},
+-	{0x7fffffffffffffff, Time{292277026596, 12, 4, 15, 30, 7, 0, 0, "UTC"}},
+-	{-0x8000000000000000, Time{-292277022657, 1, 27, 8, 29, 52, 0, 0, "UTC"}},
++	{0, parsedTime{1970, January, 1, 0, 0, 0, 0, Thursday, 0, "UTC"}},
++	{1221681866, parsedTime{2008, September, 17, 20, 4, 26, 0, Wednesday, 0, "UTC"}},
++	{-1221681866, parsedTime{1931, April, 16, 3, 55, 34, 0, Thursday, 0, "UTC"}},
++	{-11644473600, parsedTime{1601, January, 1, 0, 0, 0, 0, Monday, 0, "UTC"}},
++	{599529660, parsedTime{1988, December, 31, 0, 1, 0, 0, Saturday, 0, "UTC"}},
++	{978220860, parsedTime{2000, December, 31, 0, 1, 0, 0, Sunday, 0, "UTC"}},
+ }
+ 
+ var nanoutctests = []TimeTest{
+-	{0, Time{1970, 1, 1, 0, 0, 0, 1e8, 0, "UTC"}},
+-	{1221681866, Time{2008, 9, 17, 20, 4, 26, 2e8, 0, "UTC"}},
++	{0, parsedTime{1970, January, 1, 0, 0, 0, 1e8, Thursday, 0, "UTC"}},
++	{1221681866, parsedTime{2008, September, 17, 20, 4, 26, 2e8, Wednesday, 0, "UTC"}},
+ }
+ 
+ var localtests = []TimeTest{
+-	{0, Time{1969, 12, 31, 16, 0, 0, 0, -8 * 60 * 60, "PST"}},
+-	{1221681866, Time{2008, 9, 17, 13, 4, 26, 0, -7 * 60 * 60, "PDT"}},
++	{0, parsedTime{1969, December, 31, 16, 0, 0, 0, Wednesday, -8 * 60 * 60, "PST"}},
++	{1221681866, parsedTime{2008, September, 17, 13, 4, 26, 0, Wednesday, -7 * 60 * 60, "PDT"}},
+ }
+ 
+ var nanolocaltests = []TimeTest{
+-	{0, Time{1969, 12, 31, 16, 0, 0, 1e8, -8 * 60 * 60, "PST"}},
+-	{1221681866, Time{2008, 9, 17, 13, 4, 26, 3e8, -7 * 60 * 60, "PDT"}},
+-}
+-
+-func same(t, u *Time) bool {
+-	return t.Year == u.Year &&
+-		t.Month == u.Month &&
+-		t.Day == u.Day &&
+-		t.Hour == u.Hour &&
+-		t.Minute == u.Minute &&
+-		t.Second == u.Second &&
+-		t.Nanosecond == u.Nanosecond &&
+-		t.Weekday() == u.Weekday() &&
+-		t.ZoneOffset == u.ZoneOffset &&
+-		t.Zone == u.Zone
++	{0, parsedTime{1969, December, 31, 16, 0, 0, 1e8, Wednesday, -8 * 60 * 60, "PST"}},
++	{1221681866, parsedTime{2008, September, 17, 13, 4, 26, 3e8, Wednesday, -7 * 60 * 60, "PDT"}},
++}
++
++func same(t Time, u *parsedTime) bool {
++	// Check aggregates.
++	year, month, day := t.Date()
++	hour, min, sec := t.Clock()
++	name, offset := t.Zone()
++	if year != u.Year || month != u.Month || day != u.Day ||
++		hour != u.Hour || min != u.Minute || sec != u.Second ||
++		name != u.Zone || offset != u.ZoneOffset {
++		return false
++	}
++	// Check individual entries.
++	return t.Year() == u.Year &&
++		t.Month() == u.Month &&
++		t.Day() == u.Day &&
++		t.Hour() == u.Hour &&
++		t.Minute() == u.Minute &&
++		t.Second() == u.Second &&
++		t.Nanosecond() == u.Nanosecond &&
++		t.Weekday() == u.Weekday
+ }
+ 
+ func TestSecondsToUTC(t *testing.T) {
+ 	for _, test := range utctests {
+ 		sec := test.seconds
+ 		golden := &test.golden
+-		tm := SecondsToUTC(sec)
+-		newsec := tm.Seconds()
++		tm := Unix(sec, 0).UTC()
++		newsec := tm.Unix()
+ 		if newsec != sec {
+ 			t.Errorf("SecondsToUTC(%d).Seconds() = %d", sec, newsec)
+ 		}
+ 		if !same(tm, golden) {
+-			t.Errorf("SecondsToUTC(%d):", sec)
++			t.Errorf("SecondsToUTC(%d):  // %#v", sec, tm)
+ 			t.Errorf("  want=%+v", *golden)
+-			t.Errorf("  have=%+v", *tm)
++			t.Errorf("  have=%v", tm.Format(RFC3339+" MST"))
+ 		}
+ 	}
+ }
+@@ -91,15 +107,15 @@ func TestNanosecondsToUTC(t *testing.T) {
+ 	for _, test := range nanoutctests {
+ 		golden := &test.golden
+ 		nsec := test.seconds*1e9 + int64(golden.Nanosecond)
+-		tm := NanosecondsToUTC(nsec)
+-		newnsec := tm.Nanoseconds()
++		tm := Unix(0, nsec).UTC()
++		newnsec := tm.Unix()*1e9 + int64(tm.Nanosecond())
+ 		if newnsec != nsec {
+ 			t.Errorf("NanosecondsToUTC(%d).Nanoseconds() = %d", nsec, newnsec)
+ 		}
+ 		if !same(tm, golden) {
+ 			t.Errorf("NanosecondsToUTC(%d):", nsec)
+ 			t.Errorf("  want=%+v", *golden)
+-			t.Errorf("  have=%+v", *tm)
++			t.Errorf("  have=%+v", tm.Format(RFC3339+" MST"))
+ 		}
+ 	}
+ }
+@@ -108,38 +124,38 @@ func TestSecondsToLocalTime(t *testing.T) {
+ 	for _, test := range localtests {
+ 		sec := test.seconds
+ 		golden := &test.golden
+-		tm := SecondsToLocalTime(sec)
+-		newsec := tm.Seconds()
++		tm := Unix(sec, 0)
++		newsec := tm.Unix()
+ 		if newsec != sec {
+ 			t.Errorf("SecondsToLocalTime(%d).Seconds() = %d", sec, newsec)
+ 		}
+ 		if !same(tm, golden) {
+ 			t.Errorf("SecondsToLocalTime(%d):", sec)
+ 			t.Errorf("  want=%+v", *golden)
+-			t.Errorf("  have=%+v", *tm)
++			t.Errorf("  have=%+v", tm.Format(RFC3339+" MST"))
+ 		}
+ 	}
+ }
+ 
+-func TestNanoecondsToLocalTime(t *testing.T) {
++func TestNanosecondsToLocalTime(t *testing.T) {
+ 	for _, test := range nanolocaltests {
+ 		golden := &test.golden
+ 		nsec := test.seconds*1e9 + int64(golden.Nanosecond)
+-		tm := NanosecondsToLocalTime(nsec)
+-		newnsec := tm.Nanoseconds()
++		tm := Unix(0, nsec)
++		newnsec := tm.Unix()*1e9 + int64(tm.Nanosecond())
+ 		if newnsec != nsec {
+ 			t.Errorf("NanosecondsToLocalTime(%d).Seconds() = %d", nsec, newnsec)
+ 		}
+ 		if !same(tm, golden) {
+ 			t.Errorf("NanosecondsToLocalTime(%d):", nsec)
+ 			t.Errorf("  want=%+v", *golden)
+-			t.Errorf("  have=%+v", *tm)
++			t.Errorf("  have=%+v", tm.Format(RFC3339+" MST"))
+ 		}
+ 	}
+ }
+ 
+ func TestSecondsToUTCAndBack(t *testing.T) {
+-	f := func(sec int64) bool { return SecondsToUTC(sec).Seconds() == sec }
++	f := func(sec int64) bool { return Unix(sec, 0).UTC().Unix() == sec }
+ 	f32 := func(sec int32) bool { return f(int64(sec)) }
+ 	cfg := &quick.Config{MaxCount: 10000}
+ 
+@@ -153,7 +169,11 @@ func TestSecondsToUTCAndBack(t *testing.T) {
+ }
+ 
+ func TestNanosecondsToUTCAndBack(t *testing.T) {
+-	f := func(nsec int64) bool { return NanosecondsToUTC(nsec).Nanoseconds() == nsec }
++	f := func(nsec int64) bool {
++		t := Unix(0, nsec).UTC()
++		ns := t.Unix()*1e9 + int64(t.Nanosecond())
++		return ns == nsec
++	}
+ 	f32 := func(nsec int32) bool { return f(int64(nsec)) }
+ 	cfg := &quick.Config{MaxCount: 10000}
+ 
+@@ -173,9 +193,9 @@ type TimeFormatTest struct {
+ }
+ 
+ var rfc3339Formats = []TimeFormatTest{
+-	{Time{2008, 9, 17, 20, 4, 26, 0, 0, "UTC"}, "2008-09-17T20:04:26Z"},
+-	{Time{1994, 9, 17, 20, 4, 26, 0, -18000, "EST"}, "1994-09-17T20:04:26-05:00"},
+-	{Time{2000, 12, 26, 1, 15, 6, 0, 15600, "OTO"}, "2000-12-26T01:15:06+04:20"},
++	{Date(2008, 9, 17, 20, 4, 26, 0, UTC), "2008-09-17T20:04:26Z"},
++	{Date(1994, 9, 17, 20, 4, 26, 0, FixedZone("EST", -18000)), "1994-09-17T20:04:26-05:00"},
++	{Date(2000, 12, 26, 1, 15, 6, 0, FixedZone("OTO", 15600)), "2000-12-26T01:15:06+04:20"},
+ }
+ 
+ func TestRFC3339Conversion(t *testing.T) {
+@@ -216,7 +236,7 @@ var formatTests = []FormatTest{
+ 
+ func TestFormat(t *testing.T) {
+ 	// The numeric time represents Thu Feb  4 21:00:57.012345678 PST 2010
+-	time := NanosecondsToLocalTime(1233810057012345678)
++	time := Unix(0, 1233810057012345678)
+ 	for _, test := range formatTests {
+ 		result := time.Format(test.format)
+ 		if result != test.result {
+@@ -229,10 +249,10 @@ type ParseTest struct {
+ 	name       string
+ 	format     string
+ 	value      string
+-	hasTZ      bool  // contains a time zone
+-	hasWD      bool  // contains a weekday
+-	yearSign   int64 // sign of year
+-	fracDigits int   // number of digits of fractional second
++	hasTZ      bool // contains a time zone
++	hasWD      bool // contains a weekday
++	yearSign   int  // sign of year
++	fracDigits int  // number of digits of fractional second
+ }
+ 
+ var parseTests = []ParseTest{
+@@ -298,47 +318,48 @@ func TestRubyParse(t *testing.T) {
+ 	}
+ }
+ 
+-func checkTime(time *Time, test *ParseTest, t *testing.T) {
++func checkTime(time Time, test *ParseTest, t *testing.T) {
+ 	// The time should be Thu Feb  4 21:00:57 PST 2010
+-	if test.yearSign*time.Year != 2010 {
+-		t.Errorf("%s: bad year: %d not %d", test.name, time.Year, 2010)
++	if test.yearSign*time.Year() != 2010 {
++		t.Errorf("%s: bad year: %d not %d", test.name, time.Year(), 2010)
+ 	}
+-	if time.Month != 2 {
+-		t.Errorf("%s: bad month: %d not %d", test.name, time.Month, 2)
++	if time.Month() != February {
++		t.Errorf("%s: bad month: %s not %s", test.name, time.Month(), February)
+ 	}
+-	if time.Day != 4 {
+-		t.Errorf("%s: bad day: %d not %d", test.name, time.Day, 4)
++	if time.Day() != 4 {
++		t.Errorf("%s: bad day: %d not %d", test.name, time.Day(), 4)
+ 	}
+-	if time.Hour != 21 {
+-		t.Errorf("%s: bad hour: %d not %d", test.name, time.Hour, 21)
++	if time.Hour() != 21 {
++		t.Errorf("%s: bad hour: %d not %d", test.name, time.Hour(), 21)
+ 	}
+-	if time.Minute != 0 {
+-		t.Errorf("%s: bad minute: %d not %d", test.name, time.Minute, 0)
++	if time.Minute() != 0 {
++		t.Errorf("%s: bad minute: %d not %d", test.name, time.Minute(), 0)
+ 	}
+-	if time.Second != 57 {
+-		t.Errorf("%s: bad second: %d not %d", test.name, time.Second, 57)
++	if time.Second() != 57 {
++		t.Errorf("%s: bad second: %d not %d", test.name, time.Second(), 57)
+ 	}
+ 	// Nanoseconds must be checked against the precision of the input.
+ 	nanosec, err := strconv.Atoui("012345678"[:test.fracDigits] + "000000000"[:9-test.fracDigits])
+ 	if err != nil {
+ 		panic(err)
+ 	}
+-	if time.Nanosecond != int(nanosec) {
+-		t.Errorf("%s: bad nanosecond: %d not %d", test.name, time.Nanosecond, nanosec)
++	if time.Nanosecond() != int(nanosec) {
++		t.Errorf("%s: bad nanosecond: %d not %d", test.name, time.Nanosecond(), nanosec)
+ 	}
+-	if test.hasTZ && time.ZoneOffset != -28800 {
+-		t.Errorf("%s: bad tz offset: %d not %d", test.name, time.ZoneOffset, -28800)
++	name, offset := time.Zone()
++	if test.hasTZ && offset != -28800 {
++		t.Errorf("%s: bad tz offset: %s %d not %d", test.name, name, offset, -28800)
+ 	}
+-	if test.hasWD && time.Weekday() != 4 {
+-		t.Errorf("%s: bad weekday: %d not %d", test.name, time.Weekday(), 4)
++	if test.hasWD && time.Weekday() != Thursday {
++		t.Errorf("%s: bad weekday: %s not %s", test.name, time.Weekday(), Thursday)
+ 	}
+ }
+ 
+ func TestFormatAndParse(t *testing.T) {
+ 	const fmt = "Mon MST " + RFC3339 // all fields
+ 	f := func(sec int64) bool {
+-		t1 := SecondsToLocalTime(sec)
+-		if t1.Year < 1000 || t1.Year > 9999 {
++		t1 := Unix(sec, 0)
++		if t1.Year() < 1000 || t1.Year() > 9999 {
+ 			// not required to work
+ 			return true
+ 		}
+@@ -347,8 +368,8 @@ func TestFormatAndParse(t *testing.T) {
+ 			t.Errorf("error: %s", err)
+ 			return false
+ 		}
+-		if !same(t1, t2) {
+-			t.Errorf("different: %q %q", t1, t2)
++		if t1.Unix() != t2.Unix() || t1.Nanosecond() != t2.Nanosecond() {
++			t.Errorf("FormatAndParse %d: %q(%d) %q(%d)", sec, t1, t1.Unix(), t2, t2.Unix())
+ 			return false
+ 		}
+ 		return true
+@@ -394,7 +415,7 @@ func TestParseErrors(t *testing.T) {
+ }
+ 
+ func TestNoonIs12PM(t *testing.T) {
+-	noon := Time{Hour: 12}
++	noon := Date(0, January, 1, 12, 0, 0, 0, UTC)
+ 	const expect = "12:00PM"
+ 	got := noon.Format("3:04PM")
+ 	if got != expect {
+@@ -407,7 +428,7 @@ func TestNoonIs12PM(t *testing.T) {
+ }
+ 
+ func TestMidnightIs12AM(t *testing.T) {
+-	midnight := Time{Hour: 0}
++	midnight := Date(0, January, 1, 0, 0, 0, 0, UTC)
+ 	expect := "12:00AM"
+ 	got := midnight.Format("3:04PM")
+ 	if got != expect {
+@@ -424,15 +445,15 @@ func Test12PMIsNoon(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal("error parsing date:", err)
+ 	}
+-	if noon.Hour != 12 {
+-		t.Errorf("got %d; expect 12", noon.Hour)
++	if noon.Hour() != 12 {
++		t.Errorf("got %d; expect 12", noon.Hour())
+ 	}
+ 	noon, err = Parse("03:04PM", "12:00PM")
+ 	if err != nil {
+ 		t.Fatal("error parsing date:", err)
+ 	}
+-	if noon.Hour != 12 {
+-		t.Errorf("got %d; expect 12", noon.Hour)
++	if noon.Hour() != 12 {
++		t.Errorf("got %d; expect 12", noon.Hour())
+ 	}
+ }
+ 
+@@ -441,15 +462,15 @@ func Test12AMIsMidnight(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal("error parsing date:", err)
+ 	}
+-	if midnight.Hour != 0 {
+-		t.Errorf("got %d; expect 0", midnight.Hour)
++	if midnight.Hour() != 0 {
++		t.Errorf("got %d; expect 0", midnight.Hour())
+ 	}
+ 	midnight, err = Parse("03:04PM", "12:00AM")
+ 	if err != nil {
+ 		t.Fatal("error parsing date:", err)
+ 	}
+-	if midnight.Hour != 0 {
+-		t.Errorf("got %d; expect 0", midnight.Hour)
++	if midnight.Hour() != 0 {
++		t.Errorf("got %d; expect 0", midnight.Hour())
+ 	}
+ }
+ 
+@@ -463,7 +484,7 @@ func TestMissingZone(t *testing.T) {
+ 	expect := "Thu Feb  2 16:10:03 -0500 2006" // -0500 not EST
+ 	str := time.Format(UnixDate)               // uses MST as its time zone
+ 	if str != expect {
+-		t.Errorf("expected %q got %q", expect, str)
++		t.Errorf("got %s; expect %s", str, expect)
+ 	}
+ }
+ 
+@@ -473,16 +494,17 @@ func TestMinutesInTimeZone(t *testing.T) {
+ 		t.Fatal("error parsing date:", err)
+ 	}
+ 	expected := (1*60 + 23) * 60
+-	if time.ZoneOffset != expected {
+-		t.Errorf("ZoneOffset incorrect, expected %d got %d", expected, time.ZoneOffset)
++	_, offset := time.Zone()
++	if offset != expected {
++		t.Errorf("ZoneOffset = %d, want %d", offset, expected)
+ 	}
+ }
+ 
+ type ISOWeekTest struct {
+-	year       int64 // year
+-	month, day int   // month and day
+-	yex        int64 // expected year
+-	wex        int   // expected week
++	year       int // year
++	month, day int // month and day
++	yex        int // expected year
++	wex        int // expected week
+ }
+ 
+ var isoWeekTests = []ISOWeekTest{
+@@ -524,7 +546,7 @@ var isoWeekTests = []ISOWeekTest{
+ func TestISOWeek(t *testing.T) {
+ 	// Selected dates and corner cases
+ 	for _, wt := range isoWeekTests {
+-		dt := &Time{Year: wt.year, Month: wt.month, Day: wt.day}
++		dt := Date(wt.year, Month(wt.month), wt.day, 0, 0, 0, 0, UTC)
+ 		y, w := dt.ISOWeek()
+ 		if w != wt.wex || y != wt.yex {
+ 			t.Errorf("got %d/%d; expected %d/%d for %d-%02d-%02d",
+@@ -533,27 +555,91 @@ func TestISOWeek(t *testing.T) {
+ 	}
+ 
+ 	// The only real invariant: Jan 04 is in week 1
+-	for year := int64(1950); year < 2100; year++ {
+-		if y, w := (&Time{Year: year, Month: 1, Day: 4}).ISOWeek(); y != year || w != 1 {
++	for year := 1950; year < 2100; year++ {
++		if y, w := Date(year, January, 4, 0, 0, 0, 0, UTC).ISOWeek(); y != year || w != 1 {
+ 			t.Errorf("got %d/%d; expected %d/1 for Jan 04", y, w, year)
+ 		}
+ 	}
+ }
+ 
+-func BenchmarkSeconds(b *testing.B) {
+-	for i := 0; i < b.N; i++ {
+-		Seconds()
++var durationTests = []struct {
++	str string
++	d   Duration
++}{
++	{"0", 0},
++	{"1ns", 1 * Nanosecond},
++	{"1.1us", 1100 * Nanosecond},
++	{"2.2ms", 2200 * Microsecond},
++	{"3.3s", 3300 * Millisecond},
++	{"4m5s", 4*Minute + 5*Second},
++	{"4m5.001s", 4*Minute + 5001*Millisecond},
++	{"5h6m7.001s", 5*Hour + 6*Minute + 7001*Millisecond},
++	{"8m0.000000001s", 8*Minute + 1*Nanosecond},
++	{"2562047h47m16.854775807s", 1<<63 - 1},
++	{"-2562047h47m16.854775808s", -1 << 63},
++}
++
++func TestDurationString(t *testing.T) {
++	for _, tt := range durationTests {
++		if str := tt.d.String(); str != tt.str {
++			t.Errorf("Duration(%d).String() = %s, want %s", int64(tt.d), str, tt.str)
++		}
++		if tt.d > 0 {
++			if str := (-tt.d).String(); str != "-"+tt.str {
++				t.Errorf("Duration(%d).String() = %s, want %s", int64(-tt.d), str, "-"+tt.str)
++			}
++		}
+ 	}
+ }
+ 
+-func BenchmarkNanoseconds(b *testing.B) {
++var dateTests = []struct {
++	year, month, day, hour, min, sec, nsec int
++	z                                      *Location
++	unix                                   int64
++}{
++	{2011, 11, 6, 1, 0, 0, 0, Local, 1320566400},   // 1:00:00 PDT
++	{2011, 11, 6, 1, 59, 59, 0, Local, 1320569999}, // 1:59:59 PDT
++	{2011, 11, 6, 2, 0, 0, 0, Local, 1320573600},   // 2:00:00 PST
++
++	{2011, 3, 13, 1, 0, 0, 0, Local, 1300006800},   // 1:00:00 PST
++	{2011, 3, 13, 1, 59, 59, 0, Local, 1300010399}, // 1:59:59 PST
++	{2011, 3, 13, 3, 0, 0, 0, Local, 1300010400},   // 3:00:00 PDT
++	{2011, 3, 13, 2, 30, 0, 0, Local, 1300008600},  // 2:30:00 PDT ≡ 1:30 PST
++
++	// Many names for Fri Nov 18 7:56:35 PST 2011
++	{2011, 11, 18, 7, 56, 35, 0, Local, 1321631795},                 // Nov 18 7:56:35
++	{2011, 11, 19, -17, 56, 35, 0, Local, 1321631795},               // Nov 19 -17:56:35
++	{2011, 11, 17, 31, 56, 35, 0, Local, 1321631795},                // Nov 17 31:56:35
++	{2011, 11, 18, 6, 116, 35, 0, Local, 1321631795},                // Nov 18 6:116:35
++	{2011, 10, 49, 7, 56, 35, 0, Local, 1321631795},                 // Oct 49 7:56:35
++	{2011, 11, 18, 7, 55, 95, 0, Local, 1321631795},                 // Nov 18 7:55:95
++	{2011, 11, 18, 7, 56, 34, 1e9, Local, 1321631795},               // Nov 18 7:56:34 + 10⁹ns
++	{2011, 12, -12, 7, 56, 35, 0, Local, 1321631795},                // Dec -21 7:56:35
++	{2012, 1, -43, 7, 56, 35, 0, Local, 1321631795},                 // Jan -52 7:56:35 2012
++	{2012, int(January - 2), 18, 7, 56, 35, 0, Local, 1321631795},   // (Jan-2) 18 7:56:35 2012
++	{2010, int(December + 11), 18, 7, 56, 35, 0, Local, 1321631795}, // (Dec+11) 18 7:56:35 2010
++}
++
++func TestDate(t *testing.T) {
++	for _, tt := range dateTests {
++		time := Date(tt.year, Month(tt.month), tt.day, tt.hour, tt.min, tt.sec, tt.nsec, tt.z)
++		want := Unix(tt.unix, 0)
++		if !time.Equal(want) {
++			t.Errorf("Date(%d, %d, %d, %d, %d, %d, %d, %s) = %v, want %v",
++				tt.year, tt.month, tt.day, tt.hour, tt.min, tt.sec, tt.nsec, tt.z,
++				time, want)
++		}
++	}
++}
++
++func BenchmarkNow(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		Nanoseconds()
++		Now()
+ 	}
+ }
+ 
+ func BenchmarkFormat(b *testing.B) {
+-	time := SecondsToLocalTime(1265346057)
++	time := Unix(1265346057, 0)
+ 	for i := 0; i < b.N; i++ {
+ 		time.Format("Mon Jan  2 15:04:05 2006")
+ 	}
+@@ -564,3 +650,31 @@ func BenchmarkParse(b *testing.B) {
+ 		Parse(ANSIC, "Mon Jan  2 15:04:05 2006")
+ 	}
+ }
++
++func BenchmarkHour(b *testing.B) {
++	t := Now()
++	for i := 0; i < b.N; i++ {
++		_ = t.Hour()
++	}
++}
++
++func BenchmarkSecond(b *testing.B) {
++	t := Now()
++	for i := 0; i < b.N; i++ {
++		_ = t.Second()
++	}
++}
++
++func BenchmarkYear(b *testing.B) {
++	t := Now()
++	for i := 0; i < b.N; i++ {
++		_ = t.Year()
++	}
++}
++
++func BenchmarkDay(b *testing.B) {
++	t := Now()
++	for i := 0; i < b.N; i++ {
++		_ = t.Day()
++	}
++}
+diff --git a/src/pkg/time/zoneinfo.go b/src/pkg/time/zoneinfo.go
+new file mode 100644
+index 0000000000..aca56e746a
+--- /dev/null
++++ b/src/pkg/time/zoneinfo.go
+@@ -0,0 +1,191 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package time
++
++import "sync"
++
++// A Location maps time instants to the zone in use at that time.
++// Typically, the Location represents the collection of time offsets
++// in use in a geographical area, such as CEST and CET for central Europe.
++type Location struct {
++	name string
++	zone []zone
++	tx   []zoneTrans
++
++	// Most lookups will be for the current time.
++	// To avoid the binary search through tx, keep a
++	// static one-element cache that gives the correct
++	// zone for the time when the Location was created.
++	// if cacheStart <= t <= cacheEnd,
++	// lookup can return cacheZone.
++	// The units for cacheStart and cacheEnd are seconds
++	// since January 1, 1970 UTC, to match the argument
++	// to lookup.
++	cacheStart int64
++	cacheEnd   int64
++	cacheZone  *zone
++}
++
++// A zone represents a single time zone such as CEST or CET.
++type zone struct {
++	name   string // abbreviated name, "CET"
++	offset int    // seconds east of UTC
++	isDST  bool   // is this zone Daylight Savings Time?
++}
++
++// A zoneTrans represents a single time zone transition.
++type zoneTrans struct {
++	when         int64 // transition time, in seconds since 1970 GMT
++	index        uint8 // the index of the zone that goes into effect at that time
++	isstd, isutc bool  // ignored - no idea what these mean
++}
++
++// UTC represents Universal Coordinated Time (UTC).
++var UTC *Location = &utcLoc
++
++// utcLoc is separate so that get can refer to &utcLoc
++// and ensure that it never returns a nil *Location,
++// even if a badly behaved client has changed UTC.
++var utcLoc = Location{name: "UTC"}
++
++// Local represents the system's local time zone.
++var Local *Location = &localLoc
++
++// localLoc is separate so that initLocal can initialize
++// it even if a client has changed Local.
++var localLoc Location
++var localOnce sync.Once
++
++func (l *Location) get() *Location {
++	if l == nil {
++		return &utcLoc
++	}
++	if l == &localLoc {
++		localOnce.Do(initLocal)
++	}
++	return l
++}
++
++// String returns a descriptive name for the time zone information,
++// corresponding to the argument to LoadLocation.
++func (l *Location) String() string {
++	return l.get().name
++}
++
++// FixedZone returns a Location that always uses
++// the given zone name and offset (seconds east of UTC).
++func FixedZone(name string, offset int) *Location {
++	l := &Location{
++		name:       name,
++		zone:       []zone{{name, offset, false}},
++		tx:         []zoneTrans{{-1 << 63, 0, false, false}},
++		cacheStart: -1 << 63,
++		cacheEnd:   1<<63 - 1,
++	}
++	l.cacheZone = &l.zone[0]
++	return l
++}
++
++// lookup returns information about the time zone in use at an
++// instant in time expressed as seconds since January 1, 1970 00:00:00 UTC.
++//
++// The returned information gives the name of the zone (such as "CET"),
++// the start and end times bracketing sec when that zone is in effect,
++// the offset in seconds east of UTC (such as -5*60*60), and whether
++// the daylight savings is being observed at that time.
++func (l *Location) lookup(sec int64) (name string, offset int, isDST bool, start, end int64) {
++	l = l.get()
++
++	if len(l.tx) == 0 {
++		name = "UTC"
++		offset = 0
++		isDST = false
++		start = -1 << 63
++		end = 1<<63 - 1
++		return
++	}
++
++	if zone := l.cacheZone; zone != nil && l.cacheStart <= sec && sec < l.cacheEnd {
++		name = zone.name
++		offset = zone.offset
++		isDST = zone.isDST
++		start = l.cacheStart
++		end = l.cacheEnd
++		return
++	}
++
++	// Binary search for entry with largest time <= sec.
++	// Not using sort.Search to avoid dependencies.
++	tx := l.tx
++	end = 1<<63 - 1
++	for len(tx) > 1 {
++		m := len(tx) / 2
++		lim := tx[m].when
++		if sec < lim {
++			end = lim
++			tx = tx[0:m]
++		} else {
++			tx = tx[m:]
++		}
++	}
++	zone := &l.zone[tx[0].index]
++	name = zone.name
++	offset = zone.offset
++	isDST = zone.isDST
++	start = tx[0].when
++	// end = maintained during the search
++	return
++}
++
++// lookupName returns information about the time zone with
++// the given name (such as "EST").
++func (l *Location) lookupName(name string) (offset int, isDST bool, ok bool) {
++	l = l.get()
++	for i := range l.zone {
++		zone := &l.zone[i]
++		if zone.name == name {
++			return zone.offset, zone.isDST, true
++		}
++	}
++	return
++}
++
++// lookupOffset returns information about the time zone with
++// the given offset (such as -5*60*60).
++func (l *Location) lookupOffset(offset int) (name string, isDST bool, ok bool) {
++	l = l.get()
++	for i := range l.zone {
++		zone := &l.zone[i]
++		if zone.offset == offset {
++			return zone.name, zone.isDST, true
++		}
++	}
++	return
++}
++
++// NOTE(rsc): Eventually we will need to accept the POSIX TZ environment
++// syntax too, but I don't feel like implementing it today.
++
++// NOTE(rsc): Using the IANA names below means ensuring we have access
++// to the database.  Probably we will ship the files in $GOROOT/lib/zoneinfo/
++// and only look there if there are no system files available (such as on Windows).
++// The files total 200 kB.
++
++// LoadLocation returns the Location with the given name.
++//
++// If the name is "" or "UTC", LoadLocation returns UTC.
++// If the name is "Local", LoadLocation returns Local.
++//
++// Otherwise, the name is taken to be a location name corresponding to a file
++// in the IANA Time Zone database, such as "America/New_York".
++func LoadLocation(name string) (*Location, error) {
++	if name == "" || name == "UTC" {
++		return UTC, nil
++	}
++	if name == "Local" {
++		return Local, nil
++	}
++	return loadLocation(name)
++}
+diff --git a/src/pkg/time/zoneinfo_plan9.go b/src/pkg/time/zoneinfo_plan9.go
+index 577ef85bd6..915303b926 100644
+--- a/src/pkg/time/zoneinfo_plan9.go
++++ b/src/pkg/time/zoneinfo_plan9.go
+@@ -7,7 +7,6 @@
+ package time
+ 
+ import (
+-	"os"
+ 	"strconv"
+ 	"strings"
+ )
+@@ -49,7 +48,7 @@ func parseZones(s string) (zt []zonetime) {
+ 	return
+ }
+ 
+-func setupZone() {
++func initLocal() {
+ 	t, err := os.Getenverror("timezone")
+ 	if err != nil {
+ 		// do nothing: use UTC
+@@ -58,16 +57,8 @@ func setupZone() {
+ 	zones = parseZones(t)
+ }
+ 
+-func setupTestingZone() {
+-	f, err := os.Open("/adm/timezone/US_Pacific")
+-	if err != nil {
+-		return
+-	}
+-	defer f.Close()
+-	l, _ := f.Seek(0, 2)
+-	f.Seek(0, 0)
+-	buf := make([]byte, l)
+-	_, err = f.Read(buf)
++func initTestingZone() {
++	buf, err := readFile("/adm/timezone/US_Pacific")
+ 	if err != nil {
+ 		return
+ 	}
+diff --git a/src/pkg/time/zoneinfo_posix.go b/src/pkg/time/zoneinfo_posix.go
+deleted file mode 100644
+index b0fa6c33b6..0000000000
+--- a/src/pkg/time/zoneinfo_posix.go
++++ /dev/null
+@@ -1,64 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build darwin freebsd linux openbsd plan9
+-
+-package time
+-
+-import "sync"
+-
+-// Parsed representation
+-type zone struct {
+-	utcoff int
+-	isdst  bool
+-	name   string
+-}
+-
+-type zonetime struct {
+-	time         int32 // transition time, in seconds since 1970 GMT
+-	zone         *zone // the zone that goes into effect at that time
+-	isstd, isutc bool  // ignored - no idea what these mean
+-}
+-
+-var zones []zonetime
+-var onceSetupZone sync.Once
+-
+-// Look up the correct time zone (daylight savings or not) for the given unix time, in the current location.
+-func lookupTimezone(sec int64) (zone string, offset int) {
+-	onceSetupZone.Do(setupZone)
+-	if len(zones) == 0 {
+-		return "UTC", 0
+-	}
+-
+-	// Binary search for entry with largest time <= sec
+-	tz := zones
+-	for len(tz) > 1 {
+-		m := len(tz) / 2
+-		if sec < int64(tz[m].time) {
+-			tz = tz[0:m]
+-		} else {
+-			tz = tz[m:]
+-		}
+-	}
+-	z := tz[0].zone
+-	return z.name, z.utcoff
+-}
+-
+-// lookupByName returns the time offset for the
+-// time zone with the given abbreviation. It only considers
+-// time zones that apply to the current system.
+-// For example, for a system configured as being in New York,
+-// it only recognizes "EST" and "EDT".
+-// For a system in San Francisco, "PST" and "PDT".
+-// For a system in Sydney, "EST" and "EDT", though they have
+-// different meanings than they do in New York.
+-func lookupByName(name string) (off int, found bool) {
+-	onceSetupZone.Do(setupZone)
+-	for _, z := range zones {
+-		if name == z.zone.name {
+-			return z.zone.utcoff, true
+-		}
+-	}
+-	return 0, false
+-}
+diff --git a/src/pkg/time/zoneinfo_unix.go b/src/pkg/time/zoneinfo_unix.go
+index b552e589aa..83d5b983c6 100644
+--- a/src/pkg/time/zoneinfo_unix.go
++++ b/src/pkg/time/zoneinfo_unix.go
+@@ -12,8 +12,8 @@
+ package time
+ 
+ import (
+-	"bytes"
+-	"os"
++	"errors"
++	"syscall"
+ )
+ 
+ const (
+@@ -65,18 +65,20 @@ func byteString(p []byte) string {
+ 	return string(p)
+ }
+ 
+-func parseinfo(bytes []byte) (zt []zonetime, ok bool) {
++var badData = errors.New("malformed time zone information")
++
++func loadZoneData(bytes []byte) (l *Location, err error) {
+ 	d := data{bytes, false}
+ 
+ 	// 4-byte magic "TZif"
+ 	if magic := d.read(4); string(magic) != "TZif" {
+-		return nil, false
++		return nil, badData
+ 	}
+ 
+ 	// 1-byte version, then 15 bytes of padding
+ 	var p []byte
+ 	if p = d.read(16); len(p) != 16 || p[0] != 0 && p[0] != '2' {
+-		return nil, false
++		return nil, badData
+ 	}
+ 
+ 	// six big-endian 32-bit integers:
+@@ -98,7 +100,7 @@ func parseinfo(bytes []byte) (zt []zonetime, ok bool) {
+ 	for i := 0; i < 6; i++ {
+ 		nn, ok := d.big4()
+ 		if !ok {
+-			return nil, false
++			return nil, badData
+ 		}
+ 		n[i] = int(nn)
+ 	}
+@@ -127,7 +129,7 @@ func parseinfo(bytes []byte) (zt []zonetime, ok bool) {
+ 	isutc := d.read(n[NUTCLocal])
+ 
+ 	if d.error { // ran out of data
+-		return nil, false
++		return nil, badData
+ 	}
+ 
+ 	// If version == 2, the entire file repeats, this time using
+@@ -137,90 +139,119 @@ func parseinfo(bytes []byte) (zt []zonetime, ok bool) {
+ 	// Now we can build up a useful data structure.
+ 	// First the zone information.
+ 	//	utcoff[4] isdst[1] nameindex[1]
+-	z := make([]zone, n[NZone])
+-	for i := 0; i < len(z); i++ {
++	zone := make([]zone, n[NZone])
++	for i := range zone {
+ 		var ok bool
+ 		var n uint32
+ 		if n, ok = zonedata.big4(); !ok {
+-			return nil, false
++			return nil, badData
+ 		}
+-		z[i].utcoff = int(n)
++		zone[i].offset = int(n)
+ 		var b byte
+ 		if b, ok = zonedata.byte(); !ok {
+-			return nil, false
++			return nil, badData
+ 		}
+-		z[i].isdst = b != 0
++		zone[i].isDST = b != 0
+ 		if b, ok = zonedata.byte(); !ok || int(b) >= len(abbrev) {
+-			return nil, false
++			return nil, badData
+ 		}
+-		z[i].name = byteString(abbrev[b:])
++		zone[i].name = byteString(abbrev[b:])
+ 	}
+ 
+ 	// Now the transition time info.
+-	zt = make([]zonetime, n[NTime])
+-	for i := 0; i < len(zt); i++ {
++	tx := make([]zoneTrans, n[NTime])
++	for i := range tx {
+ 		var ok bool
+ 		var n uint32
+ 		if n, ok = txtimes.big4(); !ok {
+-			return nil, false
++			return nil, badData
+ 		}
+-		zt[i].time = int32(n)
+-		if int(txzones[i]) >= len(z) {
+-			return nil, false
++		tx[i].when = int64(int32(n))
++		if int(txzones[i]) >= len(zone) {
++			return nil, badData
+ 		}
+-		zt[i].zone = &z[txzones[i]]
++		tx[i].index = txzones[i]
+ 		if i < len(isstd) {
+-			zt[i].isstd = isstd[i] != 0
++			tx[i].isstd = isstd[i] != 0
+ 		}
+ 		if i < len(isutc) {
+-			zt[i].isutc = isutc[i] != 0
++			tx[i].isutc = isutc[i] != 0
+ 		}
+ 	}
+-	return zt, true
+-}
+ 
+-func readinfofile(name string) ([]zonetime, bool) {
+-	var b bytes.Buffer
++	// Commited to succeed.
++	l = &Location{zone: zone, tx: tx}
+ 
+-	f, err := os.Open(name)
+-	if err != nil {
+-		return nil, false
++	// Fill in the cache with information about right now,
++	// since that will be the most common lookup.
++	sec, _ := now()
++	for i := range tx {
++		if tx[i].when <= sec && (i+1 == len(tx) || sec < tx[i+1].when) {
++			l.cacheStart = tx[i].when
++			l.cacheEnd = 1<<63 - 1
++			if i+1 < len(tx) {
++				l.cacheEnd = tx[i+1].when
++			}
++			l.cacheZone = &l.zone[tx[i].index]
++		}
+ 	}
+-	defer f.Close()
+-	if _, err := b.ReadFrom(f); err != nil {
+-		return nil, false
++
++	return l, nil
++}
++
++func loadZoneFile(name string) (l *Location, err error) {
++	buf, err := readFile(name)
++	if err != nil {
++		return
+ 	}
+-	return parseinfo(b.Bytes())
++	return loadZoneData(buf)
+ }
+ 
+-func setupTestingZone() {
+-	os.Setenv("TZ", "America/Los_Angeles")
+-	setupZone()
++func initTestingZone() {
++	syscall.Setenv("TZ", "America/Los_Angeles")
++	initLocal()
+ }
+ 
+-func setupZone() {
++// Many systems use /usr/share/zoneinfo, Solaris 2 has
++// /usr/share/lib/zoneinfo, IRIX 6 has /usr/lib/locale/TZ.
++var zoneDirs = []string{
++	"/usr/share/zoneinfo/",
++	"/usr/share/lib/zoneinfo/",
++	"/usr/lib/locale/TZ/",
++}
++
++func initLocal() {
+ 	// consult $TZ to find the time zone to use.
+ 	// no $TZ means use the system default /etc/localtime.
+ 	// $TZ="" means use UTC.
+ 	// $TZ="foo" means use /usr/share/zoneinfo/foo.
+-	// Many systems use /usr/share/zoneinfo, Solaris 2 has
+-	// /usr/share/lib/zoneinfo, IRIX 6 has /usr/lib/locale/TZ.
+-	zoneDirs := []string{"/usr/share/zoneinfo/",
+-		"/usr/share/lib/zoneinfo/",
+-		"/usr/lib/locale/TZ/"}
+ 
+-	tz, err := os.Getenverror("TZ")
++	tz, ok := syscall.Getenv("TZ")
+ 	switch {
+-	case err == os.ENOENV:
+-		zones, _ = readinfofile("/etc/localtime")
+-	case len(tz) > 0:
+-		for _, zoneDir := range zoneDirs {
+-			var ok bool
+-			if zones, ok = readinfofile(zoneDir + tz); ok {
+-				break
+-			}
++	case !ok:
++		z, err := loadZoneFile("/etc/localtime")
++		if err == nil {
++			localLoc = *z
++			localLoc.name = "Local"
++			return
++		}
++	case tz != "" && tz != "UTC":
++		if z, err := loadLocation(tz); err == nil {
++			localLoc = *z
++			return
++		}
++	}
++
++	// Fall back to UTC.
++	localLoc.name = "UTC"
++}
++
++func loadLocation(name string) (*Location, error) {
++	for _, zoneDir := range zoneDirs {
++		if z, err := loadZoneFile(zoneDir + name); err == nil {
++			z.name = name
++			return z, nil
+ 		}
+-	case len(tz) == 0:
+-		// do nothing: use UTC
+ 	}
++	return nil, errors.New("unknown time zone " + name)
+ }
+diff --git a/src/pkg/time/zoneinfo_windows.go b/src/pkg/time/zoneinfo_windows.go
+index 995fd44dc0..0c8a8076ef 100644
+--- a/src/pkg/time/zoneinfo_windows.go
++++ b/src/pkg/time/zoneinfo_windows.go
+@@ -5,34 +5,21 @@
+ package time
+ 
+ import (
+-	"os"
+-	"sync"
++	"errors"
+ 	"syscall"
+ )
+ 
+-// BUG(brainman): The Windows implementation assumes that
+-// this year's rules for daylight savings time apply to all previous
+-// and future years as well.
+-
+-// TODO(brainman): use GetDynamicTimeZoneInformation, whenever possible (Vista and up),
+-// to improve on situation described in the bug above.
+-
+-type zone struct {
+-	name                  string
+-	offset                int
+-	year                  int64
+-	month, day, dayofweek int
+-	hour, minute, second  int
+-	abssec                int64
+-	prev                  *zone
+-}
++// TODO(rsc): Fall back to copy of zoneinfo files.
+ 
+-// BUG(rsc): On Windows, time zone abbreviations are unavailable.
+-// This package constructs them using the capital letters from a longer
+-// time zone description.
++// BUG(brainman,rsc): On Windows, the operating system does not provide complete
++// time zone information.
++// The implementation assumes that this year's rules for daylight savings
++// time apply to all previous and future years as well. 
++// Also, time zone abbreviations are unavailable.  The implementation constructs
++// them using the capital letters from a longer time zone description.	
+ 
+-// Populate zone struct with Windows supplied information. Returns true, if data is valid.
+-func (z *zone) populate(bias, biasdelta int32, d *syscall.Systemtime, name []uint16) (dateisgood bool) {
++// abbrev returns the abbreviation to use for the given zone name.
++func abbrev(name []uint16) string {
+ 	// name is 'Pacific Standard Time' but we want 'PST'.
+ 	// Extract just capital letters.  It's not perfect but the
+ 	// information we need is not available from the kernel.
+@@ -41,147 +28,98 @@ func (z *zone) populate(bias, biasdelta int32, d *syscall.Systemtime, name []uin
+ 	//
+ 	// http://social.msdn.microsoft.com/Forums/eu/vclanguage/thread/a87e1d25-fb71-4fe0-ae9c-a9578c9753eb
+ 	// http://stackoverflow.com/questions/4195948/windows-time-zone-abbreviations-in-asp-net
+-	short := make([]uint16, len(name))
++	short := make([]rune, len(name))
+ 	w := 0
+ 	for _, c := range name {
+ 		if 'A' <= c && c <= 'Z' {
+-			short[w] = c
++			short[w] = rune(c)
+ 			w++
+ 		}
+ 	}
+-	z.name = syscall.UTF16ToString(short[:w])
+-
+-	z.offset = int(bias)
+-	z.year = int64(d.Year)
+-	z.month = int(d.Month)
+-	z.day = int(d.Day)
+-	z.dayofweek = int(d.DayOfWeek)
+-	z.hour = int(d.Hour)
+-	z.minute = int(d.Minute)
+-	z.second = int(d.Second)
+-	dateisgood = d.Month != 0
+-	if dateisgood {
+-		z.offset += int(biasdelta)
+-	}
+-	z.offset = -z.offset * 60
+-	return
+-}
+-
+-// Pre-calculate cutoff time in seconds since the Unix epoch, if data is supplied in "absolute" format.
+-func (z *zone) preCalculateAbsSec() {
+-	if z.year != 0 {
+-		t := &Time{
+-			Year:   z.year,
+-			Month:  int(z.month),
+-			Day:    int(z.day),
+-			Hour:   int(z.hour),
+-			Minute: int(z.minute),
+-			Second: int(z.second),
+-		}
+-		z.abssec = t.Seconds()
+-		// Time given is in "local" time. Adjust it for "utc".
+-		z.abssec -= int64(z.prev.offset)
+-	}
++	return string(short)
+ }
+ 
+-// Convert zone cutoff time to sec in number of seconds since the Unix epoch, given particular year.
+-func (z *zone) cutoffSeconds(year int64) int64 {
++// pseudoUnix returns the pseudo-Unix time (seconds since Jan 1 1970 *LOCAL TIME*)
++// denoted by the system date+time d in the given year.
++// It is up to the caller to convert this local time into a UTC-based time.
++func pseudoUnix(year int, d *syscall.Systemtime) int64 {
+ 	// Windows specifies daylight savings information in "day in month" format:
+-	// z.month is month number (1-12)
+-	// z.dayofweek is appropriate weekday (Sunday=0 to Saturday=6)
+-	// z.day is week within the month (1 to 5, where 5 is last week of the month)
+-	// z.hour, z.minute and z.second are absolute time
+-	t := &Time{
+-		Year:   year,
+-		Month:  int(z.month),
+-		Day:    1,
+-		Hour:   int(z.hour),
+-		Minute: int(z.minute),
+-		Second: int(z.second),
+-	}
+-	t = SecondsToUTC(t.Seconds())
+-	i := int(z.dayofweek) - t.Weekday()
++	// d.Month is month number (1-12)
++	// d.DayOfWeek is appropriate weekday (Sunday=0 to Saturday=6)
++	// d.Day is week within the month (1 to 5, where 5 is last week of the month)
++	// d.Hour, d.Minute and d.Second are absolute time
++	day := 1
++	t := Date(year, Month(d.Month), day, int(d.Hour), int(d.Minute), int(d.Second), 0, UTC)
++	i := int(d.DayOfWeek) - int(t.Weekday())
+ 	if i < 0 {
+ 		i += 7
+ 	}
+-	t.Day += i
+-	if week := int(z.day) - 1; week < 4 {
+-		t.Day += week * 7
++	day += i
++	if week := int(d.Day) - 1; week < 4 {
++		day += week * 7
+ 	} else {
+ 		// "Last" instance of the day.
+-		t.Day += 4 * 7
+-		if t.Day > months(year)[t.Month] {
+-			t.Day -= 7
++		day += 4 * 7
++		if day > daysIn(Month(d.Month), year) {
++			day -= 7
+ 		}
+ 	}
+-	// Result is in "local" time. Adjust it for "utc".
+-	return t.Seconds() - int64(z.prev.offset)
++	return t.sec + int64(day-1)*secondsPerDay
+ }
+ 
+-// Is t before the cutoff for switching to z?
+-func (z *zone) isBeforeCutoff(t *Time) bool {
+-	var coff int64
+-	if z.year == 0 {
+-		// "day in month" format used
+-		coff = z.cutoffSeconds(t.Year)
+-	} else {
+-		// "absolute" format used
+-		coff = z.abssec
+-	}
+-	return t.Seconds() < coff
+-}
++func initLocalFromTZI(i *syscall.Timezoneinformation) {
++	l := &localLoc
+ 
+-type zoneinfo struct {
+-	disabled         bool // daylight saving time is not used locally
+-	offsetIfDisabled int
+-	januaryIsStd     bool // is january 1 standard time?
+-	std, dst         zone
+-}
++	nzone := 1
++	if i.StandardDate.Month > 0 {
++		nzone++
++	}
++	l.zone = make([]zone, nzone)
+ 
+-// Pick zone (std or dst) t time belongs to.
+-func (zi *zoneinfo) pickZone(t *Time) *zone {
+-	z := &zi.std
+-	if tz.januaryIsStd {
+-		if !zi.dst.isBeforeCutoff(t) && zi.std.isBeforeCutoff(t) {
+-			// after switch to daylight time and before the switch back to standard
+-			z = &zi.dst
+-		}
+-	} else {
+-		if zi.std.isBeforeCutoff(t) || !zi.dst.isBeforeCutoff(t) {
+-			// before switch to standard time or after the switch back to daylight
+-			z = &zi.dst
+-		}
++	std := &l.zone[0]
++	std.name = abbrev(i.StandardName[0:])
++	std.offset = -int(i.StandardBias) * 60
++	if nzone == 1 {
++		// No daylight savings.
++		l.cacheStart = -1 << 63
++		l.cacheEnd = 1<<63 - 1
++		l.cacheZone = std
++		return
+ 	}
+-	return z
+-}
+ 
+-var tz zoneinfo
+-var initError error
+-var onceSetupZone sync.Once
++	dst := &l.zone[1]
++	dst.name = abbrev(i.DaylightName[0:])
++	dst.offset = std.offset + -int(i.DaylightBias)*60
++	dst.isDST = true
+ 
+-func setupZone() {
+-	var i syscall.Timezoneinformation
+-	if _, e := syscall.GetTimeZoneInformation(&i); e != nil {
+-		initError = os.NewSyscallError("GetTimeZoneInformation", e)
+-		return
++	// Arrange so that d0 is first transition date, d1 second,
++	// i0 is index of zone after first transition, i1 second.
++	d0 := &i.StandardDate
++	d1 := &i.DaylightDate
++	i0 := 0
++	i1 := 1
++	if d0.Month > d1.Month {
++		d0, d1 = d1, d0
++		i0, i1 = i1, i0
+ 	}
+-	setupZoneFromTZI(&i)
+-}
+ 
+-func setupZoneFromTZI(i *syscall.Timezoneinformation) {
+-	if !tz.std.populate(i.Bias, i.StandardBias, &i.StandardDate, i.StandardName[0:]) {
+-		tz.disabled = true
+-		tz.offsetIfDisabled = tz.std.offset
+-		return
++	// 2 tx per year, 100 years on each side of this year
++	l.tx = make([]zoneTrans, 400)
++
++	t := Now().UTC()
++	year := t.Year()
++	txi := 0
++	for y := year - 100; y < year+100; y++ {
++		tx := &l.tx[txi]
++		tx.when = pseudoUnix(y, d0) - int64(l.zone[i1].offset)
++		tx.index = uint8(i0)
++		txi++
++
++		tx = &l.tx[txi]
++		tx.when = pseudoUnix(y, d1) - int64(l.zone[i0].offset)
++		tx.index = uint8(i1)
++		txi++
+ 	}
+-	tz.std.prev = &tz.dst
+-	tz.dst.populate(i.Bias, i.DaylightBias, &i.DaylightDate, i.DaylightName[0:])
+-	tz.dst.prev = &tz.std
+-	tz.std.preCalculateAbsSec()
+-	tz.dst.preCalculateAbsSec()
+-	// Is january 1 standard time this year?
+-	t := UTC()
+-	tz.januaryIsStd = tz.dst.cutoffSeconds(t.Year) < tz.std.cutoffSeconds(t.Year)
+ }
+ 
+ var usPacific = syscall.Timezoneinformation{
+@@ -197,53 +135,20 @@ var usPacific = syscall.Timezoneinformation{
+ 	DaylightBias: -60,
+ }
+ 
+-func setupTestingZone() {
+-	setupZoneFromTZI(&usPacific)
++func initTestingZone() {
++	initLocalFromTZI(&usPacific)
+ }
+ 
+-// Look up the correct time zone (daylight savings or not) for the given unix time, in the current location.
+-func lookupTimezone(sec int64) (zone string, offset int) {
+-	onceSetupZone.Do(setupZone)
+-	if initError != nil {
+-		return "", 0
+-	}
+-	if tz.disabled {
+-		return "", tz.offsetIfDisabled
+-	}
+-	t := SecondsToUTC(sec)
+-	z := &tz.std
+-	if tz.std.year == 0 {
+-		// "day in month" format used
+-		z = tz.pickZone(t)
+-	} else {
+-		// "absolute" format used
+-		if tz.std.year == t.Year {
+-			// we have rule for the year in question
+-			z = tz.pickZone(t)
+-		} else {
+-			// we do not have any information for that year,
+-			// will assume standard offset all year around
+-		}
++func initLocal() {
++	var i syscall.Timezoneinformation
++	if _, err := syscall.GetTimeZoneInformation(&i); err != nil {
++		localLoc.name = "UTC"
++		return
+ 	}
+-	return z.name, z.offset
++	initLocalFromTZI(&i)
+ }
+ 
+-// lookupByName returns the time offset for the
+-// time zone with the given abbreviation. It only considers
+-// time zones that apply to the current system.
+-func lookupByName(name string) (off int, found bool) {
+-	onceSetupZone.Do(setupZone)
+-	if initError != nil {
+-		return 0, false
+-	}
+-	if tz.disabled {
+-		return tz.offsetIfDisabled, false
+-	}
+-	switch name {
+-	case tz.std.name:
+-		return tz.std.offset, true
+-	case tz.dst.name:
+-		return tz.dst.offset, true
+-	}
+-	return 0, false
++// TODO(rsc): Implement.
++func loadLocation(name string) (*Location, error) {
++	return nil, errors.New("unknown time zone " + name)
+ }

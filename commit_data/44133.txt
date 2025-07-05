@@ -23,9 +23,485 @@ Date:   Tue May 12 20:08:27 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/goobj/readnew.go           | 20 +++----
  src/cmd/internal/goobj2/objfile.go          | 36 ++++++------
  src/cmd/link/internal/loader/loader.go      | 86 ++++++++++++++++-------------
  src/cmd/link/internal/loader/loader_test.go |  2 +-
  4 files changed, 76 insertions(+), 68 deletions(-)
+
+diff --git a/src/cmd/internal/goobj/readnew.go b/src/cmd/internal/goobj/readnew.go
+index 3e710576b6..43f0fdabed 100644
+--- a/src/cmd/internal/goobj/readnew.go
++++ b/src/cmd/internal/goobj/readnew.go
+@@ -43,7 +43,7 @@ func (r *objReader) readNew() {
+ 	}
+ 
+ 	resolveSymRef := func(s goobj2.SymRef) SymID {
+-		var i int
++		var i uint32
+ 		switch p := s.PkgIdx; p {
+ 		case goobj2.PkgIdxInvalid:
+ 			if s.SymIdx != 0 {
+@@ -51,12 +51,12 @@ func (r *objReader) readNew() {
+ 			}
+ 			return SymID{}
+ 		case goobj2.PkgIdxNone:
+-			i = int(s.SymIdx) + rr.NSym()
++			i = s.SymIdx + uint32(rr.NSym())
+ 		case goobj2.PkgIdxBuiltin:
+ 			name, abi := goobj2.BuiltinName(int(s.SymIdx))
+ 			return SymID{name, int64(abi)}
+ 		case goobj2.PkgIdxSelf:
+-			i = int(s.SymIdx)
++			i = s.SymIdx
+ 		default:
+ 			// Symbol from other package, referenced by index.
+ 			// We don't know the name. Use index.
+@@ -71,10 +71,10 @@ func (r *objReader) readNew() {
+ 
+ 	// Symbols
+ 	pcdataBase := start + rr.PcdataBase()
+-	n := rr.NSym() + rr.NNonpkgdef() + rr.NNonpkgref()
+-	npkgdef := rr.NSym()
+-	ndef := rr.NSym() + rr.NNonpkgdef()
+-	for i := 0; i < n; i++ {
++	n := uint32(rr.NSym() + rr.NNonpkgdef() + rr.NNonpkgref())
++	npkgdef := uint32(rr.NSym())
++	ndef := uint32(rr.NSym() + rr.NNonpkgdef())
++	for i := uint32(0); i < n; i++ {
+ 		osym := rr.Sym(i)
+ 		if osym.Name(rr) == "" {
+ 			continue // not a real symbol
+@@ -122,7 +122,7 @@ func (r *objReader) readNew() {
+ 		}
+ 
+ 		// Aux symbol info
+-		isym := -1
++		isym := ^uint32(0)
+ 		funcdata := make([]goobj2.SymRef, 0, 4)
+ 		auxs := rr.Auxs(i)
+ 		for j := range auxs {
+@@ -134,7 +134,7 @@ func (r *objReader) readNew() {
+ 				if a.Sym().PkgIdx != goobj2.PkgIdxSelf {
+ 					panic("funcinfo symbol not defined in current package")
+ 				}
+-				isym = int(a.Sym().SymIdx)
++				isym = a.Sym().SymIdx
+ 			case goobj2.AuxFuncdata:
+ 				funcdata = append(funcdata, a.Sym())
+ 			case goobj2.AuxDwarfInfo, goobj2.AuxDwarfLoc, goobj2.AuxDwarfRanges, goobj2.AuxDwarfLines:
+@@ -145,7 +145,7 @@ func (r *objReader) readNew() {
+ 		}
+ 
+ 		// Symbol Info
+-		if isym == -1 {
++		if isym == ^uint32(0) {
+ 			continue
+ 		}
+ 		b := rr.BytesAt(rr.DataOff(isym), rr.DataSize(isym))
+diff --git a/src/cmd/internal/goobj2/objfile.go b/src/cmd/internal/goobj2/objfile.go
+index ab07624563..fde482e079 100644
+--- a/src/cmd/internal/goobj2/objfile.go
++++ b/src/cmd/internal/goobj2/objfile.go
+@@ -578,83 +578,83 @@ func (r *Reader) NNonpkgref() int {
+ }
+ 
+ // SymOff returns the offset of the i-th symbol.
+-func (r *Reader) SymOff(i int) uint32 {
++func (r *Reader) SymOff(i uint32) uint32 {
+ 	return r.h.Offsets[BlkSymdef] + uint32(i*SymSize)
+ }
+ 
+ // Sym returns a pointer to the i-th symbol.
+-func (r *Reader) Sym(i int) *Sym {
++func (r *Reader) Sym(i uint32) *Sym {
+ 	off := r.SymOff(i)
+ 	return (*Sym)(unsafe.Pointer(&r.b[off]))
+ }
+ 
+ // NReloc returns the number of relocations of the i-th symbol.
+-func (r *Reader) NReloc(i int) int {
++func (r *Reader) NReloc(i uint32) int {
+ 	relocIdxOff := r.h.Offsets[BlkRelocIdx] + uint32(i*4)
+ 	return int(r.uint32At(relocIdxOff+4) - r.uint32At(relocIdxOff))
+ }
+ 
+ // RelocOff returns the offset of the j-th relocation of the i-th symbol.
+-func (r *Reader) RelocOff(i int, j int) uint32 {
++func (r *Reader) RelocOff(i uint32, j int) uint32 {
+ 	relocIdxOff := r.h.Offsets[BlkRelocIdx] + uint32(i*4)
+ 	relocIdx := r.uint32At(relocIdxOff)
+ 	return r.h.Offsets[BlkReloc] + (relocIdx+uint32(j))*uint32(RelocSize)
+ }
+ 
+ // Reloc returns a pointer to the j-th relocation of the i-th symbol.
+-func (r *Reader) Reloc(i int, j int) *Reloc {
++func (r *Reader) Reloc(i uint32, j int) *Reloc {
+ 	off := r.RelocOff(i, j)
+ 	return (*Reloc)(unsafe.Pointer(&r.b[off]))
+ }
+ 
+ // Relocs returns a pointer to the relocations of the i-th symbol.
+-func (r *Reader) Relocs(i int) []Reloc {
++func (r *Reader) Relocs(i uint32) []Reloc {
+ 	off := r.RelocOff(i, 0)
+ 	n := r.NReloc(i)
+ 	return (*[1 << 20]Reloc)(unsafe.Pointer(&r.b[off]))[:n:n]
+ }
+ 
+ // NAux returns the number of aux symbols of the i-th symbol.
+-func (r *Reader) NAux(i int) int {
+-	auxIdxOff := r.h.Offsets[BlkAuxIdx] + uint32(i*4)
++func (r *Reader) NAux(i uint32) int {
++	auxIdxOff := r.h.Offsets[BlkAuxIdx] + i*4
+ 	return int(r.uint32At(auxIdxOff+4) - r.uint32At(auxIdxOff))
+ }
+ 
+ // AuxOff returns the offset of the j-th aux symbol of the i-th symbol.
+-func (r *Reader) AuxOff(i int, j int) uint32 {
+-	auxIdxOff := r.h.Offsets[BlkAuxIdx] + uint32(i*4)
++func (r *Reader) AuxOff(i uint32, j int) uint32 {
++	auxIdxOff := r.h.Offsets[BlkAuxIdx] + i*4
+ 	auxIdx := r.uint32At(auxIdxOff)
+ 	return r.h.Offsets[BlkAux] + (auxIdx+uint32(j))*uint32(AuxSize)
+ }
+ 
+ // Aux returns a pointer to the j-th aux symbol of the i-th symbol.
+-func (r *Reader) Aux(i int, j int) *Aux {
++func (r *Reader) Aux(i uint32, j int) *Aux {
+ 	off := r.AuxOff(i, j)
+ 	return (*Aux)(unsafe.Pointer(&r.b[off]))
+ }
+ 
+ // Auxs returns the aux symbols of the i-th symbol.
+-func (r *Reader) Auxs(i int) []Aux {
++func (r *Reader) Auxs(i uint32) []Aux {
+ 	off := r.AuxOff(i, 0)
+ 	n := r.NAux(i)
+ 	return (*[1 << 20]Aux)(unsafe.Pointer(&r.b[off]))[:n:n]
+ }
+ 
+ // DataOff returns the offset of the i-th symbol's data.
+-func (r *Reader) DataOff(i int) uint32 {
+-	dataIdxOff := r.h.Offsets[BlkDataIdx] + uint32(i*4)
++func (r *Reader) DataOff(i uint32) uint32 {
++	dataIdxOff := r.h.Offsets[BlkDataIdx] + i*4
+ 	return r.h.Offsets[BlkData] + r.uint32At(dataIdxOff)
+ }
+ 
+ // DataSize returns the size of the i-th symbol's data.
+-func (r *Reader) DataSize(i int) int {
+-	dataIdxOff := r.h.Offsets[BlkDataIdx] + uint32(i*4)
++func (r *Reader) DataSize(i uint32) int {
++	dataIdxOff := r.h.Offsets[BlkDataIdx] + i*4
+ 	return int(r.uint32At(dataIdxOff+4) - r.uint32At(dataIdxOff))
+ }
+ 
+ // Data returns the i-th symbol's data.
+-func (r *Reader) Data(i int) []byte {
+-	dataIdxOff := r.h.Offsets[BlkDataIdx] + uint32(i*4)
++func (r *Reader) Data(i uint32) []byte {
++	dataIdxOff := r.h.Offsets[BlkDataIdx] + i*4
+ 	base := r.h.Offsets[BlkData]
+ 	off := r.uint32At(dataIdxOff)
+ 	end := r.uint32At(dataIdxOff + 4)
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 8528170d3b..64952a3283 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -33,7 +33,7 @@ type Sym int
+ type Relocs struct {
+ 	rs []goobj2.Reloc
+ 
+-	li int      // local index of symbol whose relocs we're examining
++	li uint32   // local index of symbol whose relocs we're examining
+ 	r  *oReader // object reader for containing package
+ 	l  *Loader  // loader
+ }
+@@ -125,12 +125,12 @@ type objIdx struct {
+ 
+ // objSym represents a symbol in an object file. It is a tuple of
+ // the object and the symbol's local index.
+-// For external symbols, r is l.extReader, s is its index into the
+-// payload array.
+-// {nil, 0} represents the nil symbol.
++// For external symbols, objidx is the index of l.extReader (extObj),
++// s is its index into the payload array.
++// {0, 0} represents the nil symbol.
+ type objSym struct {
+-	r *oReader
+-	s int // local index
++	objidx uint32 // index of the object (in l.objs array)
++	s      uint32 // local index
+ }
+ 
+ type nameVer struct {
+@@ -312,6 +312,13 @@ const (
+ 	nonPkgRef
+ )
+ 
++// objidx
++const (
++	nilObj = iota
++	extObj
++	goObjStart
++)
++
+ type elfsetstringFunc func(str string, off int)
+ 
+ // extSymPayload holds the payload (data + relocations) for linker-synthesized
+@@ -335,11 +342,12 @@ const (
+ 
+ func NewLoader(flags uint32, elfsetstring elfsetstringFunc, reporter *ErrorReporter) *Loader {
+ 	nbuiltin := goobj2.NBuiltin()
++	extReader := &oReader{objidx: extObj}
+ 	ldr := &Loader{
+ 		start:                make(map[*oReader]Sym),
+-		objs:                 []objIdx{{}},              // reserve index 0 for nil symbol
+-		objSyms:              make([]objSym, 1, 100000), // reserve index 0 for nil symbol
+-		extReader:            &oReader{},
++		objs:                 []objIdx{{}, {extReader, 0}}, // reserve index 0 for nil symbol, 1 for external symbols
++		objSyms:              make([]objSym, 1, 100000),    // reserve index 0 for nil symbol
++		extReader:            extReader,
+ 		symsByName:           [2]map[string]Sym{make(map[string]Sym, 100000), make(map[string]Sym, 50000)}, // preallocate ~2MB for ABI0 and ~1MB for ABI1 symbols
+ 		objByPkg:             make(map[string]*oReader),
+ 		outer:                make(map[Sym]Sym),
+@@ -389,13 +397,13 @@ func (l *Loader) addObj(pkg string, r *oReader) Sym {
+ 
+ // Add a symbol from an object file, return the global index and whether it is added.
+ // If the symbol already exist, it returns the index of that symbol.
+-func (l *Loader) AddSym(name string, ver int, r *oReader, li int, kind int, dupok bool, typ sym.SymKind) (Sym, bool) {
++func (l *Loader) AddSym(name string, ver int, r *oReader, li uint32, kind int, dupok bool, typ sym.SymKind) (Sym, bool) {
+ 	if l.extStart != 0 {
+ 		panic("AddSym called after external symbol is created")
+ 	}
+ 	i := Sym(len(l.objSyms))
+ 	addToGlobal := func() {
+-		l.objSyms = append(l.objSyms, objSym{r, li})
++		l.objSyms = append(l.objSyms, objSym{r.objidx, li})
+ 	}
+ 	if name == "" {
+ 		addToGlobal()
+@@ -445,7 +453,7 @@ func (l *Loader) AddSym(name string, ver int, r *oReader, li int, kind int, dupo
+ 		if !(oldtyp.IsData() && oldr.DataSize(oldli) == 0) {
+ 			log.Fatalf("duplicated definition of symbol " + name)
+ 		}
+-		l.objSyms[oldi] = objSym{r, li}
++		l.objSyms[oldi] = objSym{r.objidx, li}
+ 	} else {
+ 		// old symbol overwrites new symbol.
+ 		if !typ.IsData() { // only allow overwriting data symbol
+@@ -465,7 +473,7 @@ func (l *Loader) newExtSym(name string, ver int) Sym {
+ 	l.growValues(int(i) + 1)
+ 	l.growAttrBitmaps(int(i) + 1)
+ 	pi := l.newPayload(name, ver)
+-	l.objSyms = append(l.objSyms, objSym{l.extReader, int(pi)})
++	l.objSyms = append(l.objSyms, objSym{l.extReader.objidx, uint32(pi)})
+ 	l.extReader.syms = append(l.extReader.syms, i)
+ 	return i
+ }
+@@ -566,13 +574,13 @@ func (l *Loader) growSyms(i int) {
+ }
+ 
+ // Convert a local index to a global index.
+-func (l *Loader) toGlobal(r *oReader, i int) Sym {
++func (l *Loader) toGlobal(r *oReader, i uint32) Sym {
+ 	return r.syms[i]
+ }
+ 
+ // Convert a global index to a local index.
+-func (l *Loader) toLocal(i Sym) (*oReader, int) {
+-	return l.objSyms[i].r, int(l.objSyms[i].s)
++func (l *Loader) toLocal(i Sym) (*oReader, uint32) {
++	return l.objs[l.objSyms[i].objidx].r, l.objSyms[i].s
+ }
+ 
+ // Resolve a local symbol reference. Return global index.
+@@ -605,7 +613,7 @@ func (l *Loader) resolve(r *oReader, s goobj2.SymRef) Sym {
+ 			log.Fatalf("reference of nonexisted package %s, from %v", pkg, r.unit.Lib)
+ 		}
+ 	}
+-	return l.toGlobal(rr, int(s.SymIdx))
++	return l.toGlobal(rr, s.SymIdx)
+ }
+ 
+ // Look up a symbol by name, return global index, or 0 if not found.
+@@ -619,7 +627,7 @@ func (l *Loader) Lookup(name string, ver int) Sym {
+ }
+ 
+ // Check that duplicate symbols have same contents.
+-func (l *Loader) checkdup(name string, r *oReader, li int, dup Sym) {
++func (l *Loader) checkdup(name string, r *oReader, li uint32, dup Sym) {
+ 	p := r.Data(li)
+ 	rdup, ldup := l.toLocal(dup)
+ 	pdup := rdup.Data(ldup)
+@@ -1417,7 +1425,7 @@ func (l *Loader) SymGoType(i Sym) Sym {
+ 		r = l.objs[pp.objidx].r
+ 		auxs = pp.auxs
+ 	} else {
+-		var li int
++		var li uint32
+ 		r, li = l.toLocal(i)
+ 		auxs = r.Auxs(li)
+ 	}
+@@ -1703,7 +1711,7 @@ func (l *Loader) Relocs(i Sym) Relocs {
+ }
+ 
+ // Relocs returns a Relocs object given a local sym index and reader.
+-func (l *Loader) relocs(r *oReader, li int) Relocs {
++func (l *Loader) relocs(r *oReader, li uint32) Relocs {
+ 	var rs []goobj2.Reloc
+ 	if l.isExtReader(r) {
+ 		pp := l.payloads[li]
+@@ -1895,14 +1903,14 @@ func (l *Loader) FuncInfo(i Sym) FuncInfo {
+ 		r = l.objs[pp.objidx].r
+ 		auxs = pp.auxs
+ 	} else {
+-		var li int
++		var li uint32
+ 		r, li = l.toLocal(i)
+ 		auxs = r.Auxs(li)
+ 	}
+ 	for j := range auxs {
+ 		a := &auxs[j]
+ 		if a.Type() == goobj2.AuxFuncInfo {
+-			b := r.Data(int(a.Sym().SymIdx))
++			b := r.Data(a.Sym().SymIdx)
+ 			return FuncInfo{l, r, b, auxs, goobj2.FuncInfoLengths{}}
+ 		}
+ 	}
+@@ -1952,9 +1960,9 @@ func (l *Loader) Preload(syms *sym.Symbols, f *bio.Reader, lib *sym.Library, uni
+ 
+ // Preload symbols of given kind from an object.
+ func (l *Loader) preloadSyms(r *oReader, kind int) {
+-	ndef := r.NSym()
+-	nnonpkgdef := r.NNonpkgdef()
+-	var start, end int
++	ndef := uint32(r.NSym())
++	nnonpkgdef := uint32(r.NNonpkgdef())
++	var start, end uint32
+ 	switch kind {
+ 	case pkgDef:
+ 		start = 0
+@@ -1965,7 +1973,7 @@ func (l *Loader) preloadSyms(r *oReader, kind int) {
+ 	default:
+ 		panic("preloadSyms: bad kind")
+ 	}
+-	l.growAttrBitmaps(len(l.objSyms) + end - start)
++	l.growAttrBitmaps(len(l.objSyms) + int(end-start))
+ 	for i := start; i < end; i++ {
+ 		osym := r.Sym(i)
+ 		name := strings.Replace(osym.Name(r.Reader), "\"\".", r.pkgprefix, -1)
+@@ -2005,18 +2013,18 @@ func (l *Loader) preloadSyms(r *oReader, kind int) {
+ // Add non-package symbols and references to external symbols (which are always
+ // named).
+ func (l *Loader) LoadNonpkgSyms(arch *sys.Arch) {
+-	for _, o := range l.objs[1:] {
++	for _, o := range l.objs[goObjStart:] {
+ 		l.preloadSyms(o.r, nonPkgDef)
+ 	}
+-	for _, o := range l.objs[1:] {
++	for _, o := range l.objs[goObjStart:] {
+ 		loadObjRefs(l, o.r, arch)
+ 	}
+ 	l.values = make([]int64, l.NSym(), l.NSym()+1000) // +1000 make some room for external symbols
+ }
+ 
+ func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch) {
+-	ndef := r.NSym() + r.NNonpkgdef()
+-	for i, n := 0, r.NNonpkgref(); i < n; i++ {
++	ndef := uint32(r.NSym() + r.NNonpkgdef())
++	for i, n := uint32(0), uint32(r.NNonpkgref()); i < n; i++ {
+ 		osym := r.Sym(ndef + i)
+ 		name := strings.Replace(osym.Name(r.Reader), "\"\".", r.pkgprefix, -1)
+ 		v := abiToVer(osym.ABI(), r.version)
+@@ -2084,7 +2092,7 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols, needReloc, needExtR
+ 	}
+ 
+ 	nr := 0 // total number of sym.Reloc's we'll need
+-	for _, o := range l.objs[1:] {
++	for _, o := range l.objs[goObjStart:] {
+ 		nr += loadObjSyms(l, syms, o.r, needReloc, needExtReloc)
+ 	}
+ 
+@@ -2152,7 +2160,7 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols, needReloc, needExtR
+ 	}
+ 
+ 	// load contents of defined symbols
+-	for _, o := range l.objs[1:] {
++	for _, o := range l.objs[goObjStart:] {
+ 		loadObjFull(l, o.r, needReloc, needExtReloc)
+ 	}
+ 
+@@ -2356,7 +2364,7 @@ func topLevelSym(sname string, skind sym.SymKind) bool {
+ // number of sym.Reloc entries required for all the new symbols.
+ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader, needReloc, needExtReloc bool) int {
+ 	nr := 0
+-	for i, n := 0, r.NSym()+r.NNonpkgdef(); i < n; i++ {
++	for i, n := uint32(0), uint32(r.NSym()+r.NNonpkgdef()); i < n; i++ {
+ 		gi := r.syms[i]
+ 		if r2, i2 := l.toLocal(gi); r2 != r || i2 != i {
+ 			continue // come from a different object
+@@ -2423,7 +2431,7 @@ func (l *Loader) cloneToExternal(symIdx Sym) {
+ 
+ 	// If this is a def, then copy the guts. We expect this case
+ 	// to be very rare (one case it may come up is with -X).
+-	if li < (r.NSym() + r.NNonpkgdef()) {
++	if li < uint32(r.NSym()+r.NNonpkgdef()) {
+ 
+ 		// Copy relocations
+ 		relocs := l.Relocs(symIdx)
+@@ -2449,7 +2457,7 @@ func (l *Loader) cloneToExternal(symIdx Sym) {
+ 	// Install new payload to global index space.
+ 	// (This needs to happen at the end, as the accessors above
+ 	// need to access the old symbol content.)
+-	l.objSyms[symIdx] = objSym{l.extReader, pi}
++	l.objSyms[symIdx] = objSym{l.extReader.objidx, uint32(pi)}
+ 	l.extReader.syms = append(l.extReader.syms, symIdx)
+ }
+ 
+@@ -2587,7 +2595,7 @@ func (l *Loader) FreeSym(i Sym) {
+ }
+ 
+ func loadObjFull(l *Loader, r *oReader, needReloc, needExtReloc bool) {
+-	for i, n := 0, r.NSym()+r.NNonpkgdef(); i < n; i++ {
++	for i, n := uint32(0), uint32(r.NSym()+r.NNonpkgdef()); i < n; i++ {
+ 		// A symbol may be a dup or overwritten. In this case, its
+ 		// content will actually be provided by a different object
+ 		// (to which its global index points). Skip those symbols.
+@@ -2814,10 +2822,10 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool, exts
+ 
+ 	// Walk through all text symbols from Go object files and append
+ 	// them to their corresponding library's textp2 list.
+-	for _, o := range l.objs[1:] {
++	for _, o := range l.objs[goObjStart:] {
+ 		r := o.r
+ 		lib := r.unit.Lib
+-		for i, n := 0, r.NSym()+r.NNonpkgdef(); i < n; i++ {
++		for i, n := uint32(0), uint32(r.NSym()+r.NNonpkgdef()); i < n; i++ {
+ 			gi := l.toGlobal(r, i)
+ 			if !l.attrReachable.Has(gi) {
+ 				continue
+@@ -2920,7 +2928,7 @@ func (l *Loader) Errorf(s Sym, format string, args ...interface{}) {
+ // For debugging.
+ func (l *Loader) Dump() {
+ 	fmt.Println("objs")
+-	for _, obj := range l.objs {
++	for _, obj := range l.objs[goObjStart:] {
+ 		if obj.r != nil {
+ 			fmt.Println(obj.i, obj.r.unit.Lib)
+ 		}
+diff --git a/src/cmd/link/internal/loader/loader_test.go b/src/cmd/link/internal/loader/loader_test.go
+index dfaad6e0d2..3213ad5203 100644
+--- a/src/cmd/link/internal/loader/loader_test.go
++++ b/src/cmd/link/internal/loader/loader_test.go
+@@ -19,7 +19,7 @@ import (
+ // do anything interesting with this symbol (such as look at its
+ // data or relocations).
+ func addDummyObjSym(t *testing.T, ldr *Loader, or *oReader, name string) Sym {
+-	idx := len(ldr.objSyms)
++	idx := uint32(len(ldr.objSyms))
+ 	s, ok := ldr.AddSym(name, 0, or, idx, nonPkgDef, false, sym.SRODATA)
+ 	if !ok {
+ 		t.Errorf("AddrSym failed for '" + name + "'")

@@ -9,6 +9,20 @@ Date:   Wed Dec 14 08:43:42 2011 -0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/5477092
-
+---
  src/pkg/net/http/transport.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/transport.go b/src/pkg/net/http/transport.go
+index dc70be43f2..62d36d6986 100644
+--- a/src/pkg/net/http/transport.go
++++ b/src/pkg/net/http/transport.go
+@@ -544,7 +544,7 @@ func (pc *persistConn) readLoop() {
+ 				resp.Header.Del("Content-Length")
+ 				resp.ContentLength = -1
+ 				gzReader, zerr := gzip.NewReader(resp.Body)
+-				if err != nil {
++				if zerr != nil {
+ 					pc.close()
+ 					err = zerr
+ 				} else {

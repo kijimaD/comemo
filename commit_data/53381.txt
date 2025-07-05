@@ -14,7 +14,7 @@ Date:   Mon Jul 25 15:58:23 2022 -0400
     Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/align_runtime_test.go |  4 ----
  src/runtime/export_test.go        |  4 ++--
  src/runtime/histogram.go          | 12 +++++-------
@@ -23,3 +23,168 @@ Date:   Mon Jul 25 15:58:23 2022 -0400
  src/runtime/proc.go               |  5 -----
  src/runtime/runtime2.go           |  2 --
  7 files changed, 11 insertions(+), 29 deletions(-)
+
+diff --git a/src/runtime/align_runtime_test.go b/src/runtime/align_runtime_test.go
+index e7af4cd6ff..2c448d4a09 100644
+--- a/src/runtime/align_runtime_test.go
++++ b/src/runtime/align_runtime_test.go
+@@ -17,8 +17,6 @@ var AtomicFields = []uintptr{
+ 	unsafe.Offsetof(p{}.timer0When),
+ 	unsafe.Offsetof(p{}.timerModifiedEarliest),
+ 	unsafe.Offsetof(p{}.gcFractionalMarkTime),
+-	unsafe.Offsetof(schedt{}.timeToRun),
+-	unsafe.Offsetof(timeHistogram{}.underflow),
+ 	unsafe.Offsetof(profBuf{}.overflow),
+ 	unsafe.Offsetof(profBuf{}.overflowTime),
+ 	unsafe.Offsetof(heapStatsDelta{}.tinyAllocCount),
+@@ -37,10 +35,8 @@ var AtomicFields = []uintptr{
+ 	unsafe.Offsetof(lfnode{}.next),
+ 	unsafe.Offsetof(mstats{}.last_gc_nanotime),
+ 	unsafe.Offsetof(mstats{}.last_gc_unix),
+-	unsafe.Offsetof(mstats{}.gcPauseDist),
+ 	unsafe.Offsetof(ticksType{}.val),
+ 	unsafe.Offsetof(workType{}.bytesMarked),
+-	unsafe.Offsetof(timeHistogram{}.counts),
+ }
+ 
+ // AtomicVariables is the set of global variables on which we perform
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 81f60b3ada..d9f36c06c2 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1244,9 +1244,9 @@ func (th *TimeHistogram) Count(bucket, subBucket uint) (uint64, bool) {
+ 	t := (*timeHistogram)(th)
+ 	i := bucket*TimeHistNumSubBuckets + subBucket
+ 	if i >= uint(len(t.counts)) {
+-		return t.underflow, false
++		return t.underflow.Load(), false
+ 	}
+-	return t.counts[i], true
++	return t.counts[i].Load(), true
+ }
+ 
+ func (th *TimeHistogram) Record(duration int64) {
+diff --git a/src/runtime/histogram.go b/src/runtime/histogram.go
+index eddfbab3bc..d2e6367c84 100644
+--- a/src/runtime/histogram.go
++++ b/src/runtime/histogram.go
+@@ -66,18 +66,16 @@ const (
+ // It is an HDR histogram with exponentially-distributed
+ // buckets and linearly distributed sub-buckets.
+ //
+-// Counts in the histogram are updated atomically, so it is safe
+-// for concurrent use. It is also safe to read all the values
+-// atomically.
++// The histogram is safe for concurrent reads and writes.
+ type timeHistogram struct {
+-	counts [timeHistNumSuperBuckets * timeHistNumSubBuckets]uint64
++	counts [timeHistNumSuperBuckets * timeHistNumSubBuckets]atomic.Uint64
+ 
+ 	// underflow counts all the times we got a negative duration
+ 	// sample. Because of how time works on some platforms, it's
+ 	// possible to measure negative durations. We could ignore them,
+ 	// but we record them anyway because it's better to have some
+ 	// signal that it's happening than just missing samples.
+-	underflow uint64
++	underflow atomic.Uint64
+ }
+ 
+ // record adds the given duration to the distribution.
+@@ -88,7 +86,7 @@ type timeHistogram struct {
+ //go:nosplit
+ func (h *timeHistogram) record(duration int64) {
+ 	if duration < 0 {
+-		atomic.Xadd64(&h.underflow, 1)
++		h.underflow.Add(1)
+ 		return
+ 	}
+ 	// The index of the exponential bucket is just the index
+@@ -116,7 +114,7 @@ func (h *timeHistogram) record(duration int64) {
+ 	} else {
+ 		subBucket = uint(duration)
+ 	}
+-	atomic.Xadd64(&h.counts[superBucket*timeHistNumSubBuckets+subBucket], 1)
++	h.counts[superBucket*timeHistNumSubBuckets+subBucket].Add(1)
+ }
+ 
+ const (
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index 986121b9c2..313850a3a0 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -7,7 +7,6 @@ package runtime
+ // Metrics implementation exported to runtime/metrics.
+ 
+ import (
+-	"runtime/internal/atomic"
+ 	"unsafe"
+ )
+ 
+@@ -197,9 +196,9 @@ func initMetrics() {
+ 				// The bottom-most bucket, containing negative values, is tracked
+ 				// as a separately as underflow, so fill that in manually and then
+ 				// iterate over the rest.
+-				hist.counts[0] = atomic.Load64(&memstats.gcPauseDist.underflow)
++				hist.counts[0] = memstats.gcPauseDist.underflow.Load()
+ 				for i := range memstats.gcPauseDist.counts {
+-					hist.counts[i+1] = atomic.Load64(&memstats.gcPauseDist.counts[i])
++					hist.counts[i+1] = memstats.gcPauseDist.counts[i].Load()
+ 				}
+ 			},
+ 		},
+@@ -327,9 +326,9 @@ func initMetrics() {
+ 		"/sched/latencies:seconds": {
+ 			compute: func(_ *statAggregate, out *metricValue) {
+ 				hist := out.float64HistOrInit(timeHistBuckets)
+-				hist.counts[0] = atomic.Load64(&sched.timeToRun.underflow)
++				hist.counts[0] = sched.timeToRun.underflow.Load()
+ 				for i := range sched.timeToRun.counts {
+-					hist.counts[i+1] = atomic.Load64(&sched.timeToRun.counts[i])
++					hist.counts[i+1] = sched.timeToRun.counts[i].Load()
+ 				}
+ 			},
+ 		},
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 0029ea956c..458350da02 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -334,10 +334,6 @@ func init() {
+ 		println(offset)
+ 		throw("memstats.heapStats not aligned to 8 bytes")
+ 	}
+-	if offset := unsafe.Offsetof(memstats.gcPauseDist); offset%8 != 0 {
+-		println(offset)
+-		throw("memstats.gcPauseDist not aligned to 8 bytes")
+-	}
+ 	// Ensure the size of heapStatsDelta causes adjacent fields/slots (e.g.
+ 	// [3]heapStatsDelta) to be 8-byte aligned.
+ 	if size := unsafe.Sizeof(heapStatsDelta{}); size%8 != 0 {
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index a2a02ebf9a..c3144b4dde 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -703,11 +703,6 @@ func schedinit() {
+ 	sigsave(&gp.m.sigmask)
+ 	initSigmask = gp.m.sigmask
+ 
+-	if offset := unsafe.Offsetof(sched.timeToRun); offset%8 != 0 {
+-		println(offset)
+-		throw("sched.timeToRun not aligned to 8 bytes")
+-	}
+-
+ 	goargs()
+ 	goenvs()
+ 	parsedebugvars()
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 9216765fc6..e706cf7354 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -843,8 +843,6 @@ type schedt struct {
+ 	// timeToRun is a distribution of scheduling latencies, defined
+ 	// as the sum of time a G spends in the _Grunnable state before
+ 	// it transitions to _Grunning.
+-	//
+-	// timeToRun is protected by sched.lock.
+ 	timeToRun timeHistogram
+ }
+ 

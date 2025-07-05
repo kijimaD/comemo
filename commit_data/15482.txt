@@ -8,6 +8,20 @@ Date:   Wed Feb 27 16:11:17 2013 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7421043
-
+---
  src/pkg/builtin/builtin.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/builtin/builtin.go b/src/pkg/builtin/builtin.go
+index 91d263a623..7b5e9ab1d6 100644
+--- a/src/pkg/builtin/builtin.go
++++ b/src/pkg/builtin/builtin.go
+@@ -114,6 +114,8 @@ type ComplexType complex64
+ // result of append, often in the variable holding the slice itself:
+ //	slice = append(slice, elem1, elem2)
+ //	slice = append(slice, anotherSlice...)
++// As a special case, it is legal to append a string to a byte slice, like this:
++//	slice = append([]byte("hello "), "world"...)
+ func append(slice []Type, elems ...Type) []Type
+ 
+ // The copy built-in function copies elements from a source slice into a

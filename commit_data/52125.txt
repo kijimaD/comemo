@@ -21,10 +21,215 @@ Date:   Fri Apr 1 17:02:28 2022 -0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/noder/expr.go             |  9 +++++
  src/cmd/compile/internal/types2/api_test.go        | 12 ++++++
  src/cmd/compile/internal/types2/expr.go            | 46 +++++++++++++++-------
  .../types2/testdata/fixedbugs/issue52031.go        | 33 ++++++++++++++++
  test/shift3.go                                     | 41 +++++++++++++++++++
  5 files changed, 126 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index 566abda963..e37e4cd661 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -6,6 +6,7 @@ package noder
+ 
+ import (
+ 	"fmt"
++	"go/constant"
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+@@ -62,6 +63,14 @@ func (g *irgen) expr(expr syntax.Expr) ir.Node {
+ 		case types2.UntypedNil:
+ 			// ok; can appear in type switch case clauses
+ 			// TODO(mdempsky): Handle as part of type switches instead?
++		case types2.UntypedInt, types2.UntypedFloat, types2.UntypedComplex:
++			// Untyped rhs of non-constant shift, e.g. x << 1.0.
++			// If we have a constant value, it must be an int >= 0.
++			if tv.Value != nil {
++				s := constant.ToInt(tv.Value)
++				assert(s.Kind() == constant.Int && constant.Sign(s) >= 0)
++			}
++			typ = types2.Typ[types2.Uint]
+ 		case types2.UntypedBool:
+ 			typ = types2.Typ[types2.Bool] // expression in "if" or "for" condition
+ 		case types2.UntypedString:
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index 528beaacea..fde7291b03 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -311,6 +311,18 @@ func TestTypesInfo(t *testing.T) {
+ 			`[][]struct{}`,
+ 		},
+ 
++		// issue 47243
++		{`package issue47243_a; var x int32; var _ = x << 3`, `3`, `untyped int`},
++		{`package issue47243_b; var x int32; var _ = x << 3.`, `3.`, `untyped float`},
++		{`package issue47243_c; var x int32; var _ = 1 << x`, `1 << x`, `int`},
++		{`package issue47243_d; var x int32; var _ = 1 << x`, `1`, `int`},
++		{`package issue47243_e; var x int32; var _ = 1 << 2`, `1`, `untyped int`},
++		{`package issue47243_f; var x int32; var _ = 1 << 2`, `2`, `untyped int`},
++		{`package issue47243_g; var x int32; var _ = int(1) << 2`, `2`, `untyped int`},
++		{`package issue47243_h; var x int32; var _ = 1 << (2 << x)`, `1`, `int`},
++		{`package issue47243_i; var x int32; var _ = 1 << (2 << x)`, `(2 << x)`, `untyped int`},
++		{`package issue47243_j; var x int32; var _ = 1 << (2 << x)`, `2`, `untyped int`},
++
+ 		// tests for broken code that doesn't parse or type-check
+ 		{brokenPkg + `x0; func _() { var x struct {f string}; x.f := 0 }`, `x.f`, `string`},
+ 		{brokenPkg + `x1; func _() { var z string; type x struct {f string}; y := &x{q: z}}`, `z`, `string`},
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 1ecb4ff54b..e0c22f5b03 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -954,32 +954,48 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
+ 	// spec: "The right operand in a shift expression must have integer type
+ 	// or be an untyped constant representable by a value of type uint."
+ 
+-	// Provide a good error message for negative shift counts.
++	// Check that constants are representable by uint, but do not convert them
++	// (see also issue #47243).
+ 	if y.mode == constant_ {
++		// Provide a good error message for negative shift counts.
+ 		yval := constant.ToInt(y.val) // consider -1, 1.0, but not -1.1
+ 		if yval.Kind() == constant.Int && constant.Sign(yval) < 0 {
+ 			check.errorf(y, invalidOp+"negative shift count %s", y)
+ 			x.mode = invalid
+ 			return
+ 		}
+-	}
+ 
+-	// Caution: Check for isUntyped first because isInteger includes untyped
+-	//          integers (was bug #43697).
+-	if isUntyped(y.typ) {
+-		check.convertUntyped(y, Typ[Uint])
+-		if y.mode == invalid {
++		if isUntyped(y.typ) {
++			// Caution: Check for representability here, rather than in the switch
++			// below, because isInteger includes untyped integers (was bug #43697).
++			check.representable(y, Typ[Uint])
++			if y.mode == invalid {
++				x.mode = invalid
++				return
++			}
++		}
++	} else {
++		// Check that RHS is otherwise at least of integer type.
++		switch {
++		case allInteger(y.typ):
++			if !allUnsigned(y.typ) && !check.allowVersion(check.pkg, 1, 13) {
++				check.errorf(y, invalidOp+"signed shift count %s requires go1.13 or later", y)
++				x.mode = invalid
++				return
++			}
++		case isUntyped(y.typ):
++			// This is incorrect, but preserves pre-existing behavior.
++			// See also bug #47410.
++			check.convertUntyped(y, Typ[Uint])
++			if y.mode == invalid {
++				x.mode = invalid
++				return
++			}
++		default:
++			check.errorf(y, invalidOp+"shift count %s must be integer", y)
+ 			x.mode = invalid
+ 			return
+ 		}
+-	} else if !allInteger(y.typ) {
+-		check.errorf(y, invalidOp+"shift count %s must be integer", y)
+-		x.mode = invalid
+-		return
+-	} else if !allUnsigned(y.typ) && !check.allowVersion(check.pkg, 1, 13) {
+-		check.versionErrorf(y, "go1.13", invalidOp+"signed shift count %s", y)
+-		x.mode = invalid
+-		return
+ 	}
+ 
+ 	if x.mode == constant_ {
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue52031.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue52031.go
+new file mode 100644
+index 0000000000..448a550b25
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue52031.go
+@@ -0,0 +1,33 @@
++// -lang=go1.12
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type resultFlags uint
++
++// Example from #52031.
++//
++// The following shifts should not produce errors on Go < 1.13, as their
++// untyped constant operands are representable by type uint.
++const (
++	_ resultFlags = (1 << iota) / 2
++
++	reportEqual
++	reportUnequal
++	reportByIgnore
++	reportByMethod
++	reportByFunc
++	reportByCycle
++)
++
++// Invalid cases.
++var x int = 1
++var _ = (8 << x /* ERROR "signed shift count .* requires go1.13 or later" */)
++
++const _ = (1 << 1.2 /* ERROR "truncated to uint" */)
++
++var y float64
++var _ = (1 << y /* ERROR "must be integer" */)
+diff --git a/test/shift3.go b/test/shift3.go
+new file mode 100644
+index 0000000000..bed2fd66ef
+--- /dev/null
++++ b/test/shift3.go
+@@ -0,0 +1,41 @@
++// run
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that the compiler's noder uses the correct type
++// for RHS shift operands that are untyped. Must compile;
++// run for good measure.
++
++package main
++
++import (
++	"fmt"
++	"math"
++)
++
++func f(x, y int) {
++	if x != y {
++		panic(fmt.Sprintf("%d != %d", x, y))
++	}
++}
++
++func main() {
++	var x int = 1
++	f(x<<1, 2)
++	f(x<<1., 2)
++	f(x<<(1+0i), 2)
++	f(x<<0i, 1)
++
++	f(x<<(1<<x), 4)
++	f(x<<(1.<<x), 4)
++	f(x<<((1+0i)<<x), 4)
++	f(x<<(0i<<x), 1)
++
++	// corner cases
++	const M = math.MaxUint
++	f(x<<(M+0), 0)     // shift by untyped int representable as uint
++	f(x<<(M+0.), 0)    // shift by untyped float representable as uint
++	f(x<<(M+0.+0i), 0) // shift by untyped complex representable as uint
++}

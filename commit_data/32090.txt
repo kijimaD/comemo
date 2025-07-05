@@ -9,7 +9,7 @@ Date:   Mon Apr 3 15:54:20 2017 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/bytes/bytes.go                            | 2 +-
  src/bytes/bytes_amd64.s                       | 2 +-
  src/cmd/compile/internal/syntax/nodes_test.go | 2 +-
@@ -25,3 +25,186 @@ Date:   Mon Apr 3 15:54:20 2017 -0700
  src/runtime/rt0_linux_mips64x.s               | 2 +-
  src/runtime/syscall_windows_test.go           | 2 +-
  14 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index f461d2b3ce..de3bd0515a 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -46,7 +46,7 @@ func explode(s []byte, n int) [][]byte {
+ 	return a[0:na]
+ }
+ 
+-// countGeneric actualy implements Count
++// countGeneric actually implements Count
+ func countGeneric(s, sep []byte) int {
+ 	n := 0
+ 	// special case
+diff --git a/src/bytes/bytes_amd64.s b/src/bytes/bytes_amd64.s
+index f4cbadf7bb..a710e22510 100644
+--- a/src/bytes/bytes_amd64.s
++++ b/src/bytes/bytes_amd64.s
+@@ -8,7 +8,7 @@
+ //   SI: data
+ //   BX: data len
+ //   AL: byte sought
+-// This require the POPCNT instruction
++// This requires the POPCNT instruction
+ TEXT ·countByte(SB),NOSPLIT,$0-40
+ 	MOVQ s+0(FP), SI
+ 	MOVQ s_len+8(FP), BX
+diff --git a/src/cmd/compile/internal/syntax/nodes_test.go b/src/cmd/compile/internal/syntax/nodes_test.go
+index ea446235fa..be9d5d897c 100644
+--- a/src/cmd/compile/internal/syntax/nodes_test.go
++++ b/src/cmd/compile/internal/syntax/nodes_test.go
+@@ -239,7 +239,7 @@ var comms = []test{
+ 
+ func TestPos(t *testing.T) {
+ 	// TODO(gri) Once we have a general tree walker, we can use that to find
+-	// the first occurence of the respective node and we don't need to hand-
++	// the first occurrence of the respective node and we don't need to hand-
+ 	// extract the node for each specific kind of construct.
+ 
+ 	testPos(t, decls, "package p; ", "",
+diff --git a/src/context/context_test.go b/src/context/context_test.go
+index 6efc06cbe5..f73f2837b8 100644
+--- a/src/context/context_test.go
++++ b/src/context/context_test.go
+@@ -428,7 +428,7 @@ func XTestAllocs(t testingT, testingShort func() bool, testingAllocsPerRun func(
+ 		limit := test.limit
+ 		if runtime.Compiler == "gccgo" {
+ 			// gccgo does not yet do escape analysis.
+-			// TOOD(iant): Remove this when gccgo does do escape analysis.
++			// TODO(iant): Remove this when gccgo does do escape analysis.
+ 			limit = test.gccgoLimit
+ 		}
+ 		numRuns := 100
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index 6d05052c71..f0bcd6766b 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -172,7 +172,7 @@ func (obj *TypeName) IsAlias() bool {
+ 		// basic type (because basic types are pre-declared in the Universe
+ 		// scope, outside any package scope), and so is any type name with
+ 		// a different name than the name of the basic type it refers to.
+-		// Additionaly, we need to look for "byte" and "rune" because they
++		// Additionally, we need to look for "byte" and "rune" because they
+ 		// are aliases but have the same names (for better error messages).
+ 		return obj.pkg != nil || t.name != obj.name || t == universeByte || t == universeRune
+ 	case *Named:
+diff --git a/src/hash/crc32/crc32_ppc64le.s b/src/hash/crc32/crc32_ppc64le.s
+index d54059f823..10d5dd61db 100644
+--- a/src/hash/crc32/crc32_ppc64le.s
++++ b/src/hash/crc32/crc32_ppc64le.s
+@@ -246,7 +246,7 @@ startConst:
+ 	LVX	(R4+off112),V23
+ 	ADD	$128,R4		// bump up to next 128 bytes in buffer
+ 
+-	VXOR	V16,V8,V16	// xor in inital CRC in V8
++	VXOR	V16,V8,V16	// xor in initial CRC in V8
+ 
+ next:
+ 	BC	18,0,first_warm_up_done
+diff --git a/src/hash/crc32/crc32_s390x.s b/src/hash/crc32/crc32_s390x.s
+index 0b830531f7..63aa609db2 100644
+--- a/src/hash/crc32/crc32_s390x.s
++++ b/src/hash/crc32/crc32_s390x.s
+@@ -227,7 +227,7 @@ final_fold:
+ 	// Note: To compensate the division by x^32, use the vector unpack
+ 	// instruction to move the leftmost word into the leftmost doubleword
+ 	// of the vector register.  The rightmost doubleword is multiplied
+-	// with zero to not contribute to the intermedate results.
++	// with zero to not contribute to the intermediate results.
+ 
+ 
+ 	// T1(x) = floor( R(x) / x^32 ) GF2MUL u
+diff --git a/src/math/big/int_test.go b/src/math/big/int_test.go
+index 155ccee6af..42e810b3b8 100644
+--- a/src/math/big/int_test.go
++++ b/src/math/big/int_test.go
+@@ -260,7 +260,7 @@ func BenchmarkBinomial(b *testing.B) {
+ var divisionSignsTests = []struct {
+ 	x, y int64
+ 	q, r int64 // T-division
+-	d, m int64 // Euclidian division
++	d, m int64 // Euclidean division
+ }{
+ 	{5, 3, 1, 2, 1, 2},
+ 	{-5, 3, -1, -2, -2, 1},
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index a6e96259a0..739970b28c 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -639,7 +639,7 @@ type requestBodyReadError struct{ error }
+ func idnaASCII(v string) (string, error) {
+ 	// TODO: Consider removing this check after verifying performance is okay.
+ 	// Right now punycode verification, length checks, context checks, and the
+-	// permissable character tests are all omitted. It also prevents the ToASCII
++	// permissible character tests are all omitted. It also prevents the ToASCII
+ 	// call from salvaging an invalid IDN, when possible. As a result it may be
+ 	// possible to have two IDNs that appear identical to the user where the
+ 	// ASCII-only version causes an error downstream whereas the non-ASCII
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index 61ca0c91bf..dc8c2fc56e 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -849,7 +849,7 @@ func main() {
+ 		args := os.CommandLineToArgv(exe + cmd)
+ 		out, err := osexec.Command(args[0], args[1:]...).CombinedOutput()
+ 		if err != nil {
+-			t.Fatalf("runing %q failed: %v\n%v", args, err, string(out))
++			t.Fatalf("running %q failed: %v\n%v", args, err, string(out))
+ 		}
+ 		if want, have := fmt.Sprintf("%q", args), string(out); want != have {
+ 			t.Errorf("wrong output of executing %q: have %q want %q", args, have, want)
+diff --git a/src/runtime/memmove_amd64.s b/src/runtime/memmove_amd64.s
+index c2286d3edd..ed674fe40b 100644
+--- a/src/runtime/memmove_amd64.s
++++ b/src/runtime/memmove_amd64.s
+@@ -407,7 +407,7 @@ gobble_big_data_fwd:
+ gobble_mem_fwd_loop:
+ 	PREFETCHNTA 0x1C0(SI)
+ 	PREFETCHNTA 0x280(SI)
+-	// Prefetch values were choosen empirically.
++	// Prefetch values were chosen empirically.
+ 	// Approach for prefetch usage as in 7.6.6 of [1]
+ 	// [1] 64-ia-32-architectures-optimization-manual.pdf
+ 	// http://www.intel.ru/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-optimization-manual.pdf
+diff --git a/src/runtime/pprof/label_test.go b/src/runtime/pprof/label_test.go
+index d4a3fe92a9..240445f098 100644
+--- a/src/runtime/pprof/label_test.go
++++ b/src/runtime/pprof/label_test.go
+@@ -33,7 +33,7 @@ func TestContextLabels(t *testing.T) {
+ 
+ 	// Add a single label.
+ 	ctx = WithLabels(ctx, Labels("key", "value"))
+-	// Retreive it with Label.
++	// Retrieve it with Label.
+ 	v, ok := Label(ctx, "key")
+ 	if !ok || v != "value" {
+ 		t.Errorf(`Label(ctx, "key"): got %v, %v; want "value", ok`, v, ok)
+diff --git a/src/runtime/rt0_linux_mips64x.s b/src/runtime/rt0_linux_mips64x.s
+index beb4ef26ac..0891c68c69 100644
+--- a/src/runtime/rt0_linux_mips64x.s
++++ b/src/runtime/rt0_linux_mips64x.s
+@@ -30,7 +30,7 @@ TEXT main(SB),NOSPLIT,$-8
+ 	// in external linking, glibc jumps to main with argc in R4
+ 	// and argv in R5
+ 
+-	// initalize REGSB = PC&0xffffffff00000000
++	// initialize REGSB = PC&0xffffffff00000000
+ 	BGEZAL	R0, 1(PC)
+ 	SRLV	$32, R31, RSB
+ 	SLLV	$32, RSB
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index 099baa2edf..3da154dfa8 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -1055,7 +1055,7 @@ func BenchmarkRunningGoProgram(b *testing.B) {
+ 		cmd := exec.Command(exe)
+ 		out, err := cmd.CombinedOutput()
+ 		if err != nil {
+-			b.Fatalf("runing main.exe failed: %v\n%s", err, out)
++			b.Fatalf("running main.exe failed: %v\n%s", err, out)
+ 		}
+ 	}
+ }

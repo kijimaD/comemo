@@ -14,7 +14,39 @@ Date:   Wed May 20 15:42:14 2009 -0700
     DELTA=8  (0 added, 7 deleted, 1 changed)
     OCL=29124
     CL=29126
-
+---
  src/lib/reflect/all_test.go | 2 +-
  src/lib/reflect/value.go    | 7 -------
  2 files changed, 1 insertion(+), 8 deletions(-)
+
+diff --git a/src/lib/reflect/all_test.go b/src/lib/reflect/all_test.go
+index 8d4ea48651..ec770078d4 100644
+--- a/src/lib/reflect/all_test.go
++++ b/src/lib/reflect/all_test.go
+@@ -543,7 +543,7 @@ func TestIsNil(t *testing.T) {
+ 		ty := reflect.ParseTypeString("", ts);
+ 		v := reflect.NewZeroValue(ty);
+ 		if nilable, ok := v.(Nillable); !ok {
+-			t.Errorf("%s is not nilable; should be", ts)
++			t.Errorf("%s %T is not nilable; should be", ts, v)
+ 		}
+ 	}
+ 	// Check the implementations
+diff --git a/src/lib/reflect/value.go b/src/lib/reflect/value.go
+index d20d8cbe01..e3258b11f3 100644
+--- a/src/lib/reflect/value.go
++++ b/src/lib/reflect/value.go
+@@ -876,13 +876,6 @@ func newValueAddr(typ Type, addr Addr) Value {
+ 
+ // NewZeroValue creates a new, zero-initialized Value for the specified Type.
+ func NewZeroValue(typ Type) Value {
+-	// Some values cannot be made this way.
+-	switch typ.Kind() {
+-	case ArrayKind:
+-		if typ.(ArrayType).IsSlice() {
+-			return nil
+-		}
+-	}
+ 	size := typ.Size();
+ 	if size == 0 {
+ 		size = 1;

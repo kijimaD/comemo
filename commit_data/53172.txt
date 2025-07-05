@@ -19,6 +19,22 @@ Date:   Mon Jul 25 11:02:56 2022 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/cgo/gcc_linux_amd64.c | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/cgo/gcc_linux_amd64.c b/src/runtime/cgo/gcc_linux_amd64.c
+index c25e7e769b..fb164c1a1d 100644
+--- a/src/runtime/cgo/gcc_linux_amd64.c
++++ b/src/runtime/cgo/gcc_linux_amd64.c
+@@ -44,7 +44,9 @@ x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
+ 	}
+ 	pthread_attr_init(attr);
+ 	pthread_attr_getstacksize(attr, &size);
+-	g->stacklo = (uintptr)&size - size + 4096;
++	g->stacklo = (uintptr)__builtin_frame_address(0) - size + 4096;
++	if (g->stacklo >= g->stackhi)
++		fatalf("bad stack bounds: lo=%p hi=%p\n", g->stacklo, g->stackhi);
+ 	pthread_attr_destroy(attr);
+ 	free(attr);
+ 

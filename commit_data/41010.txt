@@ -12,7 +12,44 @@ Date:   Tue Jun 4 22:26:09 2019 +0000
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/fs.go      |  2 +-
  src/net/http/fs_test.go | 12 ++++++++++++
  2 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index 41d46dced2..4c4f0e429e 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -585,7 +585,7 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
+ 	// redirect if the directory name doesn't end in a slash
+ 	if d.IsDir() {
+ 		url := r.URL.Path
+-		if url[len(url)-1] != '/' {
++		if url == "" || url[len(url)-1] != '/' {
+ 			localRedirect(w, r, path.Base(url)+"/")
+ 			return
+ 		}
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index 762e88b05f..047bb04ad8 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -207,6 +207,18 @@ func TestServeFile_DotDot(t *testing.T) {
+ 	}
+ }
+ 
++// Tests that this doesn't panic. (Issue 30165)
++func TestServeFileDirPanicEmptyPath(t *testing.T) {
++	rec := httptest.NewRecorder()
++	req := httptest.NewRequest("GET", "/", nil)
++	req.URL.Path = ""
++	ServeFile(rec, req, "testdata")
++	res := rec.Result()
++	if res.StatusCode != 301 {
++		t.Errorf("code = %v; want 301", res.Status)
++	}
++}
++
+ var fsRedirectTestData = []struct {
+ 	original, redirect string
+ }{

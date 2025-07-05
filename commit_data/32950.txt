@@ -9,6 +9,22 @@ Date:   Thu Jun 15 22:18:24 2017 +0200
     Reviewed-by: Rob Pike <r@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/path/filepath/match_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/path/filepath/match_test.go b/src/path/filepath/match_test.go
+index 3bd5598ed9..18d38bf5bb 100644
+--- a/src/path/filepath/match_test.go
++++ b/src/path/filepath/match_test.go
+@@ -154,8 +154,8 @@ func TestGlob(t *testing.T) {
+ }
+ 
+ func TestGlobError(t *testing.T) {
+-	_, err := Glob("[7]")
+-	if err != nil {
++	_, err := Glob("[]")
++	if err == nil {
+ 		t.Error("expected error for bad pattern; got none")
+ 	}
+ }

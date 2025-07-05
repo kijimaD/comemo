@@ -7,7 +7,7 @@ Date:   Thu Jul 11 22:52:48 2013 -0400
     R=golang-dev, dave, r
     CC=golang-dev, nigeltao
     https://golang.org/cl/10713043
-
+---
  src/cmd/5l/asm.c  |  13 +++++--
  src/cmd/6l/asm.c  |  13 +++++--
  src/cmd/8l/asm.c  |  13 +++++--
@@ -16,3 +16,505 @@ Date:   Thu Jul 11 22:52:48 2013 -0400
  src/cmd/ld/lib.c  |  11 ++++++
  src/cmd/ld/lib.h  |   8 +++++
  7 files changed, 136 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 4a77298704..20ed5e5ae1 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -550,13 +550,20 @@ asmb(void)
+ 	sect = segtext.sect;
+ 	cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
+ 	codeblk(sect->vaddr, sect->len);
+-
+-	/* output read-only data in text segment (rodata, gosymtab, pclntab, ...) */
+ 	for(sect = sect->next; sect != nil; sect = sect->next) {
+ 		cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
+ 		datblk(sect->vaddr, sect->len);
+ 	}
+ 
++	if(segrodata.filelen > 0) {
++		if(debug['v'])
++			Bprint(&bso, "%5.2f rodatblk\n", cputime());
++		Bflush(&bso);
++
++		cseek(segrodata.fileoff);
++		datblk(segrodata.vaddr, segrodata.filelen);
++	}
++
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f datblk\n", cputime());
+ 	Bflush(&bso);
+@@ -587,7 +594,7 @@ asmb(void)
+ 			symo = HEADR+segtext.len+segdata.filelen;
+ 			break;
+ 		ElfSym:
+-			symo = rnd(HEADR+segtext.filelen, INITRND)+segdata.filelen;
++			symo = rnd(HEADR+segtext.filelen, INITRND)+rnd(HEADR+segrodata.filelen, INITRND)+segdata.filelen;
+ 			symo = rnd(symo, INITRND);
+ 			break;
+ 		}
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 8807a6ed53..81a16bc6a5 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -625,13 +625,20 @@ asmb(void)
+ 	sect = segtext.sect;
+ 	cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
+ 	codeblk(sect->vaddr, sect->len);
+-
+-	/* output read-only data in text segment (rodata, gosymtab, pclntab, ...) */
+ 	for(sect = sect->next; sect != nil; sect = sect->next) {
+ 		cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
+ 		datblk(sect->vaddr, sect->len);
+ 	}
+ 
++	if(segrodata.filelen > 0) {
++		if(debug['v'])
++			Bprint(&bso, "%5.2f rodatblk\n", cputime());
++		Bflush(&bso);
++
++		cseek(segrodata.fileoff);
++		datblk(segrodata.vaddr, segrodata.filelen);
++	}
++
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f datblk\n", cputime());
+ 	Bflush(&bso);
+@@ -696,7 +703,7 @@ asmb(void)
+ 		case Hfreebsd:
+ 		case Hnetbsd:
+ 		case Hopenbsd:
+-			symo = rnd(HEADR+segtext.len, INITRND)+segdata.filelen;
++			symo = rnd(HEADR+segtext.len, INITRND)+rnd(segrodata.len, INITRND)+segdata.filelen;
+ 			symo = rnd(symo, INITRND);
+ 			break;
+ 		case Hwindows:
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 18591cd2f3..712e93e2bd 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -595,12 +595,19 @@ asmb(void)
+ 	sect = segtext.sect;
+ 	cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
+ 	codeblk(sect->vaddr, sect->len);
+-
+-	/* output read-only data in text segment (rodata, gosymtab, pclntab, ...) */
+ 	for(sect = sect->next; sect != nil; sect = sect->next) {
+ 		cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
+ 		datblk(sect->vaddr, sect->len);
+ 	}
++	
++	if(segrodata.filelen > 0) {
++		if(debug['v'])
++			Bprint(&bso, "%5.2f rodatblk\n", cputime());
++		Bflush(&bso);
++
++		cseek(segrodata.fileoff);
++		datblk(segrodata.vaddr, segrodata.filelen);
++	}
+ 
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f datblk\n", cputime());
+@@ -655,7 +662,7 @@ asmb(void)
+ 			symo = rnd(HEADR+segtext.filelen, INITRND)+rnd(segdata.filelen, INITRND)+machlink;
+ 			break;
+ 		Elfsym:
+-			symo = rnd(HEADR+segtext.filelen, INITRND)+segdata.filelen;
++			symo = rnd(HEADR+segtext.filelen, INITRND)+rnd(HEADR+segrodata.filelen, INITRND)+segdata.filelen;
+ 			symo = rnd(symo, INITRND);
+ 			break;
+ 		case Hwindows:
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 547494866e..c48e1392b0 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -1040,6 +1040,7 @@ dodata(void)
+ 	int32 n;
+ 	vlong datsize;
+ 	Section *sect;
++	Segment *segro;
+ 	Sym *s, *last, **l;
+ 	Sym *gcdata1, *gcbss1;
+ 
+@@ -1130,7 +1131,7 @@ dodata(void)
+ 		sect->vaddr = datsize;
+ 		s->sect = sect;
+ 		s->type = SDATA;
+-		s->value = datsize;
++		s->value = datsize - sect->vaddr;
+ 		growdatsize(&datsize, s);
+ 		sect->len = datsize - sect->vaddr;
+ 	}
+@@ -1146,7 +1147,7 @@ dodata(void)
+ 		datsize = aligndatsize(datsize, s);
+ 		s->sect = sect;
+ 		s->type = SDATA;
+-		s->value = datsize;
++		s->value = datsize - sect->vaddr;
+ 		growdatsize(&datsize, s);
+ 	}
+ 	sect->len = datsize - sect->vaddr;
+@@ -1163,7 +1164,7 @@ dodata(void)
+ 			datsize = aligndatsize(datsize, s);
+ 			s->sect = sect;
+ 			s->type = SDATA;
+-			s->value = datsize;
++			s->value = datsize - sect->vaddr;
+ 			growdatsize(&datsize, s);
+ 		}
+ 		sect->len = datsize - sect->vaddr;
+@@ -1184,7 +1185,7 @@ dodata(void)
+ 		s->sect = sect;
+ 		s->type = SDATA;
+ 		datsize = aligndatsize(datsize, s);
+-		s->value = datsize;
++		s->value = datsize - sect->vaddr;
+ 		gcaddsym(gcdata1, s, datsize - sect->vaddr);  // gc
+ 		growdatsize(&datsize, s);
+ 	}
+@@ -1203,7 +1204,7 @@ dodata(void)
+ 	for(; s != nil && s->type < SNOPTRBSS; s = s->next) {
+ 		s->sect = sect;
+ 		datsize = aligndatsize(datsize, s);
+-		s->value = datsize;
++		s->value = datsize - sect->vaddr;
+ 		gcaddsym(gcbss1, s, datsize - sect->vaddr);  // gc
+ 		growdatsize(&datsize, s);
+ 	}
+@@ -1222,7 +1223,7 @@ dodata(void)
+ 	for(; s != nil && s->type == SNOPTRBSS; s = s->next) {
+ 		datsize = aligndatsize(datsize, s);
+ 		s->sect = sect;
+-		s->value = datsize;
++		s->value = datsize - sect->vaddr;
+ 		growdatsize(&datsize, s);
+ 	}
+ 	sect->len = datsize - sect->vaddr;
+@@ -1241,7 +1242,7 @@ dodata(void)
+ 		for(; s != nil && s->type == STLSBSS; s = s->next) {
+ 			datsize = aligndatsize(datsize, s);
+ 			s->sect = sect;
+-			s->value = datsize;
++			s->value = datsize - sect->vaddr;
+ 			growdatsize(&datsize, s);
+ 		}
+ 		sect->len = datsize;
+@@ -1252,27 +1253,56 @@ dodata(void)
+ 		diag("unexpected symbol type %d for %s", s->type, s->name);
+ 	}
+ 
+-	/* we finished segdata, begin segtext */
++	/*
++	 * We finished data, begin read-only data.
++	 * Not all systems support a separate read-only non-executable data section.
++	 * ELF systems do.
++	 * OS X and Plan 9 do not.
++	 * Windows PE may, but if so we have not implemented it.
++	 * And if we're using external linking mode, the point is moot,
++	 * since it's not our decision; that code expects the sections in
++	 * segtext.
++	 */
++	if(iself && linkmode == LinkInternal)
++		segro = &segrodata;
++	else
++		segro = &segtext;
++
+ 	s = datap;
++	
++	datsize = 0;
++	
++	/* read-only executable ELF, Mach-O sections */
++	for(; s != nil && s->type < STYPE; s = s->next) {
++		sect = addsection(&segtext, s->name, 04);
++		sect->align = symalign(s);
++		datsize = rnd(datsize, sect->align);
++		sect->vaddr = datsize;
++		s->sect = sect;
++		s->type = SRODATA;
++		s->value = datsize - sect->vaddr;
++		growdatsize(&datsize, s);
++		sect->len = datsize - sect->vaddr;
++	}
+ 
+ 	/* read-only data */
+-	sect = addsection(&segtext, ".rodata", 04);
++	sect = addsection(segro, ".rodata", 04);
+ 	sect->align = maxalign(s, STYPELINK-1);
++	datsize = rnd(datsize, sect->align);
+ 	sect->vaddr = 0;
+ 	lookup("rodata", 0)->sect = sect;
+ 	lookup("erodata", 0)->sect = sect;
+-	datsize = 0;
+ 	for(; s != nil && s->type < STYPELINK; s = s->next) {
+ 		datsize = aligndatsize(datsize, s);
+ 		s->sect = sect;
+ 		s->type = SRODATA;
+-		s->value = datsize;
++		s->value = datsize - sect->vaddr;
+ 		growdatsize(&datsize, s);
+ 	}
+ 	sect->len = datsize - sect->vaddr;
+ 
+ 	/* typelink */
+-	sect = addsection(&segtext, ".typelink", 04);
++	sect = addsection(segro, ".typelink", 04);
+ 	sect->align = maxalign(s, STYPELINK);
+ 	datsize = rnd(datsize, sect->align);
+ 	sect->vaddr = datsize;
+@@ -1282,13 +1312,13 @@ dodata(void)
+ 		datsize = aligndatsize(datsize, s);
+ 		s->sect = sect;
+ 		s->type = SRODATA;
+-		s->value = datsize;
++		s->value = datsize - sect->vaddr;
+ 		growdatsize(&datsize, s);
+ 	}
+ 	sect->len = datsize - sect->vaddr;
+ 
+ 	/* gosymtab */
+-	sect = addsection(&segtext, ".gosymtab", 04);
++	sect = addsection(segro, ".gosymtab", 04);
+ 	sect->align = maxalign(s, SPCLNTAB-1);
+ 	datsize = rnd(datsize, sect->align);
+ 	sect->vaddr = datsize;
+@@ -1298,13 +1328,13 @@ dodata(void)
+ 		datsize = aligndatsize(datsize, s);
+ 		s->sect = sect;
+ 		s->type = SRODATA;
+-		s->value = datsize;
++		s->value = datsize - sect->vaddr;
+ 		growdatsize(&datsize, s);
+ 	}
+ 	sect->len = datsize - sect->vaddr;
+ 
+ 	/* gopclntab */
+-	sect = addsection(&segtext, ".gopclntab", 04);
++	sect = addsection(segro, ".gopclntab", 04);
+ 	sect->align = maxalign(s, SELFROSECT-1);
+ 	datsize = rnd(datsize, sect->align);
+ 	sect->vaddr = datsize;
+@@ -1314,33 +1344,35 @@ dodata(void)
+ 		datsize = aligndatsize(datsize, s);
+ 		s->sect = sect;
+ 		s->type = SRODATA;
+-		s->value = datsize;
++		s->value = datsize - sect->vaddr;
+ 		growdatsize(&datsize, s);
+ 	}
+ 	sect->len = datsize - sect->vaddr;
+ 
+ 	/* read-only ELF, Mach-O sections */
+ 	for(; s != nil && s->type < SELFSECT; s = s->next) {
+-		sect = addsection(&segtext, s->name, 04);
++		sect = addsection(segro, s->name, 04);
+ 		sect->align = symalign(s);
+ 		datsize = rnd(datsize, sect->align);
+ 		sect->vaddr = datsize;
+ 		s->sect = sect;
+ 		s->type = SRODATA;
+-		s->value = datsize;
++		s->value = datsize - sect->vaddr;
+ 		growdatsize(&datsize, s);
+ 		sect->len = datsize - sect->vaddr;
+ 	}
+ 
+ 	// 6g uses 4-byte relocation offsets, so the entire segment must fit in 32 bits.
+ 	if(datsize != (uint32)datsize) {
+-		diag("text segment too large");
++		diag("read-only data segment too large");
+ 	}
+ 	
+ 	/* number the sections */
+ 	n = 1;
+ 	for(sect = segtext.sect; sect != nil; sect = sect->next)
+ 		sect->extnum = n++;
++	for(sect = segrodata.sect; sect != nil; sect = sect->next)
++		sect->extnum = n++;
+ 	for(sect = segdata.sect; sect != nil; sect = sect->next)
+ 		sect->extnum = n++;
+ }
+@@ -1402,6 +1434,7 @@ address(void)
+ 	segtext.vaddr = va;
+ 	segtext.fileoff = HEADR;
+ 	for(s=segtext.sect; s != nil; s=s->next) {
++//print("%s at %#llux + %#llux\n", s->name, va, (vlong)s->len);
+ 		va = rnd(va, s->align);
+ 		s->vaddr = va;
+ 		va += s->len;
+@@ -1409,8 +1442,25 @@ address(void)
+ 	segtext.len = va - INITTEXT;
+ 	segtext.filelen = segtext.len;
+ 
+-	va = rnd(va, INITRND);
++	if(segrodata.sect != nil) {
++		// align to page boundary so as not to mix
++		// rodata and executable text.
++		va = rnd(va, INITRND);
++
++		segrodata.rwx = 04;
++		segrodata.vaddr = va;
++		segrodata.fileoff = va - segtext.vaddr + segtext.fileoff;
++		segrodata.filelen = 0;
++		for(s=segrodata.sect; s != nil; s=s->next) {
++			va = rnd(va, s->align);
++			s->vaddr = va;
++			va += s->len;
++		}
++		segrodata.len = va - segrodata.vaddr;
++		segrodata.filelen = segrodata.len;
++	}
+ 
++	va = rnd(va, INITRND);
+ 	segdata.rwx = 06;
+ 	segdata.vaddr = va;
+ 	segdata.fileoff = va - segtext.vaddr + segtext.fileoff;
+@@ -1445,17 +1495,17 @@ address(void)
+ 	segdata.filelen = bss->vaddr - segdata.vaddr;
+ 
+ 	text = segtext.sect;
+-	rodata = text->next;
++	if(segrodata.sect)
++		rodata = segrodata.sect;
++	else
++		rodata = text->next;
+ 	typelink = rodata->next;
+ 	symtab = typelink->next;
+ 	pclntab = symtab->next;
+ 
+ 	for(sym = datap; sym != nil; sym = sym->next) {
+ 		cursym = sym;
+-		if(sym->type < SNOPTRDATA)
+-			sym->value += rodata->vaddr;
+-		else
+-			sym->value += segdata.sect->vaddr;
++		sym->value += sym->sect->vaddr;
+ 		for(sub = sym->sub; sub != nil; sub = sub->sub)
+ 			sub->value += sym->value;
+ 	}
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index e0a522ad7f..51a48c5181 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -864,6 +864,8 @@ elfemitreloc(void)
+ 	elfrelocsect(segtext.sect, textp);
+ 	for(sect=segtext.sect->next; sect!=nil; sect=sect->next)
+ 		elfrelocsect(sect, datap);	
++	for(sect=segrodata.sect; sect!=nil; sect=sect->next)
++		elfrelocsect(sect, datap);	
+ 	for(sect=segdata.sect; sect!=nil; sect=sect->next)
+ 		elfrelocsect(sect, datap);	
+ }
+@@ -1001,7 +1003,7 @@ doelf(void)
+ 
+ 		s = lookup(".plt", 0);
+ 		s->reachable = 1;
+-		s->type = SELFROSECT;
++		s->type = SELFRXSECT;
+ 		
+ 		elfsetupplt();
+ 		
+@@ -1105,6 +1107,8 @@ asmbelfsetup(void)
+ 	
+ 	for(sect=segtext.sect; sect!=nil; sect=sect->next)
+ 		elfshalloc(sect);
++	for(sect=segrodata.sect; sect!=nil; sect=sect->next)
++		elfshalloc(sect);
+ 	for(sect=segdata.sect; sect!=nil; sect=sect->next)
+ 		elfshalloc(sect);
+ }
+@@ -1232,6 +1236,8 @@ asmbelf(vlong symo)
+ 	USED(resoff);
+ 
+ 	elfphload(&segtext);
++	if(segrodata.sect != nil)
++		elfphload(&segrodata);
+ 	elfphload(&segdata);
+ 
+ 	/* Dynamic linking sections */
+@@ -1397,12 +1403,16 @@ elfobj:
+ 
+ 	for(sect=segtext.sect; sect!=nil; sect=sect->next)
+ 		elfshbits(sect);
++	for(sect=segrodata.sect; sect!=nil; sect=sect->next)
++		elfshbits(sect);
+ 	for(sect=segdata.sect; sect!=nil; sect=sect->next)
+ 		elfshbits(sect);
+ 
+ 	if(linkmode == LinkExternal) {
+ 		for(sect=segtext.sect; sect!=nil; sect=sect->next)
+ 			elfshreloc(sect);
++		for(sect=segrodata.sect; sect!=nil; sect=sect->next)
++			elfshreloc(sect);
+ 		for(sect=segdata.sect; sect!=nil; sect=sect->next)
+ 			elfshreloc(sect);
+ 		// add a .note.GNU-stack section to mark the stack as non-executable
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index d9e3af4c0f..18943d5f3d 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -36,6 +36,13 @@
+ 
+ #include	<ar.h>
+ 
++enum
++{
++	// Whether to assume that the external linker is "gold"
++	// (http://sourceware.org/ml/binutils/2008-03/msg00162.html).
++	AssumeGoldLinker = 0,
++};
++
+ int iconv(Fmt*);
+ 
+ char	symname[]	= SYMDEF;
+@@ -676,6 +683,10 @@ hostlink(void)
+ 	}
+ 	if(HEADTYPE == Hdarwin)
+ 		argv[argc++] = "-Wl,-no_pie,-pagezero_size,4000000";
++	
++	if(iself && AssumeGoldLinker)
++		argv[argc++] = "-Wl,--rosegment";
++
+ 	argv[argc++] = "-o";
+ 	argv[argc++] = outfile;
+ 	
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 63775b5ff5..d7998a6a5a 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -33,7 +33,11 @@ enum
+ 	Sxxx,
+ 
+ 	/* order here is order in output file */
++	/* readonly, executable */
+ 	STEXT,
++	SELFRXSECT,
++	
++	/* readonly, non-executable */
+ 	STYPE,
+ 	SSTRING,
+ 	SGOSTRING,
+@@ -42,6 +46,8 @@ enum
+ 	SSYMTAB,
+ 	SPCLNTAB,
+ 	SELFROSECT,
++	
++	/* writable, non-executable */
+ 	SMACHOPLT,
+ 	SELFSECT,
+ 	SMACHO,	/* Mach-O __nl_symbol_ptr */
+@@ -54,6 +60,7 @@ enum
+ 	SNOPTRBSS,
+ 	STLSBSS,
+ 
++	/* not mapped */
+ 	SXREF,
+ 	SMACHOSYMSTR,
+ 	SMACHOSYMTAB,
+@@ -177,6 +184,7 @@ enum
+ };
+ 
+ EXTERN	Segment	segtext;
++EXTERN	Segment	segrodata;
+ EXTERN	Segment	segdata;
+ EXTERN	Segment	segdwarf;
+ 

@@ -7,8 +7,55 @@ Date:   Tue Nov 8 11:43:58 2011 -0500
     R=golang-dev, devon.odell
     CC=golang-dev
     https://golang.org/cl/5340058
-
+---
  src/pkg/runtime/freebsd/386/defs.h   | 6 ++++++
  src/pkg/runtime/freebsd/amd64/defs.h | 6 ++++++
  src/pkg/runtime/freebsd/defs.c       | 2 ++
  3 files changed, 14 insertions(+)
+
+diff --git a/src/pkg/runtime/freebsd/386/defs.h b/src/pkg/runtime/freebsd/386/defs.h
+index ae12b20195..29fcb8b576 100644
+--- a/src/pkg/runtime/freebsd/386/defs.h
++++ b/src/pkg/runtime/freebsd/386/defs.h
+@@ -173,6 +173,12 @@ struct Ucontext {
+ 	byte pad_godefs_0[12];
+ };
+ 
++typedef struct Timespec Timespec;
++struct Timespec {
++	int32 tv_sec;
++	int32 tv_nsec;
++};
++
+ typedef struct Timeval Timeval;
+ struct Timeval {
+ 	int32 tv_sec;
+diff --git a/src/pkg/runtime/freebsd/amd64/defs.h b/src/pkg/runtime/freebsd/amd64/defs.h
+index b101b19327..8a222dca4f 100644
+--- a/src/pkg/runtime/freebsd/amd64/defs.h
++++ b/src/pkg/runtime/freebsd/amd64/defs.h
+@@ -184,6 +184,12 @@ struct Ucontext {
+ 	byte pad_godefs_0[12];
+ };
+ 
++typedef struct Timespec Timespec;
++struct Timespec {
++	int64 tv_sec;
++	int64 tv_nsec;
++};
++
+ typedef struct Timeval Timeval;
+ struct Timeval {
+ 	int64 tv_sec;
+diff --git a/src/pkg/runtime/freebsd/defs.c b/src/pkg/runtime/freebsd/defs.c
+index 2ce4fdc51f..7eb60c4e2e 100644
+--- a/src/pkg/runtime/freebsd/defs.c
++++ b/src/pkg/runtime/freebsd/defs.c
+@@ -104,5 +104,7 @@ typedef siginfo_t $Siginfo;
+ 
+ typedef mcontext_t $Mcontext;
+ typedef ucontext_t $Ucontext;
++
++typedef struct timespec $Timespec;
+ typedef struct timeval $Timeval;
+ typedef struct itimerval $Itimerval;

@@ -9,6 +9,23 @@ Date:   Mon Jun 25 20:45:18 2012 -0400
     TBR=bradfitz
     CC=golang-dev
     https://golang.org/cl/6331063
-
+---
  src/pkg/syscall/syscall_freebsd.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/syscall/syscall_freebsd.go b/src/pkg/syscall/syscall_freebsd.go
+index 1339f4c454..a206ec0c7b 100644
+--- a/src/pkg/syscall/syscall_freebsd.go
++++ b/src/pkg/syscall/syscall_freebsd.go
+@@ -89,9 +89,9 @@ func Pipe(p []int) (err error) {
+ 	return
+ }
+ 
+-func Sendfile(outfd int, infd int, offset int64, count int) (written int, err error) {
++func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+ 	var writtenOut uint64 = 0
+-	_, _, e1 := Syscall9(SYS_SENDFILE, uintptr(infd), uintptr(outfd), uintptr(offset), uintptr(count), 0, uintptr(unsafe.Pointer(&writtenOut)), 0, 0, 0)
++	_, _, e1 := Syscall9(SYS_SENDFILE, uintptr(infd), uintptr(outfd), uintptr(*offset), uintptr(count), 0, uintptr(unsafe.Pointer(&writtenOut)), 0, 0, 0)
+ 
+ 	written = int(writtenOut)
+ 

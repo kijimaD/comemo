@@ -7,6 +7,25 @@ Date:   Tue Aug 16 16:03:30 2011 +1000
     R=golang-dev, dvyukov
     CC=golang-dev
     https://golang.org/cl/4896046
-
+---
  src/pkg/builtin/builtin.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/builtin/builtin.go b/src/pkg/builtin/builtin.go
+index f835580de8..07acce4f70 100644
+--- a/src/pkg/builtin/builtin.go
++++ b/src/pkg/builtin/builtin.go
+@@ -104,10 +104,10 @@ func imag(c ComplexType) FloatType
+ // bidirectional or send-only. It should be executed only by the sender,
+ // never the receiver, and has the effect of shutting down the channel after
+ // the last sent value is received. After the last value has been received
+-// from a closed channel c,
++// from a closed channel c, any receive from c will succeed without
++// blocking, returning the zero value for the channel element. The form
+ //	x, ok := <-c
+-// will set x to the channel element's zero value and ok to false, and select
+-// clauses involving c will never execute.
++// will also set ok to false for a closed channel.
+ func close(c chan<- Type)
+ 
+ // The panic built-in function stops normal execution of the current

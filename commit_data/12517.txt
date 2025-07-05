@@ -7,6 +7,19 @@ Date:   Thu Mar 8 22:50:05 2012 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5781053
-
+---
  doc/go_mem.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_mem.html b/doc/go_mem.html
+index 1d45dceb62..d4f3656bf0 100644
+--- a/doc/go_mem.html
++++ b/doc/go_mem.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Memory Model",
+-	"Subtitle": "Version of March 6, 2012"
++	"Subtitle": "Version of March 6, 2012",
+ 	"Path": "/ref/mem"
+ }-->
+ 

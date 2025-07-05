@@ -14,9 +14,91 @@ Date:   Fri Mar 7 09:55:59 2014 +1100
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/72010043
-
+---
  src/cmd/6c/txt.c | 11 +++++++++--
  src/cmd/8c/txt.c |  8 +++++++-
  src/cmd/cc/cc.h  |  1 +
  src/cmd/cc/lex.c |  3 ++-
  4 files changed, 19 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/6c/txt.c b/src/cmd/6c/txt.c
+index 61b333c1cb..f308aff08c 100644
+--- a/src/cmd/6c/txt.c
++++ b/src/cmd/6c/txt.c
+@@ -30,11 +30,18 @@
+ 
+ #include "gc.h"
+ 
+-LinkArch	*thelinkarch = &linkamd64;
+-
+ int thechar = '6';
+ char *thestring = "amd64";
+ 
++LinkArch	*thelinkarch = &linkamd64;
++
++void
++linkarchinit(void)
++{
++	if(strcmp(getgoarch(), "amd64p32") == 0)
++		thelinkarch = &linkamd64p32;
++}
++
+ void
+ ginit(void)
+ {
+diff --git a/src/cmd/8c/txt.c b/src/cmd/8c/txt.c
+index 8a38955459..1b6c2e6d96 100644
+--- a/src/cmd/8c/txt.c
++++ b/src/cmd/8c/txt.c
+@@ -30,11 +30,17 @@
+ 
+ #include "gc.h"
+ 
+-LinkArch	*thelinkarch = &link386;
+ 
+ int thechar = '8';
+ char *thestring = "386";
+ 
++LinkArch	*thelinkarch = &link386;
++
++void
++linkarchinit(void)
++{
++}
++
+ void
+ ginit(void)
+ {
+diff --git a/src/cmd/cc/cc.h b/src/cmd/cc/cc.h
+index 726364ce94..c8aac12530 100644
+--- a/src/cmd/cc/cc.h
++++ b/src/cmd/cc/cc.h
+@@ -795,6 +795,7 @@ int32	exreg(Type*);
+ int32	align(int32, Type*, int, int32*);
+ int32	maxround(int32, int32);
+ int	hasdotdotdot(void);
++void    linkarchinit(void);
+ 
+ extern	schar	ewidth[];
+ 
+diff --git a/src/cmd/cc/lex.c b/src/cmd/cc/lex.c
+index f6025d2807..a8ece212f0 100644
+--- a/src/cmd/cc/lex.c
++++ b/src/cmd/cc/lex.c
+@@ -124,7 +124,7 @@ main(int argc, char *argv[])
+ 	p = getgoarch();
+ 	if(strncmp(p, thestring, strlen(thestring)) != 0)
+ 		sysfatal("cannot use %cc with GOARCH=%s", thechar, p);
+-	if(strcmp(getgoarch(), "amd64p32") == 0) // must be before cinit
++	if(strcmp(p, "amd64p32") == 0) // must be before cinit
+ 		ewidth[TIND] = 4;
+ 		
+ 	nacl = strcmp(getgoos(), "nacl") == 0;
+@@ -133,6 +133,7 @@ main(int argc, char *argv[])
+ 
+ 	quotefmtinstall(); // before cinit, which overrides %Q
+ 
++	linkarchinit();
+ 	ctxt = linknew(thelinkarch);
+ 	ctxt->diag = yyerror;
+ 	ctxt->bso = &bstdout;

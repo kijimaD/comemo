@@ -9,6 +9,20 @@ Date:   Mon Oct 31 10:23:50 2016 -0700
     Change-Id: Ifd300980aa4c11498ed7c083d08bcdd23f5b307a
     Reviewed-on: https://go-review.googlesource.com/32423
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/path/path.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/path/path.go b/src/path/path.go
+index c1d4d8aced..76c7814c59 100644
+--- a/src/path/path.go
++++ b/src/path/path.go
+@@ -4,6 +4,8 @@
+ 
+ // Package path implements utility routines for manipulating slash-separated
+ // paths.
++//
++// To manipulate operating system paths, use the path/filepath package.
+ package path
+ 
+ import (

@@ -42,7 +42,7 @@ Date:   Thu Apr 29 09:27:40 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  doc/go1.17.html                                    |  11 +
  src/cmd/go/alldocs.go                              |   8 +-
  src/cmd/go/internal/modcmd/tidy.go                 |  23 +-
@@ -58,3 +58,1003 @@ Date:   Thu Apr 29 09:27:40 2021 -0400
  src/cmd/go/testdata/script/mod_retention.txt       |   4 +-
  src/cmd/go/testdata/script/mod_tidy_version.txt    | 248 +++++++++++++++++++++
  14 files changed, 479 insertions(+), 105 deletions(-)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index be3b4e6d71..eab4e1eeeb 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -58,6 +58,17 @@ Do not send CLs removing the interior tags from such phrases.
+   <!-- TODO(bcmills): replace the design-doc link with proper documentation. -->
+ </p>
+ 
++<p><!-- golang.org/issue/45094 --> To facilitate the upgrade to lazy loading,
++  the <code>go</code> <code>mod</code> <code>tidy</code> subcommand now supports
++  a <code>-go</code> flag to set or change the <code>go</code> version in
++  the <code>go.mod</code> file. To enable lazy loading for an existing module
++  without changing the selected versions of its dependencies, run:
++</p>
++
++<pre>
++  go mod tidy -go=1.17
++</pre>
++
+ <h4 id="module-deprecation-comments">Module deprecation comments</h4>
+ 
+ <p><!-- golang.org/issue/40357 -->
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 0a12eaf4e9..052b61c03d 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1221,7 +1221,7 @@
+ //
+ // Usage:
+ //
+-// 	go mod tidy [-e] [-v]
++// 	go mod tidy [-e] [-v] [-go=version]
+ //
+ // Tidy makes sure go.mod matches the source code in the module.
+ // It adds any missing modules necessary to build the current module's
+@@ -1235,6 +1235,12 @@
+ // The -e flag causes tidy to attempt to proceed despite errors
+ // encountered while loading packages.
+ //
++// The -go flag causes tidy to update the 'go' directive in the go.mod
++// file to the given version, which may change which module dependencies
++// are retained as explicit requirements in the go.mod file.
++// (Go versions 1.17 and higher retain more requirements in order to
++// support lazy module loading.)
++//
+ // See https://golang.org/ref/mod#go-mod-tidy for more about 'go mod tidy'.
+ //
+ //
+diff --git a/src/cmd/go/internal/modcmd/tidy.go b/src/cmd/go/internal/modcmd/tidy.go
+index a9b277817f..c72ec30a57 100644
+--- a/src/cmd/go/internal/modcmd/tidy.go
++++ b/src/cmd/go/internal/modcmd/tidy.go
+@@ -12,10 +12,12 @@ import (
+ 	"cmd/go/internal/imports"
+ 	"cmd/go/internal/modload"
+ 	"context"
++
++	"golang.org/x/mod/modfile"
+ )
+ 
+ var cmdTidy = &base.Command{
+-	UsageLine: "go mod tidy [-e] [-v]",
++	UsageLine: "go mod tidy [-e] [-v] [-go=version]",
+ 	Short:     "add missing and remove unused modules",
+ 	Long: `
+ Tidy makes sure go.mod matches the source code in the module.
+@@ -30,16 +32,26 @@ to standard error.
+ The -e flag causes tidy to attempt to proceed despite errors
+ encountered while loading packages.
+ 
++The -go flag causes tidy to update the 'go' directive in the go.mod
++file to the given version, which may change which module dependencies
++are retained as explicit requirements in the go.mod file.
++(Go versions 1.17 and higher retain more requirements in order to
++support lazy module loading.)
++
+ See https://golang.org/ref/mod#go-mod-tidy for more about 'go mod tidy'.
+ 	`,
+ 	Run: runTidy,
+ }
+ 
+-var tidyE bool // if true, report errors but proceed anyway.
++var (
++	tidyE  bool   // if true, report errors but proceed anyway.
++	tidyGo string // go version to write to the tidied go.mod file (toggles lazy loading)
++)
+ 
+ func init() {
+ 	cmdTidy.Flag.BoolVar(&cfg.BuildV, "v", false, "")
+ 	cmdTidy.Flag.BoolVar(&tidyE, "e", false, "")
++	cmdTidy.Flag.StringVar(&tidyGo, "go", "", "")
+ 	base.AddModCommonFlags(&cmdTidy.Flag)
+ }
+ 
+@@ -48,6 +60,12 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
+ 		base.Fatalf("go mod tidy: no arguments allowed")
+ 	}
+ 
++	if tidyGo != "" {
++		if !modfile.GoVersionRE.MatchString(tidyGo) {
++			base.Fatalf(`go mod: invalid -go option %q; expecting something like "-go 1.17"`, tidyGo)
++		}
++	}
++
+ 	// Tidy aims to make 'go test' reproducible for any package in 'all', so we
+ 	// need to include test dependencies. For modules that specify go 1.15 or
+ 	// earlier this is a no-op (because 'all' saturates transitive test
+@@ -62,6 +80,7 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
+ 	modload.RootMode = modload.NeedRoot
+ 
+ 	modload.LoadPackages(ctx, modload.PackageOpts{
++		GoVersion:                tidyGo,
+ 		Tags:                     imports.AnyTags(),
+ 		Tidy:                     true,
+ 		VendorModulesInGOROOTSrc: true,
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index 53771b2231..76e1ad589f 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -259,8 +259,8 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
+ 		if m.GoVersion == "" && checksumOk("/go.mod") {
+ 			// Load the go.mod file to determine the Go version, since it hasn't
+ 			// already been populated from rawGoVersion.
+-			if summary, err := rawGoModSummary(mod); err == nil && summary.goVersionV != "" {
+-				m.GoVersion = summary.goVersionV[1:]
++			if summary, err := rawGoModSummary(mod); err == nil && summary.goVersion != "" {
++				m.GoVersion = summary.goVersion
+ 			}
+ 		}
+ 
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index 4b83ede541..e7af892996 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -299,7 +299,7 @@ func readModGraph(ctx context.Context, depth modDepth, roots []module.Version) (
+ 			// sufficient to build the packages it contains. We must load its full
+ 			// transitive dependency graph to be sure that we see all relevant
+ 			// dependencies.
+-			if depth == eager || summary.depth() == eager {
++			if depth == eager || summary.depth == eager {
+ 				for _, r := range summary.require {
+ 					enqueue(r, eager)
+ 				}
+@@ -393,7 +393,7 @@ func LoadModGraph(ctx context.Context) *ModuleGraph {
+ 		base.Fatalf("go: %v", err)
+ 	}
+ 
+-	commitRequirements(ctx, rs)
++	commitRequirements(ctx, modFileGoVersion(), rs)
+ 	return mg
+ }
+ 
+@@ -459,7 +459,7 @@ func EditBuildList(ctx context.Context, add, mustSelect []module.Version) (chang
+ 	if err != nil {
+ 		return false, err
+ 	}
+-	commitRequirements(ctx, rs)
++	commitRequirements(ctx, modFileGoVersion(), rs)
+ 	return changed, err
+ }
+ 
+@@ -943,10 +943,40 @@ func updateEagerRoots(ctx context.Context, direct map[string]bool, rs *Requireme
+ 	if err != nil {
+ 		return rs, err
+ 	}
+-	if reflect.DeepEqual(min, rs.rootModules) && reflect.DeepEqual(direct, rs.direct) {
+-		// The root set is unchanged, so keep rs to preserve its cached ModuleGraph
+-		// (if any).
++	if rs.depth == eager && reflect.DeepEqual(min, rs.rootModules) && reflect.DeepEqual(direct, rs.direct) {
++		// The root set is unchanged and rs was already eager, so keep rs to
++		// preserve its cached ModuleGraph (if any).
+ 		return rs, nil
+ 	}
+-	return newRequirements(rs.depth, min, direct), nil
++	return newRequirements(eager, min, direct), nil
++}
++
++// convertDepth returns a version of rs with the given depth.
++// If rs already has the given depth, convertDepth returns rs unmodified.
++func convertDepth(ctx context.Context, rs *Requirements, depth modDepth) (*Requirements, error) {
++	if rs.depth == depth {
++		return rs, nil
++	}
++
++	if depth == eager {
++		// We are converting a lazy module to an eager one. The roots of an eager
++		// module graph are a superset of the roots of a lazy graph, so we don't
++		// need to add any new roots — we just need to prune away the ones that are
++		// redundant given eager loading, which is exactly what updateEagerRoots
++		// does.
++		return updateEagerRoots(ctx, rs.direct, rs, nil)
++	}
++
++	// We are converting an eager module to a lazy one. The module graph of an
++	// eager module includes the transitive dependencies of every module in the
++	// build list.
++	//
++	// Hey, we can express that as a lazy root set! “Include the transitive
++	// dependencies of every module in the build list” is exactly what happens in
++	// a lazy module if we promote every module in the build list to a root!
++	mg, err := rs.Graph(ctx)
++	if err != nil {
++		return rs, err
++	}
++	return newRequirements(lazy, mg.BuildList()[1:], rs.direct), nil
+ }
+diff --git a/src/cmd/go/internal/modload/edit.go b/src/cmd/go/internal/modload/edit.go
+index 2921b38157..c350b9d1b5 100644
+--- a/src/cmd/go/internal/modload/edit.go
++++ b/src/cmd/go/internal/modload/edit.go
+@@ -229,7 +229,7 @@ func raiseLimitsForUpgrades(ctx context.Context, maxVersion map[string]string, d
+ 			if err != nil {
+ 				return err
+ 			}
+-			if summary.depth() == eager {
++			if summary.depth == eager {
+ 				// For efficiency, we'll load all of the eager upgrades as one big
+ 				// graph, rather than loading the (potentially-overlapping) subgraph for
+ 				// each upgrade individually.
+@@ -522,7 +522,7 @@ func (l *versionLimiter) check(m module.Version, depth modDepth) dqState {
+ 		return l.disqualify(m, dqState{err: err})
+ 	}
+ 
+-	if summary.depth() == eager {
++	if summary.depth == eager {
+ 		depth = eager
+ 	}
+ 	for _, r := range summary.require {
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index ef21908064..88d647d9ea 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -381,7 +381,7 @@ var errGoModDirty error = goModDirtyError{}
+ func LoadModFile(ctx context.Context) *Requirements {
+ 	rs, needCommit := loadModFile(ctx)
+ 	if needCommit {
+-		commitRequirements(ctx, rs)
++		commitRequirements(ctx, modFileGoVersion(), rs)
+ 	}
+ 	return rs
+ }
+@@ -401,8 +401,9 @@ func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
+ 	if modRoot == "" {
+ 		Target = module.Version{Path: "command-line-arguments"}
+ 		targetPrefix = "command-line-arguments"
+-		rawGoVersion.Store(Target, latestGoVersion())
+-		requirements = newRequirements(index.depth(), nil, nil)
++		goVersion := latestGoVersion()
++		rawGoVersion.Store(Target, goVersion)
++		requirements = newRequirements(modDepthFromGoVersion(goVersion), nil, nil)
+ 		return requirements, false
+ 	}
+ 
+@@ -432,7 +433,7 @@ func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
+ 	}
+ 
+ 	setDefaultBuildMod() // possibly enable automatic vendoring
+-	rs = requirementsFromModFile(ctx, f)
++	rs = requirementsFromModFile(ctx)
+ 
+ 	if cfg.BuildMod == "vendor" {
+ 		readVendorList()
+@@ -440,27 +441,23 @@ func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
+ 		rs.initVendor(vendorList)
+ 	}
+ 	if index.goVersionV == "" {
+-		// The main module necessarily has a go.mod file, and that file lacks a
+-		// 'go' directive. The 'go' command has been adding that directive
+-		// automatically since Go 1.12, so this module either dates to Go 1.11 or
+-		// has been erroneously hand-edited.
+-		//
+-		// The semantics of the go.mod file are more-or-less the same from Go 1.11
+-		// through Go 1.16, changing at 1.17 for lazy loading. So even though a
+-		// go.mod file without a 'go' directive is theoretically a Go 1.11 file,
+-		// scripts may assume that it ends up as a Go 1.16 module. We can't go
+-		// higher than that, because we don't know which semantics the user intends.
+-		//
+-		// (Note that 'go mod init' always adds the latest version, so scripts that
+-		// use 'go mod init' will result in current-version modules instead of Go
+-		// 1.16 modules.)
+-		//
+-		// If we are able to modify the go.mod file, we will add a 'go' directive
+-		// to at least make the situation explicit going forward.
+-		if cfg.BuildMod == "mod" {
+-			addGoStmt("1.16")
++		// TODO(#45551): Do something more principled instead of checking
++		// cfg.CmdName directly here.
++		if cfg.BuildMod == "mod" && cfg.CmdName != "mod graph" && cfg.CmdName != "mod why" {
++			addGoStmt(latestGoVersion())
++			if go117EnableLazyLoading {
++				// We need to add a 'go' version to the go.mod file, but we must assume
++				// that its existing contents match something between Go 1.11 and 1.16.
++				// Go 1.11 through 1.16 have eager requirements, but the latest Go
++				// version uses lazy requirements instead — so we need to cnvert the
++				// requirements to be lazy.
++				rs, err = convertDepth(ctx, rs, lazy)
++				if err != nil {
++					base.Fatalf("go: %v", err)
++				}
++			}
+ 		} else {
+-			rawGoVersion.Store(Target, "1.16")
++			rawGoVersion.Store(Target, modFileGoVersion())
+ 		}
+ 	}
+ 
+@@ -509,7 +506,7 @@ func CreateModFile(ctx context.Context, modPath string) {
+ 		base.Fatalf("go: %v", err)
+ 	}
+ 
+-	commitRequirements(ctx, requirementsFromModFile(ctx, modFile))
++	commitRequirements(ctx, modFileGoVersion(), requirementsFromModFile(ctx))
+ 
+ 	// Suggest running 'go mod tidy' unless the project is empty. Even if we
+ 	// imported all the correct requirements above, we're probably missing
+@@ -661,12 +658,13 @@ func initTarget(m module.Version) {
+ 	}
+ }
+ 
+-// requirementsFromModFile returns the set of non-excluded requirements from f.
+-func requirementsFromModFile(ctx context.Context, f *modfile.File) *Requirements {
+-	roots := make([]module.Version, 0, len(f.Require))
++// requirementsFromModFile returns the set of non-excluded requirements from
++// the global modFile.
++func requirementsFromModFile(ctx context.Context) *Requirements {
++	roots := make([]module.Version, 0, len(modFile.Require))
+ 	mPathCount := map[string]int{Target.Path: 1}
+ 	direct := map[string]bool{}
+-	for _, r := range f.Require {
++	for _, r := range modFile.Require {
+ 		if index != nil && index.exclude[r.Mod] {
+ 			if cfg.BuildMod == "mod" {
+ 				fmt.Fprintf(os.Stderr, "go: dropping requirement on excluded version %s %s\n", r.Mod.Path, r.Mod.Version)
+@@ -683,7 +681,7 @@ func requirementsFromModFile(ctx context.Context, f *modfile.File) *Requirements
+ 		}
+ 	}
+ 	module.Sort(roots)
+-	rs := newRequirements(index.depth(), roots, direct)
++	rs := newRequirements(modDepthFromGoVersion(modFileGoVersion()), roots, direct)
+ 
+ 	// If any module path appears more than once in the roots, we know that the
+ 	// go.mod file needs to be updated even though we have not yet loaded any
+@@ -988,12 +986,12 @@ func WriteGoMod(ctx context.Context) {
+ 	if !allowWriteGoMod {
+ 		panic("WriteGoMod called while disallowed")
+ 	}
+-	commitRequirements(ctx, LoadModFile(ctx))
++	commitRequirements(ctx, modFileGoVersion(), LoadModFile(ctx))
+ }
+ 
+ // commitRequirements writes sets the global requirements variable to rs and
+ // writes its contents back to the go.mod file on disk.
+-func commitRequirements(ctx context.Context, rs *Requirements) {
++func commitRequirements(ctx context.Context, goVersion string, rs *Requirements) {
+ 	requirements = rs
+ 
+ 	if !allowWriteGoMod {
+@@ -1014,6 +1012,9 @@ func commitRequirements(ctx context.Context, rs *Requirements) {
+ 		})
+ 	}
+ 	modFile.SetRequire(list)
++	if goVersion != "" {
++		modFile.AddGoStmt(goVersion)
++	}
+ 	modFile.Cleanup()
+ 
+ 	dirty := index.modFileIsDirty(modFile)
+diff --git a/src/cmd/go/internal/modload/list.go b/src/cmd/go/internal/modload/list.go
+index 344b2aa2c7..ccdeb9b1d1 100644
+--- a/src/cmd/go/internal/modload/list.go
++++ b/src/cmd/go/internal/modload/list.go
+@@ -72,7 +72,7 @@ func ListModules(ctx context.Context, args []string, mode ListMode) ([]*modinfo.
+ 	}
+ 
+ 	if err == nil {
+-		commitRequirements(ctx, rs)
++		commitRequirements(ctx, modFileGoVersion(), rs)
+ 	}
+ 	return mods, err
+ }
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index ddacf49ead..f434b399d8 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -49,7 +49,7 @@ package modload
+ // Because "go mod vendor" prunes out the tests of vendored packages, the
+ // behavior of the "all" pattern with -mod=vendor in Go 1.11–1.15 is the same
+ // as the "all" pattern (regardless of the -mod flag) in 1.16+.
+-// The allClosesOverTests parameter to the loader indicates whether the "all"
++// The loader uses the GoVersion parameter to determine whether the "all"
+ // pattern should close over tests (as in Go 1.11–1.15) or stop at only those
+ // packages transitively imported by the packages and tests in the main module
+ // ("all" in Go 1.16+ and "go mod vendor" in Go 1.11+).
+@@ -121,6 +121,7 @@ import (
+ 	"cmd/go/internal/str"
+ 
+ 	"golang.org/x/mod/module"
++	"golang.org/x/mod/semver"
+ )
+ 
+ // loaded is the most recently-used package loader.
+@@ -133,6 +134,14 @@ var loaded *loader
+ 
+ // PackageOpts control the behavior of the LoadPackages function.
+ type PackageOpts struct {
++	// GoVersion is the Go version to which the go.mod file should be updated
++	// after packages have been loaded.
++	//
++	// An empty GoVersion means to use the Go version already specified in the
++	// main module's go.mod file, or the latest Go version if there is no main
++	// module.
++	GoVersion string
++
+ 	// Tags are the build tags in effect (as interpreted by the
+ 	// cmd/go/internal/imports package).
+ 	// If nil, treated as equivalent to imports.Tags().
+@@ -305,12 +314,15 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 
+ 	initialRS, _ := loadModFile(ctx) // Ignore needCommit — we're going to commit at the end regardless.
+ 
++	if opts.GoVersion == "" {
++		opts.GoVersion = modFileGoVersion()
++	}
++
+ 	ld := loadFromRoots(ctx, loaderParams{
+ 		PackageOpts:  opts,
+ 		requirements: initialRS,
+ 
+-		allClosesOverTests: index.allPatternClosesOverTests() && !opts.UseVendorAll,
+-		allPatternIsRoot:   allPatternIsRoot,
++		allPatternIsRoot: allPatternIsRoot,
+ 
+ 		listRoots: func(rs *Requirements) (roots []string) {
+ 			updateMatches(rs, nil)
+@@ -368,7 +380,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 
+ 	// Success! Update go.mod and go.sum (if needed) and return the results.
+ 	loaded = ld
+-	commitRequirements(ctx, loaded.requirements)
++	commitRequirements(ctx, opts.GoVersion, loaded.requirements)
+ 
+ 	for _, pkg := range ld.pkgs {
+ 		if !pkg.isTest() {
+@@ -593,21 +605,22 @@ func ImportFromFiles(ctx context.Context, gofiles []string) {
+ 		base.Fatalf("go: %v", err)
+ 	}
+ 
++	goVersion := modFileGoVersion()
+ 	loaded = loadFromRoots(ctx, loaderParams{
+ 		PackageOpts: PackageOpts{
++			GoVersion:             goVersion,
+ 			Tags:                  tags,
+ 			ResolveMissingImports: true,
+ 			SilencePackageErrors:  true,
+ 		},
+-		requirements:       rs,
+-		allClosesOverTests: index.allPatternClosesOverTests(),
++		requirements: rs,
+ 		listRoots: func(*Requirements) (roots []string) {
+ 			roots = append(roots, imports...)
+ 			roots = append(roots, testImports...)
+ 			return roots
+ 		},
+ 	})
+-	commitRequirements(ctx, loaded.requirements)
++	commitRequirements(ctx, goVersion, loaded.requirements)
+ }
+ 
+ // DirImportPath returns the effective import path for dir,
+@@ -743,6 +756,12 @@ func Lookup(parentPath string, parentIsStd bool, path string) (dir, realPath str
+ type loader struct {
+ 	loaderParams
+ 
++	// allClosesOverTests indicates whether the "all" pattern includes
++	// dependencies of tests outside the main module (as in Go 1.11–1.15).
++	// (Otherwise — as in Go 1.16+ — the "all" pattern includes only the packages
++	// transitively *imported by* the packages and tests in the main module.)
++	allClosesOverTests bool
++
+ 	work *par.Queue
+ 
+ 	// reset on each iteration
+@@ -757,8 +776,7 @@ type loaderParams struct {
+ 	PackageOpts
+ 	requirements *Requirements
+ 
+-	allClosesOverTests bool // Does the "all" pattern include the transitive closure of tests of packages in "all"?
+-	allPatternIsRoot   bool // Is the "all" pattern an additional root?
++	allPatternIsRoot bool // Is the "all" pattern an additional root?
+ 
+ 	listRoots func(rs *Requirements) []string
+ }
+@@ -903,6 +921,22 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 		work:         par.NewQueue(runtime.GOMAXPROCS(0)),
+ 	}
+ 
++	if params.GoVersion != "" {
++		if semver.Compare("v"+params.GoVersion, narrowAllVersionV) < 0 && !ld.UseVendorAll {
++			// The module's go version explicitly predates the change in "all" for lazy
++			// loading, so continue to use the older interpretation.
++			// (If params.GoVersion is empty, we are probably not in any module at all
++			// and should use the latest semantics.)
++			ld.allClosesOverTests = true
++		}
++
++		var err error
++		ld.requirements, err = convertDepth(ctx, ld.requirements, modDepthFromGoVersion(params.GoVersion))
++		if err != nil {
++			ld.errorf("go: %v\n", err)
++		}
++	}
++
+ 	if ld.requirements.depth == eager {
+ 		var err error
+ 		ld.requirements, _, err = expandGraph(ctx, ld.requirements)
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index cd08fa5859..7595db7755 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -51,6 +51,27 @@ const (
+ 
+ var modFile *modfile.File
+ 
++// modFileGoVersion returns the (non-empty) Go version at which the requirements
++// in modFile are intepreted, or the latest Go version if modFile is nil.
++func modFileGoVersion() string {
++	if modFile == nil {
++		return latestGoVersion()
++	}
++	if modFile.Go == nil || modFile.Go.Version == "" {
++		// The main module necessarily has a go.mod file, and that file lacks a
++		// 'go' directive. The 'go' command has been adding that directive
++		// automatically since Go 1.12, so this module either dates to Go 1.11 or
++		// has been erroneously hand-edited.
++		//
++		// The semantics of the go.mod file are more-or-less the same from Go 1.11
++		// through Go 1.16, changing at 1.17 for lazy loading. So even though a
++		// go.mod file without a 'go' directive is theoretically a Go 1.11 file,
++		// scripts may assume that it ends up as a Go 1.16 module.
++		return "1.16"
++	}
++	return modFile.Go.Version
++}
++
+ // A modFileIndex is an index of data corresponding to a modFile
+ // at a specific point in time.
+ type modFileIndex struct {
+@@ -79,6 +100,16 @@ const (
+ 	eager                 // load all transitive dependencies eagerly
+ )
+ 
++func modDepthFromGoVersion(goVersion string) modDepth {
++	if !go117EnableLazyLoading {
++		return eager
++	}
++	if semver.Compare("v"+goVersion, lazyLoadingVersionV) < 0 {
++		return eager
++	}
++	return lazy
++}
++
+ // CheckAllowed returns an error equivalent to ErrDisallowed if m is excluded by
+ // the main module's go.mod or retracted by its author. Most version queries use
+ // this to filter out versions that should not be used.
+@@ -344,32 +375,6 @@ func indexModFile(data []byte, modFile *modfile.File, needsFix bool) *modFileInd
+ 	return i
+ }
+ 
+-// allPatternClosesOverTests reports whether the "all" pattern includes
+-// dependencies of tests outside the main module (as in Go 1.11–1.15).
+-// (Otherwise — as in Go 1.16+ — the "all" pattern includes only the packages
+-// transitively *imported by* the packages and tests in the main module.)
+-func (i *modFileIndex) allPatternClosesOverTests() bool {
+-	if i != nil && i.goVersionV != "" && semver.Compare(i.goVersionV, narrowAllVersionV) < 0 {
+-		// The module explicitly predates the change in "all" for lazy loading, so
+-		// continue to use the older interpretation. (If i == nil, we not in any
+-		// module at all and should use the latest semantics.)
+-		return true
+-	}
+-	return false
+-}
+-
+-// depth reports the modDepth indicated by the indexed go.mod file,
+-// or lazy if the go.mod file has not been indexed.
+-func (i *modFileIndex) depth() modDepth {
+-	if !go117EnableLazyLoading {
+-		return eager
+-	}
+-	if i != nil && semver.Compare(i.goVersionV, lazyLoadingVersionV) < 0 {
+-		return eager
+-	}
+-	return lazy
+-}
+-
+ // modFileIsDirty reports whether the go.mod file differs meaningfully
+ // from what was indexed.
+ // If modFile has been changed (even cosmetically) since it was first read,
+@@ -396,7 +401,7 @@ func (i *modFileIndex) modFileIsDirty(modFile *modfile.File) bool {
+ 			return true
+ 		}
+ 	} else if "v"+modFile.Go.Version != i.goVersionV {
+-		if i.goVersionV == "" && cfg.BuildMod == "readonly" {
++		if i.goVersionV == "" && cfg.BuildMod != "mod" {
+ 			// go.mod files did not always require a 'go' version, so do not error out
+ 			// if one is missing — we may be inside an older module in the module
+ 			// cache, and should bias toward providing useful behavior.
+@@ -452,7 +457,8 @@ var rawGoVersion sync.Map // map[module.Version]string
+ // module.
+ type modFileSummary struct {
+ 	module     module.Version
+-	goVersionV string // GoVersion with "v" prefix
++	goVersion  string
++	depth      modDepth
+ 	require    []module.Version
+ 	retract    []retraction
+ 	deprecated string
+@@ -465,20 +471,6 @@ type retraction struct {
+ 	Rationale string
+ }
+ 
+-func (s *modFileSummary) depth() modDepth {
+-	if !go117EnableLazyLoading {
+-		return eager
+-	}
+-	// The 'go' command fills in the 'go' directive automatically, so an empty
+-	// goVersionV in a dependency implies either Go 1.11 (eager loading) or no
+-	// explicit go.mod file at all (no difference between eager and lazy because
+-	// the module doesn't specify any requirements at all).
+-	if s.goVersionV == "" || semver.Compare(s.goVersionV, lazyLoadingVersionV) < 0 {
+-		return eager
+-	}
+-	return lazy
+-}
+-
+ // goModSummary returns a summary of the go.mod file for module m,
+ // taking into account any replacements for m, exclusions of its dependencies,
+ // and/or vendoring.
+@@ -638,7 +630,10 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
+ 		}
+ 		if f.Go != nil && f.Go.Version != "" {
+ 			rawGoVersion.LoadOrStore(m, f.Go.Version)
+-			summary.goVersionV = "v" + f.Go.Version
++			summary.goVersion = f.Go.Version
++			summary.depth = modDepthFromGoVersion(f.Go.Version)
++		} else {
++			summary.depth = eager
+ 		}
+ 		if len(f.Require) > 0 {
+ 			summary.require = make([]module.Version, 0, len(f.Require))
+diff --git a/src/cmd/go/testdata/script/mod_go_version_missing.txt b/src/cmd/go/testdata/script/mod_go_version_missing.txt
+index ea5050ca3d..aca36a0450 100644
+--- a/src/cmd/go/testdata/script/mod_go_version_missing.txt
++++ b/src/cmd/go/testdata/script/mod_go_version_missing.txt
+@@ -30,12 +30,26 @@ cmp go.mod go.mod.orig
+ stderr 'cannot find package "\." in:\n\t.*[/\\]vendor[/\\]example.com[/\\]badedit$'
+ 
+ # When we set -mod=mod, the go version should be updated immediately,
+-# to Go 1.16 (not the current version).
++# to the current version, converting the requirements from eager to lazy.
++#
++# Since we don't know which requirements are actually relevant to the main
++# module, all requirements are added as roots, making the requirements untidy.
+ 
+ go list -mod=mod all
+ ! stdout '^example.com/testdep$'
+ cmp stdout list-1.txt
+-cmp go.mod go.mod.want
++cmpenv go.mod go.mod.untidy
++
++go mod tidy
++cmpenv go.mod go.mod.tidy
++
++# On the other hand, if we jump straight to 'go mod tidy',
++# the requirements remain tidy from the start.
++
++cp go.mod.orig go.mod
++go mod tidy
++cmpenv go.mod go.mod.tidy
++
+ 
+ # The updated version should have been written back to go.mod, so now the 'go'
+ # directive is explicit. -mod=vendor should trigger by default, and the stronger
+@@ -54,10 +68,24 @@ replace (
+ 	example.com/dep v0.1.0 => ./dep
+ 	example.com/testdep v0.1.0 => ./testdep
+ )
+--- go.mod.want --
++-- go.mod.untidy --
++module example.com/m
++
++go $goversion
++
++require (
++	example.com/dep v0.1.0
++	example.com/testdep v0.1.0 // indirect
++)
++
++replace (
++	example.com/dep v0.1.0 => ./dep
++	example.com/testdep v0.1.0 => ./testdep
++)
++-- go.mod.tidy --
+ module example.com/m
+ 
+-go 1.16
++go $goversion
+ 
+ require example.com/dep v0.1.0
+ 
+diff --git a/src/cmd/go/testdata/script/mod_load_replace_mismatch.txt b/src/cmd/go/testdata/script/mod_load_replace_mismatch.txt
+index dd386f1628..2ca8b3cace 100644
+--- a/src/cmd/go/testdata/script/mod_load_replace_mismatch.txt
++++ b/src/cmd/go/testdata/script/mod_load_replace_mismatch.txt
+@@ -18,6 +18,6 @@ package use
+ import _ "rsc.io/quote"
+ 
+ -- want --
+-go mod download: rsc.io/quote@v1.5.2 (replaced by example.com/quote@v1.5.2): parsing go.mod:
++go: rsc.io/quote@v1.5.2 (replaced by example.com/quote@v1.5.2): parsing go.mod:
+ 	module declares its path as: rsc.io/Quote
+ 	        but was required as: rsc.io/quote
+diff --git a/src/cmd/go/testdata/script/mod_retention.txt b/src/cmd/go/testdata/script/mod_retention.txt
+index 711d28b10f..0e639db551 100644
+--- a/src/cmd/go/testdata/script/mod_retention.txt
++++ b/src/cmd/go/testdata/script/mod_retention.txt
+@@ -62,6 +62,7 @@ cmp go.mod go.mod.tidy
+ 
+ # A missing "go" version directive should be added.
+ # However, that should not remove other redundant requirements.
++# In fact, it may *add* redundant requirements due to activating lazy loading.
+ cp go.mod.nogo go.mod
+ go list -mod=mod all
+ cmpenv go.mod go.mod.addedgo
+@@ -136,9 +137,10 @@ require (
+ -- go.mod.addedgo --
+ module m
+ 
+-go 1.16
++go $goversion
+ 
+ require (
++	golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c // indirect
+ 	rsc.io/quote v1.5.2
+ 	rsc.io/sampler v1.3.0 // indirect
+ 	rsc.io/testonly v1.0.0 // indirect
+diff --git a/src/cmd/go/testdata/script/mod_tidy_version.txt b/src/cmd/go/testdata/script/mod_tidy_version.txt
+new file mode 100644
+index 0000000000..5441d9cc06
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_tidy_version.txt
+@@ -0,0 +1,248 @@
++# https://golang.org/issue/45094: 'go mod tidy' now accepts a '-go' flag
++# to change the language version in use.
++#
++# The package import graph used in this test looks like:
++#
++# m --- a --- b
++#             |
++#             b_test --- c
++#                        |
++#                        c_test --- d
++#
++# The module diagram looks like:
++#
++# m --- a --- b
++# |
++# + --- c
++# |
++# + --- d
++#
++# Module b omits its dependency on c, and module c omits its dependency on d.
++#
++# In go 1.15, the tidy main module must require a (because it is direct),
++# c (because it is a missing test dependency of an imported package),
++# and d (because it is a missing transitive test dependency).
++#
++# In go 1.16, the tidy main module can omit d because it is no longer
++# included in "all".
++#
++# In go 1.17, the main module must explicitly require b
++# (because it is transitively imported by the main module).
++
++
++cp go.mod go.mod.orig
++
++# An invalid argument should be rejected.
++
++! go mod tidy -go=bananas
++stderr '^go mod: invalid -go option "bananas"; expecting something like "-go 1.17"$'
++cmp go.mod go.mod.orig
++
++
++go mod tidy -go=1.15
++cmp go.mod go.mod.115
++
++go mod tidy
++cmp go.mod go.mod.115
++
++
++go mod tidy -go=1.16
++cmp go.mod go.mod.116
++
++go mod tidy
++cmp go.mod go.mod.116
++
++
++go mod tidy -go=1.17
++cmp go.mod go.mod.117
++
++go mod tidy
++cmp go.mod go.mod.117
++
++
++# If we downgrade back to 1.15, we should re-resolve d to v0.2.0 instead
++# of the original v0.1.0 (because the original requirement is lost).
++
++go mod tidy -go=1.15
++cmp go.mod go.mod.115-2
++
++
++# -go= (with an empty argument) maintains the existing version or adds the
++#  default version (just like omitting the flag).
++
++go mod tidy -go=''
++cmp go.mod go.mod.115-2
++
++cp go.mod.orig go.mod
++go mod tidy -go=''
++cmpenv go.mod go.mod.latest
++
++
++
++-- go.mod --
++module example.com/m
++
++require (
++	example.net/a v0.1.0
++	example.net/c v0.1.0 // indirect
++	example.net/d v0.1.0 // indirect
++)
++
++replace (
++	example.net/a v0.1.0 => ./a
++	example.net/a v0.2.0 => ./a
++	example.net/b v0.1.0 => ./b
++	example.net/b v0.2.0 => ./b
++	example.net/c v0.1.0 => ./c
++	example.net/c v0.2.0 => ./c
++	example.net/d v0.1.0 => ./d
++	example.net/d v0.2.0 => ./d
++)
++-- m.go --
++package m
++
++import _ "example.net/a"
++
++-- go.mod.115 --
++module example.com/m
++
++go 1.15
++
++require (
++	example.net/a v0.1.0
++	example.net/c v0.1.0 // indirect
++	example.net/d v0.1.0 // indirect
++)
++
++replace (
++	example.net/a v0.1.0 => ./a
++	example.net/a v0.2.0 => ./a
++	example.net/b v0.1.0 => ./b
++	example.net/b v0.2.0 => ./b
++	example.net/c v0.1.0 => ./c
++	example.net/c v0.2.0 => ./c
++	example.net/d v0.1.0 => ./d
++	example.net/d v0.2.0 => ./d
++)
++-- go.mod.115-2 --
++module example.com/m
++
++go 1.15
++
++require (
++	example.net/a v0.1.0
++	example.net/c v0.1.0 // indirect
++	example.net/d v0.2.0 // indirect
++)
++
++replace (
++	example.net/a v0.1.0 => ./a
++	example.net/a v0.2.0 => ./a
++	example.net/b v0.1.0 => ./b
++	example.net/b v0.2.0 => ./b
++	example.net/c v0.1.0 => ./c
++	example.net/c v0.2.0 => ./c
++	example.net/d v0.1.0 => ./d
++	example.net/d v0.2.0 => ./d
++)
++-- go.mod.116 --
++module example.com/m
++
++go 1.16
++
++require (
++	example.net/a v0.1.0
++	example.net/c v0.1.0 // indirect
++)
++
++replace (
++	example.net/a v0.1.0 => ./a
++	example.net/a v0.2.0 => ./a
++	example.net/b v0.1.0 => ./b
++	example.net/b v0.2.0 => ./b
++	example.net/c v0.1.0 => ./c
++	example.net/c v0.2.0 => ./c
++	example.net/d v0.1.0 => ./d
++	example.net/d v0.2.0 => ./d
++)
++-- go.mod.117 --
++module example.com/m
++
++go 1.17
++
++require (
++	example.net/a v0.1.0
++	example.net/b v0.1.0 // indirect
++	example.net/c v0.1.0 // indirect
++)
++
++replace (
++	example.net/a v0.1.0 => ./a
++	example.net/a v0.2.0 => ./a
++	example.net/b v0.1.0 => ./b
++	example.net/b v0.2.0 => ./b
++	example.net/c v0.1.0 => ./c
++	example.net/c v0.2.0 => ./c
++	example.net/d v0.1.0 => ./d
++	example.net/d v0.2.0 => ./d
++)
++-- go.mod.latest --
++module example.com/m
++
++go $goversion
++
++require (
++	example.net/a v0.1.0
++	example.net/b v0.1.0 // indirect
++	example.net/c v0.1.0 // indirect
++)
++
++replace (
++	example.net/a v0.1.0 => ./a
++	example.net/a v0.2.0 => ./a
++	example.net/b v0.1.0 => ./b
++	example.net/b v0.2.0 => ./b
++	example.net/c v0.1.0 => ./c
++	example.net/c v0.2.0 => ./c
++	example.net/d v0.1.0 => ./d
++	example.net/d v0.2.0 => ./d
++)
++-- a/go.mod --
++module example.net/a
++
++go 1.15
++
++require example.net/b v0.1.0
++-- a/a.go --
++package a
++
++import _ "example.net/b"
++
++-- b/go.mod --
++module example.net/b
++
++go 1.15
++-- b/b.go --
++package b
++-- b/b_test.go --
++package b_test
++
++import _ "example.net/c"
++
++-- c/go.mod --
++module example.net/c
++
++go 1.15
++-- c/c.go --
++package c
++-- c/c_test.go --
++package c_test
++
++import _ "example.net/d"
++
++-- d/go.mod --
++module example.net/d
++
++go 1.15
++-- d/d.go --
++package d

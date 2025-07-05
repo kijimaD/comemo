@@ -11,7 +11,7 @@ Date:   Sat Dec 1 14:49:54 2012 +0900
     R=bradfitz, golang-dev
     CC=golang-dev
     https://golang.org/cl/6854129
-
+---
  src/pkg/net/ipraw_test.go | 3 +++
  src/pkg/net/iprawsock.go  | 6 ++++--
  src/pkg/net/tcp_test.go   | 3 +++
@@ -19,3 +19,90 @@ Date:   Sat Dec 1 14:49:54 2012 +0900
  src/pkg/net/udp_test.go   | 3 +++
  src/pkg/net/udpsock.go    | 2 ++
  6 files changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/ipraw_test.go b/src/pkg/net/ipraw_test.go
+index c2d024dab8..f21889fcbe 100644
+--- a/src/pkg/net/ipraw_test.go
++++ b/src/pkg/net/ipraw_test.go
+@@ -29,6 +29,9 @@ var resolveIPAddrTests = []struct {
+ 	{"ip6", "::1", &IPAddr{IP: ParseIP("::1")}, nil},
+ 	{"ip6:icmp", "::1", &IPAddr{IP: ParseIP("::1")}, nil},
+ 
++	{"", "127.0.0.1", &IPAddr{IP: IPv4(127, 0, 0, 1)}, nil}, // Go 1.0 behavior
++	{"", "::1", &IPAddr{IP: ParseIP("::1")}, nil},           // Go 1.0 behavior
++
+ 	{"l2tp", "127.0.0.1", nil, UnknownNetworkError("l2tp")},
+ 	{"l2tp:gre", "127.0.0.1", nil, UnknownNetworkError("l2tp:gre")},
+ 	{"tcp", "1.2.3.4:123", nil, UnknownNetworkError("tcp")},
+diff --git a/src/pkg/net/iprawsock.go b/src/pkg/net/iprawsock.go
+index 45ad697aa6..13bfd62404 100644
+--- a/src/pkg/net/iprawsock.go
++++ b/src/pkg/net/iprawsock.go
+@@ -24,9 +24,11 @@ func (a *IPAddr) String() string {
+ 
+ // ResolveIPAddr parses addr as an IP address and resolves domain
+ // names to numeric addresses on the network net, which must be
+-// "ip", "ip4" or "ip6".  A literal IPv6 host address must be
+-// enclosed in square brackets, as in "[::]".
++// "ip", "ip4" or "ip6".
+ func ResolveIPAddr(net, addr string) (*IPAddr, error) {
++	if net == "" { // a hint wildcard for Go 1.0 undocumented behavior
++		net = "ip"
++	}
+ 	afnet, _, err := parseDialNetwork(net)
+ 	if err != nil {
+ 		return nil, err
+diff --git a/src/pkg/net/tcp_test.go b/src/pkg/net/tcp_test.go
+index e8588c686f..bca748827c 100644
+--- a/src/pkg/net/tcp_test.go
++++ b/src/pkg/net/tcp_test.go
+@@ -130,6 +130,9 @@ var resolveTCPAddrTests = []struct {
+ 	{"tcp", "[::1]:1", &TCPAddr{IP: ParseIP("::1"), Port: 1}, nil},
+ 	{"tcp6", "[::1]:65534", &TCPAddr{IP: ParseIP("::1"), Port: 65534}, nil},
+ 
++	{"", "127.0.0.1:0", &TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 0}, nil}, // Go 1.0 behavior
++	{"", "[::1]:0", &TCPAddr{IP: ParseIP("::1"), Port: 0}, nil},         // Go 1.0 behavior
++
+ 	{"http", "127.0.0.1:0", nil, UnknownNetworkError("http")},
+ }
+ 
+diff --git a/src/pkg/net/tcpsock.go b/src/pkg/net/tcpsock.go
+index 0a72a534c7..d5158b22de 100644
+--- a/src/pkg/net/tcpsock.go
++++ b/src/pkg/net/tcpsock.go
+@@ -31,6 +31,8 @@ func (a *TCPAddr) String() string {
+ func ResolveTCPAddr(net, addr string) (*TCPAddr, error) {
+ 	switch net {
+ 	case "tcp", "tcp4", "tcp6":
++	case "": // a hint wildcard for Go 1.0 undocumented behavior
++		net = "tcp"
+ 	default:
+ 		return nil, UnknownNetworkError(net)
+ 	}
+diff --git a/src/pkg/net/udp_test.go b/src/pkg/net/udp_test.go
+index 7c69b3738f..d3594b40a9 100644
+--- a/src/pkg/net/udp_test.go
++++ b/src/pkg/net/udp_test.go
+@@ -22,6 +22,9 @@ var resolveUDPAddrTests = []struct {
+ 	{"udp", "[::1]:1", &UDPAddr{IP: ParseIP("::1"), Port: 1}, nil},
+ 	{"udp6", "[::1]:65534", &UDPAddr{IP: ParseIP("::1"), Port: 65534}, nil},
+ 
++	{"", "127.0.0.1:0", &UDPAddr{IP: IPv4(127, 0, 0, 1), Port: 0}, nil}, // Go 1.0 behavior
++	{"", "[::1]:0", &UDPAddr{IP: ParseIP("::1"), Port: 0}, nil},         // Go 1.0 behavior
++
+ 	{"sip", "127.0.0.1:0", nil, UnknownNetworkError("sip")},
+ }
+ 
+diff --git a/src/pkg/net/udpsock.go b/src/pkg/net/udpsock.go
+index e33c6f0a01..6e5e902689 100644
+--- a/src/pkg/net/udpsock.go
++++ b/src/pkg/net/udpsock.go
+@@ -35,6 +35,8 @@ func (a *UDPAddr) String() string {
+ func ResolveUDPAddr(net, addr string) (*UDPAddr, error) {
+ 	switch net {
+ 	case "udp", "udp4", "udp6":
++	case "": // a hint wildcard for Go 1.0 undocumented behavior
++		net = "udp"
+ 	default:
+ 		return nil, UnknownNetworkError(net)
+ 	}

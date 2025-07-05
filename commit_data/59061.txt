@@ -19,10 +19,138 @@ Date:   Mon Feb 5 12:20:45 2024 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/561338
     Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/modindex/read.go         | 14 ++++++--------
  src/cmd/go/testdata/script/list_testdata.txt | 11 +++++++++++
  src/cmd/go/testdata/script/mod_list.txt      |  4 ++--
  src/internal/goroot/gc.go                    | 12 ++++++++++--
  src/internal/goroot/gccgo.go                 | 13 +++++++++++--
  5 files changed, 40 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/go/internal/modindex/read.go b/src/cmd/go/internal/modindex/read.go
+index 83d5faf28f..bda3fb4338 100644
+--- a/src/cmd/go/internal/modindex/read.go
++++ b/src/cmd/go/internal/modindex/read.go
+@@ -124,7 +124,7 @@ var (
+ 	errNotFromModuleCache = fmt.Errorf("%w: not from module cache", ErrNotIndexed)
+ )
+ 
+-// GetPackage returns the IndexPackage for the package at the given path.
++// GetPackage returns the IndexPackage for the directory at the given path.
+ // It will return ErrNotIndexed if the directory should be read without
+ // using the index, for instance because the index is disabled, or the package
+ // is not in a module.
+@@ -669,11 +669,9 @@ func IsStandardPackage(goroot_, compiler, path string) bool {
+ 		reldir = str.TrimFilePathPrefix(reldir, "cmd")
+ 		modroot = filepath.Join(modroot, "cmd")
+ 	}
+-	if _, err := GetPackage(modroot, filepath.Join(modroot, reldir)); err == nil {
+-		// Note that goroot.IsStandardPackage doesn't check that the directory
+-		// actually contains any go files-- merely that it exists. GetPackage
+-		// returning a nil error is enough for us to know the directory exists.
+-		return true
++	if pkg, err := GetPackage(modroot, filepath.Join(modroot, reldir)); err == nil {
++		hasGo, err := pkg.IsDirWithGoFiles()
++		return err == nil && hasGo
+ 	} else if errors.Is(err, ErrNotIndexed) {
+ 		// Fall back because package isn't indexable. (Probably because
+ 		// a file was modified recently)
+@@ -786,8 +784,8 @@ func shouldBuild(sf *sourceFile, tags map[string]bool) bool {
+ 	return true
+ }
+ 
+-// IndexPackage holds the information needed to access information in the
+-// index needed to load a package in a specific directory.
++// IndexPackage holds the information in the index
++// needed to load a package in a specific directory.
+ type IndexPackage struct {
+ 	error error
+ 	dir   string // directory of the package relative to the modroot
+diff --git a/src/cmd/go/testdata/script/list_testdata.txt b/src/cmd/go/testdata/script/list_testdata.txt
+new file mode 100644
+index 0000000000..d62dd55c7d
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_testdata.txt
+@@ -0,0 +1,11 @@
++# Issue 65406. The testdata directory in GOROOT/src
++# shouldn't be treated as a standard package.
++
++go list -f '{{.ImportPath}} {{.Dir}}' testdata
++! stderr 'found package testdata in multiple modules'
++stdout 'testdata '$WORK${/}'gopath'${/}'src'
++
++-- go.mod --
++module testdata
++-- p.go --
++package p
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/mod_list.txt b/src/cmd/go/testdata/script/mod_list.txt
+index 06316cc335..40820b3bb5 100644
+--- a/src/cmd/go/testdata/script/mod_list.txt
++++ b/src/cmd/go/testdata/script/mod_list.txt
+@@ -44,9 +44,9 @@ stderr '^go: module rsc.io/quote/buggy: not a known dependency'
+ 
+ # Module loader does not interfere with list -e (golang.org/issue/24149).
+ go list -e -f '{{.Error.Err}}' database
+-stdout 'no Go files in '
++stdout 'package database is not in std'
+ ! go list database
+-stderr 'no Go files in '
++stderr 'package database is not in std'
+ 
+ -- go.mod --
+ module x
+diff --git a/src/internal/goroot/gc.go b/src/internal/goroot/gc.go
+index c0216f4ea5..6b37dfa4c7 100644
+--- a/src/internal/goroot/gc.go
++++ b/src/internal/goroot/gc.go
+@@ -20,8 +20,16 @@ func IsStandardPackage(goroot, compiler, path string) bool {
+ 	switch compiler {
+ 	case "gc":
+ 		dir := filepath.Join(goroot, "src", path)
+-		info, err := os.Stat(dir)
+-		return err == nil && info.IsDir()
++		dirents, err := os.ReadDir(dir)
++		if err != nil {
++			return false
++		}
++		for _, dirent := range dirents {
++			if strings.HasSuffix(dirent.Name(), ".go") {
++				return true
++			}
++		}
++		return false
+ 	case "gccgo":
+ 		return gccgoSearch.isStandard(path)
+ 	default:
+diff --git a/src/internal/goroot/gccgo.go b/src/internal/goroot/gccgo.go
+index 62841222a7..2bbf4cda2b 100644
+--- a/src/internal/goroot/gccgo.go
++++ b/src/internal/goroot/gccgo.go
+@@ -9,6 +9,7 @@ package goroot
+ import (
+ 	"os"
+ 	"path/filepath"
++	"strings"
+ )
+ 
+ // IsStandardPackage reports whether path is a standard package,
+@@ -17,8 +18,16 @@ func IsStandardPackage(goroot, compiler, path string) bool {
+ 	switch compiler {
+ 	case "gc":
+ 		dir := filepath.Join(goroot, "src", path)
+-		_, err := os.Stat(dir)
+-		return err == nil
++		dirents, err := os.ReadDir(dir)
++		if err != nil {
++			return false
++		}
++		for _, dirent := range dirents {
++			if strings.HasSuffix(dirent.Name(), ".go") {
++				return true
++			}
++		}
++		return false
+ 	case "gccgo":
+ 		return stdpkg[path]
+ 	default:

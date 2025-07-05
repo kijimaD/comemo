@@ -16,7 +16,7 @@ Date:   Mon Oct 9 10:11:00 2017 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/link/internal/ld/dwarf.go               |  3 +--
  src/cmd/link/internal/ld/elf.go                 | 20 ++++++++++----------
  src/cmd/link/internal/ld/ldelf.go               | 24 ++++++++++++------------
@@ -26,3 +26,203 @@ Date:   Mon Oct 9 10:11:00 2017 +0100
  src/cmd/link/internal/ld/macho_combine_dwarf.go |  2 +-
  src/cmd/link/internal/ld/symtab.go              |  4 ++--
  8 files changed, 32 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 49909812a6..4fcd86f45c 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -266,7 +266,7 @@ func reverselist(list **dwarf.DWDie) {
+ 	curr := *list
+ 	var prev *dwarf.DWDie
+ 	for curr != nil {
+-		var next *dwarf.DWDie = curr.Link
++		next := curr.Link
+ 		curr.Link = prev
+ 		prev = curr
+ 		curr = next
+@@ -1077,7 +1077,6 @@ func writelines(ctxt *Link, syms []*sym.Symbol) ([]*sym.Symbol, []*sym.Symbol) {
+ 			continue
+ 		}
+ 
+-		epc = s.Value + s.Size
+ 		epcs = s
+ 
+ 		dsym := ctxt.Syms.Lookup(dwarf.InfoPrefix+s.Name, int(s.Version))
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index da18bc7441..ff9503d2e0 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -810,7 +810,6 @@ type ElfShdr struct {
+ 	addralign uint64
+ 	entsize   uint64
+ 	shnum     int
+-	secsym    *sym.Symbol
+ }
+ 
+ /*
+@@ -888,7 +887,7 @@ const (
+ var (
+ 	Iself bool
+ 
+-	Nelfsym int = 1
++	Nelfsym = 1
+ 
+ 	elf64 bool
+ 	// Either ".rel" or ".rela" depending on which type of relocation the
+@@ -1611,16 +1610,17 @@ func elfphrelro(seg *sym.Segment) {
+ 
+ func elfshname(name string) *ElfShdr {
+ 	for i := 0; i < nelfstr; i++ {
+-		if name == elfstr[i].s {
+-			off := elfstr[i].off
+-			for i = 0; i < int(ehdr.shnum); i++ {
+-				sh := shdr[i]
+-				if sh.name == uint32(off) {
+-					return sh
+-				}
++		if name != elfstr[i].s {
++			continue
++		}
++		off := elfstr[i].off
++		for i = 0; i < int(ehdr.shnum); i++ {
++			sh := shdr[i]
++			if sh.name == uint32(off) {
++				return sh
+ 			}
+-			return newElfShdr(int64(off))
+ 		}
++		return newElfShdr(int64(off))
+ 	}
+ 	Exitf("cannot find elf name %s", name)
+ 	return nil
+diff --git a/src/cmd/link/internal/ld/ldelf.go b/src/cmd/link/internal/ld/ldelf.go
+index 7882ffc232..12cf473e4f 100644
+--- a/src/cmd/link/internal/ld/ldelf.go
++++ b/src/cmd/link/internal/ld/ldelf.go
+@@ -279,7 +279,6 @@ type ElfObj struct {
+ 	e         binary.ByteOrder
+ 	sect      []ElfSect
+ 	nsect     uint
+-	shstrtab  string
+ 	nsymtab   int
+ 	symtab    *ElfSect
+ 	symstr    *ElfSect
+@@ -426,19 +425,20 @@ func parseArmAttributes(ctxt *Link, e binary.ByteOrder, data []byte) {
+ 			subsectiondata := sectiondata[sz+4 : subsectionsize]
+ 			sectiondata = sectiondata[subsectionsize:]
+ 
+-			if subsectiontag == TagFile {
+-				attrList := elfAttributeList{data: subsectiondata}
+-				for !attrList.done() {
+-					attr := attrList.armAttr()
+-					if attr.tag == TagABIVFPArgs && attr.ival == 1 {
+-						ehdr.flags = 0x5000402 // has entry point, Version5 EABI, hard-float ABI
+-					}
+-				}
+-				if attrList.err != nil {
+-					// TODO(dfc) should this be ctxt.Diag ?
+-					ctxt.Logf("could not parse .ARM.attributes\n")
++			if subsectiontag != TagFile {
++				continue
++			}
++			attrList := elfAttributeList{data: subsectiondata}
++			for !attrList.done() {
++				attr := attrList.armAttr()
++				if attr.tag == TagABIVFPArgs && attr.ival == 1 {
++					ehdr.flags = 0x5000402 // has entry point, Version5 EABI, hard-float ABI
+ 				}
+ 			}
++			if attrList.err != nil {
++				// TODO(dfc) should this be ctxt.Diag ?
++				ctxt.Logf("could not parse .ARM.attributes\n")
++			}
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index ef94f8e339..0621b22c75 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -574,7 +574,7 @@ func (ctxt *Link) loadlib() {
+ 	if typeSymbolMangling(ctxt) {
+ 		*FlagW = true // disable DWARF generation
+ 		for _, s := range ctxt.Syms.Allsym {
+-			newName := typeSymbolMangle(ctxt.Syms, s.Name)
++			newName := typeSymbolMangle(s.Name)
+ 			if newName != s.Name {
+ 				ctxt.Syms.Rename(s.Name, newName, int(s.Version))
+ 			}
+@@ -657,7 +657,7 @@ func typeSymbolMangling(ctxt *Link) bool {
+ }
+ 
+ // typeSymbolMangle mangles the given symbol name into something shorter.
+-func typeSymbolMangle(syms *sym.Symbols, name string) string {
++func typeSymbolMangle(name string) string {
+ 	if !strings.HasPrefix(name, "type.") {
+ 		return name
+ 	}
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 610b0fb06b..5847099df7 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -96,9 +96,9 @@ func (ctxt *Link) FixedFrameSize() int64 {
+ 	}
+ }
+ 
+-func (l *Link) Logf(format string, args ...interface{}) {
+-	fmt.Fprintf(l.Bso, format, args...)
+-	l.Bso.Flush()
++func (ctxt *Link) Logf(format string, args ...interface{}) {
++	fmt.Fprintf(ctxt.Bso, format, args...)
++	ctxt.Bso.Flush()
+ }
+ 
+ func addImports(ctxt *Link, l *sym.Library, pn string) {
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 7bf5ac93fc..2b38ec0000 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -180,7 +180,7 @@ var nsortsym int
+ // "big enough" header size. The initial header is
+ // one page, the non-dynamic library stuff takes
+ // up about 1300 bytes; we overestimate that as 2k.
+-var loadBudget int = INITIAL_MACHO_HEADR - 2*1024
++var loadBudget = INITIAL_MACHO_HEADR - 2*1024
+ 
+ func getMachoHdr() *MachoHdr {
+ 	return &machohdr
+diff --git a/src/cmd/link/internal/ld/macho_combine_dwarf.go b/src/cmd/link/internal/ld/macho_combine_dwarf.go
+index ca8293867b..17a484ce8f 100644
+--- a/src/cmd/link/internal/ld/macho_combine_dwarf.go
++++ b/src/cmd/link/internal/ld/macho_combine_dwarf.go
+@@ -17,7 +17,7 @@ import (
+ 
+ var realdwarf, linkseg *macho.Segment
+ var dwarfstart, linkstart int64
+-var dwarfaddr, linkaddr int64
++var dwarfaddr int64
+ var linkoffset uint32
+ 
+ const (
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index cceb624faf..0a819fcd23 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -73,7 +73,7 @@ func putelfsyment(out *OutBuf, off int, addr int64, size int64, info int, shndx
+ 	}
+ }
+ 
+-var numelfsym int = 1 // 0 is reserved
++var numelfsym = 1 // 0 is reserved
+ 
+ var elfbind int
+ 
+@@ -592,7 +592,7 @@ func (ctxt *Link) symtab() {
+ 			// pkghashes[i].name
+ 			addgostring(ctxt, pkghashes, fmt.Sprintf("go.link.pkgname.%d", i), l.Pkg)
+ 			// pkghashes[i].linktimehash
+-			addgostring(ctxt, pkghashes, fmt.Sprintf("go.link.pkglinkhash.%d", i), string(l.Hash))
++			addgostring(ctxt, pkghashes, fmt.Sprintf("go.link.pkglinkhash.%d", i), l.Hash)
+ 			// pkghashes[i].runtimehash
+ 			hash := ctxt.Syms.ROLookup("go.link.pkghash."+l.Pkg, 0)
+ 			pkghashes.AddAddr(ctxt.Arch, hash)

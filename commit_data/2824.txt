@@ -11,7 +11,7 @@ Date:   Wed Jul 29 14:49:01 2009 -0700
     R=ken
     OCL=32453
     CL=32458
-
+---
  src/cmd/6g/gobj.c                  |  2 ++
  src/cmd/8g/gobj.c                  |  2 ++
  src/cmd/gc/gen.c                   | 55 +++++++++++++++++++-------------------
@@ -20,3 +20,240 @@ Date:   Wed Jul 29 14:49:01 2009 -0700
  test/fixedbugs/bug179.go           | 24 +++++++++++++++++
  test/golden.out                    |  6 ++---
  7 files changed, 85 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/6g/gobj.c b/src/cmd/6g/gobj.c
+index 1d7c07eba0..6199d2f2f0 100644
+--- a/src/cmd/6g/gobj.c
++++ b/src/cmd/6g/gobj.c
+@@ -97,6 +97,8 @@ zaddr(Biobuf *b, Addr *a, int s)
+ 	switch(a->type) {
+ 
+ 	case D_BRANCH:
++		if(a->branch == nil)
++			fatal("unpatched branch");
+ 		a->offset = a->branch->loc;
+ 
+ 	default:
+diff --git a/src/cmd/8g/gobj.c b/src/cmd/8g/gobj.c
+index 96762375f2..683c77d40c 100644
+--- a/src/cmd/8g/gobj.c
++++ b/src/cmd/8g/gobj.c
+@@ -97,6 +97,8 @@ zaddr(Biobuf *b, Addr *a, int s)
+ 	switch(a->type) {
+ 
+ 	case D_BRANCH:
++		if(a->branch == nil)
++			fatal("unpatched branch");
+ 		a->offset = a->branch->loc;
+ 
+ 	default:
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index 1c05a0ba6c..46373f8b82 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -162,7 +162,14 @@ gen(Node *n)
+ 	case OFALL:
+ 	case OXCASE:
+ 	case OXFALL:
++		break;
++
+ 	case OEMPTY:
++		// insert no-op so that
++		//	L:; for { }
++		// does not treat L as a label for the loop.
++		if(labellist && labellist->label == p3)
++			gused(N);
+ 		break;
+ 
+ 	case OBLOCK:
+@@ -181,9 +188,11 @@ gen(Node *n)
+ 	case OBREAK:
+ 		if(n->left != N) {
+ 			for(lab=labellist; lab!=L; lab=lab->link) {
+-				if(lab->breakpc != P) {
++				if(lab->sym == n->left->sym) {
++					if(lab->breakpc == P)
++						yyerror("invalid break label %S", n->left->sym);
+ 					gjmp(lab->breakpc);
+-					break;
++					goto donebreak;
+ 				}
+ 			}
+ 			if(lab == L)
+@@ -195,26 +204,30 @@ gen(Node *n)
+ 			break;
+ 		}
+ 		gjmp(breakpc);
++	donebreak:
+ 		break;
+ 
+ 	case OCONTINUE:
+ 		if(n->left != N) {
+ 			for(lab=labellist; lab!=L; lab=lab->link) {
+-				if(lab->continpc != P) {
++				if(lab->sym == n->left->sym) {
++					if(lab->continpc == P)
++						yyerror("invalid continue label %S", n->left->sym);
+ 					gjmp(lab->continpc);
+-					break;
++					goto donecont;
+ 				}
+ 			}
+ 			if(lab == L)
+-				yyerror("break label not defined: %S", n->left->sym);
++				yyerror("continue label not defined: %S", n->left->sym);
+ 			break;
+ 		}
+ 
+ 		if(continpc == P) {
+-			yyerror("gen: continue is not in a loop");
++			yyerror("continue is not in a loop");
+ 			break;
+ 		}
+ 		gjmp(continpc);
++	donecont:
+ 		break;
+ 
+ 	case OFOR:
+@@ -224,14 +237,10 @@ gen(Node *n)
+ 		scontin = continpc;
+ 		continpc = pc;
+ 
+-		// define break and cotinue labels
+-		for(lab=labellist; lab!=L; lab=lab->link) {
+-			if(lab->label != p3)
+-				break;
+-			if(lab->op == OLABEL) {
+-				lab->breakpc = breakpc;
+-				lab->continpc = continpc;
+-			}
++		// define break and continue labels
++		if((lab = labellist) != L && lab->label == p3 && lab->op == OLABEL) {
++			lab->breakpc = breakpc;
++			lab->continpc = continpc;
+ 		}
+ 
+ 		gen(n->nincr);				// contin:	incr
+@@ -268,13 +277,8 @@ gen(Node *n)
+ 		breakpc = gjmp(P);		// break:	goto done
+ 
+ 		// define break label
+-		for(lab=labellist; lab!=L; lab=lab->link) {
+-			if(lab->label != p3)
+-				break;
+-			if(lab->op == OLABEL) {
+-				lab->breakpc = breakpc;
+-			}
+-		}
++		if((lab = labellist) != L && lab->label == p3 && lab->op == OLABEL)
++			lab->breakpc = breakpc;
+ 
+ 		patch(p1, pc);				// test:
+ 		genlist(n->nbody);				//		switch(test) body
+@@ -288,13 +292,8 @@ gen(Node *n)
+ 		breakpc = gjmp(P);		// break:	goto done
+ 
+ 		// define break label
+-		for(lab=labellist; lab!=L; lab=lab->link) {
+-			if(lab->label != p3)
+-				break;
+-			if(lab->op == OLABEL) {
+-				lab->breakpc = breakpc;
+-			}
+-		}
++		if((lab = labellist) != L && lab->label == p3 && lab->op == OLABEL)
++			lab->breakpc = breakpc;
+ 
+ 		patch(p1, pc);				// test:
+ 		genlist(n->nbody);				//		select() body
+diff --git a/test/bugs/bug136.go b/test/fixedbugs/bug136.go
+similarity index 100%
+rename from test/bugs/bug136.go
+rename to test/fixedbugs/bug136.go
+diff --git a/test/fixedbugs/bug178.go b/test/fixedbugs/bug178.go
+new file mode 100644
+index 0000000000..4f586342b4
+--- /dev/null
++++ b/test/fixedbugs/bug178.go
+@@ -0,0 +1,27 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++L:
++	for i := 0; i < 1; i++ {
++L1:
++		for {
++			break L;
++		}
++		panic("BUG: not reached - break");
++	}
++
++L2:
++	for i := 0; i < 1; i++ {
++L3:
++		for {
++			continue L2;
++		}
++		panic("BUG: not reached - continue");
++	}
++}
+diff --git a/test/fixedbugs/bug179.go b/test/fixedbugs/bug179.go
+new file mode 100644
+index 0000000000..690b01265a
+--- /dev/null
++++ b/test/fixedbugs/bug179.go
+@@ -0,0 +1,24 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++L:
++	for {
++		for {
++			break L2;	// ERROR "L2"
++			continue L2;	// ERROR "L2"
++		}
++	}
++
++L1:
++	x := 1;
++	for {
++		break L1;	// ERROR "L1"
++		continue L1;	// ERROR "L1"
++	}
++}
+diff --git a/test/golden.out b/test/golden.out
+index be5f7482bb..a92efaffec 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -88,9 +88,6 @@ panic PC=xxx
+ =========== bugs/bug132.go
+ BUG: compilation succeeds incorrectly
+ 
+-=========== bugs/bug136.go
+-BUG: should not compile
+-
+ =========== bugs/bug159.go
+ abc: expected 4 5 6 got 4 4 -4
+ BUG: bug159
+@@ -227,6 +224,9 @@ fixedbugs/bug133.dir/bug2.go:11: undefined: bug0.T field i
+ fixedbugs/bug133.dir/bug2.go:11: illegal types for operand: RETURN
+ 	int
+ 
++=========== fixedbugs/bug136.go
++fixedbugs/bug136.go:9: invalid break label L
++
+ =========== fixedbugs/bug148.go
+ 2 3
+ interface is main.T, not main.T·bug148·1

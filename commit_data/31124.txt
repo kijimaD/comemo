@@ -24,7 +24,178 @@ Date:   Wed Feb 1 09:37:47 2017 +0100
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/ios/detect.go             | 55 ++++++++++++++++++++++++------------------
  misc/ios/go_darwin_arm_exec.go | 26 ++++++++++++++------
  2 files changed, 50 insertions(+), 31 deletions(-)
+
+diff --git a/misc/ios/detect.go b/misc/ios/detect.go
+index c37fce2ec1..7e4e6f60e9 100644
+--- a/misc/ios/detect.go
++++ b/misc/ios/detect.go
+@@ -23,28 +23,37 @@ import (
+ 
+ func main() {
+ 	devID := detectDevID()
+-	fmt.Printf("export GOIOS_DEV_ID=%s\n", devID)
+ 
+ 	udid := detectUDID()
+-	mp := detectMobileProvisionFile(udid)
+-
+-	f, err := ioutil.TempFile("", "go_ios_detect_")
+-	check(err)
+-	fname := f.Name()
+-	defer os.Remove(fname)
+-
+-	out := output(parseMobileProvision(mp))
+-	_, err = f.Write(out)
+-	check(err)
+-	check(f.Close())
+-
+-	appID, err := plistExtract(fname, "ApplicationIdentifierPrefix:0")
+-	check(err)
+-	fmt.Printf("export GOIOS_APP_ID=%s\n", appID)
++	mps := detectMobileProvisionFiles(udid)
++	if len(mps) == 0 {
++		fail("did not find mobile provision matching device udid %s", udid)
++	}
+ 
+-	teamID, err := plistExtract(fname, "Entitlements:com.apple.developer.team-identifier")
+-	check(err)
+-	fmt.Printf("export GOIOS_TEAM_ID=%s\n", teamID)
++	fmt.Println("Available provisioning profiles below.")
++	fmt.Println("NOTE: Any existing app on the device with the app id specified by GOIOS_APP_ID")
++	fmt.Println("will be overwritten when running Go programs.")
++	for _, mp := range mps {
++		fmt.Println()
++		fmt.Printf("export GOIOS_DEV_ID=%s\n", devID)
++		f, err := ioutil.TempFile("", "go_ios_detect_")
++		check(err)
++		fname := f.Name()
++		defer os.Remove(fname)
++
++		out := output(parseMobileProvision(mp))
++		_, err = f.Write(out)
++		check(err)
++		check(f.Close())
++
++		appID, err := plistExtract(fname, "Entitlements:application-identifier")
++		check(err)
++		fmt.Printf("export GOIOS_APP_ID=%s\n", appID)
++
++		teamID, err := plistExtract(fname, "Entitlements:com.apple.developer.team-identifier")
++		check(err)
++		fmt.Printf("export GOIOS_TEAM_ID=%s\n", teamID)
++	}
+ }
+ 
+ func detectDevID() string {
+@@ -79,10 +88,11 @@ func detectUDID() []byte {
+ 	panic("unreachable")
+ }
+ 
+-func detectMobileProvisionFile(udid []byte) string {
++func detectMobileProvisionFiles(udid []byte) []string {
+ 	cmd := exec.Command("mdfind", "-name", ".mobileprovision")
+ 	lines := getLines(cmd)
+ 
++	var files []string
+ 	for _, line := range lines {
+ 		if len(line) == 0 {
+ 			continue
+@@ -90,12 +100,11 @@ func detectMobileProvisionFile(udid []byte) string {
+ 		xmlLines := getLines(parseMobileProvision(string(line)))
+ 		for _, xmlLine := range xmlLines {
+ 			if bytes.Contains(xmlLine, udid) {
+-				return string(line)
++				files = append(files, string(line))
+ 			}
+ 		}
+ 	}
+-	fail("did not find mobile provision matching device udid %s", udid)
+-	panic("ureachable")
++	return files
+ }
+ 
+ func parseMobileProvision(fname string) *exec.Cmd {
+diff --git a/misc/ios/go_darwin_arm_exec.go b/misc/ios/go_darwin_arm_exec.go
+index 3de341b9c5..9ec55b11be 100644
+--- a/misc/ios/go_darwin_arm_exec.go
++++ b/misc/ios/go_darwin_arm_exec.go
+@@ -45,9 +45,10 @@ var errRetry = errors.New("failed to start test harness (retry attempted)")
+ var tmpdir string
+ 
+ var (
+-	devID  string
+-	appID  string
+-	teamID string
++	devID    string
++	appID    string
++	teamID   string
++	bundleID string
+ )
+ 
+ // lock is a file lock to serialize iOS runs. It is global to avoid the
+@@ -76,6 +77,13 @@ func main() {
+ 	// https://developer.apple.com/membercenter/index.action#accountSummary as Team ID.
+ 	teamID = getenv("GOIOS_TEAM_ID")
+ 
++	parts := strings.SplitN(appID, ".", 2)
++	// For compatibility with the old builders, use a fallback bundle ID
++	bundleID = "golang.gotest"
++	if len(parts) == 2 {
++		bundleID = parts[1]
++	}
++
+ 	var err error
+ 	tmpdir, err = ioutil.TempDir("", "go_darwin_arm_exec_")
+ 	if err != nil {
+@@ -143,7 +151,7 @@ func run(bin string, args []string) (err error) {
+ 	if err := ioutil.WriteFile(entitlementsPath, []byte(entitlementsPlist()), 0744); err != nil {
+ 		return err
+ 	}
+-	if err := ioutil.WriteFile(filepath.Join(appdir, "Info.plist"), []byte(infoPlist), 0744); err != nil {
++	if err := ioutil.WriteFile(filepath.Join(appdir, "Info.plist"), []byte(infoPlist()), 0744); err != nil {
+ 		return err
+ 	}
+ 	if err := ioutil.WriteFile(filepath.Join(appdir, "ResourceRules.plist"), []byte(resourceRules), 0744); err != nil {
+@@ -562,7 +570,8 @@ func subdir() (pkgpath string, underGoRoot bool, err error) {
+ 	)
+ }
+ 
+-const infoPlist = `<?xml version="1.0" encoding="UTF-8"?>
++func infoPlist() string {
++	return `<?xml version="1.0" encoding="UTF-8"?>
+ <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+ <plist version="1.0">
+ <dict>
+@@ -570,13 +579,14 @@ const infoPlist = `<?xml version="1.0" encoding="UTF-8"?>
+ <key>CFBundleSupportedPlatforms</key><array><string>iPhoneOS</string></array>
+ <key>CFBundleExecutable</key><string>gotest</string>
+ <key>CFBundleVersion</key><string>1.0</string>
+-<key>CFBundleIdentifier</key><string>golang.gotest</string>
++<key>CFBundleIdentifier</key><string>` + bundleID + `</string>
+ <key>CFBundleResourceSpecification</key><string>ResourceRules.plist</string>
+ <key>LSRequiresIPhoneOS</key><true/>
+ <key>CFBundleDisplayName</key><string>gotest</string>
+ </dict>
+ </plist>
+ `
++}
+ 
+ func entitlementsPlist() string {
+ 	return `<?xml version="1.0" encoding="UTF-8"?>
+@@ -584,11 +594,11 @@ func entitlementsPlist() string {
+ <plist version="1.0">
+ <dict>
+ 	<key>keychain-access-groups</key>
+-	<array><string>` + appID + `.golang.gotest</string></array>
++	<array><string>` + appID + `</string></array>
+ 	<key>get-task-allow</key>
+ 	<true/>
+ 	<key>application-identifier</key>
+-	<string>` + appID + `.golang.gotest</string>
++	<string>` + appID + `</string>
+ 	<key>com.apple.developer.team-identifier</key>
+ 	<string>` + teamID + `</string>
+ </dict>

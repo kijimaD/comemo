@@ -16,8 +16,57 @@ Date:   Wed Aug 17 09:02:41 2022 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     Auto-Submit: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/mbitmap.go | 2 +-
  src/runtime/mgcmark.go | 2 +-
  src/runtime/stack.go   | 4 ++--
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 5845267b5f..8bb24321a0 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -1479,7 +1479,7 @@ func getgcmask(ep any) (mask []byte) {
+ 		frame.sp = uintptr(p)
+ 		gentraceback(gp.m.curg.sched.pc, gp.m.curg.sched.sp, 0, gp.m.curg, 0, nil, 1000, getgcmaskcb, noescape(unsafe.Pointer(&frame)), 0)
+ 		if frame.fn.valid() {
+-			locals, _, _ := getStackMap(&frame, nil, false)
++			locals, _, _ := frame.getStackMap(nil, false)
+ 			if locals.n == 0 {
+ 				return
+ 			}
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 6e66a3af65..8d3259c79a 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -966,7 +966,7 @@ func scanframeworker(frame *stkframe, state *stackScanState, gcw *gcWork) {
+ 		return
+ 	}
+ 
+-	locals, args, objs := getStackMap(frame, &state.cache, false)
++	locals, args, objs := frame.getStackMap(&state.cache, false)
+ 
+ 	// Scan local variables if stack frame has been allocated.
+ 	if locals.n > 0 {
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 1b3b0b7840..1b782ede88 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -664,7 +664,7 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
+ 		return true
+ 	}
+ 
+-	locals, args, objs := getStackMap(frame, &adjinfo.cache, true)
++	locals, args, objs := frame.getStackMap(&adjinfo.cache, true)
+ 
+ 	// Adjust local variables if stack frame has been allocated.
+ 	if locals.n > 0 {
+@@ -1249,7 +1249,7 @@ func freeStackSpans() {
+ 
+ // getStackMap returns the locals and arguments live pointer maps, and
+ // stack object list for frame.
+-func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args bitvector, objs []stackObjectRecord) {
++func (frame *stkframe) getStackMap(cache *pcvalueCache, debug bool) (locals, args bitvector, objs []stackObjectRecord) {
+ 	targetpc := frame.continpc
+ 	if targetpc == 0 {
+ 		// Frame is dead. Return empty bitvectors.

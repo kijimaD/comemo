@@ -19,6 +19,20 @@ Date:   Tue Jun 16 16:16:23 2015 -0700
     Change-Id: I0ce0e905e4d30ec206cce808da406b9b7f0f38e9
     Reviewed-on: https://go-review.googlesource.com/11136
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 3e898bb3a7..2f116464d4 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -478,7 +478,7 @@ func (s *state) assign(op uint8, left *Node, right *Node) {
+ 		t := left.Type
+ 		switch {
+ 		case t.IsString():
+-			val = s.entryNewValue0(ssa.OpConst, left.Type)
++			val = s.entryNewValue0A(ssa.OpConst, left.Type, "")
+ 		case t.IsInteger():
+ 			val = s.entryNewValue0(ssa.OpConst, left.Type)
+ 		case t.IsBoolean():

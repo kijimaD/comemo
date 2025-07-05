@@ -14,7 +14,38 @@ Date:   Thu Mar 2 11:57:24 2023 +0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  api/next/41198.txt   |  1 +
  src/errors/errors.go | 15 +++++++++++++++
  2 files changed, 16 insertions(+)
+
+diff --git a/api/next/41198.txt b/api/next/41198.txt
+new file mode 100644
+index 0000000000..6f83b18d42
+--- /dev/null
++++ b/api/next/41198.txt
+@@ -0,0 +1 @@
++pkg errors, var ErrUnsupported error #41198
+diff --git a/src/errors/errors.go b/src/errors/errors.go
+index 8436f812a6..26db2d2bbf 100644
+--- a/src/errors/errors.go
++++ b/src/errors/errors.go
+@@ -70,3 +70,18 @@ type errorString struct {
+ func (e *errorString) Error() string {
+ 	return e.s
+ }
++
++// ErrUnsupported indicates that a requested operation cannot be performed,
++// because it is unsupported. For example, a call to os.Link when using a
++// file system that does not support hard links.
++//
++// Functions and methods should not return this error but should instead
++// return an error including appropriate context that satisfies
++//
++//	errors.Is(err, errors.ErrUnsupported)
++//
++// either by directly wrapping ErrUnsupported or by implementing an Is method.
++//
++// Functions and methods should document the cases in which an error
++// wrapping this will be returned.
++var ErrUnsupported = New("unsupported operation")

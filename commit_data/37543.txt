@@ -14,7 +14,52 @@ Date:   Wed Aug 15 16:21:00 2018 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/sys_darwin_amd64.s | 4 ++--
  src/runtime/sys_darwin_arm64.s | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index 2a2e7379ca..db74352613 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -306,7 +306,7 @@ TEXT runtime·mmap_trampoline(SB),NOSPLIT,$0
+ 	CMPQ	AX, $-1
+ 	JNE	ok
+ 	CALL	libc_error(SB)
+-	MOVQ	(AX), DX		// errno
++	MOVLQSX	(AX), DX		// errno
+ 	XORL	AX, AX
+ ok:
+ 	MOVQ	AX, 32(BX)
+@@ -371,7 +371,7 @@ TEXT runtime·kevent_trampoline(SB),NOSPLIT,$0
+ 	CMPQ	AX, $-1
+ 	JNE	ok
+ 	CALL	libc_error(SB)
+-	MOVQ	(AX), AX		// errno
++	MOVLQSX	(AX), AX		// errno
+ 	NEGQ	AX			// caller wants it as a negative error code
+ ok:
+ 	POPQ	BP
+diff --git a/src/runtime/sys_darwin_arm64.s b/src/runtime/sys_darwin_arm64.s
+index 4f9d0b8d58..d7ba116b84 100644
+--- a/src/runtime/sys_darwin_arm64.s
++++ b/src/runtime/sys_darwin_arm64.s
+@@ -70,7 +70,7 @@ TEXT runtime·mmap_trampoline(SB),NOSPLIT,$0
+ 	CMP	R0, R2
+ 	BNE	ok
+ 	BL libc_error(SB)
+-	MOVD	(R0), R1
++	MOVW	(R0), R1
+ 	MOVD	$0, R0
+ ok:
+ 	MOVD	R0, 32(R19) // ret 1 p
+@@ -277,7 +277,7 @@ TEXT runtime·kevent_trampoline(SB),NOSPLIT,$0
+ 	CMP	R0, R2
+ 	BNE	ok
+ 	BL libc_error(SB)
+-	MOVD	(R0), R0	// errno
++	MOVW	(R0), R0	// errno
+ 	NEG	R0, R0	// caller wants it as a negative error code
+ ok:
+ 	RET

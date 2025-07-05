@@ -13,6 +13,20 @@ Date:   Wed Sep 12 01:43:09 2018 +0000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Giovanni Bajo <rasky@develer.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  test/codegen/math.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/codegen/math.go b/test/codegen/math.go
+index 99335d2efc..3d5f0917ef 100644
+--- a/test/codegen/math.go
++++ b/test/codegen/math.go
+@@ -74,7 +74,7 @@ func copysign(a, b, c float64) {
+ 	// amd64:"BTSQ\t[$]63"
+ 	// s390x:"LNDFR\t",-"MOVD\t"     (no integer load/store)
+ 	// ppc64le:"FCPSGN"
+-	// arm64:"ORR\t[$]-9223372036854775808"
++	// arm64:"ORR", -"AND"
+ 	sink64[1] = math.Copysign(c, -1)
+ 
+ 	// Like math.Copysign(c, -1), but with integer operations. Useful

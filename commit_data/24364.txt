@@ -13,6 +13,58 @@ Date:   Thu Jul 23 12:05:34 2015 -0400
     Change-Id: I59761a7a04a73681e147e25c1e7f010068276aa8
     Reviewed-on: https://go-review.googlesource.com/12573
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/internal/gcimporter/gcimporter_test.go | 21 ++-------------------
  1 file changed, 2 insertions(+), 19 deletions(-)
+
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index a4b038c91e..e5edadfc26 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -6,7 +6,6 @@ package gcimporter
+ 
+ import (
+ 	"fmt"
+-	"go/build"
+ 	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+@@ -33,23 +32,13 @@ func skipSpecialPlatforms(t *testing.T) {
+ 	}
+ }
+ 
+-var gcPath string // Go compiler path
+-
+-func init() {
+-	if char, err := build.ArchChar(runtime.GOARCH); err == nil {
+-		gcPath = filepath.Join(build.ToolDir, char+"g")
+-		return
+-	}
+-	gcPath = "unknown-GOARCH-compiler"
+-}
+-
+ func compile(t *testing.T, dirname, filename string) string {
+-	cmd := exec.Command(gcPath, filename)
++	cmd := exec.Command("go", "tool", "compile", filename)
+ 	cmd.Dir = dirname
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Logf("%s", out)
+-		t.Fatalf("%s %s failed: %s", gcPath, filename, err)
++		t.Fatalf("go tool compile %s failed: %s", filename, err)
+ 	}
+ 	// filename should end with ".go"
+ 	return filepath.Join(dirname, filename[:len(filename)-2]+"o")
+@@ -108,12 +97,6 @@ func TestImport(t *testing.T) {
+ 		return
+ 	}
+ 
+-	// On cross-compile builds, the path will not exist.
+-	// Need to use GOHOSTOS, which is not available.
+-	if _, err := os.Stat(gcPath); err != nil {
+-		t.Skipf("skipping test: %v", err)
+-	}
+-
+ 	if outFn := compile(t, "testdata", "exports.go"); outFn != "" {
+ 		defer os.Remove(outFn)
+ 	}

@@ -10,6 +10,24 @@ Date:   Thu Sep 21 17:35:32 2017 +0200
     Change-Id: If62d1b296f35758ad3d18d28c8fbb95e797f4464
     Reviewed-on: https://go-review.googlesource.com/65232
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/intconv.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/math/big/intconv.go b/src/math/big/intconv.go
+index 91a62ce04e..5ac61020d1 100644
+--- a/src/math/big/intconv.go
++++ b/src/math/big/intconv.go
+@@ -12,12 +12,6 @@ import (
+ 	"io"
+ )
+ 
+-// TODO(gri) Should rename itoa to utoa (there's no sign). That
+-// would permit the introduction of itoa which is like utoa but
+-// reserves a byte for a possible sign that's passed in. That
+-// would permit Int.Text to be implemented w/o the need for
+-// string copy if the number is negative.
+-
+ // Text returns the string representation of x in the given base.
+ // Base must be between 2 and 36, inclusive. The result uses the
+ // lower-case letters 'a' to 'z' for digit values >= 10. No base

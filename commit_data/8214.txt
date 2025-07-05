@@ -9,8 +9,93 @@ Date:   Mon Apr 25 12:13:54 2011 -0400
     R=golang-dev, iant2
     CC=golang-dev
     https://golang.org/cl/4433065
-
+---
  src/pkg/runtime/darwin/mem.c  | 7 +++++++
  src/pkg/runtime/freebsd/mem.c | 9 +++++++++
  src/pkg/runtime/linux/mem.c   | 7 +++++++
  3 files changed, 23 insertions(+)
+
+diff --git a/src/pkg/runtime/darwin/mem.c b/src/pkg/runtime/darwin/mem.c
+index cbae187180..935c032bc0 100644
+--- a/src/pkg/runtime/darwin/mem.c
++++ b/src/pkg/runtime/darwin/mem.c
+@@ -36,6 +36,11 @@ runtime·SysReserve(void *v, uintptr n)
+ 	return runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
+ }
+ 
++enum
++{
++	ENOMEM = 12,
++};
++
+ void
+ runtime·SysMap(void *v, uintptr n)
+ {
+@@ -43,6 +48,8 @@ runtime·SysMap(void *v, uintptr n)
+ 	
+ 	mstats.sys += n;
+ 	p = runtime·mmap(v, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_FIXED|MAP_PRIVATE, -1, 0);
++	if(p == (void*)-ENOMEM)
++		runtime·throw("runtime: out of memory");
+ 	if(p != v)
+ 		runtime·throw("runtime: cannot map pages in arena address space");
+ }
+diff --git a/src/pkg/runtime/freebsd/mem.c b/src/pkg/runtime/freebsd/mem.c
+index f80439e38f..07abf2cfe0 100644
+--- a/src/pkg/runtime/freebsd/mem.c
++++ b/src/pkg/runtime/freebsd/mem.c
+@@ -42,6 +42,11 @@ runtime·SysReserve(void *v, uintptr n)
+ 	return runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
+ }
+ 
++enum
++{
++	ENOMEM = 12,
++};
++
+ void
+ runtime·SysMap(void *v, uintptr n)
+ {
+@@ -52,6 +57,8 @@ runtime·SysMap(void *v, uintptr n)
+ 	// On 64-bit, we don't actually have v reserved, so tread carefully.
+ 	if(sizeof(void*) == 8) {
+ 		p = runtime·mmap(v, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, -1, 0);
++		if(p == (void*)-ENOMEM)
++			runtime·throw("runtime: out of memory");
+ 		if(p != v) {
+ 			runtime·printf("runtime: address space conflict: map(%p) = %p\n", v, p);
+ 			runtime·throw("runtime: address space conflict");
+@@ -60,6 +67,8 @@ runtime·SysMap(void *v, uintptr n)
+ 	}
+ 
+ 	p = runtime·mmap(v, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_FIXED|MAP_PRIVATE, -1, 0);
++	if(p == (void*)-ENOMEM)
++		runtime·throw("runtime: out of memory");
+ 	if(p != v)
+ 		runtime·throw("runtime: cannot map pages in arena address space");
+ }
+diff --git a/src/pkg/runtime/linux/mem.c b/src/pkg/runtime/linux/mem.c
+index d2f6f82046..ce1a8aa70b 100644
+--- a/src/pkg/runtime/linux/mem.c
++++ b/src/pkg/runtime/linux/mem.c
+@@ -48,6 +48,11 @@ runtime·SysReserve(void *v, uintptr n)
+ 	return runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
+ }
+ 
++enum
++{
++	ENOMEM = 12,
++};
++
+ void
+ runtime·SysMap(void *v, uintptr n)
+ {
+@@ -66,6 +71,8 @@ runtime·SysMap(void *v, uintptr n)
+ 	}
+ 
+ 	p = runtime·mmap(v, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_FIXED|MAP_PRIVATE, -1, 0);
++	if(p == (void*)-ENOMEM)
++		runtime·throw("runtime: out of memory");
+ 	if(p != v)
+ 		runtime·throw("runtime: cannot map pages in arena address space");
+ }

@@ -14,8 +14,341 @@ Date:   Sun Feb 26 02:54:32 2017 +0100
     Reviewed-on: https://go-review.googlesource.com/37442
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  12 +-
  src/cmd/compile/internal/ssa/rewritegeneric.go | 228 ++++++++++++++++++++++++-
  test/checkbce.go                               |  45 ++++-
  3 files changed, 274 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index c7d1743d5b..00103babe5 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -192,8 +192,16 @@
+ (IsInBounds (ZeroExt16to32 _) (Const32 [c])) && (1 << 16) <= c -> (ConstBool [1])
+ (IsInBounds (ZeroExt16to64 _) (Const64 [c])) && (1 << 16) <= c -> (ConstBool [1])
+ (IsInBounds x x) -> (ConstBool [0])
+-(IsInBounds (And32 (Const32 [c]) _) (Const32 [d])) && 0 <= c && c < d -> (ConstBool [1])
+-(IsInBounds (And64 (Const64 [c]) _) (Const64 [d])) && 0 <= c && c < d -> (ConstBool [1])
++(IsInBounds                (And8  (Const8  [c]) _)  (Const8  [d])) && 0 <= c && c < d -> (ConstBool [1])
++(IsInBounds (ZeroExt8to16  (And8  (Const8  [c]) _)) (Const16 [d])) && 0 <= c && c < d -> (ConstBool [1])
++(IsInBounds (ZeroExt8to32  (And8  (Const8  [c]) _)) (Const32 [d])) && 0 <= c && c < d -> (ConstBool [1])
++(IsInBounds (ZeroExt8to64  (And8  (Const8  [c]) _)) (Const64 [d])) && 0 <= c && c < d -> (ConstBool [1])
++(IsInBounds                (And16 (Const16 [c]) _)  (Const16 [d])) && 0 <= c && c < d -> (ConstBool [1])
++(IsInBounds (ZeroExt16to32 (And16 (Const16 [c]) _)) (Const32 [d])) && 0 <= c && c < d -> (ConstBool [1])
++(IsInBounds (ZeroExt16to64 (And16 (Const16 [c]) _)) (Const64 [d])) && 0 <= c && c < d -> (ConstBool [1])
++(IsInBounds                (And32 (Const32 [c]) _)  (Const32 [d])) && 0 <= c && c < d -> (ConstBool [1])
++(IsInBounds (ZeroExt32to64 (And32 (Const32 [c]) _)) (Const64 [d])) && 0 <= c && c < d -> (ConstBool [1])
++(IsInBounds                (And64 (Const64 [c]) _)  (Const64 [d])) && 0 <= c && c < d -> (ConstBool [1])
+ (IsInBounds (Const32 [c]) (Const32 [d])) -> (ConstBool [b2i(0 <= c && c < d)])
+ (IsInBounds (Const64 [c]) (Const64 [d])) -> (ConstBool [b2i(0 <= c && c < d)])
+ // (Mod64u x y) is always between 0 (inclusive) and y (exclusive).
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index c14a3e000c..5c09ea03f4 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -5814,7 +5814,202 @@ func rewriteValuegeneric_OpIsInBounds(v *Value, config *Config) bool {
+ 		v.AuxInt = 0
+ 		return true
+ 	}
+-	// match: (IsInBounds (And32 (Const32 [c]) _) (Const32 [d]))
++	// match: (IsInBounds                (And8  (Const8  [c]) _)  (Const8  [d]))
++	// cond: 0 <= c && c < d
++	// result: (ConstBool [1])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpAnd8 {
++			break
++		}
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpConst8 {
++			break
++		}
++		c := v_0_0.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst8 {
++			break
++		}
++		d := v_1.AuxInt
++		if !(0 <= c && c < d) {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = 1
++		return true
++	}
++	// match: (IsInBounds (ZeroExt8to16  (And8  (Const8  [c]) _)) (Const16 [d]))
++	// cond: 0 <= c && c < d
++	// result: (ConstBool [1])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpZeroExt8to16 {
++			break
++		}
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpAnd8 {
++			break
++		}
++		v_0_0_0 := v_0_0.Args[0]
++		if v_0_0_0.Op != OpConst8 {
++			break
++		}
++		c := v_0_0_0.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst16 {
++			break
++		}
++		d := v_1.AuxInt
++		if !(0 <= c && c < d) {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = 1
++		return true
++	}
++	// match: (IsInBounds (ZeroExt8to32  (And8  (Const8  [c]) _)) (Const32 [d]))
++	// cond: 0 <= c && c < d
++	// result: (ConstBool [1])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpZeroExt8to32 {
++			break
++		}
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpAnd8 {
++			break
++		}
++		v_0_0_0 := v_0_0.Args[0]
++		if v_0_0_0.Op != OpConst8 {
++			break
++		}
++		c := v_0_0_0.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst32 {
++			break
++		}
++		d := v_1.AuxInt
++		if !(0 <= c && c < d) {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = 1
++		return true
++	}
++	// match: (IsInBounds (ZeroExt8to64  (And8  (Const8  [c]) _)) (Const64 [d]))
++	// cond: 0 <= c && c < d
++	// result: (ConstBool [1])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpZeroExt8to64 {
++			break
++		}
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpAnd8 {
++			break
++		}
++		v_0_0_0 := v_0_0.Args[0]
++		if v_0_0_0.Op != OpConst8 {
++			break
++		}
++		c := v_0_0_0.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		d := v_1.AuxInt
++		if !(0 <= c && c < d) {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = 1
++		return true
++	}
++	// match: (IsInBounds                (And16 (Const16 [c]) _)  (Const16 [d]))
++	// cond: 0 <= c && c < d
++	// result: (ConstBool [1])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpAnd16 {
++			break
++		}
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpConst16 {
++			break
++		}
++		c := v_0_0.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst16 {
++			break
++		}
++		d := v_1.AuxInt
++		if !(0 <= c && c < d) {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = 1
++		return true
++	}
++	// match: (IsInBounds (ZeroExt16to32 (And16 (Const16 [c]) _)) (Const32 [d]))
++	// cond: 0 <= c && c < d
++	// result: (ConstBool [1])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpZeroExt16to32 {
++			break
++		}
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpAnd16 {
++			break
++		}
++		v_0_0_0 := v_0_0.Args[0]
++		if v_0_0_0.Op != OpConst16 {
++			break
++		}
++		c := v_0_0_0.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst32 {
++			break
++		}
++		d := v_1.AuxInt
++		if !(0 <= c && c < d) {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = 1
++		return true
++	}
++	// match: (IsInBounds (ZeroExt16to64 (And16 (Const16 [c]) _)) (Const64 [d]))
++	// cond: 0 <= c && c < d
++	// result: (ConstBool [1])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpZeroExt16to64 {
++			break
++		}
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpAnd16 {
++			break
++		}
++		v_0_0_0 := v_0_0.Args[0]
++		if v_0_0_0.Op != OpConst16 {
++			break
++		}
++		c := v_0_0_0.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		d := v_1.AuxInt
++		if !(0 <= c && c < d) {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = 1
++		return true
++	}
++	// match: (IsInBounds                (And32 (Const32 [c]) _)  (Const32 [d]))
+ 	// cond: 0 <= c && c < d
+ 	// result: (ConstBool [1])
+ 	for {
+@@ -5839,7 +6034,36 @@ func rewriteValuegeneric_OpIsInBounds(v *Value, config *Config) bool {
+ 		v.AuxInt = 1
+ 		return true
+ 	}
+-	// match: (IsInBounds (And64 (Const64 [c]) _) (Const64 [d]))
++	// match: (IsInBounds (ZeroExt32to64 (And32 (Const32 [c]) _)) (Const64 [d]))
++	// cond: 0 <= c && c < d
++	// result: (ConstBool [1])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpZeroExt32to64 {
++			break
++		}
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpAnd32 {
++			break
++		}
++		v_0_0_0 := v_0_0.Args[0]
++		if v_0_0_0.Op != OpConst32 {
++			break
++		}
++		c := v_0_0_0.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		d := v_1.AuxInt
++		if !(0 <= c && c < d) {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = 1
++		return true
++	}
++	// match: (IsInBounds                (And64 (Const64 [c]) _)  (Const64 [d]))
+ 	// cond: 0 <= c && c < d
+ 	// result: (ConstBool [1])
+ 	for {
+diff --git a/test/checkbce.go b/test/checkbce.go
+index 4f9574d420..a4b0fe0d2a 100644
+--- a/test/checkbce.go
++++ b/test/checkbce.go
+@@ -13,10 +13,14 @@ func f0(a []int) {
+ }
+ 
+ func f1(a [256]int, i int) {
+-	useInt(a[i])     // ERROR "Found IsInBounds$"
+-	useInt(a[i%256]) // ERROR "Found IsInBounds$"
+-	useInt(a[i&255])
+-	useInt(a[i&17])
++	var j int
++	useInt(a[i]) // ERROR "Found IsInBounds$"
++	j = i % 256
++	useInt(a[j]) // ERROR "Found IsInBounds$"
++	j = i & 255
++	useInt(a[j])
++	j = i & 17
++	useInt(a[j])
+ 
+ 	if 4 <= i && i < len(a) {
+ 		useInt(a[i])
+@@ -29,9 +33,36 @@ func f1(a [256]int, i int) {
+ 
+ func f2(a [256]int, i uint) {
+ 	useInt(a[i]) // ERROR "Found IsInBounds$"
+-	useInt(a[i%256])
+-	useInt(a[i&255])
+-	useInt(a[i&17])
++	j := i % 256
++	useInt(a[j])
++	j = i & 255
++	useInt(a[j])
++	j = i & 17
++	useInt(a[j])
++}
++
++func f2a(a [35]int, i uint8) {
++	useInt(a[i]) // ERROR "Found IsInBounds$"
++	j := i & 34
++	useInt(a[j])
++	j = i & 17
++	useInt(a[j])
++}
++
++func f2b(a [35]int, i uint16) {
++	useInt(a[i]) // ERROR "Found IsInBounds$"
++	j := i & 34
++	useInt(a[j])
++	j = i & 17
++	useInt(a[j])
++}
++
++func f2c(a [35]int, i uint32) {
++	useInt(a[i]) // ERROR "Found IsInBounds$"
++	j := i & 34
++	useInt(a[j])
++	j = i & 17
++	useInt(a[j])
+ }
+ 
+ func f3(a [256]int, i uint8) {

@@ -8,6 +8,20 @@ Date:   Fri Mar 18 16:41:38 2016 +0100
     Reviewed-on: https://go-review.googlesource.com/20855
     Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/url/url_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/url/url_test.go b/src/net/url/url_test.go
+index 896a5da341..7560f22c4a 100644
+--- a/src/net/url/url_test.go
++++ b/src/net/url/url_test.go
+@@ -611,7 +611,7 @@ func BenchmarkString(b *testing.B) {
+ 			g = u.String()
+ 		}
+ 		b.StopTimer()
+-		if w := tt.roundtrip; g != w {
++		if w := tt.roundtrip; b.N > 0 && g != w {
+ 			b.Errorf("Parse(%q).String() == %q, want %q", tt.in, g, w)
+ 		}
+ 	}

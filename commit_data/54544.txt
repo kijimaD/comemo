@@ -14,6 +14,22 @@ Date:   Mon Oct 31 14:58:40 2022 -0400
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/api/goapi_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/api/goapi_test.go b/src/cmd/api/goapi_test.go
+index f8ee520bda..464dc68322 100644
+--- a/src/cmd/api/goapi_test.go
++++ b/src/cmd/api/goapi_test.go
+@@ -22,6 +22,10 @@ func TestMain(m *testing.M) {
+ 		os.Stdout.WriteString("skipping test: platform cannot exec")
+ 		os.Exit(0)
+ 	}
++	if !testenv.HasGoBuild() {
++		os.Stdout.WriteString("skipping test: platform cannot 'go build' to import std packages")
++		os.Exit(0)
++	}
+ 
+ 	flag.Parse()
+ 	for _, c := range contexts {

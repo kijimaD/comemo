@@ -18,7 +18,40 @@ Date:   Sun Sep 14 20:39:08 2014 +0000
     R=r
     CC=golang-codereviews
     https://golang.org/cl/143040043
-
+---
  src/runtime/mgc0.c       | 3 ++-
  src/runtime/traceback.go | 4 ++--
  2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/mgc0.c b/src/runtime/mgc0.c
+index c976b09c36..30a8ea2c9c 100644
+--- a/src/runtime/mgc0.c
++++ b/src/runtime/mgc0.c
+@@ -634,9 +634,10 @@ scanframe(Stkframe *frame, void *unused)
+ 
+ 	// Scan local variables if stack frame has been allocated.
+ 	size = frame->varp - frame->sp;
+-	minsize = 0;
+ 	if(thechar != '6' && thechar != '8')
+ 		minsize = sizeof(uintptr);
++	else
++		minsize = 0;
+ 	if(size > minsize) {
+ 		stackmap = runtime·funcdata(f, FUNCDATA_LocalsPointerMaps);
+ 		if(stackmap == nil || stackmap->n <= 0) {
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index eaf54db319..07b68d29b5 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -451,9 +451,9 @@ func traceback(pc uintptr, sp uintptr, lr uintptr, gp *g) {
+ 	}
+ 	// Print traceback. By default, omits runtime frames.
+ 	// If that means we print nothing at all, repeat forcing all frames printed.
+-	n = gentraceback(pc, sp, 0, gp, 0, nil, _TracebackMaxFrames, nil, nil, false)
++	n = gentraceback(pc, sp, lr, gp, 0, nil, _TracebackMaxFrames, nil, nil, false)
+ 	if n == 0 {
+-		n = gentraceback(pc, sp, 0, gp, 0, nil, _TracebackMaxFrames, nil, nil, true)
++		n = gentraceback(pc, sp, lr, gp, 0, nil, _TracebackMaxFrames, nil, nil, true)
+ 	}
+ 	if n == _TracebackMaxFrames {
+ 		print("...additional frames elided...\n")

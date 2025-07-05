@@ -12,6 +12,20 @@ Date:   Tue Jun 3 23:01:27 2025 +0800
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/noder/noder.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 77daf9eda5..79a9078333 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -458,7 +458,7 @@ func Renameinit() *types.Sym {
+ func checkEmbed(decl *syntax.VarDecl, haveEmbed, withinFunc bool) error {
+ 	switch {
+ 	case !haveEmbed:
+-		return errors.New("go:embed only allowed in Go files that import \"embed\"")
++		return errors.New("go:embed requires import \"embed\" (or import _ \"embed\", if package is not used)")
+ 	case len(decl.NameList) > 1:
+ 		return errors.New("go:embed cannot apply to multiple vars")
+ 	case decl.Values != nil:

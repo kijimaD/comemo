@@ -13,7 +13,7 @@ Date:   Sun Nov 12 22:19:11 2017 +0000
     Reviewed-on: https://go-review.googlesource.com/77251
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  src/crypto/hmac/hmac.go     |  3 +++
  src/crypto/md5/md5.go       |  4 +++-
  src/crypto/sha1/sha1.go     |  4 +++-
@@ -24,3 +24,165 @@ Date:   Sun Nov 12 22:19:11 2017 +0000
  src/hash/crc64/crc64.go     |  8 +++++---
  src/hash/fnv/fnv.go         |  4 ++++
  9 files changed, 41 insertions(+), 14 deletions(-)
+
+diff --git a/src/crypto/hmac/hmac.go b/src/crypto/hmac/hmac.go
+index 9ef9c448ee..3c8e727bc8 100644
+--- a/src/crypto/hmac/hmac.go
++++ b/src/crypto/hmac/hmac.go
+@@ -64,6 +64,9 @@ func (h *hmac) Reset() {
+ }
+ 
+ // New returns a new HMAC hash using the given hash.Hash type and key.
++// Note that unlike other hash implementations in the standard library,
++// the returned Hash does not implement encoding.BinaryMarshaler
++// or encoding.BinaryUnmarshaler.
+ func New(h func() hash.Hash, key []byte) hash.Hash {
+ 	hm := new(hmac)
+ 	hm.outer = h()
+diff --git a/src/crypto/md5/md5.go b/src/crypto/md5/md5.go
+index c4820dab66..3a29af1f15 100644
+--- a/src/crypto/md5/md5.go
++++ b/src/crypto/md5/md5.go
+@@ -123,7 +123,9 @@ func consumeUint32(b []byte) ([]byte, uint32) {
+ 	return b[4:], x
+ }
+ 
+-// New returns a new hash.Hash computing the MD5 checksum.
++// New returns a new hash.Hash computing the MD5 checksum. The Hash also
++// implements encoding.BinaryMarshaler and encoding.BinaryUnmarshaler to
++// marshal and unmarshal the internal state of the hash.
+ func New() hash.Hash {
+ 	d := new(digest)
+ 	d.Reset()
+diff --git a/src/crypto/sha1/sha1.go b/src/crypto/sha1/sha1.go
+index 2586b59ddf..5f32434f0f 100644
+--- a/src/crypto/sha1/sha1.go
++++ b/src/crypto/sha1/sha1.go
+@@ -113,7 +113,9 @@ func (d *digest) Reset() {
+ 	d.len = 0
+ }
+ 
+-// New returns a new hash.Hash computing the SHA1 checksum.
++// New returns a new hash.Hash computing the SHA1 checksum. The Hash also
++// implements encoding.BinaryMarshaler and encoding.BinaryUnmarshaler to
++// marshal and unmarshal the internal state of the hash.
+ func New() hash.Hash {
+ 	d := new(digest)
+ 	d.Reset()
+diff --git a/src/crypto/sha256/sha256.go b/src/crypto/sha256/sha256.go
+index 568477c3fd..f078cab378 100644
+--- a/src/crypto/sha256/sha256.go
++++ b/src/crypto/sha256/sha256.go
+@@ -164,7 +164,10 @@ func (d *digest) Reset() {
+ 	d.len = 0
+ }
+ 
+-// New returns a new hash.Hash computing the SHA256 checksum.
++// New returns a new hash.Hash computing the SHA256 checksum. The Hash
++// also implements encoding.BinaryMarshaler and
++// encoding.BinaryUnmarshaler to marshal and unmarshal the internal
++// state of the hash.
+ func New() hash.Hash {
+ 	d := new(digest)
+ 	d.Reset()
+diff --git a/src/crypto/sha512/sha512.go b/src/crypto/sha512/sha512.go
+index 9b60facb0a..2ea27c5535 100644
+--- a/src/crypto/sha512/sha512.go
++++ b/src/crypto/sha512/sha512.go
+@@ -4,6 +4,10 @@
+ 
+ // Package sha512 implements the SHA-384, SHA-512, SHA-512/224, and SHA-512/256
+ // hash algorithms as defined in FIPS 180-4.
++//
++// All the hash.Hash implementations returned by this package also
++// implement encoding.BinaryMarshaler and encoding.BinaryUnmarshaler to
++// marshal and unmarshal the internal state of the hash.
+ package sha512
+ 
+ import (
+diff --git a/src/hash/adler32/adler32.go b/src/hash/adler32/adler32.go
+index 149a6b889e..e8783e4c39 100644
+--- a/src/hash/adler32/adler32.go
++++ b/src/hash/adler32/adler32.go
+@@ -35,8 +35,11 @@ type digest uint32
+ 
+ func (d *digest) Reset() { *d = 1 }
+ 
+-// New returns a new hash.Hash32 computing the Adler-32 checksum.
+-// Its Sum method will lay the value out in big-endian byte order.
++// New returns a new hash.Hash32 computing the Adler-32 checksum. Its
++// Sum method will lay the value out in big-endian byte order. The
++// returned Hash32 also implements encoding.BinaryMarshaler and
++// encoding.BinaryUnmarshaler to marshal and unmarshal the internal
++// state of the hash.
+ func New() hash.Hash32 {
+ 	d := new(digest)
+ 	d.Reset()
+diff --git a/src/hash/crc32/crc32.go b/src/hash/crc32/crc32.go
+index db05f124c4..1912caa212 100644
+--- a/src/hash/crc32/crc32.go
++++ b/src/hash/crc32/crc32.go
+@@ -139,9 +139,11 @@ type digest struct {
+ 	tab *Table
+ }
+ 
+-// New creates a new hash.Hash32 computing the CRC-32 checksum
+-// using the polynomial represented by the Table.
+-// Its Sum method will lay the value out in big-endian byte order.
++// New creates a new hash.Hash32 computing the CRC-32 checksum using the
++// polynomial represented by the Table. Its Sum method will lay the
++// value out in big-endian byte order. The returned Hash32 also
++// implements encoding.BinaryMarshaler and encoding.BinaryUnmarshaler to
++// marshal and unmarshal the internal state of the hash.
+ func New(tab *Table) hash.Hash32 {
+ 	if tab == IEEETable {
+ 		ieeeOnce.Do(ieeeInit)
+@@ -149,9 +151,11 @@ func New(tab *Table) hash.Hash32 {
+ 	return &digest{0, tab}
+ }
+ 
+-// NewIEEE creates a new hash.Hash32 computing the CRC-32 checksum
+-// using the IEEE polynomial.
+-// Its Sum method will lay the value out in big-endian byte order.
++// NewIEEE creates a new hash.Hash32 computing the CRC-32 checksum using
++// the IEEE polynomial. Its Sum method will lay the value out in
++// big-endian byte order. The returned Hash32 also implements
++// encoding.BinaryMarshaler and encoding.BinaryUnmarshaler to marshal
++// and unmarshal the internal state of the hash.
+ func NewIEEE() hash.Hash32 { return New(IEEETable) }
+ 
+ func (d *digest) Size() int { return Size }
+diff --git a/src/hash/crc64/crc64.go b/src/hash/crc64/crc64.go
+index 54c942c97a..3b24c24406 100644
+--- a/src/hash/crc64/crc64.go
++++ b/src/hash/crc64/crc64.go
+@@ -80,9 +80,11 @@ type digest struct {
+ 	tab *Table
+ }
+ 
+-// New creates a new hash.Hash64 computing the CRC-64 checksum
+-// using the polynomial represented by the Table.
+-// Its Sum method will lay the value out in big-endian byte order.
++// New creates a new hash.Hash64 computing the CRC-64 checksum using the
++// polynomial represented by the Table. Its Sum method will lay the
++// value out in big-endian byte order. The returned Hash64 also
++// implements encoding.BinaryMarshaler and encoding.BinaryUnmarshaler to
++// marshal and unmarshal the internal state of the hash.
+ func New(tab *Table) hash.Hash64 { return &digest{0, tab} }
+ 
+ func (d *digest) Size() int { return Size }
+diff --git a/src/hash/fnv/fnv.go b/src/hash/fnv/fnv.go
+index 99c892000b..7662315d43 100644
+--- a/src/hash/fnv/fnv.go
++++ b/src/hash/fnv/fnv.go
+@@ -6,6 +6,10 @@
+ // created by Glenn Fowler, Landon Curt Noll, and Phong Vo.
+ // See
+ // https://en.wikipedia.org/wiki/Fowler-Noll-Vo_hash_function.
++//
++// All the hash.Hash implementations returned by this package also
++// implement encoding.BinaryMarshaler and encoding.BinaryUnmarshaler to
++// marshal and unmarshal the internal state of the hash.
+ package fnv
+ 
+ import (

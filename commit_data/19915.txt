@@ -8,8 +8,54 @@ Date:   Wed Aug 6 14:58:17 2014 -0400
     R=minux, dave, bradfitz, aram
     CC=golang-codereviews
     https://golang.org/cl/119470043
-
+---
  src/cmd/dist/build.c        | 4 +++-
  src/pkg/go/build/build.go   | 2 ++
  src/pkg/go/build/syslist.go | 2 +-
  3 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index a994367351..70b7fb1056 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -40,7 +40,7 @@ static void dopack(char*, char*, char**, int);
+ static char *findgoversion(void);
+ 
+ // The known architecture letters.
+-static char *gochars = "5668";
++static char *gochars = "566899";
+ 
+ // The known architectures.
+ static char *okgoarch[] = {
+@@ -49,6 +49,8 @@ static char *okgoarch[] = {
+ 	"amd64",
+ 	"amd64p32",
+ 	"386",
++	"power64",
++	"power64le",
+ };
+ 
+ // The known operating systems.
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index 09730d6351..e8bfc4a61e 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -1230,6 +1230,8 @@ func ArchChar(goarch string) (string, error) {
+ 		return "6", nil
+ 	case "arm":
+ 		return "5", nil
++	case "power64", "power64le":
++		return "9", nil
+ 	}
+ 	return "", errors.New("unsupported GOARCH " + goarch)
+ }
+diff --git a/src/pkg/go/build/syslist.go b/src/pkg/go/build/syslist.go
+index 965f873dfb..2ab53bb9cc 100644
+--- a/src/pkg/go/build/syslist.go
++++ b/src/pkg/go/build/syslist.go
+@@ -5,4 +5,4 @@
+ package build
+ 
+ const goosList = "android darwin dragonfly freebsd linux nacl netbsd openbsd plan9 solaris windows "
+-const goarchList = "386 amd64 amd64p32 arm "
++const goarchList = "386 amd64 amd64p32 arm power64 power64le "

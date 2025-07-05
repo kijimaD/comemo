@@ -7,9 +7,291 @@ Date:   Wed Apr 24 08:13:01 2013 -0700
     R=r, ken, khr, daniel.morsing
     CC=dsymonds, golang-dev, rickyz
     https://golang.org/cl/8925043
-
+---
  src/cmd/5g/cgen.c | 65 ++++++++++++++++++++++++++++++++-----------------------
  src/cmd/6g/cgen.c | 51 +++++++++++++++++++++++++------------------
  src/cmd/8g/cgen.c | 51 +++++++++++++++++++++++++------------------
  test/nilptr.go    | 22 +++++++++++++++++++
  4 files changed, 120 insertions(+), 69 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 9e35f9566a..0844e180f6 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -679,6 +679,19 @@ agen(Node *n, Node *res)
+ 
+ 	case ODOT:
+ 		agen(nl, res);
++		// explicit check for nil if struct is large enough
++		// that we might derive too big a pointer.
++		if(nl->type->width >= unmappedzero) {
++			regalloc(&n1, types[tptr], N);
++			gmove(res, &n1);
++			regalloc(&n2, types[TUINT8], &n1);
++			n1.op = OINDREG;
++			n1.type = types[TUINT8];
++			n1.xoffset = 0;
++			gmove(&n1, &n2);
++			regfree(&n1);
++			regfree(&n2);
++		}
+ 		if(n->xoffset != 0) {
+ 			nodconst(&n1, types[TINT32], n->xoffset);
+ 			regalloc(&n2, n1.type, N);
+@@ -694,20 +707,20 @@ agen(Node *n, Node *res)
+ 
+ 	case ODOTPTR:
+ 		cgen(nl, res);
++		// explicit check for nil if struct is large enough
++		// that we might derive too big a pointer.
++		if(nl->type->type->width >= unmappedzero) {
++			regalloc(&n1, types[tptr], N);
++			gmove(res, &n1);
++			regalloc(&n2, types[TUINT8], &n1);
++			n1.op = OINDREG;
++			n1.type = types[TUINT8];
++			n1.xoffset = 0;
++			gmove(&n1, &n2);
++			regfree(&n1);
++			regfree(&n2);
++		}
+ 		if(n->xoffset != 0) {
+-			// explicit check for nil if struct is large enough
+-			// that we might derive too big a pointer.
+-			if(nl->type->type->width >= unmappedzero) {
+-				regalloc(&n1, types[tptr], N);
+-				gmove(res, &n1);
+-				regalloc(&n2, types[TUINT8], &n1);
+-				n1.op = OINDREG;
+-				n1.type = types[TUINT8];
+-				n1.xoffset = 0;
+-				gmove(&n1, &n2);
+-				regfree(&n1);
+-				regfree(&n2);
+-			}
+ 			nodconst(&n1, types[TINT32], n->xoffset);
+ 			regalloc(&n2, n1.type, N);
+ 			regalloc(&n3, types[tptr], N);
+@@ -777,20 +790,18 @@ igen(Node *n, Node *a, Node *res)
+ 			regalloc(a, types[tptr], res);
+ 			cgen(n->left, a);
+ 		}
+-		if(n->xoffset != 0) {
+-			// explicit check for nil if struct is large enough
+-			// that we might derive too big a pointer.
+-			if(n->left->type->type->width >= unmappedzero) {
+-				regalloc(&n1, types[tptr], N);
+-				gmove(a, &n1);
+-				regalloc(&n2, types[TUINT8], &n1);
+-				n1.op = OINDREG;
+-				n1.type = types[TUINT8];
+-				n1.xoffset = 0;
+-				gmove(&n1, &n2);
+-				regfree(&n1);
+-				regfree(&n2);
+-			}
++		// explicit check for nil if struct is large enough
++		// that we might derive too big a pointer.
++		if(n->left->type->type->width >= unmappedzero) {
++			regalloc(&n1, types[tptr], N);
++			gmove(a, &n1);
++			regalloc(&n2, types[TUINT8], &n1);
++			n1.op = OINDREG;
++			n1.type = types[TUINT8];
++			n1.xoffset = 0;
++			gmove(&n1, &n2);
++			regfree(&n1);
++			regfree(&n2);
+ 		}
+ 		a->op = OINDREG;
+ 		a->xoffset = n->xoffset;
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index a51c0ca58c..32980a50b5 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -882,24 +882,35 @@ agen(Node *n, Node *res)
+ 
+ 	case ODOT:
+ 		agen(nl, res);
++		// explicit check for nil if struct is large enough
++		// that we might derive too big a pointer.
++		if(nl->type->width >= unmappedzero) {
++			regalloc(&n1, types[tptr], res);
++			gmove(res, &n1);
++			n1.op = OINDREG;
++			n1.type = types[TUINT8];
++			n1.xoffset = 0;
++			gins(ATESTB, nodintconst(0), &n1);
++			regfree(&n1);
++		}
+ 		if(n->xoffset != 0)
+ 			ginscon(optoas(OADD, types[tptr]), n->xoffset, res);
+ 		break;
+ 
+ 	case ODOTPTR:
+ 		cgen(nl, res);
++		// explicit check for nil if struct is large enough
++		// that we might derive too big a pointer.
++		if(nl->type->type->width >= unmappedzero) {
++			regalloc(&n1, types[tptr], res);
++			gmove(res, &n1);
++			n1.op = OINDREG;
++			n1.type = types[TUINT8];
++			n1.xoffset = 0;
++			gins(ATESTB, nodintconst(0), &n1);
++			regfree(&n1);
++		}
+ 		if(n->xoffset != 0) {
+-			// explicit check for nil if struct is large enough
+-			// that we might derive too big a pointer.
+-			if(nl->type->type->width >= unmappedzero) {
+-				regalloc(&n1, types[tptr], res);
+-				gmove(res, &n1);
+-				n1.op = OINDREG;
+-				n1.type = types[TUINT8];
+-				n1.xoffset = 0;
+-				gins(ATESTB, nodintconst(0), &n1);
+-				regfree(&n1);
+-			}
+ 			ginscon(optoas(OADD, types[tptr]), n->xoffset, res);
+ 		}
+ 		break;
+@@ -950,16 +961,14 @@ igen(Node *n, Node *a, Node *res)
+ 
+ 	case ODOTPTR:
+ 		cgenr(n->left, a, res);
+-		if(n->xoffset != 0) {
+-			// explicit check for nil if struct is large enough
+-			// that we might derive too big a pointer.
+-			if(n->left->type->type->width >= unmappedzero) {
+-				n1 = *a;
+-				n1.op = OINDREG;
+-				n1.type = types[TUINT8];
+-				n1.xoffset = 0;
+-				gins(ATESTB, nodintconst(0), &n1);
+-			}
++		// explicit check for nil if struct is large enough
++		// that we might derive too big a pointer.
++		if(n->left->type->type->width >= unmappedzero) {
++			n1 = *a;
++			n1.op = OINDREG;
++			n1.type = types[TUINT8];
++			n1.xoffset = 0;
++			gins(ATESTB, nodintconst(0), &n1);
+ 		}
+ 		a->op = OINDREG;
+ 		a->xoffset += n->xoffset;
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index f93be57e55..b88ea401bb 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -739,6 +739,17 @@ agen(Node *n, Node *res)
+ 
+ 	case ODOT:
+ 		agen(nl, res);
++		// explicit check for nil if struct is large enough
++		// that we might derive too big a pointer.
++		if(nl->type->width >= unmappedzero) {
++			regalloc(&n1, types[tptr], res);
++			gmove(res, &n1);
++			n1.op = OINDREG;
++			n1.type = types[TUINT8];
++			n1.xoffset = 0;
++			gins(ATESTB, nodintconst(0), &n1);
++			regfree(&n1);
++		}
+ 		if(n->xoffset != 0) {
+ 			nodconst(&n1, types[tptr], n->xoffset);
+ 			gins(optoas(OADD, types[tptr]), &n1, res);
+@@ -750,18 +761,18 @@ agen(Node *n, Node *res)
+ 		if(!isptr[t->etype])
+ 			fatal("agen: not ptr %N", n);
+ 		cgen(nl, res);
++		// explicit check for nil if struct is large enough
++		// that we might derive too big a pointer.
++		if(nl->type->type->width >= unmappedzero) {
++			regalloc(&n1, types[tptr], res);
++			gmove(res, &n1);
++			n1.op = OINDREG;
++			n1.type = types[TUINT8];
++			n1.xoffset = 0;
++			gins(ATESTB, nodintconst(0), &n1);
++			regfree(&n1);
++		}
+ 		if(n->xoffset != 0) {
+-			// explicit check for nil if struct is large enough
+-			// that we might derive too big a pointer.
+-			if(nl->type->type->width >= unmappedzero) {
+-				regalloc(&n1, types[tptr], res);
+-				gmove(res, &n1);
+-				n1.op = OINDREG;
+-				n1.type = types[TUINT8];
+-				n1.xoffset = 0;
+-				gins(ATESTB, nodintconst(0), &n1);
+-				regfree(&n1);
+-			}
+ 			nodconst(&n1, types[tptr], n->xoffset);
+ 			gins(optoas(OADD, types[tptr]), &n1, res);
+ 		}
+@@ -825,16 +836,14 @@ igen(Node *n, Node *a, Node *res)
+ 			regalloc(a, types[tptr], res);
+ 			cgen(n->left, a);
+ 		}
+-		if(n->xoffset != 0) {
+-			// explicit check for nil if struct is large enough
+-			// that we might derive too big a pointer.
+-			if(n->left->type->type->width >= unmappedzero) {
+-				n1 = *a;
+-				n1.op = OINDREG;
+-				n1.type = types[TUINT8];
+-				n1.xoffset = 0;
+-				gins(ATESTB, nodintconst(0), &n1);
+-			}
++		// explicit check for nil if struct is large enough
++		// that we might derive too big a pointer.
++		if(n->left->type->type->width >= unmappedzero) {
++			n1 = *a;
++			n1.op = OINDREG;
++			n1.type = types[TUINT8];
++			n1.xoffset = 0;
++			gins(ATESTB, nodintconst(0), &n1);
+ 		}
+ 		a->op = OINDREG;
+ 		a->xoffset += n->xoffset;
+diff --git a/test/nilptr.go b/test/nilptr.go
+index b784914e59..793e996736 100644
+--- a/test/nilptr.go
++++ b/test/nilptr.go
+@@ -38,6 +38,8 @@ func main() {
+ 	shouldPanic(p8)
+ 	shouldPanic(p9)
+ 	shouldPanic(p10)
++	shouldPanic(p11)
++	shouldPanic(p12)
+ }
+ 
+ func shouldPanic(f func()) {
+@@ -130,3 +132,23 @@ func p10() {
+ 	var t *T
+ 	println(t.i) // should crash
+ }
++
++type T1 struct {
++	T
++}
++
++type T2 struct {
++	*T1
++}
++
++func p11() {
++	t := &T2{}
++	p := &t.i
++	println(*p)
++}
++
++// ADDR(DOT(IND(p))) needs a check also
++func p12() {
++	var p *T = nil
++	println(*(&((*p).i)))
++}

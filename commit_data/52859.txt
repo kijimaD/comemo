@@ -10,6 +10,23 @@ Date:   Sat Jun 4 03:44:18 2022 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/410102
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/sync/atomic/doc.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/sync/atomic/doc.go b/src/sync/atomic/doc.go
+index 4d426826da..7977d13168 100644
+--- a/src/sync/atomic/doc.go
++++ b/src/sync/atomic/doc.go
+@@ -57,8 +57,9 @@ import (
+ // On ARM, 386, and 32-bit MIPS, it is the caller's responsibility to arrange
+ // for 64-bit alignment of 64-bit words accessed atomically via the primitive
+ // atomic functions (types Int64 and Uint64 are automatically aligned).
+-// The first word in a variable or in an allocated struct, array, or slice can
+-// be relied upon to be 64-bit aligned.
++// The first word in an allocated struct, array, or slice; in a global
++// variable; or in a local variable (because the subject of all atomic operations
++// will escape to the heap) can be relied upon to be 64-bit aligned.
+ 
+ // SwapInt32 atomically stores new into *addr and returns the previous *addr value.
+ func SwapInt32(addr *int32, new int32) (old int32)

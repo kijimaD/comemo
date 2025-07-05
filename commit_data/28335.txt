@@ -27,6 +27,30 @@ Date:   Mon May 16 14:11:01 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/signal1_unix.go | 12 +++++++++++-
  1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/signal1_unix.go b/src/runtime/signal1_unix.go
+index 31c1f2c4e5..5080202833 100644
+--- a/src/runtime/signal1_unix.go
++++ b/src/runtime/signal1_unix.go
+@@ -193,7 +193,17 @@ func dieFromSignal(sig int32) {
+ 	setsig(sig, _SIG_DFL, false)
+ 	updatesigmask(sigmask{})
+ 	raise(sig)
+-	// That should have killed us; call exit just in case.
++
++	// That should have killed us. On some systems, though, raise
++	// sends the signal to the whole process rather than to just
++	// the current thread, which means that the signal may not yet
++	// have been delivered. Give other threads a chance to run and
++	// pick up the signal.
++	osyield()
++	osyield()
++	osyield()
++
++	// If we are still somehow running, just exit with the wrong status.
+ 	exit(2)
+ }
+ 

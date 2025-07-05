@@ -8,7 +8,34 @@ Date:   Wed Nov 12 10:01:23 2014 -0800
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/143470043
-
+---
  AUTHORS      | 2 +-
  CONTRIBUTORS | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/AUTHORS b/AUTHORS
+index 48a262bbd7..46fd9fd295 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -145,7 +145,7 @@ Egon Elbre <egonelbre@gmail.com>
+ Ehren Kret <ehren.kret@gmail.com>
+ Eivind Uggedal <eivind@uggedal.com>
+ Elias Naur <elias.naur@gmail.com>
+-Emil Hessman <c.emil.hessman@gmail.com>
++Emil Hessman <c.emil.hessman@gmail.com> <emil@hessman.se>
+ Eoghan Sherry <ejsherry@gmail.com>
+ Eric Clark <zerohp@gmail.com>
+ Eric Milliken <emilliken@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index ec69858b60..a0566745f2 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -214,7 +214,7 @@ Egon Elbre <egonelbre@gmail.com>
+ Ehren Kret <ehren.kret@gmail.com>
+ Eivind Uggedal <eivind@uggedal.com>
+ Elias Naur <elias.naur@gmail.com>
+-Emil Hessman <c.emil.hessman@gmail.com>
++Emil Hessman <c.emil.hessman@gmail.com> <emil@hessman.se>
+ Eoghan Sherry <ejsherry@gmail.com>
+ Eric Clark <zerohp@gmail.com>
+ Eric Milliken <emilliken@gmail.com>

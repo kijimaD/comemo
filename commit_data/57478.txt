@@ -18,7 +18,7 @@ Date:   Thu Jun 29 15:37:26 2023 -0400
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/base/debug.go             |   1 +
  src/cmd/compile/internal/inline/inl.go             |   9 +
  src/cmd/compile/internal/inline/inlheur/analyze.go | 168 ++++++++
@@ -28,3 +28,930 @@ Date:   Thu Jun 29 15:37:26 2023 -0400
  .../compile/internal/inline/inlheur/trace_off.go   |  15 +
  .../compile/internal/inline/inlheur/trace_on.go    |  17 +
  8 files changed, 854 insertions(+)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index 1f05ed9831..36a75ae8e5 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -21,6 +21,7 @@ type DebugFlags struct {
+ 	Closure               int    `help:"print information about closure compilation"`
+ 	Defer                 int    `help:"print information about defer compilation"`
+ 	DisableNil            int    `help:"disable nil checks" concurrent:"ok"`
++	DumpInlFuncProps      string `help:"dump function properties from inl heuristics to specified file"`
+ 	DumpPtrs              int    `help:"show Node pointers values in dump output"`
+ 	DwarfInl              int    `help:"print information about DWARF inlined function creation"`
+ 	Export                int    `help:"print export data"`
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 4ae7fa95d2..00a8bb52e3 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -33,6 +33,7 @@ import (
+ 	"strconv"
+ 
+ 	"cmd/compile/internal/base"
++	"cmd/compile/internal/inline/inlheur"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/logopt"
+ 	"cmd/compile/internal/pgo"
+@@ -166,6 +167,10 @@ func InlinePackage(p *pgo.Profile) {
+ 	// are no longer reachable from top-level functions following
+ 	// inlining. See #59404 and #59638 for more context.
+ 	garbageCollectUnreferencedHiddenClosures()
++
++	if base.Debug.DumpInlFuncProps != "" {
++		inlheur.DumpFuncProps(nil, base.Debug.DumpInlFuncProps)
++	}
+ }
+ 
+ // InlineDecls applies inlining to the given batch of declarations.
+@@ -269,6 +274,10 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
+ 		base.Fatalf("CanInline no nname %+v", fn)
+ 	}
+ 
++	if base.Debug.DumpInlFuncProps != "" {
++		defer inlheur.DumpFuncProps(fn, base.Debug.DumpInlFuncProps)
++	}
++
+ 	var reason string // reason, if any, that the function was not inlined
+ 	if base.Flag.LowerM > 1 || logopt.Enabled() {
+ 		defer func() {
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze.go b/src/cmd/compile/internal/inline/inlheur/analyze.go
+new file mode 100644
+index 0000000000..29ca95637c
+--- /dev/null
++++ b/src/cmd/compile/internal/inline/inlheur/analyze.go
+@@ -0,0 +1,168 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package inlheur
++
++import (
++	"cmd/compile/internal/base"
++	"cmd/compile/internal/ir"
++	"encoding/json"
++	"fmt"
++	"io"
++	"os"
++	"path/filepath"
++	"sort"
++	"strings"
++)
++
++const (
++	debugTraceFuncs = 1 << iota
++)
++
++// fnInlHeur contains inline heuristics state information about
++// a specific Go function being analyzed/considered by the inliner.
++type fnInlHeur struct {
++	fname string
++	file  string
++	line  uint
++	props *FuncProps
++}
++
++// computeFuncProps examines the Go function 'fn' and computes for it
++// a function "properties" object, to be used to drive inlining
++// heuristics. See comments on the FuncProps type for more info.
++func computeFuncProps(fn *ir.Func) *FuncProps {
++	if debugTrace&debugTraceFuncs != 0 {
++		fmt.Fprintf(os.Stderr, "=-= starting analysis of func %v:\n%+v\n",
++			fn.Sym().Name, fn)
++	}
++	// implementation stubbed out for now
++	return &FuncProps{}
++}
++
++func fnFileLine(fn *ir.Func) (string, uint) {
++	p := base.Ctxt.InnermostPos(fn.Pos())
++	return filepath.Base(p.Filename()), p.Line()
++}
++
++// DumpFuncProps computes and caches function properties for the func
++// 'fn', or if fn is nil, writes out the cached set of properties to
++// the file given in 'dumpfile'. Used for the "-d=dumpinlfuncprops=..."
++// command line flag, intended for use primarily in unit testing.
++func DumpFuncProps(fn *ir.Func, dumpfile string) {
++	if fn != nil {
++		captureFuncDumpEntry(fn)
++	} else {
++		emitDumpToFile(dumpfile)
++	}
++}
++
++// emitDumpToFile writes out the buffer function property dump entries
++// to a file, for unit testing. Dump entries need to be sorted by
++// definition line, and due to generics we need to account for the
++// possibility that several ir.Func's will have the same def line.
++func emitDumpToFile(dumpfile string) {
++	outf, err := os.OpenFile(dumpfile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
++	if err != nil {
++		base.Fatalf("opening function props dump file %q: %v\n", dumpfile, err)
++	}
++	defer outf.Close()
++	dumpFilePreamble(outf)
++
++	atline := map[uint]uint{}
++	sl := make([]fnInlHeur, 0, len(dumpBuffer))
++	for _, e := range dumpBuffer {
++		sl = append(sl, e)
++		atline[e.line] = atline[e.line] + 1
++	}
++	sl = sortFnInlHeurSlice(sl)
++
++	prevline := uint(0)
++	for _, entry := range sl {
++		idx := uint(0)
++		if prevline == entry.line {
++			idx++
++		}
++		prevline = entry.line
++		atl := atline[entry.line]
++		if err := dumpFnPreamble(outf, &entry, idx, atl); err != nil {
++			base.Fatalf("function props dump: %v\n", err)
++		}
++	}
++	dumpBuffer = nil
++}
++
++// captureFuncDumpEntry analyzes function 'fn' and adds a entry
++// for it to 'dumpBuffer'. Used for unit testing.
++func captureFuncDumpEntry(fn *ir.Func) {
++	// avoid capturing compiler-generated equality funcs.
++	if strings.HasPrefix(fn.Sym().Name, ".eq.") {
++		return
++	}
++	if dumpBuffer == nil {
++		dumpBuffer = make(map[*ir.Func]fnInlHeur)
++	}
++	if _, ok := dumpBuffer[fn]; ok {
++		// we can wind up seeing closures multiple times here,
++		// so don't add them more than once.
++		return
++	}
++	fp := computeFuncProps(fn)
++	file, line := fnFileLine(fn)
++	entry := fnInlHeur{
++		fname: fn.Sym().Name,
++		file:  file,
++		line:  line,
++		props: fp,
++	}
++	dumpBuffer[fn] = entry
++}
++
++// dumpFilePreamble writes out a file-level preamble for a given
++// Go function as part of a function properties dump.
++func dumpFilePreamble(w io.Writer) {
++	fmt.Fprintf(w, "// DO NOT EDIT (use 'go test -v -update-expected' instead.)\n")
++	fmt.Fprintf(w, "// See cmd/compile/internal/inline/inlheur/testdata/props/README.txt\n")
++	fmt.Fprintf(w, "// for more information on the format of this file.\n")
++	fmt.Fprintf(w, "// %s\n", preambleDelimiter)
++}
++
++// dumpFilePreamble writes out a function-level preamble for a given
++// Go function as part of a function properties dump. See the
++// README.txt file in testdata/props for more on the format of
++// this preamble.
++func dumpFnPreamble(w io.Writer, fih *fnInlHeur, idx, atl uint) error {
++	fmt.Fprintf(w, "// %s %s %d %d %d\n",
++		fih.file, fih.fname, fih.line, idx, atl)
++	// emit props as comments, followed by delimiter
++	fmt.Fprintf(w, "%s// %s\n", fih.props.ToString("// "), comDelimiter)
++	data, err := json.Marshal(fih.props)
++	if err != nil {
++		return fmt.Errorf("marshall error %v\n", err)
++	}
++	fmt.Fprintf(w, "// %s\n// %s\n", string(data), fnDelimiter)
++	return nil
++}
++
++// sortFnInlHeurSlice sorts a slice of fnInlHeur based on
++// the starting line of the function definition, then by name.
++func sortFnInlHeurSlice(sl []fnInlHeur) []fnInlHeur {
++	sort.SliceStable(sl, func(i, j int) bool {
++		if sl[i].line != sl[j].line {
++			return sl[i].line < sl[j].line
++		}
++		return sl[i].fname < sl[j].fname
++	})
++	return sl
++}
++
++// delimiters written to various preambles to make parsing of
++// dumps easier.
++const preambleDelimiter = "<endfilepreamble>"
++const fnDelimiter = "<endfuncpreamble>"
++const comDelimiter = "<endpropsdump>"
++
++// dumpBuffer stores up function properties dumps when
++// "-d=dumpinlfuncprops=..." is in effect.
++var dumpBuffer map[*ir.Func]fnInlHeur
+diff --git a/src/cmd/compile/internal/inline/inlheur/funcprops_test.go b/src/cmd/compile/internal/inline/inlheur/funcprops_test.go
+new file mode 100644
+index 0000000000..47e3418e41
+--- /dev/null
++++ b/src/cmd/compile/internal/inline/inlheur/funcprops_test.go
+@@ -0,0 +1,462 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package inlheur
++
++import (
++	"bufio"
++	"encoding/json"
++	"flag"
++	"fmt"
++	"internal/testenv"
++	"os"
++	"path/filepath"
++	"regexp"
++	"strings"
++	"testing"
++	"time"
++)
++
++var remasterflag = flag.Bool("update-expected", false, "if true, generate updated golden results in testcases for all props tests")
++
++func TestFuncProperties(t *testing.T) {
++	td := t.TempDir()
++	//td = "/tmp/qqq"
++	//os.RemoveAll(td)
++	//os.Mkdir(td, 0777)
++	testenv.MustHaveGoBuild(t)
++
++	// NOTE: this testpoint has the unfortunate characteristic that it
++	// relies on the installed compiler, meaning that if you make
++	// changes to the inline heuristics code in your working copy and
++	// then run the test, it will test the installed compiler and not
++	// your local modifications. TODO: decide whether to convert this
++	// to building a fresh compiler on the fly, or using some other
++	// scheme.
++
++	testcases := []string{"stub"}
++
++	for _, tc := range testcases {
++		dumpfile, err := gatherPropsDumpForFile(t, tc, td)
++		if err != nil {
++			t.Fatalf("dumping func props for %q: error %v", tc, err)
++		}
++		// Read in the newly generated dump.
++		dentries, derr := readDump(t, dumpfile)
++		if derr != nil {
++			t.Fatalf("reading func prop dump: %v", derr)
++		}
++		if *remasterflag {
++			updateExpected(t, tc, dentries)
++			continue
++		}
++		// Generate expected dump.
++		epath, gerr := genExpected(td, tc)
++		if gerr != nil {
++			t.Fatalf("generating expected func prop dump: %v", gerr)
++		}
++		// Read in the expected result entries.
++		eentries, eerr := readDump(t, epath)
++		if eerr != nil {
++			t.Fatalf("reading expected func prop dump: %v", eerr)
++		}
++		// Compare new vs expected.
++		n := len(dentries)
++		eidx := 0
++		for i := 0; i < n; i++ {
++			dentry := dentries[i]
++			if !interestingToCompare(dentry.fname) {
++				continue
++			}
++			if eidx >= len(eentries) {
++				t.Errorf("missing expected entry for %s, skipping",
++					dentry.fname)
++				continue
++			}
++			eentry := eentries[eidx]
++			eidx++
++			if dentry.fname != eentry.fname {
++				t.Errorf("got fn %q wanted %q, skipping checks",
++					dentry.fname, eentry.fname)
++				continue
++			}
++			compareEntries(t, tc, &dentry, &eentry)
++		}
++	}
++}
++
++func propBitsToString[T interface{ String() string }](sl []T) string {
++	var sb strings.Builder
++	for i, f := range sl {
++		fmt.Fprintf(&sb, "%d: %s\n", i, f.String())
++	}
++	return sb.String()
++}
++
++func compareEntries(t *testing.T, tc string, dentry *fnInlHeur, eentry *fnInlHeur) {
++	dfp := dentry.props
++	efp := eentry.props
++	dfn := dentry.fname
++
++	// Compare function flags.
++	if dfp.Flags != efp.Flags {
++		t.Errorf("testcase %s: Flags mismatch for %q: got %s, wanted %s",
++			tc, dfn, dfp.Flags.String(), efp.Flags.String())
++	}
++	// Compare returns
++	rgot := propBitsToString[ResultPropBits](dfp.ResultFlags)
++	rwant := propBitsToString[ResultPropBits](efp.ResultFlags)
++	if rgot != rwant {
++		t.Errorf("Results mismatch for %q: got:\n%swant:\n%s",
++			dfn, rgot, rwant)
++	}
++	// Compare receiver + params.
++	pgot := propBitsToString[ParamPropBits](dfp.ParamFlags)
++	pwant := propBitsToString[ParamPropBits](efp.ParamFlags)
++	if pgot != pwant {
++		t.Errorf("Params mismatch for %q: got:\n%swant:\n%s",
++			dfn, pgot, pwant)
++	}
++}
++
++type dumpReader struct {
++	s  *bufio.Scanner
++	t  *testing.T
++	p  string
++	ln int
++}
++
++// readDump reads in the contents of a dump file produced
++// by the "-d=dumpinlfuncprops=..." command line flag by the Go
++// compiler. It breaks the dump down into separate sections
++// by function, then deserializes each func section into a
++// fnInlHeur object and returns a slice of those objects.
++func readDump(t *testing.T, path string) ([]fnInlHeur, error) {
++	content, err := os.ReadFile(path)
++	if err != nil {
++		return nil, err
++	}
++	dr := &dumpReader{
++		s:  bufio.NewScanner(strings.NewReader(string(content))),
++		t:  t,
++		p:  path,
++		ln: 1,
++	}
++	// consume header comment until preamble delimiter.
++	found := false
++	for dr.scan() {
++		if dr.curLine() == preambleDelimiter {
++			found = true
++			break
++		}
++	}
++	if !found {
++		return nil, fmt.Errorf("malformed testcase file %s, missing preamble delimiter", path)
++	}
++	res := []fnInlHeur{}
++	for {
++		dentry, err := dr.readEntry()
++		if err != nil {
++			t.Fatalf("reading func prop dump: %v", err)
++		}
++		if dentry.fname == "" {
++			break
++		}
++		res = append(res, dentry)
++	}
++	return res, nil
++}
++
++func (dr *dumpReader) scan() bool {
++	v := dr.s.Scan()
++	if v {
++		dr.ln++
++	}
++	return v
++}
++
++func (dr *dumpReader) curLine() string {
++	res := strings.TrimSpace(dr.s.Text())
++	if !strings.HasPrefix(res, "// ") {
++		dr.t.Fatalf("malformed line %s:%d, no comment: %s", dr.p, dr.ln, res)
++	}
++	return res[3:]
++}
++
++// readObjBlob reads in a series of commented lines until
++// it hits a delimiter, then returns the contents of the comments.
++func (dr *dumpReader) readObjBlob(delim string) (string, error) {
++	var sb strings.Builder
++	foundDelim := false
++	for dr.scan() {
++		line := dr.curLine()
++		if delim == line {
++			foundDelim = true
++			break
++		}
++		sb.WriteString(line + "\n")
++	}
++	if err := dr.s.Err(); err != nil {
++		return "", err
++	}
++	if !foundDelim {
++		return "", fmt.Errorf("malformed input %s, missing delimiter %q",
++			dr.p, delim)
++	}
++	return sb.String(), nil
++}
++
++// readEntry reads a single function's worth of material from
++// a file produced by the "-d=dumpinlfuncprops=..." command line
++// flag. It deserializes the json for the func properties and
++// returns the resulting properties and function name. EOF is
++// signaled by a nil FuncProps return (with no error
++func (dr *dumpReader) readEntry() (fnInlHeur, error) {
++	var fih fnInlHeur
++	if !dr.scan() {
++		return fih, nil
++	}
++	// first line contains info about function: file/name/line
++	info := dr.curLine()
++	chunks := strings.Fields(info)
++	fih.file = chunks[0]
++	fih.fname = chunks[1]
++	if _, err := fmt.Sscanf(chunks[2], "%d", &fih.line); err != nil {
++		return fih, err
++	}
++	// consume comments until and including delimiter
++	for {
++		if !dr.scan() {
++			break
++		}
++		if dr.curLine() == comDelimiter {
++			break
++		}
++	}
++
++	// Consume JSON for encoded props.
++	dr.scan()
++	line := dr.curLine()
++	fp := &FuncProps{}
++	if err := json.Unmarshal([]byte(line), fp); err != nil {
++		return fih, err
++	}
++	fih.props = fp
++
++	// Consume delimiter.
++	dr.scan()
++	line = dr.curLine()
++	if line != fnDelimiter {
++		return fih, fmt.Errorf("malformed testcase file %q, missing delimiter %q", dr.p, fnDelimiter)
++	}
++
++	return fih, nil
++}
++
++// gatherPropsDumpForFile builds the specified testcase 'testcase' from
++// testdata/props passing the "-d=dumpinlfuncprops=..." compiler option,
++// to produce a properties dump, then returns the path of the newly
++// created file. NB: we can't use "go tool compile" here, since
++// some of the test cases import stdlib packages (such as "os").
++// This means using "go build", which is problematic since the
++// Go command can potentially cache the results of the compile step,
++// causing the test to fail when being run interactively. E.g.
++//
++//	$ rm -f dump.txt
++//	$ go build -o foo.a -gcflags=-d=dumpinlfuncprops=dump.txt foo.go
++//	$ rm -f dump.txt foo.a
++//	$ go build -o foo.a -gcflags=-d=dumpinlfuncprops=dump.txt foo.go
++//	$ ls foo.a dump.txt > /dev/null
++//	ls : cannot access 'dump.txt': No such file or directory
++//	$
++//
++// For this reason, pick a unique filename for the dump, so as to
++// defeat the caching.
++func gatherPropsDumpForFile(t *testing.T, testcase string, td string) (string, error) {
++	t.Helper()
++	gopath := "testdata/props/" + testcase + ".go"
++	outpath := filepath.Join(td, testcase+".a")
++	salt := fmt.Sprintf(".p%dt%d", os.Getpid(), time.Now().UnixNano())
++	dumpfile := filepath.Join(td, testcase+salt+".dump.txt")
++	run := []string{testenv.GoToolPath(t), "build",
++		"-gcflags=-d=dumpinlfuncprops=" + dumpfile, "-o", outpath, gopath}
++	out, err := testenv.Command(t, run[0], run[1:]...).CombinedOutput()
++	if strings.TrimSpace(string(out)) != "" {
++		t.Logf("%s", out)
++	}
++	return dumpfile, err
++}
++
++// genExpected reads in a given Go testcase file, strips out all the
++// unindented (column 0) commands, writes them out to a new file, and
++// returns the path of that new file. By picking out just the comments
++// from the Go file we wind up with something that resembles the
++// output from a "-d=dumpinlfuncprops=..." compilation.
++func genExpected(td string, testcase string) (string, error) {
++	epath := filepath.Join(td, testcase+".expected")
++	outf, err := os.OpenFile(epath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
++	if err != nil {
++		return "", err
++	}
++	gopath := "testdata/props/" + testcase + ".go"
++	content, err := os.ReadFile(gopath)
++	if err != nil {
++		return "", err
++	}
++	lines := strings.Split(string(content), "\n")
++	for _, line := range lines[3:] {
++		if !strings.HasPrefix(line, "// ") {
++			continue
++		}
++		fmt.Fprintf(outf, "%s\n", line)
++	}
++	if err := outf.Close(); err != nil {
++		return "", err
++	}
++	return epath, nil
++}
++
++type upexState struct {
++	dentries   []fnInlHeur
++	newgolines []string
++	atline     map[uint]uint
++}
++
++func mkUpexState(dentries []fnInlHeur) *upexState {
++	atline := make(map[uint]uint)
++	for _, e := range dentries {
++		atline[e.line] = atline[e.line] + 1
++	}
++	return &upexState{
++		dentries: dentries,
++		atline:   atline,
++	}
++}
++
++// updateExpected takes a given Go testcase file X.go and writes out a
++// new/updated version of the file to X.go.new, where the column-0
++// "expected" comments have been updated using fresh data from
++// "dentries".
++//
++// Writing of expected results is complicated by closures and by
++// generics, where you can have multiple functions that all share the
++// same starting line. Currently we combine up all the dups and
++// closures into the single pre-func comment.
++func updateExpected(t *testing.T, testcase string, dentries []fnInlHeur) {
++	nd := len(dentries)
++
++	ues := mkUpexState(dentries)
++
++	gopath := "testdata/props/" + testcase + ".go"
++	newgopath := "testdata/props/" + testcase + ".go.new"
++
++	// Read the existing Go file.
++	content, err := os.ReadFile(gopath)
++	if err != nil {
++		t.Fatalf("opening %s: %v", gopath, err)
++	}
++	golines := strings.Split(string(content), "\n")
++
++	// Preserve copyright.
++	ues.newgolines = append(ues.newgolines, golines[:4]...)
++	if !strings.HasPrefix(golines[0], "// Copyright") {
++		t.Fatalf("missing copyright from existing testcase")
++	}
++	golines = golines[4:]
++
++	clore := regexp.MustCompile(`.+\.func\d+[\.\d]*$`)
++
++	emitFunc := func(e *fnInlHeur, instance, atl uint) {
++		var sb strings.Builder
++		dumpFnPreamble(&sb, e, instance, atl)
++		ues.newgolines = append(ues.newgolines,
++			strings.Split(strings.TrimSpace(sb.String()), "\n")...)
++	}
++
++	// Write file preamble with "DO NOT EDIT" message and such.
++	var sb strings.Builder
++	dumpFilePreamble(&sb)
++	ues.newgolines = append(ues.newgolines,
++		strings.Split(strings.TrimSpace(sb.String()), "\n")...)
++
++	// Helper to add a clump of functions to the output file.
++	processClump := func(idx int, emit bool) int {
++		// Process func itself, plus anything else defined
++		// on the same line
++		atl := ues.atline[dentries[idx].line]
++		for k := uint(0); k < atl; k++ {
++			if emit {
++				emitFunc(&dentries[idx], k, atl)
++			}
++			idx++
++		}
++		// now process any closures it contains
++		ncl := 0
++		for idx < nd {
++			nfn := dentries[idx].fname
++			if !clore.MatchString(nfn) {
++				break
++			}
++			ncl++
++			if emit {
++				emitFunc(&dentries[idx], 0, 1)
++			}
++			idx++
++		}
++		return idx
++	}
++
++	didx := 0
++	for _, line := range golines {
++		if strings.HasPrefix(line, "func ") {
++
++			// We have a function definition.
++			// Pick out the corresponding entry or entries in the dump
++			// and emit if interesting (or skip if not).
++			dentry := dentries[didx]
++			emit := interestingToCompare(dentry.fname)
++			didx = processClump(didx, emit)
++		}
++
++		// Consume all existing comments.
++		if strings.HasPrefix(line, "//") {
++			continue
++		}
++		ues.newgolines = append(ues.newgolines, line)
++	}
++
++	if didx != nd {
++		t.Logf("didx=%d wanted %d", didx, nd)
++	}
++
++	// Open new Go file and write contents.
++	of, err := os.OpenFile(newgopath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
++	if err != nil {
++		t.Fatalf("opening %s: %v", newgopath, err)
++	}
++	fmt.Fprintf(of, "%s", strings.Join(ues.newgolines, "\n"))
++	if err := of.Close(); err != nil {
++		t.Fatalf("closing %s: %v", newgopath, err)
++	}
++
++	t.Logf("update-expected: emitted updated file %s", newgopath)
++	t.Logf("please compare the two files, then overwrite %s with %s\n",
++		gopath, newgopath)
++}
++
++// interestingToCompare returns TRUE if we want to compare results
++// for function 'fname'.
++func interestingToCompare(fname string) bool {
++	if strings.HasPrefix(fname, "init.") {
++		return true
++	}
++	if strings.HasPrefix(fname, "T_") {
++		return true
++	}
++	f := strings.Split(fname, ".")
++	if len(f) == 2 && strings.HasPrefix(f[1], "T_") {
++		return true
++	}
++	return false
++}
+diff --git a/src/cmd/compile/internal/inline/inlheur/testdata/props/README.txt b/src/cmd/compile/internal/inline/inlheur/testdata/props/README.txt
+new file mode 100644
+index 0000000000..815c892460
+--- /dev/null
++++ b/src/cmd/compile/internal/inline/inlheur/testdata/props/README.txt
+@@ -0,0 +1,75 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++Notes on the format of the testcase files in
++cmd/compile/internal/inline/inlheur/testdata/props:
++
++- each (compilable) file contains input Go code and expected results
++  in the form of column-0 comments.
++
++- functions or methods that begin with "T_" are targeted for testing,
++  as well as "init" functions; all other functions are ignored.
++
++- function header comments begin with a line containing
++  the file name, function name, definition line, then index
++  and a count of the number of funcs that share that same
++  definition line (needed to support generics). Example:
++
++	  // foo.go T_mumble 35 1 4
++
++  Here "T_mumble" is defined at line 35, and it is func 0
++  out of the 4 funcs that share that same line.
++
++- function property expected results appear as comments in immediately
++  prior to the function. For example, here we have first the function
++  name ("T_feeds_if_simple"), then human-readable dump of the function
++  properties, as well as the JSON for the properties object, each
++  section separated by a "<>" delimiter.
++
++	  // funcflags.go T_feeds_if_simple 35 0 1
++	  // RecvrParamFlags:
++	  //   0: ParamFeedsIfOrSwitch
++	  // <endpropsdump>
++	  // {"Flags":0,"RecvrParamFlags":[8],"ReturnFlags":[]}
++	  // <endfuncpreamble>
++	  func T_feeds_if_simple(x int) {
++		if x < 100 {
++			os.Exit(1)
++		}
++		println(x)
++	  }
++
++- when the test runs, it will compile the Go source file with an
++  option to dump out function properties, then compare the new dump
++  for each function with the JSON appearing in the header comment for
++  the function (in the example above, the JSON appears between
++  "<endpropsdump>" and "<endfuncpreamble>". The material prior to the
++  dump is simply there for human consumption, so that a developer can
++  easily see that "RecvrParamFlags":[8] means that the first parameter
++  has flag ParamFeedsIfOrSwitch.
++
++- when making changes to the compiler (which can alter the expected
++  results) or edits/additions to the go code in the testcase files,
++  you can remaster the results by running
++
++    go test -v -count=1 .
++
++  In the trace output of this run, you'll see messages of the form
++
++      === RUN   TestFuncProperties
++       funcprops_test.go:NNN: update-expected: emitted updated file
++                              testdata/props/XYZ.go.new
++       funcprops_test.go:MMM: please compare the two files, then overwrite
++                              testdata/props/XYZ.go with testdata/props/XYZ.go.new
++
++  at which point you can compare the old and new files by hand, then
++  overwrite the *.go file with the *.go.new file if you are happy with
++  the diffs.
++
++- note that the remastering process will strip out any existing
++  column-0 (unindented) comments; if you write comments that you
++  want to see preserved, use "/* */" or indent them.
++
++
++
+diff --git a/src/cmd/compile/internal/inline/inlheur/testdata/props/stub.go b/src/cmd/compile/internal/inline/inlheur/testdata/props/stub.go
+new file mode 100644
+index 0000000000..2e43eddc0f
+--- /dev/null
++++ b/src/cmd/compile/internal/inline/inlheur/testdata/props/stub.go
+@@ -0,0 +1,107 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// DO NOT EDIT (use 'go test -v -update-expected' instead.)
++// See cmd/compile/internal/inline/inlheur/testdata/props/README.txt
++// for more information on the format of this file.
++// <endfilepreamble>
++
++package stub
++
++// stub.go T_stub 16 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
++// <endfuncpreamble>
++func T_stub() {
++}
++
++func ThisFunctionShouldBeIgnored(x int) {
++	println(x)
++}
++
++// stub.go init.0 27 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
++// <endfuncpreamble>
++func init() {
++	ThisFunctionShouldBeIgnored(1)
++}
++
++// stub.go T_contains_closures 43 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
++// <endfuncpreamble>
++// stub.go T_contains_closures.func1 44 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
++// <endfuncpreamble>
++// stub.go T_contains_closures.func2 46 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
++// <endfuncpreamble>
++func T_contains_closures(q int) func() {
++	f := func() { M["a"] = 9 }
++	f()
++	f2 := func() { M["a"] = 4 }
++	if M["b"] != 9 {
++		return f
++	}
++	return f2
++}
++
++// stub.go T_Unique[go.shape.int] 69 0 4
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
++// <endfuncpreamble>
++// stub.go T_Unique[go.shape.string] 69 1 4
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
++// <endfuncpreamble>
++// stub.go T_Unique[int] 69 2 4
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
++// <endfuncpreamble>
++// stub.go T_Unique[string] 69 3 4
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
++// <endfuncpreamble>
++func T_Unique[T comparable](set []T) []T {
++	nset := make([]T, 0, 8)
++loop:
++	for _, s := range set {
++		for _, e := range nset {
++			if s == e {
++				continue loop
++			}
++		}
++		nset = append(nset, s)
++	}
++
++	return nset
++}
++
++// stub.go T_uniq_int_count 88 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
++// <endfuncpreamble>
++func T_uniq_int_count(s []int) int {
++	return len(T_Unique[int](s))
++}
++
++// stub.go T_uniq_string_count 96 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
++// <endfuncpreamble>
++func T_uniq_string_count(s []string) int {
++	return len(T_Unique[string](s))
++}
++
++// stub.go T_epilog 104 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
++// <endfuncpreamble>
++func T_epilog() {
++}
++
++var M = map[string]int{}
+diff --git a/src/cmd/compile/internal/inline/inlheur/trace_off.go b/src/cmd/compile/internal/inline/inlheur/trace_off.go
+new file mode 100644
+index 0000000000..1e03770e01
+--- /dev/null
++++ b/src/cmd/compile/internal/inline/inlheur/trace_off.go
+@@ -0,0 +1,15 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !debugtrace
++
++package inlheur
++
++const debugTrace = 0
++
++func enableDebugTrace(x int) {
++}
++
++func disableDebugTrace() {
++}
+diff --git a/src/cmd/compile/internal/inline/inlheur/trace_on.go b/src/cmd/compile/internal/inline/inlheur/trace_on.go
+new file mode 100644
+index 0000000000..7164b60a10
+--- /dev/null
++++ b/src/cmd/compile/internal/inline/inlheur/trace_on.go
+@@ -0,0 +1,17 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build debugtrace
++
++package inlheur
++
++var debugTrace = 0
++
++func enableDebugTrace(x int) {
++	debugTrace = x
++}
++
++func disableDebugTrace() {
++	debugTrace = 0
++}

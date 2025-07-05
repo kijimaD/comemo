@@ -10,6 +10,29 @@ Date:   Wed Jan 21 11:56:28 2009 -0800
     DELTA=12  (0 added, 12 deleted, 0 changed)
     OCL=23204
     CL=23219
-
+---
  test/fixedbugs/bug025.go | 16 ----------------
  1 file changed, 16 deletions(-)
+
+diff --git a/test/fixedbugs/bug025.go b/test/fixedbugs/bug025.go
+deleted file mode 100644
+index 545b171bc7..0000000000
+--- a/test/fixedbugs/bug025.go
++++ /dev/null
+@@ -1,16 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// # ! $G $D/$F.go
+-
+-package main
+-
+-foo
+-
+-func main() {}
+-
+-/*
+-bug25.go:5: fatal error: dumpexportvar: oname nil: Foo
+-
+-*/

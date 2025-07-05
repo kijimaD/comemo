@@ -15,6 +15,22 @@ Date:   Thu Apr 11 14:36:25 2024 -0700
     Commit-Queue: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/dnsclient_unix.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index e9e7e4df15..ad5c245dbf 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -277,7 +277,9 @@ func extractExtendedRCode(p dnsmessage.Parser, hdr dnsmessage.Header) (dnsmessag
+ 		if ahdr.Type == dnsmessage.TypeOPT {
+ 			return ahdr.ExtendedRCode(hdr.RCode), hasAdd
+ 		}
+-		p.SkipAdditional()
++		if err := p.SkipAdditional(); err != nil {
++			return hdr.RCode, hasAdd
++		}
+ 	}
+ }
+ 

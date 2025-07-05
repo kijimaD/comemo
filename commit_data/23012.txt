@@ -8,7 +8,7 @@ Date:   Sun Apr 19 21:00:48 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/9084
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/internal/obj/libc.go     | 18 +++++-------------
  src/cmd/internal/obj/link.go     |  4 +---
  src/cmd/internal/obj/objfile.go  |  4 ----
@@ -16,3 +16,208 @@ Date:   Sun Apr 19 21:00:48 2015 -0700
  src/cmd/internal/obj/sym.go      | 40 +++++++++++++---------------------------
  src/cmd/internal/obj/typekind.go |  6 +-----
  6 files changed, 24 insertions(+), 58 deletions(-)
+
+diff --git a/src/cmd/internal/obj/libc.go b/src/cmd/internal/obj/libc.go
+index 204839e8af..b200b26047 100644
+--- a/src/cmd/internal/obj/libc.go
++++ b/src/cmd/internal/obj/libc.go
+@@ -1,20 +1,12 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package obj
+ 
+ const (
+ 	AEXIST = 0
++	BOM    = 0xFEFF
+ )
+ 
+ var GOEXPERIMENT string
+-
+-const (
+-	OREAD = iota
+-	OWRITE
+-	ORDWR
+-	SIGBUS
+-	SIGSEGV
+-	NDFLT
+-	FPPDBL
+-	FPRNR
+-	HEADER_IO
+-	BOM = 0xFEFF
+-)
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 7d4026c312..c7c5abe002 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -481,7 +481,7 @@ type Link struct {
+ 
+ type SymVer struct {
+ 	Name    string
+-	Version int
++	Version int // TODO: make int16 to match LSym.Version?
+ }
+ 
+ // LinkArch is the definition of a single architecture.
+@@ -527,13 +527,11 @@ type Plist struct {
+  */
+ func Linknewplist(ctxt *Link) *Plist {
+ 	pl := new(Plist)
+-	*pl = Plist{}
+ 	if ctxt.Plist == nil {
+ 		ctxt.Plist = pl
+ 	} else {
+ 		ctxt.Plast.Link = pl
+ 	}
+ 	ctxt.Plast = pl
+-
+ 	return pl
+ }
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 1f6857840d..c45ddd86ca 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -514,7 +514,3 @@ func wrsym(b *Biobuf, s *LSym) {
+ 	wrstring(b, s.Name)
+ 	wrint(b, int64(s.Version))
+ }
+-
+-var startmagic string = "\x00\x00go13ld"
+-
+-var endmagic string = "\xff\xffgo13ld"
+diff --git a/src/cmd/internal/obj/stack.go b/src/cmd/internal/obj/stack.go
+index b8d0350d89..9324ef6d1b 100644
+--- a/src/cmd/internal/obj/stack.go
++++ b/src/cmd/internal/obj/stack.go
+@@ -1,3 +1,7 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ // Inferno utils/5l/span.c
+ // http://code.google.com/p/inferno-os/source/browse/utils/5l/span.c
+ //
+@@ -30,12 +34,6 @@
+ 
+ package obj
+ 
+-// Instruction layout.
+-
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+ // For the linkers. Must match Go definitions.
+ // TODO(rsc): Share Go definitions with linkers directly.
+ 
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 046b0f19c2..37bb40b4ad 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -32,17 +32,13 @@
+ package obj
+ 
+ import (
+-	"fmt"
+ 	"log"
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
++	"strconv"
+ )
+ 
+-func yy_isalpha(c int) bool {
+-	return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z'
+-}
+-
+ var headers = []struct {
+ 	name string
+ 	val  int
+@@ -71,16 +67,13 @@ func headtype(name string) int {
+ 	return -1
+ }
+ 
+-var headstr_buf string
+-
+ func Headstr(v int) string {
+ 	for i := 0; i < len(headers); i++ {
+ 		if v == headers[i].val {
+ 			return headers[i].name
+ 		}
+ 	}
+-	headstr_buf = fmt.Sprintf("%d", v)
+-	return headstr_buf
++	return strconv.Itoa(v)
+ }
+ 
+ func Linknew(arch *LinkArch) *Link {
+@@ -185,38 +178,31 @@ func Linknew(arch *LinkArch) *Link {
+ 	return ctxt
+ }
+ 
+-func linknewsym(ctxt *Link, symb string, v int) *LSym {
+-	s := new(LSym)
+-	*s = LSym{}
+-
+-	s.Name = symb
+-	s.Type = 0
+-	s.Version = int16(v)
+-	s.Value = 0
+-	s.Size = 0
+-
+-	return s
+-}
+-
+-func _lookup(ctxt *Link, symb string, v int, creat int) *LSym {
++func _lookup(ctxt *Link, symb string, v int, create bool) *LSym {
+ 	s := ctxt.Hash[SymVer{symb, v}]
+-	if s != nil || creat == 0 {
++	if s != nil || !create {
+ 		return s
+ 	}
+ 
+-	s = linknewsym(ctxt, symb, v)
++	s = &LSym{
++		Name:    symb,
++		Type:    0,
++		Version: int16(v),
++		Value:   0,
++		Size:    0,
++	}
+ 	ctxt.Hash[SymVer{symb, v}] = s
+ 
+ 	return s
+ }
+ 
+ func Linklookup(ctxt *Link, name string, v int) *LSym {
+-	return _lookup(ctxt, name, v, 1)
++	return _lookup(ctxt, name, v, true)
+ }
+ 
+ // read-only lookup
+ func linkrlookup(ctxt *Link, name string, v int) *LSym {
+-	return _lookup(ctxt, name, v, 0)
++	return _lookup(ctxt, name, v, false)
+ }
+ 
+ func Linksymfmt(s *LSym) string {
+diff --git a/src/cmd/internal/obj/typekind.go b/src/cmd/internal/obj/typekind.go
+index f8e302bd32..2193271678 100644
+--- a/src/cmd/internal/obj/typekind.go
++++ b/src/cmd/internal/obj/typekind.go
+@@ -1,13 +1,9 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
++// Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+ package obj
+ 
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+ // Must match runtime and reflect.
+ // Included by cmd/gc.
+ 

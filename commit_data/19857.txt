@@ -8,6 +8,20 @@ Date:   Thu Jul 31 10:34:51 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/118480044
-
+---
  src/cmd/gc/lex.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 6ac578142b..291edb859d 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -45,7 +45,7 @@ static struct {
+ };
+ 
+ // Debug arguments.
+-// These can be specified with the -d flag, as in "-d checknil"
++// These can be specified with the -d flag, as in "-d nil"
+ // to set the debug_checknil variable. In general the list passed
+ // to -d can be comma-separated.
+ static struct {

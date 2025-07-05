@@ -7,6 +7,20 @@ Date:   Wed Sep 21 13:04:38 2016 +0900
     Change-Id: I808fab97076493a95b0b5eb0ad15645099f54aee
     Reviewed-on: https://go-review.googlesource.com/29492
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.8.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.8.txt b/doc/go1.8.txt
+index cab4c1f542..8452780c82 100644
+--- a/doc/go1.8.txt
++++ b/doc/go1.8.txt
+@@ -8,7 +8,7 @@ go: mobile pkg dir change, recommend using go list in scripts (CL 24930, CL 2792
+ 
+ Ports:
+ 
+-
++dragonfly: go1.8 requires DragonFly BSD 4.4.4 or above (CL 29491)
+ 
+ API additions and behavior changes:
+ 

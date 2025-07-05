@@ -13,7 +13,7 @@ Date:   Tue May 16 13:33:15 2023 -0400
     Auto-Submit: Alan Donovan <adonovan@google.com>
     Run-TryBot: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  api/next/60061.txt                |  1 +
  src/go/ast/ast.go                 | 11 +++++++++++
  src/go/parser/parser.go           | 12 ++----------
@@ -21,3 +21,132 @@ Date:   Tue May 16 13:33:15 2023 -0400
  src/go/printer/testdata/parser.go | 12 ++----------
  src/go/types/builtins.go          | 11 +----------
  6 files changed, 18 insertions(+), 31 deletions(-)
+
+diff --git a/api/next/60061.txt b/api/next/60061.txt
+new file mode 100644
+index 0000000000..3e497addb7
+--- /dev/null
++++ b/api/next/60061.txt
+@@ -0,0 +1 @@
++pkg go/ast, func Unparen(Expr) Expr #60061
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index c439052610..be7c72d13a 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -1110,3 +1110,14 @@ func generator(file *File) (string, bool) {
+ 	}
+ 	return "", false
+ }
++
++// Unparen returns the expression with any enclosing parentheses removed.
++func Unparen(e Expr) Expr {
++	for {
++		paren, ok := e.(*ParenExpr)
++		if !ok {
++			return e
++		}
++		e = paren.X
++	}
++}
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index e1d941eff3..7d8f727b0c 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -1654,14 +1654,6 @@ func (p *parser) parseLiteralValue(typ ast.Expr) ast.Expr {
+ 	return &ast.CompositeLit{Type: typ, Lbrace: lbrace, Elts: elts, Rbrace: rbrace}
+ }
+ 
+-// If x is of the form (T), unparen returns unparen(T), otherwise it returns x.
+-func unparen(x ast.Expr) ast.Expr {
+-	if p, isParen := x.(*ast.ParenExpr); isParen {
+-		x = unparen(p.X)
+-	}
+-	return x
+-}
+-
+ func (p *parser) parsePrimaryExpr(x ast.Expr) ast.Expr {
+ 	if p.trace {
+ 		defer un(trace(p, "PrimaryExpr"))
+@@ -1706,7 +1698,7 @@ func (p *parser) parsePrimaryExpr(x ast.Expr) ast.Expr {
+ 		case token.LBRACE:
+ 			// operand may have returned a parenthesized complit
+ 			// type; accept it but complain if we have a complit
+-			t := unparen(x)
++			t := ast.Unparen(x)
+ 			// determine if '{' belongs to a composite literal or a block statement
+ 			switch t.(type) {
+ 			case *ast.BadExpr, *ast.Ident, *ast.SelectorExpr:
+@@ -1949,7 +1941,7 @@ func (p *parser) parseSimpleStmt(mode int) (ast.Stmt, bool) {
+ 
+ func (p *parser) parseCallExpr(callType string) *ast.CallExpr {
+ 	x := p.parseRhs() // could be a conversion: (some type)(x)
+-	if t := unparen(x); t != x {
++	if t := ast.Unparen(x); t != x {
+ 		p.error(x.Pos(), fmt.Sprintf("expression in %s must not be parenthesized", callType))
+ 		x = t
+ 	}
+diff --git a/src/go/parser/resolver.go b/src/go/parser/resolver.go
+index f8ff618eba..1539dcd5c7 100644
+--- a/src/go/parser/resolver.go
++++ b/src/go/parser/resolver.go
+@@ -234,7 +234,7 @@ func (r *resolver) walkExprs(list []ast.Expr) {
+ 
+ func (r *resolver) walkLHS(list []ast.Expr) {
+ 	for _, expr := range list {
+-		expr := unparen(expr)
++		expr := ast.Unparen(expr)
+ 		if _, ok := expr.(*ast.Ident); !ok && expr != nil {
+ 			ast.Walk(r, expr)
+ 		}
+diff --git a/src/go/printer/testdata/parser.go b/src/go/printer/testdata/parser.go
+index bb06c8dd42..11795b4280 100644
+--- a/src/go/printer/testdata/parser.go
++++ b/src/go/printer/testdata/parser.go
+@@ -1127,7 +1127,7 @@ func (p *parser) parseLiteralValue(typ ast.Expr) ast.Expr {
+ 
+ // checkExpr checks that x is an expression (and not a type).
+ func (p *parser) checkExpr(x ast.Expr) ast.Expr {
+-	switch t := unparen(x).(type) {
++	switch t := ast.Unparen(x).(type) {
+ 	case *ast.BadExpr:
+ 	case *ast.Ident:
+ 	case *ast.BasicLit:
+@@ -1200,18 +1200,10 @@ func deref(x ast.Expr) ast.Expr {
+ 	return x
+ }
+ 
+-// If x is of the form (T), unparen returns unparen(T), otherwise it returns x.
+-func unparen(x ast.Expr) ast.Expr {
+-	if p, isParen := x.(*ast.ParenExpr); isParen {
+-		x = unparen(p.X)
+-	}
+-	return x
+-}
+-
+ // checkExprOrType checks that x is an expression or a type
+ // (and not a raw type such as [...]T).
+ func (p *parser) checkExprOrType(x ast.Expr) ast.Expr {
+-	switch t := unparen(x).(type) {
++	switch t := ast.Unparen(x).(type) {
+ 	case *ast.ParenExpr:
+ 		panic("unreachable")
+ 	case *ast.UnaryExpr:
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 7795f2552d..4aee3979d0 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -1029,13 +1029,4 @@ func arrayPtrDeref(typ Type) Type {
+ 	return typ
+ }
+ 
+-// unparen returns e with any enclosing parentheses stripped.
+-func unparen(e ast.Expr) ast.Expr {
+-	for {
+-		p, ok := e.(*ast.ParenExpr)
+-		if !ok {
+-			return e
+-		}
+-		e = p.X
+-	}
+-}
++func unparen(e ast.Expr) ast.Expr { return ast.Unparen(e) }

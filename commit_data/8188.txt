@@ -9,7 +9,41 @@ Date:   Thu Apr 21 19:57:19 2011 -0700
     R=adg, rsc1
     CC=golang-dev
     https://golang.org/cl/4439062
-
+---
  src/pkg/http/dump.go    | 2 ++
  src/pkg/http/request.go | 9 ++++++---
  2 files changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/http/dump.go b/src/pkg/http/dump.go
+index 306c45bc2c..358980f7ca 100644
+--- a/src/pkg/http/dump.go
++++ b/src/pkg/http/dump.go
+@@ -31,6 +31,8 @@ func drainBody(b io.ReadCloser) (r1, r2 io.ReadCloser, err os.Error) {
+ // DumpRequest is semantically a no-op, but in order to
+ // dump the body, it reads the body data into memory and
+ // changes req.Body to refer to the in-memory copy.
++// The documentation for Request.Write details which fields
++// of req are used.
+ func DumpRequest(req *Request, body bool) (dump []byte, err os.Error) {
+ 	var b bytes.Buffer
+ 	save := req.Body
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index 633c91e8d2..26039cb623 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -64,9 +64,12 @@ var reqExcludeHeader = map[string]bool{
+ 
+ // A Request represents a parsed HTTP request header.
+ type Request struct {
+-	Method     string // GET, POST, PUT, etc.
+-	RawURL     string // The raw URL given in the request.
+-	URL        *URL   // Parsed URL.
++	Method string // GET, POST, PUT, etc.
++	RawURL string // The raw URL given in the request.
++	URL    *URL   // Parsed URL.
++
++	// The protocol version for incoming requests.
++	// Outgoing requests always use HTTP/1.1.
+ 	Proto      string // "HTTP/1.0"
+ 	ProtoMajor int    // 1
+ 	ProtoMinor int    // 0

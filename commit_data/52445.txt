@@ -15,7 +15,66 @@ Date:   Thu Apr 21 13:09:17 2022 -0400
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modload/load.go               |  6 ++++
  src/cmd/go/testdata/script/mod_run_issue52331.txt | 35 +++++++++++++++++++++++
  2 files changed, 41 insertions(+)
+
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 7f1a88ffe7..29c0a4280a 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -717,6 +717,12 @@ func ImportFromFiles(ctx context.Context, gofiles []string) {
+ 		},
+ 	})
+ 	requirements = loaded.requirements
++
++	if !ExplicitWriteGoMod {
++		if err := commitRequirements(ctx); err != nil {
++			base.Fatalf("go: %v", err)
++		}
++	}
+ }
+ 
+ // DirImportPath returns the effective import path for dir,
+diff --git a/src/cmd/go/testdata/script/mod_run_issue52331.txt b/src/cmd/go/testdata/script/mod_run_issue52331.txt
+new file mode 100644
+index 0000000000..917e890211
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_run_issue52331.txt
+@@ -0,0 +1,35 @@
++# Regression test for https://go.dev/issue/52331: 'go run -mod=mod'
++# failed to write go.mod and go.sum with the resolved dependencies.
++
++[short] skip
++
++! go run main.go
++# stderr '^main\.go:6:2: no required module provides package example\.com/version; to add it:\n\tgo get example\.com/version\n\z'
++
++go run -mod=mod main.go
++cmp go.mod go.mod.want
++grep -count=1 '^example\.com/version v1.1.0 h1:' go.sum
++grep -count=1 '^example\.com/version v1.1.0/go.mod h1:' go.sum
++
++-- go.mod --
++module example
++
++go 1.17
++-- go.mod.want --
++module example
++
++go 1.17
++
++require example.com/version v1.1.0 // indirect
++-- main.go --
++package main
++
++import (
++	"fmt"
++
++	"example.com/version"
++)
++
++func main() {
++	fmt.Println(version.V)
++}

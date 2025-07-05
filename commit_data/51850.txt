@@ -12,6 +12,38 @@ Date:   Thu Mar 17 17:55:59 2022 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Eli Bendersky‎ <eliben@golang.org>
-
+---
  src/sort/gen_sort_variants.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/sort/gen_sort_variants.go b/src/sort/gen_sort_variants.go
+index 5f817221e1..0ff1869544 100644
+--- a/src/sort/gen_sort_variants.go
++++ b/src/sort/gen_sort_variants.go
+@@ -79,10 +79,10 @@ func main() {
+ 			Package:    "slices",
+ 			Imports:    "import \"constraints\"\n",
+ 			FuncSuffix: "Ordered",
+-			TypeParam:  "[Elem constraints.Ordered]",
++			TypeParam:  "[E constraints.Ordered]",
+ 			ExtraParam: "",
+ 			ExtraArg:   "",
+-			DataType:   "[]Elem",
++			DataType:   "[]E",
+ 			Funcs: template.FuncMap{
+ 				"Less": func(name, i, j string) string {
+ 					return fmt.Sprintf("(%s[%s] < %s[%s])", name, i, name, j)
+@@ -98,10 +98,10 @@ func main() {
+ 			Path:       "zsortanyfunc.go",
+ 			Package:    "slices",
+ 			FuncSuffix: "LessFunc",
+-			TypeParam:  "[Elem any]",
+-			ExtraParam: ", less func(a, b Elem) bool",
++			TypeParam:  "[E any]",
++			ExtraParam: ", less func(a, b E) bool",
+ 			ExtraArg:   ", less",
+-			DataType:   "[]Elem",
++			DataType:   "[]E",
+ 			Funcs: template.FuncMap{
+ 				"Less": func(name, i, j string) string {
+ 					return fmt.Sprintf("less(%s[%s], %s[%s])", name, i, name, j)

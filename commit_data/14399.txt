@@ -16,9 +16,143 @@ Date:   Tue Nov 13 22:38:25 2012 -0800
     R=golang-dev, rsc, dave
     CC=golang-dev
     https://golang.org/cl/6739055
-
+---
  src/pkg/net/http/client_test.go   |  8 +++++++-
  src/pkg/net/http/transfer.go      | 13 ++++++++++++-
  src/pkg/net/http/transfer_test.go | 37 +++++++++++++++++++++++++++++++++++++
  src/pkg/net/http/transport.go     |  8 +++-----
  4 files changed, 59 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/net/http/client_test.go b/src/pkg/net/http/client_test.go
+index c20af5e573..9a45b147ef 100644
+--- a/src/pkg/net/http/client_test.go
++++ b/src/pkg/net/http/client_test.go
+@@ -219,6 +219,9 @@ func TestRedirects(t *testing.T) {
+ 		return checkErr
+ 	}}
+ 	res, err := c.Get(ts.URL)
++	if err != nil {
++		t.Fatalf("Get error: %v", err)
++	}
+ 	finalUrl := res.Request.URL.String()
+ 	if e, g := "<nil>", fmt.Sprintf("%v", err); e != g {
+ 		t.Errorf("with custom client, expected error %q, got %q", e, g)
+@@ -335,7 +338,10 @@ func TestRedirectCookiesJar(t *testing.T) {
+ 	c.Jar = &TestJar{perURL: make(map[string][]*Cookie)}
+ 	u, _ := url.Parse(ts.URL)
+ 	c.Jar.SetCookies(u, []*Cookie{expectedCookies[0]})
+-	resp, _ := c.Get(ts.URL)
++	resp, err := c.Get(ts.URL)
++	if err != nil {
++		t.Fatalf("Get: %v", err)
++	}
+ 	matchReturnedCookies(t, expectedCookies, resp.Cookies())
+ }
+ 
+diff --git a/src/pkg/net/http/transfer.go b/src/pkg/net/http/transfer.go
+index 1fc1e63a96..9833dddf2b 100644
+--- a/src/pkg/net/http/transfer.go
++++ b/src/pkg/net/http/transfer.go
+@@ -567,14 +567,22 @@ func seeUpcomingDoubleCRLF(r *bufio.Reader) bool {
+ 	return false
+ }
+ 
++var errTrailerEOF = errors.New("http: unexpected EOF reading trailer")
++
+ func (b *body) readTrailer() error {
+ 	// The common case, since nobody uses trailers.
+-	buf, _ := b.r.Peek(2)
++	buf, err := b.r.Peek(2)
+ 	if bytes.Equal(buf, singleCRLF) {
+ 		b.r.ReadByte()
+ 		b.r.ReadByte()
+ 		return nil
+ 	}
++	if len(buf) < 2 {
++		return errTrailerEOF
++	}
++	if err != nil {
++		return err
++	}
+ 
+ 	// Make sure there's a header terminator coming up, to prevent
+ 	// a DoS with an unbounded size Trailer.  It's not easy to
+@@ -590,6 +598,9 @@ func (b *body) readTrailer() error {
+ 
+ 	hdr, err := textproto.NewReader(b.r).ReadMIMEHeader()
+ 	if err != nil {
++		if err == io.EOF {
++			return errTrailerEOF
++		}
+ 		return err
+ 	}
+ 	switch rr := b.hdr.(type) {
+diff --git a/src/pkg/net/http/transfer_test.go b/src/pkg/net/http/transfer_test.go
+new file mode 100644
+index 0000000000..e903c94c1f
+--- /dev/null
++++ b/src/pkg/net/http/transfer_test.go
+@@ -0,0 +1,37 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package http
++
++import (
++	"bufio"
++	"strings"
++	"testing"
++)
++
++func TestBodyReadBadTrailer(t *testing.T) {
++	b := &body{
++		Reader: strings.NewReader("foobar"),
++		hdr:    true, // force reading the trailer
++		r:      bufio.NewReader(strings.NewReader("")),
++	}
++	buf := make([]byte, 7)
++	n, err := b.Read(buf[:3])
++	got := string(buf[:n])
++	if got != "foo" || err != nil {
++		t.Fatalf(`first Read = %n (%q), %v; want 3 ("foo")`, n, got, err)
++	}
++
++	n, err = b.Read(buf[:])
++	got = string(buf[:n])
++	if got != "bar" || err != nil {
++		t.Fatalf(`second Read = %n (%q), %v; want 3 ("bar")`, n, got, err)
++	}
++
++	n, err = b.Read(buf[:])
++	got = string(buf[:n])
++	if err == nil {
++		t.Errorf("final Read was successful (%q), expected error from trailer read", got)
++	}
++}
+diff --git a/src/pkg/net/http/transport.go b/src/pkg/net/http/transport.go
+index e8d7b527f5..38ea6f7ba8 100644
+--- a/src/pkg/net/http/transport.go
++++ b/src/pkg/net/http/transport.go
+@@ -605,6 +605,9 @@ func (pc *persistConn) readLoop() {
+ 			alive = false
+ 		}
+ 
++		// TODO(bradfitz): this hasBody conflicts with the defition
++		// above which excludes HEAD requests.  Is this one
++		// incomplete?
+ 		hasBody := resp != nil && resp.ContentLength != 0
+ 		var waitForBodyRead chan bool
+ 		if hasBody {
+@@ -806,11 +809,6 @@ func canonicalAddr(url *url.URL) string {
+ 	return addr
+ }
+ 
+-func responseIsKeepAlive(res *Response) bool {
+-	// TODO: implement.  for now just always shutting down the connection.
+-	return false
+-}
+-
+ // bodyEOFSignal wraps a ReadCloser but runs fn (if non-nil) at most
+ // once, right before the final Read() or Close() call returns, but after
+ // EOF has been seen.

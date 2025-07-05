@@ -18,9 +18,111 @@ Date:   Sat Mar 11 00:57:57 2023 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/time/time_test.go     | 26 ++++++++++++++++++--------
  src/time/zoneinfo.go      |  8 ++++----
  src/time/zoneinfo_read.go |  2 +-
  src/time/zoneinfo_test.go |  1 +
  4 files changed, 24 insertions(+), 13 deletions(-)
+
+diff --git a/src/time/time_test.go b/src/time/time_test.go
+index 4221efec88..3b30f802ef 100644
+--- a/src/time/time_test.go
++++ b/src/time/time_test.go
+@@ -1860,16 +1860,26 @@ func TestZoneBounds(t *testing.T) {
+ 		5: {Date(1991, September, 14, 17, 0, 0, 0, loc), boundTwo, boundThree},
+ 		6: {Date(1991, September, 15, 0, 50, 0, 0, loc), boundTwo, boundThree},
+ 
++		// The ZoneBounds of a "Asia/Shanghai" after the last transition (Standard Time)
++		7:  {boundThree, boundThree, Time{}},
++		8:  {Date(1991, December, 15, 1, 50, 0, 0, loc), boundThree, Time{}},
++		9:  {Date(1992, April, 13, 17, 50, 0, 0, loc), boundThree, Time{}},
++		10: {Date(1992, April, 13, 18, 0, 0, 0, loc), boundThree, Time{}},
++		11: {Date(1992, April, 14, 1, 50, 0, 0, loc), boundThree, Time{}},
++		12: {Date(1992, September, 14, 16, 50, 0, 0, loc), boundThree, Time{}},
++		13: {Date(1992, September, 14, 17, 0, 0, 0, loc), boundThree, Time{}},
++		14: {Date(1992, September, 15, 0, 50, 0, 0, loc), boundThree, Time{}},
++
+ 		// The ZoneBounds of a local time would return two local Time.
+ 		// Note: We preloaded "America/Los_Angeles" as time.Local for testing
+-		7:  {makeLocalTime(0), makeLocalTime(-5756400), makeLocalTime(9972000)},
+-		8:  {makeLocalTime(1221681866), makeLocalTime(1205056800), makeLocalTime(1225616400)},
+-		9:  {makeLocalTime(2152173599), makeLocalTime(2145916800), makeLocalTime(2152173600)},
+-		10: {makeLocalTime(2152173600), makeLocalTime(2152173600), makeLocalTime(2172733200)},
+-		11: {makeLocalTime(2152173601), makeLocalTime(2152173600), makeLocalTime(2172733200)},
+-		12: {makeLocalTime(2159200800), makeLocalTime(2152173600), makeLocalTime(2172733200)},
+-		13: {makeLocalTime(2172733199), makeLocalTime(2152173600), makeLocalTime(2172733200)},
+-		14: {makeLocalTime(2172733200), makeLocalTime(2172733200), makeLocalTime(2177452800)},
++		15: {makeLocalTime(0), makeLocalTime(-5756400), makeLocalTime(9972000)},
++		16: {makeLocalTime(1221681866), makeLocalTime(1205056800), makeLocalTime(1225616400)},
++		17: {makeLocalTime(2152173599), makeLocalTime(2145916800), makeLocalTime(2152173600)},
++		18: {makeLocalTime(2152173600), makeLocalTime(2152173600), makeLocalTime(2172733200)},
++		19: {makeLocalTime(2152173601), makeLocalTime(2152173600), makeLocalTime(2172733200)},
++		20: {makeLocalTime(2159200800), makeLocalTime(2152173600), makeLocalTime(2172733200)},
++		21: {makeLocalTime(2172733199), makeLocalTime(2152173600), makeLocalTime(2172733200)},
++		22: {makeLocalTime(2172733200), makeLocalTime(2172733200), makeLocalTime(2177452800)},
+ 	}
+ 	for i, tt := range realTests {
+ 		start, end := tt.giveTime.ZoneBounds()
+diff --git a/src/time/zoneinfo.go b/src/time/zoneinfo.go
+index dd3b4edd01..4edcf3d98f 100644
+--- a/src/time/zoneinfo.go
++++ b/src/time/zoneinfo.go
+@@ -203,7 +203,7 @@ func (l *Location) lookup(sec int64) (name string, offset int, start, end int64,
+ 	// If we're at the end of the known zone transitions,
+ 	// try the extend string.
+ 	if lo == len(tx)-1 && l.extend != "" {
+-		if ename, eoffset, estart, eend, eisDST, ok := tzset(l.extend, end, sec); ok {
++		if ename, eoffset, estart, eend, eisDST, ok := tzset(l.extend, start, sec); ok {
+ 			return ename, eoffset, estart, eend, eisDST
+ 		}
+ 	}
+@@ -264,12 +264,12 @@ func (l *Location) firstZoneUsed() bool {
+ }
+ 
+ // tzset takes a timezone string like the one found in the TZ environment
+-// variable, the end of the last time zone transition expressed as seconds
++// variable, the time of the last time zone transition expressed as seconds
+ // since January 1, 1970 00:00:00 UTC, and a time expressed the same way.
+ // We call this a tzset string since in C the function tzset reads TZ.
+ // The return values are as for lookup, plus ok which reports whether the
+ // parse succeeded.
+-func tzset(s string, initEnd, sec int64) (name string, offset int, start, end int64, isDST, ok bool) {
++func tzset(s string, lastTxSec, sec int64) (name string, offset int, start, end int64, isDST, ok bool) {
+ 	var (
+ 		stdName, dstName     string
+ 		stdOffset, dstOffset int
+@@ -290,7 +290,7 @@ func tzset(s string, initEnd, sec int64) (name string, offset int, start, end in
+ 
+ 	if len(s) == 0 || s[0] == ',' {
+ 		// No daylight savings time.
+-		return stdName, stdOffset, initEnd, omega, false, true
++		return stdName, stdOffset, lastTxSec, omega, false, true
+ 	}
+ 
+ 	dstName, s, ok = tzsetName(s)
+diff --git a/src/time/zoneinfo_read.go b/src/time/zoneinfo_read.go
+index d8b35003a1..4d0e47d890 100644
+--- a/src/time/zoneinfo_read.go
++++ b/src/time/zoneinfo_read.go
+@@ -329,7 +329,7 @@ func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
+ 			} else if l.extend != "" {
+ 				// If we're at the end of the known zone transitions,
+ 				// try the extend string.
+-				if name, offset, estart, eend, isDST, ok := tzset(l.extend, l.cacheEnd, sec); ok {
++				if name, offset, estart, eend, isDST, ok := tzset(l.extend, l.cacheStart, sec); ok {
+ 					l.cacheStart = estart
+ 					l.cacheEnd = eend
+ 					// Find the zone that is returned by tzset to avoid allocation if possible.
+diff --git a/src/time/zoneinfo_test.go b/src/time/zoneinfo_test.go
+index 243ff8ebde..8cd37b5e27 100644
+--- a/src/time/zoneinfo_test.go
++++ b/src/time/zoneinfo_test.go
+@@ -271,6 +271,7 @@ func TestTzset(t *testing.T) {
+ 		{"PST8PDT,M3.2.0,M11.1.0", 0, 2172733199, "PDT", -7 * 60 * 60, 2152173600, 2172733200, true, true},
+ 		{"PST8PDT,M3.2.0,M11.1.0", 0, 2172733200, "PST", -8 * 60 * 60, 2172733200, 2177452800, false, true},
+ 		{"PST8PDT,M3.2.0,M11.1.0", 0, 2172733201, "PST", -8 * 60 * 60, 2172733200, 2177452800, false, true},
++		{"KST-9", 592333200, 1677246697, "KST", 9 * 60 * 60, 592333200, 1<<63 - 1, false, true},
+ 	} {
+ 		name, off, start, end, isDST, ok := time.Tzset(test.inStr, test.inEnd, test.inSec)
+ 		if name != test.name || off != test.off || start != test.start || end != test.end || isDST != test.isDST || ok != test.ok {

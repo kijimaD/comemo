@@ -20,8 +20,56 @@ Date:   Fri Mar 25 13:22:55 2022 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/make.bash | 4 ++--
  src/make.bat  | 1 +
  src/make.rc   | 2 +-
  3 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/make.bash b/src/make.bash
+index 31387da33c..e517a1bda9 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -193,7 +193,7 @@ fi
+ # Get the exact bootstrap toolchain version to help with debugging.
+ # We clear GOOS and GOARCH to avoid an ominous but harmless warning if
+ # the bootstrap doesn't support them.
+-GOROOT_BOOTSTRAP_VERSION=$(GOOS= GOARCH= $GOROOT_BOOTSTRAP/bin/go version | sed 's/go version //')
++GOROOT_BOOTSTRAP_VERSION=$(GOOS= GOARCH= GOEXPERIMENT= $GOROOT_BOOTSTRAP/bin/go version | sed 's/go version //')
+ echo "Building Go cmd/dist using $GOROOT_BOOTSTRAP. ($GOROOT_BOOTSTRAP_VERSION)"
+ if $verbose; then
+ 	echo cmd/dist
+@@ -204,7 +204,7 @@ if [ "$GOROOT_BOOTSTRAP" = "$GOROOT" ]; then
+ 	exit 1
+ fi
+ rm -f cmd/dist/dist
+-GOROOT="$GOROOT_BOOTSTRAP" GOOS="" GOARCH="" GO111MODULE=off "$GOROOT_BOOTSTRAP/bin/go" build -o cmd/dist/dist ./cmd/dist
++GOROOT="$GOROOT_BOOTSTRAP" GOOS="" GOARCH="" GO111MODULE=off GOEXPERIMENT="" "$GOROOT_BOOTSTRAP/bin/go" build -o cmd/dist/dist ./cmd/dist
+ 
+ # -e doesn't propagate out of eval, so check success by hand.
+ eval $(./cmd/dist/dist env -p || echo FAIL=true)
+diff --git a/src/make.bat b/src/make.bat
+index 56da417dd1..c2f87ace75 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -100,6 +100,7 @@ set GOROOT=%GOROOT_BOOTSTRAP%
+ set GOOS=
+ set GOARCH=
+ set GOBIN=
++set GOEXPERIMENT=
+ set GO111MODULE=off
+ "%GOROOT_BOOTSTRAP%\bin\go.exe" build -o cmd\dist\dist.exe .\cmd\dist
+ endlocal
+diff --git a/src/make.rc b/src/make.rc
+index 066c3ab323..273d151190 100755
+--- a/src/make.rc
++++ b/src/make.rc
+@@ -88,7 +88,7 @@ if(~ $GOROOT_BOOTSTRAP $GOROOT){
+ echo 'Building Go cmd/dist using '^$GOROOT_BOOTSTRAP
+ if(~ $#vflag 1)
+ 	echo cmd/dist
+-GOROOT=$GOROOT_BOOTSTRAP GOOS='' GOARCH='' GO111MODULE=off $GOROOT_BOOTSTRAP/bin/go build -o cmd/dist/dist ./cmd/dist
++GOROOT=$GOROOT_BOOTSTRAP GOOS='' GOARCH='' GOEXPERIMENT='' GO111MODULE=off $GOROOT_BOOTSTRAP/bin/go build -o cmd/dist/dist ./cmd/dist
+ 
+ eval `{./cmd/dist/dist env -9}
+ if(~ $#vflag 1)

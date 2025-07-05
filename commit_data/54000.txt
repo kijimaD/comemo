@@ -20,10 +20,101 @@ Date:   Wed Sep 14 10:45:15 2022 +0200
     Reviewed-by: Jenny Rakoczy <jenny@golang.org>
     Run-TryBot: Jenny Rakoczy <jenny@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/syscall/exec_libc.go             |  4 ++--
  src/syscall/syscall_illumos.go       |  5 +++--
  src/syscall/syscall_solaris.go       |  4 ++--
  src/syscall/syscall_solarisonly.go   | 10 ++++++++++
  src/syscall/zerrors_solaris_amd64.go |  1 -
  5 files changed, 17 insertions(+), 7 deletions(-)
+
+diff --git a/src/syscall/exec_libc.go b/src/syscall/exec_libc.go
+index 72f73a268a..9e14197dcf 100644
+--- a/src/syscall/exec_libc.go
++++ b/src/syscall/exec_libc.go
+@@ -199,7 +199,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 	// so that pass 2 won't stomp on an fd it needs later.
+ 	if pipe < nextfd {
+ 		switch runtime.GOOS {
+-		case "illumos":
++		case "illumos", "solaris":
+ 			_, err1 = fcntl1(uintptr(pipe), _F_DUP2FD_CLOEXEC, uintptr(nextfd))
+ 		default:
+ 			_, err1 = dup2child(uintptr(pipe), uintptr(nextfd))
+@@ -220,7 +220,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 				nextfd++
+ 			}
+ 			switch runtime.GOOS {
+-			case "illumos":
++			case "illumos", "solaris":
+ 				_, err1 = fcntl1(uintptr(fd[i]), _F_DUP2FD_CLOEXEC, uintptr(nextfd))
+ 			default:
+ 				_, err1 = dup2child(uintptr(fd[i]), uintptr(nextfd))
+diff --git a/src/syscall/syscall_illumos.go b/src/syscall/syscall_illumos.go
+index 04f9e7e5d6..d043636aa1 100644
+--- a/src/syscall/syscall_illumos.go
++++ b/src/syscall/syscall_illumos.go
+@@ -4,12 +4,13 @@
+ 
+ //go:build illumos
+ 
+-// Illumos system calls not present on Solaris.
+-
+ package syscall
+ 
+ import "unsafe"
+ 
++// F_DUP2FD_CLOEXEC has different values on Solaris and Illumos.
++const F_DUP2FD_CLOEXEC = 0x24
++
+ //go:cgo_import_dynamic libc_flock flock "libc.so"
+ 
+ //go:linkname procFlock libc_flock
+diff --git a/src/syscall/syscall_solaris.go b/src/syscall/syscall_solaris.go
+index f6d7e46cd3..fce0b058fc 100644
+--- a/src/syscall/syscall_solaris.go
++++ b/src/syscall/syscall_solaris.go
+@@ -14,13 +14,13 @@ package syscall
+ 
+ import "unsafe"
+ 
++const _F_DUP2FD_CLOEXEC = F_DUP2FD_CLOEXEC
++
+ func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+ func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+ func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+ func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+ 
+-const _F_DUP2FD_CLOEXEC = F_DUP2FD_CLOEXEC
+-
+ // Implemented in asm_solaris_amd64.s.
+ func rawSysvicall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+ func sysvicall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+diff --git a/src/syscall/syscall_solarisonly.go b/src/syscall/syscall_solarisonly.go
+new file mode 100644
+index 0000000000..0877bd7fba
+--- /dev/null
++++ b/src/syscall/syscall_solarisonly.go
+@@ -0,0 +1,10 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build solaris && !illumos
++
++package syscall
++
++// F_DUP2FD_CLOEXEC has different values on Solaris and Illumos.
++const F_DUP2FD_CLOEXEC = 0x30
+diff --git a/src/syscall/zerrors_solaris_amd64.go b/src/syscall/zerrors_solaris_amd64.go
+index 8e77bf79c6..4a1d9c3d26 100644
+--- a/src/syscall/zerrors_solaris_amd64.go
++++ b/src/syscall/zerrors_solaris_amd64.go
+@@ -276,7 +276,6 @@ const (
+ 	F_CHKFL                       = 0x8
+ 	F_COMPAT                      = 0x8
+ 	F_DUP2FD                      = 0x9
+-	F_DUP2FD_CLOEXEC              = 0x24
+ 	F_DUPFD                       = 0x0
+ 	F_DUPFD_CLOEXEC               = 0x25
+ 	F_FREESP                      = 0xb

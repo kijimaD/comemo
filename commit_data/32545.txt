@@ -12,7 +12,47 @@ Date:   Sat Apr 8 13:16:26 2017 +0900
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/mime/encodedword.go      | 7 ++++---
  src/mime/encodedword_test.go | 2 +-
  2 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/mime/encodedword.go b/src/mime/encodedword.go
+index 158feaad4f..99eb432f54 100644
+--- a/src/mime/encodedword.go
++++ b/src/mime/encodedword.go
+@@ -194,8 +194,9 @@ type WordDecoder struct {
+ 
+ // Decode decodes an RFC 2047 encoded-word.
+ func (d *WordDecoder) Decode(word string) (string, error) {
+-	// See https://tools.ietf.org/html/rfc2047#section-2
+-	if len(word) < 9 || !strings.HasPrefix(word, "=?") || !strings.HasSuffix(word, "?=") || strings.Count(word, "?") != 4 {
++	// See https://tools.ietf.org/html/rfc2047#section-2 for details.
++	// Our decoder is permissive, we accept empty encoded-text.
++	if len(word) < 8 || !strings.HasPrefix(word, "=?") || !strings.HasSuffix(word, "?=") || strings.Count(word, "?") != 4 {
+ 		return "", errInvalidWord
+ 	}
+ 	word = word[2 : len(word)-2]
+@@ -208,7 +209,7 @@ func (d *WordDecoder) Decode(word string) (string, error) {
+ 	if len(charset) == 0 {
+ 		return "", errInvalidWord
+ 	}
+-	if len(word) <= split+3 {
++	if len(word) < split+3 {
+ 		return "", errInvalidWord
+ 	}
+ 	encoding := word[split+1]
+diff --git a/src/mime/encodedword_test.go b/src/mime/encodedword_test.go
+index b63fe043ed..6c54e502ad 100644
+--- a/src/mime/encodedword_test.go
++++ b/src/mime/encodedword_test.go
+@@ -89,8 +89,8 @@ func TestDecodeWord(t *testing.T) {
+ 		{"=?UTF-8?Q?=A?=", "", true},
+ 		{"=?UTF-8?A?A?=", "", true},
+ 		{"=????=", "", true},
+-		{"=?UTF-8?Q??=", "", true},
+ 		{"=?UTF-8???=", "", true},
++		{"=?UTF-8?Q??=", "", false},
+ 	}
+ 
+ 	for _, test := range tests {

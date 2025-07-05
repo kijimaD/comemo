@@ -14,7 +14,50 @@ Date:   Wed May 18 13:04:00 2016 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/esc.go |  2 +-
  test/fixedbugs/issue15733.go       | 23 +++++++++++++++++++++++
  2 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index bc22dfacc0..553dde8bf9 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -640,7 +640,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 	// "Big" conditions that were scattered around in walk have been gathered here
+ 	if n.Esc != EscHeap && n.Type != nil &&
+ 		(n.Type.Width > MaxStackVarSize ||
+-			n.Op == ONEW && n.Type.Elem().Width >= 1<<16 ||
++			(n.Op == ONEW || n.Op == OPTRLIT) && n.Type.Elem().Width >= 1<<16 ||
+ 			n.Op == OMAKESLICE && !isSmallMakeSlice(n)) {
+ 		if Debug['m'] > 2 {
+ 			Warnl(n.Lineno, "%v is too large for stack", n)
+diff --git a/test/fixedbugs/issue15733.go b/test/fixedbugs/issue15733.go
+new file mode 100644
+index 0000000000..8f609e634d
+--- /dev/null
++++ b/test/fixedbugs/issue15733.go
+@@ -0,0 +1,23 @@
++// compile
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type S struct {
++	a [1 << 16]byte
++}
++
++func f1() {
++	p := &S{}
++	_ = p
++}
++
++type T [1 << 16]byte
++
++func f2() {
++	p := &T{}
++	_ = p
++}

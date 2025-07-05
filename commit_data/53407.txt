@@ -15,6 +15,27 @@ Date:   Mon Aug 15 13:05:01 2022 -0400
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Alan Donovan <adonovan@google.com>
-
+---
  src/go/constant/value.go | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/constant/value.go b/src/go/constant/value.go
+index 36c29d8c27..f8d03cf375 100644
+--- a/src/go/constant/value.go
++++ b/src/go/constant/value.go
+@@ -380,7 +380,14 @@ func MakeUnknown() Value { return unknownVal{} }
+ func MakeBool(b bool) Value { return boolVal(b) }
+ 
+ // MakeString returns the String value for s.
+-func MakeString(s string) Value { return &stringVal{s: s} }
++func MakeString(s string) Value {
++	if s == "" {
++		return &emptyString // common case
++	}
++	return &stringVal{s: s}
++}
++
++var emptyString stringVal
+ 
+ // MakeInt64 returns the Int value for x.
+ func MakeInt64(x int64) Value { return int64Val(x) }

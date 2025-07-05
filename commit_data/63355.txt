@@ -35,6 +35,22 @@ Date:   Fri Jun 27 18:46:27 2025 -0400
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/escape/escape.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index a39d6b49a6..600b986d3f 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -534,10 +534,6 @@ func (b *batch) rewriteWithLiterals(n ir.Node, fn *ir.Func) {
+ 	if n.Op() != ir.OMAKESLICE && n.Op() != ir.OCONVIFACE {
+ 		return
+ 	}
+-	if base.Flag.Cfg.CoverageInfo != nil {
+-		// Avoid altering coverage results.
+-		return
+-	}
+ 
+ 	// Look up a cached ReassignOracle for the function, lazily computing one if needed.
+ 	ro := b.reassignOracle(fn)

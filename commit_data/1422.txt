@@ -10,7 +10,7 @@ Date:   Tue Jan 6 15:49:27 2009 -0800
     DELTA=41  (6 added, 0 deleted, 35 changed)
     OCL=22174
     CL=22174
-
+---
  doc/progs/cat.go         |  4 ++--
  doc/progs/cat_rot13.go   |  8 ++++----
  doc/progs/fd.go          |  4 ++--
@@ -22,3 +22,299 @@ Date:   Tue Jan 6 15:49:27 2009 -0800
  doc/progs/sieve1.go      | 18 +++++++++---------
  src/run.bash             |  4 ++++
  10 files changed, 40 insertions(+), 34 deletions(-)
+
+diff --git a/doc/progs/cat.go b/doc/progs/cat.go
+index 993f9d59c6..f74faf4f10 100644
+--- a/doc/progs/cat.go
++++ b/doc/progs/cat.go
+@@ -13,14 +13,14 @@ func cat(fd *FD.FD) {
+ 	const NBUF = 512;
+ 	var buf [NBUF]byte;
+ 	for {
+-		switch nr, er := fd.Read(&buf); true {
++		switch nr, er := fd.Read(buf); true {
+ 		case nr < 0:
+ 			print("error reading from ", fd.Name(), ": ", er, "\n");
+ 			sys.exit(1);
+ 		case nr == 0:  // EOF
+ 			return;
+ 		case nr > 0:
+-			if nw, ew := FD.Stdout.Write((&buf)[0:nr]); nw != nr {
++			if nw, ew := FD.Stdout.Write(buf[0:nr]); nw != nr {
+ 				print("error writing from ", fd.Name(), ": ", ew, "\n");
+ 			}
+ 		}
+diff --git a/doc/progs/cat_rot13.go b/doc/progs/cat_rot13.go
+index a8c570add6..1ef0f64434 100644
+--- a/doc/progs/cat_rot13.go
++++ b/doc/progs/cat_rot13.go
+@@ -22,7 +22,7 @@ func rot13(b byte) byte {
+ }
+ 
+ type Reader interface {
+-	Read(b *[]byte) (ret int64, errno int64);
++	Read(b []byte) (ret int64, errno int64);
+ 	Name() string;
+ }
+ 
+@@ -36,7 +36,7 @@ func NewRot13(source Reader) *Rot13 {
+ 	return r13
+ }
+ 
+-func (r13 *Rot13) Read(b *[]byte) (ret int64, errno int64) {
++func (r13 *Rot13) Read(b []byte) (ret int64, errno int64) {	// TODO: use standard Read sig?
+ 	r, e := r13.source.Read(b);
+ 	for i := int64(0); i < r; i++ {
+ 		b[i] = rot13(b[i])
+@@ -57,14 +57,14 @@ func cat(r Reader) {
+ 		r = NewRot13(r)
+ 	}
+ 	for {
+-		switch nr, er := r.Read(&buf); {
++		switch nr, er := r.Read(buf); {
+ 		case nr < 0:
+ 			print("error reading from ", r.Name(), ": ", er, "\n");
+ 			sys.exit(1);
+ 		case nr == 0:  // EOF
+ 			return;
+ 		case nr > 0:
+-			nw, ew := FD.Stdout.Write((&buf)[0:nr]);
++			nw, ew := FD.Stdout.Write(buf[0:nr]);
+ 			if nw != nr {
+ 				print("error writing from ", r.Name(), ": ", ew, "\n");
+ 			}
+diff --git a/doc/progs/fd.go b/doc/progs/fd.go
+index 9ec7d54938..76b784f832 100644
+--- a/doc/progs/fd.go
++++ b/doc/progs/fd.go
+@@ -41,7 +41,7 @@ func (fd *FD) Close() int64 {
+ 	return 0
+ }
+ 
+-func (fd *FD) Read(b *[]byte) (ret int64, errno int64) {
++func (fd *FD) Read(b []byte) (ret int64, errno int64) {
+ 	if fd == nil {
+ 		return -1, Syscall.EINVAL
+ 	}
+@@ -49,7 +49,7 @@ func (fd *FD) Read(b *[]byte) (ret int64, errno int64) {
+ 	return r, e
+ }
+ 
+-func (fd *FD) Write(b *[]byte) (ret int64, errno int64) {
++func (fd *FD) Write(b []byte) (ret int64, errno int64) {
+ 	if fd == nil {
+ 		return -1, Syscall.EINVAL
+ 	}
+diff --git a/doc/progs/helloworld3.go b/doc/progs/helloworld3.go
+index 2347a1a19e..f282bcefb4 100644
+--- a/doc/progs/helloworld3.go
++++ b/doc/progs/helloworld3.go
+@@ -8,7 +8,7 @@ import FD "fd"
+ 
+ func main() {
+ 	hello := []byte{'h', 'e', 'l', 'l', 'o', ',', ' ', 'w', 'o', 'r', 'l', 'd', '\n'};
+-	FD.Stdout.Write(&hello);
++	FD.Stdout.Write(hello);
+ 	fd,  errno := FD.Open("/does/not/exist",  0,  0);
+ 	if fd == nil {
+ 		print("can't open file; errno=",  errno,  "\n");
+diff --git a/doc/progs/run b/doc/progs/run
+index 489cab5bd9..e04c1031e6 100755
+--- a/doc/progs/run
++++ b/doc/progs/run
+@@ -27,7 +27,7 @@ done
+ 
+ function testit {
+ 	6l $1.6
+-	x=$(echo $(6.out $2 2>&1))  # extra echo canonicalizes
++	x=$(echo $(./6.out $2 2>&1))  # extra echo canonicalizes
+ 	if [ "$x" != "$3" ]
+ 	then
+ 		echo $1 failed: '"'$x'"' is not '"'$3'"'
+@@ -36,7 +36,7 @@ function testit {
+ 
+ function testitpipe {
+ 	6l $1.6
+-	x=$(echo $(6.out | $2 2>&1))  # extra echo canonicalizes
++	x=$(echo $(./6.out | $2 2>&1))  # extra echo canonicalizes
+ 	if [ "$x" != "$3" ]
+ 	then
+ 		echo $1 failed: '"'$x'"' is not '"'$3'"'
+@@ -63,3 +63,5 @@ testitpipe sieve "sed 10q" "2 3 5 7 11 13 17 19 23 29"
+ 
+ # server hangs; don't run it
+ testit server1 "" ""
++
++rm -f 6.out *.6
+diff --git a/doc/progs/server.go b/doc/progs/server.go
+index ea089785d9..7a21e43963 100644
+--- a/doc/progs/server.go
++++ b/doc/progs/server.go
+@@ -6,7 +6,7 @@ package main
+ 
+ type Request struct {
+ 	a, b	int;
+-	replyc	*chan int;
++	replyc	chan int;
+ }
+ 
+ type BinOp (a, b int) int;
+@@ -16,14 +16,14 @@ func Run(op *BinOp, request *Request) {
+ 	request.replyc <- result;
+ }
+ 
+-func Server(op *BinOp, service *chan *Request) {
++func Server(op *BinOp, service chan *Request) {
+ 	for {
+ 		request := <-service;
+ 		go Run(op, request);  // don't wait for it
+ 	}
+ }
+ 
+-func StartServer(op *BinOp) *chan *Request {
++func StartServer(op *BinOp) chan *Request {
+ 	req := new(chan *Request);
+ 	go Server(op, req);
+ 	return req;
+diff --git a/doc/progs/server1.go b/doc/progs/server1.go
+index d70ddfd9d0..b7e489d46d 100644
+--- a/doc/progs/server1.go
++++ b/doc/progs/server1.go
+@@ -6,7 +6,7 @@ package main
+ 
+ type Request struct {
+ 	a, b	int;
+-	replyc	*chan int;
++	replyc	chan int;
+ }
+ 
+ type BinOp (a, b int) int;
+@@ -16,7 +16,7 @@ func Run(op *BinOp, request *Request) {
+ 	request.replyc <- result;
+ }
+ 
+-func Server(op *BinOp, service *chan *Request, quit *chan bool) {
++func Server(op *BinOp, service chan *Request, quit chan bool) {
+ 	for {
+ 		select {
+ 		case request := <-service:
+@@ -27,9 +27,9 @@ func Server(op *BinOp, service *chan *Request, quit *chan bool) {
+ 	}
+ }
+ 
+-func StartServer(op *BinOp) (service *chan *Request, quit *chan bool) {
+-	service = new(chan *Request);
+-	quit = new(chan bool);
++func StartServer(op *BinOp) (service chan *Request, quit chan bool) {
++	service = make(chan *Request);
++	quit = make(chan bool);
+ 	go Server(op, service, quit);
+ 	return service, quit;
+ }
+@@ -42,7 +42,7 @@ func main() {
+ 		req := &reqs[i];
+ 		req.a = i;
+ 		req.b = i + N;
+-		req.replyc = new(chan int);
++		req.replyc = make(chan int);
+ 		adder <- req;
+ 	}
+ 	for i := N-1; i >= 0; i-- {   // doesn't matter what order
+diff --git a/doc/progs/sieve.go b/doc/progs/sieve.go
+index 1ee60bddfa..22e14535e3 100644
+--- a/doc/progs/sieve.go
++++ b/doc/progs/sieve.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ // Send the sequence 2, 3, 4, ... to channel 'ch'.
+-func Generate(ch *chan int) {
++func Generate(ch chan int) {
+ 	for i := 2; ; i++ {
+ 		ch <- i  // Send 'i' to channel 'ch'.
+ 	}
+@@ -13,9 +13,9 @@ func Generate(ch *chan int) {
+ 
+ // Copy the values from channel 'in' to channel 'out',
+ // removing those divisible by 'prime'.
+-func Filter(in, out *chan int, prime int) {
++func Filter(in, out chan int, prime int) {
+ 	for {
+-		i := <-in  // Receive value of new variable 'i' from 'in'.
++		i := <-in;  // Receive value of new variable 'i' from 'in'.
+ 		if i % prime != 0 {
+ 			out <- i  // Send 'i' to channel 'out'.
+ 		}
+@@ -24,12 +24,12 @@ func Filter(in, out *chan int, prime int) {
+ 
+ // The prime sieve: Daisy-chain Filter processes together.
+ func main() {
+-	ch := new(chan int);  // Create a new channel.
++	ch := make(chan int);  // Create a new channel.
+ 	go Generate(ch);  // Start Generate() as a goroutine.
+ 	for {
+ 		prime := <-ch;
+ 		print(prime, "\n");
+-		ch1 := new(chan int);
++		ch1 := make(chan int);
+ 		go Filter(ch, ch1, prime);
+ 		ch = ch1
+ 	}
+diff --git a/doc/progs/sieve1.go b/doc/progs/sieve1.go
+index d1c3c7277d..3f2cb9eac3 100644
+--- a/doc/progs/sieve1.go
++++ b/doc/progs/sieve1.go
+@@ -5,9 +5,9 @@
+ package main
+ 
+ // Send the sequence 2, 3, 4, ... to returned channel 
+-func Generate() *chan int {
+-	ch := new(chan int);
+-	go func(ch *chan int){
++func Generate() chan int {
++	ch := make(chan int);
++	go func(ch chan int){
+ 		for i := 2; ; i++ {
+ 			ch <- i
+ 		}
+@@ -16,9 +16,9 @@ func Generate() *chan int {
+ }
+ 
+ // Filter out input values divisible by 'prime', send rest to returned channel
+-func Filter(in *chan int, prime int) *chan int {
+-	out := new(chan int);
+-	go func(in *chan int, out *chan int, prime int) {
++func Filter(in chan int, prime int) chan int {
++	out := make(chan int);
++	go func(in chan int, out chan int, prime int) {
+ 		for {
+ 			if i := <-in; i % prime != 0 {
+ 				out <- i
+@@ -28,9 +28,9 @@ func Filter(in *chan int, prime int) *chan int {
+ 	return out;
+ }
+ 
+-func Sieve() *chan int {
+-	out := new(chan int);
+-	go func(out *chan int) {
++func Sieve() chan int {
++	out := make(chan int);
++	go func(out chan int) {
+ 		ch := Generate();
+ 		for {
+ 			prime := <-ch;
+diff --git a/src/run.bash b/src/run.bash
+index bba8c229b9..1e9f156c32 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -58,6 +58,10 @@ make smoketest
+ # # make test
+ # ) || exit $?
+ 
++(xcd ../doc/progs
++time run
++) || exit $?
++
+ (xcd ../test
+ ./run
+ ) || exit $?

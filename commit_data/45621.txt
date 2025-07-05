@@ -16,7 +16,75 @@ Date:   Thu Jul 16 17:42:47 2020 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/os/exec_unix.go      |  7 ++++---
  src/os/exec_unix_test.go | 29 +++++++++++++++++++++++++++++
  2 files changed, 33 insertions(+), 3 deletions(-)
+
+diff --git a/src/os/exec_unix.go b/src/os/exec_unix.go
+index 7759a2d2ea..624061297b 100644
+--- a/src/os/exec_unix.go
++++ b/src/os/exec_unix.go
+@@ -59,7 +59,8 @@ func (p *Process) wait() (ps *ProcessState, err error) {
+ 	return ps, nil
+ }
+ 
+-var errFinished = errors.New("os: process already finished")
++// ErrProcessDone indicates a Process has finished.
++var ErrProcessDone = errors.New("os: process already finished")
+ 
+ func (p *Process) signal(sig Signal) error {
+ 	if p.Pid == -1 {
+@@ -71,7 +72,7 @@ func (p *Process) signal(sig Signal) error {
+ 	p.sigMu.RLock()
+ 	defer p.sigMu.RUnlock()
+ 	if p.done() {
+-		return errFinished
++		return ErrProcessDone
+ 	}
+ 	s, ok := sig.(syscall.Signal)
+ 	if !ok {
+@@ -79,7 +80,7 @@ func (p *Process) signal(sig Signal) error {
+ 	}
+ 	if e := syscall.Kill(p.Pid, s); e != nil {
+ 		if e == syscall.ESRCH {
+-			return errFinished
++			return ErrProcessDone
+ 		}
+ 		return e
+ 	}
+diff --git a/src/os/exec_unix_test.go b/src/os/exec_unix_test.go
+new file mode 100644
+index 0000000000..d942cdb5e5
+--- /dev/null
++++ b/src/os/exec_unix_test.go
+@@ -0,0 +1,29 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
++
++package os_test
++
++import (
++	"internal/testenv"
++	. "os"
++	"testing"
++)
++
++func TestErrProcessDone(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	path, err := testenv.GoTool()
++	if err != nil {
++		t.Errorf("finding go tool: %v", err)
++	}
++	p, err := StartProcess(path, []string{"go"}, &ProcAttr{})
++	if err != nil {
++		t.Errorf("starting test process: %v", err)
++	}
++	p.Wait()
++	if got := p.Signal(Kill); got != ErrProcessDone {
++		t.Errorf("got %v want %v", got, ErrProcessDone)
++	}
++}

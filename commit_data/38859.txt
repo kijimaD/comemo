@@ -22,8 +22,280 @@ Date:   Mon Dec 3 13:46:14 2018 -0800
     Change-Id: I2e2d6d6bb839b3a76522fbc4ba7355c71d3bb80b
     Reviewed-on: https://go-review.googlesource.com/c/152259
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/check.go       |  15 ++++--
  src/go/types/interfaces.go  |   8 ++++
  src/go/types/issues_test.go | 111 ++++++++++++++++++++++++++------------------
  3 files changed, 86 insertions(+), 48 deletions(-)
+
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 91df94dcbc..b48d09de22 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -85,8 +85,9 @@ type Checker struct {
+ 	files            []*ast.File                       // package files
+ 	unusedDotImports map[*Scope]map[*Package]token.Pos // positions of unused dot-imported packages for each file scope
+ 
+-	firstErr   error                    // first error encountered
+-	methods    map[*TypeName][]*Func    // maps package scope type names to associated non-blank, non-interface methods
++	firstErr error                 // first error encountered
++	methods  map[*TypeName][]*Func // maps package scope type names to associated non-blank, non-interface methods
++	// TODO(gri) move interfaces up to the group of fields persistent across check.Files invocations (see also comment in Checker.initFiles)
+ 	interfaces map[*TypeName]*ifaceInfo // maps interface type names to corresponding interface infos
+ 	untyped    map[ast.Expr]exprInfo    // map of expressions without final type
+ 	delayed    []func()                 // stack of delayed actions
+@@ -192,7 +193,15 @@ func (check *Checker) initFiles(files []*ast.File) {
+ 
+ 	check.firstErr = nil
+ 	check.methods = nil
+-	check.interfaces = nil
++	// Don't clear the interfaces cache! It's important that we don't recompute
++	// ifaceInfos repeatedly (due to multiple check.Files calls) because when
++	// they are recomputed, they are not used in the context of their original
++	// declaration (because those types are already type-checked, typically) and
++	// then they will get the wrong receiver types, which matters for go/types
++	// clients. It is also safe to not reset the interfaces cache because files
++	// added to a package cannot change (add methods to) existing interface types;
++	// they can only add new interfaces. See also the respective comment in
++	// checker.infoFromTypeName (interfaces.go). Was bug - see issue #29029.
+ 	check.untyped = nil
+ 	check.delayed = nil
+ 
+diff --git a/src/go/types/interfaces.go b/src/go/types/interfaces.go
+index 57dc1bccdc..e0ef83adcc 100644
+--- a/src/go/types/interfaces.go
++++ b/src/go/types/interfaces.go
+@@ -336,6 +336,14 @@ typenameLoop:
+ 			return check.infoFromQualifiedTypeName(decl.file, typ)
+ 		case *ast.InterfaceType:
+ 			// type tname interface{...}
++			// If tname is fully type-checked at this point (tname.color() == black)
++			// we could use infoFromType here. But in this case, the interface must
++			// be in the check.interfaces cache as well, which will be hit when we
++			// call infoFromTypeLit below, and which will be faster. It is important
++			// that we use that previously computed interface because its methods
++			// have the correct receiver type (for go/types clients). Thus, the
++			// check.interfaces cache must be up-to-date across even across multiple
++			// check.Files calls (was bug - see issue #29029).
+ 			return check.infoFromTypeLit(decl.file, typ, tname, path)
+ 		}
+ 		// type tname X // and X is not an interface type
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index cf489b1c9a..c9f5413920 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -7,6 +7,7 @@
+ package types_test
+ 
+ import (
++	"bytes"
+ 	"fmt"
+ 	"go/ast"
+ 	"go/importer"
+@@ -19,15 +20,17 @@ import (
+ 	. "go/types"
+ )
+ 
+-func TestIssue5770(t *testing.T) {
+-	src := `package p; type S struct{T}`
++func mustParse(t *testing.T, src string) *ast.File {
+ 	f, err := parser.ParseFile(fset, "", src, 0)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-
++	return f
++}
++func TestIssue5770(t *testing.T) {
++	f := mustParse(t, `package p; type S struct{T}`)
+ 	conf := Config{Importer: importer.Default()}
+-	_, err = conf.Check(f.Name.Name, fset, []*ast.File{f}, nil) // do not crash
++	_, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, nil) // do not crash
+ 	want := "undeclared name: T"
+ 	if err == nil || !strings.Contains(err.Error(), want) {
+ 		t.Errorf("got: %v; want: %s", err, want)
+@@ -46,14 +49,11 @@ var (
+ 	_ = (interface{})("foo")
+ 	_ = (interface{})(nil)
+ )`
+-	f, err := parser.ParseFile(fset, "", src, 0)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
++	f := mustParse(t, src)
+ 
+ 	var conf Config
+ 	types := make(map[ast.Expr]TypeAndValue)
+-	_, err = conf.Check(f.Name.Name, fset, []*ast.File{f}, &Info{Types: types})
++	_, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, &Info{Types: types})
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -94,14 +94,11 @@ func f() int {
+ 	return 0
+ }
+ `
+-	f, err := parser.ParseFile(fset, "", src, 0)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
++	f := mustParse(t, src)
+ 
+ 	var conf Config
+ 	types := make(map[ast.Expr]TypeAndValue)
+-	_, err = conf.Check(f.Name.Name, fset, []*ast.File{f}, &Info{Types: types})
++	_, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, &Info{Types: types})
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -128,14 +125,11 @@ package p
+ func (T) m() (res bool) { return }
+ type T struct{} // receiver type after method declaration
+ `
+-	f, err := parser.ParseFile(fset, "", src, 0)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
++	f := mustParse(t, src)
+ 
+ 	var conf Config
+ 	defs := make(map[*ast.Ident]Object)
+-	_, err = conf.Check(f.Name.Name, fset, []*ast.File{f}, &Info{Defs: defs})
++	_, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, &Info{Defs: defs})
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -162,6 +156,8 @@ func _() {
+         _, _, _ = x, y, z  // uses x, y, z
+ }
+ `
++	f := mustParse(t, src)
++
+ 	const want = `L3 defs func p._()
+ L4 defs const w untyped int
+ L5 defs var x int
+@@ -173,16 +169,11 @@ L7 uses var x int
+ L7 uses var y int
+ L7 uses var z int`
+ 
+-	f, err := parser.ParseFile(fset, "", src, 0)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-
+ 	// don't abort at the first error
+ 	conf := Config{Error: func(err error) { t.Log(err) }}
+ 	defs := make(map[*ast.Ident]Object)
+ 	uses := make(map[*ast.Ident]Object)
+-	_, err = conf.Check(f.Name.Name, fset, []*ast.File{f}, &Info{Defs: defs, Uses: uses})
++	_, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, &Info{Defs: defs, Uses: uses})
+ 	if s := fmt.Sprint(err); !strings.HasSuffix(s, "cannot assign to w") {
+ 		t.Errorf("Check: unexpected error: %s", s)
+ 	}
+@@ -261,13 +252,10 @@ func main() {
+ }
+ `
+ 	f := func(test, src string) {
+-		f, err := parser.ParseFile(fset, "", src, 0)
+-		if err != nil {
+-			t.Fatal(err)
+-		}
++		f := mustParse(t, src)
+ 		cfg := Config{Importer: importer.Default()}
+ 		info := Info{Uses: make(map[*ast.Ident]Object)}
+-		_, err = cfg.Check("main", fset, []*ast.File{f}, &info)
++		_, err := cfg.Check("main", fset, []*ast.File{f}, &info)
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+@@ -294,11 +282,7 @@ func main() {
+ }
+ 
+ func TestIssue22525(t *testing.T) {
+-	src := `package p; func f() { var a, b, c, d, e int }`
+-	f, err := parser.ParseFile(fset, "", src, 0)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
++	f := mustParse(t, `package p; func f() { var a, b, c, d, e int }`)
+ 
+ 	got := "\n"
+ 	conf := Config{Error: func(err error) { got += err.Error() + "\n" }}
+@@ -328,14 +312,11 @@ func TestIssue25627(t *testing.T) {
+ 		`struct { *I }`,
+ 		`struct { a int; b Missing; *Missing }`,
+ 	} {
+-		f, err := parser.ParseFile(fset, "", prefix+src, 0)
+-		if err != nil {
+-			t.Fatal(err)
+-		}
++		f := mustParse(t, prefix+src)
+ 
+ 		cfg := Config{Importer: importer.Default(), Error: func(err error) {}}
+ 		info := &Info{Types: make(map[ast.Expr]TypeAndValue)}
+-		_, err = cfg.Check(f.Name.Name, fset, []*ast.File{f}, info)
++		_, err := cfg.Check(f.Name.Name, fset, []*ast.File{f}, info)
+ 		if err != nil {
+ 			if _, ok := err.(Error); !ok {
+ 				t.Fatal(err)
+@@ -368,11 +349,7 @@ func TestIssue28005(t *testing.T) {
+ 	// compute original file ASTs
+ 	var orig [len(sources)]*ast.File
+ 	for i, src := range sources {
+-		f, err := parser.ParseFile(fset, "", src, 0)
+-		if err != nil {
+-			t.Fatal(err)
+-		}
+-		orig[i] = f
++		orig[i] = mustParse(t, src)
+ 	}
+ 
+ 	// run the test for all order permutations of the incoming files
+@@ -444,3 +421,47 @@ func TestIssue28282(t *testing.T) {
+ 		t.Fatalf("%s.Lookup: got %q (%p); want %q (%p)", it, obj, obj, want, want)
+ 	}
+ }
++
++func TestIssue29029(t *testing.T) {
++	f1 := mustParse(t, `package p; type A interface { M() }`)
++	f2 := mustParse(t, `package p; var B interface { A }`)
++
++	// printInfo prints the *Func definitions recorded in info, one *Func per line.
++	printInfo := func(info *Info) string {
++		var buf bytes.Buffer
++		for _, obj := range info.Defs {
++			if fn, ok := obj.(*Func); ok {
++				fmt.Fprintln(&buf, fn)
++			}
++		}
++		return buf.String()
++	}
++
++	// The *Func (method) definitions for package p must be the same
++	// independent on whether f1 and f2 are type-checked together, or
++	// incrementally.
++
++	// type-check together
++	var conf Config
++	info := &Info{Defs: make(map[*ast.Ident]Object)}
++	check := NewChecker(&conf, fset, NewPackage("", "p"), info)
++	if err := check.Files([]*ast.File{f1, f2}); err != nil {
++		t.Fatal(err)
++	}
++	want := printInfo(info)
++
++	// type-check incrementally
++	info = &Info{Defs: make(map[*ast.Ident]Object)}
++	check = NewChecker(&conf, fset, NewPackage("", "p"), info)
++	if err := check.Files([]*ast.File{f1}); err != nil {
++		t.Fatal(err)
++	}
++	if err := check.Files([]*ast.File{f2}); err != nil {
++		t.Fatal(err)
++	}
++	got := printInfo(info)
++
++	if got != want {
++		t.Errorf("\ngot : %swant: %s", got, want)
++	}
++}

@@ -14,7 +14,7 @@ Date:   Mon Oct 4 16:20:57 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/test/typeparam.go | 17 +++++++++++++++++
  misc/go.mod                |  2 +-
  src/cmd/cgo/ast.go         |  3 +--
@@ -22,3 +22,118 @@ Date:   Mon Oct 4 16:20:57 2021 -0700
  src/cmd/cgo/ast_go118.go   | 25 +++++++++++++++++++++++++
  src/cmd/cgo/gcc.go         |  2 +-
  6 files changed, 62 insertions(+), 4 deletions(-)
+
+diff --git a/misc/cgo/test/typeparam.go b/misc/cgo/test/typeparam.go
+new file mode 100644
+index 0000000000..5f766c2bcb
+--- /dev/null
++++ b/misc/cgo/test/typeparam.go
+@@ -0,0 +1,17 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++// #include <stddef.h>
++import "C"
++
++func generic[T, U any](t T, u U) {}
++
++func useGeneric() {
++	const zero C.size_t = 0
++
++	generic(zero, zero)
++	generic[C.size_t, C.size_t](0, 0)
++}
+diff --git a/misc/go.mod b/misc/go.mod
+index fc9f1133a4..712a051f45 100644
+--- a/misc/go.mod
++++ b/misc/go.mod
+@@ -8,4 +8,4 @@
+ // directory.)
+ module misc
+ 
+-go 1.12
++go 1.18
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index a073407a96..28879e349c 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -338,8 +338,7 @@ func (f *File) walk(x interface{}, context astContext, visit func(*File, interfa
+ 
+ 	// everything else just recurs
+ 	default:
+-		error_(token.NoPos, "unexpected type %T in walk", x)
+-		panic("unexpected type")
++		f.walkUnexpected(x, context, visit)
+ 
+ 	case nil:
+ 
+diff --git a/src/cmd/cgo/ast_go1.go b/src/cmd/cgo/ast_go1.go
+new file mode 100644
+index 0000000000..cf6d99f64a
+--- /dev/null
++++ b/src/cmd/cgo/ast_go1.go
+@@ -0,0 +1,17 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !go1.18
++// +build !go1.18
++
++package main
++
++import (
++	"go/token"
++)
++
++func (f *File) walkUnexpected(x interface{}, context astContext, visit func(*File, interface{}, astContext)) {
++	error_(token.NoPos, "unexpected type %T in walk", x)
++	panic("unexpected type")
++}
+diff --git a/src/cmd/cgo/ast_go118.go b/src/cmd/cgo/ast_go118.go
+new file mode 100644
+index 0000000000..2e3ce27521
+--- /dev/null
++++ b/src/cmd/cgo/ast_go118.go
+@@ -0,0 +1,25 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build go1.18
++// +build go1.18
++
++package main
++
++import (
++	"go/ast"
++	"go/token"
++)
++
++func (f *File) walkUnexpected(x interface{}, context astContext, visit func(*File, interface{}, astContext)) {
++	switch n := x.(type) {
++	default:
++		error_(token.NoPos, "unexpected type %T in walk", x)
++		panic("unexpected type")
++
++	case *ast.IndexListExpr:
++		f.walk(&n.X, ctxExpr, visit)
++		f.walk(n.Indices, ctxExpr, visit)
++	}
++}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index f5682c0997..c78197896c 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1506,7 +1506,7 @@ func (p *Package) rewriteName(f *File, r *Ref, addPosition bool) ast.Expr {
+ 				Args: []ast.Expr{getNewIdent(name.Mangle)},
+ 			}
+ 		case "type":
+-			// Okay - might be new(T)
++			// Okay - might be new(T), T(x), Generic[T], etc.
+ 			if r.Name.Type == nil {
+ 				error_(r.Pos(), "expression C.%s: undefined C type '%s'", fixGo(r.Name.Go), r.Name.C)
+ 			}

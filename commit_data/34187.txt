@@ -16,8 +16,99 @@ Date:   Fri Oct 6 10:48:01 2017 -0700
     Change-Id: I2d458da36649427352eeaa50a1b6020108b2ccbd
     Reviewed-on: https://go-review.googlesource.com/68990
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/encoding/asn1/asn1.go         | 15 ++++++++++++---
  src/encoding/asn1/marshal.go      |  7 +++++--
  src/encoding/asn1/marshal_test.go |  6 ++++++
  3 files changed, 23 insertions(+), 5 deletions(-)
+
+diff --git a/src/encoding/asn1/asn1.go b/src/encoding/asn1/asn1.go
+index 1a01838938..fb03b06aba 100644
+--- a/src/encoding/asn1/asn1.go
++++ b/src/encoding/asn1/asn1.go
+@@ -378,7 +378,7 @@ func parseGeneralizedTime(bytes []byte) (ret time.Time, err error) {
+ // array and returns it.
+ func parsePrintableString(bytes []byte) (ret string, err error) {
+ 	for _, b := range bytes {
+-		if !isPrintable(b) {
++		if !isPrintable(b, allowAsterisk) {
+ 			err = SyntaxError{"PrintableString contains invalid character"}
+ 			return
+ 		}
+@@ -387,8 +387,17 @@ func parsePrintableString(bytes []byte) (ret string, err error) {
+ 	return
+ }
+ 
++type asteriskFlag bool
++
++const (
++	allowAsterisk  asteriskFlag = true
++	rejectAsterisk asteriskFlag = false
++)
++
+ // isPrintable reports whether the given b is in the ASN.1 PrintableString set.
+-func isPrintable(b byte) bool {
++// If asterisk is allowAsterisk then '*' is also allowed, reflecting existing
++// practice.
++func isPrintable(b byte, asterisk asteriskFlag) bool {
+ 	return 'a' <= b && b <= 'z' ||
+ 		'A' <= b && b <= 'Z' ||
+ 		'0' <= b && b <= '9' ||
+@@ -401,7 +410,7 @@ func isPrintable(b byte) bool {
+ 		// This is technically not allowed in a PrintableString.
+ 		// However, x509 certificates with wildcard strings don't
+ 		// always use the correct string type so we permit it.
+-		b == '*'
++		(bool(asterisk) && b == '*')
+ }
+ 
+ // IA5String
+diff --git a/src/encoding/asn1/marshal.go b/src/encoding/asn1/marshal.go
+index 7f8119e9ae..0f4e869d30 100644
+--- a/src/encoding/asn1/marshal.go
++++ b/src/encoding/asn1/marshal.go
+@@ -268,7 +268,10 @@ func makeObjectIdentifier(oid []int) (e encoder, err error) {
+ 
+ func makePrintableString(s string) (e encoder, err error) {
+ 	for i := 0; i < len(s); i++ {
+-		if !isPrintable(s[i]) {
++		// The asterisk is often used in PrintableString, even though
++		// it is invalid. If a PrintableString was specifically
++		// requested then the asterisk is permitted by this code.
++		if !isPrintable(s[i], allowAsterisk) {
+ 			return nil, StructuralError{"PrintableString contains invalid character"}
+ 		}
+ 	}
+@@ -576,7 +579,7 @@ func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
+ 			// a PrintableString if the character set in the string is
+ 			// sufficiently limited, otherwise we'll use a UTF8String.
+ 			for _, r := range v.String() {
+-				if r >= utf8.RuneSelf || !isPrintable(byte(r)) {
++				if r >= utf8.RuneSelf || !isPrintable(byte(r), rejectAsterisk) {
+ 					if !utf8.ValidString(v.String()) {
+ 						return nil, errors.New("asn1: string not valid UTF-8")
+ 					}
+diff --git a/src/encoding/asn1/marshal_test.go b/src/encoding/asn1/marshal_test.go
+index 87d358d64c..389bb6ea94 100644
+--- a/src/encoding/asn1/marshal_test.go
++++ b/src/encoding/asn1/marshal_test.go
+@@ -59,6 +59,10 @@ type printableStringTest struct {
+ 	A string `asn1:"printable"`
+ }
+ 
++type genericStringTest struct {
++	A string
++}
++
+ type optionalRawValueTest struct {
+ 	A RawValue `asn1:"optional"`
+ }
+@@ -147,6 +151,8 @@ var marshalTests = []marshalTest{
+ 	{optionalRawValueTest{}, "3000"},
+ 	{printableStringTest{"test"}, "3006130474657374"},
+ 	{printableStringTest{"test*"}, "30071305746573742a"},
++	{genericStringTest{"test"}, "3006130474657374"},
++	{genericStringTest{"test*"}, "30070c05746573742a"},
+ 	{rawContentsStruct{nil, 64}, "3003020140"},
+ 	{rawContentsStruct{[]byte{0x30, 3, 1, 2, 3}, 64}, "3003010203"},
+ 	{RawValue{Tag: 1, Class: 2, IsCompound: false, Bytes: []byte{1, 2, 3}}, "8103010203"},

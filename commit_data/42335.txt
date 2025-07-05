@@ -20,7 +20,35 @@ Date:   Fri Nov 22 17:02:06 2019 +0000
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/work/exec.go         | 2 +-
  src/cmd/go/testdata/script/vet_flags.txt | 8 ++++++++
  2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 0287af7b3b..d0f07dec43 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -1036,7 +1036,7 @@ func (b *Builder) vet(a *Action) error {
+ 		// There's too much unsafe.Pointer code
+ 		// that vet doesn't like in low-level packages
+ 		// like runtime, sync, and reflect.
+-		vetFlags = []string{"-unsafeptr=false"}
++		vetFlags = append(vetFlags, string("-unsafeptr=false"))
+ 	}
+ 
+ 	// Note: We could decide that vet should compute export data for
+diff --git a/src/cmd/go/testdata/script/vet_flags.txt b/src/cmd/go/testdata/script/vet_flags.txt
+new file mode 100644
+index 0000000000..d84c8a6472
+--- /dev/null
++++ b/src/cmd/go/testdata/script/vet_flags.txt
+@@ -0,0 +1,8 @@
++env GO111MODULE=off
++
++# Issue 35837. Verify that "go vet -<analyzer> <std package>" works if 'pwd' is not $GOROOT/src
++# we utilize the package runtime/testdata/testprog as the issue is specific to vetting standard package
++
++go vet -n -unreachable=false runtime/testdata/testprog
++stderr '-unreachable=false'
++stderr '-unsafeptr=false'

@@ -10,6 +10,21 @@ Date:   Tue Nov 5 08:06:28 2019 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/205457
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/runtime/cgo/cgo.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/cgo/cgo.go b/src/runtime/cgo/cgo.go
+index 5a2b5e4271..5b3c701309 100644
+--- a/src/runtime/cgo/cgo.go
++++ b/src/runtime/cgo/cgo.go
+@@ -23,6 +23,9 @@ package cgo
+ #cgo aix LDFLAGS: -Wl,-berok
+ #cgo solaris LDFLAGS: -lxnet
+ 
++// Issue 35247.
++#cgo darwin CFLAGS: -Wno-nullability-completeness
++
+ #cgo CFLAGS: -Wall -Werror
+ 
+ #cgo solaris CPPFLAGS: -D_POSIX_PTHREAD_SEMANTICS

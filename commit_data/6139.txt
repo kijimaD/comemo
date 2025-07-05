@@ -18,7 +18,39 @@ Date:   Tue Aug 31 14:12:23 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2040043
-
+---
  test/errchk              | 4 ++--
  test/fixedbugs/bug195.go | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/test/errchk b/test/errchk
+index 115aa7be09..ab7192da2a 100755
+--- a/test/errchk
++++ b/test/errchk
+@@ -60,8 +60,8 @@ sub bug() {
+ $line = 0;
+ foreach $src (@src) {
+ 	$line++;
+-	next unless $src =~ m|// ERROR (.*)|;
+-	$regexp = $1;
++	next unless $src =~ m|// (GC_)?ERROR (.*)|;
++	$regexp = $2;
+ 	if($regexp !~ /^"([^"]*)"/) {
+ 		print STDERR "$file:$line: malformed regexp\n";
+ 		next;
+diff --git a/test/fixedbugs/bug195.go b/test/fixedbugs/bug195.go
+index 27bbbd354a..65ab02a039 100644
+--- a/test/fixedbugs/bug195.go
++++ b/test/fixedbugs/bug195.go
+@@ -19,9 +19,9 @@ type I4 interface {
+ }
+ 
+ type I5 interface {
+-	I6
++	I6	// GCCGO_ERROR "interface"
+ }
+ 
+ type I6 interface {
+-	I5	// ERROR "interface"
++	I5	// GC_ERROR "interface"
+ }

@@ -17,6 +17,30 @@ Date:   Thu Oct 24 11:18:40 2024 +0200
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/crypto/internal/cryptotest/implementations.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/internal/cryptotest/implementations.go b/src/crypto/internal/cryptotest/implementations.go
+index 2d922932b0..3fa7304590 100644
+--- a/src/crypto/internal/cryptotest/implementations.go
++++ b/src/crypto/internal/cryptotest/implementations.go
+@@ -7,6 +7,7 @@ package cryptotest
+ import (
+ 	"crypto/internal/boring"
+ 	"crypto/internal/impl"
++	"internal/goos"
+ 	"internal/testenv"
+ 	"testing"
+ )
+@@ -34,7 +35,9 @@ func TestAllImplementations(t *testing.T, pkg string, f func(t *testing.T)) {
+ 			t.Run(name, f)
+ 		} else {
+ 			t.Run(name, func(t *testing.T) {
+-				if testenv.Builder() != "" {
++				// Report an error if we're on Linux CI (assumed to be the most
++				// consistent) and the builder can't test this implementation.
++				if testenv.Builder() != "" && goos.GOOS == "linux" {
+ 					if name == "SHA-NI" {
+ 						t.Skip("known issue, see golang.org/issue/69592")
+ 					}

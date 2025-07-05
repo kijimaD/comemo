@@ -23,10 +23,102 @@ Date:   Thu May 17 19:47:52 2018 +0300
     Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/link/internal/ld/ar.go       | 3 ++-
  src/cmd/link/internal/ld/data.go     | 3 ++-
  src/cmd/link/internal/ld/deadcode.go | 4 ++--
  src/cmd/link/internal/ld/dwarf.go    | 9 ++++++---
  src/cmd/link/internal/ld/lib.go      | 3 ++-
  5 files changed, 14 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/ar.go b/src/cmd/link/internal/ld/ar.go
+index ae7554c929..779f3565f9 100644
+--- a/src/cmd/link/internal/ld/ar.go
++++ b/src/cmd/link/internal/ld/ar.go
+@@ -105,7 +105,8 @@ func hostArchive(ctxt *Link, name string) {
+ 	for any {
+ 		var load []uint64
+ 		for _, s := range ctxt.Syms.Allsym {
+-			for _, r := range s.R {
++			for i := range s.R {
++				r := &s.R[i] // Copying sym.Reloc has measurable impact on peformance
+ 				if r.Sym != nil && r.Sym.Type == sym.SXREF {
+ 					if off := armap[r.Sym.Name]; off != 0 && !loaded[off] {
+ 						load = append(load, off)
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index d71b8b6ac7..5dd4aac03e 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -772,7 +772,8 @@ func Datblk(ctxt *Link, addr int64, size int64) {
+ 		if ctxt.LinkMode != LinkExternal {
+ 			continue
+ 		}
+-		for _, r := range sym.R {
++		for i := range sym.R {
++			r := &sym.R[i] // Copying sym.Reloc has measurable impact on peformance
+ 			rsname := ""
+ 			if r.Sym != nil {
+ 				rsname = r.Sym.Name
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 540f4068cb..df989cc944 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -245,8 +245,8 @@ func (d *deadcodepass) init() {
+ 				// but we do keep the symbols it refers to.
+ 				exports := d.ctxt.Syms.ROLookup("go.plugin.exports", 0)
+ 				if exports != nil {
+-					for _, r := range exports.R {
+-						d.mark(r.Sym, nil)
++					for i := range exports.R {
++						d.mark(exports.R[i].Sym, nil)
+ 					}
+ 				}
+ 			}
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index ae6f90b079..c803180cad 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1061,7 +1061,8 @@ func getCompilationDir() string {
+ func importInfoSymbol(ctxt *Link, dsym *sym.Symbol) {
+ 	dsym.Attr |= sym.AttrNotInSymbolTable | sym.AttrReachable
+ 	dsym.Type = sym.SDWARFINFO
+-	for _, r := range dsym.R {
++	for i := range dsym.R {
++		r := &dsym.R[i] // Copying sym.Reloc has measurable impact on peformance
+ 		if r.Type == objabi.R_DWARFSECREF && r.Sym.Size == 0 {
+ 			if ctxt.BuildMode == BuildModeShared {
+ 				// These type symbols may not be present in BuildModeShared. Skip.
+@@ -1090,7 +1091,8 @@ func collectAbstractFunctions(ctxt *Link, fn *sym.Symbol, dsym *sym.Symbol, absf
+ 
+ 	// Walk the relocations on the primary subprogram DIE and look for
+ 	// references to abstract funcs.
+-	for _, reloc := range dsym.R {
++	for i := range dsym.R {
++		reloc := &dsym.R[i] // Copying sym.Reloc has measurable impact on peformance
+ 		candsym := reloc.Sym
+ 		if reloc.Type != objabi.R_DWARFSECREF {
+ 			continue
+@@ -1801,7 +1803,8 @@ func collectlocs(ctxt *Link, syms []*sym.Symbol, units []*compilationUnit) []*sy
+ 	empty := true
+ 	for _, u := range units {
+ 		for _, fn := range u.funcDIEs {
+-			for _, reloc := range fn.R {
++			for i := range fn.R {
++				reloc := &fn.R[i] // Copying sym.Reloc has measurable impact on peformance
+ 				if reloc.Type == objabi.R_DWARFSECREF && strings.HasPrefix(reloc.Sym.Name, dwarf.LocPrefix) {
+ 					reloc.Sym.Attr |= sym.AttrReachable | sym.AttrNotInSymbolTable
+ 					syms = append(syms, reloc.Sym)
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 9f89457753..d86b2aa544 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -503,7 +503,8 @@ func (ctxt *Link) loadlib() {
+ 		// objects, try to read them from the libgcc file.
+ 		any := false
+ 		for _, s := range ctxt.Syms.Allsym {
+-			for _, r := range s.R {
++			for i := range s.R {
++				r := &s.R[i] // Copying sym.Reloc has measurable impact on peformance
+ 				if r.Sym != nil && r.Sym.Type == sym.SXREF && r.Sym.Name != ".got" {
+ 					any = true
+ 					break

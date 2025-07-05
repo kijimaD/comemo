@@ -7,7 +7,7 @@ Date:   Sat Aug 13 14:00:16 2011 +1000
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/4873046
-
+---
  lib/godoc/codewalk.html           |  4 ++--
  lib/godoc/codewalkdir.html        |  2 +-
  lib/godoc/dirlist.html            |  2 +-
@@ -18,3 +18,222 @@ Date:   Sat Aug 13 14:00:16 2011 +1000
  src/pkg/exp/template/exec_test.go |  4 ++--
  src/pkg/exp/template/funcs.go     | 28 ++++++++++++++--------------
  9 files changed, 32 insertions(+), 32 deletions(-)
+
+diff --git a/lib/godoc/codewalk.html b/lib/godoc/codewalk.html
+index 59a9efcf2d..2835c6e82c 100644
+--- a/lib/godoc/codewalk.html
++++ b/lib/godoc/codewalk.html
+@@ -19,7 +19,7 @@
+         </a>
+         <select id="code-selector">
+           {{range .File}}
+-          <option value="/doc/codewalk/?fileprint=/{{url .}}">{{html .}}</option>
++          <option value="/doc/codewalk/?fileprint=/{{urlquery .}}">{{html .}}</option>
+           {{end}}
+         </select>
+       </div>
+@@ -37,7 +37,7 @@
+     <div id="comment-area">
+       {{range .Step}}
+       <div class="comment first last">
+-        <a class="comment-link" href="/doc/codewalk/?fileprint=/{{url .File}}&lo={{url .Lo}}&hi={{url .Hi}}#mark" target="code-display"></a>
++        <a class="comment-link" href="/doc/codewalk/?fileprint=/{{urlquery .File}}&lo={{urlquery .Lo}}&hi={{urlquery .Hi}}#mark" target="code-display"></a>
+         <div class="comment-title">{{html .Title}}</div>
+         <div class="comment-text">
+ 	{{with .Err}}
+diff --git a/lib/godoc/codewalkdir.html b/lib/godoc/codewalkdir.html
+index b174020e8e..6fe1a0565a 100644
+--- a/lib/godoc/codewalkdir.html
++++ b/lib/godoc/codewalkdir.html
+@@ -7,7 +7,7 @@
+ <table class="layout">
+ {{range .}}
+ <tr>
+-    <td><a href="{{url .Name}}">{{html .Name}}</a></td>
++    <td><a href="{{html .Name}}">{{html .Name}}</a></td>
+     <td width="25">&nbsp;</td>
+     <td>{{html .Title}}</td>
+ </tr>
+diff --git a/lib/godoc/dirlist.html b/lib/godoc/dirlist.html
+index 5a3ddfaf39..422397e522 100644
+--- a/lib/godoc/dirlist.html
++++ b/lib/godoc/dirlist.html
+@@ -18,7 +18,7 @@
+ </tr>
+ {{range .}}
+ <tr>
+-	<td align="left"><a href="{{.|fileInfoName|url}}">{{.|fileInfoName|html}}</a></td>
++	<td align="left"><a href="{{.|fileInfoName|html}}">{{.|fileInfoName|html}}</a></td>
+ 	<td></td>
+ 	<td align="right">{{html .Size}}</td>
+ 	<td></td>
+diff --git a/lib/godoc/godoc.html b/lib/godoc/godoc.html
+index e978b309c6..91e521258d 100644
+--- a/lib/godoc/godoc.html
++++ b/lib/godoc/godoc.html
+@@ -25,7 +25,7 @@
+         <form method="GET" action="/search">
+         {{with .PkgRoots}}
+         {{range .PkgRoots}}
+-        <a href="/pkg/{{url .}}">{{html .}}</a> <span class="sep">|</span>
++        <a href="/pkg/{{html .}}">{{html .}}</a> <span class="sep">|</span>
+         {{end}}
+         {{else}}
+         References:
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index 265e5d53b5..0bc017379c 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -87,7 +87,7 @@
+ 	<p>
+ 	{{/* PList entries are strings - no need for FSet */}}
+ 	{{range .}}
+-	<a href="?p={{url .}}">{{html .}}</a><br />
++	<a href="?p={{urlquery .}}">{{html .}}</a><br />
+ 	{{end}}
+ 	</p>
+ {{end}}
+diff --git a/lib/godoc/search.html b/lib/godoc/search.html
+index 39eec9b498..946160cf53 100644
+--- a/lib/godoc/search.html
++++ b/lib/godoc/search.html
+@@ -12,7 +12,7 @@
+ 	<p>
+ 	<span class="alert" style="font-size:120%">Did you mean: </span>
+ 	{{range .Alts}}
+-		<a href="search?q={{url .}}" style="font-size:120%">{{html .}}</a>
++		<a href="search?q={{urlquery .}}" style="font-size:120%">{{html .}}</a>
+ 	{{end}}
+ 	</p>
+ {{end}}
+@@ -21,12 +21,12 @@
+ 		<h2 id="Global">Package-level declarations</h2>
+ 		{{range .}}
+ 			{{$pkg := pkgLink .Pak.Path}}
+-			<h3 id="Global_{{html $pkg}}">package <a href="/{{url $pkg}}">{{html .Pak.Name}}</a></h3>
++			<h3 id="Global_{{html $pkg}}">package <a href="/{{$pkg}}">{{html .Pak.Name}}</a></h3>
+ 			{{range .Files}}
+ 				{{$src := srcLink .File.Path}}
+ 				{{range .Groups}}
+ 					{{range .Infos}}
+-						<a href="/{{url $src}}?h={{url $.Query}}#L{{infoLine .}}">{{html $src}}:{{infoLine .}}</a>
++						<a href="/{{$src}}?h={{urlquery $.Query}}#L{{infoLine .}}">{{html $src}}:{{infoLine .}}</a>
+ 						{{infoSnippet_html .}}
+ 					{{end}}
+ 				{{end}}
+@@ -37,10 +37,10 @@
+ 		<h2 id="Local">Local declarations and uses</h2>
+ 		{{range .}}
+ 			{{$pkg := pkgLink .Pak.Path}}
+-			<h3 id="Local_{{html $pkg}}">package <a href="/{{url $pkg}}">{{html .Pak.Name}}</a></h3>
++			<h3 id="Local_{{html $pkg}}">package <a href="/{{$pkg}}">{{html .Pak.Name}}</a></h3>
+ 			{{range .Files}}
+ 				{{$src := srcLink .File.Path}}
+-				<a href="/{{url $src}}?h={{url $.Query}}">{{html $src}}</a>
++				<a href="/{{$src}}?h={{urlquery $.Query}}">{{html $src}}</a>
+ 				<table class="layout">
+ 				{{range .Groups}}
+ 					<tr>
+@@ -49,7 +49,7 @@
+ 					<td align="left" width="4"></td>
+ 					<td>
+ 					{{range .Infos}}
+-						<a href="/{{url $src}}?h={{url $.Query}}#L{{infoLine .}}">{{infoLine .}}</a>
++						<a href="/{{$src}}?h={{urlquery $.Query}}#L{{infoLine .}}">{{infoLine .}}</a>
+ 					{{end}}
+ 					</td>
+ 					</tr>
+@@ -74,14 +74,14 @@
+ 		{{$src := srcLink .Filename}}
+ 		<tr>
+ 		<td align="left" valign="top">
+-		<a href="/{{url $src}}?h={{url $.Query}}">{{html $src}}</a>:
++		<a href="/{{$src}}?h={{urlquery $.Query}}">{{html $src}}</a>:
+ 		</td>
+ 		<td align="left" width="4"></td>
+ 		<th align="left" valign="top">{{len .Lines}}</th>
+ 		<td align="left" width="4"></td>
+ 		<td align="left">
+ 		{{range .Lines}}
+-			<a href="/{{url $src}}?h={{url $.Query}}#L{{url .}}">{{html .}}</a>
++			<a href="/{{$src}}?h={{urlquery $.Query}}#L{{.}}">{{html .}}</a>
+ 		{{end}}
+ 		{{if not $.Complete}}
+ 			...
+diff --git a/src/pkg/exp/template/doc.go b/src/pkg/exp/template/doc.go
+index ed0172ac8e..46a38040e3 100644
+--- a/src/pkg/exp/template/doc.go
++++ b/src/pkg/exp/template/doc.go
+@@ -247,9 +247,9 @@ Predefined global functions are named as follows.
+ 		An alias for fmt.Sprintf
+ 	println
+ 		An alias for fmt.Sprintln
+-	url
++	urlquery
+ 		Returns the escaped value of the textual representation of
+-		its arguments in a form suitable for embedding in a URL.
++		its arguments in a form suitable for embedding in a URL query.
+ 
+ The boolean functions take any zero value to be false and a non-zero value to
+ be true.
+diff --git a/src/pkg/exp/template/exec_test.go b/src/pkg/exp/template/exec_test.go
+index 58e9526303..a8ef64d2e0 100644
+--- a/src/pkg/exp/template/exec_test.go
++++ b/src/pkg/exp/template/exec_test.go
+@@ -313,8 +313,8 @@ var execTests = []execTest{
+ 	// JavaScript.
+ 	{"js", `{{js .}}`, `It\'d be nice.`, `It'd be nice.`, true},
+ 
+-	// URL.
+-	{"url", `{{"http://www.example.org/"|url}}`, "http%3A%2F%2Fwww.example.org%2F", nil, true},
++	// URL query.
++	{"urlquery", `{{"http://www.example.org/"|urlquery}}`, "http%3A%2F%2Fwww.example.org%2F", nil, true},
+ 
+ 	// Booleans
+ 	{"not", "{{not true}} {{not false}}", "false true", nil, true},
+diff --git a/src/pkg/exp/template/funcs.go b/src/pkg/exp/template/funcs.go
+index b2878a161b..6de46aa451 100644
+--- a/src/pkg/exp/template/funcs.go
++++ b/src/pkg/exp/template/funcs.go
+@@ -23,17 +23,17 @@ import (
+ type FuncMap map[string]interface{}
+ 
+ var builtins = FuncMap{
+-	"and":     and,
+-	"html":    HTMLEscaper,
+-	"index":   index,
+-	"js":      JSEscaper,
+-	"len":     length,
+-	"not":     not,
+-	"or":      or,
+-	"print":   fmt.Sprint,
+-	"printf":  fmt.Sprintf,
+-	"println": fmt.Sprintln,
+-	"url":     URLEscaper,
++	"and":      and,
++	"html":     HTMLEscaper,
++	"index":    index,
++	"js":       JSEscaper,
++	"len":      length,
++	"not":      not,
++	"or":       or,
++	"print":    fmt.Sprint,
++	"printf":   fmt.Sprintf,
++	"println":  fmt.Sprintln,
++	"urlquery": URLQueryEscaper,
+ }
+ 
+ var builtinFuncs = createValueFuncs(builtins)
+@@ -354,9 +354,9 @@ func JSEscaper(args ...interface{}) string {
+ 	return JSEscapeString(s)
+ }
+ 
+-// URLEscaper returns the escaped value of the textual representation of its
+-// arguments in a form suitable for embedding in a URL.
+-func URLEscaper(args ...interface{}) string {
++// URLQueryEscaper returns the escaped value of the textual representation of
++// its arguments in a form suitable for embedding in a URL query.
++func URLQueryEscaper(args ...interface{}) string {
+ 	s, ok := "", false
+ 	if len(args) == 1 {
+ 		s, ok = args[0].(string)

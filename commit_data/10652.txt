@@ -7,6 +7,26 @@ Date:   Wed Dec 7 15:30:01 2011 -0500
     R=iant
     CC=golang-dev
     https://golang.org/cl/5450125
-
+---
  src/pkg/bytes/asm_amd64.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/bytes/asm_amd64.s b/src/pkg/bytes/asm_amd64.s
+index bc6e886bda..5caea5c520 100644
+--- a/src/pkg/bytes/asm_amd64.s
++++ b/src/pkg/bytes/asm_amd64.s
+@@ -94,13 +94,13 @@ TEXT ·Equal(SB),7,$0
+ 	MOVL	len+8(FP), BX
+ 	MOVL	len1+24(FP), CX
+ 	MOVL	$0, AX
+-	MOVL	$1, DX
+ 	CMPL	BX, CX
+ 	JNE	eqret
+ 	MOVQ	p+0(FP), SI
+ 	MOVQ	q+16(FP), DI
+ 	CLD
+ 	REP; CMPSB
++	MOVL	$1, DX
+ 	CMOVLEQ	DX, AX
+ eqret:
+ 	MOVB	AX, ret+32(FP)

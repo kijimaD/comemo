@@ -16,7 +16,82 @@ Date:   Tue Oct 17 15:33:45 2017 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/cover/cover.go      | 31 +++++++++++++++++++++++++------
  src/cmd/cover/cover_test.go |  4 ++--
  2 files changed, 27 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/cover/cover.go b/src/cmd/cover/cover.go
+index 8bcdec17c8..5bea3b11aa 100644
+--- a/src/cmd/cover/cover.go
++++ b/src/cmd/cover/cover.go
+@@ -258,29 +258,48 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
+ func (f *File) fixDirectives() []*ast.Comment {
+ 	// Scan comments in the file and collect directives. Detach all comments.
+ 	var directives []*ast.Comment
++	prev := token.NoPos // smaller than any valid token.Pos
+ 	for _, cg := range f.astFile.Comments {
+ 		for _, c := range cg.List {
+ 			// Skip directives that will be included by initialComments, i.e., those
+ 			// before the package declaration but not in the file doc comment group.
+ 			if f.isDirective(c) && (c.Pos() >= f.astFile.Package || cg == f.astFile.Doc) {
++				// Assume (but verify) that comments are sorted by position.
++				pos := c.Pos()
++				if !pos.IsValid() {
++					log.Fatalf("compiler directive has no position: %q", c.Text)
++				} else if pos < prev {
++					log.Fatalf("compiler directives are out of order. %s was before %s.",
++						f.fset.Position(prev), f.fset.Position(pos))
++				}
++				prev = pos
++
+ 				directives = append(directives, c)
+ 			}
+ 		}
+ 		cg.List = nil
+ 	}
+ 	f.astFile.Comments = nil // force printer to use node comments
++	if len(directives) == 0 {
++		// Common case: no directives to attach.
++		return nil
++	}
+ 
+ 	// Iterate over top-level declarations and attach preceding directives.
+ 	di := 0
+-	var prevPos token.Pos
++	prev = token.NoPos
+ 	for _, decl := range f.astFile.Decls {
+-		// Assume (but verify) that comments are sorted by position.
++		// Assume (but verify) that declarations are sorted by position.
+ 		pos := decl.Pos()
+-		if pos < prevPos {
+-			log.Fatalf("comments are out of order. %s was before %s.",
+-				f.fset.Position(prevPos), f.fset.Position(pos))
++		if !pos.IsValid() {
++			// Synthetic decl. Don't add directives.
++			continue
++		}
++		if pos < prev {
++			log.Fatalf("declarations are out of order. %s was before %s.",
++				f.fset.Position(prev), f.fset.Position(pos))
+ 		}
+-		prevPos = pos
++		prev = pos
+ 
+ 		var doc **ast.CommentGroup
+ 		switch d := decl.(type) {
+diff --git a/src/cmd/cover/cover_test.go b/src/cmd/cover/cover_test.go
+index 8c9acc93f6..4d8826b96d 100644
+--- a/src/cmd/cover/cover_test.go
++++ b/src/cmd/cover/cover_test.go
+@@ -121,8 +121,8 @@ func TestDirectives(t *testing.T) {
+ 	}
+ 	sourceDirectives := findDirectives(source)
+ 
+-	// go tool cover -mode=set ./testdata/directives.go
+-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "cover", "-mode=set", testDirectives)
++	// go tool cover -mode=atomic ./testdata/directives.go
++	cmd := exec.Command(testenv.GoToolPath(t), "tool", "cover", "-mode=atomic", testDirectives)
+ 	cmd.Stderr = os.Stderr
+ 	output, err := cmd.Output()
+ 	if err != nil {

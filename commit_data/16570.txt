@@ -7,7 +7,42 @@ Date:   Thu Jun 13 17:04:47 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/10253051
-
+---
  src/pkg/strconv/atof.go | 4 ++--
  src/pkg/strconv/atoi.go | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/strconv/atof.go b/src/pkg/strconv/atof.go
+index b4fe97d127..1b3f8fb33d 100644
+--- a/src/pkg/strconv/atof.go
++++ b/src/pkg/strconv/atof.go
+@@ -536,11 +536,11 @@ func atof64(s string) (f float64, err error) {
+ // The errors that ParseFloat returns have concrete type *NumError
+ // and include err.Num = s.
+ //
+-// If s is not syntactically well-formed, ParseFloat returns err.Error = ErrSyntax.
++// If s is not syntactically well-formed, ParseFloat returns err.Err = ErrSyntax.
+ //
+ // If s is syntactically well-formed but is more than 1/2 ULP
+ // away from the largest floating point number of the given size,
+-// ParseFloat returns f = ±Inf, err.Error = ErrRange.
++// ParseFloat returns f = ±Inf, err.Err = ErrRange.
+ func ParseFloat(s string, bitSize int) (f float64, err error) {
+ 	if bitSize == 32 {
+ 		f1, err1 := atof32(s)
+diff --git a/src/pkg/strconv/atoi.go b/src/pkg/strconv/atoi.go
+index 21c6900965..b06979b0c0 100644
+--- a/src/pkg/strconv/atoi.go
++++ b/src/pkg/strconv/atoi.go
+@@ -141,9 +141,9 @@ Error:
+ //
+ // The errors that ParseInt returns have concrete type *NumError
+ // and include err.Num = s.  If s is empty or contains invalid
+-// digits, err.Error = ErrSyntax; if the value corresponding
++// digits, err.Err = ErrSyntax; if the value corresponding
+ // to s cannot be represented by a signed integer of the
+-// given size, err.Error = ErrRange.
++// given size, err.Err = ErrRange.
+ func ParseInt(s string, base int, bitSize int) (i int64, err error) {
+ 	const fnParseInt = "ParseInt"
+ 

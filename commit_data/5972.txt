@@ -10,9 +10,245 @@ Date:   Fri Aug 6 16:50:48 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1817041
-
+---
  src/pkg/math/Makefile      |  1 +
  src/pkg/math/all_test.go   |  9 +++++
  src/pkg/math/exp_amd64.s   | 92 +++++++++++++++++++++++++---------------------
  src/pkg/math/hypot_amd64.s | 50 +++++++++++++++++++++++++
  4 files changed, 110 insertions(+), 42 deletions(-)
+
+diff --git a/src/pkg/math/Makefile b/src/pkg/math/Makefile
+index 3177a5cd9d..af1b535a8f 100644
+--- a/src/pkg/math/Makefile
++++ b/src/pkg/math/Makefile
+@@ -10,6 +10,7 @@ OFILES_amd64=\
+ 	exp_amd64.$O\
+ 	fabs_amd64.$O\
+ 	fdim_amd64.$O\
++	hypot_amd64.$O\
+ 	log_amd64.$O\
+ 	sqrt_amd64.$O\
+ 
+diff --git a/src/pkg/math/all_test.go b/src/pkg/math/all_test.go
+index 18a3f1b313..10f1e2435f 100644
+--- a/src/pkg/math/all_test.go
++++ b/src/pkg/math/all_test.go
+@@ -876,11 +876,15 @@ var erfcSC = []float64{
+ 
+ var vfexpSC = []float64{
+ 	Inf(-1),
++	-2000,
++	2000,
+ 	Inf(1),
+ 	NaN(),
+ }
+ var expSC = []float64{
+ 	0,
++	0,
++	Inf(1),
+ 	Inf(1),
+ 	NaN(),
+ }
+@@ -1590,6 +1594,11 @@ func TestCopysign(t *testing.T) {
+ 			t.Errorf("Copysign(%g, -1) = %g, want %g\n", vf[i], f, copysign[i])
+ 		}
+ 	}
++	for i := 0; i < len(vf); i++ {
++		if f := Copysign(vf[i], 1); -copysign[i] != f {
++			t.Errorf("Copysign(%g, 1) = %g, want %g\n", vf[i], f, -copysign[i])
++		}
++	}
+ 	for i := 0; i < len(vfcopysignSC); i++ {
+ 		if f := Copysign(vfcopysignSC[i], -1); !alike(copysignSC[i], f) {
+ 			t.Errorf("Copysign(%g, -1) = %g, want %g\n", vfcopysignSC[i], f, copysignSC[i])
+diff --git a/src/pkg/math/exp_amd64.s b/src/pkg/math/exp_amd64.s
+index 844b5c923c..28064f5f13 100644
+--- a/src/pkg/math/exp_amd64.s
++++ b/src/pkg/math/exp_amd64.s
+@@ -19,20 +19,32 @@
+ #define LOG2E 1.4426950408889634073599246810018920 // 1/LN2
+ #define LN2U 0.69314718055966295651160180568695068359375 // upper half LN2
+ #define LN2L 0.28235290563031577122588448175013436025525412068e-12 // lower half LN2
++#define T0 1.0
++#define T1 0.5
++#define T2 1.6666666666666666667e-1
++#define T3 4.1666666666666666667e-2
++#define T4 8.3333333333333333333e-3
++#define T5 1.3888888888888888889e-3
++#define T6 1.9841269841269841270e-4
++#define T7 2.4801587301587301587e-5
++#define PosInf 0x7FF0000000000000
++#define NegInf 0xFFF0000000000000
+ 
+ // func Exp(x float64) float64
+ TEXT ·Exp(SB),7,$0
+ // test bits for not-finite
+-	MOVQ    x+0(FP), AX
+-	MOVQ    $0x7ff0000000000000, BX
+-	ANDQ    BX, AX
+-	CMPQ    BX, AX
+-	JEQ     not_finite
+-	MOVSD   x+0(FP), X0
++	MOVQ    x+0(FP), BX
++	MOVQ    $~(1<<63), AX // sign bit mask
++	MOVQ    BX, DX
++	ANDQ    AX, DX
++	MOVQ    $PosInf, AX
++	CMPQ    AX, DX
++	JLE     notFinite
++	MOVQ    BX, X0
+ 	MOVSD   $LOG2E, X1
+ 	MULSD   X0, X1
+-	CVTTSD2SQ X1, BX // BX = exponent
+-	CVTSQ2SD BX, X1
++	CVTSD2SL X1, BX // BX = exponent
++	CVTSL2SD BX, X1
+ 	MOVSD   $LN2U, X2
+ 	MULSD   X1, X2
+ 	SUBSD   X2, X0
+@@ -40,31 +52,23 @@ TEXT ·Exp(SB),7,$0
+ 	MULSD   X1, X2
+ 	SUBSD   X2, X0
+ 	// reduce argument
+-	MOVSD   $0.0625, X1
+-	MULSD   X1, X0
++	MULSD   $0.0625, X0
+ 	// Taylor series evaluation
+-	MOVSD   $2.4801587301587301587e-5, X1
++	MOVSD   $T7, X1
+ 	MULSD   X0, X1
+-	MOVSD   $1.9841269841269841270e-4, X2
+-	ADDSD   X2, X1
++	ADDSD   $T6, X1
+ 	MULSD   X0, X1
+-	MOVSD   $1.3888888888888888889e-3, X2
+-	ADDSD   X2, X1
++	ADDSD   $T5, X1
+ 	MULSD   X0, X1
+-	MOVSD   $8.3333333333333333333e-3, X2
+-	ADDSD   X2, X1
++	ADDSD   $T4, X1
+ 	MULSD   X0, X1
+-	MOVSD   $4.1666666666666666667e-2, X2
+-	ADDSD   X2, X1
++	ADDSD   $T3, X1
+ 	MULSD   X0, X1
+-	MOVSD   $1.6666666666666666667e-1, X2
+-	ADDSD   X2, X1
++	ADDSD   $T2, X1
+ 	MULSD   X0, X1
+-	MOVSD   $0.5, X2
+-	ADDSD   X2, X1
++	ADDSD   $T1, X1
+ 	MULSD   X0, X1
+-	MOVSD   $1.0, X2
+-	ADDSD   X2, X1
++	ADDSD   $T0, X1
+ 	MULSD   X1, X0
+ 	MOVSD   $2.0, X1
+ 	ADDSD   X0, X1
+@@ -78,27 +82,31 @@ TEXT ·Exp(SB),7,$0
+ 	MOVSD   $2.0, X1
+ 	ADDSD   X0, X1
+ 	MULSD   X1, X0
+-	MOVSD   $1.0, X1
+-	ADDSD   X1, X0
+-	// return ldexp(fr, exp)
+-	MOVQ    $0x3ff, AX // bias + 1
+-	ADDQ    AX, BX
++	ADDSD   $1.0, X0
++	// return fr * 2**exponent
++	MOVL    $0x3FF, AX // bias + 1
++	ADDL    AX, BX
++	JLE     underflow
++	CMPL    BX, $0x7FF
++	JGE     overflow
++	MOVL    $52, CX
++	SHLQ    CX, BX
+ 	MOVQ    BX, X1
+-	MOVQ    $52, AX // shift
+-	MOVQ    AX, X2
+-	PSLLQ   X2, X1
+ 	MULSD   X1, X0
+ 	MOVSD   X0, r+8(FP)
+ 	RET
+-not_finite:
+-// test bits for -Inf
+-	MOVQ    x+0(FP), AX
+-	MOVQ    $0xfff0000000000000, BX
+-	CMPQ    BX, AX
+-	JNE     not_neginf
+-	XORQ    AX, AX
++notFinite:
++	// test bits for -Inf
++	MOVQ    $NegInf, AX
++	CMPQ    AX, BX
++	JNE     notNegInf
++	// -Inf, return 0
++underflow: // return 0
++	MOVQ    $0, AX
+ 	MOVQ    AX, r+8(FP)
+ 	RET
+-not_neginf:
+-	MOVQ    AX, r+8(FP)
++overflow: // return +Inf
++	MOVQ    $PosInf, BX
++notNegInf: // NaN or +Inf, return x
++	MOVQ    BX, r+8(FP)
+ 	RET
+diff --git a/src/pkg/math/hypot_amd64.s b/src/pkg/math/hypot_amd64.s
+new file mode 100644
+index 0000000000..1f691e70ea
+--- /dev/null
++++ b/src/pkg/math/hypot_amd64.s
+@@ -0,0 +1,50 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#define PosInf 0x7ff0000000000000
++#define NaN 0x7FF0000000000001
++
++// func Hypot(x, y float64) float64
++TEXT ·Hypot(SB),7,$0
++	// test bits for special cases
++	MOVQ    x+0(FP), BX
++	MOVQ    $~(1<<63), AX
++	ANDQ    AX, BX // x = |x|
++	MOVQ    y+8(FP), CX
++	ANDQ    AX, CX // y = |y|
++	MOVQ    $PosInf, AX
++	CMPQ    AX, BX
++	JLE     isInfOrNaN
++	CMPQ    AX, CX
++	JLE     isInfOrNaN
++	// hypot = max * sqrt(1 + (min/max)**2)
++	MOVQ    BX, X0
++	MOVQ    CX, X1
++	ORQ     CX, BX
++	JEQ     isZero
++	MOVAPD  X0, X2
++	MAXSD   X1, X0
++	MINSD   X2, X1
++	DIVSD   X0, X1
++	MULSD   X1, X1
++	ADDSD   $1.0, X1
++	SQRTSD  X1, X1
++	MULSD   X1, X0
++	MOVSD   X0, r+16(FP)
++	RET
++isInfOrNaN:
++	CMPQ    AX, BX
++	JEQ     isInf
++	CMPQ    AX, CX
++	JEQ     isInf
++	MOVQ    $NaN, AX
++	MOVQ    AX, r+16(FP) // return NaN
++	RET
++isInf:
++	MOVQ    AX, r+16(FP) // return +Inf
++	RET
++isZero:
++	MOVQ    $0, AX
++	MOVQ    AX, r+16(FP) // return 0
++	RET

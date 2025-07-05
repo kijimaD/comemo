@@ -12,7 +12,48 @@ Date:   Tue Jun 1 00:56:14 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/stencil.go |  3 +++
  test/typeparam/issue46472.go              | 20 ++++++++++++++++++++
  2 files changed, 23 insertions(+)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index e273a80b20..36a6f2e6d0 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -350,6 +350,9 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 				return v
+ 			}
+ 			return x
++		case ir.ONONAME:
++			// This handles the identifier in a type switch guard
++			fallthrough
+ 		case ir.OLITERAL, ir.ONIL:
+ 			if x.Sym() != nil {
+ 				return x
+diff --git a/test/typeparam/issue46472.go b/test/typeparam/issue46472.go
+new file mode 100644
+index 0000000000..bab48e7d2f
+--- /dev/null
++++ b/test/typeparam/issue46472.go
+@@ -0,0 +1,20 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func foo[T any](d T) {
++	switch v := interface{}(d).(type) {
++	case string:
++		if v != "x" {
++			panic("unexpected v: "+v)
++		}
++	}
++
++}
++func main() {
++	foo("x")
++}

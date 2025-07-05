@@ -7,6 +7,20 @@ Date:   Wed Dec 23 08:49:38 2009 -0800
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/183042
-
+---
  src/pkg/os/file.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index 87a2925e97..b92384e2c2 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -428,7 +428,7 @@ func Rename(oldname, newname string) Error {
+ }
+ 
+ // Chmod changes the mode of the named file to mode.
+-// If the file is a symbolic link, it changes the uid and gid of the link's target.
++// If the file is a symbolic link, it changes the mode of the link's target.
+ func Chmod(name string, mode int) Error {
+ 	if e := syscall.Chmod(name, mode); e != 0 {
+ 		return &PathError{"chmod", name, Errno(e)}

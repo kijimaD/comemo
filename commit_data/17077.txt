@@ -11,7 +11,7 @@ Date:   Wed Aug 7 12:20:05 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12613044
-
+---
  src/pkg/debug/gosym/pclinetest.asm  | 16 ++++-----
  src/pkg/runtime/memclr_arm.s        |  4 ++-
  src/pkg/runtime/memmove_386.s       |  4 ++-
@@ -55,3 +55,4480 @@ Date:   Wed Aug 7 12:20:05 2013 -0700
  src/pkg/runtime/vlop_386.s          |  6 ++--
  src/pkg/runtime/vlop_arm.s          | 15 ++++----
  42 files changed, 575 insertions(+), 514 deletions(-)
+
+diff --git a/src/pkg/debug/gosym/pclinetest.asm b/src/pkg/debug/gosym/pclinetest.asm
+index 868afc6604..b9ee9c0a50 100644
+--- a/src/pkg/debug/gosym/pclinetest.asm
++++ b/src/pkg/debug/gosym/pclinetest.asm
+@@ -1,4 +1,4 @@
+-TEXT linefrompc(SB),7,$0	// Each byte stores its line delta
++TEXT linefrompc(SB),4,$0	// Each byte stores its line delta
+ BYTE $2;
+ BYTE $1;
+ BYTE $1; BYTE $0;
+@@ -28,7 +28,7 @@ BYTE $2;
+ BYTE $2;
+ BYTE $255;
+ 
+-TEXT pcfromline(SB),7,$0	// Each record stores its line delta, then n, then n more bytes
++TEXT pcfromline(SB),4,$0	// Each record stores its line delta, then n, then n more bytes
+ BYTE $32; BYTE $0;
+ BYTE $1; BYTE $1; BYTE $0;
+ BYTE $1; BYTE $0;
+@@ -47,14 +47,12 @@ BYTE $3; BYTE $3; BYTE $0; BYTE $0; BYTE $0;
+ BYTE $4; BYTE $3; BYTE $0; BYTE $0; BYTE $0;
+ BYTE $255;
+ 
+-TEXT main(SB),7,$0
+-	// Prevent GC of our test symbols
+-	CALL linefrompc(SB)
+-	CALL pcfromline(SB)
+-
+ // Keep the linker happy
+-TEXT main·main(SB),7,$0
++TEXT main·main(SB),4,$0
+ 	RET
+ 
+-TEXT main·init(SB),7,$0
++TEXT main·init(SB),4,$0
++	// Prevent GC of our test symbols
++	CALL linefrompc(SB)
++	CALL pcfromline(SB)
+ 	RET
+diff --git a/src/pkg/runtime/memclr_arm.s b/src/pkg/runtime/memclr_arm.s
+index fab584fed9..d5ff75d7a1 100644
+--- a/src/pkg/runtime/memclr_arm.s
++++ b/src/pkg/runtime/memclr_arm.s
+@@ -23,12 +23,14 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include "../../cmd/ld/textflag.h"
++
+ TO = 8
+ TOE = 11
+ N = 12
+ TMP = 12				/* N and TMP don't overlap */
+ 
+-TEXT runtime·memclr(SB),7,$0-8
++TEXT runtime·memclr(SB),NOSPLIT,$0-8
+ 	MOVW	ptr+0(FP), R(TO)
+ 	MOVW	n+4(FP), R(N)
+ 	MOVW	$0, R(0)
+diff --git a/src/pkg/runtime/memmove_386.s b/src/pkg/runtime/memmove_386.s
+index 22f6f29f5f..13d575973a 100644
+--- a/src/pkg/runtime/memmove_386.s
++++ b/src/pkg/runtime/memmove_386.s
+@@ -23,7 +23,9 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-TEXT runtime·memmove(SB), 7, $0-12
++#include "../../cmd/ld/textflag.h"
++
++TEXT runtime·memmove(SB), NOSPLIT, $0-12
+ 	MOVL	to+0(FP), DI
+ 	MOVL	fr+4(FP), SI
+ 	MOVL	n+8(FP), BX
+diff --git a/src/pkg/runtime/memmove_amd64.s b/src/pkg/runtime/memmove_amd64.s
+index 4cc339f579..f1641cdb28 100644
+--- a/src/pkg/runtime/memmove_amd64.s
++++ b/src/pkg/runtime/memmove_amd64.s
+@@ -23,8 +23,10 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include "../../cmd/ld/textflag.h"
++
+ // void runtime·memmove(void*, void*, uintptr)
+-TEXT runtime·memmove(SB), 7, $0-24
++TEXT runtime·memmove(SB), NOSPLIT, $0-24
+ 
+ 	MOVQ	to+0(FP), DI
+ 	MOVQ	fr+8(FP), SI
+diff --git a/src/pkg/runtime/memmove_arm.s b/src/pkg/runtime/memmove_arm.s
+index ce8f9fd4d5..9701dc99f2 100644
+--- a/src/pkg/runtime/memmove_arm.s
++++ b/src/pkg/runtime/memmove_arm.s
+@@ -23,6 +23,8 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include "../../cmd/ld/textflag.h"
++
+ // TE or TS are spilled to the stack during bulk register moves.
+ TS = 0
+ TE = 8
+@@ -56,7 +58,7 @@ FR2 = 4
+ FW3 = 4
+ FR3 = 8					/* shared with TE */
+ 
+-TEXT runtime·memmove(SB), 7, $4-12
++TEXT runtime·memmove(SB), NOSPLIT, $4-12
+ _memmove:
+ 	MOVW	to+0(FP), R(TS)
+ 	MOVW	from+4(FP), R(FROM)
+diff --git a/src/pkg/runtime/race_amd64.s b/src/pkg/runtime/race_amd64.s
+index c33cdb7546..a33b77a50e 100644
+--- a/src/pkg/runtime/race_amd64.s
++++ b/src/pkg/runtime/race_amd64.s
+@@ -4,8 +4,10 @@
+ 
+ // +build race
+ 
++#include "../../cmd/ld/textflag.h"
++
+ // func runtime·racefuncenter(pc uintptr)
+-TEXT	runtime·racefuncenter(SB), 7, $16-8
++TEXT	runtime·racefuncenter(SB), NOSPLIT, $16-8
+ 	MOVQ	DX, saved-8(SP) // save function entry context (for closures)
+ 	MOVQ	pc+0(FP), DX
+ 	MOVQ	DX, arg-16(SP)
+diff --git a/src/pkg/runtime/rt0_darwin_386.s b/src/pkg/runtime/rt0_darwin_386.s
+index 01e33e62bd..4f85250c2d 100644
+--- a/src/pkg/runtime/rt0_darwin_386.s
++++ b/src/pkg/runtime/rt0_darwin_386.s
+@@ -2,7 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-TEXT _rt0_386_darwin(SB),7,$8
++#include "../../cmd/ld/textflag.h"
++
++TEXT _rt0_386_darwin(SB),NOSPLIT,$8
+ 	MOVL	8(SP), AX
+ 	LEAL	12(SP), BX
+ 	MOVL	AX, 0(SP)
+@@ -10,5 +12,5 @@ TEXT _rt0_386_darwin(SB),7,$8
+ 	CALL	main(SB)
+ 	INT	$3
+ 
+-TEXT main(SB),7,$0
++TEXT main(SB),NOSPLIT,$0
+ 	JMP	_rt0_go(SB)
+diff --git a/src/pkg/runtime/rt0_darwin_amd64.s b/src/pkg/runtime/rt0_darwin_amd64.s
+index d7aac300f6..8d2962b03a 100644
+--- a/src/pkg/runtime/rt0_darwin_amd64.s
++++ b/src/pkg/runtime/rt0_darwin_amd64.s
+@@ -2,12 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-TEXT _rt0_amd64_darwin(SB),7,$-8
++#include "../../cmd/ld/textflag.h"
++
++TEXT _rt0_amd64_darwin(SB),NOSPLIT,$-8
+ 	LEAQ	8(SP), SI // argv
+ 	MOVQ	0(SP), DI // argc
+ 	MOVQ	$main(SB), AX
+ 	JMP	AX
+ 
+-TEXT main(SB),7,$-8
++TEXT main(SB),NOSPLIT,$-8
+ 	MOVQ	$_rt0_go(SB), AX
+ 	JMP	AX
+diff --git a/src/pkg/runtime/rt0_freebsd_386.s b/src/pkg/runtime/rt0_freebsd_386.s
+index a608593965..758f7d2685 100644
+--- a/src/pkg/runtime/rt0_freebsd_386.s
++++ b/src/pkg/runtime/rt0_freebsd_386.s
+@@ -2,7 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-TEXT _rt0_386_freebsd(SB),7,$8
++#include "../../cmd/ld/textflag.h"
++
++TEXT _rt0_386_freebsd(SB),NOSPLIT,$8
+ 	MOVL	8(SP), AX
+ 	LEAL	12(SP), BX
+ 	MOVL	AX, 0(SP)
+@@ -10,5 +12,5 @@ TEXT _rt0_386_freebsd(SB),7,$8
+ 	CALL	main(SB)
+ 	INT	$3
+ 
+-TEXT main(SB),7,$0
++TEXT main(SB),NOSPLIT,$0
+ 	JMP	_rt0_go(SB)
+diff --git a/src/pkg/runtime/rt0_freebsd_amd64.s b/src/pkg/runtime/rt0_freebsd_amd64.s
+index 0656e9f862..3cf7163b5e 100644
+--- a/src/pkg/runtime/rt0_freebsd_amd64.s
++++ b/src/pkg/runtime/rt0_freebsd_amd64.s
+@@ -2,12 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-TEXT _rt0_amd64_freebsd(SB),7,$-8
++#include "../../cmd/ld/textflag.h"
++
++TEXT _rt0_amd64_freebsd(SB),NOSPLIT,$-8
+ 	LEAQ	8(DI), SI // argv
+ 	MOVQ	0(DI), DI // argc
+ 	MOVQ	$main(SB), AX
+ 	JMP	AX
+ 
+-TEXT main(SB),7,$-8
++TEXT main(SB),NOSPLIT,$-8
+ 	MOVQ	$_rt0_go(SB), AX
+ 	JMP	AX
+diff --git a/src/pkg/runtime/rt0_freebsd_arm.s b/src/pkg/runtime/rt0_freebsd_arm.s
+index 340b72cae0..16011a8065 100644
+--- a/src/pkg/runtime/rt0_freebsd_arm.s
++++ b/src/pkg/runtime/rt0_freebsd_arm.s
+@@ -2,7 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "../../cmd/ld/textflag.h"
++
+ // FreeBSD and Linux use the same linkage to main
+ 
+-TEXT _rt0_arm_freebsd(SB),7,$-4
++TEXT _rt0_arm_freebsd(SB),NOSPLIT,$-4
+ 	B	_rt0_go(SB)
+diff --git a/src/pkg/runtime/rt0_linux_386.s b/src/pkg/runtime/rt0_linux_386.s
+index 632d0a8fdf..c6f4159ce3 100644
+--- a/src/pkg/runtime/rt0_linux_386.s
++++ b/src/pkg/runtime/rt0_linux_386.s
+@@ -2,7 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-TEXT _rt0_386_linux(SB),7,$8
++#include "../../cmd/ld/textflag.h"
++
++TEXT _rt0_386_linux(SB),NOSPLIT,$8
+ 	MOVL	8(SP), AX
+ 	LEAL	12(SP), BX
+ 	MOVL	AX, 0(SP)
+@@ -11,10 +13,10 @@ TEXT _rt0_386_linux(SB),7,$8
+ 	CALL	main(SB)
+ 	INT	$3
+ 
+-TEXT main(SB),7,$0
++TEXT main(SB),NOSPLIT,$0
+ 	JMP	_rt0_go(SB)
+ 
+-TEXT _fallback_vdso(SB),7,$0
++TEXT _fallback_vdso(SB),NOSPLIT,$0
+ 	INT	$0x80
+ 	RET
+ 
+diff --git a/src/pkg/runtime/rt0_linux_amd64.s b/src/pkg/runtime/rt0_linux_amd64.s
+index 4c1897adcd..a887ced8f0 100644
+--- a/src/pkg/runtime/rt0_linux_amd64.s
++++ b/src/pkg/runtime/rt0_linux_amd64.s
+@@ -2,12 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-TEXT _rt0_amd64_linux(SB),7,$-8
++#include "../../cmd/ld/textflag.h"
++
++TEXT _rt0_amd64_linux(SB),NOSPLIT,$-8
+ 	LEAQ	8(SP), SI // argv
+ 	MOVQ	0(SP), DI // argc
+ 	MOVQ	$main(SB), AX
+ 	JMP	AX
+ 
+-TEXT main(SB),7,$-8
++TEXT main(SB),NOSPLIT,$-8
+ 	MOVQ	$_rt0_go(SB), AX
+ 	JMP	AX
+diff --git a/src/pkg/runtime/rt0_linux_arm.s b/src/pkg/runtime/rt0_linux_arm.s
+index 884851cb2d..13d5bd8a07 100644
+--- a/src/pkg/runtime/rt0_linux_arm.s
++++ b/src/pkg/runtime/rt0_linux_arm.s
+@@ -2,7 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-TEXT _rt0_arm_linux(SB),7,$-4
++#include "../../cmd/ld/textflag.h"
++
++TEXT _rt0_arm_linux(SB),NOSPLIT,$-4
+ 	// We first need to detect the kernel ABI, and warn the user
+ 	// if the system only supports OABI
+ 	// The strategy here is to call some EABI syscall to see if
+@@ -43,7 +45,7 @@ TEXT _rt0_arm_linux(SB),7,$-4
+ 	ADD	$4, R13
+ 	B	_rt0_go(SB)
+ 
+-TEXT bad_abi<>(SB),7,$-4
++TEXT bad_abi<>(SB),NOSPLIT,$-4
+ 	// give diagnosis and exit
+ 	MOVW	$2, R0 // stderr
+ 	MOVW	$bad_abi_msg(SB), R1 // data
+@@ -64,7 +66,7 @@ DATA bad_abi_msg+0x28(SB)/4, $"nels"
+ DATA bad_abi_msg+0x2c(SB)/1, $0xa
+ GLOBL bad_abi_msg(SB), $45
+ 
+-TEXT oabi_syscall<>(SB),7,$-4
++TEXT oabi_syscall<>(SB),NOSPLIT,$-4
+ 	ADD $1, PC, R4
+ 	WORD $0xe12fff14 //BX	(R4) // enter thumb mode
+ 	// TODO(minux): only supports little-endian CPUs
+diff --git a/src/pkg/runtime/rt0_netbsd_386.s b/src/pkg/runtime/rt0_netbsd_386.s
+index 59e915b6b2..eb348fcee1 100644
+--- a/src/pkg/runtime/rt0_netbsd_386.s
++++ b/src/pkg/runtime/rt0_netbsd_386.s
+@@ -2,7 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-TEXT _rt0_386_netbsd(SB),7,$8
++#include "../../cmd/ld/textflag.h"
++
++TEXT _rt0_386_netbsd(SB),NOSPLIT,$8
+ 	MOVL	8(SP), AX
+ 	LEAL	12(SP), BX
+ 	MOVL	AX, 0(SP)
+@@ -10,5 +12,5 @@ TEXT _rt0_386_netbsd(SB),7,$8
+ 	CALL	main(SB)
+ 	INT	$3
+ 
+-TEXT main(SB),7,$0
++TEXT main(SB),NOSPLIT,$0
+ 	JMP	_rt0_go(SB)
+diff --git a/src/pkg/runtime/rt0_netbsd_amd64.s b/src/pkg/runtime/rt0_netbsd_amd64.s
+index 94cc05b50e..c8e3fb18c3 100644
+--- a/src/pkg/runtime/rt0_netbsd_amd64.s
++++ b/src/pkg/runtime/rt0_netbsd_amd64.s
+@@ -2,12 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-TEXT _rt0_amd64_netbsd(SB),7,$-8
++#include "../../cmd/ld/textflag.h"
++
++TEXT _rt0_amd64_netbsd(SB),NOSPLIT,$-8
+ 	LEAQ	8(SP), SI // argv
+ 	MOVQ	0(SP), DI // argc
+ 	MOVQ	$main(SB), AX
+ 	JMP	AX
+ 
+-TEXT main(SB),7,$-8
++TEXT main(SB),NOSPLIT,$-8
+ 	MOVQ	$_rt0_go(SB), AX
+ 	JMP	AX
+diff --git a/src/pkg/runtime/rt0_netbsd_arm.s b/src/pkg/runtime/rt0_netbsd_arm.s
+index 19f40b80dc..3ecefb0532 100644
+--- a/src/pkg/runtime/rt0_netbsd_arm.s
++++ b/src/pkg/runtime/rt0_netbsd_arm.s
+@@ -2,7 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "../../cmd/ld/textflag.h"
++
+ // FreeBSD/NetBSD and Linux use the same linkage to main
+ 
+-TEXT _rt0_arm_netbsd(SB),7,$-4
++TEXT _rt0_arm_netbsd(SB),NOSPLIT,$-4
+ 	B _rt0_go(SB)
+diff --git a/src/pkg/runtime/rt0_openbsd_386.s b/src/pkg/runtime/rt0_openbsd_386.s
+index 60f559206a..9e80f69be2 100644
+--- a/src/pkg/runtime/rt0_openbsd_386.s
++++ b/src/pkg/runtime/rt0_openbsd_386.s
+@@ -2,7 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-TEXT _rt0_386_openbsd(SB),7,$8
++#include "../../cmd/ld/textflag.h"
++
++TEXT _rt0_386_openbsd(SB),NOSPLIT,$8
+ 	MOVL	8(SP), AX
+ 	LEAL	12(SP), BX
+ 	MOVL	AX, 0(SP)
+@@ -10,5 +12,5 @@ TEXT _rt0_386_openbsd(SB),7,$8
+ 	CALL	main(SB)
+ 	INT	$3
+ 
+-TEXT main(SB),7,$0
++TEXT main(SB),NOSPLIT,$0
+ 	JMP	_rt0_go(SB)
+diff --git a/src/pkg/runtime/rt0_openbsd_amd64.s b/src/pkg/runtime/rt0_openbsd_amd64.s
+index 2bf6d38222..b1ad403b70 100644
+--- a/src/pkg/runtime/rt0_openbsd_amd64.s
++++ b/src/pkg/runtime/rt0_openbsd_amd64.s
+@@ -2,12 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-TEXT _rt0_amd64_openbsd(SB),7,$-8
++#include "../../cmd/ld/textflag.h"
++
++TEXT _rt0_amd64_openbsd(SB),NOSPLIT,$-8
+ 	LEAQ	8(SP), SI // argv
+ 	MOVQ	0(SP), DI // argc
+ 	MOVQ	$main(SB), AX
+ 	JMP	AX
+ 
+-TEXT main(SB),7,$-8
++TEXT main(SB),NOSPLIT,$-8
+ 	MOVQ	$_rt0_go(SB), AX
+ 	JMP	AX
+diff --git a/src/pkg/runtime/rt0_plan9_386.s b/src/pkg/runtime/rt0_plan9_386.s
+index 2745d5d742..dad75c84d7 100644
+--- a/src/pkg/runtime/rt0_plan9_386.s
++++ b/src/pkg/runtime/rt0_plan9_386.s
+@@ -2,7 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-TEXT _rt0_386_plan9(SB),7, $0
++#include "../../cmd/ld/textflag.h"
++
++TEXT _rt0_386_plan9(SB),NOSPLIT, $0
+ 	MOVL	AX, _tos(SB)
+ 	
+ 	// move arguments down to make room for
+diff --git a/src/pkg/runtime/rt0_plan9_amd64.s b/src/pkg/runtime/rt0_plan9_amd64.s
+index 6a0ab7de5e..79a7c92fcb 100644
+--- a/src/pkg/runtime/rt0_plan9_amd64.s
++++ b/src/pkg/runtime/rt0_plan9_amd64.s
+@@ -2,7 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-TEXT _rt0_amd64_plan9(SB),7,$-8
++#include "../../cmd/ld/textflag.h"
++
++TEXT _rt0_amd64_plan9(SB),NOSPLIT,$-8
+ 	LEAQ	8(SP), SI // argv
+ 	MOVQ	0(SP), DI // argc
+ 	MOVQ	$_rt0_go(SB), AX
+diff --git a/src/pkg/runtime/rt0_windows_386.s b/src/pkg/runtime/rt0_windows_386.s
+index 06bd18f69f..594e2cd343 100644
+--- a/src/pkg/runtime/rt0_windows_386.s
++++ b/src/pkg/runtime/rt0_windows_386.s
+@@ -2,7 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-TEXT _rt0_386_windows(SB),7,$12
++#include "../../cmd/ld/textflag.h"
++
++TEXT _rt0_386_windows(SB),NOSPLIT,$12
+ 	MOVL	12(SP), AX
+ 	LEAL	16(SP), BX
+ 	MOVL	AX, 4(SP)
+@@ -10,7 +12,7 @@ TEXT _rt0_386_windows(SB),7,$12
+ 	MOVL	$-1, 0(SP) // return PC for main
+ 	JMP	main(SB)
+ 
+-TEXT main(SB),7,$0
++TEXT main(SB),NOSPLIT,$0
+ 	JMP	_rt0_go(SB)
+ 
+ 
+diff --git a/src/pkg/runtime/rt0_windows_amd64.s b/src/pkg/runtime/rt0_windows_amd64.s
+index 25b576ee49..32e18b02ba 100644
+--- a/src/pkg/runtime/rt0_windows_amd64.s
++++ b/src/pkg/runtime/rt0_windows_amd64.s
+@@ -3,14 +3,15 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "zasm_GOOS_GOARCH.h"
++#include "../../cmd/ld/textflag.h"
+ 
+-TEXT _rt0_amd64_windows(SB),7,$-8
++TEXT _rt0_amd64_windows(SB),NOSPLIT,$-8
+ 	LEAQ	8(SP), SI // argv
+ 	MOVQ	0(SP), DI // argc
+ 	MOVQ	$main(SB), AX
+ 	JMP	AX
+ 
+-TEXT main(SB),7,$-8
++TEXT main(SB),NOSPLIT,$-8
+ 	MOVQ	$_rt0_go(SB), AX
+ 	JMP	AX
+ 
+diff --git a/src/pkg/runtime/sys_darwin_386.s b/src/pkg/runtime/sys_darwin_386.s
+index a1a7aaf8bc..c2a259e5b1 100644
+--- a/src/pkg/runtime/sys_darwin_386.s
++++ b/src/pkg/runtime/sys_darwin_386.s
+@@ -7,9 +7,10 @@
+ // or /usr/include/sys/syscall.h (on a Mac) for system call numbers.
+ 
+ #include "zasm_GOOS_GOARCH.h"
++#include "../../cmd/ld/textflag.h"
+ 
+ // Exit the entire program (like C exit)
+-TEXT runtime·exit(SB),7,$0
++TEXT runtime·exit(SB),NOSPLIT,$0
+ 	MOVL	$1, AX
+ 	INT	$0x80
+ 	MOVL	$0xf1, 0xf1  // crash
+@@ -17,34 +18,34 @@ TEXT runtime·exit(SB),7,$0
+ 
+ // Exit this OS thread (like pthread_exit, which eventually
+ // calls __bsdthread_terminate).
+-TEXT runtime·exit1(SB),7,$0
++TEXT runtime·exit1(SB),NOSPLIT,$0
+ 	MOVL	$361, AX
+ 	INT	$0x80
+ 	JAE 2(PC)
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·open(SB),7,$0
++TEXT runtime·open(SB),NOSPLIT,$0
+ 	MOVL	$5, AX
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·close(SB),7,$0
++TEXT runtime·close(SB),NOSPLIT,$0
+ 	MOVL	$6, AX
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·read(SB),7,$0
++TEXT runtime·read(SB),NOSPLIT,$0
+ 	MOVL	$3, AX
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·write(SB),7,$0
++TEXT runtime·write(SB),NOSPLIT,$0
+ 	MOVL	$4, AX
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·raise(SB),7,$16
++TEXT runtime·raise(SB),NOSPLIT,$16
+ 	MOVL	$20, AX // getpid
+ 	INT	$0x80
+ 	MOVL	AX, 4(SP)	// pid
+@@ -55,25 +56,25 @@ TEXT runtime·raise(SB),7,$16
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·mmap(SB),7,$0
++TEXT runtime·mmap(SB),NOSPLIT,$0
+ 	MOVL	$197, AX
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·madvise(SB),7,$0
++TEXT runtime·madvise(SB),NOSPLIT,$0
+ 	MOVL	$75, AX
+ 	INT	$0x80
+ 	// ignore failure - maybe pages are locked
+ 	RET
+ 
+-TEXT runtime·munmap(SB),7,$0
++TEXT runtime·munmap(SB),NOSPLIT,$0
+ 	MOVL	$73, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·setitimer(SB),7,$0
++TEXT runtime·setitimer(SB),NOSPLIT,$0
+ 	MOVL	$83, AX
+ 	INT	$0x80
+ 	RET
+@@ -94,7 +95,7 @@ TEXT runtime·setitimer(SB),7,$0
+ // 64-bit unix nanoseconds returned in DX:AX.
+ // I'd much rather write this in C but we need
+ // assembly for the 96-bit multiply and RDTSC.
+-TEXT runtime·now(SB),7,$40
++TEXT runtime·now(SB),NOSPLIT,$40
+ 	MOVL	$0xffff0000, BP /* comm page base */
+ 	
+ 	// Test for slow CPU. If so, the math is completely
+@@ -192,7 +193,7 @@ systime:
+ 	RET
+ 
+ // func now() (sec int64, nsec int32)
+-TEXT time·now(SB),7,$0
++TEXT time·now(SB),NOSPLIT,$0
+ 	CALL	runtime·now(SB)
+ 	MOVL	$1000000000, CX
+ 	DIVL	CX
+@@ -203,21 +204,21 @@ TEXT time·now(SB),7,$0
+ 
+ // int64 nanotime(void) so really
+ // void nanotime(int64 *nsec)
+-TEXT runtime·nanotime(SB),7,$0
++TEXT runtime·nanotime(SB),NOSPLIT,$0
+ 	CALL	runtime·now(SB)
+ 	MOVL	ret+0(FP), DI
+ 	MOVL	AX, 0(DI)
+ 	MOVL	DX, 4(DI)
+ 	RET
+ 
+-TEXT runtime·sigprocmask(SB),7,$0
++TEXT runtime·sigprocmask(SB),NOSPLIT,$0
+ 	MOVL	$329, AX  // pthread_sigmask (on OS X, sigprocmask==entire process)
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·sigaction(SB),7,$0
++TEXT runtime·sigaction(SB),NOSPLIT,$0
+ 	MOVL	$46, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+@@ -232,7 +233,7 @@ TEXT runtime·sigaction(SB),7,$0
+ //	12(FP)	siginfo style
+ //	16(FP)	siginfo
+ //	20(FP)	context
+-TEXT runtime·sigtramp(SB),7,$40
++TEXT runtime·sigtramp(SB),NOSPLIT,$40
+ 	get_tls(CX)
+ 	
+ 	// check that m exists
+@@ -282,14 +283,14 @@ sigtramp_ret:
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·sigaltstack(SB),7,$0
++TEXT runtime·sigaltstack(SB),NOSPLIT,$0
+ 	MOVL	$53, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·usleep(SB),7,$32
++TEXT runtime·usleep(SB),NOSPLIT,$32
+ 	MOVL	$0, DX
+ 	MOVL	usec+0(FP), AX
+ 	MOVL	$1000000, CX
+@@ -311,7 +312,7 @@ TEXT runtime·usleep(SB),7,$32
+ 
+ // void bsdthread_create(void *stk, M *mp, G *gp, void (*fn)(void))
+ // System call args are: func arg stack pthread flags.
+-TEXT runtime·bsdthread_create(SB),7,$32
++TEXT runtime·bsdthread_create(SB),NOSPLIT,$32
+ 	MOVL	$360, AX
+ 	// 0(SP) is where the caller PC would be; kernel skips it
+ 	MOVL	func+12(FP), BX
+@@ -340,7 +341,7 @@ TEXT runtime·bsdthread_create(SB),7,$32
+ //	DI = stack top
+ //	SI = flags (= 0x1000000)
+ //	SP = stack - C_32_STK_ALIGN
+-TEXT runtime·bsdthread_start(SB),7,$0
++TEXT runtime·bsdthread_start(SB),NOSPLIT,$0
+ 	// set up ldt 7+id to point at m->tls.
+ 	// m->tls is at m+40.  newosproc left
+ 	// the m->id in tls[0].
+@@ -371,7 +372,7 @@ TEXT runtime·bsdthread_start(SB),7,$0
+ // void bsdthread_register(void)
+ // registers callbacks for threadstart (see bsdthread_create above
+ // and wqthread and pthsize (not used).  returns 0 on success.
+-TEXT runtime·bsdthread_register(SB),7,$40
++TEXT runtime·bsdthread_register(SB),NOSPLIT,$40
+ 	MOVL	$366, AX
+ 	// 0(SP) is where kernel expects caller PC; ignored
+ 	MOVL	$runtime·bsdthread_start(SB), 4(SP)	// threadstart
+@@ -398,23 +399,23 @@ TEXT runtime·bsdthread_register(SB),7,$40
+ // in the high 16 bits that seems to be the
+ // argument count in bytes but is not always.
+ // INT $0x80 works fine for those.
+-TEXT runtime·sysenter(SB),7,$0
++TEXT runtime·sysenter(SB),NOSPLIT,$0
+ 	POPL	DX
+ 	MOVL	SP, CX
+ 	BYTE $0x0F; BYTE $0x34;  // SYSENTER
+ 	// returns to DX with SP set to CX
+ 
+-TEXT runtime·mach_msg_trap(SB),7,$0
++TEXT runtime·mach_msg_trap(SB),NOSPLIT,$0
+ 	MOVL	$-31, AX
+ 	CALL	runtime·sysenter(SB)
+ 	RET
+ 
+-TEXT runtime·mach_reply_port(SB),7,$0
++TEXT runtime·mach_reply_port(SB),NOSPLIT,$0
+ 	MOVL	$-26, AX
+ 	CALL	runtime·sysenter(SB)
+ 	RET
+ 
+-TEXT runtime·mach_task_self(SB),7,$0
++TEXT runtime·mach_task_self(SB),NOSPLIT,$0
+ 	MOVL	$-28, AX
+ 	CALL	runtime·sysenter(SB)
+ 	RET
+@@ -423,32 +424,32 @@ TEXT runtime·mach_task_self(SB),7,$0
+ // instead of requiring the use of RPC.
+ 
+ // uint32 mach_semaphore_wait(uint32)
+-TEXT runtime·mach_semaphore_wait(SB),7,$0
++TEXT runtime·mach_semaphore_wait(SB),NOSPLIT,$0
+ 	MOVL	$-36, AX
+ 	CALL	runtime·sysenter(SB)
+ 	RET
+ 
+ // uint32 mach_semaphore_timedwait(uint32, uint32, uint32)
+-TEXT runtime·mach_semaphore_timedwait(SB),7,$0
++TEXT runtime·mach_semaphore_timedwait(SB),NOSPLIT,$0
+ 	MOVL	$-38, AX
+ 	CALL	runtime·sysenter(SB)
+ 	RET
+ 
+ // uint32 mach_semaphore_signal(uint32)
+-TEXT runtime·mach_semaphore_signal(SB),7,$0
++TEXT runtime·mach_semaphore_signal(SB),NOSPLIT,$0
+ 	MOVL	$-33, AX
+ 	CALL	runtime·sysenter(SB)
+ 	RET
+ 
+ // uint32 mach_semaphore_signal_all(uint32)
+-TEXT runtime·mach_semaphore_signal_all(SB),7,$0
++TEXT runtime·mach_semaphore_signal_all(SB),NOSPLIT,$0
+ 	MOVL	$-34, AX
+ 	CALL	runtime·sysenter(SB)
+ 	RET
+ 
+ // setldt(int entry, int address, int limit)
+ // entry and limit are ignored.
+-TEXT runtime·setldt(SB),7,$32
++TEXT runtime·setldt(SB),NOSPLIT,$32
+ 	MOVL	address+4(FP), BX	// aka base
+ 
+ 	/*
+@@ -483,7 +484,7 @@ TEXT runtime·setldt(SB),7,$32
+ 	MOVW	GS, AX
+ 	RET
+ 
+-TEXT runtime·sysctl(SB),7,$0
++TEXT runtime·sysctl(SB),NOSPLIT,$0
+ 	MOVL	$202, AX
+ 	INT	$0x80
+ 	JAE	3(PC)
+@@ -493,7 +494,7 @@ TEXT runtime·sysctl(SB),7,$0
+ 	RET
+ 
+ // int32 runtime·kqueue(void);
+-TEXT runtime·kqueue(SB),7,$0
++TEXT runtime·kqueue(SB),NOSPLIT,$0
+ 	MOVL	$362, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+@@ -501,7 +502,7 @@ TEXT runtime·kqueue(SB),7,$0
+ 	RET
+ 
+ // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
+-TEXT runtime·kevent(SB),7,$0
++TEXT runtime·kevent(SB),NOSPLIT,$0
+ 	MOVL	$363, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+@@ -509,7 +510,7 @@ TEXT runtime·kevent(SB),7,$0
+ 	RET
+ 
+ // int32 runtime·closeonexec(int32 fd);
+-TEXT runtime·closeonexec(SB),7,$32
++TEXT runtime·closeonexec(SB),NOSPLIT,$32
+ 	MOVL	$92, AX  // fcntl
+ 	// 0(SP) is where the caller PC would be; kernel skips it
+ 	MOVL	fd+0(FP), BX
+diff --git a/src/pkg/runtime/sys_darwin_amd64.s b/src/pkg/runtime/sys_darwin_amd64.s
+index a11cc33f38..a0c81b5d28 100644
+--- a/src/pkg/runtime/sys_darwin_amd64.s
++++ b/src/pkg/runtime/sys_darwin_amd64.s
+@@ -12,9 +12,10 @@
+ //
+ 
+ #include "zasm_GOOS_GOARCH.h"
++#include "../../cmd/ld/textflag.h"
+ 
+ // Exit the entire program (like C exit)
+-TEXT runtime·exit(SB),7,$0
++TEXT runtime·exit(SB),NOSPLIT,$0
+ 	MOVL	8(SP), DI		// arg 1 exit status
+ 	MOVL	$(0x2000000+1), AX	// syscall entry
+ 	SYSCALL
+@@ -23,14 +24,14 @@ TEXT runtime·exit(SB),7,$0
+ 
+ // Exit this OS thread (like pthread_exit, which eventually
+ // calls __bsdthread_terminate).
+-TEXT runtime·exit1(SB),7,$0
++TEXT runtime·exit1(SB),NOSPLIT,$0
+ 	MOVL	8(SP), DI		// arg 1 exit status
+ 	MOVL	$(0x2000000+361), AX	// syscall entry
+ 	SYSCALL
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·open(SB),7,$0
++TEXT runtime·open(SB),NOSPLIT,$0
+ 	MOVQ	8(SP), DI		// arg 1 pathname
+ 	MOVL	16(SP), SI		// arg 2 flags
+ 	MOVL	20(SP), DX		// arg 3 mode
+@@ -38,13 +39,13 @@ TEXT runtime·open(SB),7,$0
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·close(SB),7,$0
++TEXT runtime·close(SB),NOSPLIT,$0
+ 	MOVL	8(SP), DI		// arg 1 fd
+ 	MOVL	$(0x2000000+6), AX	// syscall entry
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·read(SB),7,$0
++TEXT runtime·read(SB),NOSPLIT,$0
+ 	MOVL	8(SP), DI		// arg 1 fd
+ 	MOVQ	16(SP), SI		// arg 2 buf
+ 	MOVL	24(SP), DX		// arg 3 count
+@@ -52,7 +53,7 @@ TEXT runtime·read(SB),7,$0
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·write(SB),7,$0
++TEXT runtime·write(SB),NOSPLIT,$0
+ 	MOVL	8(SP), DI		// arg 1 fd
+ 	MOVQ	16(SP), SI		// arg 2 buf
+ 	MOVL	24(SP), DX		// arg 3 count
+@@ -60,7 +61,7 @@ TEXT runtime·write(SB),7,$0
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·raise(SB),7,$24
++TEXT runtime·raise(SB),NOSPLIT,$24
+ 	MOVL	$(0x2000000+20), AX // getpid
+ 	SYSCALL
+ 	MOVQ	AX, DI	// arg 1 - pid
+@@ -70,7 +71,7 @@ TEXT runtime·raise(SB),7,$24
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·setitimer(SB), 7, $0
++TEXT runtime·setitimer(SB), NOSPLIT, $0
+ 	MOVL	8(SP), DI
+ 	MOVQ	16(SP), SI
+ 	MOVQ	24(SP), DX
+@@ -78,7 +79,7 @@ TEXT runtime·setitimer(SB), 7, $0
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·madvise(SB), 7, $0
++TEXT runtime·madvise(SB), NOSPLIT, $0
+ 	MOVQ	8(SP), DI		// arg 1 addr
+ 	MOVQ	16(SP), SI		// arg 2 len
+ 	MOVL	24(SP), DX		// arg 3 advice
+@@ -99,7 +100,7 @@ TEXT runtime·madvise(SB), 7, $0
+ #define	gtod_sec_base	0x78
+ 
+ // int64 nanotime(void)
+-TEXT runtime·nanotime(SB), 7, $32
++TEXT runtime·nanotime(SB), NOSPLIT, $32
+ 	MOVQ	$0x7fffffe00000, BP	/* comm page base */
+ 	// Loop trying to take a consistent snapshot
+ 	// of the time parameters.
+@@ -149,7 +150,7 @@ systime:
+ 	RET
+ 
+ // func now() (sec int64, nsec int32)
+-TEXT time·now(SB),7,$0
++TEXT time·now(SB),NOSPLIT,$0
+ 	CALL	runtime·nanotime(SB)
+ 
+ 	// generated code for
+@@ -167,7 +168,7 @@ TEXT time·now(SB),7,$0
+ 	MOVL	CX, nsec+8(FP)
+ 	RET
+ 
+-TEXT runtime·sigprocmask(SB),7,$0
++TEXT runtime·sigprocmask(SB),NOSPLIT,$0
+ 	MOVL	8(SP), DI
+ 	MOVQ	16(SP), SI
+ 	MOVQ	24(SP), DX
+@@ -177,7 +178,7 @@ TEXT runtime·sigprocmask(SB),7,$0
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·sigaction(SB),7,$0
++TEXT runtime·sigaction(SB),NOSPLIT,$0
+ 	MOVL	8(SP), DI		// arg 1 sig
+ 	MOVQ	16(SP), SI		// arg 2 act
+ 	MOVQ	24(SP), DX		// arg 3 oact
+@@ -189,7 +190,7 @@ TEXT runtime·sigaction(SB),7,$0
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),7,$64
++TEXT runtime·sigtramp(SB),NOSPLIT,$64
+ 	get_tls(BX)
+ 
+ 	MOVQ	R8, 32(SP)	// save ucontext
+@@ -232,7 +233,7 @@ sigtramp_ret:
+ 	SYSCALL
+ 	INT $3	// not reached
+ 
+-TEXT runtime·mmap(SB),7,$0
++TEXT runtime·mmap(SB),NOSPLIT,$0
+ 	MOVQ	8(SP), DI		// arg 1 addr
+ 	MOVQ	16(SP), SI		// arg 2 len
+ 	MOVL	24(SP), DX		// arg 3 prot
+@@ -243,7 +244,7 @@ TEXT runtime·mmap(SB),7,$0
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·munmap(SB),7,$0
++TEXT runtime·munmap(SB),NOSPLIT,$0
+ 	MOVQ	8(SP), DI		// arg 1 addr
+ 	MOVQ	16(SP), SI		// arg 2 len
+ 	MOVL	$(0x2000000+73), AX	// syscall entry
+@@ -252,7 +253,7 @@ TEXT runtime·munmap(SB),7,$0
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·sigaltstack(SB),7,$0
++TEXT runtime·sigaltstack(SB),NOSPLIT,$0
+ 	MOVQ	new+8(SP), DI
+ 	MOVQ	old+16(SP), SI
+ 	MOVQ	$(0x2000000+53), AX
+@@ -261,7 +262,7 @@ TEXT runtime·sigaltstack(SB),7,$0
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·usleep(SB),7,$16
++TEXT runtime·usleep(SB),NOSPLIT,$16
+ 	MOVL	$0, DX
+ 	MOVL	usec+0(FP), AX
+ 	MOVL	$1000000, CX
+@@ -280,7 +281,7 @@ TEXT runtime·usleep(SB),7,$16
+ 	RET
+ 
+ // void bsdthread_create(void *stk, M *mp, G *gp, void (*fn)(void))
+-TEXT runtime·bsdthread_create(SB),7,$0
++TEXT runtime·bsdthread_create(SB),NOSPLIT,$0
+ 	// Set up arguments to bsdthread_create system call.
+ 	// The ones in quotes pass through to the thread callback
+ 	// uninterpreted, so we can put whatever we want there.
+@@ -308,7 +309,7 @@ TEXT runtime·bsdthread_create(SB),7,$0
+ //	R8 = stack
+ //	R9 = flags (= 0)
+ //	SP = stack - C_64_REDZONE_LEN (= stack - 128)
+-TEXT runtime·bsdthread_start(SB),7,$0
++TEXT runtime·bsdthread_start(SB),NOSPLIT,$0
+ 	MOVQ	R8, SP		// empirically, SP is very wrong but R8 is right
+ 
+ 	PUSHQ	DX
+@@ -336,7 +337,7 @@ TEXT runtime·bsdthread_start(SB),7,$0
+ // void bsdthread_register(void)
+ // registers callbacks for threadstart (see bsdthread_create above
+ // and wqthread and pthsize (not used).  returns 0 on success.
+-TEXT runtime·bsdthread_register(SB),7,$0
++TEXT runtime·bsdthread_register(SB),NOSPLIT,$0
+ 	MOVQ	$runtime·bsdthread_start(SB), DI	// threadstart
+ 	MOVQ	$0, SI	// wqthread, not used by us
+ 	MOVQ	$0, DX	// pthsize, not used by us
+@@ -354,7 +355,7 @@ TEXT runtime·bsdthread_register(SB),7,$0
+ // Mach system calls use 0x1000000 instead of the BSD's 0x2000000.
+ 
+ // uint32 mach_msg_trap(void*, uint32, uint32, uint32, uint32, uint32, uint32)
+-TEXT runtime·mach_msg_trap(SB),7,$0
++TEXT runtime·mach_msg_trap(SB),NOSPLIT,$0
+ 	MOVQ	8(SP), DI
+ 	MOVL	16(SP), SI
+ 	MOVL	20(SP), DX
+@@ -368,17 +369,17 @@ TEXT runtime·mach_msg_trap(SB),7,$0
+ 	POPQ	R11
+ 	RET
+ 
+-TEXT runtime·mach_task_self(SB),7,$0
++TEXT runtime·mach_task_self(SB),NOSPLIT,$0
+ 	MOVL	$(0x1000000+28), AX	// task_self_trap
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·mach_thread_self(SB),7,$0
++TEXT runtime·mach_thread_self(SB),NOSPLIT,$0
+ 	MOVL	$(0x1000000+27), AX	// thread_self_trap
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·mach_reply_port(SB),7,$0
++TEXT runtime·mach_reply_port(SB),NOSPLIT,$0
+ 	MOVL	$(0x1000000+26), AX	// mach_reply_port
+ 	SYSCALL
+ 	RET
+@@ -387,14 +388,14 @@ TEXT runtime·mach_reply_port(SB),7,$0
+ // instead of requiring the use of RPC.
+ 
+ // uint32 mach_semaphore_wait(uint32)
+-TEXT runtime·mach_semaphore_wait(SB),7,$0
++TEXT runtime·mach_semaphore_wait(SB),NOSPLIT,$0
+ 	MOVL	8(SP), DI
+ 	MOVL	$(0x1000000+36), AX	// semaphore_wait_trap
+ 	SYSCALL
+ 	RET
+ 
+ // uint32 mach_semaphore_timedwait(uint32, uint32, uint32)
+-TEXT runtime·mach_semaphore_timedwait(SB),7,$0
++TEXT runtime·mach_semaphore_timedwait(SB),NOSPLIT,$0
+ 	MOVL	8(SP), DI
+ 	MOVL	12(SP), SI
+ 	MOVL	16(SP), DX
+@@ -403,21 +404,21 @@ TEXT runtime·mach_semaphore_timedwait(SB),7,$0
+ 	RET
+ 
+ // uint32 mach_semaphore_signal(uint32)
+-TEXT runtime·mach_semaphore_signal(SB),7,$0
++TEXT runtime·mach_semaphore_signal(SB),NOSPLIT,$0
+ 	MOVL	8(SP), DI
+ 	MOVL	$(0x1000000+33), AX	// semaphore_signal_trap
+ 	SYSCALL
+ 	RET
+ 
+ // uint32 mach_semaphore_signal_all(uint32)
+-TEXT runtime·mach_semaphore_signal_all(SB),7,$0
++TEXT runtime·mach_semaphore_signal_all(SB),NOSPLIT,$0
+ 	MOVL	8(SP), DI
+ 	MOVL	$(0x1000000+34), AX	// semaphore_signal_all_trap
+ 	SYSCALL
+ 	RET
+ 
+ // set tls base to DI
+-TEXT runtime·settls(SB),7,$32
++TEXT runtime·settls(SB),NOSPLIT,$32
+ 	/*
+ 	* Same as in sys_darwin_386.s:/ugliness, different constant.
+ 	* See cgo/gcc_darwin_amd64.c for the derivation
+@@ -429,7 +430,7 @@ TEXT runtime·settls(SB),7,$32
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·sysctl(SB),7,$0
++TEXT runtime·sysctl(SB),NOSPLIT,$0
+ 	MOVQ	8(SP), DI
+ 	MOVL	16(SP), SI
+ 	MOVQ	24(SP), DX
+@@ -445,7 +446,7 @@ TEXT runtime·sysctl(SB),7,$0
+ 	RET
+ 
+ // int32 runtime·kqueue(void);
+-TEXT runtime·kqueue(SB),7,$0
++TEXT runtime·kqueue(SB),NOSPLIT,$0
+ 	MOVQ    $0, DI
+ 	MOVQ    $0, SI
+ 	MOVQ    $0, DX
+@@ -456,7 +457,7 @@ TEXT runtime·kqueue(SB),7,$0
+ 	RET
+ 
+ // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
+-TEXT runtime·kevent(SB),7,$0
++TEXT runtime·kevent(SB),NOSPLIT,$0
+ 	MOVL    8(SP), DI
+ 	MOVQ    16(SP), SI
+ 	MOVL    24(SP), DX
+@@ -470,7 +471,7 @@ TEXT runtime·kevent(SB),7,$0
+ 	RET
+ 
+ // void runtime·closeonexec(int32 fd);
+-TEXT runtime·closeonexec(SB),7,$0
++TEXT runtime·closeonexec(SB),NOSPLIT,$0
+ 	MOVL    8(SP), DI  // fd
+ 	MOVQ    $2, SI  // F_SETFD
+ 	MOVQ    $1, DX  // FD_CLOEXEC
+diff --git a/src/pkg/runtime/sys_freebsd_386.s b/src/pkg/runtime/sys_freebsd_386.s
+index 2a57cb4be0..26ccb845f0 100644
+--- a/src/pkg/runtime/sys_freebsd_386.s
++++ b/src/pkg/runtime/sys_freebsd_386.s
+@@ -7,18 +7,19 @@
+ //
+ 
+ #include "zasm_GOOS_GOARCH.h"
++#include "../../cmd/ld/textflag.h"
+ 	
+-TEXT runtime·sys_umtx_op(SB),7,$-4
++TEXT runtime·sys_umtx_op(SB),NOSPLIT,$-4
+ 	MOVL	$454, AX
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·thr_new(SB),7,$-4
++TEXT runtime·thr_new(SB),NOSPLIT,$-4
+ 	MOVL	$455, AX
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·thr_start(SB),7,$0
++TEXT runtime·thr_start(SB),NOSPLIT,$0
+ 	MOVL	mm+0(FP), AX
+ 	MOVL	m_g0(AX), BX
+ 	LEAL	m_tls(AX), BP
+@@ -43,45 +44,45 @@ TEXT runtime·thr_start(SB),7,$0
+ 	MOVL	0, AX			// crash (not reached)
+ 
+ // Exit the entire program (like C exit)
+-TEXT runtime·exit(SB),7,$-4
++TEXT runtime·exit(SB),NOSPLIT,$-4
+ 	MOVL	$1, AX
+ 	INT	$0x80
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·exit1(SB),7,$-4
++TEXT runtime·exit1(SB),NOSPLIT,$-4
+ 	MOVL	$431, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·open(SB),7,$-4
++TEXT runtime·open(SB),NOSPLIT,$-4
+ 	MOVL	$5, AX
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·close(SB),7,$-4
++TEXT runtime·close(SB),NOSPLIT,$-4
+ 	MOVL	$6, AX
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·read(SB),7,$-4
++TEXT runtime·read(SB),NOSPLIT,$-4
+ 	MOVL	$3, AX
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·write(SB),7,$-4
++TEXT runtime·write(SB),NOSPLIT,$-4
+ 	MOVL	$4, AX
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·getrlimit(SB),7,$-4
++TEXT runtime·getrlimit(SB),NOSPLIT,$-4
+ 	MOVL	$194, AX
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·raise(SB),7,$16
++TEXT runtime·raise(SB),NOSPLIT,$16
+ 	// thr_self(&8(SP))
+ 	LEAL	8(SP), AX
+ 	MOVL	AX, 4(SP)
+@@ -96,7 +97,7 @@ TEXT runtime·raise(SB),7,$16
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·mmap(SB),7,$32
++TEXT runtime·mmap(SB),NOSPLIT,$32
+ 	LEAL arg0+0(FP), SI
+ 	LEAL	4(SP), DI
+ 	CLD
+@@ -112,26 +113,26 @@ TEXT runtime·mmap(SB),7,$32
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·munmap(SB),7,$-4
++TEXT runtime·munmap(SB),NOSPLIT,$-4
+ 	MOVL	$73, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·madvise(SB),7,$-4
++TEXT runtime·madvise(SB),NOSPLIT,$-4
+ 	MOVL	$75, AX	// madvise
+ 	INT	$0x80
+ 	// ignore failure - maybe pages are locked
+ 	RET
+ 
+-TEXT runtime·setitimer(SB), 7, $-4
++TEXT runtime·setitimer(SB), NOSPLIT, $-4
+ 	MOVL	$83, AX
+ 	INT	$0x80
+ 	RET
+ 
+ // func now() (sec int64, nsec int32)
+-TEXT time·now(SB), 7, $32
++TEXT time·now(SB), NOSPLIT, $32
+ 	MOVL	$232, AX
+ 	LEAL	12(SP), BX
+ 	MOVL	$0, 4(SP)
+@@ -148,7 +149,7 @@ TEXT time·now(SB), 7, $32
+ 
+ // int64 nanotime(void) so really
+ // void nanotime(int64 *nsec)
+-TEXT runtime·nanotime(SB), 7, $32
++TEXT runtime·nanotime(SB), NOSPLIT, $32
+ 	MOVL	$232, AX
+ 	LEAL	12(SP), BX
+ 	MOVL	$0, 4(SP)
+@@ -170,14 +171,14 @@ TEXT runtime·nanotime(SB), 7, $32
+ 	RET
+ 
+ 
+-TEXT runtime·sigaction(SB),7,$-4
++TEXT runtime·sigaction(SB),NOSPLIT,$-4
+ 	MOVL	$416, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),7,$44
++TEXT runtime·sigtramp(SB),NOSPLIT,$44
+ 	get_tls(CX)
+ 
+ 	// check that m exists
+@@ -224,14 +225,14 @@ sigtramp_ret:
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·sigaltstack(SB),7,$0
++TEXT runtime·sigaltstack(SB),NOSPLIT,$0
+ 	MOVL	$53, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·usleep(SB),7,$20
++TEXT runtime·usleep(SB),NOSPLIT,$20
+ 	MOVL	$0, DX
+ 	MOVL	usec+0(FP), AX
+ 	MOVL	$1000000, CX
+@@ -266,7 +267,7 @@ int i386_set_ldt(int, const union ldt_entry *, int);
+ */
+ 
+ // setldt(int entry, int address, int limit)
+-TEXT runtime·setldt(SB),7,$32
++TEXT runtime·setldt(SB),NOSPLIT,$32
+ 	MOVL	address+4(FP), BX	// aka base
+ 	// see comment in sys_linux_386.s; freebsd is similar
+ 	ADDL	$0x8, BX
+@@ -299,7 +300,7 @@ TEXT runtime·setldt(SB),7,$32
+ 	MOVW	AX, GS
+ 	RET
+ 
+-TEXT runtime·i386_set_ldt(SB),7,$16
++TEXT runtime·i386_set_ldt(SB),NOSPLIT,$16
+ 	LEAL	args+0(FP), AX	// 0(FP) == 4(SP) before SP got moved
+ 	MOVL	$0, 0(SP)	// syscall gap
+ 	MOVL	$1, 4(SP)
+@@ -311,7 +312,7 @@ TEXT runtime·i386_set_ldt(SB),7,$16
+ 	INT	$3
+ 	RET
+ 
+-TEXT runtime·sysctl(SB),7,$28
++TEXT runtime·sysctl(SB),NOSPLIT,$28
+ 	LEAL	arg0+0(FP), SI
+ 	LEAL	4(SP), DI
+ 	CLD
+@@ -329,12 +330,12 @@ TEXT runtime·sysctl(SB),7,$28
+ 	MOVL	$0, AX
+ 	RET
+ 
+-TEXT runtime·osyield(SB),7,$-4
++TEXT runtime·osyield(SB),NOSPLIT,$-4
+ 	MOVL	$331, AX		// sys_sched_yield
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·sigprocmask(SB),7,$16
++TEXT runtime·sigprocmask(SB),NOSPLIT,$16
+ 	MOVL	$0, 0(SP)		// syscall gap
+ 	MOVL	$3, 4(SP)		// arg 1 - how (SIG_SETMASK)
+ 	MOVL	args+0(FP), AX
+@@ -348,7 +349,7 @@ TEXT runtime·sigprocmask(SB),7,$16
+ 	RET
+ 
+ // int32 runtime·kqueue(void);
+-TEXT runtime·kqueue(SB),7,$0
++TEXT runtime·kqueue(SB),NOSPLIT,$0
+ 	MOVL	$269, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+@@ -356,7 +357,7 @@ TEXT runtime·kqueue(SB),7,$0
+ 	RET
+ 
+ // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
+-TEXT runtime·kevent(SB),7,$0
++TEXT runtime·kevent(SB),NOSPLIT,$0
+ 	MOVL	$270, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+@@ -364,7 +365,7 @@ TEXT runtime·kevent(SB),7,$0
+ 	RET
+ 
+ // int32 runtime·closeonexec(int32 fd);
+-TEXT runtime·closeonexec(SB),7,$32
++TEXT runtime·closeonexec(SB),NOSPLIT,$32
+ 	MOVL	$92, AX		// fcntl
+ 	// 0(SP) is where the caller PC would be; kernel skips it
+ 	MOVL	fd+0(FP), BX
+diff --git a/src/pkg/runtime/sys_freebsd_amd64.s b/src/pkg/runtime/sys_freebsd_amd64.s
+index 50d91c3287..e4aa7aabda 100644
+--- a/src/pkg/runtime/sys_freebsd_amd64.s
++++ b/src/pkg/runtime/sys_freebsd_amd64.s
+@@ -7,8 +7,9 @@
+ //
+ 
+ #include "zasm_GOOS_GOARCH.h"
++#include "../../cmd/ld/textflag.h"
+ 	
+-TEXT runtime·sys_umtx_op(SB),7,$0
++TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
+ 	MOVQ 8(SP), DI
+ 	MOVL 16(SP), SI
+ 	MOVL 20(SP), DX
+@@ -18,14 +19,14 @@ TEXT runtime·sys_umtx_op(SB),7,$0
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·thr_new(SB),7,$0
++TEXT runtime·thr_new(SB),NOSPLIT,$0
+ 	MOVQ 8(SP), DI
+ 	MOVQ 16(SP), SI
+ 	MOVL $455, AX
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·thr_start(SB),7,$0
++TEXT runtime·thr_start(SB),NOSPLIT,$0
+ 	MOVQ	DI, R13 // m
+ 
+ 	// set up FS to point at m->tls
+@@ -44,21 +45,21 @@ TEXT runtime·thr_start(SB),7,$0
+ 	MOVQ 0, AX			// crash (not reached)
+ 
+ // Exit the entire program (like C exit)
+-TEXT runtime·exit(SB),7,$-8
++TEXT runtime·exit(SB),NOSPLIT,$-8
+ 	MOVL	8(SP), DI		// arg 1 exit status
+ 	MOVL	$1, AX
+ 	SYSCALL
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·exit1(SB),7,$-8
++TEXT runtime·exit1(SB),NOSPLIT,$-8
+ 	MOVQ	8(SP), DI		// arg 1 exit status
+ 	MOVL	$431, AX
+ 	SYSCALL
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·open(SB),7,$-8
++TEXT runtime·open(SB),NOSPLIT,$-8
+ 	MOVQ	8(SP), DI		// arg 1 pathname
+ 	MOVL	16(SP), SI		// arg 2 flags
+ 	MOVL	20(SP), DX		// arg 3 mode
+@@ -66,13 +67,13 @@ TEXT runtime·open(SB),7,$-8
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·close(SB),7,$-8
++TEXT runtime·close(SB),NOSPLIT,$-8
+ 	MOVL	8(SP), DI		// arg 1 fd
+ 	MOVL	$6, AX
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·read(SB),7,$-8
++TEXT runtime·read(SB),NOSPLIT,$-8
+ 	MOVL	8(SP), DI		// arg 1 fd
+ 	MOVQ	16(SP), SI		// arg 2 buf
+ 	MOVL	24(SP), DX		// arg 3 count
+@@ -80,7 +81,7 @@ TEXT runtime·read(SB),7,$-8
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·write(SB),7,$-8
++TEXT runtime·write(SB),NOSPLIT,$-8
+ 	MOVL	8(SP), DI		// arg 1 fd
+ 	MOVQ	16(SP), SI		// arg 2 buf
+ 	MOVL	24(SP), DX		// arg 3 count
+@@ -88,14 +89,14 @@ TEXT runtime·write(SB),7,$-8
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·getrlimit(SB),7,$-8
++TEXT runtime·getrlimit(SB),NOSPLIT,$-8
+ 	MOVL	8(SP), DI
+ 	MOVQ	16(SP), SI
+ 	MOVL	$194, AX
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·raise(SB),7,$16
++TEXT runtime·raise(SB),NOSPLIT,$16
+ 	// thr_self(&8(SP))
+ 	LEAQ	8(SP), DI	// arg 1 &8(SP)
+ 	MOVL	$432, AX
+@@ -107,7 +108,7 @@ TEXT runtime·raise(SB),7,$16
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·setitimer(SB), 7, $-8
++TEXT runtime·setitimer(SB), NOSPLIT, $-8
+ 	MOVL	8(SP), DI
+ 	MOVQ	16(SP), SI
+ 	MOVQ	24(SP), DX
+@@ -116,7 +117,7 @@ TEXT runtime·setitimer(SB), 7, $-8
+ 	RET
+ 
+ // func now() (sec int64, nsec int32)
+-TEXT time·now(SB), 7, $32
++TEXT time·now(SB), NOSPLIT, $32
+ 	MOVL	$232, AX
+ 	MOVQ	$0, DI
+ 	LEAQ	8(SP), SI
+@@ -129,7 +130,7 @@ TEXT time·now(SB), 7, $32
+ 	MOVL	DX, nsec+8(FP)
+ 	RET
+ 
+-TEXT runtime·nanotime(SB), 7, $32
++TEXT runtime·nanotime(SB), NOSPLIT, $32
+ 	MOVL	$232, AX
+ 	MOVQ	$0, DI
+ 	LEAQ	8(SP), SI
+@@ -143,7 +144,7 @@ TEXT runtime·nanotime(SB), 7, $32
+ 	ADDQ	DX, AX
+ 	RET
+ 
+-TEXT runtime·sigaction(SB),7,$-8
++TEXT runtime·sigaction(SB),NOSPLIT,$-8
+ 	MOVL	8(SP), DI		// arg 1 sig
+ 	MOVQ	16(SP), SI		// arg 2 act
+ 	MOVQ	24(SP), DX		// arg 3 oact
+@@ -153,7 +154,7 @@ TEXT runtime·sigaction(SB),7,$-8
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),7,$64
++TEXT runtime·sigtramp(SB),NOSPLIT,$64
+ 	get_tls(BX)
+ 
+ 	// check that m exists
+@@ -186,7 +187,7 @@ TEXT runtime·sigtramp(SB),7,$64
+ 	MOVQ	R10, g(BX)
+ 	RET
+ 
+-TEXT runtime·mmap(SB),7,$0
++TEXT runtime·mmap(SB),NOSPLIT,$0
+ 	MOVQ	8(SP), DI		// arg 1 addr
+ 	MOVQ	16(SP), SI		// arg 2 len
+ 	MOVL	24(SP), DX		// arg 3 prot
+@@ -197,7 +198,7 @@ TEXT runtime·mmap(SB),7,$0
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·munmap(SB),7,$0
++TEXT runtime·munmap(SB),NOSPLIT,$0
+ 	MOVQ	8(SP), DI		// arg 1 addr
+ 	MOVQ	16(SP), SI		// arg 2 len
+ 	MOVL	$73, AX
+@@ -206,7 +207,7 @@ TEXT runtime·munmap(SB),7,$0
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·madvise(SB),7,$0
++TEXT runtime·madvise(SB),NOSPLIT,$0
+ 	MOVQ	8(SP), DI
+ 	MOVQ	16(SP), SI
+ 	MOVQ	24(SP), DX
+@@ -215,7 +216,7 @@ TEXT runtime·madvise(SB),7,$0
+ 	// ignore failure - maybe pages are locked
+ 	RET
+ 	
+-TEXT runtime·sigaltstack(SB),7,$-8
++TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+ 	MOVQ	new+8(SP), DI
+ 	MOVQ	old+16(SP), SI
+ 	MOVQ	$53, AX
+@@ -224,7 +225,7 @@ TEXT runtime·sigaltstack(SB),7,$-8
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·usleep(SB),7,$16
++TEXT runtime·usleep(SB),NOSPLIT,$16
+ 	MOVL	$0, DX
+ 	MOVL	usec+0(FP), AX
+ 	MOVL	$1000000, CX
+@@ -241,7 +242,7 @@ TEXT runtime·usleep(SB),7,$16
+ 	RET
+ 
+ // set tls base to DI
+-TEXT runtime·settls(SB),7,$8
++TEXT runtime·settls(SB),NOSPLIT,$8
+ 	ADDQ	$16, DI	// adjust for ELF: wants to use -16(FS) and -8(FS) for g and m
+ 	MOVQ	DI, 0(SP)
+ 	MOVQ	SP, SI
+@@ -252,7 +253,7 @@ TEXT runtime·settls(SB),7,$8
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·sysctl(SB),7,$0
++TEXT runtime·sysctl(SB),NOSPLIT,$0
+ 	MOVQ	8(SP), DI		// arg 1 - name
+ 	MOVL	16(SP), SI		// arg 2 - namelen
+ 	MOVQ	24(SP), DX		// arg 3 - oldp
+@@ -267,12 +268,12 @@ TEXT runtime·sysctl(SB),7,$0
+ 	MOVL	$0, AX
+ 	RET
+ 
+-TEXT runtime·osyield(SB),7,$-4
++TEXT runtime·osyield(SB),NOSPLIT,$-4
+ 	MOVL	$331, AX		// sys_sched_yield
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·sigprocmask(SB),7,$0
++TEXT runtime·sigprocmask(SB),NOSPLIT,$0
+ 	MOVL	$3, DI			// arg 1 - how (SIG_SETMASK)
+ 	MOVQ	8(SP), SI		// arg 2 - set
+ 	MOVQ	16(SP), DX		// arg 3 - oset
+@@ -283,7 +284,7 @@ TEXT runtime·sigprocmask(SB),7,$0
+ 	RET
+ 
+ // int32 runtime·kqueue(void);
+-TEXT runtime·kqueue(SB),7,$0
++TEXT runtime·kqueue(SB),NOSPLIT,$0
+ 	MOVQ	$0, DI
+ 	MOVQ	$0, SI
+ 	MOVQ	$0, DX
+@@ -294,7 +295,7 @@ TEXT runtime·kqueue(SB),7,$0
+ 	RET
+ 
+ // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
+-TEXT runtime·kevent(SB),7,$0
++TEXT runtime·kevent(SB),NOSPLIT,$0
+ 	MOVL	8(SP), DI
+ 	MOVQ	16(SP), SI
+ 	MOVL	24(SP), DX
+@@ -308,7 +309,7 @@ TEXT runtime·kevent(SB),7,$0
+ 	RET
+ 
+ // void runtime·closeonexec(int32 fd);
+-TEXT runtime·closeonexec(SB),7,$0
++TEXT runtime·closeonexec(SB),NOSPLIT,$0
+ 	MOVL	8(SP), DI	// fd
+ 	MOVQ	$2, SI		// F_SETFD
+ 	MOVQ	$1, DX		// FD_CLOEXEC
+diff --git a/src/pkg/runtime/sys_freebsd_arm.s b/src/pkg/runtime/sys_freebsd_arm.s
+index 8260940c74..b698b73352 100644
+--- a/src/pkg/runtime/sys_freebsd_arm.s
++++ b/src/pkg/runtime/sys_freebsd_arm.s
+@@ -7,8 +7,9 @@
+ //
+ 
+ #include "zasm_GOOS_GOARCH.h"
++#include "../../cmd/ld/textflag.h"
+ 	
+-TEXT runtime·sys_umtx_op(SB),7,$0
++TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
+ 	MOVW 0(FP), R0
+ 	MOVW 4(FP), R1
+ 	MOVW 8(FP), R2
+@@ -19,13 +20,13 @@ TEXT runtime·sys_umtx_op(SB),7,$0
+ 	// BCS error
+ 	RET
+ 
+-TEXT runtime·thr_new(SB),7,$0
++TEXT runtime·thr_new(SB),NOSPLIT,$0
+ 	MOVW 0(FP), R0
+ 	MOVW 4(FP), R1
+ 	SWI $455
+ 	RET
+ 
+-TEXT runtime·thr_start(SB),7,$0
++TEXT runtime·thr_start(SB),NOSPLIT,$0
+ 	MOVW R0, m
+ 
+ 	// set up g
+@@ -38,54 +39,54 @@ TEXT runtime·thr_start(SB),7,$0
+ 	RET
+ 
+ // Exit the entire program (like C exit)
+-TEXT runtime·exit(SB),7,$-8
++TEXT runtime·exit(SB),NOSPLIT,$-8
+ 	MOVW 0(FP), R0	// arg 1 exit status
+ 	SWI $1
+ 	MOVW.CS $0, R8 // crash on syscall failure
+ 	MOVW.CS R8, (R8)
+ 	RET
+ 
+-TEXT runtime·exit1(SB),7,$-8
++TEXT runtime·exit1(SB),NOSPLIT,$-8
+ 	MOVW 0(FP), R0	// arg 1 exit status
+ 	SWI $431
+ 	MOVW.CS $0, R8 // crash on syscall failure
+ 	MOVW.CS R8, (R8)
+ 	RET
+ 
+-TEXT runtime·open(SB),7,$-8
++TEXT runtime·open(SB),NOSPLIT,$-8
+ 	MOVW 0(FP), R0	// arg 1 name
+ 	MOVW 4(FP), R1	// arg 2 mode
+ 	MOVW 8(FP), R2	// arg 3 perm
+ 	SWI $5
+ 	RET
+ 
+-TEXT runtime·read(SB),7,$-8
++TEXT runtime·read(SB),NOSPLIT,$-8
+ 	MOVW 0(FP), R0	// arg 1 fd
+ 	MOVW 4(FP), R1	// arg 2 buf
+ 	MOVW 8(FP), R2	// arg 3 count
+ 	SWI $3
+ 	RET
+ 
+-TEXT runtime·write(SB),7,$-8
++TEXT runtime·write(SB),NOSPLIT,$-8
+ 	MOVW 0(FP), R0	// arg 1 fd
+ 	MOVW 4(FP), R1	// arg 2 buf
+ 	MOVW 8(FP), R2	// arg 3 count
+ 	SWI $4
+ 	RET
+ 
+-TEXT runtime·close(SB),7,$-8
++TEXT runtime·close(SB),NOSPLIT,$-8
+ 	MOVW 0(FP), R0	// arg 1 fd
+ 	SWI $6
+ 	RET
+ 
+-TEXT runtime·getrlimit(SB),7,$-8
++TEXT runtime·getrlimit(SB),NOSPLIT,$-8
+ 	MOVW 0(FP), R0
+ 	MOVW 4(FP), R1
+ 	MOVW 8(FP), R2
+ 	SWI $194
+ 	RET
+ 
+-TEXT runtime·raise(SB),7,$8
++TEXT runtime·raise(SB),NOSPLIT,$8
+ 	// thr_self(&4(R13))
+ 	MOVW $4(R13), R0 // arg 1 &4(R13)
+ 	SWI $432
+@@ -95,7 +96,7 @@ TEXT runtime·raise(SB),7,$8
+ 	SWI $433
+ 	RET
+ 
+-TEXT runtime·setitimer(SB), 7, $-8
++TEXT runtime·setitimer(SB), NOSPLIT, $-8
+ 	MOVW 0(FP), R0
+ 	MOVW 4(FP), R1
+ 	MOVW 8(FP), R2
+@@ -103,7 +104,7 @@ TEXT runtime·setitimer(SB), 7, $-8
+ 	RET
+ 
+ // func now() (sec int64, nsec int32)
+-TEXT time·now(SB), 7, $32
++TEXT time·now(SB), NOSPLIT, $32
+ 	MOVW $0, R0 // CLOCK_REALTIME
+ 	MOVW $8(R13), R1
+ 	SWI $232 // clock_gettime
+@@ -119,7 +120,7 @@ TEXT time·now(SB), 7, $32
+ 
+ // int64 nanotime(void) so really
+ // void nanotime(int64 *nsec)
+-TEXT runtime·nanotime(SB), 7, $32
++TEXT runtime·nanotime(SB), NOSPLIT, $32
+ 	MOVW $0, R0 // CLOCK_REALTIME
+ 	MOVW $8(R13), R1
+ 	SWI $232 // clock_gettime
+@@ -139,7 +140,7 @@ TEXT runtime·nanotime(SB), 7, $32
+ 	MOVW R1, 4(R3)
+ 	RET
+ 
+-TEXT runtime·sigaction(SB),7,$-8
++TEXT runtime·sigaction(SB),NOSPLIT,$-8
+ 	MOVW 0(FP), R0		// arg 1 sig
+ 	MOVW 4(FP), R1		// arg 2 act
+ 	MOVW 8(FP), R2		// arg 3 oact
+@@ -148,7 +149,7 @@ TEXT runtime·sigaction(SB),7,$-8
+ 	MOVW.CS R8, (R8)
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),7,$24
++TEXT runtime·sigtramp(SB),NOSPLIT,$24
+ 	// this might be called in external code context,
+ 	// where g and m are not set.
+ 	// first save R0, because _cgo_load_gm will clobber it
+@@ -182,7 +183,7 @@ TEXT runtime·sigtramp(SB),7,$24
+ 	MOVW 20(R13), g
+ 	RET
+ 
+-TEXT runtime·mmap(SB),7,$12
++TEXT runtime·mmap(SB),NOSPLIT,$12
+ 	MOVW 0(FP), R0		// arg 1 addr
+ 	MOVW 4(FP), R1		// arg 2 len
+ 	MOVW 8(FP), R2		// arg 3 prot
+@@ -200,7 +201,7 @@ TEXT runtime·mmap(SB),7,$12
+ 	SUB $4, R13
+ 	RET
+ 
+-TEXT runtime·munmap(SB),7,$0
++TEXT runtime·munmap(SB),NOSPLIT,$0
+ 	MOVW 0(FP), R0		// arg 1 addr
+ 	MOVW 4(FP), R1		// arg 2 len
+ 	SWI $73
+@@ -208,7 +209,7 @@ TEXT runtime·munmap(SB),7,$0
+ 	MOVW.CS R8, (R8)
+ 	RET
+ 
+-TEXT runtime·madvise(SB),7,$0
++TEXT runtime·madvise(SB),NOSPLIT,$0
+ 	MOVW 0(FP), R0		// arg 1 addr
+ 	MOVW 4(FP), R1		// arg 2 len
+ 	MOVW 8(FP), R2		// arg 3 flags
+@@ -216,7 +217,7 @@ TEXT runtime·madvise(SB),7,$0
+ 	// ignore failure - maybe pages are locked
+ 	RET
+ 	
+-TEXT runtime·sigaltstack(SB),7,$-8
++TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+ 	MOVW new+0(FP), R0
+ 	MOVW old+4(FP), R1
+ 	SWI $53
+@@ -224,7 +225,7 @@ TEXT runtime·sigaltstack(SB),7,$-8
+ 	MOVW.CS R8, (R8)
+ 	RET
+ 
+-TEXT runtime·usleep(SB),7,$16
++TEXT runtime·usleep(SB),NOSPLIT,$16
+ 	MOVW usec+0(FP), R0
+ 	MOVW R0, R2
+ 	MOVW $1000000, R1
+@@ -243,7 +244,7 @@ TEXT runtime·usleep(SB),7,$16
+ 	SWI $240 // sys_nanosleep
+ 	RET
+ 
+-TEXT runtime·sysctl(SB),7,$0
++TEXT runtime·sysctl(SB),NOSPLIT,$0
+ 	MOVW 0(FP), R0	// arg 1 - name
+ 	MOVW 4(FP), R1	// arg 2 - namelen
+ 	MOVW 8(FP), R2	// arg 3 - oldp
+@@ -255,11 +256,11 @@ TEXT runtime·sysctl(SB),7,$0
+ 	SUB $20, R13
+ 	RET
+ 
+-TEXT runtime·osyield(SB),7,$-4
++TEXT runtime·osyield(SB),NOSPLIT,$-4
+ 	SWI $331	// sys_sched_yield
+ 	RET
+ 
+-TEXT runtime·sigprocmask(SB),7,$0
++TEXT runtime·sigprocmask(SB),NOSPLIT,$0
+ 	MOVW $3, R0	// arg 1 - how (SIG_SETMASK)
+ 	MOVW 0(FP), R1	// arg 2 - set
+ 	MOVW 4(FP), R2	// arg 3 - oset
+@@ -268,7 +269,7 @@ TEXT runtime·sigprocmask(SB),7,$0
+ 	MOVW.CS R8, (R8)
+ 	RET
+ 
+-TEXT runtime·casp(SB),7,$0
++TEXT runtime·casp(SB),NOSPLIT,$0
+ 	B	runtime·cas(SB)
+ 
+ // TODO(minux): this is only valid for ARMv6+
+@@ -279,5 +280,5 @@ TEXT runtime·casp(SB),7,$0
+ //		return 1;
+ //	}else
+ //		return 0;
+-TEXT runtime·cas(SB),7,$0
++TEXT runtime·cas(SB),NOSPLIT,$0
+ 	B runtime·armcas(SB)
+diff --git a/src/pkg/runtime/sys_linux_386.s b/src/pkg/runtime/sys_linux_386.s
+index 7d677acf8b..fcda739db4 100644
+--- a/src/pkg/runtime/sys_linux_386.s
++++ b/src/pkg/runtime/sys_linux_386.s
+@@ -7,22 +7,23 @@
+ //
+ 
+ #include "zasm_GOOS_GOARCH.h"
++#include "../../cmd/ld/textflag.h"
+ 
+-TEXT runtime·exit(SB),7,$0
++TEXT runtime·exit(SB),NOSPLIT,$0
+ 	MOVL	$252, AX	// syscall number
+ 	MOVL	4(SP), BX
+ 	CALL	*runtime·_vdso(SB)
+ 	INT $3	// not reached
+ 	RET
+ 
+-TEXT runtime·exit1(SB),7,$0
++TEXT runtime·exit1(SB),NOSPLIT,$0
+ 	MOVL	$1, AX	// exit - exit the current os thread
+ 	MOVL	4(SP), BX
+ 	CALL	*runtime·_vdso(SB)
+ 	INT $3	// not reached
+ 	RET
+ 
+-TEXT runtime·open(SB),7,$0
++TEXT runtime·open(SB),NOSPLIT,$0
+ 	MOVL	$5, AX		// syscall - open
+ 	MOVL	4(SP), BX
+ 	MOVL	8(SP), CX
+@@ -30,13 +31,13 @@ TEXT runtime·open(SB),7,$0
+ 	CALL	*runtime·_vdso(SB)
+ 	RET
+ 
+-TEXT runtime·close(SB),7,$0
++TEXT runtime·close(SB),NOSPLIT,$0
+ 	MOVL	$6, AX		// syscall - close
+ 	MOVL	4(SP), BX
+ 	CALL	*runtime·_vdso(SB)
+ 	RET
+ 
+-TEXT runtime·write(SB),7,$0
++TEXT runtime·write(SB),NOSPLIT,$0
+ 	MOVL	$4, AX		// syscall - write
+ 	MOVL	4(SP), BX
+ 	MOVL	8(SP), CX
+@@ -44,7 +45,7 @@ TEXT runtime·write(SB),7,$0
+ 	CALL	*runtime·_vdso(SB)
+ 	RET
+ 
+-TEXT runtime·read(SB),7,$0
++TEXT runtime·read(SB),NOSPLIT,$0
+ 	MOVL	$3, AX		// syscall - read
+ 	MOVL	4(SP), BX
+ 	MOVL	8(SP), CX
+@@ -52,14 +53,14 @@ TEXT runtime·read(SB),7,$0
+ 	CALL	*runtime·_vdso(SB)
+ 	RET
+ 
+-TEXT runtime·getrlimit(SB),7,$0
++TEXT runtime·getrlimit(SB),NOSPLIT,$0
+ 	MOVL	$191, AX		// syscall - ugetrlimit
+ 	MOVL	4(SP), BX
+ 	MOVL	8(SP), CX
+ 	CALL	*runtime·_vdso(SB)
+ 	RET
+ 
+-TEXT runtime·usleep(SB),7,$8
++TEXT runtime·usleep(SB),NOSPLIT,$8
+ 	MOVL	$0, DX
+ 	MOVL	usec+0(FP), AX
+ 	MOVL	$1000000, CX
+@@ -77,7 +78,7 @@ TEXT runtime·usleep(SB),7,$8
+ 	CALL	*runtime·_vdso(SB)
+ 	RET
+ 
+-TEXT runtime·raise(SB),7,$12
++TEXT runtime·raise(SB),NOSPLIT,$12
+ 	MOVL	$224, AX	// syscall - gettid
+ 	CALL	*runtime·_vdso(SB)
+ 	MOVL	AX, BX	// arg 1 tid
+@@ -86,7 +87,7 @@ TEXT runtime·raise(SB),7,$12
+ 	CALL	*runtime·_vdso(SB)
+ 	RET
+ 
+-TEXT runtime·setitimer(SB),7,$0-24
++TEXT runtime·setitimer(SB),NOSPLIT,$0-24
+ 	MOVL	$104, AX			// syscall - setitimer
+ 	MOVL	4(SP), BX
+ 	MOVL	8(SP), CX
+@@ -94,7 +95,7 @@ TEXT runtime·setitimer(SB),7,$0-24
+ 	CALL	*runtime·_vdso(SB)
+ 	RET
+ 
+-TEXT runtime·mincore(SB),7,$0-24
++TEXT runtime·mincore(SB),NOSPLIT,$0-24
+ 	MOVL	$218, AX			// syscall - mincore
+ 	MOVL	4(SP), BX
+ 	MOVL	8(SP), CX
+@@ -103,7 +104,7 @@ TEXT runtime·mincore(SB),7,$0-24
+ 	RET
+ 
+ // func now() (sec int64, nsec int32)
+-TEXT time·now(SB), 7, $32
++TEXT time·now(SB), NOSPLIT, $32
+ 	MOVL	$265, AX			// syscall - clock_gettime
+ 	MOVL	$0, BX
+ 	LEAL	8(SP), CX
+@@ -120,7 +121,7 @@ TEXT time·now(SB), 7, $32
+ 
+ // int64 nanotime(void) so really
+ // void nanotime(int64 *nsec)
+-TEXT runtime·nanotime(SB), 7, $32
++TEXT runtime·nanotime(SB), NOSPLIT, $32
+ 	MOVL	$265, AX			// syscall - clock_gettime
+ 	MOVL	$0, BX
+ 	LEAL	8(SP), CX
+@@ -141,7 +142,7 @@ TEXT runtime·nanotime(SB), 7, $32
+ 	MOVL	DX, 4(DI)
+ 	RET
+ 
+-TEXT runtime·rtsigprocmask(SB),7,$0
++TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0
+ 	MOVL	$175, AX		// syscall entry
+ 	MOVL	4(SP), BX
+ 	MOVL	8(SP), CX
+@@ -153,7 +154,7 @@ TEXT runtime·rtsigprocmask(SB),7,$0
+ 	INT $3
+ 	RET
+ 
+-TEXT runtime·rt_sigaction(SB),7,$0
++TEXT runtime·rt_sigaction(SB),NOSPLIT,$0
+ 	MOVL	$174, AX		// syscall - rt_sigaction
+ 	MOVL	4(SP), BX
+ 	MOVL	8(SP), CX
+@@ -162,7 +163,7 @@ TEXT runtime·rt_sigaction(SB),7,$0
+ 	CALL	*runtime·_vdso(SB)
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),7,$44
++TEXT runtime·sigtramp(SB),NOSPLIT,$44
+ 	get_tls(CX)
+ 
+ 	// check that m exists
+@@ -202,7 +203,7 @@ TEXT runtime·sigtramp(SB),7,$44
+ 
+ 	RET
+ 
+-TEXT runtime·sigreturn(SB),7,$0
++TEXT runtime·sigreturn(SB),NOSPLIT,$0
+ 	MOVL	$173, AX	// rt_sigreturn
+ 	// Sigreturn expects same SP as signal handler,
+ 	// so cannot CALL *runtime._vsdo(SB) here.
+@@ -210,7 +211,7 @@ TEXT runtime·sigreturn(SB),7,$0
+ 	INT $3	// not reached
+ 	RET
+ 
+-TEXT runtime·mmap(SB),7,$0
++TEXT runtime·mmap(SB),NOSPLIT,$0
+ 	MOVL	$192, AX	// mmap2
+ 	MOVL	4(SP), BX
+ 	MOVL	8(SP), CX
+@@ -226,7 +227,7 @@ TEXT runtime·mmap(SB),7,$0
+ 	INCL	AX
+ 	RET
+ 
+-TEXT runtime·munmap(SB),7,$0
++TEXT runtime·munmap(SB),NOSPLIT,$0
+ 	MOVL	$91, AX	// munmap
+ 	MOVL	4(SP), BX
+ 	MOVL	8(SP), CX
+@@ -236,7 +237,7 @@ TEXT runtime·munmap(SB),7,$0
+ 	INT $3
+ 	RET
+ 
+-TEXT runtime·madvise(SB),7,$0
++TEXT runtime·madvise(SB),NOSPLIT,$0
+ 	MOVL	$219, AX	// madvise
+ 	MOVL	4(SP), BX
+ 	MOVL	8(SP), CX
+@@ -247,7 +248,7 @@ TEXT runtime·madvise(SB),7,$0
+ 
+ // int32 futex(int32 *uaddr, int32 op, int32 val,
+ //	struct timespec *timeout, int32 *uaddr2, int32 val2);
+-TEXT runtime·futex(SB),7,$0
++TEXT runtime·futex(SB),NOSPLIT,$0
+ 	MOVL	$240, AX	// futex
+ 	MOVL	4(SP), BX
+ 	MOVL	8(SP), CX
+@@ -259,7 +260,7 @@ TEXT runtime·futex(SB),7,$0
+ 	RET
+ 
+ // int32 clone(int32 flags, void *stack, M *mp, G *gp, void (*fn)(void));
+-TEXT runtime·clone(SB),7,$0
++TEXT runtime·clone(SB),NOSPLIT,$0
+ 	MOVL	$120, AX	// clone
+ 	MOVL	flags+4(SP), BX
+ 	MOVL	stack+8(SP), CX
+@@ -339,7 +340,7 @@ TEXT runtime·clone(SB),7,$0
+ 	MOVL	$0x1234, 0x1005
+ 	RET
+ 
+-TEXT runtime·sigaltstack(SB),7,$-8
++TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+ 	MOVL	$186, AX	// sigaltstack
+ 	MOVL	new+4(SP), BX
+ 	MOVL	old+8(SP), CX
+@@ -372,7 +373,7 @@ TEXT runtime·sigaltstack(SB),7,$-8
+ #define USEABLE 0x40
+ 
+ // setldt(int entry, int address, int limit)
+-TEXT runtime·setldt(SB),7,$32
++TEXT runtime·setldt(SB),NOSPLIT,$32
+ 	MOVL	entry+0(FP), BX	// entry
+ 	MOVL	address+4(FP), CX	// base address
+ 
+@@ -419,12 +420,12 @@ TEXT runtime·setldt(SB),7,$32
+ 
+ 	RET
+ 
+-TEXT runtime·osyield(SB),7,$0
++TEXT runtime·osyield(SB),NOSPLIT,$0
+ 	MOVL	$158, AX
+ 	CALL	*runtime·_vdso(SB)
+ 	RET
+ 
+-TEXT runtime·sched_getaffinity(SB),7,$0
++TEXT runtime·sched_getaffinity(SB),NOSPLIT,$0
+ 	MOVL	$242, AX		// syscall - sched_getaffinity
+ 	MOVL	4(SP), BX
+ 	MOVL	8(SP), CX
+@@ -433,21 +434,21 @@ TEXT runtime·sched_getaffinity(SB),7,$0
+ 	RET
+ 
+ // int32 runtime·epollcreate(int32 size);
+-TEXT runtime·epollcreate(SB),7,$0
++TEXT runtime·epollcreate(SB),NOSPLIT,$0
+ 	MOVL    $254, AX
+ 	MOVL	4(SP), BX
+ 	CALL	*runtime·_vdso(SB)
+ 	RET
+ 
+ // int32 runtime·epollcreate1(int32 flags);
+-TEXT runtime·epollcreate1(SB),7,$0
++TEXT runtime·epollcreate1(SB),NOSPLIT,$0
+ 	MOVL    $329, AX
+ 	MOVL	4(SP), BX
+ 	CALL	*runtime·_vdso(SB)
+ 	RET
+ 
+ // int32 runtime·epollctl(int32 epfd, int32 op, int32 fd, EpollEvent *ev);
+-TEXT runtime·epollctl(SB),7,$0
++TEXT runtime·epollctl(SB),NOSPLIT,$0
+ 	MOVL	$255, AX
+ 	MOVL	4(SP), BX
+ 	MOVL	8(SP), CX
+@@ -457,7 +458,7 @@ TEXT runtime·epollctl(SB),7,$0
+ 	RET
+ 
+ // int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
+-TEXT runtime·epollwait(SB),7,$0
++TEXT runtime·epollwait(SB),NOSPLIT,$0
+ 	MOVL	$256, AX
+ 	MOVL	4(SP), BX
+ 	MOVL	8(SP), CX
+@@ -467,7 +468,7 @@ TEXT runtime·epollwait(SB),7,$0
+ 	RET
+ 
+ // void runtime·closeonexec(int32 fd);
+-TEXT runtime·closeonexec(SB),7,$0
++TEXT runtime·closeonexec(SB),NOSPLIT,$0
+ 	MOVL	$55, AX  // fcntl
+ 	MOVL	4(SP), BX  // fd
+ 	MOVL	$2, CX  // F_SETFD
+diff --git a/src/pkg/runtime/sys_linux_amd64.s b/src/pkg/runtime/sys_linux_amd64.s
+index 649f205195..481841a674 100644
+--- a/src/pkg/runtime/sys_linux_amd64.s
++++ b/src/pkg/runtime/sys_linux_amd64.s
+@@ -7,20 +7,21 @@
+ //
+ 
+ #include "zasm_GOOS_GOARCH.h"
++#include "../../cmd/ld/textflag.h"
+ 
+-TEXT runtime·exit(SB),7,$0-8
++TEXT runtime·exit(SB),NOSPLIT,$0-8
+ 	MOVL	8(SP), DI
+ 	MOVL	$231, AX	// exitgroup - force all os threads to exit
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·exit1(SB),7,$0-8
++TEXT runtime·exit1(SB),NOSPLIT,$0-8
+ 	MOVL	8(SP), DI
+ 	MOVL	$60, AX	// exit - exit the current os thread
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·open(SB),7,$0-16
++TEXT runtime·open(SB),NOSPLIT,$0-16
+ 	MOVQ	8(SP), DI
+ 	MOVL	16(SP), SI
+ 	MOVL	20(SP), DX
+@@ -28,13 +29,13 @@ TEXT runtime·open(SB),7,$0-16
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·close(SB),7,$0-16
++TEXT runtime·close(SB),NOSPLIT,$0-16
+ 	MOVL	8(SP), DI
+ 	MOVL	$3, AX			// syscall entry
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·write(SB),7,$0-24
++TEXT runtime·write(SB),NOSPLIT,$0-24
+ 	MOVL	8(SP), DI
+ 	MOVQ	16(SP), SI
+ 	MOVL	24(SP), DX
+@@ -42,7 +43,7 @@ TEXT runtime·write(SB),7,$0-24
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·read(SB),7,$0-24
++TEXT runtime·read(SB),NOSPLIT,$0-24
+ 	MOVL	8(SP), DI
+ 	MOVQ	16(SP), SI
+ 	MOVL	24(SP), DX
+@@ -50,14 +51,14 @@ TEXT runtime·read(SB),7,$0-24
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·getrlimit(SB),7,$0-24
++TEXT runtime·getrlimit(SB),NOSPLIT,$0-24
+ 	MOVL	8(SP), DI
+ 	MOVQ	16(SP), SI
+ 	MOVL	$97, AX			// syscall entry
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·usleep(SB),7,$16
++TEXT runtime·usleep(SB),NOSPLIT,$16
+ 	MOVL	$0, DX
+ 	MOVL	usec+0(FP), AX
+ 	MOVL	$1000000, CX
+@@ -75,7 +76,7 @@ TEXT runtime·usleep(SB),7,$16
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·raise(SB),7,$12
++TEXT runtime·raise(SB),NOSPLIT,$12
+ 	MOVL	$186, AX	// syscall - gettid
+ 	SYSCALL
+ 	MOVL	AX, DI	// arg 1 tid
+@@ -84,7 +85,7 @@ TEXT runtime·raise(SB),7,$12
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·setitimer(SB),7,$0-24
++TEXT runtime·setitimer(SB),NOSPLIT,$0-24
+ 	MOVL	8(SP), DI
+ 	MOVQ	16(SP), SI
+ 	MOVQ	24(SP), DX
+@@ -92,7 +93,7 @@ TEXT runtime·setitimer(SB),7,$0-24
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·mincore(SB),7,$0-24
++TEXT runtime·mincore(SB),NOSPLIT,$0-24
+ 	MOVQ	8(SP), DI
+ 	MOVQ	16(SP), SI
+ 	MOVQ	24(SP), DX
+@@ -101,7 +102,7 @@ TEXT runtime·mincore(SB),7,$0-24
+ 	RET
+ 
+ // func now() (sec int64, nsec int32)
+-TEXT time·now(SB),7,$16
++TEXT time·now(SB),NOSPLIT,$16
+ 	// Be careful. We're calling a function with gcc calling convention here.
+ 	// We're guaranteed 128 bytes on entry, and we've taken 16, and the
+ 	// call uses another 8.
+@@ -129,7 +130,7 @@ fallback_gtod:
+ 	MOVL	DX, nsec+8(FP)
+ 	RET
+ 
+-TEXT runtime·nanotime(SB),7,$16
++TEXT runtime·nanotime(SB),NOSPLIT,$16
+ 	// Duplicate time.now here to avoid using up precious stack space.
+ 	// See comment above in time.now.
+ 	MOVQ	runtime·__vdso_clock_gettime_sym(SB), AX
+@@ -159,7 +160,7 @@ fallback_gtod_nt:
+ 	ADDQ	DX, AX
+ 	RET
+ 
+-TEXT runtime·rtsigprocmask(SB),7,$0-32
++TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0-32
+ 	MOVL	8(SP), DI
+ 	MOVQ	16(SP), SI
+ 	MOVQ	24(SP), DX
+@@ -171,7 +172,7 @@ TEXT runtime·rtsigprocmask(SB),7,$0-32
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·rt_sigaction(SB),7,$0-32
++TEXT runtime·rt_sigaction(SB),NOSPLIT,$0-32
+ 	MOVL	8(SP), DI
+ 	MOVQ	16(SP), SI
+ 	MOVQ	24(SP), DX
+@@ -180,7 +181,7 @@ TEXT runtime·rt_sigaction(SB),7,$0-32
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),7,$64
++TEXT runtime·sigtramp(SB),NOSPLIT,$64
+ 	get_tls(BX)
+ 
+ 	// check that m exists
+@@ -213,12 +214,12 @@ TEXT runtime·sigtramp(SB),7,$64
+ 	MOVQ	R10, g(BX)
+ 	RET
+ 
+-TEXT runtime·sigreturn(SB),7,$0
++TEXT runtime·sigreturn(SB),NOSPLIT,$0
+ 	MOVL	$15, AX	// rt_sigreturn
+ 	SYSCALL
+ 	INT $3	// not reached
+ 
+-TEXT runtime·mmap(SB),7,$0
++TEXT runtime·mmap(SB),NOSPLIT,$0
+ 	MOVQ	8(SP), DI
+ 	MOVQ	$0, SI
+ 	MOVQ	16(SP), SI
+@@ -235,7 +236,7 @@ TEXT runtime·mmap(SB),7,$0
+ 	INCQ	AX
+ 	RET
+ 
+-TEXT runtime·munmap(SB),7,$0
++TEXT runtime·munmap(SB),NOSPLIT,$0
+ 	MOVQ	8(SP), DI
+ 	MOVQ	16(SP), SI
+ 	MOVQ	$11, AX	// munmap
+@@ -245,7 +246,7 @@ TEXT runtime·munmap(SB),7,$0
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·madvise(SB),7,$0
++TEXT runtime·madvise(SB),NOSPLIT,$0
+ 	MOVQ	8(SP), DI
+ 	MOVQ	16(SP), SI
+ 	MOVQ	24(SP), DX
+@@ -256,7 +257,7 @@ TEXT runtime·madvise(SB),7,$0
+ 
+ // int64 futex(int32 *uaddr, int32 op, int32 val,
+ //	struct timespec *timeout, int32 *uaddr2, int32 val2);
+-TEXT runtime·futex(SB),7,$0
++TEXT runtime·futex(SB),NOSPLIT,$0
+ 	MOVQ	8(SP), DI
+ 	MOVL	16(SP), SI
+ 	MOVL	20(SP), DX
+@@ -268,7 +269,7 @@ TEXT runtime·futex(SB),7,$0
+ 	RET
+ 
+ // int64 clone(int32 flags, void *stack, M *mp, G *gp, void (*fn)(void));
+-TEXT runtime·clone(SB),7,$0
++TEXT runtime·clone(SB),NOSPLIT,$0
+ 	MOVL	flags+8(SP), DI
+ 	MOVQ	stack+16(SP), SI
+ 
+@@ -313,7 +314,7 @@ TEXT runtime·clone(SB),7,$0
+ 	SYSCALL
+ 	JMP	-3(PC)	// keep exiting
+ 
+-TEXT runtime·sigaltstack(SB),7,$-8
++TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+ 	MOVQ	new+8(SP), DI
+ 	MOVQ	old+16(SP), SI
+ 	MOVQ	$131, AX
+@@ -324,7 +325,7 @@ TEXT runtime·sigaltstack(SB),7,$-8
+ 	RET
+ 
+ // set tls base to DI
+-TEXT runtime·settls(SB),7,$32
++TEXT runtime·settls(SB),NOSPLIT,$32
+ 	ADDQ	$16, DI	// ELF wants to use -16(FS), -8(FS)
+ 
+ 	MOVQ	DI, SI
+@@ -336,12 +337,12 @@ TEXT runtime·settls(SB),7,$32
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·osyield(SB),7,$0
++TEXT runtime·osyield(SB),NOSPLIT,$0
+ 	MOVL	$24, AX
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·sched_getaffinity(SB),7,$0
++TEXT runtime·sched_getaffinity(SB),NOSPLIT,$0
+ 	MOVQ	8(SP), DI
+ 	MOVL	16(SP), SI
+ 	MOVQ	24(SP), DX
+@@ -350,21 +351,21 @@ TEXT runtime·sched_getaffinity(SB),7,$0
+ 	RET
+ 
+ // int32 runtime·epollcreate(int32 size);
+-TEXT runtime·epollcreate(SB),7,$0
++TEXT runtime·epollcreate(SB),NOSPLIT,$0
+ 	MOVL    8(SP), DI
+ 	MOVL    $213, AX                        // syscall entry
+ 	SYSCALL
+ 	RET
+ 
+ // int32 runtime·epollcreate1(int32 flags);
+-TEXT runtime·epollcreate1(SB),7,$0
++TEXT runtime·epollcreate1(SB),NOSPLIT,$0
+ 	MOVL	8(SP), DI
+ 	MOVL	$291, AX			// syscall entry
+ 	SYSCALL
+ 	RET
+ 
+ // int32 runtime·epollctl(int32 epfd, int32 op, int32 fd, EpollEvent *ev);
+-TEXT runtime·epollctl(SB),7,$0
++TEXT runtime·epollctl(SB),NOSPLIT,$0
+ 	MOVL	8(SP), DI
+ 	MOVL	12(SP), SI
+ 	MOVL	16(SP), DX
+@@ -374,7 +375,7 @@ TEXT runtime·epollctl(SB),7,$0
+ 	RET
+ 
+ // int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
+-TEXT runtime·epollwait(SB),7,$0
++TEXT runtime·epollwait(SB),NOSPLIT,$0
+ 	MOVL	8(SP), DI
+ 	MOVQ	16(SP), SI
+ 	MOVL	24(SP), DX
+@@ -384,7 +385,7 @@ TEXT runtime·epollwait(SB),7,$0
+ 	RET
+ 
+ // void runtime·closeonexec(int32 fd);
+-TEXT runtime·closeonexec(SB),7,$0
++TEXT runtime·closeonexec(SB),NOSPLIT,$0
+ 	MOVL    8(SP), DI  // fd
+ 	MOVQ    $2, SI  // F_SETFD
+ 	MOVQ    $1, DX  // FD_CLOEXEC
+diff --git a/src/pkg/runtime/sys_linux_arm.s b/src/pkg/runtime/sys_linux_arm.s
+index 4927332ba5..3e3709f92d 100644
+--- a/src/pkg/runtime/sys_linux_arm.s
++++ b/src/pkg/runtime/sys_linux_arm.s
+@@ -7,6 +7,7 @@
+ //
+ 
+ #include "zasm_GOOS_GOARCH.h"
++#include "../../cmd/ld/textflag.h"
+ 
+ // for EABI, as we don't support OABI
+ #define SYS_BASE 0x0
+@@ -44,7 +45,7 @@
+ 
+ #define ARM_BASE (SYS_BASE + 0x0f0000)
+ 
+-TEXT runtime·open(SB),7,$0
++TEXT runtime·open(SB),NOSPLIT,$0
+ 	MOVW	0(FP), R0
+ 	MOVW	4(FP), R1
+ 	MOVW	8(FP), R2
+@@ -52,13 +53,13 @@ TEXT runtime·open(SB),7,$0
+ 	SWI	$0
+ 	RET
+ 
+-TEXT runtime·close(SB),7,$0
++TEXT runtime·close(SB),NOSPLIT,$0
+ 	MOVW	0(FP), R0
+ 	MOVW	$SYS_close, R7
+ 	SWI	$0
+ 	RET
+ 
+-TEXT runtime·write(SB),7,$0
++TEXT runtime·write(SB),NOSPLIT,$0
+ 	MOVW	0(FP), R0
+ 	MOVW	4(FP), R1
+ 	MOVW	8(FP), R2
+@@ -66,7 +67,7 @@ TEXT runtime·write(SB),7,$0
+ 	SWI	$0
+ 	RET
+ 
+-TEXT runtime·read(SB),7,$0
++TEXT runtime·read(SB),NOSPLIT,$0
+ 	MOVW	0(FP), R0
+ 	MOVW	4(FP), R1
+ 	MOVW	8(FP), R2
+@@ -74,14 +75,14 @@ TEXT runtime·read(SB),7,$0
+ 	SWI	$0
+ 	RET
+ 
+-TEXT runtime·getrlimit(SB),7,$0
++TEXT runtime·getrlimit(SB),NOSPLIT,$0
+ 	MOVW	0(FP), R0
+ 	MOVW	4(FP), R1
+ 	MOVW	$SYS_ugetrlimit, R7
+ 	SWI	$0
+ 	RET
+ 
+-TEXT runtime·exit(SB),7,$-4
++TEXT runtime·exit(SB),NOSPLIT,$-4
+ 	MOVW	0(FP), R0
+ 	MOVW	$SYS_exit_group, R7
+ 	SWI	$0
+@@ -89,7 +90,7 @@ TEXT runtime·exit(SB),7,$-4
+ 	MOVW	$1002, R1
+ 	MOVW	R0, (R1)	// fail hard
+ 
+-TEXT runtime·exit1(SB),7,$-4
++TEXT runtime·exit1(SB),NOSPLIT,$-4
+ 	MOVW	0(FP), R0
+ 	MOVW	$SYS_exit, R7
+ 	SWI	$0
+@@ -97,7 +98,7 @@ TEXT runtime·exit1(SB),7,$-4
+ 	MOVW	$1003, R1
+ 	MOVW	R0, (R1)	// fail hard
+ 
+-TEXT	runtime·raise(SB),7,$-4
++TEXT	runtime·raise(SB),NOSPLIT,$-4
+ 	MOVW	$SYS_gettid, R7
+ 	SWI	$0
+ 	// arg 1 tid already in R0 from gettid
+@@ -106,7 +107,7 @@ TEXT	runtime·raise(SB),7,$-4
+ 	SWI	$0
+ 	RET
+ 
+-TEXT runtime·mmap(SB),7,$0
++TEXT runtime·mmap(SB),NOSPLIT,$0
+ 	MOVW	0(FP), R0
+ 	MOVW	4(FP), R1
+ 	MOVW	8(FP), R2
+@@ -120,7 +121,7 @@ TEXT runtime·mmap(SB),7,$0
+ 	RSB.HI	$0, R0
+ 	RET
+ 
+-TEXT runtime·munmap(SB),7,$0
++TEXT runtime·munmap(SB),NOSPLIT,$0
+ 	MOVW	0(FP), R0
+ 	MOVW	4(FP), R1
+ 	MOVW	$SYS_munmap, R7
+@@ -131,7 +132,7 @@ TEXT runtime·munmap(SB),7,$0
+ 	MOVW.HI	R8, (R8)
+ 	RET
+ 
+-TEXT runtime·madvise(SB),7,$0
++TEXT runtime·madvise(SB),NOSPLIT,$0
+ 	MOVW	0(FP), R0
+ 	MOVW	4(FP), R1
+ 	MOVW	8(FP), R2
+@@ -140,7 +141,7 @@ TEXT runtime·madvise(SB),7,$0
+ 	// ignore failure - maybe pages are locked
+ 	RET
+ 
+-TEXT runtime·setitimer(SB),7,$0
++TEXT runtime·setitimer(SB),NOSPLIT,$0
+ 	MOVW	0(FP), R0
+ 	MOVW	4(FP), R1
+ 	MOVW	8(FP), R2
+@@ -148,7 +149,7 @@ TEXT runtime·setitimer(SB),7,$0
+ 	SWI	$0
+ 	RET
+ 
+-TEXT runtime·mincore(SB),7,$0
++TEXT runtime·mincore(SB),NOSPLIT,$0
+ 	MOVW	0(FP), R0
+ 	MOVW	4(FP), R1
+ 	MOVW	8(FP), R2
+@@ -156,7 +157,7 @@ TEXT runtime·mincore(SB),7,$0
+ 	SWI	$0
+ 	RET
+ 
+-TEXT time·now(SB), 7, $32
++TEXT time·now(SB), NOSPLIT, $32
+ 	MOVW	$0, R0  // CLOCK_REALTIME
+ 	MOVW	$8(R13), R1  // timespec
+ 	MOVW	$SYS_clock_gettime, R7
+@@ -173,7 +174,7 @@ TEXT time·now(SB), 7, $32
+ 
+ // int64 nanotime(void) so really
+ // void nanotime(int64 *nsec)
+-TEXT runtime·nanotime(SB),7,$32
++TEXT runtime·nanotime(SB),NOSPLIT,$32
+ 	MOVW	$0, R0  // CLOCK_REALTIME
+ 	MOVW	$8(R13), R1  // timespec
+ 	MOVW	$SYS_clock_gettime, R7
+@@ -195,7 +196,7 @@ TEXT runtime·nanotime(SB),7,$32
+ 
+ // int32 futex(int32 *uaddr, int32 op, int32 val,
+ //	struct timespec *timeout, int32 *uaddr2, int32 val2);
+-TEXT runtime·futex(SB),7,$0
++TEXT runtime·futex(SB),NOSPLIT,$0
+ 	MOVW	4(SP), R0
+ 	MOVW	8(SP), R1
+ 	MOVW	12(SP), R2
+@@ -208,7 +209,7 @@ TEXT runtime·futex(SB),7,$0
+ 
+ 
+ // int32 clone(int32 flags, void *stack, M *mp, G *gp, void (*fn)(void));
+-TEXT runtime·clone(SB),7,$0
++TEXT runtime·clone(SB),NOSPLIT,$0
+ 	MOVW	flags+0(FP), R0
+ 	MOVW	stack+4(FP), R1
+ 	MOVW	$0, R2	// parent tid ptr
+@@ -271,7 +272,7 @@ TEXT runtime·clone(SB),7,$0
+ 	MOVW	$1005, R1
+ 	MOVW	R0, (R1)
+ 
+-TEXT runtime·sigaltstack(SB),7,$0
++TEXT runtime·sigaltstack(SB),NOSPLIT,$0
+ 	MOVW	0(FP), R0
+ 	MOVW	4(FP), R1
+ 	MOVW	$SYS_sigaltstack, R7
+@@ -282,7 +283,7 @@ TEXT runtime·sigaltstack(SB),7,$0
+ 	MOVW.HI	R8, (R8)
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),7,$24
++TEXT runtime·sigtramp(SB),NOSPLIT,$24
+ 	// this might be called in external code context,
+ 	// where g and m are not set.
+ 	// first save R0, because _cgo_load_gm will clobber it
+@@ -318,7 +319,7 @@ TEXT runtime·sigtramp(SB),7,$24
+ 
+ 	RET
+ 
+-TEXT runtime·rtsigprocmask(SB),7,$0
++TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0
+ 	MOVW	0(FP), R0
+ 	MOVW	4(FP), R1
+ 	MOVW	8(FP), R2
+@@ -327,7 +328,7 @@ TEXT runtime·rtsigprocmask(SB),7,$0
+ 	SWI	$0
+ 	RET
+ 
+-TEXT runtime·rt_sigaction(SB),7,$0
++TEXT runtime·rt_sigaction(SB),NOSPLIT,$0
+ 	MOVW	0(FP), R0
+ 	MOVW	4(FP), R1
+ 	MOVW	8(FP), R2
+@@ -336,12 +337,12 @@ TEXT runtime·rt_sigaction(SB),7,$0
+ 	SWI	$0
+ 	RET
+ 
+-TEXT runtime·sigreturn(SB),7,$0
++TEXT runtime·sigreturn(SB),NOSPLIT,$0
+ 	MOVW	$SYS_rt_sigreturn, R7
+ 	SWI	$0
+ 	RET
+ 
+-TEXT runtime·usleep(SB),7,$12
++TEXT runtime·usleep(SB),NOSPLIT,$12
+ 	MOVW	usec+0(FP), R0
+ 	MOVW	R0, R1
+ 	MOVW	$1000000, R2
+@@ -360,10 +361,10 @@ TEXT runtime·usleep(SB),7,$12
+ 
+ // Use kernel version instead of native armcas in asm_arm.s.
+ // See ../sync/atomic/asm_linux_arm.s for details.
+-TEXT cas<>(SB),7,$0
++TEXT cas<>(SB),NOSPLIT,$0
+ 	MOVW	$0xffff0fc0, PC
+ 
+-TEXT runtime·cas(SB),7,$0
++TEXT runtime·cas(SB),NOSPLIT,$0
+ 	MOVW	valptr+0(FP), R2
+ 	MOVW	old+4(FP), R0
+ casagain:
+@@ -382,15 +383,15 @@ cascheck:
+ 	MOVW $0, R0
+ 	RET
+ 
+-TEXT runtime·casp(SB),7,$0
++TEXT runtime·casp(SB),NOSPLIT,$0
+ 	B	runtime·cas(SB)
+ 
+-TEXT runtime·osyield(SB),7,$0
++TEXT runtime·osyield(SB),NOSPLIT,$0
+ 	MOVW	$SYS_sched_yield, R7
+ 	SWI	$0
+ 	RET
+ 
+-TEXT runtime·sched_getaffinity(SB),7,$0
++TEXT runtime·sched_getaffinity(SB),NOSPLIT,$0
+ 	MOVW	0(FP), R0
+ 	MOVW	4(FP), R1
+ 	MOVW	8(FP), R2
+@@ -399,21 +400,21 @@ TEXT runtime·sched_getaffinity(SB),7,$0
+ 	RET
+ 
+ // int32 runtime·epollcreate(int32 size)
+-TEXT runtime·epollcreate(SB),7,$0
++TEXT runtime·epollcreate(SB),NOSPLIT,$0
+ 	MOVW	0(FP), R0
+ 	MOVW	$SYS_epoll_create, R7
+ 	SWI	$0
+ 	RET
+ 
+ // int32 runtime·epollcreate1(int32 flags)
+-TEXT runtime·epollcreate1(SB),7,$0
++TEXT runtime·epollcreate1(SB),NOSPLIT,$0
+ 	MOVW	0(FP), R0
+ 	MOVW	$SYS_epoll_create1, R7
+ 	SWI	$0
+ 	RET
+ 
+ // int32 runtime·epollctl(int32 epfd, int32 op, int32 fd, EpollEvent *ev)
+-TEXT runtime·epollctl(SB),7,$0
++TEXT runtime·epollctl(SB),NOSPLIT,$0
+ 	MOVW	0(FP), R0
+ 	MOVW	4(FP), R1
+ 	MOVW	8(FP), R2
+@@ -423,7 +424,7 @@ TEXT runtime·epollctl(SB),7,$0
+ 	RET
+ 
+ // int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout)
+-TEXT runtime·epollwait(SB),7,$0
++TEXT runtime·epollwait(SB),NOSPLIT,$0
+ 	MOVW	0(FP), R0
+ 	MOVW	4(FP), R1
+ 	MOVW	8(FP), R2
+@@ -433,7 +434,7 @@ TEXT runtime·epollwait(SB),7,$0
+ 	RET
+ 
+ // void runtime·closeonexec(int32 fd)
+-TEXT runtime·closeonexec(SB),7,$0
++TEXT runtime·closeonexec(SB),NOSPLIT,$0
+ 	MOVW	0(FP), R0	// fd
+ 	MOVW	$2, R1	// F_SETFD
+ 	MOVW	$1, R2	// FD_CLOEXEC
+diff --git a/src/pkg/runtime/sys_netbsd_386.s b/src/pkg/runtime/sys_netbsd_386.s
+index 19b3a526ad..f7a3dbac41 100644
+--- a/src/pkg/runtime/sys_netbsd_386.s
++++ b/src/pkg/runtime/sys_netbsd_386.s
+@@ -7,42 +7,43 @@
+ //
+ 
+ #include "zasm_GOOS_GOARCH.h"
++#include "../../cmd/ld/textflag.h"
+ 
+ // Exit the entire program (like C exit)
+-TEXT runtime·exit(SB),7,$-4
++TEXT runtime·exit(SB),NOSPLIT,$-4
+ 	MOVL	$1, AX
+ 	INT	$0x80
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-TEXT runtime·exit1(SB),7,$-4
++TEXT runtime·exit1(SB),NOSPLIT,$-4
+ 	MOVL	$310, AX		// sys__lwp_exit
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-TEXT runtime·open(SB),7,$-4
++TEXT runtime·open(SB),NOSPLIT,$-4
+ 	MOVL	$5, AX
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·close(SB),7,$-4
++TEXT runtime·close(SB),NOSPLIT,$-4
+ 	MOVL	$6, AX
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·read(SB),7,$-4
++TEXT runtime·read(SB),NOSPLIT,$-4
+ 	MOVL	$3, AX
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·write(SB),7,$-4
++TEXT runtime·write(SB),NOSPLIT,$-4
+ 	MOVL	$4, AX			// sys_write
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·usleep(SB),7,$24
++TEXT runtime·usleep(SB),NOSPLIT,$24
+ 	MOVL	$0, DX
+ 	MOVL	usec+0(FP), AX
+ 	MOVL	$1000000, CX
+@@ -61,7 +62,7 @@ TEXT runtime·usleep(SB),7,$24
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·raise(SB),7,$12
++TEXT runtime·raise(SB),NOSPLIT,$12
+ 	MOVL	$311, AX		// sys__lwp_self
+ 	INT	$0x80
+ 	MOVL	$0, 0(SP)
+@@ -72,7 +73,7 @@ TEXT runtime·raise(SB),7,$12
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·mmap(SB),7,$36
++TEXT runtime·mmap(SB),NOSPLIT,$36
+ 	LEAL	arg0+0(FP), SI
+ 	LEAL	4(SP), DI
+ 	CLD
+@@ -90,26 +91,26 @@ TEXT runtime·mmap(SB),7,$36
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·munmap(SB),7,$-4
++TEXT runtime·munmap(SB),NOSPLIT,$-4
+ 	MOVL	$73, AX			// sys_munmap
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-TEXT runtime·madvise(SB),7,$-4
++TEXT runtime·madvise(SB),NOSPLIT,$-4
+ 	MOVL	$75, AX			// sys_madvise
+ 	INT	$0x80
+ 	// ignore failure - maybe pages are locked
+ 	RET
+ 
+-TEXT runtime·setitimer(SB),7,$-4
++TEXT runtime·setitimer(SB),NOSPLIT,$-4
+ 	MOVL	$425, AX		// sys_setitimer
+ 	INT	$0x80
+ 	RET
+ 
+ // func now() (sec int64, nsec int32)
+-TEXT time·now(SB), 7, $32
++TEXT time·now(SB), NOSPLIT, $32
+ 	LEAL	12(SP), BX
+ 	MOVL	$0, 4(SP)		// arg 1 - clock_id
+ 	MOVL	BX, 8(SP)		// arg 2 - tp
+@@ -127,7 +128,7 @@ TEXT time·now(SB), 7, $32
+ 
+ // int64 nanotime(void) so really
+ // void nanotime(int64 *nsec)
+-TEXT runtime·nanotime(SB),7,$32
++TEXT runtime·nanotime(SB),NOSPLIT,$32
+ 	LEAL	12(SP), BX
+ 	MOVL	$0, 4(SP)		// arg 1 - clock_id
+ 	MOVL	BX, 8(SP)		// arg 2 - tp
+@@ -150,21 +151,21 @@ TEXT runtime·nanotime(SB),7,$32
+ 	MOVL	DX, 4(DI)
+ 	RET
+ 
+-TEXT runtime·getcontext(SB),7,$-4
++TEXT runtime·getcontext(SB),NOSPLIT,$-4
+ 	MOVL	$307, AX		// sys_getcontext
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-TEXT runtime·sigprocmask(SB),7,$-4
++TEXT runtime·sigprocmask(SB),NOSPLIT,$-4
+ 	MOVL	$293, AX		// sys_sigprocmask
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-TEXT runtime·sigreturn_tramp(SB),7,$0
++TEXT runtime·sigreturn_tramp(SB),NOSPLIT,$0
+ 	LEAL	140(SP), AX		// Load address of ucontext
+ 	MOVL	AX, 4(SP)
+ 	MOVL	$308, AX		// sys_setcontext
+@@ -173,7 +174,7 @@ TEXT runtime·sigreturn_tramp(SB),7,$0
+ 	MOVL	$1, AX			// sys_exit
+ 	INT	$0x80
+ 
+-TEXT runtime·sigaction(SB),7,$24
++TEXT runtime·sigaction(SB),NOSPLIT,$24
+ 	LEAL	arg0+0(FP), SI
+ 	LEAL	4(SP), DI
+ 	CLD
+@@ -190,7 +191,7 @@ TEXT runtime·sigaction(SB),7,$24
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),7,$44
++TEXT runtime·sigtramp(SB),NOSPLIT,$44
+ 	get_tls(CX)
+ 
+ 	// check that m exists
+@@ -229,7 +230,7 @@ TEXT runtime·sigtramp(SB),7,$44
+ 	RET
+ 
+ // int32 lwp_create(void *context, uintptr flags, void *lwpid);
+-TEXT runtime·lwp_create(SB),7,$16
++TEXT runtime·lwp_create(SB),NOSPLIT,$16
+ 	MOVL	$0, 0(SP)
+ 	MOVL	context+0(FP), AX
+ 	MOVL	AX, 4(SP)		// arg 1 - context
+@@ -243,7 +244,7 @@ TEXT runtime·lwp_create(SB),7,$16
+ 	NEGL	AX
+ 	RET
+ 
+-TEXT runtime·lwp_tramp(SB),7,$0
++TEXT runtime·lwp_tramp(SB),NOSPLIT,$0
+ 
+ 	// Set FS to point at m->tls
+ 	LEAL	m_tls(BX), BP
+@@ -274,7 +275,7 @@ TEXT runtime·lwp_tramp(SB),7,$0
+ 	MOVL	$0x1234, 0x1005
+ 	RET
+ 
+-TEXT runtime·sigaltstack(SB),7,$-8
++TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+ 	MOVL	$281, AX		// sys___sigaltstack14
+ 	MOVL	new+4(SP), BX
+ 	MOVL	old+8(SP), CX
+@@ -284,14 +285,14 @@ TEXT runtime·sigaltstack(SB),7,$-8
+ 	INT	$3
+ 	RET
+ 
+-TEXT runtime·setldt(SB),7,$8
++TEXT runtime·setldt(SB),NOSPLIT,$8
+ 	// Under NetBSD we set the GS base instead of messing with the LDT.
+ 	MOVL	16(SP), AX		// tls0
+ 	MOVL	AX, 0(SP)
+ 	CALL	runtime·settls(SB)
+ 	RET
+ 
+-TEXT runtime·settls(SB),7,$16
++TEXT runtime·settls(SB),NOSPLIT,$16
+ 	// adjust for ELF: wants to use -8(GS) and -4(GS) for g and m
+ 	MOVL	base+0(FP), CX
+ 	ADDL	$8, CX
+@@ -303,27 +304,27 @@ TEXT runtime·settls(SB),7,$16
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-TEXT runtime·osyield(SB),7,$-4
++TEXT runtime·osyield(SB),NOSPLIT,$-4
+ 	MOVL	$350, AX		// sys_sched_yield
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·lwp_park(SB),7,$-4
++TEXT runtime·lwp_park(SB),NOSPLIT,$-4
+ 	MOVL	$434, AX		// sys__lwp_park
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·lwp_unpark(SB),7,$-4
++TEXT runtime·lwp_unpark(SB),NOSPLIT,$-4
+ 	MOVL	$321, AX		// sys__lwp_unpark
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·lwp_self(SB),7,$-4
++TEXT runtime·lwp_self(SB),NOSPLIT,$-4
+ 	MOVL	$311, AX		// sys__lwp_self
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·sysctl(SB),7,$28
++TEXT runtime·sysctl(SB),NOSPLIT,$28
+ 	LEAL	arg0+0(FP), SI
+ 	LEAL	4(SP), DI
+ 	CLD
+diff --git a/src/pkg/runtime/sys_netbsd_amd64.s b/src/pkg/runtime/sys_netbsd_amd64.s
+index 10b06c8d21..b7a64004f0 100644
+--- a/src/pkg/runtime/sys_netbsd_amd64.s
++++ b/src/pkg/runtime/sys_netbsd_amd64.s
+@@ -7,9 +7,10 @@
+ //
+ 
+ #include "zasm_GOOS_GOARCH.h"
++#include "../../cmd/ld/textflag.h"
+ 
+ // int32 lwp_create(void *context, uintptr flags, void *lwpid)
+-TEXT runtime·lwp_create(SB),7,$0
++TEXT runtime·lwp_create(SB),NOSPLIT,$0
+ 	MOVQ	context+0(FP), DI
+ 	MOVQ	flags+8(FP), SI
+ 	MOVQ	lwpid+16(FP), DX
+@@ -19,7 +20,7 @@ TEXT runtime·lwp_create(SB),7,$0
+ 	NEGQ	AX
+ 	RET
+ 
+-TEXT runtime·lwp_tramp(SB),7,$0
++TEXT runtime·lwp_tramp(SB),NOSPLIT,$0
+ 	
+ 	// Set FS to point at m->tls.
+ 	LEAQ	m_tls(R8), DI
+@@ -39,12 +40,12 @@ TEXT runtime·lwp_tramp(SB),7,$0
+ 	SYSCALL
+ 	JMP	-3(PC)			// keep exiting
+ 
+-TEXT runtime·osyield(SB),7,$0
++TEXT runtime·osyield(SB),NOSPLIT,$0
+ 	MOVL	$350, AX		// sys_sched_yield
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·lwp_park(SB),7,$0
++TEXT runtime·lwp_park(SB),NOSPLIT,$0
+ 	MOVQ	8(SP), DI		// arg 1 - abstime
+ 	MOVL	16(SP), SI		// arg 2 - unpark
+ 	MOVQ	24(SP), DX		// arg 3 - hint
+@@ -53,33 +54,33 @@ TEXT runtime·lwp_park(SB),7,$0
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·lwp_unpark(SB),7,$0
++TEXT runtime·lwp_unpark(SB),NOSPLIT,$0
+ 	MOVQ	8(SP), DI		// arg 1 - lwp
+ 	MOVL	16(SP), SI		// arg 2 - hint
+ 	MOVL	$321, AX		// sys__lwp_unpark
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·lwp_self(SB),7,$0
++TEXT runtime·lwp_self(SB),NOSPLIT,$0
+ 	MOVL	$311, AX		// sys__lwp_self
+ 	SYSCALL
+ 	RET
+ 
+ // Exit the entire program (like C exit)
+-TEXT runtime·exit(SB),7,$-8
++TEXT runtime·exit(SB),NOSPLIT,$-8
+ 	MOVL	8(SP), DI		// arg 1 - exit status
+ 	MOVL	$1, AX			// sys_exit
+ 	SYSCALL
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-TEXT runtime·exit1(SB),7,$-8
++TEXT runtime·exit1(SB),NOSPLIT,$-8
+ 	MOVL	$310, AX		// sys__lwp_exit
+ 	SYSCALL
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-TEXT runtime·open(SB),7,$-8
++TEXT runtime·open(SB),NOSPLIT,$-8
+ 	MOVQ	8(SP), DI		// arg 1 pathname
+ 	MOVL	16(SP), SI		// arg 2 flags
+ 	MOVL	20(SP), DX		// arg 3 mode
+@@ -87,13 +88,13 @@ TEXT runtime·open(SB),7,$-8
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·close(SB),7,$-8
++TEXT runtime·close(SB),NOSPLIT,$-8
+ 	MOVL	8(SP), DI		// arg 1 fd
+ 	MOVL	$6, AX
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·read(SB),7,$-8
++TEXT runtime·read(SB),NOSPLIT,$-8
+ 	MOVL	8(SP), DI		// arg 1 fd
+ 	MOVQ	16(SP), SI		// arg 2 buf
+ 	MOVL	24(SP), DX		// arg 3 count
+@@ -101,7 +102,7 @@ TEXT runtime·read(SB),7,$-8
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·write(SB),7,$-8
++TEXT runtime·write(SB),NOSPLIT,$-8
+ 	MOVL	8(SP), DI		// arg 1 - fd
+ 	MOVQ	16(SP), SI		// arg 2 - buf
+ 	MOVL	24(SP), DX		// arg 3 - nbyte
+@@ -109,7 +110,7 @@ TEXT runtime·write(SB),7,$-8
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·usleep(SB),7,$16
++TEXT runtime·usleep(SB),NOSPLIT,$16
+ 	MOVL	$0, DX
+ 	MOVL	usec+0(FP), AX
+ 	MOVL	$1000000, CX
+@@ -125,7 +126,7 @@ TEXT runtime·usleep(SB),7,$16
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·raise(SB),7,$16
++TEXT runtime·raise(SB),NOSPLIT,$16
+ 	MOVL	$311, AX		// sys__lwp_self
+ 	SYSCALL
+ 	MOVQ	AX, DI			// arg 1 - target
+@@ -134,7 +135,7 @@ TEXT runtime·raise(SB),7,$16
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·setitimer(SB),7,$-8
++TEXT runtime·setitimer(SB),NOSPLIT,$-8
+ 	MOVL	8(SP), DI		// arg 1 - which
+ 	MOVQ	16(SP), SI		// arg 2 - itv
+ 	MOVQ	24(SP), DX		// arg 3 - oitv
+@@ -143,7 +144,7 @@ TEXT runtime·setitimer(SB),7,$-8
+ 	RET
+ 
+ // func now() (sec int64, nsec int32)
+-TEXT time·now(SB), 7, $32
++TEXT time·now(SB), NOSPLIT, $32
+ 	MOVQ	$0, DI			// arg 1 - clock_id
+ 	LEAQ	8(SP), SI		// arg 2 - tp
+ 	MOVL	$427, AX		// sys_clock_gettime
+@@ -156,7 +157,7 @@ TEXT time·now(SB), 7, $32
+ 	MOVL	DX, nsec+8(FP)
+ 	RET
+ 
+-TEXT runtime·nanotime(SB),7,$32
++TEXT runtime·nanotime(SB),NOSPLIT,$32
+ 	MOVQ	$0, DI			// arg 1 - clock_id
+ 	LEAQ	8(SP), SI		// arg 2 - tp
+ 	MOVL	$427, AX		// sys_clock_gettime
+@@ -170,7 +171,7 @@ TEXT runtime·nanotime(SB),7,$32
+ 	ADDQ	DX, AX
+ 	RET
+ 
+-TEXT runtime·getcontext(SB),7,$-8
++TEXT runtime·getcontext(SB),NOSPLIT,$-8
+ 	MOVQ	8(SP), DI		// arg 1 - context
+ 	MOVL	$307, AX		// sys_getcontext
+ 	SYSCALL
+@@ -178,7 +179,7 @@ TEXT runtime·getcontext(SB),7,$-8
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-TEXT runtime·sigprocmask(SB),7,$0
++TEXT runtime·sigprocmask(SB),NOSPLIT,$0
+ 	MOVL	8(SP), DI		// arg 1 - how
+ 	MOVQ	16(SP), SI		// arg 2 - set
+ 	MOVQ	24(SP), DX		// arg 3 - oset
+@@ -188,7 +189,7 @@ TEXT runtime·sigprocmask(SB),7,$0
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-TEXT runtime·sigreturn_tramp(SB),7,$-8
++TEXT runtime·sigreturn_tramp(SB),NOSPLIT,$-8
+ 	MOVQ	R15, DI			// Load address of ucontext
+ 	MOVQ	$308, AX		// sys_setcontext
+ 	SYSCALL
+@@ -196,7 +197,7 @@ TEXT runtime·sigreturn_tramp(SB),7,$-8
+ 	MOVL	$1, AX			// sys_exit
+ 	SYSCALL
+ 
+-TEXT runtime·sigaction(SB),7,$-8
++TEXT runtime·sigaction(SB),NOSPLIT,$-8
+ 	MOVL	8(SP), DI		// arg 1 - signum
+ 	MOVQ	16(SP), SI		// arg 2 - nsa
+ 	MOVQ	24(SP), DX		// arg 3 - osa
+@@ -209,7 +210,7 @@ TEXT runtime·sigaction(SB),7,$-8
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),7,$64
++TEXT runtime·sigtramp(SB),NOSPLIT,$64
+ 	get_tls(BX)
+ 
+ 	// check that m exists
+@@ -242,7 +243,7 @@ TEXT runtime·sigtramp(SB),7,$64
+ 	MOVQ	R10, g(BX)
+ 	RET
+ 
+-TEXT runtime·mmap(SB),7,$0
++TEXT runtime·mmap(SB),NOSPLIT,$0
+ 	MOVQ	8(SP), DI		// arg 1 - addr
+ 	MOVQ	16(SP), SI		// arg 2 - len
+ 	MOVL	24(SP), DX		// arg 3 - prot
+@@ -257,7 +258,7 @@ TEXT runtime·mmap(SB),7,$0
+ 	ADDQ	$16, SP
+ 	RET
+ 
+-TEXT runtime·munmap(SB),7,$0
++TEXT runtime·munmap(SB),NOSPLIT,$0
+ 	MOVQ	8(SP), DI		// arg 1 - addr
+ 	MOVQ	16(SP), SI		// arg 2 - len
+ 	MOVL	$73, AX			// sys_munmap
+@@ -267,7 +268,7 @@ TEXT runtime·munmap(SB),7,$0
+ 	RET
+ 
+ 
+-TEXT runtime·madvise(SB),7,$0
++TEXT runtime·madvise(SB),NOSPLIT,$0
+ 	MOVQ	addr+0(FP), DI		// arg 1 - addr
+ 	MOVQ	len+8(FP), SI		// arg 2 - len
+ 	MOVQ	behav+16(FP), DX	// arg 3 - behav
+@@ -276,7 +277,7 @@ TEXT runtime·madvise(SB),7,$0
+ 	// ignore failure - maybe pages are locked
+ 	RET
+ 
+-TEXT runtime·sigaltstack(SB),7,$-8
++TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+ 	MOVQ	new+8(SP), DI		// arg 1 - nss
+ 	MOVQ	old+16(SP), SI		// arg 2 - oss
+ 	MOVQ	$281, AX		// sys___sigaltstack14
+@@ -286,7 +287,7 @@ TEXT runtime·sigaltstack(SB),7,$-8
+ 	RET
+ 
+ // set tls base to DI
+-TEXT runtime·settls(SB),7,$8
++TEXT runtime·settls(SB),NOSPLIT,$8
+ 	// adjust for ELF: wants to use -16(FS) and -8(FS) for g and m
+ 	ADDQ	$16, DI			// arg 1 - ptr
+ 	MOVQ	$317, AX		// sys__lwp_setprivate
+@@ -295,7 +296,7 @@ TEXT runtime·settls(SB),7,$8
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-TEXT runtime·sysctl(SB),7,$0
++TEXT runtime·sysctl(SB),NOSPLIT,$0
+ 	MOVQ	8(SP), DI		// arg 1 - name
+ 	MOVL	16(SP), SI		// arg 2 - namelen
+ 	MOVQ	24(SP), DX		// arg 3 - oldp
+diff --git a/src/pkg/runtime/sys_netbsd_arm.s b/src/pkg/runtime/sys_netbsd_arm.s
+index d39b6481eb..7c2fe3444f 100644
+--- a/src/pkg/runtime/sys_netbsd_arm.s
++++ b/src/pkg/runtime/sys_netbsd_arm.s
+@@ -7,41 +7,42 @@
+ //
+ 
+ #include "zasm_GOOS_GOARCH.h"
++#include "../../cmd/ld/textflag.h"
+ 
+ // Exit the entire program (like C exit)
+-TEXT runtime·exit(SB),7,$-4
++TEXT runtime·exit(SB),NOSPLIT,$-4
+ 	MOVW 0(FP), R0	// arg 1 exit status
+ 	SWI $0xa00001
+ 	MOVW.CS $0, R8	// crash on syscall failure
+ 	MOVW.CS R8, (R8)
+ 	RET
+ 
+-TEXT runtime·exit1(SB),7,$-4
++TEXT runtime·exit1(SB),NOSPLIT,$-4
+ 	SWI $0xa00136	// sys__lwp_exit
+ 	MOVW $1, R8	// crash
+ 	MOVW R8, (R8)
+ 	RET
+ 	
+-TEXT runtime·open(SB),7,$-8
++TEXT runtime·open(SB),NOSPLIT,$-8
+ 	MOVW 0(FP), R0
+ 	MOVW 4(FP), R1
+ 	MOVW 8(FP), R2
+ 	SWI $0xa00005
+ 	RET
+ 
+-TEXT runtime·close(SB),7,$-8
++TEXT runtime·close(SB),NOSPLIT,$-8
+ 	MOVW 0(FP), R0
+ 	SWI $0xa00006
+ 	RET
+ 
+-TEXT runtime·read(SB),7,$-8
++TEXT runtime·read(SB),NOSPLIT,$-8
+ 	MOVW 0(FP), R0
+ 	MOVW 4(FP), R1
+ 	MOVW 8(FP), R2
+ 	SWI $0xa00003
+ 	RET
+ 
+-TEXT runtime·write(SB),7,$-4
++TEXT runtime·write(SB),NOSPLIT,$-4
+ 	MOVW	0(FP), R0	// arg 1 - fd
+ 	MOVW	4(FP), R1	// arg 2 - buf
+ 	MOVW	8(FP), R2	// arg 3 - nbyte
+@@ -49,18 +50,18 @@ TEXT runtime·write(SB),7,$-4
+ 	RET
+ 
+ // int32 lwp_create(void *context, uintptr flags, void *lwpid)
+-TEXT runtime·lwp_create(SB),7,$0
++TEXT runtime·lwp_create(SB),NOSPLIT,$0
+ 	MOVW context+0(FP), R0
+ 	MOVW flags+4(FP), R1
+ 	MOVW lwpid+8(FP), R2
+ 	SWI $0xa00135	// sys__lwp_create
+ 	RET
+ 
+-TEXT runtime·osyield(SB),7,$0
++TEXT runtime·osyield(SB),NOSPLIT,$0
+ 	SWI $0xa0015e	// sys_sched_yield
+ 	RET
+ 
+-TEXT runtime·lwp_park(SB),7,$0
++TEXT runtime·lwp_park(SB),NOSPLIT,$0
+ 	MOVW 0(FP), R0	// arg 1 - abstime
+ 	MOVW 4(FP), R1	// arg 2 - unpark
+ 	MOVW 8(FP), R2	// arg 3 - hint
+@@ -68,17 +69,17 @@ TEXT runtime·lwp_park(SB),7,$0
+ 	SWI $0xa001b2	// sys__lwp_park
+ 	RET
+ 
+-TEXT runtime·lwp_unpark(SB),7,$0
++TEXT runtime·lwp_unpark(SB),NOSPLIT,$0
+ 	MOVW	0(FP), R0	// arg 1 - lwp
+ 	MOVW	4(FP), R1	// arg 2 - hint
+ 	SWI $0xa00141 // sys__lwp_unpark
+ 	RET
+ 
+-TEXT runtime·lwp_self(SB),7,$0
++TEXT runtime·lwp_self(SB),NOSPLIT,$0
+ 	SWI $0xa00137	// sys__lwp_self
+ 	RET
+ 
+-TEXT runtime·lwp_tramp(SB),7,$0
++TEXT runtime·lwp_tramp(SB),NOSPLIT,$0
+ 	MOVW R0, m
+ 	MOVW R1, g
+ 
+@@ -88,7 +89,7 @@ TEXT runtime·lwp_tramp(SB),7,$0
+ 	MOVW R8, (R8)
+ 	RET
+ 
+-TEXT runtime·usleep(SB),7,$16
++TEXT runtime·usleep(SB),NOSPLIT,$16
+ 	MOVW usec+0(FP), R0
+ 	MOVW R0, R2
+ 	MOVW $1000000, R1
+@@ -107,13 +108,13 @@ TEXT runtime·usleep(SB),7,$16
+ 	SWI $0xa001ae	// sys_nanosleep
+ 	RET
+ 
+-TEXT runtime·raise(SB),7,$16
++TEXT runtime·raise(SB),NOSPLIT,$16
+ 	SWI $0xa00137	// sys__lwp_self, the returned R0 is arg 1
+ 	MOVW	sig+0(FP), R1	// arg 2 - signal
+ 	SWI $0xa0013e	// sys__lwp_kill
+ 	RET
+ 
+-TEXT runtime·setitimer(SB),7,$-4
++TEXT runtime·setitimer(SB),NOSPLIT,$-4
+ 	MOVW 0(FP), R0	// arg 1 - which
+ 	MOVW 4(FP), R1	// arg 2 - itv
+ 	MOVW 8(FP), R2	// arg 3 - oitv
+@@ -121,7 +122,7 @@ TEXT runtime·setitimer(SB),7,$-4
+ 	RET
+ 
+ // func now() (sec int64, nsec int32)
+-TEXT time·now(SB), 7, $32
++TEXT time·now(SB), NOSPLIT, $32
+ 	MOVW $0, R0	// CLOCK_REALTIME
+ 	MOVW $8(R13), R1
+ 	SWI $0xa001ab	// clock_gettime
+@@ -137,7 +138,7 @@ TEXT time·now(SB), 7, $32
+ 
+ // int64 nanotime(void) so really
+ // void nanotime(int64 *nsec)
+-TEXT runtime·nanotime(SB), 7, $32
++TEXT runtime·nanotime(SB), NOSPLIT, $32
+ 	MOVW $0, R0 // CLOCK_REALTIME
+ 	MOVW $8(R13), R1
+ 	SWI $0xa001ab	// clock_gettime
+@@ -157,14 +158,14 @@ TEXT runtime·nanotime(SB), 7, $32
+ 	MOVW R1, 4(R3)
+ 	RET
+ 
+-TEXT runtime·getcontext(SB),7,$-4
++TEXT runtime·getcontext(SB),NOSPLIT,$-4
+ 	MOVW 0(FP), R0	// arg 1 - context
+ 	SWI $0xa00133	// sys_getcontext
+ 	MOVW.CS $0, R8	// crash on syscall failure
+ 	MOVW.CS R8, (R8)
+ 	RET
+ 
+-TEXT runtime·sigprocmask(SB),7,$0
++TEXT runtime·sigprocmask(SB),NOSPLIT,$0
+ 	MOVW 0(FP), R0	// arg 1 - how
+ 	MOVW 4(FP), R1	// arg 2 - set
+ 	MOVW 8(FP), R2	// arg 3 - oset
+@@ -173,7 +174,7 @@ TEXT runtime·sigprocmask(SB),7,$0
+ 	MOVW.CS R8, (R8)
+ 	RET
+ 
+-TEXT runtime·sigreturn_tramp(SB),7,$-4
++TEXT runtime·sigreturn_tramp(SB),NOSPLIT,$-4
+ 	// on entry, SP points to siginfo, we add sizeof(ucontext)
+ 	// to SP to get a pointer to ucontext.
+ 	ADD $0x80, R13, R0 // 0x80 == sizeof(UcontextT)
+@@ -183,7 +184,7 @@ TEXT runtime·sigreturn_tramp(SB),7,$-4
+ 	SWI $0xa00001	// sys_exit
+ 	B -2(PC)	// continue exit
+ 
+-TEXT runtime·sigaction(SB),7,$4
++TEXT runtime·sigaction(SB),NOSPLIT,$4
+ 	MOVW 0(FP), R0	// arg 1 - signum
+ 	MOVW 4(FP), R1	// arg 2 - nsa
+ 	MOVW 8(FP), R2	// arg 3 - osa
+@@ -197,7 +198,7 @@ TEXT runtime·sigaction(SB),7,$4
+ 	MOVW.CS R8, (R8)
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),7,$24
++TEXT runtime·sigtramp(SB),NOSPLIT,$24
+ 	// this might be called in external code context,
+ 	// where g and m are not set.
+ 	// first save R0, because _cgo_load_gm will clobber it
+@@ -231,7 +232,7 @@ TEXT runtime·sigtramp(SB),7,$24
+ 	MOVW 20(R13), g
+ 	RET
+ 
+-TEXT runtime·mmap(SB),7,$12
++TEXT runtime·mmap(SB),NOSPLIT,$12
+ 	MOVW 0(FP), R0	// arg 1 - addr
+ 	MOVW 4(FP), R1	// arg 2 - len
+ 	MOVW 8(FP), R2	// arg 3 - prot
+@@ -249,7 +250,7 @@ TEXT runtime·mmap(SB),7,$12
+ 	SUB $4, R13
+ 	RET
+ 
+-TEXT runtime·munmap(SB),7,$0
++TEXT runtime·munmap(SB),NOSPLIT,$0
+ 	MOVW 0(FP), R0	// arg 1 - addr
+ 	MOVW 4(FP), R1	// arg 2 - len
+ 	SWI $0xa00049	// sys_munmap
+@@ -257,7 +258,7 @@ TEXT runtime·munmap(SB),7,$0
+ 	MOVW.CS R8, (R8)
+ 	RET
+ 
+-TEXT runtime·madvise(SB),7,$0
++TEXT runtime·madvise(SB),NOSPLIT,$0
+ 	MOVW 0(FP), R0	// arg 1 - addr
+ 	MOVW 4(FP), R1	// arg 2 - len
+ 	MOVW 8(FP), R2	// arg 3 - behav
+@@ -265,7 +266,7 @@ TEXT runtime·madvise(SB),7,$0
+ 	// ignore failure - maybe pages are locked
+ 	RET
+ 
+-TEXT runtime·sigaltstack(SB),7,$-4
++TEXT runtime·sigaltstack(SB),NOSPLIT,$-4
+ 	MOVW 0(FP), R0	// arg 1 - nss
+ 	MOVW 4(FP), R1	// arg 2 - oss
+ 	SWI $0xa00119	// sys___sigaltstack14
+@@ -273,7 +274,7 @@ TEXT runtime·sigaltstack(SB),7,$-4
+ 	MOVW.CS R8, (R8)
+ 	RET
+ 
+-TEXT runtime·sysctl(SB),7,$8
++TEXT runtime·sysctl(SB),NOSPLIT,$8
+ 	MOVW 0(FP), R0	// arg 1 - name
+ 	MOVW 4(FP), R1	// arg 2 - namelen
+ 	MOVW 8(FP), R2	// arg 3 - oldp
+@@ -287,7 +288,7 @@ TEXT runtime·sysctl(SB),7,$8
+ 	SUB $4, R13
+ 	RET
+ 
+-TEXT runtime·casp(SB),7,$0
++TEXT runtime·casp(SB),NOSPLIT,$0
+ 	B	runtime·cas(SB)
+ 
+ // TODO(minux): this is only valid for ARMv6+
+@@ -298,5 +299,5 @@ TEXT runtime·casp(SB),7,$0
+ //		return 1;
+ //	}else
+ //		return 0;
+-TEXT runtime·cas(SB),7,$0
++TEXT runtime·cas(SB),NOSPLIT,$0
+ 	B runtime·armcas(SB)
+diff --git a/src/pkg/runtime/sys_openbsd_386.s b/src/pkg/runtime/sys_openbsd_386.s
+index 3ca4511806..54d368fd70 100644
+--- a/src/pkg/runtime/sys_openbsd_386.s
++++ b/src/pkg/runtime/sys_openbsd_386.s
+@@ -7,15 +7,16 @@
+ //
+ 
+ #include "zasm_GOOS_GOARCH.h"
++#include "../../cmd/ld/textflag.h"
+ 
+ // Exit the entire program (like C exit)
+-TEXT runtime·exit(SB),7,$-4
++TEXT runtime·exit(SB),NOSPLIT,$-4
+ 	MOVL	$1, AX
+ 	INT	$0x80
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-TEXT runtime·exit1(SB),7,$8
++TEXT runtime·exit1(SB),NOSPLIT,$8
+ 	MOVL	$0, 0(SP)
+ 	MOVL	$0, 4(SP)		// arg 1 - notdead
+ 	MOVL	$302, AX		// sys___threxit
+@@ -24,27 +25,27 @@ TEXT runtime·exit1(SB),7,$8
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-TEXT runtime·open(SB),7,$-4
++TEXT runtime·open(SB),NOSPLIT,$-4
+ 	MOVL	$5, AX
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·close(SB),7,$-4
++TEXT runtime·close(SB),NOSPLIT,$-4
+ 	MOVL	$6, AX
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·read(SB),7,$-4
++TEXT runtime·read(SB),NOSPLIT,$-4
+ 	MOVL	$3, AX
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·write(SB),7,$-4
++TEXT runtime·write(SB),NOSPLIT,$-4
+ 	MOVL	$4, AX			// sys_write
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·usleep(SB),7,$20
++TEXT runtime·usleep(SB),NOSPLIT,$20
+ 	MOVL	$0, DX
+ 	MOVL	usec+0(FP), AX
+ 	MOVL	$1000000, CX
+@@ -62,7 +63,7 @@ TEXT runtime·usleep(SB),7,$20
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·raise(SB),7,$12
++TEXT runtime·raise(SB),NOSPLIT,$12
+ 	MOVL	$299, AX		// sys_getthrid
+ 	INT	$0x80
+ 	MOVL	$0, 0(SP)
+@@ -73,7 +74,7 @@ TEXT runtime·raise(SB),7,$12
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·mmap(SB),7,$36
++TEXT runtime·mmap(SB),NOSPLIT,$36
+ 	LEAL	arg0+0(FP), SI
+ 	LEAL	4(SP), DI
+ 	CLD
+@@ -91,27 +92,27 @@ TEXT runtime·mmap(SB),7,$36
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·munmap(SB),7,$-4
++TEXT runtime·munmap(SB),NOSPLIT,$-4
+ 	MOVL	$73, AX			// sys_munmap
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-TEXT runtime·madvise(SB),7,$-4
++TEXT runtime·madvise(SB),NOSPLIT,$-4
+ 	MOVL	$75, AX			// sys_madvise
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-TEXT runtime·setitimer(SB),7,$-4
++TEXT runtime·setitimer(SB),NOSPLIT,$-4
+ 	MOVL	$83, AX
+ 	INT	$0x80
+ 	RET
+ 
+ // func now() (sec int64, nsec int32)
+-TEXT time·now(SB), 7, $32
++TEXT time·now(SB), NOSPLIT, $32
+ 	MOVL	$232, AX
+ 	LEAL	12(SP), BX
+ 	MOVL	$0, 4(SP)
+@@ -128,7 +129,7 @@ TEXT time·now(SB), 7, $32
+ 
+ // int64 nanotime(void) so really
+ // void nanotime(int64 *nsec)
+-TEXT runtime·nanotime(SB),7,$32
++TEXT runtime·nanotime(SB),NOSPLIT,$32
+ 	MOVL	$232, AX
+ 	LEAL	12(SP), BX
+ 	MOVL	$0, 4(SP)
+@@ -149,14 +150,14 @@ TEXT runtime·nanotime(SB),7,$32
+ 	MOVL	DX, 4(DI)
+ 	RET
+ 
+-TEXT runtime·sigaction(SB),7,$-4
++TEXT runtime·sigaction(SB),NOSPLIT,$-4
+ 	MOVL	$46, AX			// sys_sigaction
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-TEXT runtime·sigprocmask(SB),7,$-4
++TEXT runtime·sigprocmask(SB),NOSPLIT,$-4
+ 	MOVL	$48, AX			// sys_sigprocmask
+ 	INT	$0x80
+ 	JAE	2(PC)
+@@ -164,7 +165,7 @@ TEXT runtime·sigprocmask(SB),7,$-4
+ 	MOVL	AX, oset+0(FP)
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),7,$44
++TEXT runtime·sigtramp(SB),NOSPLIT,$44
+ 	get_tls(CX)
+ 
+ 	// check that m exists
+@@ -212,7 +213,7 @@ sigtramp_ret:
+ 	RET
+ 
+ // int32 tfork(void *param, uintptr psize, M *mp, G *gp, void (*fn)(void));
+-TEXT runtime·tfork(SB),7,$12
++TEXT runtime·tfork(SB),NOSPLIT,$12
+ 
+ 	// Copy mp, gp and fn from the parent stack onto the child stack.
+ 	MOVL	params+4(FP), AX
+@@ -289,7 +290,7 @@ TEXT runtime·tfork(SB),7,$12
+ 	MOVL	$0x1234, 0x1005
+ 	RET
+ 
+-TEXT runtime·sigaltstack(SB),7,$-8
++TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+ 	MOVL	$288, AX		// sys_sigaltstack
+ 	MOVL	new+4(SP), BX
+ 	MOVL	old+8(SP), CX
+@@ -299,14 +300,14 @@ TEXT runtime·sigaltstack(SB),7,$-8
+ 	INT	$3
+ 	RET
+ 
+-TEXT runtime·setldt(SB),7,$4
++TEXT runtime·setldt(SB),NOSPLIT,$4
+ 	// Under OpenBSD we set the GS base instead of messing with the LDT.
+ 	MOVL	tls0+4(FP), AX
+ 	MOVL	AX, 0(SP)
+ 	CALL	runtime·settls(SB)
+ 	RET
+ 
+-TEXT runtime·settls(SB),7,$8
++TEXT runtime·settls(SB),NOSPLIT,$8
+ 	// adjust for ELF: wants to use -8(GS) and -4(GS) for g and m
+ 	MOVL	tlsbase+0(FP), CX
+ 	ADDL	$8, CX
+@@ -318,22 +319,22 @@ TEXT runtime·settls(SB),7,$8
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-TEXT runtime·osyield(SB),7,$-4
++TEXT runtime·osyield(SB),NOSPLIT,$-4
+ 	MOVL	$298, AX		// sys_sched_yield
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·thrsleep(SB),7,$-4
++TEXT runtime·thrsleep(SB),NOSPLIT,$-4
+ 	MOVL	$300, AX		// sys___thrsleep
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·thrwakeup(SB),7,$-4
++TEXT runtime·thrwakeup(SB),NOSPLIT,$-4
+ 	MOVL	$301, AX		// sys___thrwakeup
+ 	INT	$0x80
+ 	RET
+ 
+-TEXT runtime·sysctl(SB),7,$28
++TEXT runtime·sysctl(SB),NOSPLIT,$28
+ 	LEAL	arg0+0(FP), SI
+ 	LEAL	4(SP), DI
+ 	CLD
+@@ -352,7 +353,7 @@ TEXT runtime·sysctl(SB),7,$28
+ 	RET
+ 
+ // int32 runtime·kqueue(void);
+-TEXT runtime·kqueue(SB),7,$0
++TEXT runtime·kqueue(SB),NOSPLIT,$0
+ 	MOVL	$362, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+@@ -360,7 +361,7 @@ TEXT runtime·kqueue(SB),7,$0
+ 	RET
+ 
+ // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
+-TEXT runtime·kevent(SB),7,$0
++TEXT runtime·kevent(SB),NOSPLIT,$0
+ 	MOVL	$363, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+@@ -368,7 +369,7 @@ TEXT runtime·kevent(SB),7,$0
+ 	RET
+ 
+ // int32 runtime·closeonexec(int32 fd);
+-TEXT runtime·closeonexec(SB),7,$32
++TEXT runtime·closeonexec(SB),NOSPLIT,$32
+ 	MOVL	$92, AX		// fcntl
+ 	// 0(SP) is where the caller PC would be; kernel skips it
+ 	MOVL	fd+0(FP), BX
+diff --git a/src/pkg/runtime/sys_openbsd_amd64.s b/src/pkg/runtime/sys_openbsd_amd64.s
+index 87e557c8ba..26dc61f716 100644
+--- a/src/pkg/runtime/sys_openbsd_amd64.s
++++ b/src/pkg/runtime/sys_openbsd_amd64.s
+@@ -7,9 +7,10 @@
+ //
+ 
+ #include "zasm_GOOS_GOARCH.h"
++#include "../../cmd/ld/textflag.h"
+ 
+ // int64 tfork(void *param, uintptr psize, M *mp, G *gp, void (*fn)(void));
+-TEXT runtime·tfork(SB),7,$32
++TEXT runtime·tfork(SB),NOSPLIT,$32
+ 
+ 	// Copy mp, gp and fn off parent stack for use by child.
+ 	MOVQ	mm+16(FP), R8
+@@ -50,12 +51,12 @@ TEXT runtime·tfork(SB),7,$32
+ 	SYSCALL
+ 	JMP	-3(PC)			// keep exiting
+ 
+-TEXT runtime·osyield(SB),7,$0
++TEXT runtime·osyield(SB),NOSPLIT,$0
+ 	MOVL	$298, AX		// sys_sched_yield
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·thrsleep(SB),7,$0
++TEXT runtime·thrsleep(SB),NOSPLIT,$0
+ 	MOVQ	8(SP), DI		// arg 1 - ident
+ 	MOVL	16(SP), SI		// arg 2 - clock_id
+ 	MOVQ	24(SP), DX		// arg 3 - tp
+@@ -65,7 +66,7 @@ TEXT runtime·thrsleep(SB),7,$0
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·thrwakeup(SB),7,$0
++TEXT runtime·thrwakeup(SB),NOSPLIT,$0
+ 	MOVQ	8(SP), DI		// arg 1 - ident
+ 	MOVL	16(SP), SI		// arg 2 - n
+ 	MOVL	$301, AX		// sys___thrwakeup
+@@ -73,21 +74,21 @@ TEXT runtime·thrwakeup(SB),7,$0
+ 	RET
+ 
+ // Exit the entire program (like C exit)
+-TEXT runtime·exit(SB),7,$-8
++TEXT runtime·exit(SB),NOSPLIT,$-8
+ 	MOVL	8(SP), DI		// arg 1 - exit status
+ 	MOVL	$1, AX			// sys_exit
+ 	SYSCALL
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-TEXT runtime·exit1(SB),7,$-8
++TEXT runtime·exit1(SB),NOSPLIT,$-8
+ 	MOVQ	$0, DI			// arg 1 - notdead
+ 	MOVL	$302, AX		// sys___threxit
+ 	SYSCALL
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-TEXT runtime·open(SB),7,$-8
++TEXT runtime·open(SB),NOSPLIT,$-8
+ 	MOVQ	8(SP), DI		// arg 1 pathname
+ 	MOVL	16(SP), SI		// arg 2 flags
+ 	MOVL	20(SP), DX		// arg 3 mode
+@@ -95,13 +96,13 @@ TEXT runtime·open(SB),7,$-8
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·close(SB),7,$-8
++TEXT runtime·close(SB),NOSPLIT,$-8
+ 	MOVL	8(SP), DI		// arg 1 fd
+ 	MOVL	$6, AX
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·read(SB),7,$-8
++TEXT runtime·read(SB),NOSPLIT,$-8
+ 	MOVL	8(SP), DI		// arg 1 fd
+ 	MOVQ	16(SP), SI		// arg 2 buf
+ 	MOVL	24(SP), DX		// arg 3 count
+@@ -109,7 +110,7 @@ TEXT runtime·read(SB),7,$-8
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·write(SB),7,$-8
++TEXT runtime·write(SB),NOSPLIT,$-8
+ 	MOVL	8(SP), DI		// arg 1 - fd
+ 	MOVQ	16(SP), SI		// arg 2 - buf
+ 	MOVL	24(SP), DX		// arg 3 - nbyte
+@@ -117,7 +118,7 @@ TEXT runtime·write(SB),7,$-8
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·usleep(SB),7,$16
++TEXT runtime·usleep(SB),NOSPLIT,$16
+ 	MOVL	$0, DX
+ 	MOVL	usec+0(FP), AX
+ 	MOVL	$1000000, CX
+@@ -133,7 +134,7 @@ TEXT runtime·usleep(SB),7,$16
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·raise(SB),7,$16
++TEXT runtime·raise(SB),NOSPLIT,$16
+ 	MOVL	$299, AX		// sys_getthrid
+ 	SYSCALL
+ 	MOVQ	AX, DI			// arg 1 - pid
+@@ -142,7 +143,7 @@ TEXT runtime·raise(SB),7,$16
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·setitimer(SB),7,$-8
++TEXT runtime·setitimer(SB),NOSPLIT,$-8
+ 	MOVL	8(SP), DI		// arg 1 - which
+ 	MOVQ	16(SP), SI		// arg 2 - itv
+ 	MOVQ	24(SP), DX		// arg 3 - oitv
+@@ -151,7 +152,7 @@ TEXT runtime·setitimer(SB),7,$-8
+ 	RET
+ 
+ // func now() (sec int64, nsec int32)
+-TEXT time·now(SB), 7, $32
++TEXT time·now(SB), NOSPLIT, $32
+ 	MOVQ	$0, DI			// arg 1 - clock_id
+ 	LEAQ	8(SP), SI		// arg 2 - tp
+ 	MOVL	$232, AX		// sys_clock_gettime
+@@ -164,7 +165,7 @@ TEXT time·now(SB), 7, $32
+ 	MOVL	DX, nsec+8(FP)
+ 	RET
+ 
+-TEXT runtime·nanotime(SB),7,$24
++TEXT runtime·nanotime(SB),NOSPLIT,$24
+ 	MOVQ	$0, DI			// arg 1 - clock_id
+ 	LEAQ	8(SP), SI		// arg 2 - tp
+ 	MOVL	$232, AX		// sys_clock_gettime
+@@ -178,7 +179,7 @@ TEXT runtime·nanotime(SB),7,$24
+ 	ADDQ	DX, AX
+ 	RET
+ 
+-TEXT runtime·sigaction(SB),7,$-8
++TEXT runtime·sigaction(SB),NOSPLIT,$-8
+ 	MOVL	8(SP), DI		// arg 1 - signum
+ 	MOVQ	16(SP), SI		// arg 2 - nsa
+ 	MOVQ	24(SP), DX		// arg 3 - osa
+@@ -188,7 +189,7 @@ TEXT runtime·sigaction(SB),7,$-8
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-TEXT runtime·sigprocmask(SB),7,$0
++TEXT runtime·sigprocmask(SB),NOSPLIT,$0
+ 	MOVL	8(SP), DI		// arg 1 - how
+ 	MOVL	12(SP), SI		// arg 2 - set
+ 	MOVL	$48, AX			// sys_sigprocmask
+@@ -198,7 +199,7 @@ TEXT runtime·sigprocmask(SB),7,$0
+ 	MOVL	AX, oset+0(FP)		// Return oset
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),7,$64
++TEXT runtime·sigtramp(SB),NOSPLIT,$64
+ 	get_tls(BX)
+ 	
+ 	// check that m exists
+@@ -231,7 +232,7 @@ TEXT runtime·sigtramp(SB),7,$64
+ 	MOVQ	R10, g(BX)
+ 	RET
+ 
+-TEXT runtime·mmap(SB),7,$0
++TEXT runtime·mmap(SB),NOSPLIT,$0
+ 	MOVQ	8(SP), DI		// arg 1 - addr
+ 	MOVQ	16(SP), SI		// arg 2 - len
+ 	MOVL	24(SP), DX		// arg 3 - prot
+@@ -246,7 +247,7 @@ TEXT runtime·mmap(SB),7,$0
+ 	ADDQ	$16, SP
+ 	RET
+ 
+-TEXT runtime·munmap(SB),7,$0
++TEXT runtime·munmap(SB),NOSPLIT,$0
+ 	MOVQ	8(SP), DI		// arg 1 - addr
+ 	MOVQ	16(SP), SI		// arg 2 - len
+ 	MOVL	$73, AX			// sys_munmap
+@@ -255,7 +256,7 @@ TEXT runtime·munmap(SB),7,$0
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-TEXT runtime·madvise(SB),7,$0
++TEXT runtime·madvise(SB),NOSPLIT,$0
+ 	MOVQ	addr+0(FP), DI		// arg 1 - addr
+ 	MOVQ	len+8(FP), SI		// arg 2 - len
+ 	MOVQ	behav+16(FP), DX	// arg 3 - behav
+@@ -264,7 +265,7 @@ TEXT runtime·madvise(SB),7,$0
+ 	// ignore failure - maybe pages are locked
+ 	RET
+ 
+-TEXT runtime·sigaltstack(SB),7,$-8
++TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+ 	MOVQ	new+8(SP), DI		// arg 1 - nss
+ 	MOVQ	old+16(SP), SI		// arg 2 - oss
+ 	MOVQ	$288, AX		// sys_sigaltstack
+@@ -274,7 +275,7 @@ TEXT runtime·sigaltstack(SB),7,$-8
+ 	RET
+ 
+ // set tls base to DI
+-TEXT runtime·settls(SB),7,$0
++TEXT runtime·settls(SB),NOSPLIT,$0
+ 	// adjust for ELF: wants to use -16(FS) and -8(FS) for g and m
+ 	ADDQ	$16, DI
+ 	MOVQ	$329, AX		// sys___settcb
+@@ -283,7 +284,7 @@ TEXT runtime·settls(SB),7,$0
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-TEXT runtime·sysctl(SB),7,$0
++TEXT runtime·sysctl(SB),NOSPLIT,$0
+ 	MOVQ	8(SP), DI		// arg 1 - name
+ 	MOVL	16(SP), SI		// arg 2 - namelen
+ 	MOVQ	24(SP), DX		// arg 3 - oldp
+@@ -299,7 +300,7 @@ TEXT runtime·sysctl(SB),7,$0
+ 	RET
+ 
+ // int32 runtime·kqueue(void);
+-TEXT runtime·kqueue(SB),7,$0
++TEXT runtime·kqueue(SB),NOSPLIT,$0
+ 	MOVQ	$0, DI
+ 	MOVQ	$0, SI
+ 	MOVQ	$0, DX
+@@ -310,7 +311,7 @@ TEXT runtime·kqueue(SB),7,$0
+ 	RET
+ 
+ // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
+-TEXT runtime·kevent(SB),7,$0
++TEXT runtime·kevent(SB),NOSPLIT,$0
+ 	MOVL	8(SP), DI
+ 	MOVQ	16(SP), SI
+ 	MOVL	24(SP), DX
+@@ -324,7 +325,7 @@ TEXT runtime·kevent(SB),7,$0
+ 	RET
+ 
+ // void runtime·closeonexec(int32 fd);
+-TEXT runtime·closeonexec(SB),7,$0
++TEXT runtime·closeonexec(SB),NOSPLIT,$0
+ 	MOVL	8(SP), DI	// fd
+ 	MOVQ	$2, SI		// F_SETFD
+ 	MOVQ	$1, DX		// FD_CLOEXEC
+diff --git a/src/pkg/runtime/sys_plan9_386.s b/src/pkg/runtime/sys_plan9_386.s
+index e8fd836169..bed0f7ebe0 100644
+--- a/src/pkg/runtime/sys_plan9_386.s
++++ b/src/pkg/runtime/sys_plan9_386.s
+@@ -3,27 +3,28 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "zasm_GOOS_GOARCH.h"
++#include "../../cmd/ld/textflag.h"
+ 
+ // setldt(int entry, int address, int limit)
+-TEXT runtime·setldt(SB),7,$0
++TEXT runtime·setldt(SB),NOSPLIT,$0
+ 	RET
+ 
+-TEXT runtime·open(SB),7,$0
++TEXT runtime·open(SB),NOSPLIT,$0
+ 	MOVL    $14, AX
+ 	INT     $64
+ 	RET
+ 
+-TEXT runtime·pread(SB),7,$0
++TEXT runtime·pread(SB),NOSPLIT,$0
+ 	MOVL    $50, AX
+ 	INT     $64
+ 	RET
+ 
+-TEXT runtime·pwrite(SB),7,$0
++TEXT runtime·pwrite(SB),NOSPLIT,$0
+ 	MOVL    $51, AX
+ 	INT     $64
+ 	RET
+ 
+-TEXT runtime·seek(SB),7,$0
++TEXT runtime·seek(SB),NOSPLIT,$0
+ 	MOVL	$39, AX
+ 	INT	$64
+ 	CMPL	AX, $-1
+@@ -33,52 +34,52 @@ TEXT runtime·seek(SB),7,$0
+ 	MOVL	AX, 4(CX)
+ 	RET
+ 
+-TEXT runtime·close(SB),7,$0
++TEXT runtime·close(SB),NOSPLIT,$0
+ 	MOVL	$4, AX
+ 	INT	$64
+ 	RET
+ 
+-TEXT runtime·exits(SB),7,$0
++TEXT runtime·exits(SB),NOSPLIT,$0
+ 	MOVL    $8, AX
+ 	INT     $64
+ 	RET
+ 
+-TEXT runtime·brk_(SB),7,$0
++TEXT runtime·brk_(SB),NOSPLIT,$0
+ 	MOVL    $24, AX
+ 	INT     $64
+ 	RET
+ 
+-TEXT runtime·sleep(SB),7,$0
++TEXT runtime·sleep(SB),NOSPLIT,$0
+ 	MOVL    $17, AX
+ 	INT     $64
+ 	RET
+ 
+-TEXT runtime·plan9_semacquire(SB),7,$0
++TEXT runtime·plan9_semacquire(SB),NOSPLIT,$0
+ 	MOVL	$37, AX
+ 	INT	$64
+ 	RET
+ 
+-TEXT runtime·plan9_tsemacquire(SB),7,$0
++TEXT runtime·plan9_tsemacquire(SB),NOSPLIT,$0
+ 	MOVL	$52, AX
+ 	INT	$64
+ 	RET
+ 
+-TEXT runtime·notify(SB),7,$0
++TEXT runtime·notify(SB),NOSPLIT,$0
+ 	MOVL	$28, AX
+ 	INT	$64
+ 	RET
+ 
+-TEXT runtime·noted(SB),7,$0
++TEXT runtime·noted(SB),NOSPLIT,$0
+ 	MOVL	$29, AX
+ 	INT	$64
+ 	RET
+ 	
+-TEXT runtime·plan9_semrelease(SB),7,$0
++TEXT runtime·plan9_semrelease(SB),NOSPLIT,$0
+ 	MOVL	$38, AX
+ 	INT	$64
+ 	RET
+ 	
+-TEXT runtime·rfork(SB),7,$0
++TEXT runtime·rfork(SB),NOSPLIT,$0
+ 	MOVL    $19, AX // rfork
+ 	INT     $64
+ 
+@@ -120,7 +121,7 @@ TEXT runtime·rfork(SB),7,$0
+ 	RET
+ 
+ // void sigtramp(void *ureg, int8 *note)
+-TEXT runtime·sigtramp(SB),7,$0
++TEXT runtime·sigtramp(SB),NOSPLIT,$0
+ 	get_tls(AX)
+ 
+ 	// check that m exists
+@@ -168,7 +169,7 @@ TEXT runtime·sigtramp(SB),7,$0
+ 	RET
+ 
+ // Only used by the 64-bit runtime.
+-TEXT runtime·setfpmasks(SB),7,$0
++TEXT runtime·setfpmasks(SB),NOSPLIT,$0
+ 	RET
+ 
+ #define ERRMAX 128	/* from os_plan9.h */
+@@ -179,7 +180,7 @@ TEXT runtime·setfpmasks(SB),7,$0
+ // in entersyscall mode, without going
+ // through the allocator (issue 4994).
+ // See ../syscall/asm_plan9_386.s:/·Syscall/
+-TEXT runtime·errstr(SB),7,$0
++TEXT runtime·errstr(SB),NOSPLIT,$0
+ 	get_tls(AX)
+ 	MOVL	m(AX), BX
+ 	MOVL	m_errstr(BX), CX
+diff --git a/src/pkg/runtime/sys_plan9_amd64.s b/src/pkg/runtime/sys_plan9_amd64.s
+index 140c5e42b3..d6702e865f 100644
+--- a/src/pkg/runtime/sys_plan9_amd64.s
++++ b/src/pkg/runtime/sys_plan9_amd64.s
+@@ -3,38 +3,39 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "zasm_GOOS_GOARCH.h"
++#include "../../cmd/ld/textflag.h"
+ 
+ // setldt(int entry, int address, int limit)
+-TEXT runtime·setldt(SB),7,$0
++TEXT runtime·setldt(SB),NOSPLIT,$0
+ 	RET
+ 
+-TEXT runtime·open(SB),7,$0
++TEXT runtime·open(SB),NOSPLIT,$0
+ 	MOVQ	$0x8000, AX
+ 	MOVQ	$14, BP
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·pread(SB),7,$0
++TEXT runtime·pread(SB),NOSPLIT,$0
+ 	MOVQ	$0x8000, AX
+ 	MOVQ	$50, BP
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·pwrite(SB),7,$0
++TEXT runtime·pwrite(SB),NOSPLIT,$0
+ 	MOVQ	$0x8000, AX
+ 	MOVQ	$51, BP
+ 	SYSCALL
+ 	RET
+ 
+ // int32 _seek(int64*, int32, int64, int32)
+-TEXT _seek<>(SB),7,$0
++TEXT _seek<>(SB),NOSPLIT,$0
+ 	MOVQ	$0x8000, AX
+ 	MOVQ	$39, BP
+ 	SYSCALL
+ 	RET
+ 
+ // int64 seek(int32, int64, int32)
+-TEXT runtime·seek(SB),7,$56
++TEXT runtime·seek(SB),NOSPLIT,$56
+ 	LEAQ	new+48(SP), CX
+ 	MOVQ	CX, 0(SP)
+ 	MOVQ	fd+0(FP), CX
+@@ -50,67 +51,67 @@ TEXT runtime·seek(SB),7,$56
+ 	MOVQ	new+48(SP), AX
+ 	RET
+ 
+-TEXT runtime·close(SB),7,$0
++TEXT runtime·close(SB),NOSPLIT,$0
+ 	MOVQ	$0x8000, AX
+ 	MOVQ	$4, BP
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·exits(SB),7,$0
++TEXT runtime·exits(SB),NOSPLIT,$0
+ 	MOVQ	$0x8000, AX
+ 	MOVQ	$8, BP
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·brk_(SB),7,$0
++TEXT runtime·brk_(SB),NOSPLIT,$0
+ 	MOVQ	$0x8000, AX
+ 	MOVQ	$24, BP
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·sleep(SB),7,$0
++TEXT runtime·sleep(SB),NOSPLIT,$0
+ 	MOVQ	$0x8000, AX
+ 	MOVQ	$17, BP
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·plan9_semacquire(SB),7,$0
++TEXT runtime·plan9_semacquire(SB),NOSPLIT,$0
+ 	MOVQ	$0x8000, AX
+ 	MOVQ	$37, BP
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·plan9_tsemacquire(SB),7,$0
++TEXT runtime·plan9_tsemacquire(SB),NOSPLIT,$0
+ 	MOVQ	$0x8000, AX
+ 	MOVQ	$52, BP
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·notify(SB),7,$0
++TEXT runtime·notify(SB),NOSPLIT,$0
+ 	MOVQ	$0x8000, AX
+ 	MOVQ	$28, BP
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·noted(SB),7,$0
++TEXT runtime·noted(SB),NOSPLIT,$0
+ 	MOVQ	$0x8000, AX
+ 	MOVQ	$29, BP
+ 	SYSCALL
+ 	RET
+ 	
+-TEXT runtime·plan9_semrelease(SB),7,$0
++TEXT runtime·plan9_semrelease(SB),NOSPLIT,$0
+ 	MOVQ	$0x8000, AX
+ 	MOVQ	$38, BP
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·nanotime(SB),7,$0
++TEXT runtime·nanotime(SB),NOSPLIT,$0
+ 	MOVQ	$0x8000, AX
+ 	MOVQ	$60, BP
+ 	SYSCALL
+ 	RET
+ 
+-TEXT runtime·rfork(SB),7,$0
++TEXT runtime·rfork(SB),NOSPLIT,$0
+ 	MOVQ	$0x8000, AX
+ 	MOVQ	$19, BP // rfork
+ 	SYSCALL
+@@ -148,11 +149,11 @@ TEXT runtime·rfork(SB),7,$0
+ 	RET
+ 
+ // This is needed by asm_amd64.s
+-TEXT runtime·settls(SB),7,$0
++TEXT runtime·settls(SB),NOSPLIT,$0
+ 	RET
+ 
+ // void sigtramp(void *ureg, int8 *note)
+-TEXT runtime·sigtramp(SB),7,$0
++TEXT runtime·sigtramp(SB),NOSPLIT,$0
+ 	get_tls(AX)
+ 
+ 	// check that m exists
+@@ -198,7 +199,7 @@ TEXT runtime·sigtramp(SB),7,$0
+ 	CALL	runtime·noted(SB)
+ 	RET
+ 
+-TEXT runtime·setfpmasks(SB),7,$8
++TEXT runtime·setfpmasks(SB),NOSPLIT,$8
+ 	STMXCSR	0(SP)
+ 	MOVL	0(SP), AX
+ 	ANDL	$~0x3F, AX
+@@ -215,7 +216,7 @@ TEXT runtime·setfpmasks(SB),7,$8
+ // in entersyscall mode, without going
+ // through the allocator (issue 4994).
+ // See ../syscall/asm_plan9_386.s:/·Syscall/
+-TEXT runtime·errstr(SB),7,$0
++TEXT runtime·errstr(SB),NOSPLIT,$0
+ 	get_tls(AX)
+ 	MOVQ	m(AX), BX
+ 	MOVQ	m_errstr(BX), CX
+diff --git a/src/pkg/runtime/sys_windows_386.s b/src/pkg/runtime/sys_windows_386.s
+index d6f1259818..20753638e2 100644
+--- a/src/pkg/runtime/sys_windows_386.s
++++ b/src/pkg/runtime/sys_windows_386.s
+@@ -3,9 +3,10 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "zasm_GOOS_GOARCH.h"
++#include "../../cmd/ld/textflag.h"
+ 
+ // void runtime·asmstdcall(void *c);
+-TEXT runtime·asmstdcall(SB),7,$0
++TEXT runtime·asmstdcall(SB),NOSPLIT,$0
+ 	MOVL	c+0(FP), BX
+ 
+ 	// SetLastError(0).
+@@ -38,7 +39,7 @@ TEXT runtime·asmstdcall(SB),7,$0
+ 
+ 	RET
+ 
+-TEXT	runtime·badsignal2(SB),7,$24
++TEXT	runtime·badsignal2(SB),NOSPLIT,$24
+ 	// stderr
+ 	MOVL	$-12, 0(SP)
+ 	MOVL	SP, BP
+@@ -59,16 +60,16 @@ TEXT	runtime·badsignal2(SB),7,$24
+ 	RET
+ 
+ // faster get/set last error
+-TEXT runtime·getlasterror(SB),7,$0
++TEXT runtime·getlasterror(SB),NOSPLIT,$0
+ 	MOVL	0x34(FS), AX
+ 	RET
+ 
+-TEXT runtime·setlasterror(SB),7,$0
++TEXT runtime·setlasterror(SB),NOSPLIT,$0
+ 	MOVL	err+0(FP), AX
+ 	MOVL	AX, 0x34(FS)
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),7,$28
++TEXT runtime·sigtramp(SB),NOSPLIT,$28
+ 	// unwinding?
+ 	MOVL	info+0(FP), CX
+ 	TESTL	$6, 4(CX)		// exception flags
+@@ -106,21 +107,21 @@ TEXT runtime·sigtramp(SB),7,$28
+ sigdone:
+ 	RET
+ 
+-TEXT runtime·ctrlhandler(SB),7,$0
++TEXT runtime·ctrlhandler(SB),NOSPLIT,$0
+ 	PUSHL	$runtime·ctrlhandler1(SB)
+ 	CALL	runtime·externalthreadhandler(SB)
+ 	MOVL	4(SP), CX
+ 	ADDL	$12, SP
+ 	JMP	CX
+ 
+-TEXT runtime·profileloop(SB),7,$0
++TEXT runtime·profileloop(SB),NOSPLIT,$0
+ 	PUSHL	$runtime·profileloop1(SB)
+ 	CALL	runtime·externalthreadhandler(SB)
+ 	MOVL	4(SP), CX
+ 	ADDL	$12, SP
+ 	JMP	CX
+ 
+-TEXT runtime·externalthreadhandler(SB),7,$0
++TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
+ 	PUSHL	BP
+ 	MOVL	SP, BP
+ 	PUSHL	BX
+@@ -166,7 +167,7 @@ TEXT runtime·externalthreadhandler(SB),7,$0
+ 
+ GLOBL runtime·cbctxts(SB), $4
+ 
+-TEXT runtime·callbackasm1+0(SB),7,$0
++TEXT runtime·callbackasm1+0(SB),NOSPLIT,$0
+   	MOVL	0(SP), AX	// will use to find our callback context
+ 
+ 	// remove return address from stack, we are not returning there
+@@ -251,7 +252,7 @@ TEXT runtime·callbackasm1+0(SB),7,$0
+ 	RET
+ 
+ // void tstart(M *newm);
+-TEXT runtime·tstart(SB),7,$0
++TEXT runtime·tstart(SB),NOSPLIT,$0
+ 	MOVL	newm+4(SP), CX		// m
+ 	MOVL	m_g0(CX), DX		// g
+ 
+@@ -276,7 +277,7 @@ TEXT runtime·tstart(SB),7,$0
+ 	RET
+ 
+ // uint32 tstart_stdcall(M *newm);
+-TEXT runtime·tstart_stdcall(SB),7,$0
++TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
+ 	MOVL	newm+4(SP), BX
+ 
+ 	PUSHL	BX
+@@ -293,13 +294,13 @@ TEXT runtime·tstart_stdcall(SB),7,$0
+ 	RET
+ 
+ // setldt(int entry, int address, int limit)
+-TEXT runtime·setldt(SB),7,$0
++TEXT runtime·setldt(SB),NOSPLIT,$0
+ 	MOVL	address+4(FP), CX
+ 	MOVL	CX, 0x14(FS)
+ 	RET
+ 
+ // void install_exception_handler()
+-TEXT runtime·install_exception_handler(SB),7,$0
++TEXT runtime·install_exception_handler(SB),NOSPLIT,$0
+ 	get_tls(CX)
+ 	MOVL	m(CX), CX		// m
+ 
+@@ -316,7 +317,7 @@ TEXT runtime·install_exception_handler(SB),7,$0
+ 	RET
+ 
+ // void remove_exception_handler()
+-TEXT runtime·remove_exception_handler(SB),7,$0
++TEXT runtime·remove_exception_handler(SB),NOSPLIT,$0
+ 	get_tls(CX)
+ 	MOVL	m(CX), CX		// m
+ 
+@@ -328,7 +329,7 @@ TEXT runtime·remove_exception_handler(SB),7,$0
+ 	RET
+ 
+ // Sleep duration is in 100ns units.
+-TEXT runtime·usleep1(SB),7,$0
++TEXT runtime·usleep1(SB),NOSPLIT,$0
+ 	MOVL	duration+0(FP), BX
+ 	MOVL	$runtime·usleep2(SB), AX // to hide from 8l
+ 
+@@ -358,7 +359,7 @@ TEXT runtime·usleep1(SB),7,$0
+ 	RET
+ 
+ // Runs on OS stack. duration (in 100ns units) is in BX.
+-TEXT runtime·usleep2(SB),7,$20
++TEXT runtime·usleep2(SB),NOSPLIT,$20
+ 	// Want negative 100ns units.
+ 	NEGL	BX
+ 	MOVL	$-1, hi-4(SP)
+diff --git a/src/pkg/runtime/sys_windows_amd64.s b/src/pkg/runtime/sys_windows_amd64.s
+index a8953d5390..8c4caf8671 100644
+--- a/src/pkg/runtime/sys_windows_amd64.s
++++ b/src/pkg/runtime/sys_windows_amd64.s
+@@ -3,13 +3,14 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "zasm_GOOS_GOARCH.h"
++#include "../../cmd/ld/textflag.h"
+ 
+ // maxargs should be divisible by 2, as Windows stack
+ // must be kept 16-byte aligned on syscall entry.
+ #define maxargs 16
+ 
+ // void runtime·asmstdcall(void *c);
+-TEXT runtime·asmstdcall(SB),7,$0
++TEXT runtime·asmstdcall(SB),NOSPLIT,$0
+ 	// asmcgocall will put first argument into CX.
+ 	PUSHQ	CX			// save for later
+ 	MOVQ	wincall_fn(CX), AX
+@@ -60,7 +61,7 @@ loadregs:
+ 
+ 	RET
+ 
+-TEXT runtime·badsignal2(SB),7,$48
++TEXT runtime·badsignal2(SB),NOSPLIT,$48
+ 	// stderr
+ 	MOVQ	$-12, CX // stderr
+ 	MOVQ	CX, 0(SP)
+@@ -83,18 +84,18 @@ TEXT runtime·badsignal2(SB),7,$48
+ 	RET
+ 
+ // faster get/set last error
+-TEXT runtime·getlasterror(SB),7,$0
++TEXT runtime·getlasterror(SB),NOSPLIT,$0
+ 	MOVQ	0x30(GS), AX
+ 	MOVL	0x68(AX), AX
+ 	RET
+ 
+-TEXT runtime·setlasterror(SB),7,$0
++TEXT runtime·setlasterror(SB),NOSPLIT,$0
+ 	MOVL	err+0(FP), AX
+ 	MOVQ	0x30(GS),	CX
+ 	MOVL	AX, 0x68(CX)
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),7,$0
++TEXT runtime·sigtramp(SB),NOSPLIT,$0
+ 	// CX: exception record
+ 	// R8: context
+ 
+@@ -139,20 +140,20 @@ TEXT runtime·sigtramp(SB),7,$0
+ sigdone:
+ 	RET
+ 
+-TEXT runtime·ctrlhandler(SB),7,$8
++TEXT runtime·ctrlhandler(SB),NOSPLIT,$8
+ 	MOVQ	CX, 16(SP)		// spill
+ 	MOVQ	$runtime·ctrlhandler1(SB), CX
+ 	MOVQ	CX, 0(SP)
+ 	CALL	runtime·externalthreadhandler(SB)
+ 	RET
+ 
+-TEXT runtime·profileloop(SB),7,$8
++TEXT runtime·profileloop(SB),NOSPLIT,$8
+ 	MOVQ	$runtime·profileloop1(SB), CX
+ 	MOVQ	CX, 0(SP)
+ 	CALL	runtime·externalthreadhandler(SB)
+ 	RET
+ 
+-TEXT runtime·externalthreadhandler(SB),7,$0
++TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	PUSHQ	BX
+@@ -198,7 +199,7 @@ TEXT runtime·externalthreadhandler(SB),7,$0
+ 
+ GLOBL runtime·cbctxts(SB), $8
+ 
+-TEXT runtime·callbackasm1(SB),7,$0
++TEXT runtime·callbackasm1(SB),NOSPLIT,$0
+ 	// Construct args vector for cgocallback().
+ 	// By windows/amd64 calling convention first 4 args are in CX, DX, R8, R9
+ 	// args from the 5th on are on the stack.
+@@ -276,7 +277,7 @@ TEXT runtime·callbackasm1(SB),7,$0
+ 	POPQ	-8(CX)(DX*1)      // restore bytes just after the args
+ 	RET
+ 
+-TEXT runtime·setstacklimits(SB),7,$0
++TEXT runtime·setstacklimits(SB),NOSPLIT,$0
+ 	MOVQ	0x30(GS), CX
+ 	MOVQ	$0, 0x10(CX)
+ 	MOVQ	$0xffffffffffff, AX
+@@ -284,7 +285,7 @@ TEXT runtime·setstacklimits(SB),7,$0
+ 	RET
+ 
+ // uint32 tstart_stdcall(M *newm);
+-TEXT runtime·tstart_stdcall(SB),7,$0
++TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
+ 	// CX contains first arg newm
+ 	MOVQ	m_g0(CX), DX		// g
+ 
+@@ -310,20 +311,20 @@ TEXT runtime·tstart_stdcall(SB),7,$0
+ 	RET
+ 
+ // set tls base to DI
+-TEXT runtime·settls(SB),7,$0
++TEXT runtime·settls(SB),NOSPLIT,$0
+ 	MOVQ	DI, 0x28(GS)
+ 	RET
+ 
+ // void install_exception_handler()
+-TEXT runtime·install_exception_handler(SB),7,$0
++TEXT runtime·install_exception_handler(SB),NOSPLIT,$0
+ 	CALL	runtime·setstacklimits(SB)
+ 	RET
+ 
+-TEXT runtime·remove_exception_handler(SB),7,$0
++TEXT runtime·remove_exception_handler(SB),NOSPLIT,$0
+ 	RET
+ 
+ // Sleep duration is in 100ns units.
+-TEXT runtime·usleep1(SB),7,$0
++TEXT runtime·usleep1(SB),NOSPLIT,$0
+ 	MOVL	duration+0(FP), BX
+ 	MOVQ	$runtime·usleep2(SB), AX // to hide from 6l
+ 
+@@ -353,7 +354,7 @@ TEXT runtime·usleep1(SB),7,$0
+ 	RET
+ 
+ // Runs on OS stack. duration (in 100ns units) is in BX.
+-TEXT runtime·usleep2(SB),7,$8
++TEXT runtime·usleep2(SB),NOSPLIT,$8
+ 	// Want negative 100ns units.
+ 	NEGQ	BX
+ 	MOVQ	SP, R8 // ptime
+diff --git a/src/pkg/runtime/vlop_386.s b/src/pkg/runtime/vlop_386.s
+index 28f6da82dd..edc659b848 100644
+--- a/src/pkg/runtime/vlop_386.s
++++ b/src/pkg/runtime/vlop_386.s
+@@ -23,11 +23,13 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include "../../cmd/ld/textflag.h"
++
+ /*
+  * C runtime for 64-bit divide.
+  */
+ 
+-TEXT _mul64by32(SB), 7, $0
++TEXT _mul64by32(SB), NOSPLIT, $0
+ 	MOVL	r+0(FP), CX
+ 	MOVL	a+4(FP), AX
+ 	MULL	b+12(FP)
+@@ -39,7 +41,7 @@ TEXT _mul64by32(SB), 7, $0
+ 	MOVL	BX, 4(CX)
+ 	RET
+ 
+-TEXT _div64by32(SB), 7, $0
++TEXT _div64by32(SB), NOSPLIT, $0
+ 	MOVL	r+12(FP), CX
+ 	MOVL	a+0(FP), AX
+ 	MOVL	a+4(FP), DX
+diff --git a/src/pkg/runtime/vlop_arm.s b/src/pkg/runtime/vlop_arm.s
+index e58cee446a..2437cb5d2b 100644
+--- a/src/pkg/runtime/vlop_arm.s
++++ b/src/pkg/runtime/vlop_arm.s
+@@ -24,12 +24,13 @@
+ // THE SOFTWARE.
+ 
+ #include "zasm_GOOS_GOARCH.h"
++#include "../../cmd/ld/textflag.h"
+ 
+ arg=0
+ 
+ /* replaced use of R10 by R11 because the former can be the data segment base register */
+ 
+-TEXT _mulv(SB), 7, $0
++TEXT _mulv(SB), NOSPLIT, $0
+ 	MOVW	0(FP), R0
+ 	MOVW	4(FP), R2	/* l0 */
+ 	MOVW	8(FP), R11	/* h0 */
+@@ -47,7 +48,7 @@ TEXT _mulv(SB), 7, $0
+ // trampoline for _sfloat2. passes LR as arg0 and
+ // saves registers R0-R13 and CPSR on the stack. R0-R12 and CPSR flags can
+ // be changed by _sfloat2.
+-TEXT _sfloat(SB), 7, $64-0 // 4 arg + 14*4 saved regs + cpsr
++TEXT _sfloat(SB), NOSPLIT, $64-0 // 4 arg + 14*4 saved regs + cpsr
+ 	MOVW	R14, 4(R13)
+ 	MOVW	R0, 8(R13)
+ 	MOVW	$12(R13), R0
+@@ -106,7 +107,7 @@ a = 11
+ // Please be careful when changing this, it is pretty fragile:
+ // 1, don't use unconditional branch as the linker is free to reorder the blocks;
+ // 2. if a == 11, beware that the linker will use R11 if you use certain instructions.
+-TEXT udiv<>(SB),7,$-4
++TEXT udiv<>(SB),NOSPLIT,$-4
+ 	CLZ 	R(q), R(s) // find normalizing shift
+ 	MOVW.S	R(q)<<R(s), R(a)
+ 	ADD 	R(a)>>25, PC, R(a) // most significant 7 bits of divisor
+@@ -197,7 +198,7 @@ fast_udiv_tab:
+ // expects the result in R(TMP)
+ TMP = 11
+ 
+-TEXT _divu(SB), 7, $16
++TEXT _divu(SB), NOSPLIT, $16
+ 	MOVW	R(q), 4(R13)
+ 	MOVW	R(r), 8(R13)
+ 	MOVW	R(s), 12(R13)
+@@ -213,7 +214,7 @@ TEXT _divu(SB), 7, $16
+ 	MOVW	16(R13), R(M)
+ 	RET
+ 
+-TEXT _modu(SB), 7, $16
++TEXT _modu(SB), NOSPLIT, $16
+ 	MOVW	R(q), 4(R13)
+ 	MOVW	R(r), 8(R13)
+ 	MOVW	R(s), 12(R13)
+@@ -229,7 +230,7 @@ TEXT _modu(SB), 7, $16
+ 	MOVW	16(R13), R(M)
+ 	RET
+ 
+-TEXT _div(SB),7,$16
++TEXT _div(SB),NOSPLIT,$16
+ 	MOVW	R(q), 4(R13)
+ 	MOVW	R(r), 8(R13)
+ 	MOVW	R(s), 12(R13)
+@@ -255,7 +256,7 @@ d2:
+ 	RSB		$0, R(q), R(TMP)
+ 	B   	out
+ 
+-TEXT _mod(SB),7,$16
++TEXT _mod(SB),NOSPLIT,$16
+ 	MOVW	R(q), 4(R13)
+ 	MOVW	R(r), 8(R13)
+ 	MOVW	R(s), 12(R13)

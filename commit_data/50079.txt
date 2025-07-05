@@ -12,6 +12,20 @@ Date:   Sat Jul 10 04:11:22 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/333789
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Trust: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ir/stmt.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ir/stmt.go b/src/cmd/compile/internal/ir/stmt.go
+index 3482d7972e..e7d0d873b7 100644
+--- a/src/cmd/compile/internal/ir/stmt.go
++++ b/src/cmd/compile/internal/ir/stmt.go
+@@ -338,7 +338,7 @@ type SelectStmt struct {
+ 	HasBreak bool
+ 
+ 	// TODO(rsc): Instead of recording here, replace with a block?
+-	Compiled Nodes // compiled form, after walkSwitch
++	Compiled Nodes // compiled form, after walkSelect
+ }
+ 
+ func NewSelectStmt(pos src.XPos, cases []*CommClause) *SelectStmt {

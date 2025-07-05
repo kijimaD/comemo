@@ -13,7 +13,88 @@ Date:   Wed Apr 18 22:45:36 2012 +1000
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/6062047
-
+---
  src/pkg/exp/html/parse.go                 | 31 +++++++++++++------------------
  src/pkg/exp/html/testlogs/tests19.dat.log |  2 +-
  2 files changed, 14 insertions(+), 19 deletions(-)
+
+diff --git a/src/pkg/exp/html/parse.go b/src/pkg/exp/html/parse.go
+index 6e433785fd..1a6bc2eebd 100644
+--- a/src/pkg/exp/html/parse.go
++++ b/src/pkg/exp/html/parse.go
+@@ -446,37 +446,30 @@ func beforeHTMLIM(p *parser) bool {
+ 
+ // Section 12.2.5.4.3.
+ func beforeHeadIM(p *parser) bool {
+-	var (
+-		add     bool
+-		attr    []Attribute
+-		implied bool
+-	)
+ 	switch p.tok.Type {
+-	case ErrorToken:
+-		implied = true
+ 	case TextToken:
+ 		p.tok.Data = strings.TrimLeft(p.tok.Data, whitespace)
+ 		if len(p.tok.Data) == 0 {
+ 			// It was all whitespace, so ignore it.
+ 			return true
+ 		}
+-		implied = true
+ 	case StartTagToken:
+ 		switch p.tok.Data {
+ 		case "head":
+-			add = true
+-			attr = p.tok.Attr
++			p.addElement(p.tok.Data, p.tok.Attr)
++			p.head = p.top()
++			p.im = inHeadIM
++			return true
+ 		case "html":
+ 			return inBodyIM(p)
+-		default:
+-			implied = true
+ 		}
+ 	case EndTagToken:
+ 		switch p.tok.Data {
+ 		case "head", "body", "html", "br":
+-			implied = true
++			// Drop down to adding an implied <head> tag.
+ 		default:
+ 			// Ignore the token.
++			return true
+ 		}
+ 	case CommentToken:
+ 		p.addChild(&Node{
+@@ -484,13 +477,15 @@ func beforeHeadIM(p *parser) bool {
+ 			Data: p.tok.Data,
+ 		})
+ 		return true
++	case DoctypeToken:
++		// Ignore the token.
++		return true
+ 	}
+-	if add || implied {
+-		p.addElement("head", attr)
+-		p.head = p.top()
+-	}
++
++	p.addElement("head", nil)
++	p.head = p.top()
+ 	p.im = inHeadIM
+-	return !implied
++	return false
+ }
+ 
+ // Section 12.2.5.4.4.
+diff --git a/src/pkg/exp/html/testlogs/tests19.dat.log b/src/pkg/exp/html/testlogs/tests19.dat.log
+index c3186d307e..45269a870a 100644
+--- a/src/pkg/exp/html/testlogs/tests19.dat.log
++++ b/src/pkg/exp/html/testlogs/tests19.dat.log
+@@ -1,5 +1,5 @@
+ FAIL "<!doctype html><math><mn DefinitionUrl=\"foo\">"
+-FAIL "<!doctype html><html></p><!--foo-->"
++PASS "<!doctype html><html></p><!--foo-->"
+ PASS "<!doctype html><head></head></p><!--foo-->"
+ FAIL "<!doctype html><body><p><pre>"
+ FAIL "<!doctype html><body><p><listing>"

@@ -35,9 +35,798 @@ Date:   Sun Dec 6 15:36:58 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/275784
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/expr.go     | 80 +++++++++++++++---------------
  src/cmd/compile/internal/ir/func.go     | 12 ++---
  src/cmd/compile/internal/ir/node_gen.go | 86 ++++++++++++++++-----------------
  src/cmd/compile/internal/ir/stmt.go     | 78 +++++++++++++++---------------
  4 files changed, 128 insertions(+), 128 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 7165a06b25..a74e0712b9 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -91,20 +91,20 @@ func toNtype(x Node) Ntype {
+ // An AddStringExpr is a string concatenation Expr[0] + Exprs[1] + ... + Expr[len(Expr)-1].
+ type AddStringExpr struct {
+ 	miniExpr
+-	list Nodes
++	List_ Nodes
+ }
+ 
+ func NewAddStringExpr(pos src.XPos, list []Node) *AddStringExpr {
+ 	n := &AddStringExpr{}
+ 	n.pos = pos
+ 	n.op = OADDSTR
+-	n.list.Set(list)
++	n.List_.Set(list)
+ 	return n
+ }
+ 
+-func (n *AddStringExpr) List() Nodes     { return n.list }
+-func (n *AddStringExpr) PtrList() *Nodes { return &n.list }
+-func (n *AddStringExpr) SetList(x Nodes) { n.list = x }
++func (n *AddStringExpr) List() Nodes     { return n.List_ }
++func (n *AddStringExpr) PtrList() *Nodes { return &n.List_ }
++func (n *AddStringExpr) SetList(x Nodes) { n.List_ = x }
+ 
+ // An AddrExpr is an address-of expression &X.
+ // It may end up being a normal address-of or an allocation of a composite literal.
+@@ -185,7 +185,7 @@ type CallExpr struct {
+ 	X        Node
+ 	Args     Nodes
+ 	Rargs    Nodes // TODO(rsc): Delete.
+-	body     Nodes // TODO(rsc): Delete.
++	Body_    Nodes // TODO(rsc): Delete.
+ 	DDD      bool
+ 	Use      CallUse
+ 	noInline bool
+@@ -216,9 +216,9 @@ func (n *CallExpr) IsDDD() bool        { return n.DDD }
+ func (n *CallExpr) SetIsDDD(x bool)    { n.DDD = x }
+ func (n *CallExpr) NoInline() bool     { return n.noInline }
+ func (n *CallExpr) SetNoInline(x bool) { n.noInline = x }
+-func (n *CallExpr) Body() Nodes        { return n.body }
+-func (n *CallExpr) PtrBody() *Nodes    { return &n.body }
+-func (n *CallExpr) SetBody(x Nodes)    { n.body = x }
++func (n *CallExpr) Body() Nodes        { return n.Body_ }
++func (n *CallExpr) PtrBody() *Nodes    { return &n.Body_ }
++func (n *CallExpr) SetBody(x Nodes)    { n.Body_ = x }
+ 
+ func (n *CallExpr) SetOp(op Op) {
+ 	switch op {
+@@ -255,17 +255,17 @@ func (n *CallPartExpr) SetLeft(x Node)  { n.X = x }
+ // A ClosureExpr is a function literal expression.
+ type ClosureExpr struct {
+ 	miniExpr
+-	fn *Func
++	Func_ *Func
+ }
+ 
+ func NewClosureExpr(pos src.XPos, fn *Func) *ClosureExpr {
+-	n := &ClosureExpr{fn: fn}
++	n := &ClosureExpr{Func_: fn}
+ 	n.op = OCLOSURE
+ 	n.pos = pos
+ 	return n
+ }
+ 
+-func (n *ClosureExpr) Func() *Func { return n.fn }
++func (n *ClosureExpr) Func() *Func { return n.Func_ }
+ 
+ // A ClosureRead denotes reading a variable stored within a closure struct.
+ type ClosureRead struct {
+@@ -289,14 +289,14 @@ type CompLitExpr struct {
+ 	miniExpr
+ 	orig  Node
+ 	Ntype Ntype
+-	list  Nodes // initialized values
++	List_ Nodes // initialized values
+ }
+ 
+ func NewCompLitExpr(pos src.XPos, typ Ntype, list []Node) *CompLitExpr {
+ 	n := &CompLitExpr{Ntype: typ}
+ 	n.pos = pos
+ 	n.op = OCOMPLIT
+-	n.list.Set(list)
++	n.List_.Set(list)
+ 	n.orig = n
+ 	return n
+ }
+@@ -305,9 +305,9 @@ func (n *CompLitExpr) Orig() Node      { return n.orig }
+ func (n *CompLitExpr) SetOrig(x Node)  { n.orig = x }
+ func (n *CompLitExpr) Right() Node     { return n.Ntype }
+ func (n *CompLitExpr) SetRight(x Node) { n.Ntype = toNtype(x) }
+-func (n *CompLitExpr) List() Nodes     { return n.list }
+-func (n *CompLitExpr) PtrList() *Nodes { return &n.list }
+-func (n *CompLitExpr) SetList(x Nodes) { n.list = x }
++func (n *CompLitExpr) List() Nodes     { return n.List_ }
++func (n *CompLitExpr) PtrList() *Nodes { return &n.List_ }
++func (n *CompLitExpr) SetList(x Nodes) { n.List_ = x }
+ 
+ func (n *CompLitExpr) SetOp(op Op) {
+ 	switch op {
+@@ -436,7 +436,7 @@ func (n *KeyExpr) SetOp(op Op) {
+ // An InlinedCallExpr is an inlined function call.
+ type InlinedCallExpr struct {
+ 	miniExpr
+-	body       Nodes
++	Body_      Nodes
+ 	ReturnVars Nodes
+ }
+ 
+@@ -444,14 +444,14 @@ func NewInlinedCallExpr(pos src.XPos, body, retvars []Node) *InlinedCallExpr {
+ 	n := &InlinedCallExpr{}
+ 	n.pos = pos
+ 	n.op = OINLCALL
+-	n.body.Set(body)
++	n.Body_.Set(body)
+ 	n.ReturnVars.Set(retvars)
+ 	return n
+ }
+ 
+-func (n *InlinedCallExpr) Body() Nodes      { return n.body }
+-func (n *InlinedCallExpr) PtrBody() *Nodes  { return &n.body }
+-func (n *InlinedCallExpr) SetBody(x Nodes)  { n.body = x }
++func (n *InlinedCallExpr) Body() Nodes      { return n.Body_ }
++func (n *InlinedCallExpr) PtrBody() *Nodes  { return &n.Body_ }
++func (n *InlinedCallExpr) SetBody(x Nodes)  { n.Body_ = x }
+ func (n *InlinedCallExpr) Rlist() Nodes     { return n.ReturnVars }
+ func (n *InlinedCallExpr) PtrRlist() *Nodes { return &n.ReturnVars }
+ func (n *InlinedCallExpr) SetRlist(x Nodes) { n.ReturnVars = x }
+@@ -617,8 +617,8 @@ func (*SelectorExpr) CanBeNtype() {}
+ // A SliceExpr is a slice expression X[Low:High] or X[Low:High:Max].
+ type SliceExpr struct {
+ 	miniExpr
+-	X    Node
+-	list Nodes // TODO(rsc): Use separate Nodes
++	X     Node
++	List_ Nodes // TODO(rsc): Use separate Nodes
+ }
+ 
+ func NewSliceExpr(pos src.XPos, op Op, x Node) *SliceExpr {
+@@ -630,9 +630,9 @@ func NewSliceExpr(pos src.XPos, op Op, x Node) *SliceExpr {
+ 
+ func (n *SliceExpr) Left() Node      { return n.X }
+ func (n *SliceExpr) SetLeft(x Node)  { n.X = x }
+-func (n *SliceExpr) List() Nodes     { return n.list }
+-func (n *SliceExpr) PtrList() *Nodes { return &n.list }
+-func (n *SliceExpr) SetList(x Nodes) { n.list = x }
++func (n *SliceExpr) List() Nodes     { return n.List_ }
++func (n *SliceExpr) PtrList() *Nodes { return &n.List_ }
++func (n *SliceExpr) SetList(x Nodes) { n.List_ = x }
+ 
+ func (n *SliceExpr) SetOp(op Op) {
+ 	switch op {
+@@ -646,16 +646,16 @@ func (n *SliceExpr) SetOp(op Op) {
+ // SliceBounds returns n's slice bounds: low, high, and max in expr[low:high:max].
+ // n must be a slice expression. max is nil if n is a simple slice expression.
+ func (n *SliceExpr) SliceBounds() (low, high, max Node) {
+-	if n.list.Len() == 0 {
++	if n.List_.Len() == 0 {
+ 		return nil, nil, nil
+ 	}
+ 
+ 	switch n.Op() {
+ 	case OSLICE, OSLICEARR, OSLICESTR:
+-		s := n.list.Slice()
++		s := n.List_.Slice()
+ 		return s[0], s[1], nil
+ 	case OSLICE3, OSLICE3ARR:
+-		s := n.list.Slice()
++		s := n.List_.Slice()
+ 		return s[0], s[1], s[2]
+ 	}
+ 	base.Fatalf("SliceBounds op %v: %v", n.Op(), n)
+@@ -670,24 +670,24 @@ func (n *SliceExpr) SetSliceBounds(low, high, max Node) {
+ 		if max != nil {
+ 			base.Fatalf("SetSliceBounds %v given three bounds", n.Op())
+ 		}
+-		s := n.list.Slice()
++		s := n.List_.Slice()
+ 		if s == nil {
+ 			if low == nil && high == nil {
+ 				return
+ 			}
+-			n.list.Set2(low, high)
++			n.List_.Set2(low, high)
+ 			return
+ 		}
+ 		s[0] = low
+ 		s[1] = high
+ 		return
+ 	case OSLICE3, OSLICE3ARR:
+-		s := n.list.Slice()
++		s := n.List_.Slice()
+ 		if s == nil {
+ 			if low == nil && high == nil && max == nil {
+ 				return
+ 			}
+-			n.list.Set3(low, high, max)
++			n.List_.Set3(low, high, max)
+ 			return
+ 		}
+ 		s[0] = low
+@@ -714,8 +714,8 @@ func (o Op) IsSlice3() bool {
+ // A SliceHeader expression constructs a slice header from its parts.
+ type SliceHeaderExpr struct {
+ 	miniExpr
+-	Ptr    Node
+-	lenCap Nodes // TODO(rsc): Split into two Node fields
++	Ptr     Node
++	LenCap_ Nodes // TODO(rsc): Split into two Node fields
+ }
+ 
+ func NewSliceHeaderExpr(pos src.XPos, typ *types.Type, ptr, len, cap Node) *SliceHeaderExpr {
+@@ -723,15 +723,15 @@ func NewSliceHeaderExpr(pos src.XPos, typ *types.Type, ptr, len, cap Node) *Slic
+ 	n.pos = pos
+ 	n.op = OSLICEHEADER
+ 	n.typ = typ
+-	n.lenCap.Set2(len, cap)
++	n.LenCap_.Set2(len, cap)
+ 	return n
+ }
+ 
+ func (n *SliceHeaderExpr) Left() Node      { return n.Ptr }
+ func (n *SliceHeaderExpr) SetLeft(x Node)  { n.Ptr = x }
+-func (n *SliceHeaderExpr) List() Nodes     { return n.lenCap }
+-func (n *SliceHeaderExpr) PtrList() *Nodes { return &n.lenCap }
+-func (n *SliceHeaderExpr) SetList(x Nodes) { n.lenCap = x }
++func (n *SliceHeaderExpr) List() Nodes     { return n.LenCap_ }
++func (n *SliceHeaderExpr) PtrList() *Nodes { return &n.LenCap_ }
++func (n *SliceHeaderExpr) SetList(x Nodes) { n.LenCap_ = x }
+ 
+ // A StarExpr is a dereference expression *X.
+ // It may end up being a value or a type.
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 3bca25b504..8aa6daed6f 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -49,9 +49,9 @@ import (
+ // pointer from the Func back to the OCALLPART.
+ type Func struct {
+ 	miniNode
+-	typ  *types.Type
+-	body Nodes
+-	iota int64
++	typ   *types.Type
++	Body_ Nodes
++	iota  int64
+ 
+ 	Nname    *Name        // ONAME node
+ 	OClosure *ClosureExpr // OCLOSURE node
+@@ -117,9 +117,9 @@ func NewFunc(pos src.XPos) *Func {
+ func (f *Func) isStmt() {}
+ 
+ func (f *Func) Func() *Func           { return f }
+-func (f *Func) Body() Nodes           { return f.body }
+-func (f *Func) PtrBody() *Nodes       { return &f.body }
+-func (f *Func) SetBody(x Nodes)       { f.body = x }
++func (f *Func) Body() Nodes           { return f.Body_ }
++func (f *Func) PtrBody() *Nodes       { return &f.Body_ }
++func (f *Func) SetBody(x Nodes)       { f.Body_ = x }
+ func (f *Func) Type() *types.Type     { return f.typ }
+ func (f *Func) SetType(x *types.Type) { f.typ = x }
+ func (f *Func) Iota() int64           { return f.iota }
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index 4c47a4486e..b3fd89c367 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -9,18 +9,18 @@ func (n *AddStringExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+ func (n *AddStringExpr) copy() Node {
+ 	c := *n
+ 	c.init = c.init.Copy()
+-	c.list = c.list.Copy()
++	c.List_ = c.List_.Copy()
+ 	return &c
+ }
+ func (n *AddStringExpr) doChildren(do func(Node) error) error {
+ 	var err error
+ 	err = maybeDoList(n.init, err, do)
+-	err = maybeDoList(n.list, err, do)
++	err = maybeDoList(n.List_, err, do)
+ 	return err
+ }
+ func (n *AddStringExpr) editChildren(edit func(Node) Node) {
+ 	editList(n.init, edit)
+-	editList(n.list, edit)
++	editList(n.List_, edit)
+ }
+ 
+ func (n *AddrExpr) String() string                { return fmt.Sprint(n) }
+@@ -147,18 +147,18 @@ func (n *BlockStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+ func (n *BlockStmt) copy() Node {
+ 	c := *n
+ 	c.init = c.init.Copy()
+-	c.list = c.list.Copy()
++	c.List_ = c.List_.Copy()
+ 	return &c
+ }
+ func (n *BlockStmt) doChildren(do func(Node) error) error {
+ 	var err error
+ 	err = maybeDoList(n.init, err, do)
+-	err = maybeDoList(n.list, err, do)
++	err = maybeDoList(n.List_, err, do)
+ 	return err
+ }
+ func (n *BlockStmt) editChildren(edit func(Node) Node) {
+ 	editList(n.init, edit)
+-	editList(n.list, edit)
++	editList(n.List_, edit)
+ }
+ 
+ func (n *BranchStmt) String() string                { return fmt.Sprint(n) }
+@@ -184,7 +184,7 @@ func (n *CallExpr) copy() Node {
+ 	c.init = c.init.Copy()
+ 	c.Args = c.Args.Copy()
+ 	c.Rargs = c.Rargs.Copy()
+-	c.body = c.body.Copy()
++	c.Body_ = c.Body_.Copy()
+ 	return &c
+ }
+ func (n *CallExpr) doChildren(do func(Node) error) error {
+@@ -193,7 +193,7 @@ func (n *CallExpr) doChildren(do func(Node) error) error {
+ 	err = maybeDo(n.X, err, do)
+ 	err = maybeDoList(n.Args, err, do)
+ 	err = maybeDoList(n.Rargs, err, do)
+-	err = maybeDoList(n.body, err, do)
++	err = maybeDoList(n.Body_, err, do)
+ 	return err
+ }
+ func (n *CallExpr) editChildren(edit func(Node) Node) {
+@@ -201,7 +201,7 @@ func (n *CallExpr) editChildren(edit func(Node) Node) {
+ 	n.X = maybeEdit(n.X, edit)
+ 	editList(n.Args, edit)
+ 	editList(n.Rargs, edit)
+-	editList(n.body, edit)
++	editList(n.Body_, edit)
+ }
+ 
+ func (n *CallPartExpr) String() string                { return fmt.Sprint(n) }
+@@ -228,25 +228,25 @@ func (n *CaseStmt) copy() Node {
+ 	c := *n
+ 	c.init = c.init.Copy()
+ 	c.Vars = c.Vars.Copy()
+-	c.list = c.list.Copy()
+-	c.body = c.body.Copy()
++	c.List_ = c.List_.Copy()
++	c.Body_ = c.Body_.Copy()
+ 	return &c
+ }
+ func (n *CaseStmt) doChildren(do func(Node) error) error {
+ 	var err error
+ 	err = maybeDoList(n.init, err, do)
+ 	err = maybeDoList(n.Vars, err, do)
+-	err = maybeDoList(n.list, err, do)
++	err = maybeDoList(n.List_, err, do)
+ 	err = maybeDo(n.Comm, err, do)
+-	err = maybeDoList(n.body, err, do)
++	err = maybeDoList(n.Body_, err, do)
+ 	return err
+ }
+ func (n *CaseStmt) editChildren(edit func(Node) Node) {
+ 	editList(n.init, edit)
+ 	editList(n.Vars, edit)
+-	editList(n.list, edit)
++	editList(n.List_, edit)
+ 	n.Comm = maybeEdit(n.Comm, edit)
+-	editList(n.body, edit)
++	editList(n.Body_, edit)
+ }
+ 
+ func (n *ChanType) String() string                { return fmt.Sprint(n) }
+@@ -301,20 +301,20 @@ func (n *CompLitExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+ func (n *CompLitExpr) copy() Node {
+ 	c := *n
+ 	c.init = c.init.Copy()
+-	c.list = c.list.Copy()
++	c.List_ = c.List_.Copy()
+ 	return &c
+ }
+ func (n *CompLitExpr) doChildren(do func(Node) error) error {
+ 	var err error
+ 	err = maybeDoList(n.init, err, do)
+ 	err = maybeDo(n.Ntype, err, do)
+-	err = maybeDoList(n.list, err, do)
++	err = maybeDoList(n.List_, err, do)
+ 	return err
+ }
+ func (n *CompLitExpr) editChildren(edit func(Node) Node) {
+ 	editList(n.init, edit)
+ 	n.Ntype = toNtype(maybeEdit(n.Ntype, edit))
+-	editList(n.list, edit)
++	editList(n.List_, edit)
+ }
+ 
+ func (n *ConstExpr) String() string                { return fmt.Sprint(n) }
+@@ -390,7 +390,7 @@ func (n *ForStmt) copy() Node {
+ 	c := *n
+ 	c.init = c.init.Copy()
+ 	c.Late = c.Late.Copy()
+-	c.body = c.body.Copy()
++	c.Body_ = c.Body_.Copy()
+ 	return &c
+ }
+ func (n *ForStmt) doChildren(do func(Node) error) error {
+@@ -399,7 +399,7 @@ func (n *ForStmt) doChildren(do func(Node) error) error {
+ 	err = maybeDo(n.Cond, err, do)
+ 	err = maybeDoList(n.Late, err, do)
+ 	err = maybeDo(n.Post, err, do)
+-	err = maybeDoList(n.body, err, do)
++	err = maybeDoList(n.Body_, err, do)
+ 	return err
+ }
+ func (n *ForStmt) editChildren(edit func(Node) Node) {
+@@ -407,23 +407,23 @@ func (n *ForStmt) editChildren(edit func(Node) Node) {
+ 	n.Cond = maybeEdit(n.Cond, edit)
+ 	editList(n.Late, edit)
+ 	n.Post = maybeEdit(n.Post, edit)
+-	editList(n.body, edit)
++	editList(n.Body_, edit)
+ }
+ 
+ func (n *Func) String() string                { return fmt.Sprint(n) }
+ func (n *Func) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+ func (n *Func) copy() Node {
+ 	c := *n
+-	c.body = c.body.Copy()
++	c.Body_ = c.Body_.Copy()
+ 	return &c
+ }
+ func (n *Func) doChildren(do func(Node) error) error {
+ 	var err error
+-	err = maybeDoList(n.body, err, do)
++	err = maybeDoList(n.Body_, err, do)
+ 	return err
+ }
+ func (n *Func) editChildren(edit func(Node) Node) {
+-	editList(n.body, edit)
++	editList(n.Body_, edit)
+ }
+ 
+ func (n *FuncType) String() string                { return fmt.Sprint(n) }
+@@ -473,7 +473,7 @@ func (n *IfStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+ func (n *IfStmt) copy() Node {
+ 	c := *n
+ 	c.init = c.init.Copy()
+-	c.body = c.body.Copy()
++	c.Body_ = c.Body_.Copy()
+ 	c.Else = c.Else.Copy()
+ 	return &c
+ }
+@@ -481,14 +481,14 @@ func (n *IfStmt) doChildren(do func(Node) error) error {
+ 	var err error
+ 	err = maybeDoList(n.init, err, do)
+ 	err = maybeDo(n.Cond, err, do)
+-	err = maybeDoList(n.body, err, do)
++	err = maybeDoList(n.Body_, err, do)
+ 	err = maybeDoList(n.Else, err, do)
+ 	return err
+ }
+ func (n *IfStmt) editChildren(edit func(Node) Node) {
+ 	editList(n.init, edit)
+ 	n.Cond = maybeEdit(n.Cond, edit)
+-	editList(n.body, edit)
++	editList(n.Body_, edit)
+ 	editList(n.Else, edit)
+ }
+ 
+@@ -533,20 +533,20 @@ func (n *InlinedCallExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+ func (n *InlinedCallExpr) copy() Node {
+ 	c := *n
+ 	c.init = c.init.Copy()
+-	c.body = c.body.Copy()
++	c.Body_ = c.Body_.Copy()
+ 	c.ReturnVars = c.ReturnVars.Copy()
+ 	return &c
+ }
+ func (n *InlinedCallExpr) doChildren(do func(Node) error) error {
+ 	var err error
+ 	err = maybeDoList(n.init, err, do)
+-	err = maybeDoList(n.body, err, do)
++	err = maybeDoList(n.Body_, err, do)
+ 	err = maybeDoList(n.ReturnVars, err, do)
+ 	return err
+ }
+ func (n *InlinedCallExpr) editChildren(edit func(Node) Node) {
+ 	editList(n.init, edit)
+-	editList(n.body, edit)
++	editList(n.Body_, edit)
+ 	editList(n.ReturnVars, edit)
+ }
+ 
+@@ -725,7 +725,7 @@ func (n *RangeStmt) copy() Node {
+ 	c := *n
+ 	c.init = c.init.Copy()
+ 	c.Vars = c.Vars.Copy()
+-	c.body = c.body.Copy()
++	c.Body_ = c.Body_.Copy()
+ 	return &c
+ }
+ func (n *RangeStmt) doChildren(do func(Node) error) error {
+@@ -733,14 +733,14 @@ func (n *RangeStmt) doChildren(do func(Node) error) error {
+ 	err = maybeDoList(n.init, err, do)
+ 	err = maybeDoList(n.Vars, err, do)
+ 	err = maybeDo(n.X, err, do)
+-	err = maybeDoList(n.body, err, do)
++	err = maybeDoList(n.Body_, err, do)
+ 	return err
+ }
+ func (n *RangeStmt) editChildren(edit func(Node) Node) {
+ 	editList(n.init, edit)
+ 	editList(n.Vars, edit)
+ 	n.X = maybeEdit(n.X, edit)
+-	editList(n.body, edit)
++	editList(n.Body_, edit)
+ }
+ 
+ func (n *ResultExpr) String() string                { return fmt.Sprint(n) }
+@@ -843,20 +843,20 @@ func (n *SliceExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+ func (n *SliceExpr) copy() Node {
+ 	c := *n
+ 	c.init = c.init.Copy()
+-	c.list = c.list.Copy()
++	c.List_ = c.List_.Copy()
+ 	return &c
+ }
+ func (n *SliceExpr) doChildren(do func(Node) error) error {
+ 	var err error
+ 	err = maybeDoList(n.init, err, do)
+ 	err = maybeDo(n.X, err, do)
+-	err = maybeDoList(n.list, err, do)
++	err = maybeDoList(n.List_, err, do)
+ 	return err
+ }
+ func (n *SliceExpr) editChildren(edit func(Node) Node) {
+ 	editList(n.init, edit)
+ 	n.X = maybeEdit(n.X, edit)
+-	editList(n.list, edit)
++	editList(n.List_, edit)
+ }
+ 
+ func (n *SliceHeaderExpr) String() string                { return fmt.Sprint(n) }
+@@ -864,20 +864,20 @@ func (n *SliceHeaderExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+ func (n *SliceHeaderExpr) copy() Node {
+ 	c := *n
+ 	c.init = c.init.Copy()
+-	c.lenCap = c.lenCap.Copy()
++	c.LenCap_ = c.LenCap_.Copy()
+ 	return &c
+ }
+ func (n *SliceHeaderExpr) doChildren(do func(Node) error) error {
+ 	var err error
+ 	err = maybeDoList(n.init, err, do)
+ 	err = maybeDo(n.Ptr, err, do)
+-	err = maybeDoList(n.lenCap, err, do)
++	err = maybeDoList(n.LenCap_, err, do)
+ 	return err
+ }
+ func (n *SliceHeaderExpr) editChildren(edit func(Node) Node) {
+ 	editList(n.init, edit)
+ 	n.Ptr = maybeEdit(n.Ptr, edit)
+-	editList(n.lenCap, edit)
++	editList(n.LenCap_, edit)
+ }
+ 
+ func (n *SliceType) String() string                { return fmt.Sprint(n) }
+@@ -984,15 +984,15 @@ func (n *TypeSwitchGuard) copy() Node {
+ }
+ func (n *TypeSwitchGuard) doChildren(do func(Node) error) error {
+ 	var err error
+-	if n.name != nil {
+-		err = maybeDo(n.name, err, do)
++	if n.Name_ != nil {
++		err = maybeDo(n.Name_, err, do)
+ 	}
+ 	err = maybeDo(n.X, err, do)
+ 	return err
+ }
+ func (n *TypeSwitchGuard) editChildren(edit func(Node) Node) {
+-	if n.name != nil {
+-		n.name = edit(n.name).(*Name)
++	if n.Name_ != nil {
++		n.Name_ = edit(n.Name_).(*Name)
+ 	}
+ 	n.X = maybeEdit(n.X, edit)
+ }
+diff --git a/src/cmd/compile/internal/ir/stmt.go b/src/cmd/compile/internal/ir/stmt.go
+index 836bbcb453..ccf46dfa73 100644
+--- a/src/cmd/compile/internal/ir/stmt.go
++++ b/src/cmd/compile/internal/ir/stmt.go
+@@ -161,20 +161,20 @@ func (n *AssignOpStmt) SetType(x *types.Type) { n.typ = x }
+ // A BlockStmt is a block: { List }.
+ type BlockStmt struct {
+ 	miniStmt
+-	list Nodes
++	List_ Nodes
+ }
+ 
+ func NewBlockStmt(pos src.XPos, list []Node) *BlockStmt {
+ 	n := &BlockStmt{}
+ 	n.pos = pos
+ 	n.op = OBLOCK
+-	n.list.Set(list)
++	n.List_.Set(list)
+ 	return n
+ }
+ 
+-func (n *BlockStmt) List() Nodes     { return n.list }
+-func (n *BlockStmt) PtrList() *Nodes { return &n.list }
+-func (n *BlockStmt) SetList(x Nodes) { n.list = x }
++func (n *BlockStmt) List() Nodes     { return n.List_ }
++func (n *BlockStmt) PtrList() *Nodes { return &n.List_ }
++func (n *BlockStmt) SetList(x Nodes) { n.List_ = x }
+ 
+ // A BranchStmt is a break, continue, fallthrough, or goto statement.
+ //
+@@ -204,27 +204,27 @@ func (n *BranchStmt) SetSym(sym *types.Sym) { n.Label = sym }
+ // A CaseStmt is a case statement in a switch or select: case List: Body.
+ type CaseStmt struct {
+ 	miniStmt
+-	Vars Nodes // declared variable for this case in type switch
+-	list Nodes // list of expressions for switch, early select
+-	Comm Node  // communication case (Exprs[0]) after select is type-checked
+-	body Nodes
++	Vars  Nodes // declared variable for this case in type switch
++	List_ Nodes // list of expressions for switch, early select
++	Comm  Node  // communication case (Exprs[0]) after select is type-checked
++	Body_ Nodes
+ }
+ 
+ func NewCaseStmt(pos src.XPos, list, body []Node) *CaseStmt {
+ 	n := &CaseStmt{}
+ 	n.pos = pos
+ 	n.op = OCASE
+-	n.list.Set(list)
+-	n.body.Set(body)
++	n.List_.Set(list)
++	n.Body_.Set(body)
+ 	return n
+ }
+ 
+-func (n *CaseStmt) List() Nodes      { return n.list }
+-func (n *CaseStmt) PtrList() *Nodes  { return &n.list }
+-func (n *CaseStmt) SetList(x Nodes)  { n.list = x }
+-func (n *CaseStmt) Body() Nodes      { return n.body }
+-func (n *CaseStmt) PtrBody() *Nodes  { return &n.body }
+-func (n *CaseStmt) SetBody(x Nodes)  { n.body = x }
++func (n *CaseStmt) List() Nodes      { return n.List_ }
++func (n *CaseStmt) PtrList() *Nodes  { return &n.List_ }
++func (n *CaseStmt) SetList(x Nodes)  { n.List_ = x }
++func (n *CaseStmt) Body() Nodes      { return n.Body_ }
++func (n *CaseStmt) PtrBody() *Nodes  { return &n.Body_ }
++func (n *CaseStmt) SetBody(x Nodes)  { n.Body_ = x }
+ func (n *CaseStmt) Rlist() Nodes     { return n.Vars }
+ func (n *CaseStmt) PtrRlist() *Nodes { return &n.Vars }
+ func (n *CaseStmt) SetRlist(x Nodes) { n.Vars = x }
+@@ -255,7 +255,7 @@ type ForStmt struct {
+ 	Cond     Node
+ 	Late     Nodes
+ 	Post     Node
+-	body     Nodes
++	Body_    Nodes
+ 	hasBreak bool
+ }
+ 
+@@ -264,7 +264,7 @@ func NewForStmt(pos src.XPos, init []Node, cond, post Node, body []Node) *ForStm
+ 	n.pos = pos
+ 	n.op = OFOR
+ 	n.init.Set(init)
+-	n.body.Set(body)
++	n.Body_.Set(body)
+ 	return n
+ }
+ 
+@@ -274,9 +274,9 @@ func (n *ForStmt) Left() Node          { return n.Cond }
+ func (n *ForStmt) SetLeft(x Node)      { n.Cond = x }
+ func (n *ForStmt) Right() Node         { return n.Post }
+ func (n *ForStmt) SetRight(x Node)     { n.Post = x }
+-func (n *ForStmt) Body() Nodes         { return n.body }
+-func (n *ForStmt) PtrBody() *Nodes     { return &n.body }
+-func (n *ForStmt) SetBody(x Nodes)     { n.body = x }
++func (n *ForStmt) Body() Nodes         { return n.Body_ }
++func (n *ForStmt) PtrBody() *Nodes     { return &n.Body_ }
++func (n *ForStmt) SetBody(x Nodes)     { n.Body_ = x }
+ func (n *ForStmt) List() Nodes         { return n.Late }
+ func (n *ForStmt) PtrList() *Nodes     { return &n.Late }
+ func (n *ForStmt) SetList(x Nodes)     { n.Late = x }
+@@ -310,7 +310,7 @@ func (n *GoStmt) SetLeft(x Node) { n.Call = x }
+ type IfStmt struct {
+ 	miniStmt
+ 	Cond   Node
+-	body   Nodes
++	Body_  Nodes
+ 	Else   Nodes
+ 	likely bool // code layout hint
+ }
+@@ -319,16 +319,16 @@ func NewIfStmt(pos src.XPos, cond Node, body, els []Node) *IfStmt {
+ 	n := &IfStmt{Cond: cond}
+ 	n.pos = pos
+ 	n.op = OIF
+-	n.body.Set(body)
++	n.Body_.Set(body)
+ 	n.Else.Set(els)
+ 	return n
+ }
+ 
+ func (n *IfStmt) Left() Node       { return n.Cond }
+ func (n *IfStmt) SetLeft(x Node)   { n.Cond = x }
+-func (n *IfStmt) Body() Nodes      { return n.body }
+-func (n *IfStmt) PtrBody() *Nodes  { return &n.body }
+-func (n *IfStmt) SetBody(x Nodes)  { n.body = x }
++func (n *IfStmt) Body() Nodes      { return n.Body_ }
++func (n *IfStmt) PtrBody() *Nodes  { return &n.Body_ }
++func (n *IfStmt) SetBody(x Nodes)  { n.Body_ = x }
+ func (n *IfStmt) Rlist() Nodes     { return n.Else }
+ func (n *IfStmt) PtrRlist() *Nodes { return &n.Else }
+ func (n *IfStmt) SetRlist(x Nodes) { n.Else = x }
+@@ -375,7 +375,7 @@ type RangeStmt struct {
+ 	Vars     Nodes // TODO(rsc): Replace with Key, Value Node
+ 	Def      bool
+ 	X        Node
+-	body     Nodes
++	Body_    Nodes
+ 	hasBreak bool
+ 	typ      *types.Type // TODO(rsc): Remove - use X.Type() instead
+ }
+@@ -385,7 +385,7 @@ func NewRangeStmt(pos src.XPos, vars []Node, x Node, body []Node) *RangeStmt {
+ 	n.pos = pos
+ 	n.op = ORANGE
+ 	n.Vars.Set(vars)
+-	n.body.Set(body)
++	n.Body_.Set(body)
+ 	return n
+ }
+ 
+@@ -393,9 +393,9 @@ func (n *RangeStmt) Sym() *types.Sym       { return n.Label }
+ func (n *RangeStmt) SetSym(x *types.Sym)   { n.Label = x }
+ func (n *RangeStmt) Right() Node           { return n.X }
+ func (n *RangeStmt) SetRight(x Node)       { n.X = x }
+-func (n *RangeStmt) Body() Nodes           { return n.body }
+-func (n *RangeStmt) PtrBody() *Nodes       { return &n.body }
+-func (n *RangeStmt) SetBody(x Nodes)       { n.body = x }
++func (n *RangeStmt) Body() Nodes           { return n.Body_ }
++func (n *RangeStmt) PtrBody() *Nodes       { return &n.Body_ }
++func (n *RangeStmt) SetBody(x Nodes)       { n.Body_ = x }
+ func (n *RangeStmt) List() Nodes           { return n.Vars }
+ func (n *RangeStmt) PtrList() *Nodes       { return &n.Vars }
+ func (n *RangeStmt) SetList(x Nodes)       { n.Vars = x }
+@@ -514,14 +514,14 @@ func (n *SwitchStmt) SetHasBreak(x bool)  { n.hasBreak = x }
+ // A TypeSwitchGuard is the [Name :=] X.(type) in a type switch.
+ type TypeSwitchGuard struct {
+ 	miniNode
+-	name *Name
+-	X    Node
++	Name_ *Name
++	X     Node
+ }
+ 
+ func NewTypeSwitchGuard(pos src.XPos, name, x Node) *TypeSwitchGuard {
+ 	n := &TypeSwitchGuard{X: x}
+ 	if name != nil {
+-		n.name = name.(*Name)
++		n.Name_ = name.(*Name)
+ 	}
+ 	n.pos = pos
+ 	n.op = OTYPESW
+@@ -529,17 +529,17 @@ func NewTypeSwitchGuard(pos src.XPos, name, x Node) *TypeSwitchGuard {
+ }
+ 
+ func (n *TypeSwitchGuard) Left() Node {
+-	if n.name == nil {
++	if n.Name_ == nil {
+ 		return nil
+ 	}
+-	return n.name
++	return n.Name_
+ }
+ func (n *TypeSwitchGuard) SetLeft(x Node) {
+ 	if x == nil {
+-		n.name = nil
++		n.Name_ = nil
+ 		return
+ 	}
+-	n.name = x.(*Name)
++	n.Name_ = x.(*Name)
+ }
+ func (n *TypeSwitchGuard) Right() Node     { return n.X }
+ func (n *TypeSwitchGuard) SetRight(x Node) { n.X = x }

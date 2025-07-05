@@ -14,7 +14,36 @@ Date:   Mon Aug 1 17:43:24 2016 +0300
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/x86/asm6.go      | 4 ++--
  src/crypto/sha256/sha256block_amd64.s | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 8a299fefe3..494e422081 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -855,8 +855,8 @@ var yvex_ri3 = []ytab{
+ }
+ 
+ var yvex_xyi3 = []ytab{
+-	{Yi8, Yxm, Yxr, Zvex_i_rm_r, 2},
+-	{Yi8, Yym, Yyr, Zvex_i_rm_r, 2},
++	{Yu8, Yxm, Yxr, Zvex_i_rm_r, 2},
++	{Yu8, Yym, Yyr, Zvex_i_rm_r, 2},
+ }
+ 
+ var yvex_yyi4 = []ytab{ //TODO don't hide 4 op, some version have xmm version
+diff --git a/src/crypto/sha256/sha256block_amd64.s b/src/crypto/sha256/sha256block_amd64.s
+index 6ab3b52d65..6a740f9b59 100644
+--- a/src/crypto/sha256/sha256block_amd64.s
++++ b/src/crypto/sha256/sha256block_amd64.s
+@@ -302,7 +302,7 @@
+ 	ADDL    y0, y2;                      \ // y2 = S1 + CH					// --
+ 	;                                    \
+ 	VPXOR   XTMP4, XTMP3, XTMP1;         \ // XTMP1 = s0
+-	VPSHUFD $-6, XDWORD3, XTMP2;         \ // XTMP2 = W[-2] {BBAA}
++	VPSHUFD $0xFA, XDWORD3, XTMP2;       \ // XTMP2 = W[-2] {BBAA}
+ 	ORL     T1, y3;                      \ // y3 = MAJ = (a|c)&b)|(a&c)             // MAJ
+ 	ADDL    y1, h;                       \ // h = k + w + h + S0                    // --
+ 	;                                    \

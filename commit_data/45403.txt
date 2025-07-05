@@ -13,7 +13,7 @@ Date:   Fri Oct 16 17:29:00 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Michael Pratt <mpratt@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go           |  4 +--
  src/cmd/compile/internal/s390x/ssa.go        |  8 ++++++
  src/cmd/compile/internal/ssa/gen/S390X.rules |  3 +++
@@ -21,3 +21,169 @@ Date:   Fri Oct 16 17:29:00 2020 -0400
  src/cmd/compile/internal/ssa/opGen.go        | 38 ++++++++++++++++++++++++----
  src/cmd/compile/internal/ssa/rewriteS390X.go |  6 +++++
  6 files changed, 55 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 2b64b358ed..e70e5a969b 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3546,7 +3546,7 @@ func init() {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicAnd32, types.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+ 		},
+-		sys.AMD64, sys.ARM64, sys.PPC64) // TODO: same arches as And8.
++		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X) // TODO: same arches as And8.
+ 	addF("runtime/internal/atomic", "Or8",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicOr8, types.TypeMem, args[0], args[1], s.mem())
+@@ -3558,7 +3558,7 @@ func init() {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicOr32, types.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+ 		},
+-		sys.AMD64, sys.ARM64, sys.PPC64) // TODO: same arches as And8.
++		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X) // TODO: same arches as And8.
+ 
+ 	alias("runtime/internal/atomic", "Loadint64", "runtime/internal/atomic", "Load64", all...)
+ 	alias("runtime/internal/atomic", "Xaddint64", "runtime/internal/atomic", "Xadd64", all...)
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index 00d253c95a..e23b31f385 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -761,6 +761,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Reg = v.Args[0].Reg()
+ 		gc.AddAux(&p.To, v)
++	case ssa.OpS390XLAN, ssa.OpS390XLAO:
++		// LA(N|O) Ry, TMP, 0(Rx)
++		op := s.Prog(v.Op.Asm())
++		op.From.Type = obj.TYPE_REG
++		op.From.Reg = v.Args[1].Reg()
++		op.Reg = s390x.REGTMP
++		op.To.Type = obj.TYPE_MEM
++		op.To.Reg = v.Args[0].Reg()
+ 	case ssa.OpS390XLANfloor, ssa.OpS390XLAOfloor:
+ 		r := v.Args[0].Reg() // clobbered, assumed R1 in comments
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index e564f638d3..2d6f091a4e 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -198,6 +198,9 @@
+          (RXSBG <typ.UInt32> {s390x.NewRotateParams(59, 60, 3)} (MOVDconst [3<<3]) ptr))
+        mem)
+ 
++(AtomicAnd32 ...) => (LAN ...)
++(AtomicOr32  ...) => (LAO ...)
++
+ // Lowering extension
+ // Note: we always extend to 64 bits even though some ops don't need that many result bits.
+ (SignExt8to(16|32|64) ...) => (MOVBreg ...)
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index 417b33cf91..728cfb5508 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -547,8 +547,10 @@ func init() {
+ 		// Atomic bitwise operations.
+ 		// Note: 'floor' operations round the pointer down to the nearest word boundary
+ 		// which reflects how they are used in the runtime.
+-		{name: "LAOfloor", argLength: 3, reg: gpstorelab, asm: "LAO", typ: "Mem", clobberFlags: true, hasSideEffects: true}, // *(floor(arg0, 4)) |= arg1. arg2 = mem.
++		{name: "LAN", argLength: 3, reg: gpstore, asm: "LAN", typ: "Mem", clobberFlags: true, hasSideEffects: true}, // *arg0 &= arg1. arg2 = mem.
+ 		{name: "LANfloor", argLength: 3, reg: gpstorelab, asm: "LAN", typ: "Mem", clobberFlags: true, hasSideEffects: true}, // *(floor(arg0, 4)) &= arg1. arg2 = mem.
++		{name: "LAO", argLength: 3, reg: gpstore, asm: "LAO", typ: "Mem", clobberFlags: true, hasSideEffects: true}, // *arg0 |= arg1. arg2 = mem.
++		{name: "LAOfloor", argLength: 3, reg: gpstorelab, asm: "LAO", typ: "Mem", clobberFlags: true, hasSideEffects: true}, // *(floor(arg0, 4)) |= arg1. arg2 = mem.
+ 
+ 		// Compare and swap.
+ 		// arg0 = pointer, arg1 = old value, arg2 = new value, arg3 = memory.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 5afb4abf5c..a4938a4992 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2374,8 +2374,10 @@ const (
+ 	OpS390XLAAG
+ 	OpS390XAddTupleFirst32
+ 	OpS390XAddTupleFirst64
+-	OpS390XLAOfloor
++	OpS390XLAN
+ 	OpS390XLANfloor
++	OpS390XLAO
++	OpS390XLAOfloor
+ 	OpS390XLoweredAtomicCas32
+ 	OpS390XLoweredAtomicCas64
+ 	OpS390XLoweredAtomicExchange32
+@@ -31905,11 +31907,24 @@ var opcodeTable = [...]opInfo{
+ 		reg:    regInfo{},
+ 	},
+ 	{
+-		name:           "LAOfloor",
++		name:           "LAN",
+ 		argLen:         3,
+ 		clobberFlags:   true,
+ 		hasSideEffects: true,
+-		asm:            s390x.ALAO,
++		asm:            s390x.ALAN,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
++				{1, 56319},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
++			},
++		},
++	},
++	{
++		name:           "LANfloor",
++		argLen:         3,
++		clobberFlags:   true,
++		hasSideEffects: true,
++		asm:            s390x.ALAN,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2},     // R1
+@@ -31919,11 +31934,24 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "LANfloor",
++		name:           "LAO",
+ 		argLen:         3,
+ 		clobberFlags:   true,
+ 		hasSideEffects: true,
+-		asm:            s390x.ALAN,
++		asm:            s390x.ALAO,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
++				{1, 56319},      // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP
++			},
++		},
++	},
++	{
++		name:           "LAOfloor",
++		argLen:         3,
++		clobberFlags:   true,
++		hasSideEffects: true,
++		asm:            s390x.ALAO,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2},     // R1
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 78a57c2388..35b691c12d 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -49,6 +49,9 @@ func rewriteValueS390X(v *Value) bool {
+ 		return rewriteValueS390X_OpAtomicAdd32(v)
+ 	case OpAtomicAdd64:
+ 		return rewriteValueS390X_OpAtomicAdd64(v)
++	case OpAtomicAnd32:
++		v.Op = OpS390XLAN
++		return true
+ 	case OpAtomicAnd8:
+ 		return rewriteValueS390X_OpAtomicAnd8(v)
+ 	case OpAtomicCompareAndSwap32:
+@@ -69,6 +72,9 @@ func rewriteValueS390X(v *Value) bool {
+ 		return rewriteValueS390X_OpAtomicLoadAcq32(v)
+ 	case OpAtomicLoadPtr:
+ 		return rewriteValueS390X_OpAtomicLoadPtr(v)
++	case OpAtomicOr32:
++		v.Op = OpS390XLAO
++		return true
+ 	case OpAtomicOr8:
+ 		return rewriteValueS390X_OpAtomicOr8(v)
+ 	case OpAtomicStore32:

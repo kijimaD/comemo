@@ -7,7 +7,50 @@ Date:   Thu Feb 16 23:48:24 2012 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5676077
-
+---
  test/run     |  3 ++-
  test/testlib | 22 ++++++++++++++++++++++
  2 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/test/run b/test/run
+index 7f4c350fa3..67526958d9 100755
+--- a/test/run
++++ b/test/run
+@@ -67,7 +67,8 @@ do
+ 		fi
+ 		export F=$(basename $i .go)
+ 		export D=$dir
+-		sed '/^\/\//!q' $i | sed 's@//@@; $d' |sed 's|./\$A.out|$E &|g' >"$RUNFILE"
++		echo '. ./testlib' >"$RUNFILE"
++		sed '/^\/\//!q' $i | sed 's@//@@; $d' |sed 's|./\$A.out|$E &|g' >>"$RUNFILE"
+ 		if ! { time -p bash -c "bash '$RUNFILE' >'$TMP1FILE' 2>&1" ; } 2>"$TMP2FILE"
+ 		then
+ 			echo
+diff --git a/test/testlib b/test/testlib
+new file mode 100644
+index 0000000000..ea8c5d74e0
+--- /dev/null
++++ b/test/testlib
+@@ -0,0 +1,22 @@
++# Copyright 2012 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# These function names are also known to
++# (and are the plan for transitioning to) run.go.
++
++compile() {
++	$G $D/$F.go
++}
++
++build() {
++	$G $D/$F.go && $L $F.$A
++}
++
++run() {
++	$G $D/$F.go && $L $F.$A && ./$A.out "$@"
++}
++
++errorcheck() {
++	errchk $G -e $D/$F.go
++}

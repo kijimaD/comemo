@@ -7,6 +7,16 @@ Date:   Tue Oct 18 14:10:41 2011 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5299041
-
+---
  .hgtags | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/.hgtags b/.hgtags
+index 760f04368e..b82767c068 100644
+--- a/.hgtags
++++ b/.hgtags
+@@ -87,3 +87,4 @@ d7322ae4d055a4cf3efaf842d0717a41acd85bac weekly.2011-09-21
+ 3bdabf483805fbf0c7ef013fd09bfd6062b9d3f2 weekly
+ c1702f36df0397c19fc333571a771666029aa37e release.r60.3
+ c1702f36df0397c19fc333571a771666029aa37e release
++acaddf1cea75c059d19b20dbef35b20fb3f38954 release.r58.2

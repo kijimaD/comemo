@@ -17,9 +17,148 @@ Date:   Sun Jan 17 00:38:54 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/expr.go     | 17 +++++++++++------
  src/cmd/compile/internal/ir/fmt.go      |  2 +-
  src/cmd/compile/internal/ir/node_gen.go |  6 ------
  src/cmd/compile/internal/ssagen/ssa.go  | 29 ++++++++++++-----------------
  4 files changed, 24 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index e24b2d5b2c..a3356d432a 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/types"
++	"cmd/internal/obj"
+ 	"cmd/internal/src"
+ 	"fmt"
+ 	"go/constant"
+@@ -461,22 +462,26 @@ func NewResultExpr(pos src.XPos, typ *types.Type, offset int64) *ResultExpr {
+ 	return n
+ }
+ 
+-// A NameOffsetExpr refers to an offset within a variable.
++// A NameOffsetExpr refers to an offset within a global variable.
+ // It is like a SelectorExpr but without the field name.
+ type NameOffsetExpr struct {
+ 	miniExpr
+-	Name_   *Name
++	Linksym *obj.LSym
+ 	Offset_ int64
+ }
+ 
++func NewLinksymOffsetExpr(pos src.XPos, lsym *obj.LSym, offset int64, typ *types.Type) *NameOffsetExpr {
++	n := &NameOffsetExpr{Linksym: lsym, Offset_: offset}
++	n.typ = typ
++	n.op = ONAMEOFFSET
++	return n
++}
++
+ func NewNameOffsetExpr(pos src.XPos, name *Name, offset int64, typ *types.Type) *NameOffsetExpr {
+ 	if name == nil || IsBlank(name) || !(name.Op() == ONAME && name.Class == PEXTERN) {
+ 		base.FatalfAt(pos, "cannot take offset of nil, blank name or non-global variable: %v", name)
+ 	}
+-	n := &NameOffsetExpr{Name_: name, Offset_: offset}
+-	n.typ = typ
+-	n.op = ONAMEOFFSET
+-	return n
++	return NewLinksymOffsetExpr(pos, name.Linksym(), offset, typ)
+ }
+ 
+ // A SelectorExpr is a selector expression X.Sel.
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index a4e769f508..dfb8e42270 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -634,7 +634,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
+ 
+ 	case ONAMEOFFSET:
+ 		n := n.(*NameOffsetExpr)
+-		fmt.Fprintf(s, "(%v)(%v@%d)", n.Type(), n.Name_, n.Offset_)
++		fmt.Fprintf(s, "(%v)(%s@%d)", n.Type(), n.Linksym.Name, n.Offset_)
+ 
+ 	case OTYPE:
+ 		if n.Type() == nil && n.Sym() != nil {
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index f1b0a21628..7db9517b2c 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -825,16 +825,10 @@ func (n *NameOffsetExpr) doChildren(do func(Node) bool) bool {
+ 	if doNodes(n.init, do) {
+ 		return true
+ 	}
+-	if n.Name_ != nil && do(n.Name_) {
+-		return true
+-	}
+ 	return false
+ }
+ func (n *NameOffsetExpr) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+-	if n.Name_ != nil {
+-		n.Name_ = edit(n.Name_).(*Name)
+-	}
+ }
+ 
+ func (n *NilExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 7726ecac55..fce02f475a 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -2257,15 +2257,10 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 		if s.canSSA(n) {
+ 			return s.variable(n, n.Type())
+ 		}
+-		addr := s.addr(n)
+-		return s.load(n.Type(), addr)
++		return s.load(n.Type(), s.addr(n))
+ 	case ir.ONAMEOFFSET:
+ 		n := n.(*ir.NameOffsetExpr)
+-		if s.canSSAName(n.Name_) && TypeOK(n.Type()) {
+-			return s.variable(n, n.Type())
+-		}
+-		addr := s.addr(n)
+-		return s.load(n.Type(), addr)
++		return s.load(n.Type(), s.addr(n))
+ 	case ir.ONIL:
+ 		n := n.(*ir.NilExpr)
+ 		t := n.Type()
+@@ -5088,13 +5083,18 @@ func (s *state) addr(n ir.Node) *ssa.Value {
+ 	}
+ 
+ 	t := types.NewPtr(n.Type())
+-	var offset int64
++	linksymOffset := func(lsym *obj.LSym, offset int64) *ssa.Value {
++		v := s.entryNewValue1A(ssa.OpAddr, t, lsym, s.sb)
++		// TODO: Make OpAddr use AuxInt as well as Aux.
++		if offset != 0 {
++			v = s.entryNewValue1I(ssa.OpOffPtr, v.Type, offset, v)
++		}
++		return v
++	}
+ 	switch n.Op() {
+ 	case ir.ONAMEOFFSET:
+ 		no := n.(*ir.NameOffsetExpr)
+-		offset = no.Offset_
+-		n = no.Name_
+-		fallthrough
++		return linksymOffset(no.Linksym, no.Offset_)
+ 	case ir.ONAME:
+ 		n := n.(*ir.Name)
+ 		if n.Heapaddr != nil {
+@@ -5103,12 +5103,7 @@ func (s *state) addr(n ir.Node) *ssa.Value {
+ 		switch n.Class {
+ 		case ir.PEXTERN:
+ 			// global variable
+-			v := s.entryNewValue1A(ssa.OpAddr, t, n.Linksym(), s.sb)
+-			// TODO: Make OpAddr use AuxInt as well as Aux.
+-			if offset != 0 {
+-				v = s.entryNewValue1I(ssa.OpOffPtr, v.Type, offset, v)
+-			}
+-			return v
++			return linksymOffset(n.Linksym(), 0)
+ 		case ir.PPARAM:
+ 			// parameter slot
+ 			v := s.decladdrs[n]

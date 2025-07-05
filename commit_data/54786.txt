@@ -12,6 +12,19 @@ Date:   Tue Nov 15 13:56:48 2022 -0500
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/rsa/rsa_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/crypto/rsa/rsa_test.go b/src/crypto/rsa/rsa_test.go
+index 0b1c8fb320..9db78cec61 100644
+--- a/src/crypto/rsa/rsa_test.go
++++ b/src/crypto/rsa/rsa_test.go
+@@ -148,6 +148,7 @@ func TestEverything(t *testing.T) {
+ 		max = 2048
+ 	}
+ 	for size := min; size <= max; size++ {
++		size := size
+ 		t.Run(fmt.Sprintf("%d", size), func(t *testing.T) {
+ 			t.Parallel()
+ 			priv, err := GenerateKey(rand.Reader, size)

@@ -17,6 +17,20 @@ Date:   Tue May 18 18:25:44 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  test/fixedbugs/issue46234.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/issue46234.go b/test/fixedbugs/issue46234.go
+index c669cc01a6..8e7eb8bf8d 100644
+--- a/test/fixedbugs/issue46234.go
++++ b/test/fixedbugs/issue46234.go
+@@ -96,7 +96,7 @@ func main() {
+ 		log.Fatalf("Passed, expected an error")
+ 	}
+ 
+-	want := []byte("segmentation violation")
++	want := []byte("nil pointer dereference")
+ 	if !bytes.Contains(output, want) {
+ 		log.Fatalf("Unmatched error message %q:\nin\n%s\nError: %v", want, output, err)
+ 	}

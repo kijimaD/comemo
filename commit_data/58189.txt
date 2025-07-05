@@ -9,7 +9,77 @@ Date:   Tue Oct 10 15:30:09 2023 -0400
     Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/mgc.go      | 7 -------
  src/runtime/mgcsweep.go | 5 -----
  2 files changed, 12 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index da8e578eb6..f7f7eb4528 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -476,7 +476,6 @@ func GC() {
+ 	// as part of tests and benchmarks to get the system into a
+ 	// relatively stable and isolated state.
+ 	for work.cycles.Load() == n+1 && sweepone() != ^uintptr(0) {
+-		sweep.nbgsweep++
+ 		Gosched()
+ 	}
+ 
+@@ -620,7 +619,6 @@ func gcStart(trigger gcTrigger) {
+ 	// We check the transition condition continuously here in case
+ 	// this G gets delayed in to the next GC cycle.
+ 	for trigger.test() && sweepone() != ^uintptr(0) {
+-		sweep.nbgsweep++
+ 	}
+ 
+ 	// Perform GC initialization and the sweep termination
+@@ -1047,10 +1045,6 @@ func gcMarkTermination() {
+ 	// Reset idle time stat.
+ 	sched.idleTime.Store(0)
+ 
+-	// Reset sweep state.
+-	sweep.nbgsweep = 0
+-	sweep.npausesweep = 0
+-
+ 	if work.userForced {
+ 		memstats.numforcedgc++
+ 	}
+@@ -1589,7 +1583,6 @@ func gcSweep(mode gcMode) bool {
+ 		}
+ 		// Sweep all spans eagerly.
+ 		for sweepone() != ^uintptr(0) {
+-			sweep.npausesweep++
+ 		}
+ 		// Free workbufs eagerly.
+ 		prepareFreeWorkbufs()
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 986eb573ca..aeb04c923e 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -37,9 +37,6 @@ type sweepdata struct {
+ 	g      *g
+ 	parked bool
+ 
+-	nbgsweep    uint32
+-	npausesweep uint32
+-
+ 	// active tracks outstanding sweepers and the sweep
+ 	// termination condition.
+ 	active activeSweep
+@@ -237,7 +234,6 @@ func finishsweep_m() {
+ 	// instantly. If GC was forced before the concurrent sweep
+ 	// finished, there may be spans to sweep.
+ 	for sweepone() != ^uintptr(0) {
+-		sweep.npausesweep++
+ 	}
+ 
+ 	// Make sure there aren't any outstanding sweepers left.
+@@ -299,7 +295,6 @@ func bgsweep(c chan int) {
+ 		const sweepBatchSize = 10
+ 		nSwept := 0
+ 		for sweepone() != ^uintptr(0) {
+-			sweep.nbgsweep++
+ 			nSwept++
+ 			if nSwept%sweepBatchSize == 0 {
+ 				goschedIfBusy()

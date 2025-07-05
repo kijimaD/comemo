@@ -16,7 +16,53 @@ Date:   Tue May 26 15:36:58 2020 -0400
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/x509/x509.go      |  2 +-
  src/crypto/x509/x509_test.go | 11 +++++++----
  2 files changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index ecf44071cf..288c9c666f 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -2100,7 +2100,7 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv
+ 		return nil, errors.New("x509: no SerialNumber given")
+ 	}
+ 
+-	if template.BasicConstraintsValid && !template.IsCA && (template.MaxPathLen != 0 || template.MaxPathLenZero) {
++	if template.BasicConstraintsValid && !template.IsCA && template.MaxPathLen != -1 && (template.MaxPathLen != 0 || template.MaxPathLenZero) {
+ 		return nil, errors.New("x509: only CAs are allowed to specify MaxPathLen")
+ 	}
+ 
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index 7e001471dd..0141021504 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -1674,11 +1674,15 @@ func TestMaxPathLenNotCA(t *testing.T) {
+ 		BasicConstraintsValid: true,
+ 		IsCA:                  false,
+ 	}
+-	cert := serialiseAndParse(t, template)
+-	if m := cert.MaxPathLen; m != -1 {
++	if m := serialiseAndParse(t, template).MaxPathLen; m != -1 {
+ 		t.Errorf("MaxPathLen should be -1 when IsCa is false, got %d", m)
+ 	}
+ 
++	template.MaxPathLen = -1
++	if m := serialiseAndParse(t, template).MaxPathLen; m != -1 {
++		t.Errorf("MaxPathLen should be -1 when IsCa is false and MaxPathLen set to -1, got %d", m)
++	}
++
+ 	template.MaxPathLen = 5
+ 	if _, err := CreateCertificate(rand.Reader, template, template, &testPrivateKey.PublicKey, testPrivateKey); err == nil {
+ 		t.Error("specifying a MaxPathLen when IsCA is false should fail")
+@@ -1691,8 +1695,7 @@ func TestMaxPathLenNotCA(t *testing.T) {
+ 	}
+ 
+ 	template.BasicConstraintsValid = false
+-	cert2 := serialiseAndParse(t, template)
+-	if m := cert2.MaxPathLen; m != 0 {
++	if m := serialiseAndParse(t, template).MaxPathLen; m != 0 {
+ 		t.Errorf("Bad MaxPathLen should be ignored if BasicConstraintsValid is false, got %d", m)
+ 	}
+ }

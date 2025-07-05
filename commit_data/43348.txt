@@ -11,6 +11,20 @@ Date:   Wed Dec 25 03:33:14 2019 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/netpoll.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/netpoll.go b/src/runtime/netpoll.go
+index 3852598b7e..918c361c2e 100644
+--- a/src/runtime/netpoll.go
++++ b/src/runtime/netpoll.go
+@@ -447,7 +447,7 @@ func netpollunblock(pd *pollDesc, mode int32, ioready bool) *g {
+ 			new = pdReady
+ 		}
+ 		if atomic.Casuintptr(gpp, old, new) {
+-			if old == pdReady || old == pdWait {
++			if old == pdWait {
+ 				old = 0
+ 			}
+ 			return (*g)(unsafe.Pointer(old))

@@ -15,6 +15,21 @@ Date:   Wed Mar 20 03:32:14 2024 +0000
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/encoding/gob/decgen.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/encoding/gob/decgen.go b/src/encoding/gob/decgen.go
+index 27a30eaf61..af4cdbee9d 100644
+--- a/src/encoding/gob/decgen.go
++++ b/src/encoding/gob/decgen.go
+@@ -192,6 +192,9 @@ func main() {
+ 	if _, err := fd.Write(source); err != nil {
+ 		log.Fatal(err)
+ 	}
++	if err := fd.Close(); err != nil {
++		log.Fatal(err)
++	}
+ }
+ 
+ func printMaps(b *bytes.Buffer, upperClass string) {

@@ -13,6 +13,22 @@ Date:   Sat Nov 11 05:32:13 2023 +0000
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Jes Cok <xigua67damn@gmail.com>
-
+---
  src/log/slog/handler.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/log/slog/handler.go b/src/log/slog/handler.go
+index 9f6d88b169..2182bfb609 100644
+--- a/src/log/slog/handler.go
++++ b/src/log/slog/handler.go
+@@ -461,9 +461,8 @@ func (s *handleState) appendAttrs(as []Attr) bool {
+ 	return nonEmpty
+ }
+ 
+-// appendAttr appends the Attr's key and value using app.
++// appendAttr appends the Attr's key and value.
+ // It handles replacement and checking for an empty key.
+-// after replacement).
+ // It reports whether something was appended.
+ func (s *handleState) appendAttr(a Attr) bool {
+ 	a.Value = a.Value.Resolve()

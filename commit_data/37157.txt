@@ -12,6 +12,28 @@ Date:   Tue Jul 3 12:05:51 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/work/exec.go | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 9a5a0dfc8e..e886020cb7 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -2473,7 +2473,15 @@ func (b *Builder) dynimport(a *Action, p *load.Package, objdir, importGo, cgoExe
+ 	// we need to use -pie for Linux/ARM to get accurate imported sym
+ 	ldflags := cgoLDFLAGS
+ 	if (cfg.Goarch == "arm" && cfg.Goos == "linux") || cfg.Goos == "android" {
+-		ldflags = append(ldflags, "-pie")
++		// -static -pie doesn't make sense, and causes link errors.
++		// Issue 26197.
++		n := make([]string, 0, len(ldflags))
++		for _, flag := range ldflags {
++			if flag != "-static" {
++				n = append(n, flag)
++			}
++		}
++		ldflags = append(n, "-pie")
+ 	}
+ 	if err := b.gccld(p, objdir, dynobj, ldflags, linkobj); err != nil {
+ 		return err

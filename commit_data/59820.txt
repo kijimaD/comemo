@@ -15,6 +15,34 @@ Date:   Tue Apr 23 17:18:20 2024 +0900
     Reviewed-on: https://go-review.googlesource.com/c/go/+/581035
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/sendfile_unix_alt.go | 9 +++++++--
  1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/sendfile_unix_alt.go b/src/net/sendfile_unix_alt.go
+index 5cb65ee767..5a10540f8a 100644
+--- a/src/net/sendfile_unix_alt.go
++++ b/src/net/sendfile_unix_alt.go
+@@ -9,7 +9,8 @@ package net
+ import (
+ 	"internal/poll"
+ 	"io"
+-	"os"
++	"io/fs"
++	"syscall"
+ )
+ 
+ // sendFile copies the contents of r to c using the sendfile
+@@ -34,7 +35,11 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 			return 0, nil, true
+ 		}
+ 	}
+-	f, ok := r.(*os.File)
++	f, ok := r.(interface {
++		fs.File
++		io.Seeker
++		syscall.Conn
++	})
+ 	if !ok {
+ 		return 0, nil, false
+ 	}

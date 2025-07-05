@@ -12,7 +12,69 @@ Date:   Thu Mar 10 14:58:02 2022 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/doc/dirs.go | 17 +++++++++++++++--
  src/cmd/doc/pkg.go  |  8 +++++---
  2 files changed, 20 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/doc/dirs.go b/src/cmd/doc/dirs.go
+index f27af1d27b..cb4d45ac6c 100644
+--- a/src/cmd/doc/dirs.go
++++ b/src/cmd/doc/dirs.go
+@@ -41,6 +41,17 @@ var dirs Dirs
+ // dirsInit starts the scanning of package directories in GOROOT and GOPATH. Any
+ // extra paths passed to it are included in the channel.
+ func dirsInit(extra ...Dir) {
++	if buildCtx.GOROOT == "" {
++		stdout, err := exec.Command("go", "env", "GOROOT").Output()
++		if err != nil {
++			if ee, ok := err.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
++				log.Fatalf("failed to determine GOROOT: $GOROOT is not set and 'go env GOROOT' failed:\n%s", ee.Stderr)
++			}
++			log.Fatalf("failed to determine GOROOT: $GOROOT is not set and could not run 'go env GOROOT':\n\t%s", err)
++		}
++		buildCtx.GOROOT = string(bytes.TrimSpace(stdout))
++	}
++
+ 	dirs.hist = make([]Dir, 0, 1000)
+ 	dirs.hist = append(dirs.hist, extra...)
+ 	dirs.scan = make(chan Dir)
+@@ -174,7 +185,7 @@ func findCodeRoots() []Dir {
+ 		gomod := string(bytes.TrimSpace(stdout))
+ 
+ 		usingModules = len(gomod) > 0
+-		if usingModules {
++		if usingModules && buildCtx.GOROOT != "" {
+ 			list = append(list,
+ 				Dir{dir: filepath.Join(buildCtx.GOROOT, "src"), inModule: true},
+ 				Dir{importPath: "cmd", dir: filepath.Join(buildCtx.GOROOT, "src", "cmd"), inModule: true})
+@@ -190,7 +201,9 @@ func findCodeRoots() []Dir {
+ 	}
+ 
+ 	if !usingModules {
+-		list = append(list, Dir{dir: filepath.Join(buildCtx.GOROOT, "src")})
++		if buildCtx.GOROOT != "" {
++			list = append(list, Dir{dir: filepath.Join(buildCtx.GOROOT, "src")})
++		}
+ 		for _, root := range splitGopath() {
+ 			list = append(list, Dir{dir: filepath.Join(root, "src")})
+ 		}
+diff --git a/src/cmd/doc/pkg.go b/src/cmd/doc/pkg.go
+index 0266600730..49b68873b6 100644
+--- a/src/cmd/doc/pkg.go
++++ b/src/cmd/doc/pkg.go
+@@ -89,9 +89,11 @@ func (pkg *Package) prettyPath() string {
+ 	// Also convert everything to slash-separated paths for uniform handling.
+ 	path = filepath.Clean(filepath.ToSlash(pkg.build.Dir))
+ 	// Can we find a decent prefix?
+-	goroot := filepath.Join(buildCtx.GOROOT, "src")
+-	if p, ok := trim(path, filepath.ToSlash(goroot)); ok {
+-		return p
++	if buildCtx.GOROOT != "" {
++		goroot := filepath.Join(buildCtx.GOROOT, "src")
++		if p, ok := trim(path, filepath.ToSlash(goroot)); ok {
++			return p
++		}
+ 	}
+ 	for _, gopath := range splitGopath() {
+ 		if p, ok := trim(path, filepath.ToSlash(gopath)); ok {

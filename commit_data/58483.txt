@@ -20,6 +20,20 @@ Date:   Tue Nov 14 10:33:25 2023 +0700
     Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/types2/check.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index e8aed5d56e..381ccd8dcf 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -23,7 +23,7 @@ var nopos syntax.Pos
+ const debug = false // leave on during development
+ 
+ // gotypesalias controls the use of Alias types.
+-var gotypesalias = godebug.New("gotypesalias")
++var gotypesalias = godebug.New("#gotypesalias")
+ 
+ // exprInfo stores information about an untyped expression.
+ type exprInfo struct {

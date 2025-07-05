@@ -18,6 +18,22 @@ Date:   Mon Jul 4 14:29:52 2022 +0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/asm_loong64.s | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/runtime/asm_loong64.s b/src/runtime/asm_loong64.s
+index a64b0adf9c..e226bda36f 100644
+--- a/src/runtime/asm_loong64.s
++++ b/src/runtime/asm_loong64.s
+@@ -186,10 +186,6 @@ switch:
+ 	MOVV	R5, g
+ 	JAL	runtime·save_g(SB)
+ 	MOVV	(g_sched+gobuf_sp)(g), R19
+-	// make it look like mstart called systemstack on g0, to stop traceback
+-	ADDV	$-8, R19
+-	MOVV	$runtime·mstart(SB), R6
+-	MOVV	R6, 0(R19)
+ 	MOVV	R19, R3
+ 
+ 	// call target function

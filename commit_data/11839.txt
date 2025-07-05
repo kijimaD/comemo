@@ -10,6 +10,30 @@ Date:   Mon Feb 13 00:19:18 2012 -0500
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/5654070
-
+---
  src/pkg/strconv/atof_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/pkg/strconv/atof_test.go b/src/pkg/strconv/atof_test.go
+index 1da8c84d55..04bf336f45 100644
+--- a/src/pkg/strconv/atof_test.go
++++ b/src/pkg/strconv/atof_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"math"
+ 	"math/rand"
+ 	"reflect"
++	"runtime"
+ 	. "strconv"
+ 	"strings"
+ 	"testing"
+@@ -237,6 +238,10 @@ var roundTripCases = []struct {
+ }
+ 
+ func TestRoundTrip(t *testing.T) {
++	if runtime.GOOS == "darwin" && runtime.GOARCH == "386" {
++		t.Logf("skipping round-trip test on darwin/386 - known failure, issue 2917")
++		return
++	}
+ 	for _, tt := range roundTripCases {
+ 		old := SetOptimize(false)
+ 		s := FormatFloat(tt.f, 'g', -1, 64)

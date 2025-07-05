@@ -11,7 +11,55 @@ Date:   Tue Sep 17 21:12:35 2019 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/mod_m.txt | 15 +++++++++++++++
  src/internal/goroot/gc.go            | 15 +++------------
  2 files changed, 18 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/mod_m.txt b/src/cmd/go/testdata/script/mod_m.txt
+new file mode 100644
+index 0000000000..a6edeac7bb
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_m.txt
+@@ -0,0 +1,15 @@
++# It's absurd, but builds with -compiler=gccgo used to fail to build module m.
++# golang.org/issue/34358
++
++cd m
++go build
++exists m$GOEXE
++rm m$GOEXE
++[exec:gccgo] go build -compiler=gccgo
++[exec:gccgo] exists m$GOEXE
++
++-- m/go.mod --
++module m
++-- m/main.go --
++package main
++func main() {}
+diff --git a/src/internal/goroot/gc.go b/src/internal/goroot/gc.go
+index 9d846d8c49..0f541d734b 100644
+--- a/src/internal/goroot/gc.go
++++ b/src/internal/goroot/gc.go
+@@ -121,18 +121,9 @@ func (gd *gccgoDirs) isStandard(path string) bool {
+ 	}
+ 
+ 	for _, dir := range gd.dirs {
+-		full := filepath.Join(dir, path)
+-		pkgdir, pkg := filepath.Split(full)
+-		for _, p := range [...]string{
+-			full,
+-			full + ".gox",
+-			pkgdir + "lib" + pkg + ".so",
+-			pkgdir + "lib" + pkg + ".a",
+-			full + ".o",
+-		} {
+-			if fi, err := os.Stat(p); err == nil && !fi.IsDir() {
+-				return true
+-			}
++		full := filepath.Join(dir, path) + ".gox"
++		if fi, err := os.Stat(full); err == nil && !fi.IsDir() {
++			return true
+ 		}
+ 	}
+ 

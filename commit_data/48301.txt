@@ -25,8 +25,68 @@ Date:   Wed May 5 11:22:58 2021 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  api/next.txt                          | 4 ++--
  src/text/template/parse/parse.go      | 6 +++---
  src/text/template/parse/parse_test.go | 6 +++---
  3 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/api/next.txt b/api/next.txt
+index a6471c7f3a..9e996005c6 100644
+--- a/api/next.txt
++++ b/api/next.txt
+@@ -90,8 +90,8 @@ pkg syscall (windows-amd64), type SysProcAttr struct, AdditionalInheritedHandles
+ pkg syscall (windows-amd64), type SysProcAttr struct, ParentProcess Handle
+ pkg testing, method (*B) Setenv(string, string)
+ pkg testing, method (*T) Setenv(string, string)
+-pkg text/template/parse, const DeferFuncCheck = 2
+-pkg text/template/parse, const DeferFuncCheck Mode
++pkg text/template/parse, const SkipFuncCheck = 2
++pkg text/template/parse, const SkipFuncCheck Mode
+ pkg time, func UnixMicro(int64) Time
+ pkg time, func UnixMilli(int64) Time
+ pkg time, method (*Time) IsDST() bool
+diff --git a/src/text/template/parse/parse.go b/src/text/template/parse/parse.go
+index ff1358b001..1a63961c13 100644
+--- a/src/text/template/parse/parse.go
++++ b/src/text/template/parse/parse.go
+@@ -38,8 +38,8 @@ type Tree struct {
+ type Mode uint
+ 
+ const (
+-	ParseComments  Mode = 1 << iota // parse comments and add them to AST
+-	DeferFuncCheck                  // defer type checking functions until template is executed
++	ParseComments Mode = 1 << iota // parse comments and add them to AST
++	SkipFuncCheck                  // do not check that functions are defined
+ )
+ 
+ // Copy returns a copy of the Tree. Any parsing state is discarded.
+@@ -690,7 +690,7 @@ func (t *Tree) operand() Node {
+ func (t *Tree) term() Node {
+ 	switch token := t.nextNonSpace(); token.typ {
+ 	case itemIdentifier:
+-		checkFunc := t.Mode&DeferFuncCheck == 0
++		checkFunc := t.Mode&SkipFuncCheck == 0
+ 		if checkFunc && !t.hasFunction(token.val) {
+ 			t.errorf("function %q not defined", token.val)
+ 		}
+diff --git a/src/text/template/parse/parse_test.go b/src/text/template/parse/parse_test.go
+index c4585f6912..9b1be272e5 100644
+--- a/src/text/template/parse/parse_test.go
++++ b/src/text/template/parse/parse_test.go
+@@ -379,12 +379,12 @@ func TestParseWithComments(t *testing.T) {
+ 	}
+ }
+ 
+-func TestDeferFuncCheck(t *testing.T) {
++func TestSkipFuncCheck(t *testing.T) {
+ 	oldTextFormat := textFormat
+ 	textFormat = "%q"
+ 	defer func() { textFormat = oldTextFormat }()
+-	tr := New("defer func check")
+-	tr.Mode = DeferFuncCheck
++	tr := New("skip func check")
++	tr.Mode = SkipFuncCheck
+ 	tmpl, err := tr.Parse("{{fn 1 2}}", "", "", make(map[string]*Tree))
+ 	if err != nil {
+ 		t.Fatalf("unexpected error: %v", err)

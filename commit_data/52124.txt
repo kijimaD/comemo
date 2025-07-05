@@ -13,8 +13,196 @@ Date:   Tue Mar 29 12:51:31 2022 -0700
     Run-TryBot: Russ Cox <rsc@golang.org>
     Auto-Submit: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  api/next/50340.txt      |   1 +
  src/sort/search.go      |  41 +++++++++++++++++++
  src/sort/search_test.go | 106 ++++++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 148 insertions(+)
+
+diff --git a/api/next/50340.txt b/api/next/50340.txt
+new file mode 100644
+index 0000000000..211392cd25
+--- /dev/null
++++ b/api/next/50340.txt
+@@ -0,0 +1 @@
++pkg sort, func Find(int, func(int) int) (int, bool) #50340
+diff --git a/src/sort/search.go b/src/sort/search.go
+index 601557a94b..434349416e 100644
+--- a/src/sort/search.go
++++ b/src/sort/search.go
+@@ -72,6 +72,47 @@ func Search(n int, f func(int) bool) int {
+ 	return i
+ }
+ 
++// Find uses binary search to find and return the smallest index i in [0, n)
++// at which cmp(i) <= 0. If there is no such index i, Find returns i = n.
++// The found result is true if i < n and cmp(i) == 0.
++// Find calls cmp(i) only for i in the range [0, n).
++//
++// To permit binary search, Find requires that cmp(i) > 0 for a leading
++// prefix of the range, cmp(i) == 0 in the middle, and cmp(i) < 0 for
++// the final suffix of the range. (Each subrange could be empty.)
++// The usual way to establish this condition is to interpret cmp(i)
++// as a comparison of a desired target value t against entry i in an
++// underlying indexed data structure x, returning <0, 0, and >0
++// when t < x[i], t == x[i], and t > x[i], respectively.
++//
++// For example, to look for a particular string in a sorted, random-access
++// list of strings:
++//    i, found := sort.Find(x.Len(), func(i int) int {
++//        return strings.Compare(target, x.At(i))
++//    })
++//    if found {
++//        fmt.Printf("found %s at entry %d\n", target, i)
++//    } else {
++//        fmt.Printf("%s not found, would insert at %d", target, i)
++//    }
++func Find(n int, cmp func(int) int) (i int, found bool) {
++	// The invariants here are similar to the ones in Search.
++	// Define cmp(-1) > 0 and cmp(n) <= 0
++	// Invariant: cmp(i-1) > 0, cmp(j) <= 0
++	i, j := 0, n
++	for i < j {
++		h := int(uint(i+j) >> 1) // avoid overflow when computing h
++		// i ≤ h < j
++		if cmp(h) > 0 {
++			i = h + 1 // preserves cmp(i-1) > 0
++		} else {
++			j = h // preserves cmp(j) <= 0
++		}
++	}
++	// i == j, cmp(i-1) > 0 and cmp(j) <= 0
++	return i, i < n && cmp(i) == 0
++}
++
+ // Convenience wrappers for common cases.
+ 
+ // SearchInts searches for x in a sorted slice of ints and returns the index
+diff --git a/src/sort/search_test.go b/src/sort/search_test.go
+index f06897ee21..49813eaecb 100644
+--- a/src/sort/search_test.go
++++ b/src/sort/search_test.go
+@@ -7,6 +7,7 @@ package sort_test
+ import (
+ 	"runtime"
+ 	. "sort"
++	stringspkg "strings"
+ 	"testing"
+ )
+ 
+@@ -57,6 +58,80 @@ func TestSearch(t *testing.T) {
+ 	}
+ }
+ 
++func TestFind(t *testing.T) {
++	str1 := []string{"foo"}
++	str2 := []string{"ab", "ca"}
++	str3 := []string{"mo", "qo", "vo"}
++	str4 := []string{"ab", "ad", "ca", "xy"}
++
++	// slice with repeating elements
++	strRepeats := []string{"ba", "ca", "da", "da", "da", "ka", "ma", "ma", "ta"}
++
++	// slice with all element equal
++	strSame := []string{"xx", "xx", "xx"}
++
++	tests := []struct {
++		data      []string
++		target    string
++		wantPos   int
++		wantFound bool
++	}{
++		{[]string{}, "foo", 0, false},
++		{[]string{}, "", 0, false},
++
++		{str1, "foo", 0, true},
++		{str1, "bar", 0, false},
++		{str1, "zx", 1, false},
++
++		{str2, "aa", 0, false},
++		{str2, "ab", 0, true},
++		{str2, "ad", 1, false},
++		{str2, "ca", 1, true},
++		{str2, "ra", 2, false},
++
++		{str3, "bb", 0, false},
++		{str3, "mo", 0, true},
++		{str3, "nb", 1, false},
++		{str3, "qo", 1, true},
++		{str3, "tr", 2, false},
++		{str3, "vo", 2, true},
++		{str3, "xr", 3, false},
++
++		{str4, "aa", 0, false},
++		{str4, "ab", 0, true},
++		{str4, "ac", 1, false},
++		{str4, "ad", 1, true},
++		{str4, "ax", 2, false},
++		{str4, "ca", 2, true},
++		{str4, "cc", 3, false},
++		{str4, "dd", 3, false},
++		{str4, "xy", 3, true},
++		{str4, "zz", 4, false},
++
++		{strRepeats, "da", 2, true},
++		{strRepeats, "db", 5, false},
++		{strRepeats, "ma", 6, true},
++		{strRepeats, "mb", 8, false},
++
++		{strSame, "xx", 0, true},
++		{strSame, "ab", 0, false},
++		{strSame, "zz", 3, false},
++	}
++
++	for _, tt := range tests {
++		t.Run(tt.target, func(t *testing.T) {
++			cmp := func(i int) int {
++				return stringspkg.Compare(tt.target, tt.data[i])
++			}
++
++			pos, found := Find(len(tt.data), cmp)
++			if pos != tt.wantPos || found != tt.wantFound {
++				t.Errorf("Find got (%v, %v), want (%v, %v)", pos, found, tt.wantPos, tt.wantFound)
++			}
++		})
++	}
++}
++
+ // log2 computes the binary logarithm of x, rounded up to the next integer.
+ // (log2(0) == 0, log2(1) == 0, log2(2) == 1, log2(3) == 2, etc.)
+ func log2(x int) int {
+@@ -158,3 +233,34 @@ func TestSearchExhaustive(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Abstract exhaustive test for Find.
++func TestFindExhaustive(t *testing.T) {
++	// Test Find for different sequence sizes and search targets.
++	// For each size, we have a (unmaterialized) sequence of integers:
++	//   2,4...size*2
++	// And we're looking for every possible integer between 1 and size*2 + 1.
++	for size := 0; size <= 100; size++ {
++		for x := 1; x <= size*2+1; x++ {
++			var wantFound bool
++			var wantPos int
++
++			cmp := func(i int) int {
++				// Encodes the unmaterialized sequence with elem[i] == (i+1)*2
++				return x - (i+1)*2
++			}
++			pos, found := Find(size, cmp)
++
++			if x%2 == 0 {
++				wantPos = x/2 - 1
++				wantFound = true
++			} else {
++				wantPos = x / 2
++				wantFound = false
++			}
++			if found != wantFound || pos != wantPos {
++				t.Errorf("Find(%d, %d): got (%v, %v), want (%v, %v)", size, x, pos, found, wantPos, wantFound)
++			}
++		}
++	}
++}

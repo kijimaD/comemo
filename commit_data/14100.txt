@@ -8,6 +8,41 @@ Date:   Tue Oct 9 21:08:53 2012 +0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6641050
-
+---
  src/pkg/io/ioutil/tempfile.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/io/ioutil/tempfile.go b/src/pkg/io/ioutil/tempfile.go
+index 42d2e67586..257e05d215 100644
+--- a/src/pkg/io/ioutil/tempfile.go
++++ b/src/pkg/io/ioutil/tempfile.go
+@@ -8,6 +8,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"strconv"
++	"sync"
+ 	"time"
+ )
+ 
+@@ -16,18 +17,21 @@ import (
+ // chance the file doesn't exist yet - keeps the number of tries in
+ // TempFile to a minimum.
+ var rand uint32
++var randmu sync.Mutex
+ 
+ func reseed() uint32 {
+ 	return uint32(time.Now().UnixNano() + int64(os.Getpid()))
+ }
+ 
+ func nextSuffix() string {
++	randmu.Lock()
+ 	r := rand
+ 	if r == 0 {
+ 		r = reseed()
+ 	}
+ 	r = r*1664525 + 1013904223 // constants from Numerical Recipes
+ 	rand = r
++	randmu.Unlock()
+ 	return strconv.Itoa(int(1e9 + r%1e9))[1:]
+ }
+ 

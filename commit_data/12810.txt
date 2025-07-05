@@ -7,6 +7,20 @@ Date:   Mon Apr 2 11:27:50 2012 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5975043
-
+---
  src/pkg/runtime/proc.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 04a9926283..12dc910f04 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1376,7 +1376,7 @@ rundefer(void)
+ }
+ 
+ // Free stack frames until we hit the last one
+-// or until we find the one that contains the argp.
++// or until we find the one that contains the sp.
+ static void
+ unwindstack(G *gp, byte *sp)
+ {

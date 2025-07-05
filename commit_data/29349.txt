@@ -10,6 +10,17 @@ Date:   Sat Sep 10 15:24:28 2016 -0700
     Change-Id: I5c52cb23dda499b21a6bb32ed5c586779ccbc2f1
     Reviewed-on: https://go-review.googlesource.com/28960
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/all/whitelist/readme.txt | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/vet/all/whitelist/readme.txt b/src/cmd/vet/all/whitelist/readme.txt
+new file mode 100644
+index 0000000000..4f83757dbc
+--- /dev/null
++++ b/src/cmd/vet/all/whitelist/readme.txt
+@@ -0,0 +1,4 @@
++This directory contains whitelists for vet complaints about the standard library and commands.
++They are line-based and unordered, although counts of duplicated lines matter.
++Each line matches vet's output, except that line numbers are removed to avoid churn.
++There are also os-, arch-, and bitwidth-specific whitelists.

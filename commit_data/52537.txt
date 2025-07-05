@@ -14,7 +14,34 @@ Date:   Tue May 3 21:10:34 2022 +0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/types/size.go     | 2 +-
  src/cmd/compile/internal/types/universe.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types/size.go b/src/cmd/compile/internal/types/size.go
+index a6e43c8a75..7122b2720f 100644
+--- a/src/cmd/compile/internal/types/size.go
++++ b/src/cmd/compile/internal/types/size.go
+@@ -60,7 +60,7 @@ var MaxWidth int64
+ var CalcSizeDisabled bool
+ 
+ // machine size and rounding alignment is dictated around
+-// the size of a pointer, set in betypeinit (see ../amd64/galign.go).
++// the size of a pointer, set in gc.Main (see ../gc/main.go).
+ var defercalc int
+ 
+ func Rnd(o int64, r int64) int64 {
+diff --git a/src/cmd/compile/internal/types/universe.go b/src/cmd/compile/internal/types/universe.go
+index 4dff4548da..0ad2d35ce6 100644
+--- a/src/cmd/compile/internal/types/universe.go
++++ b/src/cmd/compile/internal/types/universe.go
+@@ -42,7 +42,7 @@ var typedefs = [...]struct {
+ 
+ func InitTypes(defTypeName func(sym *Sym, typ *Type) Object) {
+ 	if PtrSize == 0 {
+-		base.Fatalf("typeinit before betypeinit")
++		base.Fatalf("InitTypes called before PtrSize was set")
+ 	}
+ 
+ 	SlicePtrOffset = 0

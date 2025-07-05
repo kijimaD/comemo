@@ -21,7 +21,60 @@ Date:   Mon Nov 21 22:12:15 2022 -0500
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/work/exec.go                     |  9 ++-------
  src/cmd/go/testdata/script/cgo_stale_precompiled.txt | 20 ++++++++++++++------
  2 files changed, 16 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 7569935926..8c143e4588 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -278,13 +278,8 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
+ 		fmt.Fprintf(h, "CC=%q %q %q %q\n", ccExe, cppflags, cflags, ldflags)
+ 		// Include the C compiler tool ID so that if the C
+ 		// compiler changes we rebuild the package.
+-		// But don't do that for standard library packages like net,
+-		// so that the prebuilt .a files from a Go binary install
+-		// don't need to be rebuilt with the local compiler.
+-		if !p.Standard {
+-			if ccID, _, err := b.gccToolID(ccExe[0], "c"); err == nil {
+-				fmt.Fprintf(h, "CC ID=%q\n", ccID)
+-			}
++		if ccID, _, err := b.gccToolID(ccExe[0], "c"); err == nil {
++			fmt.Fprintf(h, "CC ID=%q\n", ccID)
+ 		}
+ 		if len(p.CXXFiles)+len(p.SwigCXXFiles) > 0 {
+ 			cxxExe := b.cxxExe()
+diff --git a/src/cmd/go/testdata/script/cgo_stale_precompiled.txt b/src/cmd/go/testdata/script/cgo_stale_precompiled.txt
+index e446758ed8..eb7e10557b 100644
+--- a/src/cmd/go/testdata/script/cgo_stale_precompiled.txt
++++ b/src/cmd/go/testdata/script/cgo_stale_precompiled.txt
+@@ -16,13 +16,21 @@
+ go build -x runtime/cgo
+ [!short] stderr '[/\\]cgo'$GOEXE'["]? .* -importpath runtime/cgo'
+ 
+-# https://go.dev/issue/47215: a missing $(go env CC) caused the precompiled net to be stale.
+-[!GOOS:plan9] env PATH=''  # Guaranteed not to include $(go env CC)!
+-[GOOS:plan9] env path=''
+-go build -x runtime/cgo
+-! stderr '[/\\]cgo'$GOEXE'["]? .* -importpath runtime/cgo'
+-
+ # https://go.dev/issue/50183: a mismatched GOROOT_FINAL caused net to be stale.
++env oldGOROOT_FINAL=$GOROOT_FINAL
+ env GOROOT_FINAL=$WORK${/}goroot
+ go build -x runtime/cgo
+ ! stderr '[/\\]cgo'$GOEXE'["]? .* -importpath runtime/cgo'
++
++env GOROOT_FINAL=$oldGOROOT_FINAL
++
++# https://go.dev/issue/47215: a missing $(go env CC) caused the precompiled net
++# to be stale. But as of https://go.dev/cl/452457 the precompiled libraries are
++# no longer installed anyway! Since we're requiring a C compiler in order to
++# build and use cgo libraries in the standard library, we should make sure it
++# matches what's in the cache.
++[!abscc] env CGO_ENABLED=1
++[!abscc] [!GOOS:plan9] env PATH=''  # Guaranteed not to include $(go env CC)!
++[!abscc] [GOOS:plan9] env path=''
++[!abscc] ! go build -x runtime/cgo
++[!abscc] stderr 'C compiler .* not found'

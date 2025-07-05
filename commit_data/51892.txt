@@ -27,6 +27,34 @@ Date:   Fri Mar 18 09:10:02 2022 +0100
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/mgcwork.go | 9 ++-------
  1 file changed, 2 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index 9c3f7fd223..56d0b1cd62 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -148,9 +148,7 @@ func (w *gcWork) put(obj uintptr) {
+ //go:nowritebarrierrec
+ func (w *gcWork) putFast(obj uintptr) bool {
+ 	wbuf := w.wbuf1
+-	if wbuf == nil {
+-		return false
+-	} else if wbuf.nobj == len(wbuf.obj) {
++	if wbuf == nil || wbuf.nobj == len(wbuf.obj) {
+ 		return false
+ 	}
+ 
+@@ -230,10 +228,7 @@ func (w *gcWork) tryGet() uintptr {
+ //go:nowritebarrierrec
+ func (w *gcWork) tryGetFast() uintptr {
+ 	wbuf := w.wbuf1
+-	if wbuf == nil {
+-		return 0
+-	}
+-	if wbuf.nobj == 0 {
++	if wbuf == nil || wbuf.nobj == 0 {
+ 		return 0
+ 	}
+ 

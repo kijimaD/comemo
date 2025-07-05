@@ -23,7 +23,66 @@ Date:   Tue Jun 28 15:28:21 2022 -0700
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     Auto-Submit: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/crypto/x509/parser.go    |  5 +----
  src/crypto/x509/x509_test.go | 28 ++++++++++++++++++++++++++++
  2 files changed, 29 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/x509/parser.go b/src/crypto/x509/parser.go
+index cd87044d17..a2d3d80964 100644
+--- a/src/crypto/x509/parser.go
++++ b/src/crypto/x509/parser.go
+@@ -1106,13 +1106,10 @@ func ParseRevocationList(der []byte) (*RevocationList, error) {
+ 			}
+ 			var extensions cryptobyte.String
+ 			var present bool
+-			if !tbs.ReadOptionalASN1(&extensions, &present, cryptobyte_asn1.SEQUENCE) {
++			if !certSeq.ReadOptionalASN1(&extensions, &present, cryptobyte_asn1.SEQUENCE) {
+ 				return nil, errors.New("x509: malformed extensions")
+ 			}
+ 			if present {
+-				if !extensions.ReadASN1(&extensions, cryptobyte_asn1.SEQUENCE) {
+-					return nil, errors.New("x509: malformed extensions")
+-				}
+ 				for !extensions.Empty() {
+ 					var extension cryptobyte.String
+ 					if !extensions.ReadASN1(&extension, cryptobyte_asn1.SEQUENCE) {
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index 594ee1dceb..cddad1e246 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -2524,6 +2524,34 @@ func TestCreateRevocationList(t *testing.T) {
+ 				NextUpdate: time.Time{}.Add(time.Hour * 48),
+ 			},
+ 		},
++		{
++			name: "valid, extra entry extension",
++			key:  ec256Priv,
++			issuer: &Certificate{
++				KeyUsage: KeyUsageCRLSign,
++				Subject: pkix.Name{
++					CommonName: "testing",
++				},
++				SubjectKeyId: []byte{1, 2, 3},
++			},
++			template: &RevocationList{
++				RevokedCertificates: []pkix.RevokedCertificate{
++					{
++						SerialNumber:   big.NewInt(2),
++						RevocationTime: time.Time{}.Add(time.Hour),
++						Extensions: []pkix.Extension{
++							{
++								Id:    []int{2, 5, 29, 99},
++								Value: []byte{5, 0},
++							},
++						},
++					},
++				},
++				Number:     big.NewInt(5),
++				ThisUpdate: time.Time{}.Add(time.Hour * 24),
++				NextUpdate: time.Time{}.Add(time.Hour * 48),
++			},
++		},
+ 		{
+ 			name: "valid, Ed25519 key",
+ 			key:  ed25519Priv,

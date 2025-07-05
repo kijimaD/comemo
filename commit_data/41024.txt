@@ -23,7 +23,7 @@ Date:   Wed Aug 14 15:19:55 2019 +0000
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/os/signal/doc.go              |  8 ++++++++
  src/runtime/defs_windows.go       | 10 +++++++---
  src/runtime/defs_windows_386.go   | 10 +++++++---
@@ -32,3 +32,138 @@ Date:   Wed Aug 14 15:19:55 2019 +0000
  src/runtime/os_windows.go         |  2 ++
  src/syscall/types_windows.go      |  7 +++++--
  7 files changed, 43 insertions(+), 14 deletions(-)
+
+diff --git a/src/os/signal/doc.go b/src/os/signal/doc.go
+index 16f49c7ab8..2229d36954 100644
+--- a/src/os/signal/doc.go
++++ b/src/os/signal/doc.go
+@@ -211,6 +211,14 @@ will cause os.Interrupt to be sent on the channel, and the program will
+ not exit. If Reset is called, or Stop is called on all channels passed
+ to Notify, then the default behavior will be restored.
+ 
++Additionally, if Notify is called, and Windows sends CTRL_CLOSE_EVENT,
++CTRL_LOGOFF_EVENT or CTRL_SHUTDOWN_EVENT to the process, Notify will
++return syscall.SIGTERM. Unlike Control-C and Control-Break, Notify does
++not change process behavior when either CTRL_CLOSE_EVENT,
++CTRL_LOGOFF_EVENT or CTRL_SHUTDOWN_EVENT is received - the process will
++still get terminated unless it exits. But receiving syscall.SIGTERM will
++give the process an opportunity to clean up before termination.
++
+ Plan 9
+ 
+ On Plan 9, signals have type syscall.Note, which is a string. Calling
+diff --git a/src/runtime/defs_windows.go b/src/runtime/defs_windows.go
+index 9bd9107476..43f358d56a 100644
+--- a/src/runtime/defs_windows.go
++++ b/src/runtime/defs_windows.go
+@@ -41,9 +41,13 @@ const (
+ 	DUPLICATE_SAME_ACCESS   = C.DUPLICATE_SAME_ACCESS
+ 	THREAD_PRIORITY_HIGHEST = C.THREAD_PRIORITY_HIGHEST
+ 
+-	SIGINT           = C.SIGINT
+-	CTRL_C_EVENT     = C.CTRL_C_EVENT
+-	CTRL_BREAK_EVENT = C.CTRL_BREAK_EVENT
++	SIGINT              = C.SIGINT
++	SIGTERM             = C.SIGTERM
++	CTRL_C_EVENT        = C.CTRL_C_EVENT
++	CTRL_BREAK_EVENT    = C.CTRL_BREAK_EVENT
++	CTRL_CLOSE_EVENT    = C.CTRL_CLOSE_EVENT
++	CTRL_LOGOFF_EVENT   = C.CTRL_LOGOFF_EVENT
++	CTRL_SHUTDOWN_EVENT = C.CTRL_SHUTDOWN_EVENT
+ 
+ 	CONTEXT_CONTROL = C.CONTEXT_CONTROL
+ 	CONTEXT_FULL    = C.CONTEXT_FULL
+diff --git a/src/runtime/defs_windows_386.go b/src/runtime/defs_windows_386.go
+index 8c0d6d8b98..3c5057b86f 100644
+--- a/src/runtime/defs_windows_386.go
++++ b/src/runtime/defs_windows_386.go
+@@ -15,9 +15,13 @@ const (
+ 	_DUPLICATE_SAME_ACCESS   = 0x2
+ 	_THREAD_PRIORITY_HIGHEST = 0x2
+ 
+-	_SIGINT           = 0x2
+-	_CTRL_C_EVENT     = 0x0
+-	_CTRL_BREAK_EVENT = 0x1
++	_SIGINT              = 0x2
++	_SIGTERM             = 0xF
++	_CTRL_C_EVENT        = 0x0
++	_CTRL_BREAK_EVENT    = 0x1
++	_CTRL_CLOSE_EVENT    = 0x2
++	_CTRL_LOGOFF_EVENT   = 0x5
++	_CTRL_SHUTDOWN_EVENT = 0x6
+ 
+ 	_CONTEXT_CONTROL = 0x10001
+ 	_CONTEXT_FULL    = 0x10007
+diff --git a/src/runtime/defs_windows_amd64.go b/src/runtime/defs_windows_amd64.go
+index 42a446d3cd..ebb1506e2f 100644
+--- a/src/runtime/defs_windows_amd64.go
++++ b/src/runtime/defs_windows_amd64.go
+@@ -15,9 +15,13 @@ const (
+ 	_DUPLICATE_SAME_ACCESS   = 0x2
+ 	_THREAD_PRIORITY_HIGHEST = 0x2
+ 
+-	_SIGINT           = 0x2
+-	_CTRL_C_EVENT     = 0x0
+-	_CTRL_BREAK_EVENT = 0x1
++	_SIGINT              = 0x2
++	_SIGTERM             = 0xF
++	_CTRL_C_EVENT        = 0x0
++	_CTRL_BREAK_EVENT    = 0x1
++	_CTRL_CLOSE_EVENT    = 0x2
++	_CTRL_LOGOFF_EVENT   = 0x5
++	_CTRL_SHUTDOWN_EVENT = 0x6
+ 
+ 	_CONTEXT_CONTROL = 0x100001
+ 	_CONTEXT_FULL    = 0x10000b
+diff --git a/src/runtime/defs_windows_arm.go b/src/runtime/defs_windows_arm.go
+index 049f5b613a..b275b0572a 100644
+--- a/src/runtime/defs_windows_arm.go
++++ b/src/runtime/defs_windows_arm.go
+@@ -16,9 +16,13 @@ const (
+ 	_DUPLICATE_SAME_ACCESS   = 0x2
+ 	_THREAD_PRIORITY_HIGHEST = 0x2
+ 
+-	_SIGINT           = 0x2
+-	_CTRL_C_EVENT     = 0x0
+-	_CTRL_BREAK_EVENT = 0x1
++	_SIGINT              = 0x2
++	_SIGTERM             = 0xF
++	_CTRL_C_EVENT        = 0x0
++	_CTRL_BREAK_EVENT    = 0x1
++	_CTRL_CLOSE_EVENT    = 0x2
++	_CTRL_LOGOFF_EVENT   = 0x5
++	_CTRL_SHUTDOWN_EVENT = 0x6
+ 
+ 	_CONTEXT_CONTROL = 0x10001
+ 	_CONTEXT_FULL    = 0x10007
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 074ae0f40d..9540069e11 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -894,6 +894,8 @@ func ctrlhandler1(_type uint32) uint32 {
+ 	switch _type {
+ 	case _CTRL_C_EVENT, _CTRL_BREAK_EVENT:
+ 		s = _SIGINT
++	case _CTRL_CLOSE_EVENT, _CTRL_LOGOFF_EVENT, _CTRL_SHUTDOWN_EVENT:
++		s = _SIGTERM
+ 	default:
+ 		return 0
+ 	}
+diff --git a/src/syscall/types_windows.go b/src/syscall/types_windows.go
+index 0b839339d2..0349f3b180 100644
+--- a/src/syscall/types_windows.go
++++ b/src/syscall/types_windows.go
+@@ -176,8 +176,11 @@ const (
+ 	FILE_MAP_READ    = 0x04
+ 	FILE_MAP_EXECUTE = 0x20
+ 
+-	CTRL_C_EVENT     = 0
+-	CTRL_BREAK_EVENT = 1
++	CTRL_C_EVENT        = 0
++	CTRL_BREAK_EVENT    = 1
++	CTRL_CLOSE_EVENT    = 2
++	CTRL_LOGOFF_EVENT   = 5
++	CTRL_SHUTDOWN_EVENT = 6
+ )
+ 
+ const (

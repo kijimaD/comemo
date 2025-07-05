@@ -10,6 +10,20 @@ Date:   Sun Mar 23 18:58:35 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/79280043
-
+---
  src/pkg/strings/replace.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/strings/replace.go b/src/pkg/strings/replace.go
+index 54c9323e04..3e05d2057b 100644
+--- a/src/pkg/strings/replace.go
++++ b/src/pkg/strings/replace.go
+@@ -492,7 +492,7 @@ func (r *byteStringReplacer) Replace(s string) string {
+ 	for i := 0; i < len(s); i++ {
+ 		b := s[i]
+ 		if r.old[b>>5]&uint32(1<<(b&31)) != 0 {
+-			n := copy(bi[:], r.new[b])
++			n := copy(bi, r.new[b])
+ 			bi = bi[n:]
+ 		} else {
+ 			bi[0] = b

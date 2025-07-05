@@ -7,6 +7,20 @@ Date:   Thu Oct 21 08:17:24 2010 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2639041
-
+---
  src/pkg/net/dial.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/dial.go b/src/pkg/net/dial.go
+index 4ba11e7fe9..9a4c8f6889 100644
+--- a/src/pkg/net/dial.go
++++ b/src/pkg/net/dial.go
+@@ -12,7 +12,7 @@ import "os"
+ //
+ // Known networks are "tcp", "tcp4" (IPv4-only), "tcp6" (IPv6-only),
+ // "udp", "udp4" (IPv4-only), "udp6" (IPv6-only), "ip", "ip4"
+-// (IPv4-only) and "ip6" IPv6-only).
++// (IPv4-only), "ip6" (IPv6-only), "unix" and "unixgram".
+ //
+ // For IP networks, addresses have the form host:port.  If host is
+ // a literal IPv6 address, it must be enclosed in square brackets.

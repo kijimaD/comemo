@@ -16,7 +16,75 @@ Date:   Sat Nov 9 00:21:02 2019 +0000
     Change-Id: I0af42d4a307b48a97e47ed152c619d77b0298291
     Reviewed-on: https://go-review.googlesource.com/c/go/+/206277
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/mgcscavenge.go      | 18 ++++++++++++------
  src/runtime/mgcscavenge_test.go | 12 ++++++++++++
  2 files changed, 24 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 4c2fb4403c..db7c8121dc 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -602,9 +602,10 @@ func (m *pallocData) hasScavengeCandidate(min uintptr) bool {
+ // findScavengeCandidate effectively returns entire free and unscavenged regions.
+ // If max < pallocChunkPages, it may truncate the returned region such that size is
+ // max. However, findScavengeCandidate may still return a larger region if, for
+-// example, it chooses to preserve huge pages. That is, even if max is small,
+-// size is not guaranteed to be equal to max. max is allowed to be less than min,
+-// in which case it is as if max == min.
++// example, it chooses to preserve huge pages, or if max is not aligned to min (it
++// will round up). That is, even if max is small, the returned size is not guaranteed
++// to be equal to max. max is allowed to be less than min, in which case it is as if
++// max == min.
+ func (m *pallocData) findScavengeCandidate(searchIdx uint, min, max uintptr) (uint, uint) {
+ 	if min&(min-1) != 0 || min == 0 {
+ 		print("runtime: min = ", min, "\n")
+@@ -613,10 +614,15 @@ func (m *pallocData) findScavengeCandidate(searchIdx uint, min, max uintptr) (ui
+ 		print("runtime: min = ", min, "\n")
+ 		throw("min too large")
+ 	}
+-	// max is allowed to be less than min, but we need to ensure
+-	// we never truncate further than min.
+-	if max < min {
++	// max may not be min-aligned, so we might accidentally truncate to
++	// a max value which causes us to return a non-min-aligned value.
++	// To prevent this, align max up to a multiple of min (which is always
++	// a power of 2). This also prevents max from ever being less than
++	// min, unless it's zero, so handle that explicitly.
++	if max == 0 {
+ 		max = min
++	} else {
++		max = alignUp(max, min)
+ 	}
+ 
+ 	i := int(searchIdx / 64)
+diff --git a/src/runtime/mgcscavenge_test.go b/src/runtime/mgcscavenge_test.go
+index ca507450db..b29a4d796a 100644
+--- a/src/runtime/mgcscavenge_test.go
++++ b/src/runtime/mgcscavenge_test.go
+@@ -184,6 +184,12 @@ func TestPallocDataFindScavengeCandidate(t *testing.T) {
+ 			max:       3 * m,
+ 			want:      BitRange{128, 3 * uint(m)},
+ 		}
++		tests["Max0"+suffix] = test{
++			scavenged: []BitRange{{0, PallocChunkPages - uint(m)}},
++			min:       m,
++			max:       0,
++			want:      BitRange{PallocChunkPages - uint(m), uint(m)},
++		}
+ 		if m <= 8 {
+ 			tests["OneFree"] = test{
+ 				alloc: []BitRange{{0, 40}, {40 + uint(m), PallocChunkPages - (40 + uint(m))}},
+@@ -200,6 +206,12 @@ func TestPallocDataFindScavengeCandidate(t *testing.T) {
+ 			}
+ 		}
+ 		if m > 1 {
++			tests["MaxUnaligned"+suffix] = test{
++				scavenged: []BitRange{{0, PallocChunkPages - uint(m*2-1)}},
++				min:       m,
++				max:       m - 2,
++				want:      BitRange{PallocChunkPages - uint(m), uint(m)},
++			}
+ 			tests["SkipSmall"+suffix] = test{
+ 				alloc: []BitRange{{0, 64 - uint(m)}, {64, 5}, {70, 11}, {82, PallocChunkPages - 82}},
+ 				min:   m,

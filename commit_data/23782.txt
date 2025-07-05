@@ -14,8 +14,64 @@ Date:   Fri Jun 12 16:17:08 2015 -0700
     Change-Id: I443a6441adcf1c834057ef3977f9116a987a79cd
     Reviewed-on: https://go-review.googlesource.com/10997
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/fmt/doc.go       | 19 ++++++++++++-------
  src/fmt/scan.go      |  1 +
  src/fmt/scan_test.go |  2 ++
  3 files changed, 15 insertions(+), 7 deletions(-)
+
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index a5fb513f30..2efe6ee5b4 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -271,13 +271,18 @@
+ 		Flags # and + are not implemented.
+ 
+ 	The familiar base-setting prefixes 0 (octal) and 0x
+-	(hexadecimal) are accepted when scanning integers without a
+-	format or with the %v verb.
+-
+-	Width is interpreted in the input text (%5s means at most
+-	five runes of input will be read to scan a string) but there
+-	is no syntax for scanning with a precision (no %5.2f, just
+-	%5f).
++	(hexadecimal) are accepted when scanning integers without
++	a format or with the %v verb.
++
++	Width is interpreted in the input text but there is no
++	syntax for scanning with a precision (no %5.2f, just %5f).
++	If width is provided, it applies after leading spaces are
++	trimmed and specifies the maximum number of runes to read
++	to satisfy the verb. For example,
++	   Sscanf(" 1234567 ", "%5s%d", &s, &i)
++	will set s to "12345" and i to 67 while
++	   Sscanf(" 12 34 567 ", "%5s%d", &s, &i)
++	will set s to "12" and i to 34.
+ 
+ 	In all the scanning functions, a carriage return followed
+ 	immediately by a newline is treated as a plain newline
+diff --git a/src/fmt/scan.go b/src/fmt/scan.go
+index d6b9b79c6b..21ed091d80 100644
+--- a/src/fmt/scan.go
++++ b/src/fmt/scan.go
+@@ -1165,6 +1165,7 @@ func (s *ss) doScanf(format string, a []interface{}) (numProcessed int, err erro
+ 		if !widPresent {
+ 			s.maxWid = hugeWid
+ 		}
++		s.SkipSpace()
+ 		s.argLimit = s.limit
+ 		if f := s.count + s.maxWid; f < s.argLimit {
+ 			s.argLimit = f
+diff --git a/src/fmt/scan_test.go b/src/fmt/scan_test.go
+index 9e3e90a5c4..694f93e1ae 100644
+--- a/src/fmt/scan_test.go
++++ b/src/fmt/scan_test.go
+@@ -340,6 +340,8 @@ var multiTests = []ScanfMultiTest{
+ 	{"%6vX=%3fY", "3+2iX=2.5Y", args(&c, &f), args((3 + 2i), 2.5), ""},
+ 	{"%d%s", "123abc", args(&i, &s), args(123, "abc"), ""},
+ 	{"%c%c%c", "2\u50c2X", args(&r1, &r2, &r3), args('2', '\u50c2', 'X'), ""},
++	{"%5s%d", " 1234567 ", args(&s, &i), args("12345", 67), ""},
++	{"%5s%d", " 12 34 567 ", args(&s, &i), args("12", 34), ""},
+ 
+ 	// Custom scanners.
+ 	{"%e%f", "eefffff", args(&x, &y), args(Xs("ee"), Xs("fffff")), ""},

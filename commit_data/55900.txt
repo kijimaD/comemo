@@ -17,7 +17,52 @@ Date:   Wed Mar 22 06:31:25 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/encoding/gob/codec_test.go  | 14 ++++++++++++++
  src/encoding/gob/dec_helpers.go |  3 +++
  2 files changed, 17 insertions(+)
+
+diff --git a/src/encoding/gob/codec_test.go b/src/encoding/gob/codec_test.go
+index 54c356c464..28cd6088af 100644
+--- a/src/encoding/gob/codec_test.go
++++ b/src/encoding/gob/codec_test.go
+@@ -1544,6 +1544,10 @@ type LargeSliceStruct struct {
+ 	S []StringPair
+ }
+ 
++type LargeSliceString struct {
++	S []string
++}
++
+ func testEncodeDecode(t *testing.T, in, out any) {
+ 	t.Helper()
+ 	var b bytes.Buffer
+@@ -1592,4 +1596,14 @@ func TestLargeSlice(t *testing.T) {
+ 		rt := &LargeSliceStruct{}
+ 		testEncodeDecode(t, st, rt)
+ 	})
++	t.Run("string", func(t *testing.T) {
++		t.Parallel()
++		s := make([]string, 1<<21)
++		for i := range s {
++			s[i] = string(rune(i))
++		}
++		st := &LargeSliceString{S: s}
++		rt := &LargeSliceString{}
++		testEncodeDecode(t, st, rt)
++	})
+ }
+diff --git a/src/encoding/gob/dec_helpers.go b/src/encoding/gob/dec_helpers.go
+index a09ac8fc1a..098ba7254a 100644
+--- a/src/encoding/gob/dec_helpers.go
++++ b/src/encoding/gob/dec_helpers.go
+@@ -358,6 +358,9 @@ func decStringSlice(state *decoderState, v reflect.Value, length int, ovfl error
+ 		if state.b.Len() == 0 {
+ 			errorf("decoding string array or slice: length exceeds input size (%d elements)", length)
+ 		}
++		if i >= len(slice) {
++			growSlice(v, &slice, length)
++		}
+ 		u := state.decodeUint()
+ 		n := int(u)
+ 		if n < 0 || uint64(n) != u || n > state.b.Len() {

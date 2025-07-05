@@ -7,6 +7,11 @@ Date:   Wed Apr 13 11:33:42 2016 -0700
     Change-Id: If0e0bc5a85101db1e70faaab168fc2d12024eb93
     Reviewed-on: https://go-review.googlesource.com/22005
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/{os1_darwin.go => os_darwin.go} | 0
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/runtime/os1_darwin.go b/src/runtime/os_darwin.go
+similarity index 100%
+rename from src/runtime/os1_darwin.go
+rename to src/runtime/os_darwin.go

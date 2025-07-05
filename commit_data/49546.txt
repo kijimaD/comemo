@@ -12,6 +12,25 @@ Date:   Fri Jul 16 10:29:05 2021 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/ir/scc.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/scc.go b/src/cmd/compile/internal/ir/scc.go
+index 2cfceaa1f6..a42951c1dd 100644
+--- a/src/cmd/compile/internal/ir/scc.go
++++ b/src/cmd/compile/internal/ir/scc.go
+@@ -116,12 +116,11 @@ func (v *bottomUpVisitor) visit(n *Func) uint32 {
+ 		var i int
+ 		for i = len(v.stack) - 1; i >= 0; i-- {
+ 			x := v.stack[i]
++			v.nodeID[x] = ^uint32(0)
+ 			if x == n {
+ 				break
+ 			}
+-			v.nodeID[x] = ^uint32(0)
+ 		}
+-		v.nodeID[n] = ^uint32(0)
+ 		block := v.stack[i:]
+ 		// Run escape analysis on this set of functions.
+ 		v.stack = v.stack[:i]

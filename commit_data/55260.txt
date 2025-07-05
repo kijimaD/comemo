@@ -23,7 +23,74 @@ Date:   Wed Dec 28 23:05:26 2022 +0000
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Bypass: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/math/all_test.go | 12 ++++++++++++
  src/math/pow.go      | 15 ++++++++++++---
  2 files changed, 24 insertions(+), 3 deletions(-)
+
+diff --git a/src/math/all_test.go b/src/math/all_test.go
+index 8d5e0ad439..886267bc17 100644
+--- a/src/math/all_test.go
++++ b/src/math/all_test.go
+@@ -1687,6 +1687,12 @@ var vfpowSC = [][2]float64{
+ 	{Nextafter(1, -2), float64(1 << 63)},
+ 	{Nextafter(-1, 2), float64(1 << 63)},
+ 	{Nextafter(-1, -2), float64(1 << 63)},
++
++	// Issue #57465
++	{Copysign(0, -1), 1e19},
++	{Copysign(0, -1), -1e19},
++	{Copysign(0, -1), 1<<53 - 1},
++	{Copysign(0, -1), -(1<<53 - 1)},
+ }
+ var powSC = []float64{
+ 	0,               // pow(-Inf, -Pi)
+@@ -1762,6 +1768,12 @@ var powSC = []float64{
+ 	0,       // pow(Nextafter(1, -2), float64(1 << 63))
+ 	0,       // pow(Nextafter(-1, 2), float64(1 << 63))
+ 	Inf(1),  // pow(Nextafter(-1, -2), float64(1 << 63))
++
++	// Issue #57465
++	0,               // pow(-0, 1e19)
++	Inf(1),          // pow(-0, -1e19)
++	Copysign(0, -1), // pow(-0, 1<<53 -1)
++	Inf(-1),         // pow(-0, -(1<<53 -1))
+ }
+ 
+ var vfpow10SC = []int{
+diff --git a/src/math/pow.go b/src/math/pow.go
+index 3af8c8b649..3f42945376 100644
+--- a/src/math/pow.go
++++ b/src/math/pow.go
+@@ -5,6 +5,15 @@
+ package math
+ 
+ func isOddInt(x float64) bool {
++	if Abs(x) >= (1 << 53) {
++		// 1 << 53 is the largest exact integer in the float64 format.
++		// Any number outside this range will be truncated before the decimal point and therefore will always be
++		// an even integer.
++		// Without this check and if x overflows int64 the int64(xi) conversion below may produce incorrect results
++		// on some architectures (and does so on arm64). See issue #57465.
++		return false
++	}
++
+ 	xi, xf := Modf(x)
+ 	return xf == 0 && int64(xi)&1 == 1
+ }
+@@ -54,12 +63,12 @@ func pow(x, y float64) float64 {
+ 	case x == 0:
+ 		switch {
+ 		case y < 0:
+-			if isOddInt(y) {
+-				return Copysign(Inf(1), x)
++			if Signbit(x) && isOddInt(y) {
++				return Inf(-1)
+ 			}
+ 			return Inf(1)
+ 		case y > 0:
+-			if isOddInt(y) {
++			if Signbit(x) && isOddInt(y) {
+ 				return x
+ 			}
+ 			return 0

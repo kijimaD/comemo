@@ -11,7 +11,70 @@ Date:   Mon Nov 28 22:34:50 2016 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go | 29 ++++++++++++-----------------
  test/fixedbugs/issue18092.go              | 15 +++++++++++++++
  2 files changed, 27 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 41e7cbe56d..a2e307f46f 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -1809,24 +1809,19 @@ func (p *parser) commClause() *CommClause {
+ 	switch p.tok {
+ 	case _Case:
+ 		p.next()
+-		lhs := p.exprList()
+-
+-		if _, ok := lhs.(*ListExpr); !ok && p.tok == _Arrow {
+-			// lhs <- x
+-		} else {
+-			// lhs
+-			// lhs = <-x
+-			// lhs := <-x
+-			if p.tok == _Assign || p.tok == _Define {
+-				// TODO(gri) check that lhs has at most 2 entries
+-			} else if p.tok == _Colon {
+-				// TODO(gri) check that lhs has at most 1 entry
+-			} else {
+-				panic("unimplemented")
+-			}
+-		}
++		c.Comm = p.simpleStmt(nil, false)
+ 
+-		c.Comm = p.simpleStmt(lhs, false)
++		// The syntax restricts the possible simple statements here to:
++		//
++		//     lhs <- x (send statement)
++		//     <-x
++		//     lhs = <-x
++		//     lhs := <-x
++		//
++		// All these (and more) are recognized by simpleStmt and invalid
++		// syntax trees are flagged later, during type checking.
++		// TODO(gri) eventually may want to restrict valid syntax trees
++		// here.
+ 
+ 	case _Default:
+ 		p.next()
+diff --git a/test/fixedbugs/issue18092.go b/test/fixedbugs/issue18092.go
+new file mode 100644
+index 0000000000..94fd2dd383
+--- /dev/null
++++ b/test/fixedbugs/issue18092.go
+@@ -0,0 +1,15 @@
++// errorcheck
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _() {
++	var ch chan bool
++	select {
++	default:
++	case <-ch { // don't crash here
++	}           // ERROR "expecting :"
++}

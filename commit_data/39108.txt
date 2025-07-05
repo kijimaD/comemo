@@ -10,6 +10,19 @@ Date:   Wed Jan 2 19:16:43 2019 +0000
     Reviewed-on: https://go-review.googlesource.com/c/155933
     Reviewed-by: Katie Hockman <katie@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  api/go1.12.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/api/go1.12.txt b/api/go1.12.txt
+index 319bb6f145..7d525cb86e 100644
+--- a/api/go1.12.txt
++++ b/api/go1.12.txt
+@@ -37,6 +37,7 @@ pkg net/http, const StatusTooEarly ideal-int
+ pkg net/http, method (*Client) CloseIdleConnections()
+ pkg os, const ModeType = 2401763328
+ pkg os, func UserHomeDir() (string, error)
++pkg os, method (*File) SyscallConn() (syscall.RawConn, error)
+ pkg os, method (*ProcessState) ExitCode() int
+ pkg os/exec, method (ExitError) ExitCode() int
+ pkg reflect, method (*MapIter) Key() Value

@@ -14,8 +14,30 @@ Date:   Mon Mar 16 19:03:09 2015 -0400
     Change-Id: Ic5d3671443ae9292b69fda118f61a11c88d823fa
     Reviewed-on: https://go-review.googlesource.com/7660
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/internal/gc/{builtins => builtin}/runtime.go | 0
  src/cmd/internal/gc/{builtins => builtin}/unsafe.go  | 0
  src/cmd/internal/gc/mkbuiltin.go                     | 2 +-
  3 files changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/gc/builtins/runtime.go b/src/cmd/internal/gc/builtin/runtime.go
+similarity index 100%
+rename from src/cmd/internal/gc/builtins/runtime.go
+rename to src/cmd/internal/gc/builtin/runtime.go
+diff --git a/src/cmd/internal/gc/builtins/unsafe.go b/src/cmd/internal/gc/builtin/unsafe.go
+similarity index 100%
+rename from src/cmd/internal/gc/builtins/unsafe.go
+rename to src/cmd/internal/gc/builtin/unsafe.go
+diff --git a/src/cmd/internal/gc/mkbuiltin.go b/src/cmd/internal/gc/mkbuiltin.go
+index f32a75b747..b2362a6f01 100644
+--- a/src/cmd/internal/gc/mkbuiltin.go
++++ b/src/cmd/internal/gc/mkbuiltin.go
+@@ -50,7 +50,7 @@ func main() {
+ 
+ // Compile .go file, import data from .6 file, and write Go string version.
+ func mkbuiltin(w io.Writer, gochar string, name string) {
+-	if err := exec.Command("go", "tool", gochar+"g", "-A", "builtins/"+name+".go").Run(); err != nil {
++	if err := exec.Command("go", "tool", gochar+"g", "-A", "builtin/"+name+".go").Run(); err != nil {
+ 		log.Fatal(err)
+ 	}
+ 	obj := fmt.Sprintf("%s.%s", name, gochar)

@@ -23,7 +23,7 @@ Date:   Tue Sep 14 16:23:10 2021 -0700
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go                              | 24 ++----
  src/cmd/go/internal/modget/get.go                  | 95 ++++------------------
  src/cmd/go/testdata/script/build_trimpath.txt      |  3 +-
@@ -35,3 +35,470 @@ Date:   Tue Sep 14 16:23:10 2021 -0700
  src/cmd/go/testdata/script/mod_get_tags.txt        | 13 +--
  src/cmd/go/testdata/script/mod_outside.txt         | 24 ------
  10 files changed, 48 insertions(+), 193 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 7be673b290..8a2109619d 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -613,11 +613,11 @@
+ //
+ // Usage:
+ //
+-// 	go get [-d] [-t] [-u] [-v] [build flags] [packages]
++// 	go get [-t] [-u] [-v] [build flags] [packages]
+ //
+ // Get resolves its command-line arguments to packages at specific module versions,
+-// updates go.mod to require those versions, downloads source code into the
+-// module cache, then builds and installs the named packages.
++// updates go.mod to require those versions, and downloads source code into the
++// module cache.
+ //
+ // To add a dependency for a package or upgrade it to its latest version:
+ //
+@@ -633,9 +633,11 @@
+ //
+ // See https://golang.org/ref/mod#go-get for details.
+ //
+-// The 'go install' command may be used to build and install packages. When a
+-// version is specified, 'go install' runs in module-aware mode and ignores
+-// the go.mod file in the current directory. For example:
++// In earlier versions of Go, 'go get' was used to build and install packages.
++// Now, 'go get' is dedicated to adjusting dependencies in go.mod. 'go install'
++// may be used to build and install commands instead. When a version is specified,
++// 'go install' runs in module-aware mode and ignores the go.mod file in the
++// current directory. For example:
+ //
+ // 	go install example.com/pkg@v1.2.3
+ // 	go install example.com/pkg@latest
+@@ -658,16 +660,6 @@
+ // When the -t and -u flags are used together, get will update
+ // test dependencies as well.
+ //
+-// The -d flag instructs get not to build or install packages. get will only
+-// update go.mod and download source code needed to build packages.
+-//
+-// Building and installing packages with get is deprecated. In a future release,
+-// the -d flag will be enabled by default, and 'go get' will be only be used to
+-// adjust dependencies of the current module. To install a package using
+-// dependencies from the current module, use 'go install'. To install a package
+-// ignoring the current module, use 'go install' with an @version suffix like
+-// "@latest" after each argument.
+-//
+ // For more about modules, see https://golang.org/ref/mod.
+ //
+ // For more about specifying packages, see 'go help packages'.
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 20734bdd23..674ee1c267 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -37,7 +37,6 @@ import (
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/imports"
+-	"cmd/go/internal/load"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/par"
+@@ -50,14 +49,14 @@ import (
+ )
+ 
+ var CmdGet = &base.Command{
+-	// Note: -d -u are listed explicitly because they are the most common get flags.
++	// Note: flags below are listed explicitly because they're the most common.
+ 	// Do not send CLs removing them because they're covered by [get flags].
+-	UsageLine: "go get [-d] [-t] [-u] [-v] [build flags] [packages]",
++	UsageLine: "go get [-t] [-u] [-v] [build flags] [packages]",
+ 	Short:     "add dependencies to current module and install them",
+ 	Long: `
+ Get resolves its command-line arguments to packages at specific module versions,
+-updates go.mod to require those versions, downloads source code into the
+-module cache, then builds and installs the named packages.
++updates go.mod to require those versions, and downloads source code into the
++module cache.
+ 
+ To add a dependency for a package or upgrade it to its latest version:
+ 
+@@ -73,9 +72,11 @@ To remove a dependency on a module and downgrade modules that require it:
+ 
+ See https://golang.org/ref/mod#go-get for details.
+ 
+-The 'go install' command may be used to build and install packages. When a
+-version is specified, 'go install' runs in module-aware mode and ignores
+-the go.mod file in the current directory. For example:
++In earlier versions of Go, 'go get' was used to build and install packages.
++Now, 'go get' is dedicated to adjusting dependencies in go.mod. 'go install'
++may be used to build and install commands instead. When a version is specified,
++'go install' runs in module-aware mode and ignores the go.mod file in the
++current directory. For example:
+ 
+ 	go install example.com/pkg@v1.2.3
+ 	go install example.com/pkg@latest
+@@ -98,16 +99,6 @@ but changes the default to select patch releases.
+ When the -t and -u flags are used together, get will update
+ test dependencies as well.
+ 
+-The -d flag instructs get not to build or install packages. get will only
+-update go.mod and download source code needed to build packages.
+-
+-Building and installing packages with get is deprecated. In a future release,
+-the -d flag will be enabled by default, and 'go get' will be only be used to
+-adjust dependencies of the current module. To install a package using
+-dependencies from the current module, use 'go install'. To install a package
+-ignoring the current module, use 'go install' with an @version suffix like
+-"@latest" after each argument.
+-
+ For more about modules, see https://golang.org/ref/mod.
+ 
+ For more about specifying packages, see 'go help packages'.
+@@ -218,7 +209,7 @@ variable for future go command invocations.
+ }
+ 
+ var (
+-	getD        = CmdGet.Flag.Bool("d", false, "")
++	getD        = CmdGet.Flag.Bool("d", true, "")
+ 	getF        = CmdGet.Flag.Bool("f", false, "")
+ 	getFix      = CmdGet.Flag.Bool("fix", false, "")
+ 	getM        = CmdGet.Flag.Bool("m", false, "")
+@@ -265,6 +256,10 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 	default:
+ 		base.Fatalf("go: unknown upgrade flag -u=%s", getU.rawVersion)
+ 	}
++	// TODO(#43684): in the future (Go 1.20), warn that -d is a no-op.
++	if !*getD {
++		base.Fatalf("go: -d flag may not be disabled")
++	}
+ 	if *getF {
+ 		fmt.Fprintf(os.Stderr, "go: -f flag is a no-op when using modules\n")
+ 	}
+@@ -272,7 +267,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 		fmt.Fprintf(os.Stderr, "go: -fix flag is a no-op when using modules\n")
+ 	}
+ 	if *getM {
+-		base.Fatalf("go: -m flag is no longer supported; consider -d to skip building packages")
++		base.Fatalf("go: -m flag is no longer supported")
+ 	}
+ 	if *getInsecure {
+ 		base.Fatalf("go: -insecure flag is no longer supported; use GOINSECURE instead")
+@@ -356,66 +351,6 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 	}
+ 	r.checkPackageProblems(ctx, pkgPatterns)
+ 
+-	// We've already downloaded modules (and identified direct and indirect
+-	// dependencies) by loading packages in findAndUpgradeImports.
+-	// So if -d is set, we're done after the module work.
+-	//
+-	// Otherwise, we need to build and install the packages matched by
+-	// command line arguments.
+-	// Note that 'go get -u' without arguments is equivalent to
+-	// 'go get -u .', so we'll typically build the package in the current
+-	// directory.
+-	if !*getD && len(pkgPatterns) > 0 {
+-		work.BuildInit()
+-
+-		pkgOpts := load.PackageOpts{ModResolveTests: *getT}
+-		var pkgs []*load.Package
+-		for _, pkg := range load.PackagesAndErrors(ctx, pkgOpts, pkgPatterns) {
+-			if pkg.Error != nil {
+-				var noGo *load.NoGoError
+-				if errors.As(pkg.Error.Err, &noGo) {
+-					if m := modload.PackageModule(pkg.ImportPath); m.Path == pkg.ImportPath {
+-						// pkg is at the root of a module, and doesn't exist with the current
+-						// build tags. Probably the user just wanted to change the version of
+-						// that module — not also build the package — so suppress the error.
+-						// (See https://golang.org/issue/33526.)
+-						continue
+-					}
+-				}
+-			}
+-			pkgs = append(pkgs, pkg)
+-		}
+-		load.CheckPackageErrors(pkgs)
+-
+-		haveExternalExe := false
+-		for _, pkg := range pkgs {
+-			if pkg.Name == "main" && pkg.Module != nil {
+-				if !modload.MainModules.Contains(pkg.Module.Path) {
+-					haveExternalExe = true
+-					break
+-				}
+-			}
+-		}
+-		if haveExternalExe {
+-			fmt.Fprint(os.Stderr, "go: installing executables with 'go get' in module mode is deprecated.")
+-			var altMsg string
+-			if modload.HasModRoot() {
+-				altMsg = `
+-	To adjust and download dependencies of the current module, use 'go get -d'.
+-	To install using requirements of the current module, use 'go install'.
+-	To install ignoring the current module, use 'go install' with a version,
+-	like 'go install example.com/cmd@latest'.
+-`
+-			} else {
+-				altMsg = "\n\tUse 'go install pkg@version' instead.\n"
+-			}
+-			fmt.Fprint(os.Stderr, altMsg)
+-			fmt.Fprintf(os.Stderr, "\tFor more information, see https://golang.org/doc/go-get-install-deprecation\n\tor run 'go help get' or 'go help install'.\n")
+-		}
+-
+-		work.InstallPackages(ctx, pkgPatterns, pkgs)
+-	}
+-
+ 	if !modload.HasModRoot() {
+ 		return
+ 	}
+diff --git a/src/cmd/go/testdata/script/build_trimpath.txt b/src/cmd/go/testdata/script/build_trimpath.txt
+index 2c3bee8fdc..f36b1237dc 100644
+--- a/src/cmd/go/testdata/script/build_trimpath.txt
++++ b/src/cmd/go/testdata/script/build_trimpath.txt
+@@ -32,7 +32,8 @@ stdout 'binary contains GOROOT: false'
+ 
+ # A binary from an external module built with -trimpath should not contain
+ # the current workspace or GOROOT.
+-go get -trimpath rsc.io/fortune
++go get rsc.io/fortune
++go install -trimpath rsc.io/fortune
+ exec $WORK/paths-a.exe $GOPATH/bin/fortune$GOEXE
+ stdout 'binary contains module root: false'
+ stdout 'binary contains GOROOT: false'
+diff --git a/src/cmd/go/testdata/script/mod_get_svn.txt b/src/cmd/go/testdata/script/mod_download_svn.txt
+similarity index 61%
+rename from src/cmd/go/testdata/script/mod_get_svn.txt
+rename to src/cmd/go/testdata/script/mod_download_svn.txt
+index 4d6b94ae5b..79e00dc970 100644
+--- a/src/cmd/go/testdata/script/mod_get_svn.txt
++++ b/src/cmd/go/testdata/script/mod_download_svn.txt
+@@ -1,7 +1,7 @@
+ [!net] skip
+ [!exec:svn] skip
+ 
+-# 'go get' will fall back to svn+ssh once svn fails over protocols like https.
++# 'go mod download' will fall back to svn+ssh once svn fails over protocols like https.
+ # If vcs-test.golang.org isn't in the user's known_hosts file, this will result
+ # in an ssh prompt, which will stop 'go test' entirely
+ #
+@@ -19,18 +19,11 @@ env GOPROXY=direct
+ env GOSUMDB=off
+ 
+ # Attempting to get a module zip using svn should succeed.
+-go get vcs-test.golang.org/svn/hello.svn@000000000001
++go mod download vcs-test.golang.org/svn/hello.svn@000000000001
+ exists $GOPATH/pkg/mod/cache/download/vcs-test.golang.org/svn/hello.svn/@v/v0.0.0-20170922011245-000000000001.zip
+-exists $GOPATH/bin/hello.svn$GOEXE
+ 
+ # Attempting to get a nonexistent module using svn should fail with a
+ # reasonable message instead of a panic.
+-! go get -d vcs-test.golang.org/svn/nonexistent.svn
++! go mod download vcs-test.golang.org/svn/nonexistent.svn@latest
+ ! stderr panic
+-stderr 'go: vcs-test.golang.org/svn/nonexistent.svn: no matching versions for query "upgrade"'
+-
+--- go.mod --
+-module golang/go/issues/28943/main
+--- go.sum --
+-vcs-test.golang.org/svn/hello.svn v0.0.0-20170922011245-000000000001 h1:rZjvboXMfQICKXdhx/QHqJ2Y/AQsJVrXnwGqwcTxQiw=
+-vcs-test.golang.org/svn/hello.svn v0.0.0-20170922011245-000000000001/go.mod h1:0memnh/BRLuxiK2zF4rvUgz6ts/fhhB28l3ULFWPusc=
++stderr 'go: module vcs-test.golang.org/svn/nonexistent.svn: no matching versions for query "latest"$'
+diff --git a/src/cmd/go/testdata/script/mod_get_cmd.txt b/src/cmd/go/testdata/script/mod_get_cmd.txt
+deleted file mode 100644
+index d31cee1444..0000000000
+--- a/src/cmd/go/testdata/script/mod_get_cmd.txt
++++ /dev/null
+@@ -1,20 +0,0 @@
+-env GO111MODULE=on
+-[short] skip
+-
+-# Test that when 'go get' is run from $GOBIN, it does not delete binaries
+-# after it installs them. Verifies golang.org/issue/32766.
+-
+-go get example.com/tools/cmd/hello
+-
+-# 'go get' should not delete the command when run from $GOPATH/bin
+-cd $GOPATH/bin
+-exists hello$GOEXE
+-go get example.com/tools/cmd/hello
+-exists hello$GOEXE
+-
+-# 'go get' should not delete the command when run from a different $GOBIN
+-mkdir $WORK/bin
+-cd $WORK/bin
+-env GOBIN=$WORK/bin
+-go get example.com/tools/cmd/hello
+-exists hello$GOEXE
+diff --git a/src/cmd/go/testdata/script/mod_get_commit.txt b/src/cmd/go/testdata/script/mod_get_commit.txt
+index 0cf94ae182..ff7185f59a 100644
+--- a/src/cmd/go/testdata/script/mod_get_commit.txt
++++ b/src/cmd/go/testdata/script/mod_get_commit.txt
+@@ -16,7 +16,7 @@ go get -d golang.org/x/text@14c0d48
+ 
+ env GOCACHE=$WORK/gocache  # Looking for compile commands, so need a clean cache.
+ 
+-go get -x golang.org/x/text/language@14c0d48
++go build -x golang.org/x/text/language
+ stderr 'compile|cp|gccgo .*language\.a$'
+ 
+ # BUG: after the build, the package should not be stale, as 'go install' would
+@@ -24,12 +24,13 @@ stderr 'compile|cp|gccgo .*language\.a$'
+ go list -f '{{.Stale}}' golang.org/x/text/language
+ stdout ^true
+ 
+-# install after get should not run the compiler again.
++# install after build should not run the compiler again.
+ go install -x golang.org/x/text/language
+ ! stderr 'compile|cp|gccgo .*language\.a$'
+ 
+-# even with -d, we should see an error for unknown packages.
+-! go get -d -x golang.org/x/text/foo@14c0d48
++# we should see an error for unknown packages.
++! go get -x golang.org/x/text/foo@14c0d48
++stderr '^go: module golang.org/x/text@14c0d48 found \(v0.3.0\), but does not contain package golang.org/x/text/foo$'
+ 
+ # get pseudo-version should record that version
+ go get -d rsc.io/quote@v0.0.0-20180214005840-23179ee8a569
+diff --git a/src/cmd/go/testdata/script/mod_get_deprecate_install.txt b/src/cmd/go/testdata/script/mod_get_deprecate_install.txt
+index e8142afee9..ab1d6a43f7 100644
+--- a/src/cmd/go/testdata/script/mod_get_deprecate_install.txt
++++ b/src/cmd/go/testdata/script/mod_get_deprecate_install.txt
+@@ -2,10 +2,7 @@
+ 
+ env GO111MODULE=on
+ 
+-# 'go get' outside a module with an executable prints a deprecation message.
+-go get example.com/cmd/a
+-stderr '^go: installing executables with ''go get'' in module mode is deprecated.$'
+-stderr 'Use ''go install pkg@version'' instead.'
++# TODO(#43684): test message outside module.
+ 
+ cp go.mod.orig go.mod
+ 
+@@ -13,13 +10,16 @@ cp go.mod.orig go.mod
+ # This will stop building in the future, but it's the command we want to use.
+ go get rsc.io/quote
+ ! stderr deprecated
++! stderr 'no longer installs'
+ cp go.mod.orig go.mod
+ 
+-# 'go get' inside a module with an executable prints a different
+-# deprecation message.
++# 'go get' inside a module with an executable does not print a message.
++# In 1.16 and 1.17, 'go get' did print a message in this case suggesting the
++# use of -d. In 1.18, -d is a no-op, and we'd like to begin discouraging
++# its use.
+ go get example.com/cmd/a
+-stderr '^go: installing executables with ''go get'' in module mode is deprecated.$'
+-stderr 'To adjust and download dependencies of the current module, use ''go get -d'''
++! stderr deprecated
++! stderr 'no longer installs'
+ cp go.mod.orig go.mod
+ 
+ # 'go get' should not print a warning for a main package inside the main module.
+diff --git a/src/cmd/go/testdata/script/mod_get_errors.txt b/src/cmd/go/testdata/script/mod_get_errors.txt
+index 5c37058d1c..7cb03ce2f1 100644
+--- a/src/cmd/go/testdata/script/mod_get_errors.txt
++++ b/src/cmd/go/testdata/script/mod_get_errors.txt
+@@ -1,35 +1,23 @@
+ cp go.mod go.mod.orig
+ 
+ 
+-# Both 'go get' and 'go get -d' should fail, without updating go.mod,
+-# if the transitive dependencies of the requested package (by default,
+-# the package in the current directory) cannot be resolved.
++# 'go get' should fail, without updating go.mod, if the transitive dependencies
++# of the requested package (by default, the package in the current directory)
++# cannot be resolved.
+ 
+ ! go get
+ stderr '^example.com/m imports\n\texample.com/badimport imports\n\texample.net/oops: cannot find module providing package example.net/oops$'
+ cmp go.mod.orig go.mod
+ 
+-! go get -d
+-stderr '^example.com/m imports\n\texample.com/badimport imports\n\texample.net/oops: cannot find module providing package example.net/oops$'
+-cmp go.mod.orig go.mod
+-
+ cd importsyntax
+ 
+ 
+-# If 'go get' fails due to a compile error (such as a syntax error),
+-# it should not update the go.mod file.
+-
+-! go get
+-stderr '^..[/\\]badimport[/\\]syntaxerror[/\\]syntaxerror.go:1:1: expected ''package'', found pack$'  # TODO: An import stack would be nice.
+-cmp ../go.mod.orig ../go.mod
+-
+-
+ # A syntax error in a dependency prevents the compiler from needing that
+-# dependency's imports, so 'go get -d' should not report an error when those
++# dependency's imports, so 'go get' should not report an error when those
+ # imports cannot be resolved: it has all of the dependencies that the compiler
+ # needs, and the user did not request to run the compiler.
+ 
+-go get -d
++go get
+ cmp ../go.mod.syntax-d ../go.mod
+ 
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_tags.txt b/src/cmd/go/testdata/script/mod_get_tags.txt
+index e9869e3f02..e4fb6c4326 100644
+--- a/src/cmd/go/testdata/script/mod_get_tags.txt
++++ b/src/cmd/go/testdata/script/mod_get_tags.txt
+@@ -1,25 +1,14 @@
+ env GO111MODULE=on
+ 
+-[short] skip
+-
+ # get should add modules needed to build packages, even if those
+ # dependencies are in sources excluded by build tags.
+ # All build tags are considered true except "ignore".
+ go mod init m
+-go get -d .
++go get .
+ go list -m all
+ stdout 'example.com/version v1.1.0'
+ stdout 'rsc.io/quote v1.5.2'
+ 
+-[short] skip
+-
+-# Packages that are only imported in excluded files should not be built.
+-env GOCACHE=$WORK/gocache  # Looking for compile commands, so need a clean cache.
+-go get -n -x .
+-stderr 'compile.* -p m '
+-! stderr 'compile.* -p example.com/version '
+-! stderr 'compile.* -p rsc.io/quote '
+-
+ -- empty.go --
+ package m
+ 
+diff --git a/src/cmd/go/testdata/script/mod_outside.txt b/src/cmd/go/testdata/script/mod_outside.txt
+index 6da6314b79..e5318ee13d 100644
+--- a/src/cmd/go/testdata/script/mod_outside.txt
++++ b/src/cmd/go/testdata/script/mod_outside.txt
+@@ -223,30 +223,6 @@ go fmt needmod/needmod.go
+ 
+ # The remainder of the test checks dependencies by linking and running binaries.
+ 
+-# 'go get' of a binary without a go.mod should install the requested version,
+-# resolving outside dependencies to the latest available versions.
+-go get example.com/printversion@v0.1.0
+-exec ../bin/printversion
+-stdout 'path is example.com/printversion'
+-stdout 'main is example.com/printversion v0.1.0'
+-stdout 'using example.com/version v1.1.0'
+-
+-# 'go get' of a versioned binary should build and install the latest version
+-# using its minimal required modules, ignoring replacements and exclusions.
+-go get example.com/printversion
+-exec ../bin/printversion
+-stdout 'path is example.com/printversion'
+-stdout 'main is example.com/printversion v1.0.0'
+-stdout 'using example.com/version v1.0.0'
+-
+-# 'go get -u=patch' should patch dependencies before installing,
+-# again ignoring replacements and exclusions.
+-go get -u=patch example.com/printversion@v1.0.0
+-exec ../bin/printversion
+-stdout 'path is example.com/printversion'
+-stdout 'main is example.com/printversion v1.0.0'
+-stdout 'using example.com/version v1.0.1'
+-
+ # 'go run' should work with file arguments if they don't import anything
+ # outside std.
+ go run ./stdonly/stdonly.go

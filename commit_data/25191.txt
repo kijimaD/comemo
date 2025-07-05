@@ -9,6 +9,22 @@ Date:   Mon Oct 5 22:32:19 2015 -0400
     Change-Id: Id51b24aae239fd2e1fb1cd0bc9fe443186301044
     Reviewed-on: https://go-review.googlesource.com/15440
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/go/build.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 54b655287a..0166e9126b 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -3341,6 +3341,10 @@ func raceInit() {
+ 		fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64\n", flag.Args()[0])
+ 		os.Exit(2)
+ 	}
++	if !buildContext.CgoEnabled {
++		fmt.Fprintf(os.Stderr, "go %s: -race requires cgo; enable cgo by setting CGO_ENABLED=1\n", flag.Args()[0])
++		os.Exit(2)
++	}
+ 	buildGcflags = append(buildGcflags, "-race")
+ 	buildLdflags = append(buildLdflags, "-race")
+ 	if buildContext.InstallSuffix != "" {

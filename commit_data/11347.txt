@@ -7,7 +7,72 @@ Date:   Mon Jan 23 15:24:20 2012 -0500
     TBR=r
     CC=golang-dev
     https://golang.org/cl/5571050
-
+---
  src/cmd/go/bootstrap.go | 17 +++++++++++++++++
  src/cmd/go/http.go      | 35 +++++++++++++++++++++++++++++++++++
  2 files changed, 52 insertions(+)
+
+diff --git a/src/cmd/go/bootstrap.go b/src/cmd/go/bootstrap.go
+new file mode 100644
+index 0000000000..bc9a3dbbcf
+--- /dev/null
++++ b/src/cmd/go/bootstrap.go
+@@ -0,0 +1,17 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build cmd_go_bootstrap
++
++// This code is compiled only into the bootstrap 'go' binary.
++// These stubs avoid importing packages with large dependency
++// trees, like the use of "net/http" in vcs.go.
++
++package main
++
++import "errors"
++
++func httpGET(url string) ([]byte, error) {
++	return nil, errors.New("no http in bootstrap go command")
++}
+diff --git a/src/cmd/go/http.go b/src/cmd/go/http.go
+new file mode 100644
+index 0000000000..8d9b2a1654
+--- /dev/null
++++ b/src/cmd/go/http.go
+@@ -0,0 +1,35 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !cmd_go_bootstrap
++
++// This code is compiled into the real 'go' binary, but it is not
++// compiled into the binary that is built during all.bash, so as
++// to avoid needing to build net (and thus use cgo) during the
++// bootstrap process.
++
++package main
++
++import (
++	"fmt"
++	"io/ioutil"
++	"net/http"
++)
++
++// httpGET returns the data from an HTTP GET request for the given URL.
++func httpGET(url string) ([]byte, error) {
++	resp, err := http.Get(url)
++	if err != nil {
++		return nil, err
++	}
++	defer resp.Body.Close()
++	if resp.StatusCode != 200 {
++		return nil, fmt.Errorf("%s: %s", url, resp.Status)
++	}
++	b, err := ioutil.ReadAll(resp.Body)
++	if err != nil {
++		return nil, fmt.Errorf("%s: %v", url, err)
++	}
++	return b, nil
++}

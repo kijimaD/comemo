@@ -25,9 +25,118 @@ Date:   Fri Aug 23 14:40:20 2019 -0400
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go.mod                                        |  2 +-
  src/cmd/go.sum                                        |  5 +++--
  src/cmd/vendor/golang.org/x/arch/x86/x86asm/decode.go | 16 ++++++++--------
  src/cmd/vendor/modules.txt                            |  2 +-
  4 files changed, 13 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 3d9b4a8d24..19496a3c67 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -5,7 +5,7 @@ go 1.12
+ require (
+ 	github.com/google/pprof v0.0.0-20190515194954-54271f7e092f
+ 	github.com/ianlancetaylor/demangle v0.0.0-20180524225900-fc6590592b44 // indirect
+-	golang.org/x/arch v0.0.0-20181203225421-5a4828bb7045
++	golang.org/x/arch v0.0.0-20190815191158-8a70ba74b3a1
+ 	golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c
+ 	golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82 // indirect
+ 	golang.org/x/tools v0.0.0-20190611154301-25a4f137592f
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index da3123b9f0..9aa94eee7b 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -2,8 +2,8 @@ github.com/google/pprof v0.0.0-20190515194954-54271f7e092f h1:Jnx61latede7zDD3Di
+ github.com/google/pprof v0.0.0-20190515194954-54271f7e092f/go.mod h1:zfwlbNMJ+OItoe0UupaVj+oy1omPYYDuagoSzA8v9mc=
+ github.com/ianlancetaylor/demangle v0.0.0-20180524225900-fc6590592b44 h1:pKqc8lAAA6rcwpvsephnRuZp4VHbfszZRClvqAE6Sq8=
+ github.com/ianlancetaylor/demangle v0.0.0-20180524225900-fc6590592b44/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
+-golang.org/x/arch v0.0.0-20181203225421-5a4828bb7045 h1:Pn8fQdvx+z1avAi7fdM2kRYWQNxGlavNDSyzrQg2SsU=
+-golang.org/x/arch v0.0.0-20181203225421-5a4828bb7045/go.mod h1:cYlCBUl1MsqxdiKgmc4uh7TxZfWSFLOGSRR090WDxt8=
++golang.org/x/arch v0.0.0-20190815191158-8a70ba74b3a1 h1:A71BZbKSu+DtCNry/x5JKn20C+64DirDHmePEA8k0FY=
++golang.org/x/arch v0.0.0-20190815191158-8a70ba74b3a1/go.mod h1:flIaEI6LNU6xOCD5PaJvn9wGP0agmIOqjrtsKGRguv4=
+ golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
+ golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c h1:Vj5n4GlwjmQteupaxJ9+0FNOmBrHfq7vN4btdGoDZgI=
+ golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
+@@ -17,3 +17,4 @@ golang.org/x/text v0.3.0 h1:g61tztE5qeGQ89tm6NTjjM9VPIm088od1l6aSorWRWg=
+ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+ golang.org/x/tools v0.0.0-20190611154301-25a4f137592f h1:6awn5JC4pwVI5HiBqs7MDtRxnwV9PpO5iSA9v6P09pA=
+ golang.org/x/tools v0.0.0-20190611154301-25a4f137592f/go.mod h1:/rFqwRUd4F7ZHNgwSSTFct+R/Kf4OFW1sUzUTQQTgfc=
++rsc.io/pdf v0.1.1/go.mod h1:n8OzWcQ6Sp37PL01nO98y4iUCRdTGarVfzxY20ICaU4=
+diff --git a/src/cmd/vendor/golang.org/x/arch/x86/x86asm/decode.go b/src/cmd/vendor/golang.org/x/arch/x86/x86asm/decode.go
+index 148870b73d..8c984970bd 100644
+--- a/src/cmd/vendor/golang.org/x/arch/x86/x86asm/decode.go
++++ b/src/cmd/vendor/golang.org/x/arch/x86/x86asm/decode.go
+@@ -203,7 +203,9 @@ func instPrefix(b byte, mode int) (Inst, error) {
+ // For now we use instPrefix but perhaps later we will return
+ // a specific error here.
+ func truncated(src []byte, mode int) (Inst, error) {
+-	//	return Inst{}, len(src), ErrTruncated
++	if len(src) == 0 {
++		return Inst{}, ErrTruncated
++	}
+ 	return instPrefix(src[0], mode) // too long
+ }
+ 
+@@ -216,7 +218,6 @@ var (
+ 
+ // decoderCover records coverage information for which parts
+ // of the byte code have been executed.
+-// TODO(rsc): This is for testing. Only use this if a flag is given.
+ var decoderCover []bool
+ 
+ // Decode decodes the leading bytes in src as a single instruction.
+@@ -406,7 +407,7 @@ ReadPrefixes:
+ 
+ 		//Group 5 - Vex encoding
+ 		case 0xC5:
+-			if pos == 0 && (mode == 64 || (mode == 32 && pos+1 < len(src) && src[pos+1]&0xc0 == 0xc0)) {
++			if pos == 0 && pos+1 < len(src) && (mode == 64 || (mode == 32 && src[pos+1]&0xc0 == 0xc0)) {
+ 				vex = p
+ 				vexIndex = pos
+ 				inst.Prefix[pos] = p
+@@ -418,7 +419,7 @@ ReadPrefixes:
+ 				break ReadPrefixes
+ 			}
+ 		case 0xC4:
+-			if pos == 0 && (mode == 64 || (mode == 32 && pos+2 < len(src) && src[pos+1]&0xc0 == 0xc0)) {
++			if pos == 0 && pos+2 < len(src) && (mode == 64 || (mode == 32 && src[pos+1]&0xc0 == 0xc0)) {
+ 				vex = p
+ 				vexIndex = pos
+ 				inst.Prefix[pos] = p
+@@ -460,9 +461,6 @@ ReadPrefixes:
+ 	// opshift gives the shift to use when saving the next
+ 	// opcode byte into inst.Opcode.
+ 	opshift = 24
+-	if decoderCover == nil {
+-		decoderCover = make([]bool, len(decoder))
+-	}
+ 
+ 	// Decode loop, executing decoder program.
+ 	var oldPC, prevPC int
+@@ -474,7 +472,9 @@ Decode:
+ 			println("run", pc)
+ 		}
+ 		x := decoder[pc]
+-		decoderCover[pc] = true
++		if decoderCover != nil {
++			decoderCover[pc] = true
++		}
+ 		pc++
+ 
+ 		// Read and decode ModR/M if needed by opcode.
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index caf340a752..e873ad4455 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -16,7 +16,7 @@ github.com/google/pprof/third_party/d3flamegraph
+ github.com/google/pprof/third_party/svgpan
+ # github.com/ianlancetaylor/demangle v0.0.0-20180524225900-fc6590592b44
+ github.com/ianlancetaylor/demangle
+-# golang.org/x/arch v0.0.0-20181203225421-5a4828bb7045
++# golang.org/x/arch v0.0.0-20190815191158-8a70ba74b3a1
+ golang.org/x/arch/arm/armasm
+ golang.org/x/arch/arm64/arm64asm
+ golang.org/x/arch/ppc64/ppc64asm

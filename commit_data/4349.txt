@@ -7,7 +7,40 @@ Date:   Tue Dec 8 18:18:04 2009 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/165097
-
+---
  src/pkg/runtime/freebsd/386/signal.c   | 4 ++--
  src/pkg/runtime/freebsd/amd64/signal.c | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/runtime/freebsd/386/signal.c b/src/pkg/runtime/freebsd/386/signal.c
+index 75445cacf7..1654d2bc3b 100644
+--- a/src/pkg/runtime/freebsd/386/signal.c
++++ b/src/pkg/runtime/freebsd/386/signal.c
+@@ -92,9 +92,9 @@ initsig(void)
+ 	for(i = 0; i < NSIG; i++) {
+ 		if(sigtab[i].flags) {
+ 			if(sigtab[i].flags & SigCatch)
+-				sa.__sigaction_u.__sa_handler = (void*) sigtramp;
++				sa.__sigaction_u.__sa_sigaction = (void*) sigtramp;
+ 			else
+-				sa.__sigaction_u.__sa_handler = (void*) sigignore;
++				sa.__sigaction_u.__sa_sigaction = (void*) sigignore;
+ 
+ 			if(sigtab[i].flags & SigRestart)
+ 				sa.sa_flags |= SA_RESTART;
+diff --git a/src/pkg/runtime/freebsd/amd64/signal.c b/src/pkg/runtime/freebsd/amd64/signal.c
+index e83a7bc954..a7ed8260e9 100644
+--- a/src/pkg/runtime/freebsd/amd64/signal.c
++++ b/src/pkg/runtime/freebsd/amd64/signal.c
+@@ -100,9 +100,9 @@ initsig(void)
+ 	for(i = 0; i < NSIG; i++) {
+ 		if(sigtab[i].flags) {
+ 			if(sigtab[i].flags & SigCatch)
+-				sa.__sigaction_u.__sa_handler = (void*) sigtramp;
++				sa.__sigaction_u.__sa_sigaction = (void*) sigtramp;
+ 			else
+-				sa.__sigaction_u.__sa_handler = (void*) sigignore;
++				sa.__sigaction_u.__sa_sigaction = (void*) sigignore;
+ 
+ 			if(sigtab[i].flags & SigRestart)
+ 				sa.sa_flags |= SA_RESTART;

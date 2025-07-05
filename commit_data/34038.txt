@@ -17,7 +17,36 @@ Date:   Wed Sep 27 14:26:20 2017 +0200
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/ztypes_linux_ppc64.go   | 4 ++--
  src/syscall/ztypes_linux_ppc64le.go | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/syscall/ztypes_linux_ppc64.go b/src/syscall/ztypes_linux_ppc64.go
+index de817f50af..087a70d443 100644
+--- a/src/syscall/ztypes_linux_ppc64.go
++++ b/src/syscall/ztypes_linux_ppc64.go
+@@ -600,7 +600,7 @@ type Termios struct {
+ const (
+ 	IUCLC  = 0x1000
+ 	OLCUC  = 0x4
+-	TCGETS = 0x403c7413
+-	TCSETS = 0x803c7414
++	TCGETS = 0x402c7413
++	TCSETS = 0x802c7414
+ 	XCASE  = 0x4000
+ )
+diff --git a/src/syscall/ztypes_linux_ppc64le.go b/src/syscall/ztypes_linux_ppc64le.go
+index e75d8e3925..8412bddbfa 100644
+--- a/src/syscall/ztypes_linux_ppc64le.go
++++ b/src/syscall/ztypes_linux_ppc64le.go
+@@ -600,7 +600,7 @@ type Termios struct {
+ const (
+ 	IUCLC  = 0x1000
+ 	OLCUC  = 0x4
+-	TCGETS = 0x403c7413
+-	TCSETS = 0x803c7414
++	TCGETS = 0x402c7413
++	TCSETS = 0x802c7414
+ 	XCASE  = 0x4000
+ )

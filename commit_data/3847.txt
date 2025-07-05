@@ -6,9 +6,87 @@ Date:   Thu Nov 5 23:18:06 2009 -0800
     
     R=rsc
     http://go/go-review/1025004
-
+---
  misc/cgo/gmp/gmp.go     |  6 +++---
  misc/cgo/gmp/pi.go      | 14 +++++++-------
  misc/cgo/stdio/file.go  |  1 -
  misc/cgo/stdio/hello.go |  2 +-
  4 files changed, 11 insertions(+), 12 deletions(-)
+
+diff --git a/misc/cgo/gmp/gmp.go b/misc/cgo/gmp/gmp.go
+index a31f7407cd..d26bb4a73e 100644
+--- a/misc/cgo/gmp/gmp.go
++++ b/misc/cgo/gmp/gmp.go
+@@ -115,8 +115,8 @@ import (
+ // An Int represents a signed multi-precision integer.
+ // The zero value for an Int represents the value 0.
+ type Int struct {
+-	i C.mpz_t;
+-	init bool;
++	i	C.mpz_t;
++	init	bool;
+ }
+ 
+ // NewInt returns a new Int initialized to x.
+@@ -140,7 +140,7 @@ func (z *Int) doinit() {
+ 
+ // Bytes returns z's representation as a big-endian byte array.
+ func (z *Int) Bytes() []byte {
+-	b := make([]byte, (z.Len() + 7) / 8);
++	b := make([]byte, (z.Len() + 7)/8);
+ 	n := C.size_t(len(b));
+ 	C.mpz_export(unsafe.Pointer(&b[0]), &n, 1, 1, 1, 0, &z.i[0]);
+ 	return b[0:n];
+diff --git a/misc/cgo/gmp/pi.go b/misc/cgo/gmp/pi.go
+index d22bbc653d..b03fa2c112 100644
+--- a/misc/cgo/gmp/pi.go
++++ b/misc/cgo/gmp/pi.go
+@@ -44,12 +44,12 @@ import (
+ )
+ 
+ var (
+-	tmp1 = big.NewInt(0);
+-	tmp2 = big.NewInt(0);
+-	numer = big.NewInt(1);
+-	accum = big.NewInt(0);
+-	denom = big.NewInt(1);
+-	ten = big.NewInt(10);
++	tmp1	= big.NewInt(0);
++	tmp2	= big.NewInt(0);
++	numer	= big.NewInt(1);
++	accum	= big.NewInt(0);
++	denom	= big.NewInt(1);
++	ten	= big.NewInt(10);
+ )
+ 
+ func extractDigit() int64 {
+@@ -90,7 +90,7 @@ func main() {
+ 			d = extractDigit();
+ 		}
+ 		eliminateDigit(d);
+-		fmt.Printf("%c", d + '0');
++		fmt.Printf("%c", d+'0');
+ 
+ 		if i++; i%50 == 0 {
+ 			fmt.Printf("\n");
+diff --git a/misc/cgo/stdio/file.go b/misc/cgo/stdio/file.go
+index 7935f8f4db..c8493a0e38 100644
+--- a/misc/cgo/stdio/file.go
++++ b/misc/cgo/stdio/file.go
+@@ -40,4 +40,3 @@ func Puts(s string) {
+ 	C.free(unsafe.Pointer(p));
+ 	C.fflushstdout();
+ }
+-
+diff --git a/misc/cgo/stdio/hello.go b/misc/cgo/stdio/hello.go
+index 8809c9a9cb..c2555d0086 100644
+--- a/misc/cgo/stdio/hello.go
++++ b/misc/cgo/stdio/hello.go
+@@ -7,6 +7,6 @@ package main
+ import "stdio"
+ 
+ func main() {
+-//	stdio.Stdout.WriteString("hello, world\n");
++	//	stdio.Stdout.WriteString("hello, world\n");
+ 	stdio.Puts("hello, world");
+ }

@@ -10,6 +10,21 @@ Date:   Thu Nov 19 11:51:23 2009 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/156097
-
+---
  src/pkg/os/file.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index edc228c53b..bc7f02ef98 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -138,6 +138,9 @@ func (file *File) ReadAt(b []byte, off int64) (n int, err Error) {
+ 	}
+ 	for len(b) > 0 {
+ 		m, e := syscall.Pread(file.fd, b, off);
++		if m == 0 && e == 0 {
++			return n, EOF
++		}
+ 		n += m;
+ 		if e != 0 {
+ 			err = &PathError{"read", file.name, Errno(e)};

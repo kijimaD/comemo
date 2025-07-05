@@ -20,8 +20,134 @@ Date:   Fri Mar 10 10:59:39 2017 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/crash_unix_test.go   | 73 ++++++++++++++++++++++++++++++++++++++++
  src/runtime/export_test.go       | 13 +++++++
  src/runtime/signal_sighandler.go |  2 +-
  3 files changed, 87 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/crash_unix_test.go b/src/runtime/crash_unix_test.go
+index 97deed8b9d..182c84b639 100644
+--- a/src/runtime/crash_unix_test.go
++++ b/src/runtime/crash_unix_test.go
+@@ -9,6 +9,7 @@ package runtime_test
+ import (
+ 	"bytes"
+ 	"internal/testenv"
++	"io"
+ 	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+@@ -153,6 +154,78 @@ func loop(i int, c chan bool) {
+ }
+ `
+ 
++func TestPanicSystemstack(t *testing.T) {
++	// Test that GOTRACEBACK=crash prints both the system and user
++	// stack of other threads.
++
++	// The GOTRACEBACK=crash handler takes 0.1 seconds even if
++	// it's not writing a core file and potentially much longer if
++	// it is. Skip in short mode.
++	if testing.Short() {
++		t.Skip("Skipping in short mode (GOTRACEBACK=crash is slow)")
++	}
++
++	t.Parallel()
++	cmd := exec.Command(os.Args[0], "testPanicSystemstackInternal")
++	cmd = testEnv(cmd)
++	cmd.Env = append(cmd.Env, "GOTRACEBACK=crash")
++	pr, pw, err := os.Pipe()
++	if err != nil {
++		t.Fatal("creating pipe: ", err)
++	}
++	cmd.Stderr = pw
++	if err := cmd.Start(); err != nil {
++		t.Fatal("starting command: ", err)
++	}
++	defer cmd.Process.Wait()
++	defer cmd.Process.Kill()
++	if err := pw.Close(); err != nil {
++		t.Log("closing write pipe: ", err)
++	}
++	defer pr.Close()
++
++	// Wait for "x\nx\n" to indicate readiness.
++	buf := make([]byte, 4)
++	_, err = io.ReadFull(pr, buf)
++	if err != nil || string(buf) != "x\nx\n" {
++		t.Fatal("subprocess failed; output:\n", string(buf))
++	}
++
++	// Send SIGQUIT.
++	if err := cmd.Process.Signal(syscall.SIGQUIT); err != nil {
++		t.Fatal("signaling subprocess: ", err)
++	}
++
++	// Get traceback.
++	tb, err := ioutil.ReadAll(pr)
++	if err != nil {
++		t.Fatal("reading traceback from pipe: ", err)
++	}
++
++	// Traceback should have two testPanicSystemstackInternal's
++	// and two blockOnSystemStackInternal's.
++	if bytes.Count(tb, []byte("testPanicSystemstackInternal")) != 2 {
++		t.Fatal("traceback missing user stack:\n", string(tb))
++	} else if bytes.Count(tb, []byte("blockOnSystemStackInternal")) != 2 {
++		t.Fatal("traceback missing system stack:\n", string(tb))
++	}
++}
++
++func init() {
++	if len(os.Args) >= 2 && os.Args[1] == "testPanicSystemstackInternal" {
++		// Get two threads running on the system stack with
++		// something recognizable in the stack trace.
++		runtime.GOMAXPROCS(2)
++		go testPanicSystemstackInternal()
++		testPanicSystemstackInternal()
++	}
++}
++
++func testPanicSystemstackInternal() {
++	runtime.BlockOnSystemStack()
++	os.Exit(1) // Should be unreachable.
++}
++
+ func TestSignalExitStatus(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 	exe, err := buildTestProg(t, "testprog")
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 80ddf2ea1f..2650853471 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -336,3 +336,16 @@ func ReadMemStatsSlow() (base, slow MemStats) {
+ 	startTheWorld()
+ 	return
+ }
++
++// BlockOnSystemStack switches to the system stack, prints "x\n" to
++// stderr, and blocks in a stack containing
++// "runtime.blockOnSystemStackInternal".
++func BlockOnSystemStack() {
++	systemstack(blockOnSystemStackInternal)
++}
++
++func blockOnSystemStackInternal() {
++	print("x\n")
++	lock(&deadlock)
++	lock(&deadlock)
++}
+diff --git a/src/runtime/signal_sighandler.go b/src/runtime/signal_sighandler.go
+index 3b9ba296d9..b2e15a6539 100644
+--- a/src/runtime/signal_sighandler.go
++++ b/src/runtime/signal_sighandler.go
+@@ -101,7 +101,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 		if crashing > 0 && gp != _g_.m.curg && _g_.m.curg != nil && readgstatus(_g_.m.curg)&^_Gscan == _Grunning {
+ 			// tracebackothers on original m skipped this one; trace it now.
+ 			goroutineheader(_g_.m.curg)
+-			traceback(^uintptr(0), ^uintptr(0), 0, gp)
++			traceback(^uintptr(0), ^uintptr(0), 0, _g_.m.curg)
+ 		} else if crashing == 0 {
+ 			tracebackothers(gp)
+ 			print("\n")

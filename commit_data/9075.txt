@@ -9,8 +9,182 @@ Date:   Thu Jul 14 18:13:39 2011 +0200
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4709042
-
+---
  src/cmd/gc/closure.c     | 78 +++++++++++++++++++++++++-----------------------
  src/cmd/gc/walk.c        |  4 +--
  test/fixedbugs/bug346.go | 19 ++++++++++++
  3 files changed, 62 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/gc/closure.c b/src/cmd/gc/closure.c
+index 906dadbc96..7e7b405260 100644
+--- a/src/cmd/gc/closure.c
++++ b/src/cmd/gc/closure.c
+@@ -116,12 +116,11 @@ typecheckclosure(Node *func, int top)
+ 	}
+ }
+ 
+-Node*
+-walkclosure(Node *func, NodeList **init)
++static Node*
++makeclosure(Node *func, NodeList **init, int nowrap)
+ {
+-	int narg;
+-	Node *xtype, *v, *addr, *xfunc, *call, *clos;
+-	NodeList *l, *in;
++	Node *xtype, *v, *addr, *xfunc;
++	NodeList *l;
+ 	static int closgen;
+ 	char *p;
+ 
+@@ -133,7 +132,6 @@ walkclosure(Node *func, NodeList **init)
+ 
+ 	// each closure variable has a corresponding
+ 	// address parameter.
+-	narg = 0;
+ 	for(l=func->cvars; l; l=l->next) {
+ 		v = l->n;
+ 		if(v->op == 0)
+@@ -146,7 +144,6 @@ walkclosure(Node *func, NodeList **init)
+ 		addr->class = PPARAM;
+ 		addr->addable = 1;
+ 		addr->ullman = 1;
+-		narg++;
+ 
+ 		v->heapaddr = addr;
+ 
+@@ -154,7 +151,8 @@ walkclosure(Node *func, NodeList **init)
+ 	}
+ 
+ 	// then a dummy arg where the closure's caller pc sits
+-	xtype->list = list(xtype->list, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
++	if (!nowrap)
++		xtype->list = list(xtype->list, nod(ODCLFIELD, N, typenod(types[TUINTPTR])));
+ 
+ 	// then the function arguments
+ 	xtype->list = concat(xtype->list, func->list);
+@@ -176,15 +174,36 @@ walkclosure(Node *func, NodeList **init)
+ 	typecheck(&xfunc, Etop);
+ 	closures = list(closures, xfunc);
+ 
++	return xfunc;
++}
++
++Node*
++walkclosure(Node *func, NodeList **init)
++{
++	int narg;
++	Node *xtype, *xfunc, *call, *clos;
++	NodeList *l, *in;
++
++	/*
++	 * wrap body in external function
++	 * with extra closure parameters.
++	 */
++
++	// create the function
++	xfunc = makeclosure(func, init, 0);
++	xtype = xfunc->nname->ntype;
++
+ 	// prepare call of sys.closure that turns external func into func literal value.
+ 	clos = syslook("closure", 1);
+ 	clos->type = T;
+ 	clos->ntype = nod(OTFUNC, N, N);
+ 	in = list1(nod(ODCLFIELD, N, typenod(types[TINT])));	// siz
+ 	in = list(in, nod(ODCLFIELD, N, xtype));
++	narg = 0;
+ 	for(l=func->cvars; l; l=l->next) {
+ 		if(l->n->op == 0)
+ 			continue;
++		narg++;
+ 		in = list(in, nod(ODCLFIELD, N, l->n->heapaddr->ntype));
+ 	}
+ 	clos->ntype->list = in;
+@@ -211,33 +230,18 @@ walkclosure(Node *func, NodeList **init)
+ void
+ walkcallclosure(Node *n, NodeList **init)
+ {
+-	Node *z;
+-	NodeList *ll, *cargs;
+-
+-	walkexpr(&n->left, init);
+-	cargs =	n->left    // FUNC runtime.closure
+-		->list     // arguments
+-		->next     // skip first
+-		->next;    // skip second
+-
+-	n->left = n->left  // FUNC runtime.closure
+-		->list     // arguments
+-		->next     // skip first
+-		->n        // AS (to indreg) 
+-		->right;   // argument  == the generated function 
+-
+-	// New arg list for n. First the closure-args, stolen from
+-	// runtime.closure's 3rd and following,
+-	ll = nil;
+-	for (; cargs; cargs = cargs->next)
+-		ll = list(ll, cargs->n->right);  // cargs->n is the OAS(INDREG, arg)
+-
+-	// then an extra zero, to fill the dummy return pointer slot,
+-	z = nod(OXXX, N, N);
+-	nodconst(z, types[TUINTPTR], 0);
+-	z->typecheck = 1;
+-	ll = list(ll, z);
+-
+-	// and finally the original parameter list.
+-	n->list = concat(ll, n->list);
++	if (n->op != OCALLFUNC || n->left->op != OCLOSURE) {
++		dump("walkcallclosure", n);
++		fatal("abuse of walkcallclosure");
++	}
++
++	// New arg list for n. First the closure-args
++	// and then the original parameter list.
++	n->list = concat(n->left->enter, n->list);
++	n->left = makeclosure(n->left, init, 1)->nname;
++	dowidth(n->left->type);
++	n->type = getoutargx(n->left->type);
++	// for a single valued function, pull the field type out of the struct
++	if (n->type && n->type->type && !n->type->type->down)
++		n->type = n->type->type->type;
+ }
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 4d06179eb8..c9ca9b3b37 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -494,9 +494,9 @@ walkexpr(Node **np, NodeList **init)
+ 		if(n->left->op == OCLOSURE) {
+ 			walkcallclosure(n, init);
+ 			t = n->left->type;
+-		} else
+-			walkexpr(&n->left, init);
++		}
+ 
++		walkexpr(&n->left, init);
+ 		walkexprlist(n->list, init);
+ 
+ 		ll = ascompatte(n->op, n->isddd, getinarg(t), n->list, 0, init);
+diff --git a/test/fixedbugs/bug346.go b/test/fixedbugs/bug346.go
+new file mode 100644
+index 0000000000..31284c31a1
+--- /dev/null
++++ b/test/fixedbugs/bug346.go
+@@ -0,0 +1,19 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: issue2056
++
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "os"
++
++func main() {
++	x := 4
++	a, b, c, d := func(i int) (p int, q int, r int, s int) { return 1, i, 3, x }(2)
++
++	if a != 1 || b != 2 || c != 3 || d != 4 {
++		println("abcd: expected 1 2 3 4 got", a, b, c, d)
++		os.Exit(1)
++	}
++}

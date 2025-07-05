@@ -23,6 +23,25 @@ Date:   Sat Mar 9 18:01:26 2019 +0100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/syscall/exec_linux_test.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/syscall/exec_linux_test.go b/src/syscall/exec_linux_test.go
+index dc16a9d9fe..826487b676 100644
+--- a/src/syscall/exec_linux_test.go
++++ b/src/syscall/exec_linux_test.go
+@@ -539,6 +539,13 @@ func testAmbientCaps(t *testing.T, userns bool) {
+ 		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
+ 	}
+ 
++	// Skip the test if the sysctl that prevents unprivileged user
++	// from creating user namespaces is enabled.
++	data, errRead := ioutil.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
++	if errRead == nil && data[0] == '0' {
++		t.Skip("kernel prohibits user namespace in unprivileged process")
++	}
++
+ 	// skip on android, due to lack of lookup support
+ 	if runtime.GOOS == "android" {
+ 		t.Skip("skipping test on android; see Issue 27327")

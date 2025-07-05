@@ -23,9 +23,225 @@ Date:   Sat Sep 24 23:40:02 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/time/export_test.go    |  1 +
  src/time/format.go         | 90 +++++++++++++++++++++++++++-------------------
  src/time/format_rfc3339.go |  2 +-
  src/time/format_test.go    | 45 +++++++++++++++++++++++
  4 files changed, 100 insertions(+), 38 deletions(-)
+
+diff --git a/src/time/export_test.go b/src/time/export_test.go
+index fb103fcbf7..a4940d12f9 100644
+--- a/src/time/export_test.go
++++ b/src/time/export_test.go
+@@ -133,6 +133,7 @@ var StdChunkNames = map[int]string{
+ 
+ var Quote = quote
+ 
++var AppendInt = appendInt
+ var AppendFormatAny = Time.appendFormat
+ var AppendFormatRFC3339 = Time.appendFormatRFC3339
+ var ParseAny = parse
+diff --git a/src/time/format.go b/src/time/format.go
+index 6b35d30228..89a3ce259c 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -403,24 +403,46 @@ func appendInt(b []byte, x int, width int) []byte {
+ 		u = uint(-x)
+ 	}
+ 
+-	// Assemble decimal in reverse order.
+-	var buf [20]byte
+-	i := len(buf)
+-	for u >= 10 {
+-		i--
+-		q := u / 10
+-		buf[i] = byte('0' + u - q*10)
+-		u = q
++	// 2-digit and 4-digit fields are the most common in time formats.
++	utod := func(u uint) byte { return '0' + byte(u) }
++	switch {
++	case width == 2 && u < 1e2:
++		return append(b, utod(u/1e1), utod(u%1e1))
++	case width == 4 && u < 1e4:
++		return append(b, utod(u/1e3), utod(u/1e2%1e1), utod(u/1e1%1e1), utod(u%1e1))
++	}
++
++	// Compute the number of decimal digits.
++	var n int
++	if u == 0 {
++		n = 1
++	}
++	for u2 := u; u2 > 0; u2 /= 10 {
++		n++
+ 	}
+-	i--
+-	buf[i] = byte('0' + u)
+ 
+ 	// Add 0-padding.
+-	for w := len(buf) - i; w < width; w++ {
++	for pad := width - n; pad > 0; pad-- {
+ 		b = append(b, '0')
+ 	}
+ 
+-	return append(b, buf[i:]...)
++	// Ensure capacity.
++	if len(b)+n <= cap(b) {
++		b = b[:len(b)+n]
++	} else {
++		b = append(b, make([]byte, n)...)
++	}
++
++	// Assemble decimal in reverse order.
++	i := len(b) - 1
++	for u >= 10 && i > 0 {
++		q := u / 10
++		b[i] = utod(u - q*10)
++		u = q
++		i--
++	}
++	b[i] = utod(u)
++	return b
+ }
+ 
+ // Never printed, just needs to be non-nil for return by atoi.
+@@ -444,7 +466,7 @@ func atoi[bytes []byte | string](s bytes) (x int, err error) {
+ 	return x, nil
+ }
+ 
+-// The "std" value passed to formatNano contains two packed fields: the number of
++// The "std" value passed to appendNano contains two packed fields: the number of
+ // digits after the decimal and the separator character (period or comma).
+ // These functions pack and unpack that variable.
+ func stdFracSecond(code, n, c int) int {
+@@ -466,35 +488,29 @@ func separator(std int) byte {
+ 	return ','
+ }
+ 
+-// formatNano appends a fractional second, as nanoseconds, to b
+-// and returns the result.
+-func formatNano(b []byte, nanosec uint, std int) []byte {
+-	var (
+-		n         = digitsLen(std)
+-		separator = separator(std)
+-		trim      = std&stdMask == stdFracSecond9
+-	)
+-	u := nanosec
+-	var buf [9]byte
+-	for start := len(buf); start > 0; {
+-		start--
+-		buf[start] = byte(u%10 + '0')
+-		u /= 10
++// appendNano appends a fractional second, as nanoseconds, to b
++// and returns the result. The nanosec must be within [0, 999999999].
++func appendNano(b []byte, nanosec int, std int) []byte {
++	trim := std&stdMask == stdFracSecond9
++	n := digitsLen(std)
++	if trim && (n == 0 || nanosec == 0) {
++		return b
+ 	}
+-
+-	if n > 9 {
+-		n = 9
++	dot := separator(std)
++	b = append(b, dot)
++	b = appendInt(b, nanosec, 9)
++	if n < 9 {
++		b = b[:len(b)-9+n]
+ 	}
+ 	if trim {
+-		for n > 0 && buf[n-1] == '0' {
+-			n--
++		for len(b) > 0 && b[len(b)-1] == '0' {
++			b = b[:len(b)-1]
+ 		}
+-		if n == 0 {
+-			return b
++		if len(b) > 0 && b[len(b)-1] == dot {
++			b = b[:len(b)-1]
+ 		}
+ 	}
+-	b = append(b, separator)
+-	return append(b, buf[:n]...)
++	return b
+ }
+ 
+ // String returns the time formatted using the format string
+@@ -791,7 +807,7 @@ func (t Time) appendFormat(b []byte, layout string) []byte {
+ 			b = appendInt(b, zone/60, 2)
+ 			b = appendInt(b, zone%60, 2)
+ 		case stdFracSecond0, stdFracSecond9:
+-			b = formatNano(b, uint(t.Nanosecond()), std)
++			b = appendNano(b, t.Nanosecond(), std)
+ 		}
+ 	}
+ 	return b
+diff --git a/src/time/format_rfc3339.go b/src/time/format_rfc3339.go
+index 7538de87c7..a9c295df97 100644
+--- a/src/time/format_rfc3339.go
++++ b/src/time/format_rfc3339.go
+@@ -38,7 +38,7 @@ func (t Time) appendFormatRFC3339(b []byte, nanos bool) []byte {
+ 
+ 	if nanos {
+ 		std := stdFracSecond(stdFracSecond9, 9, '.')
+-		b = formatNano(b, uint(t.Nanosecond()), std)
++		b = appendNano(b, t.Nanosecond(), std)
+ 	}
+ 
+ 	if offset == 0 {
+diff --git a/src/time/format_test.go b/src/time/format_test.go
+index ae2dc9036f..b1d85f510b 100644
+--- a/src/time/format_test.go
++++ b/src/time/format_test.go
+@@ -90,6 +90,51 @@ func TestRFC3339Conversion(t *testing.T) {
+ 	}
+ }
+ 
++func TestAppendInt(t *testing.T) {
++	tests := []struct {
++		in    int
++		width int
++		want  string
++	}{
++		{0, 0, "0"},
++		{0, 1, "0"},
++		{0, 2, "00"},
++		{0, 3, "000"},
++		{1, 0, "1"},
++		{1, 1, "1"},
++		{1, 2, "01"},
++		{1, 3, "001"},
++		{-1, 0, "-1"},
++		{-1, 1, "-1"},
++		{-1, 2, "-01"},
++		{-1, 3, "-001"},
++		{99, 2, "99"},
++		{100, 2, "100"},
++		{1, 4, "0001"},
++		{12, 4, "0012"},
++		{123, 4, "0123"},
++		{1234, 4, "1234"},
++		{12345, 4, "12345"},
++		{1, 5, "00001"},
++		{12, 5, "00012"},
++		{123, 5, "00123"},
++		{1234, 5, "01234"},
++		{12345, 5, "12345"},
++		{123456, 5, "123456"},
++		{0, 9, "000000000"},
++		{123, 9, "000000123"},
++		{123456, 9, "000123456"},
++		{123456789, 9, "123456789"},
++	}
++	var got []byte
++	for _, tt := range tests {
++		got = AppendInt(got[:0], tt.in, tt.width)
++		if string(got) != tt.want {
++			t.Errorf("appendInt(%d, %d) = %s, want %s", tt.in, tt.width, got, tt.want)
++		}
++	}
++}
++
+ type FormatTest struct {
+ 	name   string
+ 	format string

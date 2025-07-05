@@ -23,6 +23,49 @@ Date:   Mon Sep 12 13:47:55 2016 -0700
     Change-Id: I589089fd81aaeaaa9750bb8d85e7b10199aaa002
     Reviewed-on: https://go-review.googlesource.com/29083
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/flagalloc.go | 17 +++++++++++++++--
  1 file changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/flagalloc.go b/src/cmd/compile/internal/ssa/flagalloc.go
+index aefa81b5b3..5d1ced42b4 100644
+--- a/src/cmd/compile/internal/ssa/flagalloc.go
++++ b/src/cmd/compile/internal/ssa/flagalloc.go
+@@ -31,7 +31,7 @@ func flagalloc(f *Func) {
+ 				if v == flag {
+ 					flag = nil
+ 				}
+-				if opcodeTable[v.Op].clobberFlags {
++				if v.clobbersFlags() {
+ 					flag = nil
+ 				}
+ 				for _, a := range v.Args {
+@@ -103,7 +103,7 @@ func flagalloc(f *Func) {
+ 			}
+ 			// Issue v.
+ 			b.Values = append(b.Values, v)
+-			if opcodeTable[v.Op].clobberFlags {
++			if v.clobbersFlags() {
+ 				flag = nil
+ 			}
+ 			if v.Type.IsFlags() {
+@@ -134,6 +134,19 @@ func flagalloc(f *Func) {
+ 	}
+ }
+ 
++func (v *Value) clobbersFlags() bool {
++	if opcodeTable[v.Op].clobberFlags {
++		return true
++	}
++	if v.Type.IsTuple() && (v.Type.FieldType(0).IsFlags() || v.Type.FieldType(1).IsFlags()) {
++		// This case handles the possibility where a flag value is generated but never used.
++		// In that case, there's no corresponding Select to overwrite the flags value,
++		// so we must consider flags clobbered by the tuple-generating instruction.
++		return true
++	}
++	return false
++}
++
+ // copyFlags copies v (flag generator) into b, returns the copy.
+ // If v's arg is also flags, copy recursively.
+ func copyFlags(v *Value, b *Block) *Value {

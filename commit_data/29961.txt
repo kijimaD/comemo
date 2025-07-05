@@ -16,6 +16,20 @@ Date:   Tue Oct 18 21:42:09 2016 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Chris Broadfoot <cbro@golang.org>
-
+---
  src/net/http/clientserver_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/clientserver_test.go b/src/net/http/clientserver_test.go
+index 53e0be680b..f552424189 100644
+--- a/src/net/http/clientserver_test.go
++++ b/src/net/http/clientserver_test.go
+@@ -468,7 +468,7 @@ func TestH12_RequestContentLength_Known_NonZero(t *testing.T) {
+ }
+ 
+ func TestH12_RequestContentLength_Known_Zero(t *testing.T) {
+-	h12requestContentLength(t, func() io.Reader { return strings.NewReader("") }, 0)
++	h12requestContentLength(t, func() io.Reader { return nil }, 0)
+ }
+ 
+ func TestH12_RequestContentLength_Unknown(t *testing.T) {

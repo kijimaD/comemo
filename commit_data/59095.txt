@@ -10,6 +10,36 @@ Date:   Sun Feb 11 19:54:52 2024 -0800
     Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/safefilepath/path_other.go | 11 ++++++-----
  1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/internal/safefilepath/path_other.go b/src/internal/safefilepath/path_other.go
+index 974e7751a2..10971e8203 100644
+--- a/src/internal/safefilepath/path_other.go
++++ b/src/internal/safefilepath/path_other.go
+@@ -6,7 +6,10 @@
+ 
+ package safefilepath
+ 
+-import "runtime"
++import (
++	"internal/bytealg"
++	"runtime"
++)
+ 
+ func fromFS(path string) (string, error) {
+ 	if runtime.GOOS == "plan9" {
+@@ -14,10 +17,8 @@ func fromFS(path string) (string, error) {
+ 			return "", errInvalidPath
+ 		}
+ 	}
+-	for i := range path {
+-		if path[i] == 0 {
+-			return "", errInvalidPath
+-		}
++	if bytealg.IndexByteString(path, 0) >= 0 {
++		return "", errInvalidPath
+ 	}
+ 	return path, nil
+ }

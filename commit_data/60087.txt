@@ -16,7 +16,7 @@ Date:   Tue May 14 14:44:37 2024 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  doc/godebug.md                                    |  3 +++
  doc/next/6-stdlib/99-minor/runtime/pprof/66999.md |  5 +++++
  src/runtime/extern.go                             |  9 ---------
@@ -25,3 +25,158 @@ Date:   Tue May 14 14:44:37 2024 -0700
  src/runtime/pprof/pprof.go                        |  6 ------
  src/runtime/runtime1.go                           |  2 --
  7 files changed, 11 insertions(+), 37 deletions(-)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index 4cbc85f941..dd88720fb1 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -176,6 +176,9 @@ This behavior is controlled by the `winreadlinkvolume` setting.
+ For Go 1.23, it defaults to `winreadlinkvolume=1`.
+ Previous versions default to `winreadlinkvolume=0`.
+ 
++Go 1.23 corrected the semantics of contention reports for runtime-internal locks,
++and so removed the [`runtimecontentionstacks` setting](/pkg/runtime#hdr-Environment_Variable).
++
+ ### Go 1.22
+ 
+ Go 1.22 adds a configurable limit to control the maximum acceptable RSA key size
+diff --git a/doc/next/6-stdlib/99-minor/runtime/pprof/66999.md b/doc/next/6-stdlib/99-minor/runtime/pprof/66999.md
+new file mode 100644
+index 0000000000..7943b17b15
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/runtime/pprof/66999.md
+@@ -0,0 +1,5 @@
++The mutex profile for contention on runtime-internal locks now correctly points
++to the end of the critical section that caused the delay. This matches the
++profile's behavior for contention on `sync.Mutex` values. The
++`runtimecontentionstacks` setting for `GODEBUG`, which allowed opting in to Go
++1.22's unusual behavior for this part of the profile, is now gone.
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 2019be4dde..96efcf3273 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -159,15 +159,6 @@ It is a comma-separated list of name=val pairs setting these named variables:
+ 	panicnil: setting panicnil=1 disables the runtime error when calling panic with nil
+ 	interface value or an untyped nil.
+ 
+-	runtimecontentionstacks: setting runtimecontentionstacks=1 enables inclusion of call stacks
+-	related to contention on runtime-internal locks in the "mutex" profile, subject to the
+-	MutexProfileFraction setting. When runtimecontentionstacks=0, contention on
+-	runtime-internal locks will report as "runtime._LostContendedRuntimeLock". When
+-	runtimecontentionstacks=1, the call stacks will correspond to the unlock call that released
+-	the lock. But instead of the value corresponding to the amount of contention that call
+-	stack caused, it corresponds to the amount of time the caller of unlock had to wait in its
+-	original call to lock. A future release is expected to align those and remove this setting.
+-
+ 	invalidptr: invalidptr=1 (the default) causes the garbage collector and stack
+ 	copier to crash the program if an invalid pointer value (for example, 1)
+ 	is found in a pointer-typed location. Setting invalidptr=0 disables this check.
+diff --git a/src/runtime/metrics_test.go b/src/runtime/metrics_test.go
+index cb8d17d15b..db218b256e 100644
+--- a/src/runtime/metrics_test.go
++++ b/src/runtime/metrics_test.go
+@@ -6,7 +6,6 @@ package runtime_test
+ 
+ import (
+ 	"bytes"
+-	"fmt"
+ 	"internal/abi"
+ 	"internal/goexperiment"
+ 	"internal/profile"
+@@ -955,17 +954,6 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
+ 		t.Fatalf("need MutexProfileRate 0, got %d", old)
+ 	}
+ 
+-	{
+-		before := os.Getenv("GODEBUG")
+-		for _, s := range strings.Split(before, ",") {
+-			if strings.HasPrefix(s, "runtimecontentionstacks=") {
+-				t.Logf("GODEBUG includes explicit setting %q", s)
+-			}
+-		}
+-		defer func() { os.Setenv("GODEBUG", before) }()
+-		os.Setenv("GODEBUG", fmt.Sprintf("%s,runtimecontentionstacks=1", before))
+-	}
+-
+ 	t.Logf("NumCPU %d", runtime.NumCPU())
+ 	t.Logf("GOMAXPROCS %d", runtime.GOMAXPROCS(0))
+ 	if minCPU := 2; runtime.NumCPU() < minCPU {
+@@ -1157,7 +1145,7 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
+ 
+ 		stks := [][]string{{
+ 			"runtime.unlock",
+-			"runtime_test." + name + ".func5.1",
++			"runtime_test." + name + ".func4.1",
+ 			"runtime_test.(*contentionWorker).run",
+ 		}}
+ 
+@@ -1257,14 +1245,14 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
+ 			{
+ 				"runtime.unlock",
+ 				"runtime.semrelease1",
+-				"runtime_test.TestRuntimeLockMetricsAndProfile.func6.1",
++				"runtime_test.TestRuntimeLockMetricsAndProfile.func5.1",
+ 				"runtime_test.(*contentionWorker).run",
+ 			},
+ 			{
+ 				"runtime.unlock",
+ 				"runtime.semacquire1",
+ 				"runtime.semacquire",
+-				"runtime_test.TestRuntimeLockMetricsAndProfile.func6.1",
++				"runtime_test.TestRuntimeLockMetricsAndProfile.func5.1",
+ 				"runtime_test.(*contentionWorker).run",
+ 			},
+ 		}
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index 93d49275c9..fd0a018724 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -915,11 +915,6 @@ func (prof *mLockProfile) captureStack() {
+ 	}
+ 
+ 	prof.stack[0] = logicalStackSentinel
+-	if debug.runtimeContentionStacks.Load() == 0 {
+-		prof.stack[1] = abi.FuncPCABIInternal(_LostContendedRuntimeLock) + sys.PCQuantum
+-		prof.stack[2] = 0
+-		return
+-	}
+ 
+ 	var nstk int
+ 	gp := getg()
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index 0ef217eef8..8931b2b579 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -164,12 +164,6 @@ import (
+ // holds a lock for 1s while 5 other goroutines are waiting for the entire
+ // second to acquire the lock, its unlock call stack will report 5s of
+ // contention.
+-//
+-// Runtime-internal locks are always reported at the location
+-// "runtime._LostContendedRuntimeLock". More detailed stack traces for
+-// runtime-internal locks can be obtained by setting
+-// `GODEBUG=runtimecontentionstacks=1` (see package [runtime] docs for
+-// caveats).
+ type Profile struct {
+ 	name  string
+ 	mu    sync.Mutex
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 3bbea46aff..33a1aa5a02 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -319,7 +319,6 @@ var debug struct {
+ 	gctrace                  int32
+ 	invalidptr               int32
+ 	madvdontneed             int32 // for Linux; issue 28466
+-	runtimeContentionStacks  atomic.Int32
+ 	scavtrace                int32
+ 	scheddetail              int32
+ 	schedtrace               int32
+@@ -381,7 +380,6 @@ var dbgvars = []*dbgVar{
+ 	{name: "madvdontneed", value: &debug.madvdontneed},
+ 	{name: "panicnil", atomic: &debug.panicnil},
+ 	{name: "profstackdepth", value: &debug.profstackdepth, def: 128},
+-	{name: "runtimecontentionstacks", atomic: &debug.runtimeContentionStacks},
+ 	{name: "sbrk", value: &debug.sbrk},
+ 	{name: "scavtrace", value: &debug.scavtrace},
+ 	{name: "scheddetail", value: &debug.scheddetail},

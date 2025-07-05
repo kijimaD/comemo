@@ -19,8 +19,140 @@ Date:   Fri Apr 9 14:57:59 2021 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/mime/testdata/test.types.globs2 |  8 ++++++++
  src/mime/type_unix.go               | 41 +++++++++++++++++++++++++++++++++++++
  src/mime/type_unix_test.go          | 39 +++++++++++++++++++++++++++++++++++
  3 files changed, 88 insertions(+)
+
+diff --git a/src/mime/testdata/test.types.globs2 b/src/mime/testdata/test.types.globs2
+new file mode 100644
+index 0000000000..2e893262ea
+--- /dev/null
++++ b/src/mime/testdata/test.types.globs2
+@@ -0,0 +1,8 @@
++# Copyright 2021 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++
++# mime package test for globs2
++50:document/test:*.t3
++50:example/test:*.t4
+diff --git a/src/mime/type_unix.go b/src/mime/type_unix.go
+index 851d5a0fb0..59c99e2c86 100644
+--- a/src/mime/type_unix.go
++++ b/src/mime/type_unix.go
+@@ -17,6 +17,14 @@ func init() {
+ 	osInitMime = initMimeUnix
+ }
+ 
++// See https://specifications.freedesktop.org/shared-mime-info-spec/shared-mime-info-spec-0.21.html
++// for the FreeDesktop Shared MIME-info Database specification.
++var mimeGlobs = []string{
++	"/usr/local/share/mime/globs2",
++	"/usr/share/mime/globs2",
++}
++
++// Common locations for mime.types files on unix.
+ var typeFiles = []string{
+ 	"/etc/mime.types",
+ 	"/etc/apache2/mime.types",
+@@ -24,6 +32,31 @@ var typeFiles = []string{
+ 	"/etc/httpd/conf/mime.types",
+ }
+ 
++func loadMimeGlobsFile(filename string) error {
++	f, err := os.Open(filename)
++	if err != nil {
++		return err
++	}
++	defer f.Close()
++
++	scanner := bufio.NewScanner(f)
++	for scanner.Scan() {
++		// Each line should be of format: weight:mimetype:*.ext
++		fields := strings.Split(scanner.Text(), ":")
++		if len(fields) < 3 || len(fields[0]) < 1 || len(fields[2]) < 2 {
++			continue
++		} else if fields[0][0] == '#' || fields[2][0] != '*' {
++			continue
++		}
++
++		setExtensionType(fields[2][1:], fields[1])
++	}
++	if err := scanner.Err(); err != nil {
++		panic(err)
++	}
++	return nil
++}
++
+ func loadMimeFile(filename string) {
+ 	f, err := os.Open(filename)
+ 	if err != nil {
+@@ -51,12 +84,20 @@ func loadMimeFile(filename string) {
+ }
+ 
+ func initMimeUnix() {
++	for _, filename := range mimeGlobs {
++		if err := loadMimeGlobsFile(filename); err == nil {
++			return // Stop checking more files if mimetype database is found.
++		}
++	}
++
++	// Fallback if no system-generated mimetype database exists.
+ 	for _, filename := range typeFiles {
+ 		loadMimeFile(filename)
+ 	}
+ }
+ 
+ func initMimeForTests() map[string]string {
++	mimeGlobs = []string{""}
+ 	typeFiles = []string{"testdata/test.types"}
+ 	return map[string]string{
+ 		".T1":  "application/test",
+diff --git a/src/mime/type_unix_test.go b/src/mime/type_unix_test.go
+new file mode 100644
+index 0000000000..6e2988225c
+--- /dev/null
++++ b/src/mime/type_unix_test.go
+@@ -0,0 +1,39 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build aix || darwin || dragonfly || freebsd || (js && wasm) || linux || netbsd || openbsd || solaris
++// +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris
++
++package mime
++
++import (
++	"testing"
++)
++
++func initMimeUnixTest(t *testing.T) {
++	err := loadMimeGlobsFile("testdata/test.types.globs2")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	loadMimeFile("testdata/test.types")
++}
++
++func TestTypeByExtensionUNIX(t *testing.T) {
++	initMimeUnixTest(t)
++	typeTests := map[string]string{
++		".T1":  "application/test",
++		".t2":  "text/test; charset=utf-8",
++		".t3":  "document/test",
++		".t4":  "example/test",
++		".png": "image/png",
++	}
++
++	for ext, want := range typeTests {
++		val := TypeByExtension(ext)
++		if val != want {
++			t.Errorf("TypeByExtension(%q) = %q, want %q", ext, val, want)
++		}
++	}
++}

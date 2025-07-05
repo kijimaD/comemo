@@ -15,7 +15,44 @@ Date:   Tue Jun 7 15:43:48 2016 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/cgen.go |  5 -----
  test/fixedbugs/issue15988.go        | 14 ++++++++++++++
  2 files changed, 14 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index dbefcc7a0b..74fe463dae 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -2855,11 +2855,6 @@ func cgen_append(n, res *Node) {
+ 		Dump("cgen_append-n", n)
+ 		Dump("cgen_append-res", res)
+ 	}
+-	if res.Op != ONAME && !samesafeexpr(res, n.List.First()) {
+-		Dump("cgen_append-n", n)
+-		Dump("cgen_append-res", res)
+-		Fatalf("append not lowered")
+-	}
+ 	for _, n1 := range n.List.Slice() {
+ 		if n1.Ullman >= UINF {
+ 			Fatalf("append with function call arguments")
+diff --git a/test/fixedbugs/issue15988.go b/test/fixedbugs/issue15988.go
+new file mode 100644
+index 0000000000..2bed2a9c30
+--- /dev/null
++++ b/test/fixedbugs/issue15988.go
+@@ -0,0 +1,14 @@
++// compile
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f(p, q []int) {
++	p = append(q, 5)
++	sink = &p
++}
++
++var sink *[]int

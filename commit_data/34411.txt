@@ -19,6 +19,21 @@ Date:   Wed Oct 25 11:01:46 2017 -0700
     Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/database/sql/convert.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/database/sql/convert.go b/src/database/sql/convert.go
+index b44bed559d..b79ec3f7b2 100644
+--- a/src/database/sql/convert.go
++++ b/src/database/sql/convert.go
+@@ -259,6 +259,9 @@ func convertAssign(dest, src interface{}) error {
+ 		}
+ 	case time.Time:
+ 		switch d := dest.(type) {
++		case *time.Time:
++			*d = s
++			return nil
+ 		case *string:
+ 			*d = s.Format(time.RFC3339Nano)
+ 			return nil

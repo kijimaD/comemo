@@ -14,9 +14,150 @@ Date:   Tue Jun 2 23:02:12 2009 -0700
     DELTA=32  (6 added, 3 deleted, 23 changed)
     OCL=29801
     CL=29804
-
+---
  src/runtime/386/asm.s   | 12 +++++++-----
  src/runtime/amd64/asm.s | 14 ++++++++------
  src/runtime/proc.c      | 25 ++++++++++++-------------
  src/runtime/runtime.h   |  2 +-
  4 files changed, 28 insertions(+), 25 deletions(-)
+
+diff --git a/src/runtime/386/asm.s b/src/runtime/386/asm.s
+index b7138105f7..cb6af7a155 100644
+--- a/src/runtime/386/asm.s
++++ b/src/runtime/386/asm.s
+@@ -157,15 +157,17 @@ TEXT cas(SB), 7, $0
+ 	MOVL	$1, AX
+ 	RET
+ 
+-// void jmpdefer(byte*);
++// void jmpdefer(fn, sp);
++// called from deferreturn.
+ // 1. pop the caller
+ // 2. sub 5 bytes from the callers return
+ // 3. jmp to the argument
+ TEXT jmpdefer(SB), 7, $0
+-	MOVL	4(SP), AX	// function
+-	ADDL	$(4+56), SP	// pop saved PC and callers frame
+-	SUBL	$5, (SP)	// reposition his return address
+-	JMP	AX		// and goto function
++	MOVL	4(SP), AX	// fn
++	MOVL	8(SP), BX	// caller sp
++	LEAL	-4(BX), SP	// caller sp after CALL
++	SUBL	$5, (SP)	// return to CALL again
++	JMP	AX	// but first run the deferred function
+ 
+ TEXT	sys·memclr(SB),7,$0
+ 	MOVL	4(SP), DI		// arg 1 addr
+diff --git a/src/runtime/amd64/asm.s b/src/runtime/amd64/asm.s
+index b69259e314..6fc01bbc98 100644
+--- a/src/runtime/amd64/asm.s
++++ b/src/runtime/amd64/asm.s
+@@ -172,7 +172,7 @@ TEXT setspgoto(SB), 7, $0
+ 	MOVQ	AX, SP
+ 	PUSHQ	CX
+ 	JMP	BX
+-	POPQ	AX
++	POPQ	AX	// not reached
+ 	RET
+ 
+ // bool cas(int32 *val, int32 old, int32 new)
+@@ -194,12 +194,14 @@ TEXT cas(SB), 7, $0
+ 	MOVL	$1, AX
+ 	RET
+ 
+-// void jmpdefer(byte*);
++// void jmpdefer(fn, sp);
++// called from deferreturn.
+ // 1. pop the caller
+ // 2. sub 5 bytes from the callers return
+ // 3. jmp to the argument
+ TEXT jmpdefer(SB), 7, $0
+-	MOVQ	8(SP), AX	// function
+-	ADDQ	$(8+56), SP	// pop saved PC and callers frame
+-	SUBQ	$5, (SP)	// reposition his return address
+-	JMP	AX		// and goto function
++	MOVQ	8(SP), AX	// fn
++	MOVQ	16(SP), BX	// caller sp
++	LEAQ	-8(BX), SP	// caller sp after CALL
++	SUBQ	$5, (SP)	// return to CALL again
++	JMP	AX	// but first run the deferred function
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index d51a6c013e..1d065e6d2a 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -607,7 +607,7 @@ oldstack(void)
+ 	Stktop *top;
+ 	uint32 args;
+ 	byte *sp;
+-	uint64 oldsp, oldpc, oldbase, oldguard;
++	uintptr oldsp, oldpc, oldbase, oldguard;
+ 
+ // printf("oldstack m->cret=%p\n", m->cret);
+ 
+@@ -622,10 +622,10 @@ oldstack(void)
+ 		mcpy(top->oldsp+2*sizeof(uintptr), sp, args);
+ 	}
+ 
+-	oldsp = (uint64)top->oldsp + 8;
+-	oldpc = *(uint64*)(top->oldsp + 8);
+-	oldbase = (uint64)top->oldbase;
+-	oldguard = (uint64)top->oldguard;
++	oldsp = (uintptr)top->oldsp + sizeof(uintptr);
++	oldpc = *(uintptr*)oldsp;
++	oldbase = (uintptr)top->oldbase;
++	oldguard = (uintptr)top->oldguard;
+ 
+ 	stackfree((byte*)m->curg->stackguard - StackGuard);
+ 
+@@ -645,6 +645,7 @@ oldstack(void)
+ 	gogoret(&m->morestack, m->cret);
+ }
+ 
++#pragma textflag 7
+ void
+ lessstack(void)
+ {
+@@ -818,13 +819,11 @@ sys·deferproc(int32 siz, byte* fn, byte* arg0)
+ 
+ #pragma textflag 7
+ void
+-sys·deferreturn(int32 arg0)
++sys·deferreturn(uintptr arg0)
+ {
+-	// warning: jmpdefer knows the frame size
+-	// of this routine. dont change anything
+-	// that might change the frame size
+ 	Defer *d;
+-	byte *sp;
++	byte *sp, *fn;
++	uintptr *caller;
+ 
+ 	d = g->defer;
+ 	if(d == nil)
+@@ -834,10 +833,10 @@ sys·deferreturn(int32 arg0)
+ 		return;
+ 	mcpy(d->sp, d->args, d->siz);
+ 	g->defer = d->link;
+-	sp = d->fn;
++	fn = d->fn;
+ 	free(d);
+-	jmpdefer(sp);
+-}
++	jmpdefer(fn, sp);
++  }
+ 
+ void
+ runtime·Breakpoint(void)
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index f2926037aa..8b92c446c8 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -314,7 +314,7 @@ int32	write(int32, void*, int32);
+ void	close(int32);
+ int32	fstat(int32, void*);
+ bool	cas(uint32*, uint32, uint32);
+-void	jmpdefer(byte*);
++void	jmpdefer(byte*, void*);
+ void	exit1(int32);
+ void	ready(G*);
+ byte*	getenv(int8*);

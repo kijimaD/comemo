@@ -12,6 +12,19 @@ Date:   Tue Apr 25 20:08:31 2017 +0000
     Change-Id: Ia030e6924665dfb871ca964455b899d51b0200c2
     Reviewed-on: https://go-review.googlesource.com/41752
     Reviewed-by: David du Colombier <0intro@gmail.com>
-
+---
  src/net/http/cgi/plan9_test.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/net/http/cgi/plan9_test.go b/src/net/http/cgi/plan9_test.go
+index 2c29ef8025..cc20fe03e4 100644
+--- a/src/net/http/cgi/plan9_test.go
++++ b/src/net/http/cgi/plan9_test.go
+@@ -9,7 +9,6 @@ package cgi
+ import (
+ 	"os"
+ 	"strconv"
+-	"testing"
+ )
+ 
+ func isProcessRunning(pid int) bool {

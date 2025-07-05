@@ -12,6 +12,20 @@ Date:   Thu Feb 4 02:47:37 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/289529
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Keith Randall <khr@golang.org>
-
+---
  src/runtime/histogram.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/histogram.go b/src/runtime/histogram.go
+index 42baa6c5e2..da4910d341 100644
+--- a/src/runtime/histogram.go
++++ b/src/runtime/histogram.go
+@@ -26,7 +26,7 @@ const (
+ 	// The number of super-buckets (timeHistNumSuperBuckets), on the
+ 	// other hand, defines the range. To reserve room for sub-buckets,
+ 	// bit timeHistSubBucketBits is the first bit considered for
+-	// super-buckets, so super-bucket indicies are adjusted accordingly.
++	// super-buckets, so super-bucket indices are adjusted accordingly.
+ 	//
+ 	// As an example, consider 45 super-buckets with 16 sub-buckets.
+ 	//

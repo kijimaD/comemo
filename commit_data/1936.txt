@@ -8,6 +8,20 @@ Date:   Wed Apr 1 03:32:44 2009 -0700
     TBR=gri
     OCL=26984
     CL=26984
-
+---
  usr/gri/pretty/Makefile | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/usr/gri/pretty/Makefile b/usr/gri/pretty/Makefile
+index fae4d97d07..ed28664732 100644
+--- a/usr/gri/pretty/Makefile
++++ b/usr/gri/pretty/Makefile
+@@ -20,7 +20,7 @@ test: pretty
+ 	./test.sh
+ 
+ smoketest: pretty
+-	./test.sh parser.go
++	./test.sh astprinter.go
+ 
+ install: pretty
+ 	cp pretty $(HOME)/bin/pretty

@@ -15,7 +15,7 @@ Date:   Wed Nov 7 12:48:58 2012 +0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6811085
-
+---
  src/pkg/runtime/malloc.goc                  |   4 ++++
  src/pkg/runtime/race.c                      |  10 ++++++++++
  src/pkg/runtime/race.h                      |   1 +
@@ -24,3 +24,121 @@ Date:   Wed Nov 7 12:48:58 2012 +0400
  src/pkg/runtime/race/race_linux_amd64.syso  | Bin 141800 -> 142984 bytes
  src/pkg/runtime/race0.c                     |   8 ++++++++
  7 files changed, 28 insertions(+)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index f8aa1c949e..a96372451c 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -434,6 +434,8 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
+ 		runtime·SysMap(p, n);
+ 		h->arena_used += n;
+ 		runtime·MHeap_MapBits(h);
++		if(raceenabled)
++			runtime·racemapshadow(p, n);
+ 		return p;
+ 	}
+ 	
+@@ -460,6 +462,8 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
+ 		if(h->arena_used > h->arena_end)
+ 			h->arena_end = h->arena_used;
+ 		runtime·MHeap_MapBits(h);
++		if(raceenabled)
++			runtime·racemapshadow(p, n);
+ 	}
+ 	
+ 	return p;
+diff --git a/src/pkg/runtime/race.c b/src/pkg/runtime/race.c
+index ef7eec2b6b..49c7d4eb2c 100644
+--- a/src/pkg/runtime/race.c
++++ b/src/pkg/runtime/race.c
+@@ -11,6 +11,7 @@
+ #include "race.h"
+ 
+ void runtime∕race·Initialize(void);
++void runtime∕race·MapShadow(void *addr, uintptr size);
+ void runtime∕race·Finalize(void);
+ void runtime∕race·FinalizerGoroutine(int32);
+ void runtime∕race·Read(int32 goid, void *addr, void *pc);
+@@ -35,6 +36,7 @@ runtime·raceinit(void)
+ {
+ 	m->racecall = true;
+ 	runtime∕race·Initialize();
++	runtime∕race·MapShadow(noptrdata, enoptrbss - noptrdata);
+ 	m->racecall = false;
+ }
+ 
+@@ -46,6 +48,14 @@ runtime·racefini(void)
+ 	m->racecall = false;
+ }
+ 
++void
++runtime·racemapshadow(void *addr, uintptr size)
++{
++	m->racecall = true;
++	runtime∕race·MapShadow(addr, size);
++	m->racecall = false;
++}
++
+ // Called from instrumented code.
+ // If we split stack, getcallerpc() can return runtime·lessstack().
+ #pragma textflag 7
+diff --git a/src/pkg/runtime/race.h b/src/pkg/runtime/race.h
+index eea1f9465e..9ebb9d3738 100644
+--- a/src/pkg/runtime/race.h
++++ b/src/pkg/runtime/race.h
+@@ -15,6 +15,7 @@ void	runtime·raceinit(void);
+ // Finalize race detection subsystem, does not return.
+ void	runtime·racefini(void);
+ 
++void	runtime·racemapshadow(void *addr, uintptr size);
+ void	runtime·racemalloc(void *p, uintptr sz, void *pc);
+ void	runtime·racefree(void *p);
+ void	runtime·racegostart(int32 goid, void *pc);
+diff --git a/src/pkg/runtime/race/race.go b/src/pkg/runtime/race/race.go
+index f3a7be50c6..fb59ee8338 100644
+--- a/src/pkg/runtime/race/race.go
++++ b/src/pkg/runtime/race/race.go
+@@ -10,6 +10,7 @@ package race
+ /*
+ void __tsan_init(void);
+ void __tsan_fini(void);
++void __tsan_map_shadow(void *addr, void *size);
+ void __tsan_go_start(int pgoid, int chgoid, void *pc);
+ void __tsan_go_end(int goid);
+ void __tsan_read(int goid, void *addr, void *pc);
+@@ -38,6 +39,10 @@ func Finalize() {
+ 	C.__tsan_fini()
+ }
+ 
++func MapShadow(addr, size uintptr) {
++	C.__tsan_map_shadow(unsafe.Pointer(addr), unsafe.Pointer(size))
++}
++
+ func FinalizerGoroutine(goid int32) {
+ 	C.__tsan_finalizer_goroutine(C.int(goid))
+ }
+diff --git a/src/pkg/runtime/race/race_darwin_amd64.syso b/src/pkg/runtime/race/race_darwin_amd64.syso
+index b291e8e078..b323a71297 100644
+Binary files a/src/pkg/runtime/race/race_darwin_amd64.syso and b/src/pkg/runtime/race/race_darwin_amd64.syso differ
+diff --git a/src/pkg/runtime/race/race_linux_amd64.syso b/src/pkg/runtime/race/race_linux_amd64.syso
+index c8e331f716..ccc42e57ca 100644
+Binary files a/src/pkg/runtime/race/race_linux_amd64.syso and b/src/pkg/runtime/race/race_linux_amd64.syso differ
+diff --git a/src/pkg/runtime/race0.c b/src/pkg/runtime/race0.c
+index b650a14712..82ebba8229 100644
+--- a/src/pkg/runtime/race0.c
++++ b/src/pkg/runtime/race0.c
+@@ -17,6 +17,14 @@ runtime·racefini(void)
+ {
+ }
+ 
++
++void
++runtime·racemapshadow(void *addr, uintptr size)
++{
++	USED(addr);
++	USED(size);
++}
++
+ void
+ runtime·racewritepc(void *addr, void *pc)
+ {

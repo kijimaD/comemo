@@ -9,6 +9,35 @@ Date:   Wed Dec 16 16:20:03 2015 -0500
     Change-Id: Ia71fc031cc8eb575e5ab5323ff4084147d143744
     Reviewed-on: https://go-review.googlesource.com/17867
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/build/build_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index d0a2219ebc..07efc14292 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -5,6 +5,7 @@
+ package build
+ 
+ import (
++	"internal/testenv"
+ 	"io"
+ 	"os"
+ 	"path/filepath"
+@@ -299,6 +300,7 @@ func TestShellSafety(t *testing.T) {
+ }
+ 
+ func TestImportVendor(t *testing.T) {
++	testenv.MustHaveGoBuild(t) // really must just have source
+ 	ctxt := Default
+ 	ctxt.GOPATH = ""
+ 	p, err := ctxt.Import("golang.org/x/net/http2/hpack", filepath.Join(ctxt.GOROOT, "src/net/http"), AllowVendor)
+@@ -312,6 +314,7 @@ func TestImportVendor(t *testing.T) {
+ }
+ 
+ func TestImportVendorFailure(t *testing.T) {
++	testenv.MustHaveGoBuild(t) // really must just have source
+ 	ctxt := Default
+ 	ctxt.GOPATH = ""
+ 	p, err := ctxt.Import("x.com/y/z", filepath.Join(ctxt.GOROOT, "src/net/http"), AllowVendor)

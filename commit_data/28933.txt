@@ -33,7 +33,130 @@ Date:   Wed May 11 20:55:53 2016 +0200
     Change-Id: Ia2b8b1a8ef0868288ecb25f812b17bd03ff40d1c
     Reviewed-on: https://go-review.googlesource.com/23568
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/float.go      | 44 ++++++++++++++++++++++++++++++++------------
  src/math/big/float_test.go | 38 ++++++++++++++++++++++++++++++++++++++
  2 files changed, 70 insertions(+), 12 deletions(-)
+
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index 7a9c2b3dfb..aabd7b4477 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -1210,20 +1210,30 @@ func (z *Float) uadd(x, y *Float) {
+ 	ex := int64(x.exp) - int64(len(x.mant))*_W
+ 	ey := int64(y.exp) - int64(len(y.mant))*_W
+ 
++	al := alias(z.mant, x.mant) || alias(z.mant, y.mant)
++
+ 	// TODO(gri) having a combined add-and-shift primitive
+ 	//           could make this code significantly faster
+ 	switch {
+ 	case ex < ey:
+-		// cannot re-use z.mant w/o testing for aliasing
+-		t := nat(nil).shl(y.mant, uint(ey-ex))
+-		z.mant = z.mant.add(x.mant, t)
++		if al {
++			t := nat(nil).shl(y.mant, uint(ey-ex))
++			z.mant = z.mant.add(x.mant, t)
++		} else {
++			z.mant = z.mant.shl(y.mant, uint(ey-ex))
++			z.mant = z.mant.add(x.mant, z.mant)
++		}
+ 	default:
+ 		// ex == ey, no shift needed
+ 		z.mant = z.mant.add(x.mant, y.mant)
+ 	case ex > ey:
+-		// cannot re-use z.mant w/o testing for aliasing
+-		t := nat(nil).shl(x.mant, uint(ex-ey))
+-		z.mant = z.mant.add(t, y.mant)
++		if al {
++			t := nat(nil).shl(x.mant, uint(ex-ey))
++			z.mant = z.mant.add(t, y.mant)
++		} else {
++			z.mant = z.mant.shl(x.mant, uint(ex-ey))
++			z.mant = z.mant.add(z.mant, y.mant)
++		}
+ 		ex = ey
+ 	}
+ 	// len(z.mant) > 0
+@@ -1247,18 +1257,28 @@ func (z *Float) usub(x, y *Float) {
+ 	ex := int64(x.exp) - int64(len(x.mant))*_W
+ 	ey := int64(y.exp) - int64(len(y.mant))*_W
+ 
++	al := alias(z.mant, x.mant) || alias(z.mant, y.mant)
++
+ 	switch {
+ 	case ex < ey:
+-		// cannot re-use z.mant w/o testing for aliasing
+-		t := nat(nil).shl(y.mant, uint(ey-ex))
+-		z.mant = t.sub(x.mant, t)
++		if al {
++			t := nat(nil).shl(y.mant, uint(ey-ex))
++			z.mant = t.sub(x.mant, t)
++		} else {
++			z.mant = z.mant.shl(y.mant, uint(ey-ex))
++			z.mant = z.mant.sub(x.mant, z.mant)
++		}
+ 	default:
+ 		// ex == ey, no shift needed
+ 		z.mant = z.mant.sub(x.mant, y.mant)
+ 	case ex > ey:
+-		// cannot re-use z.mant w/o testing for aliasing
+-		t := nat(nil).shl(x.mant, uint(ex-ey))
+-		z.mant = t.sub(t, y.mant)
++		if al {
++			t := nat(nil).shl(x.mant, uint(ex-ey))
++			z.mant = t.sub(t, y.mant)
++		} else {
++			z.mant = z.mant.shl(x.mant, uint(ex-ey))
++			z.mant = z.mant.sub(z.mant, y.mant)
++		}
+ 		ex = ey
+ 	}
+ 
+diff --git a/src/math/big/float_test.go b/src/math/big/float_test.go
+index 464619b338..bea5ac175c 100644
+--- a/src/math/big/float_test.go
++++ b/src/math/big/float_test.go
+@@ -1762,3 +1762,41 @@ func TestFloatCmpSpecialValues(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func BenchmarkFloatAdd(b *testing.B) {
++	x := new(Float)
++	y := new(Float)
++	z := new(Float)
++
++	for _, prec := range []uint{10, 1e2, 1e3, 1e4, 1e5} {
++		x.SetPrec(prec).SetRat(NewRat(1, 3))
++		y.SetPrec(prec).SetRat(NewRat(1, 6))
++		z.SetPrec(prec)
++
++		b.Run(fmt.Sprintf("%v", prec), func(b *testing.B) {
++			b.ReportAllocs()
++			for i := 0; i < b.N; i++ {
++				z.Add(x, y)
++			}
++		})
++	}
++}
++
++func BenchmarkFloatSub(b *testing.B) {
++	x := new(Float)
++	y := new(Float)
++	z := new(Float)
++
++	for _, prec := range []uint{10, 1e2, 1e3, 1e4, 1e5} {
++		x.SetPrec(prec).SetRat(NewRat(1, 3))
++		y.SetPrec(prec).SetRat(NewRat(1, 6))
++		z.SetPrec(prec)
++
++		b.Run(fmt.Sprintf("%v", prec), func(b *testing.B) {
++			b.ReportAllocs()
++			for i := 0; i < b.N; i++ {
++				z.Sub(x, y)
++			}
++		})
++	}
++}

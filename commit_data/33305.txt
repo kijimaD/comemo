@@ -24,6 +24,22 @@ Date:   Tue Jul 25 16:38:39 2017 -0400
     Change-Id: I04e0afda60f5573fdd8ad96238c24013297ef263
     Reviewed-on: https://go-review.googlesource.com/54633
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/cmd/trace/trace.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/trace/trace.go b/src/cmd/trace/trace.go
+index 52ef73cd10..30dde5ae26 100644
+--- a/src/cmd/trace/trace.go
++++ b/src/cmd/trace/trace.go
+@@ -102,7 +102,9 @@ var templTrace = `
+ 
+   function onResult(result) {
+     model = new tr.Model();
+-    var i = new tr.importer.Import(model);
++    var opts = new tr.importer.ImportOptions();
++    opts.shiftWorldToZero = false;
++    var i = new tr.importer.Import(model, opts);
+     var p = i.importTracesWithProgressDialog([result]);
+     p.then(onModelLoaded, onImportFail);
+   }

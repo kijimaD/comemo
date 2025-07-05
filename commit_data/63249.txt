@@ -18,9 +18,137 @@ Date:   Thu May 22 11:14:53 2025 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Damien Neil <dneil@google.com>
-
+---
  src/runtime/crash_test.go                 | 17 +++++++++
  src/runtime/sema.go                       |  4 +--
  src/runtime/testdata/testprog/synctest.go | 58 +++++++++++++++++++++++++++++++
  src/testing/synctest/synctest.go          |  5 ++-
  4 files changed, 81 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 221a9a95cc..8696672065 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -1228,3 +1228,20 @@ func TestFinalizerOrCleanupDeadlock(t *testing.T) {
+ 		})
+ 	}
+ }
++
++func TestSynctestCondSignalFromNoBubble(t *testing.T) {
++	for _, test := range []string{
++		"SynctestCond/signal/no_bubble",
++		"SynctestCond/broadcast/no_bubble",
++		"SynctestCond/signal/other_bubble",
++		"SynctestCond/broadcast/other_bubble",
++	} {
++		t.Run(test, func(t *testing.T) {
++			output := runTestProg(t, "testprog", test)
++			want := "fatal error: semaphore wake of synctest goroutine from outside bubble"
++			if !strings.Contains(output, want) {
++				t.Fatalf("output:\n%s\n\nwant output containing: %s", output, want)
++			}
++		})
++	}
++}
+diff --git a/src/runtime/sema.go b/src/runtime/sema.go
+index 7d6fc6d57d..0f029f604f 100644
+--- a/src/runtime/sema.go
++++ b/src/runtime/sema.go
+@@ -635,7 +635,7 @@ func notifyListNotifyAll(l *notifyList) {
+ 		s.next = nil
+ 		if s.g.bubble != nil && getg().bubble != s.g.bubble {
+ 			println("semaphore wake of synctest goroutine", s.g.goid, "from outside bubble")
+-			panic("semaphore wake of synctest goroutine from outside bubble")
++			fatal("semaphore wake of synctest goroutine from outside bubble")
+ 		}
+ 		readyWithTime(s, 4)
+ 		s = next
+@@ -692,7 +692,7 @@ func notifyListNotifyOne(l *notifyList) {
+ 			s.next = nil
+ 			if s.g.bubble != nil && getg().bubble != s.g.bubble {
+ 				println("semaphore wake of synctest goroutine", s.g.goid, "from outside bubble")
+-				panic("semaphore wake of synctest goroutine from outside bubble")
++				fatal("semaphore wake of synctest goroutine from outside bubble")
+ 			}
+ 			readyWithTime(s, 4)
+ 			return
+diff --git a/src/runtime/testdata/testprog/synctest.go b/src/runtime/testdata/testprog/synctest.go
+new file mode 100644
+index 0000000000..dd3a6df8a0
+--- /dev/null
++++ b/src/runtime/testdata/testprog/synctest.go
+@@ -0,0 +1,58 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"internal/synctest"
++	"sync"
++)
++
++func init() {
++	register("SynctestCond/signal/no_bubble", func() {
++		synctestCond(func(cond *sync.Cond) {
++			cond.Signal()
++		})
++	})
++	register("SynctestCond/broadcast/no_bubble", func() {
++		synctestCond(func(cond *sync.Cond) {
++			cond.Broadcast()
++		})
++	})
++	register("SynctestCond/signal/other_bubble", func() {
++		synctestCond(func(cond *sync.Cond) {
++			synctest.Run(cond.Signal)
++		})
++	})
++	register("SynctestCond/broadcast/other_bubble", func() {
++		synctestCond(func(cond *sync.Cond) {
++			synctest.Run(cond.Broadcast)
++		})
++	})
++}
++
++func synctestCond(f func(*sync.Cond)) {
++	var (
++		mu     sync.Mutex
++		cond   = sync.NewCond(&mu)
++		readyc = make(chan struct{})
++		wg     sync.WaitGroup
++	)
++	defer wg.Wait()
++	wg.Go(func() {
++		synctest.Run(func() {
++			go func() {
++				mu.Lock()
++				defer mu.Unlock()
++				cond.Wait()
++			}()
++			synctest.Wait()
++			<-readyc // #1: signal that cond.Wait is waiting
++			<-readyc // #2: wait to continue
++			cond.Signal()
++		})
++	})
++	readyc <- struct{}{}
++	f(cond)
++}
+diff --git a/src/testing/synctest/synctest.go b/src/testing/synctest/synctest.go
+index 1664cb8484..a44047a971 100644
+--- a/src/testing/synctest/synctest.go
++++ b/src/testing/synctest/synctest.go
+@@ -92,7 +92,10 @@
+ //
+ // A [sync.WaitGroup] becomes associated with a bubble on the first
+ // call to Add or Go. Once a WaitGroup is associated with a bubble,
+-// calling Add or Go from outside that bubble panics.
++// calling Add or Go from outside that bubble is a fatal error.
++//
++// [sync.Cond.Wait] is durably blocking. Waking a goroutine in a bubble
++// blocked on Cond.Wait from outside the bubble is a fatal error.
+ //
+ // Cleanup functions and finalizers registered with
+ // [runtime.AddCleanup] and [runtime.SetFinalizer]

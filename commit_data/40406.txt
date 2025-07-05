@@ -7,7 +7,46 @@ Date:   Thu May 9 09:51:17 2019 -0400
     Change-Id: Ifc8a731a2efd94fdc4fc6f26ca6e16f0c0292211
     Reviewed-on: https://go-review.googlesource.com/c/go/+/176178
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/vet/all/whitelist/wasm.txt | 11 -----------
  src/runtime/asm_wasm.s             |  3 ++-
  2 files changed, 2 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/vet/all/whitelist/wasm.txt b/src/cmd/vet/all/whitelist/wasm.txt
+deleted file mode 100644
+index 25acca52c0..0000000000
+--- a/src/cmd/vet/all/whitelist/wasm.txt
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// wasm-specific vet whitelist. See readme.txt for details.
+-
+-// False positives.
+-
+-// morestack intentionally omits arg size.
+-runtime/asm_wasm.s: [wasm] morestack: use of 8(SP) points beyond argument frame
+-runtime/asm_wasm.s: [wasm] morestack: use of 16(SP) points beyond argument frame
+-runtime/asm_wasm.s: [wasm] morestack: use of 8(SP) points beyond argument frame
+-
+-// rt0_go does not allocate a stack frame.
+-runtime/asm_wasm.s: [wasm] rt0_go: use of 8(SP) points beyond argument frame
+diff --git a/src/runtime/asm_wasm.s b/src/runtime/asm_wasm.s
+index a40efc2c2e..a10c89d298 100644
+--- a/src/runtime/asm_wasm.s
++++ b/src/runtime/asm_wasm.s
+@@ -7,7 +7,7 @@
+ #include "funcdata.h"
+ #include "textflag.h"
+ 
+-TEXT runtime·rt0_go(SB), NOSPLIT, $0
++TEXT runtime·rt0_go(SB), NOSPLIT|NOFRAME, $0
+ 	// save m->g0 = g0
+ 	MOVD $runtime·g0(SB), runtime·m0+m_g0(SB)
+ 	// save m0 to g0->m
+@@ -258,6 +258,7 @@ TEXT runtime·morestack(SB), NOSPLIT, $0-0
+ 
+ 	// Called from f.
+ 	// Set m->morebuf to f's caller.
++	NOP	SP	// tell vet SP changed - stop checking offsets
+ 	MOVD 8(SP), m_morebuf+gobuf_pc(R1)
+ 	MOVD $16(SP), m_morebuf+gobuf_sp(R1) // f's caller's SP
+ 	MOVD g, m_morebuf+gobuf_g(R1)

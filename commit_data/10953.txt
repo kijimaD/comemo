@@ -9,6 +9,25 @@ Date:   Thu Dec 22 08:50:56 2011 +1100
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/5498061
-
+---
  src/pkg/os/exec/exec_test.go | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/src/pkg/os/exec/exec_test.go b/src/pkg/os/exec/exec_test.go
+index 2b4166cc3e..a015cbe96c 100644
+--- a/src/pkg/os/exec/exec_test.go
++++ b/src/pkg/os/exec/exec_test.go
+@@ -256,13 +256,6 @@ func TestHelperProcess(*testing.T) {
+ 			fmt.Printf("ReadAll from fd 3: %v", err)
+ 			os.Exit(1)
+ 		}
+-		// TODO(bradfitz): remove this block once the builders are restarted
+-		// with a new binary including be47ea17bea0 (set CLOEXEC on epoll/kqueue fds)
+-		// and 5500053 (don't trust O_CLOEXEC on OS X).
+-		{
+-			os.Stderr.Write(bs)
+-			os.Exit(0)
+-		}
+ 		// Now verify that there are no other open fds.
+ 		var files []*os.File
+ 		for wantfd := os.Stderr.Fd() + 2; wantfd <= 100; wantfd++ {

@@ -7,6 +7,20 @@ Date:   Sat Dec 27 18:28:07 2014 -0500
     Change-Id: I60bbb7deb7462d1ca884677b4f86bd54b20b3f35
     Reviewed-on: https://go-review.googlesource.com/2140
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/net/http/cookie_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/cookie_test.go b/src/net/http/cookie_test.go
+index 98dc2fade0..1ec993e935 100644
+--- a/src/net/http/cookie_test.go
++++ b/src/net/http/cookie_test.go
+@@ -349,7 +349,7 @@ func TestSetCookieDoubleQuotes(t *testing.T) {
+ 		{Name: "quoted3", Value: "both"},
+ 	}
+ 	if len(got) != len(want) {
+-		t.Fatal("got %d cookies, want %d", len(got), len(want))
++		t.Fatalf("got %d cookies, want %d", len(got), len(want))
+ 	}
+ 	for i, w := range want {
+ 		g := got[i]

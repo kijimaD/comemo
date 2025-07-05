@@ -8,6 +8,44 @@ Date:   Fri Dec 9 19:58:11 2016 +0000
     Reviewed-on: https://go-review.googlesource.com/34247
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-
+---
  src/database/sql/sql.go | 19 +++++++++++++------
  1 file changed, 13 insertions(+), 6 deletions(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 1cc1687604..9f056c51e2 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -72,19 +72,26 @@ func Drivers() []string {
+ 	return list
+ }
+ 
+-// A NamedArg used as an argument to Query or Exec
+-// binds to the corresponding named parameter in the SQL statement.
++// A NamedArg is a named argument. NamedArg values may be used as
++// arguments to Query or Exec and bind to the corresponding named
++// parameter in the SQL statement.
++//
++// For a more concise way to create NamedArg values, see
++// the Named function.
+ type NamedArg struct {
+ 	_Named_Fields_Required struct{}
+ 
+-	// Name of the parameter placeholder. If empty the ordinal position in the
+-	// argument list will be used.
++	// Name is the name of the parameter placeholder.
++	//
++	// If empty, the ordinal position in the argument list will be
++	// used.
+ 	//
+ 	// Name must omit any symbol prefix.
+ 	Name string
+ 
+-	// Value of the parameter. It may be assigned the same value types as
+-	// the query arguments.
++	// Value is the value of the parameter.
++	// It may be assigned the same value types as the query
++	// arguments.
+ 	Value interface{}
+ }
+ 

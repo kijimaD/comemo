@@ -32,7 +32,7 @@ Date:   Mon Feb 6 13:44:32 2023 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  misc/cgo/life/life_test.go             |  19 +++--
  misc/cgo/life/testdata/life.go         |   2 -
  misc/cgo/life/testdata/main.go         |   4 +-
@@ -44,3 +44,345 @@ Date:   Mon Feb 6 13:44:32 2023 -0500
  misc/cgo/stdio/testdata/stdio/file.go  |   2 -
  misc/cgo/stdio/testdata/stdio/stdio.go |   2 -
  10 files changed, 37 insertions(+), 187 deletions(-)
+
+diff --git a/misc/cgo/life/life_test.go b/misc/cgo/life/life_test.go
+index 0becb262b4..98d25a197d 100644
+--- a/misc/cgo/life/life_test.go
++++ b/misc/cgo/life/life_test.go
+@@ -10,7 +10,6 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+-	"strings"
+ 	"testing"
+ )
+ 
+@@ -44,20 +43,22 @@ func testMain(m *testing.M) int {
+ 	return m.Run()
+ }
+ 
++// TestTestRun runs a test case for cgo //export.
+ func TestTestRun(t *testing.T) {
+ 	if os.Getenv("GOOS") == "android" {
+ 		t.Skip("the go tool runs with CGO_ENABLED=0 on the android device")
+ 	}
+-	out, err := exec.Command("go", "env", "GOROOT").Output()
++
++	cmd := exec.Command("go", "run", "main.go")
++	got, err := cmd.CombinedOutput()
+ 	if err != nil {
+-		t.Fatal(err)
++		t.Fatalf("%v: %s\n%s", cmd, err, got)
+ 	}
+-	GOROOT := string(bytes.TrimSpace(out))
+-
+-	cmd := exec.Command("go", "run", filepath.Join(GOROOT, "test", "run.go"), "-", ".")
+-	out, err = cmd.CombinedOutput()
++	want, err := os.ReadFile("main.out")
+ 	if err != nil {
+-		t.Fatalf("%s: %s\n%s", strings.Join(cmd.Args, " "), err, out)
++		t.Fatal("reading golden output:", err)
++	}
++	if !bytes.Equal(got, want) {
++		t.Errorf("'%v' output does not match expected in main.out. Instead saw:\n%s", cmd, got)
+ 	}
+-	t.Logf("%s:\n%s", strings.Join(cmd.Args, " "), out)
+ }
+diff --git a/misc/cgo/life/testdata/life.go b/misc/cgo/life/testdata/life.go
+index 2e0af81d05..70701cc121 100644
+--- a/misc/cgo/life/testdata/life.go
++++ b/misc/cgo/life/testdata/life.go
+@@ -1,5 +1,3 @@
+-// skip
+-
+ // Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/misc/cgo/life/testdata/main.go b/misc/cgo/life/testdata/main.go
+index cc2ca7c742..e9d19be487 100644
+--- a/misc/cgo/life/testdata/main.go
++++ b/misc/cgo/life/testdata/main.go
+@@ -1,10 +1,8 @@
+-// run -tags=use_go_run
+-
+ // Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build test_run
++//go:build test_run
+ 
+ // Run the game of life in C using Go for parallelization.
+ 
+diff --git a/misc/cgo/stdio/stdio_test.go b/misc/cgo/stdio/stdio_test.go
+index 675418f98d..cd03443ec2 100644
+--- a/misc/cgo/stdio/stdio_test.go
++++ b/misc/cgo/stdio/stdio_test.go
+@@ -44,20 +44,33 @@ func testMain(m *testing.M) int {
+ 	return m.Run()
+ }
+ 
++// TestTestRun runs a cgo test that doesn't depend on non-standard libraries.
+ func TestTestRun(t *testing.T) {
+ 	if os.Getenv("GOOS") == "android" {
+ 		t.Skip("subpackage stdio is not available on android")
+ 	}
+-	out, err := exec.Command("go", "env", "GOROOT").Output()
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	GOROOT := string(bytes.TrimSpace(out))
+ 
+-	cmd := exec.Command("go", "run", filepath.Join(GOROOT, "test", "run.go"), "-", ".")
+-	out, err = cmd.CombinedOutput()
+-	if err != nil {
+-		t.Fatalf("%s: %s\n%s", strings.Join(cmd.Args, " "), err, out)
++	for _, file := range [...]string{
++		"chain.go",
++		"fib.go",
++		"hello.go",
++	} {
++		file := file
++		wantFile := strings.Replace(file, ".go", ".out", 1)
++		t.Run(file, func(t *testing.T) {
++			cmd := exec.Command("go", "run", file)
++			got, err := cmd.CombinedOutput()
++			if err != nil {
++				t.Fatalf("%v: %s\n%s", cmd, err, got)
++			}
++			got = bytes.ReplaceAll(got, []byte("\r\n"), []byte("\n"))
++			want, err := os.ReadFile(wantFile)
++			if err != nil {
++				t.Fatal("reading golden output:", err)
++			}
++			if !bytes.Equal(got, want) {
++				t.Errorf("'%v' output does not match expected in %s. Instead saw:\n%s", cmd, wantFile, got)
++			}
++		})
+ 	}
+-	t.Logf("%s:\n%s", strings.Join(cmd.Args, " "), out)
+ }
+diff --git a/misc/cgo/stdio/testdata/chain.go b/misc/cgo/stdio/testdata/chain.go
+index 6c3f406a0d..c7163f5ae0 100644
+--- a/misc/cgo/stdio/testdata/chain.go
++++ b/misc/cgo/stdio/testdata/chain.go
+@@ -1,10 +1,8 @@
+-// run -tags=use_go_run
+-
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build test_run
++//go:build test_run
+ 
+ // Pass numbers along a chain of threads.
+ 
+diff --git a/misc/cgo/stdio/testdata/fib.go b/misc/cgo/stdio/testdata/fib.go
+index 49cb0ea06f..9617368335 100644
+--- a/misc/cgo/stdio/testdata/fib.go
++++ b/misc/cgo/stdio/testdata/fib.go
+@@ -1,10 +1,8 @@
+-// run -tags=use_go_run
+-
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build test_run
++//go:build test_run
+ 
+ // Compute Fibonacci numbers with two goroutines
+ // that pass integers back and forth.  No actual
+diff --git a/misc/cgo/stdio/testdata/hello.go b/misc/cgo/stdio/testdata/hello.go
+index 046bfee7a7..c0b52bf6c5 100644
+--- a/misc/cgo/stdio/testdata/hello.go
++++ b/misc/cgo/stdio/testdata/hello.go
+@@ -1,10 +1,8 @@
+-// run -tags=use_go_run
+-
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build test_run
++//go:build test_run
+ 
+ package main
+ 
+diff --git a/misc/cgo/stdio/testdata/run.out b/misc/cgo/stdio/testdata/run.out
+deleted file mode 100644
+index c0e496547e..0000000000
+--- a/misc/cgo/stdio/testdata/run.out
++++ /dev/null
+@@ -1,150 +0,0 @@
+-* hello
+-hello, world
+-* fib
+-0
+-1
+-1
+-2
+-3
+-5
+-8
+-13
+-21
+-34
+-55
+-89
+-144
+-233
+-377
+-610
+-987
+-1597
+-2584
+-4181
+-6765
+-10946
+-17711
+-28657
+-46368
+-75025
+-121393
+-196418
+-317811
+-514229
+-832040
+-1346269
+-2178309
+-3524578
+-5702887
+-9227465
+-14930352
+-24157817
+-39088169
+-63245986
+-102334155
+-165580141
+-267914296
+-433494437
+-701408733
+-1134903170
+-1836311903
+-2971215073
+-4807526976
+-7778742049
+-12586269025
+-20365011074
+-32951280099
+-53316291173
+-86267571272
+-139583862445
+-225851433717
+-365435296162
+-591286729879
+-956722026041
+-1548008755920
+-2504730781961
+-4052739537881
+-6557470319842
+-10610209857723
+-17167680177565
+-27777890035288
+-44945570212853
+-72723460248141
+-117669030460994
+-190392490709135
+-308061521170129
+-498454011879264
+-806515533049393
+-1304969544928657
+-2111485077978050
+-3416454622906707
+-5527939700884757
+-8944394323791464
+-14472334024676221
+-23416728348467685
+-37889062373143906
+-61305790721611591
+-99194853094755497
+-160500643816367088
+-259695496911122585
+-420196140727489673
+-679891637638612258
+-1100087778366101931
+-1779979416004714189
+-2880067194370816120
+-* chain
+-0
+-1
+-2
+-3
+-4
+-5
+-6
+-7
+-8
+-9
+-10
+-0
+-1
+-2
+-3
+-4
+-5
+-6
+-7
+-8
+-9
+-10
+-0
+-1
+-2
+-3
+-4
+-5
+-6
+-7
+-8
+-9
+-10
+-0
+-1
+-2
+-3
+-4
+-5
+-6
+-7
+-8
+-9
+-10
+-0
+-1
+-2
+-3
+-4
+-5
+-6
+-7
+-8
+-9
+-10
+diff --git a/misc/cgo/stdio/testdata/stdio/file.go b/misc/cgo/stdio/testdata/stdio/file.go
+index a024f2c361..2aa282eed3 100644
+--- a/misc/cgo/stdio/testdata/stdio/file.go
++++ b/misc/cgo/stdio/testdata/stdio/file.go
+@@ -1,5 +1,3 @@
+-// skip
+-
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/misc/cgo/stdio/testdata/stdio/stdio.go b/misc/cgo/stdio/testdata/stdio/stdio.go
+index d216e44fe7..08286d4898 100644
+--- a/misc/cgo/stdio/testdata/stdio/stdio.go
++++ b/misc/cgo/stdio/testdata/stdio/stdio.go
+@@ -1,5 +1,3 @@
+-// skip
+-
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.

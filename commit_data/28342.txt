@@ -9,6 +9,22 @@ Date:   Tue May 17 20:16:41 2016 +0800
     Change-Id: I39867726d28e179d1160a4fd353b7bea676c9dbb
     Reviewed-on: https://go-review.googlesource.com/23127
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/signal/doc.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/signal/doc.go b/src/os/signal/doc.go
+index 9ee547b15d..73b01a2764 100644
+--- a/src/os/signal/doc.go
++++ b/src/os/signal/doc.go
+@@ -205,8 +205,8 @@ before raising the signal.
+ Windows
+ 
+ On Windows a ^C (Control-C) or ^BREAK (Control-Break) normally cause
+-the program to exit. If Notify is called for os.SIGINT, ^C or ^BREAK
+-will cause os.SIGINT to be sent on the channel, and the program will
++the program to exit. If Notify is called for os.Interrupt, ^C or ^BREAK
++will cause os.Interrupt to be sent on the channel, and the program will
+ not exit. If Reset is called, or Stop is called on all channels passed
+ to Notify, then the default behavior will be restored.
+ 

@@ -18,7 +18,7 @@ Date:   Wed Feb 14 19:35:03 2018 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/asm/internal/asm/asm.go            |  2 +-
  src/cmd/asm/internal/asm/testdata/386.s    |  1 +
  src/cmd/asm/internal/asm/testdata/amd64.s  |  1 +
@@ -33,3 +33,226 @@ Date:   Wed Feb 14 19:35:03 2018 -0500
  test/retjmp.go                             |  9 +++++++++
  test/run.go                                | 17 +++++++++++++---
  13 files changed, 77 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index 19f930d802..8f24895b05 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -486,7 +486,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 	case 0:
+ 		// Nothing to do.
+ 	case 1:
+-		if p.arch.UnaryDst[op] {
++		if p.arch.UnaryDst[op] || op == obj.ARET {
+ 			// prog.From is no address.
+ 			prog.To = a[0]
+ 		} else {
+diff --git a/src/cmd/asm/internal/asm/testdata/386.s b/src/cmd/asm/internal/asm/testdata/386.s
+index ad8affd854..90a66167a1 100644
+--- a/src/cmd/asm/internal/asm/testdata/386.s
++++ b/src/cmd/asm/internal/asm/testdata/386.s
+@@ -91,3 +91,4 @@ loop:
+ 
+ // LTYPE0 nonnon	{ outcode(int($1), &$2); }
+ 	RET
++	RET	foo(SB)
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64.s b/src/cmd/asm/internal/asm/testdata/amd64.s
+index d07cf0d213..680d8eff38 100644
+--- a/src/cmd/asm/internal/asm/testdata/amd64.s
++++ b/src/cmd/asm/internal/asm/testdata/amd64.s
+@@ -145,3 +145,4 @@ loop:
+ 
+ // LTYPE0 nonnon	{ outcode($1, &$2); }
+ 	RET // c3
++	RET	foo(SB)
+diff --git a/src/cmd/asm/internal/asm/testdata/arm.s b/src/cmd/asm/internal/asm/testdata/arm.s
+index bc6cf07e83..0b3363e17e 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm.s
++++ b/src/cmd/asm/internal/asm/testdata/arm.s
+@@ -1579,6 +1579,8 @@ jmp_label_3:
+ 	MOVHU	R5@>16, R1                                        // 7518ffe6
+ 	MOVHU	R5@>24, R1                                        // 751cffe6
+ 
++	RET	foo(SB)
++
+ //
+ // END
+ //
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index 456e46158d..06435b4582 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -426,6 +426,7 @@ again:
+ //	}
+ 	BEQ	2(PC)
+ 	RET
++	RET	foo(SB)
+ 
+ // More B/BL cases, and canonical names JMP, CALL.
+ 
+diff --git a/src/cmd/asm/internal/asm/testdata/mips.s b/src/cmd/asm/internal/asm/testdata/mips.s
+index 6d62c43242..0c6f7fd552 100644
+--- a/src/cmd/asm/internal/asm/testdata/mips.s
++++ b/src/cmd/asm/internal/asm/testdata/mips.s
+@@ -422,6 +422,7 @@ label4:
+ 	BEQ	R1, 2(PC)
+ 	JMP	foo(SB)
+ 	CALL	foo(SB)
++	RET	foo(SB)
+ 
+ 	NEGW	R1, R2 // 00011023
+ 
+diff --git a/src/cmd/asm/internal/asm/testdata/mips64.s b/src/cmd/asm/internal/asm/testdata/mips64.s
+index a945e590ab..2d1bc18cec 100644
+--- a/src/cmd/asm/internal/asm/testdata/mips64.s
++++ b/src/cmd/asm/internal/asm/testdata/mips64.s
+@@ -402,6 +402,7 @@ label4:
+ 	BEQ	R1, 2(PC)
+ 	JMP	foo(SB)
+ 	CALL	foo(SB)
++	RET	foo(SB)
+ 
+ 	NEGW	R1, R2 // 00011023
+ 	NEGV	R1, R2 // 0001102f
+diff --git a/src/cmd/asm/internal/asm/testdata/ppc64.s b/src/cmd/asm/internal/asm/testdata/ppc64.s
+index dca574f90b..e34671231f 100644
+--- a/src/cmd/asm/internal/asm/testdata/ppc64.s
++++ b/src/cmd/asm/internal/asm/testdata/ppc64.s
+@@ -1197,6 +1197,7 @@ label1:
+ 	BEQ	2(PC)
+ 	JMP	foo(SB)
+ 	CALL	foo(SB)
++	RET	foo(SB)
+ 
+ // END
+ //
+diff --git a/src/cmd/asm/internal/asm/testdata/s390x.s b/src/cmd/asm/internal/asm/testdata/s390x.s
+index 884f6b23cf..867fe40a72 100644
+--- a/src/cmd/asm/internal/asm/testdata/s390x.s
++++ b/src/cmd/asm/internal/asm/testdata/s390x.s
+@@ -365,6 +365,7 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
+ 	VSTEB	$15, V29, 4094(R12)     // e7d0cffef808
+ 
+ 	RET
++	RET	foo(SB)
+ 
+ TEXT main·init(SB),DUPOK|NOSPLIT,$0 // TEXT main.init(SB), DUPOK|NOSPLIT, $0
+ 	RET
+diff --git a/test/retjmp.dir/a.s b/test/retjmp.dir/a.s
+new file mode 100644
+index 0000000000..c67a06638f
+--- /dev/null
++++ b/test/retjmp.dir/a.s
+@@ -0,0 +1,12 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT	·f(SB), 4, $8-0
++	CALL	·f1(SB)
++	RET	·f2(SB)
++	CALL	·unreachable(SB)
++
++TEXT	·leaf(SB), 4, $0-0
++	RET	·f3(SB)
++	JMP	·unreachable(SB)
+diff --git a/test/retjmp.dir/main.go b/test/retjmp.dir/main.go
+new file mode 100644
+index 0000000000..cb4bd018bf
+--- /dev/null
++++ b/test/retjmp.dir/main.go
+@@ -0,0 +1,32 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func f()
++func leaf()
++
++var f1called, f2called, f3called bool
++
++func main() {
++	f()
++	if !f1called {
++		panic("f1 not called")
++	}
++	if !f2called {
++		panic("f2 not called")
++	}
++	leaf()
++	if !f3called {
++		panic("f3 not called")
++	}
++}
++
++func f1() { f1called = true }
++func f2() { f2called = true }
++func f3() { f3called = true }
++
++func unreachable() {
++	panic("unreachable function called")
++}
+diff --git a/test/retjmp.go b/test/retjmp.go
+new file mode 100644
+index 0000000000..778d903625
+--- /dev/null
++++ b/test/retjmp.go
+@@ -0,0 +1,9 @@
++// buildrundir
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that return jump works correctly in assembly code.
++
++package ignored
+diff --git a/test/run.go b/test/run.go
+index fd53095ab4..a991c92462 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -488,7 +488,7 @@ func (t *test) run() {
+ 		action = "rundir"
+ 	case "cmpout":
+ 		action = "run" // the run case already looks for <dir>/<test>.out files
+-	case "compile", "compiledir", "build", "builddir", "run", "buildrun", "runoutput", "rundir", "asmcheck":
++	case "compile", "compiledir", "build", "builddir", "buildrundir", "run", "buildrun", "runoutput", "rundir", "asmcheck":
+ 		// nothing to do
+ 	case "errorcheckandrundir":
+ 		wantError = false // should be no error if also will run
+@@ -735,7 +735,7 @@ func (t *test) run() {
+ 			t.err = err
+ 		}
+ 
+-	case "builddir":
++	case "builddir", "buildrundir":
+ 		// Build an executable from all the .go and .s files in a subdirectory.
+ 		useTmp = true
+ 		longdir := filepath.Join(cwd, t.goDirName())
+@@ -788,12 +788,23 @@ func (t *test) run() {
+ 			t.err = err
+ 			break
+ 		}
+-		cmd = []string{"go", "tool", "link", "all.a"}
++		cmd = []string{"go", "tool", "link", "-o", "a.exe", "all.a"}
+ 		_, err = runcmd(cmd...)
+ 		if err != nil {
+ 			t.err = err
+ 			break
+ 		}
++		if action == "buildrundir" {
++			cmd = append(findExecCmd(), filepath.Join(t.tempDir, "a.exe"))
++			out, err := runcmd(cmd...)
++			if err != nil {
++				t.err = err
++				break
++			}
++			if strings.Replace(string(out), "\r\n", "\n", -1) != t.expectedOutput() {
++				t.err = fmt.Errorf("incorrect output\n%s", out)
++			}
++		}
+ 
+ 	case "buildrun": // build binary, then run binary, instead of go run. Useful for timeout tests where failure mode is infinite loop.
+ 		// TODO: not supported on NaCl

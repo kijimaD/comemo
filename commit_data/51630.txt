@@ -12,10 +12,76 @@ Date:   Mon Feb 28 12:17:25 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  doc/go1.18.html                              | 2 +-
  misc/cgo/testsanitizers/asan_test.go         | 2 +-
  src/cmd/compile/internal/types/fmt.go        | 2 +-
  src/cmd/compile/internal/types2/validtype.go | 2 +-
  src/go/types/validtype.go                    | 2 +-
  5 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 21089ef4b3..b320579c37 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -137,7 +137,7 @@ Do not send CLs removing the interior tags from such phrases.
+     </li>
+     <li><!-- https://golang.org/issue/51183 -->
+       The Go compiler currently only supports calling a method <code>m</code> on a value
+-      <code>x</code> of type parameter type <code>P</code> if <code>m</code> is explictly
++      <code>x</code> of type parameter type <code>P</code> if <code>m</code> is explicitly
+       declared by <code>P</code>'s constraint interface.
+       Similarly, method values <code>x.m</code> and method expressions
+       <code>P.m</code> also are only supported if <code>m</code> is explicitly
+diff --git a/misc/cgo/testsanitizers/asan_test.go b/misc/cgo/testsanitizers/asan_test.go
+index 1b70bce3d1..22dcf23c3b 100644
+--- a/misc/cgo/testsanitizers/asan_test.go
++++ b/misc/cgo/testsanitizers/asan_test.go
+@@ -63,7 +63,7 @@ func TestASAN(t *testing.T) {
+ 					// sanitizer library needs a
+ 					// symbolizer program and can't find it.
+ 					const noSymbolizer = "external symbolizer"
+-					// Check if -asan option can correctly print where the error occured.
++					// Check if -asan option can correctly print where the error occurred.
+ 					if tc.errorLocation != "" &&
+ 						!strings.Contains(out, tc.errorLocation) &&
+ 						!strings.Contains(out, noSymbolizer) &&
+diff --git a/src/cmd/compile/internal/types/fmt.go b/src/cmd/compile/internal/types/fmt.go
+index e1b395559a..09814ac46d 100644
+--- a/src/cmd/compile/internal/types/fmt.go
++++ b/src/cmd/compile/internal/types/fmt.go
+@@ -657,7 +657,7 @@ func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Ty
+ 
+ 				// Compute tsym, the symbol that would normally be used as
+ 				// the field name when embedding f.Type.
+-				// TODO(mdempsky): Check for other occurences of this logic
++				// TODO(mdempsky): Check for other occurrences of this logic
+ 				// and deduplicate.
+ 				typ := f.Type
+ 				if typ.IsPtr() {
+diff --git a/src/cmd/compile/internal/types2/validtype.go b/src/cmd/compile/internal/types2/validtype.go
+index c508eadc7c..f365ad1e27 100644
+--- a/src/cmd/compile/internal/types2/validtype.go
++++ b/src/cmd/compile/internal/types2/validtype.go
+@@ -79,7 +79,7 @@ func (check *Checker) validType0(typ Type, env *tparamEnv, path []Object) typeIn
+ 			// would have reported a type cycle and couldn't have been
+ 			// imported in the first place.
+ 			assert(t.obj.pkg == check.pkg)
+-			t.underlying = Typ[Invalid] // t is in the current package (no race possibilty)
++			t.underlying = Typ[Invalid] // t is in the current package (no race possibility)
+ 			// Find the starting point of the cycle and report it.
+ 			for i, tn := range path {
+ 				if tn == t.obj {
+diff --git a/src/go/types/validtype.go b/src/go/types/validtype.go
+index c4ec2f2e0a..7d7029bce2 100644
+--- a/src/go/types/validtype.go
++++ b/src/go/types/validtype.go
+@@ -79,7 +79,7 @@ func (check *Checker) validType0(typ Type, env *tparamEnv, path []Object) typeIn
+ 			// would have reported a type cycle and couldn't have been
+ 			// imported in the first place.
+ 			assert(t.obj.pkg == check.pkg)
+-			t.underlying = Typ[Invalid] // t is in the current package (no race possibilty)
++			t.underlying = Typ[Invalid] // t is in the current package (no race possibility)
+ 			// Find the starting point of the cycle and report it.
+ 			for i, tn := range path {
+ 				if tn == t.obj {

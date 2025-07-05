@@ -8,7 +8,7 @@ Date:   Sat Jul 5 12:49:25 2008 -0700
     better syntax error recovery
     
     SVN=126045
-
+---
  src/cmd/6g/gen.c  | 20 ++++++++++++++++++++
  src/cmd/gc/dcl.c  | 50 ++++++++++++++++++++++++++++++++------------------
  src/cmd/gc/go.h   |  8 +++++---
@@ -16,3 +16,475 @@ Date:   Sat Jul 5 12:49:25 2008 -0700
  src/cmd/gc/lex.c  | 26 +++++++++++++++++---------
  src/cmd/gc/walk.c | 17 +++++++++++++++--
  6 files changed, 113 insertions(+), 61 deletions(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 6b4dfde80c..8072b61262 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -106,6 +106,26 @@ allocparams(void)
+ 		t = funcnext(&list);
+ 	}
+ 
++	t = structfirst(&list, getoutarg(curfn->type));
++	while(t != T) {
++		if(t->nname != N && t->nname->sym->name[0] != '_') {
++			if(d == D)
++				fatal("allocparams: this nil");
++			if(d->op != ONAME) {
++				d = d->forw;
++				continue;
++			}
++
++			n = d->dnode;
++			if(n->class != PPARAM)
++				fatal("allocparams: this class");
++
++			n->xoffset = t->width;
++			d = d->forw;
++		}
++		t = structnext(&list);
++	}
++
+ 	/*
+ 	 * allocate (set xoffset) the stack
+ 	 * slots for all automatics.
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 65563f3b7c..0bb3580691 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -353,7 +353,7 @@ funchdr(Node *n)
+ 		fatal("funchdr: dclcontext");
+ 
+ 	dclcontext = PAUTO;
+-	markdcl("func");
++	markdcl();
+ 	funcargs(n->type);
+ 
+ 	if(n->type->thistuple > 0) {
+@@ -368,8 +368,9 @@ funcargs(Type *t)
+ {
+ 	Type *n1;
+ 	Iter save;
++	int all;
+ 
+-	// declare the this argument
++	// declare the this/in arguments
+ 	n1 = funcfirst(&save, t);
+ 	while(n1 != T) {
+ 		if(n1->nname != N)
+@@ -378,13 +379,22 @@ funcargs(Type *t)
+ 	}
+ 
+ 	// declare the outgoing arguments
+-//	n1 = structfirst(&save, getoutarg(t));
+-//	while(n1 != T) {
+-//		n1->left = newname(n1->sym);
+-//		if(n1->nname != N)
+-//			addvar(n1->nname, n1->type, PPARAM);
+-//		n1 = structnext(&save);
+-//	}
++	all = 0;
++	n1 = structfirst(&save, getoutarg(t));
++	while(n1 != T) {
++		if(n1->nname != N && n1->nname->sym->name[0] != '_') {
++			addvar(n1->nname, n1->type, PPARAM);
++			all |= 1;
++		} else
++			all |= 2;
++		n1 = structnext(&save);
++	}
++	if(all == 3)
++		yyerror("output parameters are all named or not named");
++
++	t->outnamed = 0;
++	if(all == 1)
++		t->outnamed = 1;
+ }
+ 
+ /*
+@@ -401,7 +411,7 @@ funcbody(Node *n)
+ 	// change the declaration context from auto to extern
+ 	if(dclcontext != PAUTO)
+ 		fatal("funcbody: dclcontext");
+-	popdcl("func");
++	popdcl();
+ 	dclcontext = PEXTERN;
+ }
+ 
+@@ -515,7 +525,7 @@ pushdcl(Sym *s)
+ }
+ 
+ void
+-popdcl(char *why)
++popdcl(void)
+ {
+ 	Sym *d, *s;
+ 
+@@ -532,8 +542,6 @@ popdcl(char *why)
+ 	}
+ 	if(d == S)
+ 		fatal("popdcl: no mark");
+-	if(strcmp(why, d->package) != 0)
+-		fatal("popdcl: pushed as %s popped as %s", d->package, why);
+ 	dclstack = d->link;
+ 	block = d->vblock;
+ }
+@@ -556,17 +564,17 @@ poptodcl(void)
+ }
+ 
+ void
+-markdcl(char *why)
++markdcl(void)
+ {
+ 	Sym *d;
+ 
+ 	d = push();
+ 	d->name = nil;		// used as a mark in fifo
+-	d->package = why;	// diagnostic for unmatched
+ 	d->vblock = block;
+ 
+ 	blockgen++;
+ 	block = blockgen;
++
+ //	if(dflag())
+ //		print("markdcl\n");
+ }
+@@ -576,7 +584,7 @@ markdclstack(void)
+ {
+ 	Sym *d, *s;
+ 
+-	markdcl("fnlit");
++	markdcl();
+ 
+ 	// copy the entire pop of the stack
+ 	// all the way back to block0.
+@@ -639,8 +647,14 @@ addvar(Node *n, Type *t, int ctxt)
+ 		gen = 0;
+ 	}
+ 
+-	if(s->vblock == block)
+-		yyerror("var %S redeclared in this block %d", s, block);
++	if(s->vblock == block) {
++		if(s->oname != N) {
++			yyerror("var %S redeclared in this block"
++				"\n     previous declaration at %L",
++				s, s->oname->lineno);
++		} else
++			yyerror("var %S redeclared in this block", s);
++	}
+ 		
+ 	if(ctxt != PEXTERN)
+ 		pushdcl(s);
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 828ebbb712..7f5b3829de 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -80,6 +80,7 @@ struct	Type
+ 	uchar	thistuple;
+ 	uchar	outtuple;
+ 	uchar	intuple;
++	uchar	outnamed;
+ 
+ 	Sym*	sym;
+ 	long	vargen;		// unique name for OTYPE/ONAME
+@@ -144,7 +145,7 @@ struct	Node
+ 	Sym*	psym;		// import
+ 	Sym*	sym;		// various
+ 	long	vargen;		// unique name for OTYPE/ONAME
+-	ulong	lineno;
++	long	lineno;
+ 	vlong	xoffset;
+ };
+ #define	N	((Node*)0)
+@@ -525,8 +526,8 @@ void	funcbody(Node*);
+ Type*	dostruct(Node*, int);
+ Type**	stotype(Node*, Type**);
+ Type*	sortinter(Type*);
+-void	markdcl(char*);
+-void	popdcl(char*);
++void	markdcl(void);
++void	popdcl(void);
+ void	poptodcl(void);
+ void	markdclstack(void);
+ void	testdclstack(void);
+@@ -566,6 +567,7 @@ void	doimport7(Node*, Node*);
+  */
+ void	walk(Node*);
+ void	walktype(Node*, int);
++void	walkbool(Node*);
+ Type*	walkswitch(Node*, Type*(*)(Node*, Type*));
+ int	casebody(Node*);
+ int	whatis(Node*);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index e3fe87a3bc..67345054d3 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -47,8 +47,7 @@
+ %type	<node>		export_list_r export
+ %type	<node>		hidden_importsym_list_r ohidden_importsym_list hidden_importsym isym
+ %type	<node>		hidden_importfield_list_r ohidden_importfield_list hidden_importfield
+-%type	<node>		fnbody
+-%type	<node>		fnres Afnres Bfnres fnliteral xfndcl fndcl
++%type	<node>		fnres Afnres Bfnres fnliteral xfndcl fndcl fnbody
+ %type	<node>		keyval_list_r keyval
+ %type	<node>		typedcl Atypedcl Btypedcl
+ 
+@@ -148,13 +147,9 @@ xdcl:
+ 	{
+ 		$$ = N;
+ 	}
+-|	error '}'
++|	error xdcl
+ 	{
+-		$$ = N;
+-	}
+-|	error ';'
+-	{
+-		$$ = N;
++		$$ = $2;
+ 	}
+ 
+ common_dcl:
+@@ -330,13 +325,12 @@ inc_stmt:
+ complex_stmt:
+ 	LFOR for_stmt
+ 	{
+-		/* FOR and WHILE are the same keyword */
+-		popdcl("for/while");
++		popdcl();
+ 		$$ = $2;
+ 	}
+ |	LSWITCH if_stmt
+ 	{
+-		popdcl("if/switch");
++		popdcl();
+ 		if(!casebody($2->nbody))
+ 			yyerror("switch statement must have case labels");
+ 		$$ = $2;
+@@ -346,14 +340,14 @@ complex_stmt:
+ 	}
+ |	LIF if_stmt
+ 	{
+-		popdcl("if/switch");
++		popdcl();
+ 		$$ = $2;
+ 		//if($$->ninit != N && $$->ntest == N)
+ 		//	yyerror("if conditional should not be missing");
+ 	}
+ |	LIF if_stmt LELSE else_stmt1
+ 	{
+-		popdcl("if/switch");
++		popdcl();
+ 		$$ = $2;
+ 		$$->nelse = $4;
+ 		//if($$->ninit != N && $$->ntest == N)
+@@ -361,7 +355,7 @@ complex_stmt:
+ 	}
+ |	LRANGE range_stmt
+ 	{
+-		popdcl("range");
++		popdcl();
+ 		$$ = $2;
+ 	}
+ |	LCASE expr_list ':'
+@@ -414,7 +408,7 @@ semi_stmt:
+ 	}
+ |	LIF if_stmt LELSE else_stmt2
+ 	{
+-		popdcl("if/switch");
++		popdcl();
+ 		$$ = $2;
+ 		$$->nelse = $4;
+ 		//if($$->ninit != N && $$->ntest == N)
+@@ -424,13 +418,13 @@ semi_stmt:
+ compound_stmt:
+ 	'{'
+ 	{
+-		markdcl("compound");
++		markdcl();
+ 	} ostmt_list '}'
+ 	{
+ 		$$ = $3;
+ 		if($$ == N)
+ 			$$ = nod(OEMPTY, N, N);
+-		popdcl("compound");
++		popdcl();
+ 	}
+ 
+ for_header:
+@@ -460,7 +454,7 @@ for_body:
+ 
+ for_stmt:
+ 	{
+-		markdcl("for/while");
++		markdcl();
+ 	} for_body
+ 	{
+ 		$$ = $2;
+@@ -491,7 +485,7 @@ if_body:
+ 
+ if_stmt:
+ 	{
+-		markdcl("if/switch");
++		markdcl();
+ 	} if_body
+ 	{
+ 		$$ = $2;
+@@ -521,7 +515,7 @@ range_body:
+ 
+ range_stmt:
+ 	{
+-		markdcl("range");
++		markdcl();
+ 	} range_body
+ 	{
+ 		$$ = $2;
+@@ -1012,7 +1006,7 @@ fnlitdcl:
+ fnliteral:
+ 	fnlitdcl '{' ostmt_list '}'
+ 	{
+-		popdcl("fnlit");
++		popdcl();
+ 
+ 		vargen++;
+ 		snprint(namebuf, sizeof(namebuf), "_f%.3ld", vargen);
+@@ -1036,16 +1030,17 @@ fnliteral:
+ 	}
+ 
+ fnbody:
+-	compound_stmt
++	'{' ostmt_list '}'
+ 	{
+-		$$ = $1;
+-		if($$->op == OEMPTY)
++		$$ = $2;
++		if($$ == N)
+ 			$$ = nod(ORETURN, N, N);
+ 	}
+ |	';'
+ 	{
+ 		$$ = N;
+ 	}
++
+ fnres:
+ 	Afnres
+ |	Bfnres
+@@ -1202,11 +1197,7 @@ Astmt:
+ 	{
+ 		$$ = N;
+ 	}
+-|	error ';'
+-	{
+-		$$ = N;
+-	}
+-|	error '}'
++|	error Astmt
+ 	{
+ 		$$ = N;
+ 	}
+@@ -1218,6 +1209,10 @@ Astmt:
+ Bstmt:
+ 	semi_stmt
+ |	Bcommon_dcl
++|	error Bstmt
++	{
++		$$ = N;
++	}
+ 
+ /*
+  * need semi in front YES
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 5aa12c328e..2642bc88e4 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -550,7 +550,7 @@ tnum:
+ 	}
+ 	*cp++ = c;
+ 	c = getc();
+-	if(c == 'x' || c == 'X')
++	if(c == 'x' || c == 'X') {
+ 		for(;;) {
+ 			*cp++ = c;
+ 			c = getc();
+@@ -564,16 +564,24 @@ tnum:
+ 				yyerror("malformed hex constant");
+ 			goto ncu;
+ 		}
+-	if(c < '0' || c > '7')
+-		goto dc;
++	}
++
++	c1 = 0;
+ 	for(;;) {
+-		if(c >= '0' && c <= '7') {
+-			*cp++ = c;
+-			c = getc();
+-			continue;
+-		}
+-		goto ncu;
++		if(!isdigit(c))
++			break;
++		if(c < '0' || c > '7')
++			c1 = 1;		// not octal
++		*cp++ = c;
++		c = getc();
+ 	}
++	if(c == '.')
++		goto casedot;
++	if(c == 'e' || c == 'E')
++		goto casee;
++	if(c1)
++		yyerror("malformed octal constant");
++	goto ncu;
+ 
+ dc:
+ 	if(c == '.')
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 0110fe4073..f8c10c3ec9 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -112,7 +112,7 @@ loop:
+ 		if(top != Etop)
+ 			goto nottop;
+ 		walktype(n->ninit, Etop);
+-		walktype(n->ntest, Erv);
++		walkbool(n->ntest);
+ 		walktype(n->nincr, Etop);
+ 		n = n->nbody;
+ 		goto loop;
+@@ -151,7 +151,7 @@ loop:
+ 		if(top != Etop)
+ 			goto nottop;
+ 		walktype(n->ninit, Etop);
+-		walktype(n->ntest, Erv);
++		walkbool(n->ntest);
+ 		walktype(n->nelse, Etop);
+ 		n = n->nbody;
+ 		goto loop;
+@@ -377,6 +377,10 @@ loop:
+ 		if(top != Etop)
+ 			goto nottop;
+ 		walktype(n->left, Erv);
++		if(curfn->type->outnamed && n->left == N) {
++			// print("special return\n");
++			goto ret;
++		}
+ 		l = ascompatte(n->op, getoutarg(curfn->type), &n->left, 1);
+ 		if(l != N)
+ 			n->left = reorder4(l);
+@@ -722,6 +726,15 @@ ret:
+ 	lineno = lno;
+ }
+ 
++void
++walkbool(Node *n)
++{
++	walktype(n, Erv);
++	if(n != N && n->type != T)
++		if(!eqtype(n->type, types[TBOOL], 0))
++			yyerror("IF and FOR require a boolean type");
++}
++
+ /*
+  * return the first type
+  */

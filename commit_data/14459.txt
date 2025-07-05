@@ -7,7 +7,32 @@ Date:   Fri Nov 23 20:30:03 2012 -0800
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/6846095
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index e660456cca..e251e09f5f 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -128,6 +128,7 @@ Jingcheng Zhang <diogin@gmail.com>
+ Joakim Sernbrant <serbaut@gmail.com>
+ Joe Poirier <jdpoirier@gmail.com>
+ John Asmuth <jasmuth@gmail.com>
++John Graham-Cumming <jgc@jgc.org> <jgrahamc@gmail.com>
+ Jonathan Gold <jgold.bg@gmail.com>
+ Jonathan Mark <jhmark@xenops.com>
+ Jonathan Wills <runningwild@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index e3526cbf06..dac718c31c 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -194,6 +194,7 @@ Johan Euphrosine <proppy@google.com>
+ John Asmuth <jasmuth@gmail.com>
+ John Beisley <huin@google.com>
+ John DeNero <denero@google.com>
++John Graham-Cumming <jgc@jgc.org> <jgrahamc@gmail.com>
+ Jonathan Allie <jonallie@google.com>
+ Jonathan Feinberg <feinberg@google.com>
+ Jonathan Gold <jgold.bg@gmail.com>

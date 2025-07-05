@@ -11,6 +11,34 @@ Date:   Fri Oct 11 08:58:52 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Elias Naur <mail@eliasnaur.com>
-
+---
  src/internal/reflectlite/reflect_mirror_test.go | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/reflectlite/reflect_mirror_test.go b/src/internal/reflectlite/reflect_mirror_test.go
+index 59d3ec407e..fbb6fb397e 100644
+--- a/src/internal/reflectlite/reflect_mirror_test.go
++++ b/src/internal/reflectlite/reflect_mirror_test.go
+@@ -87,6 +87,13 @@ func loadTypes(path, pkgName string, v visitor) {
+ }
+ 
+ func TestMirrorWithReflect(t *testing.T) {
++	reflectDir := filepath.Join(runtime.GOROOT(), "src", "reflect")
++	if _, err := os.Stat(reflectDir); os.IsNotExist(err) {
++		// On some mobile builders, the test binary executes on a machine without a
++		// complete GOROOT source tree.
++		t.Skipf("GOROOT source not present")
++	}
++
+ 	var wg sync.WaitGroup
+ 	rl, r := newVisitor(), newVisitor()
+ 
+@@ -95,7 +102,7 @@ func TestMirrorWithReflect(t *testing.T) {
+ 		v         visitor
+ 	}{
+ 		{".", "reflectlite", rl},
+-		{filepath.Join(runtime.GOROOT(), "src", "reflect"), "reflect", r},
++		{reflectDir, "reflect", r},
+ 	} {
+ 		tc := tc
+ 		wg.Add(1)

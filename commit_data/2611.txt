@@ -9,7 +9,7 @@ Date:   Mon Jul 6 23:04:56 2009 -0700
     DELTA=46  (0 added, 5 deleted, 41 changed)
     OCL=31241
     CL=31243
-
+---
  src/cmd/5g/cgen.c   | 30 +++++++++++++++---------------
  src/cmd/5g/galign.c |  1 -
  src/cmd/5g/gg.h     |  8 +++-----
@@ -19,3 +19,355 @@ Date:   Mon Jul 6 23:04:56 2009 -0700
  src/cmd/5g/list.c   |  2 +-
  src/cmd/5l/obj.c    |  1 -
  8 files changed, 41 insertions(+), 47 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index eafa280a57..d70cfd9b0b 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -506,7 +506,7 @@ agen(Node *n, Node *res)
+ 			tmp.op = OADDR;
+ 			tmp.left = &n2;
+ 			p1 = gins(AMOVW, &tmp, &n3);
+-			p1->from.scale = w;
++			p1->reg = w;
+ 		} else {
+ 			nodconst(&n1, t, w);
+ 			gins(optoas(OMUL, t), &n1, &n2);
+@@ -815,10 +815,10 @@ stkof(Node *n)
+ 
+ /*
+  * block copy:
+- *	memmove(&n, &ns, w);
++ *	memmove(&res, &n, w);
+  */
+ void
+-sgen(Node *n, Node *ns, int32 w)
++sgen(Node *n, Node *res, int32 w)
+ {
+ 	Node nodl, nodr, ndat, nend;
+ 	int32 c, q, odst, osrc;
+@@ -827,11 +827,11 @@ sgen(Node *n, Node *ns, int32 w)
+ 	if(debug['g']) {
+ 		print("\nsgen w=%d\n", w);
+ 		dump("r", n);
+-		dump("res", ns);
++		dump("res", res);
+ 	}
+ 	if(w == 0)
+ 		return;
+-	if(n->ullman >= UINF && ns->ullman >= UINF) {
++	if(n->ullman >= UINF && res->ullman >= UINF) {
+ 		fatal("sgen UINF");
+ 	}
+ 
+@@ -840,17 +840,17 @@ sgen(Node *n, Node *ns, int32 w)
+ 
+ 	// offset on the stack
+ 	osrc = stkof(n);
+-	odst = stkof(ns);
++	odst = stkof(res);
+ 
+ 	regalloc(&nodl, types[tptr], N);
+ 	regalloc(&nodr, types[tptr], N);
+ 	regalloc(&ndat, types[TUINT32], N);
+ 
+-	if(n->ullman >= ns->ullman) {
++	if(n->ullman >= res->ullman) {
+ 		agen(n, &nodr);
+-		agen(ns, &nodl);
++		agen(res, &nodl);
+ 	} else {
+-		agen(ns, &nodl);
++		agen(res, &nodl);
+ 		agen(n, &nodr);
+ 	}
+ 
+@@ -890,33 +890,33 @@ sgen(Node *n, Node *ns, int32 w)
+ 		// normal direction
+ 		if(q >= 4) {
+ 			regalloc(&nend, types[TUINT32], N);
+-			p = gins(AMOVW, &nodl, &nend);
++			p = gins(AMOVW, &nodr, &nend);
+ 			p->from.type = D_CONST;
+ 			p->from.offset = q;
+ 
+-			p = gins(AMOVW, &nodl, &ndat);
++			p = gins(AMOVW, &nodr, &ndat);
+ 			p->from.type = D_OREG;
+ 			p->from.offset = 4;
+ 			p->scond |= C_PBIT;
+ 
+-			p = gins(AMOVW, &ndat, &nodr);
++			p = gins(AMOVW, &ndat, &nodl);
+ 			p->to.type = D_OREG;
+ 			p->to.offset = 4;
+ 			p->scond |= C_PBIT;
+ 
+-			gins(ACMP, &nodl, &nend);
++			gins(ACMP, &nodr, &nend);
+ 			fatal("sgen loop not implemented");
+ 			p = gins(ABNE, N, N);
+ 			// TODO(PC offset)
+  			regfree(&nend);
+ 		} else
+ 		while(q > 0) {
+-			p = gins(AMOVW, &nodl, &ndat);
++			p = gins(AMOVW, &nodr, &ndat);
+ 			p->from.type = D_OREG;
+ 			p->from.offset = 4;
+  			p->scond |= C_PBIT;
+ 
+-			p = gins(AMOVW, &ndat, &nodr);
++			p = gins(AMOVW, &ndat, &nodl);
+ 			p->to.type = D_OREG;
+ 			p->to.offset = 4;
+  			p->scond |= C_PBIT;
+diff --git a/src/cmd/5g/galign.c b/src/cmd/5g/galign.c
+index bad646eb74..f5c642735e 100644
+--- a/src/cmd/5g/galign.c
++++ b/src/cmd/5g/galign.c
+@@ -34,7 +34,6 @@ betypeinit(void)
+ 	zprog.from.type = D_NONE;
+ 	zprog.from.name = D_NONE;
+ 	zprog.from.reg = NREG;
+-	zprog.from.scale = 0;
+ 	zprog.to = zprog.from;
+ 
+ 	listinit();
+diff --git a/src/cmd/5g/gg.h b/src/cmd/5g/gg.h
+index 2bfe60ac41..82226dce0a 100644
+--- a/src/cmd/5g/gg.h
++++ b/src/cmd/5g/gg.h
+@@ -2,7 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-
+ #include <u.h>
+ #include <libc.h>
+ 
+@@ -29,19 +28,18 @@ struct	Addr
+ 	char	name;
+ 	char	reg;
+ 	uchar	etype;
+-	uchar	scale;	/* doubles as width in DATA op */
+ };
+ #define	A	((Addr*)0)
+ 
+ struct	Prog
+ {
+-	short	as;		// opcode
++	short	as;			// opcode
+ 	uint32	loc;		// pc offset in this func
+ 	uint32	lineno;		// source line that generated this
+ 	Addr	from;		// src address
+-	Addr	to;		// dst address
++	Addr	to;			// dst address
+ 	Prog*	link;		// next instruction in this func
+-	char	reg;
++	char	reg;		// doubles as width in DATA op
+ 	uchar	scond;
+ };
+ 
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index c937ad69d3..137d73a436 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -740,18 +740,18 @@ gen_as_init(Node *nr, Node *nl)
+ 		}
+ 
+ 		p = gins(ADATA, &nam, nr->left);
+-		p->from.scale = types[tptr]->width;
+-		p->to.type = D_ADDR;
++		p->reg = types[tptr]->width;
++		p->to.type = D_CONST;
+ //print("%P\n", p);
+ 
+ 		nodconst(&nod1, types[TINT32], nr->left->type->bound);
+ 		p = gins(ADATA, &nam, &nod1);
+-		p->from.scale = types[TINT32]->width;
++		p->reg = types[TINT32]->width;
+ 		p->from.offset += types[tptr]->width;
+ //print("%P\n", p);
+ 
+ 		p = gins(ADATA, &nam, &nod1);
+-		p->from.scale = types[TINT32]->width;
++		p->reg = types[TINT32]->width;
+ 		p->from.offset += types[tptr]->width+types[TINT32]->width;
+ 
+ 		goto yes;
+@@ -803,24 +803,24 @@ lit:
+ 	case TFLOAT64:
+ 	case TFLOAT:
+ 		p = gins(ADATA, &nam, nr);
+-		p->from.scale = nr->type->width;
++		p->reg = nr->type->width;
+ 		break;
+ 
+ 	case TSTRING:
+ 		p = gins(ADATA, &nam, N);
+ 		datastring(nr->val.u.sval->s, nr->val.u.sval->len, &p->to);
+-		p->from.scale = types[tptr]->width;
+-		p->to.type = D_ADDR;
++		p->reg = types[tptr]->width;
++		p->to.type = D_CONST;
+ //print("%P\n", p);
+ 
+ 		nodconst(&nod1, types[TINT32], nr->val.u.sval->len);
+ 		p = gins(ADATA, &nam, &nod1);
+-		p->from.scale = types[TINT32]->width;
++		p->reg = types[TINT32]->width;
+ 		p->from.offset += types[tptr]->width;
+ //print("%P\n", p);
+ 
+ 		p = gins(ADATA, &nam, &nod1);
+-		p->from.scale = types[TINT32]->width;
++		p->reg = types[TINT32]->width;
+ 		p->from.offset += types[tptr]->width+types[TINT32]->width;
+ 		break;
+ 	}
+diff --git a/src/cmd/5g/gobj.c b/src/cmd/5g/gobj.c
+index 509154c97d..b8f8f68e95 100644
+--- a/src/cmd/5g/gobj.c
++++ b/src/cmd/5g/gobj.c
+@@ -110,7 +110,6 @@ zaddr(Biobuf *b, Addr *a, int s)
+ 	case D_REG:
+ 	case D_FREG:
+ 	case D_PSR:
+-	case D_ADDR:
+ 		break;
+ 
+ 	case D_CONST2:
+@@ -367,14 +366,14 @@ datastring(char *s, int len, Addr *a)
+ 		p->from = ao;
+ 		p->from.offset = w;
+ 
+-		p->from.scale = NSNAME;
++		p->reg = NSNAME;
+ 		if(w+8 > len)
+-			p->from.scale = len-w;
++			p->reg = len-w;
+ 
+ 		p->to = ac;
+ 		p->to.type = D_SCONST;
+ 		p->to.offset = len;
+-		memmove(p->to.sval, s+w, p->from.scale);
++		memmove(p->to.sval, s+w, p->reg);
+ 	}
+ 	p = pc;
+ 	ggloblsym(ao.sym, len, ao.name == D_EXTERN);
+@@ -415,7 +414,7 @@ datagostring(Strlit *sval, Addr *a)
+ 	// $string len+ptr
+ 	datastring(sval->s, sval->len, &ap);
+ 
+-	ap.type = D_ADDR;
++	ap.type = D_CONST;
+ 	ap.etype = TINT32;
+ 	wi = types[TUINT32]->width;
+ 	wp = types[tptr]->width;
+@@ -444,7 +443,7 @@ datagostring(Strlit *sval, Addr *a)
+ 	p = pc;
+ 	gins(ADATA, N, N);
+ 	p->from = ao;
+-	p->from.scale = wp;
++	p->reg = wp;
+ 	p->to = ap;
+ 
+ 	// DATA gostring+wp, wi, $len
+@@ -452,7 +451,7 @@ datagostring(Strlit *sval, Addr *a)
+ 	gins(ADATA, N, N);
+ 	p->from = ao;
+ 	p->from.offset = wp;
+-	p->from.scale = wi;
++	p->reg = wi;
+ 	p->to = ac;
+ 	p->to.offset = sval->len;
+ 
+@@ -474,10 +473,10 @@ dstringptr(Sym *s, int off, char *str)
+ 	p->from.name = D_EXTERN;
+ 	p->from.sym = s;
+ 	p->from.offset = off;
+-	p->from.scale = widthptr;
++	p->reg = widthptr;
+ 
+ 	datastring(str, strlen(str)+1, &p->to);
+-	p->to.type = D_ADDR;
++	p->to.type = D_CONST;
+ 	p->to.etype = TINT32;
+ 	off += widthptr;
+ 
+@@ -496,7 +495,7 @@ duintxx(Sym *s, int off, uint64 v, int wid)
+ 	p->from.name = D_EXTERN;
+ 	p->from.sym = s;
+ 	p->from.offset = off;
+-	p->from.scale = wid;
++	p->reg = wid;
+ 	p->to.type = D_CONST;
+ 	p->to.name = D_NONE;
+ 	p->to.offset = v;
+@@ -535,8 +534,8 @@ dsymptr(Sym *s, int off, Sym *x)
+ 	p->from.name = D_EXTERN;
+ 	p->from.sym = s;
+ 	p->from.offset = off;
+-	p->from.scale = widthptr;
+-	p->to.type = D_ADDR;
++	p->reg = widthptr;
++	p->to.type = D_CONST;
+ 	p->to.name = D_EXTERN;
+ 	p->to.sym = x;
+ 	p->to.offset = 0;
+@@ -579,7 +578,7 @@ genembedtramp(Type *t, Sig *b)
+ //	p->from.sym = b->sym;
+ //	p->to.type = D_CONST;
+ //	p->to.offset = 0;
+-//	p->from.scale = 7;
++//	p->reg = 7;
+ // //print("1. %P\n", p);
+ 
+ //	loaded = 0;
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 3a20fecf12..aea27f18d0 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -162,7 +162,7 @@ ggloblsym(Sym *s, int32 width, int dupok)
+ 	p->to.name = D_NONE;
+ 	p->to.offset = width;
+ 	if(dupok)
+-		p->from.scale = DUPOK;
++		p->reg = DUPOK;
+ }
+ 
+ int
+@@ -1063,7 +1063,6 @@ raddr(Node *n, Prog *p)
+ void
+ naddr(Node *n, Addr *a)
+ {
+-	a->scale = 0;
+ 	a->type = D_NONE;
+ 	a->name = D_NONE;
+ 	a->reg = NREG;
+diff --git a/src/cmd/5g/list.c b/src/cmd/5g/list.c
+index 4d9f35c3aa..82d0825b26 100644
+--- a/src/cmd/5g/list.c
++++ b/src/cmd/5g/list.c
+@@ -60,7 +60,7 @@ Pconv(Fmt *fp)
+ 		break;
+ 
+ 	case ADATA:
+-		sconsize = p->from.scale;
++		sconsize = p->reg;
+ 		snprint(str, sizeof(str), "%.4ld (%4ld) %-7A %D/%d,%D",
+ 			p->loc, p->lineno, p->as, &p->from, sconsize, &p->to);
+ 		break;
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 7db9147d51..bcb2110f01 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -539,7 +539,6 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
+ 	case D_FREG:
+ 	case D_PSR:
+ 	case D_FPCR:
+-	case D_ADDR:
+ 		break;
+ 
+ 	case D_REGREG:

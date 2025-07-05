@@ -25,7 +25,7 @@ Date:   Mon Sep 28 20:59:47 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modfetch/repo.go               |   9 +
  src/cmd/go/internal/modget/get.go                  |  17 +
  src/cmd/go/internal/modget/mvs.go                  |   2 +-
@@ -41,3 +41,1289 @@ Date:   Mon Sep 28 20:59:47 2020 -0400
  src/cmd/go/testdata/script/mod_retract_replace.txt |   2 +-
  src/cmd/go/testdata/script/mod_vendor_auto.txt     |   2 +-
  14 files changed, 676 insertions(+), 230 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/repo.go b/src/cmd/go/internal/modfetch/repo.go
+index 4936ec11aa..c7cf5595bd 100644
+--- a/src/cmd/go/internal/modfetch/repo.go
++++ b/src/cmd/go/internal/modfetch/repo.go
+@@ -32,8 +32,17 @@ type Repo interface {
+ 
+ 	// Versions lists all known versions with the given prefix.
+ 	// Pseudo-versions are not included.
++	//
+ 	// Versions should be returned sorted in semver order
+ 	// (implementations can use SortVersions).
++	//
++	// Versions returns a non-nil error only if there was a problem
++	// fetching the list of versions: it may return an empty list
++	// along with a nil error if the list of matching versions
++	// is known to be empty.
++	//
++	// If the underlying repository does not exist,
++	// Versions returns an error matching errors.Is(_, os.NotExist).
+ 	Versions(prefix string) ([]string, error)
+ 
+ 	// Stat returns information about the revision rev.
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index ea0e99af7d..9e2fb8e408 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -874,6 +874,8 @@ func getQuery(ctx context.Context, path, vers string, prevM module.Version, forc
+ 	allowed := modload.CheckAllowed
+ 	if modload.IsRevisionQuery(vers) {
+ 		allowed = modload.CheckExclusions
++	} else if vers == "upgrade" || vers == "patch" {
++		allowed = checkAllowedOrCurrent(prevM.Version)
+ 	}
+ 
+ 	// If the query must be a module path, try only that module path.
+@@ -981,3 +983,18 @@ func logOncef(format string, args ...interface{}) {
+ 		fmt.Fprintln(os.Stderr, msg)
+ 	}
+ }
++
++// checkAllowedOrCurrent is like modload.CheckAllowed, but always allows the
++// current version (even if it is retracted or otherwise excluded).
++func checkAllowedOrCurrent(current string) modload.AllowedFunc {
++	if current == "" {
++		return modload.CheckAllowed
++	}
++
++	return func(ctx context.Context, m module.Version) error {
++		if m.Version == current {
++			return nil
++		}
++		return modload.CheckAllowed(ctx, m)
++	}
++}
+diff --git a/src/cmd/go/internal/modget/mvs.go b/src/cmd/go/internal/modget/mvs.go
+index 19fffd2947..e7e0ec80d0 100644
+--- a/src/cmd/go/internal/modget/mvs.go
++++ b/src/cmd/go/internal/modget/mvs.go
+@@ -145,7 +145,7 @@ func (u *upgrader) Upgrade(m module.Version) (module.Version, error) {
+ 	// If we're querying "upgrade" or "patch", Query will compare the current
+ 	// version against the chosen version and will return the current version
+ 	// if it is newer.
+-	info, err := modload.Query(context.TODO(), m.Path, string(getU), m.Version, modload.CheckAllowed)
++	info, err := modload.Query(context.TODO(), m.Path, string(getU), m.Version, checkAllowedOrCurrent(m.Version))
+ 	if err != nil {
+ 		// Report error but return m, to let version selection continue.
+ 		// (Reporting the error will fail the command at the next base.ExitIfErrors.)
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 8641cfec08..1c572d5d6d 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -35,6 +35,12 @@ type ImportMissingError struct {
+ 	// and thus would be added by 'go mod tidy'.
+ 	inAll bool
+ 
++	// isStd indicates whether we would expect to find the package in the standard
++	// library. This is normally true for all dotless import paths, but replace
++	// directives can cause us to treat the replaced paths as also being in
++	// modules.
++	isStd bool
++
+ 	// newMissingVersion is set to a newer version of Module if one is present
+ 	// in the build list. When set, we can't automatically upgrade.
+ 	newMissingVersion string
+@@ -42,7 +48,7 @@ type ImportMissingError struct {
+ 
+ func (e *ImportMissingError) Error() string {
+ 	if e.Module.Path == "" {
+-		if search.IsStandardImportPath(e.Path) {
++		if e.isStd {
+ 			return fmt.Sprintf("package %s is not in GOROOT (%s)", e.Path, filepath.Join(cfg.GOROOT, "src", e.Path))
+ 		}
+ 		if e.QueryErr != nil {
+@@ -230,46 +236,67 @@ func importFromBuildList(ctx context.Context, path string) (m module.Version, di
+ 		return module.Version{}, "", &AmbiguousImportError{importPath: path, Dirs: dirs, Modules: mods}
+ 	}
+ 
+-	return module.Version{}, "", &ImportMissingError{Path: path}
++	return module.Version{}, "", &ImportMissingError{Path: path, isStd: pathIsStd}
+ }
+ 
+ // queryImport attempts to locate a module that can be added to the current
+ // build list to provide the package with the given import path.
++//
++// Unlike QueryPattern, queryImport prefers to add a replaced version of a
++// module *before* checking the proxies for a version to add.
+ func queryImport(ctx context.Context, path string) (module.Version, error) {
+ 	pathIsStd := search.IsStandardImportPath(path)
+ 
+-	// Not on build list.
+-	// To avoid spurious remote fetches, next try the latest replacement for each
+-	// module (golang.org/issue/26241). This should give a useful message
+-	// in -mod=readonly, and it will allow us to add a requirement with -mod=mod.
+-	if modFile != nil {
+-		latest := map[string]string{} // path -> version
+-		for _, r := range modFile.Replace {
+-			if maybeInModule(path, r.Old.Path) {
+-				// Don't use semver.Max here; need to preserve +incompatible suffix.
+-				v := latest[r.Old.Path]
+-				if semver.Compare(r.Old.Version, v) > 0 {
+-					v = r.Old.Version
++	if cfg.BuildMod == "readonly" {
++		if pathIsStd {
++			// If the package would be in the standard library and none of the
++			// available replacement modules could concievably provide it, report it
++			// as a missing standard-library package instead of complaining that
++			// module lookups are disabled.
++			maybeReplaced := false
++			if index != nil {
++				for p := range index.highestReplaced {
++					if maybeInModule(path, p) {
++						maybeReplaced = true
++						break
++					}
+ 				}
+-				latest[r.Old.Path] = v
+ 			}
++			if !maybeReplaced {
++				return module.Version{}, &ImportMissingError{Path: path, isStd: true}
++			}
++		}
++
++		var queryErr error
++		if cfg.BuildModExplicit {
++			queryErr = fmt.Errorf("import lookup disabled by -mod=%s", cfg.BuildMod)
++		} else if cfg.BuildModReason != "" {
++			queryErr = fmt.Errorf("import lookup disabled by -mod=%s\n\t(%s)", cfg.BuildMod, cfg.BuildModReason)
+ 		}
++		return module.Version{}, &ImportMissingError{Path: path, QueryErr: queryErr}
++	}
+ 
+-		mods := make([]module.Version, 0, len(latest))
+-		for p, v := range latest {
+-			// If the replacement didn't specify a version, synthesize a
+-			// pseudo-version with an appropriate major version and a timestamp below
+-			// any real timestamp. That way, if the main module is used from within
+-			// some other module, the user will be able to upgrade the requirement to
+-			// any real version they choose.
+-			if v == "" {
+-				if _, pathMajor, ok := module.SplitPathVersion(p); ok && len(pathMajor) > 0 {
+-					v = modfetch.PseudoVersion(pathMajor[1:], "", time.Time{}, "000000000000")
++	// To avoid spurious remote fetches, try the latest replacement for each
++	// module (golang.org/issue/26241).
++	if index != nil {
++		var mods []module.Version
++		for mp, mv := range index.highestReplaced {
++			if !maybeInModule(path, mp) {
++				continue
++			}
++			if mv == "" {
++				// The only replacement is a wildcard that doesn't specify a version, so
++				// synthesize a pseudo-version with an appropriate major version and a
++				// timestamp below any real timestamp. That way, if the main module is
++				// used from within some other module, the user will be able to upgrade
++				// the requirement to any real version they choose.
++				if _, pathMajor, ok := module.SplitPathVersion(mp); ok && len(pathMajor) > 0 {
++					mv = modfetch.PseudoVersion(pathMajor[1:], "", time.Time{}, "000000000000")
+ 				} else {
+-					v = modfetch.PseudoVersion("v0", "", time.Time{}, "000000000000")
++					mv = modfetch.PseudoVersion("v0", "", time.Time{}, "000000000000")
+ 				}
+ 			}
+-			mods = append(mods, module.Version{Path: p, Version: v})
++			mods = append(mods, module.Version{Path: mp, Version: mv})
+ 		}
+ 
+ 		// Every module path in mods is a prefix of the import path.
+@@ -310,17 +337,7 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
+ 		// QueryPattern cannot possibly find a module containing this package.
+ 		//
+ 		// Instead of trying QueryPattern, report an ImportMissingError immediately.
+-		return module.Version{}, &ImportMissingError{Path: path}
+-	}
+-
+-	if cfg.BuildMod == "readonly" {
+-		var queryErr error
+-		if cfg.BuildModExplicit {
+-			queryErr = fmt.Errorf("import lookup disabled by -mod=%s", cfg.BuildMod)
+-		} else if cfg.BuildModReason != "" {
+-			queryErr = fmt.Errorf("import lookup disabled by -mod=%s\n\t(%s)", cfg.BuildMod, cfg.BuildModReason)
+-		}
+-		return module.Version{}, &ImportMissingError{Path: path, QueryErr: queryErr}
++		return module.Version{}, &ImportMissingError{Path: path, isStd: true}
+ 	}
+ 
+ 	// Look up module containing the package, for addition to the build list.
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 6457a7d968..d15da892e6 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -35,13 +35,14 @@ var modFile *modfile.File
+ // A modFileIndex is an index of data corresponding to a modFile
+ // at a specific point in time.
+ type modFileIndex struct {
+-	data         []byte
+-	dataNeedsFix bool // true if fixVersion applied a change while parsing data
+-	module       module.Version
+-	goVersionV   string // GoVersion with "v" prefix
+-	require      map[module.Version]requireMeta
+-	replace      map[module.Version]module.Version
+-	exclude      map[module.Version]bool
++	data            []byte
++	dataNeedsFix    bool // true if fixVersion applied a change while parsing data
++	module          module.Version
++	goVersionV      string // GoVersion with "v" prefix
++	require         map[module.Version]requireMeta
++	replace         map[module.Version]module.Version
++	highestReplaced map[string]string // highest replaced version of each module path; empty string for wildcard-only replacements
++	exclude         map[module.Version]bool
+ }
+ 
+ // index is the index of the go.mod file as of when it was last read or written.
+@@ -117,7 +118,7 @@ func checkRetractions(ctx context.Context, m module.Version) error {
+ 		// v2.0.0+incompatible is not "latest" if v1.0.0 is current.
+ 		rev, err := Query(ctx, path, "latest", findCurrentVersion(path), nil)
+ 		if err != nil {
+-			return &entry{err: err}
++			return &entry{nil, err}
+ 		}
+ 
+ 		// Load go.mod for that version.
+@@ -138,13 +139,19 @@ func checkRetractions(ctx context.Context, m module.Version) error {
+ 		}
+ 		summary, err := rawGoModSummary(rm)
+ 		if err != nil {
+-			return &entry{err: err}
++			return &entry{nil, err}
+ 		}
+-		return &entry{retract: summary.retract}
++		return &entry{summary.retract, nil}
+ 	}).(*entry)
+ 
+-	if e.err != nil {
+-		return fmt.Errorf("loading module retractions: %v", e.err)
++	if err := e.err; err != nil {
++		// Attribute the error to the version being checked, not the version from
++		// which the retractions were to be loaded.
++		var mErr *module.ModuleError
++		if errors.As(err, &mErr) {
++			err = mErr.Err
++		}
++		return &retractionLoadingError{m: m, err: err}
+ 	}
+ 
+ 	var rationale []string
+@@ -158,7 +165,7 @@ func checkRetractions(ctx context.Context, m module.Version) error {
+ 		}
+ 	}
+ 	if isRetracted {
+-		return &retractedError{rationale: rationale}
++		return module.VersionError(m, &retractedError{rationale: rationale})
+ 	}
+ 	return nil
+ }
+@@ -183,6 +190,19 @@ func (e *retractedError) Is(err error) bool {
+ 	return err == ErrDisallowed
+ }
+ 
++type retractionLoadingError struct {
++	m   module.Version
++	err error
++}
++
++func (e *retractionLoadingError) Error() string {
++	return fmt.Sprintf("loading module retractions for %v: %v", e.m, e.err)
++}
++
++func (e *retractionLoadingError) Unwrap() error {
++	return e.err
++}
++
+ // ShortRetractionRationale returns a retraction rationale string that is safe
+ // to print in a terminal. It returns hard-coded strings if the rationale
+ // is empty, too long, or contains non-printable characters.
+@@ -255,6 +275,14 @@ func indexModFile(data []byte, modFile *modfile.File, needsFix bool) *modFileInd
+ 		i.replace[r.Old] = r.New
+ 	}
+ 
++	i.highestReplaced = make(map[string]string)
++	for _, r := range modFile.Replace {
++		v, ok := i.highestReplaced[r.Old.Path]
++		if !ok || semver.Compare(r.Old.Version, v) > 0 {
++			i.highestReplaced[r.Old.Path] = r.Old.Version
++		}
++	}
++
+ 	i.exclude = make(map[module.Version]bool, len(modFile.Exclude))
+ 	for _, x := range modFile.Exclude {
+ 		i.exclude[x.Mod] = true
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 44076fb615..6a3fd103fc 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -11,14 +11,15 @@ import (
+ 	"os"
+ 	pathpkg "path"
+ 	"path/filepath"
++	"sort"
+ 	"strings"
+ 	"sync"
++	"time"
+ 
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/imports"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/search"
+-	"cmd/go/internal/str"
+ 	"cmd/go/internal/trace"
+ 
+ 	"golang.org/x/mod/module"
+@@ -106,136 +107,42 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
+ 		allowed = func(context.Context, module.Version) error { return nil }
+ 	}
+ 
+-	// Parse query to detect parse errors (and possibly handle query)
+-	// before any network I/O.
+-	badVersion := func(v string) (*modfetch.RevInfo, error) {
+-		return nil, fmt.Errorf("invalid semantic version %q in range %q", v, query)
+-	}
+-	matchesMajor := func(v string) bool {
+-		_, pathMajor, ok := module.SplitPathVersion(path)
+-		if !ok {
+-			return false
+-		}
+-		return module.CheckPathMajor(v, pathMajor) == nil
+-	}
+-	var (
+-		match = func(m module.Version) bool { return true }
+-
+-		prefix             string
+-		preferOlder        bool
+-		mayUseLatest       bool
+-		preferIncompatible bool = strings.HasSuffix(current, "+incompatible")
+-	)
+-	switch {
+-	case query == "latest":
+-		mayUseLatest = true
+-
+-	case query == "upgrade":
+-		mayUseLatest = true
+-
+-	case query == "patch":
+-		if current == "" {
+-			mayUseLatest = true
+-		} else {
+-			prefix = semver.MajorMinor(current)
+-			match = func(m module.Version) bool {
+-				return matchSemverPrefix(prefix, m.Version)
+-			}
+-		}
+-
+-	case strings.HasPrefix(query, "<="):
+-		v := query[len("<="):]
+-		if !semver.IsValid(v) {
+-			return badVersion(v)
+-		}
+-		if isSemverPrefix(v) {
+-			// Refuse to say whether <=v1.2 allows v1.2.3 (remember, @v1.2 might mean v1.2.3).
+-			return nil, fmt.Errorf("ambiguous semantic version %q in range %q", v, query)
+-		}
+-		match = func(m module.Version) bool {
+-			return semver.Compare(m.Version, v) <= 0
+-		}
+-		if !matchesMajor(v) {
+-			preferIncompatible = true
+-		}
+-
+-	case strings.HasPrefix(query, "<"):
+-		v := query[len("<"):]
+-		if !semver.IsValid(v) {
+-			return badVersion(v)
+-		}
+-		match = func(m module.Version) bool {
+-			return semver.Compare(m.Version, v) < 0
+-		}
+-		if !matchesMajor(v) {
+-			preferIncompatible = true
+-		}
+-
+-	case strings.HasPrefix(query, ">="):
+-		v := query[len(">="):]
+-		if !semver.IsValid(v) {
+-			return badVersion(v)
+-		}
+-		match = func(m module.Version) bool {
+-			return semver.Compare(m.Version, v) >= 0
++	if path == Target.Path {
++		if query != "latest" {
++			return nil, fmt.Errorf("can't query specific version (%q) for the main module (%s)", query, path)
+ 		}
+-		preferOlder = true
+-		if !matchesMajor(v) {
+-			preferIncompatible = true
++		if err := allowed(ctx, Target); err != nil {
++			return nil, fmt.Errorf("internal error: main module version is not allowed: %w", err)
+ 		}
++		return &modfetch.RevInfo{Version: Target.Version}, nil
++	}
+ 
+-	case strings.HasPrefix(query, ">"):
+-		v := query[len(">"):]
+-		if !semver.IsValid(v) {
+-			return badVersion(v)
+-		}
+-		if isSemverPrefix(v) {
+-			// Refuse to say whether >v1.2 allows v1.2.3 (remember, @v1.2 might mean v1.2.3).
+-			return nil, fmt.Errorf("ambiguous semantic version %q in range %q", v, query)
+-		}
+-		match = func(m module.Version) bool {
+-			return semver.Compare(m.Version, v) > 0
+-		}
+-		preferOlder = true
+-		if !matchesMajor(v) {
+-			preferIncompatible = true
+-		}
++	if path == "std" || path == "cmd" {
++		return nil, fmt.Errorf("can't query specific version (%q) of standard-library module %q", query, path)
++	}
+ 
+-	case semver.IsValid(query) && isSemverPrefix(query):
+-		match = func(m module.Version) bool {
+-			return matchSemverPrefix(query, m.Version)
+-		}
+-		prefix = query + "."
+-		if !matchesMajor(query) {
+-			preferIncompatible = true
+-		}
++	repo, err := lookupRepo(proxy, path)
++	if err != nil {
++		return nil, err
++	}
+ 
+-	default:
+-		// Direct lookup of semantic version or commit identifier.
+-
+-		// If the query is a valid semantic version and that version is replaced,
+-		// use the replacement module without searching the proxy.
+-		canonicalQuery := module.CanonicalVersion(query)
+-		if canonicalQuery != "" {
+-			m := module.Version{Path: path, Version: query}
+-			if r := Replacement(m); r.Path != "" {
+-				if err := allowed(ctx, m); errors.Is(err, ErrDisallowed) {
+-					return nil, err
+-				}
+-				return &modfetch.RevInfo{Version: query}, nil
+-			}
+-		}
++	// Parse query to detect parse errors (and possibly handle query)
++	// before any network I/O.
++	qm, err := newQueryMatcher(path, query, current, allowed)
++	if (err == nil && qm.canStat) || err == errRevQuery {
++		// Direct lookup of a commit identifier or complete (non-prefix) semantic
++		// version.
+ 
+ 		// If the identifier is not a canonical semver tag — including if it's a
+ 		// semver tag with a +metadata suffix — then modfetch.Stat will populate
+ 		// info.Version with a suitable pseudo-version.
+-		repo := modfetch.Lookup(proxy, path)
+ 		info, err := repo.Stat(query)
+ 		if err != nil {
+ 			queryErr := err
+ 			// The full query doesn't correspond to a tag. If it is a semantic version
+ 			// with a +metadata suffix, see if there is a tag without that suffix:
+ 			// semantic versioning defines them to be equivalent.
++			canonicalQuery := module.CanonicalVersion(query)
+ 			if canonicalQuery != "" && query != canonicalQuery {
+ 				info, err = repo.Stat(canonicalQuery)
+ 				if err != nil && !errors.Is(err, os.ErrNotExist) {
+@@ -250,35 +157,16 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
+ 			return nil, err
+ 		}
+ 		return info, nil
+-	}
+-
+-	if path == Target.Path {
+-		if query != "latest" {
+-			return nil, fmt.Errorf("can't query specific version (%q) for the main module (%s)", query, path)
+-		}
+-		if err := allowed(ctx, Target); err != nil {
+-			return nil, fmt.Errorf("internal error: main module version is not allowed: %w", err)
+-		}
+-		return &modfetch.RevInfo{Version: Target.Version}, nil
+-	}
+-
+-	if str.HasPathPrefix(path, "std") || str.HasPathPrefix(path, "cmd") {
+-		return nil, fmt.Errorf("explicit requirement on standard-library module %s not allowed", path)
++	} else if err != nil {
++		return nil, err
+ 	}
+ 
+ 	// Load versions and execute query.
+-	repo := modfetch.Lookup(proxy, path)
+-	versions, err := repo.Versions(prefix)
++	versions, err := repo.Versions(qm.prefix)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	matchAndAllowed := func(ctx context.Context, m module.Version) error {
+-		if !match(m) {
+-			return ErrDisallowed
+-		}
+-		return allowed(ctx, m)
+-	}
+-	releases, prereleases, err := filterVersions(ctx, path, versions, matchAndAllowed, preferIncompatible)
++	releases, prereleases, err := qm.filterVersions(ctx, versions)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -289,11 +177,30 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
+ 			return nil, err
+ 		}
+ 
+-		// For "upgrade" and "patch", make sure we don't accidentally downgrade
+-		// from a newer prerelease or from a chronologically newer pseudoversion.
+-		if current != "" && (query == "upgrade" || query == "patch") {
++		if (query == "upgrade" || query == "patch") && modfetch.IsPseudoVersion(current) && !rev.Time.IsZero() {
++			// Don't allow "upgrade" or "patch" to move from a pseudo-version
++			// to a chronologically older version or pseudo-version.
++			//
++			// If the current version is a pseudo-version from an untagged branch, it
++			// may be semantically lower than the "latest" release or the latest
++			// pseudo-version on the main branch. A user on such a version is unlikely
++			// to intend to “upgrade” to a version that already existed at that point
++			// in time.
++			//
++			// We do this only if the current version is a pseudo-version: if the
++			// version is tagged, the author of the dependency module has given us
++			// explicit information about their intended precedence of this version
++			// relative to other versions, and we shouldn't contradict that
++			// information. (For example, v1.0.1 might be a backport of a fix already
++			// incorporated into v1.1.0, in which case v1.0.1 would be chronologically
++			// newer but v1.1.0 is still an “upgrade”; or v1.0.2 might be a revert of
++			// an unsuccessful fix in v1.0.1, in which case the v1.0.2 commit may be
++			// older than the v1.0.1 commit despite the tag itself being newer.)
+ 			currentTime, err := modfetch.PseudoVersionTime(current)
+-			if semver.Compare(rev.Version, current) < 0 || (err == nil && rev.Time.Before(currentTime)) {
++			if err == nil && rev.Time.Before(currentTime) {
++				if err := allowed(ctx, module.Version{Path: path, Version: current}); errors.Is(err, ErrDisallowed) {
++					return nil, err
++				}
+ 				return repo.Stat(current)
+ 			}
+ 		}
+@@ -301,7 +208,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
+ 		return rev, nil
+ 	}
+ 
+-	if preferOlder {
++	if qm.preferLower {
+ 		if len(releases) > 0 {
+ 			return lookup(releases[0])
+ 		}
+@@ -317,13 +224,10 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
+ 		}
+ 	}
+ 
+-	if mayUseLatest {
+-		// Special case for "latest": if no tags match, use latest commit in repo
+-		// if it is allowed.
++	if qm.mayUseLatest {
+ 		latest, err := repo.Latest()
+ 		if err == nil {
+-			m := module.Version{Path: path, Version: latest.Version}
+-			if err := allowed(ctx, m); !errors.Is(err, ErrDisallowed) {
++			if qm.allowsVersion(ctx, latest.Version) {
+ 				return lookup(latest.Version)
+ 			}
+ 		} else if !errors.Is(err, os.ErrNotExist) {
+@@ -331,6 +235,14 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
+ 		}
+ 	}
+ 
++	if (query == "upgrade" || query == "patch") && current != "" {
++		// "upgrade" and "patch" may stay on the current version if allowed.
++		if err := allowed(ctx, module.Version{Path: path, Version: current}); errors.Is(err, ErrDisallowed) {
++			return nil, err
++		}
++		return lookup(current)
++	}
++
+ 	return nil, &NoMatchingVersionError{query: query, current: current}
+ }
+ 
+@@ -368,10 +280,151 @@ func isSemverPrefix(v string) bool {
+ 	return true
+ }
+ 
+-// matchSemverPrefix reports whether the shortened semantic version p
+-// matches the full-width (non-shortened) semantic version v.
+-func matchSemverPrefix(p, v string) bool {
+-	return len(v) > len(p) && v[len(p)] == '.' && v[:len(p)] == p && semver.Prerelease(v) == ""
++type queryMatcher struct {
++	path               string
++	prefix             string
++	filter             func(version string) bool
++	allowed            AllowedFunc
++	canStat            bool // if true, the query can be resolved by repo.Stat
++	preferLower        bool // if true, choose the lowest matching version
++	mayUseLatest       bool
++	preferIncompatible bool
++}
++
++var errRevQuery = errors.New("query refers to a non-semver revision")
++
++// newQueryMatcher returns a new queryMatcher that matches the versions
++// specified by the given query on the module with the given path.
++//
++// If the query can only be resolved by statting a non-SemVer revision,
++// newQueryMatcher returns errRevQuery.
++func newQueryMatcher(path string, query, current string, allowed AllowedFunc) (*queryMatcher, error) {
++	badVersion := func(v string) (*queryMatcher, error) {
++		return nil, fmt.Errorf("invalid semantic version %q in range %q", v, query)
++	}
++
++	matchesMajor := func(v string) bool {
++		_, pathMajor, ok := module.SplitPathVersion(path)
++		if !ok {
++			return false
++		}
++		return module.CheckPathMajor(v, pathMajor) == nil
++	}
++
++	qm := &queryMatcher{
++		path:               path,
++		allowed:            allowed,
++		preferIncompatible: strings.HasSuffix(current, "+incompatible"),
++	}
++
++	switch {
++	case query == "latest":
++		qm.mayUseLatest = true
++
++	case query == "upgrade":
++		if current == "" {
++			qm.mayUseLatest = true
++		} else {
++			qm.mayUseLatest = modfetch.IsPseudoVersion(current)
++			qm.filter = func(mv string) bool { return semver.Compare(mv, current) >= 0 }
++		}
++
++	case query == "patch":
++		if current == "" {
++			qm.mayUseLatest = true
++		} else {
++			qm.mayUseLatest = modfetch.IsPseudoVersion(current)
++			qm.prefix = semver.MajorMinor(current) + "."
++			qm.filter = func(mv string) bool { return semver.Compare(mv, current) >= 0 }
++		}
++
++	case strings.HasPrefix(query, "<="):
++		v := query[len("<="):]
++		if !semver.IsValid(v) {
++			return badVersion(v)
++		}
++		if isSemverPrefix(v) {
++			// Refuse to say whether <=v1.2 allows v1.2.3 (remember, @v1.2 might mean v1.2.3).
++			return nil, fmt.Errorf("ambiguous semantic version %q in range %q", v, query)
++		}
++		qm.filter = func(mv string) bool { return semver.Compare(mv, v) <= 0 }
++		if !matchesMajor(v) {
++			qm.preferIncompatible = true
++		}
++
++	case strings.HasPrefix(query, "<"):
++		v := query[len("<"):]
++		if !semver.IsValid(v) {
++			return badVersion(v)
++		}
++		qm.filter = func(mv string) bool { return semver.Compare(mv, v) < 0 }
++		if !matchesMajor(v) {
++			qm.preferIncompatible = true
++		}
++
++	case strings.HasPrefix(query, ">="):
++		v := query[len(">="):]
++		if !semver.IsValid(v) {
++			return badVersion(v)
++		}
++		qm.filter = func(mv string) bool { return semver.Compare(mv, v) >= 0 }
++		qm.preferLower = true
++		if !matchesMajor(v) {
++			qm.preferIncompatible = true
++		}
++
++	case strings.HasPrefix(query, ">"):
++		v := query[len(">"):]
++		if !semver.IsValid(v) {
++			return badVersion(v)
++		}
++		if isSemverPrefix(v) {
++			// Refuse to say whether >v1.2 allows v1.2.3 (remember, @v1.2 might mean v1.2.3).
++			return nil, fmt.Errorf("ambiguous semantic version %q in range %q", v, query)
++		}
++		qm.filter = func(mv string) bool { return semver.Compare(mv, v) > 0 }
++		qm.preferLower = true
++		if !matchesMajor(v) {
++			qm.preferIncompatible = true
++		}
++
++	case semver.IsValid(query):
++		if isSemverPrefix(query) {
++			qm.prefix = query + "."
++			// Do not allow the query "v1.2" to match versions lower than "v1.2.0",
++			// such as prereleases for that version. (https://golang.org/issue/31972)
++			qm.filter = func(mv string) bool { return semver.Compare(mv, query) >= 0 }
++		} else {
++			qm.canStat = true
++			qm.filter = func(mv string) bool { return semver.Compare(mv, query) == 0 }
++			qm.prefix = semver.Canonical(query)
++		}
++		if !matchesMajor(query) {
++			qm.preferIncompatible = true
++		}
++
++	default:
++		return nil, errRevQuery
++	}
++
++	return qm, nil
++}
++
++// allowsVersion reports whether version v is allowed by the prefix, filter, and
++// AllowedFunc of qm.
++func (qm *queryMatcher) allowsVersion(ctx context.Context, v string) bool {
++	if qm.prefix != "" && !strings.HasPrefix(v, qm.prefix) {
++		return false
++	}
++	if qm.filter != nil && !qm.filter(v) {
++		return false
++	}
++	if qm.allowed != nil {
++		if err := qm.allowed(ctx, module.Version{Path: qm.path, Version: v}); errors.Is(err, ErrDisallowed) {
++			return false
++		}
++	}
++	return true
+ }
+ 
+ // filterVersions classifies versions into releases and pre-releases, filtering
+@@ -382,14 +435,32 @@ func matchSemverPrefix(p, v string) bool {
+ //
+ // If the allowed predicate returns an error not equivalent to ErrDisallowed,
+ // filterVersions returns that error.
+-func filterVersions(ctx context.Context, path string, versions []string, allowed AllowedFunc, preferIncompatible bool) (releases, prereleases []string, err error) {
++func (qm *queryMatcher) filterVersions(ctx context.Context, versions []string) (releases, prereleases []string, err error) {
++	needIncompatible := qm.preferIncompatible
++
+ 	var lastCompatible string
+ 	for _, v := range versions {
+-		if err := allowed(ctx, module.Version{Path: path, Version: v}); errors.Is(err, ErrDisallowed) {
++		if !qm.allowsVersion(ctx, v) {
+ 			continue
+ 		}
+ 
+-		if !preferIncompatible {
++		if !needIncompatible {
++			// We're not yet sure whether we need to include +incomptaible versions.
++			// Keep track of the last compatible version we've seen, and use the
++			// presence (or absence) of a go.mod file in that version to decide: a
++			// go.mod file implies that the module author is supporting modules at a
++			// compatible version (and we should ignore +incompatible versions unless
++			// requested explicitly), while a lack of go.mod file implies the
++			// potential for legacy (pre-modules) versioning without semantic import
++			// paths (and thus *with* +incompatible versions).
++			//
++			// This isn't strictly accurate if the latest compatible version has been
++			// replaced by a local file path, because we do not allow file-path
++			// replacements without a go.mod file: the user would have needed to add
++			// one. However, replacing the last compatible version while
++			// simultaneously expecting to upgrade implicitly to a +incompatible
++			// version seems like an extreme enough corner case to ignore for now.
++
+ 			if !strings.HasSuffix(v, "+incompatible") {
+ 				lastCompatible = v
+ 			} else if lastCompatible != "" {
+@@ -397,19 +468,22 @@ func filterVersions(ctx context.Context, path string, versions []string, allowed
+ 				// ignore any version with a higher (+incompatible) major version. (See
+ 				// https://golang.org/issue/34165.) Note that we even prefer a
+ 				// compatible pre-release over an incompatible release.
+-
+-				ok, err := versionHasGoMod(ctx, module.Version{Path: path, Version: lastCompatible})
++				ok, err := versionHasGoMod(ctx, module.Version{Path: qm.path, Version: lastCompatible})
+ 				if err != nil {
+ 					return nil, nil, err
+ 				}
+ 				if ok {
++					// The last compatible version has a go.mod file, so that's the
++					// highest version we're willing to consider. Don't bother even
++					// looking at higher versions, because they're all +incompatible from
++					// here onward.
+ 					break
+ 				}
+ 
+ 				// No acceptable compatible release has a go.mod file, so the versioning
+ 				// for the module might not be module-aware, and we should respect
+ 				// legacy major-version tags.
+-				preferIncompatible = true
++				needIncompatible = true
+ 			}
+ 		}
+ 
+@@ -766,3 +840,157 @@ func versionHasGoMod(ctx context.Context, m module.Version) (bool, error) {
+ 	fi, err := os.Stat(filepath.Join(root, "go.mod"))
+ 	return err == nil && !fi.IsDir(), nil
+ }
++
++// A versionRepo is a subset of modfetch.Repo that can report information about
++// available versions, but cannot fetch specific source files.
++type versionRepo interface {
++	ModulePath() string
++	Versions(prefix string) ([]string, error)
++	Stat(rev string) (*modfetch.RevInfo, error)
++	Latest() (*modfetch.RevInfo, error)
++}
++
++var _ versionRepo = modfetch.Repo(nil)
++
++func lookupRepo(proxy, path string) (repo versionRepo, err error) {
++	err = module.CheckPath(path)
++	if err == nil {
++		repo = modfetch.Lookup(proxy, path)
++	} else {
++		repo = emptyRepo{path: path, err: err}
++	}
++
++	if index == nil {
++		return repo, err
++	}
++	if _, ok := index.highestReplaced[path]; !ok {
++		return repo, err
++	}
++
++	return &replacementRepo{repo: repo}, nil
++}
++
++// An emptyRepo is a versionRepo that contains no versions.
++type emptyRepo struct {
++	path string
++	err  error
++}
++
++var _ versionRepo = emptyRepo{}
++
++func (er emptyRepo) ModulePath() string                         { return er.path }
++func (er emptyRepo) Versions(prefix string) ([]string, error)   { return nil, nil }
++func (er emptyRepo) Stat(rev string) (*modfetch.RevInfo, error) { return nil, er.err }
++func (er emptyRepo) Latest() (*modfetch.RevInfo, error)         { return nil, er.err }
++
++// A replacementRepo augments a versionRepo to include the replacement versions
++// (if any) found in the main module's go.mod file.
++//
++// A replacementRepo suppresses "not found" errors for otherwise-nonexistent
++// modules, so a replacementRepo should only be constructed for a module that
++// actually has one or more valid replacements.
++type replacementRepo struct {
++	repo versionRepo
++}
++
++var _ versionRepo = (*replacementRepo)(nil)
++
++func (rr *replacementRepo) ModulePath() string { return rr.repo.ModulePath() }
++
++// Versions returns the versions from rr.repo augmented with any matching
++// replacement versions.
++func (rr *replacementRepo) Versions(prefix string) ([]string, error) {
++	versions, err := rr.repo.Versions(prefix)
++	if err != nil && !errors.Is(err, os.ErrNotExist) {
++		return nil, err
++	}
++
++	added := false
++	if index != nil && len(index.replace) > 0 {
++		path := rr.ModulePath()
++		for m, _ := range index.replace {
++			if m.Path == path && strings.HasPrefix(m.Version, prefix) && m.Version != "" && !modfetch.IsPseudoVersion(m.Version) {
++				versions = append(versions, m.Version)
++			}
++		}
++	}
++
++	if !added {
++		return versions, nil
++	}
++
++	sort.Slice(versions, func(i, j int) bool {
++		return semver.Compare(versions[i], versions[j]) < 0
++	})
++	uniq := versions[:1]
++	for _, v := range versions {
++		if v != uniq[len(uniq)-1] {
++			uniq = append(uniq, v)
++		}
++	}
++	return uniq, nil
++}
++
++func (rr *replacementRepo) Stat(rev string) (*modfetch.RevInfo, error) {
++	info, err := rr.repo.Stat(rev)
++	if err == nil || index == nil || len(index.replace) == 0 {
++		return info, err
++	}
++
++	v := module.CanonicalVersion(rev)
++	if v != rev {
++		// The replacements in the go.mod file list only canonical semantic versions,
++		// so a non-canonical version can't possibly have a replacement.
++		return info, err
++	}
++
++	path := rr.ModulePath()
++	_, pathMajor, ok := module.SplitPathVersion(path)
++	if ok && pathMajor == "" {
++		if err := module.CheckPathMajor(v, pathMajor); err != nil && semver.Build(v) == "" {
++			v += "+incompatible"
++		}
++	}
++
++	if r := Replacement(module.Version{Path: path, Version: v}); r.Path == "" {
++		return info, err
++	}
++	return rr.replacementStat(v)
++}
++
++func (rr *replacementRepo) Latest() (*modfetch.RevInfo, error) {
++	info, err := rr.repo.Latest()
++
++	if index != nil {
++		path := rr.ModulePath()
++		if v, ok := index.highestReplaced[path]; ok {
++			if v == "" {
++				// The only replacement is a wildcard that doesn't specify a version, so
++				// synthesize a pseudo-version with an appropriate major version and a
++				// timestamp below any real timestamp. That way, if the main module is
++				// used from within some other module, the user will be able to upgrade
++				// the requirement to any real version they choose.
++				if _, pathMajor, ok := module.SplitPathVersion(path); ok && len(pathMajor) > 0 {
++					v = modfetch.PseudoVersion(pathMajor[1:], "", time.Time{}, "000000000000")
++				} else {
++					v = modfetch.PseudoVersion("v0", "", time.Time{}, "000000000000")
++				}
++			}
++
++			if err != nil || semver.Compare(v, info.Version) > 0 {
++				return rr.replacementStat(v)
++			}
++		}
++	}
++
++	return info, err
++}
++
++func (rr *replacementRepo) replacementStat(v string) (*modfetch.RevInfo, error) {
++	rev := &modfetch.RevInfo{Version: v}
++	if modfetch.IsPseudoVersion(v) {
++		rev.Time, _ = modfetch.PseudoVersionTime(v)
++		rev.Short, _ = modfetch.PseudoVersionRev(v)
++	}
++	return rev, nil
++}
+diff --git a/src/cmd/go/internal/modload/query_test.go b/src/cmd/go/internal/modload/query_test.go
+index 351826f2ab..777a56b977 100644
+--- a/src/cmd/go/internal/modload/query_test.go
++++ b/src/cmd/go/internal/modload/query_test.go
+@@ -45,7 +45,7 @@ var (
+ 	queryRepoV3 = queryRepo + "/v3"
+ 
+ 	// Empty version list (no semver tags), not actually empty.
+-	emptyRepo = "vcs-test.golang.org/git/emptytest.git"
++	emptyRepoPath = "vcs-test.golang.org/git/emptytest.git"
+ )
+ 
+ var queryTests = []struct {
+@@ -121,14 +121,14 @@ var queryTests = []struct {
+ 	{path: queryRepo, query: "upgrade", current: "v1.9.10-pre2+metadata", vers: "v1.9.10-pre2.0.20190513201126-42abcb6df8ee"},
+ 	{path: queryRepo, query: "upgrade", current: "v0.0.0-20190513201126-42abcb6df8ee", vers: "v0.0.0-20190513201126-42abcb6df8ee"},
+ 	{path: queryRepo, query: "upgrade", allow: "NOMATCH", err: `no matching versions for query "upgrade"`},
+-	{path: queryRepo, query: "upgrade", current: "v1.9.9", allow: "NOMATCH", err: `no matching versions for query "upgrade" (current version is v1.9.9)`},
++	{path: queryRepo, query: "upgrade", current: "v1.9.9", allow: "NOMATCH", err: `vcs-test.golang.org/git/querytest.git@v1.9.9: disallowed module version`},
+ 	{path: queryRepo, query: "upgrade", current: "v1.99.99", err: `vcs-test.golang.org/git/querytest.git@v1.99.99: invalid version: unknown revision v1.99.99`},
+ 	{path: queryRepo, query: "patch", current: "", vers: "v1.9.9"},
+ 	{path: queryRepo, query: "patch", current: "v0.1.0", vers: "v0.1.2"},
+ 	{path: queryRepo, query: "patch", current: "v1.9.0", vers: "v1.9.9"},
+ 	{path: queryRepo, query: "patch", current: "v1.9.10-pre1", vers: "v1.9.10-pre1"},
+ 	{path: queryRepo, query: "patch", current: "v1.9.10-pre2+metadata", vers: "v1.9.10-pre2.0.20190513201126-42abcb6df8ee"},
+-	{path: queryRepo, query: "patch", current: "v1.99.99", err: `no matching versions for query "patch" (current version is v1.99.99)`},
++	{path: queryRepo, query: "patch", current: "v1.99.99", err: `vcs-test.golang.org/git/querytest.git@v1.99.99: invalid version: unknown revision v1.99.99`},
+ 	{path: queryRepo, query: ">v1.9.9", vers: "v1.9.10-pre1"},
+ 	{path: queryRepo, query: ">v1.10.0", err: `no matching versions for query ">v1.10.0"`},
+ 	{path: queryRepo, query: ">=v1.10.0", err: `no matching versions for query ">=v1.10.0"`},
+@@ -171,9 +171,9 @@ var queryTests = []struct {
+ 	// That should prevent us from resolving any version for the /v3 path.
+ 	{path: queryRepoV3, query: "latest", err: `no matching versions for query "latest"`},
+ 
+-	{path: emptyRepo, query: "latest", vers: "v0.0.0-20180704023549-7bb914627242"},
+-	{path: emptyRepo, query: ">v0.0.0", err: `no matching versions for query ">v0.0.0"`},
+-	{path: emptyRepo, query: "<v10.0.0", err: `no matching versions for query "<v10.0.0"`},
++	{path: emptyRepoPath, query: "latest", vers: "v0.0.0-20180704023549-7bb914627242"},
++	{path: emptyRepoPath, query: ">v0.0.0", err: `no matching versions for query ">v0.0.0"`},
++	{path: emptyRepoPath, query: "<v10.0.0", err: `no matching versions for query "<v10.0.0"`},
+ }
+ 
+ func TestQuery(t *testing.T) {
+@@ -189,7 +189,7 @@ func TestQuery(t *testing.T) {
+ 		}
+ 		allowed := func(ctx context.Context, m module.Version) error {
+ 			if ok, _ := path.Match(allow, m.Version); !ok {
+-				return ErrDisallowed
++				return module.VersionError(m, ErrDisallowed)
+ 			}
+ 			return nil
+ 		}
+@@ -200,17 +200,17 @@ func TestQuery(t *testing.T) {
+ 			info, err := Query(ctx, tt.path, tt.query, tt.current, allowed)
+ 			if tt.err != "" {
+ 				if err == nil {
+-					t.Errorf("Query(%q, %q, %v) = %v, want error %q", tt.path, tt.query, allow, info.Version, tt.err)
++					t.Errorf("Query(_, %q, %q, %q, %v) = %v, want error %q", tt.path, tt.query, tt.current, allow, info.Version, tt.err)
+ 				} else if err.Error() != tt.err {
+-					t.Errorf("Query(%q, %q, %v): %v, want error %q", tt.path, tt.query, allow, err, tt.err)
++					t.Errorf("Query(_, %q, %q, %q, %v): %v\nwant error %q", tt.path, tt.query, tt.current, allow, err, tt.err)
+ 				}
+ 				return
+ 			}
+ 			if err != nil {
+-				t.Fatalf("Query(%q, %q, %v): %v", tt.path, tt.query, allow, err)
++				t.Fatalf("Query(_, %q, %q, %q, %v): %v\nwant %v", tt.path, tt.query, tt.current, allow, err, tt.vers)
+ 			}
+ 			if info.Version != tt.vers {
+-				t.Errorf("Query(%q, %q, %v) = %v, want %v", tt.path, tt.query, allow, info.Version, tt.vers)
++				t.Errorf("Query(_, %q, %q, %q, %v) = %v, want %v", tt.path, tt.query, tt.current, allow, info.Version, tt.vers)
+ 			}
+ 		})
+ 	}
+diff --git a/src/cmd/go/testdata/script/mod_build_info_err.txt b/src/cmd/go/testdata/script/mod_build_info_err.txt
+index 08e2a8a3c8..cee055eabe 100644
+--- a/src/cmd/go/testdata/script/mod_build_info_err.txt
++++ b/src/cmd/go/testdata/script/mod_build_info_err.txt
+@@ -10,7 +10,7 @@ stdout '^bad[/\\]bad.go:3:8: malformed import path "🐧.example.com/string": in
+ stderr '^bad[/\\]bad.go:3:8: malformed import path "🐧.example.com/string": invalid char ''🐧''$'
+ 
+ # TODO(#41688): This should include a file and line, and report the reason for the error..
+-# (Today it includes only an import stack, and does not indicate the actual problem.)
++# (Today it includes only an import stack.)
+ ! go get -d ./main
+ stderr '^m/main imports\n\tm/bad imports\n\t🐧.example.com/string: malformed import path "🐧.example.com/string": invalid char ''🐧''$'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_replaced.txt b/src/cmd/go/testdata/script/mod_get_replaced.txt
+new file mode 100644
+index 0000000000..0b82eb7f4f
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_replaced.txt
+@@ -0,0 +1,110 @@
++cp go.mod go.mod.orig
++
++env oldGOPROXY=$GOPROXY
++
++# If a wildcard replacement exists for an otherwise-nonexistent module,
++# 'go get' should resolve it to the minimum valid pseudo-version.
++
++go mod edit -replace=example.com/x=./x
++go get -d example.com/x
++
++go list -m example.com/x
++stdout '^example.com/x v0.0.0-00010101000000-000000000000 '
++
++# If specific-version replacements exist, the highest matching version should be used.
++go mod edit -replace=example.com/x@v0.1.0=./x
++go mod edit -replace=example.com/x@v0.2.0=./x
++
++go get -d example.com/x
++go list -m example.com/x
++stdout '^example.com/x v0.2.0 '
++
++go get -d example.com/x@'<v0.2.0'
++go list -m example.com/x
++stdout '^example.com/x v0.1.0 '
++
++
++# The same should work with GOPROXY=off.
++
++env GOPROXY=off
++cp go.mod.orig go.mod
++
++go mod edit -replace=example.com/x=./x
++go get -d example.com/x
++
++go list -m example.com/x
++stdout '^example.com/x v0.0.0-00010101000000-000000000000 '
++
++# If specific-version replacements exist, the highest matching version should be used.
++go mod edit -replace=example.com/x@v0.1.0=./x -replace=example.com/x@v0.2.0=./x
++
++go get -d example.com/x
++go list -m example.com/x
++stdout '^example.com/x v0.2.0 '
++
++go get -d example.com/x@'<v0.2.0'
++go list -m example.com/x
++stdout '^example.com/x v0.1.0 '
++
++
++# Replacements should not be listed as known versions, but 'go get' should sort
++# them in with ordinary versions.
++
++env GOPROXY=$oldGOPROXY
++
++cp go.mod.orig go.mod
++go list -versions -m rsc.io/quote
++stdout 'v1.3.0 v1.4.0'
++
++go get -d rsc.io/quote@v1.3
++go list -m rsc.io/quote
++stdout '^rsc.io/quote v1.3.0'
++
++go mod edit -replace rsc.io/quote@v1.3.1=rsc.io/quote@v1.4.0
++
++go list -versions -m rsc.io/quote
++stdout 'v1.3.0 v1.4.0'
++
++go get -d rsc.io/quote@v1.3
++go list -m rsc.io/quote
++stdout '^rsc.io/quote v1.3.1 '
++
++go get -d rsc.io/quote@'>v1.3.1'
++go list -m rsc.io/quote
++stdout '^rsc.io/quote v1.4.0'
++
++
++# Replacements should allow 'go get' to work even with dotless module paths.
++
++cp go.mod.orig go.mod
++
++! go list example
++stderr '^package example is not in GOROOT \(.*\)$'
++! go get -d example
++stderr '^go get example: package example is not in GOROOT \(.*\)$'
++
++go mod edit -replace example@v0.1.0=./example
++
++! go list example
++stderr '^no required module provides package example; try ''go get -d example'' to add it$'
++
++go get -d example
++go list -m example
++stdout '^example v0.1.0 '
++
++
++-- go.mod --
++module example.com
++
++go 1.16
++-- x/go.mod --
++module example.com/x
++
++go 1.16
++-- x/x.go --
++package x
++-- example/go.mod --
++module example
++go 1.16
++-- example/example.go --
++package example
+diff --git a/src/cmd/go/testdata/script/mod_list_retract.txt b/src/cmd/go/testdata/script/mod_list_retract.txt
+index 4e177b3f54..3ba53bc596 100644
+--- a/src/cmd/go/testdata/script/mod_list_retract.txt
++++ b/src/cmd/go/testdata/script/mod_list_retract.txt
+@@ -32,9 +32,9 @@ go list -m -f '{{with .Retracted}}retracted{{end}}' example.com/retract@v1.0.0-u
+ # 'go list -m -retracted mod@version' shows an error if the go.mod that should
+ # contain the retractions is not available.
+ ! go list -m -retracted example.com/retract/missingmod@v1.0.0
+-stderr '^go list -m: loading module retractions: example.com/retract/missingmod@v1.9.0:.*404 Not Found$'
++stderr '^go list -m: loading module retractions for example.com/retract/missingmod@v1.0.0: .*404 Not Found$'
+ go list -e -m -retracted -f '{{.Error.Err}}' example.com/retract/missingmod@v1.0.0
+-stdout '^loading module retractions: example.com/retract/missingmod@v1.9.0:.*404 Not Found$'
++stdout '^loading module retractions for example.com/retract/missingmod@v1.0.0: .*404 Not Found$'
+ 
+ # 'go list -m -retracted mod@version' shows retractions.
+ go list -m -retracted example.com/retract@v1.0.0-unused
+diff --git a/src/cmd/go/testdata/script/mod_replace_import.txt b/src/cmd/go/testdata/script/mod_replace_import.txt
+index 407a6cef7d..2add31f71c 100644
+--- a/src/cmd/go/testdata/script/mod_replace_import.txt
++++ b/src/cmd/go/testdata/script/mod_replace_import.txt
+@@ -25,10 +25,11 @@ stdout 'example.com/v v1.12.0 => ./v12'
+ 
+ # The go command should print an informative error when the matched
+ # module does not contain a package.
++# TODO(#26909): Ideally these errors should include line numbers for the imports within the main module.
+ cd fail
+-! go list all
+-stderr '^m.go:4:2: module w@latest found \(v0.0.0-00010101000000-000000000000, replaced by ../w\), but does not contain package w$'
+-stderr '^m.go:5:2: nonexist@v0.1.0: replacement directory ../nonexist does not exist$'
++! go mod tidy
++stderr '^localhost.fail imports\n\tw: module w@latest found \(v0.0.0-00010101000000-000000000000, replaced by ../w\), but does not contain package w$'
++stderr '^localhost.fail imports\n\tnonexist: nonexist@v0.1.0: replacement directory ../nonexist does not exist$'
+ 
+ -- go.mod --
+ module example.com/m
+diff --git a/src/cmd/go/testdata/script/mod_replace_readonly.txt b/src/cmd/go/testdata/script/mod_replace_readonly.txt
+new file mode 100644
+index 0000000000..e7e5d61d8f
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_replace_readonly.txt
+@@ -0,0 +1,36 @@
++# Regression test for https://golang.org/issue/41577:
++# 'go list -mod=readonly' should not resolve missing packages from
++# available replacements.
++
++# Control case: when there is no replacement, 'go list' of a missing package
++# fails due to defaulting to '-mod=readonly'.
++
++! go list example.com/x
++stderr '^no required module provides package example.com/x; try ''go get -d example.com/x'' to add it$'
++
++# When an unused replacement is added, 'go list' should still fail in the same way.
++# (Previously, it would resolve the missing import despite -mod=readonly.)
++
++go mod edit -replace=example.com/x@v0.1.0=./x
++go mod edit -replace=example.com/x@v0.2.0=./x
++! go list example.com/x
++stderr '^no required module provides package example.com/x; try ''go get -d example.com/x'' to add it$'
++
++# The command suggested by 'go list' should successfully resolve using the replacement.
++
++go get -d example.com/x
++go list example.com/x
++go list -m example.com/x
++stdout '^example.com/x v0.2.0 '
++
++
++-- go.mod --
++module example.com
++
++go 1.16
++-- x/go.mod --
++module example.com/x
++
++go 1.16
++-- x/x.go --
++package x
+diff --git a/src/cmd/go/testdata/script/mod_retract_replace.txt b/src/cmd/go/testdata/script/mod_retract_replace.txt
+index 7aec438dda..770aea41a5 100644
+--- a/src/cmd/go/testdata/script/mod_retract_replace.txt
++++ b/src/cmd/go/testdata/script/mod_retract_replace.txt
+@@ -6,7 +6,7 @@ go get -d
+ 
+ # The latest version, v1.9.0, is not available on the proxy.
+ ! go list -m -retracted example.com/retract/missingmod
+-stderr '^go list -m: loading module retractions: example.com/retract/missingmod@v1.9.0:.*404 Not Found$'
++stderr '^go list -m: loading module retractions for example.com/retract/missingmod@v1.0.0: .*404 Not Found$'
+ 
+ # If we replace that version, we should see retractions.
+ go mod edit -replace=example.com/retract/missingmod@v1.9.0=./missingmod-v1.9.0
+diff --git a/src/cmd/go/testdata/script/mod_vendor_auto.txt b/src/cmd/go/testdata/script/mod_vendor_auto.txt
+index 53120dcfa1..e71db96643 100644
+--- a/src/cmd/go/testdata/script/mod_vendor_auto.txt
++++ b/src/cmd/go/testdata/script/mod_vendor_auto.txt
+@@ -177,7 +177,7 @@ stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
+ 
+ # 'go get' should update from the network or module cache,
+ # even if a vendor directory is present.
+-go get -u example.com/printversion
++go get example.com/version@v1.1.0
+ ! go list -f {{.Dir}} -tags tools all
+ stderr '^go: inconsistent vendoring'
+ 

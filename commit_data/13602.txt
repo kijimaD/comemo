@@ -9,7 +9,93 @@ Date:   Wed Aug 8 13:16:21 2012 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6454117
-
+---
  misc/dashboard/codereview/dashboard/front.go | 29 +++++++++++++++++-----------
  misc/dashboard/codereview/index.yaml         |  6 ++++++
  2 files changed, 24 insertions(+), 11 deletions(-)
+
+diff --git a/misc/dashboard/codereview/dashboard/front.go b/misc/dashboard/codereview/dashboard/front.go
+index 1ef7693658..c7b0f0fbf3 100644
+--- a/misc/dashboard/codereview/dashboard/front.go
++++ b/misc/dashboard/codereview/dashboard/front.go
+@@ -39,11 +39,14 @@ func handleFront(w http.ResponseWriter, r *http.Request) {
+ 	var currentPerson string
+ 	u := data.User
+ 	you := "you"
+-	if e := r.FormValue("email"); e != "" {
++	if e := r.FormValue("user"); e != "" {
+ 		u = e
+ 		you = e
+ 	}
+ 	currentPerson, data.UserIsReviewer = emailToPerson[u]
++	if !data.UserIsReviewer {
++		currentPerson = u
++	}
+ 
+ 	var wg sync.WaitGroup
+ 	errc := make(chan error, 10)
+@@ -63,10 +66,10 @@ func handleFront(w http.ResponseWriter, r *http.Request) {
+ 		}()
+ 	}
+ 
++	data.Tables[0].Title = "CLs assigned to " + you + " for review"
+ 	if data.UserIsReviewer {
+ 		tableFetch(0, func(tbl *clTable) error {
+ 			q := activeCLs.Filter("Reviewer =", currentPerson).Limit(maxCLs)
+-			tbl.Title = "CLs assigned to " + you + " for review"
+ 			tbl.Assignable = true
+ 			_, err := q.GetAll(c, &tbl.CLs)
+ 			return err
+@@ -74,7 +77,13 @@ func handleFront(w http.ResponseWriter, r *http.Request) {
+ 	}
+ 
+ 	tableFetch(1, func(tbl *clTable) error {
+-		q := activeCLs.Filter("Author =", currentPerson).Limit(maxCLs)
++		q := activeCLs
++		if data.UserIsReviewer {
++			q = q.Filter("Author =", currentPerson)
++		} else {
++			q = q.Filter("Owner =", currentPerson)
++		}
++		q = q.Limit(maxCLs)
+ 		tbl.Title = "CLs sent by " + you
+ 		tbl.Assignable = true
+ 		_, err := q.GetAll(c, &tbl.CLs)
+@@ -89,14 +98,12 @@ func handleFront(w http.ResponseWriter, r *http.Request) {
+ 			return err
+ 		}
+ 		// filter
+-		if data.UserIsReviewer {
+-			for i := len(tbl.CLs) - 1; i >= 0; i-- {
+-				cl := tbl.CLs[i]
+-				if cl.Author == currentPerson || cl.Reviewer == currentPerson {
+-					// Preserve order.
+-					copy(tbl.CLs[i:], tbl.CLs[i+1:])
+-					tbl.CLs = tbl.CLs[:len(tbl.CLs)-1]
+-				}
++		for i := len(tbl.CLs) - 1; i >= 0; i-- {
++			cl := tbl.CLs[i]
++			if cl.Owner == currentPerson || cl.Author == currentPerson || cl.Reviewer == currentPerson {
++				// Preserve order.
++				copy(tbl.CLs[i:], tbl.CLs[i+1:])
++				tbl.CLs = tbl.CLs[:len(tbl.CLs)-1]
+ 			}
+ 		}
+ 		return nil
+diff --git a/misc/dashboard/codereview/index.yaml b/misc/dashboard/codereview/index.yaml
+index d47dd0829f..a87073cc41 100644
+--- a/misc/dashboard/codereview/index.yaml
++++ b/misc/dashboard/codereview/index.yaml
+@@ -6,6 +6,12 @@ indexes:
+   - name: Modified
+     direction: desc
+ 
++- kind: CL
++  properties:
++  - name: Owner
++  - name: Modified
++    direction: desc
++
+ - kind: CL
+   properties:
+   - name: Closed

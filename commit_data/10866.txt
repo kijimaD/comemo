@@ -7,7 +7,81 @@ Date:   Mon Dec 19 16:57:03 2011 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5489084
-
+---
  misc/dashboard/builder/http.go | 21 +++++++++++----------
  misc/dashboard/builder/main.go |  8 ++++++--
  2 files changed, 17 insertions(+), 12 deletions(-)
+
+diff --git a/misc/dashboard/builder/http.go b/misc/dashboard/builder/http.go
+index e06734533a..e56c11fa16 100644
+--- a/misc/dashboard/builder/http.go
++++ b/misc/dashboard/builder/http.go
+@@ -8,10 +8,12 @@ import (
+ 	"bytes"
+ 	"encoding/json"
+ 	"errors"
++	"fmt"
+ 	"io"
+ 	"log"
+ 	"net/http"
+ 	"net/url"
++	"time"
+ )
+ 
+ type obj map[string]interface{}
+@@ -147,20 +149,19 @@ func (b *Builder) updatePackage(pkg string, ok bool, buildLog, info string) erro
+ 	*/
+ }
+ 
+-func postCommit(key, pkg string, l *HgLog) bool {
+-	err := dash("POST", "commit", url.Values{"key": {key}}, obj{
++func postCommit(key, pkg string, l *HgLog) error {
++	t, err := time.Parse(time.RFC3339, l.Date)
++	if err != nil {
++		return fmt.Errorf("parsing %q: %v", l.Date, t)
++	}
++	return dash("POST", "commit", url.Values{"key": {key}}, obj{
+ 		"PackagePath": pkg,
+ 		"Hash":        l.Hash,
+ 		"ParentHash":  l.Parent,
+-		// TODO(adg): l.Date as int64 unix epoch secs in Time field
+-		"User": l.Author,
+-		"Desc": l.Desc,
++		"Time":        t.Unix() * 1e6, // in microseconds, yuck!
++		"User":        l.Author,
++		"Desc":        l.Desc,
+ 	}, nil)
+-	if err != nil {
+-		log.Printf("failed to add %s to dashboard: %v", key, err)
+-		return false
+-	}
+-	return true
+ }
+ 
+ func dashboardCommit(pkg, hash string) bool {
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index faae5528a3..52f431c777 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -536,7 +536,7 @@ const xmlLogTemplate = `
+ 	<hash>{node|escape}</hash>
+ 	<parent>{parent|escape}</parent>
+ 	<author>{author|escape}</author>
+-	<date>{date}</date>
++	<date>{date|rfc3339date}</date>
+ 	<desc>{desc|escape}</desc>
+ 	</log>
+ `
+@@ -652,7 +652,11 @@ func addCommit(pkg, hash, key string) bool {
+ 	}
+ 
+ 	// Create commit.
+-	return postCommit(key, pkg, l)
++	if err := postCommit(key, pkg, l); err != nil {
++		log.Printf("failed to add %s to dashboard: %v", key, err)
++		return false
++	}
++	return true
+ }
+ 
+ // fullHash returns the full hash for the given Mercurial revision.

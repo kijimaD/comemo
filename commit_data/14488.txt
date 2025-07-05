@@ -14,7 +14,38 @@ Date:   Mon Nov 26 21:31:42 2012 +0100
     R=golang-dev, dave, iant, iant, rsc
     CC=golang-dev
     https://golang.org/cl/6846057
-
+---
  src/cmd/6l/span.c | 4 +++-
  src/cmd/8l/span.c | 4 +++-
  2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/6l/span.c b/src/cmd/6l/span.c
+index abffc2935c..a181178680 100644
+--- a/src/cmd/6l/span.c
++++ b/src/cmd/6l/span.c
+@@ -1618,7 +1618,9 @@ bad:
+ 		pp = *p;
+ 		z = p->from.type;
+ 		if(z >= D_BP && z <= D_DI) {
+-			if(isax(&p->to)) {
++			if(isax(&p->to) || p->to.type == D_NONE) {
++				// We certainly don't want to exchange
++				// with AX if the op is MUL or DIV.
+ 				*andptr++ = 0x87;			/* xchg lhs,bx */
+ 				asmando(&p->from, reg[D_BX]);
+ 				subreg(&pp, z, D_BX);
+diff --git a/src/cmd/8l/span.c b/src/cmd/8l/span.c
+index d90ddc2233..9e3447c2d2 100644
+--- a/src/cmd/8l/span.c
++++ b/src/cmd/8l/span.c
+@@ -1272,7 +1272,9 @@ bad:
+ 	pp = *p;
+ 	z = p->from.type;
+ 	if(z >= D_BP && z <= D_DI) {
+-		if(isax(&p->to)) {
++		if(isax(&p->to) || p->to.type == D_NONE) {
++			// We certainly don't want to exchange
++			// with AX if the op is MUL or DIV.
+ 			*andptr++ = 0x87;			/* xchg lhs,bx */
+ 			asmand(&p->from, reg[D_BX]);
+ 			subreg(&pp, z, D_BX);

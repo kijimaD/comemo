@@ -53,9 +53,133 @@ Date:   Wed Mar 30 14:14:00 2016 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/closure.go | 34 +++++++++++++++++++++++++++++++++-
  src/cmd/compile/internal/gc/main.go    | 10 ++++++----
  src/cmd/compile/internal/gc/sinit.go   |  7 ++++++-
  test/fixedbugs/issue14999.go           | 18 ++++++++++++++++++
  4 files changed, 63 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 1c5c5eb1a2..80c8d309af 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -397,10 +397,42 @@ func transformclosure(xfunc *Node) {
+ 	lineno = lno
+ }
+ 
++// hasemptycvars returns true iff closure func_ has an
++// empty list of captured vars. OXXX nodes don't count.
++func hasemptycvars(func_ *Node) bool {
++	for _, v := range func_.Func.Cvars.Slice() {
++		if v.Op == OXXX {
++			continue
++		}
++		return false
++	}
++	return true
++}
++
++// closuredebugruntimecheck applies boilerplate checks for debug flags
++// and compiling runtime
++func closuredebugruntimecheck(r *Node) {
++	if Debug_closure > 0 {
++		if r.Esc == EscHeap {
++			Warnl(r.Lineno, "heap closure, captured vars = %v", r.Func.Cvars)
++		} else {
++			Warnl(r.Lineno, "stack closure, captured vars = %v", r.Func.Cvars)
++		}
++	}
++	if compiling_runtime > 0 && r.Esc == EscHeap {
++		yyerrorl(r.Lineno, "heap-allocated closure, not allowed in runtime.")
++	}
++}
++
+ func walkclosure(func_ *Node, init *Nodes) *Node {
+ 	// If no closure vars, don't bother wrapping.
+-	if len(func_.Func.Cvars.Slice()) == 0 {
++	if hasemptycvars(func_) {
++		if Debug_closure > 0 {
++			Warnl(func_.Lineno, "closure converted to global")
++		}
+ 		return func_.Func.Closure.Func.Nname
++	} else {
++		closuredebugruntimecheck(func_)
+ 	}
+ 
+ 	// Create closure in the form of a composite literal.
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index fd18ae5312..a6eb192310 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -31,10 +31,11 @@ var (
+ )
+ 
+ var (
+-	Debug_append int
+-	Debug_panic  int
+-	Debug_slice  int
+-	Debug_wb     int
++	Debug_append  int
++	Debug_closure int
++	Debug_panic   int
++	Debug_slice   int
++	Debug_wb      int
+ )
+ 
+ // Debug arguments.
+@@ -46,6 +47,7 @@ var debugtab = []struct {
+ 	val  *int
+ }{
+ 	{"append", &Debug_append},         // print information about append compilation
++	{"closure", &Debug_closure},       // print information about closure compilation
+ 	{"disablenil", &Disable_checknil}, // disable nil checks
+ 	{"gcprog", &Debug_gcprog},         // print dump of GC programs
+ 	{"nil", &Debug_checknil},          // print information about nil checks
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index e3bc46ac06..5144a2526e 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -479,12 +479,17 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
+ 		break
+ 
+ 	case OCLOSURE:
+-		if len(r.Func.Cvars.Slice()) == 0 {
++		if hasemptycvars(r) {
++			if Debug_closure > 0 {
++				Warnl(r.Lineno, "closure converted to global")
++			}
+ 			// Closures with no captured variables are globals,
+ 			// so the assignment can be done at link time.
+ 			n := *l
+ 			gdata(&n, r.Func.Closure.Func.Nname, Widthptr)
+ 			return true
++		} else {
++			closuredebugruntimecheck(r)
+ 		}
+ 	}
+ 
+diff --git a/test/fixedbugs/issue14999.go b/test/fixedbugs/issue14999.go
+new file mode 100644
+index 0000000000..c16d1ca545
+--- /dev/null
++++ b/test/fixedbugs/issue14999.go
+@@ -0,0 +1,18 @@
++// errorcheck -+
++
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f(x int) func(int) int {
++	return func(y int) int { return x + y } // ERROR "heap-allocated closure, not allowed in runtime."
++}
++
++func g(x int) func(int) int { // ERROR "x escapes to heap, not allowed in runtime."
++	return func(y int) int { // ERROR "heap-allocated closure, not allowed in runtime."
++		x += y
++		return x + y
++	}
++}

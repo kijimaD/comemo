@@ -18,7 +18,7 @@ Date:   Wed Jan 14 12:25:55 2015 +1100
     Change-Id: I28f76aeb97f6e4249843d30d3d0c33fb233d3f7f
     Reviewed-on: https://go-review.googlesource.com/2790
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/defs_windows_386.go   |  6 ++++++
  src/runtime/defs_windows_amd64.go |  6 ++++++
  src/runtime/os1_windows.go        |  2 +-
@@ -27,3 +27,109 @@ Date:   Wed Jan 14 12:25:55 2015 +1100
  src/runtime/os_windows_386.go     | 11 -----------
  src/runtime/os_windows_amd64.go   | 11 -----------
  7 files changed, 13 insertions(+), 31 deletions(-)
+
+diff --git a/src/runtime/defs_windows_386.go b/src/runtime/defs_windows_386.go
+index abec2d839f..c860f74a3f 100644
+--- a/src/runtime/defs_windows_386.go
++++ b/src/runtime/defs_windows_386.go
+@@ -101,6 +101,12 @@ type context struct {
+ 	extendedregisters [512]uint8
+ }
+ 
++func (c *context) ip() uintptr { return uintptr(c.eip) }
++func (c *context) sp() uintptr { return uintptr(c.esp) }
++
++func (c *context) setip(x uintptr) { c.eip = uint32(x) }
++func (c *context) setsp(x uintptr) { c.esp = uint32(x) }
++
+ type overlapped struct {
+ 	internal     uint32
+ 	internalhigh uint32
+diff --git a/src/runtime/defs_windows_amd64.go b/src/runtime/defs_windows_amd64.go
+index 81b13597b7..d1e55ec426 100644
+--- a/src/runtime/defs_windows_amd64.go
++++ b/src/runtime/defs_windows_amd64.go
+@@ -116,6 +116,12 @@ type context struct {
+ 	lastexceptionfromrip uint64
+ }
+ 
++func (c *context) ip() uintptr { return uintptr(c.rip) }
++func (c *context) sp() uintptr { return uintptr(c.rsp) }
++
++func (c *context) setip(x uintptr) { c.rip = uint64(x) }
++func (c *context) setsp(x uintptr) { c.rsp = uint64(x) }
++
+ type overlapped struct {
+ 	internal     uint64
+ 	internalhigh uint64
+diff --git a/src/runtime/os1_windows.go b/src/runtime/os1_windows.go
+index 8655c083b2..5be916ccf3 100644
+--- a/src/runtime/os1_windows.go
++++ b/src/runtime/os1_windows.go
+@@ -506,7 +506,7 @@ func profilem(mp *m) {
+ 	r = (*context)(unsafe.Pointer((uintptr(unsafe.Pointer(&rbuf[15]))) &^ 15))
+ 	r.contextflags = _CONTEXT_CONTROL
+ 	stdcall2(_GetThreadContext, mp.thread, uintptr(unsafe.Pointer(r)))
+-	dosigprof(r, gp, mp)
++	sigprof((*byte)(unsafe.Pointer(r.ip())), (*byte)(unsafe.Pointer(r.sp())), nil, gp, mp)
+ }
+ 
+ func profileloop1() {
+diff --git a/src/runtime/os1_windows_386.go b/src/runtime/os1_windows_386.go
+index 7b4fdfe94a..b7eae204d1 100644
+--- a/src/runtime/os1_windows_386.go
++++ b/src/runtime/os1_windows_386.go
+@@ -118,7 +118,3 @@ func sigenable(sig uint32) {
+ 
+ func sigdisable(sig uint32) {
+ }
+-
+-func dosigprof(r *context, gp *g, mp *m) {
+-	sigprof((*byte)(unsafe.Pointer(uintptr(r.eip))), (*byte)(unsafe.Pointer(uintptr(r.esp))), nil, gp, mp)
+-}
+diff --git a/src/runtime/os1_windows_amd64.go b/src/runtime/os1_windows_amd64.go
+index c211f6fd91..4163fcf23d 100644
+--- a/src/runtime/os1_windows_amd64.go
++++ b/src/runtime/os1_windows_amd64.go
+@@ -137,7 +137,3 @@ func sigenable(sig uint32) {
+ 
+ func sigdisable(sig uint32) {
+ }
+-
+-func dosigprof(r *context, gp *g, mp *m) {
+-	sigprof((*byte)(unsafe.Pointer(uintptr(r.rip))), (*byte)(unsafe.Pointer(uintptr(r.rsp))), nil, gp, mp)
+-}
+diff --git a/src/runtime/os_windows_386.go b/src/runtime/os_windows_386.go
+deleted file mode 100644
+index 86a1906c0c..0000000000
+--- a/src/runtime/os_windows_386.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2014 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package runtime
+-
+-// contextPC returns the EIP (program counter) register from the context.
+-func contextPC(r *context) uintptr { return uintptr(r.eip) }
+-
+-// contextSP returns the ESP (stack pointer) register from the context.
+-func contextSP(r *context) uintptr { return uintptr(r.esp) }
+diff --git a/src/runtime/os_windows_amd64.go b/src/runtime/os_windows_amd64.go
+deleted file mode 100644
+index 3f4d4d07cb..0000000000
+--- a/src/runtime/os_windows_amd64.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2014 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package runtime
+-
+-// contextPC returns the RIP (program counter) register from the context.
+-func contextPC(r *context) uintptr { return uintptr(r.rip) }
+-
+-// contextSP returns the RSP (stack pointer) register from the context.
+-func contextSP(r *context) uintptr { return uintptr(r.rsp) }

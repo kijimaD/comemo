@@ -11,7 +11,7 @@ Date:   Thu Oct 13 13:31:26 2011 +1100
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5177047
-
+---
  src/pkg/image/tiff/Makefile                      |   1 +
  src/pkg/image/tiff/compress.go                   |  60 ++++++++++++++++++++
  src/pkg/image/tiff/reader.go                     |   2 +
@@ -20,3 +20,196 @@ Date:   Thu Oct 13 13:31:26 2011 +1100
  src/pkg/image/tiff/testdata/bw-packbits.tiff     | Bin 0 -> 890 bytes
  src/pkg/image/tiff/testdata/bw-uncompressed.tiff | Bin 0 -> 1396 bytes
  7 files changed, 132 insertions(+)
+
+diff --git a/src/pkg/image/tiff/Makefile b/src/pkg/image/tiff/Makefile
+index 1a001afb9b..67ef5c9ec6 100644
+--- a/src/pkg/image/tiff/Makefile
++++ b/src/pkg/image/tiff/Makefile
+@@ -7,6 +7,7 @@ include ../../../Make.inc
+ TARG=image/tiff
+ GOFILES=\
+ 	buffer.go\
++	compress.go\
+ 	consts.go\
+ 	reader.go\
+ 
+diff --git a/src/pkg/image/tiff/compress.go b/src/pkg/image/tiff/compress.go
+new file mode 100644
+index 0000000000..e89aa6d7ac
+--- /dev/null
++++ b/src/pkg/image/tiff/compress.go
+@@ -0,0 +1,60 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package tiff
++
++import (
++	"bufio"
++	"io"
++	"os"
++)
++
++type byteReader interface {
++	io.Reader
++	io.ByteReader
++}
++
++// unpackBits decodes the PackBits-compressed data in src and returns the
++// uncompressed data.
++//
++// The PackBits compression format is described in section 9 (p. 42)
++// of the TIFF spec.
++func unpackBits(r io.Reader) ([]byte, os.Error) {
++	buf := make([]byte, 128)
++	dst := make([]byte, 0, 1024)
++	br, ok := r.(byteReader)
++	if !ok {
++		br = bufio.NewReader(r)
++	}
++
++	for {
++		b, err := br.ReadByte()
++		if err != nil {
++			if err == os.EOF {
++				return dst, nil
++			}
++			return nil, err
++		}
++		code := int(int8(b))
++		switch {
++		case code >= 0:
++			n, err := io.ReadFull(br, buf[:code+1])
++			if err != nil {
++				return nil, err
++			}
++			dst = append(dst, buf[:n]...)
++		case code == -128:
++			// No-op.
++		default:
++			if b, err = br.ReadByte(); err != nil {
++				return nil, err
++			}
++			for j := 0; j < 1-code; j++ {
++				buf[j] = b
++			}
++			dst = append(dst, buf[:1-code]...)
++		}
++	}
++	panic("unreachable")
++}
+diff --git a/src/pkg/image/tiff/reader.go b/src/pkg/image/tiff/reader.go
+index 2db82bf210..c452f5d54c 100644
+--- a/src/pkg/image/tiff/reader.go
++++ b/src/pkg/image/tiff/reader.go
+@@ -412,6 +412,8 @@ func Decode(r io.Reader) (img image.Image, err os.Error) {
+ 			}
+ 			d.buf, err = ioutil.ReadAll(r)
+ 			r.Close()
++		case cPackBits:
++			d.buf, err = unpackBits(io.NewSectionReader(d.r, offset, n))
+ 		default:
+ 			err = UnsupportedError("compression")
+ 		}
+diff --git a/src/pkg/image/tiff/reader_test.go b/src/pkg/image/tiff/reader_test.go
+index 1eb2bcd76e..86b7dc3761 100644
+--- a/src/pkg/image/tiff/reader_test.go
++++ b/src/pkg/image/tiff/reader_test.go
+@@ -5,8 +5,10 @@
+ package tiff
+ 
+ import (
++	"image"
+ 	"io/ioutil"
+ 	"os"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -30,6 +32,73 @@ func TestNoRPS(t *testing.T) {
+ 	}
+ }
+ 
++// TestUnpackBits tests the decoding of PackBits-encoded data.
++func TestUnpackBits(t *testing.T) {
++	var unpackBitsTests = []struct {
++		compressed   string
++		uncompressed string
++	}{{
++		// Example data from Wikipedia.
++		"\xfe\xaa\x02\x80\x00\x2a\xfd\xaa\x03\x80\x00\x2a\x22\xf7\xaa",
++		"\xaa\xaa\xaa\x80\x00\x2a\xaa\xaa\xaa\xaa\x80\x00\x2a\x22\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa",
++	}}
++	for _, u := range unpackBitsTests {
++		buf, err := unpackBits(strings.NewReader(u.compressed))
++		if err != nil {
++			t.Fatal(err)
++		}
++		if string(buf) != u.uncompressed {
++			t.Fatalf("unpackBits: want %x, got %x", u.uncompressed, buf)
++		}
++	}
++}
++
++// TestDecompress tests that decoding some TIFF images that use different
++// compression formats result in the same pixel data.
++func TestDecompress(t *testing.T) {
++	var decompressTests = []string{
++		"bw-uncompressed.tiff",
++		"bw-deflate.tiff",
++		"bw-packbits.tiff",
++	}
++	var img0 image.Image
++	for _, name := range decompressTests {
++		f, err := os.Open("testdata/" + name)
++		if err != nil {
++			t.Fatal(err)
++		}
++		defer f.Close()
++		if img0 == nil {
++			img0, err = Decode(f)
++			if err != nil {
++				t.Fatalf("decoding %s: %v", name, err)
++			}
++			continue
++		}
++
++		img1, err := Decode(f)
++		if err != nil {
++			t.Fatalf("decoding %s: %v", name, err)
++		}
++		b := img1.Bounds()
++		// Compare images.
++		if !b.Eq(img0.Bounds()) {
++			t.Fatalf("wrong image size: want %s, got %s", img0.Bounds(), b)
++		}
++		for y := b.Min.Y; y < b.Max.Y; y++ {
++			for x := b.Min.X; x < b.Max.X; x++ {
++				c0 := img0.At(x, y)
++				c1 := img1.At(x, y)
++				r0, g0, b0, a0 := c0.RGBA()
++				r1, g1, b1, a1 := c1.RGBA()
++				if r0 != r1 || g0 != g1 || b0 != b1 || a0 != a1 {
++					t.Fatalf("pixel at (%d, %d) has wrong color: want %v, got %v", x, y, c0, c1)
++				}
++			}
++		}
++	}
++}
++
+ const filename = "testdata/video-001-uncompressed.tiff"
+ 
+ // BenchmarkDecode benchmarks the decoding of an image.
+diff --git a/src/pkg/image/tiff/testdata/bw-deflate.tiff b/src/pkg/image/tiff/testdata/bw-deflate.tiff
+new file mode 100644
+index 0000000000..137a0c3ef1
+Binary files /dev/null and b/src/pkg/image/tiff/testdata/bw-deflate.tiff differ
+diff --git a/src/pkg/image/tiff/testdata/bw-packbits.tiff b/src/pkg/image/tiff/testdata/bw-packbits.tiff
+new file mode 100644
+index 0000000000..d59fa4aeed
+Binary files /dev/null and b/src/pkg/image/tiff/testdata/bw-packbits.tiff differ
+diff --git a/src/pkg/image/tiff/testdata/bw-uncompressed.tiff b/src/pkg/image/tiff/testdata/bw-uncompressed.tiff
+new file mode 100644
+index 0000000000..8390f11357
+Binary files /dev/null and b/src/pkg/image/tiff/testdata/bw-uncompressed.tiff differ

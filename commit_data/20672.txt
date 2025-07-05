@@ -16,7 +16,70 @@ Date:   Mon Sep 29 13:32:14 2014 -0700
     R=golang-codereviews, rsc
     CC=golang-codereviews
     https://golang.org/cl/152720043
-
+---
  src/cmd/yacc/testdata/expr/expr.y |  2 ++
  src/cmd/yacc/yacc.go              | 14 +++++++++-----
  2 files changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/yacc/testdata/expr/expr.y b/src/cmd/yacc/testdata/expr/expr.y
+index 09451949ff..721b1c9172 100644
+--- a/src/cmd/yacc/testdata/expr/expr.y
++++ b/src/cmd/yacc/testdata/expr/expr.y
+@@ -32,6 +32,8 @@ import (
+ 
+ %type	<num>	expr expr1 expr2 expr3
+ 
++%token '+' '-' '*' '/' '(' ')'
++
+ %token	<num>	NUM
+ 
+ %%
+diff --git a/src/cmd/yacc/yacc.go b/src/cmd/yacc/yacc.go
+index 0761811cf4..4dba376fc2 100644
+--- a/src/cmd/yacc/yacc.go
++++ b/src/cmd/yacc/yacc.go
+@@ -195,8 +195,9 @@ type Item struct {
+ }
+ 
+ type Symb struct {
+-	name  string
+-	value int
++	name    string
++	noconst bool
++	value   int
+ }
+ 
+ type Wset struct {
+@@ -509,8 +510,7 @@ outer:
+ 	// put out non-literal terminals
+ 	for i := TOKSTART; i <= ntokens; i++ {
+ 		// non-literals
+-		c := tokset[i].name[0]
+-		if c != ' ' && c != '$' {
++		if !tokset[i].noconst {
+ 			fmt.Fprintf(ftable, "const %v = %v\n", tokset[i].name, tokset[i].value)
+ 		}
+ 	}
+@@ -734,7 +734,7 @@ func defin(nt int, s string) int {
+ 			copy(anontrst, nontrst)
+ 			nontrst = anontrst
+ 		}
+-		nontrst[nnonter] = Symb{s, 0}
++		nontrst[nnonter] = Symb{name: s}
+ 		return NTBASE + nnonter
+ 	}
+ 
+@@ -769,9 +769,13 @@ func defin(nt int, s string) int {
+ 		if val == 0 {
+ 			errorf("token value 0 is illegal")
+ 		}
++		tokset[ntokens].noconst = true
+ 	} else {
+ 		val = extval
+ 		extval++
++		if s[0] == '$' {
++			tokset[ntokens].noconst = true
++		}
+ 	}
+ 
+ 	tokset[ntokens].value = val

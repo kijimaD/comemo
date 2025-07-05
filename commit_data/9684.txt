@@ -19,7 +19,7 @@ Date:   Wed Sep 14 15:32:19 2011 -0400
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/5018045
-
+---
  src/pkg/crypto/tls/cipher_suites.go           |  84 +++++++++-
  src/pkg/crypto/tls/common.go                  |   7 +-
  src/pkg/crypto/tls/conn.go                    |  50 ++++--
@@ -33,3 +33,953 @@ Date:   Wed Sep 14 15:32:19 2011 -0400
  src/pkg/crypto/tls/prf.go                     | 107 +++++++++++--
  src/pkg/crypto/tls/prf_test.go                |  21 ++-
  12 files changed, 430 insertions(+), 117 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/cipher_suites.go b/src/pkg/crypto/tls/cipher_suites.go
+index bc7b0d32f9..77e712da19 100644
+--- a/src/pkg/crypto/tls/cipher_suites.go
++++ b/src/pkg/crypto/tls/cipher_suites.go
+@@ -9,6 +9,7 @@ import (
+ 	"crypto/cipher"
+ 	"crypto/hmac"
+ 	"crypto/rc4"
++	"crypto/sha1"
+ 	"crypto/x509"
+ 	"hash"
+ 	"os"
+@@ -23,7 +24,7 @@ type keyAgreement interface {
+ 	// ServerKeyExchange message, generateServerKeyExchange can return nil,
+ 	// nil.
+ 	generateServerKeyExchange(*Config, *clientHelloMsg, *serverHelloMsg) (*serverKeyExchangeMsg, os.Error)
+-	processClientKeyExchange(*Config, *clientKeyExchangeMsg) ([]byte, os.Error)
++	processClientKeyExchange(*Config, *clientKeyExchangeMsg, uint16) ([]byte, os.Error)
+ 
+ 	// On the client side, the next two methods are called in order.
+ 
+@@ -46,14 +47,14 @@ type cipherSuite struct {
+ 	// and point format that we can handle.
+ 	elliptic bool
+ 	cipher   func(key, iv []byte, isRead bool) interface{}
+-	mac      func(macKey []byte) hash.Hash
++	mac      func(version uint16, macKey []byte) macFunction
+ }
+ 
+ var cipherSuites = map[uint16]*cipherSuite{
+-	TLS_RSA_WITH_RC4_128_SHA:           &cipherSuite{16, 20, 0, rsaKA, false, cipherRC4, hmacSHA1},
+-	TLS_RSA_WITH_AES_128_CBC_SHA:       &cipherSuite{16, 20, 16, rsaKA, false, cipherAES, hmacSHA1},
+-	TLS_ECDHE_RSA_WITH_RC4_128_SHA:     &cipherSuite{16, 20, 0, ecdheRSAKA, true, cipherRC4, hmacSHA1},
+-	TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA: &cipherSuite{16, 20, 16, ecdheRSAKA, true, cipherAES, hmacSHA1},
++	TLS_RSA_WITH_RC4_128_SHA:           &cipherSuite{16, 20, 0, rsaKA, false, cipherRC4, macSHA1},
++	TLS_RSA_WITH_AES_128_CBC_SHA:       &cipherSuite{16, 20, 16, rsaKA, false, cipherAES, macSHA1},
++	TLS_ECDHE_RSA_WITH_RC4_128_SHA:     &cipherSuite{16, 20, 0, ecdheRSAKA, true, cipherRC4, macSHA1},
++	TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA: &cipherSuite{16, 20, 16, ecdheRSAKA, true, cipherAES, macSHA1},
+ }
+ 
+ func cipherRC4(key, iv []byte, isRead bool) interface{} {
+@@ -69,8 +70,75 @@ func cipherAES(key, iv []byte, isRead bool) interface{} {
+ 	return cipher.NewCBCEncrypter(block, iv)
+ }
+ 
+-func hmacSHA1(key []byte) hash.Hash {
+-	return hmac.NewSHA1(key)
++// macSHA1 returns a macFunction for the given protocol version.
++func macSHA1(version uint16, key []byte) macFunction {
++	if version == versionSSL30 {
++		mac := ssl30MAC{
++			h:   sha1.New(),
++			key: make([]byte, len(key)),
++		}
++		copy(mac.key, key)
++		return mac
++	}
++	return tls10MAC{hmac.NewSHA1(key)}
++}
++
++type macFunction interface {
++	Size() int
++	MAC(seq, data []byte) []byte
++}
++
++// ssl30MAC implements the SSLv3 MAC function, as defined in
++// www.mozilla.org/projects/security/pki/nss/ssl/draft302.txt section 5.2.3.1
++type ssl30MAC struct {
++	h   hash.Hash
++	key []byte
++}
++
++func (s ssl30MAC) Size() int {
++	return s.h.Size()
++}
++
++var ssl30Pad1 = [48]byte{0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36}
++
++var ssl30Pad2 = [48]byte{0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c}
++
++func (s ssl30MAC) MAC(seq, record []byte) []byte {
++	padLength := 48
++	if s.h.Size() == 20 {
++		padLength = 40
++	}
++
++	s.h.Reset()
++	s.h.Write(s.key)
++	s.h.Write(ssl30Pad1[:padLength])
++	s.h.Write(seq)
++	s.h.Write(record[:1])
++	s.h.Write(record[3:5])
++	s.h.Write(record[recordHeaderLen:])
++	digest := s.h.Sum()
++
++	s.h.Reset()
++	s.h.Write(s.key)
++	s.h.Write(ssl30Pad2[:padLength])
++	s.h.Write(digest)
++	return s.h.Sum()
++}
++
++// tls10MAC implements the TLS 1.0 MAC function. RFC 2246, section 6.2.3.
++type tls10MAC struct {
++	h hash.Hash
++}
++
++func (s tls10MAC) Size() int {
++	return s.h.Size()
++}
++
++func (s tls10MAC) MAC(seq, record []byte) []byte {
++	s.h.Reset()
++	s.h.Write(seq)
++	s.h.Write(record)
++	return s.h.Sum()
+ }
+ 
+ func rsaKA() keyAgreement {
+diff --git a/src/pkg/crypto/tls/common.go b/src/pkg/crypto/tls/common.go
+index 3efac9c13b..8fb1a88484 100644
+--- a/src/pkg/crypto/tls/common.go
++++ b/src/pkg/crypto/tls/common.go
+@@ -20,8 +20,11 @@ const (
+ 	recordHeaderLen = 5            // record header length
+ 	maxHandshake    = 65536        // maximum handshake we support (protocol max is 16 MB)
+ 
+-	minVersion = 0x0301 // minimum supported version - TLS 1.0
+-	maxVersion = 0x0301 // maximum supported version - TLS 1.0
++	versionSSL30 = 0x0300
++	versionTLS10 = 0x0301
++
++	minVersion = versionSSL30
++	maxVersion = versionTLS10
+ )
+ 
+ // TLS record types.
+diff --git a/src/pkg/crypto/tls/conn.go b/src/pkg/crypto/tls/conn.go
+index 3d018c0c7a..07199515d1 100644
+--- a/src/pkg/crypto/tls/conn.go
++++ b/src/pkg/crypto/tls/conn.go
+@@ -11,7 +11,6 @@ import (
+ 	"crypto/cipher"
+ 	"crypto/subtle"
+ 	"crypto/x509"
+-	"hash"
+ 	"io"
+ 	"net"
+ 	"os"
+@@ -108,18 +107,20 @@ func (c *Conn) SetWriteTimeout(nsec int64) os.Error {
+ // connection, either sending or receiving.
+ type halfConn struct {
+ 	sync.Mutex
+-	cipher interface{} // cipher algorithm
+-	mac    hash.Hash   // MAC algorithm
+-	seq    [8]byte     // 64-bit sequence number
+-	bfree  *block      // list of free blocks
++	version uint16      // protocol version
++	cipher  interface{} // cipher algorithm
++	mac     macFunction
++	seq     [8]byte // 64-bit sequence number
++	bfree   *block  // list of free blocks
+ 
+ 	nextCipher interface{} // next encryption state
+-	nextMac    hash.Hash   // next MAC algorithm
++	nextMac    macFunction // next MAC algorithm
+ }
+ 
+ // prepareCipherSpec sets the encryption and MAC states
+ // that a subsequent changeCipherSpec will use.
+-func (hc *halfConn) prepareCipherSpec(cipher interface{}, mac hash.Hash) {
++func (hc *halfConn) prepareCipherSpec(version uint16, cipher interface{}, mac macFunction) {
++	hc.version = version
+ 	hc.nextCipher = cipher
+ 	hc.nextMac = mac
+ }
+@@ -197,6 +198,22 @@ func removePadding(payload []byte) ([]byte, byte) {
+ 	return payload[:len(payload)-int(toRemove)], good
+ }
+ 
++// removePaddingSSL30 is a replacement for removePadding in the case that the
++// protocol version is SSLv3. In this version, the contents of the padding
++// are random and cannot be checked.
++func removePaddingSSL30(payload []byte) ([]byte, byte) {
++	if len(payload) < 1 {
++		return payload, 0
++	}
++
++	paddingLen := int(payload[len(payload)-1]) + 1
++	if paddingLen > len(payload) {
++		return payload, 0
++	}
++
++	return payload[:len(payload)-paddingLen], 255
++}
++
+ func roundUp(a, b int) int {
+ 	return a + (b-a%b)%b
+ }
+@@ -226,7 +243,11 @@ func (hc *halfConn) decrypt(b *block) (bool, alert) {
+ 			}
+ 
+ 			c.CryptBlocks(payload, payload)
+-			payload, paddingGood = removePadding(payload)
++			if hc.version == versionSSL30 {
++				payload, paddingGood = removePaddingSSL30(payload)
++			} else {
++				payload, paddingGood = removePadding(payload)
++			}
+ 			b.resize(recordHeaderLen + len(payload))
+ 
+ 			// note that we still have a timing side-channel in the
+@@ -256,13 +277,10 @@ func (hc *halfConn) decrypt(b *block) (bool, alert) {
+ 		b.data[4] = byte(n)
+ 		b.resize(recordHeaderLen + n)
+ 		remoteMAC := payload[n:]
+-
+-		hc.mac.Reset()
+-		hc.mac.Write(hc.seq[0:])
++		localMAC := hc.mac.MAC(hc.seq[0:], b.data)
+ 		hc.incSeq()
+-		hc.mac.Write(b.data)
+ 
+-		if subtle.ConstantTimeCompare(hc.mac.Sum(), remoteMAC) != 1 || paddingGood != 255 {
++		if subtle.ConstantTimeCompare(localMAC, remoteMAC) != 1 || paddingGood != 255 {
+ 			return false, alertBadRecordMAC
+ 		}
+ 	}
+@@ -291,11 +309,9 @@ func padToBlockSize(payload []byte, blockSize int) (prefix, finalBlock []byte) {
+ func (hc *halfConn) encrypt(b *block) (bool, alert) {
+ 	// mac
+ 	if hc.mac != nil {
+-		hc.mac.Reset()
+-		hc.mac.Write(hc.seq[0:])
++		mac := hc.mac.MAC(hc.seq[0:], b.data)
+ 		hc.incSeq()
+-		hc.mac.Write(b.data)
+-		mac := hc.mac.Sum()
++
+ 		n := len(b.data)
+ 		b.resize(n + len(mac))
+ 		copy(b.data[n:], mac)
+diff --git a/src/pkg/crypto/tls/handshake_client.go b/src/pkg/crypto/tls/handshake_client.go
+index 15604cea7e..0badc39c44 100644
+--- a/src/pkg/crypto/tls/handshake_client.go
++++ b/src/pkg/crypto/tls/handshake_client.go
+@@ -14,7 +14,7 @@ import (
+ )
+ 
+ func (c *Conn) clientHandshake() os.Error {
+-	finishedHash := newFinishedHash()
++	finishedHash := newFinishedHash(versionTLS10)
+ 
+ 	if c.config == nil {
+ 		c.config = defaultConfig()
+@@ -247,11 +247,11 @@ func (c *Conn) clientHandshake() os.Error {
+ 	}
+ 
+ 	masterSecret, clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV :=
+-		keysFromPreMasterSecret10(preMasterSecret, hello.random, serverHello.random, suite.macLen, suite.keyLen, suite.ivLen)
++		keysFromPreMasterSecret(c.vers, preMasterSecret, hello.random, serverHello.random, suite.macLen, suite.keyLen, suite.ivLen)
+ 
+ 	clientCipher := suite.cipher(clientKey, clientIV, false /* not for reading */ )
+-	clientHash := suite.mac(clientMAC)
+-	c.out.prepareCipherSpec(clientCipher, clientHash)
++	clientHash := suite.mac(c.vers, clientMAC)
++	c.out.prepareCipherSpec(c.vers, clientCipher, clientHash)
+ 	c.writeRecord(recordTypeChangeCipherSpec, []byte{1})
+ 
+ 	if serverHello.nextProtoNeg {
+@@ -271,8 +271,8 @@ func (c *Conn) clientHandshake() os.Error {
+ 	c.writeRecord(recordTypeHandshake, finished.marshal())
+ 
+ 	serverCipher := suite.cipher(serverKey, serverIV, true /* for reading */ )
+-	serverHash := suite.mac(serverMAC)
+-	c.in.prepareCipherSpec(serverCipher, serverHash)
++	serverHash := suite.mac(c.vers, serverMAC)
++	c.in.prepareCipherSpec(c.vers, serverCipher, serverHash)
+ 	c.readRecord(recordTypeChangeCipherSpec)
+ 	if c.err != nil {
+ 		return c.err
+diff --git a/src/pkg/crypto/tls/handshake_client_test.go b/src/pkg/crypto/tls/handshake_client_test.go
+index 3f91c7acf1..c0abcda200 100644
+--- a/src/pkg/crypto/tls/handshake_client_test.go
++++ b/src/pkg/crypto/tls/handshake_client_test.go
+@@ -18,6 +18,7 @@ func testClientScript(t *testing.T, name string, clientScript [][]byte, config *
+ 	go func() {
+ 		cli.Write([]byte("hello\n"))
+ 		cli.Close()
++		c.Close()
+ 	}()
+ 
+ 	defer c.Close()
+diff --git a/src/pkg/crypto/tls/handshake_messages.go b/src/pkg/crypto/tls/handshake_messages.go
+index 6645adce4f..f11232d8ee 100644
+--- a/src/pkg/crypto/tls/handshake_messages.go
++++ b/src/pkg/crypto/tls/handshake_messages.go
+@@ -676,9 +676,9 @@ func (m *finishedMsg) marshal() (x []byte) {
+ 		return m.raw
+ 	}
+ 
+-	x = make([]byte, 16)
++	x = make([]byte, 4+len(m.verifyData))
+ 	x[0] = typeFinished
+-	x[3] = 12
++	x[3] = byte(len(m.verifyData))
+ 	copy(x[4:], m.verifyData)
+ 	m.raw = x
+ 	return
+@@ -686,7 +686,7 @@ func (m *finishedMsg) marshal() (x []byte) {
+ 
+ func (m *finishedMsg) unmarshal(data []byte) bool {
+ 	m.raw = data
+-	if len(data) != 4+12 {
++	if len(data) < 4 {
+ 		return false
+ 	}
+ 	m.verifyData = data[4:]
+diff --git a/src/pkg/crypto/tls/handshake_messages_test.go b/src/pkg/crypto/tls/handshake_messages_test.go
+index 23f729dd94..dc68a12239 100644
+--- a/src/pkg/crypto/tls/handshake_messages_test.go
++++ b/src/pkg/crypto/tls/handshake_messages_test.go
+@@ -14,13 +14,13 @@ import (
+ var tests = []interface{}{
+ 	&clientHelloMsg{},
+ 	&serverHelloMsg{},
++	&finishedMsg{},
+ 
+ 	&certificateMsg{},
+ 	&certificateRequestMsg{},
+ 	&certificateVerifyMsg{},
+ 	&certificateStatusMsg{},
+ 	&clientKeyExchangeMsg{},
+-	&finishedMsg{},
+ 	&nextProtoMsg{},
+ }
+ 
+@@ -59,11 +59,12 @@ func TestMarshalUnmarshal(t *testing.T) {
+ 				break
+ 			}
+ 
+-			if i >= 2 {
+-				// The first two message types (ClientHello and
+-				// ServerHello) are allowed to have parsable
+-				// prefixes because the extension data is
+-				// optional.
++			if i >= 3 {
++				// The first three message types (ClientHello,
++				// ServerHello and Finished) are allowed to
++				// have parsable prefixes because the extension
++				// data is optional and the length of the
++				// Finished varies across versions.
+ 				for j := 0; j < len(marshaled); j++ {
+ 					if m2.unmarshal(marshaled[0:j]) {
+ 						t.Errorf("#%d unmarshaled a prefix of length %d of %#v", i, j, m1)
+diff --git a/src/pkg/crypto/tls/handshake_server.go b/src/pkg/crypto/tls/handshake_server.go
+index 44a3240414..f083a873d9 100644
+--- a/src/pkg/crypto/tls/handshake_server.go
++++ b/src/pkg/crypto/tls/handshake_server.go
+@@ -30,7 +30,7 @@ func (c *Conn) serverHandshake() os.Error {
+ 	c.vers = vers
+ 	c.haveVers = true
+ 
+-	finishedHash := newFinishedHash()
++	finishedHash := newFinishedHash(vers)
+ 	finishedHash.Write(clientHello.marshal())
+ 
+ 	hello := new(serverHelloMsg)
+@@ -128,7 +128,6 @@ FindCipherSuite:
+ 	}
+ 
+ 	keyAgreement := suite.ka()
+-
+ 	skx, err := keyAgreement.generateServerKeyExchange(config, clientHello, hello)
+ 	if err != nil {
+ 		c.sendAlert(alertHandshakeFailure)
+@@ -235,18 +234,18 @@ FindCipherSuite:
+ 		finishedHash.Write(certVerify.marshal())
+ 	}
+ 
+-	preMasterSecret, err := keyAgreement.processClientKeyExchange(config, ckx)
++	preMasterSecret, err := keyAgreement.processClientKeyExchange(config, ckx, c.vers)
+ 	if err != nil {
+ 		c.sendAlert(alertHandshakeFailure)
+ 		return err
+ 	}
+ 
+ 	masterSecret, clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV :=
+-		keysFromPreMasterSecret10(preMasterSecret, clientHello.random, hello.random, suite.macLen, suite.keyLen, suite.ivLen)
++		keysFromPreMasterSecret(c.vers, preMasterSecret, clientHello.random, hello.random, suite.macLen, suite.keyLen, suite.ivLen)
+ 
+ 	clientCipher := suite.cipher(clientKey, clientIV, true /* for reading */ )
+-	clientHash := suite.mac(clientMAC)
+-	c.in.prepareCipherSpec(clientCipher, clientHash)
++	clientHash := suite.mac(c.vers, clientMAC)
++	c.in.prepareCipherSpec(c.vers, clientCipher, clientHash)
+ 	c.readRecord(recordTypeChangeCipherSpec)
+ 	if err := c.error(); err != nil {
+ 		return err
+@@ -283,8 +282,8 @@ FindCipherSuite:
+ 	finishedHash.Write(clientFinished.marshal())
+ 
+ 	serverCipher := suite.cipher(serverKey, serverIV, false /* not for reading */ )
+-	serverHash := suite.mac(serverMAC)
+-	c.out.prepareCipherSpec(serverCipher, serverHash)
++	serverHash := suite.mac(c.vers, serverMAC)
++	c.out.prepareCipherSpec(c.vers, serverCipher, serverHash)
+ 	c.writeRecord(recordTypeChangeCipherSpec, []byte{1})
+ 
+ 	finished := new(finishedMsg)
+diff --git a/src/pkg/crypto/tls/handshake_server_test.go b/src/pkg/crypto/tls/handshake_server_test.go
+index c1b37be275..d910eadcdd 100644
+--- a/src/pkg/crypto/tls/handshake_server_test.go
++++ b/src/pkg/crypto/tls/handshake_server_test.go
+@@ -62,7 +62,7 @@ func TestSimpleError(t *testing.T) {
+ 	testClientHelloFailure(t, &serverHelloDoneMsg{}, alertUnexpectedMessage)
+ }
+ 
+-var badProtocolVersions = []uint16{0x0000, 0x0005, 0x0100, 0x0105, 0x0200, 0x0205, 0x0300}
++var badProtocolVersions = []uint16{0x0000, 0x0005, 0x0100, 0x0105, 0x0200, 0x0205}
+ 
+ func TestRejectBadProtocolVersion(t *testing.T) {
+ 	for _, v := range badProtocolVersions {
+@@ -112,6 +112,7 @@ func testServerScript(t *testing.T, name string, serverScript [][]byte, config *
+ 	go func() {
+ 		srv.Write([]byte("hello, world\n"))
+ 		srv.Close()
++		s.Close()
+ 	}()
+ 
+ 	defer c.Close()
+@@ -121,9 +122,9 @@ func testServerScript(t *testing.T, name string, serverScript [][]byte, config *
+ 			continue
+ 		}
+ 		bb := make([]byte, len(b))
+-		_, err := io.ReadFull(c, bb)
++		n, err := io.ReadFull(c, bb)
+ 		if err != nil {
+-			t.Fatalf("%s #%d: %s", name, i, err)
++			t.Fatalf("%s #%d: %s\nRead %d, wanted %d, got %x, wanted %x\n", name, i, err, n, len(bb), bb[:n], b)
+ 		}
+ 		if !bytes.Equal(b, bb) {
+ 			t.Fatalf("%s #%d: mismatch on read: got:%x want:%x", name, i, bb, b)
+@@ -142,50 +143,8 @@ func TestHandshakeServerAES(t *testing.T) {
+ 	testServerScript(t, "AES", aesServerScript, aesConfig)
+ }
+ 
+-func TestUnexpectedTLS(t *testing.T) {
+-	l, err := Listen("tcp", "127.0.0.1:0", testConfig)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	ch := make(chan os.Error, 1)
+-	done := make(chan bool)
+-	go func() {
+-		// Simulate HTTP client trying to do unencrypted HTTP on TLS port.
+-		c, err := net.Dial("tcp", l.Addr().String())
+-		if err != nil {
+-			ch <- err
+-			<-done
+-			return
+-		}
+-		defer func() {
+-			<-done
+-			c.Close()
+-		}()
+-		_, err = c.Write([]byte("GET / HTTP/1.0\r\nHost: www.google.com\r\n\r\n"))
+-		if err != nil {
+-			ch <- err
+-			return
+-		}
+-		ch <- nil
+-	}()
+-
+-	c, err := l.Accept()
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	buf := make([]byte, 100)
+-	n, err := c.Read(buf)
+-	if n > 0 || err == nil {
+-		t.Errorf("TLS Read = %d, %v, want error", n, err)
+-	}
+-	t.Logf("%d, %v", n, err)
+-
+-	err = <-ch
+-	done <- true
+-	if err != nil {
+-		t.Errorf("TLS Write: %v", err)
+-	}
+-
++func TestHandshakeServerSSLv3(t *testing.T) {
++	testServerScript(t, "SSLv3", sslv3ServerScript, testConfig)
+ }
+ 
+ var serve = flag.Bool("serve", false, "run a TLS server on :10443")
+@@ -561,3 +520,165 @@ var aesServerScript = [][]byte{
+ 		0xcd, 0x84, 0xf0,
+ 	},
+ }
++
++var sslv3ServerScript = [][]byte{
++	{
++		0x16, 0x03, 0x00, 0x00, 0x41, 0x01, 0x00, 0x00,
++		0x3d, 0x03, 0x00, 0x4e, 0x70, 0xe2, 0x18, 0x86,
++		0xd6, 0xc6, 0x6f, 0xf3, 0xc8, 0xf4, 0x02, 0xd6,
++		0x4d, 0xee, 0x17, 0x32, 0x4b, 0xd2, 0x78, 0xd8,
++		0xa1, 0x03, 0x5d, 0x68, 0x82, 0x89, 0xbe, 0xfd,
++		0x12, 0xb9, 0x06, 0x00, 0x00, 0x16, 0x00, 0x33,
++		0x00, 0x39, 0x00, 0x16, 0x00, 0x32, 0x00, 0x38,
++		0x00, 0x13, 0x00, 0x2f, 0x00, 0x35, 0x00, 0x0a,
++		0x00, 0x05, 0x00, 0x04, 0x01, 0x00,
++	},
++
++	{
++		0x16, 0x03, 0x00, 0x00, 0x2a, 0x02, 0x00, 0x00,
++		0x26, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++		0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x00, 0x16,
++		0x03, 0x00, 0x02, 0xbe, 0x0b, 0x00, 0x02, 0xba,
++		0x00, 0x02, 0xb7, 0x00, 0x02, 0xb4, 0x30, 0x82,
++		0x02, 0xb0, 0x30, 0x82, 0x02, 0x19, 0xa0, 0x03,
++		0x02, 0x01, 0x02, 0x02, 0x09, 0x00, 0x85, 0xb0,
++		0xbb, 0xa4, 0x8a, 0x7f, 0xb8, 0xca, 0x30, 0x0d,
++		0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
++		0x01, 0x01, 0x05, 0x05, 0x00, 0x30, 0x45, 0x31,
++		0x0b, 0x30, 0x09, 0x06, 0x03, 0x55, 0x04, 0x06,
++		0x13, 0x02, 0x41, 0x55, 0x31, 0x13, 0x30, 0x11,
++		0x06, 0x03, 0x55, 0x04, 0x08, 0x13, 0x0a, 0x53,
++		0x6f, 0x6d, 0x65, 0x2d, 0x53, 0x74, 0x61, 0x74,
++		0x65, 0x31, 0x21, 0x30, 0x1f, 0x06, 0x03, 0x55,
++		0x04, 0x0a, 0x13, 0x18, 0x49, 0x6e, 0x74, 0x65,
++		0x72, 0x6e, 0x65, 0x74, 0x20, 0x57, 0x69, 0x64,
++		0x67, 0x69, 0x74, 0x73, 0x20, 0x50, 0x74, 0x79,
++		0x20, 0x4c, 0x74, 0x64, 0x30, 0x1e, 0x17, 0x0d,
++		0x31, 0x30, 0x30, 0x34, 0x32, 0x34, 0x30, 0x39,
++		0x30, 0x39, 0x33, 0x38, 0x5a, 0x17, 0x0d, 0x31,
++		0x31, 0x30, 0x34, 0x32, 0x34, 0x30, 0x39, 0x30,
++		0x39, 0x33, 0x38, 0x5a, 0x30, 0x45, 0x31, 0x0b,
++		0x30, 0x09, 0x06, 0x03, 0x55, 0x04, 0x06, 0x13,
++		0x02, 0x41, 0x55, 0x31, 0x13, 0x30, 0x11, 0x06,
++		0x03, 0x55, 0x04, 0x08, 0x13, 0x0a, 0x53, 0x6f,
++		0x6d, 0x65, 0x2d, 0x53, 0x74, 0x61, 0x74, 0x65,
++		0x31, 0x21, 0x30, 0x1f, 0x06, 0x03, 0x55, 0x04,
++		0x0a, 0x13, 0x18, 0x49, 0x6e, 0x74, 0x65, 0x72,
++		0x6e, 0x65, 0x74, 0x20, 0x57, 0x69, 0x64, 0x67,
++		0x69, 0x74, 0x73, 0x20, 0x50, 0x74, 0x79, 0x20,
++		0x4c, 0x74, 0x64, 0x30, 0x81, 0x9f, 0x30, 0x0d,
++		0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
++		0x01, 0x01, 0x01, 0x05, 0x00, 0x03, 0x81, 0x8d,
++		0x00, 0x30, 0x81, 0x89, 0x02, 0x81, 0x81, 0x00,
++		0xbb, 0x79, 0xd6, 0xf5, 0x17, 0xb5, 0xe5, 0xbf,
++		0x46, 0x10, 0xd0, 0xdc, 0x69, 0xbe, 0xe6, 0x2b,
++		0x07, 0x43, 0x5a, 0xd0, 0x03, 0x2d, 0x8a, 0x7a,
++		0x43, 0x85, 0xb7, 0x14, 0x52, 0xe7, 0xa5, 0x65,
++		0x4c, 0x2c, 0x78, 0xb8, 0x23, 0x8c, 0xb5, 0xb4,
++		0x82, 0xe5, 0xde, 0x1f, 0x95, 0x3b, 0x7e, 0x62,
++		0xa5, 0x2c, 0xa5, 0x33, 0xd6, 0xfe, 0x12, 0x5c,
++		0x7a, 0x56, 0xfc, 0xf5, 0x06, 0xbf, 0xfa, 0x58,
++		0x7b, 0x26, 0x3f, 0xb5, 0xcd, 0x04, 0xd3, 0xd0,
++		0xc9, 0x21, 0x96, 0x4a, 0xc7, 0xf4, 0x54, 0x9f,
++		0x5a, 0xbf, 0xef, 0x42, 0x71, 0x00, 0xfe, 0x18,
++		0x99, 0x07, 0x7f, 0x7e, 0x88, 0x7d, 0x7d, 0xf1,
++		0x04, 0x39, 0xc4, 0xa2, 0x2e, 0xdb, 0x51, 0xc9,
++		0x7c, 0xe3, 0xc0, 0x4c, 0x3b, 0x32, 0x66, 0x01,
++		0xcf, 0xaf, 0xb1, 0x1d, 0xb8, 0x71, 0x9a, 0x1d,
++		0xdb, 0xdb, 0x89, 0x6b, 0xae, 0xda, 0x2d, 0x79,
++		0x02, 0x03, 0x01, 0x00, 0x01, 0xa3, 0x81, 0xa7,
++		0x30, 0x81, 0xa4, 0x30, 0x1d, 0x06, 0x03, 0x55,
++		0x1d, 0x0e, 0x04, 0x16, 0x04, 0x14, 0xb1, 0xad,
++		0xe2, 0x85, 0x5a, 0xcf, 0xcb, 0x28, 0xdb, 0x69,
++		0xce, 0x23, 0x69, 0xde, 0xd3, 0x26, 0x8e, 0x18,
++		0x88, 0x39, 0x30, 0x75, 0x06, 0x03, 0x55, 0x1d,
++		0x23, 0x04, 0x6e, 0x30, 0x6c, 0x80, 0x14, 0xb1,
++		0xad, 0xe2, 0x85, 0x5a, 0xcf, 0xcb, 0x28, 0xdb,
++		0x69, 0xce, 0x23, 0x69, 0xde, 0xd3, 0x26, 0x8e,
++		0x18, 0x88, 0x39, 0xa1, 0x49, 0xa4, 0x47, 0x30,
++		0x45, 0x31, 0x0b, 0x30, 0x09, 0x06, 0x03, 0x55,
++		0x04, 0x06, 0x13, 0x02, 0x41, 0x55, 0x31, 0x13,
++		0x30, 0x11, 0x06, 0x03, 0x55, 0x04, 0x08, 0x13,
++		0x0a, 0x53, 0x6f, 0x6d, 0x65, 0x2d, 0x53, 0x74,
++		0x61, 0x74, 0x65, 0x31, 0x21, 0x30, 0x1f, 0x06,
++		0x03, 0x55, 0x04, 0x0a, 0x13, 0x18, 0x49, 0x6e,
++		0x74, 0x65, 0x72, 0x6e, 0x65, 0x74, 0x20, 0x57,
++		0x69, 0x64, 0x67, 0x69, 0x74, 0x73, 0x20, 0x50,
++		0x74, 0x79, 0x20, 0x4c, 0x74, 0x64, 0x82, 0x09,
++		0x00, 0x85, 0xb0, 0xbb, 0xa4, 0x8a, 0x7f, 0xb8,
++		0xca, 0x30, 0x0c, 0x06, 0x03, 0x55, 0x1d, 0x13,
++		0x04, 0x05, 0x30, 0x03, 0x01, 0x01, 0xff, 0x30,
++		0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7,
++		0x0d, 0x01, 0x01, 0x05, 0x05, 0x00, 0x03, 0x81,
++		0x81, 0x00, 0x08, 0x6c, 0x45, 0x24, 0xc7, 0x6b,
++		0xb1, 0x59, 0xab, 0x0c, 0x52, 0xcc, 0xf2, 0xb0,
++		0x14, 0xd7, 0x87, 0x9d, 0x7a, 0x64, 0x75, 0xb5,
++		0x5a, 0x95, 0x66, 0xe4, 0xc5, 0x2b, 0x8e, 0xae,
++		0x12, 0x66, 0x1f, 0xeb, 0x4f, 0x38, 0xb3, 0x6e,
++		0x60, 0xd3, 0x92, 0xfd, 0xf7, 0x41, 0x08, 0xb5,
++		0x25, 0x13, 0xb1, 0x18, 0x7a, 0x24, 0xfb, 0x30,
++		0x1d, 0xba, 0xed, 0x98, 0xb9, 0x17, 0xec, 0xe7,
++		0xd7, 0x31, 0x59, 0xdb, 0x95, 0xd3, 0x1d, 0x78,
++		0xea, 0x50, 0x56, 0x5c, 0xd5, 0x82, 0x5a, 0x2d,
++		0x5a, 0x5f, 0x33, 0xc4, 0xb6, 0xd8, 0xc9, 0x75,
++		0x90, 0x96, 0x8c, 0x0f, 0x52, 0x98, 0xb5, 0xcd,
++		0x98, 0x1f, 0x89, 0x20, 0x5f, 0xf2, 0xa0, 0x1c,
++		0xa3, 0x1b, 0x96, 0x94, 0xdd, 0xa9, 0xfd, 0x57,
++		0xe9, 0x70, 0xe8, 0x26, 0x6d, 0x71, 0x99, 0x9b,
++		0x26, 0x6e, 0x38, 0x50, 0x29, 0x6c, 0x90, 0xa7,
++		0xbd, 0xd9, 0x16, 0x03, 0x00, 0x00, 0x04, 0x0e,
++		0x00, 0x00, 0x00,
++	},
++
++	{
++		0x16, 0x03, 0x00, 0x00, 0x84, 0x10, 0x00, 0x00,
++		0x80, 0x74, 0x0e, 0x3a, 0xcf, 0xba, 0x9f, 0x1a,
++		0x9b, 0xb2, 0xa4, 0xc7, 0x5d, 0xf3, 0x0c, 0x80,
++		0x06, 0x80, 0xf3, 0x57, 0xb2, 0xd9, 0x36, 0x24,
++		0x6a, 0x06, 0x13, 0x40, 0xf9, 0x7c, 0xb9, 0x3e,
++		0x4b, 0x68, 0x4f, 0x21, 0x90, 0x2d, 0xbd, 0xca,
++		0xd4, 0x83, 0xf0, 0x7a, 0xeb, 0x7a, 0x74, 0x1b,
++		0xcd, 0xfe, 0x69, 0xef, 0xc0, 0x86, 0xa0, 0x24,
++		0x31, 0x65, 0x40, 0xd2, 0xdd, 0x6f, 0xb9, 0xd7,
++		0x8d, 0xc1, 0x69, 0x60, 0x44, 0x7a, 0x75, 0xfb,
++		0x42, 0x6a, 0x0f, 0x66, 0x45, 0x10, 0x73, 0xee,
++		0x87, 0x28, 0x37, 0x83, 0x86, 0xd8, 0x5a, 0xc8,
++		0x60, 0x87, 0xda, 0x33, 0x87, 0xaf, 0x34, 0x8b,
++		0xf5, 0x61, 0x63, 0x7a, 0x5c, 0x60, 0x26, 0xb9,
++		0xdb, 0xa1, 0xb7, 0xe3, 0x60, 0x38, 0x94, 0x5c,
++		0x83, 0x23, 0xd6, 0x8d, 0xc2, 0x14, 0x4a, 0x0f,
++		0x0e, 0x4f, 0xf9, 0x4e, 0x7b, 0x15, 0xcd, 0x18,
++		0x04, 0x14, 0x03, 0x00, 0x00, 0x01, 0x01, 0x16,
++		0x03, 0x00, 0x00, 0x3c, 0xbd, 0xbc, 0xec, 0xdc,
++		0x79, 0xb1, 0xae, 0x16, 0xc9, 0x26, 0x9a, 0xc0,
++		0xc0, 0x2c, 0x33, 0x36, 0x13, 0x91, 0x58, 0x5d,
++		0x7d, 0xee, 0x4e, 0xd8, 0x7e, 0xac, 0x88, 0x87,
++		0x0a, 0x75, 0x66, 0xb1, 0x44, 0x79, 0x2f, 0x42,
++		0xe8, 0x92, 0x74, 0x4c, 0xab, 0x36, 0xc8, 0x17,
++		0x5f, 0x02, 0x8a, 0x20, 0x53, 0xe9, 0x1d, 0xb4,
++		0xfe, 0x5c, 0x2b, 0xd9, 0x0a, 0xfb, 0xc6, 0x63,
++	},
++
++	{
++		0x14, 0x03, 0x00, 0x00, 0x01, 0x01, 0x16, 0x03,
++		0x00, 0x00, 0x3c, 0xaa, 0xa1, 0x98, 0xc4, 0x6b,
++		0x5a, 0x16, 0x3f, 0x5f, 0xa4, 0x96, 0x3e, 0x78,
++		0xe4, 0x6f, 0x49, 0x05, 0x47, 0xc4, 0x05, 0x60,
++		0xeb, 0x0b, 0x45, 0xe3, 0xbc, 0x50, 0x11, 0x24,
++		0x5f, 0x01, 0xd7, 0xb8, 0x8f, 0x60, 0x63, 0x66,
++		0xbd, 0x3e, 0xd9, 0xa8, 0x80, 0x43, 0x9f, 0x0b,
++		0x51, 0x61, 0xed, 0x13, 0xc6, 0x21, 0xd0, 0xfe,
++		0xbc, 0x17, 0x3c, 0x36, 0xb0, 0x82, 0x7f, 0x17,
++		0x03, 0x00, 0x00, 0x21, 0xee, 0x44, 0xf3, 0xa6,
++		0x88, 0x9d, 0x78, 0x44, 0xde, 0xdf, 0xeb, 0xc5,
++		0xad, 0xc4, 0xcc, 0x56, 0x5c, 0x54, 0x96, 0x52,
++		0x3f, 0xd9, 0x40, 0x6e, 0x79, 0xd8, 0x58, 0x78,
++		0x4f, 0x5a, 0xe9, 0x06, 0xef, 0x15, 0x03, 0x00,
++		0x00, 0x16, 0xd3, 0xc2, 0x52, 0x99, 0x2a, 0x84,
++		0xc4, 0x52, 0x5f, 0x3b, 0x19, 0xe7, 0xfc, 0x65,
++		0xaf, 0xd3, 0xb7, 0xa3, 0xcc, 0x4a, 0x1d, 0x2e,
++	},
++}
+diff --git a/src/pkg/crypto/tls/key_agreement.go b/src/pkg/crypto/tls/key_agreement.go
+index a40d18fd9c..e347528b58 100644
+--- a/src/pkg/crypto/tls/key_agreement.go
++++ b/src/pkg/crypto/tls/key_agreement.go
+@@ -24,7 +24,7 @@ func (ka rsaKeyAgreement) generateServerKeyExchange(config *Config, clientHello
+ 	return nil, nil
+ }
+ 
+-func (ka rsaKeyAgreement) processClientKeyExchange(config *Config, ckx *clientKeyExchangeMsg) ([]byte, os.Error) {
++func (ka rsaKeyAgreement) processClientKeyExchange(config *Config, ckx *clientKeyExchangeMsg, version uint16) ([]byte, os.Error) {
+ 	preMasterSecret := make([]byte, 48)
+ 	_, err := io.ReadFull(config.rand(), preMasterSecret[2:])
+ 	if err != nil {
+@@ -34,11 +34,15 @@ func (ka rsaKeyAgreement) processClientKeyExchange(config *Config, ckx *clientKe
+ 	if len(ckx.ciphertext) < 2 {
+ 		return nil, os.NewError("bad ClientKeyExchange")
+ 	}
+-	ciphertextLen := int(ckx.ciphertext[0])<<8 | int(ckx.ciphertext[1])
+-	if ciphertextLen != len(ckx.ciphertext)-2 {
+-		return nil, os.NewError("bad ClientKeyExchange")
++
++	ciphertext := ckx.ciphertext
++	if version != versionSSL30 {
++		ciphertextLen := int(ckx.ciphertext[0])<<8 | int(ckx.ciphertext[1])
++		if ciphertextLen != len(ckx.ciphertext)-2 {
++			return nil, os.NewError("bad ClientKeyExchange")
++		}
++		ciphertext = ckx.ciphertext[2:]
+ 	}
+-	ciphertext := ckx.ciphertext[2:]
+ 
+ 	err = rsa.DecryptPKCS1v15SessionKey(config.rand(), config.Certificates[0].PrivateKey, ciphertext, preMasterSecret)
+ 	if err != nil {
+@@ -159,7 +163,7 @@ Curve:
+ 	return skx, nil
+ }
+ 
+-func (ka *ecdheRSAKeyAgreement) processClientKeyExchange(config *Config, ckx *clientKeyExchangeMsg) ([]byte, os.Error) {
++func (ka *ecdheRSAKeyAgreement) processClientKeyExchange(config *Config, ckx *clientKeyExchangeMsg, version uint16) ([]byte, os.Error) {
+ 	if len(ckx.ciphertext) == 0 || int(ckx.ciphertext[0]) != len(ckx.ciphertext)-1 {
+ 		return nil, os.NewError("bad ClientKeyExchange")
+ 	}
+diff --git a/src/pkg/crypto/tls/prf.go b/src/pkg/crypto/tls/prf.go
+index 478cf65f91..2d58dc520d 100644
+--- a/src/pkg/crypto/tls/prf.go
++++ b/src/pkg/crypto/tls/prf.go
+@@ -63,6 +63,39 @@ func pRF10(result, secret, label, seed []byte) {
+ 	}
+ }
+ 
++// pRF30 implements the SSL 3.0 pseudo-random function, as defined in
++// www.mozilla.org/projects/security/pki/nss/ssl/draft302.txt section 6.
++func pRF30(result, secret, label, seed []byte) {
++	hashSHA1 := sha1.New()
++	hashMD5 := md5.New()
++
++	done := 0
++	i := 0
++	// RFC5246 section 6.3 says that the largest PRF output needed is 128
++	// bytes. Since no more ciphersuites will be added to SSLv3, this will
++	// remain true. Each iteration gives us 16 bytes so 10 iterations will
++	// be sufficient.
++	var b [11]byte
++	for done < len(result) {
++		for j := 0; j <= i; j++ {
++			b[j] = 'A' + byte(i)
++		}
++
++		hashSHA1.Reset()
++		hashSHA1.Write(b[:i+1])
++		hashSHA1.Write(secret)
++		hashSHA1.Write(seed)
++		digest := hashSHA1.Sum()
++
++		hashMD5.Reset()
++		hashMD5.Write(secret)
++		hashMD5.Write(digest)
++
++		done += copy(result[done:], hashMD5.Sum())
++		i++
++	}
++}
++
+ const (
+ 	tlsRandomLength      = 32 // Length of a random nonce in TLS 1.1.
+ 	masterSecretLength   = 48 // Length of a master secret in TLS 1.1.
+@@ -77,19 +110,24 @@ var serverFinishedLabel = []byte("server finished")
+ // keysFromPreMasterSecret generates the connection keys from the pre master
+ // secret, given the lengths of the MAC key, cipher key and IV, as defined in
+ // RFC 2246, section 6.3.
+-func keysFromPreMasterSecret10(preMasterSecret, clientRandom, serverRandom []byte, macLen, keyLen, ivLen int) (masterSecret, clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV []byte) {
++func keysFromPreMasterSecret(version uint16, preMasterSecret, clientRandom, serverRandom []byte, macLen, keyLen, ivLen int) (masterSecret, clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV []byte) {
++	prf := pRF10
++	if version == versionSSL30 {
++		prf = pRF30
++	}
++
+ 	var seed [tlsRandomLength * 2]byte
+ 	copy(seed[0:len(clientRandom)], clientRandom)
+ 	copy(seed[len(clientRandom):], serverRandom)
+ 	masterSecret = make([]byte, masterSecretLength)
+-	pRF10(masterSecret, preMasterSecret, masterSecretLabel, seed[0:])
++	prf(masterSecret, preMasterSecret, masterSecretLabel, seed[0:])
+ 
+ 	copy(seed[0:len(clientRandom)], serverRandom)
+ 	copy(seed[len(serverRandom):], clientRandom)
+ 
+ 	n := 2*macLen + 2*keyLen + 2*ivLen
+ 	keyMaterial := make([]byte, n)
+-	pRF10(keyMaterial, masterSecret, keyExpansionLabel, seed[0:])
++	prf(keyMaterial, masterSecret, keyExpansionLabel, seed[0:])
+ 	clientMAC = keyMaterial[:macLen]
+ 	keyMaterial = keyMaterial[macLen:]
+ 	serverMAC = keyMaterial[:macLen]
+@@ -104,6 +142,10 @@ func keysFromPreMasterSecret10(preMasterSecret, clientRandom, serverRandom []byt
+ 	return
+ }
+ 
++func newFinishedHash(version uint16) finishedHash {
++	return finishedHash{md5.New(), sha1.New(), md5.New(), sha1.New(), version}
++}
++
+ // A finishedHash calculates the hash of a set of handshake messages suitable
+ // for including in a Finished message.
+ type finishedHash struct {
+@@ -111,10 +153,7 @@ type finishedHash struct {
+ 	clientSHA1 hash.Hash
+ 	serverMD5  hash.Hash
+ 	serverSHA1 hash.Hash
+-}
+-
+-func newFinishedHash() finishedHash {
+-	return finishedHash{md5.New(), sha1.New(), md5.New(), sha1.New()}
++	version    uint16
+ }
+ 
+ func (h finishedHash) Write(msg []byte) (n int, err os.Error) {
+@@ -125,9 +164,10 @@ func (h finishedHash) Write(msg []byte) (n int, err os.Error) {
+ 	return len(msg), nil
+ }
+ 
+-// finishedSum calculates the contents of the verify_data member of a Finished
+-// message given the MD5 and SHA1 hashes of a set of handshake messages.
+-func finishedSum(md5, sha1, label, masterSecret []byte) []byte {
++// finishedSum10 calculates the contents of the verify_data member of a TLSv1
++// Finished message given the MD5 and SHA1 hashes of a set of handshake
++// messages.
++func finishedSum10(md5, sha1, label, masterSecret []byte) []byte {
+ 	seed := make([]byte, len(md5)+len(sha1))
+ 	copy(seed, md5)
+ 	copy(seed[len(md5):], sha1)
+@@ -136,18 +176,61 @@ func finishedSum(md5, sha1, label, masterSecret []byte) []byte {
+ 	return out
+ }
+ 
++// finishedSum30 calculates the contents of the verify_data member of a SSLv3
++// Finished message given the MD5 and SHA1 hashes of a set of handshake
++// messages.
++func finishedSum30(md5, sha1 hash.Hash, masterSecret []byte, magic [4]byte) []byte {
++	md5.Write(magic[:])
++	md5.Write(masterSecret)
++	md5.Write(ssl30Pad1[:])
++	md5Digest := md5.Sum()
++
++	md5.Reset()
++	md5.Write(masterSecret)
++	md5.Write(ssl30Pad2[:])
++	md5.Write(md5Digest)
++	md5Digest = md5.Sum()
++
++	sha1.Write(magic[:])
++	sha1.Write(masterSecret)
++	sha1.Write(ssl30Pad1[:40])
++	sha1Digest := sha1.Sum()
++
++	sha1.Reset()
++	sha1.Write(masterSecret)
++	sha1.Write(ssl30Pad2[:40])
++	sha1.Write(sha1Digest)
++	sha1Digest = sha1.Sum()
++
++	ret := make([]byte, len(md5Digest)+len(sha1Digest))
++	copy(ret, md5Digest)
++	copy(ret[len(md5Digest):], sha1Digest)
++	return ret
++}
++
++var ssl3ClientFinishedMagic = [4]byte{0x43, 0x4c, 0x4e, 0x54}
++var ssl3ServerFinishedMagic = [4]byte{0x53, 0x52, 0x56, 0x52}
++
+ // clientSum returns the contents of the verify_data member of a client's
+ // Finished message.
+ func (h finishedHash) clientSum(masterSecret []byte) []byte {
++	if h.version == versionSSL30 {
++		return finishedSum30(h.clientMD5, h.clientSHA1, masterSecret, ssl3ClientFinishedMagic)
++	}
++
+ 	md5 := h.clientMD5.Sum()
+ 	sha1 := h.clientSHA1.Sum()
+-	return finishedSum(md5, sha1, clientFinishedLabel, masterSecret)
++	return finishedSum10(md5, sha1, clientFinishedLabel, masterSecret)
+ }
+ 
+ // serverSum returns the contents of the verify_data member of a server's
+ // Finished message.
+ func (h finishedHash) serverSum(masterSecret []byte) []byte {
++	if h.version == versionSSL30 {
++		return finishedSum30(h.serverMD5, h.serverSHA1, masterSecret, ssl3ServerFinishedMagic)
++	}
++
+ 	md5 := h.serverMD5.Sum()
+ 	sha1 := h.serverSHA1.Sum()
+-	return finishedSum(md5, sha1, serverFinishedLabel, masterSecret)
++	return finishedSum10(md5, sha1, serverFinishedLabel, masterSecret)
+ }
+diff --git a/src/pkg/crypto/tls/prf_test.go b/src/pkg/crypto/tls/prf_test.go
+index f8c4acb9d2..a32392cef7 100644
+--- a/src/pkg/crypto/tls/prf_test.go
++++ b/src/pkg/crypto/tls/prf_test.go
+@@ -34,6 +34,7 @@ func TestSplitPreMasterSecret(t *testing.T) {
+ }
+ 
+ type testKeysFromTest struct {
++	version                    uint16
+ 	preMasterSecret            string
+ 	clientRandom, serverRandom string
+ 	masterSecret               string
+@@ -47,7 +48,7 @@ func TestKeysFromPreMasterSecret(t *testing.T) {
+ 		in, _ := hex.DecodeString(test.preMasterSecret)
+ 		clientRandom, _ := hex.DecodeString(test.clientRandom)
+ 		serverRandom, _ := hex.DecodeString(test.serverRandom)
+-		master, clientMAC, serverMAC, clientKey, serverKey, _, _ := keysFromPreMasterSecret10(in, clientRandom, serverRandom, test.macLen, test.keyLen, 0)
++		master, clientMAC, serverMAC, clientKey, serverKey, _, _ := keysFromPreMasterSecret(test.version, in, clientRandom, serverRandom, test.macLen, test.keyLen, 0)
+ 		masterString := hex.EncodeToString(master)
+ 		clientMACString := hex.EncodeToString(clientMAC)
+ 		serverMACString := hex.EncodeToString(serverMAC)
+@@ -58,7 +59,7 @@ func TestKeysFromPreMasterSecret(t *testing.T) {
+ 			serverMACString != test.serverMAC ||
+ 			clientKeyString != test.clientKey ||
+ 			serverKeyString != test.serverKey {
+-			t.Errorf("#%d: got: (%s, %s, %s, %s, %s) want: (%s, %s, %s, %s %s)", i, masterString, clientMACString, serverMACString, clientKeyString, serverMACString, test.masterSecret, test.clientMAC, test.serverMAC, test.clientKey, test.serverKey)
++			t.Errorf("#%d: got: (%s, %s, %s, %s, %s) want: (%s, %s, %s, %s, %s)", i, masterString, clientMACString, serverMACString, clientKeyString, serverKeyString, test.masterSecret, test.clientMAC, test.serverMAC, test.clientKey, test.serverKey)
+ 		}
+ 	}
+ }
+@@ -66,6 +67,7 @@ func TestKeysFromPreMasterSecret(t *testing.T) {
+ // These test vectors were generated from GnuTLS using `gnutls-cli --insecure -d 9 `
+ var testKeysFromTests = []testKeysFromTest{
+ 	{
++		versionTLS10,
+ 		"0302cac83ad4b1db3b9ab49ad05957de2a504a634a386fc600889321e1a971f57479466830ac3e6f468e87f5385fa0c5",
+ 		"4ae66303755184a3917fcb44880605fcc53baa01912b22ed94473fc69cebd558",
+ 		"4ae663020ec16e6bb5130be918cfcafd4d765979a3136a5d50c593446e4e44db",
+@@ -78,6 +80,7 @@ var testKeysFromTests = []testKeysFromTest{
+ 		16,
+ 	},
+ 	{
++		versionTLS10,
+ 		"03023f7527316bc12cbcd69e4b9e8275d62c028f27e65c745cfcddc7ce01bd3570a111378b63848127f1c36e5f9e4890",
+ 		"4ae66364b5ea56b20ce4e25555aed2d7e67f42788dd03f3fee4adae0459ab106",
+ 		"4ae66363ab815cbf6a248b87d6b556184e945e9b97fbdf247858b0bdafacfa1c",
+@@ -90,6 +93,7 @@ var testKeysFromTests = []testKeysFromTest{
+ 		16,
+ 	},
+ 	{
++		versionTLS10,
+ 		"832d515f1d61eebb2be56ba0ef79879efb9b527504abb386fb4310ed5d0e3b1f220d3bb6b455033a2773e6d8bdf951d278a187482b400d45deb88a5d5a6bb7d6a7a1decc04eb9ef0642876cd4a82d374d3b6ff35f0351dc5d411104de431375355addc39bfb1f6329fb163b0bc298d658338930d07d313cd980a7e3d9196cac1",
+ 		"4ae663b2ee389c0de147c509d8f18f5052afc4aaf9699efe8cb05ece883d3a5e",
+ 		"4ae664d503fd4cff50cfc1fb8fc606580f87b0fcdac9554ba0e01d785bdf278e",
+@@ -101,4 +105,17 @@ var testKeysFromTests = []testKeysFromTest{
+ 		20,
+ 		16,
+ 	},
++	{
++		versionSSL30,
++		"832d515f1d61eebb2be56ba0ef79879efb9b527504abb386fb4310ed5d0e3b1f220d3bb6b455033a2773e6d8bdf951d278a187482b400d45deb88a5d5a6bb7d6a7a1decc04eb9ef0642876cd4a82d374d3b6ff35f0351dc5d411104de431375355addc39bfb1f6329fb163b0bc298d658338930d07d313cd980a7e3d9196cac1",
++		"4ae663b2ee389c0de147c509d8f18f5052afc4aaf9699efe8cb05ece883d3a5e",
++		"4ae664d503fd4cff50cfc1fb8fc606580f87b0fcdac9554ba0e01d785bdf278e",
++		"a614863e56299dcffeea2938f22c2ba023768dbe4b3f6877bc9c346c6ae529b51d9cb87ff9695ea4d01f2205584405b2",
++		"2c450d5b6f6e2013ac6bea6a0b32200d4e1ffb94",
++		"7a7a7438769536f2fb1ae49a61f0703b79b2dc53",
++		"f8f6b26c10f12855c9aafb1e0e839ccf",
++		"2b9d4b4a60cb7f396780ebff50650419",
++		20,
++		16,
++	},
+ }

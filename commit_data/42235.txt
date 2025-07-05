@@ -15,7 +15,7 @@ Date:   Mon Nov 18 11:18:12 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                        | 122 ---------------------------
  src/cmd/go/testdata/local/easy.go            |   7 --
  src/cmd/go/testdata/local/easysub/easysub.go |   7 --
@@ -25,3 +25,345 @@ Date:   Mon Nov 18 11:18:12 2019 -0500
  src/cmd/go/testdata/local/sub/sub/subsub.go  |   7 --
  src/cmd/go/testdata/script/gopath_local.txt  | 117 +++++++++++++++++++++++++
  8 files changed, 117 insertions(+), 171 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 6056d9b212..8dc655ff88 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1008,128 +1008,6 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
+ 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale after building with old release")
+ }
+ 
+-func testLocalRun(tg *testgoData, exepath, local, match string) {
+-	tg.t.Helper()
+-	out, err := exec.Command(exepath).Output()
+-	if err != nil {
+-		tg.t.Fatalf("error running %v: %v", exepath, err)
+-	}
+-	if !regexp.MustCompile(match).Match(out) {
+-		tg.t.Log(string(out))
+-		tg.t.Errorf("testdata/%s/easy.go did not generate expected output", local)
+-	}
+-}
+-
+-func testLocalEasy(tg *testgoData, local string) {
+-	tg.t.Helper()
+-	exepath := "./easy" + exeSuffix
+-	tg.creatingTemp(exepath)
+-	tg.run("build", "-o", exepath, filepath.Join("testdata", local, "easy.go"))
+-	testLocalRun(tg, exepath, local, `(?m)^easysub\.Hello`)
+-}
+-
+-func testLocalEasySub(tg *testgoData, local string) {
+-	tg.t.Helper()
+-	exepath := "./easysub" + exeSuffix
+-	tg.creatingTemp(exepath)
+-	tg.run("build", "-o", exepath, filepath.Join("testdata", local, "easysub", "main.go"))
+-	testLocalRun(tg, exepath, local, `(?m)^easysub\.Hello`)
+-}
+-
+-func testLocalHard(tg *testgoData, local string) {
+-	tg.t.Helper()
+-	exepath := "./hard" + exeSuffix
+-	tg.creatingTemp(exepath)
+-	tg.run("build", "-o", exepath, filepath.Join("testdata", local, "hard.go"))
+-	testLocalRun(tg, exepath, local, `(?m)^sub\.Hello`)
+-}
+-
+-func testLocalInstall(tg *testgoData, local string) {
+-	tg.t.Helper()
+-	tg.runFail("install", filepath.Join("testdata", local, "easy.go"))
+-}
+-
+-func TestLocalImportsEasy(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	testLocalEasy(tg, "local")
+-}
+-
+-func TestLocalImportsEasySub(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	testLocalEasySub(tg, "local")
+-}
+-
+-func TestLocalImportsHard(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	testLocalHard(tg, "local")
+-}
+-
+-func TestLocalImportsGoInstallShouldFail(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	testLocalInstall(tg, "local")
+-}
+-
+-const badDirName = `#$%:, &()*;<=>?\^{}`
+-
+-func copyBad(tg *testgoData) {
+-	tg.t.Helper()
+-	if runtime.GOOS == "windows" {
+-		tg.t.Skipf("skipping test because %q is an invalid directory name", badDirName)
+-	}
+-
+-	tg.must(filepath.Walk("testdata/local",
+-		func(path string, info os.FileInfo, err error) error {
+-			if err != nil {
+-				return err
+-			}
+-			if info.IsDir() {
+-				return nil
+-			}
+-			var data []byte
+-			data, err = ioutil.ReadFile(path)
+-			if err != nil {
+-				return err
+-			}
+-			newpath := strings.Replace(path, "local", badDirName, 1)
+-			tg.tempFile(newpath, string(data))
+-			return nil
+-		}))
+-	tg.cd(tg.path("."))
+-}
+-
+-func TestBadImportsEasy(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	// TODO: tg.parallel()
+-	copyBad(tg)
+-	testLocalEasy(tg, badDirName)
+-}
+-
+-func TestBadImportsEasySub(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	copyBad(tg)
+-	testLocalEasySub(tg, badDirName)
+-}
+-
+-func TestBadImportsHard(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	copyBad(tg)
+-	testLocalHard(tg, badDirName)
+-}
+-
+-func TestBadImportsGoInstallShouldFail(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	copyBad(tg)
+-	testLocalInstall(tg, badDirName)
+-}
+-
+ func TestInternalPackagesInGOROOTAreRespected(t *testing.T) {
+ 	skipIfGccgo(t, "gccgo does not have GOROOT")
+ 	tg := testgo(t)
+diff --git a/src/cmd/go/testdata/local/easy.go b/src/cmd/go/testdata/local/easy.go
+deleted file mode 100644
+index 4eeb517da1..0000000000
+--- a/src/cmd/go/testdata/local/easy.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-package main
+-
+-import "./easysub"
+-
+-func main() {
+-	easysub.Hello()
+-}
+diff --git a/src/cmd/go/testdata/local/easysub/easysub.go b/src/cmd/go/testdata/local/easysub/easysub.go
+deleted file mode 100644
+index 07040daee5..0000000000
+--- a/src/cmd/go/testdata/local/easysub/easysub.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-package easysub
+-
+-import "fmt"
+-
+-func Hello() {
+-	fmt.Println("easysub.Hello")
+-}
+diff --git a/src/cmd/go/testdata/local/easysub/main.go b/src/cmd/go/testdata/local/easysub/main.go
+deleted file mode 100644
+index 6c30b52362..0000000000
+--- a/src/cmd/go/testdata/local/easysub/main.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// +build ignore
+-
+-package main
+-
+-import "."
+-
+-func main() {
+-	easysub.Hello()
+-}
+diff --git a/src/cmd/go/testdata/local/hard.go b/src/cmd/go/testdata/local/hard.go
+deleted file mode 100644
+index 2ffac3fd73..0000000000
+--- a/src/cmd/go/testdata/local/hard.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-package main
+-
+-import "./sub"
+-
+-func main() {
+-	sub.Hello()
+-}
+diff --git a/src/cmd/go/testdata/local/sub/sub.go b/src/cmd/go/testdata/local/sub/sub.go
+deleted file mode 100644
+index d5dbf6d5fa..0000000000
+--- a/src/cmd/go/testdata/local/sub/sub.go
++++ /dev/null
+@@ -1,12 +0,0 @@
+-package sub
+-
+-import (
+-	"fmt"
+-
+-	subsub "./sub"
+-)
+-
+-func Hello() {
+-	fmt.Println("sub.Hello")
+-	subsub.Hello()
+-}
+diff --git a/src/cmd/go/testdata/local/sub/sub/subsub.go b/src/cmd/go/testdata/local/sub/sub/subsub.go
+deleted file mode 100644
+index 4cc72233e1..0000000000
+--- a/src/cmd/go/testdata/local/sub/sub/subsub.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-package subsub
+-
+-import "fmt"
+-
+-func Hello() {
+-	fmt.Println("subsub.Hello")
+-}
+diff --git a/src/cmd/go/testdata/script/gopath_local.txt b/src/cmd/go/testdata/script/gopath_local.txt
+new file mode 100644
+index 0000000000..7ee1f83471
+--- /dev/null
++++ b/src/cmd/go/testdata/script/gopath_local.txt
+@@ -0,0 +1,117 @@
++env GO111MODULE=off  # Relative imports only work in GOPATH mode.
++
++[short] skip
++
++# Imports should be resolved relative to the source file.
++go build testdata/local/easy.go
++exec ./easy$GOEXE
++stdout '^easysub\.Hello'
++
++# Ignored files should be able to import the package built from
++# non-ignored files in the same directory.
++go build -o easysub$GOEXE testdata/local/easysub/main.go
++exec ./easysub$GOEXE
++stdout '^easysub\.Hello'
++
++# Files in relative-imported packages should be able to
++# use relative imports themselves.
++go build testdata/local/hard.go
++exec ./hard$GOEXE
++stdout '^sub\.Hello'
++
++# Explicit source files listed on the command line should not install without
++# GOBIN set, since individual source files aren't part of the containing GOPATH.
++! go install testdata/local/easy.go
++stderr '^go install: no install location for \.go files listed on command line \(GOBIN not set\)$'
++
++[windows] stop  # Windows does not allow the ridiculous directory name we're about to use.
++
++env BAD_DIR_NAME='#$%:, &()*;<=>?\^{}'
++
++mkdir -p testdata/$BAD_DIR_NAME/easysub
++mkdir -p testdata/$BAD_DIR_NAME/sub/sub
++
++cp testdata/local/easy.go testdata/$BAD_DIR_NAME/easy.go
++cp testdata/local/easysub/easysub.go testdata/$BAD_DIR_NAME/easysub/easysub.go
++cp testdata/local/easysub/main.go testdata/$BAD_DIR_NAME/easysub/main.go
++cp testdata/local/hard.go testdata/$BAD_DIR_NAME/hard.go
++cp testdata/local/sub/sub.go testdata/$BAD_DIR_NAME/sub/sub.go
++cp testdata/local/sub/sub/subsub.go testdata/$BAD_DIR_NAME/sub/sub/subsub.go
++
++# Imports should be resolved relative to the source file.
++go build testdata/$BAD_DIR_NAME/easy.go
++exec ./easy$GOEXE
++stdout '^easysub\.Hello'
++
++# Ignored files should be able to import the package built from
++# non-ignored files in the same directory.
++go build -o easysub$GOEXE testdata/$BAD_DIR_NAME/easysub/main.go
++exec ./easysub$GOEXE
++stdout '^easysub\.Hello'
++
++# Files in relative-imported packages should be able to
++# use relative imports themselves.
++go build testdata/$BAD_DIR_NAME/hard.go
++exec ./hard$GOEXE
++stdout '^sub\.Hello'
++
++# Explicit source files listed on the command line should not install without
++# GOBIN set, since individual source files aren't part of the containing GOPATH.
++! go install testdata/$BAD_DIR_NAME/easy.go
++stderr '^go install: no install location for \.go files listed on command line \(GOBIN not set\)$'
++
++-- testdata/local/easy.go --
++package main
++
++import "./easysub"
++
++func main() {
++	easysub.Hello()
++}
++-- testdata/local/easysub/easysub.go --
++package easysub
++
++import "fmt"
++
++func Hello() {
++	fmt.Println("easysub.Hello")
++}
++-- testdata/local/easysub/main.go --
++// +build ignore
++
++package main
++
++import "."
++
++func main() {
++	easysub.Hello()
++}
++-- testdata/local/hard.go --
++package main
++
++import "./sub"
++
++func main() {
++	sub.Hello()
++}
++-- testdata/local/sub/sub.go --
++package sub
++
++import (
++	"fmt"
++
++	subsub "./sub"
++)
++
++func Hello() {
++	fmt.Println("sub.Hello")
++	subsub.Hello()
++}
++-- testdata/local/sub/sub/subsub.go --
++package subsub
++
++import "fmt"
++
++func Hello() {
++	fmt.Println("subsub.Hello")
++}

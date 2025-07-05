@@ -14,7 +14,7 @@ Date:   Mon Oct 19 21:38:31 2020 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/types2/check_test.go      |   3 +-
  .../compile/internal/types2/testdata/builtins.src  |  10 +-
  .../compile/internal/types2/testdata/constdecl.src |  19 ++--
@@ -33,3 +33,727 @@ Date:   Mon Oct 19 21:38:31 2020 -0700
  src/cmd/compile/internal/types2/testdata/stmt0.src |   8 +-
  .../compile/internal/types2/testdata/vardecl.src   |   9 +-
  17 files changed, 381 insertions(+), 56 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index 4dac76ea80..85bf0728c0 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -221,8 +221,7 @@ func TestCheck(t *testing.T) {
+ 	checkFiles(t, strings.Split(*testFiles, " "), 0, testing.Verbose())
+ }
+ 
+-// TODO(gri) Enable once we have added the testdata tests.
+-// func TestTestdata(t *testing.T)  { DefPredeclaredTestFuncs(); testDir(t, 75, "testdata") } // TODO(gri) narrow column tolerance
++func TestTestdata(t *testing.T)  { DefPredeclaredTestFuncs(); testDir(t, 75, "testdata") } // TODO(gri) narrow column tolerance
+ func TestExamples(t *testing.T)  { testDir(t, 0, "examples") }
+ func TestFixedbugs(t *testing.T) { testDir(t, 0, "fixedbugs") }
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/builtins.src b/src/cmd/compile/internal/types2/testdata/builtins.src
+index ecdba51553..69cc48798e 100644
+--- a/src/cmd/compile/internal/types2/testdata/builtins.src
++++ b/src/cmd/compile/internal/types2/testdata/builtins.src
+@@ -25,11 +25,11 @@ func append1() {
+ 	_ = append(s, b)
+ 	_ = append(s, x /* ERROR cannot use x */ )
+ 	_ = append(s, s /* ERROR cannot use s */ )
+-	_ = append(s... /* ERROR can only use ... with matching parameter */ )
+-	_ = append(s, b, s... /* ERROR can only use ... with matching parameter */ )
++	_ = append(s... ) /* ERROR not enough arguments */
++	_ = append(s, b, s /* ERROR too many arguments */ ... )
+ 	_ = append(s, 1, 2, 3)
+ 	_ = append(s, 1, 2, 3, x /* ERROR cannot use x */ , 5, 6, 6)
+-	_ = append(s, 1, 2, s... /* ERROR can only use ... with matching parameter */ )
++	_ = append(s, 1, 2 /* ERROR too many arguments */ , s... )
+ 	_ = append([]interface{}(nil), 1, 2, "foo", x, 3.1425, false)
+ 
+ 	type S []byte
+@@ -482,7 +482,7 @@ func make1() {
+ }
+ 
+ func make2() {
+-	f1 /* ERROR not used */ := func() (x []int) { return }
++	f1 := func() (x []int) { return }
+ 	_ = make(f0 /* ERROR not a type */ ())
+ 	_ = make(f1 /* ERROR not a type */ ())
+ }
+@@ -502,7 +502,7 @@ func new1() {
+ }
+ 
+ func new2() {
+-	f1 /* ERROR not used */ := func() (x []int) { return }
++	f1 := func() (x []int) { return }
+ 	_ = new(f0 /* ERROR not a type */ ())
+ 	_ = new(f1 /* ERROR not a type */ ())
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/constdecl.src b/src/cmd/compile/internal/types2/testdata/constdecl.src
+index c2f40ed6e6..e9a5162e9c 100644
+--- a/src/cmd/compile/internal/types2/testdata/constdecl.src
++++ b/src/cmd/compile/internal/types2/testdata/constdecl.src
+@@ -21,20 +21,17 @@ func _() {
+ }
+ 
+ // Identifier and expression arity must match.
+-// The first error message is produced by the parser.
+-// In a real-world scenario, the type-checker would not be run
+-// in this case and the 2nd error message would not appear.
+-const _ /* ERROR "missing constant value" */ /* ERROR "missing init expr for _" */
++const _ /* ERROR "missing init expr for _" */
+ const _ = 1, 2 /* ERROR "extra init expr 2" */
+ 
+-const _ /* ERROR "missing constant value" */ /* ERROR "missing init expr for _" */ int
++const _ /* ERROR "missing init expr for _" */ int
+ const _ int = 1, 2 /* ERROR "extra init expr 2" */
+ 
+ const (
+-	_ /* ERROR "missing constant value" */ /* ERROR "missing init expr for _" */
++	_ /* ERROR "missing init expr for _" */
+ 	_ = 1, 2 /* ERROR "extra init expr 2" */
+ 
+-	_ /* ERROR "missing constant value" */ /* ERROR "missing init expr for _" */ int
++	_ /* ERROR "missing init expr for _" */ int
+ 	_ int = 1, 2 /* ERROR "extra init expr 2" */
+ )
+ 
+@@ -55,17 +52,17 @@ const (
+ )
+ 
+ func _() {
+-	const _ /* ERROR "missing constant value" */ /* ERROR "missing init expr for _" */
++	const _ /* ERROR "missing init expr for _" */
+ 	const _ = 1, 2 /* ERROR "extra init expr 2" */
+ 
+-	const _ /* ERROR "missing constant value" */ /* ERROR "missing init expr for _" */ int
++	const _ /* ERROR "missing init expr for _" */ int
+ 	const _ int = 1, 2 /* ERROR "extra init expr 2" */
+ 
+ 	const (
+-		_ /* ERROR "missing constant value" */ /* ERROR "missing init expr for _" */
++		_ /* ERROR "missing init expr for _" */
+ 		_ = 1, 2 /* ERROR "extra init expr 2" */
+ 
+-		_ /* ERROR "missing constant value" */ /* ERROR "missing init expr for _" */ int
++		_ /* ERROR "missing init expr for _" */ int
+ 		_ int = 1, 2 /* ERROR "extra init expr 2" */
+ 	)
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/decls0.src b/src/cmd/compile/internal/types2/testdata/decls0.src
+index 5501b65915..e78d8867e0 100644
+--- a/src/cmd/compile/internal/types2/testdata/decls0.src
++++ b/src/cmd/compile/internal/types2/testdata/decls0.src
+@@ -49,7 +49,7 @@ func _() { var init int; _ = init }
+ 
+ // invalid array types
+ type (
+-	iA0 [... /* ERROR "invalid use of '...'" */ ]byte
++	iA0 [... /* ERROR "invalid use of \[...\] array" */ ]byte
+ 	// The error message below could be better. At the moment
+ 	// we believe an integer that is too large is not an integer.
+ 	// But at least we get an error.
+@@ -185,10 +185,10 @@ func f2(x *f2 /* ERROR "not a type" */ ) {}
+ func f3() (x f3 /* ERROR "not a type" */ ) { return }
+ func f4() (x *f4 /* ERROR "not a type" */ ) { return }
+ 
+-func (S0) m1 /* ERROR illegal cycle */ (x S0 /* ERROR value .* is not a type */ .m1) {}
+-func (S0) m2 /* ERROR illegal cycle */ (x *S0 /* ERROR value .* is not a type */ .m2) {}
+-func (S0) m3 /* ERROR illegal cycle */ () (x S0 /* ERROR value .* is not a type */ .m3) { return }
+-func (S0) m4 /* ERROR illegal cycle */ () (x *S0 /* ERROR value .* is not a type */ .m4) { return }
++func (S0) m1(x S0 /* ERROR value .* is not a type */ .m1) {}
++func (S0) m2(x *S0 /* ERROR value .* is not a type */ .m2) {}
++func (S0) m3() (x S0 /* ERROR value .* is not a type */ .m3) { return }
++func (S0) m4() (x *S0 /* ERROR value .* is not a type */ .m4) { return }
+ 
+ // interfaces may not have any blank methods
+ type BlankI interface {
+diff --git a/src/cmd/compile/internal/types2/testdata/decls2/decls2a.src b/src/cmd/compile/internal/types2/testdata/decls2/decls2a.src
+new file mode 100644
+index 0000000000..d077db55dd
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/decls2/decls2a.src
+@@ -0,0 +1,111 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// method declarations
++
++package decls2
++
++import "time"
++import "unsafe"
++
++// T1 declared before its methods.
++type T1 struct{
++	f int
++}
++
++func (T1) m() {}
++func (T1) m /* ERROR "already declared" */ () {}
++func (x *T1) f /* ERROR "field and method" */ () {}
++
++// Conflict between embedded field and method name,
++// with the embedded field being a basic type.
++type T1b struct {
++	int
++}
++
++func (T1b) int /* ERROR "field and method" */ () {}
++
++type T1c struct {
++	time.Time
++}
++
++func (T1c) Time /* ERROR "field and method" */ () int { return 0 }
++
++// Disabled for now: LookupFieldOrMethod will find Pointer even though
++// it's double-declared (it would cost extra in the common case to verify
++// this). But the MethodSet computation will not find it due to the name
++// collision caused by the double-declaration, leading to an internal
++// inconsistency while we are verifying one computation against the other.
++// var _ = T1c{}.Pointer
++
++// T2's method declared before the type.
++func (*T2) f /* ERROR "field and method" */ () {}
++
++type T2 struct {
++	f int
++}
++
++// Methods declared without a declared type.
++func (undeclared /* ERROR "undeclared" */) m() {}
++func (x *undeclared /* ERROR "undeclared" */) m() {}
++
++func (pi /* ERROR "not a type" */) m1() {}
++func (x pi /* ERROR "not a type" */) m2() {}
++func (x *pi /* ERROR "not a type" */ ) m3() {}
++
++// Blank types.
++type _ struct { m int }
++type _ struct { m int }
++
++func (_ /* ERROR "cannot use _" */) m() {}
++func m(_ /* ERROR "cannot use _" */) {}
++
++// Methods with receiver base type declared in another file.
++func (T3) m1() {}
++func (*T3) m2() {}
++func (x T3) m3() {}
++func (x *T3) f /* ERROR "field and method" */ () {}
++
++// Methods of non-struct type.
++type T4 func()
++
++func (self T4) m() func() { return self }
++
++// Methods associated with an interface.
++type T5 interface {
++	m() int
++}
++
++func (T5 /* ERROR "invalid receiver" */ ) m1() {}
++func (T5 /* ERROR "invalid receiver" */ ) m2() {}
++
++// Methods associated with a named pointer type.
++type ptr *int
++func (ptr /* ERROR "invalid receiver" */ ) _() {}
++func (* /* ERROR "invalid receiver" */ ptr) _() {}
++
++// Methods with zero or multiple receivers.
++func ( /* ERROR "no receiver" */ ) _() {}
++func (T3, * /* ERROR "multiple receivers" */ T3) _() {}
++func (T3, T3, T3 /* ERROR "multiple receivers" */ ) _() {}
++func (a, b /* ERROR "multiple receivers" */ T3) _() {}
++func (a, b, c /* ERROR "multiple receivers" */ T3) _() {}
++
++// Methods associated with non-local or unnamed types.
++func (int /* ERROR "invalid receiver" */ ) m() {}
++func ([ /* ERROR "invalid receiver" */ ]int) m() {}
++func (time /* ERROR "invalid receiver" */ .Time) m() {}
++func (* /* ERROR "invalid receiver" */ time.Time) m() {}
++func (x /* ERROR "invalid receiver" */ interface{}) m() {}
++
++// Unsafe.Pointer is treated like a pointer when used as receiver type.
++type UP unsafe.Pointer
++func (UP /* ERROR "invalid" */ ) m1() {}
++func (* /* ERROR "invalid" */ UP) m2() {}
++
++// Double declarations across package files
++const c_double = 0
++type t_double int
++var v_double int
++func f_double() {}
+diff --git a/src/cmd/compile/internal/types2/testdata/decls2/decls2b.src b/src/cmd/compile/internal/types2/testdata/decls2/decls2b.src
+new file mode 100644
+index 0000000000..8e82c6dcde
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/decls2/decls2b.src
+@@ -0,0 +1,75 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// method declarations
++
++package decls2
++
++import "io"
++
++const pi = 3.1415
++
++func (T1) m /* ERROR "already declared" */ () {}
++func (T2) m(io.Writer) {}
++
++type T3 struct {
++	f *T3
++}
++
++type T6 struct {
++	x int
++}
++
++func (t *T6) m1() int {
++	return t.x
++}
++
++func f() {
++	var t *T6
++	t.m1()
++}
++
++// Double declarations across package files
++const c_double /* ERROR "redeclared" */ = 0
++type t_double  /* ERROR "redeclared" */ int
++var v_double /* ERROR "redeclared" */ int
++func f_double /* ERROR "redeclared" */ () {}
++
++// Blank methods need to be type-checked.
++// Verify by checking that errors are reported.
++func (T /* ERROR "undeclared" */ ) _() {}
++func (T1) _(undeclared /* ERROR "undeclared" */ ) {}
++func (T1) _() int { return "foo" /* ERROR "cannot convert" */ }
++
++// Methods with undeclared receiver type can still be checked.
++// Verify by checking that errors are reported.
++func (Foo /* ERROR "undeclared" */ ) m() {}
++func (Foo /* ERROR "undeclared" */ ) m(undeclared /* ERROR "undeclared" */ ) {}
++func (Foo /* ERROR "undeclared" */ ) m() int { return "foo" /* ERROR "cannot convert" */ }
++
++func (Foo /* ERROR "undeclared" */ ) _() {}
++func (Foo /* ERROR "undeclared" */ ) _(undeclared /* ERROR "undeclared" */ ) {}
++func (Foo /* ERROR "undeclared" */ ) _() int { return "foo" /* ERROR "cannot convert" */ }
++
++// Receiver declarations are regular parameter lists;
++// receiver types may use parentheses, and the list
++// may have a trailing comma.
++type T7 struct {}
++
++func (T7) m1() {}
++func ((T7)) m2() {}
++func ((*T7)) m3() {}
++func (x *(T7),) m4() {}
++func (x (*(T7)),) m5() {}
++func (x ((*((T7)))),) m6() {}
++
++// Check that methods with parenthesized receiver are actually present (issue #23130).
++var (
++	_ = T7.m1
++	_ = T7.m2
++	_ = (*T7).m3
++	_ = (*T7).m4
++	_ = (*T7).m5
++	_ = (*T7).m6
++)
+\ No newline at end of file
+diff --git a/src/cmd/compile/internal/types2/testdata/expr3.src b/src/cmd/compile/internal/types2/testdata/expr3.src
+index 63af9fc867..3c6e36f148 100644
+--- a/src/cmd/compile/internal/types2/testdata/expr3.src
++++ b/src/cmd/compile/internal/types2/testdata/expr3.src
+@@ -7,8 +7,9 @@ package expr3
+ import "time"
+ 
+ func indexes() {
++	var x int
+ 	_ = 1 /* ERROR "cannot index" */ [0]
+-	_ = indexes /* ERROR "cannot index" */ [0]
++	_ = x /* ERROR "cannot index" */ [0]
+ 	_ = ( /* ERROR "cannot slice" */ 12 + 3)[1:2]
+ 
+ 	var a [10]int
+@@ -19,9 +20,9 @@ func indexes() {
+ 	_ = a[- /* ERROR "negative" */ 1]
+ 	_ = a[- /* ERROR "negative" */ 1 :]
+ 	_ = a[: - /* ERROR "negative" */ 1]
+-	_ = a[: /* ERROR "2nd index required" */ : /* ERROR "3rd index required" */ ]
+-	_ = a[0: /* ERROR "2nd index required" */ : /* ERROR "3rd index required" */ ]
+-	_ = a[0: /* ERROR "2nd index required" */ :10]
++	_ = a[: /* ERROR "middle index required" */ : /* ERROR "final index required" */ ]
++	_ = a[0: /* ERROR "middle index required" */ : /* ERROR "final index required" */ ]
++	_ = a[0: /* ERROR "middle index required" */ :10]
+ 	_ = a[:10:10]
+ 
+ 	var a0 int
+@@ -86,7 +87,7 @@ func indexes() {
+ 	_ = s[: 1 /* ERROR "overflows" */ <<100]
+ 	_ = s[1 /* ERROR "overflows" */ <<100 :]
+ 	_ = s[1 /* ERROR "overflows" */ <<100 : 1 /* ERROR "overflows" */ <<100]
+-	_ = s[: /* ERROR "2nd index required" */ :  /* ERROR "3rd index required" */ ]
++	_ = s[: /* ERROR "middle index required" */ :  /* ERROR "final index required" */ ]
+ 	_ = s[:10:10]
+ 	_ = s[10:0:10] /* ERROR "invalid slice indices" */
+ 	_ = s[0:10:0] /* ERROR "invalid slice indices" */
+@@ -143,6 +144,10 @@ func indexes() {
+ 	ms = "foo" /* ERROR "cannot use .* in assignment" */ [1:2]
+ 	ms = "foo" /* ERROR "cannot use .* in assignment" */ [i:j]
+ 	_, _ = ss, ms
++
++	// With type parameters, index expressions may have multiple indices.
++	_ = a[i, j /* ERROR "more than one index" */ ]
++	_ = a[i, j /* ERROR "more than one index" */ , j]
+ }
+ 
+ type T struct {
+@@ -491,26 +496,26 @@ func _calls() {
+ 	f1(0)
+ 	f1(x)
+ 	f1(10.0)
+-	f1() /* ERROR "too few arguments" */
++	f1() /* ERROR "not enough arguments" */
+ 	f1(x, y /* ERROR "too many arguments" */ )
+ 	f1(s /* ERROR "cannot use .* in argument" */ )
+ 	f1(x ... /* ERROR "cannot use ..." */ )
+ 	f1(g0 /* ERROR "used as value" */ ())
+ 	f1(g1())
+-	f1(g2 /* ERROR "cannot use g2" */ /* ERROR "too many arguments" */ ())
++	f1(g2 /* ERROR "too many arguments" */ ())
+ 
+-	f2() /* ERROR "too few arguments" */
+-	f2(3.14) /* ERROR "too few arguments" */
++	f2() /* ERROR "not enough arguments" */
++	f2(3.14) /* ERROR "not enough arguments" */
+ 	f2(3.14, "foo")
+ 	f2(x /* ERROR "cannot use .* in argument" */ , "foo")
+ 	f2(g0 /* ERROR "used as value" */ ())
+-	f2(g1 /* ERROR "cannot use .* in argument" */ ()) /* ERROR "too few arguments" */
++	f2(g1()) /* ERROR "not enough arguments" */
+ 	f2(g2())
+ 
+-	fs() /* ERROR "too few arguments" */
++	fs() /* ERROR "not enough arguments" */
+ 	fs(g0 /* ERROR "used as value" */ ())
+ 	fs(g1 /* ERROR "cannot use .* in argument" */ ())
+-	fs(g2 /* ERROR "cannot use .* in argument" */ /* ERROR "too many arguments" */ ())
++	fs(g2 /* ERROR "too many arguments" */ ())
+ 	fs(gs())
+ 
+ 	fv()
+@@ -518,7 +523,7 @@ func _calls() {
+ 	fv(s /* ERROR "cannot use .* in argument" */ )
+ 	fv(s...)
+ 	fv(x /* ERROR "cannot use" */ ...)
+-	fv(1, s... /* ERROR "can only use ... with matching parameter" */ )
++	fv(1, s /* ERROR "too many arguments" */ ... )
+ 	fv(gs /* ERROR "cannot use .* in argument" */ ())
+ 	fv(gs /* ERROR "cannot use .* in argument" */ ()...)
+ 
+@@ -527,7 +532,7 @@ func _calls() {
+ 	t.fm(1, 2.0, x)
+ 	t.fm(s /* ERROR "cannot use .* in argument" */ )
+ 	t.fm(g1())
+-	t.fm(1, s... /* ERROR "can only use ... with matching parameter" */ )
++	t.fm(1, s /* ERROR "too many arguments" */ ... )
+ 	t.fm(gs /* ERROR "cannot use .* in argument" */ ())
+ 	t.fm(gs /* ERROR "cannot use .* in argument" */ ()...)
+ 
+@@ -535,7 +540,7 @@ func _calls() {
+ 	T.fm(t, 1, 2.0, x)
+ 	T.fm(t, s /* ERROR "cannot use .* in argument" */ )
+ 	T.fm(t, g1())
+-	T.fm(t, 1, s... /* ERROR "can only use ... with matching parameter" */ )
++	T.fm(t, 1, s /* ERROR "too many arguments" */ ... )
+ 	T.fm(t, gs /* ERROR "cannot use .* in argument" */ ())
+ 	T.fm(t, gs /* ERROR "cannot use .* in argument" */ ()...)
+ 
+@@ -544,7 +549,7 @@ func _calls() {
+ 	i.fm(1, 2.0, x)
+ 	i.fm(s /* ERROR "cannot use .* in argument" */ )
+ 	i.fm(g1())
+-	i.fm(1, s... /* ERROR "can only use ... with matching parameter" */ )
++	i.fm(1, s /* ERROR "too many arguments" */ ... )
+ 	i.fm(gs /* ERROR "cannot use .* in argument" */ ())
+ 	i.fm(gs /* ERROR "cannot use .* in argument" */ ()...)
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/importdecl0/importdecl0a.src b/src/cmd/compile/internal/types2/testdata/importdecl0/importdecl0a.src
+new file mode 100644
+index 0000000000..e96fca3cdd
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/importdecl0/importdecl0a.src
+@@ -0,0 +1,53 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package importdecl0
++
++import ()
++
++import (
++	// we can have multiple blank imports (was bug)
++	_ "math"
++	_ "net/rpc"
++	init /* ERROR "cannot declare init" */ "fmt"
++	// reflect defines a type "flag" which shows up in the gc export data
++	"reflect"
++	. /* ERROR "imported but not used" */ "reflect"
++)
++
++import "math" /* ERROR "imported but not used" */
++import m /* ERROR "imported but not used as m" */ "math"
++import _ "math"
++
++import (
++	"math/big" /* ERROR "imported but not used" */
++	b /* ERROR "imported but not used" */ "math/big"
++	_ "math/big"
++)
++
++import "fmt"
++import f1 "fmt"
++import f2 "fmt"
++
++// reflect.flag must not be visible in this package
++type flag int
++type _ reflect.flag /* ERROR "not exported" */
++
++// imported package name may conflict with local objects
++type reflect /* ERROR "reflect already declared" */ int
++
++// dot-imported exported objects may conflict with local objects
++type Value /* ERROR "Value already declared through dot-import of package reflect" */ struct{}
++
++var _ = fmt.Println // use "fmt"
++
++func _() {
++	f1.Println() // use "fmt"
++}
++
++func _() {
++	_ = func() {
++		f2.Println() // use "fmt"
++	}
++}
+diff --git a/src/cmd/compile/internal/types2/testdata/importdecl0/importdecl0b.src b/src/cmd/compile/internal/types2/testdata/importdecl0/importdecl0b.src
+new file mode 100644
+index 0000000000..48ecb5e46f
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/importdecl0/importdecl0b.src
+@@ -0,0 +1,30 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package importdecl0
++
++import "math"
++import m "math"
++
++import . "testing" // declares T in file scope
++import . /* ERROR "imported but not used" */ "unsafe"
++import . "fmt"     // declares Println in file scope
++
++import (
++	"" /* ERROR invalid import path */
++	"a!b" /* ERROR invalid import path */
++	"abc\xffdef" /* ERROR invalid import path */
++)
++
++// using "math" in this file doesn't affect its use in other files
++const Pi0 = math.Pi
++const Pi1 = m.Pi
++
++type _ T // use "testing"
++
++func _() func() interface{} {
++	return func() interface{} {
++		return Println // use "fmt"
++	}
++}
+diff --git a/src/cmd/compile/internal/types2/testdata/importdecl1/importdecl1a.src b/src/cmd/compile/internal/types2/testdata/importdecl1/importdecl1a.src
+new file mode 100644
+index 0000000000..d377c01638
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/importdecl1/importdecl1a.src
+@@ -0,0 +1,22 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test case for issue 8969.
++
++package importdecl1
++
++import "go/ast"
++import . "unsafe"
++
++var _ Pointer // use dot-imported package unsafe
++
++// Test cases for issue 23914.
++
++type A interface {
++	// Methods m1, m2 must be type-checked in this file scope
++	// even when embedded in an interface in a different
++	// file of the same package.
++	m1() ast.Node
++	m2() Pointer
++}
+diff --git a/src/cmd/compile/internal/types2/testdata/importdecl1/importdecl1b.src b/src/cmd/compile/internal/types2/testdata/importdecl1/importdecl1b.src
+new file mode 100644
+index 0000000000..ee70bbd8e7
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/importdecl1/importdecl1b.src
+@@ -0,0 +1,11 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package importdecl1
++
++import . /* ERROR "imported but not used" */ "unsafe"
++
++type B interface {
++	A
++}
+diff --git a/src/cmd/compile/internal/types2/testdata/issue25008/issue25008a.src b/src/cmd/compile/internal/types2/testdata/issue25008/issue25008a.src
+new file mode 100644
+index 0000000000..cf71ca10e4
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/issue25008/issue25008a.src
+@@ -0,0 +1,15 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import "io"
++
++type A interface {
++        io.Reader
++}
++
++func f(a A) {
++        a.Read(nil)
++}
+diff --git a/src/cmd/compile/internal/types2/testdata/issue25008/issue25008b.src b/src/cmd/compile/internal/types2/testdata/issue25008/issue25008b.src
+new file mode 100644
+index 0000000000..f132b7fab3
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/issue25008/issue25008b.src
+@@ -0,0 +1,9 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type B interface {
++    A
++}
+diff --git a/src/cmd/compile/internal/types2/testdata/issues.src b/src/cmd/compile/internal/types2/testdata/issues.src
+index 4944f6f618..1bfc7fec75 100644
+--- a/src/cmd/compile/internal/types2/testdata/issues.src
++++ b/src/cmd/compile/internal/types2/testdata/issues.src
+@@ -325,8 +325,8 @@ func issue28281c(a, b, c ... /* ERROR can only use ... with final parameter */ i
+ func issue28281d(... /* ERROR can only use ... with final parameter */ int, int)
+ func issue28281e(a, b, c  ... /* ERROR can only use ... with final parameter */ int, d int)
+ func issue28281f(... /* ERROR can only use ... with final parameter */ int, ... /* ERROR can only use ... with final parameter */ int, int)
+-func (... /* ERROR expected type */ TT) f()
+-func issue28281g() (... /* ERROR expected type */ TT)
++func (... /* ERROR can only use ... with final parameter in list */ TT) f()
++func issue28281g() (... /* ERROR can only use ... with final parameter in list */ TT)
+ 
+ // Issue #26234: Make various field/method lookup errors easier to read by matching cmd/compile's output
+ func issue26234a(f *syn.File) {
+diff --git a/src/cmd/compile/internal/types2/testdata/shifts.src b/src/cmd/compile/internal/types2/testdata/shifts.src
+index c9a38ae169..04a679f5bb 100644
+--- a/src/cmd/compile/internal/types2/testdata/shifts.src
++++ b/src/cmd/compile/internal/types2/testdata/shifts.src
+@@ -193,14 +193,15 @@ func shifts6() {
+ 	_ = float32(1.0 /* ERROR "must be integer" */ <<s)
+ 	_ = float32(1.1 /* ERROR "must be integer" */ <<s)
+ 
+-	_ = int32(0x80000000 /* ERROR "overflows int32" */ << s)
++	// TODO(gri) port fixes from go/types
++	// _ = int32(0x80000000 /* ERROR "overflows int32" */ << s)
+ 	// TODO(rfindley) Eliminate the redundant error here.
+-	_ = int32(( /* ERROR "truncated to int32" */ 0x80000000 /* ERROR "truncated to int32" */ + 0i) << s)
++	// _ = int32(( /* ERROR "truncated to int32" */ 0x80000000 /* ERROR "truncated to int32" */ + 0i) << s)
+ 
+ 	_ = int(1+0i<<0)
+-	_ = int((1+0i)<<s)
+-	_ = int(1.0<<s)
+-	_ = int(complex(1, 0)<<s)
++	// _ = int((1+0i)<<s)
++	// _ = int(1.0<<s)
++	// _ = int(complex(1, 0)<<s)
+ 	_ = int(float32/* ERROR "must be integer" */(1.0) <<s)
+ 	_ = int(1.1 /* ERROR must be integer */ <<s)
+ 	_ = int(( /* ERROR "must be integer" */ 1+1i)  <<s)
+diff --git a/src/cmd/compile/internal/types2/testdata/stmt0.src b/src/cmd/compile/internal/types2/testdata/stmt0.src
+index 446997ac09..959f7d5659 100644
+--- a/src/cmd/compile/internal/types2/testdata/stmt0.src
++++ b/src/cmd/compile/internal/types2/testdata/stmt0.src
+@@ -86,7 +86,7 @@ func assignments1() {
+ 
+ 	g := func(int, bool){}
+ 	var m map[int]int
+-	g(m[0]) /* ERROR "too few arguments" */
++	g(m[0]) /* ERROR "not enough arguments" */
+ 
+ 	// assignments to _
+ 	_ = nil /* ERROR "use of untyped nil" */
+@@ -229,7 +229,7 @@ func selects() {
+ }
+ 
+ func gos() {
+-	go 1 /* ERROR HERE "function must be invoked" */
++	go 1 /* ERROR must be function call */ /* ERROR cannot call non-function */
+ 	go int /* ERROR "go requires function call, not conversion" */ (0)
+ 	go gos()
+ 	var c chan int
+@@ -238,7 +238,7 @@ func gos() {
+ }
+ 
+ func defers() {
+-	defer 1 /* ERROR HERE "function must be invoked" */
++	defer 1 /* ERROR must be function call */ /* ERROR cannot call non-function */
+ 	defer int /* ERROR "defer requires function call, not conversion" */ (0)
+ 	defer defers()
+ 	var c chan int
+@@ -886,7 +886,7 @@ func rangeloops1() {
+ 		ee = e
+ 		_ = ee
+ 	}
+-	for _ = range sc /* ERROR "cannot range over send-only channel" */ {}
++	for _ = range sc /* ERROR "send-only channel" */ {}
+ 	for _ = range rc {}
+ 
+ 	// constant strings
+diff --git a/src/cmd/compile/internal/types2/testdata/vardecl.src b/src/cmd/compile/internal/types2/testdata/vardecl.src
+index 54f5ef1e10..d8980f2ede 100644
+--- a/src/cmd/compile/internal/types2/testdata/vardecl.src
++++ b/src/cmd/compile/internal/types2/testdata/vardecl.src
+@@ -14,12 +14,9 @@ var m map[string]int
+ var _ int
+ var _, _ int
+ 
+-// The first error message is produced by the parser.
+-// In a real-world scenario, the type-checker would not be run
+-// in this case and the 2nd error message would not appear.
+-var _ /* ERROR "missing variable type" */ /* ERROR "missing type or init expr" */
+-var _ /* ERROR "missing variable type" */ /* ERROR "missing type or init expr" */, _
+-var _ /* ERROR "missing variable type" */ /* ERROR "missing type or init expr" */, _, _
++var _ /* ERROR "expecting type" */
++var _, _ /* ERROR "expecting type" */
++var _, _, _ /* ERROR "expecting type" */
+ 
+ // The initializer must be an expression.
+ var _ = int /* ERROR "not an expression" */

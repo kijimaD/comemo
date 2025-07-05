@@ -14,7 +14,7 @@ Date:   Wed May 15 12:56:45 2019 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go                              | 12 +++
  src/cmd/go/testdata/script/build_GOTMPDIR.txt      |  1 +
  src/cmd/go/testdata/script/build_cache_compile.txt |  1 +
@@ -70,3 +70,1005 @@ Date:   Wed May 15 12:56:45 2019 -0400
  src/cmd/go/testdata/script/version.txt             |  2 +
  src/cmd/go/testdata/script/vet_asm.txt             |  3 +-
  54 files changed, 147 insertions(+), 92 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 49b0e6d255..3fc147e146 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1898,6 +1898,7 @@ func TestGoListTest(t *testing.T) {
+ }
+ 
+ func TestGoListCompiledCgo(t *testing.T) {
++	tooSlow(t)
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.parallel()
+@@ -2537,6 +2538,7 @@ func TestCoverageRuns(t *testing.T) {
+ 
+ func TestCoverageDotImport(t *testing.T) {
+ 	skipIfGccgo(t, "gccgo has no cover tool")
++	tooSlow(t)
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.parallel()
+@@ -2716,6 +2718,7 @@ func TestCoverageFunc(t *testing.T) {
+ // Issue 24588.
+ func TestCoverageDashC(t *testing.T) {
+ 	skipIfGccgo(t, "gccgo has no cover tool")
++	tooSlow(t)
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.parallel()
+@@ -3391,6 +3394,7 @@ func TestVetWithOnlyCgoFiles(t *testing.T) {
+ 	if !canCgo {
+ 		t.Skip("skipping because cgo not enabled")
+ 	}
++	tooSlow(t)
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -5654,6 +5658,7 @@ func TestTestSkipVetAfterFailedBuild(t *testing.T) {
+ }
+ 
+ func TestTestVetRebuild(t *testing.T) {
++	tooSlow(t)
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.parallel()
+@@ -5933,6 +5938,7 @@ func TestBadCgoDirectives(t *testing.T) {
+ 	if !canCgo {
+ 		t.Skip("no cgo")
+ 	}
++	tooSlow(t)
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 
+@@ -6047,6 +6053,7 @@ func TestTwoPkgConfigs(t *testing.T) {
+ 	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+ 		t.Skipf("no shell scripts on %s", runtime.GOOS)
+ 	}
++	tooSlow(t)
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.parallel()
+@@ -6077,6 +6084,8 @@ func TestCgoCache(t *testing.T) {
+ 	if !canCgo {
+ 		t.Skip("no cgo")
+ 	}
++	tooSlow(t)
++
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.parallel()
+@@ -6127,6 +6136,7 @@ func TestLinkerTmpDirIsDeleted(t *testing.T) {
+ 	if !canCgo {
+ 		t.Skip("skipping because cgo not enabled")
+ 	}
++	tooSlow(t)
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -6216,6 +6226,7 @@ func TestGoTestWithoutTests(t *testing.T) {
+ 
+ // Issue 25579.
+ func TestGoBuildDashODevNull(t *testing.T) {
++	tooSlow(t)
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.parallel()
+@@ -6228,6 +6239,7 @@ func TestGoBuildDashODevNull(t *testing.T) {
+ // Issue 25093.
+ func TestCoverpkgTestOnly(t *testing.T) {
+ 	skipIfGccgo(t, "gccgo has no cover tool")
++	tooSlow(t)
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.parallel()
+diff --git a/src/cmd/go/testdata/script/build_GOTMPDIR.txt b/src/cmd/go/testdata/script/build_GOTMPDIR.txt
+index da54ced524..c93ca932ca 100644
+--- a/src/cmd/go/testdata/script/build_GOTMPDIR.txt
++++ b/src/cmd/go/testdata/script/build_GOTMPDIR.txt
+@@ -1,4 +1,5 @@
+ env GO111MODULE=off
++[short] skip
+ 
+ # Set GOCACHE to a clean directory to ensure that 'go build' has work to report.
+ env GOCACHE=$WORK/gocache
+diff --git a/src/cmd/go/testdata/script/build_cache_compile.txt b/src/cmd/go/testdata/script/build_cache_compile.txt
+index 04a6f9af1d..64b391f9aa 100644
+--- a/src/cmd/go/testdata/script/build_cache_compile.txt
++++ b/src/cmd/go/testdata/script/build_cache_compile.txt
+@@ -1,4 +1,5 @@
+ env GO111MODULE=off
++[short] skip
+ 
+ # Set up fresh GOCACHE.
+ env GOCACHE=$WORK/gocache
+diff --git a/src/cmd/go/testdata/script/build_cache_gomips.txt b/src/cmd/go/testdata/script/build_cache_gomips.txt
+index 3218354929..0cbf16a923 100644
+--- a/src/cmd/go/testdata/script/build_cache_gomips.txt
++++ b/src/cmd/go/testdata/script/build_cache_gomips.txt
+@@ -1,4 +1,5 @@
+ env GO111MODULE=off
++[short] skip # rebuilds std for mips
+ 
+ # Set up fresh GOCACHE.
+ env GOCACHE=$WORK/gocache
+diff --git a/src/cmd/go/testdata/script/build_cache_link.txt b/src/cmd/go/testdata/script/build_cache_link.txt
+index 658bb88496..e80d776473 100644
+--- a/src/cmd/go/testdata/script/build_cache_link.txt
++++ b/src/cmd/go/testdata/script/build_cache_link.txt
+@@ -1,4 +1,5 @@
+ env GO111MODULE=off
++[short] skip
+ 
+ # Set up fresh GOCACHE.
+ env GOCACHE=$WORK/gocache
+diff --git a/src/cmd/go/testdata/script/build_cache_output.txt b/src/cmd/go/testdata/script/build_cache_output.txt
+index 41c84ace7a..89e3ff0f1e 100644
+--- a/src/cmd/go/testdata/script/build_cache_output.txt
++++ b/src/cmd/go/testdata/script/build_cache_output.txt
+@@ -1,6 +1,7 @@
+ env GO111MODULE=off
+ 
+ [!gc] skip
++[short] skip # clears cache, rebuilds too much
+ 
+ # Set up fresh GOCACHE.
+ env GOCACHE=$WORK/gocache
+diff --git a/src/cmd/go/testdata/script/build_runtime_gcflags.txt b/src/cmd/go/testdata/script/build_runtime_gcflags.txt
+index 5354a73935..da1b65f06c 100644
+--- a/src/cmd/go/testdata/script/build_runtime_gcflags.txt
++++ b/src/cmd/go/testdata/script/build_runtime_gcflags.txt
+@@ -1,4 +1,5 @@
+ env GO111MODULE=off
++[short] skip # rebuilds all of std
+ 
+ # Set up fresh GOCACHE.
+ env GOCACHE=$WORK/gocache
+diff --git a/src/cmd/go/testdata/script/build_trimpath.txt b/src/cmd/go/testdata/script/build_trimpath.txt
+index 0dc20a9999..f785b0cb9e 100644
+--- a/src/cmd/go/testdata/script/build_trimpath.txt
++++ b/src/cmd/go/testdata/script/build_trimpath.txt
+@@ -1,3 +1,5 @@
++[short] skip
++
+ env -r GOROOT_REGEXP=$GOROOT
+ env -r WORK_REGEXP=$WORK
+ env GOROOT GOROOT_REGEXP WORK WORK_REGEXP
+diff --git a/src/cmd/go/testdata/script/cgo_syso_issue29253.txt b/src/cmd/go/testdata/script/cgo_syso_issue29253.txt
+index 9825d1e3e9..4fb5ccab04 100644
+--- a/src/cmd/go/testdata/script/cgo_syso_issue29253.txt
++++ b/src/cmd/go/testdata/script/cgo_syso_issue29253.txt
+@@ -1,4 +1,5 @@
+ env GO111MODULE=off
++[short] skip
+ 
+ # This test tests that we can link in-package syso files that provides symbols
+ # for cgo. See issue 29253.
+diff --git a/src/cmd/go/testdata/script/clean_testcache.txt b/src/cmd/go/testdata/script/clean_testcache.txt
+index 5ac968b7d0..dd7846462e 100644
+--- a/src/cmd/go/testdata/script/clean_testcache.txt
++++ b/src/cmd/go/testdata/script/clean_testcache.txt
+@@ -1,4 +1,5 @@
+ env GO111MODULE=off
++[short] skip
+ 
+ # go clean -testcache
+ # should work (see golang.org/issue/29757).
+diff --git a/src/cmd/go/testdata/script/gcflags_patterns.txt b/src/cmd/go/testdata/script/gcflags_patterns.txt
+index c790ddda0a..dce8e39715 100644
+--- a/src/cmd/go/testdata/script/gcflags_patterns.txt
++++ b/src/cmd/go/testdata/script/gcflags_patterns.txt
+@@ -1,6 +1,7 @@
+ env GO111MODULE=off
+ 
+ [!gc] skip 'using -gcflags and -ldflags'
++[short] skip
+ 
+ # -gcflags=-e applies to named packages, not dependencies
+ go build -n -v -gcflags=-e z1 z2
+diff --git a/src/cmd/go/testdata/script/get_dotfiles.txt b/src/cmd/go/testdata/script/get_dotfiles.txt
+index 38a3fac612..6757f9dce3 100644
+--- a/src/cmd/go/testdata/script/get_dotfiles.txt
++++ b/src/cmd/go/testdata/script/get_dotfiles.txt
+@@ -1,4 +1,5 @@
+ env GO111MODULE=off
++[short] skip
+ 
+ [!exec:git] skip
+ 
+diff --git a/src/cmd/go/testdata/script/get_tilde.txt b/src/cmd/go/testdata/script/get_tilde.txt
+index 6d18174acc..e520957359 100644
+--- a/src/cmd/go/testdata/script/get_tilde.txt
++++ b/src/cmd/go/testdata/script/get_tilde.txt
+@@ -1,4 +1,5 @@
+ env GO111MODULE=off
++[short] skip
+ 
+ # Paths containing windows short names should be rejected before attempting to fetch.
+ ! go get example.com/longna~1.dir/thing
+diff --git a/src/cmd/go/testdata/script/get_unicode.txt b/src/cmd/go/testdata/script/get_unicode.txt
+index ab1b914f50..d3b82bdf25 100644
+--- a/src/cmd/go/testdata/script/get_unicode.txt
++++ b/src/cmd/go/testdata/script/get_unicode.txt
+@@ -1,6 +1,7 @@
+ env GO111MODULE=off
+ 
+ [!exec:git] skip
++[short] skip
+ 
+ # Construct a repository that imports a non-ASCII path.
+ cd $WORK/_origin/example.com/unicode
+diff --git a/src/cmd/go/testdata/script/install_cleans_build.txt b/src/cmd/go/testdata/script/install_cleans_build.txt
+index 7f1b917439..a169a60bda 100644
+--- a/src/cmd/go/testdata/script/install_cleans_build.txt
++++ b/src/cmd/go/testdata/script/install_cleans_build.txt
+@@ -1,4 +1,5 @@
+ env GO111MODULE=off
++[short] skip
+ 
+ # 'go install' with no arguments should clean up after go build
+ cd mycmd
+diff --git a/src/cmd/go/testdata/script/install_cross_gobin.txt b/src/cmd/go/testdata/script/install_cross_gobin.txt
+index d9ab35c2e1..57c18be602 100644
+--- a/src/cmd/go/testdata/script/install_cross_gobin.txt
++++ b/src/cmd/go/testdata/script/install_cross_gobin.txt
+@@ -1,4 +1,5 @@
+ env GO111MODULE=off
++[!short] skip # rebuilds std for alternate architecture
+ 
+ cd mycmd
+ go build mycmd
+diff --git a/src/cmd/go/testdata/script/list_bad_import.txt b/src/cmd/go/testdata/script/list_bad_import.txt
+index 958c576c53..b8f9d586f3 100644
+--- a/src/cmd/go/testdata/script/list_bad_import.txt
++++ b/src/cmd/go/testdata/script/list_bad_import.txt
+@@ -1,4 +1,5 @@
+ env GO111MODULE=off
++[short] skip
+ 
+ # This test matches mod_list_bad_import, but in GOPATH mode.
+ # Please keep them in sync.
+diff --git a/src/cmd/go/testdata/script/list_find.txt b/src/cmd/go/testdata/script/list_find.txt
+index aaac6585dd..d450fc9554 100644
+--- a/src/cmd/go/testdata/script/list_find.txt
++++ b/src/cmd/go/testdata/script/list_find.txt
+@@ -12,6 +12,7 @@ stdout '^false \[\]'
+ # should be identical. "go build" derives action IDs (which are used as cache
+ # keys) from dependencies' action IDs. "go list -find" won't know what the
+ # dependencies are, so it's can't construct the same action IDs.
++[short] skip
+ go list -find -compiled net
+ go list -find -compiled -x net
+ ! stderr 'cgo'
+diff --git a/src/cmd/go/testdata/script/list_std.txt b/src/cmd/go/testdata/script/list_std.txt
+index deddaa61ea..6ab1bd1674 100644
+--- a/src/cmd/go/testdata/script/list_std.txt
++++ b/src/cmd/go/testdata/script/list_std.txt
+@@ -1,12 +1,12 @@
+ env GO111MODULE=off
+ 
+ [!gc] skip
++[short] skip
+ 
+ # Listing GOROOT should only find standard packages.
+ cd $GOROOT/src
+ go list -f '{{if not .Standard}}{{.ImportPath}}{{end}}' ./...
+ ! stdout .
+-# TODO: ignore _/blah/go/src in output
+ 
+ # Standard packages should include cmd, but not cmd/vendor.
+ go list ./...
+diff --git a/src/cmd/go/testdata/script/mod_build_versioned.txt b/src/cmd/go/testdata/script/mod_build_versioned.txt
+index eb081c9be1..1b387361a7 100644
+--- a/src/cmd/go/testdata/script/mod_build_versioned.txt
++++ b/src/cmd/go/testdata/script/mod_build_versioned.txt
+@@ -1,4 +1,5 @@
+ env GO111MODULE=on
++[short] skip
+ 
+ go get -m rsc.io/fortune/v2
+ 
+diff --git a/src/cmd/go/testdata/script/mod_doc.txt b/src/cmd/go/testdata/script/mod_doc.txt
+index 223283d5f2..40acbc5ac0 100644
+--- a/src/cmd/go/testdata/script/mod_doc.txt
++++ b/src/cmd/go/testdata/script/mod_doc.txt
+@@ -1,6 +1,7 @@
+ # go doc should find module documentation
+ 
+ env GO111MODULE=on
++[short] skip
+ 
+ go doc y
+ stdout 'Package y is.*alphabet'
+diff --git a/src/cmd/go/testdata/script/mod_download.txt b/src/cmd/go/testdata/script/mod_download.txt
+index 62b9eee547..c6729c71a2 100644
+--- a/src/cmd/go/testdata/script/mod_download.txt
++++ b/src/cmd/go/testdata/script/mod_download.txt
+@@ -10,6 +10,7 @@ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.mod
+ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.zip
+ 
+ # download of an invalid path should report the error
++[short] skip
+ ! go mod download this.domain.is.invalid/somemodule@v1.0.0
+ stderr 'this.domain.is.invalid'
+ ! go mod download -json this.domain.is.invalid/somemodule@v1.0.0
+diff --git a/src/cmd/go/testdata/script/mod_file_proxy.txt b/src/cmd/go/testdata/script/mod_file_proxy.txt
+index 570ffc761a..2769d4db07 100644
+--- a/src/cmd/go/testdata/script/mod_file_proxy.txt
++++ b/src/cmd/go/testdata/script/mod_file_proxy.txt
+@@ -1,3 +1,5 @@
++[short] skip
++
+ # Allow (cached) downloads for -mod=readonly.
+ env GO111MODULE=on
+ env GOPATH=$WORK/gopath1
+diff --git a/src/cmd/go/testdata/script/mod_get_commit.txt b/src/cmd/go/testdata/script/mod_get_commit.txt
+index cc84490317..f88eb692fd 100644
+--- a/src/cmd/go/testdata/script/mod_get_commit.txt
++++ b/src/cmd/go/testdata/script/mod_get_commit.txt
+@@ -1,11 +1,12 @@
+ env GO111MODULE=on
+ env GOPROXY=$GOPROXY/quiet
++[short] skip
+ 
+ # @commit should resolve
+ 
+ # golang.org/x/text/language@commit should not resolve with -m,
+ # because that's not a module path.
+-! go get -m golang.org/x/text/language@14c0d48
++! go get -d -m golang.org/x/text/language@14c0d48
+ 
+ # ... but it should work without -m.
+ # because of -d, the compiler should not run
+@@ -13,12 +14,13 @@ go get -d -x golang.org/x/text/language@14c0d48
+ ! stderr 'compile|cp|gccgo .*language\.a$'
+ 
+ # go get should skip build with no Go files in root
+-go get golang.org/x/text@14c0d48
++go get -d golang.org/x/text@14c0d48
+ 
+ # ... and go get should skip build with -m
+ go get -m golang.org/x/text@14c0d48
+ 
+ # dropping -d, we should see a build.
++[short] skip
+ go get -x golang.org/x/text/language@14c0d48
+ stderr 'compile|cp|gccgo .*language\.a$'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_downgrade.txt b/src/cmd/go/testdata/script/mod_get_downgrade.txt
+index ac814dae08..00cd93e598 100644
+--- a/src/cmd/go/testdata/script/mod_get_downgrade.txt
++++ b/src/cmd/go/testdata/script/mod_get_downgrade.txt
+@@ -1,4 +1,5 @@
+ env GO111MODULE=on
++[short] skip
+ 
+ # downgrade sampler should downgrade quote
+ go get rsc.io/sampler@v1.0.0
+diff --git a/src/cmd/go/testdata/script/mod_get_indirect.txt b/src/cmd/go/testdata/script/mod_get_indirect.txt
+index 2ba99244f9..f25e170a49 100644
+--- a/src/cmd/go/testdata/script/mod_get_indirect.txt
++++ b/src/cmd/go/testdata/script/mod_get_indirect.txt
+@@ -1,4 +1,5 @@
+ env GO111MODULE=on
++[short] skip
+ 
+ # get -u should not upgrade anything, since the package
+ # in the current directory doesn't import anything.
+diff --git a/src/cmd/go/testdata/script/mod_get_local.txt b/src/cmd/go/testdata/script/mod_get_local.txt
+index 2f78d44d2f..44a470ecfc 100644
+--- a/src/cmd/go/testdata/script/mod_get_local.txt
++++ b/src/cmd/go/testdata/script/mod_get_local.txt
+@@ -1,4 +1,5 @@
+ # Test 'go get' with a local module with a name that is not valid for network lookup.
++[short] skip
+ 
+ env GO111MODULE=on
+ go mod edit -fmt
+diff --git a/src/cmd/go/testdata/script/mod_get_main.txt b/src/cmd/go/testdata/script/mod_get_main.txt
+index 06f9f23877..14dcffeaad 100644
+--- a/src/cmd/go/testdata/script/mod_get_main.txt
++++ b/src/cmd/go/testdata/script/mod_get_main.txt
+@@ -1,4 +1,5 @@
+ env GO111MODULE=on
++[short] skip
+ 
+ # @patch and @latest within the main module refer to the current version.
+ # The main module won't be upgraded, but missing dependencies will be added.
+diff --git a/src/cmd/go/testdata/script/mod_get_moved.txt b/src/cmd/go/testdata/script/mod_get_moved.txt
+index 1cd0696d97..edc41cf948 100644
+--- a/src/cmd/go/testdata/script/mod_get_moved.txt
++++ b/src/cmd/go/testdata/script/mod_get_moved.txt
+@@ -1,5 +1,6 @@
+ env GO111MODULE=on
+ env GOPROXY=$GOPROXY/quiet
++[short] skip
+ 
+ # A 'go get' that worked at a previous version should continue to work at that version,
+ # even if the package was subsequently moved into a submodule.
+diff --git a/src/cmd/go/testdata/script/mod_get_patterns.txt b/src/cmd/go/testdata/script/mod_get_patterns.txt
+index 733d4452d7..9521c4f84a 100644
+--- a/src/cmd/go/testdata/script/mod_get_patterns.txt
++++ b/src/cmd/go/testdata/script/mod_get_patterns.txt
+@@ -1,4 +1,5 @@
+ env GO111MODULE=on
++[short] skip
+ 
+ # If a pattern doesn't match any modules in the build list,
+ # and -m is used, an error should be reported.
+diff --git a/src/cmd/go/testdata/script/mod_get_upgrade.txt b/src/cmd/go/testdata/script/mod_get_upgrade.txt
+index d591b1146b..f6ba53381b 100644
+--- a/src/cmd/go/testdata/script/mod_get_upgrade.txt
++++ b/src/cmd/go/testdata/script/mod_get_upgrade.txt
+@@ -6,30 +6,30 @@ stdout 'rsc.io/quote v1.5.1'
+ grep 'rsc.io/quote v1.5.1$' go.mod
+ 
+ # get -m -u should update all dependencies
+-go get -m -u
++go get -d -m -u
+ grep 'rsc.io/quote v1.5.2$' go.mod
+ grep 'golang.org/x/text [v0-9a-f\.-]+ // indirect' go.mod
+ 
+ # get -u rsc.io/sampler should update only sampler's dependencies
+ cp go.mod-v1.5.1 go.mod
+-go get -u rsc.io/sampler
++go get -d -u rsc.io/sampler
+ grep 'rsc.io/quote v1.5.1$' go.mod
+ grep 'golang.org/x/text [v0-9a-f\.-]+ // indirect' go.mod
+ 
+ # move to a pseudo-version after any tags
+-go get -m rsc.io/quote@dd9747d
++go get -d -m rsc.io/quote@dd9747d
+ grep 'rsc.io/quote v0.0.0-20180628003336-dd9747d19b04' go.mod
+ 
+ # get -u should not jump off newer pseudo-version to earlier tag
+-go get -m -u
++go get -d -m -u
+ grep 'rsc.io/quote v0.0.0-20180628003336-dd9747d19b04' go.mod
+ 
+ # move to earlier pseudo-version
+-go get -m rsc.io/quote@e7a685a342
++go get -d -m rsc.io/quote@e7a685a342
+ grep 'rsc.io/quote v0.0.0-20180214005133-e7a685a342c0' go.mod
+ 
+ # get -u should jump off earlier pseudo-version to newer tag
+-go get -m -u
++go get -d -m -u
+ grep 'rsc.io/quote v1.5.2' go.mod
+ 
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/mod_gobuild_import.txt b/src/cmd/go/testdata/script/mod_gobuild_import.txt
+index 25764b797e..eb2284e561 100644
+--- a/src/cmd/go/testdata/script/mod_gobuild_import.txt
++++ b/src/cmd/go/testdata/script/mod_gobuild_import.txt
+@@ -1,3 +1,5 @@
++[short] skip
++
+ # go/build's Import should find modules by invoking the go command
+ 
+ go build -o $WORK/testimport.exe ./testimport
+diff --git a/src/cmd/go/testdata/script/mod_internal.txt b/src/cmd/go/testdata/script/mod_internal.txt
+index 5a47c3fa44..5a361a4f42 100644
+--- a/src/cmd/go/testdata/script/mod_internal.txt
++++ b/src/cmd/go/testdata/script/mod_internal.txt
+@@ -1,4 +1,5 @@
+ env GO111MODULE=on
++[short] skip
+ 
+ # golang.org/x/internal should be importable from other golang.org/x modules.
+ rm go.mod
+diff --git a/src/cmd/go/testdata/script/mod_list.txt b/src/cmd/go/testdata/script/mod_list.txt
+index c9797ea836..a15f5bca63 100644
+--- a/src/cmd/go/testdata/script/mod_list.txt
++++ b/src/cmd/go/testdata/script/mod_list.txt
+@@ -1,4 +1,5 @@
+ env GO111MODULE=on
++[short] skip
+ 
+ # list {{.Dir}} shows main module and go.mod but not not-yet-downloaded dependency dir.
+ go list -m -f '{{.Path}} {{.Main}} {{.GoMod}} {{.Dir}}' all
+diff --git a/src/cmd/go/testdata/script/mod_list_dir.txt b/src/cmd/go/testdata/script/mod_list_dir.txt
+index 903651c9d5..c4db045631 100644
+--- a/src/cmd/go/testdata/script/mod_list_dir.txt
++++ b/src/cmd/go/testdata/script/mod_list_dir.txt
+@@ -1,3 +1,5 @@
++[short] skip
++
+ # go list with path to directory should work
+ 
+ env GO111MODULE=off
+diff --git a/src/cmd/go/testdata/script/mod_list_std.txt b/src/cmd/go/testdata/script/mod_list_std.txt
+index f5136a5de0..8552aebf42 100644
+--- a/src/cmd/go/testdata/script/mod_list_std.txt
++++ b/src/cmd/go/testdata/script/mod_list_std.txt
+@@ -2,6 +2,7 @@ env GO111MODULE=on
+ env GOPROXY=off
+ 
+ [!gc] skip
++[short] skip
+ 
+ # Outside of GOROOT, our vendored packages should be reported as part of the standard library.
+ go list -f '{{if .Standard}}{{.ImportPath}}{{end}}' std cmd
+diff --git a/src/cmd/go/testdata/script/mod_outside.txt b/src/cmd/go/testdata/script/mod_outside.txt
+index db994a1656..c3d53e035b 100644
+--- a/src/cmd/go/testdata/script/mod_outside.txt
++++ b/src/cmd/go/testdata/script/mod_outside.txt
+@@ -1,4 +1,5 @@
+ env GO111MODULE=on
++[short] skip
+ 
+ # This script tests commands in module mode outside of any module.
+ #
+diff --git a/src/cmd/go/testdata/script/mod_patterns.txt b/src/cmd/go/testdata/script/mod_patterns.txt
+index ab936a9ba4..1b4b4380b4 100644
+--- a/src/cmd/go/testdata/script/mod_patterns.txt
++++ b/src/cmd/go/testdata/script/mod_patterns.txt
+@@ -1,4 +1,5 @@
+ env GO111MODULE=on
++[short] skip
+ 
+ cd m
+ 
+@@ -29,10 +30,6 @@ stdout 'cmd/pprof: \[\.\.\.\]'
+ 
+ stderr -count=1 '^go: warning: "./xyz..." matched no packages$'
+ 
+-env CGO_ENABLED=0
+-go list -f '{{.ImportPath}}: {{.Match}}' all ... example.com/m/... ./... ./xyz...
+-! stdout example.com/m/useC
+-
+ # 'go list ./...' should not try to resolve the main module.
+ cd ../empty
+ go list -deps ./...
+@@ -40,6 +37,12 @@ go list -deps ./...
+ ! stderr 'finding'
+ stderr -count=1 '^go: warning: "./..." matched no packages'
+ 
++# disabling cgo should drop useC
++[short] skip
++env CGO_ENABLED=0
++go list -f '{{.ImportPath}}: {{.Match}}' all ... example.com/m/... ./... ./xyz...
++! stdout example.com/m/useC
++
+ -- m/go.mod --
+ module example.com/m
+ 
+diff --git a/src/cmd/go/testdata/script/mod_readonly.txt b/src/cmd/go/testdata/script/mod_readonly.txt
+index 188a66d0e1..ff25f4bfe2 100644
+--- a/src/cmd/go/testdata/script/mod_readonly.txt
++++ b/src/cmd/go/testdata/script/mod_readonly.txt
+@@ -1,4 +1,5 @@
+ env GO111MODULE=on
++[short] skip
+ 
+ # -mod=readonly must not resolve missing modules nor update go.mod
+ #
+diff --git a/src/cmd/go/testdata/script/mod_replace.txt b/src/cmd/go/testdata/script/mod_replace.txt
+index 78d6729fce..35824b3a8a 100644
+--- a/src/cmd/go/testdata/script/mod_replace.txt
++++ b/src/cmd/go/testdata/script/mod_replace.txt
+@@ -1,4 +1,5 @@
+ env GO111MODULE=on
++[short] skip
+ 
+ cp go.mod go.mod.orig
+ 
+diff --git a/src/cmd/go/testdata/script/mod_test.txt b/src/cmd/go/testdata/script/mod_test.txt
+index af4fd76d70..8f2da2f2a5 100644
+--- a/src/cmd/go/testdata/script/mod_test.txt
++++ b/src/cmd/go/testdata/script/mod_test.txt
+@@ -1,4 +1,5 @@
+ env GO111MODULE=on
++[short] skip
+ 
+ # TODO(bcmills): Convert the 'go test' calls below to 'go list -test' once 'go
+ # list' is more sensitive to package loading errors.
+@@ -6,8 +7,8 @@ env GO111MODULE=on
+ # A test in the module's root package should work.
+ cd a/
+ cp go.mod.empty go.mod
+-go test
+-stdout PASS
++go list -test
++! stderr error
+ 
+ cp go.mod.empty go.mod
+ go list -deps
+@@ -33,27 +34,27 @@ go list -test all
+ stdout '^testing'
+ 
+ cp go.mod.empty go.mod
+-go test
+-stdout PASS
++go list -test
++! stderr error
+ 
+ # A test with the "_test" suffix in the module root should also work.
+ cd ../b/
+-go test
+-stdout PASS
++go list -test
++! stderr error
+ 
+ # A test with the "_test" suffix of a *package* with a "_test" suffix should
+ # even work (not that you should ever do that).
+ cd ../c_test
+-go test
+-stdout PASS
++go list -test
++! stderr error
+ 
+ cd ../d_test
+-go test
+-stdout PASS
++go list -test
++! stderr error
+ 
+ cd ../e
+-go test
+-stdout PASS
++go list -test
++! stderr error
+ 
+ -- a/go.mod.empty --
+ module example.com/user/a
+diff --git a/src/cmd/go/testdata/script/mod_tidy_replace.txt b/src/cmd/go/testdata/script/mod_tidy_replace.txt
+index 86467a6545..d5c2253094 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_replace.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_replace.txt
+@@ -1,4 +1,5 @@
+ env GO111MODULE=on
++[short] skip
+ 
+ # golang.org/issue/30166: 'go mod tidy' should not crash if a replaced module is
+ # involved in a cycle.
+diff --git a/src/cmd/go/testdata/script/mod_tidy_sum.txt b/src/cmd/go/testdata/script/mod_tidy_sum.txt
+index 5a15818543..c583f56058 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_sum.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_sum.txt
+@@ -1,12 +1,12 @@
+ env GO111MODULE=on
+ 
+ # go.sum should list directly used modules and dependencies
+-go get rsc.io/quote@v1.5.2
++go get -d rsc.io/quote@v1.5.2
+ go mod tidy
+ grep rsc.io/sampler go.sum
+ 
+ # go.sum should not normally lose old entries
+-go get rsc.io/quote@v1.0.0
++go get -d rsc.io/quote@v1.0.0
+ grep 'rsc.io/quote v1.0.0' go.sum
+ grep 'rsc.io/quote v1.5.2' go.sum
+ grep rsc.io/sampler go.sum
+diff --git a/src/cmd/go/testdata/script/mod_upgrade_patch_mod.txt b/src/cmd/go/testdata/script/mod_upgrade_patch_mod.txt
+index 3427cd7785..a539000964 100644
+--- a/src/cmd/go/testdata/script/mod_upgrade_patch_mod.txt
++++ b/src/cmd/go/testdata/script/mod_upgrade_patch_mod.txt
+@@ -1,4 +1,5 @@
+ env GO111MODULE=on
++[short] skip
+ 
+ # Initially, we are at v1.0.0 for all dependencies.
+ cp go.mod go.mod.orig
+diff --git a/src/cmd/go/testdata/script/mod_upgrade_patch_pkg.txt b/src/cmd/go/testdata/script/mod_upgrade_patch_pkg.txt
+index 114dbc5f04..9b6dd3795d 100644
+--- a/src/cmd/go/testdata/script/mod_upgrade_patch_pkg.txt
++++ b/src/cmd/go/testdata/script/mod_upgrade_patch_pkg.txt
+@@ -1,4 +1,5 @@
+ env GO111MODULE=on
++[short] skip
+ 
+ # Initially, we are at v1.0.0 for all dependencies.
+ cp go.mod go.mod.orig
+@@ -11,7 +12,7 @@ stdout '^patch.example.com/indirect v1.0.0'
+ # of the package in the current directory, pulling in transitive dependencies
+ # and also patching those.
+ cp go.mod.orig go.mod
+-go get -u=patch
++go get -d -u=patch
+ go list -m all
+ stdout '^patch.example.com/direct v1.0.1'
+ stdout '^patch.example.com/indirect v1.0.1'
+@@ -19,7 +20,7 @@ stdout '^patch.example.com/depofdirectpatch v1.0.0'
+ 
+ # 'get all@patch' should be equivalent to 'get -u=patch all'
+ cp go.mod.orig go.mod
+-go get all@patch
++go get -d all@patch
+ go list -m all
+ stdout '^patch.example.com/direct v1.0.1'
+ stdout '^patch.example.com/indirect v1.0.1'
+@@ -28,7 +29,7 @@ stdout '^patch.example.com/depofdirectpatch v1.0.0'
+ # Requesting the direct dependency with -u=patch but without an explicit version
+ # should patch-update it and its dependencies.
+ cp go.mod.orig go.mod
+-go get -u=patch patch.example.com/direct
++go get -d -u=patch patch.example.com/direct
+ go list -m all
+ stdout '^patch.example.com/direct v1.0.1'
+ stdout '^patch.example.com/indirect v1.0.1'
+@@ -36,7 +37,7 @@ stdout '^patch.example.com/depofdirectpatch v1.0.0'
+ 
+ # Requesting only the indirect dependency should not update the direct one.
+ cp go.mod.orig go.mod
+-go get -u=patch patch.example.com/indirect
++go get -d -u=patch patch.example.com/indirect
+ go list -m all
+ stdout '^patch.example.com/direct v1.0.0'
+ stdout '^patch.example.com/indirect v1.0.1'
+@@ -45,7 +46,7 @@ stdout '^patch.example.com/indirect v1.0.1'
+ # @patch should apply only to the specific module,
+ # but the result must reflect its upgraded requirements.
+ cp go.mod.orig go.mod
+-go get patch.example.com/direct@patch
++go get -d patch.example.com/direct@patch
+ go list -m all
+ stdout '^patch.example.com/direct v1.0.1'
+ stdout '^patch.example.com/indirect v1.0.0'
+@@ -53,7 +54,7 @@ stdout '^patch.example.com/depofdirectpatch v1.0.0'
+ 
+ # An explicit @patch should override a general -u.
+ cp go.mod.orig go.mod
+-go get -u patch.example.com/direct@patch
++go get -d -u patch.example.com/direct@patch
+ go list -m all
+ stdout '^patch.example.com/direct v1.0.1'
+ stdout '^patch.example.com/indirect v1.1.0'
+@@ -61,7 +62,7 @@ stdout '^patch.example.com/depofdirectpatch v1.0.0'
+ 
+ # An explicit @latest should override a general -u=patch.
+ cp go.mod.orig go.mod
+-go get -u=patch patch.example.com/direct@latest
++go get -d -u=patch patch.example.com/direct@latest
+ go list -m all
+ stdout '^patch.example.com/direct v1.1.0'
+ stdout '^patch.example.com/indirect v1.0.1'
+@@ -73,7 +74,7 @@ cp go.mod.orig go.mod
+ stderr 'cannot use pattern .* with explicit version'
+ 
+ # However, standard-library packages without explicit versions are fine.
+-go get -u=patch -d cmd/go
++go get -d -u=patch -d cmd/go
+ 
+ 
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/mod_vendor_build.txt b/src/cmd/go/testdata/script/mod_vendor_build.txt
+index da3fd91055..24920a36b6 100644
+--- a/src/cmd/go/testdata/script/mod_vendor_build.txt
++++ b/src/cmd/go/testdata/script/mod_vendor_build.txt
+@@ -1,4 +1,5 @@
+ env GO111MODULE=on
++[short] skip
+ 
+ # initial conditions: using sampler v1.3.0, not listed in go.mod.
+ go list -deps
+diff --git a/src/cmd/go/testdata/script/mod_verify.txt b/src/cmd/go/testdata/script/mod_verify.txt
+index 50c9b4a437..646bc62bb7 100644
+--- a/src/cmd/go/testdata/script/mod_verify.txt
++++ b/src/cmd/go/testdata/script/mod_verify.txt
+@@ -1,4 +1,5 @@
+ env GO111MODULE=on
++[short] skip
+ 
+ # With good go.sum, verify succeeds by avoiding download.
+ cp go.sum.good go.sum
+diff --git a/src/cmd/go/testdata/script/mod_why.txt b/src/cmd/go/testdata/script/mod_why.txt
+index 4d556fc73f..10a4f9fbea 100644
+--- a/src/cmd/go/testdata/script/mod_why.txt
++++ b/src/cmd/go/testdata/script/mod_why.txt
+@@ -1,4 +1,5 @@
+ env GO111MODULE=on
++[short] skip
+ 
+ go list -test all
+ stdout rsc.io/quote
+diff --git a/src/cmd/go/testdata/script/run_set_executable_name.txt b/src/cmd/go/testdata/script/run_set_executable_name.txt
+index e12aed0f00..54ddee9ae1 100644
+--- a/src/cmd/go/testdata/script/run_set_executable_name.txt
++++ b/src/cmd/go/testdata/script/run_set_executable_name.txt
+@@ -1,4 +1,6 @@
+ env GO111MODULE=on
++[short] skip
++
+ # Check for correct naming of temporary executable
+ 
+ #Test for single file specified
+diff --git a/src/cmd/go/testdata/script/sum_readonly.txt b/src/cmd/go/testdata/script/sum_readonly.txt
+index 6a24adbdf4..8aa61166ac 100644
+--- a/src/cmd/go/testdata/script/sum_readonly.txt
++++ b/src/cmd/go/testdata/script/sum_readonly.txt
+@@ -1,17 +1,17 @@
+ # Test that go.sum does not get updated when -mod=readonly flag is set
+ env GO111MODULE=on
+ 
+-go get rsc.io/quote
++go get -d rsc.io/quote
+ go mod tidy
+ 
+ # go.sum != dirty; -mod=readonly
+-go build -mod=readonly
++go list -mod=readonly
+ 
+ # dirty up go.sum by removing it.
+ rm go.sum
+ 
+ # go.sum == dirty; -mod=readonly
+-! go build -mod=readonly
++! go list -mod=readonly
+ 
+ stderr 'go: updates to go.sum needed, disabled by -mod=readonly'
+ 
+diff --git a/src/cmd/go/testdata/script/test_init.txt b/src/cmd/go/testdata/script/test_init.txt
+index 43471557f3..73b4f3c768 100644
+--- a/src/cmd/go/testdata/script/test_init.txt
++++ b/src/cmd/go/testdata/script/test_init.txt
+@@ -4,61 +4,68 @@ env GO111MODULE=on
+ 
+ # A TestMain should be able to access testing flags if it calls flag.Parse
+ # without needing to use testing.Init.
+-go test testmain_flag_test.go
+-
+ # Test code can use the name 'testing' without colliding with generated
+ # testinginit code.
+-go test testing_collision_test.go
+-
+ # Tests running under 'go test' should observe that testing.Init is called
+ # before any user package initialization code runs.
+-go test ./testinitflag
++go test
++stdout TestMain
++stdout TestInit
++stdout TestExt
++
++-- go.mod --
++module m
+ 
+--- testmain_flag_test.go --
+-package testmain_flag_test
++-- init_test.go --
++package testinitflag
+ 
+ import (
+ 	"flag"
+ 	"fmt"
+ 	"os"
+-	"testing"
++	Testing "testing"
+ )
+ 
+-func TestMain(m *testing.M) {
+-	flag.Parse()
++func testFlagsInitialized() bool {
+ 	found := false
+ 	flag.VisitAll(func(f *flag.Flag) {
+ 		if f.Name == "test.count" {
+ 			found = true
+ 		}
+ 	})
+-	if !found {
++	return found
++}
++
++var testing int
++var testingInitAtInitialization = testFlagsInitialized()
++
++func TestInit(t *Testing.T) {
++	if !testingInitAtInitialization {
++		t.Fatal("testing.Init not called before package initialization")
++	}
++	fmt.Printf("TestInit\n")
++}
++
++func TestMain(m *Testing.M) {
++	fmt.Printf("TestMain\n")
++	flag.Parse()
++	if !testFlagsInitialized() {
+ 		fmt.Println("testing flags not registered")
+ 		os.Exit(1)
+ 	}
+ 	os.Exit(m.Run())
+ }
+ 
+-func TestX(t *testing.T) {}
+-
+--- testing_collision_test.go --
+-package testing_collision_test
+-
+-import testing2 "testing"
+-
+-var testing = 3
+-
+-func TestX(t *testing2.T) {}
+-
+--- go.mod --
+-module m
+-
+--- testinitflag/init.go --
+-package testinitflag
++-- external_test.go --
++package testinitflag_test
+ 
+-import "flag"
++import (
++	"flag"
++	"fmt"
++	Testing "testing"
++)
+ 
+-func TestFlagsInitialized() bool {
++func testFlagsInitialized() bool {
+ 	found := false
+ 	flag.VisitAll(func(f *flag.Flag) {
+ 		if f.Name == "test.count" {
+@@ -68,30 +75,11 @@ func TestFlagsInitialized() bool {
+ 	return found
+ }
+ 
+--- testinitflag/init_test.go --
+-package testinitflag
+-
+-import "testing"
+-
+-var testingInitAtInitialization = TestFlagsInitialized()
+-
+-func TestInit(t *testing.T) {
+-	if !testingInitAtInitialization {
+-		t.Fatal("testing.Init not called before package initialization")
+-	}
+-}
+-
+--- testinitflag/external_test.go --
+-package testinitflag_test
+-
+-import (
+-	"testing"
+-	"m/testinitflag"
+-)
+-
+-var testingInitAtInitialization = testinitflag.TestFlagsInitialized()
++var testing int
++var testingInitAtInitialization = testFlagsInitialized()
+ 
+-func TestInitExternal(t *testing.T) {
++func TestExt(t *Testing.T) {
++	fmt.Printf("TestExt\n")
+ 	if !testingInitAtInitialization {
+ 		t.Fatal("testing.Init not called before package initialization")
+ 	}
+diff --git a/src/cmd/go/testdata/script/test_timeout.txt b/src/cmd/go/testdata/script/test_timeout.txt
+index 9087a9030e..8dead0a439 100644
+--- a/src/cmd/go/testdata/script/test_timeout.txt
++++ b/src/cmd/go/testdata/script/test_timeout.txt
+@@ -1,3 +1,4 @@
++[short] skip
+ env GO111MODULE=off
+ cd a
+ 
+diff --git a/src/cmd/go/testdata/script/version.txt b/src/cmd/go/testdata/script/version.txt
+index 84cb23a362..cb4881f7a7 100644
+--- a/src/cmd/go/testdata/script/version.txt
++++ b/src/cmd/go/testdata/script/version.txt
+@@ -1,4 +1,6 @@
+ env GO111MODULE=on
++[short] skip
++
+ go build -o fortune.exe rsc.io/fortune
+ go version fortune.exe
+ stdout '^fortune.exe: .+'
+diff --git a/src/cmd/go/testdata/script/vet_asm.txt b/src/cmd/go/testdata/script/vet_asm.txt
+index ea920ea866..59b35ec7c2 100644
+--- a/src/cmd/go/testdata/script/vet_asm.txt
++++ b/src/cmd/go/testdata/script/vet_asm.txt
+@@ -2,8 +2,7 @@ env GO111MODULE=off
+ 
+ # Issue 27665. Verify that "go vet" analyzes non-Go files.
+ 
+-env GOOS=linux
+-env GOARCH=amd64
++[!amd64] skip
+ ! go vet -asmdecl a
+ stderr 'f: invalid MOVW of x'
+ 

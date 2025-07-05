@@ -14,8 +14,223 @@ Date:   Thu May 27 02:47:25 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/irgen.go | 33 +++++++++++++-------
  src/cmd/compile/internal/noder/noder.go | 47 ++++++++++++++--------------
  src/cmd/compile/internal/noder/types.go | 55 +++++++++++++++++----------------
  3 files changed, 74 insertions(+), 61 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index abaaa8cbb0..d5ef0c0ef4 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -18,9 +18,9 @@ import (
+ 	"cmd/internal/src"
+ )
+ 
+-// check2 type checks a Go package using types2, and then generates IR
+-// using the results.
+-func check2(noders []*noder) {
++// checkFiles configures and runs the types2 checker on the given
++// parsed source files and then returns the result.
++func checkFiles(noders []*noder, importer types2.Importer) (posMap, *types2.Package, *types2.Info) {
+ 	if base.SyntaxErrors() != 0 {
+ 		base.ErrorExit()
+ 	}
+@@ -42,12 +42,10 @@ func check2(noders []*noder) {
+ 			terr := err.(types2.Error)
+ 			base.ErrorfAt(m.makeXPos(terr.Pos), "%s", terr.Msg)
+ 		},
+-		Importer: &gcimports{
+-			packages: make(map[string]*types2.Package),
+-		},
+-		Sizes: &gcSizes{},
++		Importer: importer,
++		Sizes:    &gcSizes{},
+ 	}
+-	info := types2.Info{
++	info := &types2.Info{
+ 		Types:      make(map[syntax.Expr]types2.TypeAndValue),
+ 		Defs:       make(map[*syntax.Name]types2.Object),
+ 		Uses:       make(map[*syntax.Name]types2.Object),
+@@ -57,12 +55,25 @@ func check2(noders []*noder) {
+ 		Inferred:   make(map[syntax.Expr]types2.Inferred),
+ 		// expand as needed
+ 	}
+-	pkg, err := conf.Check(base.Ctxt.Pkgpath, files, &info)
+-	files = nil
++
++	pkg, err := conf.Check(base.Ctxt.Pkgpath, files, info)
+ 	base.ExitIfErrors()
+ 	if err != nil {
+ 		base.FatalfAt(src.NoXPos, "conf.Check error: %v", err)
+ 	}
++
++	return m, pkg, info
++}
++
++// check2 type checks a Go package using types2, and then generates IR
++// using the results.
++func check2(noders []*noder) {
++	importer := &gcimports{
++		packages: make(map[string]*types2.Package),
++	}
++
++	m, pkg, info := checkFiles(noders, importer)
++
+ 	if base.Flag.G < 2 {
+ 		os.Exit(0)
+ 	}
+@@ -70,7 +81,7 @@ func check2(noders []*noder) {
+ 	g := irgen{
+ 		target: typecheck.Target,
+ 		self:   pkg,
+-		info:   &info,
++		info:   info,
+ 		posMap: m,
+ 		objs:   make(map[types2.Object]*ir.Name),
+ 		typs:   make(map[types2.Type]*types.Type),
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 44385f34fd..2fb852b184 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -5,6 +5,7 @@
+ package noder
+ 
+ import (
++	"errors"
+ 	"fmt"
+ 	"go/constant"
+ 	"go/token"
+@@ -1852,33 +1853,14 @@ func oldname(s *types.Sym) ir.Node {
+ }
+ 
+ func varEmbed(makeXPos func(syntax.Pos) src.XPos, name *ir.Name, decl *syntax.VarDecl, pragma *pragmas, haveEmbed bool) {
+-	if pragma.Embeds == nil {
+-		return
+-	}
+-
+ 	pragmaEmbeds := pragma.Embeds
+ 	pragma.Embeds = nil
+-	pos := makeXPos(pragmaEmbeds[0].Pos)
+-
+-	if !haveEmbed {
+-		base.ErrorfAt(pos, "go:embed only allowed in Go files that import \"embed\"")
+-		return
+-	}
+-	if len(decl.NameList) > 1 {
+-		base.ErrorfAt(pos, "go:embed cannot apply to multiple vars")
++	if len(pragmaEmbeds) == 0 {
+ 		return
+ 	}
+-	if decl.Values != nil {
+-		base.ErrorfAt(pos, "go:embed cannot apply to var with initializer")
+-		return
+-	}
+-	if decl.Type == nil {
+-		// Should not happen, since Values == nil now.
+-		base.ErrorfAt(pos, "go:embed cannot apply to var without type")
+-		return
+-	}
+-	if typecheck.DeclContext != ir.PEXTERN {
+-		base.ErrorfAt(pos, "go:embed cannot apply to var inside func")
++
++	if err := checkEmbed(decl, haveEmbed, typecheck.DeclContext != ir.PEXTERN); err != nil {
++		base.ErrorfAt(makeXPos(pragmaEmbeds[0].Pos), "%s", err)
+ 		return
+ 	}
+ 
+@@ -1889,3 +1871,22 @@ func varEmbed(makeXPos func(syntax.Pos) src.XPos, name *ir.Name, decl *syntax.Va
+ 	typecheck.Target.Embeds = append(typecheck.Target.Embeds, name)
+ 	name.Embed = &embeds
+ }
++
++func checkEmbed(decl *syntax.VarDecl, haveEmbed, withinFunc bool) error {
++	switch {
++	case !haveEmbed:
++		return errors.New("go:embed only allowed in Go files that import \"embed\"")
++	case len(decl.NameList) > 1:
++		return errors.New("go:embed cannot apply to multiple vars")
++	case decl.Values != nil:
++		return errors.New("go:embed cannot apply to var with initializer")
++	case decl.Type == nil:
++		// Should not happen, since Values == nil now.
++		return errors.New("go:embed cannot apply to var without type")
++	case withinFunc:
++		return errors.New("go:embed cannot apply to var inside func")
++
++	default:
++		return nil
++	}
++}
+diff --git a/src/cmd/compile/internal/noder/types.go b/src/cmd/compile/internal/noder/types.go
+index ae10e03a24..f34cf146bb 100644
+--- a/src/cmd/compile/internal/noder/types.go
++++ b/src/cmd/compile/internal/noder/types.go
+@@ -390,38 +390,39 @@ func (g *irgen) selector(obj types2.Object) *types.Sym {
+ // particular types is because go/types does *not* report it for
+ // them. So in practice this limitation is probably moot.
+ func (g *irgen) tpkg(typ types2.Type) *types.Pkg {
+-	anyObj := func() types2.Object {
+-		switch typ := typ.(type) {
+-		case *types2.Signature:
+-			if recv := typ.Recv(); recv != nil {
+-				return recv
+-			}
+-			if params := typ.Params(); params.Len() > 0 {
+-				return params.At(0)
+-			}
+-			if results := typ.Results(); results.Len() > 0 {
+-				return results.At(0)
+-			}
+-		case *types2.Struct:
+-			if typ.NumFields() > 0 {
+-				return typ.Field(0)
+-			}
+-		case *types2.Interface:
+-			if typ.NumExplicitMethods() > 0 {
+-				return typ.ExplicitMethod(0)
+-			}
+-		case *types2.TypeParam:
+-			return typ.Obj()
+-		}
+-		return nil
+-	}
+-
+-	if obj := anyObj(); obj != nil {
++	if obj := anyObj(typ); obj != nil {
+ 		return g.pkg(obj.Pkg())
+ 	}
+ 	return types.LocalPkg
+ }
+ 
++// anyObj returns some object accessible from typ, if any.
++func anyObj(typ types2.Type) types2.Object {
++	switch typ := typ.(type) {
++	case *types2.Signature:
++		if recv := typ.Recv(); recv != nil {
++			return recv
++		}
++		if params := typ.Params(); params.Len() > 0 {
++			return params.At(0)
++		}
++		if results := typ.Results(); results.Len() > 0 {
++			return results.At(0)
++		}
++	case *types2.Struct:
++		if typ.NumFields() > 0 {
++			return typ.Field(0)
++		}
++	case *types2.Interface:
++		if typ.NumExplicitMethods() > 0 {
++			return typ.ExplicitMethod(0)
++		}
++	case *types2.TypeParam:
++		return typ.Obj()
++	}
++	return nil
++}
++
+ func (g *irgen) basic(typ *types2.Basic) *types.Type {
+ 	switch typ.Name() {
+ 	case "byte":

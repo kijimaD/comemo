@@ -14,7 +14,7 @@ Date:   Mon Jul 18 21:59:14 2016 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/asm/internal/asm/asm.go         | 28 +++++++++++++--------------
  src/cmd/compile/internal/arm/peep.go    |  4 ++--
  src/cmd/compile/internal/arm64/peep.go  |  4 ++--
@@ -31,3 +31,651 @@ Date:   Mon Jul 18 21:59:14 2016 -0700
  src/cmd/internal/obj/x86/asm6.go        |  2 +-
  src/cmd/internal/obj/x86/obj6.go        |  2 +-
  15 files changed, 68 insertions(+), 68 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index c9c64203ae..3b41bb9bb1 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -403,7 +403,7 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
+ 
+ 		fallthrough
+ 	default:
+-		p.errorf("wrong number of arguments to %s instruction", obj.Aconv(op))
++		p.errorf("wrong number of arguments to %s instruction", op)
+ 		return
+ 	}
+ 	switch {
+@@ -476,7 +476,7 @@ func (p *Parser) branch(jmp, target *obj.Prog) {
+ // asmInstruction assembles an instruction.
+ // MOVW R9, (R10)
+ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+-	// fmt.Printf("%s %+v\n", obj.Aconv(op), a)
++	// fmt.Printf("%s %+v\n", op, a)
+ 	prog := &obj.Prog{
+ 		Ctxt:   p.ctxt,
+ 		Lineno: p.histLineNum,
+@@ -525,7 +525,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 					prog.To = a[1]
+ 					break
+ 				}
+-				p.errorf("unrecognized addressing for %s", obj.Aconv(op))
++				p.errorf("unrecognized addressing for %s", op)
+ 				return
+ 			}
+ 			if arch.IsARMFloatCmp(op) {
+@@ -572,7 +572,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 			// Catch missing operand here, because we store immediate as part of From3, and can't distinguish
+ 			// missing operand from legal value 0 in obj/x86/asm6.
+ 			if arch.IsAMD4OP(op) {
+-				p.errorf("4 operands required, but only 3 are provided for %s instruction", obj.Aconv(op))
++				p.errorf("4 operands required, but only 3 are provided for %s instruction", op)
+ 			}
+ 			prog.From = a[0]
+ 			prog.From3 = newAddr(a[1])
+@@ -583,7 +583,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 				prog.From = a[0]
+ 				prog.To = a[1]
+ 				if a[2].Type != obj.TYPE_REG {
+-					p.errorf("invalid addressing modes for third operand to %s instruction, must be register", obj.Aconv(op))
++					p.errorf("invalid addressing modes for third operand to %s instruction, must be register", op)
+ 					return
+ 				}
+ 				prog.RegTo2 = a[2].Reg
+@@ -619,7 +619,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 				prog.From3 = newAddr(a[1])
+ 				prog.To = a[2]
+ 			default:
+-				p.errorf("invalid addressing modes for %s instruction", obj.Aconv(op))
++				p.errorf("invalid addressing modes for %s instruction", op)
+ 				return
+ 			}
+ 		case sys.S390X:
+@@ -656,10 +656,10 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 			prog.From = a[1]
+ 			prog.From3 = newAddr(a[2])
+ 			if a[0].Type != obj.TYPE_CONST {
+-				p.errorf("first operand must be an immediate in %s instruction", obj.Aconv(op))
++				p.errorf("first operand must be an immediate in %s instruction", op)
+ 			}
+ 			if prog.From3.Type != obj.TYPE_REG {
+-				p.errorf("third operand must be a register in %s instruction", obj.Aconv(op))
++				p.errorf("third operand must be a register in %s instruction", op)
+ 			}
+ 			prog.From3.Offset = int64(p.getImmediate(prog, op, &a[0]))
+ 			prog.To = a[3]
+@@ -690,7 +690,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 			prog.To = a[3]
+ 			break
+ 		}
+-		p.errorf("can't handle %s instruction with 4 operands", obj.Aconv(op))
++		p.errorf("can't handle %s instruction with 4 operands", op)
+ 		return
+ 	case 5:
+ 		if p.arch.Family == sys.PPC64 && arch.IsPPC64RLD(op) {
+@@ -712,7 +712,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 			prog.To = a[4]
+ 			break
+ 		}
+-		p.errorf("can't handle %s instruction with 5 operands", obj.Aconv(op))
++		p.errorf("can't handle %s instruction with 5 operands", op)
+ 		return
+ 	case 6:
+ 		if p.arch.Family == sys.ARM && arch.IsARMMRC(op) {
+@@ -736,7 +736,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 		}
+ 		fallthrough
+ 	default:
+-		p.errorf("can't handle %s instruction with %d operands", obj.Aconv(op), len(a))
++		p.errorf("can't handle %s instruction with %d operands", op, len(a))
+ 		return
+ 	}
+ 
+@@ -771,7 +771,7 @@ func (p *Parser) getConstantPseudo(pseudo string, addr *obj.Addr) int64 {
+ // getConstant checks that addr represents a plain constant and returns its value.
+ func (p *Parser) getConstant(prog *obj.Prog, op obj.As, addr *obj.Addr) int64 {
+ 	if addr.Type != obj.TYPE_MEM || addr.Name != 0 || addr.Reg != 0 || addr.Index != 0 {
+-		p.errorf("%s: expected integer constant; found %s", obj.Aconv(op), obj.Dconv(prog, addr))
++		p.errorf("%s: expected integer constant; found %s", op, obj.Dconv(prog, addr))
+ 	}
+ 	return addr.Offset
+ }
+@@ -779,7 +779,7 @@ func (p *Parser) getConstant(prog *obj.Prog, op obj.As, addr *obj.Addr) int64 {
+ // getImmediate checks that addr represents an immediate constant and returns its value.
+ func (p *Parser) getImmediate(prog *obj.Prog, op obj.As, addr *obj.Addr) int64 {
+ 	if addr.Type != obj.TYPE_CONST || addr.Name != 0 || addr.Reg != 0 || addr.Index != 0 {
+-		p.errorf("%s: expected immediate constant; found %s", obj.Aconv(op), obj.Dconv(prog, addr))
++		p.errorf("%s: expected immediate constant; found %s", op, obj.Dconv(prog, addr))
+ 	}
+ 	return addr.Offset
+ }
+@@ -787,7 +787,7 @@ func (p *Parser) getImmediate(prog *obj.Prog, op obj.As, addr *obj.Addr) int64 {
+ // getRegister checks that addr represents a register and returns its value.
+ func (p *Parser) getRegister(prog *obj.Prog, op obj.As, addr *obj.Addr) int16 {
+ 	if addr.Type != obj.TYPE_REG || addr.Offset != 0 || addr.Name != 0 || addr.Index != 0 {
+-		p.errorf("%s: expected register; found %s", obj.Aconv(op), obj.Dconv(prog, addr))
++		p.errorf("%s: expected register; found %s", op, obj.Dconv(prog, addr))
+ 	}
+ 	return addr.Reg
+ }
+diff --git a/src/cmd/compile/internal/arm/peep.go b/src/cmd/compile/internal/arm/peep.go
+index e1c8e4d0d9..2c5896c2f7 100644
+--- a/src/cmd/compile/internal/arm/peep.go
++++ b/src/cmd/compile/internal/arm/peep.go
+@@ -538,7 +538,7 @@ gotit:
+ 	}
+ 
+ 	if gc.Debug['P'] != 0 {
+-		fmt.Printf(" => %v\n", obj.Aconv(p.As))
++		fmt.Printf(" => %v\n", p.As)
+ 	}
+ 	return true
+ }
+@@ -1036,7 +1036,7 @@ func xtramodes(g *gc.Graph, r *gc.Flow, a *obj.Addr) bool {
+ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
+ 	switch p.As {
+ 	default:
+-		fmt.Printf("copyu: can't find %v\n", obj.Aconv(p.As))
++		fmt.Printf("copyu: can't find %v\n", p.As)
+ 		return 2
+ 
+ 	case arm.AMOVM:
+diff --git a/src/cmd/compile/internal/arm64/peep.go b/src/cmd/compile/internal/arm64/peep.go
+index e32c264215..9f07ae1479 100644
+--- a/src/cmd/compile/internal/arm64/peep.go
++++ b/src/cmd/compile/internal/arm64/peep.go
+@@ -162,7 +162,7 @@ loop1:
+ 			continue
+ 		}
+ 		if gc.Debug['P'] != 0 {
+-			fmt.Printf("encoding $%d directly into %v in:\n%v\n%v\n", p.From.Offset, obj.Aconv(p1.As), p, p1)
++			fmt.Printf("encoding $%d directly into %v in:\n%v\n%v\n", p.From.Offset, p1.As, p, p1)
+ 		}
+ 		p1.From.Type = obj.TYPE_CONST
+ 		p1.From = p.From
+@@ -423,7 +423,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
+ 
+ 	switch p.As {
+ 	default:
+-		fmt.Printf("copyu: can't find %v\n", obj.Aconv(p.As))
++		fmt.Printf("copyu: can't find %v\n", p.As)
+ 		return 2
+ 
+ 	case obj.ANOP, /* read p->from, write p->to */
+diff --git a/src/cmd/compile/internal/mips64/peep.go b/src/cmd/compile/internal/mips64/peep.go
+index 6bb51583e2..f6717e60f9 100644
+--- a/src/cmd/compile/internal/mips64/peep.go
++++ b/src/cmd/compile/internal/mips64/peep.go
+@@ -402,7 +402,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
+ 
+ 	switch p.As {
+ 	default:
+-		fmt.Printf("copyu: can't find %v\n", obj.Aconv(p.As))
++		fmt.Printf("copyu: can't find %v\n", p.As)
+ 		return 2
+ 
+ 	case obj.ANOP, /* read p->from, write p->to */
+diff --git a/src/cmd/compile/internal/ppc64/peep.go b/src/cmd/compile/internal/ppc64/peep.go
+index 6efe0b7747..4b2b985d91 100644
+--- a/src/cmd/compile/internal/ppc64/peep.go
++++ b/src/cmd/compile/internal/ppc64/peep.go
+@@ -601,7 +601,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
+ 
+ 	switch p.As {
+ 	default:
+-		fmt.Printf("copyu: can't find %v\n", obj.Aconv(p.As))
++		fmt.Printf("copyu: can't find %v\n", p.As)
+ 		return 2
+ 
+ 	case obj.ANOP, /* read p->from, write p->to */
+diff --git a/src/cmd/compile/internal/ppc64/prog.go b/src/cmd/compile/internal/ppc64/prog.go
+index 117eb24299..b08ec49f6d 100644
+--- a/src/cmd/compile/internal/ppc64/prog.go
++++ b/src/cmd/compile/internal/ppc64/prog.go
+@@ -313,7 +313,7 @@ func as2variant(as obj.As) int {
+ 			return i
+ 		}
+ 	}
+-	gc.Fatalf("as2variant: instruction %v is not a variant of itself", obj.Aconv(as&obj.AMask))
++	gc.Fatalf("as2variant: instruction %v is not a variant of itself", as&obj.AMask)
+ 	return 0
+ }
+ 
+diff --git a/src/cmd/compile/internal/s390x/peep.go b/src/cmd/compile/internal/s390x/peep.go
+index cd6a8c5d8c..aca8218988 100644
+--- a/src/cmd/compile/internal/s390x/peep.go
++++ b/src/cmd/compile/internal/s390x/peep.go
+@@ -419,7 +419,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) usage {
+ 
+ 	switch p.As {
+ 	default:
+-		fmt.Printf("copyu: can't find %v\n", obj.Aconv(p.As))
++		fmt.Printf("copyu: can't find %v\n", p.As)
+ 		return _ReadWriteSame
+ 
+ 	case // read p.From, write p.To
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 2158cf19fa..1e0ff57c7a 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -1191,7 +1191,7 @@ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
+ 	}
+ 
+ 	if false { /*debug['O']*/
+-		fmt.Printf("oplook %v %v %v %v\n", obj.Aconv(p.As), DRconv(a1), DRconv(a2), DRconv(a3))
++		fmt.Printf("oplook %v %v %v %v\n", p.As, DRconv(a1), DRconv(a2), DRconv(a3))
+ 		fmt.Printf("\t\t%d %d\n", p.From.Type, p.To.Type)
+ 	}
+ 
+@@ -1343,7 +1343,7 @@ func buildop(ctxt *obj.Link) {
+ 
+ 		switch r {
+ 		default:
+-			ctxt.Diag("unknown op in build: %v", obj.Aconv(r))
++			ctxt.Diag("unknown op in build: %v", r)
+ 			log.Fatalf("bad code")
+ 
+ 		case AADD:
+@@ -2636,7 +2636,7 @@ func opbra(ctxt *obj.Link, p *obj.Prog, a obj.As, sc int) uint32 {
+ 		return 0xe<<28 | 0x5<<25
+ 	}
+ 
+-	ctxt.Diag("bad bra %v", obj.Aconv(a))
++	ctxt.Diag("bad bra %v", a)
+ 	prasm(ctxt.Curp)
+ 	return 0
+ }
+@@ -2756,7 +2756,7 @@ func ofsr(ctxt *obj.Link, a obj.As, r int, v int32, b int, sc int, p *obj.Prog)
+ 
+ 	switch a {
+ 	default:
+-		ctxt.Diag("bad fst %v", obj.Aconv(a))
++		ctxt.Diag("bad fst %v", a)
+ 		fallthrough
+ 
+ 	case AMOVD:
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index fbf0378591..33acb826cb 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -1234,7 +1234,7 @@ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
+ 	}
+ 
+ 	if false {
+-		fmt.Printf("oplook %v %d %d %d\n", obj.Aconv(p.As), a1, a2, a3)
++		fmt.Printf("oplook %v %d %d %d\n", p.As, a1, a2, a3)
+ 		fmt.Printf("\t\t%d %d\n", p.From.Type, p.To.Type)
+ 	}
+ 
+@@ -1460,7 +1460,7 @@ func buildop(ctxt *obj.Link) {
+ 		oprangeset(r, t)
+ 		switch r {
+ 		default:
+-			ctxt.Diag("unknown op in build: %v", obj.Aconv(r))
++			ctxt.Diag("unknown op in build: %v", r)
+ 			log.Fatalf("bad code")
+ 
+ 		case AADD:
+@@ -2379,7 +2379,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 		s := movesize(o.as)
+ 
+ 		if s < 0 {
+-			ctxt.Diag("unexpected long move, op %v tab %v\n%v", obj.Aconv(p.As), obj.Aconv(o.as), p)
++			ctxt.Diag("unexpected long move, op %v tab %v\n%v", p.As, o.as, p)
+ 		}
+ 		v := int32(regoff(ctxt, &p.To))
+ 		if v < 0 {
+@@ -2406,7 +2406,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 		s := movesize(o.as)
+ 
+ 		if s < 0 {
+-			ctxt.Diag("unexpected long move, op %v tab %v\n%v", obj.Aconv(p.As), obj.Aconv(o.as), p)
++			ctxt.Diag("unexpected long move, op %v tab %v\n%v", p.As, o.as, p)
+ 		}
+ 		v := int32(regoff(ctxt, &p.From))
+ 		if v < 0 {
+@@ -2637,7 +2637,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 			o1 = opbfm(ctxt, AUBFMW, 0, 15, rf, rt)
+ 
+ 		default:
+-			ctxt.Diag("bad sxt %v", obj.Aconv(as))
++			ctxt.Diag("bad sxt %v", as)
+ 			break
+ 		}
+ 
+@@ -3470,7 +3470,7 @@ func oprrr(ctxt *obj.Link, a obj.As) uint32 {
+ 		return FPOP1S(0, 0, 3, 5)
+ 	}
+ 
+-	ctxt.Diag("bad rrr %d %v", a, obj.Aconv(a))
++	ctxt.Diag("bad rrr %d %v", a, a)
+ 	prasm(ctxt.Curp)
+ 	return 0
+ }
+@@ -3657,7 +3657,7 @@ func opirr(ctxt *obj.Link, a obj.As) uint32 {
+ 		return SYSOP(0, 0, 3, 2, 0, 0, 0x1F)
+ 	}
+ 
+-	ctxt.Diag("bad irr %v", obj.Aconv(a))
++	ctxt.Diag("bad irr %v", a)
+ 	prasm(ctxt.Curp)
+ 	return 0
+ }
+@@ -3733,7 +3733,7 @@ func opxrrr(ctxt *obj.Link, a obj.As) uint32 {
+ 		return S32 | 1<<30 | 1<<29 | 0x0b<<24 | 0<<22 | 1<<21 | LSL0_32
+ 	}
+ 
+-	ctxt.Diag("bad opxrrr %v\n%v", obj.Aconv(a), ctxt.Curp)
++	ctxt.Diag("bad opxrrr %v\n%v", a, ctxt.Curp)
+ 	return 0
+ }
+ 
+@@ -3767,7 +3767,7 @@ func opimm(ctxt *obj.Link, a obj.As) uint32 {
+ 		return SYSOP(0, 0, 3, 3, 0, 2, 0x1F)
+ 	}
+ 
+-	ctxt.Diag("bad imm %v", obj.Aconv(a))
++	ctxt.Diag("bad imm %v", a)
+ 	prasm(ctxt.Curp)
+ 	return 0
+ }
+@@ -3852,7 +3852,7 @@ func opbra(ctxt *obj.Link, a obj.As) uint32 {
+ 		return 1<<31 | 5<<26
+ 	}
+ 
+-	ctxt.Diag("bad bra %v", obj.Aconv(a))
++	ctxt.Diag("bad bra %v", a)
+ 	prasm(ctxt.Curp)
+ 	return 0
+ }
+@@ -3869,7 +3869,7 @@ func opbrr(ctxt *obj.Link, a obj.As) uint32 {
+ 		return OPBLR(2) /* RET */
+ 	}
+ 
+-	ctxt.Diag("bad brr %v", obj.Aconv(a))
++	ctxt.Diag("bad brr %v", a)
+ 	prasm(ctxt.Curp)
+ 	return 0
+ }
+@@ -3901,7 +3901,7 @@ func op0(ctxt *obj.Link, a obj.As) uint32 {
+ 		return SYSHINT(5)
+ 	}
+ 
+-	ctxt.Diag("bad op0 %v", obj.Aconv(a))
++	ctxt.Diag("bad op0 %v", a)
+ 	prasm(ctxt.Curp)
+ 	return 0
+ }
+@@ -3966,7 +3966,7 @@ func opload(ctxt *obj.Link, a obj.As) uint32 {
+ 		return S32 | 0<<30 | 5<<27 | 0<<26 | 0<<23 | 1<<22
+ 	}
+ 
+-	ctxt.Diag("bad opload %v\n%v", obj.Aconv(a), ctxt.Curp)
++	ctxt.Diag("bad opload %v\n%v", a, ctxt.Curp)
+ 	return 0
+ }
+ 
+@@ -4033,7 +4033,7 @@ func opstore(ctxt *obj.Link, a obj.As) uint32 {
+ 		return S32 | 0<<30 | 5<<27 | 0<<26 | 0<<23 | 1<<22
+ 	}
+ 
+-	ctxt.Diag("bad opstore %v\n%v", obj.Aconv(a), ctxt.Curp)
++	ctxt.Diag("bad opstore %v\n%v", a, ctxt.Curp)
+ 	return 0
+ }
+ 
+@@ -4081,7 +4081,7 @@ func opldr12(ctxt *obj.Link, a obj.As) uint32 {
+ 		return LDSTR12U(3, 1, 1)
+ 	}
+ 
+-	ctxt.Diag("bad opldr12 %v\n%v", obj.Aconv(a), ctxt.Curp)
++	ctxt.Diag("bad opldr12 %v\n%v", a, ctxt.Curp)
+ 	return 0
+ }
+ 
+@@ -4132,7 +4132,7 @@ func opldr9(ctxt *obj.Link, a obj.As) uint32 {
+ 		return LDSTR9S(3, 1, 1)
+ 	}
+ 
+-	ctxt.Diag("bad opldr9 %v\n%v", obj.Aconv(a), ctxt.Curp)
++	ctxt.Diag("bad opldr9 %v\n%v", a, ctxt.Curp)
+ 	return 0
+ }
+ 
+@@ -4164,7 +4164,7 @@ func opldrpp(ctxt *obj.Link, a obj.As) uint32 {
+ 		return 0<<30 | 7<<27 | 0<<26 | 0<<24 | 1<<22
+ 	}
+ 
+-	ctxt.Diag("bad opldr %v\n%v", obj.Aconv(a), ctxt.Curp)
++	ctxt.Diag("bad opldr %v\n%v", a, ctxt.Curp)
+ 	return 0
+ }
+ 
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index 11aa202215..73daa0a102 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -659,7 +659,7 @@ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
+ 		}
+ 	}
+ 
+-	ctxt.Diag("illegal combination %v %v %v %v", obj.Aconv(p.As), DRconv(a1), DRconv(a2), DRconv(a3))
++	ctxt.Diag("illegal combination %v %v %v %v", p.As, DRconv(a1), DRconv(a2), DRconv(a3))
+ 	prasm(p)
+ 	if ops == nil {
+ 		ops = optab
+@@ -809,7 +809,7 @@ func buildop(ctxt *obj.Link) {
+ 
+ 		switch r {
+ 		default:
+-			ctxt.Diag("unknown op in build: %v", obj.Aconv(r))
++			ctxt.Diag("unknown op in build: %v", r)
+ 			log.Fatalf("bad code")
+ 
+ 		case AABSF:
+@@ -1612,9 +1612,9 @@ func oprrr(ctxt *obj.Link, a obj.As) uint32 {
+ 	}
+ 
+ 	if a < 0 {
+-		ctxt.Diag("bad rrr opcode -%v", obj.Aconv(-a))
++		ctxt.Diag("bad rrr opcode -%v", -a)
+ 	} else {
+-		ctxt.Diag("bad rrr opcode %v", obj.Aconv(a))
++		ctxt.Diag("bad rrr opcode %v", a)
+ 	}
+ 	return 0
+ }
+@@ -1764,9 +1764,9 @@ func opirr(ctxt *obj.Link, a obj.As) uint32 {
+ 	}
+ 
+ 	if a < 0 {
+-		ctxt.Diag("bad irr opcode -%v", obj.Aconv(-a))
++		ctxt.Diag("bad irr opcode -%v", -a)
+ 	} else {
+-		ctxt.Diag("bad irr opcode %v", obj.Aconv(a))
++		ctxt.Diag("bad irr opcode %v", a)
+ 	}
+ 	return 0
+ }
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 52cae12333..968bc95e10 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -776,7 +776,7 @@ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
+ 		}
+ 	}
+ 
+-	ctxt.Diag("illegal combination %v %v %v %v %v", obj.Aconv(p.As), DRconv(a1), DRconv(a2), DRconv(a3), DRconv(a4))
++	ctxt.Diag("illegal combination %v %v %v %v %v", p.As, DRconv(a1), DRconv(a2), DRconv(a3), DRconv(a4))
+ 	prasm(p)
+ 	if ops == nil {
+ 		ops = optab
+@@ -925,8 +925,8 @@ func buildop(ctxt *obj.Link) {
+ 
+ 		switch r {
+ 		default:
+-			ctxt.Diag("unknown op in build: %v", obj.Aconv(r))
+-			log.Fatalf("instruction missing from switch in asm9.go:buildop: %v", obj.Aconv(r))
++			ctxt.Diag("unknown op in build: %v", r)
++			log.Fatalf("instruction missing from switch in asm9.go:buildop: %v", r)
+ 
+ 		case ADCBF: /* unary indexed: op (b+a); op (b) */
+ 			opset(ADCBI, r0)
+@@ -3046,7 +3046,7 @@ func oprrr(ctxt *obj.Link, a obj.As) uint32 {
+ 		return OPVCC(31, 316, 0, 1)
+ 	}
+ 
+-	ctxt.Diag("bad r/r opcode %v", obj.Aconv(a))
++	ctxt.Diag("bad r/r opcode %v", a)
+ 	return 0
+ }
+ 
+@@ -3168,7 +3168,7 @@ func opirr(ctxt *obj.Link, a obj.As) uint32 {
+ 		return OPVCC(27, 0, 0, 0) /* XORIU */
+ 	}
+ 
+-	ctxt.Diag("bad opcode i/r %v", obj.Aconv(a))
++	ctxt.Diag("bad opcode i/r %v", a)
+ 	return 0
+ }
+ 
+@@ -3215,7 +3215,7 @@ func opload(ctxt *obj.Link, a obj.As) uint32 {
+ 		return OPVCC(46, 0, 0, 0) /* lmw */
+ 	}
+ 
+-	ctxt.Diag("bad load opcode %v", obj.Aconv(a))
++	ctxt.Diag("bad load opcode %v", a)
+ 	return 0
+ }
+ 
+@@ -3278,7 +3278,7 @@ func oploadx(ctxt *obj.Link, a obj.As) uint32 {
+ 		return OPVCC(31, 53, 0, 0) /* ldux */
+ 	}
+ 
+-	ctxt.Diag("bad loadx opcode %v", obj.Aconv(a))
++	ctxt.Diag("bad loadx opcode %v", a)
+ 	return 0
+ }
+ 
+@@ -3322,7 +3322,7 @@ func opstore(ctxt *obj.Link, a obj.As) uint32 {
+ 		return OPVCC(62, 0, 0, 1) /* stdu */
+ 	}
+ 
+-	ctxt.Diag("unknown store opcode %v", obj.Aconv(a))
++	ctxt.Diag("unknown store opcode %v", a)
+ 	return 0
+ }
+ 
+@@ -3378,6 +3378,6 @@ func opstorex(ctxt *obj.Link, a obj.As) uint32 {
+ 		return OPVCC(31, 181, 0, 0) /* stdux */
+ 	}
+ 
+-	ctxt.Diag("unknown storex opcode %v", obj.Aconv(a))
++	ctxt.Diag("unknown storex opcode %v", a)
+ 	return 0
+ }
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index 2a99bbe390..847af9c4e0 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -651,7 +651,7 @@ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
+ 	}
+ 
+ 	// cannot find a case; abort
+-	ctxt.Diag("illegal combination %v %v %v %v %v\n", obj.Aconv(p.As), DRconv(a1), DRconv(a2), DRconv(a3), DRconv(a4))
++	ctxt.Diag("illegal combination %v %v %v %v %v\n", p.As, DRconv(a1), DRconv(a2), DRconv(a3), DRconv(a4))
+ 	ctxt.Diag("prog: %v\n", p)
+ 	return nil
+ }
+@@ -4039,7 +4039,7 @@ func zopload(ctxt *obj.Link, a obj.As) uint32 {
+ 		return op_LRVH
+ 	}
+ 
+-	ctxt.Diag("unknown store opcode %v", obj.Aconv(a))
++	ctxt.Diag("unknown store opcode %v", a)
+ 	return 0
+ }
+ 
+@@ -4071,7 +4071,7 @@ func zopstore(ctxt *obj.Link, a obj.As) uint32 {
+ 		return op_STRVH
+ 	}
+ 
+-	ctxt.Diag("unknown store opcode %v", obj.Aconv(a))
++	ctxt.Diag("unknown store opcode %v", a)
+ 	return 0
+ }
+ 
+@@ -4089,7 +4089,7 @@ func zoprre(ctxt *obj.Link, a obj.As) uint32 {
+ 	case ACEBR:
+ 		return op_CEBR
+ 	}
+-	ctxt.Diag("unknown rre opcode %v", obj.Aconv(a))
++	ctxt.Diag("unknown rre opcode %v", a)
+ 	return 0
+ }
+ 
+@@ -4101,7 +4101,7 @@ func zoprr(ctxt *obj.Link, a obj.As) uint32 {
+ 	case ACMPWU:
+ 		return op_CLR
+ 	}
+-	ctxt.Diag("unknown rr opcode %v", obj.Aconv(a))
++	ctxt.Diag("unknown rr opcode %v", a)
+ 	return 0
+ }
+ 
+@@ -4117,7 +4117,7 @@ func zopril(ctxt *obj.Link, a obj.As) uint32 {
+ 	case ACMPWU:
+ 		return op_CLFI
+ 	}
+-	ctxt.Diag("unknown ril opcode %v", obj.Aconv(a))
++	ctxt.Diag("unknown ril opcode %v", a)
+ 	return 0
+ }
+ 
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index c8f8760af1..a80af26c07 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -138,7 +138,7 @@ func (p *Prog) String() string {
+ 
+ 	var buf bytes.Buffer
+ 
+-	fmt.Fprintf(&buf, "%.5d (%v)\t%v%s", p.Pc, p.Line(), Aconv(p.As), sc)
++	fmt.Fprintf(&buf, "%.5d (%v)\t%v%s", p.Pc, p.Line(), p.As, sc)
+ 	sep := "\t"
+ 	quadOpAmd64 := p.RegTo2 == -1
+ 	if quadOpAmd64 {
+@@ -465,7 +465,7 @@ func RegisterOpcode(lo As, Anames []string) {
+ 	aSpace = append(aSpace, opSet{lo, Anames})
+ }
+ 
+-func Aconv(a As) string {
++func (a As) String() string {
+ 	if 0 <= a && int(a) < len(Anames) {
+ 		return Anames[a]
+ 	}
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 494e422081..d94bd60e8d 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -2013,7 +2013,7 @@ func instinit() {
+ 	for i := 1; optab[i].as != 0; i++ {
+ 		c := optab[i].as
+ 		if opindex[c&obj.AMask] != nil {
+-			log.Fatalf("phase error in optab: %d (%v)", i, obj.Aconv(c))
++			log.Fatalf("phase error in optab: %d (%v)", i, c)
+ 		}
+ 		opindex[c&obj.AMask] = &optab[i]
+ 	}
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index c4b0d89cda..93fee97e4b 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -1231,7 +1231,7 @@ func relinv(a obj.As) obj.As {
+ 		return AJOS
+ 	}
+ 
+-	log.Fatalf("unknown relation: %s", obj.Aconv(a))
++	log.Fatalf("unknown relation: %s", a)
+ 	return 0
+ }
+ 

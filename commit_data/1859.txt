@@ -11,7 +11,34 @@ Date:   Fri Mar 20 16:34:13 2009 -0700
     DELTA=2  (0 added, 0 deleted, 2 changed)
     OCL=26602
     CL=26605
-
+---
  src/runtime/malloc.h | 2 +-
  src/runtime/msize.c  | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/malloc.h b/src/runtime/malloc.h
+index d1d9e95e98..530dfc98f1 100644
+--- a/src/runtime/malloc.h
++++ b/src/runtime/malloc.h
+@@ -91,7 +91,7 @@ typedef	uintptr	PageID;		// address >> PageShift
+ enum
+ {
+ 	// Tunable constants.
+-	NumSizeClasses = 150,		// Number of size classes (must match msize.c)
++	NumSizeClasses = 67,		// Number of size classes (must match msize.c)
+ 	MaxSmallSize = 32<<10,
+ 
+ 	FixAllocChunk = 128<<10,	// Chunk size for FixAlloc
+diff --git a/src/runtime/msize.c b/src/runtime/msize.c
+index 62d5c3ad99..25e22637d2 100644
+--- a/src/runtime/msize.c
++++ b/src/runtime/msize.c
+@@ -82,7 +82,7 @@ InitSizes(void)
+ 		// so wasted space is at most 12.5%.
+ 		allocsize = PageSize;
+ 		osize = size + RefcountOverhead;
+-		while(allocsize%osize > (PageSize/8))
++		while(allocsize%osize > (allocsize/8))
+ 			allocsize += PageSize;
+ 		npages = allocsize >> PageShift;
+ 

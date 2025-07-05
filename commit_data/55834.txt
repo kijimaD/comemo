@@ -15,10 +15,126 @@ Date:   Thu Mar 16 22:05:06 2023 +0100
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  .../lockedfile/internal/filelock/filelock.go         | 20 ++------------------
  .../lockedfile/internal/filelock/filelock_fcntl.go   |  4 ----
  .../lockedfile/internal/filelock/filelock_other.go   | 13 ++++++-------
  .../lockedfile/internal/filelock/filelock_unix.go    |  4 ----
  .../lockedfile/internal/filelock/filelock_windows.go |  9 ---------
  5 files changed, 8 insertions(+), 42 deletions(-)
+
+diff --git a/src/cmd/go/internal/lockedfile/internal/filelock/filelock.go b/src/cmd/go/internal/lockedfile/internal/filelock/filelock.go
+index 05f27c321a..d37331892d 100644
+--- a/src/cmd/go/internal/lockedfile/internal/filelock/filelock.go
++++ b/src/cmd/go/internal/lockedfile/internal/filelock/filelock.go
+@@ -10,7 +10,6 @@ package filelock
+ import (
+ 	"errors"
+ 	"io/fs"
+-	"os"
+ )
+ 
+ // A File provides the minimal set of methods required to lock an open file.
+@@ -78,22 +77,7 @@ func (lt lockType) String() string {
+ 
+ // IsNotSupported returns a boolean indicating whether the error is known to
+ // report that a function is not supported (possibly for a specific input).
+-// It is satisfied by ErrNotSupported as well as some syscall errors.
++// It is satisfied by errors.ErrUnsupported as well as some syscall errors.
+ func IsNotSupported(err error) bool {
+-	return isNotSupported(underlyingError(err))
+-}
+-
+-var ErrNotSupported = errors.New("operation not supported")
+-
+-// underlyingError returns the underlying error for known os error types.
+-func underlyingError(err error) error {
+-	switch err := err.(type) {
+-	case *fs.PathError:
+-		return err.Err
+-	case *os.LinkError:
+-		return err.Err
+-	case *os.SyscallError:
+-		return err.Err
+-	}
+-	return err
++	return errors.Is(err, errors.ErrUnsupported)
+ }
+diff --git a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_fcntl.go b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_fcntl.go
+index 8568048507..8a62839734 100644
+--- a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_fcntl.go
++++ b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_fcntl.go
+@@ -208,7 +208,3 @@ func setlkw(fd uintptr, lt lockType) error {
+ 		}
+ 	}
+ }
+-
+-func isNotSupported(err error) bool {
+-	return err == syscall.ENOSYS || err == syscall.ENOTSUP || err == syscall.EOPNOTSUPP || err == ErrNotSupported
+-}
+diff --git a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_other.go b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_other.go
+index 7bdd62bd9b..b16709ed51 100644
+--- a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_other.go
++++ b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_other.go
+@@ -6,7 +6,10 @@
+ 
+ package filelock
+ 
+-import "io/fs"
++import (
++	"errors"
++	"io/fs"
++)
+ 
+ type lockType int8
+ 
+@@ -19,7 +22,7 @@ func lock(f File, lt lockType) error {
+ 	return &fs.PathError{
+ 		Op:   lt.String(),
+ 		Path: f.Name(),
+-		Err:  ErrNotSupported,
++		Err:  errors.ErrUnsupported,
+ 	}
+ }
+ 
+@@ -27,10 +30,6 @@ func unlock(f File) error {
+ 	return &fs.PathError{
+ 		Op:   "Unlock",
+ 		Path: f.Name(),
+-		Err:  ErrNotSupported,
++		Err:  errors.ErrUnsupported,
+ 	}
+ }
+-
+-func isNotSupported(err error) bool {
+-	return err == ErrNotSupported
+-}
+diff --git a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_unix.go b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_unix.go
+index d7778d05de..6f73b1bfee 100644
+--- a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_unix.go
++++ b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_unix.go
+@@ -38,7 +38,3 @@ func lock(f File, lt lockType) (err error) {
+ func unlock(f File) error {
+ 	return lock(f, syscall.LOCK_UN)
+ }
+-
+-func isNotSupported(err error) bool {
+-	return err == syscall.ENOSYS || err == syscall.ENOTSUP || err == syscall.EOPNOTSUPP || err == ErrNotSupported
+-}
+diff --git a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_windows.go b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_windows.go
+index e2ca538304..647ee9921d 100644
+--- a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_windows.go
++++ b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_windows.go
+@@ -55,12 +55,3 @@ func unlock(f File) error {
+ 	}
+ 	return nil
+ }
+-
+-func isNotSupported(err error) bool {
+-	switch err {
+-	case windows.ERROR_NOT_SUPPORTED, windows.ERROR_CALL_NOT_IMPLEMENTED, ErrNotSupported:
+-		return true
+-	default:
+-		return false
+-	}
+-}

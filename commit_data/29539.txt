@@ -7,6 +7,20 @@ Date:   Wed Sep 21 14:49:51 2016 +0100
     Change-Id: I6ea8650927e7946c6fd4659f400fd91ddaae68af
     Reviewed-on: https://go-review.googlesource.com/29510
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/cookiejar/jar.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/cookiejar/jar.go b/src/net/http/cookiejar/jar.go
+index 0e0fac9286..ca0fdc57d7 100644
+--- a/src/net/http/cookiejar/jar.go
++++ b/src/net/http/cookiejar/jar.go
+@@ -107,7 +107,7 @@ type entry struct {
+ 	seqNum uint64
+ }
+ 
+-// Id returns the domain;path;name triple of e as an id.
++// id returns the domain;path;name triple of e as an id.
+ func (e *entry) id() string {
+ 	return fmt.Sprintf("%s;%s;%s", e.Domain, e.Path, e.Name)
+ }

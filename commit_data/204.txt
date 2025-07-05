@@ -5,6 +5,39 @@ Date:   Fri Jun 20 10:55:53 2008 -0700
     delete incorrect offset print
     
     SVN=123857
-
+---
  src/runtime/runtime.c | 7 ++-----
  1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index f26dacf22f..0e62dbdb0a 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -99,6 +99,7 @@ sys_printpc(void *p)
+ 	sys_printpointer(sys_getcallerpc(p));
+ }
+ 
++/*BUG: move traceback code to architecture-dependent runtime */
+ void
+ sys_panicl(int32 lno)
+ {
+@@ -145,7 +146,7 @@ sys_panicl(int32 lno)
+ 		/* print pc for next frame */
+ 		prints("0x");
+ 		sys_printpointer(pc);
+-		prints(" ");
++		prints("?zi\n");
+ 		/* next word down on stack is PC */
+ 		retpc = pc;
+ 		/* find SP offset by stepping back through instructions to SP offset marker */
+@@ -157,10 +158,6 @@ sys_panicl(int32 lno)
+ 				spoff += *pc++ << 8;
+ 				spoff += *pc++ << 16;
+ 				name = (int8*)pc;
+-				prints(name);
+-				prints("+");
+-				sys_printint(pc-retpc);
+-				prints("?zi\n");
+ 				sp += spoff + 8;
+ 				break;
+ 			}

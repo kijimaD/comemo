@@ -14,7 +14,7 @@ Date:   Thu Dec 13 19:50:40 2018 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  .../golang.org/x/sys/unix/example_exec_test.go     |  19 ++
  .../{example_test.go => example_flock_test.go}     |   7 +-
  src/cmd/vendor/golang.org/x/sys/unix/mksyscall.pl  | 341 ---------------------
@@ -24,3 +24,522 @@ Date:   Thu Dec 13 19:50:40 2018 +0000
  .../golang.org/x/sys/unix/zsyscall_linux_arm.go    |  10 +
  src/cmd/vendor/vendor.json                         |   6 +-
  8 files changed, 48 insertions(+), 366 deletions(-)
+
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/example_exec_test.go b/src/cmd/vendor/golang.org/x/sys/unix/example_exec_test.go
+new file mode 100644
+index 0000000000..bb4d3bf5da
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/sys/unix/example_exec_test.go
+@@ -0,0 +1,19 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
++
++package unix_test
++
++import (
++	"log"
++	"os"
++
++	"golang.org/x/sys/unix"
++)
++
++func ExampleExec() {
++	err := unix.Exec("/bin/ls", []string{"ls", "-al"}, os.Environ())
++	log.Fatal(err)
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/example_test.go b/src/cmd/vendor/golang.org/x/sys/unix/example_flock_test.go
+similarity index 75%
+rename from src/cmd/vendor/golang.org/x/sys/unix/example_test.go
+rename to src/cmd/vendor/golang.org/x/sys/unix/example_flock_test.go
+index ae008f5ba6..6c9174859e 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/example_test.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/example_flock_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package unix_test
+ 
+@@ -13,11 +13,6 @@ import (
+ 	"golang.org/x/sys/unix"
+ )
+ 
+-func ExampleExec() {
+-	err := unix.Exec("/bin/ls", []string{"ls", "-al"}, os.Environ())
+-	log.Fatal(err)
+-}
+-
+ func ExampleFlock() {
+ 	f, _ := os.Create("example.lock")
+ 	if err := unix.Flock(int(f.Fd()), unix.LOCK_EX); err != nil {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/mksyscall.pl b/src/cmd/vendor/golang.org/x/sys/unix/mksyscall.pl
+deleted file mode 100755
+index 1f6b926f8c..0000000000
+--- a/src/cmd/vendor/golang.org/x/sys/unix/mksyscall.pl
++++ /dev/null
+@@ -1,341 +0,0 @@
+-#!/usr/bin/env perl
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-# This program reads a file containing function prototypes
+-# (like syscall_darwin.go) and generates system call bodies.
+-# The prototypes are marked by lines beginning with "//sys"
+-# and read like func declarations if //sys is replaced by func, but:
+-#	* The parameter lists must give a name for each argument.
+-#	  This includes return parameters.
+-#	* The parameter lists must give a type for each argument:
+-#	  the (x, y, z int) shorthand is not allowed.
+-#	* If the return parameter is an error number, it must be named errno.
+-
+-# A line beginning with //sysnb is like //sys, except that the
+-# goroutine will not be suspended during the execution of the system
+-# call.  This must only be used for system calls which can never
+-# block, as otherwise the system call could cause all goroutines to
+-# hang.
+-
+-use strict;
+-
+-my $cmdline = "mksyscall.pl " . join(' ', @ARGV);
+-my $errors = 0;
+-my $_32bit = "";
+-my $plan9 = 0;
+-my $openbsd = 0;
+-my $netbsd = 0;
+-my $dragonfly = 0;
+-my $arm = 0; # 64-bit value should use (even, odd)-pair
+-my $tags = "";  # build tags
+-
+-if($ARGV[0] eq "-b32") {
+-	$_32bit = "big-endian";
+-	shift;
+-} elsif($ARGV[0] eq "-l32") {
+-	$_32bit = "little-endian";
+-	shift;
+-}
+-if($ARGV[0] eq "-plan9") {
+-	$plan9 = 1;
+-	shift;
+-}
+-if($ARGV[0] eq "-openbsd") {
+-	$openbsd = 1;
+-	shift;
+-}
+-if($ARGV[0] eq "-netbsd") {
+-	$netbsd = 1;
+-	shift;
+-}
+-if($ARGV[0] eq "-dragonfly") {
+-	$dragonfly = 1;
+-	shift;
+-}
+-if($ARGV[0] eq "-arm") {
+-	$arm = 1;
+-	shift;
+-}
+-if($ARGV[0] eq "-tags") {
+-	shift;
+-	$tags = $ARGV[0];
+-	shift;
+-}
+-
+-if($ARGV[0] =~ /^-/) {
+-	print STDERR "usage: mksyscall.pl [-b32 | -l32] [-tags x,y] [file ...]\n";
+-	exit 1;
+-}
+-
+-# Check that we are using the new build system if we should
+-if($ENV{'GOOS'} eq "linux" && $ENV{'GOARCH'} ne "sparc64") {
+-	if($ENV{'GOLANG_SYS_BUILD'} ne "docker") {
+-		print STDERR "In the new build system, mksyscall should not be called directly.\n";
+-		print STDERR "See README.md\n";
+-		exit 1;
+-	}
+-}
+-
+-
+-sub parseparamlist($) {
+-	my ($list) = @_;
+-	$list =~ s/^\s*//;
+-	$list =~ s/\s*$//;
+-	if($list eq "") {
+-		return ();
+-	}
+-	return split(/\s*,\s*/, $list);
+-}
+-
+-sub parseparam($) {
+-	my ($p) = @_;
+-	if($p !~ /^(\S*) (\S*)$/) {
+-		print STDERR "$ARGV:$.: malformed parameter: $p\n";
+-		$errors = 1;
+-		return ("xx", "int");
+-	}
+-	return ($1, $2);
+-}
+-
+-my $text = "";
+-while(<>) {
+-	chomp;
+-	s/\s+/ /g;
+-	s/^\s+//;
+-	s/\s+$//;
+-	my $nonblock = /^\/\/sysnb /;
+-	next if !/^\/\/sys / && !$nonblock;
+-
+-	# Line must be of the form
+-	#	func Open(path string, mode int, perm int) (fd int, errno error)
+-	# Split into name, in params, out params.
+-	if(!/^\/\/sys(nb)? (\w+)\(([^()]*)\)\s*(?:\(([^()]+)\))?\s*(?:=\s*((?i)SYS_[A-Z0-9_]+))?$/) {
+-		print STDERR "$ARGV:$.: malformed //sys declaration\n";
+-		$errors = 1;
+-		next;
+-	}
+-	my ($func, $in, $out, $sysname) = ($2, $3, $4, $5);
+-
+-	# Split argument lists on comma.
+-	my @in = parseparamlist($in);
+-	my @out = parseparamlist($out);
+-
+-	# Try in vain to keep people from editing this file.
+-	# The theory is that they jump into the middle of the file
+-	# without reading the header.
+-	$text .= "// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT\n\n";
+-
+-	# Go function header.
+-	my $out_decl = @out ? sprintf(" (%s)", join(', ', @out)) : "";
+-	$text .= sprintf "func %s(%s)%s {\n", $func, join(', ', @in), $out_decl;
+-
+-	# Check if err return available
+-	my $errvar = "";
+-	foreach my $p (@out) {
+-		my ($name, $type) = parseparam($p);
+-		if($type eq "error") {
+-			$errvar = $name;
+-			last;
+-		}
+-	}
+-
+-	# Prepare arguments to Syscall.
+-	my @args = ();
+-	my $n = 0;
+-	foreach my $p (@in) {
+-		my ($name, $type) = parseparam($p);
+-		if($type =~ /^\*/) {
+-			push @args, "uintptr(unsafe.Pointer($name))";
+-		} elsif($type eq "string" && $errvar ne "") {
+-			$text .= "\tvar _p$n *byte\n";
+-			$text .= "\t_p$n, $errvar = BytePtrFromString($name)\n";
+-			$text .= "\tif $errvar != nil {\n\t\treturn\n\t}\n";
+-			push @args, "uintptr(unsafe.Pointer(_p$n))";
+-			$n++;
+-		} elsif($type eq "string") {
+-			print STDERR "$ARGV:$.: $func uses string arguments, but has no error return\n";
+-			$text .= "\tvar _p$n *byte\n";
+-			$text .= "\t_p$n, _ = BytePtrFromString($name)\n";
+-			push @args, "uintptr(unsafe.Pointer(_p$n))";
+-			$n++;
+-		} elsif($type =~ /^\[\](.*)/) {
+-			# Convert slice into pointer, length.
+-			# Have to be careful not to take address of &a[0] if len == 0:
+-			# pass dummy pointer in that case.
+-			# Used to pass nil, but some OSes or simulators reject write(fd, nil, 0).
+-			$text .= "\tvar _p$n unsafe.Pointer\n";
+-			$text .= "\tif len($name) > 0 {\n\t\t_p$n = unsafe.Pointer(\&${name}[0])\n\t}";
+-			$text .= " else {\n\t\t_p$n = unsafe.Pointer(&_zero)\n\t}";
+-			$text .= "\n";
+-			push @args, "uintptr(_p$n)", "uintptr(len($name))";
+-			$n++;
+-		} elsif($type eq "int64" && ($openbsd || $netbsd)) {
+-			push @args, "0";
+-			if($_32bit eq "big-endian") {
+-				push @args, "uintptr($name>>32)", "uintptr($name)";
+-			} elsif($_32bit eq "little-endian") {
+-				push @args, "uintptr($name)", "uintptr($name>>32)";
+-			} else {
+-				push @args, "uintptr($name)";
+-			}
+-		} elsif($type eq "int64" && $dragonfly) {
+-			if ($func !~ /^extp(read|write)/i) {
+-				push @args, "0";
+-			}
+-			if($_32bit eq "big-endian") {
+-				push @args, "uintptr($name>>32)", "uintptr($name)";
+-			} elsif($_32bit eq "little-endian") {
+-				push @args, "uintptr($name)", "uintptr($name>>32)";
+-			} else {
+-				push @args, "uintptr($name)";
+-			}
+-		} elsif($type eq "int64" && $_32bit ne "") {
+-			if(@args % 2 && $arm) {
+-				# arm abi specifies 64-bit argument uses
+-				# (even, odd) pair
+-				push @args, "0"
+-			}
+-			if($_32bit eq "big-endian") {
+-				push @args, "uintptr($name>>32)", "uintptr($name)";
+-			} else {
+-				push @args, "uintptr($name)", "uintptr($name>>32)";
+-			}
+-		} else {
+-			push @args, "uintptr($name)";
+-		}
+-	}
+-
+-	# Determine which form to use; pad args with zeros.
+-	my $asm = "Syscall";
+-	if ($nonblock) {
+-		if ($errvar eq "" && $ENV{'GOOS'} eq "linux") {
+-			$asm = "RawSyscallNoError";
+-		} else {
+-			$asm = "RawSyscall";
+-		}
+-	} else {
+-		if ($errvar eq "" && $ENV{'GOOS'} eq "linux") {
+-			$asm = "SyscallNoError";
+-		}
+-	}
+-	if(@args <= 3) {
+-		while(@args < 3) {
+-			push @args, "0";
+-		}
+-	} elsif(@args <= 6) {
+-		$asm .= "6";
+-		while(@args < 6) {
+-			push @args, "0";
+-		}
+-	} elsif(@args <= 9) {
+-		$asm .= "9";
+-		while(@args < 9) {
+-			push @args, "0";
+-		}
+-	} else {
+-		print STDERR "$ARGV:$.: too many arguments to system call\n";
+-	}
+-
+-	# System call number.
+-	if($sysname eq "") {
+-		$sysname = "SYS_$func";
+-		$sysname =~ s/([a-z])([A-Z])/${1}_$2/g;	# turn FooBar into Foo_Bar
+-		$sysname =~ y/a-z/A-Z/;
+-	}
+-
+-	# Actual call.
+-	my $args = join(', ', @args);
+-	my $call = "$asm($sysname, $args)";
+-
+-	# Assign return values.
+-	my $body = "";
+-	my @ret = ("_", "_", "_");
+-	my $do_errno = 0;
+-	for(my $i=0; $i<@out; $i++) {
+-		my $p = $out[$i];
+-		my ($name, $type) = parseparam($p);
+-		my $reg = "";
+-		if($name eq "err" && !$plan9) {
+-			$reg = "e1";
+-			$ret[2] = $reg;
+-			$do_errno = 1;
+-		} elsif($name eq "err" && $plan9) {
+-			$ret[0] = "r0";
+-			$ret[2] = "e1";
+-			next;
+-		} else {
+-			$reg = sprintf("r%d", $i);
+-			$ret[$i] = $reg;
+-		}
+-		if($type eq "bool") {
+-			$reg = "$reg != 0";
+-		}
+-		if($type eq "int64" && $_32bit ne "") {
+-			# 64-bit number in r1:r0 or r0:r1.
+-			if($i+2 > @out) {
+-				print STDERR "$ARGV:$.: not enough registers for int64 return\n";
+-			}
+-			if($_32bit eq "big-endian") {
+-				$reg = sprintf("int64(r%d)<<32 | int64(r%d)", $i, $i+1);
+-			} else {
+-				$reg = sprintf("int64(r%d)<<32 | int64(r%d)", $i+1, $i);
+-			}
+-			$ret[$i] = sprintf("r%d", $i);
+-			$ret[$i+1] = sprintf("r%d", $i+1);
+-		}
+-		if($reg ne "e1" || $plan9) {
+-			$body .= "\t$name = $type($reg)\n";
+-		}
+-	}
+-	if ($ret[0] eq "_" && $ret[1] eq "_" && $ret[2] eq "_") {
+-		$text .= "\t$call\n";
+-	} else {
+-		if ($errvar eq "" && $ENV{'GOOS'} eq "linux") {
+-			# raw syscall without error on Linux, see golang.org/issue/22924
+-			$text .= "\t$ret[0], $ret[1] := $call\n";
+-		} else {
+-			$text .= "\t$ret[0], $ret[1], $ret[2] := $call\n";
+-		}
+-	}
+-	$text .= $body;
+-
+-	if ($plan9 && $ret[2] eq "e1") {
+-		$text .= "\tif int32(r0) == -1 {\n";
+-		$text .= "\t\terr = e1\n";
+-		$text .= "\t}\n";
+-	} elsif ($do_errno) {
+-		$text .= "\tif e1 != 0 {\n";
+-		$text .= "\t\terr = errnoErr(e1)\n";
+-		$text .= "\t}\n";
+-	}
+-	$text .= "\treturn\n";
+-	$text .= "}\n\n";
+-}
+-
+-chomp $text;
+-chomp $text;
+-
+-if($errors) {
+-	exit 1;
+-}
+-
+-print <<EOF;
+-// $cmdline
+-// Code generated by the command above; see README.md. DO NOT EDIT.
+-
+-// +build $tags
+-
+-package unix
+-
+-import (
+-	"syscall"
+-	"unsafe"
+-)
+-
+-var _ syscall.Errno
+-
+-$text
+-EOF
+-exit 0;
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/sockcmsg_unix.go b/src/cmd/vendor/golang.org/x/sys/unix/sockcmsg_unix.go
+index 52b6e225e9..5f9ae233a7 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/sockcmsg_unix.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/sockcmsg_unix.go
+@@ -13,28 +13,26 @@ import (
+ 	"unsafe"
+ )
+ 
+-var cmsgAlign = SizeofPtr
++// Round the length of a raw sockaddr up to align it properly.
++func cmsgAlignOf(salen int) int {
++	salign := SizeofPtr
+ 
+-func init() {
+ 	switch runtime.GOOS {
+ 	case "darwin", "dragonfly", "solaris":
+ 		// NOTE: It seems like 64-bit Darwin, DragonFly BSD and
+ 		// Solaris kernels still require 32-bit aligned access to
+ 		// network subsystem.
+ 		if SizeofPtr == 8 {
+-			cmsgAlign = 4
++			salign = 4
+ 		}
+ 	case "openbsd":
+ 		// OpenBSD armv7 requires 64-bit alignment.
+ 		if runtime.GOARCH == "arm" {
+-			cmsgAlign = 8
++			salign = 8
+ 		}
+ 	}
+-}
+ 
+-// Round the length of a raw sockaddr up to align it properly.
+-func cmsgAlignOf(salen int) int {
+-	return (salen + cmsgAlign - 1) & ^(cmsgAlign - 1)
++	return (salen + salign - 1) & ^(salign - 1)
+ }
+ 
+ // CmsgLen returns the value to store in the Len field of the Cmsghdr
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_aix.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_aix.go
+index f8eac17428..992a8ea0f7 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_aix.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_aix.go
+@@ -13,10 +13,7 @@
+ 
+ package unix
+ 
+-import (
+-	"syscall"
+-	"unsafe"
+-)
++import "unsafe"
+ 
+ /*
+  * Wrapped
+@@ -385,10 +382,6 @@ func IoctlGetTermios(fd int, req uint) (*Termios, error) {
+ 
+ //sys	fcntl(fd int, cmd int, arg int) (val int, err error)
+ 
+-func Flock(fd int, how int) (err error) {
+-	return syscall.Flock(fd, how)
+-}
+-
+ /*
+  * Direct access
+  */
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_arm.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_arm.go
+index 3ec7a9329d..ad2bd2582f 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_arm.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_arm.go
+@@ -257,3 +257,11 @@ func Poll(fds []PollFd, timeout int) (n int, err error) {
+ 	}
+ 	return poll(&fds[0], len(fds), timeout)
+ }
++
++//sys	armSyncFileRange(fd int, flags int, off int64, n int64) (err error) = SYS_ARM_SYNC_FILE_RANGE
++
++func SyncFileRange(fd int, off int64, n int64, flags int) error {
++	// The sync_file_range and arm_sync_file_range syscalls differ only in the
++	// order of their arguments.
++	return armSyncFileRange(fd, flags, off, n)
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_arm.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_arm.go
+index 75db4c0c15..012261ad54 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_arm.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_arm.go
+@@ -2282,3 +2282,13 @@ func poll(fds *PollFd, nfds int, timeout int) (n int, err error) {
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func armSyncFileRange(fd int, flags int, off int64, n int64) (err error) {
++	_, _, e1 := Syscall6(SYS_ARM_SYNC_FILE_RANGE, uintptr(fd), uintptr(flags), uintptr(off), uintptr(off>>32), uintptr(n), uintptr(n>>32))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
+diff --git a/src/cmd/vendor/vendor.json b/src/cmd/vendor/vendor.json
+index 7cfda75a5e..1dcf16d5a9 100644
+--- a/src/cmd/vendor/vendor.json
++++ b/src/cmd/vendor/vendor.json
+@@ -131,10 +131,10 @@
+ 			"revisionTime": "2018-05-24T11:38:20Z"
+ 		},
+ 		{
+-			"checksumSHA1": "6AYGJTfvoIblJAxlh0AEIQrRKgo=",
++			"checksumSHA1": "rx5/IrpHIVwz6KnAeqbTGHZe040=",
+ 			"path": "golang.org/x/sys/unix",
+-			"revision": "b05ddf57801d2239d6ab0ee35f9d981e0420f4ac",
+-			"revisionTime": "2018-12-11T16:24:22Z"
++			"revision": "4d1cda033e0619309c606fc686de3adcf599539e",
++			"revisionTime": "2018-12-13T07:38:38Z"
+ 		},
+ 		{
+ 			"checksumSHA1": "s+lofQ+SCdhmy0cQp9FpdQncuuI=",

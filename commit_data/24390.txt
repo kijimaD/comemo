@@ -12,6 +12,23 @@ Date:   Fri Jul 24 15:38:16 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/12647
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/lock_futex.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/lock_futex.go b/src/runtime/lock_futex.go
+index 1765a6ce66..768fd5769f 100644
+--- a/src/runtime/lock_futex.go
++++ b/src/runtime/lock_futex.go
+@@ -144,7 +144,11 @@ func notesleep(n *note) {
+ 	}
+ }
+ 
++// May run with m.p==nil if called from notetsleep, so write barriers
++// are not allowed.
++//
+ //go:nosplit
++//go:nowritebarrier
+ func notetsleep_internal(n *note, ns int64) bool {
+ 	gp := getg()
+ 

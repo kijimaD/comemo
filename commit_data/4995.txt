@@ -7,6 +7,20 @@ Date:   Fri Mar 5 10:30:50 2010 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/250041
-
+---
  src/pkg/math/frexp.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/math/frexp.go b/src/pkg/math/frexp.go
+index 8b6d456067..ab226e7746 100644
+--- a/src/pkg/math/frexp.go
++++ b/src/pkg/math/frexp.go
+@@ -6,7 +6,7 @@ package math
+ 
+ // Frexp breaks f into a normalized fraction
+ // and an integral power of two.
+-// It returns frac and exp satisfying f == frac × 2<sup>exp</sup>,
++// It returns frac and exp satisfying f == frac × 2^exp,
+ // with the absolute value of frac in the interval [½, 1).
+ func Frexp(f float64) (frac float64, exp int) {
+ 	// TODO(rsc): Remove manual inlining of IsNaN, IsInf

@@ -22,8 +22,132 @@ Date:   Thu May 6 14:21:47 2021 -0700
     Trust: Dan Scales <danscales@google.com>
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/noder/types.go |  7 ++----
  src/cmd/compile/internal/types/type.go  | 38 ++++++++++++++++++++++++++++-----
  src/cmd/compile/internal/types2/type.go |  5 +++++
  3 files changed, 40 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/types.go b/src/cmd/compile/internal/noder/types.go
+index 8680559a41..8a2c023a1a 100644
+--- a/src/cmd/compile/internal/noder/types.go
++++ b/src/cmd/compile/internal/noder/types.go
+@@ -204,18 +204,15 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
+ 		return types.NewInterface(g.tpkg(typ), append(embeddeds, methods...))
+ 
+ 	case *types2.TypeParam:
+-		tp := types.NewTypeParam(g.tpkg(typ))
+ 		// Save the name of the type parameter in the sym of the type.
+ 		// Include the types2 subscript in the sym name
+ 		sym := g.pkg(typ.Obj().Pkg()).Lookup(types2.TypeString(typ, func(*types2.Package) string { return "" }))
+-		tp.SetSym(sym)
++		tp := types.NewTypeParam(sym, typ.Index())
+ 		// Set g.typs[typ] in case the bound methods reference typ.
+ 		g.typs[typ] = tp
+ 
+-		// TODO(danscales): we don't currently need to use the bounds
+-		// anywhere, so eventually we can probably remove.
+ 		bound := g.typ1(typ.Bound())
+-		*tp.Methods() = *bound.Methods()
++		tp.SetBound(bound)
+ 		return tp
+ 
+ 	case *types2.Tuple:
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 1a9aa6916a..d3c02fc56d 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -151,7 +151,7 @@ type Type struct {
+ 	// TARRAY: *Array
+ 	// TSLICE: Slice
+ 	// TSSA: string
+-	// TTYPEPARAM:  *Interface (though we may not need to store/use the Interface info)
++	// TTYPEPARAM:  *Typeparam
+ 	Extra interface{}
+ 
+ 	// Width is the width of this Type in bytes.
+@@ -377,6 +377,12 @@ type Interface struct {
+ 	pkg *Pkg
+ }
+ 
++// Typeparam contains Type fields specific to typeparam types.
++type Typeparam struct {
++	index int // type parameter index in source order, starting at 0
++	bound *Type
++}
++
+ // Ptr contains Type fields specific to pointer types.
+ type Ptr struct {
+ 	Elem *Type // element type
+@@ -558,7 +564,7 @@ func New(et Kind) *Type {
+ 	case TRESULTS:
+ 		t.Extra = new(Results)
+ 	case TTYPEPARAM:
+-		t.Extra = new(Interface)
++		t.Extra = new(Typeparam)
+ 	}
+ 	return t
+ }
+@@ -825,6 +831,8 @@ func (t *Type) copy() *Type {
+ 	case TARRAY:
+ 		x := *t.Extra.(*Array)
+ 		nt.Extra = &x
++	case TTYPEPARAM:
++		base.Fatalf("typeparam types cannot be copied")
+ 	case TTUPLE, TSSA, TRESULTS:
+ 		base.Fatalf("ssa types cannot be copied")
+ 	}
+@@ -1766,14 +1774,34 @@ func NewInterface(pkg *Pkg, methods []*Field) *Type {
+ 	return t
+ }
+ 
+-// NewTypeParam returns a new type param.
+-func NewTypeParam(pkg *Pkg) *Type {
++// NewTypeParam returns a new type param with the specified sym (package and name)
++// and specified index within the typeparam list.
++func NewTypeParam(sym *Sym, index int) *Type {
+ 	t := New(TTYPEPARAM)
+-	t.Extra.(*Interface).pkg = pkg
++	t.sym = sym
++	t.Extra.(*Typeparam).index = index
+ 	t.SetHasTParam(true)
+ 	return t
+ }
+ 
++// Index returns the index of the type param within its param list.
++func (t *Type) Index() int {
++	t.wantEtype(TTYPEPARAM)
++	return t.Extra.(*Typeparam).index
++}
++
++// SetBound sets the bound of a typeparam.
++func (t *Type) SetBound(bound *Type) {
++	t.wantEtype(TTYPEPARAM)
++	t.Extra.(*Typeparam).bound = bound
++}
++
++// Bound returns the bound of a typeparam.
++func (t *Type) Bound() *Type {
++	t.wantEtype(TTYPEPARAM)
++	return t.Extra.(*Typeparam).bound
++}
++
+ const BOGUS_FUNARG_OFFSET = -1000000000
+ 
+ func unzeroFieldOffsets(f []*Field) {
+diff --git a/src/cmd/compile/internal/types2/type.go b/src/cmd/compile/internal/types2/type.go
+index e6c260ff67..88dedbad45 100644
+--- a/src/cmd/compile/internal/types2/type.go
++++ b/src/cmd/compile/internal/types2/type.go
+@@ -760,6 +760,11 @@ func (check *Checker) NewTypeParam(obj *TypeName, index int, bound Type) *TypePa
+ 	return typ
+ }
+ 
++// Index returns the index of the type param within its param list.
++func (t *TypeParam) Index() int {
++	return t.index
++}
++
+ func (t *TypeParam) Bound() *Interface {
+ 	iface := asInterface(t.bound)
+ 	// use the type bound position if we have one

@@ -16,6 +16,20 @@ Date:   Thu Nov 3 15:30:42 2022 +0100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/go/internal/script/cmds.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/script/cmds.go b/src/cmd/go/internal/script/cmds.go
+index 393f565733..90e7fb9570 100644
+--- a/src/cmd/go/internal/script/cmds.go
++++ b/src/cmd/go/internal/script/cmds.go
+@@ -188,7 +188,7 @@ func Cmp() Cmd {
+ 			},
+ 		},
+ 		func(s *State, args ...string) (WaitFunc, error) {
+-			return nil, doCompare(s, true, args...)
++			return nil, doCompare(s, false, args...)
+ 		})
+ }
+ 

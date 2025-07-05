@@ -7,6 +7,19 @@ Date:   Fri Oct 17 16:13:17 2008 -0700
     R=ken
     OCL=17377
     CL=17377
-
+---
  src/cmd/gc/export.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index c8b50a074e..f5a9e918da 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -122,6 +122,7 @@ dumpexportvar(Sym *s)
+ void
+ dumpexporttype(Sym *s)
+ {
++	dumpprereq(s->otype);
+ 	Bprint(bout, "\t");
+ 	if(s->export != 0)
+ 		Bprint(bout, "export ");

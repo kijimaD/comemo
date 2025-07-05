@@ -11,6 +11,20 @@ Date:   Mon Jun 10 12:18:44 2019 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/syscall/syscall_freebsd.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/syscall/syscall_freebsd.go b/src/syscall/syscall_freebsd.go
+index 725fe51eb9..eecae8de30 100644
+--- a/src/syscall/syscall_freebsd.go
++++ b/src/syscall/syscall_freebsd.go
+@@ -267,7 +267,7 @@ func Fstatfs(fd int, st *Statfs_t) (err error) {
+ 
+ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
+ 	if supportsABI(_ino64First) {
+-		if unsafe.Sizeof(*basep) == 64 {
++		if unsafe.Sizeof(*basep) == 8 {
+ 			return getdirentries_freebsd12(fd, buf, (*uint64)(unsafe.Pointer(basep)))
+ 		}
+ 		// The freebsd12 syscall needs a 64-bit base. On 32-bit machines

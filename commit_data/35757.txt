@@ -11,7 +11,68 @@ Date:   Tue Mar 6 14:12:45 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/internal/poll/fd_unix.go |  8 +++++++-
  src/os/timeout_test.go       | 33 +++++++++++++++++++++++++++++++++
  2 files changed, 40 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/poll/fd_unix.go b/src/internal/poll/fd_unix.go
+index 372dc81633..36376ef6cb 100644
+--- a/src/internal/poll/fd_unix.go
++++ b/src/internal/poll/fd_unix.go
+@@ -59,7 +59,13 @@ func (fd *FD) Init(net string, pollable bool) error {
+ 		fd.isBlocking = true
+ 		return nil
+ 	}
+-	return fd.pd.init(fd)
++	err := fd.pd.init(fd)
++	if err != nil {
++		// If we could not initialize the runtime poller,
++		// assume we are using blocking mode.
++		fd.isBlocking = true
++	}
++	return err
+ }
+ 
+ // Destroy closes the file descriptor. This is called when there are
+diff --git a/src/os/timeout_test.go b/src/os/timeout_test.go
+index 6f47ed04a9..6105f9b1a1 100644
+--- a/src/os/timeout_test.go
++++ b/src/os/timeout_test.go
+@@ -587,3 +587,36 @@ func TestRacyWrite(t *testing.T) {
+ 		}()
+ 	}
+ }
++
++// Closing a TTY while reading from it should not hang.  Issue 23943.
++func TestTTYClose(t *testing.T) {
++	f, err := os.Open("/dev/tty")
++	if err != nil {
++		t.Skipf("skipping because opening /dev/tty failed: %v", err)
++	}
++
++	go func() {
++		var buf [1]byte
++		f.Read(buf[:])
++	}()
++
++	// Give the goroutine a chance to enter the read.
++	// It doesn't matter much if it occasionally fails to do so,
++	// we won't be testing what we want to test but the test will pass.
++	time.Sleep(time.Millisecond)
++
++	c := make(chan bool)
++	go func() {
++		defer close(c)
++		f.Close()
++	}()
++
++	select {
++	case <-c:
++	case <-time.After(time.Second):
++		t.Error("timed out waiting for close")
++	}
++
++	// On some systems the goroutines may now be hanging.
++	// There's not much we can do about that.
++}

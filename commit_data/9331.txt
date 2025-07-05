@@ -7,7 +7,32 @@ Date:   Wed Aug 10 14:05:52 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4855051
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index b507252bf2..65c77c6a3a 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -112,6 +112,7 @@ Mikio Hara <mikioh.mikioh@gmail.com>
+ Mikkel Krautz <mikkel@krautz.dk>
+ Moriyoshi Koizumi <mozo@mozo.jp>
+ Môshe van der Sterre <moshevds@gmail.com>
++ngmoco, LLC
+ Nicholas Waples <nwaples@gmail.com>
+ Nigel Kerr <nigel.kerr@gmail.com>
+ Olivier Antoine <olivier.antoine@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index fe38c03816..4ae5c6e2e1 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -79,6 +79,7 @@ Daniel Fleischman <danielfleischman@gmail.com>
+ Daniel Nadasi <dnadasi@google.com>
+ Daniel Theophanes <kardianos@gmail.com>
+ Dave Cheney <dave@cheney.net>
++Dave Grijalva <dgrijalva@ngmoco.com>
+ David Anderson <danderson@google.com>
+ David Crawshaw <david.crawshaw@zentus.com>
+ David Forsythe <dforsythe@gmail.com>

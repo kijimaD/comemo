@@ -32,7 +32,7 @@ Date:   Sat Jan 9 00:57:55 2021 -0800
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
     Trust: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/noder/decl.go          | 222 +++++++++++++++++++
  src/cmd/compile/internal/noder/expr.go          | 204 +++++++++++++++++
  src/cmd/compile/internal/noder/func.go          |  74 +++++++
@@ -50,3 +50,2063 @@ Date:   Sat Jan 9 00:57:55 2021 -0800
  src/cmd/compile/internal/typecheck/typecheck.go |   8 +-
  src/cmd/compile/internal/types/scope.go         |   2 +-
  16 files changed, 1685 insertions(+), 158 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/decl.go b/src/cmd/compile/internal/noder/decl.go
+new file mode 100644
+index 0000000000..ce5bad88f3
+--- /dev/null
++++ b/src/cmd/compile/internal/noder/decl.go
+@@ -0,0 +1,222 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package noder
++
++import (
++	"cmd/compile/internal/base"
++	"cmd/compile/internal/ir"
++	"cmd/compile/internal/syntax"
++	"cmd/compile/internal/typecheck"
++	"cmd/compile/internal/types"
++	"cmd/compile/internal/types2"
++)
++
++// TODO(mdempsky): Skip blank declarations? Probably only safe
++// for declarations without pragmas.
++
++func (g *irgen) decls(decls []syntax.Decl) []ir.Node {
++	var res ir.Nodes
++	for _, decl := range decls {
++		switch decl := decl.(type) {
++		case *syntax.ConstDecl:
++			g.constDecl(&res, decl)
++		case *syntax.FuncDecl:
++			g.funcDecl(&res, decl)
++		case *syntax.TypeDecl:
++			if ir.CurFunc == nil {
++				continue // already handled in irgen.generate
++			}
++			g.typeDecl(&res, decl)
++		case *syntax.VarDecl:
++			g.varDecl(&res, decl)
++		default:
++			g.unhandled("declaration", decl)
++		}
++	}
++	return res
++}
++
++func (g *irgen) importDecl(p *noder, decl *syntax.ImportDecl) {
++	// TODO(mdempsky): Merge with gcimports so we don't have to import
++	// packages twice.
++
++	g.pragmaFlags(decl.Pragma, 0)
++
++	ipkg := importfile(decl)
++	if ipkg == ir.Pkgs.Unsafe {
++		p.importedUnsafe = true
++	}
++}
++
++func (g *irgen) constDecl(out *ir.Nodes, decl *syntax.ConstDecl) {
++	g.pragmaFlags(decl.Pragma, 0)
++
++	for _, name := range decl.NameList {
++		name, obj := g.def(name)
++		name.SetVal(obj.(*types2.Const).Val())
++		out.Append(ir.NewDecl(g.pos(decl), ir.ODCLCONST, name))
++	}
++}
++
++func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
++	fn := ir.NewFunc(g.pos(decl))
++	fn.Nname, _ = g.def(decl.Name)
++	fn.Nname.Func = fn
++	fn.Nname.Defn = fn
++
++	fn.Pragma = g.pragmaFlags(decl.Pragma, funcPragmas)
++	if fn.Pragma&ir.Systemstack != 0 && fn.Pragma&ir.Nosplit != 0 {
++		base.ErrorfAt(fn.Pos(), "go:nosplit and go:systemstack cannot be combined")
++	}
++
++	if decl.Name.Value == "init" && decl.Recv == nil {
++		g.target.Inits = append(g.target.Inits, fn)
++	}
++
++	g.funcBody(fn, decl.Recv, decl.Type, decl.Body)
++
++	out.Append(fn)
++}
++
++func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
++	if decl.Alias {
++		if !types.AllowsGoVersion(types.LocalPkg, 1, 9) {
++			base.ErrorfAt(g.pos(decl), "type aliases only supported as of -lang=go1.9")
++		}
++
++		name, _ := g.def(decl.Name)
++		g.pragmaFlags(decl.Pragma, 0)
++
++		// TODO(mdempsky): This matches how typecheckdef marks aliases for
++		// export, but this won't generalize to exporting function-scoped
++		// type aliases. We should maybe just use n.Alias() instead.
++		if ir.CurFunc == nil {
++			name.Sym().Def = ir.TypeNode(name.Type())
++		}
++
++		out.Append(ir.NewDecl(g.pos(decl), ir.ODCLTYPE, name))
++		return
++	}
++
++	name, obj := g.def(decl.Name)
++	ntyp, otyp := name.Type(), obj.Type()
++	if ir.CurFunc != nil {
++		typecheck.TypeGen++
++		ntyp.Vargen = typecheck.TypeGen
++	}
++
++	pragmas := g.pragmaFlags(decl.Pragma, typePragmas)
++	name.SetPragma(pragmas) // TODO(mdempsky): Is this still needed?
++
++	if pragmas&ir.NotInHeap != 0 {
++		ntyp.SetNotInHeap(true)
++	}
++
++	// We need to use g.typeExpr(decl.Type) here to ensure that for
++	// chained, defined-type declarations like
++	//
++	//	type T U
++	//
++	//	//go:notinheap
++	//	type U struct { … }
++	//
++	// that we mark both T and U as NotInHeap. If we instead used just
++	// g.typ(otyp.Underlying()), then we'd instead set T's underlying
++	// type directly to the struct type (which is not marked NotInHeap)
++	// and fail to mark T as NotInHeap.
++	//
++	// Also, we rely here on Type.SetUnderlying allowing passing a
++	// defined type and handling forward references like from T to U
++	// above. Contrast with go/types's Named.SetUnderlying, which
++	// disallows this.
++	//
++	// [mdempsky: Subtleties like these are why I always vehemently
++	// object to new type pragmas.]
++	ntyp.SetUnderlying(g.typeExpr(decl.Type))
++
++	if otyp, ok := otyp.(*types2.Named); ok && otyp.NumMethods() != 0 {
++		methods := make([]*types.Field, otyp.NumMethods())
++		for i := range methods {
++			m := otyp.Method(i)
++			meth := g.obj(m)
++			methods[i] = types.NewField(meth.Pos(), g.selector(m), meth.Type())
++			methods[i].Nname = meth
++		}
++		ntyp.Methods().Set(methods)
++	}
++
++	out.Append(ir.NewDecl(g.pos(decl), ir.ODCLTYPE, name))
++}
++
++func (g *irgen) varDecl(out *ir.Nodes, decl *syntax.VarDecl) {
++	pos := g.pos(decl)
++	names := make([]*ir.Name, len(decl.NameList))
++	for i, name := range decl.NameList {
++		names[i], _ = g.def(name)
++	}
++	values := g.exprList(decl.Values)
++
++	if decl.Pragma != nil {
++		pragma := decl.Pragma.(*pragmas)
++		if err := varEmbed(g.makeXPos, names[0], decl, pragma); err != nil {
++			base.ErrorfAt(g.pos(decl), "%s", err.Error())
++		}
++		g.reportUnused(pragma)
++	}
++
++	var as2 *ir.AssignListStmt
++	if len(values) != 0 && len(names) != len(values) {
++		as2 = ir.NewAssignListStmt(pos, ir.OAS2, make([]ir.Node, len(names)), values)
++	}
++
++	for i, name := range names {
++		if ir.CurFunc != nil {
++			out.Append(ir.NewDecl(pos, ir.ODCL, name))
++		}
++		if as2 != nil {
++			as2.Lhs[i] = name
++			name.Defn = as2
++		} else {
++			as := ir.NewAssignStmt(pos, name, nil)
++			if len(values) != 0 {
++				as.Y = values[i]
++				name.Defn = as
++			} else if ir.CurFunc == nil {
++				name.Defn = as
++			}
++			out.Append(typecheck.Stmt(as))
++		}
++	}
++	if as2 != nil {
++		out.Append(typecheck.Stmt(as2))
++	}
++}
++
++// pragmaFlags returns any specified pragma flags included in allowed,
++// and reports errors about any other, unexpected pragmas.
++func (g *irgen) pragmaFlags(pragma syntax.Pragma, allowed ir.PragmaFlag) ir.PragmaFlag {
++	if pragma == nil {
++		return 0
++	}
++	p := pragma.(*pragmas)
++	present := p.Flag & allowed
++	p.Flag &^= allowed
++	g.reportUnused(p)
++	return present
++}
++
++// reportUnused reports errors about any unused pragmas.
++func (g *irgen) reportUnused(pragma *pragmas) {
++	for _, pos := range pragma.Pos {
++		if pos.Flag&pragma.Flag != 0 {
++			base.ErrorfAt(g.makeXPos(pos.Pos), "misplaced compiler directive")
++		}
++	}
++	if len(pragma.Embeds) > 0 {
++		for _, e := range pragma.Embeds {
++			base.ErrorfAt(g.makeXPos(e.Pos), "misplaced go:embed directive")
++		}
++	}
++}
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+new file mode 100644
+index 0000000000..fba6ad2e4b
+--- /dev/null
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -0,0 +1,204 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package noder
++
++import (
++	"cmd/compile/internal/base"
++	"cmd/compile/internal/ir"
++	"cmd/compile/internal/syntax"
++	"cmd/compile/internal/typecheck"
++	"cmd/compile/internal/types"
++	"cmd/compile/internal/types2"
++)
++
++func (g *irgen) expr(expr syntax.Expr) ir.Node {
++	// TODO(mdempsky): Change callers to not call on nil?
++	if expr == nil {
++		return nil
++	}
++
++	if expr == syntax.ImplicitOne {
++		base.Fatalf("expr of ImplicitOne")
++	}
++
++	if expr, ok := expr.(*syntax.Name); ok && expr.Value == "_" {
++		return ir.BlankNode
++	}
++
++	// TODO(mdempsky): Is there a better way to recognize and handle qualified identifiers?
++	if expr, ok := expr.(*syntax.SelectorExpr); ok {
++		if name, ok := expr.X.(*syntax.Name); ok {
++			if _, ok := g.info.Uses[name].(*types2.PkgName); ok {
++				return g.use(expr.Sel)
++			}
++		}
++	}
++
++	tv, ok := g.info.Types[expr]
++	if !ok {
++		base.FatalfAt(g.pos(expr), "missing type for %v (%T)", expr, expr)
++	}
++	switch {
++	case tv.IsBuiltin():
++		// TODO(mdempsky): Handle in CallExpr?
++		return g.use(expr.(*syntax.Name))
++	case tv.IsType():
++		return ir.TypeNode(g.typ(tv.Type))
++	case tv.IsValue(), tv.IsVoid():
++		// ok
++	default:
++		base.FatalfAt(g.pos(expr), "unrecognized type-checker result")
++	}
++
++	// Constant expression.
++	if tv.Value != nil {
++		return Const(g.pos(expr), g.typ(tv.Type), tv.Value)
++	}
++
++	// TODO(mdempsky): Remove dependency on typecheck.Expr.
++	n := typecheck.Expr(g.expr0(tv.Type, expr))
++	if !g.match(n.Type(), tv.Type, tv.HasOk()) {
++		base.FatalfAt(g.pos(expr), "expected %L to have type %v", n, tv.Type)
++	}
++	return n
++}
++
++func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
++	pos := g.pos(expr)
++
++	switch expr := expr.(type) {
++	case *syntax.Name:
++		if _, isNil := g.info.Uses[expr].(*types2.Nil); isNil {
++			return Nil(pos, g.typ(typ))
++		}
++		return g.use(expr)
++
++	case *syntax.CompositeLit:
++		return g.compLit(typ, expr)
++	case *syntax.FuncLit:
++		return g.funcLit(typ, expr)
++
++	case *syntax.AssertExpr:
++		return Assert(pos, g.expr(expr.X), g.typeExpr(expr.Type))
++	case *syntax.CallExpr:
++		return Call(pos, g.expr(expr.Fun), g.exprs(expr.ArgList), expr.HasDots)
++	case *syntax.IndexExpr:
++		return Index(pos, g.expr(expr.X), g.expr(expr.Index))
++	case *syntax.ParenExpr:
++		return g.expr(expr.X) // skip parens; unneeded after parse+typecheck
++	case *syntax.SelectorExpr:
++		// TODO(mdempsky/danscales): Use g.info.Selections[expr]
++		// to resolve field/method selection. See CL 280633.
++		return ir.NewSelectorExpr(pos, ir.OXDOT, g.expr(expr.X), g.name(expr.Sel))
++	case *syntax.SliceExpr:
++		return Slice(pos, g.expr(expr.X), g.expr(expr.Index[0]), g.expr(expr.Index[1]), g.expr(expr.Index[2]))
++
++	case *syntax.Operation:
++		if expr.Y == nil {
++			return Unary(pos, g.op(expr.Op, unOps[:]), g.expr(expr.X))
++		}
++		switch op := g.op(expr.Op, binOps[:]); op {
++		case ir.OEQ, ir.ONE, ir.OLT, ir.OLE, ir.OGT, ir.OGE:
++			return Compare(pos, g.typ(typ), op, g.expr(expr.X), g.expr(expr.Y))
++		default:
++			return Binary(pos, op, g.expr(expr.X), g.expr(expr.Y))
++		}
++
++	default:
++		g.unhandled("expression", expr)
++		panic("unreachable")
++	}
++}
++
++func (g *irgen) exprList(expr syntax.Expr) []ir.Node {
++	switch expr := expr.(type) {
++	case nil:
++		return nil
++	case *syntax.ListExpr:
++		return g.exprs(expr.ElemList)
++	default:
++		return []ir.Node{g.expr(expr)}
++	}
++}
++
++func (g *irgen) exprs(exprs []syntax.Expr) []ir.Node {
++	nodes := make([]ir.Node, len(exprs))
++	for i, expr := range exprs {
++		nodes[i] = g.expr(expr)
++	}
++	return nodes
++}
++
++func (g *irgen) compLit(typ types2.Type, lit *syntax.CompositeLit) ir.Node {
++	if ptr, ok := typ.Underlying().(*types2.Pointer); ok {
++		if _, isNamed := typ.(*types2.Named); isNamed {
++			// TODO(mdempsky): Questionable, but this is
++			// currently allowed by cmd/compile, go/types,
++			// and gccgo:
++			//
++			//	type T *struct{}
++			//	var _ = []T{{}}
++			base.FatalfAt(g.pos(lit), "defined-pointer composite literal")
++		}
++		return ir.NewAddrExpr(g.pos(lit), g.compLit(ptr.Elem(), lit))
++	}
++
++	_, isStruct := typ.Underlying().(*types2.Struct)
++
++	exprs := make([]ir.Node, len(lit.ElemList))
++	for i, elem := range lit.ElemList {
++		switch elem := elem.(type) {
++		case *syntax.KeyValueExpr:
++			if isStruct {
++				exprs[i] = ir.NewStructKeyExpr(g.pos(elem), g.name(elem.Key.(*syntax.Name)), g.expr(elem.Value))
++			} else {
++				exprs[i] = ir.NewKeyExpr(g.pos(elem), g.expr(elem.Key), g.expr(elem.Value))
++			}
++		default:
++			exprs[i] = g.expr(elem)
++		}
++	}
++
++	return ir.NewCompLitExpr(g.pos(lit), ir.OCOMPLIT, ir.TypeNode(g.typ(typ)), exprs)
++}
++
++func (g *irgen) funcLit(typ types2.Type, expr *syntax.FuncLit) ir.Node {
++	fn := ir.NewFunc(g.pos(expr))
++	fn.SetIsHiddenClosure(ir.CurFunc != nil)
++
++	fn.Nname = ir.NewNameAt(g.pos(expr), typecheck.ClosureName(ir.CurFunc))
++	ir.MarkFunc(fn.Nname)
++	fn.Nname.SetType(g.typ(typ))
++	fn.Nname.Func = fn
++	fn.Nname.Defn = fn
++
++	fn.OClosure = ir.NewClosureExpr(g.pos(expr), fn)
++	fn.OClosure.SetType(fn.Nname.Type())
++	fn.OClosure.SetTypecheck(1)
++
++	g.funcBody(fn, nil, expr.Type, expr.Body)
++
++	ir.FinishCaptureNames(fn.Pos(), ir.CurFunc, fn)
++
++	// TODO(mdempsky): ir.CaptureName should probably handle
++	// copying these fields from the canonical variable.
++	for _, cv := range fn.ClosureVars {
++		cv.SetType(cv.Canonical().Type())
++		cv.SetTypecheck(1)
++		cv.SetWalkdef(1)
++	}
++
++	g.target.Decls = append(g.target.Decls, fn)
++
++	return fn.OClosure
++}
++
++func (g *irgen) typeExpr(typ syntax.Expr) *types.Type {
++	n := g.expr(typ)
++	if n.Op() != ir.OTYPE {
++		base.FatalfAt(g.pos(typ), "expected type: %L", n)
++	}
++	return n.Type()
++}
+diff --git a/src/cmd/compile/internal/noder/func.go b/src/cmd/compile/internal/noder/func.go
+new file mode 100644
+index 0000000000..702138157c
+--- /dev/null
++++ b/src/cmd/compile/internal/noder/func.go
+@@ -0,0 +1,74 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package noder
++
++import (
++	"cmd/compile/internal/base"
++	"cmd/compile/internal/ir"
++	"cmd/compile/internal/syntax"
++	"cmd/compile/internal/typecheck"
++	"cmd/compile/internal/types"
++	"cmd/internal/src"
++)
++
++func (g *irgen) funcBody(fn *ir.Func, recv *syntax.Field, sig *syntax.FuncType, block *syntax.BlockStmt) {
++	typecheck.Func(fn)
++
++	// TODO(mdempsky): Remove uses of ir.CurFunc and
++	// typecheck.DeclContext after we stop relying on typecheck
++	// for desugaring.
++	outerfn, outerctxt := ir.CurFunc, typecheck.DeclContext
++	ir.CurFunc = fn
++
++	typ := fn.Type()
++	if param := typ.Recv(); param != nil {
++		g.defParam(param, recv, ir.PPARAM)
++	}
++	for i, param := range typ.Params().FieldSlice() {
++		g.defParam(param, sig.ParamList[i], ir.PPARAM)
++	}
++	for i, result := range typ.Results().FieldSlice() {
++		g.defParam(result, sig.ResultList[i], ir.PPARAMOUT)
++	}
++
++	// We may have type-checked a call to this function already and
++	// calculated its size, including parameter offsets. Now that we've
++	// created the parameter Names, force a recalculation to ensure
++	// their offsets are correct.
++	typ.Align = 0
++	types.CalcSize(typ)
++
++	if block != nil {
++		typecheck.DeclContext = ir.PAUTO
++
++		fn.Body = g.stmts(block.List)
++		if fn.Body == nil {
++			fn.Body = []ir.Node{ir.NewBlockStmt(src.NoXPos, nil)}
++		}
++		fn.Endlineno = g.makeXPos(block.Rbrace)
++
++		if base.Flag.Dwarf {
++			g.recordScopes(fn, sig)
++		}
++	}
++
++	ir.CurFunc, typecheck.DeclContext = outerfn, outerctxt
++}
++
++func (g *irgen) defParam(param *types.Field, decl *syntax.Field, class ir.Class) {
++	typecheck.DeclContext = class
++
++	var name *ir.Name
++	if decl.Name != nil {
++		name, _ = g.def(decl.Name)
++	} else if class == ir.PPARAMOUT {
++		name = g.obj(g.info.Implicits[decl])
++	}
++
++	if name != nil {
++		param.Nname = name
++		param.Sym = name.Sym() // in case it was renamed
++	}
++}
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+new file mode 100644
+index 0000000000..2139f16a6c
+--- /dev/null
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -0,0 +1,130 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package noder
++
++import (
++	"cmd/compile/internal/ir"
++	"cmd/compile/internal/typecheck"
++	"cmd/compile/internal/types"
++	"cmd/internal/src"
++	"go/constant"
++)
++
++// Helpers for constructing typed IR nodes.
++//
++// TODO(mdempsky): Move into their own package so they can be easily
++// reused by iimport and frontend optimizations.
++//
++// TODO(mdempsky): Update to consistently return already typechecked
++// results, rather than leaving the caller responsible for using
++// typecheck.Expr or typecheck.Stmt.
++
++// Values
++
++func Const(pos src.XPos, typ *types.Type, val constant.Value) ir.Node {
++	n := ir.NewBasicLit(pos, val)
++	n.SetType(typ)
++	return n
++}
++
++func Nil(pos src.XPos, typ *types.Type) ir.Node {
++	n := ir.NewNilExpr(pos)
++	n.SetType(typ)
++	return n
++}
++
++// Expressions
++
++func Assert(pos src.XPos, x ir.Node, typ *types.Type) ir.Node {
++	return typecheck.Expr(ir.NewTypeAssertExpr(pos, x, ir.TypeNode(typ)))
++}
++
++func Binary(pos src.XPos, op ir.Op, x, y ir.Node) ir.Node {
++	switch op {
++	case ir.OANDAND, ir.OOROR:
++		return ir.NewLogicalExpr(pos, op, x, y)
++	default:
++		return ir.NewBinaryExpr(pos, op, x, y)
++	}
++}
++
++func Call(pos src.XPos, fun ir.Node, args []ir.Node, dots bool) ir.Node {
++	// TODO(mdempsky): This should not be so difficult.
++
++	n := ir.NewCallExpr(pos, ir.OCALL, fun, args)
++	n.IsDDD = dots
++
++	// Actually a type conversion.
++	if fun.Op() == ir.OTYPE {
++		return typecheck.Expr(n)
++	}
++
++	if fun, ok := fun.(*ir.Name); ok && fun.BuiltinOp != 0 {
++		switch fun.BuiltinOp {
++		case ir.OCLOSE, ir.ODELETE, ir.OPANIC, ir.OPRINT, ir.OPRINTN:
++			return typecheck.Stmt(n)
++		default:
++			return typecheck.Expr(n)
++		}
++	}
++
++	// We probably already typechecked fun, and typecheck probably
++	// got it wrong because it didn't know the expression was
++	// going to be called immediately. Correct its mistakes.
++	switch fun := fun.(type) {
++	case *ir.ClosureExpr:
++		fun.Func.SetClosureCalled(true)
++	case *ir.SelectorExpr:
++		if fun.Op() == ir.OCALLPART {
++			op := ir.ODOTMETH
++			if fun.X.Type().IsInterface() {
++				op = ir.ODOTINTER
++			}
++			fun.SetOp(op)
++			fun.SetType(fun.Selection.Type)
++		}
++	}
++
++	typecheck.Call(n)
++	return n
++}
++
++func Compare(pos src.XPos, typ *types.Type, op ir.Op, x, y ir.Node) ir.Node {
++	n := typecheck.Expr(ir.NewBinaryExpr(pos, op, x, y))
++	n.SetType(typ)
++	return n
++}
++
++func Index(pos src.XPos, x, index ir.Node) ir.Node {
++	return ir.NewIndexExpr(pos, x, index)
++}
++
++func Slice(pos src.XPos, x, low, high, max ir.Node) ir.Node {
++	op := ir.OSLICE
++	if max != nil {
++		op = ir.OSLICE3
++	}
++	return ir.NewSliceExpr(pos, op, x, low, high, max)
++}
++
++func Unary(pos src.XPos, op ir.Op, x ir.Node) ir.Node {
++	switch op {
++	case ir.OADDR:
++		return typecheck.NodAddrAt(pos, x)
++	case ir.ODEREF:
++		return ir.NewStarExpr(pos, x)
++	default:
++		return ir.NewUnaryExpr(pos, op, x)
++	}
++}
++
++// Statements
++
++var one = constant.MakeInt64(1)
++
++func IncDec(pos src.XPos, op ir.Op, x ir.Node) ir.Node {
++	x = typecheck.AssignExpr(x)
++	return ir.NewAssignOpStmt(pos, op, x, typecheck.DefaultLit(ir.NewBasicLit(pos, one), x.Type()))
++}
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+new file mode 100644
+index 0000000000..694a6abb8e
+--- /dev/null
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -0,0 +1,176 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package noder
++
++import (
++	"os"
++
++	"cmd/compile/internal/base"
++	"cmd/compile/internal/dwarfgen"
++	"cmd/compile/internal/ir"
++	"cmd/compile/internal/syntax"
++	"cmd/compile/internal/typecheck"
++	"cmd/compile/internal/types"
++	"cmd/compile/internal/types2"
++	"cmd/internal/src"
++)
++
++// check2 type checks a Go package using types2, and then generates IR
++// using the results.
++func check2(noders []*noder) {
++	if base.SyntaxErrors() != 0 {
++		base.ErrorExit()
++	}
++
++	// setup and syntax error reporting
++	var m posMap
++	files := make([]*syntax.File, len(noders))
++	for i, p := range noders {
++		m.join(&p.posMap)
++		files[i] = p.file
++	}
++
++	// typechecking
++	conf := types2.Config{
++		InferFromConstraints:  true,
++		IgnoreBranches:        true, // parser already checked via syntax.CheckBranches mode
++		CompilerErrorMessages: true, // use error strings matching existing compiler errors
++		Error: func(err error) {
++			terr := err.(types2.Error)
++			if len(terr.Msg) > 0 && terr.Msg[0] == '\t' {
++				// types2 reports error clarifications via separate
++				// error messages which are indented with a tab.
++				// Ignore them to satisfy tools and tests that expect
++				// only one error in such cases.
++				// TODO(gri) Need to adjust error reporting in types2.
++				return
++			}
++			base.ErrorfAt(m.makeXPos(terr.Pos), "%s", terr.Msg)
++		},
++		Importer: &gcimports{
++			packages: make(map[string]*types2.Package),
++		},
++		Sizes: &gcSizes{},
++	}
++	info := types2.Info{
++		Types:      make(map[syntax.Expr]types2.TypeAndValue),
++		Defs:       make(map[*syntax.Name]types2.Object),
++		Uses:       make(map[*syntax.Name]types2.Object),
++		Selections: make(map[*syntax.SelectorExpr]*types2.Selection),
++		Implicits:  make(map[syntax.Node]types2.Object),
++		Scopes:     make(map[syntax.Node]*types2.Scope),
++		// expand as needed
++	}
++	pkg, err := conf.Check(base.Ctxt.Pkgpath, files, &info)
++	files = nil
++	if err != nil {
++		base.FatalfAt(src.NoXPos, "conf.Check error: %v", err)
++	}
++	base.ExitIfErrors()
++	if base.Flag.G < 2 {
++		os.Exit(0)
++	}
++
++	g := irgen{
++		target: typecheck.Target,
++		self:   pkg,
++		info:   &info,
++		posMap: m,
++		objs:   make(map[types2.Object]*ir.Name),
++	}
++	g.generate(noders)
++
++	if base.Flag.G < 3 {
++		os.Exit(0)
++	}
++}
++
++type irgen struct {
++	target *ir.Package
++	self   *types2.Package
++	info   *types2.Info
++
++	posMap
++	objs   map[types2.Object]*ir.Name
++	marker dwarfgen.ScopeMarker
++}
++
++func (g *irgen) generate(noders []*noder) {
++	types.LocalPkg.Name = g.self.Name()
++	typecheck.TypecheckAllowed = true
++
++	// At this point, types2 has already handled name resolution and
++	// type checking. We just need to map from its object and type
++	// representations to those currently used by the rest of the
++	// compiler. This happens mostly in 3 passes.
++
++	// 1. Process all import declarations. We use the compiler's own
++	// importer for this, rather than types2's gcimporter-derived one,
++	// to handle extensions and inline function bodies correctly.
++	//
++	// Also, we need to do this in a separate pass, because mappings are
++	// instantiated on demand. If we interleaved processing import
++	// declarations with other declarations, it's likely we'd end up
++	// wanting to map an object/type from another source file, but not
++	// yet have the import data it relies on.
++	declLists := make([][]syntax.Decl, len(noders))
++Outer:
++	for i, p := range noders {
++		g.pragmaFlags(p.file.Pragma, ir.GoBuildPragma)
++		for j, decl := range p.file.DeclList {
++			switch decl := decl.(type) {
++			case *syntax.ImportDecl:
++				g.importDecl(p, decl)
++			default:
++				declLists[i] = p.file.DeclList[j:]
++				continue Outer // no more ImportDecls
++			}
++		}
++	}
++	types.LocalPkg.Height = myheight
++
++	// 2. Process all package-block type declarations. As with imports,
++	// we need to make sure all types are properly instantiated before
++	// trying to map any expressions that utilize them. In particular,
++	// we need to make sure type pragmas are already known (see comment
++	// in irgen.typeDecl).
++	//
++	// We could perhaps instead defer processing of package-block
++	// variable initializers and function bodies, like noder does, but
++	// special-casing just package-block type declarations minimizes the
++	// differences between processing package-block and function-scoped
++	// declarations.
++	for _, declList := range declLists {
++		for _, decl := range declList {
++			switch decl := decl.(type) {
++			case *syntax.TypeDecl:
++				g.typeDecl((*ir.Nodes)(&g.target.Decls), decl)
++			}
++		}
++	}
++
++	// 3. Process all remaining declarations.
++	for _, declList := range declLists {
++		g.target.Decls = append(g.target.Decls, g.decls(declList)...)
++	}
++	typecheck.DeclareUniverse()
++
++	for _, p := range noders {
++		// Process linkname and cgo pragmas.
++		p.processPragmas()
++
++		// Double check for any type-checking inconsistencies. This can be
++		// removed once we're confident in IR generation results.
++		syntax.Walk(p.file, func(n syntax.Node) bool {
++			g.validate(n)
++			return false
++		})
++	}
++}
++
++func (g *irgen) unhandled(what string, p poser) {
++	base.FatalfAt(g.pos(p), "unhandled %s: %T", what, p)
++	panic("unreachable")
++}
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 6a0ee831d7..0c7d015977 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -23,48 +23,31 @@ import (
+ 	"cmd/compile/internal/syntax"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+-	"cmd/compile/internal/types2"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ )
+ 
+ func LoadPackage(filenames []string) {
+ 	base.Timer.Start("fe", "parse")
+-	lines := ParseFiles(filenames)
+-	base.Timer.Stop()
+-	base.Timer.AddEvent(int64(lines), "lines")
+ 
+-	if base.Flag.G != 0 && base.Flag.G < 3 {
+-		// can only parse generic code for now
+-		base.ExitIfErrors()
+-		return
++	mode := syntax.CheckBranches
++	if base.Flag.G != 0 {
++		mode |= syntax.AllowGenerics
+ 	}
+ 
+-	// Typecheck.
+-	Package()
+-
+-	// With all user code typechecked, it's now safe to verify unused dot imports.
+-	CheckDotImports()
+-	base.ExitIfErrors()
+-}
+-
+-// ParseFiles concurrently parses files into *syntax.File structures.
+-// Each declaration in every *syntax.File is converted to a syntax tree
+-// and its root represented by *Node is appended to Target.Decls.
+-// Returns the total count of parsed lines.
+-func ParseFiles(filenames []string) (lines uint) {
+-	noders := make([]*noder, 0, len(filenames))
+ 	// Limit the number of simultaneously open files.
+ 	sem := make(chan struct{}, runtime.GOMAXPROCS(0)+10)
+ 
+-	for _, filename := range filenames {
+-		p := &noder{
++	noders := make([]*noder, len(filenames))
++	for i, filename := range filenames {
++		p := noder{
+ 			err:         make(chan syntax.Error),
+ 			trackScopes: base.Flag.Dwarf,
+ 		}
+-		noders = append(noders, p)
++		noders[i] = &p
+ 
+-		go func(filename string) {
++		filename := filename
++		go func() {
+ 			sem <- struct{}{}
+ 			defer func() { <-sem }()
+ 			defer close(p.err)
+@@ -77,115 +60,42 @@ func ParseFiles(filenames []string) (lines uint) {
+ 			}
+ 			defer f.Close()
+ 
+-			mode := syntax.CheckBranches
+-			if base.Flag.G != 0 {
+-				mode |= syntax.AllowGenerics
+-			}
+ 			p.file, _ = syntax.Parse(fbase, f, p.error, p.pragma, mode) // errors are tracked via p.error
+-		}(filename)
+-	}
+-
+-	// generic noding phase (using new typechecker)
+-	if base.Flag.G != 0 {
+-		// setup and syntax error reporting
+-		nodersmap := make(map[string]*noder)
+-		var files []*syntax.File
+-		for _, p := range noders {
+-			for e := range p.err {
+-				p.errorAt(e.Pos, "%s", e.Msg)
+-			}
+-
+-			nodersmap[p.file.Pos().RelFilename()] = p
+-			files = append(files, p.file)
+-			lines += p.file.EOF.Line()
+-
+-		}
+-		if base.SyntaxErrors() != 0 {
+-			base.ErrorExit()
+-		}
+-
+-		// typechecking
+-		conf := types2.Config{
+-			InferFromConstraints:  true,
+-			IgnoreBranches:        true, // parser already checked via syntax.CheckBranches mode
+-			CompilerErrorMessages: true, // use error strings matching existing compiler errors
+-			Error: func(err error) {
+-				terr := err.(types2.Error)
+-				if len(terr.Msg) > 0 && terr.Msg[0] == '\t' {
+-					// types2 reports error clarifications via separate
+-					// error messages which are indented with a tab.
+-					// Ignore them to satisfy tools and tests that expect
+-					// only one error in such cases.
+-					// TODO(gri) Need to adjust error reporting in types2.
+-					return
+-				}
+-				p := nodersmap[terr.Pos.RelFilename()]
+-				base.ErrorfAt(p.makeXPos(terr.Pos), "%s", terr.Msg)
+-			},
+-			Importer: &gcimports{
+-				packages: make(map[string]*types2.Package),
+-			},
+-			Sizes: &gcSizes{},
+-		}
+-		info := types2.Info{
+-			Types:      make(map[syntax.Expr]types2.TypeAndValue),
+-			Defs:       make(map[*syntax.Name]types2.Object),
+-			Uses:       make(map[*syntax.Name]types2.Object),
+-			Selections: make(map[*syntax.SelectorExpr]*types2.Selection),
+-			// expand as needed
+-		}
+-		conf.Check(base.Ctxt.Pkgpath, files, &info)
+-		base.ExitIfErrors()
+-		if base.Flag.G < 2 {
+-			return
+-		}
+-
+-		// noding
+-		for _, p := range noders {
+-			// errors have already been reported
+-
+-			p.typeInfo = &info
+-			p.node()
+-			lines += p.file.EOF.Line()
+-			p.file = nil // release memory
+-			base.ExitIfErrors()
+-
+-			// Always run testdclstack here, even when debug_dclstack is not set, as a sanity measure.
+-			types.CheckDclstack()
+-		}
+-
+-		types.LocalPkg.Height = myheight
+-		return
++		}()
+ 	}
+ 
+-	// traditional (non-generic) noding phase
++	var lines uint
+ 	for _, p := range noders {
+ 		for e := range p.err {
+ 			p.errorAt(e.Pos, "%s", e.Msg)
+ 		}
++		lines += p.file.EOF.Line()
++	}
++	base.Timer.AddEvent(int64(lines), "lines")
++
++	if base.Flag.G != 0 {
++		// Use types2 to type-check and possibly generate IR.
++		check2(noders)
++		return
++	}
+ 
++	for _, p := range noders {
+ 		p.node()
+-		lines += p.file.EOF.Line()
+ 		p.file = nil // release memory
+-		if base.SyntaxErrors() != 0 {
+-			base.ErrorExit()
+-		}
++	}
+ 
+-		// Always run testdclstack here, even when debug_dclstack is not set, as a sanity measure.
+-		types.CheckDclstack()
++	if base.SyntaxErrors() != 0 {
++		base.ErrorExit()
+ 	}
++	types.CheckDclstack()
+ 
+ 	for _, p := range noders {
+ 		p.processPragmas()
+ 	}
+ 
++	// Typecheck.
+ 	types.LocalPkg.Height = myheight
+-	return
+-}
+-
+-func Package() {
+ 	typecheck.DeclareUniverse()
+-
+ 	typecheck.TypecheckAllowed = true
+ 
+ 	// Process top-level declarations in phases.
+@@ -242,8 +152,10 @@ func Package() {
+ 	}
+ 
+ 	// Phase 5: With all user code type-checked, it's now safe to verify map keys.
++	// With all user code typechecked, it's now safe to verify unused dot imports.
+ 	typecheck.CheckMapKeys()
+-
++	CheckDotImports()
++	base.ExitIfErrors()
+ }
+ 
+ func (p *noder) errorAt(pos syntax.Pos, format string, args ...interface{}) {
+@@ -272,37 +184,6 @@ type noder struct {
+ 	trackScopes    bool
+ 
+ 	funcState *funcState
+-
+-	// typeInfo provides access to the type information computed by the new
+-	// typechecker. It is only present if -G is set, and all noders point to
+-	// the same types.Info. For now this is a local field, if need be we can
+-	// make it global.
+-	typeInfo *types2.Info
+-}
+-
+-// For now we provide these basic accessors to get to type and object
+-// information of expression nodes during noding. Eventually we will
+-// attach this information directly to the syntax tree which should
+-// simplify access and make it more efficient as well.
+-
+-// typ returns the type and value information for the given expression.
+-func (p *noder) typ(x syntax.Expr) types2.TypeAndValue {
+-	return p.typeInfo.Types[x]
+-}
+-
+-// def returns the object for the given name in its declaration.
+-func (p *noder) def(x *syntax.Name) types2.Object {
+-	return p.typeInfo.Defs[x]
+-}
+-
+-// use returns the object for the given name outside its declaration.
+-func (p *noder) use(x *syntax.Name) types2.Object {
+-	return p.typeInfo.Uses[x]
+-}
+-
+-// sel returns the selection information for the given selector expression.
+-func (p *noder) sel(x *syntax.SelectorExpr) *types2.Selection {
+-	return p.typeInfo.Selections[x]
+ }
+ 
+ // funcState tracks all per-function state to make handling nested
+@@ -380,7 +261,6 @@ type linkname struct {
+ }
+ 
+ func (p *noder) node() {
+-	types.Block = 1
+ 	p.importedUnsafe = false
+ 	p.importedEmbed = false
+ 
+diff --git a/src/cmd/compile/internal/noder/object.go b/src/cmd/compile/internal/noder/object.go
+new file mode 100644
+index 0000000000..9567042156
+--- /dev/null
++++ b/src/cmd/compile/internal/noder/object.go
+@@ -0,0 +1,169 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package noder
++
++import (
++	"cmd/compile/internal/base"
++	"cmd/compile/internal/ir"
++	"cmd/compile/internal/syntax"
++	"cmd/compile/internal/typecheck"
++	"cmd/compile/internal/types"
++	"cmd/compile/internal/types2"
++	"cmd/internal/src"
++)
++
++func (g *irgen) def(name *syntax.Name) (*ir.Name, types2.Object) {
++	obj, ok := g.info.Defs[name]
++	if !ok {
++		base.FatalfAt(g.pos(name), "unknown name %v", name)
++	}
++	return g.obj(obj), obj
++}
++
++func (g *irgen) use(name *syntax.Name) *ir.Name {
++	obj, ok := g.info.Uses[name]
++	if !ok {
++		base.FatalfAt(g.pos(name), "unknown name %v", name)
++	}
++	return ir.CaptureName(g.pos(obj), ir.CurFunc, g.obj(obj))
++}
++
++// obj returns the Name that represents the given object. If no such
++// Name exists yet, it will be implicitly created.
++//
++// For objects declared at function scope, ir.CurFunc must already be
++// set to the respective function when the Name is created.
++func (g *irgen) obj(obj types2.Object) *ir.Name {
++	// For imported objects, we use iimport directly instead of mapping
++	// the types2 representation.
++	if obj.Pkg() != g.self {
++		sym := g.sym(obj)
++		if sym.Def != nil {
++			return sym.Def.(*ir.Name)
++		}
++		n := typecheck.Resolve(ir.NewIdent(src.NoXPos, sym))
++		if n, ok := n.(*ir.Name); ok {
++			return n
++		}
++		base.FatalfAt(g.pos(obj), "failed to resolve %v", obj)
++	}
++
++	if name, ok := g.objs[obj]; ok {
++		return name // previously mapped
++	}
++
++	var name *ir.Name
++	pos := g.pos(obj)
++
++	class := typecheck.DeclContext
++	if obj.Parent() == g.self.Scope() {
++		class = ir.PEXTERN // forward reference to package-block declaration
++	}
++
++	// "You are in a maze of twisting little passages, all different."
++	switch obj := obj.(type) {
++	case *types2.Const:
++		name = g.objCommon(pos, ir.OLITERAL, g.sym(obj), class, g.typ(obj.Type()))
++
++	case *types2.Func:
++		sig := obj.Type().(*types2.Signature)
++		var sym *types.Sym
++		var typ *types.Type
++		if recv := sig.Recv(); recv == nil {
++			if obj.Name() == "init" {
++				sym = renameinit()
++			} else {
++				sym = g.sym(obj)
++			}
++			typ = g.typ(sig)
++		} else {
++			sym = ir.MethodSym(g.typ(recv.Type()), g.selector(obj))
++			typ = g.signature(g.param(recv), sig)
++		}
++		name = g.objCommon(pos, ir.ONAME, sym, ir.PFUNC, typ)
++
++	case *types2.TypeName:
++		if obj.IsAlias() {
++			name = g.objCommon(pos, ir.OTYPE, g.sym(obj), class, g.typ(obj.Type()))
++		} else {
++			name = ir.NewDeclNameAt(pos, ir.OTYPE, g.sym(obj))
++			g.objFinish(name, class, types.NewNamed(name))
++		}
++
++	case *types2.Var:
++		var sym *types.Sym
++		if class == ir.PPARAMOUT {
++			// Backend needs names for result parameters,
++			// even if they're anonymous or blank.
++			switch obj.Name() {
++			case "":
++				sym = typecheck.LookupNum("~r", len(ir.CurFunc.Dcl)) // 'r' for "result"
++			case "_":
++				sym = typecheck.LookupNum("~b", len(ir.CurFunc.Dcl)) // 'b' for "blank"
++			}
++		}
++		if sym == nil {
++			sym = g.sym(obj)
++		}
++		name = g.objCommon(pos, ir.ONAME, sym, class, g.typ(obj.Type()))
++
++	default:
++		g.unhandled("object", obj)
++	}
++
++	g.objs[obj] = name
++	return name
++}
++
++func (g *irgen) objCommon(pos src.XPos, op ir.Op, sym *types.Sym, class ir.Class, typ *types.Type) *ir.Name {
++	name := ir.NewDeclNameAt(pos, op, sym)
++	g.objFinish(name, class, typ)
++	return name
++}
++
++func (g *irgen) objFinish(name *ir.Name, class ir.Class, typ *types.Type) {
++	sym := name.Sym()
++
++	name.SetType(typ)
++	name.Class = class
++	if name.Class == ir.PFUNC {
++		sym.SetFunc(true)
++	}
++
++	// We already know name's type, but typecheck is really eager to try
++	// recomputing it later. This appears to prevent that at least.
++	name.Ntype = ir.TypeNode(typ)
++	name.SetTypecheck(1)
++	name.SetWalkdef(1)
++
++	if ir.IsBlank(name) {
++		return
++	}
++
++	switch class {
++	case ir.PEXTERN:
++		g.target.Externs = append(g.target.Externs, name)
++		fallthrough
++	case ir.PFUNC:
++		sym.Def = name
++		if name.Class == ir.PFUNC && name.Type().Recv() != nil {
++			break // methods are exported with their receiver type
++		}
++		if types.IsExported(sym.Name) {
++			typecheck.Export(name)
++		}
++		if base.Flag.AsmHdr != "" && !name.Sym().Asm() {
++			name.Sym().SetAsm(true)
++			g.target.Asms = append(g.target.Asms, name)
++		}
++
++	default:
++		// Function-scoped declaration.
++		name.Curfn = ir.CurFunc
++		if name.Op() == ir.ONAME {
++			ir.CurFunc.Dcl = append(ir.CurFunc.Dcl, name)
++		}
++	}
++}
+diff --git a/src/cmd/compile/internal/noder/posmap.go b/src/cmd/compile/internal/noder/posmap.go
+index d24f706281..a6d3e2d7ef 100644
+--- a/src/cmd/compile/internal/noder/posmap.go
++++ b/src/cmd/compile/internal/noder/posmap.go
+@@ -27,7 +27,8 @@ func (m *posMap) end(p ender) src.XPos { return m.makeXPos(p.End()) }
+ 
+ func (m *posMap) makeXPos(pos syntax.Pos) src.XPos {
+ 	if !pos.IsKnown() {
+-		base.Fatalf("unknown position")
++		// TODO(mdempsky): Investigate restoring base.Fatalf.
++		return src.NoXPos
+ 	}
+ 
+ 	posBase := m.makeSrcPosBase(pos.Base())
+@@ -70,6 +71,9 @@ func (m *posMap) makeSrcPosBase(b0 *syntax.PosBase) *src.PosBase {
+ }
+ 
+ func (m *posMap) join(other *posMap) {
++	if m.bases == nil {
++		m.bases = make(map[*syntax.PosBase]*src.PosBase)
++	}
+ 	for k, v := range other.bases {
+ 		if m.bases[k] != nil {
+ 			base.Fatalf("duplicate posmap bases")
+diff --git a/src/cmd/compile/internal/noder/scopes.go b/src/cmd/compile/internal/noder/scopes.go
+new file mode 100644
+index 0000000000..eb518474c6
+--- /dev/null
++++ b/src/cmd/compile/internal/noder/scopes.go
+@@ -0,0 +1,64 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package noder
++
++import (
++	"strings"
++
++	"cmd/compile/internal/base"
++	"cmd/compile/internal/ir"
++	"cmd/compile/internal/syntax"
++	"cmd/compile/internal/types2"
++)
++
++// recordScopes populates fn.Parents and fn.Marks based on the scoping
++// information provided by types2.
++func (g *irgen) recordScopes(fn *ir.Func, sig *syntax.FuncType) {
++	scope, ok := g.info.Scopes[sig]
++	if !ok {
++		base.FatalfAt(fn.Pos(), "missing scope for %v", fn)
++	}
++
++	for i, n := 0, scope.NumChildren(); i < n; i++ {
++		g.walkScope(scope.Child(i))
++	}
++
++	g.marker.WriteTo(fn)
++}
++
++func (g *irgen) walkScope(scope *types2.Scope) bool {
++	// types2 doesn't provide a proper API for determining the
++	// lexical element a scope represents, so we have to resort to
++	// string matching. Conveniently though, this allows us to
++	// skip both function types and function literals, neither of
++	// which are interesting to us here.
++	if strings.HasPrefix(scope.String(), "function scope ") {
++		return false
++	}
++
++	g.marker.Push(g.pos(scope))
++
++	haveVars := false
++	for _, name := range scope.Names() {
++		if obj, ok := scope.Lookup(name).(*types2.Var); ok && obj.Name() != "_" {
++			haveVars = true
++			break
++		}
++	}
++
++	for i, n := 0, scope.NumChildren(); i < n; i++ {
++		if g.walkScope(scope.Child(i)) {
++			haveVars = true
++		}
++	}
++
++	if haveVars {
++		g.marker.Pop(g.end(scope))
++	} else {
++		g.marker.Unpush()
++	}
++
++	return haveVars
++}
+diff --git a/src/cmd/compile/internal/noder/stmt.go b/src/cmd/compile/internal/noder/stmt.go
+new file mode 100644
+index 0000000000..7d79595a04
+--- /dev/null
++++ b/src/cmd/compile/internal/noder/stmt.go
+@@ -0,0 +1,280 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package noder
++
++import (
++	"cmd/compile/internal/ir"
++	"cmd/compile/internal/syntax"
++	"cmd/compile/internal/typecheck"
++	"cmd/compile/internal/types"
++	"cmd/internal/src"
++)
++
++func (g *irgen) stmts(stmts []syntax.Stmt) []ir.Node {
++	var nodes []ir.Node
++	for _, stmt := range stmts {
++		switch s := g.stmt(stmt).(type) {
++		case nil: // EmptyStmt
++		case *ir.BlockStmt:
++			nodes = append(nodes, s.List...)
++		default:
++			nodes = append(nodes, s)
++		}
++	}
++	return nodes
++}
++
++func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
++	// TODO(mdempsky): Remove dependency on typecheck.
++	return typecheck.Stmt(g.stmt0(stmt))
++}
++
++func (g *irgen) stmt0(stmt syntax.Stmt) ir.Node {
++	switch stmt := stmt.(type) {
++	case nil, *syntax.EmptyStmt:
++		return nil
++	case *syntax.LabeledStmt:
++		return g.labeledStmt(stmt)
++	case *syntax.BlockStmt:
++		return ir.NewBlockStmt(g.pos(stmt), g.blockStmt(stmt))
++	case *syntax.ExprStmt:
++		x := g.expr(stmt.X)
++		if call, ok := x.(*ir.CallExpr); ok {
++			call.Use = ir.CallUseStmt
++		}
++		return x
++	case *syntax.SendStmt:
++		return ir.NewSendStmt(g.pos(stmt), g.expr(stmt.Chan), g.expr(stmt.Value))
++	case *syntax.DeclStmt:
++		return ir.NewBlockStmt(g.pos(stmt), g.decls(stmt.DeclList))
++
++	case *syntax.AssignStmt:
++		if stmt.Op != 0 && stmt.Op != syntax.Def {
++			op := g.op(stmt.Op, binOps[:])
++			if stmt.Rhs == syntax.ImplicitOne {
++				return IncDec(g.pos(stmt), op, g.expr(stmt.Lhs))
++			}
++			return ir.NewAssignOpStmt(g.pos(stmt), op, g.expr(stmt.Lhs), g.expr(stmt.Rhs))
++		}
++
++		rhs := g.exprList(stmt.Rhs)
++		if list, ok := stmt.Lhs.(*syntax.ListExpr); ok && len(list.ElemList) != 1 || len(rhs) != 1 {
++			n := ir.NewAssignListStmt(g.pos(stmt), ir.OAS2, nil, nil)
++			n.Def = stmt.Op == syntax.Def
++			n.Lhs = g.assignList(stmt.Lhs, n, n.Def)
++			n.Rhs = rhs
++			return n
++		}
++
++		n := ir.NewAssignStmt(g.pos(stmt), nil, nil)
++		n.Def = stmt.Op == syntax.Def
++		n.X = g.assignList(stmt.Lhs, n, n.Def)[0]
++		n.Y = rhs[0]
++		return n
++
++	case *syntax.BranchStmt:
++		return ir.NewBranchStmt(g.pos(stmt), g.tokOp(int(stmt.Tok), branchOps[:]), g.name(stmt.Label))
++	case *syntax.CallStmt:
++		return ir.NewGoDeferStmt(g.pos(stmt), g.tokOp(int(stmt.Tok), callOps[:]), g.expr(stmt.Call))
++	case *syntax.ReturnStmt:
++		return ir.NewReturnStmt(g.pos(stmt), g.exprList(stmt.Results))
++	case *syntax.IfStmt:
++		return g.ifStmt(stmt)
++	case *syntax.ForStmt:
++		return g.forStmt(stmt)
++	case *syntax.SelectStmt:
++		return g.selectStmt(stmt)
++	case *syntax.SwitchStmt:
++		return g.switchStmt(stmt)
++
++	default:
++		g.unhandled("statement", stmt)
++		panic("unreachable")
++	}
++}
++
++// TODO(mdempsky): Investigate replacing with switch statements or dense arrays.
++
++var branchOps = [...]ir.Op{
++	syntax.Break:       ir.OBREAK,
++	syntax.Continue:    ir.OCONTINUE,
++	syntax.Fallthrough: ir.OFALL,
++	syntax.Goto:        ir.OGOTO,
++}
++
++var callOps = [...]ir.Op{
++	syntax.Defer: ir.ODEFER,
++	syntax.Go:    ir.OGO,
++}
++
++func (g *irgen) tokOp(tok int, ops []ir.Op) ir.Op {
++	// TODO(mdempsky): Validate.
++	return ops[tok]
++}
++
++func (g *irgen) op(op syntax.Operator, ops []ir.Op) ir.Op {
++	// TODO(mdempsky): Validate.
++	return ops[op]
++}
++
++func (g *irgen) assignList(expr syntax.Expr, defn ir.InitNode, colas bool) []ir.Node {
++	if !colas {
++		return g.exprList(expr)
++	}
++
++	var exprs []syntax.Expr
++	if list, ok := expr.(*syntax.ListExpr); ok {
++		exprs = list.ElemList
++	} else {
++		exprs = []syntax.Expr{expr}
++	}
++
++	res := make([]ir.Node, len(exprs))
++	for i, expr := range exprs {
++		expr := expr.(*syntax.Name)
++		if expr.Value == "_" {
++			res[i] = ir.BlankNode
++			continue
++		}
++
++		if obj, ok := g.info.Uses[expr]; ok {
++			res[i] = g.obj(obj)
++			continue
++		}
++
++		name, _ := g.def(expr)
++		name.Defn = defn
++		defn.PtrInit().Append(ir.NewDecl(name.Pos(), ir.ODCL, name))
++		res[i] = name
++	}
++	return res
++}
++
++func (g *irgen) blockStmt(stmt *syntax.BlockStmt) []ir.Node {
++	return g.stmts(stmt.List)
++}
++
++func (g *irgen) ifStmt(stmt *syntax.IfStmt) ir.Node {
++	init := g.stmt(stmt.Init)
++	n := ir.NewIfStmt(g.pos(stmt), g.expr(stmt.Cond), g.blockStmt(stmt.Then), nil)
++	if stmt.Else != nil {
++		e := g.stmt(stmt.Else)
++		if e.Op() == ir.OBLOCK {
++			e := e.(*ir.BlockStmt)
++			n.Else = e.List
++		} else {
++			n.Else = []ir.Node{e}
++		}
++	}
++	return g.init(init, n)
++}
++
++func (g *irgen) forStmt(stmt *syntax.ForStmt) ir.Node {
++	if r, ok := stmt.Init.(*syntax.RangeClause); ok {
++		n := ir.NewRangeStmt(g.pos(r), nil, nil, g.expr(r.X), nil)
++		if r.Lhs != nil {
++			n.Def = r.Def
++			lhs := g.assignList(r.Lhs, n, n.Def)
++			n.Key = lhs[0]
++			if len(lhs) > 1 {
++				n.Value = lhs[1]
++			}
++		}
++		n.Body = g.blockStmt(stmt.Body)
++		return n
++	}
++
++	return ir.NewForStmt(g.pos(stmt), g.stmt(stmt.Init), g.expr(stmt.Cond), g.stmt(stmt.Post), g.blockStmt(stmt.Body))
++}
++
++func (g *irgen) selectStmt(stmt *syntax.SelectStmt) ir.Node {
++	body := make([]*ir.CommClause, len(stmt.Body))
++	for i, clause := range stmt.Body {
++		body[i] = ir.NewCommStmt(g.pos(clause), g.stmt(clause.Comm), g.stmts(clause.Body))
++	}
++	return ir.NewSelectStmt(g.pos(stmt), body)
++}
++
++func (g *irgen) switchStmt(stmt *syntax.SwitchStmt) ir.Node {
++	pos := g.pos(stmt)
++	init := g.stmt(stmt.Init)
++
++	var expr ir.Node
++	switch tag := stmt.Tag.(type) {
++	case *syntax.TypeSwitchGuard:
++		var ident *ir.Ident
++		if tag.Lhs != nil {
++			ident = ir.NewIdent(g.pos(tag.Lhs), g.name(tag.Lhs))
++		}
++		expr = ir.NewTypeSwitchGuard(pos, ident, g.expr(tag.X))
++	default:
++		expr = g.expr(tag)
++	}
++
++	body := make([]*ir.CaseClause, len(stmt.Body))
++	for i, clause := range stmt.Body {
++		// Check for an implicit clause variable before
++		// visiting body, because it may contain function
++		// literals that reference it, and then it'll be
++		// associated to the wrong function.
++		//
++		// Also, override its position to the clause's colon, so that
++		// dwarfgen can find the right scope for it later.
++		// TODO(mdempsky): We should probably just store the scope
++		// directly in the ir.Name.
++		var cv *ir.Name
++		if obj, ok := g.info.Implicits[clause]; ok {
++			cv = g.obj(obj)
++			cv.SetPos(g.makeXPos(clause.Colon))
++		}
++		body[i] = ir.NewCaseStmt(g.pos(clause), g.exprList(clause.Cases), g.stmts(clause.Body))
++		body[i].Var = cv
++	}
++
++	return g.init(init, ir.NewSwitchStmt(pos, expr, body))
++}
++
++func (g *irgen) labeledStmt(label *syntax.LabeledStmt) ir.Node {
++	sym := g.name(label.Label)
++	lhs := ir.NewLabelStmt(g.pos(label), sym)
++	ls := g.stmt(label.Stmt)
++
++	// Attach label directly to control statement too.
++	switch ls := ls.(type) {
++	case *ir.ForStmt:
++		ls.Label = sym
++	case *ir.RangeStmt:
++		ls.Label = sym
++	case *ir.SelectStmt:
++		ls.Label = sym
++	case *ir.SwitchStmt:
++		ls.Label = sym
++	}
++
++	l := []ir.Node{lhs}
++	if ls != nil {
++		if ls.Op() == ir.OBLOCK {
++			ls := ls.(*ir.BlockStmt)
++			l = append(l, ls.List...)
++		} else {
++			l = append(l, ls)
++		}
++	}
++	return ir.NewBlockStmt(src.NoXPos, l)
++}
++
++func (g *irgen) init(init ir.Node, stmt ir.InitNode) ir.InitNode {
++	if init != nil {
++		stmt.SetInit([]ir.Node{init})
++	}
++	return stmt
++}
++
++func (g *irgen) name(name *syntax.Name) *types.Sym {
++	if name == nil {
++		return nil
++	}
++	return typecheck.Lookup(name.Value)
++}
+diff --git a/src/cmd/compile/internal/noder/types.go b/src/cmd/compile/internal/noder/types.go
+new file mode 100644
+index 0000000000..0635d76077
+--- /dev/null
++++ b/src/cmd/compile/internal/noder/types.go
+@@ -0,0 +1,208 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package noder
++
++import (
++	"cmd/compile/internal/base"
++	"cmd/compile/internal/ir"
++	"cmd/compile/internal/typecheck"
++	"cmd/compile/internal/types"
++	"cmd/compile/internal/types2"
++	"cmd/internal/src"
++)
++
++func (g *irgen) pkg(pkg *types2.Package) *types.Pkg {
++	switch pkg {
++	case nil:
++		return types.BuiltinPkg
++	case g.self:
++		return types.LocalPkg
++	case types2.Unsafe:
++		return ir.Pkgs.Unsafe
++	}
++	return types.NewPkg(pkg.Path(), pkg.Name())
++}
++
++func (g *irgen) typ(typ types2.Type) *types.Type {
++	switch typ := typ.(type) {
++	case *types2.Basic:
++		return g.basic(typ)
++	case *types2.Named:
++		obj := g.obj(typ.Obj())
++		if obj.Op() != ir.OTYPE {
++			base.FatalfAt(obj.Pos(), "expected type: %L", obj)
++		}
++		return obj.Type()
++
++	case *types2.Array:
++		return types.NewArray(g.typ(typ.Elem()), typ.Len())
++	case *types2.Chan:
++		return types.NewChan(g.typ(typ.Elem()), dirs[typ.Dir()])
++	case *types2.Map:
++		return types.NewMap(g.typ(typ.Key()), g.typ(typ.Elem()))
++	case *types2.Pointer:
++		return types.NewPtr(g.typ(typ.Elem()))
++	case *types2.Signature:
++		return g.signature(nil, typ)
++	case *types2.Slice:
++		return types.NewSlice(g.typ(typ.Elem()))
++
++	case *types2.Struct:
++		fields := make([]*types.Field, typ.NumFields())
++		for i := range fields {
++			v := typ.Field(i)
++			f := types.NewField(g.pos(v), g.selector(v), g.typ(v.Type()))
++			f.Note = typ.Tag(i)
++			if v.Embedded() {
++				f.Embedded = 1
++			}
++			fields[i] = f
++		}
++		return types.NewStruct(g.tpkg(typ), fields)
++
++	case *types2.Interface:
++		embeddeds := make([]*types.Field, typ.NumEmbeddeds())
++		for i := range embeddeds {
++			// TODO(mdempsky): Get embedding position.
++			e := typ.EmbeddedType(i)
++			embeddeds[i] = types.NewField(src.NoXPos, nil, g.typ(e))
++		}
++
++		methods := make([]*types.Field, typ.NumExplicitMethods())
++		for i := range methods {
++			m := typ.ExplicitMethod(i)
++			mtyp := g.signature(typecheck.FakeRecv(), m.Type().(*types2.Signature))
++			methods[i] = types.NewField(g.pos(m), g.selector(m), mtyp)
++		}
++
++		return types.NewInterface(g.tpkg(typ), append(embeddeds, methods...))
++
++	default:
++		base.FatalfAt(src.NoXPos, "unhandled type: %v (%T)", typ, typ)
++		panic("unreachable")
++	}
++}
++
++func (g *irgen) signature(recv *types.Field, sig *types2.Signature) *types.Type {
++	do := func(typ *types2.Tuple) []*types.Field {
++		fields := make([]*types.Field, typ.Len())
++		for i := range fields {
++			fields[i] = g.param(typ.At(i))
++		}
++		return fields
++	}
++
++	params := do(sig.Params())
++	results := do(sig.Results())
++	if sig.Variadic() {
++		params[len(params)-1].SetIsDDD(true)
++	}
++
++	return types.NewSignature(g.tpkg(sig), recv, params, results)
++}
++
++func (g *irgen) param(v *types2.Var) *types.Field {
++	return types.NewField(g.pos(v), g.sym(v), g.typ(v.Type()))
++}
++
++func (g *irgen) sym(obj types2.Object) *types.Sym {
++	if name := obj.Name(); name != "" {
++		return g.pkg(obj.Pkg()).Lookup(obj.Name())
++	}
++	return nil
++}
++
++func (g *irgen) selector(obj types2.Object) *types.Sym {
++	pkg, name := g.pkg(obj.Pkg()), obj.Name()
++	if types.IsExported(name) {
++		pkg = types.LocalPkg
++	}
++	return pkg.Lookup(name)
++}
++
++// tpkg returns the package that a function, interface, or struct type
++// expression appeared in.
++//
++// Caveat: For the degenerate types "func()", "interface{}", and
++// "struct{}", tpkg always returns LocalPkg. However, we only need the
++// package information so that go/types can report it via its API, and
++// the reason we fail to return the original package for these
++// particular types is because go/types does *not* report it for
++// them. So in practice this limitation is probably moot.
++func (g *irgen) tpkg(typ types2.Type) *types.Pkg {
++	anyObj := func() types2.Object {
++		switch typ := typ.(type) {
++		case *types2.Signature:
++			if recv := typ.Recv(); recv != nil {
++				return recv
++			}
++			if params := typ.Params(); params.Len() > 0 {
++				return params.At(0)
++			}
++			if results := typ.Results(); results.Len() > 0 {
++				return results.At(0)
++			}
++		case *types2.Struct:
++			if typ.NumFields() > 0 {
++				return typ.Field(0)
++			}
++		case *types2.Interface:
++			if typ.NumExplicitMethods() > 0 {
++				return typ.ExplicitMethod(0)
++			}
++		}
++		return nil
++	}
++
++	if obj := anyObj(); obj != nil {
++		return g.pkg(obj.Pkg())
++	}
++	return types.LocalPkg
++}
++
++func (g *irgen) basic(typ *types2.Basic) *types.Type {
++	switch typ.Name() {
++	case "byte":
++		return types.ByteType
++	case "rune":
++		return types.RuneType
++	}
++	return *basics[typ.Kind()]
++}
++
++var basics = [...]**types.Type{
++	types2.Invalid:        new(*types.Type),
++	types2.Bool:           &types.Types[types.TBOOL],
++	types2.Int:            &types.Types[types.TINT],
++	types2.Int8:           &types.Types[types.TINT8],
++	types2.Int16:          &types.Types[types.TINT16],
++	types2.Int32:          &types.Types[types.TINT32],
++	types2.Int64:          &types.Types[types.TINT64],
++	types2.Uint:           &types.Types[types.TUINT],
++	types2.Uint8:          &types.Types[types.TUINT8],
++	types2.Uint16:         &types.Types[types.TUINT16],
++	types2.Uint32:         &types.Types[types.TUINT32],
++	types2.Uint64:         &types.Types[types.TUINT64],
++	types2.Uintptr:        &types.Types[types.TUINTPTR],
++	types2.Float32:        &types.Types[types.TFLOAT32],
++	types2.Float64:        &types.Types[types.TFLOAT64],
++	types2.Complex64:      &types.Types[types.TCOMPLEX64],
++	types2.Complex128:     &types.Types[types.TCOMPLEX128],
++	types2.String:         &types.Types[types.TSTRING],
++	types2.UnsafePointer:  &types.Types[types.TUNSAFEPTR],
++	types2.UntypedBool:    &types.UntypedBool,
++	types2.UntypedInt:     &types.UntypedInt,
++	types2.UntypedRune:    &types.UntypedRune,
++	types2.UntypedFloat:   &types.UntypedFloat,
++	types2.UntypedComplex: &types.UntypedComplex,
++	types2.UntypedString:  &types.UntypedString,
++	types2.UntypedNil:     &types.Types[types.TNIL],
++}
++
++var dirs = [...]types.ChanDir{
++	types2.SendRecv: types.Cboth,
++	types2.SendOnly: types.Csend,
++	types2.RecvOnly: types.Crecv,
++}
+diff --git a/src/cmd/compile/internal/noder/validate.go b/src/cmd/compile/internal/noder/validate.go
+new file mode 100644
+index 0000000000..f97f81d5ad
+--- /dev/null
++++ b/src/cmd/compile/internal/noder/validate.go
+@@ -0,0 +1,113 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package noder
++
++import (
++	"go/constant"
++
++	"cmd/compile/internal/base"
++	"cmd/compile/internal/syntax"
++	"cmd/compile/internal/types"
++	"cmd/compile/internal/types2"
++)
++
++// match reports whether types t1 and t2 are consistent
++// representations for a given expression's type.
++func (g *irgen) match(t1 *types.Type, t2 types2.Type, hasOK bool) bool {
++	tuple, ok := t2.(*types2.Tuple)
++	if !ok {
++		// Not a tuple; can use simple type identity comparison.
++		return types.Identical(t1, g.typ(t2))
++	}
++
++	if hasOK {
++		// For has-ok values, types2 represents the expression's type as
++		// a 2-element tuple, whereas ir just uses the first type and
++		// infers that the second type is boolean.
++		return tuple.Len() == 2 && types.Identical(t1, g.typ(tuple.At(0).Type()))
++	}
++
++	if t1 == nil || tuple == nil {
++		return t1 == nil && tuple == nil
++	}
++	if !t1.IsFuncArgStruct() {
++		return false
++	}
++	if t1.NumFields() != tuple.Len() {
++		return false
++	}
++	for i, result := range t1.FieldSlice() {
++		if !types.Identical(result.Type, g.typ(tuple.At(i).Type())) {
++			return false
++		}
++	}
++	return true
++}
++
++func (g *irgen) validate(n syntax.Node) {
++	switch n := n.(type) {
++	case *syntax.CallExpr:
++		tv := g.info.Types[n.Fun]
++		if tv.IsBuiltin() {
++			switch builtin := n.Fun.(type) {
++			case *syntax.Name:
++				g.validateBuiltin(builtin.Value, n)
++			case *syntax.SelectorExpr:
++				g.validateBuiltin(builtin.Sel.Value, n)
++			default:
++				g.unhandled("builtin", n)
++			}
++		}
++	}
++}
++
++func (g *irgen) validateBuiltin(name string, call *syntax.CallExpr) {
++	switch name {
++	case "Alignof", "Offsetof", "Sizeof":
++		// Check that types2+gcSizes calculates sizes the same
++		// as cmd/compile does.
++
++		got, ok := constant.Int64Val(g.info.Types[call].Value)
++		if !ok {
++			base.FatalfAt(g.pos(call), "expected int64 constant value")
++		}
++
++		want := g.unsafeExpr(name, call.ArgList[0])
++		if got != want {
++			base.FatalfAt(g.pos(call), "got %v from types2, but want %v", got, want)
++		}
++	}
++}
++
++// unsafeExpr evaluates the given unsafe builtin function on arg.
++func (g *irgen) unsafeExpr(name string, arg syntax.Expr) int64 {
++	switch name {
++	case "Alignof":
++		return g.typ(g.info.Types[arg].Type).Alignment()
++	case "Sizeof":
++		return g.typ(g.info.Types[arg].Type).Size()
++	}
++
++	// Offsetof
++
++	sel := arg.(*syntax.SelectorExpr)
++	selection := g.info.Selections[sel]
++
++	typ := g.typ(g.info.Types[sel.X].Type)
++	if typ.IsPtr() {
++		typ = typ.Elem()
++	}
++
++	var offset int64
++	for _, i := range selection.Index() {
++		// Ensure field offsets have been calculated.
++		types.CalcSize(typ)
++
++		f := typ.Field(i)
++		offset += f.Offset
++		typ = f.Type
++	}
++	return offset
++}
+diff --git a/src/cmd/compile/internal/typecheck/dcl.go b/src/cmd/compile/internal/typecheck/dcl.go
+index c7d7506fd1..bd54919c93 100644
+--- a/src/cmd/compile/internal/typecheck/dcl.go
++++ b/src/cmd/compile/internal/typecheck/dcl.go
+@@ -304,10 +304,13 @@ func checkembeddedtype(t *types.Type) {
+ 	}
+ }
+ 
+-func fakeRecvField() *types.Field {
++// TODO(mdempsky): Move to package types.
++func FakeRecv() *types.Field {
+ 	return types.NewField(src.NoXPos, nil, types.FakeRecvType())
+ }
+ 
++var fakeRecvField = FakeRecv
++
+ var funcStack []funcStackEnt // stack of previous values of Curfn/dclcontext
+ 
+ type funcStackEnt struct {
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 03a10f594a..766eb8bae9 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -174,7 +174,7 @@ func fnpkg(fn *ir.Name) *types.Pkg {
+ 
+ // closurename generates a new unique name for a closure within
+ // outerfunc.
+-func closurename(outerfunc *ir.Func) *types.Sym {
++func ClosureName(outerfunc *ir.Func) *types.Sym {
+ 	outer := "glob."
+ 	prefix := "func"
+ 	gen := &globClosgen
+@@ -303,7 +303,7 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
+ 		return
+ 	}
+ 
+-	fn.Nname.SetSym(closurename(ir.CurFunc))
++	fn.Nname.SetSym(ClosureName(ir.CurFunc))
+ 	ir.MarkFunc(fn.Nname)
+ 	Func(fn)
+ 	clo.SetType(fn.Type())
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 814af59772..d5100021a2 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -1674,10 +1674,10 @@ func CheckMapKeys() {
+ 	mapqueue = nil
+ }
+ 
+-// typegen tracks the number of function-scoped defined types that
++// TypeGen tracks the number of function-scoped defined types that
+ // have been declared. It's used to generate unique linker symbols for
+ // their runtime type descriptors.
+-var typegen int32
++var TypeGen int32
+ 
+ func typecheckdeftype(n *ir.Name) {
+ 	if base.EnableTrace && base.Flag.LowerT {
+@@ -1686,8 +1686,8 @@ func typecheckdeftype(n *ir.Name) {
+ 
+ 	t := types.NewNamed(n)
+ 	if n.Curfn != nil {
+-		typegen++
+-		t.Vargen = typegen
++		TypeGen++
++		t.Vargen = TypeGen
+ 	}
+ 
+ 	if n.Pragma()&ir.NotInHeap != 0 {
+diff --git a/src/cmd/compile/internal/types/scope.go b/src/cmd/compile/internal/types/scope.go
+index a9669ffafc..d7c454f379 100644
+--- a/src/cmd/compile/internal/types/scope.go
++++ b/src/cmd/compile/internal/types/scope.go
+@@ -12,7 +12,7 @@ import (
+ // Declaration stack & operations
+ 
+ var blockgen int32 = 1 // max block number
+-var Block int32        // current block number
++var Block int32 = 1    // current block number
+ 
+ // A dsym stores a symbol's shadowed declaration so that it can be
+ // restored once the block scope ends.

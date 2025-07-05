@@ -14,6 +14,21 @@ Date:   Fri Apr 12 12:02:49 2019 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/plist.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 9d376f739f..8b177c5a02 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -105,6 +105,9 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
+ 		linkpatch(ctxt, s, newprog)
+ 		ctxt.Arch.Preprocess(ctxt, s, newprog)
+ 		ctxt.Arch.Assemble(ctxt, s, newprog)
++		if ctxt.Errors > 0 {
++			continue
++		}
+ 		linkpcln(ctxt, s)
+ 		ctxt.populateDWARF(plist.Curfn, s, myimportpath)
+ 	}

@@ -13,7 +13,52 @@ Date:   Tue Sep 10 15:28:29 2013 -0400
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/13366050
-
+---
  src/cmd/go/test.bash | 12 ++++++++++++
  src/cmd/go/vcs.go    |  3 ++-
  2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index 52d2f08337..17358279c8 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -139,6 +139,18 @@ if ! ./testgo test ./testdata/testimport/*.go; then
+ 	ok=false
+ fi
+ 
++TEST version control error message includes correct directory
++export GOPATH=$(pwd)/testdata/shadow/root1
++if ./testgo get -u foo 2>testdata/err; then
++	echo "go get -u foo succeeded unexpectedly"
++	ok=false
++elif ! grep testdata/shadow/root1/src/foo testdata/err >/dev/null; then
++	echo "go get -u error does not mention shadow/root1/src/foo:"
++	cat testdata/err
++	ok=false
++fi
++unset GOPATH
++
+ # Test that without $GOBIN set, binaries get installed
+ # into the GOPATH bin directory.
+ TEST install into GOPATH
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index 58040e3d41..655549009f 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -321,6 +321,7 @@ func vcsForDir(p *Package) (vcs *vcsCmd, root string, err error) {
+ 		return nil, "", fmt.Errorf("directory %q is outside source root %q", dir, srcRoot)
+ 	}
+ 
++	origDir := dir
+ 	for len(dir) > len(srcRoot) {
+ 		for _, vcs := range vcsList {
+ 			if fi, err := os.Stat(filepath.Join(dir, "."+vcs.cmd)); err == nil && fi.IsDir() {
+@@ -337,7 +338,7 @@ func vcsForDir(p *Package) (vcs *vcsCmd, root string, err error) {
+ 		dir = ndir
+ 	}
+ 
+-	return nil, "", fmt.Errorf("directory %q is not using a known version control system", dir)
++	return nil, "", fmt.Errorf("directory %q is not using a known version control system", origDir)
+ }
+ 
+ // repoRoot represents a version control system, a repo, and a root of

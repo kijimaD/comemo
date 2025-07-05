@@ -9,8 +9,39 @@ Date:   Fri Mar 23 07:51:16 2012 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5876051
-
+---
  ...ncy_patterns_timing_out_moving_on.html => concurrency_patterns.html} | 0
  doc/docs.html                                                           | 2 +-
  doc/progs/timeout1.go                                                   | 2 +-
  3 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/articles/go_concurrency_patterns_timing_out_moving_on.html b/doc/articles/concurrency_patterns.html
+similarity index 100%
+rename from doc/articles/go_concurrency_patterns_timing_out_moving_on.html
+rename to doc/articles/concurrency_patterns.html
+diff --git a/doc/docs.html b/doc/docs.html
+index a75ae56cf2..709c081528 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -105,7 +105,7 @@ Guided tours of Go programs.
+ <li><a href="http://blog.golang.org/2010/04/json-rpc-tale-of-interfaces.html">JSON-RPC: a tale of interfaces</a></li>
+ <li><a href="/doc/articles/gos_declaration_syntax.html">Go's Declaration Syntax</a></li>
+ <li><a href="/doc/articles/defer_panic_recover.html">Defer, Panic, and Recover</a></li>
+-<li><a href="/doc/articles/go_concurrency_patterns_timing_out_moving_on.html">Go Concurrency Patterns: Timing out, moving on</a></li>
++<li><a href="/doc/articles/concurrency_patterns.html">Go Concurrency Patterns: Timing out, moving on</a></li>
+ <li><a href="/doc/articles/slices_usage_and_internals.html">Go Slices: usage and internals</a></li>
+ <li><a href="http://blog.golang.org/2011/05/gif-decoder-exercise-in-go-interfaces.html">A GIF decoder: an exercise in Go interfaces</a></li>
+ <li><a href="/doc/articles/error_handling.html">Error Handling and Go</a></li>
+diff --git a/doc/progs/timeout1.go b/doc/progs/timeout1.go
+index a6c95624c8..5221770ec6 100644
+--- a/doc/progs/timeout1.go
++++ b/doc/progs/timeout1.go
+@@ -11,7 +11,7 @@ func Timeout() {
+ 	ch := make(chan bool, 1)
+ 	timeout := make(chan bool, 1)
+ 	go func() {
+-		time.Sleep(1e9) // one second
++		time.Sleep(1 * time.Second)
+ 		timeout <- true
+ 	}()
+ 

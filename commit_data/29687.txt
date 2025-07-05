@@ -18,7 +18,7 @@ Date:   Tue Oct 4 03:01:09 2016 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/go/test.go            |  8 +------
  src/cmd/nm/nm.go              | 24 +++------------------
  src/encoding/json/encode.go   | 50 +++++++++++++++----------------------------
@@ -28,3 +28,344 @@ Date:   Tue Oct 4 03:01:09 2016 +0000
  src/runtime/debug/garbage.go  |  8 +------
  src/runtime/pprof/pprof.go    | 24 +++------------------
  8 files changed, 39 insertions(+), 123 deletions(-)
+
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 138d46c381..4b65c1ccdc 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -1397,7 +1397,7 @@ func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
+ 		}
+ 	}
+ 	ex := doc.Examples(f)
+-	sort.Sort(byOrder(ex))
++	sort.Slice(ex, func(i, j int) bool { return ex[i].Order < ex[j].Order })
+ 	for _, e := range ex {
+ 		*doImport = true // import test file whether executed or not
+ 		if e.Output == "" && !e.EmptyOutput {
+@@ -1419,12 +1419,6 @@ func checkTestFunc(fn *ast.FuncDecl, arg string) error {
+ 	return nil
+ }
+ 
+-type byOrder []*doc.Example
+-
+-func (x byOrder) Len() int           { return len(x) }
+-func (x byOrder) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+-func (x byOrder) Less(i, j int) bool { return x[i].Order < x[j].Order }
+-
+ var testmainTmpl = template.Must(template.New("main").Parse(`
+ package main
+ 
+diff --git a/src/cmd/nm/nm.go b/src/cmd/nm/nm.go
+index 462c4c510f..4384af8fae 100644
+--- a/src/cmd/nm/nm.go
++++ b/src/cmd/nm/nm.go
+@@ -103,11 +103,11 @@ func nm(file string) {
+ 
+ 	switch *sortOrder {
+ 	case "address":
+-		sort.Sort(byAddr(syms))
++		sort.Slice(syms, func(i, j int) bool { return syms[i].Addr < syms[j].Addr })
+ 	case "name":
+-		sort.Sort(byName(syms))
++		sort.Slice(syms, func(i, j int) bool { return syms[i].Name < syms[j].Name })
+ 	case "size":
+-		sort.Sort(bySize(syms))
++		sort.Slice(syms, func(i, j int) bool { return syms[i].Size > syms[j].Size })
+ 	}
+ 
+ 	w := bufio.NewWriter(os.Stdout)
+@@ -131,21 +131,3 @@ func nm(file string) {
+ 	}
+ 	w.Flush()
+ }
+-
+-type byAddr []objfile.Sym
+-
+-func (x byAddr) Len() int           { return len(x) }
+-func (x byAddr) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+-func (x byAddr) Less(i, j int) bool { return x[i].Addr < x[j].Addr }
+-
+-type byName []objfile.Sym
+-
+-func (x byName) Len() int           { return len(x) }
+-func (x byName) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+-func (x byName) Less(i, j int) bool { return x[i].Name < x[j].Name }
+-
+-type bySize []objfile.Sym
+-
+-func (x bySize) Len() int           { return len(x) }
+-func (x bySize) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+-func (x bySize) Less(i, j int) bool { return x[i].Size > x[j].Size }
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index d3e0c85b9d..aab912601a 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -636,7 +636,7 @@ func (me *mapEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
+ 			e.error(&MarshalerError{v.Type(), err})
+ 		}
+ 	}
+-	sort.Sort(byString(sv))
++	sort.Slice(sv, func(i, j int) bool { return sv[i].s < sv[j].s })
+ 
+ 	for i, kv := range sv {
+ 		if i > 0 {
+@@ -835,15 +835,6 @@ func (w *reflectWithString) resolve() error {
+ 	panic("unexpected map key type")
+ }
+ 
+-// byString is a slice of reflectWithString where the reflect.Value is either
+-// a string or an encoding.TextMarshaler.
+-// It implements the methods to sort by string.
+-type byString []reflectWithString
+-
+-func (sv byString) Len() int           { return len(sv) }
+-func (sv byString) Swap(i, j int)      { sv[i], sv[j] = sv[j], sv[i] }
+-func (sv byString) Less(i, j int) bool { return sv[i].s < sv[j].s }
+-
+ // NOTE: keep in sync with stringBytes below.
+ func (e *encodeState) string(s string, escapeHTML bool) int {
+ 	len0 := e.Len()
+@@ -1017,28 +1008,6 @@ func fillField(f field) field {
+ 	return f
+ }
+ 
+-// byName sorts field by name, breaking ties with depth,
+-// then breaking ties with "name came from json tag", then
+-// breaking ties with index sequence.
+-type byName []field
+-
+-func (x byName) Len() int { return len(x) }
+-
+-func (x byName) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
+-
+-func (x byName) Less(i, j int) bool {
+-	if x[i].name != x[j].name {
+-		return x[i].name < x[j].name
+-	}
+-	if len(x[i].index) != len(x[j].index) {
+-		return len(x[i].index) < len(x[j].index)
+-	}
+-	if x[i].tag != x[j].tag {
+-		return x[i].tag
+-	}
+-	return byIndex(x).Less(i, j)
+-}
+-
+ // byIndex sorts field by index sequence.
+ type byIndex []field
+ 
+@@ -1156,7 +1125,22 @@ func typeFields(t reflect.Type) []field {
+ 		}
+ 	}
+ 
+-	sort.Sort(byName(fields))
++	sort.Slice(fields, func(i, j int) bool {
++		x := fields
++		// sort field by name, breaking ties with depth, then
++		// breaking ties with "name came from json tag", then
++		// breaking ties with index sequence.
++		if x[i].name != x[j].name {
++			return x[i].name < x[j].name
++		}
++		if len(x[i].index) != len(x[j].index) {
++			return len(x[i].index) < len(x[j].index)
++		}
++		if x[i].tag != x[j].tag {
++			return x[i].tag
++		}
++		return byIndex(x).Less(i, j)
++	})
+ 
+ 	// Delete all fields that are hidden by the Go rules for embedded fields,
+ 	// except that fields with JSON tags are promoted.
+diff --git a/src/io/ioutil/ioutil.go b/src/io/ioutil/ioutil.go
+index 8ecbb2de76..f0da616830 100644
+--- a/src/io/ioutil/ioutil.go
++++ b/src/io/ioutil/ioutil.go
+@@ -88,13 +88,6 @@ func WriteFile(filename string, data []byte, perm os.FileMode) error {
+ 	return err
+ }
+ 
+-// byName implements sort.Interface.
+-type byName []os.FileInfo
+-
+-func (f byName) Len() int           { return len(f) }
+-func (f byName) Less(i, j int) bool { return f[i].Name() < f[j].Name() }
+-func (f byName) Swap(i, j int)      { f[i], f[j] = f[j], f[i] }
+-
+ // ReadDir reads the directory named by dirname and returns
+ // a list of directory entries sorted by filename.
+ func ReadDir(dirname string) ([]os.FileInfo, error) {
+@@ -107,7 +100,7 @@ func ReadDir(dirname string) ([]os.FileInfo, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	sort.Sort(byName(list))
++	sort.Slice(list, func(i, j int) bool { return list[i].Name() < list[j].Name() })
+ 	return list, nil
+ }
+ 
+diff --git a/src/net/http/cookiejar/jar.go b/src/net/http/cookiejar/jar.go
+index ca0fdc57d7..f89abbcd18 100644
+--- a/src/net/http/cookiejar/jar.go
++++ b/src/net/http/cookiejar/jar.go
+@@ -147,24 +147,6 @@ func hasDotSuffix(s, suffix string) bool {
+ 	return len(s) > len(suffix) && s[len(s)-len(suffix)-1] == '.' && s[len(s)-len(suffix):] == suffix
+ }
+ 
+-// byPathLength is a []entry sort.Interface that sorts according to RFC 6265
+-// section 5.4 point 2: by longest path and then by earliest creation time.
+-type byPathLength []entry
+-
+-func (s byPathLength) Len() int { return len(s) }
+-
+-func (s byPathLength) Less(i, j int) bool {
+-	if len(s[i].Path) != len(s[j].Path) {
+-		return len(s[i].Path) > len(s[j].Path)
+-	}
+-	if !s[i].Creation.Equal(s[j].Creation) {
+-		return s[i].Creation.Before(s[j].Creation)
+-	}
+-	return s[i].seqNum < s[j].seqNum
+-}
+-
+-func (s byPathLength) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+-
+ // Cookies implements the Cookies method of the http.CookieJar interface.
+ //
+ // It returns an empty slice if the URL's scheme is not HTTP or HTTPS.
+@@ -221,7 +203,18 @@ func (j *Jar) cookies(u *url.URL, now time.Time) (cookies []*http.Cookie) {
+ 		}
+ 	}
+ 
+-	sort.Sort(byPathLength(selected))
++	// sort according to RFC 6265 section 5.4 point 2: by longest
++	// path and then by earliest creation time.
++	sort.Slice(selected, func(i, j int) bool {
++		s := selected
++		if len(s[i].Path) != len(s[j].Path) {
++			return len(s[i].Path) > len(s[j].Path)
++		}
++		if !s[i].Creation.Equal(s[j].Creation) {
++			return s[i].Creation.Before(s[j].Creation)
++		}
++		return s[i].seqNum < s[j].seqNum
++	})
+ 	for _, e := range selected {
+ 		cookies = append(cookies, &http.Cookie{Name: e.Name, Value: e.Value})
+ 	}
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index 969ca65b69..4ab74ff640 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -77,7 +77,7 @@ func dirList(w ResponseWriter, f File) {
+ 		Error(w, "Error reading directory", StatusInternalServerError)
+ 		return
+ 	}
+-	sort.Sort(byName(dirs))
++	sort.Slice(dirs, func(i, j int) bool { return dirs[i].Name() < dirs[j].Name() })
+ 
+ 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+ 	fmt.Fprintf(w, "<pre>\n")
+@@ -647,9 +647,3 @@ func sumRangesSize(ranges []httpRange) (size int64) {
+ 	}
+ 	return
+ }
+-
+-type byName []os.FileInfo
+-
+-func (s byName) Len() int           { return len(s) }
+-func (s byName) Less(i, j int) bool { return s[i].Name() < s[j].Name() }
+-func (s byName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+diff --git a/src/runtime/debug/garbage.go b/src/runtime/debug/garbage.go
+index 8144497177..c82c024235 100644
+--- a/src/runtime/debug/garbage.go
++++ b/src/runtime/debug/garbage.go
+@@ -71,7 +71,7 @@ func ReadGCStats(stats *GCStats) {
+ 			// See the allocation at the top of the function.
+ 			sorted := stats.Pause[n : n+n]
+ 			copy(sorted, stats.Pause)
+-			sort.Sort(byDuration(sorted))
++			sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
+ 			nq := len(stats.PauseQuantiles) - 1
+ 			for i := 0; i < nq; i++ {
+ 				stats.PauseQuantiles[i] = sorted[len(sorted)*i/nq]
+@@ -81,12 +81,6 @@ func ReadGCStats(stats *GCStats) {
+ 	}
+ }
+ 
+-type byDuration []time.Duration
+-
+-func (x byDuration) Len() int           { return len(x) }
+-func (x byDuration) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+-func (x byDuration) Less(i, j int) bool { return x[i] < x[j] }
+-
+ // SetGCPercent sets the garbage collection target percentage:
+ // a collection is triggered when the ratio of freshly allocated data
+ // to live data remaining after the previous collection reaches this percentage.
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index 1fc9568b2f..b4dd1c4173 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -207,16 +207,10 @@ func Profiles() []*Profile {
+ 		all = append(all, p)
+ 	}
+ 
+-	sort.Sort(byName(all))
++	sort.Slice(all, func(i, j int) bool { return all[i].name < all[j].name })
+ 	return all
+ }
+ 
+-type byName []*Profile
+-
+-func (x byName) Len() int           { return len(x) }
+-func (x byName) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+-func (x byName) Less(i, j int) bool { return x[i].name < x[j].name }
+-
+ // Name returns this profile's name, which can be passed to Lookup to reobtain the profile.
+ func (p *Profile) Name() string {
+ 	return p.name
+@@ -435,12 +429,6 @@ func printStackRecord(w io.Writer, stk []uintptr, allFrames bool) {
+ 
+ // Interface to system profiles.
+ 
+-type byInUseBytes []runtime.MemProfileRecord
+-
+-func (x byInUseBytes) Len() int           { return len(x) }
+-func (x byInUseBytes) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+-func (x byInUseBytes) Less(i, j int) bool { return x[i].InUseBytes() > x[j].InUseBytes() }
+-
+ // WriteHeapProfile is shorthand for Lookup("heap").WriteTo(w, 0).
+ // It is preserved for backwards compatibility.
+ func WriteHeapProfile(w io.Writer) error {
+@@ -476,7 +464,7 @@ func writeHeap(w io.Writer, debug int) error {
+ 		// Profile grew; try again.
+ 	}
+ 
+-	sort.Sort(byInUseBytes(p))
++	sort.Slice(p, func(i, j int) bool { return p[i].InUseBytes() > p[j].InUseBytes() })
+ 
+ 	b := bufio.NewWriter(w)
+ 	var tw *tabwriter.Writer
+@@ -735,12 +723,6 @@ func StopCPUProfile() {
+ 	<-cpu.done
+ }
+ 
+-type byCycles []runtime.BlockProfileRecord
+-
+-func (x byCycles) Len() int           { return len(x) }
+-func (x byCycles) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+-func (x byCycles) Less(i, j int) bool { return x[i].Cycles > x[j].Cycles }
+-
+ // countBlock returns the number of records in the blocking profile.
+ func countBlock() int {
+ 	n, _ := runtime.BlockProfile(nil)
+@@ -760,7 +742,7 @@ func writeBlock(w io.Writer, debug int) error {
+ 		}
+ 	}
+ 
+-	sort.Sort(byCycles(p))
++	sort.Slice(p, func(i, j int) bool { return p[i].Cycles > p[j].Cycles })
+ 
+ 	b := bufio.NewWriter(w)
+ 	var tw *tabwriter.Writer

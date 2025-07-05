@@ -25,8 +25,49 @@ Date:   Fri Apr 24 09:59:31 2015 +0300
     Change-Id: I0ef6ee3c65bb12af2168eafeb757258aa3835664
     Reviewed-on: https://go-review.googlesource.com/9258
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/alldocs.go | 2 ++
  src/cmd/go/build.go   | 3 ++-
  src/cmd/go/help.go    | 2 ++
  3 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index d5a77a9df6..f18ed80eb7 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -868,6 +868,8 @@ Go searches each directory listed in GOPATH to find source code,
+ but new packages are always downloaded into the first directory
+ in the list.
+ 
++See https://golang.org/doc/code.html for an example.
++
+ 
+ Import path syntax
+ 
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index c0ae2dd9d4..b8f6b32536 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -505,7 +505,8 @@ func runInstall(cmd *Command, args []string) {
+ 			} else if p.ConflictDir != "" {
+ 				errorf("go install: no install location for %s: hidden by %s", p.Dir, p.ConflictDir)
+ 			} else {
+-				errorf("go install: no install location for directory %s outside GOPATH", p.Dir)
++				errorf("go install: no install location for directory %s outside GOPATH\n"+
++					"\tFor more details see: go help gopath", p.Dir)
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/go/help.go b/src/cmd/go/help.go
+index 4d330f4e91..49454e5023 100644
+--- a/src/cmd/go/help.go
++++ b/src/cmd/go/help.go
+@@ -321,6 +321,8 @@ Here's an example directory layout:
+ Go searches each directory listed in GOPATH to find source code,
+ but new packages are always downloaded into the first directory
+ in the list.
++
++See https://golang.org/doc/code.html for an example.
+ 	`,
+ }
+ 

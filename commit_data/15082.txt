@@ -10,8 +10,79 @@ Date:   Fri Feb 1 08:44:45 2013 -0800
     R=minux.ma, rsc
     CC=golang-dev
     https://golang.org/cl/6932054
-
+---
  src/pkg/sort/example_test.go |  7 +++++++
  src/pkg/sort/sort.go         | 16 ++++++++++++++++
  src/pkg/sort/sort_test.go    | 17 +++++++++++++++++
  3 files changed, 40 insertions(+)
+
+diff --git a/src/pkg/sort/example_test.go b/src/pkg/sort/example_test.go
+index f57d02546f..f7372bec37 100644
+--- a/src/pkg/sort/example_test.go
++++ b/src/pkg/sort/example_test.go
+@@ -15,3 +15,10 @@ func ExampleInts() {
+ 	fmt.Println(s)
+ 	// Output: [1 2 3 4 5 6]
+ }
++
++func ExampleReverse() {
++	s := []int{5, 2, 6, 3, 1, 4} // unsorted
++	sort.Sort(sort.Reverse(sort.IntSlice(s)))
++	fmt.Println(s)
++	// Output: [6 5 4 3 2 1]
++}
+diff --git a/src/pkg/sort/sort.go b/src/pkg/sort/sort.go
+index 62a4d55e79..3f7a99730c 100644
+--- a/src/pkg/sort/sort.go
++++ b/src/pkg/sort/sort.go
+@@ -197,6 +197,22 @@ func Sort(data Interface) {
+ 	quickSort(data, 0, n, maxDepth)
+ }
+ 
++type reverse struct {
++	// This embedded Interface permits Reverse to use the methods of
++	// another Interface implementation.
++	Interface
++}
++
++// Less returns the opposite of the embedded implementation's Less method.
++func (r reverse) Less(i, j int) bool {
++	return r.Interface.Less(j, i)
++}
++
++// Reverse returns the reverse order for data.
++func Reverse(data Interface) Interface {
++	return &reverse{data}
++}
++
+ // IsSorted reports whether data is sorted.
+ func IsSorted(data Interface) bool {
+ 	n := data.Len()
+diff --git a/src/pkg/sort/sort_test.go b/src/pkg/sort/sort_test.go
+index ee8a9d0e84..439a3d5399 100644
+--- a/src/pkg/sort/sort_test.go
++++ b/src/pkg/sort/sort_test.go
+@@ -92,6 +92,23 @@ func TestSortLarge_Random(t *testing.T) {
+ 	}
+ }
+ 
++func TestReverseSortIntSlice(t *testing.T) {
++	data := ints
++	data1 := ints
++	a := IntSlice(data[0:])
++	Sort(a)
++	r := IntSlice(data1[0:])
++	Sort(Reverse(r))
++	for i := 0; i < len(data); i++ {
++		if a[i] != r[len(data)-1-i] {
++			t.Errorf("reverse sort didn't sort")
++		}
++		if i > len(data)/2 {
++			break
++		}
++	}
++}
++
+ func BenchmarkSortString1K(b *testing.B) {
+ 	b.StopTimer()
+ 	for i := 0; i < b.N; i++ {

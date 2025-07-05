@@ -13,7 +13,99 @@ Date:   Sat Aug 18 00:42:58 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go                | 45 +++++++++++++++++++++++++-----------
  src/cmd/go/internal/modfetch/repo.go | 12 ++++++++--
  2 files changed, 42 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index ec6a72c66a..85cae90f87 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3532,24 +3532,43 @@ func TestImportLocal(t *testing.T) {
+ }
+ 
+ func TestGoGetInsecure(t *testing.T) {
+-	testenv.MustHaveExternalNetwork(t)
++	test := func(t *testing.T, modules bool) {
++		testenv.MustHaveExternalNetwork(t)
+ 
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.makeTempdir()
+-	tg.setenv("GOPATH", tg.path("."))
+-	tg.failSSH()
++		tg := testgo(t)
++		defer tg.cleanup()
++		tg.makeTempdir()
++		tg.failSSH()
+ 
+-	const repo = "insecure.go-get-issue-15410.appspot.com/pkg/p"
++		if modules {
++			tg.setenv("GOPATH", tg.path("gp"))
++			tg.tempFile("go.mod", "module m")
++			tg.cd(tg.path("."))
++			tg.setenv("GO111MODULE", "on")
++		} else {
++			tg.setenv("GOPATH", tg.path("."))
++			tg.setenv("GO111MODULE", "off")
++		}
+ 
+-	// Try go get -d of HTTP-only repo (should fail).
+-	tg.runFail("get", "-d", repo)
++		const repo = "insecure.go-get-issue-15410.appspot.com/pkg/p"
+ 
+-	// Try again with -insecure (should succeed).
+-	tg.run("get", "-d", "-insecure", repo)
++		// Try go get -d of HTTP-only repo (should fail).
++		tg.runFail("get", "-d", repo)
++
++		// Try again with -insecure (should succeed).
++		tg.run("get", "-d", "-insecure", repo)
++
++		// Try updating without -insecure (should fail).
++		tg.runFail("get", "-d", "-u", "-f", repo)
++
++		if modules {
++			tg.run("list", "-m", "...")
++			tg.grepStdout("insecure.go-get-issue", "should find insecure module")
++		}
++	}
+ 
+-	// Try updating without -insecure (should fail).
+-	tg.runFail("get", "-d", "-u", "-f", repo)
++	t.Run("gopath", func(t *testing.T) { test(t, false) })
++	t.Run("modules", func(t *testing.T) { test(t, true) })
+ }
+ 
+ func TestGoGetUpdateInsecure(t *testing.T) {
+diff --git a/src/cmd/go/internal/modfetch/repo.go b/src/cmd/go/internal/modfetch/repo.go
+index c8b133574e..0ea8c1f0e3 100644
+--- a/src/cmd/go/internal/modfetch/repo.go
++++ b/src/cmd/go/internal/modfetch/repo.go
+@@ -216,7 +216,11 @@ func lookup(path string) (r Repo, err error) {
+ 		return lookupProxy(path)
+ 	}
+ 
+-	rr, err := get.RepoRootForImportPath(path, get.PreferMod, web.Secure)
++	security := web.Secure
++	if get.Insecure {
++		security = web.Insecure
++	}
++	rr, err := get.RepoRootForImportPath(path, get.PreferMod, security)
+ 	if err != nil {
+ 		// We don't know where to find code for a module with this path.
+ 		return nil, err
+@@ -257,7 +261,11 @@ func ImportRepoRev(path, rev string) (Repo, *RevInfo, error) {
+ 	// Note: Because we are converting a code reference from a legacy
+ 	// version control system, we ignore meta tags about modules
+ 	// and use only direct source control entries (get.IgnoreMod).
+-	rr, err := get.RepoRootForImportPath(path, get.IgnoreMod, web.Secure)
++	security := web.Secure
++	if get.Insecure {
++		security = web.Insecure
++	}
++	rr, err := get.RepoRootForImportPath(path, get.IgnoreMod, security)
+ 	if err != nil {
+ 		return nil, nil, err
+ 	}

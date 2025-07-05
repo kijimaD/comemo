@@ -15,7 +15,53 @@ Date:   Wed Mar 17 12:22:58 2021 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/internal/objabi/util.go | 3 ++-
  src/runtime/proc.go             | 6 +++---
  2 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/internal/objabi/util.go b/src/cmd/internal/objabi/util.go
+index 9fbe6490e0..2a33f0d84a 100644
+--- a/src/cmd/internal/objabi/util.go
++++ b/src/cmd/internal/objabi/util.go
+@@ -171,6 +171,7 @@ func init() {
+ 	}
+ 
+ 	// Set GOEXPERIMENT to the parsed and canonicalized set of experiments.
++	// This format must be parseable by runtime.haveexperiment.
+ 	GOEXPERIMENT = expList()
+ }
+ 
+@@ -184,7 +185,7 @@ func init() {
+ var FramePointerEnabled = GOARCH == "amd64" || GOARCH == "arm64"
+ 
+ func addexp(s string) {
+-	// Could do general integer parsing here, but the runtime.haveexperiment doesn't yet.
++	// We could do general integer parsing here, but there's no need yet.
+ 	v, vb := 1, true
+ 	name := s
+ 	if len(name) > 2 && name[:2] == "no" {
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 9ebfe70883..a666f86abc 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -6027,6 +6027,9 @@ func setMaxThreads(in int) (out int) {
+ }
+ 
+ func haveexperiment(name string) bool {
++	// GOEXPERIMENT is a comma-separated list of enabled
++	// experiments. It's not the raw environment variable, but a
++	// pre-processed list from cmd/internal/objabi.
+ 	x := sys.GOEXPERIMENT
+ 	for x != "" {
+ 		xname := ""
+@@ -6039,9 +6042,6 @@ func haveexperiment(name string) bool {
+ 		if xname == name {
+ 			return true
+ 		}
+-		if len(xname) > 2 && xname[:2] == "no" && xname[2:] == name {
+-			return false
+-		}
+ 	}
+ 	return false
+ }

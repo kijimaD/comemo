@@ -8,6 +8,22 @@ Date:   Thu Mar 22 11:18:24 2018 -0700
     Reviewed-on: https://go-review.googlesource.com/102175
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/cmd/compile/internal/gc/esc.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index c5021f4a48..6ce2299ba2 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -2168,9 +2168,7 @@ func moveToHeap(n *Node) {
+ // This special tag is applied to uintptr variables
+ // that we believe may hold unsafe.Pointers for
+ // calls into assembly functions.
+-// It is logically a constant, but using a var
+-// lets us take the address below to get a *string.
+-var unsafeUintptrTag = "unsafe-uintptr"
++const unsafeUintptrTag = "unsafe-uintptr"
+ 
+ // This special tag is applied to uintptr parameters of functions
+ // marked go:uintptrescapes.

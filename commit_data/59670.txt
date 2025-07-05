@@ -25,8 +25,158 @@ Date:   Mon Mar 25 17:50:13 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Nicolas Hillegeer <aktau@google.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/mgc.go      | 11 +++++++++++
  src/runtime/proc.go     | 25 +++++++++++++++++++++++--
  src/runtime/runtime2.go |  3 +++
  3 files changed, 37 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 55ae765657..3d3ecb0f88 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -682,6 +682,10 @@ func gcStart(trigger gcTrigger) {
+ 	systemstack(func() {
+ 		stw = stopTheWorldWithSema(stwGCSweepTerm)
+ 	})
++
++	// Accumulate fine-grained stopping time.
++	work.cpuStats.accumulateGCPauseTime(stw.stoppingCPUTime, 1)
++
+ 	// Finish sweep before we start concurrent scan.
+ 	systemstack(func() {
+ 		finishsweep_m()
+@@ -872,6 +876,9 @@ top:
+ 	// below. The important thing is that the wb remains active until
+ 	// all marking is complete. This includes writes made by the GC.
+ 
++	// Accumulate fine-grained stopping time.
++	work.cpuStats.accumulateGCPauseTime(stw.stoppingCPUTime, 1)
++
+ 	// There is sometimes work left over when we enter mark termination due
+ 	// to write barriers performed after the completion barrier above.
+ 	// Detect this and resume concurrent mark. This is obviously
+@@ -894,6 +901,10 @@ top:
+ 	if restart {
+ 		getg().m.preemptoff = ""
+ 		systemstack(func() {
++			// Accumulate the time we were stopped before we had to start again.
++			work.cpuStats.accumulateGCPauseTime(nanotime()-stw.finishedStopping, work.maxprocs)
++
++			// Start the world again.
+ 			now := startTheWorldWithSema(0, stw)
+ 			work.pauseNS += now - stw.startedStopping
+ 		})
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 1aad8e3c63..6a3c786e36 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1325,6 +1325,7 @@ type worldStop struct {
+ 	reason           stwReason
+ 	startedStopping  int64
+ 	finishedStopping int64
++	stoppingCPUTime  int64
+ }
+ 
+ // Temporary variable for stopTheWorld, when it can't write to the stack.
+@@ -1480,6 +1481,7 @@ func stopTheWorldWithSema(reason stwReason) worldStop {
+ 	preemptall()
+ 	// stop current P
+ 	gp.m.p.ptr().status = _Pgcstop // Pgcstop is only diagnostic.
++	gp.m.p.ptr().gcStopTime = start
+ 	sched.stopwait--
+ 	// try to retake all P's in Psyscall status
+ 	trace = traceAcquire()
+@@ -1491,6 +1493,7 @@ func stopTheWorldWithSema(reason stwReason) worldStop {
+ 				trace.ProcSteal(pp, false)
+ 			}
+ 			pp.syscalltick++
++			pp.gcStopTime = nanotime()
+ 			sched.stopwait--
+ 		}
+ 	}
+@@ -1506,6 +1509,7 @@ func stopTheWorldWithSema(reason stwReason) worldStop {
+ 			break
+ 		}
+ 		pp.status = _Pgcstop
++		pp.gcStopTime = nanotime()
+ 		sched.stopwait--
+ 	}
+ 	wait := sched.stopwait > 0
+@@ -1531,7 +1535,11 @@ func stopTheWorldWithSema(reason stwReason) worldStop {
+ 		sched.stwStoppingTimeOther.record(startTime)
+ 	}
+ 
+-	// sanity checks
++	// Double-check we actually stopped everything, and all the invariants hold.
++	// Also accumulate all the time spent by each P in _Pgcstop up to the point
++	// where everything was stopped. This will be accumulated into the total pause
++	// CPU time by the caller.
++	stoppingCPUTime := int64(0)
+ 	bad := ""
+ 	if sched.stopwait != 0 {
+ 		bad = "stopTheWorld: not stopped (stopwait != 0)"
+@@ -1540,6 +1548,11 @@ func stopTheWorldWithSema(reason stwReason) worldStop {
+ 			if pp.status != _Pgcstop {
+ 				bad = "stopTheWorld: not stopped (status != _Pgcstop)"
+ 			}
++			if pp.gcStopTime == 0 && bad == "" {
++				bad = "stopTheWorld: broken CPU time accounting"
++			}
++			stoppingCPUTime += finish - pp.gcStopTime
++			pp.gcStopTime = 0
+ 		}
+ 	}
+ 	if freezing.Load() {
+@@ -1556,7 +1569,12 @@ func stopTheWorldWithSema(reason stwReason) worldStop {
+ 
+ 	worldStopped()
+ 
+-	return worldStop{reason: reason, startedStopping: start, finishedStopping: finish}
++	return worldStop{
++		reason:           reason,
++		startedStopping:  start,
++		finishedStopping: finish,
++		stoppingCPUTime:  stoppingCPUTime,
++	}
+ }
+ 
+ // reason is the same STW reason passed to stopTheWorld. start is the start
+@@ -2945,6 +2963,7 @@ func handoffp(pp *p) {
+ 	lock(&sched.lock)
+ 	if sched.gcwaiting.Load() {
+ 		pp.status = _Pgcstop
++		pp.gcStopTime = nanotime()
+ 		sched.stopwait--
+ 		if sched.stopwait == 0 {
+ 			notewakeup(&sched.stopnote)
+@@ -3087,6 +3106,7 @@ func gcstopm() {
+ 	pp := releasep()
+ 	lock(&sched.lock)
+ 	pp.status = _Pgcstop
++	pp.gcStopTime = nanotime()
+ 	sched.stopwait--
+ 	if sched.stopwait == 0 {
+ 		notewakeup(&sched.stopnote)
+@@ -4404,6 +4424,7 @@ func entersyscall_gcwait() {
+ 			}
+ 			traceRelease(trace)
+ 		}
++		pp.gcStopTime = nanotime()
+ 		pp.syscalltick++
+ 		if sched.stopwait--; sched.stopwait == 0 {
+ 			notewakeup(&sched.stopnote)
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 4a5dbf1cc8..83252abb44 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -763,6 +763,9 @@ type p struct {
+ 	// scheduler ASAP (regardless of what G is running on it).
+ 	preempt bool
+ 
++	// gcStopTime is the nanotime timestamp that this P last entered _Pgcstop.
++	gcStopTime int64
++
+ 	// pageTraceBuf is a buffer for writing out page allocation/free/scavenge traces.
+ 	//
+ 	// Used only if GOEXPERIMENT=pagetrace.

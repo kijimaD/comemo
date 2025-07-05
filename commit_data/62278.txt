@@ -27,7 +27,7 @@ Date:   Wed Feb 12 11:18:30 2025 -0500
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Auto-Submit: Alan Donovan <adonovan@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/noder/noder.go | 1 +
  src/go/importer/importer.go             | 2 ++
  src/go/types/signature.go               | 2 ++
@@ -35,3 +35,126 @@ Date:   Wed Feb 12 11:18:30 2025 -0500
  src/io/ioutil/tempfile.go               | 4 ++++
  src/reflect/type.go                     | 4 ++++
  6 files changed, 21 insertions(+)
+
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 7905c374c5..77daf9eda5 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -162,6 +162,7 @@ var allowedStdPragmas = map[string]bool{
+ 	"go:cgo_ldflag":         true,
+ 	"go:cgo_dynamic_linker": true,
+ 	"go:embed":              true,
++	"go:fix":                true,
+ 	"go:generate":           true,
+ }
+ 
+diff --git a/src/go/importer/importer.go b/src/go/importer/importer.go
+index 54acd7e694..f0a1f651d2 100644
+--- a/src/go/importer/importer.go
++++ b/src/go/importer/importer.go
+@@ -80,6 +80,8 @@ func ForCompiler(fset *token.FileSet, compiler string, lookup Lookup) types.Impo
+ //
+ // Deprecated: Use [ForCompiler], which populates a FileSet
+ // with the positions of objects created by the importer.
++//
++//go:fix inline
+ func For(compiler string, lookup Lookup) types.Importer {
+ 	return ForCompiler(token.NewFileSet(), compiler, lookup)
+ }
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index 1738384feb..365b111939 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -38,6 +38,8 @@ type Signature struct {
+ // must be of unnamed slice type.
+ //
+ // Deprecated: Use [NewSignatureType] instead which allows for type parameters.
++//
++//go:fix inline
+ func NewSignature(recv *Var, params, results *Tuple, variadic bool) *Signature {
+ 	return NewSignatureType(recv, nil, nil, params, results, variadic)
+ }
+diff --git a/src/io/ioutil/ioutil.go b/src/io/ioutil/ioutil.go
+index af8ebe3850..0ab4b5a0c3 100644
+--- a/src/io/ioutil/ioutil.go
++++ b/src/io/ioutil/ioutil.go
+@@ -24,6 +24,8 @@ import (
+ // as an error to be reported.
+ //
+ // Deprecated: As of Go 1.16, this function simply calls [io.ReadAll].
++//
++//go:fix inline
+ func ReadAll(r io.Reader) ([]byte, error) {
+ 	return io.ReadAll(r)
+ }
+@@ -34,6 +36,8 @@ func ReadAll(r io.Reader) ([]byte, error) {
+ // to be reported.
+ //
+ // Deprecated: As of Go 1.16, this function simply calls [os.ReadFile].
++//
++//go:fix inline
+ func ReadFile(filename string) ([]byte, error) {
+ 	return os.ReadFile(filename)
+ }
+@@ -43,6 +47,8 @@ func ReadFile(filename string) ([]byte, error) {
+ // (before umask); otherwise WriteFile truncates it before writing, without changing permissions.
+ //
+ // Deprecated: As of Go 1.16, this function simply calls [os.WriteFile].
++//
++//go:fix inline
+ func WriteFile(filename string, data []byte, perm fs.FileMode) error {
+ 	return os.WriteFile(filename, data, perm)
+ }
+@@ -87,6 +93,8 @@ func ReadDir(dirname string) ([]fs.FileInfo, error) {
+ // the provided Reader r.
+ //
+ // Deprecated: As of Go 1.16, this function simply calls [io.NopCloser].
++//
++//go:fix inline
+ func NopCloser(r io.Reader) io.ReadCloser {
+ 	return io.NopCloser(r)
+ }
+diff --git a/src/io/ioutil/tempfile.go b/src/io/ioutil/tempfile.go
+index 47b2e4012f..ef2ce404d9 100644
+--- a/src/io/ioutil/tempfile.go
++++ b/src/io/ioutil/tempfile.go
+@@ -21,6 +21,8 @@ import (
+ // to remove the file when no longer needed.
+ //
+ // Deprecated: As of Go 1.17, this function simply calls [os.CreateTemp].
++//
++//go:fix inline
+ func TempFile(dir, pattern string) (f *os.File, err error) {
+ 	return os.CreateTemp(dir, pattern)
+ }
+@@ -36,6 +38,8 @@ func TempFile(dir, pattern string) (f *os.File, err error) {
+ // to remove the directory when no longer needed.
+ //
+ // Deprecated: As of Go 1.17, this function simply calls [os.MkdirTemp].
++//
++//go:fix inline
+ func TempDir(dir, pattern string) (name string, err error) {
+ 	return os.MkdirTemp(dir, pattern)
+ }
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index e5ee7f90d0..b6fc99a934 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -301,6 +301,8 @@ const (
+ )
+ 
+ // Ptr is the old name for the [Pointer] kind.
++//
++//go:fix inline
+ const Ptr = Pointer
+ 
+ // uncommonType is present only for defined types or types with methods
+@@ -1323,6 +1325,8 @@ var ptrMap sync.Map // map[*rtype]*ptrType
+ // The two functions behave identically.
+ //
+ // Deprecated: Superseded by [PointerTo].
++//
++//go:fix inline
+ func PtrTo(t Type) Type { return PointerTo(t) }
+ 
+ // PointerTo returns the pointer type with element t.

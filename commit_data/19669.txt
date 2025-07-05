@@ -8,6 +8,20 @@ Date:   Sat Jul 5 08:48:04 2014 +0400
     R=golang-codereviews, crawshaw, dave
     CC=golang-codereviews
     https://golang.org/cl/104520044
-
+---
  src/pkg/image/gif/writer_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/image/gif/writer_test.go b/src/pkg/image/gif/writer_test.go
+index c1ada769c2..bc5d37845b 100644
+--- a/src/pkg/image/gif/writer_test.go
++++ b/src/pkg/image/gif/writer_test.go
+@@ -116,7 +116,7 @@ func TestEncodeAll(t *testing.T) {
+ 	for i, f := range frames {
+ 		m, err := readGIF(f)
+ 		if err != nil {
+-			t.Error(f, err)
++			t.Fatal(f, err)
+ 		}
+ 		g0.Image[i] = m.Image[0]
+ 	}

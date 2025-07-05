@@ -21,7 +21,7 @@ Date:   Mon Apr 18 12:32:37 2022 -0700
     Run-TryBot: Rhys Hiltner <rhys@justin.tv>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/trace/trace.go          |   6 +-
  src/internal/trace/order.go     |   6 ++
  src/internal/trace/parser.go    |  28 +++++-
@@ -31,3 +31,681 @@ Date:   Mon Apr 18 12:32:37 2022 -0700
  src/runtime/trace/trace.go      |   2 +
  src/runtime/trace/trace_test.go | 154 ++++++++++++++++++++++++++++++++
  8 files changed, 400 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/trace/trace.go b/src/cmd/trace/trace.go
+index a0d742ac54..1cabc25ced 100644
+--- a/src/cmd/trace/trace.go
++++ b/src/cmd/trace/trace.go
+@@ -30,7 +30,6 @@ func init() {
+ 	http.Handle("/static/", http.FileServer(http.FS(staticContent)))
+ }
+ 
+-
+ // httpTrace serves either whole trace (goid==0) or trace for goid goroutine.
+ func httpTrace(w http.ResponseWriter, r *http.Request) {
+ 	_, err := parseTrace()
+@@ -719,6 +718,11 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
+ 			ctx.emitInstant(ev, "task start", "user event")
+ 		case trace.EvUserTaskEnd:
+ 			ctx.emitInstant(ev, "task end", "user event")
++		case trace.EvCPUSample:
++			if ev.P >= 0 {
++				// only show in this UI when there's an associated P
++				ctx.emitInstant(ev, "CPU profile sample", "")
++			}
+ 		}
+ 		// Emit any counter updates.
+ 		ctx.emitThreadCounters(ev)
+diff --git a/src/internal/trace/order.go b/src/internal/trace/order.go
+index 36ed58d675..07a6e13ffe 100644
+--- a/src/internal/trace/order.go
++++ b/src/internal/trace/order.go
+@@ -52,6 +52,12 @@ const (
+ // incorrect (condition observed on some machines).
+ func order1007(m map[int][]*Event) (events []*Event, err error) {
+ 	pending := 0
++	// The ordering of CPU profile sample events in the data stream is based on
++	// when each run of the signal handler was able to acquire the spinlock,
++	// with original timestamps corresponding to when ReadTrace pulled the data
++	// off of the profBuf queue. Re-sort them by the timestamp we captured
++	// inside the signal handler.
++	sort.Stable(eventList(m[ProfileP]))
+ 	var batches []*eventBatch
+ 	for _, v := range m {
+ 		pending += len(v)
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+index 254f20137b..8c74196ddf 100644
+--- a/src/internal/trace/parser.go
++++ b/src/internal/trace/parser.go
+@@ -75,6 +75,7 @@ const (
+ 	NetpollP // depicts network unblocks
+ 	SyscallP // depicts returns from syscalls
+ 	GCP      // depicts GC state
++	ProfileP // depicts recording of CPU profile samples
+ )
+ 
+ // ParseResult is the result of Parse.
+@@ -150,7 +151,7 @@ func readTrace(r io.Reader) (ver int, events []rawEvent, strings map[uint64]stri
+ 		return
+ 	}
+ 	switch ver {
+-	case 1005, 1007, 1008, 1009, 1010, 1011:
++	case 1005, 1007, 1008, 1009, 1010, 1011, 1019:
+ 		// Note: When adding a new version, add canned traces
+ 		// from the old version to the test suite using mkcanned.bash.
+ 		break
+@@ -448,8 +449,27 @@ func parseEvents(ver int, rawEvents []rawEvent, strings map[uint64]string) (even
+ 			case EvUserLog:
+ 				// e.Args 0: taskID, 1:keyID, 2: stackID
+ 				e.SArgs = []string{strings[e.Args[1]], raw.sargs[0]}
++			case EvCPUSample:
++				e.Ts = int64(e.Args[0])
++				e.P = int(e.Args[1])
++				e.G = e.Args[2]
++				e.Args[0] = 0
++			}
++			switch raw.typ {
++			default:
++				batches[lastP] = append(batches[lastP], e)
++			case EvCPUSample:
++				// Most events are written out by the active P at the exact
++				// moment they describe. CPU profile samples are different
++				// because they're written to the tracing log after some delay,
++				// by a separate worker goroutine, into a separate buffer.
++				//
++				// We keep these in their own batch until all of the batches are
++				// merged in timestamp order. We also (right before the merge)
++				// re-sort these events by the timestamp captured in the
++				// profiling signal handler.
++				batches[ProfileP] = append(batches[ProfileP], e)
+ 			}
+-			batches[lastP] = append(batches[lastP], e)
+ 		}
+ 	}
+ 	if len(batches) == 0 {
+@@ -1058,7 +1078,8 @@ const (
+ 	EvUserTaskEnd       = 46 // end of task [timestamp, internal task id, stack]
+ 	EvUserRegion        = 47 // trace.WithRegion [timestamp, internal task id, mode(0:start, 1:end), stack, name string]
+ 	EvUserLog           = 48 // trace.Log [timestamp, internal id, key string id, stack, value string]
+-	EvCount             = 49
++	EvCPUSample         = 49 // CPU profiling sample [timestamp, stack, real timestamp, real P id (-1 when absent), goroutine id]
++	EvCount             = 50
+ )
+ 
+ var EventDescriptions = [EvCount]struct {
+@@ -1117,4 +1138,5 @@ var EventDescriptions = [EvCount]struct {
+ 	EvUserTaskEnd:       {"UserTaskEnd", 1011, true, []string{"taskid"}, nil},
+ 	EvUserRegion:        {"UserRegion", 1011, true, []string{"taskid", "mode", "typeid"}, []string{"name"}},
+ 	EvUserLog:           {"UserLog", 1011, true, []string{"id", "keyid"}, []string{"category", "message"}},
++	EvCPUSample:         {"CPUSample", 1019, true, []string{"ts", "p", "g"}, nil},
+ }
+diff --git a/src/runtime/cpuprof.go b/src/runtime/cpuprof.go
+index 07673c9bd0..2f7f6b4153 100644
+--- a/src/runtime/cpuprof.go
++++ b/src/runtime/cpuprof.go
+@@ -19,7 +19,21 @@ import (
+ 	"unsafe"
+ )
+ 
+-const maxCPUProfStack = 64
++const (
++	maxCPUProfStack = 64
++
++	// profBufWordCount is the size of the CPU profile buffer's storage for the
++	// header and stack of each sample, measured in 64-bit words. Every sample
++	// has a required header of two words. With a small additional header (a
++	// word or two) and stacks at the profiler's maximum length of 64 frames,
++	// that capacity can support 1900 samples or 19 thread-seconds at a 100 Hz
++	// sample rate, at a cost of 1 MiB.
++	profBufWordCount = 1 << 17
++	// profBufTagCount is the size of the CPU profile buffer's storage for the
++	// goroutine tags associated with each sample. A capacity of 1<<14 means
++	// room for 16k samples, or 160 thread-seconds at a 100 Hz sample rate.
++	profBufTagCount = 1 << 14
++)
+ 
+ type cpuProfile struct {
+ 	lock mutex
+@@ -70,7 +84,7 @@ func SetCPUProfileRate(hz int) {
+ 		}
+ 
+ 		cpuprof.on = true
+-		cpuprof.log = newProfBuf(1, 1<<17, 1<<14)
++		cpuprof.log = newProfBuf(1, profBufWordCount, profBufTagCount)
+ 		hdr := [1]uint64{uint64(hz)}
+ 		cpuprof.log.write(nil, nanotime(), hdr[:], nil)
+ 		setcpuprofilerate(int32(hz))
+@@ -93,6 +107,7 @@ func SetCPUProfileRate(hz int) {
+ func (p *cpuProfile) add(tagPtr *unsafe.Pointer, stk []uintptr) {
+ 	// Simple cas-lock to coordinate with setcpuprofilerate.
+ 	for !atomic.Cas(&prof.signalLock, 0, 1) {
++		// TODO: Is it safe to osyield here? https://go.dev/issue/52672
+ 		osyield()
+ 	}
+ 
+@@ -125,8 +140,11 @@ func (p *cpuProfile) addNonGo(stk []uintptr) {
+ 	// Simple cas-lock to coordinate with SetCPUProfileRate.
+ 	// (Other calls to add or addNonGo should be blocked out
+ 	// by the fact that only one SIGPROF can be handled by the
+-	// process at a time. If not, this lock will serialize those too.)
++	// process at a time. If not, this lock will serialize those too.
++	// The use of timer_create(2) on Linux to request process-targeted
++	// signals may have changed this.)
+ 	for !atomic.Cas(&prof.signalLock, 0, 1) {
++		// TODO: Is it safe to osyield here? https://go.dev/issue/52672
+ 		osyield()
+ 	}
+ 
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index b28e97475d..427699e41d 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4595,6 +4595,12 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+ 			tagPtr = &gp.m.curg.labels
+ 		}
+ 		cpuprof.add(tagPtr, stk[:n])
++
++		var pp *p
++		if gp != nil && gp.m != nil {
++			pp = gp.m.p.ptr()
++		}
++		traceCPUSample(gp, pp, stk[:n])
+ 	}
+ 	getg().m.mallocing--
+ }
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index dc26cfa25a..1525c8ba99 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -69,7 +69,8 @@ const (
+ 	traceEvUserTaskEnd       = 46 // end of a task [timestamp, internal task id, stack]
+ 	traceEvUserRegion        = 47 // trace.WithRegion [timestamp, internal task id, mode(0:start, 1:end), stack, name string]
+ 	traceEvUserLog           = 48 // trace.Log [timestamp, internal task id, key string id, stack, value string]
+-	traceEvCount             = 49
++	traceEvCPUSample         = 49 // CPU profiling sample [timestamp, stack, real timestamp, real P id (-1 when absent), goroutine id]
++	traceEvCount             = 50
+ 	// Byte is used but only 6 bits are available for event type.
+ 	// The remaining 2 bits are used to specify the number of arguments.
+ 	// That means, the max event type value is 63.
+@@ -126,6 +127,24 @@ var trace struct {
+ 	fullTail      traceBufPtr
+ 	reader        guintptr        // goroutine that called ReadTrace, or nil
+ 	stackTab      traceStackTable // maps stack traces to unique ids
++	// cpuLogRead accepts CPU profile samples from the signal handler where
++	// they're generated. It uses a two-word header to hold the IDs of the P and
++	// G (respectively) that were active at the time of the sample. Because
++	// profBuf uses a record with all zeros in its header to indicate overflow,
++	// we make sure to make the P field always non-zero: The ID of a real P will
++	// start at bit 1, and bit 0 will be set. Samples that arrive while no P is
++	// running (such as near syscalls) will set the first header field to 0b10.
++	// This careful handling of the first header field allows us to store ID of
++	// the active G directly in the second field, even though that will be 0
++	// when sampling g0.
++	cpuLogRead *profBuf
++	// cpuLogBuf is a trace buffer to hold events corresponding to CPU profile
++	// samples, which arrive out of band and not directly connected to a
++	// specific P.
++	cpuLogBuf traceBufPtr
++
++	signalLock  atomic.Uint32 // protects use of the following member, only usable in signal handlers
++	cpuLogWrite *profBuf      // copy of cpuLogRead for use in signal handlers, set without signalLock
+ 
+ 	// Dictionary for traceEvString.
+ 	//
+@@ -221,6 +240,18 @@ func StartTrace() error {
+ 	stackID := traceStackID(mp, stkBuf, 2)
+ 	releasem(mp)
+ 
++	profBuf := newProfBuf(2, profBufWordCount, profBufTagCount) // after the timestamp, header is [pp.id, gp.goid]
++	trace.cpuLogRead = profBuf
++
++	// We must not acquire trace.signalLock outside of a signal handler: a
++	// profiling signal may arrive at any time and try to acquire it, leading to
++	// deadlock. Because we can't use that lock to protect updates to
++	// trace.cpuLogWrite (only use of the structure it references), reads and
++	// writes of the pointer must be atomic. (And although this field is never
++	// the sole pointer to the profBuf value, it's best to allow a write barrier
++	// here.)
++	atomicstorep(unsafe.Pointer(&trace.cpuLogWrite), unsafe.Pointer(profBuf))
++
+ 	// World is stopped, no need to lock.
+ 	forEachGRace(func(gp *g) {
+ 		status := readgstatus(gp)
+@@ -301,6 +332,10 @@ func StopTrace() {
+ 
+ 	traceGoSched()
+ 
++	atomicstorep(unsafe.Pointer(&trace.cpuLogWrite), nil)
++	trace.cpuLogRead.close()
++	traceReadCPU()
++
+ 	// Loop over all allocated Ps because dead Ps may still have
+ 	// trace buffers.
+ 	for _, p := range allp[:cap(allp)] {
+@@ -317,6 +352,13 @@ func StopTrace() {
+ 			traceFullQueue(buf)
+ 		}
+ 	}
++	if trace.cpuLogBuf != 0 {
++		buf := trace.cpuLogBuf
++		trace.cpuLogBuf = 0
++		if buf.ptr().pos != 0 {
++			traceFullQueue(buf)
++		}
++	}
+ 
+ 	for {
+ 		trace.ticksEnd = cputicks()
+@@ -366,6 +408,7 @@ func StopTrace() {
+ 	}
+ 	trace.strings = nil
+ 	trace.shutdown = false
++	trace.cpuLogRead = nil
+ 	unlock(&trace.lock)
+ }
+ 
+@@ -404,7 +447,12 @@ func ReadTrace() []byte {
+ 		trace.headerWritten = true
+ 		trace.lockOwner = nil
+ 		unlock(&trace.lock)
+-		return []byte("go 1.11 trace\x00\x00\x00")
++		return []byte("go 1.19 trace\x00\x00\x00")
++	}
++	// Optimistically look for CPU profile samples. This may write new stack
++	// records, and may write new tracing buffers.
++	if !trace.footerWritten && !trace.shutdown {
++		traceReadCPU()
+ 	}
+ 	// Wait for new data.
+ 	if trace.fullHead == 0 && !trace.shutdown {
+@@ -420,6 +468,7 @@ func ReadTrace() []byte {
+ 		unlock(&trace.lock)
+ 		return buf.ptr().arr[:buf.ptr().pos]
+ 	}
++
+ 	// Write footer with timer frequency.
+ 	if !trace.footerWritten {
+ 		trace.footerWritten = true
+@@ -548,11 +597,28 @@ func traceEvent(ev byte, skip int, args ...uint64) {
+ 			skip++ // +1 because stack is captured in traceEventLocked.
+ 		}
+ 	}
+-	traceEventLocked(0, mp, pid, bufp, ev, skip, args...)
++	traceEventLocked(0, mp, pid, bufp, ev, 0, skip, args...)
+ 	traceReleaseBuffer(pid)
+ }
+ 
+-func traceEventLocked(extraBytes int, mp *m, pid int32, bufp *traceBufPtr, ev byte, skip int, args ...uint64) {
++// traceEventLocked writes a single event of type ev to the trace buffer bufp,
++// flushing the buffer if necessary. pid is the id of the current P, or
++// traceGlobProc if we're tracing without a real P.
++//
++// Preemption is disabled, and if running without a real P the global tracing
++// buffer is locked.
++//
++// Events types that do not include a stack set skip to -1. Event types that
++// include a stack may explicitly reference a stackID from the trace.stackTab
++// (obtained by an earlier call to traceStackID). Without an explicit stackID,
++// this function will automatically capture the stack of the goroutine currently
++// running on mp, skipping skip top frames or, if skip is 0, writing out an
++// empty stack record.
++//
++// It records the event's args to the traceBuf, and also makes an effort to
++// reserve extraBytes bytes of additional space immediately following the event,
++// in the same traceBuf.
++func traceEventLocked(extraBytes int, mp *m, pid int32, bufp *traceBufPtr, ev byte, stackID uint32, skip int, args ...uint64) {
+ 	buf := bufp.ptr()
+ 	// TODO: test on non-zero extraBytes param.
+ 	maxSize := 2 + 5*traceBytesPerNumber + extraBytes // event type, length, sequence, timestamp, stack id and two add params
+@@ -572,7 +638,7 @@ func traceEventLocked(extraBytes int, mp *m, pid int32, bufp *traceBufPtr, ev by
+ 
+ 	buf.lastTicks = ticks
+ 	narg := byte(len(args))
+-	if skip >= 0 {
++	if stackID != 0 || skip >= 0 {
+ 		narg++
+ 	}
+ 	// We have only 2 bits for number of arguments.
+@@ -592,7 +658,9 @@ func traceEventLocked(extraBytes int, mp *m, pid int32, bufp *traceBufPtr, ev by
+ 	for _, a := range args {
+ 		buf.varint(a)
+ 	}
+-	if skip == 0 {
++	if stackID != 0 {
++		buf.varint(uint64(stackID))
++	} else if skip == 0 {
+ 		buf.varint(0)
+ 	} else if skip > 0 {
+ 		buf.varint(traceStackID(mp, buf.stk[:], skip))
+@@ -607,6 +675,110 @@ func traceEventLocked(extraBytes int, mp *m, pid int32, bufp *traceBufPtr, ev by
+ 	}
+ }
+ 
++// traceCPUSample writes a CPU profile sample stack to the execution tracer's
++// profiling buffer. It is called from a signal handler, so is limited in what
++// it can do.
++func traceCPUSample(gp *g, pp *p, stk []uintptr) {
++	if !trace.enabled {
++		// Tracing is usually turned off; don't spend time acquiring the signal
++		// lock unless it's active.
++		return
++	}
++
++	// Match the clock used in traceEventLocked
++	now := cputicks()
++	// The "header" here is the ID of the P that was running the profiled code,
++	// followed by the ID of the goroutine. (For normal CPU profiling, it's
++	// usually the number of samples with the given stack.) Near syscalls, pp
++	// may be nil. Reporting goid of 0 is fine for either g0 or a nil gp.
++	var hdr [2]uint64
++	if pp != nil {
++		// Overflow records in profBuf have all header values set to zero. Make
++		// sure that real headers have at least one bit set.
++		hdr[0] = uint64(pp.id)<<1 | 0b1
++	} else {
++		hdr[0] = 0b10
++	}
++	if gp != nil {
++		hdr[1] = uint64(gp.goid)
++	}
++
++	// Allow only one writer at a time
++	for !trace.signalLock.CompareAndSwap(0, 1) {
++		// TODO: Is it safe to osyield here? https://go.dev/issue/52672
++		osyield()
++	}
++
++	if log := (*profBuf)(atomic.Loadp(unsafe.Pointer(&trace.cpuLogWrite))); log != nil {
++		// Note: we don't pass a tag pointer here (how should profiling tags
++		// interact with the execution tracer?), but if we did we'd need to be
++		// careful about write barriers. See the long comment in profBuf.write.
++		log.write(nil, now, hdr[:], stk)
++	}
++
++	trace.signalLock.Store(0)
++}
++
++func traceReadCPU() {
++	bufp := &trace.cpuLogBuf
++
++	for {
++		data, tags, _ := trace.cpuLogRead.read(profBufNonBlocking)
++		if len(data) == 0 {
++			break
++		}
++		for len(data) > 0 {
++			if len(data) < 4 || data[0] > uint64(len(data)) {
++				break // truncated profile
++			}
++			if data[0] < 4 || tags != nil && len(tags) < 1 {
++				break // malformed profile
++			}
++			if len(tags) < 1 {
++				break // mismatched profile records and tags
++			}
++			timestamp := data[1]
++			ppid := data[2] >> 1
++			if hasP := (data[2] & 0b1) != 0; !hasP {
++				ppid = ^uint64(0)
++			}
++			goid := data[3]
++			stk := data[4:data[0]]
++			data = data[data[0]:]
++			// No support here for reporting goroutine tags at the moment; if
++			// that information is to be part of the execution trace, we'd
++			// probably want to see when the tags are applied and when they
++			// change, instead of only seeing them when we get a CPU sample.
++			tags = tags[1:]
++
++			if len(stk) == 1 && data[2] == 0 && data[3] == 0 {
++				// Looks like an overflow record from the profBuf. Not much to
++				// do here, we only want to report full records.
++				//
++				// TODO: should we start a goroutine to drain the profBuf,
++				// rather than relying on a high-enough volume of tracing events
++				// to keep ReadTrace busy? https://go.dev/issue/52674
++				continue
++			}
++
++			buf := bufp.ptr()
++			if buf == nil {
++				*bufp = traceFlush(*bufp, 0)
++				buf = bufp.ptr()
++			}
++			for i := range stk {
++				if i >= len(buf.stk) {
++					break
++				}
++				buf.stk[i] = uintptr(stk[i])
++			}
++			stackID := trace.stackTab.put(buf.stk[:len(stk)])
++
++			traceEventLocked(0, nil, 0, bufp, traceEvCPUSample, stackID, 1, timestamp/traceTickDiv, ppid, goid)
++		}
++	}
++}
++
+ func traceStackID(mp *m, buf []uintptr, skip int) uint64 {
+ 	_g_ := getg()
+ 	gp := mp.curg
+@@ -1195,7 +1367,7 @@ func trace_userTaskCreate(id, parentID uint64, taskType string) {
+ 	}
+ 
+ 	typeStringID, bufp := traceString(bufp, pid, taskType)
+-	traceEventLocked(0, mp, pid, bufp, traceEvUserTaskCreate, 3, id, parentID, typeStringID)
++	traceEventLocked(0, mp, pid, bufp, traceEvUserTaskCreate, 0, 3, id, parentID, typeStringID)
+ 	traceReleaseBuffer(pid)
+ }
+ 
+@@ -1217,7 +1389,7 @@ func trace_userRegion(id, mode uint64, name string) {
+ 	}
+ 
+ 	nameStringID, bufp := traceString(bufp, pid, name)
+-	traceEventLocked(0, mp, pid, bufp, traceEvUserRegion, 3, id, mode, nameStringID)
++	traceEventLocked(0, mp, pid, bufp, traceEvUserRegion, 0, 3, id, mode, nameStringID)
+ 	traceReleaseBuffer(pid)
+ }
+ 
+@@ -1236,7 +1408,7 @@ func trace_userLog(id uint64, category, message string) {
+ 	categoryID, bufp := traceString(bufp, pid, category)
+ 
+ 	extraSpace := traceBytesPerNumber + len(message) // extraSpace for the value string
+-	traceEventLocked(extraSpace, mp, pid, bufp, traceEvUserLog, 3, id, categoryID)
++	traceEventLocked(extraSpace, mp, pid, bufp, traceEvUserLog, 0, 3, id, categoryID)
+ 	// traceEventLocked reserved extra space for val and len(val)
+ 	// in buf, so buf now has room for the following.
+ 	buf := bufp.ptr()
+diff --git a/src/runtime/trace/trace.go b/src/runtime/trace/trace.go
+index e0c3ca7a1e..cf2b6440b2 100644
+--- a/src/runtime/trace/trace.go
++++ b/src/runtime/trace/trace.go
+@@ -10,6 +10,8 @@
+ // The execution trace captures a wide range of execution events such as
+ // goroutine creation/blocking/unblocking, syscall enter/exit/block,
+ // GC-related events, changes of heap size, processor start/stop, etc.
++// When CPU profiling is active, the execution tracer makes an effort to
++// include those samples as well.
+ // A precise nanosecond-precision timestamp and a stack trace is
+ // captured for most events. The generated trace can be interpreted
+ // using `go tool trace`.
+diff --git a/src/runtime/trace/trace_test.go b/src/runtime/trace/trace_test.go
+index b316eafe4c..52a43929b7 100644
+--- a/src/runtime/trace/trace_test.go
++++ b/src/runtime/trace/trace_test.go
+@@ -6,15 +6,20 @@ package trace_test
+ 
+ import (
+ 	"bytes"
++	"context"
+ 	"flag"
++	"fmt"
++	"internal/profile"
+ 	"internal/race"
+ 	"internal/trace"
+ 	"io"
+ 	"net"
+ 	"os"
+ 	"runtime"
++	"runtime/pprof"
+ 	. "runtime/trace"
+ 	"strconv"
++	"strings"
+ 	"sync"
+ 	"testing"
+ 	"time"
+@@ -581,6 +586,155 @@ func TestTraceFutileWakeup(t *testing.T) {
+ 	}
+ }
+ 
++func TestTraceCPUProfile(t *testing.T) {
++	if IsEnabled() {
++		t.Skip("skipping because -test.trace is set")
++	}
++
++	cpuBuf := new(bytes.Buffer)
++	if err := pprof.StartCPUProfile(cpuBuf); err != nil {
++		t.Skipf("failed to start CPU profile: %v", err)
++	}
++
++	buf := new(bytes.Buffer)
++	if err := Start(buf); err != nil {
++		t.Fatalf("failed to start tracing: %v", err)
++	}
++
++	dur := 100 * time.Millisecond
++	func() {
++		// Create a region in the execution trace. Set and clear goroutine
++		// labels fully within that region, so we know that any CPU profile
++		// sample with the label must also be eligible for inclusion in the
++		// execution trace.
++		ctx := context.Background()
++		defer StartRegion(ctx, "cpuHogger").End()
++		pprof.Do(ctx, pprof.Labels("tracing", "on"), func(ctx context.Context) {
++			cpuHogger(cpuHog1, &salt1, dur)
++		})
++		// Be sure the execution trace's view, when filtered to this goroutine,
++		// gets many more samples than the CPU profiler when filtered by label.
++		cpuHogger(cpuHog1, &salt1, dur)
++	}()
++
++	Stop()
++	pprof.StopCPUProfile()
++	saveTrace(t, buf, "TestTraceCPUProfile")
++
++	prof, err := profile.Parse(cpuBuf)
++	if err != nil {
++		t.Fatalf("failed to parse CPU profile: %v", err)
++	}
++	pprofSamples := 0
++	pprofStacks := make(map[string]int) // CPU profiler's view, filtered to include the label
++	for _, s := range prof.Sample {
++		if s.Label["tracing"] != nil {
++			samples := int(s.Value[0])
++			pprofSamples += samples
++			var fns []string
++			for _, loc := range s.Location {
++				for _, line := range loc.Line {
++					fns = append(fns, fmt.Sprintf("%s:%d", line.Function.Name, line.Line))
++				}
++			}
++			stack := strings.Join(fns, " ")
++			pprofStacks[stack] += samples
++		}
++	}
++	if pprofSamples == 0 {
++		t.Skipf("CPU profile did not include any samples while tracing was active\n%s", prof)
++	}
++
++	traceSamples := 0
++	traceStacks := make(map[string]int) // Execution tracer's view, filtered to this goroutine
++	events, _ := parseTrace(t, buf)
++	var hogRegion *trace.Event
++	for _, ev := range events {
++		if ev.Type == trace.EvUserRegion && ev.Args[1] == 0 && ev.SArgs[0] == "cpuHogger" {
++			// mode "0" indicates region start
++			hogRegion = ev
++		}
++	}
++	if hogRegion == nil {
++		t.Fatalf("execution trace did not identify cpuHogger goroutine")
++	} else if hogRegion.Link == nil {
++		t.Fatalf("execution trace did not close cpuHogger region")
++	}
++	for _, ev := range events {
++		if ev.Type == trace.EvCPUSample && ev.G == hogRegion.G {
++			traceSamples++
++			var fns []string
++			for _, frame := range ev.Stk {
++				if frame.Fn != "runtime.goexit" {
++					fns = append(fns, fmt.Sprintf("%s:%d", frame.Fn, frame.Line))
++				}
++			}
++			stack := strings.Join(fns, " ")
++			traceStacks[stack]++
++		}
++	}
++	if traceSamples < pprofSamples {
++		t.Errorf("exectution trace did not include all CPU profile samples; %d in profile, %d in trace", pprofSamples, traceSamples)
++	}
++
++	for stack, traceSamples := range traceStacks {
++		pprofSamples := pprofStacks[stack]
++		delete(pprofStacks, stack)
++		if traceSamples < pprofSamples {
++			t.Errorf("execution trace did not include all CPU profile samples for stack %q; %d in profile, %d in trace",
++				stack, pprofSamples, traceSamples)
++		}
++	}
++	for stack, pprofSamples := range pprofStacks {
++		t.Errorf("CPU profile included %d samples at stack %q not present in execution trace", pprofSamples, stack)
++	}
++
++	if t.Failed() {
++		t.Logf("execution trace CPU samples:")
++		for stack, samples := range traceStacks {
++			t.Logf("%d: %q", samples, stack)
++		}
++		t.Logf("CPU profile:\n%v", prof)
++	}
++}
++
++func cpuHogger(f func(x int) int, y *int, dur time.Duration) {
++	// We only need to get one 100 Hz clock tick, so we've got
++	// a large safety buffer.
++	// But do at least 500 iterations (which should take about 100ms),
++	// otherwise TestCPUProfileMultithreaded can fail if only one
++	// thread is scheduled during the testing period.
++	t0 := time.Now()
++	accum := *y
++	for i := 0; i < 500 || time.Since(t0) < dur; i++ {
++		accum = f(accum)
++	}
++	*y = accum
++}
++
++var (
++	salt1 = 0
++)
++
++// The actual CPU hogging function.
++// Must not call other functions nor access heap/globals in the loop,
++// otherwise under race detector the samples will be in the race runtime.
++func cpuHog1(x int) int {
++	return cpuHog0(x, 1e5)
++}
++
++func cpuHog0(x, n int) int {
++	foo := x
++	for i := 0; i < n; i++ {
++		if foo > 0 {
++			foo *= foo
++		} else {
++			foo *= foo + 1
++		}
++	}
++	return foo
++}
++
+ func saveTrace(t *testing.T, buf *bytes.Buffer, name string) {
+ 	if !*saveTraces {
+ 		return

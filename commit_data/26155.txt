@@ -9,6 +9,19 @@ Date:   Fri Dec 18 23:00:12 2015 -0500
     Change-Id: I3b9b993a2e7ecf07bab7d1935d4c83a86bc6ba3a
     Reviewed-on: https://go-review.googlesource.com/18054
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  api/README | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/api/README b/api/README
+index 897abc8d27..d3ad7c1d74 100644
+--- a/api/README
++++ b/api/README
+@@ -1,6 +1,6 @@
+ Files in this directory are data for Go's API checker ("go tool api", in src/cmd/api).
+ 
+-Each file is a list of of API features, one per line.
++Each file is a list of API features, one per line.
+ 
+ go1.txt (and similarly named files) are frozen once a version has been
+ shipped. Each file adds new lines but does not remove any.

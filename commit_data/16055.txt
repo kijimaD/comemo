@@ -12,6 +12,20 @@ Date:   Tue Apr 2 13:45:56 2013 -0700
     R=golang-dev, khr
     CC=golang-dev
     https://golang.org/cl/8175044
-
+---
  src/pkg/runtime/asm_386.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 805405a737..57de87b8d4 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -108,7 +108,7 @@ TEXT runtime·breakpoint(SB),7,$0
+ 	RET
+ 
+ TEXT runtime·asminit(SB),7,$0
+-	// Linux, Windows start the FPU in extended double precision.
++	// Linux and MinGW start the FPU in extended double precision.
+ 	// Other operating systems use double precision.
+ 	// Change to double precision to match them,
+ 	// and to match other hardware that only has double.

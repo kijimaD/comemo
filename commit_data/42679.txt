@@ -13,6 +13,31 @@ Date:   Tue Feb 4 18:07:23 2020 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/217721
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  src/syscall/fs_js.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/syscall/fs_js.go b/src/syscall/fs_js.go
+index c1cac97d91..16d9f58b8c 100644
+--- a/src/syscall/fs_js.go
++++ b/src/syscall/fs_js.go
+@@ -495,7 +495,7 @@ func fsCall(name string, args ...interface{}) (js.Value, error) {
+ 	}
+ 
+ 	c := make(chan callResult, 1)
+-	f := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
++	jsFS.Call(name, append(args, js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+ 		var res callResult
+ 
+ 		if len(args) >= 1 { // on Node.js 8, fs.utimes calls the callback without any arguments
+@@ -511,9 +511,7 @@ func fsCall(name string, args ...interface{}) (js.Value, error) {
+ 
+ 		c <- res
+ 		return nil
+-	})
+-	defer f.Release()
+-	jsFS.Call(name, append(args, f)...)
++	}))...)
+ 	res := <-c
+ 	return res.val, res.err
+ }

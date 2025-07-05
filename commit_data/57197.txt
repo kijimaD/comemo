@@ -19,6 +19,28 @@ Date:   Fri Jun 30 13:48:10 2023 -0700
     TryBot-Bypass: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/bytes/compare_test.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/bytes/compare_test.go b/src/bytes/compare_test.go
+index ac39f880f4..067530b6d8 100644
+--- a/src/bytes/compare_test.go
++++ b/src/bytes/compare_test.go
+@@ -7,7 +7,6 @@ package bytes_test
+ import (
+ 	. "bytes"
+ 	"fmt"
+-	"internal/testenv"
+ 	"testing"
+ )
+ 
+@@ -73,7 +72,7 @@ func TestCompareBytes(t *testing.T) {
+ 	}
+ 	lengths = append(lengths, 256, 512, 1024, 1333, 4095, 4096, 4097)
+ 
+-	if !testing.Short() || testenv.Builder() != "" {
++	if !testing.Short() {
+ 		lengths = append(lengths, 65535, 65536, 65537, 99999)
+ 	}
+ 

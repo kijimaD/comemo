@@ -9,6 +9,25 @@ Date:   Sun Aug 23 19:51:33 2015 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/math/jn.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/math/jn.go b/src/math/jn.go
+index a7909eb24c..ffb8a00f50 100644
+--- a/src/math/jn.go
++++ b/src/math/jn.go
+@@ -200,13 +200,11 @@ func Jn(n int, x float64) float64 {
+ 				for i := n - 1; i > 0; i-- {
+ 					di := float64(i + i)
+ 					a, b = b, b*di/x-a
+-					di -= 2
+ 				}
+ 			} else {
+ 				for i := n - 1; i > 0; i-- {
+ 					di := float64(i + i)
+ 					a, b = b, b*di/x-a
+-					di -= 2
+ 					// scale b to avoid spurious overflow
+ 					if b > 1e100 {
+ 						a /= b

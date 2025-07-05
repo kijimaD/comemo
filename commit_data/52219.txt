@@ -16,6 +16,20 @@ Date:   Fri Apr 15 17:42:17 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/transfer_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/transfer_test.go b/src/net/http/transfer_test.go
+index f0c28b2629..5e0df896d8 100644
+--- a/src/net/http/transfer_test.go
++++ b/src/net/http/transfer_test.go
+@@ -267,7 +267,7 @@ func TestTransferWriterWriteBodyReaderTypes(t *testing.T) {
+ 				}
+ 
+ 				if tc.expectedReader != actualReader {
+-					t.Fatalf("got reader %T want %T", actualReader, tc.expectedReader)
++					t.Fatalf("got reader %s want %s", actualReader, tc.expectedReader)
+ 				}
+ 			}
+ 

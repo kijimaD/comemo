@@ -37,8 +37,69 @@ Date:   Wed Oct 31 17:42:15 2018 +0100
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/poll/fd_poll_runtime.go |  2 ++
  src/runtime/time.go                  | 12 ------------
  src/time/time.go                     |  6 +++++-
  3 files changed, 7 insertions(+), 13 deletions(-)
+
+diff --git a/src/internal/poll/fd_poll_runtime.go b/src/internal/poll/fd_poll_runtime.go
+index b91cbe40e4..a48e62eefa 100644
+--- a/src/internal/poll/fd_poll_runtime.go
++++ b/src/internal/poll/fd_poll_runtime.go
+@@ -11,9 +11,11 @@ import (
+ 	"sync"
+ 	"syscall"
+ 	"time"
++	_ "unsafe" // for go:linkname
+ )
+ 
+ // runtimeNano returns the current value of the runtime clock in nanoseconds.
++//go:linkname runtimeNano runtime.nanotime
+ func runtimeNano() int64
+ 
+ func runtime_pollServerInit()
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index b345ed4e02..28a4722866 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -458,15 +458,3 @@ func siftdownTimer(t []*timer, i int) bool {
+ func badTimer() {
+ 	panic(errorString("racy use of timers"))
+ }
+-
+-// Entry points for net, time to call nanotime.
+-
+-//go:linkname poll_runtimeNano internal/poll.runtimeNano
+-func poll_runtimeNano() int64 {
+-	return nanotime()
+-}
+-
+-//go:linkname time_runtimeNano time.runtimeNano
+-func time_runtimeNano() int64 {
+-	return nanotime()
+-}
+diff --git a/src/time/time.go b/src/time/time.go
+index 4241a6241b..5dc0d8a973 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -75,7 +75,10 @@
+ //
+ package time
+ 
+-import "errors"
++import (
++	"errors"
++	_ "unsafe" // for go:linkname
++)
+ 
+ // A Time represents an instant in time with nanosecond precision.
+ //
+@@ -1065,6 +1068,7 @@ func daysIn(m Month, year int) int {
+ func now() (sec int64, nsec int32, mono int64)
+ 
+ // runtimeNano returns the current value of the runtime clock in nanoseconds.
++//go:linkname runtimeNano runtime.nanotime
+ func runtimeNano() int64
+ 
+ // Monotonic times are reported as offsets from startNano.

@@ -15,7 +15,7 @@ Date:   Fri Jan 30 15:30:41 2015 -0500
     Change-Id: I4337c29e8e942e7aa4f106fc29597e1b5de4ef46
     Reviewed-on: https://go-review.googlesource.com/3660
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/debug.go      |  4 ++--
  src/runtime/lock_futex.go |  2 +-
  src/runtime/lock_sema.go  |  2 +-
@@ -30,3 +30,337 @@ Date:   Fri Jan 30 15:30:41 2015 -0500
  src/runtime/stack1.go     |  9 +++++----
  src/runtime/trace.go      | 12 ++++++------
  13 files changed, 36 insertions(+), 32 deletions(-)
+
+diff --git a/src/runtime/debug.go b/src/runtime/debug.go
+index 105b79cfef..3ecaac10bc 100644
+--- a/src/runtime/debug.go
++++ b/src/runtime/debug.go
+@@ -24,13 +24,13 @@ func GOMAXPROCS(n int) int {
+ 
+ 	semacquire(&worldsema, false)
+ 	gp := getg()
+-	gp.m.gcing = 1
++	gp.m.preemptoff = "GOMAXPROCS"
+ 	systemstack(stoptheworld)
+ 
+ 	// newprocs will be processed by starttheworld
+ 	newprocs = int32(n)
+ 
+-	gp.m.gcing = 0
++	gp.m.preemptoff = ""
+ 	semrelease(&worldsema)
+ 	systemstack(starttheworld)
+ 	return ret
+diff --git a/src/runtime/lock_futex.go b/src/runtime/lock_futex.go
+index 6e1f1e9da4..1765a6ce66 100644
+--- a/src/runtime/lock_futex.go
++++ b/src/runtime/lock_futex.go
+@@ -180,7 +180,7 @@ func notetsleep_internal(n *note, ns int64) bool {
+ 
+ func notetsleep(n *note, ns int64) bool {
+ 	gp := getg()
+-	if gp != gp.m.g0 && gp.m.gcing == 0 {
++	if gp != gp.m.g0 && gp.m.preemptoff != "" {
+ 		throw("notetsleep not on g0")
+ 	}
+ 
+diff --git a/src/runtime/lock_sema.go b/src/runtime/lock_sema.go
+index c995e08441..47cb88335b 100644
+--- a/src/runtime/lock_sema.go
++++ b/src/runtime/lock_sema.go
+@@ -240,7 +240,7 @@ func notetsleep_internal(n *note, ns int64, gp *g, deadline int64) bool {
+ 
+ func notetsleep(n *note, ns int64) bool {
+ 	gp := getg()
+-	if gp != gp.m.g0 && gp.m.gcing == 0 {
++	if gp != gp.m.g0 && gp.m.preemptoff != "" {
+ 		throw("notetsleep not on g0")
+ 	}
+ 	if gp.m.waitsema == 0 {
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index ea1dd6ea49..b8b1f4ed36 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -362,7 +362,7 @@ func gcwork(force int32) {
+ 	// Ok, we're doing it!  Stop everybody else
+ 
+ 	mp := acquirem()
+-	mp.gcing = 1
++	mp.preemptoff = "gcing"
+ 	releasem(mp)
+ 	gctimer.count++
+ 	if force == 0 {
+@@ -443,7 +443,7 @@ func gcwork(force int32) {
+ 	}
+ 
+ 	// all done
+-	mp.gcing = 0
++	mp.preemptoff = ""
+ 
+ 	if force == 0 {
+ 		gctimer.cycle.sweep = nanotime()
+diff --git a/src/runtime/mem.go b/src/runtime/mem.go
+index e74ad7163d..c145886eed 100644
+--- a/src/runtime/mem.go
++++ b/src/runtime/mem.go
+@@ -81,14 +81,14 @@ func ReadMemStats(m *MemStats) {
+ 	// a pending garbage collection already calling it.
+ 	semacquire(&worldsema, false)
+ 	gp := getg()
+-	gp.m.gcing = 1
++	gp.m.preemptoff = "read mem stats"
+ 	systemstack(stoptheworld)
+ 
+ 	systemstack(func() {
+ 		readmemstats_m(m)
+ 	})
+ 
+-	gp.m.gcing = 0
++	gp.m.preemptoff = ""
+ 	gp.m.locks++
+ 	semrelease(&worldsema)
+ 	systemstack(starttheworld)
+@@ -99,14 +99,14 @@ func ReadMemStats(m *MemStats) {
+ func runtime_debug_WriteHeapDump(fd uintptr) {
+ 	semacquire(&worldsema, false)
+ 	gp := getg()
+-	gp.m.gcing = 1
++	gp.m.preemptoff = "write heap dump"
+ 	systemstack(stoptheworld)
+ 
+ 	systemstack(func() {
+ 		writeheapdump_m(fd)
+ 	})
+ 
+-	gp.m.gcing = 0
++	gp.m.preemptoff = ""
+ 	gp.m.locks++
+ 	semrelease(&worldsema)
+ 	systemstack(starttheworld)
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 01f02f26bd..75b1e52916 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -143,12 +143,12 @@ var gcpercent int32
+ // The procedure is:
+ //
+ //	semacquire(&worldsema);
+-//	m.gcing = 1;
++//	m.preemptoff = "reason";
+ //	stoptheworld();
+ //
+ //	... do stuff ...
+ //
+-//	m.gcing = 0;
++//	m.preemptoff = "";
+ //	semrelease(&worldsema);
+ //	starttheworld();
+ //
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index 7f9b6671f7..df7093a004 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -522,7 +522,7 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
+ 	if n <= len(p) {
+ 		gp := getg()
+ 		semacquire(&worldsema, false)
+-		gp.m.gcing = 1
++		gp.m.preemptoff = "profile"
+ 		systemstack(stoptheworld)
+ 
+ 		n = NumGoroutine()
+@@ -544,7 +544,7 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
+ 			}
+ 		}
+ 
+-		gp.m.gcing = 0
++		gp.m.preemptoff = ""
+ 		semrelease(&worldsema)
+ 		systemstack(starttheworld)
+ 	}
+@@ -567,7 +567,7 @@ func Stack(buf []byte, all bool) int {
+ 	if all {
+ 		semacquire(&worldsema, false)
+ 		gp := getg()
+-		gp.m.gcing = 1
++		gp.m.preemptoff = "stack trace"
+ 		systemstack(stoptheworld)
+ 	}
+ 
+@@ -591,7 +591,7 @@ func Stack(buf []byte, all bool) int {
+ 
+ 	if all {
+ 		gp := getg()
+-		gp.m.gcing = 0
++		gp.m.preemptoff = ""
+ 		semrelease(&worldsema)
+ 		systemstack(starttheworld)
+ 	}
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 09278afbed..e2a5c629da 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -353,11 +353,14 @@ func gopanic(e interface{}) {
+ 		print("\n")
+ 		throw("panic during malloc")
+ 	}
+-	if gp.m.gcing != 0 {
++	if gp.m.preemptoff != "" {
+ 		print("panic: ")
+ 		printany(e)
+ 		print("\n")
+-		throw("panic during gc")
++		print("preempt off reason: ")
++		print(gp.m.preemptoff)
++		print("\n")
++		throw("panic during preemptoff")
+ 	}
+ 	if gp.m.locks != 0 {
+ 		print("panic: ")
+diff --git a/src/runtime/panic1.go b/src/runtime/panic1.go
+index 880c3bac9b..4c0eb40585 100644
+--- a/src/runtime/panic1.go
++++ b/src/runtime/panic1.go
+@@ -135,7 +135,7 @@ func canpanic(gp *g) bool {
+ 	if gp == nil || gp != _m_.curg {
+ 		return false
+ 	}
+-	if _m_.locks-_m_.softfloat != 0 || _m_.mallocing != 0 || _m_.throwing != 0 || _m_.gcing != 0 || _m_.dying != 0 {
++	if _m_.locks-_m_.softfloat != 0 || _m_.mallocing != 0 || _m_.throwing != 0 || _m_.preemptoff != "" || _m_.dying != 0 {
+ 		return false
+ 	}
+ 	status := readgstatus(gp)
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 82fc41d5b3..8f5aaa8630 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -2462,7 +2462,7 @@ func sigprof(pc *uint8, sp *uint8, lr *uint8, gp *g, mp *m) {
+ 				pc = (*uint8)(unsafe.Pointer(uintptr(funcPC(_ExternalCode) + _PCQuantum)))
+ 			}
+ 			stk[0] = uintptr(unsafe.Pointer(pc))
+-			if mp.gcing != 0 || mp.helpgc != 0 {
++			if mp.preemptoff != "" || mp.helpgc != 0 {
+ 				stk[1] = funcPC(_GC) + _PCQuantum
+ 			} else {
+ 				stk[1] = funcPC(_System) + _PCQuantum
+@@ -3021,7 +3021,7 @@ func schedtrace(detailed bool) {
+ 		if lockedg != nil {
+ 			id3 = lockedg.goid
+ 		}
+-		print("  M", mp.id, ": p=", id1, " curg=", id2, " mallocing=", mp.mallocing, " throwing=", mp.throwing, " gcing=", mp.gcing, ""+" locks=", mp.locks, " dying=", mp.dying, " helpgc=", mp.helpgc, " spinning=", mp.spinning, " blocked=", getg().m.blocked, " lockedg=", id3, "\n")
++		print("  M", mp.id, ": p=", id1, " curg=", id2, " mallocing=", mp.mallocing, " throwing=", mp.throwing, " preemptoff=", mp.preemptoff, ""+" locks=", mp.locks, " dying=", mp.dying, " helpgc=", mp.helpgc, " spinning=", mp.spinning, " blocked=", getg().m.blocked, " lockedg=", id3, "\n")
+ 	}
+ 
+ 	lock(&allglock)
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index f6b7802de3..fd448901a6 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -244,7 +244,7 @@ type m struct {
+ 	id            int32
+ 	mallocing     int32
+ 	throwing      int32
+-	gcing         int32
++	preemptoff    string // if != "", keep curg running on this m
+ 	locks         int32
+ 	softfloat     int32
+ 	dying         int32
+diff --git a/src/runtime/stack1.go b/src/runtime/stack1.go
+index dda39ce481..8ad331777c 100644
+--- a/src/runtime/stack1.go
++++ b/src/runtime/stack1.go
+@@ -208,7 +208,7 @@ func stackalloc(n uint32) stack {
+ 		}
+ 		var x gclinkptr
+ 		c := thisg.m.mcache
+-		if c == nil || thisg.m.gcing != 0 || thisg.m.helpgc != 0 {
++		if c == nil || thisg.m.preemptoff != "" || thisg.m.helpgc != 0 {
+ 			// c == nil can happen in the guts of exitsyscall or
+ 			// procresize. Just get a stack from the global pool.
+ 			// Also don't touch stackcache during gc
+@@ -271,7 +271,7 @@ func stackfree(stk stack) {
+ 		}
+ 		x := gclinkptr(v)
+ 		c := gp.m.mcache
+-		if c == nil || gp.m.gcing != 0 || gp.m.helpgc != 0 {
++		if c == nil || gp.m.preemptoff != "" || gp.m.helpgc != 0 {
+ 			lock(&stackpoolmu)
+ 			stackpoolfree(x, order)
+ 			unlock(&stackpoolmu)
+@@ -648,7 +648,8 @@ func newstack() {
+ 
+ 	// Be conservative about where we preempt.
+ 	// We are interested in preempting user Go code, not runtime code.
+-	// If we're holding locks, mallocing, or GCing, don't preempt.
++	// If we're holding locks, mallocing, or preemption is disabled, don't
++	// preempt.
+ 	// This check is very early in newstack so that even the status change
+ 	// from Grunning to Gwaiting and back doesn't happen in this case.
+ 	// That status change by itself can be viewed as a small preemption,
+@@ -658,7 +659,7 @@ func newstack() {
+ 	// it needs a lock held by the goroutine), that small preemption turns
+ 	// into a real deadlock.
+ 	if preempt {
+-		if thisg.m.locks != 0 || thisg.m.mallocing != 0 || thisg.m.gcing != 0 || thisg.m.p.status != _Prunning {
++		if thisg.m.locks != 0 || thisg.m.mallocing != 0 || thisg.m.preemptoff != "" || thisg.m.p.status != _Prunning {
+ 			// Let the goroutine keep running for now.
+ 			// gp->preempt is set, so it will be preempted next time.
+ 			gp.stackguard0 = gp.stack.lo + _StackGuard
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 7da588b5e6..5b168c7bfc 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -121,7 +121,7 @@ func StartTrace() error {
+ 	// of all goroutines at the beginning of the trace.
+ 	semacquire(&worldsema, false)
+ 	_g_ := getg()
+-	_g_.m.gcing = 1
++	_g_.m.preemptoff = "start tracing"
+ 	systemstack(stoptheworld)
+ 
+ 	// We are in stop-the-world, but syscalls can finish and write to trace concurrently.
+@@ -133,7 +133,7 @@ func StartTrace() error {
+ 
+ 	if trace.enabled || trace.shutdown {
+ 		unlock(&trace.bufLock)
+-		_g_.m.gcing = 0
++		_g_.m.preemptoff = ""
+ 		semrelease(&worldsema)
+ 		systemstack(starttheworld)
+ 		return errorString("tracing is already enabled")
+@@ -162,7 +162,7 @@ func StartTrace() error {
+ 
+ 	unlock(&trace.bufLock)
+ 
+-	_g_.m.gcing = 0
++	_g_.m.preemptoff = ""
+ 	semrelease(&worldsema)
+ 	systemstack(starttheworld)
+ 	return nil
+@@ -175,7 +175,7 @@ func StopTrace() {
+ 	// and also to avoid races with traceEvent.
+ 	semacquire(&worldsema, false)
+ 	_g_ := getg()
+-	_g_.m.gcing = 1
++	_g_.m.preemptoff = "stop tracing"
+ 	systemstack(stoptheworld)
+ 
+ 	// See the comment in StartTrace.
+@@ -183,7 +183,7 @@ func StopTrace() {
+ 
+ 	if !trace.enabled {
+ 		unlock(&trace.bufLock)
+-		_g_.m.gcing = 0
++		_g_.m.preemptoff = ""
+ 		semrelease(&worldsema)
+ 		systemstack(starttheworld)
+ 		return
+@@ -224,7 +224,7 @@ func StopTrace() {
+ 
+ 	unlock(&trace.bufLock)
+ 
+-	_g_.m.gcing = 0
++	_g_.m.preemptoff = ""
+ 	semrelease(&worldsema)
+ 	systemstack(starttheworld)
+ 

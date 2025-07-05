@@ -17,6 +17,19 @@ Date:   Tue Aug 30 03:40:51 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/net/http/transport.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index b239a1d8ee..65465e25c1 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -40,6 +40,7 @@ var DefaultTransport RoundTripper = &Transport{
+ 	DialContext: (&net.Dialer{
+ 		Timeout:   30 * time.Second,
+ 		KeepAlive: 30 * time.Second,
++		DualStack: true,
+ 	}).DialContext,
+ 	MaxIdleConns:          100,
+ 	IdleConnTimeout:       90 * time.Second,

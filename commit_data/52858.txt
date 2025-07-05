@@ -9,6 +9,38 @@ Date:   Tue Jun 7 13:10:32 2022 -0400
     Change-Id: Ie6d6ac773aa81b105e15ef7399374f574197d775
     Reviewed-on: https://go-review.googlesource.com/c/go/+/410817
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  doc/go1.19.html | 15 ++++++++++++---
  1 file changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go1.19.html b/doc/go1.19.html
+index a39eaf79d5..37983f93b6 100644
+--- a/doc/go1.19.html
++++ b/doc/go1.19.html
+@@ -703,14 +703,23 @@ Do not send CLs removing the interior tags from such phrases.
+   <dd>
+     <p><!-- https://go.dev/issue/49761 --><!-- CL 333529 -->
+       The race detector has been upgraded to use thread sanitizer
+-      version v3. Compared to v2, it is now typically 1.5x to 2x
+-      faster, uses half as much memory, and it supports an unlimited
+-      number of goroutines.
++      version v3 on all supported platforms
++      except <code>windows/amd64</code>
++      and <code>openbsd/amd64</code>, which remain on v2.
++      Compared to v2, it is now typically 1.5x to 2x faster, uses half
++      as much memory, and it supports an unlimited number of
++      goroutines.
+     </p>
+ 
+     <p><!-- CL 336549 -->
+       The race detector is now supported on <code>GOARCH=s390x</code>.
+     </p>
++
++    <p><!-- https://go.dev/issue/52090 -->
++      Race detector support for <code>openbsd/amd64</code> has been
++      removed from thread sanitizer upstream, so it is unlikely to
++      ever be updated from v2.
++    </p>
+   </dd>
+ </dl><!-- runtime/race -->
+ 

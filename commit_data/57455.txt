@@ -19,7 +19,51 @@ Date:   Mon Aug 7 15:57:54 2023 -0700
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/http/request.go      |  2 ++
  src/net/http/request_test.go | 19 +++++++++++++++++++
  2 files changed, 21 insertions(+)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index d1fbd5df90..0fb73c12b5 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -669,6 +669,8 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
+ 		userAgent = r.Header.Get("User-Agent")
+ 	}
+ 	if userAgent != "" {
++		userAgent = headerNewlineToSpace.Replace(userAgent)
++		userAgent = textproto.TrimString(userAgent)
+ 		_, err = fmt.Fprintf(w, "User-Agent: %s\r\n", userAgent)
+ 		if err != nil {
+ 			return err
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index a32b583c11..5711164894 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -787,6 +787,25 @@ func TestRequestBadHostHeader(t *testing.T) {
+ 	}
+ }
+ 
++func TestRequestBadUserAgent(t *testing.T) {
++	got := []string{}
++	req, err := NewRequest("GET", "http://foo/after", nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++	req.Header.Set("User-Agent", "evil\r\nX-Evil: evil")
++	req.Write(logWrites{t, &got})
++	want := []string{
++		"GET /after HTTP/1.1\r\n",
++		"Host: foo\r\n",
++		"User-Agent: evil  X-Evil: evil\r\n",
++		"\r\n",
++	}
++	if !reflect.DeepEqual(got, want) {
++		t.Errorf("Writes = %q\n  Want = %q", got, want)
++	}
++}
++
+ func TestStarRequest(t *testing.T) {
+ 	req, err := ReadRequest(bufio.NewReader(strings.NewReader("M-SEARCH * HTTP/1.1\r\n\r\n")))
+ 	if err != nil {

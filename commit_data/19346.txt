@@ -10,9 +10,100 @@ Date:   Tue May 13 09:53:03 2014 +0400
     R=golang-codereviews
     CC=golang-codereviews, iant, rsc
     https://golang.org/cl/91350045
-
+---
  src/pkg/runtime/mgc0.c    |  4 +---
  src/pkg/runtime/mheap.c   |  7 ++++---
  src/pkg/runtime/runtime.h |  3 ++-
  src/pkg/runtime/time.goc  | 10 ++++++++++
  4 files changed, 17 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 1ba0c0ee4a..3afbec2c86 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -91,8 +91,6 @@ enum {
+ // Initialized from $GOGC.  GOGC=off means no gc.
+ static int32 gcpercent = GcpercentUnknown;
+ 
+-void runtime·gc_unixnanotime(int64 *now);
+-
+ static FuncVal* poolcleanup;
+ 
+ void
+@@ -2406,7 +2404,7 @@ gc(struct gc_args *args)
+ 	mstats.next_gc = mstats.heap_alloc+mstats.heap_alloc*gcpercent/100;
+ 
+ 	t4 = runtime·nanotime();
+-	runtime·gc_unixnanotime((int64*)&mstats.last_gc);  // must be Unix time to make sense to user
++	mstats.last_gc = runtime·unixnanotime();  // must be Unix time to make sense to user
+ 	mstats.pause_ns[mstats.numgc%nelem(mstats.pause_ns)] = t4 - t0;
+ 	mstats.pause_total_ns += t4 - t0;
+ 	mstats.numgc++;
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index 43bf106592..3de6b8bb4e 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -508,6 +508,7 @@ runtime·MHeap_Scavenger(void)
+ {
+ 	MHeap *h;
+ 	uint64 tick, now, forcegc, limit;
++	int64 unixnow;
+ 	int32 k;
+ 	Note note, *notep;
+ 
+@@ -531,8 +532,8 @@ runtime·MHeap_Scavenger(void)
+ 		runtime·notetsleepg(&note, tick);
+ 
+ 		runtime·lock(h);
+-		now = runtime·nanotime();
+-		if(now - mstats.last_gc > forcegc) {
++		unixnow = runtime·unixnanotime();
++		if(unixnow - mstats.last_gc > forcegc) {
+ 			runtime·unlock(h);
+ 			// The scavenger can not block other goroutines,
+ 			// otherwise deadlock detector can fire spuriously.
+@@ -544,8 +545,8 @@ runtime·MHeap_Scavenger(void)
+ 			if(runtime·debug.gctrace > 0)
+ 				runtime·printf("scvg%d: GC forced\n", k);
+ 			runtime·lock(h);
+-			now = runtime·nanotime();
+ 		}
++		now = runtime·nanotime();
+ 		scavenge(k, now, limit);
+ 		runtime·unlock(h);
+ 	}
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 864b681f4a..39a849c805 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -920,7 +920,8 @@ void	runtime·exitsyscall(void);
+ G*	runtime·newproc1(FuncVal*, byte*, int32, int32, void*);
+ bool	runtime·sigsend(int32 sig);
+ int32	runtime·callers(int32, uintptr*, int32);
+-int64	runtime·nanotime(void);
++int64	runtime·nanotime(void);	// monotonic time
++int64	runtime·unixnanotime(void); // real time, can skip
+ void	runtime·dopanic(int32);
+ void	runtime·startpanic(void);
+ void	runtime·freezetheworld(void);
+diff --git a/src/pkg/runtime/time.goc b/src/pkg/runtime/time.goc
+index 195c5c41a3..712e03e838 100644
+--- a/src/pkg/runtime/time.goc
++++ b/src/pkg/runtime/time.goc
+@@ -54,6 +54,16 @@ func stopTimer(t *Timer) (stopped bool) {
+ 
+ // C runtime.
+ 
++void runtime·gc_unixnanotime(int64 *now);
++
++int64 runtime·unixnanotime(void)
++{
++	int64 now;
++
++	runtime·gc_unixnanotime(&now);
++	return now;
++}
++
+ static void timerproc(void);
+ static void siftup(int32);
+ static void siftdown(int32);

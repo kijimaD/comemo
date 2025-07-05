@@ -8,6 +8,20 @@ Date:   Fri Jun 24 15:00:59 2011 +1000
     R=golang-dev, alex.brainman
     CC=golang-dev
     https://golang.org/cl/4661047
-
+---
  src/pkg/os/path_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/path_windows.go b/src/pkg/os/path_windows.go
+index 8740a9e613..61f2ca59ff 100644
+--- a/src/pkg/os/path_windows.go
++++ b/src/pkg/os/path_windows.go
+@@ -6,7 +6,7 @@ package os
+ 
+ const (
+ 	PathSeparator     = '\\' // OS-specific path separator
+-	PathListSeparator = ':'  // OS-specific path list separator
++	PathListSeparator = ';'  // OS-specific path list separator
+ )
+ 
+ // IsPathSeparator returns true if c is a directory separator character.

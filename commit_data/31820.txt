@@ -19,7 +19,53 @@ Date:   Sat Mar 18 18:43:20 2017 +0100
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/gob/decode.go | 8 ++------
  src/encoding/gob/encode.go | 8 +-------
  2 files changed, 3 insertions(+), 13 deletions(-)
+
+diff --git a/src/encoding/gob/decode.go b/src/encoding/gob/decode.go
+index 792c159ded..92d9d3ef87 100644
+--- a/src/encoding/gob/decode.go
++++ b/src/encoding/gob/decode.go
+@@ -11,6 +11,7 @@ import (
+ 	"errors"
+ 	"io"
+ 	"math"
++	"math/bits"
+ 	"reflect"
+ )
+ 
+@@ -313,12 +314,7 @@ func decUint64(i *decInstr, state *decoderState, value reflect.Value) {
+ // (for example) transmit more compactly. This routine does the
+ // unswizzling.
+ func float64FromBits(u uint64) float64 {
+-	var v uint64
+-	for i := 0; i < 8; i++ {
+-		v <<= 8
+-		v |= u & 0xFF
+-		u >>= 8
+-	}
++	v := bits.ReverseBytes64(u)
+ 	return math.Float64frombits(v)
+ }
+ 
+diff --git a/src/encoding/gob/encode.go b/src/encoding/gob/encode.go
+index d67153da90..edf204f47d 100644
+--- a/src/encoding/gob/encode.go
++++ b/src/encoding/gob/encode.go
+@@ -209,13 +209,7 @@ func encUint(i *encInstr, state *encoderState, v reflect.Value) {
+ // swizzling.
+ func floatBits(f float64) uint64 {
+ 	u := math.Float64bits(f)
+-	var v uint64
+-	for i := 0; i < 8; i++ {
+-		v <<= 8
+-		v |= u & 0xFF
+-		u >>= 8
+-	}
+-	return v
++	return bits.ReverseBytes64(u)
+ }
+ 
+ // encFloat encodes the floating point value (float32 float64) referenced by v.

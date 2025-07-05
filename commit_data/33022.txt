@@ -9,6 +9,21 @@ Date:   Mon Jun 26 23:54:04 2017 +0000
     Change-Id: Ic7a94394e283bc1b667cdad999ceee9513f35e37
     Reviewed-on: https://go-review.googlesource.com/46770
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  test/fixedbugs/issue20789.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/issue20789.go b/test/fixedbugs/issue20789.go
+index abc7725ca0..82aec965ed 100644
+--- a/test/fixedbugs/issue20789.go
++++ b/test/fixedbugs/issue20789.go
+@@ -7,7 +7,7 @@
+ // Make sure this doesn't crash the compiler.
+ // (This test should be part of the internal/syntax
+ // package, but we don't have a general test framework
+-// there yet, so put it here for now. See also #20800.
++// there yet, so put it here for now. See also #20800.)
+ 
+ package e
+ func([<-chan<-[func u){go // ERROR "unexpected u", ERROR "must be function call"
+\ No newline at end of file

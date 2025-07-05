@@ -5,7 +5,68 @@ Date:   Mon Jun 30 16:52:17 2008 -0700
     add test that was mistakenly not checked in, now fixed
     
     SVN=125408
-
+---
  test/fixedbugs/bug059.go | 34 ++++++++++++++++++++++++++++++++++
  test/golden.out          |  5 ++---
  2 files changed, 36 insertions(+), 3 deletions(-)
+
+diff --git a/test/fixedbugs/bug059.go b/test/fixedbugs/bug059.go
+new file mode 100644
+index 0000000000..a798b6fcd0
+--- /dev/null
++++ b/test/fixedbugs/bug059.go
+@@ -0,0 +1,34 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func P(a *[]string) string {
++	s := "{";
++	for i := 0; i < 2; i++ {
++		if i > 0 {
++			s += ","
++		}
++		s += `"` + a[i] + `"`;
++	}
++	s +="}";
++	return s;
++}
++
++func main() {
++	m := new(map[string] *[]string);
++	as := new([2]string);
++	as[0] = "0";
++	as[1] = "1";
++	m["0"] = as;
++
++	a := m["0"];
++	a[0] = "x";
++	m["0"][0] = "deleted";
++	if m["0"][0] != "deleted" {
++		sys.exit(1);
++	}
++}
+diff --git a/test/golden.out b/test/golden.out
+index 9f55668b6c..2d27e2a7f8 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -306,9 +306,6 @@ BUG: compilation should succeed
+ bugs/bug057.go:13: syntax error
+ BUG: compilation should succeed
+ 
+-=========== bugs/bug059.go
+-BUG: crashes
+-
+ =========== bugs/bug060.go
+ BUG: crashes
+ 
+@@ -369,3 +366,5 @@ BUG: known to fail incorrectly
+ =========== fixedbugs/bug045.go
+ 
+ =========== fixedbugs/bug058.go
++
++=========== fixedbugs/bug059.go

@@ -12,6 +12,20 @@ Date:   Fri Feb 18 22:43:31 2022 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/386854
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.18.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index ce4030799a..8a5c1d8fad 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -84,7 +84,7 @@ Do not send CLs removing the interior tags from such phrases.
+   <li>
+     The new
+     <a href="/ref/spec#Predeclared_identifiers">predeclared identifier</a>
+-    <code>comparable</code> is an interface the denotes the set of all types which can be
++    <code>comparable</code> is an interface that denotes the set of all types which can be
+     compared using <code>==</code> or <code>!=</code>. It may only be used as (or embedded in)
+     a type constraint.
+   </li>

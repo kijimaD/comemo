@@ -14,8 +14,99 @@ Date:   Tue Jan 24 11:45:20 2017 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/time/export_test.go   |  9 +++++++++
  src/time/zoneinfo.go      | 11 ++++++++---
  src/time/zoneinfo_test.go | 26 ++++++++++++++++++++++++++
  3 files changed, 43 insertions(+), 3 deletions(-)
+
+diff --git a/src/time/export_test.go b/src/time/export_test.go
+index 6cd535f6b1..38f2f45063 100644
+--- a/src/time/export_test.go
++++ b/src/time/export_test.go
+@@ -18,6 +18,15 @@ func ForceUSPacificForTesting() {
+ 	localOnce.Do(initTestingZone)
+ }
+ 
++func ZoneinfoForTesting() *string {
++	return zoneinfo
++}
++
++func ResetZoneinfoForTesting() {
++	zoneinfo = nil
++	zoneinfoOnce = sync.Once{}
++}
++
+ var (
+ 	ForceZipFileForTesting = forceZipFileForTesting
+ 	ParseTimeZone          = parseTimeZone
+diff --git a/src/time/zoneinfo.go b/src/time/zoneinfo.go
+index fb0aa39240..7cde142239 100644
+--- a/src/time/zoneinfo.go
++++ b/src/time/zoneinfo.go
+@@ -256,7 +256,8 @@ func (l *Location) lookupName(name string, unix int64) (offset int, isDST bool,
+ // NOTE(rsc): Eventually we will need to accept the POSIX TZ environment
+ // syntax too, but I don't feel like implementing it today.
+ 
+-var zoneinfo, _ = syscall.Getenv("ZONEINFO")
++var zoneinfo *string
++var zoneinfoOnce sync.Once
+ 
+ // LoadLocation returns the Location with the given name.
+ //
+@@ -279,8 +280,12 @@ func LoadLocation(name string) (*Location, error) {
+ 	if name == "Local" {
+ 		return Local, nil
+ 	}
+-	if zoneinfo != "" {
+-		if z, err := loadZoneFile(zoneinfo, name); err == nil {
++	zoneinfoOnce.Do(func() {
++		env, _ := syscall.Getenv("ZONEINFO")
++		zoneinfo = &env
++	})
++	if zoneinfo != nil && *zoneinfo != "" {
++		if z, err := loadZoneFile(*zoneinfo, name); err == nil {
+ 			z.name = name
+ 			return z, nil
+ 		}
+diff --git a/src/time/zoneinfo_test.go b/src/time/zoneinfo_test.go
+index 4b50dc5090..e388e998d0 100644
+--- a/src/time/zoneinfo_test.go
++++ b/src/time/zoneinfo_test.go
+@@ -5,10 +5,36 @@
+ package time_test
+ 
+ import (
++	"fmt"
++	"os"
+ 	"testing"
+ 	"time"
+ )
+ 
++func init() {
++	if time.ZoneinfoForTesting() != nil {
++		panic(fmt.Errorf("zoneinfo initialized before first LoadLocation"))
++	}
++}
++
++func TestEnvVarUsage(t *testing.T) {
++	time.ResetZoneinfoForTesting()
++
++	testZoneinfo := "foo.zip"
++	env := "ZONEINFO"
++
++	defer os.Setenv(env, os.Getenv(env))
++	os.Setenv(env, testZoneinfo)
++
++	// Result isn't important, we're testing the side effect of this command
++	time.LoadLocation("Asia/Jerusalem")
++	defer time.ResetZoneinfoForTesting()
++
++	if zoneinfo := time.ZoneinfoForTesting(); testZoneinfo != *zoneinfo {
++		t.Errorf("zoneinfo does not match env variable: got %q want %q", zoneinfo, testZoneinfo)
++	}
++}
++
+ func TestVersion3(t *testing.T) {
+ 	time.ForceZipFileForTesting(true)
+ 	defer time.ForceZipFileForTesting(false)

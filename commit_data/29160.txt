@@ -11,7 +11,56 @@ Date:   Wed Jun 22 20:16:41 2016 +0300
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/copylock.go          |  8 ++++++++
  src/cmd/vet/testdata/copylock.go | 18 ++++++++++++++++++
  2 files changed, 26 insertions(+)
+
+diff --git a/src/cmd/vet/copylock.go b/src/cmd/vet/copylock.go
+index 65337688bc..31c1257a47 100644
+--- a/src/cmd/vet/copylock.go
++++ b/src/cmd/vet/copylock.go
+@@ -210,6 +210,14 @@ func lockPath(tpkg *types.Package, typ types.Type) typePath {
+ 		return nil
+ 	}
+ 
++	for {
++		atyp, ok := typ.Underlying().(*types.Array)
++		if !ok {
++			break
++		}
++		typ = atyp.Elem()
++	}
++
+ 	// We're only interested in the case in which the underlying
+ 	// type is a struct. (Interfaces and pointers are safe to copy.)
+ 	styp, ok := typ.Underlying().(*types.Struct)
+diff --git a/src/cmd/vet/testdata/copylock.go b/src/cmd/vet/testdata/copylock.go
+index d49f468627..35ed766f1d 100644
+--- a/src/cmd/vet/testdata/copylock.go
++++ b/src/cmd/vet/testdata/copylock.go
+@@ -68,6 +68,24 @@ func BadFunc() {
+ 	// override 'new' keyword
+ 	new := func(interface{}) {}
+ 	new(t) // ERROR "function call copies lock value: testdata.Tlock contains sync.Once contains sync.Mutex"
++
++	// copy of array of locks
++	var muA [5]sync.Mutex
++	muB := muA        // ERROR "assignment copies lock value to muB: sync.Mutex"
++	muA = muB         // ERROR "assignment copies lock value to muA: sync.Mutex"
++	muSlice := muA[:] // OK
++
++	// multidimensional array
++	var mmuA [5][5]sync.Mutex
++	mmuB := mmuA        // ERROR "assignment copies lock value to mmuB: sync.Mutex"
++	mmuA = mmuB         // ERROR "assignment copies lock value to mmuA: sync.Mutex"
++	mmuSlice := mmuA[:] // OK
++
++	// slice copy is ok
++	var fmuA [5][][5]sync.Mutex
++	fmuB := fmuA        // OK
++	fmuA = fmuB         // OK
++	fmuSlice := fmuA[:] // OK
+ }
+ 
+ // SyncTypesCheck checks copying of sync.* types except sync.Mutex

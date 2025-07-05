@@ -15,7 +15,7 @@ Date:   Thu Sep 23 12:19:05 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types2/decl.go            |  7 ++++++
  .../types2/testdata/fixedbugs/issue41124.go2       |  2 +-
  .../types2/testdata/fixedbugs/issue48582.go2       | 29 ++++++++++++++++++++++
@@ -23,3 +23,143 @@ Date:   Thu Sep 23 12:19:05 2021 -0400
  src/go/types/testdata/fixedbugs/issue41124.go2     |  4 +--
  src/go/types/testdata/fixedbugs/issue48582.go2     | 29 ++++++++++++++++++++++
  6 files changed, 75 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 994c19ea30..ab2e3b875f 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -315,6 +315,13 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
+ 			}
+ 		}
+ 
++	case *Union:
++		for _, t := range t.terms {
++			if check.validType(t.typ, path) == invalid {
++				return invalid
++			}
++		}
++
+ 	case *Interface:
+ 		for _, etyp := range t.embeddeds {
+ 			if check.validType(etyp, path) == invalid {
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue41124.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue41124.go2
+index 4642ab60fc..cef24bd237 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue41124.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue41124.go2
+@@ -6,7 +6,7 @@ package p
+ 
+ // Test case from issue.
+ 
+-type Nat interface {
++type Nat /* ERROR cycle */ interface {
+ 	Zero|Succ
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48582.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48582.go2
+new file mode 100644
+index 0000000000..c12091be79
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48582.go2
+@@ -0,0 +1,29 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type N /* ERROR cycle */ interface {
++	int | N
++}
++
++type A /* ERROR cycle */ interface {
++	int | B
++}
++
++type B interface {
++	int | A
++}
++
++type S /* ERROR cycle */ struct {
++	I // ERROR interface contains type constraints
++}
++
++type I interface {
++	int | S
++}
++
++type P interface {
++	*P // ERROR interface contains type constraints
++}
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 061fc01829..77914dd1af 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -314,6 +314,13 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
+ 			}
+ 		}
+ 
++	case *Union:
++		for _, t := range t.terms {
++			if check.validType(t.typ, path) == invalid {
++				return invalid
++			}
++		}
++
+ 	case *Interface:
+ 		for _, etyp := range t.embeddeds {
+ 			if check.validType(etyp, path) == invalid {
+diff --git a/src/go/types/testdata/fixedbugs/issue41124.go2 b/src/go/types/testdata/fixedbugs/issue41124.go2
+index 4642ab60fc..ac336a2ece 100644
+--- a/src/go/types/testdata/fixedbugs/issue41124.go2
++++ b/src/go/types/testdata/fixedbugs/issue41124.go2
+@@ -6,13 +6,13 @@ package p
+ 
+ // Test case from issue.
+ 
+-type Nat interface {
++type Nat /* ERROR cycle */ interface {
+ 	Zero|Succ
+ }
+ 
+ type Zero struct{}
+ type Succ struct{
+-	Nat // ERROR interface contains type constraints
++	Nat /* ERROR interface contains type constraints */
+ }
+ 
+ // Struct tests.
+diff --git a/src/go/types/testdata/fixedbugs/issue48582.go2 b/src/go/types/testdata/fixedbugs/issue48582.go2
+new file mode 100644
+index 0000000000..c12091be79
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue48582.go2
+@@ -0,0 +1,29 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type N /* ERROR cycle */ interface {
++	int | N
++}
++
++type A /* ERROR cycle */ interface {
++	int | B
++}
++
++type B interface {
++	int | A
++}
++
++type S /* ERROR cycle */ struct {
++	I // ERROR interface contains type constraints
++}
++
++type I interface {
++	int | S
++}
++
++type P interface {
++	*P // ERROR interface contains type constraints
++}

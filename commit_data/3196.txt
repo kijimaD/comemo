@@ -8,7 +8,7 @@ Date:   Wed Sep 2 17:15:43 2009 -0700
     DELTA=142  (128 added, 4 deleted, 10 changed)
     OCL=34275
     CL=34284
-
+---
  usr/austin/eval/Makefile    |  1 +
  usr/austin/eval/compiler.go |  1 +
  usr/austin/eval/expr.go     | 20 +++++++++++++-
@@ -18,3 +18,278 @@ Date:   Wed Sep 2 17:15:43 2009 -0700
  usr/austin/eval/typec.go    |  2 +-
  usr/austin/eval/world.go    | 66 +++++++++++++++++++++++++++++++++++++++++++++
  8 files changed, 146 insertions(+), 14 deletions(-)
+
+diff --git a/usr/austin/eval/Makefile b/usr/austin/eval/Makefile
+index 154838ea37..37f7c02a71 100644
+--- a/usr/austin/eval/Makefile
++++ b/usr/austin/eval/Makefile
+@@ -18,5 +18,6 @@ GOFILES=\
+ 	typec.go\
+ 	util.go\
+ 	value.go\
++	world.go\
+ 
+ include $(GOROOT)/src/Make.pkg
+diff --git a/usr/austin/eval/compiler.go b/usr/austin/eval/compiler.go
+index f4ababf74f..b13cd298c1 100644
+--- a/usr/austin/eval/compiler.go
++++ b/usr/austin/eval/compiler.go
+@@ -41,6 +41,7 @@ func (a *compiler) numError() int {
+ func newUniverse() *Scope {
+ 	sc := &Scope{nil, 0};
+ 	sc.block = &block{
++		offset: -1,
+ 		scope: sc,
+ 		defs: make(map[string] Def)
+ 	};
+diff --git a/usr/austin/eval/expr.go b/usr/austin/eval/expr.go
+index cacfc61e12..a29373d6a6 100644
+--- a/usr/austin/eval/expr.go
++++ b/usr/austin/eval/expr.go
+@@ -667,7 +667,7 @@ func (a *exprInfo) exprFromType(t Type) *expr {
+ }
+ 
+ func (a *exprInfo) compileIdent(b *block, constant bool, callCtx bool, name string) *expr {
+-	level, def := b.Lookup(name);
++	bl, level, def := b.Lookup(name);
+ 	if def == nil {
+ 		a.diag("%s: undefined", name);
+ 		return nil;
+@@ -693,6 +693,9 @@ func (a *exprInfo) compileIdent(b *block, constant bool, callCtx bool, name stri
+ 			a.diag("variable %s used in constant expression", name);
+ 			return nil;
+ 		}
++		if bl.offset < 0 {
++			return a.compileGlobalVariable(def);
++		}
+ 		return a.compileVariable(level, def);
+ 	case Type:
+ 		if callCtx {
+@@ -716,6 +719,21 @@ func (a *exprInfo) compileVariable(level int, v *Variable) *expr {
+ 	return expr;
+ }
+ 
++func (a *exprInfo) compileGlobalVariable(v *Variable) *expr {
++	if v.Type == nil {
++		// Placeholder definition from an earlier error
++		a.silentErrors++;
++		return nil;
++	}
++	if v.Init == nil {
++		v.Init = v.Type.Zero();
++	}
++	expr := a.newExpr(v.Type, "variable");
++	val := v.Init;
++	expr.genValue(func(t *Thread) Value { return val });
++	return expr;
++}
++
+ func (a *exprInfo) compileIdealInt(i *bignum.Integer, desc string) *expr {
+ 	expr := a.newExpr(IdealIntType, desc);
+ 	expr.eval = func() *bignum.Integer { return i };
+diff --git a/usr/austin/eval/main.go b/usr/austin/eval/main.go
+new file mode 100644
+index 0000000000..a4401e1dd5
+--- /dev/null
++++ b/usr/austin/eval/main.go
+@@ -0,0 +1,37 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"./_obj/eval";
++	"bufio";
++	"os";
++)
++
++func main() {
++	w := eval.NewWorld();
++	r := bufio.NewReader(os.Stdin);
++	for {
++		print("; ");
++		line, err := r.ReadString('\n');
++		if err != nil {
++			break;
++		}
++		code, err := w.Compile(line);
++		if err != nil {
++			println(err.String());
++			continue;
++		}
++		v, err := code.Run();
++		if err != nil {
++			println(err.String());
++			continue;
++		}
++		if v != nil {
++			println(v.String());
++		}
++	}
++}
++
+diff --git a/usr/austin/eval/scope.go b/usr/austin/eval/scope.go
+index bc85476dc6..1c0acb6400 100644
+--- a/usr/austin/eval/scope.go
++++ b/usr/austin/eval/scope.go
+@@ -122,12 +122,15 @@ func (b *block) DefineSlot(t Type) *Variable {
+ 	if b.inner != nil && b.inner.scope == b.scope {
+ 		log.Crash("Failed to exit child block before defining variable");
+ 	}
+-	index := b.offset+b.numVars;
+-	v := &Variable{token.Position{}, index, t, nil};
+-	b.numVars++;
+-	if index+1 > b.scope.maxVars {
+-		b.scope.maxVars = index+1;
++	index := -1;
++	if b.offset >= 0 {
++		index = b.offset+b.numVars;
++		b.numVars++;
++		if index+1 > b.scope.maxVars {
++			b.scope.maxVars = index+1;
++		}
+ 	}
++	v := &Variable{token.Position{}, index, t, nil};
+ 	return v;
+ }
+ 
+@@ -152,25 +155,29 @@ func (b *block) DefineType(name string, pos token.Position, t Type) Type {
+ 	return nt;
+ }
+ 
+-func (b *block) Lookup(name string) (level int, def Def) {
++func (b *block) Lookup(name string) (bl *block, level int, def Def) {
+ 	for b != nil {
+ 		if d, ok := b.defs[name]; ok {
+-			return level, d;
++			return b, level, d;
+ 		}
+ 		if b.outer != nil && b.scope != b.outer.scope {
+ 			level++;
+ 		}
+ 		b = b.outer;
+ 	}
+-	return 0, nil;
++	return nil, 0, nil;
+ }
+ 
+ func (s *Scope) NewFrame(outer *Frame) *Frame {
+ 	fr := outer.child(s.maxVars);
++	// TODO(rsc): Take this loop out once eval_test.go
++	// no longer fiddles with init.
+ 	for _, v := range s.defs {
+ 		switch v := v.(type) {
+ 		case *Variable:
+-			fr.Vars[v.Index] = v.Init;
++			if v.Index >= 0 {
++				fr.Vars[v.Index] = v.Init;
++			}
+ 		}
+ 	}
+ 	return fr;
+diff --git a/usr/austin/eval/stmt.go b/usr/austin/eval/stmt.go
+index e0d6ebeb30..a3573c260d 100644
+--- a/usr/austin/eval/stmt.go
++++ b/usr/austin/eval/stmt.go
+@@ -230,9 +230,11 @@ func (a *stmtCompiler) defineVar(ident *ast.Ident, t Type) *Variable {
+ 
+ 	// Initialize the variable
+ 	index := v.Index;
+-	a.push(func(v *Thread) {
+-		v.f.Vars[index] = t.Zero();
+-	});
++	if v.Index >= 0 {
++		a.push(func(v *Thread) {
++			v.f.Vars[index] = t.Zero();
++		});
++	}
+ 	return v;
+ }
+ 
+diff --git a/usr/austin/eval/typec.go b/usr/austin/eval/typec.go
+index 8aefeda34c..a4d055fb59 100644
+--- a/usr/austin/eval/typec.go
++++ b/usr/austin/eval/typec.go
+@@ -26,7 +26,7 @@ type typeCompiler struct {
+ }
+ 
+ func (a *typeCompiler) compileIdent(x *ast.Ident, allowRec bool) Type {
+-	_, def := a.block.Lookup(x.Value);
++	_bl, _index, def := a.block.Lookup(x.Value);
+ 	if def == nil {
+ 		a.diagAt(x, "%s: undefined", x.Value);
+ 		return nil;
+diff --git a/usr/austin/eval/world.go b/usr/austin/eval/world.go
+new file mode 100644
+index 0000000000..7f7e5fc8dd
+--- /dev/null
++++ b/usr/austin/eval/world.go
+@@ -0,0 +1,66 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package eval
++
++import (
++	"os";
++	"go/ast";
++	"go/parser";
++)
++
++// TODO: Make CompileExpr and CompileStmts 
++// methods on World.
++
++type World struct {
++	scope *Scope;
++	frame *Frame;
++}
++
++func NewWorld() (*World) {
++	w := new(World);
++	w.scope = universe.ChildScope();
++	w.scope.offset = -1;	// this block's vars allocate directly
++	w.scope.numVars = 1;	// inner blocks have frames: offset+numVars >= 0
++	return w;
++}
++
++
++type Code struct {
++	w *World;
++	stmt *Stmt;
++	expr *Expr;
++}
++
++func (w *World) Compile(text string) (*Code, os.Error) {
++	asts, err := parser.ParseStmtList("input", text);
++	if err != nil {
++		return nil, err;
++	}
++	if len(asts) == 1 {
++		if s, ok := asts[0].(*ast.ExprStmt); ok {
++			expr, err := CompileExpr(w.scope, s.X);
++			if err != nil {
++				return nil, err;
++			}
++			return &Code{w: w, expr: expr}, nil;
++		}
++	}
++	stmt, err := CompileStmts(w.scope, asts);
++	if err != nil {
++		return nil, err;
++	}
++	return &Code{w: w, stmt: stmt}, nil;
++}
++
++func (c *Code) Run() (Value, os.Error) {
++	w := c.w;
++	w.frame = w.scope.NewFrame(nil);
++	if c.stmt != nil {
++		return nil, c.stmt.Exec(w.frame);
++	}
++	val, err := c.expr.Eval(w.frame);
++	return val, err;
++}
++

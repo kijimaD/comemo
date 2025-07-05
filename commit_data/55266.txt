@@ -13,10 +13,95 @@ Date:   Tue Jan 3 16:23:16 2023 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: hopehook <hopehook@golangcn.org>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
-
+---
  api/next/54386.txt          |  2 ++
  src/bytes/bytes.go          |  5 +++++
  src/bytes/bytes_test.go     | 11 +++++++++++
  src/strings/strings.go      |  5 +++++
  src/strings/strings_test.go | 11 +++++++++++
  5 files changed, 34 insertions(+)
+
+diff --git a/api/next/54386.txt b/api/next/54386.txt
+new file mode 100644
+index 0000000000..742751ebbf
+--- /dev/null
++++ b/api/next/54386.txt
+@@ -0,0 +1,2 @@
++pkg bytes, func ContainsFunc([]uint8, func(int32) bool) bool #54386
++pkg strings, func ContainsFunc(string, func(int32) bool) bool #54386
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index e2e5d5fda7..ea8146c166 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -86,6 +86,11 @@ func ContainsRune(b []byte, r rune) bool {
+ 	return IndexRune(b, r) >= 0
+ }
+ 
++// ContainsFunc reports whether any of the UTF-8-encoded code points r within b satisfy f(r).
++func ContainsFunc(b []byte, f func(rune) bool) bool {
++	return IndexFunc(b, f) >= 0
++}
++
+ // IndexByte returns the index of the first instance of c in b, or -1 if c is not present in b.
+ func IndexByte(b []byte, c byte) int {
+ 	return bytealg.IndexByte(b, c)
+diff --git a/src/bytes/bytes_test.go b/src/bytes/bytes_test.go
+index fc2824485a..05c0090b61 100644
+--- a/src/bytes/bytes_test.go
++++ b/src/bytes/bytes_test.go
+@@ -1847,6 +1847,17 @@ func TestContainsRune(t *testing.T) {
+ 	}
+ }
+ 
++func TestContainsFunc(t *testing.T) {
++	for _, ct := range ContainsRuneTests {
++		if ContainsFunc(ct.b, func(r rune) bool {
++			return ct.r == r
++		}) != ct.expected {
++			t.Errorf("ContainsFunc(%q, func(%q)) = %v, want %v",
++				ct.b, ct.r, !ct.expected, ct.expected)
++		}
++	}
++}
++
+ var makeFieldsInput = func() []byte {
+ 	x := make([]byte, 1<<20)
+ 	// Input is ~10% space, ~10% 2-byte UTF-8, rest ASCII non-space.
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 646161fdda..3f7d6fd1a2 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -69,6 +69,11 @@ func ContainsRune(s string, r rune) bool {
+ 	return IndexRune(s, r) >= 0
+ }
+ 
++// ContainsFunc reports whether any Unicode code points r within s satisfy f(r).
++func ContainsFunc(s string, f func(rune) bool) bool {
++	return IndexFunc(s, f) >= 0
++}
++
+ // LastIndex returns the index of the last instance of substr in s, or -1 if substr is not present in s.
+ func LastIndex(s, substr string) int {
+ 	n := len(substr)
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index 5143ec86c9..f93cf6842f 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -1535,6 +1535,17 @@ func TestContainsRune(t *testing.T) {
+ 	}
+ }
+ 
++func TestContainsFunc(t *testing.T) {
++	for _, ct := range ContainsRuneTests {
++		if ContainsFunc(ct.str, func(r rune) bool {
++			return ct.r == r
++		}) != ct.expected {
++			t.Errorf("ContainsFunc(%q, func(%q)) = %v, want %v",
++				ct.str, ct.r, !ct.expected, ct.expected)
++		}
++	}
++}
++
+ var EqualFoldTests = []struct {
+ 	s, t string
+ 	out  bool

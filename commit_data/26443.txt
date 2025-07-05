@@ -14,6 +14,20 @@ Date:   Sun Jan 24 11:02:19 2016 -0500
     Change-Id: Ia2487c4fd85d4b0f9f564880f22d9fde379946c3
     Reviewed-on: https://go-review.googlesource.com/18859
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/test/sigaltstack.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/cgo/test/sigaltstack.go b/misc/cgo/test/sigaltstack.go
+index 787653c482..178e71c9b7 100644
+--- a/misc/cgo/test/sigaltstack.go
++++ b/misc/cgo/test/sigaltstack.go
+@@ -30,7 +30,7 @@ static void changeSignalStack() {
+ }
+ 
+ static void restoreSignalStack() {
+-#if defined(__x86_64__) && defined(__APPLE__)
++#if (defined(__x86_64__) || defined(__i386__)) && defined(__APPLE__)
+ 	// The Darwin C library enforces a minimum that the kernel does not.
+ 	// This is OK since we allocated this much space in mpreinit,
+ 	// it was just removed from the buffer by stackalloc.

@@ -13,7 +13,39 @@ Date:   Wed Nov 22 15:14:33 2017 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/signal/internal/pty/pty.go | 2 +-
  src/os/signal/signal_cgo_test.go  | 4 +++-
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/signal/internal/pty/pty.go b/src/os/signal/internal/pty/pty.go
+index c59185adb5..fe293a0126 100644
+--- a/src/os/signal/internal/pty/pty.go
++++ b/src/os/signal/internal/pty/pty.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux,!android netbsd openbsd
+ // +build cgo
+ 
+ // Package pty is a simple pseudo-terminal package for Unix systems,
+diff --git a/src/os/signal/signal_cgo_test.go b/src/os/signal/signal_cgo_test.go
+index d23aa18e5f..27707fadce 100644
+--- a/src/os/signal/signal_cgo_test.go
++++ b/src/os/signal/signal_cgo_test.go
+@@ -2,10 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux,!android netbsd openbsd
+ // +build cgo
+ 
+ // Note that this test does not work on Solaris: issue #22849.
++// Don't run the test on Android because at least some versions of the
++// C library do not define the posix_openpt function.
+ 
+ package signal_test
+ 

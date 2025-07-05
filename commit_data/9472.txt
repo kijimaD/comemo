@@ -10,6 +10,20 @@ Date:   Wed Aug 24 16:12:20 2011 +0200
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4944046
-
+---
  test/run | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/run b/test/run
+index bc31d2f714..d6f57272c7 100755
+--- a/test/run
++++ b/test/run
+@@ -31,7 +31,7 @@ unset GREP_OPTIONS	# in case user has a non-standard set
+ 
+ failed=0
+ 
+-PATH=/bin:/usr/bin:/usr/local/bin:${GOBIN:-$GOROOT/bin}:`pwd`
++PATH=${GOBIN:-$GOROOT/bin}:`pwd`:/bin:/usr/bin:/usr/local/bin
+ 
+ RUNFILE="/tmp/gorun-$$-$USER"
+ TMP1FILE="/tmp/gotest1-$$-$USER"

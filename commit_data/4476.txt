@@ -11,7 +11,69 @@ Date:   Wed Dec 23 07:34:17 2009 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/179129
-
+---
  src/pkg/fmt/print.go     | 11 +++++++----
  src/pkg/reflect/value.go | 12 ++++++++++++
  2 files changed, 19 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 044ac1702c..cc2c82cb7e 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -136,6 +136,12 @@ type GoStringer interface {
+ 	GoString() string
+ }
+ 
++// getter is implemented by any value that has a Get() method,
++// which means the object contains a pointer.  Used by %p.
++type getter interface {
++	Get() uintptr
++}
++
+ const allocSize = 32
+ 
+ type pp struct {
+@@ -803,12 +809,9 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
+ 		// pointer, including addresses of reference types.
+ 		case 'p':
+ 			switch v := field.(type) {
+-			case *reflect.PtrValue:
++			case getter:
+ 				p.fmt.fmt_s("0x")
+ 				p.fmt.fmt_uX64(uint64(v.Get()))
+-			case *reflect.ChanValue, *reflect.MapValue, *reflect.SliceValue:
+-				p.fmt.fmt_s("0x")
+-				p.fmt.fmt_uX64(uint64(field.Addr()))
+ 			default:
+ 				goto badtype
+ 			}
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index bbc66de5e7..3c77b879c0 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -567,6 +567,14 @@ func (v *SliceValue) Set(x *SliceValue) {
+ // Set sets v to the value x.
+ func (v *SliceValue) SetValue(x Value) { v.Set(x.(*SliceValue)) }
+ 
++// Get returns the uintptr address of the v.Cap()'th element.  This gives
++// the same result for all slices of the same array.
++// It is mainly useful for printing.
++func (v *SliceValue) Get() uintptr {
++	typ := v.typ.(*SliceType)
++	return uintptr(v.addr()) + uintptr(v.Cap())*typ.Elem().Size()
++}
++
+ // Slice returns a sub-slice of the slice v.
+ func (v *SliceValue) Slice(beg, end int) *SliceValue {
+ 	cap := v.Cap()
+@@ -970,6 +978,10 @@ func (v *MapValue) Set(x *MapValue) {
+ // Set sets v to the value x.
+ func (v *MapValue) SetValue(x Value) { v.Set(x.(*MapValue)) }
+ 
++// Get returns the uintptr value of v.
++// It is mainly useful for printing.
++func (v *MapValue) Get() uintptr { return *(*uintptr)(v.addr) }
++
+ // implemented in ../pkg/runtime/reflect.cgo
+ func mapaccess(m, key, val *byte) bool
+ func mapassign(m, key, val *byte)

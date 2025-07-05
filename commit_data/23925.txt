@@ -11,7 +11,54 @@ Date:   Mon Jun 22 16:01:17 2015 -0700
     Change-Id: I634beaf77cbaeb09de50aa1410e8c53fc37b19df
     Reviewed-on: https://go-review.googlesource.com/11317
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/expr.go             |  8 +++++++-
  src/go/types/testdata/shifts.src | 12 ++++++++++++
  2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 425ae91bb4..e9baf93aeb 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -619,7 +619,7 @@ func (check *Checker) shift(x, y *operand, op token.Token) {
+ 
+ 	// The lhs must be of integer type or be representable
+ 	// as an integer; otherwise the shift has no chance.
+-	if !isInteger(x.typ) && (!untypedx || !representableConst(x.val, nil, UntypedInt, nil)) {
++	if !x.isInteger() {
+ 		check.invalidOp(x.pos(), "shifted operand %s must be integer", x)
+ 		x.mode = invalid
+ 		return
+@@ -645,6 +645,12 @@ func (check *Checker) shift(x, y *operand, op token.Token) {
+ 
+ 	if x.mode == constant {
+ 		if y.mode == constant {
++			// rhs must be an integer value
++			if !y.isInteger() {
++				check.invalidOp(y.pos(), "shift count %s must be unsigned integer", y)
++				x.mode = invalid
++				return
++			}
+ 			// rhs must be within reasonable bounds
+ 			const stupidShift = 1023 - 1 + 52 // so we can express smallestFloat64
+ 			s, ok := exact.Uint64Val(y.val)
+diff --git a/src/go/types/testdata/shifts.src b/src/go/types/testdata/shifts.src
+index 7f8ed06fbf..2df2ccde0b 100644
+--- a/src/go/types/testdata/shifts.src
++++ b/src/go/types/testdata/shifts.src
+@@ -319,3 +319,15 @@ func issue5895() {
+ 	var x = 'a' << 1 // type of x must be rune
+ 	var _ rune = x
+ }
++
++func issue11325() {
++	var _ = 0 >> 1.1 /* ERROR "must be unsigned integer" */ // example from issue 11325
++	_ = 0 >> 1.1 /* ERROR "must be unsigned integer" */
++	_ = 0 << 1.1 /* ERROR "must be unsigned integer" */
++	_ = 0 >> 1.
++	_ = 1 >> 1.1 /* ERROR "must be unsigned integer" */
++	_ = 1 >> 1.
++	_ = 1. >> 1
++	_ = 1. >> 1.
++	_ = 1.1 /* ERROR "must be integer" */ >> 1
++}

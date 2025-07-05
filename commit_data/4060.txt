@@ -8,7 +8,34 @@ Date:   Sun Nov 15 12:57:15 2009 -0800
     
     R=r
     https://golang.org/cl/154146
-
+---
  src/pkg/runtime/386/traceback.c   | 2 +-
  src/pkg/runtime/amd64/traceback.c | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/386/traceback.c b/src/pkg/runtime/386/traceback.c
+index 307980eb97..febbb51d1e 100644
+--- a/src/pkg/runtime/386/traceback.c
++++ b/src/pkg/runtime/386/traceback.c
+@@ -42,7 +42,7 @@ traceback(byte *pc0, byte *sp, G *g)
+ 		if(f == nil) {
+ 			// dangerous, but poke around to see if it is a closure
+ 			// ADDL $xxx, SP; RET
+-			if(p != 0 && p[0] == 0x81 && p[1] == 0xc4 && p[6] == 0xc3) {
++			if((uint64)pc > 0x1000 && p[0] == 0x81 && p[1] == 0xc4 && p[6] == 0xc3) {
+ 				sp += *(uint32*)(p+2) + 8;
+ 				pc = *(uintptr*)(sp - 8);
+ 				if(pc <= 0x1000)
+diff --git a/src/pkg/runtime/amd64/traceback.c b/src/pkg/runtime/amd64/traceback.c
+index 7b0306f8c1..a260b7e4cc 100644
+--- a/src/pkg/runtime/amd64/traceback.c
++++ b/src/pkg/runtime/amd64/traceback.c
+@@ -127,7 +127,7 @@ runtime·Caller(int32 n, uint64 retpc, String retfile, int32 retline, bool retbo
+ 			// see if it is a closure.
+ 			p = (byte*)pc;
+ 			// ADDQ $xxx, SP; RET
+-			if(p[0] == 0x48 && p[1] == 0x81 && p[2] == 0xc4 && p[7] == 0xc3) {
++			if(pc > 0x1000 && p[0] == 0x48 && p[1] == 0x81 && p[2] == 0xc4 && p[7] == 0xc3) {
+ 				sp += *(uint32*)(p+3) + 8;
+ 				goto loop;
+ 			}

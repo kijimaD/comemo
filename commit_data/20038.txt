@@ -24,7 +24,7 @@ Date:   Tue Aug 12 17:04:45 2014 -0700
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/128050043
-
+---
  doc/asm.html                              | 2 +-
  src/cmd/dist/build.c                      | 5 ++++-
  src/cmd/go/build.go                       | 4 +++-
@@ -154,3 +154,1679 @@ Date:   Tue Aug 12 17:04:45 2014 -0700
  src/pkg/syscall/time_nacl_amd64p32.s      | 2 +-
  src/pkg/syscall/time_nacl_arm.s           | 2 +-
  128 files changed, 133 insertions(+), 128 deletions(-)
+
+diff --git a/doc/asm.html b/doc/asm.html
+index f4ef1e62f2..943347216e 100644
+--- a/doc/asm.html
++++ b/doc/asm.html
+@@ -253,7 +253,7 @@ There may be one or two arguments to the directives.
+ If there are two, the first is a bit mask of flags,
+ which can be written as numeric expressions, added or or-ed together,
+ or can be set symbolically for easier absorption by a human.
+-Their values, defined in the file <code>src/cmd/ld/textflag.h</code>, are:
++Their values, defined in the standard <code>#include</code>  file <code>textflag.h</code>, are:
+ </p>
+ 
+ <ul>
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index a994367351..2e857559b8 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -1115,12 +1115,15 @@ install(char *dir)
+ 
+ nobuild:
+ 	// In package runtime, we install runtime.h and cgocall.h too,
+-	// for use by cgo compilation.
++	// for use by cgo compilation. For assembler source, we also
++	// copy cmd/ld/textflag.h.
+ 	if(streq(dir, "pkg/runtime")) {
+ 		copy(bpathf(&b, "%s/pkg/%s_%s/cgocall.h", goroot, goos, goarch),
+ 			bpathf(&b1, "%s/src/pkg/runtime/cgocall.h", goroot), 0);
+ 		copy(bpathf(&b, "%s/pkg/%s_%s/runtime.h", goroot, goos, goarch),
+ 			bpathf(&b1, "%s/src/pkg/runtime/runtime.h", goroot), 0);
++		copy(bpathf(&b, "%s/pkg/%s_%s/textflag.h", goroot, goos, goarch),
++			bpathf(&b1, "%s/src/cmd/ld/textflag.h", goroot), 0);
+ 	}
+ 
+ 
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 00df6b2915..591eb1620a 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1613,8 +1613,10 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, importArgs []
+ }
+ 
+ func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
++	// Add -I pkg/GOOS_GOARCH so #include "textflag.h" works in .s files.
++	inc := filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", goos, goarch))
+ 	sfile = mkAbs(p.Dir, sfile)
+-	return b.run(p.Dir, p.ImportPath, nil, tool(archChar+"a"), "-trimpath", b.work, "-I", obj, "-o", ofile, "-D", "GOOS_"+goos, "-D", "GOARCH_"+goarch, sfile)
++	return b.run(p.Dir, p.ImportPath, nil, tool(archChar+"a"), "-trimpath", b.work, "-I", obj, "-I", inc, "-o", ofile, "-D", "GOOS_"+goos, "-D", "GOARCH_"+goarch, sfile)
+ }
+ 
+ func (gcToolchain) pkgpath(basedir string, p *Package) string {
+diff --git a/src/cmd/link/testdata/autosection.s b/src/cmd/link/testdata/autosection.s
+index 8a579b7027..fd9e94da4e 100644
+--- a/src/cmd/link/testdata/autosection.s
++++ b/src/cmd/link/testdata/autosection.s
+@@ -4,7 +4,7 @@
+ 
+ // Test of section-named symbols.
+ 
+-#include "../../ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT start(SB),7,$0
+ 	MOVQ $autotab(SB),AX
+diff --git a/src/cmd/link/testdata/layout.s b/src/cmd/link/testdata/layout.s
+index 0d492c5af2..c3e55ef49a 100644
+--- a/src/cmd/link/testdata/layout.s
++++ b/src/cmd/link/testdata/layout.s
+@@ -5,7 +5,7 @@
+ // Test of section assignment in layout.go.
+ // Each symbol should end up in the section named by the symbol name prefix (up to the underscore).
+ 
+-#include "../../ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT text_start(SB),7,$0
+ 	MOVQ $rodata_sym(SB), AX
+diff --git a/src/pkg/crypto/aes/asm_amd64.s b/src/pkg/crypto/aes/asm_amd64.s
+index 5c22881e98..6a6e6ac4b9 100644
+--- a/src/pkg/crypto/aes/asm_amd64.s
++++ b/src/pkg/crypto/aes/asm_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // func hasAsm() bool
+ // returns whether AES-NI is supported
+diff --git a/src/pkg/crypto/md5/md5block_386.s b/src/pkg/crypto/md5/md5block_386.s
+index e5c27ac9aa..8e426d148f 100644
+--- a/src/pkg/crypto/md5/md5block_386.s
++++ b/src/pkg/crypto/md5/md5block_386.s
+@@ -6,7 +6,7 @@
+ // #defines generating 8a assembly, and adjusted for 386,
+ // by the Go Authors.
+ 
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // MD5 optimized for AMD64.
+ //
+diff --git a/src/pkg/crypto/md5/md5block_amd64.s b/src/pkg/crypto/md5/md5block_amd64.s
+index 178e49cd8e..a3ae7d97b2 100644
+--- a/src/pkg/crypto/md5/md5block_amd64.s
++++ b/src/pkg/crypto/md5/md5block_amd64.s
+@@ -5,7 +5,7 @@
+ // Translated from Perl generating GNU assembly into
+ // #defines generating 6a assembly by the Go Authors.
+ 
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // MD5 optimized for AMD64.
+ //
+diff --git a/src/pkg/crypto/md5/md5block_amd64p32.s b/src/pkg/crypto/md5/md5block_amd64p32.s
+index a78a3f6100..d918a67c51 100644
+--- a/src/pkg/crypto/md5/md5block_amd64p32.s
++++ b/src/pkg/crypto/md5/md5block_amd64p32.s
+@@ -9,7 +9,7 @@
+ // replace BP with R11, reloaded before use at return.
+ // replace R15 with R11.
+ 
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // MD5 optimized for AMD64.
+ //
+diff --git a/src/pkg/crypto/md5/md5block_arm.s b/src/pkg/crypto/md5/md5block_arm.s
+index e644bfcd61..3b26e549b9 100644
+--- a/src/pkg/crypto/md5/md5block_arm.s
++++ b/src/pkg/crypto/md5/md5block_arm.s
+@@ -4,7 +4,7 @@
+ //
+ // ARM version of md5block.go
+ 
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // Register definitions
+ table = 0	// Pointer to MD5 constants table
+diff --git a/src/pkg/crypto/rc4/rc4_386.s b/src/pkg/crypto/rc4/rc4_386.s
+index b04fc1fb83..54221036ba 100644
+--- a/src/pkg/crypto/rc4/rc4_386.s
++++ b/src/pkg/crypto/rc4/rc4_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // func xorKeyStream(dst, src *byte, n int, state *[256]byte, i, j *uint8)
+ TEXT ·xorKeyStream(SB),NOSPLIT,$0
+diff --git a/src/pkg/crypto/rc4/rc4_amd64.s b/src/pkg/crypto/rc4/rc4_amd64.s
+index e3234b6c7e..57d941c8f3 100644
+--- a/src/pkg/crypto/rc4/rc4_amd64.s
++++ b/src/pkg/crypto/rc4/rc4_amd64.s
+@@ -2,7 +2,7 @@
+ //	http://www.zorinaq.com/papers/rc4-amd64.html
+ //	http://www.zorinaq.com/papers/rc4-amd64.tar.bz2
+ 
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // Local modifications:
+ //
+diff --git a/src/pkg/crypto/rc4/rc4_amd64p32.s b/src/pkg/crypto/rc4/rc4_amd64p32.s
+index 27d8495071..970b34e08e 100644
+--- a/src/pkg/crypto/rc4/rc4_amd64p32.s
++++ b/src/pkg/crypto/rc4/rc4_amd64p32.s
+@@ -2,7 +2,7 @@
+ //	http://www.zorinaq.com/papers/rc4-amd64.html
+ //	http://www.zorinaq.com/papers/rc4-amd64.tar.bz2
+ 
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // Local modifications:
+ //
+diff --git a/src/pkg/crypto/rc4/rc4_arm.s b/src/pkg/crypto/rc4/rc4_arm.s
+index b9ac72301c..51be3bf95b 100644
+--- a/src/pkg/crypto/rc4/rc4_arm.s
++++ b/src/pkg/crypto/rc4/rc4_arm.s
+@@ -4,7 +4,7 @@
+ 
+ // +build !nacl
+ 
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // Registers
+ dst = 0
+diff --git a/src/pkg/crypto/sha1/sha1block_386.s b/src/pkg/crypto/sha1/sha1block_386.s
+index 688851c31e..a0adabc3c3 100644
+--- a/src/pkg/crypto/sha1/sha1block_386.s
++++ b/src/pkg/crypto/sha1/sha1block_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // SHA1 block routine. See sha1block.go for Go equivalent.
+ //
+diff --git a/src/pkg/crypto/sha1/sha1block_amd64.s b/src/pkg/crypto/sha1/sha1block_amd64.s
+index 8ffb9d5d68..4319df63e1 100644
+--- a/src/pkg/crypto/sha1/sha1block_amd64.s
++++ b/src/pkg/crypto/sha1/sha1block_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // SHA1 block routine. See sha1block.go for Go equivalent.
+ //
+diff --git a/src/pkg/crypto/sha1/sha1block_amd64p32.s b/src/pkg/crypto/sha1/sha1block_amd64p32.s
+index 3c589d94fe..d93fbf1ed3 100644
+--- a/src/pkg/crypto/sha1/sha1block_amd64p32.s
++++ b/src/pkg/crypto/sha1/sha1block_amd64p32.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // SHA1 block routine. See sha1block.go for Go equivalent.
+ //
+diff --git a/src/pkg/crypto/sha1/sha1block_arm.s b/src/pkg/crypto/sha1/sha1block_arm.s
+index 5917e8b24b..f11f33dc33 100644
+--- a/src/pkg/crypto/sha1/sha1block_arm.s
++++ b/src/pkg/crypto/sha1/sha1block_arm.s
+@@ -4,7 +4,7 @@
+ //
+ // ARM version of md5block.go
+ 
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // SHA1 block routine. See sha1block.go for Go equivalent.
+ //
+diff --git a/src/pkg/crypto/sha256/sha256block_amd64.s b/src/pkg/crypto/sha256/sha256block_amd64.s
+index 95aebbe762..868eaed489 100644
+--- a/src/pkg/crypto/sha256/sha256block_amd64.s
++++ b/src/pkg/crypto/sha256/sha256block_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // SHA256 block routine. See sha256block.go for Go equivalent.
+ //
+diff --git a/src/pkg/crypto/sha512/sha512block_amd64.s b/src/pkg/crypto/sha512/sha512block_amd64.s
+index 344d8d2c3e..2e10233de1 100644
+--- a/src/pkg/crypto/sha512/sha512block_amd64.s
++++ b/src/pkg/crypto/sha512/sha512block_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // SHA512 block routine. See sha512block.go for Go equivalent.
+ //
+diff --git a/src/pkg/hash/crc32/crc32_amd64.s b/src/pkg/hash/crc32/crc32_amd64.s
+index 95dc8bf41b..30b0d0691c 100644
+--- a/src/pkg/hash/crc32/crc32_amd64.s
++++ b/src/pkg/hash/crc32/crc32_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // func castagnoliSSE42(crc uint32, p []byte) uint32
+ TEXT ·castagnoliSSE42(SB),NOSPLIT,$0
+diff --git a/src/pkg/hash/crc32/crc32_amd64p32.s b/src/pkg/hash/crc32/crc32_amd64p32.s
+index e34f208677..b6770eba3e 100644
+--- a/src/pkg/hash/crc32/crc32_amd64p32.s
++++ b/src/pkg/hash/crc32/crc32_amd64p32.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // func castagnoliSSE42(crc uint32, p []byte) uint32
+ TEXT ·castagnoliSSE42(SB),NOSPLIT,$0
+diff --git a/src/pkg/math/abs_386.s b/src/pkg/math/abs_386.s
+index 3490cf66c7..f30a439c26 100644
+--- a/src/pkg/math/abs_386.s
++++ b/src/pkg/math/abs_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // func Abs(x float64) float64
+ TEXT ·Abs(SB),NOSPLIT,$0
+diff --git a/src/pkg/math/abs_amd64.s b/src/pkg/math/abs_amd64.s
+index 779c8f5484..0424eb5fad 100644
+--- a/src/pkg/math/abs_amd64.s
++++ b/src/pkg/math/abs_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // func Abs(x float64) float64
+ TEXT ·Abs(SB),NOSPLIT,$0
+diff --git a/src/pkg/math/abs_arm.s b/src/pkg/math/abs_arm.s
+index b5117ab39c..bfa77eb491 100644
+--- a/src/pkg/math/abs_arm.s
++++ b/src/pkg/math/abs_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Abs(SB),NOSPLIT,$0
+ 	MOVW	x_lo+0(FP), R0
+diff --git a/src/pkg/math/asin_386.s b/src/pkg/math/asin_386.s
+index 2c1d270948..4f34e123ef 100644
+--- a/src/pkg/math/asin_386.s
++++ b/src/pkg/math/asin_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // func Asin(x float64) float64
+ TEXT ·Asin(SB),NOSPLIT,$0
+diff --git a/src/pkg/math/asin_amd64.s b/src/pkg/math/asin_amd64.s
+index ea48104ac6..1a43d489b5 100644
+--- a/src/pkg/math/asin_amd64.s
++++ b/src/pkg/math/asin_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Asin(SB),NOSPLIT,$0
+ 	JMP ·asin(SB)
+diff --git a/src/pkg/math/asin_arm.s b/src/pkg/math/asin_arm.s
+index b90526003e..8fe03b61d8 100644
+--- a/src/pkg/math/asin_arm.s
++++ b/src/pkg/math/asin_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Asin(SB),NOSPLIT,$0
+ 	B ·asin(SB)
+diff --git a/src/pkg/math/atan2_386.s b/src/pkg/math/atan2_386.s
+index fb649316a0..31a74e7262 100644
+--- a/src/pkg/math/atan2_386.s
++++ b/src/pkg/math/atan2_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // func Atan2(y, x float64) float64	// =atan(y/x)
+ TEXT ·Atan2(SB),NOSPLIT,$0
+diff --git a/src/pkg/math/atan2_amd64.s b/src/pkg/math/atan2_amd64.s
+index f7a5a11d46..fc471f76c5 100644
+--- a/src/pkg/math/atan2_amd64.s
++++ b/src/pkg/math/atan2_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Atan2(SB),NOSPLIT,$0
+ 	JMP ·atan2(SB)
+diff --git a/src/pkg/math/atan2_arm.s b/src/pkg/math/atan2_arm.s
+index 24bff2c03d..06c12ecbc4 100644
+--- a/src/pkg/math/atan2_arm.s
++++ b/src/pkg/math/atan2_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Atan2(SB),NOSPLIT,$0
+ 	B ·atan2(SB)
+diff --git a/src/pkg/math/atan_386.s b/src/pkg/math/atan_386.s
+index aad8ffcec7..f3976b1d35 100644
+--- a/src/pkg/math/atan_386.s
++++ b/src/pkg/math/atan_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // func Atan(x float64) float64
+ TEXT ·Atan(SB),NOSPLIT,$0
+diff --git a/src/pkg/math/atan_amd64.s b/src/pkg/math/atan_amd64.s
+index fc4a91b0de..b801ae99d2 100644
+--- a/src/pkg/math/atan_amd64.s
++++ b/src/pkg/math/atan_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Atan(SB),NOSPLIT,$0
+ 	JMP ·atan(SB)
+diff --git a/src/pkg/math/atan_arm.s b/src/pkg/math/atan_arm.s
+index defa93a1ed..d190a8bb0c 100644
+--- a/src/pkg/math/atan_arm.s
++++ b/src/pkg/math/atan_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Atan(SB),NOSPLIT,$0
+ 	B ·atan(SB)
+diff --git a/src/pkg/math/big/arith_386.s b/src/pkg/math/big/arith_386.s
+index 15b036c657..1b47c898f9 100644
+--- a/src/pkg/math/big/arith_386.s
++++ b/src/pkg/math/big/arith_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // This file provides fast assembly versions for the elementary
+ // arithmetic operations on vectors implemented in arith.go.
+diff --git a/src/pkg/math/big/arith_amd64.s b/src/pkg/math/big/arith_amd64.s
+index e2113a7e3a..56c4cb050e 100644
+--- a/src/pkg/math/big/arith_amd64.s
++++ b/src/pkg/math/big/arith_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // This file provides fast assembly versions for the elementary
+ // arithmetic operations on vectors implemented in arith.go.
+diff --git a/src/pkg/math/big/arith_amd64p32.s b/src/pkg/math/big/arith_amd64p32.s
+index 227870a005..908dbbdc58 100644
+--- a/src/pkg/math/big/arith_amd64p32.s
++++ b/src/pkg/math/big/arith_amd64p32.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·mulWW(SB),NOSPLIT,$0
+ 	JMP ·mulWW_g(SB)
+diff --git a/src/pkg/math/big/arith_arm.s b/src/pkg/math/big/arith_arm.s
+index 8d36761c4c..a4c51c2127 100644
+--- a/src/pkg/math/big/arith_arm.s
++++ b/src/pkg/math/big/arith_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // This file provides fast assembly versions for the elementary
+ // arithmetic operations on vectors implemented in arith.go.
+diff --git a/src/pkg/math/dim_386.s b/src/pkg/math/dim_386.s
+index f715114c43..c8194fed83 100644
+--- a/src/pkg/math/dim_386.s
++++ b/src/pkg/math/dim_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Dim(SB),NOSPLIT,$0
+ 	JMP ·dim(SB)
+diff --git a/src/pkg/math/dim_amd64.s b/src/pkg/math/dim_amd64.s
+index 38423ef028..622cc3fbad 100644
+--- a/src/pkg/math/dim_amd64.s
++++ b/src/pkg/math/dim_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ #define PosInf 0x7FF0000000000000
+ #define NaN    0x7FF8000000000001
+diff --git a/src/pkg/math/dim_arm.s b/src/pkg/math/dim_arm.s
+index 162f08cda5..be66950687 100644
+--- a/src/pkg/math/dim_arm.s
++++ b/src/pkg/math/dim_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Dim(SB),NOSPLIT,$0
+ 	B ·dim(SB)
+diff --git a/src/pkg/math/exp2_386.s b/src/pkg/math/exp2_386.s
+index 71959d94dd..7d11920c2d 100644
+--- a/src/pkg/math/exp2_386.s
++++ b/src/pkg/math/exp2_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // func Exp2(x float64) float64
+ TEXT ·Exp2(SB),NOSPLIT,$0
+diff --git a/src/pkg/math/exp2_amd64.s b/src/pkg/math/exp2_amd64.s
+index 77a53dad4e..903c835896 100644
+--- a/src/pkg/math/exp2_amd64.s
++++ b/src/pkg/math/exp2_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Exp2(SB),NOSPLIT,$0
+ 	JMP ·exp2(SB)
+diff --git a/src/pkg/math/exp2_arm.s b/src/pkg/math/exp2_arm.s
+index fe51f25226..58283cd082 100644
+--- a/src/pkg/math/exp2_arm.s
++++ b/src/pkg/math/exp2_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Exp2(SB),NOSPLIT,$0
+ 	B ·exp2(SB)
+diff --git a/src/pkg/math/exp_386.s b/src/pkg/math/exp_386.s
+index af2d680d55..6a478a5e60 100644
+--- a/src/pkg/math/exp_386.s
++++ b/src/pkg/math/exp_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // func Exp(x float64) float64
+ TEXT ·Exp(SB),NOSPLIT,$0
+diff --git a/src/pkg/math/exp_amd64.s b/src/pkg/math/exp_amd64.s
+index 070b45264a..d9cf8fd86c 100644
+--- a/src/pkg/math/exp_amd64.s
++++ b/src/pkg/math/exp_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // The method is based on a paper by Naoki Shibata: "Efficient evaluation
+ // methods of elementary functions suitable for SIMD computation", Proc.
+diff --git a/src/pkg/math/exp_arm.s b/src/pkg/math/exp_arm.s
+index 130b502ac1..ce36d03caa 100644
+--- a/src/pkg/math/exp_arm.s
++++ b/src/pkg/math/exp_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Exp(SB),NOSPLIT,$0
+ 	B ·exp(SB)
+diff --git a/src/pkg/math/expm1_386.s b/src/pkg/math/expm1_386.s
+index b268c58c63..a48ca8a58a 100644
+--- a/src/pkg/math/expm1_386.s
++++ b/src/pkg/math/expm1_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // func Expm1(x float64) float64
+ TEXT ·Expm1(SB),NOSPLIT,$0
+diff --git a/src/pkg/math/expm1_amd64.s b/src/pkg/math/expm1_amd64.s
+index 66a75b3d55..b7d5a3be01 100644
+--- a/src/pkg/math/expm1_amd64.s
++++ b/src/pkg/math/expm1_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Expm1(SB),NOSPLIT,$0
+ 	JMP ·expm1(SB)
+diff --git a/src/pkg/math/expm1_arm.s b/src/pkg/math/expm1_arm.s
+index 838744447f..5f80d872f3 100644
+--- a/src/pkg/math/expm1_arm.s
++++ b/src/pkg/math/expm1_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Expm1(SB),NOSPLIT,$0
+ 	B ·expm1(SB)
+diff --git a/src/pkg/math/floor_386.s b/src/pkg/math/floor_386.s
+index 37d5a4559f..31c9b174d6 100644
+--- a/src/pkg/math/floor_386.s
++++ b/src/pkg/math/floor_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // func Ceil(x float64) float64
+ TEXT ·Ceil(SB),NOSPLIT,$0
+diff --git a/src/pkg/math/floor_amd64.s b/src/pkg/math/floor_amd64.s
+index 2fd31c4fae..67b7cdec04 100644
+--- a/src/pkg/math/floor_amd64.s
++++ b/src/pkg/math/floor_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ #define Big		0x4330000000000000 // 2**52
+ 
+diff --git a/src/pkg/math/floor_arm.s b/src/pkg/math/floor_arm.s
+index cb3b98e95c..59091765b3 100644
+--- a/src/pkg/math/floor_arm.s
++++ b/src/pkg/math/floor_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Floor(SB),NOSPLIT,$0
+ 	B	·floor(SB)
+diff --git a/src/pkg/math/frexp_386.s b/src/pkg/math/frexp_386.s
+index c6d0a80eda..5bff7e2156 100644
+--- a/src/pkg/math/frexp_386.s
++++ b/src/pkg/math/frexp_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // func Frexp(f float64) (frac float64, exp int)
+ TEXT ·Frexp(SB),NOSPLIT,$0
+diff --git a/src/pkg/math/frexp_amd64.s b/src/pkg/math/frexp_amd64.s
+index 03d1012433..93a321039b 100644
+--- a/src/pkg/math/frexp_amd64.s
++++ b/src/pkg/math/frexp_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Frexp(SB),NOSPLIT,$0
+ 	JMP ·frexp(SB)
+diff --git a/src/pkg/math/frexp_arm.s b/src/pkg/math/frexp_arm.s
+index 9d40ae46a6..7842eca59b 100644
+--- a/src/pkg/math/frexp_arm.s
++++ b/src/pkg/math/frexp_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Frexp(SB),NOSPLIT,$0
+ 	B ·frexp(SB)
+diff --git a/src/pkg/math/hypot_386.s b/src/pkg/math/hypot_386.s
+index eec1bf5548..d321f465b4 100644
+--- a/src/pkg/math/hypot_386.s
++++ b/src/pkg/math/hypot_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // func Hypot(p, q float64) float64
+ TEXT ·Hypot(SB),NOSPLIT,$0
+diff --git a/src/pkg/math/hypot_amd64.s b/src/pkg/math/hypot_amd64.s
+index 5c0ff4dd83..a68eebc8ca 100644
+--- a/src/pkg/math/hypot_amd64.s
++++ b/src/pkg/math/hypot_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ #define PosInf 0x7FF0000000000000
+ #define NaN 0x7FF8000000000001
+diff --git a/src/pkg/math/hypot_arm.s b/src/pkg/math/hypot_arm.s
+index 2562aa8306..9c8abca130 100644
+--- a/src/pkg/math/hypot_arm.s
++++ b/src/pkg/math/hypot_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Hypot(SB),NOSPLIT,$0
+ 	B ·hypot(SB)
+diff --git a/src/pkg/math/ldexp_386.s b/src/pkg/math/ldexp_386.s
+index baf377ead6..ac8e8ba540 100644
+--- a/src/pkg/math/ldexp_386.s
++++ b/src/pkg/math/ldexp_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // func Ldexp(frac float64, exp int) float64
+ TEXT ·Ldexp(SB),NOSPLIT,$0
+diff --git a/src/pkg/math/ldexp_amd64.s b/src/pkg/math/ldexp_amd64.s
+index c7fc226efa..6063a64807 100644
+--- a/src/pkg/math/ldexp_amd64.s
++++ b/src/pkg/math/ldexp_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Ldexp(SB),NOSPLIT,$0
+ 	JMP ·ldexp(SB)
+diff --git a/src/pkg/math/ldexp_arm.s b/src/pkg/math/ldexp_arm.s
+index 16744ea57d..fcffa2e0fa 100644
+--- a/src/pkg/math/ldexp_arm.s
++++ b/src/pkg/math/ldexp_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Ldexp(SB),NOSPLIT,$0
+ 	B ·ldexp(SB)
+diff --git a/src/pkg/math/log10_386.s b/src/pkg/math/log10_386.s
+index 4ae069da62..2897f3c155 100644
+--- a/src/pkg/math/log10_386.s
++++ b/src/pkg/math/log10_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // func Log10(x float64) float64
+ TEXT ·Log10(SB),NOSPLIT,$0
+diff --git a/src/pkg/math/log10_amd64.s b/src/pkg/math/log10_amd64.s
+index b9ae832689..8382ba7ae5 100644
+--- a/src/pkg/math/log10_amd64.s
++++ b/src/pkg/math/log10_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Log10(SB),NOSPLIT,$0
+ 	JMP ·log10(SB)
+diff --git a/src/pkg/math/log10_arm.s b/src/pkg/math/log10_arm.s
+index fa7580f6fb..dbcb8351cf 100644
+--- a/src/pkg/math/log10_arm.s
++++ b/src/pkg/math/log10_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Log10(SB),NOSPLIT,$0
+ 	B ·log10(SB)
+diff --git a/src/pkg/math/log1p_386.s b/src/pkg/math/log1p_386.s
+index 3b30fd5b7f..1c2d683a8f 100644
+--- a/src/pkg/math/log1p_386.s
++++ b/src/pkg/math/log1p_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // func Log1p(x float64) float64
+ TEXT ·Log1p(SB),NOSPLIT,$0
+diff --git a/src/pkg/math/log1p_amd64.s b/src/pkg/math/log1p_amd64.s
+index 48c24f41f2..1e58fb110d 100644
+--- a/src/pkg/math/log1p_amd64.s
++++ b/src/pkg/math/log1p_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Log1p(SB),NOSPLIT,$0
+ 	JMP ·log1p(SB)
+diff --git a/src/pkg/math/log1p_arm.s b/src/pkg/math/log1p_arm.s
+index fd2740d0dd..95d5496788 100644
+--- a/src/pkg/math/log1p_arm.s
++++ b/src/pkg/math/log1p_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Log1p(SB),NOSPLIT,$0
+ 	B ·log1p(SB)
+diff --git a/src/pkg/math/log_386.s b/src/pkg/math/log_386.s
+index 21a0633b19..ff998afb47 100644
+--- a/src/pkg/math/log_386.s
++++ b/src/pkg/math/log_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // func Log(x float64) float64
+ TEXT ·Log(SB),NOSPLIT,$0
+diff --git a/src/pkg/math/log_amd64.s b/src/pkg/math/log_amd64.s
+index dffc5aec88..84c60ab4de 100644
+--- a/src/pkg/math/log_amd64.s
++++ b/src/pkg/math/log_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ #define HSqrt2 7.07106781186547524401e-01 // sqrt(2)/2
+ #define Ln2Hi  6.93147180369123816490e-01 // 0x3fe62e42fee00000
+diff --git a/src/pkg/math/log_arm.s b/src/pkg/math/log_arm.s
+index 28448aeefc..e21d0366e9 100644
+--- a/src/pkg/math/log_arm.s
++++ b/src/pkg/math/log_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Log(SB),NOSPLIT,$0
+ 	B ·log(SB)
+diff --git a/src/pkg/math/mod_386.s b/src/pkg/math/mod_386.s
+index 9b3b6bd06f..10ad98be3e 100644
+--- a/src/pkg/math/mod_386.s
++++ b/src/pkg/math/mod_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // func Mod(x, y float64) float64
+ TEXT ·Mod(SB),NOSPLIT,$0
+diff --git a/src/pkg/math/mod_amd64.s b/src/pkg/math/mod_amd64.s
+index bef83fcf7f..f99dbe2931 100644
+--- a/src/pkg/math/mod_amd64.s
++++ b/src/pkg/math/mod_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Mod(SB),NOSPLIT,$0
+ 	JMP ·mod(SB)
+diff --git a/src/pkg/math/mod_arm.s b/src/pkg/math/mod_arm.s
+index 1f51588f8d..5afb3594dd 100644
+--- a/src/pkg/math/mod_arm.s
++++ b/src/pkg/math/mod_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Mod(SB),NOSPLIT,$0
+ 	B ·mod(SB)
+diff --git a/src/pkg/math/modf_386.s b/src/pkg/math/modf_386.s
+index 07a0dc5cfe..3debd3b95d 100644
+--- a/src/pkg/math/modf_386.s
++++ b/src/pkg/math/modf_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // func Modf(f float64) (int float64, frac float64)
+ TEXT ·Modf(SB),NOSPLIT,$0
+diff --git a/src/pkg/math/modf_amd64.s b/src/pkg/math/modf_amd64.s
+index 05feb4bf90..701cf72a3b 100644
+--- a/src/pkg/math/modf_amd64.s
++++ b/src/pkg/math/modf_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Modf(SB),NOSPLIT,$0
+ 	JMP ·modf(SB)
+diff --git a/src/pkg/math/modf_arm.s b/src/pkg/math/modf_arm.s
+index e6bd26d53b..ea3c8dc74f 100644
+--- a/src/pkg/math/modf_arm.s
++++ b/src/pkg/math/modf_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Modf(SB),NOSPLIT,$0
+ 	B ·modf(SB)
+diff --git a/src/pkg/math/remainder_386.s b/src/pkg/math/remainder_386.s
+index bbe13a0d92..318fa2c465 100644
+--- a/src/pkg/math/remainder_386.s
++++ b/src/pkg/math/remainder_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // func Remainder(x, y float64) float64
+ TEXT ·Remainder(SB),NOSPLIT,$0
+diff --git a/src/pkg/math/remainder_amd64.s b/src/pkg/math/remainder_amd64.s
+index e5e23c7ce3..f7fda99d85 100644
+--- a/src/pkg/math/remainder_amd64.s
++++ b/src/pkg/math/remainder_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Remainder(SB),NOSPLIT,$0
+ 	JMP ·remainder(SB)
+diff --git a/src/pkg/math/remainder_arm.s b/src/pkg/math/remainder_arm.s
+index 8728afe931..1ae597a60e 100644
+--- a/src/pkg/math/remainder_arm.s
++++ b/src/pkg/math/remainder_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Remainder(SB),NOSPLIT,$0
+ 	B ·remainder(SB)
+diff --git a/src/pkg/math/sin_386.s b/src/pkg/math/sin_386.s
+index 09271c0355..ccc8e64bee 100644
+--- a/src/pkg/math/sin_386.s
++++ b/src/pkg/math/sin_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // func Cos(x float64) float64
+ TEXT ·Cos(SB),NOSPLIT,$0
+diff --git a/src/pkg/math/sin_amd64.s b/src/pkg/math/sin_amd64.s
+index 008bf4be58..0c33cecef3 100644
+--- a/src/pkg/math/sin_amd64.s
++++ b/src/pkg/math/sin_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Sin(SB),NOSPLIT,$0
+ 	JMP	·sin(SB)
+diff --git a/src/pkg/math/sin_arm.s b/src/pkg/math/sin_arm.s
+index a057b4fc9d..467af3dead 100644
+--- a/src/pkg/math/sin_arm.s
++++ b/src/pkg/math/sin_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Sin(SB),NOSPLIT,$0
+ 	B	·sin(SB)
+diff --git a/src/pkg/math/sincos_386.s b/src/pkg/math/sincos_386.s
+index bf964b1681..83af5016ef 100644
+--- a/src/pkg/math/sincos_386.s
++++ b/src/pkg/math/sincos_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // func Sincos(x float64) (sin, cos float64)
+ TEXT ·Sincos(SB),NOSPLIT,$0
+diff --git a/src/pkg/math/sincos_amd64.s b/src/pkg/math/sincos_amd64.s
+index bccc1ade12..dae636b248 100644
+--- a/src/pkg/math/sincos_amd64.s
++++ b/src/pkg/math/sincos_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // The method is based on a paper by Naoki Shibata: "Efficient evaluation
+ // methods of elementary functions suitable for SIMD computation", Proc.
+diff --git a/src/pkg/math/sincos_arm.s b/src/pkg/math/sincos_arm.s
+index b6866af54f..9fe048248b 100644
+--- a/src/pkg/math/sincos_arm.s
++++ b/src/pkg/math/sincos_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Sincos(SB),NOSPLIT,$0
+ 	B ·sincos(SB)
+diff --git a/src/pkg/math/sqrt_386.s b/src/pkg/math/sqrt_386.s
+index 2d0c786d0c..5234a1e881 100644
+--- a/src/pkg/math/sqrt_386.s
++++ b/src/pkg/math/sqrt_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // func Sqrt(x float64) float64	
+ TEXT ·Sqrt(SB),NOSPLIT,$0
+diff --git a/src/pkg/math/sqrt_amd64.s b/src/pkg/math/sqrt_amd64.s
+index 1508944c90..443d83fe35 100644
+--- a/src/pkg/math/sqrt_amd64.s
++++ b/src/pkg/math/sqrt_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // func Sqrt(x float64) float64
+ TEXT ·Sqrt(SB),NOSPLIT,$0
+diff --git a/src/pkg/math/sqrt_arm.s b/src/pkg/math/sqrt_arm.s
+index f731ee976d..4f9dc2e038 100644
+--- a/src/pkg/math/sqrt_arm.s
++++ b/src/pkg/math/sqrt_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // func Sqrt(x float64) float64	
+ TEXT ·Sqrt(SB),NOSPLIT,$0
+diff --git a/src/pkg/math/tan_386.s b/src/pkg/math/tan_386.s
+index 2320326e37..f1bdae1536 100644
+--- a/src/pkg/math/tan_386.s
++++ b/src/pkg/math/tan_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // func Tan(x float64) float64
+ TEXT ·Tan(SB),NOSPLIT,$0
+diff --git a/src/pkg/math/tan_amd64.s b/src/pkg/math/tan_amd64.s
+index 9fa5f148ef..39aa08061c 100644
+--- a/src/pkg/math/tan_amd64.s
++++ b/src/pkg/math/tan_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Tan(SB),NOSPLIT,$0
+ 	JMP ·tan(SB)
+diff --git a/src/pkg/math/tan_arm.s b/src/pkg/math/tan_arm.s
+index 68fea318da..36c7c128f6 100644
+--- a/src/pkg/math/tan_arm.s
++++ b/src/pkg/math/tan_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·Tan(SB),NOSPLIT,$0
+ 	B ·tan(SB)
+diff --git a/src/pkg/os/signal/sig.s b/src/pkg/os/signal/sig.s
+index f860924aa0..d54c284b5e 100644
+--- a/src/pkg/os/signal/sig.s
++++ b/src/pkg/os/signal/sig.s
+@@ -6,7 +6,7 @@
+ 
+ // +build amd64 amd64p32 arm 386
+ 
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ #ifdef GOARCH_arm
+ #define JMP B
+diff --git a/src/pkg/reflect/asm_386.s b/src/pkg/reflect/asm_386.s
+index a538624083..8c84bba43b 100644
+--- a/src/pkg/reflect/asm_386.s
++++ b/src/pkg/reflect/asm_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // makeFuncStub is the code half of the function returned by MakeFunc.
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+diff --git a/src/pkg/reflect/asm_amd64.s b/src/pkg/reflect/asm_amd64.s
+index 12a8879b79..195928bff9 100644
+--- a/src/pkg/reflect/asm_amd64.s
++++ b/src/pkg/reflect/asm_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // makeFuncStub is the code half of the function returned by MakeFunc.
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+diff --git a/src/pkg/reflect/asm_amd64p32.s b/src/pkg/reflect/asm_amd64p32.s
+index a538624083..8c84bba43b 100644
+--- a/src/pkg/reflect/asm_amd64p32.s
++++ b/src/pkg/reflect/asm_amd64p32.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // makeFuncStub is the code half of the function returned by MakeFunc.
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+diff --git a/src/pkg/reflect/asm_arm.s b/src/pkg/reflect/asm_arm.s
+index 69e4ab4888..fafc6f313e 100644
+--- a/src/pkg/reflect/asm_arm.s
++++ b/src/pkg/reflect/asm_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // makeFuncStub is jumped to by the code generated by MakeFunc.
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+diff --git a/src/pkg/sync/atomic/asm_386.s b/src/pkg/sync/atomic/asm_386.s
+index 807c2f873b..740dfe76ba 100644
+--- a/src/pkg/sync/atomic/asm_386.s
++++ b/src/pkg/sync/atomic/asm_386.s
+@@ -4,7 +4,7 @@
+ 
+ // +build !race
+ 
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·SwapInt32(SB),NOSPLIT,$0-12
+ 	JMP	·SwapUint32(SB)
+diff --git a/src/pkg/sync/atomic/asm_amd64.s b/src/pkg/sync/atomic/asm_amd64.s
+index 77afa129ed..6e53ebedd2 100644
+--- a/src/pkg/sync/atomic/asm_amd64.s
++++ b/src/pkg/sync/atomic/asm_amd64.s
+@@ -4,7 +4,7 @@
+ 
+ // +build !race
+ 
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·SwapInt32(SB),NOSPLIT,$0-20
+ 	JMP	·SwapUint32(SB)
+diff --git a/src/pkg/sync/atomic/asm_amd64p32.s b/src/pkg/sync/atomic/asm_amd64p32.s
+index b24ae7a59e..d77cc2c088 100644
+--- a/src/pkg/sync/atomic/asm_amd64p32.s
++++ b/src/pkg/sync/atomic/asm_amd64p32.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·SwapInt32(SB),NOSPLIT,$0-12
+ 	JMP	·SwapUint32(SB)
+diff --git a/src/pkg/sync/atomic/asm_arm.s b/src/pkg/sync/atomic/asm_arm.s
+index 7c8620a51b..47639a80ea 100644
+--- a/src/pkg/sync/atomic/asm_arm.s
++++ b/src/pkg/sync/atomic/asm_arm.s
+@@ -4,7 +4,7 @@
+ 
+ // +build !race
+ 
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // ARM atomic operations, for use by asm_$(GOOS)_arm.s.
+ 
+diff --git a/src/pkg/sync/atomic/asm_freebsd_arm.s b/src/pkg/sync/atomic/asm_freebsd_arm.s
+index db37f73bc4..06b975e897 100644
+--- a/src/pkg/sync/atomic/asm_freebsd_arm.s
++++ b/src/pkg/sync/atomic/asm_freebsd_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // FreeBSD/ARM atomic operations.
+ // TODO(minux): this only supports ARMv6K or higher.
+diff --git a/src/pkg/sync/atomic/asm_linux_arm.s b/src/pkg/sync/atomic/asm_linux_arm.s
+index 27be57aa1d..bfcfd79779 100644
+--- a/src/pkg/sync/atomic/asm_linux_arm.s
++++ b/src/pkg/sync/atomic/asm_linux_arm.s
+@@ -4,7 +4,7 @@
+ 
+ // +build !race
+ 
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // Linux/ARM atomic operations.
+ 
+diff --git a/src/pkg/sync/atomic/asm_nacl_arm.s b/src/pkg/sync/atomic/asm_nacl_arm.s
+index 084ab71f82..76f6233364 100644
+--- a/src/pkg/sync/atomic/asm_nacl_arm.s
++++ b/src/pkg/sync/atomic/asm_nacl_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // NaCl/ARM atomic operations.
+ // NaCl/ARM explicitly targets ARMv7A.
+diff --git a/src/pkg/sync/atomic/asm_netbsd_arm.s b/src/pkg/sync/atomic/asm_netbsd_arm.s
+index 64f4dbe714..dbe80898fd 100644
+--- a/src/pkg/sync/atomic/asm_netbsd_arm.s
++++ b/src/pkg/sync/atomic/asm_netbsd_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // NetBSD/ARM atomic operations.
+ // TODO(minux): this only supports ARMv6K or higher.
+diff --git a/src/pkg/syscall/asm_darwin_386.s b/src/pkg/syscall/asm_darwin_386.s
+index 9b4dfa81df..dfe94fb526 100644
+--- a/src/pkg/syscall/asm_darwin_386.s
++++ b/src/pkg/syscall/asm_darwin_386.s
+@@ -5,7 +5,7 @@
+ // TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
+ // so that go vet can check that they are correct.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ //
+ // System call support for 386, Darwin
+diff --git a/src/pkg/syscall/asm_darwin_amd64.s b/src/pkg/syscall/asm_darwin_amd64.s
+index 19ea05be72..d6f1c96f5f 100644
+--- a/src/pkg/syscall/asm_darwin_amd64.s
++++ b/src/pkg/syscall/asm_darwin_amd64.s
+@@ -5,7 +5,7 @@
+ // TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
+ // so that go vet can check that they are correct.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ //
+ // System call support for AMD64, Darwin
+diff --git a/src/pkg/syscall/asm_dragonfly_386.s b/src/pkg/syscall/asm_dragonfly_386.s
+index d24216fddc..37d655fba9 100644
+--- a/src/pkg/syscall/asm_dragonfly_386.s
++++ b/src/pkg/syscall/asm_dragonfly_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ //
+ // System call support for 386, FreeBSD
+diff --git a/src/pkg/syscall/asm_dragonfly_amd64.s b/src/pkg/syscall/asm_dragonfly_amd64.s
+index 31d107490a..c8434f96b7 100644
+--- a/src/pkg/syscall/asm_dragonfly_amd64.s
++++ b/src/pkg/syscall/asm_dragonfly_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ //
+ // System call support for AMD64, DragonFly
+diff --git a/src/pkg/syscall/asm_freebsd_386.s b/src/pkg/syscall/asm_freebsd_386.s
+index 91a46b1062..f50b5a09bf 100644
+--- a/src/pkg/syscall/asm_freebsd_386.s
++++ b/src/pkg/syscall/asm_freebsd_386.s
+@@ -5,7 +5,7 @@
+ // TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
+ // so that go vet can check that they are correct.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ //
+ // System call support for 386, FreeBSD
+diff --git a/src/pkg/syscall/asm_freebsd_amd64.s b/src/pkg/syscall/asm_freebsd_amd64.s
+index 7abb36828a..58cbfe1a99 100644
+--- a/src/pkg/syscall/asm_freebsd_amd64.s
++++ b/src/pkg/syscall/asm_freebsd_amd64.s
+@@ -5,7 +5,7 @@
+ // TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
+ // so that go vet can check that they are correct.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ //
+ // System call support for AMD64, FreeBSD
+diff --git a/src/pkg/syscall/asm_freebsd_arm.s b/src/pkg/syscall/asm_freebsd_arm.s
+index c01ce6febf..5eb40334b9 100644
+--- a/src/pkg/syscall/asm_freebsd_arm.s
++++ b/src/pkg/syscall/asm_freebsd_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ //
+ // System call support for ARM, FreeBSD
+diff --git a/src/pkg/syscall/asm_linux_386.s b/src/pkg/syscall/asm_linux_386.s
+index 30b22073df..05cf89aa22 100644
+--- a/src/pkg/syscall/asm_linux_386.s
++++ b/src/pkg/syscall/asm_linux_386.s
+@@ -5,7 +5,7 @@
+ // TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
+ // so that go vet can check that they are correct.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ //
+ // System calls for 386, Linux
+diff --git a/src/pkg/syscall/asm_linux_amd64.s b/src/pkg/syscall/asm_linux_amd64.s
+index 995b60ecd0..514693283b 100644
+--- a/src/pkg/syscall/asm_linux_amd64.s
++++ b/src/pkg/syscall/asm_linux_amd64.s
+@@ -5,7 +5,7 @@
+ // TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
+ // so that go vet can check that they are correct.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ //
+ // System calls for AMD64, Linux
+diff --git a/src/pkg/syscall/asm_linux_arm.s b/src/pkg/syscall/asm_linux_arm.s
+index a28bc6cfc0..014fa618f6 100644
+--- a/src/pkg/syscall/asm_linux_arm.s
++++ b/src/pkg/syscall/asm_linux_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ //
+ // System calls for arm, Linux
+diff --git a/src/pkg/syscall/asm_nacl_386.s b/src/pkg/syscall/asm_nacl_386.s
+index de7c3cc5da..3c86decd39 100644
+--- a/src/pkg/syscall/asm_nacl_386.s
++++ b/src/pkg/syscall/asm_nacl_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ #include "../runtime/syscall_nacl.h"
+ 
+ //
+diff --git a/src/pkg/syscall/asm_nacl_amd64p32.s b/src/pkg/syscall/asm_nacl_amd64p32.s
+index de030ec806..b91e09bd6d 100644
+--- a/src/pkg/syscall/asm_nacl_amd64p32.s
++++ b/src/pkg/syscall/asm_nacl_amd64p32.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ #include "../runtime/syscall_nacl.h"
+ 
+ //
+diff --git a/src/pkg/syscall/asm_nacl_arm.s b/src/pkg/syscall/asm_nacl_arm.s
+index ffc48ceaa8..cc4b9cd2d6 100644
+--- a/src/pkg/syscall/asm_nacl_arm.s
++++ b/src/pkg/syscall/asm_nacl_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ #include "../runtime/syscall_nacl.h"
+ 
+ //
+diff --git a/src/pkg/syscall/asm_netbsd_386.s b/src/pkg/syscall/asm_netbsd_386.s
+index 40b30b4053..c58263254a 100644
+--- a/src/pkg/syscall/asm_netbsd_386.s
++++ b/src/pkg/syscall/asm_netbsd_386.s
+@@ -5,7 +5,7 @@
+ // TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
+ // so that go vet can check that they are correct.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ //
+ // System call support for 386, NetBSD
+diff --git a/src/pkg/syscall/asm_netbsd_amd64.s b/src/pkg/syscall/asm_netbsd_amd64.s
+index 94ad0284ad..8285382ce2 100644
+--- a/src/pkg/syscall/asm_netbsd_amd64.s
++++ b/src/pkg/syscall/asm_netbsd_amd64.s
+@@ -5,7 +5,7 @@
+ // TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
+ // so that go vet can check that they are correct.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ //
+ // System call support for AMD64, NetBSD
+diff --git a/src/pkg/syscall/asm_netbsd_arm.s b/src/pkg/syscall/asm_netbsd_arm.s
+index 2c0d65401a..b061180491 100644
+--- a/src/pkg/syscall/asm_netbsd_arm.s
++++ b/src/pkg/syscall/asm_netbsd_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ //
+ // System call support for ARM, NetBSD
+diff --git a/src/pkg/syscall/asm_openbsd_386.s b/src/pkg/syscall/asm_openbsd_386.s
+index 7dd2e373f7..17fbb65c80 100644
+--- a/src/pkg/syscall/asm_openbsd_386.s
++++ b/src/pkg/syscall/asm_openbsd_386.s
+@@ -5,7 +5,7 @@
+ // TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
+ // so that go vet can check that they are correct.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ //
+ // System call support for 386, OpenBSD
+diff --git a/src/pkg/syscall/asm_openbsd_amd64.s b/src/pkg/syscall/asm_openbsd_amd64.s
+index e127bf220c..fe61482cd5 100644
+--- a/src/pkg/syscall/asm_openbsd_amd64.s
++++ b/src/pkg/syscall/asm_openbsd_amd64.s
+@@ -5,7 +5,7 @@
+ // TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
+ // so that go vet can check that they are correct.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ //
+ // System call support for AMD64, OpenBSD
+diff --git a/src/pkg/syscall/asm_plan9_386.s b/src/pkg/syscall/asm_plan9_386.s
+index f8c07c407a..aaa8b9a692 100644
+--- a/src/pkg/syscall/asm_plan9_386.s
++++ b/src/pkg/syscall/asm_plan9_386.s
+@@ -5,7 +5,7 @@
+ // TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
+ // so that go vet can check that they are correct.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ //
+ // System call support for 386, Plan 9
+diff --git a/src/pkg/syscall/asm_plan9_amd64.s b/src/pkg/syscall/asm_plan9_amd64.s
+index 220ea68002..22dc5f9576 100644
+--- a/src/pkg/syscall/asm_plan9_amd64.s
++++ b/src/pkg/syscall/asm_plan9_amd64.s
+@@ -5,7 +5,7 @@
+ // TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
+ // so that go vet can check that they are correct.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ //
+ // System call support for Plan 9
+diff --git a/src/pkg/syscall/time_nacl_386.s b/src/pkg/syscall/time_nacl_386.s
+index b5a22d31b5..c0c89dccc0 100644
+--- a/src/pkg/syscall/time_nacl_386.s
++++ b/src/pkg/syscall/time_nacl_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·startTimer(SB),NOSPLIT,$0
+ 	JMP time·startTimer(SB)
+diff --git a/src/pkg/syscall/time_nacl_amd64p32.s b/src/pkg/syscall/time_nacl_amd64p32.s
+index b5a22d31b5..c0c89dccc0 100644
+--- a/src/pkg/syscall/time_nacl_amd64p32.s
++++ b/src/pkg/syscall/time_nacl_amd64p32.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·startTimer(SB),NOSPLIT,$0
+ 	JMP time·startTimer(SB)
+diff --git a/src/pkg/syscall/time_nacl_arm.s b/src/pkg/syscall/time_nacl_arm.s
+index 99baaf59b6..4f4b4d89ae 100644
+--- a/src/pkg/syscall/time_nacl_arm.s
++++ b/src/pkg/syscall/time_nacl_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT ·startTimer(SB),NOSPLIT,$0
+ 	B time·startTimer(SB)

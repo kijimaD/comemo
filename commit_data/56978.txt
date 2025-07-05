@@ -13,7 +13,34 @@ Date:   Mon Jun 5 16:36:38 2023 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/cmd/compile/internal/devirtualize/pgo.go           | 2 +-
  src/cmd/compile/internal/test/pgo_devirtualize_test.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/devirtualize/pgo.go b/src/cmd/compile/internal/devirtualize/pgo.go
+index 979483a46f..a340248543 100644
+--- a/src/cmd/compile/internal/devirtualize/pgo.go
++++ b/src/cmd/compile/internal/devirtualize/pgo.go
+@@ -265,7 +265,7 @@ func constructCallStat(p *pgo.Profile, fn *ir.Func, name string, call *ir.CallEx
+ // concretetyp.
+ func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *types.Type) ir.Node {
+ 	if base.Flag.LowerM != 0 {
+-		fmt.Printf("%v: PGO devirtualizing call to %v\n", ir.Line(call), callee)
++		fmt.Printf("%v: PGO devirtualizing %v to %v\n", ir.Line(call), call.X, callee)
+ 	}
+ 
+ 	// We generate an OINCALL of:
+diff --git a/src/cmd/compile/internal/test/pgo_devirtualize_test.go b/src/cmd/compile/internal/test/pgo_devirtualize_test.go
+index d524ddb3a2..49e95e9a80 100644
+--- a/src/cmd/compile/internal/test/pgo_devirtualize_test.go
++++ b/src/cmd/compile/internal/test/pgo_devirtualize_test.go
+@@ -68,7 +68,7 @@ go 1.19
+ 
+ 	got := make(map[devirtualization]struct{})
+ 
+-	devirtualizedLine := regexp.MustCompile(`(.*): PGO devirtualizing call to (.*)`)
++	devirtualizedLine := regexp.MustCompile(`(.*): PGO devirtualizing .* to (.*)`)
+ 
+ 	scanner := bufio.NewScanner(pr)
+ 	for scanner.Scan() {

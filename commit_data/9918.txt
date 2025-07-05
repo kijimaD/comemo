@@ -9,8 +9,71 @@ Date:   Tue Oct 11 11:11:47 2011 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5235055
-
+---
  src/cmd/godoc/godoc.go    |  9 +++++++--
  src/cmd/gotest/doc.go     | 12 ++++++++++++
  src/pkg/go/doc/example.go |  6 +++---
  3 files changed, 22 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 8238dbb304..cf2c0c4309 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -458,10 +458,15 @@ func comment_htmlFunc(comment string) string {
+ 	return buf.String()
+ }
+ 
+-func example_htmlFunc(name string, examples []*doc.Example, fset *token.FileSet) string {
++func example_htmlFunc(funcName string, examples []*doc.Example, fset *token.FileSet) string {
+ 	var buf bytes.Buffer
+ 	for _, eg := range examples {
+-		if eg.Name != name {
++		// accept Foo or Foo_.* for funcName == Foo
++		name := eg.Name
++		if i := strings.Index(name, "_"); i >= 0 {
++			name = name[:i]
++		}
++		if name != funcName {
+ 			continue
+ 		}
+ 
+diff --git a/src/cmd/gotest/doc.go b/src/cmd/gotest/doc.go
+index 3ec425b403..d60996103a 100644
+--- a/src/cmd/gotest/doc.go
++++ b/src/cmd/gotest/doc.go
+@@ -26,6 +26,18 @@ signature,
+ 
+ 	func BenchmarkXXX(b *testing.B) { ... }
+ 
++Example functions may also be written. They are similar to test functions but,
++instead of using *testing.T to report success or failure, their output to
++os.Stdout and os.Stderr is compared against their doc comment.
++
++	// The output of this example function.
++	func ExampleXXX() {
++		fmt.Println("The output of this example function.")
++	}
++
++Multiple example functions may be provided for a given name XXX if they are
++discriminated by a distinct suffix starting with "_", such as ExampleXXX_2.
++
+ See the documentation of the testing package for more information.
+ 
+ By default, gotest needs no arguments.  It compiles all the .go files
+diff --git a/src/pkg/go/doc/example.go b/src/pkg/go/doc/example.go
+index 008f2b86b9..7fdf0bcff6 100644
+--- a/src/pkg/go/doc/example.go
++++ b/src/pkg/go/doc/example.go
+@@ -41,9 +41,9 @@ func Examples(pkg *ast.Package) []*Example {
+ 	return examples
+ }
+ 
+-// isTest tells whether name looks like a test (or benchmark, according to prefix).
+-// It is a Test (say) if there is a character after Test that is not a lower-case letter.
+-// We don't want Testiness.
++// isTest tells whether name looks like a test, example, or benchmark.
++// It is a Test (say) if there is a character after Test that is not a
++// lower-case letter. (We don't want Testiness.)
+ func isTest(name, prefix string) bool {
+ 	if !strings.HasPrefix(name, prefix) {
+ 		return false

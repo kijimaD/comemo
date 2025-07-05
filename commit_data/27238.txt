@@ -26,7 +26,55 @@ Date:   Mon Mar 14 12:49:58 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/20771
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/internal/obj/data.go     | 14 ++++++++++++++
  src/cmd/internal/obj/x86/asm6.go |  3 +++
  2 files changed, 17 insertions(+)
+
+diff --git a/src/cmd/internal/obj/data.go b/src/cmd/internal/obj/data.go
+index 0bb8aa2a7e..a3cc178adc 100644
+--- a/src/cmd/internal/obj/data.go
++++ b/src/cmd/internal/obj/data.go
+@@ -53,6 +53,20 @@ func (s *LSym) Grow(lsiz int64) {
+ 	s.P = s.P[:siz]
+ }
+ 
++// GrowCap increases the capacity of s.P to c.
++func (s *LSym) GrowCap(c int64) {
++	if int64(cap(s.P)) >= c {
++		return
++	}
++	if s.P == nil {
++		s.P = make([]byte, 0, c)
++		return
++	}
++	b := make([]byte, len(s.P), c)
++	copy(b, s.P)
++	s.P = b
++}
++
+ // prepwrite prepares to write data of size siz into s at offset off.
+ func (s *LSym) prepwrite(ctxt *Link, off int64, siz int) {
+ 	if off < 0 || siz < 0 || off >= 1<<30 {
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 9f2a32724f..ec0b0a130b 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -1796,7 +1796,9 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
+ 	}
+ 
+ 	var q *obj.Prog
++	var count int64 // rough count of number of instructions
+ 	for p := s.Text; p != nil; p = p.Link {
++		count++
+ 		p.Back = 2 // use short branches first time through
+ 		q = p.Pcond
+ 		if q != nil && (q.Back&2 != 0) {
+@@ -1821,6 +1823,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
+ 			}
+ 		}
+ 	}
++	s.GrowCap(count * 5) // preallocate roughly 5 bytes per instruction
+ 
+ 	n := 0
+ 	var c int32

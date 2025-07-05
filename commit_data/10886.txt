@@ -7,8 +7,134 @@ Date:   Tue Dec 20 11:52:20 2011 +1100
     R=golang-dev, bsiegert, rsc
     CC=golang-dev
     https://golang.org/cl/5493078
-
+---
  src/pkg/os/file_posix.go   | 33 ---------------------------------
  src/pkg/os/file_unix.go    | 30 ++++++++++++++++++++++++++++++
  src/pkg/os/file_windows.go | 29 +++++++++++++++++++++++++++++
  3 files changed, 59 insertions(+), 33 deletions(-)
+
+diff --git a/src/pkg/os/file_posix.go b/src/pkg/os/file_posix.go
+index cbbce204dc..8231ef4817 100644
+--- a/src/pkg/os/file_posix.go
++++ b/src/pkg/os/file_posix.go
+@@ -24,39 +24,6 @@ func epipecheck(file *File, e error) {
+ 	}
+ }
+ 
+-// Remove removes the named file or directory.
+-func Remove(name string) error {
+-	// System call interface forces us to know
+-	// whether name is a file or directory.
+-	// Try both: it is cheaper on average than
+-	// doing a Stat plus the right one.
+-	e := syscall.Unlink(name)
+-	if e == nil {
+-		return nil
+-	}
+-	e1 := syscall.Rmdir(name)
+-	if e1 == nil {
+-		return nil
+-	}
+-
+-	// Both failed: figure out which error to return.
+-	// OS X and Linux differ on whether unlink(dir)
+-	// returns EISDIR, so can't use that.  However,
+-	// both agree that rmdir(file) returns ENOTDIR,
+-	// so we can use that to decide which error is real.
+-	// Rmdir might also return ENOTDIR if given a bad
+-	// file path, like /etc/passwd/foo, but in that case,
+-	// both errors will be ENOTDIR, so it's okay to
+-	// use the error from unlink.
+-	// For windows syscall.ENOTDIR is set
+-	// to syscall.ERROR_PATH_NOT_FOUND, hopefully it should
+-	// do the trick.
+-	if e1 != syscall.ENOTDIR {
+-		e = e1
+-	}
+-	return &PathError{"remove", name, e}
+-}
+-
+ // LinkError records an error during a link or symlink or rename
+ // system call and the paths that caused it.
+ type LinkError struct {
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index 38664d175c..cea305abe9 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -210,6 +210,36 @@ func Truncate(name string, size int64) error {
+ 	return nil
+ }
+ 
++// Remove removes the named file or directory.
++func Remove(name string) error {
++	// System call interface forces us to know
++	// whether name is a file or directory.
++	// Try both: it is cheaper on average than
++	// doing a Stat plus the right one.
++	e := syscall.Unlink(name)
++	if e == nil {
++		return nil
++	}
++	e1 := syscall.Rmdir(name)
++	if e1 == nil {
++		return nil
++	}
++
++	// Both failed: figure out which error to return.
++	// OS X and Linux differ on whether unlink(dir)
++	// returns EISDIR, so can't use that.  However,
++	// both agree that rmdir(file) returns ENOTDIR,
++	// so we can use that to decide which error is real.
++	// Rmdir might also return ENOTDIR if given a bad
++	// file path, like /etc/passwd/foo, but in that case,
++	// both errors will be ENOTDIR, so it's okay to
++	// use the error from unlink.
++	if e1 != syscall.ENOTDIR {
++		e = e1
++	}
++	return &PathError{"remove", name, e}
++}
++
+ // basename removes trailing slashes and the leading directory name from path name
+ func basename(name string) string {
+ 	i := len(name) - 1
+diff --git a/src/pkg/os/file_windows.go b/src/pkg/os/file_windows.go
+index bdb5d1d29c..4bf9c26038 100644
+--- a/src/pkg/os/file_windows.go
++++ b/src/pkg/os/file_windows.go
+@@ -281,6 +281,35 @@ func Truncate(name string, size int64) error {
+ 	return nil
+ }
+ 
++// Remove removes the named file or directory.
++func Remove(name string) error {
++	p := &syscall.StringToUTF16(name)[0]
++
++	// Go file interface forces us to know whether
++	// name is a file or directory. Try both.
++	e := syscall.DeleteFile(p)
++	if e == nil {
++		return nil
++	}
++	e1 := syscall.RemoveDirectory(p)
++	if e1 == nil {
++		return nil
++	}
++
++	// Both failed: figure out which error to return.
++	if e1 != e {
++		a, e2 := syscall.GetFileAttributes(p)
++		if e2 != nil {
++			e = e2
++		} else {
++			if a&syscall.FILE_ATTRIBUTE_DIRECTORY != 0 {
++				e = e1
++			}
++		}
++	}
++	return &PathError{"remove", name, e}
++}
++
+ // Pipe returns a connected pair of Files; reads from r return bytes written to w.
+ // It returns the files and an error, if any.
+ func Pipe() (r *File, w *File, err error) {

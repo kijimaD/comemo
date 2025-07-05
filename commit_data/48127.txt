@@ -18,6 +18,27 @@ Date:   Tue Apr 27 21:56:46 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/314412
     Trust: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/lib.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 043bf5a35e..7408526076 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1520,12 +1520,13 @@ func (ctxt *Link) hostlink() {
+ 	// even when linking with -static, causing a linker
+ 	// error when using GNU ld. So take out -rdynamic if
+ 	// we added it. We do it in this order, rather than
+-	// only adding -rdynamic later, so that -*extldflags
++	// only adding -rdynamic later, so that -extldflags
+ 	// can override -rdynamic without using -static.
++	// Similarly for -Wl,--dynamic-linker.
+ 	checkStatic := func(arg string) {
+ 		if ctxt.IsELF && arg == "-static" {
+ 			for i := range argv {
+-				if argv[i] == "-rdynamic" {
++				if argv[i] == "-rdynamic" || strings.HasPrefix(argv[i], "-Wl,--dynamic-linker,") {
+ 					argv[i] = "-static"
+ 				}
+ 			}

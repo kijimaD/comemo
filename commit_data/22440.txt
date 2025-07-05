@@ -12,7 +12,7 @@ Date:   Sun Mar 8 14:11:41 2015 +0100
     Change-Id: I537a1c3fe5b057c0812662677d0010bc8c468ffb
     Reviewed-on: https://go-review.googlesource.com/7047
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/asm/internal/arch/arch.go        |  86 +++++++++++++++++++++++
  src/cmd/asm/internal/arch/arm.go         |   8 ++-
  src/cmd/asm/internal/arch/arm64.go       | 114 +++++++++++++++++++++++++++++++
@@ -20,3 +20,419 @@ Date:   Sun Mar 8 14:11:41 2015 +0100
  src/cmd/asm/internal/asm/operand_test.go |  52 ++++++++++++++
  src/cmd/asm/internal/asm/parse.go        |   2 +-
  6 files changed, 291 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arch.go b/src/cmd/asm/internal/arch/arch.go
+index 1bbbd0802a..1f176dd966 100644
+--- a/src/cmd/asm/internal/arch/arch.go
++++ b/src/cmd/asm/internal/arch/arch.go
+@@ -7,6 +7,7 @@ package arch
+ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm"
++	"cmd/internal/obj/arm64"
+ 	"cmd/internal/obj/ppc64"
+ 	"cmd/internal/obj/x86"
+ 	"fmt"
+@@ -62,6 +63,8 @@ func Set(GOARCH string) *Arch {
+ 		return archX86(&x86.Linkamd64p32)
+ 	case "arm":
+ 		return archArm()
++	case "arm64":
++		return archArm64()
+ 	case "ppc64":
+ 		a := archPPC64()
+ 		a.LinkArch = &ppc64.Linkppc64
+@@ -201,6 +204,89 @@ func archArm() *Arch {
+ 	}
+ }
+ 
++func archArm64() *Arch {
++	register := make(map[string]int16)
++	// Create maps for easy lookup of instruction names etc.
++	// Note that there is no list of names as there is for 386 and amd64.
++	register[arm64.Rconv(arm64.REGSP)] = int16(arm64.REGSP)
++	for i := arm64.REG_R0; i <= arm64.REG_R31; i++ {
++		register[arm64.Rconv(i)] = int16(i)
++	}
++	for i := arm64.REG_F0; i <= arm64.REG_F31; i++ {
++		register[arm64.Rconv(i)] = int16(i)
++	}
++	for i := arm64.REG_V0; i <= arm64.REG_V31; i++ {
++		register[arm64.Rconv(i)] = int16(i)
++	}
++	register["LR"] = arm64.REGLINK
++	register["DAIF"] = arm64.REG_DAIF
++	register["NZCV"] = arm64.REG_NZCV
++	register["FPSR"] = arm64.REG_FPSR
++	register["FPCR"] = arm64.REG_FPCR
++	register["SPSR_EL1"] = arm64.REG_SPSR_EL1
++	register["ELR_EL1"] = arm64.REG_ELR_EL1
++	register["SPSR_EL2"] = arm64.REG_SPSR_EL2
++	register["ELR_EL2"] = arm64.REG_ELR_EL2
++	register["CurrentEL"] = arm64.REG_CurrentEL
++	register["SP_EL0"] = arm64.REG_SP_EL0
++	register["SPSel"] = arm64.REG_SPSel
++	register["DAIFSet"] = arm64.REG_DAIFSet
++	register["DAIFClr"] = arm64.REG_DAIFClr
++	// Conditional operators, like EQ, NE, etc.
++	register["EQ"] = arm64.COND_EQ
++	register["NE"] = arm64.COND_NE
++	register["HS"] = arm64.COND_HS
++	register["LO"] = arm64.COND_LO
++	register["MI"] = arm64.COND_MI
++	register["PL"] = arm64.COND_PL
++	register["VS"] = arm64.COND_VS
++	register["VC"] = arm64.COND_VC
++	register["HI"] = arm64.COND_HI
++	register["LS"] = arm64.COND_LS
++	register["GE"] = arm64.COND_GE
++	register["LT"] = arm64.COND_LT
++	register["GT"] = arm64.COND_GT
++	register["LE"] = arm64.COND_LE
++	register["AL"] = arm64.COND_AL
++	register["NV"] = arm64.COND_NV
++	// Pseudo-registers.
++	register["SB"] = RSB
++	register["FP"] = RFP
++	register["PC"] = RPC
++	register["SP"] = RSP
++	// Avoid unintentionally clobbering g using R28.
++	delete(register, "R28")
++	register["g"] = arm64.REG_R28
++	registerPrefix := map[string]bool{
++		"F": true,
++		"R": true,
++		"V": true,
++	}
++
++	instructions := make(map[string]int)
++	for i, s := range obj.Anames {
++		instructions[s] = i
++	}
++	for i, s := range arm64.Anames {
++		if i >= obj.A_ARCHSPECIFIC {
++			instructions[s] = i + obj.ABaseARM64
++		}
++	}
++	// Annoying aliases.
++	instructions["B"] = arm64.AB
++	instructions["BL"] = arm64.ABL
++
++	return &Arch{
++		LinkArch:       &arm64.Linkarm64,
++		Instructions:   instructions,
++		Register:       register,
++		RegisterPrefix: registerPrefix,
++		RegisterNumber: arm64RegisterNumber,
++		IsJump:         jumpArm64,
++	}
++
++}
++
+ func archPPC64() *Arch {
+ 	register := make(map[string]int16)
+ 	// Create maps for easy lookup of instruction names etc.
+diff --git a/src/cmd/asm/internal/arch/arm.go b/src/cmd/asm/internal/arch/arm.go
+index 451729fa60..2354d616d9 100644
+--- a/src/cmd/asm/internal/arch/arm.go
++++ b/src/cmd/asm/internal/arch/arm.go
+@@ -198,6 +198,10 @@ func ARMConditionCodes(prog *obj.Prog, cond string) bool {
+ // The input is a single string consisting of period-separated condition
+ // codes, such as ".P.W". An initial period is ignored.
+ func ParseARMCondition(cond string) (uint8, bool) {
++	return parseARMCondition(cond, armLS, armSCOND)
++}
++
++func parseARMCondition(cond string, ls, scond map[string]uint8) (uint8, bool) {
+ 	if strings.HasPrefix(cond, ".") {
+ 		cond = cond[1:]
+ 	}
+@@ -207,11 +211,11 @@ func ParseARMCondition(cond string) (uint8, bool) {
+ 	names := strings.Split(cond, ".")
+ 	bits := uint8(0)
+ 	for _, name := range names {
+-		if b, present := armLS[name]; present {
++		if b, present := ls[name]; present {
+ 			bits |= b
+ 			continue
+ 		}
+-		if b, present := armSCOND[name]; present {
++		if b, present := scond[name]; present {
+ 			bits = (bits &^ arm.C_SCOND) | b
+ 			continue
+ 		}
+diff --git a/src/cmd/asm/internal/arch/arm64.go b/src/cmd/asm/internal/arch/arm64.go
+new file mode 100644
+index 0000000000..a0a0082347
+--- /dev/null
++++ b/src/cmd/asm/internal/arch/arm64.go
+@@ -0,0 +1,114 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file encapsulates some of the odd characteristics of the ARM64
++// instruction set, to minimize its interaction with the core of the
++// assembler.
++
++package arch
++
++import (
++	"cmd/internal/obj"
++	"cmd/internal/obj/arm64"
++)
++
++var arm64LS = map[string]uint8{
++	"P": arm64.C_XPOST,
++	"W": arm64.C_XPRE,
++}
++
++var arm64Jump = map[string]bool{
++	"B":     true,
++	"BL":    true,
++	"BEQ":   true,
++	"BNE":   true,
++	"BCS":   true,
++	"BHS":   true,
++	"BCC":   true,
++	"BLO":   true,
++	"BMI":   true,
++	"BPL":   true,
++	"BVS":   true,
++	"BVC":   true,
++	"BHI":   true,
++	"BLS":   true,
++	"BGE":   true,
++	"BLT":   true,
++	"BGT":   true,
++	"BLE":   true,
++	"CALL":  true,
++	"CBZ":   true,
++	"CBZW":  true,
++	"CBNZ":  true,
++	"CBNZW": true,
++}
++
++func jumpArm64(word string) bool {
++	return arm64Jump[word]
++}
++
++// IsARM64CMP reports whether the op (as defined by an arm.A* constant) is
++// one of the comparison instructions that require special handling.
++func IsARM64CMP(op int) bool {
++	switch op {
++	case arm64.ACMN, arm64.ACMP, arm64.ATST,
++		arm64.ACMNW, arm64.ACMPW, arm64.ATSTW:
++		return true
++	}
++	return false
++}
++
++// IsARM64STLXR reports whether the op (as defined by an arm64.A*
++// constant) is one of the STLXR-like instructions that require special
++// handling.
++func IsARM64STLXR(op int) bool {
++	switch op {
++	case arm64.ASTLXRB, arm64.ASTLXRH, arm64.ASTLXRW, arm64.ASTLXR:
++		return true
++	}
++	return false
++}
++
++// ARM64Suffix handles the special suffix for the ARM64.
++// It returns a boolean to indicate success; failure means
++// cond was unrecognized.
++func ARM64Suffix(prog *obj.Prog, cond string) bool {
++	if cond == "" {
++		return true
++	}
++	bits, ok := ParseARM64Suffix(cond)
++	if !ok {
++		return false
++	}
++	prog.Scond = bits
++	return true
++}
++
++// ParseARM64Suffix parses the suffix attached to an ARM64 instruction.
++// The input is a single string consisting of period-separated condition
++// codes, such as ".P.W". An initial period is ignored.
++func ParseARM64Suffix(cond string) (uint8, bool) {
++	if cond == "" {
++		return 0, true
++	}
++	return parseARMCondition(cond, arm64LS, nil)
++}
++
++func arm64RegisterNumber(name string, n int16) (int16, bool) {
++	switch name {
++	case "F":
++		if 0 <= n && n <= 31 {
++			return arm64.REG_F0 + n, true
++		}
++	case "R":
++		if 0 <= n && n <= 30 { // not 31
++			return arm64.REG_R0 + n, true
++		}
++	case "V":
++		if 0 <= n && n <= 31 {
++			return arm64.REG_V0 + n, true
++		}
++	}
++	return 0, false
++}
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index 9019e3c91d..883044c64c 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -22,9 +22,20 @@ var testOut *bytes.Buffer // Gathers output when testing.
+ // append adds the Prog to the end of the program-thus-far.
+ // If doLabel is set, it also defines the labels collect for this Prog.
+ func (p *Parser) append(prog *obj.Prog, cond string, doLabel bool) {
+-	if p.arch.Thechar == '5' {
+-		if !arch.ARMConditionCodes(prog, cond) {
+-			p.errorf("unrecognized condition code .%q", cond)
++	if cond != "" {
++		switch p.arch.Thechar {
++		case '5':
++			if !arch.ARMConditionCodes(prog, cond) {
++				p.errorf("unrecognized condition code .%q", cond)
++			}
++
++		case '7':
++			if !arch.ARM64Suffix(prog, cond) {
++				p.errorf("unrecognized suffix .%q", cond)
++			}
++
++		default:
++			p.errorf("unrecognized suffix .%q", cond)
+ 		}
+ 	}
+ 	if p.firstProg == nil {
+@@ -307,14 +318,9 @@ func (p *Parser) asmJump(op int, cond string, a []obj.Addr) {
+ 	case 1:
+ 		target = &a[0]
+ 	case 2:
+-		if p.arch.Thechar == '9' {
+-			// Special 2-operand jumps.
+-			target = &a[1]
+-			prog.From = a[0]
+-			break
+-		}
+-		p.errorf("wrong number of arguments to %s instruction", obj.Aconv(op))
+-		return
++		// Special 2-operand jumps.
++		target = &a[1]
++		prog.From = a[0]
+ 	case 3:
+ 		if p.arch.Thechar == '9' {
+ 			// Special 3-operand jumps.
+@@ -457,6 +463,10 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
+ 				}
+ 				p.errorf("unrecognized addressing for %s", obj.Aconv(op))
+ 			}
++		} else if p.arch.Thechar == '7' && arch.IsARM64CMP(op) {
++			prog.From = a[0]
++			prog.Reg = p.getRegister(prog, op, &a[1])
++			break
+ 		}
+ 		prog.From = a[0]
+ 		prog.To = a[1]
+@@ -478,6 +488,17 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
+ 			prog.From = a[0]
+ 			prog.Reg = p.getRegister(prog, op, &a[1])
+ 			prog.To = a[2]
++		case '7':
++			// ARM64 instructions with one input and two outputs.
++			if arch.IsARM64STLXR(op) {
++				prog.From = a[0]
++				prog.To = a[1]
++				prog.To2 = a[2]
++				break
++			}
++			prog.From = a[0]
++			prog.Reg = p.getRegister(prog, op, &a[1])
++			prog.To = a[2]
+ 		case '6', '8':
+ 			prog.From = a[0]
+ 			prog.From3 = a[1]
+diff --git a/src/cmd/asm/internal/asm/operand_test.go b/src/cmd/asm/internal/asm/operand_test.go
+index d25e740313..1b10a3ad10 100644
+--- a/src/cmd/asm/internal/asm/operand_test.go
++++ b/src/cmd/asm/internal/asm/operand_test.go
+@@ -55,6 +55,10 @@ func TestARMOperandParser(t *testing.T) {
+ 	parser := newParser("arm")
+ 	testOperandParser(t, parser, armOperandTests)
+ }
++func TestARM64OperandParser(t *testing.T) {
++	parser := newParser("arm64")
++	testOperandParser(t, parser, arm64OperandTests)
++}
+ 
+ func TestPPC64OperandParser(t *testing.T) {
+ 	parser := newParser("ppc64")
+@@ -373,3 +377,51 @@ var ppc64OperandTests = []operandTest{
+ 	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
+ 	{"·trunc(SB)", "\"\".trunc(SB)"},
+ }
++
++var arm64OperandTests = []operandTest{
++	{"$0", "$0"},
++	{"$0.5", "$(0.5)"},
++	{"0(R26)", "(R26)"},
++	{"0(RSP)", "(RSP)"},
++	{"$1", "$1"},
++	{"$-1", "$-1"},
++	{"$1000", "$1000"},
++	{"$1000000000", "$1000000000"},
++	{"$0x7fff3c000", "$34358935552"},
++	{"$1234", "$1234"},
++	{"$~15", "$-16"},
++	{"$16", "$16"},
++	{"-16(RSP)", "-16(RSP)"},
++	{"16(RSP)", "16(RSP)"},
++	{"1(R1)", "1(R1)"},
++	{"-1(R4)", "-1(R4)"},
++	{"18740(R5)", "18740(R5)"},
++	{"$2", "$2"},
++	{"$-24(R4)", "$-24(R4)"},
++	{"-24(RSP)", "-24(RSP)"},
++	{"$24(RSP)", "$24(RSP)"},
++	{"-32(RSP)", "-32(RSP)"},
++	{"$48", "$48"},
++	{"$(-64*1024)(R7)", "$-65536(R7)"},
++	{"$(8-1)", "$7"},
++	{"a+0(FP)", "a(FP)"},
++	{"a1+8(FP)", "a1+8(FP)"},
++	{"·AddInt32(SB)", `"".AddInt32(SB)`},
++	{"runtime·divWVW(SB)", "runtime.divWVW(SB)"},
++	{"$argframe+0(FP)", "$argframe(FP)"},
++	{"$asmcgocall<>(SB)", "$asmcgocall<>(SB)"},
++	{"EQ", "EQ"},
++	{"F29", "F29"},
++	{"F3", "F3"},
++	{"F30", "F30"},
++	{"g", "g"},
++	{"LR", "R30"},
++	{"(LR)", "(R30)"},
++	{"R0", "R0"},
++	{"R10", "R10"},
++	{"R11", "R11"},
++	{"$4503601774854144.0", "$(4503601774854144.0)"},
++	{"$runtime·badsystemstack(SB)", "$runtime.badsystemstack(SB)"},
++	{"ZR", "ZR"},
++	{"(ZR)", "(ZR)"},
++}
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index 827165308d..2b6b97de50 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -116,7 +116,7 @@ func (p *Parser) line() bool {
+ 		for {
+ 			tok = p.lex.Next()
+ 			if len(operands) == 0 && len(items) == 0 {
+-				if p.arch.Thechar == '5' && tok == '.' {
++				if (p.arch.Thechar == '5' || p.arch.Thechar == '7') && tok == '.' {
+ 					// ARM conditionals.
+ 					tok = p.lex.Next()
+ 					str := p.lex.Text()

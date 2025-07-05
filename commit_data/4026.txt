@@ -14,10 +14,111 @@ Date:   Fri Nov 13 10:08:51 2009 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/152086
-
+---
  src/pkg/runtime/linux/386/sys.s   |  5 +++--
  src/pkg/runtime/linux/amd64/sys.s |  5 +++--
  src/pkg/runtime/malloc.cgo        | 13 ++++++++++++-
  src/pkg/runtime/mem.c             |  7 +++++++
  src/pkg/runtime/runtime.h         |  7 +++++++
  5 files changed, 32 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/runtime/linux/386/sys.s b/src/pkg/runtime/linux/386/sys.s
+index cc793b4208..097dfe9155 100755
+--- a/src/pkg/runtime/linux/386/sys.s
++++ b/src/pkg/runtime/linux/386/sys.s
+@@ -69,8 +69,9 @@ TEXT runtime·mmap(SB),7,$0
+ 	SHRL	$12, BP
+ 	INT	$0x80
+ 	CMPL	AX, $0xfffff001
+-	JLS	2(PC)
+-	INT	$3
++	JLS	3(PC)
++	NOTL	AX
++	INCL	AX
+ 	RET
+ 
+ // int32 futex(int32 *uaddr, int32 op, int32 val,
+diff --git a/src/pkg/runtime/linux/amd64/sys.s b/src/pkg/runtime/linux/amd64/sys.s
+index a78357fdbd..238a423b13 100644
+--- a/src/pkg/runtime/linux/amd64/sys.s
++++ b/src/pkg/runtime/linux/amd64/sys.s
+@@ -81,8 +81,9 @@ TEXT	runtime·mmap(SB),7,$0-32
+ 	MOVL	$9, AX			// syscall entry
+ 	SYSCALL
+ 	CMPQ	AX, $0xfffffffffffff001
+-	JLS	2(PC)
+-	CALL	notok(SB)
++	JLS	3(PC)
++	NOTQ	AX
++	INCQ	AX
+ 	RET
+ 
+ TEXT	notok(SB),7,$0
+diff --git a/src/pkg/runtime/malloc.cgo b/src/pkg/runtime/malloc.cgo
+index 6a769c9e08..3b755fc4ec 100644
+--- a/src/pkg/runtime/malloc.cgo
++++ b/src/pkg/runtime/malloc.cgo
+@@ -208,8 +208,19 @@ mallocinit(void)
+ void*
+ SysAlloc(uintptr n)
+ {
++	void *p;
+ 	mstats.sys += n;
+-	return runtime_mmap(nil, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, -1, 0);
++	p = runtime_mmap(nil, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, -1, 0);
++	if(p < (void*)4096) {
++		if(p == (void*)EACCES) {
++			printf("mmap: access denied\n");
++			printf("If you're running SELinux, enable execmem for this process.\n");
++		} else {
++			printf("mmap: errno=%p\n", p);
++		}
++		exit(2);
++	}
++	return p;
+ }
+ 
+ void
+diff --git a/src/pkg/runtime/mem.c b/src/pkg/runtime/mem.c
+index 616d1a0e18..3cb59700f8 100644
+--- a/src/pkg/runtime/mem.c
++++ b/src/pkg/runtime/mem.c
+@@ -20,6 +20,10 @@ brk(uint32 n)
+ 	byte *v;
+ 
+ 	v = runtime_mmap(nil, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, 0, 0);
++	if(v < (void *)4096) {
++		printf("mmap: errno=%p\n", v);
++		exit(2);
++	}
+ 	m->mem.nmmap += n;
+ 	return v;
+ }
+@@ -56,6 +60,9 @@ oldmal(uint32 n)
+ 			m->mem.hunk =
+ 				runtime_mmap(nil, NHUNK, PROT_READ|PROT_WRITE|PROT_EXEC,
+ 					MAP_ANON|MAP_PRIVATE, 0, 0);
++			if(m->mem.hunk < (void*)4096) {
++				*(uint32*)0xf1 = 0;
++			}
+ 			m->mem.nhunk = NHUNK;
+ 			m->mem.nmmap += NHUNK;
+ 		}
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 068e2bea14..83b47b7a33 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -446,6 +446,13 @@ void	notewakeup(Note*);
+ #define runtime_setcallerpc runtime·setcallerpc
+ #endif
+ 
++/*
++ * This is consistent across Linux and BSD.
++ * If a new OS is added that is different, move this to
++ * $GOOS/$GOARCH/defs.h.
++ */
++#define EACCES		13
++
+ /*
+  * low level go-called
+  */

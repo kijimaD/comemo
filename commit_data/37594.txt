@@ -11,7 +11,33 @@ Date:   Tue Jul 24 15:17:54 2018 -0700
     Change-Id: I7d11226f01d92288061f8e25980334b9bd82c41f
     Reviewed-on: https://go-review.googlesource.com/125649
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/debug/pe/file.go | 2 +-
  src/debug/pe/pe.go   | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/debug/pe/file.go b/src/debug/pe/file.go
+index 2f5efae4e6..1c308b3dc3 100644
+--- a/src/debug/pe/file.go
++++ b/src/debug/pe/file.go
+@@ -91,7 +91,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 		return nil, err
+ 	}
+ 	switch f.FileHeader.Machine {
+-	case IMAGE_FILE_MACHINE_UNKNOWN, IMAGE_FILE_MACHINE_AMD64, IMAGE_FILE_MACHINE_I386:
++	case IMAGE_FILE_MACHINE_UNKNOWN, IMAGE_FILE_MACHINE_ARMNT, IMAGE_FILE_MACHINE_AMD64, IMAGE_FILE_MACHINE_I386:
+ 	default:
+ 		return nil, fmt.Errorf("Unrecognised COFF file header machine value of 0x%x.", f.FileHeader.Machine)
+ 	}
+diff --git a/src/debug/pe/pe.go b/src/debug/pe/pe.go
+index e933ae1c2a..3f8099dfab 100644
+--- a/src/debug/pe/pe.go
++++ b/src/debug/pe/pe.go
+@@ -91,6 +91,7 @@ const (
+ 	IMAGE_FILE_MACHINE_AM33      = 0x1d3
+ 	IMAGE_FILE_MACHINE_AMD64     = 0x8664
+ 	IMAGE_FILE_MACHINE_ARM       = 0x1c0
++	IMAGE_FILE_MACHINE_ARMNT     = 0x1c4
+ 	IMAGE_FILE_MACHINE_ARM64     = 0xaa64
+ 	IMAGE_FILE_MACHINE_EBC       = 0xebc
+ 	IMAGE_FILE_MACHINE_I386      = 0x14c

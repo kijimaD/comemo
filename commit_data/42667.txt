@@ -9,6 +9,20 @@ Date:   Fri Jan 31 14:54:21 2020 -0800
     Change-Id: Icbb09d39959e7c71a48987b15bb82febe12c3a19
     Reviewed-on: https://go-review.googlesource.com/c/go/+/217303
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.14.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index a4767d786f..2f0e67ab68 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -598,7 +598,7 @@ TODO
+ <dl id="math/big"><dt><a href="/pkg/math/big">math/big</a></dt>
+   <dd>
+     <p><!-- CL 164972 -->
+-      The <a href="/pkg/math/big/#GCD"><code>GCD</code></a> function
++      The <a href="/pkg/math/big/#Int.GCD"><code>GCD</code></a> method
+       now allows the inputs <code>a</code> and <code>b</code> to be
+       zero or negative.
+     </p>

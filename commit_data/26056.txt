@@ -24,6 +24,39 @@ Date:   Mon Dec 14 15:19:07 2015 -0500
     Reviewed-by: Rick Hudson <rlh@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgc.go | 14 +++++++++-----
  1 file changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 878734b377..756d74e4fd 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1254,11 +1254,9 @@ func gcMarkTermination() {
+ 	// Free stack spans. This must be done between GC cycles.
+ 	systemstack(freeStackSpans)
+ 
+-	semrelease(&worldsema)
+-
+-	releasem(mp)
+-	mp = nil
+-
++	// Print gctrace before dropping worldsema. As soon as we drop
++	// worldsema another cycle could start and smash the stats
++	// we're trying to print.
+ 	if debug.gctrace > 0 {
+ 		util := int(memstats.gc_cpu_fraction * 100)
+ 
+@@ -1306,6 +1304,12 @@ func gcMarkTermination() {
+ 		printunlock()
+ 	}
+ 
++	semrelease(&worldsema)
++	// Careful: another GC cycle may start now.
++
++	releasem(mp)
++	mp = nil
++
+ 	// now that gc is done, kick off finalizer thread if needed
+ 	if !concurrentSweep {
+ 		// give the queued finalizers, if any, a chance to run

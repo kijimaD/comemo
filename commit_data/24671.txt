@@ -16,7 +16,148 @@ Date:   Fri Jun 19 10:49:42 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/11267
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/intconv.go | 16 ++++++++--------
  src/math/big/natconv.go | 32 ++++++++++++++++----------------
  2 files changed, 24 insertions(+), 24 deletions(-)
+
+diff --git a/src/math/big/intconv.go b/src/math/big/intconv.go
+index 9c68a22bed..737d176cb8 100644
+--- a/src/math/big/intconv.go
++++ b/src/math/big/intconv.go
+@@ -101,31 +101,31 @@ func (x *Int) Format(s fmt.State, ch rune) {
+ 	digits := x.abs.string(cs)
+ 
+ 	// number of characters for the three classes of number padding
+-	var left int   // space characters to left of digits for right justification ("%8d")
+-	var zeroes int // zero characters (actually cs[0]) as left-most digits ("%.8d")
+-	var right int  // space characters to right of digits for left justification ("%-8d")
++	var left int  // space characters to left of digits for right justification ("%8d")
++	var zeros int // zero characters (actually cs[0]) as left-most digits ("%.8d")
++	var right int // space characters to right of digits for left justification ("%-8d")
+ 
+ 	// determine number padding from precision: the least number of digits to output
+ 	precision, precisionSet := s.Precision()
+ 	if precisionSet {
+ 		switch {
+ 		case len(digits) < precision:
+-			zeroes = precision - len(digits) // count of zero padding
++			zeros = precision - len(digits) // count of zero padding
+ 		case digits == "0" && precision == 0:
+ 			return // print nothing if zero value (x == 0) and zero precision ("." or ".0")
+ 		}
+ 	}
+ 
+ 	// determine field pad from width: the least number of characters to output
+-	length := len(sign) + len(prefix) + zeroes + len(digits)
++	length := len(sign) + len(prefix) + zeros + len(digits)
+ 	if width, widthSet := s.Width(); widthSet && length < width { // pad as specified
+ 		switch d := width - length; {
+ 		case s.Flag('-'):
+ 			// pad on the right with spaces; supersedes '0' when both specified
+ 			right = d
+ 		case s.Flag('0') && !precisionSet:
+-			// pad with zeroes unless precision also specified
+-			zeroes = d
++			// pad with zeros unless precision also specified
++			zeros = d
+ 		default:
+ 			// pad on the left with spaces
+ 			left = d
+@@ -136,7 +136,7 @@ func (x *Int) Format(s fmt.State, ch rune) {
+ 	writeMultiple(s, " ", left)
+ 	writeMultiple(s, sign, 1)
+ 	writeMultiple(s, prefix, 1)
+-	writeMultiple(s, "0", zeroes)
++	writeMultiple(s, "0", zeros)
+ 	writeMultiple(s, digits, 1)
+ 	writeMultiple(s, " ", right)
+ }
+diff --git a/src/math/big/natconv.go b/src/math/big/natconv.go
+index 022dcfe38c..80da307147 100644
+--- a/src/math/big/natconv.go
++++ b/src/math/big/natconv.go
+@@ -252,14 +252,15 @@ func (x nat) hexString() string {
+ // by len(charset), which must be >= 2 and <= 256.
+ func (x nat) string(charset string) string {
+ 	b := Word(len(charset))
+-
+-	// special cases
+-	switch {
+-	case b < 2 || b > 256:
++	if b < 2 || b > 256 {
+ 		panic("invalid character set length")
+-	case len(x) == 0:
++	}
++
++	// x == 0
++	if len(x) == 0 {
+ 		return string(charset[0])
+ 	}
++	// len(x) > 0
+ 
+ 	// allocate buffer for conversion
+ 	i := int(float64(x.bitLen())/math.Log2(float64(b))) + 1 // off by one at most
+@@ -267,13 +268,13 @@ func (x nat) string(charset string) string {
+ 
+ 	// convert power of two and non power of two bases separately
+ 	if b == b&-b {
+-		// shift is base-b digit size in bits
++		// shift is base b digit size in bits
+ 		shift := trailingZeroBits(b) // shift > 0 because b >= 2
+-		mask := Word(1)<<shift - 1
+-		w := x[0]
++		mask := Word(1<<shift - 1)
++		w := x[0]         // current word
+ 		nbits := uint(_W) // number of unprocessed bits in w
+ 
+-		// convert less-significant words
++		// convert less-significant words (include leading zeros)
+ 		for k := 1; k < len(x); k++ {
+ 			// convert full digits
+ 			for nbits >= shift {
+@@ -289,7 +290,7 @@ func (x nat) string(charset string) string {
+ 				w = x[k]
+ 				nbits = _W
+ 			} else {
+-				// partial digit in current (k-1) and next (k) word
++				// partial digit in current word w (== x[k-1]) and next word x[k]
+ 				w |= x[k] << nbits
+ 				i--
+ 				s[i] = charset[w&mask]
+@@ -300,12 +301,11 @@ func (x nat) string(charset string) string {
+ 			}
+ 		}
+ 
+-		// convert digits of most-significant word (omit leading zeros)
+-		for nbits >= 0 && w != 0 {
++		// convert digits of most-significant word w (omit leading zeros)
++		for w != 0 {
+ 			i--
+ 			s[i] = charset[w&mask]
+ 			w >>= shift
+-			nbits -= shift
+ 		}
+ 
+ 	} else {
+@@ -409,9 +409,9 @@ func (q nat) convertWords(s []byte, charset string, b Word, ndigits int, bb Word
+ 		}
+ 	}
+ 
+-	// prepend high-order zeroes
++	// prepend high-order zeros
+ 	zero := charset[0]
+-	for i > 0 { // while need more leading zeroes
++	for i > 0 { // while need more leading zeros
+ 		i--
+ 		s[i] = zero
+ 	}
+@@ -425,7 +425,7 @@ var leafSize int = 8 // number of Word-size binary values treat as a monolithic
+ 
+ type divisor struct {
+ 	bbb     nat // divisor
+-	nbits   int // bit length of divisor (discounting leading zeroes) ~= log2(bbb)
++	nbits   int // bit length of divisor (discounting leading zeros) ~= log2(bbb)
+ 	ndigits int // digit length of divisor in terms of output base digits
+ }
+ 

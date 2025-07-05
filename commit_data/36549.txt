@@ -16,7 +16,38 @@ Date:   Fri May 4 17:16:49 2018 +0000
     Reviewed-on: https://go-review.googlesource.com/111516
     Reviewed-by: Dmitri Shuralyov <dmitri@shuralyov.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/request.go      | 3 ++-
  src/net/http/request_test.go | 5 +++++
  2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 1eb6d39067..997169ce69 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -858,7 +858,8 @@ func (r *Request) BasicAuth() (username, password string, ok bool) {
+ // "Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==" returns ("Aladdin", "open sesame", true).
+ func parseBasicAuth(auth string) (username, password string, ok bool) {
+ 	const prefix = "Basic "
+-	if !strings.HasPrefix(auth, prefix) {
++	// Case insensitive prefix match. See Issue 22736.
++	if len(auth) < len(prefix) || !strings.EqualFold(auth[:len(prefix)], prefix) {
+ 		return
+ 	}
+ 	c, err := base64.StdEncoding.DecodeString(auth[len(prefix):])
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index aaf9d5cb9b..7a83ae5b1c 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -607,6 +607,11 @@ var parseBasicAuthTests = []struct {
+ 	ok                         bool
+ }{
+ 	{"Basic " + base64.StdEncoding.EncodeToString([]byte("Aladdin:open sesame")), "Aladdin", "open sesame", true},
++
++	// Case doesn't matter:
++	{"BASIC " + base64.StdEncoding.EncodeToString([]byte("Aladdin:open sesame")), "Aladdin", "open sesame", true},
++	{"basic " + base64.StdEncoding.EncodeToString([]byte("Aladdin:open sesame")), "Aladdin", "open sesame", true},
++
+ 	{"Basic " + base64.StdEncoding.EncodeToString([]byte("Aladdin:open:sesame")), "Aladdin", "open:sesame", true},
+ 	{"Basic " + base64.StdEncoding.EncodeToString([]byte(":")), "", "", true},
+ 	{"Basic" + base64.StdEncoding.EncodeToString([]byte("Aladdin:open sesame")), "", "", false},

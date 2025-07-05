@@ -7,6 +7,20 @@ Date:   Sat Jun 2 23:57:38 2012 -0400
     TBR=lvd
     CC=golang-dev
     https://golang.org/cl/6275048
-
+---
  src/cmd/5g/gsubr.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 74266cb15f..80a173404c 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -1143,7 +1143,7 @@ gregshift(int as, Node *lhs, int32 stype, Node *reg, Node *rhs)
+ 
+ // Generate an instruction referencing *n
+ // to force segv on nil pointer dereference.
+-bsdvoid
++void
+ checkref(Node *n)
+ {
+ 	Node m1, m2;

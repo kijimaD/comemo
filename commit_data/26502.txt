@@ -10,8 +10,180 @@ Date:   Thu Jan 28 16:11:56 2016 -0800
     Change-Id: Ibdb60aa2fcf478f1726b3be0fcaa06b04433eb67
     Reviewed-on: https://go-review.googlesource.com/19081
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go         |  1 +
  src/cmd/compile/internal/ssa/func_test.go  | 32 ++++++++++++++----------------
  src/cmd/compile/internal/ssa/shift_test.go |  6 ++++++
  3 files changed, 22 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index ae747324be..6bdf0c69e0 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -224,6 +224,7 @@ func buildssa(fn *Node) *ssa.Func {
+ 	}
+ 
+ 	if nerrors > 0 {
++		s.f.Free()
+ 		return nil
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ssa/func_test.go b/src/cmd/compile/internal/ssa/func_test.go
+index 1dc134d8a8..590804182a 100644
+--- a/src/cmd/compile/internal/ssa/func_test.go
++++ b/src/cmd/compile/internal/ssa/func_test.go
+@@ -139,8 +139,7 @@ type fun struct {
+ // supplied to one of the Bloc functions. Each of the bloc names and
+ // valu names should be unique across the Fun.
+ func Fun(c *Config, entry string, blocs ...bloc) fun {
+-	f := new(Func)
+-	f.Config = c
++	f := c.NewFunc()
+ 	blocks := make(map[string]*Block)
+ 	values := make(map[string]*Value)
+ 	// Create all the blocks and values.
+@@ -282,11 +281,10 @@ func TestArgs(t *testing.T) {
+ }
+ 
+ func TestEquiv(t *testing.T) {
+-	c := testConfig(t)
+ 	equivalentCases := []struct{ f, g fun }{
+ 		// simple case
+ 		{
+-			Fun(c, "entry",
++			Fun(testConfig(t), "entry",
+ 				Bloc("entry",
+ 					Valu("a", OpConst64, TypeInt64, 14, nil),
+ 					Valu("b", OpConst64, TypeInt64, 26, nil),
+@@ -295,7 +293,7 @@ func TestEquiv(t *testing.T) {
+ 					Goto("exit")),
+ 				Bloc("exit",
+ 					Exit("mem"))),
+-			Fun(c, "entry",
++			Fun(testConfig(t), "entry",
+ 				Bloc("entry",
+ 					Valu("a", OpConst64, TypeInt64, 14, nil),
+ 					Valu("b", OpConst64, TypeInt64, 26, nil),
+@@ -307,7 +305,7 @@ func TestEquiv(t *testing.T) {
+ 		},
+ 		// block order changed
+ 		{
+-			Fun(c, "entry",
++			Fun(testConfig(t), "entry",
+ 				Bloc("entry",
+ 					Valu("a", OpConst64, TypeInt64, 14, nil),
+ 					Valu("b", OpConst64, TypeInt64, 26, nil),
+@@ -316,7 +314,7 @@ func TestEquiv(t *testing.T) {
+ 					Goto("exit")),
+ 				Bloc("exit",
+ 					Exit("mem"))),
+-			Fun(c, "entry",
++			Fun(testConfig(t), "entry",
+ 				Bloc("exit",
+ 					Exit("mem")),
+ 				Bloc("entry",
+@@ -338,26 +336,26 @@ func TestEquiv(t *testing.T) {
+ 	differentCases := []struct{ f, g fun }{
+ 		// different shape
+ 		{
+-			Fun(c, "entry",
++			Fun(testConfig(t), "entry",
+ 				Bloc("entry",
+ 					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+ 					Goto("exit")),
+ 				Bloc("exit",
+ 					Exit("mem"))),
+-			Fun(c, "entry",
++			Fun(testConfig(t), "entry",
+ 				Bloc("entry",
+ 					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+ 					Exit("mem"))),
+ 		},
+ 		// value order changed
+ 		{
+-			Fun(c, "entry",
++			Fun(testConfig(t), "entry",
+ 				Bloc("entry",
+ 					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+ 					Valu("b", OpConst64, TypeInt64, 26, nil),
+ 					Valu("a", OpConst64, TypeInt64, 14, nil),
+ 					Exit("mem"))),
+-			Fun(c, "entry",
++			Fun(testConfig(t), "entry",
+ 				Bloc("entry",
+ 					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+ 					Valu("a", OpConst64, TypeInt64, 14, nil),
+@@ -366,12 +364,12 @@ func TestEquiv(t *testing.T) {
+ 		},
+ 		// value auxint different
+ 		{
+-			Fun(c, "entry",
++			Fun(testConfig(t), "entry",
+ 				Bloc("entry",
+ 					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+ 					Valu("a", OpConst64, TypeInt64, 14, nil),
+ 					Exit("mem"))),
+-			Fun(c, "entry",
++			Fun(testConfig(t), "entry",
+ 				Bloc("entry",
+ 					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+ 					Valu("a", OpConst64, TypeInt64, 26, nil),
+@@ -379,12 +377,12 @@ func TestEquiv(t *testing.T) {
+ 		},
+ 		// value aux different
+ 		{
+-			Fun(c, "entry",
++			Fun(testConfig(t), "entry",
+ 				Bloc("entry",
+ 					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+ 					Valu("a", OpConst64, TypeInt64, 0, 14),
+ 					Exit("mem"))),
+-			Fun(c, "entry",
++			Fun(testConfig(t), "entry",
+ 				Bloc("entry",
+ 					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+ 					Valu("a", OpConst64, TypeInt64, 0, 26),
+@@ -392,14 +390,14 @@ func TestEquiv(t *testing.T) {
+ 		},
+ 		// value args different
+ 		{
+-			Fun(c, "entry",
++			Fun(testConfig(t), "entry",
+ 				Bloc("entry",
+ 					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+ 					Valu("a", OpConst64, TypeInt64, 14, nil),
+ 					Valu("b", OpConst64, TypeInt64, 26, nil),
+ 					Valu("sum", OpAdd64, TypeInt64, 0, nil, "a", "b"),
+ 					Exit("mem"))),
+-			Fun(c, "entry",
++			Fun(testConfig(t), "entry",
+ 				Bloc("entry",
+ 					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+ 					Valu("a", OpConst64, TypeInt64, 0, nil),
+diff --git a/src/cmd/compile/internal/ssa/shift_test.go b/src/cmd/compile/internal/ssa/shift_test.go
+index 9e7f0585a6..68d5f2ef70 100644
+--- a/src/cmd/compile/internal/ssa/shift_test.go
++++ b/src/cmd/compile/internal/ssa/shift_test.go
+@@ -12,16 +12,22 @@ func TestShiftConstAMD64(t *testing.T) {
+ 	c := testConfig(t)
+ 	fun := makeConstShiftFunc(c, 18, OpLsh64x64, TypeUInt64)
+ 	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SHLQconst: 1, OpAMD64CMPQconst: 0, OpAMD64ANDQconst: 0})
++	fun.f.Free()
+ 	fun = makeConstShiftFunc(c, 66, OpLsh64x64, TypeUInt64)
+ 	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SHLQconst: 0, OpAMD64CMPQconst: 0, OpAMD64ANDQconst: 0})
++	fun.f.Free()
+ 	fun = makeConstShiftFunc(c, 18, OpRsh64Ux64, TypeUInt64)
+ 	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SHRQconst: 1, OpAMD64CMPQconst: 0, OpAMD64ANDQconst: 0})
++	fun.f.Free()
+ 	fun = makeConstShiftFunc(c, 66, OpRsh64Ux64, TypeUInt64)
+ 	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SHRQconst: 0, OpAMD64CMPQconst: 0, OpAMD64ANDQconst: 0})
++	fun.f.Free()
+ 	fun = makeConstShiftFunc(c, 18, OpRsh64x64, TypeInt64)
+ 	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SARQconst: 1, OpAMD64CMPQconst: 0})
++	fun.f.Free()
+ 	fun = makeConstShiftFunc(c, 66, OpRsh64x64, TypeInt64)
+ 	checkOpcodeCounts(t, fun.f, map[Op]int{OpAMD64SARQconst: 1, OpAMD64CMPQconst: 0})
++	fun.f.Free()
+ }
+ 
+ func makeConstShiftFunc(c *Config, amount int64, op Op, typ Type) fun {

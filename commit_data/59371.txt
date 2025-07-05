@@ -13,6 +13,22 @@ Date:   Thu Mar 7 12:35:33 2024 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/archive/tar/reader.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index 0811779add..8483fb52a2 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -811,9 +811,7 @@ func (sr sparseFileReader) physicalRemaining() int64 {
+ type zeroReader struct{}
+ 
+ func (zeroReader) Read(b []byte) (int, error) {
+-	for i := range b {
+-		b[i] = 0
+-	}
++	clear(b)
+ 	return len(b), nil
+ }
+ 

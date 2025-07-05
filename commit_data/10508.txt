@@ -9,7 +9,37 @@ Date:   Sat Nov 26 08:32:55 2011 -0800
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5432079
-
+---
  src/pkg/text/template/exec_test.go | 2 +-
  src/pkg/text/template/template.go  | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/text/template/exec_test.go b/src/pkg/text/template/exec_test.go
+index 1cfa0d1842..cf3c415728 100644
+--- a/src/pkg/text/template/exec_test.go
++++ b/src/pkg/text/template/exec_test.go
+@@ -677,7 +677,7 @@ func TestTree(t *testing.T) {
+ 	}
+ 	const expect = "[1[2[3[4]][5[6]]][7[8[9]][10[11]]]]"
+ 	// First by looking up the template.
+-	err = tmpl.Template("tree").Execute(&b, tree)
++	err = tmpl.Lookup("tree").Execute(&b, tree)
+ 	if err != nil {
+ 		t.Fatal("exec error:", err)
+ 	}
+diff --git a/src/pkg/text/template/template.go b/src/pkg/text/template/template.go
+index 27b8707151..aa559fa8af 100644
+--- a/src/pkg/text/template/template.go
++++ b/src/pkg/text/template/template.go
+@@ -136,9 +136,9 @@ func (t *Template) Funcs(funcMap FuncMap) *Template {
+ 	return t
+ }
+ 
+-// Template returns the template with the given name that is associated with t,
++// Lookup returns the template with the given name that is associated with t,
+ // or nil if there is no such template.
+-func (t *Template) Template(name string) *Template {
++func (t *Template) Lookup(name string) *Template {
+ 	return t.tmpl[name]
+ }
+ 

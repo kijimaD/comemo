@@ -9,7 +9,49 @@ Date:   Thu Aug 13 18:10:38 2009 -0700
     DELTA=9  (4 added, 3 deleted, 2 changed)
     OCL=33238
     CL=33251
-
+---
  src/pkg/runtime/386/traceback.c   | 5 +++--
  src/pkg/runtime/amd64/traceback.c | 6 +++---
  2 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/runtime/386/traceback.c b/src/pkg/runtime/386/traceback.c
+index 22a1bee5d7..e4eb0c0841 100644
+--- a/src/pkg/runtime/386/traceback.c
++++ b/src/pkg/runtime/386/traceback.c
+@@ -60,7 +60,9 @@ traceback(byte *pc0, byte *sp, G *g)
+ 		printf("%S", f->name);
+ 		if(pc > f->entry)
+ 			printf("+%p", (uintptr)(pc - f->entry));
+-		printf(" %S:%d\n", f->src, funcline(f, pc-1));	// -1 to get to CALL instr.
++		if(n > 0)
++			pc--;	// get to CALL instruction
++		printf(" %S:%d\n", f->src, funcline(f, pc));
+ 		printf("\t%S(", f->name);
+ 		for(i = 0; i < f->args; i++) {
+ 			if(i != 0)
+@@ -144,4 +146,3 @@ runtime·Caller(int32 n, uintptr retpc, String retfile, int32 retline, bool retb
+ 	FLUSH(&retline);
+ 	FLUSH(&retbool);
+ }
+-
+diff --git a/src/pkg/runtime/amd64/traceback.c b/src/pkg/runtime/amd64/traceback.c
+index df4e787a75..81310396f2 100644
+--- a/src/pkg/runtime/amd64/traceback.c
++++ b/src/pkg/runtime/amd64/traceback.c
+@@ -57,7 +57,9 @@ traceback(byte *pc0, byte *sp, G *g)
+ 		printf("%S", f->name);
+ 		if(pc > f->entry)
+ 			printf("+%p", (uintptr)(pc - f->entry));
+-		printf(" %S:%d\n", f->src, funcline(f, pc-1));	// -1 to get to CALL instr.
++		if(n > 0)
++			pc--;	// get to CALL instruction
++		printf(" %S:%d\n", f->src, funcline(f, pc));
+ 		printf("\t%S(", f->name);
+ 		for(i = 0; i < f->args; i++) {
+ 			if(i != 0)
+@@ -141,5 +143,3 @@ runtime·Caller(int32 n, uint64 retpc, String retfile, int32 retline, bool retbo
+ 	FLUSH(&retline);
+ 	FLUSH(&retbool);
+ }
+-
+-

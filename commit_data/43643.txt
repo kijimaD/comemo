@@ -13,6 +13,46 @@ Date:   Sat Mar 7 09:35:12 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/regexp/syntax/parse.go | 16 +++++-----------
  1 file changed, 5 insertions(+), 11 deletions(-)
+
+diff --git a/src/regexp/syntax/parse.go b/src/regexp/syntax/parse.go
+index 8c6d43a706..7b4030935a 100644
+--- a/src/regexp/syntax/parse.go
++++ b/src/regexp/syntax/parse.go
+@@ -177,16 +177,16 @@ func (p *parser) maybeConcat(r rune, flags Flags) bool {
+ 	return false // did not push r
+ }
+ 
+-// newLiteral returns a new OpLiteral Regexp with the given flags
+-func (p *parser) newLiteral(r rune, flags Flags) *Regexp {
++// literal pushes a literal regexp for the rune r on the stack.
++func (p *parser) literal(r rune) {
+ 	re := p.newRegexp(OpLiteral)
+-	re.Flags = flags
+-	if flags&FoldCase != 0 {
++	re.Flags = p.flags
++	if p.flags&FoldCase != 0 {
+ 		r = minFoldRune(r)
+ 	}
+ 	re.Rune0[0] = r
+ 	re.Rune = re.Rune0[:1]
+-	return re
++	p.push(re)
+ }
+ 
+ // minFoldRune returns the minimum rune fold-equivalent to r.
+@@ -204,12 +204,6 @@ func minFoldRune(r rune) rune {
+ 	return min
+ }
+ 
+-// literal pushes a literal regexp for the rune r on the stack
+-// and returns that regexp.
+-func (p *parser) literal(r rune) {
+-	p.push(p.newLiteral(r, p.flags))
+-}
+-
+ // op pushes a regexp with the given op onto the stack
+ // and returns that regexp.
+ func (p *parser) op(op Op) *Regexp {

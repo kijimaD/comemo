@@ -14,10 +14,115 @@ Date:   Tue Jul 2 15:36:59 2019 -0400
     Change-Id: Idbd89bedd63fea746769f2687f3f31c9767e5ec0
     Reviewed-on: https://go-review.googlesource.com/c/go/+/184718
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  test/fixedbugs/issue32901.dir/a.go    | 15 +++++++++++++++
  test/fixedbugs/issue32901.dir/b.go    | 15 +++++++++++++++
  test/fixedbugs/issue32901.dir/c.go    | 17 +++++++++++++++++
  test/fixedbugs/issue32901.dir/main.go | 18 ++++++++++++++++++
  test/fixedbugs/issue32901.go          |  9 +++++++++
  5 files changed, 74 insertions(+)
+
+diff --git a/test/fixedbugs/issue32901.dir/a.go b/test/fixedbugs/issue32901.dir/a.go
+new file mode 100644
+index 0000000000..54ed7713f6
+--- /dev/null
++++ b/test/fixedbugs/issue32901.dir/a.go
+@@ -0,0 +1,15 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type T struct { x int }
++
++func F() interface{} {
++	return [2]T{}
++}
++
++func P() interface{} {
++	return &[2]T{}
++}
+diff --git a/test/fixedbugs/issue32901.dir/b.go b/test/fixedbugs/issue32901.dir/b.go
+new file mode 100644
+index 0000000000..932d7b0afa
+--- /dev/null
++++ b/test/fixedbugs/issue32901.dir/b.go
+@@ -0,0 +1,15 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++func F() interface{} {
++	return a.F()
++}
++
++func P() interface{} {
++	return a.P()
++}
+diff --git a/test/fixedbugs/issue32901.dir/c.go b/test/fixedbugs/issue32901.dir/c.go
+new file mode 100644
+index 0000000000..5f31c7ff02
+--- /dev/null
++++ b/test/fixedbugs/issue32901.dir/c.go
+@@ -0,0 +1,17 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package c
++
++import "./b"
++
++func F() interface{} {
++	go func(){}() // make it non-inlineable
++	return b.F()
++}
++
++func P() interface{} {
++	go func(){}() // make it non-inlineable
++	return b.P()
++}
+diff --git a/test/fixedbugs/issue32901.dir/main.go b/test/fixedbugs/issue32901.dir/main.go
+new file mode 100644
+index 0000000000..28bb8cde28
+--- /dev/null
++++ b/test/fixedbugs/issue32901.dir/main.go
+@@ -0,0 +1,18 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "./c"
++import "reflect"
++
++func main() {
++	x := c.F()
++	p := c.P()
++	t := reflect.PtrTo(reflect.TypeOf(x))
++	tp := reflect.TypeOf(p)
++	if t != tp {
++		panic("FAIL")
++	}
++}
+diff --git a/test/fixedbugs/issue32901.go b/test/fixedbugs/issue32901.go
+new file mode 100644
+index 0000000000..004c3da79e
+--- /dev/null
++++ b/test/fixedbugs/issue32901.go
+@@ -0,0 +1,9 @@
++// rundir
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 32901: type descriptor equality bug in gccgo.
++
++package ignored

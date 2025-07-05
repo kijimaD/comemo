@@ -9,8 +9,137 @@ Date:   Thu Oct 12 10:57:04 2023 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/rttype/rttype.go | 26 ++++++++++++++++++++++++++
  src/cmd/compile/internal/walk/expr.go     | 16 +++++++---------
  src/cmd/compile/internal/walk/switch.go   | 20 +++++++++++---------
  3 files changed, 44 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/rttype/rttype.go b/src/cmd/compile/internal/rttype/rttype.go
+index 1a614c8678..cdc399d9cf 100644
+--- a/src/cmd/compile/internal/rttype/rttype.go
++++ b/src/cmd/compile/internal/rttype/rttype.go
+@@ -38,6 +38,10 @@ var Method *types.Type
+ var StructField *types.Type
+ var UncommonType *types.Type
+ 
++// Type switches and asserts
++var InterfaceSwitch *types.Type
++var TypeAssert *types.Type
++
+ func Init() {
+ 	// Note: this has to be called explicitly instead of being
+ 	// an init function so it runs after the types package has
+@@ -57,6 +61,9 @@ func Init() {
+ 	StructField = fromReflect(reflect.TypeOf(abi.StructField{}))
+ 	UncommonType = fromReflect(reflect.TypeOf(abi.UncommonType{}))
+ 
++	InterfaceSwitch = fromReflect(reflect.TypeOf(abi.InterfaceSwitch{}))
++	TypeAssert = fromReflect(reflect.TypeOf(abi.TypeAssert{}))
++
+ 	// Make sure abi functions are correct. These functions are used
+ 	// by the linker which doesn't have the ability to do type layout,
+ 	// so we check the functions it uses here.
+@@ -87,6 +94,8 @@ func fromReflect(rt reflect.Type) *types.Type {
+ // must be CalcSize'd before using.
+ func reflectToType(rt reflect.Type) *types.Type {
+ 	switch rt.Kind() {
++	case reflect.Bool:
++		return types.Types[types.TBOOL]
+ 	case reflect.Int:
+ 		return types.Types[types.TINT]
+ 	case reflect.Int32:
+@@ -181,6 +190,12 @@ func (c Cursor) WriteInt32(val int32) {
+ 	}
+ 	objw.Uint32(c.lsym, int(c.offset), uint32(val))
+ }
++func (c Cursor) WriteBool(val bool) {
++	if c.typ.Kind() != types.TBOOL {
++		base.Fatalf("can't write bool, it has kind %s", c.typ.Kind())
++	}
++	objw.Bool(c.lsym, int(c.offset), val)
++}
+ 
+ // WriteSymPtrOff writes a "pointer" to the given symbol. The symbol
+ // is encoded as a uint32 offset from the start of the section.
+@@ -255,3 +270,14 @@ func (a ArrayCursor) Elem(i int) Cursor {
+ 	}
+ 	return Cursor{lsym: a.c.lsym, offset: a.c.offset + int64(i)*a.c.typ.Size(), typ: a.c.typ}
+ }
++
++// ModifyArray converts a cursor pointing at a type [k]T to a cursor pointing
++// at a type [n]T.
++// Also returns the size delta, aka (n-k)*sizeof(T).
++func (c Cursor) ModifyArray(n int) (ArrayCursor, int64) {
++	if c.typ.Kind() != types.TARRAY {
++		base.Fatalf("can't call ModifyArray on non-array %v", c.typ)
++	}
++	k := c.typ.NumElem()
++	return ArrayCursor{c: Cursor{lsym: c.lsym, offset: c.offset, typ: c.typ.Elem()}, n: n}, (int64(n) - k) * c.typ.Elem().Size()
++}
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index d80b02ae48..6c3d9fcd37 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -14,6 +14,7 @@ import (
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/objw"
+ 	"cmd/compile/internal/reflectdata"
++	"cmd/compile/internal/rttype"
+ 	"cmd/compile/internal/staticdata"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+@@ -738,15 +739,12 @@ func makeTypeAssertDescriptor(target *types.Type, canFail bool) *obj.LSym {
+ 	// Allocate an internal/abi.TypeAssert descriptor for that call.
+ 	lsym := types.LocalPkg.Lookup(fmt.Sprintf(".typeAssert.%d", typeAssertGen)).LinksymABI(obj.ABI0)
+ 	typeAssertGen++
+-	off := 0
+-	off = objw.SymPtr(lsym, off, typecheck.LookupRuntimeVar("emptyTypeAssertCache"), 0)
+-	off = objw.SymPtr(lsym, off, reflectdata.TypeSym(target).Linksym(), 0)
+-	off = objw.Bool(lsym, off, canFail)
+-	off += types.PtrSize - 1
+-	objw.Global(lsym, int32(off), obj.LOCAL)
+-	// Set the type to be just a single pointer, as the cache pointer is the
+-	// only one that GC needs to see.
+-	lsym.Gotype = reflectdata.TypeLinksym(types.Types[types.TUINT8].PtrTo())
++	c := rttype.NewCursor(lsym, 0, rttype.TypeAssert)
++	c.Field("Cache").WritePtr(typecheck.LookupRuntimeVar("emptyTypeAssertCache"))
++	c.Field("Inter").WritePtr(reflectdata.TypeSym(target).Linksym())
++	c.Field("CanFail").WriteBool(canFail)
++	objw.Global(lsym, int32(rttype.TypeAssert.Size()), obj.LOCAL)
++	lsym.Gotype = reflectdata.TypeLinksym(rttype.TypeAssert)
+ 	return lsym
+ }
+ 
+diff --git a/src/cmd/compile/internal/walk/switch.go b/src/cmd/compile/internal/walk/switch.go
+index b406f502aa..b67d0114c7 100644
+--- a/src/cmd/compile/internal/walk/switch.go
++++ b/src/cmd/compile/internal/walk/switch.go
+@@ -527,16 +527,18 @@ func walkSwitchType(sw *ir.SwitchStmt) {
+ 			// Build an internal/abi.InterfaceSwitch descriptor to pass to the runtime.
+ 			lsym := types.LocalPkg.Lookup(fmt.Sprintf(".interfaceSwitch.%d", interfaceSwitchGen)).LinksymABI(obj.ABI0)
+ 			interfaceSwitchGen++
+-			off := 0
+-			off = objw.SymPtr(lsym, off, typecheck.LookupRuntimeVar("emptyInterfaceSwitchCache"), 0)
+-			off = objw.Uintptr(lsym, off, uint64(len(interfaceCases)))
+-			for _, c := range interfaceCases {
+-				off = objw.SymPtr(lsym, off, reflectdata.TypeSym(c.typ.Type()).Linksym(), 0)
++			c := rttype.NewCursor(lsym, 0, rttype.InterfaceSwitch)
++			c.Field("Cache").WritePtr(typecheck.LookupRuntimeVar("emptyInterfaceSwitchCache"))
++			c.Field("NCases").WriteInt(int64(len(interfaceCases)))
++			array, sizeDelta := c.Field("Cases").ModifyArray(len(interfaceCases))
++			for i, c := range interfaceCases {
++				array.Elem(i).WritePtr(reflectdata.TypeSym(c.typ.Type()).Linksym())
+ 			}
+-			objw.Global(lsym, int32(off), obj.LOCAL)
+-			// Set the type to be just a single pointer, as the cache pointer is the
+-			// only one that GC needs to see.
+-			lsym.Gotype = reflectdata.TypeLinksym(types.Types[types.TUINT8].PtrTo())
++			objw.Global(lsym, int32(rttype.InterfaceSwitch.Size()+sizeDelta), obj.LOCAL)
++			// The GC only needs to see the first pointer in the structure (all the others
++			// are to static locations). So the InterfaceSwitch type itself is fine, even
++			// though it might not cover the whole array we wrote above.
++			lsym.Gotype = reflectdata.TypeLinksym(rttype.InterfaceSwitch)
+ 
+ 			// Call runtime to do switch
+ 			// case, itab = runtime.interfaceSwitch(&descriptor, typeof(arg))

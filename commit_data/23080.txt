@@ -18,7 +18,7 @@ Date:   Thu Apr 16 14:33:25 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/8945
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/conf.go                      | 237 +++++++++++++++++++++++++++++++++
  src/net/conf_test.go                 | 245 +++++++++++++++++++++++++++++++++++
  src/net/dnsclient_unix.go            |  90 +++++++++----
@@ -30,3 +30,1309 @@ Date:   Thu Apr 16 14:33:25 2015 -0700
  src/net/parse.go                     | 129 ++++++++++++++++++
  src/net/testdata/openbsd-resolv.conf |   5 +
  10 files changed, 1079 insertions(+), 53 deletions(-)
+
+diff --git a/src/net/conf.go b/src/net/conf.go
+new file mode 100644
+index 0000000000..9e8facac5b
+--- /dev/null
++++ b/src/net/conf.go
+@@ -0,0 +1,237 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++
++package net
++
++import (
++	"os"
++	"runtime"
++	"sync"
++	"syscall"
++)
++
++// conf represents a system's network configuration.
++type conf struct {
++	// forceCgoLookupHost forces CGO to always be used, if available.
++	forceCgoLookupHost bool
++
++	// machine has an /etc/mdns.allow file
++	hasMDNSAllow bool
++
++	goos string // the runtime.GOOS, to ease testing
++
++	nss    *nssConf
++	resolv *dnsConfig
++}
++
++var (
++	confOnce sync.Once // guards init of confVal via initConfVal
++	confVal  = &conf{goos: runtime.GOOS}
++)
++
++// systemConf returns the machine's network configuration.
++func systemConf() *conf {
++	confOnce.Do(initConfVal)
++	return confVal
++}
++
++func initConfVal() {
++	// Darwin pops up annoying dialog boxes if programs try to do
++	// their own DNS requests. So always use cgo instead, which
++	// avoids that.
++	if runtime.GOOS == "darwin" {
++		confVal.forceCgoLookupHost = true
++		return
++	}
++
++	// If any environment-specified resolver options are specified,
++	// force cgo. Note that LOCALDOMAIN can change behavior merely
++	// by being specified with the empty string.
++	_, localDomainDefined := syscall.Getenv("LOCALDOMAIN")
++	if os.Getenv("RES_OPTIONS") != "" || os.Getenv("HOSTALIASES") != "" ||
++		localDomainDefined {
++		confVal.forceCgoLookupHost = true
++		return
++	}
++
++	// OpenBSD apparently lets you override the location of resolv.conf
++	// with ASR_CONFIG. If we notice that, defer to libc.
++	if runtime.GOOS == "openbsd" && os.Getenv("ASR_CONFIG") != "" {
++		confVal.forceCgoLookupHost = true
++		return
++	}
++
++	if runtime.GOOS != "openbsd" {
++		confVal.nss = parseNSSConfFile("/etc/nsswitch.conf")
++	}
++
++	if resolv, err := dnsReadConfig("/etc/resolv.conf"); err == nil {
++		confVal.resolv = resolv
++	} else if !os.IsNotExist(err.(*DNSConfigError).Err) {
++		// If we can't read the resolv.conf file, assume it
++		// had something important in it and defer to cgo.
++		// libc's resolver might then fail too, but at least
++		// it wasn't our fault.
++		confVal.forceCgoLookupHost = true
++	}
++
++	if _, err := os.Stat("/etc/mdns.allow"); err == nil {
++		confVal.hasMDNSAllow = true
++	}
++}
++
++// hostLookupOrder determines which strategy to use to resolve hostname.
++func (c *conf) hostLookupOrder(hostname string) hostLookupOrder {
++	if c.forceCgoLookupHost {
++		return hostLookupCgo
++	}
++	if byteIndex(hostname, '\\') != -1 || byteIndex(hostname, '%') != -1 {
++		// Don't deal with special form hostnames with backslashes
++		// or '%'.
++		return hostLookupCgo
++	}
++
++	// OpenBSD is unique and doesn't use nsswitch.conf.
++	// It also doesn't support mDNS.
++	if c.goos == "openbsd" {
++		// OpenBSD's resolv.conf manpage says that a non-existent
++		// resolv.conf means "lookup" defaults to only "files",
++		// without DNS lookups.
++		if c.resolv == nil {
++			return hostLookupFiles
++		}
++		lookup := c.resolv.lookup
++		if len(lookup) == 0 {
++			// http://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-current/man5/resolv.conf.5
++			// "If the lookup keyword is not used in the
++			// system's resolv.conf file then the assumed
++			// order is 'bind file'"
++			return hostLookupDNSFiles
++		}
++		if len(lookup) < 1 || len(lookup) > 2 {
++			return hostLookupCgo
++		}
++		switch lookup[0] {
++		case "bind":
++			if len(lookup) == 2 {
++				if lookup[1] == "file" {
++					return hostLookupDNSFiles
++				}
++				return hostLookupCgo
++			}
++			return hostLookupDNS
++		case "file":
++			if len(lookup) == 2 {
++				if lookup[1] == "bind" {
++					return hostLookupFilesDNS
++				}
++				return hostLookupCgo
++			}
++			return hostLookupFiles
++		default:
++			return hostLookupCgo
++		}
++	}
++	if c.resolv != nil && c.resolv.unknownOpt {
++		return hostLookupCgo
++	}
++
++	hasDot := byteIndex(hostname, '.') != -1
++
++	// Canonicalize the hostname by removing any trailing dot.
++	if stringsHasSuffix(hostname, ".") {
++		hostname = hostname[:len(hostname)-1]
++	}
++	if stringsHasSuffixFold(hostname, ".local") {
++		// Per RFC 6762, the ".local" TLD is special.  And
++		// because Go's native resolver doesn't do mDNS or
++		// similar local resolution mechanisms, assume that
++		// libc might (via Avahi, etc) and use cgo.
++		return hostLookupCgo
++	}
++
++	nss := c.nss
++	srcs := nss.sources["hosts"]
++	// If /etc/nsswitch.conf doesn't exist or doesn't specify any
++	// sources for "hosts", assume Go's DNS will work fine.
++	if os.IsNotExist(nss.err) || (nss.err == nil && len(srcs) == 0) {
++		if c.goos == "solaris" {
++			// illumos defaults to "nis [NOTFOUND=return] files"
++			return hostLookupCgo
++		}
++		if c.goos == "linux" {
++			// glibc says the default is "dns [!UNAVAIL=return] files"
++			// http://www.gnu.org/software/libc/manual/html_node/Notes-on-NSS-Configuration-File.html.
++			return hostLookupDNSFiles
++		}
++		return hostLookupFilesDNS
++	}
++	if nss.err != nil {
++		// We failed to parse or open nsswitch.conf, so
++		// conservatively assume we should use cgo if it's
++		// available.
++		return hostLookupCgo
++	}
++
++	var mdnsSource, filesSource, dnsSource bool
++	var first string
++	for _, src := range srcs {
++		if src.source == "myhostname" {
++			if hasDot {
++				continue
++			}
++			return hostLookupCgo
++		}
++		if src.source == "files" || src.source == "dns" {
++			if !src.standardCriteria() {
++				return hostLookupCgo // non-standard; let libc deal with it.
++			}
++			if src.source == "files" {
++				filesSource = true
++			} else if src.source == "dns" {
++				dnsSource = true
++			}
++			if first == "" {
++				first = src.source
++			}
++			continue
++		}
++		if stringsHasPrefix(src.source, "mdns") {
++			// e.g. "mdns4", "mdns4_minimal"
++			// We already returned true before if it was *.local.
++			// libc wouldn't have found a hit on this anyway.
++			mdnsSource = true
++			continue
++		}
++		// Some source we don't know how to deal with.
++		return hostLookupCgo
++	}
++
++	// We don't parse mdns.allow files. They're rare. If one
++	// exists, it might list other TLDs (besides .local) or even
++	// '*', so just let libc deal with it.
++	if mdnsSource && c.hasMDNSAllow {
++		return hostLookupCgo
++	}
++
++	// Cases where Go can handle it without cgo and C thread
++	// overhead.
++	switch {
++	case filesSource && dnsSource:
++		if first == "files" {
++			return hostLookupFilesDNS
++		} else {
++			return hostLookupDNSFiles
++		}
++	case filesSource:
++		return hostLookupFiles
++	case dnsSource:
++		return hostLookupDNS
++	}
++
++	// Something weird. Let libc deal with it.
++	return hostLookupCgo
++}
+diff --git a/src/net/conf_test.go b/src/net/conf_test.go
+new file mode 100644
+index 0000000000..46e91bc0a1
+--- /dev/null
++++ b/src/net/conf_test.go
+@@ -0,0 +1,245 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++
++package net
++
++import (
++	"os"
++	"strings"
++	"testing"
++)
++
++type nssHostTest struct {
++	host string
++	want hostLookupOrder
++}
++
++func nssStr(s string) *nssConf { return parseNSSConf(strings.NewReader(s)) }
++
++func TestConfHostLookupOrder(t *testing.T) {
++	tests := []struct {
++		name      string
++		c         *conf
++		goos      string
++		hostTests []nssHostTest
++	}{
++		{
++			name: "force",
++			c: &conf{
++				forceCgoLookupHost: true,
++				nss:                nssStr("foo: bar"),
++			},
++			hostTests: []nssHostTest{
++				{"foo.local", hostLookupCgo},
++				{"google.com", hostLookupCgo},
++			},
++		},
++		{
++			name: "ubuntu_trusty_avahi",
++			c: &conf{
++				nss: nssStr("hosts: files mdns4_minimal [NOTFOUND=return] dns mdns4"),
++			},
++			hostTests: []nssHostTest{
++				{"foo.local", hostLookupCgo},
++				{"foo.local.", hostLookupCgo},
++				{"foo.LOCAL", hostLookupCgo},
++				{"foo.LOCAL.", hostLookupCgo},
++				{"google.com", hostLookupFilesDNS},
++			},
++		},
++		{
++			name: "freebsdlinux_no_resolv_conf",
++			c: &conf{
++				goos: "freebsd",
++				nss:  nssStr("foo: bar"),
++			},
++			hostTests: []nssHostTest{{"google.com", hostLookupFilesDNS}},
++		},
++		// On OpenBSD, no resolv.conf means no DNS.
++		{
++			name: "openbsd_no_resolv_conf",
++			c: &conf{
++				goos: "openbsd",
++			},
++			hostTests: []nssHostTest{{"google.com", hostLookupFiles}},
++		},
++		{
++			name: "solaris_no_nsswitch",
++			c: &conf{
++				goos: "solaris",
++				nss:  &nssConf{err: os.ErrNotExist},
++			},
++			hostTests: []nssHostTest{{"google.com", hostLookupCgo}},
++		},
++		{
++			name: "openbsd_lookup_bind_file",
++			c: &conf{
++				goos:   "openbsd",
++				resolv: &dnsConfig{lookup: []string{"bind", "file"}},
++			},
++			hostTests: []nssHostTest{
++				{"google.com", hostLookupDNSFiles},
++				{"foo.local", hostLookupDNSFiles},
++			},
++		},
++		{
++			name: "openbsd_lookup_file_bind",
++			c: &conf{
++				goos:   "openbsd",
++				resolv: &dnsConfig{lookup: []string{"file", "bind"}},
++			},
++			hostTests: []nssHostTest{{"google.com", hostLookupFilesDNS}},
++		},
++		{
++			name: "openbsd_lookup_bind",
++			c: &conf{
++				goos:   "openbsd",
++				resolv: &dnsConfig{lookup: []string{"bind"}},
++			},
++			hostTests: []nssHostTest{{"google.com", hostLookupDNS}},
++		},
++		{
++			name: "openbsd_lookup_file",
++			c: &conf{
++				goos:   "openbsd",
++				resolv: &dnsConfig{lookup: []string{"file"}},
++			},
++			hostTests: []nssHostTest{{"google.com", hostLookupFiles}},
++		},
++		{
++			name: "openbsd_lookup_yp",
++			c: &conf{
++				goos:   "openbsd",
++				resolv: &dnsConfig{lookup: []string{"file", "bind", "yp"}},
++			},
++			hostTests: []nssHostTest{{"google.com", hostLookupCgo}},
++		},
++		{
++			name: "openbsd_lookup_two",
++			c: &conf{
++				goos:   "openbsd",
++				resolv: &dnsConfig{lookup: []string{"file", "foo"}},
++			},
++			hostTests: []nssHostTest{{"google.com", hostLookupCgo}},
++		},
++		{
++			name: "openbsd_lookup_empty",
++			c: &conf{
++				goos:   "openbsd",
++				resolv: &dnsConfig{lookup: nil},
++			},
++			hostTests: []nssHostTest{{"google.com", hostLookupDNSFiles}},
++		},
++		// glibc lacking an nsswitch.conf, per
++		// http://www.gnu.org/software/libc/manual/html_node/Notes-on-NSS-Configuration-File.html
++		{
++			name: "linux_no_nsswitch.conf",
++			c: &conf{
++				goos: "linux",
++				nss:  &nssConf{err: os.ErrNotExist},
++			},
++			hostTests: []nssHostTest{{"google.com", hostLookupDNSFiles}},
++		},
++		{
++			name: "files_mdns_dns",
++			c:    &conf{nss: nssStr("hosts: files mdns dns")},
++			hostTests: []nssHostTest{
++				{"x.com", hostLookupFilesDNS},
++				{"x.local", hostLookupCgo},
++			},
++		},
++		{
++			name: "dns_special_hostnames",
++			c:    &conf{nss: nssStr("hosts: dns")},
++			hostTests: []nssHostTest{
++				{"x.com", hostLookupDNS},
++				{"x\\.com", hostLookupCgo},     // punt on weird glibc escape
++				{"foo.com%en0", hostLookupCgo}, // and IPv6 zones
++			},
++		},
++		{
++			name: "mdns_allow",
++			c: &conf{
++				nss:          nssStr("hosts: files mdns dns"),
++				hasMDNSAllow: true,
++			},
++			hostTests: []nssHostTest{
++				{"x.com", hostLookupCgo},
++				{"x.local", hostLookupCgo},
++			},
++		},
++		{
++			name: "files_dns",
++			c:    &conf{nss: nssStr("hosts: files dns")},
++			hostTests: []nssHostTest{
++				{"x.com", hostLookupFilesDNS},
++				{"x", hostLookupFilesDNS},
++				{"x.local", hostLookupCgo},
++			},
++		},
++		{
++			name: "dns_files",
++			c:    &conf{nss: nssStr("hosts: dns files")},
++			hostTests: []nssHostTest{
++				{"x.com", hostLookupDNSFiles},
++				{"x", hostLookupDNSFiles},
++				{"x.local", hostLookupCgo},
++			},
++		},
++		{
++			name: "something_custom",
++			c:    &conf{nss: nssStr("hosts: dns files something_custom")},
++			hostTests: []nssHostTest{
++				{"x.com", hostLookupCgo},
++			},
++		},
++		{
++			name: "myhostname",
++			c:    &conf{nss: nssStr("hosts: files dns myhostname")},
++			hostTests: []nssHostTest{
++				{"x.com", hostLookupFilesDNS},
++				{"somehostname", hostLookupCgo},
++			},
++		},
++		{
++			name: "ubuntu14.04.02",
++			c:    &conf{nss: nssStr("hosts: files myhostname mdns4_minimal [NOTFOUND=return] dns mdns4")},
++			hostTests: []nssHostTest{
++				{"x.com", hostLookupFilesDNS},
++				{"somehostname", hostLookupCgo},
++			},
++		},
++		// Debian Squeeze is just "dns,files", but lists all
++		// the default criteria for dns, but then has a
++		// non-standard but redundant notfound=return for the
++		// files.
++		{
++			name: "debian_squeeze",
++			c:    &conf{nss: nssStr("hosts: dns [success=return notfound=continue unavail=continue tryagain=continue] files [notfound=return]")},
++			hostTests: []nssHostTest{
++				{"x.com", hostLookupDNSFiles},
++				{"somehostname", hostLookupDNSFiles},
++			},
++		},
++		{
++			name: "resolv.conf-unknown",
++			c: &conf{
++				nss:    nssStr("foo: bar"),
++				resolv: &dnsConfig{unknownOpt: true},
++			},
++			hostTests: []nssHostTest{{"google.com", hostLookupCgo}},
++		},
++	}
++	for _, tt := range tests {
++		for _, ht := range tt.hostTests {
++			gotOrder := tt.c.hostLookupOrder(ht.host)
++			if gotOrder != ht.want {
++				t.Errorf("%s: useCgoLookupHost(%q) = %v; want %v", tt.name, ht.host, gotOrder, ht.want)
++			}
++		}
++	}
++
++}
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index 3dd22f2804..55647ebb21 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -20,6 +20,7 @@ import (
+ 	"io"
+ 	"math/rand"
+ 	"os"
++	"strconv"
+ 	"sync"
+ 	"time"
+ )
+@@ -332,6 +333,35 @@ func lookup(name string, qtype uint16) (cname string, rrs []dnsRR, err error) {
+ 	return
+ }
+ 
++// hostLookupOrder specifies the order of LookupHost lookup strategies.
++// It is basically a simplified representation of nsswitch.conf.
++// "files" means /etc/hosts.
++type hostLookupOrder int
++
++const (
++	// hostLookupCgo means defer to cgo.
++	hostLookupCgo      hostLookupOrder = iota
++	hostLookupFilesDNS                 // files first
++	hostLookupDNSFiles                 // dns first
++	hostLookupFiles                    // only files
++	hostLookupDNS                      // only DNS
++)
++
++var lookupOrderName = map[hostLookupOrder]string{
++	hostLookupCgo:      "cgo",
++	hostLookupFilesDNS: "files,dns",
++	hostLookupDNSFiles: "dns,files",
++	hostLookupFiles:    "files",
++	hostLookupDNS:      "dns",
++}
++
++func (o hostLookupOrder) String() string {
++	if s, ok := lookupOrderName[o]; ok {
++		return s
++	}
++	return "hostLookupOrder=" + strconv.Itoa(int(o)) + "??"
++}
++
+ // goLookupHost is the native Go implementation of LookupHost.
+ // Used only if cgoLookupHost refuses to handle the request
+ // (that is, only if cgoLookupHost is the stub in cgo_stub.go).
+@@ -339,12 +369,18 @@ func lookup(name string, qtype uint16) (cname string, rrs []dnsRR, err error) {
+ // depending on our lookup code, so that Go and C get the same
+ // answers.
+ func goLookupHost(name string) (addrs []string, err error) {
+-	// Use entries from /etc/hosts if they match.
+-	addrs = lookupStaticHost(name)
+-	if len(addrs) > 0 {
+-		return
++	return goLookupHostOrder(name, hostLookupFilesDNS)
++}
++
++func goLookupHostOrder(name string, order hostLookupOrder) (addrs []string, err error) {
++	if order == hostLookupFilesDNS || order == hostLookupFiles {
++		// Use entries from /etc/hosts if they match.
++		addrs = lookupStaticHost(name)
++		if len(addrs) > 0 || order == hostLookupFiles {
++			return
++		}
+ 	}
+-	ips, err := goLookupIP(name)
++	ips, err := goLookupIPOrder(name, order)
+ 	if err != nil {
+ 		return
+ 	}
+@@ -355,25 +391,30 @@ func goLookupHost(name string) (addrs []string, err error) {
+ 	return
+ }
+ 
++// lookup entries from /etc/hosts
++func goLookupIPFiles(name string) (addrs []IPAddr) {
++	for _, haddr := range lookupStaticHost(name) {
++		haddr, zone := splitHostZone(haddr)
++		if ip := ParseIP(haddr); ip != nil {
++			addr := IPAddr{IP: ip, Zone: zone}
++			addrs = append(addrs, addr)
++		}
++	}
++	return
++}
++
+ // goLookupIP is the native Go implementation of LookupIP.
+ // Used only if cgoLookupIP refuses to handle the request
+ // (that is, only if cgoLookupIP is the stub in cgo_stub.go).
+-// Normally we let cgo use the C library resolver instead of
+-// depending on our lookup code, so that Go and C get the same
+-// answers.
+ func goLookupIP(name string) (addrs []IPAddr, err error) {
+-	// Use entries from /etc/hosts if possible.
+-	haddrs := lookupStaticHost(name)
+-	if len(haddrs) > 0 {
+-		for _, haddr := range haddrs {
+-			haddr, zone := splitHostZone(haddr)
+-			if ip := ParseIP(haddr); ip != nil {
+-				addr := IPAddr{IP: ip, Zone: zone}
+-				addrs = append(addrs, addr)
+-			}
+-		}
+-		if len(addrs) > 0 {
+-			return
++	return goLookupIPOrder(name, hostLookupFilesDNS)
++}
++
++func goLookupIPOrder(name string, order hostLookupOrder) (addrs []IPAddr, err error) {
++	if order == hostLookupFilesDNS || order == hostLookupFiles {
++		addrs = goLookupIPFiles(name)
++		if len(addrs) > 0 || order == hostLookupFiles {
++			return addrs, nil
+ 		}
+ 	}
+ 	type racer struct {
+@@ -409,8 +450,13 @@ func goLookupIP(name string) (addrs []IPAddr, err error) {
+ 			}
+ 		}
+ 	}
+-	if len(addrs) == 0 && lastErr != nil {
+-		return nil, lastErr
++	if len(addrs) == 0 {
++		if lastErr != nil {
++			return nil, lastErr
++		}
++		if order == hostLookupDNSFiles {
++			addrs = goLookupIPFiles(name)
++		}
+ 	}
+ 	return addrs, nil
+ }
+diff --git a/src/net/dnsconfig_unix.go b/src/net/dnsconfig_unix.go
+index 66ab7c4dd3..abaef7b5e7 100644
+--- a/src/net/dnsconfig_unix.go
++++ b/src/net/dnsconfig_unix.go
+@@ -9,12 +9,14 @@
+ package net
+ 
+ type dnsConfig struct {
+-	servers  []string // servers to use
+-	search   []string // suffixes to append to local name
+-	ndots    int      // number of dots in name to trigger absolute lookup
+-	timeout  int      // seconds before giving up on packet
+-	attempts int      // lost packets before giving up on server
+-	rotate   bool     // round robin among servers
++	servers    []string // servers to use
++	search     []string // suffixes to append to local name
++	ndots      int      // number of dots in name to trigger absolute lookup
++	timeout    int      // seconds before giving up on packet
++	attempts   int      // lost packets before giving up on server
++	rotate     bool     // round robin among servers
++	unknownOpt bool     // anything unknown was encountered
++	lookup     []string // OpenBSD top-level database "lookup" order
+ }
+ 
+ // See resolv.conf(5) on a Linux machine.
+@@ -32,6 +34,10 @@ func dnsReadConfig(filename string) (*dnsConfig, error) {
+ 		attempts: 2,
+ 	}
+ 	for line, ok := file.readLine(); ok; line, ok = file.readLine() {
++		if len(line) > 0 && (line[0] == ';' || line[0] == '#') {
++			// comment.
++			continue
++		}
+ 		f := getFields(line)
+ 		if len(f) < 1 {
+ 			continue
+@@ -61,8 +67,7 @@ func dnsReadConfig(filename string) (*dnsConfig, error) {
+ 			}
+ 
+ 		case "options": // magic options
+-			for i := 1; i < len(f); i++ {
+-				s := f[i]
++			for _, s := range f[1:] {
+ 				switch {
+ 				case hasPrefix(s, "ndots:"):
+ 					n, _, _ := dtoi(s, 6)
+@@ -84,8 +89,19 @@ func dnsReadConfig(filename string) (*dnsConfig, error) {
+ 					conf.attempts = n
+ 				case s == "rotate":
+ 					conf.rotate = true
++				default:
++					conf.unknownOpt = true
+ 				}
+ 			}
++
++		case "lookup":
++			// OpenBSD option:
++			// http://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-current/man5/resolv.conf.5
++			// "the legal space-separated values are: bind, file, yp"
++			conf.lookup = f[1:]
++
++		default:
++			conf.unknownOpt = true
+ 		}
+ 	}
+ 	return conf, nil
+diff --git a/src/net/dnsconfig_unix_test.go b/src/net/dnsconfig_unix_test.go
+index 94fb0c32e2..f4b118568a 100644
+--- a/src/net/dnsconfig_unix_test.go
++++ b/src/net/dnsconfig_unix_test.go
+@@ -13,22 +13,23 @@ import (
+ 
+ var dnsReadConfigTests = []struct {
+ 	name string
+-	conf dnsConfig
++	want *dnsConfig
+ }{
+ 	{
+ 		name: "testdata/resolv.conf",
+-		conf: dnsConfig{
+-			servers:  []string{"8.8.8.8", "2001:4860:4860::8888", "fe80::1%lo0"},
+-			search:   []string{"localdomain"},
+-			ndots:    5,
+-			timeout:  10,
+-			attempts: 3,
+-			rotate:   true,
++		want: &dnsConfig{
++			servers:    []string{"8.8.8.8", "2001:4860:4860::8888", "fe80::1%lo0"},
++			search:     []string{"localdomain"},
++			ndots:      5,
++			timeout:    10,
++			attempts:   3,
++			rotate:     true,
++			unknownOpt: true, // the "options attempts 3" line
+ 		},
+ 	},
+ 	{
+ 		name: "testdata/domain-resolv.conf",
+-		conf: dnsConfig{
++		want: &dnsConfig{
+ 			servers:  []string{"8.8.8.8"},
+ 			search:   []string{"localdomain"},
+ 			ndots:    1,
+@@ -38,7 +39,7 @@ var dnsReadConfigTests = []struct {
+ 	},
+ 	{
+ 		name: "testdata/search-resolv.conf",
+-		conf: dnsConfig{
++		want: &dnsConfig{
+ 			servers:  []string{"8.8.8.8"},
+ 			search:   []string{"test", "invalid"},
+ 			ndots:    1,
+@@ -48,10 +49,21 @@ var dnsReadConfigTests = []struct {
+ 	},
+ 	{
+ 		name: "testdata/empty-resolv.conf",
+-		conf: dnsConfig{
++		want: &dnsConfig{
++			ndots:    1,
++			timeout:  5,
++			attempts: 2,
++		},
++	},
++	{
++		name: "testdata/openbsd-resolv.conf",
++		want: &dnsConfig{
+ 			ndots:    1,
+ 			timeout:  5,
+ 			attempts: 2,
++			lookup:   []string{"file", "bind"},
++			servers:  []string{"169.254.169.254", "10.240.0.1"},
++			search:   []string{"c.symbolic-datum-552.internal."},
+ 		},
+ 	},
+ }
+@@ -62,8 +74,8 @@ func TestDNSReadConfig(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+-		if !reflect.DeepEqual(conf, &tt.conf) {
+-			t.Errorf("got %v; want %v", conf, &tt.conf)
++		if !reflect.DeepEqual(conf, tt.want) {
++			t.Errorf("%s:\n got: %+v\nwant: %+v", tt.name, conf, tt.want)
+ 		}
+ 	}
+ }
+diff --git a/src/net/lookup_unix.go b/src/net/lookup_unix.go
+index f9c2393851..6484414e4b 100644
+--- a/src/net/lookup_unix.go
++++ b/src/net/lookup_unix.go
+@@ -49,20 +49,28 @@ func lookupProtocol(name string) (int, error) {
+ 	return proto, nil
+ }
+ 
+-func lookupHost(host string) ([]string, error) {
+-	addrs, err, ok := cgoLookupHost(host)
+-	if !ok {
+-		addrs, err = goLookupHost(host)
++func lookupHost(host string) (addrs []string, err error) {
++	order := systemConf().hostLookupOrder(host)
++	if order == hostLookupCgo {
++		if addrs, err, ok := cgoLookupHost(host); ok {
++			return addrs, err
++		}
++		// cgo not available (or netgo); fall back to Go's DNS resolver
++		order = hostLookupFilesDNS
+ 	}
+-	return addrs, err
++	return goLookupHostOrder(host, order)
+ }
+ 
+-func lookupIP(host string) ([]IPAddr, error) {
+-	addrs, err, ok := cgoLookupIP(host)
+-	if !ok {
+-		addrs, err = goLookupIP(host)
++func lookupIP(host string) (addrs []IPAddr, err error) {
++	order := systemConf().hostLookupOrder(host)
++	if order == hostLookupCgo {
++		if addrs, err, ok := cgoLookupIP(host); ok {
++			return addrs, err
++		}
++		// cgo not available (or netgo); fall back to Go's DNS resolver
++		order = hostLookupFilesDNS
+ 	}
+-	return addrs, err
++	return goLookupIPOrder(host, order)
+ }
+ 
+ func lookupPort(network, service string) (int, error) {
+diff --git a/src/net/nss.go b/src/net/nss.go
+new file mode 100644
+index 0000000000..08c3e6a69f
+--- /dev/null
++++ b/src/net/nss.go
+@@ -0,0 +1,159 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++
++package net
++
++import (
++	"errors"
++	"io"
++	"os"
++)
++
++// nssConf represents the state of the machine's /etc/nsswitch.conf file.
++type nssConf struct {
++	err     error                  // any error encountered opening or parsing the file
++	sources map[string][]nssSource // keyed by database (e.g. "hosts")
++}
++
++type nssSource struct {
++	source   string // e.g. "compat", "files", "mdns4_minimal"
++	criteria []nssCriterion
++}
++
++// standardCriteria reports all specified criteria have the default
++// status actions.
++func (s nssSource) standardCriteria() bool {
++	for i, crit := range s.criteria {
++		if !crit.standardStatusAction(i == len(s.criteria)-1) {
++			return false
++		}
++	}
++	return true
++}
++
++// nssCriterion is the parsed structure of one of the criteria in brackets
++// after an NSS source name.
++type nssCriterion struct {
++	negate bool   // if "!" was present
++	status string // e.g. "success", "unavail" (lowercase)
++	action string // e.g. "return", "continue" (lowercase)
++}
++
++// standardStatusAction reports whether c is equivalent to not
++// specifying the criterion at all. last is whether this criteria is the
++// last in the list.
++func (c nssCriterion) standardStatusAction(last bool) bool {
++	if c.negate {
++		return false
++	}
++	var def string
++	switch c.status {
++	case "success":
++		def = "return"
++	case "notfound", "unavail", "tryagain":
++		def = "continue"
++	default:
++		// Unknown status
++		return false
++	}
++	if last && c.action == "return" {
++		return true
++	}
++	return c.action == def
++}
++
++func parseNSSConfFile(file string) *nssConf {
++	f, err := os.Open(file)
++	if err != nil {
++		return &nssConf{err: err}
++	}
++	defer f.Close()
++	return parseNSSConf(f)
++}
++
++func parseNSSConf(r io.Reader) *nssConf {
++	slurp, err := readFull(r)
++	if err != nil {
++		return &nssConf{err: err}
++	}
++	conf := new(nssConf)
++	conf.err = foreachLine(slurp, func(line []byte) error {
++		line = trimSpace(removeComment(line))
++		if len(line) == 0 {
++			return nil
++		}
++		colon := bytesIndexByte(line, ':')
++		if colon == -1 {
++			return errors.New("no colon on line")
++		}
++		db := string(trimSpace(line[:colon]))
++		srcs := line[colon+1:]
++		for {
++			srcs = trimSpace(srcs)
++			if len(srcs) == 0 {
++				break
++			}
++			sp := bytesIndexByte(srcs, ' ')
++			var src string
++			if sp == -1 {
++				src = string(srcs)
++				srcs = nil // done
++			} else {
++				src = string(srcs[:sp])
++				srcs = trimSpace(srcs[sp+1:])
++			}
++			var criteria []nssCriterion
++			// See if there's a criteria block in brackets.
++			if len(srcs) > 0 && srcs[0] == '[' {
++				bclose := bytesIndexByte(srcs, ']')
++				if bclose == -1 {
++					return errors.New("unclosed criterion bracket")
++				}
++				var err error
++				criteria, err = parseCriteria(srcs[1:bclose])
++				if err != nil {
++					return errors.New("invalid criteria: " + string(srcs[1:bclose]))
++				}
++				srcs = srcs[bclose+1:]
++			}
++			if conf.sources == nil {
++				conf.sources = make(map[string][]nssSource)
++			}
++			conf.sources[db] = append(conf.sources[db], nssSource{
++				source:   src,
++				criteria: criteria,
++			})
++		}
++		return nil
++	})
++	return conf
++}
++
++// parses "foo=bar !foo=bar"
++func parseCriteria(x []byte) (c []nssCriterion, err error) {
++	err = foreachField(x, func(f []byte) error {
++		not := false
++		if len(f) > 0 && f[0] == '!' {
++			not = true
++			f = f[1:]
++		}
++		if len(f) < 3 {
++			return errors.New("criterion too short")
++		}
++		eq := bytesIndexByte(f, '=')
++		if eq == -1 {
++			return errors.New("criterion lacks equal sign")
++		}
++		lowerASCIIBytes(f)
++		c = append(c, nssCriterion{
++			negate: not,
++			status: string(f[:eq]),
++			action: string(f[eq+1:]),
++		})
++		return nil
++	})
++	return
++}
+diff --git a/src/net/nss_test.go b/src/net/nss_test.go
+new file mode 100644
+index 0000000000..371deb502d
+--- /dev/null
++++ b/src/net/nss_test.go
+@@ -0,0 +1,169 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++
++package net
++
++import (
++	"reflect"
++	"strings"
++	"testing"
++)
++
++const ubuntuTrustyAvahi = `# /etc/nsswitch.conf
++#
++# Example configuration of GNU Name Service Switch functionality.
++# If you have the libc-doc-reference' and nfo' packages installed, try:
++# nfo libc "Name Service Switch"' for information about this file.
++
++passwd:         compat
++group:          compat
++shadow:         compat
++
++hosts:          files mdns4_minimal [NOTFOUND=return] dns mdns4
++networks:       files
++
++protocols:      db files
++services:       db files
++ethers:         db files
++rpc:            db files
++
++netgroup:       nis
++`
++
++func TestParseNSSConf(t *testing.T) {
++	tests := []struct {
++		name string
++		in   string
++		want *nssConf
++	}{
++		{
++			name: "no_newline",
++			in:   "foo: a b",
++			want: &nssConf{
++				sources: map[string][]nssSource{
++					"foo": {{source: "a"}, {source: "b"}},
++				},
++			},
++		},
++		{
++			name: "newline",
++			in:   "foo: a b\n",
++			want: &nssConf{
++				sources: map[string][]nssSource{
++					"foo": {{source: "a"}, {source: "b"}},
++				},
++			},
++		},
++		{
++			name: "whitespace",
++			in:   "   foo:a    b    \n",
++			want: &nssConf{
++				sources: map[string][]nssSource{
++					"foo": {{source: "a"}, {source: "b"}},
++				},
++			},
++		},
++		{
++			name: "comment1",
++			in:   "   foo:a    b#c\n",
++			want: &nssConf{
++				sources: map[string][]nssSource{
++					"foo": {{source: "a"}, {source: "b"}},
++				},
++			},
++		},
++		{
++			name: "comment2",
++			in:   "   foo:a    b #c \n",
++			want: &nssConf{
++				sources: map[string][]nssSource{
++					"foo": {{source: "a"}, {source: "b"}},
++				},
++			},
++		},
++		{
++			name: "crit",
++			in:   "   foo:a    b [!a=b    X=Y ] c#d \n",
++			want: &nssConf{
++				sources: map[string][]nssSource{
++					"foo": {
++						{source: "a"},
++						{
++							source: "b",
++							criteria: []nssCriterion{
++								{
++									negate: true,
++									status: "a",
++									action: "b",
++								},
++								{
++									status: "x",
++									action: "y",
++								},
++							},
++						},
++						{source: "c"},
++					},
++				},
++			},
++		},
++
++		// Ubuntu Trusty w/ avahi-daemon, libavahi-* etc installed.
++		{
++			name: "ubuntu_trusty_avahi",
++			in:   ubuntuTrustyAvahi,
++			want: &nssConf{
++				sources: map[string][]nssSource{
++					"passwd": {{source: "compat"}},
++					"group":  {{source: "compat"}},
++					"shadow": {{source: "compat"}},
++					"hosts": {
++						{source: "files"},
++						{
++							source: "mdns4_minimal",
++							criteria: []nssCriterion{
++								{
++									negate: false,
++									status: "notfound",
++									action: "return",
++								},
++							},
++						},
++						{source: "dns"},
++						{source: "mdns4"},
++					},
++					"networks": {{source: "files"}},
++					"protocols": {
++						{source: "db"},
++						{source: "files"},
++					},
++					"services": {
++						{source: "db"},
++						{source: "files"},
++					},
++					"ethers": {
++						{source: "db"},
++						{source: "files"},
++					},
++					"rpc": {
++						{source: "db"},
++						{source: "files"},
++					},
++					"netgroup": {
++						{source: "nis"},
++					},
++				},
++			},
++		},
++	}
++
++	for _, tt := range tests {
++		gotConf := parseNSSConf(strings.NewReader(tt.in))
++		if !reflect.DeepEqual(gotConf, tt.want) {
++			t.Errorf("%s: mismatch\n got %#v\nwant %#v", tt.name, gotConf, tt.want)
++		}
++	}
++}
+diff --git a/src/net/parse.go b/src/net/parse.go
+index ad901fff27..5b834e64d4 100644
+--- a/src/net/parse.go
++++ b/src/net/parse.go
+@@ -232,3 +232,132 @@ func last(s string, b byte) int {
+ 	}
+ 	return i
+ }
++
++// lowerASCIIBytes makes x ASCII lowercase in-place.
++func lowerASCIIBytes(x []byte) {
++	for i, b := range x {
++		if 'A' <= b && b <= 'Z' {
++			x[i] += 'a' - 'A'
++		}
++	}
++}
++
++// lowerASCII returns the ASCII lowercase version of b.
++func lowerASCII(b byte) byte {
++	if 'A' <= b && b <= 'Z' {
++		return b + ('a' - 'A')
++	}
++	return b
++}
++
++// trimSpace returns x without any leading or trailing ASCII whitespace.
++func trimSpace(x []byte) []byte {
++	for len(x) > 0 && isSpace(x[0]) {
++		x = x[1:]
++	}
++	for len(x) > 0 && isSpace(x[len(x)-1]) {
++		x = x[:len(x)-1]
++	}
++	return x
++}
++
++// isSpace reports whether b is an ASCII space character.
++func isSpace(b byte) bool {
++	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
++}
++
++// removeComment returns line, removing any '#' byte and any following
++// bytes.
++func removeComment(line []byte) []byte {
++	if i := bytesIndexByte(line, '#'); i != -1 {
++		return line[:i]
++	}
++	return line
++}
++
++// foreachLine runs fn on each line of x.
++// Each line (except for possibly the last) ends in '\n'.
++// It returns the first non-nil error returned by fn.
++func foreachLine(x []byte, fn func(line []byte) error) error {
++	for len(x) > 0 {
++		nl := bytesIndexByte(x, '\n')
++		if nl == -1 {
++			return fn(x)
++		}
++		line := x[:nl+1]
++		x = x[nl+1:]
++		if err := fn(line); err != nil {
++			return err
++		}
++	}
++	return nil
++}
++
++// foreachField runs fn on each non-empty run of non-space bytes in x.
++// It returns the first non-nil error returned by fn.
++func foreachField(x []byte, fn func(field []byte) error) error {
++	x = trimSpace(x)
++	for len(x) > 0 {
++		sp := bytesIndexByte(x, ' ')
++		if sp == -1 {
++			return fn(x)
++		}
++		if field := trimSpace(x[:sp]); len(field) > 0 {
++			if err := fn(field); err != nil {
++				return err
++			}
++		}
++		x = trimSpace(x[sp+1:])
++	}
++	return nil
++}
++
++// bytesIndexByte is bytes.IndexByte. It returns the index of the
++// first instance of c in s, or -1 if c is not present in s.
++func bytesIndexByte(s []byte, c byte) int {
++	for i, b := range s {
++		if b == c {
++			return i
++		}
++	}
++	return -1
++}
++
++// stringsHasSuffix is strings.HasSuffix. It reports whether s ends in
++// suffix.
++func stringsHasSuffix(s, suffix string) bool {
++	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
++}
++
++// stringsHasSuffixFold reports whether s ends in suffix,
++// ASCII-case-insensitively.
++func stringsHasSuffixFold(s, suffix string) bool {
++	if len(suffix) > len(s) {
++		return false
++	}
++	for i := 0; i < len(suffix); i++ {
++		if lowerASCII(suffix[i]) != lowerASCII(s[len(s)-len(suffix)+i]) {
++			return false
++		}
++	}
++	return true
++}
++
++// stringsHasPrefix is strings.HasPrefix. It reports whether s begins with prefix.
++func stringsHasPrefix(s, prefix string) bool {
++	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
++}
++
++func readFull(r io.Reader) (all []byte, err error) {
++	buf := make([]byte, 1024)
++	for {
++		n, err := r.Read(buf)
++		all = append(all, buf[:n]...)
++		if err == io.EOF {
++			return all, nil
++		}
++		if err != nil {
++			return nil, err
++		}
++	}
++}
+diff --git a/src/net/testdata/openbsd-resolv.conf b/src/net/testdata/openbsd-resolv.conf
+new file mode 100644
+index 0000000000..8281a91b4a
+--- /dev/null
++++ b/src/net/testdata/openbsd-resolv.conf
+@@ -0,0 +1,5 @@
++# Generated by vio0 dhclient
++search c.symbolic-datum-552.internal.
++nameserver 169.254.169.254
++nameserver 10.240.0.1
++lookup file bind

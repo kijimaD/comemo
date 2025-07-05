@@ -9,9 +9,80 @@ Date:   Mon Oct 7 16:32:47 2013 -0700
     R=golang-dev, dsymonds, kamil.kisiel, minux.ma
     CC=golang-dev
     https://golang.org/cl/14515044
-
+---
  src/pkg/math/asin.go | 4 ++--
  src/pkg/math/atan.go | 2 +-
  src/pkg/math/sin.go  | 4 ++--
  src/pkg/math/tan.go  | 2 +-
  4 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/math/asin.go b/src/pkg/math/asin.go
+index 00bf61ee4b..88b851e550 100644
+--- a/src/pkg/math/asin.go
++++ b/src/pkg/math/asin.go
+@@ -11,7 +11,7 @@ package math
+ 	after appropriate range reduction.
+ */
+ 
+-// Asin returns the arcsine of x.
++// Asin returns the arcsine, in radians, of x.
+ //
+ // Special cases are:
+ //	Asin(±0) = ±0
+@@ -44,7 +44,7 @@ func asin(x float64) float64 {
+ 	return temp
+ }
+ 
+-// Acos returns the arccosine of x.
++// Acos returns the arccosine, in radians, of x.
+ //
+ // Special case is:
+ //	Acos(x) = NaN if x < -1 or x > 1
+diff --git a/src/pkg/math/atan.go b/src/pkg/math/atan.go
+index c107d388d3..7fcc90b8b0 100644
+--- a/src/pkg/math/atan.go
++++ b/src/pkg/math/atan.go
+@@ -87,7 +87,7 @@ func satan(x float64) float64 {
+ 	return Pi/4 + xatan((x-1)/(x+1)) + 0.5*Morebits
+ }
+ 
+-// Atan returns the arctangent of x.
++// Atan returns the arctangent, in radians, of x.
+ //
+ // Special cases are:
+ //      Atan(±0) = ±0
+diff --git a/src/pkg/math/sin.go b/src/pkg/math/sin.go
+index 8beb8bbe34..ed85f21be4 100644
+--- a/src/pkg/math/sin.go
++++ b/src/pkg/math/sin.go
+@@ -109,7 +109,7 @@ var _cos = [...]float64{
+ 	4.16666666666665929218E-2,   // 0x3fa555555555554b
+ }
+ 
+-// Cos returns the cosine of x.
++// Cos returns the cosine of the radian argument x.
+ //
+ // Special cases are:
+ //	Cos(±Inf) = NaN
+@@ -165,7 +165,7 @@ func cos(x float64) float64 {
+ 	return y
+ }
+ 
+-// Sin returns the sine of x.
++// Sin returns the sine of the radian argument x.
+ //
+ // Special cases are:
+ //	Sin(±0) = ±0
+diff --git a/src/pkg/math/tan.go b/src/pkg/math/tan.go
+index b2f29cc3b3..285eff1aba 100644
+--- a/src/pkg/math/tan.go
++++ b/src/pkg/math/tan.go
+@@ -73,7 +73,7 @@ var _tanQ = [...]float64{
+ 	-5.38695755929454629881E7, //0xc189afe03cbe5a31
+ }
+ 
+-// Tan returns the tangent of x.
++// Tan returns the tangent of the radian argument x.
+ //
+ // Special cases are:
+ //	Tan(±0) = ±0

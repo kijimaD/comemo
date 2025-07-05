@@ -12,8 +12,83 @@ Date:   Wed Mar 16 21:29:17 2016 -0500
     Change-Id: I057be351ea4584def1a744ee87eafa5df47a7f6d
     Reviewed-on: https://go-review.googlesource.com/20824
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/fmt.go |  2 +-
  src/cmd/compile/internal/gc/inl.go |  3 ++-
  test/inline.go                     | 36 ++++++++++++++++++++++++++++++++++++
  3 files changed, 39 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 1bd08e8278..72ed6ab442 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -888,7 +888,7 @@ func stmtfmt(n *Node) string {
+ 			f += fmt.Sprintf(" %v;", n.Ninit.First())
+ 		}
+ 		if n.Left != nil {
+-			f += Nconv(n.Left, 0)
++			f += fmt.Sprintf(" %s ", Nconv(n.Left, 0))
+ 		}
+ 
+ 		f += fmt.Sprintf(" { %v }", n.List)
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 77e45898a4..890eeade5f 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -214,10 +214,11 @@ func ishairy(n *Node, budget *int) bool {
+ 		ORANGE,
+ 		OFOR,
+ 		OSELECT,
+-		OSWITCH,
++		OTYPESW,
+ 		OPROC,
+ 		ODEFER,
+ 		ODCLTYPE, // can't print yet
++		OBREAK,
+ 		ORETJMP:
+ 		return true
+ 	}
+diff --git a/test/inline.go b/test/inline.go
+index 8984d059d8..e246c52e6d 100644
+--- a/test/inline.go
++++ b/test/inline.go
+@@ -36,3 +36,39 @@ func i(x int) int { // ERROR "can inline i"
+ 	const y = 2
+ 	return x + y
+ }
++
++func j(x int) int { // ERROR "can inline j"
++	switch {
++	case x > 0:
++		return x + 2
++	default:
++		return x + 1
++	}
++}
++
++// can't currently inline functions with a break statement
++func switchBreak(x, y int) int {
++	var n int
++	switch x {
++	case 0:
++		n = 1
++	Done:
++		switch y {
++		case 0:
++			n += 10
++			break Done
++		}
++		n = 2
++	}
++	return n
++}
++
++// can't currently inline functions with a type switch
++func switchType(x interface{}) int { // ERROR "switchType x does not escape"
++	switch x.(type) {
++	case int:
++		return x.(int)
++	default:
++		return 0
++	}
++}

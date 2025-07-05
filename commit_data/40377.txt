@@ -9,6 +9,20 @@ Date:   Wed May 8 18:40:20 2019 +0000
     Change-Id: Ie24ed5bab249e2f90d1740f42a8b8d94fd0983f5
     Reviewed-on: https://go-review.googlesource.com/c/go/+/176019
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/internal/syscall/windows/sysdll/sysdll.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/internal/syscall/windows/sysdll/sysdll.go b/src/internal/syscall/windows/sysdll/sysdll.go
+index 4e0018f387..c587c19c77 100644
+--- a/src/internal/syscall/windows/sysdll/sysdll.go
++++ b/src/internal/syscall/windows/sysdll/sysdll.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build windows
++
+ // Package sysdll is an internal leaf package that records and reports
+ // which Windows DLL names are used by Go itself. These DLLs are then
+ // only loaded from the System32 directory. See Issue 14959.

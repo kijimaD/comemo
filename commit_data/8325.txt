@@ -9,7 +9,33 @@ Date:   Thu May 5 13:44:36 2011 -0400
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/4462046
-
+---
  src/pkg/crypto/tls/common.go | 2 ++
  src/pkg/crypto/tls/conn.go   | 1 +
  2 files changed, 3 insertions(+)
+
+diff --git a/src/pkg/crypto/tls/common.go b/src/pkg/crypto/tls/common.go
+index 204d255314..0b26aae84d 100644
+--- a/src/pkg/crypto/tls/common.go
++++ b/src/pkg/crypto/tls/common.go
+@@ -100,6 +100,8 @@ type ConnectionState struct {
+ 
+ 	// the certificate chain that was presented by the other side
+ 	PeerCertificates []*x509.Certificate
++	// the verified certificate chains built from PeerCertificates.
++	VerifiedChains [][]*x509.Certificate
+ }
+ 
+ // A Config structure is used to configure a TLS client or server. After one
+diff --git a/src/pkg/crypto/tls/conn.go b/src/pkg/crypto/tls/conn.go
+index 63d56310c3..48d3f725b4 100644
+--- a/src/pkg/crypto/tls/conn.go
++++ b/src/pkg/crypto/tls/conn.go
+@@ -768,6 +768,7 @@ func (c *Conn) ConnectionState() ConnectionState {
+ 		state.NegotiatedProtocolIsMutual = !c.clientProtocolFallback
+ 		state.CipherSuite = c.cipherSuite
+ 		state.PeerCertificates = c.peerCertificates
++		state.VerifiedChains = c.verifiedChains
+ 	}
+ 
+ 	return state

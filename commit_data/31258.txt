@@ -15,6 +15,24 @@ Date:   Mon Jan 30 17:11:01 2017 +0500
     Reviewed-on: https://go-review.googlesource.com/36052
     Reviewed-by: Filippo Valsorda <hi@filippo.io>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/tls/common.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index bdbedc689b..f0e30dcc5d 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -174,9 +174,9 @@ type ConnectionState struct {
+ 	// TLSUnique contains the "tls-unique" channel binding value (see RFC
+ 	// 5929, section 3). For resumed sessions this value will be nil
+ 	// because resumption does not include enough context (see
+-	// https://secure-resumption.com/#channelbindings). This will change in
+-	// future versions of Go once the TLS master-secret fix has been
+-	// standardized and implemented.
++	// https://mitls.org/pages/attacks/3SHAKE#channelbindings). This will
++	// change in future versions of Go once the TLS master-secret fix has
++	// been standardized and implemented.
+ 	TLSUnique []byte
+ }
+ 

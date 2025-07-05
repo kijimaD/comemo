@@ -9,7 +9,68 @@ Date:   Fri Feb 15 22:22:13 2013 +0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7310096
-
+---
  src/pkg/runtime/proc.c       |  8 --------
  src/pkg/runtime/proc_test.go | 30 ++++++++++++++++++++++++++++++
  2 files changed, 30 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 1d3ac595ae..8a6fa378f2 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -389,14 +389,6 @@ canaddmcpu(void)
+ static void
+ gput(G *gp)
+ {
+-	M *mp;
+-
+-	// If g is wired, hand it off directly.
+-	if((mp = gp->lockedm) != nil && canaddmcpu()) {
+-		mnextg(mp, gp);
+-		return;
+-	}
+-
+ 	// If g is the idle goroutine for an m, hand it off.
+ 	if(gp->idlem != nil) {
+ 		if(gp->idlem->idleg != nil) {
+diff --git a/src/pkg/runtime/proc_test.go b/src/pkg/runtime/proc_test.go
+index 927bd7b816..b68599a496 100644
+--- a/src/pkg/runtime/proc_test.go
++++ b/src/pkg/runtime/proc_test.go
+@@ -46,6 +46,36 @@ func TestStopTheWorldDeadlock(t *testing.T) {
+ 	runtime.GOMAXPROCS(maxprocs)
+ }
+ 
++func TestYieldProgress(t *testing.T) {
++	testYieldProgress(t, false)
++}
++
++func TestYieldLockedProgress(t *testing.T) {
++	testYieldProgress(t, true)
++}
++
++func testYieldProgress(t *testing.T, locked bool) {
++	c := make(chan bool)
++	cack := make(chan bool)
++	go func() {
++		if locked {
++			runtime.LockOSThread()
++		}
++		for {
++			select {
++			case <-c:
++				cack <- true
++				break
++			default:
++				runtime.Gosched()
++			}
++		}
++	}()
++	time.Sleep(10 * time.Millisecond)
++	c <- true
++	<-cack
++}
++
+ func TestYieldLocked(t *testing.T) {
+ 	const N = 10
+ 	c := make(chan bool)

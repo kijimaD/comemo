@@ -9,6 +9,19 @@ Date:   Thu Apr 16 21:32:48 2015 +1000
     Change-Id: Ic4414f669104905c6004835be5cf0fa873553ea6
     Reviewed-on: https://go-review.googlesource.com/8962
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/pprof/trace_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/pprof/trace_test.go b/src/runtime/pprof/trace_test.go
+index ca22a0dd27..4f93c494d5 100644
+--- a/src/runtime/pprof/trace_test.go
++++ b/src/runtime/pprof/trace_test.go
+@@ -229,6 +229,7 @@ func TestTraceStress(t *testing.T) {
+ // And concurrently with all that start/stop trace 3 times.
+ func TestTraceStressStartStop(t *testing.T) {
+ 	skipTraceTestsIfNeeded(t)
++	t.Skip("test is unreliable; issue #10476")
+ 
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(8))
+ 	outerDone := make(chan bool)

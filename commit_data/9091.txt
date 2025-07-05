@@ -46,7 +46,7 @@ Date:   Fri Jul 15 11:58:39 2011 -0400
     R=golang-dev
     CC=golang-dev, rsc
     https://golang.org/cl/4747044
-
+---
  src/cmd/6a/a.h      | 4 ++--
  src/cmd/6a/a.y      | 2 ++
  src/cmd/6a/lex.c    | 3 ++-
@@ -59,3 +59,223 @@ Date:   Fri Jul 15 11:58:39 2011 -0400
  src/cmd/6l/prof.c   | 2 +-
  src/cmd/6l/span.c   | 4 ++--
  11 files changed, 16 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/6a/a.h b/src/cmd/6a/a.h
+index 2d42726465..5c7868070c 100644
+--- a/src/cmd/6a/a.h
++++ b/src/cmd/6a/a.h
+@@ -28,8 +28,6 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-#include <u.h>
+-#include <libc.h>
+ #include <bio.h>
+ #include "../6l/6.out.h"
+ 
+@@ -57,7 +55,9 @@ typedef	struct	Gen2	Gen2;
+ #define	NSYMB		500
+ #define	BUFSIZ		8192
+ #define	HISTSZ		20
++#ifndef	EOF
+ #define	EOF		(-1)
++#endif
+ #define	IGN		(-2)
+ #define	GETC()		((--fi.c < 0)? filbuf(): *fi.p++ & 0xff)
+ #define	NHASH		503
+diff --git a/src/cmd/6a/a.y b/src/cmd/6a/a.y
+index 770f676fe5..c0fa4106e7 100644
+--- a/src/cmd/6a/a.y
++++ b/src/cmd/6a/a.y
+@@ -29,7 +29,9 @@
+ // THE SOFTWARE.
+ 
+ %{
++#include <u.h>
+ #include <stdio.h>	/* if we don't, bison will, and a.h re-#defines getc */
++#include <libc.h>
+ #include "a.h"
+ %}
+ %union	{
+diff --git a/src/cmd/6a/lex.c b/src/cmd/6a/lex.c
+index 784241bde5..5009a7b832 100644
+--- a/src/cmd/6a/lex.c
++++ b/src/cmd/6a/lex.c
+@@ -29,9 +29,10 @@
+ // THE SOFTWARE.
+ 
+ #define	EXTERN
++#include <u.h>
++#include <libc.h>
+ #include "a.h"
+ #include "y.tab.h"
+-#include <ctype.h>
+ 
+ enum
+ {
+diff --git a/src/cmd/6c/gc.h b/src/cmd/6c/gc.h
+index 775d97281c..0c23b115cd 100644
+--- a/src/cmd/6c/gc.h
++++ b/src/cmd/6c/gc.h
+@@ -398,6 +398,7 @@ void	shiftit(Type*, Node*, Node*);
+ #pragma	varargck	type	"A"	int
+ #pragma	varargck	type	"B"	Bits
+ #pragma	varargck	type	"D"	Adr*
++#pragma	varargck	type	"lD"	Adr*
+ #pragma	varargck	type	"P"	Prog*
+ #pragma	varargck	type	"R"	int
+ #pragma	varargck	type	"S"	char*
+diff --git a/src/cmd/6c/swt.c b/src/cmd/6c/swt.c
+index 6d886f4592..d7a917043e 100644
+--- a/src/cmd/6c/swt.c
++++ b/src/cmd/6c/swt.c
+@@ -238,10 +238,10 @@ outcode(void)
+ 		Bprint(&b, "\n");
+ 		Bprint(&b, "$$  // exports\n\n");
+ 		Bprint(&b, "$$  // local types\n\n");
+-		Bprint(&b, "$$  // dynimport\n", thestring);
++		Bprint(&b, "$$  // dynimport\n");
+ 		for(i=0; i<ndynimp; i++)
+ 			Bprint(&b, "dynimport %s %s %s\n", dynimp[i].local, dynimp[i].remote, dynimp[i].path);
+-		Bprint(&b, "\n$$  // dynexport\n", thestring);
++		Bprint(&b, "\n$$  // dynexport\n");
+ 		for(i=0; i<ndynexp; i++)
+ 			Bprint(&b, "dynexport %s %s\n", dynexp[i].local, dynexp[i].remote);
+ 		Bprint(&b, "\n$$\n\n");
+diff --git a/src/cmd/6l/Makefile b/src/cmd/6l/Makefile
+index abe204d4f5..8ed3e1411a 100644
+--- a/src/cmd/6l/Makefile
++++ b/src/cmd/6l/Makefile
+@@ -30,7 +30,7 @@ OFILES=\
+ 
+ HFILES=\
+ 	l.h\
+-	../6l/6.out.h\
++	6.out.h\
+ 	../ld/lib.h\
+ 	../ld/elf.h\
+ 	../ld/macho.h\
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index c3f5949ed8..ecdb5777b8 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -31,7 +31,7 @@
+ #include	<u.h>
+ #include	<libc.h>
+ #include	<bio.h>
+-#include	"../6l/6.out.h"
++#include	"6.out.h"
+ 
+ #ifndef	EXTERN
+ #define	EXTERN	extern
+@@ -301,9 +301,11 @@ EXTERN union
+ 
+ #pragma	varargck	type	"A"	uint
+ #pragma	varargck	type	"D"	Adr*
++#pragma	varargck	type	"I"	uchar*
+ #pragma	varargck	type	"P"	Prog*
+ #pragma	varargck	type	"R"	int
+ #pragma	varargck	type	"S"	char*
++#pragma	varargck	type	"i"	char*
+ 
+ EXTERN	int32	HEADR;
+ EXTERN	int32	HEADTYPE;
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 71649473d2..d6467a5133 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -455,7 +455,6 @@ loop:
+ 		s = lookup(x, r);
+ 		if(x != name)
+ 			free(x);
+-		name = nil;
+ 
+ 		if(debug['S'] && r == 0)
+ 			sig = 1729;
+@@ -724,7 +723,6 @@ loop:
+ 		lastp = p;
+ 		goto loop;
+ 	}
+-	goto loop;
+ 
+ eof:
+ 	diag("truncated object file: %s", pn);
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index 0b0ee1253c..773a30e4ab 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -402,8 +402,6 @@ dostkoff(void)
+ 		pmorestack[i] = symmorestack[i]->text;
+ 	}
+ 
+-	autoffset = 0;
+-	deltasp = 0;
+ 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+ 		if(cursym->text == nil || cursym->text->link == nil)
+ 			continue;
+@@ -415,7 +413,6 @@ dostkoff(void)
+ 			autoffset = 0;
+ 
+ 		q = P;
+-		q1 = P;
+ 		if((p->from.scale & NOSPLIT) && autoffset >= StackSmall)
+ 			diag("nosplit func likely to overflow stack");
+ 
+@@ -471,7 +468,6 @@ dostkoff(void)
+ 				p = appendp(p);
+ 				p->as = ANOP;
+ 				q1->pcond = p;
+-				q1 = P;
+ 			}
+ 
+ 			if(autoffset < StackBig) {  // do we need to call morestack?
+@@ -611,7 +607,6 @@ dostkoff(void)
+ 			p = appendp(p);
+ 			p->as = ANOP;
+ 			q1->pcond = p;
+-			q1 = P;
+ 		}
+ 		
+ 		for(; p != P; p = p->link) {
+diff --git a/src/cmd/6l/prof.c b/src/cmd/6l/prof.c
+index 25992a40ba..862ce080cd 100644
+--- a/src/cmd/6l/prof.c
++++ b/src/cmd/6l/prof.c
+@@ -36,7 +36,7 @@
+ void
+ doprof1(void)
+ {
+-#if 0
++#ifdef	NOTDEF
+ 	Sym *s;
+ 	int32 n;
+ 	Prog *p, *q;
+diff --git a/src/cmd/6l/span.c b/src/cmd/6l/span.c
+index 426db255d9..5d13ad44b2 100644
+--- a/src/cmd/6l/span.c
++++ b/src/cmd/6l/span.c
+@@ -94,7 +94,7 @@ span1(Sym *s)
+ 					*bp++ = v;
+ 					*bp++ = v>>8;
+ 					*bp++ = v>>16;
+-					*bp++ = v>>24;
++					*bp = v>>24;
+ 				}	
+ 			}
+ 			p->comefrom = P;
+@@ -706,6 +706,7 @@ asmandsz(Adr *a, int r, int rex, int m64)
+ 	int t, scale;
+ 	Reloc rel;
+ 
++	USED(m64);
+ 	rex &= (0x40 | Rxr);
+ 	v = a->offset;
+ 	t = a->type;
+@@ -732,7 +733,6 @@ asmandsz(Adr *a, int r, int rex, int m64)
+ 			*andptr++ = (0 << 6) | (4 << 0) | (r << 3);
+ 			asmidx(a->scale, a->index, t);
+ 			goto putrelv;
+-			return;
+ 		}
+ 		if(v == 0 && rel.siz == 0 && t != D_BP && t != D_R13) {
+ 			*andptr++ = (0 << 6) | (4 << 0) | (r << 3);

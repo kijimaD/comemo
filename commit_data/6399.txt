@@ -7,7 +7,126 @@ Date:   Mon Sep 27 12:39:55 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2216054
-
+---
  src/pkg/go/scanner/scanner.go      | 28 +++++++++++++++++-----------
  src/pkg/go/scanner/scanner_test.go | 12 ++++++++----
  2 files changed, 25 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index a623e7331e..81d3f1ae9d 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -196,26 +196,27 @@ func (S *Scanner) scanComment(pos token.Position) {
+ }
+ 
+ 
+-func (S *Scanner) findNewline(pos token.Position) bool {
++func (S *Scanner) findLineEnd(pos token.Position) bool {
+ 	// first '/' already consumed; assume S.ch == '/' || S.ch == '*'
+ 
+-	// read ahead until a newline or non-comment token is found
+-	newline := false
++	// read ahead until a newline, EOF, or non-comment token is found
++	lineend := false
+ 	for pos1 := pos; S.ch >= 0; {
+ 		if S.ch == '/' {
+ 			//-style comment always contains a newline
+-			newline = true
++			lineend = true
+ 			break
+ 		}
+ 		S.scanComment(pos1)
+ 		if pos1.Line < S.pos.Line {
+ 			/*-style comment contained a newline */
+-			newline = true
++			lineend = true
+ 			break
+ 		}
+ 		S.skipWhitespace() // S.insertSemi is set
+-		if S.ch == '\n' {
+-			newline = true
++		if S.ch < 0 || S.ch == '\n' {
++			// line end
++			lineend = true
+ 			break
+ 		}
+ 		if S.ch != '/' {
+@@ -230,12 +231,12 @@ func (S *Scanner) findNewline(pos token.Position) bool {
+ 		}
+ 	}
+ 
+-	// reset position to where it was upon calling findNewline
++	// reset position to where it was upon calling findLineEnd
+ 	S.pos = pos
+ 	S.offset = pos.Offset + 1
+ 	S.next()
+ 
+-	return newline
++	return lineend
+ }
+ 
+ 
+@@ -507,7 +508,8 @@ var newline = []byte{'\n'}
+ //
+ // If the returned token is token.SEMICOLON, the corresponding
+ // literal value is ";" if the semicolon was present in the source,
+-// and "\n" if the semicolon was inserted because of a newline.
++// and "\n" if the semicolon was inserted because of a newline or
++// at EOF.
+ //
+ // For more tolerant parsing, Scan will return a valid token if
+ // possible even if a syntax error was encountered. Thus, even
+@@ -539,6 +541,10 @@ scanAgain:
+ 		S.next() // always make progress
+ 		switch ch {
+ 		case -1:
++			if S.insertSemi {
++				S.insertSemi = false // EOF consumed
++				return pos, token.SEMICOLON, newline
++			}
+ 			tok = token.EOF
+ 		case '\n':
+ 			// we only reach here if S.insertSemi was
+@@ -607,7 +613,7 @@ scanAgain:
+ 		case '/':
+ 			if S.ch == '/' || S.ch == '*' {
+ 				// comment
+-				if S.insertSemi && S.findNewline(pos) {
++				if S.insertSemi && S.findLineEnd(pos) {
+ 					// reset position to the beginning of the comment
+ 					S.pos = pos
+ 					S.offset = pos.Offset + 1
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index c3bb9d023b..07b5df988d 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -403,11 +403,10 @@ var lines = []string{
+ 	"foo    $/*comment*/\n",
+ 	"foo    $/*\n*/",
+ 
+-	"foo    $/*comment*/\n",
+ 	"foo    $/*0*/ /*1*/ /*2*/\n",
+ 	"foo    $/*comment*/    \n",
+ 	"foo    $/*0*/ /*1*/ /*2*/    \n",
+-	"foo	$/**/ /*-------------*/       /*----\n*/bar       $/*  \n*/baa",
++	"foo	$/**/ /*-------------*/       /*----\n*/bar       $/*  \n*/baa$\n",
+ 
+ 	"package main$\n\nfunc main() {\n\tif {\n\t\treturn /* */ }$\n}$\n",
+ }
+@@ -416,9 +415,14 @@ var lines = []string{
+ func TestSemis(t *testing.T) {
+ 	for _, line := range lines {
+ 		checkSemi(t, line, AllowIllegalChars|InsertSemis)
+-	}
+-	for _, line := range lines {
+ 		checkSemi(t, line, AllowIllegalChars|InsertSemis|ScanComments)
++
++		// if the input ended in newlines, the input must tokenize the
++		// same with or without those newlines
++		for i := len(line) - 1; i >= 0 && line[i] == '\n'; i-- {
++			checkSemi(t, line[0:i], AllowIllegalChars|InsertSemis)
++			checkSemi(t, line[0:i], AllowIllegalChars|InsertSemis|ScanComments)
++		}
+ 	}
+ }
+ 

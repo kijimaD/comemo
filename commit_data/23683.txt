@@ -7,8 +7,76 @@ Date:   Thu Jun 4 15:18:27 2015 -0700
     Change-Id: Ica26c0297ac7afeb0b5b668cf5f5cd1667c6cc43
     Reviewed-on: https://go-review.googlesource.com/10699
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/deadcode_test.go | 6 +++---
  src/cmd/compile/internal/ssa/export_test.go   | 6 ++++++
  src/cmd/compile/internal/ssa/func_test.go     | 4 ++--
  3 files changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/deadcode_test.go b/src/cmd/compile/internal/ssa/deadcode_test.go
+index 07e017c73a..10b8976e0f 100644
+--- a/src/cmd/compile/internal/ssa/deadcode_test.go
++++ b/src/cmd/compile/internal/ssa/deadcode_test.go
+@@ -7,7 +7,7 @@ package ssa
+ import "testing"
+ 
+ func TestDeadLoop(t *testing.T) {
+-	c := NewConfig("amd64")
++	c := NewConfig("amd64", DummyFrontend{})
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, ".mem"),
+@@ -37,7 +37,7 @@ func TestDeadLoop(t *testing.T) {
+ }
+ 
+ func TestDeadValue(t *testing.T) {
+-	c := NewConfig("amd64")
++	c := NewConfig("amd64", DummyFrontend{})
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("mem", OpArg, TypeMem, ".mem"),
+@@ -60,7 +60,7 @@ func TestDeadValue(t *testing.T) {
+ }
+ 
+ func TestNeverTaken(t *testing.T) {
+-	c := NewConfig("amd64")
++	c := NewConfig("amd64", DummyFrontend{})
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("cond", OpConst, TypeBool, false),
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index f2e7b0cd10..103945a73e 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -8,3 +8,9 @@ var CheckFunc = checkFunc
+ var PrintFunc = printFunc
+ var Opt = opt
+ var Deadcode = deadcode
++
++type DummyFrontend struct{}
++
++func (d DummyFrontend) StringSym(s string) interface{} {
++	return nil
++}
+diff --git a/src/cmd/compile/internal/ssa/func_test.go b/src/cmd/compile/internal/ssa/func_test.go
+index b66ab24778..c15b167bc1 100644
+--- a/src/cmd/compile/internal/ssa/func_test.go
++++ b/src/cmd/compile/internal/ssa/func_test.go
+@@ -257,7 +257,7 @@ func addEdge(b, c *Block) {
+ }
+ 
+ func TestArgs(t *testing.T) {
+-	c := NewConfig("amd64")
++	c := NewConfig("amd64", DummyFrontend{})
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("a", OpConst, TypeInt64, 14),
+@@ -277,7 +277,7 @@ func TestArgs(t *testing.T) {
+ }
+ 
+ func TestEquiv(t *testing.T) {
+-	c := NewConfig("amd64")
++	c := NewConfig("amd64", DummyFrontend{})
+ 	equivalentCases := []struct{ f, g fun }{
+ 		// simple case
+ 		{

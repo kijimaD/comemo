@@ -8,6 +8,20 @@ Date:   Mon Sep 8 10:07:26 2014 -0400
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/142740043
-
+---
  src/androidtest.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/androidtest.bash b/src/androidtest.bash
+index 2acfbd815a..504d276c4c 100755
+--- a/src/androidtest.bash
++++ b/src/androidtest.bash
+@@ -42,7 +42,7 @@ GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH go build \
+ # into a subdirectory of /data.
+ export ANDROID_PRODUCT_OUT=/tmp/androidtest-$$
+ FAKE_GOROOT=$ANDROID_PRODUCT_OUT/data/local/tmp/goroot
+-mkdir -p $FAKE_GOROOT/src
++mkdir -p $FAKE_GOROOT
+ ln -s $GOROOT/src $FAKE_GOROOT/src
+ ln -s $GOROOT/test $FAKE_GOROOT/test
+ ln -s $GOROOT/lib $FAKE_GOROOT/lib

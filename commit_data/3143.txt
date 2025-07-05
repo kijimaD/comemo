@@ -14,7 +14,64 @@ Date:   Sun Aug 30 18:47:48 2009 -0700
     R=ken
     OCL=34097
     CL=34099
-
+---
  src/cmd/6g/cgen.c        |  6 +++---
  test/fixedbugs/bug199.go | 25 +++++++++++++++++++++++++
  2 files changed, 28 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index ab712e5435..2f2b2d9eb2 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -470,9 +470,9 @@ agen(Node *n, Node *res)
+ 			agen(nl, &n3);
+ 			goto index;
+ 		}
+-		cgen(nr, res);
+ 		tempname(&tmp, nr->type);
+-		gmove(res, &tmp);
++		cgen(nr, &tmp);
++		nr = &tmp;
+ 
+ 	irad:
+ 		regalloc(&n3, types[tptr], res);
+@@ -792,7 +792,7 @@ bgen(Node *n, int true, Prog *to)
+ 			regfree(&n1);
+ 			break;
+ 		}
+-		
++
+ 		if(isinter(nl->type)) {
+ 			// front end shold only leave cmp to literal nil
+ 			if((a != OEQ && a != ONE) || nr->op != OLITERAL) {
+diff --git a/test/fixedbugs/bug199.go b/test/fixedbugs/bug199.go
+new file mode 100644
+index 0000000000..c7bd21f11b
+--- /dev/null
++++ b/test/fixedbugs/bug199.go
+@@ -0,0 +1,25 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type S struct {
++	a []int;
++}
++var s = &S{make([]int, 10)}
++
++func main() {
++	s.a[f()] = 1	// 6g used to call f twice here
++}
++
++var n int
++func f() int{
++	if n++; n > 1 {
++		panicln("f twice");
++	}
++	return 0
++}
++

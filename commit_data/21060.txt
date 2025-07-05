@@ -14,7 +14,7 @@ Date:   Tue Nov 11 17:05:37 2014 -0500
     R=r
     CC=austin, dvyukov, golang-codereviews, iant, khr
     https://golang.org/cl/168500043
-
+---
  src/runtime/cgo.go                            | 23 +++++++
  src/runtime/cgo/callbacks.c                   | 83 -----------------------
  src/runtime/cgo/callbacks.go                  | 95 +++++++++++++++++++++++++++
@@ -28,3 +28,521 @@ Date:   Tue Nov 11 17:05:37 2014 -0500
  src/runtime/cgocall.go                        | 16 ++---
  src/runtime/env_posix.go                      | 10 ++-
  12 files changed, 186 insertions(+), 146 deletions(-)
+
+diff --git a/src/runtime/cgo.go b/src/runtime/cgo.go
+new file mode 100644
+index 0000000000..7e6b253af9
+--- /dev/null
++++ b/src/runtime/cgo.go
+@@ -0,0 +1,23 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++//go:cgo_export_static main
++
++// Filled in by runtime/cgo when linked into binary.
++
++//go:linkname _cgo_init _cgo_init
++//go:linkname _cgo_malloc _cgo_malloc
++//go:linkname _cgo_free _cgo_free
++//go:linkname _cgo_thread_start _cgo_thread_start
++
++var (
++	_cgo_init         unsafe.Pointer
++	_cgo_malloc       unsafe.Pointer
++	_cgo_free         unsafe.Pointer
++	_cgo_thread_start unsafe.Pointer
++)
+diff --git a/src/runtime/cgo/callbacks.c b/src/runtime/cgo/callbacks.c
+deleted file mode 100644
+index 282beeea88..0000000000
+--- a/src/runtime/cgo/callbacks.c
++++ /dev/null
+@@ -1,83 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "../runtime.h"
+-#include "../cgocall.h"
+-#include "textflag.h"
+-
+-// These utility functions are available to be called from code
+-// compiled with gcc via crosscall2.
+-
+-// The declaration of crosscall2 is:
+-//   void crosscall2(void (*fn)(void *, int), void *, int);
+-// 
+-// We need to export the symbol crosscall2 in order to support
+-// callbacks from shared libraries. This applies regardless of
+-// linking mode.
+-#pragma cgo_export_static crosscall2
+-#pragma cgo_export_dynamic crosscall2
+-
+-// Allocate memory.  This allocates the requested number of bytes in
+-// memory controlled by the Go runtime.  The allocated memory will be
+-// zeroed.  You are responsible for ensuring that the Go garbage
+-// collector can see a pointer to the allocated memory for as long as
+-// it is valid, e.g., by storing a pointer in a local variable in your
+-// C function, or in memory allocated by the Go runtime.  If the only
+-// pointers are in a C global variable or in memory allocated via
+-// malloc, then the Go garbage collector may collect the memory.
+-
+-// Call like this in code compiled with gcc:
+-//   struct { size_t len; void *ret; } a;
+-//   a.len = /* number of bytes to allocate */;
+-//   crosscall2(_cgo_allocate, &a, sizeof a);
+-//   /* Here a.ret is a pointer to the allocated memory.  */
+-
+-void runtime·_cgo_allocate_internal(void);
+-
+-#pragma cgo_export_static _cgo_allocate
+-#pragma cgo_export_dynamic _cgo_allocate
+-#pragma textflag NOSPLIT
+-void
+-_cgo_allocate(void *a, int32 n)
+-{
+-	runtime·cgocallback((void(*)(void))runtime·_cgo_allocate_internal, a, n);
+-}
+-
+-// Panic.  The argument is converted into a Go string.
+-
+-// Call like this in code compiled with gcc:
+-//   struct { const char *p; } a;
+-//   a.p = /* string to pass to panic */;
+-//   crosscall2(_cgo_panic, &a, sizeof a);
+-//   /* The function call will not return.  */
+-
+-void runtime·_cgo_panic_internal(void);
+-
+-#pragma cgo_export_static _cgo_panic
+-#pragma cgo_export_dynamic _cgo_panic
+-#pragma textflag NOSPLIT
+-void
+-_cgo_panic(void *a, int32 n)
+-{
+-	runtime·cgocallback((void(*)(void))runtime·_cgo_panic_internal, a, n);
+-}
+-
+-#pragma cgo_import_static x_cgo_init
+-extern void x_cgo_init(G*);
+-void (*_cgo_init)(G*) = x_cgo_init;
+-
+-#pragma cgo_import_static x_cgo_malloc
+-extern void x_cgo_malloc(void*);
+-void (*_cgo_malloc)(void*) = x_cgo_malloc;
+-
+-#pragma cgo_import_static x_cgo_free
+-extern void x_cgo_free(void*);
+-void (*_cgo_free)(void*) = x_cgo_free;
+-
+-#pragma cgo_import_static x_cgo_thread_start
+-extern void x_cgo_thread_start(void*);
+-void (*_cgo_thread_start)(void*) = x_cgo_thread_start;
+-
+-#pragma cgo_export_static _cgo_topofstack
+-#pragma cgo_export_dynamic _cgo_topofstack
+diff --git a/src/runtime/cgo/callbacks.go b/src/runtime/cgo/callbacks.go
+new file mode 100644
+index 0000000000..1e8b59054f
+--- /dev/null
++++ b/src/runtime/cgo/callbacks.go
+@@ -0,0 +1,95 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgo
++
++import "unsafe"
++
++// These utility functions are available to be called from code
++// compiled with gcc via crosscall2.
++
++// cgocallback is defined in runtime
++//go:linkname _runtime_cgocallback runtime.cgocallback
++func _runtime_cgocallback(unsafe.Pointer, unsafe.Pointer, uintptr)
++
++// The declaration of crosscall2 is:
++//   void crosscall2(void (*fn)(void *, int), void *, int);
++//
++// We need to export the symbol crosscall2 in order to support
++// callbacks from shared libraries. This applies regardless of
++// linking mode.
++//go:cgo_export_static crosscall2
++//go:cgo_export_dynamic crosscall2
++
++// Allocate memory.  This allocates the requested number of bytes in
++// memory controlled by the Go runtime.  The allocated memory will be
++// zeroed.  You are responsible for ensuring that the Go garbage
++// collector can see a pointer to the allocated memory for as long as
++// it is valid, e.g., by storing a pointer in a local variable in your
++// C function, or in memory allocated by the Go runtime.  If the only
++// pointers are in a C global variable or in memory allocated via
++// malloc, then the Go garbage collector may collect the memory.
++
++// Call like this in code compiled with gcc:
++//   struct { size_t len; void *ret; } a;
++//   a.len = /* number of bytes to allocate */;
++//   crosscall2(_cgo_allocate, &a, sizeof a);
++//   /* Here a.ret is a pointer to the allocated memory.  */
++
++//go:linkname _runtime_cgo_allocate_internal runtime._cgo_allocate_internal
++var _runtime_cgo_allocate_internal byte
++
++//go:linkname _cgo_allocate _cgo_allocate
++//go:cgo_export_static _cgo_allocate
++//go:cgo_export_dynamic _cgo_allocate
++//go:nosplit
++func _cgo_allocate(a unsafe.Pointer, n int32) {
++	_runtime_cgocallback(unsafe.Pointer(&_runtime_cgo_allocate_internal), a, uintptr(n))
++}
++
++// Panic.  The argument is converted into a Go string.
++
++// Call like this in code compiled with gcc:
++//   struct { const char *p; } a;
++//   a.p = /* string to pass to panic */;
++//   crosscall2(_cgo_panic, &a, sizeof a);
++//   /* The function call will not return.  */
++
++//go:linkname _runtime_cgo_panic_internal runtime._cgo_panic_internal
++var _runtime_cgo_panic_internal byte
++
++//go:linkname _cgo_panic _cgo_panic
++//go:cgo_export_static _cgo_panic
++//go:cgo_export_dynamic _cgo_panic
++//go:nosplit
++func _cgo_panic(a unsafe.Pointer, n int32) {
++	_runtime_cgocallback(unsafe.Pointer(&_runtime_cgo_panic_internal), a, uintptr(n))
++}
++
++//go:cgo_import_static x_cgo_init
++//go:linkname x_cgo_init x_cgo_init
++//go:linkname _cgo_init _cgo_init
++var x_cgo_init byte
++var _cgo_init = &x_cgo_init
++
++//go:cgo_import_static x_cgo_malloc
++//go:linkname x_cgo_malloc x_cgo_malloc
++//go:linkname _cgo_malloc _cgo_malloc
++var x_cgo_malloc byte
++var _cgo_malloc = &x_cgo_malloc
++
++//go:cgo_import_static x_cgo_free
++//go:linkname x_cgo_free x_cgo_free
++//go:linkname _cgo_free _cgo_free
++var x_cgo_free byte
++var _cgo_free = &x_cgo_free
++
++//go:cgo_import_static x_cgo_thread_start
++//go:linkname x_cgo_thread_start x_cgo_thread_start
++//go:linkname _cgo_thread_start _cgo_thread_start
++var x_cgo_thread_start byte
++var _cgo_thread_start = &x_cgo_thread_start
++
++//go:cgo_export_static _cgo_topofstack
++//go:cgo_export_dynamic _cgo_topofstack
+diff --git a/src/runtime/cgo/dragonfly.c b/src/runtime/cgo/dragonfly.go
+similarity index 64%
+rename from src/runtime/cgo/dragonfly.c
+rename to src/runtime/cgo/dragonfly.go
+index c233c8ba9a..96eb8660e0 100644
+--- a/src/runtime/cgo/dragonfly.c
++++ b/src/runtime/cgo/dragonfly.go
+@@ -4,16 +4,16 @@
+ 
+ // +build dragonfly
+ 
+-#include "textflag.h"
++package cgo
++
++import _ "unsafe"
+ 
+ // Supply environ and __progname, because we don't
+ // link against the standard DragonFly crt0.o and the
+ // libc dynamic library needs them.
+ 
+-#pragma dataflag NOPTR
+-char *environ[1];
+-#pragma dataflag NOPTR
+-char *__progname;
++//go:linkname _environ environ
++//go:linkname _progname __progname
+ 
+-#pragma dynexport environ environ
+-#pragma dynexport __progname __progname
++var _environ uintptr
++var _progname uintptr
+diff --git a/src/runtime/cgo/freebsd.c b/src/runtime/cgo/freebsd.go
+similarity index 64%
+rename from src/runtime/cgo/freebsd.c
+rename to src/runtime/cgo/freebsd.go
+index 4876b2abe4..09ffa2377a 100644
+--- a/src/runtime/cgo/freebsd.c
++++ b/src/runtime/cgo/freebsd.go
+@@ -4,16 +4,14 @@
+ 
+ // +build freebsd
+ 
+-#include "textflag.h"
++package cgo
+ 
+ // Supply environ and __progname, because we don't
+ // link against the standard FreeBSD crt0.o and the
+ // libc dynamic library needs them.
+ 
+-#pragma dataflag NOPTR
+-char *environ[1];
+-#pragma dataflag NOPTR
+-char *__progname;
++//go:linkname _environ environ
++//go:linkname _progname __progname
+ 
+-#pragma dynexport environ environ
+-#pragma dynexport __progname __progname
++var _environ uintptr
++var _progname uintptr
+diff --git a/src/runtime/cgo/iscgo.c b/src/runtime/cgo/iscgo.go
+similarity index 72%
+rename from src/runtime/cgo/iscgo.c
+rename to src/runtime/cgo/iscgo.go
+index 0907a19581..5544fd1e30 100644
+--- a/src/runtime/cgo/iscgo.c
++++ b/src/runtime/cgo/iscgo.go
+@@ -9,7 +9,12 @@
+ // correctly, and sometimes they break.  This variable is a
+ // backup: it depends only on old C style static linking rules.
+ 
+-#include "../runtime.h"
++package cgo
+ 
+-bool runtime·iscgo = 1;
+-uint32 runtime·needextram = 1;  // create an extra M on first cgo call
++import _ "unsafe"
++
++//go:linkname _iscgo runtime.iscgo
++var _iscgo bool = true
++
++//go:linkname _needextram runtime.needextram
++var _needextram uint32 = 1 // create an extra M on first cgo call
+diff --git a/src/runtime/cgo/netbsd.c b/src/runtime/cgo/netbsd.go
+similarity index 64%
+rename from src/runtime/cgo/netbsd.c
+rename to src/runtime/cgo/netbsd.go
+index 076cc87f12..9088e35d47 100644
+--- a/src/runtime/cgo/netbsd.c
++++ b/src/runtime/cgo/netbsd.go
+@@ -4,16 +4,14 @@
+ 
+ // +build netbsd
+ 
+-#include "textflag.h"
++package cgo
+ 
+ // Supply environ and __progname, because we don't
+ // link against the standard NetBSD crt0.o and the
+ // libc dynamic library needs them.
+ 
+-#pragma dataflag NOPTR
+-char *environ[1];
+-#pragma dataflag NOPTR
+-char *__progname;
++//go:linkname _environ environ
++//go:linkname _progname __progname
+ 
+-#pragma dynexport environ environ
+-#pragma dynexport __progname __progname
++var _environ uintptr
++var _progname uintptr
+diff --git a/src/runtime/cgo/openbsd.c b/src/runtime/cgo/openbsd.go
+similarity index 55%
+rename from src/runtime/cgo/openbsd.c
+rename to src/runtime/cgo/openbsd.go
+index 476649544d..b59a7c2c2a 100644
+--- a/src/runtime/cgo/openbsd.c
++++ b/src/runtime/cgo/openbsd.go
+@@ -4,24 +4,26 @@
+ 
+ // +build openbsd
+ 
+-#include "textflag.h"
++package cgo
+ 
+ // Supply environ, __progname and __guard_local, because
+ // we don't link against the standard OpenBSD crt0.o and
+ // the libc dynamic library needs them.
+ 
+-#pragma dataflag NOPTR
+-char *environ[1];
+-#pragma dataflag NOPTR
+-char *__progname;
+-long __guard_local;
++//go:linkname _environ environ
++//go:linkname _progname __progname
++//go:linkname _guard_local __guard_local
+ 
+-#pragma dynexport environ environ
+-#pragma dynexport __progname __progname
++var _environ uintptr
++var _progname uintptr
++var _guard_local uintptr
++
++//go:cgo_export_dynamic environ environ
++//go:cgo_export_dynamic __progname __progname
+ 
+ // This is normally marked as hidden and placed in the
+ // .openbsd.randomdata section.
+-#pragma dynexport __guard_local __guard_local
++//go:cgo_export_dynamic __guard_local __guard_local
+ 
+ // We override pthread_create to support PT_TLS.
+-#pragma dynexport pthread_create pthread_create
++//go:cgo_export_dynamic pthread_create pthread_create
+diff --git a/src/runtime/cgo/setenv.c b/src/runtime/cgo/setenv.c
+deleted file mode 100644
+index 76d88cbf13..0000000000
+--- a/src/runtime/cgo/setenv.c
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build darwin dragonfly freebsd linux netbsd openbsd
+-
+-#pragma cgo_import_static x_cgo_setenv
+-#pragma cgo_import_static x_cgo_unsetenv
+-
+-void x_cgo_setenv(char**);
+-void (*runtime·_cgo_setenv)(char**) = x_cgo_setenv;
+-void x_cgo_unsetenv(char**);
+-void (*runtime·_cgo_unsetenv)(char**) = x_cgo_unsetenv;
+diff --git a/src/runtime/cgo/setenv.go b/src/runtime/cgo/setenv.go
+new file mode 100644
+index 0000000000..1612f87c25
+--- /dev/null
++++ b/src/runtime/cgo/setenv.go
+@@ -0,0 +1,21 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux netbsd openbsd
++
++package cgo
++
++import _ "unsafe"
++
++//go:cgo_import_static x_cgo_setenv
++//go:linkname x_cgo_setenv x_cgo_setenv
++//go:linkname _cgo_setenv runtime._cgo_setenv
++var x_cgo_setenv byte
++var _cgo_setenv = &x_cgo_setenv
++
++//go:cgo_import_static x_cgo_unsetenv
++//go:linkname x_cgo_unsetenv x_cgo_unsetenv
++//go:linkname _cgo_unsetenv runtime._cgo_unsetenv
++var x_cgo_unsetenv byte
++var _cgo_unsetenv = &x_cgo_unsetenv
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 7fd91469eb..a1fc06d39d 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -127,9 +127,9 @@ func cgocall_errno(fn, arg unsafe.Pointer) int32 {
+ 	 * so it is safe to call while "in a system call", outside
+ 	 * the $GOMAXPROCS accounting.
+ 	 */
+-	entersyscall()
++	entersyscall(0)
+ 	errno := asmcgocall_errno(fn, arg)
+-	exitsyscall()
++	exitsyscall(0)
+ 
+ 	return errno
+ }
+@@ -153,17 +153,13 @@ func endcgo(mp *m) {
+ 
+ // Helper functions for cgo code.
+ 
+-// Filled by schedinit from corresponding C variables,
+-// which are in turn filled in by dynamic linker when Cgo is available.
+-var cgoMalloc, cgoFree unsafe.Pointer
+-
+ func cmalloc(n uintptr) unsafe.Pointer {
+ 	var args struct {
+ 		n   uint64
+ 		ret unsafe.Pointer
+ 	}
+ 	args.n = uint64(n)
+-	cgocall(cgoMalloc, unsafe.Pointer(&args))
++	cgocall(_cgo_malloc, unsafe.Pointer(&args))
+ 	if args.ret == nil {
+ 		gothrow("C malloc failed")
+ 	}
+@@ -171,7 +167,7 @@ func cmalloc(n uintptr) unsafe.Pointer {
+ }
+ 
+ func cfree(p unsafe.Pointer) {
+-	cgocall(cgoFree, p)
++	cgocall(_cgo_free, p)
+ }
+ 
+ // Call from C back to Go.
+@@ -189,10 +185,10 @@ func cgocallbackg() {
+ 	// save syscall* and let reentersyscall restore them.
+ 	savedsp := unsafe.Pointer(gp.syscallsp)
+ 	savedpc := gp.syscallpc
+-	exitsyscall() // coming out of cgo call
++	exitsyscall(0) // coming out of cgo call
+ 	cgocallbackg1()
+ 	// going back to cgo call
+-	reentersyscall(savedpc, savedsp)
++	reentersyscall(savedpc, uintptr(savedsp))
+ }
+ 
+ func cgocallbackg1() {
+diff --git a/src/runtime/env_posix.go b/src/runtime/env_posix.go
+index dd57872d7c..03c7a5a4af 100644
+--- a/src/runtime/env_posix.go
++++ b/src/runtime/env_posix.go
+@@ -8,8 +8,6 @@ package runtime
+ 
+ import "unsafe"
+ 
+-func environ() []string
+-
+ func getenv(s *byte) *byte {
+ 	val := gogetenv(gostringnocopy(s))
+ 	if val == "" {
+@@ -32,13 +30,13 @@ func gogetenv(key string) string {
+ 	return ""
+ }
+ 
+-var _cgo_setenv uintptr   // pointer to C function
+-var _cgo_unsetenv uintptr // pointer to C function
++var _cgo_setenv unsafe.Pointer   // pointer to C function
++var _cgo_unsetenv unsafe.Pointer // pointer to C function
+ 
+ // Update the C environment if cgo is loaded.
+ // Called from syscall.Setenv.
+ func syscall_setenv_c(k string, v string) {
+-	if _cgo_setenv == 0 {
++	if _cgo_setenv == nil {
+ 		return
+ 	}
+ 	arg := [2]unsafe.Pointer{cstring(k), cstring(v)}
+@@ -48,7 +46,7 @@ func syscall_setenv_c(k string, v string) {
+ // Update the C environment if cgo is loaded.
+ // Called from syscall.unsetenv.
+ func syscall_unsetenv_c(k string) {
+-	if _cgo_unsetenv == 0 {
++	if _cgo_unsetenv == nil {
+ 		return
+ 	}
+ 	arg := [1]unsafe.Pointer{cstring(k)}

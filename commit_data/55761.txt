@@ -21,7 +21,7 @@ Date:   Thu Mar 9 16:21:22 2023 -0800
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/base/print.go          |  5 ++-
  src/cmd/compile/internal/escape/escape.go       |  2 +-
  src/cmd/compile/internal/escape/graph.go        |  2 +-
@@ -43,3 +43,678 @@ Date:   Thu Mar 9 16:21:22 2023 -0800
  src/cmd/compile/internal/types/type.go          |  3 +-
  src/cmd/compile/internal/walk/expr.go           |  4 +-
  20 files changed, 74 insertions(+), 65 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/print.go b/src/cmd/compile/internal/base/print.go
+index 21fa001457..6d21c33254 100644
+--- a/src/cmd/compile/internal/base/print.go
++++ b/src/cmd/compile/internal/base/print.go
+@@ -7,6 +7,7 @@ package base
+ import (
+ 	"fmt"
+ 	"internal/buildcfg"
++	"internal/types/errors"
+ 	"os"
+ 	"runtime/debug"
+ 	"sort"
+@@ -105,11 +106,11 @@ func sameline(a, b src.XPos) bool {
+ 
+ // Errorf reports a formatted error at the current line.
+ func Errorf(format string, args ...interface{}) {
+-	ErrorfAt(Pos, format, args...)
++	ErrorfAt(Pos, 0, format, args...)
+ }
+ 
+ // ErrorfAt reports a formatted error message at pos.
+-func ErrorfAt(pos src.XPos, format string, args ...interface{}) {
++func ErrorfAt(pos src.XPos, code errors.Code, format string, args ...interface{}) {
+ 	msg := fmt.Sprintf(format, args...)
+ 
+ 	if strings.HasPrefix(msg, "syntax error") {
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index 05fbe58bbc..f17ac13fe8 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -303,7 +303,7 @@ func (b *batch) finish(fns []*ir.Func) {
+ 		if loc.escapes {
+ 			if n.Op() == ir.ONAME {
+ 				if base.Flag.CompilingRuntime {
+-					base.ErrorfAt(n.Pos(), "%v escapes to heap, not allowed in runtime", n)
++					base.ErrorfAt(n.Pos(), 0, "%v escapes to heap, not allowed in runtime", n)
+ 				}
+ 				if base.Flag.LowerM != 0 {
+ 					base.WarnfAt(n.Pos(), "moved to heap: %v", n)
+diff --git a/src/cmd/compile/internal/escape/graph.go b/src/cmd/compile/internal/escape/graph.go
+index cc3d078add..fc18f7715f 100644
+--- a/src/cmd/compile/internal/escape/graph.go
++++ b/src/cmd/compile/internal/escape/graph.go
+@@ -218,7 +218,7 @@ func (e *escape) newLoc(n ir.Node, transient bool) *location {
+ 		base.Fatalf("e.curfn isn't set")
+ 	}
+ 	if n != nil && n.Type() != nil && n.Type().NotInHeap() {
+-		base.ErrorfAt(n.Pos(), "%v is incomplete (or unallocatable); stack allocation disallowed", n.Type())
++		base.ErrorfAt(n.Pos(), 0, "%v is incomplete (or unallocatable); stack allocation disallowed", n.Type())
+ 	}
+ 
+ 	if n != nil && n.Op() == ir.ONAME {
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 76ab952157..2886185f0a 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -331,7 +331,7 @@ func ClosureDebugRuntimeCheck(clo *ClosureExpr) {
+ 		}
+ 	}
+ 	if base.Flag.CompilingRuntime && clo.Esc() == EscHeap && !clo.IsGoWrap {
+-		base.ErrorfAt(clo.Pos(), "heap-allocated closure %s, not allowed in runtime", FuncName(clo.Func))
++		base.ErrorfAt(clo.Pos(), 0, "heap-allocated closure %s, not allowed in runtime", FuncName(clo.Func))
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index f0addc4892..3adf9e5d11 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -6,6 +6,7 @@ package noder
+ 
+ import (
+ 	"fmt"
++	"internal/types/errors"
+ 	"regexp"
+ 	"sort"
+ 
+@@ -47,7 +48,7 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
+ 			if versionErrorRx.MatchString(msg) {
+ 				msg = fmt.Sprintf("%s (-lang was set to %s; check go.mod)", msg, base.Flag.Lang)
+ 			}
+-			base.ErrorfAt(m.makeXPos(terr.Pos), "%s", msg)
++			base.ErrorfAt(m.makeXPos(terr.Pos), terr.Code, "%s", msg)
+ 		},
+ 		Importer: &importer,
+ 		Sizes:    &gcSizes{},
+@@ -72,7 +73,7 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
+ 			syntax.Inspect(file, func(n syntax.Node) bool {
+ 				if n, ok := n.(*syntax.InterfaceType); ok {
+ 					if f.hasCycle(n.GetTypeInfo().Type.(*types2.Interface)) {
+-						base.ErrorfAt(m.makeXPos(n.Pos()), "invalid recursive type: anonymous interface refers to itself (see https://go.dev/issue/56103)")
++						base.ErrorfAt(m.makeXPos(n.Pos()), errors.InvalidTypeCycle, "invalid recursive type: anonymous interface refers to itself (see https://go.dev/issue/56103)")
+ 
+ 						for typ := range f.cyclic {
+ 							f.cyclic[typ] = false // suppress duplicate errors
+@@ -106,7 +107,7 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
+ 			return ti.pos.Before(tj.pos)
+ 		})
+ 		for _, targ := range nihTargs {
+-			base.ErrorfAt(targ.pos, "cannot use incomplete (or unallocatable) type as a type argument: %v", targ.typ)
++			base.ErrorfAt(targ.pos, 0, "cannot use incomplete (or unallocatable) type as a type argument: %v", targ.typ)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 16113e37a3..c846130976 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -65,7 +65,7 @@ func LoadPackage(filenames []string) {
+ 	var m posMap
+ 	for _, p := range noders {
+ 		for e := range p.err {
+-			base.ErrorfAt(m.makeXPos(e.Pos), "%s", e.Msg)
++			base.ErrorfAt(m.makeXPos(e.Pos), 0, "%s", e.Msg)
+ 		}
+ 		if p.file == nil {
+ 			base.ErrorExit()
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 97862938ee..72c7a1fc86 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -108,7 +108,7 @@ func newPkgWriter(m posMap, pkg *types2.Package, info *types2.Info) *pkgWriter {
+ 
+ // errorf reports a user error about thing p.
+ func (pw *pkgWriter) errorf(p poser, msg string, args ...interface{}) {
+-	base.ErrorfAt(pw.m.pos(p), msg, args...)
++	base.ErrorfAt(pw.m.pos(p), 0, msg, args...)
+ }
+ 
+ // fatalf reports an internal compiler error about thing p.
+diff --git a/src/cmd/compile/internal/pkginit/initorder.go b/src/cmd/compile/internal/pkginit/initorder.go
+index 426d2985ab..db24264989 100644
+--- a/src/cmd/compile/internal/pkginit/initorder.go
++++ b/src/cmd/compile/internal/pkginit/initorder.go
+@@ -7,6 +7,7 @@ package pkginit
+ import (
+ 	"container/heap"
+ 	"fmt"
++	"internal/types/errors"
+ 	"strings"
+ 
+ 	"cmd/compile/internal/base"
+@@ -243,7 +244,7 @@ func reportInitLoopAndExit(l []*ir.Name) {
+ 	}
+ 	fmt.Fprintf(&msg, "\t%v: %v", ir.Line(l[0]), l[0])
+ 
+-	base.ErrorfAt(l[0].Pos(), msg.String())
++	base.ErrorfAt(l[0].Pos(), errors.InvalidInitCycle, msg.String())
+ 	base.ErrorExit()
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index 9c725b898d..a6e1b1812f 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -146,7 +146,7 @@ func (s *SymABIs) GenABIWrappers() {
+ 		defABI, hasDefABI := s.defs[symName]
+ 		if hasDefABI {
+ 			if len(fn.Body) != 0 {
+-				base.ErrorfAt(fn.Pos(), "%v defined in both Go and assembly", fn)
++				base.ErrorfAt(fn.Pos(), 0, "%v defined in both Go and assembly", fn)
+ 			}
+ 			fn.ABI = defABI
+ 		}
+@@ -251,7 +251,7 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
+ 	// below to handle the receiver. Panic if we see this scenario.
+ 	ft := f.Nname.Type()
+ 	if ft.NumRecvs() != 0 {
+-		base.ErrorfAt(f.Pos(), "makeABIWrapper support for wrapping methods not implemented")
++		base.ErrorfAt(f.Pos(), 0, "makeABIWrapper support for wrapping methods not implemented")
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ssagen/nowb.go b/src/cmd/compile/internal/ssagen/nowb.go
+index 909319dcbf..9de1b9ae36 100644
+--- a/src/cmd/compile/internal/ssagen/nowb.go
++++ b/src/cmd/compile/internal/ssagen/nowb.go
+@@ -154,7 +154,7 @@ func (c *nowritebarrierrecChecker) check() {
+ 		}
+ 		// Check go:nowritebarrier functions.
+ 		if fn.Pragma&ir.Nowritebarrier != 0 && fn.WBPos.IsKnown() {
+-			base.ErrorfAt(fn.WBPos, "write barrier prohibited")
++			base.ErrorfAt(fn.WBPos, 0, "write barrier prohibited")
+ 		}
+ 	}
+ 
+@@ -185,7 +185,7 @@ func (c *nowritebarrierrecChecker) check() {
+ 				fmt.Fprintf(&err, "\n\t%v: called by %v", base.FmtPos(call.lineno), call.target.Nname)
+ 				call = funcs[call.target]
+ 			}
+-			base.ErrorfAt(fn.WBPos, "write barrier prohibited by caller; %v%s", fn.Nname, err.String())
++			base.ErrorfAt(fn.WBPos, 0, "write barrier prohibited by caller; %v%s", fn.Nname, err.String())
+ 			continue
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/ssagen/pgen.go b/src/cmd/compile/internal/ssagen/pgen.go
+index a0378c755a..9fd3f2aee4 100644
+--- a/src/cmd/compile/internal/ssagen/pgen.go
++++ b/src/cmd/compile/internal/ssagen/pgen.go
+@@ -327,9 +327,9 @@ func CheckLargeStacks() {
+ 	})
+ 	for _, large := range largeStackFrames {
+ 		if large.callee != 0 {
+-			base.ErrorfAt(large.pos, "stack frame too large (>1GB): %d MB locals + %d MB args + %d MB callee", large.locals>>20, large.args>>20, large.callee>>20)
++			base.ErrorfAt(large.pos, 0, "stack frame too large (>1GB): %d MB locals + %d MB args + %d MB callee", large.locals>>20, large.args>>20, large.callee>>20)
+ 		} else {
+-			base.ErrorfAt(large.pos, "stack frame too large (>1GB): %d MB locals + %d MB args", large.locals>>20, large.args>>20)
++			base.ErrorfAt(large.pos, 0, "stack frame too large (>1GB): %d MB locals + %d MB args", large.locals>>20, large.args>>20)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/staticdata/data.go b/src/cmd/compile/internal/staticdata/data.go
+index 662580f8e2..e39d0ee6a5 100644
+--- a/src/cmd/compile/internal/staticdata/data.go
++++ b/src/cmd/compile/internal/staticdata/data.go
+@@ -214,7 +214,7 @@ func dstringdata(s *obj.LSym, off int, t string, pos src.XPos, what string) int
+ 	// causing a cryptic error message by the linker. Check for oversize objects here
+ 	// and provide a useful error message instead.
+ 	if int64(len(t)) > 2e9 {
+-		base.ErrorfAt(pos, "%v with length %v is too big", what, len(t))
++		base.ErrorfAt(pos, 0, "%v with length %v is too big", what, len(t))
+ 		return 0
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/staticdata/embed.go b/src/cmd/compile/internal/staticdata/embed.go
+index 8d4dedff59..a4d493ce5e 100644
+--- a/src/cmd/compile/internal/staticdata/embed.go
++++ b/src/cmd/compile/internal/staticdata/embed.go
+@@ -31,11 +31,11 @@ func embedFileList(v *ir.Name, kind int) []string {
+ 		for _, pattern := range e.Patterns {
+ 			files, ok := base.Flag.Cfg.Embed.Patterns[pattern]
+ 			if !ok {
+-				base.ErrorfAt(e.Pos, "invalid go:embed: build system did not map pattern: %s", pattern)
++				base.ErrorfAt(e.Pos, 0, "invalid go:embed: build system did not map pattern: %s", pattern)
+ 			}
+ 			for _, file := range files {
+ 				if base.Flag.Cfg.Embed.Files[file] == "" {
+-					base.ErrorfAt(e.Pos, "invalid go:embed: build system did not map file: %s", file)
++					base.ErrorfAt(e.Pos, 0, "invalid go:embed: build system did not map file: %s", file)
+ 					continue
+ 				}
+ 				if !have[file] {
+@@ -57,7 +57,7 @@ func embedFileList(v *ir.Name, kind int) []string {
+ 
+ 	if kind == embedString || kind == embedBytes {
+ 		if len(list) > 1 {
+-			base.ErrorfAt(v.Pos(), "invalid go:embed: multiple files for type %v", v.Type())
++			base.ErrorfAt(v.Pos(), 0, "invalid go:embed: multiple files for type %v", v.Type())
+ 			return nil
+ 		}
+ 	}
+@@ -109,12 +109,12 @@ func WriteEmbed(v *ir.Name) {
+ 
+ 	commentPos := (*v.Embed)[0].Pos
+ 	if base.Flag.Cfg.Embed.Patterns == nil {
+-		base.ErrorfAt(commentPos, "invalid go:embed: build system did not supply embed configuration")
++		base.ErrorfAt(commentPos, 0, "invalid go:embed: build system did not supply embed configuration")
+ 		return
+ 	}
+ 	kind := embedKind(v.Type())
+ 	if kind == embedUnknown {
+-		base.ErrorfAt(v.Pos(), "go:embed cannot apply to var of type %v", v.Type())
++		base.ErrorfAt(v.Pos(), 0, "go:embed cannot apply to var of type %v", v.Type())
+ 		return
+ 	}
+ 
+@@ -124,7 +124,7 @@ func WriteEmbed(v *ir.Name) {
+ 		file := files[0]
+ 		fsym, size, err := fileStringSym(v.Pos(), base.Flag.Cfg.Embed.Files[file], kind == embedString, nil)
+ 		if err != nil {
+-			base.ErrorfAt(v.Pos(), "embed %s: %v", file, err)
++			base.ErrorfAt(v.Pos(), 0, "embed %s: %v", file, err)
+ 		}
+ 		sym := v.Linksym()
+ 		off := 0
+@@ -160,7 +160,7 @@ func WriteEmbed(v *ir.Name) {
+ 			} else {
+ 				fsym, size, err := fileStringSym(v.Pos(), base.Flag.Cfg.Embed.Files[file], true, hash)
+ 				if err != nil {
+-					base.ErrorfAt(v.Pos(), "embed %s: %v", file, err)
++					base.ErrorfAt(v.Pos(), 0, "embed %s: %v", file, err)
+ 				}
+ 				off = objw.SymPtr(slicedata, off, fsym, 0) // data string
+ 				off = objw.Uintptr(slicedata, off, uint64(size))
+diff --git a/src/cmd/compile/internal/typecheck/const.go b/src/cmd/compile/internal/typecheck/const.go
+index d43fa31782..060053bc8d 100644
+--- a/src/cmd/compile/internal/typecheck/const.go
++++ b/src/cmd/compile/internal/typecheck/const.go
+@@ -8,6 +8,7 @@ import (
+ 	"fmt"
+ 	"go/constant"
+ 	"go/token"
++	"internal/types/errors"
+ 	"math"
+ 	"math/big"
+ 	"strings"
+@@ -567,7 +568,7 @@ func OrigConst(n ir.Node, v constant.Value) ir.Node {
+ 		if what == "" {
+ 			base.Fatalf("unexpected overflow: %v", n.Op())
+ 		}
+-		base.ErrorfAt(n.Pos(), "constant %v overflow", what)
++		base.ErrorfAt(n.Pos(), errors.NumericOverflow, "constant %v overflow", what)
+ 		n.SetType(nil)
+ 		return n
+ 	}
+diff --git a/src/cmd/compile/internal/typecheck/dcl.go b/src/cmd/compile/internal/typecheck/dcl.go
+index fcac52a17c..029c14f819 100644
+--- a/src/cmd/compile/internal/typecheck/dcl.go
++++ b/src/cmd/compile/internal/typecheck/dcl.go
+@@ -6,6 +6,7 @@ package typecheck
+ 
+ import (
+ 	"fmt"
++	"internal/types/errors"
+ 	"sync"
+ 
+ 	"cmd/compile/internal/base"
+@@ -48,15 +49,15 @@ func Declare(n *ir.Name, ctxt ir.Class) {
+ 
+ 	// kludgy: TypecheckAllowed means we're past parsing. Eg reflectdata.methodWrapper may declare out of package names later.
+ 	if !inimport && !TypecheckAllowed && s.Pkg != types.LocalPkg {
+-		base.ErrorfAt(n.Pos(), "cannot declare name %v", s)
++		base.ErrorfAt(n.Pos(), 0, "cannot declare name %v", s)
+ 	}
+ 
+ 	if ctxt == ir.PEXTERN {
+ 		if s.Name == "init" {
+-			base.ErrorfAt(n.Pos(), "cannot declare init - must be func")
++			base.ErrorfAt(n.Pos(), errors.InvalidInitDecl, "cannot declare init - must be func")
+ 		}
+ 		if s.Name == "main" && s.Pkg.Name == "main" {
+-			base.ErrorfAt(n.Pos(), "cannot declare main - must be func")
++			base.ErrorfAt(n.Pos(), errors.InvalidMainDecl, "cannot declare main - must be func")
+ 		}
+ 		Target.Externs = append(Target.Externs, n)
+ 		s.Def = n
+@@ -154,7 +155,7 @@ func checkdupfields(what string, fss ...[]*types.Field) {
+ 				continue
+ 			}
+ 			if seen[f.Sym] {
+-				base.ErrorfAt(f.Pos, "duplicate %s %s", what, f.Sym.Name)
++				base.ErrorfAt(f.Pos, errors.DuplicateFieldAndMethod, "duplicate %s %s", what, f.Sym.Name)
+ 				continue
+ 			}
+ 			seen[f.Sym] = true
+diff --git a/src/cmd/compile/internal/typecheck/stmt.go b/src/cmd/compile/internal/typecheck/stmt.go
+index 2af6c26a16..eb13175384 100644
+--- a/src/cmd/compile/internal/typecheck/stmt.go
++++ b/src/cmd/compile/internal/typecheck/stmt.go
+@@ -9,6 +9,7 @@ import (
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
++	"internal/types/errors"
+ )
+ 
+ func RangeExprType(t *types.Type) *types.Type {
+@@ -37,7 +38,7 @@ func typecheckrangeExpr(n *ir.RangeStmt) {
+ 	toomany := false
+ 	switch t.Kind() {
+ 	default:
+-		base.ErrorfAt(n.Pos(), "cannot range over %L", n.X)
++		base.ErrorfAt(n.Pos(), errors.InvalidRangeExpr, "cannot range over %L", n.X)
+ 		return
+ 
+ 	case types.TARRAY, types.TSLICE:
+@@ -50,7 +51,7 @@ func typecheckrangeExpr(n *ir.RangeStmt) {
+ 
+ 	case types.TCHAN:
+ 		if !t.ChanDir().CanRecv() {
+-			base.ErrorfAt(n.Pos(), "invalid operation: range %v (receive from send-only type %v)", n.X, n.X.Type())
++			base.ErrorfAt(n.Pos(), errors.InvalidRangeExpr, "invalid operation: range %v (receive from send-only type %v)", n.X, n.X.Type())
+ 			return
+ 		}
+ 
+@@ -66,7 +67,7 @@ func typecheckrangeExpr(n *ir.RangeStmt) {
+ 	}
+ 
+ 	if toomany {
+-		base.ErrorfAt(n.Pos(), "too many variables in range")
++		base.ErrorfAt(n.Pos(), errors.InvalidIterVar, "too many variables in range")
+ 	}
+ 
+ 	do := func(nn ir.Node, t *types.Type) {
+@@ -75,7 +76,7 @@ func typecheckrangeExpr(n *ir.RangeStmt) {
+ 				nn.SetType(t)
+ 			} else if nn.Type() != nil {
+ 				if op, why := Assignop(t, nn.Type()); op == ir.OXXX {
+-					base.ErrorfAt(n.Pos(), "cannot assign type %v to %L in range%s", t, nn, why)
++					base.ErrorfAt(n.Pos(), errors.InvalidIterVar, "cannot assign type %v to %L in range%s", t, nn, why)
+ 				}
+ 			}
+ 			checkassign(nn)
+@@ -185,10 +186,10 @@ assignOK:
+ 	if len(lhs) != cr {
+ 		if r, ok := rhs[0].(*ir.CallExpr); ok && len(rhs) == 1 {
+ 			if r.Type() != nil {
+-				base.ErrorfAt(stmt.Pos(), "assignment mismatch: %d variable%s but %v returns %d value%s", len(lhs), plural(len(lhs)), r.X, cr, plural(cr))
++				base.ErrorfAt(stmt.Pos(), errors.WrongAssignCount, "assignment mismatch: %d variable%s but %v returns %d value%s", len(lhs), plural(len(lhs)), r.X, cr, plural(cr))
+ 			}
+ 		} else {
+-			base.ErrorfAt(stmt.Pos(), "assignment mismatch: %d variable%s but %v value%s", len(lhs), plural(len(lhs)), len(rhs), plural(len(rhs)))
++			base.ErrorfAt(stmt.Pos(), errors.WrongAssignCount, "assignment mismatch: %d variable%s but %v value%s", len(lhs), plural(len(lhs)), len(rhs), plural(len(rhs)))
+ 		}
+ 
+ 		for i := range lhs {
+@@ -298,7 +299,7 @@ func tcGoDefer(n *ir.GoDeferStmt) {
+ 		if orig := ir.Orig(n.Call); orig.Op() == ir.OCONV {
+ 			break
+ 		}
+-		base.ErrorfAt(n.Pos(), "%s discards result of %v", what, n.Call)
++		base.ErrorfAt(n.Pos(), errors.UnusedResults, "%s discards result of %v", what, n.Call)
+ 		return
+ 	}
+ 
+@@ -379,7 +380,7 @@ func tcSelect(sel *ir.SelectStmt) {
+ 		if ncase.Comm == nil {
+ 			// default
+ 			if def != nil {
+-				base.ErrorfAt(ncase.Pos(), "multiple defaults in select (first at %v)", ir.Line(def))
++				base.ErrorfAt(ncase.Pos(), errors.DuplicateDefault, "multiple defaults in select (first at %v)", ir.Line(def))
+ 			} else {
+ 				def = ncase
+ 			}
+@@ -403,7 +404,7 @@ func tcSelect(sel *ir.SelectStmt) {
+ 					// on the same line). This matches the approach before 1.10.
+ 					pos = ncase.Pos()
+ 				}
+-				base.ErrorfAt(pos, "select case must be receive, send or assign recv")
++				base.ErrorfAt(pos, errors.InvalidSelectCase, "select case must be receive, send or assign recv")
+ 
+ 			case ir.OAS:
+ 				// convert x = <-c into x, _ = <-c
+@@ -417,7 +418,7 @@ func tcSelect(sel *ir.SelectStmt) {
+ 					}
+ 				}
+ 				if n.Y.Op() != ir.ORECV {
+-					base.ErrorfAt(n.Pos(), "select assignment must have receive on right hand side")
++					base.ErrorfAt(n.Pos(), errors.InvalidSelectCase, "select assignment must have receive on right hand side")
+ 					break
+ 				}
+ 				oselrecv2(n.X, n.Y, n.Def)
+@@ -425,7 +426,7 @@ func tcSelect(sel *ir.SelectStmt) {
+ 			case ir.OAS2RECV:
+ 				n := n.(*ir.AssignListStmt)
+ 				if n.Rhs[0].Op() != ir.ORECV {
+-					base.ErrorfAt(n.Pos(), "select assignment must have receive on right hand side")
++					base.ErrorfAt(n.Pos(), errors.InvalidSelectCase, "select assignment must have receive on right hand side")
+ 					break
+ 				}
+ 				n.SetOp(ir.OSELRECV2)
+@@ -502,9 +503,9 @@ func tcSwitchExpr(n *ir.SwitchStmt) {
+ 
+ 		case !types.IsComparable(t):
+ 			if t.IsStruct() {
+-				base.ErrorfAt(n.Pos(), "cannot switch on %L (struct containing %v cannot be compared)", n.Tag, types.IncomparableField(t).Type)
++				base.ErrorfAt(n.Pos(), errors.InvalidExprSwitch, "cannot switch on %L (struct containing %v cannot be compared)", n.Tag, types.IncomparableField(t).Type)
+ 			} else {
+-				base.ErrorfAt(n.Pos(), "cannot switch on %L", n.Tag)
++				base.ErrorfAt(n.Pos(), errors.InvalidExprSwitch, "cannot switch on %L", n.Tag)
+ 			}
+ 			t = nil
+ 		}
+@@ -515,7 +516,7 @@ func tcSwitchExpr(n *ir.SwitchStmt) {
+ 		ls := ncase.List
+ 		if len(ls) == 0 { // default:
+ 			if defCase != nil {
+-				base.ErrorfAt(ncase.Pos(), "multiple defaults in switch (first at %v)", ir.Line(defCase))
++				base.ErrorfAt(ncase.Pos(), errors.DuplicateDefault, "multiple defaults in switch (first at %v)", ir.Line(defCase))
+ 			} else {
+ 				defCase = ncase
+ 			}
+@@ -531,17 +532,17 @@ func tcSwitchExpr(n *ir.SwitchStmt) {
+ 			}
+ 
+ 			if nilonly != "" && !ir.IsNil(n1) {
+-				base.ErrorfAt(ncase.Pos(), "invalid case %v in switch (can only compare %s %v to nil)", n1, nilonly, n.Tag)
++				base.ErrorfAt(ncase.Pos(), errors.MismatchedTypes, "invalid case %v in switch (can only compare %s %v to nil)", n1, nilonly, n.Tag)
+ 			} else if t.IsInterface() && !n1.Type().IsInterface() && !types.IsComparable(n1.Type()) {
+-				base.ErrorfAt(ncase.Pos(), "invalid case %L in switch (incomparable type)", n1)
++				base.ErrorfAt(ncase.Pos(), errors.UndefinedOp, "invalid case %L in switch (incomparable type)", n1)
+ 			} else {
+ 				op1, _ := Assignop(n1.Type(), t)
+ 				op2, _ := Assignop(t, n1.Type())
+ 				if op1 == ir.OXXX && op2 == ir.OXXX {
+ 					if n.Tag != nil {
+-						base.ErrorfAt(ncase.Pos(), "invalid case %v in switch on %v (mismatched types %v and %v)", n1, n.Tag, n1.Type(), t)
++						base.ErrorfAt(ncase.Pos(), errors.MismatchedTypes, "invalid case %v in switch on %v (mismatched types %v and %v)", n1, n.Tag, n1.Type(), t)
+ 					} else {
+-						base.ErrorfAt(ncase.Pos(), "invalid case %v in switch (mismatched types %v and bool)", n1, n1.Type())
++						base.ErrorfAt(ncase.Pos(), errors.MismatchedTypes, "invalid case %v in switch (mismatched types %v and bool)", n1, n1.Type())
+ 					}
+ 				}
+ 			}
+@@ -556,7 +557,7 @@ func tcSwitchType(n *ir.SwitchStmt) {
+ 	guard.X = Expr(guard.X)
+ 	t := guard.X.Type()
+ 	if t != nil && !t.IsInterface() {
+-		base.ErrorfAt(n.Pos(), "cannot type switch on non-interface value %L", guard.X)
++		base.ErrorfAt(n.Pos(), errors.InvalidTypeSwitch, "cannot type switch on non-interface value %L", guard.X)
+ 		t = nil
+ 	}
+ 
+@@ -564,7 +565,7 @@ func tcSwitchType(n *ir.SwitchStmt) {
+ 	// declaration itself. So if there are no cases, we won't
+ 	// notice that it went unused.
+ 	if v := guard.Tag; v != nil && !ir.IsBlank(v) && len(n.Cases) == 0 {
+-		base.ErrorfAt(v.Pos(), "%v declared but not used", v.Sym())
++		base.ErrorfAt(v.Pos(), errors.UnusedVar, "%v declared but not used", v.Sym())
+ 	}
+ 
+ 	var defCase, nilCase ir.Node
+@@ -573,7 +574,7 @@ func tcSwitchType(n *ir.SwitchStmt) {
+ 		ls := ncase.List
+ 		if len(ls) == 0 { // default:
+ 			if defCase != nil {
+-				base.ErrorfAt(ncase.Pos(), "multiple defaults in switch (first at %v)", ir.Line(defCase))
++				base.ErrorfAt(ncase.Pos(), errors.DuplicateDefault, "multiple defaults in switch (first at %v)", ir.Line(defCase))
+ 			} else {
+ 				defCase = ncase
+ 			}
+@@ -590,7 +591,7 @@ func tcSwitchType(n *ir.SwitchStmt) {
+ 			var ptr int
+ 			if ir.IsNil(n1) { // case nil:
+ 				if nilCase != nil {
+-					base.ErrorfAt(ncase.Pos(), "multiple nil cases in type switch (first at %v)", ir.Line(nilCase))
++					base.ErrorfAt(ncase.Pos(), errors.DuplicateCase, "multiple nil cases in type switch (first at %v)", ir.Line(nilCase))
+ 				} else {
+ 					nilCase = ncase
+ 				}
+@@ -600,18 +601,18 @@ func tcSwitchType(n *ir.SwitchStmt) {
+ 				continue
+ 			}
+ 			if n1.Op() != ir.OTYPE {
+-				base.ErrorfAt(ncase.Pos(), "%L is not a type", n1)
++				base.ErrorfAt(ncase.Pos(), errors.NotAType, "%L is not a type", n1)
+ 				continue
+ 			}
+ 			if !n1.Type().IsInterface() && !implements(n1.Type(), t, &missing, &have, &ptr) {
+ 				if have != nil {
+-					base.ErrorfAt(ncase.Pos(), "impossible type switch case: %L cannot have dynamic type %v"+
++					base.ErrorfAt(ncase.Pos(), errors.ImpossibleAssert, "impossible type switch case: %L cannot have dynamic type %v"+
+ 						" (wrong type for %v method)\n\thave %v%S\n\twant %v%S", guard.X, n1.Type(), missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+ 				} else if ptr != 0 {
+-					base.ErrorfAt(ncase.Pos(), "impossible type switch case: %L cannot have dynamic type %v"+
++					base.ErrorfAt(ncase.Pos(), errors.ImpossibleAssert, "impossible type switch case: %L cannot have dynamic type %v"+
+ 						" (%v method has pointer receiver)", guard.X, n1.Type(), missing.Sym)
+ 				} else {
+-					base.ErrorfAt(ncase.Pos(), "impossible type switch case: %L cannot have dynamic type %v"+
++					base.ErrorfAt(ncase.Pos(), errors.ImpossibleAssert, "impossible type switch case: %L cannot have dynamic type %v"+
+ 						" (missing %v method)", guard.X, n1.Type(), missing.Sym)
+ 				}
+ 				continue
+@@ -659,7 +660,7 @@ func (s *typeSet) add(pos src.XPos, typ *types.Type) {
+ 
+ 	ls := typ.LinkString()
+ 	if prev, ok := s.m[ls]; ok {
+-		base.ErrorfAt(pos, "duplicate case %v in type switch\n\tprevious case at %s", typ, base.FmtPos(prev))
++		base.ErrorfAt(pos, errors.DuplicateCase, "duplicate case %v in type switch\n\tprevious case at %s", typ, base.FmtPos(prev))
+ 		return
+ 	}
+ 	s.m[ls] = pos
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 0c84bfe242..29bc61db60 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -8,6 +8,7 @@ import (
+ 	"fmt"
+ 	"go/constant"
+ 	"go/token"
++	"internal/types/errors"
+ 	"strings"
+ 
+ 	"cmd/compile/internal/base"
+@@ -286,7 +287,7 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
+ 						return n
+ 					}
+ 				}
+-				base.ErrorfAt(n.Pos(), "invalid recursive type alias %v%s", n, cycleTrace(cycle))
++				base.ErrorfAt(n.Pos(), errors.InvalidDeclCycle, "invalid recursive type alias %v%s", n, cycleTrace(cycle))
+ 			}
+ 
+ 		case ir.OLITERAL:
+@@ -294,7 +295,7 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
+ 				base.Errorf("%v is not a type", n)
+ 				break
+ 			}
+-			base.ErrorfAt(n.Pos(), "constant definition loop%s", cycleTrace(cycleFor(n)))
++			base.ErrorfAt(n.Pos(), errors.InvalidInitCycle, "constant definition loop%s", cycleTrace(cycleFor(n)))
+ 		}
+ 
+ 		if base.Errors() == 0 {
+diff --git a/src/cmd/compile/internal/types/size.go b/src/cmd/compile/internal/types/size.go
+index b8b90b2a92..1c20350128 100644
+--- a/src/cmd/compile/internal/types/size.go
++++ b/src/cmd/compile/internal/types/size.go
+@@ -9,6 +9,7 @@ import (
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/internal/src"
++	"internal/types/errors"
+ )
+ 
+ var PtrSize int
+@@ -84,7 +85,7 @@ func expandiface(t *Type) {
+ 		case !explicit && Identical(m.Type, prev.Type):
+ 			return
+ 		default:
+-			base.ErrorfAt(m.Pos, "duplicate method %s", m.Sym.Name)
++			base.ErrorfAt(m.Pos, errors.DuplicateDecl, "duplicate method %s", m.Sym.Name)
+ 		}
+ 		methods = append(methods, m)
+ 	}
+@@ -147,7 +148,7 @@ func expandiface(t *Type) {
+ 	sort.Sort(MethodsByName(methods))
+ 
+ 	if int64(len(methods)) >= MaxWidth/int64(PtrSize) {
+-		base.ErrorfAt(typePos(t), "interface too large")
++		base.ErrorfAt(typePos(t), 0, "interface too large")
+ 	}
+ 	for i, m := range methods {
+ 		m.Offset = int64(i) * int64(PtrSize)
+@@ -212,7 +213,7 @@ func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
+ 			maxwidth = 1<<31 - 1
+ 		}
+ 		if o >= maxwidth {
+-			base.ErrorfAt(typePos(errtype), "type %L too large", errtype)
++			base.ErrorfAt(typePos(errtype), 0, "type %L too large", errtype)
+ 			o = 8 // small but nonzero
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 77389495e1..513ce51b2c 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -8,6 +8,7 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/internal/src"
+ 	"fmt"
++	"internal/types/errors"
+ 	"sync"
+ )
+ 
+@@ -1663,7 +1664,7 @@ func (t *Type) SetUnderlying(underlying *Type) {
+ 	// Double-check use of type as embedded type.
+ 	if ft.Embedlineno.IsKnown() {
+ 		if t.IsPtr() || t.IsUnsafePtr() {
+-			base.ErrorfAt(ft.Embedlineno, "embedded type cannot be a pointer")
++			base.ErrorfAt(ft.Embedlineno, errors.InvalidPtrEmbed, "embedded type cannot be a pointer")
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 6f4a5339ce..72f7832346 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -560,7 +560,7 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 			fn := arg.(*ir.ConvExpr).X.(*ir.Name)
+ 			abi := fn.Func.ABI
+ 			if abi != wantABI {
+-				base.ErrorfAt(n.Pos(), "internal/abi.%s expects an %v function, %s is defined as %v", name, wantABI, fn.Sym().Name, abi)
++				base.ErrorfAt(n.Pos(), 0, "internal/abi.%s expects an %v function, %s is defined as %v", name, wantABI, fn.Sym().Name, abi)
+ 			}
+ 			var e ir.Node = ir.NewLinksymExpr(n.Pos(), fn.Sym().LinksymABI(abi), types.Types[types.TUINTPTR])
+ 			e = ir.NewAddrExpr(n.Pos(), e)
+@@ -570,7 +570,7 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 		// fn is not a defined function. It must be ABIInternal.
+ 		// Read the address from func value, i.e. *(*uintptr)(idata(fn)).
+ 		if wantABI != obj.ABIInternal {
+-			base.ErrorfAt(n.Pos(), "internal/abi.%s does not accept func expression, which is ABIInternal", name)
++			base.ErrorfAt(n.Pos(), 0, "internal/abi.%s does not accept func expression, which is ABIInternal", name)
+ 		}
+ 		arg = walkExpr(arg, init)
+ 		var e ir.Node = ir.NewUnaryExpr(n.Pos(), ir.OIDATA, arg)

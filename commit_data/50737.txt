@@ -20,7 +20,31 @@ Date:   Tue Nov 9 00:05:58 2021 +0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/mod_vendor_goversion.txt | 2 +-
  test/fixedbugs/issue49368.go                        | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/mod_vendor_goversion.txt b/src/cmd/go/testdata/script/mod_vendor_goversion.txt
+index a92eb73d27..9e3618a218 100644
+--- a/src/cmd/go/testdata/script/mod_vendor_goversion.txt
++++ b/src/cmd/go/testdata/script/mod_vendor_goversion.txt
+@@ -26,7 +26,7 @@ go mod vendor
+ ! grep 1.17 vendor/modules.txt
+ ! go build example.net/need117
+ stderr '^vendor[/\\]example\.net[/\\]need117[/\\]need117.go:5:1[89]:'
+-stderr 'conversion of slices to array pointers only supported as of -lang=go1\.17'
++stderr 'conversion of slices to array pointers requires go1\.17 or later'
+ 
+ ! grep 1.13 vendor/modules.txt
+ go build example.net/bad114
+diff --git a/test/fixedbugs/issue49368.go b/test/fixedbugs/issue49368.go
+index 2339048e3d..4cbf351ae0 100644
+--- a/test/fixedbugs/issue49368.go
++++ b/test/fixedbugs/issue49368.go
+@@ -1,4 +1,4 @@
+-// errorcheck -lang=go1.17
++// errorcheck -G=3 -lang=go1.17
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

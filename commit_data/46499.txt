@@ -12,7 +12,7 @@ Date:   Tue Jan 5 08:20:11 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/281543
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/escape/escape.go       | 14 +++++--
  src/cmd/compile/internal/gc/main.go             | 16 --------
  src/cmd/compile/internal/ir/name.go             | 11 +----
@@ -21,3 +21,311 @@ Date:   Tue Jan 5 08:20:11 2021 -0800
  src/cmd/compile/internal/typecheck/stmt.go      |  4 --
  src/cmd/compile/internal/typecheck/typecheck.go | 19 ---------
  7 files changed, 14 insertions(+), 106 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index 4aa7381c20..2222f98003 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -361,9 +361,17 @@ func (b *batch) flowClosure(k hole, clo *ir.ClosureExpr, orphan bool) {
+ 		}
+ 
+ 		// Capture by value for variables <= 128 bytes that are never reassigned.
+-		byval := !loc.addrtaken && !loc.reassigned && n.Type().Size() <= 128
+-		if byval != n.Byval() {
+-			base.FatalfAt(cv.Pos(), "byval mismatch: %v: %v != %v", cv, byval, n.Byval())
++		n.SetByval(!loc.addrtaken && !loc.reassigned && n.Type().Size() <= 128)
++		if !n.Byval() {
++			n.SetAddrtaken(true)
++		}
++
++		if base.Flag.LowerM > 1 {
++			how := "ref"
++			if n.Byval() {
++				how = "value"
++			}
++			base.WarnfAt(n.Pos(), "%v capturing by %s: %v (addr=%v assign=%v width=%d)", n.Curfn, how, n, loc.addrtaken, loc.reassigned, n.Type().Size())
+ 		}
+ 
+ 		// Flow captured variables to closure.
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 2ea614e17f..c3756309ea 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -232,22 +232,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	}
+ 	typecheck.IncrementalAddrtaken = true
+ 
+-	// Decide how to capture closed variables.
+-	// This needs to run before escape analysis,
+-	// because variables captured by value do not escape.
+-	base.Timer.Start("fe", "capturevars")
+-	for _, n := range typecheck.Target.Decls {
+-		if n.Op() == ir.ODCLFUNC {
+-			n := n.(*ir.Func)
+-			if n.OClosure != nil {
+-				ir.CurFunc = n
+-				typecheck.CaptureVars(n)
+-			}
+-		}
+-	}
+-	typecheck.CaptureVarsComplete = true
+-	ir.CurFunc = nil
+-
+ 	if base.Debug.TypecheckInl != 0 {
+ 		// Typecheck imported function bodies if Debug.l > 1,
+ 		// otherwise lazily when used or re-exported.
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 3999c0ecb4..a51cf79929 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -59,8 +59,7 @@ type Name struct {
+ 	// (results) are numbered starting at one, followed by function inputs
+ 	// (parameters), and then local variables. Vargen is used to distinguish
+ 	// local variables/params with the same name.
+-	Vargen    int32
+-	Decldepth int32 // declaration loop depth, increased for every loop or label
++	Vargen int32
+ 
+ 	Ntype    Ntype
+ 	Heapaddr *Name // temp holding heap address of param
+@@ -260,15 +259,13 @@ func (n *Name) Alias() bool { return n.flags&nameAlias != 0 }
+ func (n *Name) SetAlias(alias bool) { n.flags.set(nameAlias, alias) }
+ 
+ const (
+-	nameCaptured = 1 << iota // is the variable captured by a closure
+-	nameReadonly
++	nameReadonly              = 1 << iota
+ 	nameByval                 // is the variable captured by value or by reference
+ 	nameNeedzero              // if it contains pointers, needs to be zeroed on function entry
+ 	nameAutoTemp              // is the variable a temporary (implies no dwarf info. reset if escapes to heap)
+ 	nameUsed                  // for variable declared and not used error
+ 	nameIsClosureVar          // PAUTOHEAP closure pseudo-variable; original at n.Name.Defn
+ 	nameIsOutputParamHeapAddr // pointer to a result parameter's heap copy
+-	nameAssigned              // is the variable ever assigned to
+ 	nameAddrtaken             // address taken, even if not moved to heap
+ 	nameInlFormal             // PAUTO created by inliner, derived from callee formal
+ 	nameInlLocal              // PAUTO created by inliner, derived from callee local
+@@ -277,28 +274,24 @@ const (
+ 	nameAlias                 // is type name an alias
+ )
+ 
+-func (n *Name) Captured() bool              { return n.flags&nameCaptured != 0 }
+ func (n *Name) Readonly() bool              { return n.flags&nameReadonly != 0 }
+ func (n *Name) Needzero() bool              { return n.flags&nameNeedzero != 0 }
+ func (n *Name) AutoTemp() bool              { return n.flags&nameAutoTemp != 0 }
+ func (n *Name) Used() bool                  { return n.flags&nameUsed != 0 }
+ func (n *Name) IsClosureVar() bool          { return n.flags&nameIsClosureVar != 0 }
+ func (n *Name) IsOutputParamHeapAddr() bool { return n.flags&nameIsOutputParamHeapAddr != 0 }
+-func (n *Name) Assigned() bool              { return n.flags&nameAssigned != 0 }
+ func (n *Name) Addrtaken() bool             { return n.flags&nameAddrtaken != 0 }
+ func (n *Name) InlFormal() bool             { return n.flags&nameInlFormal != 0 }
+ func (n *Name) InlLocal() bool              { return n.flags&nameInlLocal != 0 }
+ func (n *Name) OpenDeferSlot() bool         { return n.flags&nameOpenDeferSlot != 0 }
+ func (n *Name) LibfuzzerExtraCounter() bool { return n.flags&nameLibfuzzerExtraCounter != 0 }
+ 
+-func (n *Name) SetCaptured(b bool)              { n.flags.set(nameCaptured, b) }
+ func (n *Name) setReadonly(b bool)              { n.flags.set(nameReadonly, b) }
+ func (n *Name) SetNeedzero(b bool)              { n.flags.set(nameNeedzero, b) }
+ func (n *Name) SetAutoTemp(b bool)              { n.flags.set(nameAutoTemp, b) }
+ func (n *Name) SetUsed(b bool)                  { n.flags.set(nameUsed, b) }
+ func (n *Name) SetIsClosureVar(b bool)          { n.flags.set(nameIsClosureVar, b) }
+ func (n *Name) SetIsOutputParamHeapAddr(b bool) { n.flags.set(nameIsOutputParamHeapAddr, b) }
+-func (n *Name) SetAssigned(b bool)              { n.flags.set(nameAssigned, b) }
+ func (n *Name) SetAddrtaken(b bool)             { n.flags.set(nameAddrtaken, b) }
+ func (n *Name) SetInlFormal(b bool)             { n.flags.set(nameInlFormal, b) }
+ func (n *Name) SetInlLocal(b bool)              { n.flags.set(nameInlLocal, b) }
+diff --git a/src/cmd/compile/internal/ir/sizeof_test.go b/src/cmd/compile/internal/ir/sizeof_test.go
+index 60120f2998..1a4d2e5c7a 100644
+--- a/src/cmd/compile/internal/ir/sizeof_test.go
++++ b/src/cmd/compile/internal/ir/sizeof_test.go
+@@ -21,7 +21,7 @@ func TestSizeof(t *testing.T) {
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+ 		{Func{}, 184, 320},
+-		{Name{}, 124, 216},
++		{Name{}, 120, 216},
+ 	}
+ 
+ 	for _, tt := range tests {
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 8fdb33b145..8789395ffb 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -100,32 +100,6 @@ func PartialCallType(n *ir.SelectorExpr) *types.Type {
+ 	return t
+ }
+ 
+-// CaptureVars is called in a separate phase after all typechecking is done.
+-// It decides whether each variable captured by a closure should be captured
+-// by value or by reference.
+-// We use value capturing for values <= 128 bytes that are never reassigned
+-// after capturing (effectively constant).
+-func CaptureVars(fn *ir.Func) {
+-	for _, v := range fn.ClosureVars {
+-		outermost := v.Defn.(*ir.Name)
+-
+-		// out parameters will be assigned to implicitly upon return.
+-		if outermost.Class != ir.PPARAMOUT && !outermost.Addrtaken() && !outermost.Assigned() && outermost.Type().Size() <= 128 {
+-			outermost.SetByval(true)
+-		} else {
+-			outermost.SetAddrtaken(true)
+-		}
+-
+-		if base.Flag.LowerM > 1 {
+-			how := "ref"
+-			if v.Byval() {
+-				how = "value"
+-			}
+-			base.WarnfAt(v.Pos(), "%v capturing by %s: %v (addr=%v assign=%v width=%d)", v.Curfn, how, v, outermost.Addrtaken(), outermost.Assigned(), v.Type().Size())
+-		}
+-	}
+-}
+-
+ // Lazy typechecking of imported bodies. For local functions, caninl will set ->typecheck
+ // because they're a copy of an already checked body.
+ func ImportedBody(fn *ir.Func) {
+@@ -198,9 +172,6 @@ func fnpkg(fn *ir.Name) *types.Pkg {
+ 	return fn.Sym().Pkg
+ }
+ 
+-// CaptureVarsComplete is set to true when the capturevars phase is done.
+-var CaptureVarsComplete bool
+-
+ // closurename generates a new unique name for a closure within
+ // outerfunc.
+ func closurename(outerfunc *ir.Func) *types.Sym {
+@@ -336,22 +307,6 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
+ 		return
+ 	}
+ 
+-	for _, ln := range fn.ClosureVars {
+-		n := ln.Defn
+-		if !n.Name().Captured() {
+-			n.Name().SetCaptured(true)
+-			if n.Name().Decldepth == 0 {
+-				base.Fatalf("typecheckclosure: var %v does not have decldepth assigned", n)
+-			}
+-
+-			// Ignore assignments to the variable in straightline code
+-			// preceding the first capturing by a closure.
+-			if n.Name().Decldepth == decldepth {
+-				n.Name().SetAssigned(false)
+-			}
+-		}
+-	}
+-
+ 	fn.Nname.SetSym(closurename(ir.CurFunc))
+ 	ir.MarkFunc(fn.Nname)
+ 	Func(fn)
+@@ -363,10 +318,7 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
+ 	if ir.CurFunc != nil && clo.Type() != nil {
+ 		oldfn := ir.CurFunc
+ 		ir.CurFunc = fn
+-		olddd := decldepth
+-		decldepth = 1
+ 		Stmts(fn.Body)
+-		decldepth = olddd
+ 		ir.CurFunc = oldfn
+ 	}
+ 
+@@ -400,12 +352,6 @@ func tcFunc(n *ir.Func) {
+ 		defer tracePrint("typecheckfunc", n)(nil)
+ 	}
+ 
+-	for _, ln := range n.Dcl {
+-		if ln.Op() == ir.ONAME && (ln.Class == ir.PPARAM || ln.Class == ir.PPARAMOUT) {
+-			ln.Decldepth = 1
+-		}
+-	}
+-
+ 	n.Nname = AssignExpr(n.Nname).(*ir.Name)
+ 	t := n.Nname.Type()
+ 	if t == nil {
+diff --git a/src/cmd/compile/internal/typecheck/stmt.go b/src/cmd/compile/internal/typecheck/stmt.go
+index d90d13b44c..8baa5dda78 100644
+--- a/src/cmd/compile/internal/typecheck/stmt.go
++++ b/src/cmd/compile/internal/typecheck/stmt.go
+@@ -228,7 +228,6 @@ func plural(n int) string {
+ // tcFor typechecks an OFOR node.
+ func tcFor(n *ir.ForStmt) ir.Node {
+ 	Stmts(n.Init())
+-	decldepth++
+ 	n.Cond = Expr(n.Cond)
+ 	n.Cond = DefaultLit(n.Cond, nil)
+ 	if n.Cond != nil {
+@@ -242,7 +241,6 @@ func tcFor(n *ir.ForStmt) ir.Node {
+ 		Stmts(n.Late)
+ 	}
+ 	Stmts(n.Body)
+-	decldepth--
+ 	return n
+ }
+ 
+@@ -337,9 +335,7 @@ func tcRange(n *ir.RangeStmt) {
+ 		n.Value = AssignExpr(n.Value)
+ 	}
+ 
+-	decldepth++
+ 	Stmts(n.Body)
+-	decldepth--
+ }
+ 
+ // tcReturn typechecks an ORETURN node.
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index c3a5a3c40f..07bbd25105 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -21,8 +21,6 @@ var InitTodoFunc = ir.NewFunc(base.Pos)
+ 
+ var inimport bool // set during import
+ 
+-var decldepth int32
+-
+ var TypecheckAllowed bool
+ 
+ var (
+@@ -58,7 +56,6 @@ func Callee(n ir.Node) ir.Node {
+ 
+ func FuncBody(n *ir.Func) {
+ 	ir.CurFunc = n
+-	decldepth = 1
+ 	errorsBefore := base.Errors()
+ 	Stmts(n.Body)
+ 	CheckUnused(n)
+@@ -506,9 +503,6 @@ func typecheck1(n ir.Node, top int) ir.Node {
+ 
+ 	case ir.ONAME:
+ 		n := n.(*ir.Name)
+-		if n.Decldepth == 0 {
+-			n.Decldepth = decldepth
+-		}
+ 		if n.BuiltinOp != 0 {
+ 			if top&ctxCallee == 0 {
+ 				base.Errorf("use of builtin %v not in function call", n.Sym())
+@@ -839,7 +833,6 @@ func typecheck1(n ir.Node, top int) ir.Node {
+ 		return n
+ 
+ 	case ir.OLABEL:
+-		decldepth++
+ 		if n.Sym().IsBlank() {
+ 			// Empty identifier is valid but useless.
+ 			// Eliminate now to simplify life later.
+@@ -1620,18 +1613,6 @@ func checkassign(stmt ir.Node, n ir.Node) {
+ 		return
+ 	}
+ 
+-	// Variables declared in ORANGE are assigned on every iteration.
+-	if !ir.DeclaredBy(n, stmt) || stmt.Op() == ir.ORANGE {
+-		r := ir.OuterValue(n)
+-		if r.Op() == ir.ONAME {
+-			r := r.(*ir.Name)
+-			r.SetAssigned(true)
+-			if r.IsClosureVar() {
+-				r.Defn.Name().SetAssigned(true)
+-			}
+-		}
+-	}
+-
+ 	if ir.IsAddressable(n) {
+ 		return
+ 	}

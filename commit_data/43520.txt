@@ -11,6 +11,25 @@ Date:   Thu Apr 9 11:09:00 2020 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/exec/exec_test.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 8609b28bd4..d9c9812554 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -690,8 +690,12 @@ func TestExtraFiles(t *testing.T) {
+ 	// Use a deadline to try to get some output even if the program hangs.
+ 	ctx := context.Background()
+ 	if deadline, ok := t.Deadline(); ok {
++		// Leave a 20% grace period to flush output, which may be large on the
++		// linux/386 builders because we're running the subprocess under strace.
++		deadline = deadline.Add(-time.Until(deadline) / 5)
++
+ 		var cancel context.CancelFunc
+-		ctx, cancel = context.WithDeadline(ctx, deadline.Add(-time.Second))
++		ctx, cancel = context.WithDeadline(ctx, deadline)
+ 		defer cancel()
+ 	}
+ 	c := helperCommandContext(t, ctx, "read3")

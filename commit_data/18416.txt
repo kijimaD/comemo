@@ -19,7 +19,7 @@ Date:   Thu Feb 6 09:11:00 2014 -0800
     R=golang-codereviews, minux.ma, iant, rsc, dominik.honnef
     CC=golang-codereviews
     https://golang.org/cl/57100043
-
+---
  src/cmd/dist/a.h          |  3 +-
  src/cmd/dist/build.c      | 25 ++++++++++----
  src/cmd/dist/buildgo.c    |  2 +-
@@ -27,3 +27,253 @@ Date:   Thu Feb 6 09:11:00 2014 -0800
  src/make.bash             | 17 +++++++---
  src/pkg/go/build/build.go |  3 +-
  6 files changed, 79 insertions(+), 54 deletions(-)
+
+diff --git a/src/cmd/dist/a.h b/src/cmd/dist/a.h
+index 3052e515b3..6222e50604 100644
+--- a/src/cmd/dist/a.h
++++ b/src/cmd/dist/a.h
+@@ -75,7 +75,8 @@ extern char *goroot_final;
+ extern char *goextlinkenabled;
+ extern char *goversion;
+ extern char *defaultcc;
+-extern char *defaultcxx;
++extern char *defaultcxxtarget;
++extern char *defaultcctarget;
+ extern char *workdir;
+ extern char *tooldir;
+ extern char *slash;
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 29656f3374..0546249226 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -27,7 +27,8 @@ char *gochar;
+ char *goversion;
+ char *slash;	// / for unix, \ for windows
+ char *defaultcc;
+-char *defaultcxx;
++char *defaultcxxtarget;
++char *defaultcctarget;
+ bool	rebuildall;
+ bool defaultclang;
+ 
+@@ -166,14 +167,23 @@ init(void)
+ 	}
+ 	defaultcc = btake(&b);
+ 
+-	xgetenv(&b, "CXX");
++	xgetenv(&b, "CC_FOR_TARGET");
+ 	if(b.len == 0) {
+-		if(defaultclang)
+-			bprintf(&b, "clang++");
+-		else
+-			bprintf(&b, "g++");
++		bprintf(&b, defaultcc);
++	}
++	defaultcctarget = btake(&b);
++
++	xgetenv(&b, "CXX_FOR_TARGET");
++	if(b.len == 0) {
++		xgetenv(&b, "CXX");
++		if(b.len == 0) {
++			if(defaultclang)
++				bprintf(&b, "clang++");
++			else
++				bprintf(&b, "g++");
++		}
+ 	}
+-	defaultcxx = btake(&b);
++	defaultcxxtarget = btake(&b);
+ 
+ 	xsetenv("GOROOT", goroot);
+ 	xsetenv("GOARCH", goarch);
+@@ -1537,6 +1547,7 @@ cmdenv(int argc, char **argv)
+ 		usage();
+ 
+ 	xprintf(format, "CC", defaultcc);
++	xprintf(format, "CC_FOR_TARGET", defaultcctarget);
+ 	xprintf(format, "GOROOT", goroot);
+ 	xprintf(format, "GOBIN", gobin);
+ 	xprintf(format, "GOARCH", goarch);
+diff --git a/src/cmd/dist/buildgo.c b/src/cmd/dist/buildgo.c
+index a340252bc5..41208fac5f 100644
+--- a/src/cmd/dist/buildgo.c
++++ b/src/cmd/dist/buildgo.c
+@@ -31,7 +31,7 @@ mkzdefaultcc(char *dir, char *file)
+ 		"\n"
+ 		"const defaultCC = `%s`\n"
+ 		"const defaultCXX = `%s`\n",
+-		defaultcc, defaultcxx);
++		defaultcctarget, defaultcxxtarget);
+ 
+ 	writefile(&out, file, 0);
+ 
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index da90f0c029..4942a1b65f 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1708,42 +1708,42 @@ func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action,
+ 	if buildContext.InstallSuffix != "" {
+ 		ldflags = append(ldflags, "-installsuffix", buildContext.InstallSuffix)
+ 	}
+-	if cxx {
+-		// The program includes C++ code.  If the user has not
+-		// specified the -extld option, then default to
+-		// linking with the compiler named by the CXX
+-		// environment variable, or g++ if CXX is not set.
+-		extld := false
+-		for _, f := range ldflags {
+-			if f == "-extld" || strings.HasPrefix(f, "-extld=") {
+-				extld = true
+-				break
+-			}
++	// If the user has not specified the -extld option, then specify the
++	// appropriate linker. In case of C++ code, use the compiler named
++	// by the CXX environment variable or defaultCXX if CXX is not set.
++	// Else, use the CC environment variable and defaultCC as fallback.
++	extld := false
++	for _, f := range ldflags {
++		if f == "-extld" || strings.HasPrefix(f, "-extld=") {
++			extld = true
++			break
+ 		}
+-		if !extld {
+-			compiler := strings.Fields(os.Getenv("CXX"))
+-			if len(compiler) == 0 {
+-				compiler = []string{"g++"}
+-			}
+-			ldflags = append(ldflags, "-extld="+compiler[0])
+-			if len(compiler) > 1 {
+-				extldflags := false
+-				add := strings.Join(compiler[1:], " ")
+-				for i, f := range ldflags {
+-					if f == "-extldflags" && i+1 < len(ldflags) {
+-						ldflags[i+1] = add + " " + ldflags[i+1]
+-						extldflags = true
+-						break
+-					} else if strings.HasPrefix(f, "-extldflags=") {
+-						ldflags[i] = "-extldflags=" + add + " " + ldflags[i][len("-extldflags="):]
+-						extldflags = true
+-						break
+-					}
+-				}
+-				if !extldflags {
+-					ldflags = append(ldflags, "-extldflags="+add)
++	}
++	if !extld {
++		var compiler []string
++		if cxx {
++			compiler = ccompilerPath("CXX", defaultCXX)
++		} else {
++			compiler = ccompilerPath("CC", defaultCC)
++		}
++		ldflags = append(ldflags, "-extld="+compiler[0])
++		if len(compiler) > 1 {
++			extldflags := false
++			add := strings.Join(compiler[1:], " ")
++			for i, f := range ldflags {
++				if f == "-extldflags" && i+1 < len(ldflags) {
++					ldflags[i+1] = add + " " + ldflags[i+1]
++					extldflags = true
++					break
++				} else if strings.HasPrefix(f, "-extldflags=") {
++					ldflags[i] = "-extldflags=" + add + " " + ldflags[i][len("-extldflags="):]
++					extldflags = true
++					break
+ 				}
+ 			}
++			if !extldflags {
++				ldflags = append(ldflags, "-extldflags="+add)
++			}
+ 		}
+ 	}
+ 	return b.run(".", p.ImportPath, nil, tool(archChar+"l"), "-o", out, importArgs, swigArg, ldflags, mainpkg)
+@@ -1973,15 +1973,12 @@ func (b *builder) gxxCmd(objdir string) []string {
+ }
+ 
+ // ccompilerCmd returns a command line prefix for the given environment
+-// variable and using the default command when the variable is empty
++// variable and using the default command when the variable is empty.
+ func (b *builder) ccompilerCmd(envvar, defcmd, objdir string) []string {
+ 	// NOTE: env.go's mkEnv knows that the first three
+ 	// strings returned are "gcc", "-I", objdir (and cuts them off).
+ 
+-	compiler := strings.Fields(os.Getenv(envvar))
+-	if len(compiler) == 0 {
+-		compiler = strings.Fields(defcmd)
+-	}
++	compiler := ccompilerPath(envvar, defcmd)
+ 	a := []string{compiler[0], "-I", objdir, "-g", "-O2"}
+ 	a = append(a, compiler[1:]...)
+ 
+@@ -2039,6 +2036,16 @@ func envList(key string) []string {
+ 	return strings.Fields(os.Getenv(key))
+ }
+ 
++// ccompilerCmd returns the compilerpath for the given environment
++// variable and using the default command when the variable is empty.
++func ccompilerPath(envvar, defcmd string) []string {
++	compiler := envList(envvar)
++	if len(compiler) == 0 {
++		compiler = strings.Fields(defcmd)
++	}
++	return compiler
++}
++
+ var cgoRe = regexp.MustCompile(`[/\\:]`)
+ 
+ var (
+diff --git a/src/make.bash b/src/make.bash
+index 877d1e5ebb..bfcb5d58ea 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -35,10 +35,15 @@
+ # controls the default behavior of the linker's -linkmode option.  The
+ # default value depends on the system.
+ #
+-# CC: Command line to run to get at host C compiler.
++# CC: Command line to run to compile C code for GOHOSTARCH.
+ # Default is "gcc". Also supported: "clang".
+-# CXX: Command line to run to get at host C++ compiler, only recorded
+-# for cgo use. Default is "g++". Also supported: "clang++".
++#
++# CC_FOR_TARGET: Command line to run to compile C code for GOARCH.
++# This is used by cgo.  Default is CC.
++#
++# CXX_FOR_TARGET: Command line to run to compile C++ code for GOARCH.
++# This is used by cgo. Default is CXX, or, if that is not set, 
++# "g++" or "clang++".
+ #
+ # GO_DISTFLAGS: extra flags to provide to "dist bootstrap". Use "-s"
+ # to build a statically linked toolchain.
+@@ -153,13 +158,15 @@ echo
+ 
+ if [ "$GOHOSTARCH" != "$GOARCH" -o "$GOHOSTOS" != "$GOOS" ]; then
+ 	echo "# Building packages and commands for host, $GOHOSTOS/$GOHOSTARCH."
+-	GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH \
++	# CC_FOR_TARGET is recorded as the default compiler for the go tool. When building for the host, however,
++	# use the host compiler, CC, from `cmd/dist/dist env` instead.
++	CC=$CC GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH \
+ 		"$GOTOOLDIR"/go_bootstrap install -ccflags "$GO_CCFLAGS" -gcflags "$GO_GCFLAGS" -ldflags "$GO_LDFLAGS" -v std
+ 	echo
+ fi
+ 
+ echo "# Building packages and commands for $GOOS/$GOARCH."
+-"$GOTOOLDIR"/go_bootstrap install $GO_FLAGS -ccflags "$GO_CCFLAGS" -gcflags "$GO_GCFLAGS" -ldflags "$GO_LDFLAGS" -v std
++CC=$CC_FOR_TARGET "$GOTOOLDIR"/go_bootstrap install $GO_FLAGS -ccflags "$GO_CCFLAGS" -gcflags "$GO_GCFLAGS" -ldflags "$GO_LDFLAGS" -v std
+ echo
+ 
+ rm -f "$GOTOOLDIR"/go_bootstrap
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index 50d2fb4aeb..e4fc853b4a 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -303,8 +303,7 @@ func defaultContext() Context {
+ 	case "0":
+ 		c.CgoEnabled = false
+ 	default:
+-		// golang.org/issue/5141
+-		// cgo should be disabled for cross compilation builds
++		// cgo must be explicitly enabled for cross compilation builds
+ 		if runtime.GOARCH == c.GOARCH && runtime.GOOS == c.GOOS {
+ 			c.CgoEnabled = cgoEnabled[c.GOOS+"/"+c.GOARCH]
+ 			break

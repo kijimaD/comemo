@@ -9,7 +9,60 @@ Date:   Mon Jun 11 17:52:09 2012 -0400
     R=golang-dev, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/6297075
-
+---
  src/pkg/fmt/scan.go      |  3 ++-
  src/pkg/fmt/scan_test.go | 27 +++++++++++++++++++++++++++
  2 files changed, 29 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/fmt/scan.go b/src/pkg/fmt/scan.go
+index 0b3e04069a..d69911c7d7 100644
+--- a/src/pkg/fmt/scan.go
++++ b/src/pkg/fmt/scan.go
+@@ -1090,7 +1090,8 @@ func (s *ss) advance(format string) (i int) {
+ 			// There was space in the format, so there should be space (EOF)
+ 			// in the input.
+ 			inputc := s.getRune()
+-			if inputc == eof {
++			if inputc == eof || inputc == '\n' {
++				// If we've reached a newline, stop now; don't read ahead.
+ 				return
+ 			}
+ 			if !isSpace(inputc) {
+diff --git a/src/pkg/fmt/scan_test.go b/src/pkg/fmt/scan_test.go
+index 320857b73e..cc09e910aa 100644
+--- a/src/pkg/fmt/scan_test.go
++++ b/src/pkg/fmt/scan_test.go
+@@ -810,6 +810,33 @@ func TestMultiLine(t *testing.T) {
+ 	}
+ }
+ 
++// simpleReader is a strings.Reader that implements only Read, not ReadRune.
++// Good for testing readahead.
++type simpleReader struct {
++	sr *strings.Reader
++}
++
++func (s *simpleReader) Read(b []byte) (n int, err error) {
++	return s.sr.Read(b)
++}
++
++// Test that Fscanf does not read past newline. Issue 3481.
++func TestLineByLineFscanf(t *testing.T) {
++	r := &simpleReader{strings.NewReader("1\n2\n")}
++	var i, j int
++	n, err := Fscanf(r, "%v\n", &i)
++	if n != 1 || err != nil {
++		t.Fatalf("first read: %d %q", n, err)
++	}
++	n, err = Fscanf(r, "%v\n", &j)
++	if n != 1 || err != nil {
++		t.Fatalf("second read: %d %q", n, err)
++	}
++	if i != 1 || j != 2 {
++		t.Errorf("wrong values; wanted 1 2 got %d %d", i, j)
++	}
++}
++
+ // RecursiveInt accepts a string matching %d.%d.%d....
+ // and parses it into a linked list.
+ // It allows us to benchmark recursive descent style scanners.

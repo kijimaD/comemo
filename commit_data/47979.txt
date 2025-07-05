@@ -14,7 +14,74 @@ Date:   Tue Apr 20 15:36:11 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/typecheck/iexport.go | 10 +++++++++-
  src/cmd/compile/internal/typecheck/iimport.go | 18 ++++++++++++++++--
  2 files changed, 25 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index b59a610cf7..6a56abb1b9 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -749,8 +749,16 @@ func (w *exportWriter) exoticParam(f *types.Field) {
+ 	w.uint64(uint64(f.Offset))
+ 	w.exoticType(f.Type)
+ 	w.bool(f.IsDDD())
++}
++
++func (w *exportWriter) exoticField(f *types.Field) {
++	w.pos(f.Pos)
++	w.exoticSym(f.Sym)
++	w.uint64(uint64(f.Offset))
++	w.exoticType(f.Type)
+ 	w.string(f.Note)
+ }
++
+ func (w *exportWriter) exoticSym(s *types.Sym) {
+ 	if s == nil {
+ 		w.string("")
+@@ -1593,7 +1601,7 @@ func (w *exportWriter) expr(n ir.Node) {
+ 		if go117ExportTypes {
+ 			w.exoticType(n.Type())
+ 			if n.Op() == ir.ODOT || n.Op() == ir.ODOTPTR || n.Op() == ir.ODOTINTER {
+-				w.exoticParam(n.Selection)
++				w.exoticField(n.Selection)
+ 			}
+ 			// n.Selection is not required for OMETHEXPR, ODOTMETH, and OCALLPART. It will
+ 			// be reconstructed during import.
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 53576bf725..8c197215d7 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -592,7 +592,21 @@ func (r *importReader) exoticParam() *types.Field {
+ 		f.Nname = ir.NewNameAt(pos, sym)
+ 	}
+ 	f.SetIsDDD(ddd)
+-	f.Note = r.string()
++	return f
++}
++
++func (r *importReader) exoticField() *types.Field {
++	pos := r.pos()
++	sym := r.exoticSym()
++	off := r.uint64()
++	typ := r.exoticType()
++	note := r.string()
++	f := types.NewField(pos, sym, typ)
++	f.Offset = int64(off)
++	if sym != nil {
++		f.Nname = ir.NewNameAt(pos, sym)
++	}
++	f.Note = note
+ 	return f
+ }
+ 
+@@ -1202,7 +1216,7 @@ func (r *importReader) node() ir.Node {
+ 		n.SetType(r.exoticType())
+ 		switch op {
+ 		case ir.ODOT, ir.ODOTPTR, ir.ODOTINTER:
+-			n.Selection = r.exoticParam()
++			n.Selection = r.exoticField()
+ 		case ir.ODOTMETH, ir.OCALLPART, ir.OMETHEXPR:
+ 			// These require a Lookup to link to the correct declaration.
+ 			rcvrType := expr.Type()

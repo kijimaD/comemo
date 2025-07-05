@@ -7,6 +7,23 @@ Date:   Sat Apr 10 01:53:43 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/903043
-
+---
  lib/codereview/codereview.py | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 5e7e922407..9af28cfdaa 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -712,9 +712,9 @@ def CheckGofmt(ui, repo, files, just_warn=False):
+ #
+ 
+ def change(ui, repo, *pats, **opts):
+-	"""create or edit a change list
++	"""create, edit or delete a change list
+ 
+-	Create or edit a change list.
++	Create, edit or delete a change list.
+ 	A change list is a group of files to be reviewed and submitted together,
+ 	plus a textual description of the change.
+ 	Change lists are referred to by simple alphanumeric names.

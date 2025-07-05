@@ -17,7 +17,53 @@ Date:   Sat May 13 19:11:44 2017 +0200
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/expr.go        | 22 ++++++++++++++++++----
  src/go/types/stdlib_test.go |  1 -
  2 files changed, 18 insertions(+), 5 deletions(-)
+
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 7de13f5be6..7f54b09071 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -800,10 +800,24 @@ func (check *Checker) binary(x *operand, e *ast.BinaryExpr, lhs, rhs ast.Expr, o
+ 		return
+ 	}
+ 
+-	if (op == token.QUO || op == token.REM) && (x.mode == constant_ || isInteger(x.typ)) && y.mode == constant_ && constant.Sign(y.val) == 0 {
+-		check.invalidOp(y.pos(), "division by zero")
+-		x.mode = invalid
+-		return
++	if op == token.QUO || op == token.REM {
++		// check for zero divisor
++		if (x.mode == constant_ || isInteger(x.typ)) && y.mode == constant_ && constant.Sign(y.val) == 0 {
++			check.invalidOp(y.pos(), "division by zero")
++			x.mode = invalid
++			return
++		}
++
++		// check for divisor underflow in complex division (see issue 20227)
++		if x.mode == constant_ && y.mode == constant_ && isComplex(x.typ) {
++			re, im := constant.Real(y.val), constant.Imag(y.val)
++			re2, im2 := constant.BinaryOp(re, token.MUL, re), constant.BinaryOp(im, token.MUL, im)
++			if constant.Sign(re2) == 0 && constant.Sign(im2) == 0 {
++				check.invalidOp(y.pos(), "division by zero")
++				x.mode = invalid
++				return
++			}
++		}
+ 	}
+ 
+ 	if x.mode == constant_ && y.mode == constant_ {
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index b9a6681e66..345c7897f3 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -171,7 +171,6 @@ func TestStdFixed(t *testing.T) {
+ 		"issue18459.go", // go/types doesn't check validity of //go:xxx directives
+ 		"issue18882.go", // go/types doesn't check validity of //go:xxx directives
+ 		"issue20232.go", // go/types handles larger constants than gc
+-		"issue20227.go", // go/types does not handle this yet
+ 		"issue20529.go", // go/types does not have constraints on stack size
+ 	)
+ }

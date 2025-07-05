@@ -13,7 +13,7 @@ Date:   Thu Feb 8 11:14:35 2024 -0800
     Auto-Submit: Robert Griesemer <gri@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/compile/internal/types2/builtins.go | 4 ++--
  src/cmd/compile/internal/types2/call.go     | 4 ++--
  src/cmd/compile/internal/types2/util.go     | 3 +++
@@ -22,3 +22,139 @@ Date:   Thu Feb 8 11:14:35 2024 -0800
  src/go/types/exprstring.go                  | 2 +-
  src/go/types/util.go                        | 8 +++++++-
  7 files changed, 19 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index e32293a907..5db3ae2fa4 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -22,7 +22,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 	// append is the only built-in that permits the use of ... for the last argument
+ 	bin := predeclaredFuncs[id]
+-	if call.HasDots && id != _Append {
++	if hasDots(call) && id != _Append {
+ 		//check.errorf(call.Ellipsis, invalidOp + "invalid use of ... with built-in %s", bin.name)
+ 		check.errorf(call,
+ 			InvalidDotDotDot,
+@@ -114,7 +114,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		// spec: "As a special case, append also accepts a first argument assignable
+ 		// to type []byte with a second argument of string type followed by ... .
+ 		// This form appends the bytes of the string.
+-		if nargs == 2 && call.HasDots {
++		if nargs == 2 && hasDots(call) {
+ 			if ok, _ := x.assignableTo(check, NewSlice(universeByte), nil); ok {
+ 				y := args[1]
+ 				if t := coreString(y.typ); t != nil && isString(t) {
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index b8f8a418bb..7e4cf8974f 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -209,7 +209,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
+ 						break
+ 					}
+ 				}
+-				if call.HasDots {
++				if hasDots(call) {
+ 					check.errorf(call.ArgList[0], BadDotDotDotSyntax, "invalid use of ... in conversion to %s", T)
+ 					break
+ 				}
+@@ -468,7 +468,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
+ 
+ 	nargs := len(args)
+ 	npars := sig.params.Len()
+-	ddd := call.HasDots
++	ddd := hasDots(call)
+ 
+ 	// set up parameters
+ 	sigParams := sig.params // adjusted for variadic functions (may be nil for empty parameter lists!)
+diff --git a/src/cmd/compile/internal/types2/util.go b/src/cmd/compile/internal/types2/util.go
+index 01da1c12ca..d77da478fa 100644
+--- a/src/cmd/compile/internal/types2/util.go
++++ b/src/cmd/compile/internal/types2/util.go
+@@ -20,3 +20,6 @@ import "cmd/compile/internal/syntax"
+ // If p and q are in different files, p is before q if the filename
+ // of p sorts lexicographically before the filename of q.
+ func cmpPos(p, q syntax.Pos) int { return p.Cmp(q) }
++
++// hasDots reports whether the last argument in the call is followed by ...
++func hasDots(call *syntax.CallExpr) bool { return call.HasDots }
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 325a6d67c5..b49af55469 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -22,7 +22,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 
+ 	// append is the only built-in that permits the use of ... for the last argument
+ 	bin := predeclaredFuncs[id]
+-	if call.Ellipsis.IsValid() && id != _Append {
++	if hasDots(call) && id != _Append {
+ 		check.errorf(atPos(call.Ellipsis),
+ 			InvalidDotDotDot,
+ 			invalidOp+"invalid use of ... with built-in %s", bin.name)
+@@ -113,7 +113,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		// spec: "As a special case, append also accepts a first argument assignable
+ 		// to type []byte with a second argument of string type followed by ... .
+ 		// This form appends the bytes of the string.
+-		if nargs == 2 && call.Ellipsis.IsValid() {
++		if nargs == 2 && hasDots(call) {
+ 			if ok, _ := x.assignableTo(check, NewSlice(universeByte), nil); ok {
+ 				y := args[1]
+ 				if t := coreString(y.typ); t != nil && isString(t) {
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 2c55c63d1d..dcd833d23c 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -206,7 +206,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
+ 		case 1:
+ 			check.expr(nil, x, call.Args[0])
+ 			if x.mode != invalid {
+-				if call.Ellipsis.IsValid() {
++				if hasDots(call) {
+ 					check.errorf(call.Args[0], BadDotDotDotSyntax, "invalid use of ... in conversion to %s", T)
+ 					break
+ 				}
+@@ -471,7 +471,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
+ 
+ 	nargs := len(args)
+ 	npars := sig.params.Len()
+-	ddd := call.Ellipsis.IsValid()
++	ddd := hasDots(call)
+ 
+ 	// set up parameters
+ 	sigParams := sig.params // adjusted for variadic functions (may be nil for empty parameter lists!)
+diff --git a/src/go/types/exprstring.go b/src/go/types/exprstring.go
+index 3cdf30fba1..0403a06d8c 100644
+--- a/src/go/types/exprstring.go
++++ b/src/go/types/exprstring.go
+@@ -105,7 +105,7 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
+ 		WriteExpr(buf, x.Fun)
+ 		buf.WriteByte('(')
+ 		writeExprList(buf, x.Args)
+-		if x.Ellipsis.IsValid() {
++		if hasDots(x) {
+ 			buf.WriteString("...")
+ 		}
+ 		buf.WriteByte(')')
+diff --git a/src/go/types/util.go b/src/go/types/util.go
+index 87e1240010..910a0f16d9 100644
+--- a/src/go/types/util.go
++++ b/src/go/types/util.go
+@@ -9,7 +9,10 @@
+ 
+ package types
+ 
+-import "go/token"
++import (
++	"go/ast"
++	"go/token"
++)
+ 
+ // cmpPos compares the positions p and q and returns a result r as follows:
+ //
+@@ -20,3 +23,6 @@ import "go/token"
+ // If p and q are in different files, p is before q if the filename
+ // of p sorts lexicographically before the filename of q.
+ func cmpPos(p, q token.Pos) int { return int(p - q) }
++
++// hasDots reports whether the last argument in the call is followed by ...
++func hasDots(call *ast.CallExpr) bool { return call.Ellipsis.IsValid() }

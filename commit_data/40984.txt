@@ -15,8 +15,139 @@ Date:   Sun Jun 16 16:07:55 2019 +0530
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Richard Musiol <neelance@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/gen/Wasm.rules |  3 +++
  src/cmd/compile/internal/ssa/rewriteWasm.go | 42 +++++++++++++++++++++++++++++
  test/codegen/shift.go                       | 10 +++----
  3 files changed, 50 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/Wasm.rules b/src/cmd/compile/internal/ssa/gen/Wasm.rules
+index a8b7cf48a2..f2b5be52ce 100644
+--- a/src/cmd/compile/internal/ssa/gen/Wasm.rules
++++ b/src/cmd/compile/internal/ssa/gen/Wasm.rules
+@@ -102,6 +102,7 @@
+ // Lowering shifts
+ // Unsigned shifts need to return 0 if shift amount is >= width of shifted value.
+ 
++(Lsh64x64 x y) && shiftIsBounded(v) -> (I64Shl x y)
+ (Lsh64x64 x y) -> (Select (I64Shl x y) (I64Const [0]) (I64LtU y (I64Const [64])))
+ (Lsh64x(32|16|8) x y) -> (Lsh64x64 x (ZeroExt(32|16|8)to64 y))
+ 
+@@ -114,6 +115,7 @@
+ (Lsh8x64  x y) -> (Lsh64x64 x y)
+ (Lsh8x(32|16|8)  x y) -> (Lsh64x64 x (ZeroExt(32|16|8)to64 y))
+ 
++(Rsh64Ux64 x y) && shiftIsBounded(v) -> (I64ShrU x y)
+ (Rsh64Ux64 x y) -> (Select (I64ShrU x y) (I64Const [0]) (I64LtU y (I64Const [64])))
+ (Rsh64Ux(32|16|8) x y) -> (Rsh64Ux64 x (ZeroExt(32|16|8)to64 y))
+ 
+@@ -129,6 +131,7 @@
+ // Signed right shift needs to return 0/-1 if shift amount is >= width of shifted value.
+ // We implement this by setting the shift value to (width - 1) if the shift value is >= width.
+ 
++(Rsh64x64 x y) && shiftIsBounded(v) -> (I64ShrS x y)
+ (Rsh64x64 x y) -> (I64ShrS x (Select <typ.Int64> y (I64Const [63]) (I64LtU y (I64Const [64]))))
+ (Rsh64x(32|16|8) x y) -> (Rsh64x64 x (ZeroExt(32|16|8)to64 y))
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewriteWasm.go b/src/cmd/compile/internal/ssa/rewriteWasm.go
+index 4bded46065..f57305dade 100644
+--- a/src/cmd/compile/internal/ssa/rewriteWasm.go
++++ b/src/cmd/compile/internal/ssa/rewriteWasm.go
+@@ -2729,6 +2729,20 @@ func rewriteValueWasm_OpLsh64x64_0(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (Lsh64x64 x y)
++	// cond: shiftIsBounded(v)
++	// result: (I64Shl x y)
++	for {
++		y := v.Args[1]
++		x := v.Args[0]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpWasmI64Shl)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	// match: (Lsh64x64 x y)
+ 	// cond:
+ 	// result: (Select (I64Shl x y) (I64Const [0]) (I64LtU y (I64Const [64])))
+ 	for {
+@@ -4256,6 +4270,20 @@ func rewriteValueWasm_OpRsh64Ux64_0(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (Rsh64Ux64 x y)
++	// cond: shiftIsBounded(v)
++	// result: (I64ShrU x y)
++	for {
++		y := v.Args[1]
++		x := v.Args[0]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpWasmI64ShrU)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	// match: (Rsh64Ux64 x y)
+ 	// cond:
+ 	// result: (Select (I64ShrU x y) (I64Const [0]) (I64LtU y (I64Const [64])))
+ 	for {
+@@ -4333,6 +4361,20 @@ func rewriteValueWasm_OpRsh64x64_0(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (Rsh64x64 x y)
++	// cond: shiftIsBounded(v)
++	// result: (I64ShrS x y)
++	for {
++		y := v.Args[1]
++		x := v.Args[0]
++		if !(shiftIsBounded(v)) {
++			break
++		}
++		v.reset(OpWasmI64ShrS)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++	// match: (Rsh64x64 x y)
+ 	// cond:
+ 	// result: (I64ShrS x (Select <typ.Int64> y (I64Const [63]) (I64LtU y (I64Const [64]))))
+ 	for {
+diff --git a/test/codegen/shift.go b/test/codegen/shift.go
+index 4ae9d7d6a0..f287ca68b7 100644
+--- a/test/codegen/shift.go
++++ b/test/codegen/shift.go
+@@ -102,9 +102,9 @@ func lshSignedMasked(v8 int8, v16 int16, v32 int32, v64 int64, x int) {
+ //   bounded shifts   //
+ // ------------------ //
+ 
+-func lshGuarded64(v int64, s uint) int64 {
++func rshGuarded64(v int64, s uint) int64 {
+ 	if s < 64 {
+-		// s390x:-".*AND",-".*MOVDGE"
++		// s390x:-".*AND",-".*MOVDGE" wasm:-"Select",-".*LtU"
+ 		return v >> s
+ 	}
+ 	panic("shift too large")
+@@ -112,15 +112,15 @@ func lshGuarded64(v int64, s uint) int64 {
+ 
+ func rshGuarded64U(v uint64, s uint) uint64 {
+ 	if s < 64 {
+-		// s390x:-".*AND",-".*MOVDGE"
++		// s390x:-".*AND",-".*MOVDGE" wasm:-"Select",-".*LtU"
+ 		return v >> s
+ 	}
+ 	panic("shift too large")
+ }
+ 
+-func rshGuarded64(v int64, s uint) int64 {
++func lshGuarded64(v int64, s uint) int64 {
+ 	if s < 64 {
+-		// s390x:-".*AND",-".*MOVDGE"
++		// s390x:-".*AND",-".*MOVDGE" wasm:-"Select",-".*LtU"
+ 		return v << s
+ 	}
+ 	panic("shift too large")

@@ -11,8 +11,93 @@ Date:   Sun Mar 9 16:39:36 2025 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
     Auto-Submit: Jorropo <jorropo.pgm@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/_gen/generic.rules |  1 +
  src/cmd/compile/internal/ssa/rewrite.go         |  6 ++++
  src/cmd/compile/internal/ssa/rewritegeneric.go  | 40 +++++++++++++++++++++++++
  3 files changed, 47 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/generic.rules b/src/cmd/compile/internal/ssa/_gen/generic.rules
+index e671568d79..02e4290b9d 100644
+--- a/src/cmd/compile/internal/ssa/_gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/_gen/generic.rules
+@@ -74,6 +74,7 @@
+ (PopCount32 (Const32 [c])) && config.PtrSize == 4 => (Const32 [int32(bits.OnesCount32(uint32(c)))])
+ (PopCount16 (Const16 [c])) && config.PtrSize == 4 => (Const32 [int32(bits.OnesCount16(uint16(c)))])
+ (PopCount8  (Const8  [c])) && config.PtrSize == 4 => (Const32 [int32(bits.OnesCount8(uint8(c)))])
++(Add64carry (Const64 <t> [x]) (Const64 [y]) (Const64 [c])) && c >= 0 && c <= 1 => (MakeTuple (Const64 <t> [bitsAdd64(x, y, c).sum]) (Const64 <t> [bitsAdd64(x, y, c).carry]))
+ 
+ (Trunc16to8  (ZeroExt8to16  x)) => x
+ (Trunc32to8  (ZeroExt8to32  x)) => x
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index eb523675b1..b441d68536 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -2554,3 +2554,9 @@ func isDirectIface2(v *Value, depth int) bool {
+ 	}
+ 	return false
+ }
++
++func bitsAdd64(x, y, carry int64) (r struct{ sum, carry int64 }) {
++	s, c := bits.Add64(uint64(x), uint64(y), uint64(carry))
++	r.sum, r.carry = int64(s), int64(c)
++	return
++}
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index d5a50f4204..6f3cd659ef 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -20,6 +20,8 @@ func rewriteValuegeneric(v *Value) bool {
+ 		return rewriteValuegeneric_OpAdd64(v)
+ 	case OpAdd64F:
+ 		return rewriteValuegeneric_OpAdd64F(v)
++	case OpAdd64carry:
++		return rewriteValuegeneric_OpAdd64carry(v)
+ 	case OpAdd8:
+ 		return rewriteValuegeneric_OpAdd8(v)
+ 	case OpAddPtr:
+@@ -2376,6 +2378,44 @@ func rewriteValuegeneric_OpAdd64F(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuegeneric_OpAdd64carry(v *Value) bool {
++	v_2 := v.Args[2]
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	b := v.Block
++	// match: (Add64carry (Const64 <t> [x]) (Const64 [y]) (Const64 [c]))
++	// cond: c >= 0 && c <= 1
++	// result: (MakeTuple (Const64 <t> [bitsAdd64(x, y, c).sum]) (Const64 <t> [bitsAdd64(x, y, c).carry]))
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			if v_0.Op != OpConst64 {
++				continue
++			}
++			t := v_0.Type
++			x := auxIntToInt64(v_0.AuxInt)
++			if v_1.Op != OpConst64 {
++				continue
++			}
++			y := auxIntToInt64(v_1.AuxInt)
++			if v_2.Op != OpConst64 {
++				continue
++			}
++			c := auxIntToInt64(v_2.AuxInt)
++			if !(c >= 0 && c <= 1) {
++				continue
++			}
++			v.reset(OpMakeTuple)
++			v0 := b.NewValue0(v.Pos, OpConst64, t)
++			v0.AuxInt = int64ToAuxInt(bitsAdd64(x, y, c).sum)
++			v1 := b.NewValue0(v.Pos, OpConst64, t)
++			v1.AuxInt = int64ToAuxInt(bitsAdd64(x, y, c).carry)
++			v.AddArg2(v0, v1)
++			return true
++		}
++		break
++	}
++	return false
++}
+ func rewriteValuegeneric_OpAdd8(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]

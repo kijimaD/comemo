@@ -16,8 +16,132 @@ Date:   Sat Nov 21 22:48:55 2020 +0800
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Joel Sing <joel@sing.id.au>
     Run-TryBot: Joel Sing <joel@sing.id.au>
-
+---
  src/cmd/asm/internal/asm/testdata/riscvenc.s       |  8 ++--
  src/cmd/internal/obj/riscv/obj.go                  |  8 ++--
  .../obj/riscv/testdata/testbranch/branch_test.go   | 49 ++++++++++------------
  3 files changed, 31 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/riscvenc.s b/src/cmd/asm/internal/asm/testdata/riscvenc.s
+index e30a576473..9a49d96ca0 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscvenc.s
++++ b/src/cmd/asm/internal/asm/testdata/riscvenc.s
+@@ -340,11 +340,11 @@ start:
+ 	// Branch pseudo-instructions
+ 	BEQZ	X5, start	// BEQZ	X5, 2		// e38602c0
+ 	BGEZ	X5, start	// BGEZ	X5, 2		// e3d402c0
+-	BGT	X5, X6, start	// BGT	X5, X6, 2	// e3c262c0
+-	BGTU	X5, X6, start	// BGTU	X5, X6, 2	// e3e062c0
++	BGT	X5, X6, start	// BGT	X5, X6, 2	// e34253c0
++	BGTU	X5, X6, start	// BGTU	X5, X6, 2	// e36053c0
+ 	BGTZ	X5, start	// BGTZ	X5, 2		// e34e50be
+-	BLE	X5, X6, start	// BLE	X5, X6, 2	// e3dc62be
+-	BLEU	X5, X6, start	// BLEU	X5, X6, 2	// e3fa62be
++	BLE	X5, X6, start	// BLE	X5, X6, 2	// e35c53be
++	BLEU	X5, X6, start	// BLEU	X5, X6, 2	// e37a53be
+ 	BLEZ	X5, start	// BLEZ	X5, 2		// e35850be
+ 	BLTZ	X5, start	// BLTZ	X5, 2		// e3c602be
+ 	BNEZ	X5, start	// BNEZ	X5, 2		// e39402be
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 0cffa54fa6..9257a6453a 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -1777,15 +1777,15 @@ func instructionsForProg(p *obj.Prog) []*instruction {
+ 		case ABGEZ:
+ 			ins.as, ins.rs1, ins.rs2 = ABGE, REG_ZERO, uint32(p.From.Reg)
+ 		case ABGT:
+-			ins.as, ins.rs1, ins.rs2 = ABLT, uint32(p.Reg), uint32(p.From.Reg)
++			ins.as, ins.rs1, ins.rs2 = ABLT, uint32(p.From.Reg), uint32(p.Reg)
+ 		case ABGTU:
+-			ins.as, ins.rs1, ins.rs2 = ABLTU, uint32(p.Reg), uint32(p.From.Reg)
++			ins.as, ins.rs1, ins.rs2 = ABLTU, uint32(p.From.Reg), uint32(p.Reg)
+ 		case ABGTZ:
+ 			ins.as, ins.rs1, ins.rs2 = ABLT, uint32(p.From.Reg), REG_ZERO
+ 		case ABLE:
+-			ins.as, ins.rs1, ins.rs2 = ABGE, uint32(p.Reg), uint32(p.From.Reg)
++			ins.as, ins.rs1, ins.rs2 = ABGE, uint32(p.From.Reg), uint32(p.Reg)
+ 		case ABLEU:
+-			ins.as, ins.rs1, ins.rs2 = ABGEU, uint32(p.Reg), uint32(p.From.Reg)
++			ins.as, ins.rs1, ins.rs2 = ABGEU, uint32(p.From.Reg), uint32(p.Reg)
+ 		case ABLEZ:
+ 			ins.as, ins.rs1, ins.rs2 = ABGE, uint32(p.From.Reg), REG_ZERO
+ 		case ABLTZ:
+diff --git a/src/cmd/internal/obj/riscv/testdata/testbranch/branch_test.go b/src/cmd/internal/obj/riscv/testdata/testbranch/branch_test.go
+index 5412577a05..279aeb2c32 100644
+--- a/src/cmd/internal/obj/riscv/testdata/testbranch/branch_test.go
++++ b/src/cmd/internal/obj/riscv/testdata/testbranch/branch_test.go
+@@ -43,33 +43,34 @@ func TestBranchCondition(t *testing.T) {
+ 		{"BGEU", 0, -1, testBGEU, false},
+ 		{"BGEU", -1, 0, testBGEU, true},
+ 		{"BGEU", 1, 0, testBGEU, true},
+-		{"BGT", 0, 1, testBGT, true},
++		{"BGT", 0, 1, testBGT, false},
+ 		{"BGT", 0, 0, testBGT, false},
+-		{"BGT", 0, -1, testBGT, false},
+-		{"BGT", -1, 0, testBGT, true},
+-		{"BGT", 1, 0, testBGT, false},
+-		{"BGTU", 0, 1, testBGTU, true},
+-		{"BGTU", 0, -1, testBGTU, true},
+-		{"BGTU", -1, 0, testBGTU, false},
+-		{"BGTU", 1, 0, testBGTU, false},
+-		{"BLE", 0, 1, testBLE, false},
+-		{"BLE", 0, -1, testBLE, true},
++		{"BGT", 0, -1, testBGT, true},
++		{"BGT", -1, 0, testBGT, false},
++		{"BGT", 1, 0, testBGT, true},
++		{"BGTU", 0, 1, testBGTU, false},
++		{"BGTU", 0, 0, testBGTU, false},
++		{"BGTU", 0, -1, testBGTU, false},
++		{"BGTU", -1, 0, testBGTU, true},
++		{"BGTU", 1, 0, testBGTU, true},
++		{"BLE", 0, 1, testBLE, true},
+ 		{"BLE", 0, 0, testBLE, true},
+-		{"BLE", -1, 0, testBLE, false},
+-		{"BLE", 1, 0, testBLE, true},
+-		{"BLEU", 0, 1, testBLEU, false},
+-		{"BLEU", 0, -1, testBLEU, false},
++		{"BLE", 0, -1, testBLE, false},
++		{"BLE", -1, 0, testBLE, true},
++		{"BLE", 1, 0, testBLE, false},
++		{"BLEU", 0, 1, testBLEU, true},
+ 		{"BLEU", 0, 0, testBLEU, true},
+-		{"BLEU", -1, 0, testBLEU, true},
+-		{"BLEU", 1, 0, testBLEU, true},
++		{"BLEU", 0, -1, testBLEU, true},
++		{"BLEU", -1, 0, testBLEU, false},
++		{"BLEU", 1, 0, testBLEU, false},
+ 		{"BLT", 0, 1, testBLT, true},
+-		{"BLT", 0, -1, testBLT, false},
+ 		{"BLT", 0, 0, testBLT, false},
++		{"BLT", 0, -1, testBLT, false},
+ 		{"BLT", -1, 0, testBLT, true},
+ 		{"BLT", 1, 0, testBLT, false},
+ 		{"BLTU", 0, 1, testBLTU, true},
+-		{"BLTU", 0, -1, testBLTU, true},
+ 		{"BLTU", 0, 0, testBLTU, false},
++		{"BLTU", 0, -1, testBLTU, true},
+ 		{"BLTU", -1, 0, testBLTU, false},
+ 		{"BLTU", 1, 0, testBLTU, false},
+ 	}
+@@ -82,17 +83,13 @@ func TestBranchCondition(t *testing.T) {
+ 			case "BGEU":
+ 				fn = func(a, b int64) bool { return uint64(a) >= uint64(b) }
+ 			case "BGT":
+-				// TODO: Currently reversed.
+-				fn = func(a, b int64) bool { return b > a }
++				fn = func(a, b int64) bool { return a > b }
+ 			case "BGTU":
+-				// TODO: Currently reversed.
+-				fn = func(a, b int64) bool { return uint64(b) > uint64(a) }
++				fn = func(a, b int64) bool { return uint64(a) > uint64(b) }
+ 			case "BLE":
+-				// TODO: Currently reversed.
+-				fn = func(a, b int64) bool { return b <= a }
++				fn = func(a, b int64) bool { return a <= b }
+ 			case "BLEU":
+-				// TODO: Currently reversed.
+-				fn = func(a, b int64) bool { return uint64(b) <= uint64(a) }
++				fn = func(a, b int64) bool { return uint64(a) <= uint64(b) }
+ 			case "BLT":
+ 				fn = func(a, b int64) bool { return a < b }
+ 			case "BLTU":

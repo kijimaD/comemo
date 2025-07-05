@@ -13,9 +13,93 @@ Date:   Wed Feb 14 16:59:36 2018 -0800
     Change-Id: If658eabdcc83f578d815070bc65d1a5f6cfaddfc
     Reviewed-on: https://go-review.googlesource.com/94157
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/syntax/dumper_test.go  | 10 +++++++---
  src/cmd/compile/internal/syntax/nodes.go        |  4 ++--
  src/cmd/compile/internal/syntax/printer_test.go | 12 ++++++++----
  src/cmd/compile/internal/syntax/syntax.go       |  9 +++++----
  4 files changed, 22 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/dumper_test.go b/src/cmd/compile/internal/syntax/dumper_test.go
+index 02116f5aad..32337eb6f1 100644
+--- a/src/cmd/compile/internal/syntax/dumper_test.go
++++ b/src/cmd/compile/internal/syntax/dumper_test.go
+@@ -14,9 +14,13 @@ func TestDump(t *testing.T) {
+ 		t.Skip("skipping test in short mode")
+ 	}
+ 
+-	ast, err := ParseFile(*src_, nil, nil, CheckBranches)
++	// provide a dummy error handler so parsing doesn't stop after first error
++	ast, err := ParseFile(*src_, func(error) {}, nil, CheckBranches)
+ 	if err != nil {
+-		t.Fatal(err)
++		t.Error(err)
++	}
++
++	if ast != nil {
++		Fdump(os.Stdout, ast)
+ 	}
+-	Fdump(os.Stdout, ast)
+ }
+diff --git a/src/cmd/compile/internal/syntax/nodes.go b/src/cmd/compile/internal/syntax/nodes.go
+index 7ab6df13c4..d7183bd8fb 100644
+--- a/src/cmd/compile/internal/syntax/nodes.go
++++ b/src/cmd/compile/internal/syntax/nodes.go
+@@ -215,8 +215,8 @@ type (
+ 	// Fun(ArgList[0], ArgList[1], ...)
+ 	CallExpr struct {
+ 		Fun     Expr
+-		ArgList []Expr
+-		HasDots bool // last argument is followed by ...
++		ArgList []Expr // nil means no arguments
++		HasDots bool   // last argument is followed by ...
+ 		expr
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/syntax/printer_test.go b/src/cmd/compile/internal/syntax/printer_test.go
+index c218924202..6f19846e22 100644
+--- a/src/cmd/compile/internal/syntax/printer_test.go
++++ b/src/cmd/compile/internal/syntax/printer_test.go
+@@ -16,12 +16,16 @@ func TestPrint(t *testing.T) {
+ 		t.Skip("skipping test in short mode")
+ 	}
+ 
+-	ast, err := ParseFile(*src_, nil, nil, 0)
++	// provide a dummy error handler so parsing doesn't stop after first error
++	ast, err := ParseFile(*src_, func(error) {}, nil, 0)
+ 	if err != nil {
+-		t.Fatal(err)
++		t.Error(err)
++	}
++
++	if ast != nil {
++		Fprint(os.Stdout, ast, true)
++		fmt.Println()
+ 	}
+-	Fprint(os.Stdout, ast, true)
+-	fmt.Println()
+ }
+ 
+ func TestPrintString(t *testing.T) {
+diff --git a/src/cmd/compile/internal/syntax/syntax.go b/src/cmd/compile/internal/syntax/syntax.go
+index f6e9303290..7de7d4d9fa 100644
+--- a/src/cmd/compile/internal/syntax/syntax.go
++++ b/src/cmd/compile/internal/syntax/syntax.go
+@@ -50,12 +50,13 @@ type FilenameHandler func(name string) string
+ 
+ // Parse parses a single Go source file from src and returns the corresponding
+ // syntax tree. If there are errors, Parse will return the first error found,
+-// and a possibly partially constructed syntax tree, or nil if no correct package
+-// clause was found. The base argument is only used for position information.
++// and a possibly partially constructed syntax tree, or nil.
+ //
+ // If errh != nil, it is called with each error encountered, and Parse will
+-// process as much source as possible. If errh is nil, Parse will terminate
+-// immediately upon encountering an error.
++// process as much source as possible. In this case, the returned syntax tree
++// is only nil if no correct package clause was found.
++// If errh is nil, Parse will terminate immediately upon encountering the first
++// error, and the returned syntax tree is nil.
+ //
+ // If pragh != nil, it is called with each pragma encountered.
+ //

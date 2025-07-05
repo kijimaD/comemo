@@ -7,10 +7,528 @@ Date:   Sat May 30 21:18:15 2009 -0700
     R=ken
     OCL=29651
     CL=29653
-
+---
  src/cmd/gc/go.y                    | 131 ++++++++++++++++++++++++-------------
  src/cmd/gc/swt.c                   | 104 +++++++++++++----------------
  src/cmd/gc/walk.c                  | 121 +++++++++++++++++-----------------
  test/{bugs => fixedbugs}/bug157.go |   0
  test/golden.out                    |   5 --
  5 files changed, 190 insertions(+), 171 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 374b671b67..cc9caf9260 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -47,11 +47,11 @@
+ %type	<node>		common_dcl Acommon_dcl Bcommon_dcl
+ %type	<node>		oarg_type_list arg_type_list_r arg_chunk arg_chunk_list_r arg_type_list
+ %type	<node>		Aelse_stmt Belse_stmt
+-%type	<node>		complex_stmt compound_stmt ostmt_list
+-%type	<node>		stmt_list_r Astmt_list_r Bstmt_list_r
++%type	<node>		complex_stmt compound_stmt switch_body ocaseblock_list ostmt_list
++%type	<node>		caseblock_list_r stmt_list_r Astmt_list_r Bstmt_list_r
+ %type	<node>		Astmt Bstmt
+ %type	<node>		for_stmt for_body for_header
+-%type	<node>		if_stmt if_body if_header select_stmt condition
++%type	<node>		if_stmt if_header select_stmt switch_stmt condition case caseblock
+ %type	<node>		simple_stmt osimple_stmt range_stmt semi_stmt
+ %type	<node>		expr uexpr pexpr expr_list oexpr oexpr_list expr_list_r
+ %type	<node>		exprsym3_list_r exprsym3 pseudocall
+@@ -511,34 +511,23 @@ simple_stmt:
+ 	}
+ 
+ complex_stmt:
+-	LFOR for_stmt
++	for_stmt
++|	switch_stmt
++|	select_stmt
++|	if_stmt
+ 	{
+ 		popdcl();
+-		$$ = $2;
+-	}
+-|	LSWITCH if_stmt
+-	{
+-		popdcl();
+-		$$ = $2;
+-		$$->op = OSWITCH;
+-	}
+-|	LIF if_stmt
+-	{
+-		popdcl();
+-		$$ = $2;
+-	}
+-|	LIF if_stmt LELSE Aelse_stmt
+-	{
+-		popdcl();
+-		$$ = $2;
+-		$$->nelse = $4;
++		$$ = $1;
+ 	}
+-|	LSELECT select_stmt
++|	if_stmt LELSE Aelse_stmt
+ 	{
+ 		popdcl();
+-		$$ = $2;
++		$$ = $1;
++		$$->nelse = $3;
+ 	}
+-|	LCASE expr_list ':'
++
++case:
++	LCASE expr_list ':'
+ 	{
+ 		// will be converted to OCASE
+ 		// right will point to next case
+@@ -620,11 +609,11 @@ semi_stmt:
+ 	{
+ 		$$ = nod(ORETURN, $2, N);
+ 	}
+-|	LIF if_stmt LELSE Belse_stmt
++|	if_stmt LELSE Belse_stmt
+ 	{
+ 		popdcl();
+-		$$ = $2;
+-		$$->nelse = $4;
++		$$ = $1;
++		$$->nelse = $3;
+ 	}
+ 
+ compound_stmt:
+@@ -639,6 +628,33 @@ compound_stmt:
+ 		popdcl();
+ 	}
+ 
++switch_body:
++	'{'
++	{
++		markdcl();
++	}
++	ocaseblock_list '}'
++	{
++		$$ = $3;
++		if($$ == N)
++			$$ = nod(OEMPTY, N, N);
++		popdcl();
++	}
++
++caseblock:
++	case ostmt_list
++	{
++		$$ = $1;
++		$$->nbody = $2;
++	}
++
++caseblock_list_r:
++	caseblock
++|	caseblock_list_r caseblock
++	{
++		$$ = nod(OLIST, $1, $2);
++	}
++
+ range_stmt:
+ 	exprsym3_list_r '=' LRANGE expr
+ 	{
+@@ -684,11 +700,14 @@ for_body:
+ 	}
+ 
+ for_stmt:
++	LFOR
+ 	{
+ 		markdcl();
+-	} for_body
++	}
++	for_body
+ 	{
+-		$$ = $2;
++		$$ = $3;
++		popdcl();
+ 	}
+ 
+ /*
+@@ -722,38 +741,51 @@ if_header:
+ 		$$->ntest = $3;
+ 	}
+ 
+-if_body:
++if_stmt:
++	LIF
++	{
++		markdcl();
++	}
++	if_header compound_stmt
++	{
++		$$ = $3;
++		$$->nbody = $4;
++		// no popdcl; maybe there's an LELSE
++	}
++
++switch_stmt:
++	LSWITCH
++	{
++		markdcl();
++	}
+ 	if_header
+ 	{
+ 		Node *n;
+-		n = $1->ntest;
++		n = $3->ntest;
+ 		if(n != N && n->op == OTYPESW)
+ 			n = n->left;
+ 		else
+ 			n = N;
+ 		typeswvar = nod(OLIST, typeswvar, n);
+-	} compound_stmt
+-	{
+-		$$ = $1;
+-		$$->nbody = $3;
+-		typeswvar = typeswvar->left;
+ 	}
+-
+-if_stmt:
+-	{
+-		markdcl();
+-	} if_body
++	switch_body
+ 	{
+-		$$ = $2;
++		$$ = $3;
++		$$->op = OSWITCH;
++		$$->nbody = $5;
++		typeswvar = typeswvar->left;
++		popdcl();
+ 	}
+ 
+ select_stmt:
++	LSELECT
+ 	{
+ 		markdcl();
+ 	}
+-	compound_stmt
++	switch_body
+ 	{
+-		$$ = nod(OSELECT, $2, N);
++		$$ = nod(OSELECT, $3, N);
++		popdcl();
+ 	}
+ 
+ /*
+@@ -1849,6 +1881,15 @@ ostmt_list:
+ 		$$ = rev($1);
+ 	}
+ 
++ocaseblock_list:
++	{
++		$$ = N;
++	}
++|	caseblock_list_r
++	{
++		$$ = rev($1);
++	}
++
+ oxdcl_list:
+ 	{
+ 		$$ = N;
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index 3184276365..486e181b14 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -348,8 +348,8 @@ newlabel()
+ void
+ casebody(Node *sw)
+ {
+-	Iter save;
+-	Node *os, *oc, *n, *c;
++	Iter save, save1;
++	Node *os, *oc, *n, *n1, *c;
+ 	Node *cas, *stat, *def;
+ 	Node *go, *br;
+ 	int32 lno;
+@@ -368,70 +368,56 @@ casebody(Node *sw)
+ 	oc = N;		// last case
+ 	br = nod(OBREAK, N, N);
+ 
+-loop:
+-	if(n == N) {
+-		if(oc == N && os != N)
+-			yyerror("first switch statement must be a case");
+-
+-		stat = list(stat, br);
+-		cas = list(cas, def);
+-
+-		sw->nbody = nod(OLIST, rev(cas), rev(stat));
+-//dump("case", sw->nbody->left);
+-//dump("stat", sw->nbody->right);
+-		lineno = lno;
+-		return;
+-	}
+-
+-	lno = setlineno(n);
+-
+-	if(n->op != OXCASE) {
+-		stat = list(stat, n);
+-		os = n;
+-		goto next;
+-	}
+-
+-	n->op = OCASE;
+-	if(oc == N && os != N)
+-		yyerror("first switch statement must be a case");
++	for(; n != N; n = listnext(&save)) {
++		lno = setlineno(n);
++		if(n->op != OXCASE)
++			fatal("casebody %O", n->op);
++		n->op = OCASE;
++
++		go = nod(OGOTO, newlabel(), N);
++		c = n->left;
++		if(c == N) {
++			if(def != N)
++				yyerror("more than one default case");
++			// reuse original default case
++			n->right = go;
++			def = n;
++		}
+ 
+-	// botch - shouldnt fall thru declaration
+-	if(os != N && os->op == OXFALL)
+-		os->op = OFALL;
+-	else
+-		stat = list(stat, br);
++		// expand multi-valued cases
++		for(; c!=N; c=c->right) {
++			if(c->op != OLIST) {
++				// reuse original case
++				n->left = c;
++				n->right = go;
++				cas = list(cas, n);
++				break;
++			}
++			cas = list(cas, nod(OCASE, c->left, go));
++		}
+ 
+-	go = nod(OGOTO, newlabel(), N);
++		stat = list(stat, nod(OLABEL, go->left, N));
+ 
+-	c = n->left;
+-	if(c == N) {
+-		if(def != N)
+-			yyerror("more than one default case");
++		os = N;
++		for(n1 = listfirst(&save1, &n->nbody); n1 != N; n1 = listnext(&save1)) {
++			os = n1;
++			stat = list(stat, n1);
++		}
+ 
+-		// reuse original default case
+-		n->right = go;
+-		def = n;
++		// botch - shouldnt fall thru declaration
++		if(os != N && os->op == OXFALL)
++			os->op = OFALL;
++		else
++			stat = list(stat, br);
+ 	}
+ 
+-	// expand multi-valued cases
+-	for(; c!=N; c=c->right) {
+-		if(c->op != OLIST) {
+-			// reuse original case
+-			n->left = c;
+-			n->right = go;
+-			cas = list(cas, n);
+-			break;
+-		}
+-		cas = list(cas, nod(OCASE, c->left, go));
+-	}
+-	stat = list(stat, nod(OLABEL, go->left, N));
+-	oc = n;
+-	os = N;
+-	goto next;
++	stat = list(stat, br);
++	cas = list(cas, def);
+ 
+-next:
+-	n = listnext(&save);
+-	goto loop;
++	sw->nbody = nod(OLIST, rev(cas), rev(stat));
++//dump("case", sw->nbody->left);
++//dump("stat", sw->nbody->right);
++	lineno = lno;
+ }
+ 
+ Case*
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index f18227951e..1cfac55aff 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1539,8 +1539,8 @@ bad:
+ void
+ walkselect(Node *sel)
+ {
+-	Iter iter;
+-	Node *n, *l, *oc, *on, *r;
++	Iter iter, iter1;
++	Node *n, *n1, *l, *oc, *on, *r;
+ 	Node *var, *bod, *nbod, *res, *def;
+ 	int count, op;
+ 	int32 lno;
+@@ -1552,8 +1552,10 @@ walkselect(Node *sel)
+ 	tempname(var, ptrto(types[TUINT8]));
+ 
+ 	n = listfirst(&iter, &sel->left);
+-	if(n == N || n->op != OXCASE)
+-		yyerror("first select statement must be a case");
++	if(n == N || n->op == OEMPTY) {
++		yyerror("empty select");
++		return;
++	}
+ 
+ 	count = 0;	// number of cases
+ 	res = N;	// entire select body
+@@ -1563,72 +1565,67 @@ walkselect(Node *sel)
+ 
+ 	for(; n!=N; n=listnext(&iter)) {
+ 		setlineno(n);
++		if(n->op != OXCASE)
++			fatal("walkselect %O", n->op);
+ 
+-		switch(n->op) {
++		count++;
++		if(n->left == N) {
++			op = ORECV;	// actual value not used
++			if(def != N)
++				yyerror("repeated default; first at %L", def->lineno);
++			def = n;
++		} else
++			op = n->left->op;
++
++		nbod = N;
++		switch(op) {
+ 		default:
+-			bod = list(bod, n);
+-			break;
++			yyerror("select cases must be send, recv or default");
++			continue;
+ 
+-		case OXCASE:
+-			if(n->left == N) {
+-				op = ORECV;	// actual value not used
+-				if(def != N)
+-					yyerror("only one default select allowed");
+-				def = n;
+-			} else
+-				op = n->left->op;
+-			nbod = N;
+-			switch(op) {
+-			default:
++		case OAS:
++			// convert new syntax (a=recv(chan)) to (recv(a,chan))
++			l = n->left;
++			if(l->right == N || l->right->op != ORECV) {
+ 				yyerror("select cases must be send, recv or default");
+ 				break;
+-
+-			case OAS:
+-				// convert new syntax (a=recv(chan)) to (recv(a,chan))
+-				l = n->left;
+-				if(l->right == N || l->right->op != ORECV) {
+-					yyerror("select cases must be send, recv or default");
+-					break;
+-				}
+-				r = l->right;	// rcv
+-				r->right = r->left;
+-				r->left = l->left;
+-				n->left = r;
+-
+-				// convert case x := foo: body
+-				// to case tmp := foo: x := tmp; body.
+-				// if x escapes and must be allocated
+-				// on the heap, this delays the allocation
+-				// until after the select has chosen this branch.
+-				if(n->ninit != N && n->ninit->op == ODCL) {
+-					on = nod(OXXX, N, N);
+-					tempname(on, l->left->type);
+-					on->sym = lookup("!tmpselect!");
+-					r->left = on;
+-					nbod = nod(OAS, l->left, on);
+-					nbod->ninit = n->ninit;
+-					n->ninit = N;
+-				}
+-
+-				// fall through
+-			case OSEND:
+-			case ORECV:
+-				if(oc != N) {
+-					bod = list(bod, nod(OBREAK, N, N));
+-					oc->nbody = rev(bod);
+-				}
+-				oc = selcase(n, var);
+-				res = list(res, oc);
+-				break;
+ 			}
+-			bod = nbod;
+-			count++;
++			r = l->right;	// rcv
++			r->right = r->left;
++			r->left = l->left;
++			n->left = r;
++
++			// convert case x := foo: body
++			// to case tmp := foo: x := tmp; body.
++			// if x escapes and must be allocated
++			// on the heap, this delays the allocation
++			// until after the select has chosen this branch.
++			if(n->ninit != N && n->ninit->op == ODCL) {
++				on = nod(OXXX, N, N);
++				tempname(on, l->left->type);
++				on->sym = lookup("!tmpselect!");
++				r->left = on;
++				nbod = nod(OAS, l->left, on);
++				nbod->ninit = n->ninit;
++				n->ninit = N;
++			}
++			break;
++
++		case OSEND:
++		case ORECV:
+ 			break;
+ 		}
+-	}
+-	if(oc != N) {
+-		bod = list(bod, nod(OBREAK, N, N));
+-		oc->nbody = rev(bod);
++
++		for(n1 = listfirst(&iter1, &n->nbody); n1 != N; n1 = listnext(&iter1))
++			nbod = list(nbod, n1);
++		nbod = list(nbod, nod(OBREAK, N, N));
++		n->nbody = N;
++
++		oc = selcase(n, var);
++		if(oc != N) {
++			oc->nbody = rev(nbod);
++			res = list(res, oc);
++		}
+ 	}
+ 	setlineno(sel);
+ 
+diff --git a/test/bugs/bug157.go b/test/fixedbugs/bug157.go
+similarity index 100%
+rename from test/bugs/bug157.go
+rename to test/fixedbugs/bug157.go
+diff --git a/test/golden.out b/test/golden.out
+index 4e7f81552e..b5dbddffe6 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -104,11 +104,6 @@ BUG should compile
+ 5 7
+ BUG: should crash
+ 
+-=========== bugs/bug157.go
+-bugs/bug157.go:20: syntax error near default
+-bugs/bug157.go:20: first switch statement must be a case
+-BUG: should compile
+-
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: constant -3 overflows uint
+ 

@@ -16,7 +16,49 @@ Date:   Sun Aug 21 16:59:56 2016 +0100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/fs.go      |  2 +-
  src/net/http/fs_test.go | 10 +++++-----
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index c7a58a61df..9ebc558214 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -90,7 +90,7 @@ func dirList(w ResponseWriter, f File) {
+ 		// part of the URL path, and not indicate the start of a query
+ 		// string or fragment.
+ 		url := url.URL{Path: name}
+-		fmt.Fprintf(w, "<a href=\"%s\">%s</a>\n", url.String(), htmlReplacer.Replace(name))
++		fmt.Fprintf(w, "<a href=\"./%s\">%s</a>\n", url.String(), htmlReplacer.Replace(name))
+ 	}
+ 	fmt.Fprintf(w, "</pre>\n")
+ }
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index c811891e87..aa3323dd23 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -270,10 +270,10 @@ func TestFileServerEscapesNames(t *testing.T) {
+ 	tests := []struct {
+ 		name, escaped string
+ 	}{
+-		{`simple_name`, `<a href="simple_name">simple_name</a>`},
+-		{`"'<>&`, `<a href="%22%27%3C%3E&">&#34;&#39;&lt;&gt;&amp;</a>`},
+-		{`?foo=bar#baz`, `<a href="%3Ffoo=bar%23baz">?foo=bar#baz</a>`},
+-		{`<combo>?foo`, `<a href="%3Ccombo%3E%3Ffoo">&lt;combo&gt;?foo</a>`},
++		{`simple_name`, `<a href="./simple_name">simple_name</a>`},
++		{`"'<>&`, `<a href="./%22%27%3C%3E&">&#34;&#39;&lt;&gt;&amp;</a>`},
++		{`?foo=bar#baz`, `<a href="./%3Ffoo=bar%23baz">?foo=bar#baz</a>`},
++		{`<combo>?foo`, `<a href="./%3Ccombo%3E%3Ffoo">&lt;combo&gt;?foo</a>`},
+ 	}
+ 
+ 	// We put each test file in its own directory in the fakeFS so we can look at it in isolation.
+@@ -349,7 +349,7 @@ func TestFileServerSortsNames(t *testing.T) {
+ 		t.Fatalf("read Body: %v", err)
+ 	}
+ 	s := string(b)
+-	if !strings.Contains(s, "<a href=\"a\">a</a>\n<a href=\"b\">b</a>") {
++	if !strings.Contains(s, "<a href=\"./a\">a</a>\n<a href=\"./b\">b</a>") {
+ 		t.Errorf("output appears to be unsorted:\n%s", s)
+ 	}
+ }

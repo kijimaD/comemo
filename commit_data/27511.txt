@@ -11,7 +11,7 @@ Date:   Wed Mar 23 17:10:18 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/21055
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/objfile/elf.go      |  5 ++
  src/cmd/internal/objfile/goobj.go    |  6 +++
  src/cmd/internal/objfile/macho.go    |  5 ++
@@ -20,3 +20,261 @@ Date:   Wed Mar 23 17:10:18 2016 -0700
  src/cmd/internal/objfile/plan9obj.go |  6 +++
  src/cmd/pprof/pprof.go               | 95 +++++++++++++++++++++++++++++++++---
  7 files changed, 123 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/internal/objfile/elf.go b/src/cmd/internal/objfile/elf.go
+index 6369f7e259..3bad034097 100644
+--- a/src/cmd/internal/objfile/elf.go
++++ b/src/cmd/internal/objfile/elf.go
+@@ -7,6 +7,7 @@
+ package objfile
+ 
+ import (
++	"debug/dwarf"
+ 	"debug/elf"
+ 	"fmt"
+ 	"os"
+@@ -104,3 +105,7 @@ func (f *elfFile) goarch() string {
+ 	}
+ 	return ""
+ }
++
++func (f *elfFile) dwarf() (*dwarf.Data, error) {
++	return f.elf.DWARF()
++}
+diff --git a/src/cmd/internal/objfile/goobj.go b/src/cmd/internal/objfile/goobj.go
+index 46e5f4e866..5a084a94be 100644
+--- a/src/cmd/internal/objfile/goobj.go
++++ b/src/cmd/internal/objfile/goobj.go
+@@ -8,6 +8,8 @@ package objfile
+ 
+ import (
+ 	"cmd/internal/goobj"
++	"debug/dwarf"
++	"errors"
+ 	"fmt"
+ 	"os"
+ )
+@@ -91,3 +93,7 @@ func (f *goobjFile) text() (textStart uint64, text []byte, err error) {
+ func (f *goobjFile) goarch() string {
+ 	return "GOARCH unimplemented for debug/goobj files"
+ }
++
++func (f *goobjFile) dwarf() (*dwarf.Data, error) {
++	return nil, errors.New("no DWARF data in go object file")
++}
+diff --git a/src/cmd/internal/objfile/macho.go b/src/cmd/internal/objfile/macho.go
+index c98d9520c2..754674d757 100644
+--- a/src/cmd/internal/objfile/macho.go
++++ b/src/cmd/internal/objfile/macho.go
+@@ -7,6 +7,7 @@
+ package objfile
+ 
+ import (
++	"debug/dwarf"
+ 	"debug/macho"
+ 	"fmt"
+ 	"os"
+@@ -123,3 +124,7 @@ type uint64s []uint64
+ func (x uint64s) Len() int           { return len(x) }
+ func (x uint64s) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+ func (x uint64s) Less(i, j int) bool { return x[i] < x[j] }
++
++func (f *machoFile) dwarf() (*dwarf.Data, error) {
++	return f.macho.DWARF()
++}
+diff --git a/src/cmd/internal/objfile/objfile.go b/src/cmd/internal/objfile/objfile.go
+index cf58e9c6aa..48ed9ed489 100644
+--- a/src/cmd/internal/objfile/objfile.go
++++ b/src/cmd/internal/objfile/objfile.go
+@@ -6,6 +6,7 @@
+ package objfile
+ 
+ import (
++	"debug/dwarf"
+ 	"debug/gosym"
+ 	"fmt"
+ 	"os"
+@@ -17,6 +18,7 @@ type rawFile interface {
+ 	pcln() (textStart uint64, symtab, pclntab []byte, err error)
+ 	text() (textStart uint64, text []byte, err error)
+ 	goarch() string
++	dwarf() (*dwarf.Data, error)
+ }
+ 
+ // A File is an opened executable file.
+@@ -92,3 +94,9 @@ func (f *File) Text() (uint64, []byte, error) {
+ func (f *File) GOARCH() string {
+ 	return f.raw.goarch()
+ }
++
++// DWARF returns DWARF debug data for the file, if any.
++// This is for cmd/pprof to locate cgo functions.
++func (f *File) DWARF() (*dwarf.Data, error) {
++	return f.raw.dwarf()
++}
+diff --git a/src/cmd/internal/objfile/pe.go b/src/cmd/internal/objfile/pe.go
+index 503d657647..1b319941ac 100644
+--- a/src/cmd/internal/objfile/pe.go
++++ b/src/cmd/internal/objfile/pe.go
+@@ -7,6 +7,7 @@
+ package objfile
+ 
+ import (
++	"debug/dwarf"
+ 	"debug/pe"
+ 	"fmt"
+ 	"os"
+@@ -199,3 +200,7 @@ func (f *peFile) goarch() string {
+ 	}
+ 	return ""
+ }
++
++func (f *peFile) dwarf() (*dwarf.Data, error) {
++	return f.pe.DWARF()
++}
+diff --git a/src/cmd/internal/objfile/plan9obj.go b/src/cmd/internal/objfile/plan9obj.go
+index 45a6d02748..1d808f77eb 100644
+--- a/src/cmd/internal/objfile/plan9obj.go
++++ b/src/cmd/internal/objfile/plan9obj.go
+@@ -7,7 +7,9 @@
+ package objfile
+ 
+ import (
++	"debug/dwarf"
+ 	"debug/plan9obj"
++	"errors"
+ 	"fmt"
+ 	"os"
+ 	"sort"
+@@ -144,3 +146,7 @@ func (f *plan9File) goarch() string {
+ 	}
+ 	return ""
+ }
++
++func (f *plan9File) dwarf() (*dwarf.Data, error) {
++	return nil, errors.New("no DWARF data in Plan 9 file")
++}
+diff --git a/src/cmd/pprof/pprof.go b/src/cmd/pprof/pprof.go
+index 2b20f1da77..1c55d05d5d 100644
+--- a/src/cmd/pprof/pprof.go
++++ b/src/cmd/pprof/pprof.go
+@@ -5,6 +5,7 @@
+ package main
+ 
+ import (
++	"debug/dwarf"
+ 	"debug/gosym"
+ 	"flag"
+ 	"fmt"
+@@ -172,6 +173,9 @@ type file struct {
+ 	sym  []objfile.Sym
+ 	file *objfile.File
+ 	pcln *gosym.Table
++
++	triedDwarf bool
++	dwarf      *dwarf.Data
+ }
+ 
+ func (f *file) Name() string {
+@@ -197,17 +201,94 @@ func (f *file) SourceLine(addr uint64) ([]plugin.Frame, error) {
+ 		f.pcln = pcln
+ 	}
+ 	file, line, fn := f.pcln.PCToLine(addr)
+-	if fn == nil {
+-		return nil, fmt.Errorf("no line information for PC=%#x", addr)
++	if fn != nil {
++		frame := []plugin.Frame{
++			{
++				Func: fn.Name,
++				File: file,
++				Line: line,
++			},
++		}
++		return frame, nil
++	}
++
++	frames := f.dwarfSourceLine(addr)
++	if frames != nil {
++		return frames, nil
++	}
++
++	return nil, fmt.Errorf("no line information for PC=%#x", addr)
++}
++
++// dwarfSourceLine tries to get file/line information using DWARF.
++// This is for C functions that appear in the profile.
++// Returns nil if there is no information available.
++func (f *file) dwarfSourceLine(addr uint64) []plugin.Frame {
++	if f.dwarf == nil && !f.triedDwarf {
++		// Ignore any error--we don't care exactly why there
++		// is no DWARF info.
++		f.dwarf, _ = f.file.DWARF()
++		f.triedDwarf = true
++	}
++
++	if f.dwarf != nil {
++		r := f.dwarf.Reader()
++		unit, err := r.SeekPC(addr)
++		if err == nil {
++			if frames := f.dwarfSourceLineEntry(r, unit, addr); frames != nil {
++				return frames
++			}
++		}
++	}
++
++	return nil
++}
++
++// dwarfSourceLineEntry tries to get file/line information from a
++// DWARF compilation unit. Returns nil if it doesn't find anything.
++func (f *file) dwarfSourceLineEntry(r *dwarf.Reader, entry *dwarf.Entry, addr uint64) []plugin.Frame {
++	lines, err := f.dwarf.LineReader(entry)
++	if err != nil {
++		return nil
++	}
++	var lentry dwarf.LineEntry
++	if err := lines.SeekPC(addr, &lentry); err != nil {
++		return nil
+ 	}
+-	frame := []plugin.Frame{
++
++	// Try to find the function name.
++	name := ""
++FindName:
++	for entry, err := r.Next(); entry != nil && err == nil; entry, err = r.Next() {
++		if entry.Tag == dwarf.TagSubprogram {
++			ranges, err := f.dwarf.Ranges(entry)
++			if err != nil {
++				return nil
++			}
++			for _, pcs := range ranges {
++				if pcs[0] <= addr && addr < pcs[1] {
++					var ok bool
++					// TODO: AT_linkage_name, AT_MIPS_linkage_name.
++					name, ok = entry.Val(dwarf.AttrName).(string)
++					if ok {
++						break FindName
++					}
++				}
++			}
++		}
++	}
++
++	// TODO: Report inlined functions.
++
++	frames := []plugin.Frame{
+ 		{
+-			Func: fn.Name,
+-			File: file,
+-			Line: line,
++			Func: name,
++			File: lentry.File.Name,
++			Line: lentry.Line,
+ 		},
+ 	}
+-	return frame, nil
++
++	return frames
+ }
+ 
+ func (f *file) Symbols(r *regexp.Regexp, addr uint64) ([]*plugin.Sym, error) {

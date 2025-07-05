@@ -15,7 +15,68 @@ Date:   Sun Nov 13 18:06:16 2016 -0800
     Run-TryBot: Caleb Spare <cespare@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/html/template/clone_test.go | 21 +++++++++++++++++++++
  src/html/template/template.go   |  6 ++----
  2 files changed, 23 insertions(+), 4 deletions(-)
+
+diff --git a/src/html/template/clone_test.go b/src/html/template/clone_test.go
+index bbe44f98dd..b500715ac6 100644
+--- a/src/html/template/clone_test.go
++++ b/src/html/template/clone_test.go
+@@ -7,6 +7,7 @@ package template
+ import (
+ 	"bytes"
+ 	"errors"
++	"fmt"
+ 	"io/ioutil"
+ 	"sync"
+ 	"testing"
+@@ -241,3 +242,23 @@ func TestCloneGrowth(t *testing.T) {
+ 		t.Fatalf("too many templates: %v", len(tmpl.DefinedTemplates()))
+ 	}
+ }
++
++// https://golang.org/issue/17735
++func TestCloneRedefinedName(t *testing.T) {
++	const base = `
++{{ define "a" -}}<title>{{ template "b" . -}}</title>{{ end -}}
++{{ define "b" }}{{ end -}}
++`
++	const page = `{{ template "a" . }}`
++
++	t1 := Must(New("a").Parse(base))
++
++	for i := 0; i < 2; i++ {
++		t2 := Must(t1.Clone())
++		t2 = Must(t2.New(fmt.Sprintf("%d", i)).Parse(page))
++		err := t2.Execute(ioutil.Discard, nil)
++		if err != nil {
++			t.Fatal(err)
++		}
++	}
++}
+diff --git a/src/html/template/template.go b/src/html/template/template.go
+index a98d151c50..b313a6b104 100644
+--- a/src/html/template/template.go
++++ b/src/html/template/template.go
+@@ -259,9 +259,6 @@ func (t *Template) Clone() (*Template, error) {
+ 	ret.set[ret.Name()] = ret
+ 	for _, x := range textClone.Templates() {
+ 		name := x.Name()
+-		if name == ret.Name() {
+-			continue
+-		}
+ 		src := t.set[name]
+ 		if src == nil || src.escapeErr != nil {
+ 			return nil, fmt.Errorf("html/template: cannot Clone %q after it has executed", t.Name())
+@@ -274,7 +271,8 @@ func (t *Template) Clone() (*Template, error) {
+ 			ret.nameSpace,
+ 		}
+ 	}
+-	return ret, nil
++	// Return the template associated with the name of this template.
++	return ret.set[ret.Name()], nil
+ }
+ 
+ // New allocates a new HTML template with the given name.

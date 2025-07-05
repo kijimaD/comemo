@@ -9,7 +9,49 @@ Date:   Thu Mar 1 11:48:27 2012 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5713049
-
+---
  src/pkg/reflect/all_test.go | 12 ++++++++++++
  src/pkg/reflect/value.go    | 10 ++++++++++
  2 files changed, 22 insertions(+)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index b21a99ec5c..6bb0613981 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -1743,3 +1743,15 @@ func isValid(v Value) {
+ 		panic("zero Value")
+ 	}
+ }
++
++func TestAlias(t *testing.T) {
++	x := string("hello")
++	v := ValueOf(&x).Elem()
++	oldvalue := v.Interface()
++	v.SetString("world")
++	newvalue := v.Interface()
++
++	if oldvalue != "hello" || newvalue != "world" {
++		t.Errorf("aliasing: old=%q new=%q, want hello, world", oldvalue, newvalue)
++	}
++}
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index df65dcfa5b..39f8acdea4 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -842,6 +842,16 @@ func valueInterface(v Value, safe bool) interface{} {
+ 	var eface emptyInterface
+ 	eface.typ = v.typ.runtimeType()
+ 	eface.word = v.iword()
++
++	if v.flag&flagIndir != 0 && v.typ.size > ptrSize {
++		// eface.word is a pointer to the actual data,
++		// which might be changed.  We need to return
++		// a pointer to unchanging data, so make a copy.
++		ptr := unsafe_New(v.typ)
++		memmove(ptr, unsafe.Pointer(eface.word), v.typ.size)
++		eface.word = iword(ptr)
++	}
++
+ 	return *(*interface{})(unsafe.Pointer(&eface))
+ }
+ 

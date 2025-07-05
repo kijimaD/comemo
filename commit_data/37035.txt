@@ -10,6 +10,27 @@ Date:   Tue Jun 19 21:55:01 2018 +0000
     Reviewed-on: https://go-review.googlesource.com/119875
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/rand/rand.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/rand/rand.go b/src/crypto/rand/rand.go
+index e80ad368a2..b8df8a3711 100644
+--- a/src/crypto/rand/rand.go
++++ b/src/crypto/rand/rand.go
+@@ -3,13 +3,13 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package rand implements a cryptographically secure
+-// pseudorandom number generator.
++// random number generator.
+ package rand
+ 
+ import "io"
+ 
+ // Reader is a global, shared instance of a cryptographically
+-// strong pseudo-random generator.
++// secure random number generator.
+ //
+ // On Linux, Reader uses getrandom(2) if available, /dev/urandom otherwise.
+ // On OpenBSD, Reader uses getentropy(2).

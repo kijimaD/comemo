@@ -10,6 +10,20 @@ Date:   Mon May 19 08:02:07 2014 -0700
     R=r
     CC=golang-codereviews
     https://golang.org/cl/98350043
-
+---
  doc/go1.3.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.3.html b/doc/go1.3.html
+index fc65c45a96..fa9e3f7784 100644
+--- a/doc/go1.3.html
++++ b/doc/go1.3.html
+@@ -89,7 +89,7 @@ Go 1.3 now includes experimental support for Plan 9 on the <code>386</code> (32-
+ <h3 id="solaris">Support for Solaris</h3>
+ 
+ <p>
+-Go 1.3 now includes experimental support for Solaris on the <code>amd64</code> (64-bit x86) architecture. It uses illumos, equivalent to Solaris 11 or above.
++Go 1.3 now includes experimental support for Solaris on the <code>amd64</code> (64-bit x86) architecture. It requires illumos, Solaris 11 or above.
+ </p>
+ 
+ <h2 id="memory">Changes to the memory model</h2>

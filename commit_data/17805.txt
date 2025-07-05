@@ -22,7 +22,91 @@ Date:   Wed Oct 16 09:17:25 2013 -0700
     R=golang-dev, bradfitz, dave
     CC=golang-dev
     https://golang.org/cl/14642044
-
+---
  src/pkg/database/sql/sql.go      | 14 +++++++++-----
  src/pkg/database/sql/sql_test.go |  9 +++++++++
  2 files changed, 18 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/database/sql/sql.go b/src/pkg/database/sql/sql.go
+index ae313caf11..fe46ff3781 100644
+--- a/src/pkg/database/sql/sql.go
++++ b/src/pkg/database/sql/sql.go
+@@ -504,7 +504,6 @@ func (db *DB) maxIdleConnsLocked() int {
+ // If n <= 0, no idle connections are retained.
+ func (db *DB) SetMaxIdleConns(n int) {
+ 	db.mu.Lock()
+-	defer db.mu.Unlock()
+ 	if n > 0 {
+ 		db.maxIdle = n
+ 	} else {
+@@ -515,11 +514,16 @@ func (db *DB) SetMaxIdleConns(n int) {
+ 	if db.maxOpen > 0 && db.maxIdleConnsLocked() > db.maxOpen {
+ 		db.maxIdle = db.maxOpen
+ 	}
++	var closing []*driverConn
+ 	for db.freeConn.Len() > db.maxIdleConnsLocked() {
+ 		dc := db.freeConn.Back().Value.(*driverConn)
+ 		dc.listElem = nil
+ 		db.freeConn.Remove(db.freeConn.Back())
+-		go dc.Close()
++		closing = append(closing, dc)
++	}
++	db.mu.Unlock()
++	for _, c := range closing {
++		c.Close()
+ 	}
+ }
+ 
+@@ -743,8 +747,8 @@ func (db *DB) putConn(dc *driverConn, err error) {
+ 	if err == driver.ErrBadConn {
+ 		// Don't reuse bad connections.
+ 		// Since the conn is considered bad and is being discarded, treat it
+-		// as closed. Decrement the open count.
+-		db.numOpen--
++		// as closed. Don't decrement the open count here, finalClose will
++		// take care of that.
+ 		db.maybeOpenNewConnections()
+ 		db.mu.Unlock()
+ 		dc.Close()
+@@ -1607,13 +1611,13 @@ func (r *Row) Scan(dest ...interface{}) error {
+ 	// from Next will not be modified again." (for instance, if
+ 	// they were obtained from the network anyway) But for now we
+ 	// don't care.
++	defer r.rows.Close()
+ 	for _, dp := range dest {
+ 		if _, ok := dp.(*RawBytes); ok {
+ 			return errors.New("sql: RawBytes isn't allowed on Row.Scan")
+ 		}
+ 	}
+ 
+-	defer r.rows.Close()
+ 	if !r.rows.Next() {
+ 		return ErrNoRows
+ 	}
+diff --git a/src/pkg/database/sql/sql_test.go b/src/pkg/database/sql/sql_test.go
+index 435d79c24a..32605ce761 100644
+--- a/src/pkg/database/sql/sql_test.go
++++ b/src/pkg/database/sql/sql_test.go
+@@ -94,6 +94,12 @@ func closeDB(t testing.TB, db *DB) {
+ 	if err != nil {
+ 		t.Fatalf("error closing DB: %v", err)
+ 	}
++	db.mu.Lock()
++	count := db.numOpen
++	db.mu.Unlock()
++	if count != 0 {
++		t.Fatalf("%d connections still open after closing DB", db.numOpen)
++	}
+ }
+ 
+ // numPrepares assumes that db has exactly 1 idle conn and returns
+@@ -246,6 +252,9 @@ func TestRowsColumns(t *testing.T) {
+ 	if !reflect.DeepEqual(cols, want) {
+ 		t.Errorf("got %#v; want %#v", cols, want)
+ 	}
++	if err := rows.Close(); err != nil {
++		t.Errorf("error closing rows: %s", err)
++	}
+ }
+ 
+ func TestQueryRow(t *testing.T) {

@@ -10,6 +10,39 @@ Date:   Tue Mar 24 02:23:22 2015 -0400
     Signed-off-by: Shenghou Ma <minux@golang.org>
     Reviewed-on: https://go-review.googlesource.com/7976
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/nacltest.bash | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/nacltest.bash b/src/nacltest.bash
+index 534f1ef5af..eb1ac3d908 100755
+--- a/src/nacltest.bash
++++ b/src/nacltest.bash
+@@ -59,22 +59,22 @@ if ! which go_nacl_${naclGOARCH}_exec >/dev/null; then
+ 	exit 1
+ fi
+ 
+-# Run host build to get toolchain for running zip generator.
+ unset GOOS GOARCH
+ if [ ! -f make.bash ]; then
+ 	echo 'nacltest.bash must be run from $GOROOT/src' 1>&2
+ 	exit 1
+ fi
+-GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH ./make.bash
+ 
+ # the builder might have set GOROOT_FINAL.
+ export GOROOT=$(pwd)/..
+ 
+ # Build zip file embedded in package syscall.
+-gobin=${GOBIN:-$(pwd)/../bin}
++echo "##### Building fake file system zip for nacl"
+ rm -f syscall/fstest_nacl.go
+-GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH $gobin/go run ../misc/nacl/mkzip.go -p syscall -r .. ../misc/nacl/testzip.proto syscall/fstest_nacl.go
++GOROOT_BOOTSTRAP=${GOROOT_BOOTSTRAP:-$HOME/go1.4}
++gobin=$GOROOT_BOOTSTRAP/bin
++GOROOT=$GOROOT_BOOTSTRAP $gobin/go run ../misc/nacl/mkzip.go -p syscall -r .. ../misc/nacl/testzip.proto syscall/fstest_nacl.go
+ 
+ # Run standard build and tests.
+ export PATH=$(pwd)/../misc/nacl:$PATH
+-GOOS=nacl GOARCH=$naclGOARCH ./all.bash --no-clean
++GOOS=nacl GOARCH=$naclGOARCH ./all.bash

@@ -15,7 +15,7 @@ Date:   Mon Mar 13 19:17:41 2017 +0200
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/all/whitelist/32bit.txt |  16 ------
  src/cmd/vet/dead.go                 | 108 ++++++++++++++++++++++++++++++++++++
  src/cmd/vet/main.go                 |  12 +++-
@@ -23,3 +23,310 @@ Date:   Mon Mar 13 19:17:41 2017 +0200
  src/cmd/vet/testdata/shift.go       |  50 +++++++++++++++++
  src/sync/atomic/atomic_test.go      |  24 ++++----
  6 files changed, 186 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/vet/all/whitelist/32bit.txt b/src/cmd/vet/all/whitelist/32bit.txt
+deleted file mode 100644
+index 8728ee1c57..0000000000
+--- a/src/cmd/vet/all/whitelist/32bit.txt
++++ /dev/null
+@@ -1,16 +0,0 @@
+-// 32bit-specific vet whitelist. See readme.txt for details.
+-
+-// TODO: fix these warnings after the CL 37950 .
+-math/big/float.go: x[i] (32 bits) too small for shift of 32
+-math/big/nat.go: Word(rand.Uint32()) (32 bits) too small for shift of 32
+-runtime/malloc.go: uintptr(i) (32 bits) too small for shift of 40
+-runtime/malloc.go: uintptr(i) (32 bits) too small for shift of 40
+-runtime/malloc.go: uintptr(i) (32 bits) too small for shift of 40
+-sync/atomic/atomic_test.go: uintptr(seed + i) (32 bits) too small for shift of 32
+-sync/atomic/atomic_test.go: uintptr(seed+i) << 32 (32 bits) too small for shift of 32
+-sync/atomic/atomic_test.go: uintptr(seed + i) (32 bits) too small for shift of 32
+-sync/atomic/atomic_test.go: old (32 bits) too small for shift of 32
+-sync/atomic/atomic_test.go: old << 32 (32 bits) too small for shift of 32
+-sync/atomic/atomic_test.go: old (32 bits) too small for shift of 32
+-sync/atomic/atomic_test.go: v (32 bits) too small for shift of 32
+-sync/atomic/atomic_test.go: v (32 bits) too small for shift of 32
+diff --git a/src/cmd/vet/dead.go b/src/cmd/vet/dead.go
+new file mode 100644
+index 0000000000..b3a157b2a5
+--- /dev/null
++++ b/src/cmd/vet/dead.go
+@@ -0,0 +1,108 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++//
++// Simplified dead code detector. Used for skipping certain checks
++// on unreachable code (for instance, shift checks on arch-specific code).
++//
++package main
++
++import (
++	"go/ast"
++	"go/constant"
++)
++
++// updateDead puts unreachable "if" and "case" nodes into f.dead.
++func (f *File) updateDead(node ast.Node) {
++	if f.dead[node] {
++		// The node is already marked as dead.
++		return
++	}
++
++	switch stmt := node.(type) {
++	case *ast.IfStmt:
++		// "if" branch is dead if its condition evaluates
++		// to constant false.
++		v := f.pkg.types[stmt.Cond].Value
++		if v == nil {
++			return
++		}
++		if !constant.BoolVal(v) {
++			f.setDead(stmt.Body)
++			return
++		}
++		f.setDead(stmt.Else)
++	case *ast.SwitchStmt:
++		// Case clause with empty switch tag is dead if it evaluates
++		// to constant false.
++		if stmt.Tag == nil {
++		BodyLoopBool:
++			for _, stmt := range stmt.Body.List {
++				cc := stmt.(*ast.CaseClause)
++				if cc.List == nil {
++					// Skip default case.
++					continue
++				}
++				for _, expr := range cc.List {
++					v := f.pkg.types[expr].Value
++					if v == nil || constant.BoolVal(v) {
++						continue BodyLoopBool
++					}
++				}
++				f.setDead(cc)
++			}
++			return
++		}
++
++		// Case clause is dead if its constant value doesn't match
++		// the constant value from the switch tag.
++		// TODO: This handles integer comparisons only.
++		v := f.pkg.types[stmt.Tag].Value
++		if v == nil || v.Kind() != constant.Int {
++			return
++		}
++		tagN, ok := constant.Uint64Val(v)
++		if !ok {
++			return
++		}
++	BodyLoopInt:
++		for _, x := range stmt.Body.List {
++			cc := x.(*ast.CaseClause)
++			if cc.List == nil {
++				// Skip default case.
++				continue
++			}
++			for _, expr := range cc.List {
++				v := f.pkg.types[expr].Value
++				if v == nil {
++					continue BodyLoopInt
++				}
++				n, ok := constant.Uint64Val(v)
++				if !ok || tagN == n {
++					continue BodyLoopInt
++				}
++			}
++			f.setDead(cc)
++		}
++	}
++}
++
++// setDead marks the node and all the children as dead.
++func (f *File) setDead(node ast.Node) {
++	dv := deadVisitor{
++		f: f,
++	}
++	ast.Walk(dv, node)
++}
++
++type deadVisitor struct {
++	f *File
++}
++
++func (dv deadVisitor) Visit(node ast.Node) ast.Visitor {
++	if node == nil {
++		return nil
++	}
++	dv.f.dead[node] = true
++	return dv
++}
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index 8c7b2be9c7..77376c90ed 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -194,6 +194,9 @@ type File struct {
+ 
+ 	// Registered checkers to run.
+ 	checkers map[ast.Node][]func(*File, ast.Node)
++
++	// Unreachable nodes; can be ignored in shift check.
++	dead map[ast.Node]bool
+ }
+ 
+ func main() {
+@@ -330,7 +333,13 @@ func doPackage(directory string, names []string, basePkg *Package) *Package {
+ 			}
+ 			astFiles = append(astFiles, parsedFile)
+ 		}
+-		files = append(files, &File{fset: fs, content: data, name: name, file: parsedFile})
++		files = append(files, &File{
++			fset:    fs,
++			content: data,
++			name:    name,
++			file:    parsedFile,
++			dead:    make(map[ast.Node]bool),
++		})
+ 	}
+ 	if len(astFiles) == 0 {
+ 		return nil
+@@ -472,6 +481,7 @@ func (f *File) walkFile(name string, file *ast.File) {
+ 
+ // Visit implements the ast.Visitor interface.
+ func (f *File) Visit(node ast.Node) ast.Visitor {
++	f.updateDead(node)
+ 	var key ast.Node
+ 	switch node.(type) {
+ 	case *ast.AssignStmt:
+diff --git a/src/cmd/vet/shift.go b/src/cmd/vet/shift.go
+index 17531bfc75..1e48d32524 100644
+--- a/src/cmd/vet/shift.go
++++ b/src/cmd/vet/shift.go
+@@ -23,6 +23,11 @@ func init() {
+ }
+ 
+ func checkShift(f *File, node ast.Node) {
++	if f.dead[node] {
++		// Skip shift checks on unreachable nodes.
++		return
++	}
++
+ 	switch node := node.(type) {
+ 	case *ast.BinaryExpr:
+ 		if node.Op == token.SHL || node.Op == token.SHR {
+diff --git a/src/cmd/vet/testdata/shift.go b/src/cmd/vet/testdata/shift.go
+index d43b941f12..50a042e86e 100644
+--- a/src/cmd/vet/testdata/shift.go
++++ b/src/cmd/vet/testdata/shift.go
+@@ -107,3 +107,53 @@ func ShiftTest() {
+ 	h >>= 7 * unsafe.Alignof(h)
+ 	h >>= 8 * unsafe.Alignof(h) // ERROR "too small for shift"
+ }
++
++func ShiftDeadCode() {
++	var i int
++	const iBits = 8 * unsafe.Sizeof(i)
++
++	if iBits <= 32 {
++		if iBits == 16 {
++			_ = i >> 8
++		} else {
++			_ = i >> 16
++		}
++	} else {
++		_ = i >> 32
++	}
++
++	if iBits >= 64 {
++		_ = i << 32
++		if iBits == 128 {
++			_ = i << 64
++		}
++	} else {
++		_ = i << 16
++	}
++
++	if iBits == 64 {
++		_ = i << 32
++	}
++
++	switch iBits {
++	case 128, 64:
++		_ = i << 32
++	default:
++		_ = i << 16
++	}
++
++	switch {
++	case iBits < 32:
++		_ = i << 16
++	case iBits > 64:
++		_ = i << 64
++	default:
++		_ = i << 64 // ERROR "too small for shift"
++	}
++
++	// Make sure other vet checks work in dead code.
++	if iBits == 1024 {
++		_ = i << 512                  // OK
++		fmt.Printf("foo %s bar", 123) // ERROR "arg 123 for printf verb %s of wrong type: untyped int"
++	}
++}
+diff --git a/src/sync/atomic/atomic_test.go b/src/sync/atomic/atomic_test.go
+index 6d0831c3f9..17baccb468 100644
+--- a/src/sync/atomic/atomic_test.go
++++ b/src/sync/atomic/atomic_test.go
+@@ -953,16 +953,20 @@ func hammerSwapUint64(addr *uint64, count int) {
+ 	}
+ }
+ 
++const arch32 = unsafe.Sizeof(uintptr(0)) == 4
++
+ func hammerSwapUintptr64(uaddr *uint64, count int) {
+ 	// only safe when uintptr is 64-bit.
+ 	// not called on 32-bit systems.
+-	addr := (*uintptr)(unsafe.Pointer(uaddr))
+-	seed := int(uintptr(unsafe.Pointer(&count)))
+-	for i := 0; i < count; i++ {
+-		new := uintptr(seed+i)<<32 | uintptr(seed+i)<<32>>32
+-		old := SwapUintptr(addr, new)
+-		if old>>32 != old<<32>>32 {
+-			panic(fmt.Sprintf("SwapUintptr is not atomic: %v", old))
++	if !arch32 {
++		addr := (*uintptr)(unsafe.Pointer(uaddr))
++		seed := int(uintptr(unsafe.Pointer(&count)))
++		for i := 0; i < count; i++ {
++			new := uintptr(seed+i)<<32 | uintptr(seed+i)<<32>>32
++			old := SwapUintptr(addr, new)
++			if old>>32 != old<<32>>32 {
++				panic(fmt.Sprintf("SwapUintptr is not atomic: %v", old))
++			}
+ 		}
+ 	}
+ }
+@@ -1116,8 +1120,6 @@ func hammerStoreLoadUint64(t *testing.T, paddr unsafe.Pointer) {
+ 
+ func hammerStoreLoadUintptr(t *testing.T, paddr unsafe.Pointer) {
+ 	addr := (*uintptr)(paddr)
+-	var test64 uint64 = 1 << 50
+-	arch32 := uintptr(test64) == 0
+ 	v := LoadUintptr(addr)
+ 	new := v
+ 	if arch32 {
+@@ -1144,8 +1146,6 @@ func hammerStoreLoadUintptr(t *testing.T, paddr unsafe.Pointer) {
+ 
+ func hammerStoreLoadPointer(t *testing.T, paddr unsafe.Pointer) {
+ 	addr := (*unsafe.Pointer)(paddr)
+-	var test64 uint64 = 1 << 50
+-	arch32 := uintptr(test64) == 0
+ 	v := uintptr(LoadPointer(addr))
+ 	new := v
+ 	if arch32 {
+@@ -1398,7 +1398,7 @@ func TestUnaligned64(t *testing.T) {
+ 
+ 	switch runtime.GOARCH {
+ 	default:
+-		if unsafe.Sizeof(int(0)) != 4 {
++		if !arch32 {
+ 			t.Skip("test only runs on 32-bit systems")
+ 		}
+ 	case "amd64p32":

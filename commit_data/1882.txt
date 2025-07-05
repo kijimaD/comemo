@@ -9,6 +9,33 @@ Date:   Tue Mar 24 18:02:24 2009 -0700
     DELTA=8  (0 added, 8 deleted, 0 changed)
     OCL=26695
     CL=26710
-
+---
  src/cmd/8l/obj.c | 8 --------
  1 file changed, 8 deletions(-)
+
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 022f315d29..c4aa3486be 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -324,12 +324,6 @@ main(int argc, char *argv[])
+ 	}
+ 	lookup(INITENTRY, 0)->type = SXREF;
+ 
+-	if(!debug['l']) {
+-		a = mal(strlen(goroot)+strlen(goarch)+strlen(goos)+20);
+-		sprint(a, "%s/lib/rt0_%s_%s.%c", goroot, goarch, goos, thechar);
+-		objfile(a);
+-	}
+-
+ 	while(*argv)
+ 		objfile(*argv++);
+ 
+@@ -857,8 +851,6 @@ ldobj(Biobuf *f, int32 len, char *pn)
+ //	ldpkg(f, import1 - import0 - 2, pn);	// -2 for !\n
+ 	Bseek(f, import1, 0);
+ 
+-print("import %ld-%ld\n", import0, import1);
+-
+ newloop:
+ 	memset(h, 0, sizeof(h));
+ 	version++;

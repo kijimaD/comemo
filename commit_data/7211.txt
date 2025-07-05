@@ -9,6 +9,24 @@ Date:   Fri Jan 21 08:37:58 2011 -0800
     R=adg, rsc
     CC=golang-dev
     https://golang.org/cl/4053042
-
+---
  test/method1.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/method1.go b/test/method1.go
+index 1a2f8cae53..ec14ef9e4f 100644
+--- a/test/method1.go
++++ b/test/method1.go
+@@ -8,10 +8,10 @@ package main
+ 
+ type T struct { }
+ func (t *T) M(int, string)	// GCCGO_ERROR "previous"
+-func (t *T) M(int, float) { }   // ERROR "redeclared|redefinition"
++func (t *T) M(int, float64) { }   // ERROR "redeclared|redefinition"
+ 
+ func f(int, string)	// GCCGO_ERROR "previous"
+-func f(int, float) { }  // ERROR "redeclared|redefinition"
++func f(int, float64) { }  // ERROR "redeclared|redefinition"
+ 
+ func g(a int, b string)  // GCCGO_ERROR "previous"
+ func g(a int, c string)  // ERROR "redeclared|redefinition"

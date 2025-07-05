@@ -7,6 +7,19 @@ Date:   Thu Aug 1 13:22:42 2013 +1000
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/12222043
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index d6cec12eed..4757494817 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -114,6 +114,7 @@ Chris Howey <howeyc@gmail.com>
+ Chris Hundt <hundt@google.com>
+ Chris Jones <chris@cjones.org> <chris.jones.yar@gmail.com>
+ Chris Lennert <calennert@gmail.com>
++Chris Manghane <cmang@golang.org>
+ Christian Himpel <chressie@googlemail.com> <chressie@gmail.com>
+ Christine Hansmann <chhansmann@gmail.com>
+ Christoph Hack <christoph@tux21b.org>

@@ -12,7 +12,208 @@ Date:   Wed Feb 26 00:58:29 2020 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/loader/loader.go | 54 ++++++++++++++++---
  src/cmd/link/internal/sym/symbols.go   | 98 ++++++----------------------------
  2 files changed, 64 insertions(+), 88 deletions(-)
+
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index bf7e314977..56d13db805 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -259,7 +259,7 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc) *Loader {
+ 		objs:                 []objIdx{{}}, // reserve index 0 for nil symbol
+ 		objSyms:              []objSym{{}}, // reserve index 0 for nil symbol
+ 		extReader:            &oReader{},
+-		symsByName:           [2]map[string]Sym{make(map[string]Sym), make(map[string]Sym)},
++		symsByName:           [2]map[string]Sym{make(map[string]Sym, 100000), make(map[string]Sym, 50000)}, // preallocate ~2MB for ABI0 and ~1MB for ABI1 symbols
+ 		objByPkg:             make(map[string]*oReader),
+ 		outer:                make(map[Sym]Sym),
+ 		sub:                  make(map[Sym]Sym),
+@@ -1817,11 +1817,7 @@ func (l *Loader) ExtractSymbols(syms *sym.Symbols, rp map[*sym.Symbol]*sym.Symbo
+ 		if s == nil {
+ 			continue
+ 		}
+-		if s.Name != "" && s.Version >= 0 {
+-			syms.Add(s)
+-		} else {
+-			syms.Allsym = append(syms.Allsym, s)
+-		}
++		syms.Allsym = append(syms.Allsym, s) // XXX still add to Allsym for now, as there are code looping through Allsym
+ 		if s.Version < 0 {
+ 			s.Version = int16(anonVerReplacement)
+ 		}
+@@ -1833,6 +1829,52 @@ func (l *Loader) ExtractSymbols(syms *sym.Symbols, rp map[*sym.Symbol]*sym.Symbo
+ 		}
+ 		rp[l.Syms[i]] = l.Syms[s]
+ 	}
++
++	// Provide lookup functions for sym.Symbols.
++	syms.Lookup = func(name string, ver int) *sym.Symbol {
++		i := l.LookupOrCreateSym(name, ver)
++		if s := l.Syms[i]; s != nil {
++			return s
++		}
++		s := l.allocSym(name, ver)
++		l.installSym(i, s)
++		syms.Allsym = append(syms.Allsym, s) // XXX see above
++		return s
++	}
++	syms.ROLookup = func(name string, ver int) *sym.Symbol {
++		i := l.Lookup(name, ver)
++		return l.Syms[i]
++	}
++	syms.Rename = func(old, new string, ver int) {
++		// annoying... maybe there is a better way to do this
++		if ver >= 2 {
++			panic("cannot rename static symbol")
++		}
++		i := l.Lookup(old, ver)
++		s := l.Syms[i]
++		s.Name = new
++		if s.Extname() == old {
++			s.SetExtname(new)
++		}
++		delete(l.symsByName[ver], old)
++
++		// This mirrors the old code. But I'm not sure if the logic of
++		// handling dup in the old code actually works, or necessary.
++		dupi := l.symsByName[ver][new]
++		dup := l.Syms[dupi]
++		if dup == nil {
++			l.symsByName[ver][new] = i
++		} else {
++			if s.Type == 0 {
++				dup.Attr |= s.Attr
++				*s = *dup
++			} else if dup.Type == 0 {
++				s.Attr |= dup.Attr
++				*dup = *s
++				l.symsByName[ver][new] = i
++			}
++		}
++	}
+ }
+ 
+ // allocSym allocates a new symbol backing.
+diff --git a/src/cmd/link/internal/sym/symbols.go b/src/cmd/link/internal/sym/symbols.go
+index d52211ed2b..e64779da9c 100644
+--- a/src/cmd/link/internal/sym/symbols.go
++++ b/src/cmd/link/internal/sym/symbols.go
+@@ -31,100 +31,34 @@
+ package sym
+ 
+ type Symbols struct {
+-	symbolBatch []Symbol
+-
+ 	// Symbol lookup based on name and indexed by version.
+-	hash []map[string]*Symbol
++	versions int
+ 
+ 	Allsym []*Symbol
+-}
+-
+-func NewSymbols() *Symbols {
+-	hash := make([]map[string]*Symbol, SymVerStatic)
+-	// Preallocate about 2mb for hash of non static symbols
+-	hash[0] = make(map[string]*Symbol, 100000)
+-	// And another 1mb for internal ABI text symbols.
+-	hash[SymVerABIInternal] = make(map[string]*Symbol, 50000)
+-	return &Symbols{
+-		hash:   hash,
+-		Allsym: make([]*Symbol, 0, 100000),
+-	}
+-}
+ 
+-func (syms *Symbols) Newsym(name string, v int) *Symbol {
+-	batch := syms.symbolBatch
+-	if len(batch) == 0 {
+-		batch = make([]Symbol, 1000)
+-	}
+-	s := &batch[0]
+-	syms.symbolBatch = batch[1:]
++	// Provided by the loader
+ 
+-	s.Dynid = -1
+-	s.Name = name
+-	s.Version = int16(v)
+-	syms.Allsym = append(syms.Allsym, s)
++	// Look up the symbol with the given name and version, creating the
++	// symbol if it is not found.
++	Lookup func(name string, v int) *Symbol
+ 
+-	return s
+-}
++	// Look up the symbol with the given name and version, returning nil
++	// if it is not found.
++	ROLookup func(name string, v int) *Symbol
+ 
+-// Look up the symbol with the given name and version, creating the
+-// symbol if it is not found.
+-func (syms *Symbols) Lookup(name string, v int) *Symbol {
+-	m := syms.hash[v]
+-	s := m[name]
+-	if s != nil {
+-		return s
+-	}
+-	s = syms.Newsym(name, v)
+-	m[name] = s
+-	return s
++	// Rename renames a symbol.
++	Rename func(old, new string, v int)
+ }
+ 
+-// Look up the symbol with the given name and version, returning nil
+-// if it is not found.
+-func (syms *Symbols) ROLookup(name string, v int) *Symbol {
+-	return syms.hash[v][name]
+-}
+-
+-// Add an existing symbol to the symbol table.
+-func (syms *Symbols) Add(s *Symbol) {
+-	name := s.Name
+-	v := int(s.Version)
+-	m := syms.hash[v]
+-	if _, ok := m[name]; ok {
+-		panic(name + " already added")
++func NewSymbols() *Symbols {
++	return &Symbols{
++		versions: SymVerStatic,
++		Allsym:   make([]*Symbol, 0, 100000),
+ 	}
+-	m[name] = s
+-	syms.Allsym = append(syms.Allsym, s)
+ }
+ 
+ // Allocate a new version (i.e. symbol namespace).
+ func (syms *Symbols) IncVersion() int {
+-	syms.hash = append(syms.hash, make(map[string]*Symbol))
+-	return len(syms.hash) - 1
+-}
+-
+-// Rename renames a symbol.
+-func (syms *Symbols) Rename(old, new string, v int) {
+-	s := syms.hash[v][old]
+-	oldExtName := s.Extname()
+-	s.Name = new
+-	if oldExtName == old {
+-		s.SetExtname(new)
+-	}
+-	delete(syms.hash[v], old)
+-
+-	dup := syms.hash[v][new]
+-	if dup == nil {
+-		syms.hash[v][new] = s
+-	} else {
+-		if s.Type == 0 {
+-			dup.Attr |= s.Attr
+-			*s = *dup
+-		} else if dup.Type == 0 {
+-			s.Attr |= dup.Attr
+-			*dup = *s
+-			syms.hash[v][new] = s
+-		}
+-	}
++	syms.versions++
++	return syms.versions - 1
+ }

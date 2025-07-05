@@ -11,7 +11,99 @@ Date:   Tue Jan 19 13:14:03 2016 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/parser.go |  7 +++-
  test/fixedbugs/issue14006.go          | 64 +++++++++++++++++++++++++++++++++++
  2 files changed, 70 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index 3279f4c6b0..282e855b37 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -668,9 +668,14 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
+ 			if labelOk {
+ 				// If we have a labelname, it was parsed by operand
+ 				// (calling p.name()) and given an ONAME, ONONAME, OTYPE, OPACK, or OLITERAL node.
++				// We only have a labelname if there is a symbol (was issue 14006).
+ 				switch lhs.Op {
+ 				case ONAME, ONONAME, OTYPE, OPACK, OLITERAL:
+-					lhs = newname(lhs.Sym)
++					if lhs.Sym != nil {
++						lhs = newname(lhs.Sym)
++						break
++					}
++					fallthrough
+ 				default:
+ 					p.syntax_error("expecting semicolon or newline or }")
+ 					// we already progressed, no need to advance
+diff --git a/test/fixedbugs/issue14006.go b/test/fixedbugs/issue14006.go
+new file mode 100644
+index 0000000000..b56ed73be9
+--- /dev/null
++++ b/test/fixedbugs/issue14006.go
+@@ -0,0 +1,64 @@
++// errorcheck
++
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Literals that happen to resolve to named constants
++// may be used as label names (see issue 13684). Make
++// sure that other literals don't crash the compiler.
++
++package main
++
++const labelname = 1
++
++func main() {
++	goto labelname
++labelname:
++}
++
++func f() {
++	var x int
++	switch x {
++	case 1:
++		2:	// ERROR "unexpected :"
++	case 2:
++	}
++
++	switch x {
++	case 1:
++		2: ;	// ERROR "unexpected :"
++	case 2:
++	}
++
++	var y string
++	switch y {
++	case "foo":
++		"bar":	// ERROR "unexpected :"
++	case "bar":
++	}
++
++	switch y {
++	case "foo":
++		"bar": ;	// ERROR "unexpected :"
++	case "bar":
++	}
++
++	var z bool
++	switch {
++	case z:
++		labelname:	// ERROR "missing statement after label"
++	case false:
++	}
++
++	switch {
++	case z:
++		labelname:
++	}
++
++	switch {
++	case z:
++		labelname: ;
++	case false:
++	}
++}
+\ No newline at end of file

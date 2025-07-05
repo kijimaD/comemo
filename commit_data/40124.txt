@@ -12,7 +12,7 @@ Date:   Fri Apr 19 16:09:17 2019 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/172997
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/dep_test.go | 26 ++++++++++++++++++++++++++
  src/cmd/compile/internal/gc/main.go     |  5 ++---
  src/cmd/dist/buildtool.go               |  1 +
@@ -20,3 +20,139 @@ Date:   Fri Apr 19 16:09:17 2019 +0000
  src/go/build/deps_test.go               |  2 +-
  src/internal/goversion/goversion.go     | 13 +++++++++++++
  6 files changed, 52 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dep_test.go b/src/cmd/compile/internal/gc/dep_test.go
+new file mode 100644
+index 0000000000..7fc9be5e64
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/dep_test.go
+@@ -0,0 +1,26 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gc
++
++import (
++	"internal/testenv"
++	"os/exec"
++	"strings"
++	"testing"
++)
++
++func TestDeps(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	out, err := exec.Command("go", "list", "-f", "{{.Deps}}", "cmd/compile/internal/gc").Output()
++	if err != nil {
++		t.Fatal(err)
++	}
++	for _, dep := range strings.Fields(strings.Trim(string(out), "[]")) {
++		switch dep {
++		case "go/build", "go/token":
++			t.Errorf("undesired dependency on %q", dep)
++		}
++	}
++}
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 71a4024765..969b596907 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -19,7 +19,7 @@ import (
+ 	"cmd/internal/sys"
+ 	"flag"
+ 	"fmt"
+-	"go/build"
++	"internal/goversion"
+ 	"io"
+ 	"io/ioutil"
+ 	"log"
+@@ -1426,8 +1426,7 @@ var flag_lang string
+ 
+ // currentLang returns the current language version.
+ func currentLang() string {
+-	tags := build.Default.ReleaseTags
+-	return tags[len(tags)-1]
++	return fmt.Sprintf("go1.%d", goversion.Version)
+ }
+ 
+ // goVersionRE is a regular expression that matches the valid
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 7b85927785..26e12991a4 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -89,6 +89,7 @@ var bootstrapDirs = []string{
+ 	"debug/elf",
+ 	"debug/macho",
+ 	"debug/pe",
++	"internal/goversion",
+ 	"internal/xcoff",
+ 	"math/big",
+ 	"math/bits",
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 1be10f1fb8..1ad076089d 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -13,6 +13,7 @@ import (
+ 	"go/parser"
+ 	"go/token"
+ 	"internal/goroot"
++	"internal/goversion"
+ 	"io"
+ 	"io/ioutil"
+ 	"log"
+@@ -292,15 +293,14 @@ func defaultContext() Context {
+ 	c.GOPATH = envOr("GOPATH", defaultGOPATH())
+ 	c.Compiler = runtime.Compiler
+ 
+-	// Each major Go release in the Go 1.x series should add a tag here.
+-	// Old tags should not be removed. That is, the go1.x tag is present
+-	// in all releases >= Go 1.x. Code that requires Go 1.x or later should
+-	// say "+build go1.x", and code that should only be built before Go 1.x
+-	// (perhaps it is the stub to use in that case) should say "+build !go1.x".
+-	// NOTE: If you add to this list, also update the doc comment in doc.go.
+-	// NOTE: The last element in ReleaseTags should be the current release.
+-	const version = 13 // go1.13
+-	for i := 1; i <= version; i++ {
++	// Each major Go release in the Go 1.x series adds a new
++	// "go1.x" release tag. That is, the go1.x tag is present in
++	// all releases >= Go 1.x. Code that requires Go 1.x or later
++	// should say "+build go1.x", and code that should only be
++	// built before Go 1.x (perhaps it is the stub to use in that
++	// case) should say "+build !go1.x".
++	// The last element in ReleaseTags is the current release.
++	for i := 1; i <= goversion.Version; i++ {
+ 		c.ReleaseTags = append(c.ReleaseTags, "go1."+strconv.Itoa(i))
+ 	}
+ 
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index c81d313b72..50650bd373 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -268,7 +268,7 @@ var pkgDeps = map[string][]string{
+ 	"encoding/pem":                   {"L4"},
+ 	"encoding/xml":                   {"L4", "encoding"},
+ 	"flag":                           {"L4", "OS"},
+-	"go/build":                       {"L4", "OS", "GOPARSER", "internal/goroot"},
++	"go/build":                       {"L4", "OS", "GOPARSER", "internal/goroot", "internal/goversion"},
+ 	"html":                           {"L4"},
+ 	"image/draw":                     {"L4", "image/internal/imageutil"},
+ 	"image/gif":                      {"L4", "compress/lzw", "image/color/palette", "image/draw"},
+diff --git a/src/internal/goversion/goversion.go b/src/internal/goversion/goversion.go
+new file mode 100644
+index 0000000000..8f9c7c99c2
+--- /dev/null
++++ b/src/internal/goversion/goversion.go
+@@ -0,0 +1,13 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package goversion
++
++// Version is the current Go 1.x version. During development cycles on
++// the master branch it changes to be the version of the next Go 1.x
++// release.
++//
++// When incrementing this, also add to the list at src/go/build/doc.go
++// (search for "onward").
++const Version = 13

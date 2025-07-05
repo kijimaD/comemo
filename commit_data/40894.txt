@@ -23,7 +23,7 @@ Date:   Wed Aug 7 16:27:39 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/list/list.go            |  2 +-
  src/cmd/go/internal/modcmd/download.go      | 20 ++++++++++++-----
  src/cmd/go/internal/modload/list.go         | 35 ++++++++++++++++++++---------
@@ -31,3 +31,196 @@ Date:   Wed Aug 7 16:27:39 2019 -0400
  src/cmd/go/testdata/script/mod_list.txt     |  8 +++----
  src/cmd/go/testdata/script/mod_query.txt    |  2 +-
  6 files changed, 55 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 4a6633d9a1..a5f1abe64a 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -390,7 +390,7 @@ func runList(cmd *base.Command, args []string) {
+ 		if !*listE {
+ 			for _, m := range mods {
+ 				if m.Error != nil {
+-					base.Errorf("go list -m %s: %v", m.Path, m.Error.Err)
++					base.Errorf("go list -m: %v", m.Error.Err)
+ 				}
+ 			}
+ 			base.ExitIfErrors()
+diff --git a/src/cmd/go/internal/modcmd/download.go b/src/cmd/go/internal/modcmd/download.go
+index 1137982e47..60d0d5b6e2 100644
+--- a/src/cmd/go/internal/modcmd/download.go
++++ b/src/cmd/go/internal/modcmd/download.go
+@@ -89,7 +89,8 @@ func runDownload(cmd *base.Command, args []string) {
+ 		if info.Replace != nil {
+ 			info = info.Replace
+ 		}
+-		if info.Version == "" {
++		if info.Version == "" && info.Error == nil {
++			// main module
+ 			continue
+ 		}
+ 		m := &moduleJSON{
+@@ -97,6 +98,10 @@ func runDownload(cmd *base.Command, args []string) {
+ 			Version: info.Version,
+ 		}
+ 		mods = append(mods, m)
++		if info.Error != nil {
++			m.Error = info.Error.Err
++			continue
++		}
+ 		work.Add(m)
+ 	}
+ 
+@@ -110,12 +115,17 @@ func runDownload(cmd *base.Command, args []string) {
+ 		// downloading the modules.
+ 		var latestArgs []string
+ 		for _, m := range mods {
++			if m.Error != "" {
++				continue
++			}
+ 			latestArgs = append(latestArgs, m.Path+"@latest")
+ 		}
+ 
+-		for _, info := range modload.ListModules(latestArgs, listU, listVersions) {
+-			if info.Version != "" {
+-				latest[info.Path] = info.Version
++		if len(latestArgs) > 0 {
++			for _, info := range modload.ListModules(latestArgs, listU, listVersions) {
++				if info.Version != "" {
++					latest[info.Path] = info.Version
++				}
+ 			}
+ 		}
+ 	}
+@@ -169,7 +179,7 @@ func runDownload(cmd *base.Command, args []string) {
+ 	} else {
+ 		for _, m := range mods {
+ 			if m.Error != "" {
+-				base.Errorf("%s@%s: %s\n", m.Path, m.Version, m.Error)
++				base.Errorf("%s", m.Error)
+ 			}
+ 		}
+ 		base.ExitIfErrors()
+diff --git a/src/cmd/go/internal/modload/list.go b/src/cmd/go/internal/modload/list.go
+index c571ddc5f5..35d0c28cde 100644
+--- a/src/cmd/go/internal/modload/list.go
++++ b/src/cmd/go/internal/modload/list.go
+@@ -5,6 +5,7 @@
+ package modload
+ 
+ import (
++	"errors"
+ 	"fmt"
+ 	"os"
+ 	"strings"
+@@ -70,9 +71,7 @@ func listModules(args []string, listVersions bool) []*modinfo.ModulePublic {
+ 				mods = append(mods, &modinfo.ModulePublic{
+ 					Path:    path,
+ 					Version: vers,
+-					Error: &modinfo.ModuleError{
+-						Err: err.Error(),
+-					},
++					Error:   modinfoError(path, vers, err),
+ 				})
+ 				continue
+ 			}
+@@ -116,19 +115,15 @@ func listModules(args []string, listVersions bool) []*modinfo.ModulePublic {
+ 						mods = append(mods, moduleInfo(module.Version{Path: arg, Version: info.Version}, false))
+ 					} else {
+ 						mods = append(mods, &modinfo.ModulePublic{
+-							Path: arg,
+-							Error: &modinfo.ModuleError{
+-								Err: err.Error(),
+-							},
++							Path:  arg,
++							Error: modinfoError(arg, "", err),
+ 						})
+ 					}
+ 					continue
+ 				}
+ 				mods = append(mods, &modinfo.ModulePublic{
+-					Path: arg,
+-					Error: &modinfo.ModuleError{
+-						Err: fmt.Sprintf("module %q is not a known dependency", arg),
+-					},
++					Path:  arg,
++					Error: modinfoError(arg, "", errors.New("not a known dependency")),
+ 				})
+ 			} else {
+ 				fmt.Fprintf(os.Stderr, "warning: pattern %q matched no module dependencies\n", arg)
+@@ -138,3 +133,21 @@ func listModules(args []string, listVersions bool) []*modinfo.ModulePublic {
+ 
+ 	return mods
+ }
++
++// modinfoError wraps an error to create an error message in
++// modinfo.ModuleError with minimal redundancy.
++func modinfoError(path, vers string, err error) *modinfo.ModuleError {
++	var nerr *NoMatchingVersionError
++	var merr *module.ModuleError
++	if errors.As(err, &nerr) {
++		// NoMatchingVersionError contains the query, so we don't mention the
++		// query again in ModuleError.
++		err = &module.ModuleError{Path: path, Err: err}
++	} else if !errors.As(err, &merr) {
++		// If the error does not contain path and version, wrap it in a
++		// module.ModuleError.
++		err = &module.ModuleError{Path: path, Version: vers, Err: err}
++	}
++
++	return &modinfo.ModuleError{Err: err.Error()}
++}
+diff --git a/src/cmd/go/testdata/script/mod_download.txt b/src/cmd/go/testdata/script/mod_download.txt
+index 75e4acbab0..9eb3140c33 100644
+--- a/src/cmd/go/testdata/script/mod_download.txt
++++ b/src/cmd/go/testdata/script/mod_download.txt
+@@ -85,6 +85,16 @@ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.zip
+ go mod download -json rsc.io/quote@v1.5.1
+ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.1.zip
+ 
++# download reports errors encountered when locating modules
++! go mod download bad/path
++stderr '^module bad/path: not a known dependency$'
++! go mod download bad/path@latest
++stderr '^bad/path@latest: malformed module path "bad/path": missing dot in first path element$'
++! go mod download rsc.io/quote@v1.999.999
++stderr '^rsc.io/quote@v1.999.999: reading .*/v1.999.999.info: 404 Not Found$'
++! go mod download -json bad/path
++stdout '^\t"Error": "module bad/path: not a known dependency"'
++
+ # allow go mod download without go.mod
+ env GO111MODULE=auto
+ rm go.mod
+diff --git a/src/cmd/go/testdata/script/mod_list.txt b/src/cmd/go/testdata/script/mod_list.txt
+index a15f5bca63..17b33fcc7b 100644
+--- a/src/cmd/go/testdata/script/mod_list.txt
++++ b/src/cmd/go/testdata/script/mod_list.txt
+@@ -34,12 +34,12 @@ go list rsc.io/quote/buggy
+ 
+ # rsc.io/quote/buggy should not be listable as a module
+ go list -m -e -f '{{.Error.Err}}' nonexist rsc.io/quote/buggy
+-stdout '^module "nonexist" is not a known dependency'
+-stdout '^module "rsc.io/quote/buggy" is not a known dependency'
++stdout '^module nonexist: not a known dependency$'
++stdout '^module rsc.io/quote/buggy: not a known dependency$'
+ 
+ ! go list -m nonexist rsc.io/quote/buggy
+-stderr '^go list -m nonexist: module "nonexist" is not a known dependency'
+-stderr '^go list -m rsc.io/quote/buggy: module "rsc.io/quote/buggy" is not a known dependency'
++stderr '^go list -m: module nonexist: not a known dependency'
++stderr '^go list -m: module rsc.io/quote/buggy: not a known dependency'
+ 
+ # Module loader does not interfere with list -e (golang.org/issue/24149).
+ go list -e -f '{{.Error.Err}}' database
+diff --git a/src/cmd/go/testdata/script/mod_query.txt b/src/cmd/go/testdata/script/mod_query.txt
+index c41f83d264..e87ca302f0 100644
+--- a/src/cmd/go/testdata/script/mod_query.txt
++++ b/src/cmd/go/testdata/script/mod_query.txt
+@@ -22,7 +22,7 @@ go list -m rsc.io/quote@<v1.5.4
+ stdout 'rsc.io/quote v1.5.2$'
+ 
+ ! go list -m rsc.io/quote@>v1.5.3
+-stderr 'go list -m rsc.io/quote: no matching versions for query ">v1.5.3"'
++stderr 'go list -m: module rsc.io/quote: no matching versions for query ">v1.5.3"'
+ 
+ go list -m -e -f '{{.Error.Err}}' rsc.io/quote@>v1.5.3
+ stdout 'no matching versions for query ">v1.5.3"'

@@ -15,6 +15,20 @@ Date:   Mon Apr 15 19:54:01 2024 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/runtime/extern.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 9a02e36829..bb2f03b1ce 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -297,7 +297,7 @@ import (
+ // call. The boolean ok is false if it was not possible to recover the information.
+ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
+ 	rpc := make([]uintptr, 1)
+-	n := callers(skip+1, rpc[:])
++	n := callers(skip+1, rpc)
+ 	if n < 1 {
+ 		return
+ 	}

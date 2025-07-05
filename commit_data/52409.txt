@@ -14,8 +14,146 @@ Date:   Sat Mar 19 21:46:12 2022 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/mcache.go   | 20 +++++++++++++++++---
  src/runtime/mgcsweep.go |  9 +++++++++
  src/runtime/mstats.go   | 26 ++++++++++++++++++++------
  3 files changed, 46 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index afd5afbddd..4e8ada5bda 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -169,8 +169,12 @@ func (c *mcache) refill(spc spanClass) {
+ 		}
+ 		memstats.heapStats.release()
+ 
++		// Count the allocs in inconsistent, internal stats.
++		bytesAllocated := int64(slotsUsed * s.elemsize)
++		memstats.totalAlloc.Add(bytesAllocated)
++
+ 		// Update heapLive and flush scanAlloc.
+-		gcController.update(int64(slotsUsed*s.elemsize), int64(c.scanAlloc))
++		gcController.update(bytesAllocated, int64(c.scanAlloc))
+ 		c.scanAlloc = 0
+ 
+ 		// Clear the second allocCount just to be safe.
+@@ -217,11 +221,16 @@ func (c *mcache) allocLarge(size uintptr, noscan bool) *mspan {
+ 	if s == nil {
+ 		throw("out of memory")
+ 	}
++
++	// Count the alloc in consistent, external stats.
+ 	stats := memstats.heapStats.acquire()
+ 	atomic.Xadduintptr(&stats.largeAlloc, npages*pageSize)
+ 	atomic.Xadduintptr(&stats.largeAllocCount, 1)
+ 	memstats.heapStats.release()
+ 
++	// Count the alloc in inconsistent, internal stats.
++	memstats.totalAlloc.Add(int64(npages * pageSize))
++
+ 	// Update heapLive.
+ 	gcController.update(int64(s.npages*pageSize), 0)
+ 
+@@ -241,12 +250,17 @@ func (c *mcache) releaseAll() {
+ 	for i := range c.alloc {
+ 		s := c.alloc[i]
+ 		if s != &emptymspan {
++			slotsUsed := uintptr(s.allocCount) - uintptr(s.allocCountBeforeCache)
++			s.allocCountBeforeCache = 0
++
+ 			// Adjust smallAllocCount for whatever was allocated.
+ 			stats := memstats.heapStats.acquire()
+-			slotsUsed := uintptr(s.allocCount) - uintptr(s.allocCountBeforeCache)
+ 			atomic.Xadduintptr(&stats.smallAllocCount[spanClass(i).sizeclass()], slotsUsed)
+ 			memstats.heapStats.release()
+-			s.allocCountBeforeCache = 0
++
++			// Adjust the actual allocs in inconsistent, internal stats.
++			// We assumed earlier that the full span gets allocated.
++			memstats.totalAlloc.Add(int64(slotsUsed * s.elemsize))
+ 
+ 			// Release the span to the mcentral.
+ 			mheap_.central[i].mcentral.uncacheSpan(s)
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index a5e04d6ce6..365e21e35e 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -666,6 +666,9 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
+ 			stats := memstats.heapStats.acquire()
+ 			atomic.Xadduintptr(&stats.smallFreeCount[spc.sizeclass()], uintptr(nfreed))
+ 			memstats.heapStats.release()
++
++			// Count the frees in the inconsistent, internal stats.
++			memstats.totalFree.Add(int64(nfreed) * int64(s.elemsize))
+ 		}
+ 		if !preserve {
+ 			// The caller may not have removed this span from whatever
+@@ -710,10 +713,16 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
+ 			} else {
+ 				mheap_.freeSpan(s)
+ 			}
++
++			// Count the free in the consistent, external stats.
+ 			stats := memstats.heapStats.acquire()
+ 			atomic.Xadduintptr(&stats.largeFreeCount, 1)
+ 			atomic.Xadduintptr(&stats.largeFree, size)
+ 			memstats.heapStats.release()
++
++			// Count the free in the inconsistent, internal stats.
++			memstats.totalFree.Add(int64(size))
++
+ 			return true
+ 		}
+ 
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index e8b42fbbbe..e066ac0023 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -31,9 +31,11 @@ type mstats struct {
+ 	//
+ 	// Like MemStats, heap_sys and heap_inuse do not count memory
+ 	// in manually-managed spans.
+-	heap_sys      sysMemStat // virtual address space obtained from system for GC'd heap
+-	heap_inuse    uint64     // bytes in mSpanInUse spans
+-	heap_released uint64     // bytes released to the OS
++	heap_sys      sysMemStat    // virtual address space obtained from system for GC'd heap
++	heap_inuse    uint64        // bytes in mSpanInUse spans
++	heap_released uint64        // bytes released to the OS
++	totalAlloc    atomic.Uint64 // total bytes allocated
++	totalFree     atomic.Uint64 // total bytes freed
+ 
+ 	// Statistics about stacks.
+ 	stacks_sys sysMemStat // only counts newosproc0 stack in mstats; differs from MemStats.StackSys
+@@ -452,9 +454,11 @@ func readmemstats_m(stats *MemStats) {
+ 	// The world is stopped, so the consistent stats (after aggregation)
+ 	// should be identical to some combination of memstats. In particular:
+ 	//
+-	// * heap_inuse == inHeap
+-	// * heap_released == released
+-	// * heap_sys - heap_released == committed - inStacks - inWorkBufs - inPtrScalarBits
++	// * memstats.heap_inuse == inHeap
++	// * memstats.heap_released == released
++	// * memstats.heap_sys - memstats.heap_released == committed - inStacks - inWorkBufs - inPtrScalarBits
++	// * memstats.totalAlloc == totalAlloc
++	// * memstats.totalFree == totalFree
+ 	//
+ 	// Check if that's actually true.
+ 	//
+@@ -478,6 +482,16 @@ func readmemstats_m(stats *MemStats) {
+ 		print("runtime: consistent value=", consRetained, "\n")
+ 		throw("measures of the retained heap are not equal")
+ 	}
++	if memstats.totalAlloc.Load() != totalAlloc {
++		print("runtime: totalAlloc=", memstats.totalAlloc.Load(), "\n")
++		print("runtime: consistent value=", totalAlloc, "\n")
++		throw("totalAlloc and consistent stats are not equal")
++	}
++	if memstats.totalFree.Load() != totalFree {
++		print("runtime: totalFree=", memstats.totalFree.Load(), "\n")
++		print("runtime: consistent value=", totalFree, "\n")
++		throw("totalFree and consistent stats are not equal")
++	}
+ 
+ 	// We've calculated all the values we need. Now, populate stats.
+ 

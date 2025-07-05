@@ -10,7 +10,45 @@ Date:   Tue Jan 28 03:18:27 2014 -0800
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/57560043
-
+---
  src/pkg/net/file_test.go | 6 ++++++
  src/pkg/net/file_unix.go | 2 ++
  2 files changed, 8 insertions(+)
+
+diff --git a/src/pkg/net/file_test.go b/src/pkg/net/file_test.go
+index acaf188510..e4615b74fc 100644
+--- a/src/pkg/net/file_test.go
++++ b/src/pkg/net/file_test.go
+@@ -174,6 +174,8 @@ var filePacketConnTests = []struct {
+ 
+ 	{net: "udp6", addr: "[::1]", ipv6: true},
+ 
++	{net: "ip4:icmp", addr: "127.0.0.1"},
++
+ 	{net: "unixgram", addr: "@gotest3/net", linux: true},
+ }
+ 
+@@ -187,6 +189,10 @@ func TestFilePacketConn(t *testing.T) {
+ 		if skipServerTest(tt.net, "unixgram", tt.addr, tt.ipv6, false, tt.linux) {
+ 			continue
+ 		}
++		if os.Getuid() != 0 && tt.net == "ip4:icmp" {
++			t.Log("skipping test; must be root")
++			continue
++		}
+ 		testFilePacketConnListen(t, tt.net, tt.addr)
+ 		switch tt.addr {
+ 		case "", "0.0.0.0", "[::ffff:0.0.0.0]", "[::]":
+diff --git a/src/pkg/net/file_unix.go b/src/pkg/net/file_unix.go
+index 8fe1b0eb03..38ae47f784 100644
+--- a/src/pkg/net/file_unix.go
++++ b/src/pkg/net/file_unix.go
+@@ -129,6 +129,8 @@ func FilePacketConn(f *os.File) (c PacketConn, err error) {
+ 	switch fd.laddr.(type) {
+ 	case *UDPAddr:
+ 		return newUDPConn(fd), nil
++	case *IPAddr:
++		return newIPConn(fd), nil
+ 	case *UnixAddr:
+ 		return newUnixConn(fd), nil
+ 	}

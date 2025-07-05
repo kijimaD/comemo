@@ -8,8 +8,328 @@ Date:   Fri Jan 16 10:34:21 2009 -0800
     DELTA=72  (0 added, 9 deleted, 63 changed)
     OCL=22918
     CL=22941
-
+---
  src/lib/sort.go      | 32 ++++++++++----------
  src/lib/sort_test.go | 83 +++++++++++++++++++++++-----------------------------
  src/lib/testing.go   | 12 ++++----
  3 files changed, 59 insertions(+), 68 deletions(-)
+
+diff --git a/src/lib/sort.go b/src/lib/sort.go
+index 39a5f35925..45726d80a6 100644
+--- a/src/lib/sort.go
++++ b/src/lib/sort.go
+@@ -18,7 +18,7 @@ func min(a, b int) int {
+ }
+ 
+ // Insertion sort
+-func InsertionSort(data SortInterface, a, b int) {
++func insertionSort(data SortInterface, a, b int) {
+ 	for i := a+1; i < b; i++ {
+ 		for j := i; j > a && data.Less(j, j-1); j-- {
+ 			data.Swap(j, j-1);
+@@ -30,7 +30,7 @@ func InsertionSort(data SortInterface, a, b int) {
+ // ``Engineering a Sort Function,'' SP&E November 1993.
+ 
+ // Move the median of the three values data[a], data[b], data[c] into data[a].
+-func MedianOfThree(data SortInterface, a, b, c int) {
++func medianOfThree(data SortInterface, a, b, c int) {
+ 	m0 := b;
+ 	m1 := a;
+ 	m2 := c;
+@@ -41,22 +41,22 @@ func MedianOfThree(data SortInterface, a, b, c int) {
+ 	// now data[m0] <= data[m1] <= data[m2]
+ }
+ 
+-func SwapRange(data SortInterface, a, b, n int) {
++func swapRange(data SortInterface, a, b, n int) {
+ 	for i := 0; i < n; i++ {
+ 		data.Swap(a+i, b+i);
+ 	}
+ }
+ 
+-func Pivot(data SortInterface, lo, hi int) (midlo, midhi int) {
++func doPivot(data SortInterface, lo, hi int) (midlo, midhi int) {
+ 	m := (lo+hi)/2;
+ 	if hi - lo > 40 {
+ 		// Tukey's ``Ninther,'' median of three medians of three.
+ 		s := (hi - lo) / 8;
+-		MedianOfThree(data, lo, lo+s, lo+2*s);
+-		MedianOfThree(data, m, m-s, m+s);
+-		MedianOfThree(data, hi-1, hi-1-s, hi-1-2*s);
++		medianOfThree(data, lo, lo+s, lo+2*s);
++		medianOfThree(data, m, m-s, m+s);
++		medianOfThree(data, hi-1, hi-1-s, hi-1-2*s);
+ 	}
+-	MedianOfThree(data, lo, m, hi-1);
++	medianOfThree(data, lo, m, hi-1);
+ 
+ 	// Invariants are:
+ 	//	data[lo] = pivot (set up by ChoosePivot)
+@@ -98,26 +98,26 @@ func Pivot(data SortInterface, lo, hi int) (midlo, midhi int) {
+ 	}
+ 
+ 	n := min(b-a, a-lo);
+-	SwapRange(data, lo, b-n, n);
++	swapRange(data, lo, b-n, n);
+ 
+ 	n = min(hi-d, d-c);
+-	SwapRange(data, c, hi-n, n);
++	swapRange(data, c, hi-n, n);
+ 
+ 	return lo+b-a, hi-(d-c);
+ }
+ 
+-func Quicksort(data SortInterface, a, b int) {
++func quickSort(data SortInterface, a, b int) {
+ 	if b - a > 7 {
+-		mlo, mhi := Pivot(data, a, b);
+-		Quicksort(data, a, mlo);
+-		Quicksort(data, mhi, b);
++		mlo, mhi := doPivot(data, a, b);
++		quickSort(data, a, mlo);
++		quickSort(data, mhi, b);
+ 	} else if b - a > 1 {
+-		InsertionSort(data, a, b);
++		insertionSort(data, a, b);
+ 	}
+ }
+ 
+ export func Sort(data SortInterface) {
+-	Quicksort(data, 0, data.Len());
++	quickSort(data, 0, data.Len());
+ }
+ 
+ 
+diff --git a/src/lib/sort_test.go b/src/lib/sort_test.go
+index 6684d93dab..2a8b88c577 100644
+--- a/src/lib/sort_test.go
++++ b/src/lib/sort_test.go
+@@ -11,8 +11,6 @@ import (
+ 	"testing";
+ )
+ 
+-func BentleyMcIlroyTests();
+-
+ 
+ var ints = [...]int{74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984, 7586}
+ var floats = [...]float{74.3, 59.0, 238.2, -784.0, 2.3, 9845.768, -959.7485, 905, 7.8, 7.8}
+@@ -75,7 +73,7 @@ export func TestSortStrings(t *testing.T) {
+ 	}
+ }
+ 
+-export func TestSortLargeRandom(t *testing.T) {
++export func TestSortLarge_Random(t *testing.T) {
+ 	data := make([]int, 1000000);
+ 	for i := 0; i < len(data); i++ {
+ 		data[i] = rand.rand() % 100;
+@@ -90,25 +88,25 @@ export func TestSortLargeRandom(t *testing.T) {
+ }
+ 
+ const (
+-	Sawtooth = iota;
+-	Rand;
+-	Stagger;
+-	Plateau;
+-	Shuffle;
+-	NDist;
++	_Sawtooth = iota;
++	_Rand;
++	_Stagger;
++	_Plateau;
++	_Shuffle;
++	_NDist;
+ )
+ 
+ const (
+-	Copy = iota;
+-	Reverse;
+-	ReverseFirstHalf;
+-	ReverseSecondHalf;
+-	Sorted;
+-	Dither;
+-	NMode;
+-);
+-
+-type TestingData struct {
++	_Copy = iota;
++	_Reverse;
++	_ReverseFirstHalf;
++	_ReverseSecondHalf;
++	_Sorted;
++	_Dither;
++	_NMode;
++)
++
++type testingData struct {
+ 	desc string;
+ 	t *testing.T;
+ 	data []int;
+@@ -116,9 +114,9 @@ type TestingData struct {
+ 	nswap int;
+ }
+ 
+-func (d *TestingData) Len() int { return len(d.data); }
+-func (d *TestingData) Less(i, j int) bool { return d.data[i] < d.data[j]; }
+-func (d *TestingData) Swap(i, j int) {
++func (d *testingData) Len() int { return len(d.data); }
++func (d *testingData) Less(i, j int) bool { return d.data[i] < d.data[j]; }
++func (d *testingData) Swap(i, j int) {
+ 	if d.nswap >= d.maxswap {
+ 		d.t.Errorf("%s: used %d swaps sorting array of %d", d.desc, d.nswap, len(d.data));
+ 		d.t.FailNow();
+@@ -127,7 +125,7 @@ func (d *TestingData) Swap(i, j int) {
+ 	d.data[i], d.data[j] = d.data[j], d.data[i];
+ }
+ 
+-func Lg(n int) int {
++func lg(n int) int {
+ 	i := 0;
+ 	for 1<<uint(i) < n {
+ 		i++;
+@@ -135,13 +133,6 @@ func Lg(n int) int {
+ 	return i;
+ }
+ 
+-func Min(a, b int) int {
+-	if a < b {
+-		return a;
+-	}
+-	return b;
+-}
+-
+ export func TestBentleyMcIlroy(t *testing.T) {
+ 	sizes := []int{100, 1023, 1024, 1025};
+ 	dists := []string{"sawtooth", "rand", "stagger", "plateau", "shuffle"};
+@@ -150,21 +141,21 @@ export func TestBentleyMcIlroy(t *testing.T) {
+ 	for ni := 0; ni < len(sizes); ni++ {
+ 		n := sizes[ni];
+ 		for m := 1; m < 2*n; m *= 2 {
+-			for dist := 0; dist < NDist; dist++ {
++			for dist := 0; dist < _NDist; dist++ {
+ 				j := 0;
+ 				k := 1;
+ 				data := tmp1[0:n];
+ 				for i := 0; i < n; i++ {
+ 					switch dist {
+-					case Sawtooth:
++					case _Sawtooth:
+ 						data[i] = i % m;
+-					case Rand:
++					case _Rand:
+ 						data[i] = rand.rand() % m;
+-					case Stagger:
++					case _Stagger:
+ 						data[i] = (i*m + i) % n;
+-					case Plateau:
+-						data[i] = Min(i, m);
+-					case Shuffle:
++					case _Plateau:
++						data[i] = min(i, m);
++					case _Shuffle:
+ 						if rand.rand() % m != 0 {
+ 							j += 2;
+ 							data[i] = j;
+@@ -176,45 +167,45 @@ export func TestBentleyMcIlroy(t *testing.T) {
+ 				}
+ 
+ 				mdata := tmp2[0:n];
+-				for mode := 0; mode < NMode; mode++ {
++				for mode := 0; mode < _NMode; mode++ {
+ 					switch mode {
+-					case Copy:
++					case _Copy:
+ 						for i := 0; i < n; i++ {
+ 							mdata[i] = data[i];
+ 						}
+-					case Reverse:
++					case _Reverse:
+ 						for i := 0; i < n; i++ {
+ 							mdata[i] = data[n-i-1];
+ 						}
+-					case ReverseFirstHalf:
++					case _ReverseFirstHalf:
+ 						for i := 0; i < n/2; i++ {
+ 							mdata[i] = data[n/2-i-1];
+ 						}
+ 						for i := n/2; i < n; i++ {
+ 							mdata[i] = data[i];
+ 						}
+-					case ReverseSecondHalf:
++					case _ReverseSecondHalf:
+ 						for i := 0; i < n/2; i++ {
+ 							mdata[i] = data[i];
+ 						}
+ 						for i := n/2; i < n; i++ {
+ 							mdata[i] = data[n-(i-n/2)-1];
+ 						}
+-					case Sorted:
++					case _Sorted:
+ 						for i := 0; i < n; i++ {
+ 							mdata[i] = data[i];
+ 						}
+ 						// sort.SortInts is known to be correct
+-						// because mode Sort runs after mode Copy.
++						// because mode Sort runs after mode _Copy.
+ 						sort.SortInts(mdata);
+-					case Dither:
++					case _Dither:
+ 						for i := 0; i < n; i++ {
+ 							mdata[i] = data[i] + i%5;
+ 						}
+ 					}
+ 
+ 					desc := fmt.Sprintf("n=%d m=%d dist=%s mode=%s", n, m, dists[dist], modes[mode]);
+-					d := &TestingData{desc, t, mdata[0:n], n*Lg(n)*12/10, 0};
++					d := &testingData{desc, t, mdata[0:n], n*lg(n)*12/10, 0};
+ 					sort.Sort(d);
+ 
+ 					// If we were testing C qsort, we'd have to make a copy
+diff --git a/src/lib/testing.go b/src/lib/testing.go
+index b19367da61..2ef05afbcd 100644
+--- a/src/lib/testing.go
++++ b/src/lib/testing.go
+@@ -12,10 +12,10 @@ import (
+ var chatty = flag.Bool("chatty", false, "chatty")
+ 
+ // Insert tabs after newlines - but not the last one
+-func Tabify(s string) string {
++func tabify(s string) string {
+ 	for i := 0; i < len(s) - 1; i++ {	// -1 because if last char is newline, don't bother
+ 		if s[i] == '\n' {
+-			return s[0:i+1] + "\t" + Tabify(s[i+1:len(s)]);
++			return s[0:i+1] + "\t" + tabify(s[i+1:len(s)]);
+ 		}
+ 	}
+ 	return s
+@@ -38,11 +38,11 @@ func (t *T) FailNow() {
+ }
+ 
+ func (t *T) Log(args ...) {
+-	t.errors += "\t" + Tabify(fmt.Sprintln(args));
++	t.errors += "\t" + tabify(fmt.Sprintln(args));
+ }
+ 
+ func (t *T) Logf(format string, args ...) {
+-	t.errors += Tabify(fmt.Sprintf("\t" + format, args));
++	t.errors += tabify(fmt.Sprintf("\t" + format, args));
+ 	l := len(t.errors);
+ 	if l > 0 && t.errors[l-1] != '\n' {
+ 		t.errors += "\n"
+@@ -74,7 +74,7 @@ export type Test struct {
+ 	f *(*T);
+ }
+ 
+-func TRunner(t *T, test *Test) {
++func tRunner(t *T, test *Test) {
+ 	test.f(t);
+ 	t.ch <- t;
+ }
+@@ -91,7 +91,7 @@ export func Main(tests []Test) {
+ 		}
+ 		t := new(T);
+ 		t.ch = make(chan *T);
+-		go TRunner(t, &tests[i]);
++		go tRunner(t, &tests[i]);
+ 		<-t.ch;
+ 		if t.failed {
+ 			println("--- FAIL:", tests[i].name);

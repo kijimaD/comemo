@@ -20,7 +20,76 @@ Date:   Fri Jan 13 07:18:40 2017 -0500
     Reviewed-by: Elias Naur <elias.naur@gmail.com>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/ios/go_darwin_arm_exec.go | 14 +++++---------
  src/cmd/go/test.go             | 22 +++++++++++++++++++---
  2 files changed, 24 insertions(+), 12 deletions(-)
+
+diff --git a/misc/ios/go_darwin_arm_exec.go b/misc/ios/go_darwin_arm_exec.go
+index 2a06528c1b..8bedc5dd95 100644
+--- a/misc/ios/go_darwin_arm_exec.go
++++ b/misc/ios/go_darwin_arm_exec.go
+@@ -204,6 +204,11 @@ func run(bin string, args []string) (err error) {
+ 	var opts options
+ 	opts, args = parseArgs(args)
+ 
++	// Pass the suffix for the current working directory as the
++	// first argument to the test. For iOS, cmd/go generates
++	// special handling of this argument.
++	args = append([]string{"cwdSuffix=" + pkgpath}, args...)
++
+ 	// ios-deploy invokes lldb to give us a shell session with the app.
+ 	s, err := newSession(appdir, args, opts)
+ 	if err != nil {
+@@ -241,15 +246,6 @@ func run(bin string, args []string) (err error) {
+ 
+ 	s.doCmd("run", "stop reason = signal SIGUSR2", 20*time.Second)
+ 
+-	// Move the current working directory into the faux gopath.
+-	if pkgpath != "src" {
+-		s.do(`breakpoint delete 1`)
+-		s.do(`expr char* $mem = (char*)malloc(512)`)
+-		s.do(`expr $mem = (char*)getwd($mem, 512)`)
+-		s.do(`expr $mem = (char*)strcat($mem, "/` + pkgpath + `")`)
+-		s.do(`call (void)chdir($mem)`)
+-	}
+-
+ 	startTestsLen := s.out.Len()
+ 	fmt.Fprintln(s.in, `process continue`)
+ 
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index f477a4a253..6482f0fd32 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -1532,12 +1532,28 @@ func coverRegisterFile(fileName string, counter []uint32, pos []uint32, numStmts
+ func main() {
+ {{if .IsIOS}}
+ 	// Send a SIGUSR2, which will be intercepted by LLDB to
+-	// tell the test harness that installation was successful,
+-	// and to give the exec script a chance set the current
+-	// working directory. See misc/ios/go_darwin_arm_exec.go.
++	// tell the test harness that installation was successful.
++	// See misc/ios/go_darwin_arm_exec.go.
+ 	signal.Notify(make(chan os.Signal), syscall.SIGUSR2)
+ 	syscall.Kill(0, syscall.SIGUSR2)
+ 	signal.Reset(syscall.SIGUSR2)
++
++	// The first argument supplied to an iOS test is an offset
++	// suffix for the current working directory.
++	// Process it here, and remove it from os.Args.
++	const hdr = "cwdSuffix="
++	if len(os.Args) < 2 || len(os.Args[1]) <= len(hdr) || os.Args[1][:len(hdr)] != hdr {
++		panic("iOS test not passed a working directory suffix")
++	}
++	suffix := os.Args[1][len(hdr):]
++	dir, err := os.Getwd()
++	if err != nil {
++		panic(err)
++	}
++	if err := os.Chdir(dir + "/" + suffix); err != nil {
++		panic(err)
++	}
++	os.Args = append([]string{os.Args[0]}, os.Args[2:]...)
+ {{end}}
+ 
+ {{if .CoverEnabled}}

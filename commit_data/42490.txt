@@ -9,6 +9,20 @@ Date:   Mon Jan 6 15:46:42 2020 +0000
     Change-Id: I0de110dbe1da77bfba540a1b51c139f3bedae67f
     Reviewed-on: https://go-review.googlesource.com/c/go/+/213437
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/net/dial_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index ae40079f85..493cdfc648 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -174,7 +174,7 @@ func dialClosedPort(t *testing.T) (actual, expected time.Duration) {
+ 	}
+ 	addr := l.Addr().String()
+ 	l.Close()
+-	// On OpenBSD, interference from TestSelfConnect is mysteriously
++	// On OpenBSD, interference from TestTCPSelfConnect is mysteriously
+ 	// causing the first attempt to hang for a few seconds, so we throw
+ 	// away the first result and keep the second.
+ 	for i := 1; ; i++ {

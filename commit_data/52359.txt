@@ -16,6 +16,20 @@ Date:   Wed Mar 16 10:22:11 2022 -0700
     Run-TryBot: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/regexp/syntax/prog.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/regexp/syntax/prog.go b/src/regexp/syntax/prog.go
+index ee71decb35..896cdc42c2 100644
+--- a/src/regexp/syntax/prog.go
++++ b/src/regexp/syntax/prog.go
+@@ -102,7 +102,7 @@ func EmptyOpContext(r1, r2 rune) EmptyOp {
+ 	return op
+ }
+ 
+-// IsWordChar reports whether r is consider a “word character”
++// IsWordChar reports whether r is considered a “word character”
+ // during the evaluation of the \b and \B zero-width assertions.
+ // These assertions are ASCII-only: the word characters are [A-Za-z0-9_].
+ func IsWordChar(r rune) bool {

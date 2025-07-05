@@ -94,10 +94,214 @@ Date:   Fri May 12 12:28:51 2023 +0800
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/mips/ssa.go         |  2 +
  src/cmd/compile/internal/ssa/_gen/MIPS.rules |  9 ++++
  src/cmd/compile/internal/ssa/_gen/MIPSOps.go |  6 +++
  src/cmd/compile/internal/ssa/opGen.go        | 28 ++++++++++++
  src/cmd/compile/internal/ssa/rewriteMIPS.go  | 68 ++++++++++++++++++++++++++++
  5 files changed, 113 insertions(+)
+
+diff --git a/src/cmd/compile/internal/mips/ssa.go b/src/cmd/compile/internal/mips/ssa.go
+index 2cfe57f7f4..bfccafd8e5 100644
+--- a/src/cmd/compile/internal/mips/ssa.go
++++ b/src/cmd/compile/internal/mips/ssa.go
+@@ -361,6 +361,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssa.OpMIPSTRUNCDW,
+ 		ssa.OpMIPSMOVFD,
+ 		ssa.OpMIPSMOVDF,
++		ssa.OpMIPSMOVWfpgp,
++		ssa.OpMIPSMOVWgpfp,
+ 		ssa.OpMIPSNEGF,
+ 		ssa.OpMIPSNEGD,
+ 		ssa.OpMIPSABSD,
+diff --git a/src/cmd/compile/internal/ssa/_gen/MIPS.rules b/src/cmd/compile/internal/ssa/_gen/MIPS.rules
+index b36402dd0a..d6ae0101cb 100644
+--- a/src/cmd/compile/internal/ssa/_gen/MIPS.rules
++++ b/src/cmd/compile/internal/ssa/_gen/MIPS.rules
+@@ -233,6 +233,15 @@
+ (Store {t} ptr val mem) && t.Size() == 4 &&  t.IsFloat() => (MOVFstore ptr val mem)
+ (Store {t} ptr val mem) && t.Size() == 8 &&  t.IsFloat() => (MOVDstore ptr val mem)
+ 
++// float <=> int register moves, with no conversion.
++// These come up when compiling math.{Float32bits, Float32frombits}.
++(MOVWload [off] {sym} ptr (MOVFstore [off] {sym} ptr val _)) => (MOVWfpgp val)
++(MOVFload [off] {sym} ptr (MOVWstore [off] {sym} ptr val _)) => (MOVWgpfp val)
++
++// Similarly for stores, if we see a store after FPR <=> GPR move, then redirect store to use the other register set.
++(MOVWstore [off] {sym} ptr (MOVWfpgp val) mem) => (MOVFstore [off] {sym} ptr val mem)
++(MOVFstore [off] {sym} ptr (MOVWgpfp val) mem) => (MOVWstore [off] {sym} ptr val mem)
++
+ // zero instructions
+ (Zero [0] _ mem) => mem
+ (Zero [1] ptr mem) => (MOVBstore ptr (MOVWconst [0]) mem)
+diff --git a/src/cmd/compile/internal/ssa/_gen/MIPSOps.go b/src/cmd/compile/internal/ssa/_gen/MIPSOps.go
+index b5d9d25475..5964bb7a33 100644
+--- a/src/cmd/compile/internal/ssa/_gen/MIPSOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/MIPSOps.go
+@@ -139,6 +139,8 @@ func init() {
+ 		gpxchg    = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
+ 		gpcas     = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}, outputs: []regMask{gp}}
+ 		gpstore0  = regInfo{inputs: []regMask{gpspsbg}}
++		fpgp      = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}
++		gpfp      = regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}
+ 		fp01      = regInfo{inputs: nil, outputs: []regMask{fp}}
+ 		fp11      = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
+ 		fp21      = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
+@@ -233,6 +235,10 @@ func init() {
+ 		{name: "MOVHstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVH", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 2 bytes of zero to arg0 + auxInt + aux.  arg1=mem.
+ 		{name: "MOVWstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVW", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 4 bytes of zero to arg0 + auxInt + aux.  arg1=mem.
+ 
++		// moves (no conversion)
++		{name: "MOVWfpgp", argLength: 1, reg: fpgp, asm: "MOVW"}, // move float32 to int32 (no conversion)
++		{name: "MOVWgpfp", argLength: 1, reg: gpfp, asm: "MOVW"}, // move int32 to float32 (no conversion)
++
+ 		// conversions
+ 		{name: "MOVBreg", argLength: 1, reg: gp11, asm: "MOVB"},   // move from arg0, sign-extended from byte
+ 		{name: "MOVBUreg", argLength: 1, reg: gp11, asm: "MOVBU"}, // move from arg0, unsign-extended from byte
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 6d8bef7ed9..1480fcf45b 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1913,6 +1913,8 @@ const (
+ 	OpMIPSMOVBstorezero
+ 	OpMIPSMOVHstorezero
+ 	OpMIPSMOVWstorezero
++	OpMIPSMOVWfpgp
++	OpMIPSMOVWgpfp
+ 	OpMIPSMOVBreg
+ 	OpMIPSMOVBUreg
+ 	OpMIPSMOVHreg
+@@ -25618,6 +25620,32 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "MOVWfpgp",
++		argLen: 1,
++		asm:    mips.AMOVW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 35183835217920}, // F0 F2 F4 F6 F8 F10 F12 F14 F16 F18 F20 F22 F24 F26 F28 F30
++			},
++			outputs: []outputInfo{
++				{0, 335544318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 R31
++			},
++		},
++	},
++	{
++		name:   "MOVWgpfp",
++		argLen: 1,
++		asm:    mips.AMOVW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 335544318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 R31
++			},
++			outputs: []outputInfo{
++				{0, 35183835217920}, // F0 F2 F4 F6 F8 F10 F12 F14 F16 F18 F20 F22 F24 F26 F28 F30
++			},
++		},
++	},
+ 	{
+ 		name:   "MOVBreg",
+ 		argLen: 1,
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS.go b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+index 1f44346b7f..6a259f5a47 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+@@ -2974,6 +2974,23 @@ func rewriteValueMIPS_OpMIPSMOVDstore(v *Value) bool {
+ func rewriteValueMIPS_OpMIPSMOVFload(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
++	// match: (MOVFload [off] {sym} ptr (MOVWstore [off] {sym} ptr val _))
++	// result: (MOVWgpfp val)
++	for {
++		off := auxIntToInt32(v.AuxInt)
++		sym := auxToSym(v.Aux)
++		ptr := v_0
++		if v_1.Op != OpMIPSMOVWstore || auxIntToInt32(v_1.AuxInt) != off || auxToSym(v_1.Aux) != sym {
++			break
++		}
++		val := v_1.Args[1]
++		if ptr != v_1.Args[0] {
++			break
++		}
++		v.reset(OpMIPSMOVWgpfp)
++		v.AddArg(val)
++		return true
++	}
+ 	// match: (MOVFload [off1] {sym} x:(ADDconst [off2] ptr) mem)
+ 	// cond: (is16Bit(int64(off1+off2)) || x.Uses == 1)
+ 	// result: (MOVFload [off1+off2] {sym} ptr mem)
+@@ -3044,6 +3061,23 @@ func rewriteValueMIPS_OpMIPSMOVFstore(v *Value) bool {
+ 	v_2 := v.Args[2]
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
++	// match: (MOVFstore [off] {sym} ptr (MOVWgpfp val) mem)
++	// result: (MOVWstore [off] {sym} ptr val mem)
++	for {
++		off := auxIntToInt32(v.AuxInt)
++		sym := auxToSym(v.Aux)
++		ptr := v_0
++		if v_1.Op != OpMIPSMOVWgpfp {
++			break
++		}
++		val := v_1.Args[0]
++		mem := v_2
++		v.reset(OpMIPSMOVWstore)
++		v.AuxInt = int32ToAuxInt(off)
++		v.Aux = symToAux(sym)
++		v.AddArg3(ptr, val, mem)
++		return true
++	}
+ 	// match: (MOVFstore [off1] {sym} x:(ADDconst [off2] ptr) val mem)
+ 	// cond: (is16Bit(int64(off1+off2)) || x.Uses == 1)
+ 	// result: (MOVFstore [off1+off2] {sym} ptr val mem)
+@@ -3623,6 +3657,23 @@ func rewriteValueMIPS_OpMIPSMOVHstorezero(v *Value) bool {
+ func rewriteValueMIPS_OpMIPSMOVWload(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
++	// match: (MOVWload [off] {sym} ptr (MOVFstore [off] {sym} ptr val _))
++	// result: (MOVWfpgp val)
++	for {
++		off := auxIntToInt32(v.AuxInt)
++		sym := auxToSym(v.Aux)
++		ptr := v_0
++		if v_1.Op != OpMIPSMOVFstore || auxIntToInt32(v_1.AuxInt) != off || auxToSym(v_1.Aux) != sym {
++			break
++		}
++		val := v_1.Args[1]
++		if ptr != v_1.Args[0] {
++			break
++		}
++		v.reset(OpMIPSMOVWfpgp)
++		v.AddArg(val)
++		return true
++	}
+ 	// match: (MOVWload [off1] {sym} x:(ADDconst [off2] ptr) mem)
+ 	// cond: (is16Bit(int64(off1+off2)) || x.Uses == 1)
+ 	// result: (MOVWload [off1+off2] {sym} ptr mem)
+@@ -3735,6 +3786,23 @@ func rewriteValueMIPS_OpMIPSMOVWstore(v *Value) bool {
+ 	v_2 := v.Args[2]
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
++	// match: (MOVWstore [off] {sym} ptr (MOVWfpgp val) mem)
++	// result: (MOVFstore [off] {sym} ptr val mem)
++	for {
++		off := auxIntToInt32(v.AuxInt)
++		sym := auxToSym(v.Aux)
++		ptr := v_0
++		if v_1.Op != OpMIPSMOVWfpgp {
++			break
++		}
++		val := v_1.Args[0]
++		mem := v_2
++		v.reset(OpMIPSMOVFstore)
++		v.AuxInt = int32ToAuxInt(off)
++		v.Aux = symToAux(sym)
++		v.AddArg3(ptr, val, mem)
++		return true
++	}
+ 	// match: (MOVWstore [off1] {sym} x:(ADDconst [off2] ptr) val mem)
+ 	// cond: (is16Bit(int64(off1+off2)) || x.Uses == 1)
+ 	// result: (MOVWstore [off1+off2] {sym} ptr val mem)

@@ -17,6 +17,20 @@ Date:   Mon Mar 5 20:04:25 2018 +0000
     GitHub-Pull-Request: golang/go#24255
     Reviewed-on: https://go-review.googlesource.com/98616
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/signal/signal_cgo_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/os/signal/signal_cgo_test.go b/src/os/signal/signal_cgo_test.go
+index 84a2a08ce9..16aeea8221 100644
+--- a/src/os/signal/signal_cgo_test.go
++++ b/src/os/signal/signal_cgo_test.go
+@@ -89,6 +89,8 @@ func TestTerminalSignal(t *testing.T) {
+ 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+ 	defer cancel()
+ 	cmd := exec.CommandContext(ctx, bash, "--norc", "--noprofile", "-i")
++	// Clear HISTFILE so that we don't read or clobber the user's bash history.
++	cmd.Env = append(os.Environ(), "HISTFILE=")
+ 	cmd.Stdin = slave
+ 	cmd.Stdout = slave
+ 	cmd.Stderr = slave

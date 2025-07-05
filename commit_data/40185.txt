@@ -15,6 +15,27 @@ Date:   Tue Apr 23 12:38:36 2019 -0400
     Change-Id: Ie155d5e0b998604177a78471cba2413f57d40229
     Reviewed-on: https://go-review.googlesource.com/c/go/+/173440
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/internal/gccgoimporter/parser.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/internal/gccgoimporter/parser.go b/src/go/internal/gccgoimporter/parser.go
+index 5fd913c54a..64a4042a45 100644
+--- a/src/go/internal/gccgoimporter/parser.go
++++ b/src/go/internal/gccgoimporter/parser.go
+@@ -493,6 +493,7 @@ func (p *parser) parseNamedType(nlist []int) types.Type {
+ 	// type alias
+ 	if p.tok == '=' {
+ 		p.next()
++		p.aliases[nlist[len(nlist)-1]] = name
+ 		if obj != nil {
+ 			// use the previously imported (canonical) type
+ 			t := obj.Type()
+@@ -502,7 +503,6 @@ func (p *parser) parseNamedType(nlist []int) types.Type {
+ 		}
+ 		t := p.parseType(pkg, nlist...)
+ 		obj = types.NewTypeName(token.NoPos, pkg, name, t)
+-		p.aliases[nlist[len(nlist)-1]] = name
+ 		scope.Insert(obj)
+ 		return t
+ 	}

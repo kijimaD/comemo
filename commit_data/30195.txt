@@ -20,7 +20,119 @@ Date:   Wed Oct 26 14:32:43 2016 -0400
     Change-Id: Ia3b03b978317d968dc11b2f6de1df913c6bcbfcc
     Reviewed-on: https://go-review.googlesource.com/32175
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/mime/mediatype.go      | 37 +++++++++++++++++++++++--------------
  src/mime/mediatype_test.go | 14 +++++++++-----
  2 files changed, 32 insertions(+), 19 deletions(-)
+
+diff --git a/src/mime/mediatype.go b/src/mime/mediatype.go
+index 1845401127..75cc90310f 100644
+--- a/src/mime/mediatype.go
++++ b/src/mime/mediatype.go
+@@ -248,24 +248,33 @@ func consumeValue(v string) (value, rest string) {
+ 	}
+ 
+ 	// parse a quoted-string
+-	rest = v[1:] // consume the leading quote
+ 	buffer := new(bytes.Buffer)
+-	var nextIsLiteral bool
+-	for idx, r := range rest {
+-		switch {
+-		case nextIsLiteral:
+-			buffer.WriteRune(r)
+-			nextIsLiteral = false
+-		case r == '"':
+-			return buffer.String(), rest[idx+1:]
+-		case r == '\\':
+-			nextIsLiteral = true
+-		case r != '\r' && r != '\n':
+-			buffer.WriteRune(r)
+-		default:
++	for i := 1; i < len(v); i++ {
++		r := v[i]
++		if r == '"' {
++			return buffer.String(), v[i+1:]
++		}
++		// When MSIE sends a full file path (in "intranet mode"), it does not
++		// escape backslashes: "C:\dev\go\foo.txt", not "C:\\dev\\go\\foo.txt".
++		//
++		// No known MIME generators emit unnecessary backslash escapes
++		// for simple token characters like numbers and letters.
++		//
++		// If we see an unnecessary backslash escape, assume it is from MSIE
++		// and intended as a literal backslash. This makes Go servers deal better
++		// with MSIE without affecting the way they handle conforming MIME
++		// generators.
++		if r == '\\' && i+1 < len(v) && !isTokenChar(rune(v[i+1])) {
++			buffer.WriteByte(v[i+1])
++			i++
++			continue
++		}
++		if r == '\r' || r == '\n' {
+ 			return "", v
+ 		}
++		buffer.WriteByte(v[i])
+ 	}
++	// Did not find end quote.
+ 	return "", v
+ }
+ 
+diff --git a/src/mime/mediatype_test.go b/src/mime/mediatype_test.go
+index 9afa55825f..c5fc906d6a 100644
+--- a/src/mime/mediatype_test.go
++++ b/src/mime/mediatype_test.go
+@@ -138,10 +138,11 @@ func TestParseMediaType(t *testing.T) {
+ 			m("title", "This is even more ***fun*** isn't it!")},
+ 
+ 		// Tests from http://greenbytes.de/tech/tc2231/
++		// Note: Backslash escape handling is a bit loose, like MSIE.
+ 		// TODO(bradfitz): add the rest of the tests from that site.
+ 		{`attachment; filename="f\oo.html"`,
+ 			"attachment",
+-			m("filename", "foo.html")},
++			m("filename", "f\\oo.html")},
+ 		{`attachment; filename="\"quoting\" tested.html"`,
+ 			"attachment",
+ 			m("filename", `"quoting" tested.html`)},
+@@ -165,7 +166,7 @@ func TestParseMediaType(t *testing.T) {
+ 			m("filename", "foo-%41.html")},
+ 		{`attachment; filename="foo-%\41.html"`,
+ 			"attachment",
+-			m("filename", "foo-%41.html")},
++			m("filename", "foo-%\\41.html")},
+ 		{`filename=foo.html`,
+ 			"", m()},
+ 		{`x=y; filename=foo.html`,
+@@ -220,18 +221,21 @@ func TestParseMediaType(t *testing.T) {
+ 
+ 		// Empty string used to be mishandled.
+ 		{`foo; bar=""`, "foo", m("bar", "")},
++
++		// Microsoft browers in intranet mode do not think they need to escape \ in file name.
++		{`form-data; name="file"; filename="C:\dev\go\robots.txt"`, "form-data", m("name", "file", "filename", `C:\dev\go\robots.txt`)},
+ 	}
+ 	for _, test := range tests {
+ 		mt, params, err := ParseMediaType(test.in)
+ 		if err != nil {
+ 			if test.t != "" {
+-				t.Errorf("for input %q, unexpected error: %v", test.in, err)
++				t.Errorf("for input %#q, unexpected error: %v", test.in, err)
+ 				continue
+ 			}
+ 			continue
+ 		}
+ 		if g, e := mt, test.t; g != e {
+-			t.Errorf("for input %q, expected type %q, got %q",
++			t.Errorf("for input %#q, expected type %q, got %q",
+ 				test.in, e, g)
+ 			continue
+ 		}
+@@ -239,7 +243,7 @@ func TestParseMediaType(t *testing.T) {
+ 			continue
+ 		}
+ 		if !reflect.DeepEqual(params, test.p) {
+-			t.Errorf("for input %q, wrong params.\n"+
++			t.Errorf("for input %#q, wrong params.\n"+
+ 				"expected: %#v\n"+
+ 				"     got: %#v",
+ 				test.in, test.p, params)

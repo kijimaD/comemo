@@ -10,7 +10,38 @@ Date:   Tue Oct 31 16:38:17 2017 -0700
     Change-Id: I7039c9f7d49600e877e35b7255c341fea35890e2
     Reviewed-on: https://go-review.googlesource.com/74890
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/time/example_test.go | 4 ++--
  src/time/format.go       | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/time/example_test.go b/src/time/example_test.go
+index 134aef3594..98a2d532a3 100644
+--- a/src/time/example_test.go
++++ b/src/time/example_test.go
+@@ -317,8 +317,8 @@ func ExampleParse() {
+ 	t, _ = time.Parse(shortForm, "2013-Feb-03")
+ 	fmt.Println(t)
+ 
+-	// Valid layouts may not be a valid time value, due to format specifiers
+-	// like _ for zero padding or Z for zone information.
++	// Some valid layouts are invalid time values, due to format specifiers
++	// such as _ for zero padding and Z for zone information.
+ 	// For example the RFC3339 layout 2006-01-02T15:04:05Z07:00
+ 	// contains both Z and a time zone offset in order to handle both valid options:
+ 	// 2006-01-02T15:04:05Z
+diff --git a/src/time/format.go b/src/time/format.go
+index bfdda2d14c..d964f4ab75 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -18,8 +18,8 @@ import "errors"
+ // reference time looks like so that the Format and Parse methods can apply
+ // the same transformation to a general time value.
+ //
+-// Valid layouts may not be a valid time value for time.Parse, due to formats
+-// like _ for zero padding or Z for zone information.
++// Some valid layouts are invalid time values for time.Parse, due to formats
++// such as _ for zero padding and Z for zone information.
+ //
+ // Within the format string, an underscore _ represents a space that may be
+ // replaced by a digit if the following number (a day) has two digits; for

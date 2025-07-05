@@ -17,6 +17,20 @@ Date:   Thu Sep 13 21:15:34 2018 +0200
     Run-TryBot: David du Colombier <0intro@gmail.com>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/semasleep_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/semasleep_test.go b/src/runtime/semasleep_test.go
+index 4a8b4db338..5b2cc64483 100644
+--- a/src/runtime/semasleep_test.go
++++ b/src/runtime/semasleep_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//+build !nacl,!windows,!js
++//+build !nacl,!plan9,!windows,!js
+ 
+ package runtime_test
+ 

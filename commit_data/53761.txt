@@ -15,6 +15,32 @@ Date:   Thu Sep 1 21:44:11 2022 +0800
     Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/infer.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 8425cd6034..d88eef640a 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -7,9 +7,9 @@
+ package types2
+ 
+ import (
+-	"bytes"
+ 	"cmd/compile/internal/syntax"
+ 	"fmt"
++	"strings"
+ )
+ 
+ const useConstraintTypeInference = true
+@@ -338,8 +338,7 @@ func typeParamsString(list []*TypeParam) string {
+ 	}
+ 
+ 	// general case (n > 2)
+-	// Would like to use strings.Builder but it's not available in Go 1.4.
+-	var b bytes.Buffer
++	var b strings.Builder
+ 	for i, tname := range list[:n-1] {
+ 		if i > 0 {
+ 			b.WriteString(", ")

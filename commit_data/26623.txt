@@ -8,7 +8,7 @@ Date:   Tue Dec 22 02:40:47 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/18120
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/big/ratconv.go | 4 ++--
  src/cmd/compile/internal/gc/bexport.go  | 2 +-
  src/encoding/csv/writer.go              | 2 +-
@@ -36,3 +36,448 @@ Date:   Tue Dec 22 02:40:47 2015 -0500
  src/text/template/parse/lex.go          | 4 ++--
  src/time/format_test.go                 | 2 +-
  26 files changed, 38 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/compile/internal/big/ratconv.go b/src/cmd/compile/internal/big/ratconv.go
+index 4566ff4e39..57df124e88 100644
+--- a/src/cmd/compile/internal/big/ratconv.go
++++ b/src/cmd/compile/internal/big/ratconv.go
+@@ -15,7 +15,7 @@ import (
+ )
+ 
+ func ratTok(ch rune) bool {
+-	return strings.IndexRune("+-/0123456789.eE", ch) >= 0
++	return strings.ContainsRune("+-/0123456789.eE", ch)
+ }
+ 
+ // Scan is a support routine for fmt.Scanner. It accepts the formats
+@@ -25,7 +25,7 @@ func (z *Rat) Scan(s fmt.ScanState, ch rune) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	if strings.IndexRune("efgEFGv", ch) < 0 {
++	if !strings.ContainsRune("efgEFGv", ch) {
+ 		return errors.New("Rat.Scan: invalid verb")
+ 	}
+ 	if _, ok := z.SetString(string(tok)); !ok {
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index b49f0fb552..3edd0488e7 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -877,7 +877,7 @@ func (p *exporter) byte(b byte) {
+ // tracef is like fmt.Printf but it rewrites the format string
+ // to take care of indentation.
+ func (p *exporter) tracef(format string, args ...interface{}) {
+-	if strings.IndexAny(format, "<>\n") >= 0 {
++	if strings.ContainsAny(format, "<>\n") {
+ 		var buf bytes.Buffer
+ 		for i := 0; i < len(format); i++ {
+ 			// no need to deal with runes
+diff --git a/src/encoding/csv/writer.go b/src/encoding/csv/writer.go
+index 353d91f238..a6056285b4 100644
+--- a/src/encoding/csv/writer.go
++++ b/src/encoding/csv/writer.go
+@@ -130,7 +130,7 @@ func (w *Writer) fieldNeedsQuotes(field string) bool {
+ 	if field == "" {
+ 		return false
+ 	}
+-	if field == `\.` || strings.IndexRune(field, w.Comma) >= 0 || strings.IndexAny(field, "\"\r\n") >= 0 {
++	if field == `\.` || strings.ContainsRune(field, w.Comma) || strings.ContainsAny(field, "\"\r\n") {
+ 		return true
+ 	}
+ 
+diff --git a/src/encoding/gob/codec_test.go b/src/encoding/gob/codec_test.go
+index 8efcdc78ff..b772171f93 100644
+--- a/src/encoding/gob/codec_test.go
++++ b/src/encoding/gob/codec_test.go
+@@ -970,7 +970,7 @@ func TestBadRecursiveType(t *testing.T) {
+ 	err := NewEncoder(b).Encode(&rec)
+ 	if err == nil {
+ 		t.Error("expected error; got none")
+-	} else if strings.Index(err.Error(), "recursive") < 0 {
++	} else if !strings.Contains(err.Error(), "recursive") {
+ 		t.Error("expected recursive type error; got", err)
+ 	}
+ 	// Can't test decode easily because we can't encode one, so we can't pass one to a Decoder.
+diff --git a/src/encoding/gob/encoder_test.go b/src/encoding/gob/encoder_test.go
+index 570d79696b..811dd2b18c 100644
+--- a/src/encoding/gob/encoder_test.go
++++ b/src/encoding/gob/encoder_test.go
+@@ -280,7 +280,7 @@ func TestValueError(t *testing.T) {
+ 	}
+ 	t4p := &Type4{3}
+ 	var t4 Type4 // note: not a pointer.
+-	if err := encAndDec(t4p, t4); err == nil || strings.Index(err.Error(), "pointer") < 0 {
++	if err := encAndDec(t4p, t4); err == nil || !strings.Contains(err.Error(), "pointer") {
+ 		t.Error("expected error about pointer; got", err)
+ 	}
+ }
+@@ -388,7 +388,7 @@ func TestSingletons(t *testing.T) {
+ 			t.Errorf("expected error decoding %v: %s", test.in, test.err)
+ 			continue
+ 		case err != nil && test.err != "":
+-			if strings.Index(err.Error(), test.err) < 0 {
++			if !strings.Contains(err.Error(), test.err) {
+ 				t.Errorf("wrong error decoding %v: wanted %s, got %v", test.in, test.err, err)
+ 			}
+ 			continue
+@@ -414,7 +414,7 @@ func TestStructNonStruct(t *testing.T) {
+ 	var ns NonStruct
+ 	if err := encAndDec(s, &ns); err == nil {
+ 		t.Error("should get error for struct/non-struct")
+-	} else if strings.Index(err.Error(), "type") < 0 {
++	} else if !strings.Contains(err.Error(), "type") {
+ 		t.Error("for struct/non-struct expected type error; got", err)
+ 	}
+ 	// Now try the other way
+@@ -424,7 +424,7 @@ func TestStructNonStruct(t *testing.T) {
+ 	}
+ 	if err := encAndDec(ns, &s); err == nil {
+ 		t.Error("should get error for non-struct/struct")
+-	} else if strings.Index(err.Error(), "type") < 0 {
++	} else if !strings.Contains(err.Error(), "type") {
+ 		t.Error("for non-struct/struct expected type error; got", err)
+ 	}
+ }
+diff --git a/src/encoding/gob/gobencdec_test.go b/src/encoding/gob/gobencdec_test.go
+index eb76b481d1..d674f0c784 100644
+--- a/src/encoding/gob/gobencdec_test.go
++++ b/src/encoding/gob/gobencdec_test.go
+@@ -548,7 +548,7 @@ func TestGobEncoderFieldTypeError(t *testing.T) {
+ 	if err == nil {
+ 		t.Fatal("expected decode error for mismatched fields (encoder to non-decoder)")
+ 	}
+-	if strings.Index(err.Error(), "type") < 0 {
++	if !strings.Contains(err.Error(), "type") {
+ 		t.Fatal("expected type error; got", err)
+ 	}
+ 	// Non-encoder to GobDecoder: error
+@@ -562,7 +562,7 @@ func TestGobEncoderFieldTypeError(t *testing.T) {
+ 	if err == nil {
+ 		t.Fatal("expected decode error for mismatched fields (non-encoder to decoder)")
+ 	}
+-	if strings.Index(err.Error(), "type") < 0 {
++	if !strings.Contains(err.Error(), "type") {
+ 		t.Fatal("expected type error; got", err)
+ 	}
+ }
+diff --git a/src/encoding/xml/marshal.go b/src/encoding/xml/marshal.go
+index 8ebd693030..9fcd5d7695 100644
+--- a/src/encoding/xml/marshal.go
++++ b/src/encoding/xml/marshal.go
+@@ -850,7 +850,7 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
+ 			switch k {
+ 			case reflect.String:
+ 				s := vf.String()
+-				dashDash = strings.Index(s, "--") >= 0
++				dashDash = strings.Contains(s, "--")
+ 				dashLast = s[len(s)-1] == '-'
+ 				if !dashDash {
+ 					p.WriteString(s)
+diff --git a/src/fmt/scan_test.go b/src/fmt/scan_test.go
+index 7ac74dcb4b..ce6f08659a 100644
+--- a/src/fmt/scan_test.go
++++ b/src/fmt/scan_test.go
+@@ -519,7 +519,7 @@ func testScanfMulti(name string, t *testing.T) {
+ 		if err != nil {
+ 			if test.err == "" {
+ 				t.Errorf("got error scanning (%q, %q): %q", test.format, test.text, err)
+-			} else if strings.Index(err.Error(), test.err) < 0 {
++			} else if !strings.Contains(err.Error(), test.err) {
+ 				t.Errorf("got wrong error scanning (%q, %q): %q; expected %q", test.format, test.text, err, test.err)
+ 			}
+ 			continue
+@@ -613,7 +613,7 @@ func TestScanNotPointer(t *testing.T) {
+ 	_, err := Fscan(r, a)
+ 	if err == nil {
+ 		t.Error("expected error scanning non-pointer")
+-	} else if strings.Index(err.Error(), "pointer") < 0 {
++	} else if !strings.Contains(err.Error(), "pointer") {
+ 		t.Errorf("expected pointer error scanning non-pointer, got: %s", err)
+ 	}
+ }
+@@ -623,7 +623,7 @@ func TestScanlnNoNewline(t *testing.T) {
+ 	_, err := Sscanln("1 x\n", &a)
+ 	if err == nil {
+ 		t.Error("expected error scanning string missing newline")
+-	} else if strings.Index(err.Error(), "newline") < 0 {
++	} else if !strings.Contains(err.Error(), "newline") {
+ 		t.Errorf("expected newline error scanning string missing newline, got: %s", err)
+ 	}
+ }
+@@ -634,7 +634,7 @@ func TestScanlnWithMiddleNewline(t *testing.T) {
+ 	_, err := Fscanln(r, &a, &b)
+ 	if err == nil {
+ 		t.Error("expected error scanning string with extra newline")
+-	} else if strings.Index(err.Error(), "newline") < 0 {
++	} else if !strings.Contains(err.Error(), "newline") {
+ 		t.Errorf("expected newline error scanning string with extra newline, got: %s", err)
+ 	}
+ }
+diff --git a/src/go/doc/comment.go b/src/go/doc/comment.go
+index f414ca4090..5631539abc 100644
+--- a/src/go/doc/comment.go
++++ b/src/go/doc/comment.go
+@@ -225,7 +225,7 @@ func heading(line string) string {
+ 	}
+ 
+ 	// exclude lines with illegal characters
+-	if strings.IndexAny(line, ",.;:!?+*/=()[]{}_^°&§~%#@<\">\\") >= 0 {
++	if strings.ContainsAny(line, ",.;:!?+*/=()[]{}_^°&§~%#@<\">\\") {
+ 		return ""
+ 	}
+ 
+diff --git a/src/go/types/universe.go b/src/go/types/universe.go
+index 40185c1ad4..cc3bd5a370 100644
+--- a/src/go/types/universe.go
++++ b/src/go/types/universe.go
+@@ -196,7 +196,7 @@ func init() {
+ //
+ func def(obj Object) {
+ 	name := obj.Name()
+-	if strings.Index(name, " ") >= 0 {
++	if strings.Contains(name, " ") {
+ 		return // nothing to do
+ 	}
+ 	// fix Obj link for named types
+diff --git a/src/math/big/ratconv.go b/src/math/big/ratconv.go
+index 4566ff4e39..57df124e88 100644
+--- a/src/math/big/ratconv.go
++++ b/src/math/big/ratconv.go
+@@ -15,7 +15,7 @@ import (
+ )
+ 
+ func ratTok(ch rune) bool {
+-	return strings.IndexRune("+-/0123456789.eE", ch) >= 0
++	return strings.ContainsRune("+-/0123456789.eE", ch)
+ }
+ 
+ // Scan is a support routine for fmt.Scanner. It accepts the formats
+@@ -25,7 +25,7 @@ func (z *Rat) Scan(s fmt.ScanState, ch rune) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	if strings.IndexRune("efgEFGv", ch) < 0 {
++	if !strings.ContainsRune("efgEFGv", ch) {
+ 		return errors.New("Rat.Scan: invalid verb")
+ 	}
+ 	if _, ok := z.SetString(string(tok)); !ok {
+diff --git a/src/mime/grammar.go b/src/mime/grammar.go
+index 31b66e8f03..6a6f71dbd4 100644
+--- a/src/mime/grammar.go
++++ b/src/mime/grammar.go
+@@ -11,7 +11,7 @@ import (
+ // isTSpecial reports whether rune is in 'tspecials' as defined by RFC
+ // 1521 and RFC 2045.
+ func isTSpecial(r rune) bool {
+-	return strings.IndexRune(`()<>@,;:\"/[]?=`, r) != -1
++	return strings.ContainsRune(`()<>@,;:\"/[]?=`, r)
+ }
+ 
+ // isTokenChar reports whether rune is in 'token' as defined by RFC
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index f61c138c1d..8a5b8bba37 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -34,7 +34,7 @@ import (
+ type Dir string
+ 
+ func (d Dir) Open(name string) (File, error) {
+-	if filepath.Separator != '/' && strings.IndexRune(name, filepath.Separator) >= 0 ||
++	if filepath.Separator != '/' && strings.ContainsRune(name, filepath.Separator) ||
+ 		strings.Contains(name, "\x00") {
+ 		return nil, errors.New("http: invalid character in file path")
+ 	}
+diff --git a/src/net/rpc/server_test.go b/src/net/rpc/server_test.go
+index 8871c88133..cf171ac4fb 100644
+--- a/src/net/rpc/server_test.go
++++ b/src/net/rpc/server_test.go
+@@ -183,7 +183,7 @@ func testRPC(t *testing.T, addr string) {
+ 	err = client.Call("Arith.Unknown", args, reply)
+ 	if err == nil {
+ 		t.Error("expected error calling unknown service")
+-	} else if strings.Index(err.Error(), "method") < 0 {
++	} else if !strings.Contains(err.Error(), "method") {
+ 		t.Error("expected error about method; got", err)
+ 	}
+ 
+@@ -226,7 +226,7 @@ func testRPC(t *testing.T, addr string) {
+ 	err = client.Call("Arith.Add", reply, reply) // args, reply would be the correct thing to use
+ 	if err == nil {
+ 		t.Error("expected error calling Arith.Add with wrong arg type")
+-	} else if strings.Index(err.Error(), "type") < 0 {
++	} else if !strings.Contains(err.Error(), "type") {
+ 		t.Error("expected error about type; got", err)
+ 	}
+ 
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 1a93e3496e..b7e25ecfcb 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -511,7 +511,7 @@ func parseAuthority(authority string) (user *Userinfo, host string, err error) {
+ 		return nil, host, nil
+ 	}
+ 	userinfo := authority[:i]
+-	if strings.Index(userinfo, ":") < 0 {
++	if !strings.Contains(userinfo, ":") {
+ 		if userinfo, err = unescape(userinfo, encodeUserPassword); err != nil {
+ 			return nil, "", err
+ 		}
+diff --git a/src/os/exec/lp_windows.go b/src/os/exec/lp_windows.go
+index c3efd67e9e..0b0712dcad 100644
+--- a/src/os/exec/lp_windows.go
++++ b/src/os/exec/lp_windows.go
+@@ -70,7 +70,7 @@ func LookPath(file string) (f string, err error) {
+ 		}
+ 		exts = append(exts, e)
+ 	}
+-	if strings.IndexAny(file, `:\/`) != -1 {
++	if strings.ContainsAny(file, `:\/`) {
+ 		if f, err = findExecutable(file, exts); err == nil {
+ 			return
+ 		}
+diff --git a/src/path/filepath/match.go b/src/path/filepath/match.go
+index 89f16de355..d64bf84fc0 100644
+--- a/src/path/filepath/match.go
++++ b/src/path/filepath/match.go
+@@ -49,7 +49,7 @@ Pattern:
+ 		star, chunk, pattern = scanChunk(pattern)
+ 		if star && chunk == "" {
+ 			// Trailing * matches rest of string unless it has a /.
+-			return strings.Index(name, string(Separator)) < 0, nil
++			return !strings.Contains(name, string(Separator)), nil
+ 		}
+ 		// Look for match at current position.
+ 		t, ok, err := matchChunk(chunk, name)
+@@ -305,5 +305,5 @@ func glob(dir, pattern string, matches []string) (m []string, e error) {
+ // recognized by Match.
+ func hasMeta(path string) bool {
+ 	// TODO(niemeyer): Should other magic characters be added here?
+-	return strings.IndexAny(path, "*?[") >= 0
++	return strings.ContainsAny(path, "*?[")
+ }
+diff --git a/src/path/filepath/match_test.go b/src/path/filepath/match_test.go
+index 0edbfc70c4..d8bab7f4da 100644
+--- a/src/path/filepath/match_test.go
++++ b/src/path/filepath/match_test.go
+@@ -88,7 +88,7 @@ func TestMatch(t *testing.T) {
+ 		pattern := tt.pattern
+ 		s := tt.s
+ 		if runtime.GOOS == "windows" {
+-			if strings.Index(pattern, "\\") >= 0 {
++			if strings.Contains(pattern, "\\") {
+ 				// no escape allowed on windows.
+ 				continue
+ 			}
+diff --git a/src/path/match.go b/src/path/match.go
+index 75dd3b38e7..8d9aa513b1 100644
+--- a/src/path/match.go
++++ b/src/path/match.go
+@@ -43,7 +43,7 @@ Pattern:
+ 		star, chunk, pattern = scanChunk(pattern)
+ 		if star && chunk == "" {
+ 			// Trailing * matches rest of string unless it has a /.
+-			return strings.Index(name, "/") < 0, nil
++			return !strings.Contains(name, "/"), nil
+ 		}
+ 		// Look for match at current position.
+ 		t, ok, err := matchChunk(chunk, name)
+diff --git a/src/regexp/regexp.go b/src/regexp/regexp.go
+index d7d0edb993..42ae6e1d7a 100644
+--- a/src/regexp/regexp.go
++++ b/src/regexp/regexp.go
+@@ -454,7 +454,7 @@ func Match(pattern string, b []byte) (matched bool, err error) {
+ // in Expand, so for instance $1 represents the text of the first submatch.
+ func (re *Regexp) ReplaceAllString(src, repl string) string {
+ 	n := 2
+-	if strings.Index(repl, "$") >= 0 {
++	if strings.Contains(repl, "$") {
+ 		n = 2 * (re.numSubexp + 1)
+ 	}
+ 	b := re.replaceAll(nil, src, n, func(dst []byte, match []int) []byte {
+diff --git a/src/regexp/syntax/regexp.go b/src/regexp/syntax/regexp.go
+index 75822cf981..ca5724063b 100644
+--- a/src/regexp/syntax/regexp.go
++++ b/src/regexp/syntax/regexp.go
+@@ -252,7 +252,7 @@ const meta = `\.+*?()|[]{}^$`
+ 
+ func escape(b *bytes.Buffer, r rune, force bool) {
+ 	if unicode.IsPrint(r) {
+-		if strings.IndexRune(meta, r) >= 0 || force {
++		if strings.ContainsRune(meta, r) || force {
+ 			b.WriteRune('\\')
+ 		}
+ 		b.WriteRune(r)
+diff --git a/src/runtime/debug/stack_test.go b/src/runtime/debug/stack_test.go
+index f54437231b..9376e82b84 100644
+--- a/src/runtime/debug/stack_test.go
++++ b/src/runtime/debug/stack_test.go
+@@ -59,7 +59,7 @@ func TestStack(t *testing.T) {
+ }
+ 
+ func check(t *testing.T, line, has string) {
+-	if strings.Index(line, has) < 0 {
++	if !strings.Contains(line, has) {
+ 		t.Errorf("expected %q in %q", has, line)
+ 	}
+ }
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index efe1817173..5ea45a4c53 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -446,7 +446,7 @@ func (s *state) idealConstant(constant *parse.NumberNode) reflect.Value {
+ 	switch {
+ 	case constant.IsComplex:
+ 		return reflect.ValueOf(constant.Complex128) // incontrovertible.
+-	case constant.IsFloat && !isHexConstant(constant.Text) && strings.IndexAny(constant.Text, ".eE") >= 0:
++	case constant.IsFloat && !isHexConstant(constant.Text) && strings.ContainsAny(constant.Text, ".eE"):
+ 		return reflect.ValueOf(constant.Float64)
+ 	case constant.IsInt:
+ 		n := int(constant.Int64)
+diff --git a/src/text/template/funcs.go b/src/text/template/funcs.go
+index 49e9e7419a..58b8ea372d 100644
+--- a/src/text/template/funcs.go
++++ b/src/text/template/funcs.go
+@@ -515,7 +515,7 @@ func HTMLEscape(w io.Writer, b []byte) {
+ // HTMLEscapeString returns the escaped HTML equivalent of the plain text data s.
+ func HTMLEscapeString(s string) string {
+ 	// Avoid allocation if we can.
+-	if strings.IndexAny(s, `'"&<>`) < 0 {
++	if !strings.ContainsAny(s, `'"&<>`) {
+ 		return s
+ 	}
+ 	var b bytes.Buffer
+diff --git a/src/text/template/parse/lex.go b/src/text/template/parse/lex.go
+index ea93e05142..079c0ea6f7 100644
+--- a/src/text/template/parse/lex.go
++++ b/src/text/template/parse/lex.go
+@@ -155,7 +155,7 @@ func (l *lexer) ignore() {
+ 
+ // accept consumes the next rune if it's from the valid set.
+ func (l *lexer) accept(valid string) bool {
+-	if strings.IndexRune(valid, l.next()) >= 0 {
++	if strings.ContainsRune(valid, l.next()) {
+ 		return true
+ 	}
+ 	l.backup()
+@@ -164,7 +164,7 @@ func (l *lexer) accept(valid string) bool {
+ 
+ // acceptRun consumes a run of runes from the valid set.
+ func (l *lexer) acceptRun(valid string) {
+-	for strings.IndexRune(valid, l.next()) >= 0 {
++	for strings.ContainsRune(valid, l.next()) {
+ 	}
+ 	l.backup()
+ }
+diff --git a/src/time/format_test.go b/src/time/format_test.go
+index af950a7c25..8c47dbcdd1 100644
+--- a/src/time/format_test.go
++++ b/src/time/format_test.go
+@@ -447,7 +447,7 @@ func TestParseErrors(t *testing.T) {
+ 		_, err := Parse(test.format, test.value)
+ 		if err == nil {
+ 			t.Errorf("expected error for %q %q", test.format, test.value)
+-		} else if strings.Index(err.Error(), test.expect) < 0 {
++		} else if !strings.Contains(err.Error(), test.expect) {
+ 			t.Errorf("expected error with %q for %q %q; got %s", test.expect, test.format, test.value, err)
+ 		}
+ 	}

@@ -8,8 +8,61 @@ Date:   Fri Jul 27 15:05:13 2012 +0400
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/6443051
-
+---
  src/pkg/os/file_posix.go   | 6 +++---
  src/pkg/os/file_unix.go    | 2 +-
  src/pkg/os/file_windows.go | 1 -
  3 files changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/os/file_posix.go b/src/pkg/os/file_posix.go
+index 073bd56a47..ea42cc67b5 100644
+--- a/src/pkg/os/file_posix.go
++++ b/src/pkg/os/file_posix.go
+@@ -7,6 +7,7 @@
+ package os
+ 
+ import (
++	"sync/atomic"
+ 	"syscall"
+ 	"time"
+ )
+@@ -15,12 +16,11 @@ func sigpipe() // implemented in package runtime
+ 
+ func epipecheck(file *File, e error) {
+ 	if e == syscall.EPIPE {
+-		file.nepipe++
+-		if file.nepipe >= 10 {
++		if atomic.AddInt32(&file.nepipe, 1) >= 10 {
+ 			sigpipe()
+ 		}
+ 	} else {
+-		file.nepipe = 0
++		atomic.StoreInt32(&file.nepipe, 0)
+ 	}
+ }
+ 
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index 6271c3189e..12daa70a76 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -24,7 +24,7 @@ type file struct {
+ 	fd      int
+ 	name    string
+ 	dirinfo *dirInfo // nil unless directory being read
+-	nepipe  int      // number of consecutive EPIPE in Write
++	nepipe  int32    // number of consecutive EPIPE in Write
+ }
+ 
+ // Fd returns the integer Unix file descriptor referencing the open file.
+diff --git a/src/pkg/os/file_windows.go b/src/pkg/os/file_windows.go
+index 88fa77bb84..320ee22518 100644
+--- a/src/pkg/os/file_windows.go
++++ b/src/pkg/os/file_windows.go
+@@ -25,7 +25,6 @@ type file struct {
+ 	fd      syscall.Handle
+ 	name    string
+ 	dirinfo *dirInfo   // nil unless directory being read
+-	nepipe  int        // number of consecutive EPIPE in Write
+ 	l       sync.Mutex // used to implement windows pread/pwrite
+ }
+ 

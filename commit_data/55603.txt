@@ -13,9 +13,66 @@ Date:   Sun Feb 26 19:34:24 2023 +0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/syscall/syscall_aix.go     | 3 +--
  src/syscall/syscall_bsd.go     | 3 +--
  src/syscall/syscall_linux.go   | 3 +--
  src/syscall/syscall_solaris.go | 3 +--
  4 files changed, 4 insertions(+), 8 deletions(-)
+
+diff --git a/src/syscall/syscall_aix.go b/src/syscall/syscall_aix.go
+index ba1b50e0fc..e4dde6b034 100644
+--- a/src/syscall/syscall_aix.go
++++ b/src/syscall/syscall_aix.go
+@@ -428,8 +428,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
+ 		if err != nil {
+ 			return nil, err
+ 		}
+-		bytes := (*[len(pp.Path)]byte)(unsafe.Pointer(&pp.Path[0]))
+-		sa.Name = string(bytes[0:n])
++		sa.Name = string(unsafe.Slice((*byte)(unsafe.Pointer(&pp.Path[0])), n))
+ 		return sa, nil
+ 
+ 	case AF_INET:
+diff --git a/src/syscall/syscall_bsd.go b/src/syscall/syscall_bsd.go
+index c7a7d786dc..0bb3cdf54b 100644
+--- a/src/syscall/syscall_bsd.go
++++ b/src/syscall/syscall_bsd.go
+@@ -249,8 +249,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
+ 				break
+ 			}
+ 		}
+-		bytes := (*[len(pp.Path)]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
+-		sa.Name = string(bytes)
++		sa.Name = string(unsafe.Slice((*byte)(unsafe.Pointer(&pp.Path[0])), n))
+ 		return sa, nil
+ 
+ 	case AF_INET:
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index c1f43bf43d..bf9d85637a 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -646,8 +646,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
+ 		for n < len(pp.Path) && pp.Path[n] != 0 {
+ 			n++
+ 		}
+-		bytes := (*[len(pp.Path)]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
+-		sa.Name = string(bytes)
++		sa.Name = string(unsafe.Slice((*byte)(unsafe.Pointer(&pp.Path[0])), n))
+ 		return sa, nil
+ 
+ 	case AF_INET:
+diff --git a/src/syscall/syscall_solaris.go b/src/syscall/syscall_solaris.go
+index 2d042acdc9..2cfb7f5d6a 100644
+--- a/src/syscall/syscall_solaris.go
++++ b/src/syscall/syscall_solaris.go
+@@ -321,8 +321,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
+ 		for n < len(pp.Path) && pp.Path[n] != 0 {
+ 			n++
+ 		}
+-		bytes := (*[len(pp.Path)]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
+-		sa.Name = string(bytes)
++		sa.Name = string(unsafe.Slice((*byte)(unsafe.Pointer(&pp.Path[0])), n))
+ 		return sa, nil
+ 
+ 	case AF_INET:

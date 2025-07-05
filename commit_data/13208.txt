@@ -13,7 +13,34 @@ Date:   Wed May 30 08:04:11 2012 +0200
     R=golang-dev, rsc
     CC=golang-dev, remy
     https://golang.org/cl/6249066
-
+---
  src/pkg/runtime/mfinal.c | 3 +--
  src/pkg/runtime/mgc0.c   | 1 -
  2 files changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/mfinal.c b/src/pkg/runtime/mfinal.c
+index c6f2b54219..1fa5ea401d 100644
+--- a/src/pkg/runtime/mfinal.c
++++ b/src/pkg/runtime/mfinal.c
+@@ -150,8 +150,7 @@ runtime·addfinalizer(void *p, void (*f)(void*), int32 nret)
+ 	tab = TAB(p);
+ 	runtime·lock(tab);
+ 	if(f == nil) {
+-		if(lookfintab(tab, p, true, nil))
+-			runtime·setblockspecial(p, false);
++		lookfintab(tab, p, true, nil);
+ 		runtime·unlock(tab);
+ 		return true;
+ 	}
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index d718b5aea9..5fde535a5e 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1042,7 +1042,6 @@ runfinq(void)
+ 					framecap = framesz;
+ 				}
+ 				*(void**)frame = f->arg;
+-				runtime·setblockspecial(f->arg, false);
+ 				reflect·call((byte*)f->fn, frame, sizeof(uintptr) + f->nret);
+ 				f->fn = nil;
+ 				f->arg = nil;

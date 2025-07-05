@@ -23,8 +23,62 @@ Date:   Tue Jun 28 18:15:32 2022 -0700
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/go/internal/modload/build.go                          |  7 ++++++-
  .../go/testdata/mod/example.com_retract_noupgrade_v1.0.0.txt  |  9 +++++++++
  src/cmd/go/testdata/script/mod_retract_noupgrade.txt          | 11 +++++++++++
  3 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index e983e0ae0c..555d4b3c63 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -131,10 +131,15 @@ func addUpdate(ctx context.Context, m *modinfo.ModulePublic) {
+ 
+ 	info, err := Query(ctx, m.Path, "upgrade", m.Version, CheckAllowed)
+ 	var noVersionErr *NoMatchingVersionError
+-	if errors.Is(err, fs.ErrNotExist) || errors.As(err, &noVersionErr) {
++	if errors.Is(err, ErrDisallowed) ||
++		errors.Is(err, fs.ErrNotExist) ||
++		errors.As(err, &noVersionErr) {
+ 		// Ignore "not found" and "no matching version" errors.
+ 		// This means the proxy has no matching version or no versions at all.
+ 		//
++		// Ignore "disallowed" errors. This means the current version is
++		// excluded or retracted and there are no higher allowed versions.
++		//
+ 		// We should report other errors though. An attacker that controls the
+ 		// network shouldn't be able to hide versions by interfering with
+ 		// the HTTPS connection. An attacker that controls the proxy may still
+diff --git a/src/cmd/go/testdata/mod/example.com_retract_noupgrade_v1.0.0.txt b/src/cmd/go/testdata/mod/example.com_retract_noupgrade_v1.0.0.txt
+new file mode 100644
+index 0000000000..466afc5765
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_retract_noupgrade_v1.0.0.txt
+@@ -0,0 +1,9 @@
++-- .mod --
++module example.com/retract/noupgrade
++
++go 1.19
++
++retract v1.0.0 // bad
++
++-- .info --
++{"Version":"v1.0.0"}
+diff --git a/src/cmd/go/testdata/script/mod_retract_noupgrade.txt b/src/cmd/go/testdata/script/mod_retract_noupgrade.txt
+new file mode 100644
+index 0000000000..67de79f42d
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_retract_noupgrade.txt
+@@ -0,0 +1,11 @@
++go list -m -u example.com/retract/noupgrade
++stdout '^example.com/retract/noupgrade v1.0.0 \(retracted\)$'
++
++-- go.mod --
++module use
++
++go 1.19
++
++require example.com/retract/noupgrade v1.0.0
++-- go.sum --
++example.com/retract/noupgrade v1.0.0/go.mod h1:q2/HnBejUQ83RcUo4stf2U++/Zr9R/Ky3BsodjKBkQ4=

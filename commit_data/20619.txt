@@ -9,7 +9,7 @@ Date:   Wed Sep 24 17:50:44 2014 -0400
     TBR=iant
     CC=golang-codereviews
     https://golang.org/cl/146280043
-
+---
  src/runtime/cgo/dragonfly.c     | 4 ++++
  src/runtime/cgo/freebsd.c       | 4 ++++
  src/runtime/cgo/netbsd.c        | 4 ++++
@@ -18,3 +18,134 @@ Date:   Wed Sep 24 17:50:44 2014 -0400
  src/runtime/rt0_windows_386.s   | 2 +-
  src/runtime/rt0_windows_amd64.s | 2 +-
  7 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/cgo/dragonfly.c b/src/runtime/cgo/dragonfly.c
+index acf53e2655..3c95ff354e 100644
+--- a/src/runtime/cgo/dragonfly.c
++++ b/src/runtime/cgo/dragonfly.c
+@@ -2,11 +2,15 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "textflag.h"
++
+ // Supply environ and __progname, because we don't
+ // link against the standard DragonFly crt0.o and the
+ // libc dynamic library needs them.
+ 
++#pragma dataflag NOPTR
+ char *environ[1];
++#pragma dataflag NOPTR
+ char *__progname;
+ 
+ #pragma dynexport environ environ
+diff --git a/src/runtime/cgo/freebsd.c b/src/runtime/cgo/freebsd.c
+index dfcfa3a213..aefc481e64 100644
+--- a/src/runtime/cgo/freebsd.c
++++ b/src/runtime/cgo/freebsd.c
+@@ -2,11 +2,15 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "textflag.h"
++
+ // Supply environ and __progname, because we don't
+ // link against the standard FreeBSD crt0.o and the
+ // libc dynamic library needs them.
+ 
++#pragma dataflag NOPTR
+ char *environ[1];
++#pragma dataflag NOPTR
+ char *__progname;
+ 
+ #pragma dynexport environ environ
+diff --git a/src/runtime/cgo/netbsd.c b/src/runtime/cgo/netbsd.c
+index b6403f686c..de38bb7707 100644
+--- a/src/runtime/cgo/netbsd.c
++++ b/src/runtime/cgo/netbsd.c
+@@ -2,11 +2,15 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "textflag.h"
++
+ // Supply environ and __progname, because we don't
+ // link against the standard NetBSD crt0.o and the
+ // libc dynamic library needs them.
+ 
++#pragma dataflag NOPTR
+ char *environ[1];
++#pragma dataflag NOPTR
+ char *__progname;
+ 
+ #pragma dynexport environ environ
+diff --git a/src/runtime/cgo/openbsd.c b/src/runtime/cgo/openbsd.c
+index 84e9f9efff..7c2b6c1737 100644
+--- a/src/runtime/cgo/openbsd.c
++++ b/src/runtime/cgo/openbsd.c
+@@ -2,11 +2,15 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "textflag.h"
++
+ // Supply environ, __progname and __guard_local, because
+ // we don't link against the standard OpenBSD crt0.o and
+ // the libc dynamic library needs them.
+ 
++#pragma dataflag NOPTR
+ char *environ[1];
++#pragma dataflag NOPTR
+ char *__progname;
+ long __guard_local;
+ 
+diff --git a/src/runtime/os_windows.c b/src/runtime/os_windows.c
+index 6546d51d33..77f99062cf 100644
+--- a/src/runtime/os_windows.c
++++ b/src/runtime/os_windows.c
+@@ -72,6 +72,7 @@ extern void *runtime·WaitForSingleObject;
+ extern void *runtime·WriteFile;
+ extern void *runtime·timeBeginPeriod;
+ 
++#pragma dataflag NOPTR
+ void *runtime·GetQueuedCompletionStatusEx;
+ 
+ extern uintptr runtime·externalthreadhandlerp;
+@@ -289,7 +290,9 @@ typedef struct KSYSTEM_TIME {
+ 	int32	High2Time;
+ } KSYSTEM_TIME;
+ 
++#pragma dataflag NOPTR
+ const KSYSTEM_TIME* INTERRUPT_TIME	= (KSYSTEM_TIME*)0x7ffe0008;
++#pragma dataflag NOPTR
+ const KSYSTEM_TIME* SYSTEM_TIME		= (KSYSTEM_TIME*)0x7ffe0014;
+ 
+ static void badsystime(void);
+@@ -500,6 +503,7 @@ runtime·ctrlhandler1(uint32 type)
+ 
+ extern void runtime·dosigprof(Context *r, G *gp, M *mp);
+ extern void runtime·profileloop(void);
++#pragma dataflag NOPTR
+ static void *profiletimer;
+ 
+ static void
+diff --git a/src/runtime/rt0_windows_386.s b/src/runtime/rt0_windows_386.s
+index 00604372f1..3c2deda903 100644
+--- a/src/runtime/rt0_windows_386.s
++++ b/src/runtime/rt0_windows_386.s
+@@ -17,4 +17,4 @@ TEXT main(SB),NOSPLIT,$0
+ 
+ 
+ DATA  runtime·iswindows(SB)/4, $1
+-GLOBL runtime·iswindows(SB), $4
++GLOBL runtime·iswindows(SB), NOPTR, $4
+diff --git a/src/runtime/rt0_windows_amd64.s b/src/runtime/rt0_windows_amd64.s
+index 890a570d1d..197f52e113 100644
+--- a/src/runtime/rt0_windows_amd64.s
++++ b/src/runtime/rt0_windows_amd64.s
+@@ -16,4 +16,4 @@ TEXT main(SB),NOSPLIT,$-8
+ 	JMP	AX
+ 
+ DATA  runtime·iswindows(SB)/4, $1
+-GLOBL runtime·iswindows(SB), $4
++GLOBL runtime·iswindows(SB), NOPTR, $4

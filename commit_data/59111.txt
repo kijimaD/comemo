@@ -13,8 +13,67 @@ Date:   Fri Feb 16 00:15:29 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/pcln.go | 5 ++---
  src/internal/abi/symtab.go       | 2 ++
  src/runtime/symtab.go            | 6 ++----
  3 files changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 170ebe5ebe..df06084352 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -827,9 +827,8 @@ func expandGoroot(s string) string {
+ }
+ 
+ const (
+-	BUCKETSIZE    = 256 * abi.MINFUNC
+ 	SUBBUCKETS    = 16
+-	SUBBUCKETSIZE = BUCKETSIZE / SUBBUCKETS
++	SUBBUCKETSIZE = abi.FuncTabBucketSize / SUBBUCKETS
+ 	NOIDX         = 0x7fffffff
+ )
+ 
+@@ -847,7 +846,7 @@ func (ctxt *Link) findfunctab(state *pclntab, container loader.Bitmap) {
+ 	// that map to that subbucket.
+ 	n := int32((max - min + SUBBUCKETSIZE - 1) / SUBBUCKETSIZE)
+ 
+-	nbuckets := int32((max - min + BUCKETSIZE - 1) / BUCKETSIZE)
++	nbuckets := int32((max - min + abi.FuncTabBucketSize - 1) / abi.FuncTabBucketSize)
+ 
+ 	size := 4*int64(nbuckets) + int64(n)
+ 
+diff --git a/src/internal/abi/symtab.go b/src/internal/abi/symtab.go
+index 41026ea2ab..a3c9be7aa1 100644
+--- a/src/internal/abi/symtab.go
++++ b/src/internal/abi/symtab.go
+@@ -107,3 +107,5 @@ const (
+ )
+ 
+ const MINFUNC = 16 // minimum size for a function
++
++const FuncTabBucketSize = 256 * MINFUNC // size of bucket in the pc->func lookup table
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index a046ebef39..96a2d29079 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -497,8 +497,6 @@ type textsect struct {
+ 	baseaddr uintptr // relocated section address
+ }
+ 
+-const pcbucketsize = 256 * abi.MINFUNC // size of bucket in the pc->func lookup table
+-
+ // findfuncbucket is an array of these structures.
+ // Each bucket represents 4096 bytes of the text segment.
+ // Each subbucket represents 256 bytes of the text segment.
+@@ -780,8 +778,8 @@ func findfunc(pc uintptr) funcInfo {
+ 	}
+ 
+ 	x := uintptr(pcOff) + datap.text - datap.minpc // TODO: are datap.text and datap.minpc always equal?
+-	b := x / pcbucketsize
+-	i := x % pcbucketsize / (pcbucketsize / nsub)
++	b := x / abi.FuncTabBucketSize
++	i := x % abi.FuncTabBucketSize / (abi.FuncTabBucketSize / nsub)
+ 
+ 	ffb := (*findfuncbucket)(add(unsafe.Pointer(datap.findfunctab), b*unsafe.Sizeof(findfuncbucket{})))
+ 	idx := ffb.idx + uint32(ffb.subbuckets[i])

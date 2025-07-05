@@ -16,7 +16,7 @@ Date:   Fri Jun 29 21:14:47 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go |  8 +++++--
  src/cmd/dist/test.go                | 45 +++++++++++++++++++++++++++++++------
  src/cmd/go/go_test.go               | 17 +++++++-------
@@ -28,3 +28,250 @@ Date:   Fri Jun 29 21:14:47 2018 -0700
  test/fixedbugs/issue17449.go        |  1 +
  test/fixedbugs/issue24651a.go       |  1 +
  10 files changed, 89 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index da6f800ccd..3fd89873d1 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -216,14 +216,18 @@ func Main(archInit func(*Arch)) {
+ 	flag.StringVar(&linkobj, "linkobj", "", "write linker-specific object to `file`")
+ 	objabi.Flagcount("live", "debug liveness analysis", &debuglive)
+ 	objabi.Flagcount("m", "print optimization decisions", &Debug['m'])
+-	flag.BoolVar(&flag_msan, "msan", false, "build code compatible with C/C++ memory sanitizer")
++	if sys.MSanSupported(objabi.GOOS, objabi.GOARCH) {
++		flag.BoolVar(&flag_msan, "msan", false, "build code compatible with C/C++ memory sanitizer")
++	}
+ 	flag.BoolVar(&dolinkobj, "dolinkobj", true, "generate linker-specific objects; if false, some invalid code may compile")
+ 	flag.BoolVar(&nolocalimports, "nolocalimports", false, "reject local (relative) imports")
+ 	flag.StringVar(&outfile, "o", "", "write output to `file`")
+ 	flag.StringVar(&myimportpath, "p", "", "set expected package import `path`")
+ 	flag.BoolVar(&writearchive, "pack", false, "write to file.a instead of file.o")
+ 	objabi.Flagcount("r", "debug generated wrappers", &Debug['r'])
+-	flag.BoolVar(&flag_race, "race", false, "enable race detector")
++	if sys.RaceDetectorSupported(objabi.GOOS, objabi.GOARCH) {
++		flag.BoolVar(&flag_race, "race", false, "enable race detector")
++	}
+ 	objabi.Flagcount("s", "warn about composite literals that can be simplified", &Debug['s'])
+ 	flag.StringVar(&pathPrefix, "trimpath", "", "remove `prefix` from recorded source file paths")
+ 	flag.BoolVar(&safemode, "u", false, "reject unsafe code")
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 448c7867a1..3d0ef28448 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -705,7 +705,7 @@ func (t *tester) registerTests() {
+ 		if gohostos == "linux" && goarch == "amd64" {
+ 			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", "main.go")
+ 		}
+-		if goos == "linux" && (goarch == "amd64" || goarch == "arm64") {
++		if mSanSupported(goos, goarch) {
+ 			t.registerHostTest("testsanitizers/msan", "../misc/cgo/testsanitizers", "misc/cgo/testsanitizers", ".")
+ 		}
+ 		if t.hasBash() && goos != "android" && !t.iOS() && gohostos != "windows" {
+@@ -1329,13 +1329,21 @@ func (t *tester) hasSwig() bool {
+ }
+ 
+ func (t *tester) raceDetectorSupported() bool {
+-	switch gohostos {
+-	case "linux", "darwin", "freebsd", "windows":
+-		// The race detector doesn't work on Alpine Linux:
+-		// golang.org/issue/14481
+-		return t.cgoEnabled && (goarch == "amd64" || goarch == "ppc64le") && gohostos == goos && !isAlpineLinux()
++	if gohostos != goos {
++		return false
+ 	}
+-	return false
++	if !t.cgoEnabled {
++		return false
++	}
++	if !raceDetectorSupported(goos, goarch) {
++		return false
++	}
++	// The race detector doesn't work on Alpine Linux:
++	// golang.org/issue/14481
++	if isAlpineLinux() {
++		return false
++	}
++	return true
+ }
+ 
+ func isAlpineLinux() bool {
+@@ -1450,3 +1458,26 @@ func (t *tester) packageHasBenchmarks(pkg string) bool {
+ 	}
+ 	return false
+ }
++
++// raceDetectorSupported is a copy of the function
++// cmd/internal/sys.RaceDetectorSupported, which can't be used here
++// because cmd/dist has to be buildable by Go 1.4.
++func raceDetectorSupported(goos, goarch string) bool {
++	switch goos {
++	case "linux", "darwin", "freebsd", "netbsd", "windows":
++		return goarch == "amd64" || goarch == "ppc64le"
++	default:
++		return false
++	}
++}
++
++// mSanSupported is a copy of the function cmd/internal/sys.MSanSupported,
++// which can't be used here because cmd/dist has to be buildable by Go 1.4.
++func mSanSupported(goos, goarch string) bool {
++	switch goos {
++	case "linux":
++		return goarch == "amd64" || goarch == "arm64"
++	default:
++		return false
++	}
++}
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index ada1ddde3b..6bd0609eaf 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -6,6 +6,7 @@ package main_test
+ 
+ import (
+ 	"bytes"
++	"cmd/internal/sys"
+ 	"debug/elf"
+ 	"debug/macho"
+ 	"flag"
+@@ -209,15 +210,13 @@ func TestMain(m *testing.M) {
+ 		}
+ 		testGOCACHE = strings.TrimSpace(string(out))
+ 
+-		// As of Sept 2017, MSan is only supported on linux/amd64.
+-		// https://github.com/google/sanitizers/wiki/MemorySanitizer#getting-memorysanitizer
+-		canMSan = canCgo && runtime.GOOS == "linux" && runtime.GOARCH == "amd64"
+-
+-		switch runtime.GOOS {
+-		case "linux", "darwin", "freebsd", "windows":
+-			// The race detector doesn't work on Alpine Linux:
+-			// golang.org/issue/14481
+-			canRace = canCgo && runtime.GOARCH == "amd64" && !isAlpineLinux() && runtime.Compiler != "gccgo"
++		canMSan = canCgo && sys.MSanSupported(runtime.GOOS, runtime.GOARCH)
++		canRace = canCgo && sys.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH)
++		// The race detector doesn't work on Alpine Linux:
++		// golang.org/issue/14481
++		// gccgo does not support the race detector.
++		if isAlpineLinux() || runtime.Compiler == "gccgo" {
++			canRace = false
+ 		}
+ 	}
+ 	// Don't let these environment variables confuse the test.
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index eb99815338..3f6252ed84 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -10,6 +10,7 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
++	"cmd/internal/sys"
+ 	"flag"
+ 	"fmt"
+ 	"os"
+@@ -42,18 +43,14 @@ func instrumentInit() {
+ 		fmt.Fprintf(os.Stderr, "go %s: may not use -race and -msan simultaneously\n", flag.Args()[0])
+ 		os.Exit(2)
+ 	}
+-	if cfg.BuildMSan && (cfg.Goos != "linux" || cfg.Goarch != "amd64" && cfg.Goarch != "arm64") {
++	if cfg.BuildMSan && !sys.MSanSupported(cfg.Goos, cfg.Goarch) {
+ 		fmt.Fprintf(os.Stderr, "-msan is not supported on %s/%s\n", cfg.Goos, cfg.Goarch)
+ 		os.Exit(2)
+ 	}
+ 	if cfg.BuildRace {
+-		platform := cfg.Goos + "/" + cfg.Goarch
+-		switch platform {
+-		default:
++		if !sys.RaceDetectorSupported(cfg.Goos, cfg.Goarch) {
+ 			fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64, linux/ppc64le, freebsd/amd64, netbsd/amd64, darwin/amd64 and windows/amd64\n", flag.Args()[0])
+ 			os.Exit(2)
+-		case "linux/amd64", "linux/ppc64le", "freebsd/amd64", "netbsd/amd64", "darwin/amd64", "windows/amd64":
+-			// race supported on these platforms
+ 		}
+ 	}
+ 	mode := "race"
+diff --git a/src/cmd/internal/sys/supported.go b/src/cmd/internal/sys/supported.go
+new file mode 100644
+index 0000000000..22dec702a5
+--- /dev/null
++++ b/src/cmd/internal/sys/supported.go
+@@ -0,0 +1,29 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sys
++
++// RaceDetectorSupported reports whether goos/goarch supports the race
++// detector. There is a copy of this function in cmd/dist/test.go.
++func RaceDetectorSupported(goos, goarch string) bool {
++	switch goos {
++	case "linux":
++		return goarch == "amd64" || goarch == "ppc64le"
++	case "darwin", "freebsd", "netbsd", "windows":
++		return goarch == "amd64"
++	default:
++		return false
++	}
++}
++
++// MSanSupported reports whether goos/goarch supports the memory
++// sanitizer option. There is a copy of this function in cmd/dist/test.go.
++func MSanSupported(goos, goarch string) bool {
++	switch goos {
++	case "linux":
++		return goarch == "amd64" || goarch == "arm64"
++	default:
++		return false
++	}
++}
+diff --git a/test/fixedbugs/issue13265.go b/test/fixedbugs/issue13265.go
+index 3036ba7c24..3e16cee6e7 100644
+--- a/test/fixedbugs/issue13265.go
++++ b/test/fixedbugs/issue13265.go
+@@ -1,4 +1,5 @@
+ // errorcheck -0 -race
++// +build linux,amd64 linux,ppc64le darwin,amd64 freebsd,amd64 netbsd,amd64 windows,amd64
+ 
+ // Copyright 2017 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue15091.go b/test/fixedbugs/issue15091.go
+index 00fb473d6a..678e7911c8 100644
+--- a/test/fixedbugs/issue15091.go
++++ b/test/fixedbugs/issue15091.go
+@@ -1,4 +1,5 @@
+ // errorcheck -0 -race
++// +build linux,amd64 linux,ppc64le darwin,amd64 freebsd,amd64 netbsd,amd64 windows,amd64
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue16008.go b/test/fixedbugs/issue16008.go
+index 0e369efcbb..45457cdb7f 100644
+--- a/test/fixedbugs/issue16008.go
++++ b/test/fixedbugs/issue16008.go
+@@ -1,4 +1,5 @@
+ // errorcheck -0 -race
++// +build linux,amd64 linux,ppc64le darwin,amd64 freebsd,amd64 netbsd,amd64 windows,amd64
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue17449.go b/test/fixedbugs/issue17449.go
+index 23029178e8..51cc8eaa06 100644
+--- a/test/fixedbugs/issue17449.go
++++ b/test/fixedbugs/issue17449.go
+@@ -1,4 +1,5 @@
+ // errorcheck -0 -race
++// +build linux,amd64 linux,ppc64le darwin,amd64 freebsd,amd64 netbsd,amd64 windows,amd64
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue24651a.go b/test/fixedbugs/issue24651a.go
+index 5f63635a2a..b12b0cce29 100644
+--- a/test/fixedbugs/issue24651a.go
++++ b/test/fixedbugs/issue24651a.go
+@@ -1,4 +1,5 @@
+ //errorcheck -0 -race -m -m
++// +build linux,amd64 linux,ppc64le darwin,amd64 freebsd,amd64 netbsd,amd64 windows,amd64
+ 
+ // Copyright 2018 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

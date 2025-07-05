@@ -11,7 +11,121 @@ Date:   Tue Jul 14 18:29:49 2015 -0700
     Change-Id: I3c9ad4f6ec689903f88ccf5599d93a338e3eec4d
     Reviewed-on: https://go-review.googlesource.com/12211
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  AUTHORS      | 7 ++++++-
  CONTRIBUTORS | 8 ++++++++
  2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/AUTHORS b/AUTHORS
+index c31d7bb145..46cbab60ca 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -74,6 +74,7 @@ Aron Nopanen <aron.nopanen@gmail.com>
+ Arvindh Rajesh Tamilmani <art@a-30.net>
+ Ato Araki <ato.araki@gmail.com>
+ Aulus Egnatius Varialus <varialus@gmail.com>
++awaw fumin <awawfumin@gmail.com>
+ Aymerick <aymerick@jehanne.org>
+ Ben Burkert <ben@benburkert.com>
+ Ben Olive <sionide21@gmail.com>
+@@ -344,8 +345,10 @@ Matt Joiner <anacrolix@gmail.com>
+ Matt Layher <mdlayher@gmail.com>
+ Matt Reiferson <mreiferson@gmail.com>
+ Matt T. Proud <matt.proud@gmail.com>
++Matt Williams <gh@mattyw.net>
+ Matthew Brennan <matty.brennan@gmail.com>
+ Matthew Cottingham <mattcottingham@gmail.com>
++Matthew Holt <Matthew.Holt+git@gmail.com>
+ Matthew Horsnell <matthew.horsnell@gmail.com>
+ Maxim Khitrov <max@mxcrypt.com>
+ Micah Stetson <micah.stetson@gmail.com>
+@@ -500,6 +503,7 @@ Tobias Columbus <tobias.columbus@gmail.com>
+ Todd Neal <todd@tneal.org>
+ Tom Heng <zhm20070928@gmail.com>
+ Tom Linford <tomlinford@gmail.com>
++Tommy Schaefer <tommy.schaefer@teecom.com>
+ Tor Andersson <tor.andersson@gmail.com>
+ Travis Cline <travis.cline@gmail.com>
+ Tudor Golubenco <tudor.g@gmail.com>
+@@ -510,6 +514,7 @@ Ulf Holm Nielsen <doktor@dyregod.dk>
+ Uriel Mangado <uriel@berlinblue.org>
+ Vadim Vygonets <unixdj@gmail.com>
+ Vincent Ambo <tazjin@googlemail.com>
++Vincent Batts <vbatts@hashbangbash.com> <vbatts@gmail.com>
+ Vincent Vanackere <vincent.vanackere@gmail.com>
+ Vinu Rajashekhar <vinutheraj@gmail.com>
+ Vladimir Nikishenko <vova616@gmail.com>
+@@ -522,8 +527,8 @@ Xia Bin <snyh@snyh.org>
+ Xing Xing <mikespook@gmail.com>
+ Yasuhiro Matsumoto <mattn.jp@gmail.com>
+ Yissakhar Z. Beck <yissakhar.beck@gmail.com>
+-Yongjian Xu <i3dmaster@gmail.com>
+ Yo-An Lin <yoanlin93@gmail.com>
++Yongjian Xu <i3dmaster@gmail.com>
+ Yoshiyuki Kanno <nekotaroh@gmail.com> <yoshiyuki.kanno@stoic.co.jp>
+ Yusuke Kagiwada <block.rxckin.beats@gmail.com>
+ Yuusei Kuwana <kuwana@kumama.org>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index f06c0258c5..caa8ea4c5f 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -111,6 +111,7 @@ Asim Shankar <asimshankar@gmail.com>
+ Ato Araki <ato.araki@gmail.com>
+ Aulus Egnatius Varialus <varialus@gmail.com>
+ Austin Clements <austin@google.com> <aclements@csail.mit.edu>
++awaw fumin <awawfumin@gmail.com>
+ Aymerick <aymerick@jehanne.org>
+ Balazs Lecz <leczb@google.com>
+ Ben Burkert <ben@benburkert.com>
+@@ -235,6 +236,7 @@ Dmitriy Vyukov <dvyukov@google.com>
+ Dmitry Chestnykh <dchest@gmail.com>
+ Dmitry Savintsev <dsavints@gmail.com>
+ Dominik Honnef <dominik.honnef@gmail.com>
++Dominik Vogt <vogt@linux.vnet.ibm.com>
+ Donovan Hide <donovanhide@gmail.com>
+ Drew Hintz <adhintz@google.com>
+ Duncan Holm <mail@frou.org>
+@@ -336,6 +338,7 @@ Jamie Gennis <jgennis@google.com> <jgennis@gmail.com>
+ Jamie Turner <jamwt@dropbox.com>
+ Jamie Wilkinson <jaq@spacepants.org>
+ Jan H. Hosang <jan.hosang@gmail.com>
++Jan Kratochvil <jan.kratochvil@redhat.com>
+ Jan Mercl <0xjnml@gmail.com>
+ Jan Mercl <befelemepeseveze@gmail.com>
+ Jan Newmarch <jan.newmarch@gmail.com>
+@@ -371,6 +374,7 @@ John Asmuth <jasmuth@gmail.com>
+ John Beisley <huin@google.com>
+ John C Barstow <jbowtie@amathaine.com>
+ John DeNero <denero@google.com>
++John Dethridge <jcd@golang.org>
+ John Graham-Cumming <jgc@jgc.org> <jgrahamc@gmail.com>
+ John Howard Palevich <jack.palevich@gmail.com>
+ John Newlin <jnewlin@google.com>
+@@ -468,9 +472,11 @@ Matt Jones <mrjones@google.com>
+ Matt Layher <mdlayher@gmail.com>
+ Matt Reiferson <mreiferson@gmail.com>
+ Matt T. Proud <matt.proud@gmail.com>
++Matt Williams <gh@mattyw.net>
+ Matthew Brennan <matty.brennan@gmail.com>
+ Matthew Cottingham <mattcottingham@gmail.com>
+ Matthew Dempsky <mdempsky@google.com>
++Matthew Holt <Matthew.Holt+git@gmail.com>
+ Matthew Horsnell <matthew.horsnell@gmail.com>
+ Maxim Khitrov <max@mxcrypt.com>
+ Maxim Pimenov <mpimenov@google.com>
+@@ -668,6 +674,7 @@ Todd Wang <toddwang@gmail.com>
+ Tom Heng <zhm20070928@gmail.com>
+ Tom Linford <tomlinford@gmail.com>
+ Tom Szymanski <tgs@google.com>
++Tommy Schaefer <tommy.schaefer@teecom.com>
+ Tor Andersson <tor.andersson@gmail.com>
+ Travis Cline <travis.cline@gmail.com>
+ Trevor Strohman <trevor.strohman@gmail.com>
+@@ -680,6 +687,7 @@ Uriel Mangado <uriel@berlinblue.org>
+ Vadim Vygonets <unixdj@gmail.com>
+ Vega Garcia Luis Alfonso <vegacom@gmail.com>
+ Vincent Ambo <tazjin@googlemail.com>
++Vincent Batts <vbatts@hashbangbash.com> <vbatts@gmail.com>
+ Vincent Vanackere <vincent.vanackere@gmail.com>
+ Vinu Rajashekhar <vinutheraj@gmail.com>
+ Vish Subramanian <vish@google.com>

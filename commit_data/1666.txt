@@ -7,8 +7,235 @@ Date:   Wed Feb 11 17:57:29 2009 -0800
     R=ken
     OCL=24350
     CL=24914
-
+---
  src/cmd/gc/go.h   |  6 ++---
  src/cmd/gc/subr.c | 73 ++++++++++++++++++++++++++++++++++++++++++++-----------
  src/cmd/gc/walk.c | 20 +++++++--------
  3 files changed, 72 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 436ddd9a9b..7ec215b0e4 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -827,9 +827,9 @@ Type*	fixchan(Type*);
+ Node*	chanop(Node*, int);
+ Node*	arrayop(Node*, int);
+ Node*	ifaceop(Type*, Node*, int);
+-int	ifaceas(Type*, Type*);
+-int	ifaceas1(Type*, Type*);
+-void	ifacecheck(Type*, Type*, int);
++int	ifaceas(Type*, Type*, int);
++int	ifaceas1(Type*, Type*, int);
++void	ifacecheck(Type*, Type*, int, int);
+ void	runifacechecks(void);
+ Node*	convas(Node*);
+ void	arrayconv(Type*, Node*);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 87bd2f20a9..841f5c3614 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2735,12 +2735,13 @@ struct Icheck
+ 	Type *dst;
+ 	Type *src;
+ 	int lineno;
++	int explicit;
+ };
+ Icheck *icheck;
+ Icheck *ichecktail;
+ 
+ void
+-ifacecheck(Type *dst, Type *src, int lineno)
++ifacecheck(Type *dst, Type *src, int lineno, int explicit)
+ {
+ 	Icheck *p;
+ 
+@@ -2752,6 +2753,7 @@ ifacecheck(Type *dst, Type *src, int lineno)
+ 	p->dst = dst;
+ 	p->src = src;
+ 	p->lineno = lineno;
++	p->explicit = explicit;
+ 	ichecktail = p;
+ }
+ 
+@@ -2761,6 +2763,9 @@ ifacelookdot(Sym *s, Type *t)
+ 	int c, d;
+ 	Type *m;
+ 
++	if(t == T)
++		return T;
++
+ 	for(d=0; d<nelem(dotlist); d++) {
+ 		c = adddot1(s, t, d, &m);
+ 		if(c > 1) {
+@@ -2773,15 +2778,15 @@ ifacelookdot(Sym *s, Type *t)
+ 	return T;
+ }
+ 
++// check whether non-interface type t
++// satisifes inteface type iface.
+ int
+-hasiface(Type *t, Type *iface, Type **m)
++ifaceokT2I(Type *t, Type *iface, Type **m)
+ {
+ 	Type *im, *tm;
+ 	int imhash;
+ 
+ 	t = methtype(t);
+-	if(t == T)
+-		return 0;
+ 
+ 	// if this is too slow,
+ 	// could sort these first
+@@ -2805,26 +2810,66 @@ hasiface(Type *t, Type *iface, Type **m)
+ 	return 1;
+ }
+ 
++// check whether interface type i1 satisifes interface type i2.
++int
++ifaceokI2I(Type *i1, Type *i2, Type **m)
++{
++	Type *m1, *m2;
++
++	// if this is too slow,
++	// could sort these first
++	// and then do one loop.
++
++	for(m2=i2->type; m2; m2=m2->down) {
++		for(m1=i1->type; m1; m1=m1->down)
++			if(m1->sym == m2->sym && typehash(m1, 0) == typehash(m2, 0))
++				goto found;
++		*m = m2;
++		return 0;
++	found:;
++	}
++	return 1;
++}
++
+ void
+ runifacechecks(void)
+ {
+ 	Icheck *p;
+-	int lno;
+-	Type *m, *l, *r;
++	int lno, wrong, needexplicit;
++	Type *m, *t, *iface;
+ 
+ 	lno = lineno;
+ 	for(p=icheck; p; p=p->next) {
+ 		lineno = p->lineno;
+-		if(isinter(p->dst)) {
+-			l = p->src;
+-			r = p->dst;
++		wrong = 0;
++		needexplicit = 0;
++		m = nil;
++		if(isinter(p->dst) && isinter(p->src)) {
++			iface = p->dst;
++			t = p->src;
++			needexplicit = !ifaceokI2I(t, iface, &m);
++		}
++		else if(isinter(p->dst)) {
++			t = p->src;
++			iface = p->dst;
++			wrong = !ifaceokT2I(t, iface, &m);
+ 		} else {
+-			l = p->dst;
+-			r = p->src;
++			t = p->dst;
++			iface = p->src;
++			wrong = !ifaceokT2I(t, iface, &m);
++			needexplicit = 1;
++		}
++		if(wrong)
++			yyerror("%T is not %T\n\tmissing %S%hhT",
++				t, iface, m->sym, m->type);
++		else if(!p->explicit && needexplicit) {
++			if(m)
++				yyerror("need explicit conversion to use %T as %T\n\tmissing %S%hhT",
++					p->src, p->dst, m->sym, m->type);
++			else
++				yyerror("need explicit conversion to use %T as %T",
++					p->src, p->dst);
+ 		}
+-		if(!hasiface(l, r, &m))
+-			yyerror("%T is not %T - missing %S%hhT",
+-				l, r, m->sym, m->type);
+ 	}
+ 	lineno = lno;
+ }
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index bd2fb74f74..440c897795 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -513,7 +513,7 @@ loop:
+ 				walktype(r->left, Erv);
+ 				if(r->left == N)
+ 					break;
+-				et = ifaceas1(r->type, r->left->type);
++				et = ifaceas1(r->type, r->left->type, 1);
+ 				switch(et) {
+ 				case I2T:
+ 					et = I2T2;
+@@ -651,7 +651,7 @@ loop:
+ 		}
+ 
+ 		// interface assignment
+-		et = ifaceas(n->type, l->type);
++		et = ifaceas(n->type, l->type, 1);
+ 		if(et != Inone) {
+ 			indir(n, ifaceop(n->type, l, et));
+ 			goto ret;
+@@ -2812,7 +2812,7 @@ arrayop(Node *n, int top)
+  * return op to use.
+  */
+ int
+-ifaceas1(Type *dst, Type *src)
++ifaceas1(Type *dst, Type *src, int explicit)
+ {
+ 	if(src == T || dst == T)
+ 		return Inone;
+@@ -2821,17 +2821,17 @@ ifaceas1(Type *dst, Type *src)
+ 		if(isinter(src)) {
+ 			if(eqtype(dst, src, 0))
+ 				return I2Isame;
++			if(!isnilinter(dst))
++				ifacecheck(dst, src, lineno, explicit);
+ 			return I2I;
+ 		}
+ 		if(isnilinter(dst))
+ 			return T2I;
+-		ifacecheck(dst, src, lineno);
++		ifacecheck(dst, src, lineno, explicit);
+ 		return T2I;
+ 	}
+ 	if(isinter(src)) {
+-		if(isnilinter(src))
+-			return I2T;
+-		ifacecheck(dst, src, lineno);
++		ifacecheck(dst, src, lineno, explicit);
+ 		return I2T;
+ 	}
+ 	return Inone;
+@@ -2841,11 +2841,11 @@ ifaceas1(Type *dst, Type *src)
+  * treat convert T to T as noop
+  */
+ int
+-ifaceas(Type *dst, Type *src)
++ifaceas(Type *dst, Type *src, int explicit)
+ {
+ 	int et;
+ 
+-	et = ifaceas1(dst, src);
++	et = ifaceas1(dst, src, explicit);
+ 	if(et == I2Isame)
+ 		et = Inone;
+ 	return et;
+@@ -2987,7 +2987,7 @@ convas(Node *n)
+ 	if(eqtype(lt, rt, 0))
+ 		goto out;
+ 
+-	et = ifaceas(lt, rt);
++	et = ifaceas(lt, rt, 0);
+ 	if(et != Inone) {
+ 		n->right = ifaceop(lt, r, et);
+ 		goto out;

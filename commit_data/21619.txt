@@ -17,8 +17,142 @@ Date:   Wed Jan 21 12:27:36 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/3141
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/internal/obj/obj.go  | 12 ++++++------
  src/cmd/internal/obj/util.go | 30 ++++++++++++++++++------------
  src/liblink/objfilego.c      |  2 +-
  3 files changed, 25 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/internal/obj/obj.go b/src/cmd/internal/obj/obj.go
+index 23ecd57e5e..4d8d13c8ec 100644
+--- a/src/cmd/internal/obj/obj.go
++++ b/src/cmd/internal/obj/obj.go
+@@ -37,7 +37,7 @@ func linklinefmt(ctxt *Link, lno0 int, showAll, showFullPath bool) string {
+ 		if lno < h.Line {
+ 			break
+ 		}
+-		if h.Name != "<no name>" {
++		if h.Name != "<pop>" {
+ 			if h.Offset > 0 {
+ 				// #line directive
+ 				if n > 0 && n < int(HISTSZ) {
+@@ -148,7 +148,7 @@ func linkgetline(ctxt *Link, line int32, f **LSym, l *int32) {
+ 		if lno < h.Line {
+ 			break
+ 		}
+-		if h.Name != "<no name>" {
++		if h.Name != "<pop>" {
+ 			if h.Offset > 0 {
+ 				// #line directive
+ 				if n > 0 && n < HISTSZ {
+@@ -214,7 +214,7 @@ func linkgetline(ctxt *Link, line int32, f **LSym, l *int32) {
+ 	*l = lno
+ }
+ 
+-func linklinehist(ctxt *Link, lineno int, f string, offset int) {
++func Linklinehist(ctxt *Link, lineno int, f string, offset int) {
+ 	var h *Hist
+ 
+ 	if false { // debug['f']
+@@ -247,7 +247,7 @@ func linklinehist(ctxt *Link, lineno int, f string, offset int) {
+ 	ctxt.Ehist = h
+ }
+ 
+-func linkprfile(ctxt *Link, line int) {
++func Linkprfile(ctxt *Link, line int) {
+ 	l := int32(line)
+ 	var i int
+ 	var n int
+@@ -259,7 +259,7 @@ func linkprfile(ctxt *Link, line int) {
+ 		if l < h.Line {
+ 			break
+ 		}
+-		if h.Name != "<no name>" {
++		if h.Name != "<pop>" {
+ 			if h.Offset == 0 {
+ 				if n >= 0 && n < HISTSZ {
+ 					a[n] = *h
+@@ -296,7 +296,7 @@ func linkprfile(ctxt *Link, line int) {
+ /*
+  * start a new Prog list.
+  */
+-func linknewplist(ctxt *Link) *Plist {
++func Linknewplist(ctxt *Link) *Plist {
+ 
+ 	var pl *Plist
+ 
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 842e42ba50..2fc910a78f 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -7,7 +7,6 @@ package obj
+ import (
+ 	"bufio"
+ 	"fmt"
+-	"go/build"
+ 	"io"
+ 	"os"
+ 	"strconv"
+@@ -76,16 +75,31 @@ func Bflush(b *Biobuf) error {
+ 	return b.w.Flush()
+ }
+ 
++func envOr(key, value string) string {
++	if x := os.Getenv(key); x != "" {
++		return x
++	}
++	return value
++}
++
+ func Getgoroot() string {
+-	return build.Default.GOROOT
++	return envOr("GOROOT", defaultGOROOT)
+ }
+ 
+ func Getgoarch() string {
+-	return build.Default.GOARCH
++	return envOr("GOARCH", defaultGOARCH)
+ }
+ 
+ func Getgoos() string {
+-	return build.Default.GOOS
++	return envOr("GOOS", defaultGOOS)
++}
++
++func Getgoarm() string {
++	return envOr("GOARM", defaultGOARM)
++}
++
++func Getgoversion() string {
++	return version
+ }
+ 
+ func Atoi(s string) int {
+@@ -93,14 +107,6 @@ func Atoi(s string) int {
+ 	return i
+ }
+ 
+-func Getgoarm() string {
+-	env := os.Getenv("GOARM")
+-	if env != "" {
+-		return env
+-	}
+-	return "5"
+-}
+-
+ func (p *Prog) Line() string {
+ 	return linklinefmt(p.Ctxt, int(p.Lineno), false, false)
+ }
+diff --git a/src/liblink/objfilego.c b/src/liblink/objfilego.c
+index 4d0336e912..0dd1a6ef09 100644
+--- a/src/liblink/objfilego.c
++++ b/src/liblink/objfilego.c
+@@ -328,7 +328,7 @@ printhist(Link *ctxt, Biobuf *bw, Hist *h)
+ 	printptr(ctxt, bw, h);
+ 	printptr(ctxt, bw, h->link);
+ 	if(h->name == nil)
+-		printstr(ctxt, bw, "<no name>");
++		printstr(ctxt, bw, "<pop>");
+ 	else
+ 		printstr(ctxt, bw, h->name);
+ 	printint(ctxt, bw, h->line);

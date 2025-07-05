@@ -8,6 +8,19 @@ Date:   Mon Feb 9 09:26:56 2015 +1100
     Reviewed-on: https://go-review.googlesource.com/4165
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: David du Colombier <0intro@gmail.com>
-
+---
  src/time/zoneinfo_plan9.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/time/zoneinfo_plan9.go b/src/time/zoneinfo_plan9.go
+index 2b8cb659e9..0694f0a990 100644
+--- a/src/time/zoneinfo_plan9.go
++++ b/src/time/zoneinfo_plan9.go
+@@ -7,7 +7,6 @@
+ package time
+ 
+ import (
+-	"errors"
+ 	"runtime"
+ 	"syscall"
+ )

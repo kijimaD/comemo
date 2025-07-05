@@ -13,7 +13,7 @@ Date:   Sat Aug 30 14:53:47 2014 -0400
     R=golang-codereviews, r
     CC=0intro, golang-codereviews, iant, khr
     https://golang.org/cl/140050044
-
+---
  src/pkg/runtime/cgo/setenv.c      |  2 +-
  src/pkg/runtime/env_plan9.c       | 42 -------------------------
  src/pkg/runtime/env_plan9.go      | 58 +++++++++++++++++++++++++++++++++++
@@ -24,3 +24,333 @@ Date:   Sat Aug 30 14:53:47 2014 -0400
  src/pkg/runtime/sys_plan9_amd64.s |  2 +-
  src/pkg/runtime/thunk.s           |  3 ++
  9 files changed, 121 insertions(+), 124 deletions(-)
+
+diff --git a/src/pkg/runtime/cgo/setenv.c b/src/pkg/runtime/cgo/setenv.c
+index 2d03db09f1..ee529904f7 100644
+--- a/src/pkg/runtime/cgo/setenv.c
++++ b/src/pkg/runtime/cgo/setenv.c
+@@ -7,4 +7,4 @@
+ #pragma cgo_import_static x_cgo_setenv
+ 
+ void x_cgo_setenv(char**);
+-void (*_cgo_setenv)(char**) = x_cgo_setenv;
++void (*runtime·_cgo_setenv)(char**) = x_cgo_setenv;
+diff --git a/src/pkg/runtime/env_plan9.c b/src/pkg/runtime/env_plan9.c
+deleted file mode 100644
+index b6e98514f3..0000000000
+--- a/src/pkg/runtime/env_plan9.c
++++ /dev/null
+@@ -1,42 +0,0 @@
+-// Copyright 2012 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "os_GOOS.h"
+-
+-byte*
+-runtime·getenv(int8 *s)
+-{
+-	int32 fd, n, r;
+-	intgo len;
+-	byte file[128];
+-	byte *p;
+-	static byte b[128];
+-
+-	len = runtime·findnull((byte*)s);
+-	if(len > sizeof file-6)
+-		return nil;
+-
+-	runtime·memclr(file, sizeof file);
+-	runtime·memmove((void*)file, (void*)"/env/", 5);
+-	runtime·memmove((void*)(file+5), (void*)s, len);
+-
+-	fd = runtime·open((int8*)file, OREAD, 0);
+-	if(fd < 0)
+-		return nil;
+-	n = runtime·seek(fd, 0, 2);
+-	if(runtime·strcmp((byte*)s, (byte*)"GOTRACEBACK") == 0){
+-		// should not call malloc
+-		if(n >= sizeof b)
+-			return nil;
+-		runtime·memclr(b, sizeof b);
+-		p = b;
+-	}else
+-		p = runtime·mallocgc(n+1, nil, 0);
+-	r = runtime·pread(fd, p, n, 0);
+-	runtime·close(fd);
+-	if(r < 0)
+-		return nil;
+-	return p;
+-}
+diff --git a/src/pkg/runtime/env_plan9.go b/src/pkg/runtime/env_plan9.go
+new file mode 100644
+index 0000000000..85c1c856b0
+--- /dev/null
++++ b/src/pkg/runtime/env_plan9.go
+@@ -0,0 +1,58 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++func getenv(s *byte) *byte {
++	val := gogetenv(gostringnocopy(s))
++	if val == "" {
++		return nil
++	}
++	// Strings found in environment are NUL-terminated.
++	return &bytes(val)[0]
++}
++
++var tracebackbuf [128]byte
++
++func gogetenv(key string) string {
++	var file [128]byte
++	if len(key) > len(file)-6 {
++		return ""
++	}
++
++	copy(file[:], "/env/")
++	copy(file[5:], key)
++
++	fd := open(&file[0], _OREAD, 0)
++	if fd < 0 {
++		return ""
++	}
++	n := seek(fd, 0, 2)
++
++	var p unsafe.Pointer
++
++	// Be sure not to allocate for $GOTRACEBACK.
++	if key == "GOTRACEBACK" {
++		if n >= 128 {
++			return ""
++		}
++		p = unsafe.Pointer(&tracebackbuf[0])
++	} else {
++		p = gomallocgc(uintptr(n+1), nil, 0)
++	}
++
++	r := pread(fd, p, int32(n), 0)
++	close(fd)
++	if r < 0 {
++		return ""
++	}
++
++	var s string
++	sp := (*_string)(unsafe.Pointer(&s))
++	sp.str = (*byte)(p)
++	sp.len = int(r)
++	return s
++}
+diff --git a/src/pkg/runtime/env_posix.c b/src/pkg/runtime/env_posix.c
+deleted file mode 100644
+index 8bc3ffb0a2..0000000000
+--- a/src/pkg/runtime/env_posix.c
++++ /dev/null
+@@ -1,64 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris windows
+-
+-#include "runtime.h"
+-#include "arch_GOARCH.h"
+-#include "malloc.h"
+-
+-Slice syscall·envs;
+-
+-byte*
+-runtime·getenv(int8 *s)
+-{
+-	int32 i, j;
+-	intgo len;
+-	byte *v, *bs;
+-	String* envv;
+-	int32 envc;
+-
+-	bs = (byte*)s;
+-	len = runtime·findnull(bs);
+-	envv = (String*)syscall·envs.array;
+-	if(envv == nil)
+-		runtime·throw("getenv before env init");
+-	envc = syscall·envs.len;
+-	for(i=0; i<envc; i++){
+-		if(envv[i].len <= len)
+-			continue;
+-		v = envv[i].str;
+-		for(j=0; j<len; j++)
+-			if(bs[j] != v[j])
+-				goto nomatch;
+-		if(v[len] != '=')
+-			goto nomatch;
+-		return v+len+1;
+-	nomatch:;
+-	}
+-	return nil;
+-}
+-
+-void (*_cgo_setenv)(byte**);
+-
+-// Update the C environment if cgo is loaded.
+-// Called from syscall.Setenv.
+-void
+-syscall·setenv_c(String k, String v)
+-{
+-	byte *arg[2];
+-
+-	if(_cgo_setenv == nil)
+-		return;
+-
+-	arg[0] = runtime·mallocgc(k.len + 1, nil, 0);
+-	runtime·memmove(arg[0], k.str, k.len);
+-	arg[0][k.len] = 0;
+-
+-	arg[1] = runtime·mallocgc(v.len + 1, nil, 0);
+-	runtime·memmove(arg[1], v.str, v.len);
+-	arg[1][v.len] = 0;
+-
+-	runtime·asmcgocall((void*)_cgo_setenv, arg);
+-}
+diff --git a/src/pkg/runtime/env_posix.go b/src/pkg/runtime/env_posix.go
+new file mode 100644
+index 0000000000..6c04f6cc70
+--- /dev/null
++++ b/src/pkg/runtime/env_posix.go
+@@ -0,0 +1,52 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris windows
++
++package runtime
++
++import "unsafe"
++
++func environ() []string
++
++func getenv(s *byte) *byte {
++	val := gogetenv(gostringnocopy(s))
++	if val == "" {
++		return nil
++	}
++	// Strings found in environment are NUL-terminated.
++	return &bytes(val)[0]
++}
++
++func gogetenv(key string) string {
++	env := environ()
++	if env == nil {
++		gothrow("getenv before env init")
++	}
++	for _, s := range environ() {
++		if len(s) > len(key) && s[len(key)] == '=' && s[:len(key)] == key {
++			return s[len(key)+1:]
++		}
++	}
++	return ""
++}
++
++var _cgo_setenv uintptr // pointer to C function
++
++// Update the C environment if cgo is loaded.
++// Called from syscall.Setenv.
++func syscall_setenv_c(k string, v string) {
++	if _cgo_setenv == 0 {
++		return
++	}
++	arg := [2]unsafe.Pointer{cstring(k), cstring(v)}
++	asmcgocall(unsafe.Pointer(_cgo_setenv), unsafe.Pointer(&arg))
++}
++
++func cstring(s string) unsafe.Pointer {
++	p := make([]byte, len(s)+1)
++	sp := (*_string)(unsafe.Pointer(&s))
++	memmove(unsafe.Pointer(&p[0]), unsafe.Pointer(sp.str), uintptr(len(s)))
++	return unsafe.Pointer(&p[0])
++}
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index 0e48bb9d88..6b74c4fc25 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -149,20 +149,6 @@ func Callers(skip int, pc []uintptr) int {
+ func callers(int32, *uintptr, int32) int32
+ 
+ func getgoroot() string
+-func environ() []string
+-
+-func gogetenv(key string) string {
+-	env := environ()
+-	if env == nil {
+-		gothrow("getenv before env init")
+-	}
+-	for _, s := range env {
+-		if len(s) > len(key) && s[len(key)] == '=' && s[:len(key)] == key {
+-			return s[len(key)+1:]
+-		}
+-	}
+-	return ""
+-}
+ 
+ // GOROOT returns the root of the Go tree.
+ // It uses the GOROOT environment variable, if set,
+diff --git a/src/pkg/runtime/stubs.go b/src/pkg/runtime/stubs.go
+index 237457f684..789aa2e9ff 100644
+--- a/src/pkg/runtime/stubs.go
++++ b/src/pkg/runtime/stubs.go
+@@ -152,7 +152,6 @@ func tracebackothers(gp *g)
+ func cgocallback(fn, frame unsafe.Pointer, framesize uintptr)
+ func gogo(buf *gobuf)
+ func gosave(buf *gobuf)
+-func open(name *byte, mode, perm int32) int32
+ func read(fd int32, p unsafe.Pointer, n int32) int32
+ func close(fd int32) int32
+ func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
+@@ -162,7 +161,6 @@ func asminit()
+ func setg(gg *g)
+ func exit(code int32)
+ func breakpoint()
+-func asmcgocall(fn, arg unsafe.Pointer)
+ func nanotime() int64
+ func usleep(usec uint32)
+ func cputicks() int64
+@@ -247,3 +245,9 @@ func getcallerpc(argp unsafe.Pointer) uintptr
+ 
+ //go:noescape
+ func getcallersp(argp unsafe.Pointer) uintptr
++
++//go:noescape
++func asmcgocall(fn, arg unsafe.Pointer)
++
++//go:noescape
++func open(name *byte, mode, perm int32) int32
+diff --git a/src/pkg/runtime/sys_plan9_amd64.s b/src/pkg/runtime/sys_plan9_amd64.s
+index ea0bd57b20..257f405c8d 100644
+--- a/src/pkg/runtime/sys_plan9_amd64.s
++++ b/src/pkg/runtime/sys_plan9_amd64.s
+@@ -36,7 +36,7 @@ TEXT _seek<>(SB),NOSPLIT,$0
+ // int64 seek(int32, int64, int32)
+ // Convenience wrapper around _seek, the actual system call.
+ TEXT runtime·seek(SB),NOSPLIT,$32
+-	LEAQ	$ret+24(FP), AX
++	LEAQ	ret+24(FP), AX
+ 	MOVL	fd+0(FP), BX
+ 	MOVQ	offset+8(FP), CX
+ 	MOVL	whence+16(FP), DX
+diff --git a/src/pkg/runtime/thunk.s b/src/pkg/runtime/thunk.s
+index 508f50841a..75e52c81c1 100644
+--- a/src/pkg/runtime/thunk.s
++++ b/src/pkg/runtime/thunk.s
+@@ -70,3 +70,6 @@ TEXT reflect·chanrecv(SB), NOSPLIT, $0-0
+ 
+ TEXT runtime∕debug·freeOSMemory(SB), NOSPLIT, $0-0
+ 	JMP	runtime·freeOSMemory(SB)
++
++TEXT syscall·setenv_c(SB), NOSPLIT, $0-0
++	JMP	runtime·syscall_setenv_c(SB)

@@ -8,6 +8,22 @@ Date:   Thu Oct 15 00:27:26 2009 -0700
     DELTA=2  (0 added, 0 deleted, 2 changed)
     OCL=35759
     CL=35761
-
+---
  doc/effective_go.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 7fb605d394..21aa4cf82a 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -1584,8 +1584,8 @@ But why make <code>Counter</code> a struct?  An integer is all that's needed.
+ type Counter int
+ 
+ func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
+-	ctr++;
+-	fmt.Fprintf(c, "counter = %d\n", ctr);
++	*ctr++;
++	fmt.Fprintf(c, "counter = %d\n", *ctr);
+ }
+ </pre>
+ <p>

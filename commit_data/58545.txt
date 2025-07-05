@@ -16,6 +16,24 @@ Date:   Fri Nov 17 13:52:01 2023 +0000
     Auto-Submit: Damien Neil <dneil@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/net/net.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/net.go b/src/net/net.go
+index 5cfc25ffca..396713ce4a 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -624,7 +624,11 @@ type DNSError struct {
+ 	Server      string // server used
+ 	IsTimeout   bool   // if true, timed out; not all timeouts set this
+ 	IsTemporary bool   // if true, error is temporary; not all errors set this
+-	IsNotFound  bool   // if true, host could not be found
++
++	// IsNotFound is set to true when the requested name does not
++	// contain any records of the requested type (data not found),
++	// or the name itself was not found (NXDOMAIN).
++	IsNotFound bool
+ }
+ 
+ func (e *DNSError) Error() string {

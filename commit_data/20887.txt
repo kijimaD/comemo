@@ -10,7 +10,59 @@ Date:   Thu Oct 23 15:51:17 2014 -0400
     R=dvyukov, rsc
     CC=golang-codereviews
     https://golang.org/cl/159330043
-
+---
  src/runtime/lfstack.c | 14 ++++++--------
  src/runtime/runtime.h |  2 +-
  2 files changed, 7 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/lfstack.c b/src/runtime/lfstack.c
+index 57e0af2829..0ced839c23 100644
+--- a/src/runtime/lfstack.c
++++ b/src/runtime/lfstack.c
+@@ -46,7 +46,7 @@ runtime·lfstackpush(uint64 *head, LFNode *node)
+ 	new = (uint64)(uintptr)node|(((uint64)node->pushcnt&CNT_MASK)<<PTR_BITS);
+ 	for(;;) {
+ 		old = runtime·atomicload64(head);
+-		node->next = (LFNode*)(uintptr)(old&PTR_MASK);
++		node->next = old;
+ 		if(runtime·cas64(head, old, new))
+ 			break;
+ 	}
+@@ -55,19 +55,17 @@ runtime·lfstackpush(uint64 *head, LFNode *node)
+ LFNode*
+ runtime·lfstackpop(uint64 *head)
+ {
+-	LFNode *node, *node2;
+-	uint64 old, new;
++	LFNode *node;
++	uint64 old, next;
+ 
+ 	for(;;) {
+ 		old = runtime·atomicload64(head);
+ 		if(old == 0)
+ 			return nil;
+ 		node = (LFNode*)(uintptr)(old&PTR_MASK);
+-		node2 = runtime·atomicloadp(&node->next);
+-		new = 0;
+-		if(node2 != nil)
+-			new = (uint64)(uintptr)node2|(((uint64)node2->pushcnt&CNT_MASK)<<PTR_BITS);
+-		if(runtime·cas64(head, old, new))
++		next = runtime·atomicload64(&node->next);
++
++		if(runtime·cas64(head, old, next))
+ 			return node;
+ 	}
+ }
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index bea7737993..37929c59cf 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -573,7 +573,7 @@ enum {
+ // Lock-free stack node.
+ struct LFNode
+ {
+-	LFNode	*next;
++	uint64	next;
+ 	uintptr	pushcnt;
+ };
+ 

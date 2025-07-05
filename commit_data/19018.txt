@@ -22,7 +22,34 @@ Date:   Wed Apr 2 23:00:40 2014 -0400
     R=golang-codereviews, bradfitz
     CC=golang-codereviews, iant, r
     https://golang.org/cl/83850043
-
+---
  src/pkg/runtime/traceback_arm.c | 2 +-
  src/pkg/runtime/traceback_x86.c | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/traceback_arm.c b/src/pkg/runtime/traceback_arm.c
+index f5cd4133d4..dd77fcdfd8 100644
+--- a/src/pkg/runtime/traceback_arm.c
++++ b/src/pkg/runtime/traceback_arm.c
+@@ -156,7 +156,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 					tracepc -= sizeof(uintptr);
+ 				runtime·printf("%s(", runtime·funcname(f));
+ 				for(i = 0; i < frame.arglen/sizeof(uintptr); i++) {
+-					if(i >= 5) {
++					if(i >= 10) {
+ 						runtime·prints(", ...");
+ 						break;
+ 					}
+diff --git a/src/pkg/runtime/traceback_x86.c b/src/pkg/runtime/traceback_x86.c
+index 4c8074e9e4..93f33cee16 100644
+--- a/src/pkg/runtime/traceback_x86.c
++++ b/src/pkg/runtime/traceback_x86.c
+@@ -217,7 +217,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 					tracepc--;
+ 				runtime·printf("%s(", runtime·funcname(f));
+ 				for(i = 0; i < frame.arglen/sizeof(uintptr); i++) {
+-					if(i >= 5) {
++					if(i >= 10) {
+ 						runtime·prints(", ...");
+ 						break;
+ 					}

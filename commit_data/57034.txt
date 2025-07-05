@@ -14,6 +14,20 @@ Date:   Tue Jun 6 10:57:50 2023 -0700
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/context/context.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/context/context.go b/src/context/context.go
+index 6135a3cd47..ee66b43c85 100644
+--- a/src/context/context.go
++++ b/src/context/context.go
+@@ -686,7 +686,7 @@ func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc) {
+ }
+ 
+ // WithTimeoutCause behaves like [WithTimeout] but also sets the cause of the
+-// returned Context when the timout expires. The returned [CancelFunc] does
++// returned Context when the timeout expires. The returned [CancelFunc] does
+ // not set the cause.
+ func WithTimeoutCause(parent Context, timeout time.Duration, cause error) (Context, CancelFunc) {
+ 	return WithDeadlineCause(parent, time.Now().Add(timeout), cause)

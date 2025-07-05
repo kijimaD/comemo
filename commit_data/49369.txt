@@ -12,7 +12,62 @@ Date:   Sun Aug 15 21:22:38 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/infer.go      |  2 +-
  src/go/types/typestring.go | 22 +++++++++++++---------
  2 files changed, 14 insertions(+), 10 deletions(-)
+
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index eb0d75e46f..ea1057fe07 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -82,7 +82,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeName, targs []Type,
+ 
+ 	// Substitute type arguments for their respective type parameters in params,
+ 	// if any. Note that nil targs entries are ignored by check.subst.
+-	// TODO(gri) Can we avoid this (we're setting known type argumemts below,
++	// TODO(gri) Can we avoid this (we're setting known type arguments below,
+ 	//           but that doesn't impact the isParameterized check for now).
+ 	if params.Len() > 0 {
+ 		smap := makeSubstMap(tparams, targs)
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index 975bba633a..fa29d75fe2 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -249,23 +249,27 @@ func writeTParamList(buf *bytes.Buffer, list []*TypeName, qf Qualifier, visited
+ 	buf.WriteString("[")
+ 	var prev Type
+ 	for i, p := range list {
+-		// TODO(rFindley) support 'any' sugar here.
+-		var b Type = &emptyInterface
+-		if t, _ := p.typ.(*TypeParam); t != nil && t.bound != nil {
+-			b = t.bound
++		// Determine the type parameter and its constraint.
++		// list is expected to hold type parameter names,
++		// but don't crash if that's not the case.
++		tpar, _ := p.typ.(*TypeParam)
++		var bound Type
++		if tpar != nil {
++			bound = tpar.bound // should not be nil but we want to see it if it is
+ 		}
++
+ 		if i > 0 {
+-			if b != prev {
+-				// type bound changed - write previous one before advancing
++			if bound != prev {
++				// bound changed - write previous one before advancing
+ 				buf.WriteByte(' ')
+ 				writeType(buf, prev, qf, visited)
+ 			}
+ 			buf.WriteString(", ")
+ 		}
+-		prev = b
++		prev = bound
+ 
+-		if t, _ := p.typ.(*TypeParam); t != nil {
+-			writeType(buf, t, qf, visited)
++		if tpar != nil {
++			writeType(buf, tpar, qf, visited)
+ 		} else {
+ 			buf.WriteString(p.name)
+ 		}

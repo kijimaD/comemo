@@ -14,7 +14,44 @@ Date:   Sat Jul 1 07:01:11 2023 +0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/walk/builtin.go |  6 +++++-
  test/fixedbugs/issue61127.go             | 13 +++++++++++++
  2 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index 5c924a90c5..786c31313c 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -135,7 +135,11 @@ func walkClear(n *ir.UnaryExpr) ir.Node {
+ 	typ := n.X.Type()
+ 	switch {
+ 	case typ.IsSlice():
+-		return arrayClear(n.X.Pos(), n.X, nil)
++		if n := arrayClear(n.X.Pos(), n.X, nil); n != nil {
++			return n
++		}
++		// If n == nil, we are clearing an array which takes zero memory, do nothing.
++		return ir.NewBlockStmt(n.Pos(), nil)
+ 	case typ.IsMap():
+ 		return mapClear(n.X, reflectdata.TypePtrAt(n.X.Pos(), n.X.Type()))
+ 	}
+diff --git a/test/fixedbugs/issue61127.go b/test/fixedbugs/issue61127.go
+new file mode 100644
+index 0000000000..c8ee5c5ee4
+--- /dev/null
++++ b/test/fixedbugs/issue61127.go
+@@ -0,0 +1,13 @@
++// compile
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var V = []struct{}{}
++
++func main() {
++	clear(V)
++}

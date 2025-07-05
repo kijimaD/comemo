@@ -13,8 +13,64 @@ Date:   Mon Jul 18 12:09:47 2022 -0400
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go                           |  2 +-
  src/cmd/go/internal/modload/load.go                       |  2 +-
  src/cmd/go/testdata/script/work_module_not_in_go_work.txt | 11 +++++++++--
  3 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 2cd61b9dcb..19d02e8bd9 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -2915,7 +2915,7 @@ func mainPackagesOnly(pkgs []*Package, matches []*search.Match) []*Package {
+ 
+ 	var mains []*Package
+ 	for _, pkg := range pkgs {
+-		if pkg.Name == "main" {
++		if pkg.Name == "main" || (pkg.Name == "" && pkg.Error != nil) {
+ 			treatAsMain[pkg.ImportPath] = true
+ 			mains = append(mains, pkg)
+ 			continue
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index ba85dc2438..a36ac9c5bb 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -607,7 +607,7 @@ func resolveLocalPackage(ctx context.Context, dir string, rs *Requirements) (str
+ 	if pkg == "" {
+ 		if inWorkspaceMode() {
+ 			if mr := findModuleRoot(absDir); mr != "" {
+-				return "", fmt.Errorf("directory %s is contained in a module that is not one of the workspace modules listed in go.work. You can add the module to the workspace using go work use %s", base.ShortPath(absDir), base.ShortPath(mr))
++				return "", fmt.Errorf("directory %s is contained in a module that is not one of the workspace modules listed in go.work. You can add the module to the workspace using:\n\tgo work use %s", base.ShortPath(absDir), base.ShortPath(mr))
+ 			}
+ 			return "", fmt.Errorf("directory %s outside modules listed in go.work or their selected dependencies", base.ShortPath(absDir))
+ 		}
+diff --git a/src/cmd/go/testdata/script/work_module_not_in_go_work.txt b/src/cmd/go/testdata/script/work_module_not_in_go_work.txt
+index 9109b2de7f..5d3e64ce80 100644
+--- a/src/cmd/go/testdata/script/work_module_not_in_go_work.txt
++++ b/src/cmd/go/testdata/script/work_module_not_in_go_work.txt
+@@ -7,7 +7,14 @@
+ stderr 'pattern ./...: directory prefix . does not contain modules listed in go.work or their selected dependencies'
+ 
+ ! go list ./a/c
+-stderr 'directory a[\\/]c is contained in a module that is not one of the workspace modules listed in go.work. You can add the module to the workspace using go work use a'
++stderr 'directory a[\\/]c is contained in a module that is not one of the workspace modules listed in go.work. You can add the module to the workspace using:\n\tgo work use a'
++
++! go install ./a/c
++stderr 'directory a[\\/]c is contained in a module that is not one of the workspace modules listed in go.work. You can add the module to the workspace using:\n\tgo work use a'
++
++cd a/c
++! go run .
++stderr 'directory . is contained in a module that is not one of the workspace modules listed in go.work. You can add the module to the workspace using:\n\tgo work use \.\.'
+ 
+ -- go.work --
+ go 1.18
+@@ -20,7 +27,7 @@ go 1.18
+ -- a/a.go --
+ package a
+ -- a/c/c.go --
+-package c
++package main
+ -- b/go.mod --
+ module example.com/b
+ 

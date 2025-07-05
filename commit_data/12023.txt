@@ -7,9 +7,93 @@ Date:   Fri Feb 17 17:52:05 2012 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5671090
-
+---
  test/fixedbugs/bug419.go | 17 +++++++++++++++++
  test/fixedbugs/bug420.go | 14 ++++++++++++++
  test/fixedbugs/bug421.go | 17 +++++++++++++++++
  test/fixedbugs/bug422.go | 11 +++++++++++
  4 files changed, 59 insertions(+)
+
+diff --git a/test/fixedbugs/bug419.go b/test/fixedbugs/bug419.go
+new file mode 100644
+index 0000000000..cfab404eb3
+--- /dev/null
++++ b/test/fixedbugs/bug419.go
+@@ -0,0 +1,17 @@
++// compile
++
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 1811.
++// gccgo failed to compile this.
++
++package p
++
++type E interface{}
++
++type I interface {
++	E
++	E
++}
+diff --git a/test/fixedbugs/bug420.go b/test/fixedbugs/bug420.go
+new file mode 100644
+index 0000000000..02b4349d80
+--- /dev/null
++++ b/test/fixedbugs/bug420.go
+@@ -0,0 +1,14 @@
++// compile
++
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 1757.
++// gccgo failed to compile this.
++
++package main
++
++func main() {
++     (_) = 0
++}
+diff --git a/test/fixedbugs/bug421.go b/test/fixedbugs/bug421.go
+new file mode 100644
+index 0000000000..1fe02375ab
+--- /dev/null
++++ b/test/fixedbugs/bug421.go
+@@ -0,0 +1,17 @@
++// errorcheck
++
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 1927.
++// gccgo failed to issue the first error below.
++
++package main
++
++func main() {
++	println(int(1) == uint(1))	// ERROR "types"
++	var x int = 1
++	var y uint = 1
++	println(x == y)			// ERROR "types"
++}
+diff --git a/test/fixedbugs/bug422.go b/test/fixedbugs/bug422.go
+new file mode 100644
+index 0000000000..6865fe4b63
+--- /dev/null
++++ b/test/fixedbugs/bug422.go
+@@ -0,0 +1,11 @@
++// compile
++
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// gccgo crashed compiling this file.
++
++package p
++
++var V = "a" > "b"

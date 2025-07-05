@@ -12,7 +12,47 @@ Date:   Tue Nov 2 10:14:29 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/360796
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/conversions.go       |  2 ++
  .../types2/testdata/fixedbugs/issue49296.go2         | 20 ++++++++++++++++++++
  2 files changed, 22 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/conversions.go b/src/cmd/compile/internal/types2/conversions.go
+index 0e26a73cf8..4d0ed79c38 100644
+--- a/src/cmd/compile/internal/types2/conversions.go
++++ b/src/cmd/compile/internal/types2/conversions.go
+@@ -18,6 +18,8 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 
+ 	constConvertibleTo := func(T Type, val *constant.Value) bool {
+ 		switch t := asBasic(T); {
++		case t == nil:
++			// nothing to do
+ 		case representableConst(x.val, check, t, val):
+ 			return true
+ 		case isInteger(x.typ) && isString(t):
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49296.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49296.go2
+new file mode 100644
+index 0000000000..8f52acc8a4
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49296.go2
+@@ -0,0 +1,20 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _[
++        T0 any,
++        T1 []int,
++        T2 ~float64 | ~complex128 | chan int,
++]() {
++        _ = T0(nil /* ERROR cannot convert untyped nil to T0 */ )
++        _ = T1(1 /* ERROR cannot convert 1 .* to T1 */ )
++        _ = T2(2 /* ERROR cannot convert 2 .* to T2 */ )
++}
++
++// test case from issue
++func f[T interface{[]int}]() {
++	_ = T(1 /* ERROR cannot convert */ )
++}

@@ -10,8 +10,84 @@ Date:   Fri May 9 12:19:00 2014 -0400
     R=golang-codereviews, rsc
     CC=golang-codereviews
     https://golang.org/cl/97840043
-
+---
  src/cmd/go/test.bash            | 17 +++++++++++++++++
  src/cmd/go/test.go              |  3 ++-
  src/cmd/go/testdata/dep_test.go |  7 +++++++
  3 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index b6da37bd3a..1930c73851 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -708,12 +708,28 @@ if ./testgo test notest >/dev/null 2>&1; then
+ fi
+ unset GOPATH
+ 
++<<<<<<< local
++TEST 'Issue 6844: cmd/go: go test -a foo does not rebuild regexp'
++if ! ./testgo test -x -a -c testdata/dep_test.go 2>deplist; then
++	echo "go test -x -a -c testdata/dep_test.go failed"
++	ok=false
++elif ! grep -q regexp deplist; then
++	echo "go test -x -a -c testdata/dep_test.go did not rebuild regexp"
++=======
+ TEST list template can use context function
+ if ! ./testgo list -f "GOARCH: {{context.GOARCH}}"; then 
+ 	echo unable to use context in list template
++>>>>>>> other
+ 	ok=false
+ fi
++<<<<<<< local
++rm -f deplist
++rm -f deps.test
++=======
++>>>>>>> other
+ 
++<<<<<<< local
++=======
+ TEST build -i installs dependencies
+ d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
+ export GOPATH=$d
+@@ -748,6 +764,7 @@ fi
+ rm -rf $d
+ unset GOPATH
+ 
++>>>>>>> other
+ # clean up
+ if $started; then stop; fi
+ rm -rf testdata/bin testdata/bin1
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index d206da8dcd..2f96ae2943 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -418,6 +418,7 @@ func runTest(cmd *Command, args []string) {
+ 			var coverFiles []string
+ 			coverFiles = append(coverFiles, p.GoFiles...)
+ 			coverFiles = append(coverFiles, p.CgoFiles...)
++			coverFiles = append(coverFiles, p.TestGoFiles...)
+ 			p.coverVars = declareCoverVars(p.ImportPath, coverFiles...)
+ 		}
+ 	}
+@@ -676,7 +677,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 	stk.push("testmain")
+ 	for dep := range testMainDeps {
+ 		if ptest.ImportPath != dep {
+-			p1 := loadImport("testing", "", &stk, nil)
++			p1 := loadImport(dep, "", &stk, nil)
+ 			if p1.Error != nil {
+ 				return nil, nil, nil, p1.Error
+ 			}
+diff --git a/src/cmd/go/testdata/dep_test.go b/src/cmd/go/testdata/dep_test.go
+new file mode 100644
+index 0000000000..0c53ac4f96
+--- /dev/null
++++ b/src/cmd/go/testdata/dep_test.go
+@@ -0,0 +1,7 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package deps
++
++import _ "testing"

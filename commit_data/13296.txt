@@ -7,7 +7,32 @@ Date:   Wed Jun 6 16:05:27 2012 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6303047
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 121cf83453..c609924f2d 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -135,6 +135,7 @@ Luca Greco <luca.greco@alcacoop.it>
+ Lucio De Re <lucio.dere@gmail.com>
+ Luit van Drongelen <luitvd@gmail.com>
+ Markus Duft <markus.duft@salomon.at>
++Markus Sonderegger <marraison@gmail.com>
+ Martin Neubauer <m.ne@gmx.net>
+ Mateusz Czapliński <czapkofan@gmail.com>
+ Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 10f060d2cb..c8ffda1713 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -202,6 +202,7 @@ Luuk van Dijk <lvd@golang.org> <lvd@google.com>
+ Marcel van Lohuizen <mpvl@golang.org>
+ Mark Zavislak <zavislak@google.com>
+ Markus Duft <markus.duft@salomon.at>
++Markus Sonderegger <marraison@gmail.com>
+ Martin Neubauer <m.ne@gmx.net>
+ Mateusz Czapliński <czapkofan@gmail.com>
+ Mathieu Lonjaret <mathieu.lonjaret@gmail.com>

@@ -16,7 +16,7 @@ Date:   Fri Feb 27 13:50:26 2015 -0800
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/5a/a.y                            |  4 ++--
  src/cmd/5a/y.go                           |  4 ++--
  src/cmd/asm/internal/asm/operand_test.go  | 11 +++++------
@@ -29,3 +29,261 @@ Date:   Fri Feb 27 13:50:26 2015 -0800
  src/cmd/internal/obj/pass.go              |  7 +++++--
  src/cmd/internal/obj/util.go              | 28 ++++++++++++++++++++++++++++
  11 files changed, 59 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/5a/a.y b/src/cmd/5a/a.y
+index 39fab8fa26..c1ca3beaa8 100644
+--- a/src/cmd/5a/a.y
++++ b/src/cmd/5a/a.y
+@@ -179,7 +179,7 @@ inst:
+ 		var g obj.Addr
+ 
+ 		g = nullgen;
+-		g.Type = obj.TYPE_CONST;
++		g.Type = obj.TYPE_REGLIST;
+ 		g.Offset = int64($6);
+ 		outcode($1, $2, &$3, 0, &g);
+ 	}
+@@ -188,7 +188,7 @@ inst:
+ 		var g obj.Addr
+ 
+ 		g = nullgen;
+-		g.Type = obj.TYPE_CONST;
++		g.Type = obj.TYPE_REGLIST;
+ 		g.Offset = int64($4);
+ 		outcode($1, $2, &g, 0, &$7);
+ 	}
+diff --git a/src/cmd/5a/y.go b/src/cmd/5a/y.go
+index 7c7de64b15..a79f61d316 100644
+--- a/src/cmd/5a/y.go
++++ b/src/cmd/5a/y.go
+@@ -785,7 +785,7 @@ yydefault:
+ 			var g obj.Addr
+ 
+ 			g = nullgen
+-			g.Type = obj.TYPE_CONST
++			g.Type = obj.TYPE_REGLIST
+ 			g.Offset = int64(yyDollar[6].lval)
+ 			outcode(yyDollar[1].lval, yyDollar[2].lval, &yyDollar[3].addr, 0, &g)
+ 		}
+@@ -796,7 +796,7 @@ yydefault:
+ 			var g obj.Addr
+ 
+ 			g = nullgen
+-			g.Type = obj.TYPE_CONST
++			g.Type = obj.TYPE_REGLIST
+ 			g.Offset = int64(yyDollar[4].lval)
+ 			outcode(yyDollar[1].lval, yyDollar[2].lval, &g, 0, &yyDollar[7].addr)
+ 		}
+diff --git a/src/cmd/asm/internal/asm/operand_test.go b/src/cmd/asm/internal/asm/operand_test.go
+index e8d3cda489..fd0331eb2c 100644
+--- a/src/cmd/asm/internal/asm/operand_test.go
++++ b/src/cmd/asm/internal/asm/operand_test.go
+@@ -316,12 +316,11 @@ var armOperandTests = []operandTest{
+ 	{"R6", "R6"},
+ 	{"R7", "R7"},
+ 	{"R8", "R8"},
+-	// TODO: Fix Dconv to handle these. MOVM print shows the registers.
+-	{"[R0,R1,g,R15]", "$33795"},
+-	{"[R0-R7]", "$255"},
+-	{"[R(0)-R(7)]", "$255"},
+-	{"[R0]", "$1"},
+-	{"[R1-R12]", "$8190"},
++	{"[R0,R1,g,R15]", "[R0,R1,g,R15]"},
++	{"[R0-R7]", "[R0,R1,R2,R3,R4,R5,R6,R7]"},
++	{"[R(0)-R(7)]", "[R0,R1,R2,R3,R4,R5,R6,R7]"},
++	{"[R0]", "[R0]"},
++	{"[R1-R12]", "[R1,R2,R3,R4,R5,R6,R7,R8,R9,g,R11,R12]"},
+ 	{"armCAS64(SB)", "armCAS64(SB)"},
+ 	{"asmcgocall<>(SB)", "asmcgocall<>(SB)"},
+ 	{"c+28(FP)", "c+28(FP)"},
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index 9048cca984..27d311293f 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -714,7 +714,7 @@ func (p *Parser) registerList(a *obj.Addr) {
+ 			p.get(',')
+ 		}
+ 	}
+-	a.Type = obj.TYPE_CONST
++	a.Type = obj.TYPE_REGLIST
+ 	a.Offset = int64(bits)
+ }
+ 
+diff --git a/src/cmd/asm/internal/asm/testdata/arm.out b/src/cmd/asm/internal/asm/testdata/arm.out
+index 1c4c7e79f6..9e6f080069 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm.out
++++ b/src/cmd/asm/internal/asm/testdata/arm.out
+@@ -28,10 +28,10 @@
+ 110 00028 (testdata/arm.s:110)	CMP.S	$1,R2,
+ 111 00029 (testdata/arm.s:111)	CMP.S	R1<<R2,R3,
+ 112 00030 (testdata/arm.s:112)	CMP.S	R1,R2,
+-126 00031 (testdata/arm.s:126)	MOVM	(R1),[R2,R5,R8,R10]
++126 00031 (testdata/arm.s:126)	MOVM	(R1),[R2,R5,R8,g]
+ 127 00032 (testdata/arm.s:127)	MOVM	(R1),[R2,R3,R4,R5]
+ 128 00033 (testdata/arm.s:128)	MOVM.S	(R1),[R2]
+-139 00034 (testdata/arm.s:139)	MOVM	[R2,R5,R8,R10],(R1)
++139 00034 (testdata/arm.s:139)	MOVM	[R2,R5,R8,g],(R1)
+ 140 00035 (testdata/arm.s:140)	MOVM	[R2,R3,R4,R5],(R1)
+ 141 00036 (testdata/arm.s:141)	MOVM.S	[R2],(R1)
+ 150 00037 (testdata/arm.s:150)	STREX.S	(R2),R1,R3
+diff --git a/src/cmd/internal/obj/arm/5.out.go b/src/cmd/internal/obj/arm/5.out.go
+index bebc091a88..d4b0170e58 100644
+--- a/src/cmd/internal/obj/arm/5.out.go
++++ b/src/cmd/internal/obj/arm/5.out.go
+@@ -106,6 +106,7 @@ const (
+ 	C_REG
+ 	C_REGREG
+ 	C_REGREG2
++	C_REGLIST
+ 	C_SHIFT
+ 	C_FREG
+ 	C_PSR
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 236b2418ce..f82b737b5a 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -161,8 +161,8 @@ var optab = []Optab{
+ 	Optab{AMOVW, C_PSR, C_NONE, C_REG, 35, 4, 0, 0, 0},
+ 	Optab{AMOVW, C_REG, C_NONE, C_PSR, 36, 4, 0, 0, 0},
+ 	Optab{AMOVW, C_RCON, C_NONE, C_PSR, 37, 4, 0, 0, 0},
+-	Optab{AMOVM, C_LCON, C_NONE, C_SOREG, 38, 4, 0, 0, 0},
+-	Optab{AMOVM, C_SOREG, C_NONE, C_LCON, 39, 4, 0, 0, 0},
++	Optab{AMOVM, C_REGLIST, C_NONE, C_SOREG, 38, 4, 0, 0, 0},
++	Optab{AMOVM, C_SOREG, C_NONE, C_REGLIST, 39, 4, 0, 0, 0},
+ 	Optab{ASWPW, C_SOREG, C_REG, C_REG, 40, 4, 0, 0, 0},
+ 	Optab{ARFE, C_NONE, C_NONE, C_NONE, 41, 4, 0, 0, 0},
+ 	Optab{AMOVF, C_FREG, C_NONE, C_FAUTO, 50, 4, REGSP, 0, 0},
+@@ -1040,6 +1040,9 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
+ 	case obj.TYPE_REGREG2:
+ 		return C_REGREG2
+ 
++	case obj.TYPE_REGLIST:
++		return C_REGLIST
++
+ 	case obj.TYPE_SHIFT:
+ 		return C_SHIFT
+ 
+diff --git a/src/cmd/internal/obj/arm/list5.go b/src/cmd/internal/obj/arm/list5.go
+index 1570948575..70280f3876 100644
+--- a/src/cmd/internal/obj/arm/list5.go
++++ b/src/cmd/internal/obj/arm/list5.go
+@@ -83,18 +83,7 @@ func Pconv(p *obj.Prog) string {
+ 	if s&C_UBIT != 0 { /* ambiguous with FBIT */
+ 		sc += ".U"
+ 	}
+-	if a == AMOVM {
+-		if p.From.Type == obj.TYPE_CONST {
+-			str = fmt.Sprintf("%.5d (%v)\t%v%s\t%v,%v",
+-				p.Pc, p.Line(), Aconv(a), sc, RAconv(&p.From), obj.Dconv(p, &p.To))
+-		} else if p.To.Type == obj.TYPE_CONST {
+-			str = fmt.Sprintf("%.5d (%v)\t%v%s\t%v,%v",
+-				p.Pc, p.Line(), Aconv(a), sc, obj.Dconv(p, &p.From), RAconv(&p.To))
+-		} else {
+-			str = fmt.Sprintf("%.5d (%v)\t%v%s\t%v,%v",
+-				p.Pc, p.Line(), Aconv(a), sc, obj.Dconv(p, &p.From), obj.Dconv(p, &p.To))
+-		}
+-	} else if a == obj.ADATA {
++	if a == obj.ADATA {
+ 		str = fmt.Sprintf("%.5d (%v)\t%v\t%v/%d,%v",
+ 			p.Pc, p.Line(), Aconv(a), obj.Dconv(p, &p.From), p.From3.Offset, obj.Dconv(p, &p.To))
+ 	} else if p.As == obj.ATEXT {
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index a2baec4021..990072937f 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -383,6 +383,12 @@ type Pciter struct {
+ //			reg = first register
+ //			offset = second register
+ //
++//	[reg, reg, reg-reg]
++//		Register list for ARM.
++//		Encoding:
++//			type = TYPE_REGLIST
++//			offset = bit mask of registers in list; R0 is low bit.
++//
+ //	reg, reg
+ //		TYPE_REGREG2, to be removed.
+ //
+@@ -409,6 +415,7 @@ const (
+ 	TYPE_REGREG
+ 	TYPE_REGREG2
+ 	TYPE_INDIR
++	TYPE_REGLIST
+ )
+ 
+ // TODO(rsc): Describe prog.
+diff --git a/src/cmd/internal/obj/pass.go b/src/cmd/internal/obj/pass.go
+index b03cd431a9..50d21e9e00 100644
+--- a/src/cmd/internal/obj/pass.go
++++ b/src/cmd/internal/obj/pass.go
+@@ -102,7 +102,7 @@ func checkaddr(ctxt *Link, p *Prog, a *Addr) {
+ 		}
+ 		return
+ 
+-		// TODO(rsc): After fixing PINSRQ, check a->offset != 0 too.
++	// TODO(rsc): After fixing PINSRQ, check a->offset != 0 too.
+ 	// TODO(rsc): After fixing SHRQ, check a->index != 0 too.
+ 	case TYPE_REG:
+ 		if a.Scale != 0 || a.Name != 0 || a.Sym != nil {
+@@ -134,7 +134,10 @@ func checkaddr(ctxt *Link, p *Prog, a *Addr) {
+ 	case TYPE_REGREG2:
+ 		return
+ 
+-		// Expect sym and name to be set, nothing else.
++	case TYPE_REGLIST:
++		return
++
++	// Expect sym and name to be set, nothing else.
+ 	// Technically more is allowed, but this is only used for *name(SB).
+ 	case TYPE_INDIR:
+ 		if a.Reg != 0 || a.Index != 0 || a.Scale != 0 || a.Name == 0 || a.Offset != 0 || a.Sym == nil || a.U.Bits != 0 {
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 4a7578b257..1fda2c32a6 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -362,6 +362,9 @@ func Dconv(p *Prog, a *Addr) string {
+ 
+ 	case TYPE_REGREG2:
+ 		str = fmt.Sprintf("%v, %v", Rconv(int(a.Reg)), Rconv(int(a.Offset)))
++
++	case TYPE_REGLIST:
++		str = regListConv(int(a.Offset))
+ 	}
+ 
+ 	return str
+@@ -438,6 +441,8 @@ const (
+ 	RBaseARM   = 3 * 1024
+ 	RBasePPC64 = 4 * 1024
+ 	// The next free base is 8*1024 (PPC64 has many registers).
++	// Alternatively, the next architecture, with an ordinary
++	// number of registers, could go under PPC64.
+ )
+ 
+ // RegisterRegister binds a pretty-printer (Rconv) for register
+@@ -459,3 +464,26 @@ func Rconv(reg int) string {
+ 	}
+ 	return fmt.Sprintf("R???%d", reg)
+ }
++
++func regListConv(list int) string {
++	str := ""
++
++	for i := 0; i < 16; i++ { // TODO: 16 is ARM-specific.
++		if list&(1<<uint(i)) != 0 {
++			if str == "" {
++				str += "["
++			} else {
++				str += ","
++			}
++			// This is ARM-specific; R10 is g.
++			if i == 10 {
++				str += "g"
++			} else {
++				str += fmt.Sprintf("R%d", i)
++			}
++		}
++	}
++
++	str += "]"
++	return str
++}

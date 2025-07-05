@@ -22,7 +22,101 @@ Date:   Wed Aug 7 13:38:09 2019 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/httputil/dump.go      | 22 +++++++++++++++++-----
  src/net/http/httputil/dump_test.go | 29 +++++++++++++++++++++++++++++
  2 files changed, 46 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/http/httputil/dump.go b/src/net/http/httputil/dump.go
+index 81c2795156..c97be066d7 100644
+--- a/src/net/http/httputil/dump.go
++++ b/src/net/http/httputil/dump.go
+@@ -24,7 +24,7 @@ import (
+ // It returns an error if the initial slurp of all bytes fails. It does not attempt
+ // to make the returned ReadClosers have identical error-matching behavior.
+ func drainBody(b io.ReadCloser) (r1, r2 io.ReadCloser, err error) {
+-	if b == http.NoBody {
++	if b == nil || b == http.NoBody {
+ 		// No copying needed. Preserve the magic sentinel meaning of NoBody.
+ 		return http.NoBody, http.NoBody, nil
+ 	}
+@@ -60,16 +60,28 @@ func (b neverEnding) Read(p []byte) (n int, err error) {
+ 	return len(p), nil
+ }
+ 
++// outGoingLength is a copy of the unexported
++// (*http.Request).outgoingLength method.
++func outgoingLength(req *http.Request) int64 {
++	if req.Body == nil || req.Body == http.NoBody {
++		return 0
++	}
++	if req.ContentLength != 0 {
++		return req.ContentLength
++	}
++	return -1
++}
++
+ // DumpRequestOut is like DumpRequest but for outgoing client requests. It
+ // includes any headers that the standard http.Transport adds, such as
+ // User-Agent.
+ func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
+ 	save := req.Body
+ 	dummyBody := false
+-	if !body || req.Body == nil {
+-		req.Body = nil
+-		if req.ContentLength != 0 {
+-			req.Body = ioutil.NopCloser(io.LimitReader(neverEnding('x'), req.ContentLength))
++	if !body {
++		contentLength := outgoingLength(req)
++		if contentLength != 0 {
++			req.Body = ioutil.NopCloser(io.LimitReader(neverEnding('x'), contentLength))
+ 			dummyBody = true
+ 		}
+ 	} else {
+diff --git a/src/net/http/httputil/dump_test.go b/src/net/http/httputil/dump_test.go
+index 85731d36f4..ead56bc172 100644
+--- a/src/net/http/httputil/dump_test.go
++++ b/src/net/http/httputil/dump_test.go
+@@ -17,6 +17,12 @@ import (
+ 	"testing"
+ )
+ 
++type eofReader struct{}
++
++func (n eofReader) Close() error { return nil }
++
++func (n eofReader) Read([]byte) (int, error) { return 0, io.EOF }
++
+ type dumpTest struct {
+ 	// Either Req or GetReq can be set/nil but not both.
+ 	Req    *http.Request
+@@ -204,6 +210,29 @@ var dumpTests = []dumpTest{
+ 			"Content-Length: 0\r\n" +
+ 			"Accept-Encoding: gzip\r\n\r\n",
+ 	},
++
++	// Issue 34504: a non-nil Body without ContentLength set should be chunked
++	{
++		Req: &http.Request{
++			Method: "PUT",
++			URL: &url.URL{
++				Scheme: "http",
++				Host:   "post.tld",
++				Path:   "/test",
++			},
++			ContentLength: 0,
++			Proto:         "HTTP/1.1",
++			ProtoMajor:    1,
++			ProtoMinor:    1,
++			Body:          &eofReader{},
++		},
++		NoBody: true,
++		WantDumpOut: "PUT /test HTTP/1.1\r\n" +
++			"Host: post.tld\r\n" +
++			"User-Agent: Go-http-client/1.1\r\n" +
++			"Transfer-Encoding: chunked\r\n" +
++			"Accept-Encoding: gzip\r\n\r\n",
++	},
+ }
+ 
+ func TestDumpRequest(t *testing.T) {

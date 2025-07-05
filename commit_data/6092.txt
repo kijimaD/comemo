@@ -15,9 +15,98 @@ Date:   Wed Aug 25 17:54:10 2010 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/1972046
-
+---
  src/cmd/make.bash |  2 +-
  src/make.bash     |  3 ++-
  src/pkg/Makefile  | 18 ++++++++++++++++++
  src/pkg/deps.bash |  3 ++-
  4 files changed, 23 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/make.bash b/src/cmd/make.bash
+index 18ca845edd..63da74625c 100755
+--- a/src/cmd/make.bash
++++ b/src/cmd/make.bash
+@@ -19,7 +19,7 @@ gomake enam.o
+ cd ..
+ 
+ # Note: commands written in Go are not listed here.
+-# They are in ../make.bash so that they can be built
++# They are in ../pkg/Makefile so that they can be built
+ # after the Go libraries on which they depend.
+ for i in cc ${O}l ${O}a ${O}c gc ${O}g cov godefs gopack gotest nm prof
+ do
+diff --git a/src/make.bash b/src/make.bash
+index 99155bd0f9..ad5c5444b4 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -52,7 +52,8 @@ fi
+ )
+ bash "$GOROOT"/src/clean.bash
+ 
+-for i in lib9 libbio libmach cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt cmd/goinstall cmd/goyacc cmd/hgpatch
++# pkg builds libcgo and the Go programs in cmd.
++for i in lib9 libbio libmach cmd pkg
+ do
+ 	case "$i-$GOOS-$GOARCH" in
+ 	libcgo-nacl-* | cmd/*-nacl-* | libcgo-linux-arm)
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 67b7724b36..9d2d1224a7 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -123,6 +123,14 @@ DIRS=\
+ 	utf8\
+ 	websocket\
+ 	xml\
++	../libcgo\
++	../cmd/cgo\
++	../cmd/ebnflint\
++	../cmd/godoc\
++	../cmd/gofmt\
++	../cmd/goinstall\
++	../cmd/goyacc\
++	../cmd/hgpatch\
+ 
+ NOTEST=\
+ 	debug/proc\
+@@ -140,6 +148,14 @@ NOTEST=\
+ 	runtime/pprof\
+ 	syscall\
+ 	testing/iotest\
++	../libcgo\
++	../cmd/cgo\
++	../cmd/ebnflint\
++	../cmd/godoc\
++	../cmd/gofmt\
++	../cmd/goinstall\
++	../cmd/goyacc\
++	../cmd/hgpatch\
+ 
+ NOBENCH=\
+ 	container/vector\
+@@ -211,3 +227,5 @@ deps:
+ 	./deps.bash
+ 
+ -include Make.deps
++
++../cmd/cgo.install: ../libcgo.install
+diff --git a/src/pkg/deps.bash b/src/pkg/deps.bash
+index c8406d39cf..0acaef678a 100755
+--- a/src/pkg/deps.bash
++++ b/src/pkg/deps.bash
+@@ -13,7 +13,7 @@ fi
+ 
+ # Get list of directories from Makefile
+ dirs=$(sed '1,/^DIRS=/d; /^$/,$d; s/\\//g' Makefile)
+-dirpat=$(echo $dirs | sed 's/ /|/g; s/.*/^(&)$/')
++dirpat=$(echo $dirs C | sed 's/ /|/g; s/.*/^(&)$/')
+ 
+ for dir in $dirs; do (
+ 	cd $dir || exit 1
+@@ -31,6 +31,7 @@ for dir in $dirs; do (
+ 		egrep "$dirpat" |
+ 		grep -v "^$dir\$" |
+ 		sed 's/$/.install/' |
++		sed 's;^C\.install;../cmd/cgo.install;' |
+ 		sort -u
+ 	)
+ 

@@ -11,7 +11,89 @@ Date:   Mon Aug 29 09:35:13 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4973043
-
+---
  src/pkg/runtime/openbsd/amd64/sys.s | 10 +++++-----
  src/pkg/runtime/openbsd/thread.c    | 16 ++++++++--------
  2 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/runtime/openbsd/amd64/sys.s b/src/pkg/runtime/openbsd/amd64/sys.s
+index 2a238dffb4..38b3dbc9c0 100644
+--- a/src/pkg/runtime/openbsd/amd64/sys.s
++++ b/src/pkg/runtime/openbsd/amd64/sys.s
+@@ -55,10 +55,10 @@ TEXT runtime·rfork_thread(SB),7,$0
+ 	// It shouldn't return.  If it does, exit
+ 	MOVL	$302, AX		// sys_threxit
+ 	SYSCALL
+-	JMP	-3(PC)  // keep exiting
++	JMP	-3(PC)			// keep exiting
+ 
+-TEXT runtime·sys_sched_yield(SB),7,$0
+-	MOVL $298, AX
++TEXT runtime·osyield(SB),7,$0
++	MOVL $298, AX			// sys_sched_yield
+ 	SYSCALL
+ 	RET
+ 
+@@ -123,11 +123,11 @@ TEXT runtime·gettime(SB),7,$32
+ 	MOVL	$116, AX		// sys_gettimeofday
+ 	SYSCALL
+ 
+-	MOVQ	8(SP), BX	// sec
++	MOVQ	8(SP), BX		// sec
+ 	MOVQ	sec+0(FP), DI
+ 	MOVQ	BX, (DI)
+ 
+-	MOVL	16(SP), BX	// usec
++	MOVL	16(SP), BX		// usec
+ 	MOVQ	usec+8(FP), DI
+ 	MOVL	BX, (DI)
+ 	RET
+diff --git a/src/pkg/runtime/openbsd/thread.c b/src/pkg/runtime/openbsd/thread.c
+index 7e9ba5d67e..909db8cdc9 100644
+--- a/src/pkg/runtime/openbsd/thread.c
++++ b/src/pkg/runtime/openbsd/thread.c
+@@ -9,19 +9,20 @@
+ extern SigTab runtime·sigtab[];
+ 
+ extern int64 runtime·rfork_thread(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
+-extern void runtime·sys_sched_yield(void);
++
++enum
++{
++	ENOTSUP = 91,
++};
+ 
+ // Basic spinlocks using CAS. We can improve on these later.
+ static void
+ lock(Lock *l)
+ {
+-	uint32 v;
+-	int32 ret;
+-
+ 	for(;;) {
+ 		if(runtime·cas(&l->key, 0, 1))
+ 			return;
+-		runtime·sys_sched_yield();
++		runtime·osyield();
+ 	}
+ }
+ 
+@@ -29,7 +30,6 @@ static void
+ unlock(Lock *l)
+ {
+ 	uint32 v;
+-	int32 ret;
+ 
+ 	for (;;) {
+ 		v = l->key;
+@@ -103,8 +103,8 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
+ 
+ 	if((ret = runtime·rfork_thread(flags, stk, m, g, fn)) < 0) {
+ 		runtime·printf("runtime: failed to create new OS thread (have %d already; errno=%d)\n", runtime·mcount() - 1, -ret);
+-		runtime·printf("runtime: is kern.rthreads disabled?\n");
+-
++		if (ret == -ENOTSUP)
++			runtime·printf("runtime: is kern.rthreads disabled?\n");
+ 		runtime·throw("runtime.newosproc");
+ 	}
+ }

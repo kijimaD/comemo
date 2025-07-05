@@ -8,6 +8,21 @@ Date:   Mon Dec 21 11:02:18 2009 -0800
     
     R=ken2
     https://golang.org/cl/180105
-
+---
  src/cmd/8g/reg.c | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index 37a3c2e68e..66e1bc2f36 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -239,6 +239,9 @@ regopt(Prog *firstp)
+ 		case ACMPB:
+ 		case ACMPL:
+ 		case ACMPW:
++		case ATESTB:
++		case ATESTL:
++		case ATESTW:
+ 			for(z=0; z<BITS; z++)
+ 				r->use2.b[z] |= bit.b[z];
+ 			break;

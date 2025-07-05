@@ -10,7 +10,131 @@ Date:   Fri Apr 25 09:46:07 2014 -0600
     R=golang-codereviews, crawshaw
     CC=golang-codereviews
     https://golang.org/cl/90620045
-
+---
  src/pkg/bufio/bufio.go      | 23 +++++++++++++++----
  src/pkg/bufio/bufio_test.go | 56 +++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 74 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/bufio/bufio.go b/src/pkg/bufio/bufio.go
+index ecd2708f78..61ef261910 100644
+--- a/src/pkg/bufio/bufio.go
++++ b/src/pkg/bufio/bufio.go
+@@ -274,26 +274,36 @@ func (b *Reader) ReadSlice(delim byte) (line []byte, err error) {
+ 	for {
+ 		// Search buffer.
+ 		if i := bytes.IndexByte(b.buf[b.r:b.w], delim); i >= 0 {
+-			line := b.buf[b.r : b.r+i+1]
++			line = b.buf[b.r : b.r+i+1]
+ 			b.r += i + 1
+-			return line, nil
++			break
+ 		}
+ 
+ 		// Pending error?
+ 		if b.err != nil {
+-			line := b.buf[b.r:b.w]
++			line = b.buf[b.r:b.w]
+ 			b.r = b.w
+-			return line, b.readErr()
++			err = b.readErr()
++			break
+ 		}
+ 
+ 		// Buffer full?
+ 		if n := b.Buffered(); n >= len(b.buf) {
+ 			b.r = b.w
+-			return b.buf, ErrBufferFull
++			line = b.buf
++			err = ErrBufferFull
++			break
+ 		}
+ 
+ 		b.fill() // buffer is not full
+ 	}
++
++	// Handle last byte, if any.
++	if i := len(line) - 1; i >= 0 {
++		b.lastByte = int(line[i])
++	}
++
++	return
+ }
+ 
+ // ReadLine is a low-level line-reading primitive. Most callers should use
+@@ -309,6 +319,9 @@ func (b *Reader) ReadSlice(delim byte) (line []byte, err error) {
+ //
+ // The text returned from ReadLine does not include the line end ("\r\n" or "\n").
+ // No indication or error is given if the input ends without a final line end.
++// Calling UnreadByte after ReadLine will always unread the last byte read
++// (possibly a character belonging to the line end) even if that byte is not
++// part of the line returned by ReadLine.
+ func (b *Reader) ReadLine() (line []byte, isPrefix bool, err error) {
+ 	line, err = b.ReadSlice('\n')
+ 	if err == ErrBufferFull {
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index 406eb153ba..49803009f9 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -348,6 +348,62 @@ func TestUnreadByteMultiple(t *testing.T) {
+ 	}
+ }
+ 
++func TestUnreadByteOthers(t *testing.T) {
++	// A list of readers to use in conjuction with UnreadByte.
++	var readers = []func(*Reader, byte) ([]byte, error){
++		(*Reader).ReadBytes,
++		(*Reader).ReadSlice,
++		func(r *Reader, delim byte) ([]byte, error) {
++			data, err := r.ReadString(delim)
++			return []byte(data), err
++		},
++		// ReadLine doesn't fit the data/pattern easily
++		// so we leave it out. It should be covered via
++		// the ReadSlice test since ReadLine simply calls
++		// ReadSlice, and it's that function that handles
++		// the last byte.
++	}
++
++	// Try all readers with UnreadByte.
++	for rno, read := range readers {
++		// Some input data that is longer than the minimum reader buffer size.
++		const n = 10
++		var buf bytes.Buffer
++		for i := 0; i < n; i++ {
++			buf.WriteString("abcdefg")
++		}
++
++		r := NewReaderSize(&buf, minReadBufferSize)
++		readTo := func(delim byte, want string) {
++			data, err := read(r, delim)
++			if err != nil {
++				t.Fatalf("#%d: unexpected error reading to %c: %v", rno, delim, err)
++			}
++			if got := string(data); got != want {
++				t.Fatalf("#%d: got %q, want %q", rno, got, want)
++			}
++		}
++
++		// Read the data with occasional UnreadByte calls.
++		for i := 0; i < n; i++ {
++			readTo('d', "abcd")
++			for j := 0; j < 3; j++ {
++				if err := r.UnreadByte(); err != nil {
++					t.Fatalf("#%d: unexpected error on UnreadByte: %v", rno, err)
++				}
++				readTo('d', "d")
++			}
++			readTo('g', "efg")
++		}
++
++		// All data should have been read.
++		_, err := r.ReadByte()
++		if err != io.EOF {
++			t.Errorf("#%d: got error %v; want EOF", rno, err)
++		}
++	}
++}
++
+ // Test that UnreadRune fails if the preceding operation was not a ReadRune.
+ func TestUnreadRuneError(t *testing.T) {
+ 	buf := make([]byte, 3) // All runes in this test are 3 bytes long

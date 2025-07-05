@@ -19,7 +19,7 @@ Date:   Tue Apr 13 23:30:19 2021 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/asm_amd64.s           | 21 +++++---------
  src/runtime/cgo/abi_amd64.h       | 32 +++++++++++++++++++-
  src/runtime/cgo/asm_amd64.s       | 30 ++++---------------
@@ -33,3 +33,681 @@ Date:   Tue Apr 13 23:30:19 2021 -0400
  src/runtime/sys_netbsd_amd64.s    | 38 ++++++++++--------------
  src/runtime/sys_openbsd_amd64.s   | 61 ++++++++++++---------------------------
  12 files changed, 152 insertions(+), 238 deletions(-)
+
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 1c74d70d36..ca6b1501d1 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -6,6 +6,7 @@
+ #include "go_tls.h"
+ #include "funcdata.h"
+ #include "textflag.h"
++#include "cgo/abi_amd64.h"
+ 
+ // _rt0_amd64 is common startup code for most amd64 systems when using
+ // internal linking. This is the entry point for the program from the
+@@ -28,14 +29,9 @@ TEXT main(SB),NOSPLIT,$-8
+ // c-archive) or when the shared library is loaded (for c-shared).
+ // We expect argc and argv to be passed in the usual C ABI registers
+ // DI and SI.
+-TEXT _rt0_amd64_lib(SB),NOSPLIT,$0x40
+-	// Save C ABI callee-saved registers, as caller may need them.
+-	MOVQ	BX, 0x10(SP)
+-	MOVQ	BP, 0x18(SP)
+-	MOVQ	R12, 0x20(SP)
+-	MOVQ	R13, 0x28(SP)
+-	MOVQ	R14, 0x30(SP)
+-	MOVQ	R15, 0x38(SP)
++TEXT _rt0_amd64_lib(SB),NOSPLIT,$0
++	// Transition from C ABI to Go ABI.
++	PUSH_REGS_HOST_TO_ABI0()
+ 
+ 	MOVQ	DI, _rt0_amd64_lib_argc<>(SB)
+ 	MOVQ	SI, _rt0_amd64_lib_argv<>(SB)
+@@ -59,18 +55,15 @@ TEXT _rt0_amd64_lib(SB),NOSPLIT,$0x40
+ 	JMP	restore
+ 
+ nocgo:
++	ADJSP	$16
+ 	MOVQ	$0x800000, 0(SP)		// stacksize
+ 	MOVQ	$_rt0_amd64_lib_go(SB), AX
+ 	MOVQ	AX, 8(SP)			// fn
+ 	CALL	runtime·newosproc0(SB)
++	ADJSP	$-16
+ 
+ restore:
+-	MOVQ	0x10(SP), BX
+-	MOVQ	0x18(SP), BP
+-	MOVQ	0x20(SP), R12
+-	MOVQ	0x28(SP), R13
+-	MOVQ	0x30(SP), R14
+-	MOVQ	0x38(SP), R15
++	POP_REGS_HOST_TO_ABI0()
+ 	RET
+ 
+ // _rt0_amd64_lib_go initializes the Go runtime.
+diff --git a/src/runtime/cgo/abi_amd64.h b/src/runtime/cgo/abi_amd64.h
+index 44cc0969da..9949435fe9 100644
+--- a/src/runtime/cgo/abi_amd64.h
++++ b/src/runtime/cgo/abi_amd64.h
+@@ -4,7 +4,9 @@
+ 
+ // Macros for transitioning from the host ABI to Go ABI0.
+ //
+-// TODO(austin): Define these for ELF platforms as well.
++// These save the frame pointer, so in general, functions that use
++// these should have zero frame size to suppress the automatic frame
++// pointer, though it's harmless to not do this.
+ 
+ #ifdef GOOS_windows
+ 
+@@ -66,4 +68,32 @@
+ 	ADJSP	$-(REGS_HOST_TO_ABI0_STACK - 8)	\
+ 	POPFQ
+ 
++#else
++// SysV ABI
++
++#define REGS_HOST_TO_ABI0_STACK (6*8)
++
++// SysV MXCSR matches the Go ABI, so we don't have to set that,
++// and Go doesn't modify it, so we don't have to save it.
++// Both SysV and Go require DF to be cleared, so that's already clear.
++// The SysV and Go frame pointer conventions are compatible.
++#define PUSH_REGS_HOST_TO_ABI0()	\
++	ADJSP	$(REGS_HOST_TO_ABI0_STACK)	\
++	MOVQ	BP, (5*8)(SP)	\
++	LEAQ	(5*8)(SP), BP	\
++	MOVQ	BX, (0*8)(SP)	\
++	MOVQ	R12, (1*8)(SP)	\
++	MOVQ	R13, (2*8)(SP)	\
++	MOVQ	R14, (3*8)(SP)	\
++	MOVQ	R15, (4*8)(SP)
++
++#define POP_REGS_HOST_TO_ABI0()	\
++	MOVQ	(0*8)(SP), BX	\
++	MOVQ	(1*8)(SP), R12	\
++	MOVQ	(2*8)(SP), R13	\
++	MOVQ	(3*8)(SP), R14	\
++	MOVQ	(4*8)(SP), R15	\
++	MOVQ	(5*8)(SP), BP	\
++	ADJSP	$-(REGS_HOST_TO_ABI0_STACK)
++
+ #endif
+diff --git a/src/runtime/cgo/asm_amd64.s b/src/runtime/cgo/asm_amd64.s
+index 447ddb118d..386299c548 100644
+--- a/src/runtime/cgo/asm_amd64.s
++++ b/src/runtime/cgo/asm_amd64.s
+@@ -10,43 +10,25 @@
+ // Saves C callee-saved registers and calls cgocallback with three arguments.
+ // fn is the PC of a func(a unsafe.Pointer) function.
+ // This signature is known to SWIG, so we can't change it.
+-#ifndef GOOS_windows
+-TEXT crosscall2(SB),NOSPLIT,$0x50-0 /* keeps stack pointer 32-byte aligned */
+-	MOVQ	BX, 0x18(SP)
+-	MOVQ	R12, 0x28(SP)
+-	MOVQ	R13, 0x30(SP)
+-	MOVQ	R14, 0x38(SP)
+-	MOVQ	R15, 0x40(SP)
++TEXT crosscall2(SB),NOSPLIT,$0-0
++	PUSH_REGS_HOST_TO_ABI0()
+ 
++	// Make room for arguments to cgocallback.
++	ADJSP	$0x18
++#ifndef GOOS_windows
+ 	MOVQ	DI, 0x0(SP)	/* fn */
+ 	MOVQ	SI, 0x8(SP)	/* arg */
+ 	// Skip n in DX.
+ 	MOVQ	CX, 0x10(SP)	/* ctxt */
+-
+-	CALL	runtime·cgocallback(SB)
+-
+-	MOVQ	0x18(SP), BX
+-	MOVQ	0x28(SP), R12
+-	MOVQ	0x30(SP), R13
+-	MOVQ	0x38(SP), R14
+-	MOVQ	0x40(SP), R15
+-
+-	RET
+-
+ #else
+-TEXT crosscall2(SB),NOSPLIT,$0-0
+-	PUSH_REGS_HOST_TO_ABI0()
+-
+-	// Make room for arguments to cgocallback.
+-	ADJSP	$0x18
+ 	MOVQ	CX, 0x0(SP)	/* fn */
+ 	MOVQ	DX, 0x8(SP)	/* arg */
+ 	// Skip n in R8.
+ 	MOVQ	R9, 0x10(SP)	/* ctxt */
++#endif
+ 
+ 	CALL	runtime·cgocallback(SB)
+ 
+ 	ADJSP	$-0x18
+ 	POP_REGS_HOST_TO_ABI0()
+ 	RET
+-#endif
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 21d3ae653e..c8b29e396c 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -385,7 +385,7 @@ func mdestroy(mp *m) {
+ //#endif
+ 
+ func sigreturn()
+-func sigtramp(sig uint32, info *siginfo, ctx unsafe.Pointer)
++func sigtramp() // Called via C ABI
+ func cgoSigtramp()
+ 
+ //go:noescape
+diff --git a/src/runtime/race_amd64.s b/src/runtime/race_amd64.s
+index bb3afeb6ee..58a919efe8 100644
+--- a/src/runtime/race_amd64.s
++++ b/src/runtime/race_amd64.s
+@@ -8,6 +8,7 @@
+ #include "go_tls.h"
+ #include "funcdata.h"
+ #include "textflag.h"
++#include "cgo/abi_amd64.h"
+ 
+ // The following thunks allow calling the gcc-compiled race runtime directly
+ // from Go code without going all the way through cgo.
+@@ -441,7 +442,7 @@ call:
+ // See racecallback for command codes.
+ // Defined as ABIInternal so as to avoid introducing a wrapper,
+ // because its address is passed to C via funcPC.
+-TEXT	runtime·racecallbackthunk<ABIInternal>(SB), NOSPLIT, $56-8
++TEXT	runtime·racecallbackthunk<ABIInternal>(SB), NOSPLIT, $0-0
+ 	// Handle command raceGetProcCmd (0) here.
+ 	// First, code below assumes that we are on curg, while raceGetProcCmd
+ 	// can be executed on g0. Second, it is called frequently, so will
+@@ -457,16 +458,8 @@ TEXT	runtime·racecallbackthunk<ABIInternal>(SB), NOSPLIT, $56-8
+ 	RET
+ 
+ rest:
+-	// Save callee-saved registers (Go code won't respect that).
+-	// This is superset of darwin/linux/windows registers.
+-	PUSHQ	BX
+-	PUSHQ	BP
+-	PUSHQ	DI
+-	PUSHQ	SI
+-	PUSHQ	R12
+-	PUSHQ	R13
+-	PUSHQ	R14
+-	PUSHQ	R15
++	// Transition from C ABI to Go ABI.
++	PUSH_REGS_HOST_TO_ABI0()
+ 	// Set g = g0.
+ 	get_tls(R12)
+ 	MOVQ	g(R12), R14
+@@ -488,15 +481,7 @@ rest:
+ 	MOVQ	m_curg(R13), R14
+ 	MOVQ	R14, g(R12)	// g = m->curg
+ ret:
+-	// Restore callee-saved registers.
+-	POPQ	R15
+-	POPQ	R14
+-	POPQ	R13
+-	POPQ	R12
+-	POPQ	SI
+-	POPQ	DI
+-	POPQ	BP
+-	POPQ	BX
++	POP_REGS_HOST_TO_ABI0()
+ 	RET
+ 
+ noswitch:
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index 3e9eccf19e..803d95bcca 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -11,6 +11,7 @@
+ #include "go_asm.h"
+ #include "go_tls.h"
+ #include "textflag.h"
++#include "cgo/abi_amd64.h"
+ 
+ #define CLOCK_REALTIME		0
+ 
+@@ -214,36 +215,21 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 
+ // This is the function registered during sigaction and is invoked when
+ // a signal is received. It just redirects to the Go function sigtrampgo.
++// Called using C ABI.
+ TEXT runtime·sigtramp<ABIInternal>(SB),NOSPLIT,$0
+-	// This runs on the signal stack, so we have lots of stack available.
+-	// We allocate our own stack space, because if we tell the linker
+-	// how much we're using, the NOSPLIT check fails.
+-	PUSHQ	BP
+-	MOVQ	SP, BP
+-	SUBQ	$64, SP
+-
+-	// Save callee-save registers.
+-	MOVQ	BX, 24(SP)
+-	MOVQ	R12, 32(SP)
+-	MOVQ	R13, 40(SP)
+-	MOVQ	R14, 48(SP)
+-	MOVQ	R15, 56(SP)
++	// Transition from C ABI to Go ABI.
++	PUSH_REGS_HOST_TO_ABI0()
+ 
+ 	// Call into the Go signal handler
+-	MOVL	DI, 0(SP)  // sig
+-	MOVQ	SI, 8(SP)  // info
+-	MOVQ	DX, 16(SP) // ctx
+-	CALL runtime·sigtrampgo(SB)
+-
+-	// Restore callee-save registers.
+-	MOVQ	24(SP), BX
+-	MOVQ	32(SP), R12
+-	MOVQ	40(SP), R13
+-	MOVQ	48(SP), R14
+-	MOVQ	56(SP), R15
++	NOP	SP		// disable vet stack checking
++	ADJSP	$24
++	MOVL	DI, 0(SP)	// sig
++	MOVQ	SI, 8(SP)	// info
++	MOVQ	DX, 16(SP)	// ctx
++	CALL	·sigtrampgo(SB)
++	ADJSP	$-24
+ 
+-	MOVQ	BP, SP
+-	POPQ	BP
++	POP_REGS_HOST_TO_ABI0()
+ 	RET
+ 
+ // Used instead of sigtramp in programs that use cgo.
+@@ -438,13 +424,8 @@ TEXT runtime·mstart_stub<ABIInternal>(SB),NOSPLIT,$0
+ 	// DI points to the m.
+ 	// We are already on m's g0 stack.
+ 
+-	// Save callee-save registers.
+-	SUBQ	$40, SP
+-	MOVQ	BX, 0(SP)
+-	MOVQ	R12, 8(SP)
+-	MOVQ	R13, 16(SP)
+-	MOVQ	R14, 24(SP)
+-	MOVQ	R15, 32(SP)
++	// Transition from C ABI to Go ABI.
++	PUSH_REGS_HOST_TO_ABI0()
+ 
+ 	MOVQ	m_g0(DI), DX // g
+ 
+@@ -452,24 +433,14 @@ TEXT runtime·mstart_stub<ABIInternal>(SB),NOSPLIT,$0
+ 	// See cmd/link/internal/ld/sym.go:computeTLSOffset.
+ 	MOVQ	DX, 0x30(GS)
+ 
+-	// Someday the convention will be D is always cleared.
+-	CLD
+-
+ 	CALL	runtime·mstart(SB)
+ 
+-	// Restore callee-save registers.
+-	MOVQ	0(SP), BX
+-	MOVQ	8(SP), R12
+-	MOVQ	16(SP), R13
+-	MOVQ	24(SP), R14
+-	MOVQ	32(SP), R15
++	POP_REGS_HOST_TO_ABI0()
+ 
+ 	// Go is all done with this OS thread.
+ 	// Tell pthread everything is ok (we never join with this thread, so
+ 	// the value here doesn't really matter).
+ 	XORL	AX, AX
+-
+-	ADDQ	$40, SP
+ 	RET
+ 
+ // These trampolines help convert from Go calling convention to C calling convention.
+diff --git a/src/runtime/sys_dragonfly_amd64.s b/src/runtime/sys_dragonfly_amd64.s
+index 9cb268d740..43f864194d 100644
+--- a/src/runtime/sys_dragonfly_amd64.s
++++ b/src/runtime/sys_dragonfly_amd64.s
+@@ -9,6 +9,7 @@
+ #include "go_asm.h"
+ #include "go_tls.h"
+ #include "textflag.h"
++#include "cgo/abi_amd64.h"
+ 
+ TEXT runtime·sys_umtx_sleep(SB),NOSPLIT,$0
+ 	MOVQ addr+0(FP), DI		// arg 1 - ptr
+@@ -235,28 +236,21 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$72
+-	// Save callee-saved C registers, since the caller may be a C signal handler.
+-	MOVQ	BX,  bx-8(SP)
+-	MOVQ	BP,  bp-16(SP)  // save in case GOEXPERIMENT=noframepointer is set
+-	MOVQ	R12, r12-24(SP)
+-	MOVQ	R13, r13-32(SP)
+-	MOVQ	R14, r14-40(SP)
+-	MOVQ	R15, r15-48(SP)
+-	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
+-	// modify them.
+-
+-	MOVQ	DX, ctx-56(SP)
+-	MOVQ	SI, info-64(SP)
+-	MOVQ	DI, signum-72(SP)
+-	CALL	runtime·sigtrampgo(SB)
+-
+-	MOVQ	r15-48(SP), R15
+-	MOVQ	r14-40(SP), R14
+-	MOVQ	r13-32(SP), R13
+-	MOVQ	r12-24(SP), R12
+-	MOVQ	bp-16(SP),  BP
+-	MOVQ	bx-8(SP),   BX
++// Called using C ABI.
++TEXT runtime·sigtramp(SB),NOSPLIT,$0
++	// Transition from C ABI to Go ABI.
++	PUSH_REGS_HOST_TO_ABI0()
++
++	// Call into the Go signal handler
++	NOP	SP		// disable vet stack checking
++	ADJSP	$24
++	MOVQ	DI, 0(SP)	// sig
++	MOVQ	SI, 8(SP)	// info
++	MOVQ	DX, 16(SP)	// ctx
++	CALL	·sigtrampgo(SB)
++	ADJSP	$-24
++
++	POP_REGS_HOST_TO_ABI0()
+ 	RET
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_freebsd_amd64.s b/src/runtime/sys_freebsd_amd64.s
+index 07734b0d7d..71a60cae65 100644
+--- a/src/runtime/sys_freebsd_amd64.s
++++ b/src/runtime/sys_freebsd_amd64.s
+@@ -9,6 +9,7 @@
+ #include "go_asm.h"
+ #include "go_tls.h"
+ #include "textflag.h"
++#include "cgo/abi_amd64.h"
+ 
+ TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
+ 	MOVQ addr+0(FP), DI
+@@ -237,28 +238,21 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$72
+-	// Save callee-saved C registers, since the caller may be a C signal handler.
+-	MOVQ	BX, bx-8(SP)
+-	MOVQ	BP, bp-16(SP)  // save in case GOEXPERIMENT=noframepointer is set
+-	MOVQ	R12, r12-24(SP)
+-	MOVQ	R13, r13-32(SP)
+-	MOVQ	R14, r14-40(SP)
+-	MOVQ	R15, r15-48(SP)
+-	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
+-	// modify them.
+-
+-	MOVQ	DX, ctx-56(SP)
+-	MOVQ	SI, info-64(SP)
+-	MOVQ	DI, signum-72(SP)
+-	CALL	runtime·sigtrampgo(SB)
+-
+-	MOVQ	r15-48(SP), R15
+-	MOVQ	r14-40(SP), R14
+-	MOVQ	r13-32(SP), R13
+-	MOVQ	r12-24(SP), R12
+-	MOVQ	bp-16(SP),  BP
+-	MOVQ	bx-8(SP),   BX
++// Called using C ABI.
++TEXT runtime·sigtramp(SB),NOSPLIT,$0
++	// Transition from C ABI to Go ABI.
++	PUSH_REGS_HOST_TO_ABI0()
++
++	// Call into the Go signal handler
++	NOP	SP		// disable vet stack checking
++        ADJSP   $24
++	MOVQ	DI, 0(SP)	// sig
++	MOVQ	SI, 8(SP)	// info
++	MOVQ	DX, 16(SP)	// ctx
++	CALL	·sigtrampgo(SB)
++	ADJSP	$-24
++
++        POP_REGS_HOST_TO_ABI0()
+ 	RET
+ 
+ // Used instead of sigtramp in programs that use cgo.
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index 1e3a834812..6e7737e89f 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -412,6 +412,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
+ 	MOVL	AX, SP
+ 	RET
+ 
++// Called using C ABI.
+ TEXT runtime·sigtramp(SB),NOSPLIT,$28
+ 	// Save callee-saved C registers, since the caller may be a C signal handler.
+ 	MOVL	BX, bx-4(SP)
+@@ -421,11 +422,11 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$28
+ 	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
+ 	// modify them.
+ 
+-	MOVL	sig+0(FP), BX
++	MOVL	(28+4)(SP), BX
+ 	MOVL	BX, 0(SP)
+-	MOVL	info+4(FP), BX
++	MOVL	(28+8)(SP), BX
+ 	MOVL	BX, 4(SP)
+-	MOVL	ctx+8(FP), BX
++	MOVL	(28+12)(SP), BX
+ 	MOVL	BX, 8(SP)
+ 	CALL	runtime·sigtrampgo(SB)
+ 
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index 215277a9cf..da8a1f7663 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -9,6 +9,7 @@
+ #include "go_asm.h"
+ #include "go_tls.h"
+ #include "textflag.h"
++#include "cgo/abi_amd64.h"
+ 
+ #define AT_FDCWD -100
+ 
+@@ -397,29 +398,21 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	RET
+ 
+ // Defined as ABIInternal since it does not use the stack-based Go ABI.
+-TEXT runtime·sigtramp<ABIInternal>(SB),NOSPLIT,$72
+-	// Save callee-saved C registers, since the caller may be a C signal handler.
+-	MOVQ	BX,  bx-8(SP)
+-	MOVQ	BP,  bp-16(SP)  // save in case GOEXPERIMENT=noframepointer is set
+-	MOVQ	R12, r12-24(SP)
+-	MOVQ	R13, r13-32(SP)
+-	MOVQ	R14, r14-40(SP)
+-	MOVQ	R15, r15-48(SP)
+-	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
+-	// modify them.
+-
+-	MOVQ	DX, ctx-56(SP)
+-	MOVQ	SI, info-64(SP)
+-	MOVQ	DI, signum-72(SP)
+-	MOVQ	$runtime·sigtrampgo(SB), AX
+-	CALL AX
+-
+-	MOVQ	r15-48(SP), R15
+-	MOVQ	r14-40(SP), R14
+-	MOVQ	r13-32(SP), R13
+-	MOVQ	r12-24(SP), R12
+-	MOVQ	bp-16(SP),  BP
+-	MOVQ	bx-8(SP),   BX
++// Called using C ABI.
++TEXT runtime·sigtramp<ABIInternal>(SB),NOSPLIT,$0
++	// Transition from C ABI to Go ABI.
++	PUSH_REGS_HOST_TO_ABI0()
++
++	// Call into the Go signal handler
++	NOP	SP		// disable vet stack checking
++        ADJSP   $24
++	MOVQ	DI, 0(SP)	// sig
++	MOVQ	SI, 8(SP)	// info
++	MOVQ	DX, 16(SP)	// ctx
++	CALL	·sigtrampgo(SB)
++	ADJSP	$-24
++
++        POP_REGS_HOST_TO_ABI0()
+ 	RET
+ 
+ // Used instead of sigtramp in programs that use cgo.
+diff --git a/src/runtime/sys_netbsd_amd64.s b/src/runtime/sys_netbsd_amd64.s
+index addd98cd27..db76e86d1d 100644
+--- a/src/runtime/sys_netbsd_amd64.s
++++ b/src/runtime/sys_netbsd_amd64.s
+@@ -9,6 +9,7 @@
+ #include "go_asm.h"
+ #include "go_tls.h"
+ #include "textflag.h"
++#include "cgo/abi_amd64.h"
+ 
+ #define CLOCK_REALTIME		0
+ #define CLOCK_MONOTONIC		3
+@@ -318,28 +319,21 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$72
+-	// Save callee-saved C registers, since the caller may be a C signal handler.
+-	MOVQ	BX,  bx-8(SP)
+-	MOVQ	BP,  bp-16(SP)  // save in case GOEXPERIMENT=noframepointer is set
+-	MOVQ	R12, r12-24(SP)
+-	MOVQ	R13, r13-32(SP)
+-	MOVQ	R14, r14-40(SP)
+-	MOVQ	R15, r15-48(SP)
+-	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
+-	// modify them.
+-
+-	MOVQ	DX, ctx-56(SP)
+-	MOVQ	SI, info-64(SP)
+-	MOVQ	DI, signum-72(SP)
+-	CALL	runtime·sigtrampgo(SB)
+-
+-	MOVQ	r15-48(SP), R15
+-	MOVQ	r14-40(SP), R14
+-	MOVQ	r13-32(SP), R13
+-	MOVQ	r12-24(SP), R12
+-	MOVQ	bp-16(SP),  BP
+-	MOVQ	bx-8(SP),   BX
++// Called using C ABI.
++TEXT runtime·sigtramp(SB),NOSPLIT,$0
++	// Transition from C ABI to Go ABI.
++	PUSH_REGS_HOST_TO_ABI0()
++
++	// Call into the Go signal handler
++	NOP	SP		// disable vet stack checking
++        ADJSP   $24
++	MOVQ	DI, 0(SP)	// sig
++	MOVQ	SI, 8(SP)	// info
++	MOVQ	DX, 16(SP)	// ctx
++	CALL	·sigtrampgo(SB)
++	ADJSP	$-24
++
++        POP_REGS_HOST_TO_ABI0()
+ 	RET
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_openbsd_amd64.s b/src/runtime/sys_openbsd_amd64.s
+index b3a76b57a3..522e98cf4f 100644
+--- a/src/runtime/sys_openbsd_amd64.s
++++ b/src/runtime/sys_openbsd_amd64.s
+@@ -11,6 +11,7 @@
+ #include "go_asm.h"
+ #include "go_tls.h"
+ #include "textflag.h"
++#include "cgo/abi_amd64.h"
+ 
+ #define CLOCK_MONOTONIC	$3
+ 
+@@ -25,39 +26,22 @@ TEXT runtime·mstart_stub(SB),NOSPLIT,$0
+ 	// DI points to the m.
+ 	// We are already on m's g0 stack.
+ 
+-	// Save callee-save registers.
+-	SUBQ	$48, SP
+-	MOVQ	BX, 0(SP)
+-	MOVQ	BP, 8(SP)
+-	MOVQ	R12, 16(SP)
+-	MOVQ	R13, 24(SP)
+-	MOVQ	R14, 32(SP)
+-	MOVQ	R15, 40(SP)
++	// Transition from C ABI to Go ABI.
++	PUSH_REGS_HOST_TO_ABI0()
+ 
+ 	// Load g and save to TLS entry.
+ 	// See cmd/link/internal/ld/sym.go:computeTLSOffset.
+ 	MOVQ	m_g0(DI), DX // g
+ 	MOVQ	DX, -8(FS)
+ 
+-	// Someday the convention will be D is always cleared.
+-	CLD
+-
+ 	CALL	runtime·mstart(SB)
+ 
+-	// Restore callee-save registers.
+-	MOVQ	0(SP), BX
+-	MOVQ	8(SP), BP
+-	MOVQ	16(SP), R12
+-	MOVQ	24(SP), R13
+-	MOVQ	32(SP), R14
+-	MOVQ	40(SP), R15
++	POP_REGS_HOST_TO_ABI0()
+ 
+ 	// Go is all done with this OS thread.
+ 	// Tell pthread everything is ok (we never join with this thread, so
+ 	// the value here doesn't really matter).
+ 	XORL	AX, AX
+-
+-	ADDQ	$48, SP
+ 	RET
+ 
+ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+@@ -73,28 +57,21 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·sigtramp(SB),NOSPLIT,$72
+-	// Save callee-saved C registers, since the caller may be a C signal handler.
+-	MOVQ	BX,  bx-8(SP)
+-	MOVQ	BP,  bp-16(SP)  // save in case GOEXPERIMENT=noframepointer is set
+-	MOVQ	R12, r12-24(SP)
+-	MOVQ	R13, r13-32(SP)
+-	MOVQ	R14, r14-40(SP)
+-	MOVQ	R15, r15-48(SP)
+-	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
+-	// modify them.
+-
+-	MOVQ	DX, ctx-56(SP)
+-	MOVQ	SI, info-64(SP)
+-	MOVQ	DI, signum-72(SP)
+-	CALL	runtime·sigtrampgo(SB)
+-
+-	MOVQ	r15-48(SP), R15
+-	MOVQ	r14-40(SP), R14
+-	MOVQ	r13-32(SP), R13
+-	MOVQ	r12-24(SP), R12
+-	MOVQ	bp-16(SP),  BP
+-	MOVQ	bx-8(SP),   BX
++// Called using C ABI.
++TEXT runtime·sigtramp<ABIInternal>(SB),NOSPLIT,$0
++	// Transition from C ABI to Go ABI.
++	PUSH_REGS_HOST_TO_ABI0()
++
++	// Call into the Go signal handler
++	NOP	SP		// disable vet stack checking
++        ADJSP   $24
++	MOVQ	DI, 0(SP)	// sig
++	MOVQ	SI, 8(SP)	// info
++	MOVQ	DX, 16(SP)	// ctx
++	CALL	·sigtrampgo(SB)
++	ADJSP	$-24
++
++        POP_REGS_HOST_TO_ABI0()
+ 	RET
+ 
+ //

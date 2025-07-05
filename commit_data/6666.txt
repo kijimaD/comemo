@@ -7,6 +7,47 @@ Date:   Sat Oct 30 22:15:59 2010 +1100
     R=golang-dev, PeterGo, adg
     CC=golang-dev
     https://golang.org/cl/2791042
-
+---
  misc/bbedit/Go.plist | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/misc/bbedit/Go.plist b/misc/bbedit/Go.plist
+index 71bb9bc5e8..39c8f0dc30 100755
+--- a/misc/bbedit/Go.plist
++++ b/misc/bbedit/Go.plist
+@@ -6,15 +6,22 @@
+ 	BBLMColorsSyntax = YES;
+ 	BBLMIsCaseSensitive = YES;
+ 	BBLMKeywordList = (
++		append,
+ 		bool,
+ 		break,
+ 		byte,
+ 		cap,
+ 		case,         
+ 		chan,
++		close,
++		closed,
+ 		cmplx,
++		complex,
++		complex128,
++		complex64,
+ 		const,
+ 		continue,
++		copy,
+ 		default,      
+ 		defer,
+ 		else,
+@@ -43,8 +50,12 @@
+ 		new,
+ 		nil,
+ 		package,
++		panic,
++		print,
++		println,
+ 		range,
+ 		real,
++		recover,
+ 		return,
+ 		select,
+ 		string,

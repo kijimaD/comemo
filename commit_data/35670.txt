@@ -28,7 +28,66 @@ Date:   Wed Feb 28 11:22:05 2018 -0800
     Reviewed-on: https://go-review.googlesource.com/97719
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/typecheck.go |  5 ++++-
  test/fixedbugs/issue24173.go             | 19 +++++++++++++++++++
  2 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 562c37f24d..a1653d0e7f 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2992,10 +2992,11 @@ func typecheckcomplit(n *Node) *Node {
+ 			t.SetNumElem(length)
+ 		}
+ 		if t.IsSlice() {
+-			n.Right = nodintconst(length)
+ 			n.Op = OSLICELIT
++			n.Right = nodintconst(length)
+ 		} else {
+ 			n.Op = OARRAYLIT
++			n.Right = nil
+ 		}
+ 
+ 	case TMAP:
+@@ -3025,6 +3026,7 @@ func typecheckcomplit(n *Node) *Node {
+ 		}
+ 
+ 		n.Op = OMAPLIT
++		n.Right = nil
+ 
+ 	case TSTRUCT:
+ 		// Need valid field offsets for Xoffset below.
+@@ -3126,6 +3128,7 @@ func typecheckcomplit(n *Node) *Node {
+ 		}
+ 
+ 		n.Op = OSTRUCTLIT
++		n.Right = nil
+ 	}
+ 
+ 	if nerr != nerrors {
+diff --git a/test/fixedbugs/issue24173.go b/test/fixedbugs/issue24173.go
+new file mode 100644
+index 0000000000..4c19e05ef0
+--- /dev/null
++++ b/test/fixedbugs/issue24173.go
+@@ -0,0 +1,19 @@
++// compile
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type arrayAlias = [10]int
++type mapAlias = map[int]int
++type sliceAlias = []int
++type structAlias = struct{}
++
++func Exported() {
++	_ = arrayAlias{}
++	_ = mapAlias{}
++	_ = sliceAlias{}
++	_ = structAlias{}
++}

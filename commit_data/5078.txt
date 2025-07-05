@@ -7,7 +7,49 @@ Date:   Fri Mar 19 14:18:02 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/651041
-
+---
  src/pkg/websocket/server.go         |  2 +-
  src/pkg/websocket/websocket_test.go | 17 +++++++++++++++++
  2 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/websocket/server.go b/src/pkg/websocket/server.go
+index 0ccb31e8a2..93d8b7afd2 100644
+--- a/src/pkg/websocket/server.go
++++ b/src/pkg/websocket/server.go
+@@ -66,7 +66,7 @@ func (f Handler) ServeHTTP(c *http.Conn, req *http.Request) {
+ 		return
+ 	}
+ 	defer rwc.Close()
+-	location := "ws://" + req.Host + req.URL.Path
++	location := "ws://" + req.Host + req.URL.RawPath
+ 
+ 	// TODO(ukai): verify origin,location,protocol.
+ 
+diff --git a/src/pkg/websocket/websocket_test.go b/src/pkg/websocket/websocket_test.go
+index 44fda8aaaf..92582b1ef2 100644
+--- a/src/pkg/websocket/websocket_test.go
++++ b/src/pkg/websocket/websocket_test.go
+@@ -60,6 +60,23 @@ func TestEcho(t *testing.T) {
+ 	ws.Close()
+ }
+ 
++func TestWithQuery(t *testing.T) {
++	once.Do(startServer)
++
++	client, err := net.Dial("tcp", "", serverAddr)
++	if err != nil {
++		t.Fatal("dialing", err)
++	}
++
++	ws, err := newClient("/echo?q=v", "localhost", "http://localhost",
++		"ws://localhost/echo?q=v", "", client)
++	if err != nil {
++		t.Errorf("WebSocket handshake error", err)
++		return
++	}
++	ws.Close()
++}
++
+ func TestHTTP(t *testing.T) {
+ 	once.Do(startServer)
+ 

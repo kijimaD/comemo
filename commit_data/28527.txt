@@ -11,6 +11,20 @@ Date:   Wed Jun 1 09:44:38 2016 -0300
     Change-Id: I8fff9e3aa3e54162546bb9ec1cc2ebba2b6d9fed
     Reviewed-on: https://go-review.googlesource.com/23614
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.7.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.7.html b/doc/go1.7.html
+index 4151300dca..9ee377ec8f 100644
+--- a/doc/go1.7.html
++++ b/doc/go1.7.html
+@@ -1131,7 +1131,7 @@ On Linux, the
+ <a href="/pkg/syscall/#SysProcAttr"><code>SysProcAttr</code></a> struct
+ (as used in
+ <a href="/pkg/os/exec/#Cmd"><code>os/exec.Cmd</code></a>'s <code>SysProcAttr</code> field)
+-has a new <code>Unshare</code> field.
++has a new <code>Unshareflags</code> field.
+ If the field is nonzero, the child process created by
+ <a href="/pkg/syscall/#ForkExec"><code>ForkExec</code></a>
+ (as used in <code>exec.Cmd</code>'s <code>Run</code> method)

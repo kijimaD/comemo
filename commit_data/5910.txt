@@ -7,6 +7,20 @@ Date:   Thu Jul 29 13:02:27 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1900044
-
+---
  src/pkg/scanner/scanner.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/scanner/scanner.go b/src/pkg/scanner/scanner.go
+index f60a4eed27..a1aa109cb2 100644
+--- a/src/pkg/scanner/scanner.go
++++ b/src/pkg/scanner/scanner.go
+@@ -158,7 +158,7 @@ type Scanner struct {
+ 	ErrorCount int
+ 
+ 	// The Mode field controls which tokens are recognized. For instance,
+-	// to recognize Ints, set the (1<<-Int) bit in Mode. The field may be
++	// to recognize Ints, set the ScanInts bit in Mode. The field may be
+ 	// changed at any time.
+ 	Mode uint
+ 

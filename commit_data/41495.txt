@@ -12,8 +12,115 @@ Date:   Sat Sep 28 23:30:08 2019 +0700
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/go.go    |  6 +++++
  src/cmd/compile/internal/gc/sinit.go | 12 ++++++++-
  test/codegen/slices.go               | 51 ++++++++++++++++++++++++++++++++++++
  3 files changed, 68 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index f36e2716d6..bfd2ce27c9 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -29,6 +29,12 @@ var (
+ 	//   s := []byte("...")   allocating [n]byte on the stack
+ 	// Note: the flag smallframes can update this value.
+ 	maxImplicitStackVarSize = int64(64 * 1024)
++
++	// smallArrayBytes is the maximum size of an array which is considered small.
++	// Small arrays will be initialized directly with a sequence of constant stores.
++	// Large arrays will be initialized by copying from a static temp.
++	// 256 bytes was chosen to minimize generated code + statictmp size.
++	smallArrayBytes = int64(256)
+ )
+ 
+ // isRuntimePkg reports whether p is package runtime.
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index a6d13d1ac5..96b343081a 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -582,6 +582,16 @@ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes)
+ 	}
+ }
+ 
++func isSmallSliceLit(n *Node) bool {
++	if n.Op != OSLICELIT {
++		return false
++	}
++
++	r := n.Right
++
++	return smallintconst(r) && (n.Type.Elem().Width == 0 || r.Int64() <= smallArrayBytes/n.Type.Elem().Width)
++}
++
+ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
+ 	// make an array type corresponding the number of elements we have
+ 	t := types.NewArray(n.Type.Elem(), n.Right.Int64())
+@@ -639,7 +649,7 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
+ 	var vstat *Node
+ 
+ 	mode := getdyn(n, true)
+-	if mode&initConst != 0 {
++	if mode&initConst != 0 && !isSmallSliceLit(n) {
+ 		vstat = staticname(t)
+ 		if ctxt == inInitFunction {
+ 			vstat.Name.SetReadonly(true)
+diff --git a/test/codegen/slices.go b/test/codegen/slices.go
+index fccd711d71..cf569e27fb 100644
+--- a/test/codegen/slices.go
++++ b/test/codegen/slices.go
+@@ -113,3 +113,54 @@ func SliceNilCheck(s []int) {
+ 	// amd64:-`TESTB`
+ 	_ = *p
+ }
++
++// ---------------------- //
++//   Init slice literal   //
++// ---------------------- //
++// See issue 21561
++func InitSmallSliceLiteral() []int {
++	// amd64:`MOVQ\t[$]42`
++	return []int{42}
++}
++
++func InitNotSmallSliceLiteral() []int {
++	// amd64:`MOVQ\t.*autotmp_`
++	return []int{
++		42,
++		42,
++		42,
++		42,
++		42,
++		42,
++		42,
++		42,
++		42,
++		42,
++		42,
++		42,
++		42,
++		42,
++		42,
++		42,
++		42,
++		42,
++		42,
++		42,
++		42,
++		42,
++		42,
++		42,
++		42,
++		42,
++		42,
++		42,
++		42,
++		42,
++		42,
++		42,
++		42,
++		42,
++		42,
++		42,
++	}
++}

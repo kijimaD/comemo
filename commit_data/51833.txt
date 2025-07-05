@@ -8,7 +8,33 @@ Date:   Thu Mar 17 19:26:55 2022 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/393697
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Matt Layher <mdlayher@gmail.com>
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 2 +-
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/AUTHORS b/AUTHORS
+index 1a4a57bae7..eba4821594 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -1146,6 +1146,7 @@ Piers <google@hellopiers.pro>
+ Pieter Droogendijk <pieter@binky.org.uk>
+ Pietro Gagliardi <pietro10@mac.com>
+ Piyush Mishra <piyush@codeitout.com>
++PlanetScale, Inc.
+ Platform.sh
+ Pontus Leitzler <leitzler@gmail.com>
+ Prasanga Siripala <pj@pjebs.com.au>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 48567eed15..e4947941b4 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -1791,7 +1791,7 @@ Matt Jibson <matt.jibson@gmail.com>
+ Matt Joiner <anacrolix@gmail.com>
+ Matt Jones <mrjones@google.com>
+ Matt Juran <thepciet@gmail.com>
+-Matt Layher <mdlayher@gmail.com>
++Matt Layher <mdlayher@gmail.com> <mdlayher@planetscale.com>
+ Matt Masurka <masurka@google.com>
+ Matt Pearring <broskies@google.com>
+ Matt Reiferson <mreiferson@gmail.com>

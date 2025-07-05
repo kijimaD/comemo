@@ -9,6 +9,19 @@ Date:   Tue Mar 8 18:28:42 2011 +0100
     R=rsc, lvd1
     CC=golang-dev
     https://golang.org/cl/4247065
-
+---
  src/cmd/ld/dwarf.c | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index 5ba4b7c643..f7c8e38341 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -1117,7 +1117,6 @@ defgotype(Sym *gotype)
+ 			fld = newdie(die, DW_ABRV_FUNCTYPEPARAM, s->name+5);
+ 			newrefattr(fld, DW_AT_type, defptrto(defgotype(s)));
+ 		}
+-		die = defptrto(die);
+ 		break;
+ 
+ 	case KindInterface:

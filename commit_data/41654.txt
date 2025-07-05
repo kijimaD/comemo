@@ -7,6 +7,25 @@ Date:   Thu Oct 17 16:48:37 2019 -0400
     Change-Id: I832ba5f32d513b586bb0b02371231786b25631e3
     Reviewed-on: https://go-review.googlesource.com/c/go/+/201817
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  doc/devel/release.html | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index fc858d418b..92078f223b 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -135,6 +135,13 @@ See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.12.11">Go
+ 1.12.11 milestone</a> on our issue tracker for details.
+ </p>
+ 
++<p>
++go1.12.12 (released 2019/10/17) includes fixes to the go command,
++runtime, <code>syscall</code> and <code>net</code> packages.
++See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.12.12">Go
++1.12.12 milestone</a> on our issue tracker for details.
++</p>
++
+ <h2 id="go1.11">go1.11 (released 2018/08/24)</h2>
+ 
+ <p>

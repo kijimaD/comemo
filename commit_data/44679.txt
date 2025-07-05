@@ -21,7 +21,52 @@ Date:   Fri Jul 24 12:48:30 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/path/example_test.go               | 5 +++++
  src/path/filepath/example_unix_test.go | 4 ++++
  2 files changed, 9 insertions(+)
+
+diff --git a/src/path/example_test.go b/src/path/example_test.go
+index 67b9718664..e30ebd13dc 100644
+--- a/src/path/example_test.go
++++ b/src/path/example_test.go
+@@ -79,13 +79,18 @@ func ExampleJoin() {
+ 	fmt.Println(path.Join("a", "b", "c"))
+ 	fmt.Println(path.Join("a", "b/c"))
+ 	fmt.Println(path.Join("a/b", "c"))
++
++	fmt.Println(path.Join("a/b", "../../../xyz"))
++
+ 	fmt.Println(path.Join("", ""))
+ 	fmt.Println(path.Join("a", ""))
+ 	fmt.Println(path.Join("", "a"))
++
+ 	// Output:
+ 	// a/b/c
+ 	// a/b/c
+ 	// a/b/c
++	// ../xyz
+ 	//
+ 	// a
+ 	// a
+diff --git a/src/path/filepath/example_unix_test.go b/src/path/filepath/example_unix_test.go
+index 23f21380d0..c9d6944518 100644
+--- a/src/path/filepath/example_unix_test.go
++++ b/src/path/filepath/example_unix_test.go
+@@ -72,12 +72,16 @@ func ExampleJoin() {
+ 	fmt.Println(filepath.Join("a", "b/c"))
+ 	fmt.Println(filepath.Join("a/b", "c"))
+ 	fmt.Println(filepath.Join("a/b", "/c"))
++
++	fmt.Println(filepath.Join("a/b", "../../../xyz"))
++
+ 	// Output:
+ 	// On Unix:
+ 	// a/b/c
+ 	// a/b/c
+ 	// a/b/c
+ 	// a/b/c
++	// ../xyz
+ }
+ 
+ func ExampleMatch() {

@@ -25,8 +25,68 @@ Date:   Thu May 21 21:35:49 2015 +0000
     Change-Id: Ic9fe43b63669298ca52c3f499e2725dd2bb818a8
     Reviewed-on: https://go-review.googlesource.com/10340
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/html/template/escape.go           |  4 +++-
  src/html/template/escape_test.go      | 12 ++++++++++++
  src/text/template/parse/parse_test.go |  4 ++--
  3 files changed, 17 insertions(+), 3 deletions(-)
+
+diff --git a/src/html/template/escape.go b/src/html/template/escape.go
+index a9529446dd..bfcea66b90 100644
+--- a/src/html/template/escape.go
++++ b/src/html/template/escape.go
+@@ -205,13 +205,15 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
+ }
+ 
+ // allIdents returns the names of the identifiers under the Ident field of the node,
+-// which might be a singleton (Identifier) or a slice (Field).
++// which might be a singleton (Identifier) or a slice (Field or Chain).
+ func allIdents(node parse.Node) []string {
+ 	switch node := node.(type) {
+ 	case *parse.IdentifierNode:
+ 		return []string{node.Ident}
+ 	case *parse.FieldNode:
+ 		return node.Ident
++	case *parse.ChainNode:
++		return node.Field
+ 	}
+ 	panic("unidentified node type in allIdents")
+ }
+diff --git a/src/html/template/escape_test.go b/src/html/template/escape_test.go
+index 6729ebf4a7..41ab0c8ae7 100644
+--- a/src/html/template/escape_test.go
++++ b/src/html/template/escape_test.go
+@@ -1557,6 +1557,18 @@ func TestEnsurePipelineContains(t *testing.T) {
+ 			".X | urlquery | html | print 2 | .f 3",
+ 			[]string{"urlquery", "html"},
+ 		},
++		{
++			// covering issue 10801
++			"{{.X | js.x }}",
++			".X | js.x | urlquery | html",
++			[]string{"urlquery", "html"},
++		},
++		{
++			// covering issue 10801
++			"{{.X | (print 12 | js).x }}",
++			".X | (print 12 | js).x | urlquery | html",
++			[]string{"urlquery", "html"},
++		},
+ 	}
+ 	for i, test := range tests {
+ 		tmpl := template.Must(template.New("test").Parse(test.input))
+diff --git a/src/text/template/parse/parse_test.go b/src/text/template/parse/parse_test.go
+index 9e62bd2df6..200d50c194 100644
+--- a/src/text/template/parse/parse_test.go
++++ b/src/text/template/parse/parse_test.go
+@@ -272,8 +272,8 @@ var parseTests = []parseTest{
+ 	// Wrong pipeline
+ 	{"wrong pipeline dot", "{{12|.}}", hasError, ""},
+ 	{"wrong pipeline number", "{{.|12|printf}}", hasError, ""},
+-	{"wrong pipeline string", "{{.|print|\"error\"}}", hasError, ""},
+-	{"wrong pipeline char", "{{12|print|html|'e'}}", hasError, ""},
++	{"wrong pipeline string", "{{.|printf|\"error\"}}", hasError, ""},
++	{"wrong pipeline char", "{{12|printf|'e'}}", hasError, ""},
+ 	{"wrong pipeline boolean", "{{.|true}}", hasError, ""},
+ 	{"wrong pipeline nil", "{{'c'|nil}}", hasError, ""},
+ 	{"empty pipeline", `{{printf "%d" ( ) }}`, hasError, ""},

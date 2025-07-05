@@ -12,9 +12,72 @@ Date:   Wed Nov 17 19:20:52 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/lookup.go                 | 7 +++++++
  src/go/types/testdata/check/cycles.src | 1 +
  src/go/types/type.go                   | 7 ++-----
  src/go/types/typexpr.go                | 1 +
  4 files changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 1462d30b30..e3c43a94f7 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -469,6 +469,13 @@ func (check *Checker) assertableTo(V *Interface, T Type) (method, wrongType *Fun
+ // Otherwise it returns (typ, false).
+ func deref(typ Type) (Type, bool) {
+ 	if p, _ := typ.(*Pointer); p != nil {
++		// p.base should never be nil, but be conservative
++		if p.base == nil {
++			if debug {
++				panic("pointer with nil base type (possibly due to an invalid cyclic declaration)")
++			}
++			return Typ[Invalid], true
++		}
+ 		return p.base, true
+ 	}
+ 	return typ, false
+diff --git a/src/go/types/testdata/check/cycles.src b/src/go/types/testdata/check/cycles.src
+index 218b4cad6a..27b6111822 100644
+--- a/src/go/types/testdata/check/cycles.src
++++ b/src/go/types/testdata/check/cycles.src
+@@ -45,6 +45,7 @@ type (
+ 
+ 	// pointers
+ 	P0 *P0
++	PP *struct{ PP.f /* ERROR no field or method f */ }
+ 
+ 	// functions
+ 	F0 func(F0)
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index 97de5e49d1..6611c25f25 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -21,13 +21,10 @@ type Type interface {
+ // under must only be called when a type is known
+ // to be fully set up.
+ func under(t Type) Type {
+-	switch t := t.(type) {
+-	case *Named:
++	if t, _ := t.(*Named); t != nil {
+ 		return t.under()
+-	case *TypeParam:
+-		return t.iface()
+ 	}
+-	return t
++	return t.Underlying()
+ }
+ 
+ // If x and y are identical, match returns x.
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index c6ab7cd564..5664d8175f 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -308,6 +308,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
+ 
+ 	case *ast.StarExpr:
+ 		typ := new(Pointer)
++		typ.base = Typ[Invalid] // avoid nil base in invalid recursive type declaration
+ 		def.setUnderlying(typ)
+ 		typ.base = check.varType(e.X)
+ 		return typ

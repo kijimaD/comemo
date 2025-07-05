@@ -9,10 +9,241 @@ Date:   Thu Jul 7 10:56:33 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4675060
-
+---
  src/pkg/exp/template/lex.go        | 40 +++++++++++++++++++-------------------
  src/pkg/exp/template/lex_test.go   |  4 ++--
  src/pkg/exp/template/parse.go      | 18 ++++++++---------
  src/pkg/exp/template/parse_test.go |  2 +-
  src/pkg/exp/template/set.go        |  4 ++--
  5 files changed, 34 insertions(+), 34 deletions(-)
+
+diff --git a/src/pkg/exp/template/lex.go b/src/pkg/exp/template/lex.go
+index 7230f5b025..d78152979f 100644
+--- a/src/pkg/exp/template/lex.go
++++ b/src/pkg/exp/template/lex.go
+@@ -41,11 +41,11 @@ const (
+ 	itemEOF
+ 	itemField      // alphanumeric identifier, starting with '.', possibly chained ('.x.y')
+ 	itemIdentifier // alphanumeric identifier
+-	itemLeftMeta   // left meta-string
++	itemLeftDelim  // left action delimiter
+ 	itemNumber     // simple number, including imaginary
+ 	itemPipe       // pipe symbol
+ 	itemRawString  // raw quoted string (includes quotes)
+-	itemRightMeta  // right meta-string
++	itemRightDelim // right action delimiter
+ 	itemString     // quoted string (includes quotes)
+ 	itemText       // plain text
+ 	// Keywords appear after all the rest.
+@@ -68,11 +68,11 @@ var itemName = map[itemType]string{
+ 	itemEOF:        "EOF",
+ 	itemField:      "field",
+ 	itemIdentifier: "identifier",
+-	itemLeftMeta:   "left meta",
++	itemLeftDelim:  "left delim",
+ 	itemNumber:     "number",
+ 	itemPipe:       "pipe",
+ 	itemRawString:  "raw string",
+-	itemRightMeta:  "rightMeta",
++	itemRightDelim: "right delim",
+ 	itemString:     "string",
+ 	// keywords
+ 	itemDot:      ".",
+@@ -210,20 +210,20 @@ func lex(name, input string) *lexer {
+ // state functions
+ 
+ const (
+-	leftMeta     = "{{"
+-	rightMeta    = "}}"
++	leftDelim    = "{{"
++	rightDelim   = "}}"
+ 	leftComment  = "{{/*"
+ 	rightComment = "*/}}"
+ )
+ 
+-// lexText scans until a metacharacter
++// lexText scans until an opening action delimiter, "{{".
+ func lexText(l *lexer) stateFn {
+ 	for {
+-		if strings.HasPrefix(l.input[l.pos:], leftMeta) {
++		if strings.HasPrefix(l.input[l.pos:], leftDelim) {
+ 			if l.pos > l.start {
+ 				l.emit(itemText)
+ 			}
+-			return lexLeftMeta
++			return lexLeftDelim
+ 		}
+ 		if l.next() == eof {
+ 			break
+@@ -237,13 +237,13 @@ func lexText(l *lexer) stateFn {
+ 	return nil
+ }
+ 
+-// leftMeta scans the left "metacharacter", which is known to be present.
+-func lexLeftMeta(l *lexer) stateFn {
++// lexLeftDelim scans the left delimiter, which is known to be present.
++func lexLeftDelim(l *lexer) stateFn {
+ 	if strings.HasPrefix(l.input[l.pos:], leftComment) {
+ 		return lexComment
+ 	}
+-	l.pos += len(leftMeta)
+-	l.emit(itemLeftMeta)
++	l.pos += len(leftDelim)
++	l.emit(itemLeftDelim)
+ 	return lexInsideAction
+ }
+ 
+@@ -258,21 +258,21 @@ func lexComment(l *lexer) stateFn {
+ 	return lexText
+ }
+ 
+-// rightMeta scans the right "metacharacter", which is known to be present.
+-func lexRightMeta(l *lexer) stateFn {
+-	l.pos += len(rightMeta)
+-	l.emit(itemRightMeta)
++// lexRightDelim scans the right delimiter, which is known to be present.
++func lexRightDelim(l *lexer) stateFn {
++	l.pos += len(rightDelim)
++	l.emit(itemRightDelim)
+ 	return lexText
+ }
+ 
+-// lexInsideAction scans the elements inside "metacharacters".
++// lexInsideAction scans the elements inside action delimiters.
+ func lexInsideAction(l *lexer) stateFn {
+ 	// Either number, quoted string, or identifier.
+ 	// Spaces separate and are ignored.
+ 	// Pipe symbols separate and are emitted.
+ 	for {
+-		if strings.HasPrefix(l.input[l.pos:], rightMeta) {
+-			return lexRightMeta
++		if strings.HasPrefix(l.input[l.pos:], rightDelim) {
++			return lexRightDelim
+ 		}
+ 		switch r := l.next(); {
+ 		case r == eof || r == '\n':
+diff --git a/src/pkg/exp/template/lex_test.go b/src/pkg/exp/template/lex_test.go
+index ba0568ef3c..256ec04d85 100644
+--- a/src/pkg/exp/template/lex_test.go
++++ b/src/pkg/exp/template/lex_test.go
+@@ -17,8 +17,8 @@ type lexTest struct {
+ 
+ var (
+ 	tEOF      = item{itemEOF, ""}
+-	tLeft     = item{itemLeftMeta, "{{"}
+-	tRight    = item{itemRightMeta, "}}"}
++	tLeft     = item{itemLeftDelim, "{{"}
++	tRight    = item{itemRightDelim, "}}"}
+ 	tRange    = item{itemRange, "range"}
+ 	tPipe     = item{itemPipe, "|"}
+ 	tFor      = item{itemIdentifier, "for"}
+diff --git a/src/pkg/exp/template/parse.go b/src/pkg/exp/template/parse.go
+index 2ef95fd457..8b2d602075 100644
+--- a/src/pkg/exp/template/parse.go
++++ b/src/pkg/exp/template/parse.go
+@@ -122,7 +122,7 @@ func (t *textNode) String() string {
+ 	return fmt.Sprintf("(text: %q)", t.text)
+ }
+ 
+-// actionNode holds an action (something bounded by metacharacters).
++// actionNode holds an action (something bounded by delimiters).
+ type actionNode struct {
+ 	nodeType
+ 	line     int
+@@ -594,7 +594,7 @@ func (t *Template) textOrAction() node {
+ 	switch token := t.next(); token.typ {
+ 	case itemText:
+ 		return newText(token.val)
+-	case itemLeftMeta:
++	case itemLeftDelim:
+ 		return t.action()
+ 	default:
+ 		t.unexpected(token, "input")
+@@ -605,7 +605,7 @@ func (t *Template) textOrAction() node {
+ // Action:
+ //	control
+ //	command ("|" command)*
+-// Left meta is past. Now get actions.
++// Left delim is past. Now get actions.
+ // First word could be a keyword such as range.
+ func (t *Template) action() (n node) {
+ 	switch token := t.next(); token.typ {
+@@ -632,7 +632,7 @@ func (t *Template) action() (n node) {
+ func (t *Template) pipeline(context string) (pipe []*commandNode) {
+ 	for {
+ 		switch token := t.next(); token.typ {
+-		case itemRightMeta:
++		case itemRightDelim:
+ 			if len(pipe) == 0 {
+ 				t.errorf("missing value for %s", context)
+ 			}
+@@ -693,7 +693,7 @@ func (t *Template) withControl() node {
+ //	{{end}}
+ // End keyword is past.
+ func (t *Template) endControl() node {
+-	t.expect(itemRightMeta, "end")
++	t.expect(itemRightDelim, "end")
+ 	return newEnd()
+ }
+ 
+@@ -701,7 +701,7 @@ func (t *Template) endControl() node {
+ //	{{else}}
+ // Else keyword is past.
+ func (t *Template) elseControl() node {
+-	t.expect(itemRightMeta, "else")
++	t.expect(itemRightDelim, "else")
+ 	return newElse(t.lex.lineNumber())
+ }
+ 
+@@ -735,14 +735,14 @@ func (t *Template) templateControl() node {
+ }
+ 
+ // command:
+-// space-separated arguments up to a pipeline character or right metacharacter.
+-// we consume the pipe character but leave the right meta to terminate the action.
++// space-separated arguments up to a pipeline character or right delimiter.
++// we consume the pipe character but leave the right delim to terminate the action.
+ func (t *Template) command() *commandNode {
+ 	cmd := newCommand()
+ Loop:
+ 	for {
+ 		switch token := t.next(); token.typ {
+-		case itemRightMeta:
++		case itemRightDelim:
+ 			t.backup()
+ 			break Loop
+ 		case itemPipe:
+diff --git a/src/pkg/exp/template/parse_test.go b/src/pkg/exp/template/parse_test.go
+index 34b0da6ebf..71580f8b60 100644
+--- a/src/pkg/exp/template/parse_test.go
++++ b/src/pkg/exp/template/parse_test.go
+@@ -140,7 +140,7 @@ var parseTests = []parseTest{
+ 		`[(text: " \t\n")]`},
+ 	{"text", "some text", noError,
+ 		`[(text: "some text")]`},
+-	{"emptyMeta", "{{}}", hasError,
++	{"emptyAction", "{{}}", hasError,
+ 		`[(action: [])]`},
+ 	{"field", "{{.X}}", noError,
+ 		`[(action: [(command: [F=[X]])])]`},
+diff --git a/src/pkg/exp/template/set.go b/src/pkg/exp/template/set.go
+index 58bbb0c129..492e270e12 100644
+--- a/src/pkg/exp/template/set.go
++++ b/src/pkg/exp/template/set.go
+@@ -93,14 +93,14 @@ func (s *Set) Parse(text string) (err os.Error) {
+ 		if t.atEOF() {
+ 			return
+ 		}
+-		t.expect(itemLeftMeta, context)
++		t.expect(itemLeftDelim, context)
+ 		t.expect(itemDefine, context)
+ 		name := t.expect(itemString, context)
+ 		t.name, err = strconv.Unquote(name.val)
+ 		if err != nil {
+ 			t.error(err)
+ 		}
+-		t.expect(itemRightMeta, context)
++		t.expect(itemRightDelim, context)
+ 		end := t.parse(false)
+ 		if end == nil {
+ 			t.errorf("unexpected EOF in %s", context)

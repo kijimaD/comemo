@@ -7,6 +7,25 @@ Date:   Wed Apr 22 10:22:12 2020 -0700
     Change-Id: Ib6d0f81b5f64473f9ee6be26a08d5102e8edadc4
     Reviewed-on: https://go-review.googlesource.com/c/go/+/229477
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-
+---
  src/database/sql/sql.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 374dd98b00..b3d0653f5c 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -3013,10 +3013,11 @@ func (ci *ColumnType) Nullable() (nullable, ok bool) {
+ }
+ 
+ // DatabaseTypeName returns the database system name of the column type. If an empty
+-// string is returned the driver type name is not supported.
++// string is returned, then the driver type name is not supported.
+ // Consult your driver documentation for a list of driver data types. Length specifiers
+ // are not included.
+-// Common type include "VARCHAR", "TEXT", "NVARCHAR", "DECIMAL", "BOOL", "INT", "BIGINT".
++// Common type names include "VARCHAR", "TEXT", "NVARCHAR", "DECIMAL", "BOOL",
++// "INT", and "BIGINT".
+ func (ci *ColumnType) DatabaseTypeName() string {
+ 	return ci.databaseType
+ }

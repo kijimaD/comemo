@@ -20,9 +20,260 @@ Date:   Wed Nov 18 15:36:51 2015 -0800
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/export_test.go    |  4 +++
  src/net/http/main_test.go      | 42 +++++++++++++++++++++++++++
  src/net/http/serve_test.go     | 59 ++++++++++++++++++++++++++++++--------
  src/net/http/transport_test.go | 64 ++++++++++++++++++++++++++++++++++++++++++
  4 files changed, 157 insertions(+), 12 deletions(-)
+
+diff --git a/src/net/http/export_test.go b/src/net/http/export_test.go
+index e530f7e578..6e6d1cd725 100644
+--- a/src/net/http/export_test.go
++++ b/src/net/http/export_test.go
+@@ -133,4 +133,8 @@ var ExportErrRequestCanceled = errRequestCanceled
+ 
+ var ExportServeFile = serveFile
+ 
++var ExportHttp2ConfigureTransport = http2ConfigureTransport
++
++var ExportHttp2ConfigureServer = http2ConfigureServer
++
+ func SetTestHookServerServe(fn func(*Server, net.Listener)) { testHookServerServe = fn }
+diff --git a/src/net/http/main_test.go b/src/net/http/main_test.go
+index 12eea6f0e1..e6eefe5695 100644
+--- a/src/net/http/main_test.go
++++ b/src/net/http/main_test.go
+@@ -5,8 +5,10 @@
+ package http_test
+ 
+ import (
++	"crypto/tls"
+ 	"fmt"
+ 	"net/http"
++	"net/http/httptest"
+ 	"os"
+ 	"runtime"
+ 	"sort"
+@@ -111,3 +113,43 @@ func afterTest(t testing.TB) {
+ 	}
+ 	t.Errorf("Test appears to have leaked %s:\n%s", bad, stacks)
+ }
++
++type clientServerTest struct {
++	t  *testing.T
++	h2 bool
++	h  http.Handler
++	ts *httptest.Server
++	tr *http.Transport
++	c  *http.Client
++}
++
++func (t *clientServerTest) close() {
++	t.tr.CloseIdleConnections()
++	t.ts.Close()
++}
++
++func newClientServerTest(t *testing.T, h2 bool, h http.Handler) *clientServerTest {
++	cst := &clientServerTest{
++		t:  t,
++		h2: h2,
++		h:  h,
++		tr: &http.Transport{},
++	}
++	cst.c = &http.Client{Transport: cst.tr}
++	if !h2 {
++		cst.ts = httptest.NewServer(h)
++		return cst
++	}
++	cst.ts = httptest.NewUnstartedServer(h)
++	http.ExportHttp2ConfigureServer(cst.ts.Config, nil)
++	cst.ts.TLS = cst.ts.Config.TLSConfig
++	cst.ts.StartTLS()
++
++	cst.tr.TLSClientConfig = &tls.Config{
++		InsecureSkipVerify: true,
++	}
++	if err := http.ExportHttp2ConfigureTransport(cst.tr); err != nil {
++		t.Fatal(err)
++	}
++	return cst
++}
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 4fe40da9ae..6d49a8a624 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -857,19 +857,24 @@ func TestServerAllowsBlockingRemoteAddr(t *testing.T) {
+ 	}
+ }
+ 
+-func TestChunkedResponseHeaders(t *testing.T) {
++func TestChunkedResponseHeaders_h1(t *testing.T) { testChunkedResponseHeaders(t, false) }
++func TestChunkedResponseHeaders_h2(t *testing.T) { testChunkedResponseHeaders(t, true) }
++
++func testChunkedResponseHeaders(t *testing.T, h2 bool) {
++	if h2 {
++		t.Skip("known failing test; golang.org/issue/13316")
++	}
+ 	defer afterTest(t)
+ 	log.SetOutput(ioutil.Discard) // is noisy otherwise
+ 	defer log.SetOutput(os.Stderr)
+-
+-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		w.Header().Set("Content-Length", "intentional gibberish") // we check that this is deleted
+ 		w.(Flusher).Flush()
+ 		fmt.Fprintf(w, "I am a chunked response.")
+ 	}))
+-	defer ts.Close()
++	defer cst.close()
+ 
+-	res, err := Get(ts.URL)
++	res, err := cst.c.Get(cst.ts.URL)
+ 	if err != nil {
+ 		t.Fatalf("Get error: %v", err)
+ 	}
+@@ -880,8 +885,8 @@ func TestChunkedResponseHeaders(t *testing.T) {
+ 	if g, e := res.TransferEncoding, []string{"chunked"}; !reflect.DeepEqual(g, e) {
+ 		t.Errorf("expected TransferEncoding of %v; got %v", e, g)
+ 	}
+-	if _, haveCL := res.Header["Content-Length"]; haveCL {
+-		t.Errorf("Unexpected Content-Length")
++	if got, haveCL := res.Header["Content-Length"]; haveCL {
++		t.Errorf("Unexpected Content-Length: %q", got)
+ 	}
+ }
+ 
+@@ -914,22 +919,52 @@ func TestIdentityResponseHeaders(t *testing.T) {
+ 	}
+ }
+ 
++// Testing the newClientServerTest helper.
++func TestNewClientServerTest(t *testing.T) {
++	var got struct {
++		sync.Mutex
++		log []string
++	}
++	h := HandlerFunc(func(w ResponseWriter, r *Request) {
++		got.Lock()
++		defer got.Unlock()
++		got.log = append(got.log, r.Proto)
++	})
++	for _, v := range [2]bool{false, true} {
++		cst := newClientServerTest(t, v, h)
++		if _, err := cst.c.Head(cst.ts.URL); err != nil {
++			t.Fatal(err)
++		}
++		cst.close()
++	}
++	got.Lock() // no need to unlock
++	if want := []string{"HTTP/1.1", "HTTP/2.0"}; !reflect.DeepEqual(got.log, want) {
++		t.Errorf("got %q; want %q", got.log, want)
++	}
++}
++
+ // Test304Responses verifies that 304s don't declare that they're
+ // chunking in their response headers and aren't allowed to produce
+ // output.
+-func Test304Responses(t *testing.T) {
++func Test304Responses_h1(t *testing.T) { test304Responses(t, false) }
++func Test304Responses_h2(t *testing.T) { test304Responses(t, true) }
++
++func test304Responses(t *testing.T, h2 bool) {
++	if h2 {
++		t.Skip("known failing test; golang.org/issue/13317")
++	}
+ 	defer afterTest(t)
+-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		w.WriteHeader(StatusNotModified)
+ 		_, err := w.Write([]byte("illegal body"))
+ 		if err != ErrBodyNotAllowed {
+ 			t.Errorf("on Write, expected ErrBodyNotAllowed, got %v", err)
+ 		}
+ 	}))
+-	defer ts.Close()
+-	res, err := Get(ts.URL)
++	defer cst.close()
++	res, err := cst.c.Get(cst.ts.URL)
+ 	if err != nil {
+-		t.Error(err)
++		t.Fatal(err)
+ 	}
+ 	if len(res.TransferEncoding) > 0 {
+ 		t.Errorf("expected no TransferEncoding; got %v", res.TransferEncoding)
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index fc9dc5eb48..4aaf318d3e 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -2844,6 +2844,70 @@ func TestTransportPrefersResponseOverWriteError(t *testing.T) {
+ 	}
+ }
+ 
++func TestTransportResponse_h12(t *testing.T) {
++	t.Skip("known failing test; golang.org/issue/13315")
++	tests := []Handler{
++		HandlerFunc(func(w ResponseWriter, r *Request) {
++			// no body.
++		}),
++		HandlerFunc(func(w ResponseWriter, r *Request) {
++			io.WriteString(w, "small body")
++		}),
++		HandlerFunc(func(w ResponseWriter, r *Request) {
++			w.Header().Set("Content-Length", "3") // w/ content length
++			io.WriteString(w, "foo")
++		}),
++		HandlerFunc(func(w ResponseWriter, r *Request) {
++			w.(Flusher).Flush()
++			io.WriteString(w, "foo")
++		}),
++	}
++	handlerc := make(chan Handler, 1)
++	testHandler := HandlerFunc(func(w ResponseWriter, r *Request) {
++		(<-handlerc).ServeHTTP(w, r)
++	})
++
++	normalizeRes := func(res *Response, wantProto string) {
++		if res.Proto == wantProto {
++			res.Proto, res.ProtoMajor, res.ProtoMinor = "", 0, 0
++		} else {
++			t.Errorf("got %q response; want %q", res.Proto, wantProto)
++		}
++		slurp, err := ioutil.ReadAll(res.Body)
++		res.Body.Close()
++		if err != nil {
++			t.Errorf("ReadAll(Body) = %v", err)
++		}
++		res.Body = ioutil.NopCloser(bytes.NewReader(slurp))
++	}
++
++	cst1 := newClientServerTest(t, false, testHandler)
++	defer cst1.close()
++	cst2 := newClientServerTest(t, true, testHandler)
++	defer cst2.close()
++	for i, h := range tests {
++		handlerc <- h
++		res1, err := cst1.c.Get(cst1.ts.URL)
++		if err != nil {
++			t.Errorf("%d. HTTP/1 get: %v", i, err)
++			continue
++		}
++		normalizeRes(res1, "HTTP/1.1")
++
++		handlerc <- h
++		res2, err := cst2.c.Get(cst2.ts.URL)
++		if err != nil {
++			t.Errorf("%d. HTTP/2 get: %v", i, err)
++			continue
++		}
++		normalizeRes(res2, "HTTP/2.0")
++
++		if !reflect.DeepEqual(res1, res2) {
++			t.Errorf("\nhttp/1 (%v): %#v\nhttp/2 (%v): %#v", cst1.ts.URL, res1, cst2.ts.URL, res2)
++		}
++	}
++}
++
+ func wantBody(res *Response, err error, want string) error {
+ 	if err != nil {
+ 		return err

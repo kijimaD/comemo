@@ -11,6 +11,20 @@ Date:   Sun Apr 19 21:12:04 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/all.rc | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/all.rc b/src/all.rc
+index 14e2f5565a..45b1261a20 100755
+--- a/src/all.rc
++++ b/src/all.rc
+@@ -10,7 +10,7 @@ if(! test -f make.rc){
+ 	exit wrongdir
+ }
+ 
+-. ./make.rc --no-banner
++. ./make.rc --no-banner $*
+ bind -b $GOROOT/bin /bin
+ ./run.rc --no-rebuild
+ $GOTOOLDIR/dist banner  # print build info

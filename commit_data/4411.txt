@@ -7,7 +7,118 @@ Date:   Tue Dec 15 09:19:54 2009 +1100
     
     R=rsc
     https://golang.org/cl/178043
-
+---
  src/pkg/utf8/utf8.go      |  5 +++++
  src/pkg/utf8/utf8_test.go | 30 +++++++++++++++++++++---------
  2 files changed, 26 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/utf8/utf8.go b/src/pkg/utf8/utf8.go
+index 4b2e08c4dd..eaa3d13849 100644
+--- a/src/pkg/utf8/utf8.go
++++ b/src/pkg/utf8/utf8.go
+@@ -227,6 +227,11 @@ func RuneLen(rune int) int {
+ // EncodeRune writes into p (which must be large enough) the UTF-8 encoding of the rune.
+ // It returns the number of bytes written.
+ func EncodeRune(rune int, p []byte) int {
++	// Negative values are erroneous.
++	if rune < 0 {
++		rune = RuneError
++	}
++
+ 	if rune <= _Rune1Max {
+ 		p[0] = byte(rune);
+ 		return 1;
+diff --git a/src/pkg/utf8/utf8_test.go b/src/pkg/utf8/utf8_test.go
+index 8dd3ad25f7..595efc6343 100644
+--- a/src/pkg/utf8/utf8_test.go
++++ b/src/pkg/utf8/utf8_test.go
+@@ -42,6 +42,7 @@ var utf8map = []Utf8Map{
+ 	Utf8Map{0x10001, "\xf0\x90\x80\x81"},
+ 	Utf8Map{0x10fffe, "\xf4\x8f\xbf\xbe"},
+ 	Utf8Map{0x10ffff, "\xf4\x8f\xbf\xbf"},
++	Utf8Map{0xFFFD, "\xef\xbf\xbd"},
+ }
+ 
+ // strings.Bytes with one extra byte at end
+@@ -81,7 +82,7 @@ func TestEncodeRune(t *testing.T) {
+ 		n := EncodeRune(m.rune, &buf);
+ 		b1 := buf[0:n];
+ 		if !bytes.Equal(b, b1) {
+-			t.Errorf("EncodeRune(0x%04x) = %q want %q", m.rune, b1, b)
++			t.Errorf("EncodeRune(%#04x) = %q want %q", m.rune, b1, b)
+ 		}
+ 	}
+ }
+@@ -92,23 +93,23 @@ func TestDecodeRune(t *testing.T) {
+ 		b := makeBytes(m.str);
+ 		rune, size := DecodeRune(b);
+ 		if rune != m.rune || size != len(b) {
+-			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", b, rune, size, m.rune, len(b))
++			t.Errorf("DecodeRune(%q) = %#04x, %d want %#04x, %d", b, rune, size, m.rune, len(b))
+ 		}
+ 		s := m.str;
+ 		rune, size = DecodeRuneInString(s);
+ 		if rune != m.rune || size != len(b) {
+-			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", s, rune, size, m.rune, len(b))
++			t.Errorf("DecodeRune(%q) = %#04x, %d want %#04x, %d", s, rune, size, m.rune, len(b))
+ 		}
+ 
+ 		// there's an extra byte that bytes left behind - make sure trailing byte works
+ 		rune, size = DecodeRune(b[0:cap(b)]);
+ 		if rune != m.rune || size != len(b) {
+-			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", b, rune, size, m.rune, len(b))
++			t.Errorf("DecodeRune(%q) = %#04x, %d want %#04x, %d", b, rune, size, m.rune, len(b))
+ 		}
+ 		s = m.str + "\x00";
+ 		rune, size = DecodeRuneInString(s);
+ 		if rune != m.rune || size != len(b) {
+-			t.Errorf("DecodeRuneInString(%q) = 0x%04x, %d want 0x%04x, %d", s, rune, size, m.rune, len(b))
++			t.Errorf("DecodeRuneInString(%q) = %#04x, %d want %#04x, %d", s, rune, size, m.rune, len(b))
+ 		}
+ 
+ 		// make sure missing bytes fail
+@@ -118,12 +119,12 @@ func TestDecodeRune(t *testing.T) {
+ 		}
+ 		rune, size = DecodeRune(b[0 : len(b)-1]);
+ 		if rune != RuneError || size != wantsize {
+-			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", b[0:len(b)-1], rune, size, RuneError, wantsize)
++			t.Errorf("DecodeRune(%q) = %#04x, %d want %#04x, %d", b[0:len(b)-1], rune, size, RuneError, wantsize)
+ 		}
+ 		s = m.str[0 : len(m.str)-1];
+ 		rune, size = DecodeRuneInString(s);
+ 		if rune != RuneError || size != wantsize {
+-			t.Errorf("DecodeRuneInString(%q) = 0x%04x, %d want 0x%04x, %d", s, rune, size, RuneError, wantsize)
++			t.Errorf("DecodeRuneInString(%q) = %#04x, %d want %#04x, %d", s, rune, size, RuneError, wantsize)
+ 		}
+ 
+ 		// make sure bad sequences fail
+@@ -134,16 +135,27 @@ func TestDecodeRune(t *testing.T) {
+ 		}
+ 		rune, size = DecodeRune(b);
+ 		if rune != RuneError || size != 1 {
+-			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", b, rune, size, RuneError, 1)
++			t.Errorf("DecodeRune(%q) = %#04x, %d want %#04x, %d", b, rune, size, RuneError, 1)
+ 		}
+ 		s = string(b);
+ 		rune, size = DecodeRune(b);
+ 		if rune != RuneError || size != 1 {
+-			t.Errorf("DecodeRuneInString(%q) = 0x%04x, %d want 0x%04x, %d", s, rune, size, RuneError, 1)
++			t.Errorf("DecodeRuneInString(%q) = %#04x, %d want %#04x, %d", s, rune, size, RuneError, 1)
+ 		}
+ 	}
+ }
+ 
++// Check that negative runes encode as U+FFFD.
++func TestNegativeRune(t *testing.T) {
++	errorbuf := make([]byte, UTFMax);
++	errorbuf = errorbuf[0:EncodeRune(RuneError, errorbuf)];
++	buf := make([]byte, UTFMax);
++	buf = buf[0:EncodeRune(-1, buf)];
++	if !bytes.Equal(buf, errorbuf) {
++		t.Errorf("incorrect encoding [% x] for -1; expected [% x]", buf, errorbuf)
++	}
++}
++
+ type RuneCountTest struct {
+ 	in	string;
+ 	out	int;

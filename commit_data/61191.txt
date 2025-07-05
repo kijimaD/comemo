@@ -21,6 +21,24 @@ Date:   Thu Oct 17 20:30:37 2024 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/testdata/testprogcgo/threadprof.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/testdata/testprogcgo/threadprof.go b/src/runtime/testdata/testprogcgo/threadprof.go
+index 00b511d23b..2d8c0f6d90 100644
+--- a/src/runtime/testdata/testprogcgo/threadprof.go
++++ b/src/runtime/testdata/testprogcgo/threadprof.go
+@@ -36,10 +36,10 @@ __attribute__((constructor)) void issue9456() {
+ 	}
+ }
+ 
+-void **nullptr;
++void **nullpointer;
+ 
+ void *crash(void *p) {
+-	*nullptr = p;
++	*nullpointer = p;
+ 	return 0;
+ }
+ 

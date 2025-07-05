@@ -15,8 +15,66 @@ Date:   Mon Mar 23 15:28:51 2015 -0700
     Change-Id: I9d138cc3a16c1a51453da1406914d7b320bf6270
     Reviewed-on: https://go-review.googlesource.com/7980
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/debug/dwarf/entry.go     | 2 +-
  src/encoding/asn1/marshal.go | 2 +-
  src/go/ast/ast.go            | 6 +++---
  3 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/debug/dwarf/entry.go b/src/debug/dwarf/entry.go
+index d459f30519..2742ae0eab 100644
+--- a/src/debug/dwarf/entry.go
++++ b/src/debug/dwarf/entry.go
+@@ -112,7 +112,7 @@ type Field struct {
+ //
+ // A common idiom is to merge the check for nil return with
+ // the check that the value has the expected dynamic type, as in:
+-//	v, ok := e.Val(AttrSibling).(int64);
++//	v, ok := e.Val(AttrSibling).(int64)
+ //
+ func (e *Entry) Val(a Attr) interface{} {
+ 	for _, f := range e.Field {
+diff --git a/src/encoding/asn1/marshal.go b/src/encoding/asn1/marshal.go
+index b2f104b4cb..bf92c04c9f 100644
+--- a/src/encoding/asn1/marshal.go
++++ b/src/encoding/asn1/marshal.go
+@@ -18,7 +18,7 @@ import (
+ // A forkableWriter is an in-memory buffer that can be
+ // 'forked' to create new forkableWriters that bracket the
+ // original.  After
+-//    pre, post := w.fork();
++//    pre, post := w.fork()
+ // the overall sequence of bytes represented is logically w+pre+post.
+ type forkableWriter struct {
+ 	*bytes.Buffer
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index d21390ee55..5ab4283826 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -486,7 +486,7 @@ func (x *MapType) End() token.Pos       { return x.Value.End() }
+ func (x *ChanType) End() token.Pos      { return x.Value.End() }
+ 
+ // exprNode() ensures that only expression/type nodes can be
+-// assigned to an ExprNode.
++// assigned to an Expr.
+ //
+ func (*BadExpr) exprNode()        {}
+ func (*Ident) exprNode()          {}
+@@ -787,7 +787,7 @@ func (s *ForStmt) End() token.Pos    { return s.Body.End() }
+ func (s *RangeStmt) End() token.Pos  { return s.Body.End() }
+ 
+ // stmtNode() ensures that only statement nodes can be
+-// assigned to a StmtNode.
++// assigned to a Stmt.
+ //
+ func (*BadStmt) stmtNode()        {}
+ func (*DeclStmt) stmtNode()       {}
+@@ -951,7 +951,7 @@ func (d *FuncDecl) End() token.Pos {
+ }
+ 
+ // declNode() ensures that only declaration nodes can be
+-// assigned to a DeclNode.
++// assigned to a Decl.
+ //
+ func (*BadDecl) declNode()  {}
+ func (*GenDecl) declNode()  {}

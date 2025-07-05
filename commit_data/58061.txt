@@ -11,6 +11,21 @@ Date:   Wed Sep 20 15:15:45 2023 -0700
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/fmt/doc.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index 9785ed9526..1cda484d8a 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -180,7 +180,8 @@ controlled by that implementation.
+ implements the GoStringer interface, that will be invoked.
+ 
+ If the format (which is implicitly %v for Println etc.) is valid
+-for a string (%s %q %v %x %X), the following two rules apply:
++for a string (%s %q %x %X), or is %v but not %#v,
++the following two rules apply:
+ 
+ 4. If an operand implements the error interface, the Error method
+ will be invoked to convert the object to a string, which will then

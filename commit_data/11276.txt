@@ -14,7 +14,68 @@ Date:   Thu Jan 19 14:19:59 2012 -0800
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5536072
-
+---
  src/pkg/net/http/serve_test.go | 14 ++++++++------
  src/pkg/net/http/server.go     |  7 ++++---
  2 files changed, 12 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index 9aff467eed..147c216ec7 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -904,17 +904,13 @@ func testHandlerPanic(t *testing.T, withHijack bool) {
+ 		panic("intentional death for testing")
+ 	}))
+ 	defer ts.Close()
+-	_, err := Get(ts.URL)
+-	if err == nil {
+-		t.Logf("expected an error")
+-	}
+ 
+ 	// Do a blocking read on the log output pipe so its logging
+ 	// doesn't bleed into the next test.  But wait only 5 seconds
+ 	// for it.
+-	done := make(chan bool)
++	done := make(chan bool, 1)
+ 	go func() {
+-		buf := make([]byte, 1024)
++		buf := make([]byte, 4<<10)
+ 		_, err := pr.Read(buf)
+ 		pr.Close()
+ 		if err != nil {
+@@ -922,6 +918,12 @@ func testHandlerPanic(t *testing.T, withHijack bool) {
+ 		}
+ 		done <- true
+ 	}()
++
++	_, err := Get(ts.URL)
++	if err == nil {
++		t.Logf("expected an error")
++	}
++
+ 	select {
+ 	case <-done:
+ 		return
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index 22ea8e3172..bad3bcb289 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -569,14 +569,15 @@ func (c *conn) serve() {
+ 		if err == nil {
+ 			return
+ 		}
+-		if c.rwc != nil { // may be nil if connection hijacked
+-			c.rwc.Close()
+-		}
+ 
+ 		var buf bytes.Buffer
+ 		fmt.Fprintf(&buf, "http: panic serving %v: %v\n", c.remoteAddr, err)
+ 		buf.Write(debug.Stack())
+ 		log.Print(buf.String())
++
++		if c.rwc != nil { // may be nil if connection hijacked
++			c.rwc.Close()
++		}
+ 	}()
+ 
+ 	if tlsConn, ok := c.rwc.(*tls.Conn); ok {

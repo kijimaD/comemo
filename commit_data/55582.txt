@@ -17,6 +17,29 @@ Date:   Thu Feb 23 22:22:29 2023 +0000
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Michael Pratt <mpratt@google.com>
-
+---
  src/internal/godebug/godebug.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/godebug/godebug.go b/src/internal/godebug/godebug.go
+index 443868c384..fc6fcb92e2 100644
+--- a/src/internal/godebug/godebug.go
++++ b/src/internal/godebug/godebug.go
+@@ -45,7 +45,7 @@ type Setting struct {
+ type setting struct {
+ 	value          atomic.Pointer[string]
+ 	nonDefaultOnce sync.Once
+-	nonDefault     atomic.Int64
++	nonDefault     atomic.Uint64
+ }
+ 
+ // New returns a new Setting for the $GODEBUG setting with the given name.
+@@ -145,7 +145,7 @@ func setUpdate(update func(string, string))
+ // It forwards registrations to runtime/metrics.
+ //
+ //go:linkname registerMetric
+-func registerMetric(name string, read func() int64)
++func registerMetric(name string, read func() uint64)
+ 
+ // setNewNonDefaultInc is provided by package runtime.
+ // The runtime can do

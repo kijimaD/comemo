@@ -7,6 +7,28 @@ Date:   Thu May 4 02:39:56 2017 +0000
     Change-Id: Ie4c92da0e3cbb97d3d7e03c7d15196c34f58a2cd
     Reviewed-on: https://go-review.googlesource.com/42613
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index ba5ce894d2..c0d0d2c2c0 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of April 28, 2017",
++	"Subtitle": "Version of May 3, 2017",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -5126,7 +5126,7 @@ function completes.
+ 
+ <pre>
+ go Server()
+-go func(ch chan&lt;- bool) { for { sleep(10); ch &lt;- true; }} (c)
++go func(ch chan&lt;- bool) { for { sleep(10); ch &lt;- true }} (c)
+ </pre>
+ 
+ 

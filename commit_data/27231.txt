@@ -15,6 +15,34 @@ Date:   Wed Mar 16 14:02:56 2016 -0700
     Change-Id: Ie3283738486eb6f8462d594f2728ac98333c0520
     Reviewed-on: https://go-review.googlesource.com/20768
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/parser.go | 9 +--------
  1 file changed, 1 insertion(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index 4813cab6de..4288570fbc 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -1161,13 +1161,6 @@ func (p *parser) uexpr() *Node {
+ 	case '!':
+ 		op = ONOT
+ 
+-	case '~':
+-		// TODO(gri) do this in the lexer instead (issue 13244)
+-		p.next()
+-		x := p.uexpr()
+-		Yyerror("the bitwise complement operator is ^")
+-		return Nod(OCOM, x, nil)
+-
+ 	case '^':
+ 		op = OCOM
+ 
+@@ -2517,7 +2510,7 @@ func (p *parser) stmt() *Node {
+ 
+ 	case LNAME, '@', '?', LLITERAL, LFUNC, '(', // operands
+ 		'[', LSTRUCT, LMAP, LCHAN, LINTERFACE, // composite types
+-		'+', '-', '*', '&', '^', '~', LCOMM, '!': // unary operators
++		'+', '-', '*', '&', '^', LCOMM, '!': // unary operators
+ 		return p.simple_stmt(true, false)
+ 
+ 	case LFOR:

@@ -9,9 +9,85 @@ Date:   Tue Sep 3 21:15:15 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/13498046
-
+---
  misc/cgo/errors/err1.go   | 14 ++++++++++++++
  misc/cgo/errors/test.bash | 19 +++++++++++++++++++
  src/cmd/cgo/gcc.go        |  2 ++
  src/run.bash              |  6 ++++++
  4 files changed, 41 insertions(+)
+
+diff --git a/misc/cgo/errors/err1.go b/misc/cgo/errors/err1.go
+new file mode 100644
+index 0000000000..78094c6b51
+--- /dev/null
++++ b/misc/cgo/errors/err1.go
+@@ -0,0 +1,14 @@
++package main
++
++/*
++#cgo LDFLAGS: -c
++
++void test() {
++	xxx;		// This is line 7.
++}
++*/
++import "C"
++
++func main() {
++	C.test()
++}
+diff --git a/misc/cgo/errors/test.bash b/misc/cgo/errors/test.bash
+new file mode 100755
+index 0000000000..e9fa6d0195
+--- /dev/null
++++ b/misc/cgo/errors/test.bash
+@@ -0,0 +1,19 @@
++# Copyright 2013 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++if go tool cgo err1.go >errs 2>&1; then
++  echo 1>&2 misc/cgo/errors/test.bash: BUG: expected cgo to fail but it succeeded
++  exit 1
++fi
++if ! test -s errs; then
++  echo 1>&2 misc/cgo/errors/test.bash: BUG: expected error output but saw none
++  exit 1
++fi
++if ! fgrep err1.go:7 errs >/dev/null 2>&1; then
++  echo 1>&2 misc/cgo/errors/test.bash: BUG: expected error on line 7 but saw:
++  cat 1>&2 errs
++  exit 1
++fi
++rm -rf errs _obj
++exit 0
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index f470094663..d835accac1 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -76,6 +76,8 @@ func (f *File) DiscardCgoDirectives() {
+ 		l := strings.TrimSpace(line)
+ 		if len(l) < 5 || l[:4] != "#cgo" || !unicode.IsSpace(rune(l[4])) {
+ 			linesOut = append(linesOut, line)
++		} else {
++			linesOut = append(linesOut, "")
+ 		}
+ 	}
+ 	f.Preamble = strings.Join(linesOut, "\n")
+diff --git a/src/run.bash b/src/run.bash
+index 52e09b4979..9af3f95b07 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -145,6 +145,12 @@ esac
+ go run main.go || exit 1
+ ) || exit $?
+ 
++[ "$CGO_ENABLED" != 1 ] ||
++[ "$GOHOSTOS" == windows ] ||
++(xcd ../misc/cgo/errors
++./test.bash || exit 1
++) || exit $?
++
+ (xcd ../doc/progs
+ time ./run || exit 1
+ ) || exit $?

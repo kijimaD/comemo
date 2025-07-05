@@ -9,6 +9,20 @@ Date:   Thu Sep 1 09:19:32 2016 -0500
     Change-Id: I48c2825d4fef55a75d2f99640a7079c56fce39db
     Reviewed-on: https://go-review.googlesource.com/28370
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/rpc/client.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/net/rpc/client.go b/src/net/rpc/client.go
+index 862fb1ae0c..fce6a4866c 100644
+--- a/src/net/rpc/client.go
++++ b/src/net/rpc/client.go
+@@ -274,6 +274,8 @@ func Dial(network, address string) (*Client, error) {
+ 	return NewClient(conn), nil
+ }
+ 
++// Close calls the underlying codec's Close method. If the connection is already
++// shutting down, ErrShutdown is returned.
+ func (client *Client) Close() error {
+ 	client.mutex.Lock()
+ 	if client.closing {

@@ -10,8 +10,69 @@ Date:   Tue Feb 21 23:04:38 2012 -0500
     TBR=golang-dev
     CC=golang-dev
     https://golang.org/cl/5687074
-
+---
  src/cmd/5l/obj.c | 8 ++------
  src/cmd/6l/obj.c | 8 ++------
  src/cmd/8l/obj.c | 4 ++--
  3 files changed, 6 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index eb078511b6..a3f8161601 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -551,12 +551,8 @@ loop:
+ 			s->dupok = 1;
+ 		if(p->reg & RODATA)
+ 			s->type = SRODATA;
+-		else if(p->reg & NOPTR) {
+-			if(s->np > 0)
+-				s->type = SNOPTRDATA;
+-			else
+-				s->type = SNOPTRBSS;
+-		}
++		else if(p->reg & NOPTR)
++			s->type = SNOPTRBSS;
+ 		break;
+ 
+ 	case ADATA:
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index f441f3303d..692cab7b81 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -567,12 +567,8 @@ loop:
+ 			s->dupok = 1;
+ 		if(p->from.scale & RODATA)
+ 			s->type = SRODATA;
+-		else if(p->from.scale & NOPTR) {
+-			if(s->np > 0)
+-				s->type = SNOPTRDATA;
+-			else
+-				s->type = SNOPTRBSS;
+-		}
++		else if(p->from.scale & NOPTR)
++			s->type = SNOPTRBSS;
+ 		goto loop;
+ 
+ 	case ADATA:
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index ccb4f7c23a..af4bc844fb 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -563,7 +563,7 @@ loop:
+ 			s->type = SBSS;
+ 			s->size = 0;
+ 		}
+-		if(s->type != SBSS && s->type != SNOPTRDATA && !s->dupok) {
++		if(s->type != SBSS && s->type != SNOPTRBSS && !s->dupok) {
+ 			diag("%s: redefinition: %s in %s",
+ 				pn, s->name, TNAME);
+ 			s->type = SBSS;
+@@ -576,7 +576,7 @@ loop:
+ 		if(p->from.scale & RODATA)
+ 			s->type = SRODATA;
+ 		else if(p->from.scale & NOPTR)
+-			s->type = SNOPTRDATA;
++			s->type = SNOPTRBSS;
+ 		goto loop;
+ 
+ 	case ADATA:

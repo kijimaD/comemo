@@ -12,6 +12,21 @@ Date:   Wed Aug 18 13:22:58 2021 -0400
     Trust: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/typeparam.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/go/types/typeparam.go b/src/go/types/typeparam.go
+index 6392504947..8d19d5db76 100644
+--- a/src/go/types/typeparam.go
++++ b/src/go/types/typeparam.go
+@@ -60,6 +60,9 @@ func (t *TypeParam) _SetId(id uint64) {
+ 	t.id = id
+ }
+ 
++// Obj returns the type name for t.
++func (t *TypeParam) Obj() *TypeName { return t.obj }
++
+ // Constraint returns the type constraint specified for t.
+ func (t *TypeParam) Constraint() Type {
+ 	// compute the type set if possible (we may not have an interface)

@@ -9,8 +9,107 @@ Date:   Wed Oct 5 13:53:39 2016 -0700
     Change-Id: I11dd15c7d14fc19d42a3b48427a4cc1208b18e6a
     Reviewed-on: https://go-review.googlesource.com/30456
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/typecheck.go | 24 ++++++++----------------
  test/fixedbugs/bug255.go                 |  2 +-
  test/fixedbugs/issue13485.go             | 18 ++++++++++++++++++
  3 files changed, 27 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 3455319e77..f2c6f5a3e9 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -340,18 +340,16 @@ OpSwitch:
+ 
+ 	case OTARRAY:
+ 		ok |= Etype
+-		var t *Type
+-		l := n.Left
+-		r := n.Right
+-		r = typecheck(r, Etype)
++		r := typecheck(n.Right, Etype)
+ 		if r.Type == nil {
+ 			n.Type = nil
+ 			return n
+ 		}
+ 
+-		if l == nil {
++		var t *Type
++		if n.Left == nil {
+ 			t = typSlice(r.Type)
+-		} else if l.Op == ODDD {
++		} else if n.Left.Op == ODDD {
+ 			t = typDDDArray(r.Type)
+ 			if top&Ecomplit == 0 && n.Diag == 0 {
+ 				t.Broke = true
+@@ -359,17 +357,9 @@ OpSwitch:
+ 				yyerror("use of [...] array outside of array literal")
+ 			}
+ 		} else {
+-			n.Left = typecheck(n.Left, Erv)
++			n.Left = indexlit(typecheck(n.Left, Erv))
+ 			l := n.Left
+-			var v Val
+-			switch consttype(l) {
+-			case CTINT, CTRUNE:
+-				v = l.Val()
+-
+-			case CTFLT:
+-				v = toint(l.Val())
+-
+-			default:
++			if consttype(l) != CTINT {
+ 				if l.Type != nil && l.Type.IsInteger() && l.Op != OLITERAL {
+ 					yyerror("non-constant array bound %v", l)
+ 				} else {
+@@ -379,11 +369,13 @@ OpSwitch:
+ 				return n
+ 			}
+ 
++			v := l.Val()
+ 			if doesoverflow(v, Types[TINT]) {
+ 				yyerror("array bound is too large")
+ 				n.Type = nil
+ 				return n
+ 			}
++
+ 			bound := v.U.(*Mpint).Int64()
+ 			if bound < 0 {
+ 				yyerror("array bound must be non-negative")
+diff --git a/test/fixedbugs/bug255.go b/test/fixedbugs/bug255.go
+index cc7d92fdb0..247ca328c7 100644
+--- a/test/fixedbugs/bug255.go
++++ b/test/fixedbugs/bug255.go
+@@ -10,7 +10,7 @@ var a [10]int      // ok
+ var b [1e1]int     // ok
+ var c [1.5]int     // ERROR "truncated"
+ var d ["abc"]int   // ERROR "invalid array bound|not numeric"
+-var e [nil]int     // ERROR "invalid array bound|not numeric"
++var e [nil]int     // ERROR "use of untyped nil|invalid array bound|not numeric"
+ var f [e]int       // ERROR "invalid array bound|not constant"
+ var g [1 << 65]int // ERROR "array bound is too large|overflows"
+ var h [len(a)]int  // ok
+diff --git a/test/fixedbugs/issue13485.go b/test/fixedbugs/issue13485.go
+new file mode 100644
+index 0000000000..a9beea1f7d
+--- /dev/null
++++ b/test/fixedbugs/issue13485.go
+@@ -0,0 +1,18 @@
++// errorcheck
++
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++var (
++	_ [10]int
++	_ [10.0]int
++	_ [float64(10)]int                // ERROR "invalid array bound"
++	_ [10 + 0i]int
++	_ [complex(10, 0)]int
++	_ [complex128(complex(10, 0))]int // ERROR "invalid array bound"
++	_ ['a']int
++	_ [rune(65)]int
++)

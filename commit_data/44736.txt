@@ -30,8 +30,137 @@ Date:   Wed May 13 10:39:11 2020 +1000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  doc/go1.16.html            | 14 +++++++++++++
  src/net/http/serve_test.go | 52 +++++++++++++++++++++++++++++++---------------
  src/net/http/server.go     | 16 ++++++++------
  3 files changed, 59 insertions(+), 23 deletions(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index 4753cf914d..09e974d07c 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -112,3 +112,17 @@ Do not send CLs removing the interior tags from such phrases.
+ <p>
+   TODO
+ </p>
++
++<p>
++  In the <a href="/pkg/net/http/"><code>net/http</code></a> package, the
++  behavior of <a href="/pkg/net/http/#StripPrefix"><code>StripPrefix</code></a>
++  has been changed to strip the prefix from the request URL's
++  <code>RawPath</code> field in addition to its <code>Path</code> field.
++  In past releases, only the <code>Path</code> field was trimmed, and so if the
++  request URL contained any escaped characters the URL would be modified to
++  have mismatched <code>Path</code> and <code>RawPath</code> fields.
++  In Go 1.16, <code>StripPrefix</code> trims both fields.
++  If there are escaped characters in the prefix part of the request URL the
++  handler serves a 404 instead of its previous behavior of invoking the
++  underlying handler with a mismatched <code>Path</code>/<code>RawPath</code> pair.
++</p>
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 5f56932778..635bf5dfc9 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -2849,29 +2849,47 @@ func TestStripPrefix(t *testing.T) {
+ 	defer afterTest(t)
+ 	h := HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		w.Header().Set("X-Path", r.URL.Path)
++		w.Header().Set("X-RawPath", r.URL.RawPath)
+ 	})
+-	ts := httptest.NewServer(StripPrefix("/foo", h))
++	ts := httptest.NewServer(StripPrefix("/foo/bar", h))
+ 	defer ts.Close()
+ 
+ 	c := ts.Client()
+ 
+-	res, err := c.Get(ts.URL + "/foo/bar")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	if g, e := res.Header.Get("X-Path"), "/bar"; g != e {
+-		t.Errorf("test 1: got %s, want %s", g, e)
+-	}
+-	res.Body.Close()
+-
+-	res, err = Get(ts.URL + "/bar")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	if g, e := res.StatusCode, 404; g != e {
+-		t.Errorf("test 2: got status %v, want %v", g, e)
++	cases := []struct {
++		reqPath string
++		path    string // If empty we want a 404.
++		rawPath string
++	}{
++		{"/foo/bar/qux", "/qux", ""},
++		{"/foo/bar%2Fqux", "/qux", "%2Fqux"},
++		{"/foo%2Fbar/qux", "", ""}, // Escaped prefix does not match.
++		{"/bar", "", ""},           // No prefix match.
++	}
++	for _, tc := range cases {
++		t.Run(tc.reqPath, func(t *testing.T) {
++			res, err := c.Get(ts.URL + tc.reqPath)
++			if err != nil {
++				t.Fatal(err)
++			}
++			res.Body.Close()
++			if tc.path == "" {
++				if res.StatusCode != StatusNotFound {
++					t.Errorf("got %q, want 404 Not Found", res.Status)
++				}
++				return
++			}
++			if res.StatusCode != StatusOK {
++				t.Fatalf("got %q, want 200 OK", res.Status)
++			}
++			if g, w := res.Header.Get("X-Path"), tc.path; g != w {
++				t.Errorf("got Path %q, want %q", g, w)
++			}
++			if g, w := res.Header.Get("X-RawPath"), tc.rawPath; g != w {
++				t.Errorf("got RawPath %q, want %q", g, w)
++			}
++		})
+ 	}
+-	res.Body.Close()
+ }
+ 
+ // https://golang.org/issue/18952.
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index d41b5f6f48..ed5de350a9 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2062,22 +2062,26 @@ func NotFound(w ResponseWriter, r *Request) { Error(w, "404 page not found", Sta
+ // that replies to each request with a ``404 page not found'' reply.
+ func NotFoundHandler() Handler { return HandlerFunc(NotFound) }
+ 
+-// StripPrefix returns a handler that serves HTTP requests
+-// by removing the given prefix from the request URL's Path
+-// and invoking the handler h. StripPrefix handles a
+-// request for a path that doesn't begin with prefix by
+-// replying with an HTTP 404 not found error.
++// StripPrefix returns a handler that serves HTTP requests by removing the
++// given prefix from the request URL's Path (and RawPath if set) and invoking
++// the handler h. StripPrefix handles a request for a path that doesn't begin
++// with prefix by replying with an HTTP 404 not found error. The prefix must
++// match exactly: if the prefix in the request contains escaped characters
++// the reply is also an HTTP 404 not found error.
+ func StripPrefix(prefix string, h Handler) Handler {
+ 	if prefix == "" {
+ 		return h
+ 	}
+ 	return HandlerFunc(func(w ResponseWriter, r *Request) {
+-		if p := strings.TrimPrefix(r.URL.Path, prefix); len(p) < len(r.URL.Path) {
++		p := strings.TrimPrefix(r.URL.Path, prefix)
++		rp := strings.TrimPrefix(r.URL.RawPath, prefix)
++		if len(p) < len(r.URL.Path) && (r.URL.RawPath == "" || len(rp) < len(r.URL.RawPath)) {
+ 			r2 := new(Request)
+ 			*r2 = *r
+ 			r2.URL = new(url.URL)
+ 			*r2.URL = *r.URL
+ 			r2.URL.Path = p
++			r2.URL.RawPath = rp
+ 			h.ServeHTTP(w, r2)
+ 		} else {
+ 			NotFound(w, r)

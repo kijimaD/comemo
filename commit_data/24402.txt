@@ -13,6 +13,21 @@ Date:   Mon Jul 27 12:45:56 2015 -0700
     Change-Id: Ibd04aa06539e2a0ffef73bb665febf3542fd11f1
     Reviewed-on: https://go-review.googlesource.com/12710
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/rulegen.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 46e0e507c4..8dca0bca1f 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -88,6 +88,9 @@ func genRules(arch arch) {
+ 		}
+ 		rule = ""
+ 	}
++	if unbalanced(rule) {
++		log.Fatalf("unbalanced rule: %v\n", rule)
++	}
+ 	if err := scanner.Err(); err != nil {
+ 		log.Fatalf("scanner failed: %v\n", err)
+ 	}

@@ -15,7 +15,39 @@ Date:   Thu Jun 14 11:51:57 2018 +0200
     Reviewed-on: https://go-review.googlesource.com/118822
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/mime/multipart/multipart.go      | 4 +++-
  src/mime/multipart/multipart_test.go | 8 ++++++++
  2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/mime/multipart/multipart.go b/src/mime/multipart/multipart.go
+index adaaf6975a..b1b78ecb9a 100644
+--- a/src/mime/multipart/multipart.go
++++ b/src/mime/multipart/multipart.go
+@@ -313,7 +313,9 @@ func (r *Reader) NextPart() (*Part, error) {
+ 	if r.currentPart != nil {
+ 		r.currentPart.Close()
+ 	}
+-
++	if string(r.dashBoundary) == "--" {
++		return nil, fmt.Errorf("multipart: boundary is empty")
++	}
+ 	expectNewPart := false
+ 	for {
+ 		line, err := r.bufReader.ReadSlice('\n')
+diff --git a/src/mime/multipart/multipart_test.go b/src/mime/multipart/multipart_test.go
+index 7fbee90ac3..abe1cc8e77 100644
+--- a/src/mime/multipart/multipart_test.go
++++ b/src/mime/multipart/multipart_test.go
+@@ -880,3 +880,11 @@ func roundTripParseTest() parseTest {
+ 	t.sep = w.Boundary()
+ 	return t
+ }
++
++func TestNoBoundary(t *testing.T) {
++	mr := NewReader(strings.NewReader(""), "")
++	_, err := mr.NextPart()
++	if got, want := fmt.Sprint(err), "multipart: boundary is empty"; got != want {
++		t.Errorf("NextPart error = %v; want %v", got, want)
++	}
++}

@@ -28,7 +28,51 @@ Date:   Fri Apr 13 19:39:32 2018 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/doc/dirs.go     |  5 +++--
  src/cmd/doc/doc_test.go | 14 ++++++++++++--
  2 files changed, 15 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/doc/dirs.go b/src/cmd/doc/dirs.go
+index 5088f880e1..9f7920ecd9 100644
+--- a/src/cmd/doc/dirs.go
++++ b/src/cmd/doc/dirs.go
+@@ -97,8 +97,9 @@ func (d *Dirs) bfsWalkRoot(root string) {
+ 					continue
+ 				}
+ 				// Entry is a directory.
+-				// No .git or other dot nonsense please.
+-				if strings.HasPrefix(name, ".") {
++
++				// The go tool ignores directories starting with ., _, or named "testdata".
++				if name[0] == '.' || name[0] == '_' || name == "testdata" {
+ 					continue
+ 				}
+ 				// Remember this (fully qualified) directory for the next pass.
+diff --git a/src/cmd/doc/doc_test.go b/src/cmd/doc/doc_test.go
+index e68fb017b9..f919857067 100644
+--- a/src/cmd/doc/doc_test.go
++++ b/src/cmd/doc/doc_test.go
+@@ -16,10 +16,20 @@ import (
+ )
+ 
+ func TestMain(m *testing.M) {
+-	// otherwise the tests are brittle, as they may give unexpected
+-	// output or errors when a suffix match with GOPATH takes place
++	// Clear GOPATH so we don't access the user's own packages in the test.
+ 	buildCtx.GOPATH = ""
++
+ 	dirsInit()
++
++	// Add $GOROOT/src/cmd/doc/testdata explicitly so we can access its contents in the test.
++	// Normally testdata directories are ignored, but sending it to dirs.scan directly is
++	// a hack that works around the check.
++	testdataDir, err := filepath.Abs("testdata")
++	if err != nil {
++		panic(err)
++	}
++	go func() { dirs.scan <- testdataDir }()
++
+ 	os.Exit(m.Run())
+ }
+ 

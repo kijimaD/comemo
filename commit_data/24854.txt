@@ -30,7 +30,88 @@ Date:   Thu Sep 3 01:19:51 2015 +0300
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/serve_test.go | 32 ++++++++++++++++++++++++++++++++
  src/net/http/server.go     | 15 +++++++++++++--
  2 files changed, 45 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index d51417eb4a..784074200c 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -3685,3 +3685,35 @@ Host: golang.org
+ 		<-conn.closec
+ 	}
+ }
++
++func BenchmarkCloseNotifier(b *testing.B) {
++	b.ReportAllocs()
++	b.StopTimer()
++	sawClose := make(chan bool)
++	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
++		<-rw.(CloseNotifier).CloseNotify()
++		sawClose <- true
++	}))
++	defer ts.Close()
++	tot := time.NewTimer(5 * time.Second)
++	defer tot.Stop()
++	b.StartTimer()
++	for i := 0; i < b.N; i++ {
++		conn, err := net.Dial("tcp", ts.Listener.Addr().String())
++		if err != nil {
++			b.Fatalf("error dialing: %v", err)
++		}
++		_, err = fmt.Fprintf(conn, "GET / HTTP/1.1\r\nConnection: keep-alive\r\nHost: foo\r\n\r\n")
++		if err != nil {
++			b.Fatal(err)
++		}
++		conn.Close()
++		tot.Reset(5 * time.Second)
++		select {
++		case <-sawClose:
++		case <-tot.C:
++			b.Fatal("timeout")
++		}
++	}
++	b.StopTimer()
++}
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 2c01feeb80..f525815ac6 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -179,7 +179,9 @@ func (c *conn) closeNotify() <-chan bool {
+ 		c.sr.r = pr
+ 		c.sr.Unlock()
+ 		go func() {
+-			_, err := io.Copy(pw, readSource)
++			bufp := copyBufPool.Get().(*[]byte)
++			defer copyBufPool.Put(bufp)
++			_, err := io.CopyBuffer(pw, readSource, *bufp)
+ 			if err == nil {
+ 				err = io.EOF
+ 			}
+@@ -423,7 +425,9 @@ func (w *response) ReadFrom(src io.Reader) (n int64, err error) {
+ 		return 0, err
+ 	}
+ 	if !ok || !regFile {
+-		return io.Copy(writerOnly{w}, src)
++		bufp := copyBufPool.Get().(*[]byte)
++		defer copyBufPool.Put(bufp)
++		return io.CopyBuffer(writerOnly{w}, src, *bufp)
+ 	}
+ 
+ 	// sendfile path:
+@@ -487,6 +491,13 @@ var (
+ 	bufioWriter4kPool sync.Pool
+ )
+ 
++var copyBufPool = sync.Pool{
++	New: func() interface{} {
++		b := make([]byte, 32*1024)
++		return &b
++	},
++}
++
+ func bufioWriterPool(size int) *sync.Pool {
+ 	switch size {
+ 	case 2 << 10:

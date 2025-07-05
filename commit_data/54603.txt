@@ -12,6 +12,22 @@ Date:   Thu Nov 3 12:21:58 2022 -0400
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/objdump/objdump_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index fa6a1b9a68..b747d0d542 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -290,6 +290,10 @@ func TestDisasmPIE(t *testing.T) {
+ 	if !platform.BuildModeSupported("gc", "pie", runtime.GOOS, runtime.GOARCH) {
+ 		t.Skipf("skipping on %s/%s, PIE buildmode not supported", runtime.GOOS, runtime.GOARCH)
+ 	}
++	if !platform.InternalLinkPIESupported(runtime.GOOS, runtime.GOARCH) {
++		// require cgo on platforms that PIE needs external linking
++		testenv.MustHaveCGO(t)
++	}
+ 	t.Parallel()
+ 	testDisasm(t, "fmthello.go", false, false, "-buildmode=pie")
+ }

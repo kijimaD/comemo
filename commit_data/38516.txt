@@ -9,7 +9,33 @@ Date:   Fri Nov 2 16:56:09 2018 -0400
     Run-TryBot: Alan Donovan <adonovan@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/go/build/build.go | 2 +-
  src/go/build/doc.go   | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 015551d008..91fe4cfc74 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -298,7 +298,7 @@ func defaultContext() Context {
+ 	// (perhaps it is the stub to use in that case) should say "+build !go1.x".
+ 	// NOTE: If you add to this list, also update the doc comment in doc.go.
+ 	// NOTE: The last element in ReleaseTags should be the current release.
+-	const version = 11 // go1.11
++	const version = 12 // go1.12
+ 	for i := 1; i <= version; i++ {
+ 		c.ReleaseTags = append(c.ReleaseTags, "go1."+strconv.Itoa(i))
+ 	}
+diff --git a/src/go/build/doc.go b/src/go/build/doc.go
+index d803b8967b..682315cbd6 100644
+--- a/src/go/build/doc.go
++++ b/src/go/build/doc.go
+@@ -108,6 +108,7 @@
+ //	- "go1.9", from Go version 1.9 onward
+ //	- "go1.10", from Go version 1.10 onward
+ //	- "go1.11", from Go version 1.11 onward
++//	- "go1.12", from Go version 1.12 onward
+ //	- any additional words listed in ctxt.BuildTags
+ //
+ // There are no build tags for beta or minor releases. Programs that need the

@@ -7,7 +7,7 @@ Date:   Tue Dec 10 10:47:30 2013 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/40310043
-
+---
  test/fixedbugs/bug480.dir/a.go    | 17 +++++++++++++++++
  test/fixedbugs/bug480.dir/b.go    | 13 +++++++++++++
  test/fixedbugs/bug480.go          |  9 +++++++++
@@ -17,3 +17,165 @@ Date:   Tue Dec 10 10:47:30 2013 -0800
  test/fixedbugs/issue6789.dir/b.go | 12 ++++++++++++
  test/fixedbugs/issue6789.go       | 10 ++++++++++
  8 files changed, 113 insertions(+)
+
+diff --git a/test/fixedbugs/bug480.dir/a.go b/test/fixedbugs/bug480.dir/a.go
+new file mode 100644
+index 0000000000..6dff51586b
+--- /dev/null
++++ b/test/fixedbugs/bug480.dir/a.go
+@@ -0,0 +1,17 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type S interface{
++	F() T
++}
++
++type T struct {
++	S
++}
++
++type U struct {
++	error
++}
+diff --git a/test/fixedbugs/bug480.dir/b.go b/test/fixedbugs/bug480.dir/b.go
+new file mode 100644
+index 0000000000..620736540a
+--- /dev/null
++++ b/test/fixedbugs/bug480.dir/b.go
+@@ -0,0 +1,13 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++var t a.T
++
++func F() error {
++	return a.U{}
++}
+diff --git a/test/fixedbugs/bug480.go b/test/fixedbugs/bug480.go
+new file mode 100644
+index 0000000000..5b44af4308
+--- /dev/null
++++ b/test/fixedbugs/bug480.go
+@@ -0,0 +1,9 @@
++// compiledir
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Gccgo mishandled an import of a forward declared type.
++
++package ignored
+diff --git a/test/fixedbugs/bug481.go b/test/fixedbugs/bug481.go
+new file mode 100644
+index 0000000000..d0922a5a4f
+--- /dev/null
++++ b/test/fixedbugs/bug481.go
+@@ -0,0 +1,18 @@
++// compile
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Returning an index into a conversion from string to slice caused a
++// compilation error when using gccgo.
++
++package p
++
++func F1(s string) byte {
++	return []byte(s)[0]
++}
++
++func F2(s string) rune {
++	return []rune(s)[0]
++}
+diff --git a/test/fixedbugs/bug482.go b/test/fixedbugs/bug482.go
+new file mode 100644
+index 0000000000..10c48287d3
+--- /dev/null
++++ b/test/fixedbugs/bug482.go
+@@ -0,0 +1,20 @@
++// compile
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Using the same name for a field in a composite literal and for a
++// global variable that depends on the variable being initialized
++// caused gccgo to erroneously report "variable initializer refers to
++// itself".
++
++package p
++
++type S struct {
++	F int
++}
++
++var V = S{F: 1}
++
++var F = V.F
+diff --git a/test/fixedbugs/issue6789.dir/a.go b/test/fixedbugs/issue6789.dir/a.go
+new file mode 100644
+index 0000000000..9c90e0740c
+--- /dev/null
++++ b/test/fixedbugs/issue6789.dir/a.go
+@@ -0,0 +1,14 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type unexported struct {
++        a int
++        b bool
++}
++
++type Struct struct {
++        unexported
++}
+diff --git a/test/fixedbugs/issue6789.dir/b.go b/test/fixedbugs/issue6789.dir/b.go
+new file mode 100644
+index 0000000000..b6a6fc317f
+--- /dev/null
++++ b/test/fixedbugs/issue6789.dir/b.go
+@@ -0,0 +1,12 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "./a"
++
++type s a.Struct
++
++func main() {
++}
+diff --git a/test/fixedbugs/issue6789.go b/test/fixedbugs/issue6789.go
+new file mode 100644
+index 0000000000..e3a2c3320e
+--- /dev/null
++++ b/test/fixedbugs/issue6789.go
+@@ -0,0 +1,10 @@
++// rundir
++
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 6789: gccgo failed to find the hash function for an
++// unexported struct embedded in an exported struct.
++
++package ignored

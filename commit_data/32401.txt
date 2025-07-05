@@ -18,7 +18,7 @@ Date:   Fri Apr 21 18:44:34 2017 -0700
     Reviewed-by: Martin Möhrmann <moehrmann@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/go.go           |  2 --
  src/cmd/compile/internal/gc/main.go         |  1 -
  src/cmd/compile/internal/gc/obj.go          |  2 +-
@@ -36,3 +36,660 @@ Date:   Fri Apr 21 18:44:34 2017 -0700
  src/cmd/link/internal/ld/decodesym.go       | 12 +++++-----
  src/cmd/link/internal/ld/symtab.go          |  6 ++---
  16 files changed, 58 insertions(+), 80 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index f214b6dddf..46cec3e8bc 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -177,8 +177,6 @@ var Curfn *Node
+ 
+ var Widthptr int
+ 
+-var Widthint int
+-
+ var Widthreg int
+ 
+ var nblank *Node
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index ec6665f75c..dde8a9a589 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -364,7 +364,6 @@ func Main(archInit func(*Arch)) {
+ 		Debug['l'] = 1 - Debug['l']
+ 	}
+ 
+-	Widthint = thearch.LinkArch.IntSize
+ 	Widthptr = thearch.LinkArch.PtrSize
+ 	Widthreg = thearch.LinkArch.RegSize
+ 
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index c261713fcd..5067330e52 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -405,7 +405,7 @@ func gdata(nam *Node, nr *Node, wid int) {
+ 		case string:
+ 			symdata := stringsym(u)
+ 			s.WriteAddr(Ctxt, nam.Xoffset, Widthptr, symdata, 0)
+-			s.WriteInt(Ctxt, nam.Xoffset+int64(Widthptr), Widthint, int64(len(u)))
++			s.WriteInt(Ctxt, nam.Xoffset+int64(Widthptr), Widthptr, int64(len(u)))
+ 
+ 		default:
+ 			Fatalf("gdata unhandled OLITERAL %v", nr)
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 712c2aad9e..80404df126 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1185,7 +1185,7 @@ ok:
+ 		}
+ 		ot = dgopkgpath(lsym, ot, tpkg)
+ 
+-		ot = dsymptr(lsym, ot, lsym, ot+Widthptr+2*Widthint+uncommonSize(t))
++		ot = dsymptr(lsym, ot, lsym, ot+Widthptr+2*Widthptr+uncommonSize(t))
+ 		ot = duintptr(lsym, ot, uint64(n))
+ 		ot = duintptr(lsym, ot, uint64(n))
+ 		dataAdd := imethodSize() * n
+@@ -1277,7 +1277,7 @@ ok:
+ 			}
+ 		}
+ 		ot = dgopkgpath(lsym, ot, pkg)
+-		ot = dsymptr(lsym, ot, lsym, ot+Widthptr+2*Widthint+uncommonSize(t))
++		ot = dsymptr(lsym, ot, lsym, ot+Widthptr+2*Widthptr+uncommonSize(t))
+ 		ot = duintptr(lsym, ot, uint64(n))
+ 		ot = duintptr(lsym, ot, uint64(n))
+ 
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index b2d1fa7a28..73a342e796 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -333,9 +333,9 @@ func staticcopy(l *Node, r *Node, out *[]*Node) bool {
+ 		n.Xoffset = l.Xoffset + int64(array_array)
+ 		gdata(&n, nod(OADDR, a, nil), Widthptr)
+ 		n.Xoffset = l.Xoffset + int64(array_nel)
+-		gdata(&n, r.Right, Widthint)
++		gdata(&n, r.Right, Widthptr)
+ 		n.Xoffset = l.Xoffset + int64(array_cap)
+-		gdata(&n, r.Right, Widthint)
++		gdata(&n, r.Right, Widthptr)
+ 		return true
+ 
+ 	case OARRAYLIT, OSTRUCTLIT:
+@@ -434,9 +434,9 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
+ 		n.Xoffset = l.Xoffset + int64(array_array)
+ 		gdata(&n, nod(OADDR, a, nil), Widthptr)
+ 		n.Xoffset = l.Xoffset + int64(array_nel)
+-		gdata(&n, r.Right, Widthint)
++		gdata(&n, r.Right, Widthptr)
+ 		n.Xoffset = l.Xoffset + int64(array_cap)
+-		gdata(&n, r.Right, Widthint)
++		gdata(&n, r.Right, Widthptr)
+ 
+ 		// Fall through to init underlying array.
+ 		l = a
+@@ -797,9 +797,9 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
+ 		nam.Xoffset += int64(array_array)
+ 		gdata(&nam, nod(OADDR, vstat, nil), Widthptr)
+ 		nam.Xoffset += int64(array_nel) - int64(array_array)
+-		gdata(&nam, &v, Widthint)
++		gdata(&nam, &v, Widthptr)
+ 		nam.Xoffset += int64(array_cap) - int64(array_nel)
+-		gdata(&nam, &v, Widthint)
++		gdata(&nam, &v, Widthptr)
+ 
+ 		return
+ 	}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 9ca6ef88b7..a56c25bef9 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -492,7 +492,7 @@ func (s *state) constFloat64(t ssa.Type, c float64) *ssa.Value {
+ 	return s.f.ConstFloat64(s.peekPos(), t, c)
+ }
+ func (s *state) constInt(t ssa.Type, c int64) *ssa.Value {
+-	if s.config.IntSize == 8 {
++	if s.config.PtrSize == 8 {
+ 		return s.constInt64(t, c)
+ 	}
+ 	if int64(int32(c)) != c {
+@@ -1164,12 +1164,12 @@ func (s *state) concreteEtype(t *types.Type) types.EType {
+ 	default:
+ 		return e
+ 	case TINT:
+-		if s.config.IntSize == 8 {
++		if s.config.PtrSize == 8 {
+ 			return TINT64
+ 		}
+ 		return TINT32
+ 	case TUINT:
+-		if s.config.IntSize == 8 {
++		if s.config.PtrSize == 8 {
+ 			return TUINT64
+ 		}
+ 		return TUINT32
+@@ -1602,7 +1602,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 
+ 		if ft.IsFloat() || tt.IsFloat() {
+ 			conv, ok := fpConvOpToSSA[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]
+-			if s.config.IntSize == 4 && thearch.LinkArch.Name != "amd64p32" && thearch.LinkArch.Family != sys.MIPS {
++			if s.config.PtrSize == 4 && thearch.LinkArch.Name != "amd64p32" && thearch.LinkArch.Family != sys.MIPS {
+ 				if conv1, ok1 := fpConvOpToSSA32[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]; ok1 {
+ 					conv = conv1
+ 				}
+@@ -2500,7 +2500,7 @@ func init() {
+ 	var p8 []*sys.Arch
+ 	for _, a := range sys.Archs {
+ 		all = append(all, a)
+-		if a.IntSize == 4 {
++		if a.PtrSize == 4 {
+ 			i4 = append(i4, a)
+ 		} else {
+ 			i8 = append(i8, a)
+@@ -2765,7 +2765,7 @@ func init() {
+ 		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS)
+ 	addF("math/bits", "Len32",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+-			if s.config.IntSize == 4 {
++			if s.config.PtrSize == 4 {
+ 				return s.newValue1(ssa.OpBitLen32, types.Types[TINT], args[0])
+ 			}
+ 			x := s.newValue1(ssa.OpZeroExt32to64, types.Types[TUINT64], args[0])
+@@ -2774,7 +2774,7 @@ func init() {
+ 		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS)
+ 	addF("math/bits", "Len16",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+-			if s.config.IntSize == 4 {
++			if s.config.PtrSize == 4 {
+ 				x := s.newValue1(ssa.OpZeroExt16to32, types.Types[TUINT32], args[0])
+ 				return s.newValue1(ssa.OpBitLen32, types.Types[TINT], x)
+ 			}
+@@ -2785,7 +2785,7 @@ func init() {
+ 	// Note: disabled on AMD64 because the Go code is faster!
+ 	addF("math/bits", "Len8",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+-			if s.config.IntSize == 4 {
++			if s.config.PtrSize == 4 {
+ 				x := s.newValue1(ssa.OpZeroExt8to32, types.Types[TUINT32], args[0])
+ 				return s.newValue1(ssa.OpBitLen32, types.Types[TINT], x)
+ 			}
+@@ -2796,7 +2796,7 @@ func init() {
+ 
+ 	addF("math/bits", "Len",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+-			if s.config.IntSize == 4 {
++			if s.config.PtrSize == 4 {
+ 				return s.newValue1(ssa.OpBitLen32, types.Types[TINT], args[0])
+ 			}
+ 			return s.newValue1(ssa.OpBitLen64, types.Types[TINT], args[0])
+@@ -2825,7 +2825,7 @@ func init() {
+ 		sys.ARM64)
+ 	addF("math/bits", "Reverse",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+-			if s.config.IntSize == 4 {
++			if s.config.PtrSize == 4 {
+ 				return s.newValue1(ssa.OpBitRev32, types.Types[TINT], args[0])
+ 			}
+ 			return s.newValue1(ssa.OpBitRev64, types.Types[TINT], args[0])
+@@ -2849,7 +2849,7 @@ func init() {
+ 			// We have the intrinsic - use it directly.
+ 			s.startBlock(bTrue)
+ 			op := op64
+-			if s.config.IntSize == 4 {
++			if s.config.PtrSize == 4 {
+ 				op = op32
+ 			}
+ 			s.vars[n] = s.newValue1(op, types.Types[TINT], args[0])
+@@ -3545,17 +3545,17 @@ func (s *state) storeTypeScalars(t *types.Type, left, right *ssa.Value, skip ski
+ 			return
+ 		}
+ 		len := s.newValue1(ssa.OpStringLen, types.Types[TINT], right)
+-		lenAddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, s.config.IntSize, left)
++		lenAddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, s.config.PtrSize, left)
+ 		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, types.Types[TINT], lenAddr, len, s.mem())
+ 	case t.IsSlice():
+ 		if skip&skipLen == 0 {
+ 			len := s.newValue1(ssa.OpSliceLen, types.Types[TINT], right)
+-			lenAddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, s.config.IntSize, left)
++			lenAddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, s.config.PtrSize, left)
+ 			s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, types.Types[TINT], lenAddr, len, s.mem())
+ 		}
+ 		if skip&skipCap == 0 {
+ 			cap := s.newValue1(ssa.OpSliceCap, types.Types[TINT], right)
+-			capAddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, 2*s.config.IntSize, left)
++			capAddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, 2*s.config.PtrSize, left)
+ 			s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, types.Types[TINT], capAddr, cap, s.mem())
+ 		}
+ 	case t.IsInterface():
+@@ -4615,10 +4615,10 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
+ // panic using the given function if v does not fit in an int (only on 32-bit archs).
+ func (s *state) extendIndex(v *ssa.Value, panicfn *obj.LSym) *ssa.Value {
+ 	size := v.Type.Size()
+-	if size == s.config.IntSize {
++	if size == s.config.PtrSize {
+ 		return v
+ 	}
+-	if size > s.config.IntSize {
++	if size > s.config.PtrSize {
+ 		// truncate 64-bit indexes on 32-bit pointer archs. Test the
+ 		// high word and branch to out-of-bounds failure if it is not 0.
+ 		if Debug['B'] == 0 {
+@@ -4632,7 +4632,7 @@ func (s *state) extendIndex(v *ssa.Value, panicfn *obj.LSym) *ssa.Value {
+ 	// Extend value to the required size
+ 	var op ssa.Op
+ 	if v.Type.IsSigned() {
+-		switch 10*size + s.config.IntSize {
++		switch 10*size + s.config.PtrSize {
+ 		case 14:
+ 			op = ssa.OpSignExt8to32
+ 		case 18:
+@@ -4647,7 +4647,7 @@ func (s *state) extendIndex(v *ssa.Value, panicfn *obj.LSym) *ssa.Value {
+ 			s.Fatalf("bad signed index extension %s", v.Type)
+ 		}
+ 	} else {
+-		switch 10*size + s.config.IntSize {
++		switch 10*size + s.config.PtrSize {
+ 		case 14:
+ 			op = ssa.OpZeroExt8to32
+ 		case 18:
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index f15d84b3a5..1a6dcf487d 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -40,8 +40,8 @@ var typedefs = [...]struct {
+ 	sameas32 types.EType
+ 	sameas64 types.EType
+ }{
+-	{"int", TINT, &Widthint, TINT32, TINT64},
+-	{"uint", TUINT, &Widthint, TUINT32, TUINT64},
++	{"int", TINT, &Widthptr, TINT32, TINT64},
++	{"uint", TUINT, &Widthptr, TUINT32, TUINT64},
+ 	{"uintptr", TUINTPTR, &Widthptr, TUINT32, TUINT64},
+ }
+ 
+@@ -359,12 +359,12 @@ func typeinit() {
+ 	simtype[TUNSAFEPTR] = types.Tptr
+ 
+ 	array_array = int(Rnd(0, int64(Widthptr)))
+-	array_nel = int(Rnd(int64(array_array)+int64(Widthptr), int64(Widthint)))
+-	array_cap = int(Rnd(int64(array_nel)+int64(Widthint), int64(Widthint)))
+-	sizeof_Array = int(Rnd(int64(array_cap)+int64(Widthint), int64(Widthptr)))
++	array_nel = int(Rnd(int64(array_array)+int64(Widthptr), int64(Widthptr)))
++	array_cap = int(Rnd(int64(array_nel)+int64(Widthptr), int64(Widthptr)))
++	sizeof_Array = int(Rnd(int64(array_cap)+int64(Widthptr), int64(Widthptr)))
+ 
+ 	// string is same as slice wo the cap
+-	sizeof_String = int(Rnd(int64(array_nel)+int64(Widthint), int64(Widthptr)))
++	sizeof_String = int(Rnd(int64(array_nel)+int64(Widthptr), int64(Widthptr)))
+ 
+ 	dowidth(types.Types[TSTRING])
+ 	dowidth(types.Idealstring)
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index d87cbca61f..07d5e49649 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -17,9 +17,8 @@ import (
+ // and shared across all compilations.
+ type Config struct {
+ 	arch            string // "amd64", etc.
+-	IntSize         int64  // 4 or 8
+-	PtrSize         int64  // 4 or 8
+-	RegSize         int64  // 4 or 8
++	PtrSize         int64  // 4 or 8; copy of cmd/internal/sys.Arch.PtrSize
++	RegSize         int64  // 4 or 8; copy of cmd/internal/sys.Arch.RegSize
+ 	Types           Types
+ 	lowerBlock      blockRewriter // lowering function
+ 	lowerValue      valueRewriter // lowering function
+@@ -143,7 +142,6 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config
+ 	c := &Config{arch: arch, Types: types}
+ 	switch arch {
+ 	case "amd64":
+-		c.IntSize = 8
+ 		c.PtrSize = 8
+ 		c.RegSize = 8
+ 		c.lowerBlock = rewriteBlockAMD64
+@@ -155,7 +153,6 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config
+ 		c.LinkReg = linkRegAMD64
+ 		c.hasGReg = false
+ 	case "amd64p32":
+-		c.IntSize = 4
+ 		c.PtrSize = 4
+ 		c.RegSize = 8
+ 		c.lowerBlock = rewriteBlockAMD64
+@@ -168,7 +165,6 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config
+ 		c.hasGReg = false
+ 		c.noDuffDevice = true
+ 	case "386":
+-		c.IntSize = 4
+ 		c.PtrSize = 4
+ 		c.RegSize = 4
+ 		c.lowerBlock = rewriteBlock386
+@@ -180,7 +176,6 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config
+ 		c.LinkReg = linkReg386
+ 		c.hasGReg = false
+ 	case "arm":
+-		c.IntSize = 4
+ 		c.PtrSize = 4
+ 		c.RegSize = 4
+ 		c.lowerBlock = rewriteBlockARM
+@@ -192,7 +187,6 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config
+ 		c.LinkReg = linkRegARM
+ 		c.hasGReg = true
+ 	case "arm64":
+-		c.IntSize = 8
+ 		c.PtrSize = 8
+ 		c.RegSize = 8
+ 		c.lowerBlock = rewriteBlockARM64
+@@ -208,7 +202,6 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config
+ 		c.BigEndian = true
+ 		fallthrough
+ 	case "ppc64le":
+-		c.IntSize = 8
+ 		c.PtrSize = 8
+ 		c.RegSize = 8
+ 		c.lowerBlock = rewriteBlockPPC64
+@@ -224,7 +217,6 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config
+ 		c.BigEndian = true
+ 		fallthrough
+ 	case "mips64le":
+-		c.IntSize = 8
+ 		c.PtrSize = 8
+ 		c.RegSize = 8
+ 		c.lowerBlock = rewriteBlockMIPS64
+@@ -237,7 +229,6 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config
+ 		c.LinkReg = linkRegMIPS64
+ 		c.hasGReg = true
+ 	case "s390x":
+-		c.IntSize = 8
+ 		c.PtrSize = 8
+ 		c.RegSize = 8
+ 		c.lowerBlock = rewriteBlockS390X
+@@ -254,7 +245,6 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config
+ 		c.BigEndian = true
+ 		fallthrough
+ 	case "mipsle":
+-		c.IntSize = 4
+ 		c.PtrSize = 4
+ 		c.RegSize = 4
+ 		c.lowerBlock = rewriteBlockMIPS
+diff --git a/src/cmd/compile/internal/ssa/decompose.go b/src/cmd/compile/internal/ssa/decompose.go
+index 56cb46ddac..b629a64e15 100644
+--- a/src/cmd/compile/internal/ssa/decompose.go
++++ b/src/cmd/compile/internal/ssa/decompose.go
+@@ -25,7 +25,7 @@ func decomposeBuiltIn(f *Func) {
+ 	for _, name := range f.Names {
+ 		t := name.Type
+ 		switch {
+-		case t.IsInteger() && t.Size() == 8 && f.Config.IntSize == 4:
++		case t.IsInteger() && t.Size() == 8 && f.Config.PtrSize == 4:
+ 			var elemType Type
+ 			if t.IsSigned() {
+ 				elemType = f.Config.Types.Int32
+@@ -95,8 +95,8 @@ func decomposeBuiltIn(f *Func) {
+ 			}
+ 			delete(f.NamedValues, name)
+ 		case t.IsFloat():
+-			// floats are never decomposed, even ones bigger than IntSize
+-		case t.Size() > f.Config.IntSize:
++			// floats are never decomposed, even ones bigger than PtrSize
++		case t.Size() > f.Config.PtrSize:
+ 			f.Fatalf("undecomposed named type %v %v", name, t)
+ 		default:
+ 			newNames = append(newNames, name)
+@@ -107,7 +107,7 @@ func decomposeBuiltIn(f *Func) {
+ 
+ func decomposeBuiltInPhi(v *Value) {
+ 	switch {
+-	case v.Type.IsInteger() && v.Type.Size() == 8 && v.Block.Func.Config.IntSize == 4:
++	case v.Type.IsInteger() && v.Type.Size() == 8 && v.Block.Func.Config.PtrSize == 4:
+ 		if v.Block.Func.Config.arch == "amd64p32" {
+ 			// Even though ints are 32 bits, we have 64-bit ops.
+ 			break
+@@ -122,8 +122,8 @@ func decomposeBuiltInPhi(v *Value) {
+ 	case v.Type.IsInterface():
+ 		decomposeInterfacePhi(v)
+ 	case v.Type.IsFloat():
+-		// floats are never decomposed, even ones bigger than IntSize
+-	case v.Type.Size() > v.Block.Func.Config.IntSize:
++		// floats are never decomposed, even ones bigger than PtrSize
++	case v.Type.Size() > v.Block.Func.Config.PtrSize:
+ 		v.Fatalf("undecomposed type %s", v.Type)
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index e2d8a2d69b..228a33697e 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -30,7 +30,7 @@ func testConfigArch(tb testing.TB, arch string) *Conf {
+ 	if !ok {
+ 		tb.Fatalf("unknown arch %s", arch)
+ 	}
+-	if ctxt.Arch.IntSize != 8 {
++	if ctxt.Arch.PtrSize != 8 {
+ 		tb.Fatal("dummyTypes is 64-bit only")
+ 	}
+ 	c := &Conf{
+diff --git a/src/cmd/compile/internal/ssa/opt.go b/src/cmd/compile/internal/ssa/opt.go
+index f211488cd7..7703d8b704 100644
+--- a/src/cmd/compile/internal/ssa/opt.go
++++ b/src/cmd/compile/internal/ssa/opt.go
+@@ -11,7 +11,7 @@ func opt(f *Func) {
+ 
+ func dec(f *Func) {
+ 	applyRewrite(f, rewriteBlockdec, rewriteValuedec)
+-	if f.Config.IntSize == 4 && f.Config.arch != "amd64p32" {
++	if f.Config.PtrSize == 4 && f.Config.arch != "amd64p32" {
+ 		applyRewrite(f, rewriteBlockdec64, rewriteValuedec64)
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 8045ae4951..5dce8affdb 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -450,7 +450,7 @@ func isSamePtr(p1, p2 *Value) bool {
+ // moveSize returns the number of bytes an aligned MOV instruction moves
+ func moveSize(align int64, c *Config) int64 {
+ 	switch {
+-	case align%8 == 0 && c.IntSize == 8:
++	case align%8 == 0 && c.PtrSize == 8:
+ 		return 8
+ 	case align%4 == 0:
+ 		return 4
+diff --git a/src/cmd/internal/sys/arch.go b/src/cmd/internal/sys/arch.go
+index b2f8d0b8cb..c761a834b3 100644
+--- a/src/cmd/internal/sys/arch.go
++++ b/src/cmd/internal/sys/arch.go
+@@ -30,8 +30,11 @@ type Arch struct {
+ 
+ 	ByteOrder binary.ByteOrder
+ 
+-	IntSize int
++	// PtrSize is the size in bytes of pointers and the
++	// predeclared "int", "uint", and "uintptr" types.
+ 	PtrSize int
++
++	// RegSize is the size in bytes of general purpose registers.
+ 	RegSize int
+ 
+ 	// MinLC is the minimum length of an instruction code.
+@@ -53,7 +56,6 @@ var Arch386 = &Arch{
+ 	Name:      "386",
+ 	Family:    I386,
+ 	ByteOrder: binary.LittleEndian,
+-	IntSize:   4,
+ 	PtrSize:   4,
+ 	RegSize:   4,
+ 	MinLC:     1,
+@@ -63,7 +65,6 @@ var ArchAMD64 = &Arch{
+ 	Name:      "amd64",
+ 	Family:    AMD64,
+ 	ByteOrder: binary.LittleEndian,
+-	IntSize:   8,
+ 	PtrSize:   8,
+ 	RegSize:   8,
+ 	MinLC:     1,
+@@ -73,7 +74,6 @@ var ArchAMD64P32 = &Arch{
+ 	Name:      "amd64p32",
+ 	Family:    AMD64,
+ 	ByteOrder: binary.LittleEndian,
+-	IntSize:   4,
+ 	PtrSize:   4,
+ 	RegSize:   8,
+ 	MinLC:     1,
+@@ -83,7 +83,6 @@ var ArchARM = &Arch{
+ 	Name:      "arm",
+ 	Family:    ARM,
+ 	ByteOrder: binary.LittleEndian,
+-	IntSize:   4,
+ 	PtrSize:   4,
+ 	RegSize:   4,
+ 	MinLC:     4,
+@@ -93,7 +92,6 @@ var ArchARM64 = &Arch{
+ 	Name:      "arm64",
+ 	Family:    ARM64,
+ 	ByteOrder: binary.LittleEndian,
+-	IntSize:   8,
+ 	PtrSize:   8,
+ 	RegSize:   8,
+ 	MinLC:     4,
+@@ -103,7 +101,6 @@ var ArchMIPS = &Arch{
+ 	Name:      "mips",
+ 	Family:    MIPS,
+ 	ByteOrder: binary.BigEndian,
+-	IntSize:   4,
+ 	PtrSize:   4,
+ 	RegSize:   4,
+ 	MinLC:     4,
+@@ -113,7 +110,6 @@ var ArchMIPSLE = &Arch{
+ 	Name:      "mipsle",
+ 	Family:    MIPS,
+ 	ByteOrder: binary.LittleEndian,
+-	IntSize:   4,
+ 	PtrSize:   4,
+ 	RegSize:   4,
+ 	MinLC:     4,
+@@ -123,7 +119,6 @@ var ArchMIPS64 = &Arch{
+ 	Name:      "mips64",
+ 	Family:    MIPS64,
+ 	ByteOrder: binary.BigEndian,
+-	IntSize:   8,
+ 	PtrSize:   8,
+ 	RegSize:   8,
+ 	MinLC:     4,
+@@ -133,7 +128,6 @@ var ArchMIPS64LE = &Arch{
+ 	Name:      "mips64le",
+ 	Family:    MIPS64,
+ 	ByteOrder: binary.LittleEndian,
+-	IntSize:   8,
+ 	PtrSize:   8,
+ 	RegSize:   8,
+ 	MinLC:     4,
+@@ -143,7 +137,6 @@ var ArchPPC64 = &Arch{
+ 	Name:      "ppc64",
+ 	Family:    PPC64,
+ 	ByteOrder: binary.BigEndian,
+-	IntSize:   8,
+ 	PtrSize:   8,
+ 	RegSize:   8,
+ 	MinLC:     4,
+@@ -153,7 +146,6 @@ var ArchPPC64LE = &Arch{
+ 	Name:      "ppc64le",
+ 	Family:    PPC64,
+ 	ByteOrder: binary.LittleEndian,
+-	IntSize:   8,
+ 	PtrSize:   8,
+ 	RegSize:   8,
+ 	MinLC:     4,
+@@ -163,7 +155,6 @@ var ArchS390X = &Arch{
+ 	Name:      "s390x",
+ 	Family:    S390X,
+ 	ByteOrder: binary.BigEndian,
+-	IntSize:   8,
+ 	PtrSize:   8,
+ 	RegSize:   8,
+ 	MinLC:     2,
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 45a968e40f..36528b0aa8 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -129,7 +129,7 @@ func Adduint64(ctxt *Link, s *Symbol, v uint64) int64 {
+ }
+ 
+ func adduint(ctxt *Link, s *Symbol, v uint64) int64 {
+-	return adduintxx(ctxt, s, v, SysArch.IntSize)
++	return adduintxx(ctxt, s, v, SysArch.PtrSize)
+ }
+ 
+ func setuint8(ctxt *Link, s *Symbol, r int64, v uint8) int64 {
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index 0b2873a389..7a7b68b469 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -210,11 +210,11 @@ func decodetypeFuncOutType(arch *sys.Arch, s *Symbol, i int) *Symbol {
+ 
+ // Type.StructType.fields.Slice::length
+ func decodetypeStructFieldCount(arch *sys.Arch, s *Symbol) int {
+-	return int(decodeInuxi(arch, s.P[commonsize()+2*SysArch.PtrSize:], SysArch.IntSize))
++	return int(decodeInuxi(arch, s.P[commonsize()+2*SysArch.PtrSize:], SysArch.PtrSize))
+ }
+ 
+ func decodetypeStructFieldArrayOff(s *Symbol, i int) int {
+-	off := commonsize() + 2*SysArch.PtrSize + 2*SysArch.IntSize
++	off := commonsize() + 2*SysArch.PtrSize + 2*SysArch.PtrSize
+ 	if decodetypeHasUncommon(s) {
+ 		off += uncommonSize()
+ 	}
+@@ -255,12 +255,12 @@ func decodetypeStructFieldType(s *Symbol, i int) *Symbol {
+ 
+ func decodetypeStructFieldOffs(arch *sys.Arch, s *Symbol, i int) int64 {
+ 	off := decodetypeStructFieldArrayOff(s, i)
+-	return int64(decodeInuxi(arch, s.P[off+2*SysArch.PtrSize:], SysArch.IntSize) >> 1)
++	return int64(decodeInuxi(arch, s.P[off+2*SysArch.PtrSize:], SysArch.PtrSize) >> 1)
+ }
+ 
+ // InterfaceType.methods.length
+ func decodetypeIfaceMethodCount(arch *sys.Arch, s *Symbol) int64 {
+-	return int64(decodeInuxi(arch, s.P[commonsize()+2*SysArch.PtrSize:], SysArch.IntSize))
++	return int64(decodeInuxi(arch, s.P[commonsize()+2*SysArch.PtrSize:], SysArch.PtrSize))
+ }
+ 
+ // methodsig is a fully qualified typed method signature, like
+@@ -342,7 +342,7 @@ func decodetypeMethods(arch *sys.Arch, s *Symbol) []methodsig {
+ 	off := commonsize() // reflect.rtype
+ 	switch decodetypeKind(s) & kindMask {
+ 	case kindStruct: // reflect.structType
+-		off += 2*SysArch.PtrSize + 2*SysArch.IntSize
++		off += 2*SysArch.PtrSize + 2*SysArch.PtrSize
+ 	case kindPtr: // reflect.ptrType
+ 		off += SysArch.PtrSize
+ 	case kindFunc: // reflect.funcType
+@@ -356,7 +356,7 @@ func decodetypeMethods(arch *sys.Arch, s *Symbol) []methodsig {
+ 	case kindMap: // reflect.mapType
+ 		off += 4*SysArch.PtrSize + 8
+ 	case kindInterface: // reflect.interfaceType
+-		off += SysArch.PtrSize + 2*SysArch.IntSize
++		off += SysArch.PtrSize + 2*SysArch.PtrSize
+ 	default:
+ 		// just Sizeof(rtype)
+ 	}
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index c765ef6043..5fb5612f6f 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -318,7 +318,7 @@ func textsectionmap(ctxt *Link) uint32 {
+ 			break
+ 		}
+ 	}
+-	Symgrow(t, nsections*(2*int64(SysArch.IntSize)+int64(SysArch.PtrSize)))
++	Symgrow(t, nsections*(2*int64(SysArch.PtrSize)+int64(SysArch.PtrSize)))
+ 
+ 	off := int64(0)
+ 	n := 0
+@@ -337,8 +337,8 @@ func textsectionmap(ctxt *Link) uint32 {
+ 		if sect.Name != ".text" {
+ 			break
+ 		}
+-		off = setuintxx(ctxt, t, off, sect.Vaddr-textbase, int64(SysArch.IntSize))
+-		off = setuintxx(ctxt, t, off, sect.Length, int64(SysArch.IntSize))
++		off = setuintxx(ctxt, t, off, sect.Vaddr-textbase, int64(SysArch.PtrSize))
++		off = setuintxx(ctxt, t, off, sect.Length, int64(SysArch.PtrSize))
+ 		if n == 0 {
+ 			s := ctxt.Syms.ROLookup("runtime.text", 0)
+ 			if s == nil {

@@ -12,6 +12,20 @@ Date:   Wed Jun 1 13:32:53 2016 +1200
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/asm_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index 469f0864d5..73d2e336d2 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -61,7 +61,7 @@ func compileToAsm(dir, arch, pkg string) string {
+ 
+ 	var stdout, stderr bytes.Buffer
+ 	cmd := exec.Command("go", "tool", "compile", "-S", "-o", filepath.Join(dir, "out.o"), src)
+-	cmd.Env = append(cmd.Env, "GOARCH="+arch)
++	cmd.Env = append([]string{"GOARCH=" + arch}, os.Environ()...)
+ 	cmd.Stdout = &stdout
+ 	cmd.Stderr = &stderr
+ 	if err := cmd.Run(); err != nil {

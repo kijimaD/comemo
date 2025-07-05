@@ -12,8 +12,85 @@ Date:   Mon Feb 25 13:27:15 2013 -0800
     R=golang-dev, akumar
     CC=golang-dev
     https://golang.org/cl/7370049
-
+---
  src/pkg/net/http/cgi/host_test.go  |  7 +------
  src/pkg/net/http/cgi/plan9_test.go | 18 ++++++++++++++++++
  src/pkg/net/http/cgi/posix_test.go | 21 +++++++++++++++++++++
  3 files changed, 40 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/net/http/cgi/host_test.go b/src/pkg/net/http/cgi/host_test.go
+index 301aaa8f01..8c16e6897f 100644
+--- a/src/pkg/net/http/cgi/host_test.go
++++ b/src/pkg/net/http/cgi/host_test.go
+@@ -19,7 +19,6 @@ import (
+ 	"runtime"
+ 	"strconv"
+ 	"strings"
+-	"syscall"
+ 	"testing"
+ 	"time"
+ )
+@@ -340,11 +339,7 @@ func TestCopyError(t *testing.T) {
+ 	}
+ 
+ 	childRunning := func() bool {
+-		p, err := os.FindProcess(pid)
+-		if err != nil {
+-			return false
+-		}
+-		return p.Signal(syscall.Signal(0)) == nil
++		return isProcessRunning(t, pid)
+ 	}
+ 
+ 	if !childRunning() {
+diff --git a/src/pkg/net/http/cgi/plan9_test.go b/src/pkg/net/http/cgi/plan9_test.go
+new file mode 100644
+index 0000000000..c8235831b0
+--- /dev/null
++++ b/src/pkg/net/http/cgi/plan9_test.go
+@@ -0,0 +1,18 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build plan9
++
++package cgi
++
++import (
++	"os"
++	"strconv"
++	"testing"
++)
++
++func isProcessRunning(t *testing.T, pid int) bool {
++	_, err := os.Stat("/proc/" + strconv.Itoa(pid))
++	return err == nil
++}
+diff --git a/src/pkg/net/http/cgi/posix_test.go b/src/pkg/net/http/cgi/posix_test.go
+new file mode 100644
+index 0000000000..5ff9e7d5eb
+--- /dev/null
++++ b/src/pkg/net/http/cgi/posix_test.go
+@@ -0,0 +1,21 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !plan9
++
++package cgi
++
++import (
++	"os"
++	"syscall"
++	"testing"
++)
++
++func isProcessRunning(t *testing.T, pid int) bool {
++	p, err := os.FindProcess(pid)
++	if err != nil {
++		return false
++	}
++	return p.Signal(syscall.Signal(0)) == nil
++}

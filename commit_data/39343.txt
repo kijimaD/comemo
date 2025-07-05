@@ -15,6 +15,30 @@ Date:   Mon Feb 25 11:18:03 2019 +0100
     Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/android/go_android_exec.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/misc/android/go_android_exec.go b/misc/android/go_android_exec.go
+index 0055fb832a..fa84f00f67 100644
+--- a/misc/android/go_android_exec.go
++++ b/misc/android/go_android_exec.go
+@@ -95,6 +95,7 @@ func main() {
+ 	} else {
+ 		adbSyncGoroot()
+ 	}
++	run("shell", "mkdir", "-p", deviceCwd)
+ 
+ 	// Binary names can conflict.
+ 	// E.g. template.test from the {html,text}/template packages.
+@@ -102,6 +103,10 @@ func main() {
+ 	deviceBin := fmt.Sprintf("%s/%s", deviceGotmp, binName)
+ 	run("push", os.Args[1], deviceBin)
+ 
++	if _, err := os.Stat("testdata"); err == nil {
++		run("push", "testdata", deviceCwd)
++	}
++
+ 	// Forward SIGQUIT from the go command to show backtraces from
+ 	// the binary instead of from this wrapper.
+ 	quit := make(chan os.Signal, 1)

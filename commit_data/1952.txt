@@ -16,8 +16,69 @@ Date:   Thu Apr 2 21:38:11 2009 -0700
     R=ken
     OCL=27052
     CL=27052
-
+---
  src/cmd/gc/dcl.c  | 14 ++++++++++++--
  src/cmd/gc/obj.c  |  1 +
  src/cmd/gc/subr.c |  2 +-
  3 files changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 51c76be752..2d83d9f9fd 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -91,6 +91,7 @@ void
+ updatetype(Type *n, Type *t)
+ {
+ 	Sym *s;
++	int local;
+ 
+ 	s = n->sym;
+ 	if(s == S || s->otype != n)
+@@ -118,10 +119,19 @@ updatetype(Type *n, Type *t)
+ 		fatal("updatetype %T / %T", n, t);
+ 	}
+ 
+-	if(n->local)
+-		t->local = 1;
++	// decl was
++	//	type n t;
++	// copy t, but then zero out state associated with t
++	// that is no longer associated with n.
++	local = n->local;
+ 	*n = *t;
+ 	n->sym = s;
++	n->local = local;
++	n->siggen = 0;
++	n->methptr = 0;
++	n->printed = 0;
++	n->method = nil;
++	n->vargen = 0;
+ 
+ 	// catch declaration of incomplete type
+ 	switch(n->etype) {
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index 7c80ee22a8..9c0b6edb66 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -425,6 +425,7 @@ dumpsignatures(void)
+ 		t = d->dtype;
+ 		et = t->etype;
+ 		s = signame(t);
++//print("signame %S for %T\n", s, t);
+ 		if(s == S)
+ 			continue;
+ 
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index fe5d33084e..fb8a1744a4 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1637,8 +1637,8 @@ signame(Type *t)
+ 		ss->oname->class = PEXTERN;
+ 	}
+ 
++//print("siggen %T %d\n", t, t->siggen);
+ 	if(!t->siggen) {
+-//print("siggen %T\n", t);
+ 		// special case: don't generate the empty interface
+ 		if(strcmp(buf, "empty") == 0)
+ 			goto out;

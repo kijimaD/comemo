@@ -15,8 +15,91 @@ Date:   Tue Apr 4 13:26:28 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/39835
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/debug/garbage.go      |  6 +-----
  src/runtime/debug/garbage_test.go |  2 ++
  src/runtime/mgc.go                | 31 ++++++++++++++-----------------
  3 files changed, 17 insertions(+), 22 deletions(-)
+
+diff --git a/src/runtime/debug/garbage.go b/src/runtime/debug/garbage.go
+index 27adc70fd3..785e9d4598 100644
+--- a/src/runtime/debug/garbage.go
++++ b/src/runtime/debug/garbage.go
+@@ -89,11 +89,7 @@ func ReadGCStats(stats *GCStats) {
+ // at startup, or 100 if the variable is not set.
+ // A negative percentage disables garbage collection.
+ func SetGCPercent(percent int) int {
+-	old := setGCPercent(int32(percent))
+-	if percent >= 0 {
+-		runtime.GC()
+-	}
+-	return int(old)
++	return int(setGCPercent(int32(percent)))
+ }
+ 
+ // FreeOSMemory forces a garbage collection followed by an
+diff --git a/src/runtime/debug/garbage_test.go b/src/runtime/debug/garbage_test.go
+index 37417aca2c..acc781ebdc 100644
+--- a/src/runtime/debug/garbage_test.go
++++ b/src/runtime/debug/garbage_test.go
+@@ -160,6 +160,8 @@ func TestSetGCPercent(t *testing.T) {
+ 	runtime.ReadMemStats(&ms)
+ 	ngc1 := ms.NumGC
+ 	SetGCPercent(10)
++	// It may require an allocation to actually force the GC.
++	setGCPercentSink = make([]byte, 1<<20)
+ 	runtime.ReadMemStats(&ms)
+ 	ngc2 := ms.NumGC
+ 	if ngc1 == ngc2 {
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 8ec062af18..5dc417038a 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -178,20 +178,21 @@ func gcinit() {
+ 		throw("size of Workbuf is suboptimal")
+ 	}
+ 
+-	_ = setGCPercent(readgogc())
++	// No sweep on the first cycle.
++	mheap_.sweepdone = 1
+ 
+ 	// Set a reasonable initial GC trigger.
+ 	memstats.triggerRatio = 7 / 8.0
+-	memstats.gc_trigger = heapminimum
+-	// Compute the goal heap size based on the trigger:
+-	//   trigger = marked * (1 + triggerRatio)
+-	//   marked = trigger / (1 + triggerRatio)
+-	//   goal = marked * (1 + GOGC/100)
+-	//        = trigger / (1 + triggerRatio) * (1 + GOGC/100)
+-	memstats.next_gc = uint64(float64(memstats.gc_trigger) / (1 + memstats.triggerRatio) * (1 + float64(gcpercent)/100))
+-	if gcpercent < 0 {
+-		memstats.next_gc = ^uint64(0)
+-	}
++
++	// Fake a heap_marked value so it looks like a trigger at
++	// heapminimum is the appropriate growth from heap_marked.
++	// This will go into computing the initial GC goal.
++	memstats.heap_marked = uint64(float64(heapminimum) / (1 + memstats.triggerRatio))
++
++	// Set gcpercent from the environment. This will also compute
++	// and set the GC trigger and goal.
++	_ = setGCPercent(readgogc())
++
+ 	work.startSema = 1
+ 	work.markDoneSema = 1
+ }
+@@ -226,12 +227,8 @@ func setGCPercent(in int32) (out int32) {
+ 	}
+ 	gcpercent = in
+ 	heapminimum = defaultHeapMinimum * uint64(gcpercent) / 100
+-	if memstats.triggerRatio > float64(gcpercent)/100 {
+-		memstats.triggerRatio = float64(gcpercent) / 100
+-	}
+-	// This is either in gcinit or followed by a STW GC, both of
+-	// which will reset other stats like memstats.gc_trigger and
+-	// memstats.next_gc to appropriate values.
++	// Update pacing in response to gcpercent change.
++	gcSetTriggerRatio(memstats.triggerRatio)
+ 	unlock(&mheap_.lock)
+ 	return out
+ }

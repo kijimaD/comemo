@@ -10,9 +10,62 @@ Date:   Wed Feb 18 19:54:56 2015 -0800
     Change-Id: Id508dcd3ed07733e60395aefa86d0035faab14a9
     Reviewed-on: https://go-review.googlesource.com/5280
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/9a/a.y     | 2 +-
  src/cmd/9a/y.tab.c | 2 +-
  src/cmd/new9a/a.y  | 2 +-
  src/cmd/new9a/y.go | 2 +-
  4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/9a/a.y b/src/cmd/9a/a.y
+index 7c55af96c2..ccc3bcc3a6 100644
+--- a/src/cmd/9a/a.y
++++ b/src/cmd/9a/a.y
+@@ -949,7 +949,7 @@ name:
+ 		$$ = nullgen;
+ 		$$.type = TYPE_MEM;
+ 		$$.name = NAME_STATIC;
+-		$$.sym = linklookup(ctxt, $1->name, 0);
++		$$.sym = linklookup(ctxt, $1->name, 1);
+ 		$$.offset = $4;
+ 	}
+ 
+diff --git a/src/cmd/9a/y.tab.c b/src/cmd/9a/y.tab.c
+index e89d94d43d..829f4d5de2 100644
+--- a/src/cmd/9a/y.tab.c
++++ b/src/cmd/9a/y.tab.c
+@@ -3116,7 +3116,7 @@ yyreduce:
+ 		(yyval.addr) = nullgen;
+ 		(yyval.addr).type = TYPE_MEM;
+ 		(yyval.addr).name = NAME_STATIC;
+-		(yyval.addr).sym = linklookup(ctxt, (yyvsp[(1) - (7)].sym)->name, 0);
++		(yyval.addr).sym = linklookup(ctxt, (yyvsp[(1) - (7)].sym)->name, 1);
+ 		(yyval.addr).offset = (yyvsp[(4) - (7)].lval);
+ 	}
+     break;
+diff --git a/src/cmd/new9a/a.y b/src/cmd/new9a/a.y
+index b6e76d8e03..db733c5987 100644
+--- a/src/cmd/new9a/a.y
++++ b/src/cmd/new9a/a.y
+@@ -963,7 +963,7 @@ name:
+ 		$$ = nullgen;
+ 		$$.Type = obj.TYPE_MEM;
+ 		$$.Name = obj.NAME_STATIC;
+-		$$.Sym = obj.Linklookup(asm.Ctxt, $1.Name, 0);
++		$$.Sym = obj.Linklookup(asm.Ctxt, $1.Name, 1);
+ 		$$.Offset = $4;
+ 	}
+ 
+diff --git a/src/cmd/new9a/y.go b/src/cmd/new9a/y.go
+index 4444f70579..2e42378059 100644
+--- a/src/cmd/new9a/y.go
++++ b/src/cmd/new9a/y.go
+@@ -1827,7 +1827,7 @@ yydefault:
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+ 			yyVAL.addr.Name = obj.NAME_STATIC
+-			yyVAL.addr.Sym = obj.Linklookup(asm.Ctxt, yyDollar[1].sym.Name, 0)
++			yyVAL.addr.Sym = obj.Linklookup(asm.Ctxt, yyDollar[1].sym.Name, 1)
+ 			yyVAL.addr.Offset = yyDollar[4].lval
+ 		}
+ 	case 164:

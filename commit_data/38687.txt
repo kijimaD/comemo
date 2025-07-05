@@ -28,8 +28,150 @@ Date:   Sun Oct 28 17:28:04 2018 +0100
     Run-TryBot: Martin Möhrmann <martisch@uos.de>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/fmt/fmt_test.go | 30 +++++++++++++++++++++++++-----
  src/fmt/format.go   | 33 +++++++++++++++++++++++++++++----
  src/fmt/print.go    |  2 +-
  3 files changed, 55 insertions(+), 10 deletions(-)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index e97372225c..1907268c74 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -298,20 +298,30 @@ var fmtTests = []struct {
+ 
+ 	// width
+ 	{"%5s", "abc", "  abc"},
++	{"%5s", []byte("abc"), "  abc"},
+ 	{"%2s", "\u263a", " ☺"},
++	{"%2s", []byte("\u263a"), " ☺"},
+ 	{"%-5s", "abc", "abc  "},
+-	{"%-8q", "abc", `"abc"   `},
++	{"%-5s", []byte("abc"), "abc  "},
+ 	{"%05s", "abc", "00abc"},
+-	{"%08q", "abc", `000"abc"`},
++	{"%05s", []byte("abc"), "00abc"},
+ 	{"%5s", "abcdefghijklmnopqrstuvwxyz", "abcdefghijklmnopqrstuvwxyz"},
++	{"%5s", []byte("abcdefghijklmnopqrstuvwxyz"), "abcdefghijklmnopqrstuvwxyz"},
+ 	{"%.5s", "abcdefghijklmnopqrstuvwxyz", "abcde"},
++	{"%.5s", []byte("abcdefghijklmnopqrstuvwxyz"), "abcde"},
+ 	{"%.0s", "日本語日本語", ""},
++	{"%.0s", []byte("日本語日本語"), ""},
+ 	{"%.5s", "日本語日本語", "日本語日本"},
+-	{"%.10s", "日本語日本語", "日本語日本語"},
+ 	{"%.5s", []byte("日本語日本語"), "日本語日本"},
++	{"%.10s", "日本語日本語", "日本語日本語"},
++	{"%.10s", []byte("日本語日本語"), "日本語日本語"},
++	{"%08q", "abc", `000"abc"`},
++	{"%08q", []byte("abc"), `000"abc"`},
++	{"%-8q", "abc", `"abc"   `},
++	{"%-8q", []byte("abc"), `"abc"   `},
+ 	{"%.5q", "abcdefghijklmnopqrstuvwxyz", `"abcde"`},
+-	{"%.5x", "abcdefghijklmnopqrstuvwxyz", "6162636465"},
+ 	{"%.5q", []byte("abcdefghijklmnopqrstuvwxyz"), `"abcde"`},
++	{"%.5x", "abcdefghijklmnopqrstuvwxyz", "6162636465"},
+ 	{"%.5x", []byte("abcdefghijklmnopqrstuvwxyz"), "6162636465"},
+ 	{"%.3q", "日本語日本語", `"日本語"`},
+ 	{"%.3q", []byte("日本語日本語"), `"日本語"`},
+@@ -320,6 +330,7 @@ var fmtTests = []struct {
+ 	{"%.1x", "日本語", "e6"},
+ 	{"%.1X", []byte("日本語"), "E6"},
+ 	{"%10.1q", "日本語日本語", `       "日"`},
++	{"%10.1q", []byte("日本語日本語"), `       "日"`},
+ 	{"%10v", nil, "     <nil>"},
+ 	{"%-10v", nil, "<nil>     "},
+ 
+@@ -1211,7 +1222,16 @@ func BenchmarkSprintfString(b *testing.B) {
+ func BenchmarkSprintfTruncateString(b *testing.B) {
+ 	b.RunParallel(func(pb *testing.PB) {
+ 		for pb.Next() {
+-			Sprintf("%.3s", "日本語日本語日本語")
++			Sprintf("%.3s", "日本語日本語日本語日本語")
++		}
++	})
++}
++
++func BenchmarkSprintfTruncateBytes(b *testing.B) {
++	var bytes interface{} = []byte("日本語日本語日本語日本語")
++	b.RunParallel(func(pb *testing.PB) {
++		for pb.Next() {
++			Sprintf("%.3s", bytes)
+ 		}
+ 	})
+ }
+diff --git a/src/fmt/format.go b/src/fmt/format.go
+index 91103f2c07..d6da8aed1e 100644
+--- a/src/fmt/format.go
++++ b/src/fmt/format.go
+@@ -308,8 +308,8 @@ func (f *fmt) fmtInteger(u uint64, base int, isSigned bool, digits string) {
+ 	f.zero = oldZero
+ }
+ 
+-// truncate truncates the string to the specified precision, if present.
+-func (f *fmt) truncate(s string) string {
++// truncate truncates the string s to the specified precision, if present.
++func (f *fmt) truncateString(s string) string {
+ 	if f.precPresent {
+ 		n := f.prec
+ 		for i := range s {
+@@ -322,12 +322,37 @@ func (f *fmt) truncate(s string) string {
+ 	return s
+ }
+ 
++// truncate truncates the byte slice b as a string of the specified precision, if present.
++func (f *fmt) truncate(b []byte) []byte {
++	if f.precPresent {
++		n := f.prec
++		for i := 0; i < len(b); {
++			n--
++			if n < 0 {
++				return b[:i]
++			}
++			wid := 1
++			if b[i] >= utf8.RuneSelf {
++				_, wid = utf8.DecodeRune(b[i:])
++			}
++			i += wid
++		}
++	}
++	return b
++}
++
+ // fmtS formats a string.
+ func (f *fmt) fmtS(s string) {
+-	s = f.truncate(s)
++	s = f.truncateString(s)
+ 	f.padString(s)
+ }
+ 
++// fmtBs formats the byte slice b as if it was formatted as string with fmtS.
++func (f *fmt) fmtBs(b []byte) {
++	b = f.truncate(b)
++	f.pad(b)
++}
++
+ // fmtSbx formats a string or byte slice as a hexadecimal encoding of its bytes.
+ func (f *fmt) fmtSbx(s string, b []byte, digits string) {
+ 	length := len(b)
+@@ -408,7 +433,7 @@ func (f *fmt) fmtBx(b []byte, digits string) {
+ // If f.sharp is set a raw (backquoted) string may be returned instead
+ // if the string does not contain any control characters other than tab.
+ func (f *fmt) fmtQ(s string) {
+-	s = f.truncate(s)
++	s = f.truncateString(s)
+ 	if f.sharp && strconv.CanBackquote(s) {
+ 		f.padString("`" + s + "`")
+ 		return
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index 22dc52ccdc..5df34a25e5 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -488,7 +488,7 @@ func (p *pp) fmtBytes(v []byte, verb rune, typeString string) {
+ 			p.buf.WriteByte(']')
+ 		}
+ 	case 's':
+-		p.fmt.fmtS(string(v))
++		p.fmt.fmtBs(v)
+ 	case 'x':
+ 		p.fmt.fmtBx(v, ldigits)
+ 	case 'X':

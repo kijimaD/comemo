@@ -14,6 +14,22 @@ Date:   Wed Aug 2 16:38:12 2023 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/fix/cftype.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/fix/cftype.go b/src/cmd/fix/cftype.go
+index e4988b1c62..d4fcc4485e 100644
+--- a/src/cmd/fix/cftype.go
++++ b/src/cmd/fix/cftype.go
+@@ -60,8 +60,8 @@ func typefix(f *ast.File, badType func(string) bool) bool {
+ 	// There's no easy way to map from an ast.Expr to all the places that use them, so
+ 	// we use reflect to find all such references.
+ 	if len(badNils) > 0 {
+-		exprType := reflect.TypeOf((*ast.Expr)(nil)).Elem()
+-		exprSliceType := reflect.TypeOf(([]ast.Expr)(nil))
++		exprType := reflect.TypeFor[ast.Expr]()
++		exprSliceType := reflect.TypeFor[[]ast.Expr]()
+ 		walk(f, func(n any) {
+ 			if n == nil {
+ 				return

@@ -11,6 +11,20 @@ Date:   Fri Jul 8 07:50:07 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  doc/go1.7.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.7.html b/doc/go1.7.html
+index a460754794..2a2675e98a 100644
+--- a/doc/go1.7.html
++++ b/doc/go1.7.html
+@@ -1062,7 +1062,7 @@ from URLs with empty query strings (like <code>/search?</code>).
+ 
+ <dd>
+ <p>
+-<a href="/pkg/os/#IsExists"><code>IsExists</code></a> now returns true for <code>syscall.ENOTEMPTY</code>,
++<a href="/pkg/os/#IsExist"><code>IsExist</code></a> now returns true for <code>syscall.ENOTEMPTY</code>,
+ on systems where that error exists.
+ </p>
+ 

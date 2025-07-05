@@ -21,10 +21,302 @@ Date:   Fri Jul 7 11:06:05 2023 +0200
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/encoding/json/decode.go | 16 +++++++-------
  src/encoding/json/encode.go | 12 +++++------
  src/io/io.go                | 21 +++++++++----------
  src/net/http/server.go      | 51 +++++++++++++++++++++------------------------
  src/path/path.go            |  2 +-
  5 files changed, 49 insertions(+), 53 deletions(-)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index 36e1fe3100..858a2ed41a 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -21,7 +21,7 @@ import (
+ 
+ // Unmarshal parses the JSON-encoded data and stores the result
+ // in the value pointed to by v. If v is nil or not a pointer,
+-// Unmarshal returns an InvalidUnmarshalError.
++// Unmarshal returns an [InvalidUnmarshalError].
+ //
+ // Unmarshal uses the inverse of the encodings that
+ // Marshal uses, allocating maps, slices, and pointers as necessary,
+@@ -33,18 +33,18 @@ import (
+ // the value pointed at by the pointer. If the pointer is nil, Unmarshal
+ // allocates a new value for it to point to.
+ //
+-// To unmarshal JSON into a value implementing the Unmarshaler interface,
+-// Unmarshal calls that value's UnmarshalJSON method, including
++// To unmarshal JSON into a value implementing [Unmarshaler],
++// Unmarshal calls that value's [Unmarshaler.UnmarshalJSON] method, including
+ // when the input is a JSON null.
+-// Otherwise, if the value implements encoding.TextUnmarshaler
+-// and the input is a JSON quoted string, Unmarshal calls that value's
+-// UnmarshalText method with the unquoted form of the string.
++// Otherwise, if the value implements [encoding.TextUnmarshaler]
++// and the input is a JSON quoted string, Unmarshal calls
++// [encoding.TextUnmarshaler.UnmarshalText] with the unquoted form of the string.
+ //
+ // To unmarshal JSON into a struct, Unmarshal matches incoming object
+ // keys to the keys used by Marshal (either the struct field name or its tag),
+ // preferring an exact match but also accepting a case-insensitive match. By
+ // default, object keys which don't have a corresponding struct field are
+-// ignored (see Decoder.DisallowUnknownFields for an alternative).
++// ignored (see [Decoder.DisallowUnknownFields] for an alternative).
+ //
+ // To unmarshal JSON into an interface value,
+ // Unmarshal stores one of these in the interface value:
+@@ -75,7 +75,7 @@ import (
+ // either be any string type, an integer, implement json.Unmarshaler, or
+ // implement encoding.TextUnmarshaler.
+ //
+-// If the JSON-encoded data contain a syntax error, Unmarshal returns a SyntaxError.
++// If the JSON-encoded data contain a syntax error, Unmarshal returns a [SyntaxError].
+ //
+ // If a JSON value is not appropriate for a given target type,
+ // or if a JSON number overflows the target type, Unmarshal
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 4669a02e2e..a98f1a060c 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -28,14 +28,14 @@ import (
+ // Marshal returns the JSON encoding of v.
+ //
+ // Marshal traverses the value v recursively.
+-// If an encountered value implements the Marshaler interface
+-// and is not a nil pointer, Marshal calls its MarshalJSON method
+-// to produce JSON. If no MarshalJSON method is present but the
+-// value implements encoding.TextMarshaler instead, Marshal calls
+-// its MarshalText method and encodes the result as a JSON string.
++// If an encountered value implements [Marshaler]
++// and is not a nil pointer, Marshal calls [Marshaler.MarshalJSON]
++// to produce JSON. If no [Marshaler.MarshalJSON] method is present but the
++// value implements [encoding.TextMarshaler] instead, Marshal calls
++// [encoding.TextMarshaler.MarshalText] and encodes the result as a JSON string.
+ // The nil pointer exception is not strictly necessary
+ // but mimics a similar, necessary exception in the behavior of
+-// UnmarshalJSON.
++// [Unmarshaler.UnmarshalJSON].
+ //
+ // Otherwise, Marshal uses the following type-dependent default encodings:
+ //
+diff --git a/src/io/io.go b/src/io/io.go
+index ce269a7b9f..c2e1fa0cb0 100644
+--- a/src/io/io.go
++++ b/src/io/io.go
+@@ -309,8 +309,8 @@ type StringWriter interface {
+ }
+ 
+ // WriteString writes the contents of the string s to w, which accepts a slice of bytes.
+-// If w implements StringWriter, its WriteString method is invoked directly.
+-// Otherwise, w.Write is called exactly once.
++// If w implements [StringWriter], [StringWriter.WriteString] is invoked directly.
++// Otherwise, [Writer.Write] is called exactly once.
+ func WriteString(w Writer, s string) (n int, err error) {
+ 	if sw, ok := w.(StringWriter); ok {
+ 		return sw.WriteString(s)
+@@ -359,8 +359,7 @@ func ReadFull(r Reader, buf []byte) (n int, err error) {
+ // error encountered while copying.
+ // On return, written == n if and only if err == nil.
+ //
+-// If dst implements the ReaderFrom interface,
+-// the copy is implemented using it.
++// If dst implements [ReaderFrom], the copy is implemented using it.
+ func CopyN(dst Writer, src Reader, n int64) (written int64, err error) {
+ 	written, err = Copy(dst, LimitReader(src, n))
+ 	if written == n {
+@@ -381,9 +380,9 @@ func CopyN(dst Writer, src Reader, n int64) (written int64, err error) {
+ // Because Copy is defined to read from src until EOF, it does
+ // not treat an EOF from Read as an error to be reported.
+ //
+-// If src implements the WriterTo interface,
++// If src implements [WriterTo],
+ // the copy is implemented by calling src.WriteTo(dst).
+-// Otherwise, if dst implements the ReaderFrom interface,
++// Otherwise, if dst implements [ReaderFrom],
+ // the copy is implemented by calling dst.ReadFrom(src).
+ func Copy(dst Writer, src Reader) (written int64, err error) {
+ 	return copyBuffer(dst, src, nil)
+@@ -394,7 +393,7 @@ func Copy(dst Writer, src Reader) (written int64, err error) {
+ // temporary one. If buf is nil, one is allocated; otherwise if it has
+ // zero length, CopyBuffer panics.
+ //
+-// If either src implements WriterTo or dst implements ReaderFrom,
++// If either src implements [WriterTo] or dst implements [ReaderFrom],
+ // buf will not be used to perform the copy.
+ func CopyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
+ 	if buf != nil && len(buf) == 0 {
+@@ -498,7 +497,7 @@ func NewSectionReader(r ReaderAt, off int64, n int64) *SectionReader {
+ }
+ 
+ // SectionReader implements Read, Seek, and ReadAt on a section
+-// of an underlying ReaderAt.
++// of an underlying [ReaderAt].
+ type SectionReader struct {
+ 	r     ReaderAt
+ 	base  int64
+@@ -667,9 +666,9 @@ func (discard) ReadFrom(r Reader) (n int64, err error) {
+ 	}
+ }
+ 
+-// NopCloser returns a ReadCloser with a no-op Close method wrapping
+-// the provided Reader r.
+-// If r implements WriterTo, the returned ReadCloser will implement WriterTo
++// NopCloser returns a [ReadCloser] with a no-op Close method wrapping
++// the provided [Reader] r.
++// If r implements [WriterTo], the returned ReadCloser will implement WriterTo
+ // by forwarding calls to r.
+ func NopCloser(r Reader) ReadCloser {
+ 	if _, ok := r.(WriterTo); ok {
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 29e862d832..0d75b87765 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -61,16 +61,16 @@ var (
+ 
+ // A Handler responds to an HTTP request.
+ //
+-// ServeHTTP should write reply headers and data to the ResponseWriter
++// ServeHTTP should write reply headers and data to the [ResponseWriter]
+ // and then return. Returning signals that the request is finished; it
+-// is not valid to use the ResponseWriter or read from the
+-// Request.Body after or concurrently with the completion of the
++// is not valid to use the [ResponseWriter] or read from the
++// [Request.Body] after or concurrently with the completion of the
+ // ServeHTTP call.
+ //
+ // Depending on the HTTP client software, HTTP protocol version, and
+ // any intermediaries between the client and the Go server, it may not
+-// be possible to read from the Request.Body after writing to the
+-// ResponseWriter. Cautious handlers should read the Request.Body
++// be possible to read from the [Request.Body] after writing to the
++// [ResponseWriter]. Cautious handlers should read the [Request.Body]
+ // first, and then reply.
+ //
+ // Except for reading the body, handlers should not modify the
+@@ -82,7 +82,7 @@ var (
+ // and either closes the network connection or sends an HTTP/2
+ // RST_STREAM, depending on the HTTP protocol. To abort a handler so
+ // the client sees an interrupted response but the server doesn't log
+-// an error, panic with the value ErrAbortHandler.
++// an error, panic with the value [ErrAbortHandler].
+ type Handler interface {
+ 	ServeHTTP(ResponseWriter, *Request)
+ }
+@@ -90,15 +90,14 @@ type Handler interface {
+ // A ResponseWriter interface is used by an HTTP handler to
+ // construct an HTTP response.
+ //
+-// A ResponseWriter may not be used after the Handler.ServeHTTP method
+-// has returned.
++// A ResponseWriter may not be used after [Handler.ServeHTTP] has returned.
+ type ResponseWriter interface {
+ 	// Header returns the header map that will be sent by
+-	// WriteHeader. The Header map also is the mechanism with which
+-	// Handlers can set HTTP trailers.
++	// [ResponseWriter.WriteHeader]. The [Header] map also is the mechanism with which
++	// [Handler] implementations can set HTTP trailers.
+ 	//
+-	// Changing the header map after a call to WriteHeader (or
+-	// Write) has no effect unless the HTTP status code was of the
++	// Changing the header map after a call to [ResponseWriter.WriteHeader] (or
++	// [ResponseWriter.Write]) has no effect unless the HTTP status code was of the
+ 	// 1xx class or the modified headers are trailers.
+ 	//
+ 	// There are two ways to set Trailers. The preferred way is to
+@@ -107,9 +106,9 @@ type ResponseWriter interface {
+ 	// trailer keys which will come later. In this case, those
+ 	// keys of the Header map are treated as if they were
+ 	// trailers. See the example. The second way, for trailer
+-	// keys not known to the Handler until after the first Write,
+-	// is to prefix the Header map keys with the TrailerPrefix
+-	// constant value. See TrailerPrefix.
++	// keys not known to the [Handler] until after the first [ResponseWriter.Write],
++	// is to prefix the [Header] map keys with the [TrailerPrefix]
++	// constant value.
+ 	//
+ 	// To suppress automatic response headers (such as "Date"), set
+ 	// their value to nil.
+@@ -117,11 +116,11 @@ type ResponseWriter interface {
+ 
+ 	// Write writes the data to the connection as part of an HTTP reply.
+ 	//
+-	// If WriteHeader has not yet been called, Write calls
++	// If [ResponseWriter.WriteHeader] has not yet been called, Write calls
+ 	// WriteHeader(http.StatusOK) before writing the data. If the Header
+ 	// does not contain a Content-Type line, Write adds a Content-Type set
+ 	// to the result of passing the initial 512 bytes of written data to
+-	// DetectContentType. Additionally, if the total size of all written
++	// [DetectContentType]. Additionally, if the total size of all written
+ 	// data is under a few KB and there are no Flush calls, the
+ 	// Content-Length header is added automatically.
+ 	//
+@@ -2567,14 +2566,12 @@ func (mux *ServeMux) HandleFunc(pattern string, handler func(ResponseWriter, *Re
+ 	mux.Handle(pattern, HandlerFunc(handler))
+ }
+ 
+-// Handle registers the handler for the given pattern
+-// in the DefaultServeMux.
+-// The documentation for ServeMux explains how patterns are matched.
++// Handle registers the handler for the given pattern in [DefaultServeMux].
++// The documentation for [ServeMux] explains how patterns are matched.
+ func Handle(pattern string, handler Handler) { DefaultServeMux.Handle(pattern, handler) }
+ 
+-// HandleFunc registers the handler function for the given pattern
+-// in the DefaultServeMux.
+-// The documentation for ServeMux explains how patterns are matched.
++// HandleFunc registers the handler function for the given pattern in [DefaultServeMux].
++// The documentation for [ServeMux] explains how patterns are matched.
+ func HandleFunc(pattern string, handler func(ResponseWriter, *Request)) {
+ 	DefaultServeMux.HandleFunc(pattern, handler)
+ }
+@@ -2583,7 +2580,7 @@ func HandleFunc(pattern string, handler func(ResponseWriter, *Request)) {
+ // creating a new service goroutine for each. The service goroutines
+ // read requests and then call handler to reply to them.
+ //
+-// The handler is typically nil, in which case the DefaultServeMux is used.
++// The handler is typically nil, in which case [DefaultServeMux] is used.
+ //
+ // HTTP/2 support is only enabled if the Listener returns *tls.Conn
+ // connections and they were configured with "h2" in the TLS
+@@ -2599,7 +2596,7 @@ func Serve(l net.Listener, handler Handler) error {
+ // creating a new service goroutine for each. The service goroutines
+ // read requests and then call handler to reply to them.
+ //
+-// The handler is typically nil, in which case the DefaultServeMux is used.
++// The handler is typically nil, in which case [DefaultServeMux] is used.
+ //
+ // Additionally, files containing a certificate and matching private key
+ // for the server must be provided. If the certificate is signed by a
+@@ -3231,7 +3228,7 @@ func logf(r *Request, format string, args ...any) {
+ // Serve with handler to handle requests on incoming connections.
+ // Accepted connections are configured to enable TCP keep-alives.
+ //
+-// The handler is typically nil, in which case the DefaultServeMux is used.
++// The handler is typically nil, in which case [DefaultServeMux] is used.
+ //
+ // ListenAndServe always returns a non-nil error.
+ func ListenAndServe(addr string, handler Handler) error {
+@@ -3239,7 +3236,7 @@ func ListenAndServe(addr string, handler Handler) error {
+ 	return server.ListenAndServe()
+ }
+ 
+-// ListenAndServeTLS acts identically to ListenAndServe, except that it
++// ListenAndServeTLS acts identically to [ListenAndServe], except that it
+ // expects HTTPS connections. Additionally, files containing a certificate and
+ // matching private key for the server must be provided. If the certificate
+ // is signed by a certificate authority, the certFile should be the concatenation
+diff --git a/src/path/path.go b/src/path/path.go
+index 547b9debce..6f4a8eda6d 100644
+--- a/src/path/path.go
++++ b/src/path/path.go
+@@ -8,7 +8,7 @@
+ // The path package should only be used for paths separated by forward
+ // slashes, such as the paths in URLs. This package does not deal with
+ // Windows paths with drive letters or backslashes; to manipulate
+-// operating system paths, use the path/filepath package.
++// operating system paths, use the [path/filepath] package.
+ package path
+ 
+ // A lazybuf is a lazily constructed path buffer.

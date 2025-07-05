@@ -8,7 +8,7 @@ Date:   Fri Apr 20 23:45:43 2012 +0800
     R=golang-dev, iant, bradfitz, remyoudompheng
     CC=golang-dev
     https://golang.org/cl/5869049
-
+---
  test/64bit.go        |  4 +---
  test/chan/select5.go |  4 +---
  test/crlf.go         |  4 +---
@@ -16,3 +16,118 @@ Date:   Fri Apr 20 23:45:43 2012 +0800
  test/run.go          | 24 ++++++++++++++++++++++--
  test/testlib         |  5 +++++
  6 files changed, 31 insertions(+), 12 deletions(-)
+
+diff --git a/test/64bit.go b/test/64bit.go
+index 9e91a97fd5..7ad28ad4bc 100644
+--- a/test/64bit.go
++++ b/test/64bit.go
+@@ -1,6 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out >tmp.go &&
+-// $G tmp.go && $L tmp.$A && ./$A.out || echo BUG: 64bit
+-// rm -f tmp.go
++// runoutput
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/chan/select5.go b/test/chan/select5.go
+index 13cde1afe5..f72cfe4b46 100644
+--- a/test/chan/select5.go
++++ b/test/chan/select5.go
+@@ -1,6 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out >tmp.go &&
+-// $G tmp.go && $L tmp.$A && ./$A.out || echo BUG: select5
+-// rm -f tmp.go
++// runoutput
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/crlf.go b/test/crlf.go
+index 292b63bf4b..2d56889b03 100644
+--- a/test/crlf.go
++++ b/test/crlf.go
+@@ -1,6 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out >tmp.go &&
+-// $G tmp.go && $L tmp.$A && ./$A.out
+-// rm -f tmp.go
++// runoutput
+ 
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/run b/test/run
+index 302578eaaa..29a7905f0a 100755
+--- a/test/run
++++ b/test/run
+@@ -100,7 +100,7 @@ do
+ 			echo $i >>pass.out
+ 		fi
+ 		echo $(awk 'NR==1{print $2}' "$TMP2FILE") $D/$F >>times.out
+-		rm -f $F.$A $A.out
++		rm -f $F.$A $A.out tmp.go
+ 	) done
+ done | # clean up some stack noise
+ 	egrep -v '^(r[0-9a-z]+|[cfg]s)  +0x'  |
+diff --git a/test/run.go b/test/run.go
+index ac6e3c0e27..198863eab8 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -172,7 +172,7 @@ type test struct {
+ 	donec       chan bool // closed when done
+ 
+ 	src    string
+-	action string // "compile", "build", "run", "errorcheck", "skip"
++	action string // "compile", "build", "run", "errorcheck", "skip", "runoutput"
+ 
+ 	tempDir string
+ 	err     error
+@@ -251,7 +251,7 @@ func (t *test) run() {
+ 	case "cmpout":
+ 		action = "run" // the run case already looks for <dir>/<test>.out files
+ 		fallthrough
+-	case "compile", "build", "run", "errorcheck":
++	case "compile", "build", "run", "errorcheck", "runoutput":
+ 		t.action = action
+ 	case "skip":
+ 		t.action = "skip"
+@@ -316,6 +316,26 @@ func (t *test) run() {
+ 		if string(out) != t.expectedOutput() {
+ 			t.err = fmt.Errorf("incorrect output\n%s", out)
+ 		}
++
++	case "runoutput":
++		useTmp = false
++		out, err := runcmd("go", "run", t.goFileName())
++		if err != nil {
++			t.err = fmt.Errorf("%s\n%s", err, out)
++		}
++		tfile := filepath.Join(t.tempDir, "tmp__.go")
++		err = ioutil.WriteFile(tfile, out, 0666)
++		if err != nil {
++			t.err = fmt.Errorf("write tempfile:%s", err)
++			return
++		}
++		out, err = runcmd("go", "run", tfile)
++		if err != nil {
++			t.err = fmt.Errorf("%s\n%s", err, out)
++		}
++		if string(out) != t.expectedOutput() {
++			t.err = fmt.Errorf("incorrect output\n%s", out)
++		}
+ 	}
+ }
+ 
+diff --git a/test/testlib b/test/testlib
+index 3858431a7e..9e0911526a 100644
+--- a/test/testlib
++++ b/test/testlib
+@@ -13,6 +13,11 @@ build() {
+ 	$G $D/$F.go && $L $F.$A
+ }
+ 
++runoutput() {
++	go run "$D/$F.go" > tmp.go
++	go run tmp.go
++}
++
+ run() {
+ 	gofiles=""
+ 	ingo=true

@@ -5,7 +5,103 @@ Date:   Sun Jun 8 18:26:23 2008 -0700
     nihon
     
     SVN=121620
-
+---
  src/cmd/gc/go.h  |  2 +-
  src/cmd/gc/lex.c | 24 ++++++++++--------------
  2 files changed, 11 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 1598a8e69e..eaaf172925 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -387,7 +387,7 @@ void	lexinit(void);
+ char*	lexname(int);
+ long	getr(void);
+ int	getnsc(void);
+-int	escchar(int, int*, vlong*);
++int	escchar(int, vlong*);
+ int	getc(void);
+ void	ungetc(int);
+ void	mkpackage(char*);
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 3af1d38670..95d1409f27 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -175,7 +175,6 @@ yylex(void)
+ 	vlong v;
+ 	char *cp;
+ 	Rune rune;
+-	int escflag;
+ 	Sym *s;
+ 
+ l0:
+@@ -225,19 +224,19 @@ l0:
+ 
+ 	caseq:
+ 		for(;;) {
+-			if(escchar('"', &escflag, &v))
++			if(escchar('"', &v))
+ 				break;
+-			if(escflag) {
+-				cp = remal(cp, c1, 1);
+-				cp[c1++] = v;
+-			} else {
++			if(v >= Runeself) {
+ 				// botch - this limits size of runes
+ 				rune = v;
+ 				c = runelen(rune);
+ 				cp = remal(cp, c1, c);
+ 				runetochar(cp+c1, &rune);
+ 				c1 += c;
++				continue;
+ 			}
++			cp = remal(cp, c1, 1);
++			cp[c1++] = v;
+ 		}
+ 		goto catem;
+ 
+@@ -282,9 +281,9 @@ l0:
+ 
+ 	case '\'':
+ 		/* '.' */
+-		if(escchar('\'', &escflag, &v))
++		if(escchar('\'', &v))
+ 			v = '\'';	// allow '''
+-		if(!escchar('\'', &escflag, &v)) {
++		if(!escchar('\'', &v)) {
+ 			yyerror("missing '");
+ 			ungetc(v);
+ 		}
+@@ -696,13 +695,12 @@ getnsc(void)
+ 
+ 
+ int
+-escchar(int e, int *escflg, vlong *val)
++escchar(int e, vlong *val)
+ {
+-	int i, c;
++	int i;
++	long c;
+ 	vlong l;
+ 
+-	*escflg = 0;
+-
+ loop:
+ 	c = getr();
+ 	if(c == '\n') {
+@@ -779,7 +777,6 @@ hex:
+ 		ungetc(c);
+ 		break;
+ 	}
+-	*escflg = 1;
+ 	*val = l;
+ 	return 0;
+ 
+@@ -796,7 +793,6 @@ oct:
+ 	}
+ 	if(l > 255)
+ 		warn("oct escape value > 255: %d", l);
+-	*escflg = 1;
+ 	*val = l;
+ 	return 0;
+ }

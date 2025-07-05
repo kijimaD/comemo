@@ -12,6 +12,20 @@ Date:   Thu Oct 29 13:47:12 2020 -0700
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     Run-TryBot: Katie Hockman <katie@golang.org>
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/crypto/x509/x509.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index a314b5ed1a..537c207f38 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -28,6 +28,8 @@ import (
+ 	"time"
+ 	"unicode"
+ 
++	// Explicitly import these for their crypto.RegisterHash init side-effects.
++	// Keep these as blank imports, even if they're imported above.
+ 	_ "crypto/sha1"
+ 	_ "crypto/sha256"
+ 	_ "crypto/sha512"

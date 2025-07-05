@@ -12,6 +12,20 @@ Date:   Tue Apr 25 04:59:14 2017 +0000
     Change-Id: I282244ee3c94535f229a87b6246382385ff64428
     Reviewed-on: https://go-review.googlesource.com/41675
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/crash_cgo_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 252313ab67..3815cccfbc 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -282,7 +282,7 @@ func testCgoPprof(t *testing.T, buildArg, runArg string) {
+ 
+ 	got, err := testEnv(exec.Command(exe, runArg)).CombinedOutput()
+ 	if err != nil {
+-		if testenv.Builder() == "linux-arm64-alpine" {
++		if testenv.Builder() == "linux-amd64-alpine" {
+ 			// See Issue 18243 and Issue 19938.
+ 			t.Skipf("Skipping failing test on Alpine (golang.org/issue/18243). Ignoring error: %v", err)
+ 		}

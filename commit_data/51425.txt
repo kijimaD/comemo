@@ -17,7 +17,56 @@ Date:   Wed Jan 26 13:26:45 2022 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/noder/writer.go | 4 +++-
  test/run.go                              | 4 ----
  2 files changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 2bb0b4d5d7..73f2df8e39 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1218,6 +1218,7 @@ func (w *writer) expr(expr syntax.Expr) {
+ 		}
+ 
+ 		obj := obj.(*types2.Var)
++		assert(!obj.IsField())
+ 		assert(targs.Len() == 0)
+ 
+ 		w.code(exprLocal)
+@@ -1337,10 +1338,11 @@ func (w *writer) compLit(lit *syntax.CompositeLit) {
+ 	w.typ(tv.Type)
+ 
+ 	typ := tv.Type
++	// TODO(mdempsky): Use types2.StructuralType here too? See #50833.
+ 	if ptr, ok := typ.Underlying().(*types2.Pointer); ok {
+ 		typ = ptr.Elem()
+ 	}
+-	str, isStruct := typ.Underlying().(*types2.Struct)
++	str, isStruct := types2.StructuralType(typ).(*types2.Struct)
+ 
+ 	w.len(len(lit.ElemList))
+ 	for i, elem := range lit.ElemList {
+diff --git a/test/run.go b/test/run.go
+index 0e35ed2c0f..9ba421510c 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2167,7 +2167,6 @@ var unifiedFailures = setOf(
+ 
+ 	"fixedbugs/issue42284.go",  // prints "T(0) does not escape", but test expects "a.I(a.T(0)) does not escape"
+ 	"fixedbugs/issue7921.go",   // prints "… escapes to heap", but test expects "string(…) escapes to heap"
+-	"typeparam/issue48538.go",  // assertion failure, interprets struct key as closure variable
+ 	"typeparam/issue47631.go",  // unified IR can handle local type declarations
+ 	"fixedbugs/issue42058a.go", // unified IR doesn't report channel element too large
+ 	"fixedbugs/issue42058b.go", // unified IR doesn't report channel element too large
+@@ -2178,10 +2177,7 @@ var unifiedFailures = setOf(
+ 	"typeparam/typeswitch2.go", // duplicate case failure due to stenciling
+ 	"typeparam/typeswitch3.go", // duplicate case failure due to stenciling
+ 	"typeparam/typeswitch4.go", // duplicate case failure due to stenciling
+-	"typeparam/issue50417b.go", // Need to handle field access on a type param
+ 	"typeparam/issue50552.go",  // gives missing method for instantiated type
+-	"typeparam/absdiff2.go",    // wrong assertion about closure variables
+-	"typeparam/absdiffimp2.go", // wrong assertion about closure variables
+ )
+ 
+ func setOf(keys ...string) map[string]bool {

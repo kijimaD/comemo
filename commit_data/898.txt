@@ -7,6 +7,27 @@ Date:   Fri Oct 17 17:45:32 2008 -0700
     R=ken
     OCL=17394
     CL=17394
-
+---
  src/cmd/gc/dcl.c | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 6368fa4bd5..b65d8c0bb6 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -686,7 +686,6 @@ addvar(Node *n, Type *t, int ctxt)
+ 	if(ctxt == PEXTERN) {
+ 		r = externdcl;
+ 		gen = 0;
+-vargen++;	// just for diffing output against old compiler
+ 	} else {
+ 		r = autodcl;
+ 		vargen++;
+@@ -737,7 +736,6 @@ addtyp(Type *n, int ctxt)
+ 		r = autodcl;
+ 		pushdcl(s);
+ 	}
+-vargen++;	// just for diffing output against old compiler
+ 
+ 	if(s->tblock == block)
+ 		yyerror("type %S redeclared in this block %d", s, block);

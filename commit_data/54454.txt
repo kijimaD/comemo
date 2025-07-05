@@ -14,7 +14,44 @@ Date:   Wed Oct 19 14:22:25 2022 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/check_test.go | 1 -
  src/go/types/check_test.go                    | 6 ------
  2 files changed, 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index 98813ad5a7..2d7783611d 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -41,7 +41,6 @@ import (
+ var (
+ 	haltOnError  = flag.Bool("halt", false, "halt on error")
+ 	verifyErrors = flag.Bool("verify", false, "verify errors (rather than list them) in TestManual")
+-	goVersion    = flag.String("lang", "", "Go language version (e.g. \"go1.12\")")
+ )
+ 
+ func parseFiles(t *testing.T, filenames []string, mode syntax.Mode) ([]*syntax.File, []error) {
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index da2cb6467f..f19a904f7f 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -45,7 +45,6 @@ import (
+ var (
+ 	haltOnError  = flag.Bool("halt", false, "halt on error")
+ 	verifyErrors = flag.Bool("verify", false, "verify errors (rather than list them) in TestManual")
+-	goVersion    = flag.String("lang", "", "Go language version (e.g. \"go1.12\") for TestManual")
+ )
+ 
+ var fset = token.NewFileSet()
+@@ -222,11 +221,6 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
+ 		t.Fatal(err)
+ 	}
+ 
+-	if manual && *goVersion != "" {
+-		// goVersion overrides -lang for manual tests.
+-		conf.GoVersion = *goVersion
+-	}
+-
+ 	// TODO(gri) remove this or use flag mechanism to set mode if still needed
+ 	if strings.HasSuffix(filenames[0], ".go1") {
+ 		// TODO(rfindley): re-enable this test by using GoVersion.

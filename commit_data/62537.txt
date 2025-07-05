@@ -12,7 +12,73 @@ Date:   Sun Mar 9 14:38:44 2025 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Auto-Submit: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/prove.go |  8 ++++----
  test/prove_popcount.go                | 37 +++++++++++++++++++++++++++++++++++
  2 files changed, 41 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index d1d851be91..9fedbdbbc9 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -1645,13 +1645,13 @@ func initLimit(v *Value) limit {
+ 		lim = lim.signedMinMax(math.MinInt32, math.MaxInt32)
+ 
+ 	// math/bits intrinsics
+-	case OpCtz64, OpBitLen64:
++	case OpCtz64, OpBitLen64, OpPopCount64:
+ 		lim = lim.unsignedMax(64)
+-	case OpCtz32, OpBitLen32:
++	case OpCtz32, OpBitLen32, OpPopCount32:
+ 		lim = lim.unsignedMax(32)
+-	case OpCtz16, OpBitLen16:
++	case OpCtz16, OpBitLen16, OpPopCount16:
+ 		lim = lim.unsignedMax(16)
+-	case OpCtz8, OpBitLen8:
++	case OpCtz8, OpBitLen8, OpPopCount8:
+ 		lim = lim.unsignedMax(8)
+ 
+ 	// bool to uint8 conversion
+diff --git a/test/prove_popcount.go b/test/prove_popcount.go
+new file mode 100644
+index 0000000000..430df01ec3
+--- /dev/null
++++ b/test/prove_popcount.go
+@@ -0,0 +1,37 @@
++// errorcheck -0 -d=ssa/prove/debug=1
++
++//go:build amd64.v3 || arm64
++
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// FIXME(@Jorropo): this file exists because I havn't yet bothered to
++// make prove work on the pure go function call fallback.
++// My idea was to wait until CL 637936 is merged, then we can always emit
++// the PopCount SSA operation and translate them to pure function calls
++// in late-opt.
++
++package main
++
++import "math/bits"
++
++func onesCountsBounds(x uint64, ensureAllBranchesCouldHappen func() bool) int {
++	z := bits.OnesCount64(x)
++	if ensureAllBranchesCouldHappen() && z > 64 { // ERROR "Disproved Less64$"
++		return 42
++	}
++	if ensureAllBranchesCouldHappen() && z <= 64 { // ERROR "Proved Leq64$"
++		return 4242
++	}
++	if ensureAllBranchesCouldHappen() && z < 0 { // ERROR "Disproved Less64$"
++		return 424242
++	}
++	if ensureAllBranchesCouldHappen() && z >= 0 { // ERROR "Proved Leq64$"
++		return 42424242
++	}
++	return z
++}
++
++func main() {
++}

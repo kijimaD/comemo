@@ -18,6 +18,21 @@ Date:   Tue Nov 23 14:30:56 2021 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/rwmutex_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/rwmutex_test.go b/src/runtime/rwmutex_test.go
+index 291a32ea5e..33ddd7d1d5 100644
+--- a/src/runtime/rwmutex_test.go
++++ b/src/runtime/rwmutex_test.go
+@@ -55,6 +55,9 @@ func TestParallelRWMutexReaders(t *testing.T) {
+ 	// since the goroutines can't be stopped/preempted.
+ 	// Disable GC for this test (see issue #10958).
+ 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
++	// Finish any in-progress GCs and get ourselves to a clean slate.
++	GC()
++
+ 	doTestParallelReaders(1)
+ 	doTestParallelReaders(3)
+ 	doTestParallelReaders(4)

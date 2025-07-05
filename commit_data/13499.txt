@@ -9,7 +9,73 @@ Date:   Wed Jul 25 10:49:50 2012 -0700
     R=golang-dev, gri, jeff, bradfitz
     CC=golang-dev
     https://golang.org/cl/6350086
-
+---
  src/cmd/godoc/doc.go   | 18 ++----------------
  src/cmd/godoc/godoc.go | 11 -----------
  2 files changed, 2 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/godoc/doc.go b/src/cmd/godoc/doc.go
+index 39ecc6e63a..956ec0ba42 100644
+--- a/src/cmd/godoc/doc.go
++++ b/src/cmd/godoc/doc.go
+@@ -67,8 +67,6 @@ The flags are:
+ 	-maxresults=10000
+ 		maximum number of full text search results shown
+ 		(no full text index is built if maxresults <= 0)
+-	-path=""
+-		additional package directories (colon-separated)
+ 	-html
+ 		print HTML in command-line mode
+ 	-goroot=$GOROOT
+@@ -88,20 +86,8 @@ The flags are:
+ 		zip file providing the file system to serve; disabled if empty
+ 
+ By default, godoc looks at the packages it finds via $GOROOT and $GOPATH (if set).
+-Additional directories may be specified via the -path flag which accepts a list
+-of colon-separated paths; unrooted paths are relative to the current working
+-directory. Each path is considered as an additional root for packages in order
+-of appearance. The last (absolute) path element is the prefix for the package
+-path. For instance, given the flag value:
+-
+-	path=".:/home/bar:/public"
+-
+-for a godoc started in /home/user/godoc, absolute paths are mapped to package paths
+-as follows:
+-
+-	/home/user/godoc/x -> godoc/x
+-	/home/bar/x        -> bar/x
+-	/public/x          -> public/x
++This behavior can be altered by providing an alternative $GOROOT with the -goroot
++flag.
+ 
+ When godoc runs as a web server and -index is set, a search index is maintained.
+ The index is created at startup.
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 44b6e595c7..47569cfcad 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -57,7 +57,6 @@ var (
+ 	// TODO(gri) consider the invariant that goroot always end in '/'
+ 	goroot  = flag.String("goroot", runtime.GOROOT(), "Go root directory")
+ 	testDir = flag.String("testdir", "", "Go root subdirectory - for testing only (faster startups)")
+-	pkgPath = flag.String("path", "", "additional package directories (colon-separated)")
+ 
+ 	// layout control
+ 	tabwidth       = flag.Int("tabwidth", 4, "tab width")
+@@ -83,16 +82,6 @@ var (
+ )
+ 
+ func initHandlers() {
+-	// Add named directories in -path argument as
+-	// subdirectories of src/pkg.
+-	for _, p := range filepath.SplitList(*pkgPath) {
+-		_, elem := filepath.Split(p)
+-		if elem == "" {
+-			log.Fatalf("invalid -path argument: %q has no final element", p)
+-		}
+-		fs.Bind("/src/pkg/"+elem, OS(p), "/", bindReplace)
+-	}
+-
+ 	fileServer = http.FileServer(&httpFS{fs})
+ 	cmdHandler = docServer{"/cmd/", "/src/cmd", false}
+ 	pkgHandler = docServer{"/pkg/", "/src/pkg", true}

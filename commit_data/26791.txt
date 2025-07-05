@@ -11,6 +11,20 @@ Date:   Tue Feb 23 21:17:25 2016 -0800
     Change-Id: I20e00323baa9e9631792eff5035966297665bbee
     Reviewed-on: https://go-review.googlesource.com/19880
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/git/pre-commit | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/git/pre-commit b/misc/git/pre-commit
+index 18b7f832f3..242159f04a 100755
+--- a/misc/git/pre-commit
++++ b/misc/git/pre-commit
+@@ -10,7 +10,7 @@
+ #
+ # This script does not handle file names that contain spaces.
+ 
+-gofiles=$(git diff --cached --name-only --diff-filter=ACM | grep '.go$')
++gofiles=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$')
+ [ -z "$gofiles" ] && exit 0
+ 
+ unformatted=$(gofmt -l $gofiles)

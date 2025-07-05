@@ -9,6 +9,22 @@ Date:   Thu Apr 14 23:34:14 2011 -0400
     R=dsymonds
     CC=golang-dev
     https://golang.org/cl/4427041
-
+---
  src/cmd/gopack/ar.c | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/gopack/ar.c b/src/cmd/gopack/ar.c
+index dc3899f375..33a2791bb6 100644
+--- a/src/cmd/gopack/ar.c
++++ b/src/cmd/gopack/ar.c
+@@ -1676,6 +1676,10 @@ arread_cutprefix(Biobuf *b, Armember *bp)
+ 					offset = o;
+ 				}
+ 			}
++		} else {
++			// didn't find the whole prefix.
++			// give up and let it emit the entire name.
++			inprefix = nil;
+ 		}
+ 
+ 		// copy instructions

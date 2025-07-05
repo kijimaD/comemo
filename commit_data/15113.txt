@@ -9,10 +9,227 @@ Date:   Sun Feb 3 14:28:44 2013 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/7277047
-
+---
  src/cmd/gc/mparith1.c        |  6 +++---
  src/cmd/gc/typecheck.c       | 51 +++++++++++++++++++++++++++++++++-----------
  src/pkg/runtime/slice.c      |  9 ++++++--
  test/fixedbugs/issue4085a.go | 18 ++++++++++++++++
  test/fixedbugs/issue4085b.go | 49 ++++++++++++++++++++++++++++++++++++++++++
  5 files changed, 115 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/gc/mparith1.c b/src/cmd/gc/mparith1.c
+index 570bf641da..e25044a8be 100644
+--- a/src/cmd/gc/mparith1.c
++++ b/src/cmd/gc/mparith1.c
+@@ -43,10 +43,10 @@ mpcmpfixfix(Mpint *a, Mpint *b)
+ int
+ mpcmpfixc(Mpint *b, vlong c)
+ {
+-	Mpint a;
++	Mpint c1;
+ 
+-	mpmovecfix(&a, c);
+-	return mpcmpfixfix(&a, b);
++	mpmovecfix(&c1, c);
++	return mpcmpfixfix(b, &c1);
+ }
+ 
+ int
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index d029b8bc6c..40ad5e385f 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -32,6 +32,7 @@ static void	checkassignlist(NodeList*);
+ static void	stringtoarraylit(Node**);
+ static Node*	resolve(Node*);
+ static void	checkdefergo(Node*);
++static int	checkmake(Type*, char*, Node*);
+ 
+ static	NodeList*	typecheckdefstack;
+ 
+@@ -1403,22 +1404,20 @@ reswitch:
+ 			l = args->n;
+ 			args = args->next;
+ 			typecheck(&l, Erv);
+-			defaultlit(&l, types[TINT]);
+ 			r = N;
+ 			if(args != nil) {
+ 				r = args->n;
+ 				args = args->next;
+ 				typecheck(&r, Erv);
+-				defaultlit(&r, types[TINT]);
+ 			}
+ 			if(l->type == T || (r && r->type == T))
+ 				goto error;
+-			if(!isint[l->type->etype]) {
+-				yyerror("non-integer len argument to make(%T)", t);
++			et = checkmake(t, "len", l) < 0;
++			et |= r && checkmake(t, "cap", r) < 0;
++			if(et)
+ 				goto error;
+-			}
+-			if(r && !isint[r->type->etype]) {
+-				yyerror("non-integer cap argument to make(%T)", t);
++			if(isconst(l, CTINT) && r && isconst(r, CTINT) && mpcmpfixfix(l->val.u.xval, r->val.u.xval) > 0) {
++				yyerror("len larger than cap in make(%T)", t);
+ 				goto error;
+ 			}
+ 			n->left = l;
+@@ -1434,10 +1433,8 @@ reswitch:
+ 				defaultlit(&l, types[TINT]);
+ 				if(l->type == T)
+ 					goto error;
+-				if(!isint[l->type->etype]) {
+-					yyerror("non-integer size argument to make(%T)", t);
++				if(checkmake(t, "size", l) < 0)
+ 					goto error;
+-				}
+ 				n->left = l;
+ 			} else
+ 				n->left = nodintconst(0);
+@@ -1453,10 +1450,8 @@ reswitch:
+ 				defaultlit(&l, types[TINT]);
+ 				if(l->type == T)
+ 					goto error;
+-				if(!isint[l->type->etype]) {
+-					yyerror("non-integer buffer argument to make(%T)", t);
++				if(checkmake(t, "buffer", l) < 0)
+ 					goto error;
+-				}
+ 				n->left = l;
+ 			} else
+ 				n->left = nodintconst(0);
+@@ -3098,3 +3093,33 @@ ret:
+ 	n->walkdef = 1;
+ 	return n;
+ }
++
++static int
++checkmake(Type *t, char *arg, Node *n)
++{
++	if(n->op == OLITERAL) {
++		n->val = toint(n->val);
++		if(mpcmpfixc(n->val.u.xval, 0) < 0) {
++			yyerror("negative %s argument in make(%T)", arg, t);
++			return -1;
++		}
++		if(mpcmpfixfix(n->val.u.xval, maxintval[TINT]) > 0) {
++			yyerror("%s argument too large in make(%T)", arg, t);
++			return -1;
++		}
++		
++		// Delay defaultlit until after we've checked range, to avoid
++		// a redundant "constant NNN overflows int" error.
++		defaultlit(&n, types[TINT]);
++		return 0;
++	}
++	
++	// Defaultlit still necessary for non-constant: n might be 1<<k.
++	defaultlit(&n, types[TINT]);
++
++	if(!isint[n->type->etype]) {
++		yyerror("non-integer %s argument in make(%T) - %T", arg, t, n->type);
++		return -1;
++	}
++	return 0;
++}
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+index eda14f85c1..1678d5df8d 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.c
+@@ -20,9 +20,14 @@ static	void	growslice1(SliceType*, Slice, intgo, Slice *);
+ void
+ runtime·makeslice(SliceType *t, int64 len, int64 cap, Slice ret)
+ {
+-	if(len < 0 || (intgo)len != len)
++	// NOTE: The len > MaxMem/elemsize check here is not strictly necessary,
++	// but it produces a 'len out of range' error instead of a 'cap out of range' error
++	// when someone does make([]T, bignumber). 'cap out of range' is true too,
++	// but since the cap is only being supplied implicitly, saying len is clearer.
++	// See issue 4085.
++	if(len < 0 || (intgo)len != len || t->elem->size > 0 && len > MaxMem / t->elem->size)
+ 		runtime·panicstring("makeslice: len out of range");
+-	
++
+ 	if(cap < len || (intgo)cap != cap || t->elem->size > 0 && cap > MaxMem / t->elem->size)
+ 		runtime·panicstring("makeslice: cap out of range");
+ 
+diff --git a/test/fixedbugs/issue4085a.go b/test/fixedbugs/issue4085a.go
+new file mode 100644
+index 0000000000..8a52b268ff
+--- /dev/null
++++ b/test/fixedbugs/issue4085a.go
+@@ -0,0 +1,18 @@
++// errorcheck
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type T []int
++
++func main() {
++	_ = make(T, -1)       // ERROR "negative"
++	_ = make(T, 0.5)       // ERROR "constant 0.5 truncated to integer"
++	_ = make(T, 1.0)       // ok
++	_ = make(T, 1<<63)  // ERROR "len argument too large"
++	_ = make(T, 0, -1)    // ERROR "negative cap"
++	_ = make(T, 10, 0) // ERROR "len larger than cap"
++}
+diff --git a/test/fixedbugs/issue4085b.go b/test/fixedbugs/issue4085b.go
+new file mode 100644
+index 0000000000..63aca2378e
+--- /dev/null
++++ b/test/fixedbugs/issue4085b.go
+@@ -0,0 +1,49 @@
++// run
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"strings"
++	"unsafe"
++)
++
++type T []int
++
++func main() {
++	n := -1
++	shouldPanic("len out of range", func() {_ = make(T, n)})
++	shouldPanic("cap out of range", func() {_ = make(T, 0, n)})
++	var t *byte
++	if unsafe.Sizeof(t) == 8 {
++		n = 1<<20
++		n <<= 20
++		shouldPanic("len out of range", func() {_ = make(T, n)})
++		shouldPanic("cap out of range", func() {_ = make(T, 0, n)})
++		n <<= 20
++		shouldPanic("len out of range", func() {_ = make(T, n)})
++		shouldPanic("cap out of range", func() {_ = make(T, 0, n)})
++	} else {
++		n = 1<<31 - 1
++		shouldPanic("len out of range", func() {_ = make(T, n)})
++		shouldPanic("cap out of range", func() {_ = make(T, 0, n)})
++	}
++}
++
++func shouldPanic(str string, f func()) {
++	defer func() {
++		err := recover()
++		if err == nil {
++			panic("did not panic")
++		}
++		s := err.(error).Error()
++		if !strings.Contains(s, str) {
++			panic("got panic " + s + ", want " + str)
++		}
++	}()
++	
++	f()
++}

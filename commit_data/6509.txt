@@ -7,7 +7,78 @@ Date:   Wed Oct 13 12:05:21 2010 +1100
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/2469041
-
+---
  src/pkg/image/geom.go  | 14 ++++++--------
  src/pkg/image/names.go | 17 +++++++++--------
  2 files changed, 15 insertions(+), 16 deletions(-)
+
+diff --git a/src/pkg/image/geom.go b/src/pkg/image/geom.go
+index 5a7b0b8a87..ccfe9cdb08 100644
+--- a/src/pkg/image/geom.go
++++ b/src/pkg/image/geom.go
+@@ -43,15 +43,13 @@ func (p Point) Div(k int) Point {
+ func (p Point) Mod(r Rectangle) Point {
+ 	w, h := r.Dx(), r.Dy()
+ 	p = p.Sub(r.Min)
+-	if p.X >= 0 {
+-		p.X = p.X % w
+-	} else {
+-		p.X = w - 1 - (-1-p.X)%w
++	p.X = p.X % w
++	if p.X < 0 {
++		p.X += w
+ 	}
+-	if p.Y >= 0 {
+-		p.Y = p.Y % h
+-	} else {
+-		p.Y = h - 1 - (-1-p.Y)%h
++	p.Y = p.Y % h
++	if p.Y < 0 {
++		p.Y += h
+ 	}
+ 	return p.Add(r.Min)
+ }
+diff --git a/src/pkg/image/names.go b/src/pkg/image/names.go
+index 6900ec9231..c309684cea 100644
+--- a/src/pkg/image/names.go
++++ b/src/pkg/image/names.go
+@@ -15,7 +15,7 @@ var (
+ 	Opaque = NewColorImage(Alpha16Color{0xffff})
+ )
+ 
+-// A ColorImage is a practically infinite-sized Image of uniform Color.
++// A ColorImage is an infinite-sized Image of uniform Color.
+ // It implements both the Color and Image interfaces.
+ type ColorImage struct {
+ 	C Color
+@@ -43,11 +43,12 @@ func NewColorImage(c Color) *ColorImage {
+ 	return &ColorImage{c}
+ }
+ 
+-// A Tiled is a practically infinite-sized Image that repeats another Image in
+-// both directions. Tiled{i}.At(x, y) will equal i.At(x, y) for all points
+-// within i's Bounds.
++// A Tiled is an infinite-sized Image that repeats another Image in both
++// directions. Tiled{i, p}.At(x, y) will equal i.At(x+p.X, y+p.Y) for all
++// points {x+p.X, y+p.Y} within i's Bounds.
+ type Tiled struct {
+-	I Image
++	I      Image
++	Offset Point
+ }
+ 
+ func (t *Tiled) ColorModel() ColorModel {
+@@ -57,10 +58,10 @@ func (t *Tiled) ColorModel() ColorModel {
+ func (t *Tiled) Bounds() Rectangle { return Rectangle{Point{-1e9, -1e9}, Point{1e9, 1e9}} }
+ 
+ func (t *Tiled) At(x, y int) Color {
+-	p := Point{x, y}.Mod(t.I.Bounds())
++	p := Point{x, y}.Add(t.Offset).Mod(t.I.Bounds())
+ 	return t.I.At(p.X, p.Y)
+ }
+ 
+-func NewTiled(i Image) *Tiled {
+-	return &Tiled{i}
++func NewTiled(i Image, offset Point) *Tiled {
++	return &Tiled{i, offset}
+ }

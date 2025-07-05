@@ -7,7 +7,7 @@ Date:   Tue Mar 13 17:29:07 2012 -0700
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5820045
-
+---
  src/pkg/index/suffixarray/qsufsort.go | 4 ++--
  src/pkg/math/big/nat.go               | 2 +-
  src/pkg/math/erf.go                   | 4 ++--
@@ -16,3 +16,113 @@ Date:   Tue Mar 13 17:29:07 2012 -0700
  src/pkg/net/interface_windows.go      | 2 +-
  src/pkg/syscall/syscall_linux.go      | 2 +-
  7 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/index/suffixarray/qsufsort.go b/src/pkg/index/suffixarray/qsufsort.go
+index c69be43c2a..9c36a98f82 100644
+--- a/src/pkg/index/suffixarray/qsufsort.go
++++ b/src/pkg/index/suffixarray/qsufsort.go
+@@ -11,7 +11,7 @@
+ // Consecutive groups of suffixes in sa are labeled as sorted groups or
+ // unsorted groups. For a given pass of the sorter, all suffixes are ordered
+ // up to their first h characters, and sa is h-ordered. Suffixes in their
+-// final positions and unambiguouly sorted in h-order are in a sorted group.
++// final positions and unambiguously sorted in h-order are in a sorted group.
+ // Consecutive groups of suffixes with identical first h characters are an
+ // unsorted group. In each pass of the algorithm, unsorted groups are sorted
+ // according to the group number of their following suffix.
+@@ -78,7 +78,7 @@ func sortedByFirstByte(data []byte) []int {
+ 	for _, b := range data {
+ 		count[b]++
+ 	}
+-	// make count[b] equal index of first occurence of b in sorted array
++	// make count[b] equal index of first occurrence of b in sorted array
+ 	sum := 0
+ 	for b := range count {
+ 		count[b], sum = sum, count[b]+sum
+diff --git a/src/pkg/math/big/nat.go b/src/pkg/math/big/nat.go
+index da1ac944c5..0bc6572b96 100644
+--- a/src/pkg/math/big/nat.go
++++ b/src/pkg/math/big/nat.go
+@@ -826,7 +826,7 @@ func (x nat) string(charset string) string {
+ // iterative approach. This threshold is represented by leafSize. Benchmarking of leafSize in the 
+ // range 2..64 shows that values of 8 and 16 work well, with a 4x speedup at medium lengths and 
+ // ~30x for 20000 digits. Use nat_test.go's BenchmarkLeafSize tests to optimize leafSize for 
+-// specfic hardware.
++// specific hardware.
+ //
+ func (q nat) convertWords(s []byte, charset string, b Word, ndigits int, bb Word, table []divisor) {
+ 	// split larger blocks recursively
+diff --git a/src/pkg/math/erf.go b/src/pkg/math/erf.go
+index 87c70c2512..c6f32bdbe2 100644
+--- a/src/pkg/math/erf.go
++++ b/src/pkg/math/erf.go
+@@ -248,7 +248,7 @@ func Erf(x float64) float64 {
+ 		R = rb0 + s*(rb1+s*(rb2+s*(rb3+s*(rb4+s*(rb5+s*rb6)))))
+ 		S = 1 + s*(sb1+s*(sb2+s*(sb3+s*(sb4+s*(sb5+s*(sb6+s*sb7))))))
+ 	}
+-	z := Float64frombits(Float64bits(x) & 0xffffffff00000000) // pseudo-single (20-bit) precison x
++	z := Float64frombits(Float64bits(x) & 0xffffffff00000000) // pseudo-single (20-bit) precision x
+ 	r := Exp(-z*z-0.5625) * Exp((z-x)*(z+x)+R/S)
+ 	if sign {
+ 		return r/x - 1
+@@ -321,7 +321,7 @@ func Erfc(x float64) float64 {
+ 			R = rb0 + s*(rb1+s*(rb2+s*(rb3+s*(rb4+s*(rb5+s*rb6)))))
+ 			S = 1 + s*(sb1+s*(sb2+s*(sb3+s*(sb4+s*(sb5+s*(sb6+s*sb7))))))
+ 		}
+-		z := Float64frombits(Float64bits(x) & 0xffffffff00000000) // pseudo-single (20-bit) precison x
++		z := Float64frombits(Float64bits(x) & 0xffffffff00000000) // pseudo-single (20-bit) precision x
+ 		r := Exp(-z*z-0.5625) * Exp((z-x)*(z+x)+R/S)
+ 		if sign {
+ 			return 2 - r/x
+diff --git a/src/pkg/net/interface_linux.go b/src/pkg/net/interface_linux.go
+index 8c9c304087..825b20227a 100644
+--- a/src/pkg/net/interface_linux.go
++++ b/src/pkg/net/interface_linux.go
+@@ -13,7 +13,7 @@ import (
+ )
+ 
+ // If the ifindex is zero, interfaceTable returns mappings of all
+-// network interfaces.  Otheriwse it returns a mapping of a specific
++// network interfaces.  Otherwise it returns a mapping of a specific
+ // interface.
+ func interfaceTable(ifindex int) ([]Interface, error) {
+ 	tab, err := syscall.NetlinkRIB(syscall.RTM_GETLINK, syscall.AF_UNSPEC)
+diff --git a/src/pkg/net/interface_stub.go b/src/pkg/net/interface_stub.go
+index 4876b3af35..d4d7ce9c7f 100644
+--- a/src/pkg/net/interface_stub.go
++++ b/src/pkg/net/interface_stub.go
+@@ -9,7 +9,7 @@
+ package net
+ 
+ // If the ifindex is zero, interfaceTable returns mappings of all
+-// network interfaces.  Otheriwse it returns a mapping of a specific
++// network interfaces.  Otherwise it returns a mapping of a specific
+ // interface.
+ func interfaceTable(ifindex int) ([]Interface, error) {
+ 	return nil, nil
+diff --git a/src/pkg/net/interface_windows.go b/src/pkg/net/interface_windows.go
+index d0c9753269..4368b33062 100644
+--- a/src/pkg/net/interface_windows.go
++++ b/src/pkg/net/interface_windows.go
+@@ -56,7 +56,7 @@ func getInterfaceList() ([]syscall.InterfaceInfo, error) {
+ }
+ 
+ // If the ifindex is zero, interfaceTable returns mappings of all
+-// network interfaces.  Otheriwse it returns a mapping of a specific
++// network interfaces.  Otherwise it returns a mapping of a specific
+ // interface.
+ func interfaceTable(ifindex int) ([]Interface, error) {
+ 	ai, err := getAdapterList()
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index 59e167ce55..89fb681921 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -627,7 +627,7 @@ func ptracePeek(req int, pid int, addr uintptr, out []byte) (count int, err erro
+ 
+ 	// Remainder.
+ 	for len(out) > 0 {
+-		// We use an internal buffer to gaurantee alignment.
++		// We use an internal buffer to guarantee alignment.
+ 		// It's not documented if this is necessary, but we're paranoid.
+ 		err = ptrace(req, pid, addr+uintptr(n), uintptr(unsafe.Pointer(&buf[0])))
+ 		if err != nil {

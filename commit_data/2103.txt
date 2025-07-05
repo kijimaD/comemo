@@ -7,7 +7,40 @@ Date:   Tue Apr 28 13:04:01 2009 -0700
     R=r
     OCL=27980
     CL=27980
-
+---
  test/{bugs => fixedbugs}/bug131.go |  0
  test/golden.out                    | 10 +++++-----
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/test/bugs/bug131.go b/test/fixedbugs/bug131.go
+similarity index 100%
+rename from test/bugs/bug131.go
+rename to test/fixedbugs/bug131.go
+diff --git a/test/golden.out b/test/golden.out
+index b3cc4fb543..fda5e1e000 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -100,11 +100,6 @@ bugs/bug117.go:9: illegal types for operand: RETURN
+ 	int
+ BUG: should compile
+ 
+-=========== bugs/bug131.go
+-bugs/bug131.go:7: cannot convert uint64 constant to int64
+-bugs/bug131.go:7: illegal types for operand: AS
+-	int64
+-
+ =========== bugs/bug132.go
+ BUG: compilation succeeds incorrectly
+ 
+@@ -240,6 +235,11 @@ fixedbugs/bug121.go:20: illegal types for operand: AS
+ =========== fixedbugs/bug122.go
+ fixedbugs/bug122.go:6: too many arguments to make array
+ 
++=========== fixedbugs/bug131.go
++fixedbugs/bug131.go:7: cannot convert uint64 constant to int64
++fixedbugs/bug131.go:7: illegal types for operand: AS
++	int64
++
+ =========== fixedbugs/bug133.go
+ fixedbugs/bug133.dir/bug2.go:11: undefined DOT i on bug0.T
+ fixedbugs/bug133.dir/bug2.go:11: illegal types for operand: RETURN

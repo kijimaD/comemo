@@ -15,6 +15,22 @@ Date:   Tue Mar 13 09:08:04 2012 +1100
     R=adg, minux.ma
     CC=golang-dev
     https://golang.org/cl/5797065
-
+---
  src/cmd/godoc/codewalk.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/godoc/codewalk.go b/src/cmd/godoc/codewalk.go
+index 2804ebbe5d..3e38162a48 100644
+--- a/src/cmd/godoc/codewalk.go
++++ b/src/cmd/godoc/codewalk.go
+@@ -53,7 +53,9 @@ func codewalk(w http.ResponseWriter, r *http.Request) {
+ 	}
+ 
+ 	// Otherwise append .xml and hope to find
+-	// a codewalk description.
++	// a codewalk description, but before trim
++	// the trailing /.
++	abspath = strings.TrimRight(abspath, "/")
+ 	cw, err := loadCodewalk(abspath + ".xml")
+ 	if err != nil {
+ 		log.Print(err)

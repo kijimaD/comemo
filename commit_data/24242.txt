@@ -10,6 +10,20 @@ Date:   Sat Jul 18 07:37:51 2015 +1000
     Reviewed-on: https://go-review.googlesource.com/12345
     Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/mgc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 4eff8fc59b..5bd6242932 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -770,7 +770,7 @@ var work struct {
+ 	initialHeapLive uint64
+ }
+ 
+-// GC runs a garbage collection and blocks until the garbage
++// GC runs a garbage collection and blocks the entire program until the
+ // collection is complete.
+ func GC() {
+ 	startGC(gcForceBlockMode)

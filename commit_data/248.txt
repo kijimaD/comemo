@@ -5,8 +5,74 @@ Date:   Fri Jun 27 10:29:02 2008 -0700
     fix a few spelling mistakes in messages
     
     SVN=125108
-
+---
  src/cmd/gc/dcl.c | 8 ++++----
  src/cmd/gc/go.h  | 2 +-
  src/cmd/gc/go.y  | 2 +-
  3 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 6320120aab..65563f3b7c 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -317,14 +317,14 @@ funchdr(Node *n)
+ 	if(on != N) {
+ 		if(eqtype(n->type, on->type, 0)) {
+ 			if(!eqargs(n->type, on->type))
+-				yyerror("foreward declarations not the same: %S", s);
++				yyerror("forward declarations not the same: %S", s);
+ 		} else {
+ 			yyerror("redeclare of function: %S", s);
+ 			on = N;
+ 		}
+ 	}
+ 
+-	// check for foreward declaration
++	// check for forward declaration
+ 	if(on == N) {
+ 		// initial declaration or redeclaration
+ 		// declare fun name, argument types and argument names
+@@ -533,7 +533,7 @@ popdcl(char *why)
+ 	if(d == S)
+ 		fatal("popdcl: no mark");
+ 	if(strcmp(why, d->package) != 0)
+-		fatal("popdcl: pushed as %s poped as %s", d->package, why);
++		fatal("popdcl: pushed as %s popped as %s", d->package, why);
+ 	dclstack = d->link;
+ 	block = d->vblock;
+ }
+@@ -718,7 +718,7 @@ addtyp(Type *n, Type *t, int ctxt)
+ 
+ 	for(f=s->forwtype; f!=T; f=f->nforw) {
+ 		if(!isptr[f->etype])
+-			fatal("addtyp: foreward");
++			fatal("addtyp: forward");
+ 		f->type = t;
+ 	}
+ 	s->forwtype = T;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 12d57ec9b1..42285550af 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -164,7 +164,7 @@ struct	Sym
+ 	Node*	oname;		// ONAME node if a var
+ 	Type*	otype;		// TYPE node if a type
+ 	Node*	oconst;		// OLITERAL node if a const
+-	Type*	forwtype;	// TPTR iff foreward declared
++	Type*	forwtype;	// TPTR iff forward declared
+ 	void*	label;		// pointer to Prog* of label
+ 	vlong	offset;		// stack location if automatic
+ 	long	lexical;
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 55418991cd..587486003b 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -877,7 +877,7 @@ Btype:
+ 	{
+ 		// dont know if this is an error or not
+ 		if(dclcontext != PEXTERN)
+-			yyerror("foreward type in function body %s", $2->name);
++			yyerror("forward type in function body %s", $2->name);
+ 		$$ = forwdcl($2);
+ 	}
+ 

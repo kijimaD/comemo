@@ -14,7 +14,52 @@ Date:   Mon Apr 13 15:31:28 2015 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Nigel Tao <nigeltao@golang.org>
-
+---
  src/compress/flate/flate_test.go | 17 +++++++++++++++++
  src/compress/flate/inflate.go    |  4 ++--
  2 files changed, 19 insertions(+), 2 deletions(-)
+
+diff --git a/src/compress/flate/flate_test.go b/src/compress/flate/flate_test.go
+index 0687663233..5483641510 100644
+--- a/src/compress/flate/flate_test.go
++++ b/src/compress/flate/flate_test.go
+@@ -60,3 +60,20 @@ func TestIssue6255(t *testing.T) {
+ 		t.Fatalf("Given sequence of bits is bad and should not succeed.")
+ 	}
+ }
++
++func TestInvalidEncoding(t *testing.T) {
++	// Initialize Huffman decoder to recognize "0".
++	var h huffmanDecoder
++	if !h.init([]int{1}) {
++		t.Fatal("Failed to initialize Huffman decoder")
++	}
++
++	// Initialize decompressor with invalid Huffman coding.
++	var f decompressor
++	f.r = bytes.NewReader([]byte{0xff})
++
++	_, err := f.huffSym(&h)
++	if err == nil {
++		t.Fatal("Should have rejected invalid bit sequence")
++	}
++}
+diff --git a/src/compress/flate/inflate.go b/src/compress/flate/inflate.go
+index 76519bbf42..911d23316b 100644
+--- a/src/compress/flate/inflate.go
++++ b/src/compress/flate/inflate.go
+@@ -655,12 +655,12 @@ func (f *decompressor) huffSym(h *huffmanDecoder) (int, error) {
+ 		if n > huffmanChunkBits {
+ 			chunk = h.links[chunk>>huffmanValueShift][(f.b>>huffmanChunkBits)&h.linkMask]
+ 			n = uint(chunk & huffmanCountMask)
++		}
++		if n <= f.nb {
+ 			if n == 0 {
+ 				f.err = CorruptInputError(f.roffset)
+ 				return 0, f.err
+ 			}
+-		}
+-		if n <= f.nb {
+ 			f.b >>= n
+ 			f.nb -= n
+ 			return int(chunk >> huffmanValueShift), nil

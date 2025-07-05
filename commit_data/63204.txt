@@ -13,7 +13,87 @@ Date:   Fri Jan 10 12:49:59 2025 +0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/noder/reader.go | 15 ++++++++++++++-
  test/fixedbugs/issue71184.go             | 17 +++++++++++++++++
  2 files changed, 31 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 95054a4f8b..c854619897 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -49,6 +49,9 @@ type pkgReader struct {
+ 	// but bitwise inverted so we can detect if we're missing the entry
+ 	// or not.
+ 	newindex []index
++
++	// indicates whether the data is reading during reshaping.
++	reshaping bool
+ }
+ 
+ func newPkgReader(pr pkgbits.PkgDecoder) *pkgReader {
+@@ -116,6 +119,10 @@ type reader struct {
+ 	// find parameters/results.
+ 	funarghack bool
+ 
++	// reshaping is used during reading exprReshape code, preventing
++	// the reader from shapifying the re-shaped type.
++	reshaping bool
++
+ 	// methodSym is the name of method's name, if reading a method.
+ 	// It's nil if reading a normal function or closure body.
+ 	methodSym *types.Sym
+@@ -1007,7 +1014,7 @@ func (pr *pkgReader) objDictIdx(sym *types.Sym, idx index, implicits, explicits
+ 	// arguments.
+ 	for i, targ := range dict.targs {
+ 		basic := r.Bool()
+-		if dict.shaped {
++		if dict.shaped && !pr.reshaping {
+ 			dict.targs[i] = shapify(targ, basic)
+ 		}
+ 	}
+@@ -2445,7 +2452,10 @@ func (r *reader) expr() (res ir.Node) {
+ 
+ 	case exprReshape:
+ 		typ := r.typ()
++		old := r.reshaping
++		r.reshaping = true
+ 		x := r.expr()
++		r.reshaping = old
+ 
+ 		if types.IdenticalStrict(x.Type(), typ) {
+ 			return x
+@@ -2568,7 +2578,10 @@ func (r *reader) funcInst(pos src.XPos) (wrapperFn, baseFn, dictPtr ir.Node) {
+ 		info := r.dict.subdicts[idx]
+ 		explicits := r.p.typListIdx(info.explicits, r.dict)
+ 
++		old := r.p.reshaping
++		r.p.reshaping = r.reshaping
+ 		baseFn = r.p.objIdx(info.idx, implicits, explicits, true).(*ir.Name)
++		r.p.reshaping = old
+ 
+ 		// TODO(mdempsky): Is there a more robust way to get the
+ 		// dictionary pointer type here?
+diff --git a/test/fixedbugs/issue71184.go b/test/fixedbugs/issue71184.go
+new file mode 100644
+index 0000000000..74afc53f8a
+--- /dev/null
++++ b/test/fixedbugs/issue71184.go
+@@ -0,0 +1,17 @@
++// compile
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package x
++
++func F[T int32]() {
++	_ = G[*[0]T]()[:]
++}
++
++func G[T any]() (v T) {
++	return
++}
++
++var _ = F[int32]

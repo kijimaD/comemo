@@ -7,6 +7,20 @@ Date:   Fri Jul 23 11:33:17 2010 +1000
     R=rsc, adg
     CC=golang-dev
     https://golang.org/cl/1864042
-
+---
  misc/vim/syntax/go.vim | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/vim/syntax/go.vim b/misc/vim/syntax/go.vim
+index 244503ca30..d01f2e4e94 100644
+--- a/misc/vim/syntax/go.vim
++++ b/misc/vim/syntax/go.vim
+@@ -136,7 +136,7 @@ syn region      goBlock             start="{" end="}" transparent fold
+ syn region      goParen             start='(' end=')' transparent
+ 
+ " Integers
+-syn match       goDecimalInt        "\<\d\+\>"
++syn match       goDecimalInt        "\<\d\+\([Ee]\d\+\)\?\>"
+ syn match       goHexadecimalInt    "\<0x\x\+\>"
+ syn match       goOctalInt          "\<0\o\+\>"
+ syn match       goOctalError        "\<0\o*[89]\d*\>"

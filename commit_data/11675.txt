@@ -9,6 +9,21 @@ Date:   Tue Feb 7 15:50:26 2012 -0500
     TBR=golang-dev
     CC=golang-dev
     https://golang.org/cl/5641047
-
+---
  test/fixedbugs/bug408.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/bug408.go b/test/fixedbugs/bug408.go
+index 421b80d4b0..65e5497ed0 100644
+--- a/test/fixedbugs/bug408.go
++++ b/test/fixedbugs/bug408.go
+@@ -1,4 +1,8 @@
+-// errchk cgo $D/$F.go
++// true
++
++// WAS: errchk cgo $D/$F.go
++// but this fails (cgo succeeds) on OS X Snow Leopard
++// with Xcode 4.2 and gcc version 4.2.1 (Based on Apple Inc. build 5658) (LLVM build 2336.1.00).
+ 
+ // Copyright 2012 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style

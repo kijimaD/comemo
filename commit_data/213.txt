@@ -6,9 +6,157 @@ Date:   Tue Jun 24 10:30:33 2008 -0700
     in CALLMETH/DOTMETH
     
     SVN=124321
-
+---
  src/cmd/6g/cgen.c | 16 ++++++++++------
  src/cmd/6g/gen.c  |  8 +++-----
  src/cmd/gc/subr.c |  2 ++
  src/cmd/gc/walk.c | 11 ++---------
  4 files changed, 17 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 58b3af7059..9f3fa92e57 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -19,20 +19,23 @@ cgen(Node *n, Node *res)
+ 	}
+ 	if(n == N || n->type == T)
+ 		return;
++
++	lno = dynlineno;
++	if(n->op != ONAME)
++		dynlineno = n->lineno;	// for diagnostics
++
+ 	if(res == N || res->type == T)
+ 		fatal("cgen: res nil");
+ 
+ 	if(n->ullman >= UINF) {
+ 		if(n->op == OINDREG)
+ 			fatal("cgen: this is going to misscompile");
+-		if(res->ullman >= UINF)
+-			fatal("cgen: fun both sides");
++		if(res->ullman >= UINF) {
++			dump("fncalls", n);
++			fatal("cgen: node and result functions");
++		}
+ 	}
+ 
+-	lno = dynlineno;
+-	if(n->op != ONAME)
+-		dynlineno = n->lineno;	// for diagnostics
+-
+ 	if(isfat(n->type)) {
+ 		sgen(n, res, n->type->width);
+ 		goto ret;
+@@ -62,6 +65,7 @@ cgen(Node *n, Node *res)
+ 	nr = n->right;
+ 	if(nl != N && nl->ullman >= UINF)
+ 	if(nr != N && nr->ullman >= UINF) {
++		dump("fncalls", n);
+ 		fatal("cgen: both sides functions");
+ 		goto ret;
+ 	}
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 576db49a6f..923c3a721b 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -658,7 +658,7 @@ cgen_callret(Node *n, Node *res)
+ 
+ 	fp = structfirst(&flist, getoutarg(t));
+ 	if(fp == T)
+-		fatal("cgen_aret: nil");
++		fatal("cgen_callret: nil");
+ 
+ 	memset(&nod, 0, sizeof(nod));
+ 	nod.op = OINDREG;
+@@ -677,16 +677,14 @@ cgen_aret(Node *n, Node *res)
+ 	Type *fp, *t;
+ 	Iter flist;
+ 
+-fatal("cgen_aret");
+-
+ 	t = n->left->type;
+-	if(t->etype == TPTR32 || t->etype == TPTR64)
++	if(isptr[t->etype])
+ 		t = t->type;
+ 
+ 	fp = structfirst(&flist, getoutarg(t));
+ 	if(fp == T)
+ 		fatal("cgen_aret: nil");
+-/* gins LEA */
++
+ 	memset(&nod1, 0, sizeof(nod1));
+ 	nod1.op = OINDREG;
+ 	nod1.val.vval = D_SP;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 3cd96fa525..5c8224bdc4 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1516,6 +1516,8 @@ ullmancalc(Node *n)
+ 	case OI2S:
+ 	case OI2I:
+ 	case OCALL:
++	case OCALLMETH:
++	case OCALLINTER:
+ 		ul = UINF;
+ 		goto out;
+ 	}
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 07f084fe5b..5948a6b1e0 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -76,7 +76,6 @@ loop:
+ 		if(top != Erv)
+ 			goto nottop;
+ 		n->addable = 1;
+-		ullmancalc(n);
+ 		goto ret;
+ 
+ 	case ONONAME:
+@@ -94,7 +93,6 @@ loop:
+ 		if(top == Etop)
+ 			goto nottop;
+ 		n->addable = 1;
+-		ullmancalc(n);
+ 		if(n->type == T) {
+ 			s = n->sym;
+ 			if(s->undef == 0) {
+@@ -163,14 +161,12 @@ loop:
+ 		if(top == Elv)
+ 			goto nottop;
+ 
+-		n->ullman = UINF;
+ 		if(n->type != T)
+ 			goto ret;
+ 
+ 		walktype(n->left, Erv);
+ 		if(n->left == N)
+ 			goto ret;
+-
+ 		t = n->left->type;
+ 		if(t == T)
+ 			goto ret;
+@@ -210,14 +206,12 @@ loop:
+ 			break;
+ 
+ 		case OCALLMETH:
+-			// add this-pointer to the arg list
+-			// this is bad - if not a simple
+-			// should make a temp copy rather
+-			// than recalculate it.
+ 			l = ascompatte(n->op, getinarg(t), &n->right, 0);
+ 			r = ascompatte(n->op, getthis(t), &n->left->left, 0);
+ 			if(l != N)
+ 				r = nod(OLIST, r, l);
++			n->left->left = N;
++			ullmancalc(n->left);
+ 			n->right = reorder1(r);
+ 			break;
+ 		}
+@@ -442,7 +436,6 @@ loop:
+ 		if(n->left == N)
+ 			goto ret;
+ 		evconst(n);
+-		ullmancalc(n);
+ 		if(n->op == OLITERAL)
+ 			goto ret;
+ 		break;

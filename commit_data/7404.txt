@@ -12,7 +12,105 @@ Date:   Tue Feb 8 20:35:02 2011 -0800
     R=rsc, petar-m, dsymonds
     CC=golang-dev
     https://golang.org/cl/4157042
-
+---
  src/pkg/http/response_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
  src/pkg/http/transfer.go      | 27 +++++++++++++++++++++++++++
  2 files changed, 68 insertions(+)
+
+diff --git a/src/pkg/http/response_test.go b/src/pkg/http/response_test.go
+index 89a8c3b44d..11bfdd08c3 100644
+--- a/src/pkg/http/response_test.go
++++ b/src/pkg/http/response_test.go
+@@ -44,6 +44,47 @@ var respTests = []respTest{
+ 		"Body here\n",
+ 	},
+ 
++	// Unchunked HTTP/1.1 response without Content-Length or
++	// Connection headers.
++	{
++		"HTTP/1.1 200 OK\r\n" +
++			"\r\n" +
++			"Body here\n",
++
++		Response{
++			Status:        "200 OK",
++			StatusCode:    200,
++			Proto:         "HTTP/1.1",
++			ProtoMajor:    1,
++			ProtoMinor:    1,
++			RequestMethod: "GET",
++			Close:         true,
++			ContentLength: -1,
++		},
++
++		"Body here\n",
++	},
++
++	// Unchunked HTTP/1.1 204 response without Content-Length.
++	{
++		"HTTP/1.1 204 No Content\r\n" +
++			"\r\n" +
++			"Body should not be read!\n",
++
++		Response{
++			Status:        "204 No Content",
++			StatusCode:    204,
++			Proto:         "HTTP/1.1",
++			ProtoMajor:    1,
++			ProtoMinor:    1,
++			RequestMethod: "GET",
++			Close:         false,
++			ContentLength: 0,
++		},
++
++		"",
++	},
++
+ 	// Unchunked response with Content-Length.
+ 	{
+ 		"HTTP/1.0 200 OK\r\n" +
+diff --git a/src/pkg/http/transfer.go b/src/pkg/http/transfer.go
+index e62885d62f..f80f0ac63d 100644
+--- a/src/pkg/http/transfer.go
++++ b/src/pkg/http/transfer.go
+@@ -172,6 +172,20 @@ type transferReader struct {
+ 	Trailer          map[string]string
+ }
+ 
++// bodyAllowedForStatus returns whether a given response status code
++// permits a body.  See RFC2616, section 4.4.
++func bodyAllowedForStatus(status int) bool {
++	switch {
++	case status >= 100 && status <= 199:
++		return false
++	case status == 204:
++		return false
++	case status == 304:
++		return false
++	}
++	return true
++}
++
+ // msg is *Request or *Response.
+ func readTransfer(msg interface{}, r *bufio.Reader) (err os.Error) {
+ 	t := &transferReader{}
+@@ -217,6 +231,19 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err os.Error) {
+ 		return err
+ 	}
+ 
++	// If there is no Content-Length or chunked Transfer-Encoding on a *Response
++	// and the status is not 1xx, 204 or 304, then the body is unbounded.
++	// See RFC2616, section 4.4.
++	switch msg.(type) {
++	case *Response:
++		if t.ContentLength == -1 &&
++			!chunked(t.TransferEncoding) &&
++			bodyAllowedForStatus(t.StatusCode) {
++			// Unbounded body.
++			t.Close = true
++		}
++	}
++
+ 	// Prepare body reader.  ContentLength < 0 means chunked encoding
+ 	// or close connection when finished, since multipart is not supported yet
+ 	switch {

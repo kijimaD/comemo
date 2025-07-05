@@ -7,6 +7,10 @@ Date:   Tue Mar 13 13:43:41 2012 +1100
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/5754094
-
+---
  doc/gopher/ref.png | Bin 10536 -> 5895 bytes
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/doc/gopher/ref.png b/doc/gopher/ref.png
+index 72fdd06a5d..0508f6ec61 100644
+Binary files a/doc/gopher/ref.png and b/doc/gopher/ref.png differ

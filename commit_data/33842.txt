@@ -14,10 +14,115 @@ Date:   Tue Aug 15 14:34:53 2017 -0400
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/dist/test.go               |  2 +-
  src/cmd/go/internal/work/build.go  |  2 +-
  src/cmd/link/internal/ld/config.go |  2 +-
  src/cmd/link/internal/ld/lib.go    |  8 ++++++--
  src/cmd/link/internal/ppc64/asm.go | 14 ++++++++++++--
  5 files changed, 21 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index ef41d76258..4b46f7f1a3 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -840,7 +840,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 		// linux-arm64 is missing because it causes the external linker
+ 		// to crash, see https://golang.org/issue/17138
+ 		switch pair {
+-		case "linux-386", "linux-amd64", "linux-arm", "linux-s390x":
++		case "linux-386", "linux-amd64", "linux-arm", "linux-s390x", "linux-ppc64le":
+ 			return true
+ 		case "darwin-amd64":
+ 			return true
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index e9c94015ea..22ece5b989 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -356,7 +356,7 @@ func BuildModeInit() {
+ 			codegenArg = "-fPIC"
+ 		} else {
+ 			switch platform {
+-			case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/s390x",
++			case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/s390x", "linux/ppc64le",
+ 				"android/amd64", "android/arm", "android/arm64", "android/386":
+ 			case "darwin/amd64":
+ 				// Skip DWARF generation due to #21647
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index f6e7ccf576..f91d9af5cd 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -90,7 +90,7 @@ func (mode *BuildMode) Set(s string) error {
+ 		switch objabi.GOOS {
+ 		case "linux":
+ 			switch objabi.GOARCH {
+-			case "386", "amd64", "arm", "arm64", "s390x":
++			case "386", "amd64", "arm", "arm64", "s390x", "ppc64le":
+ 			default:
+ 				return badmode()
+ 			}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 47c719b7b6..a1413820c7 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -168,8 +168,12 @@ func (ctxt *Link) DynlinkingGo() bool {
+ 	if !ctxt.Loaded {
+ 		panic("DynlinkingGo called before all symbols loaded")
+ 	}
+-	canUsePlugins := ctxt.Syms.ROLookup("plugin.Open", 0) != nil
+-	return Buildmode == BuildmodeShared || *FlagLinkshared || Buildmode == BuildmodePlugin || canUsePlugins
++	return Buildmode == BuildmodeShared || *FlagLinkshared || Buildmode == BuildmodePlugin || ctxt.CanUsePlugins()
++}
++
++// CanUsePlugins returns whether a plugins can be used
++func (ctxt *Link) CanUsePlugins() bool {
++	return ctxt.Syms.ROLookup("plugin.Open", 0) != nil
+ }
+ 
+ // UseRelro returns whether to make use of "read only relocations" aka
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index a85a893584..2f0947aff8 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -131,7 +131,7 @@ func genplt(ctxt *ld.Link) {
+ 
+ func genaddmoduledata(ctxt *ld.Link) {
+ 	addmoduledata := ctxt.Syms.ROLookup("runtime.addmoduledata", 0)
+-	if addmoduledata.Type == ld.STEXT {
++	if addmoduledata.Type == ld.STEXT && ld.Buildmode != ld.BuildmodePlugin {
+ 		return
+ 	}
+ 	addmoduledata.Attr |= ld.AttrReachable
+@@ -147,6 +147,7 @@ func genaddmoduledata(ctxt *ld.Link) {
+ 	rel.Off = int32(initfunc.Size)
+ 	rel.Siz = 8
+ 	rel.Sym = ctxt.Syms.Lookup(".TOC.", 0)
++	rel.Sym.Attr |= ld.AttrReachable
+ 	rel.Type = objabi.R_ADDRPOWER_PCREL
+ 	o(0x3c4c0000)
+ 	// addi r2, r2, .TOC.-func@l
+@@ -159,7 +160,13 @@ func genaddmoduledata(ctxt *ld.Link) {
+ 	rel = ld.Addrel(initfunc)
+ 	rel.Off = int32(initfunc.Size)
+ 	rel.Siz = 8
+-	rel.Sym = ctxt.Syms.Lookup("local.moduledata", 0)
++	if !ctxt.CanUsePlugins() {
++		rel.Sym = ctxt.Syms.Lookup("local.moduledata", 0)
++	} else {
++		rel.Sym = ctxt.Syms.Lookup("runtime.firstmoduledata", 0)
++	}
++	rel.Sym.Attr |= ld.AttrReachable
++	rel.Sym.Attr |= ld.AttrLocal
+ 	rel.Type = objabi.R_ADDRPOWER_GOT
+ 	o(0x3c620000)
+ 	// ld r3, local.moduledata@got@l(r3)
+@@ -182,6 +189,9 @@ func genaddmoduledata(ctxt *ld.Link) {
+ 	// blr
+ 	o(0x4e800020)
+ 
++	if ld.Buildmode == ld.BuildmodePlugin {
++		ctxt.Textp = append(ctxt.Textp, addmoduledata)
++	}
+ 	initarray_entry := ctxt.Syms.Lookup("go.link.addmoduledatainit", 0)
+ 	ctxt.Textp = append(ctxt.Textp, initfunc)
+ 	initarray_entry.Attr |= ld.AttrReachable

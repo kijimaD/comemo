@@ -14,8 +14,91 @@ Date:   Fri Aug 18 18:03:24 2023 -0700
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/noder/reader.go        | 11 +++++------
  src/cmd/compile/internal/typecheck/func.go      |  2 +-
  src/cmd/compile/internal/typecheck/typecheck.go |  8 ++++++++
  3 files changed, 14 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 08d731637f..adba0b961f 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1404,8 +1404,7 @@ func (pr *pkgReader) dictNameOf(dict *readerDict) *ir.Name {
+ 	assertOffset("type param method exprs", dict.typeParamMethodExprsOffset())
+ 	for _, info := range dict.typeParamMethodExprs {
+ 		typeParam := dict.targs[info.typeParamIdx]
+-		method := typecheck.Expr(ir.NewSelectorExpr(pos, ir.OXDOT, ir.TypeNode(typeParam), info.method)).(*ir.SelectorExpr)
+-		assert(method.Op() == ir.OMETHEXPR)
++		method := typecheck.NewMethodExpr(pos, typeParam, info.method)
+ 
+ 		rsym := method.FuncName().Linksym()
+ 		assert(rsym.ABI() == obj.ABIInternal) // must be ABIInternal; see ir.OCFUNC in ssagen/ssa.go
+@@ -2274,7 +2273,7 @@ func (r *reader) expr() (res ir.Node) {
+ 		// expression (OMETHEXPR) and the receiver type is unshaped, then
+ 		// we can rely on a statically generated wrapper being available.
+ 		if method, ok := wrapperFn.(*ir.SelectorExpr); ok && method.Op() == ir.OMETHEXPR && !recv.HasShape() {
+-			return typecheck.Expr(ir.NewSelectorExpr(pos, ir.OXDOT, ir.TypeNode(recv), method.Sel)).(*ir.SelectorExpr)
++			return typecheck.NewMethodExpr(pos, recv, method.Sel)
+ 		}
+ 
+ 		return r.methodExprWrap(origPos, recv, implicits, deref, addr, baseFn, dictPtr)
+@@ -2891,7 +2890,7 @@ func (r *reader) methodExpr() (wrapperFn, baseFn, dictPtr ir.Node) {
+ 		// For statically known instantiations, we can take advantage of
+ 		// the stenciled wrapper.
+ 		base.AssertfAt(!recv.HasShape(), pos, "shaped receiver %v", recv)
+-		wrapperFn := typecheck.Expr(ir.NewSelectorExpr(pos, ir.OXDOT, ir.TypeNode(recv), sym)).(*ir.SelectorExpr)
++		wrapperFn := typecheck.NewMethodExpr(pos, recv, sym)
+ 		base.AssertfAt(types.Identical(sig, wrapperFn.Type()), pos, "wrapper %L does not have type %v", wrapperFn, sig)
+ 
+ 		return wrapperFn, shapedFn, dictPtr
+@@ -2899,7 +2898,7 @@ func (r *reader) methodExpr() (wrapperFn, baseFn, dictPtr ir.Node) {
+ 
+ 	// Simple method expression; no dictionary needed.
+ 	base.AssertfAt(!recv.HasShape() || recv.IsInterface(), pos, "shaped receiver %v", recv)
+-	fn := typecheck.Expr(ir.NewSelectorExpr(pos, ir.OXDOT, ir.TypeNode(recv), sym)).(*ir.SelectorExpr)
++	fn := typecheck.NewMethodExpr(pos, recv, sym)
+ 	return fn, fn, nil
+ }
+ 
+@@ -2924,7 +2923,7 @@ func shapedMethodExpr(pos src.XPos, obj *ir.Name, sym *types.Sym) *ir.SelectorEx
+ 
+ 	// Construct an OMETHEXPR node.
+ 	recv := method.Type.Recv().Type
+-	return typecheck.Expr(ir.NewSelectorExpr(pos, ir.OXDOT, ir.TypeNode(recv), sym)).(*ir.SelectorExpr)
++	return typecheck.NewMethodExpr(pos, recv, sym)
+ }
+ 
+ func (r *reader) multiExpr() []ir.Node {
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index b727150596..5400fbee0b 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -62,7 +62,7 @@ func FixMethodCall(call *ir.CallExpr) {
+ 
+ 	dot := call.X.(*ir.SelectorExpr)
+ 
+-	fn := Expr(ir.NewSelectorExpr(dot.Pos(), ir.OXDOT, ir.TypeNode(dot.X.Type()), dot.Selection.Sym))
++	fn := NewMethodExpr(dot.Pos(), dot.X.Type(), dot.Selection.Sym)
+ 
+ 	args := make([]ir.Node, 1+len(call.Args))
+ 	args[0] = dot.X
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 92a907fec9..3bd384a0a7 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -843,6 +843,14 @@ func Lookdot1(errnode ir.Node, s *types.Sym, t *types.Type, fs *types.Fields, do
+ 	return r
+ }
+ 
++// NewMethodExpr returns an OMETHEXPR node representing method
++// expression "recv.sym".
++func NewMethodExpr(pos src.XPos, recv *types.Type, sym *types.Sym) *ir.SelectorExpr {
++	n := Expr(ir.NewSelectorExpr(pos, ir.OXDOT, ir.TypeNode(recv), sym)).(*ir.SelectorExpr)
++	base.Assert(n.Op() == ir.OMETHEXPR)
++	return n
++}
++
+ // typecheckMethodExpr checks selector expressions (ODOT) where the
+ // base expression is a type expression (OTYPE).
+ func typecheckMethodExpr(n *ir.SelectorExpr) (res ir.Node) {

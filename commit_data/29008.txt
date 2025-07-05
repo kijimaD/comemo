@@ -16,6 +16,43 @@ Date:   Fri Aug 19 23:27:45 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/net/http/h2_bundle.go | 12 ++++++++++--
  1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index ffe15f0605..a41e3ca07f 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -5460,12 +5460,15 @@ func http2bodyAndLength(req *Request) (body io.Reader, contentLen int64) {
+ 	// We have a body but a zero content length. Test to see if
+ 	// it's actually zero or just unset.
+ 	var buf [1]byte
+-	n, rerr := io.ReadFull(body, buf[:])
++	n, rerr := body.Read(buf[:])
+ 	if rerr != nil && rerr != io.EOF {
+ 		return http2errorReader{rerr}, -1
+ 	}
+ 	if n == 1 {
+ 
++		if rerr == io.EOF {
++			return bytes.NewReader(buf[:]), 1
++		}
+ 		return io.MultiReader(bytes.NewReader(buf[:]), body), -1
+ 	}
+ 
+@@ -5714,8 +5717,13 @@ func (cs *http2clientStream) writeRequestBody(body io.Reader, bodyCloser io.Clos
+ 		}
+ 	}
+ 
++	if sentEnd {
++
++		return nil
++	}
++
+ 	var trls []byte
+-	if !sentEnd && hasTrailers {
++	if hasTrailers {
+ 		cc.mu.Lock()
+ 		defer cc.mu.Unlock()
+ 		trls = cc.encodeTrailers(req)

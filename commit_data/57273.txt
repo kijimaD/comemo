@@ -15,6 +15,19 @@ Date:   Wed Jun 7 14:49:00 2023 +0800
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Eric Fang <eric.fang@arm.com>
-
+---
  src/cmd/asm/internal/asm/endtoend_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index ef41667c8e..778d17dbd2 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -272,6 +272,7 @@ var (
+ func testErrors(t *testing.T, goarch, file string, flags ...string) {
+ 	input := filepath.Join("testdata", file+".s")
+ 	architecture, ctxt := setArch(goarch)
++	architecture.Init(ctxt)
+ 	lexer := lex.NewLexer(input)
+ 	parser := NewParser(ctxt, architecture, lexer, false)
+ 	pList := new(obj.Plist)

@@ -19,7 +19,49 @@ Date:   Tue Sep 27 22:08:14 2011 -0700
     R=nigeltao, r
     CC=golang-dev
     https://golang.org/cl/5143048
-
+---
  src/pkg/exp/template/html/escape.go      |  4 ++++
  src/pkg/exp/template/html/escape_test.go | 12 +++++++++++-
  2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/template/html/escape.go b/src/pkg/exp/template/html/escape.go
+index 5ea819fc50..bb286c8844 100644
+--- a/src/pkg/exp/template/html/escape.go
++++ b/src/pkg/exp/template/html/escape.go
+@@ -153,6 +153,10 @@ func (e *escaper) escape(c context, n parse.Node) context {
+ 
+ // escapeAction escapes an action template node.
+ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
++	if len(n.Pipe.Decl) != 0 {
++		// A local variable assignment, not an interpolation.
++		return c
++	}
+ 	c = nudge(c)
+ 	s := make([]string, 0, 3)
+ 	switch c.state {
+diff --git a/src/pkg/exp/template/html/escape_test.go b/src/pkg/exp/template/html/escape_test.go
+index d251cdb9a3..c464459165 100644
+--- a/src/pkg/exp/template/html/escape_test.go
++++ b/src/pkg/exp/template/html/escape_test.go
+@@ -68,10 +68,20 @@ func TestEscape(t *testing.T) {
+ 			"&lt;Goodbye&gt;!",
+ 		},
+ 		{
+-			"overescaping",
++			"overescaping1",
+ 			"Hello, {{.C | html}}!",
+ 			"Hello, &lt;Cincinatti&gt;!",
+ 		},
++		{
++			"overescaping2",
++			"Hello, {{html .C}}!",
++			"Hello, &lt;Cincinatti&gt;!",
++		},
++		{
++			"overescaping3",
++			"{{with .C}}{{$msg := .}}Hello, {{$msg}}!{{end}}",
++			"Hello, &lt;Cincinatti&gt;!",
++		},
+ 		{
+ 			"assignment",
+ 			"{{if $x := .H}}{{$x}}{{end}}",

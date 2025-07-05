@@ -9,7 +9,66 @@ Date:   Thu Jul 28 13:03:30 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4798056
-
+---
  src/cmd/gc/const.c       | 20 ++++++++++++++++++--
  test/fixedbugs/bug363.go | 21 +++++++++++++++++++++
  2 files changed, 39 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 8fe9072b23..36a64cb97c 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -947,8 +947,24 @@ defaultlit(Node **np, Type *t)
+ 			dump("defaultlit", n);
+ 			fatal("defaultlit");
+ 		}
+-		defaultlit(&n->left, t);
+-		defaultlit(&n->right, t);
++		// n is ideal, so left and right must both be ideal.
++		// n has not been computed as a constant value,
++		// so either left or right must not be constant.
++		// The only 'ideal' non-constant expressions are shifts.  Ugh.
++		// If one of these is a shift and the other is not, use that type.
++		// When compiling x := 1<<i + 3.14, this means we try to push
++		// the float64 down into the 1<<i, producing the correct error
++		// (cannot shift float64).
++		if(t == T && (n->right->op == OLSH || n->right->op == ORSH)) {
++			defaultlit(&n->left, T);
++			defaultlit(&n->right, n->left->type);
++		} else if(t == T && (n->left->op == OLSH || n->left->op == ORSH)) {
++			defaultlit(&n->right, T);
++			defaultlit(&n->left, n->right->type);
++		} else {
++			defaultlit(&n->left, t);
++			defaultlit(&n->right, t);
++		}
+ 		if(n->type == idealbool || n->type == idealstring)
+ 			n->type = types[n->type->etype];
+ 		else
+diff --git a/test/fixedbugs/bug363.go b/test/fixedbugs/bug363.go
+new file mode 100644
+index 0000000000..7e89749a0a
+--- /dev/null
++++ b/test/fixedbugs/bug363.go
+@@ -0,0 +1,21 @@
++// errchk $G $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 1664
++
++package main
++
++func main() {
++	var i uint = 33
++	var a = (1<<i) + 4.5  // ERROR "shift of type float64"
++	println(a)
++	
++	var b = (1<<i) + 4.0  // ERROR "shift of type float64"
++	println(b)
++
++	var c int64 = (1<<i) + 4.0  // ok - it's all int64
++	println(b)
++}

@@ -11,6 +11,20 @@ Date:   Thu Jun 27 11:49:43 2019 +0800
     Run-TryBot: Baokun Lee <nototon@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/fmt/errors.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/fmt/errors.go b/src/fmt/errors.go
+index 6ae6c47fd9..466a620353 100644
+--- a/src/fmt/errors.go
++++ b/src/fmt/errors.go
+@@ -12,7 +12,7 @@ import "errors"
+ // If the format specifier includes a %w verb with an error operand,
+ // the returned error will implement an Unwrap method returning the operand. It is
+ // invalid to include more than one %w verb or to supply it with an operand
+-// that does not implement the error innterface. The %w verb is otherwise
++// that does not implement the error interface. The %w verb is otherwise
+ // a synonym for %v.
+ func Errorf(format string, a ...interface{}) error {
+ 	p := newPrinter()

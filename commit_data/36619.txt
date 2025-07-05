@@ -16,7 +16,59 @@ Date:   Wed May 9 19:05:46 2018 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/encoding/base32/base32.go      |  3 ++-
  src/encoding/base32/base32_test.go | 28 ++++++++++++++++++++++++++++
  2 files changed, 30 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/base32/base32.go b/src/encoding/base32/base32.go
+index f3430654e1..09e90eab5f 100644
+--- a/src/encoding/base32/base32.go
++++ b/src/encoding/base32/base32.go
+@@ -244,8 +244,9 @@ func (e *encoder) Close() error {
+ 	// If there's anything left in the buffer, flush it out
+ 	if e.err == nil && e.nbuf > 0 {
+ 		e.enc.Encode(e.out[0:], e.buf[0:e.nbuf])
++		encodedLen := e.enc.EncodedLen(e.nbuf)
+ 		e.nbuf = 0
+-		_, e.err = e.w.Write(e.out[0:8])
++		_, e.err = e.w.Write(e.out[0:encodedLen])
+ 	}
+ 	return e.err
+ }
+diff --git a/src/encoding/base32/base32_test.go b/src/encoding/base32/base32_test.go
+index 094ac288d6..fdd862dc49 100644
+--- a/src/encoding/base32/base32_test.go
++++ b/src/encoding/base32/base32_test.go
+@@ -658,3 +658,31 @@ func TestEncodedDecodedLen(t *testing.T) {
+ 		})
+ 	}
+ }
++
++func TestWithoutPaddingClose(t *testing.T) {
++	encodings := []*Encoding{
++		StdEncoding,
++		StdEncoding.WithPadding(NoPadding),
++	}
++
++	for _, encoding := range encodings {
++		for _, testpair := range pairs {
++
++			var buf bytes.Buffer
++			encoder := NewEncoder(encoding, &buf)
++			encoder.Write([]byte(testpair.decoded))
++			encoder.Close()
++
++			expected := testpair.encoded
++			if encoding.padChar == NoPadding {
++				expected = strings.Replace(expected, "=", "", -1)
++			}
++
++			res := buf.String()
++
++			if res != expected {
++				t.Errorf("Expected %s got %s; padChar=%d", expected, res, encoding.padChar)
++			}
++		}
++	}
++}

@@ -8,7 +8,40 @@ Date:   Fri Aug 20 10:16:20 2021 +0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/343533
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Carlos Amedee <carlos@golang.org>
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 2 +-
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/AUTHORS b/AUTHORS
+index 95d3158d20..8d8d83605e 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -1479,6 +1479,7 @@ Zheng Dayu <davidzheng23@gmail.com>
+ Zhongtao Chen <chenzhongtao@126.com>
+ Zhou Peng <p@ctriple.cn>
+ Ziad Hatahet <hatahet@gmail.com>
++Zizhao Zhang <btw515wolf2@gmail.com>
+ Zorion Arrizabalaga <zorionk@gmail.com>
+ Максим Федосеев <max.faceless.frei@gmail.com>
+ Роман Хавроненко <hagen1778@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 1984d44c53..74d4687373 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -1109,7 +1109,6 @@ Ian Lance Taylor <iant@golang.org>
+ Ian Leue <ian@appboy.com>
+ Ian Mckay <iann0036@gmail.com>
+ Ian Tay <iantay@google.com>
+-Ian Woolf <btw515wolf2@gmail.com>
+ Ian Zapolsky <ianzapolsky@gmail.com>
+ Ibrahim AshShohail <ibra.sho@gmail.com>
+ Icarus Sparry <golang@icarus.freeuk.com>
+@@ -2749,6 +2748,7 @@ Zhongwei Yao <zhongwei.yao@arm.com>
+ Zhou Peng <p@ctriple.cn>
+ Ziad Hatahet <hatahet@gmail.com>
+ Ziheng Liu <lzhfromustc@gmail.com>
++Zizhao Zhang <btw515wolf2@gmail.com>
+ Zorion Arrizabalaga <zorionk@gmail.com>
+ Zvonimir Pavlinovic <zpavlinovic@google.com>
+ Zyad A. Ali <zyad.ali.me@gmail.com>

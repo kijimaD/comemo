@@ -20,7 +20,7 @@ Date:   Mon Mar 6 20:39:57 2017 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/build/deps_test.go           |   2 +-
  src/runtime/pprof/elf.go            | 109 ++++++++++++++++++++++++++++++++++++
  src/runtime/pprof/proto.go          |  10 ++--
@@ -31,3 +31,221 @@ Date:   Mon Mar 6 20:39:57 2017 -0500
  src/runtime/pprof/testdata/test64   | Bin 0 -> 760 bytes
  src/runtime/pprof/testdata/test64be | Bin 0 -> 856 bytes
  9 files changed, 127 insertions(+), 5 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 2adc06f39b..043f9f2832 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -177,7 +177,7 @@ var pkgDeps = map[string][]string{
+ 	"regexp":         {"L2", "regexp/syntax"},
+ 	"regexp/syntax":  {"L2"},
+ 	"runtime/debug":  {"L2", "fmt", "io/ioutil", "os", "time"},
+-	"runtime/pprof":  {"L2", "compress/gzip", "context", "fmt", "io/ioutil", "os", "text/tabwriter", "time"},
++	"runtime/pprof":  {"L2", "compress/gzip", "context", "encoding/binary", "fmt", "io/ioutil", "os", "text/tabwriter", "time"},
+ 	"runtime/trace":  {"L0"},
+ 	"text/tabwriter": {"L2"},
+ 
+diff --git a/src/runtime/pprof/elf.go b/src/runtime/pprof/elf.go
+new file mode 100644
+index 0000000000..a8b5ea6817
+--- /dev/null
++++ b/src/runtime/pprof/elf.go
+@@ -0,0 +1,109 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package pprof
++
++import (
++	"encoding/binary"
++	"errors"
++	"fmt"
++	"os"
++)
++
++var (
++	errBadELF    = errors.New("malformed ELF binary")
++	errNoBuildID = errors.New("no NT_GNU_BUILD_ID found in ELF binary")
++)
++
++// elfBuildID returns the GNU build ID of the named ELF binary,
++// without introducing a dependency on debug/elf and its dependencies.
++func elfBuildID(file string) (string, error) {
++	buf := make([]byte, 256)
++	f, err := os.Open(file)
++	if err != nil {
++		return "", err
++	}
++	defer f.Close()
++
++	if _, err := f.ReadAt(buf[:64], 0); err != nil {
++		return "", err
++	}
++
++	// ELF file begins with \x7F E L F.
++	if buf[0] != 0x7F || buf[1] != 'E' || buf[2] != 'L' || buf[3] != 'F' {
++		return "", errBadELF
++	}
++
++	var byteOrder binary.ByteOrder
++	switch buf[5] {
++	default:
++		return "", errBadELF
++	case 1: // little-endian
++		byteOrder = binary.LittleEndian
++	case 2: // big-endian
++		byteOrder = binary.BigEndian
++	}
++
++	var shnum int
++	var shoff, shentsize int64
++	switch buf[4] {
++	default:
++		return "", errBadELF
++	case 1: // 32-bit file header
++		shoff = int64(byteOrder.Uint32(buf[32:]))
++		shentsize = int64(byteOrder.Uint16(buf[46:]))
++		if shentsize != 40 {
++			return "", errBadELF
++		}
++		shnum = int(byteOrder.Uint16(buf[48:]))
++	case 2: // 64-bit file header
++		shoff = int64(byteOrder.Uint64(buf[40:]))
++		shentsize = int64(byteOrder.Uint16(buf[58:]))
++		if shentsize != 64 {
++			return "", errBadELF
++		}
++		shnum = int(byteOrder.Uint16(buf[60:]))
++	}
++
++	for i := 0; i < shnum; i++ {
++		if _, err := f.ReadAt(buf[:shentsize], shoff+int64(i)*shentsize); err != nil {
++			return "", err
++		}
++		if typ := byteOrder.Uint32(buf[4:]); typ != 7 { // SHT_NOTE
++			continue
++		}
++		var off, size int64
++		if shentsize == 40 {
++			// 32-bit section header
++			off = int64(byteOrder.Uint32(buf[16:]))
++			size = int64(byteOrder.Uint32(buf[20:]))
++		} else {
++			// 64-bit section header
++			off = int64(byteOrder.Uint64(buf[24:]))
++			size = int64(byteOrder.Uint64(buf[32:]))
++		}
++		size += off
++		for off < size {
++			if _, err := f.ReadAt(buf[:16], off); err != nil { // room for header + name GNU\x00
++				return "", err
++			}
++			nameSize := int(byteOrder.Uint32(buf[0:]))
++			descSize := int(byteOrder.Uint32(buf[4:]))
++			noteType := int(byteOrder.Uint32(buf[8:]))
++			descOff := off + int64(12+(nameSize+3)&^3)
++			off = descOff + int64((descSize+3)&^3)
++			if nameSize != 4 || noteType != 3 || buf[12] != 'G' || buf[13] != 'N' || buf[14] != 'U' || buf[15] != '\x00' { // want name GNU\x00 type 3 (NT_GNU_BUILD_ID)
++				continue
++			}
++			if descSize > len(buf) {
++				return "", errBadELF
++			}
++			if _, err := f.ReadAt(buf[:descSize], descOff); err != nil {
++				return "", err
++			}
++			return fmt.Sprintf("%x", buf[:descSize]), nil
++		}
++	}
++	return "", errNoBuildID
++}
+diff --git a/src/runtime/pprof/proto.go b/src/runtime/pprof/proto.go
+index dd3d5c3b0b..0f74e119b6 100644
+--- a/src/runtime/pprof/proto.go
++++ b/src/runtime/pprof/proto.go
+@@ -169,13 +169,14 @@ func (b *profileBuilder) pbLine(tag int, funcID uint64, line int64) {
+ }
+ 
+ // pbMapping encodes a Mapping message to b.pb.
+-func (b *profileBuilder) pbMapping(tag int, id, base, limit, offset uint64, file string) {
++func (b *profileBuilder) pbMapping(tag int, id, base, limit, offset uint64, file, buildID string) {
+ 	start := b.pb.startMessage()
+ 	b.pb.uint64Opt(tagMapping_ID, id)
+ 	b.pb.uint64Opt(tagMapping_Start, base)
+ 	b.pb.uint64Opt(tagMapping_Limit, limit)
+ 	b.pb.uint64Opt(tagMapping_Offset, offset)
+ 	b.pb.int64Opt(tagMapping_Filename, b.stringIndex(file))
++	b.pb.int64Opt(tagMapping_BuildID, b.stringIndex(buildID))
+ 	// TODO: Set any of HasInlineFrames, HasFunctions, HasFilenames, HasLineNumbers?
+ 	// It seems like they should all be true, but they've never been set.
+ 	b.pb.endMessage(tag, start)
+@@ -438,10 +439,10 @@ func (b *profileBuilder) readMapping() {
+ 		}
+ 		next() // dev
+ 		next() // inode
+-		file := line
+-		if file == nil {
++		if line == nil {
+ 			continue
+ 		}
++		file := string(line)
+ 
+ 		// TODO: pprof's remapMappingIDs makes two adjustments:
+ 		// 1. If there is an /anon_hugepage mapping first and it is
+@@ -452,7 +453,8 @@ func (b *profileBuilder) readMapping() {
+ 		// If we do need them, they would go here, before we
+ 		// enter the mappings into b.mem in the first place.
+ 
++		buildID, _ := elfBuildID(file)
+ 		b.mem = append(b.mem, memMap{uintptr(lo), uintptr(hi)})
+-		b.pbMapping(tagProfile_Mapping, uint64(len(b.mem)), lo, hi, offset, string(file))
++		b.pbMapping(tagProfile_Mapping, uint64(len(b.mem)), lo, hi, offset, file, buildID)
+ 	}
+ }
+diff --git a/src/runtime/pprof/proto_test.go b/src/runtime/pprof/proto_test.go
+index 98f217583b..7b0fa95d71 100644
+--- a/src/runtime/pprof/proto_test.go
++++ b/src/runtime/pprof/proto_test.go
+@@ -87,8 +87,10 @@ func testPCs(t *testing.T) (addr1, addr2 uint64, map1, map2 *profile.Mapping) {
+ 		}
+ 		addr1 = mprof.Mapping[0].Start
+ 		map1 = mprof.Mapping[0]
++		map1.BuildID, _ = elfBuildID(map1.File)
+ 		addr2 = mprof.Mapping[1].Start
+ 		map2 = mprof.Mapping[1]
++		map2.BuildID, _ = elfBuildID(map2.File)
+ 	} else {
+ 		addr1 = uint64(funcPC(f1))
+ 		addr2 = uint64(funcPC(f2))
+diff --git a/src/runtime/pprof/testdata/README b/src/runtime/pprof/testdata/README
+new file mode 100644
+index 0000000000..876538e5d5
+--- /dev/null
++++ b/src/runtime/pprof/testdata/README
+@@ -0,0 +1,9 @@
++These binaries were generated by:
++
++$ cat empty.s
++.global _start
++_start:
++$ as --32 -o empty.o empty.s && ld  --build-id -m elf_i386 -o test32 empty.o
++$ as --64 -o empty.o empty.s && ld --build-id -o test64 empty.o
++$ powerpc-linux-gnu-as -o empty.o empty.s && powerpc-linux-gnu-ld --build-id -o test32be empty.o
++$ powerpc64-linux-gnu-as -o empty.o empty.s && powerpc64-linux-gnu-ld --build-id -o test64be empty.o
+diff --git a/src/runtime/pprof/testdata/test32 b/src/runtime/pprof/testdata/test32
+new file mode 100755
+index 0000000000..ce594720db
+Binary files /dev/null and b/src/runtime/pprof/testdata/test32 differ
+diff --git a/src/runtime/pprof/testdata/test32be b/src/runtime/pprof/testdata/test32be
+new file mode 100755
+index 0000000000..f13a732203
+Binary files /dev/null and b/src/runtime/pprof/testdata/test32be differ
+diff --git a/src/runtime/pprof/testdata/test64 b/src/runtime/pprof/testdata/test64
+new file mode 100755
+index 0000000000..3fb42fb3bf
+Binary files /dev/null and b/src/runtime/pprof/testdata/test64 differ
+diff --git a/src/runtime/pprof/testdata/test64be b/src/runtime/pprof/testdata/test64be
+new file mode 100755
+index 0000000000..09b4b01894
+Binary files /dev/null and b/src/runtime/pprof/testdata/test64be differ

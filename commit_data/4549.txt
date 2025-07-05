@@ -7,7 +7,80 @@ Date:   Wed Jan 6 19:24:11 2010 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/183138
-
+---
  src/pkg/runtime/mgc0.c | 14 +++-----------
  src/pkg/runtime/proc.c | 14 ++------------
  2 files changed, 5 insertions(+), 23 deletions(-)
+
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 91898270d2..f0eafe3fd6 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -73,12 +73,8 @@ scanstack(G *gp)
+ {
+ 	Stktop *stk;
+ 	byte *sp;
+-	// TODO(rsc): Change 8g not to assume that extern register
+-	// variables are directly addressable.  Declaring the
+-	// local variable here works around the bug.
+-	G* gg = g;
+ 
+-	if(gp == gg)
++	if(gp == g)
+ 		sp = (byte*)&gp;
+ 	else
+ 		sp = gp->sched.sp;
+@@ -93,11 +89,7 @@ scanstack(G *gp)
+ static void
+ mark(void)
+ {
+-	G* gp;
+-	// TODO(rsc): Change 8g not to assume that extern register
+-	// variables are directly addressable.  Declaring the
+-	// local variable here works around the bug.
+-	G* gg = g;
++	G *gp;
+ 
+ 	// mark data+bss.
+ 	// skip mheap itself, which has no interesting pointers
+@@ -114,7 +106,7 @@ mark(void)
+ 		case Gdead:
+ 			break;
+ 		case Grunning:
+-			if(gp != gg)
++			if(gp != g)
+ 				throw("mark - world not stopped");
+ 			scanstack(gp);
+ 			break;
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 8dc9243261..6ac4090ebe 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -388,12 +388,7 @@ starttheworld(void)
+ void
+ mstart(void)
+ {
+-	// TODO(rsc): Change 8g not to assume that extern register
+-	// variables are directly addressable.  Declaring the
+-	// local variable here works around the bug.
+-	G* gg = g;
+-
+-	if(gg != m->g0)
++	if(g != m->g0)
+ 		throw("bad mstart");
+ 	if(m->mcache == nil)
+ 		m->mcache = allocmcache();
+@@ -524,12 +519,7 @@ scheduler(void)
+ void
+ gosched(void)
+ {
+-	// TODO(rsc): Change 8g not to assume that extern register
+-	// variables are directly addressable.  Declaring the
+-	// local variable here works around the bug.
+-	G* gg = g;
+-
+-	if(gg == m->g0)
++	if(g == m->g0)
+ 		throw("gosched of g0");
+ 	if(gosave(&g->sched) == 0)
+ 		gogo(&m->sched, 1);

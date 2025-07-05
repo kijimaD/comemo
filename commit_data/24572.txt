@@ -23,7 +23,79 @@ Date:   Wed Aug 5 22:12:16 2015 -0400
     Change-Id: If9c82a18f522d7ee1d10310a22821ada9286ee5c
     Reviewed-on: https://go-review.googlesource.com/13258
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/net/url/url.go      | 18 ++++++++++++++++--
  src/net/url/url_test.go | 24 +++++++++++++++++++++++-
  2 files changed, 39 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index efbb4c36e9..8ffad663d5 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -550,8 +550,22 @@ func (u *URL) EscapedPath() string {
+ // It must not contain any bytes that require escaping during path encoding.
+ func validEncodedPath(s string) bool {
+ 	for i := 0; i < len(s); i++ {
+-		if s[i] != '%' && shouldEscape(s[i], encodePath) {
+-			return false
++		// RFC 3986, Appendix A.
++		// pchar = unreserved / pct-encoded / sub-delims / ":" / "@".
++		// shouldEscape is not quite compliant with the RFC,
++		// so we check the sub-delims ourselves and let
++		// shouldEscape handle the others.
++		switch s[i] {
++		case '!', '$', '&', '\'', '(', ')', '*', '+', ',', ';', '=', ':', '@':
++			// ok
++		case '[', ']':
++			// ok - not specified in RFC 3986 but left alone by modern browsers
++		case '%':
++			// ok - percent encoded, will decode
++		default:
++			if shouldEscape(s[i], encodePath) {
++				return false
++			}
+ 		}
+ 	}
+ 	return true
+diff --git a/src/net/url/url_test.go b/src/net/url/url_test.go
+index 80a2b80efa..ff6e9e4541 100644
+--- a/src/net/url/url_test.go
++++ b/src/net/url/url_test.go
+@@ -392,7 +392,7 @@ var urltests = []URLTest{
+ 		},
+ 		"",
+ 	},
+-	// worst case host
++	// worst case host, still round trips
+ 	{
+ 		"scheme://!$&'()*+,;=hello!:port/path",
+ 		&URL{
+@@ -402,6 +402,28 @@ var urltests = []URLTest{
+ 		},
+ 		"",
+ 	},
++	// worst case path, still round trips
++	{
++		"http://host/!$&'()*+,;=:@[hello]",
++		&URL{
++			Scheme:  "http",
++			Host:    "host",
++			Path:    "/!$&'()*+,;=:@[hello]",
++			RawPath: "/!$&'()*+,;=:@[hello]",
++		},
++		"",
++	},
++	// golang.org/issue/5684
++	{
++		"http://example.com/oid/[order_id]",
++		&URL{
++			Scheme:  "http",
++			Host:    "example.com",
++			Path:    "/oid/[order_id]",
++			RawPath: "/oid/[order_id]",
++		},
++		"",
++	},
+ }
+ 
+ // more useful string for debugging than fmt's struct printer

@@ -9,6 +9,19 @@ Date:   Thu May 17 18:08:28 2012 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6206080
-
+---
  api/go1.txt | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/api/go1.txt b/api/go1.txt
+index f12719fed6..e6bdd173e9 100644
+--- a/api/go1.txt
++++ b/api/go1.txt
+@@ -5484,7 +5484,6 @@ pkg regexp/syntax, const ErrMissingBracket ErrorCode
+ pkg regexp/syntax, const ErrMissingParen ErrorCode
+ pkg regexp/syntax, const ErrMissingRepeatArgument ErrorCode
+ pkg regexp/syntax, const ErrTrailingBackslash ErrorCode
+-pkg regexp/syntax, const ErrUnexpectedParen ErrorCode
+ pkg regexp/syntax, const FoldCase Flags
+ pkg regexp/syntax, const InstAlt InstOp
+ pkg regexp/syntax, const InstAltMatch InstOp

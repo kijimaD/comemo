@@ -16,7 +16,7 @@ Date:   Wed Oct 21 07:04:10 2015 -0700
     Change-Id: I3d517fb3e6e65d9bf9433db070a420fd11f57816
     Reviewed-on: https://go-review.googlesource.com/16160
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/compile/doc.go                         |  2 ++
  src/cmd/compile/internal/gc/builtin.go         |  2 ++
  src/cmd/compile/internal/gc/builtin/runtime.go |  4 +++
@@ -27,3 +27,244 @@ Date:   Wed Oct 21 07:04:10 2015 -0700
  src/cmd/compile/internal/gc/subr.go            |  2 +-
  src/cmd/compile/internal/gc/walk.go            |  2 +-
  9 files changed, 61 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/doc.go b/src/cmd/compile/doc.go
+index 59c660b2d5..f70c1cf6d4 100644
+--- a/src/cmd/compile/doc.go
++++ b/src/cmd/compile/doc.go
+@@ -66,6 +66,8 @@ Flags:
+ 		Write memory profile for the compilation to file.
+ 	-memprofilerate rate
+ 		Set runtime.MemProfileRate for the compilation to rate.
++	-msan
++		Insert calls to C/C++ memory sanitizer.
+ 	-nolocalimports
+ 		Disallow local (relative) imports.
+ 	-o file
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index f09dd5690f..5b2ddbdfe3 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -155,6 +155,8 @@ const runtimeimport = "" +
+ 	"func @\"\".racewrite (? uintptr)\n" +
+ 	"func @\"\".racereadrange (@\"\".addr·1 uintptr, @\"\".size·2 uintptr)\n" +
+ 	"func @\"\".racewriterange (@\"\".addr·1 uintptr, @\"\".size·2 uintptr)\n" +
++	"func @\"\".msanread (@\"\".addr·1 uintptr, @\"\".size·2 uintptr)\n" +
++	"func @\"\".msanwrite (@\"\".addr·1 uintptr, @\"\".size·2 uintptr)\n" +
+ 	"\n" +
+ 	"$$\n"
+ 
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index 6210f10cdf..930175781f 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -193,3 +193,7 @@ func raceread(uintptr)
+ func racewrite(uintptr)
+ func racereadrange(addr, size uintptr)
+ func racewriterange(addr, size uintptr)
++
++// memory sanitizer
++func msanread(addr, size uintptr)
++func msanwrite(addr, size uintptr)
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 79b9d9f692..c1899ef980 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -511,6 +511,8 @@ var Runtimepkg *Pkg // package runtime
+ 
+ var racepkg *Pkg // package runtime/race
+ 
++var msanpkg *Pkg // package runtime/msan
++
+ var typepkg *Pkg // fake package for runtime type info (headers)
+ 
+ var typelinkpkg *Pkg // fake package for runtime type info (data)
+@@ -645,6 +647,8 @@ var flag_installsuffix string
+ 
+ var flag_race int
+ 
++var flag_msan int
++
+ var flag_largemodel int
+ 
+ // Whether we are adding any sort of code instrumentation, such as
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index b9ce4cb010..0093e1b676 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -200,6 +200,7 @@ func Main() {
+ 	obj.Flagcount("l", "disable inlining", &Debug['l'])
+ 	obj.Flagcount("live", "debug liveness analysis", &debuglive)
+ 	obj.Flagcount("m", "print optimization decisions", &Debug['m'])
++	obj.Flagcount("msan", "build code compatible with C/C++ memory sanitizer", &flag_msan)
+ 	obj.Flagcount("nolocalimports", "reject local (relative) imports", &nolocalimports)
+ 	obj.Flagstr("o", "write output to `file`", &outfile)
+ 	obj.Flagstr("p", "set expected package import `path`", &myimportpath)
+@@ -249,6 +250,14 @@ func Main() {
+ 	if flag_race != 0 {
+ 		racepkg = mkpkg("runtime/race")
+ 		racepkg.Name = "race"
++	}
++	if flag_msan != 0 {
++		msanpkg = mkpkg("runtime/msan")
++		msanpkg.Name = "msan"
++	}
++	if flag_race != 0 && flag_msan != 0 {
++		log.Fatal("can not use both -race and -msan")
++	} else if flag_race != 0 || flag_msan != 0 {
+ 		instrumenting = true
+ 	}
+ 
+@@ -623,6 +632,9 @@ func findpkg(name string) (file string, ok bool) {
+ 		} else if flag_race != 0 {
+ 			suffixsep = "_"
+ 			suffix = "race"
++		} else if flag_msan != 0 {
++			suffixsep = "_"
++			suffix = "msan"
+ 		}
+ 
+ 		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.a", goroot, goos, goarch, suffixsep, suffix, name)
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index a2b09cdf28..7770f741df 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -18,6 +18,11 @@ import (
+ // 3. It inserts a call to raceread before each memory read.
+ // 4. It inserts a call to racewrite before each memory write.
+ //
++// For flag_msan:
++//
++// 1. It inserts a call to msanread before each memory read.
++// 2. It inserts a call to msanwrite before each memory write.
++//
+ // The rewriting is not yet complete. Certain nodes are not rewritten
+ // but should be.
+ 
+@@ -26,11 +31,11 @@ import (
+ 
+ // Do not instrument the following packages at all,
+ // at best instrumentation would cause infinite recursion.
+-var omit_pkgs = []string{"runtime", "runtime/race"}
++var omit_pkgs = []string{"runtime", "runtime/race", "runtime/msan"}
+ 
+ // Only insert racefuncenter/racefuncexit into the following packages.
+ // Memory accesses in the packages are either uninteresting or will cause false positives.
+-var noinst_pkgs = []string{"sync", "sync/atomic"}
++var norace_inst_pkgs = []string{"sync", "sync/atomic"}
+ 
+ func ispkgin(pkgs []string) bool {
+ 	if myimportpath != "" {
+@@ -49,25 +54,27 @@ func instrument(fn *Node) {
+ 		return
+ 	}
+ 
+-	if !ispkgin(noinst_pkgs) {
++	if flag_race == 0 || !ispkgin(norace_inst_pkgs) {
+ 		instrumentlist(fn.Nbody, nil)
+ 
+ 		// nothing interesting for race detector in fn->enter
+ 		instrumentlist(fn.Func.Exit, nil)
+ 	}
+ 
+-	// nodpc is the PC of the caller as extracted by
+-	// getcallerpc. We use -widthptr(FP) for x86.
+-	// BUG: this will not work on arm.
+-	nodpc := Nod(OXXX, nil, nil)
+-
+-	*nodpc = *nodfp
+-	nodpc.Type = Types[TUINTPTR]
+-	nodpc.Xoffset = int64(-Widthptr)
+-	nd := mkcall("racefuncenter", nil, nil, nodpc)
+-	fn.Func.Enter = concat(list1(nd), fn.Func.Enter)
+-	nd = mkcall("racefuncexit", nil, nil)
+-	fn.Func.Exit = list(fn.Func.Exit, nd)
++	if flag_race != 0 {
++		// nodpc is the PC of the caller as extracted by
++		// getcallerpc. We use -widthptr(FP) for x86.
++		// BUG: this will not work on arm.
++		nodpc := Nod(OXXX, nil, nil)
++
++		*nodpc = *nodfp
++		nodpc.Type = Types[TUINTPTR]
++		nodpc.Xoffset = int64(-Widthptr)
++		nd := mkcall("racefuncenter", nil, nil, nodpc)
++		fn.Func.Enter = concat(list1(nd), fn.Func.Enter)
++		nd = mkcall("racefuncexit", nil, nil)
++		fn.Func.Exit = list(fn.Func.Exit, nd)
++	}
+ 
+ 	if Debug['W'] != 0 {
+ 		s := fmt.Sprintf("after instrument %v", fn.Func.Nname.Sym)
+@@ -427,7 +434,8 @@ ret:
+ 
+ func isartificial(n *Node) bool {
+ 	// compiler-emitted artificial things that we do not want to instrument,
+-	// cant' possibly participate in a data race.
++	// can't possibly participate in a data race.
++	// can't be seen by C/C++ and therefore irrelevant for msan.
+ 	if n.Op == ONAME && n.Sym != nil && n.Sym.Name != "" {
+ 		if n.Sym.Name == "_" {
+ 			return true
+@@ -489,13 +497,19 @@ func callinstr(np **Node, init **NodeList, wr int, skip int) bool {
+ 		n = treecopy(n, 0)
+ 		makeaddable(n)
+ 		var f *Node
+-		if t.Etype == TSTRUCT || Isfixedarray(t) {
++		if flag_msan != 0 {
++			name := "msanread"
++			if wr != 0 {
++				name = "msanwrite"
++			}
++			f = mkcall(name, nil, init, uintptraddr(n), Nodintconst(t.Width))
++		} else if flag_race != 0 && (t.Etype == TSTRUCT || Isfixedarray(t)) {
+ 			name := "racereadrange"
+ 			if wr != 0 {
+ 				name = "racewriterange"
+ 			}
+ 			f = mkcall(name, nil, init, uintptraddr(n), Nodintconst(t.Width))
+-		} else {
++		} else if flag_race != 0 {
+ 			name := "raceread"
+ 			if wr != 0 {
+ 				name = "racewrite"
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index e7138d9c58..d507949f60 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1292,6 +1292,9 @@ func dumptypestructs() {
+ 		if flag_race != 0 {
+ 			dimportpath(racepkg)
+ 		}
++		if flag_msan != 0 {
++			dimportpath(msanpkg)
++		}
+ 		dimportpath(mkpkg("main"))
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index c73c675884..33b7dba81b 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1643,7 +1643,7 @@ func ullmancalc(n *Node) {
+ 		ul = UINF
+ 		goto out
+ 
+-		// hard with race detector
++		// hard with instrumented code
+ 	case OANDAND, OOROR:
+ 		if instrumenting {
+ 			ul = UINF
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index f0a1ddc6e4..b1068dc370 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3037,7 +3037,7 @@ func walkappend(n *Node, init **NodeList, dst *Node) *Node {
+ 	}
+ 
+ 	// General case, with no function calls left as arguments.
+-	// Leave for gen, except that race detector requires old form
++	// Leave for gen, except that instrumentation requires old form.
+ 	if !instrumenting {
+ 		return n
+ 	}

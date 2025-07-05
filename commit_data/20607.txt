@@ -10,6 +10,22 @@ Date:   Wed Sep 24 14:18:25 2014 -0400
     R=r, dvyukov
     CC=golang-codereviews
     https://golang.org/cl/144320043
-
+---
  src/runtime/mem.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mem.go b/src/runtime/mem.go
+index b3c216f18e..438f22ec09 100644
+--- a/src/runtime/mem.go
++++ b/src/runtime/mem.go
+@@ -41,8 +41,8 @@ type MemStats struct {
+ 	OtherSys    uint64 // other system allocations
+ 
+ 	// Garbage collector statistics.
+-	NextGC       uint64 // next run in HeapAlloc time (bytes)
+-	LastGC       uint64 // last run in absolute time (ns)
++	NextGC       uint64 // next collection will happen when HeapAlloc ≥ this amount
++	LastGC       uint64 // end time of last collection (nanoseconds since 1970)
+ 	PauseTotalNs uint64
+ 	PauseNs      [256]uint64 // circular buffer of recent GC pause times, most recent at [(NumGC+255)%256]
+ 	NumGC        uint32

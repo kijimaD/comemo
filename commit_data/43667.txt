@@ -12,6 +12,29 @@ Date:   Sun Apr 19 15:34:32 2020 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 4829c5f5fc..40e2f52467 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2549,7 +2549,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		return s.load(n.Type, addr)
+ 
+ 	case ODEREF:
+-		p := s.exprPtr(n.Left, false, n.Pos)
++		p := s.exprPtr(n.Left, n.Bounded(), n.Pos)
+ 		return s.load(n.Type, p)
+ 
+ 	case ODOT:
+@@ -2574,7 +2574,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		return s.newValue1I(ssa.OpStructSelect, n.Type, int64(fieldIdx(n)), v)
+ 
+ 	case ODOTPTR:
+-		p := s.exprPtr(n.Left, false, n.Pos)
++		p := s.exprPtr(n.Left, n.Bounded(), n.Pos)
+ 		p = s.newValue1I(ssa.OpOffPtr, types.NewPtr(n.Type), n.Xoffset, p)
+ 		return s.load(n.Type, p)
+ 

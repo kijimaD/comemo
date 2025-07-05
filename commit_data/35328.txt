@@ -27,6 +27,20 @@ Date:   Thu Dec 21 14:35:21 2017 -0800
     Change-Id: I28db1fe1202c07e3f7b3fadfd185728afb9b2ae7
     Reviewed-on: https://go-review.googlesource.com/85199
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/assignments.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index 98c9e121b0..f0030efedc 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -153,7 +153,7 @@ func (check *Checker) assignVar(lhs ast.Expr, x *operand) Type {
+ 	var v *Var
+ 	var v_used bool
+ 	if ident != nil {
+-		if _, obj := check.scope.LookupParent(ident.Name, token.NoPos); obj != nil {
++		if obj := check.lookup(ident.Name); obj != nil {
+ 			// It's ok to mark non-local variables, but ignore variables
+ 			// from other packages to avoid potential race conditions with
+ 			// dot-imported variables.

@@ -7,7 +7,36 @@ Date:   Wed Mar 4 14:50:25 2009 -0800
     R=ken
     OCL=25705
     CL=25705
-
+---
  src/cmd/gc/walk.c       | 3 +++
  src/lib/reflect/type.go | 3 ++-
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index c7deefc916..3ae0f52f7c 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -2851,6 +2851,9 @@ ifaceas1(Type *dst, Type *src, int explicit)
+ 	if(src == T || dst == T)
+ 		return Inone;
+ 
++	if(explicit && !isinter(src))
++		yyerror("cannot use .(T) on non-interface type %T", src);
++
+ 	if(isinter(dst)) {
+ 		if(isinter(src)) {
+ 			if(eqtype(dst, src, 0))
+diff --git a/src/lib/reflect/type.go b/src/lib/reflect/type.go
+index 438f5b2323..96953f3b0f 100644
+--- a/src/lib/reflect/type.go
++++ b/src/lib/reflect/type.go
+@@ -107,7 +107,8 @@ func newBasicType(name string, kind int, size int) Type {
+ // Prebuilt basic types
+ var (
+ 	Missing = newBasicType(missingString, MissingKind, 1);
+-	DotDotDot = newBasicType(dotDotDotString, DotDotDotKind, unsafe.Sizeof(true.(interface{})));
++	empty interface{};
++	DotDotDot = newBasicType(dotDotDotString, DotDotDotKind, unsafe.Sizeof(empty));
+ 	Bool = newBasicType("bool", BoolKind, unsafe.Sizeof(true));
+ 	Int = newBasicType("int", IntKind, unsafe.Sizeof(int(0)));
+ 	Int8 = newBasicType("int8", Int8Kind, 1);

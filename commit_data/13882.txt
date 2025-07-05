@@ -15,10 +15,133 @@ Date:   Thu Sep 20 13:20:33 2012 +1000
     R=golang-dev, fullung, dave, rsc, minux.ma
     CC=golang-dev
     https://golang.org/cl/6501101
-
+---
  misc/cgo/test/basic.go      | 10 ++++++++++
  misc/cgo/test/cgo_test.go   |  1 +
  misc/cgo/test/issue4054a.go | 23 +++++++++++++++++++++++
  misc/cgo/test/issue4054b.go | 23 +++++++++++++++++++++++
  src/cmd/cgo/gcc.go          |  9 +++++----
  5 files changed, 62 insertions(+), 4 deletions(-)
+
+diff --git a/misc/cgo/test/basic.go b/misc/cgo/test/basic.go
+index 3716a4062e..0c91801696 100644
+--- a/misc/cgo/test/basic.go
++++ b/misc/cgo/test/basic.go
+@@ -14,6 +14,7 @@ package cgotest
+ 
+ #define SHIFT(x, y)  ((x)<<(y))
+ #define KILO SHIFT(1, 10)
++#define UINT32VAL 0xc008427bU
+ 
+ enum E {
+ 	Enum1 = 1,
+@@ -141,3 +142,12 @@ func benchCgoCall(b *testing.B) {
+ 		C.add(x, y)
+ 	}
+ }
++
++// Issue 2470.
++func testUnsignedInt(t *testing.T) {
++	a := (int64)(C.UINT32VAL)
++	b := (int64)(0xc008427b)
++	if a != b {
++		t.Errorf("Incorrect unsigned int - got %x, want %x", a, b)
++	}
++}
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index c3c35b53c2..3b866290fe 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -16,6 +16,7 @@ func TestEnum(t *testing.T)                { testEnum(t) }
+ func TestAtol(t *testing.T)                { testAtol(t) }
+ func TestErrno(t *testing.T)               { testErrno(t) }
+ func TestMultipleAssign(t *testing.T)      { testMultipleAssign(t) }
++func TestUnsignedInt(t *testing.T)         { testUnsignedInt(t) }
+ func TestCallback(t *testing.T)            { testCallback(t) }
+ func TestCallbackGC(t *testing.T)          { testCallbackGC(t) }
+ func TestCallbackPanic(t *testing.T)       { testCallbackPanic(t) }
+diff --git a/misc/cgo/test/issue4054a.go b/misc/cgo/test/issue4054a.go
+new file mode 100644
+index 0000000000..2abdac5904
+--- /dev/null
++++ b/misc/cgo/test/issue4054a.go
+@@ -0,0 +1,23 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++/*
++typedef enum {
++	A = 0,
++	B,
++	C,
++	D,
++	E,
++	F,
++	G,
++	H,
++	I,
++	J,
++} issue4054a;
++*/
++import "C"
++
++var issue4054a = []int{C.A, C.B, C.C, C.D, C.E, C.F, C.G, C.H, C.I, C.J}
+diff --git a/misc/cgo/test/issue4054b.go b/misc/cgo/test/issue4054b.go
+new file mode 100644
+index 0000000000..048964c893
+--- /dev/null
++++ b/misc/cgo/test/issue4054b.go
+@@ -0,0 +1,23 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++/*
++typedef enum {
++	A = 0,
++	B,
++	C,
++	D,
++	E,
++	F,
++	G,
++	H,
++	I,
++	J,
++} issue4054b;
++*/
++import "C"
++
++var issue4054b = []int{C.A, C.B, C.C, C.D, C.E, C.F, C.G, C.H, C.I, C.J}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 2aaa570d83..d16d0202f6 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -616,10 +616,7 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
+ 			n.FuncType = conv.FuncType(f, pos)
+ 		} else {
+ 			n.Type = conv.Type(types[i], pos)
+-			// Prefer debug data over DWARF debug output, if we have it.
+-			if n.Kind == "const" && i < len(enumVal) {
+-				n.Const = fmt.Sprintf("%#x", enumVal[i])
+-			} else if enums[i] != 0 && n.Type.EnumValues != nil {
++			if enums[i] != 0 && n.Type.EnumValues != nil {
+ 				k := fmt.Sprintf("__cgo_enum__%d", i)
+ 				n.Kind = "const"
+ 				n.Const = fmt.Sprintf("%#x", n.Type.EnumValues[k])
+@@ -627,6 +624,10 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
+ 				// equally in future loads of the same constant.
+ 				delete(n.Type.EnumValues, k)
+ 			}
++			// Prefer debug data over DWARF debug output, if we have it.
++			if n.Kind == "const" && i < len(enumVal) {
++				n.Const = fmt.Sprintf("%#x", enumVal[i])
++			}
+ 		}
+ 	}
+ 

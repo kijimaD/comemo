@@ -7,7 +7,32 @@ Date:   Wed Jun 22 18:07:08 2011 -0400
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4648053
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index c25604aa16..5471a8f802 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -88,6 +88,7 @@ Kai Backman <kaib@golang.org>
+ Kei Son <hey.calmdown@gmail.com>
+ Keith Rarick <kr@xph.us>
+ Ken Friedenbach <kenliz@cruzio.com>
++Ken Rockot <ken@oz.gs>
+ Kevin Ballard <kevin@sb.org>
+ Kyle Consalus <consalus@gmail.com>
+ Kyle Lemons <kyle@kylelemons.net>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index c1a1408cc4..e5037753a0 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -136,6 +136,7 @@ Kai Backman <kaib@golang.org>
+ Kei Son <hey.calmdown@gmail.com>
+ Keith Rarick <kr@xph.us>
+ Ken Friedenbach <kenliz@cruzio.com>
++Ken Rockot <ken@oz.gs> <ken.rockot@gmail.com>
+ Ken Thompson <ken@golang.org>
+ Kevin Ballard <kevin@sb.org>
+ Kirklin McDonald <kirklin.mcdonald@gmail.com>

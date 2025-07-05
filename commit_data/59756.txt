@@ -12,7 +12,33 @@ Date:   Fri Apr 19 20:40:30 2024 +0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
-
+---
  doc/next/6-stdlib/99-minor/go/types/65772.md | 7 +++----
  doc/next/6-stdlib/99-minor/net/http/46443.md | 6 +++---
  2 files changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/doc/next/6-stdlib/99-minor/go/types/65772.md b/doc/next/6-stdlib/99-minor/go/types/65772.md
+index 33e949db3d..ec7f0b0e59 100644
+--- a/doc/next/6-stdlib/99-minor/go/types/65772.md
++++ b/doc/next/6-stdlib/99-minor/go/types/65772.md
+@@ -1,4 +1,3 @@
+-The [`Func`](/go/types#Func) type, which represents a function or
+-method symbol, now has a [`Signature`](/go/types#Func.Signature)
+-method that returns the function's type, which is always a
+-`Signature`.
+\ No newline at end of file
++The [Func] type, which represents a function or method symbol, now
++has a [Func.Signature] method that returns the function's type, which
++is always a `Signature`.
+\ No newline at end of file
+diff --git a/doc/next/6-stdlib/99-minor/net/http/46443.md b/doc/next/6-stdlib/99-minor/net/http/46443.md
+index 730582008a..37ceae9edd 100644
+--- a/doc/next/6-stdlib/99-minor/net/http/46443.md
++++ b/doc/next/6-stdlib/99-minor/net/http/46443.md
+@@ -1,3 +1,3 @@
+-[`Cookie`](/pkg/net/http#Cookie) now preserves double quotes surrounding
+-a cookie value. The new `Cookie.Quoted` field indicates whether the
+-`Cookie.Value` was originally quoted.
++[Cookie] now preserves double quotes surrounding a cookie value.
++The new [Cookie.Quoted] field indicates whether the [Cookie.Value]
++was originally quoted.

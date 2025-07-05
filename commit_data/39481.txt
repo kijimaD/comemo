@@ -11,6 +11,20 @@ Date:   Fri Mar 1 22:42:58 2019 +0000
     GitHub-Pull-Request: golang/go#30523
     Reviewed-on: https://go-review.googlesource.com/c/164761
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/net/http/cgi/child.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/cgi/child.go b/src/net/http/cgi/child.go
+index 10325c2eb5..cb140f8f2f 100644
+--- a/src/net/http/cgi/child.go
++++ b/src/net/http/cgi/child.go
+@@ -102,7 +102,7 @@ func RequestFromMap(params map[string]string) (*http.Request, error) {
+ 	}
+ 
+ 	// There's apparently a de-facto standard for this.
+-	// https://docstore.mik.ua/orelly/linux/cgi/ch03_02.htm#ch03-35636
++	// https://web.archive.org/web/20170105004655/http://docstore.mik.ua/orelly/linux/cgi/ch03_02.htm#ch03-35636
+ 	if s := params["HTTPS"]; s == "on" || s == "ON" || s == "1" {
+ 		r.TLS = &tls.ConnectionState{HandshakeComplete: true}
+ 	}

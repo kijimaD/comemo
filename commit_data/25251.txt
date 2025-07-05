@@ -7,6 +7,20 @@ Date:   Tue Oct 13 13:19:09 2015 -0700
     Change-Id: I2ac6b178e666e34e028001078faf62ce71e12e9d
     Reviewed-on: https://go-review.googlesource.com/15834
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/compress/gzip/gunzip_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/compress/gzip/gunzip_test.go b/src/compress/gzip/gunzip_test.go
+index 209896a7fc..007d9585ce 100644
+--- a/src/compress/gzip/gunzip_test.go
++++ b/src/compress/gzip/gunzip_test.go
+@@ -415,7 +415,7 @@ func TestNilStream(t *testing.T) {
+ 	// consist of zero or more members. Thus, we test that a nil stream is okay.
+ 	_, err := NewReader(bytes.NewReader(nil))
+ 	if err != io.EOF {
+-		t.Fatalf("NewReader(nil) on empty stream: got %v, want &v", err, io.EOF)
++		t.Fatalf("NewReader(nil) on empty stream: got %v, want io.EOF", err)
+ 	}
+ }
+ 

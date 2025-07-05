@@ -11,6 +11,20 @@ Date:   Tue Oct 13 16:42:20 2015 -0600
     Change-Id: I301885950d0e1d0fbdf3a1892fca86eac7a0c616
     Reviewed-on: https://go-review.googlesource.com/15806
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/encoding/csv/reader.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/encoding/csv/reader.go b/src/encoding/csv/reader.go
+index 37bf80ceae..a6bb780bf2 100644
+--- a/src/encoding/csv/reader.go
++++ b/src/encoding/csv/reader.go
+@@ -155,7 +155,7 @@ func (r *Reader) Read() (record []string, err error) {
+ 
+ // ReadAll reads all the remaining records from r.
+ // Each record is a slice of fields.
+-// A successful call returns err == nil, not err == EOF. Because ReadAll is
++// A successful call returns err == nil, not err == io.EOF. Because ReadAll is
+ // defined to read until EOF, it does not treat end of file as an error to be
+ // reported.
+ func (r *Reader) ReadAll() (records [][]string, err error) {

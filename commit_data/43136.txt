@@ -9,6 +9,26 @@ Date:   Mon Mar 9 16:32:49 2020 -0400
     Change-Id: I629b3d44d6b2083f5e62701cc0c23fe2362502d4
     Reviewed-on: https://go-review.googlesource.com/c/go/+/222676
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/runtime/pprof/pprof.go | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index a7916bf6fb..bbdc432eec 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -313,9 +313,11 @@ func (p *Profile) Remove(value interface{}) {
+ // Otherwise, WriteTo returns nil.
+ //
+ // The debug parameter enables additional output.
+-// Passing debug=0 prints only the hexadecimal addresses that pprof needs.
+-// Passing debug=1 adds comments translating addresses to function names
+-// and line numbers, so that a programmer can read the profile without tools.
++// Passing debug=0 writes the gzip-compressed protocol buffer described
++// in https://github.com/google/pprof/tree/master/proto#overview.
++// Passing debug=1 writes the legacy text format with comments
++// translating addresses to function names and line numbers, so that a
++// programmer can read the profile without tools.
+ //
+ // The predefined profiles may assign meaning to other debug values;
+ // for example, when printing the "goroutine" profile, debug=2 means to

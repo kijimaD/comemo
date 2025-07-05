@@ -11,8 +11,51 @@ Date:   Thu Nov 14 10:00:33 2019 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/typecheck.go |  2 +-
  test/fixedbugs/issue35576.go             | 16 ++++++++++++++++
  test/fixedbugs/issue35576.out            |  1 +
  3 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index ae2e16760d..2ca7f2dbe4 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1805,7 +1805,7 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 
+ 	case OPRINT, OPRINTN:
+ 		ok |= ctxStmt
+-		typecheckslice(n.List.Slice(), ctxExpr)
++		typecheckargs(n)
+ 		ls := n.List.Slice()
+ 		for i1, n1 := range ls {
+ 			// Special case for print: int constant is int64, not int.
+diff --git a/test/fixedbugs/issue35576.go b/test/fixedbugs/issue35576.go
+new file mode 100644
+index 0000000000..8228555c9a
+--- /dev/null
++++ b/test/fixedbugs/issue35576.go
+@@ -0,0 +1,16 @@
++// run
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check print/println(f()) is allowed where f() is multi-value.
++
++package main
++
++func f() (int16, float64, string) { return -42, 42.0, "x" }
++
++func main() {
++	print(f())
++	println(f())
++}
+diff --git a/test/fixedbugs/issue35576.out b/test/fixedbugs/issue35576.out
+new file mode 100644
+index 0000000000..2aefe3edc5
+--- /dev/null
++++ b/test/fixedbugs/issue35576.out
+@@ -0,0 +1 @@
++-42+4.200000e+001x-42 +4.200000e+001 x

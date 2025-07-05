@@ -13,7 +13,7 @@ Date:   Wed Oct 5 03:15:24 2022 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/internal/obj/wasm/wasmobj.go | 10 +++++-----
  src/crypto/sha1/sha1.go              |  2 +-
  src/crypto/sha256/sha256.go          |  2 +-
@@ -21,3 +21,105 @@ Date:   Wed Oct 5 03:15:24 2022 +0000
  src/encoding/asn1/asn1_test.go       |  2 +-
  src/encoding/base32/base32_test.go   |  2 +-
  6 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/internal/obj/wasm/wasmobj.go b/src/cmd/internal/obj/wasm/wasmobj.go
+index 1c726f77d3..59b2e7bddc 100644
+--- a/src/cmd/internal/obj/wasm/wasmobj.go
++++ b/src/cmd/internal/obj/wasm/wasmobj.go
+@@ -379,7 +379,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 			p = appendp(p, AGet, regAddr(REGG))
+ 			p = appendp(p, AI32WrapI64)
+ 			p = appendp(p, AI32Load, constAddr(2*int64(ctxt.Arch.PtrSize))) // G.stackguard0
+-			p = appendp(p, AI32Const, constAddr(int64(framesize)-objabi.StackSmall))
++			p = appendp(p, AI32Const, constAddr(framesize-objabi.StackSmall))
+ 			p = appendp(p, AI32Add)
+ 			p = appendp(p, AI32LeU)
+ 		}
+@@ -577,18 +577,18 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 	for p := s.Func().Text; p != nil; p = p.Link {
+ 		switch p.From.Name {
+ 		case obj.NAME_AUTO:
+-			p.From.Offset += int64(framesize)
++			p.From.Offset += framesize
+ 		case obj.NAME_PARAM:
+ 			p.From.Reg = REG_SP
+-			p.From.Offset += int64(framesize) + 8 // parameters are after the frame and the 8-byte return address
++			p.From.Offset += framesize + 8 // parameters are after the frame and the 8-byte return address
+ 		}
+ 
+ 		switch p.To.Name {
+ 		case obj.NAME_AUTO:
+-			p.To.Offset += int64(framesize)
++			p.To.Offset += framesize
+ 		case obj.NAME_PARAM:
+ 			p.To.Reg = REG_SP
+-			p.To.Offset += int64(framesize) + 8 // parameters are after the frame and the 8-byte return address
++			p.To.Offset += framesize + 8 // parameters are after the frame and the 8-byte return address
+ 		}
+ 
+ 		switch p.As {
+diff --git a/src/crypto/sha1/sha1.go b/src/crypto/sha1/sha1.go
+index 80c5623725..bef447c7f2 100644
+--- a/src/crypto/sha1/sha1.go
++++ b/src/crypto/sha1/sha1.go
+@@ -56,7 +56,7 @@ func (d *digest) MarshalBinary() ([]byte, error) {
+ 	b = binary.BigEndian.AppendUint32(b, d.h[3])
+ 	b = binary.BigEndian.AppendUint32(b, d.h[4])
+ 	b = append(b, d.x[:d.nx]...)
+-	b = b[:len(b)+len(d.x)-int(d.nx)] // already zero
++	b = b[:len(b)+len(d.x)-d.nx] // already zero
+ 	b = binary.BigEndian.AppendUint64(b, d.len)
+ 	return b, nil
+ }
+diff --git a/src/crypto/sha256/sha256.go b/src/crypto/sha256/sha256.go
+index 92abbf9b84..15c907ecf7 100644
+--- a/src/crypto/sha256/sha256.go
++++ b/src/crypto/sha256/sha256.go
+@@ -79,7 +79,7 @@ func (d *digest) MarshalBinary() ([]byte, error) {
+ 	b = binary.BigEndian.AppendUint32(b, d.h[6])
+ 	b = binary.BigEndian.AppendUint32(b, d.h[7])
+ 	b = append(b, d.x[:d.nx]...)
+-	b = b[:len(b)+len(d.x)-int(d.nx)] // already zero
++	b = b[:len(b)+len(d.x)-d.nx] // already zero
+ 	b = binary.BigEndian.AppendUint64(b, d.len)
+ 	return b, nil
+ }
+diff --git a/src/crypto/sha512/sha512.go b/src/crypto/sha512/sha512.go
+index 883948f482..3819478ed7 100644
+--- a/src/crypto/sha512/sha512.go
++++ b/src/crypto/sha512/sha512.go
+@@ -162,7 +162,7 @@ func (d *digest) MarshalBinary() ([]byte, error) {
+ 	b = binary.BigEndian.AppendUint64(b, d.h[6])
+ 	b = binary.BigEndian.AppendUint64(b, d.h[7])
+ 	b = append(b, d.x[:d.nx]...)
+-	b = b[:len(b)+len(d.x)-int(d.nx)] // already zero
++	b = b[:len(b)+len(d.x)-d.nx] // already zero
+ 	b = binary.BigEndian.AppendUint64(b, d.len)
+ 	return b, nil
+ }
+diff --git a/src/encoding/asn1/asn1_test.go b/src/encoding/asn1/asn1_test.go
+index b1e05b96ae..90bdfcddf9 100644
+--- a/src/encoding/asn1/asn1_test.go
++++ b/src/encoding/asn1/asn1_test.go
+@@ -102,7 +102,7 @@ func TestParseInt32(t *testing.T) {
+ 		if (err == nil) != test.ok {
+ 			t.Errorf("#%d: Incorrect error result (did fail? %v, expected: %v)", i, err == nil, test.ok)
+ 		}
+-		if test.ok && int32(ret) != test.out {
++		if test.ok && ret != test.out {
+ 			t.Errorf("#%d: Bad result: %v (expected %v)", i, ret, test.out)
+ 		}
+ 	}
+diff --git a/src/encoding/base32/base32_test.go b/src/encoding/base32/base32_test.go
+index 5996b08cd8..8118531b38 100644
+--- a/src/encoding/base32/base32_test.go
++++ b/src/encoding/base32/base32_test.go
+@@ -268,7 +268,7 @@ func TestReaderEOF(t *testing.T) {
+ 		decoder := NewDecoder(StdEncoding, &br)
+ 		dbuf := make([]byte, StdEncoding.DecodedLen(len(input)))
+ 		n, err := decoder.Read(dbuf)
+-		testEqual(t, "Decoding of %q err = %v, expected %v", string(input), err, error(nil))
++		testEqual(t, "Decoding of %q err = %v, expected %v", input, err, error(nil))
+ 		n, err = decoder.Read(dbuf)
+ 		testEqual(t, "Read after EOF, n = %d, expected %d", n, 0)
+ 		testEqual(t, "Read after EOF, err = %v, expected %v", err, io.EOF)

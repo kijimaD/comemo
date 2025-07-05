@@ -12,10 +12,96 @@ Date:   Wed Apr 16 13:40:47 2014 +1000
     R=golang-codereviews, adg
     CC=golang-codereviews
     https://golang.org/cl/85720044
-
+---
  src/pkg/compress/gzip/gzip.go   | 8 ++++----
  src/pkg/compress/lzw/reader.go  | 4 ++--
  src/pkg/compress/lzw/writer.go  | 4 ++--
  src/pkg/compress/zlib/reader.go | 3 ++-
  src/pkg/compress/zlib/writer.go | 4 ++--
  5 files changed, 12 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/compress/gzip/gzip.go b/src/pkg/compress/gzip/gzip.go
+index fe32d6871a..3a0bf54e1b 100644
+--- a/src/pkg/compress/gzip/gzip.go
++++ b/src/pkg/compress/gzip/gzip.go
+@@ -22,8 +22,8 @@ const (
+ 	DefaultCompression = flate.DefaultCompression
+ )
+ 
+-// A Writer is an io.WriteCloser that satisfies writes by compressing data written
+-// to its wrapped io.Writer.
++// A Writer is an io.WriteCloser.
++// Writes to a Writer are compressed and written to w.
+ type Writer struct {
+ 	Header
+ 	w           io.Writer
+@@ -37,8 +37,8 @@ type Writer struct {
+ 	err         error
+ }
+ 
+-// NewWriter creates a new Writer that satisfies writes by compressing data
+-// written to w.
++// NewWriter returns a new Writer.
++// Writes to the returned writer are compressed and written to w.
+ //
+ // It is the caller's responsibility to call Close on the WriteCloser when done.
+ // Writes may be buffered and not flushed until Close.
+diff --git a/src/pkg/compress/lzw/reader.go b/src/pkg/compress/lzw/reader.go
+index efbc758f94..ef59699103 100644
+--- a/src/pkg/compress/lzw/reader.go
++++ b/src/pkg/compress/lzw/reader.go
+@@ -216,8 +216,8 @@ func (d *decoder) Close() error {
+ 	return nil
+ }
+ 
+-// NewReader creates a new io.ReadCloser that satisfies reads by decompressing
+-// the data read from r.
++// NewReader creates a new io.ReadCloser.
++// Reads from the returned io.ReadCloser read and decompress data from r.
+ // It is the caller's responsibility to call Close on the ReadCloser when
+ // finished reading.
+ // The number of bits to use for literal codes, litWidth, must be in the
+diff --git a/src/pkg/compress/lzw/writer.go b/src/pkg/compress/lzw/writer.go
+index b20691864b..961b25f94f 100644
+--- a/src/pkg/compress/lzw/writer.go
++++ b/src/pkg/compress/lzw/writer.go
+@@ -225,8 +225,8 @@ func (e *encoder) Close() error {
+ 	return e.w.Flush()
+ }
+ 
+-// NewWriter creates a new io.WriteCloser that satisfies writes by compressing
+-// the data and writing it to w.
++// NewWriter creates a new io.WriteCloser.
++// Writes to the returned io.WriteCloser are compressed and written to w.
+ // It is the caller's responsibility to call Close on the WriteCloser when
+ // finished writing.
+ // The number of bits to use for literal codes, litWidth, must be in the
+diff --git a/src/pkg/compress/zlib/reader.go b/src/pkg/compress/zlib/reader.go
+index d54746f4c0..9e1aafda9b 100644
+--- a/src/pkg/compress/zlib/reader.go
++++ b/src/pkg/compress/zlib/reader.go
+@@ -51,7 +51,8 @@ type reader struct {
+ 	scratch      [4]byte
+ }
+ 
+-// NewReader creates a new io.ReadCloser that satisfies reads by decompressing data read from r.
++// NewReader creates a new io.ReadCloser.
++// Reads from the returned io.ReadCloser read and decompress data from r.
+ // The implementation buffers input and may read more data than necessary from r.
+ // It is the caller's responsibility to call Close on the ReadCloser when done.
+ func NewReader(r io.Reader) (io.ReadCloser, error) {
+diff --git a/src/pkg/compress/zlib/writer.go b/src/pkg/compress/zlib/writer.go
+index 99ff6549ac..fac7e15a7e 100644
+--- a/src/pkg/compress/zlib/writer.go
++++ b/src/pkg/compress/zlib/writer.go
+@@ -34,8 +34,8 @@ type Writer struct {
+ 	wroteHeader bool
+ }
+ 
+-// NewWriter creates a new Writer that satisfies writes by compressing data
+-// written to w.
++// NewWriter creates a new Writer.
++// Writes to the returned Writer are compressed and written to w.
+ //
+ // It is the caller's responsibility to call Close on the WriteCloser when done.
+ // Writes may be buffered and not flushed until Close.

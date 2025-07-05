@@ -10,8 +10,69 @@ Date:   Fri Jul 30 11:32:55 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/1915042
-
+---
  src/pkg/runtime/darwin/thread.c  | 6 ++++--
  src/pkg/runtime/freebsd/thread.c | 6 ++++--
  src/pkg/runtime/linux/thread.c   | 6 ++++--
  3 files changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/runtime/darwin/thread.c b/src/pkg/runtime/darwin/thread.c
+index e51d530196..6f64c08738 100644
+--- a/src/pkg/runtime/darwin/thread.c
++++ b/src/pkg/runtime/darwin/thread.c
+@@ -453,11 +453,13 @@ sigpanic(void)
+ 	case SIGBUS:
+ 		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000)
+ 			panicstring("invalid memory address or nil pointer dereference");
+-		break;
++		printf("unexpected fault address %p\n", g->sigcode1);
++		throw("fault");
+ 	case SIGSEGV:
+ 		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR) && g->sigcode1 < 0x1000)
+ 			panicstring("invalid memory address or nil pointer dereference");
+-		break;
++		printf("unexpected fault address %p\n", g->sigcode1);
++		throw("fault");
+ 	case SIGFPE:
+ 		switch(g->sigcode0) {
+ 		case FPE_INTDIV:
+diff --git a/src/pkg/runtime/freebsd/thread.c b/src/pkg/runtime/freebsd/thread.c
+index 3340433122..c9c058c5ae 100644
+--- a/src/pkg/runtime/freebsd/thread.c
++++ b/src/pkg/runtime/freebsd/thread.c
+@@ -179,11 +179,13 @@ sigpanic(void)
+ 	case SIGBUS:
+ 		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000)
+ 			panicstring("invalid memory address or nil pointer dereference");
+-		break;
++		printf("unexpected fault address %p\n", g->sigcode1);
++		throw("fault");
+ 	case SIGSEGV:
+ 		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR) && g->sigcode1 < 0x1000)
+ 			panicstring("invalid memory address or nil pointer dereference");
+-		break;
++		printf("unexpected fault address %p\n", g->sigcode1);
++		throw("fault");
+ 	case SIGFPE:
+ 		switch(g->sigcode0) {
+ 		case FPE_INTDIV:
+diff --git a/src/pkg/runtime/linux/thread.c b/src/pkg/runtime/linux/thread.c
+index a849125f94..47bf3428f7 100644
+--- a/src/pkg/runtime/linux/thread.c
++++ b/src/pkg/runtime/linux/thread.c
+@@ -279,11 +279,13 @@ sigpanic(void)
+ 	case SIGBUS:
+ 		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000)
+ 			panicstring("invalid memory address or nil pointer dereference");
+-		break;
++		printf("unexpected fault address %p\n", g->sigcode1);
++		throw("fault");
+ 	case SIGSEGV:
+ 		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR) && g->sigcode1 < 0x1000)
+ 			panicstring("invalid memory address or nil pointer dereference");
+-		break;
++		printf("unexpected fault address %p\n", g->sigcode1);
++		throw("fault");
+ 	case SIGFPE:
+ 		switch(g->sigcode0) {
+ 		case FPE_INTDIV:

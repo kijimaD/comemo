@@ -17,8 +17,113 @@ Date:   Tue Feb 9 15:13:19 2021 -0800
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/noder/helpers.go |  5 ++++
  src/cmd/compile/internal/noder/stencil.go | 40 ++++++++++++++++++-------------
  test/typeparam/fact.go                    | 15 ++++--------
  3 files changed, 33 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index 2bf125bdd8..4cb6bc3eab 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -84,6 +84,11 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
+ 	if fun.Op() == ir.OTYPE {
+ 		// Actually a type conversion, not a function call.
+ 		n := ir.NewCallExpr(pos, ir.OCALL, fun, args)
++		if fun.Type().Kind() == types.TTYPEPARAM {
++			// For type params, don't typecheck until we actually know
++			// the type.
++			return typed(typ, n)
++		}
+ 		return typecheck.Expr(n)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 64320237d9..2995496da1 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -174,30 +174,36 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 		}
+ 		ir.EditChildren(m, edit)
+ 
+-		// A method value/call via a type param will have been left as an
+-		// OXDOT. When we see this during stenciling, finish the
+-		// typechecking, now that we have the instantiated receiver type.
+-		// We need to do this now, since the access/selection to the
+-		// method for the real type is very different from the selection
+-		// for the type param.
+ 		if x.Op() == ir.OXDOT {
+-			// Will transform to an OCALLPART
++			// A method value/call via a type param will have been left as an
++			// OXDOT. When we see this during stenciling, finish the
++			// typechecking, now that we have the instantiated receiver type.
++			// We need to do this now, since the access/selection to the
++			// method for the real type is very different from the selection
++			// for the type param.
+ 			m.SetTypecheck(0)
++			// m will transform to an OCALLPART
+ 			typecheck.Expr(m)
+ 		}
+ 		if x.Op() == ir.OCALL {
+ 			call := m.(*ir.CallExpr)
+-			if call.X.Op() != ir.OCALLPART {
+-				base.FatalfAt(call.Pos(), "Expecting OXDOT with CALL")
++			if call.X.Op() == ir.OTYPE {
++				// Do typechecking on a conversion, now that we
++				// know the type argument.
++				m.SetTypecheck(0)
++				m = typecheck.Expr(m)
++			} else if call.X.Op() == ir.OCALLPART {
++				// Redo the typechecking, now that we know the method
++				// value is being called.
++				call.X.(*ir.SelectorExpr).SetOp(ir.OXDOT)
++				call.X.SetTypecheck(0)
++				call.X.SetType(nil)
++				typecheck.Callee(call.X)
++				m.SetTypecheck(0)
++				typecheck.Call(m.(*ir.CallExpr))
++			} else {
++				base.FatalfAt(call.Pos(), "Expecting OCALLPART or OTYPE with CALL")
+ 			}
+-			// Redo the typechecking, now that we know the method
+-			// value is being called
+-			call.X.(*ir.SelectorExpr).SetOp(ir.OXDOT)
+-			call.X.SetTypecheck(0)
+-			call.X.SetType(nil)
+-			typecheck.Callee(call.X)
+-			m.SetTypecheck(0)
+-			typecheck.Call(m.(*ir.CallExpr))
+ 		}
+ 
+ 		if x.Op() == ir.OCLOSURE {
+diff --git a/test/typeparam/fact.go b/test/typeparam/fact.go
+index 8ed9bce7d8..16b2adf6fb 100644
+--- a/test/typeparam/fact.go
++++ b/test/typeparam/fact.go
+@@ -8,20 +8,15 @@ package main
+ 
+ import "fmt"
+ 
+-// TODO Stenciling doesn't do the right thing for T(1) at the moment.
+-
+ func fact[T interface { type int, int64, float64 }](n T) T {
+-	// TODO remove this return in favor of the correct computation below
+-	return n
+-	// if n == T(1) {
+-	// 	return T(1)
+-	// }
+-	// return n * fact(n - T(1))
++	if n == T(1) {
++		return T(1)
++	}
++	return n * fact(n - T(1))
+ }
+ 
+ func main() {
+-	// TODO change this to 120 once we can compile the function body above
+-	const want = 5 // 120
++	const want = 120
+ 
+ 	if got := fact(5); got != want {
+ 		panic(fmt.Sprintf("got %d, want %d", got, want))

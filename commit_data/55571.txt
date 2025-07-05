@@ -14,7 +14,7 @@ Date:   Tue Nov 29 15:43:08 2022 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/alldocs.go                              |  71 ++++++------
  src/cmd/go/internal/list/list.go                   |  71 ++++++------
  src/cmd/go/internal/load/godebug.go                | 128 +++++++++++++++++++++
@@ -29,3 +29,709 @@ Date:   Tue Nov 29 15:43:08 2022 -0500
  .../go/testdata/script/test_fuzz_mutate_crash.txt  |   2 +-
  src/cmd/go/testdata/script/work_use_issue55952.txt |   2 +-
  13 files changed, 411 insertions(+), 88 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 6780c919ae..084a104600 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -784,44 +784,45 @@
+ // to -f '{{.ImportPath}}'. The struct being passed to the template is:
+ //
+ //	type Package struct {
+-//	    Dir           string   // directory containing package sources
+-//	    ImportPath    string   // import path of package in dir
+-//	    ImportComment string   // path in import comment on package statement
+-//	    Name          string   // package name
+-//	    Doc           string   // package documentation string
+-//	    Target        string   // install path
+-//	    Shlib         string   // the shared library that contains this package (only set when -linkshared)
+-//	    Goroot        bool     // is this package in the Go root?
+-//	    Standard      bool     // is this package part of the standard Go library?
+-//	    Stale         bool     // would 'go install' do anything for this package?
+-//	    StaleReason   string   // explanation for Stale==true
+-//	    Root          string   // Go root or Go path dir containing this package
+-//	    ConflictDir   string   // this directory shadows Dir in $GOPATH
+-//	    BinaryOnly    bool     // binary-only package (no longer supported)
+-//	    ForTest       string   // package is only for use in named test
+-//	    Export        string   // file containing export data (when using -export)
+-//	    BuildID       string   // build ID of the compiled package (when using -export)
+-//	    Module        *Module  // info about package's containing module, if any (can be nil)
+-//	    Match         []string // command-line patterns matching this package
+-//	    DepOnly       bool     // package is only a dependency, not explicitly listed
++//	    Dir            string   // directory containing package sources
++//	    ImportPath     string   // import path of package in dir
++//	    ImportComment  string   // path in import comment on package statement
++//	    Name           string   // package name
++//	    Doc            string   // package documentation string
++//	    Target         string   // install path
++//	    Shlib          string   // the shared library that contains this package (only set when -linkshared)
++//	    Goroot         bool     // is this package in the Go root?
++//	    Standard       bool     // is this package part of the standard Go library?
++//	    Stale          bool     // would 'go install' do anything for this package?
++//	    StaleReason    string   // explanation for Stale==true
++//	    Root           string   // Go root or Go path dir containing this package
++//	    ConflictDir    string   // this directory shadows Dir in $GOPATH
++//	    BinaryOnly     bool     // binary-only package (no longer supported)
++//	    ForTest        string   // package is only for use in named test
++//	    Export         string   // file containing export data (when using -export)
++//	    BuildID        string   // build ID of the compiled package (when using -export)
++//	    Module         *Module  // info about package's containing module, if any (can be nil)
++//	    Match          []string // command-line patterns matching this package
++//	    DepOnly        bool     // package is only a dependency, not explicitly listed
++//	    DefaultGODEBUG string  // default GODEBUG setting, for main packages
+ //
+ //	    // Source files
+-//	    GoFiles         []string   // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+-//	    CgoFiles        []string   // .go source files that import "C"
+-//	    CompiledGoFiles []string   // .go files presented to compiler (when using -compiled)
+-//	    IgnoredGoFiles  []string   // .go source files ignored due to build constraints
++//	    GoFiles           []string   // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
++//	    CgoFiles          []string   // .go source files that import "C"
++//	    CompiledGoFiles   []string   // .go files presented to compiler (when using -compiled)
++//	    IgnoredGoFiles    []string   // .go source files ignored due to build constraints
+ //	    IgnoredOtherFiles []string // non-.go source files ignored due to build constraints
+-//	    CFiles          []string   // .c source files
+-//	    CXXFiles        []string   // .cc, .cxx and .cpp source files
+-//	    MFiles          []string   // .m source files
+-//	    HFiles          []string   // .h, .hh, .hpp and .hxx source files
+-//	    FFiles          []string   // .f, .F, .for and .f90 Fortran source files
+-//	    SFiles          []string   // .s source files
+-//	    SwigFiles       []string   // .swig files
+-//	    SwigCXXFiles    []string   // .swigcxx files
+-//	    SysoFiles       []string   // .syso object files to add to archive
+-//	    TestGoFiles     []string   // _test.go files in package
+-//	    XTestGoFiles    []string   // _test.go files outside package
++//	    CFiles            []string   // .c source files
++//	    CXXFiles          []string   // .cc, .cxx and .cpp source files
++//	    MFiles            []string   // .m source files
++//	    HFiles            []string   // .h, .hh, .hpp and .hxx source files
++//	    FFiles            []string   // .f, .F, .for and .f90 Fortran source files
++//	    SFiles            []string   // .s source files
++//	    SwigFiles         []string   // .swig files
++//	    SwigCXXFiles      []string   // .swigcxx files
++//	    SysoFiles         []string   // .syso object files to add to archive
++//	    TestGoFiles       []string   // _test.go files in package
++//	    XTestGoFiles      []string   // _test.go files outside package
+ //
+ //	    // Embedded files
+ //	    EmbedPatterns      []string // //go:embed patterns
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 811d659ba3..fc2e087dba 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -52,44 +52,45 @@ syntax of package template. The default output is equivalent
+ to -f '{{.ImportPath}}'. The struct being passed to the template is:
+ 
+     type Package struct {
+-        Dir           string   // directory containing package sources
+-        ImportPath    string   // import path of package in dir
+-        ImportComment string   // path in import comment on package statement
+-        Name          string   // package name
+-        Doc           string   // package documentation string
+-        Target        string   // install path
+-        Shlib         string   // the shared library that contains this package (only set when -linkshared)
+-        Goroot        bool     // is this package in the Go root?
+-        Standard      bool     // is this package part of the standard Go library?
+-        Stale         bool     // would 'go install' do anything for this package?
+-        StaleReason   string   // explanation for Stale==true
+-        Root          string   // Go root or Go path dir containing this package
+-        ConflictDir   string   // this directory shadows Dir in $GOPATH
+-        BinaryOnly    bool     // binary-only package (no longer supported)
+-        ForTest       string   // package is only for use in named test
+-        Export        string   // file containing export data (when using -export)
+-        BuildID       string   // build ID of the compiled package (when using -export)
+-        Module        *Module  // info about package's containing module, if any (can be nil)
+-        Match         []string // command-line patterns matching this package
+-        DepOnly       bool     // package is only a dependency, not explicitly listed
++        Dir            string   // directory containing package sources
++        ImportPath     string   // import path of package in dir
++        ImportComment  string   // path in import comment on package statement
++        Name           string   // package name
++        Doc            string   // package documentation string
++        Target         string   // install path
++        Shlib          string   // the shared library that contains this package (only set when -linkshared)
++        Goroot         bool     // is this package in the Go root?
++        Standard       bool     // is this package part of the standard Go library?
++        Stale          bool     // would 'go install' do anything for this package?
++        StaleReason    string   // explanation for Stale==true
++        Root           string   // Go root or Go path dir containing this package
++        ConflictDir    string   // this directory shadows Dir in $GOPATH
++        BinaryOnly     bool     // binary-only package (no longer supported)
++        ForTest        string   // package is only for use in named test
++        Export         string   // file containing export data (when using -export)
++        BuildID        string   // build ID of the compiled package (when using -export)
++        Module         *Module  // info about package's containing module, if any (can be nil)
++        Match          []string // command-line patterns matching this package
++        DepOnly        bool     // package is only a dependency, not explicitly listed
++        DefaultGODEBUG string  // default GODEBUG setting, for main packages
+ 
+         // Source files
+-        GoFiles         []string   // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+-        CgoFiles        []string   // .go source files that import "C"
+-        CompiledGoFiles []string   // .go files presented to compiler (when using -compiled)
+-        IgnoredGoFiles  []string   // .go source files ignored due to build constraints
++        GoFiles           []string   // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
++        CgoFiles          []string   // .go source files that import "C"
++        CompiledGoFiles   []string   // .go files presented to compiler (when using -compiled)
++        IgnoredGoFiles    []string   // .go source files ignored due to build constraints
+         IgnoredOtherFiles []string // non-.go source files ignored due to build constraints
+-        CFiles          []string   // .c source files
+-        CXXFiles        []string   // .cc, .cxx and .cpp source files
+-        MFiles          []string   // .m source files
+-        HFiles          []string   // .h, .hh, .hpp and .hxx source files
+-        FFiles          []string   // .f, .F, .for and .f90 Fortran source files
+-        SFiles          []string   // .s source files
+-        SwigFiles       []string   // .swig files
+-        SwigCXXFiles    []string   // .swigcxx files
+-        SysoFiles       []string   // .syso object files to add to archive
+-        TestGoFiles     []string   // _test.go files in package
+-        XTestGoFiles    []string   // _test.go files outside package
++        CFiles            []string   // .c source files
++        CXXFiles          []string   // .cc, .cxx and .cpp source files
++        MFiles            []string   // .m source files
++        HFiles            []string   // .h, .hh, .hpp and .hxx source files
++        FFiles            []string   // .f, .F, .for and .f90 Fortran source files
++        SFiles            []string   // .s source files
++        SwigFiles         []string   // .swig files
++        SwigCXXFiles      []string   // .swigcxx files
++        SysoFiles         []string   // .syso object files to add to archive
++        TestGoFiles       []string   // _test.go files in package
++        XTestGoFiles      []string   // _test.go files outside package
+ 
+         // Embedded files
+         EmbedPatterns      []string // //go:embed patterns
+diff --git a/src/cmd/go/internal/load/godebug.go b/src/cmd/go/internal/load/godebug.go
+new file mode 100644
+index 0000000000..f65c40d3e0
+--- /dev/null
++++ b/src/cmd/go/internal/load/godebug.go
+@@ -0,0 +1,128 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package load
++
++import (
++	"cmd/go/internal/modload"
++	"errors"
++	"fmt"
++	"go/build"
++	"sort"
++	"strconv"
++	"strings"
++)
++
++var ErrNotGoDebug = errors.New("not //go:debug line")
++
++func ParseGoDebug(text string) (key, value string, err error) {
++	if !strings.HasPrefix(text, "//go:debug") {
++		return "", "", ErrNotGoDebug
++	}
++	i := strings.IndexAny(text, " \t")
++	if i < 0 {
++		if strings.TrimSpace(text) == "//go:debug" {
++			return "", "", fmt.Errorf("missing key=value")
++		}
++		return "", "", ErrNotGoDebug
++	}
++	k, v, ok := strings.Cut(strings.TrimSpace(text[i:]), "=")
++	if !ok {
++		return "", "", fmt.Errorf("missing key=value")
++	}
++	if strings.ContainsAny(k, " \t") {
++		return "", "", fmt.Errorf("key contains space")
++	}
++	if strings.ContainsAny(v, " \t") {
++		return "", "", fmt.Errorf("value contains space")
++	}
++	if strings.ContainsAny(k, ",") {
++		return "", "", fmt.Errorf("key contains comma")
++	}
++	if strings.ContainsAny(v, ",") {
++		return "", "", fmt.Errorf("value contains comma")
++	}
++	return k, v, nil
++}
++
++// defaultGODEBUG returns the default GODEBUG setting for the main package p.
++// When building a test binary, directives, testDirectives, and xtestDirectives
++// list additional directives from the package under test.
++func defaultGODEBUG(p *Package, directives, testDirectives, xtestDirectives []build.Directive) string {
++	if p.Name != "main" {
++		return ""
++	}
++	goVersion := modload.MainModules.GoVersion()
++	if modload.RootMode == modload.NoRoot && p.Module != nil {
++		// This is go install pkg@version or go run pkg@version.
++		// Use the Go version from the package.
++		// If there isn't one, then
++		goVersion = p.Module.GoVersion
++		if goVersion == "" {
++			goVersion = "1.20"
++		}
++	}
++
++	m := godebugForGoVersion(goVersion)
++	for _, list := range [][]build.Directive{p.Internal.Build.Directives, directives, testDirectives, xtestDirectives} {
++		for _, d := range list {
++			k, v, err := ParseGoDebug(d.Text)
++			if err != nil {
++				continue
++			}
++			if m == nil {
++				m = make(map[string]string)
++			}
++			m[k] = v
++		}
++	}
++	var keys []string
++	for k := range m {
++		keys = append(keys, k)
++	}
++	sort.Strings(keys)
++	var b strings.Builder
++	for _, k := range keys {
++		if b.Len() > 0 {
++			b.WriteString(",")
++		}
++		b.WriteString(k)
++		b.WriteString("=")
++		b.WriteString(m[k])
++	}
++	return b.String()
++}
++
++func godebugForGoVersion(v string) map[string]string {
++	if strings.Count(v, ".") >= 2 {
++		i := strings.Index(v, ".")
++		j := i + 1 + strings.Index(v[i+1:], ".")
++		v = v[:j]
++	}
++
++	if !strings.HasPrefix(v, "1.") {
++		return nil
++	}
++	n, err := strconv.Atoi(v[len("1."):])
++	if err != nil {
++		return nil
++	}
++
++	def := make(map[string]string)
++	for _, d := range defaultGodebugs {
++		if (d.before != 0 && n < d.before) || (d.first != 0 && n >= d.first) {
++			def[d.name] = d.value
++		}
++	}
++	return def
++}
++
++var defaultGodebugs = []struct {
++	before int // applies to Go versions up until this one (21 for Go 1.21)
++	first  int // applies to Go versions starting at this one (21 for Go 1.21)
++	name   string
++	value  string
++}{
++	{before: 21, name: "panicnil", value: "1"},
++}
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 11b69cb6f4..2d479561ac 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -58,7 +58,7 @@ type Package struct {
+ type PackagePublic struct {
+ 	// Note: These fields are part of the go command's public API.
+ 	// See list.go. It is okay to add fields, but not to change or
+-	// remove existing ones. Keep in sync with list.go
++	// remove existing ones. Keep in sync with ../list/list.go
+ 	Dir           string                `json:",omitempty"` // directory containing package sources
+ 	ImportPath    string                `json:",omitempty"` // import path of package in dir
+ 	ImportComment string                `json:",omitempty"` // path in import comment on package statement
+@@ -79,6 +79,8 @@ type PackagePublic struct {
+ 	BinaryOnly    bool                  `json:",omitempty"` // package cannot be recompiled
+ 	Incomplete    bool                  `json:",omitempty"` // was there an error loading this package or dependencies?
+ 
++	DefaultGODEBUG string `json:",omitempty"` // default GODEBUG setting (only for Name=="main")
++
+ 	// Stale and StaleReason remain here *only* for the list command.
+ 	// They are only initialized in preparation for list execution.
+ 	// The regular build determines staleness on the fly during action execution.
+@@ -230,9 +232,6 @@ type PackageInternal struct {
+ 	TestmainGo        *[]byte              // content for _testmain.go
+ 	Embed             map[string][]string  // //go:embed comment mapping
+ 	OrigImportPath    string               // original import path before adding '_test' suffix
+-	Directives        []build.Directive
+-	TestDirectives    []build.Directive
+-	XTestDirectives   []build.Directive
+ 
+ 	Asmflags   []string // -asmflags for this package
+ 	Gcflags    []string // -gcflags for this package
+@@ -438,9 +437,6 @@ func (p *Package) copyBuild(opts PackageOpts, pp *build.Package) {
+ 	p.TestEmbedPatterns = pp.TestEmbedPatterns
+ 	p.XTestEmbedPatterns = pp.XTestEmbedPatterns
+ 	p.Internal.OrigImportPath = pp.ImportPath
+-	p.Internal.Directives = pp.Directives
+-	p.Internal.TestDirectives = pp.TestDirectives
+-	p.Internal.XTestDirectives = pp.XTestDirectives
+ }
+ 
+ // A PackageError describes an error loading information about a package.
+@@ -1924,6 +1920,7 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
+ 	if cfg.ModulesEnabled {
+ 		p.Module = modload.PackageModuleInfo(ctx, pkgPath)
+ 	}
++	p.DefaultGODEBUG = defaultGODEBUG(p, nil, nil, nil)
+ 
+ 	p.EmbedFiles, p.Internal.Embed, err = resolveEmbed(p.Dir, p.EmbedPatterns)
+ 	if err != nil {
+@@ -2405,6 +2402,9 @@ func (p *Package) setBuildInfo(autoVCS bool) {
+ 	if cfg.BuildTrimpath {
+ 		appendSetting("-trimpath", "true")
+ 	}
++	if p.DefaultGODEBUG != "" {
++		appendSetting("DefaultGODEBUG", p.DefaultGODEBUG)
++	}
+ 	cgo := "0"
+ 	if cfg.BuildContext.CgoEnabled {
+ 		cgo = "1"
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index 0c20a23b00..38afd96aa4 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -23,6 +23,7 @@ import (
+ 
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/fsys"
++	"cmd/go/internal/slices"
+ 	"cmd/go/internal/str"
+ 	"cmd/go/internal/trace"
+ )
+@@ -205,6 +206,7 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
+ 		ptest.Internal.Embed = testEmbed
+ 		ptest.EmbedFiles = str.StringList(p.EmbedFiles, p.TestEmbedFiles)
+ 		ptest.Internal.OrigImportPath = p.Internal.OrigImportPath
++		ptest.Internal.Build.Directives = append(slices.Clip(p.Internal.Build.Directives), p.Internal.Build.TestDirectives...)
+ 		ptest.collectDeps()
+ 	} else {
+ 		ptest = p
+@@ -229,7 +231,8 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
+ 			Internal: PackageInternal{
+ 				LocalPrefix: p.Internal.LocalPrefix,
+ 				Build: &build.Package{
+-					ImportPos: p.Internal.Build.XTestImportPos,
++					ImportPos:  p.Internal.Build.XTestImportPos,
++					Directives: p.Internal.Build.XTestDirectives,
+ 				},
+ 				Imports:    ximports,
+ 				RawImports: rawXTestImports,
+@@ -270,6 +273,9 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
+ 		},
+ 	}
+ 
++	pb := p.Internal.Build
++	pmain.DefaultGODEBUG = defaultGODEBUG(pmain, pb.Directives, pb.TestDirectives, pb.XTestDirectives)
++
+ 	// The generated main also imports testing, regexp, and os.
+ 	// Also the linker introduces implicit dependencies reported by LinkerDeps.
+ 	stk.Push("testmain")
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index b23966d83a..61e7335c70 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -221,15 +221,19 @@ func (mms *MainModuleSet) HighestReplaced() map[string]string {
+ // GoVersion returns the go version set on the single module, in module mode,
+ // or the go.work file in workspace mode.
+ func (mms *MainModuleSet) GoVersion() string {
+-	if !inWorkspaceMode() {
++	switch {
++	case inWorkspaceMode():
++		v := mms.workFileGoVersion
++		if v == "" {
++			// Fall back to 1.18 for go.work files.
++			v = "1.18"
++		}
++		return v
++	case mms == nil || len(mms.versions) == 0:
++		return "1.18"
++	default:
+ 		return modFileGoVersion(mms.ModFile(mms.mustGetSingleMainModule()))
+ 	}
+-	v := mms.workFileGoVersion
+-	if v == "" {
+-		// Fall back to 1.18 for go.work files.
+-		v = "1.18"
+-	}
+-	return v
+ }
+ 
+ func (mms *MainModuleSet) WorkFileReplaceMap() map[module.Version]module.Version {
+@@ -726,7 +730,7 @@ func LoadModFile(ctx context.Context) *Requirements {
+ 		data, f, err := ReadModFile(gomod, fixVersion(ctx, &fixed))
+ 		if err != nil {
+ 			if inWorkspaceMode() {
+-				base.Fatalf("go: cannot load module listed in go.work file: %v", err)
++				base.Fatalf("go: cannot load module %s listed in go.work file: %v", base.ShortPath(gomod), err)
+ 			} else {
+ 				base.Fatalf("go: %v", err)
+ 			}
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 9c8b14df00..a14127f260 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -13,6 +13,7 @@ import (
+ 	"encoding/json"
+ 	"errors"
+ 	"fmt"
++	"go/token"
+ 	"internal/coverage"
+ 	"internal/lazyregexp"
+ 	"io"
+@@ -527,6 +528,10 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
+ 		return errors.New("binary-only packages are no longer supported")
+ 	}
+ 
++	if err := b.checkDirectives(a); err != nil {
++		return err
++	}
++
+ 	if err := b.Mkdir(a.Objdir); err != nil {
+ 		return err
+ 	}
+@@ -956,6 +961,37 @@ OverlayLoop:
+ 	return nil
+ }
+ 
++func (b *Builder) checkDirectives(a *Action) error {
++	var msg *bytes.Buffer
++	p := a.Package
++	var seen map[string]token.Position
++	for _, d := range p.Internal.Build.Directives {
++		if strings.HasPrefix(d.Text, "//go:debug") {
++			key, _, err := load.ParseGoDebug(d.Text)
++			if err != nil && err != load.ErrNotGoDebug {
++				if msg == nil {
++					msg = new(bytes.Buffer)
++				}
++				fmt.Fprintf(msg, "%s: invalid //go:debug: %v\n", d.Pos, err)
++				continue
++			}
++			if pos, ok := seen[key]; ok {
++				fmt.Fprintf(msg, "%s: repeated //go:debug for %v\n\t%s: previous //go:debug\n", d.Pos, key, pos)
++				continue
++			}
++			if seen == nil {
++				seen = make(map[string]token.Position)
++			}
++			seen[key] = d.Pos
++		}
++	}
++	if msg != nil {
++		return formatOutput(b.WorkDir, p.Dir, p.ImportPath, p.Desc(), b.processOutput(msg.Bytes()))
++
++	}
++	return nil
++}
++
+ func (b *Builder) cacheObjdirFile(a *Action, c *cache.Cache, name string) error {
+ 	f, err := os.Open(a.Objdir + name)
+ 	if err != nil {
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 1193a5bbfd..3f59b6d41f 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -648,6 +648,11 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string)
+ 		}
+ 	}
+ 
++	// Store default GODEBUG in binaries.
++	if root.Package.DefaultGODEBUG != "" {
++		ldflags = append(ldflags, "-X=runtime.godebugDefault="+root.Package.DefaultGODEBUG)
++	}
++
+ 	// If the user has not specified the -extld option, then specify the
+ 	// appropriate linker. In case of C++ code, use the compiler named
+ 	// by the CXX environment variable or defaultCXX if CXX is not set.
+diff --git a/src/cmd/go/testdata/mod/rsc.io_panicnil_v1.0.0.txt b/src/cmd/go/testdata/mod/rsc.io_panicnil_v1.0.0.txt
+new file mode 100644
+index 0000000000..6ea1b22e08
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/rsc.io_panicnil_v1.0.0.txt
+@@ -0,0 +1,13 @@
++rsc.io/panicnil v1.0.0
++written by hand
++
++-- .mod --
++module rsc.io/panicnil
++-- .info --
++{"Version":"v1.0.0"}
++-- fortune.go --
++package main
++
++func main() {
++	panic(nil)
++}
+diff --git a/src/cmd/go/testdata/mod/rsc.io_panicnil_v1.1.0.txt b/src/cmd/go/testdata/mod/rsc.io_panicnil_v1.1.0.txt
+new file mode 100644
+index 0000000000..fe67a8838c
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/rsc.io_panicnil_v1.1.0.txt
+@@ -0,0 +1,14 @@
++rsc.io/panicnil v1.1.0
++written by hand
++
++-- .mod --
++module rsc.io/panicnil
++go 1.21
++-- .info --
++{"Version":"v1.1.0"}
++-- fortune.go --
++package main
++
++func main() {
++	panic(nil)
++}
+diff --git a/src/cmd/go/testdata/script/godebug_default.txt b/src/cmd/go/testdata/script/godebug_default.txt
+new file mode 100644
+index 0000000000..ab642c293c
+--- /dev/null
++++ b/src/cmd/go/testdata/script/godebug_default.txt
+@@ -0,0 +1,115 @@
++env GO111MODULE=on
++env GOTRACEBACK=single
++
++# Go 1.21 work module should leave panicnil with an implicit default.
++cp go.mod.21 go.mod
++go list -f '{{.Module.GoVersion}} {{.DefaultGODEBUG}}'
++! stdout panicnil
++stdout randautoseed=0
++
++# Go 1.21 work module should NOT set panicnil=1 in Go 1.20 dependency.
++cp go.mod.21 go.mod
++go list -f '{{.Module.GoVersion}} {{.DefaultGODEBUG}}' q
++! stdout panicnil=1
++! stdout randautoseed
++
++go mod download rsc.io/panicnil # for go.sum
++go list -f '{{.Module.GoVersion}} {{.DefaultGODEBUG}}' rsc.io/panicnil
++! stdout panicnil=1
++! stdout randautoseed
++
++# Go 1.20 work module should set panicnil=1.
++cp go.mod.20 go.mod
++go list -f '{{.Module.GoVersion}} {{.DefaultGODEBUG}}'
++stdout panicnil=1
++stdout randautoseed=0
++
++# Go 1.20 work module should set panicnil=1 in Go 1.20 dependency.
++cp go.mod.20 go.mod
++go list -f '{{.Module.GoVersion}} {{.DefaultGODEBUG}}' q
++stdout panicnil=1
++! stdout randautoseed
++
++# Go 1.21 workspace should leave panicnil with an implicit default.
++cat q/go.mod
++cp go.work.21 go.work
++go list -f '{{.Module.GoVersion}} {{.DefaultGODEBUG}}'
++! stdout panicnil
++stdout randautoseed=0
++rm go.work
++
++# Go 1.20 workspace should set panicnil=1 even in Go 1.21 module.
++cp go.work.20 go.work
++cp go.mod.21 go.mod
++go list -f '{{.Module.GoVersion}} {{.DefaultGODEBUG}}'
++stdout panicnil=1
++stdout randautoseed=0
++rm go.work
++
++[short] skip
++
++# Programs in Go 1.21 work module should trigger run-time error.
++cp go.mod.21 go.mod
++! go run .
++stderr 'panic: panic called with nil argument'
++
++! go run rsc.io/panicnil
++stderr 'panic: panic called with nil argument'
++
++# Programs in Go 1.20 work module use old panic nil behavior.
++cp go.mod.20 go.mod
++! go run .
++stderr 'panic: nil'
++
++! go run rsc.io/panicnil
++stderr 'panic: nil'
++
++# Programs in no module at all should use their go.mod file.
++rm go.mod
++! go run rsc.io/panicnil@v1.0.0
++stderr 'panic: nil'
++
++rm go.mod
++! go run rsc.io/panicnil@v1.1.0
++stderr 'panic: panic called with nil argument'
++
++-- go.work.21 --
++go 1.21
++use .
++use ./q
++
++-- go.work.20 --
++go 1.20
++use .
++use ./q
++
++-- go.mod.21 --
++go 1.21
++module m
++require q v1.0.0
++replace q => ./q
++require rsc.io/panicnil v1.0.0
++
++-- go.mod.20 --
++go 1.20
++module m
++require q v1.0.0
++replace q => ./q
++require rsc.io/panicnil v1.0.0
++
++-- p.go --
++//go:debug randautoseed=0
++
++package main
++
++func main() {
++	panic(nil)
++}
++
++-- q/go.mod --
++go 1.20
++module q
++
++-- q/q.go --
++package main
++func main() {}
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt b/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
+index 47d685d9c1..e0bfdbb408 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
+@@ -25,7 +25,7 @@ stdout 'this input caused a crash!'
+ 
+ ! go test -run=FuzzWithNilPanic -fuzz=FuzzWithNilPanic -fuzztime=100x -fuzzminimizetime=1000x
+ stdout 'testdata[/\\]fuzz[/\\]FuzzWithNilPanic[/\\]'
+-stdout 'panic called with nil argument'
++stdout 'panic called with nil argument|test executed panic.nil. or runtime.Goexit'
+ go run check_testdata.go FuzzWithNilPanic
+ 
+ ! go test -run=FuzzWithGoexit -fuzz=FuzzWithGoexit -fuzztime=100x -fuzzminimizetime=1000x
+diff --git a/src/cmd/go/testdata/script/work_use_issue55952.txt b/src/cmd/go/testdata/script/work_use_issue55952.txt
+index 2eef36199d..31b243bbc8 100644
+--- a/src/cmd/go/testdata/script/work_use_issue55952.txt
++++ b/src/cmd/go/testdata/script/work_use_issue55952.txt
+@@ -1,5 +1,5 @@
+ ! go list .
+-stderr '^go: cannot load module listed in go\.work file: open .+go\.mod:'
++stderr '^go: cannot load module y.go.mod listed in go\.work file: open .+go\.mod:'
+ 
+ -- go.work --
+ use ./y

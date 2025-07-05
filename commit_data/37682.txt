@@ -28,6 +28,55 @@ Date:   Sun Jul 22 12:36:15 2018 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/json/encode.go | 30 +++++++++++++++---------------
  1 file changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 40bc060644..bb4c54e8d6 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -632,8 +632,21 @@ func (se structEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
+ 	first := true
+ 	for i := range se.fields {
+ 		f := &se.fields[i]
+-		fv := fieldByIndex(v, f.index)
+-		if !fv.IsValid() || f.omitEmpty && isEmptyValue(fv) {
++
++		// Find the nested struct field by following f.index.
++		fv := v
++	FieldLoop:
++		for _, i := range f.index {
++			if fv.Kind() == reflect.Ptr {
++				if fv.IsNil() {
++					continue FieldLoop
++				}
++				fv = fv.Elem()
++			}
++			fv = fv.Field(i)
++		}
++
++		if f.omitEmpty && isEmptyValue(fv) {
+ 			continue
+ 		}
+ 		if first {
+@@ -835,19 +848,6 @@ func isValidTag(s string) bool {
+ 	return true
+ }
+ 
+-func fieldByIndex(v reflect.Value, index []int) reflect.Value {
+-	for _, i := range index {
+-		if v.Kind() == reflect.Ptr {
+-			if v.IsNil() {
+-				return reflect.Value{}
+-			}
+-			v = v.Elem()
+-		}
+-		v = v.Field(i)
+-	}
+-	return v
+-}
+-
+ func typeByIndex(t reflect.Type, index []int) reflect.Type {
+ 	for _, i := range index {
+ 		if t.Kind() == reflect.Ptr {

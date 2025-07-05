@@ -8,7 +8,74 @@ Date:   Thu Sep 3 17:01:10 2009 -0700
     DELTA=34  (34 added, 0 deleted, 0 changed)
     OCL=34280
     CL=34352
-
+---
  src/pkg/go/parser/interface.go | 20 ++++++++++++++++++++
  src/pkg/go/parser/parser.go    | 14 ++++++++++++++
  2 files changed, 34 insertions(+)
+
+diff --git a/src/pkg/go/parser/interface.go b/src/pkg/go/parser/interface.go
+index 94835b8ece..d840e9a4a0 100644
+--- a/src/pkg/go/parser/interface.go
++++ b/src/pkg/go/parser/interface.go
+@@ -8,9 +8,11 @@ package parser
+ 
+ import (
+ 	"bytes";
++	"container/vector";
+ 	"fmt";
+ 	"go/ast";
+ 	"go/scanner";
++	"go/token";
+ 	"io";
+ 	"os";
+ 	pathutil "path";
+@@ -86,6 +88,24 @@ func ParseStmtList(filename string, src interface{}) ([]ast.Stmt, os.Error) {
+ }
+ 
+ 
++// ParseDeclList parses a list of Go declarations and returns the list
++// of corresponding AST nodes.  The filename and src arguments have the same
++// interpretation as for ParseFile. If there is an error, the node
++// list may be nil or contain partial ASTs.
++//
++func ParseDeclList(filename string, src interface{}) ([]ast.Decl, os.Error) {
++	data, err := readSource(filename, src);
++	if err != nil {
++		return nil, err;
++	}
++
++	var p parser;
++	p.init(filename, data, 0);
++	list := p.parseDeclList();  // TODO 6g bug - function call order in expr lists
++	return list, p.GetError(scanner.Sorted);
++}
++
++
+ // ParseFile parses a Go source file and returns a File node.
+ //
+ // If src != nil, ParseFile parses the file source from src. src may
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index f9d38a4b0c..de44ed8651 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -1889,6 +1889,20 @@ func (p *parser) parseDecl(getSemi bool) (decl ast.Decl, gotSemi bool) {
+ }
+ 
+ 
++func (p *parser) parseDeclList() []ast.Decl {
++	var list vector.Vector;
++	for p.tok != token.EOF {
++		decl, _ := p.parseDecl(true);	// consume optional semicolon
++		list.Push(decl);
++	}
++	decls := make([]ast.Decl, list.Len());
++	for i := 0; i < list.Len(); i++ {
++		decls[i] = list.At(i).(ast.Decl);
++	}
++	return decls;
++}
++
++
+ // ----------------------------------------------------------------------------
+ // Source files
+ 

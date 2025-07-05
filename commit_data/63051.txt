@@ -9,7 +9,7 @@ Date:   Fri Apr 4 10:44:38 2025 -0700
     TryBot-Bypass: Mark Freeman <mark@golang.org>
     Auto-Submit: Mark Freeman <mark@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/resolver.go                   | 4 +---
  src/go/internal/srcimporter/srcimporter_test.go               | 2 +-
  src/go/internal/srcimporter/testdata/issue20855/issue20855.go | 2 +-
@@ -17,3 +17,82 @@ Date:   Fri Apr 4 10:44:38 2025 -0700
  src/internal/types/testdata/check/decls0.go                   | 2 +-
  test/fixedbugs/issue3705.go                                   | 2 +-
  6 files changed, 6 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/resolver.go b/src/cmd/compile/internal/types2/resolver.go
+index b9ece5e694..9d8769b96f 100644
+--- a/src/cmd/compile/internal/types2/resolver.go
++++ b/src/cmd/compile/internal/types2/resolver.go
+@@ -436,10 +436,8 @@ func (check *Checker) collectObjects() {
+ 					if name == "init" {
+ 						obj.parent = pkg.scope
+ 						check.recordDef(s.Name, obj)
+-						// init functions must have a body
+ 						if s.Body == nil {
+-							// TODO(gri) make this error message consistent with the others above
+-							check.softErrorf(obj.pos, MissingInitBody, "missing function body")
++							check.softErrorf(obj.pos, MissingInitBody, "func init must have a body")
+ 						}
+ 					} else {
+ 						check.declare(pkg.scope, s.Name, obj, nopos)
+diff --git a/src/go/internal/srcimporter/srcimporter_test.go b/src/go/internal/srcimporter/srcimporter_test.go
+index 5adb8831a9..ce1e597286 100644
+--- a/src/go/internal/srcimporter/srcimporter_test.go
++++ b/src/go/internal/srcimporter/srcimporter_test.go
+@@ -192,7 +192,7 @@ func TestIssue20855(t *testing.T) {
+ 	testenv.MustHaveSource(t)
+ 
+ 	pkg, err := importer.ImportFrom("go/internal/srcimporter/testdata/issue20855", ".", 0)
+-	if err == nil || !strings.Contains(err.Error(), "missing function body") {
++	if err == nil || !strings.Contains(err.Error(), "func init must have a body") {
+ 		t.Fatalf("got unexpected or no error: %v", err)
+ 	}
+ 	if pkg == nil {
+diff --git a/src/go/internal/srcimporter/testdata/issue20855/issue20855.go b/src/go/internal/srcimporter/testdata/issue20855/issue20855.go
+index d55448b44c..1c57a7c31b 100644
+--- a/src/go/internal/srcimporter/testdata/issue20855/issue20855.go
++++ b/src/go/internal/srcimporter/testdata/issue20855/issue20855.go
+@@ -4,4 +4,4 @@
+ 
+ package issue20855
+ 
+-func init() // "missing function body" is a soft error
++func init() // "func init must have a body" is a soft error
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index f11a510c1f..dcf863b029 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -425,10 +425,8 @@ func (check *Checker) collectObjects() {
+ 						// don't declare init functions in the package scope - they are invisible
+ 						obj.parent = pkg.scope
+ 						check.recordDef(d.decl.Name, obj)
+-						// init functions must have a body
+ 						if d.decl.Body == nil {
+-							// TODO(gri) make this error message consistent with the others above
+-							check.softErrorf(obj, MissingInitBody, "missing function body")
++							check.softErrorf(obj, MissingInitBody, "func init must have a body")
+ 						}
+ 					} else {
+ 						check.declare(pkg.scope, d.decl.Name, obj, nopos)
+diff --git a/src/internal/types/testdata/check/decls0.go b/src/internal/types/testdata/check/decls0.go
+index f9b0849dad..f5345135db 100644
+--- a/src/internal/types/testdata/check/decls0.go
++++ b/src/internal/types/testdata/check/decls0.go
+@@ -43,7 +43,7 @@ type init /* ERROR "cannot declare init" */ struct{}
+ var _, init /* ERROR "cannot declare init" */ int
+ 
+ func init() {}
+-func init /* ERROR "missing function body" */ ()
++func init /* ERROR "func init must have a body" */ ()
+ 
+ func _() { const init = 0 }
+ func _() { type init int }
+diff --git a/test/fixedbugs/issue3705.go b/test/fixedbugs/issue3705.go
+index ed0a193dcf..b75094288f 100644
+--- a/test/fixedbugs/issue3705.go
++++ b/test/fixedbugs/issue3705.go
+@@ -6,4 +6,4 @@
+ 
+ package p
+ 
+-func init() // ERROR "missing function body|cannot declare init"
++func init() // ERROR "func init must have a body|cannot declare init"

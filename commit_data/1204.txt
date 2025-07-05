@@ -8,6 +8,68 @@ Date:   Thu Nov 20 10:54:11 2008 -0800
     DELTA=33  (12 added, 9 deleted, 12 changed)
     OCL=19688
     CL=19696
-
+---
  src/run.bash | 39 +++++++++++++++++++++------------------
  1 file changed, 21 insertions(+), 18 deletions(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index 8dc4040396..ea06e8c5b5 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -11,22 +11,31 @@ xcd() {
+ 	builtin cd $1
+ }
+ 
+-(xcd lib/strconv
+-make clean
+-time make
+-make test
+-) || exit $?
++maketest() {
++	for i
++	do
++		(
++			xcd $i
++			make clean
++			time make
++			make test
++		) || exit $?
++	done
++}
+ 
+-(xcd lib/reflect
+-make clean
+-time make
+-make test
+-) || exit $?
++maketest \
++	lib/math\
++	lib/reflect\
++	lib/regexp\
++	lib/strconv\
++
++# all of these are subtly different
++# from what maketest does.
+ 
+-(xcd lib/regexp
++(xcd ../usr/gri/pretty
+ make clean
+ time make
+-make test
++make smoketest
+ ) || exit $?
+ 
+ (xcd ../usr/gri/gosrc
+@@ -35,12 +44,6 @@ time make
+ # make test
+ ) || exit $?
+ 
+-(xcd ../usr/gri/pretty
+-make clean
+-time make
+-make smoketest
+-) || exit $?
+-
+ (xcd ../test
+ ./run
+ ) || exit $?

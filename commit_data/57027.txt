@@ -12,10 +12,83 @@ Date:   Fri Jun 9 10:08:27 2023 +0800
     Run-TryBot: shuang cui <imcusg@gmail.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/cgo/gcc.go                     | 2 +-
  src/cmd/link/internal/loader/loader.go | 2 +-
  src/crypto/x509/sec1.go                | 2 +-
  src/go/printer/printer.go              | 2 +-
  src/internal/godebug/godebug.go        | 3 ++-
  5 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 5f7c6fbbe6..7ae6fbcc48 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -3325,7 +3325,7 @@ func (c *typeConv) badVoidPointerTypedef(dt *dwarf.TypedefType) bool {
+ 	return false
+ }
+ 
+-// badStructPointerTypedef is like badVoidPointerTypedefs but for structs.
++// badStructPointerTypedef is like badVoidPointerTypedef but for structs.
+ func (c *typeConv) badStructPointerTypedef(name string, dt *dwarf.StructType) bool {
+ 	// Windows handle types can all potentially contain non-pointers.
+ 	// badVoidPointerTypedef handles the "void *" HANDLE type, but other
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index f4b075b077..49199bdd69 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1036,7 +1036,7 @@ func (l *Loader) SetAttrCgoExportDynamic(i Sym, v bool) {
+ 	}
+ }
+ 
+-// ForAllAttrCgoExportDynamic calls f for every symbol that has been
++// ForAllCgoExportDynamic calls f for every symbol that has been
+ // marked with the "cgo_export_dynamic" compiler directive.
+ func (l *Loader) ForAllCgoExportDynamic(f func(Sym)) {
+ 	for s := range l.attrCgoExportDynamic {
+diff --git a/src/crypto/x509/sec1.go b/src/crypto/x509/sec1.go
+index 027c17c43c..6bfba0d93f 100644
+--- a/src/crypto/x509/sec1.go
++++ b/src/crypto/x509/sec1.go
+@@ -67,7 +67,7 @@ func marshalECPrivateKeyWithOID(key *ecdsa.PrivateKey, oid asn1.ObjectIdentifier
+ 	})
+ }
+ 
+-// marshalECPrivateKeyWithOID marshals an EC private key into ASN.1, DER format
++// marshalECDHPrivateKey marshals an EC private key into ASN.1, DER format
+ // suitable for NIST curves.
+ func marshalECDHPrivateKey(key *ecdh.PrivateKey) ([]byte, error) {
+ 	return asn1.Marshal(ecPrivateKey{
+diff --git a/src/go/printer/printer.go b/src/go/printer/printer.go
+index 46131c6697..5cf4e4bb5f 100644
+--- a/src/go/printer/printer.go
++++ b/src/go/printer/printer.go
+@@ -813,7 +813,7 @@ func (p *printer) intersperseComments(next token.Position, tok token.Token) (wro
+ 	return
+ }
+ 
+-// whiteWhitespace writes the first n whitespace entries.
++// writeWhitespace writes the first n whitespace entries.
+ func (p *printer) writeWhitespace(n int) {
+ 	// write entries
+ 	for i := 0; i < n; i++ {
+diff --git a/src/internal/godebug/godebug.go b/src/internal/godebug/godebug.go
+index 22645a4c81..36bfeaccc4 100644
+--- a/src/internal/godebug/godebug.go
++++ b/src/internal/godebug/godebug.go
+@@ -180,7 +180,7 @@ func setUpdate(update func(string, string))
+ //go:linkname registerMetric
+ func registerMetric(name string, read func() uint64)
+ 
+-// setNewNonDefaultInc is provided by package runtime.
++// setNewIncNonDefault is provided by package runtime.
+ // The runtime can do
+ //
+ //	inc := newNonDefaultInc(name)
+@@ -285,5 +285,6 @@ func (*runtimeStderr) Write(b []byte) (int, error) {
+ 
+ // Since we cannot import os or syscall, use the runtime's write function
+ // to print to standard error.
++//
+ //go:linkname write runtime.write
+ func write(fd uintptr, p unsafe.Pointer, n int32) int32

@@ -15,6 +15,19 @@ Date:   Thu May 23 19:06:16 2019 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  test/fixedbugs/issue15609.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/test/fixedbugs/issue15609.go b/test/fixedbugs/issue15609.go
+index 87c96b480f..e0bf8a42d8 100644
+--- a/test/fixedbugs/issue15609.go
++++ b/test/fixedbugs/issue15609.go
+@@ -1,5 +1,7 @@
+ // runindir
+ 
++// +build !nacl
++
+ // Copyright 2019 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.

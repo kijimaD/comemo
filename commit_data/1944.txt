@@ -12,7 +12,7 @@ Date:   Thu Apr 2 15:58:58 2009 -0700
     R=r
     OCL=27037
     CL=27039
-
+---
  usr/gri/pretty/Makefile               |   8 +-
  usr/gri/pretty/astprinter.go          |  14 +-
  usr/gri/pretty/docprinter.go          |  16 +-
@@ -21,3 +21,883 @@ Date:   Thu Apr 2 15:58:58 2009 -0700
  usr/gri/pretty/packages_template.html |  10 +
  usr/gri/pretty/template.go            |   2 +-
  7 files changed, 473 insertions(+), 255 deletions(-)
+
+diff --git a/usr/gri/pretty/Makefile b/usr/gri/pretty/Makefile
+index ed28664732..43dea48071 100644
+--- a/usr/gri/pretty/Makefile
++++ b/usr/gri/pretty/Makefile
+@@ -5,13 +5,13 @@
+ G=6g
+ L=6l
+ 
+-all: untab gds pretty
++all: untab godoc pretty
+ 
+ untab: untab.6
+ 	$(L) -o untab untab.6
+ 
+-gds: gds.6
+-	$(L) -o gds gds.6
++godoc: godoc.6
++	$(L) -o godoc godoc.6
+ 
+ pretty: pretty.6
+ 	$(L) -o pretty pretty.6
+@@ -28,7 +28,7 @@ install: pretty
+ clean:
+ 	rm -f pretty *.6 *.a *~
+ 
+-gds.6:	 utils.6 platform.6 compilation.6 docprinter.6
++godoc.6:	 utils.6 platform.6 compilation.6 docprinter.6
+ 
+ pretty.6:	 platform.6 ast.6 astprinter.6 compilation.6
+ 
+diff --git a/usr/gri/pretty/astprinter.go b/usr/gri/pretty/astprinter.go
+index 828ec5ad98..5164495fe7 100644
+--- a/usr/gri/pretty/astprinter.go
++++ b/usr/gri/pretty/astprinter.go
+@@ -60,7 +60,7 @@ func assert(pred bool) {
+ 
+ // TODO this should be an AST method
+ func isExported(name *ast.Ident) bool {
+-	ch, len := utf8.DecodeRune(name.Lit);
++	ch, len := utf8.DecodeRuneInString(name.Value, 0);
+ 	return unicode.IsUpper(ch);
+ }
+ 
+@@ -405,7 +405,7 @@ func (P *Printer) Error(pos token.Position, tok token.Token, msg string) {
+ // HTML support
+ 
+ func (P *Printer) HtmlIdentifier(x *ast.Ident) {
+-	P.String(x.Pos(), string(x.Lit));
++	P.String(x.Pos(), x.Value);
+ 	/*
+ 	obj := x.Obj;
+ 	if P.html && obj.Kind != symbolTable.NONE {
+@@ -620,25 +620,25 @@ func (P *Printer) DoUnaryExpr(x *ast.UnaryExpr) {
+ 
+ func (P *Printer) DoIntLit(x *ast.IntLit) {
+ 	// TODO get rid of string conversion here
+-	P.String(x.Pos(), string(x.Lit));
++	P.String(x.Pos(), string(x.Value));
+ }
+ 
+ 
+ func (P *Printer) DoFloatLit(x *ast.FloatLit) {
+ 	// TODO get rid of string conversion here
+-	P.String(x.Pos(), string(x.Lit));
++	P.String(x.Pos(), string(x.Value));
+ }
+ 
+ 
+ func (P *Printer) DoCharLit(x *ast.CharLit) {
+ 	// TODO get rid of string conversion here
+-	P.String(x.Pos(), string(x.Lit));
++	P.String(x.Pos(), string(x.Value));
+ }
+ 
+ 
+ func (P *Printer) DoStringLit(x *ast.StringLit) {
+ 	// TODO get rid of string conversion here
+-	P.String(x.Pos(), string(x.Lit));
++	P.String(x.Pos(), string(x.Value));
+ }
+ 
+ 
+@@ -1120,7 +1120,7 @@ func (P *Printer) importSpec(d *ast.ImportSpec) {
+ 	}
+ 	P.separator = tab;
+ 	// TODO fix for longer package names
+-	P.HtmlPackageName(d.Path[0].Pos(), string(d.Path[0].Lit));
++	P.HtmlPackageName(d.Path[0].Pos(), string(d.Path[0].Value));
+ 	P.newlines = 2;
+ }
+ 
+diff --git a/usr/gri/pretty/docprinter.go b/usr/gri/pretty/docprinter.go
+index 05b8f3e50a..f9737a790a 100644
+--- a/usr/gri/pretty/docprinter.go
++++ b/usr/gri/pretty/docprinter.go
+@@ -23,7 +23,7 @@ import (
+ 
+ // TODO this should be an AST method
+ func isExported(name *ast.Ident) bool {
+-	ch, len := utf8.DecodeRune(name.Lit);
++	ch, len := utf8.DecodeRuneInString(name.Value, 0);
+ 	return unicode.IsUpper(ch);
+ }
+ 
+@@ -92,7 +92,7 @@ func (doc *PackageDoc) Init(name string) {
+ func baseTypeName(typ ast.Expr) string {
+ 	switch t := typ.(type) {
+ 	case *ast.Ident:
+-		return string(t.Lit);
++		return string(t.Value);
+ 	case *ast.StarExpr:
+ 		return baseTypeName(t.X);
+ 	}
+@@ -111,14 +111,14 @@ func (doc *PackageDoc) lookupTypeDoc(typ ast.Expr) *typeDoc {
+ 
+ func (doc *PackageDoc) addType(decl *ast.GenDecl) {
+ 	typ := decl.Specs[0].(*ast.TypeSpec);
+-	name := string(typ.Name.Lit);
++	name := typ.Name.Value;
+ 	tdoc := &typeDoc{decl, make(map[string] *funcDoc), make(map[string] *funcDoc)};
+ 	doc.types[name] = tdoc;
+ }
+ 
+ 
+ func (doc *PackageDoc) addFunc(fun *ast.FuncDecl) {
+-	name := string(fun.Name.Lit);
++	name := fun.Name.Value;
+ 	fdoc := &funcDoc{fun};
+ 	
+ 	// determine if it should be associated with a type
+@@ -197,7 +197,7 @@ func (doc *PackageDoc) addDecl(decl ast.Decl) {
+ // before, AddProgram is a no-op.
+ //
+ func (doc *PackageDoc) AddProgram(prog *ast.Program) {
+-	if doc.name != string(prog.Name.Lit) {
++	if doc.name != prog.Name.Value {
+ 		panic("package names don't match");
+ 	}
+ 
+@@ -387,9 +387,9 @@ func (f *funcDoc) print(p *astPrinter.Printer, hsize int) {
+ 	if d.Recv != nil {
+ 		p.Printf("<h%d>func (", hsize);
+ 		p.Expr(d.Recv.Type);
+-		p.Printf(") %s</h%d>\n", d.Name.Lit, hsize);
++		p.Printf(") %s</h%d>\n", d.Name.Value, hsize);
+ 	} else {
+-		p.Printf("<h%d>func %s</h%d>\n", hsize, d.Name.Lit, hsize);
++		p.Printf("<h%d>func %s</h%d>\n", hsize, d.Name.Value, hsize);
+ 	}
+ 	p.Printf("<p><code>");
+ 	p.DoFuncDecl(d);
+@@ -401,7 +401,7 @@ func (f *funcDoc) print(p *astPrinter.Printer, hsize int) {
+ func (t *typeDoc) print(p *astPrinter.Printer) {
+ 	d := t.decl;
+ 	s := d.Specs[0].(*ast.TypeSpec);
+-	p.Printf("<h2>type %s</h2>\n", string(s.Name.Lit));
++	p.Printf("<h2>type %s</h2>\n", s.Name.Value);
+ 	p.Printf("<p><pre>");
+ 	p.DoGenDecl(d);
+ 	p.Printf("</pre></p>\n");
+diff --git a/usr/gri/pretty/gds.go b/usr/gri/pretty/gds.go
+deleted file mode 100644
+index a004ad2230..0000000000
+--- a/usr/gri/pretty/gds.go
++++ /dev/null
+@@ -1,235 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// GDS: Go Documentation Server
+-
+-package main
+-
+-import (
+-	"bufio";
+-	"flag";
+-	"fmt";
+-	"http";
+-	"io";
+-	"net";
+-	"os";
+-	"sort";
+-	"log";
+-	"template";
+-	"tabwriter";
+-
+-	"utils";
+-	"platform";
+-	"compilation";
+-	"docprinter";
+-)
+-
+-
+-var (
+-	verbose = flag.Bool("v", false, "verbose mode");
+-	port = flag.String("port", "6060", "server port");
+-	root = flag.String("root", Platform.GOROOT, "go root directory");
+-
+-	// layout control
+-	tabwidth = flag.Int("tabwidth", 4, "tab width");
+-	usetabs = flag.Bool("usetabs", false, "align with tabs instead of blanks");
+-)
+-
+-
+-// Support for directory sorting.
+-type DirArray []os.Dir
+-func (p DirArray) Len() int            { return len(p); }
+-func (p DirArray) Less(i, j int) bool  { return p[i].Name < p[j].Name; }
+-func (p DirArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
+-
+-
+-func isGoFile(dir *os.Dir) bool {
+-	const ext = ".go";
+-	return dir.IsRegular() && Utils.Contains(dir.Name, ext, len(dir.Name) - len(ext));
+-}
+-
+-
+-func printLink(c *http.Conn, path, name string) {
+-	fmt.Fprintf(c, "<a href=\"%s\">%s</a><br />\n", path + name, name);
+-}
+-
+-
+-var dir_template = template.NewTemplateOrDie("dir_template.html");
+-
+-func serveDir(c *http.Conn, dirname string) {
+-	fd, err1 := os.Open(*root + dirname, os.O_RDONLY, 0);
+-	if err1 != nil {
+-		c.WriteHeader(http.StatusNotFound);
+-		fmt.Fprintf(c, "Error: %v (%s)\n", err1, dirname);
+-		return;
+-	}
+-
+-	list, err2 := fd.Readdir(-1);
+-	if err2 != nil {
+-		c.WriteHeader(http.StatusNotFound);
+-		fmt.Fprintf(c, "Error: %v (%s)\n", err2, dirname);
+-		return;
+-	}
+-
+-	sort.Sort(DirArray(list));
+-
+-	c.SetHeader("content-type", "text/html; charset=utf-8");
+-	path := dirname + "/";
+-
+-	// Print contents in 3 sections: directories, go files, everything else
+-
+-	// TODO handle Apply errors
+-	dir_template.Apply(c, "<!--", template.Substitution {
+-		"PATH-->" : func() {
+-			fmt.Fprintf(c, "%s", path);
+-		},
+-
+-		"DIRECTORIES-->" : func() {
+-			for i, entry := range list {
+-				if entry.IsDirectory() {
+-					printLink(c, path, entry.Name);
+-				}
+-			}
+-		},
+-
+-		"GO FILES-->" : func() {
+-			for i, entry := range list {
+-				if isGoFile(&entry) {
+-					printLink(c, path, entry.Name);
+-				}
+-			}
+-		},
+-
+-		"OTHER FILES-->" : func() {
+-			for i, entry := range list {
+-				if !entry.IsDirectory() && !isGoFile(&entry) {
+-					fmt.Fprintf(c, "%s<br />\n", entry.Name);
+-				}
+-			}
+-		}
+-	});
+-}
+-
+-
+-var error_template = template.NewTemplateOrDie("error_template.html");
+-
+-func printErrors(c *http.Conn, filename string, errors Compilation.ErrorList) {
+-	// TODO factor code - shouldn't do this here and in Compilation
+-	src, ok := Platform.ReadSourceFile(*root + filename);
+-
+-	// TODO handle Apply errors
+-	error_template.Apply(c, "<!--", template.Substitution {
+-		"FILE_NAME-->" : func() {
+-			fmt.Fprintf(c, "%s", filename);
+-		},
+-
+-		"ERRORS-->" : func () {
+-			if ok == false /* 6g bug139 */ {
+-				fmt.Fprintf(c, "could not read file %s\n", *root + filename);
+-				return;
+-			}
+-			offs := 0;
+-			for i, e := range errors {
+-				if 0 <= e.Pos.Offset && e.Pos.Offset <= len(src) {
+-					// TODO handle Write errors
+-					c.Write(src[offs : e.Pos.Offset]);
+-					// TODO this should be done using a .css file
+-					fmt.Fprintf(c, "<b><font color=red>%s >>></font></b>", e.Msg);
+-					offs = e.Pos.Offset;
+-				} else {
+-					log.Stdoutf("error position %d out of bounds (len = %d)", e.Pos.Offset, len(src));
+-				}
+-			}
+-			// TODO handle Write errors
+-			c.Write(src[offs : len(src)]);
+-		}
+-	});
+-}
+-
+-
+-func serveFile(c *http.Conn, filename string) {
+-	var flags Compilation.Flags;
+-	prog, errors := Compilation.Compile(*root + filename, &flags);
+-	if errors == nil {
+-		c.WriteHeader(http.StatusNotFound);
+-		fmt.Fprintf(c, "Error: could not read file (%s)\n", filename);
+-		return;
+-	}
+-
+-	if len(errors) > 0 {
+-		c.SetHeader("content-type", "text/html; charset=utf-8");
+-		printErrors(c, filename, errors);
+-		return;
+-	}
+-
+-	c.SetHeader("content-type", "text/html; charset=utf-8");
+-	
+-	// initialize tabwriter for nicely aligned output
+-	padchar := byte(' ');
+-	if *usetabs {
+-		padchar = '\t';
+-	}
+-	writer := tabwriter.NewWriter(c, *tabwidth, 1, padchar, tabwriter.FilterHTML);
+-
+-	// write documentation
+-	var doc docPrinter.PackageDoc;
+-	doc.Init(string(prog.Name.Lit));
+-	doc.AddProgram(prog);
+-	doc.Print(writer);
+-
+-	// flush any pending output
+-	err := writer.Flush();
+-	if err != nil {
+-		panic("print error - exiting");
+-	}
+-}
+-
+-
+-func serve(c *http.Conn, req *http.Request) {
+-	if *verbose {
+-		log.Stdoutf("URL = %s\n", req.RawUrl);
+-	}
+-
+-	path := Utils.SanitizePath(req.Url.Path);
+-	dir, err := os.Stat(*root + path);
+-	if err != nil {
+-		c.WriteHeader(http.StatusNotFound);
+-		fmt.Fprintf(c, "Error: %v (%s)\n", err, path);
+-		return;
+-	}
+-
+-	switch {
+-	case dir.IsDirectory():
+-		serveDir(c, path);
+-	case isGoFile(dir):
+-		serveFile(c, path);
+-	default:
+-		c.WriteHeader(http.StatusNotFound);
+-		fmt.Fprintf(c, "Error: Not a directory or .go file (%s)\n", path);
+-	}
+-}
+-
+-
+-func main() {
+-	flag.Parse();
+-
+-	*root = Utils.SanitizePath(*root);
+-	dir, err1 := os.Stat(*root);
+-	if err1 != nil || !dir.IsDirectory() {
+-		log.Exitf("root not found or not a directory: %s", *root);
+-	}
+-
+-	if *verbose {
+-		log.Stdoutf("Go Documentation Server\n");
+-		log.Stdoutf("port = %s\n", *port);
+-		log.Stdoutf("root = %s\n", *root);
+-	}
+-
+-	http.Handle("/", http.HandlerFunc(serve));
+-	err2 := http.ListenAndServe(":" + *port, nil);
+-	if err2 != nil {
+-		log.Exitf("ListenAndServe: %s", err2.String())
+-	}
+-}
+-
+diff --git a/usr/gri/pretty/godoc.go b/usr/gri/pretty/godoc.go
+new file mode 100644
+index 0000000000..13e58bd6cb
+--- /dev/null
++++ b/usr/gri/pretty/godoc.go
+@@ -0,0 +1,443 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// godoc: Go Documentation Server
++
++package main
++
++import (
++	"bufio";
++	"flag";
++	"fmt";
++	"http";
++	"io";
++	"log";
++	"net";
++	"os";
++	"sort";
++	"tabwriter";
++	"template";
++	"regexp";
++
++	"ast";
++	"vector";
++	"utils";
++	"platform";
++	"compilation";
++	"parser";
++	"docprinter";
++)
++
++
++var (
++	verbose = flag.Bool("v", false, "verbose mode");
++	port = flag.String("port", "6060", "server port");
++	root = flag.String("root", Platform.GOROOT, "go root directory");
++
++	// layout control
++	tabwidth = flag.Int("tabwidth", 4, "tab width");
++	usetabs = flag.Bool("usetabs", false, "align with tabs instead of blanks");
++)
++
++
++// ----------------------------------------------------------------------------
++// Support
++
++type dirArray []os.Dir
++func (p dirArray) Len() int            { return len(p); }
++func (p dirArray) Less(i, j int) bool  { return p[i].Name < p[j].Name; }
++func (p dirArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
++
++
++func isGoFile(dir *os.Dir) bool {
++	const ext = ".go";
++	return dir.IsRegular() && Utils.Contains(dir.Name, ext, len(dir.Name) - len(ext));
++}
++
++
++func printLink(c *http.Conn, path, name string) {
++	fmt.Fprintf(c, "<a href=\"%s\">%s</a><br />\n", path + name, name);
++}
++
++
++func makeTabwriter(writer io.Write) *tabwriter.Writer {
++	padchar := byte(' ');
++	if *usetabs {
++		padchar = '\t';
++	}
++	return tabwriter.NewWriter(writer, *tabwidth, 1, padchar, tabwriter.FilterHTML);
++}
++
++
++// ----------------------------------------------------------------------------
++// Directories
++
++var dir_template = template.NewTemplateOrDie("dir_template.html");
++
++func serveDir(c *http.Conn, dirname string) {
++	fd, err1 := os.Open(*root + dirname, os.O_RDONLY, 0);
++	if err1 != nil {
++		c.WriteHeader(http.StatusNotFound);
++		fmt.Fprintf(c, "Error: %v (%s)\n", err1, dirname);
++		return;
++	}
++
++	list, err2 := fd.Readdir(-1);
++	if err2 != nil {
++		c.WriteHeader(http.StatusNotFound);
++		fmt.Fprintf(c, "Error: %v (%s)\n", err2, dirname);
++		return;
++	}
++
++	sort.Sort(dirArray(list));
++
++	c.SetHeader("content-type", "text/html; charset=utf-8");
++	path := dirname + "/";
++
++	// Print contents in 3 sections: directories, go files, everything else
++
++	// TODO handle Apply errors
++	dir_template.Apply(c, "<!--", template.Substitution {
++		"PATH-->" : func() {
++			fmt.Fprintf(c, "%s", path);
++		},
++
++		"DIRECTORIES-->" : func() {
++			for i, entry := range list {
++				if entry.IsDirectory() {
++					printLink(c, path, entry.Name);
++				}
++			}
++		},
++
++		"GO FILES-->" : func() {
++			for i, entry := range list {
++				if isGoFile(&entry) {
++					printLink(c, path, entry.Name);
++				}
++			}
++		},
++
++		"OTHER FILES-->" : func() {
++			for i, entry := range list {
++				if !entry.IsDirectory() && !isGoFile(&entry) {
++					fmt.Fprintf(c, "%s<br />\n", entry.Name);
++				}
++			}
++		}
++	});
++}
++
++
++// ----------------------------------------------------------------------------
++// Files
++
++var error_template = template.NewTemplateOrDie("error_template.html");
++
++func printErrors(c *http.Conn, filename string, errors Compilation.ErrorList) {
++	// TODO factor code - shouldn't do this here and in Compilation
++	src, ok := Platform.ReadSourceFile(*root + filename);
++
++	// TODO handle Apply errors
++	error_template.Apply(c, "<!--", template.Substitution {
++		"FILE_NAME-->" : func() {
++			fmt.Fprintf(c, "%s", filename);
++		},
++
++		"ERRORS-->" : func () {
++			if ok == false /* 6g bug139 */ {
++				fmt.Fprintf(c, "could not read file %s\n", *root + filename);
++				return;
++			}
++			offs := 0;
++			for i, e := range errors {
++				if 0 <= e.Pos.Offset && e.Pos.Offset <= len(src) {
++					// TODO handle Write errors
++					c.Write(src[offs : e.Pos.Offset]);
++					// TODO this should be done using a .css file
++					fmt.Fprintf(c, "<b><font color=red>%s >>></font></b>", e.Msg);
++					offs = e.Pos.Offset;
++				} else {
++					log.Stdoutf("error position %d out of bounds (len = %d)", e.Pos.Offset, len(src));
++				}
++			}
++			// TODO handle Write errors
++			c.Write(src[offs : len(src)]);
++		}
++	});
++}
++
++
++func serveGoFile(c *http.Conn, dirname string, filenames []string) {
++	// compute documentation
++	var doc docPrinter.PackageDoc;
++	for i, filename := range filenames {
++		var flags Compilation.Flags;
++		prog, errors := Compilation.Compile(*root + "/" + dirname + "/" + filename, &flags);
++		if errors == nil {
++			c.WriteHeader(http.StatusNotFound);
++			fmt.Fprintf(c, "Error: could not read file (%s)\n", filename);
++			return;
++		}
++
++		if len(errors) > 0 {
++			c.SetHeader("content-type", "text/html; charset=utf-8");
++			printErrors(c, filename, errors);
++			return;
++		}
++
++		if i == 0 {
++			// first package - initialize docPrinter
++			doc.Init(prog.Name.Value);
++		}
++		doc.AddProgram(prog);
++	}
++
++	c.SetHeader("content-type", "text/html; charset=utf-8");
++	
++	// write documentation
++	writer := makeTabwriter(c);  // for nicely formatted output
++	doc.Print(writer);
++	writer.Flush();  // ignore errors
++}
++
++
++func serveFile(c *http.Conn, path string) {
++	dir, err := os.Stat(*root + path);
++	if err != nil {
++		c.WriteHeader(http.StatusNotFound);
++		fmt.Fprintf(c, "Error: %v (%s)\n", err, path);
++		return;
++	}
++
++	switch {
++	case dir.IsDirectory():
++		serveDir(c, path);
++	case isGoFile(dir):
++		serveGoFile(c, "", []string{path});
++	default:
++		c.WriteHeader(http.StatusNotFound);
++		fmt.Fprintf(c, "Error: Not a directory or .go file (%s)\n", path);
++	}
++}
++
++
++// ----------------------------------------------------------------------------
++// Packages
++
++type pakDesc struct {
++	dirname string;  // local to *root
++	pakname string;  // local to directory
++	filenames map[string] bool;  // set of file (names) belonging to this package
++}
++
++
++type pakArray []*pakDesc
++func (p pakArray) Len() int            { return len(p); }
++func (p pakArray) Less(i, j int) bool  { return p[i].pakname < p[j].pakname; }
++func (p pakArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
++
++
++var (
++	pakMap map[string]*pakDesc;  // dirname/pakname -> package descriptor
++	pakList pakArray;  // sorted list of packages; in sync with pakMap
++)
++
++
++func getAST(dirname string, filename string, mode uint) *ast.Program {
++	// open file
++	fullname := *root + "/" + dirname + "/" + filename;
++	src, err := os.Open(fullname, os.O_RDONLY, 0);
++	defer src.Close();
++	if err != nil {
++		log.Stdoutf("%s: %v", fullname, err);
++		return nil;
++	}
++
++	// determine package name
++	prog, ok := parser.Parse(src, nil, mode);
++	if !ok {
++		log.Stdoutf("%s: compilation errors", fullname);
++		return nil;
++	}
++	
++	return prog;
++}
++
++
++func addFile(dirname string, filename string) {
++	// determine package name
++	prog := getAST(dirname, filename, parser.PackageClauseOnly);
++	if prog == nil {
++		return;
++	}
++	if prog.Name.Value == "main" {
++		// ignore main packages for now
++		return;
++	}
++	pakname := dirname + "/" + prog.Name.Value;
++
++	// find package descriptor
++	pakdesc, found := pakMap[pakname];
++	if !found {
++		// add a new descriptor
++		pakdesc = &pakDesc{dirname, prog.Name.Value, make(map[string]bool)};
++		pakMap[pakname] = pakdesc;
++	}
++	
++	//fmt.Printf("pak = %s, file = %s\n", pakname, filename);
++
++	// add file to package desc
++	if tmp, found := pakdesc.filenames[filename]; found {
++		panic("internal error: same file added more then once: " + filename);
++	}
++	pakdesc.filenames[filename] = true;
++}
++
++
++func addDirectory(dirname string) {
++	// TODO should properly check device and inode to see if we have
++	//      traversed this directory already
++	//fmt.Printf("traversing %s\n", dirname);
++
++	fd, err1 := os.Open(*root + dirname, os.O_RDONLY, 0);
++	if err1 != nil {
++		log.Stdoutf("%s: %v", *root + dirname, err1);
++		return;
++	}
++
++	list, err2 := fd.Readdir(-1);
++	if err2 != nil {
++		log.Stdoutf("%s: %v", *root + dirname, err2);
++		return;
++	}
++
++	for i, entry := range list {
++		switch {
++		case entry.IsDirectory():
++			if entry.Name != "." && entry.Name != ".." {
++				addDirectory(dirname + "/" + entry.Name);
++			}
++		case isGoFile(&entry):	
++			//fmt.Printf("found %s/%s\n", dirname, entry.Name);
++			addFile(dirname, entry.Name);
++		}
++	}
++}
++
++
++func makePackageMap() {
++	// TODO shold do this under a lock, eventually
++	// populate package map
++	pakMap = make(map[string]*pakDesc);
++	addDirectory("");
++	
++	// build sorted package list
++	pakList = make([]*pakDesc, len(pakMap));
++	i := 0;
++	for tmp, pakdesc := range pakMap {
++		pakList[i] = pakdesc;
++		i++;
++	}
++	sort.Sort(pakList);
++}
++
++
++var packages_template = template.NewTemplateOrDie("packages_template.html");
++
++func serveGoPackage(c *http.Conn, p *pakDesc) {
++	// make a filename list
++	list := make([]string, len(p.filenames));
++	i := 0;
++	for filename, tmp := range p.filenames {
++		list[i] = filename;
++		i++;
++	}
++	
++	serveGoFile(c, p.dirname, list);
++}
++
++
++func servePackageList(c *http.Conn, list *vector.Vector) {
++	packages_template.Apply(c, "<!--", template.Substitution {
++		"PACKAGE_LIST-->" : func() {
++			// TODO should do this under a lock, eventually
++			for i := 0; i < list.Len(); i++ {
++				p := list.At(i).(*pakDesc);
++				link := p.dirname + "/" + p.pakname;
++				fmt.Fprintf(c, "<a href=\"%s\">%s</a> <font color=grey>(%s)</font><br />\n", link + "?p", p.pakname, link);
++			}
++		}
++	});
++}
++
++
++func servePackage(c *http.Conn, path string) {
++	// make regexp for package matching
++	rex, err := regexp.Compile(path);
++	if err != nil {
++		// TODO report this via an error page
++		log.Stdoutf("failed to compile regexp: %s", path);
++	}
++
++	// build list of matching packages
++	list := vector.New(0);
++	for i, p := range pakList {
++		if rex.Match(p.dirname + "/" + p.pakname) {
++			list.Push(p);
++		}
++	}
++
++	if list.Len() == 1 {
++		serveGoPackage(c, list.At(0).(*pakDesc));
++	} else {
++		servePackageList(c, list);
++	}
++}
++
++
++// ----------------------------------------------------------------------------
++// Server
++
++func serve(c *http.Conn, req *http.Request) {
++	if *verbose {
++		log.Stdoutf("%s\t%s", req.Host, req.RawUrl);
++	}
++
++	path := Utils.SanitizePath(req.Url.Path);
++
++	if len(req.Url.Query) > 0 {  // for now any query will do
++		servePackage(c, path);
++	} else {
++		serveFile(c, path);
++	}
++}
++
++
++func main() {
++	flag.Parse();
++
++	*root = Utils.SanitizePath(*root);
++	{	dir, err := os.Stat(*root);
++		if err != nil || !dir.IsDirectory() {
++			log.Exitf("root not found or not a directory: %s", *root);
++		}
++	}
++
++	if *verbose {
++		log.Stdoutf("Go Documentation Server\n");
++		log.Stdoutf("port = %s\n", *port);
++		log.Stdoutf("root = %s\n", *root);
++	}
++
++	makePackageMap();
++
++	http.Handle("/", http.HandlerFunc(serve));
++	{	err := http.ListenAndServe(":" + *port, nil);
++		if err != nil {
++			log.Exitf("ListenAndServe: %v", err)
++		}
++	}
++}
++
+diff --git a/usr/gri/pretty/packages_template.html b/usr/gri/pretty/packages_template.html
+new file mode 100644
+index 0000000000..552ce6220e
+--- /dev/null
++++ b/usr/gri/pretty/packages_template.html
+@@ -0,0 +1,10 @@
++
++<font color=red>THIS SECTION IS CURRENTLY UNDER CONSTRUCTION</font>
++
++<h1>Packages</h1>
++
++<!--PACKAGE_LIST-->
++
++</div>  <!-- content -->
++</body>
++</html>
+diff --git a/usr/gri/pretty/template.go b/usr/gri/pretty/template.go
+index 6b70c66a7e..9aa83d4495 100644
+--- a/usr/gri/pretty/template.go
++++ b/usr/gri/pretty/template.go
+@@ -117,7 +117,7 @@ func NewTemplate(filename string) *Template {
+ func NewTemplateOrDie(filename string) *Template {
+ 	t := NewTemplate(filename);
+ 	if t == nil {
+-		panic("could not read template");
++		panic("could not read template: " + filename);
+ 	}
+ 	return t;
+ }

@@ -13,6 +13,20 @@ Date:   Mon Dec 5 10:00:38 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/crash_cgo_test.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 7014f119ad..347b820eb5 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -49,8 +49,6 @@ func TestCgoCallbackGC(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9", "windows":
+ 		t.Skipf("no pthreads on %s", runtime.GOOS)
+-	case "freebsd":
+-		testenv.SkipFlaky(t, 16396)
+ 	}
+ 	if testing.Short() {
+ 		switch {

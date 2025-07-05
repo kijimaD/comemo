@@ -10,6 +10,32 @@ Date:   Wed Aug 5 10:11:59 2015 -0400
     Change-Id: I4053d8e2f32fafd47b927203a6f66d5858e23376
     Reviewed-on: https://go-review.googlesource.com/13165
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/testenv/testenv.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index ef5cfcbcd3..110af3d97a 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -11,11 +11,20 @@
+ package testenv
+ 
+ import (
++	"os"
+ 	"runtime"
+ 	"strings"
+ 	"testing"
+ )
+ 
++// Builder reports the name of the builder running this test
++// (for example, "linux-amd64" or "windows-386-gce").
++// If the test is not running on the build infrastructure,
++// Builder returns the empty string.
++func Builder() string {
++	return os.Getenv("GO_BUILDER_NAME")
++}
++
+ // HasGoBuild reports whether the current system can build programs with ``go build''
+ // and then run them with os.StartProcess or exec.Command.
+ func HasGoBuild() bool {

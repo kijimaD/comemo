@@ -7,6 +7,19 @@ Date:   Fri May 25 09:18:12 2012 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6257050
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 54dbd4abf8..c1ca386309 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -68,6 +68,7 @@ Benjamin Black <b@b3k.us>
+ Benny Siegert <bsiegert@gmail.com>
+ Berengar Lehr <Berengar.Lehr@gmx.de>
+ Bill Neubauer <wcn@golang.org> <wcn@google.com>
++Bill Thiede <couchmoney@gmail.com>
+ Bjorn Tillenius <bjorn@tillenius.me>
+ Bjorn Tipling <bjorn.tipling@gmail.com>
+ Blake Mizerany <blake.mizerany@gmail.com>

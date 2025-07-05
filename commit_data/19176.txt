@@ -14,7 +14,52 @@ Date:   Wed Apr 16 14:51:33 2014 -0400
     R=gri
     CC=golang-codereviews
     https://golang.org/cl/86990044
-
+---
  src/pkg/go/scanner/scanner.go      | 16 +++++++++++-----
  src/pkg/go/scanner/scanner_test.go |  5 +++--
  2 files changed, 14 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index 25588ba3b0..c83e4fa816 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -148,11 +148,17 @@ func (s *Scanner) interpretLineComment(text []byte) {
+ 		// get filename and line number, if any
+ 		if i := bytes.LastIndex(text, []byte{':'}); i > 0 {
+ 			if line, err := strconv.Atoi(string(text[i+1:])); err == nil && line > 0 {
+-				// valid //line filename:line comment;
+-				filename := filepath.Clean(string(text[len(prefix):i]))
+-				if !filepath.IsAbs(filename) {
+-					// make filename relative to current directory
+-					filename = filepath.Join(s.dir, filename)
++				// valid //line filename:line comment
++				filename := string(bytes.TrimSpace(text[len(prefix):i]))
++				if filename == "" {
++					// assume same file as for previous line
++					filename = s.file.Position(s.file.Pos(s.lineOffset)).Filename
++				} else {
++					filename = filepath.Clean(filename)
++					if !filepath.IsAbs(filename) {
++						// make filename relative to current directory
++						filename = filepath.Join(s.dir, filename)
++					}
+ 				}
+ 				// update scanner position
+ 				s.file.AddLineInfo(s.lineOffset+len(text)+1, filename, line) // +len(text)+1 since comment applies to next line
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index e0d0b54f68..55e55abaec 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -493,9 +493,10 @@ var segments = []segment{
+ 	{"\nline3  //line File1.go:100", filepath.Join("dir", "TestLineComments"), 3}, // bad line comment, ignored
+ 	{"\nline4", filepath.Join("dir", "TestLineComments"), 4},
+ 	{"\n//line File1.go:100\n  line100", filepath.Join("dir", "File1.go"), 100},
++	{"\n//line :42\n  line1", "dir/File1.go", 42},
+ 	{"\n//line File2.go:200\n  line200", filepath.Join("dir", "File2.go"), 200},
+-	{"\n//line :1\n  line1", "dir", 1},
+-	{"\n//line foo:42\n  line42", filepath.Join("dir", "foo"), 42},
++	{"\n//line  \t :123\n  line1", "dir/File2.go", 123},
++	{"\n//line foo\t:42\n  line42", filepath.Join("dir", "foo"), 42},
+ 	{"\n //line foo:42\n  line44", filepath.Join("dir", "foo"), 44},           // bad line comment, ignored
+ 	{"\n//line foo 42\n  line46", filepath.Join("dir", "foo"), 46},            // bad line comment, ignored
+ 	{"\n//line foo:42 extra text\n  line48", filepath.Join("dir", "foo"), 48}, // bad line comment, ignored

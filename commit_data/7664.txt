@@ -7,7 +7,7 @@ Date:   Sun Mar 6 23:02:29 2011 -0500
     R=bradfitzgo, dsymonds
     CC=golang-dev
     https://golang.org/cl/4244053
-
+---
  src/pkg/http/client.go             |  2 +-
  src/pkg/http/readrequest_test.go   |  2 +-
  src/pkg/http/request.go            |  2 +-
@@ -15,3 +15,144 @@ Date:   Sun Mar 6 23:02:29 2011 -0500
  src/pkg/http/response.go           | 17 ++++++++---------
  src/pkg/http/responsewrite_test.go |  6 +++---
  6 files changed, 16 insertions(+), 17 deletions(-)
+
+diff --git a/src/pkg/http/client.go b/src/pkg/http/client.go
+index 82fff78001..c24eea5819 100644
+--- a/src/pkg/http/client.go
++++ b/src/pkg/http/client.go
+@@ -117,7 +117,7 @@ func send(req *Request, t Transport) (resp *Response, err os.Error) {
+ 	// Headers, leaving it uninitialized.  We guarantee to the
+ 	// Transport that this has been initialized, though.
+ 	if req.Header == nil {
+-		req.Header = Header(make(map[string][]string))
++		req.Header = make(Header)
+ 	}
+ 
+ 	info := req.URL.RawUserinfo
+diff --git a/src/pkg/http/readrequest_test.go b/src/pkg/http/readrequest_test.go
+index 6ee07bc914..19e2ff7747 100644
+--- a/src/pkg/http/readrequest_test.go
++++ b/src/pkg/http/readrequest_test.go
+@@ -93,7 +93,7 @@ var reqTests = []reqTest{
+ 			Proto:         "HTTP/1.1",
+ 			ProtoMajor:    1,
+ 			ProtoMinor:    1,
+-			Header:        map[string][]string{},
++			Header:        Header{},
+ 			Close:         false,
+ 			ContentLength: -1,
+ 			Host:          "test",
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index 2f6e33ae9b..d8456bab32 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -247,7 +247,7 @@ func (req *Request) write(w io.Writer, usingProxy bool) os.Error {
+ 	// from Request, and introduce Request methods along the lines of
+ 	// Response.{GetHeader,AddHeader} and string constants for "Host",
+ 	// "User-Agent" and "Referer".
+-	err = writeSortedKeyValue(w, req.Header, reqExcludeHeader)
++	err = writeSortedHeader(w, req.Header, reqExcludeHeader)
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/src/pkg/http/requestwrite_test.go b/src/pkg/http/requestwrite_test.go
+index a0cc460666..03a766efd8 100644
+--- a/src/pkg/http/requestwrite_test.go
++++ b/src/pkg/http/requestwrite_test.go
+@@ -84,7 +84,7 @@ var reqWriteTests = []reqWriteTest{
+ 			},
+ 			ProtoMajor:       1,
+ 			ProtoMinor:       1,
+-			Header:           map[string][]string{},
++			Header:           Header{},
+ 			TransferEncoding: []string{"chunked"},
+ 		},
+ 
+@@ -112,7 +112,7 @@ var reqWriteTests = []reqWriteTest{
+ 			},
+ 			ProtoMajor:       1,
+ 			ProtoMinor:       1,
+-			Header:           map[string][]string{},
++			Header:           Header{},
+ 			Close:            true,
+ 			TransferEncoding: []string{"chunked"},
+ 		},
+diff --git a/src/pkg/http/response.go b/src/pkg/http/response.go
+index 4fd00ad61e..3d77c55551 100644
+--- a/src/pkg/http/response.go
++++ b/src/pkg/http/response.go
+@@ -67,10 +67,9 @@ type Response struct {
+ 	// ReadResponse nor Response.Write ever closes a connection.
+ 	Close bool
+ 
+-	// Trailer maps trailer keys to values.  Like for Header, if the
+-	// response has multiple trailer lines with the same key, they will be
+-	// concatenated, delimited by commas.
+-	Trailer map[string][]string
++	// Trailer maps trailer keys to values, in the same
++	// format as the header.
++	Trailer Header
+ }
+ 
+ // ReadResponse reads and returns an HTTP response from r.  The RequestMethod
+@@ -193,7 +192,7 @@ func (resp *Response) Write(w io.Writer) os.Error {
+ 	}
+ 
+ 	// Rest of header
+-	err = writeSortedKeyValue(w, resp.Header, respExcludeHeader)
++	err = writeSortedHeader(w, resp.Header, respExcludeHeader)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -215,16 +214,16 @@ func (resp *Response) Write(w io.Writer) os.Error {
+ 	return nil
+ }
+ 
+-func writeSortedKeyValue(w io.Writer, kvm map[string][]string, exclude map[string]bool) os.Error {
+-	keys := make([]string, 0, len(kvm))
+-	for k := range kvm {
++func writeSortedHeader(w io.Writer, h Header, exclude map[string]bool) os.Error {
++	keys := make([]string, 0, len(h))
++	for k := range h {
+ 		if !exclude[k] {
+ 			keys = append(keys, k)
+ 		}
+ 	}
+ 	sort.SortStrings(keys)
+ 	for _, k := range keys {
+-		for _, v := range kvm[k] {
++		for _, v := range h[k] {
+ 			if _, err := fmt.Fprintf(w, "%s: %s\r\n", k, v); err != nil {
+ 				return err
+ 			}
+diff --git a/src/pkg/http/responsewrite_test.go b/src/pkg/http/responsewrite_test.go
+index aabb833f9c..228ed5f7d1 100644
+--- a/src/pkg/http/responsewrite_test.go
++++ b/src/pkg/http/responsewrite_test.go
+@@ -22,7 +22,7 @@ var respWriteTests = []respWriteTest{
+ 			ProtoMajor:    1,
+ 			ProtoMinor:    0,
+ 			RequestMethod: "GET",
+-			Header:        map[string][]string{},
++			Header:        Header{},
+ 			Body:          nopCloser{bytes.NewBufferString("abcdef")},
+ 			ContentLength: 6,
+ 		},
+@@ -38,7 +38,7 @@ var respWriteTests = []respWriteTest{
+ 			ProtoMajor:    1,
+ 			ProtoMinor:    0,
+ 			RequestMethod: "GET",
+-			Header:        map[string][]string{},
++			Header:        Header{},
+ 			Body:          nopCloser{bytes.NewBufferString("abcdef")},
+ 			ContentLength: -1,
+ 		},
+@@ -53,7 +53,7 @@ var respWriteTests = []respWriteTest{
+ 			ProtoMajor:       1,
+ 			ProtoMinor:       1,
+ 			RequestMethod:    "GET",
+-			Header:           map[string][]string{},
++			Header:           Header{},
+ 			Body:             nopCloser{bytes.NewBufferString("abcdef")},
+ 			ContentLength:    6,
+ 			TransferEncoding: []string{"chunked"},

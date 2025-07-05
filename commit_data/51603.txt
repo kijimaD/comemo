@@ -10,6 +10,20 @@ Date:   Wed Feb 23 12:23:41 2022 -0500
     Run-TryBot: Michael Pratt <mpratt@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  doc/go1.18.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 25d85dd92a..8c786b94fc 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -1210,7 +1210,7 @@ For more details, see <a href="https://go.dev/issue/44505">go.dev/issue/44505</a
+     </p>
+ 
+     <p><!-- CL 355570 -->
+-      <a href="/pkg/syscall/?GOOS=freebsd#SysProcAttr.Pdeathsig"><code>SysProcAttr.Pdeathsig</code></a>.
++      <a href="/pkg/syscall/?GOOS=freebsd#SysProcAttr.Pdeathsig"><code>SysProcAttr.Pdeathsig</code></a>
+       is now supported in FreeBSD.
+     </p>
+   </dd>

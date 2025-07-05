@@ -14,6 +14,22 @@ Date:   Sat Sep 1 09:17:14 2012 +1000
     R=golang-dev, r, rsc
     CC=golang-dev
     https://golang.org/cl/6353051
-
+---
  src/pkg/syscall/syscall_linux.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index 7b79073eb1..fbe6b04576 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -735,6 +735,10 @@ func PtraceCont(pid int, signal int) (err error) {
+ 	return ptrace(PTRACE_CONT, pid, 0, uintptr(signal))
+ }
+ 
++func PtraceSyscall(pid int, signal int) (err error) {
++	return ptrace(PTRACE_SYSCALL, pid, 0, uintptr(signal))
++}
++
+ func PtraceSingleStep(pid int) (err error) { return ptrace(PTRACE_SINGLESTEP, pid, 0, 0) }
+ 
+ func PtraceAttach(pid int) (err error) { return ptrace(PTRACE_ATTACH, pid, 0, 0) }

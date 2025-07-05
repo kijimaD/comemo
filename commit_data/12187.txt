@@ -7,7 +7,7 @@ Date:   Fri Feb 24 13:17:26 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5699060
-
+---
  test/deferprint.go       | 2 +-
  test/fixedbugs/bug328.go | 2 +-
  test/fixedbugs/bug409.go | 2 +-
@@ -19,3 +19,113 @@ Date:   Fri Feb 24 13:17:26 2012 +1100
  test/run.go              | 3 +++
  test/testlib             | 4 ++++
  10 files changed, 15 insertions(+), 8 deletions(-)
+
+diff --git a/test/deferprint.go b/test/deferprint.go
+index eab7ed4655..72c98b19fc 100644
+--- a/test/deferprint.go
++++ b/test/deferprint.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out 2>&1 | cmp - $D/$F.out
++// cmpout
+ 
+ // Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug328.go b/test/fixedbugs/bug328.go
+index 825298371f..73ab46d459 100644
+--- a/test/fixedbugs/bug328.go
++++ b/test/fixedbugs/bug328.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out 2>&1 | cmp - $D/$F.out
++// cmpout
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug409.go b/test/fixedbugs/bug409.go
+index 884d333708..1dca43b7ae 100644
+--- a/test/fixedbugs/bug409.go
++++ b/test/fixedbugs/bug409.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out 2>&1 | cmp - $D/$F.out
++// cmpout
+ 
+ // Copyright 2012 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/goprint.go b/test/goprint.go
+index 3fe08f3077..2f0d3c3904 100644
+--- a/test/goprint.go
++++ b/test/goprint.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out 2>&1 | cmp - $D/$F.out
++// cmpout
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/helloworld.go b/test/helloworld.go
+index 9c33cab3be..5025ec9bb3 100644
+--- a/test/helloworld.go
++++ b/test/helloworld.go
+@@ -1,4 +1,4 @@
+-// $G $F.go && $L $F.$A && ./$A.out 2>&1 | cmp - $D/$F.out
++// cmpout
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/cplx0.go b/test/ken/cplx0.go
+index f38ce5b65d..912b8c489b 100644
+--- a/test/ken/cplx0.go
++++ b/test/ken/cplx0.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out 2>&1 | cmp - $D/$F.out
++// cmpout
+ 
+ // Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/string.go b/test/ken/string.go
+index e051082429..9bd905d3d9 100644
+--- a/test/ken/string.go
++++ b/test/ken/string.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out 2>&1 | cmp - $D/$F.out
++// cmpout
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/printbig.go b/test/printbig.go
+index 6985796f3a..5693c58d4f 100644
+--- a/test/printbig.go
++++ b/test/printbig.go
+@@ -1,4 +1,4 @@
+-// $G $F.go && $L $F.$A && ./$A.out 2>&1 | cmp - $D/$F.out
++// cmpout
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/run.go b/test/run.go
+index 4d4488a457..3ba35f9d42 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -238,6 +238,9 @@ func (t *test) run() {
+ 	action = strings.TrimSpace(action)
+ 
+ 	switch action {
++	case "cmpout":
++		action = "run" // the run case already looks for <dir>/<test>.out files
++		fallthrough
+ 	case "compile", "build", "run", "errorcheck":
+ 		t.action = action
+ 	default:
+diff --git a/test/testlib b/test/testlib
+index ea8c5d74e0..2e4fefc8cb 100644
+--- a/test/testlib
++++ b/test/testlib
+@@ -17,6 +17,10 @@ run() {
+ 	$G $D/$F.go && $L $F.$A && ./$A.out "$@"
+ }
+ 
++cmpout() {
++	$G $D/$F.go && $L $F.$A && ./$A.out 2>&1 | cmp - $D/$F.out
++}
++
+ errorcheck() {
+ 	errchk $G -e $D/$F.go
+ }

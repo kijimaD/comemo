@@ -18,8 +18,69 @@ Date:   Mon Jul 23 23:42:10 2018 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/export_test.go    | 2 ++
  src/net/http/transport.go      | 7 ++++++-
  src/net/http/transport_test.go | 9 ++++++++-
  3 files changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/export_test.go b/src/net/http/export_test.go
+index 2c606a45a3..5ff85bc7c8 100644
+--- a/src/net/http/export_test.go
++++ b/src/net/http/export_test.go
+@@ -33,6 +33,8 @@ var (
+ 	Export_writeStatusLine            = writeStatusLine
+ )
+ 
++const MaxWriteWaitBeforeConnReuse = maxWriteWaitBeforeConnReuse
++
+ func init() {
+ 	// We only want to pay for this cost during testing.
+ 	// When not under test, these values are always nil
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 4e2dd3beb5..28469f2d82 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -1918,6 +1918,11 @@ func (pc *persistConn) writeLoop() {
+ 	}
+ }
+ 
++// maxWriteWaitBeforeConnReuse is how long the a Transport RoundTrip
++// will wait to see the Request's Body.Write result after getting a
++// response from the server. See comments in (*persistConn).wroteRequest.
++const maxWriteWaitBeforeConnReuse = 50 * time.Millisecond
++
+ // wroteRequest is a check before recycling a connection that the previous write
+ // (from writeLoop above) happened and was successful.
+ func (pc *persistConn) wroteRequest() bool {
+@@ -1940,7 +1945,7 @@ func (pc *persistConn) wroteRequest() bool {
+ 		select {
+ 		case err := <-pc.writeErrCh:
+ 			return err == nil
+-		case <-time.After(50 * time.Millisecond):
++		case <-time.After(maxWriteWaitBeforeConnReuse):
+ 			return false
+ 		}
+ 	}
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index d1efa73cd9..aa8beb9357 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -3050,9 +3050,16 @@ func TestRetryRequestsOnError(t *testing.T) {
+ 			defer SetRoundTripRetried(nil)
+ 
+ 			for i := 0; i < 3; i++ {
++				t0 := time.Now()
+ 				res, err := c.Do(tc.req())
+ 				if err != nil {
+-					t.Fatalf("i=%d: Do = %v", i, err)
++					if time.Since(t0) < MaxWriteWaitBeforeConnReuse/2 {
++						mu.Lock()
++						got := logbuf.String()
++						mu.Unlock()
++						t.Fatalf("i=%d: Do = %v; log:\n%s", i, err, got)
++					}
++					t.Skipf("connection likely wasn't recycled within %d, interfering with actual test; skipping", MaxWriteWaitBeforeConnReuse)
+ 				}
+ 				res.Body.Close()
+ 			}

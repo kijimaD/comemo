@@ -7,6 +7,26 @@ Date:   Fri Jun 1 16:55:03 2012 -0400
     R=golang-dev, sameer, bradfitz
     CC=golang-dev, jba
     https://golang.org/cl/6213056
-
+---
  misc/emacs/go-mode.el | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/misc/emacs/go-mode.el b/misc/emacs/go-mode.el
+index 0e7e218439..2f20415010 100644
+--- a/misc/emacs/go-mode.el
++++ b/misc/emacs/go-mode.el
+@@ -706,8 +706,12 @@ functions, and some types.  It also provides indentation that is
+   ;; Remove stale text properties
+   (save-restriction
+     (widen)
+-    (remove-text-properties 1 (point-max)
+-                            '(go-mode-cs nil go-mode-nesting nil)))
++    (let ((modified (buffer-modified-p)))
++      (remove-text-properties 1 (point-max)
++                              '(go-mode-cs nil go-mode-nesting nil))
++      ;; remove-text-properties marks the buffer modified. undo that if it
++      ;; wasn't originally marked modified.
++      (set-buffer-modified-p modified)))
+ 
+   ;; Reset the syntax mark caches
+   (setq go-mode-mark-cs-end      1

@@ -8,6 +8,17 @@ Date:   Thu Mar 20 07:28:24 2014 +0100
     R=dave, rsc
     CC=golang-codereviews
     https://golang.org/cl/78110043
-
+---
  test/fixedbugs/bug385_32.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/bug385_32.go b/test/fixedbugs/bug385_32.go
+index 4c3cad7798..daf2a083c5 100644
+--- a/test/fixedbugs/bug385_32.go
++++ b/test/fixedbugs/bug385_32.go
+@@ -1,4 +1,4 @@
+-// +build 386 arm
++// +build 386 amd64p32 arm
+ // errorcheck
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.

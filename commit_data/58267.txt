@@ -14,9 +14,163 @@ Date:   Tue Oct 17 15:05:32 2023 -0400
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Austin Clements <austin@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/clean/clean.go | 43 ++++++++------------------------------
  src/cmd/go/internal/test/test.go   |  5 +----
  src/cmd/go/internal/work/exec.go   | 38 +++++++++++++++++++++++++++------
  src/cmd/go/internal/work/shell.go  |  2 --
  4 files changed, 42 insertions(+), 46 deletions(-)
+
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index 8a7e88b43a..b021b784da 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -162,30 +162,16 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
+ 			subdirs, _ := filepath.Glob(filepath.Join(str.QuoteGlob(dir), "[0-9a-f][0-9a-f]"))
+ 			printedErrors := false
+ 			if len(subdirs) > 0 {
+-				if cfg.BuildN || cfg.BuildX {
+-					sh.ShowCmd("", "rm -r %s", strings.Join(subdirs, " "))
+-				}
+-				if !cfg.BuildN {
+-					for _, d := range subdirs {
+-						// Only print the first error - there may be many.
+-						// This also mimics what os.RemoveAll(dir) would do.
+-						if err := os.RemoveAll(d); err != nil && !printedErrors {
+-							printedErrors = true
+-							base.Error(err)
+-						}
+-					}
++				if err := sh.RemoveAll(subdirs...); err != nil && !printedErrors {
++					printedErrors = true
++					base.Error(err)
+ 				}
+ 			}
+ 
+ 			logFile := filepath.Join(dir, "log.txt")
+-			if cfg.BuildN || cfg.BuildX {
+-				sh.ShowCmd("", "rm -f %s", logFile)
+-			}
+-			if !cfg.BuildN {
+-				if err := os.RemoveAll(logFile); err != nil && !printedErrors {
+-					printedErrors = true
+-					base.Error(err)
+-				}
++			if err := sh.RemoveAll(logFile); err != nil && !printedErrors {
++				printedErrors = true
++				base.Error(err)
+ 			}
+ 		}
+ 	}
+@@ -236,13 +222,8 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	if cleanFuzzcache {
+ 		fuzzDir := cache.Default().FuzzDir()
+-		if cfg.BuildN || cfg.BuildX {
+-			sh.ShowCmd("", "rm -rf %s", fuzzDir)
+-		}
+-		if !cfg.BuildN {
+-			if err := os.RemoveAll(fuzzDir); err != nil {
+-				base.Error(err)
+-			}
++		if err := sh.RemoveAll(fuzzDir); err != nil {
++			base.Error(err)
+ 		}
+ 	}
+ }
+@@ -363,13 +344,7 @@ func clean(p *load.Package) {
+ 		if dir.IsDir() {
+ 			// TODO: Remove once Makefiles are forgotten.
+ 			if cleanDir[name] {
+-				if cfg.BuildN || cfg.BuildX {
+-					sh.ShowCmd(p.Dir, "rm -r %s", name)
+-					if cfg.BuildN {
+-						continue
+-					}
+-				}
+-				if err := os.RemoveAll(filepath.Join(p.Dir, name)); err != nil {
++				if err := sh.RemoveAll(filepath.Join(p.Dir, name)); err != nil {
+ 					base.Error(err)
+ 				}
+ 			}
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 555b7e4ee2..8a40547f2e 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -2041,10 +2041,7 @@ func builderCleanTest(b *work.Builder, ctx context.Context, a *work.Action) erro
+ 	if cfg.BuildWork {
+ 		return nil
+ 	}
+-	if cfg.BuildX {
+-		b.Shell(a).ShowCmd("", "rm -r %s", a.Objdir)
+-	}
+-	os.RemoveAll(a.Objdir)
++	b.Shell(a).RemoveAll(a.Objdir)
+ 	return nil
+ }
+ 
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index d26ca0071a..b404960376 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -1858,15 +1858,41 @@ var AllowInstall = func(*Action) error { return nil }
+ // this keeps the intermediate objects from hitting the disk.
+ func (b *Builder) cleanup(a *Action) {
+ 	if !cfg.BuildWork {
+-		if cfg.BuildX {
+-			// Don't say we are removing the directory if
+-			// we never created it.
+-			if _, err := os.Stat(a.Objdir); err == nil || cfg.BuildN {
+-				b.Shell(a).ShowCmd("", "rm -r %s", a.Objdir)
++		b.Shell(a).RemoveAll(a.Objdir)
++	}
++}
++
++// RemoveAll is like 'rm -rf'. It attempts to remove all paths even if there's
++// an error, and returns the first error.
++func (sh *Shell) RemoveAll(paths ...string) error {
++	if cfg.BuildN || cfg.BuildX {
++		// Don't say we are removing the directory if we never created it.
++		show := func() bool {
++			for _, path := range paths {
++				if _, ok := sh.mkdirCache.Get(path); ok {
++					return true
++				}
++				if _, err := os.Stat(path); !os.IsNotExist(err) {
++					return true
++				}
+ 			}
++			return false
++		}
++		if show() {
++			sh.ShowCmd("", "rm -rf %s", strings.Join(paths, " "))
+ 		}
+-		os.RemoveAll(a.Objdir)
+ 	}
++	if cfg.BuildN {
++		return nil
++	}
++
++	var err error
++	for _, path := range paths {
++		if err2 := os.RemoveAll(path); err2 != nil && err == nil {
++			err = err2
++		}
++	}
++	return err
+ }
+ 
+ // moveOrCopyFile is like 'mv src dst' or 'cp src dst'.
+diff --git a/src/cmd/go/internal/work/shell.go b/src/cmd/go/internal/work/shell.go
+index e2a08938bc..80639cf959 100644
+--- a/src/cmd/go/internal/work/shell.go
++++ b/src/cmd/go/internal/work/shell.go
+@@ -15,8 +15,6 @@ import (
+ //
+ // Shell tracks context related to running commands, and form a tree much like
+ // context.Context.
+-//
+-// TODO: Add a RemoveAll method. "rm -rf" is pretty common.
+ type Shell struct {
+ 	action       *Action // nil for the root shell
+ 	*shellShared         // per-Builder state shared across Shells

@@ -45,7 +45,69 @@ Date:   Sat Mar 18 08:11:49 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go  | 15 +++++++++++++++
  src/cmd/compile/internal/gc/type.go | 11 +++++++++--
  2 files changed, 24 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 6726bdd621..fb4cad9139 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -46,6 +46,21 @@ func initssaconfig() {
+ 		Float64Ptr: typPtr(Types[TFLOAT64]),
+ 		BytePtrPtr: typPtr(typPtr(Types[TUINT8])),
+ 	}
++	// Generate a few pointer types that are uncommon in the frontend but common in the backend.
++	// Caching is disabled in the backend, so generating these here avoids allocations.
++	_ = typPtr(Types[TINTER])                 // *interface{}
++	_ = typPtr(typPtr(Types[TSTRING]))        // **string
++	_ = typPtr(typPtr(idealstring))           // **string
++	_ = typPtr(typSlice(Types[TINTER]))       // *[]interface{}
++	_ = typPtr(typPtr(bytetype))              // **byte
++	_ = typPtr(typSlice(bytetype))            // *[]byte
++	_ = typPtr(typSlice(Types[TSTRING]))      // *[]string
++	_ = typPtr(typSlice(idealstring))         // *[]string
++	_ = typPtr(typPtr(typPtr(Types[TUINT8]))) // ***uint8
++	_ = typPtr(Types[TINT16])                 // *int16
++	_ = typPtr(Types[TINT64])                 // *int64
++	_ = typPtr(errortype)                     // *error
++	typPtrCacheEnabled = false
+ 	ssaConfig = ssa.NewConfig(thearch.LinkArch.Name, types, Ctxt, Debug['N'] == 0)
+ 	if thearch.LinkArch.Name == "386" {
+ 		ssaConfig.Set387(thearch.Use387)
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index f9e3b60d7b..49d222507b 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -487,6 +487,11 @@ func typMap(k, v *Type) *Type {
+ 	return t
+ }
+ 
++// typPtrCacheEnabled controls whether *T Types are cached in T.
++// Caching is disabled just before starting the backend.
++// This allows the backend to run concurrently.
++var typPtrCacheEnabled = true
++
+ // typPtr returns the pointer type pointing to t.
+ func typPtr(elem *Type) *Type {
+ 	if elem == nil {
+@@ -501,14 +506,16 @@ func typPtr(elem *Type) *Type {
+ 	}
+ 
+ 	if Tptr == 0 {
+-		Fatalf("typPtr: Tptr not intialized")
++		Fatalf("typPtr: Tptr not initialized")
+ 	}
+ 
+ 	t := typ(Tptr)
+ 	t.Extra = PtrType{Elem: elem}
+ 	t.Width = int64(Widthptr)
+ 	t.Align = uint8(Widthptr)
+-	elem.ptrTo = t
++	if typPtrCacheEnabled {
++		elem.ptrTo = t
++	}
+ 	return t
+ }
+ 

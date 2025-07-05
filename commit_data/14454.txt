@@ -21,6 +21,43 @@ Date:   Thu Nov 22 08:18:45 2012 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/6846085
-
+---
  src/pkg/net/http/server.go | 11 +++++------
  1 file changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index 805e0737a9..3a4d61c213 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -11,7 +11,6 @@ package http
+ 
+ import (
+ 	"bufio"
+-	"bytes"
+ 	"crypto/tls"
+ 	"errors"
+ 	"fmt"
+@@ -21,7 +20,7 @@ import (
+ 	"net"
+ 	"net/url"
+ 	"path"
+-	"runtime/debug"
++	"runtime"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+@@ -610,10 +609,10 @@ func (c *conn) serve() {
+ 			return
+ 		}
+ 
+-		var buf bytes.Buffer
+-		fmt.Fprintf(&buf, "http: panic serving %v: %v\n", c.remoteAddr, err)
+-		buf.Write(debug.Stack())
+-		log.Print(buf.String())
++		const size = 4096
++		buf := make([]byte, size)
++		buf = buf[:runtime.Stack(buf, false)]
++		log.Printf("http: panic serving %v: %v\n%s", c.remoteAddr, err, buf)
+ 
+ 		if c.rwc != nil { // may be nil if connection hijacked
+ 			c.rwc.Close()

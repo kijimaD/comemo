@@ -7,10 +7,84 @@ Date:   Fri Feb 17 11:21:46 2012 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5673081
-
+---
  src/cmd/8a/lex.c              | 1 +
  src/cmd/8l/8.out.h            | 2 ++
  src/cmd/8l/optab.c            | 2 ++
  src/libmach/8db.c             | 1 +
  src/pkg/sync/atomic/asm_386.s | 6 ++----
  5 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/8a/lex.c b/src/cmd/8a/lex.c
+index 3d635d3b85..1cc6e591dd 100644
+--- a/src/cmd/8a/lex.c
++++ b/src/cmd/8a/lex.c
+@@ -666,6 +666,7 @@ struct
+ 	"LFENCE",	LTYPE0, ALFENCE,
+ 	"MFENCE",	LTYPE0, AMFENCE,
+ 	"SFENCE",	LTYPE0, ASFENCE,
++	"EMMS",		LTYPE0, AEMMS,
+ 
+ 	0
+ };
+diff --git a/src/cmd/8l/8.out.h b/src/cmd/8l/8.out.h
+index 0553453512..066192ef47 100644
+--- a/src/cmd/8l/8.out.h
++++ b/src/cmd/8l/8.out.h
+@@ -449,6 +449,8 @@ enum	as
+ 	AMFENCE,
+ 	ASFENCE,
+ 
++	AEMMS,
++
+ 	ALAST
+ };
+ 
+diff --git a/src/cmd/8l/optab.c b/src/cmd/8l/optab.c
+index 9505972cbf..856482290d 100644
+--- a/src/cmd/8l/optab.c
++++ b/src/cmd/8l/optab.c
+@@ -759,5 +759,7 @@ Optab optab[] =
+ 	{ AMFENCE, ynone, Pm, 0xae,0xf0 },
+ 	{ ASFENCE, ynone, Pm, 0xae,0xf8 },
+ 
++	{ AEMMS, ynone, Pm, 0x77 },
++
+ 	0
+ };
+diff --git a/src/libmach/8db.c b/src/libmach/8db.c
+index a5d147a8e2..3101e13730 100644
+--- a/src/libmach/8db.c
++++ b/src/libmach/8db.c
+@@ -688,6 +688,7 @@ static Optable optab0F[256]=
+ [0x74] =	{ RM,0,		"PCMPEQB %m,%M" },
+ [0x75] =	{ RM,0,		"PCMPEQW %m,%M" },
+ [0x76] =	{ RM,0,		"PCMPEQL %m,%M" },
++[0x77] =	{ 0,0,		"EMMS" },
+ [0x7E] =	{ RM,0,		"MOV%S %M,%e" },
+ [0x7F] =	{ RM,0,		"MOVQ %M,%m" },
+ [0xAE] =	{ RMOP,0,		optab0FAE },
+diff --git a/src/pkg/sync/atomic/asm_386.s b/src/pkg/sync/atomic/asm_386.s
+index d149eb66ab..a406852f4a 100644
+--- a/src/pkg/sync/atomic/asm_386.s
++++ b/src/pkg/sync/atomic/asm_386.s
+@@ -108,8 +108,7 @@ TEXT ·LoadUint64(SB),7,$0
+ 	BYTE $0x0f; BYTE $0x6f; BYTE $0x00
+ 	// MOVQ %MM0, 0x8(%ESP)
+ 	BYTE $0x0f; BYTE $0x7f; BYTE $0x44; BYTE $0x24; BYTE $0x08
+-	// EMMS
+-	BYTE $0x0F; BYTE $0x77
++	EMMS
+ 	RET
+ 
+ TEXT ·LoadUintptr(SB),7,$0
+@@ -137,8 +136,7 @@ TEXT ·StoreUint64(SB),7,$0
+ 	BYTE $0x0f; BYTE $0x6f; BYTE $0x44; BYTE $0x24; BYTE $0x08
+ 	// MOVQ %MM0, (%EAX)
+ 	BYTE $0x0f; BYTE $0x7f; BYTE $0x00 
+-	// EMMS
+-	BYTE $0x0F; BYTE $0x77
++	EMMS
+ 	// This is essentially a no-op, but it provides required memory fencing.
+ 	// It can be replaced with MFENCE, but MFENCE was introduced only on the Pentium4 (SSE2).
+ 	XORL	AX, AX

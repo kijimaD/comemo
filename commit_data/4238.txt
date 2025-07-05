@@ -7,7 +7,94 @@ Date:   Mon Nov 30 11:38:41 2009 -0800
     R=gri
     CC=r
     https://golang.org/cl/163044
-
+---
  AUTHORS      | 9 ++++++++-
  CONTRIBUTORS | 7 +++++++
  2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/AUTHORS b/AUTHORS
+index a4900b3628..2ed0ee7bba 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -9,22 +9,29 @@
+ # Please keep the list sorted.
+ 
+ Abhinav Gupta <abhinav.g90@gmail.com>
++Andrew Skiba <skibaa@gmail.com>
+ Aron Nopanen <aron.nopanen@gmail.com>
+ Chris Lennert <calennert@gmail.com>
++Christopher Wedgwood <cw@f00f.org>
+ David G. Andersen <dave.andersen@gmail.com>
+ David Titarenco <david.titarenco@gmail.com>
+ Devon H. O'Dell <devon.odell@gmail.com>
+ Eden Li <eden.li@gmail.com>
+ Evan Shaw <chickencha@gmail.com>
+ Fazlul Shahriar <fshahriar@gmail.com>
++Google Inc.
++Hector Chu <hectorchu@gmail.com>
++Isaac Wagner <ibw@isaacwagner.me>
+ James Meneghello <rawrz0r@gmail.com>
++Jonathan Wills <runningwild@gmail.com>
+ Josh Goebel <dreamer3@gmail.com>
+-Google Inc.
+ Kevin Ballard <kevin@sb.org>
+ Michael Elkins <michael.elkins@gmail.com>
+ Michael Hoisie <hoisie@gmail.com>
+ Môshe van der Sterre <moshevds@gmail.com>
++Peter Froehlich <peter.hans.froehlich@gmail.com>
+ Roger Peppe <rogpeppe@gmail.com>
+ Sergey 'SnakE'  Gromov <snake.scaly@gmail.com>
+ Sergio Luis O. B. Correia <sergio@larces.uece.br>
++Tor Andersson <tor.andersson@gmail.com>
+ William Josephson <wjosephson@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 740e258fb7..268e6c4970 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -28,6 +28,7 @@
+ 
+ Abhinav Gupta <abhinav.g90@gmail.com>
+ Adam Langley <agl@golang.org>
++Andrew Skiba <skibaa@gmail.com>
+ Aron Nopanen <aron.nopanen@gmail.com>
+ Austin Clements <aclements@csail.mit.edu>
+ Ben Eitzen <eitzenb@golang.org>
+@@ -35,6 +36,7 @@ Bill Neubauer <wcn@golang.org>
+ Brendan O'Dea <bod@golang.org>
+ Cary Hull <chull@google.com>
+ Chris Lennert <calennert@gmail.com>
++Christopher Wedgwood <cw@f00f.org>
+ Daniel Nadasi <dnadasi@google.com>
+ David G. Andersen <dave.andersen@gmail.com>
+ David Symonds <dsymonds@golang.org>
+@@ -44,11 +46,14 @@ Eden Li <eden.li@gmail.com>
+ Evan Shaw <chickencha@gmail.com>
+ Fazlul Shahriar <fshahriar@gmail.com>
+ Fumitoshi Ukai <ukai@google.com>
++Hector Chu <hectorchu@gmail.com>
+ Ian Lance Taylor <iant@golang.org>
++Isaac Wagner <ibw@isaacwagner.me>
+ Ivan Krasin <krasin@golang.org>
+ Jacob Baskin <jbaskin@google.com>
+ James Aguilar <jaguilar@google.com>
+ James Meneghello <rawrz0r@gmail.com>
++Jonathan Wills <runningwild@gmail.com>
+ Josh Goebel <dreamer3@gmail.com>
+ Kai Backman <kaib@golang.org>
+ Ken Thompson <ken@golang.org>
+@@ -58,6 +63,7 @@ Michael Elkins <michael.elkins@gmail.com>
+ Michael Hoisie <hoisie@gmail.com>
+ Môshe van der Sterre <moshevds@gmail.com>
+ Nigel Tao <nigeltao@golang.org>
++Peter Froehlich <peter.hans.froehlich@gmail.com>
+ Peter McKenzie <petermck@google.com>
+ Péter Szabó <pts@google.com>
+ Phil Pennock <pdp@golang.org>
+@@ -70,6 +76,7 @@ Sergey 'SnakE' Gromov <snake.scaly@gmail.com>
+ Sergio Luis O. B. Correia <sergio@larces.uece.br>
+ Stephen Ma <stephenm@golang.org>
+ Tom Szymanski <tgs@google.com>
++Tor Andersson <tor.andersson@gmail.com>
+ Trevor Strohman <trevor.strohman@gmail.com>
+ Vish Subramanian <vish@google.com>
+ William Josephson <wjosephson@gmail.com>

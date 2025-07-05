@@ -27,7 +27,7 @@ Date:   Fri Aug 14 22:58:49 2020 +1200
     Trust: Minux Ma <minux@golang.org>
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/strconv/atoc.go      |  6 +++---
  src/strconv/atoc_test.go | 22 ++++++++++++++++++++
  src/strconv/atof.go      |  3 +++
@@ -35,3 +35,169 @@ Date:   Fri Aug 14 22:58:49 2020 +1200
  src/strconv/ctoa_test.go | 53 ++++++++++++++++++++++++++++++++++++++++++++++++
  src/strconv/ftoa_test.go |  9 ++++++++
  6 files changed, 101 insertions(+), 3 deletions(-)
+
+diff --git a/src/strconv/atoc.go b/src/strconv/atoc.go
+index 55b7c23ee7..52cb5908b2 100644
+--- a/src/strconv/atoc.go
++++ b/src/strconv/atoc.go
+@@ -40,10 +40,10 @@ func convErr(err error, s string) (syntax, range_ error) {
+ // away from the largest floating point number of the given component's size,
+ // ParseComplex returns err.Err = ErrRange and c = ±Inf for the respective component.
+ func ParseComplex(s string, bitSize int) (complex128, error) {
+-	size := 128
+-	if bitSize == 64 {
+-		size = 32 // complex64 uses float32 parts
++	if bitSize != 64 && bitSize != 128 {
++		return 0, bitSizeError(fnParseComplex, s, bitSize)
+ 	}
++	size := bitSize >> 1
+ 
+ 	orig := s
+ 
+diff --git a/src/strconv/atoc_test.go b/src/strconv/atoc_test.go
+index 3aa421dd03..aecc09d247 100644
+--- a/src/strconv/atoc_test.go
++++ b/src/strconv/atoc_test.go
+@@ -198,5 +198,27 @@ func TestParseComplex(t *testing.T) {
+ 		if !(cmplx.IsNaN(test.out) && cmplx.IsNaN(got)) && got != test.out {
+ 			t.Fatalf("ParseComplex(%q, 128) = %v, %v; want %v, %v", test.in, got, err, test.out, test.err)
+ 		}
++
++		if complex128(complex64(test.out)) == test.out {
++			got, err := ParseComplex(test.in, 64)
++			if !reflect.DeepEqual(err, test.err) {
++				t.Fatalf("ParseComplex(%q, 64) = %v, %v; want %v, %v", test.in, got, err, test.out, test.err)
++			}
++			got64 := complex64(got)
++			if complex128(got64) != test.out {
++				t.Fatalf("ParseComplex(%q, 64) = %v, %v; want %v, %v", test.in, got, err, test.out, test.err)
++			}
++		}
++	}
++}
++
++func TestParseComplexInvalidBitSize(t *testing.T) {
++	_, err := ParseComplex("1+2i", 100)
++	const want = `strconv.ParseComplex: parsing "1+2i": invalid bit size 100`
++	if err == nil {
++		t.Fatalf("got nil error, want %q", want)
++	}
++	if err.Error() != want {
++		t.Fatalf("got error %q, want %q", err, want)
+ 	}
+ }
+diff --git a/src/strconv/atof.go b/src/strconv/atof.go
+index 9010a66ca8..a04f5621f6 100644
+--- a/src/strconv/atof.go
++++ b/src/strconv/atof.go
+@@ -688,6 +688,9 @@ func atof64(s string) (f float64, n int, err error) {
+ // ParseFloat recognizes the strings "NaN", and the (possibly signed) strings "Inf" and "Infinity"
+ // as their respective special floating point values. It ignores case when matching.
+ func ParseFloat(s string, bitSize int) (float64, error) {
++	if bitSize != 32 && bitSize != 64 {
++		return 0, bitSizeError(fnParseFloat, s, bitSize)
++	}
+ 	f, n, err := parseFloatPrefix(s, bitSize)
+ 	if err == nil && n != len(s) {
+ 		return 0, syntaxError(fnParseFloat, s)
+diff --git a/src/strconv/atof_test.go b/src/strconv/atof_test.go
+index 5a6fec8d3b..cf43903506 100644
+--- a/src/strconv/atof_test.go
++++ b/src/strconv/atof_test.go
+@@ -634,6 +634,17 @@ func TestRoundTrip32(t *testing.T) {
+ 	t.Logf("tested %d float32's", count)
+ }
+ 
++func TestParseFloatInvalidBitSize(t *testing.T) {
++	_, err := ParseFloat("3.14", 100)
++	const want = `strconv.ParseFloat: parsing "3.14": invalid bit size 100`
++	if err == nil {
++		t.Fatalf("got nil error, want %q", want)
++	}
++	if err.Error() != want {
++		t.Fatalf("got error %q, want %q", err, want)
++	}
++}
++
+ func BenchmarkAtof64Decimal(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		ParseFloat("33909", 64)
+diff --git a/src/strconv/ctoa_test.go b/src/strconv/ctoa_test.go
+new file mode 100644
+index 0000000000..8b77898ecc
+--- /dev/null
++++ b/src/strconv/ctoa_test.go
+@@ -0,0 +1,53 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package strconv_test
++
++import (
++	. "strconv"
++	"testing"
++)
++
++func TestFormatComplex(t *testing.T) {
++	tests := []struct {
++		c       complex128
++		fmt     byte
++		prec    int
++		bitSize int
++		out     string
++	}{
++		// a variety of signs
++		{1 + 2i, 'g', -1, 128, "(1+2i)"},
++		{3 - 4i, 'g', -1, 128, "(3-4i)"},
++		{-5 + 6i, 'g', -1, 128, "(-5+6i)"},
++		{-7 - 8i, 'g', -1, 128, "(-7-8i)"},
++
++		// test that fmt and prec are working
++		{3.14159 + 0.00123i, 'e', 3, 128, "(3.142e+00+1.230e-03i)"},
++		{3.14159 + 0.00123i, 'f', 3, 128, "(3.142+0.001i)"},
++		{3.14159 + 0.00123i, 'g', 3, 128, "(3.14+0.00123i)"},
++
++		// ensure bitSize rounding is working
++		{1.2345678901234567 + 9.876543210987654i, 'f', -1, 128, "(1.2345678901234567+9.876543210987654i)"},
++		{1.2345678901234567 + 9.876543210987654i, 'f', -1, 64, "(1.2345679+9.876543i)"},
++
++		// other cases are handled by FormatFloat tests
++	}
++	for _, test := range tests {
++		out := FormatComplex(test.c, test.fmt, test.prec, test.bitSize)
++		if out != test.out {
++			t.Fatalf("FormatComplex(%v, %q, %d, %d) = %q; want %q",
++				test.c, test.fmt, test.prec, test.bitSize, out, test.out)
++		}
++	}
++}
++
++func TestFormatComplexInvalidBitSize(t *testing.T) {
++	defer func() {
++		if r := recover(); r == nil {
++			t.Fatalf("expected panic due to invalid bitSize")
++		}
++	}()
++	_ = FormatComplex(1+2i, 'g', -1, 100)
++}
+diff --git a/src/strconv/ftoa_test.go b/src/strconv/ftoa_test.go
+index 755c986b86..99cca17542 100644
+--- a/src/strconv/ftoa_test.go
++++ b/src/strconv/ftoa_test.go
+@@ -212,6 +212,15 @@ func TestFtoaRandom(t *testing.T) {
+ 	}
+ }
+ 
++func TestFormatFloatInvalidBitSize(t *testing.T) {
++	defer func() {
++		if r := recover(); r == nil {
++			t.Fatalf("expected panic due to invalid bitSize")
++		}
++	}()
++	_ = FormatFloat(3.14, 'g', -1, 100)
++}
++
+ var ftoaBenches = []struct {
+ 	name    string
+ 	float   float64

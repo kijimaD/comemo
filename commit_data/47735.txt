@@ -19,9 +19,183 @@ Date:   Thu Apr 1 11:01:19 2021 -0400
     Trust: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modload/build.go               | 44 ++++++++++++++---
  src/cmd/go/testdata/script/mod_list_retract.txt    | 12 ++---
  .../testdata/script/mod_list_update_nolatest.txt   | 55 ++++++++++++++++++++++
  src/cmd/go/testdata/script/mod_retract_replace.txt |  6 ++-
  4 files changed, 103 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index 804bd5ecfd..b8825408d7 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -11,6 +11,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"internal/goroot"
++	"io/fs"
+ 	"os"
+ 	"path/filepath"
+ 	"strings"
+@@ -108,7 +109,26 @@ func addUpdate(ctx context.Context, m *modinfo.ModulePublic) {
+ 		return
+ 	}
+ 
+-	if info, err := Query(ctx, m.Path, "upgrade", m.Version, CheckAllowed); err == nil && semver.Compare(info.Version, m.Version) > 0 {
++	info, err := Query(ctx, m.Path, "upgrade", m.Version, CheckAllowed)
++	var noVersionErr *NoMatchingVersionError
++	if errors.Is(err, fs.ErrNotExist) || errors.As(err, &noVersionErr) {
++		// Ignore "not found" and "no matching version" errors. This usually means
++		// the user is offline or the proxy doesn't have a matching version.
++		//
++		// We should report other errors though. An attacker that controls the
++		// network shouldn't be able to hide versions by interfering with
++		// the HTTPS connection. An attacker that controls the proxy may still
++		// hide versions, since the "list" and "latest" endpoints are not
++		// authenticated.
++		return
++	} else if err != nil {
++		if m.Error == nil {
++			m.Error = &modinfo.ModuleError{Err: err.Error()}
++		}
++		return
++	}
++
++	if semver.Compare(info.Version, m.Version) > 0 {
+ 		m.Update = &modinfo.ModulePublic{
+ 			Path:    m.Path,
+ 			Version: info.Version,
+@@ -140,14 +160,26 @@ func addRetraction(ctx context.Context, m *modinfo.ModulePublic) {
+ 	}
+ 
+ 	err := CheckRetractions(ctx, module.Version{Path: m.Path, Version: m.Version})
+-	var rerr *ModuleRetractedError
+-	if errors.As(err, &rerr) {
+-		if len(rerr.Rationale) == 0 {
++	var noVersionErr *NoMatchingVersionError
++	var retractErr *ModuleRetractedError
++	if err == nil || errors.Is(err, fs.ErrNotExist) || errors.As(err, &noVersionErr) {
++		// Ignore "not found" and "no matching version" errors. This usually means
++		// the user is offline or the proxy doesn't have a go.mod file that could
++		// contain retractions.
++		//
++		// We should report other errors though. An attacker that controls the
++		// network shouldn't be able to hide versions by interfering with
++		// the HTTPS connection. An attacker that controls the proxy may still
++		// hide versions, since the "list" and "latest" endpoints are not
++		// authenticated.
++		return
++	} else if errors.As(err, &retractErr) {
++		if len(retractErr.Rationale) == 0 {
+ 			m.Retracted = []string{"retracted by module author"}
+ 		} else {
+-			m.Retracted = rerr.Rationale
++			m.Retracted = retractErr.Rationale
+ 		}
+-	} else if err != nil && m.Error == nil {
++	} else if m.Error == nil {
+ 		m.Error = &modinfo.ModuleError{Err: err.Error()}
+ 	}
+ }
+diff --git a/src/cmd/go/testdata/script/mod_list_retract.txt b/src/cmd/go/testdata/script/mod_list_retract.txt
+index 3ba53bc596..4b13348515 100644
+--- a/src/cmd/go/testdata/script/mod_list_retract.txt
++++ b/src/cmd/go/testdata/script/mod_list_retract.txt
+@@ -29,12 +29,12 @@ go list -m -retracted -f '{{with .Retracted}}retracted{{end}}' example.com/retra
+ go list -m -f '{{with .Retracted}}retracted{{end}}' example.com/retract@v1.0.0-unused
+ ! stdout .
+ 
+-# 'go list -m -retracted mod@version' shows an error if the go.mod that should
+-# contain the retractions is not available.
+-! go list -m -retracted example.com/retract/missingmod@v1.0.0
+-stderr '^go list -m: loading module retractions for example.com/retract/missingmod@v1.0.0: .*404 Not Found$'
+-go list -e -m -retracted -f '{{.Error.Err}}' example.com/retract/missingmod@v1.0.0
+-stdout '^loading module retractions for example.com/retract/missingmod@v1.0.0: .*404 Not Found$'
++# 'go list -m -retracted mod@version' does not show an error if the module
++# that would contain the retraction is unavailable. See #45305.
++go list -m -retracted -f '{{.Path}} {{.Version}} {{.Error}}' example.com/retract/missingmod@v1.0.0
++stdout '^example.com/retract/missingmod v1.0.0 <nil>$'
++exists $GOPATH/pkg/mod/cache/download/example.com/retract/missingmod/@v/v1.9.0.info
++! exists $GOPATH/pkg/mod/cache/download/example.com/retract/missingmod/@v/v1.9.0.mod
+ 
+ # 'go list -m -retracted mod@version' shows retractions.
+ go list -m -retracted example.com/retract@v1.0.0-unused
+diff --git a/src/cmd/go/testdata/script/mod_list_update_nolatest.txt b/src/cmd/go/testdata/script/mod_list_update_nolatest.txt
+new file mode 100644
+index 0000000000..6d00f8ce1e
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_list_update_nolatest.txt
+@@ -0,0 +1,55 @@
++# Check that if a proxy does not have a version of a module that could be
++# an upgrade, 'go list -m -u' still succeeds.
++# We use a local file proxy, since our test proxy doesn't have the behavior
++# we want to test, and we don't want it to be too clever.
++# Verifies #45305, where proxy.golang.org serves an empty /@v/list (200)
++# but has no /@latest (410) because the go.mod at the tip of the default
++# branch has a different major version suffix.
++env testproxy=$GOPROXY
++env GOPROXY=file://$WORK/proxy
++env GOSUMDB=off
++
++# If the proxy does not return a list of versions (404/410)
++# or a latest version (404/410), we should see no error.
++go list -m example.com/noversion
++stdout '^example.com/noversion v0.0.0$'
++go list -m -u example.com/noversion
++stdout '^example.com/noversion v0.0.0$'
++
++# If the proxy returns an empty list of versions (200, not 404/410)
++# but does not have a latest version (404/410), we should see no error.
++go list -m example.com/nolatest
++stdout '^example.com/nolatest v0.0.0$'
++go list -m -u example.com/nolatest
++stdout '^example.com/nolatest v0.0.0$'
++
++# If proxy returns an invalid response, we should see an error.
++env GOPROXY=$testproxy/invalid
++! go list -m -u example.com/nolatest
++stderr '^go list -m: loading module retractions for example.com/nolatest@v0.0.0: invalid response from proxy "[^"]*": invalid character ''i'' looking for beginning of value$'
++
++-- go.mod --
++module m
++
++go 1.17
++
++require (
++	example.com/nolatest v0.0.0
++	example.com/noversion v0.0.0
++)
++-- go.sum --
++example.com/nolatest v0.0.0/go.mod h1:HnLrCt6SJga5tCtJ7IzG9dOOCniY3G5C0VT7jfMdS0M=
++example.com/noversion v0.0.0/go.mod h1:2RUfWiCYsygSXPM2Igxx0FD3Kq33OnVdxm34eDDhXbQ=
++-- $WORK/proxy/example.com/nolatest/@v/list --
++-- $WORK/proxy/example.com/nolatest/@v/v0.0.0.info --
++{"Version":"v0.0.0"}
++-- $WORK/proxy/example.com/nolatest/@v/v0.0.0.mod --
++module example.com/nolatest
++
++go 1.17
++-- $WORK/proxy/example.com/noversion/@v/v0.0.0.info --
++{"Version":"v0.0.0"}
++-- $WORK/proxy/example.com/noversion/@v/v0.0.0.mod --
++module example.com/noversion
++
++go 1.17
+diff --git a/src/cmd/go/testdata/script/mod_retract_replace.txt b/src/cmd/go/testdata/script/mod_retract_replace.txt
+index 770aea41a5..9cd714739a 100644
+--- a/src/cmd/go/testdata/script/mod_retract_replace.txt
++++ b/src/cmd/go/testdata/script/mod_retract_replace.txt
+@@ -5,8 +5,10 @@
+ go get -d
+ 
+ # The latest version, v1.9.0, is not available on the proxy.
+-! go list -m -retracted example.com/retract/missingmod
+-stderr '^go list -m: loading module retractions for example.com/retract/missingmod@v1.0.0: .*404 Not Found$'
++go list -m -retracted example.com/retract/missingmod
++stdout '^example.com/retract/missingmod v1.0.0$'
++exists $GOPATH/pkg/mod/cache/download/example.com/retract/missingmod/@v/v1.9.0.info
++! exists $GOPATH/pkg/mod/cache/download/example.com/retract/missingmod/@v/v1.9.0.mod
+ 
+ # If we replace that version, we should see retractions.
+ go mod edit -replace=example.com/retract/missingmod@v1.9.0=./missingmod-v1.9.0

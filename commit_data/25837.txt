@@ -12,7 +12,61 @@ Date:   Mon Aug 31 19:08:49 2015 +0300
     Change-Id: I678c50152a49c14364be62b3f21ab9b9b009b24b
     Reviewed-on: https://go-review.googlesource.com/14084
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/encoding/xml/xml.go      |  2 +-
  src/encoding/xml/xml_test.go | 32 ++++++++++++++++++++++++++++++++
  2 files changed, 33 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/xml/xml.go b/src/encoding/xml/xml.go
+index bdd607cfa8..70ff877172 100644
+--- a/src/encoding/xml/xml.go
++++ b/src/encoding/xml/xml.go
+@@ -583,7 +583,7 @@ func (d *Decoder) rawToken() (Token, error) {
+ 				return nil, d.err
+ 			}
+ 			enc := procInst("encoding", content)
+-			if enc != "" && enc != "utf-8" && enc != "UTF-8" {
++			if enc != "" && enc != "utf-8" && enc != "UTF-8" && !strings.EqualFold(enc, "utf-8") {
+ 				if d.CharsetReader == nil {
+ 					d.err = fmt.Errorf("xml: encoding %q declared but Decoder.CharsetReader is nil", enc)
+ 					return nil, d.err
+diff --git a/src/encoding/xml/xml_test.go b/src/encoding/xml/xml_test.go
+index 19465d7fb1..5d5e4bf970 100644
+--- a/src/encoding/xml/xml_test.go
++++ b/src/encoding/xml/xml_test.go
+@@ -771,3 +771,35 @@ func TestIssue11405(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestIssue12417(t *testing.T) {
++	testCases := []struct {
++		s  string
++		ok bool
++	}{
++		{`<?xml encoding="UtF-8" version="1.0"?><root/>`, true},
++		{`<?xml encoding="UTF-8" version="1.0"?><root/>`, true},
++		{`<?xml encoding="utf-8" version="1.0"?><root/>`, true},
++		{`<?xml encoding="uuu-9" version="1.0"?><root/>`, false},
++	}
++	for _, tc := range testCases {
++		d := NewDecoder(strings.NewReader(tc.s))
++		var err error
++		for {
++			_, err = d.Token()
++			if err != nil {
++				if err == io.EOF {
++					err = nil
++				}
++				break
++			}
++		}
++		if err != nil && tc.ok {
++			t.Errorf("%q: Encoding charset: expected no error, got %s", tc.s, err)
++			continue
++		}
++		if err == nil && !tc.ok {
++			t.Errorf("%q: Encoding charset: expected error, got nil", tc.s)
++		}
++	}
++}

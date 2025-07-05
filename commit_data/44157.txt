@@ -18,6 +18,19 @@ Date:   Mon May 18 16:49:04 2020 -0400
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/tls/ticket.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/crypto/tls/ticket.go b/src/crypto/tls/ticket.go
+index 38b01fc25c..6c1d20da20 100644
+--- a/src/crypto/tls/ticket.go
++++ b/src/crypto/tls/ticket.go
+@@ -54,7 +54,6 @@ func (m *sessionState) unmarshal(data []byte) bool {
+ 	*m = sessionState{usedOldKey: m.usedOldKey}
+ 	s := cryptobyte.String(data)
+ 	if ok := s.ReadUint16(&m.vers) &&
+-		m.vers != VersionTLS13 &&
+ 		s.ReadUint16(&m.cipherSuite) &&
+ 		readUint64(&s, &m.createdAt) &&
+ 		readUint16LengthPrefixed(&s, &m.masterSecret) &&

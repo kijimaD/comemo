@@ -9,6 +9,25 @@ Date:   Wed May 17 15:28:14 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  test/checkbce.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/test/checkbce.go b/test/checkbce.go
+index a4b0fe0d2a..430dcf9cbc 100644
+--- a/test/checkbce.go
++++ b/test/checkbce.go
+@@ -1,6 +1,13 @@
+ // +build amd64
+ // errorcheck -0 -d=ssa/check_bce/debug=3
+ 
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that the compiler does bounds check elimination as expected.
++// This avoids accidental regressions.
++
+ package main
+ 
+ func f0(a []int) {

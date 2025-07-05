@@ -15,6 +15,19 @@ Date:   Wed Jul 7 09:32:17 2021 -0700
     Change-Id: I54f911a34e507a3db0abc4da55a19b7a50b35041
     Reviewed-on: https://go-review.googlesource.com/c/go/+/333149
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/io/fs/fs.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/io/fs/fs.go b/src/io/fs/fs.go
+index 5c0d9a6664..4ce4d1a528 100644
+--- a/src/io/fs/fs.go
++++ b/src/io/fs/fs.go
+@@ -120,6 +120,7 @@ type ReadDirFile interface {
+ 	// In this case, if ReadDir returns an empty slice, it will return
+ 	// a non-nil error explaining why.
+ 	// At the end of a directory, the error is io.EOF.
++	// (ReadDir must return io.EOF itself, not an error wrapping io.EOF.)
+ 	//
+ 	// If n <= 0, ReadDir returns all the DirEntry values from the directory
+ 	// in a single slice. In this case, if ReadDir succeeds (reads all the way

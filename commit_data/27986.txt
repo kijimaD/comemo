@@ -10,8 +10,121 @@ Date:   Fri Apr 22 14:50:20 2016 -0700
     Change-Id: Ia678ab64293ebf04bf83601e6ba72919d05762a4
     Reviewed-on: https://go-review.googlesource.com/22385
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 15 +++++++++++++++
  src/cmd/compile/internal/gc/bimport.go | 11 +++++++++--
  src/go/internal/gcimporter/bimport.go  | 11 +++++++++--
  3 files changed, 33 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 7aa6c9ce6f..496491131a 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -112,6 +112,14 @@ import (
+ // (suspected) format errors, and whenever a change is made to the format.
+ const debugFormat = false // default: false
+ 
++// If posInfoFormat is set, position information (file, lineno) is written
++// for each exported object, including methods and struct fields. Currently
++// disabled because it may lead to different object files depending on which
++// directory they are built under, which causes tests checking for hermetic
++// builds to fail (e.g. TestCgoConsistentResults for cmd/go).
++// TODO(gri) determine what to do here.
++const posInfoFormat = false
++
+ // TODO(gri) remove eventually
+ const forceNewExport = false // force new export format - DO NOT SUBMIT with this flag set
+ 
+@@ -160,6 +168,9 @@ func export(out *bufio.Writer, trace bool) int {
+ 	}
+ 	p.rawByte(format)
+ 
++	// posInfo exported or not?
++	p.bool(posInfoFormat)
++
+ 	// --- generic export data ---
+ 
+ 	if p.trace {
+@@ -493,6 +504,10 @@ func (p *exporter) obj(sym *Sym) {
+ }
+ 
+ func (p *exporter) pos(n *Node) {
++	if !posInfoFormat {
++		return
++	}
++
+ 	var file string
+ 	var line int
+ 	if n != nil {
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index ef89f9ad0a..e05329bb12 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -30,8 +30,9 @@ type importer struct {
+ 	funcList []*Node // nil entry means already declared
+ 
+ 	// position encoding
+-	prevFile string
+-	prevLine int
++	posInfoFormat bool
++	prevFile      string
++	prevLine      int
+ 
+ 	// debugging support
+ 	debugFormat bool
+@@ -55,6 +56,8 @@ func Import(in *bufio.Reader) {
+ 		Fatalf("importer: invalid encoding format in export data: got %q; want 'c' or 'd'", format)
+ 	}
+ 
++	p.posInfoFormat = p.bool()
++
+ 	// --- generic export data ---
+ 
+ 	if v := p.string(); v != exportVersion {
+@@ -279,6 +282,10 @@ func (p *importer) obj(tag int) {
+ }
+ 
+ func (p *importer) pos() {
++	if !p.posInfoFormat {
++		return
++	}
++
+ 	file := p.prevFile
+ 	line := p.prevLine
+ 
+diff --git a/src/go/internal/gcimporter/bimport.go b/src/go/internal/gcimporter/bimport.go
+index d75e533e97..f2080ffe59 100644
+--- a/src/go/internal/gcimporter/bimport.go
++++ b/src/go/internal/gcimporter/bimport.go
+@@ -27,8 +27,9 @@ type importer struct {
+ 	typList []types.Type     // in order of appearance
+ 
+ 	// position encoding
+-	prevFile string
+-	prevLine int
++	posInfoFormat bool
++	prevFile      string
++	prevLine      int
+ 
+ 	// debugging support
+ 	debugFormat bool
+@@ -57,6 +58,8 @@ func BImportData(imports map[string]*types.Package, data []byte, path string) (i
+ 		return p.read, nil, fmt.Errorf("invalid encoding format in export data: got %q; want 'c' or 'd'", format)
+ 	}
+ 
++	p.posInfoFormat = p.int() != 0
++
+ 	// --- generic export data ---
+ 
+ 	if v := p.string(); v != "v0" {
+@@ -194,6 +197,10 @@ func (p *importer) obj(tag int) {
+ }
+ 
+ func (p *importer) pos() {
++	if !p.posInfoFormat {
++		return
++	}
++
+ 	file := p.prevFile
+ 	line := p.prevLine
+ 

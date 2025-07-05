@@ -16,7 +16,38 @@ Date:   Wed Oct 20 09:55:26 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types2/expr.go                           | 6 +++++-
  src/cmd/compile/internal/types2/testdata/fixedbugs/issue48472.go2 | 5 +++++
  2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 2d22c027eb..1001554739 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1025,7 +1025,11 @@ func (check *Checker) binary(x *operand, e syntax.Expr, lhs, rhs syntax.Expr, op
+ 		// only report an error if we have valid types
+ 		// (otherwise we had an error reported elsewhere already)
+ 		if x.typ != Typ[Invalid] && y.typ != Typ[Invalid] {
+-			check.errorf(x, invalidOp+"%s (mismatched types %s and %s)", e, x.typ, y.typ)
++			if e != nil {
++				check.errorf(x, invalidOp+"%s (mismatched types %s and %s)", e, x.typ, y.typ)
++			} else {
++				check.errorf(x, invalidOp+"%s %s= %s (mismatched types %s and %s)", lhs, op, rhs, x.typ, y.typ)
++			}
+ 		}
+ 		x.mode = invalid
+ 		return
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48472.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48472.go2
+index 5fefcaf22b..2d908f4c8b 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48472.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48472.go2
+@@ -9,3 +9,8 @@ func g() {
+ 	var i int
+ 	_ = s /* ERROR invalid operation: s \+ i \(mismatched types string and int\) */ + i
+ }
++
++func f(i int) int {
++        i /* ERROR invalid operation: i \+= "1" \(mismatched types int and untyped string\) */ += "1"
++        return i
++}

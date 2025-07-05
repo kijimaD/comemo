@@ -9,6 +9,19 @@ Date:   Thu Apr 17 23:16:11 2014 -0400
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/89050043
-
+---
  src/cmd/go/testflag.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/testflag.go b/src/cmd/go/testflag.go
+index 2b5f89ba5f..adfc2d9216 100644
+--- a/src/cmd/go/testflag.go
++++ b/src/cmd/go/testflag.go
+@@ -76,6 +76,7 @@ var testFlagDefn = []*testFlagSpec{
+ 	{name: "p"},
+ 	{name: "x", boolVar: &buildX},
+ 	{name: "work", boolVar: &buildWork},
++	{name: "ccflags"},
+ 	{name: "gcflags"},
+ 	{name: "exec"},
+ 	{name: "ldflags"},

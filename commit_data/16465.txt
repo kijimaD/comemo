@@ -9,7 +9,42 @@ Date:   Sun Jun 2 22:46:53 2013 +0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/9649045
-
+---
  misc/cgo/test/issue4857.go | 15 +++++++++++++++
  src/cmd/cgo/out.go         |  2 +-
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/test/issue4857.go b/misc/cgo/test/issue4857.go
+new file mode 100644
+index 0000000000..54dc39f8d1
+--- /dev/null
++++ b/misc/cgo/test/issue4857.go
+@@ -0,0 +1,15 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++/*
++#cgo CFLAGS: -Werror
++const struct { int a; } *issue4857() { return (void *)0; }
++*/
++import "C"
++
++func test4857() {
++	_ = C.issue4857()
++}
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index d9f7604962..29f7020930 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -490,7 +490,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
+ 	if t := n.FuncType.Result; t != nil {
+ 		fmt.Fprintf(fgcc, "a->r = ")
+ 		if c := t.C.String(); c[len(c)-1] == '*' {
+-			fmt.Fprintf(fgcc, "(const %s) ", t.C)
++			fmt.Fprint(fgcc, "(__typeof__(a->r)) ")
+ 		}
+ 	}
+ 	fmt.Fprintf(fgcc, "%s(", n.C)

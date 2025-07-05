@@ -1951,3 +1951,1430 @@ Date:   Wed Dec 6 00:35:28 2017 -0500
  test/run.go                                        |    58 +-
  test/shift1.go                                     |     3 +-
  1928 files changed, 217744 insertions(+), 72030 deletions(-)
+
+diff --cc src/cmd/compile/internal/gc/reflect.go
+index 47ac541822,66b1a8e186..bbb263ee8d
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@@ -1275,47 -1339,20 +1339,47 @@@ func dtypesym(t *types.Type) *obj.LSym 
+  	// ../../../../runtime/type.go:/structType
+  	// for security, only the exported fields.
+  	case TSTRUCT:
++ 		fields := t.Fields().Slice()
+ +
+ +		// omitFieldForAwfulBoringCryptoKludge reports whether
+ +		// the field t should be omitted from the reflect data.
+ +		// In the crypto/... packages we omit an unexported field
+ +		// named "boring", to keep from breaking client code that
+ +		// expects rsa.PublicKey etc to have only public fields.
+ +		// As the name suggests, this is an awful kludge, but it is
+ +		// limited to the dev.boringcrypto branch and avoids
+ +		// much more invasive effects elsewhere.
+ +		omitFieldForAwfulBoringCryptoKludge := func(t *types.Field) bool {
+ +			if t.Sym == nil || t.Sym.Name != "boring" || t.Sym.Pkg == nil {
+ +				return false
+ +			}
+ +			path := t.Sym.Pkg.Path
+ +			if t.Sym.Pkg == localpkg {
+ +				path = myimportpath
+ +			}
+ +			return strings.HasPrefix(path, "crypto/")
+ +		}
+- 
+- 		n := 0
+- 
+- 		for _, t1 := range t.Fields().Slice() {
+- 			if omitFieldForAwfulBoringCryptoKludge(t1) {
+- 				continue
+++		newFields := fields[:0:0]
+++		for _, t1 := range fields {
+++			if !omitFieldForAwfulBoringCryptoKludge(t1) {
+++				newFields = append(newFields, t1)
+ +			}
+++		}
+++		fields = newFields
+++
++ 		for _, t1 := range fields {
+  			dtypesym(t1.Type)
+- 			n++
+  		}
+  
+- 		ot = dcommontype(lsym, ot, t)
+- 		pkg := localpkg
+- 		if t.Sym != nil {
+- 			pkg = t.Sym.Pkg
+- 		} else {
+- 			// Unnamed type. Grab the package from the first field, if any.
+- 			for _, f := range t.Fields().Slice() {
+- 				if f.Embedded != 0 {
+- 					continue
+- 				}
+- 				pkg = f.Sym.Pkg
++ 		// All non-exported struct field names within a struct
++ 		// type must originate from a single package. By
++ 		// identifying and recording that package within the
++ 		// struct type descriptor, we can omit that
++ 		// information from the field descriptors.
++ 		var spkg *types.Pkg
++ 		for _, f := range fields {
++ 			if !exportname(f.Sym.Name) {
++ 				spkg = f.Sym.Pkg
+  				break
+  			}
+  		}
+diff --cc src/cmd/go/go_test.go
+index a12df2988c,e0ac90dddf..75d65b7235
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@@ -3632,8 -3961,8 +3961,12 @@@ func TestBinaryOnlyPackages(t *testing.
+  	tg.grepStdout("false", "did not see BinaryOnly=false for p4")
+  }
+  
+ -// Issue 16050.
+ -func TestAlwaysLinkSysoFiles(t *testing.T) {
+ +// Issue 16050 and 21884.
+ +func TestLinkSysoFiles(t *testing.T) {
+++	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
+++		t.Skip("not linux/amd64")
+++	}
+++
+  	tg := testgo(t)
+  	defer tg.cleanup()
+  	tg.parallel()
+diff --cc src/crypto/ecdsa/ecdsa.go
+index 3fe1dda660,755ed284a9..6a47cc7d98
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@@ -49,11 -47,9 +49,11 @@@ const 
+  type PublicKey struct {
+  	elliptic.Curve
+  	X, Y *big.Int
+ +
+ +	boring unsafe.Pointer
+  }
+  
+- // PrivateKey represents a ECDSA private key.
++ // PrivateKey represents an ECDSA private key.
+  type PrivateKey struct {
+  	PublicKey
+  	D *big.Int
+@@@ -70,21 -64,15 +70,24 @@@ func (priv *PrivateKey) Public() crypto
+  	return &priv.PublicKey
+  }
+  
+- // Sign signs msg with priv, reading randomness from rand. This method is
+- // intended to support keys where the private part is kept in, for example, a
+- // hardware module. Common uses should use the Sign function in this package
+- // directly.
+- func (priv *PrivateKey) Sign(rand io.Reader, msg []byte, opts crypto.SignerOpts) ([]byte, error) {
++ // Sign signs digest with priv, reading randomness from rand. The opts argument
++ // is not currently used but, in keeping with the crypto.Signer interface,
++ // should be the hash function used to digest the message.
++ //
++ // This method implements crypto.Signer, which is an interface to support keys
++ // where the private part is kept in, for example, a hardware module. Common
++ // uses should use the Sign function in this package directly.
++ func (priv *PrivateKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
+ +	if boring.Enabled && rand == boring.RandReader {
+ +		b, err := boringPrivateKey(priv)
+ +		if err != nil {
+ +			return nil, err
+ +		}
+- 		return boring.SignMarshalECDSA(b, msg)
+++		return boring.SignMarshalECDSA(b, digest)
+ +	}
+ +	boring.UnreachableExceptTests()
+ +
+- 	r, s, err := Sign(rand, priv, msg)
++ 	r, s, err := Sign(rand, priv, digest)
+  	if err != nil {
+  		return nil, err
+  	}
+diff --cc src/crypto/hmac/hmac.go
+index 6996963660,3c8e727bc8..4576b9843b
+--- a/src/crypto/hmac/hmac.go
++++ b/src/crypto/hmac/hmac.go
+@@@ -65,14 -64,10 +65,17 @@@ func (h *hmac) Reset() 
+  }
+  
+  // New returns a new HMAC hash using the given hash.Hash type and key.
++ // Note that unlike other hash implementations in the standard library,
++ // the returned Hash does not implement encoding.BinaryMarshaler
++ // or encoding.BinaryUnmarshaler.
+  func New(h func() hash.Hash, key []byte) hash.Hash {
+ +	if boring.Enabled {
+ +		hm := boring.NewHMAC(h, key)
+ +		if hm != nil {
+ +			return hm
+ +		}
+ +		// BoringCrypto did not recognize h, so fall through to standard Go code.
+ +	}
+  	hm := new(hmac)
+  	hm.outer = h()
+  	hm.inner = h()
+diff --cc src/crypto/issue21104_test.go
+index 0000000000,b4276df4e1..4662088799
+mode 000000,100644..100644
+--- a/src/crypto/issue21104_test.go
++++ b/src/crypto/issue21104_test.go
+@@@ -1,0 -1,61 +1,61 @@@
++ // Copyright 2017 The Go Authors. All rights reserved.
++ // Use of this source code is governed by a BSD-style
++ // license that can be found in the LICENSE file.
++ 
+ -package crypto
+++package crypto_test
++ 
++ import (
++ 	"crypto/aes"
++ 	"crypto/cipher"
++ 	"crypto/rc4"
++ 	"testing"
++ )
++ 
++ func TestRC4OutOfBoundsWrite(t *testing.T) {
++ 	// This cipherText is encrypted "0123456789"
++ 	cipherText := []byte{238, 41, 187, 114, 151, 2, 107, 13, 178, 63}
++ 	cipher, err := rc4.NewCipher([]byte{0})
++ 	if err != nil {
++ 		panic(err)
++ 	}
++ 	test(t, "RC4", cipherText, cipher.XORKeyStream)
++ }
++ func TestCTROutOfBoundsWrite(t *testing.T) {
++ 	testBlock(t, "CTR", cipher.NewCTR)
++ }
++ func TestOFBOutOfBoundsWrite(t *testing.T) {
++ 	testBlock(t, "OFB", cipher.NewOFB)
++ }
++ func TestCFBEncryptOutOfBoundsWrite(t *testing.T) {
++ 	testBlock(t, "CFB Encrypt", cipher.NewCFBEncrypter)
++ }
++ func TestCFBDecryptOutOfBoundsWrite(t *testing.T) {
++ 	testBlock(t, "CFB Decrypt", cipher.NewCFBDecrypter)
++ }
++ func testBlock(t *testing.T, name string, newCipher func(cipher.Block, []byte) cipher.Stream) {
++ 	// This cipherText is encrypted "0123456789"
++ 	cipherText := []byte{86, 216, 121, 231, 219, 191, 26, 12, 176, 117}
++ 	var iv, key [16]byte
++ 	block, err := aes.NewCipher(key[:])
++ 	if err != nil {
++ 		panic(err)
++ 	}
++ 	stream := newCipher(block, iv[:])
++ 	test(t, name, cipherText, stream.XORKeyStream)
++ }
++ func test(t *testing.T, name string, cipherText []byte, xor func([]byte, []byte)) {
++ 	want := "abcdefghij"
++ 	plainText := []byte(want)
++ 	shorterLen := len(cipherText) / 2
++ 	defer func() {
++ 		err := recover()
++ 		if err == nil {
++ 			t.Errorf("%v XORKeyStream expected to panic on len(dst) < len(src), but didn't", name)
++ 		}
++ 		const plain = "0123456789"
++ 		if plainText[shorterLen] == plain[shorterLen] {
++ 			t.Errorf("%v XORKeyStream did out of bounds write, want %v, got %v", name, want, string(plainText))
++ 		}
++ 	}()
++ 	xor(plainText[:shorterLen], cipherText)
++ }
+diff --cc src/crypto/sha1/sha1.go
+index 535937e902,5f32434f0f..3badf55885
+--- a/src/crypto/sha1/sha1.go
++++ b/src/crypto/sha1/sha1.go
+@@@ -50,11 -113,10 +113,13 @@@ func (d *digest) Reset() 
+  	d.len = 0
+  }
+  
+- // New returns a new hash.Hash computing the SHA1 checksum.
++ // New returns a new hash.Hash computing the SHA1 checksum. The Hash also
++ // implements encoding.BinaryMarshaler and encoding.BinaryUnmarshaler to
++ // marshal and unmarshal the internal state of the hash.
+  func New() hash.Hash {
+ +	if boringEnabled {
+ +		return boringNewSHA1()
+ +	}
+  	d := new(digest)
+  	d.Reset()
+  	return d
+diff --cc src/crypto/sha1/sha1_test.go
+index 426402a8c2,8fefde0db2..20095190c3
+--- a/src/crypto/sha1/sha1_test.go
++++ b/src/crypto/sha1/sha1_test.go
+@@@ -7,8 -7,9 +7,10 @@@
+  package sha1
+  
+  import (
++ 	"bytes"
+ +	"crypto/internal/boring"
+  	"crypto/rand"
++ 	"encoding"
+  	"fmt"
+  	"io"
+  	"testing"
+diff --cc src/crypto/sha256/sha256.go
+index f386f83206,f078cab378..a5bb144f0e
+--- a/src/crypto/sha256/sha256.go
++++ b/src/crypto/sha256/sha256.go
+@@@ -8,7 -8,7 +8,8 @@@ package sha25
+  
+  import (
+  	"crypto"
+ +	"crypto/internal/boring"
++ 	"errors"
+  	"hash"
+  )
+  
+@@@ -79,11 -164,11 +165,14 @@@ func (d *digest) Reset() 
+  	d.len = 0
+  }
+  
+- // New returns a new hash.Hash computing the SHA256 checksum.
++ // New returns a new hash.Hash computing the SHA256 checksum. The Hash
++ // also implements encoding.BinaryMarshaler and
++ // encoding.BinaryUnmarshaler to marshal and unmarshal the internal
++ // state of the hash.
+  func New() hash.Hash {
+ +	if boring.Enabled {
+ +		return boring.NewSHA256()
+ +	}
+  	d := new(digest)
+  	d.Reset()
+  	return d
+diff --cc src/crypto/sha256/sha256_test.go
+index 17721d5635,cd402864e5..a188a64ad1
+--- a/src/crypto/sha256/sha256_test.go
++++ b/src/crypto/sha256/sha256_test.go
+@@@ -7,9 -7,11 +7,12 @@@
+  package sha256
+  
+  import (
++ 	"bytes"
+ +	"crypto/internal/boring"
+  	"crypto/rand"
++ 	"encoding"
+  	"fmt"
++ 	"hash"
+  	"io"
+  	"testing"
+  )
+diff --cc src/crypto/sha512/sha512.go
+index d37f853499,2ea27c5535..81918e4fcf
+--- a/src/crypto/sha512/sha512.go
++++ b/src/crypto/sha512/sha512.go
+@@@ -8,7 -12,7 +12,8 @@@ package sha51
+  
+  import (
+  	"crypto"
+ +	"crypto/internal/boring"
++ 	"errors"
+  	"hash"
+  )
+  
+@@@ -125,11 -129,94 +130,97 @@@ func (d *digest) Reset() 
+  	d.len = 0
+  }
+  
++ const (
++ 	magic384      = "sha\x04"
++ 	magic512_224  = "sha\x05"
++ 	magic512_256  = "sha\x06"
++ 	magic512      = "sha\x07"
++ 	marshaledSize = len(magic512) + 8*8 + chunk + 8
++ )
++ 
++ func (d *digest) MarshalBinary() ([]byte, error) {
++ 	b := make([]byte, 0, marshaledSize)
++ 	switch d.function {
++ 	case crypto.SHA384:
++ 		b = append(b, magic384...)
++ 	case crypto.SHA512_224:
++ 		b = append(b, magic512_224...)
++ 	case crypto.SHA512_256:
++ 		b = append(b, magic512_256...)
++ 	case crypto.SHA512:
++ 		b = append(b, magic512...)
++ 	default:
++ 		return nil, errors.New("crypto/sha512: invalid hash function")
++ 	}
++ 	b = appendUint64(b, d.h[0])
++ 	b = appendUint64(b, d.h[1])
++ 	b = appendUint64(b, d.h[2])
++ 	b = appendUint64(b, d.h[3])
++ 	b = appendUint64(b, d.h[4])
++ 	b = appendUint64(b, d.h[5])
++ 	b = appendUint64(b, d.h[6])
++ 	b = appendUint64(b, d.h[7])
++ 	b = append(b, d.x[:]...)
++ 	b = appendUint64(b, d.len)
++ 	return b, nil
++ }
++ 
++ func (d *digest) UnmarshalBinary(b []byte) error {
++ 	if len(b) < len(magic512) {
++ 		return errors.New("crypto/sha512: invalid hash state identifier")
++ 	}
++ 	switch {
++ 	case d.function == crypto.SHA384 && string(b[:len(magic384)]) == magic384:
++ 	case d.function == crypto.SHA512_224 && string(b[:len(magic512_224)]) == magic512_224:
++ 	case d.function == crypto.SHA512_256 && string(b[:len(magic512_256)]) == magic512_256:
++ 	case d.function == crypto.SHA512 && string(b[:len(magic512)]) == magic512:
++ 	default:
++ 		return errors.New("crypto/sha512: invalid hash state identifier")
++ 	}
++ 	if len(b) != marshaledSize {
++ 		return errors.New("crypto/sha512: invalid hash state size")
++ 	}
++ 	b = b[len(magic512):]
++ 	b, d.h[0] = consumeUint64(b)
++ 	b, d.h[1] = consumeUint64(b)
++ 	b, d.h[2] = consumeUint64(b)
++ 	b, d.h[3] = consumeUint64(b)
++ 	b, d.h[4] = consumeUint64(b)
++ 	b, d.h[5] = consumeUint64(b)
++ 	b, d.h[6] = consumeUint64(b)
++ 	b, d.h[7] = consumeUint64(b)
++ 	b = b[copy(d.x[:], b):]
++ 	b, d.len = consumeUint64(b)
++ 	d.nx = int(d.len) % chunk
++ 	return nil
++ }
++ 
++ func appendUint64(b []byte, x uint64) []byte {
++ 	a := [8]byte{
++ 		byte(x >> 56),
++ 		byte(x >> 48),
++ 		byte(x >> 40),
++ 		byte(x >> 32),
++ 		byte(x >> 24),
++ 		byte(x >> 16),
++ 		byte(x >> 8),
++ 		byte(x),
++ 	}
++ 	return append(b, a[:]...)
++ }
++ 
++ func consumeUint64(b []byte) ([]byte, uint64) {
++ 	_ = b[7]
++ 	x := uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
++ 		uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56
++ 	return b[8:], x
++ }
++ 
+  // New returns a new hash.Hash computing the SHA-512 checksum.
+  func New() hash.Hash {
+ +	if boring.Enabled {
+ +		return boring.NewSHA512()
+ +	}
+  	d := &digest{function: crypto.SHA512}
+  	d.Reset()
+  	return d
+diff --cc src/crypto/sha512/sha512_test.go
+index 2c41d1a3ec,4423cf5f18..93c4591bd8
+--- a/src/crypto/sha512/sha512_test.go
++++ b/src/crypto/sha512/sha512_test.go
+@@@ -7,8 -7,9 +7,10 @@@
+  package sha512
+  
+  import (
++ 	"bytes"
+ +	"crypto/internal/boring"
+  	"crypto/rand"
++ 	"encoding"
+  	"encoding/hex"
+  	"hash"
+  	"io"
+diff --cc src/crypto/tls/boring.go
+index 791049f0d3,0000000000..f6d922c673
+mode 100644,000000..100644
+--- a/src/crypto/tls/boring.go
++++ b/src/crypto/tls/boring.go
+@@@ -1,121 -1,0 +1,121 @@@
+ +// Copyright 2017 The Go Authors. All rights reserved.
+ +// Use of this source code is governed by a BSD-style
+ +// license that can be found in the LICENSE file.
+ +
+ +package tls
+ +
+ +import (
+ +	"crypto/ecdsa"
+ +	"crypto/internal/boring/fipstls"
+ +	"crypto/rsa"
+ +	"crypto/x509"
+ +)
+ +
+ +// needFIPS returns fipstls.Required(); it avoids a new import in common.go.
+ +func needFIPS() bool {
+ +	return fipstls.Required()
+ +}
+ +
+ +// fipsMinVersion replaces c.minVersion in FIPS-only mode.
+ +func fipsMinVersion(c *Config) uint16 {
+ +	// FIPS requires TLS 1.2.
+ +	return VersionTLS12
+ +}
+ +
+ +// fipsMaxVersion replaces c.maxVersion in FIPS-only mode.
+ +func fipsMaxVersion(c *Config) uint16 {
+ +	// FIPS requires TLS 1.2.
+ +	return VersionTLS12
+ +}
+ +
+ +// default defaultFIPSCurvePreferences is the FIPS-allowed curves,
+ +// in preference order (most preferable first).
+ +var defaultFIPSCurvePreferences = []CurveID{CurveP256, CurveP384, CurveP521}
+ +
+ +// fipsCurvePreferences replaces c.curvePreferences in FIPS-only mode.
+ +func fipsCurvePreferences(c *Config) []CurveID {
+ +	if c == nil || len(c.CurvePreferences) == 0 {
+ +		return defaultFIPSCurvePreferences
+ +	}
+ +	var list []CurveID
+ +	for _, id := range c.CurvePreferences {
+ +		for _, allowed := range defaultFIPSCurvePreferences {
+ +			if id == allowed {
+ +				list = append(list, id)
+ +				break
+ +			}
+ +		}
+ +	}
+ +	return list
+ +}
+ +
+ +// default FIPSCipherSuites is the FIPS-allowed cipher suites,
+ +// in preference order (most preferable first).
+ +var defaultFIPSCipherSuites = []uint16{
+ +	TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+ +	TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+ +	TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+ +	TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+ +	TLS_RSA_WITH_AES_128_GCM_SHA256,
+ +	TLS_RSA_WITH_AES_256_GCM_SHA384,
+ +}
+ +
+ +// fipsCipherSuites replaces c.cipherSuites in FIPS-only mode.
+ +func fipsCipherSuites(c *Config) []uint16 {
+ +	if c == nil || c.CipherSuites == nil {
+ +		return defaultFIPSCipherSuites
+ +	}
+ +	var list []uint16
+ +	for _, id := range c.CipherSuites {
+ +		for _, allowed := range defaultFIPSCipherSuites {
+ +			if id == allowed {
+ +				list = append(list, id)
+ +				break
+ +			}
+ +		}
+ +	}
+ +	return list
+ +}
+ +
+ +// isBoringCertificate reports whether a certificate may be used
+ +// when constructing a verified chain.
+ +// It is called for each leaf, intermediate, and root certificate.
+ +func isBoringCertificate(c *x509.Certificate) bool {
+ +	if !needFIPS() {
+ +		// Everything is OK if we haven't forced FIPS-only mode.
+ +		return true
+ +	}
+ +
+ +	// Otherwise the key must be RSA 2048, RSA 3072, or ECDSA P-256.
+ +	switch k := c.PublicKey.(type) {
+ +	default:
+ +		return false
+ +	case *rsa.PublicKey:
+ +		if size := k.N.BitLen(); size != 2048 && size != 3072 {
+ +			return false
+ +		}
+ +	case *ecdsa.PublicKey:
+ +		if name := k.Curve.Params().Name; name != "P-256" && name != "P-384" {
+ +			return false
+ +		}
+ +	}
+ +
+ +	return true
+ +}
+ +
+ +// supportedSignatureAlgorithms returns the supported signature algorithms.
+ +// It knows that the FIPS-allowed ones are all at the beginning of
+ +// defaultSupportedSignatureAlgorithms.
+- func supportedSignatureAlgorithms() []signatureAndHash {
+++func supportedSignatureAlgorithms() []SignatureScheme {
+ +	all := defaultSupportedSignatureAlgorithms
+ +	if !needFIPS() {
+ +		return all
+ +	}
+ +	i := 0
+- 	for i < len(all) && all[i].hash != hashSHA1 {
+++	for i < len(all) && all[i] != PKCS1WithSHA1 {
+ +		i++
+ +	}
+ +	return all[:i]
+ +}
+ +
+- var testingOnlyForceClientHelloSignatureAndHashes []signatureAndHash
+++var testingOnlyForceClientHelloSignatureAlgorithms []SignatureScheme
+diff --cc src/crypto/tls/boring_test.go
+index 15422f8adf,0000000000..f31f3f6bc8
+mode 100644,000000..100644
+--- a/src/crypto/tls/boring_test.go
++++ b/src/crypto/tls/boring_test.go
+@@@ -1,579 -1,0 +1,576 @@@
+ +// Copyright 2017 The Go Authors. All rights reserved.
+ +// Use of this source code is governed by a BSD-style
+ +// license that can be found in the LICENSE file.
+ +
+ +package tls
+ +
+ +import (
+ +	"crypto/ecdsa"
+ +	"crypto/elliptic"
+ +	"crypto/internal/boring/fipstls"
+ +	"crypto/rand"
+ +	"crypto/rsa"
+ +	"crypto/x509"
+ +	"crypto/x509/pkix"
+ +	"fmt"
+ +	"math/big"
+ +	"net"
+ +	"runtime"
+ +	"strings"
+ +	"testing"
+ +	"time"
+ +)
+ +
+ +func TestBoringServerProtocolVersion(t *testing.T) {
+ +	test := func(name string, v uint16, msg string) {
+ +		t.Run(name, func(t *testing.T) {
+ +			serverConfig := testConfig.Clone()
+ +			serverConfig.MinVersion = VersionSSL30
+ +			clientHello := &clientHelloMsg{
+ +				vers:               v,
+ +				cipherSuites:       allCipherSuites(),
+ +				compressionMethods: []uint8{compressionNone},
+ +			}
+ +			testClientHelloFailure(t, serverConfig, clientHello, msg)
+ +		})
+ +	}
+ +
+ +	test("VersionSSL30", VersionSSL30, "")
+ +	test("VersionTLS10", VersionTLS10, "")
+ +	test("VersionTLS11", VersionTLS11, "")
+ +	test("VersionTLS12", VersionTLS12, "")
+ +
+ +	fipstls.Force()
+ +	defer fipstls.Abandon()
+ +	test("VersionSSL30", VersionSSL30, "unsupported, maximum protocol version")
+ +	test("VersionTLS10", VersionTLS10, "unsupported, maximum protocol version")
+ +	test("VersionTLS11", VersionTLS11, "unsupported, maximum protocol version")
+ +	test("VersionTLS12", VersionTLS12, "")
+ +}
+ +
+ +func isBoringCipherSuite(id uint16) bool {
+ +	switch id {
+ +	case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+ +		TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+ +		TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+ +		TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+ +		TLS_RSA_WITH_AES_128_GCM_SHA256,
+ +		TLS_RSA_WITH_AES_256_GCM_SHA384:
+ +		return true
+ +	}
+ +	return false
+ +}
+ +
+ +func isBoringCurve(id CurveID) bool {
+ +	switch id {
+ +	case CurveP256, CurveP384, CurveP521:
+ +		return true
+ +	}
+ +	return false
+ +}
+ +
+ +func isECDSA(id uint16) bool {
+ +	for _, suite := range cipherSuites {
+ +		if suite.id == id {
+ +			return suite.flags&suiteECDSA == suiteECDSA
+ +		}
+ +	}
+ +	panic(fmt.Sprintf("unknown cipher suite %#x", id))
+ +}
+ +
+- func isBoringSignatureAndHash(sigHash signatureAndHash) bool {
+- 	switch sigHash.signature {
+++func isBoringSignatureScheme(alg SignatureScheme) bool {
+++	switch alg {
+ +	default:
+ +		return false
+- 	case signatureRSA,
+- 		signatureECDSA:
+- 		// ok
+- 	}
+- 	switch sigHash.hash {
+- 	default:
+- 		return false
+- 	case hashSHA256,
+- 		hashSHA384:
+++	case PKCS1WithSHA256,
+++		ECDSAWithP256AndSHA256,
+++		PKCS1WithSHA384,
+++		ECDSAWithP384AndSHA384,
+++		PKCS1WithSHA512,
+++		ECDSAWithP521AndSHA512:
+ +		// ok
+ +	}
+ +	return true
+ +}
+ +
+ +func TestBoringServerCipherSuites(t *testing.T) {
+ +	serverConfig := testConfig.Clone()
+ +	serverConfig.CipherSuites = allCipherSuites()
+ +	serverConfig.Certificates = make([]Certificate, 1)
+ +
+ +	for _, id := range allCipherSuites() {
+ +		if isECDSA(id) {
+ +			serverConfig.Certificates[0].Certificate = [][]byte{testECDSACertificate}
+ +			serverConfig.Certificates[0].PrivateKey = testECDSAPrivateKey
+ +		} else {
+ +			serverConfig.Certificates[0].Certificate = [][]byte{testRSACertificate}
+ +			serverConfig.Certificates[0].PrivateKey = testRSAPrivateKey
+ +		}
+ +		serverConfig.BuildNameToCertificate()
+ +		t.Run(fmt.Sprintf("suite=%#x", id), func(t *testing.T) {
+ +			clientHello := &clientHelloMsg{
+ +				vers:               VersionTLS12,
+ +				cipherSuites:       []uint16{id},
+ +				compressionMethods: []uint8{compressionNone},
+ +				supportedCurves:    defaultCurvePreferences,
+ +				supportedPoints:    []uint8{pointFormatUncompressed},
+ +			}
+ +
+ +			testClientHello(t, serverConfig, clientHello)
+ +			t.Run("fipstls", func(t *testing.T) {
+ +				fipstls.Force()
+ +				defer fipstls.Abandon()
+ +				msg := ""
+ +				if !isBoringCipherSuite(id) {
+ +					msg = "no cipher suite supported by both client and server"
+ +				}
+ +				testClientHelloFailure(t, serverConfig, clientHello, msg)
+ +			})
+ +		})
+ +	}
+ +}
+ +
+ +func TestBoringServerCurves(t *testing.T) {
+ +	serverConfig := testConfig.Clone()
+ +	serverConfig.Certificates = make([]Certificate, 1)
+ +	serverConfig.Certificates[0].Certificate = [][]byte{testECDSACertificate}
+ +	serverConfig.Certificates[0].PrivateKey = testECDSAPrivateKey
+ +	serverConfig.BuildNameToCertificate()
+ +
+ +	for _, curveid := range defaultCurvePreferences {
+ +		t.Run(fmt.Sprintf("curve=%d", curveid), func(t *testing.T) {
+ +			clientHello := &clientHelloMsg{
+ +				vers:               VersionTLS12,
+ +				cipherSuites:       []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256},
+ +				compressionMethods: []uint8{compressionNone},
+ +				supportedCurves:    []CurveID{curveid},
+ +				supportedPoints:    []uint8{pointFormatUncompressed},
+ +			}
+ +
+ +			testClientHello(t, serverConfig, clientHello)
+ +
+ +			// With fipstls forced, bad curves should be rejected.
+ +			t.Run("fipstls", func(t *testing.T) {
+ +				fipstls.Force()
+ +				defer fipstls.Abandon()
+ +				msg := ""
+ +				if !isBoringCurve(curveid) {
+ +					msg = "no cipher suite supported by both client and server"
+ +				}
+ +				testClientHelloFailure(t, serverConfig, clientHello, msg)
+ +			})
+ +		})
+ +	}
+ +}
+ +
+ +func boringHandshake(t *testing.T, clientConfig, serverConfig *Config) (clientErr, serverErr error) {
+ +	c, s := realNetPipe(t)
+ +	client := Client(c, clientConfig)
+ +	server := Server(s, serverConfig)
+ +	done := make(chan error, 1)
+ +	go func() {
+ +		done <- client.Handshake()
+ +		c.Close()
+ +	}()
+ +	serverErr = server.Handshake()
+ +	s.Close()
+ +	clientErr = <-done
+ +	return
+ +}
+ +
+ +func TestBoringServerSignatureAndHash(t *testing.T) {
+ +	serverConfig := testConfig.Clone()
+ +	serverConfig.Certificates = make([]Certificate, 1)
+ +
+ +	defer func() {
+- 		testingOnlyForceClientHelloSignatureAndHashes = nil
+++		testingOnlyForceClientHelloSignatureAlgorithms = nil
+ +	}()
+ +
+ +	for _, sigHash := range defaultSupportedSignatureAlgorithms {
+- 		testingOnlyForceClientHelloSignatureAndHashes = []signatureAndHash{sigHash}
+++		testingOnlyForceClientHelloSignatureAlgorithms = []SignatureScheme{sigHash}
+ +
+ +		t.Run(fmt.Sprintf("%v", sigHash), func(t *testing.T) {
+- 			if sigHash.signature == signatureRSA {
+++			if sigHash == PKCS1WithSHA1 || sigHash == PKCS1WithSHA256 || sigHash == PKCS1WithSHA384 || sigHash == PKCS1WithSHA512 {
+ +				serverConfig.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256}
+ +				serverConfig.Certificates[0].Certificate = [][]byte{testRSACertificate}
+ +				serverConfig.Certificates[0].PrivateKey = testRSAPrivateKey
+ +			} else {
+ +				serverConfig.CipherSuites = []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256}
+ +				serverConfig.Certificates = make([]Certificate, 1)
+ +				serverConfig.Certificates[0].Certificate = [][]byte{testECDSACertificate}
+ +				serverConfig.Certificates[0].PrivateKey = testECDSAPrivateKey
+ +			}
+ +			serverConfig.BuildNameToCertificate()
+ +
+ +			clientErr, _ := boringHandshake(t, testConfig, serverConfig)
+ +			if clientErr != nil {
+ +				t.Fatalf("expected handshake with %v to succeed; err=%v", sigHash, clientErr)
+ +			}
+ +
+ +			// With fipstls forced, bad curves should be rejected.
+ +			t.Run("fipstls", func(t *testing.T) {
+ +				fipstls.Force()
+ +				defer fipstls.Abandon()
+ +				clientErr, _ := boringHandshake(t, testConfig, serverConfig)
+- 				if isBoringSignatureAndHash(sigHash) {
+++				if isBoringSignatureScheme(sigHash) {
+ +					if clientErr != nil {
+ +						t.Fatalf("expected handshake with %v to succeed; err=%v", sigHash, clientErr)
+ +					}
+ +				} else {
+ +					if clientErr == nil {
+ +						t.Fatalf("expected handshake with %v to fail, but it succeeded", sigHash)
+ +					}
+ +				}
+ +			})
+ +		})
+ +	}
+ +}
+ +
+ +func TestBoringClientHello(t *testing.T) {
+ +	// Test that no matter what we put in the client config,
+ +	// the client does not offer non-FIPS configurations.
+ +	fipstls.Force()
+ +	defer fipstls.Abandon()
+ +
+ +	c, s := net.Pipe()
+ +	defer c.Close()
+ +	defer s.Close()
+ +
+ +	clientConfig := testConfig.Clone()
+ +	// All sorts of traps for the client to avoid.
+ +	clientConfig.MinVersion = VersionSSL30
+ +	clientConfig.CipherSuites = allCipherSuites()
+ +	clientConfig.CurvePreferences = defaultCurvePreferences
+ +
+ +	go Client(c, testConfig).Handshake()
+ +	srv := Server(s, testConfig)
+ +	msg, err := srv.readHandshake()
+ +	if err != nil {
+ +		t.Fatal(err)
+ +	}
+ +	hello, ok := msg.(*clientHelloMsg)
+ +	if !ok {
+ +		t.Fatalf("unexpected message type %T", msg)
+ +	}
+ +
+ +	if hello.vers != VersionTLS12 {
+ +		t.Errorf("client vers=%#x, want %#x (TLS 1.2)", hello.vers, VersionTLS12)
+ +	}
+ +	for _, id := range hello.cipherSuites {
+ +		if !isBoringCipherSuite(id) {
+ +			t.Errorf("client offered disallowed suite %#x", id)
+ +		}
+ +	}
+ +	for _, id := range hello.supportedCurves {
+ +		if !isBoringCurve(id) {
+ +			t.Errorf("client offered disallowed curve %d", id)
+ +		}
+ +	}
+- 	for _, sigHash := range hello.signatureAndHashes {
+- 		if !isBoringSignatureAndHash(sigHash) {
+++	for _, sigHash := range hello.supportedSignatureAlgorithms {
+++		if !isBoringSignatureScheme(sigHash) {
+ +			t.Errorf("client offered disallowed signature-and-hash %v", sigHash)
+ +		}
+ +	}
+ +}
+ +
+ +func TestBoringCertAlgs(t *testing.T) {
+ +	// NaCl and arm time out generating keys. Nothing in this test is architecture-specific, so just don't bother on those.
+ +	if runtime.GOOS == "nacl" || runtime.GOARCH == "arm" {
+ +		t.Skipf("skipping on %s/%s because key generation takes too long", runtime.GOOS, runtime.GOARCH)
+ +	}
+ +
+ +	// Set up some roots, intermediate CAs, and leaf certs with various algorithms.
+ +	// X_Y is X signed by Y.
+ +	R1 := boringCert(t, "R1", boringRSAKey(t, 2048), nil, boringCertCA|boringCertFIPSOK)
+ +	R2 := boringCert(t, "R2", boringRSAKey(t, 4096), nil, boringCertCA)
+ +
+ +	M1_R1 := boringCert(t, "M1_R1", boringECDSAKey(t, elliptic.P256()), R1, boringCertCA|boringCertFIPSOK)
+ +	M2_R1 := boringCert(t, "M2_R1", boringECDSAKey(t, elliptic.P224()), R1, boringCertCA)
+ +
+ +	I_R1 := boringCert(t, "I_R1", boringRSAKey(t, 3072), R1, boringCertCA|boringCertFIPSOK)
+ +	I_R2 := boringCert(t, "I_R2", I_R1.key, R2, boringCertCA|boringCertFIPSOK)
+ +	I_M1 := boringCert(t, "I_M1", I_R1.key, M1_R1, boringCertCA|boringCertFIPSOK)
+ +	I_M2 := boringCert(t, "I_M2", I_R1.key, M2_R1, boringCertCA|boringCertFIPSOK)
+ +
+ +	L1_I := boringCert(t, "L1_I", boringECDSAKey(t, elliptic.P384()), I_R1, boringCertLeaf|boringCertFIPSOK)
+ +	L2_I := boringCert(t, "L2_I", boringRSAKey(t, 1024), I_R1, boringCertLeaf)
+ +
+ +	// boringCert checked that isBoringCertificate matches the caller's boringCertFIPSOK bit.
+ +	// If not, no point in building bigger end-to-end tests.
+ +	if t.Failed() {
+ +		t.Fatalf("isBoringCertificate failures; not continuing")
+ +	}
+ +
+ +	// client verifying server cert
+ +	testServerCert := func(t *testing.T, desc string, pool *x509.CertPool, key interface{}, list [][]byte, ok bool) {
+ +		clientConfig := testConfig.Clone()
+ +		clientConfig.RootCAs = pool
+ +		clientConfig.InsecureSkipVerify = false
+ +		clientConfig.ServerName = "example.com"
+ +
+ +		serverConfig := testConfig.Clone()
+ +		serverConfig.Certificates = []Certificate{{Certificate: list, PrivateKey: key}}
+ +		serverConfig.BuildNameToCertificate()
+ +
+ +		clientErr, _ := boringHandshake(t, clientConfig, serverConfig)
+ +
+ +		if (clientErr == nil) == ok {
+ +			if ok {
+ +				t.Logf("%s: accept", desc)
+ +			} else {
+ +				t.Logf("%s: reject", desc)
+ +			}
+ +		} else {
+ +			if ok {
+ +				t.Errorf("%s: BAD reject (%v)", desc, clientErr)
+ +			} else {
+ +				t.Errorf("%s: BAD accept", desc)
+ +			}
+ +		}
+ +	}
+ +
+ +	// server verifying client cert
+ +	testClientCert := func(t *testing.T, desc string, pool *x509.CertPool, key interface{}, list [][]byte, ok bool) {
+ +		clientConfig := testConfig.Clone()
+ +		clientConfig.ServerName = "example.com"
+ +		clientConfig.Certificates = []Certificate{{Certificate: list, PrivateKey: key}}
+ +
+ +		serverConfig := testConfig.Clone()
+ +		serverConfig.ClientCAs = pool
+ +		serverConfig.ClientAuth = RequireAndVerifyClientCert
+ +
+ +		_, serverErr := boringHandshake(t, clientConfig, serverConfig)
+ +
+ +		if (serverErr == nil) == ok {
+ +			if ok {
+ +				t.Logf("%s: accept", desc)
+ +			} else {
+ +				t.Logf("%s: reject", desc)
+ +			}
+ +		} else {
+ +			if ok {
+ +				t.Errorf("%s: BAD reject (%v)", desc, serverErr)
+ +			} else {
+ +				t.Errorf("%s: BAD accept", desc)
+ +			}
+ +		}
+ +	}
+ +
+ +	// Run simple basic test with known answers before proceeding to
+ +	// exhaustive test with computed answers.
+ +	r1pool := x509.NewCertPool()
+ +	r1pool.AddCert(R1.cert)
+ +	testServerCert(t, "basic", r1pool, L2_I.key, [][]byte{L2_I.der, I_R1.der}, true)
+ +	testClientCert(t, "basic (client cert)", r1pool, L2_I.key, [][]byte{L2_I.der, I_R1.der}, true)
+ +	fipstls.Force()
+ +	testServerCert(t, "basic (fips)", r1pool, L2_I.key, [][]byte{L2_I.der, I_R1.der}, false)
+ +	testClientCert(t, "basic (fips, client cert)", r1pool, L2_I.key, [][]byte{L2_I.der, I_R1.der}, false)
+ +	fipstls.Abandon()
+ +
+ +	if t.Failed() {
+ +		t.Fatal("basic test failed, skipping exhaustive test")
+ +	}
+ +
+ +	if testing.Short() {
+ +		t.Logf("basic test passed; skipping exhaustive test in -short mode")
+ +		return
+ +	}
+ +
+ +	for l := 1; l <= 2; l++ {
+ +		leaf := L1_I
+ +		if l == 2 {
+ +			leaf = L2_I
+ +		}
+ +		for i := 0; i < 64; i++ {
+ +			reachable := map[string]bool{leaf.parentOrg: true}
+ +			reachableFIPS := map[string]bool{leaf.parentOrg: leaf.fipsOK}
+ +			list := [][]byte{leaf.der}
+ +			listName := leaf.name
+ +			addList := func(cond int, c *boringCertificate) {
+ +				if cond != 0 {
+ +					list = append(list, c.der)
+ +					listName += "," + c.name
+ +					if reachable[c.org] {
+ +						reachable[c.parentOrg] = true
+ +					}
+ +					if reachableFIPS[c.org] && c.fipsOK {
+ +						reachableFIPS[c.parentOrg] = true
+ +					}
+ +				}
+ +			}
+ +			addList(i&1, I_R1)
+ +			addList(i&2, I_R2)
+ +			addList(i&4, I_M1)
+ +			addList(i&8, I_M2)
+ +			addList(i&16, M1_R1)
+ +			addList(i&32, M2_R1)
+ +
+ +			for r := 1; r <= 3; r++ {
+ +				pool := x509.NewCertPool()
+ +				rootName := ","
+ +				shouldVerify := false
+ +				shouldVerifyFIPS := false
+ +				addRoot := func(cond int, c *boringCertificate) {
+ +					if cond != 0 {
+ +						rootName += "," + c.name
+ +						pool.AddCert(c.cert)
+ +						if reachable[c.org] {
+ +							shouldVerify = true
+ +						}
+ +						if reachableFIPS[c.org] && c.fipsOK {
+ +							shouldVerifyFIPS = true
+ +						}
+ +					}
+ +				}
+ +				addRoot(r&1, R1)
+ +				addRoot(r&2, R2)
+ +				rootName = rootName[1:] // strip leading comma
+ +				testServerCert(t, listName+"->"+rootName[1:], pool, leaf.key, list, shouldVerify)
+ +				testClientCert(t, listName+"->"+rootName[1:]+"(client cert)", pool, leaf.key, list, shouldVerify)
+ +				fipstls.Force()
+ +				testServerCert(t, listName+"->"+rootName[1:]+" (fips)", pool, leaf.key, list, shouldVerifyFIPS)
+ +				testClientCert(t, listName+"->"+rootName[1:]+" (fips, client cert)", pool, leaf.key, list, shouldVerifyFIPS)
+ +				fipstls.Abandon()
+ +			}
+ +		}
+ +	}
+ +}
+ +
+ +const (
+ +	boringCertCA = iota
+ +	boringCertLeaf
+ +	boringCertFIPSOK = 0x80
+ +)
+ +
+ +func boringRSAKey(t *testing.T, size int) *rsa.PrivateKey {
+ +	k, err := rsa.GenerateKey(rand.Reader, size)
+ +	if err != nil {
+ +		t.Fatal(err)
+ +	}
+ +	return k
+ +}
+ +
+ +func boringECDSAKey(t *testing.T, curve elliptic.Curve) *ecdsa.PrivateKey {
+ +	k, err := ecdsa.GenerateKey(curve, rand.Reader)
+ +	if err != nil {
+ +		t.Fatal(err)
+ +	}
+ +	return k
+ +}
+ +
+ +type boringCertificate struct {
+ +	name      string
+ +	org       string
+ +	parentOrg string
+ +	der       []byte
+ +	cert      *x509.Certificate
+ +	key       interface{}
+ +	fipsOK    bool
+ +}
+ +
+ +func boringCert(t *testing.T, name string, key interface{}, parent *boringCertificate, mode int) *boringCertificate {
+ +	org := name
+ +	parentOrg := ""
+ +	if i := strings.Index(org, "_"); i >= 0 {
+ +		org = org[:i]
+ +		parentOrg = name[i+1:]
+ +	}
+ +	tmpl := &x509.Certificate{
+ +		SerialNumber: big.NewInt(1),
+ +		Subject: pkix.Name{
+ +			Organization: []string{org},
+ +		},
+ +		NotBefore: time.Unix(0, 0),
+ +		NotAfter:  time.Unix(0, 0),
+ +
+ +		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+ +		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+ +		BasicConstraintsValid: true,
+ +	}
+ +	if mode&^boringCertFIPSOK == boringCertLeaf {
+ +		tmpl.DNSNames = []string{"example.com"}
+ +	} else {
+ +		tmpl.IsCA = true
+ +		tmpl.KeyUsage |= x509.KeyUsageCertSign
+ +	}
+ +
+ +	var pcert *x509.Certificate
+ +	var pkey interface{}
+ +	if parent != nil {
+ +		pcert = parent.cert
+ +		pkey = parent.key
+ +	} else {
+ +		pcert = tmpl
+ +		pkey = key
+ +	}
+ +
+ +	var pub interface{}
+ +	var desc string
+ +	switch k := key.(type) {
+ +	case *rsa.PrivateKey:
+ +		pub = &k.PublicKey
+ +		desc = fmt.Sprintf("RSA-%d", k.N.BitLen())
+ +	case *ecdsa.PrivateKey:
+ +		pub = &k.PublicKey
+ +		desc = "ECDSA-" + k.Curve.Params().Name
+ +	default:
+ +		t.Fatalf("invalid key %T", key)
+ +	}
+ +
+ +	der, err := x509.CreateCertificate(rand.Reader, tmpl, pcert, pub, pkey)
+ +	if err != nil {
+ +		t.Fatal(err)
+ +	}
+ +	cert, err := x509.ParseCertificate(der)
+ +	if err != nil {
+ +		t.Fatal(err)
+ +	}
+ +
+ +	// Tell isBoringCertificate to enforce FIPS restrictions for this check.
+ +	fipstls.Force()
+ +	defer fipstls.Abandon()
+ +
+ +	fipsOK := mode&boringCertFIPSOK != 0
+ +	if isBoringCertificate(cert) != fipsOK {
+ +		t.Errorf("isBoringCertificate(cert with %s key) = %v, want %v", desc, !fipsOK, fipsOK)
+ +	}
+ +	return &boringCertificate{name, org, parentOrg, der, cert, key, fipsOK}
+ +}
+ +
+ +func boringPool(t *testing.T, list ...*boringCertificate) *x509.CertPool {
+ +	pool := x509.NewCertPool()
+ +	for _, c := range list {
+ +		cert, err := x509.ParseCertificate(c.der)
+ +		if err != nil {
+ +			t.Fatal(err)
+ +		}
+ +		pool.AddCert(cert)
+ +	}
+ +	return pool
+ +}
+ +
+ +func boringList(t *testing.T, list ...*boringCertificate) [][]byte {
+ +	var all [][]byte
+ +	for _, c := range list {
+ +		all = append(all, c.der)
+ +	}
+ +	return all
+ +}
+ +
+ +// realNetPipe is like net.Pipe but returns an actual network socket pair,
+ +// which has buffering that avoids various deadlocks if both sides
+ +// try to speak at the same time.
+ +func realNetPipe(t *testing.T) (net.Conn, net.Conn) {
+ +	l := newLocalListener(t)
+ +	defer l.Close()
+ +	c, err := net.Dial("tcp", l.Addr().String())
+ +	if err != nil {
+ +		t.Fatal(err)
+ +	}
+ +	s, err := l.Accept()
+ +	if err != nil {
+ +		c.Close()
+ +		t.Fatal(err)
+ +	}
+ +	return c, s
+ +}
+diff --cc src/crypto/tls/common.go
+index bf1128dd4e,d4b0286b85..a4641db7a6
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@@ -139,22 -133,19 +133,19 @@@ const 
+  	signatureECDSA uint8 = 3
+  )
+  
+- // signatureAndHash mirrors the TLS 1.2, SignatureAndHashAlgorithm struct. See
+- // RFC 5246, section A.4.1.
+- type signatureAndHash struct {
+- 	hash, signature uint8
+- }
+- 
+ -// supportedSignatureAlgorithms contains the signature and hash algorithms that
+ +// defaultSupportedSignatureAlgorithms contains the signature and hash algorithms that
+  // the code advertises as supported in a TLS 1.2 ClientHello and in a TLS 1.2
+- // CertificateRequest.
+- var defaultSupportedSignatureAlgorithms = []signatureAndHash{
+- 	{hashSHA256, signatureRSA},
+- 	{hashSHA256, signatureECDSA},
+- 	{hashSHA384, signatureRSA},
+- 	{hashSHA384, signatureECDSA},
+- 	{hashSHA1, signatureRSA},
+- 	{hashSHA1, signatureECDSA},
++ // CertificateRequest. The two fields are merged to match with TLS 1.3.
++ // Note that in TLS 1.2, the ECDSA algorithms are not constrained to P-256, etc.
+ -var supportedSignatureAlgorithms = []SignatureScheme{
+++var defaultSupportedSignatureAlgorithms = []SignatureScheme{
++ 	PKCS1WithSHA256,
++ 	ECDSAWithP256AndSHA256,
++ 	PKCS1WithSHA384,
++ 	ECDSAWithP384AndSHA384,
++ 	PKCS1WithSHA512,
++ 	ECDSAWithP521AndSHA512,
++ 	PKCS1WithSHA1,
++ 	ECDSAWithSHA1,
+  }
+  
+  // ConnectionState records basic TLS details about the connection.
+diff --cc src/crypto/tls/handshake_client.go
+index 47a06bde49,dc529c96d6..8ab34c02e5
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@@ -99,11 -85,29 +85,32 @@@ NextCipherSuite
+  	}
+  
+  	if hello.vers >= VersionTLS12 {
+- 		hello.signatureAndHashes = supportedSignatureAlgorithms()
+ -		hello.supportedSignatureAlgorithms = supportedSignatureAlgorithms
+++		hello.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
+++	}
+++	if testingOnlyForceClientHelloSignatureAlgorithms != nil {
+++		hello.supportedSignatureAlgorithms = testingOnlyForceClientHelloSignatureAlgorithms
+  	}
+  
+- 	if testingOnlyForceClientHelloSignatureAndHashes != nil {
+- 		hello.signatureAndHashes = testingOnlyForceClientHelloSignatureAndHashes
++ 	return hello, nil
++ }
++ 
++ // c.out.Mutex <= L; c.handshakeMutex <= L.
++ func (c *Conn) clientHandshake() error {
++ 	if c.config == nil {
++ 		c.config = defaultConfig()
++ 	}
++ 
++ 	// This may be a renegotiation handshake, in which case some fields
++ 	// need to be reset.
++ 	c.didResume = false
++ 
++ 	hello, err := makeClientHello(c.config)
++ 	if err != nil {
++ 		return err
++ 	}
++ 
++ 	if c.handshakes > 0 {
++ 		hello.secureRenegotiation = c.clientFinished[:]
+  	}
+  
+  	var session *ClientSessionState
+diff --cc src/crypto/tls/handshake_messages_test.go
+index 7f3d03a463,37eb748eea..1bf12c9ff2
+--- a/src/crypto/tls/handshake_messages_test.go
++++ b/src/crypto/tls/handshake_messages_test.go
+@@@ -141,7 -145,7 +145,7 @@@ func (*clientHelloMsg) Generate(rand *r
+  		}
+  	}
+  	if rand.Intn(10) > 5 {
+- 		m.signatureAndHashes = supportedSignatureAlgorithms()
+ -		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms
+++		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
+  	}
+  	m.alpnProtocols = make([]string, rand.Intn(5))
+  	for i := range m.alpnProtocols {
+diff --cc src/crypto/tls/handshake_server.go
+index 93e664079f,991b4e9e62..07e388a35e
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@@ -418,7 -418,7 +418,7 @@@ func (hs *serverHandshakeState) doFullH
+  		}
+  		if c.vers >= VersionTLS12 {
+  			certReq.hasSignatureAndHash = true
+- 			certReq.signatureAndHashes = supportedSignatureAlgorithms()
+ -			certReq.supportedSignatureAlgorithms = supportedSignatureAlgorithms
+++			certReq.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
+  		}
+  
+  		// An empty list of certificateAuthorities signals to
+@@@ -519,12 -519,14 +519,14 @@@
+  		}
+  
+  		// Determine the signature type.
+- 		var signatureAndHash signatureAndHash
++ 		var signatureAlgorithm SignatureScheme
++ 		var sigType uint8
+  		if certVerify.hasSignatureAndHash {
+- 			signatureAndHash = certVerify.signatureAndHash
+- 			if !isSupportedSignatureAndHash(signatureAndHash, supportedSignatureAlgorithms()) {
++ 			signatureAlgorithm = certVerify.signatureAlgorithm
+ -			if !isSupportedSignatureAlgorithm(signatureAlgorithm, supportedSignatureAlgorithms) {
+++			if !isSupportedSignatureAlgorithm(signatureAlgorithm, supportedSignatureAlgorithms()) {
+  				return errors.New("tls: unsupported hash function for client certificate")
+  			}
++ 			sigType = signatureFromSignatureScheme(signatureAlgorithm)
+  		} else {
+  			// Before TLS 1.2 the signature algorithm was implicit
+  			// from the key type, and only one hash per signature
+diff --cc src/crypto/tls/key_agreement.go
+index e8a46b8708,3f570b66c6..a168c5b260
+--- a/src/crypto/tls/key_agreement.go
++++ b/src/crypto/tls/key_agreement.go
+@@@ -110,14 -110,14 +110,14 @@@ func md5SHA1Hash(slices [][]byte) []byt
+  }
+  
+  // hashForServerKeyExchange hashes the given slices and returns their digest
+- // and the identifier of the hash function used. The sigAndHash argument is
+- // only used for >= TLS 1.2 and precisely identifies the hash function to use.
+- func hashForServerKeyExchange(sigAndHash signatureAndHash, version uint16, slices ...[]byte) ([]byte, crypto.Hash, error) {
++ // and the identifier of the hash function used. The signatureAlgorithm argument
++ // is only used for >= TLS 1.2 and identifies the hash function to use.
++ func hashForServerKeyExchange(sigType uint8, signatureAlgorithm SignatureScheme, version uint16, slices ...[]byte) ([]byte, crypto.Hash, error) {
+  	if version >= VersionTLS12 {
+- 		if !isSupportedSignatureAndHash(sigAndHash, supportedSignatureAlgorithms()) {
+ -		if !isSupportedSignatureAlgorithm(signatureAlgorithm, supportedSignatureAlgorithms) {
+++		if !isSupportedSignatureAlgorithm(signatureAlgorithm, supportedSignatureAlgorithms()) {
+  			return nil, crypto.Hash(0), errors.New("tls: unsupported hash function used by peer")
+  		}
+- 		hashFunc, err := lookupTLSHash(sigAndHash.hash)
++ 		hashFunc, err := lookupTLSHash(signatureAlgorithm)
+  		if err != nil {
+  			return nil, crypto.Hash(0), err
+  		}
+@@@ -142,15 -142,22 +142,22 @@@ func pickTLS12HashForSignature(sigType 
+  		// If the client didn't specify any signature_algorithms
+  		// extension then we can assume that it supports SHA1. See
+  		// http://tools.ietf.org/html/rfc5246#section-7.4.1.4.1
+- 		return hashSHA1, nil
++ 		switch sigType {
++ 		case signatureRSA:
++ 			return PKCS1WithSHA1, nil
++ 		case signatureECDSA:
++ 			return ECDSAWithSHA1, nil
++ 		default:
++ 			return 0, errors.New("tls: unknown signature algorithm")
++ 		}
+  	}
+  
+- 	for _, sigAndHash := range clientList {
+- 		if sigAndHash.signature != sigType {
++ 	for _, sigAlg := range clientList {
++ 		if signatureFromSignatureScheme(sigAlg) != sigType {
+  			continue
+  		}
+- 		if isSupportedSignatureAndHash(sigAndHash, supportedSignatureAlgorithms()) {
+- 			return sigAndHash.hash, nil
+ -		if isSupportedSignatureAlgorithm(sigAlg, supportedSignatureAlgorithms) {
+++		if isSupportedSignatureAlgorithm(sigAlg, supportedSignatureAlgorithms()) {
++ 			return sigAlg, nil
+  		}
+  	}
+  
+diff --cc src/crypto/tls/prf.go
+index b93ce4fd20,74438f8bc8..7e64535a10
+--- a/src/crypto/tls/prf.go
++++ b/src/crypto/tls/prf.go
+@@@ -310,16 -309,11 +309,11 @@@ func (h finishedHash) serverSum(masterS
+  	return out
+  }
+  
+- // selectClientCertSignatureAlgorithm returns a signatureAndHash to sign a
++ // selectClientCertSignatureAlgorithm returns a SignatureScheme to sign a
+  // client's CertificateVerify with, or an error if none can be found.
+- func (h finishedHash) selectClientCertSignatureAlgorithm(serverList []signatureAndHash, sigType uint8) (signatureAndHash, error) {
+- 	if h.version < VersionTLS12 {
+- 		// Nothing to negotiate before TLS 1.2.
+- 		return signatureAndHash{signature: sigType}, nil
+- 	}
+- 
++ func (h finishedHash) selectClientCertSignatureAlgorithm(serverList []SignatureScheme, sigType uint8) (SignatureScheme, error) {
+  	for _, v := range serverList {
+- 		if v.signature == sigType && isSupportedSignatureAndHash(v, supportedSignatureAlgorithms()) {
+ -		if signatureFromSignatureScheme(v) == sigType && isSupportedSignatureAlgorithm(v, supportedSignatureAlgorithms) {
+++		if signatureFromSignatureScheme(v) == sigType && isSupportedSignatureAlgorithm(v, supportedSignatureAlgorithms()) {
+  			return v, nil
+  		}
+  	}
+diff --cc src/crypto/x509/verify.go
+index 999cb08cf3,7a6bd454f2..d27ee3e249
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@@ -147,6 -174,6 +174,11 @@@ var errNotParsed = errors.New("x509: mi
+  // VerifyOptions contains parameters for Certificate.Verify. It's a structure
+  // because other PKIX verification APIs have ended up needing many options.
+  type VerifyOptions struct {
+++	// IsBoring is a validity check for BoringCrypto.
+++	// If not nil, it will be called to check whether a given certificate
+++	// can be used for constructing verification chains.
+++	IsBoring func(*Certificate) bool
+++
+  	DNSName       string
+  	Intermediates *CertPool
+  	Roots         *CertPool // if nil, the system roots are used
+@@@ -263,13 -770,6 +775,13 @@@ func (c *Certificate) isValid(certType 
+  		}
+  	}
+  
+ +	if opts.IsBoring != nil && !opts.IsBoring(c) {
+ +		// IncompatibleUsage is not quite right here,
+ +		// but it's also the "no chains found" error
+ +		// and is close enough.
+- 		return CertificateInvalidError{c, IncompatibleUsage}
+++		return CertificateInvalidError{c, IncompatibleUsage, ""}
+ +	}
+ +
+  	return nil
+  }
+  
+diff --cc src/runtime/runtime_boring.go
+index 0000000000,0000000000..5a98b20253
+new file mode 100644
+--- /dev/null
++++ b/src/runtime/runtime_boring.go
+@@@ -1,0 -1,0 +1,19 @@@
+++// Copyright 2017 The Go Authors. All rights reserved.
+++// Use of this source code is governed by a BSD-style
+++// license that can be found in the LICENSE file.
+++
+++package runtime
+++
+++import _ "unsafe" // for go:linkname
+++
+++//go:linkname boring_runtime_arg0 crypto/internal/boring.runtime_arg0
+++func boring_runtime_arg0() string {
+++	// On Windows, argslice is not set, and it's too much work to find argv0.
+++	if len(argslice) == 0 {
+++		return ""
+++	}
+++	return argslice[0]
+++}
+++
+++//go:linkname fipstls_runtime_arg0 crypto/internal/boring/fipstls.runtime_arg0
+++func fipstls_runtime_arg0() string { return boring_runtime_arg0() }

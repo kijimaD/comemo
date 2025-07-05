@@ -11,6 +11,23 @@ Date:   Sat Aug 6 02:15:46 2022 +0800
     Reviewed-by: Paul Murphy <murp@ibm.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/obj/ppc64/asm9.go | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index f69299fe2c..94ad7a173b 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -54,11 +54,6 @@ type ctxt9 struct {
+ 
+ // Instruction layout.
+ 
+-const (
+-	funcAlign     = 16
+-	funcAlignMask = funcAlign - 1
+-)
+-
+ const (
+ 	r0iszero = 1
+ )

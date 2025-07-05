@@ -15,7 +15,7 @@ Date:   Sat May 7 18:59:14 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/decl.go            |  8 +--
  src/cmd/compile/internal/types2/methodlist.go      | 79 ----------------------
  src/cmd/compile/internal/types2/methodlist_test.go | 40 -----------
@@ -27,3 +27,655 @@ Date:   Sat May 7 18:59:14 2022 -0400
  src/go/types/named.go                              | 71 +++++++++++++------
  src/go/types/sizeof_test.go                        |  2 +-
  10 files changed, 112 insertions(+), 289 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 008d3698b7..a5d29765c6 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -646,8 +646,8 @@ func (check *Checker) collectMethods(obj *TypeName) {
+ 		// Checker.Files may be called multiple times; additional package files
+ 		// may add methods to already type-checked types. Add pre-existing methods
+ 		// so that we can detect redeclarations.
+-		for i := 0; i < base.methods.Len(); i++ {
+-			m := base.methods.At(i, nil)
++		for i := 0; i < base.NumMethods(); i++ {
++			m := base.Method(i)
+ 			assert(m.name != "_")
+ 			assert(mset.insert(m) == nil)
+ 		}
+@@ -679,8 +679,8 @@ func (check *Checker) collectMethods(obj *TypeName) {
+ func (check *Checker) checkFieldUniqueness(base *Named) {
+ 	if t, _ := base.under().(*Struct); t != nil {
+ 		var mset objset
+-		for i := 0; i < base.methods.Len(); i++ {
+-			m := base.methods.At(i, nil)
++		for i := 0; i < base.NumMethods(); i++ {
++			m := base.Method(i)
+ 			assert(m.name != "_")
+ 			assert(mset.insert(m) == nil)
+ 		}
+diff --git a/src/cmd/compile/internal/types2/methodlist.go b/src/cmd/compile/internal/types2/methodlist.go
+deleted file mode 100644
+index cd6c06c5fb..0000000000
+--- a/src/cmd/compile/internal/types2/methodlist.go
++++ /dev/null
+@@ -1,79 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package types2
+-
+-import "sync"
+-
+-// methodList holds a list of methods that may be lazily resolved by a provided
+-// resolution method.
+-type methodList struct {
+-	methods []*Func
+-
+-	// guards synchronizes the instantiation of lazy methods. For lazy method
+-	// lists, guards is non-nil and of the length passed to newLazyMethodList.
+-	// For non-lazy method lists, guards is nil.
+-	guards *[]sync.Once
+-}
+-
+-// newMethodList creates a non-lazy method list holding the given methods.
+-func newMethodList(methods []*Func) *methodList {
+-	return &methodList{methods: methods}
+-}
+-
+-// newLazyMethodList creates a lazy method list of the given length. Methods
+-// may be resolved lazily for a given index by providing a resolver function.
+-func newLazyMethodList(length int) *methodList {
+-	guards := make([]sync.Once, length)
+-	return &methodList{
+-		methods: make([]*Func, length),
+-		guards:  &guards,
+-	}
+-}
+-
+-// isLazy reports whether the receiver is a lazy method list.
+-func (l *methodList) isLazy() bool {
+-	return l != nil && l.guards != nil
+-}
+-
+-// Add appends a method to the method list if not not already present. Add
+-// panics if the receiver is lazy.
+-func (l *methodList) Add(m *Func) {
+-	assert(!l.isLazy())
+-	if i, _ := lookupMethod(l.methods, m.pkg, m.name, false); i < 0 {
+-		l.methods = append(l.methods, m)
+-	}
+-}
+-
+-// Lookup looks up the method identified by pkg and name in the receiver.
+-// Lookup panics if the receiver is lazy. If foldCase is true, method names
+-// are considered equal if they are equal with case folding.
+-func (l *methodList) Lookup(pkg *Package, name string, foldCase bool) (int, *Func) {
+-	assert(!l.isLazy())
+-	if l == nil {
+-		return -1, nil
+-	}
+-	return lookupMethod(l.methods, pkg, name, foldCase)
+-}
+-
+-// Len returns the length of the method list.
+-func (l *methodList) Len() int {
+-	if l == nil {
+-		return 0
+-	}
+-	return len(l.methods)
+-}
+-
+-// At returns the i'th method of the method list. At panics if i is out of
+-// bounds, or if the receiver is lazy and resolve is nil.
+-func (l *methodList) At(i int, resolve func() *Func) *Func {
+-	if !l.isLazy() {
+-		return l.methods[i]
+-	}
+-	assert(resolve != nil)
+-	(*l.guards)[i].Do(func() {
+-		l.methods[i] = resolve()
+-	})
+-	return l.methods[i]
+-}
+diff --git a/src/cmd/compile/internal/types2/methodlist_test.go b/src/cmd/compile/internal/types2/methodlist_test.go
+deleted file mode 100644
+index 7a183ac7f9..0000000000
+--- a/src/cmd/compile/internal/types2/methodlist_test.go
++++ /dev/null
+@@ -1,40 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package types2
+-
+-import (
+-	"testing"
+-)
+-
+-func TestLazyMethodList(t *testing.T) {
+-	l := newLazyMethodList(2)
+-
+-	if got := l.Len(); got != 2 {
+-		t.Fatalf("Len() = %d, want 2", got)
+-	}
+-
+-	f0 := NewFunc(nopos, nil, "f0", nil)
+-	f1 := NewFunc(nopos, nil, "f1", nil)
+-
+-	// Verify that methodList.At is idempotent, by calling it repeatedly with a
+-	// resolve func that returns different pointer values (f0 or f1).
+-	steps := []struct {
+-		index   int
+-		resolve *Func // the *Func returned by the resolver
+-		want    *Func // the actual *Func returned by methodList.At
+-	}{
+-		{0, f0, f0},
+-		{0, f1, f0},
+-		{1, f1, f1},
+-		{1, f0, f1},
+-	}
+-
+-	for i, step := range steps {
+-		got := l.At(step.index, func() *Func { return step.resolve })
+-		if got != step.want {
+-			t.Errorf("step %d: At(%d, ...) = %s, want %s", i, step.index, got.Name(), step.want.Name())
+-		}
+-	}
+-}
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index 0a2b2aa6b1..77655bc821 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -96,14 +96,16 @@ type Named struct {
+ 	underlying Type           // possibly a *Named during setup; never a *Named once set up completely
+ 	tparams    *TypeParamList // type parameters, or nil
+ 
+-	// methods declared for this type (not the method set of this type).
++	// methods declared for this type (not the method set of this type)
+ 	// Signatures are type-checked lazily.
+ 	// For non-instantiated types, this is a fully populated list of methods. For
+-	// instantiated types, this is a 'lazy' list, and methods are individually
+-	// expanded when they are first accessed.
+-	methods *methodList
++	// instantiated types, methods are individually expanded when they are first
++	// accessed.
++	methods []*Func
++	// number of expanded methods (only valid for instantiated named types)
++	expandedMethods int // expandedMethods <= len(orig.methods)
+ 
+-	// loader may be provided to lazily load type parameters, underlying, and methods.
++	// loader may be provided to lazily load type parameters, underlying type, and methods.
+ 	loader func(*Named) (tparams []*TypeParam, underlying Type, methods []*Func)
+ }
+ 
+@@ -112,7 +114,8 @@ type namedState uint32
+ 
+ const (
+ 	unresolved namedState = iota // tparams, underlying type and methods might be unavailable
+-	resolved
++	resolved                     // resolve has run; methods might be incomplete (for instances)
++	complete                     // all data is known
+ )
+ 
+ // NewNamed returns a new named type for the given type name, underlying type, and associated methods.
+@@ -122,7 +125,7 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
+ 	if _, ok := underlying.(*Named); ok {
+ 		panic("underlying type must not be *Named")
+ 	}
+-	return (*Checker)(nil).newNamed(obj, nil, underlying, newMethodList(methods))
++	return (*Checker)(nil).newNamed(obj, nil, underlying, methods)
+ }
+ 
+ // resolve resolves the type parameters, methods, and underlying type of n.
+@@ -156,8 +159,12 @@ func (n *Named) resolve(ctxt *Context) *Named {
+ 		n.tparams = n.orig.tparams
+ 		n.underlying = underlying
+ 		n.fromRHS = n.orig.fromRHS // for cycle detection
+-		n.methods = newLazyMethodList(n.orig.methods.Len())
+-		n.setState(resolved)
++
++		if len(n.orig.methods) == 0 {
++			n.setState(complete)
++		} else {
++			n.setState(resolved)
++		}
+ 		return n
+ 	}
+ 
+@@ -170,17 +177,18 @@ func (n *Named) resolve(ctxt *Context) *Named {
+ 	// also make the API more future-proof towards further extensions.
+ 	if n.loader != nil {
+ 		assert(n.underlying == nil)
++		assert(n.TypeArgs().Len() == 0) // instances are created by instantiation, in which case n.loader is nil
+ 
+ 		tparams, underlying, methods := n.loader(n)
+ 
+ 		n.tparams = bindTParams(tparams)
+ 		n.underlying = underlying
+ 		n.fromRHS = underlying // for cycle detection
+-		n.methods = newMethodList(methods)
++		n.methods = methods
+ 		n.loader = nil
+ 	}
+ 
+-	n.setState(resolved)
++	n.setState(complete)
+ 	return n
+ }
+ 
+@@ -196,7 +204,7 @@ func (n *Named) setState(state namedState) {
+ }
+ 
+ // newNamed is like NewNamed but with a *Checker receiver and additional orig argument.
+-func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, methods *methodList) *Named {
++func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, methods []*Func) *Named {
+ 	typ := &Named{check: check, obj: obj, orig: orig, fromRHS: underlying, underlying: underlying, methods: methods}
+ 	if typ.orig == nil {
+ 		typ.orig = typ
+@@ -262,14 +270,38 @@ func (t *Named) TypeArgs() *TypeList { return t.targs }
+ // For an ordinary or instantiated type t, the receiver base type of these
+ // methods will be the named type t. For an uninstantiated generic type t, each
+ // method receiver will be instantiated with its receiver type parameters.
+-func (t *Named) NumMethods() int { return t.resolve(nil).methods.Len() }
++func (t *Named) NumMethods() int { return len(t.orig.resolve(nil).methods) }
+ 
+ // Method returns the i'th method of named type t for 0 <= i < t.NumMethods().
+ func (t *Named) Method(i int) *Func {
+ 	t.resolve(nil)
+-	return t.methods.At(i, func() *Func {
+-		return t.expandMethod(i)
+-	})
++
++	if t.state() >= complete {
++		return t.methods[i]
++	}
++
++	assert(t.TypeArgs().Len() > 0) // only instances should have incomplete methods
++
++	t.mu.Lock()
++	defer t.mu.Unlock()
++
++	if len(t.methods) != len(t.orig.methods) {
++		assert(len(t.methods) == 0)
++		t.methods = make([]*Func, len(t.orig.methods))
++	}
++
++	if t.methods[i] == nil {
++		t.methods[i] = t.expandMethod(i)
++		t.expandedMethods++
++
++		// Check if we've created all methods at this point. If we have, mark the
++		// type as fully expanded.
++		if t.expandedMethods == len(t.orig.methods) {
++			t.setState(complete)
++		}
++	}
++
++	return t.methods[i]
+ }
+ 
+ // expandMethod substitutes type arguments in the i'th method for an
+@@ -351,10 +383,9 @@ func (t *Named) SetUnderlying(underlying Type) {
+ func (t *Named) AddMethod(m *Func) {
+ 	assert(t.targs.Len() == 0)
+ 	t.resolve(nil)
+-	if t.methods == nil {
+-		t.methods = newMethodList(nil)
++	if i, _ := lookupMethod(t.methods, m.pkg, m.name, false); i < 0 {
++		t.methods = append(t.methods, m)
+ 	}
+-	t.methods.Add(m)
+ }
+ 
+ func (t *Named) Underlying() Type { return t.resolve(nil).underlying }
+@@ -462,7 +493,7 @@ func (n *Named) lookupMethod(pkg *Package, name string, foldCase bool) (int, *Fu
+ 	// If n is an instance, we may not have yet instantiated all of its methods.
+ 	// Look up the method index in orig, and only instantiate method at the
+ 	// matching index (if any).
+-	i, _ := n.orig.methods.Lookup(pkg, name, foldCase)
++	i, _ := lookupMethod(n.orig.methods, pkg, name, foldCase)
+ 	if i < 0 {
+ 		return -1, nil
+ 	}
+diff --git a/src/cmd/compile/internal/types2/sizeof_test.go b/src/cmd/compile/internal/types2/sizeof_test.go
+index 7ab7abb317..3f0bf8f3c5 100644
+--- a/src/cmd/compile/internal/types2/sizeof_test.go
++++ b/src/cmd/compile/internal/types2/sizeof_test.go
+@@ -31,7 +31,7 @@ func TestSizeof(t *testing.T) {
+ 		{Interface{}, 40, 80},
+ 		{Map{}, 16, 32},
+ 		{Chan{}, 12, 24},
+-		{Named{}, 56, 104},
++		{Named{}, 68, 128},
+ 		{TypeParam{}, 28, 48},
+ 		{term{}, 12, 24},
+ 
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 61c9696948..b5ff1214dd 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -722,8 +722,8 @@ func (check *Checker) collectMethods(obj *TypeName) {
+ 		// Checker.Files may be called multiple times; additional package files
+ 		// may add methods to already type-checked types. Add pre-existing methods
+ 		// so that we can detect redeclarations.
+-		for i := 0; i < base.methods.Len(); i++ {
+-			m := base.methods.At(i, nil)
++		for i := 0; i < base.NumMethods(); i++ {
++			m := base.Method(i)
+ 			assert(m.name != "_")
+ 			assert(mset.insert(m) == nil)
+ 		}
+@@ -749,8 +749,8 @@ func (check *Checker) collectMethods(obj *TypeName) {
+ func (check *Checker) checkFieldUniqueness(base *Named) {
+ 	if t, _ := base.under().(*Struct); t != nil {
+ 		var mset objset
+-		for i := 0; i < base.methods.Len(); i++ {
+-			m := base.methods.At(i, nil)
++		for i := 0; i < base.NumMethods(); i++ {
++			m := base.Method(i)
+ 			assert(m.name != "_")
+ 			assert(mset.insert(m) == nil)
+ 		}
+diff --git a/src/go/types/methodlist.go b/src/go/types/methodlist.go
+deleted file mode 100644
+index afe919013d..0000000000
+--- a/src/go/types/methodlist.go
++++ /dev/null
+@@ -1,79 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package types
+-
+-import "sync"
+-
+-// methodList holds a list of methods that may be lazily resolved by a provided
+-// resolution method.
+-type methodList struct {
+-	methods []*Func
+-
+-	// guards synchronizes the instantiation of lazy methods. For lazy method
+-	// lists, guards is non-nil and of the length passed to newLazyMethodList.
+-	// For non-lazy method lists, guards is nil.
+-	guards *[]sync.Once
+-}
+-
+-// newMethodList creates a non-lazy method list holding the given methods.
+-func newMethodList(methods []*Func) *methodList {
+-	return &methodList{methods: methods}
+-}
+-
+-// newLazyMethodList creates a lazy method list of the given length. Methods
+-// may be resolved lazily for a given index by providing a resolver function.
+-func newLazyMethodList(length int) *methodList {
+-	guards := make([]sync.Once, length)
+-	return &methodList{
+-		methods: make([]*Func, length),
+-		guards:  &guards,
+-	}
+-}
+-
+-// isLazy reports whether the receiver is a lazy method list.
+-func (l *methodList) isLazy() bool {
+-	return l != nil && l.guards != nil
+-}
+-
+-// Add appends a method to the method list if not not already present. Add
+-// panics if the receiver is lazy.
+-func (l *methodList) Add(m *Func) {
+-	assert(!l.isLazy())
+-	if i, _ := lookupMethod(l.methods, m.pkg, m.name, false); i < 0 {
+-		l.methods = append(l.methods, m)
+-	}
+-}
+-
+-// Lookup looks up the method identified by pkg and name in the receiver.
+-// Lookup panics if the receiver is lazy. If foldCase is true, method names
+-// are considered equal if they are equal with case folding.
+-func (l *methodList) Lookup(pkg *Package, name string, foldCase bool) (int, *Func) {
+-	assert(!l.isLazy())
+-	if l == nil {
+-		return -1, nil
+-	}
+-	return lookupMethod(l.methods, pkg, name, foldCase)
+-}
+-
+-// Len returns the length of the method list.
+-func (l *methodList) Len() int {
+-	if l == nil {
+-		return 0
+-	}
+-	return len(l.methods)
+-}
+-
+-// At returns the i'th method of the method list. At panics if i is out of
+-// bounds, or if the receiver is lazy and resolve is nil.
+-func (l *methodList) At(i int, resolve func() *Func) *Func {
+-	if !l.isLazy() {
+-		return l.methods[i]
+-	}
+-	assert(resolve != nil)
+-	(*l.guards)[i].Do(func() {
+-		l.methods[i] = resolve()
+-	})
+-	return l.methods[i]
+-}
+diff --git a/src/go/types/methodlist_test.go b/src/go/types/methodlist_test.go
+deleted file mode 100644
+index e628bce767..0000000000
+--- a/src/go/types/methodlist_test.go
++++ /dev/null
+@@ -1,41 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package types
+-
+-import (
+-	"go/token"
+-	"testing"
+-)
+-
+-func TestLazyMethodList(t *testing.T) {
+-	l := newLazyMethodList(2)
+-
+-	if got := l.Len(); got != 2 {
+-		t.Fatalf("Len() = %d, want 2", got)
+-	}
+-
+-	f0 := NewFunc(token.NoPos, nil, "f0", nil)
+-	f1 := NewFunc(token.NoPos, nil, "f1", nil)
+-
+-	// Verify that methodList.At is idempotent, by calling it repeatedly with a
+-	// resolve func that returns different pointer values (f0 or f1).
+-	steps := []struct {
+-		index   int
+-		resolve *Func // the *Func returned by the resolver
+-		want    *Func // the actual *Func returned by methodList.At
+-	}{
+-		{0, f0, f0},
+-		{0, f1, f0},
+-		{1, f1, f1},
+-		{1, f0, f1},
+-	}
+-
+-	for i, step := range steps {
+-		got := l.At(step.index, func() *Func { return step.resolve })
+-		if got != step.want {
+-			t.Errorf("step %d: At(%d, ...) = %s, want %s", i, step.index, got.Name(), step.want.Name())
+-		}
+-	}
+-}
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index bfb4a11da7..f1c5dd4f81 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -96,14 +96,16 @@ type Named struct {
+ 	underlying Type           // possibly a *Named during setup; never a *Named once set up completely
+ 	tparams    *TypeParamList // type parameters, or nil
+ 
+-	// methods declared for this type (not the method set of this type).
++	// methods declared for this type (not the method set of this type)
+ 	// Signatures are type-checked lazily.
+ 	// For non-instantiated types, this is a fully populated list of methods. For
+-	// instantiated types, this is a 'lazy' list, and methods are individually
+-	// expanded when they are first accessed.
+-	methods *methodList
++	// instantiated types, methods are individually expanded when they are first
++	// accessed.
++	methods []*Func
++	// number of expanded methods (only valid for instantiated named types)
++	expandedMethods int // expandedMethods <= len(orig.methods)
+ 
+-	// loader may be provided to lazily load type parameters, underlying, and methods.
++	// loader may be provided to lazily load type parameters, underlying type, and methods.
+ 	loader func(*Named) (tparams []*TypeParam, underlying Type, methods []*Func)
+ }
+ 
+@@ -112,7 +114,8 @@ type namedState uint32
+ 
+ const (
+ 	unresolved namedState = iota // tparams, underlying type and methods might be unavailable
+-	resolved
++	resolved                     // resolve has run; methods might be incomplete (for instances)
++	complete                     // all data is known
+ )
+ 
+ // NewNamed returns a new named type for the given type name, underlying type, and associated methods.
+@@ -122,7 +125,7 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
+ 	if _, ok := underlying.(*Named); ok {
+ 		panic("underlying type must not be *Named")
+ 	}
+-	return (*Checker)(nil).newNamed(obj, nil, underlying, newMethodList(methods))
++	return (*Checker)(nil).newNamed(obj, nil, underlying, methods)
+ }
+ 
+ // resolve resolves the type parameters, methods, and underlying type of n.
+@@ -156,8 +159,12 @@ func (n *Named) resolve(ctxt *Context) *Named {
+ 		n.tparams = n.orig.tparams
+ 		n.underlying = underlying
+ 		n.fromRHS = n.orig.fromRHS // for cycle detection
+-		n.methods = newLazyMethodList(n.orig.methods.Len())
+-		n.setState(resolved)
++
++		if len(n.orig.methods) == 0 {
++			n.setState(complete)
++		} else {
++			n.setState(resolved)
++		}
+ 		return n
+ 	}
+ 
+@@ -170,17 +177,18 @@ func (n *Named) resolve(ctxt *Context) *Named {
+ 	// also make the API more future-proof towards further extensions.
+ 	if n.loader != nil {
+ 		assert(n.underlying == nil)
++		assert(n.TypeArgs().Len() == 0) // instances are created by instantiation, in which case n.loader is nil
+ 
+ 		tparams, underlying, methods := n.loader(n)
+ 
+ 		n.tparams = bindTParams(tparams)
+ 		n.underlying = underlying
+ 		n.fromRHS = underlying // for cycle detection
+-		n.methods = newMethodList(methods)
++		n.methods = methods
+ 		n.loader = nil
+ 	}
+ 
+-	n.setState(resolved)
++	n.setState(complete)
+ 	return n
+ }
+ 
+@@ -196,7 +204,7 @@ func (n *Named) setState(state namedState) {
+ }
+ 
+ // newNamed is like NewNamed but with a *Checker receiver and additional orig argument.
+-func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, methods *methodList) *Named {
++func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, methods []*Func) *Named {
+ 	typ := &Named{check: check, obj: obj, orig: orig, fromRHS: underlying, underlying: underlying, methods: methods}
+ 	if typ.orig == nil {
+ 		typ.orig = typ
+@@ -264,14 +272,38 @@ func (t *Named) TypeArgs() *TypeList { return t.targs }
+ // For an ordinary or instantiated type t, the receiver base type of these
+ // methods will be the named type t. For an uninstantiated generic type t, each
+ // method receiver will be instantiated with its receiver type parameters.
+-func (t *Named) NumMethods() int { return t.resolve(nil).methods.Len() }
++func (t *Named) NumMethods() int { return len(t.orig.resolve(nil).methods) }
+ 
+ // Method returns the i'th method of named type t for 0 <= i < t.NumMethods().
+ func (t *Named) Method(i int) *Func {
+ 	t.resolve(nil)
+-	return t.methods.At(i, func() *Func {
+-		return t.expandMethod(i)
+-	})
++
++	if t.state() >= complete {
++		return t.methods[i]
++	}
++
++	assert(t.TypeArgs().Len() > 0) // only instances should have incomplete methods
++
++	t.mu.Lock()
++	defer t.mu.Unlock()
++
++	if len(t.methods) != len(t.orig.methods) {
++		assert(len(t.methods) == 0)
++		t.methods = make([]*Func, len(t.orig.methods))
++	}
++
++	if t.methods[i] == nil {
++		t.methods[i] = t.expandMethod(i)
++		t.expandedMethods++
++
++		// Check if we've created all methods at this point. If we have, mark the
++		// type as fully expanded.
++		if t.expandedMethods == len(t.orig.methods) {
++			t.setState(complete)
++		}
++	}
++
++	return t.methods[i]
+ }
+ 
+ // expandMethod substitutes type arguments in the i'th method for an
+@@ -353,10 +385,9 @@ func (t *Named) SetUnderlying(underlying Type) {
+ func (t *Named) AddMethod(m *Func) {
+ 	assert(t.targs.Len() == 0)
+ 	t.resolve(nil)
+-	if t.methods == nil {
+-		t.methods = newMethodList(nil)
++	if i, _ := lookupMethod(t.methods, m.pkg, m.name, false); i < 0 {
++		t.methods = append(t.methods, m)
+ 	}
+-	t.methods.Add(m)
+ }
+ 
+ func (t *Named) Underlying() Type { return t.resolve(nil).underlying }
+@@ -464,7 +495,7 @@ func (n *Named) lookupMethod(pkg *Package, name string, foldCase bool) (int, *Fu
+ 	// If n is an instance, we may not have yet instantiated all of its methods.
+ 	// Look up the method index in orig, and only instantiate method at the
+ 	// matching index (if any).
+-	i, _ := n.orig.methods.Lookup(pkg, name, foldCase)
++	i, _ := lookupMethod(n.orig.methods, pkg, name, foldCase)
+ 	if i < 0 {
+ 		return -1, nil
+ 	}
+diff --git a/src/go/types/sizeof_test.go b/src/go/types/sizeof_test.go
+index 3428eb9191..66a69521d2 100644
+--- a/src/go/types/sizeof_test.go
++++ b/src/go/types/sizeof_test.go
+@@ -30,7 +30,7 @@ func TestSizeof(t *testing.T) {
+ 		{Interface{}, 40, 80},
+ 		{Map{}, 16, 32},
+ 		{Chan{}, 12, 24},
+-		{Named{}, 56, 104},
++		{Named{}, 68, 128},
+ 		{TypeParam{}, 28, 48},
+ 		{term{}, 12, 24},
+ 

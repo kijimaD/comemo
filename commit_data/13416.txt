@@ -7,6 +7,37 @@ Date:   Thu Jun 28 09:46:44 2012 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6350047
-
+---
  src/pkg/path/filepath/path_test.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/path/filepath/path_test.go b/src/pkg/path/filepath/path_test.go
+index ec6af4db7e..ef554dd7fa 100644
+--- a/src/pkg/path/filepath/path_test.go
++++ b/src/pkg/path/filepath/path_test.go
+@@ -20,7 +20,6 @@ type PathTest struct {
+ 
+ var cleantests = []PathTest{
+ 	// Already clean
+-	{"", "."},
+ 	{"abc", "abc"},
+ 	{"abc/def", "abc/def"},
+ 	{"a/b/c", "a/b/c"},
+@@ -31,6 +30,9 @@ var cleantests = []PathTest{
+ 	{"/abc", "/abc"},
+ 	{"/", "/"},
+ 
++	// Empty is current dir
++	{"", "."},
++
+ 	// Remove trailing slash
+ 	{"abc/", "abc"},
+ 	{"abc/def/", "abc/def"},
+@@ -61,6 +63,7 @@ var cleantests = []PathTest{
+ 	{"abc/def/../../..", ".."},
+ 	{"/abc/def/../../..", "/"},
+ 	{"abc/def/../../../ghi/jkl/../../../mno", "../../mno"},
++	{"/../abc", "/abc"},
+ 
+ 	// Combinations
+ 	{"abc/./../def", "def"},

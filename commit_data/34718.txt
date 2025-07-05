@@ -22,10 +22,205 @@ Date:   Wed Nov 8 22:03:19 2017 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go                     | 41 ++++++++++++++++++++++++++++++-
  src/cmd/go/internal/test/test.go          | 33 +++++++++++++++++++++++--
  src/cmd/go/internal/test/testflag.go      |  6 ++++-
  src/cmd/go/testdata/src/sleepy1/p_test.go | 10 ++++++++
  src/cmd/go/testdata/src/sleepy2/p_test.go | 10 ++++++++
  5 files changed, 96 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index ecaa3afeae..02f7c2713d 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -5061,7 +5061,6 @@ func TestGcflagsPatterns(t *testing.T) {
+ 	tg.grepStderrNot("compile.* -N .*-p fmt", "incorrectly built fmt with -N flag")
+ }
+ 
+-// Issue 22644
+ func TestGoTestMinusN(t *testing.T) {
+ 	// Intent here is to verify that 'go test -n' works without crashing.
+ 	// This reuses flag_test.go, but really any test would do.
+@@ -5069,3 +5068,43 @@ func TestGoTestMinusN(t *testing.T) {
+ 	defer tg.cleanup()
+ 	tg.run("test", "testdata/flag_test.go", "-n", "-args", "-v=7")
+ }
++
++func TestGoTestJSON(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.makeTempdir()
++	tg.setenv("GOCACHE", tg.tempdir)
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++
++	// Test that math and fmt output is interlaced.
++	if runtime.GOMAXPROCS(-1) < 2 {
++		tg.setenv("GOMAXPROCS", "2")
++	}
++	// This has the potential to be a flaky test.
++	// Probably the first try will work, but the second try should have
++	// both tests equally cached and should definitely work.
++	for try := 0; ; try++ {
++		tg.run("test", "-json", "-short", "-v", "sleepy1", "sleepy2")
++		state := 0
++		for _, line := range strings.Split(tg.getStdout(), "\n") {
++			if state == 0 && strings.Contains(line, `"Package":"sleepy1"`) {
++				state = 1
++			}
++			if state == 1 && strings.Contains(line, `"Package":"sleepy2"`) {
++				state = 2
++			}
++			if state == 2 && strings.Contains(line, `"Package":"sleepy1"`) {
++				state = 3
++				break
++			}
++		}
++		if state != 3 {
++			if try < 1 {
++				continue
++			}
++			t.Fatalf("did not find fmt interlaced with math")
++		}
++		break
++	}
++}
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index b8778c53f5..c88f68291d 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -21,6 +21,7 @@ import (
+ 	"regexp"
+ 	"sort"
+ 	"strings"
++	"sync"
+ 	"text/template"
+ 	"time"
+ 	"unicode"
+@@ -32,6 +33,7 @@ import (
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/str"
+ 	"cmd/go/internal/work"
++	"cmd/internal/test2json"
+ )
+ 
+ // Break init loop.
+@@ -457,6 +459,7 @@ var (
+ 	testO          string          // -o flag
+ 	testProfile    bool            // some profiling flag
+ 	testNeedBinary bool            // profile needs to keep binary around
++	testJSON       bool            // -json flag
+ 	testV          bool            // -v flag
+ 	testTimeout    string          // -timeout flag
+ 	testArgs       []string
+@@ -1166,6 +1169,21 @@ type runCache struct {
+ 	id2 cache.ActionID
+ }
+ 
++// stdoutMu and lockedStdout provide a locked standard output
++// that guarantees never to interlace writes from multiple
++// goroutines, so that we can have multiple JSON streams writing
++// to a lockedStdout simultaneously and know that events will
++// still be intelligible.
++var stdoutMu sync.Mutex
++
++type lockedStdout struct{}
++
++func (lockedStdout) Write(b []byte) (int, error) {
++	stdoutMu.Lock()
++	defer stdoutMu.Unlock()
++	return os.Stdout.Write(b)
++}
++
+ // builderRunTest is the action for running a test binary.
+ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
+ 	if c.buf == nil {
+@@ -1206,6 +1224,12 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
+ 	cmd.Dir = a.Package.Dir
+ 	cmd.Env = base.EnvForDir(cmd.Dir, cfg.OrigEnv)
+ 	var buf bytes.Buffer
++	var stdout io.Writer = os.Stdout
++	if testJSON {
++		json := test2json.NewConverter(lockedStdout{}, a.Package.ImportPath, test2json.Timestamp)
++		defer json.Close()
++		stdout = json
++	}
+ 	if len(pkgArgs) == 0 || testBench {
+ 		// Stream test output (no buffering) when no package has
+ 		// been given on the command line (implicit current directory)
+@@ -1221,10 +1245,15 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
+ 		// subject to change. It would be nice to remove this special case
+ 		// entirely, but it is surely very helpful to see progress being made
+ 		// when tests are run on slow single-CPU ARM systems.
+-		if testShowPass && (len(pkgs) == 1 || cfg.BuildP == 1) {
++		//
++		// If we're showing JSON output, then display output as soon as
++		// possible even when multiple tests are being run: the JSON output
++		// events are attributed to specific package tests, so interlacing them
++		// is OK.
++		if testShowPass && (len(pkgs) == 1 || cfg.BuildP == 1) || testJSON {
+ 			// Write both to stdout and buf, for possible saving
+ 			// to cache, and for looking for the "no tests to run" message.
+-			cmd.Stdout = io.MultiWriter(os.Stdout, &buf)
++			cmd.Stdout = io.MultiWriter(stdout, &buf)
+ 		} else {
+ 			cmd.Stdout = &buf
+ 		}
+diff --git a/src/cmd/go/internal/test/testflag.go b/src/cmd/go/internal/test/testflag.go
+index 4bfe6b7327..cdf43a7249 100644
+--- a/src/cmd/go/internal/test/testflag.go
++++ b/src/cmd/go/internal/test/testflag.go
+@@ -33,6 +33,7 @@ var testFlagDefn = []*cmdflag.Defn{
+ 	{Name: "covermode"},
+ 	{Name: "coverpkg"},
+ 	{Name: "exec"},
++	{Name: "json", BoolVar: &testJSON},
+ 	{Name: "vet"},
+ 
+ 	// Passed to 6.out, adding a "test." prefix to the name if necessary: -v becomes -test.v.
+@@ -133,8 +134,11 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 			// Arguably should be handled by f.Value, but aren't.
+ 			switch f.Name {
+ 			// bool flags.
+-			case "c", "i", "v", "cover":
++			case "c", "i", "v", "cover", "json":
+ 				cmdflag.SetBool(cmd, f.BoolVar, value)
++				if f.Name == "json" && testJSON {
++					passToTest = append(passToTest, "-test.v")
++				}
+ 			case "o":
+ 				testO = value
+ 				testNeedBinary = true
+diff --git a/src/cmd/go/testdata/src/sleepy1/p_test.go b/src/cmd/go/testdata/src/sleepy1/p_test.go
+new file mode 100644
+index 0000000000..333be7d8e4
+--- /dev/null
++++ b/src/cmd/go/testdata/src/sleepy1/p_test.go
+@@ -0,0 +1,10 @@
++package p
++
++import (
++	"testing"
++	"time"
++)
++
++func Test1(t *testing.T) {
++	time.Sleep(200 * time.Millisecond)
++}
+diff --git a/src/cmd/go/testdata/src/sleepy2/p_test.go b/src/cmd/go/testdata/src/sleepy2/p_test.go
+new file mode 100644
+index 0000000000..333be7d8e4
+--- /dev/null
++++ b/src/cmd/go/testdata/src/sleepy2/p_test.go
+@@ -0,0 +1,10 @@
++package p
++
++import (
++	"testing"
++	"time"
++)
++
++func Test1(t *testing.T) {
++	time.Sleep(200 * time.Millisecond)
++}

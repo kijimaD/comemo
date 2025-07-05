@@ -8,7 +8,40 @@ Date:   Wed Apr 4 23:14:54 2012 +0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5976068
-
+---
  src/run.bash | 5 +++++
  src/run.bat  | 5 +++++
  2 files changed, 10 insertions(+)
+
+diff --git a/src/run.bash b/src/run.bash
+index c2a52a078e..6619fc1fff 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -24,6 +24,11 @@ else
+ 	echo
+ fi
+ 
++# we must unset GOROOT_FINAL before tests, because runtime/debug requires
++# correct access to source code, so if we have GOROOT_FINAL in effect,
++# at least runtime/debug test will fail.
++unset GOROOT_FINAL
++
+ echo '# Testing packages.'
+ time go test std -short -timeout=120s
+ echo
+diff --git a/src/run.bat b/src/run.bat
+index c7a1579728..3bf9e8fc7e 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -25,6 +25,11 @@ if errorlevel 1 goto fail
+ echo.
+ :norebuild
+ 
++:: we must unset GOROOT_FINAL before tests, because runtime/debug requires
++:: correct access to source code, so if we have GOROOT_FINAL in effect,
++:: at least runtime/debug test will fail.
++set GOROOT_FINAL=
++
+ echo # Testing packages.
+ go test std -short -timeout=120s
+ if errorlevel 1 goto fail
